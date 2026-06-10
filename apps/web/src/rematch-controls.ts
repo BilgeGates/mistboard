@@ -67,11 +67,7 @@ function buttonRow(...buttons: HTMLElement[]): HTMLElement {
   return row;
 }
 
-function actionButton(
-  label: string,
-  onClick: () => void,
-  variant?: 'primary',
-): HTMLButtonElement {
+function actionButton(label: string, onClick: () => void, variant?: 'primary'): HTMLButtonElement {
   const button = document.createElement('button');
   button.type = 'button';
   if (variant) button.className = variant;

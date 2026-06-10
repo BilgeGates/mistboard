@@ -65,9 +65,7 @@ function materialBoard(color: Color, missing: PieceRole[] = [], extra: PieceRole
     'g2',
     'h2',
   ];
-  return Object.fromEntries(
-    roles.map((role, index) => [squares[index], { color, role }]),
-  ) as Board;
+  return Object.fromEntries(roles.map((role, index) => [squares[index], { color, role }])) as Board;
 }
 
 function makeRefs() {
@@ -97,7 +95,10 @@ describe('renderCaptures', () => {
       white: [],
     });
 
-    renderCaptures(refs, makeView({ board: materialBoard('black', ['pawn']), perspective: 'black' }));
+    renderCaptures(
+      refs,
+      makeView({ board: materialBoard('black', ['pawn']), perspective: 'black' }),
+    );
 
     expect(captureLabels(refs.capturesTop)).toEqual(['black pawn']);
     expect(captureLabels(refs.capturesBottom)).toEqual(['white pawn']);

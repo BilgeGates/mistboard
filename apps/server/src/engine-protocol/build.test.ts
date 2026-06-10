@@ -25,9 +25,8 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import {
-  darkChessVariant,
   type Color,
-  type EngineObservation,
+  darkChessVariant,
   type GameEvent,
   type GameState,
   type Move,
@@ -224,14 +223,8 @@ test('redaction#3: opp move entirely off-visibility does not leak from/to', () =
   const visible = visibilityBits(obs.visibility_mask);
   const fromIdx = squareIndex('h7');
   const toIdx = squareIndex('h6');
-  assert.ok(
-    !visible.has(fromIdx),
-    `h7 (${fromIdx}) leaked into visibility_mask`,
-  );
-  assert.ok(
-    !visible.has(toIdx),
-    `h6 (${toIdx}) leaked into visibility_mask`,
-  );
+  assert.ok(!visible.has(fromIdx), `h7 (${fromIdx}) leaked into visibility_mask`);
+  assert.ok(!visible.has(toIdx), `h6 (${toIdx}) leaked into visibility_mask`);
   // No visible piece on h7 or h6
   for (const [sqIdx] of obs.visible_pieces) {
     assert.notStrictEqual(sqIdx, fromIdx, 'h7 leaked into visible_pieces');
@@ -395,7 +388,11 @@ test('redaction#6: observationTranscript visibility matches canonical visibility
       events,
       perspective: color,
     });
-    assert.strictEqual(transcript.length, stateAtPly.length, 'transcript covers every ply (including initial)');
+    assert.strictEqual(
+      transcript.length,
+      stateAtPly.length,
+      'transcript covers every ply (including initial)',
+    );
     for (let i = 0; i < transcript.length; i++) {
       const obs = transcript[i];
       const canonical = stateAtPly[i];

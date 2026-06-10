@@ -17,6 +17,7 @@ import {
   heartbeatEngineGameTask,
   reconcileExperimentJob,
 } from './engine-experiments.js';
+import { engineDir, enginePython, engineScript } from './engine-paths.js';
 import {
   type EngineDefinition,
   type EngineMoveDecision,
@@ -30,7 +31,6 @@ import {
   roomTimeControlFromEngine,
   timeoutResult,
 } from './engine-time-policy.js';
-import { engineDir, enginePython, engineScript } from './engine-paths.js';
 
 const HEARTBEAT_EVERY_PLIES = 8;
 

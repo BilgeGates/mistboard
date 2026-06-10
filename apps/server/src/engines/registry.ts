@@ -104,10 +104,10 @@ const PYTHON_ENGINES: Record<string, EngineDefinition> = {
     },
     livePolicy: { timeoutMs: 5_000 },
     notes:
-      'Misty Legacy (v0.9.5 tactical-patches): the pre-GT-CFR first-party engine, '
-      + 'kept in-registry (EvE/records) but hidden from the live picker. '
-      + 'Draw-reduction knobs, '
-      + 'phantom-check guard, recapture exemption.',
+      'Misty Legacy (v0.9.5 tactical-patches): the pre-GT-CFR first-party engine, ' +
+      'kept in-registry (EvE/records) but hidden from the live picker. ' +
+      'Draw-reduction knobs, ' +
+      'phantom-check guard, recapture exemption.',
   },
   // Uses current src/fow_chess/. Skipped by PROD_PLAYABLE_ENGINE_IDS — only
   // available locally via the MISTBOARD_EXTRA_PLAYABLE_ENGINES env var.
@@ -179,9 +179,9 @@ const PYTHON_ENGINES: Record<string, EngineDefinition> = {
     },
     livePolicy: { timeoutMs: 30_000 },
     notes:
-      'Misty 1.0 — GT-CFR/Obscuro v2: gadget-off + king-aware + clock-aware '
-      + 'budget + early-stop + bottom-K. Validated 2026-06-02 (30-0-0 vs Legacy, '
-      + '0 hard failures, |P| max 5.9M, ~72s/game).',
+      'Misty 1.0 — GT-CFR/Obscuro v2: gadget-off + king-aware + clock-aware ' +
+      'budget + early-stop + bottom-K. Validated 2026-06-02 (30-0-0 vs Legacy, ' +
+      '0 hard failures, |P| max 5.9M, ~72s/game).',
   },
   // Dark Mini Xiangqi (7x7) engine. Same EngineV2 core as Misty, parameterized
   // with MiniXiangqiRules; leaf eval is Fairy-Stockfish's built-in minixiangqi
@@ -208,9 +208,9 @@ const PYTHON_ENGINES: Record<string, EngineDefinition> = {
     },
     livePolicy: { timeoutMs: 30_000 },
     notes:
-      'Dark Mini Xiangqi (7x7) — EngineV2(MiniXiangqiRules) + Fairy-Stockfish '
-      + 'minixiangqi leaf eval (material-stub fallback). Served via the dedicated '
-      + 'python-dmx pool (--game dark-mini-xiangqi).',
+      'Dark Mini Xiangqi (7x7) — EngineV2(MiniXiangqiRules) + Fairy-Stockfish ' +
+      'minixiangqi leaf eval (material-stub fallback). Served via the dedicated ' +
+      'python-dmx pool (--game dark-mini-xiangqi).',
   },
   'python-tier1-v0.9.1': {
     id: 'python-tier1-v0.9.1',

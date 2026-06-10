@@ -223,7 +223,10 @@ function buildVisibleState(
 // never overrides a tactical decision.
 function positionalNudge(move: XiangqiMove, mover: XiangqiPiece, color: XiangqiColor): number {
   if (mover.role === 'general') return -4;
-  const forward = color === 'red' ? coordOf(move.to).rank - coordOf(move.from).rank : coordOf(move.from).rank - coordOf(move.to).rank;
+  const forward =
+    color === 'red'
+      ? coordOf(move.to).rank - coordOf(move.from).rank
+      : coordOf(move.from).rank - coordOf(move.to).rank;
   return Math.max(0, forward) * 2;
 }
 
@@ -276,7 +279,8 @@ export function chooseFairMove(
         const fogThreat = capturesEnemy
           ? moverValue * Math.min(1, fogExposure(move.to, visible) / FOG_FULL_RISK_EXPOSURE)
           : 0;
-        score = captureGain - Math.max(visibleThreat, fogThreat) + positionalNudge(move, mover, color);
+        score =
+          captureGain - Math.max(visibleThreat, fogThreat) + positionalNudge(move, mover, color);
       }
     }
 

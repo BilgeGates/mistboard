@@ -22,9 +22,7 @@ export function renderCaptures(refs: CaptureRefs, view: PlayerView | null): void
 
   renderCaptureStrip(
     refs.capturesTop,
-    knownLosses && seat && topCapturer === oppositeColor(seat)
-      ? knownLosses
-      : tally[topCapturer],
+    knownLosses && seat && topCapturer === oppositeColor(seat) ? knownLosses : tally[topCapturer],
     oppositeColor(topCapturer),
   );
   renderCaptureStrip(refs.capturesBottom, tally[bottomCapturer], oppositeColor(bottomCapturer));

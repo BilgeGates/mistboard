@@ -8,8 +8,8 @@
 // use (CONE_QUEEN_BOARD, DISCOVERY_BOARD, DRAFT960_OFFER_A) are exported so the
 // web file imports them back instead of keeping its own copies.
 
-import { type Board, darkChessVariant, type GameState, type PieceRole } from '@mistboard/game';
 import type { Color, Square } from '@mistboard/game';
+import { type Board, darkChessVariant, type GameState, type PieceRole } from '@mistboard/game';
 import type { PieceOnBoard } from './board-svg.js';
 import {
   boardToPieces,

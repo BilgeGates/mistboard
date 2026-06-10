@@ -5,9 +5,9 @@ import {
   createInitialMiniXiangqiState,
   getMiniXiangqiLegalMoves,
   getMiniXiangqiPlayerView,
-  miniXiangqiCoordOf,
   type MiniXiangqiColor,
   type MiniXiangqiSquare,
+  miniXiangqiCoordOf,
 } from '@mistboard/game';
 import type { DarkMiniXiangqiEvent } from '../dark-mini-xiangqi-runtime.js';
 import { buildMiniXiangqiEngineTurnRequest } from './build-mini-xiangqi.js';
@@ -55,7 +55,8 @@ test('DMX request: geometry, color mapping, and variant tag', () => {
   assert.equal(req.color, engineColor === 'red' ? 'white' : 'black');
   // Square indices stay within the 7×7 board (0..48), proving 7-wide geometry.
   for (const obs of req.observationTranscript ?? []) {
-    for (const [idx] of obs.visible_pieces) assert.ok(idx >= 0 && idx <= 48, `idx ${idx} out of 7x7`);
+    for (const [idx] of obs.visible_pieces)
+      assert.ok(idx >= 0 && idx <= 48, `idx ${idx} out of 7x7`);
   }
   // legalMoves equals the perspective's own legal moves.
   const expected = new Set(getMiniXiangqiLegalMoves(state).map((m) => `${m.from}${m.to}`));
@@ -125,8 +126,10 @@ test('DMX request: REDACTION — no hidden enemy piece leaks; own pieces all vis
   const visibleIdx = new Set(view.visibleSquares.map(miniIndex));
 
   // (a) Every reported square — piece or shrouded — is genuinely visible.
-  for (const [idx] of last.visible_pieces) assert.ok(visibleIdx.has(idx), `leaked visible piece @ ${idx}`);
-  for (const [idx] of last.shrouded ?? []) assert.ok(visibleIdx.has(idx), `leaked shrouded @ ${idx}`);
+  for (const [idx] of last.visible_pieces)
+    assert.ok(visibleIdx.has(idx), `leaked visible piece @ ${idx}`);
+  for (const [idx] of last.shrouded ?? [])
+    assert.ok(visibleIdx.has(idx), `leaked shrouded @ ${idx}`);
 
   // (b) No enemy piece sitting on a NON-visible truth square appears anywhere in
   //     the request. This is the core redaction guarantee.
@@ -135,7 +138,9 @@ test('DMX request: REDACTION — no hidden enemy piece leaks; own pieces all vis
     ...(last.shrouded ?? []).map(([i]) => i),
   ]);
   let hiddenEnemies = 0;
-  for (const [sq, piece] of Object.entries(state.board) as Array<[MiniXiangqiSquare, { color: MiniXiangqiColor }]>) {
+  for (const [sq, piece] of Object.entries(state.board) as Array<
+    [MiniXiangqiSquare, { color: MiniXiangqiColor }]
+  >) {
     if (!piece || piece.color !== oppColor) continue;
     const idx = miniIndex(sq);
     if (!visibleIdx.has(idx)) {
@@ -147,9 +152,14 @@ test('DMX request: REDACTION — no hidden enemy piece leaks; own pieces all vis
   assert.ok(hiddenEnemies > 0, 'expected at least one fogged enemy piece');
 
   // (c) The engine sees ALL of its own pieces (own pieces are deterministic).
-  const ownVisible = new Set(last.visible_pieces.filter(([, p]) => p.color === protoOwn).map(([i]) => i));
-  for (const [sq, piece] of Object.entries(state.board) as Array<[MiniXiangqiSquare, { color: MiniXiangqiColor }]>) {
-    if (piece?.color === engineColor) assert.ok(ownVisible.has(miniIndex(sq)), `own piece @ ${sq} missing`);
+  const ownVisible = new Set(
+    last.visible_pieces.filter(([, p]) => p.color === protoOwn).map(([i]) => i),
+  );
+  for (const [sq, piece] of Object.entries(state.board) as Array<
+    [MiniXiangqiSquare, { color: MiniXiangqiColor }]
+  >) {
+    if (piece?.color === engineColor)
+      assert.ok(ownVisible.has(miniIndex(sq)), `own piece @ ${sq} missing`);
   }
 
   // (d) shrouded entries are color-only (type withheld) — structurally a [idx, color] pair.

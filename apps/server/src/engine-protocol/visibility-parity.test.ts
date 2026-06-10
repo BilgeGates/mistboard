@@ -17,12 +17,7 @@ import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import test from 'node:test';
 import { fileURLToPath } from 'node:url';
-import {
-  darkChessVariant,
-  type Color,
-  type GameState,
-  type Square,
-} from '@mistboard/game';
+import { type Color, darkChessVariant, type GameState, type Square } from '@mistboard/game';
 import { squareIndex } from './build.js';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
@@ -65,8 +60,12 @@ for (const c of golden.cases) {
     );
     const engineVisible = maskToIndexSet(c.visibility_mask);
 
-    const onlyServer = [...serverVisible].filter((s) => !engineVisible.has(s)).sort((a, b) => a - b);
-    const onlyEngine = [...engineVisible].filter((s) => !serverVisible.has(s)).sort((a, b) => a - b);
+    const onlyServer = [...serverVisible]
+      .filter((s) => !engineVisible.has(s))
+      .sort((a, b) => a - b);
+    const onlyEngine = [...engineVisible]
+      .filter((s) => !serverVisible.has(s))
+      .sort((a, b) => a - b);
     assert.deepStrictEqual(
       { onlyServer, onlyEngine },
       { onlyServer: [], onlyEngine: [] },

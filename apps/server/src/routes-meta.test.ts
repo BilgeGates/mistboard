@@ -35,11 +35,7 @@ function client(id: string, userId: string | null = null): Client {
   return { id, userId } as unknown as Client;
 }
 
-function room(
-  status: 'playing' | 'waiting',
-  clients: Client[],
-  mode: Room['mode'] = 'pvp',
-): Room {
+function room(status: 'playing' | 'waiting', clients: Client[], mode: Room['mode'] = 'pvp'): Room {
   return {
     clients: new Set(clients),
     mode,

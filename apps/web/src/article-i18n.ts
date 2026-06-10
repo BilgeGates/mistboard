@@ -159,17 +159,17 @@ const ZH_HANS: Record<string, string> = {
     '红黑双方轮流走子，红方先行。每一方开局有 16 枚棋子：一个将（帅）、两个士（仕）、两个象（相）、两个马、两个车、两个炮（砲）和五个兵（卒）。目标是将死对方的将帅。',
   'The board has 9 files and 10 ranks, but pieces sit on the intersections of the lines, not inside squares.':
     '棋盘有 9 条纵线和 10 条横线，但棋子落在线的交叉点上，而不是格子内。',
-  'The **palace** is the 3 by 3 box on each player\'s back side. Generals and advisors must stay inside their own palace. The **river** divides the board in half. Elephants cannot cross it, and soldiers gain sideways movement after crossing it.':
+  "The **palace** is the 3 by 3 box on each player's back side. Generals and advisors must stay inside their own palace. The **river** divides the board in half. Elephants cannot cross it, and soldiers gain sideways movement after crossing it.":
     '**九宫**是每一方底线一侧的 3×3 区域。将帅与士仕必须留在己方九宫之内。**楚河汉界**将棋盘分为两半。象（相）不能过河，而兵（卒）过河之后可以横向走子。',
-  'A piece captures by landing on an enemy-occupied point, and no piece may move through an occupied point. The cannon\'s capturing jump is the only exception. The pieces are listed below in the traditional order.':
+  "A piece captures by landing on an enemy-occupied point, and no piece may move through an occupied point. The cannon's capturing jump is the only exception. The pieces are listed below in the traditional order.":
     '棋子通过落在敌方占据的交叉点上来吃子，而任何棋子都不能穿过被占据的交叉点。炮的吃子跳跃是唯一的例外。下面按传统顺序列出各棋子。',
   '**General:** moves one point horizontally or vertically and can never leave its own palace. The two generals may never face each other along an open file with nothing between them: a move that would expose that line is illegal. In effect, a general guards the file in front of it like a chariot.':
     '**将（帅）：**横向或纵向走一个交叉点，永远不能离开己方九宫。双方的将帅不能在中间无子的同一条纵线上对脸：任何让这条直线暴露出来的走法都是不合法的。实际上，将帅就像一只车那样守住它正前方的纵线。',
   '**Advisor:** moves one point diagonally and, like the general, stays inside the palace.':
     '**士（仕）：**斜向走一个交叉点，与将帅一样必须留在九宫之内。',
-  '**Elephant:** moves exactly two points diagonally and cannot cross the river, so it never leaves its own half. It does not jump: a piece on the midpoint of the diagonal, the elephant\'s eye, blocks the move.':
+  "**Elephant:** moves exactly two points diagonally and cannot cross the river, so it never leaves its own half. It does not jump: a piece on the midpoint of the diagonal, the elephant's eye, blocks the move.":
     '**象（相）：**沿斜线正好走两个交叉点（俗称「象走田」），且不能过河，因此它永远不会离开己方半边。它不能跳越：如果斜线中点（象眼）上有棋子，这步走法就被挡住。',
-  '**Horse:** moves one point orthogonally and then one point diagonally outward, like a chess knight, but it does not jump. If the orthogonal point it steps through, the horse\'s leg, is occupied, the horse cannot move in that direction.':
+  "**Horse:** moves one point orthogonally and then one point diagonally outward, like a chess knight, but it does not jump. If the orthogonal point it steps through, the horse's leg, is occupied, the horse cannot move in that direction.":
     '**马：**先沿横竖方向走一个交叉点，再斜向外走一个交叉点，走「日」字，类似国际象棋的马，但它不能跳越。如果它经过的那个横竖交叉点（马腿）被占据（蹩马腿），马便不能朝那个方向走。',
   '**Chariot:** moves any distance horizontally or vertically and cannot jump, exactly like a rook. It is the strongest piece on the board.':
     '**车：**横向或纵向走任意距离，不能越子，与国际象棋的车完全相同。它是棋盘上最强的棋子。',
@@ -186,7 +186,7 @@ const ZH_HANS: Record<string, string> = {
     '象棋还限制无止境的逼着循环。长将与长捉是不允许的：一方若不断重复同样的进攻，将被判负，而不能借此逼和。比赛规则对何时算作「长」给出了详细的重复判定程序。',
   'A game is drawn when neither side has enough material to checkmate, by a repetition that breaks none of those rules, or when a long run of moves passes with no capture. The no-capture limit depends on the rule set: the World Xiangqi Federation rules use a fifty-move rule, while the Chinese (CXA) rules require at least sixty plies before a draw can be claimed.':
     '当任何一方都没有足够的子力将死对方、出现不违反上述规则的重复局面，或长时间无吃子时，对局判和。无吃子的上限取决于所采用的规则：世界象棋联合会的规则采用五十回合规则，而中国象棋协会（CXA）的规则则要求至少 60 个半回合之后才能提出和棋。',
-  'To see the pieces work together in a real game, step through this 1990 championship between two of xiangqi\'s greatest grandmasters. Playing Black, Liu Dahua checkmates Hu Ronghua, the most dominant champion of the era, in 31 moves.':
+  "To see the pieces work together in a real game, step through this 1990 championship between two of xiangqi's greatest grandmasters. Playing Black, Liu Dahua checkmates Hu Ronghua, the most dominant champion of the era, in 31 moves.":
     '想看棋子在实战中如何协同，可以逐步重演这盘 1990 年、由两位象棋顶尖特级大师对弈的冠军赛。执黑的柳大华用 31 个回合将死了那个时代最具统治力的冠军胡荣华。',
   'Xiangqi is the open-information base game. Add Fog of War for dark xiangqi, where enemy pieces outside your vision disappear and the general falls by capture. Or try the compact board.':
     '象棋是信息公开的底层游戏。为它加上战争迷雾，便得到迷雾象棋：你视野之外的敌方棋子会消失，而将帅由被吃而落败。或者也可以试试更紧凑的棋盘。',
@@ -247,8 +247,7 @@ const ZH_HANS: Record<string, string> = {
     '**五十回合规则：**双方各走五十回合而无任何吃子、也无任何兵的走动。每当有兵走动或有棋子被吃，计数便重新归零。',
   '**Insufficient material:** neither side has enough force to deliver checkmate, such as king versus king, or king and a lone bishop or knight against a bare king.':
     '**子力不足：**任何一方都没有足够的子力完成将死，例如单王对单王，或一王加单象或单马对单王。',
-  '**Agreement:** both players simply agree to a draw.':
-    '**协议和棋：**双方直接同意作和。',
+  '**Agreement:** both players simply agree to a draw.': '**协议和棋：**双方直接同意作和。',
   'A famous game': '一盘名局',
   'To see the pieces work together in a real game, step through Game 11 of the 2014 World Championship in Sochi. Playing White, Magnus Carlsen grinds down Viswanathan Anand in a Berlin endgame to clinch the title; Anand resigns on move 45.':
     '想看棋子在实战中如何协同，可以逐步重演 2014 年索契世界冠军赛的第 11 局。执白的马格努斯·卡尔森在柏林防御残局中逐步磨垮维斯瓦纳坦·阿南德，锁定冠军；阿南德在第 45 回合认输。',
@@ -285,7 +284,7 @@ const ZH_HANS: Record<string, string> = {
   'Pawn moves': '兵的走动',
   Captures: '吃子',
   // paragraphs (markdown links preserved; link text translated, URLs kept)
-  '[Dark chess](https://en.wikipedia.org/wiki/Dark_chess) (also called Fog of War) was invented by Jens Bæk Nielsen and Torben Osted in 1989. It is the implicit-fog version of the idea: no umpire, no scan action. Each side\'s visibility is derived from where its pieces can legally move.':
+  "[Dark chess](https://en.wikipedia.org/wiki/Dark_chess) (also called Fog of War) was invented by Jens Bæk Nielsen and Torben Osted in 1989. It is the implicit-fog version of the idea: no umpire, no scan action. Each side's visibility is derived from where its pieces can legally move.":
     '[迷雾国际象棋](https://en.wikipedia.org/wiki/Dark_chess)（又称「战争迷雾」）由 Jens Bæk Nielsen 与 Torben Osted 于 1989 年发明。它属于「隐式迷雾」的一支：没有裁判，也没有侦察动作。每一方的视野完全由己方棋子的合法走法范围推导而来。',
   'Dark chess is not only about the pieces you see. Fogged squares, missing destinations, and vanished pieces are information too. This concepts series starts with the most useful habit: reading what the fog is telling you.':
     '迷雾国际象棋不只关乎你看得见的棋子。被迷雾遮住的格子、消失的目的地和不见的棋子本身也是信息。这个概念系列从最有用的习惯开始：读懂迷雾正在告诉你的事。',
@@ -294,13 +293,13 @@ const ZH_HANS: Record<string, string> = {
   "Here's the same rule, piece by piece.": '同一条规则，逐子来看。',
   'Vision moves with pieces. When a piece moves, the squares it used to cover go dark (unless another piece still sees them), and the squares it now reaches light up.':
     '视野随棋子移动。当一个棋子走动时，它原先覆盖的格子会重新陷入黑暗（除非另有棋子仍能看到它们），而它新触及的格子则会亮起。',
-  'Notice the rook on d7 sees the queen on b7 and the king on h7, but not a7. A piece\'s vision ends where its movement ends.':
+  "Notice the rook on d7 sees the queen on b7 and the king on h7, but not a7. A piece's vision ends where its movement ends.":
     '注意 d7 的车能看到 b7 的后和 h7 的王，却看不到 a7。棋子的视野止于它走法的尽头。',
   'The game ends when a king is captured. No check, no checkmate, no warning.':
     '当一方的王被吃掉时，对局即告结束。没有将军，没有将死，也没有任何预警。',
-  'Mistboard auto-draws games on threefold repetition (same true position three times, same side to move, same castling and en-passant rights) and the 50-move rule (fifty full moves with no pawn move or capture). Both apply to the true position, not either player\'s view. There is no stalemate draw and no insufficient-material draw.':
+  "Mistboard auto-draws games on threefold repetition (same true position three times, same side to move, same castling and en-passant rights) and the 50-move rule (fifty full moves with no pawn move or capture). Both apply to the true position, not either player's view. There is no stalemate draw and no insufficient-material draw.":
     'Mistboard 会在三次重复局面（同一真实局面出现三次，且轮到走子的一方相同、王车易位权与吃过路兵权也相同）或五十回合规则（连续五十个回合无兵的走动、也无吃子）时自动判和。两条规则都针对真实局面，而非任何一方各自的视野。这里没有逼和，也没有子力不足判和。',
-  'Games auto-draw on threefold repetition (same position three times, same side to move, same castling and en-passant rights) and the 50-move rule (fifty full moves with no pawn move or capture). Both apply to the true position, not either player\'s view. No stalemate, no insufficient-material draw.':
+  "Games auto-draw on threefold repetition (same position three times, same side to move, same castling and en-passant rights) and the 50-move rule (fifty full moves with no pawn move or capture). Both apply to the true position, not either player's view. No stalemate, no insufficient-material draw.":
     '对局会在三次重复局面（同一局面出现三次，且轮到走子的一方相同、王车易位权与吃过路兵权也相同）或五十回合规则（连续五十个回合无兵的走动、也无吃子）时自动判和。两条规则都针对真实局面，而非任何一方各自的视野。这里没有逼和，也没有子力不足判和。',
   'A king may castle out of, through, or into check.':
     '王可以在被将军时易位，可以穿过被攻击的格子易位，也可以易位到被攻击的格子上。',
@@ -318,7 +317,7 @@ const ZH_HANS: Record<string, string> = {
     '兵能看到它可以推进到的格子。若推进格被迷雾遮住，就说明那里有对方的棋子或兵挡着。',
   "Same signal in opening play. After 1.d4 e6 2.Nf3 Bb4, b4 leaves White's view: the b2-pawn no longer pushes there. A Black piece just landed on b4. Pawn, knight, or bishop, and White can't tell which. But c3 and d2 are visible empty, so a bishop would capture the king next move. White has to defend on that assumption.":
     '开局中也有同样的信号。在 1.d4 e6 2.Nf3 Bb4 之后，b4 离开了白方的视野：b2 的兵不再能推进到那里。说明刚有一枚黑方棋子落在了 b4。可能是兵、马或象，白方无从判断是哪一个。但 c3 与 d2 都清晰可见且为空，因此一枚象下一步就能吃掉白王。白方只能按这个最坏的假设来防守。',
-  'When the opponent takes one of your pieces, the capture square falls to fog. You can\'t see what took. Here: White pawn on d5, with four Black attackers around it (c6 pawn, e6 pawn, c7 knight, d7 rook). After 1...exd5, the d5 pawn vanishes. Which Black piece took it?':
+  "When the opponent takes one of your pieces, the capture square falls to fog. You can't see what took. Here: White pawn on d5, with four Black attackers around it (c6 pawn, e6 pawn, c7 knight, d7 rook). After 1...exd5, the d5 pawn vanishes. Which Black piece took it?":
     '当对方吃掉你的一枚棋子时，被吃的那个格子会随即陷入迷雾。你看不到是谁吃的。例如：白方有一个兵在 d5，周围有四个黑方攻击者（c6 兵、e6 兵、c7 马、d7 车）。在 1...exd5 之后，d5 的兵消失了。是哪一枚黑子吃掉了它？',
   'Add a White bishop on h3. Its diagonal keeps e6 in view. After the same 1...exd5, White loses d5 and the bishop sees e6 fall empty. So the e-pawn took.':
     '现在在 h3 添一枚白象。它的斜线让 e6 始终处在视野内。同样走 1...exd5 之后，白方失去 d5，而那枚象看到 e6 变空了。于是可知：是 e 路的兵吃的。',
@@ -328,9 +327,11 @@ const ZH_HANS: Record<string, string> = {
     '这个习惯就是从规则走向策略的桥梁：读懂迷雾，说出危险的可能性，并防住那些会直接结束对局的可能。',
   "Here is a complete game between Mistboard's engine and a human, shown from both player views and the server's full position.":
     '下面是一盘 Mistboard 引擎对阵真人的完整对局，同时展示双方视野和服务器上的完整局面。',
-  'A realistic 41-move game between two decent players.': '一盘两位尚有水平的棋手之间、贴近实战的 41 回合对局。',
-  'Open a board, share the link, play. No account required.': '开一局棋，分享链接，开始对弈。无需注册账号。',
-  'The full source is AGPL-3.0. The visibility logic that powers every position in this article is the same code path Mistboard\'s servers run in production.':
+  'A realistic 41-move game between two decent players.':
+    '一盘两位尚有水平的棋手之间、贴近实战的 41 回合对局。',
+  'Open a board, share the link, play. No account required.':
+    '开一局棋，分享链接，开始对弈。无需注册账号。',
+  "The full source is AGPL-3.0. The visibility logic that powers every position in this article is the same code path Mistboard's servers run in production.":
     '完整源代码以 AGPL-3.0 协议开源。驱动本文每一个局面的视野逻辑，与 Mistboard 服务器在生产环境中运行的是同一段代码。',
   // CTA
   'Play dark chess': '来玩迷雾国际象棋',
@@ -380,7 +381,7 @@ const ZH_HANS: Record<string, string> = {
     '在普通象棋中，目标是将死对方的将帅。如果一方无合法走法，则该方告负。这与西洋的国际象棋不同，那里逼和算作和棋。',
   'The board has 9 files and 10 ranks, but pieces sit on the intersections of the lines, not inside squares. Pieces capture by moving to an enemy-occupied point. You cannot land on your own piece.':
     '棋盘有 9 条纵线和 10 条横线，但棋子落在线的交叉点上，而不是格子内。棋子通过走到敌方占据的交叉点来吃子。你不能落到自己的棋子上。',
-  'The **palace** is the 3 by 3 box on each player\'s back side. Generals and advisors must stay inside their own palace. The **river** divides the board in half. Elephants cannot cross it, and soldiers become stronger after crossing it.':
+  "The **palace** is the 3 by 3 box on each player's back side. Generals and advisors must stay inside their own palace. The **river** divides the board in half. Elephants cannot cross it, and soldiers become stronger after crossing it.":
     '**九宫**是每一方底线一侧的 3×3 区域。将帅与士仕必须留在己方九宫之内。**楚河汉界**将棋盘分为两半。象（相）不能过河，而兵（卒）过河之后会变强。',
   '**General:** moves one point horizontally or vertically. It must stay inside the palace.':
     '**将（帅）：**横向或纵向走一个交叉点。它必须留在九宫之内。',
@@ -447,7 +448,7 @@ const ZH_HANS: Record<string, string> = {
     '每走一步之后，视野都会根据真实局面重新计算，因此隐藏的阻挡子、炮架、马腿、象眼，以及新打开的线路都会立刻改变你所掌握的信息。',
   'Capture the general to win. Checks and checkmates are not announced, and the server does not warn a player who has moved into danger.':
     '擒获将帅即获胜。将军与将死都不会被告知，并且当一方走入危险时，服务器也不会发出警告。',
-  'Games auto-draw on threefold repetition and after 60 plies with no capture. Both are judged from the true position, not either player\'s view. There is no stalemate draw: if the side to move has no legal move, it loses, and with no check to freeze you, this almost never happens.':
+  "Games auto-draw on threefold repetition and after 60 plies with no capture. Both are judged from the true position, not either player's view. There is no stalemate draw: if the side to move has no legal move, it loses, and with no check to freeze you, this almost never happens.":
     '对局会在三次重复局面，以及连续 60 个半回合无吃子时自动判和。两者都依据真实局面判断，而非任何一方各自的视野。这里没有困毙判和：若轮到走子的一方没有合法着法，则判负；而由于没有将军来限制你，这种情况几乎不会发生。',
   'A cannon moves like a chariot when it is not capturing. To capture, it jumps exactly one screen and lands on the first enemy piece beyond it. Under fog, the target is visible and marked, while the screen appears as unknown occupancy.':
     '炮（砲）不吃子时走法与车相同。吃子时，它正好越过一个炮架，落在其后的第一枚敌方棋子上。在迷雾下，目标可见且会被标记，而炮架则显示为未知的占据状态。',
@@ -597,17 +598,17 @@ const ZH_HANT: Record<string, string> = {
     '紅黑雙方輪流走子，紅方先行。每一方開局有 16 枚棋子：一個將（帥）、兩個士（仕）、兩個象（相）、兩個馬、兩個車、兩個炮（砲）和五個兵（卒）。目標是將死對方的將帥。',
   'The board has 9 files and 10 ranks, but pieces sit on the intersections of the lines, not inside squares.':
     '棋盤有 9 條縱線和 10 條橫線，但棋子落在線的交叉點上，而不是格子內。',
-  'The **palace** is the 3 by 3 box on each player\'s back side. Generals and advisors must stay inside their own palace. The **river** divides the board in half. Elephants cannot cross it, and soldiers gain sideways movement after crossing it.':
+  "The **palace** is the 3 by 3 box on each player's back side. Generals and advisors must stay inside their own palace. The **river** divides the board in half. Elephants cannot cross it, and soldiers gain sideways movement after crossing it.":
     '**九宮**是每一方底線一側的 3×3 區域。將帥與士仕必須留在己方九宮之內。**楚河漢界**將棋盤分為兩半。象（相）不能過河，而兵（卒）過河之後可以橫向走子。',
-  'A piece captures by landing on an enemy-occupied point, and no piece may move through an occupied point. The cannon\'s capturing jump is the only exception. The pieces are listed below in the traditional order.':
+  "A piece captures by landing on an enemy-occupied point, and no piece may move through an occupied point. The cannon's capturing jump is the only exception. The pieces are listed below in the traditional order.":
     '棋子透過落在敵方佔據的交叉點上來吃子，而任何棋子都不能穿過被佔據的交叉點。炮的吃子跳躍是唯一的例外。下面按傳統順序列出各棋子。',
   '**General:** moves one point horizontally or vertically and can never leave its own palace. The two generals may never face each other along an open file with nothing between them: a move that would expose that line is illegal. In effect, a general guards the file in front of it like a chariot.':
     '**將（帥）：**橫向或縱向走一個交叉點，永遠不能離開己方九宮。雙方的將帥不能在中間無子的同一條縱線上對臉：任何讓這條直線暴露出來的走法都是不合法的。實際上，將帥就像一隻車那樣守住它正前方的縱線。',
   '**Advisor:** moves one point diagonally and, like the general, stays inside the palace.':
     '**士（仕）：**斜向走一個交叉點，與將帥一樣必須留在九宮之內。',
-  '**Elephant:** moves exactly two points diagonally and cannot cross the river, so it never leaves its own half. It does not jump: a piece on the midpoint of the diagonal, the elephant\'s eye, blocks the move.':
+  "**Elephant:** moves exactly two points diagonally and cannot cross the river, so it never leaves its own half. It does not jump: a piece on the midpoint of the diagonal, the elephant's eye, blocks the move.":
     '**象（相）：**沿斜線正好走兩個交叉點（俗稱「象走田」），且不能過河，因此牠永遠不會離開己方半邊。牠不能跳越：如果斜線中點（象眼）上有棋子，這步走法就被擋住。',
-  '**Horse:** moves one point orthogonally and then one point diagonally outward, like a chess knight, but it does not jump. If the orthogonal point it steps through, the horse\'s leg, is occupied, the horse cannot move in that direction.':
+  "**Horse:** moves one point orthogonally and then one point diagonally outward, like a chess knight, but it does not jump. If the orthogonal point it steps through, the horse's leg, is occupied, the horse cannot move in that direction.":
     '**馬：**先沿橫豎方向走一個交叉點，再斜向外走一個交叉點，走「日」字，類似西洋棋的騎士，但牠不能跳越。如果牠經過的那個橫豎交叉點（馬腿）被佔據（蹩馬腿），馬便不能朝那個方向走。',
   '**Chariot:** moves any distance horizontally or vertically and cannot jump, exactly like a rook. It is the strongest piece on the board.':
     '**車：**橫向或縱向走任意距離，不能越子，與西洋棋的城堡完全相同。牠是棋盤上最強的棋子。',
@@ -624,7 +625,7 @@ const ZH_HANT: Record<string, string> = {
     '象棋還限制無止境的逼著循環。長將與長捉是不允許的：一方若不斷重複同樣的進攻，將被判負，而不能藉此逼和。比賽規則對何時算作「長」給出了詳細的重複判定程序。',
   'A game is drawn when neither side has enough material to checkmate, by a repetition that breaks none of those rules, or when a long run of moves passes with no capture. The no-capture limit depends on the rule set: the World Xiangqi Federation rules use a fifty-move rule, while the Chinese (CXA) rules require at least sixty plies before a draw can be claimed.':
     '當任何一方都沒有足夠的子力將死對方、出現不違反上述規則的重複局面，或長時間無吃子時，對局判和。無吃子的上限取決於所採用的規則：世界象棋聯合會的規則採用五十回合規則，而中國象棋協會（CXA）的規則則要求至少 60 個半回合之後才能提出和棋。',
-  'To see the pieces work together in a real game, step through this 1990 championship between two of xiangqi\'s greatest grandmasters. Playing Black, Liu Dahua checkmates Hu Ronghua, the most dominant champion of the era, in 31 moves.':
+  "To see the pieces work together in a real game, step through this 1990 championship between two of xiangqi's greatest grandmasters. Playing Black, Liu Dahua checkmates Hu Ronghua, the most dominant champion of the era, in 31 moves.":
     '想看棋子在實戰中如何協同，可以逐步重演這盤 1990 年、由兩位象棋頂尖特級大師對弈的冠軍賽。執黑的柳大華用 31 個回合將死了那個時代最具統治力的冠軍胡榮華。',
   'Xiangqi is the open-information base game. Add Fog of War for dark xiangqi, where enemy pieces outside your vision disappear and the general falls by capture. Or try the compact board.':
     '象棋是資訊公開的底層遊戲。為它加上戰爭迷霧，便得到迷霧象棋：你視野之外的敵方棋子會消失，而將帥由被吃而落敗。或者也可以試試更緊湊的棋盤。',
@@ -685,8 +686,7 @@ const ZH_HANT: Record<string, string> = {
     '**五十回合規則：**雙方各走五十回合而無任何吃子、也無任何兵的走動。每當有兵走動或有棋子被吃，計數便重新歸零。',
   '**Insufficient material:** neither side has enough force to deliver checkmate, such as king versus king, or king and a lone bishop or knight against a bare king.':
     '**子力不足：**任何一方都沒有足夠的子力完成將死，例如單王對單王，或一王加單象或單馬對單王。',
-  '**Agreement:** both players simply agree to a draw.':
-    '**協議和棋：**雙方直接同意作和。',
+  '**Agreement:** both players simply agree to a draw.': '**協議和棋：**雙方直接同意作和。',
   'A famous game': '一盤名局',
   'To see the pieces work together in a real game, step through Game 11 of the 2014 World Championship in Sochi. Playing White, Magnus Carlsen grinds down Viswanathan Anand in a Berlin endgame to clinch the title; Anand resigns on move 45.':
     '想看棋子在實戰中如何協同，可以逐步重演 2014 年索契世界冠軍賽的第 11 局。執白的馬格努斯·卡爾森在柏林防禦殘局中逐步磨垮維斯瓦納坦·阿南德，鎖定冠軍；阿南德在第 45 回合認輸。',
@@ -718,7 +718,7 @@ const ZH_HANT: Record<string, string> = {
   'En passant': '吃過路兵',
   'Pawn moves': '兵的走動',
   Captures: '吃子',
-  '[Dark chess](https://en.wikipedia.org/wiki/Dark_chess) (also called Fog of War) was invented by Jens Bæk Nielsen and Torben Osted in 1989. It is the implicit-fog version of the idea: no umpire, no scan action. Each side\'s visibility is derived from where its pieces can legally move.':
+  "[Dark chess](https://en.wikipedia.org/wiki/Dark_chess) (also called Fog of War) was invented by Jens Bæk Nielsen and Torben Osted in 1989. It is the implicit-fog version of the idea: no umpire, no scan action. Each side's visibility is derived from where its pieces can legally move.":
     '[迷霧國際象棋](https://en.wikipedia.org/wiki/Dark_chess)（又稱「戰爭迷霧」）由 Jens Bæk Nielsen 與 Torben Osted 於 1989 年發明。它屬於「隱式迷霧」的一支：沒有裁判，也沒有偵察動作。每一方的視野完全由己方棋子的合法走法範圍推導而來。',
   'Dark chess is not only about the pieces you see. Fogged squares, missing destinations, and vanished pieces are information too. This concepts series starts with the most useful habit: reading what the fog is telling you.':
     '迷霧國際象棋不只關乎你看得見的棋子。被迷霧遮住的格子、消失的目的地和不見的棋子本身也是資訊。這個概念系列從最有用的習慣開始：讀懂迷霧正在告訴你的事。',
@@ -727,13 +727,13 @@ const ZH_HANT: Record<string, string> = {
   "Here's the same rule, piece by piece.": '同一條規則，逐子來看。',
   'Vision moves with pieces. When a piece moves, the squares it used to cover go dark (unless another piece still sees them), and the squares it now reaches light up.':
     '視野隨棋子移動。當一個棋子走動時，它原先覆蓋的格子會重新陷入黑暗（除非另有棋子仍能看到它們），而它新觸及的格子則會亮起。',
-  'Notice the rook on d7 sees the queen on b7 and the king on h7, but not a7. A piece\'s vision ends where its movement ends.':
+  "Notice the rook on d7 sees the queen on b7 and the king on h7, but not a7. A piece's vision ends where its movement ends.":
     '注意 d7 的車能看到 b7 的后和 h7 的王，卻看不到 a7。棋子的視野止於它走法的盡頭。',
   'The game ends when a king is captured. No check, no checkmate, no warning.':
     '當一方的王被吃掉時，對局即告結束。沒有將軍，沒有將死，也沒有任何預警。',
-  'Mistboard auto-draws games on threefold repetition (same true position three times, same side to move, same castling and en-passant rights) and the 50-move rule (fifty full moves with no pawn move or capture). Both apply to the true position, not either player\'s view. There is no stalemate draw and no insufficient-material draw.':
+  "Mistboard auto-draws games on threefold repetition (same true position three times, same side to move, same castling and en-passant rights) and the 50-move rule (fifty full moves with no pawn move or capture). Both apply to the true position, not either player's view. There is no stalemate draw and no insufficient-material draw.":
     'Mistboard 會在三次重複局面（同一真實局面出現三次，且輪到走子的一方相同、王車易位權與吃過路兵權也相同）或五十回合規則（連續五十個回合無兵的走動、也無吃子）時自動判和。兩條規則都針對真實局面，而非任何一方各自的視野。這裡沒有逼和，也沒有子力不足判和。',
-  'Games auto-draw on threefold repetition (same position three times, same side to move, same castling and en-passant rights) and the 50-move rule (fifty full moves with no pawn move or capture). Both apply to the true position, not either player\'s view. No stalemate, no insufficient-material draw.':
+  "Games auto-draw on threefold repetition (same position three times, same side to move, same castling and en-passant rights) and the 50-move rule (fifty full moves with no pawn move or capture). Both apply to the true position, not either player's view. No stalemate, no insufficient-material draw.":
     '對局會在三次重複局面（同一局面出現三次，且輪到走子的一方相同、王車易位權與吃過路兵權也相同）或五十回合規則（連續五十個回合無兵的走動、也無吃子）時自動判和。兩條規則都針對真實局面，而非任何一方各自的視野。這裡沒有逼和，也沒有子力不足判和。',
   'A king may castle out of, through, or into check.':
     '王可以在被將軍時易位，可以穿過被攻擊的格子易位，也可以易位到被攻擊的格子上。',
@@ -751,7 +751,7 @@ const ZH_HANT: Record<string, string> = {
     '兵能看到它可以推進到的格子。若推進格被迷霧遮住，就說明那裡有對方的棋子或兵擋著。',
   "Same signal in opening play. After 1.d4 e6 2.Nf3 Bb4, b4 leaves White's view: the b2-pawn no longer pushes there. A Black piece just landed on b4. Pawn, knight, or bishop, and White can't tell which. But c3 and d2 are visible empty, so a bishop would capture the king next move. White has to defend on that assumption.":
     '開局中也有同樣的信號。在 1.d4 e6 2.Nf3 Bb4 之後，b4 離開了白方的視野：b2 的兵不再能推進到那裡。說明剛有一枚黑方棋子落在了 b4。可能是兵、馬或象，白方無從判斷是哪一個。但 c3 與 d2 都清晰可見且為空，因此一枚象下一步就能吃掉白王。白方只能按這個最壞的假設來防守。',
-  'When the opponent takes one of your pieces, the capture square falls to fog. You can\'t see what took. Here: White pawn on d5, with four Black attackers around it (c6 pawn, e6 pawn, c7 knight, d7 rook). After 1...exd5, the d5 pawn vanishes. Which Black piece took it?':
+  "When the opponent takes one of your pieces, the capture square falls to fog. You can't see what took. Here: White pawn on d5, with four Black attackers around it (c6 pawn, e6 pawn, c7 knight, d7 rook). After 1...exd5, the d5 pawn vanishes. Which Black piece took it?":
     '當對方吃掉你的一枚棋子時，被吃的那個格子會隨即陷入迷霧。你看不到是誰吃的。例如：白方有一個兵在 d5，周圍有四個黑方攻擊者（c6 兵、e6 兵、c7 馬、d7 車）。在 1...exd5 之後，d5 的兵消失了。是哪一枚黑子吃掉了它？',
   'Add a White bishop on h3. Its diagonal keeps e6 in view. After the same 1...exd5, White loses d5 and the bishop sees e6 fall empty. So the e-pawn took.':
     '現在在 h3 添一枚白象。它的斜線讓 e6 始終處在視野內。同樣走 1...exd5 之後，白方失去 d5，而那枚象看到 e6 變空了。於是可知：是 e 路的兵吃的。',
@@ -761,9 +761,11 @@ const ZH_HANT: Record<string, string> = {
     '這個習慣就是從規則走向策略的橋樑：讀懂迷霧，說出危險的可能性，並防住那些會直接結束對局的可能。',
   "Here is a complete game between Mistboard's engine and a human, shown from both player views and the server's full position.":
     '下面是一盤 Mistboard 引擎對陣真人的完整對局，同時展示雙方視野和伺服器上的完整局面。',
-  'A realistic 41-move game between two decent players.': '一盤兩位尚有水平的棋手之間、貼近實戰的 41 回合對局。',
-  'Open a board, share the link, play. No account required.': '開一局棋，分享連結，開始對弈。無需註冊帳號。',
-  'The full source is AGPL-3.0. The visibility logic that powers every position in this article is the same code path Mistboard\'s servers run in production.':
+  'A realistic 41-move game between two decent players.':
+    '一盤兩位尚有水平的棋手之間、貼近實戰的 41 回合對局。',
+  'Open a board, share the link, play. No account required.':
+    '開一局棋，分享連結，開始對弈。無需註冊帳號。',
+  "The full source is AGPL-3.0. The visibility logic that powers every position in this article is the same code path Mistboard's servers run in production.":
     '完整原始碼以 AGPL-3.0 協議開源。驅動本文每一個局面的視野邏輯，與 Mistboard 伺服器在生產環境中執行的是同一段程式碼。',
   'Play dark chess': '來玩迷霧國際象棋',
   'Read dark chess concepts': '閱讀迷霧國際象棋概念',
@@ -811,7 +813,7 @@ const ZH_HANT: Record<string, string> = {
     '在普通象棋中，目標是將死對方的將帥。如果一方無合法走法，則該方告負。這與西洋棋不同，那裡逼和算作和棋。',
   'The board has 9 files and 10 ranks, but pieces sit on the intersections of the lines, not inside squares. Pieces capture by moving to an enemy-occupied point. You cannot land on your own piece.':
     '棋盤有 9 條縱線和 10 條橫線，但棋子落在線的交叉點上，而不是格子內。棋子透過走到敵方佔據的交叉點來吃子。你不能落到自己的棋子上。',
-  'The **palace** is the 3 by 3 box on each player\'s back side. Generals and advisors must stay inside their own palace. The **river** divides the board in half. Elephants cannot cross it, and soldiers become stronger after crossing it.':
+  "The **palace** is the 3 by 3 box on each player's back side. Generals and advisors must stay inside their own palace. The **river** divides the board in half. Elephants cannot cross it, and soldiers become stronger after crossing it.":
     '**九宮**是每一方底線一側的 3×3 區域。將帥與士仕必須留在己方九宮之內。**楚河漢界**將棋盤分為兩半。象（相）不能過河，而兵（卒）過河之後會變強。',
   '**General:** moves one point horizontally or vertically. It must stay inside the palace.':
     '**將（帥）：**橫向或縱向走一個交叉點。它必須留在九宮之內。',
@@ -878,7 +880,7 @@ const ZH_HANT: Record<string, string> = {
     '每走一步之後，視野都會根據真實局面重新計算，因此隱藏的阻擋子、炮架、馬腿、象眼，以及新打開的線路都會立刻改變你所掌握的資訊。',
   'Capture the general to win. Checks and checkmates are not announced, and the server does not warn a player who has moved into danger.':
     '擒獲將帥即獲勝。將軍與將死都不會被告知，並且當一方走入危險時，伺服器也不會發出警告。',
-  'Games auto-draw on threefold repetition and after 60 plies with no capture. Both are judged from the true position, not either player\'s view. There is no stalemate draw: if the side to move has no legal move, it loses, and with no check to freeze you, this almost never happens.':
+  "Games auto-draw on threefold repetition and after 60 plies with no capture. Both are judged from the true position, not either player's view. There is no stalemate draw: if the side to move has no legal move, it loses, and with no check to freeze you, this almost never happens.":
     '對局會在三次重複局面，以及連續 60 個半回合無吃子時自動判和。兩者都依據真實局面判斷，而非任何一方各自的視野。這裡沒有困斃判和：若輪到走子的一方沒有合法著法，則判負；而由於沒有將軍來限制你，這種情況幾乎不會發生。',
   'A cannon moves like a chariot when it is not capturing. To capture, it jumps exactly one screen and lands on the first enemy piece beyond it. Under fog, the target is visible and marked, while the screen appears as unknown occupancy.':
     '炮（砲）不吃子時走法與車相同。吃子時，牠正好越過一個炮架，落在其後的第一枚敵方棋子上。在迷霧下，目標可見且會被標記，而炮架則顯示為未知的佔據狀態。',
@@ -920,7 +922,7 @@ export function translateArticle(article: Article, lang: ArticleLang): Article {
 // article resolves in both zh scripts, so an English edit that orphans a
 // dictionary key fails the build instead of silently rendering English.
 export function hasTranslation(lang: ArticleLang, text: string): boolean {
-  return Object.prototype.hasOwnProperty.call(ARTICLE_DICTS[lang], text);
+  return Object.hasOwn(ARTICLE_DICTS[lang], text);
 }
 
 // Every authored dictionary key for `lang`. The coverage reporter uses this to

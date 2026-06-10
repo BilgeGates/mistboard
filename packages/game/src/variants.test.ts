@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import type { GameState, Move } from './types.js';
-import { draft960Variant, darkChessVariant, variantForId } from './variants.js';
+import { darkChessVariant, draft960Variant, variantForId } from './variants.js';
 
 test('variantForId resolves known slugs and throws on anything else', () => {
   assert.equal(variantForId('dark-chess'), darkChessVariant);

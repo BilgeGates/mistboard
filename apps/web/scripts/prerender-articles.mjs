@@ -31,13 +31,34 @@ define('window', win);
 define('document', win.document);
 define('navigator', win.navigator);
 for (const key of [
-  'HTMLElement', 'HTMLHeadingElement', 'HTMLParagraphElement', 'HTMLAnchorElement',
-  'HTMLLIElement', 'HTMLUListElement', 'Element', 'Node', 'SVGElement', 'SVGSVGElement',
-  'SVGGElement', 'SVGPathElement', 'SVGRectElement', 'SVGCircleElement',
-  'SVGTextElement', 'SVGUseElement', 'SVGLineElement', 'SVGImageElement',
-  'CustomEvent', 'Event', 'DOMParser', 'customElements',
-  'IntersectionObserver', 'MutationObserver', 'ResizeObserver',
-  'getComputedStyle', 'requestAnimationFrame', 'cancelAnimationFrame',
+  'HTMLElement',
+  'HTMLHeadingElement',
+  'HTMLParagraphElement',
+  'HTMLAnchorElement',
+  'HTMLLIElement',
+  'HTMLUListElement',
+  'Element',
+  'Node',
+  'SVGElement',
+  'SVGSVGElement',
+  'SVGGElement',
+  'SVGPathElement',
+  'SVGRectElement',
+  'SVGCircleElement',
+  'SVGTextElement',
+  'SVGUseElement',
+  'SVGLineElement',
+  'SVGImageElement',
+  'CustomEvent',
+  'Event',
+  'DOMParser',
+  'customElements',
+  'IntersectionObserver',
+  'MutationObserver',
+  'ResizeObserver',
+  'getComputedStyle',
+  'requestAnimationFrame',
+  'cancelAnimationFrame',
 ]) {
   if (win[key] !== undefined && globalThis[key] === undefined) define(key, win[key]);
 }
@@ -55,16 +76,31 @@ function escapeHtml(str) {
 function injectPageMeta(html, meta) {
   let out = html
     .replace(/<title>[^<]*<\/title>/, `<title>${escapeHtml(meta.title)}</title>`)
-    .replace(/(<meta\s+name="description"\s+content=")[^"]*(")/, `$1${escapeHtml(meta.description)}$2`)
+    .replace(
+      /(<meta\s+name="description"\s+content=")[^"]*(")/,
+      `$1${escapeHtml(meta.description)}$2`,
+    )
     .replace(/(<meta\s+property="og:title"\s+content=")[^"]*(")/, `$1${escapeHtml(meta.title)}$2`)
-    .replace(/(<meta\s+property="og:description"\s+content=")[^"]*(")/, `$1${escapeHtml(meta.description)}$2`)
+    .replace(
+      /(<meta\s+property="og:description"\s+content=")[^"]*(")/,
+      `$1${escapeHtml(meta.description)}$2`,
+    )
     .replace(/(<meta\s+property="og:url"\s+content=")[^"]*(")/, `$1${escapeHtml(meta.url)}$2`)
     .replace(/(<meta\s+name="twitter:title"\s+content=")[^"]*(")/, `$1${escapeHtml(meta.title)}$2`)
-    .replace(/(<meta\s+name="twitter:description"\s+content=")[^"]*(")/, `$1${escapeHtml(meta.description)}$2`);
+    .replace(
+      /(<meta\s+name="twitter:description"\s+content=")[^"]*(")/,
+      `$1${escapeHtml(meta.description)}$2`,
+    );
   if (meta.imageUrl) {
     out = out
-      .replace(/(<meta\s+property="og:image"\s+content=")[^"]*(")/, `$1${escapeHtml(meta.imageUrl)}$2`)
-      .replace(/(<meta\s+name="twitter:image"\s+content=")[^"]*(")/, `$1${escapeHtml(meta.imageUrl)}$2`);
+      .replace(
+        /(<meta\s+property="og:image"\s+content=")[^"]*(")/,
+        `$1${escapeHtml(meta.imageUrl)}$2`,
+      )
+      .replace(
+        /(<meta\s+name="twitter:image"\s+content=")[^"]*(")/,
+        `$1${escapeHtml(meta.imageUrl)}$2`,
+      );
   }
   return out;
 }
@@ -153,7 +189,9 @@ try {
       console.log(`prerendered ${v.urlPrefix}/${base}/${article.slug} (lang=${v.htmlLang})`);
     }
   }
-  console.log(`done: ${count} page(s) across ${published.length} article(s) × ${variants.length} langs`);
+  console.log(
+    `done: ${count} page(s) across ${published.length} article(s) × ${variants.length} langs`,
+  );
 
   // Homepage: bake the static landing shell so crawlers, no-JS clients, and
   // first paint get real content (heading, play panel, article links, footer)

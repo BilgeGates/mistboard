@@ -1,11 +1,6 @@
 import type { Color, PieceRole, Square } from '@mistboard/game';
 import { PIECE_SVGS } from './pieces.js';
-import {
-  type BoardPalette,
-  BROWN_PALETTE,
-  FOG_TILE_SIZE,
-  type FogStyle,
-} from './tokens.js';
+import { type BoardPalette, BROWN_PALETTE, FOG_TILE_SIZE, type FogStyle } from './tokens.js';
 
 export type PieceOnBoard = { file: number; rank: number; color: Color; role: PieceRole };
 
@@ -108,7 +103,7 @@ export function renderBoardSvg(
           ? isLight
             ? palette.fogLightFill
             : palette.fogDarkFill
-        : `url(#${isLight ? FOG_LIGHT_PATTERN_ID : FOG_DARK_PATTERN_ID})`;
+          : `url(#${isLight ? FOG_LIGHT_PATTERN_ID : FOG_DARK_PATTERN_ID})`;
     out.push(`<rect x="${fx}" y="${fy}" width="${sq}" height="${sq}" fill="${fill}"/>`);
     if (fogStyle !== 'veil') {
       // Inset 1 px cream shadow matching chessground's non-veil fog styles.

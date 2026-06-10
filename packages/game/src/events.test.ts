@@ -335,7 +335,13 @@ test('starts a frozen Fog of War clock after seats are ready (arms after both fi
   // White's first move spends no time but is granted the increment; still frozen.
   const afterWhite = replayGameEvents([
     ...baseEvents,
-    { type: 'move-played', at: 10_000, roomId: 'clocked-fog-room', color: 'white', move: { from: 'e2', to: 'e4' } },
+    {
+      type: 'move-played',
+      at: 10_000,
+      roomId: 'clocked-fog-room',
+      color: 'white',
+      move: { from: 'e2', to: 'e4' },
+    },
   ]);
   assert.equal(afterWhite.state.clock?.activeColor, null);
   assert.equal(afterWhite.state.clock?.runningSince, null);
@@ -345,8 +351,20 @@ test('starts a frozen Fog of War clock after seats are ready (arms after both fi
   // Black's first move arms the clock: white (next to move) begins ticking.
   const afterBlack = replayGameEvents([
     ...baseEvents,
-    { type: 'move-played', at: 10_000, roomId: 'clocked-fog-room', color: 'white', move: { from: 'e2', to: 'e4' } },
-    { type: 'move-played', at: 20_000, roomId: 'clocked-fog-room', color: 'black', move: { from: 'e7', to: 'e5' } },
+    {
+      type: 'move-played',
+      at: 10_000,
+      roomId: 'clocked-fog-room',
+      color: 'white',
+      move: { from: 'e2', to: 'e4' },
+    },
+    {
+      type: 'move-played',
+      at: 20_000,
+      roomId: 'clocked-fog-room',
+      color: 'black',
+      move: { from: 'e7', to: 'e5' },
+    },
   ]);
   assert.equal(afterBlack.state.clock?.activeColor, 'white');
   assert.equal(afterBlack.state.clock?.runningSince, 20_000);
@@ -636,8 +654,20 @@ test('seat-forfeited ends the game for the opponent with reason abandonment', ()
     { type: 'room-created', at: 1, roomId: 'forfeit-room', variant: 'dark-chess', offer: [] },
     { type: 'seat-assigned', at: 2, roomId: 'forfeit-room', clientId: 'wc', seat: 'white' },
     { type: 'seat-assigned', at: 3, roomId: 'forfeit-room', clientId: 'bc', seat: 'black' },
-    { type: 'move-played', at: 4, roomId: 'forfeit-room', color: 'white', move: { from: 'e2', to: 'e4' } },
-    { type: 'move-played', at: 5, roomId: 'forfeit-room', color: 'black', move: { from: 'e7', to: 'e5' } },
+    {
+      type: 'move-played',
+      at: 4,
+      roomId: 'forfeit-room',
+      color: 'white',
+      move: { from: 'e2', to: 'e4' },
+    },
+    {
+      type: 'move-played',
+      at: 5,
+      roomId: 'forfeit-room',
+      color: 'black',
+      move: { from: 'e7', to: 'e5' },
+    },
     // White abandons; black wins by abandonment.
     { type: 'seat-forfeited', at: 6, roomId: 'forfeit-room', color: 'white' },
   ];
@@ -704,7 +734,13 @@ test('game-aborted after only white has moved is still valid (before both first 
   const events: GameEvent[] = [
     { type: 'room-created', at: 1, roomId: 'abort-w-room', variant: 'dark-chess', offer: [] },
     { type: 'clock-started', at: 4, roomId: 'abort-w-room', clock: createClock(4, 60_000, 0) },
-    { type: 'move-played', at: 1000, roomId: 'abort-w-room', color: 'white', move: { from: 'e2', to: 'e4' } },
+    {
+      type: 'move-played',
+      at: 1000,
+      roomId: 'abort-w-room',
+      color: 'white',
+      move: { from: 'e2', to: 'e4' },
+    },
     { type: 'game-aborted', at: 2000, roomId: 'abort-w-room', reason: 'user-abort' },
   ];
   const projection = replayGameEvents(events);
@@ -715,8 +751,20 @@ test('game-aborted after both players have moved is a no-op (abort window closed
   const events: GameEvent[] = [
     { type: 'room-created', at: 1, roomId: 'abort-closed-room', variant: 'dark-chess', offer: [] },
     { type: 'clock-started', at: 4, roomId: 'abort-closed-room', clock: createClock(4, 60_000, 0) },
-    { type: 'move-played', at: 1000, roomId: 'abort-closed-room', color: 'white', move: { from: 'e2', to: 'e4' } },
-    { type: 'move-played', at: 2000, roomId: 'abort-closed-room', color: 'black', move: { from: 'e7', to: 'e5' } },
+    {
+      type: 'move-played',
+      at: 1000,
+      roomId: 'abort-closed-room',
+      color: 'white',
+      move: { from: 'e2', to: 'e4' },
+    },
+    {
+      type: 'move-played',
+      at: 2000,
+      roomId: 'abort-closed-room',
+      color: 'black',
+      move: { from: 'e7', to: 'e5' },
+    },
     { type: 'game-aborted', at: 3000, roomId: 'abort-closed-room', reason: 'user-abort' },
   ];
   const projection = replayGameEvents(events);
@@ -773,8 +821,20 @@ test('resume rearms the clock for the current turn without altering remaining ti
   const events: GameEvent[] = [
     { type: 'room-created', at: 1, roomId: 'resume-room', variant: 'dark-chess', offer: [] },
     { type: 'clock-started', at: 4, roomId: 'resume-room', clock: createClock(4, 60_000, 0) },
-    { type: 'move-played', at: 1000, roomId: 'resume-room', color: 'white', move: { from: 'e2', to: 'e4' } },
-    { type: 'move-played', at: 2000, roomId: 'resume-room', color: 'black', move: { from: 'e7', to: 'e5' } },
+    {
+      type: 'move-played',
+      at: 1000,
+      roomId: 'resume-room',
+      color: 'white',
+      move: { from: 'e2', to: 'e4' },
+    },
+    {
+      type: 'move-played',
+      at: 2000,
+      roomId: 'resume-room',
+      color: 'black',
+      move: { from: 'e7', to: 'e5' },
+    },
     { type: 'pause', at: 4500, roomId: 'resume-room', reason: 'shutdown' },
     // Wall-clock elapsed 10 minutes during server outage; resume at a much later time.
     { type: 'resume', at: 604_500, roomId: 'resume-room', reason: 'both-present' },
@@ -878,12 +938,30 @@ test('move after resume continues the game with the unchanged clock', () => {
   const events: GameEvent[] = [
     { type: 'room-created', at: 1, roomId: 'resume-move-room', variant: 'dark-chess', offer: [] },
     { type: 'clock-started', at: 4, roomId: 'resume-move-room', clock: createClock(4, 60_000, 0) },
-    { type: 'move-played', at: 1000, roomId: 'resume-move-room', color: 'white', move: { from: 'e2', to: 'e4' } },
-    { type: 'move-played', at: 2000, roomId: 'resume-move-room', color: 'black', move: { from: 'e7', to: 'e5' } },
+    {
+      type: 'move-played',
+      at: 1000,
+      roomId: 'resume-move-room',
+      color: 'white',
+      move: { from: 'e2', to: 'e4' },
+    },
+    {
+      type: 'move-played',
+      at: 2000,
+      roomId: 'resume-move-room',
+      color: 'black',
+      move: { from: 'e7', to: 'e5' },
+    },
     { type: 'pause', at: 4500, roomId: 'resume-move-room', reason: 'shutdown' },
     { type: 'resume', at: 604_500, roomId: 'resume-move-room', reason: 'both-present' },
     // White's second move, 500ms after resume.
-    { type: 'move-played', at: 605_000, roomId: 'resume-move-room', color: 'white', move: { from: 'g1', to: 'f3' } },
+    {
+      type: 'move-played',
+      at: 605_000,
+      roomId: 'resume-move-room',
+      color: 'white',
+      move: { from: 'g1', to: 'f3' },
+    },
   ];
   const projection = replayGameEvents(events);
 
@@ -900,8 +978,20 @@ test('multiple pause/resume cycles do not leak wall-clock time into player clock
   const events: GameEvent[] = [
     { type: 'room-created', at: 1, roomId: 'cycle-room', variant: 'dark-chess', offer: [] },
     { type: 'clock-started', at: 4, roomId: 'cycle-room', clock: createClock(4, 60_000, 0) },
-    { type: 'move-played', at: 100, roomId: 'cycle-room', color: 'white', move: { from: 'e2', to: 'e4' } },
-    { type: 'move-played', at: 200, roomId: 'cycle-room', color: 'black', move: { from: 'e7', to: 'e5' } },
+    {
+      type: 'move-played',
+      at: 100,
+      roomId: 'cycle-room',
+      color: 'white',
+      move: { from: 'e2', to: 'e4' },
+    },
+    {
+      type: 'move-played',
+      at: 200,
+      roomId: 'cycle-room',
+      color: 'black',
+      move: { from: 'e7', to: 'e5' },
+    },
     // First outage: 1 hour, after 1s of armed play.
     { type: 'pause', at: 1200, roomId: 'cycle-room', reason: 'shutdown' },
     { type: 'resume', at: 3_601_200, roomId: 'cycle-room', reason: 'both-present' },

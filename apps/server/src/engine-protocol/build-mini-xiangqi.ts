@@ -17,22 +17,22 @@
  */
 
 import {
+  applyMiniXiangqiMove,
   type Color,
+  createInitialMiniXiangqiState,
   type EngineClock,
   type EngineObservation,
   type EngineTurnRequest,
-  type Move,
-  type SquareIndex,
+  getMiniXiangqiPlayerView,
   type MiniXiangqiColor,
   type MiniXiangqiGameState,
   type MiniXiangqiMove,
   type MiniXiangqiPieceRole,
   type MiniXiangqiSquare,
   type MiniXiangqiVisibleBoardEntry,
-  applyMiniXiangqiMove,
-  createInitialMiniXiangqiState,
-  getMiniXiangqiPlayerView,
+  type Move,
   miniXiangqiCoordOf,
+  type SquareIndex,
 } from '@mistboard/game';
 import type { DarkMiniXiangqiEvent } from '../dark-mini-xiangqi-runtime.js';
 import { buildSessionId, deriveEngineSeed } from './build.js';
@@ -62,13 +62,8 @@ function maskHex(mask: bigint): string {
   return `0x${mask.toString(16).padStart(16, '0')}`;
 }
 
-function ownSquaresOf(
-  state: MiniXiangqiGameState,
-  color: MiniXiangqiColor,
-): MiniXiangqiSquare[] {
-  return (
-    Object.entries(state.board) as Array<[MiniXiangqiSquare, { color: MiniXiangqiColor }]>
-  )
+function ownSquaresOf(state: MiniXiangqiGameState, color: MiniXiangqiColor): MiniXiangqiSquare[] {
+  return (Object.entries(state.board) as Array<[MiniXiangqiSquare, { color: MiniXiangqiColor }]>)
     .filter(([, piece]) => piece?.color === color)
     .map(([sq]) => sq);
 }
@@ -100,7 +95,8 @@ export function buildMiniXiangqiObservationForPly(args: {
     visibility_mask |= 1n << BigInt(miniSquareIndex(sq));
   }
 
-  const visible_pieces: Array<[SquareIndex, { type: 'G' | 'H' | 'C' | 'R' | 'S'; color: Color }]> = [];
+  const visible_pieces: Array<[SquareIndex, { type: 'G' | 'H' | 'C' | 'R' | 'S'; color: Color }]> =
+    [];
   const shrouded: Array<[SquareIndex, Color]> = [];
   for (const [sq, entry] of Object.entries(view.board) as Array<
     [MiniXiangqiSquare, MiniXiangqiVisibleBoardEntry]
@@ -241,8 +237,7 @@ export function buildMiniXiangqiEngineTurnRequest(args: {
     events: args.events,
     perspective: args.engineColor,
   });
-  const legalMoves = getMiniXiangqiPlayerView(args.state, args.engineColor)
-    .legalMoves as Move[];
+  const legalMoves = getMiniXiangqiPlayerView(args.state, args.engineColor).legalMoves as Move[];
   const clock: EngineClock = {
     remaining_ms: args.clockRemainingMs,
     increment_ms: args.incrementMs,

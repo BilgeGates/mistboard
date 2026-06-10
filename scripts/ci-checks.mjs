@@ -5,12 +5,14 @@ import { spawnSync } from 'node:child_process';
 
 const suites = {
   quick: [
+    ['npm', 'run', 'lint'],
     ['npm', 'run', 'build'],
     ['npm', 'run', 'typecheck'],
     ['npm', 'run', 'test:unit'],
     ['npm', 'run', 'check:cycles'],
   ],
   local: [
+    ['npm', 'run', 'lint'],
     ['npm', 'run', 'build'],
     ['npm', 'run', 'typecheck'],
     ['npm', 'run', 'test:unit'],

@@ -393,8 +393,20 @@ test('Dark Mini Xiangqi runtime ends the game on a clock-expired event', () => {
         runningSince: null,
       },
     },
-    { type: 'move-played', at: 100, roomId: 'dmxq_flag', color: 'red', move: { from: 'a2', to: 'a3' } },
-    { type: 'move-played', at: 200, roomId: 'dmxq_flag', color: 'black', move: { from: 'a6', to: 'a5' } },
+    {
+      type: 'move-played',
+      at: 100,
+      roomId: 'dmxq_flag',
+      color: 'red',
+      move: { from: 'a2', to: 'a3' },
+    },
+    {
+      type: 'move-played',
+      at: 200,
+      roomId: 'dmxq_flag',
+      color: 'black',
+      move: { from: 'a6', to: 'a5' },
+    },
     {
       type: 'clock-expired',
       at: 300,

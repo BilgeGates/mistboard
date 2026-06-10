@@ -380,9 +380,7 @@ test('delta: game-end transition broadcasts a snapshot but stays fogged (model A
   // Model A: the room never reveals on finish. Black sees its OWN move-played
   // events but white's must NOT leak into black's finished-game snapshot, even
   // though the game is over.
-  const whiteMove = blackEnd.events?.find(
-    (e) => e.type === 'move-played' && e.color === 'white',
-  );
+  const whiteMove = blackEnd.events?.find((e) => e.type === 'move-played' && e.color === 'white');
   assert.ok(
     !whiteMove,
     "model A: white's hidden move-played must NOT appear in black's finished-game snapshot",
@@ -416,10 +414,7 @@ test('delta: user abort pre-move-1 ends both clients in the aborted state', asyn
       (m) => m.state.status.type === 'aborted',
       'client sees aborted status',
     );
-    assert.equal(
-      (ended.state.status as { type: 'aborted'; reason: string }).reason,
-      'user-abort',
-    );
+    assert.equal((ended.state.status as { type: 'aborted'; reason: string }).reason, 'user-abort');
   }
 });
 

@@ -22,6 +22,7 @@
 
 import { createHash } from 'node:crypto';
 import {
+  applyGameEvent,
   type Color,
   type EngineClock,
   type EngineObservation,
@@ -29,13 +30,12 @@ import {
   type EngineTurnRequest,
   type GameEvent,
   type GameState,
+  initialGameProjection,
   type Move,
   type PieceLetter,
   type PieceRole,
   type Square,
   type SquareIndex,
-  initialGameProjection,
-  applyGameEvent,
   variantForId,
 } from '@mistboard/game';
 
@@ -107,9 +107,7 @@ export function deriveEngineSeed(args: {
   const bytes = h.digest();
   // First 4 bytes → u32. Mask to non-negative 31-bit so it fits comfortably
   // as a JS number (safe-int range trivially honored).
-  return (
-    ((bytes[0] << 24) | (bytes[1] << 16) | (bytes[2] << 8) | bytes[3]) >>> 1
-  );
+  return ((bytes[0] << 24) | (bytes[1] << 16) | (bytes[2] << 8) | bytes[3]) >>> 1;
 }
 
 /**
@@ -140,12 +138,11 @@ function visiblePiecesFor(
   const view = variant.getPlayerView(state, color);
   const out: Array<[SquareIndex, { type: PieceLetter; color: Color }]> = [];
   // PlayerView.board is already redacted (only contains visible squares).
-  for (const [sq, piece] of Object.entries(view.board) as Array<[Square, { color: Color; role: PieceRole }]>) {
+  for (const [sq, piece] of Object.entries(view.board) as Array<
+    [Square, { color: Color; role: PieceRole }]
+  >) {
     if (!piece) continue;
-    out.push([
-      squareIndex(sq),
-      { type: ROLE_TO_LETTER[piece.role], color: piece.color },
-    ]);
+    out.push([squareIndex(sq), { type: ROLE_TO_LETTER[piece.role], color: piece.color }]);
   }
   // Stable ordering by square index for diffability.
   out.sort((a, b) => a[0] - b[0]);
@@ -334,16 +331,7 @@ export function buildEngineTurnRequest(args: {
   ply: number;
   cold: boolean;
 }): EngineTurnRequest {
-  const {
-    gameId,
-    engineId,
-    engineSecret,
-    engineColor,
-    state,
-    events,
-    ply,
-    cold,
-  } = args;
+  const { gameId, engineId, engineSecret, engineColor, state, events, ply, cold } = args;
 
   const sessionId = buildSessionId({ gameId, engineId, color: engineColor });
   const engineSeed = deriveEngineSeed({

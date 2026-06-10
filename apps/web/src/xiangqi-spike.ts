@@ -978,7 +978,14 @@ function rerender(): void {
     ${statusHtml(state)}
     <div class="xq-board-wrap">${
       state.boardStyle === 'grid'
-        ? renderBoardSvgGrid(view, drawOrient, state.game, state.selection, 'main', state.cannonMarker)
+        ? renderBoardSvgGrid(
+            view,
+            drawOrient,
+            state.game,
+            state.selection,
+            'main',
+            state.cannonMarker,
+          )
         : renderBoardSvg(
             view,
             drawOrient,

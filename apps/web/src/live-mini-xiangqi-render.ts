@@ -52,7 +52,8 @@ export function renderMiniXiangqiBoardSvg(
   // document, and SVG `url(#id)` resolves the FIRST element with that id document-
   // wide. A shared id (same game id + same render orientation) made the black
   // board apply the red board's fog mask. A counter guarantees no collision.
-  const maskId = `mini-xq-fog-${(miniXqFogMaskCounter += 1)}`;
+  miniXqFogMaskCounter += 1;
+  const maskId = `mini-xq-fog-${miniXqFogMaskCounter}`;
   const fog = showFog ? fogLayer(view, perspective, maskId) : '';
   return `
     <svg class="mini-xq-board" viewBox="0 0 ${WIDTH} ${HEIGHT}" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Dark Mini Xiangqi board">

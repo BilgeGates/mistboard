@@ -1,4 +1,10 @@
-import { assert, definePersistenceTests, test } from './persistence-test-support.js';
+import {
+  claimMoveJob,
+  completeMoveJob,
+  enqueueMoveJob,
+  getMoveJobResult,
+  reapStaleMoveJobs,
+} from './persistence-engine-jobs.js';
 import {
   countActiveEngineSeats,
   getEnginePreferredWorker,
@@ -7,13 +13,7 @@ import {
   reserveEngineSeat,
   setEnginePreferredWorker,
 } from './persistence-engine-seats.js';
-import {
-  claimMoveJob,
-  completeMoveJob,
-  enqueueMoveJob,
-  getMoveJobResult,
-  reapStaleMoveJobs,
-} from './persistence-engine-jobs.js';
+import { assert, definePersistenceTests, test } from './persistence-test-support.js';
 
 definePersistenceTests('engine-affinity', () => {
   test('reserveEngineSeat caps globally and is idempotent per room', async () => {

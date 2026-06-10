@@ -6,14 +6,14 @@ import {
   applyMiniXiangqiMove,
   createInitialMiniXiangqiState,
   getMiniXiangqiPlayerView,
-  miniXiangqiCoordOf,
-  miniXiangqiSquareOf,
   type MiniXiangqiBoard,
   type MiniXiangqiColor,
   type MiniXiangqiGameState,
   type MiniXiangqiMove,
   type MiniXiangqiPlayerView,
   type MiniXiangqiSquare,
+  miniXiangqiCoordOf,
+  miniXiangqiSquareOf,
   type XiangqiPiece,
 } from '@mistboard/game';
 import { readStoredXiangqiPieceSet, xiangqiAppearanceChangedEvent } from './theme.js';
@@ -55,7 +55,11 @@ export type MiniXiangqiReplaySpec = {
 
 export type MiniXiangqiReplayController = { destroy: () => void };
 
-function pointXY(file: number, rank: number, perspective: MiniXiangqiColor): { x: number; y: number } {
+function pointXY(
+  file: number,
+  rank: number,
+  perspective: MiniXiangqiColor,
+): { x: number; y: number } {
   const row = perspective === 'red' ? RANKS - rank : rank - 1;
   return { x: MARGIN + file * CELL, y: MARGIN + row * CELL };
 }
@@ -70,20 +74,31 @@ function gridSvg(perspective: MiniXiangqiColor): string {
   const bottom = MARGIN + (RANKS - 1) * CELL;
   for (let r = 0; r < RANKS; r += 1) {
     const y = top + r * CELL;
-    parts.push(`<line x1="${left}" y1="${y}" x2="${right}" y2="${y}" class="xq-diagram-line" stroke-width="1"/>`);
+    parts.push(
+      `<line x1="${left}" y1="${y}" x2="${right}" y2="${y}" class="xq-diagram-line" stroke-width="1"/>`,
+    );
   }
   for (let f = 0; f < FILES; f += 1) {
     const x = left + f * CELL;
-    parts.push(`<line x1="${x}" y1="${top}" x2="${x}" y2="${bottom}" class="xq-diagram-line" stroke-width="1"/>`);
+    parts.push(
+      `<line x1="${x}" y1="${top}" x2="${x}" y2="${bottom}" class="xq-diagram-line" stroke-width="1"/>`,
+    );
   }
   // Palace diagonals: files c-e (indices 2-4), ranks 1-3 (Red) and 5-7 (Black).
-  for (const [loRank, hiRank] of [[1, 3], [5, 7]] as const) {
+  for (const [loRank, hiRank] of [
+    [1, 3],
+    [5, 7],
+  ] as const) {
     const a = pointXY(2, hiRank, perspective);
     const b = pointXY(4, loRank, perspective);
     const c = pointXY(4, hiRank, perspective);
     const d = pointXY(2, loRank, perspective);
-    parts.push(`<line x1="${a.x}" y1="${a.y}" x2="${b.x}" y2="${b.y}" class="xq-diagram-line" stroke-width="1"/>`);
-    parts.push(`<line x1="${c.x}" y1="${c.y}" x2="${d.x}" y2="${d.y}" class="xq-diagram-line" stroke-width="1"/>`);
+    parts.push(
+      `<line x1="${a.x}" y1="${a.y}" x2="${b.x}" y2="${b.y}" class="xq-diagram-line" stroke-width="1"/>`,
+    );
+    parts.push(
+      `<line x1="${c.x}" y1="${c.y}" x2="${d.x}" y2="${d.y}" class="xq-diagram-line" stroke-width="1"/>`,
+    );
   }
   return parts.join('');
 }
@@ -217,9 +232,28 @@ function triptychSvg(
   const totalH = BOARD_H + TRI_LABEL_H + PAD * 2;
   const step = BOARD_W + TRI_GAP;
   const body = [
-    triCellSvg({ x: 0, label: "RED'S VIEW", key, side: 'r', view: getMiniXiangqiPlayerView(state, 'red') }),
-    triCellSvg({ x: step, label: 'SERVER TRUTH', key, side: 't', board: state.board, arrow: lastMove }),
-    triCellSvg({ x: step * 2, label: "BLACK'S VIEW", key, side: 'b', view: getMiniXiangqiPlayerView(state, 'black') }),
+    triCellSvg({
+      x: 0,
+      label: "RED'S VIEW",
+      key,
+      side: 'r',
+      view: getMiniXiangqiPlayerView(state, 'red'),
+    }),
+    triCellSvg({
+      x: step,
+      label: 'SERVER TRUTH',
+      key,
+      side: 't',
+      board: state.board,
+      arrow: lastMove,
+    }),
+    triCellSvg({
+      x: step * 2,
+      label: "BLACK'S VIEW",
+      key,
+      side: 'b',
+      view: getMiniXiangqiPlayerView(state, 'black'),
+    }),
   ].join('');
   return `<svg class="xq-article-svg" data-xq-layout="wide" style="--xq-svg-width: ${totalW}px" viewBox="0 0 ${totalW} ${totalH}" role="img" xmlns="http://www.w3.org/2000/svg" aria-label="Dark Mini Xiangqi: Red's view, server truth, Black's view"><g transform="translate(${PAD} ${PAD})">${body}</g></svg>`;
 }
@@ -245,7 +279,9 @@ export function mountMiniXiangqiReplay(
   // ends in mate, not by the no-progress rule.
   const states: MiniXiangqiGameState[] = [createInitialMiniXiangqiState('mxq-replay')];
   for (const move of moves) {
-    states.push(applyMiniXiangqiMove(states[states.length - 1]!, move, { progressClockLimit: Infinity }));
+    states.push(
+      applyMiniXiangqiMove(states[states.length - 1]!, move, { progressClockLimit: Infinity }),
+    );
   }
   const total = moves.length;
 
@@ -322,7 +358,10 @@ export function mountMiniXiangqiReplay(
 
   function goto(target: number): void {
     const clamped = Math.max(0, Math.min(total, target));
-    if (clamped !== index) { index = clamped; render(); }
+    if (clamped !== index) {
+      index = clamped;
+      render();
+    }
   }
   const onFirst = () => goto(0);
   const onPrev = () => goto(index - 1);
@@ -335,8 +374,13 @@ export function mountMiniXiangqiReplay(
   last.addEventListener('click', onLast);
   slider.addEventListener('input', onSlider);
   const onKey = (e: KeyboardEvent) => {
-    if (e.key === 'ArrowLeft') { onPrev(); e.preventDefault(); }
-    else if (e.key === 'ArrowRight') { onNext(); e.preventDefault(); }
+    if (e.key === 'ArrowLeft') {
+      onPrev();
+      e.preventDefault();
+    } else if (e.key === 'ArrowRight') {
+      onNext();
+      e.preventDefault();
+    }
   };
   host.addEventListener('keydown', onKey);
   // Piece set is inline glyphs, so re-render the current ply when the picker

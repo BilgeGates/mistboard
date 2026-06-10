@@ -64,15 +64,23 @@ function gridSvg(perspective: XiangqiColor): string {
   const riverBottom = top + 5 * CELL;
   for (let r = 0; r < 10; r += 1) {
     const y = top + r * CELL;
-    parts.push(`<line x1="${left}" y1="${y}" x2="${right}" y2="${y}" class="xq-diagram-line" stroke-width="1"/>`);
+    parts.push(
+      `<line x1="${left}" y1="${y}" x2="${right}" y2="${y}" class="xq-diagram-line" stroke-width="1"/>`,
+    );
   }
   for (let f = 0; f < 9; f += 1) {
     const x = left + f * CELL;
     if (f === 0 || f === 8) {
-      parts.push(`<line x1="${x}" y1="${top}" x2="${x}" y2="${bottom}" class="xq-diagram-line" stroke-width="1"/>`);
+      parts.push(
+        `<line x1="${x}" y1="${top}" x2="${x}" y2="${bottom}" class="xq-diagram-line" stroke-width="1"/>`,
+      );
     } else {
-      parts.push(`<line x1="${x}" y1="${top}" x2="${x}" y2="${riverTop}" class="xq-diagram-line" stroke-width="1"/>`);
-      parts.push(`<line x1="${x}" y1="${riverBottom}" x2="${x}" y2="${bottom}" class="xq-diagram-line" stroke-width="1"/>`);
+      parts.push(
+        `<line x1="${x}" y1="${top}" x2="${x}" y2="${riverTop}" class="xq-diagram-line" stroke-width="1"/>`,
+      );
+      parts.push(
+        `<line x1="${x}" y1="${riverBottom}" x2="${x}" y2="${bottom}" class="xq-diagram-line" stroke-width="1"/>`,
+      );
     }
   }
   for (const palace of [
@@ -85,8 +93,12 @@ function gridSvg(perspective: XiangqiColor): string {
     const b = pointXY(palace.fileMax, bottomRank, perspective);
     const c = pointXY(palace.fileMax, topRank, perspective);
     const d = pointXY(palace.fileMin, bottomRank, perspective);
-    parts.push(`<line x1="${a.x}" y1="${a.y}" x2="${b.x}" y2="${b.y}" class="xq-diagram-line" stroke-width="1"/>`);
-    parts.push(`<line x1="${c.x}" y1="${c.y}" x2="${d.x}" y2="${d.y}" class="xq-diagram-line" stroke-width="1"/>`);
+    parts.push(
+      `<line x1="${a.x}" y1="${a.y}" x2="${b.x}" y2="${b.y}" class="xq-diagram-line" stroke-width="1"/>`,
+    );
+    parts.push(
+      `<line x1="${c.x}" y1="${c.y}" x2="${d.x}" y2="${d.y}" class="xq-diagram-line" stroke-width="1"/>`,
+    );
   }
   parts.push(
     `<text x="${left + 4 * CELL}" y="${(riverTop + riverBottom) / 2 + 1}" font-family="serif" font-size="16" class="xq-diagram-ink" text-anchor="middle" dominant-baseline="central">楚 河   漢 界</text>`,
@@ -120,7 +132,12 @@ function arrowSvg(move: XiangqiMove, perspective: XiangqiColor, id: string): str
   ].join('');
 }
 
-function boardSvg(board: XiangqiBoard, lastMove: XiangqiMove | undefined, perspective: XiangqiColor, key: number): string {
+function boardSvg(
+  board: XiangqiBoard,
+  lastMove: XiangqiMove | undefined,
+  perspective: XiangqiColor,
+  key: number,
+): string {
   const pw = BOARD_W + PAD * 2;
   const ph = BOARD_H + PAD * 2;
   const body = [
@@ -137,7 +154,10 @@ function iccsToMove(tok: string): XiangqiMove {
   return { from: conv(tok.slice(0, 2)), to: conv(tok.slice(2, 4)) };
 }
 
-export function mountXiangqiReplay(host: HTMLElement, spec: XiangqiReplaySpec): XiangqiReplayController {
+export function mountXiangqiReplay(
+  host: HTMLElement,
+  spec: XiangqiReplaySpec,
+): XiangqiReplayController {
   const perspective = spec.perspective ?? 'red';
   const moves = spec.iccs
     .trim()
@@ -218,7 +238,10 @@ export function mountXiangqiReplay(host: HTMLElement, spec: XiangqiReplaySpec): 
 
   function goto(target: number): void {
     const clamped = Math.max(0, Math.min(total, target));
-    if (clamped !== index) { index = clamped; render(); }
+    if (clamped !== index) {
+      index = clamped;
+      render();
+    }
   }
   const onFirst = () => goto(0);
   const onPrev = () => goto(index - 1);
@@ -231,8 +254,13 @@ export function mountXiangqiReplay(host: HTMLElement, spec: XiangqiReplaySpec): 
   last.addEventListener('click', onLast);
   slider.addEventListener('input', onSlider);
   const onKey = (e: KeyboardEvent) => {
-    if (e.key === 'ArrowLeft') { onPrev(); e.preventDefault(); }
-    else if (e.key === 'ArrowRight') { onNext(); e.preventDefault(); }
+    if (e.key === 'ArrowLeft') {
+      onPrev();
+      e.preventDefault();
+    } else if (e.key === 'ArrowRight') {
+      onNext();
+      e.preventDefault();
+    }
   };
   host.addEventListener('keydown', onKey);
   // Piece set is inline glyphs, so re-render the current ply when the picker

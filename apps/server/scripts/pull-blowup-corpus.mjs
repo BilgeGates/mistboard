@@ -21,8 +21,8 @@
  * Idempotent: overwrites existing files with the same room_id.
  */
 import { writeFile } from 'node:fs/promises';
-import { join } from 'node:path';
 import { homedir } from 'node:os';
+import { join } from 'node:path';
 import pg from 'pg';
 
 function parseArgs(argv) {
@@ -37,12 +37,24 @@ function parseArgs(argv) {
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i];
     const next = argv[i + 1];
-    if (a === '--engine' && next) { args.engine = next; i++; }
-    else if (a === '--since' && next) { args.since = next; i++; }
-    else if (a === '--out' && next) { args.out = next; i++; }
-    else if (a === '--limit' && next) { args.limit = Number(next); i++; }
-    else if (a === '--all-results') { args.allResults = true; }
-    else if (a === '--min-plies' && next) { args.minPlies = Number(next); i++; }
+    if (a === '--engine' && next) {
+      args.engine = next;
+      i++;
+    } else if (a === '--since' && next) {
+      args.since = next;
+      i++;
+    } else if (a === '--out' && next) {
+      args.out = next;
+      i++;
+    } else if (a === '--limit' && next) {
+      args.limit = Number(next);
+      i++;
+    } else if (a === '--all-results') {
+      args.allResults = true;
+    } else if (a === '--min-plies' && next) {
+      args.minPlies = Number(next);
+      i++;
+    }
   }
   return args;
 }
@@ -55,8 +67,9 @@ if (!process.env.DATABASE_URL) {
 }
 
 const isLocal =
-  /(?:@|\/\/)(localhost|127\.0\.0\.1|host\.docker\.internal)/.test(process.env.DATABASE_URL ?? '') ||
-  /sslmode=disable/.test(process.env.DATABASE_URL ?? '');
+  /(?:@|\/\/)(localhost|127\.0\.0\.1|host\.docker\.internal)/.test(
+    process.env.DATABASE_URL ?? '',
+  ) || /sslmode=disable/.test(process.env.DATABASE_URL ?? '');
 const pool = new pg.Pool({
   connectionString: process.env.DATABASE_URL,
   ssl: isLocal ? false : { rejectUnauthorized: false },
@@ -100,28 +113,29 @@ try {
     [args.engine, args.since, args.minPlies, args.limit],
   );
 
-  console.log(`found ${candidates.length} forfeited games involving ${args.engine} since ${args.since}`);
+  console.log(
+    `found ${candidates.length} forfeited games involving ${args.engine} since ${args.since}`,
+  );
 
   let written = 0;
   for (const g of candidates) {
-    const events = await q(
-      `SELECT payload FROM events WHERE room_id = $1 ORDER BY seq ASC`,
-      [g.room_id],
-    );
+    const events = await q(`SELECT payload FROM events WHERE room_id = $1 ORDER BY seq ASC`, [
+      g.room_id,
+    ]);
     if (events.length === 0) {
       console.log(`  skip ${g.room_id}: no events in DB`);
       continue;
     }
 
     // Find forfeit ply: which seat forfeited and at what ply count.
-    const forfeitEvt = events
-      .map((r) => r.payload)
-      .find((p) => p.type === 'seat-forfeited');
+    const forfeitEvt = events.map((r) => r.payload).find((p) => p.type === 'seat-forfeited');
     const forfeitedSeat = forfeitEvt?.color ?? null;
     const engineSeat =
-      g.white_engine_id === args.engine || g.white_client === args.engine ? 'white'
-      : g.black_engine_id === args.engine || g.black_client === args.engine ? 'black'
-      : null;
+      g.white_engine_id === args.engine || g.white_client === args.engine
+        ? 'white'
+        : g.black_engine_id === args.engine || g.black_client === args.engine
+          ? 'black'
+          : null;
     const engineWasForfeiter = forfeitedSeat === engineSeat;
 
     // Count plies up to forfeit.
@@ -134,10 +148,7 @@ try {
     const eventsPath = join(args.out, `${g.room_id}.jsonl`);
     const metaPath = join(args.out, `${g.room_id}.meta.json`);
 
-    await writeFile(
-      eventsPath,
-      events.map((r) => JSON.stringify(r.payload)).join('\n') + '\n',
-    );
+    await writeFile(eventsPath, events.map((r) => JSON.stringify(r.payload)).join('\n') + '\n');
     await writeFile(
       metaPath,
       JSON.stringify(

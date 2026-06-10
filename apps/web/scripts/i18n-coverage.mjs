@@ -95,7 +95,9 @@ try {
         const pct = total === 0 ? 100 : Math.round((translated / total) * 100);
         return `${lang} ${`${translated}/${total}`.padStart(7)} ${`(${pct}%)`.padStart(6)}`;
       }).join('   ');
-      console.log(`${row.ready ? '✅ lock-ready' : '   gaps     '}  ${row.slug.padEnd(20)} ${cells}`);
+      console.log(
+        `${row.ready ? '✅ lock-ready' : '   gaps     '}  ${row.slug.padEnd(20)} ${cells}`,
+      );
     }
 
     for (const row of rows) {
@@ -112,7 +114,9 @@ try {
     for (const lang of ARTICLE_LANGS) {
       const orphans = translationKeys(lang).filter((key) => !liveStrings.has(key));
       if (orphans.length === 0) continue;
-      console.log(`\n— ${lang}: ${orphans.length} orphaned key(s) (match no current article string) —`);
+      console.log(
+        `\n— ${lang}: ${orphans.length} orphaned key(s) (match no current article string) —`,
+      );
       for (const key of orphans) console.log(`  ${truncate(key)}`);
     }
   }

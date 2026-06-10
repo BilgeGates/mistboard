@@ -47,7 +47,10 @@ export type FeaturedGame = {
   playerColor?: GameParticipant['color'];
 };
 
-export function displayParticipantName(game: FeaturedGame, color: GameParticipant['color']): string {
+export function displayParticipantName(
+  game: FeaturedGame,
+  color: GameParticipant['color'],
+): string {
   const participant = participantForColor(game, color);
   if (participant)
     return displayParticipant(

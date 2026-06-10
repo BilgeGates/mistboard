@@ -127,7 +127,10 @@ export class EngineCounters {
     this.totalPythonPoolRetries += 1;
   }
 
-  private recordTurnTiming(input: { elapsedMs?: number | null; queueWaitMs?: number | null }): void {
+  private recordTurnTiming(input: {
+    elapsedMs?: number | null;
+    queueWaitMs?: number | null;
+  }): void {
     if (typeof input.elapsedMs === 'number' && Number.isFinite(input.elapsedMs)) {
       this.turnElapsedSamples.push(input.elapsedMs);
     }
@@ -186,13 +189,11 @@ export class EngineCounters {
     const turnsCompletedDelta = this.totalTurnsCompleted - this.lastEmittedTurnsCompleted;
     const turnsFailedDelta = this.totalTurnsFailed - this.lastEmittedTurnsFailed;
     const turnTimeoutsDelta = this.totalTurnTimeouts - this.lastEmittedTurnTimeouts;
-    const deadlineGuardsDelta =
-      this.totalTurnDeadlineGuards - this.lastEmittedTurnDeadlineGuards;
+    const deadlineGuardsDelta = this.totalTurnDeadlineGuards - this.lastEmittedTurnDeadlineGuards;
     const pythonPoolErrorsDelta = this.totalPythonPoolErrors - this.lastEmittedPythonPoolErrors;
     const pythonPoolTimeoutsDelta =
       this.totalPythonPoolTimeouts - this.lastEmittedPythonPoolTimeouts;
-    const pythonPoolRetriesDelta =
-      this.totalPythonPoolRetries - this.lastEmittedPythonPoolRetries;
+    const pythonPoolRetriesDelta = this.totalPythonPoolRetries - this.lastEmittedPythonPoolRetries;
     this.lastEmittedMoves = this.totalMoves;
     this.lastEmittedFallbacks = this.totalFallbacks;
     this.lastEmittedMoveFailures = this.totalMoveFailures;
@@ -297,10 +298,7 @@ export function engineAlertFields(engine: EngineCounterSnapshot): EngineAlertFie
   setCritical('python_pool_errors_tick', engine.pythonPoolErrorsDelta);
   setCritical('python_pool_timeouts_tick', engine.pythonPoolTimeoutsDelta);
   setCritical('engine_reservation_errors_tick', reservationErrorsDelta);
-  setCritical(
-    'engine_reservation_release_failures_tick',
-    engine.reservationReleaseFailuresDelta,
-  );
+  setCritical('engine_reservation_release_failures_tick', engine.reservationReleaseFailuresDelta);
   if (hasCritical) return critical;
 
   // Warning-level: no move actually failed this tick, but something is off.

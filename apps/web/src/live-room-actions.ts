@@ -70,7 +70,6 @@ function copyLinkButton(): HTMLButtonElement {
   return btn;
 }
 
-
 function roomAction(
   label: string,
   href: string,

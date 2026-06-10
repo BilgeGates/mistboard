@@ -112,10 +112,7 @@ test('highlights fill multiple squares with the selection colour', () => {
     ],
   });
   // Three highlight squares, drawn in the selection colour.
-  assert.equal(
-    (svg.match(/fill="rgba\(255,205,80,0\.55\)"/g) ?? []).length,
-    baseSelected + 3,
-  );
+  assert.equal((svg.match(/fill="rgba\(255,205,80,0\.55\)"/g) ?? []).length, baseSelected + 3);
 });
 
 test('arrows draw a marker def and one line per arrow', () => {

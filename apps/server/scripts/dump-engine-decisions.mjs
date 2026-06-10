@@ -69,7 +69,10 @@ try {
       }
     }
     const top = ranking
-      ? ranking.slice(0, 8).map(([m, v]) => `${m}:${Number(v).toFixed(3)}`).join(' ')
+      ? ranking
+          .slice(0, 8)
+          .map(([m, v]) => `${m}:${Number(v).toFixed(3)}`)
+          .join(' ')
       : '(none — non-v2 path)';
     console.log(
       `ply ${row.ply} (export ply ${row.ply + 1}, ${row.engine_color}) ` +
@@ -84,7 +87,14 @@ try {
     );
     console.log(`   top: ${top}`);
     // Surface any worker/replay provenance fields if present (post-obs-patch).
-    const prov = ['worker_idx', 'workerIdx', 'replayMode', 'mode', 'processed_len', 'transcript_len']
+    const prov = [
+      'worker_idx',
+      'workerIdx',
+      'replayMode',
+      'mode',
+      'processed_len',
+      'transcript_len',
+    ]
       .filter((k) => d[k] != null || p[k] != null)
       .map((k) => `${k}=${d[k] ?? p[k]}`)
       .join(' ');

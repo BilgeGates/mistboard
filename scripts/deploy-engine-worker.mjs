@@ -49,7 +49,9 @@ const match = engineSha.startsWith(cachebustSha) || cachebustSha.startsWith(engi
 console.log('# deploy-engine-worker');
 console.log(`engine ${ENGINE_REF} HEAD: ${engineSha}`);
 console.log(`railpack cachebust SHA:   ${cachebustSha}`);
-console.log(`cachebust matches engine: ${match ? 'yes' : 'NO — engine changed but cachebust not bumped'}`);
+console.log(
+  `cachebust matches engine: ${match ? 'yes' : 'NO — engine changed but cachebust not bumped'}`,
+);
 
 if (opts.bump) {
   if (match) {
@@ -62,9 +64,7 @@ if (opts.bump) {
 }
 
 if (!match) {
-  console.error(
-    '\nRefusing: the engine changed but the cachebust still points at the old SHA, so',
-  );
+  console.error('\nRefusing: the engine changed but the cachebust still points at the old SHA, so');
   console.error('the engine-worker would re-deploy the OLD engine. Run with --bump, then');
   console.error('commit + push railpack.json, then re-run with --deploy.');
   process.exit(2);

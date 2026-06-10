@@ -163,7 +163,9 @@ test('Dark Xiangqi time controls use native red/black clocks and timeout results
     });
 
     red.send({ type: 'move', from: 'b3', to: 'b4' });
-    await black.waitFor<{ clock: { activeColor: string | null; remainingMs: Record<string, number> } }>(
+    await black.waitFor<{
+      clock: { activeColor: string | null; remainingMs: Record<string, number> };
+    }>(
       (msg) =>
         msg.type === 'event-appended' &&
         msg.gameSpecId === 'dark-xiangqi' &&
@@ -171,7 +173,9 @@ test('Dark Xiangqi time controls use native red/black clocks and timeout results
     );
 
     black.send({ type: 'move', from: 'b8', to: 'b7' });
-    await red.waitFor<{ clock: { activeColor: string | null; remainingMs: Record<string, number> } }>(
+    await red.waitFor<{
+      clock: { activeColor: string | null; remainingMs: Record<string, number> };
+    }>(
       (msg) =>
         msg.type === 'event-appended' &&
         msg.gameSpecId === 'dark-xiangqi' &&

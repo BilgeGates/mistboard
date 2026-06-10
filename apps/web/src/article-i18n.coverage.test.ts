@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
-import { hasTranslation, ARTICLE_LANGS } from './article-i18n.js';
+import { ARTICLE_LANGS, hasTranslation } from './article-i18n.js';
 import { articleProse } from './article-prose.js';
-import { articles, type Article } from './articles-data.js';
+import { type Article, articles } from './articles-data.js';
 
 // Slugs whose English copy is editorially frozen AND fully translated into
 // every zh script. Add a slug here only after (1) its copy is final and

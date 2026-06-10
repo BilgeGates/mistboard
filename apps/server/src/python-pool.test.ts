@@ -200,6 +200,10 @@ test('affinity A/B: ON keeps each game on its worker; OFF bounces them (reversed
 
   const off = await twoWaveWorkers(false);
   assert.notEqual(off.a1, off.b1, 'wave 1: still on different workers');
-  assert.notEqual(off.a2, off.a1, 'affinity OFF: game A bounces to the other worker under reversed order');
+  assert.notEqual(
+    off.a2,
+    off.a1,
+    'affinity OFF: game A bounces to the other worker under reversed order',
+  );
   assert.notEqual(off.b2, off.b1, 'affinity OFF: game B bounces too');
 });

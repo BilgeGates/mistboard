@@ -283,9 +283,7 @@ describe('Dark Mini Xiangqi live room', () => {
     expect(labels).toContain('Play again');
     expect(labels).not.toContain('Rematch');
 
-    refs.roomActions
-      .querySelector<HTMLButtonElement>('button')
-      ?.dispatchEvent(clickEvent());
+    refs.roomActions.querySelector<HTMLButtonElement>('button')?.dispatchEvent(clickEvent());
     expect(sendSocket).not.toHaveBeenCalled();
     expect(JSON.parse(String(fetchMock.mock.calls[0]?.[1]?.body))).toEqual({
       mode: 'pve',

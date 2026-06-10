@@ -108,7 +108,9 @@ export async function mountArticle(
   const base = findArticle(slug);
   // Show the family's board/piece pickers while the article is open so the
   // diagrams react to the right controls (xiangqi only when its flag is on).
-  setBoardFamily(base?.boardFamily === 'xiangqi' && xiangqiAppearanceEnabled() ? 'xiangqi' : 'chess');
+  setBoardFamily(
+    base?.boardFamily === 'xiangqi' && xiangqiAppearanceEnabled() ? 'xiangqi' : 'chess',
+  );
   const article = base && lang ? translateArticle(base, lang) : base;
   if (article) document.title = `${article.title} · Mistboard`;
   const articlePage = buildArticlePage(slug, lang ?? undefined);

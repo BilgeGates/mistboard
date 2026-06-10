@@ -22,7 +22,9 @@ describe('gameMetaForGame timeControl', () => {
     // `timeControl` blob is null for them. If we drop it, maybeDeriveThinkingBudget
     // mistakes the clocked game for clockless engine self-play and synthesizes a
     // phantom per-move budget that animates a count-up on the frozen first plies.
-    const meta = gameMetaForGame(game({ mode: 'pve', timeControl: null, initialMs: 180_000, incrementMs: 2_000 }));
+    const meta = gameMetaForGame(
+      game({ mode: 'pve', timeControl: null, initialMs: 180_000, incrementMs: 2_000 }),
+    );
     expect(meta.timeControl).toEqual({ initialMs: 180_000, incrementMs: 2_000 });
   });
 
@@ -39,7 +41,9 @@ describe('gameMetaForGame timeControl', () => {
   });
 
   it('leaves clockless engine self-play (EvE) without a time control', () => {
-    const meta = gameMetaForGame(game({ mode: 'eve', timeControl: null, initialMs: null, incrementMs: null }));
+    const meta = gameMetaForGame(
+      game({ mode: 'eve', timeControl: null, initialMs: null, incrementMs: null }),
+    );
     expect(meta.timeControl).toBeNull();
   });
 });
@@ -64,7 +68,9 @@ describe('timeControlLabelForGame', () => {
 
   it('returns null for a clockless game so the badge is omitted', () => {
     expect(
-      timeControlLabelForGame(game({ mode: 'eve', timeControl: null, initialMs: null, incrementMs: null })),
+      timeControlLabelForGame(
+        game({ mode: 'eve', timeControl: null, initialMs: null, incrementMs: null }),
+      ),
     ).toBeNull();
   });
 });

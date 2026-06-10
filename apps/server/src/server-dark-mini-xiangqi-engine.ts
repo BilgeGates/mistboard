@@ -16,13 +16,10 @@
  * human wins — rather than hanging the room.
  */
 
+import { getMiniXiangqiLegalMoves, type MiniXiangqiColor } from '@mistboard/game';
 import {
-  getMiniXiangqiLegalMoves,
-  type MiniXiangqiColor,
-} from '@mistboard/game';
-import {
-  darkMiniXiangqiClockRemainingMs,
   type DarkMiniXiangqiEvent,
+  darkMiniXiangqiClockRemainingMs,
 } from './dark-mini-xiangqi-runtime.js';
 import { buildMiniXiangqiEngineTurnRequest } from './engine-protocol/build-mini-xiangqi.js';
 import { isDarkMiniXiangqiEngineClientId, loadEngine } from './engines/registry.js';
@@ -152,7 +149,7 @@ export async function playDarkMiniXiangqiEngineMoveIfReady(
     engine.livePolicy?.timeoutMs ?? DEFAULT_TIMEOUT_MS,
   );
 
-  let response;
+  let response: Awaited<ReturnType<typeof requestInternalEngineTurn>>;
   try {
     response = await requestInternalEngineTurn(
       request,
@@ -178,9 +175,7 @@ export async function playDarkMiniXiangqiEngineMoveIfReady(
   // before committing the move.
   if (!engineToMove(room, seat)) return;
   const legal = getMiniXiangqiLegalMoves(room.projection.state);
-  const chosen = legal.find(
-    (m) => m.from === response.move.from && m.to === response.move.to,
-  );
+  const chosen = legal.find((m) => m.from === response.move.from && m.to === response.move.to);
   if (!chosen) {
     logger.error(
       { kind: 'dmx_engine_illegal_move', room_id: room.id, move: response.move },

@@ -11,7 +11,6 @@ import {
   releaseEngineGameTaskClaim,
   stopWorkerRun,
 } from './engine-experiments.js';
-import { darkMiniXiangqiEnabled } from './feature-flags.js';
 import {
   DARK_MINI_XIANGQI_DEFAULT_ENGINE_ID,
   loadEngine,
@@ -19,6 +18,7 @@ import {
 } from './engine-registry.js';
 import { runRandomLegalEngineGame } from './engine-runner.js';
 import { type EngineHttpService, startEngineHttpService } from './engine-service.js';
+import { darkMiniXiangqiEnabled } from './feature-flags.js';
 import { runMigrations } from './migrate.js';
 import { startObservability } from './obs.js';
 import { disposeAllPythonPools, getPythonPool } from './python-pool.js';
