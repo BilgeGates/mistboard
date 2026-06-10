@@ -1,28 +1,26 @@
 import { darkMiniXiangqiPublicEntryEnabled } from './feature-flags.js';
 
-// Cards shown in the landing-page Announcements panel.
+// Entries for the landing News box and the /news page.
 //
 // Workflow: when shipping a user-facing change, append a new entry with
-// today's date. Newest first. Skip for internal-only changes (engine
-// internals, infra, CI, refactors).
+// today's date. Newest first (both surfaces sort by date descending). Skip
+// for internal-only changes (engine internals, infra, CI, refactors).
 
 export type AnnouncementKind = 'status' | 'article' | 'release' | 'update';
 
 export type Announcement = {
-  date: string; // ISO YYYY-MM-DD; ignored for pinned entries
+  date: string; // ISO YYYY-MM-DD
   kind: AnnouncementKind;
   headline: string;
   body?: string;
   href?: string;
-  cta?: string; // optional override; otherwise derived from kind
-  pinned?: boolean;
+  cta?: string; // inline link label on /news; falls back to "Read more"
   requiresDarkMiniXiangqiPublicEntry?: boolean;
 };
 
 const baseAnnouncements: Announcement[] = [
   {
     date: '2026-05-09',
-    pinned: true,
     kind: 'status',
     headline: 'Mistboard is in alpha.',
     body: 'Casual dark chess is open. Rated beta is coming.',

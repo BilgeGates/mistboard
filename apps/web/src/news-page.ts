@@ -43,22 +43,27 @@ export function buildNewsPage(): HTMLElement {
     const body = document.createElement('div');
     body.className = 'news-page-body';
 
-    const headline = document.createElement(entry.href ? 'a' : 'p');
+    const headline = document.createElement('p');
     headline.className = 'news-page-headline';
     headline.textContent = entry.headline;
-    if (entry.href && headline instanceof HTMLAnchorElement) {
-      headline.href = entry.href;
-      if (/^https?:/.test(entry.href)) {
-        headline.target = '_blank';
-        headline.rel = 'noopener noreferrer';
-      }
-    }
     body.append(headline);
 
-    if (entry.body) {
+    if (entry.body || entry.href) {
       const text = document.createElement('p');
       text.className = 'news-page-text';
-      text.textContent = entry.body;
+      if (entry.body) text.append(`${entry.body} `);
+      if (entry.href) {
+        const isExternal = /^https?:/.test(entry.href);
+        const link = document.createElement('a');
+        link.className = 'news-page-link';
+        link.href = entry.href;
+        link.textContent = entry.cta ?? 'Read more';
+        if (isExternal) {
+          link.target = '_blank';
+          link.rel = 'noopener noreferrer';
+        }
+        text.append(link);
+      }
       body.append(text);
     }
 

@@ -44,20 +44,23 @@
   line-height: 1.4;
 }
 
-a.news-page-headline {
-  text-decoration: none;
-  color: var(--site-link);
-}
-
-a.news-page-headline:hover {
-  text-decoration: underline;
-}
-
 .news-page-text {
   margin: 2px 0 0;
   color: var(--site-text);
   font-size: 14px;
   line-height: 1.55;
+}
+
+/* Small inline link worked into the body line, not a linked headline. */
+.news-page-link {
+  color: var(--site-link);
+  font-size: 13px;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.news-page-link:hover {
+  text-decoration: underline;
 }
 
 .news-page-empty {

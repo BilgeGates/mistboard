@@ -15,20 +15,13 @@ export function buildLandingAnnouncements(): HTMLElement {
   if (entries.length === 0) return panel;
 
   const news = buildSiteBox({ title: 'News', href: '/news', className: 'landing-news' });
-  for (const entry of orderAnnouncements(entries).slice(0, MAX_FEED_ROWS)) {
+  const ordered = [...entries].sort((a, b) => b.date.localeCompare(a.date));
+  for (const entry of ordered.slice(0, MAX_FEED_ROWS)) {
     news.body.append(renderFeedRow(entry));
   }
   panel.append(news.box);
 
   return panel;
-}
-
-export function orderAnnouncements(entries: readonly Announcement[]): Announcement[] {
-  return [...entries].sort((a, b) => {
-    if (a.pinned && !b.pinned) return -1;
-    if (b.pinned && !a.pinned) return 1;
-    return b.date.localeCompare(a.date);
-  });
 }
 
 function renderFeedRow(entry: Announcement): HTMLElement {
