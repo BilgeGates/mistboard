@@ -199,8 +199,8 @@ describe('landing play panel', () => {
     expect([...variantSelect!.options].map((option) => option.value)).toContain('crossroads-chess');
     selectModalVariant('crossroads-chess');
     expect(modalColorOptions()).toEqual([
-      { label: 'White', glyph: '♔', classes: 'landing-color-glyph white' },
-      { label: 'Random', glyph: '♔♚', classes: 'landing-color-glyph random' },
+      { label: 'White', glyph: '♚', classes: 'landing-color-glyph white' },
+      { label: 'Random', glyph: '♚♚', classes: 'landing-color-glyph random' },
       { label: 'Black', glyph: '♚', classes: 'landing-color-glyph black' },
     ]);
     expect(document.body.textContent).toContain('Black');

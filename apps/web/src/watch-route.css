@@ -529,6 +529,11 @@
   overflow: visible;
 }
 
+.watch-replay .watch-crossroads-layout {
+  grid-template-columns: minmax(0, min(100%, 520px));
+  justify-content: center;
+}
+
 .watch-replay .crossroads-watch-board .crossroads-live-svg {
   display: block;
   width: 100%;

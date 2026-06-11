@@ -237,7 +237,7 @@ const LANDING_GAME_SPEC_CAPABILITIES: Record<LandingGameSpecId, LandingGameSpecC
   },
   [CROSSROADS_CHESS_SPEC_ID]: {
     firstColor: 'white',
-    firstGlyph: '♔',
+    firstGlyph: '♚',
     firstLabel: 'White',
     secondColor: 'black',
     secondGlyph: '♚',

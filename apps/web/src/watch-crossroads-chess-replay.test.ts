@@ -40,6 +40,7 @@ describe('Crossroads Chess watch replay', () => {
     expect(root.textContent).toContain('Red Player');
     expect(root.textContent).toContain('Ply 0 / 1');
     expect(root.querySelectorAll('.crossroads-live-svg')).toHaveLength(1);
+    expect(root.querySelector('.watch-crossroads-layout .crossroads-watch-board')).not.toBeNull();
 
     root.querySelector<HTMLButtonElement>('[aria-label="Next move"]')?.click();
     expect(root.textContent).toContain('Ply 1 / 1 - White wins');
