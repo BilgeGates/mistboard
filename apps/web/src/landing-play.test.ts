@@ -239,9 +239,9 @@ describe('landing play panel', () => {
     const engineSelect = document.querySelector<HTMLSelectElement>('select[aria-label="Engine"]');
     expect(engineSelect).not.toBeNull();
     expect([...engineSelect!.options].map((option) => [option.value, option.textContent])).toEqual([
-      ['fairy-stockfish-crossroads-amateur', 'Amateur'],
-      ['fairy-stockfish-crossroads-strong', 'Strong'],
-      ['fairy-stockfish-crossroads-very-strong', 'Very Strong'],
+      ['fairy-stockfish-crossroads-amateur', 'Fairy Stockfish - Amateur'],
+      ['fairy-stockfish-crossroads-strong', 'Fairy Stockfish - Strong'],
+      ['fairy-stockfish-crossroads-very-strong', 'Fairy Stockfish - Strongest'],
     ]);
     expect(engineSelect!.value).toBe('fairy-stockfish-crossroads-strong');
     selectModalEngine('fairy-stockfish-crossroads-very-strong');
@@ -317,7 +317,7 @@ describe('landing play panel', () => {
     expect(visibleModalTimeControls()).toEqual(['1 + 1', '3 + 2']);
   });
 
-  it('offers Crossroads Chess for engine play, but keeps it out of lobby entry points', () => {
+  it('offers Crossroads Chess for engine and lobby play', () => {
     vi.stubEnv('VITE_CROSSROADS_CHESS_ENABLED', 'true');
     vi.stubGlobal(
       'fetch',
@@ -335,7 +335,7 @@ describe('landing play panel', () => {
     openPlaySetup(panel, 'Find opponent');
     variantSelect = document.querySelector<HTMLSelectElement>('.landing-variant-select');
     options = variantSelect ? [...variantSelect.options].map((option) => option.value) : [];
-    expect(options).not.toContain('crossroads-chess');
+    expect(options).toContain('crossroads-chess');
   });
 
   it('keeps Dark Mini Xiangqi hidden from public entry unless its public-entry flag is enabled', () => {
@@ -559,6 +559,27 @@ describe('landing play panel', () => {
 
     expect(lobbyPostBody(fetchSpy).gameSpecId).toBe('dark-mini-xiangqi');
   });
+
+  it('sends the Crossroads Chess game spec id and rapid time control when finding an opponent', async () => {
+    vi.stubEnv('VITE_CROSSROADS_CHESS_ENABLED', 'true');
+    const fetchSpy = lobbyFetchSpy();
+    vi.stubGlobal('fetch', fetchSpy);
+    const panel = buildLandingPlayPanel([]);
+    document.body.append(panel);
+    openLobbySetup(panel);
+    selectModalVariant('crossroads-chess');
+    clickModalTimeControl('5 + 5');
+    document
+      .querySelector<HTMLButtonElement>('.landing-setup-start')
+      ?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    await flushPromises();
+
+    expect(lobbyPostBody(fetchSpy)).toMatchObject({
+      gameSpecId: 'crossroads-chess',
+      rated: false,
+      timeControl: { initialMs: 300_000, incrementMs: 5_000 },
+    });
+  });
 });
 
 // Resolve the lobby "Find opponent" → setup screen. The first matching button is
@@ -585,6 +606,12 @@ function clickModalButton(label: string): void {
 function clickModalColor(label: string): void {
   [...document.querySelectorAll<HTMLButtonElement>('.landing-color-option')]
     .find((button) => button.querySelector('.landing-color-label')?.textContent === label)
+    ?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+}
+
+function clickModalTimeControl(label: string): void {
+  [...document.querySelectorAll<HTMLButtonElement>('.landing-time-presets button')]
+    .find((button) => button.textContent?.trim() === label)
     ?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
 }
 

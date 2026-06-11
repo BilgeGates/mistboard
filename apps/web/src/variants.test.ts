@@ -33,8 +33,11 @@ describe('web variant launch registry', () => {
     );
   });
 
-  it('keeps the default public leaderboard scoped to Dark chess', () => {
-    expect(leaderboardVariants.map((v) => v.gameSpecId)).toEqual([DARK_CHESS_SPEC_ID]);
+  it('shows public leaderboard buckets for live public variants', () => {
+    expect(leaderboardVariants.map((v) => v.gameSpecId)).toEqual([
+      DARK_CHESS_SPEC_ID,
+      CROSSROADS_CHESS_SPEC_ID,
+    ]);
   });
 
   it('adds Dark Mini Xiangqi profile buckets behind the DMX render flag', async () => {
@@ -46,7 +49,10 @@ describe('web variant launch registry', () => {
       DARK_MINI_XIANGQI_SPEC_ID,
       CROSSROADS_CHESS_SPEC_ID,
     ]);
-    expect(flagged.leaderboardVariants.map((v) => v.gameSpecId)).toEqual([DARK_CHESS_SPEC_ID]);
+    expect(flagged.leaderboardVariants.map((v) => v.gameSpecId)).toEqual([
+      DARK_CHESS_SPEC_ID,
+      CROSSROADS_CHESS_SPEC_ID,
+    ]);
     vi.unstubAllEnvs();
     vi.resetModules();
   });
@@ -59,6 +65,7 @@ describe('web variant launch registry', () => {
     expect(flagged.leaderboardVariants.map((v) => v.gameSpecId)).toEqual([
       DARK_CHESS_SPEC_ID,
       DARK_MINI_XIANGQI_SPEC_ID,
+      CROSSROADS_CHESS_SPEC_ID,
     ]);
     expect(flagged.enabledVariants.map((v) => v.gameSpecId)).toContain(DARK_MINI_XIANGQI_SPEC_ID);
     expect(
@@ -82,15 +89,13 @@ describe('web variant launch registry', () => {
     expect(profileRatingVariants.map((v) => v.gameSpecId)).not.toContain(DARK_XIANGQI_SPEC_ID);
   });
 
-  it('shows Crossroads on profile buckets while keeping it off lobby and leaderboard', async () => {
+  it('shows Crossroads on rating surfaces and enables it behind its play flag', async () => {
     vi.resetModules();
     vi.stubEnv('VITE_CROSSROADS_CHESS_ENABLED', 'true');
     const flagged = await import('./variants.js');
 
-    expect(flagged.enabledVariants.map((v) => v.gameSpecId)).not.toContain(
-      CROSSROADS_CHESS_SPEC_ID,
-    );
-    expect(flagged.leaderboardVariants.map((v) => v.gameSpecId)).not.toContain(
+    expect(flagged.enabledVariants.map((v) => v.gameSpecId)).toContain(CROSSROADS_CHESS_SPEC_ID);
+    expect(flagged.leaderboardVariants.map((v) => v.gameSpecId)).toContain(
       CROSSROADS_CHESS_SPEC_ID,
     );
     expect(flagged.profileRatingVariants.map((v) => v.gameSpecId)).toContain(

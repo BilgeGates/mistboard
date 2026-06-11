@@ -25,5 +25,3 @@ export function crossroadsChessEnabled(): boolean {
     import.meta.env.VITE_DUAL_CHESS_ENABLED === 'true'
   );
 }
-
-export const dualChessEnabled = crossroadsChessEnabled;

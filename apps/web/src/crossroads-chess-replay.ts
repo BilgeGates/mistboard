@@ -17,7 +17,7 @@ import {
 } from '@mistboard/game';
 import { renderCrossroadsChessViewBoard } from './crossroads-chess-diagram.js';
 
-export type DualReplaySpec = {
+export type CrossroadsReplaySpec = {
   white: string;
   red: string;
   event: string;
@@ -43,7 +43,7 @@ function tokenToMove(tok: string): CrossroadsChessMove {
 
 export function mountCrossroadsChessReplay(
   host: HTMLElement,
-  spec: DualReplaySpec,
+  spec: CrossroadsReplaySpec,
 ): CrossroadsChessReplayController {
   const perspective = spec.perspective ?? 'white';
   const moves = spec.moves

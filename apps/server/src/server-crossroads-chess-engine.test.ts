@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
+import type { CrossroadsChessMove } from '@mistboard/game';
 import {
   appendCrossroadsChessRuntimeEvent,
   type CrossroadsChessRuntimeRoom,
@@ -82,6 +83,20 @@ test('Crossroads engine loop falls back to a legal move on request failure', asy
   assert.deepEqual(room.projection.state.status, { type: 'playing', turn: 'white' });
 });
 
+test('Crossroads engine loop guards avoidable one-ply terminal losses', async () => {
+  const room = pveRoom('white');
+  appendMoves(room, PRODUCTION_RACE_ENDGAME_HISTORY);
+  assert.deepEqual(room.projection.state.status, { type: 'playing', turn: 'white' });
+  const ctx = engineCtx(room, async () => 'c1b3');
+
+  await playCrossroadsChessEngineMoveIfReady(ctx, room);
+
+  const last = room.events.at(-1);
+  assert.equal(last?.type, 'move-played');
+  assert.equal(last?.type === 'move-played' && last.color, 'white');
+  assert.deepEqual(last?.type === 'move-played' && last.move, { from: 'd4', to: 'd1' });
+});
+
 test('Crossroads engine scheduler is a no-op until the engine is on turn', () => {
   const room = pveRoom('red');
   const ctx = engineCtx(room, async () => 'd7d6');
@@ -114,6 +129,28 @@ function pveRoom(engineSeat: 'white' | 'red'): CrossroadsChessLiveRoom {
   return room as CrossroadsChessLiveRoom;
 }
 
+function appendMoves(room: CrossroadsChessRuntimeRoom, moves: readonly string[]): void {
+  moves.forEach((uci, idx) => {
+    appendCrossroadsChessRuntimeEvent(room, {
+      type: 'move-played',
+      at: 3 + idx,
+      roomId: room.id,
+      color: idx % 2 === 0 ? 'white' : 'red',
+      move: moveFromUci(uci),
+    });
+  });
+}
+
+function moveFromUci(uci: string): CrossroadsChessMove {
+  const match = uci.match(/^([a-f][1-8])([a-f][1-8])(q)?$/);
+  assert.ok(match, `invalid uci move: ${uci}`);
+  return {
+    from: match[1] as CrossroadsChessMove['from'],
+    to: match[2] as CrossroadsChessMove['to'],
+    ...(match[3] ? { promotion: 'queen' as const } : {}),
+  };
+}
+
 function engineCtx(
   room: CrossroadsChessRuntimeRoom,
   engineMove: CrossroadsChessEngineContext['engineMove'],
@@ -125,3 +162,76 @@ function engineCtx(
     now: () => 1_000,
   };
 }
+
+const PRODUCTION_RACE_ENDGAME_HISTORY = [
+  'e2e3',
+  'e7e6',
+  'f1c4',
+  'b7b6',
+  'd2d4',
+  'd7d6',
+  'd1c3',
+  'f7f6',
+  'b2b3',
+  'f6f5',
+  'b3b4',
+  'f5f4',
+  'c4d3',
+  'f4f3',
+  'b4b5',
+  'a8b7',
+  'e1d2',
+  'f3f2',
+  'b1b3',
+  'f8f3',
+  'b5b6',
+  'c7b6',
+  'd3a6',
+  'd8c6',
+  'a2a3',
+  'f3e3',
+  'b3e3',
+  'e8e3',
+  'a6b7',
+  'b8b7',
+  'd2e3',
+  'c8e7',
+  'e3e4',
+  'b7c7',
+  'c3b5',
+  'c7d7',
+  'b5a7',
+  'c6d4',
+  'e4d4',
+  'd6d5',
+  'd4d3',
+  'd7d6',
+  'a1a2',
+  'e6e5',
+  'a2b2',
+  'e5e4',
+  'a7b5',
+  'd6e5',
+  'b5c3',
+  'd5d4',
+  'd3d2',
+  'd4c4',
+  'c3b5',
+  'e7d5',
+  'a3a4',
+  'e4e3',
+  'c2c3',
+  'c4c3',
+  'b5c3',
+  'd5c3',
+  'd2c3',
+  'e5e4',
+  'b2f2',
+  'e3f3',
+  'f2d2',
+  'f3e3',
+  'c3b4',
+  'e4f3',
+  'd2d4',
+  'f3f2',
+] as const;

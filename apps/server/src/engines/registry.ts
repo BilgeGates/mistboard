@@ -304,8 +304,8 @@ const CROSSROADS_CHESS_ENGINES: Record<string, EngineDefinition> = {
   'fairy-stockfish-crossroads-amateur': {
     id: 'fairy-stockfish-crossroads-amateur',
     engineId: 'fairy-stockfish-crossroads',
-    engineName: 'Fairy-Stockfish Crossroads',
-    name: 'Amateur',
+    engineName: 'Fairy Stockfish',
+    name: 'Fairy Stockfish - Amateur',
     kind: 'container',
     gameSpecId: 'crossroads-chess',
     configHash: 'fsf-crossroads-amateur',
@@ -316,26 +316,28 @@ const CROSSROADS_CHESS_ENGINES: Record<string, EngineDefinition> = {
   'fairy-stockfish-crossroads-strong': {
     id: 'fairy-stockfish-crossroads-strong',
     engineId: 'fairy-stockfish-crossroads',
-    engineName: 'Fairy-Stockfish Crossroads',
-    name: 'Strong',
+    engineName: 'Fairy Stockfish',
+    name: 'Fairy Stockfish - Strong',
     kind: 'container',
     gameSpecId: 'crossroads-chess',
     configHash: 'fsf-crossroads-strong',
     playSignature: 'fsf-crossroads-strong',
     config: { kind: 'fairy-stockfish', skill: 8, movetime_ms: 300 },
-    notes: 'Default Crossroads Chess Fairy-Stockfish tier capped for production-safe play.',
+    notes:
+      'Default Crossroads Chess Fairy-Stockfish tier with lower-skill move selection plus the live immediate-loss guard.',
   },
   'fairy-stockfish-crossroads-very-strong': {
     id: 'fairy-stockfish-crossroads-very-strong',
     engineId: 'fairy-stockfish-crossroads',
-    engineName: 'Fairy-Stockfish Crossroads',
-    name: 'Very Strong',
+    engineName: 'Fairy Stockfish',
+    name: 'Fairy Stockfish - Strongest',
     kind: 'container',
     gameSpecId: 'crossroads-chess',
     configHash: 'fsf-crossroads-very-strong',
     playSignature: 'fsf-crossroads-very-strong',
     config: { kind: 'fairy-stockfish', skill: 16, movetime_ms: 600 },
-    notes: 'Top Crossroads Chess Fairy-Stockfish tier capped below unlimited engine search.',
+    notes:
+      'Top Crossroads Chess Fairy-Stockfish tier capped below full strength plus the live immediate-loss guard.',
   },
 };
 

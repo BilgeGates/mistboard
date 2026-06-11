@@ -1,5 +1,12 @@
+import {
+  CROSSROADS_CHESS_SPEC_ID,
+  createInitialCrossroadsChessState,
+  gameSpecForId,
+  getCrossroadsChessOpenView,
+} from '@mistboard/game';
 import { describe, expect, it } from 'vitest';
 import {
+  crossroadsChessLifecycleAnalyticsInput,
   crossroadsChessReviewUrl,
   crossroadsChessTerminalActionsMarkup,
   crossroadsLivePlayAgainRequestBody,
@@ -74,5 +81,40 @@ describe('Crossroads Chess live room terminal actions', () => {
     expect(crossroadsLiveTimeControlLabel({ initialMs: 300_000, incrementMs: 5_000 })).toBe('5+5');
     expect(crossroadsLiveTimeControlLabel({ initialMs: 300_000, incrementMs: 0 })).toBe('5+0');
     expect(crossroadsLiveTimeControlLabel(null)).toBeNull();
+  });
+
+  it('builds Crossroads lifecycle analytics with canonical spec fields', () => {
+    const spec = gameSpecForId(CROSSROADS_CHESS_SPEC_ID);
+    const view = getCrossroadsChessOpenView(
+      {
+        ...createInitialCrossroadsChessState('dchess_telemetry'),
+        moveNumber: 4,
+        status: { type: 'finished', winner: 'red', reason: 'race' },
+      },
+      'white',
+    );
+
+    expect(
+      crossroadsChessLifecycleAnalyticsInput(view, {
+        roomMode: 'pve',
+        timeControl: { initialMs: 300_000, incrementMs: 5_000 },
+      }),
+    ).toEqual({
+      statusType: 'finished',
+      baseProps: {
+        gameId: 'dchess_telemetry',
+        game_spec: spec.id,
+        family: spec.family,
+        setup: spec.setup,
+        visibility: spec.visibility,
+        rating_pool: spec.ratingPoolBase,
+        rated: false,
+        roomMode: 'pve',
+        initialMs: 300_000,
+        incrementMs: 5_000,
+        time_class: 'rapid',
+      },
+      outcome: { winner: 'red', reason: 'race', moveNumber: 4 },
+    });
   });
 });

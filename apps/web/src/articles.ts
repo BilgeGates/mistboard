@@ -18,8 +18,8 @@ import {
   articles,
   type ChessReplayBlock,
   type CodeBlock,
+  type CrossroadsReplayBlock,
   type CtaBlock,
-  type DualReplayBlock,
   findArticle,
   type InteractiveBlock,
   type LiveBoardsBlock,
@@ -779,7 +779,7 @@ type PendingBlock =
   | XiangqiReplayBlock
   | ChessReplayBlock
   | MiniXiangqiReplayBlock
-  | DualReplayBlock;
+  | CrossroadsReplayBlock;
 const pendingMounts = new WeakMap<HTMLElement, PendingBlock>();
 
 function renderBlock(block: ArticleBlock): HTMLElement {
@@ -794,7 +794,7 @@ function renderBlock(block: ArticleBlock): HTMLElement {
   if (block.kind === 'xq-replay') return renderXiangqiReplayBlock(block);
   if (block.kind === 'mxq-replay') return renderMiniXiangqiReplayBlock(block);
   if (block.kind === 'chess-replay') return renderChessReplayBlock(block);
-  if (block.kind === 'crossroads-replay') return renderDualReplayBlock(block);
+  if (block.kind === 'crossroads-replay') return renderCrossroadsReplayBlock(block);
   return renderInteractiveBlock(block);
 }
 
@@ -818,7 +818,7 @@ function renderChessReplayBlock(block: ChessReplayBlock): HTMLElement {
   return figure;
 }
 
-function renderDualReplayBlock(block: DualReplayBlock): HTMLElement {
+function renderCrossroadsReplayBlock(block: CrossroadsReplayBlock): HTMLElement {
   const figure = document.createElement('figure');
   figure.className = 'article-figure article-figure-interactive article-figure-crossroads';
   figure.dataset.pendingWidget = 'crossroads-replay';

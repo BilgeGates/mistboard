@@ -36,5 +36,3 @@ export function crossroadsChessEnabled(): boolean {
     process.env.MISTBOARD_DUAL_CHESS_ENABLED === 'true'
   );
 }
-
-export const dualChessEnabled = crossroadsChessEnabled;

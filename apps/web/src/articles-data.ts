@@ -51,8 +51,8 @@ import {
 import articleSnapshotFog from './article-snapshot-fog.json' with { type: 'json' };
 import articleSnapshotFogBlack from './article-snapshot-fog-black.json' with { type: 'json' };
 import type { ChessReplaySpec } from './chess-replay.js';
-import { DUAL_START_FEN, renderCrossroadsChessBoard, renderCrossroadsChessRow } from './crossroads-chess-diagram.js';
-import type { DualReplaySpec } from './crossroads-chess-replay.js';
+import { CROSSROADS_CHESS_START_FEN, renderCrossroadsChessBoard, renderCrossroadsChessRow } from './crossroads-chess-diagram.js';
+import type { CrossroadsReplaySpec } from './crossroads-chess-replay.js';
 import { CROSSROADS_CHESS_SAMPLE_GAME } from './crossroads-chess-sample-game.js';
 import type { MiniXiangqiReplaySpec } from './mini-xiangqi-replay.js';
 import {
@@ -136,9 +136,9 @@ export type ChessReplayBlock = {
 
 // Crossroads Chess analogue: a 6x8 board stepped through a UCI move list, each
 // position replayed through the real kernel and rendered by the live renderer.
-export type DualReplayBlock = {
+export type CrossroadsReplayBlock = {
   kind: 'crossroads-replay';
-  spec: DualReplaySpec;
+  spec: CrossroadsReplaySpec;
   caption?: string;
 };
 
@@ -216,7 +216,7 @@ export type ArticleBlock =
   | XiangqiReplayBlock
   | ChessReplayBlock
   | MiniXiangqiReplayBlock
-  | DualReplayBlock
+  | CrossroadsReplayBlock
   | CodeBlock;
 
 // `blocks` is the structured body. `paragraphs` is the legacy outline body
@@ -4471,7 +4471,7 @@ export const articles: Article[] = [
     showInIndex: false,
     status: 'draft',
     audience: 'Mistboard readers who know chess or xiangqi and want the Crossroads Chess rules.',
-    thumbnail: { kind: 'svg', svg: renderCrossroadsChessBoard({ fen: DUAL_START_FEN }) },
+    thumbnail: { kind: 'svg', svg: renderCrossroadsChessBoard({ fen: CROSSROADS_CHESS_START_FEN }) },
     intro: [
       {
         kind: 'paragraph',
@@ -4495,7 +4495,7 @@ export const articles: Article[] = [
           },
           {
             kind: 'raw-svg',
-            svg: renderCrossroadsChessBoard({ fen: DUAL_START_FEN }),
+            svg: renderCrossroadsChessBoard({ fen: CROSSROADS_CHESS_START_FEN }),
             caption: 'The starting position. White moves up the board, Red moves down.',
           } as ArticleBlock,
           {

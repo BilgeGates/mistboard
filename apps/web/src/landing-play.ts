@@ -109,20 +109,20 @@ const CROSSROADS_CHESS_DEFAULT_ENGINE_ID = 'fairy-stockfish-crossroads-strong';
 const CROSSROADS_CHESS_ENGINE_OPTIONS: PlayableEngine[] = [
   {
     id: 'fairy-stockfish-crossroads-amateur',
-    name: 'Amateur',
-    familyName: 'Fairy-Stockfish Crossroads',
+    name: 'Fairy Stockfish - Amateur',
+    familyName: 'Fairy Stockfish',
     kind: 'container',
   },
   {
     id: CROSSROADS_CHESS_DEFAULT_ENGINE_ID,
-    name: 'Strong',
-    familyName: 'Fairy-Stockfish Crossroads',
+    name: 'Fairy Stockfish - Strong',
+    familyName: 'Fairy Stockfish',
     kind: 'container',
   },
   {
     id: 'fairy-stockfish-crossroads-very-strong',
-    name: 'Very Strong',
-    familyName: 'Fairy-Stockfish Crossroads',
+    name: 'Fairy Stockfish - Strongest',
+    familyName: 'Fairy Stockfish',
     kind: 'container',
   },
 ];
@@ -151,7 +151,7 @@ function allowedTimePresetIds(gameSpecId: LandingGameSpecId): ReadonlySet<Landin
 // its public-entry flag is on. Direct soft-launch deep links can still select it
 // when the render/capability flag is on.
 function enabledLandingVariantGameSpecs(
-  mode: LandingPlayMode,
+  _mode: LandingPlayMode,
 ): { gameSpecId: LandingGameSpecId; label: string }[] {
   const specs: { gameSpecId: LandingGameSpecId; label: string }[] = [
     { gameSpecId: DARK_CHESS_SPEC_ID, label: gameSpecForId(DARK_CHESS_SPEC_ID).publicName },
@@ -165,7 +165,7 @@ function enabledLandingVariantGameSpecs(
       label: gameSpecForId(DARK_MINI_XIANGQI_SPEC_ID).publicName,
     });
   }
-  if (mode !== 'lobby' && crossroadsChessEnabled()) {
+  if (crossroadsChessEnabled()) {
     specs.push({
       gameSpecId: CROSSROADS_CHESS_SPEC_ID,
       label: gameSpecForId(CROSSROADS_CHESS_SPEC_ID).publicName,
@@ -184,7 +184,7 @@ function parseLandingGameSpecId(value: string): LandingGameSpecId {
 
 function deepLinkInitialVariant(
   variant: string | null,
-  mode: LandingPlayMode,
+  _mode: LandingPlayMode,
 ): LandingGameSpecId | undefined {
   // Dark Xiangqi (9x10) is intentionally omitted — it has no playable runtime,
   // so it must not be reachable from the play menu or a deep link.
@@ -193,7 +193,6 @@ function deepLinkInitialVariant(
   }
   if (
     (variant === CROSSROADS_CHESS_SPEC_ID || variant === DUAL_CHESS_SPEC_ID) &&
-    mode !== 'lobby' &&
     crossroadsChessEnabled()
   ) {
     return CROSSROADS_CHESS_SPEC_ID;
@@ -680,7 +679,8 @@ function openLandingSetupDialog(choice: LandingPlayChoice): void {
   variantSection.append(setupSectionLabel('Variant'));
 
   // The picker appears only when a second public-entry variant exists beyond
-  // chess. The option set is mode-aware: Crossroads is not in public lobby yet.
+  // chess. The option set is mode-aware because some variants are surfaced only
+  // through direct soft-launch links.
   const variantSelectable = variantOptions.length > 1;
   if (variantSelectable) {
     const gameSpecSelect = document.createElement('select');

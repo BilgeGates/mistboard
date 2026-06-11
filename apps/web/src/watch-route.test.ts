@@ -76,4 +76,37 @@ describe('watch route copy helpers', () => {
     expect(watchQueueMatchupLabel(game)).toBe('Red Human vs Misty (Dark Mini Xiangqi)');
     expect(resultLabel(game.result)).toBe('Red wins');
   });
+
+  it('renders white/red Crossroads Chess queue labels', () => {
+    const game: FeaturedGame = {
+      blackName: null,
+      corpusId: null,
+      mode: 'pve',
+      participants: [
+        {
+          color: 'white',
+          displayName: 'White Human',
+          subjectId: null,
+          subjectType: 'guest',
+          visibility: 'public',
+        },
+        {
+          color: 'red',
+          displayName: 'Misty',
+          subjectId: 'fairy-stockfish-crossroads-strong',
+          subjectType: 'engine-version',
+          visibility: 'public',
+        },
+      ],
+      plyCount: 16,
+      result: 'red-wins',
+      roomId: 'dchess_watch',
+      termination: 'resignation',
+      variant: 'crossroads-chess',
+      whiteName: null,
+    };
+
+    expect(watchQueueMatchupLabel(game)).toBe('White Human vs Misty');
+    expect(resultLabel(game.result)).toBe('Red wins');
+  });
 });

@@ -17,7 +17,11 @@ import {
   gameSpecForId,
   type RatingPoolBaseId,
 } from '@mistboard/game';
-import { darkMiniXiangqiEnabled, darkMiniXiangqiPublicEntryEnabled } from './feature-flags.js';
+import {
+  crossroadsChessEnabled,
+  darkMiniXiangqiEnabled,
+  darkMiniXiangqiPublicEntryEnabled,
+} from './feature-flags.js';
 
 export type RatingVariantId = Extract<
   RatingPoolBaseId,
@@ -41,6 +45,7 @@ export interface VariantDef {
 const draft960Enabled = import.meta.env.VITE_DRAFT960_ENABLED === 'true';
 const darkMiniEnabled = darkMiniXiangqiEnabled();
 const darkMiniPublicEntryEnabled = darkMiniXiangqiPublicEntryEnabled();
+const crossroadsEnabled = crossroadsChessEnabled();
 const darkChessSpec = gameSpecForId(DARK_CHESS_SPEC_ID);
 const draft960Spec = gameSpecForId(DARK_DRAFT960_SPEC_ID);
 const darkMiniXiangqiSpec = gameSpecForId(DARK_MINI_XIANGQI_SPEC_ID);
@@ -82,8 +87,8 @@ export const VARIANTS: VariantDef[] = [
     gameSpecId: crossroadsChessSpec.id,
     apiParam: CROSSROADS_CHESS_SPEC_ID,
     label: crossroadsChessSpec.publicName,
-    enabled: false,
-    onLeaderboard: false,
+    enabled: crossroadsEnabled,
+    onLeaderboard: true,
     onProfile: true,
   },
 ];

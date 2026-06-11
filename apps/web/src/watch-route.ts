@@ -39,7 +39,7 @@ type WatchFeed = {
   initialReplay?: WatchInitialReplay;
 };
 
-type WatchRendererKind = 'chess' | 'mini-xiangqi';
+type WatchRendererKind = 'chess' | 'mini-xiangqi' | 'crossroads-chess';
 
 const WATCH_ACTIVE_POLL_MS = 15_000;
 const WATCH_IDLE_POLL_MS = 60_000;
@@ -74,6 +74,7 @@ export async function mountWatch(root: HTMLElement): Promise<void> {
 
   const watchRendererKind = (feed: WatchFeed): WatchRendererKind => {
     const channel = feed.channels.find((entry) => entry.id === feed.activeChannel);
+    if (channel?.family === 'crossroads-chess') return 'crossroads-chess';
     return channel?.family === 'xiangqi' ? 'mini-xiangqi' : 'chess';
   };
 
@@ -264,6 +265,13 @@ async function mountWatchReplay(
     // Dynamic import keeps the xiangqi renderer out of the chess path's bundle.
     const { mountMiniXiangqiWatchReplay } = await import('./watch-mini-xiangqi-replay.js');
     return await mountMiniXiangqiWatchReplay(root, roomId, {
+      autoplay: true,
+      metadataByRoomId,
+    });
+  }
+  if (kind === 'crossroads-chess') {
+    const { mountCrossroadsChessWatchReplay } = await import('./watch-crossroads-chess-replay.js');
+    return await mountCrossroadsChessWatchReplay(root, roomId, {
       autoplay: true,
       metadataByRoomId,
     });
@@ -616,10 +624,17 @@ export function watchFeedIsDark(feed: Pick<WatchFeed, 'activeChannel' | 'channel
 }
 
 export function watchQueueMatchupLabel(game: FeaturedGame): string {
-  const firstColor = game.participants?.some((participant) => participant.color === 'red')
-    ? 'red'
-    : 'white';
-  return `${displayParticipantName(game, firstColor)} vs ${displayParticipantName(game, 'black')}`;
+  if (isCrossroadsChessVariant(game.variant)) {
+    return `${displayParticipantName(game, 'white')} vs ${displayParticipantName(game, 'red')}`;
+  }
+  if (game.participants?.some((participant) => participant.color === 'red')) {
+    return `${displayParticipantName(game, 'red')} vs ${displayParticipantName(game, 'black')}`;
+  }
+  return `${displayParticipantName(game, 'white')} vs ${displayParticipantName(game, 'black')}`;
+}
+
+function isCrossroadsChessVariant(variant: string): boolean {
+  return variant === 'crossroads-chess' || variant === 'dual-chess';
 }
 
 export function formatWatchScope(

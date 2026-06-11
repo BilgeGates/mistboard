@@ -11,22 +11,33 @@
 // the full open view + events; event-appended is the steady-state delta. The
 // server re-validates every move, so the client can be optimistic about input.
 
-import type {
-  CrossroadsChessColor,
-  CrossroadsChessGameState,
-  CrossroadsChessMove,
-  CrossroadsChessPlayerView,
-  CrossroadsChessSquare,
-} from '@mistboard/game';
 import {
   applyCrossroadsChessOpenMove,
+  CROSSROADS_CHESS_SPEC_ID,
+  type CrossroadsChessColor,
+  type CrossroadsChessGameState,
+  type CrossroadsChessMove,
+  type CrossroadsChessPlayerView,
+  type CrossroadsChessSquare,
   createInitialCrossroadsChessState,
   getCrossroadsChessOpenView,
 } from '@mistboard/game';
 import './live-crossroads-chess.css';
+import {
+  classifyTimeControl,
+  createGameLifecycleTracker,
+  type GameLifecycleStatusType,
+  gameSpecAnalyticsPropsForId,
+} from './analytics.js';
 import { renderCrossroadsChessBoardSvg } from './crossroads-chess-render.js';
+import {
+  maybePlayCrossroadsChessSnapshotSound,
+  resetCrossroadsChessSoundState,
+  soundForOwnCrossroadsChessMove,
+} from './live-crossroads-chess-sound.js';
 import { createLiveLayout, setLiveLayoutGameSpec } from './live-layout.js';
 import { roomIdFromPath } from './live-room-bootstrap.js';
+import { initLiveSound, playSound, resetLiveSoundState } from './live-sound.js';
 import {
   clearSeatTokenForRoom,
   clientIdForRoom,
@@ -38,7 +49,7 @@ import {
 
 // ── Wire shapes (the subset this client consumes) ───────────────────────────
 
-type DualLiveClock = {
+type CrossroadsLiveClock = {
   activeColor: CrossroadsChessColor | null;
   incrementMs: number;
   initialMs: number;
@@ -47,26 +58,26 @@ type DualLiveClock = {
 };
 type CrossroadsChessLiveTimeControl = { initialMs: number; incrementMs: number };
 
-type DualMovePlayed = {
+type CrossroadsMovePlayed = {
   type: 'move-played';
   color: CrossroadsChessColor;
   move: CrossroadsChessMove;
   ply?: number;
 };
-type DualLiveEvent = DualMovePlayed | { type: string };
+type CrossroadsLiveEvent = CrossroadsMovePlayed | { type: string };
 type CrossroadsLiveRematch = {
   offers: Partial<Record<CrossroadsChessColor, boolean>>;
   finalizedRoomId: string | null;
 };
 
-type DualLiveFrame = {
+type CrossroadsLiveFrame = {
   type: 'hello' | 'snapshot' | 'event-appended';
   clientId?: string;
   seatToken?: string;
   seat: CrossroadsChessColor | 'spectator';
   seats: Partial<Record<CrossroadsChessColor, string>>;
   state: CrossroadsChessPlayerView;
-  clock?: DualLiveClock | null;
+  clock?: CrossroadsLiveClock | null;
   connectedSeats?: Record<CrossroadsChessColor, boolean>;
   abortDeadline?: number | null;
   forfeitDeadline?: number | null;
@@ -75,13 +86,13 @@ type DualLiveFrame = {
   pveEngineId?: string;
   roomMode?: 'pvp' | 'pve';
   clients?: number;
-  events?: DualLiveEvent[];
-  event?: DualLiveEvent;
+  events?: CrossroadsLiveEvent[];
+  event?: CrossroadsLiveEvent;
   seq?: number;
 };
 
-type DualServerMessage =
-  | DualLiveFrame
+type CrossroadsServerMessage =
+  | CrossroadsLiveFrame
   | { type: 'pong'; at: number; serverAt?: number }
   | ({ type: 'rematch:state' } & CrossroadsLiveRematch)
   | {
@@ -103,11 +114,11 @@ const state = {
   clientId: '',
   seat: null as CrossroadsChessColor | 'spectator' | null,
   view: null as CrossroadsChessPlayerView | null,
-  clock: null as DualLiveClock | null,
+  clock: null as CrossroadsLiveClock | null,
   timeControl: null as CrossroadsChessLiveTimeControl | null,
   seats: {} as Partial<Record<CrossroadsChessColor, string>>,
   connectedSeats: { white: false, red: false } as Record<CrossroadsChessColor, boolean>,
-  moves: [] as DualMovePlayed[],
+  moves: [] as CrossroadsMovePlayed[],
   replayHistory: [] as ReplaySnapshot[],
   replayPly: null as number | null,
   selected: null as CrossroadsChessSquare | null,
@@ -130,6 +141,7 @@ let reconnectAttempt = 0;
 let lastSeq: number | null = null;
 let refs: LiveRefs | null = null;
 let boardHost: HTMLElement | null = null;
+const lifecycleTracker = createGameLifecycleTracker();
 
 // ── Entry point ──────────────────────────────────────────────────────────────
 
@@ -143,6 +155,10 @@ export function bootstrapCrossroadsChessLiveRoom(): void {
   state.playAgainStatus = 'idle';
   state.rematch = { offers: {}, finalizedRoomId: null, declined: false };
   state.rematchCancelIntent = false;
+  lifecycleTracker.reset();
+  initLiveSound();
+  resetLiveSoundState();
+  resetCrossroadsChessSoundState();
 
   if (params.get('reset') === '1') {
     clearSeatTokenForRoom(room);
@@ -243,7 +259,7 @@ function send(payload: unknown): boolean {
 }
 
 function onMessage(event: MessageEvent<string>): void {
-  const message = JSON.parse(event.data) as DualServerMessage;
+  const message = JSON.parse(event.data) as CrossroadsServerMessage;
   if (message.type === 'pong') return;
   if (message.type === 'rematch:state') {
     applyRematchState(message);
@@ -265,11 +281,13 @@ function onMessage(event: MessageEvent<string>): void {
     state.moves = movesFromEvents(message.events ?? []);
     rebuildReplayHistory();
     lastSeq = null;
+    maybePlayCrossroadsChessSnapshotSound(state.view, state.seat);
   } else if (message.type === 'snapshot') {
     applyFrame(message);
     state.moves = movesFromEvents(message.events ?? []);
     rebuildReplayHistory();
     lastSeq = null;
+    maybePlayCrossroadsChessSnapshotSound(state.view, state.seat);
   } else if (message.type === 'event-appended') {
     // Gap detection: a missed delta means resync from a fresh snapshot.
     if (lastSeq !== null && message.seq !== undefined && message.seq !== lastSeq + 1) {
@@ -277,14 +295,16 @@ function onMessage(event: MessageEvent<string>): void {
       return;
     }
     applyFrame(message);
-    if (message.event?.type === 'move-played') state.moves.push(message.event as DualMovePlayed);
+    if (message.event?.type === 'move-played')
+      state.moves.push(message.event as CrossroadsMovePlayed);
     rebuildReplayHistory();
     if (message.seq !== undefined) lastSeq = message.seq;
+    maybePlayCrossroadsChessSnapshotSound(state.view, state.seat);
   }
   renderAll();
 }
 
-function applyFrame(frame: DualLiveFrame): void {
+function applyFrame(frame: CrossroadsLiveFrame): void {
   state.connection = 'connected';
   state.seat = frame.seat;
   state.view = frame.state;
@@ -322,8 +342,8 @@ function applyRematchState(message: CrossroadsLiveRematch): void {
   };
 }
 
-function movesFromEvents(events: DualLiveEvent[]): DualMovePlayed[] {
-  return events.filter((event): event is DualMovePlayed => event.type === 'move-played');
+function movesFromEvents(events: CrossroadsLiveEvent[]): CrossroadsMovePlayed[] {
+  return events.filter((event): event is CrossroadsMovePlayed => event.type === 'move-played');
 }
 
 // ── Interaction ──────────────────────────────────────────────────────────────
@@ -352,7 +372,10 @@ function onBoardClick(event: MouseEvent): void {
   }
   const targets = legalTargets(state.selected);
   if (targets.includes(square)) {
-    send({ type: 'move', from: state.selected, to: square });
+    const move = { from: state.selected, to: square };
+    if (send({ type: 'move', ...move })) {
+      playSound(soundForOwnCrossroadsChessMove(view, move));
+    }
     state.selected = null;
     renderBoard();
     return;
@@ -386,6 +409,7 @@ function isMyTurn(): boolean {
 
 function renderAll(): void {
   if (!refs) return;
+  trackCrossroadsChessLifecycle(state.view);
   resetSharedPanels(refs);
   renderMeta(refs);
   renderBoard();
@@ -394,6 +418,44 @@ function renderAll(): void {
   renderActionStatus(refs);
   renderGameControls(refs);
   renderRoomActions(refs);
+}
+
+function trackCrossroadsChessLifecycle(view: CrossroadsChessPlayerView | null): void {
+  lifecycleTracker.update(
+    crossroadsChessLifecycleAnalyticsInput(view, {
+      roomMode: state.roomMode,
+      timeControl: state.timeControl,
+    }),
+  );
+}
+
+export function crossroadsChessLifecycleAnalyticsInput(
+  view: CrossroadsChessPlayerView | null,
+  context: {
+    roomMode: 'pvp' | 'pve';
+    timeControl: CrossroadsChessLiveTimeControl | null;
+  },
+): {
+  statusType: GameLifecycleStatusType;
+  baseProps: Record<string, unknown>;
+  outcome: { winner: CrossroadsChessColor | null; reason: string; moveNumber: number } | null;
+} | null {
+  if (!view) return null;
+  const tc = context.timeControl;
+  const baseProps = {
+    gameId: view.id,
+    ...gameSpecAnalyticsPropsForId(CROSSROADS_CHESS_SPEC_ID),
+    rated: false,
+    roomMode: context.roomMode,
+    initialMs: tc?.initialMs ?? null,
+    incrementMs: tc?.incrementMs ?? null,
+    time_class: tc ? classifyTimeControl(tc.initialMs, tc.incrementMs) : null,
+  };
+  const outcome =
+    view.status.type === 'finished'
+      ? { winner: view.status.winner, reason: view.status.reason, moveNumber: view.moveNumber }
+      : null;
+  return { statusType: view.status.type, baseProps, outcome };
 }
 
 function renderBoard(): void {
@@ -914,7 +976,7 @@ function renderMoves(liveRefs: LiveRefs): void {
 }
 
 function liveMoveCell(
-  move: DualMovePlayed | undefined,
+  move: CrossroadsMovePlayed | undefined,
   ply: number,
   currentPly: number,
 ): HTMLElement {

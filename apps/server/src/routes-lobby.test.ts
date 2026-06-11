@@ -1,13 +1,15 @@
 import assert from 'node:assert/strict';
 import type { IncomingMessage, ServerResponse } from 'node:http';
 import test from 'node:test';
-import { DARK_MINI_XIANGQI_SPEC_ID } from '@mistboard/game';
+import { CROSSROADS_CHESS_SPEC_ID, DARK_MINI_XIANGQI_SPEC_ID } from '@mistboard/game';
+import type { CrossroadsChessRuntimeRoom } from './crossroads-chess-runtime.js';
 import type { DarkMiniXiangqiRuntimeRoom } from './dark-mini-xiangqi-runtime.js';
 import type { HttpApiContext } from './routes/lib.js';
 import { tryHandle } from './routes/lobby.js';
 import type { Room } from './server-types.js';
 
 const darkMiniXiangqiFlag = 'MISTBOARD_DARK_MINI_XIANGQI_ENABLED';
+const crossroadsChessFlag = 'MISTBOARD_CROSSROADS_CHESS_ENABLED';
 
 type ResponseCapture = { body: string; headers: Record<string, string>; status: number | null };
 
@@ -49,11 +51,14 @@ type CreateRoomCall = unknown[];
 function testContext(overrides: Partial<HttpApiContext> = {}): {
   ctx: HttpApiContext;
   chessCalls: CreateRoomCall[];
+  crossroadsCalls: unknown[];
   dmxCalls: unknown[];
 } {
   const chessCalls: CreateRoomCall[] = [];
+  const crossroadsCalls: unknown[] = [];
   const dmxCalls: unknown[] = [];
   let chessRoomSeq = 0;
+  let crossroadsRoomSeq = 0;
   let dmxRoomSeq = 0;
   const ctx: HttpApiContext = {
     abandonRoom: async () => ({ ok: false, error: 'not_found' }),
@@ -67,7 +72,14 @@ function testContext(overrides: Partial<HttpApiContext> = {}): {
     createDarkXiangqiRoom: async () => {
       throw new Error('unexpected Dark Xiangqi room creation');
     },
-    createCrossroadsChessRoom: async () => ({ ok: false, error: 'crossroads_chess_disabled' }),
+    createCrossroadsChessRoom: async (...args) => {
+      crossroadsCalls.push(args);
+      crossroadsRoomSeq += 1;
+      return {
+        ok: true,
+        room: crossroadsChessRoom(`dchess_lobby_${crossroadsRoomSeq}`),
+      };
+    },
     createRoom: async (...args) => {
       chessCalls.push(args);
       chessRoomSeq += 1;
@@ -87,7 +99,7 @@ function testContext(overrides: Partial<HttpApiContext> = {}): {
     rooms: new Map(),
     ...overrides,
   };
-  return { ctx, chessCalls, dmxCalls };
+  return { ctx, chessCalls, crossroadsCalls, dmxCalls };
 }
 
 const tc = { initialMs: 180000, incrementMs: 2000 };
@@ -222,6 +234,117 @@ test('lobby: chess and Dark Mini Xiangqi seekers never match each other', async 
   });
 });
 
+// ── Crossroads Chess ───────────────────────────────────────────────────────
+
+test('lobby: a single Crossroads Chess request waits (202)', async () => {
+  await withCrossroadsFlag(true, async () => {
+    const { ctx, crossroadsCalls } = testContext();
+    const res = await post(ctx, { gameSpecId: CROSSROADS_CHESS_SPEC_ID, timeControl: tc });
+    assert.equal(res.status, 202);
+    assert.equal(responseJson(res).gameSpecId, CROSSROADS_CHESS_SPEC_ID);
+    assert.equal(crossroadsCalls.length, 0);
+  });
+});
+
+test('lobby: two Crossroads Chess requests match into a Crossroads room', async () => {
+  await withCrossroadsFlag(true, async () => {
+    const { ctx, chessCalls, crossroadsCalls, dmxCalls } = testContext();
+    const first = await post(ctx, { gameSpecId: CROSSROADS_CHESS_SPEC_ID, timeControl: tc });
+    assert.equal(first.status, 202);
+    const second = await post(ctx, { gameSpecId: CROSSROADS_CHESS_SPEC_ID, timeControl: tc });
+    assert.equal(second.status, 201);
+    assert.equal(responseJson(second).status, 'matched');
+    assert.equal(responseJson(second).roomId, 'dchess_lobby_1');
+    assert.equal(crossroadsCalls.length, 1);
+    assert.deepEqual(crossroadsCalls[0], [tc, 'random']);
+    assert.equal(chessCalls.length, 0, 'chess factory must not be touched');
+    assert.equal(dmxCalls.length, 0, 'DMX factory must not be touched');
+  });
+});
+
+test('lobby: Crossroads Chess allows 5+5 and rejects off-menu time controls', async () => {
+  await withCrossroadsFlag(true, async () => {
+    const { ctx, crossroadsCalls } = testContext();
+    const rapid = await post(ctx, {
+      gameSpecId: CROSSROADS_CHESS_SPEC_ID,
+      timeControl: { initialMs: 300000, incrementMs: 5000 },
+    });
+    assert.equal(rapid.status, 202);
+    const offMenu = await post(ctx, {
+      gameSpecId: CROSSROADS_CHESS_SPEC_ID,
+      timeControl: { initialMs: 60000, incrementMs: 0 },
+    });
+    assert.equal(offMenu.status, 400);
+    assert.deepEqual(responseJson(offMenu), { error: 'time_control_unsupported' });
+    assert.equal(crossroadsCalls.length, 0);
+  });
+});
+
+test('lobby: Crossroads Chess requests are rejected when the flag is off', async () => {
+  await withCrossroadsFlag(false, async () => {
+    const { ctx } = testContext();
+    const res = await post(ctx, { gameSpecId: CROSSROADS_CHESS_SPEC_ID, timeControl: tc });
+    assert.equal(res.status, 404);
+    assert.deepEqual(responseJson(res), { error: 'crossroads_chess_disabled' });
+  });
+});
+
+test('lobby: chess, DMX, and Crossroads seekers never match each other', async () => {
+  await withFlag(true, async () => {
+    await withCrossroadsFlag(true, async () => {
+      const { ctx, chessCalls, crossroadsCalls, dmxCalls } = testContext();
+      const chess = await post(ctx, { timeControl: tc });
+      const dmx = await post(ctx, { gameSpecId: DARK_MINI_XIANGQI_SPEC_ID, timeControl: tc });
+      const crossroads = await post(ctx, {
+        gameSpecId: CROSSROADS_CHESS_SPEC_ID,
+        timeControl: tc,
+      });
+      assert.equal(chess.status, 202);
+      assert.equal(dmx.status, 202);
+      assert.equal(crossroads.status, 202);
+      assert.equal(chessCalls.length, 0);
+      assert.equal(dmxCalls.length, 0);
+      assert.equal(crossroadsCalls.length, 0);
+      assert.equal(ctx.lobbyQueue.length, 3);
+    });
+  });
+});
+
+function crossroadsChessRoom(roomId: string): CrossroadsChessRuntimeRoom {
+  return {
+    kind: 'crossroads-chess',
+    id: roomId,
+    clients: new Set(),
+    events: [{ type: 'room-created', at: 1, roomId, gameSpecId: CROSSROADS_CHESS_SPEC_ID }],
+    projection: {
+      roomId,
+      gameSpecId: CROSSROADS_CHESS_SPEC_ID,
+      state: {
+        id: roomId,
+        board: {},
+        status: { type: 'playing', turn: 'white' },
+        moveNumber: 1,
+        progressClock: 0,
+        positionCounts: {},
+      },
+      seats: {},
+    },
+    gameSpecId: CROSSROADS_CHESS_SPEC_ID,
+    abortTimer: null,
+    abortDeadline: null,
+    abortPhase: null,
+    clockTimer: null,
+    engineTimer: null,
+    forfeitTimer: null,
+    forfeitDeadline: null,
+    forfeitSeat: null,
+    gameEndRecorded: false,
+    pendingWrites: Promise.resolve(),
+    seatTokens: {},
+    rematch: { offers: {} },
+  };
+}
+
 function darkMiniXiangqiRoom(roomId: string): DarkMiniXiangqiRuntimeRoom {
   return {
     kind: 'dark-mini-xiangqi',
@@ -258,6 +381,17 @@ function darkMiniXiangqiRoom(roomId: string): DarkMiniXiangqiRuntimeRoom {
     engineTimer: null,
     engineReservationId: null,
   };
+}
+
+async function withCrossroadsFlag<T>(enabled: boolean, fn: () => Promise<T>): Promise<T> {
+  const previous = process.env[crossroadsChessFlag];
+  process.env[crossroadsChessFlag] = enabled ? 'true' : 'false';
+  try {
+    return await fn();
+  } finally {
+    if (previous === undefined) delete process.env[crossroadsChessFlag];
+    else process.env[crossroadsChessFlag] = previous;
+  }
 }
 
 function withRatedFlag(value: boolean, fn: () => Promise<void>): Promise<void> {

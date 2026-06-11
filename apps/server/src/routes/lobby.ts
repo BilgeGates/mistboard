@@ -1,18 +1,24 @@
 import { randomUUID } from 'node:crypto';
 import type { IncomingMessage, ServerResponse } from 'node:http';
 import {
+  CROSSROADS_CHESS_SPEC_ID,
   DARK_MINI_XIANGQI_SPEC_ID,
   type GameSpecId,
   gameSpecForLegacyLiveRoom,
   type RoomTimeControl,
 } from '@mistboard/game';
 import { currentAccountUser } from './../account-session.js';
-import { darkMiniXiangqiEnabled, ratedEnabled } from './../feature-flags.js';
+import {
+  crossroadsChessEnabled,
+  darkMiniXiangqiEnabled,
+  ratedEnabled,
+} from './../feature-flags.js';
 import { gateGameSpecRequest } from './../game-spec-request-gate.js';
 import * as persistence from './../persistence.js';
 import type { LobbyTicket, Room } from './../server-types.js';
 import {
   type HttpApiContext,
+  isAllowedCrossroadsChessTimeControl,
   isAllowedTimeControl,
   parseHiddenDraft960,
   parseRoomTimeControl,
@@ -43,9 +49,15 @@ export async function tryHandle(
     // Dark Mini Xiangqi joins the lobby on its own path; the chess
     // gate would 501 it as not-integrated, so it's handled before the gate.
     const isDarkMiniXiangqi = body.gameSpecId === DARK_MINI_XIANGQI_SPEC_ID;
+    const isCrossroadsChess = body.gameSpecId === CROSSROADS_CHESS_SPEC_ID;
     if (isDarkMiniXiangqi) {
       if (!darkMiniXiangqiEnabled()) {
         writeJson(response, 404, { error: 'dark_mini_xiangqi_disabled' });
+        return true;
+      }
+    } else if (isCrossroadsChess) {
+      if (!crossroadsChessEnabled()) {
+        writeJson(response, 404, { error: 'crossroads_chess_disabled' });
         return true;
       }
     } else {
@@ -58,23 +70,32 @@ export async function tryHandle(
         return true;
       }
     }
-    const hiddenDraft960 = isDarkMiniXiangqi ? false : parseHiddenDraft960(body.hiddenDraft960);
+    const hiddenDraft960 =
+      isDarkMiniXiangqi || isCrossroadsChess ? false : parseHiddenDraft960(body.hiddenDraft960);
     const timeControl =
       body.timeControl === undefined ? undefined : parseRoomTimeControl(body.timeControl);
     // Rated requires the flag on AND a signed-in requester. A guest (or anyone
     // when the flag is off) silently gets a casual ticket. Both sides of a match
     // are rated tickets, and the game-end account-gate is the final backstop.
     const lobbyRated =
-      ratedEnabled() && body.rated === true && (await currentAccountUser(request)) !== null;
+      !isCrossroadsChess &&
+      ratedEnabled() &&
+      body.rated === true &&
+      (await currentAccountUser(request)) !== null;
     if (body.timeControl !== undefined && !timeControl) {
       response.writeHead(400, { 'content-type': 'application/json' });
       response.end(JSON.stringify({ error: 'invalid_time_control' }));
       return true;
     }
-    // Dark-chess matchmaking is scoped to the official playable TCs (1+1 / 3+2)
-    // so the queue can't fragment into off-menu buckets. Mini-xiangqi sets its
-    // own pace (no engine clock constraint), so it's exempt.
-    if (!isDarkMiniXiangqi && timeControl && !isAllowedTimeControl(timeControl)) {
+    // Matchmaking is scoped to official playable TCs so the queue can't fragment
+    // into off-menu buckets. DMX keeps its existing open TC policy.
+    if (
+      timeControl &&
+      !isDarkMiniXiangqi &&
+      (isCrossroadsChess
+        ? !isAllowedCrossroadsChessTimeControl(timeControl)
+        : !isAllowedTimeControl(timeControl))
+    ) {
       response.writeHead(400, { 'content-type': 'application/json' });
       response.end(JSON.stringify({ error: 'time_control_unsupported' }));
       return true;
@@ -91,7 +112,9 @@ export async function tryHandle(
     }
     const gameSpecId = isDarkMiniXiangqi
       ? DARK_MINI_XIANGQI_SPEC_ID
-      : gameSpecForLegacyLiveRoom({ variant: 'dark-chess', hiddenDraft960 }).id;
+      : isCrossroadsChess
+        ? CROSSROADS_CHESS_SPEC_ID
+        : gameSpecForLegacyLiveRoom({ variant: 'dark-chess', hiddenDraft960 }).id;
     const ticket = await joinLobby(
       ctx,
       gameSpecId,
@@ -198,6 +221,11 @@ async function createLobbyRoom(
   if (gameSpecId === DARK_MINI_XIANGQI_SPEC_ID) {
     const created = await ctx.createDarkMiniXiangqiRoom(timeControl, 'random', undefined, rated);
     if (!created.ok) throw new Error(`dark_mini_xiangqi_room_create_failed:${created.error}`);
+    return { id: created.room.id, region: 'global' };
+  }
+  if (gameSpecId === CROSSROADS_CHESS_SPEC_ID) {
+    const created = await ctx.createCrossroadsChessRoom(timeControl, 'random');
+    if (!created.ok) throw new Error(`crossroads_chess_room_create_failed:${created.error}`);
     return { id: created.room.id, region: 'global' };
   }
   const room: Room = await ctx.createRoom(

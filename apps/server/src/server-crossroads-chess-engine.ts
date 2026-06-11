@@ -9,7 +9,9 @@
  */
 
 import {
+  applyCrossroadsChessOpenMove,
   type CrossroadsChessColor,
+  type CrossroadsChessGameState,
   type CrossroadsChessMove,
   getCrossroadsChessOpenLegalMoves,
 } from '@mistboard/game';
@@ -148,6 +150,20 @@ export async function playCrossroadsChessEngineMoveIfReady(
       'Crossroads Chess engine used a legal fallback move',
     );
   }
+  const guarded = guardCrossroadsChessEngineMove(room.projection.state, chosen, legalMoves);
+  if (guarded.move !== chosen) {
+    logger.warn(
+      {
+        kind: 'crossroads_chess_engine_immediate_loss_guard',
+        room_id: room.id,
+        engine_id: engineId,
+        move: crossroadsChessMoveToUci(chosen),
+        replacement_move: crossroadsChessMoveToUci(guarded.move),
+      },
+      'Crossroads Chess engine immediate-loss guard replaced an avoidable losing move',
+    );
+    chosen = guarded.move;
+  }
 
   const event: CrossroadsChessEvent = {
     type: 'move-played',
@@ -183,6 +199,34 @@ function legalMoveForUci(
         (move.promotion ?? null) === (parsed.promotion ?? null),
     ) ?? null
   );
+}
+
+function guardCrossroadsChessEngineMove(
+  state: CrossroadsChessGameState,
+  chosen: CrossroadsChessMove,
+  legalMoves: readonly CrossroadsChessMove[],
+): { move: CrossroadsChessMove } {
+  if (!allowsImmediateOpponentWin(state, chosen)) return { move: chosen };
+  return {
+    move: legalMoves.find((move) => !allowsImmediateOpponentWin(state, move)) ?? chosen,
+  };
+}
+
+function allowsImmediateOpponentWin(
+  state: CrossroadsChessGameState,
+  move: CrossroadsChessMove,
+): boolean {
+  if (state.status.type !== 'playing') return false;
+  const mover = state.status.turn;
+  const opponent = mover === 'white' ? 'red' : 'white';
+  const after = applyCrossroadsChessOpenMove(state, move, { progressClockLimit: Infinity });
+  if (after === state || after.status.type !== 'playing') return false;
+  return getCrossroadsChessOpenLegalMoves(after).some((reply) => {
+    const afterReply = applyCrossroadsChessOpenMove(after, reply, {
+      progressClockLimit: Infinity,
+    });
+    return afterReply.status.type === 'finished' && afterReply.status.winner === opponent;
+  });
 }
 
 function crossroadsChessUciHistory(events: readonly CrossroadsChessEvent[]): string[] {

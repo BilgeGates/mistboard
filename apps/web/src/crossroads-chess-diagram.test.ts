@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
-  DUAL_START_FEN,
+  CROSSROADS_CHESS_START_FEN,
   renderCrossroadsChessBoard,
   renderCrossroadsChessRow,
 } from './crossroads-chess-diagram.js';
@@ -10,7 +10,7 @@ import {
 // shell wrapper and that the didactic overlays reach the real renderer's layers.
 describe('Crossroads Chess article diagrams', () => {
   it('renders a single board in the article shell with both piece kinds', () => {
-    const svg = renderCrossroadsChessBoard({ fen: DUAL_START_FEN });
+    const svg = renderCrossroadsChessBoard({ fen: CROSSROADS_CHESS_START_FEN });
     expect(svg).toMatch(/class="crossroads-article-svg"/);
     expect(svg).toMatch(/data-crossroads-layout="single"/);
     expect(svg).toMatch(/--crossroads-svg-width:/);

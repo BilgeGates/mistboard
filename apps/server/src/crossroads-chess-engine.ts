@@ -27,19 +27,19 @@ export type CrossroadsChessEngineTier = {
 const CROSSROADS_CHESS_ENGINE_TIERS = [
   {
     id: 'fairy-stockfish-crossroads-amateur',
-    name: 'Amateur',
+    name: 'Fairy Stockfish - Amateur',
     skill: 2,
     movetimeMs: 150,
   },
   {
     id: CROSSROADS_CHESS_DEFAULT_ENGINE_ID,
-    name: 'Strong',
+    name: 'Fairy Stockfish - Strong',
     skill: 8,
     movetimeMs: 300,
   },
   {
     id: 'fairy-stockfish-crossroads-very-strong',
-    name: 'Very Strong',
+    name: 'Fairy Stockfish - Strongest',
     skill: 16,
     movetimeMs: 600,
   },

@@ -1,13 +1,14 @@
 import {
+  CROSSROADS_CHESS_SPEC_ID,
   DARK_CHESS_SPEC_ID,
   DARK_DRAFT960_SPEC_ID,
   DARK_MINI_XIANGQI_SPEC_ID,
   type GameFamilyId,
   type GameSpecId,
 } from '@mistboard/game';
-import { darkMiniXiangqiEnabled } from './feature-flags.js';
+import { crossroadsChessEnabled, darkMiniXiangqiEnabled } from './feature-flags.js';
 
-export type WatchChannelId = 'dark-chess' | 'dark-mini-xiangqi';
+export type WatchChannelId = 'dark-chess' | 'dark-mini-xiangqi' | 'crossroads-chess';
 
 export type WatchChannel = {
   default: boolean;
@@ -35,6 +36,14 @@ const WATCH_CHANNELS: readonly WatchChannel[] = [
     label: 'Dark Mini Xiangqi',
     legacyVariants: ['dark-mini-xiangqi'],
   },
+  {
+    default: false,
+    family: 'crossroads-chess',
+    gameSpecIds: [CROSSROADS_CHESS_SPEC_ID],
+    id: 'crossroads-chess',
+    label: 'Crossroads Chess',
+    legacyVariants: ['crossroads-chess', 'dual-chess'],
+  },
 ];
 
 // Channels can be gated behind a feature flag so a variant's watch tab only
@@ -42,6 +51,7 @@ const WATCH_CHANNELS: readonly WatchChannel[] = [
 // unreachable by deep link (watchChannelForId returns null for them).
 function channelEnabled(channel: WatchChannel): boolean {
   if (channel.id === 'dark-mini-xiangqi') return darkMiniXiangqiEnabled();
+  if (channel.id === 'crossroads-chess') return crossroadsChessEnabled();
   return true;
 }
 

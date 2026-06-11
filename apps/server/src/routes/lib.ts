@@ -34,14 +34,17 @@ export const minRoomClockInitialMs = 10_000;
 export const maxRoomClockInitialMs = 180 * 60 * 1000;
 export const maxRoomClockIncrementMs = 60_000;
 
-// Playable time-control allowlist for dark-chess (PvE + PvP + lobby matchmaking).
-// References canonical TC ids from packages/game/src/time-controls.ts. Scoped to
-// bullet + blitz: 5+5 was dropped because dark-chess is low-calculation and
-// decisive (a blunder under fog usually ends it), so rapid mostly buys idle time,
-// and fewer time controls merge players into fewer matchmaking pools. 1+1 is
-// engine-ready — the v2 solvent time budget (FOW_V2_TIME_SOLVENT) holds the clock
-// at bullet (validated 0/30 flags prod-arch, engine bakeoff 2026-06-04).
+// Playable time-control allowlists. Dark chess is scoped to bullet + blitz:
+// 5+5 was dropped because dark-chess is low-calculation and decisive (a blunder
+// under fog usually ends it), so rapid mostly buys idle time, and fewer time
+// controls merge players into fewer matchmaking pools. Crossroads Chess is
+// perfect-information, so it also gets the rapid 5+5 bucket.
 const ALLOWED_TIME_CONTROL_IDS: ReadonlySet<TimeControlId> = new Set(['1m1', '3m2']);
+const ALLOWED_CROSSROADS_CHESS_TIME_CONTROL_IDS: ReadonlySet<TimeControlId> = new Set([
+  '1m1',
+  '3m2',
+  '5m5',
+]);
 
 // ── Context ────────────────────────────────────────────────────────────────
 export interface HttpApiContext {
@@ -172,6 +175,11 @@ export function parseHiddenDraft960(value: unknown): boolean {
 export function isAllowedTimeControl(tc: RoomTimeControl): boolean {
   const spec = findTimeControl(tc.initialMs, tc.incrementMs);
   return spec !== null && ALLOWED_TIME_CONTROL_IDS.has(spec.id);
+}
+
+export function isAllowedCrossroadsChessTimeControl(tc: RoomTimeControl): boolean {
+  const spec = findTimeControl(tc.initialMs, tc.incrementMs);
+  return spec !== null && ALLOWED_CROSSROADS_CHESS_TIME_CONTROL_IDS.has(spec.id);
 }
 
 export function parseRoomTimeControl(value: unknown): RoomTimeControl | null {

@@ -20,9 +20,9 @@ import type {
 } from '@mistboard/game';
 import { renderCrossroadsChessBoardSvg } from './crossroads-chess-render.js';
 
-export const DUAL_FILES = 6;
-export const DUAL_RANKS = 8;
-export const DUAL_START_FEN = 'bknhcv/pppooo/6/6/6/6/OOOPPP/VCHNKB';
+export const CROSSROADS_FILES = 6;
+export const CROSSROADS_RANKS = 8;
+export const CROSSROADS_CHESS_START_FEN = 'bknhcv/pppooo/6/6/6/6/OOOPPP/VCHNKB';
 
 const LABEL_H = 22;
 const ROW_GAP = 10;
@@ -34,16 +34,16 @@ const RIVER_AFTER_ROW = 4;
 const RIVER_H = 11;
 const CROSS_INK = 'rgba(125,20,20,0.72)';
 
-export type DualSquare = string; // file letter + rank digit, e.g. "e4"
-export type DualArrow = { from: DualSquare; to: DualSquare };
+export type CrossroadsDiagramSquare = string; // file letter + rank digit, e.g. "e4"
+export type CrossroadsDiagramArrow = { from: CrossroadsDiagramSquare; to: CrossroadsDiagramSquare };
 
-export type DualBoardOptions = {
+export type CrossroadsDiagramBoardOptions = {
   fen: string;
-  moveDots?: DualSquare[];
-  captures?: DualSquare[];
-  highlights?: DualSquare[];
-  arrows?: DualArrow[];
-  crosses?: DualSquare[];
+  moveDots?: CrossroadsDiagramSquare[];
+  captures?: CrossroadsDiagramSquare[];
+  highlights?: CrossroadsDiagramSquare[];
+  arrows?: CrossroadsDiagramArrow[];
+  crosses?: CrossroadsDiagramSquare[];
   label?: string;
 };
 
@@ -68,7 +68,7 @@ function fenToView(fen: string): CrossroadsChessPlayerView {
   const rows = fen.trim().split(/\s+/)[0]!.split('/');
   const board: CrossroadsChessPlayerBoard = {};
   rows.forEach((row, rowIndex) => {
-    const rank = DUAL_RANKS - rowIndex; // row 0 = rank 8 (top)
+    const rank = CROSSROADS_RANKS - rowIndex; // row 0 = rank 8 (top)
     let file = 0;
     for (const ch of row) {
       if (/\d/.test(ch)) {
@@ -98,7 +98,7 @@ function fenToView(fen: string): CrossroadsChessPlayerView {
 // Render one board through the live renderer. Move dots and capture rings are the
 // renderer's `targets` (it picks dot vs ring from occupancy); highlights and
 // arrows are its study overlays.
-function coreBoard(opts: DualBoardOptions): string {
+function coreBoard(opts: CrossroadsDiagramBoardOptions): string {
   const core = renderCrossroadsChessBoardSvg(fenToView(opts.fen), {
     showFog: false,
     targets: [...(opts.moveDots ?? []), ...(opts.captures ?? [])] as CrossroadsChessSquare[],
@@ -113,10 +113,10 @@ function viewBoxDims(coreSvg: string): { w: number; h: number } {
   return { w: Number(m?.[1] ?? 0), h: Number(m?.[2] ?? 0) };
 }
 
-function squareCenter(square: DualSquare): { x: number; y: number } {
+function squareCenter(square: CrossroadsDiagramSquare): { x: number; y: number } {
   const file = square.charCodeAt(0) - 'a'.charCodeAt(0);
   const rank = Number(square.slice(1));
-  const row = DUAL_RANKS - rank;
+  const row = CROSSROADS_RANKS - rank;
   const riverOffset = row >= RIVER_AFTER_ROW ? RIVER_H : 0;
   return {
     x: PAD + FRAME_PAD + file * CELL + CELL / 2,
@@ -124,7 +124,7 @@ function squareCenter(square: DualSquare): { x: number; y: number } {
   };
 }
 
-function addCrossMarks(coreSvg: string, squares: DualSquare[]): string {
+function addCrossMarks(coreSvg: string, squares: CrossroadsDiagramSquare[]): string {
   const marks = squares
     .map((square) => {
       const { x, y } = squareCenter(square);
@@ -155,7 +155,7 @@ function asNestedSvg(coreSvg: string, x: number, y: number, w: number, h: number
   );
 }
 
-export function renderCrossroadsChessBoard(opts: DualBoardOptions): string {
+export function renderCrossroadsChessBoard(opts: CrossroadsDiagramBoardOptions): string {
   const core = coreBoard(opts);
   const { w } = viewBoxDims(core);
   return asArticleSvg(core, 'single', w);
@@ -175,7 +175,7 @@ export function renderCrossroadsChessViewBoard(
   return asArticleSvg(core, 'single', w);
 }
 
-export function renderCrossroadsChessRow(boards: DualBoardOptions[]): string {
+export function renderCrossroadsChessRow(boards: CrossroadsDiagramBoardOptions[]): string {
   const cores = boards.map(coreBoard);
   const { w: bw, h: bh } = viewBoxDims(cores[0]!);
   const totalW = boards.length * bw + Math.max(0, boards.length - 1) * ROW_GAP;

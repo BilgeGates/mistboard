@@ -4,7 +4,7 @@
 // (@mistboard/board-render renderGridBoardSvg). The core owns geometry
 // (orientation flip + river-strip offset), furniture (grid, river, coords,
 // frame, clip), and the generic interaction layers (last-move, selection,
-// targets, fog, hit). This file supplies only what is Dual-Chess-specific: the
+// targets, fog, hit). This file supplies only what is Crossroads-Chess-specific: the
 // 6x8 + river descriptor, the disk/recolour piece glyphs, and the gradient defs.
 //
 // Driven by the engine's CrossroadsChessPlayerView (packages/game/variants-crossroads-chess),
@@ -125,7 +125,7 @@ function hiddenSquares(visible: Set<CrossroadsChessSquare>): GridCellRef[] {
   return refs;
 }
 
-// ── Pieces (the Dual-Chess-specific layer) ──────────────────────────────────
+// ── Pieces (the Crossroads-Chess-specific layer) ──────────────────────────────────
 
 function pieceLayer(view: CrossroadsChessPlayerView, geom: GridGeometry, id: string): string {
   const parts: string[] = [];

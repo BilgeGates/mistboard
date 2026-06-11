@@ -519,6 +519,22 @@
   display: block;
 }
 
+.watch-replay .crossroads-watch-board {
+  aspect-ratio: 332 / 443;
+  width: min(100%, 52vh, 520px);
+  max-width: min(100%, 520px);
+  margin: 0 auto;
+  background: transparent;
+  box-shadow: none;
+  overflow: visible;
+}
+
+.watch-replay .crossroads-watch-board .crossroads-live-svg {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
 /* Captured-piece strips for the DMX triptych: small xiangqi glyphs in a row. */
 .watch-replay .replay-captures .mini-xq-captures-row {
   display: flex;
