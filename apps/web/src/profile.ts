@@ -160,7 +160,7 @@ function buildLeaderboardPanel(
 
   const subtitle = document.createElement('span');
   subtitle.className = 'leaderboard-panel-subtitle';
-  subtitle.textContent = 'Public rating';
+  subtitle.textContent = 'Blitz rating';
 
   const title = document.createElement('h2');
   title.className = 'leaderboard-panel-title';

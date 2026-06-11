@@ -34,6 +34,7 @@ describe('profile rated grid', () => {
     await mountLeaderboard(root);
 
     expect(root.textContent).toContain('Crossroads Chess');
+    expect(root.querySelector('.leaderboard-panel-subtitle')?.textContent).toBe('Blitz rating');
     expect(root.querySelectorAll('.leaderboard-panel')).toHaveLength(2);
     expect(fetchSpy).toHaveBeenCalledWith('/api/leaderboard?variant=crossroads-chess&limit=10');
   });
