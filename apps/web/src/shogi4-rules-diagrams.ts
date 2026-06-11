@@ -31,7 +31,7 @@ export const SHOGI4_START_BOARD = `<svg xmlns="http://www.w3.org/2000/svg" viewB
 <text x="13" y="46.0" text-anchor="middle" fill="#9a8c6a" font-family="system-ui,sans-serif" font-size="13">4</text>
 </svg>`;
 
-export const SHOGI4_RULES_THUMBNAIL = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 262 262" width="100%" role="img" class="shogi4-diagram">
+export const SHOGI4_RULES_THUMBNAIL = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="9 11 242 242" width="100%" role="img" class="shogi4-diagram">
 <rect x="10" y="12" width="240" height="240" rx="9" fill="#f4ead2" stroke="#c9b07f" stroke-width="2"/>
 <line x1="70" y1="13" x2="70" y2="251" stroke="#ddcca6" stroke-width="1"/>
 <line x1="11" y1="72" x2="249" y2="72" stroke="#ddcca6" stroke-width="1"/>
