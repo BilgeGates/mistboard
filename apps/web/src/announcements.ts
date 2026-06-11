@@ -20,6 +20,14 @@ export type Announcement = {
 
 const baseAnnouncements: Announcement[] = [
   {
+    date: '2026-06-11',
+    kind: 'release',
+    headline: 'Crossroads Chess has launched.',
+    body: 'A 6 by 8 chess-xiangqi variant with checkmate and king-race wins is now live on Mistboard.',
+    href: '/rules/crossroads-chess',
+    cta: 'Read rules',
+  },
+  {
     date: '2026-05-09',
     kind: 'status',
     headline: 'Mistboard is in alpha.',

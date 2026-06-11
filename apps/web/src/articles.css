@@ -627,6 +627,11 @@
 .crossroads-article-svg[data-crossroads-layout="wide"] {
   width: min(var(--crossroads-svg-width, 642px), 100%);
 }
+.articles-index-card-thumb > .crossroads-article-svg[data-crossroads-layout="single"] {
+  width: 100%;
+  height: 100%;
+  margin-inline: auto;
+}
 @media (max-width: 640px) {
   .crossroads-article-svg[data-crossroads-layout="single"] {
     width: min(var(--crossroads-svg-width, 316px), 86%);
