@@ -4,8 +4,10 @@
 // (apps/web/src/live.ts), NOT woven into it. Perfect-information is the lighter
 // tenant — no fog, no per-seat redaction — so this client renders the server's
 // open PlayerView directly and never touches the fog-critical shared shell.
-// It reuses only the variant-agnostic seat-token / ws-url helpers from
-// live-state.ts so a returning player's seat token still resolves.
+// The connection state machine (reconnects, displacement, seq-gap resync,
+// seat-token hand-off) lives in the generic tenant socket client
+// (variant-tenant/socket-client.ts, extracted from this module); frame
+// application and all rendering stay Crossroads-owned here.
 //
 // Wire protocol locked by server-ws-crossroads-chess.test.ts: hello / snapshot carry
 // the full open view + events; event-appended is the steady-state delta. The
@@ -43,14 +45,12 @@ import {
   playSound,
   resetLiveSoundState,
 } from './live-sound.js';
+import { clearSeatTokenForRoom, type LiveRefs } from './live-state.js';
 import {
-  clearSeatTokenForRoom,
-  clientIdForRoom,
-  type LiveRefs,
-  resolveWebSocketBaseUrl,
-  seatTokenForRoom,
-  writeSeatTokenForRoom,
-} from './live-state.js';
+  createTenantSocketClient,
+  type TenantConnectionState,
+  type TenantSocketClient,
+} from './variant-tenant/socket-client.js';
 
 // ── Wire shapes (the subset this client consumes) ───────────────────────────
 
@@ -96,27 +96,12 @@ type CrossroadsLiveFrame = {
   seq?: number;
 };
 
-type CrossroadsServerMessage =
-  | CrossroadsLiveFrame
-  | { type: 'pong'; at: number; serverAt?: number }
-  | ({ type: 'rematch:state' } & CrossroadsLiveRematch)
-  | {
-      type: 'rematch:redirect';
-      url: string;
-      roomId: string;
-      seat: CrossroadsChessColor;
-      seatToken: string;
-    };
-
-type ConnectionState = 'connecting' | 'connected' | 'reconnecting' | 'displaced' | 'rejected';
 type ReplaySnapshot = { ply: number; view: CrossroadsChessPlayerView };
 
 // ── Module state ─────────────────────────────────────────────────────────────
 
 const state = {
   room: '',
-  socketUrl: '',
-  clientId: '',
   seat: null as CrossroadsChessColor | 'spectator' | null,
   view: null as CrossroadsChessPlayerView | null,
   clock: null as CrossroadsLiveClock | null,
@@ -127,8 +112,6 @@ const state = {
   replayHistory: [] as ReplaySnapshot[],
   replayPly: null as number | null,
   selected: null as CrossroadsChessSquare | null,
-  connection: 'connecting' as ConnectionState,
-  closeReason: '',
   playAgainStatus: 'idle' as 'idle' | 'creating' | 'failed',
   pveEngineId: null as string | null,
   roomMode: 'pvp' as 'pvp' | 'pve',
@@ -140,13 +123,18 @@ const state = {
   rematchCancelIntent: false,
 };
 
-let socket: WebSocket | null = null;
-let reconnectTimer: number | null = null;
-let reconnectAttempt = 0;
-let lastSeq: number | null = null;
+let client: TenantSocketClient | null = null;
 let refs: LiveRefs | null = null;
 let boardHost: HTMLElement | null = null;
 const lifecycleTracker = createGameLifecycleTracker();
+
+function send(payload: unknown): boolean {
+  return client?.send(payload) ?? false;
+}
+
+function connection(): TenantConnectionState {
+  return client?.connection() ?? 'connecting';
+}
 
 // ── Entry point ──────────────────────────────────────────────────────────────
 
@@ -176,141 +164,44 @@ export function bootstrapCrossroadsChessLiveRoom(): void {
     );
   }
 
-  const socketParams = new URLSearchParams({ room });
-  socketParams.set('client', clientIdForRoom(room));
-  state.socketUrl = `${resolveWebSocketBaseUrl()}?${socketParams}`;
-
   refs = createLiveLayout(app, { debugRequested: false });
   setLiveLayoutGameSpec(app, 'crossroads-chess');
   boardHost = refs.board;
 
   boardHost?.addEventListener('click', onBoardClick);
 
-  connect();
-  window.setInterval(() => send({ type: 'ping', at: Date.now() }), 5_000);
+  client = createTenantSocketClient({
+    room,
+    applyHello: (frame) => applySnapshotFrame(frame as CrossroadsLiveFrame),
+    applySnapshot: (frame) => applySnapshotFrame(frame as CrossroadsLiveFrame),
+    applyEvent: (frame) => applyEventFrame(frame as CrossroadsLiveFrame),
+    onRematchState: (message) => applyRematchState(message as unknown as CrossroadsLiveRematch),
+    render: renderAll,
+  });
+  client.connect();
+  client.startPing();
   window.setInterval(tickClocks, 250);
   document.addEventListener('keydown', handleReplayKeyboard);
   renderAll();
 }
 
-// ── Socket ───────────────────────────────────────────────────────────────────
+// ── Frame application (connection mechanics live in the tenant socket client) ─
 
-function connect(): void {
-  if (reconnectTimer) {
-    window.clearTimeout(reconnectTimer);
-    reconnectTimer = null;
-  }
-  if (socket) {
-    socket.removeEventListener('message', onMessage);
-    socket.close();
-    socket = null;
-  }
-  state.connection = state.clientId ? 'reconnecting' : 'connecting';
-  renderAll();
-
-  const token = seatTokenForRoom(state.room);
-  const next = token
-    ? new WebSocket(state.socketUrl, [`mistboard-seat.${token}`])
-    : new WebSocket(state.socketUrl);
-  socket = next;
-  next.addEventListener('message', onMessage);
-  next.addEventListener('open', () => {
-    if (socket !== next) return;
-    reconnectAttempt = 0;
-    state.connection = 'connected';
-    renderAll();
-  });
-  next.addEventListener('close', (event) => {
-    if (socket !== next) return;
-    state.closeReason = event.reason;
-    if (event.code === 4000 && event.reason === 'duplicate session') {
-      state.connection = 'displaced';
-      socket = null;
-      renderAll();
-      return;
-    }
-    if (event.code === 1008) {
-      state.connection = 'rejected';
-      socket = null;
-      renderAll();
-      return;
-    }
-    state.connection = 'reconnecting';
-    renderAll();
-    scheduleReconnect();
-  });
-  next.addEventListener('error', () => {
-    if (socket !== next) return;
-    state.connection = 'reconnecting';
-    renderAll();
-  });
+function applySnapshotFrame(frame: CrossroadsLiveFrame): void {
+  applyFrame(frame);
+  state.moves = movesFromEvents(frame.events ?? []);
+  rebuildReplayHistory();
+  maybePlayCrossroadsChessSnapshotSound(state.view, state.seat);
 }
 
-function scheduleReconnect(): void {
-  if (state.connection === 'displaced' || state.connection === 'rejected') return;
-  if (reconnectTimer) return;
-  reconnectAttempt += 1;
-  const delay = Math.min(10_000, 750 * 2 ** Math.min(reconnectAttempt - 1, 4));
-  reconnectTimer = window.setTimeout(() => {
-    reconnectTimer = null;
-    connect();
-  }, delay);
-}
-
-function send(payload: unknown): boolean {
-  if (!socket || socket.readyState !== WebSocket.OPEN) return false;
-  socket.send(JSON.stringify(payload));
-  return true;
-}
-
-function onMessage(event: MessageEvent<string>): void {
-  const message = JSON.parse(event.data) as CrossroadsServerMessage;
-  if (message.type === 'pong') return;
-  if (message.type === 'rematch:state') {
-    applyRematchState(message);
-    renderAll();
-    return;
-  }
-  if (message.type === 'rematch:redirect') {
-    writeSeatTokenForRoom(message.roomId, { seat: message.seat, token: message.seatToken });
-    window.location.assign(message.url);
-    return;
-  }
-
-  if (message.type === 'hello') {
-    state.clientId = message.clientId ?? state.clientId;
-    if (message.seatToken && (message.seat === 'white' || message.seat === 'red')) {
-      writeSeatTokenForRoom(state.room, { seat: message.seat, token: message.seatToken });
-    }
-    applyFrame(message);
-    state.moves = movesFromEvents(message.events ?? []);
-    rebuildReplayHistory();
-    lastSeq = null;
-    maybePlayCrossroadsChessSnapshotSound(state.view, state.seat);
-  } else if (message.type === 'snapshot') {
-    applyFrame(message);
-    state.moves = movesFromEvents(message.events ?? []);
-    rebuildReplayHistory();
-    lastSeq = null;
-    maybePlayCrossroadsChessSnapshotSound(state.view, state.seat);
-  } else if (message.type === 'event-appended') {
-    // Gap detection: a missed delta means resync from a fresh snapshot.
-    if (lastSeq !== null && message.seq !== undefined && message.seq !== lastSeq + 1) {
-      send({ type: 'snapshot:request' });
-      return;
-    }
-    applyFrame(message);
-    if (message.event?.type === 'move-played')
-      state.moves.push(message.event as CrossroadsMovePlayed);
-    rebuildReplayHistory();
-    if (message.seq !== undefined) lastSeq = message.seq;
-    maybePlayCrossroadsChessSnapshotSound(state.view, state.seat);
-  }
-  renderAll();
+function applyEventFrame(frame: CrossroadsLiveFrame): void {
+  applyFrame(frame);
+  if (frame.event?.type === 'move-played') state.moves.push(frame.event as CrossroadsMovePlayed);
+  rebuildReplayHistory();
+  maybePlayCrossroadsChessSnapshotSound(state.view, state.seat);
 }
 
 function applyFrame(frame: CrossroadsLiveFrame): void {
-  state.connection = 'connected';
   state.seat = frame.seat;
   state.view = frame.state;
   state.clock = frame.clock ?? null;
@@ -560,7 +451,7 @@ function renderActionStatus(liveRefs: LiveRefs): void {
   if (
     state.view?.status.type === 'playing' &&
     iAmPlayer() &&
-    state.connection === 'connected' &&
+    connection() === 'connected' &&
     isReplayLive() &&
     !waitingForOpponent()
   ) {
@@ -865,7 +756,7 @@ function abortReasonLabel(reason: string): string {
 }
 
 function connectionText(): string {
-  switch (state.connection) {
+  switch (connection()) {
     case 'connected':
       return state.seat && state.seat !== 'spectator' ? 'Connected' : 'Spectating';
     case 'connecting':
@@ -874,8 +765,10 @@ function connectionText(): string {
       return 'Reconnecting…';
     case 'displaced':
       return 'Opened in another tab';
-    case 'rejected':
-      return `Cannot join${state.closeReason ? `: ${state.closeReason}` : ''}`;
+    case 'rejected': {
+      const closeReason = client?.closeReason() ?? '';
+      return `Cannot join${closeReason ? `: ${closeReason}` : ''}`;
+    }
   }
 }
 
@@ -885,8 +778,8 @@ function seatLabel(): string {
 }
 
 function actionTone(): 'danger' | 'default' | 'pending' | 'success' {
-  if (state.connection === 'rejected' || state.connection === 'displaced') return 'danger';
-  if (!state.view || state.connection !== 'connected') return 'pending';
+  if (connection() === 'rejected' || connection() === 'displaced') return 'danger';
+  if (!state.view || connection() !== 'connected') return 'pending';
   if (state.view.status.type === 'playing' && state.view.status.turn === state.seat) {
     return 'success';
   }
@@ -894,8 +787,8 @@ function actionTone(): 'danger' | 'default' | 'pending' | 'success' {
 }
 
 function actionTitle(): string {
-  if (state.connection === 'rejected') return 'Room unavailable';
-  if (state.connection === 'displaced') return 'Session moved';
+  if (connection() === 'rejected') return 'Room unavailable';
+  if (connection() === 'displaced') return 'Session moved';
   if (!state.view) return 'Connecting';
   if (!isReplayLive()) return 'Viewing replay';
   if (waitingForOpponent()) return 'Invite opponent';
@@ -906,8 +799,8 @@ function actionTitle(): string {
 }
 
 function actionBody(): string {
-  if (state.connection === 'rejected') return 'This Crossroads Chess room is not active.';
-  if (state.connection === 'displaced') return 'Another tab reclaimed this seat.';
+  if (connection() === 'rejected') return 'This Crossroads Chess room is not active.';
+  if (connection() === 'displaced') return 'Another tab reclaimed this seat.';
   if (!state.view) return 'Opening the room socket.';
   if (!isReplayLive()) return 'Return to latest before making a move.';
   if (waitingForOpponent()) return 'Copy the invite link and send it to your opponent.';
@@ -924,7 +817,7 @@ function actionBody(): string {
 function waitingForOpponent(): boolean {
   const opponent = opponentColor();
   return (
-    state.connection === 'connected' &&
+    connection() === 'connected' &&
     state.view?.status.type === 'playing' &&
     opponent !== null &&
     state.connectedSeats[opponent] !== true
