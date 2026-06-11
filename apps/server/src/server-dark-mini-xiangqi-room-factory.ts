@@ -1,26 +1,23 @@
-import { randomUUID } from 'node:crypto';
-import {
-  DARK_MINI_XIANGQI_SPEC_ID,
-  type MiniXiangqiColor,
-  type RoomTimeControl,
-} from '@mistboard/game';
-import {
-  appendDarkMiniXiangqiRuntimeEvent,
-  createDarkMiniXiangqiRuntimeRoom,
-  DARK_MINI_XIANGQI_ROOM_ID_PREFIX,
-  type DarkMiniXiangqiCreatorPreference,
-  type DarkMiniXiangqiEvent,
-  type DarkMiniXiangqiRuntimeRoom,
+/**
+ * Thin adapter over the generic tenant room factory
+ * (variant-tenant/room-factory.ts) for Dark Mini Xiangqi. Keeps the
+ * pre-migration context shape (explicit sibling room maps for the
+ * cross-variant id-collision check) and error codes.
+ */
+
+import type { MiniXiangqiColor, RoomTimeControl } from '@mistboard/game';
+import type {
+  DarkMiniXiangqiCreatorPreference,
+  DarkMiniXiangqiEvent,
+  DarkMiniXiangqiRuntimeRoom,
 } from './dark-mini-xiangqi-runtime.js';
+import { darkMiniXiangqiTenant } from './dark-mini-xiangqi-tenant.js';
 import type * as persistence from './persistence.js';
+import { createTenantLiveRoom, type TenantRoomEngineSeat } from './variant-tenant/room-factory.js';
 
 /** PvE: seat an engine in `seat` at creation (its clientId is the engine id),
  * holding the given engine-service seat reservation for the game. */
-export type DarkMiniXiangqiRoomEngineSeat = {
-  engineId: string;
-  seat: MiniXiangqiColor;
-  reservationId: string;
-};
+export type DarkMiniXiangqiRoomEngineSeat = TenantRoomEngineSeat<MiniXiangqiColor>;
 
 export type DarkMiniXiangqiLiveRoomCreation =
   | { ok: true; room: DarkMiniXiangqiRuntimeRoom }
@@ -47,64 +44,23 @@ export async function createDarkMiniXiangqiLiveRoom(
   engine?: DarkMiniXiangqiRoomEngineSeat,
   rated = false,
 ): Promise<DarkMiniXiangqiLiveRoomCreation> {
-  for (let attempt = 0; attempt < 5; attempt += 1) {
-    const roomId = ctx.createRoomId?.() ?? `${DARK_MINI_XIANGQI_ROOM_ID_PREFIX}${randomUUID()}`;
-    if (
-      ctx.chessRooms.has(roomId) ||
-      ctx.darkXiangqiRooms.has(roomId) ||
-      ctx.darkMiniXiangqiRooms.has(roomId)
-    ) {
-      continue;
-    }
-    const created = createDarkMiniXiangqiRuntimeRoom(roomId, {
-      creatorPreference,
-      rated,
-      timeControl,
-    });
-    if (!created.ok) return created;
-    const room = created.room;
-    // PvE: seat the engine before persistence so the seat-assigned event is part
-    // of the room's initial event log (durable + replays on hydration). The human
-    // then takes the only empty seat on connect.
-    if (engine) {
-      appendDarkMiniXiangqiRuntimeEvent(room, {
-        type: 'seat-assigned',
-        at: Date.now(),
-        roomId,
-        clientId: engine.engineId,
-        seat: engine.seat,
-      });
-      room.engineReservationId = engine.reservationId;
-    }
-    if (ctx.isPersistenceEnabled()) {
-      let writingSeq = 0;
-      let writingEventType = 'room-created';
-      try {
-        for (const [seq, event] of room.events.entries()) {
-          writingSeq = seq;
-          writingEventType = event.type;
-          await ctx.appendRoomEvent(roomId, seq, event);
-        }
-        writingSeq = room.events.length;
-        writingEventType = 'game-start';
-        await ctx.recordGameStart(roomId, {
-          variant: DARK_MINI_XIANGQI_SPEC_ID,
-          mode: engine ? 'pve' : 'pvp',
-          startedAt: new Date(room.events[0]?.at ?? Date.now()),
-          whiteClient: null,
-          blackClient: null,
-          whiteName: null,
-          blackName: null,
-          corpusId: null,
-          visibility: engine ? 'public' : 'private',
-        });
-      } catch (err) {
-        ctx.recordPersistenceError(roomId, writingSeq, writingEventType, err as Error);
-        return { ok: false, error: 'persistence_failure' };
-      }
-    }
-    ctx.darkMiniXiangqiRooms.set(roomId, room);
-    return { ok: true, room };
+  const created = await createTenantLiveRoom(
+    darkMiniXiangqiTenant,
+    {
+      rooms: ctx.darkMiniXiangqiRooms,
+      isRoomIdTaken: (roomId) => ctx.chessRooms.has(roomId) || ctx.darkXiangqiRooms.has(roomId),
+      appendRoomEvent: ctx.appendRoomEvent,
+      createRoomId: ctx.createRoomId,
+      isPersistenceEnabled: ctx.isPersistenceEnabled,
+      recordGameStart: ctx.recordGameStart,
+      recordPersistenceError: ctx.recordPersistenceError,
+    },
+    { timeControl, creatorPreference, engine, rated },
+  );
+  if (!created.ok) {
+    return created.error === 'disabled'
+      ? { ok: false, error: 'dark_mini_xiangqi_disabled' }
+      : { ok: false, error: created.error };
   }
-  return { ok: false, error: 'room_id_collision' };
+  return created;
 }

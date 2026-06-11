@@ -1,47 +1,26 @@
-import { randomUUID } from 'node:crypto';
+/**
+ * Thin adapter over the generic tenant WebSocket runtime
+ * (variant-tenant/ws.ts) for Dark Mini Xiangqi. Instantiates the per-tenant
+ * bundle once at module scope (wiring the DMX PvE engine scheduler into the
+ * post-connect / post-move hooks) and re-exports the bound functions under
+ * their pre-migration names. Also registers the tenant in the variant
+ * registry — the dispatch sites still hand-code their DMX branches; collapsing
+ * them onto the registry is the follow-up step.
+ */
+
 import type { IncomingMessage } from 'node:http';
-import { isMiniXiangqiLegalMove, type MiniXiangqiMove } from '@mistboard/game';
 import type { WebSocket } from 'ws';
-import { currentAccountUser } from './account-session.js';
-import {
-  type DarkMiniXiangqiEvent,
-  darkMiniXiangqiClientEventFor,
-  darkMiniXiangqiPlyAtEventIndex,
-  darkMiniXiangqiSnapshotPayload,
-  isMiniXiangqiSquare,
-} from './dark-mini-xiangqi-runtime.js';
-import { wsCounters } from './obs.js';
+import type { DarkMiniXiangqiEvent } from './dark-mini-xiangqi-runtime.js';
+import { darkMiniXiangqiTenant } from './dark-mini-xiangqi-tenant.js';
 import { scheduleDarkMiniXiangqiEngineMove } from './server-dark-mini-xiangqi-engine.js';
-import {
-  appendDarkMiniXiangqiEvent,
-  appendDarkMiniXiangqiSeatAssigned,
-  type DarkMiniXiangqiEventWriterContext,
-  recordDarkMiniXiangqiPersistenceError,
-} from './server-dark-mini-xiangqi-events.js';
-import {
-  clearDarkMiniXiangqiRuntimeTimers,
-  type DarkMiniXiangqiLifecycleContext,
-  scheduleDarkMiniXiangqiLifecycleTimers as scheduleDarkMiniXiangqiLifecycleTimersWithContext,
-} from './server-dark-mini-xiangqi-lifecycle.js';
+import { clearDarkMiniXiangqiRuntimeTimers } from './server-dark-mini-xiangqi-lifecycle.js';
 import type {
   DarkMiniXiangqiLiveClient,
   DarkMiniXiangqiLiveRoom,
 } from './server-dark-mini-xiangqi-live-room.js';
-import {
-  cancelDarkMiniXiangqiRematch,
-  type DarkMiniXiangqiRematchContext,
-  declineDarkMiniXiangqiRematch,
-  finalizeDarkMiniXiangqiRematchIfReady,
-  maybeReplayDarkMiniXiangqiRematchRedirect,
-  offerDarkMiniXiangqiRematch,
-} from './server-dark-mini-xiangqi-rematch.js';
-import {
-  assignDarkMiniXiangqiSeat,
-  displaceOlderDarkMiniXiangqiSeatClients,
-  rollbackDarkMiniXiangqiSeatAssignment,
-} from './server-dark-mini-xiangqi-seat-session.js';
-import { recordMessageTimestamp, seatTokenFromProtocolHeader } from './server-policy.js';
-import { parseClientMessage } from './server-ws-messages.js';
+import type { DarkMiniXiangqiRematchContext } from './server-dark-mini-xiangqi-rematch.js';
+import { registerVariantTenant } from './variant-tenant/registry.js';
+import { createTenantWsRuntime } from './variant-tenant/ws.js';
 
 // Re-exported (the definitions live in a leaf module so this handler and the
 // rematch module it imports don't form an import cycle).
@@ -53,24 +32,18 @@ export type DarkMiniXiangqiWebSocketContext = {
   darkMiniXiangqiRematch: DarkMiniXiangqiRematchContext;
 };
 
-let darkMiniXiangqiEventWriterCtx: DarkMiniXiangqiEventWriterContext;
+const darkMiniXiangqiWs = createTenantWsRuntime(darkMiniXiangqiTenant, {
+  // PvE: after a join or a human move it may be the engine's turn; the engine
+  // move flows through the same append+broadcast path as a human move.
+  scheduleEngineMove: (ctx, room) => scheduleDarkMiniXiangqiEngineMove(ctx, room),
+});
 
-const darkMiniXiangqiLifecycleCtx: DarkMiniXiangqiLifecycleContext<DarkMiniXiangqiLiveRoom> = {
-  appendEvent: (room, event) =>
-    appendDarkMiniXiangqiEvent(room, event, darkMiniXiangqiEventWriterCtx),
-  broadcastEventAppended: broadcastDarkMiniXiangqiEventAppended,
-};
-
-darkMiniXiangqiEventWriterCtx = {
-  scheduleLifecycleTimers: (room) =>
-    scheduleDarkMiniXiangqiLifecycleTimers(room as DarkMiniXiangqiLiveRoom),
-};
-
-export function scheduleDarkMiniXiangqiLifecycleTimers(room: DarkMiniXiangqiLiveRoom): void {
-  scheduleDarkMiniXiangqiLifecycleTimersWithContext(room, darkMiniXiangqiLifecycleCtx);
-}
-
-export { clearDarkMiniXiangqiRuntimeTimers };
+registerVariantTenant({
+  kind: darkMiniXiangqiTenant.kind,
+  gameSpecId: darkMiniXiangqiTenant.gameSpecId,
+  roomIdPrefix: darkMiniXiangqiTenant.roomIdPrefix,
+  enabled: darkMiniXiangqiTenant.enabled,
+});
 
 export async function handleDarkMiniXiangqiWebSocketConnection(
   ctx: DarkMiniXiangqiWebSocketContext,
@@ -78,278 +51,46 @@ export async function handleDarkMiniXiangqiWebSocketConnection(
   request: IncomingMessage,
   room: DarkMiniXiangqiLiveRoom,
 ): Promise<void> {
-  const url = new URL(request.url ?? '/', `http://${request.headers.host ?? 'localhost'}`);
-  const clientId = parseClientId(url.searchParams.get('client')) ?? randomUUID();
-  const accountUser = await currentAccountUser(request);
-  const seatToken = seatTokenFromProtocolHeader(request.headers['sec-websocket-protocol']);
-  const assignment = assignDarkMiniXiangqiSeat(room, clientId, seatToken, accountUser);
-  if (!assignment.ok) {
-    socket.close(1008, assignment.reason);
-    return;
-  }
-
-  try {
-    await appendDarkMiniXiangqiSeatAssigned(
-      room,
-      {
-        event: {
-          type: 'seat-assigned',
-          at: Date.now(),
-          roomId: room.id,
-          clientId,
-          seat: assignment.seat,
-        },
-        tokenState: assignment.tokenState,
-      },
-      darkMiniXiangqiEventWriterCtx,
-    );
-  } catch (err) {
-    rollbackDarkMiniXiangqiSeatAssignment(room, assignment);
-    recordDarkMiniXiangqiPersistenceError(
-      room.id,
-      room.events.length,
-      'seat-assigned',
-      err as Error,
-    );
-    socket.close(1011, 'persistence failure');
-    return;
-  }
-
-  const client: DarkMiniXiangqiLiveClient = {
-    debugRequested: false,
-    displaced: false,
-    id: clientId,
-    messageTimestamps: [],
-    roomId: room.id,
-    seat: assignment.seat,
-    seatTokenHash: assignment.seatTokenHash,
+  return darkMiniXiangqiWs.handleConnection(
+    {
+      wsMessageLimit: ctx.wsMessageLimit,
+      wsMessageWindowMs: ctx.wsMessageWindowMs,
+      rematch: ctx.darkMiniXiangqiRematch,
+    },
     socket,
-    solo: false,
-    userId: accountUser?.id ?? null,
-  };
-  room.clients.add(client);
-  displaceOlderDarkMiniXiangqiSeatClients(room, client);
-  scheduleDarkMiniXiangqiLifecycleTimers(room);
-
-  sendDarkMiniXiangqiPayload(client, {
-    ...darkMiniXiangqiTransportSnapshotPayload(room, client),
-    type: 'hello',
-    clientId: client.id,
-    ...(assignment.seatToken ? { seatToken: assignment.seatToken } : {}),
-  });
-  broadcastDarkMiniXiangqiSnapshot(room);
-  // PvE: once the human takes the empty seat, the engine (if it holds red /
-  // the side to move) plays its move. No-op for PvP or when it's the human's turn.
-  scheduleDarkMiniXiangqiEngineMove(darkMiniXiangqiLifecycleCtx, room);
-  // A player reconnecting after a rematch was finalized (while they were
-  // offline) still gets routed to the new swapped-color room.
-  maybeReplayDarkMiniXiangqiRematchRedirect(ctx.darkMiniXiangqiRematch, room, client);
-
-  socket.on('message', (raw) => {
-    if (
-      !recordMessageTimestamp(
-        client.messageTimestamps,
-        Date.now(),
-        ctx.wsMessageLimit,
-        ctx.wsMessageWindowMs,
-      )
-    ) {
-      socket.close(1008, 'rate limit');
-      return;
-    }
-    void handleDarkMiniXiangqiMessage(ctx, room, client, raw.toString());
-  });
-
-  socket.on('close', () => {
-    room.clients.delete(client);
-    if (!client.displaced) {
-      scheduleDarkMiniXiangqiLifecycleTimers(room);
-      broadcastDarkMiniXiangqiSnapshot(room);
-    }
-  });
+    request,
+    room,
+  );
 }
 
-async function handleDarkMiniXiangqiMessage(
-  ctx: DarkMiniXiangqiWebSocketContext,
-  room: DarkMiniXiangqiLiveRoom,
-  client: DarkMiniXiangqiLiveClient,
-  raw: string,
-): Promise<void> {
-  const message = parseClientMessage(raw);
-  if (!message) {
-    wsCounters.recordParseFailure();
-    return;
-  }
-  if (message.type === 'ping') {
-    sendDarkMiniXiangqiPayload(client, {
-      type: 'pong',
-      at: typeof message.at === 'number' ? message.at : Date.now(),
-      serverAt: Date.now(),
-    });
-    return;
-  }
-  if (message.type === 'snapshot:request') {
-    wsCounters.recordSnapshotRequest();
-    sendDarkMiniXiangqiPayload(client, darkMiniXiangqiTransportSnapshotPayload(room, client));
-    return;
-  }
-  if (message.type === 'resign') {
-    await handleDarkMiniXiangqiResign(room, client);
-    return;
-  }
-  if (message.type === 'abort') {
-    await handleDarkMiniXiangqiAbort(room, client);
-    return;
-  }
-  if (message.type === 'rematch:offer') {
-    offerDarkMiniXiangqiRematch(ctx.darkMiniXiangqiRematch, room, client);
-    await finalizeDarkMiniXiangqiRematchIfReady(ctx.darkMiniXiangqiRematch, room);
-    return;
-  }
-  if (message.type === 'rematch:cancel') {
-    cancelDarkMiniXiangqiRematch(ctx.darkMiniXiangqiRematch, room, client);
-    return;
-  }
-  if (message.type === 'rematch:decline') {
-    declineDarkMiniXiangqiRematch(ctx.darkMiniXiangqiRematch, room, client);
-    return;
-  }
-  if (message.type !== 'move') return;
-  if (!isMiniXiangqiSquare(message.from) || !isMiniXiangqiSquare(message.to)) return;
-  if (room.projection.state.status.type !== 'playing') return;
-  // No moves until both seats are filled (a fresh room starts in `playing`, so
-  // a seated player could otherwise move before the opponent/engine joined).
-  if (!(room.projection.seats.red && room.projection.seats.black)) return;
-  if (room.projection.state.status.turn !== client.seat) return;
-  const move: MiniXiangqiMove = { from: message.from, to: message.to };
-  if (!isMiniXiangqiLegalMove(room.projection.state, move)) return;
-  const event: DarkMiniXiangqiEvent = {
-    type: 'move-played',
-    at: Date.now(),
-    roomId: room.id,
-    color: client.seat,
-    move,
-  };
-  let seq: number;
-  try {
-    seq = await appendDarkMiniXiangqiEvent(room, event, darkMiniXiangqiEventWriterCtx);
-  } catch (err) {
-    recordDarkMiniXiangqiPersistenceError(room.id, room.events.length, event.type, err as Error);
-    client.socket.close(1011, 'persistence failure');
-    return;
-  }
-  broadcastDarkMiniXiangqiEventAppended(room, event, seq);
-  // PvE: it may now be the engine's turn (no-op for PvP / engine not to move).
-  scheduleDarkMiniXiangqiEngineMove(darkMiniXiangqiLifecycleCtx, room);
+export function scheduleDarkMiniXiangqiLifecycleTimers(room: DarkMiniXiangqiLiveRoom): void {
+  darkMiniXiangqiWs.scheduleLifecycleTimers(room);
 }
 
-async function handleDarkMiniXiangqiResign(
-  room: DarkMiniXiangqiLiveRoom,
-  client: DarkMiniXiangqiLiveClient,
-): Promise<void> {
-  if (room.projection.state.status.type !== 'playing') return;
-  if (room.projection.state.moveNumber < 2) return;
-  const event: DarkMiniXiangqiEvent = {
-    type: 'seat-resigned',
-    at: Date.now(),
-    roomId: room.id,
-    color: client.seat,
-  };
-  let seq: number;
-  try {
-    seq = await appendDarkMiniXiangqiEvent(room, event, darkMiniXiangqiEventWriterCtx);
-  } catch (err) {
-    recordDarkMiniXiangqiPersistenceError(room.id, room.events.length, event.type, err as Error);
-    client.socket.close(1011, 'persistence failure');
-    return;
-  }
-  broadcastDarkMiniXiangqiEventAppended(room, event, seq);
-}
-
-async function handleDarkMiniXiangqiAbort(
-  room: DarkMiniXiangqiLiveRoom,
-  client: DarkMiniXiangqiLiveClient,
-): Promise<void> {
-  const status = room.projection.state.status;
-  if (status.type !== 'playing') return;
-  if (room.projection.state.moveNumber >= 2) return;
-  if (status.turn !== client.seat) return;
-  const event: DarkMiniXiangqiEvent = {
-    type: 'game-aborted',
-    at: Date.now(),
-    roomId: room.id,
-    reason: 'user-abort',
-  };
-  let seq: number;
-  try {
-    seq = await appendDarkMiniXiangqiEvent(room, event, darkMiniXiangqiEventWriterCtx);
-  } catch (err) {
-    recordDarkMiniXiangqiPersistenceError(room.id, room.events.length, event.type, err as Error);
-    client.socket.close(1011, 'persistence failure');
-    return;
-  }
-  broadcastDarkMiniXiangqiEventAppended(room, event, seq);
-}
+export { clearDarkMiniXiangqiRuntimeTimers };
 
 export function broadcastDarkMiniXiangqiEventAppended(
   room: DarkMiniXiangqiLiveRoom,
   event: DarkMiniXiangqiEvent,
   seq: number,
 ): void {
-  for (const client of room.clients) {
-    if (client.displaced) continue;
-    if (room.projection.state.status.type !== 'playing') {
-      sendDarkMiniXiangqiPayload(client, darkMiniXiangqiTransportSnapshotPayload(room, client));
-      continue;
-    }
-    const snapshot = darkMiniXiangqiTransportSnapshotPayload(room, client);
-    const { events: _events, ...base } = snapshot;
-    const clientEvent = darkMiniXiangqiClientEventFor(
-      event,
-      client.seat,
-      darkMiniXiangqiPlyAtEventIndex(room.events, seq),
-    );
-    sendDarkMiniXiangqiPayload(client, {
-      ...base,
-      type: 'event-appended',
-      seq,
-      ...(clientEvent ? { event: clientEvent } : {}),
-    });
-  }
+  darkMiniXiangqiWs.broadcastEventAppended(room, event, seq);
 }
 
 export function sendDarkMiniXiangqiPayload(
   client: Pick<DarkMiniXiangqiLiveClient, 'displaced' | 'socket'>,
   payload: unknown,
 ): void {
-  if (client.displaced) return;
-  try {
-    client.socket.send(JSON.stringify(payload));
-  } catch {
-    /* socket closed */
-  }
+  darkMiniXiangqiWs.sendPayload(client, payload);
 }
 
 export function broadcastDarkMiniXiangqiSnapshot(room: DarkMiniXiangqiLiveRoom): void {
-  for (const client of room.clients) {
-    if (client.displaced) continue;
-    sendDarkMiniXiangqiPayload(client, darkMiniXiangqiTransportSnapshotPayload(room, client));
-  }
+  darkMiniXiangqiWs.broadcastSnapshot(room);
 }
 
 export function darkMiniXiangqiTransportSnapshotPayload(
   room: DarkMiniXiangqiLiveRoom,
   client: DarkMiniXiangqiLiveClient,
 ) {
-  return darkMiniXiangqiSnapshotPayload(room, {
-    id: client.id,
-    seat: client.seat,
-    solo: false,
-  });
-}
-
-function parseClientId(value: string | null): string | null {
-  if (!value) return null;
-  const trimmed = value.trim();
-  return trimmed.length > 0 && trimmed.length <= 128 ? trimmed : null;
+  return darkMiniXiangqiWs.transportSnapshotPayload(room, client);
 }

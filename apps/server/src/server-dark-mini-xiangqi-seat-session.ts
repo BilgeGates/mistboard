@@ -1,37 +1,29 @@
-import { randomBytes, randomUUID } from 'node:crypto';
+/**
+ * Thin adapter over the generic tenant seat session
+ * (variant-tenant/seat-session.ts) for Dark Mini Xiangqi.
+ */
+
 import type { MiniXiangqiColor } from '@mistboard/game';
 import type { DarkMiniXiangqiSeatTokenState } from './dark-mini-xiangqi-runtime.js';
+import { darkMiniXiangqiTenant } from './dark-mini-xiangqi-tenant.js';
 import type { UserAccount } from './persistence.js';
-import { hashSeatToken } from './server-seat-session.js';
+import {
+  assignTenantSeat,
+  displaceOlderTenantSeatClients,
+  mintTenantSeatToken,
+  rollbackTenantSeatAssignment,
+  type TenantSeatAssignment,
+  type TenantSeatClient,
+  type TenantSeatRoom,
+} from './variant-tenant/seat-session.js';
 
-export type DarkMiniXiangqiSeatClient = {
-  displaced: boolean;
-  seat: MiniXiangqiColor;
-  socket: { close(code?: number, reason?: string): unknown };
-};
+export type DarkMiniXiangqiSeatClient = TenantSeatClient<MiniXiangqiColor>;
 
 export type DarkMiniXiangqiSeatRoom<
   Client extends DarkMiniXiangqiSeatClient = DarkMiniXiangqiSeatClient,
-> = {
-  clients: Set<Client>;
-  projection: {
-    creatorPreference?: MiniXiangqiColor | 'random';
-    seats: Partial<Record<MiniXiangqiColor, string>>;
-  };
-  rated?: boolean;
-  seatTokens: Partial<Record<MiniXiangqiColor, DarkMiniXiangqiSeatTokenState>>;
-};
+> = TenantSeatRoom<MiniXiangqiColor, Client>;
 
-export type DarkMiniXiangqiSeatAssignment =
-  | {
-      ok: true;
-      seat: MiniXiangqiColor;
-      seatToken?: string;
-      seatTokenHash: string;
-      tokenState: DarkMiniXiangqiSeatTokenState;
-      previousTokenState?: DarkMiniXiangqiSeatTokenState;
-    }
-  | { ok: false; reason: 'private room' | 'rated requires account' };
+export type DarkMiniXiangqiSeatAssignment = TenantSeatAssignment<MiniXiangqiColor>;
 
 export function assignDarkMiniXiangqiSeat(
   room: DarkMiniXiangqiSeatRoom,
@@ -39,144 +31,27 @@ export function assignDarkMiniXiangqiSeat(
   rawToken: string | undefined,
   accountUser: UserAccount | null,
 ): DarkMiniXiangqiSeatAssignment {
-  const tokenHash = rawToken ? hashSeatToken(rawToken) : undefined;
-  if (tokenHash) {
-    for (const color of ['red', 'black'] as const) {
-      const state = room.seatTokens[color];
-      if (state && state.revokedAt === null && state.tokenHash === tokenHash) {
-        if (state.userId !== null && state.userId !== accountUser?.id) {
-          return { ok: false, reason: 'private room' };
-        }
-        const tokenState = { ...state, clientId, lastSeenAt: new Date() };
-        room.seatTokens[color] = tokenState;
-        return {
-          ok: true,
-          seat: color,
-          seatTokenHash: tokenHash,
-          tokenState,
-          previousTokenState: state,
-        };
-      }
-    }
-  }
-
-  if (accountUser) {
-    for (const color of ['red', 'black'] as const) {
-      const state = room.seatTokens[color];
-      if (state && state.revokedAt === null && state.userId === accountUser.id) {
-        const tokenState = { ...state, clientId, lastSeenAt: new Date() };
-        room.seatTokens[color] = tokenState;
-        return {
-          ok: true,
-          seat: color,
-          seatTokenHash: state.tokenHash,
-          tokenState,
-          previousTokenState: state,
-        };
-      }
-    }
-  }
-
-  const occupiedSeats = new Set<MiniXiangqiColor>(
-    [...room.clients].filter((client) => !client.displaced).map((client) => client.seat),
-  );
-  for (const color of ['red', 'black'] as const) {
-    if (room.projection.seats[color] || room.seatTokens[color]) occupiedSeats.add(color);
-  }
-  const seat = nextAvailableSeat(room.projection.creatorPreference, occupiedSeats);
-  if (!seat) return { ok: false, reason: 'private room' };
-  if (room.rated && !accountUser) return { ok: false, reason: 'rated requires account' };
-
-  const seatToken = randomBytes(32).toString('base64url');
-  const seatTokenHash = hashSeatToken(seatToken);
-  const now = new Date();
-  const tokenState: DarkMiniXiangqiSeatTokenState = {
-    clientId,
-    seat,
-    tokenHash: seatTokenHash,
-    userId: accountUser?.id ?? null,
-    userHandle: accountUser?.handle ?? null,
-    userDisplayName: accountUser?.displayName ?? null,
-    issuedAt: now,
-    lastSeenAt: now,
-    revokedAt: null,
-  };
-  room.seatTokens[seat] = tokenState;
-  return { ok: true, seat, seatToken, seatTokenHash, tokenState };
+  return assignTenantSeat(darkMiniXiangqiTenant, room, clientId, rawToken, accountUser);
 }
 
-// Pre-issue a fresh seat token for a specific seat (used by rematch finalize to
-// reserve the swapped-color seats on the new room before either player
-// connects). Mirrors the mint in assignDarkMiniXiangqiSeat but for a chosen seat
-// and identity. The caller persists the token; this only sets the in-memory
-// reservation so a connecting client with the raw token re-attaches to the seat.
 export function mintDarkMiniXiangqiSeatToken(
   room: Pick<DarkMiniXiangqiSeatRoom, 'seatTokens'>,
   seat: MiniXiangqiColor,
   identity: { userId: string | null; userHandle: string | null; userDisplayName: string | null },
 ): { rawToken: string; state: DarkMiniXiangqiSeatTokenState } {
-  const rawToken = randomBytes(32).toString('base64url');
-  const now = new Date();
-  const state: DarkMiniXiangqiSeatTokenState = {
-    clientId: randomUUID(),
-    seat,
-    tokenHash: hashSeatToken(rawToken),
-    userId: identity.userId,
-    userHandle: identity.userHandle,
-    userDisplayName: identity.userDisplayName,
-    issuedAt: now,
-    lastSeenAt: now,
-    revokedAt: null,
-  };
-  room.seatTokens[seat] = state;
-  return { rawToken, state };
-}
-
-function nextAvailableSeat(
-  creatorPreference: MiniXiangqiColor | 'random' | undefined,
-  occupiedSeats: ReadonlySet<MiniXiangqiColor>,
-): MiniXiangqiColor | null {
-  if (creatorPreference === 'red' || creatorPreference === 'black') {
-    if (!occupiedSeats.has(creatorPreference)) return creatorPreference;
-  }
-  if (creatorPreference === 'random' && occupiedSeats.size === 0) {
-    return randomBytes(1)[0]! < 128 ? 'red' : 'black';
-  }
-  return !occupiedSeats.has('red') ? 'red' : !occupiedSeats.has('black') ? 'black' : null;
+  return mintTenantSeatToken(room, seat, identity);
 }
 
 export function rollbackDarkMiniXiangqiSeatAssignment(
   room: DarkMiniXiangqiSeatRoom,
   assignment: Extract<DarkMiniXiangqiSeatAssignment, { ok: true }>,
 ): void {
-  const current = room.seatTokens[assignment.seat];
-  if (
-    !current ||
-    current.clientId !== assignment.tokenState.clientId ||
-    current.tokenHash !== assignment.tokenState.tokenHash
-  ) {
-    return;
-  }
-  if (assignment.previousTokenState) {
-    room.seatTokens[assignment.seat] = assignment.previousTokenState;
-    return;
-  }
-  delete room.seatTokens[assignment.seat];
+  rollbackTenantSeatAssignment(room, assignment);
 }
 
 export function displaceOlderDarkMiniXiangqiSeatClients<Client extends DarkMiniXiangqiSeatClient>(
   room: DarkMiniXiangqiSeatRoom<Client>,
   newest: Client,
 ): void {
-  for (const client of room.clients) {
-    if (client === newest) continue;
-    if (client.displaced) continue;
-    if (client.seat !== newest.seat) continue;
-    client.displaced = true;
-    try {
-      client.socket.close(4000, 'duplicate session');
-    } catch {
-      /* socket already closed */
-    }
-  }
+  displaceOlderTenantSeatClients(room, newest);
 }

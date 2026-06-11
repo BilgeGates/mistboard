@@ -1,80 +1,55 @@
-import {
+/**
+ * Thin adapter over the generic tenant event writer (variant-tenant/events.ts)
+ * for Dark Mini Xiangqi. Exports keep their pre-migration names/signatures;
+ * persistence log kinds and the GameSummary mapping come from
+ * darkMiniXiangqiTenant.
+ */
+
+import type {
   DARK_MINI_XIANGQI_SPEC_ID,
-  type MiniXiangqiColor,
-  type MiniXiangqiGameEndReason,
+  MiniXiangqiColor,
+  MiniXiangqiGameState,
+  MiniXiangqiMove,
 } from '@mistboard/game';
-import {
-  appendDarkMiniXiangqiRuntimeEvent,
-  type DarkMiniXiangqiEvent,
-  type DarkMiniXiangqiRuntimeRoom,
-  type DarkMiniXiangqiSeatTokenState,
+import type {
+  DarkMiniXiangqiEvent,
+  DarkMiniXiangqiRuntimeRoom,
+  DarkMiniXiangqiSeatTokenState,
 } from './dark-mini-xiangqi-runtime.js';
-import { engineVersionDisplayName, isDarkMiniXiangqiEngineClientId } from './engines/registry.js';
-import { logger } from './obs.js';
-import * as persistence from './persistence.js';
-import { releaseLiveEngineReservation } from './server-live-engine-reservations.js';
+import { darkMiniXiangqiTenant } from './dark-mini-xiangqi-tenant.js';
+import type * as persistence from './persistence.js';
+import {
+  appendTenantEvent,
+  appendTenantSeatAssigned,
+  buildTenantGameSummary,
+  persistenceRecordForTenantSeatToken,
+  recordTenantPersistenceError,
+  type TenantEventWriterContext,
+  type TenantEventWriterPersistence,
+} from './variant-tenant/events.js';
 
 export type DarkMiniXiangqiEventRoom = DarkMiniXiangqiRuntimeRoom;
 
-export type DarkMiniXiangqiEventWriterPersistence = {
-  appendRoomEvent(roomId: string, seq: number, event: DarkMiniXiangqiEvent): Promise<void>;
-  isInitialized(): boolean;
-  recordGameEnd(roomId: string, summary: persistence.GameSummary): Promise<void>;
-  upsertRoomSeatToken(
-    roomId: string,
-    token: persistence.RoomSeatTokenRecord<MiniXiangqiColor>,
-  ): Promise<void>;
-};
+export type DarkMiniXiangqiEventWriterPersistence = TenantEventWriterPersistence<
+  MiniXiangqiColor,
+  MiniXiangqiMove,
+  typeof DARK_MINI_XIANGQI_SPEC_ID
+>;
 
-export type DarkMiniXiangqiEventWriterContext = {
-  logGameEndRecordFailure?(roomId: string, err: Error): void;
-  persistence?: DarkMiniXiangqiEventWriterPersistence;
-  scheduleLifecycleTimers?(room: DarkMiniXiangqiEventRoom): void;
-};
+export type DarkMiniXiangqiEventWriterContext = TenantEventWriterContext<
+  'dark-mini-xiangqi',
+  MiniXiangqiColor,
+  MiniXiangqiMove,
+  MiniXiangqiGameState,
+  typeof DARK_MINI_XIANGQI_SPEC_ID
+>;
 
 export async function appendDarkMiniXiangqiEvent(
   room: DarkMiniXiangqiEventRoom,
   event: DarkMiniXiangqiEvent,
   ctx: DarkMiniXiangqiEventWriterContext = {},
 ): Promise<number> {
-  const writer = contextWithDefaults(ctx);
-  const write = room.pendingWrites.then(async () => {
-    const seq = room.events.length;
-    if (writer.persistence.isInitialized()) {
-      await writer.persistence.appendRoomEvent(room.id, seq, event);
-    }
-    const appendedSeq = appendDarkMiniXiangqiRuntimeEvent(room, event);
-    writer.scheduleLifecycleTimers(room);
-    // PvE: free the engine seat reservation the moment the game ends, so a
-    // finished/aborted game doesn't tie up a global engine seat until its TTL.
-    // Idempotent via the null guard; harmless for PvP (no reservation).
-    const endStatus = room.projection.state.status.type;
-    if ((endStatus === 'finished' || endStatus === 'aborted') && room.engineReservationId) {
-      releaseLiveEngineReservation(room.engineReservationId, `dmx-${endStatus}`);
-      room.engineReservationId = null;
-    }
-    if (
-      writer.persistence.isInitialized() &&
-      room.projection.state.status.type === 'finished' &&
-      !room.gameEndRecorded
-    ) {
-      room.gameEndRecorded = true;
-      try {
-        await writer.persistence.recordGameEnd(room.id, buildDarkMiniXiangqiGameSummary(room));
-      } catch (err) {
-        writer.logGameEndRecordFailure(room.id, err as Error);
-      }
-    }
-    if (room.projection.state.status.type === 'aborted') {
-      room.gameEndRecorded = true;
-    }
-    return appendedSeq;
-  });
-  room.pendingWrites = write.then(
-    () => undefined,
-    () => undefined,
-  );
-  return write;
+  return appendTenantEvent(darkMiniXiangqiTenant, room, event, ctx);
 }
 
 export async function appendDarkMiniXiangqiSeatAssigned(
@@ -85,68 +60,13 @@ export async function appendDarkMiniXiangqiSeatAssigned(
   },
   ctx: DarkMiniXiangqiEventWriterContext = {},
 ): Promise<number> {
-  const writer = contextWithDefaults(ctx);
-  const write = room.pendingWrites.then(async () => {
-    const seq = room.events.length;
-    if (writer.persistence.isInitialized()) {
-      await writer.persistence.appendRoomEvent(room.id, seq, args.event);
-      await writer.persistence.upsertRoomSeatToken(
-        room.id,
-        persistenceRecordForDarkMiniXiangqiSeatToken(args.tokenState),
-      );
-    }
-    const appendedSeq = appendDarkMiniXiangqiRuntimeEvent(room, args.event);
-    room.seatTokens[args.event.seat] = args.tokenState;
-    writer.scheduleLifecycleTimers(room);
-    return appendedSeq;
-  });
-  room.pendingWrites = write.then(
-    () => undefined,
-    () => undefined,
-  );
-  return write;
+  return appendTenantSeatAssigned(darkMiniXiangqiTenant, room, args, ctx);
 }
 
 export function buildDarkMiniXiangqiGameSummary(
   room: DarkMiniXiangqiEventRoom,
 ): persistence.GameSummary {
-  const status = room.projection.state.status;
-  if (status.type !== 'finished') {
-    throw new Error('buildDarkMiniXiangqiGameSummary called on non-terminal state');
-  }
-  const moveEvents = room.events.filter((event) => event.type === 'move-played');
-  const firstAt = room.events[0]?.at ?? Date.now();
-  const lastAt = room.events[room.events.length - 1]?.at ?? Date.now();
-  const engineSeat = darkMiniXiangqiEngineSeat(room);
-  const mode = engineSeat ? 'pve' : 'pvp';
-  const visibility: persistence.GameVisibility = mode === 'pve' ? 'public' : 'private';
-  const participants = [
-    darkMiniXiangqiParticipant('red', room, visibility),
-    darkMiniXiangqiParticipant('black', room, visibility),
-  ];
-  const rated =
-    room.rated &&
-    !engineSeat &&
-    participants.every((participant) => participant.subjectType === 'user');
-  return {
-    variant: DARK_MINI_XIANGQI_SPEC_ID,
-    mode,
-    result: darkMiniXiangqiResult(status.winner),
-    termination: darkMiniXiangqiTermination(status.reason),
-    plyCount: moveEvents.length,
-    startedAt: new Date(firstAt),
-    endedAt: new Date(lastAt),
-    whiteClient: null,
-    blackClient: null,
-    whiteName: null,
-    blackName: null,
-    corpusId: null,
-    initialMs: room.projection.timeControl?.initialMs ?? null,
-    incrementMs: room.projection.timeControl?.incrementMs ?? null,
-    rated,
-    visibility,
-    participants,
-  };
+  return buildTenantGameSummary(darkMiniXiangqiTenant, room);
 }
 
 export function recordDarkMiniXiangqiPersistenceError(
@@ -155,104 +75,11 @@ export function recordDarkMiniXiangqiPersistenceError(
   eventType: string,
   err: Error,
 ): void {
-  logger.error(
-    {
-      kind: 'dark_mini_xiangqi_persistence_failure',
-      room_id: roomId,
-      seq,
-      event_type: eventType,
-      error: err.message,
-    },
-    'Dark Mini Xiangqi persistence failure',
-  );
-}
-
-function contextWithDefaults(
-  ctx: DarkMiniXiangqiEventWriterContext,
-): Required<DarkMiniXiangqiEventWriterContext> {
-  return {
-    logGameEndRecordFailure: logDarkMiniXiangqiGameEndRecordFailure,
-    persistence,
-    scheduleLifecycleTimers: () => {},
-    ...ctx,
-  };
-}
-
-function logDarkMiniXiangqiGameEndRecordFailure(roomId: string, err: Error): void {
-  logger.error(
-    {
-      kind: 'dark_mini_xiangqi_game_end_record_failure',
-      room_id: roomId,
-      error: err.message,
-      at: Date.now(),
-    },
-    'Dark Mini Xiangqi game end record failure',
-  );
-}
-
-function darkMiniXiangqiResult(winner: MiniXiangqiColor | null): persistence.GameResult {
-  if (winner === 'red') return 'red-wins';
-  if (winner === 'black') return 'black-wins';
-  return 'draw';
-}
-
-function darkMiniXiangqiTermination(reason: MiniXiangqiGameEndReason): persistence.GameTermination {
-  return reason;
-}
-
-function darkMiniXiangqiParticipant(
-  color: MiniXiangqiColor,
-  room: DarkMiniXiangqiEventRoom,
-  visibility: persistence.GameVisibility,
-): persistence.GameParticipant {
-  const seatedClientId = room.projection.seats[color];
-  if (seatedClientId && isDarkMiniXiangqiEngineClientId(seatedClientId)) {
-    return {
-      color,
-      displayName: engineVersionDisplayName(seatedClientId),
-      subjectType: 'engine-version',
-      subjectId: seatedClientId,
-      visibility,
-    };
-  }
-  const token = room.seatTokens[color];
-  if (token?.userId) {
-    return {
-      color,
-      displayName: token.userDisplayName ?? token.userHandle ?? 'Player',
-      subjectType: 'user',
-      subjectId: token.userId,
-      visibility,
-    };
-  }
-  return {
-    color,
-    displayName: 'Guest',
-    subjectType: 'guest',
-    subjectId: null,
-    visibility,
-  };
-}
-
-function darkMiniXiangqiEngineSeat(room: DarkMiniXiangqiEventRoom): MiniXiangqiColor | null {
-  for (const color of ['red', 'black'] as const) {
-    if (isDarkMiniXiangqiEngineClientId(room.projection.seats[color])) return color;
-  }
-  return null;
+  recordTenantPersistenceError(darkMiniXiangqiTenant, roomId, seq, eventType, err);
 }
 
 export function persistenceRecordForDarkMiniXiangqiSeatToken(
   token: DarkMiniXiangqiSeatTokenState,
 ): persistence.RoomSeatTokenRecord<MiniXiangqiColor> {
-  return {
-    seat: token.seat,
-    clientId: token.clientId,
-    tokenHash: token.tokenHash,
-    userId: token.userId,
-    userHandle: token.userHandle,
-    userDisplayName: token.userDisplayName,
-    issuedAt: token.issuedAt,
-    lastSeenAt: token.lastSeenAt,
-    revokedAt: token.revokedAt,
-  };
+  return persistenceRecordForTenantSeatToken(token);
 }
