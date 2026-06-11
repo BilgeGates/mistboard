@@ -217,8 +217,13 @@ export type VariantTenant<
     isColor(value: unknown): value is C;
     isMove(value: unknown): value is M;
     // Parse + validate a move out of a raw client `move` message; null rejects.
-    // Move canonicalization (e.g. promotion defaults) belongs here.
+    // STATE-FREE canonicalization (e.g. coordinate parsing) belongs here.
     moveFromMessage(message: { from?: string; to?: string; promotion?: string }): M | null;
+    // STATE-DEPENDENT canonicalization: resolve the parsed move to the exact
+    // legal-move object to append (e.g. Crossroads re-attaches promotion from
+    // the legal-move list). Null rejects. When omitted, the ws move path
+    // appends the parsed move after an isLegalMove check instead.
+    canonicalMove?(state: State, move: M): M | null;
   };
   visibility: {
     // Per-seat wire-event redaction. Fog tenants hide opponent moves and
@@ -257,6 +262,10 @@ export type VariantTenant<
     // Accept seat-vacated events when validating event logs. Off by default
     // so tenants that never emit them keep rejecting them.
     acceptsSeatVacated?: boolean;
+    // Additional gameSpecId values accepted in PERSISTED room-created events
+    // (pre-rename aliases, e.g. Crossroads' 'dual-chess'). Validation-only:
+    // new rooms and projections always carry the canonical tenant.gameSpecId.
+    legacyGameSpecIds?: readonly string[];
   };
   persistence: {
     resultForWinner(winner: C | null): persistence.GameResult;

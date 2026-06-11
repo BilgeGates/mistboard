@@ -17,11 +17,13 @@ import type {
 } from './tenant.js';
 
 /** PvE: seat an engine in `seat` at creation (its clientId is the engine id),
- * holding the given engine-service seat reservation for the game. */
+ * holding the given engine-service seat reservation for the game. Omit
+ * reservationId for tenants whose engines run in-process with no seat
+ * reservation system (Crossroads' Fairy-Stockfish). */
 export type TenantRoomEngineSeat<C extends string> = {
   engineId: string;
   seat: C;
-  reservationId: string;
+  reservationId?: string;
 };
 
 export type TenantLiveRoomCreation<
@@ -94,7 +96,7 @@ export async function createTenantLiveRoom<
         clientId: engine.engineId,
         seat: engine.seat,
       });
-      room.engineReservationId = engine.reservationId;
+      room.engineReservationId = engine.reservationId ?? null;
     }
     if (ctx.isPersistenceEnabled()) {
       let writingSeq = 0;

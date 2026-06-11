@@ -523,7 +523,7 @@ export function isTenantEventLog<
   if (
     !isTenantEvent(tenant, created, firstRoomId) ||
     created.type !== 'room-created' ||
-    created.gameSpecId !== tenant.gameSpecId ||
+    !isAcceptedGameSpecId(tenant, created.gameSpecId) ||
     !isFiniteTimestamp(created.at)
   ) {
     return false;
@@ -550,7 +550,7 @@ export function isTenantEvent<
   if (!isFiniteTimestamp(event.at)) return false;
   if (event.type === 'room-created') {
     return (
-      event.gameSpecId === tenant.gameSpecId &&
+      isAcceptedGameSpecId(tenant, event.gameSpecId) &&
       (event.creatorPreference === undefined ||
         event.creatorPreference === 'random' ||
         tenant.rules.isColor(event.creatorPreference)) &&
@@ -625,6 +625,16 @@ function initialTenantProjection<
     seats: {},
     ...(timeControl ? { timeControl } : {}),
   };
+}
+
+// Persisted room-created events may carry a pre-rename spec alias
+// (wire.legacyGameSpecIds); everything the runtime writes is canonical.
+function isAcceptedGameSpecId(
+  tenant: { gameSpecId: string; wire?: { legacyGameSpecIds?: readonly string[] } },
+  value: unknown,
+): boolean {
+  if (value === tenant.gameSpecId) return true;
+  return typeof value === 'string' && (tenant.wire?.legacyGameSpecIds?.includes(value) ?? false);
 }
 
 function isFiniteTimestamp(value: unknown): value is number {

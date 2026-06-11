@@ -1,14 +1,20 @@
-import { randomUUID } from 'node:crypto';
+/**
+ * Thin adapter over the generic tenant room factory
+ * (variant-tenant/room-factory.ts) for Crossroads Chess. Two pre-migration
+ * behaviors are preserved here rather than in the core: the running-game
+ * record is written for PvE rooms only (the hook is gated on the engine
+ * seat), and the in-process FSF engine seat carries no reservation id.
+ */
+
 import type { RoomTimeControl } from '@mistboard/game';
-import {
-  appendCrossroadsChessRuntimeEvent,
-  CROSSROADS_CHESS_ROOM_ID_PREFIX,
-  type CrossroadsChessCreatorPreference,
-  type CrossroadsChessEvent,
-  type CrossroadsChessRuntimeRoom,
-  createCrossroadsChessRuntimeRoom,
+import type {
+  CrossroadsChessCreatorPreference,
+  CrossroadsChessEvent,
+  CrossroadsChessRuntimeRoom,
 } from './crossroads-chess-runtime.js';
+import { crossroadsChessTenant } from './crossroads-chess-tenant.js';
 import type * as persistence from './persistence.js';
+import { createTenantLiveRoom } from './variant-tenant/room-factory.js';
 
 export type CrossroadsChessRoomEngineSeat = {
   engineId: string;
@@ -37,59 +43,28 @@ export async function createCrossroadsChessLiveRoom(
   creatorPreference?: CrossroadsChessCreatorPreference,
   engine?: CrossroadsChessRoomEngineSeat,
 ): Promise<CrossroadsChessLiveRoomCreation> {
-  for (let attempt = 0; attempt < 5; attempt += 1) {
-    const roomId = ctx.createRoomId?.() ?? `${CROSSROADS_CHESS_ROOM_ID_PREFIX}${randomUUID()}`;
-    if (
-      ctx.chessRooms.has(roomId) ||
-      ctx.darkXiangqiRooms.has(roomId) ||
-      ctx.darkMiniXiangqiRooms.has(roomId) ||
-      ctx.crossroadsChessRooms.has(roomId)
-    ) {
-      continue;
-    }
-    const created = createCrossroadsChessRuntimeRoom(roomId, { creatorPreference, timeControl });
-    if (!created.ok) return created;
-    const room = created.room;
-    if (engine) {
-      appendCrossroadsChessRuntimeEvent(room, {
-        type: 'seat-assigned',
-        at: Date.now(),
-        roomId,
-        clientId: engine.engineId,
-        seat: engine.seat,
-      });
-    }
-    if (ctx.isPersistenceEnabled()) {
-      let writingSeq = 0;
-      let writingEventType = 'room-created';
-      try {
-        for (const [seq, event] of room.events.entries()) {
-          writingSeq = seq;
-          writingEventType = event.type;
-          await ctx.appendRoomEvent(roomId, seq, event);
-        }
-        if (engine) {
-          writingSeq = room.events.length;
-          writingEventType = 'game-start';
-          await ctx.recordGameStart(roomId, {
-            variant: room.gameSpecId,
-            mode: 'pve',
-            startedAt: new Date(room.events[0]?.at ?? Date.now()),
-            whiteClient: null,
-            blackClient: null,
-            whiteName: null,
-            blackName: null,
-            corpusId: null,
-            visibility: 'public',
-          });
-        }
-      } catch (err) {
-        ctx.recordPersistenceError(roomId, writingSeq, writingEventType, err as Error);
-        return { ok: false, error: 'persistence_failure' };
-      }
-    }
-    ctx.crossroadsChessRooms.set(roomId, room);
-    return { ok: true, room };
+  const created = await createTenantLiveRoom(
+    crossroadsChessTenant,
+    {
+      rooms: ctx.crossroadsChessRooms,
+      isRoomIdTaken: (roomId) =>
+        ctx.chessRooms.has(roomId) ||
+        ctx.darkXiangqiRooms.has(roomId) ||
+        ctx.darkMiniXiangqiRooms.has(roomId),
+      appendRoomEvent: ctx.appendRoomEvent,
+      createRoomId: ctx.createRoomId,
+      isPersistenceEnabled: ctx.isPersistenceEnabled,
+      // Crossroads records a running game for PvE rooms only; PvP rooms have
+      // never written a game-start record.
+      ...(engine ? { recordGameStart: ctx.recordGameStart } : {}),
+      recordPersistenceError: ctx.recordPersistenceError,
+    },
+    { timeControl, creatorPreference, engine },
+  );
+  if (!created.ok) {
+    return created.error === 'disabled'
+      ? { ok: false, error: 'crossroads_chess_disabled' }
+      : { ok: false, error: created.error };
   }
-  return { ok: false, error: 'room_id_collision' };
+  return created;
 }

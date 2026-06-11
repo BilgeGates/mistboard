@@ -324,6 +324,7 @@ function crossroadsChessRoom(roomId: string): CrossroadsChessRuntimeRoom {
     projection: {
       roomId,
       gameSpecId: CROSSROADS_CHESS_SPEC_ID,
+      rated: false,
       state: {
         id: roomId,
         board: {},
@@ -335,11 +336,13 @@ function crossroadsChessRoom(roomId: string): CrossroadsChessRuntimeRoom {
       seats: {},
     },
     gameSpecId: CROSSROADS_CHESS_SPEC_ID,
+    rated: false,
     abortTimer: null,
     abortDeadline: null,
     abortPhase: null,
     clockTimer: null,
     engineTimer: null,
+    engineReservationId: null,
     forfeitTimer: null,
     forfeitDeadline: null,
     forfeitSeat: null,

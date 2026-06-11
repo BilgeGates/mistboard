@@ -316,13 +316,22 @@ export function createTenantWsRuntime<
       if (!room.projection.seats[color]) return;
     }
     if (status.turn !== client.seat) return;
-    if (!tenant.rules.isLegalMove(room.projection.state, move)) return;
+    // State-dependent canonicalization (when the tenant defines it) resolves
+    // the parsed move to the exact legal-move object to append — e.g.
+    // Crossroads re-attaches `promotion` from the legal-move list. It doubles
+    // as the legality check: null rejects.
+    const canonical = tenant.rules.canonicalMove
+      ? tenant.rules.canonicalMove(room.projection.state, move)
+      : tenant.rules.isLegalMove(room.projection.state, move)
+        ? move
+        : null;
+    if (canonical === null) return;
     const event: TenantRoomEvent<C, M, Spec> = {
       type: 'move-played',
       at: Date.now(),
       roomId: room.id,
       color: client.seat,
-      move,
+      move: canonical,
     };
     let seq: number;
     try {

@@ -33,6 +33,7 @@ function makeRoom(id: string, status: 'playing' | 'finished'): CrossroadsChessLi
     projection: {
       roomId: id,
       gameSpecId: CROSSROADS_CHESS_SPEC_ID,
+      rated: false,
       state: {
         id,
         board: createInitialCrossroadsChessBoard(),
@@ -48,11 +49,13 @@ function makeRoom(id: string, status: 'playing' | 'finished'): CrossroadsChessLi
       timeControl: { initialMs: 300_000, incrementMs: 5_000 },
     },
     gameSpecId: CROSSROADS_CHESS_SPEC_ID,
+    rated: false,
     abortTimer: null,
     abortDeadline: null,
     abortPhase: null,
     clockTimer: null,
     engineTimer: null,
+    engineReservationId: null,
     forfeitTimer: null,
     forfeitDeadline: null,
     forfeitSeat: null,
@@ -83,6 +86,7 @@ function seatToken(opts: {
 
 function client(seat: CrossroadsChessColor, tokenHash: string): CrossroadsChessLiveClient {
   return {
+    debugRequested: false,
     displaced: false,
     id: `${seat}-client`,
     messageTimestamps: [],

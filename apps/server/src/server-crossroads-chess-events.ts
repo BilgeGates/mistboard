@@ -1,78 +1,54 @@
-import {
-  CROSSROADS_CHESS_SPEC_ID,
-  type CrossroadsChessColor,
-  type CrossroadsChessGameEndReason,
+/**
+ * Thin adapter over the generic tenant event writer (variant-tenant/events.ts)
+ * for Crossroads Chess. The persisted GameSummary uses the generic builder
+ * unchanged (engine-version participants, pve→public visibility, time-control
+ * fields) — the pre-migration Crossroads builder matched it field for field.
+ */
+
+import type {
+  CrossroadsChessColor,
+  CrossroadsChessGameState,
+  CrossroadsChessMove,
 } from '@mistboard/game';
-import {
-  crossroadsChessEngineDisplayName,
-  isCrossroadsChessEngineClientId,
-} from './crossroads-chess-engine.js';
-import {
-  appendCrossroadsChessRuntimeEvent,
-  type CrossroadsChessEvent,
-  type CrossroadsChessRuntimeRoom,
-  type CrossroadsChessSeatTokenState,
+import type {
+  CrossroadsChessEvent,
+  CrossroadsChessRuntimeRoom,
+  CrossroadsChessSeatTokenState,
 } from './crossroads-chess-runtime.js';
-import { logger } from './obs.js';
-import * as persistence from './persistence.js';
+import { type CrossroadsChessSpecId, crossroadsChessTenant } from './crossroads-chess-tenant.js';
+import type * as persistence from './persistence.js';
+import {
+  appendTenantEvent,
+  appendTenantSeatAssigned,
+  buildTenantGameSummary,
+  persistenceRecordForTenantSeatToken,
+  recordTenantPersistenceError,
+  type TenantEventWriterContext,
+  type TenantEventWriterPersistence,
+} from './variant-tenant/events.js';
 
 export type CrossroadsChessEventRoom = CrossroadsChessRuntimeRoom;
 
-export type CrossroadsChessEventWriterPersistence = {
-  appendRoomEvent(roomId: string, seq: number, event: CrossroadsChessEvent): Promise<void>;
-  isInitialized(): boolean;
-  recordGameEnd(roomId: string, summary: persistence.GameSummary): Promise<void>;
-  upsertRoomSeatToken(
-    roomId: string,
-    token: persistence.RoomSeatTokenRecord<CrossroadsChessColor>,
-  ): Promise<void>;
-};
+export type CrossroadsChessEventWriterPersistence = TenantEventWriterPersistence<
+  CrossroadsChessColor,
+  CrossroadsChessMove,
+  CrossroadsChessSpecId
+>;
 
-export type CrossroadsChessEventWriterContext = {
-  logGameEndRecordFailure?(roomId: string, err: Error): void;
-  persistence?: CrossroadsChessEventWriterPersistence;
-  scheduleLifecycleTimers?(room: CrossroadsChessEventRoom): void;
-};
+export type CrossroadsChessEventWriterContext = TenantEventWriterContext<
+  'crossroads-chess',
+  CrossroadsChessColor,
+  CrossroadsChessMove,
+  CrossroadsChessGameState,
+  CrossroadsChessSpecId
+>;
 
-// Serialize an event onto the room: persist (if enabled), apply to the
-// projection, re-arm lifecycle timers, and record the game-end summary the first
-// time the projection becomes terminal. Writes are chained on room.pendingWrites
-// so concurrent appends keep the DB sequence + projection consistent.
 export async function appendCrossroadsChessEvent(
   room: CrossroadsChessEventRoom,
   event: CrossroadsChessEvent,
   ctx: CrossroadsChessEventWriterContext = {},
 ): Promise<number> {
-  const writer = contextWithDefaults(ctx);
-  const write = room.pendingWrites.then(async () => {
-    const seq = room.events.length;
-    if (writer.persistence.isInitialized()) {
-      await writer.persistence.appendRoomEvent(room.id, seq, event);
-    }
-    const appendedSeq = appendCrossroadsChessRuntimeEvent(room, event);
-    writer.scheduleLifecycleTimers(room);
-    if (
-      writer.persistence.isInitialized() &&
-      room.projection.state.status.type === 'finished' &&
-      !room.gameEndRecorded
-    ) {
-      room.gameEndRecorded = true;
-      try {
-        await writer.persistence.recordGameEnd(room.id, buildCrossroadsChessGameSummary(room));
-      } catch (err) {
-        writer.logGameEndRecordFailure(room.id, err as Error);
-      }
-    }
-    if (room.projection.state.status.type === 'aborted') {
-      room.gameEndRecorded = true;
-    }
-    return appendedSeq;
-  });
-  room.pendingWrites = write.then(
-    () => undefined,
-    () => undefined,
-  );
-  return write;
+  return appendTenantEvent(crossroadsChessTenant, room, event, ctx);
 }
 
 export async function appendCrossroadsChessSeatAssigned(
@@ -83,62 +59,13 @@ export async function appendCrossroadsChessSeatAssigned(
   },
   ctx: CrossroadsChessEventWriterContext = {},
 ): Promise<number> {
-  const writer = contextWithDefaults(ctx);
-  const write = room.pendingWrites.then(async () => {
-    const seq = room.events.length;
-    if (writer.persistence.isInitialized()) {
-      await writer.persistence.appendRoomEvent(room.id, seq, args.event);
-      await writer.persistence.upsertRoomSeatToken(
-        room.id,
-        persistenceRecordForCrossroadsChessSeatToken(args.tokenState),
-      );
-    }
-    const appendedSeq = appendCrossroadsChessRuntimeEvent(room, args.event);
-    room.seatTokens[args.event.seat] = args.tokenState;
-    writer.scheduleLifecycleTimers(room);
-    return appendedSeq;
-  });
-  room.pendingWrites = write.then(
-    () => undefined,
-    () => undefined,
-  );
-  return write;
+  return appendTenantSeatAssigned(crossroadsChessTenant, room, args, ctx);
 }
 
 export function buildCrossroadsChessGameSummary(
   room: CrossroadsChessEventRoom,
 ): persistence.GameSummary {
-  const status = room.projection.state.status;
-  if (status.type !== 'finished') {
-    throw new Error('buildCrossroadsChessGameSummary called on non-terminal state');
-  }
-  const moveEvents = room.events.filter((event) => event.type === 'move-played');
-  const firstAt = room.events[0]?.at ?? Date.now();
-  const lastAt = room.events[room.events.length - 1]?.at ?? Date.now();
-  const mode: persistence.GameMode = crossroadsChessEngineSeat(room) ? 'pve' : 'pvp';
-  const visibility: persistence.GameVisibility = mode === 'pve' ? 'public' : 'private';
-  return {
-    variant: CROSSROADS_CHESS_SPEC_ID,
-    mode,
-    result: crossroadsChessResult(status.winner),
-    termination: crossroadsChessTermination(status.reason),
-    plyCount: moveEvents.length,
-    startedAt: new Date(firstAt),
-    endedAt: new Date(lastAt),
-    whiteClient: null,
-    blackClient: null,
-    whiteName: null,
-    blackName: null,
-    corpusId: null,
-    rated: false,
-    visibility,
-    initialMs: room.projection.timeControl?.initialMs ?? null,
-    incrementMs: room.projection.timeControl?.incrementMs ?? null,
-    participants: [
-      crossroadsChessParticipant('white', room, visibility),
-      crossroadsChessParticipant('red', room, visibility),
-    ],
-  };
+  return buildTenantGameSummary(crossroadsChessTenant, room);
 }
 
 export function recordCrossroadsChessPersistenceError(
@@ -147,106 +74,11 @@ export function recordCrossroadsChessPersistenceError(
   eventType: string,
   err: Error,
 ): void {
-  logger.error(
-    {
-      kind: 'crossroads_chess_persistence_failure',
-      room_id: roomId,
-      seq,
-      event_type: eventType,
-      error: err.message,
-    },
-    'Crossroads Chess persistence failure',
-  );
-}
-
-function contextWithDefaults(
-  ctx: CrossroadsChessEventWriterContext,
-): Required<CrossroadsChessEventWriterContext> {
-  return {
-    logGameEndRecordFailure: logCrossroadsChessGameEndRecordFailure,
-    persistence,
-    scheduleLifecycleTimers: () => {},
-    ...ctx,
-  };
-}
-
-function logCrossroadsChessGameEndRecordFailure(roomId: string, err: Error): void {
-  logger.error(
-    {
-      kind: 'crossroads_chess_game_end_record_failure',
-      room_id: roomId,
-      error: err.message,
-      at: Date.now(),
-    },
-    'Crossroads Chess game end record failure',
-  );
-}
-
-function crossroadsChessResult(winner: CrossroadsChessColor | null): persistence.GameResult {
-  if (winner === 'white') return 'white-wins';
-  if (winner === 'red') return 'red-wins';
-  return 'draw';
-}
-
-function crossroadsChessTermination(
-  reason: CrossroadsChessGameEndReason,
-): persistence.GameTermination {
-  return reason;
-}
-
-function crossroadsChessParticipant(
-  color: CrossroadsChessColor,
-  room: CrossroadsChessEventRoom,
-  visibility: persistence.GameVisibility,
-): persistence.GameParticipant {
-  const seatedClientId = room.projection.seats[color];
-  if (seatedClientId && isCrossroadsChessEngineClientId(seatedClientId)) {
-    return {
-      color,
-      displayName: crossroadsChessEngineDisplayName(seatedClientId),
-      subjectType: 'engine-version',
-      subjectId: seatedClientId,
-      visibility,
-    };
-  }
-  const token = room.seatTokens[color];
-  if (token?.userId) {
-    return {
-      color,
-      displayName: token.userDisplayName ?? token.userHandle ?? 'Player',
-      subjectType: 'user',
-      subjectId: token.userId,
-      visibility,
-    };
-  }
-  return {
-    color,
-    displayName: 'Guest',
-    subjectType: 'guest',
-    subjectId: null,
-    visibility,
-  };
-}
-
-function crossroadsChessEngineSeat(room: CrossroadsChessEventRoom): CrossroadsChessColor | null {
-  for (const color of ['white', 'red'] as const) {
-    if (isCrossroadsChessEngineClientId(room.projection.seats[color])) return color;
-  }
-  return null;
+  recordTenantPersistenceError(crossroadsChessTenant, roomId, seq, eventType, err);
 }
 
 export function persistenceRecordForCrossroadsChessSeatToken(
   token: CrossroadsChessSeatTokenState,
 ): persistence.RoomSeatTokenRecord<CrossroadsChessColor> {
-  return {
-    seat: token.seat,
-    clientId: token.clientId,
-    tokenHash: token.tokenHash,
-    userId: token.userId,
-    userHandle: token.userHandle,
-    userDisplayName: token.userDisplayName,
-    issuedAt: token.issuedAt,
-    lastSeenAt: token.lastSeenAt,
-    revokedAt: token.revokedAt,
-  };
+  return persistenceRecordForTenantSeatToken(token);
 }
