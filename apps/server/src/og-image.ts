@@ -1,18 +1,36 @@
+import { promises as fs } from 'node:fs';
 import type { ServerResponse } from 'node:http';
+import { resolve } from 'node:path';
 import {
   ARTICLE_OG_POSITIONS,
   type ArticleOgPosition,
   boardToPieces,
+  CROSSROADS_CHESS_DESCRIPTOR,
+  CROSSROADS_DISK_GLYPHS,
+  CROSSROADS_INK_RED,
+  CROSSROADS_INK_WHITE,
+  CROSSROADS_IVORY_STOPS,
+  CROSSROADS_PIECE_RED,
+  CROSSROADS_RED_STOPS,
   fogSquaresFromVisible,
   GREEN_PALETTE,
+  PIECE_SVGS,
   type PieceOnBoard,
   renderBoardComposition,
+  renderGridBoardSvg,
+  renderXiangqiOgBoardSvg,
   SERVER_FOG_TRIPTYCH,
+  XIANGQI_GLYPH_PATHS,
+  type XiangqiOgPiece,
 } from '@mistboard/board-render';
 import {
   applyGameEvent,
-  darkChessVariant,
+  createInitialCrossroadsChessBoard,
+  createInitialMiniXiangqiState,
+  createInitialXiangqiState,
   type GameEvent,
+  getMiniXiangqiPlayerView,
+  getPlayerView as getXiangqiPlayerView,
   initialGameProjection,
   type Square,
   variantForId,
@@ -192,13 +210,31 @@ function redirectToDefault(response: ServerResponse): void {
 // the slug→title map. Falls back to the default card if the slug has no
 // thumbnail position.
 //
-// Articles whose thesis is a composition rather than a single position get a
-// custom renderer here, checked before the single-board map.
-const CUSTOM_ARTICLE_OG_SVGS: Record<string, (title: string) => string> = {
+// Articles whose card is not a single chess position (other games, image art,
+// compositions) get a custom renderer here, checked before the single-board map.
+type ArticleOgContext = { staticDir: string };
+const CUSTOM_ARTICLE_OG_SVGS: Record<
+  string,
+  (title: string, ctx: ArticleOgContext) => Promise<string> | string
+> = {
   'server-enforced-fog': renderServerFogOgSvg,
+  shogi4: renderShogi4OgSvg,
+  misty: renderMistyOgSvg,
+  xiangqi: (title, ctx) => renderXiangqiFamilyOgSvg(title, ctx, 'full', false),
+  'dark-xiangqi': (title, ctx) => renderXiangqiFamilyOgSvg(title, ctx, 'full', true),
+  'mini-xiangqi': (title, ctx) => renderXiangqiFamilyOgSvg(title, ctx, 'mini', false),
+  'dark-mini-xiangqi': (title, ctx) => renderXiangqiFamilyOgSvg(title, ctx, 'mini', true),
+  'crossroads-chess': renderCrossroadsChessOgSvg,
 };
 
-export function serveArticleOgImage(slug: string, title: string, response: ServerResponse): void {
+export async function serveArticleOgImage(params: {
+  slug: string;
+  title: string;
+  kind: 'rules' | 'article';
+  response: ServerResponse;
+  staticDir: string;
+}): Promise<void> {
+  const { slug, kind, response, staticDir } = params;
   const key = `article:${slug}`;
   const cached = cacheGet(key);
   if (cached) {
@@ -211,32 +247,297 @@ export function serveArticleOgImage(slug: string, title: string, response: Serve
     redirectToDefault(response);
     return;
   }
-  const png = svgToPng(custom ? custom(title) : renderArticleOgSvg(title, position!));
+  // Page H1s drift on the "Rules" suffix (some rules pages carry it, some
+  // don't); cards say it uniformly so a shared rules link always reads as one.
+  const title =
+    kind === 'rules' && !/\bRules$/.test(params.title) ? `${params.title} Rules` : params.title;
+  const svg = custom ? await custom(title, { staticDir }) : renderArticleOgSvg(title, position!);
+  const png = svgToPng(svg);
   cacheSet(key, png);
   writePng(response, png, 'MISS');
+}
+
+// One footer line carries both brand and title (muted brand, bright title),
+// so the hero gets the rest of the canvas.
+function ogFooterLine(title: string, y: number): string {
+  return `<text x="${OG_WIDTH / 2}" y="${y}" text-anchor="middle" font-family="${FONT}" font-size="34"><tspan fill="#9ca3af" font-weight="600" letter-spacing="1">MISTBOARD</tspan><tspan fill="#5b6470">  ·  </tspan><tspan fill="#f3f4f6" font-weight="700">${escapeXml(title)}</tspan></text>`;
+}
+
+// Reads a file from the built web bundle as a data URI, so card SVGs can
+// embed site assets (piece art, article art) without resvg needing network
+// or filesystem access at raster time.
+async function fileDataUri(staticDir: string, relPath: string, mime: string): Promise<string> {
+  const buf = await fs.readFile(resolve(staticDir, relPath));
+  return `data:${mime};base64,${buf.toString('base64')}`;
+}
+
+// Shogi4 start-position art. Geometry mirrors SHOGI4_RULES_THUMBNAIL in
+// apps/web/src/shogi4-rules-diagrams.ts (generated from the shogi4 repo's
+// gen_rules_diagrams.py); if that art regenerates differently, update this
+// list with it. Images rotate 180° around their own center for the far side.
+const SHOGI4_CARD_PIECES: Array<{ href: string; x: number; y: number; rotated?: boolean }> = [
+  { href: 'shogi4/pieces/crane.png', x: 11.2, y: 193.2 },
+  { href: 'shogi4/pieces/fox.png', x: 71.2, y: 193.2 },
+  { href: 'shogi4/pieces/raccoon.png', x: 131.2, y: 193.2 },
+  { href: 'shogi4/pieces/tapir.png', x: 191.2, y: 193.2 },
+  { href: 'shogi4/pieces/carp.png', x: 11.2, y: 133.2 },
+  { href: 'shogi4/pieces/dark/carp.png', x: 191.2, y: 73.2, rotated: true },
+  { href: 'shogi4/pieces/dark/tapir.png', x: 11.2, y: 13.2, rotated: true },
+  { href: 'shogi4/pieces/dark/raccoon.png', x: 71.2, y: 13.2, rotated: true },
+  { href: 'shogi4/pieces/dark/fox.png', x: 131.2, y: 13.2, rotated: true },
+  { href: 'shogi4/pieces/pheasant.png', x: 191.2, y: 13.2, rotated: true },
+];
+
+async function renderShogi4OgSvg(title: string, ctx: ArticleOgContext): Promise<string> {
+  const boardSize = 500;
+  const boardY = 36;
+  const boardX = (OG_WIDTH - boardSize) / 2;
+  const pieceSize = 57.6;
+  const uris = new Map<string, string>();
+  for (const piece of SHOGI4_CARD_PIECES) {
+    if (!uris.has(piece.href)) {
+      uris.set(piece.href, await fileDataUri(ctx.staticDir, piece.href, 'image/png'));
+    }
+  }
+  const inner: string[] = [
+    `<rect x="10" y="12" width="240" height="240" rx="9" fill="#f4ead2" stroke="#c9b07f" stroke-width="2"/>`,
+  ];
+  for (const i of [0, 1, 2]) {
+    const offset = 70 + i * 60;
+    inner.push(
+      `<line x1="${offset}" y1="13" x2="${offset}" y2="251" stroke="#ddcca6" stroke-width="1"/>`,
+    );
+    inner.push(
+      `<line x1="11" y1="${offset + 2}" x2="249" y2="${offset + 2}" stroke="#ddcca6" stroke-width="1"/>`,
+    );
+  }
+  for (const piece of SHOGI4_CARD_PIECES) {
+    const rotate = piece.rotated
+      ? ` transform="rotate(180 ${piece.x + pieceSize / 2} ${piece.y + pieceSize / 2})"`
+      : '';
+    inner.push(
+      `<image href="${uris.get(piece.href)}" x="${piece.x}" y="${piece.y}" width="${pieceSize}" height="${pieceSize}"${rotate}/>`,
+    );
+  }
+  return [
+    `<svg xmlns="http://www.w3.org/2000/svg" width="${OG_WIDTH}" height="${OG_HEIGHT}" viewBox="0 0 ${OG_WIDTH} ${OG_HEIGHT}">`,
+    `<rect width="${OG_WIDTH}" height="${OG_HEIGHT}" fill="#0f1115"/>`,
+    `<svg x="${boardX}" y="${boardY}" width="${boardSize}" height="${boardSize}" viewBox="0 0 262 262">${inner.join('')}</svg>`,
+    ogFooterLine(title, boardY + boardSize + 48),
+    `</svg>`,
+  ].join('');
+}
+
+// Xiangqi-family cards: the start position on a proper intersection board
+// (palaces, river on the full game), with the dark variants showing Red's
+// opening view — the same convention as the dark-chess cards. Positions and
+// fog come from the game kernel, never hand-authored.
+function xqOgCoord(square: string): { file: number; rank: number } {
+  return { file: square.charCodeAt(0) - 97, rank: Number(square.slice(1)) };
+}
+
+function renderXiangqiFamilyOgSvg(
+  title: string,
+  _ctx: ArticleOgContext,
+  size: 'full' | 'mini',
+  dark: boolean,
+): string {
+  const boardHeight = size === 'full' ? 504 : 500;
+  const boardY = size === 'full' ? 36 : 38;
+  const board = xiangqiOgBoard({
+    size,
+    dark,
+    centerX: OG_WIDTH / 2,
+    y: boardY,
+    height: boardHeight,
+  });
+  return [
+    `<svg xmlns="http://www.w3.org/2000/svg" width="${OG_WIDTH}" height="${OG_HEIGHT}" viewBox="0 0 ${OG_WIDTH} ${OG_HEIGHT}">`,
+    `<rect width="${OG_WIDTH}" height="${OG_HEIGHT}" fill="#0f1115"/>`,
+    board,
+    ogFooterLine(title, boardY + boardHeight + 46),
+    `</svg>`,
+  ].join('');
+}
+
+function xiangqiOgBoard(params: {
+  size: 'full' | 'mini';
+  dark: boolean;
+  centerX: number;
+  y: number;
+  height: number;
+}): string {
+  const { size, dark } = params;
+  const state =
+    size === 'full'
+      ? createInitialXiangqiState('og-card')
+      : createInitialMiniXiangqiState('og-card');
+  const pieces: XiangqiOgPiece[] = Object.entries(state.board).flatMap(([square, piece]) =>
+    piece ? [{ ...xqOgCoord(square), color: piece.color, role: piece.role }] : [],
+  );
+  const files = size === 'full' ? 9 : 7;
+  const ranks = size === 'full' ? 10 : 7;
+  let fogPoints: Array<{ file: number; rank: number }> | undefined;
+  if (dark) {
+    const visibleSquares =
+      size === 'full'
+        ? getXiangqiPlayerView(state as ReturnType<typeof createInitialXiangqiState>, 'red')
+            .visibleSquares
+        : getMiniXiangqiPlayerView(state as ReturnType<typeof createInitialMiniXiangqiState>, 'red')
+            .visibleSquares;
+    const visible = new Set(visibleSquares.map((square) => square as string));
+    fogPoints = [];
+    for (let file = 0; file < files; file += 1) {
+      for (let rank = 1; rank <= ranks; rank += 1) {
+        if (!visible.has(`${String.fromCharCode(97 + file)}${rank}`)) {
+          fogPoints.push({ file, rank });
+        }
+      }
+    }
+  }
+  return renderXiangqiOgBoardSvg({
+    files,
+    ranks,
+    pieces,
+    fogPoints,
+    riverBetweenRanks: size === 'full' ? [5, 6] : undefined,
+    palaces:
+      size === 'full'
+        ? [
+            { fileLo: 3, fileHi: 5, rankLo: 1, rankHi: 3 },
+            { fileLo: 3, fileHi: 5, rankLo: 8, rankHi: 10 },
+          ]
+        : [
+            { fileLo: 2, fileHi: 4, rankLo: 1, rankHi: 3 },
+            { fileLo: 2, fileHi: 4, rankLo: 5, rankHi: 7 },
+          ],
+    centerX: params.centerX,
+    y: params.y,
+    height: params.height,
+  });
+}
+
+// Crossroads Chess card: the start position on the shared 6x8 river board
+// (same descriptor the live renderer uses). Chess-side pieces come from
+// PIECE_SVGS; xiangqi-side discs draw their characters from the baked Noto
+// paths instead of <text>, because resvg has no fonts.
+const CROSSROADS_CHESS_ROLES = new Set(['king', 'queen', 'bishop', 'knight', 'pawn']);
+
+function renderCrossroadsChessOgSvg(title: string, _ctx: ArticleOgContext): string {
+  const boardHeight = 504;
+  const boardY = 36;
+  const placed = crossroadsOgBoard({ centerX: OG_WIDTH / 2, y: boardY, height: boardHeight });
+  return [
+    `<svg xmlns="http://www.w3.org/2000/svg" width="${OG_WIDTH}" height="${OG_HEIGHT}" viewBox="0 0 ${OG_WIDTH} ${OG_HEIGHT}">`,
+    `<rect width="${OG_WIDTH}" height="${OG_HEIGHT}" fill="#0f1115"/>`,
+    placed,
+    ogFooterLine(title, boardY + boardHeight + 46),
+    `</svg>`,
+  ].join('');
+}
+
+function crossroadsOgBoard(params: { centerX: number; y: number; height: number }): string {
+  const board = createInitialCrossroadsChessBoard();
+  const cell = CROSSROADS_CHESS_DESCRIPTOR.cell;
+  const id = 'og-crossroads';
+  const boardSvg = renderGridBoardSvg(CROSSROADS_CHESS_DESCRIPTOR, {
+    id,
+    flip: false,
+    extraDefs: [
+      `<radialGradient id="${id}-ivory" cx="0.38" cy="0.32" r="0.8"><stop offset="0" stop-color="${CROSSROADS_IVORY_STOPS[0]}"/><stop offset="1" stop-color="${CROSSROADS_IVORY_STOPS[1]}"/></radialGradient>`,
+      `<radialGradient id="${id}-red" cx="0.38" cy="0.3" r="0.85"><stop offset="0" stop-color="${CROSSROADS_RED_STOPS[0]}"/><stop offset="1" stop-color="${CROSSROADS_RED_STOPS[1]}"/></radialGradient>`,
+    ].join(''),
+    renderPieces: (geom) => {
+      const parts: string[] = [];
+      for (const [square, piece] of Object.entries(board)) {
+        if (!piece) continue;
+        const file = square.charCodeAt(0) - 97;
+        const rank = Number(square.slice(1));
+        const { x, y } = geom.topLeft(file, rank);
+        if (CROSSROADS_CHESS_ROLES.has(piece.role)) {
+          const size = cell * 0.86;
+          const inset = (cell - size) / 2;
+          let raw = PIECE_SVGS[`white:${piece.role}`];
+          if (!raw) continue;
+          if (piece.color === 'red') {
+            raw = raw
+              .replace(/#fff(?![0-9a-fA-F])/g, CROSSROADS_PIECE_RED)
+              .replace(/#ffffff\b/gi, CROSSROADS_PIECE_RED)
+              .replace(/#fbfbf9/gi, CROSSROADS_PIECE_RED);
+          }
+          parts.push(
+            raw.replace(
+              /^<svg[^>]*>/,
+              `<svg x="${x + inset}" y="${y + inset}" width="${size}" height="${size}" viewBox="0 0 45 45" xmlns="http://www.w3.org/2000/svg">`,
+            ),
+          );
+        } else {
+          const glyphs = CROSSROADS_DISK_GLYPHS[piece.role];
+          if (!glyphs) continue;
+          const glyph = glyphs[piece.color as 'white' | 'red'];
+          const path = XIANGQI_GLYPH_PATHS[glyph];
+          if (!path) continue;
+          const size = cell * 0.82;
+          const cx = x + cell / 2;
+          const cy = y + cell / 2;
+          const r = size / 2 - 1;
+          const ink = piece.color === 'white' ? CROSSROADS_INK_WHITE : CROSSROADS_INK_RED;
+          const grad = piece.color === 'white' ? `${id}-ivory` : `${id}-red`;
+          parts.push(
+            `<circle cx="${cx}" cy="${cy}" r="${r}" fill="url(#${grad})" stroke="${ink}" stroke-width="2.4"/>`,
+            `<circle cx="${cx}" cy="${cy}" r="${r - 4}" fill="none" stroke="${ink}" stroke-width="1" opacity="0.55"/>`,
+            `<g transform="translate(${cx - size / 2} ${cy - size / 2}) scale(${size / 100})"><path d="${path}" fill="${ink}"/></g>`,
+          );
+        }
+      }
+      return parts.join('');
+    },
+  });
+  // The shared core emits a viewBox-only root; size and place it on the card.
+  const viewBox = boardSvg.match(/viewBox="0 0 ([\d.]+) ([\d.]+)"/);
+  const aspect = viewBox ? Number(viewBox[1]) / Number(viewBox[2]) : 330 / 441;
+  const boardWidth = Math.round(params.height * aspect);
+  return boardSvg.replace(
+    /^<svg[^>]*viewBox="([^"]+)"[^>]*>/,
+    `<svg x="${params.centerX - boardWidth / 2}" y="${params.y}" width="${boardWidth}" height="${params.height}" viewBox="$1">`,
+  );
+}
+
+// Misty's card is the article's art rather than a board: the image centered
+// like a board tile, title below.
+async function renderMistyOgSvg(title: string, ctx: ArticleOgContext): Promise<string> {
+  const artSize = 500;
+  const artY = 36;
+  const artX = (OG_WIDTH - artSize) / 2;
+  const uri = await fileDataUri(ctx.staticDir, 'article-thumbs/misty.jpg', 'image/jpeg');
+  return [
+    `<svg xmlns="http://www.w3.org/2000/svg" width="${OG_WIDTH}" height="${OG_HEIGHT}" viewBox="0 0 ${OG_WIDTH} ${OG_HEIGHT}">`,
+    `<rect width="${OG_WIDTH}" height="${OG_HEIGHT}" fill="#0f1115"/>`,
+    `<clipPath id="misty-art"><rect x="${artX}" y="${artY}" width="${artSize}" height="${artSize}" rx="10"/></clipPath>`,
+    `<image href="${uri}" x="${artX}" y="${artY}" width="${artSize}" height="${artSize}" preserveAspectRatio="xMidYMid slice" clip-path="url(#misty-art)"/>`,
+    ogFooterLine(title, artY + artSize + 48),
+    `</svg>`,
+  ].join('');
 }
 
 // The server-enforced-fog card is the article's thesis in one image: the same
 // position as White sees it, as the server holds it, and as Black sees it.
 function renderServerFogOgSvg(title: string): string {
-  const boardSize = 280;
-  const boardY = 170;
+  const boardSize = 360;
+  const boardY = 96;
   const parts: string[] = [];
   parts.push(
     `<svg xmlns="http://www.w3.org/2000/svg" width="${OG_WIDTH}" height="${OG_HEIGHT}" viewBox="0 0 ${OG_WIDTH} ${OG_HEIGHT}">`,
   );
   parts.push(`<rect width="${OG_WIDTH}" height="${OG_HEIGHT}" fill="#0f1115"/>`);
   parts.push(
-    `<text x="${OG_WIDTH / 2}" y="76" text-anchor="middle" fill="#9ca3af" font-family="${FONT}" font-size="24" font-weight="600" letter-spacing="3">MISTBOARD · DARK CHESS</text>`,
-  );
-  parts.push(
     renderBoardComposition({
       layout: 'triptych',
       canvasWidth: OG_WIDTH,
       boardY,
       boardSize,
-      gap: 52,
-      labelY: 148,
+      gap: 36,
+      labelY: 72,
       labelFill: '#e1e6da',
       labelFontSize: 20,
       palette: GREEN_PALETTE,
@@ -262,24 +563,19 @@ function renderServerFogOgSvg(title: string): string {
       ],
     }),
   );
-  parts.push(
-    `<text x="${OG_WIDTH / 2}" y="${boardY + boardSize + 64}" text-anchor="middle" fill="#f3f4f6" font-family="${FONT}" font-size="32" font-weight="700">${escapeXml(title)}</text>`,
-  );
+  parts.push(ogFooterLine(title, boardY + boardSize + 60));
   parts.push(`</svg>`);
   return parts.join('');
 }
 
 function renderArticleOgSvg(title: string, position: ArticleOgPosition): string {
-  const boardSize = 360;
-  const boardY = 130;
+  const boardSize = 500;
+  const boardY = 36;
   const parts: string[] = [];
   parts.push(
     `<svg xmlns="http://www.w3.org/2000/svg" width="${OG_WIDTH}" height="${OG_HEIGHT}" viewBox="0 0 ${OG_WIDTH} ${OG_HEIGHT}">`,
   );
   parts.push(`<rect width="${OG_WIDTH}" height="${OG_HEIGHT}" fill="#0f1115"/>`);
-  parts.push(
-    `<text x="${OG_WIDTH / 2}" y="80" text-anchor="middle" fill="#9ca3af" font-family="${FONT}" font-size="24" font-weight="600" letter-spacing="3">MISTBOARD · DARK CHESS</text>`,
-  );
   parts.push(
     renderBoardComposition({
       layout: 'single',
@@ -297,9 +593,7 @@ function renderArticleOgSvg(title: string, position: ArticleOgPosition): string 
       ],
     }),
   );
-  parts.push(
-    `<text x="${OG_WIDTH / 2}" y="${boardY + boardSize + 56}" text-anchor="middle" fill="#f3f4f6" font-family="${FONT}" font-size="34" font-weight="700">${escapeXml(title)}</text>`,
-  );
+  parts.push(ogFooterLine(title, boardY + boardSize + 48));
   parts.push(`</svg>`);
   return parts.join('');
 }
@@ -325,66 +619,32 @@ function escapeXml(s: string): string {
     .replace(/'/g, '&apos;');
 }
 
-// ── Default OG card: two starting-position boards, one per POV ────────────────
+// ── Default OG card: brand mark ───────────────────────────────────────────────
 //
-// The card shows the same opening position twice, side by side: the left board
-// is White's POV (Black's half fogged), the right is Black's POV (White's half
-// fogged). Fog is computed from the engine's real opening visibility, never
-// hand-faked, so the card always matches the game's rules. Green palette +
-// solid fog mirror the in-app default theme (apps/web/src/theme.ts). Re-run
+// Logo, wordmark, tagline. Brian picked this over board-collage variants
+// (2026-06-10); per-game boards live on the article cards instead. The logo
+// SVG is passed in by the bake script (it lives at apps/web/public/logo.svg)
+// so this module needs no filesystem access. Re-run
 // `npm run og:default --workspace @mistboard/server` to re-bake
-// `apps/web/public/og-image.png`.
+// `apps/web/public/og-image.png`, then bump the ?v= on the og:image meta in
+// apps/web/index.html so scrapers refetch.
 
 const FONT = 'system-ui, -apple-system, Helvetica, Arial, sans-serif';
 
-// Standard starting position plus each side's real opening fog.
-function openingBoards(): { pieces: PieceOnBoard[]; whiteFog: Square[]; blackFog: Square[] } {
-  const state = darkChessVariant.createInitialState('og-default');
-  const pieces = boardToPieces(state.board);
-  const whiteFog = fogSquaresFromVisible(
-    darkChessVariant.getPlayerView(state, 'white').visibleSquares,
+export function renderDefaultOgSvg(logoSvg: string): string {
+  const logoSize = 224;
+  const logo = logoSvg.replace(
+    /^<svg[^>]*>/,
+    `<svg x="${(OG_WIDTH - logoSize) / 2}" y="100" width="${logoSize}" height="${logoSize}" viewBox="0 0 1024 1024">`,
   );
-  const blackFog = fogSquaresFromVisible(
-    darkChessVariant.getPlayerView(state, 'black').visibleSquares,
-  );
-  return { pieces, whiteFog, blackFog };
-}
-
-export function renderDefaultOgSvg(): string {
-  const { pieces, whiteFog, blackFog } = openingBoards();
-  const boardSize = 360;
-  const boardY = 150;
-
-  const parts: string[] = [];
-  parts.push(
+  return [
     `<svg xmlns="http://www.w3.org/2000/svg" width="${OG_WIDTH}" height="${OG_HEIGHT}" viewBox="0 0 ${OG_WIDTH} ${OG_HEIGHT}">`,
-  );
-  parts.push(`<rect width="${OG_WIDTH}" height="${OG_HEIGHT}" fill="#0f1115"/>`);
-  // Brand wordmark — large, centered.
-  parts.push(
-    `<text x="${OG_WIDTH / 2}" y="92" text-anchor="middle" fill="#f3f4f6" font-family="${FONT}" font-size="56" font-weight="800" letter-spacing="6">MISTBOARD</text>`,
-  );
-  parts.push(
-    renderBoardComposition({
-      layout: 'pair',
-      canvasWidth: OG_WIDTH,
-      boardY,
-      boardSize,
-      gap: 96,
-      palette: GREEN_PALETTE,
-      fogStyle: 'solid',
-      boards: [
-        { pieces, fogSquares: whiteFog, orientation: 'white' },
-        { pieces, fogSquares: blackFog, orientation: 'black' },
-      ],
-    }),
-  );
-  // Tagline — slightly larger than before.
-  parts.push(
-    `<text x="${OG_WIDTH / 2}" y="600" text-anchor="middle" fill="#e5e7eb" font-family="${FONT}" font-size="30" font-weight="500">Chess where you only see what your pieces see.</text>`,
-  );
-  parts.push(`</svg>`);
-  return parts.join('');
+    `<rect width="${OG_WIDTH}" height="${OG_HEIGHT}" fill="#0f1115"/>`,
+    logo,
+    `<text x="${OG_WIDTH / 2}" y="396" text-anchor="middle" fill="#f3f4f6" font-family="${FONT}" font-size="64" font-weight="800" letter-spacing="8">MISTBOARD</text>`,
+    `<text x="${OG_WIDTH / 2}" y="452" text-anchor="middle" fill="#9ca3af" font-family="${FONT}" font-size="30" font-weight="500">Original games and hidden-information engines.</text>`,
+    `</svg>`,
+  ].join('');
 }
 
 // Render at 2x the SVG's nominal dimensions so the resulting PNG stays crisp

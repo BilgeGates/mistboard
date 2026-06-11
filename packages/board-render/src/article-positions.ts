@@ -143,6 +143,11 @@ export const SERVER_FOG_TRIPTYCH: {
 };
 
 export const ARTICLE_OG_POSITIONS: Record<string, ArticleOgPosition> = {
+  // The chess primer is perfect-information: the start position, no fog.
+  chess: {
+    pieces: boardToPieces(DARK_CHESS_START.board),
+    orientation: 'white',
+  },
   'dark-chess': {
     pieces: boardToPieces(DARK_CHESS_START.board),
     fogSquares: fogFor(DARK_CHESS_START, 'white'),

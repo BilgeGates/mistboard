@@ -4,9 +4,11 @@ import { fileURLToPath } from 'node:url';
 import { renderDefaultOgSvg, svgToPng } from '../og-image.js';
 
 const here = dirname(fileURLToPath(import.meta.url));
-const outPath = resolve(here, '..', '..', '..', 'web', 'public', 'og-image.png');
+const webPublic = resolve(here, '..', '..', '..', 'web', 'public');
+const outPath = resolve(webPublic, 'og-image.png');
 
-const svg = renderDefaultOgSvg();
+const logoSvg = await fs.readFile(resolve(webPublic, 'logo.svg'), 'utf-8');
+const svg = renderDefaultOgSvg(logoSvg);
 const png = svgToPng(svg);
 await fs.writeFile(outPath, png);
 console.log(`wrote ${outPath} (${png.byteLength} bytes)`);

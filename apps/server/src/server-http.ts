@@ -166,19 +166,23 @@ export function createHttpRequestHandler(options: ServerHttpHandlerOptions) {
     if (articleOgMatch) {
       const slug = decodeURIComponent(articleOgMatch[1]!);
       const meta = ARTICLE_META[slug];
-      try {
-        if (meta) {
-          serveArticleOgImage(slug, meta.title, response);
-        } else {
-          response.writeHead(302, { location: '/og-image.png' });
-          response.end();
-        }
-      } catch (err) {
-        console.warn('article og render failed', (err as Error).message);
-        if (!response.headersSent) {
-          response.writeHead(302, { location: '/og-image.png' });
-          response.end();
-        }
+      if (meta) {
+        void serveArticleOgImage({
+          slug,
+          title: meta.title,
+          kind: meta.kind,
+          response,
+          staticDir: options.staticDir,
+        }).catch((err: Error) => {
+          console.warn('article og render failed', err.message);
+          if (!response.headersSent) {
+            response.writeHead(302, { location: '/og-image.png' });
+            response.end();
+          }
+        });
+      } else {
+        response.writeHead(302, { location: '/og-image.png' });
+        response.end();
       }
       return;
     }

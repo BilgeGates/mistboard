@@ -12,7 +12,13 @@
 // fogged; shrouded enemies render as colour-only silhouettes).
 
 import {
-  type GridBoardDescriptor,
+  CROSSROADS_CHESS_DESCRIPTOR,
+  CROSSROADS_DISK_GLYPHS,
+  CROSSROADS_INK_RED,
+  CROSSROADS_INK_WHITE,
+  CROSSROADS_IVORY_STOPS,
+  CROSSROADS_PIECE_RED,
+  CROSSROADS_RED_STOPS,
   type GridCellRef,
   type GridGeometry,
   PIECE_SVGS,
@@ -29,45 +35,9 @@ const FILES = 6;
 const RANKS = 8;
 const CELL = 50;
 
-// meerkat palette (matches crossroads-chess-diagram.ts)
-const WOOD_L = '#f0d9b5';
-const WOOD_D = '#b58863';
-const FRAME_BG = '#5b4636';
-const FRAME_INNER = '#6e5743';
-const BOARD_EDGE = '#3a2c20';
-const RED = '#b5322b';
-const INK_W = '#28323c';
-const INK_R = '#1a1a1a';
-const CO = 'rgba(60,45,30,0.55)';
-const LASTMOVE = 'rgba(255,205,80,0.45)';
-const SELECTED = 'rgba(255,205,80,0.55)';
-const DOT = 'rgba(45,100,45,0.62)';
-const CAP = 'rgba(170,40,40,0.62)';
-const FOG = 'rgba(22,18,14,0.66)';
-
-// The 6x8 river board, expressed as data for the shared core. Its layout knobs
-// (framePad 9, pad 6, frame radius 14/12.5, board radius 5, edge 1.5) are the
-// core defaults, so they need not be restated.
-const CROSSROADS_CHESS_DESCRIPTOR: GridBoardDescriptor = {
-  files: FILES,
-  ranks: RANKS,
-  cell: CELL,
-  strips: [{ afterRow: 4, height: 11, fill: '#5aa0d6', highlightFill: 'rgba(255,255,255,0.4)' }],
-  palette: {
-    lightCell: WOOD_L,
-    darkCell: WOOD_D,
-    frameBg: FRAME_BG,
-    frameInner: FRAME_INNER,
-    boardEdge: BOARD_EDGE,
-    coord: CO,
-    lastMove: LASTMOVE,
-    selected: SELECTED,
-    targetDot: DOT,
-    targetRing: CAP,
-    fog: FOG,
-  },
-  svgClass: 'crossroads-live-svg',
-};
+const RED = CROSSROADS_PIECE_RED;
+const INK_W = CROSSROADS_INK_WHITE;
+const INK_R = CROSSROADS_INK_RED;
 
 const CHESS_ROLES = new Set<CrossroadsChessPieceRole>([
   'king',
@@ -76,12 +46,9 @@ const CHESS_ROLES = new Set<CrossroadsChessPieceRole>([
   'knight',
   'pawn',
 ]);
-const DISK_GLYPH: Partial<Record<CrossroadsChessPieceRole, { white: string; red: string }>> = {
-  chariot: { white: '車', red: '俥' },
-  horse: { white: '馬', red: '傌' },
-  cannon: { white: '砲', red: '炮' },
-  soldier: { white: '卒', red: '兵' },
-};
+const DISK_GLYPH = CROSSROADS_DISK_GLYPHS as Partial<
+  Record<CrossroadsChessPieceRole, { white: string; red: string }>
+>;
 
 export type CrossroadsChessRenderOptions = {
   // Whose side is at the bottom. Defaults to the view's own perspective.
@@ -187,8 +154,8 @@ function pieceLayer(view: CrossroadsChessPlayerView, geom: GridGeometry, id: str
 function crossroadsChessDefs(id: string): string {
   return [
     `<linearGradient id="${id}-river" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#86c0ea"/><stop offset="1" stop-color="#3f86c4"/></linearGradient>`,
-    `<radialGradient id="${id}-ivory" cx="0.38" cy="0.32" r="0.8"><stop offset="0" stop-color="#fdf6e4"/><stop offset="1" stop-color="#f3e6c4"/></radialGradient>`,
-    `<radialGradient id="${id}-red" cx="0.38" cy="0.3" r="0.85"><stop offset="0" stop-color="#c1453b"/><stop offset="1" stop-color="#a4291f"/></radialGradient>`,
+    `<radialGradient id="${id}-ivory" cx="0.38" cy="0.32" r="0.8"><stop offset="0" stop-color="${CROSSROADS_IVORY_STOPS[0]}"/><stop offset="1" stop-color="${CROSSROADS_IVORY_STOPS[1]}"/></radialGradient>`,
+    `<radialGradient id="${id}-red" cx="0.38" cy="0.3" r="0.85"><stop offset="0" stop-color="${CROSSROADS_RED_STOPS[0]}"/><stop offset="1" stop-color="${CROSSROADS_RED_STOPS[1]}"/></radialGradient>`,
   ].join('');
 }
 
