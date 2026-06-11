@@ -2,8 +2,11 @@ import { promises as fs } from 'node:fs';
 import type { ServerResponse } from 'node:http';
 import { resolve } from 'node:path';
 import type { Color } from '@mistboard/game';
+import { ARTICLE_META, canonicalArticleBase } from './article-meta.js';
 import { GAME_OG_IMAGE_VERSION } from './og-image.js';
 import * as persistence from './persistence.js';
+
+export { ARTICLE_META, canonicalArticleBase };
 
 export type PageMeta = {
   title: string;
@@ -53,76 +56,6 @@ const RULES_INDEX_META: Record<
     htmlLang: 'zh-Hant',
   },
 };
-
-// Article slug -> page meta. Content source of truth is
-// apps/web/src/articles-data.ts; this map duplicates only the share-card
-// surface (title + description) plus `kind`, which decides the canonical URL
-// space: kind 'rules' lives under /rules/<slug>, everything else under
-// /articles/<slug>. Keep in sync when titles/summaries/kind change.
-type ArticleKind = 'rules' | 'article';
-export const ARTICLE_META: Record<
-  string,
-  { title: string; description: string; kind: ArticleKind }
-> = {
-  chess: {
-    title: 'Chess Rules',
-    kind: 'rules',
-    description:
-      'Standard chess rules, the primer behind Dark Chess: castling, promotion, en passant, the draw rules, and a famous game to play through.',
-  },
-  'dark-chess': {
-    title: 'Dark Chess (Fog of War) Rules',
-    kind: 'rules',
-    description:
-      'Chess under Fog of War: each side sees only the squares its pieces reach, there are no check warnings, and the king falls by capture.',
-  },
-  'dark-chess-concepts': {
-    title: 'Dark Chess Concepts',
-    kind: 'article',
-    description:
-      'Strategy concepts for dark chess: how to read fogged squares, pawn signals, vanished moves, and capture clues after you know the rules.',
-  },
-  'dark-draft960': {
-    title: 'Dark Draft960',
-    kind: 'rules',
-    description:
-      "Dark Chess with a sealed opening draft: each player picks one of three Chess960 back ranks and never sees the other's.",
-  },
-  xiangqi: {
-    title: 'Xiangqi Rules',
-    kind: 'rules',
-    description:
-      'Standard xiangqi rules, the primer behind Dark Xiangqi: palaces, the river, cannon screens, facing generals, and a famous game to play through.',
-  },
-  'dark-xiangqi': {
-    title: 'Dark Xiangqi',
-    kind: 'rules',
-    description:
-      'Xiangqi under Fog of War: each side sees only the points its pieces reach, hidden blockers matter, and the general falls by capture.',
-  },
-  'mini-xiangqi': {
-    title: 'Mini Xiangqi',
-    kind: 'rules',
-    description:
-      'Mini Xiangqi rules, the 7×7 primer behind Dark Mini Xiangqi: no advisors or elephants, no river, sideways soldiers, and checkmate to win.',
-  },
-  'dark-mini-xiangqi': {
-    title: 'Dark Mini Xiangqi',
-    kind: 'rules',
-    description:
-      'Mini Xiangqi under Fog of War: each side sees only the points its pieces reach on the 7×7 board, and the general falls by capture.',
-  },
-  shogi4: {
-    title: 'Shogi4 Rules',
-    kind: 'rules',
-    description:
-      "The complete rules of Shogi4, Oca Studios' public-domain animal drop-shogi on a 4×4 board: how the Carp, Tapir, Raccoon-dog, Fox, and royal move, plus the friendly-jump, evolution, drops, and king-capture wins.",
-  },
-};
-
-export function canonicalArticleBase(slug: string): 'articles' | 'rules' {
-  return ARTICLE_META[slug]?.kind === 'rules' ? 'rules' : 'articles';
-}
 
 // Articles renamed for cleaner URLs (old slug -> new clean slug). serveArticlePage
 // 301s these to the new slug's canonical base so previously-published links and

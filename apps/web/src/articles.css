@@ -444,6 +444,15 @@
   height: 80px;
   border-radius: 5px;
   box-shadow: none;
+  /* Inactive entries sit back; the current variant (and hover) reads at
+     full strength, keeping the rail quiet next to the sheet. */
+  opacity: 0.78;
+  transition: opacity 150ms;
+}
+
+.article-toc-nav a.article-variant-link:hover .articles-index-card-thumb,
+.article-toc-nav a.article-variant-link.active .articles-index-card-thumb {
+  opacity: 1;
 }
 
 /* Breathing room between the playable and not-yet rail groups. */

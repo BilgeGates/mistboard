@@ -7,6 +7,7 @@ import {
   GREEN_PALETTE,
   type PieceOnBoard,
   renderBoardComposition,
+  SERVER_FOG_TRIPTYCH,
 } from '@mistboard/board-render';
 import {
   applyGameEvent,
@@ -190,6 +191,13 @@ function redirectToDefault(response: ServerResponse): void {
 // the article title below. Title is passed in by the route handler, which owns
 // the slug→title map. Falls back to the default card if the slug has no
 // thumbnail position.
+//
+// Articles whose thesis is a composition rather than a single position get a
+// custom renderer here, checked before the single-board map.
+const CUSTOM_ARTICLE_OG_SVGS: Record<string, (title: string) => string> = {
+  'server-enforced-fog': renderServerFogOgSvg,
+};
+
 export function serveArticleOgImage(slug: string, title: string, response: ServerResponse): void {
   const key = `article:${slug}`;
   const cached = cacheGet(key);
@@ -197,14 +205,68 @@ export function serveArticleOgImage(slug: string, title: string, response: Serve
     writePng(response, cached, 'HIT');
     return;
   }
+  const custom = CUSTOM_ARTICLE_OG_SVGS[slug];
   const position = ARTICLE_OG_POSITIONS[slug];
-  if (!position) {
+  if (!custom && !position) {
     redirectToDefault(response);
     return;
   }
-  const png = svgToPng(renderArticleOgSvg(title, position));
+  const png = svgToPng(custom ? custom(title) : renderArticleOgSvg(title, position!));
   cacheSet(key, png);
   writePng(response, png, 'MISS');
+}
+
+// The server-enforced-fog card is the article's thesis in one image: the same
+// position as White sees it, as the server holds it, and as Black sees it.
+function renderServerFogOgSvg(title: string): string {
+  const boardSize = 280;
+  const boardY = 170;
+  const parts: string[] = [];
+  parts.push(
+    `<svg xmlns="http://www.w3.org/2000/svg" width="${OG_WIDTH}" height="${OG_HEIGHT}" viewBox="0 0 ${OG_WIDTH} ${OG_HEIGHT}">`,
+  );
+  parts.push(`<rect width="${OG_WIDTH}" height="${OG_HEIGHT}" fill="#0f1115"/>`);
+  parts.push(
+    `<text x="${OG_WIDTH / 2}" y="76" text-anchor="middle" fill="#9ca3af" font-family="${FONT}" font-size="24" font-weight="600" letter-spacing="3">MISTBOARD · DARK CHESS</text>`,
+  );
+  parts.push(
+    renderBoardComposition({
+      layout: 'triptych',
+      canvasWidth: OG_WIDTH,
+      boardY,
+      boardSize,
+      gap: 52,
+      labelY: 148,
+      labelFill: '#e1e6da',
+      labelFontSize: 20,
+      palette: GREEN_PALETTE,
+      fogStyle: 'solid',
+      boards: [
+        {
+          pieces: SERVER_FOG_TRIPTYCH.pieces,
+          fogSquares: SERVER_FOG_TRIPTYCH.whiteFog,
+          orientation: 'white',
+          label: "WHITE'S VIEW",
+        },
+        {
+          pieces: SERVER_FOG_TRIPTYCH.pieces,
+          orientation: 'white',
+          label: 'CANONICAL TRUTH',
+        },
+        {
+          pieces: SERVER_FOG_TRIPTYCH.pieces,
+          fogSquares: SERVER_FOG_TRIPTYCH.blackFog,
+          orientation: 'white',
+          label: "BLACK'S VIEW",
+        },
+      ],
+    }),
+  );
+  parts.push(
+    `<text x="${OG_WIDTH / 2}" y="${boardY + boardSize + 64}" text-anchor="middle" fill="#f3f4f6" font-family="${FONT}" font-size="32" font-weight="700">${escapeXml(title)}</text>`,
+  );
+  parts.push(`</svg>`);
+  return parts.join('');
 }
 
 function renderArticleOgSvg(title: string, position: ArticleOgPosition): string {

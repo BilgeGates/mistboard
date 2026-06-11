@@ -4,6 +4,7 @@ export {
   CONE_QUEEN_BOARD,
   DISCOVERY_BOARD,
   DRAFT960_OFFER_A,
+  SERVER_FOG_TRIPTYCH,
 } from './article-positions.js';
 export type { PieceOnBoard } from './board-svg.js';
 export { fogPatternDefs, renderBoardSvg } from './board-svg.js';
