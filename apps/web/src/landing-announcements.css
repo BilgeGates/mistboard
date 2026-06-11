@@ -8,3 +8,10 @@
   gap: 12px;
   min-width: 0;
 }
+
+.landing-news-row {
+  display: grid;
+  grid-template-columns: 48px minmax(0, 1fr);
+  column-gap: 10px;
+  align-items: baseline;
+}
