@@ -22,6 +22,12 @@ import {
   type SoundController,
   type SoundKind,
 } from './live-state.js';
+import {
+  readStoredSoundSet,
+  type SoundSetId,
+  soundFileFor,
+  soundSetChangedEvent,
+} from './sound-sets.js';
 import { readEffectiveSoundVolume, soundSettingsChangedEvent } from './theme.js';
 import { files, isColor } from './web-utils.js';
 
@@ -61,7 +67,7 @@ export function maybePlaySnapshotSound(nextEvents: GameEvent[], nextView: Player
   const terminal = terminalSoundKey(nextEvents, nextView);
   if (terminal && terminal !== lastTerminalSound) {
     lastTerminalSound = terminal;
-    sound?.play(terminal.startsWith('win') ? 'win' : 'lose');
+    sound?.play(terminal.startsWith('win') ? 'win' : terminal.startsWith('draw') ? 'draw' : 'lose');
     lastSoundEventCount = nextEvents.length;
     lastSoundView = nextView;
     return;
@@ -140,6 +146,7 @@ function createSoundController(): SoundController {
   let ctx: AudioContext | null = null;
   let unlocked = false;
   let volume = readEffectiveSoundVolume();
+  let activeSet: SoundSetId = readStoredSoundSet();
 
   const ensureContext = (): AudioContext | null => {
     const AudioCtor =
@@ -148,6 +155,39 @@ function createSoundController(): SoundController {
     if (!AudioCtor) return null;
     ctx ??= new AudioCtor();
     return ctx;
+  };
+
+  // Decoded file-set buffers, keyed by URL. A kind whose buffer hasn't
+  // finished decoding falls back to the synthesized tones for that one play,
+  // so switching sets never produces silence.
+  const buffers = new Map<string, AudioBuffer | 'loading'>();
+
+  const preloadActiveSet = (): void => {
+    const audio = ensureContext();
+    if (!audio || activeSet === 'mist') return;
+    for (const kind of [
+      'move',
+      'capture',
+      'captured',
+      'castle',
+      'king-capture',
+      'win',
+      'lose',
+      'draw',
+      'low-time',
+      'game-start',
+    ] as SoundKind[]) {
+      const spec = soundFileFor(activeSet, kind);
+      if (!spec || buffers.has(spec.file)) continue;
+      buffers.set(spec.file, 'loading');
+      void fetch(spec.file)
+        .then((resp) =>
+          resp.ok ? resp.arrayBuffer() : Promise.reject(new Error(`${resp.status}`)),
+        )
+        .then((data) => audio.decodeAudioData(data))
+        .then((buffer) => buffers.set(spec.file, buffer))
+        .catch(() => buffers.delete(spec.file));
+    }
   };
 
   let pendingKind: SoundKind | null = null;
@@ -171,11 +211,36 @@ function createSoundController(): SoundController {
   window.addEventListener(soundSettingsChangedEvent, () => {
     volume = readEffectiveSoundVolume();
   });
+  window.addEventListener(soundSetChangedEvent, () => {
+    activeSet = readStoredSoundSet();
+    preloadActiveSet();
+  });
   window.addEventListener('storage', (event) => {
     if (event.key === null || event.key.startsWith('mistboard.sound')) {
       volume = readEffectiveSoundVolume();
+      activeSet = readStoredSoundSet();
+      preloadActiveSet();
     }
   });
+
+  const playTones = (audio: AudioContext, kind: SoundKind): void => {
+    const now = audio.currentTime;
+    for (const tone of tonesForSound(kind)) {
+      const osc = audio.createOscillator();
+      const gain = audio.createGain();
+      osc.type = tone.type;
+      osc.frequency.setValueAtTime(tone.frequency, now + tone.delay);
+      gain.gain.setValueAtTime(0.0001, now + tone.delay);
+      gain.gain.exponentialRampToValueAtTime(
+        tone.gain * volume * SOUND_MASTER_GAIN,
+        now + tone.delay + 0.012,
+      );
+      gain.gain.exponentialRampToValueAtTime(0.0001, now + tone.delay + tone.duration);
+      osc.connect(gain).connect(audio.destination);
+      osc.start(now + tone.delay);
+      osc.stop(now + tone.delay + tone.duration + 0.03);
+    }
+  };
 
   const controller: SoundController = {
     play(kind) {
@@ -183,22 +248,20 @@ function createSoundController(): SoundController {
       if (!audio || !unlocked) return;
       if (volume <= 0) return;
       void audio.resume();
-      const now = audio.currentTime;
-      for (const tone of tonesForSound(kind)) {
-        const osc = audio.createOscillator();
+      const spec = soundFileFor(activeSet, kind);
+      const buffer = spec ? buffers.get(spec.file) : undefined;
+      if (spec && buffer && buffer !== 'loading') {
+        const source = audio.createBufferSource();
+        source.buffer = buffer;
+        source.playbackRate.value = spec.rate ?? 1;
         const gain = audio.createGain();
-        osc.type = tone.type;
-        osc.frequency.setValueAtTime(tone.frequency, now + tone.delay);
-        gain.gain.setValueAtTime(0.0001, now + tone.delay);
-        gain.gain.exponentialRampToValueAtTime(
-          tone.gain * volume * SOUND_MASTER_GAIN,
-          now + tone.delay + 0.012,
-        );
-        gain.gain.exponentialRampToValueAtTime(0.0001, now + tone.delay + tone.duration);
-        osc.connect(gain).connect(audio.destination);
-        osc.start(now + tone.delay);
-        osc.stop(now + tone.delay + tone.duration + 0.03);
+        gain.gain.value = volume * (spec.gain ?? 1);
+        source.connect(gain).connect(audio.destination);
+        source.start();
+        return;
       }
+      if (spec && buffer === undefined) preloadActiveSet();
+      playTones(audio, kind);
     },
     playWhenUnlocked(kind) {
       if (unlocked) {
@@ -219,6 +282,8 @@ function createSoundController(): SoundController {
   if (navigator.userActivation?.hasBeenActive) {
     unlock();
   }
+
+  preloadActiveSet();
 
   return controller;
 }
@@ -261,6 +326,24 @@ export function tonesForSound(kind: SoundKind): SoundTone[] {
     return [
       { delay: 0, duration: 0.14, frequency: 246.94, gain: 0.038, type: 'triangle' },
       { delay: 0.13, duration: 0.22, frequency: 196, gain: 0.034, type: 'triangle' },
+    ];
+  }
+  if (kind === 'draw') {
+    return [
+      { delay: 0, duration: 0.14, frequency: 329.63, gain: 0.04, type: 'sine' },
+      { delay: 0.14, duration: 0.2, frequency: 329.63, gain: 0.036, type: 'sine' },
+    ];
+  }
+  if (kind === 'low-time') {
+    return [
+      { delay: 0, duration: 0.05, frequency: 880, gain: 0.05, type: 'square' },
+      { delay: 0.09, duration: 0.05, frequency: 880, gain: 0.05, type: 'square' },
+    ];
+  }
+  if (kind === 'game-start') {
+    return [
+      { delay: 0, duration: 0.1, frequency: 392, gain: 0.045, type: 'sine' },
+      { delay: 0.09, duration: 0.16, frequency: 523.25, gain: 0.045, type: 'sine' },
     ];
   }
   return [{ delay: 0, duration: 0.09, frequency: 320, gain: 0.055, type: 'sine' }];
@@ -363,8 +446,8 @@ function isCastleMoveOnBoard(board: Board, move: Move, color: Color): boolean {
 
 function terminalSoundKey(nextEvents: GameEvent[], nextView: PlayerView | null): string | null {
   const status = nextView?.status ?? replayGameEvents(nextEvents).state.status;
-  if (status.type !== 'finished' || liveState.seat === 'spectator' || status.winner === null)
-    return null;
+  if (status.type !== 'finished' || liveState.seat === 'spectator') return null;
+  if (status.winner === null) return `draw:${nextEvents.length}`;
   return status.winner === liveState.seat
     ? `win:${nextEvents.length}`
     : `lose:${nextEvents.length}`;

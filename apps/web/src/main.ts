@@ -113,6 +113,8 @@ const wantsXiangqiDemo = darkXiangqiEnabled() && path === '/xiangqi-demo';
 const wantsPixelLab = import.meta.env.DEV && path === '/pixel-lab';
 // Hidden DEV-only identity lab for candidate variant marks. No nav entry.
 const wantsVariantMarksLab = import.meta.env.DEV && path === '/variant-marks';
+// Hidden DEV-only audition lab for sound sets. No nav entry.
+const wantsSoundLab = import.meta.env.DEV && path === '/sound-lab';
 // Perfect-information Crossroads Chess live room (/room/dchess_*, or ?room=dchess_* in
 // dev). Routed to its own isolated client *before* the shared live-room shell so
 // it never touches the fog-critical live.ts monolith.
@@ -240,6 +242,11 @@ if (replaySample) {
     import('./variant-marks-lab.js').then(({ mountVariantMarksLab }) =>
       mountVariantMarksLab(appRoot),
     ),
+  );
+} else if (wantsSoundLab) {
+  setTitle('Sound lab');
+  void mountOrReport(() =>
+    import('./sound-lab.js').then(({ mountSoundLab }) => mountSoundLab(appRoot)),
   );
 } else if (wantsLegacyPlay) {
   window.history.replaceState(null, '', '/');
