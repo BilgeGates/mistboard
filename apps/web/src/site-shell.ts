@@ -250,49 +250,78 @@ export function buildNotice(titleText: string, bodyText: string): HTMLElement {
 // Homepage-only footer. Rendered blended into the bottom of the landing stage
 // (no `.site-footer` bar chrome) — interior routes no longer carry a footer, so
 // these links live only here. The register form independently surfaces Terms +
-// Privacy so signup still has an assent surface.
+// Privacy so signup still has an assent surface. Grouped lichess-style: the
+// footer is the wayfinding surface for content routes the top nav omits
+// (Rules, Articles, News).
+const HOME_FOOTER_GROUPS: ReadonlyArray<{
+  title: string;
+  links: ReadonlyArray<{ href: string; label: string; external?: boolean }>;
+}> = [
+  {
+    title: 'Play',
+    links: [
+      { href: '/watch', label: 'Watch' },
+      { href: '/leaderboard', label: 'Leaderboard' },
+      { href: '/learn', label: 'Learn' },
+    ],
+  },
+  {
+    title: 'Read',
+    links: [
+      { href: '/rules', label: 'Rules' },
+      { href: '/articles', label: 'Articles' },
+      { href: '/news', label: 'News' },
+    ],
+  },
+  {
+    title: 'About',
+    links: [
+      { href: '/about', label: 'About' },
+      { href: '/faq', label: 'FAQ' },
+      { href: '/contact', label: 'Contact' },
+    ],
+  },
+  {
+    title: 'Site',
+    links: [
+      { href: '/source', label: 'Source' },
+      { href: GITHUB_URL, label: 'GitHub', external: true },
+      { href: '/terms', label: 'Terms' },
+      { href: '/privacy', label: 'Privacy' },
+    ],
+  },
+];
+
 export function buildHomeFooter(): HTMLElement {
   const footer = document.createElement('footer');
   footer.className = 'landing-footer';
 
-  const links = document.createElement('div');
-  links.className = 'landing-footer-links';
+  const grid = document.createElement('div');
+  grid.className = 'landing-footer-grid';
+  for (const group of HOME_FOOTER_GROUPS) {
+    const column = document.createElement('div');
+    column.className = 'landing-footer-group';
+    const title = document.createElement('span');
+    title.className = 'landing-footer-group-title';
+    title.textContent = group.title;
+    column.append(title);
+    for (const link of group.links) {
+      const anchor = document.createElement('a');
+      anchor.href = link.href;
+      anchor.textContent = link.label;
+      if (link.external) {
+        anchor.target = '_blank';
+        anchor.rel = 'noreferrer noopener';
+      }
+      column.append(anchor);
+    }
+    grid.append(column);
+  }
 
-  const about = document.createElement('a');
-  about.href = '/about';
-  about.textContent = 'About';
-
-  const contact = document.createElement('a');
-  contact.href = '/contact';
-  contact.textContent = 'Contact';
-
-  const source = document.createElement('a');
-  source.href = '/source';
-  source.textContent = 'Source';
-
-  const faq = document.createElement('a');
-  faq.href = '/faq';
-  faq.textContent = 'FAQ';
-
-  const terms = document.createElement('a');
-  terms.href = '/terms';
-  terms.textContent = 'Terms';
-
-  const privacy = document.createElement('a');
-  privacy.href = '/privacy';
-  privacy.textContent = 'Privacy';
-
-  const gh = document.createElement('a');
-  gh.href = GITHUB_URL;
-  gh.target = '_blank';
-  gh.rel = 'noreferrer noopener';
-  gh.textContent = 'GitHub';
-
-  const identity = document.createElement('span');
+  const identity = document.createElement('div');
   identity.className = 'landing-footer-identity';
   identity.textContent = '© 2026 Mistboard · AGPL-3.0';
 
-  links.append(about, contact, source, faq, terms, privacy, gh, identity);
-  footer.append(links);
+  footer.append(grid, identity);
   return footer;
 }

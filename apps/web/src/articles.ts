@@ -201,25 +201,38 @@ function buildRulesLanding(lang?: ArticleLang): HTMLElement {
     sheet.append(p);
   }
 
-  const grid = document.createElement('ul');
-  grid.className = 'rules-landing-grid';
-  for (const article of articles) {
-    if (article.kind !== 'rules') continue;
-    if (!isArticleListedInThisEnv(article)) continue;
-    const localized = lang ? translateArticle(article, lang) : article;
-    const li = document.createElement('li');
-    const tile = document.createElement('a');
-    tile.className = 'rules-landing-tile';
-    tile.href = `${lang ? ARTICLE_LANG_PREFIX[lang] : ''}/rules/${article.slug}`;
-    if (article.thumbnail) tile.append(renderArticleThumbnail(article.thumbnail));
-    const label = document.createElement('span');
-    label.className = 'rules-landing-tile-label';
-    label.textContent = variantNavLabel(localized.title);
-    tile.append(label);
-    li.append(tile);
-    grid.append(li);
+  // Same playable / not-yet grouping as the variant rail, so the narrow-screen
+  // picker and the desktop rail tell one story.
+  const entries = articles.filter(
+    (article) => article.kind === 'rules' && isArticleListedInThisEnv(article),
+  );
+  const tileGroups = [
+    { title: copy.railPlayable, items: entries.filter((entry) => entry.playableOnMistboard) },
+    { title: copy.railNotYet, items: entries.filter((entry) => !entry.playableOnMistboard) },
+  ];
+  for (const group of tileGroups) {
+    if (group.items.length === 0) continue;
+    const groupTitle = document.createElement('h2');
+    groupTitle.className = 'rules-landing-group-title';
+    groupTitle.textContent = group.title;
+    const grid = document.createElement('ul');
+    grid.className = 'rules-landing-grid';
+    for (const article of group.items) {
+      const localized = lang ? translateArticle(article, lang) : article;
+      const li = document.createElement('li');
+      const tile = document.createElement('a');
+      tile.className = 'rules-landing-tile';
+      tile.href = `${lang ? ARTICLE_LANG_PREFIX[lang] : ''}/rules/${article.slug}`;
+      if (article.thumbnail) tile.append(renderArticleThumbnail(article.thumbnail));
+      const label = document.createElement('span');
+      label.className = 'rules-landing-tile-label';
+      label.textContent = variantNavLabel(localized.title);
+      tile.append(label);
+      li.append(tile);
+      grid.append(li);
+    }
+    sheet.append(groupTitle, grid);
   }
-  sheet.append(grid);
 
   const variantNav = buildVariantSidebar(null, lang);
   if (variantNav) main.append(variantNav);

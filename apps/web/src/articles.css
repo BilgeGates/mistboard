@@ -469,16 +469,28 @@
   margin: 0 0 12px;
 }
 
+.rules-landing-group-title {
+  margin: 24px 0 0;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.6px;
+  text-transform: uppercase;
+  color: var(--site-muted);
+}
+
 .rules-landing-grid {
   list-style: none;
-  margin: 24px 0 0;
+  margin: 12px 0 0;
   padding: 0;
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(128px, 1fr));
   gap: 16px;
 }
 
+/* The desktop rail is the picker; the tile grid (and its group titles) only
+   serve the below-rail breakpoint. */
 @media (min-width: 1280px) {
+  .rules-landing-group-title,
   .rules-landing-grid {
     display: none;
   }

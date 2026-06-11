@@ -140,4 +140,16 @@ describe('rules variant sidebar', () => {
       'Dark Chess (Fog of War)',
     );
   });
+
+  it('groups the tile grid like the rail: playable first, reference after', () => {
+    const landing = buildRulesIndex();
+    const titles = [...landing.querySelectorAll('.rules-landing-group-title')].map(
+      (el) => el.textContent,
+    );
+    expect(titles).toEqual(['On Mistboard', 'Not yet on Mistboard']);
+    const grids = landing.querySelectorAll('.rules-landing-grid');
+    expect(grids[0]?.querySelector('a[href="/rules/dark-chess"]')).not.toBeNull();
+    expect(grids[0]?.querySelector('a[href="/rules/chess"]')).toBeNull();
+    expect(grids[1]?.querySelector('a[href="/rules/chess"]')).not.toBeNull();
+  });
 });
