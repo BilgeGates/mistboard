@@ -908,6 +908,15 @@ function renderLiveBoardsBlock(block: LiveBoardsBlock): HTMLElement {
 const xqDiagramThunks = new WeakMap<HTMLElement, () => string>();
 let xqDiagramListenerInstalled = false;
 
+function markNoTranslate(element: Element): void {
+  element.classList.add('notranslate');
+  element.setAttribute('translate', 'no');
+}
+
+function markXqDiagramsNoTranslate(root: ParentNode): void {
+  root.querySelectorAll('.xq-article-svg').forEach(markNoTranslate);
+}
+
 // Replace the holder's <svg> in place so the diagram stays a direct child (the
 // article CSS targets `.article-figure-xq > .xq-article-svg`) and any caption is
 // preserved. Each diagram thunk returns exactly one <svg> root.
@@ -926,6 +935,7 @@ function paintXqDiagram(holder: HTMLElement, set: XiangqiPieceSet): void {
   for (const node of Array.from(scratch.childNodes)) {
     holder.insertBefore(node, caption);
   }
+  markXqDiagramsNoTranslate(holder);
 }
 
 // Index/announcement card thumbnails are also xiangqi SVGs, but they re-apply
@@ -966,6 +976,7 @@ function renderRawSvgBlock(block: RawSvgBlock): HTMLElement {
     figure.innerHTML = block.svg;
     if (figure.querySelector('.xq-article-svg')) {
       figure.classList.add('article-figure-xq');
+      markXqDiagramsNoTranslate(figure);
     }
   }
   if (block.caption) {
@@ -1043,6 +1054,7 @@ function renderRawSvgStepperBlock(block: RawSvgStepperBlock): HTMLElement {
     const hasXiangqiDiagram = Boolean(frame.querySelector('.xq-article-svg'));
     frame.classList.toggle('raw-svg-stepper-frame-xq', hasXiangqiDiagram);
     figure.classList.toggle('article-figure-xq', hasXiangqiDiagram);
+    if (hasXiangqiDiagram) markXqDiagramsNoTranslate(frame);
     narrative.textContent = step.narrative ?? '';
     counter.textContent = `${stepIdx + 1} / ${block.steps.length}`;
 
@@ -1391,11 +1403,13 @@ export function renderArticleThumbnail(thumb: ArticleThumbnail): HTMLElement {
   wrap.className = 'articles-index-card-thumb';
   wrap.setAttribute('aria-hidden', 'true');
   if (thumb.kind === 'svg') {
+    markNoTranslate(wrap);
     const applySvg = (raw: string): void => {
       const template = document.createElement('template');
       template.innerHTML = raw.trim();
       const svg = template.content.firstElementChild;
       if (svg instanceof SVGSVGElement) {
+        markNoTranslate(svg);
         svg.setAttribute('width', '100%');
         svg.setAttribute('height', '100%');
         svg.setAttribute('preserveAspectRatio', 'xMidYMid meet');
