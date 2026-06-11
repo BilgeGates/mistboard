@@ -15,13 +15,10 @@ import {
   gameSpecAnalyticsPropsForId,
   track,
 } from './analytics.js';
-import {
-  crossroadsChessEnabled,
-  darkMiniXiangqiEnabled,
-  darkMiniXiangqiPublicEntryEnabled,
-} from './feature-flags.js';
+import { crossroadsChessEnabled, darkMiniXiangqiPublicEntryEnabled } from './feature-flags.js';
 import { isRatedModeEnabled } from './rated-flag.js';
 import { isLikelySignedIn } from './signed-in-state.js';
+import { webVariantTenantForSpecId, webVariantTenants } from './variant-tenant/registry.js';
 import { isVariantEnabled } from './variants.js';
 import { ENGINE_OFFER_AFTER_MS, shouldOfferEngine } from './web-utils.js';
 
@@ -106,27 +103,6 @@ type RoomCreationFailure = {
 };
 
 const ENGINE_SEAT_RETRY_MS = 3_000;
-const CROSSROADS_CHESS_DEFAULT_ENGINE_ID = 'fairy-stockfish-crossroads-strong';
-const CROSSROADS_CHESS_ENGINE_OPTIONS: PlayableEngine[] = [
-  {
-    id: 'fairy-stockfish-crossroads-amateur',
-    name: 'Fairy Stockfish - Amateur',
-    familyName: 'Fairy Stockfish',
-    kind: 'container',
-  },
-  {
-    id: CROSSROADS_CHESS_DEFAULT_ENGINE_ID,
-    name: 'Fairy Stockfish - Strong',
-    familyName: 'Fairy Stockfish',
-    kind: 'container',
-  },
-  {
-    id: 'fairy-stockfish-crossroads-very-strong',
-    name: 'Fairy Stockfish - Strongest',
-    familyName: 'Fairy Stockfish',
-    kind: 'container',
-  },
-];
 const LANDING_TIME_PRESETS: LandingTimePreset[] = TIME_CONTROLS.map((tc) => ({
   id: tc.id,
   label: tc.label,
@@ -145,12 +121,9 @@ function allowedTimePresetIds(
   rated: boolean,
 ): ReadonlySet<LandingTimePresetId> {
   if (rated) return new Set<LandingTimePresetId>(['3m2']);
-  if (gameSpecId === CROSSROADS_CHESS_SPEC_ID) {
-    return new Set<LandingTimePresetId>(['1m1', '3m2', '5m5']);
-  }
-  return gameSpecId === DARK_CHESS_SPEC_ID || gameSpecId === DARK_MINI_XIANGQI_SPEC_ID
-    ? new Set<LandingTimePresetId>(['1m1', '3m2'])
-    : new Set<LandingTimePresetId>(['3m2']);
+  const tenantLanding = webVariantTenantForSpecId(gameSpecId)?.landing;
+  if (tenantLanding) return new Set<LandingTimePresetId>(tenantLanding.timePresetIds);
+  return new Set<LandingTimePresetId>(['1m1', '3m2']);
 }
 // Dark chess is always offered; DMX appears in normal entry points only after
 // its public-entry flag is on. Direct soft-launch deep links can still select it
@@ -161,96 +134,43 @@ function enabledLandingVariantGameSpecs(
   const specs: { gameSpecId: LandingGameSpecId; label: string }[] = [
     { gameSpecId: DARK_CHESS_SPEC_ID, label: gameSpecForId(DARK_CHESS_SPEC_ID).publicName },
   ];
-  // Full Dark Xiangqi (9x10) has no live room/lobby integration yet — creating
-  // one 501s — so it is NOT offered in the play menu even when its appearance/
-  // spike flag is on. Re-add when the runtime lands (as Dark Mini Xiangqi did).
-  if (darkMiniXiangqiPublicEntryEnabled()) {
+  // Each tenant's registry entry decides whether it appears in normal play-menu
+  // entry points (Dark Xiangqi never does: it has no live room/lobby runtime).
+  for (const tenant of webVariantTenants()) {
+    if (!tenant.landing?.offerInMenu()) continue;
     specs.push({
-      gameSpecId: DARK_MINI_XIANGQI_SPEC_ID,
-      label: gameSpecForId(DARK_MINI_XIANGQI_SPEC_ID).publicName,
-    });
-  }
-  if (crossroadsChessEnabled()) {
-    specs.push({
-      gameSpecId: CROSSROADS_CHESS_SPEC_ID,
-      label: gameSpecForId(CROSSROADS_CHESS_SPEC_ID).publicName,
+      gameSpecId: tenant.gameSpecId as LandingGameSpecId,
+      label: gameSpecForId(tenant.gameSpecId).publicName,
     });
   }
   return specs;
 }
 
 function parseLandingGameSpecId(value: string): LandingGameSpecId {
-  if (value === DARK_XIANGQI_SPEC_ID) return DARK_XIANGQI_SPEC_ID;
-  if (value === DARK_MINI_XIANGQI_SPEC_ID) return DARK_MINI_XIANGQI_SPEC_ID;
-  if (value === CROSSROADS_CHESS_SPEC_ID || value === DUAL_CHESS_SPEC_ID)
-    return CROSSROADS_CHESS_SPEC_ID;
-  return DARK_CHESS_SPEC_ID;
+  const tenant = webVariantTenantForSpecId(value);
+  return tenant ? (tenant.gameSpecId as LandingGameSpecId) : DARK_CHESS_SPEC_ID;
 }
 
 function deepLinkInitialVariant(
   variant: string | null,
   _mode: LandingPlayMode,
 ): LandingGameSpecId | undefined {
-  // Dark Xiangqi (9x10) is intentionally omitted — it has no playable runtime,
-  // so it must not be reachable from the play menu or a deep link.
-  if (variant === DARK_MINI_XIANGQI_SPEC_ID && darkMiniXiangqiEnabled()) {
-    return DARK_MINI_XIANGQI_SPEC_ID;
-  }
-  if (
-    (variant === CROSSROADS_CHESS_SPEC_ID || variant === DUAL_CHESS_SPEC_ID) &&
-    crossroadsChessEnabled()
-  ) {
-    return CROSSROADS_CHESS_SPEC_ID;
-  }
+  // Each tenant's registry entry decides deep-link reachability (Dark Xiangqi
+  // never is: it has no playable runtime).
+  const tenant = variant ? webVariantTenantForSpecId(variant) : null;
+  if (tenant?.landing?.acceptsDeepLink()) return tenant.gameSpecId as LandingGameSpecId;
   return undefined;
 }
-const LANDING_GAME_SPEC_CAPABILITIES: Record<LandingGameSpecId, LandingGameSpecCapabilities> = {
-  [DARK_CHESS_SPEC_ID]: {
-    firstColor: 'white',
-    firstGlyph: '♚',
-    firstLabel: 'White',
-    secondColor: 'black',
-    secondGlyph: '♚',
-    secondLabel: 'Black',
-    supportsRated: true,
-    supportsStartFormat: true,
-    supportsTimeControl: true,
-  },
-  [DARK_XIANGQI_SPEC_ID]: {
-    firstColor: 'red',
-    firstGlyph: '帥',
-    firstLabel: 'Red',
-    glyphClass: 'xiangqi',
-    secondColor: 'black',
-    secondGlyph: '將',
-    secondLabel: 'Black',
-    supportsRated: false,
-    supportsStartFormat: false,
-    supportsTimeControl: true,
-  },
-  [DARK_MINI_XIANGQI_SPEC_ID]: {
-    firstColor: 'red',
-    firstGlyph: '帥',
-    firstLabel: 'Red',
-    glyphClass: 'xiangqi',
-    secondColor: 'black',
-    secondGlyph: '將',
-    secondLabel: 'Black',
-    supportsRated: true,
-    supportsStartFormat: false,
-    supportsTimeControl: true,
-  },
-  [CROSSROADS_CHESS_SPEC_ID]: {
-    firstColor: 'white',
-    firstGlyph: '♚',
-    firstLabel: 'White',
-    secondColor: 'black',
-    secondGlyph: '♚',
-    secondLabel: 'Black',
-    supportsRated: false,
-    supportsStartFormat: false,
-    supportsTimeControl: true,
-  },
+const DARK_CHESS_LANDING_CAPABILITIES: LandingGameSpecCapabilities = {
+  firstColor: 'white',
+  firstGlyph: '♚',
+  firstLabel: 'White',
+  secondColor: 'black',
+  secondGlyph: '♚',
+  secondLabel: 'Black',
+  supportsRated: true,
+  supportsStartFormat: true,
+  supportsTimeControl: true,
 };
 
 // UI-only placeholder shown in the engine picker before /api/engines/playable
@@ -908,7 +828,7 @@ function openLandingSetupDialog(choice: LandingPlayChoice): void {
       engineSection.sync(selectedGameSpecId, selectedEngineId);
       engineSection.section.hidden =
         selectedGameSpecId !== DARK_CHESS_SPEC_ID &&
-        selectedGameSpecId !== CROSSROADS_CHESS_SPEC_ID;
+        !webVariantTenantForSpecId(selectedGameSpecId)?.landing?.engineOptions;
     }
     timeSection.hidden = !capabilities.supportsTimeControl;
     syncTimeControls(); // re-scope the preset picker to the selected variant
@@ -949,12 +869,12 @@ function buildEngineSetupSection(
 
   const sync = (gameSpecId: LandingGameSpecId, currentEngineId: string | undefined) => {
     body.replaceChildren();
-    const availableEngines =
-      gameSpecId === CROSSROADS_CHESS_SPEC_ID
-        ? CROSSROADS_CHESS_ENGINE_OPTIONS
-        : engines.length > 0
-          ? engines
-          : fallbackPlayableEngines();
+    const tenantEngineOptions = webVariantTenantForSpecId(gameSpecId)?.landing?.engineOptions;
+    const availableEngines = tenantEngineOptions
+      ? [...tenantEngineOptions]
+      : engines.length > 0
+        ? engines
+        : fallbackPlayableEngines();
     const selected =
       currentEngineId && availableEngines.some((engine) => engine.id === currentEngineId)
         ? currentEngineId
@@ -994,7 +914,8 @@ function defaultEngineIdForGameSpec(
   gameSpecId: LandingGameSpecId,
   availableEngines: readonly PlayableEngine[],
 ): string {
-  if (gameSpecId === CROSSROADS_CHESS_SPEC_ID) return CROSSROADS_CHESS_DEFAULT_ENGINE_ID;
+  const tenantDefault = webVariantTenantForSpecId(gameSpecId)?.landing?.defaultEngineId;
+  if (tenantDefault) return tenantDefault;
   return availableEngines[0]?.id ?? '';
 }
 
@@ -1267,7 +1188,11 @@ function colorGlyphNodes(
 }
 
 function landingGameSpecCapabilities(gameSpecId: LandingGameSpecId): LandingGameSpecCapabilities {
-  return LANDING_GAME_SPEC_CAPABILITIES[gameSpecId];
+  // Tenant capabilities live on their registry entries; chess (the fallback)
+  // keeps its row here until the P2 migration.
+  return (
+    webVariantTenantForSpecId(gameSpecId)?.landing?.capabilities ?? DARK_CHESS_LANDING_CAPABILITIES
+  );
 }
 
 function setupSectionLabel(text: string): HTMLSpanElement {

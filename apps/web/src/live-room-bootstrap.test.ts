@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { gameSpecIdForRoomBootstrap, roomIdFromPath } from './live-room-bootstrap.js';
+import { gameSpecIdForRoomBootstrap } from './live-room-bootstrap.js';
+import { roomIdFromPath } from './room-url.js';
 
 describe('live room bootstrap', () => {
   it('extracts direct room ids from /room/:id paths', () => {

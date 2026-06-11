@@ -38,7 +38,6 @@ import {
   soundForOwnCrossroadsChessMove,
 } from './live-crossroads-chess-sound.js';
 import { createLiveLayout, setLiveLayoutGameSpec } from './live-layout.js';
-import { roomIdFromPath } from './live-room-bootstrap.js';
 import {
   initLiveSound,
   maybePlayLowTimeSound,
@@ -46,6 +45,7 @@ import {
   resetLiveSoundState,
 } from './live-sound.js';
 import { clearSeatTokenForRoom, type LiveRefs } from './live-state.js';
+import { roomIdFromPath } from './room-url.js';
 import {
   createTenantSocketClient,
   type TenantConnectionState,

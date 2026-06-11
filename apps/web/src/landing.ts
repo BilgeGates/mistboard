@@ -5,7 +5,6 @@ import './game-route.css';
 import { loadCachedCurrentUser, readCachedUser } from './account-nav.js';
 import { buildHomeArticleCards, initLandingCarousel, mountArticleThumbnails } from './articles.js';
 import { buildContact } from './contact.js';
-import { crossroadsChessEnabled } from './feature-flags.js';
 import type { FeaturedGame } from './game-display.js';
 import { gameMetaForGame } from './game-meta.js';
 import { buildLandingActivity } from './landing-activity.js';
@@ -20,11 +19,12 @@ import {
   setRoomNavigator,
 } from './landing-play.js';
 import { homepageShowcaseGames, pickHeroPovForGame } from './landing-showcase.js';
-import { roomIdFromPath } from './live-room-bootstrap.js';
 import { type GameMeta, mountReplay } from './replay.js';
 import { enginePanelsForReview, loadGameForReview } from './review.js';
+import { roomIdFromPath } from './room-url.js';
 import { isLikelySignedIn } from './signed-in-state.js';
 import { buildHomeFooter, buildNav, buildNotice } from './site-shell.js';
+import { type WebVariantTenant, webVariantTenantForRoomId } from './variant-tenant/registry.js';
 
 const HOMEPAGE_CORPUS_HOLD_MS = 8000;
 // Adaptive hero-pool refresh. Poll faster while games are being played (they
@@ -241,18 +241,18 @@ async function transitionToRoom(
   // Load the live room chunk while the landing is still on screen (no blank
   // flash), then dispose the landing and swap the room in place. Same-document
   // navigation preserves the click's sticky user activation.
-  const clientKind = landingRoomClientKindForUrl(url);
-  if (clientKind === 'crossroads') {
-    const liveModule = await import('./live-crossroads-chess.js').catch((err) => {
+  const tenant = landingRoomTenantForUrl(url);
+  if (tenant?.loadLiveRoomClient) {
+    const bootstrap = await tenant.loadLiveRoomClient().catch((err) => {
       console.warn('live room chunk failed to load; falling back to full reload', err);
       return null;
     });
-    if (liveModule === null) {
+    if (bootstrap === null) {
       window.location.href = url;
       return;
     }
     prepareRoomTransition(root, url, teardownLanding);
-    liveModule.bootstrapCrossroadsChessLiveRoom();
+    bootstrap();
     return;
   }
   const liveModule = await import('./live.js').catch((err) => {
@@ -267,10 +267,17 @@ async function transitionToRoom(
   liveModule.bootstrapLiveRoom();
 }
 
-export function landingRoomClientKindForUrl(url: string): 'crossroads' | 'standard' {
+// Tenants with a self-contained live client (Crossroads) transition through
+// their own chunk; everything else boots the shared chess live shell.
+export function landingRoomTenantForUrl(url: string): WebVariantTenant | null {
   const next = new URL(url, window.location.href);
   const roomId = roomIdFromPath(next.pathname) ?? next.searchParams.get('room');
-  return crossroadsChessEnabled() && roomId?.startsWith('dchess_') ? 'crossroads' : 'standard';
+  const tenant = roomId ? webVariantTenantForRoomId(roomId) : null;
+  return tenant?.loadLiveRoomClient && tenant.enabled() ? tenant : null;
+}
+
+export function landingRoomClientKindForUrl(url: string): 'tenant' | 'standard' {
+  return landingRoomTenantForUrl(url) ? 'tenant' : 'standard';
 }
 
 function prepareRoomTransition(root: HTMLElement, url: string, teardownLanding: () => void): void {

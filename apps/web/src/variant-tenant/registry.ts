@@ -1,0 +1,248 @@
+/**
+ * Web-side VariantTenant registry — the routing/config mirror of
+ * apps/server/src/variant-tenant/registry.ts. Each tenant registers its page
+ * routing (postgame route, optional self-contained live client), review-URL
+ * base, watch-replay mount, and landing configuration, so main.ts /
+ * live-room-bootstrap / landing / game-meta / watch-route dispatch without
+ * per-variant branches. Chess is deliberately NOT registered: a registry miss
+ * is the chess fallback until the P2 chess migration.
+ *
+ * Bundle discipline: this module is imported by the entry chunk, so it may
+ * hold only config and dynamic-import closures. Static hooks for tenants that
+ * ride the chess live shell live in ./live-shell.ts (imported only by the
+ * live-room chunk).
+ */
+
+import {
+  CROSSROADS_CHESS_SPEC_ID,
+  DARK_MINI_XIANGQI_SPEC_ID,
+  DARK_XIANGQI_SPEC_ID,
+  DUAL_CHESS_SPEC_ID,
+  type GameSpecId,
+  type TimeControlId,
+} from '@mistboard/game';
+import {
+  crossroadsChessEnabled,
+  darkMiniXiangqiEnabled,
+  darkMiniXiangqiPublicEntryEnabled,
+  darkXiangqiEnabled,
+} from '../feature-flags.js';
+import type { GameMeta, ReplayHandle } from '../replay.js';
+
+export type WebTenantEngineOption = {
+  id: string;
+  name: string;
+  familyName: string;
+  kind: string;
+};
+
+// Landing play-menu configuration. Mirrors the per-variant rows of the old
+// LANDING_GAME_SPEC_CAPABILITIES table plus the picker/menu gates around it.
+export type WebTenantLandingConfig = {
+  capabilities: {
+    firstColor: 'white' | 'red';
+    firstGlyph: string;
+    firstLabel: 'White' | 'Red';
+    glyphClass?: string;
+    secondColor: 'red' | 'black';
+    secondGlyph: string;
+    secondLabel: 'Black' | 'Red';
+    supportsRated: boolean;
+    supportsStartFormat: boolean;
+    supportsTimeControl: boolean;
+  };
+  // Casual time-control presets the picker offers (rated is globally 3+2).
+  timePresetIds: readonly TimeControlId[];
+  // Whether the variant appears in normal play-menu entry points.
+  offerInMenu(): boolean;
+  // Whether a ?play deep link may select the variant (soft-launch links can be
+  // live while the menu entry is still hidden).
+  acceptsDeepLink(): boolean;
+  // PvE engine picker entries; omit when the variant has no PvE surface wired
+  // into the landing engine section.
+  engineOptions?: readonly WebTenantEngineOption[];
+  defaultEngineId?: string;
+};
+
+export type WebVariantTenant = {
+  gameSpecId: GameSpecId;
+  // Pre-rename aliases still seen in persisted game records and deep links.
+  legacyGameSpecIds?: readonly string[];
+  roomIdPrefix: string;
+  enabled(): boolean;
+  pageTitle: string;
+  // Post-game review route base ('/dark-xiangqi/game'); also the route main.ts
+  // matches for the postgame mount.
+  gameRouteBase: string;
+  mountPostgame(root: HTMLElement, roomId: string): Promise<unknown>;
+  // Review-link base for finished-game cards (game-meta). Only tenants whose
+  // games are linked from shared surfaces set it; others keep the legacy
+  // /game/:id link those surfaces always produced.
+  reviewRouteBase?: string;
+  // Self-contained live-room client (Crossroads). Resolves to the bootstrap
+  // function so callers can preload the chunk before swapping the URL/DOM.
+  // Tenants without one ride the chess live shell (live.ts) and register
+  // hooks in ./live-shell.ts instead.
+  loadLiveRoomClient?(): Promise<() => unknown>;
+  watch?: {
+    family: string;
+    mountReplay(
+      root: HTMLElement,
+      roomId: string,
+      options: { autoplay: boolean; metadataByRoomId: Record<string, GameMeta> },
+    ): Promise<ReplayHandle>;
+  };
+  landing?: WebTenantLandingConfig;
+};
+
+const XIANGQI_CAPABILITIES_BASE = {
+  firstColor: 'red',
+  firstGlyph: '帥',
+  firstLabel: 'Red',
+  glyphClass: 'xiangqi',
+  secondColor: 'black',
+  secondGlyph: '將',
+  secondLabel: 'Black',
+} as const;
+
+const WEB_VARIANT_TENANTS: readonly WebVariantTenant[] = [
+  {
+    gameSpecId: DARK_XIANGQI_SPEC_ID,
+    roomIdPrefix: 'dxq_',
+    enabled: darkXiangqiEnabled,
+    pageTitle: 'Dark Xiangqi',
+    gameRouteBase: '/dark-xiangqi/game',
+    mountPostgame: (root, roomId) =>
+      import('../dark-xiangqi-postgame.js').then(({ mountDarkXiangqiPostgame }) =>
+        mountDarkXiangqiPostgame(root, roomId),
+      ),
+    // No watch channel, and the landing config keeps both menu and deep-link
+    // gates off: Dark Xiangqi (9x10) has no public live runtime (its play
+    // surface is the dev-only spike), but stored setup preferences can still
+    // reference it, so its picker capabilities stay defined.
+    landing: {
+      capabilities: {
+        ...XIANGQI_CAPABILITIES_BASE,
+        supportsRated: false,
+        supportsStartFormat: false,
+        supportsTimeControl: true,
+      },
+      timePresetIds: ['3m2'],
+      offerInMenu: () => false,
+      acceptsDeepLink: () => false,
+    },
+  },
+  {
+    gameSpecId: DARK_MINI_XIANGQI_SPEC_ID,
+    roomIdPrefix: 'dmxq_',
+    enabled: darkMiniXiangqiEnabled,
+    pageTitle: 'Dark Mini Xiangqi',
+    gameRouteBase: '/dark-mini-xiangqi/game',
+    mountPostgame: (root, roomId) =>
+      import('../dark-mini-xiangqi-postgame.js').then(({ mountDarkMiniXiangqiPostgame }) =>
+        mountDarkMiniXiangqiPostgame(root, roomId),
+      ),
+    watch: {
+      family: 'xiangqi',
+      mountReplay: (root, roomId, options) =>
+        import('../watch-mini-xiangqi-replay.js').then(({ mountMiniXiangqiWatchReplay }) =>
+          mountMiniXiangqiWatchReplay(root, roomId, options),
+        ),
+    },
+    landing: {
+      capabilities: {
+        ...XIANGQI_CAPABILITIES_BASE,
+        supportsRated: true,
+        supportsStartFormat: false,
+        supportsTimeControl: true,
+      },
+      timePresetIds: ['1m1', '3m2'],
+      offerInMenu: darkMiniXiangqiPublicEntryEnabled,
+      acceptsDeepLink: darkMiniXiangqiEnabled,
+    },
+  },
+  {
+    gameSpecId: CROSSROADS_CHESS_SPEC_ID,
+    legacyGameSpecIds: [DUAL_CHESS_SPEC_ID],
+    roomIdPrefix: 'dchess_',
+    enabled: crossroadsChessEnabled,
+    pageTitle: 'Crossroads Chess',
+    gameRouteBase: '/crossroads-chess/game',
+    mountPostgame: (root, roomId) =>
+      import('../crossroads-chess-postgame.js').then(({ mountCrossroadsChessPostgame }) =>
+        mountCrossroadsChessPostgame(root, roomId),
+      ),
+    reviewRouteBase: '/crossroads-chess/game',
+    // Routed to its own isolated client before the shared live-room shell so
+    // it never touches the fog-critical live.ts monolith.
+    loadLiveRoomClient: () =>
+      import('../live-crossroads-chess.js').then(
+        ({ bootstrapCrossroadsChessLiveRoom }) =>
+          () =>
+            bootstrapCrossroadsChessLiveRoom(),
+      ),
+    watch: {
+      family: 'crossroads-chess',
+      mountReplay: (root, roomId, options) =>
+        import('../watch-crossroads-chess-replay.js').then(({ mountCrossroadsChessWatchReplay }) =>
+          mountCrossroadsChessWatchReplay(root, roomId, options),
+        ),
+    },
+    landing: {
+      capabilities: {
+        firstColor: 'white',
+        firstGlyph: '♚',
+        firstLabel: 'White',
+        secondColor: 'black',
+        secondGlyph: '♚',
+        secondLabel: 'Black',
+        supportsRated: false,
+        supportsStartFormat: false,
+        supportsTimeControl: true,
+      },
+      timePresetIds: ['1m1', '3m2', '5m5'],
+      offerInMenu: crossroadsChessEnabled,
+      acceptsDeepLink: crossroadsChessEnabled,
+      engineOptions: [
+        {
+          id: 'fairy-stockfish-crossroads-amateur',
+          name: 'Fairy Stockfish - Amateur',
+          familyName: 'Fairy Stockfish',
+          kind: 'container',
+        },
+        {
+          id: 'fairy-stockfish-crossroads-strong',
+          name: 'Fairy Stockfish - Strong',
+          familyName: 'Fairy Stockfish',
+          kind: 'container',
+        },
+        {
+          id: 'fairy-stockfish-crossroads-very-strong',
+          name: 'Fairy Stockfish - Strongest',
+          familyName: 'Fairy Stockfish',
+          kind: 'container',
+        },
+      ],
+      defaultEngineId: 'fairy-stockfish-crossroads-strong',
+    },
+  },
+];
+
+export function webVariantTenants(): readonly WebVariantTenant[] {
+  return WEB_VARIANT_TENANTS;
+}
+
+export function webVariantTenantForRoomId(roomId: string): WebVariantTenant | null {
+  return WEB_VARIANT_TENANTS.find((tenant) => roomId.startsWith(tenant.roomIdPrefix)) ?? null;
+}
+
+// Spec-id lookup, accepting legacy aliases (persisted records and deep links
+// can still carry 'dual-chess').
+export function webVariantTenantForSpecId(value: string | null): WebVariantTenant | null {
+  if (!value) return null;
+  return (
+    WEB_VARIANT_TENANTS.find(
+      (tenant) => tenant.gameSpecId === value || tenant.legacyGameSpecIds?.includes(value),
+    ) ?? null
+  );
+}

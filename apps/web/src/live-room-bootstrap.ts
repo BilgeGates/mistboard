@@ -1,21 +1,14 @@
 import type { GameSpecId } from '@mistboard/game';
 import { isGameSpecId } from '@mistboard/game';
-
-const DARK_XIANGQI_ROOM_ID_PREFIX = 'dxq_';
-const DARK_MINI_XIANGQI_ROOM_ID_PREFIX = 'dmxq_';
-
-export function roomIdFromPath(pathname: string): string | null {
-  const normalized = pathname.replace(/\/+$/, '');
-  if (normalized === '/room') return 'dev-room';
-  const match = normalized.match(/^\/room\/([^/]+)$/);
-  return match ? decodeURIComponent(match[1]!) : null;
-}
+import { webVariantTenantForRoomId } from './variant-tenant/registry.js';
 
 export function gameSpecIdForRoomBootstrap(
   roomId: string,
   requested: string | null,
 ): GameSpecId | null {
-  if (roomId.startsWith(DARK_MINI_XIANGQI_ROOM_ID_PREFIX)) return 'dark-mini-xiangqi';
-  if (roomId.startsWith(DARK_XIANGQI_ROOM_ID_PREFIX)) return 'dark-xiangqi';
+  // Only tenants riding the chess live shell resolve here; tenants with their
+  // own client (Crossroads) are routed before the shell ever boots.
+  const tenant = webVariantTenantForRoomId(roomId);
+  if (tenant && !tenant.loadLiveRoomClient) return tenant.gameSpecId;
   return isGameSpecId(requested) ? requested : null;
 }

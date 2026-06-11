@@ -7,12 +7,6 @@ import './live-xiangqi.css';
 import './styles.css';
 import './site-shell.css';
 import type { GameEvent, PlayerView } from '@mistboard/game';
-import {
-  handleDarkMiniXiangqiReplayKeyboard,
-  isDarkMiniXiangqiLiveRoom,
-  tickDarkMiniXiangqiClocks,
-  tickDarkMiniXiangqiCountdowns,
-} from './live-mini-xiangqi-room.js';
 import { maybePlayDarkMiniXiangqiSnapshotSound } from './live-mini-xiangqi-sound.js';
 import {
   initRender,
@@ -22,7 +16,7 @@ import {
   updateAbortCountdown,
 } from './live-render.js';
 import { handleReplayKeyboard } from './live-replay.js';
-import { gameSpecIdForRoomBootstrap, roomIdFromPath } from './live-room-bootstrap.js';
+import { gameSpecIdForRoomBootstrap } from './live-room-bootstrap.js';
 import { connectSocket, initSocket, reconnectNow, sendSocket } from './live-socket.js';
 import { maybePlaySnapshotSound } from './live-sound.js';
 import {
@@ -34,7 +28,9 @@ import {
   resolveWebSocketBaseUrl,
 } from './live-state.js';
 import { currentView } from './live-view.js';
+import { roomIdFromPath } from './room-url.js';
 import { xiangqiAppearanceChangedEvent } from './theme.js';
+import { activeLiveShellTenant } from './variant-tenant/live-shell.js';
 
 declare global {
   interface Window {
@@ -162,9 +158,10 @@ export function bootstrapLiveRoom(): void {
   }
 
   window.setInterval(() => {
-    if (isDarkMiniXiangqiLiveRoom()) {
-      tickDarkMiniXiangqiClocks();
-      tickDarkMiniXiangqiCountdowns();
+    const shellTenant = activeLiveShellTenant();
+    if (shellTenant?.tickClocks) {
+      shellTenant.tickClocks();
+      shellTenant.tickCountdowns?.();
     } else {
       const view = currentView();
       if (view?.clock) tickClockTimers(view);
@@ -189,8 +186,9 @@ export function bootstrapLiveRoom(): void {
 }
 
 function handleLiveReplayKeyboard(event: KeyboardEvent): void {
-  if (isDarkMiniXiangqiLiveRoom()) {
-    handleDarkMiniXiangqiReplayKeyboard(event);
+  const shellTenant = activeLiveShellTenant();
+  if (shellTenant?.handleReplayKeyboard) {
+    shellTenant.handleReplayKeyboard(event);
     return;
   }
   handleReplayKeyboard(event);

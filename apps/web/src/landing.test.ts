@@ -84,7 +84,7 @@ describe('playable engines loading', () => {
     vi.stubEnv('VITE_CROSSROADS_CHESS_ENABLED', 'true');
     window.history.replaceState(null, '', '/');
 
-    expect(landingRoomClientKindForUrl('/room/dchess_created')).toBe('crossroads');
+    expect(landingRoomClientKindForUrl('/room/dchess_created')).toBe('tenant');
     expect(landingRoomClientKindForUrl('/room/dark_created')).toBe('standard');
   });
 });

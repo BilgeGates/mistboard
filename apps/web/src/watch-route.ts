@@ -1,4 +1,5 @@
 import type { GameEvent } from '@mistboard/game';
+import { webVariantTenants } from './variant-tenant/registry.js';
 import './watch-route.css';
 import { displayParticipantName, type FeaturedGame, sourceLabel } from './game-display.js';
 import { gameMetaForGame, reviewUrlForGame } from './game-meta.js';
@@ -39,7 +40,10 @@ type WatchFeed = {
   initialReplay?: WatchInitialReplay;
 };
 
-type WatchRendererKind = 'chess' | 'mini-xiangqi' | 'crossroads-chess';
+// Which replay renderer family a channel needs: a registered tenant's watch
+// family, or 'chess' (the chessground fallback). A channel switch across
+// families must re-mount, not loadGame.
+type WatchRendererKind = string;
 
 const WATCH_ACTIVE_POLL_MS = 15_000;
 const WATCH_IDLE_POLL_MS = 60_000;
@@ -74,8 +78,10 @@ export async function mountWatch(root: HTMLElement): Promise<void> {
 
   const watchRendererKind = (feed: WatchFeed): WatchRendererKind => {
     const channel = feed.channels.find((entry) => entry.id === feed.activeChannel);
-    if (channel?.family === 'crossroads-chess') return 'crossroads-chess';
-    return channel?.family === 'xiangqi' ? 'mini-xiangqi' : 'chess';
+    const tenant = channel
+      ? webVariantTenants().find((entry) => entry.watch?.family === channel.family)
+      : null;
+    return tenant?.watch ? tenant.watch.family : 'chess';
   };
 
   // Mount the right-kind replay handle, re-mounting when the family changes
@@ -261,17 +267,11 @@ async function mountWatchReplay(
   seed?: WatchInitialReplay,
   kind: WatchRendererKind = 'chess',
 ): Promise<ReplayHandle> {
-  if (kind === 'mini-xiangqi') {
-    // Dynamic import keeps the xiangqi renderer out of the chess path's bundle.
-    const { mountMiniXiangqiWatchReplay } = await import('./watch-mini-xiangqi-replay.js');
-    return await mountMiniXiangqiWatchReplay(root, roomId, {
-      autoplay: true,
-      metadataByRoomId,
-    });
-  }
-  if (kind === 'crossroads-chess') {
-    const { mountCrossroadsChessWatchReplay } = await import('./watch-crossroads-chess-replay.js');
-    return await mountCrossroadsChessWatchReplay(root, roomId, {
+  // Tenant renderers load through the registry's dynamic-import closures, so
+  // they stay out of the chess path's bundle.
+  const tenant = webVariantTenants().find((entry) => entry.watch?.family === kind) ?? null;
+  if (tenant?.watch) {
+    return await tenant.watch.mountReplay(root, roomId, {
       autoplay: true,
       metadataByRoomId,
     });

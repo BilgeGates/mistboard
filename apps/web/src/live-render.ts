@@ -36,12 +36,6 @@ import {
   updateAbortCountdown as updateGameControlCountdown,
 } from './live-game-controls.js';
 import { createLiveLayout, setLiveLayoutGameSpec } from './live-layout.js';
-import {
-  isDarkMiniXiangqiLiveRoom,
-  reconcileDarkMiniXiangqiInteractionState,
-  renderDarkMiniXiangqiRoom,
-  resetDarkMiniXiangqiReplayState,
-} from './live-mini-xiangqi-room.js';
 import { renderReplay, resetMoveListState } from './live-move-list.js';
 import { captureFogView, initReplay, isLive, resetReplayState } from './live-replay.js';
 import {
@@ -67,12 +61,7 @@ import {
   seatLabel,
 } from './live-status.js';
 import { currentCaptures, currentProjection, currentView } from './live-view.js';
-import {
-  isDarkXiangqiLiveRoom,
-  reconcileDarkXiangqiInteractionState,
-  renderDarkXiangqiRoom,
-  resetDarkXiangqiReplayState,
-} from './live-xiangqi-render.js';
+import { activeLiveShellTenant, liveShellTenants } from './variant-tenant/live-shell.js';
 import { escapeHtml, isColor } from './web-utils.js';
 
 // ── Constants ─────────────────────────────────────────────────────────────────
@@ -187,8 +176,7 @@ export function initRender(
   sendSocket = callbacks.sendSocket;
   reconnectNow = callbacks.reconnectNow;
   resetReplayState();
-  resetDarkXiangqiReplayState();
-  resetDarkMiniXiangqiReplayState();
+  for (const tenant of liveShellTenants()) tenant.resetReplayState();
   initReplay({
     onStateChange: () => {
       reconcileInteractionState();
@@ -207,16 +195,11 @@ export function initRender(
 
 export function render(): void {
   setLiveLayoutGameSpec(refs.board.closest('#app') ?? document.body, liveState.gameSpecId);
-  if (isDarkXiangqiLiveRoom()) {
+  const shellTenant = activeLiveShellTenant();
+  if (shellTenant) {
     destroyChessBoardForAlternateRenderer();
     captureFogView();
-    renderDarkXiangqiRoom(refs, { sendSocket, reconnectNow });
-    return;
-  }
-  if (isDarkMiniXiangqiLiveRoom()) {
-    destroyChessBoardForAlternateRenderer();
-    captureFogView();
-    renderDarkMiniXiangqiRoom(refs, { sendSocket, reconnectNow });
+    shellTenant.render(refs, { sendSocket, reconnectNow });
     return;
   }
   captureFogView();
@@ -759,12 +742,9 @@ function renderBoardResult(view: PlayerView | null): void {
 // ── Interaction state ─────────────────────────────────────────────────────────
 
 export function reconcileInteractionState(): void {
-  if (isDarkXiangqiLiveRoom()) {
-    reconcileDarkXiangqiInteractionState();
-    return;
-  }
-  if (isDarkMiniXiangqiLiveRoom()) {
-    reconcileDarkMiniXiangqiInteractionState();
+  const shellTenant = activeLiveShellTenant();
+  if (shellTenant) {
+    shellTenant.reconcileInteractionState();
     return;
   }
   const view = currentView();

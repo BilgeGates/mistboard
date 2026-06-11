@@ -4,14 +4,15 @@ import './styles.css';
 import { initializeAccountNav } from './account-nav.js';
 import { setPostHogInstance } from './analytics.js';
 import type { ArticleLang } from './article-i18n.js';
-import {
-  crossroadsChessEnabled,
-  darkMiniXiangqiEnabled,
-  darkXiangqiEnabled,
-} from './feature-flags.js';
+import { darkXiangqiEnabled } from './feature-flags.js';
 import { setRatedModeEnabled } from './rated-flag.js';
 import { mountRestartBanner, setRestartBanner } from './restart-banner.js';
 import { initializeThemeSettings } from './theme.js';
+import {
+  type WebVariantTenant,
+  webVariantTenantForRoomId,
+  webVariantTenants,
+} from './variant-tenant/registry.js';
 
 initializeThemeSettings();
 initializeAccountNav();
@@ -65,9 +66,7 @@ const wantsLive =
   (params.has('room') || params.has('variant') || params.has('dev'));
 const page = params.get('page');
 const gameRoomId = gameRoomIdFromPath(path);
-const darkXiangqiGameRoomId = darkXiangqiGameRoomIdFromPath(path);
-const darkMiniXiangqiGameRoomId = darkMiniXiangqiGameRoomIdFromPath(path);
-const crossroadsChessGameRoomId = crossroadsChessGameRoomIdFromPath(path);
+const tenantPostgame = tenantPostgameFromPath(path);
 const liveRoomId = liveRoomIdFromPath(path);
 const wantsAbout = path === '/about' || page === 'about';
 const wantsSource = path === '/source' || page === 'source';
@@ -115,12 +114,15 @@ const wantsPixelLab = import.meta.env.DEV && path === '/pixel-lab';
 const wantsVariantMarksLab = import.meta.env.DEV && path === '/variant-marks';
 // Hidden DEV-only audition lab for sound sets. No nav entry.
 const wantsSoundLab = import.meta.env.DEV && path === '/sound-lab';
-// Perfect-information Crossroads Chess live room (/room/dchess_*, or ?room=dchess_* in
-// dev). Routed to its own isolated client *before* the shared live-room shell so
-// it never touches the fog-critical live.ts monolith.
-const crossroadsChessLiveRoomCandidate = liveRoomId ?? (wantsLive ? params.get('room') : null);
-const wantsCrossroadsChessRoom =
-  crossroadsChessEnabled() && crossroadsChessLiveRoomCandidate?.startsWith('dchess_');
+// Tenants with a self-contained live client (Crossroads) are routed to it
+// *before* the shared live-room shell so they never touch the fog-critical
+// live.ts monolith; tenants riding the chess shell fall through to it.
+const tenantLiveRoomCandidate = liveRoomId ?? (wantsLive ? params.get('room') : null);
+const tenantLiveRoom = tenantLiveRoomCandidate
+  ? webVariantTenantForRoomId(tenantLiveRoomCandidate)
+  : null;
+const wantsTenantLiveRoom =
+  tenantLiveRoom?.loadLiveRoomClient !== undefined && tenantLiveRoom.enabled();
 
 if (replaySample) {
   setTitle('Replay');
@@ -134,39 +136,23 @@ if (replaySample) {
       mountReplay(appRoot, replaySample, replayOpts).then(() => undefined),
     ),
   );
-} else if (wantsCrossroadsChessRoom) {
-  setTitle('Crossroads Chess');
+} else if (wantsTenantLiveRoom && tenantLiveRoom?.loadLiveRoomClient) {
+  setTitle(tenantLiveRoom.pageTitle);
+  const loadTenantLiveRoom = tenantLiveRoom.loadLiveRoomClient;
   void mountOrReport(() =>
-    import('./live-crossroads-chess.js').then(({ bootstrapCrossroadsChessLiveRoom }) =>
-      bootstrapCrossroadsChessLiveRoom(),
-    ),
+    loadTenantLiveRoom().then((bootstrap) => {
+      bootstrap();
+    }),
   );
 } else if (liveRoomId || wantsLive) {
   setTitle('Live');
   void mountOrReport(() =>
     import('./live.js').then(({ bootstrapLiveRoom }) => bootstrapLiveRoom()),
   );
-} else if (darkXiangqiGameRoomId && darkXiangqiEnabled()) {
-  setTitle('Dark Xiangqi');
-  void mountOrReport(() =>
-    import('./dark-xiangqi-postgame.js').then(({ mountDarkXiangqiPostgame }) =>
-      mountDarkXiangqiPostgame(appRoot, darkXiangqiGameRoomId),
-    ),
-  );
-} else if (darkMiniXiangqiGameRoomId && darkMiniXiangqiEnabled()) {
-  setTitle('Dark Mini Xiangqi');
-  void mountOrReport(() =>
-    import('./dark-mini-xiangqi-postgame.js').then(({ mountDarkMiniXiangqiPostgame }) =>
-      mountDarkMiniXiangqiPostgame(appRoot, darkMiniXiangqiGameRoomId),
-    ),
-  );
-} else if (crossroadsChessGameRoomId && crossroadsChessEnabled()) {
-  setTitle('Crossroads Chess');
-  void mountOrReport(() =>
-    import('./crossroads-chess-postgame.js').then(({ mountCrossroadsChessPostgame }) =>
-      mountCrossroadsChessPostgame(appRoot, crossroadsChessGameRoomId),
-    ),
-  );
+} else if (tenantPostgame?.tenant.enabled()) {
+  const { tenant, roomId } = tenantPostgame;
+  setTitle(tenant.pageTitle);
+  void mountOrReport(() => tenant.mountPostgame(appRoot, roomId).then(() => undefined));
 } else if (gameRoomId) {
   setTitle('Game');
   void mountOrReport(() =>
@@ -398,19 +384,19 @@ function gameRoomIdFromPath(value: string): string | null {
   return match ? decodeURIComponent(match[1]!) : null;
 }
 
-function darkXiangqiGameRoomIdFromPath(value: string): string | null {
-  const match = value.match(/^\/dark-xiangqi\/game\/([^/]+)$/);
-  return match ? decodeURIComponent(match[1]!) : null;
-}
-
-function darkMiniXiangqiGameRoomIdFromPath(value: string): string | null {
-  const match = value.match(/^\/dark-mini-xiangqi\/game\/([^/]+)$/);
-  return match ? decodeURIComponent(match[1]!) : null;
-}
-
-function crossroadsChessGameRoomIdFromPath(value: string): string | null {
-  const match = value.match(/^\/crossroads-chess\/game\/([^/]+)$/);
-  return match ? decodeURIComponent(match[1]!) : null;
+// Variant-tenant postgame routes (<gameRouteBase>/:roomId) resolve through the
+// web registry; a miss falls through to the chess routes.
+function tenantPostgameFromPath(
+  value: string,
+): { tenant: WebVariantTenant; roomId: string } | null {
+  for (const tenant of webVariantTenants()) {
+    const prefix = `${tenant.gameRouteBase}/`;
+    if (!value.startsWith(prefix)) continue;
+    const rest = value.slice(prefix.length);
+    if (!rest || rest.includes('/')) continue;
+    return { tenant, roomId: decodeURIComponent(rest) };
+  }
+  return null;
 }
 
 function liveRoomIdFromPath(value: string): string | null {

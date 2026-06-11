@@ -1,0 +1,72 @@
+/**
+ * Chess-live-shell tenant hooks — the static half of the web VariantTenant
+ * registry. Tenants that ride the shared live.ts/live-render shell (Dark
+ * Xiangqi, Dark Mini Xiangqi) register their render/reconcile/reset/tick/
+ * keyboard hooks here so the shell dispatches without per-variant branches.
+ *
+ * Deliberately separate from ./registry.ts: these hooks statically import the
+ * tenant live-room modules, and only the live-room chunk (live-render/live.ts,
+ * which already bundled those modules) may pay for that. Self-contained
+ * clients (Crossroads) never appear here. The chess shell itself is the
+ * fallback when no hook claims the room; it converges at the P2 migration.
+ */
+
+import {
+  handleDarkMiniXiangqiReplayKeyboard,
+  isDarkMiniXiangqiLiveRoom,
+  reconcileDarkMiniXiangqiInteractionState,
+  renderDarkMiniXiangqiRoom,
+  resetDarkMiniXiangqiReplayState,
+  tickDarkMiniXiangqiClocks,
+  tickDarkMiniXiangqiCountdowns,
+} from '../live-mini-xiangqi-room.js';
+import type { LiveRefs } from '../live-state.js';
+import {
+  isDarkXiangqiLiveRoom,
+  reconcileDarkXiangqiInteractionState,
+  renderDarkXiangqiRoom,
+  resetDarkXiangqiReplayState,
+} from '../live-xiangqi-render.js';
+
+export type LiveShellTenant = {
+  // Whether the current liveState room belongs to this tenant.
+  isActive(): boolean;
+  render(
+    refs: LiveRefs,
+    callbacks: { reconnectNow: () => void; sendSocket: (payload: unknown) => boolean },
+  ): void;
+  reconcileInteractionState(): void;
+  resetReplayState(): void;
+  // Clock/countdown ticks on the shell's 100ms interval; tenants without them
+  // fall through to the shell's chess tick path.
+  tickClocks?(): void;
+  tickCountdowns?(): void;
+  // Replay scrubber keys; tenants without one use the chess replay handler.
+  handleReplayKeyboard?(event: KeyboardEvent): void;
+};
+
+const LIVE_SHELL_TENANTS: readonly LiveShellTenant[] = [
+  {
+    isActive: isDarkXiangqiLiveRoom,
+    render: renderDarkXiangqiRoom,
+    reconcileInteractionState: reconcileDarkXiangqiInteractionState,
+    resetReplayState: resetDarkXiangqiReplayState,
+  },
+  {
+    isActive: isDarkMiniXiangqiLiveRoom,
+    render: renderDarkMiniXiangqiRoom,
+    reconcileInteractionState: reconcileDarkMiniXiangqiInteractionState,
+    resetReplayState: resetDarkMiniXiangqiReplayState,
+    tickClocks: tickDarkMiniXiangqiClocks,
+    tickCountdowns: tickDarkMiniXiangqiCountdowns,
+    handleReplayKeyboard: handleDarkMiniXiangqiReplayKeyboard,
+  },
+];
+
+export function liveShellTenants(): readonly LiveShellTenant[] {
+  return LIVE_SHELL_TENANTS;
+}
+
+export function activeLiveShellTenant(): LiveShellTenant | null {
+  return LIVE_SHELL_TENANTS.find((tenant) => tenant.isActive()) ?? null;
+}
