@@ -26,6 +26,23 @@ describe('article public listing gates', () => {
     expect(buildRulesIndex().textContent).toContain('Mini Xiangqi');
   });
 
+  it('limits the homepage article widget to the curated cards', () => {
+    vi.stubEnv('VITE_DARK_MINI_XIANGQI_ENABLED', 'true');
+    vi.stubEnv('VITE_DARK_MINI_XIANGQI_PUBLIC_ENTRY_ENABLED', 'true');
+
+    const hrefs = [
+      ...(buildHomeArticleCards(50)?.querySelectorAll<HTMLAnchorElement>('.landing-article-card') ??
+        []),
+    ].map((link) => link.getAttribute('href'));
+
+    expect(hrefs).toEqual([
+      '/articles/server-enforced-fog',
+      '/rules/crossroads-chess',
+      '/rules/dark-mini-xiangqi',
+      '/rules/dark-chess',
+    ]);
+  });
+
   it('describes Dark Mini Xiangqi as playable alpha with play CTAs', () => {
     const page = buildArticlePage('dark-mini-xiangqi');
     const links = [...page.querySelectorAll<HTMLAnchorElement>('a')].map((link) => ({

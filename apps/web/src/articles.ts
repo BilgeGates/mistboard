@@ -246,15 +246,21 @@ function buildRulesLanding(lang?: ArticleLang): HTMLElement {
 // articles, so the caller can omit it. Thumbnails are bound by the caller's
 // mountArticleThumbnails pass; rotation is started by initLandingCarousel once
 // the section is in the document (it needs measured widths).
+const HOME_ARTICLE_SLUGS = [
+  'server-enforced-fog',
+  'crossroads-chess',
+  'dark-mini-xiangqi',
+  'dark-chess',
+] as const;
+
 export function buildHomeArticleCards(limit = 8): HTMLElement | null {
-  const eligible = articles.filter(isArticleListedInThisEnv);
-  // Articles first (the featured long-form), then the rules guides — enough
-  // cards that the row has something to actually rotate through.
-  const ordered = [
-    ...eligible.filter((article) => article.kind === 'article'),
-    ...eligible.filter((article) => article.kind === 'rules'),
-  ];
-  const cards = ordered.slice(0, limit).map(landingArticleCard);
+  const eligible = new Map(
+    articles.filter(isArticleListedInThisEnv).map((article) => [article.slug, article]),
+  );
+  const cards = HOME_ARTICLE_SLUGS.flatMap((slug) => {
+    const article = eligible.get(slug);
+    return article ? [landingArticleCard(article)] : [];
+  }).slice(0, limit);
   if (cards.length === 0) return null;
 
   const section = document.createElement('section');
