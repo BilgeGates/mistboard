@@ -1,6 +1,7 @@
 import { promises as fs } from 'node:fs';
 import type { ServerResponse } from 'node:http';
-import { resolve } from 'node:path';
+import { dirname, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import {
   ARTICLE_OG_POSITIONS,
   type ArticleOgPosition,
@@ -629,7 +630,7 @@ function escapeXml(s: string): string {
 // `apps/web/public/og-image.png`, then bump the ?v= on the og:image meta in
 // apps/web/index.html so scrapers refetch.
 
-const FONT = 'system-ui, -apple-system, Helvetica, Arial, sans-serif';
+const FONT = "'Noto Sans', system-ui, -apple-system, Helvetica, Arial, sans-serif";
 
 export function renderDefaultOgSvg(logoSvg: string): string {
   const logoSize = 224;
@@ -647,12 +648,27 @@ export function renderDefaultOgSvg(logoSvg: string): string {
   ].join('');
 }
 
+// resvg renders <text> with whatever fonts it can load, and the prod
+// container has NONE — text silently vanishes (shipped textless cards until
+// 2026-06-10). Bundle Noto Sans with the server and load ONLY it, so a local
+// render is byte-identical to prod and a missing font can never ship quietly
+// again. OFL attribution: apps/web/public/fonts/CREDITS.md. CJK piece
+// characters are baked paths and never go through font resolution.
+const FONT_FILES = ['NotoSans-Regular.ttf', 'NotoSans-Bold.ttf'].map((file) =>
+  resolve(dirname(fileURLToPath(import.meta.url)), '..', 'assets', 'fonts', file),
+);
+
 // Render at 2x the SVG's nominal dimensions so the resulting PNG stays crisp
 // on retina displays and survives scraper recompression.
 export function svgToPng(svg: string, background = '#0f1115'): Buffer {
   return new Resvg(svg, {
     background,
     fitTo: { mode: 'zoom', value: 2 },
+    font: {
+      loadSystemFonts: false,
+      fontFiles: FONT_FILES,
+      defaultFontFamily: 'Noto Sans',
+    },
   })
     .render()
     .asPng();
