@@ -18,9 +18,9 @@ import { randomUUID } from 'node:crypto';
 import type { IncomingMessage } from 'node:http';
 import type { WebSocket } from 'ws';
 import { currentAccountUser } from '../account-session.js';
-import { wsCounters } from '../obs.js';
+import { logger, wsCounters } from '../obs.js';
 import { recordMessageTimestamp, seatTokenFromProtocolHeader } from '../server-policy.js';
-import { parseClientMessage } from '../server-ws-messages.js';
+import { isKnownClientMessageType, parseClientMessage } from '../server-ws-messages.js';
 import {
   appendTenantEvent,
   appendTenantSeatAssigned,
@@ -41,7 +41,9 @@ import {
   type TenantRematchContext,
 } from './rematch.js';
 import {
+  expireTenantClock,
   type TenantSnapshotPayload,
+  tenantClockRemainingMs,
   tenantPlyAtEventIndex,
   tenantSnapshotPayload,
 } from './runtime.js';
@@ -89,7 +91,11 @@ export type TenantWebSocketContext<
 > = {
   wsMessageLimit: number;
   wsMessageWindowMs: number;
-  rematch: TenantRematchContext<Kind, C, M, State, Spec, TenantLiveClient<C>>;
+  // Latency-sample observability region tag; 'global' when omitted.
+  defaultRoomRegion?: string;
+  // Rematch is a capability: tenants without a rematch flow (Dark Xiangqi)
+  // omit it and rematch:* messages are ignored.
+  rematch?: TenantRematchContext<Kind, C, M, State, Spec, TenantLiveClient<C>>;
 };
 
 export type TenantWsRuntime<
@@ -234,7 +240,7 @@ export function createTenantWsRuntime<
     scheduleEngineMove(room);
     // A player reconnecting after a rematch was finalized (while they were
     // offline) still gets routed to the new swapped-color room.
-    maybeReplayTenantRematchRedirect(ctx.rematch, room, client);
+    if (ctx.rematch) maybeReplayTenantRematchRedirect(ctx.rematch, room, client);
 
     socket.on('message', (raw) => {
       if (
@@ -271,12 +277,32 @@ export function createTenantWsRuntime<
       wsCounters.recordParseFailure();
       return;
     }
+    if (!isKnownClientMessageType(message.type)) {
+      wsCounters.recordUnknownMessage();
+      logger.warn(
+        {
+          kind: 'ws_unknown_message',
+          room_id: room.id,
+          client_id: client.id,
+          message_type: message.type,
+        },
+        'ws unknown message',
+      );
+      return;
+    }
     if (message.type === 'ping') {
       sendPayload(client, {
         type: 'pong',
         at: typeof message.at === 'number' ? message.at : Date.now(),
         serverAt: Date.now(),
       });
+      return;
+    }
+    if (message.type === 'latency-sample') {
+      if (typeof message.rttMs === 'number' && Number.isFinite(message.rttMs)) {
+        const rttMs = Math.max(0, Math.min(60_000, Math.round(message.rttMs)));
+        wsCounters.recordLatencySample(ctx.defaultRoomRegion ?? 'global', rttMs);
+      }
       return;
     }
     if (message.type === 'snapshot:request') {
@@ -293,16 +319,17 @@ export function createTenantWsRuntime<
       return;
     }
     if (message.type === 'rematch:offer') {
+      if (!ctx.rematch) return;
       offerTenantRematch(tenant, ctx.rematch, room, client);
       await finalizeTenantRematchIfReady(tenant, ctx.rematch, room);
       return;
     }
     if (message.type === 'rematch:cancel') {
-      cancelTenantRematch(tenant, ctx.rematch, room, client);
+      if (ctx.rematch) cancelTenantRematch(tenant, ctx.rematch, room, client);
       return;
     }
     if (message.type === 'rematch:decline') {
-      declineTenantRematch(tenant, ctx.rematch, room, client);
+      if (ctx.rematch) declineTenantRematch(tenant, ctx.rematch, room, client);
       return;
     }
     if (message.type !== 'move') return;
@@ -316,6 +343,20 @@ export function createTenantWsRuntime<
       if (!room.projection.seats[color]) return;
     }
     if (status.turn !== client.seat) return;
+    // A move that arrives after the mover's flag fell but before the clock
+    // timer fired ends the game by expiry instead of landing the move (the
+    // chess-stack rule; closes the timer race for every tenant). The guard is
+    // synchronous so the un-expired common path keeps its microtask timing.
+    const activeClock = room.projection.clock;
+    const activeColor = activeClock?.activeColor ?? null;
+    if (
+      activeClock &&
+      activeColor !== null &&
+      tenantClockRemainingMs(activeClock, activeColor, Date.now()) <= 0
+    ) {
+      await expireActiveClock(room, client, activeClock, activeColor);
+      return;
+    }
     // State-dependent canonicalization (when the tenant defines it) resolves
     // the parsed move to the exact legal-move object to append — e.g.
     // Crossroads re-attaches `promotion` from the legal-move list. It doubles
@@ -344,6 +385,33 @@ export function createTenantWsRuntime<
     broadcastEventAppended(room, event, seq);
     // PvE: it may now be the engine's turn (no-op for PvP / engine not to move).
     scheduleEngineMove(room);
+  }
+
+  async function expireActiveClock(
+    room: LiveRoom,
+    client: LiveClient,
+    clock: NonNullable<LiveRoom['projection']['clock']>,
+    activeColor: C,
+  ): Promise<void> {
+    const now = Date.now();
+    const expiredClock = expireTenantClock(clock, now, activeColor);
+    if (!expiredClock) return;
+    const event: TenantRoomEvent<C, M, Spec> = {
+      type: 'clock-expired',
+      at: now,
+      roomId: room.id,
+      color: activeColor,
+      clock: expiredClock,
+    };
+    let seq: number;
+    try {
+      seq = await appendTenantEvent(tenant, room, event, eventWriterCtx);
+    } catch (err) {
+      recordTenantPersistenceError(tenant, room.id, room.events.length, event.type, err as Error);
+      client.socket.close(1011, 'persistence failure');
+      return;
+    }
+    broadcastEventAppended(room, event, seq);
   }
 
   async function handleResign(room: LiveRoom, client: LiveClient): Promise<void> {
@@ -452,8 +520,10 @@ export function createTenantWsRuntime<
 
 export { clearTenantRuntimeTimers };
 
+// The chess-stack client-id rule (shared with the dark-xiangqi handler it
+// replaced): bounded length, URL/log-safe charset. Anything else falls back to
+// a server-minted UUID exactly like a missing param.
 function parseClientId(value: string | null): string | null {
   if (!value) return null;
-  const trimmed = value.trim();
-  return trimmed.length > 0 && trimmed.length <= 128 ? trimmed : null;
+  return /^[a-zA-Z0-9:_-]{8,80}$/.test(value) ? value : null;
 }
