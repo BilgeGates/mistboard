@@ -185,6 +185,7 @@ Run with `MISTBOARD_ALLOW_IN_MEMORY_PERSISTENCE=true npm run test:integration --
 | `styles.css` | Remaining shared board, live-game, replay, and gameplay surface styles |
 | `live-state.ts` | Live-game module state (`liveState`, seat-token storage, WS base URL resolver) |
 | `live-socket.ts` | WebSocket connect / reconnect / send for live games |
+| `variant-tenant/` | Generic tenant room chrome for variant live rooms hosted in the shared shell: `room-chrome.ts` (clocks/countdowns/action status/room actions over a `WebVariantTenant` + lazy state accessors), `replay-controller.ts` (index-based fog-safe replay scrubber; capture stays tenant-owned), `chrome-dom.ts` (element factories). DMX is the reference tenant. |
 | `live-render.ts` | Live-game render orchestration: board and draft picker. Reads board helpers from `live-board.ts`, capture rows from `live-captures.ts`, clock rendering from `live-clocks.ts`, dev-view rendering from `live-dev-views.ts`, game controls from `live-game-controls.ts`, room actions from `live-room-actions.ts`, replay/move-list rendering from `live-move-list.ts`, replay state via accessors from `live-replay.ts`, and derived views from `live-view.ts`. Layout shell is in `live-layout.ts`; sound subsystem is in `live-sound.ts`. |
 | `live-board.ts` | Live-game board adapter helpers: fog highlight classes, result classes, legal destination maps, castling aliases, and square file helpers |
 | `live-captures.ts` | Live-game capture strip rows and chessground-styled captured-piece DOM helpers |

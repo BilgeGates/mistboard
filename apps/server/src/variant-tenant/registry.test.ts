@@ -28,8 +28,5 @@ test('registry: re-registration is idempotent for the same kind, throws across k
   const before = registeredVariantTenants().length;
   registerVariantTenant(dmx);
   assert.equal(registeredVariantTenants().length, before);
-  assert.throws(
-    () => registerVariantTenant({ ...dmx, kind: 'other-variant' }),
-    /prefix collision/,
-  );
+  assert.throws(() => registerVariantTenant({ ...dmx, kind: 'other-variant' }), /prefix collision/);
 });

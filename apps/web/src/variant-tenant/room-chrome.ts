@@ -1,0 +1,575 @@
+/**
+ * Generic live-room chrome for variant tenants hosted in the shared live shell:
+ * two-seat clocks (pregame + armed + turn flash + 100ms tick), abort/forfeit
+ * countdowns, the action-status notice, game controls (abort/resign with
+ * confirm), and the room-action row (review / rematch / play-again / invite /
+ * home). Extracted from the Dark Mini Xiangqi room (the web reference tenant);
+ * strings and DOM structure are behavior the DMX vitest suite pins.
+ *
+ * A chrome instance is created once per tenant module
+ * (createTenantRoomChrome) and reads live values lazily through the
+ * TenantChromeContext accessor functions, so the 100ms ticks always see
+ * current state without a full re-render. Board rendering, move lists, replay
+ * capture, and sounds stay tenant-owned.
+ */
+
+import { openConfirmDialog } from '../confirm-dialog.js';
+import { maybePlayLowTimeSound } from '../live-sound.js';
+import type { LiveRefs } from '../live-state.js';
+import { formatClock } from '../web-utils.js';
+import {
+  capitalize,
+  infoItem,
+  noticeBody,
+  noticeTitle,
+  presenceDot,
+  roomLink,
+} from './chrome-dom.js';
+
+// Structural slice of a variant PlayerView the chrome reads (same status shape
+// as the server-side TenantGameStatus).
+export type TenantWebStatus<C extends string> =
+  | { type: 'playing'; turn: C }
+  | { type: 'finished'; winner: C | null; reason: string }
+  | { type: 'aborted'; reason: string };
+
+export type TenantWebView<C extends string> = {
+  id: string;
+  status: TenantWebStatus<C>;
+  moveNumber: number;
+};
+
+export type TenantWebClock<C extends string> = {
+  activeColor: C | null;
+  incrementMs: number;
+  initialMs: number;
+  remainingMs: Record<C, number>;
+  runningSince: number | null;
+};
+
+export type WebVariantTenant<C extends string> = {
+  displayName: string;
+  // Move order: [first mover, second mover]; also the board's default
+  // top-to-bottom reading for a colors[0] viewer.
+  colors: readonly [C, C];
+  isColor(value: unknown): value is C;
+  oppositeColor(color: C): C;
+  enabled(): boolean;
+  reviewUrl(roomId: string): string;
+  reasonPhrase(reason: string): string;
+  disabledTitle: string;
+  disabledBody: string;
+  rejectedBody: string;
+  spectatorBody: string;
+  selectInstruction: string;
+};
+
+export type TenantChromeContext<C extends string> = {
+  // Live (never replay-scrubbed) view, or null before the first frame.
+  view(): TenantWebView<C> | null;
+  seat(): unknown;
+  connectionState(): string;
+  clock(): TenantWebClock<C> | null | undefined;
+  timeControl(): { initialMs: number; incrementMs: number } | null | undefined;
+  connectedSeats(): Partial<Record<C, boolean>>;
+  abortDeadline(): number | null;
+  forfeitDeadline(): number | null;
+  roomMode(): string;
+  room(): string;
+  debugRequested(): boolean;
+  isReplayLive(): boolean;
+  // The viewer's bottom-of-board color (seat when seated, else perspective).
+  orientation(): C;
+  playAgainRequestBody(): Record<string, unknown>;
+  // Post-game rematch block for a seated player, or null to fall back to
+  // play-again. Tenant-owned because the shared control reads liveState.
+  rematchControls(sendSocket: (payload: unknown) => boolean): HTMLElement | null;
+};
+
+// The instance API is fully variant-erased: every method reads through the
+// tenant + context bound at creation.
+export type TenantRoomChrome = {
+  setRenderTarget(
+    refs: LiveRefs,
+    callbacks: { reconnectNow: () => void; sendSocket: (payload: unknown) => boolean },
+  ): void;
+  resetState(): void;
+  resetHostPanels(): void;
+  renderClocks(): void;
+  tickClocks(): void;
+  renderMeta(): void;
+  renderRoomActions(): void;
+  renderActionStatus(): void;
+  renderGameControls(): void;
+  tickCountdowns(): void;
+};
+
+export function createTenantRoomChrome<C extends string>(
+  tenant: WebVariantTenant<C>,
+  ctx: TenantChromeContext<C>,
+): TenantRoomChrome {
+  let refs: LiveRefs | null = null;
+  let sendSocket: (payload: unknown) => boolean = () => false;
+  let reconnectNow: () => void = () => {};
+  let playAgainStatus: 'idle' | 'creating' | 'failed' = 'idle';
+  // Previous active clock color across full clock renders, used to flash the
+  // seated player's clock on the turn flip (mirrors the chess clock).
+  let lastActiveClockColor: C | null = null;
+
+  function seatColor(): C | null {
+    const seat = ctx.seat();
+    return tenant.isColor(seat) ? seat : null;
+  }
+
+  function setRenderTarget(
+    nextRefs: LiveRefs,
+    callbacks: { reconnectNow: () => void; sendSocket: (payload: unknown) => boolean },
+  ): void {
+    refs = nextRefs;
+    sendSocket = callbacks.sendSocket;
+    reconnectNow = callbacks.reconnectNow;
+  }
+
+  function resetState(): void {
+    playAgainStatus = 'idle';
+    lastActiveClockColor = null;
+  }
+
+  // Hide/clear the chess-only panels of the shared live shell so a tenant room
+  // never shows stale host chrome.
+  function resetHostPanels(): void {
+    if (!refs) return;
+    refs.offerSection.hidden = true;
+    refs.selectionSection.hidden = true;
+    refs.devViewsSection.hidden = true;
+    refs.gameControlsSection.hidden = true;
+    refs.draftPicker.hidden = true;
+    refs.promotion.hidden = true;
+    refs.boardPaused.hidden = true;
+    refs.capturesBottom.replaceChildren();
+    refs.capturesTop.replaceChildren();
+    refs.clockTop.replaceChildren();
+    refs.clockBottom.replaceChildren();
+    refs.clockNote.hidden = true;
+  }
+
+  // Renders the two-seat clock into the shared clock slots. Top slot is the
+  // opponent (relative to the viewer's orientation), bottom is the viewer.
+  // Untimed games render nothing.
+  function renderClocks(): void {
+    if (!refs) return;
+    refs.clockTop.replaceChildren();
+    refs.clockBottom.replaceChildren();
+    refs.clockNote.hidden = true;
+    refs.clockNote.textContent = '';
+
+    const timeControl = ctx.timeControl();
+    if (!timeControl) return;
+
+    const clock = ctx.clock();
+    const view = ctx.view();
+    const orientation = ctx.orientation();
+    const colors: C[] = [tenant.oppositeColor(orientation), orientation];
+    const armed = !!clock && (clock.activeColor !== null || clock.runningSince !== null);
+
+    if (!clock || !armed) {
+      const incrementSec = Math.round(timeControl.incrementMs / 1000);
+      const tcLabel =
+        incrementSec > 0
+          ? `${formatClock(timeControl.initialMs)}+${incrementSec}`
+          : formatClock(timeControl.initialMs);
+      colors.forEach((color, index) => {
+        const row = document.createElement('div');
+        row.className = 'pregame';
+        row.dataset.color = color;
+        const label = document.createElement('span');
+        label.textContent = capitalize(color);
+        const time = document.createElement('strong');
+        time.textContent = formatClock(clock ? clock.remainingMs[color] : timeControl.initialMs);
+        row.append(label, time);
+        (index === 0 ? refs!.clockTop : refs!.clockBottom).append(row);
+      });
+      // Only show the "clock starts after the opening moves" hint while the game
+      // is actually pregame — not once it's finished/aborted (the clock just sits
+      // unarmed at the final times, and the hint would be stale).
+      const ended = view?.status.type === 'finished' || view?.status.type === 'aborted';
+      refs.clockNote.textContent = ended ? '' : `${tcLabel} · clock starts after the opening moves`;
+      refs.clockNote.hidden = ended;
+      lastActiveClockColor = null;
+      return;
+    }
+
+    const displayAt = ctx.isReplayLive() ? Date.now() : (clock.runningSince ?? Date.now());
+    const playing = view?.status.type === 'playing';
+    const activeColor = playing ? clock.activeColor : null;
+    const humanColor = seatColor();
+    // Flash fires once on the turn flip into the seated player's clock; skip the
+    // first armed render so the initial activation does not flash.
+    const flashThisRender =
+      playing &&
+      humanColor !== null &&
+      activeColor === humanColor &&
+      lastActiveClockColor !== null &&
+      lastActiveClockColor !== humanColor;
+    colors.forEach((color, index) => {
+      const isActive = activeColor === color;
+      const row = document.createElement('div');
+      row.dataset.color = color;
+      row.className = isActive
+        ? flashThisRender
+          ? 'clock-time-row active just-activated'
+          : 'clock-time-row active'
+        : 'clock-time-row';
+      const playerLine = document.createElement('span');
+      playerLine.className = isActive ? 'clock-player-line active' : 'clock-player-line';
+      playerLine.append(presenceDot(ctx.connectedSeats()[color] ?? false));
+      const nameEl = document.createElement('span');
+      nameEl.className = 'clock-name';
+      const name = color === ctx.seat() ? 'You' : capitalize(color);
+      nameEl.textContent = name;
+      nameEl.title = name;
+      playerLine.append(nameEl);
+      const toMove = document.createElement('span');
+      toMove.className = 'clock-to-move';
+      toMove.textContent = 'to move';
+      toMove.setAttribute('aria-hidden', isActive ? 'false' : 'true');
+      playerLine.append(toMove);
+      const time = document.createElement('strong');
+      const remainingMs = clockRemainingMs(clock, color, displayAt);
+      time.textContent = formatClock(remainingMs, isActive && remainingMs < 10_000);
+      row.append(time);
+      const slot = index === 0 ? refs!.clockTop : refs!.clockBottom;
+      if (index === 0) slot.append(playerLine, row);
+      else slot.append(row, playerLine);
+    });
+    lastActiveClockColor = activeColor;
+  }
+
+  // Lightweight per-tick refresh (100ms). Updates only the time text and
+  // low-time emphasis on existing rows; falls back to a full clock render if
+  // the rows have not been built yet.
+  function tickClocks(): void {
+    if (!refs) return;
+    const clock = ctx.clock();
+    const view = ctx.view();
+    if (!clock || !ctx.timeControl() || view?.status.type !== 'playing') return;
+    if (clock.activeColor === null && clock.runningSince === null) return;
+    if (refs.clockTop.children.length === 0 || refs.clockBottom.children.length === 0) {
+      renderClocks();
+      return;
+    }
+    const displayAt = ctx.isReplayLive() ? Date.now() : (clock.runningSince ?? Date.now());
+    const seatedColor = ctx.isReplayLive() ? seatColor() : null;
+    const rows = [...Array.from(refs.clockTop.children), ...Array.from(refs.clockBottom.children)];
+    for (const row of rows as HTMLDivElement[]) {
+      const color = row.dataset.color;
+      if (!tenant.isColor(color)) continue;
+      const isActive = clock.activeColor === color;
+      const remainingMs = clockRemainingMs(clock, color, displayAt);
+      if (color === seatedColor && view) {
+        maybePlayLowTimeSound(view.id, remainingMs, ctx.timeControl()?.initialMs ?? null);
+      }
+      const strong = row.querySelector('strong');
+      if (strong) strong.textContent = formatClock(remainingMs, isActive && remainingMs < 10_000);
+    }
+  }
+
+  function renderMeta(): void {
+    if (!refs) return;
+    const seat = seatColor();
+    refs.gameInfo.replaceChildren(
+      infoItem('Variant', tenant.displayName),
+      infoItem('Mode', 'Casual'),
+      infoItem('Seat', seat ? capitalize(seat) : 'Spectator'),
+    );
+    if (ctx.debugRequested()) {
+      refs.roomMeta.textContent = `${tenant.displayName}${seat ? ` · Playing as ${capitalize(seat)}` : ''}`;
+    }
+  }
+
+  function renderRoomActions(): void {
+    if (!refs) return;
+    refs.roomActions.replaceChildren();
+    const row = document.createElement('div');
+    row.className = 'room-actions-row';
+    const view = ctx.view();
+
+    if (view?.status.type === 'finished' || view?.status.type === 'aborted') {
+      // Only finished games have a postgame review (the endpoint 404s otherwise).
+      if (view.status.type === 'finished') {
+        const review = roomLink('Review game', tenant.reviewUrl(ctx.room()));
+        review.className = 'primary';
+        row.append(review);
+      }
+      // Finished PvP games offer a mutual-confirm rematch with colors swapped;
+      // PvE and non-seated finished games get an instant new room. Aborted games
+      // offer NO play-again — an instant new room after an abort creates a fresh
+      // solo room where the mover can play before the opponent joins.
+      if (view.status.type === 'finished' && ctx.roomMode() === 'pvp') {
+        const rematch = ctx.rematchControls(sendSocket);
+        if (rematch) row.append(rematch);
+        else row.append(playAgainButton());
+      } else if (view.status.type === 'finished') {
+        row.append(playAgainButton());
+      }
+      row.append(roomLink('Home', '/'));
+      refs.roomActions.append(row);
+      return;
+    }
+
+    row.append(copyInviteButton());
+    refs.roomActions.append(row);
+  }
+
+  function copyInviteButton(): HTMLButtonElement {
+    const copy = document.createElement('button');
+    copy.type = 'button';
+    copy.textContent = 'Copy invite';
+    copy.addEventListener('click', () => {
+      navigator.clipboard
+        ?.writeText(window.location.href)
+        .then(() => {
+          copy.textContent = 'Link copied!';
+          setTimeout(() => {
+            copy.textContent = 'Copy invite';
+          }, 2000);
+        })
+        .catch(() => {});
+    });
+    return copy;
+  }
+
+  function playAgainButton(): HTMLButtonElement {
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.className = playAgainStatus === 'failed' ? 'danger' : 'primary';
+    button.disabled = playAgainStatus === 'creating';
+    button.textContent =
+      playAgainStatus === 'creating'
+        ? 'Creating'
+        : playAgainStatus === 'failed'
+          ? 'Try play again'
+          : 'Play again';
+    button.addEventListener('click', () => {
+      void createPlayAgainRoom();
+    });
+    return button;
+  }
+
+  async function createPlayAgainRoom(): Promise<void> {
+    playAgainStatus = 'creating';
+    renderRoomActions();
+    try {
+      const response = await fetch('/api/rooms', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify(ctx.playAgainRequestBody()),
+      });
+      if (!response.ok) throw new Error(`play-again failed: ${response.status}`);
+      const data = (await response.json()) as { url?: string };
+      if (!data.url) throw new Error('play-again did not return a URL');
+      window.location.assign(data.url);
+    } catch (err) {
+      console.warn(err);
+      playAgainStatus = 'failed';
+      renderRoomActions();
+    }
+  }
+
+  function renderActionStatus(): void {
+    if (!refs) return;
+    refs.actionStatus.replaceChildren();
+    refs.actionSection.hidden = false;
+    const view = ctx.view();
+    // During normal connected play, hide the turn notice — the board, clocks,
+    // and turn flash already convey whose move it is.
+    if (
+      view?.status.type === 'playing' &&
+      seatColor() !== null &&
+      ctx.connectionState() === 'connected'
+    ) {
+      refs.actionSection.hidden = true;
+      return;
+    }
+    const notice = document.createElement('div');
+
+    if (!tenant.enabled()) {
+      notice.className = 'action-notice danger';
+      notice.append(noticeTitle(tenant.disabledTitle), noticeBody(tenant.disabledBody));
+      refs.actionStatus.append(notice);
+      return;
+    }
+
+    notice.className = `action-notice ${actionTone(view)}`;
+    notice.append(noticeTitle(actionTitle(view)), noticeBody(actionBody(view)));
+    if (ctx.connectionState() === 'disconnected' || ctx.connectionState() === 'reconnecting') {
+      const reconnect = document.createElement('button');
+      reconnect.type = 'button';
+      reconnect.textContent = 'Reconnect now';
+      reconnect.addEventListener('click', () => reconnectNow());
+      notice.append(reconnect);
+    }
+    refs.actionStatus.append(notice);
+  }
+
+  function actionTone(view: TenantWebView<C> | null): 'danger' | 'default' | 'pending' | 'success' {
+    if (ctx.connectionState() === 'rejected' || ctx.connectionState() === 'displaced') {
+      return 'danger';
+    }
+    if (!view || ctx.connectionState() !== 'connected') return 'pending';
+    if (view.status.type === 'playing' && ctx.seat() === view.status.turn) return 'success';
+    return 'default';
+  }
+
+  function actionTitle(view: TenantWebView<C> | null): string {
+    if (ctx.connectionState() === 'rejected') return 'Room unavailable';
+    if (ctx.connectionState() === 'displaced') return 'Session moved';
+    if (!view) return 'Connecting';
+    if (view.status.type === 'finished') return 'Game finished';
+    if (view.status.type === 'aborted') return 'Game aborted';
+    if (ctx.seat() === view.status.turn) return 'Your move';
+    return `${capitalize(view.status.turn)} to move`;
+  }
+
+  function actionBody(view: TenantWebView<C> | null): string {
+    if (ctx.connectionState() === 'rejected') return tenant.rejectedBody;
+    if (ctx.connectionState() === 'displaced') return 'Another tab reclaimed this seat.';
+    if (!view) return 'Opening the room socket.';
+    if (view.status.type === 'finished') {
+      const reason = tenant.reasonPhrase(view.status.reason);
+      return view.status.winner
+        ? `${capitalize(view.status.winner)} wins by ${reason}.`
+        : `Draw by ${reason}.`;
+    }
+    if (view.status.type === 'aborted') {
+      return 'This game ended before both sides completed their first move.';
+    }
+    if (ctx.seat() === 'spectator') return tenant.spectatorBody;
+    if (ctx.seat() === view.status.turn) return tenant.selectInstruction;
+    return 'Waiting for the opponent.';
+  }
+
+  function renderGameControls(): void {
+    if (!refs) return;
+    refs.gameControls.replaceChildren();
+    refs.gameControlsSection.hidden = true;
+    const view = ctx.view();
+    if (!view || view.status.type !== 'playing' || seatColor() === null) return;
+
+    const children: HTMLElement[] = [];
+    const isSideToMove = view.status.turn === ctx.seat();
+
+    if (view.moveNumber < 2) {
+      // The abort countdown shows to both seats (timing only, no board state) so
+      // the waiting side understands the pause; only the side to move gets the
+      // button.
+      if (ctx.abortDeadline() !== null) {
+        const countdown = document.createElement('span');
+        countdown.className = 'abort-countdown';
+        countdown.dataset.abortCountdown = '';
+        countdown.textContent = abortCountdownText(isSideToMove);
+        children.push(countdown);
+      }
+      if (isSideToMove) {
+        const abort = document.createElement('button');
+        abort.type = 'button';
+        abort.className = 'danger';
+        abort.textContent = 'Abort';
+        abort.addEventListener('click', () => {
+          openConfirmDialog({
+            title: 'Abort this game?',
+            body: 'This ends the room without recording a result.',
+            confirmLabel: 'Abort',
+            confirmTone: 'danger',
+            onConfirm: () => sendSocket({ type: 'abort' }),
+          });
+        });
+        children.push(abort);
+      }
+      refs.gameControls.replaceChildren(...children);
+      refs.gameControlsSection.hidden = children.length === 0;
+      return;
+    }
+
+    // Post-move-1: only the present winning seat receives forfeitDeadline, so
+    // this banner always reads from the beneficiary's point of view.
+    if (ctx.forfeitDeadline() !== null) {
+      const banner = document.createElement('span');
+      banner.className = 'forfeit-countdown';
+      banner.dataset.forfeitCountdown = '';
+      banner.textContent = forfeitCountdownText();
+      children.push(banner);
+    }
+    const resign = document.createElement('button');
+    resign.type = 'button';
+    resign.className = 'danger';
+    resign.textContent = 'Resign';
+    resign.addEventListener('click', () => {
+      openConfirmDialog({
+        title: 'Resign this game?',
+        body: 'Your opponent wins. This cannot be undone.',
+        confirmLabel: 'Resign',
+        confirmTone: 'danger',
+        onConfirm: () => sendSocket({ type: 'resign' }),
+      });
+    });
+    children.push(resign);
+    refs.gameControls.replaceChildren(...children);
+    refs.gameControlsSection.hidden = false;
+  }
+
+  // Driven by the 100ms tick loop so the abort/forfeit countdowns advance
+  // without a full re-render. Only touches existing text; renderGameControls
+  // owns creation.
+  function tickCountdowns(): void {
+    if (!refs) return;
+    const view = ctx.view();
+    const abortEl = refs.gameControls.querySelector<HTMLElement>('[data-abort-countdown]');
+    if (abortEl && view?.status.type === 'playing' && view.moveNumber < 2) {
+      abortEl.textContent = abortCountdownText(view.status.turn === ctx.seat());
+    }
+    const forfeitEl = refs.gameControls.querySelector<HTMLElement>('[data-forfeit-countdown]');
+    if (forfeitEl && ctx.forfeitDeadline() !== null) {
+      forfeitEl.textContent = forfeitCountdownText();
+    }
+  }
+
+  function abortCountdownText(isSideToMove: boolean): string {
+    const deadline = ctx.abortDeadline();
+    const remaining = deadline === null ? 0 : deadline - Date.now();
+    const seconds = Math.max(0, Math.ceil(remaining / 1000));
+    return isSideToMove
+      ? `Make your first move, aborting in ${seconds}s`
+      : `Waiting for first move, aborting in ${seconds}s`;
+  }
+
+  function forfeitCountdownText(): string {
+    const deadline = ctx.forfeitDeadline();
+    const remaining = deadline === null ? 0 : deadline - Date.now();
+    const seconds = Math.max(0, Math.ceil(remaining / 1000));
+    return `Opponent left, you win in ${seconds}s`;
+  }
+
+  return {
+    setRenderTarget,
+    resetState,
+    resetHostPanels,
+    renderClocks,
+    tickClocks,
+    renderMeta,
+    renderRoomActions,
+    renderActionStatus,
+    renderGameControls,
+    tickCountdowns,
+  };
+}
+
+function clockRemainingMs<C extends string>(
+  clock: TenantWebClock<C>,
+  color: C,
+  at: number,
+): number {
+  const remaining = clock.remainingMs[color];
+  if (clock.activeColor !== color || clock.runningSince === null) return remaining;
+  return Math.max(0, remaining - Math.max(0, at - clock.runningSince));
+}
