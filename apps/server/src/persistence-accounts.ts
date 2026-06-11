@@ -388,7 +388,7 @@ async function queryUserGames(
             games.ply_count, games.started_at, games.ended_at,
             games.white_name, games.black_name, games.corpus_id,
             games.initial_ms, games.increment_ms,
-            COALESCE(games.rated, true) AS rated, games.visibility,
+            COALESCE(games.rated, false) AS rated, games.visibility,
             COUNT(*) OVER() AS total_count
      FROM game_participants
      JOIN games ON games.room_id = game_participants.game_id

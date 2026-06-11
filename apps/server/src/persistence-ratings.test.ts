@@ -557,10 +557,11 @@ definePersistenceTests('ratings', () => {
     assert.equal(dmxRating?.eloRating, null);
     assert.equal(dmxRating?.ratedGamesPlayed, 0);
     assert.equal(dmxRating?.totalGamesPlayed, 1);
-    assert.equal(
-      profile?.ratings.some((rating) => rating.variant === 'fog'),
-      false,
-    );
+    const fogRating = profile?.ratings.find((rating) => rating.variant === 'fog');
+    assert.equal(fogRating?.timeClass, 'blitz');
+    assert.equal(fogRating?.eloRating, null);
+    assert.equal(fogRating?.ratedGamesPlayed, 0);
+    assert.equal(fogRating?.totalGamesPlayed, 1);
   });
 
   test('getUserProfileByHandle shows viewer-owned private Crossroads Chess activity bucket', async () => {

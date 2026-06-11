@@ -141,6 +141,7 @@ type GameRow = {
   white_name: string | null;
   black_name: string | null;
   corpus_id: string | null;
+  rated: boolean;
   visibility: GameVisibility;
 };
 
@@ -162,6 +163,7 @@ const RECENT_EVE_SELECT_COLUMNS = `games.room_id, games.variant, games.mode, gam
             eve_games.job_id, eve_games.game_index,
             eve_games.white_engine_id, eve_games.black_engine_id,
             eve_games.time_control,
+            COALESCE(games.rated, false) AS rated,
             games.visibility`;
 
 function gameRecordFromRow(row: GameRow): GameRecord {
@@ -177,7 +179,7 @@ function gameRecordFromRow(row: GameRow): GameRecord {
     whiteName: row.white_name,
     blackName: row.black_name,
     corpusId: row.corpus_id,
-    rated: true,
+    rated: row.rated,
     visibility: row.visibility,
     participants: [],
   };
@@ -199,7 +201,7 @@ function recentEveGameRecordFromRow(row: RecentEveGameRow): RecentEveGameRecord 
 export async function listCorpusGames(corpusId: string, limit = 100): Promise<GameRecord[]> {
   const { rows } = await getPool().query<GameRow>(
     `SELECT room_id, variant, mode, result, termination, ply_count, started_at, ended_at,
-            white_name, black_name, corpus_id, visibility
+            white_name, black_name, corpus_id, COALESCE(rated, false) AS rated, visibility
      FROM games
      WHERE corpus_id = $1
        AND status = 'completed'
@@ -380,7 +382,7 @@ export async function getEngineProfile(engineId: string): Promise<EngineProfile 
             games.ply_count, games.started_at, games.ended_at,
             games.white_name, games.black_name, games.corpus_id,
             games.initial_ms, games.increment_ms,
-            COALESCE(games.rated, true) AS rated, games.visibility
+            COALESCE(games.rated, false) AS rated, games.visibility
      FROM game_participants
      JOIN games ON games.room_id = game_participants.game_id
      WHERE game_participants.subject_type = 'engine-version'
@@ -909,7 +911,7 @@ export async function recordGameEnd(roomId: string, summary: GameSummary): Promi
   const visibility = summary.visibility ?? 'public';
   try {
     await client.query('BEGIN');
-    const rated = summary.rated ?? true;
+    const rated = summary.rated ?? false;
     await client.query(
       `INSERT INTO games
          (room_id, variant, result, termination, ply_count, started_at, ended_at,
