@@ -84,6 +84,9 @@ export type TenantChromeContext<C extends string> = {
   // Post-game rematch block for a seated player, or null to fall back to
   // play-again. Tenant-owned because the shared control reads liveState.
   rematchControls(sendSocket: (payload: unknown) => boolean): HTMLElement | null;
+  // Optional suffix on the meta panel's Variant row (e.g. a time-control
+  // label: "Crossroads Chess · 5+5").
+  variantDetail?(): string | null;
 };
 
 // The instance API is fully variant-erased: every method reads through the
@@ -277,14 +280,28 @@ export function createTenantRoomChrome<C extends string>(
   function renderMeta(): void {
     if (!refs) return;
     const seat = seatColor();
+    const detail = ctx.variantDetail?.() ?? null;
     refs.gameInfo.replaceChildren(
-      infoItem('Variant', tenant.displayName),
+      infoItem('Variant', detail ? `${tenant.displayName} · ${detail}` : tenant.displayName),
       infoItem('Mode', 'Casual'),
       infoItem('Seat', seat ? capitalize(seat) : 'Spectator'),
     );
     if (ctx.debugRequested()) {
       refs.roomMeta.textContent = `${tenant.displayName}${seat ? ` · Playing as ${capitalize(seat)}` : ''}`;
     }
+  }
+
+  // PvP invite window: the viewer is seated, the game has not really started
+  // (no completed first full move), and the opponent's seat has no live
+  // connection. Engine seats are reported connected by the server, so PvE
+  // rooms never read as waiting.
+  function waitingForOpponent(): boolean {
+    const view = ctx.view();
+    if (!view || view.status.type !== 'playing' || view.moveNumber >= 2) return false;
+    if (ctx.connectionState() !== 'connected') return false;
+    const seat = seatColor();
+    if (seat === null) return false;
+    return ctx.connectedSeats()[tenant.oppositeColor(seat)] !== true;
   }
 
   function renderRoomActions(): void {
@@ -324,6 +341,7 @@ export function createTenantRoomChrome<C extends string>(
   function copyInviteButton(): HTMLButtonElement {
     const copy = document.createElement('button');
     copy.type = 'button';
+    if (waitingForOpponent()) copy.className = 'primary';
     copy.textContent = 'Copy invite';
     copy.addEventListener('click', () => {
       navigator.clipboard
@@ -382,11 +400,14 @@ export function createTenantRoomChrome<C extends string>(
     refs.actionSection.hidden = false;
     const view = ctx.view();
     // During normal connected play, hide the turn notice — the board, clocks,
-    // and turn flash already convey whose move it is.
+    // and turn flash already convey whose move it is. Keep it for a scrubbed
+    // replay ("Viewing replay") and the invite window ("Invite opponent").
     if (
       view?.status.type === 'playing' &&
       seatColor() !== null &&
-      ctx.connectionState() === 'connected'
+      ctx.connectionState() === 'connected' &&
+      ctx.isReplayLive() &&
+      !waitingForOpponent()
     ) {
       refs.actionSection.hidden = true;
       return;
@@ -417,6 +438,7 @@ export function createTenantRoomChrome<C extends string>(
       return 'danger';
     }
     if (!view || ctx.connectionState() !== 'connected') return 'pending';
+    if (!ctx.isReplayLive()) return 'default';
     if (view.status.type === 'playing' && ctx.seat() === view.status.turn) return 'success';
     return 'default';
   }
@@ -425,6 +447,8 @@ export function createTenantRoomChrome<C extends string>(
     if (ctx.connectionState() === 'rejected') return 'Room unavailable';
     if (ctx.connectionState() === 'displaced') return 'Session moved';
     if (!view) return 'Connecting';
+    if (!ctx.isReplayLive()) return 'Viewing replay';
+    if (waitingForOpponent()) return 'Invite opponent';
     if (view.status.type === 'finished') return 'Game finished';
     if (view.status.type === 'aborted') return 'Game aborted';
     if (ctx.seat() === view.status.turn) return 'Your move';
@@ -435,6 +459,8 @@ export function createTenantRoomChrome<C extends string>(
     if (ctx.connectionState() === 'rejected') return tenant.rejectedBody;
     if (ctx.connectionState() === 'displaced') return 'Another tab reclaimed this seat.';
     if (!view) return 'Opening the room socket.';
+    if (!ctx.isReplayLive()) return 'Return to latest before making a move.';
+    if (waitingForOpponent()) return 'Copy the invite link and send it to your opponent.';
     if (view.status.type === 'finished') {
       const reason = tenant.reasonPhrase(view.status.reason);
       return view.status.winner

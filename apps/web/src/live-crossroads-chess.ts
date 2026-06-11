@@ -6,8 +6,12 @@
 // open PlayerView directly and never touches the fog-critical shared shell.
 // The connection state machine (reconnects, displacement, seq-gap resync,
 // seat-token hand-off) lives in the generic tenant socket client
-// (variant-tenant/socket-client.ts, extracted from this module); frame
-// application and all rendering stay Crossroads-owned here.
+// (variant-tenant/socket-client.ts, extracted from this module), and the
+// room chrome (clocks, abort/forfeit countdowns, action status with confirm
+// dialogs, room actions) is the shared tenant chrome
+// (variant-tenant/room-chrome.ts, the DMX-pinned baseline); frame
+// application, the open board, move list, replay scrub, rematch block, and
+// sounds stay Crossroads-owned here.
 //
 // Wire protocol locked by server-ws-crossroads-chess.test.ts: hello / snapshot carry
 // the full open view + events; event-appended is the steady-state delta. The
@@ -32,20 +36,17 @@ import {
   gameSpecAnalyticsPropsForId,
 } from './analytics.js';
 import { renderCrossroadsChessBoardSvg } from './crossroads-chess-render.js';
+import { crossroadsChessEnabled } from './feature-flags.js';
 import {
   maybePlayCrossroadsChessSnapshotSound,
   resetCrossroadsChessSoundState,
   soundForOwnCrossroadsChessMove,
 } from './live-crossroads-chess-sound.js';
 import { createLiveLayout, setLiveLayoutGameSpec } from './live-layout.js';
-import {
-  initLiveSound,
-  maybePlayLowTimeSound,
-  playSound,
-  resetLiveSoundState,
-} from './live-sound.js';
+import { initLiveSound, playSound, resetLiveSoundState } from './live-sound.js';
 import { clearSeatTokenForRoom, type LiveRefs } from './live-state.js';
 import { roomIdFromPath } from './room-url.js';
+import { createTenantRoomChrome, type WebVariantTenant } from './variant-tenant/room-chrome.js';
 import {
   createTenantSocketClient,
   type TenantConnectionState,
@@ -112,7 +113,8 @@ const state = {
   replayHistory: [] as ReplaySnapshot[],
   replayPly: null as number | null,
   selected: null as CrossroadsChessSquare | null,
-  playAgainStatus: 'idle' as 'idle' | 'creating' | 'failed',
+  abortDeadline: null as number | null,
+  forfeitDeadline: null as number | null,
   pveEngineId: null as string | null,
   roomMode: 'pvp' as 'pvp' | 'pve',
   rematch: {
@@ -136,6 +138,47 @@ function connection(): TenantConnectionState {
   return client?.connection() ?? 'connecting';
 }
 
+// ── Shared tenant room chrome ────────────────────────────────────────────────
+
+const crossroadsChessWebTenant: WebVariantTenant<CrossroadsChessColor> = {
+  displayName: 'Crossroads Chess',
+  colors: ['white', 'red'],
+  isColor: isCrossroadsChessColor,
+  oppositeColor: (color) => (color === 'white' ? 'red' : 'white'),
+  enabled: crossroadsChessEnabled,
+  reviewUrl: crossroadsChessReviewUrl,
+  reasonPhrase: crossroadsChessEndReasonLabel,
+  disabledTitle: 'Crossroads Chess disabled',
+  disabledBody: 'This client build has the room renderer off.',
+  rejectedBody: 'This Crossroads Chess room is not active.',
+  spectatorBody: 'Watching the full board.',
+  selectInstruction: 'Select one of your pieces, then choose a destination.',
+};
+
+const chrome = createTenantRoomChrome(crossroadsChessWebTenant, {
+  view: () => state.view,
+  seat: () => state.seat,
+  connectionState: () => connection(),
+  clock: () => state.clock,
+  timeControl: () => state.timeControl,
+  connectedSeats: () => state.connectedSeats,
+  abortDeadline: () => state.abortDeadline,
+  forfeitDeadline: () => state.forfeitDeadline,
+  roomMode: () => state.roomMode,
+  room: () => state.room,
+  debugRequested: () => false,
+  isReplayLive,
+  orientation: bottomColor,
+  playAgainRequestBody: () =>
+    crossroadsLivePlayAgainRequestBody(state.timeControl, {
+      mode: state.roomMode,
+      pveEngineId: state.pveEngineId,
+      seat: state.seat,
+    }),
+  rematchControls: () => (isCrossroadsChessColor(state.seat) ? rematchControls(state.seat) : null),
+  variantDetail: () => crossroadsLiveTimeControlLabel(state.timeControl),
+});
+
 // ── Entry point ──────────────────────────────────────────────────────────────
 
 export function bootstrapCrossroadsChessLiveRoom(): void {
@@ -145,7 +188,7 @@ export function bootstrapCrossroadsChessLiveRoom(): void {
   const params = new URLSearchParams(window.location.search);
   const room = roomIdFromPath(window.location.pathname) ?? params.get('room') ?? 'dchess_dev';
   state.room = room;
-  state.playAgainStatus = 'idle';
+  chrome.resetState();
   state.rematch = { offers: {}, finalizedRoomId: null, declined: false };
   state.rematchCancelIntent = false;
   lifecycleTracker.reset();
@@ -167,6 +210,11 @@ export function bootstrapCrossroadsChessLiveRoom(): void {
   refs = createLiveLayout(app, { debugRequested: false });
   setLiveLayoutGameSpec(app, 'crossroads-chess');
   boardHost = refs.board;
+  chrome.setRenderTarget(refs, {
+    sendSocket: send,
+    // connect() drops any pending backoff timer and reconnects immediately.
+    reconnectNow: () => client?.connect(),
+  });
 
   boardHost?.addEventListener('click', onBoardClick);
 
@@ -180,7 +228,10 @@ export function bootstrapCrossroadsChessLiveRoom(): void {
   });
   client.connect();
   client.startPing();
-  window.setInterval(tickClocks, 250);
+  window.setInterval(() => {
+    chrome.tickClocks();
+    chrome.tickCountdowns();
+  }, 100);
   document.addEventListener('keydown', handleReplayKeyboard);
   renderAll();
 }
@@ -208,6 +259,8 @@ function applyFrame(frame: CrossroadsLiveFrame): void {
   state.timeControl = frame.timeControl ?? state.timeControl;
   state.roomMode = frame.roomMode ?? state.roomMode;
   state.pveEngineId = frame.pveEngineId ?? state.pveEngineId;
+  state.abortDeadline = frame.abortDeadline ?? null;
+  state.forfeitDeadline = frame.forfeitDeadline ?? null;
   if (frame.rematch) {
     state.rematch = { ...frame.rematch, declined: state.rematch.declined };
   }
@@ -306,14 +359,14 @@ function isMyTurn(): boolean {
 function renderAll(): void {
   if (!refs) return;
   trackCrossroadsChessLifecycle(state.view);
-  resetSharedPanels(refs);
-  renderMeta(refs);
+  chrome.resetHostPanels();
+  chrome.renderMeta();
   renderBoard();
-  renderClocks(refs);
+  chrome.renderClocks();
   renderMoves(refs);
-  renderActionStatus(refs);
-  renderGameControls(refs);
-  renderRoomActions(refs);
+  chrome.renderActionStatus();
+  chrome.renderGameControls();
+  chrome.renderRoomActions();
 }
 
 function trackCrossroadsChessLifecycle(view: CrossroadsChessPlayerView | null): void {
@@ -373,157 +426,6 @@ function renderBoard(): void {
     targets,
     lastMove: view.lastMove ?? null,
   });
-}
-
-function resetSharedPanels(liveRefs: LiveRefs): void {
-  liveRefs.offerSection.hidden = true;
-  liveRefs.selectionSection.hidden = true;
-  liveRefs.devViewsSection.hidden = true;
-  liveRefs.draftPicker.hidden = true;
-  liveRefs.promotion.hidden = true;
-  liveRefs.boardPaused.hidden = true;
-  liveRefs.capturesTop.replaceChildren();
-  liveRefs.capturesBottom.replaceChildren();
-  liveRefs.clockNote.hidden = true;
-  liveRefs.clockNote.textContent = '';
-}
-
-function renderMeta(liveRefs: LiveRefs): void {
-  const timeLabel = crossroadsLiveTimeControlLabel(state.timeControl);
-  liveRefs.gameInfo.replaceChildren(
-    infoItem('Variant', timeLabel ? `Crossroads Chess · ${timeLabel}` : 'Crossroads Chess'),
-    infoItem('Mode', 'Casual'),
-    infoItem('Seat', seatLabel()),
-    infoItem('Connection', connectionText()),
-  );
-}
-
-function renderRoomActions(liveRefs: LiveRefs): void {
-  liveRefs.roomActions.replaceChildren();
-  const row = document.createElement('div');
-  row.className = 'room-actions-row';
-  const view = state.view;
-
-  if (view?.status.type === 'finished') {
-    const review = roomLink('Review game', crossroadsChessReviewUrl(state.room));
-    review.className = 'primary';
-    row.append(review);
-    if (state.roomMode === 'pve') {
-      row.append(playAgainButton());
-    } else if (isCrossroadsChessColor(state.seat)) {
-      row.append(rematchControls(state.seat));
-    } else {
-      row.append(playAgainButton());
-    }
-    row.append(roomLink('Home', '/'));
-    liveRefs.roomActions.append(row);
-    return;
-  }
-  if (view?.status.type === 'aborted') {
-    row.append(roomLink('Home', '/'));
-    liveRefs.roomActions.append(row);
-    return;
-  }
-
-  const copy = document.createElement('button');
-  copy.type = 'button';
-  if (waitingForOpponent()) copy.className = 'primary';
-  copy.textContent = 'Copy invite';
-  copy.addEventListener('click', () => {
-    navigator.clipboard
-      ?.writeText(window.location.href)
-      .then(() => {
-        copy.textContent = 'Link copied!';
-        window.setTimeout(() => {
-          copy.textContent = 'Copy invite';
-        }, 2000);
-      })
-      .catch(() => {});
-  });
-  row.append(copy);
-  liveRefs.roomActions.append(row);
-}
-
-function renderActionStatus(liveRefs: LiveRefs): void {
-  liveRefs.actionStatus.replaceChildren();
-  liveRefs.actionSection.hidden = false;
-
-  if (
-    state.view?.status.type === 'playing' &&
-    iAmPlayer() &&
-    connection() === 'connected' &&
-    isReplayLive() &&
-    !waitingForOpponent()
-  ) {
-    liveRefs.actionSection.hidden = true;
-    return;
-  }
-
-  const notice = document.createElement('div');
-  notice.className = `action-notice ${actionTone()}`;
-  notice.append(noticeTitle(actionTitle()), noticeBody(actionBody()));
-  liveRefs.actionStatus.append(notice);
-}
-
-function renderGameControls(liveRefs: LiveRefs): void {
-  liveRefs.gameControls.replaceChildren();
-  liveRefs.gameControlsSection.hidden = true;
-  const view = state.view;
-  if (!view || view.status.type !== 'playing' || !iAmPlayer()) return;
-
-  if (view.moveNumber < 2) {
-    const children: HTMLElement[] = [];
-    if (view.status.turn === state.seat) {
-      const abort = document.createElement('button');
-      abort.type = 'button';
-      abort.className = 'danger';
-      abort.textContent = 'Abort';
-      abort.addEventListener('click', () => send({ type: 'abort' }));
-      children.push(abort);
-    }
-    liveRefs.gameControls.replaceChildren(...children);
-    liveRefs.gameControlsSection.hidden = children.length === 0;
-    return;
-  }
-
-  const resign = document.createElement('button');
-  resign.type = 'button';
-  resign.className = 'danger';
-  resign.textContent = 'Resign';
-  resign.addEventListener('click', () => send({ type: 'resign' }));
-  liveRefs.gameControls.append(resign);
-  liveRefs.gameControlsSection.hidden = false;
-}
-
-function playAgainButton(): HTMLButtonElement {
-  const button = document.createElement('button');
-  button.type = 'button';
-  button.className = state.playAgainStatus === 'failed' ? 'danger' : '';
-  button.disabled = state.playAgainStatus === 'creating';
-  button.textContent =
-    state.playAgainStatus === 'creating'
-      ? 'Creating'
-      : state.playAgainStatus === 'failed'
-        ? 'Try play again'
-        : 'Play again';
-  button.addEventListener('click', () => {
-    void createCrossroadsLivePlayAgainRoom(state.timeControl, {
-      mode: state.roomMode,
-      pveEngineId: state.pveEngineId,
-      seat: state.seat,
-    })
-      .then((url) => {
-        window.location.assign(url);
-      })
-      .catch((err) => {
-        console.warn(err);
-        state.playAgainStatus = 'failed';
-        renderAll();
-      });
-    state.playAgainStatus = 'creating';
-    renderAll();
-  });
-  return button;
 }
 
 function rematchControls(mySeat: CrossroadsChessColor): HTMLElement {
@@ -668,57 +570,6 @@ function topColor(): CrossroadsChessColor {
   return bottomColor() === 'white' ? 'red' : 'white';
 }
 
-function renderClocks(liveRefs: LiveRefs): void {
-  liveRefs.clockTop.replaceChildren();
-  liveRefs.clockBottom.replaceChildren();
-  if (!state.clock) return;
-  renderClockSlot(liveRefs.clockTop, topColor());
-  renderClockSlot(liveRefs.clockBottom, bottomColor());
-}
-
-function renderClockSlot(container: HTMLElement, color: CrossroadsChessColor): void {
-  if (!state.clock) return;
-  const ms = clockRemainingMs(color);
-  const active = state.clock.activeColor === color && state.view?.status.type === 'playing';
-  const connected = state.connectedSeats[color];
-  const playerLine = document.createElement('span');
-  playerLine.className = active ? 'clock-player-line active' : 'clock-player-line';
-  playerLine.append(presenceDot(connected));
-  const name = document.createElement('span');
-  name.className = 'clock-name';
-  name.textContent = color === state.seat ? 'You' : capitalize(color);
-  playerLine.append(name);
-  const toMove = document.createElement('span');
-  toMove.className = 'clock-to-move';
-  toMove.textContent = 'to move';
-  toMove.setAttribute('aria-hidden', active ? 'false' : 'true');
-  playerLine.append(toMove);
-
-  const row = document.createElement('div');
-  row.className = active ? 'clock-time-row active' : 'clock-time-row';
-  row.dataset.color = color;
-  const time = document.createElement('strong');
-  time.dataset.clockTime = color;
-  time.textContent = formatClock(ms);
-  row.append(time);
-  container.append(playerLine, row);
-}
-
-function statusText(): string {
-  const view = state.view;
-  if (!view) return 'Connecting…';
-  const status = view.status;
-  if (status.type === 'finished') {
-    const winner = status.winner ? (status.winner === 'white' ? 'White' : 'Red') : null;
-    const reason = crossroadsChessEndReasonLabel(status.reason);
-    return winner ? `${winner} wins by ${reason}` : `Draw by ${reason}`;
-  }
-  if (status.type === 'aborted') return `Game aborted: ${abortReasonLabel(status.reason)}`;
-  const turn = status.turn === 'white' ? 'White' : 'Red';
-  const mine = status.turn === state.seat ? ', your move' : '';
-  return `${turn} to move${mine}`;
-}
-
 function crossroadsChessEndReasonLabel(reason: string): string {
   switch (reason) {
     case 'race':
@@ -742,92 +593,6 @@ function crossroadsChessEndReasonLabel(reason: string): string {
     default:
       return 'game end';
   }
-}
-
-function abortReasonLabel(reason: string): string {
-  switch (reason) {
-    case 'pregame-timeout':
-      return 'pregame timeout';
-    case 'user-abort':
-      return 'aborted by player';
-    default:
-      return 'aborted';
-  }
-}
-
-function connectionText(): string {
-  switch (connection()) {
-    case 'connected':
-      return state.seat && state.seat !== 'spectator' ? 'Connected' : 'Spectating';
-    case 'connecting':
-      return 'Connecting…';
-    case 'reconnecting':
-      return 'Reconnecting…';
-    case 'displaced':
-      return 'Opened in another tab';
-    case 'rejected': {
-      const closeReason = client?.closeReason() ?? '';
-      return `Cannot join${closeReason ? `: ${closeReason}` : ''}`;
-    }
-  }
-}
-
-function seatLabel(): string {
-  if (state.seat === 'white' || state.seat === 'red') return capitalize(state.seat);
-  return 'Spectator';
-}
-
-function actionTone(): 'danger' | 'default' | 'pending' | 'success' {
-  if (connection() === 'rejected' || connection() === 'displaced') return 'danger';
-  if (!state.view || connection() !== 'connected') return 'pending';
-  if (state.view.status.type === 'playing' && state.view.status.turn === state.seat) {
-    return 'success';
-  }
-  return 'default';
-}
-
-function actionTitle(): string {
-  if (connection() === 'rejected') return 'Room unavailable';
-  if (connection() === 'displaced') return 'Session moved';
-  if (!state.view) return 'Connecting';
-  if (!isReplayLive()) return 'Viewing replay';
-  if (waitingForOpponent()) return 'Invite opponent';
-  if (state.view.status.type === 'finished') return 'Game finished';
-  if (state.view.status.type === 'aborted') return 'Game aborted';
-  if (state.view.status.turn === state.seat) return 'Your move';
-  return `${capitalize(state.view.status.turn)} to move`;
-}
-
-function actionBody(): string {
-  if (connection() === 'rejected') return 'This Crossroads Chess room is not active.';
-  if (connection() === 'displaced') return 'Another tab reclaimed this seat.';
-  if (!state.view) return 'Opening the room socket.';
-  if (!isReplayLive()) return 'Return to latest before making a move.';
-  if (waitingForOpponent()) return 'Copy the invite link and send it to your opponent.';
-  if (state.view.status.type === 'finished' || state.view.status.type === 'aborted') {
-    return statusText();
-  }
-  if (state.seat === 'spectator') return 'Watching the full board.';
-  if (state.view.status.turn === state.seat) {
-    return 'Select one of your pieces, then choose a destination.';
-  }
-  return 'Waiting for the opponent.';
-}
-
-function waitingForOpponent(): boolean {
-  const opponent = opponentColor();
-  return (
-    connection() === 'connected' &&
-    state.view?.status.type === 'playing' &&
-    opponent !== null &&
-    state.connectedSeats[opponent] !== true
-  );
-}
-
-function opponentColor(): CrossroadsChessColor | null {
-  if (state.seat === 'white') return 'red';
-  if (state.seat === 'red') return 'white';
-  return null;
 }
 
 function renderMoves(liveRefs: LiveRefs): void {
@@ -1007,76 +772,8 @@ export function crossroadsChessReviewUrl(roomId: string): string {
   return `/crossroads-chess/game/${encodeURIComponent(roomId)}`;
 }
 
-// ── Clocks ───────────────────────────────────────────────────────────────────
-
-function clockRemainingMs(color: CrossroadsChessColor): number {
-  const clock = state.clock;
-  if (!clock) return 0;
-  const base = clock.remainingMs[color];
-  if (clock.activeColor !== color || clock.runningSince === null) return base;
-  return Math.max(0, base - Math.max(0, Date.now() - clock.runningSince));
-}
-
-function tickClocks(): void {
-  if (!refs || !state.clock || state.view?.status.type !== 'playing') return;
-  for (const color of ['white', 'red'] as CrossroadsChessColor[]) {
-    const remainingMs = clockRemainingMs(color);
-    if (color === state.seat && state.replayPly === null && state.view) {
-      maybePlayLowTimeSound(state.view.id, remainingMs, state.timeControl?.initialMs ?? null);
-    }
-    const node = refs.board
-      .closest('#app')
-      ?.querySelector<HTMLElement>(`[data-clock-time="${color}"]`);
-    if (node) node.textContent = formatClock(remainingMs);
-  }
-}
-
-function formatClock(ms: number): string {
-  const total = Math.ceil(ms / 1000);
-  const m = Math.floor(total / 60);
-  const s = total % 60;
-  return `${m}:${s.toString().padStart(2, '0')}`;
-}
-
 function uci(move: CrossroadsChessMove): string {
   return `${move.from}${move.to}${move.promotion ? 'Q' : ''}`;
-}
-
-function infoItem(label: string, value: string): HTMLDivElement {
-  const item = document.createElement('div');
-  const key = document.createElement('span');
-  const val = document.createElement('strong');
-  key.textContent = label;
-  val.textContent = value;
-  item.append(key, val);
-  return item;
-}
-
-function noticeTitle(text: string): HTMLElement {
-  const el = document.createElement('strong');
-  el.textContent = text;
-  return el;
-}
-
-function noticeBody(text: string): HTMLElement {
-  const el = document.createElement('span');
-  el.textContent = text;
-  return el;
-}
-
-function presenceDot(connected: boolean): HTMLSpanElement {
-  const dot = document.createElement('span');
-  dot.className = `presence-dot ${connected ? 'is-online' : 'is-offline'}`;
-  dot.setAttribute('aria-label', connected ? 'Connected' : 'Disconnected');
-  dot.title = connected ? 'Connected' : 'Disconnected';
-  return dot;
-}
-
-function roomLink(label: string, href: string): HTMLAnchorElement {
-  const link = document.createElement('a');
-  link.href = href;
-  link.textContent = label;
-  return link;
 }
 
 function capitalize(value: string): string {
