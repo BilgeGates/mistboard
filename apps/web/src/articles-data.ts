@@ -2770,6 +2770,69 @@ const XQ_GENERAL_CAPTURE_PAIR = () => xqSvg(
   ].join(''),
 );
 
+// ── Kriegspiel diagrams ────────────────────────────────────────────────────
+// Kriegspiel vision is own pieces only: no derived cones, no opponent
+// silhouettes. The fog complement is every square the player's pieces do not
+// stand on, so the dark-chess visibility kernel is deliberately not involved.
+const ALL_CHESS_SQUARES: Square[] = [];
+for (const file of 'abcdefgh') {
+  for (let rank = 1; rank <= 8; rank += 1) {
+    ALL_CHESS_SQUARES.push(`${file}${rank}` as Square);
+  }
+}
+
+function kriegspielFog(board: Board, player: 'white' | 'black'): Square[] {
+  return ALL_CHESS_SQUARES.filter((square) => board[square]?.color !== player);
+}
+
+// A quiet Giuoco Pianissimo middlegame (1.e4 e5 2.Nf3 Nc6 3.Bc4 Bc5 4.c3 Nf6
+// 5.d3 d6 6.O-O O-O 7.Nbd2): all thirty-two pieces alive, so the gap between
+// the umpire's board and a player's board is at its widest.
+const KRIEGSPIEL_HERO_BOARD: Board = {
+  a1: { color: 'white', role: 'rook' },
+  d1: { color: 'white', role: 'queen' },
+  f1: { color: 'white', role: 'rook' },
+  g1: { color: 'white', role: 'king' },
+  c1: { color: 'white', role: 'bishop' },
+  d2: { color: 'white', role: 'knight' },
+  f3: { color: 'white', role: 'knight' },
+  c4: { color: 'white', role: 'bishop' },
+  a2: { color: 'white', role: 'pawn' },
+  b2: { color: 'white', role: 'pawn' },
+  c3: { color: 'white', role: 'pawn' },
+  d3: { color: 'white', role: 'pawn' },
+  e4: { color: 'white', role: 'pawn' },
+  f2: { color: 'white', role: 'pawn' },
+  g2: { color: 'white', role: 'pawn' },
+  h2: { color: 'white', role: 'pawn' },
+  a8: { color: 'black', role: 'rook' },
+  d8: { color: 'black', role: 'queen' },
+  f8: { color: 'black', role: 'rook' },
+  g8: { color: 'black', role: 'king' },
+  c8: { color: 'black', role: 'bishop' },
+  c5: { color: 'black', role: 'bishop' },
+  c6: { color: 'black', role: 'knight' },
+  f6: { color: 'black', role: 'knight' },
+  a7: { color: 'black', role: 'pawn' },
+  b7: { color: 'black', role: 'pawn' },
+  c7: { color: 'black', role: 'pawn' },
+  d6: { color: 'black', role: 'pawn' },
+  e5: { color: 'black', role: 'pawn' },
+  f7: { color: 'black', role: 'pawn' },
+  g7: { color: 'black', role: 'pawn' },
+  h7: { color: 'black', role: 'pawn' },
+};
+const KRIEGSPIEL_HERO_FOG_W = kriegspielFog(KRIEGSPIEL_HERO_BOARD, 'white');
+
+// Check-direction taxonomy: the checked king alone on e4, everything else
+// fogged. Each panel's arrow shows one announced direction; the checking
+// piece itself is never shown (the announcement does not locate it). From
+// e4 the long diagonal is the a8-h1 line (8 squares), the short is b1-h7 (7).
+const KRIEGSPIEL_CHECK_BOARD: Board = {
+  e4: { color: 'white', role: 'king' },
+};
+const KRIEGSPIEL_CHECK_FOG = kriegspielFog(KRIEGSPIEL_CHECK_BOARD, 'white');
+
 export const articles: Article[] = [
   {
     slug: 'misty',
@@ -4464,12 +4527,13 @@ export const articles: Article[] = [
   {
     slug: 'crossroads-chess',
     kind: 'rules',
+    playableOnMistboard: true,
     title: 'Crossroads Chess Rules',
     summary:
       'A modern variant that fuses chess and xiangqi on a 6 by 8 river board. The pieces you already know from both games, and two ways to win: checkmate, or race your king across.',
     showSummaryOnPage: false,
-    showInIndex: false,
-    status: 'draft',
+    status: 'published',
+    publishedAt: '2026-06-11',
     audience: 'Mistboard readers who know chess or xiangqi and want the Crossroads Chess rules.',
     thumbnail: { kind: 'svg', svg: renderCrossroadsChessBoard({ fen: CROSSROADS_CHESS_START_FEN }) },
     intro: [
@@ -5066,6 +5130,414 @@ export const articles: Article[] = [
           { label: 'All rules', href: '/rules', emphasis: 'primary' },
           { label: 'Chess Rules', href: '/rules/chess', emphasis: 'secondary' },
           { label: 'Xiangqi Rules', href: '/rules/xiangqi', emphasis: 'secondary' },
+        ],
+      }),
+    ],
+  },
+  {
+    slug: 'kriegspiel',
+    kind: 'rules',
+    title: 'Kriegspiel Rules',
+    summary:
+      'The complete rules of Kriegspiel, the 1899 ancestor of dark chess: you see only your own pieces, an umpire rejects illegal tries and announces captures, checks, and pawn tries, and checkmate wins.',
+    showSummaryOnPage: false,
+    status: 'draft',
+    audience:
+      'Chess and dark chess players who want the full rules of Kriegspiel, the original umpired hidden-information chess.',
+    intro: [
+      {
+        kind: 'paragraph',
+        text:
+          'Kriegspiel is chess played blind: you see only your own pieces. A neutral umpire (here, the server) keeps the true position, rejects your illegal tries, and announces captures, checks, and pawn tries to both players. Underneath the fog it is standard chess, and checkmate ends the game.',
+      },
+      {
+        kind: 'paragraph',
+        text:
+          'Henry Michael Temple invented Kriegspiel in 1899, borrowing the umpire from the Prussian war games that gave it its name. It is the direct ancestor of [dark chess](/rules/dark-chess). If standard chess is new to you, start with [Chess Rules](/rules/chess); everything below assumes them.',
+      },
+    ],
+    sections: [
+      {
+        heading: 'How a turn works',
+        blocks: [
+          {
+            kind: 'paragraph',
+            text:
+              'On your turn you attempt a move. If it is legal in the true position, it stands, and the umpire tells your opponent only that you have moved. If it is illegal (the path is blocked, the piece is pinned, your king would be left in check), the umpire rejects it and you try again, as many times as it takes. You may attempt any move that would be legal on a board holding only your own pieces, plus pawn captures.',
+          },
+          {
+            kind: 'paragraph',
+            text:
+              'Every chess rule is enforced even though you cannot verify it yourself. You can never move into check, and the king is never captured: an attempt that would lose your king is simply rejected. This is the deepest difference from [dark chess](/rules/dark-chess), where nothing is announced and the king falls by capture.',
+          },
+          {
+            kind: 'paragraph',
+            text:
+              'Rejected tries are information. Each refusal tells you something stands in the way, and a careful player probes with tries before committing. Your opponent is not told your attempts were rejected, only that you eventually moved.',
+          },
+          {
+            kind: 'live-boards',
+            spec: {
+              layout: 'pair',
+              boards: [
+                { board: KRIEGSPIEL_HERO_BOARD, fogSquares: KRIEGSPIEL_HERO_FOG_W, orientation: 'white', label: "WHITE'S VIEW" },
+                { board: KRIEGSPIEL_HERO_BOARD, orientation: 'white', label: "UMPIRE'S BOARD" },
+              ],
+            },
+            caption:
+              'The same position. Unlike dark chess, Kriegspiel grants no derived vision: your board holds your pieces and nothing else.',
+          } as ArticleBlock,
+        ],
+      },
+      {
+        heading: 'What the umpire announces',
+        blocks: [
+          {
+            kind: 'paragraph',
+            text:
+              "**Captures.** When a piece is captured, both players hear the square and whether the captured unit was a pawn or a piece, never which piece. 'Pawn gone on d4' tells the owner a pawn died and tells the capturer what they took was a pawn. Capture announcements are also how you track how much material your opponent has left.",
+          },
+          {
+            kind: 'paragraph',
+            text:
+              "**Checks.** A check is announced to both players with its direction from the checked king's point of view: on the rank, on the file, on the long diagonal, on the short diagonal, or by a knight. A double check announces both directions. The checking piece's square is never given, though you can often deduce it.",
+          },
+          {
+            kind: 'live-boards',
+            spec: {
+              layout: 'grid',
+              boards: [
+                { board: KRIEGSPIEL_CHECK_BOARD, fogSquares: KRIEGSPIEL_CHECK_FOG, orientation: 'white', label: 'RANK', arrows: [{ orig: 'a4', dest: 'e4' }] },
+                { board: KRIEGSPIEL_CHECK_BOARD, fogSquares: KRIEGSPIEL_CHECK_FOG, orientation: 'white', label: 'FILE', arrows: [{ orig: 'e8', dest: 'e4' }] },
+                { board: KRIEGSPIEL_CHECK_BOARD, fogSquares: KRIEGSPIEL_CHECK_FOG, orientation: 'white', label: 'LONG DIAGONAL', arrows: [{ orig: 'a8', dest: 'e4' }] },
+                { board: KRIEGSPIEL_CHECK_BOARD, fogSquares: KRIEGSPIEL_CHECK_FOG, orientation: 'white', label: 'SHORT DIAGONAL', arrows: [{ orig: 'h7', dest: 'e4' }] },
+                { board: KRIEGSPIEL_CHECK_BOARD, fogSquares: KRIEGSPIEL_CHECK_FOG, orientation: 'white', label: 'KNIGHT', arrows: [{ orig: 'd6', dest: 'e4' }] },
+              ],
+            },
+            caption:
+              "The five check announcements, from the checked king's point of view. The arrow is the announced direction; the checking piece stays hidden.",
+          } as ArticleBlock,
+        ],
+      },
+      {
+        heading: 'Pawn tries',
+        blocks: [
+          {
+            kind: 'paragraph',
+            text:
+              'At the start of each turn, the umpire tells the player to move how many pawn captures they have. A pawn capture is the one move you cannot even attempt without an enemy piece actually standing on the target square, so the count is hard information about where your opponent is. The count includes en passant captures.',
+          },
+        ],
+      },
+      {
+        heading: 'Castling, promotion, en passant',
+        blocks: [
+          {
+            kind: 'paragraph',
+            text:
+              'Castling is never announced; a legal castle is just another completed move. Promotion is silent too: your opponent learns about the new queen the hard way. En passant captures are announced as ordinary pawn captures, without the fact that they were en passant.',
+          },
+        ],
+      },
+      {
+        heading: 'Winning and draws',
+        blocks: [
+          {
+            kind: 'paragraph',
+            text:
+              'Checkmate ends the game, announced by the umpire. Mates in Kriegspiel are usually accidental: the winner often does not know the mating move was mate until the announcement. Stalemate and the standard chess draws (repetition, fifty moves, insufficient material) are announced the same way.',
+          },
+        ],
+      },
+      {
+        heading: 'Conventions vary',
+        blocks: [
+          {
+            kind: 'paragraph',
+            text:
+              "Kriegspiel has no single rulebook. This page follows the convention online play standardized, the Internet Chess Club ruleset later adopted by the computer Kriegspiel olympiads: pawn-try counts each turn, captures announced as pawn or piece with the square, and illegal tries seen only by the player making them. The older English club rules instead let a player ask 'any?' about pawn captures, with a yes obliging one capture try, and over-the-board play often makes every rejection audible to both players, which itself leaks information. Agree on a convention before you play with a human umpire.",
+          },
+        ],
+      },
+      {
+        heading: 'From Kriegspiel to dark chess',
+        blocks: [
+          {
+            kind: 'paragraph',
+            text:
+              "Temple's invention spread through London's chess clubs and stayed a fixture of club culture for a century. It became the lunchtime game of the RAND Corporation's game theorists in the 1950s: Lloyd Shapley was nearly unbeatable, and John Nash and John von Neumann both played. Computer Kriegspiel has its own research lineage, from solved endgames (a king and rook can force mate against a lone king even in the fog) to Monte Carlo engines at the Computer Olympiad.",
+          },
+          {
+            kind: 'paragraph',
+            text:
+              'Dark chess, born in 1989, removed the umpire by changing the rules instead: each side sees the squares its pieces can reach, nothing is announced, and the king falls by capture. Kriegspiel keeps every chess rule and pays for it with an umpire; dark chess gives up check and checkmate to need no referee at all. The two variants are the same idea solved two ways.',
+          },
+        ],
+      },
+      relatedClosing({
+        heading: 'Where to next',
+        lead: "Kriegspiel isn't playable on Mistboard yet; for now this page is the rules reference. Its descendant dark chess is playable today.",
+        links: [
+          { label: 'Read Dark Chess', href: '/rules/dark-chess', emphasis: 'primary' },
+          { label: 'Chess Rules', href: '/rules/chess', emphasis: 'secondary' },
+          { label: 'All rules', href: '/rules', emphasis: 'secondary' },
+        ],
+      }),
+    ],
+  },
+  {
+    slug: 'jieqi',
+    boardFamily: 'xiangqi',
+    kind: 'rules',
+    title: 'Jieqi (揭棋) Rules',
+    summary:
+      'The complete rules of Jieqi (揭棋), xiangqi with shuffled identities: every piece except the generals starts face-down, makes its first move as the point it stands on, and reveals itself after moving. Checkmate the general to win.',
+    showSummaryOnPage: false,
+    status: 'draft',
+    audience:
+      'Xiangqi players and hidden-information fans who want a clean English rules reference for jieqi.',
+    intro: [
+      {
+        kind: 'paragraph',
+        text:
+          "Jieqi (揭棋, 'reveal chess') is xiangqi with shuffled identities. The generals start face-up on their usual point; every other piece starts face-down on a random starting point. A face-down piece makes its first move as the piece that normally starts where it stands, then flips over and is its true self for the rest of the game. Checkmate the general to win, as in xiangqi.",
+      },
+      {
+        kind: 'paragraph',
+        text:
+          'The game was invented in Guangzhou in the 1980s and is a park and app staple across Guangdong, Hong Kong, and Macau; Vietnam plays the same game as cờ úp. If xiangqi is new to you, start with [Xiangqi Rules](/rules/xiangqi); the sections below explain only what jieqi changes.',
+      },
+    ],
+    sections: [
+      {
+        heading: 'Setup',
+        blocks: [
+          {
+            kind: 'paragraph',
+            text:
+              "Each side's general goes face-up on its palace point. The other fifteen pieces (two advisors, two elephants, two horses, two chariots, two cannons, five soldiers) are shuffled and dealt face-down onto the fifteen remaining standard starting points. Neither player knows which of their own pieces is which.",
+          },
+          {
+            kind: 'paragraph',
+            text: '[VISUAL: jieqi starting position, generals face-up, fifteen dark pieces per side]',
+          },
+        ],
+      },
+      {
+        heading: 'Dark pieces move by their point',
+        blocks: [
+          {
+            kind: 'paragraph',
+            text:
+              'A face-down piece moves and captures exactly as the piece that starts on its point in xiangqi: the corner pieces move as chariots, the points beside them as horses, the cannon points as cannons, the advisor points as advisors, the elephant points as elephants, and the five front pieces as soldiers. All the usual blocking rules apply: horse legs, elephant eyes, cannon screens. Position rules bind the first move too, so a dark piece on an advisor point stays inside the palace and a dark piece on an elephant point cannot cross the river.',
+          },
+          {
+            kind: 'paragraph',
+            text:
+              'The moment a dark piece completes its first move, it is flipped face-up for both players to see. From the next move on, it moves as what it really is. The reveal is the gamble at the heart of the game: the chariot-point piece you swing out may turn out to be a soldier.',
+          },
+          {
+            kind: 'paragraph',
+            text: '[VISUAL: dark piece on a chariot point moving down the file, then flipping to reveal a cannon]',
+          },
+        ],
+      },
+      {
+        heading: 'Revealed pieces',
+        blocks: [
+          {
+            kind: 'paragraph',
+            text:
+              'A revealed piece follows its normal xiangqi movement, with two freedoms. A revealed advisor may leave the palace: it steps one point diagonally anywhere on the board. A revealed elephant may cross the river: it still moves exactly two points diagonally and is still blocked by a piece on the eye, but the river no longer stops it. Horses, chariots, and cannons move exactly as in xiangqi.',
+          },
+          {
+            kind: 'paragraph',
+            text:
+              'Soldiers keep their xiangqi rule, judged from wherever they stand: forward only on your own side of the river, forward or sideways once across, never backward. Reveals can put a soldier anywhere (a piece moving backward as a chariot can flip into a soldier deep in your own camp), so a freshly revealed soldier may have a long walk ahead.',
+          },
+        ],
+      },
+      {
+        heading: 'Captured dark pieces stay secret',
+        blocks: [
+          {
+            kind: 'paragraph',
+            text:
+              'When a face-down piece is captured before it ever moved, only the capturer looks at it. The owner sees a dark piece leave the board and learns nothing about which piece is gone. This is the private information at the heart of jieqi: the player who takes your dark pieces knows exactly what is left in your pool, while you can only count what you have taken from theirs.',
+          },
+          {
+            kind: 'paragraph',
+            text:
+              'Some Vietnamese cờ úp play keeps a captured dark piece secret from both players instead; agree on the convention over the board. Apps and tournament play follow the rule above.',
+          },
+        ],
+      },
+      {
+        heading: 'Winning and draws',
+        blocks: [
+          {
+            kind: 'paragraph',
+            text:
+              "Unlike fog variants, nothing in jieqi is hidden about the board itself: both players see where every piece stands. What is hidden is identity. Check and checkmate stay fully enforceable because a dark piece's powers come from the point it stands on, which everyone can see.",
+          },
+          {
+            kind: 'paragraph',
+            text:
+              "Win conditions are xiangqi's: checkmate the general, or leave the opponent with no legal move. The facing-generals rule applies, and dark pieces block the file like any other piece. Perpetual check and perpetual chase are forbidden as in xiangqi, and long stretches with no capture end in a draw (the exact move count varies by venue and app).",
+          },
+        ],
+      },
+      {
+        heading: 'Names and origins',
+        blocks: [
+          {
+            kind: 'paragraph',
+            text:
+              "揭棋 is Mandarin jiēqí; the name means lifting the cover off. Luo Jinsheng of Guangzhou invented it in the 1980s, and it spread through Cantonese park play before the xiangqi apps made it a fixture. Vietnam's cờ úp ('face-down chess') is the same game. English writing sometimes calls it 'dark Chinese chess', which collides with [banqi](/rules/banqi), the half-board flip game the AI literature calls Chinese dark chess. The two are different games: jieqi keeps the full xiangqi board and win condition, while banqi rebuilds the game around flipping and rank capture.",
+          },
+        ],
+      },
+      relatedClosing({
+        heading: 'Where to next',
+        lead: "Jieqi isn't playable on Mistboard yet; for now this page is the rules reference. Xiangqi is the base game, and banqi is the other hidden-identity cousin.",
+        links: [
+          { label: 'Xiangqi Rules', href: '/rules/xiangqi', emphasis: 'primary' },
+          { label: 'Banqi', href: '/rules/banqi', emphasis: 'secondary' },
+          { label: 'Dark Xiangqi', href: '/rules/dark-xiangqi', emphasis: 'secondary' },
+          { label: 'All rules', href: '/rules', emphasis: 'secondary' },
+        ],
+      }),
+    ],
+  },
+  {
+    slug: 'banqi',
+    boardFamily: 'xiangqi',
+    kind: 'rules',
+    title: 'Banqi (Chinese Dark Chess) Rules',
+    summary:
+      'The complete rules of Banqi (暗棋), the half-board xiangqi flip game known as Chinese Dark Chess: flip or move one square each turn, capture by rank, cannons jump, and win by wiping the enemy out.',
+    showSummaryOnPage: false,
+    status: 'draft',
+    audience:
+      'Players who grew up with banqi and newcomers who want the Taiwanese rules, the rank ladder, and the cannon explained on one page.',
+    intro: [
+      {
+        kind: 'paragraph',
+        text:
+          "Banqi (暗棋, 'dark chess', also called half chess or flip chess) is played on half a xiangqi board with all thirty-two pieces shuffled face-down. Each turn you flip an unknown piece or move one of your own one square; captures follow a strict rank order; you win by capturing everything your opponent has, or leaving them no move.",
+      },
+      {
+        kind: 'paragraph',
+        text:
+          'It is the casual sibling of [xiangqi](/rules/xiangqi) across Taiwan, Hong Kong, and southern China: a ten-to-twenty-minute game that needs nothing but an ordinary xiangqi set and half the board. It shares its name with [dark chess](/rules/dark-chess), the fog-of-war chess variant played on Mistboard, but it is a different game. This page follows the Taiwanese rules, the most widely played version and the standard in computer play.',
+      },
+    ],
+    sections: [
+      {
+        heading: 'Board and setup',
+        blocks: [
+          {
+            kind: 'paragraph',
+            text:
+              'The board is half a xiangqi board: thirty-two squares in a four-by-eight grid. Unlike xiangqi, pieces sit inside the squares rather than on intersections, and the thirty-two shuffled pieces exactly fill the board, every one face-down.',
+          },
+          {
+            kind: 'paragraph',
+            text:
+              'Colors are not assigned in advance. The first player opens the game by flipping any piece: whatever color comes up is theirs, and the opponent plays the other.',
+          },
+          {
+            kind: 'paragraph',
+            text: '[VISUAL: 4×8 board of face-down pieces with one flipped to reveal a red horse]',
+          },
+        ],
+      },
+      {
+        heading: 'Turns',
+        blocks: [
+          {
+            kind: 'paragraph',
+            text:
+              "On your turn, do exactly one of three things: flip any face-down piece (revealing it to both players, even if it turns out to be your opponent's), move one of your face-up pieces one square up, down, left, or right onto an empty square, or capture with one of your face-up pieces. There is no passing. A player with no legal action loses, though while any piece remains face-down, flipping is always available.",
+          },
+        ],
+      },
+      {
+        heading: 'Capture by rank',
+        blocks: [
+          {
+            kind: 'paragraph',
+            text:
+              'Each piece captures enemy pieces of its own rank or lower by stepping onto an adjacent square. The order, high to low: general, advisor, elephant, chariot, horse, cannon, soldier. Two exceptions cross the ladder: a soldier can capture the general, and the general cannot capture soldiers at all.',
+          },
+          {
+            kind: 'paragraph',
+            text:
+              'Face-down pieces cannot be captured. A piece must be flipped before anyone can take it, which makes every flip next to a strong enemy piece a calculated risk.',
+          },
+          {
+            kind: 'paragraph',
+            text: '[VISUAL: rank ladder diagram with the soldier-takes-general exception marked]',
+          },
+        ],
+      },
+      {
+        heading: 'The cannon',
+        blocks: [
+          {
+            kind: 'paragraph',
+            text:
+              'The cannon ignores rank entirely when it captures. It captures as in xiangqi: slide any distance along a row or column, jump exactly one piece (the screen, which can be friendly, enemy, or face-down), and take the first piece beyond the screen, up to and including the general.',
+          },
+          {
+            kind: 'paragraph',
+            text:
+              'When it is not capturing, the cannon moves one square like every other piece. The screen jump needs distance, so a cannon can never take an adjacent piece, and rank rules still apply to it as a target: anything except a soldier can take the cannon.',
+          },
+          {
+            kind: 'paragraph',
+            text: '[VISUAL: cannon jumping a face-down screen to capture a general]',
+          },
+        ],
+      },
+      {
+        heading: 'Winning and draws',
+        blocks: [
+          {
+            kind: 'paragraph',
+            text:
+              'You win by capturing every enemy piece, or when your opponent has no legal move on their turn. The general is not royal here: capturing it is progress, not victory, and the game continues until one side is wiped out or stuck. Repeating the position is a draw, as is a long stretch with neither a flip nor a capture (forty to fifty moves in most rule sets).',
+          },
+        ],
+      },
+      {
+        heading: 'Regional rules',
+        blocks: [
+          {
+            kind: 'paragraph',
+            text:
+              "Banqi has real regional variation, so agree on rules before playing over the board. This page follows the Taiwanese rules: every piece moves one square, and the cannon captures by screen jump. Hong Kong and mainland play typically rerank the pieces toward xiangqi material values (general first, then chariot, horse, and cannon ahead of advisor and elephant) and drop the cannon's jump, so it captures by adjacency like everything else. A separate variant family allows capture attempts on face-down pieces, where a failed attempt simply counts as the flip.",
+          },
+        ],
+      },
+      {
+        heading: 'Names',
+        blocks: [
+          {
+            kind: 'paragraph',
+            text:
+              "暗棋 is Mandarin ànqí, 'dark chess'; the same game is also called 半棋 (half chess), the source of the English name banqi, and 翻棋 (flip chess). AI researchers call it Chinese Dark Chess, and it has had its own Computer Olympiad event since 2010. None of these are [jieqi](/rules/jieqi), the full-board xiangqi variant where shuffled pieces reveal as they move, and none of them are the fog-of-war [dark chess](/rules/dark-chess) played here.",
+          },
+        ],
+      },
+      relatedClosing({
+        heading: 'Where to next',
+        lead: "Banqi isn't playable on Mistboard yet; for now this page is the rules reference. Xiangqi is the parent game, and jieqi is the other hidden-identity cousin.",
+        links: [
+          { label: 'Xiangqi Rules', href: '/rules/xiangqi', emphasis: 'primary' },
+          { label: 'Jieqi', href: '/rules/jieqi', emphasis: 'secondary' },
+          { label: 'Dark Chess', href: '/rules/dark-chess', emphasis: 'secondary' },
+          { label: 'All rules', href: '/rules', emphasis: 'secondary' },
         ],
       }),
     ],

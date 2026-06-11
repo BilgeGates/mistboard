@@ -95,18 +95,30 @@ information, ranked integrity, and a serious engine track.
      semantics. Hidden-info games suit async unusually well (belief
      reasoning rewards thinking time; Kriegspiel was played by mail for a
      century).
-  5. **New tenants, in order:** Kriegspiel (cheapest content, zero new
-     primitives, stresses the visibility axis) → jieqi (demand bet; design
-     the server-authoritative randomness primitive: shuffle seed in canonical
+  5. **New tenants, in order:** Kriegspiel (cheapest content, stresses the
+     visibility axis; cost correction 2026-06-11: NOT zero new primitives —
+     the try loop means the seat can never be sent its legal-move set, and
+     attempt→reject→retry with the clock running is a new wire/UX primitive
+     the tenant contract must allow) → jieqi (demand bet; design the
+     server-authoritative randomness primitive: shuffle seed in canonical
      state, reveal events, replay determinism, redaction of unrevealed
-     identities) → banqi and dark Crossroads ride the tenant + randomness
+     identities AND of the captured dark-piece pool, which is per-seat
+     private) → banqi and dark Crossroads ride the tenant + randomness
      work. Each launches with a PvE bot AND correspondence from day one.
+     Ruleset policy (Brian, 2026-06-11): be true to each game's standard
+     rules and follow the biggest capturable community — Kriegspiel = ICC
+     wild-16 conventions, jieqi = Guangdong/Tencent rules, banqi = Taiwanese
+     rules. Canonicalized in the draft rules articles (/rules/kriegspiel,
+     /rules/jieqi, /rules/banqi).
   6. **Engine scope:** Misty stays on dark chess (Obscuro replication A5-A7).
      Kriegspiel launches with a weak sampled-belief bot (Misty-strength
-     Kriegspiel is a research project, not a launch gate); jieqi/banqi are
-     stochastic perfect-info games under common rules (no private info) and
-     need MCTS-over-chance bots, not Misty — confirm via rule canonicalization
-     (the capture-reveal detail decides the engine family).
+     Kriegspiel is a research project, not a launch gate). Rule
+     canonicalization resolved the engine families 2026-06-11: banqi is
+     stochastic perfect-info (flips public, face-down pieces uncapturable)
+     → MCTS-over-chance bot; jieqi under the ratified capturer-only
+     capture-reveal rule HAS private information (asymmetric captured-pool
+     knowledge) → needs at least a pool-tracking belief bot, not plain
+     MCTS-over-chance. Neither needs Misty.
   New families beyond this queue are not launch-surface commitments by
   default; they need the same privacy, UX, and distribution evidence.
 

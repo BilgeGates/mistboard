@@ -84,6 +84,24 @@ export const ARTICLE_META: Record<
     description:
       'How Mistboard keeps hidden information on the server: canonical state, seat-scoped views, private live rooms, and public postgame review.',
   },
+  kriegspiel: {
+    title: 'Kriegspiel Rules',
+    kind: 'rules',
+    description:
+      'The complete rules of Kriegspiel, the 1899 ancestor of dark chess: you see only your own pieces, an umpire rejects illegal tries and announces captures, checks, and pawn tries, and checkmate wins.',
+  },
+  jieqi: {
+    title: 'Jieqi (揭棋) Rules',
+    kind: 'rules',
+    description:
+      'The complete rules of Jieqi (揭棋), xiangqi with shuffled identities: every piece except the generals starts face-down, makes its first move as the point it stands on, and reveals itself after moving. Checkmate the general to win.',
+  },
+  banqi: {
+    title: 'Banqi (Chinese Dark Chess) Rules',
+    kind: 'rules',
+    description:
+      'The complete rules of Banqi (暗棋), the half-board xiangqi flip game known as Chinese Dark Chess: flip or move one square each turn, capture by rank, cannons jump, and win by wiping the enemy out.',
+  },
 };
 
 export function canonicalArticleBase(slug: string): 'articles' | 'rules' {
