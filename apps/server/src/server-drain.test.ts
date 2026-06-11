@@ -236,3 +236,61 @@ test('drain controller rejects invalid methods and windows', async () => {
   assert.equal(invalidWindow.status, 400);
   assert.equal(responseJson(invalidWindow).error, 'invalid_window');
 });
+
+// Registers a tenant with a live client, so it stays LAST in this file: any
+// drain activated after this registration also reaches that client.
+test('drain broadcasts reach variant-tenant room clients', async () => {
+  const tenantSent: string[] = [];
+  const tenantRoom = {
+    id: 'drainbcast_room',
+    clients: [
+      {
+        socket: {
+          close: () => {},
+          send: (message: string) => tenantSent.push(message),
+        },
+      },
+    ],
+    pendingWrites: Promise.resolve(),
+  };
+  registerVariantTenant({
+    kind: 'drain-broadcast-tenant',
+    gameSpecId: 'drain-broadcast-tenant',
+    roomIdPrefix: 'drainbcast_',
+    errorPrefix: 'drain_broadcast_tenant',
+    enabled: () => true,
+    rooms: new Map([[tenantRoom.id, tenantRoom]]),
+    activeGameCount: () => 0,
+    getOrLoadRoom: async () => null,
+    attachWebSocket: async () => {
+      throw new Error('unexpected ws attach in drain test');
+    },
+    clearRuntimeTimers: () => {},
+    clearRooms: () => {},
+    http: {
+      matchesCreateRequest: () => false,
+      handleCreate: async () => {
+        throw new Error('unexpected http create in drain test');
+      },
+    },
+    lobby: null,
+  });
+
+  const drain = createDrainController({
+    drainWindowDefaultMs: 1000,
+    drainWindowMaxMs: 2000,
+    rooms: new Map(),
+  });
+
+  await drain.handleRequest(
+    request({ body: { windowMs: 1500 } }),
+    captureResponse(),
+    '/admin/drain',
+  );
+  assert.equal(tenantSent.length, 1);
+  assert.equal((JSON.parse(tenantSent[0]!) as { type: string }).type, 'server_restart_scheduled');
+
+  await drain.handleRequest(request(), captureResponse(), '/admin/drain/cancel');
+  assert.equal(tenantSent.length, 2);
+  assert.equal((JSON.parse(tenantSent[1]!) as { type: string }).type, 'server_restart_cancelled');
+});

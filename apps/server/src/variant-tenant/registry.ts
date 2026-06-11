@@ -26,7 +26,9 @@ import type { WebSocket } from 'ws';
 // Registration closures cast back to their concrete room type internally.
 export type TenantManagedRoom = {
   id: string;
-  clients: Iterable<{ socket: { close(code?: number, reason?: string): unknown } }>;
+  clients: Iterable<{
+    socket: { close(code?: number, reason?: string): unknown; send(data: string): unknown };
+  }>;
   pendingWrites: Promise<void>;
 };
 
@@ -147,6 +149,23 @@ export function variantTenantActiveGameCount(): number {
     count += registration.activeGameCount();
   }
   return count;
+}
+
+// Broadcast a raw wire message to every connected client of every registered
+// tenant's live rooms. Used by the drain controller's restart broadcasts so
+// tenant players see the countdown banner exactly like chess players.
+export function variantTenantBroadcast(message: string): void {
+  for (const registration of registrationsByPrefix.values()) {
+    for (const room of registration.rooms.values()) {
+      for (const client of room.clients) {
+        try {
+          client.socket.send(message);
+        } catch {
+          /* socket closed */
+        }
+      }
+    }
+  }
 }
 
 // Cross-variant room-id collision check used by tenant room factories. The

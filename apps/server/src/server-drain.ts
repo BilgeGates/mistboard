@@ -3,7 +3,7 @@ import { recordRoomLifecycleAuditSafe } from './room-lifecycle-audit.js';
 import { readJsonBody, writeJson } from './routes/lib.js';
 import { clientIpForRateLimit, isDrainToken, isProductionLikeRuntime } from './server-policy.js';
 import type { Room } from './server-types.js';
-import { variantTenantActiveGameCount } from './variant-tenant/registry.js';
+import { variantTenantActiveGameCount, variantTenantBroadcast } from './variant-tenant/registry.js';
 
 export type DrainController = {
   activeGameCount(): number;
@@ -180,10 +180,11 @@ function bearerToken(request: IncomingMessage): string | undefined {
   return authorization?.startsWith('Bearer ') ? authorization.slice('Bearer '.length) : undefined;
 }
 
-// Broadcast 'server_restart_scheduled' to every connected WS client. Triggered
-// on drain activation. Clients render a countdown banner from `restartAt`.
-// Sending it as a stand-alone message (not inside a snapshot) avoids waking up
-// every game's snapshot-broadcast path.
+// Broadcast 'server_restart_scheduled' to every connected WS client — chess
+// rooms and every registered variant tenant's rooms. Triggered on drain
+// activation. Clients render a countdown banner from `restartAt`. Sending it
+// as a stand-alone message (not inside a snapshot) avoids waking up every
+// game's snapshot-broadcast path.
 function broadcastDrainSchedule(rooms: Map<string, Room>, restartAt: number): void {
   const message = JSON.stringify({ type: 'server_restart_scheduled', restartAt });
   sendDrainMessage(rooms, message);
@@ -203,4 +204,5 @@ function sendDrainMessage(rooms: Map<string, Room>, message: string): void {
       }
     }
   }
+  variantTenantBroadcast(message);
 }
