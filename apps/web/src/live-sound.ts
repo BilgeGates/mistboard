@@ -55,6 +55,63 @@ export function playSound(kind: SoundKind): void {
   sound?.play(kind);
 }
 
+// Terminal sequencing, shared across game families. A king capture is its own
+// fanfare for the winner (the submit-time arpeggio already played), so the win
+// jingle is suppressed; for the loser it becomes a king-fall sting, then the
+// defeat sound after a beat — capture-death should feel different from
+// flag-fall. Pure; exported for tests and the family observers.
+export function terminalSoundPlan(
+  result: 'win' | 'lose' | 'draw',
+  reason: string | null,
+): Array<{ kind: SoundKind; delayMs: number }> {
+  if (result === 'draw') return [{ kind: 'draw', delayMs: 0 }];
+  const kingFell = reason === 'king-captured' || reason === 'general-captured';
+  if (result === 'win') return kingFell ? [] : [{ kind: 'win', delayMs: 0 }];
+  return kingFell
+    ? [
+        { kind: 'king-fall', delayMs: 0 },
+        { kind: 'lose', delayMs: 550 },
+      ]
+    : [{ kind: 'lose', delayMs: 0 }];
+}
+
+export function playTerminalPlan(result: 'win' | 'lose' | 'draw', reason: string | null): void {
+  for (const step of terminalSoundPlan(result, reason)) {
+    if (step.delayMs > 0) {
+      window.setTimeout(() => sound?.play(step.kind), step.delayMs);
+    } else {
+      sound?.play(step.kind);
+    }
+  }
+}
+
+// Low-time warning: once per game, when the seated player's clock first dips
+// below the threshold during live play. Threshold scales with the time
+// control (10% of initial), clamped to 10..30s. Keyed by game id so rematches
+// re-arm and room remounts do not re-fire.
+let lowTimeFiredGameId: string | null = null;
+
+export function maybePlayLowTimeSound(
+  gameId: string,
+  remainingMs: number,
+  initialMs: number | null,
+): void {
+  if (lowTimeFiredGameId === gameId) return;
+  const threshold = Math.min(30_000, Math.max(10_000, (initialMs ?? 150_000) * 0.1));
+  if (remainingMs <= 0 || remainingMs > threshold) return;
+  lowTimeFiredGameId = gameId;
+  sound?.play('low-time');
+}
+
+// Game start: the moment the room flips from "waiting for opponent" (no clock
+// yet) to a running game while you hold a seat. The joiner triggered the flip
+// themselves; this is for the creator who has been waiting.
+function isGameStartTransition(previous: PlayerView | null, next: PlayerView | null): boolean {
+  if (!previous || !next) return false;
+  if (!isColor(liveState.seat)) return false;
+  return !previous.clock && !!next.clock && next.status.type === 'playing';
+}
+
 export function maybePlaySnapshotSound(nextEvents: GameEvent[], nextView: PlayerView | null): void {
   if (lastSoundEventCount === null) {
     lastSoundEventCount = nextEvents.length;
@@ -67,13 +124,21 @@ export function maybePlaySnapshotSound(nextEvents: GameEvent[], nextView: Player
   const terminal = terminalSoundKey(nextEvents, nextView);
   if (terminal && terminal !== lastTerminalSound) {
     lastTerminalSound = terminal;
-    sound?.play(terminal.startsWith('win') ? 'win' : terminal.startsWith('draw') ? 'draw' : 'lose');
+    const result = terminal.startsWith('win')
+      ? 'win'
+      : terminal.startsWith('draw')
+        ? 'draw'
+        : 'lose';
+    const reason = nextView?.status.type === 'finished' ? nextView.status.reason : null;
+    playTerminalPlan(result, reason);
     lastSoundEventCount = nextEvents.length;
     lastSoundView = nextView;
     return;
   }
 
-  if (shouldUseRevealedEventSounds(nextView)) {
+  if (isGameStartTransition(lastSoundView, nextView)) {
+    sound?.play('game-start');
+  } else if (shouldUseRevealedEventSounds(nextView)) {
     playRevealedEventSound(nextEvents);
   } else {
     playSanitizedOpponentSound(lastSoundView, nextView);
@@ -326,6 +391,22 @@ export function tonesForSound(kind: SoundKind): SoundTone[] {
     return [
       { delay: 0, duration: 0.14, frequency: 246.94, gain: 0.038, type: 'triangle' },
       { delay: 0.13, duration: 0.22, frequency: 196, gain: 0.034, type: 'triangle' },
+    ];
+  }
+  if (kind === 'king-fall') {
+    // The king-capture arpeggio inverted: a descending minor fall.
+    return [
+      { delay: 0, duration: 0.12, frequency: 659.25, gain: 0.06, type: 'triangle' },
+      { delay: 0.08, duration: 0.13, frequency: 523.25, gain: 0.06, type: 'triangle' },
+      { delay: 0.17, duration: 0.16, frequency: 392, gain: 0.06, type: 'triangle' },
+      { delay: 0.27, duration: 0.26, frequency: 261.63, gain: 0.066, type: 'triangle' },
+    ];
+  }
+  if (kind === 'cannon-capture') {
+    // A short crack over a low boom: the slam-the-board cannon capture.
+    return [
+      { delay: 0, duration: 0.05, frequency: 220, gain: 0.07, type: 'square' },
+      { delay: 0.02, duration: 0.24, frequency: 68, gain: 0.1, type: 'sine' },
     ];
   }
   if (kind === 'draw') {

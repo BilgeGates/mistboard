@@ -23,7 +23,7 @@ import {
   resetDarkMiniXiangqiSoundState,
   soundForOwnMiniXiangqiMove,
 } from './live-mini-xiangqi-sound.js';
-import { playSound } from './live-sound.js';
+import { maybePlayLowTimeSound, playSound } from './live-sound.js';
 import type { LiveRefs, XiangqiFamilyClock } from './live-state.js';
 import { liveState } from './live-state.js';
 import { rematchControls } from './rematch-controls.js';
@@ -292,12 +292,19 @@ export function tickDarkMiniXiangqiClocks(): void {
     return;
   }
   const displayAt = isReplayLive() ? Date.now() : (clock.runningSince ?? Date.now());
+  const seatedColor =
+    isReplayLive() && (liveState.seat === 'red' || liveState.seat === 'black')
+      ? liveState.seat
+      : null;
   const rows = [...Array.from(refs.clockTop.children), ...Array.from(refs.clockBottom.children)];
   for (const row of rows as HTMLDivElement[]) {
     const color = row.dataset.color;
     if (color !== 'red' && color !== 'black') continue;
     const isActive = clock.activeColor === color;
     const remainingMs = miniClockRemainingMs(clock, color, displayAt);
+    if (color === seatedColor && view) {
+      maybePlayLowTimeSound(view.id, remainingMs, liveState.timeControl?.initialMs ?? null);
+    }
     const strong = row.querySelector('strong');
     if (strong) strong.textContent = formatClock(remainingMs, isActive && remainingMs < 10_000);
   }

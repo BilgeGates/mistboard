@@ -11,7 +11,7 @@
 // snapshot observer handles opponent moves (fog-sanitized) and terminal win/lose.
 
 import type { MiniXiangqiMove, MiniXiangqiPlayerView } from '@mistboard/game';
-import { playSound } from './live-sound.js';
+import { playSound, playTerminalPlan } from './live-sound.js';
 import { liveState, type Seat, type SoundKind } from './live-state.js';
 
 let lastView: MiniXiangqiPlayerView | null = null;
@@ -37,11 +37,16 @@ export function soundForOwnMiniXiangqiMove(
   if (!view) return 'move';
   const target = view.board[move.to];
   if (!target) return 'move';
-  if (target.shrouded) return 'capture';
   const fromEntry = view.board[move.from];
+  // Your own pieces are never shrouded in your own view, so the mover's role
+  // is always known: a capturing cannon gets its slam-the-board boom. This is
+  // leak-safe because it only ever describes your own piece.
+  const moverIsCannon = fromEntry && !fromEntry.shrouded && fromEntry.piece.role === 'cannon';
+  if (target.shrouded) return moverIsCannon ? 'cannon-capture' : 'capture';
   const mover = fromEntry && !fromEntry.shrouded ? fromEntry.piece.color : view.perspective;
   if (target.piece.color === mover) return 'move';
-  return target.piece.role === 'general' ? 'king-capture' : 'capture';
+  if (target.piece.role === 'general') return 'king-capture';
+  return moverIsCannon ? 'cannon-capture' : 'capture';
 }
 
 // Snapshot observer, called once per applied server frame (hello/snapshot/
@@ -59,7 +64,13 @@ export function maybePlayDarkMiniXiangqiSnapshotSound(): void {
   const terminal = miniXiangqiTerminalSoundKey(view, seat);
   if (terminal && terminal !== lastTerminalKey) {
     lastTerminalKey = terminal;
-    playSound(terminal.startsWith('win') ? 'win' : 'lose');
+    const result = terminal.startsWith('win')
+      ? 'win'
+      : terminal.startsWith('draw')
+        ? 'draw'
+        : 'lose';
+    const reason = view?.status.type === 'finished' ? view.status.reason : null;
+    playTerminalPlan(result, reason);
     lastView = view;
     return;
   }
@@ -69,15 +80,21 @@ export function maybePlayDarkMiniXiangqiSnapshotSound(): void {
   lastView = view;
 }
 
-// A win/lose key, or null when the game is not finished with a winner or the
-// viewer is a spectator. The moveNumber suffix lets the observer fire exactly once
-// per distinct terminal. Exported pure for tests.
+// No game-start sound here yet: the DMX view carries no clock (it lives in
+// room-level state), so the waiting->playing transition is not visible to
+// this observer. Unify with the chess room's game-start when the
+// verticalization refactor merges the room state shapes.
+
+// A win/lose/draw key, or null when the game is not finished or the viewer is
+// a spectator. The moveNumber suffix lets the observer fire exactly once per
+// distinct terminal. Exported pure for tests.
 export function miniXiangqiTerminalSoundKey(
   view: MiniXiangqiPlayerView | null,
   seat: Seat,
 ): string | null {
-  if (!view || view.status.type !== 'finished' || view.status.winner === null) return null;
+  if (!view || view.status.type !== 'finished') return null;
   if (seat !== 'red' && seat !== 'black') return null;
+  if (view.status.winner === null) return `draw:${view.moveNumber}`;
   return view.status.winner === seat ? `win:${view.moveNumber}` : `lose:${view.moveNumber}`;
 }
 

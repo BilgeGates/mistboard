@@ -37,7 +37,12 @@ import {
 } from './live-crossroads-chess-sound.js';
 import { createLiveLayout, setLiveLayoutGameSpec } from './live-layout.js';
 import { roomIdFromPath } from './live-room-bootstrap.js';
-import { initLiveSound, playSound, resetLiveSoundState } from './live-sound.js';
+import {
+  initLiveSound,
+  maybePlayLowTimeSound,
+  playSound,
+  resetLiveSoundState,
+} from './live-sound.js';
 import {
   clearSeatTokenForRoom,
   clientIdForRoom,
@@ -1122,10 +1127,14 @@ function clockRemainingMs(color: CrossroadsChessColor): number {
 function tickClocks(): void {
   if (!refs || !state.clock || state.view?.status.type !== 'playing') return;
   for (const color of ['white', 'red'] as CrossroadsChessColor[]) {
+    const remainingMs = clockRemainingMs(color);
+    if (color === state.seat && state.replayPly === null && state.view) {
+      maybePlayLowTimeSound(state.view.id, remainingMs, state.timeControl?.initialMs ?? null);
+    }
     const node = refs.board
       .closest('#app')
       ?.querySelector<HTMLElement>(`[data-clock-time="${color}"]`);
-    if (node) node.textContent = formatClock(clockRemainingMs(color));
+    if (node) node.textContent = formatClock(remainingMs);
   }
 }
 

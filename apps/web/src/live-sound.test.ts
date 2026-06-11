@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   initialOpponentMoveSoundForSnapshot,
   shouldDeferHiddenPveOpeningSound,
+  terminalSoundPlan,
   tonesForSound,
 } from './live-sound.js';
 
@@ -41,6 +42,30 @@ describe('finish sound tone plans', () => {
     expect(finishAt('lose')).toBeLessThanOrEqual(0.4);
     expect(maxGain('lose')).toBeLessThan(maxGain('win'));
     expect(tones.map((tone) => tone.frequency)).toEqual([246.94, 196]);
+  });
+});
+
+describe('terminal sound sequencing', () => {
+  it('suppresses the win jingle when the king was captured (the arpeggio is the fanfare)', () => {
+    expect(terminalSoundPlan('win', 'king-captured')).toEqual([]);
+    expect(terminalSoundPlan('win', 'general-captured')).toEqual([]);
+  });
+
+  it('plays a normal win for non-capture finishes', () => {
+    expect(terminalSoundPlan('win', 'timeout')).toEqual([{ kind: 'win', delayMs: 0 }]);
+    expect(terminalSoundPlan('win', null)).toEqual([{ kind: 'win', delayMs: 0 }]);
+  });
+
+  it('gives the loser a king-fall sting before the defeat sound on capture deaths', () => {
+    expect(terminalSoundPlan('lose', 'king-captured')).toEqual([
+      { kind: 'king-fall', delayMs: 0 },
+      { kind: 'lose', delayMs: 550 },
+    ]);
+    expect(terminalSoundPlan('lose', 'timeout')).toEqual([{ kind: 'lose', delayMs: 0 }]);
+  });
+
+  it('draws play the draw sound regardless of reason', () => {
+    expect(terminalSoundPlan('draw', 'repetition')).toEqual([{ kind: 'draw', delayMs: 0 }]);
   });
 });
 

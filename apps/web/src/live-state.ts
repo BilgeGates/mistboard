@@ -133,12 +133,14 @@ export type SoundController = {
 };
 
 export type SoundKind =
+  | 'cannon-capture'
   | 'capture'
   | 'captured'
   | 'castle'
   | 'draw'
   | 'game-start'
   | 'king-capture'
+  | 'king-fall'
   | 'lose'
   | 'low-time'
   | 'move'

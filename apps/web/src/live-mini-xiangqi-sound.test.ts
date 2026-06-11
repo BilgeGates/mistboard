@@ -47,6 +47,30 @@ describe('soundForOwnMiniXiangqiMove', () => {
     expect(soundForOwnMiniXiangqiMove(v, { from: 'a1', to: 'a2' })).toBe('king-capture');
   });
 
+  it('plays the cannon boom when your own cannon captures', () => {
+    const cannon = { piece: { color: 'red', role: 'cannon' }, shrouded: false } as const;
+    const v = view({
+      board: { a1: cannon, a3: { piece: { color: 'black', role: 'soldier' }, shrouded: false } },
+    });
+    expect(soundForOwnMiniXiangqiMove(v, { from: 'a1', to: 'a3' })).toBe('cannon-capture');
+  });
+
+  it('booms on a shrouded target too: the mover role is your own, always known', () => {
+    const cannon = { piece: { color: 'red', role: 'cannon' }, shrouded: false } as const;
+    const v = view({
+      board: { a1: cannon, a3: { shrouded: true } as Board[keyof Board] },
+    });
+    expect(soundForOwnMiniXiangqiMove(v, { from: 'a1', to: 'a3' })).toBe('cannon-capture');
+  });
+
+  it('keeps king-capture above the cannon boom for a visible general', () => {
+    const cannon = { piece: { color: 'red', role: 'cannon' }, shrouded: false } as const;
+    const v = view({
+      board: { a1: cannon, a3: { piece: { color: 'black', role: 'general' }, shrouded: false } },
+    });
+    expect(soundForOwnMiniXiangqiMove(v, { from: 'a1', to: 'a3' })).toBe('king-capture');
+  });
+
   it('plays capture onto a shrouded (hidden role) target', () => {
     const v = view({ board: { a1: fromEntry, a2: { color: 'black', shrouded: true } } });
     expect(soundForOwnMiniXiangqiMove(v, { from: 'a1', to: 'a2' })).toBe('capture');
@@ -71,9 +95,9 @@ describe('miniXiangqiTerminalSoundKey', () => {
     expect(miniXiangqiTerminalSoundKey(v, 'black')).toBe('lose:1');
   });
 
-  it('returns null for a draw (no winner)', () => {
+  it('returns a draw key for a finished game with no winner', () => {
     const v = view({ status: { type: 'finished', winner: null, reason: 'repetition' } });
-    expect(miniXiangqiTerminalSoundKey(v, 'red')).toBeNull();
+    expect(miniXiangqiTerminalSoundKey(v, 'red')).toBe('draw:1');
   });
 
   it('returns null for a spectator', () => {

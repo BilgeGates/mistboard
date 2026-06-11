@@ -44,11 +44,16 @@ const FILE_BY_KIND: Partial<Record<SoundKind, SoundFileSpec>> = {
   captured: { file: 'Capture.mp3', rate: 0.72, gain: 0.85 },
   castle: { file: 'Move.mp3' },
   'king-capture': { file: 'Explosion.mp3' },
+  // The loser's side of a king capture: same source, dragged down so it
+  // lands as a blow rather than a blast.
+  'king-fall': { file: 'Explosion.mp3', rate: 0.62, gain: 0.9 },
   win: { file: 'Victory.mp3' },
   lose: { file: 'Defeat.mp3' },
   draw: { file: 'Draw.mp3' },
   'low-time': { file: 'LowTime.mp3' },
   'game-start': { file: 'GenericNotify.mp3' },
+  // 'cannon-capture' deliberately has no file mapping: the synth boom is the
+  // identity sound in every set (file sets fall back to it by design).
 };
 
 export function soundFileFor(set: SoundSetId, kind: SoundKind): SoundFileSpec | null {

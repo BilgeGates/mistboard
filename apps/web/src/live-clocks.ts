@@ -1,5 +1,6 @@
 import { type Color, clockRemainingMs, type GameEvent, type PlayerView } from '@mistboard/game';
 import { isLive } from './live-replay.js';
+import { maybePlayLowTimeSound } from './live-sound.js';
 import { type LiveRefs, liveState } from './live-state.js';
 import { connectionNoticeMode } from './live-status.js';
 import { formatClock, isColor } from './web-utils.js';
@@ -127,15 +128,28 @@ export function tickClockTimers(refs: ClockRefs, view: PlayerView | null): void 
     return;
   }
   const displayAt = isLive() ? Date.now() : (view.clock.runningSince ?? Date.now());
+  const humanColor = isLive() && isColor(liveState.seat) ? liveState.seat : null;
   const rows = [...Array.from(refs.clockTop.children), ...Array.from(refs.clockBottom.children)];
   for (const row of rows as HTMLDivElement[]) {
     const color = row.dataset.color;
     if (color !== 'white' && color !== 'black') continue;
     const isActive = view.clock.activeColor === color;
     const remainingMs = clockRemainingMs(view.clock, color, displayAt);
+    if (color === humanColor) {
+      maybePlayLowTimeSound(view.id, remainingMs, roomInitialClockMs());
+    }
     const strong = row.querySelector('strong');
     if (strong) strong.textContent = formatClock(remainingMs, isActive && remainingMs < 10_000);
   }
+}
+
+// The room's initial clock budget, for the low-time threshold. Fog snapshots
+// keep event lists short, so the find stays cheap at tick frequency.
+function roomInitialClockMs(): number | null {
+  const roomCreated = liveState.events.find(
+    (e): e is Extract<GameEvent, { type: 'room-created' }> => e.type === 'room-created',
+  );
+  return roomCreated?.timeControl?.initialMs ?? null;
 }
 
 function presenceDot(connected: boolean, opts?: { reconnecting?: boolean }): HTMLSpanElement {

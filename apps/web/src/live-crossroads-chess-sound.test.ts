@@ -78,11 +78,22 @@ describe('crossroadsChessTerminalSoundKey', () => {
     expect(crossroadsChessTerminalSoundKey(v, 'red')).toBe('lose:1');
   });
 
-  it('returns null for draws and spectators', () => {
+  it('returns a draw key for a finished game with no winner', () => {
     const draw = view({ status: { type: 'finished', winner: null, reason: 'repetition' } });
+    expect(crossroadsChessTerminalSoundKey(draw, 'white')).toBe('draw:1');
+  });
+
+  it('returns null for spectators', () => {
     const won = view({ status: { type: 'finished', winner: 'white', reason: 'race' } });
-    expect(crossroadsChessTerminalSoundKey(draw, 'white')).toBeNull();
     expect(crossroadsChessTerminalSoundKey(won, 'spectator')).toBeNull();
+  });
+
+  it('plays the cannon boom when your own cannon captures', () => {
+    const cannon = { piece: { color: 'white', role: 'cannon' }, shrouded: false } as const;
+    const v = view({
+      board: { a1: cannon, a3: { piece: { color: 'red', role: 'soldier' }, shrouded: false } },
+    });
+    expect(soundForOwnCrossroadsChessMove(v, { from: 'a1', to: 'a3' })).toBe('cannon-capture');
   });
 });
 

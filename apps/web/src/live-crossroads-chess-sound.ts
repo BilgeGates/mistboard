@@ -10,7 +10,7 @@ import type {
   CrossroadsChessMove,
   CrossroadsChessPlayerView,
 } from '@mistboard/game';
-import { playSound } from './live-sound.js';
+import { playSound, playTerminalPlan } from './live-sound.js';
 import type { SoundKind } from './live-state.js';
 
 let lastView: CrossroadsChessPlayerView | null = null;
@@ -29,10 +29,14 @@ export function soundForOwnCrossroadsChessMove(
   const target = view.board[move.to];
   if (!target) return 'move';
   const fromEntry = view.board[move.from];
+  // Your own pieces are never shrouded in your own view, so a capturing
+  // cannon's boom is leak-safe: it only describes your own piece.
+  const moverIsCannon = fromEntry && !fromEntry.shrouded && fromEntry.piece.role === 'cannon';
   const mover = fromEntry && !fromEntry.shrouded ? fromEntry.piece.color : view.perspective;
-  if (target.shrouded) return 'capture';
+  if (target.shrouded) return moverIsCannon ? 'cannon-capture' : 'capture';
   if (target.piece.color === mover) return 'move';
-  return target.piece.role === 'king' ? 'king-capture' : 'capture';
+  if (target.piece.role === 'king') return 'king-capture';
+  return moverIsCannon ? 'cannon-capture' : 'capture';
 }
 
 export function maybePlayCrossroadsChessSnapshotSound(
@@ -48,7 +52,13 @@ export function maybePlayCrossroadsChessSnapshotSound(
   const terminal = crossroadsChessTerminalSoundKey(view, seat);
   if (terminal && terminal !== lastTerminalKey) {
     lastTerminalKey = terminal;
-    playSound(terminal.startsWith('win') ? 'win' : 'lose');
+    const result = terminal.startsWith('win')
+      ? 'win'
+      : terminal.startsWith('draw')
+        ? 'draw'
+        : 'lose';
+    const reason = view?.status.type === 'finished' ? view.status.reason : null;
+    playTerminalPlan(result, reason);
     lastView = view;
     return;
   }
@@ -62,8 +72,9 @@ export function crossroadsChessTerminalSoundKey(
   view: CrossroadsChessPlayerView | null,
   seat: CrossroadsChessColor | 'spectator' | null,
 ): string | null {
-  if (!view || view.status.type !== 'finished' || view.status.winner === null) return null;
+  if (!view || view.status.type !== 'finished') return null;
   if (seat !== 'white' && seat !== 'red') return null;
+  if (view.status.winner === null) return `draw:${view.moveNumber}`;
   return view.status.winner === seat ? `win:${view.moveNumber}` : `lose:${view.moveNumber}`;
 }
 
