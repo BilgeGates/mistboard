@@ -147,6 +147,7 @@ function transportRoomFixture({
     projection: {
       roomId: id,
       gameSpecId: DARK_XIANGQI_SPEC_ID,
+      rated: false,
       state: {
         id,
         board: {
@@ -174,5 +175,9 @@ function transportRoomFixture({
     gameEndRecorded: status?.type === 'finished',
     pendingWrites: Promise.resolve(),
     seatTokens: {},
+    rated: false,
+    rematch: { offers: {} },
+    engineTimer: null,
+    engineReservationId: null,
   };
 }

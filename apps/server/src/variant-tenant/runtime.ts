@@ -303,6 +303,12 @@ export function applyTenantEvent<
       },
     };
   }
+  if (event.type === 'seat-vacated') {
+    if (projection.seats[event.seat] !== event.clientId) return projection;
+    const seats = { ...projection.seats };
+    delete seats[event.seat];
+    return { ...projection, seats };
+  }
   if (event.type === 'clock-started') {
     if (status.type !== 'playing' || projection.clock) return projection;
     return { ...projection, clock: event.clock };
@@ -373,6 +379,10 @@ export function applyTenantEvent<
 
 // The full per-seat snapshot wire shape. Pinned per tenant by its golden wire
 // fixture; key-set changes here are protocol changes for every tenant.
+// The CORE per-seat snapshot shape every tenant shares. Variant-specific
+// fields (DMX: mode/pveEngineId/rated/forfeitDeadline/rematch; Dark Xiangqi:
+// none) come from tenant.wire.snapshotExtras and are spread on top — each
+// tenant's full shape is pinned by its golden wire fixture.
 export type TenantSnapshotPayload<C extends string, M, View, Spec extends string = string> = {
   type: 'snapshot';
   roomId: string;
@@ -381,18 +391,13 @@ export type TenantSnapshotPayload<C extends string, M, View, Spec extends string
   clients: number;
   seat: TenantSeat<C>;
   solo: boolean;
-  mode: 'pve' | 'pvp';
-  pveEngineId: string | null;
-  rated: boolean;
   abortDeadline: number | null;
-  forfeitDeadline: number | null;
   clock: TenantClockState<C> | undefined;
   connectedSeats: Record<C, boolean>;
   events: TenantClientEvent<C, M, Spec>[];
   seats: Partial<Record<C, string>>;
   state: View;
   timeControl: RoomTimeControl | undefined;
-  rematch: { offers: Record<C, boolean>; finalizedRoomId: string | null };
 };
 
 export function tenantSnapshotPayload<
@@ -406,8 +411,7 @@ export function tenantSnapshotPayload<
   tenant: VariantTenant<Kind, C, M, State, View, Spec>,
   room: TenantRuntimeRoom<Kind, C, M, State, Spec>,
   client: TenantSnapshotClient<C>,
-): TenantSnapshotPayload<C, M, View, Spec> {
-  const pveEngineId = tenantPveEngineId(tenant, room);
+): TenantSnapshotPayload<C, M, View, Spec> & Record<string, unknown> {
   const state = tenant.visibility.viewForClient(room.projection.state, client, room.events);
   return {
     type: 'snapshot' as const,
@@ -417,30 +421,18 @@ export function tenantSnapshotPayload<
     clients: room.clients.size,
     seat: client.seat,
     solo: client.solo,
-    mode: pveEngineId ? ('pve' as const) : ('pvp' as const),
-    pveEngineId,
-    rated: room.rated,
     abortDeadline: room.abortDeadline,
-    // Only the present winning seat (opposite the forfeiting seat) learns the
-    // forfeit deadline, so the "you win in Ns" banner never leaks to the leaver.
-    forfeitDeadline:
-      room.forfeitSeat !== null && client.seat === tenant.oppositeColor(room.forfeitSeat)
-        ? room.forfeitDeadline
-        : null,
     clock: room.projection.clock,
     connectedSeats: computeTenantConnectedSeats(tenant, room.clients, room.projection.seats),
     events: tenantEventsForClient(tenant, room, client),
     seats: room.projection.seats,
     state,
     timeControl: room.projection.timeControl,
-    rematch: {
-      offers: tenantRematchOfferFlags(tenant, room),
-      finalizedRoomId: room.rematch.finalizedRoomId ?? null,
-    },
+    ...(tenant.wire?.snapshotExtras?.(room, client) ?? {}),
   };
 }
 
-function tenantRematchOfferFlags<C extends string>(
+export function tenantRematchOfferFlags<C extends string>(
   tenant: { colors: readonly [C, C] },
   room: { rematch: { offers: Partial<Record<C, unknown>> } },
 ): Record<C, boolean> {
@@ -449,7 +441,19 @@ function tenantRematchOfferFlags<C extends string>(
   return flags;
 }
 
-function tenantPveEngineId<
+// Only the present winning seat (opposite the forfeiting seat) learns the
+// forfeit deadline, so the "you win in Ns" banner never leaks to the leaver.
+export function tenantForfeitDeadlineForClient<C extends string>(
+  tenant: { oppositeColor(color: C): C },
+  room: { forfeitSeat: C | null; forfeitDeadline: number | null },
+  client: { seat: TenantSeat<C> },
+): number | null {
+  return room.forfeitSeat !== null && client.seat === tenant.oppositeColor(room.forfeitSeat)
+    ? room.forfeitDeadline
+    : null;
+}
+
+export function tenantPveEngineId<
   Kind extends string,
   C extends string,
   M,
@@ -556,6 +560,13 @@ export function isTenantEvent<
   }
   if (event.type === 'seat-assigned') {
     return typeof event.clientId === 'string' && tenant.rules.isColor(event.seat);
+  }
+  if (event.type === 'seat-vacated') {
+    return (
+      tenant.wire?.acceptsSeatVacated === true &&
+      typeof event.clientId === 'string' &&
+      tenant.rules.isColor(event.seat)
+    );
   }
   if (event.type === 'clock-started') {
     return isTenantClockState(tenant, event.clock);

@@ -101,12 +101,20 @@ export type DarkMiniXiangqiRuntimeRoom = TenantRuntimeRoom<
   DarkMiniXiangqiSpecId
 >;
 export type DarkMiniXiangqiSnapshotClient = TenantSnapshotClient<MiniXiangqiColor>;
+// Core tenant payload + the DMX wire extras supplied by
+// darkMiniXiangqiTenant.wire.snapshotExtras (shape pinned by the DMX golden).
 export type DarkMiniXiangqiSnapshotPayload = TenantSnapshotPayload<
   MiniXiangqiColor,
   MiniXiangqiMove,
   MiniXiangqiPlayerView,
   DarkMiniXiangqiSpecId
->;
+> & {
+  mode: 'pve' | 'pvp';
+  pveEngineId: string | null;
+  rated: boolean;
+  forfeitDeadline: number | null;
+  rematch: { offers: Record<MiniXiangqiColor, boolean>; finalizedRoomId: string | null };
+};
 
 export type DarkMiniXiangqiRoomCreation =
   | { ok: true; room: DarkMiniXiangqiRuntimeRoom }
@@ -217,7 +225,13 @@ export function darkMiniXiangqiSnapshotPayload(
   room: DarkMiniXiangqiRuntimeRoom,
   client: DarkMiniXiangqiSnapshotClient,
 ): DarkMiniXiangqiSnapshotPayload {
-  return tenantSnapshotPayload(darkMiniXiangqiTenant, room, client);
+  // The cast re-attaches the extras shape erased by the generic spread; the
+  // golden wire fixture pins that the extras are actually present.
+  return tenantSnapshotPayload(
+    darkMiniXiangqiTenant,
+    room,
+    client,
+  ) as DarkMiniXiangqiSnapshotPayload;
 }
 
 export function darkMiniXiangqiEventsForClient(

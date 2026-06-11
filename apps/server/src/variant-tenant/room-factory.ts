@@ -48,7 +48,8 @@ export type TenantLiveRoomFactoryContext<
   appendRoomEvent(roomId: string, seq: number, event: TenantRoomEvent<C, M, Spec>): Promise<void>;
   createRoomId?: () => string;
   isPersistenceEnabled(): boolean;
-  recordGameStart(roomId: string, summary: persistence.RunningGameSummary): Promise<void>;
+  // Omit for tenants that don't record running games (Dark Xiangqi).
+  recordGameStart?(roomId: string, summary: persistence.RunningGameSummary): Promise<void>;
   recordPersistenceError(roomId: string, seq: number, eventType: string, err: Error): void;
 };
 
@@ -104,19 +105,21 @@ export async function createTenantLiveRoom<
           writingEventType = event.type;
           await ctx.appendRoomEvent(roomId, seq, event);
         }
-        writingSeq = room.events.length;
-        writingEventType = 'game-start';
-        await ctx.recordGameStart(roomId, {
-          variant: tenant.gameSpecId,
-          mode: engine ? 'pve' : 'pvp',
-          startedAt: new Date(room.events[0]?.at ?? Date.now()),
-          whiteClient: null,
-          blackClient: null,
-          whiteName: null,
-          blackName: null,
-          corpusId: null,
-          visibility: engine ? 'public' : 'private',
-        });
+        if (ctx.recordGameStart) {
+          writingSeq = room.events.length;
+          writingEventType = 'game-start';
+          await ctx.recordGameStart(roomId, {
+            variant: tenant.gameSpecId,
+            mode: engine ? 'pve' : 'pvp',
+            startedAt: new Date(room.events[0]?.at ?? Date.now()),
+            whiteClient: null,
+            blackClient: null,
+            whiteName: null,
+            blackName: null,
+            corpusId: null,
+            visibility: engine ? 'public' : 'private',
+          });
+        }
       } catch (err) {
         ctx.recordPersistenceError(roomId, writingSeq, writingEventType, err as Error);
         return { ok: false, error: 'persistence_failure' };

@@ -64,6 +64,9 @@ export type TenantRoomEvent<C extends string, M, Spec extends string = string> =
       timeControl?: RoomTimeControl;
     }
   | { type: 'seat-assigned'; at: number; roomId: string; clientId: string; seat: C }
+  // Accepted in event logs only for tenants with wire.acceptsSeatVacated
+  // (Dark Xiangqi); clears the seat when the vacating clientId still holds it.
+  | { type: 'seat-vacated'; at: number; roomId: string; clientId: string; seat: C }
   | { type: 'clock-started'; at: number; roomId: string; clock: TenantClockState<C> }
   | { type: 'clock-expired'; at: number; roomId: string; color: C; clock: TenantClockState<C> }
   | {
@@ -241,9 +244,27 @@ export type VariantTenant<
     // Observability tag on engine-seat reservation releases (`<tag>-finished`).
     reservationReleaseTag: string;
   };
+  // Wire-format variation points. Each tenant's full snapshot shape (core +
+  // extras) is pinned by its golden wire fixture.
+  wire?: {
+    // Variant-specific snapshot fields spread over the core payload (e.g.
+    // DMX adds mode/pveEngineId/rated/forfeitDeadline/rematch; Dark Xiangqi
+    // adds nothing).
+    snapshotExtras?(
+      room: TenantRuntimeRoom<Kind, C, M, State, Spec>,
+      client: TenantSnapshotClient<C>,
+    ): Record<string, unknown>;
+    // Accept seat-vacated events when validating event logs. Off by default
+    // so tenants that never emit them keep rejecting them.
+    acceptsSeatVacated?: boolean;
+  };
   persistence: {
     resultForWinner(winner: C | null): persistence.GameResult;
     termination(reason: string): persistence.GameTermination;
+    // Full GameSummary override for tenants whose persisted record predates
+    // (or deliberately diverges from) the default builder in
+    // variant-tenant/events.ts. Omit to use the default.
+    buildGameSummary?(room: TenantRuntimeRoom<Kind, C, M, State, Spec>): persistence.GameSummary;
     // Structured-log identity: `<logKindPrefix>_persistence_failure` etc.
     logKindPrefix: string;
     logLabel: string;

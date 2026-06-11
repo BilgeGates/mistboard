@@ -78,7 +78,10 @@ export async function appendTenantEvent<
     ) {
       room.gameEndRecorded = true;
       try {
-        await writer.persistence.recordGameEnd(room.id, buildTenantGameSummary(tenant, room));
+        await writer.persistence.recordGameEnd(
+          room.id,
+          tenant.persistence.buildGameSummary?.(room) ?? buildTenantGameSummary(tenant, room),
+        );
       } catch (err) {
         writer.logGameEndRecordFailure(room.id, err as Error);
       }

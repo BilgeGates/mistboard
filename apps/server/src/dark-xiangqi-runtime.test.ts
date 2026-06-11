@@ -440,6 +440,7 @@ function darkXiangqiRoomFixture({
     projection: {
       roomId: id,
       gameSpecId: DARK_XIANGQI_SPEC_ID,
+      rated: false,
       state,
       seats: { red: 'red-client', black: 'black-client' },
     },
@@ -454,6 +455,10 @@ function darkXiangqiRoomFixture({
     gameEndRecorded: state.status.type !== 'playing',
     pendingWrites: Promise.resolve(),
     seatTokens: {},
+    rated: false,
+    rematch: { offers: {} },
+    engineTimer: null,
+    engineReservationId: null,
   };
 }
 

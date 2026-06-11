@@ -25,6 +25,11 @@ import {
 import { engineVersionDisplayName, isDarkMiniXiangqiEngineClientId } from './engines/registry.js';
 import { darkMiniXiangqiEnabled } from './feature-flags.js';
 import type * as persistence from './persistence.js';
+import {
+  tenantForfeitDeadlineForClient,
+  tenantPveEngineId,
+  tenantRematchOfferFlags,
+} from './variant-tenant/runtime.js';
 import type {
   TenantClientEvent,
   TenantRoomEvent,
@@ -163,6 +168,24 @@ export const darkMiniXiangqiTenant: DarkMiniXiangqiTenant = {
     isEngineClientId: isDarkMiniXiangqiEngineClientId,
     displayName: engineVersionDisplayName,
     reservationReleaseTag: 'dmx',
+  },
+  wire: {
+    // DMX's snapshot carries the PvE/rated/rematch surface on top of the core
+    // payload; the per-seat forfeit-deadline gating keeps the "you win in Ns"
+    // banner from leaking to the leaver. Shape pinned by the DMX golden.
+    snapshotExtras: (room, client) => {
+      const pveEngineId = tenantPveEngineId(darkMiniXiangqiTenant, room);
+      return {
+        mode: pveEngineId ? 'pve' : 'pvp',
+        pveEngineId,
+        rated: room.rated,
+        forfeitDeadline: tenantForfeitDeadlineForClient(darkMiniXiangqiTenant, room, client),
+        rematch: {
+          offers: tenantRematchOfferFlags(darkMiniXiangqiTenant, room),
+          finalizedRoomId: room.rematch.finalizedRoomId ?? null,
+        },
+      };
+    },
   },
   persistence: {
     resultForWinner: (winner: MiniXiangqiColor | null): persistence.GameResult => {

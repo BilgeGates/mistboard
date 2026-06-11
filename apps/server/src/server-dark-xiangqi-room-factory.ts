@@ -1,12 +1,19 @@
-import { randomUUID } from 'node:crypto';
+/**
+ * Thin adapter over the generic tenant room factory
+ * (variant-tenant/room-factory.ts) for hidden Dark Xiangqi. No running-game
+ * record (recordGameStart omitted) and no PvE/rated options, matching the
+ * pre-migration factory.
+ */
+
 import type { RoomTimeControl } from '@mistboard/game';
-import {
-  createDarkXiangqiRuntimeRoom,
-  DARK_XIANGQI_ROOM_ID_PREFIX,
-  type DarkXiangqiCreatorPreference,
-  type DarkXiangqiEvent,
+import type {
+  DarkXiangqiCreatorPreference,
+  DarkXiangqiEvent,
+  DarkXiangqiRuntimeRoom,
 } from './dark-xiangqi-runtime.js';
+import { darkXiangqiTenant } from './dark-xiangqi-tenant.js';
 import type { DarkXiangqiLiveRoom } from './server-ws-dark-xiangqi.js';
+import { createTenantLiveRoom } from './variant-tenant/room-factory.js';
 
 export type DarkXiangqiLiveRoomCreation =
   | { ok: true; room: DarkXiangqiLiveRoom }
@@ -26,28 +33,25 @@ export async function createDarkXiangqiLiveRoom(
   timeControl?: RoomTimeControl,
   creatorPreference?: DarkXiangqiCreatorPreference,
 ): Promise<DarkXiangqiLiveRoomCreation> {
-  for (let attempt = 0; attempt < 5; attempt += 1) {
-    const roomId = ctx.createRoomId?.() ?? `${DARK_XIANGQI_ROOM_ID_PREFIX}${randomUUID()}`;
-    if (ctx.chessRooms.has(roomId) || ctx.darkXiangqiRooms.has(roomId)) continue;
-    const created = createDarkXiangqiRuntimeRoom(roomId, { creatorPreference, timeControl });
-    if (!created.ok) return created;
-    const room = created.room as DarkXiangqiLiveRoom;
-    if (ctx.isPersistenceEnabled()) {
-      let writingSeq = 0;
-      let writingEventType = 'room-created';
-      try {
-        for (const [seq, event] of room.events.entries()) {
-          writingSeq = seq;
-          writingEventType = event.type;
-          await ctx.appendRoomEvent(roomId, seq, event);
-        }
-      } catch (err) {
-        ctx.recordPersistenceError(roomId, writingSeq, writingEventType, err as Error);
-        return { ok: false, error: 'persistence_failure' };
-      }
-    }
-    ctx.darkXiangqiRooms.set(roomId, room);
-    return { ok: true, room };
+  const created = await createTenantLiveRoom(
+    darkXiangqiTenant,
+    {
+      // The live map stores rooms with connected-client sets; the factory only
+      // ever inserts freshly created rooms (empty client set), same as the
+      // pre-migration cast.
+      rooms: ctx.darkXiangqiRooms as unknown as Map<string, DarkXiangqiRuntimeRoom>,
+      isRoomIdTaken: (roomId) => ctx.chessRooms.has(roomId),
+      appendRoomEvent: ctx.appendRoomEvent,
+      createRoomId: ctx.createRoomId,
+      isPersistenceEnabled: ctx.isPersistenceEnabled,
+      recordPersistenceError: ctx.recordPersistenceError,
+    },
+    { timeControl, creatorPreference },
+  );
+  if (!created.ok) {
+    return created.error === 'disabled'
+      ? { ok: false, error: 'dark_xiangqi_disabled' }
+      : { ok: false, error: created.error };
   }
-  return { ok: false, error: 'room_id_collision' };
+  return { ok: true, room: created.room as DarkXiangqiLiveRoom };
 }

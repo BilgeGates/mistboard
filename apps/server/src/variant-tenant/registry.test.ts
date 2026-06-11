@@ -1,7 +1,9 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-// Importing the DMX ws adapter registers the tenant (module-scope side effect,
-// the "one registry entry" of the tenant contract).
+// Importing a tenant's module registers it (module-scope side effect, the
+// "one registry entry" of the tenant contract). DMX registers from its ws
+// adapter; Dark Xiangqi from its tenant module.
+import '../dark-xiangqi-tenant.js';
 import '../server-ws-dark-mini-xiangqi.js';
 import {
   registeredVariantTenants,
@@ -15,6 +17,11 @@ test('registry: DMX registration resolves by room id prefix and spec id', () => 
   assert.equal(byRoom?.kind, 'dark-mini-xiangqi');
   const bySpec = variantTenantForSpecId('dark-mini-xiangqi');
   assert.equal(bySpec?.roomIdPrefix, 'dmxq_');
+});
+
+test('registry: Dark Xiangqi registration resolves by room id prefix and spec id', () => {
+  assert.equal(variantTenantForRoomId('dxq_some-room')?.kind, 'dark-xiangqi');
+  assert.equal(variantTenantForSpecId('dark-xiangqi')?.roomIdPrefix, 'dxq_');
 });
 
 test('registry: misses fall through to null (chess fallback stays untouched)', () => {
