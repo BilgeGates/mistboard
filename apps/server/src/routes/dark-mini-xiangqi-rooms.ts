@@ -1,6 +1,6 @@
 import { randomBytes } from 'node:crypto';
 import type { ServerResponse } from 'node:http';
-import { DARK_MINI_XIANGQI_SPEC_ID } from '@mistboard/game';
+import { DARK_MINI_XIANGQI_SPEC_ID, type RoomTimeControl } from '@mistboard/game';
 import {
   DARK_MINI_XIANGQI_DEFAULT_ENGINE_ID,
   isDarkMiniXiangqiEngineClientId,
@@ -9,15 +9,35 @@ import { ratedEnabled } from './../feature-flags.js';
 import { gateGameSpecRequest } from './../game-spec-request-gate.js';
 import type { UserAccount } from './../persistence.js';
 import * as persistence from './../persistence.js';
-import type { HttpApiContext } from './lib.js';
 import { isAllowedRatedTimeControl, parseRoomTimeControl, writeJson } from './lib.js';
+
+// The slice of server context this route needs; the registry entry binds the
+// tenant's room factory in (dark-mini-xiangqi-registration.ts).
+export type DarkMiniXiangqiCreateContext = {
+  databaseRequired: boolean;
+  isDraining(): boolean;
+  drainDeadlineMs(): number | null;
+  reserveLiveEngineSeat(engineId: string, color: 'white' | 'black'): Promise<string | null>;
+  createDarkMiniXiangqiRoom(
+    timeControl?: RoomTimeControl,
+    creatorPreference?: 'red' | 'black' | 'random',
+    engine?: { engineId: string; seat: 'red' | 'black'; reservationId: string },
+    rated?: boolean,
+  ): Promise<
+    | { ok: true; room: { id: string; gameSpecId: string; rated: boolean } }
+    | {
+        ok: false;
+        error: 'dark_mini_xiangqi_disabled' | 'persistence_failure' | 'room_id_collision';
+      }
+  >;
+};
 
 export function requestsDarkMiniXiangqi(body: Record<string, unknown>): boolean {
   return body.gameSpecId === DARK_MINI_XIANGQI_SPEC_ID;
 }
 
 export async function handleDarkMiniXiangqiCreate(
-  ctx: HttpApiContext,
+  ctx: DarkMiniXiangqiCreateContext,
   response: ServerResponse,
   body: Record<string, unknown>,
   accountUser: UserAccount | null = null,

@@ -27,7 +27,6 @@ import {
 } from '@mistboard/game';
 import { darkXiangqiEnabled } from './feature-flags.js';
 import type * as persistence from './persistence.js';
-import { registerVariantTenant } from './variant-tenant/registry.js';
 import type {
   TenantClientEvent,
   TenantRoomEvent,
@@ -242,10 +241,3 @@ export const darkXiangqiTenant: DarkXiangqiTenant = {
     logLabel: 'Dark Xiangqi',
   },
 };
-
-registerVariantTenant({
-  kind: darkXiangqiTenant.kind,
-  gameSpecId: darkXiangqiTenant.gameSpecId,
-  roomIdPrefix: darkXiangqiTenant.roomIdPrefix,
-  enabled: darkXiangqiTenant.enabled,
-});

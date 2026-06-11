@@ -1,8 +1,8 @@
 /**
  * Thin adapter over the generic tenant room factory
- * (variant-tenant/room-factory.ts) for Dark Mini Xiangqi. Keeps the
- * pre-migration context shape (explicit sibling room maps for the
- * cross-variant id-collision check) and error codes.
+ * (variant-tenant/room-factory.ts) for Dark Mini Xiangqi. The cross-variant
+ * id-collision check is injected (the registration binds it to the registry)
+ * and error codes keep their pre-migration strings.
  */
 
 import type { MiniXiangqiColor, RoomTimeControl } from '@mistboard/game';
@@ -27,9 +27,9 @@ export type DarkMiniXiangqiLiveRoomCreation =
     };
 
 export type DarkMiniXiangqiLiveRoomFactoryContext = {
-  chessRooms: ReadonlyMap<string, unknown>;
   darkMiniXiangqiRooms: Map<string, DarkMiniXiangqiRuntimeRoom>;
-  darkXiangqiRooms: ReadonlyMap<string, unknown>;
+  // Collision check across rooms living outside this tenant's own map.
+  isRoomIdTaken(roomId: string): boolean;
   appendRoomEvent(roomId: string, seq: number, event: DarkMiniXiangqiEvent): Promise<void>;
   createRoomId?: () => string;
   isPersistenceEnabled(): boolean;
@@ -48,7 +48,7 @@ export async function createDarkMiniXiangqiLiveRoom(
     darkMiniXiangqiTenant,
     {
       rooms: ctx.darkMiniXiangqiRooms,
-      isRoomIdTaken: (roomId) => ctx.chessRooms.has(roomId) || ctx.darkXiangqiRooms.has(roomId),
+      isRoomIdTaken: ctx.isRoomIdTaken,
       appendRoomEvent: ctx.appendRoomEvent,
       createRoomId: ctx.createRoomId,
       isPersistenceEnabled: ctx.isPersistenceEnabled,

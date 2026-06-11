@@ -1,24 +1,17 @@
 import { randomUUID } from 'node:crypto';
 import type { IncomingMessage, ServerResponse } from 'node:http';
-import {
-  CROSSROADS_CHESS_SPEC_ID,
-  DARK_MINI_XIANGQI_SPEC_ID,
-  type GameSpecId,
-  gameSpecForLegacyLiveRoom,
-  type RoomTimeControl,
-} from '@mistboard/game';
+import { gameSpecForLegacyLiveRoom, type RoomTimeControl } from '@mistboard/game';
 import { currentAccountUser } from './../account-session.js';
-import {
-  crossroadsChessEnabled,
-  darkMiniXiangqiEnabled,
-  ratedEnabled,
-} from './../feature-flags.js';
+import { ratedEnabled } from './../feature-flags.js';
 import { gateGameSpecRequest } from './../game-spec-request-gate.js';
 import * as persistence from './../persistence.js';
 import type { LobbyTicket, Room } from './../server-types.js';
 import {
+  type VariantTenantRegistration,
+  variantTenantForSpecId,
+} from './../variant-tenant/registry.js';
+import {
   type HttpApiContext,
-  isAllowedCrossroadsChessTimeControl,
   isAllowedRatedTimeControl,
   isAllowedTimeControl,
   parseHiddenDraft960,
@@ -47,18 +40,19 @@ export async function tryHandle(
     }
     if (!requireMethod(request, response, 'POST')) return true;
     const body = await readJsonBody(request);
-    // Dark Mini Xiangqi joins the lobby on its own path; the chess
-    // gate would 501 it as not-integrated, so it's handled before the gate.
-    const isDarkMiniXiangqi = body.gameSpecId === DARK_MINI_XIANGQI_SPEC_ID;
-    const isCrossroadsChess = body.gameSpecId === CROSSROADS_CHESS_SPEC_ID;
-    if (isDarkMiniXiangqi) {
-      if (!darkMiniXiangqiEnabled()) {
-        writeJson(response, 404, { error: 'dark_mini_xiangqi_disabled' });
+    // Variant tenants join the lobby on their own path; the chess gate would
+    // 501 them as not-integrated, so the registry is consulted before it.
+    const registration =
+      typeof body.gameSpecId === 'string' ? variantTenantForSpecId(body.gameSpecId) : null;
+    if (registration) {
+      if (!registration.enabled()) {
+        writeJson(response, 404, { error: `${registration.errorPrefix}_disabled` });
         return true;
       }
-    } else if (isCrossroadsChess) {
-      if (!crossroadsChessEnabled()) {
-        writeJson(response, 404, { error: 'crossroads_chess_disabled' });
+      if (!registration.lobby) {
+        // Enabled but no matchmaking surface (Dark Xiangqi): same answer the
+        // chess gate used to give for an enabled-but-unrouted spec.
+        writeJson(response, 501, { error: `${registration.errorPrefix}_not_integrated` });
         return true;
       }
     } else {
@@ -71,15 +65,15 @@ export async function tryHandle(
         return true;
       }
     }
-    const hiddenDraft960 =
-      isDarkMiniXiangqi || isCrossroadsChess ? false : parseHiddenDraft960(body.hiddenDraft960);
+    const tenantLobby = registration?.lobby ?? null;
+    const hiddenDraft960 = registration ? false : parseHiddenDraft960(body.hiddenDraft960);
     const timeControl =
       body.timeControl === undefined ? undefined : parseRoomTimeControl(body.timeControl);
     // Rated requires the flag on AND a signed-in requester. Reject explicit
     // guest/off-surface rated requests instead of silently creating casual
     // tickets that looked rated in the setup UI.
     const accountUser = body.rated === true ? await currentAccountUser(request) : null;
-    if (body.rated === true && isCrossroadsChess) {
+    if (body.rated === true && tenantLobby && !tenantLobby.supportsRated) {
       writeJson(response, 501, { error: 'rated_unsupported_surface' });
       return true;
     }
@@ -98,12 +92,11 @@ export async function tryHandle(
       return true;
     }
     // Matchmaking is scoped to official playable TCs so the queue can't fragment
-    // into off-menu buckets. DMX keeps its existing open TC policy.
+    // into off-menu buckets; each tenant declares its own allowlist.
     if (
       timeControl &&
-      !isDarkMiniXiangqi &&
-      (isCrossroadsChess
-        ? !isAllowedCrossroadsChessTimeControl(timeControl)
+      (tenantLobby
+        ? !tenantLobby.allowsTimeControl(timeControl)
         : !isAllowedTimeControl(timeControl))
     ) {
       response.writeHead(400, { 'content-type': 'application/json' });
@@ -125,14 +118,15 @@ export async function tryHandle(
       response.end(JSON.stringify({ error: 'server_draining', restartAt: ctx.drainDeadlineMs() }));
       return true;
     }
-    const gameSpecId = isDarkMiniXiangqi
-      ? DARK_MINI_XIANGQI_SPEC_ID
-      : isCrossroadsChess
-        ? CROSSROADS_CHESS_SPEC_ID
-        : gameSpecForLegacyLiveRoom({ variant: 'dark-chess', hiddenDraft960 }).id;
+    // Registrations carry their tenant's typed gameSpecId; the registry holds
+    // it erased to string.
+    const gameSpecId = registration
+      ? (registration.gameSpecId as LobbyTicket['gameSpecId'])
+      : gameSpecForLegacyLiveRoom({ variant: 'dark-chess', hiddenDraft960 }).id;
     const ticket = await joinLobby(
       ctx,
       gameSpecId,
+      registration ?? null,
       hiddenDraft960,
       timeControl ?? undefined,
       lobbyRated,
@@ -169,14 +163,15 @@ export async function tryHandle(
 
 async function joinLobby(
   ctx: HttpApiContext,
-  gameSpecId: GameSpecId,
+  gameSpecId: LobbyTicket['gameSpecId'],
+  registration: VariantTenantRegistration | null,
   hiddenDraft960: boolean,
   timeControl: RoomTimeControl | undefined,
   rated = false,
 ): Promise<LobbyTicket> {
   pruneLobbyTickets(ctx);
   const timeKey = timeControlKey(timeControl);
-  // Tickets only match within the same game spec, so chess and Dark Mini Xiangqi
+  // Tickets only match within the same game spec, so chess and variant-tenant
   // seekers never pair with each other even at the same time control.
   const matchedTicket = ctx.lobbyQueue.find(
     (ticket) =>
@@ -206,7 +201,7 @@ async function joinLobby(
 
   let room: { id: string; region: string };
   try {
-    room = await createLobbyRoom(ctx, gameSpecId, hiddenDraft960, timeControl, rated);
+    room = await createLobbyRoom(ctx, registration, hiddenDraft960, timeControl, rated);
   } catch (err) {
     ctx.lobbyTickets.delete(ticket.id);
     throw err;
@@ -224,24 +219,18 @@ async function joinLobby(
 }
 
 // Dispatch lobby room creation by game spec. Chess goes through the shared room
-// factory exactly as before; Dark Mini Xiangqi uses its own factory (PvP, random
-// seating). A failure throws so the caller deletes the unmatched ticket.
+// factory exactly as before; variant tenants create through their registered
+// lobby factory (PvP, random seating). A failure throws so the caller deletes
+// the unmatched ticket.
 async function createLobbyRoom(
   ctx: HttpApiContext,
-  gameSpecId: GameSpecId,
+  registration: VariantTenantRegistration | null,
   hiddenDraft960: boolean,
   timeControl: RoomTimeControl | undefined,
   rated: boolean,
 ): Promise<{ id: string; region: string }> {
-  if (gameSpecId === DARK_MINI_XIANGQI_SPEC_ID) {
-    const created = await ctx.createDarkMiniXiangqiRoom(timeControl, 'random', undefined, rated);
-    if (!created.ok) throw new Error(`dark_mini_xiangqi_room_create_failed:${created.error}`);
-    return { id: created.room.id, region: 'global' };
-  }
-  if (gameSpecId === CROSSROADS_CHESS_SPEC_ID) {
-    const created = await ctx.createCrossroadsChessRoom(timeControl, 'random');
-    if (!created.ok) throw new Error(`crossroads_chess_room_create_failed:${created.error}`);
-    return { id: created.room.id, region: 'global' };
+  if (registration?.lobby) {
+    return registration.lobby.createRoom(timeControl, rated);
   }
   const room: Room = await ctx.createRoom(
     'pvp',

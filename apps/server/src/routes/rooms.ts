@@ -7,9 +7,7 @@ import { gateGameSpecRequest } from './../game-spec-request-gate.js';
 import { InternalEngineClientError } from './../internal-engine-client.js';
 import { engineCounters, logger } from './../obs.js';
 import * as persistence from './../persistence.js';
-import { handleCrossroadsChessCreate, requestsCrossroadsChess } from './crossroads-chess-rooms.js';
-import { handleDarkMiniXiangqiCreate, requestsDarkMiniXiangqi } from './dark-mini-xiangqi-rooms.js';
-import { handleDarkXiangqiCreate, requestsDarkXiangqi } from './dark-xiangqi-rooms.js';
+import { registeredVariantTenants } from './../variant-tenant/registry.js';
 import {
   type HttpApiContext,
   isAllowedRatedTimeControl,
@@ -31,18 +29,14 @@ export async function tryHandle(
   if (pathname === '/api/rooms') {
     if (!requireMethod(request, response, 'POST')) return true;
     const body = await readJsonBody(request);
-    if (requestsDarkMiniXiangqi(body)) {
-      const accountUser = body.rated === true ? await currentAccountUser(request) : null;
-      await handleDarkMiniXiangqiCreate(ctx, response, body, accountUser);
-      return true;
-    }
-    if (requestsDarkXiangqi(body)) {
-      await handleDarkXiangqiCreate(ctx, response, body);
-      return true;
-    }
-    if (requestsCrossroadsChess(body)) {
-      await handleCrossroadsChessCreate(ctx, response, body);
-      return true;
+    // Variant tenants claim their create requests via the registry; each
+    // tenant's handler owns its flag/rated/engine gates and error strings.
+    // A registry miss falls through to the chess path below.
+    for (const registration of registeredVariantTenants()) {
+      if (registration.http.matchesCreateRequest(body)) {
+        await registration.http.handleCreate(ctx, request, response, body);
+        return true;
+      }
     }
     const gameSpecGate = gateGameSpecRequest({
       gameSpecId: body.gameSpecId,

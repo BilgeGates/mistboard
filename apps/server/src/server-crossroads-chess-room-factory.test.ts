@@ -21,10 +21,8 @@ function fakeCtx(opts: { persist?: boolean; failOn?: number } = {}) {
   const errors: { roomId: string; seq: number; type: string }[] = [];
   let counter = 0;
   const ctx: CrossroadsChessLiveRoomFactoryContext = {
-    chessRooms: new Map(),
-    darkMiniXiangqiRooms: new Map(),
-    darkXiangqiRooms: new Map(),
     crossroadsChessRooms,
+    isRoomIdTaken: () => false,
     appendRoomEvent: async (roomId, seq, event) => {
       if (opts.failOn !== undefined && seq === opts.failOn) throw new Error('db down');
       appended.push({ roomId, seq, event });

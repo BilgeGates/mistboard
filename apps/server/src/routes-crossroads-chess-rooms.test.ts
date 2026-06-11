@@ -6,8 +6,10 @@ import type {
   CrossroadsChessCreatorPreference,
   CrossroadsChessRuntimeRoom,
 } from './crossroads-chess-runtime.js';
-import { handleCrossroadsChessCreate } from './routes/crossroads-chess-rooms.js';
-import type { HttpApiContext } from './routes/lib.js';
+import {
+  type CrossroadsChessCreateContext,
+  handleCrossroadsChessCreate,
+} from './routes/crossroads-chess-rooms.js';
 
 type ResponseCapture = { body: string; headers: Record<string, string>; status: number | null };
 
@@ -46,10 +48,10 @@ test('Crossroads room creation accepts black as the dark-chess picker alias for 
     databaseRequired: false,
     drainDeadlineMs: () => null,
     isDraining: () => false,
-  } satisfies Partial<HttpApiContext>;
+  } satisfies CrossroadsChessCreateContext;
   const response = captureResponse();
 
-  await handleCrossroadsChessCreate(ctx as HttpApiContext, response, {
+  await handleCrossroadsChessCreate(ctx, response, {
     mode: 'pvp',
     gameSpecId: CROSSROADS_CHESS_SPEC_ID,
     preferredColor: 'black',
@@ -76,10 +78,10 @@ test('Crossroads PvE creation seats a known FSF engine opposite the requested si
     databaseRequired: false,
     drainDeadlineMs: () => null,
     isDraining: () => false,
-  } satisfies Partial<HttpApiContext>;
+  } satisfies CrossroadsChessCreateContext;
   const response = captureResponse();
 
-  await handleCrossroadsChessCreate(ctx as HttpApiContext, response, {
+  await handleCrossroadsChessCreate(ctx, response, {
     mode: 'pve',
     gameSpecId: CROSSROADS_CHESS_SPEC_ID,
     engineId: 'fairy-stockfish-crossroads-very-strong',
@@ -99,10 +101,13 @@ test('Crossroads PvE creation rejects unknown engine ids', async () => {
   const response = captureResponse();
   await handleCrossroadsChessCreate(
     {
+      createCrossroadsChessRoom: async () => {
+        throw new Error('unexpected Crossroads room creation');
+      },
       databaseRequired: false,
       drainDeadlineMs: () => null,
       isDraining: () => false,
-    } as HttpApiContext,
+    } satisfies CrossroadsChessCreateContext,
     response,
     {
       mode: 'pve',

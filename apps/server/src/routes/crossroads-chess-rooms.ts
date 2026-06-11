@@ -1,14 +1,36 @@
 import { randomBytes } from 'node:crypto';
 import type { ServerResponse } from 'node:http';
-import { CROSSROADS_CHESS_SPEC_ID, maybeGameSpecForId } from '@mistboard/game';
+import {
+  CROSSROADS_CHESS_SPEC_ID,
+  maybeGameSpecForId,
+  type RoomTimeControl,
+} from '@mistboard/game';
 import {
   CROSSROADS_CHESS_DEFAULT_ENGINE_ID,
   isCrossroadsChessEngineClientId,
 } from './../crossroads-chess-engine.js';
 import { crossroadsChessEnabled } from './../feature-flags.js';
 import * as persistence from './../persistence.js';
-import type { HttpApiContext } from './lib.js';
 import { parseRoomTimeControl, writeJson } from './lib.js';
+
+// The slice of server context this route needs; the registry entry binds the
+// tenant's room factory in (crossroads-chess-registration.ts).
+export type CrossroadsChessCreateContext = {
+  databaseRequired: boolean;
+  isDraining(): boolean;
+  drainDeadlineMs(): number | null;
+  createCrossroadsChessRoom(
+    timeControl?: RoomTimeControl,
+    creatorPreference?: 'white' | 'red' | 'random',
+    engine?: { engineId: string; seat: 'white' | 'red' },
+  ): Promise<
+    | { ok: true; room: { id: string; gameSpecId: string } }
+    | {
+        ok: false;
+        error: 'crossroads_chess_disabled' | 'persistence_failure' | 'room_id_collision';
+      }
+  >;
+};
 
 export function requestsCrossroadsChess(body: Record<string, unknown>): boolean {
   return (
@@ -20,7 +42,7 @@ export function requestsCrossroadsChess(body: Record<string, unknown>): boolean 
 // Create a perfect-information Crossroads Chess live room. Supports PvP and
 // server-owned Fairy-Stockfish PvE, flag-gated, not rated.
 export async function handleCrossroadsChessCreate(
-  ctx: HttpApiContext,
+  ctx: CrossroadsChessCreateContext,
   response: ServerResponse,
   body: Record<string, unknown>,
 ): Promise<void> {

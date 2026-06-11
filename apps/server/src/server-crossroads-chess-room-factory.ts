@@ -26,10 +26,9 @@ export type CrossroadsChessLiveRoomCreation =
   | { ok: false; error: 'crossroads_chess_disabled' | 'persistence_failure' | 'room_id_collision' };
 
 export type CrossroadsChessLiveRoomFactoryContext = {
-  chessRooms: ReadonlyMap<string, unknown>;
-  darkMiniXiangqiRooms: ReadonlyMap<string, unknown>;
-  darkXiangqiRooms: ReadonlyMap<string, unknown>;
   crossroadsChessRooms: Map<string, CrossroadsChessRuntimeRoom>;
+  // Collision check across rooms living outside this tenant's own map.
+  isRoomIdTaken(roomId: string): boolean;
   appendRoomEvent(roomId: string, seq: number, event: CrossroadsChessEvent): Promise<void>;
   createRoomId?: () => string;
   isPersistenceEnabled(): boolean;
@@ -47,10 +46,7 @@ export async function createCrossroadsChessLiveRoom(
     crossroadsChessTenant,
     {
       rooms: ctx.crossroadsChessRooms,
-      isRoomIdTaken: (roomId) =>
-        ctx.chessRooms.has(roomId) ||
-        ctx.darkXiangqiRooms.has(roomId) ||
-        ctx.darkMiniXiangqiRooms.has(roomId),
+      isRoomIdTaken: ctx.isRoomIdTaken,
       appendRoomEvent: ctx.appendRoomEvent,
       createRoomId: ctx.createRoomId,
       isPersistenceEnabled: ctx.isPersistenceEnabled,

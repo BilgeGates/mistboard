@@ -1,18 +1,6 @@
 import type { IncomingMessage, ServerResponse } from 'node:http';
 import type { RoomTimeControl, VariantId } from '@mistboard/game';
 import serveHandler from 'serve-handler';
-import type {
-  CrossroadsChessCreatorPreference,
-  CrossroadsChessRuntimeRoom,
-} from './crossroads-chess-runtime.js';
-import type {
-  DarkMiniXiangqiCreatorPreference,
-  DarkMiniXiangqiRuntimeRoom,
-} from './dark-mini-xiangqi-runtime.js';
-import type {
-  DarkXiangqiCreatorPreference,
-  DarkXiangqiRuntimeRoom,
-} from './dark-xiangqi-runtime.js';
 import { type HttpApiContext, handleApiRequest } from './http-api.js';
 import { serveArticleOgImage, serveGameOgImage } from './og-image.js';
 import * as persistence from './persistence.js';
@@ -63,34 +51,6 @@ type ServerHttpHandlerOptions = {
       region?: string;
     },
   ): Promise<Room>;
-  createDarkXiangqiRoom(
-    timeControl?: RoomTimeControl,
-    creatorPreference?: DarkXiangqiCreatorPreference,
-  ): Promise<
-    | { ok: true; room: DarkXiangqiRuntimeRoom }
-    | { ok: false; error: 'dark_xiangqi_disabled' | 'persistence_failure' | 'room_id_collision' }
-  >;
-  createDarkMiniXiangqiRoom(
-    timeControl?: RoomTimeControl,
-    creatorPreference?: DarkMiniXiangqiCreatorPreference,
-  ): Promise<
-    | { ok: true; room: DarkMiniXiangqiRuntimeRoom }
-    | {
-        ok: false;
-        error: 'dark_mini_xiangqi_disabled' | 'persistence_failure' | 'room_id_collision';
-      }
-  >;
-  createCrossroadsChessRoom(
-    timeControl?: RoomTimeControl,
-    creatorPreference?: CrossroadsChessCreatorPreference,
-    engine?: { engineId: string; seat: 'white' | 'red' },
-  ): Promise<
-    | { ok: true; room: CrossroadsChessRuntimeRoom }
-    | {
-        ok: false;
-        error: 'crossroads_chess_disabled' | 'persistence_failure' | 'room_id_collision';
-      }
-  >;
   reserveLiveEngineSeat(engineId: string, color: 'white' | 'black'): Promise<string | null>;
   releaseLiveEngineReservation(reservationId: string, reason: string): void;
   abandonRoom(
@@ -338,9 +298,6 @@ function buildApiContext(options: ServerHttpHandlerOptions): HttpApiContext {
     liveClockInitialMs: options.liveClockInitialMs,
     liveClockIncrementMs: options.liveClockIncrementMs,
     createRoom: options.createRoom,
-    createDarkXiangqiRoom: options.createDarkXiangqiRoom,
-    createDarkMiniXiangqiRoom: options.createDarkMiniXiangqiRoom,
-    createCrossroadsChessRoom: options.createCrossroadsChessRoom,
     reserveLiveEngineSeat: options.reserveLiveEngineSeat,
     releaseLiveEngineReservation: options.releaseLiveEngineReservation,
     abandonRoom: options.abandonRoom,

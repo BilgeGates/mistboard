@@ -3,9 +3,8 @@
  * (variant-tenant/ws.ts) for Dark Mini Xiangqi. Instantiates the per-tenant
  * bundle once at module scope (wiring the DMX PvE engine scheduler into the
  * post-connect / post-move hooks) and re-exports the bound functions under
- * their pre-migration names. Also registers the tenant in the variant
- * registry — the dispatch sites still hand-code their DMX branches; collapsing
- * them onto the registry is the follow-up step.
+ * their pre-migration names. Registry dispatch lives in
+ * dark-mini-xiangqi-registration.ts.
  */
 
 import type { IncomingMessage } from 'node:http';
@@ -19,7 +18,6 @@ import type {
   DarkMiniXiangqiLiveRoom,
 } from './server-dark-mini-xiangqi-live-room.js';
 import type { DarkMiniXiangqiRematchContext } from './server-dark-mini-xiangqi-rematch.js';
-import { registerVariantTenant } from './variant-tenant/registry.js';
 import { createTenantWsRuntime } from './variant-tenant/ws.js';
 
 // Re-exported (the definitions live in a leaf module so this handler and the
@@ -36,13 +34,6 @@ const darkMiniXiangqiWs = createTenantWsRuntime(darkMiniXiangqiTenant, {
   // PvE: after a join or a human move it may be the engine's turn; the engine
   // move flows through the same append+broadcast path as a human move.
   scheduleEngineMove: (ctx, room) => scheduleDarkMiniXiangqiEngineMove(ctx, room),
-});
-
-registerVariantTenant({
-  kind: darkMiniXiangqiTenant.kind,
-  gameSpecId: darkMiniXiangqiTenant.gameSpecId,
-  roomIdPrefix: darkMiniXiangqiTenant.roomIdPrefix,
-  enabled: darkMiniXiangqiTenant.enabled,
 });
 
 export async function handleDarkMiniXiangqiWebSocketConnection(

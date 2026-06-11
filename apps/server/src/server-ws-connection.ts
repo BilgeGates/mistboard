@@ -3,20 +3,6 @@ import type { IncomingMessage } from 'node:http';
 import type { VariantId } from '@mistboard/game';
 import type { WebSocket } from 'ws';
 import { currentAccountUser } from './account-session.js';
-import {
-  type CrossroadsChessRuntimeRoom,
-  isCrossroadsChessRoomId,
-} from './crossroads-chess-runtime.js';
-import {
-  type DarkMiniXiangqiRuntimeRoom,
-  isDarkMiniXiangqiRoomId,
-} from './dark-mini-xiangqi-runtime.js';
-import { isDarkXiangqiRoomId } from './dark-xiangqi-runtime.js';
-import {
-  crossroadsChessEnabled,
-  darkMiniXiangqiEnabled,
-  darkXiangqiEnabled,
-} from './feature-flags.js';
 import { gateGameSpecRequest } from './game-spec-request-gate.js';
 import { parseHiddenDraft960, parseVariantId } from './http-api.js';
 import { logger, wsCounters } from './obs.js';
@@ -41,7 +27,6 @@ import {
   scheduleRandomEngineMove,
   seatDisplayNamesForRoom,
 } from './room-manager.js';
-import type { DarkMiniXiangqiRematchContext } from './server-dark-mini-xiangqi-rematch.js';
 import {
   adminDebugTokenFromProtocolHeader,
   canObserveLiveRoom,
@@ -53,37 +38,21 @@ import {
 } from './server-policy.js';
 import { assignSeat, displaceOlderSeatClients } from './server-seat-session.js';
 import type { Client, Room, SeatAssignment } from './server-types.js';
-import {
-  type CrossroadsChessLiveRoom,
-  type CrossroadsChessWebSocketContext,
-  handleCrossroadsChessWebSocketConnection,
-} from './server-ws-crossroads-chess.js';
-import {
-  type DarkMiniXiangqiLiveRoom,
-  handleDarkMiniXiangqiWebSocketConnection,
-} from './server-ws-dark-mini-xiangqi.js';
-import {
-  type DarkXiangqiLiveRoom,
-  handleDarkXiangqiWebSocketConnection,
-} from './server-ws-dark-xiangqi.js';
 import { isKnownClientMessageType, parseClientMessage } from './server-ws-messages.js';
+import {
+  registeredVariantTenants,
+  type TenantManagedRoom,
+  type VariantTenantRegistration,
+} from './variant-tenant/registry.js';
 
 export type WebSocketConnectionContext = {
   roomMgrCtx: RoomManagerContext;
   rematchOrch: RematchOrchestrator;
-  darkMiniXiangqiRematch: DarkMiniXiangqiRematchContext;
-  crossroadsChessRematch: CrossroadsChessWebSocketContext['crossroadsChessRematch'];
   defaultRoomRegion: string;
   wsMessageLimit: number;
   wsMessageWindowMs: number;
   clearPendingVacate: (room: Room, seat: Client['seat']) => void;
-  darkMiniXiangqiRooms: Map<string, DarkMiniXiangqiRuntimeRoom>;
-  darkXiangqiRooms: Map<string, DarkXiangqiLiveRoom>;
-  crossroadsChessRooms: Map<string, CrossroadsChessRuntimeRoom>;
   enableRandomEngine: (room: Room) => Promise<void>;
-  getOrLoadDarkMiniXiangqiRoom: (roomId: string) => Promise<DarkMiniXiangqiRuntimeRoom | null>;
-  getOrLoadDarkXiangqiRoom: (roomId: string) => Promise<DarkXiangqiLiveRoom | null>;
-  getOrLoadCrossroadsChessRoom: (roomId: string) => Promise<CrossroadsChessRuntimeRoom | null>;
   getOrCreateRoom: (roomId: string, variant: VariantId, hiddenDraft960?: boolean) => Promise<Room>;
   handleAbort: (room: Room, client: Client) => Promise<void>;
   handleResign: (room: Room, client: Client) => Promise<void>;
@@ -99,84 +68,35 @@ export type WebSocketConnectionContext = {
   send: (client: Client, payload: unknown) => void;
 };
 
-export type WebSocketRuntimeResolverContext = Pick<
-  WebSocketConnectionContext,
-  | 'darkMiniXiangqiRooms'
-  | 'darkXiangqiRooms'
-  | 'crossroadsChessRooms'
-  | 'getOrLoadDarkMiniXiangqiRoom'
-  | 'getOrLoadDarkXiangqiRoom'
-  | 'getOrLoadCrossroadsChessRoom'
->;
-
 export type WebSocketLiveRuntime =
   | { kind: 'chess' }
-  | { kind: 'dark-mini-xiangqi'; room: DarkMiniXiangqiLiveRoom }
-  | { kind: 'dark-xiangqi'; room: DarkXiangqiLiveRoom }
-  | { kind: 'crossroads-chess'; room: CrossroadsChessLiveRoom }
-  | { kind: 'dark-xiangqi-unavailable'; reason: 'game spec disabled' | 'room unavailable' }
-  | {
-      kind: 'dark-mini-xiangqi-unavailable';
-      reason: 'game spec disabled' | 'room unavailable';
-    }
-  | { kind: 'crossroads-chess-unavailable'; reason: 'game spec disabled' | 'room unavailable' };
+  | { kind: 'variant-tenant'; registration: VariantTenantRegistration; room: TenantManagedRoom }
+  | { kind: 'variant-tenant-unavailable'; reason: 'game spec disabled' | 'room unavailable' };
 
 export function isAllowedWebSocketRequest(request: IncomingMessage): boolean {
   return isAllowedWebSocketOrigin(request.headers.origin, request.headers.host);
 }
 
+// Route a room id to its live runtime. Live rooms route before flag checks so
+// an in-flight game keeps serving even if its tenant flag flips off; a
+// registry miss is the chess fallback (chess is deliberately unregistered
+// until its P2 migration).
 export async function resolveWebSocketLiveRuntime(
-  ctx: WebSocketRuntimeResolverContext,
+  registrations: readonly VariantTenantRegistration[],
   roomId: string,
 ): Promise<WebSocketLiveRuntime> {
-  const existingDarkXiangqiRoom = ctx.darkXiangqiRooms.get(roomId);
-  if (existingDarkXiangqiRoom) return { kind: 'dark-xiangqi', room: existingDarkXiangqiRoom };
-  const existingDarkMiniXiangqiRoom = ctx.darkMiniXiangqiRooms.get(roomId);
-  if (existingDarkMiniXiangqiRoom) {
-    return {
-      kind: 'dark-mini-xiangqi',
-      room: existingDarkMiniXiangqiRoom as DarkMiniXiangqiLiveRoom,
-    };
+  for (const registration of registrations) {
+    const live = registration.rooms.get(roomId);
+    if (live) return { kind: 'variant-tenant', registration, room: live };
   }
-  const existingCrossroadsChessRoom = ctx.crossroadsChessRooms.get(roomId);
-  if (existingCrossroadsChessRoom) {
-    return {
-      kind: 'crossroads-chess',
-      room: existingCrossroadsChessRoom as CrossroadsChessLiveRoom,
-    };
+  const registration = registrations.find((entry) => roomId.startsWith(entry.roomIdPrefix)) ?? null;
+  if (!registration) return { kind: 'chess' };
+  if (!registration.enabled()) {
+    return { kind: 'variant-tenant-unavailable', reason: 'game spec disabled' };
   }
-  if (isDarkMiniXiangqiRoomId(roomId)) {
-    if (!darkMiniXiangqiEnabled()) {
-      return { kind: 'dark-mini-xiangqi-unavailable', reason: 'game spec disabled' };
-    }
-    const hydratedDarkMiniXiangqiRoom = await ctx.getOrLoadDarkMiniXiangqiRoom(roomId);
-    if (hydratedDarkMiniXiangqiRoom) {
-      return {
-        kind: 'dark-mini-xiangqi',
-        room: hydratedDarkMiniXiangqiRoom as DarkMiniXiangqiLiveRoom,
-      };
-    }
-    return { kind: 'dark-mini-xiangqi-unavailable', reason: 'room unavailable' };
-  }
-  if (isCrossroadsChessRoomId(roomId)) {
-    if (!crossroadsChessEnabled()) {
-      return { kind: 'crossroads-chess-unavailable', reason: 'game spec disabled' };
-    }
-    const hydratedCrossroadsChessRoom = await ctx.getOrLoadCrossroadsChessRoom(roomId);
-    if (hydratedCrossroadsChessRoom) {
-      return {
-        kind: 'crossroads-chess',
-        room: hydratedCrossroadsChessRoom as CrossroadsChessLiveRoom,
-      };
-    }
-    return { kind: 'crossroads-chess-unavailable', reason: 'room unavailable' };
-  }
-  if (!isDarkXiangqiRoomId(roomId)) return { kind: 'chess' };
-  if (!darkXiangqiEnabled())
-    return { kind: 'dark-xiangqi-unavailable', reason: 'game spec disabled' };
-  const hydratedDarkXiangqiRoom = await ctx.getOrLoadDarkXiangqiRoom(roomId);
-  if (hydratedDarkXiangqiRoom) return { kind: 'dark-xiangqi', room: hydratedDarkXiangqiRoom };
-  return { kind: 'dark-xiangqi-unavailable', reason: 'room unavailable' };
+  const hydrated = await registration.getOrLoadRoom(roomId);
+  if (hydrated) return { kind: 'variant-tenant', registration, room: hydrated };
+  return { kind: 'variant-tenant-unavailable', reason: 'room unavailable' };
 }
 
 export async function handleWebSocketConnection(
@@ -186,28 +106,21 @@ export async function handleWebSocketConnection(
 ): Promise<void> {
   const url = new URL(request.url ?? '/', `http://${request.headers.host ?? 'localhost'}`);
   const roomId = url.searchParams.get('room') ?? 'dev-room';
-  const runtime = await resolveWebSocketLiveRuntime(ctx, roomId);
-  if (runtime.kind === 'dark-xiangqi') {
-    await handleDarkXiangqiWebSocketConnection(ctx, socket, request, runtime.room);
+  const runtime = await resolveWebSocketLiveRuntime(registeredVariantTenants(), roomId);
+  if (runtime.kind === 'variant-tenant') {
+    await runtime.registration.attachWebSocket(
+      {
+        defaultRoomRegion: ctx.defaultRoomRegion,
+        wsMessageLimit: ctx.wsMessageLimit,
+        wsMessageWindowMs: ctx.wsMessageWindowMs,
+      },
+      socket,
+      request,
+      runtime.room,
+    );
     return;
   }
-  if (runtime.kind === 'dark-mini-xiangqi') {
-    await handleDarkMiniXiangqiWebSocketConnection(ctx, socket, request, runtime.room);
-    return;
-  }
-  if (runtime.kind === 'crossroads-chess') {
-    await handleCrossroadsChessWebSocketConnection(ctx, socket, request, runtime.room);
-    return;
-  }
-  if (runtime.kind === 'dark-xiangqi-unavailable') {
-    socket.close(1008, runtime.reason);
-    return;
-  }
-  if (runtime.kind === 'dark-mini-xiangqi-unavailable') {
-    socket.close(1008, runtime.reason);
-    return;
-  }
-  if (runtime.kind === 'crossroads-chess-unavailable') {
+  if (runtime.kind === 'variant-tenant-unavailable') {
     socket.close(1008, runtime.reason);
     return;
   }

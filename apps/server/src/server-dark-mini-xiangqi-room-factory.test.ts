@@ -192,12 +192,15 @@ function testContext(
   for (const roomId of overrides.darkMiniXiangqiRoomIds ?? []) {
     darkMiniXiangqiRooms.set(roomId, undefined as unknown as DarkMiniXiangqiRuntimeRoom);
   }
+  const takenRoomIds = new Set([
+    ...(overrides.chessRoomIds ?? []),
+    ...(overrides.darkXiangqiRoomIds ?? []),
+  ]);
   return {
     appendRoomEvent: overrides.appendRoomEvent ?? (async () => {}),
-    chessRooms: new Map((overrides.chessRoomIds ?? []).map((roomId) => [roomId, {}])),
     createRoomId: overrides.createRoomId,
     darkMiniXiangqiRooms,
-    darkXiangqiRooms: new Map((overrides.darkXiangqiRoomIds ?? []).map((roomId) => [roomId, {}])),
+    isRoomIdTaken: (roomId) => takenRoomIds.has(roomId),
     isPersistenceEnabled: () => overrides.persistenceEnabled ?? false,
     recordGameStart: overrides.recordGameStart ?? (async () => {}),
     recordPersistenceError:

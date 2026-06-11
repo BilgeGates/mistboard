@@ -8,7 +8,11 @@
 
 import type { XiangqiColor } from '@mistboard/game';
 import type { DarkXiangqiEvent, DarkXiangqiRuntimeRoom } from './dark-xiangqi-runtime.js';
-import { type DarkXiangqiLiveClient, type DarkXiangqiLiveRoom, darkXiangqiWs } from './server-ws-dark-xiangqi.js';
+import {
+  type DarkXiangqiLiveClient,
+  type DarkXiangqiLiveRoom,
+  darkXiangqiWs,
+} from './server-ws-dark-xiangqi.js';
 
 export type DarkXiangqiTransportClient = {
   displaced: boolean;

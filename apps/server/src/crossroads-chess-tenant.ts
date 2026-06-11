@@ -33,7 +33,6 @@ import {
 } from './crossroads-chess-engine.js';
 import { crossroadsChessEnabled } from './feature-flags.js';
 import type * as persistence from './persistence.js';
-import { registerVariantTenant } from './variant-tenant/registry.js';
 import {
   tenantForfeitDeadlineForClient,
   tenantPveEngineId,
@@ -188,10 +187,3 @@ export const crossroadsChessTenant: CrossroadsChessTenant = {
     logLabel: 'Crossroads Chess',
   },
 };
-
-registerVariantTenant({
-  kind: crossroadsChessTenant.kind,
-  gameSpecId: crossroadsChessTenant.gameSpecId,
-  roomIdPrefix: crossroadsChessTenant.roomIdPrefix,
-  enabled: crossroadsChessTenant.enabled,
-});

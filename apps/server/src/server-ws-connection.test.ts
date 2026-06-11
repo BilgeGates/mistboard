@@ -1,192 +1,141 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import type { DarkMiniXiangqiRuntimeRoom } from './dark-mini-xiangqi-runtime.js';
-import {
-  resolveWebSocketLiveRuntime,
-  type WebSocketRuntimeResolverContext,
-} from './server-ws-connection.js';
-import type { DarkXiangqiLiveRoom } from './server-ws-dark-xiangqi.js';
+import { resolveWebSocketLiveRuntime, type WebSocketLiveRuntime } from './server-ws-connection.js';
+import type { TenantManagedRoom, VariantTenantRegistration } from './variant-tenant/registry.js';
 
-const darkMiniXiangqiFlag = 'MISTBOARD_DARK_MINI_XIANGQI_ENABLED';
-const darkXiangqiFlag = 'MISTBOARD_DARK_XIANGQI_ENABLED';
+// The resolver takes the registrations as data (the production caller passes
+// registeredVariantTenants()), so the contract is pinned with synthetic
+// registrations instead of mutating the global registry.
 
-test('WebSocket runtime resolver routes existing Dark Xiangqi rooms before flag checks', async () => {
-  const room = darkXiangqiRoomFixture('dxq_existing');
-  const ctx = resolverContext({ room });
-  const before = process.env[darkXiangqiFlag];
-  delete process.env[darkXiangqiFlag];
-  try {
-    const runtime = await resolveWebSocketLiveRuntime(ctx, 'dxq_existing');
-    assert.equal(runtime.kind, 'dark-xiangqi');
-    assert.equal(runtime.kind === 'dark-xiangqi' ? runtime.room : null, room);
-    assert.equal(ctx.loadCalls, 0);
-  } finally {
-    restoreFlag(before);
-  }
+test('WebSocket runtime resolver routes existing tenant rooms before flag checks', async () => {
+  const room = roomFixture('dxq_existing');
+  const harness = resolverHarness({ kind: 'dark-xiangqi', prefix: 'dxq_', enabled: false, room });
+
+  const runtime = await resolveWebSocketLiveRuntime([harness.registration], 'dxq_existing');
+
+  assertTenantRuntime(runtime, harness.registration, room);
+  assert.equal(harness.loadCalls(), 0);
 });
 
-test('WebSocket runtime resolver hydrates flagged Dark Xiangqi rooms', async () => {
-  const room = darkXiangqiRoomFixture('dxq_hydrate');
-  const ctx = resolverContext({ loadRoom: room });
-  const before = process.env[darkXiangqiFlag];
-  process.env[darkXiangqiFlag] = 'true';
-  try {
-    const runtime = await resolveWebSocketLiveRuntime(ctx, 'dxq_hydrate');
-    assert.equal(runtime.kind, 'dark-xiangqi');
-    assert.equal(runtime.kind === 'dark-xiangqi' ? runtime.room : null, room);
-    assert.equal(ctx.loadCalls, 1);
-  } finally {
-    restoreFlag(before);
-  }
+test('WebSocket runtime resolver hydrates enabled tenant rooms by prefix', async () => {
+  const room = roomFixture('dmxq_hydrate');
+  const harness = resolverHarness({
+    kind: 'dark-mini-xiangqi',
+    prefix: 'dmxq_',
+    enabled: true,
+    loadRoom: room,
+  });
+
+  const runtime = await resolveWebSocketLiveRuntime([harness.registration], 'dmxq_hydrate');
+
+  assertTenantRuntime(runtime, harness.registration, room);
+  assert.equal(harness.loadCalls(), 1);
 });
 
-test('WebSocket runtime resolver rejects Dark Xiangqi ids while the flag is off', async () => {
-  const ctx = resolverContext({});
-  const before = process.env[darkXiangqiFlag];
-  delete process.env[darkXiangqiFlag];
-  try {
-    const runtime = await resolveWebSocketLiveRuntime(ctx, 'dxq_disabled');
-    assert.deepEqual(runtime, { kind: 'dark-xiangqi-unavailable', reason: 'game spec disabled' });
-    assert.equal(ctx.loadCalls, 0);
-  } finally {
-    restoreFlag(before);
-  }
+test('WebSocket runtime resolver rejects tenant ids while the tenant is disabled', async () => {
+  const harness = resolverHarness({ kind: 'dark-xiangqi', prefix: 'dxq_', enabled: false });
+
+  const runtime = await resolveWebSocketLiveRuntime([harness.registration], 'dxq_disabled');
+
+  assert.deepEqual(runtime, { kind: 'variant-tenant-unavailable', reason: 'game spec disabled' });
+  assert.equal(harness.loadCalls(), 0);
 });
 
-test('WebSocket runtime resolver keeps non-Dark-Xiangqi ids on the chess runtime', async () => {
-  const ctx = resolverContext({});
-  const before = process.env[darkXiangqiFlag];
-  process.env[darkXiangqiFlag] = 'true';
-  try {
-    const runtime = await resolveWebSocketLiveRuntime(ctx, 'room-chess');
-    assert.deepEqual(runtime, { kind: 'chess' });
-    assert.equal(ctx.loadCalls, 0);
-  } finally {
-    restoreFlag(before);
-  }
+test('WebSocket runtime resolver rejects missing enabled tenant rooms', async () => {
+  const harness = resolverHarness({ kind: 'dark-mini-xiangqi', prefix: 'dmxq_', enabled: true });
+
+  const runtime = await resolveWebSocketLiveRuntime([harness.registration], 'dmxq_missing');
+
+  assert.deepEqual(runtime, { kind: 'variant-tenant-unavailable', reason: 'room unavailable' });
+  assert.equal(harness.loadCalls(), 1);
 });
 
-test('WebSocket runtime resolver routes existing Dark Mini Xiangqi rooms before flag checks', async () => {
-  const room = darkMiniXiangqiRoomFixture('dmxq_existing');
-  const ctx = resolverContext({ miniRoom: room });
-  const before = process.env[darkMiniXiangqiFlag];
-  delete process.env[darkMiniXiangqiFlag];
-  try {
-    const runtime = await resolveWebSocketLiveRuntime(ctx, 'dmxq_existing');
-    assert.equal(runtime.kind, 'dark-mini-xiangqi');
-    assert.equal(runtime.kind === 'dark-mini-xiangqi' ? runtime.room : null, room);
-    assert.equal(ctx.loadCalls, 0);
-  } finally {
-    restoreEnv(darkMiniXiangqiFlag, before);
-  }
+test('WebSocket runtime resolver keeps registry misses on the chess runtime', async () => {
+  const harness = resolverHarness({ kind: 'dark-xiangqi', prefix: 'dxq_', enabled: true });
+
+  const runtime = await resolveWebSocketLiveRuntime([harness.registration], 'room-chess');
+
+  assert.deepEqual(runtime, { kind: 'chess' });
+  assert.equal(harness.loadCalls(), 0);
 });
 
-test('WebSocket runtime resolver hydrates flagged Dark Mini Xiangqi rooms', async () => {
-  const room = darkMiniXiangqiRoomFixture('dmxq_hydrate');
-  const ctx = resolverContext({ loadMiniRoom: room });
-  const before = process.env[darkMiniXiangqiFlag];
-  process.env[darkMiniXiangqiFlag] = 'true';
-  try {
-    const runtime = await resolveWebSocketLiveRuntime(ctx, 'dmxq_hydrate');
-    assert.equal(runtime.kind, 'dark-mini-xiangqi');
-    assert.equal(runtime.kind === 'dark-mini-xiangqi' ? runtime.room : null, room);
-    assert.equal(ctx.loadCalls, 1);
-  } finally {
-    restoreEnv(darkMiniXiangqiFlag, before);
-  }
+test('WebSocket runtime resolver routes each prefix to its own registration', async () => {
+  const dxqRoom = roomFixture('dxq_live');
+  const dmxRoom = roomFixture('dmxq_live');
+  const dxq = resolverHarness({
+    kind: 'dark-xiangqi',
+    prefix: 'dxq_',
+    enabled: true,
+    room: dxqRoom,
+  });
+  const dmx = resolverHarness({
+    kind: 'dark-mini-xiangqi',
+    prefix: 'dmxq_',
+    enabled: true,
+    room: dmxRoom,
+  });
+  const registrations = [dxq.registration, dmx.registration];
+
+  assertTenantRuntime(
+    await resolveWebSocketLiveRuntime(registrations, 'dmxq_live'),
+    dmx.registration,
+    dmxRoom,
+  );
+  assertTenantRuntime(
+    await resolveWebSocketLiveRuntime(registrations, 'dxq_live'),
+    dxq.registration,
+    dxqRoom,
+  );
 });
 
-test('WebSocket runtime resolver rejects Dark Mini Xiangqi ids while the flag is off', async () => {
-  const ctx = resolverContext({});
-  const before = process.env[darkMiniXiangqiFlag];
-  delete process.env[darkMiniXiangqiFlag];
-  try {
-    const runtime = await resolveWebSocketLiveRuntime(ctx, 'dmxq_disabled');
-    assert.deepEqual(runtime, {
-      kind: 'dark-mini-xiangqi-unavailable',
-      reason: 'game spec disabled',
-    });
-    assert.equal(ctx.loadCalls, 0);
-  } finally {
-    restoreEnv(darkMiniXiangqiFlag, before);
-  }
-});
+function assertTenantRuntime(
+  runtime: WebSocketLiveRuntime,
+  registration: VariantTenantRegistration,
+  room: TenantManagedRoom,
+): void {
+  assert.equal(runtime.kind, 'variant-tenant');
+  if (runtime.kind !== 'variant-tenant') return;
+  assert.equal(runtime.registration, registration);
+  assert.equal(runtime.room, room);
+}
 
-test('WebSocket runtime resolver rejects missing flagged Dark Mini Xiangqi rooms', async () => {
-  const ctx = resolverContext({});
-  const before = process.env[darkMiniXiangqiFlag];
-  process.env[darkMiniXiangqiFlag] = 'true';
-  try {
-    const runtime = await resolveWebSocketLiveRuntime(ctx, 'dmxq_created');
-    assert.deepEqual(runtime, {
-      kind: 'dark-mini-xiangqi-unavailable',
-      reason: 'room unavailable',
-    });
-    assert.equal(ctx.loadCalls, 1);
-  } finally {
-    restoreEnv(darkMiniXiangqiFlag, before);
-  }
-});
-
-test('WebSocket runtime resolver rejects missing flagged Dark Xiangqi rooms', async () => {
-  const ctx = resolverContext({});
-  const before = process.env[darkXiangqiFlag];
-  process.env[darkXiangqiFlag] = 'true';
-  try {
-    const runtime = await resolveWebSocketLiveRuntime(ctx, 'dxq_missing');
-    assert.deepEqual(runtime, { kind: 'dark-xiangqi-unavailable', reason: 'room unavailable' });
-    assert.equal(ctx.loadCalls, 1);
-  } finally {
-    restoreEnv(darkXiangqiFlag, before);
-  }
-});
-
-type ResolverTestContext = WebSocketRuntimeResolverContext & { loadCalls: number };
-
-function resolverContext(options: {
-  loadMiniRoom?: DarkMiniXiangqiRuntimeRoom | null;
-  loadRoom?: DarkXiangqiLiveRoom | null;
-  miniRoom?: DarkMiniXiangqiRuntimeRoom;
-  room?: DarkXiangqiLiveRoom;
-}): ResolverTestContext {
-  const rooms = new Map<string, DarkXiangqiLiveRoom>();
+function resolverHarness(options: {
+  kind: string;
+  prefix: string;
+  enabled: boolean;
+  room?: TenantManagedRoom;
+  loadRoom?: TenantManagedRoom;
+}): { registration: VariantTenantRegistration; loadCalls: () => number } {
+  let loadCalls = 0;
+  const rooms = new Map<string, TenantManagedRoom>();
   if (options.room) rooms.set(options.room.id, options.room);
-  const ctx: ResolverTestContext = {
-    darkMiniXiangqiRooms: new Map(
-      options.miniRoom ? [[options.miniRoom.id, options.miniRoom]] : [],
-    ),
-    darkXiangqiRooms: rooms,
-    crossroadsChessRooms: new Map(),
-    getOrLoadDarkMiniXiangqiRoom: async () => {
-      ctx.loadCalls += 1;
-      return options.loadMiniRoom ?? null;
-    },
-    getOrLoadDarkXiangqiRoom: async () => {
-      ctx.loadCalls += 1;
+  const registration: VariantTenantRegistration = {
+    kind: options.kind,
+    gameSpecId: options.kind,
+    roomIdPrefix: options.prefix,
+    errorPrefix: options.kind.replaceAll('-', '_'),
+    enabled: () => options.enabled,
+    rooms,
+    getOrLoadRoom: async () => {
+      loadCalls += 1;
       return options.loadRoom ?? null;
     },
-    getOrLoadCrossroadsChessRoom: async () => null,
-    loadCalls: 0,
+    attachWebSocket: async () => {
+      throw new Error('unexpected ws attach in resolver test');
+    },
+    clearRuntimeTimers: () => {},
+    clearRooms: () => rooms.clear(),
+    http: {
+      matchesCreateRequest: () => false,
+      handleCreate: async () => {
+        throw new Error('unexpected http create in resolver test');
+      },
+    },
+    lobby: null,
   };
-  return ctx;
+  return { registration, loadCalls: () => loadCalls };
 }
 
-function darkXiangqiRoomFixture(id: string): DarkXiangqiLiveRoom {
-  return { id } as DarkXiangqiLiveRoom;
-}
-
-function darkMiniXiangqiRoomFixture(id: string): DarkMiniXiangqiRuntimeRoom {
-  return { id } as DarkMiniXiangqiRuntimeRoom;
-}
-
-function restoreFlag(value: string | undefined): void {
-  restoreEnv(darkXiangqiFlag, value);
-}
-
-function restoreEnv(key: string, value: string | undefined): void {
-  if (value === undefined) {
-    delete process.env[key];
-    return;
-  }
-  process.env[key] = value;
+function roomFixture(id: string): TenantManagedRoom {
+  return { id, clients: new Set(), pendingWrites: Promise.resolve() };
 }

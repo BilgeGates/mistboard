@@ -3,8 +3,11 @@ import type { ServerResponse } from 'node:http';
 import test from 'node:test';
 import { DARK_XIANGQI_SPEC_ID } from '@mistboard/game';
 import type { DarkXiangqiRuntimeRoom } from './dark-xiangqi-runtime.js';
-import { handleDarkXiangqiCreate, requestsDarkXiangqi } from './routes/dark-xiangqi-rooms.js';
-import type { HttpApiContext } from './routes/lib.js';
+import {
+  type DarkXiangqiCreateContext,
+  handleDarkXiangqiCreate,
+  requestsDarkXiangqi,
+} from './routes/dark-xiangqi-rooms.js';
 
 const darkXiangqiFlag = 'MISTBOARD_DARK_XIANGQI_ENABLED';
 
@@ -218,31 +221,12 @@ function responseJson(response: ResponseCapture): Record<string, unknown> {
   return JSON.parse(response.body) as Record<string, unknown>;
 }
 
-function testContext(overrides: Partial<HttpApiContext> = {}): HttpApiContext {
+function testContext(overrides: Partial<DarkXiangqiCreateContext> = {}): DarkXiangqiCreateContext {
   return {
-    abandonRoom: async () => ({ ok: false, error: 'not_found' }),
-    activeGameCount: () => 0,
-    annotationsFile: '',
-    createDarkMiniXiangqiRoom: async () => {
-      throw new Error('unexpected Dark Mini Xiangqi room creation');
-    },
     createDarkXiangqiRoom: async () => ({ ok: true, room: darkXiangqiRoom('dxq_route') }),
-    createCrossroadsChessRoom: async () => ({ ok: false, error: 'crossroads_chess_disabled' }),
-    createRoom: async () => {
-      throw new Error('unexpected chess room creation');
-    },
     databaseRequired: false,
     drainDeadlineMs: () => null,
-    inMemoryGameSummary: () => null,
     isDraining: () => false,
-    liveClockIncrementMs: 0,
-    liveClockInitialMs: 0,
-    lobbyQueue: [],
-    lobbyTickets: new Map(),
-    pveBuiltinEngineClientId: '',
-    releaseLiveEngineReservation: () => {},
-    reserveLiveEngineSeat: async () => null,
-    rooms: new Map(),
     ...overrides,
   };
 }

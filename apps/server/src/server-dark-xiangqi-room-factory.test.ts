@@ -164,9 +164,7 @@ function factoryContext(options: {
   persistenceEnabled?: boolean;
   persistenceError?: Error;
 }): TestFactoryContext {
-  const chessRooms = new Map<string, unknown>(
-    (options.chessRoomIds ?? []).map((roomId) => [roomId, {}]),
-  );
+  const chessRoomIds = new Set(options.chessRoomIds ?? []);
   const darkXiangqiRooms = new Map<string, DarkXiangqiLiveRoom>(
     (options.darkXiangqiRoomIds ?? []).map((roomId) => [
       roomId,
@@ -179,7 +177,7 @@ function factoryContext(options: {
       if (options.persistenceError) throw options.persistenceError;
       ctx.persistedEvents.push({ roomId, seq, eventType: event.type });
     },
-    chessRooms,
+    isRoomIdTaken: (roomId) => chessRoomIds.has(roomId),
     createRoomId: () => {
       ctx.generatedIds += 1;
       return options.ids[idIndex++] ?? options.ids.at(-1) ?? 'dxq_fallback';

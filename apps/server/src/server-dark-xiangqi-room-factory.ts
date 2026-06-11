@@ -20,8 +20,9 @@ export type DarkXiangqiLiveRoomCreation =
   | { ok: false; error: 'dark_xiangqi_disabled' | 'persistence_failure' | 'room_id_collision' };
 
 export type DarkXiangqiLiveRoomFactoryContext = {
-  chessRooms: ReadonlyMap<string, unknown>;
   darkXiangqiRooms: Map<string, DarkXiangqiLiveRoom>;
+  // Collision check across rooms living outside this tenant's own map.
+  isRoomIdTaken(roomId: string): boolean;
   appendRoomEvent(roomId: string, seq: number, event: DarkXiangqiEvent): Promise<void>;
   createRoomId?: () => string;
   isPersistenceEnabled(): boolean;
@@ -40,7 +41,7 @@ export async function createDarkXiangqiLiveRoom(
       // ever inserts freshly created rooms (empty client set), same as the
       // pre-migration cast.
       rooms: ctx.darkXiangqiRooms as unknown as Map<string, DarkXiangqiRuntimeRoom>,
-      isRoomIdTaken: (roomId) => ctx.chessRooms.has(roomId),
+      isRoomIdTaken: ctx.isRoomIdTaken,
       appendRoomEvent: ctx.appendRoomEvent,
       createRoomId: ctx.createRoomId,
       isPersistenceEnabled: ctx.isPersistenceEnabled,

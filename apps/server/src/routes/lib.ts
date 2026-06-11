@@ -13,18 +13,6 @@ import {
   type VariantId,
 } from '@mistboard/game';
 import { currentAccountUser } from './../account-session.js';
-import type {
-  CrossroadsChessCreatorPreference,
-  CrossroadsChessRuntimeRoom,
-} from './../crossroads-chess-runtime.js';
-import type {
-  DarkMiniXiangqiCreatorPreference,
-  DarkMiniXiangqiRuntimeRoom,
-} from './../dark-mini-xiangqi-runtime.js';
-import type {
-  DarkXiangqiCreatorPreference,
-  DarkXiangqiRuntimeRoom,
-} from './../dark-xiangqi-runtime.js';
 import * as persistence from './../persistence.js';
 import { isAdminDebugToken, isProductionLikeRuntime } from './../server-policy.js';
 import type { LobbyTicket, Room } from './../server-types.js';
@@ -72,36 +60,6 @@ export interface HttpApiContext {
       region?: string;
     },
   ): Promise<Room>;
-  createDarkXiangqiRoom(
-    timeControl?: RoomTimeControl,
-    creatorPreference?: DarkXiangqiCreatorPreference,
-  ): Promise<
-    | { ok: true; room: DarkXiangqiRuntimeRoom }
-    | { ok: false; error: 'dark_xiangqi_disabled' | 'persistence_failure' | 'room_id_collision' }
-  >;
-  createDarkMiniXiangqiRoom(
-    timeControl?: RoomTimeControl,
-    creatorPreference?: DarkMiniXiangqiCreatorPreference,
-    engine?: { engineId: string; seat: 'red' | 'black'; reservationId: string },
-    rated?: boolean,
-  ): Promise<
-    | { ok: true; room: DarkMiniXiangqiRuntimeRoom }
-    | {
-        ok: false;
-        error: 'dark_mini_xiangqi_disabled' | 'persistence_failure' | 'room_id_collision';
-      }
-  >;
-  createCrossroadsChessRoom(
-    timeControl?: RoomTimeControl,
-    creatorPreference?: CrossroadsChessCreatorPreference,
-    engine?: { engineId: string; seat: 'white' | 'red' },
-  ): Promise<
-    | { ok: true; room: CrossroadsChessRuntimeRoom }
-    | {
-        ok: false;
-        error: 'crossroads_chess_disabled' | 'persistence_failure' | 'room_id_collision';
-      }
-  >;
   reserveLiveEngineSeat(engineId: string, color: 'white' | 'black'): Promise<string | null>;
   releaseLiveEngineReservation(reservationId: string, reason: string): void;
   abandonRoom(

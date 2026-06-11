@@ -1,11 +1,9 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-// Importing a tenant's module registers it (module-scope side effect, the
-// "one registry entry" of the tenant contract). DMX registers from its ws
-// adapter; Dark Xiangqi and Crossroads from their tenant modules.
-import '../crossroads-chess-tenant.js';
-import '../dark-xiangqi-tenant.js';
-import '../server-ws-dark-mini-xiangqi.js';
+// Importing register-tenants registers every tenant (module-scope side effect
+// of each *-registration.ts module — the "one registry entry" of the tenant
+// contract).
+import './register-tenants.js';
 import {
   registeredVariantTenants,
   registerVariantTenant,

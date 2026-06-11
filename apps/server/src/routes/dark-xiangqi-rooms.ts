@@ -1,16 +1,30 @@
 import type { ServerResponse } from 'node:http';
-import { DARK_XIANGQI_SPEC_ID } from '@mistboard/game';
+import { DARK_XIANGQI_SPEC_ID, type RoomTimeControl } from '@mistboard/game';
 import { gateGameSpecRequest } from './../game-spec-request-gate.js';
 import * as persistence from './../persistence.js';
-import type { HttpApiContext } from './lib.js';
 import { parseRoomTimeControl, writeJson } from './lib.js';
+
+// The slice of server context this route needs; the registry entry binds the
+// tenant's room factory in (dark-xiangqi-registration.ts).
+export type DarkXiangqiCreateContext = {
+  databaseRequired: boolean;
+  isDraining(): boolean;
+  drainDeadlineMs(): number | null;
+  createDarkXiangqiRoom(
+    timeControl?: RoomTimeControl,
+    creatorPreference?: 'red' | 'black' | 'random',
+  ): Promise<
+    | { ok: true; room: { id: string; gameSpecId: string } }
+    | { ok: false; error: 'dark_xiangqi_disabled' | 'persistence_failure' | 'room_id_collision' }
+  >;
+};
 
 export function requestsDarkXiangqi(body: Record<string, unknown>): boolean {
   return body.gameSpecId === DARK_XIANGQI_SPEC_ID;
 }
 
 export async function handleDarkXiangqiCreate(
-  ctx: HttpApiContext,
+  ctx: DarkXiangqiCreateContext,
   response: ServerResponse,
   body: Record<string, unknown>,
 ): Promise<void> {

@@ -1,39 +1,11 @@
 import { randomBytes, randomUUID } from 'node:crypto';
 import { createServer } from 'node:http';
-import type {
-  Color,
-  CrossroadsChessColor,
-  GameEvent,
-  MiniXiangqiColor,
-  RoomTimeControl,
-  XiangqiColor,
-} from '@mistboard/game';
+import type { Color, GameEvent } from '@mistboard/game';
 import pg from 'pg';
 import { WebSocketServer } from 'ws';
-import type {
-  CrossroadsChessCreatorPreference,
-  CrossroadsChessRuntimeRoom,
-  CrossroadsChessSeatTokenState,
-} from './crossroads-chess-runtime.js';
-import {
-  createCrossroadsChessRuntimeRoomFromEvents,
-  isCrossroadsChessEventLog,
-} from './crossroads-chess-runtime.js';
-import type {
-  DarkMiniXiangqiCreatorPreference,
-  DarkMiniXiangqiRuntimeRoom,
-  DarkMiniXiangqiSeatTokenState,
-} from './dark-mini-xiangqi-runtime.js';
-import {
-  createDarkMiniXiangqiRuntimeRoomFromEvents,
-  isDarkMiniXiangqiEventLog,
-} from './dark-mini-xiangqi-runtime.js';
-import {
-  createDarkXiangqiRuntimeRoomFromEvents,
-  type DarkXiangqiCreatorPreference,
-  type DarkXiangqiSeatTokenState,
-  isDarkXiangqiEventLog,
-} from './dark-xiangqi-runtime.js';
+// Populates the VariantTenant registry (one registration module per variant).
+import './variant-tenant/register-tenants.js';
+import { darkXiangqiRooms } from './dark-xiangqi-registration.js';
 import { runMigrations } from './migrate.js';
 import * as persistence from './persistence.js';
 import type { RematchOrchestrator } from './rematch.js';
@@ -50,19 +22,6 @@ import {
   selectEngineDraftStart,
 } from './room-manager.js';
 import { loadServerRuntimeConfig, serverConfig } from './server-config.js';
-import {
-  persistenceRecordForCrossroadsChessSeatToken,
-  recordCrossroadsChessPersistenceError,
-} from './server-crossroads-chess-events.js';
-import type { CrossroadsChessRematchContext } from './server-crossroads-chess-rematch.js';
-import { createCrossroadsChessLiveRoom } from './server-crossroads-chess-room-factory.js';
-import { mintCrossroadsChessSeatToken } from './server-crossroads-chess-seat-session.js';
-import { persistenceRecordForDarkMiniXiangqiSeatToken } from './server-dark-mini-xiangqi-events.js';
-import type { DarkMiniXiangqiRematchContext } from './server-dark-mini-xiangqi-rematch.js';
-import { createDarkMiniXiangqiLiveRoom } from './server-dark-mini-xiangqi-room-factory.js';
-import { mintDarkMiniXiangqiSeatToken } from './server-dark-mini-xiangqi-seat-session.js';
-import { clearDarkXiangqiRuntimeTimers } from './server-dark-xiangqi-lifecycle.js';
-import { createDarkXiangqiLiveRoom } from './server-dark-xiangqi-room-factory.js';
 import { createDrainController } from './server-drain.js';
 import { createHttpRequestHandler } from './server-http.js';
 import {
@@ -86,12 +45,11 @@ import {
   isAllowedWebSocketRequest,
   type WebSocketConnectionContext,
 } from './server-ws-connection.js';
-import {
-  clearCrossroadsChessRuntimeTimers,
-  sendCrossroadsChessPayload,
-} from './server-ws-crossroads-chess.js';
-import { sendDarkMiniXiangqiPayload } from './server-ws-dark-mini-xiangqi.js';
 import type { DarkXiangqiLiveRoom } from './server-ws-dark-xiangqi.js';
+import {
+  registeredVariantTenants,
+  setVariantTenantFallbackRoomLookup,
+} from './variant-tenant/registry.js';
 
 // Navigation index — grep for section name to jump to the right block
 // Account/auth           → ./account-session.ts  (currentAccountUser, hashSecret, session cookies)
@@ -115,9 +73,10 @@ import type { DarkXiangqiLiveRoom } from './server-ws-dark-xiangqi.js';
 // Core server types live in ./server-types.ts — Client, Room, SeatTokenState, SeatAssignment, LobbyTicket
 
 const rooms = new Map<string, Room>();
-const darkXiangqiRooms = new Map<string, DarkXiangqiLiveRoom>();
-const darkMiniXiangqiRooms = new Map<string, DarkMiniXiangqiRuntimeRoom>();
-const crossroadsChessRooms = new Map<string, CrossroadsChessRuntimeRoom>();
+// Variant-tenant live maps are owned by their *-registration.ts modules; the
+// registry's cross-variant room-id collision check needs visibility into the
+// chess map, which still lives here.
+setVariantTenantFallbackRoomLookup((roomId) => rooms.has(roomId));
 const lobbyTickets = new Map<string, LobbyTicket>();
 const lobbyQueue: LobbyTicket[] = [];
 const databaseRequired = serverConfig.databaseRequired;
@@ -216,59 +175,14 @@ const rematchOrch: RematchOrchestrator = {
   },
 };
 
-// Dark Mini Xiangqi rematch: sibling of the chess orchestrator over red/black.
-// createRoom carries the time control forward; issueSeatToken pre-issues a
-// swapped-color seat token and persists it (same durability as live seating) so
-// a reconnecting player still re-attaches after a server restart.
-const darkMiniXiangqiRematchCtx: DarkMiniXiangqiRematchContext = {
-  send: (client, payload) => sendDarkMiniXiangqiPayload(client, payload),
-  createRoom: (timeControl, rated) =>
-    createDarkMiniXiangqiRoom(timeControl, undefined, undefined, rated),
-  buildRoomUrl: (roomId) => `/room/${encodeURIComponent(roomId)}`,
-  issueSeatToken: async (room, seat, identity) => {
-    const minted = mintDarkMiniXiangqiSeatToken(room, seat, identity);
-    if (persistence.isInitialized()) {
-      await persistence.upsertRoomSeatToken(
-        room.id,
-        persistenceRecordForDarkMiniXiangqiSeatToken(minted.state),
-      );
-    }
-    return minted;
-  },
-};
-
-const crossroadsChessRematchCtx: CrossroadsChessRematchContext = {
-  send: (client, payload) => sendCrossroadsChessPayload(client, payload),
-  createRoom: (timeControl) => createCrossroadsChessRoom(timeControl),
-  buildRoomUrl: (roomId) => `/room/${encodeURIComponent(roomId)}`,
-  issueSeatToken: async (room, seat, identity) => {
-    const minted = mintCrossroadsChessSeatToken(room, seat, identity);
-    if (persistence.isInitialized()) {
-      await persistence.upsertRoomSeatToken(
-        room.id,
-        persistenceRecordForCrossroadsChessSeatToken(minted.state),
-      );
-    }
-    return minted;
-  },
-};
-
 const wsConnectionCtx: WebSocketConnectionContext = {
   roomMgrCtx,
   rematchOrch,
-  darkMiniXiangqiRematch: darkMiniXiangqiRematchCtx,
-  crossroadsChessRematch: crossroadsChessRematchCtx,
   defaultRoomRegion,
   wsMessageLimit,
   wsMessageWindowMs,
   clearPendingVacate: roomLifecycle.clearPendingVacate,
-  darkXiangqiRooms,
-  darkMiniXiangqiRooms,
-  crossroadsChessRooms,
   enableRandomEngine,
-  getOrLoadDarkMiniXiangqiRoom,
-  getOrLoadDarkXiangqiRoom,
-  getOrLoadCrossroadsChessRoom,
   getOrCreateRoom: roomLifecycle.getOrCreateRoom,
   handleAbort,
   handleResign,
@@ -330,9 +244,6 @@ export async function startServer(options: StartServerOptions = {}): Promise<Sta
       publicHost: serverConfig.publicHost,
       drainController,
       createRoom: roomLifecycle.createRoom,
-      createDarkXiangqiRoom,
-      createDarkMiniXiangqiRoom,
-      createCrossroadsChessRoom,
       reserveLiveEngineSeat,
       releaseLiveEngineReservation,
       abandonRoom: roomLifecycle.abandonRoom,
@@ -402,28 +313,27 @@ export async function stopServer(): Promise<void> {
   for (const room of rooms.values()) {
     clearRoomRuntimeTimers(room, { clearPendingVacates: true });
   }
-  for (const room of darkXiangqiRooms.values()) {
-    clearDarkXiangqiRuntimeTimers(room);
-  }
-  for (const room of crossroadsChessRooms.values()) {
-    clearCrossroadsChessRuntimeTimers(room);
+  for (const registration of registeredVariantTenants()) {
+    for (const room of registration.rooms.values()) {
+      registration.clearRuntimeTimers(room);
+    }
   }
   roomLifecycle.stopSweeps();
   closeRoomClients(rooms.values());
-  closeRoomClients(darkXiangqiRooms.values());
-  closeDarkMiniXiangqiClients(darkMiniXiangqiRooms.values());
-  closeCrossroadsChessClients(crossroadsChessRooms.values());
+  for (const registration of registeredVariantTenants()) {
+    closeRoomClients(registration.rooms.values());
+  }
   await waitForRoomWrites(rooms.values());
-  await waitForRoomWrites(darkXiangqiRooms.values());
-  await waitForRoomWrites(darkMiniXiangqiRooms.values());
-  await waitForRoomWrites(crossroadsChessRooms.values());
+  for (const registration of registeredVariantTenants()) {
+    await waitForRoomWrites(registration.rooms.values());
+  }
   await closeWebSocketServer(wss);
   await closeHttpServer(server);
   await persistence.close();
   rooms.clear();
-  darkXiangqiRooms.clear();
-  darkMiniXiangqiRooms.clear();
-  crossroadsChessRooms.clear();
+  for (const registration of registeredVariantTenants()) {
+    registration.clearRooms();
+  }
   lobbyTickets.clear();
   lobbyQueue.length = 0;
   persistenceErrors.length = 0;
@@ -466,290 +376,6 @@ function seatVacateGraceMs(): number {
 }
 
 // ── SECTION: Game flow ─────────────────────────────────────────────────────
-async function createDarkXiangqiRoom(
-  timeControl?: RoomTimeControl,
-  creatorPreference?: DarkXiangqiCreatorPreference,
-): Promise<
-  | { ok: true; room: DarkXiangqiLiveRoom }
-  | { ok: false; error: 'dark_xiangqi_disabled' | 'persistence_failure' | 'room_id_collision' }
-> {
-  return createDarkXiangqiLiveRoom(
-    {
-      appendRoomEvent: persistence.appendRoomEvent,
-      chessRooms: rooms,
-      darkXiangqiRooms,
-      isPersistenceEnabled: persistence.isInitialized,
-      recordPersistenceError: recordDarkXiangqiPersistenceError,
-    },
-    timeControl,
-    creatorPreference,
-  );
-}
-
-async function createDarkMiniXiangqiRoom(
-  timeControl?: RoomTimeControl,
-  creatorPreference?: DarkMiniXiangqiCreatorPreference,
-  engine?: { engineId: string; seat: 'red' | 'black'; reservationId: string },
-  rated?: boolean,
-): Promise<
-  | { ok: true; room: DarkMiniXiangqiRuntimeRoom }
-  | {
-      ok: false;
-      error: 'dark_mini_xiangqi_disabled' | 'persistence_failure' | 'room_id_collision';
-    }
-> {
-  return createDarkMiniXiangqiLiveRoom(
-    {
-      appendRoomEvent: persistence.appendRoomEvent,
-      chessRooms: rooms,
-      darkMiniXiangqiRooms,
-      darkXiangqiRooms,
-      isPersistenceEnabled: persistence.isInitialized,
-      recordGameStart: persistence.recordGameStart,
-      recordPersistenceError: recordDarkMiniXiangqiPersistenceError,
-    },
-    timeControl,
-    creatorPreference,
-    engine,
-    rated,
-  );
-}
-
-async function getOrLoadDarkMiniXiangqiRoom(
-  roomId: string,
-): Promise<DarkMiniXiangqiRuntimeRoom | null> {
-  const existing = darkMiniXiangqiRooms.get(roomId);
-  if (existing) return existing;
-  if (!persistence.isInitialized()) return null;
-
-  let events: persistence.PersistedRoomEvent[] | null = null;
-  try {
-    events = await persistence.loadRoomEvents<persistence.PersistedRoomEvent>(roomId);
-  } catch (err) {
-    recordDarkMiniXiangqiPersistenceError(roomId, -1, 'load-room', err as Error);
-    return null;
-  }
-  if (!events) return null;
-  if (!isDarkMiniXiangqiEventLog(events, roomId)) {
-    console.error(
-      JSON.stringify({
-        level: 'error',
-        kind: 'dark_mini_xiangqi_invalid_event_log',
-        roomId,
-        eventCount: events.length,
-        at: Date.now(),
-      }),
-    );
-    return null;
-  }
-
-  const hydrated = createDarkMiniXiangqiRuntimeRoomFromEvents(events);
-  if (!hydrated.ok) {
-    console.error(
-      JSON.stringify({
-        level: 'error',
-        kind: 'dark_mini_xiangqi_hydration_failure',
-        roomId,
-        error: hydrated.error,
-        at: Date.now(),
-      }),
-    );
-    return null;
-  }
-  const room = hydrated.room;
-  room.seatTokens = darkMiniXiangqiSeatTokenStatesFromPersistence(
-    await persistence.loadRoomSeatTokens<MiniXiangqiColor>(roomId),
-  );
-  darkMiniXiangqiRooms.set(roomId, room);
-  return room;
-}
-
-function darkMiniXiangqiSeatTokenStatesFromPersistence(
-  tokens: Partial<Record<MiniXiangqiColor, persistence.RoomSeatTokenRecord<MiniXiangqiColor>>>,
-): Partial<Record<MiniXiangqiColor, DarkMiniXiangqiSeatTokenState>> {
-  const states: Partial<Record<MiniXiangqiColor, DarkMiniXiangqiSeatTokenState>> = {};
-  for (const token of Object.values(tokens)) {
-    if (!token || token.revokedAt) continue;
-    states[token.seat] = {
-      clientId: token.clientId,
-      seat: token.seat,
-      tokenHash: token.tokenHash,
-      userId: token.userId,
-      userHandle: token.userHandle,
-      userDisplayName: token.userDisplayName,
-      issuedAt: token.issuedAt,
-      lastSeenAt: token.lastSeenAt,
-      revokedAt: token.revokedAt,
-    };
-  }
-  return states;
-}
-
-async function createCrossroadsChessRoom(
-  timeControl?: RoomTimeControl,
-  creatorPreference?: CrossroadsChessCreatorPreference,
-  engine?: { engineId: string; seat: 'white' | 'red' },
-): Promise<
-  | { ok: true; room: CrossroadsChessRuntimeRoom }
-  | { ok: false; error: 'crossroads_chess_disabled' | 'persistence_failure' | 'room_id_collision' }
-> {
-  return createCrossroadsChessLiveRoom(
-    {
-      appendRoomEvent: persistence.appendRoomEvent,
-      chessRooms: rooms,
-      darkMiniXiangqiRooms,
-      darkXiangqiRooms,
-      crossroadsChessRooms,
-      isPersistenceEnabled: persistence.isInitialized,
-      recordGameStart: persistence.recordGameStart,
-      recordPersistenceError: recordCrossroadsChessPersistenceError,
-    },
-    timeControl,
-    creatorPreference,
-    engine,
-  );
-}
-
-async function getOrLoadCrossroadsChessRoom(
-  roomId: string,
-): Promise<CrossroadsChessRuntimeRoom | null> {
-  const existing = crossroadsChessRooms.get(roomId);
-  if (existing) return existing;
-  if (!persistence.isInitialized()) return null;
-
-  let events: persistence.PersistedRoomEvent[] | null = null;
-  try {
-    events = await persistence.loadRoomEvents<persistence.PersistedRoomEvent>(roomId);
-  } catch (err) {
-    recordCrossroadsChessPersistenceError(roomId, -1, 'load-room', err as Error);
-    return null;
-  }
-  if (!events) return null;
-  if (!isCrossroadsChessEventLog(events, roomId)) {
-    console.error(
-      JSON.stringify({
-        level: 'error',
-        kind: 'crossroads_chess_invalid_event_log',
-        roomId,
-        eventCount: events.length,
-        at: Date.now(),
-      }),
-    );
-    return null;
-  }
-
-  const hydrated = createCrossroadsChessRuntimeRoomFromEvents(events);
-  if (!hydrated.ok) {
-    console.error(
-      JSON.stringify({
-        level: 'error',
-        kind: 'crossroads_chess_hydration_failure',
-        roomId,
-        error: hydrated.error,
-        at: Date.now(),
-      }),
-    );
-    return null;
-  }
-  const room = hydrated.room;
-  room.seatTokens = crossroadsChessSeatTokenStatesFromPersistence(
-    await persistence.loadRoomSeatTokens<CrossroadsChessColor>(roomId),
-  );
-  crossroadsChessRooms.set(roomId, room);
-  return room;
-}
-
-function crossroadsChessSeatTokenStatesFromPersistence(
-  tokens: Partial<
-    Record<CrossroadsChessColor, persistence.RoomSeatTokenRecord<CrossroadsChessColor>>
-  >,
-): Partial<Record<CrossroadsChessColor, CrossroadsChessSeatTokenState>> {
-  const states: Partial<Record<CrossroadsChessColor, CrossroadsChessSeatTokenState>> = {};
-  for (const token of Object.values(tokens)) {
-    if (!token || token.revokedAt) continue;
-    states[token.seat] = {
-      clientId: token.clientId,
-      seat: token.seat,
-      tokenHash: token.tokenHash,
-      userId: token.userId,
-      userHandle: token.userHandle,
-      userDisplayName: token.userDisplayName,
-      issuedAt: token.issuedAt,
-      lastSeenAt: token.lastSeenAt,
-      revokedAt: token.revokedAt,
-    };
-  }
-  return states;
-}
-
-async function getOrLoadDarkXiangqiRoom(roomId: string): Promise<DarkXiangqiLiveRoom | null> {
-  const existing = darkXiangqiRooms.get(roomId);
-  if (existing) return existing;
-  if (!persistence.isInitialized()) return null;
-
-  let events: persistence.PersistedRoomEvent[] | null = null;
-  try {
-    events = await persistence.loadRoomEvents<persistence.PersistedRoomEvent>(roomId);
-  } catch (err) {
-    recordDarkXiangqiPersistenceError(roomId, -1, 'load-room', err as Error);
-    return null;
-  }
-  if (!events) return null;
-  if (!isDarkXiangqiEventLog(events, roomId)) {
-    console.error(
-      JSON.stringify({
-        level: 'error',
-        kind: 'dark_xiangqi_invalid_event_log',
-        roomId,
-        eventCount: events.length,
-        at: Date.now(),
-      }),
-    );
-    return null;
-  }
-
-  const hydrated = createDarkXiangqiRuntimeRoomFromEvents(events);
-  if (!hydrated.ok) {
-    console.error(
-      JSON.stringify({
-        level: 'error',
-        kind: 'dark_xiangqi_hydration_failure',
-        roomId,
-        error: hydrated.error,
-        at: Date.now(),
-      }),
-    );
-    return null;
-  }
-  const room = hydrated.room as DarkXiangqiLiveRoom;
-  room.seatTokens = darkXiangqiSeatTokenStatesFromPersistence(
-    await persistence.loadRoomSeatTokens<XiangqiColor>(roomId),
-  );
-  darkXiangqiRooms.set(roomId, room);
-  return room;
-}
-
-function darkXiangqiSeatTokenStatesFromPersistence(
-  tokens: Partial<Record<XiangqiColor, persistence.RoomSeatTokenRecord<XiangqiColor>>>,
-): Partial<Record<XiangqiColor, DarkXiangqiSeatTokenState>> {
-  const states: Partial<Record<XiangqiColor, DarkXiangqiSeatTokenState>> = {};
-  for (const token of Object.values(tokens)) {
-    if (!token || token.revokedAt) continue;
-    states[token.seat] = {
-      clientId: token.clientId,
-      seat: token.seat,
-      tokenHash: token.tokenHash,
-      userId: token.userId,
-      userHandle: token.userHandle,
-      userDisplayName: token.userDisplayName,
-      issuedAt: token.issuedAt,
-      lastSeenAt: token.lastSeenAt,
-      revokedAt: token.revokedAt,
-    };
-  }
-  return states;
-}
-
 async function enableRandomEngine(room: Room): Promise<void> {
   room.randomEngine = true;
   room.pveEngineId = pveBuiltinEngineClientId;
@@ -880,44 +506,6 @@ function recordPersistenceError(roomId: string, seq: number, event: GameEvent, e
   );
 }
 
-function recordDarkXiangqiPersistenceError(
-  roomId: string,
-  seq: number,
-  eventType: string,
-  err: Error,
-): void {
-  console.error(
-    JSON.stringify({
-      level: 'error',
-      kind: 'dark_xiangqi_persistence_failure',
-      roomId,
-      seq,
-      eventType,
-      error: err.message,
-      at: Date.now(),
-    }),
-  );
-}
-
-function recordDarkMiniXiangqiPersistenceError(
-  roomId: string,
-  seq: number,
-  eventType: string,
-  err: Error,
-): void {
-  console.error(
-    JSON.stringify({
-      level: 'error',
-      kind: 'dark_mini_xiangqi_persistence_failure',
-      roomId,
-      seq,
-      eventType,
-      error: err.message,
-      at: Date.now(),
-    }),
-  );
-}
-
 // ── SECTION: Helpers and shutdown ──────────────────────────────────────────
 function send(client: Client, payload: unknown): void {
   client.socket.send(JSON.stringify(payload));
@@ -925,34 +513,6 @@ function send(client: Client, payload: unknown): void {
 
 function isColor(value: string | undefined): value is Color {
   return value === 'white' || value === 'black';
-}
-
-function closeDarkMiniXiangqiClients(roomsToClose: Iterable<DarkMiniXiangqiRuntimeRoom>): void {
-  for (const room of roomsToClose) {
-    for (const client of room.clients) {
-      const socket = (client as { socket?: { close(code?: number, reason?: string): unknown } })
-        .socket;
-      try {
-        socket?.close(1001, 'server shutting down');
-      } catch {
-        /* socket already closed */
-      }
-    }
-  }
-}
-
-function closeCrossroadsChessClients(roomsToClose: Iterable<CrossroadsChessRuntimeRoom>): void {
-  for (const room of roomsToClose) {
-    for (const client of room.clients) {
-      const socket = (client as { socket?: { close(code?: number, reason?: string): unknown } })
-        .socket;
-      try {
-        socket?.close(1001, 'server shutting down');
-      } catch {
-        /* socket already closed */
-      }
-    }
-  }
 }
 
 async function shutdown(signal: 'SIGINT' | 'SIGTERM'): Promise<void> {
@@ -985,23 +545,23 @@ async function shutdown(signal: 'SIGINT' | 'SIGTERM'): Promise<void> {
   for (const room of rooms.values()) {
     clearRoomRuntimeTimers(room);
   }
-  for (const room of darkXiangqiRooms.values()) {
-    clearDarkXiangqiRuntimeTimers(room);
-  }
-  for (const room of crossroadsChessRooms.values()) {
-    clearCrossroadsChessRuntimeTimers(room);
+  for (const registration of registeredVariantTenants()) {
+    for (const room of registration.rooms.values()) {
+      registration.clearRuntimeTimers(room);
+    }
   }
   roomLifecycle.stopSweeps();
   closeRoomClients(rooms.values());
-  closeRoomClients(darkXiangqiRooms.values());
-  closeDarkMiniXiangqiClients(darkMiniXiangqiRooms.values());
-  closeCrossroadsChessClients(crossroadsChessRooms.values());
+  for (const registration of registeredVariantTenants()) {
+    closeRoomClients(registration.rooms.values());
+  }
 
   let exitCode = 0;
   try {
     await waitForRoomWrites(rooms.values());
-    await waitForRoomWrites(darkXiangqiRooms.values());
-    await waitForRoomWrites(darkMiniXiangqiRooms.values());
+    for (const registration of registeredVariantTenants()) {
+      await waitForRoomWrites(registration.rooms.values());
+    }
     await closeWebSocketServer(wss);
     await closeHttpServer(server);
     await persistence.close();

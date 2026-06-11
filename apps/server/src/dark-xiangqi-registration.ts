@@ -1,0 +1,96 @@
+/**
+ * Dark Xiangqi (9x10, hidden/dev-only) registry entry. Owns the tenant's
+ * live-room map, the room-factory binding, and hydration (moved out of
+ * index.ts at the registry dispatch collapse). No rematch flow and no lobby
+ * surface — the lobby route answers dark_xiangqi_not_integrated while the
+ * flag is on. Imported for side effects by
+ * variant-tenant/register-tenants.ts.
+ */
+
+import type { RoomTimeControl } from '@mistboard/game';
+import type {
+  DarkXiangqiCreatorPreference,
+  DarkXiangqiRuntimeRoom,
+} from './dark-xiangqi-runtime.js';
+import { darkXiangqiTenant } from './dark-xiangqi-tenant.js';
+import * as persistence from './persistence.js';
+import { handleDarkXiangqiCreate, requestsDarkXiangqi } from './routes/dark-xiangqi-rooms.js';
+import {
+  createDarkXiangqiLiveRoom,
+  type DarkXiangqiLiveRoomCreation,
+} from './server-dark-xiangqi-room-factory.js';
+import {
+  clearDarkXiangqiRuntimeTimers,
+  type DarkXiangqiLiveRoom,
+  handleDarkXiangqiWebSocketConnection,
+} from './server-ws-dark-xiangqi.js';
+import { recordTenantPersistenceError } from './variant-tenant/events.js';
+import { getOrLoadTenantRoom } from './variant-tenant/hydration.js';
+import {
+  registerVariantTenant,
+  type TenantManagedRoom,
+  variantTenantRoomIdTaken,
+} from './variant-tenant/registry.js';
+
+export const darkXiangqiRooms = new Map<string, DarkXiangqiLiveRoom>();
+
+export async function createDarkXiangqiRoom(
+  timeControl?: RoomTimeControl,
+  creatorPreference?: DarkXiangqiCreatorPreference,
+): Promise<DarkXiangqiLiveRoomCreation> {
+  return createDarkXiangqiLiveRoom(
+    {
+      appendRoomEvent: persistence.appendRoomEvent,
+      darkXiangqiRooms,
+      isRoomIdTaken: (roomId) => variantTenantRoomIdTaken(roomId, darkXiangqiTenant.kind),
+      isPersistenceEnabled: persistence.isInitialized,
+      recordPersistenceError: (roomId, seq, eventType, err) =>
+        recordTenantPersistenceError(darkXiangqiTenant, roomId, seq, eventType, err),
+    },
+    timeControl,
+    creatorPreference,
+  );
+}
+
+export async function getOrLoadDarkXiangqiRoom(
+  roomId: string,
+): Promise<DarkXiangqiLiveRoom | null> {
+  // The live map stores rooms with connected-client sets; hydration only ever
+  // inserts freshly loaded rooms (empty client set), same as the factory cast.
+  const room = await getOrLoadTenantRoom(
+    darkXiangqiTenant,
+    darkXiangqiRooms as unknown as Map<string, DarkXiangqiRuntimeRoom>,
+    roomId,
+  );
+  return room as DarkXiangqiLiveRoom | null;
+}
+
+registerVariantTenant({
+  kind: darkXiangqiTenant.kind,
+  gameSpecId: darkXiangqiTenant.gameSpecId,
+  roomIdPrefix: darkXiangqiTenant.roomIdPrefix,
+  errorPrefix: 'dark_xiangqi',
+  enabled: darkXiangqiTenant.enabled,
+  rooms: darkXiangqiRooms as unknown as ReadonlyMap<string, TenantManagedRoom>,
+  getOrLoadRoom: (roomId) => getOrLoadDarkXiangqiRoom(roomId) as Promise<TenantManagedRoom | null>,
+  attachWebSocket: (ctx, socket, request, room) =>
+    handleDarkXiangqiWebSocketConnection(
+      {
+        defaultRoomRegion: ctx.defaultRoomRegion,
+        wsMessageLimit: ctx.wsMessageLimit,
+        wsMessageWindowMs: ctx.wsMessageWindowMs,
+      },
+      socket,
+      request,
+      room as unknown as DarkXiangqiLiveRoom,
+    ),
+  clearRuntimeTimers: (room) =>
+    clearDarkXiangqiRuntimeTimers(room as unknown as DarkXiangqiLiveRoom),
+  clearRooms: () => darkXiangqiRooms.clear(),
+  http: {
+    matchesCreateRequest: requestsDarkXiangqi,
+    handleCreate: (ctx, _request, response, body) =>
+      handleDarkXiangqiCreate({ ...ctx, createDarkXiangqiRoom }, response, body),
+  },
+  lobby: null,
+});
