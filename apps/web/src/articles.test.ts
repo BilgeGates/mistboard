@@ -62,3 +62,82 @@ describe('article public listing gates', () => {
     });
   });
 });
+
+describe('rules variant sidebar', () => {
+  afterEach(() => {
+    document.body.replaceChildren();
+    vi.unstubAllEnvs();
+  });
+
+  it('lists variants on rules pages with the current one highlighted', () => {
+    const page = buildArticlePage('dark-chess');
+    const sidebar = page.querySelector('.article-variant-sidebar');
+    expect(sidebar).not.toBeNull();
+
+    const current = sidebar?.querySelector('a[aria-current="page"]');
+    expect(current?.getAttribute('href')).toBe('/rules/dark-chess');
+    expect(current?.querySelector('.article-variant-label')?.textContent).toBe(
+      'Dark Chess (Fog of War)',
+    );
+    expect(sidebar?.querySelector('a[href="/rules/chess"]')).not.toBeNull();
+  });
+
+  it('keeps prelaunch variants out of the sidebar unless they are the current page', () => {
+    vi.stubEnv('VITE_DARK_MINI_XIANGQI_ENABLED', 'true');
+
+    const darkChess = buildArticlePage('dark-chess');
+    expect(darkChess.querySelector('.article-variant-sidebar')?.textContent).not.toContain(
+      'Mini Xiangqi',
+    );
+
+    const miniXiangqi = buildArticlePage('mini-xiangqi');
+    const sidebar = miniXiangqi.querySelector('.article-variant-sidebar');
+    expect(
+      sidebar?.querySelector('a[aria-current="page"] .article-variant-label')?.textContent,
+    ).toBe('Mini Xiangqi');
+    expect(sidebar?.textContent).not.toContain('Dark Mini Xiangqi');
+  });
+
+  it('omits the variant sidebar on non-rules articles', () => {
+    const page = buildArticlePage('dark-chess-concepts');
+    expect(page.querySelector('.article-variant-sidebar')).toBeNull();
+  });
+
+  it('groups the rail into playable and not-yet-playable games', () => {
+    const page = buildArticlePage('dark-chess');
+    const sidebar = page.querySelector('.article-variant-sidebar');
+    const titles = [...(sidebar?.querySelectorAll('.article-toc-title') ?? [])].map(
+      (title) => title.textContent,
+    );
+    expect(titles).toEqual(['On Mistboard', 'Not yet on Mistboard']);
+
+    const navs = sidebar?.querySelectorAll('.article-toc-nav');
+    expect(navs?.[0]?.querySelector('a[href="/rules/dark-chess"]')).not.toBeNull();
+    expect(navs?.[0]?.querySelector('a[href="/rules/chess"]')).toBeNull();
+    // Draft960 is a pregame option that has not shipped as a playable mode.
+    expect(navs?.[0]?.querySelector('a[href="/rules/dark-draft960"]')).toBeNull();
+    expect(navs?.[1]?.querySelector('a[href="/rules/chess"]')).not.toBeNull();
+  });
+
+  it('lists Dark Mini Xiangqi as playable once the public-entry flag is on', () => {
+    vi.stubEnv('VITE_DARK_MINI_XIANGQI_ENABLED', 'true');
+    vi.stubEnv('VITE_DARK_MINI_XIANGQI_PUBLIC_ENTRY_ENABLED', 'true');
+
+    const page = buildArticlePage('dark-chess');
+    const navs = page.querySelectorAll('.article-variant-sidebar .article-toc-nav');
+    expect(navs[0]?.querySelector('a[href="/rules/dark-mini-xiangqi"]')).not.toBeNull();
+    expect(navs[1]?.querySelector('a[href="/rules/mini-xiangqi"]')).not.toBeNull();
+  });
+
+  it('renders the rules landing with the rail and a tile grid picker', () => {
+    const landing = buildRulesIndex();
+    expect(landing.querySelector('.article-variant-sidebar')).not.toBeNull();
+    expect(landing.querySelector('.rules-landing-paragraph')).not.toBeNull();
+    const tile = landing.querySelector<HTMLAnchorElement>(
+      '.rules-landing-tile[href="/rules/dark-chess"]',
+    );
+    expect(tile?.querySelector('.rules-landing-tile-label')?.textContent).toBe(
+      'Dark Chess (Fog of War)',
+    );
+  });
+});

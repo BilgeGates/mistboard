@@ -80,6 +80,9 @@ const ARTICLE_INDEX_COPY: Record<
     intro: string;
     rulesHeading: string;
     rulesIntro: string;
+    rulesLandingBody: string[];
+    railPlayable: string;
+    railNotYet: string;
     published: string;
     updated: string;
     dateLocale: string;
@@ -90,6 +93,12 @@ const ARTICLE_INDEX_COPY: Record<
     intro: 'Essays, variants, and engine work for dark chess.',
     rulesHeading: 'Rules',
     rulesIntro: 'Reference rules for Mistboard games and Fog of War variants.',
+    rulesLandingBody: [
+      'Each page covers the board, how the pieces move, and how games end, with interactive boards you can step through.',
+      'The base games anchor the rules. Their dark variants play the same game under fog: each side sees only the squares its pieces reach, there are no check warnings, and you win by capturing the king.',
+    ],
+    railPlayable: 'On Mistboard',
+    railNotYet: 'Not yet on Mistboard',
     published: 'Published',
     updated: 'Updated',
     dateLocale: 'en-US',
@@ -99,6 +108,12 @@ const ARTICLE_INDEX_COPY: Record<
     intro: '迷雾国际象棋的变体、策略与引擎工作。',
     rulesHeading: '规则',
     rulesIntro: 'Mistboard 游戏与战争迷雾变体的规则参考。',
+    rulesLandingBody: [
+      '每个页面介绍棋盘、棋子走法与胜负规则，并配有可逐步演示的互动棋盘。',
+      '基础棋类是规则的根基。黑暗变体在迷雾下进行同一种游戏：双方只能看到己方棋子所及的格子，没有将军提示，吃掉对方的王即获胜。',
+    ],
+    railPlayable: '可在 Mistboard 对弈',
+    railNotYet: '暂未上线',
     published: '发布于',
     updated: '更新于',
     dateLocale: 'zh-CN',
@@ -108,6 +123,12 @@ const ARTICLE_INDEX_COPY: Record<
     intro: '迷霧國際象棋的變體、策略與引擎工作。',
     rulesHeading: '規則',
     rulesIntro: 'Mistboard 遊戲與戰爭迷霧變體的規則參考。',
+    rulesLandingBody: [
+      '每個頁面介紹棋盤、棋子走法與勝負規則，並配有可逐步演示的互動棋盤。',
+      '基礎棋類是規則的根基。黑暗變體在迷霧下進行同一種遊戲：雙方只能看到己方棋子所及的格子，沒有將軍提示，吃掉對方的王即獲勝。',
+    ],
+    railPlayable: '可在 Mistboard 對弈',
+    railNotYet: '暫未上線',
     published: '發布於',
     updated: '更新於',
     dateLocale: 'zh-TW',
@@ -119,13 +140,16 @@ export function buildArticlesIndex(lang?: ArticleLang): HTMLElement {
 }
 
 export function buildRulesIndex(lang?: ArticleLang): HTMLElement {
-  return buildContentIndex('rules', lang);
+  return buildRulesLanding(lang);
 }
 
 function buildContentIndex(kind: Article['kind'], lang?: ArticleLang): HTMLElement {
   const copy = ARTICLE_INDEX_COPY[lang ?? 'en'];
   const main = document.createElement('main');
-  main.className = 'site-section articles-index';
+  main.className = 'site-section article-shell articles-index';
+
+  const sheet = document.createElement('div');
+  sheet.className = 'article-sheet';
 
   const heading = document.createElement('h1');
   heading.className = 'site-section-heading';
@@ -144,7 +168,62 @@ function buildContentIndex(kind: Article['kind'], lang?: ArticleLang): HTMLEleme
     list.append(articleCard(lang ? translateArticle(article, lang) : article, lang));
   }
 
-  main.append(heading, intro, list);
+  sheet.append(heading, intro, list);
+  main.append(sheet);
+  return main;
+}
+
+// /rules is a landing page in the pychess shape: a short intro in the sheet
+// with the variant rail as the selector. Below the rail breakpoint a
+// thumbnail tile grid takes over as the picker.
+function buildRulesLanding(lang?: ArticleLang): HTMLElement {
+  const copy = ARTICLE_INDEX_COPY[lang ?? 'en'];
+  const main = document.createElement('main');
+  main.className = 'site-section article-shell articles-index rules-landing';
+
+  const sheet = document.createElement('div');
+  sheet.className = 'article-sheet';
+
+  const heading = document.createElement('h1');
+  heading.className = 'site-section-heading';
+  heading.textContent = copy.rulesHeading;
+
+  const intro = document.createElement('p');
+  intro.className = 'articles-index-intro';
+  intro.textContent = copy.rulesIntro;
+
+  sheet.append(heading, intro);
+
+  for (const text of copy.rulesLandingBody) {
+    const p = document.createElement('p');
+    p.className = 'rules-landing-paragraph';
+    p.textContent = text;
+    sheet.append(p);
+  }
+
+  const grid = document.createElement('ul');
+  grid.className = 'rules-landing-grid';
+  for (const article of articles) {
+    if (article.kind !== 'rules') continue;
+    if (!isArticleListedInThisEnv(article)) continue;
+    const localized = lang ? translateArticle(article, lang) : article;
+    const li = document.createElement('li');
+    const tile = document.createElement('a');
+    tile.className = 'rules-landing-tile';
+    tile.href = `${lang ? ARTICLE_LANG_PREFIX[lang] : ''}/rules/${article.slug}`;
+    if (article.thumbnail) tile.append(renderArticleThumbnail(article.thumbnail));
+    const label = document.createElement('span');
+    label.className = 'rules-landing-tile-label';
+    label.textContent = variantNavLabel(localized.title);
+    tile.append(label);
+    li.append(tile);
+    grid.append(li);
+  }
+  sheet.append(grid);
+
+  const variantNav = buildVariantSidebar(null, lang);
+  if (variantNav) main.append(variantNav);
+  main.append(sheet);
   return main;
 }
 
@@ -350,8 +429,13 @@ export function buildArticlePage(slug: string, lang?: ArticleLang): HTMLElement 
   const article = lang ? translateArticle(base, lang) : base;
 
   const main = document.createElement('main');
-  main.className = 'site-section article-page';
+  main.className = 'site-section article-shell article-page';
   main.dataset.articleSlug = article.slug;
+
+  // The sheet is the page's single anchoring panel; both rails sit beside
+  // it directly on the page background (pychess grammar).
+  const sheet = document.createElement('div');
+  sheet.className = 'article-sheet';
 
   const breadcrumb = document.createElement('p');
   breadcrumb.className = 'article-breadcrumb';
@@ -413,13 +497,13 @@ export function buildArticlePage(slug: string, lang?: ArticleLang): HTMLElement 
     header.append(lede);
   }
 
-  main.append(breadcrumb, header);
+  sheet.append(breadcrumb, header);
 
   if (article.intro && article.intro.length > 0) {
     const intro = document.createElement('div');
     intro.className = 'article-intro';
     for (const block of article.intro) intro.append(renderBlock(block));
-    main.append(intro);
+    sheet.append(intro);
   }
 
   if (article.tldr && article.tldr.length > 0) {
@@ -436,7 +520,7 @@ export function buildArticlePage(slug: string, lang?: ArticleLang): HTMLElement 
       tldrList.append(li);
     }
     tldr.append(tldrHeading, tldrList);
-    main.append(tldr);
+    sheet.append(tldr);
   }
 
   const body = document.createElement('div');
@@ -458,11 +542,82 @@ export function buildArticlePage(slug: string, lang?: ArticleLang): HTMLElement 
     }
   }
 
+  if (article.kind === 'rules') {
+    const variantNav = buildVariantSidebar(base.slug, lang);
+    if (variantNav) main.append(variantNav);
+  }
+  sheet.append(body);
+  main.append(sheet);
   const sidebar = buildTocSidebar(body);
   if (sidebar) main.append(sidebar);
-  main.append(body);
 
   return main;
+}
+
+// Left rail on rules surfaces (pychess variant-page grammar): every listed
+// rules article with the current one highlighted. Pass null for the rules
+// index, which shares the shell without a current page. Reuses the TOC nav
+// grammar so the two rails read as one system.
+function buildVariantSidebar(currentSlug: string | null, lang?: ArticleLang): HTMLElement | null {
+  const entries = articles.filter(
+    (article) =>
+      article.kind === 'rules' &&
+      (article.slug === currentSlug || isArticleListedInThisEnv(article)),
+  );
+  if (entries.length < 2) return null;
+
+  const copy = ARTICLE_INDEX_COPY[lang ?? 'en'];
+  const aside = document.createElement('aside');
+  aside.className = 'article-variant-sidebar';
+  aside.setAttribute('aria-label', 'Rules navigation');
+
+  const box = document.createElement('div');
+  box.className = 'article-toc-sticky';
+
+  const groups = [
+    { title: copy.railPlayable, items: entries.filter((entry) => entry.playableOnMistboard) },
+    { title: copy.railNotYet, items: entries.filter((entry) => !entry.playableOnMistboard) },
+  ];
+
+  for (const group of groups) {
+    if (group.items.length === 0) continue;
+
+    const title = document.createElement('p');
+    title.className = 'article-toc-title';
+    title.textContent = group.title;
+
+    const nav = document.createElement('nav');
+    nav.className = 'article-toc-nav';
+    const list = document.createElement('ul');
+    for (const entry of group.items) {
+      const li = document.createElement('li');
+      const link = document.createElement('a');
+      link.className = 'article-variant-link';
+      link.href = `${lang ? ARTICLE_LANG_PREFIX[lang] : ''}/rules/${entry.slug}`;
+      if (entry.thumbnail) link.append(renderArticleThumbnail(entry.thumbnail));
+      const localized = lang ? translateArticle(entry, lang) : entry;
+      const label = document.createElement('span');
+      label.className = 'article-variant-label';
+      label.textContent = variantNavLabel(localized.title);
+      link.append(label);
+      if (entry.slug === currentSlug) {
+        link.classList.add('active');
+        link.setAttribute('aria-current', 'page');
+      }
+      li.append(link);
+      list.append(li);
+    }
+    nav.append(list);
+    box.append(title, nav);
+  }
+
+  aside.append(box);
+  return aside;
+}
+
+// Sidebar labels are variant names, not page titles: drop the "Rules" suffix.
+function variantNavLabel(title: string): string {
+  return title.replace(/\s*Rules$/i, '').replace(/(规则|規則)$/u, '');
 }
 
 function uniqueId(text: string, used: Set<string>, fallback: number): string {

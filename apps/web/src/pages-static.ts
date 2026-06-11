@@ -106,9 +106,12 @@ export async function mountArticle(
 ): Promise<void> {
   root.replaceChildren();
   root.classList.add('landing-page', 'articles-route');
-  const { buildArticlePage, mountPendingWidgets, mountArticleEnhancements } = await import(
-    './articles.js'
-  );
+  const {
+    buildArticlePage,
+    mountPendingWidgets,
+    mountArticleEnhancements,
+    mountArticleThumbnails,
+  } = await import('./articles.js');
   const { findArticle } = await import('./articles-data.js');
   const { translateArticle } = await import('./article-i18n.js');
   const { setBoardFamily, xiangqiAppearanceEnabled } = await import('./theme.js');
@@ -124,6 +127,8 @@ export async function mountArticle(
   root.append(buildNav(), articlePage);
   mountPendingWidgets(articlePage);
   mountArticleEnhancements(articlePage);
+  // The variant rail carries board-kind thumbnails that mount like index cards.
+  mountArticleThumbnails(articlePage);
 }
 
 function buildAbout(): HTMLElement {

@@ -244,8 +244,32 @@
   margin-bottom: 0;
 }
 
-.article-page {
-  max-width: 720px;
+/* Shared shell for article pages and indexes: one anchoring sheet with
+   quiet rails beside it on the page background (pychess grammar). Below
+   1280px the rails are hidden and the sheet stands alone. */
+.article-sheet {
+  background: var(--site-panel);
+  border: 1px solid var(--site-border-soft);
+  border-radius: var(--site-radius);
+  padding: 28px clamp(20px, 4vw, 48px) 48px;
+  min-width: 0;
+}
+
+@media (min-width: 1280px) {
+  .article-shell {
+    max-width: none;
+    display: grid;
+    /* The variant rail is thicker than the TOC: its entries carry thumbs. */
+    grid-template-columns: 224px minmax(0, 800px) 180px;
+    grid-template-areas: "variants sheet toc";
+    justify-content: center;
+    column-gap: 32px;
+    align-items: start;
+  }
+
+  .article-sheet {
+    grid-area: sheet;
+  }
 }
 
 .article-breadcrumb {
@@ -369,27 +393,114 @@
   letter-spacing: 0;
 }
 
-.article-toc-sidebar {
+/* Both rails are quiet text on the page background: no card chrome, the
+   sheet is the only box. Sticky within their grid columns. */
+.article-toc-sidebar,
+.article-variant-sidebar {
   display: none;
 }
 
 @media (min-width: 1280px) {
-  .article-toc-sidebar {
+  .article-toc-sidebar,
+  .article-variant-sidebar {
     display: block;
-    position: fixed;
-    left: calc(50% + 400px);
-    top: 96px;
-    width: 220px;
-    max-height: calc(100vh - 140px);
+    position: sticky;
+    /* Exactly the rails' natural offset (58px sticky nav + 40px section
+       padding) so they pin with zero travel on scroll. */
+    top: 98px;
+    max-height: calc(100vh - 118px);
     overflow-y: auto;
+    /* Rails are sized to fit; on short viewports they still scroll, but
+       without a scrollbar gutter. */
+    scrollbar-width: none;
+  }
+
+  .article-toc-sidebar::-webkit-scrollbar,
+  .article-variant-sidebar::-webkit-scrollbar {
+    display: none;
+  }
+
+  .article-toc-sidebar {
+    grid-area: toc;
+  }
+
+  .article-variant-sidebar {
+    grid-area: variants;
   }
 }
 
 .article-toc-sticky {
-  padding: 14px 16px;
-  background: var(--site-panel-soft);
-  border: 1px solid var(--site-border-soft);
-  border-radius: var(--site-radius);
+  padding: 4px 0;
+}
+
+/* Variant rail entries: a board thumb makes each variant recognizable
+   at a glance. 80px is a chessground-safe multiple of 8, sized so the
+   full grouped rail fits a typical viewport without scrolling. */
+.article-toc-nav a.article-variant-link {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 5px 0;
+}
+
+.article-variant-sidebar .articles-index-card-thumb {
+  flex: 0 0 80px;
+  width: 80px;
+  height: 80px;
+  border-radius: 5px;
+  box-shadow: none;
+}
+
+/* Breathing room between the playable and not-yet rail groups. */
+.article-variant-sidebar .article-toc-nav + .article-toc-title {
+  margin-top: 24px;
+}
+
+/* Rules landing: intro prose plus, below the rail breakpoint, a thumbnail
+   tile grid as the variant picker (the rail covers it on desktop). */
+.rules-landing-paragraph {
+  color: var(--site-text);
+  font-size: 15px;
+  line-height: 1.6;
+  margin: 0 0 12px;
+}
+
+.rules-landing-grid {
+  list-style: none;
+  margin: 24px 0 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(128px, 1fr));
+  gap: 16px;
+}
+
+@media (min-width: 1280px) {
+  .rules-landing-grid {
+    display: none;
+  }
+}
+
+.rules-landing-tile {
+  display: block;
+  text-decoration: none;
+}
+
+.rules-landing-tile .articles-index-card-thumb {
+  width: 100%;
+  height: auto;
+  aspect-ratio: 1 / 1;
+}
+
+.rules-landing-tile-label {
+  display: block;
+  margin-top: 8px;
+  font-size: 14px;
+  line-height: 1.35;
+  color: var(--site-heading);
+}
+
+.rules-landing-tile:hover .rules-landing-tile-label {
+  text-decoration: underline;
 }
 
 .article-toc-title {

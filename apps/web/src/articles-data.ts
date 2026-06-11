@@ -266,6 +266,10 @@ export type ArticleThumbnail =
 export type Article = {
   slug: string;
   kind: 'rules' | 'article';
+  // Rules articles: the game is live on Mistboard today (drives the
+  // playable / not-yet grouping in the variant rail). Omit when the page
+  // is a reference for a game we do not host yet.
+  playableOnMistboard?: boolean;
   title: string;
   summary: string;
   showSummaryOnPage?: boolean;
@@ -3270,6 +3274,7 @@ export const articles: Article[] = [
   {
     slug: 'dark-chess',
     kind: 'rules',
+    playableOnMistboard: true,
     title: 'Dark Chess (Fog of War) Rules',
     summary:
       'Chess under Fog of War: each side sees only the squares its pieces reach, there are no check warnings, and the king falls by capture.',
@@ -4317,6 +4322,7 @@ export const articles: Article[] = [
     slug: 'dark-mini-xiangqi',
     boardFamily: 'xiangqi',
     kind: 'rules',
+    playableOnMistboard: true,
     title: 'Dark Mini Xiangqi',
     summary:
       'Mini Xiangqi under Fog of War: each side sees only the points its pieces reach on the 7×7 board, and the general falls by capture.',
