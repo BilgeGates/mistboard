@@ -55,13 +55,38 @@ sounds — decided 2026-06-10).
   File sets cover the universal vocabulary; any kind a set does not map
   falls back to the synth tones, never to silence.
 
-## Open design question
+## Open design questions (settle by audition, not on paper)
 
-Should a fully hidden opponent move (no view change at all — the most
-common move in a dark game) sound different from a visible one, e.g. a
-muffled "something moved in the mist"? All visibility classes are computable
-from the view delta, so it leaks nothing. Parked for audition rather than
-decided on paper.
+- **Hidden vs visible opponent move.** Should a fully hidden move (no view
+  change at all — the most common move in a dark game) sound different from
+  a visible one, e.g. a muffled "something moved in the mist"? All
+  visibility classes derive from the view delta, so it leaks nothing.
+- **King capture vs win redundancy.** The winner currently hears
+  `king-capture` at click time and `win` on the confirming snapshot, nearly
+  overlapping; in our rules king capture always means win. Options:
+  suppress `win` when the reason is king-capture; or delay `win` ~500ms
+  (capture, beat, fanfare). The loser currently hears only `lose` — a
+  king-fall sting before it would make capture-deaths feel different from
+  clock-deaths.
+- **Capturing a shrouded `?` that turns out to be the king** plays plain
+  `capture`, then the win fanfare lands a beat later as the reveal. This
+  accidental sequencing is good; keep it.
+
+## Family specials (candidates, none wired)
+
+- **Cannon capture** (xiangqi family, crossroads): culturally the
+  slam-the-board moment; currently a generic `capture`. Leak-safe
+  asymmetric version: only *your own* cannon captures get the boom (your
+  own piece's role is always known to you); the opponent side stays the
+  sanitized `captured`.
+- **Flying general** resolves as a general capture under no-check FoW
+  rules — already the `king-capture` class, nothing separate needed.
+- **Crossroads is the exception to "no check sounds":** it is
+  perfect-information, so check/checkmate exist there (Check.mp3 ships in
+  all four adopted sets). Its race win (king reaches the far rank)
+  currently shares the `win` sound with checkmate; a distinct flavor is
+  possible.
+- **Shogi4** would need drop + evolve sounds if it ever gets live play.
 
 ## Auditioning
 
