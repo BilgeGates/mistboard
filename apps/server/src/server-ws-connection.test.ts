@@ -116,6 +116,7 @@ function resolverHarness(options: {
     errorPrefix: options.kind.replaceAll('-', '_'),
     enabled: () => options.enabled,
     rooms,
+    activeGameCount: () => 0,
     getOrLoadRoom: async () => {
       loadCalls += 1;
       return options.loadRoom ?? null;

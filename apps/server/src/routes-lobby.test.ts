@@ -81,6 +81,7 @@ function registerFakeLobbyTenant(options: {
     errorPrefix: options.errorPrefix,
     enabled: options.enabled,
     rooms: new Map(),
+    activeGameCount: () => 0,
     getOrLoadRoom: async () => null,
     attachWebSocket: async () => {
       throw new Error('unexpected ws attach in lobby test');

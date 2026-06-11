@@ -58,6 +58,11 @@ export type VariantTenantRegistration = {
   // The tenant's live room map (adapter-owned). Read by the ws resolver
   // (live rooms route before flag checks) and the shutdown sweeps.
   rooms: ReadonlyMap<string, TenantManagedRoom>;
+  // Rooms holding a live in-progress game. Feeds the drain controller's
+  // activeGames gate (/api/server-status) so safe deploys wait on tenant
+  // games exactly like chess games. Bound by the adapter because the
+  // playing-status check needs the tenant's concrete room type.
+  activeGameCount(): number;
   // Hydrate a persisted room into the live map (null = unknown/invalid room).
   getOrLoadRoom(roomId: string): Promise<TenantManagedRoom | null>;
   // Hand a resolved live room its WebSocket connection.
@@ -132,6 +137,16 @@ export function registeredVariantTenants(): VariantTenantRegistration[] {
 
 export function setVariantTenantFallbackRoomLookup(lookup: (roomId: string) => boolean): void {
   fallbackRoomLookup = lookup;
+}
+
+// Live in-progress games across every registered tenant. Summed into the
+// drain controller's chess count for the deploy-safety activeGames gate.
+export function variantTenantActiveGameCount(): number {
+  let count = 0;
+  for (const registration of registrationsByPrefix.values()) {
+    count += registration.activeGameCount();
+  }
+  return count;
 }
 
 // Cross-variant room-id collision check used by tenant room factories. The

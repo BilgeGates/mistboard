@@ -4,6 +4,8 @@ import test from 'node:test';
 import type { WebSocket } from 'ws';
 import { createDrainController } from './server-drain.js';
 import { clientFixture, gameProjectionFixture, roomFixture } from './test-builders.js';
+import { registerVariantTenant } from './variant-tenant/registry.js';
+import { countActiveTenantGames } from './variant-tenant/runtime.js';
 
 type ResponseCapture = {
   body: string;
@@ -93,6 +95,54 @@ test('drain controller counts only unpaused playing rooms', () => {
   });
 
   assert.equal(drain.activeGameCount(), 1);
+});
+
+test('drain controller counts live variant-tenant games alongside chess rooms', () => {
+  const playingTenantRooms = [
+    { projection: { state: { status: { type: 'playing' } } } },
+    { projection: { state: { status: { type: 'playing' } } } },
+    { projection: { state: { status: { type: 'finished' } } } },
+  ];
+  registerVariantTenant({
+    kind: 'drain-test-tenant',
+    gameSpecId: 'drain-test-tenant',
+    roomIdPrefix: 'draintest_',
+    errorPrefix: 'drain_test_tenant',
+    enabled: () => true,
+    rooms: new Map(),
+    activeGameCount: () => countActiveTenantGames(playingTenantRooms),
+    getOrLoadRoom: async () => null,
+    attachWebSocket: async () => {
+      throw new Error('unexpected ws attach in drain test');
+    },
+    clearRuntimeTimers: () => {},
+    clearRooms: () => {},
+    http: {
+      matchesCreateRequest: () => false,
+      handleCreate: async () => {
+        throw new Error('unexpected http create in drain test');
+      },
+    },
+    lobby: null,
+  });
+
+  const chessRoom = roomFixture({
+    id: 'chess-playing',
+    projection: gameProjectionFixture({
+      roomId: 'chess-playing',
+      state: { status: { type: 'playing', turn: 'white' } },
+    }),
+  });
+  const drain = createDrainController({
+    drainWindowDefaultMs: 1000,
+    drainWindowMaxMs: 2000,
+    rooms: new Map([[chessRoom.id, chessRoom]]),
+  });
+
+  // 1 chess + 2 playing tenant rooms; the finished tenant room is excluded.
+  // Without the tenant sum, a deploy gated on activeGames==0 can land over a
+  // live DMX/Crossroads game.
+  assert.equal(drain.activeGameCount(), 3);
 });
 
 test('drain controller activates idempotently and broadcasts restart schedule', async () => {

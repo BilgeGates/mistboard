@@ -31,6 +31,7 @@ import {
   type TenantManagedRoom,
   variantTenantRoomIdTaken,
 } from './variant-tenant/registry.js';
+import { countActiveTenantGames } from './variant-tenant/runtime.js';
 
 export const darkXiangqiRooms = new Map<string, DarkXiangqiLiveRoom>();
 
@@ -72,6 +73,7 @@ registerVariantTenant({
   errorPrefix: 'dark_xiangqi',
   enabled: darkXiangqiTenant.enabled,
   rooms: darkXiangqiRooms as unknown as ReadonlyMap<string, TenantManagedRoom>,
+  activeGameCount: () => countActiveTenantGames(darkXiangqiRooms.values()),
   getOrLoadRoom: (roomId) => getOrLoadDarkXiangqiRoom(roomId) as Promise<TenantManagedRoom | null>,
   attachWebSocket: (ctx, socket, request, room) =>
     handleDarkXiangqiWebSocketConnection(

@@ -671,6 +671,19 @@ export function isTenantClockState<C extends string>(
   return true;
 }
 
+// Live in-progress games in a tenant's room map, for the registration's
+// activeGameCount binding (tenants have no pause, so playing status is the
+// whole check — the chess count additionally excludes paused rooms).
+export function countActiveTenantGames(
+  rooms: Iterable<{ projection: { state: { status: { type: string } } } }>,
+): number {
+  let count = 0;
+  for (const room of rooms) {
+    if (room.projection.state.status.type === 'playing') count += 1;
+  }
+  return count;
+}
+
 export function computeTenantConnectedSeats<C extends string>(
   tenant: {
     colors: readonly [C, C];

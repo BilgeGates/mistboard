@@ -3,6 +3,7 @@ import { recordRoomLifecycleAuditSafe } from './room-lifecycle-audit.js';
 import { readJsonBody, writeJson } from './routes/lib.js';
 import { clientIpForRateLimit, isDrainToken, isProductionLikeRuntime } from './server-policy.js';
 import type { Room } from './server-types.js';
+import { variantTenantActiveGameCount } from './variant-tenant/registry.js';
 
 export type DrainController = {
   activeGameCount(): number;
@@ -40,11 +41,14 @@ export function createDrainController(options: DrainControllerOptions): DrainCon
     return isDraining() ? drainState.restartAt : null;
   }
 
-  // Number of rooms with a live in-progress game (playing state, not paused).
-  // Used by safe deploys and /api/server-status to gate deploys behind a drain
-  // window; counts trend to zero as games finish or get paused.
+  // Number of rooms with a live in-progress game (playing state, not paused),
+  // across the chess map AND every registered variant tenant. Used by safe
+  // deploys and /api/server-status to gate deploys behind a drain window;
+  // counts trend to zero as games finish or get paused. Without the tenant
+  // sum, a live DMX/Crossroads game is invisible to the gate and a deploy
+  // can land mid-game.
   function activeGameCount(): number {
-    let count = 0;
+    let count = variantTenantActiveGameCount();
     for (const room of options.rooms.values()) {
       if (room.projection.state.status.type === 'playing' && !room.projection.paused) count += 1;
     }

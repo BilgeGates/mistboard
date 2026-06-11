@@ -39,6 +39,7 @@ import {
   type TenantManagedRoom,
   variantTenantRoomIdTaken,
 } from './variant-tenant/registry.js';
+import { countActiveTenantGames } from './variant-tenant/runtime.js';
 
 export const crossroadsChessRooms = new Map<string, CrossroadsChessRuntimeRoom>();
 
@@ -92,6 +93,7 @@ registerVariantTenant({
   errorPrefix: 'crossroads_chess',
   enabled: crossroadsChessTenant.enabled,
   rooms: crossroadsChessRooms as unknown as ReadonlyMap<string, TenantManagedRoom>,
+  activeGameCount: () => countActiveTenantGames(crossroadsChessRooms.values()),
   getOrLoadRoom: (roomId) =>
     getOrLoadCrossroadsChessRoom(roomId) as Promise<TenantManagedRoom | null>,
   attachWebSocket: (ctx, socket, request, room) =>
