@@ -12,6 +12,7 @@ import { handleDarkMiniXiangqiCreate, requestsDarkMiniXiangqi } from './dark-min
 import { handleDarkXiangqiCreate, requestsDarkXiangqi } from './dark-xiangqi-rooms.js';
 import {
   type HttpApiContext,
+  isAllowedRatedTimeControl,
   isAllowedTimeControl,
   parseHiddenDraft960,
   parseRoomTimeControl,
@@ -98,13 +99,27 @@ export async function tryHandle(
       response.end(JSON.stringify({ error: 'invalid_mode' }));
       return true;
     }
-    // Engine games are never rated. Direct PvP room creation follows the same
-    // launch + account gate as lobby matchmaking; game-end account binding is
-    // still the authoritative final backstop.
+    // Engine games are never rated. Explicit rated requests are account-gated
+    // before room creation so guests cannot accidentally start a casual room
+    // that looked rated in the setup UI.
+    const accountUser = mode === 'pve' ? null : await currentAccountUser(request);
+    if (body.rated === true && mode === 'pve') {
+      response.writeHead(501, { 'content-type': 'application/json' });
+      response.end(JSON.stringify({ error: 'rated_unsupported_surface' }));
+      return true;
+    }
+    if (body.rated === true && !ratedEnabled()) {
+      response.writeHead(403, { 'content-type': 'application/json' });
+      response.end(JSON.stringify({ error: 'rated_disabled' }));
+      return true;
+    }
+    if (body.rated === true && !accountUser) {
+      response.writeHead(401, { 'content-type': 'application/json' });
+      response.end(JSON.stringify({ error: 'rated_requires_account' }));
+      return true;
+    }
     const rated =
-      mode === 'pve'
-        ? false
-        : ratedEnabled() && body.rated !== false && (await currentAccountUser(request)) !== null;
+      mode === 'pve' ? false : ratedEnabled() && body.rated !== false && accountUser !== null;
     if (body.timeControl !== undefined && !timeControl) {
       response.writeHead(400, { 'content-type': 'application/json' });
       response.end(JSON.stringify({ error: 'invalid_time_control' }));
@@ -122,6 +137,11 @@ export async function tryHandle(
     if (timeControl && !isAllowedTimeControl(timeControl)) {
       response.writeHead(400, { 'content-type': 'application/json' });
       response.end(JSON.stringify({ error: 'time_control_unsupported' }));
+      return true;
+    }
+    if (rated && timeControl && !isAllowedRatedTimeControl(timeControl)) {
+      response.writeHead(400, { 'content-type': 'application/json' });
+      response.end(JSON.stringify({ error: 'rated_time_control_unsupported' }));
       return true;
     }
     if (ctx.databaseRequired && !persistence.isInitialized()) {

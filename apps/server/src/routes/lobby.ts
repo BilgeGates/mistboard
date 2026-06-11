@@ -19,6 +19,7 @@ import type { LobbyTicket, Room } from './../server-types.js';
 import {
   type HttpApiContext,
   isAllowedCrossroadsChessTimeControl,
+  isAllowedRatedTimeControl,
   isAllowedTimeControl,
   parseHiddenDraft960,
   parseRoomTimeControl,
@@ -74,14 +75,23 @@ export async function tryHandle(
       isDarkMiniXiangqi || isCrossroadsChess ? false : parseHiddenDraft960(body.hiddenDraft960);
     const timeControl =
       body.timeControl === undefined ? undefined : parseRoomTimeControl(body.timeControl);
-    // Rated requires the flag on AND a signed-in requester. A guest (or anyone
-    // when the flag is off) silently gets a casual ticket. Both sides of a match
-    // are rated tickets, and the game-end account-gate is the final backstop.
-    const lobbyRated =
-      !isCrossroadsChess &&
-      ratedEnabled() &&
-      body.rated === true &&
-      (await currentAccountUser(request)) !== null;
+    // Rated requires the flag on AND a signed-in requester. Reject explicit
+    // guest/off-surface rated requests instead of silently creating casual
+    // tickets that looked rated in the setup UI.
+    const accountUser = body.rated === true ? await currentAccountUser(request) : null;
+    if (body.rated === true && isCrossroadsChess) {
+      writeJson(response, 501, { error: 'rated_unsupported_surface' });
+      return true;
+    }
+    if (body.rated === true && !ratedEnabled()) {
+      writeJson(response, 403, { error: 'rated_disabled' });
+      return true;
+    }
+    if (body.rated === true && !accountUser) {
+      writeJson(response, 401, { error: 'rated_requires_account' });
+      return true;
+    }
+    const lobbyRated = body.rated === true && accountUser !== null;
     if (body.timeControl !== undefined && !timeControl) {
       response.writeHead(400, { 'content-type': 'application/json' });
       response.end(JSON.stringify({ error: 'invalid_time_control' }));
@@ -98,6 +108,11 @@ export async function tryHandle(
     ) {
       response.writeHead(400, { 'content-type': 'application/json' });
       response.end(JSON.stringify({ error: 'time_control_unsupported' }));
+      return true;
+    }
+    if (lobbyRated && timeControl && !isAllowedRatedTimeControl(timeControl)) {
+      response.writeHead(400, { 'content-type': 'application/json' });
+      response.end(JSON.stringify({ error: 'rated_time_control_unsupported' }));
       return true;
     }
     if (ctx.databaseRequired && !persistence.isInitialized()) {

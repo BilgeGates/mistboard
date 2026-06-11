@@ -10,6 +10,7 @@ import {
 import {
   bucketForGame,
   DEFAULT_RATING_BUCKET,
+  PUBLIC_RATING_TIME_CLASS,
   parseRatingVariant,
   type RatingVariant,
 } from './rating-buckets.js';
@@ -17,7 +18,7 @@ import {
 test('default rating bucket uses the Dark chess game spec rating pool', () => {
   assert.deepEqual(DEFAULT_RATING_BUCKET, {
     variant: gameSpecForId(DARK_CHESS_SPEC_ID).ratingPoolBase as RatingVariant,
-    timeClass: 'blitz',
+    timeClass: PUBLIC_RATING_TIME_CLASS,
   });
 });
 
@@ -53,13 +54,25 @@ test('bucketForGame maps Crossroads Chess through its own open rating pool', () 
   assert.deepEqual(
     bucketForGame({
       variant: CROSSROADS_CHESS_SPEC_ID,
-      initialMs: 300_000,
-      incrementMs: 5_000,
+      initialMs: 180_000,
+      incrementMs: 2_000,
     }),
     {
       variant: gameSpecForId(CROSSROADS_CHESS_SPEC_ID).ratingPoolBase,
-      timeClass: 'rapid',
+      timeClass: PUBLIC_RATING_TIME_CLASS,
     },
+  );
+});
+
+test('bucketForGame only rates the public rated time control', () => {
+  assert.equal(bucketForGame({ initialMs: 60_000, incrementMs: 1_000 }), null);
+  assert.equal(
+    bucketForGame({
+      variant: CROSSROADS_CHESS_SPEC_ID,
+      initialMs: 300_000,
+      incrementMs: 5_000,
+    }),
+    null,
   );
 });
 

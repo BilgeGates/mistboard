@@ -232,8 +232,8 @@ definePersistenceTests('ratings', () => {
       plyCount: 17,
       startedAt: now,
       endedAt: now,
-      initialMs: 300_000,
-      incrementMs: 5_000,
+      initialMs: 180_000,
+      incrementMs: 2_000,
       whiteClient: null,
       blackClient: null,
       whiteName: null,
@@ -267,7 +267,7 @@ definePersistenceTests('ratings', () => {
         games_played: number;
       }>(
         `SELECT user_id, elo_rating, games_played
-         FROM user_ratings WHERE variant = 'crossroads_chess_open' AND time_class = 'rapid'`,
+         FROM user_ratings WHERE variant = 'crossroads_chess_open' AND time_class = 'blitz'`,
       );
       assert.equal(rows.length, 2, 'both Crossroads players got a rating row');
       const white = rows.find((r) => r.user_id === 'user_crossroads_white')!;
@@ -621,7 +621,7 @@ definePersistenceTests('ratings', () => {
     const crossroadsRating = viewerProfile?.ratings.find(
       (rating) => rating.variant === 'crossroads_chess_open',
     );
-    assert.equal(crossroadsRating?.timeClass, 'rapid');
+    assert.equal(crossroadsRating?.timeClass, 'blitz');
     assert.equal(crossroadsRating?.eloRating, null);
     assert.equal(crossroadsRating?.ratedGamesPlayed, 0);
     assert.equal(crossroadsRating?.totalGamesPlayed, 1);

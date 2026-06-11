@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { buildLandingPlayPanel, maybeOpenPlayDeepLink, setRoomNavigator } from './landing-play.js';
 import { setRatedModeEnabled } from './rated-flag.js';
+import { setResolvedSignedIn } from './signed-in-state.js';
 
 describe('landing play panel', () => {
   beforeEach(() => {
@@ -15,6 +16,7 @@ describe('landing play panel', () => {
     window.history.replaceState(null, '', '/');
     window.localStorage.clear();
     setRatedModeEnabled(false);
+    setResolvedSignedIn(undefined);
     setRoomNavigator(null);
     vi.unstubAllEnvs();
     vi.unstubAllGlobals();
@@ -317,6 +319,42 @@ describe('landing play panel', () => {
     expect(visibleModalTimeControls()).toEqual(['1 + 1', '3 + 2']);
   });
 
+  it('limits rated setup time controls to 3+2', () => {
+    setRatedModeEnabled(true);
+    setResolvedSignedIn(true);
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => jsonResponse({ playing: 0, online: 0 })),
+    );
+    const panel = buildLandingPlayPanel([]);
+    document.body.append(panel);
+
+    openPlaySetup(panel, 'Find opponent');
+    expect(visibleModalTimeControls()).toEqual(['3 + 2']);
+
+    clickModalButton('Casual');
+    expect(visibleModalTimeControls()).toEqual(['1 + 1', '3 + 2']);
+
+    clickModalButton('Rated');
+    expect(visibleModalTimeControls()).toEqual(['3 + 2']);
+  });
+
+  it('keeps rated setup disabled for signed-out players', () => {
+    setRatedModeEnabled(true);
+    setResolvedSignedIn(false);
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => jsonResponse({ playing: 0, online: 0 })),
+    );
+    const panel = buildLandingPlayPanel([]);
+    document.body.append(panel);
+
+    openPlaySetup(panel, 'Find opponent');
+
+    expect(document.body.textContent).toContain('Ratedcoming soon');
+    expect(visibleModalTimeControls()).toEqual(['1 + 1', '3 + 2']);
+  });
+
   it('offers Crossroads Chess for engine and lobby play', () => {
     vi.stubEnv('VITE_CROSSROADS_CHESS_ENABLED', 'true');
     vi.stubGlobal(
@@ -488,6 +526,7 @@ describe('landing play panel', () => {
   it('allows a rated soft-launch Dark Mini Xiangqi lobby deep link without public picker entry', async () => {
     vi.stubEnv('VITE_DARK_MINI_XIANGQI_ENABLED', 'true');
     setRatedModeEnabled(true);
+    setResolvedSignedIn(true);
     const fetchSpy = lobbyFetchSpy();
     vi.stubGlobal('fetch', fetchSpy);
     window.history.replaceState(null, '', '/?play=lobby&gameSpecId=dark-mini-xiangqi');

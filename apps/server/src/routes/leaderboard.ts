@@ -2,7 +2,7 @@ import type { IncomingMessage, ServerResponse } from 'node:http';
 import * as persistence from './../persistence.js';
 import {
   DEFAULT_RATING_BUCKET,
-  parseRatingTimeClass,
+  PUBLIC_RATING_TIME_CLASS,
   parseRatingVariant,
 } from './../rating-buckets.js';
 import { requireMethod, requirePersistence, writeJson } from './lib.js';
@@ -19,8 +19,7 @@ export async function tryHandle(
   if (!requirePersistence(response)) return true;
   const variant =
     parseRatingVariant(parsedUrl.searchParams.get('variant')) ?? DEFAULT_RATING_BUCKET.variant;
-  const timeClass =
-    parseRatingTimeClass(parsedUrl.searchParams.get('time')) ?? DEFAULT_RATING_BUCKET.timeClass;
+  const timeClass = PUBLIC_RATING_TIME_CLASS;
   const limitParam = parseInt(parsedUrl.searchParams.get('limit') ?? '100', 10);
   const limit = Number.isNaN(limitParam) ? 100 : Math.max(1, Math.min(limitParam, 500));
   const entries = await persistence.getLeaderboard({ variant, timeClass, limit });

@@ -315,26 +315,10 @@
 
 .profile-ratings-grid {
   display: grid;
-  grid-template-columns: minmax(124px, 176px) repeat(3, minmax(116px, 1fr));
+  grid-template-columns: minmax(150px, 220px) minmax(160px, 1fr);
   gap: 8px;
   align-items: stretch;
   padding: 16px;
-}
-
-.profile-ratings-corner {
-  min-height: 28px;
-}
-
-.profile-ratings-th {
-  display: flex;
-  align-items: center;
-  min-height: 28px;
-  padding: 0 2px;
-  color: var(--site-muted);
-  font-size: 11px;
-  font-weight: 700;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
 }
 
 .profile-ratings-variant {
@@ -372,11 +356,6 @@
   background: color-mix(in srgb, var(--site-accent-soft) 38%, var(--site-panel));
 }
 
-.profile-rating-cell-rated[data-time-class="blitz"] {
-  border-color: color-mix(in srgb, #4f8edb 28%, var(--site-border));
-  background: color-mix(in srgb, #4f8edb 10%, var(--site-panel));
-}
-
 .profile-rating-value {
   color: var(--site-heading);
   font-size: 18px;
@@ -409,11 +388,6 @@
     padding: 14px;
   }
 
-  .profile-ratings-corner,
-  .profile-ratings-th {
-    display: none;
-  }
-
   .profile-ratings-variant {
     min-height: 0;
     margin-top: 8px;
@@ -425,25 +399,9 @@
   }
 
   .profile-rating-cell {
-    display: grid;
-    grid-template-columns: minmax(76px, 0.7fr) minmax(0, 1fr);
-    column-gap: 12px;
     row-gap: 2px;
     min-height: 54px;
     align-items: center;
-  }
-
-  .profile-rating-cell::before {
-    content: attr(data-time-label);
-    color: var(--site-muted);
-    font-size: 11px;
-    font-weight: 700;
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
-  }
-
-  .profile-rating-games {
-    grid-column: 2;
   }
 }
 

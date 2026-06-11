@@ -43,26 +43,13 @@ type LeaderboardEntry = {
   provisional: boolean;
 };
 
-// One panel per (leaderboard variant × time class), generated from the variant
-// registry so disabling a variant (e.g. Draft960) removes its panels in one edit.
-const LEADERBOARD_TIME_CLASSES: { timeClass: ProfileRatingTimeClass; timeLabel: string }[] = [
-  { timeClass: 'bullet', timeLabel: 'Bullet' },
-  { timeClass: 'blitz', timeLabel: 'Blitz' },
-  { timeClass: 'rapid', timeLabel: 'Rapid' },
-];
 const LEADERBOARD_BUCKETS: {
   variantParam: string;
   variantLabel: string;
-  timeClass: ProfileRatingTimeClass;
-  timeLabel: string;
-}[] = leaderboardVariants.flatMap((v) =>
-  LEADERBOARD_TIME_CLASSES.map((tc) => ({
-    variantParam: v.apiParam,
-    variantLabel: v.label,
-    timeClass: tc.timeClass,
-    timeLabel: tc.timeLabel,
-  })),
-);
+}[] = leaderboardVariants.map((v) => ({
+  variantParam: v.apiParam,
+  variantLabel: v.label,
+}));
 
 const PROFILE_VARIANT_LABEL: Record<ProfileRatingVariant, string> = {
   fog: 'Dark Chess',
@@ -74,12 +61,6 @@ const PROFILE_VARIANT_LABEL: Record<ProfileRatingVariant, string> = {
 // Profile rating grid is subject-scoped: render-capable soft-launch variants can
 // show here before they are advertised on the public leaderboard.
 const PROFILE_VARIANT_ORDER: ProfileRatingVariant[] = profileRatingVariants.map((v) => v.id);
-const PROFILE_TIME_CLASS_ORDER: ProfileRatingTimeClass[] = ['bullet', 'blitz', 'rapid'];
-const PROFILE_TIME_CLASS_LABEL: Record<ProfileRatingTimeClass, string> = {
-  bullet: 'Bullet',
-  blitz: 'Blitz',
-  rapid: 'Rapid',
-};
 
 export async function mountProfile(root: HTMLElement, handle: string): Promise<void> {
   root.replaceChildren();
@@ -128,7 +109,7 @@ export async function mountLeaderboard(root: HTMLElement): Promise<void> {
 
   const results = await Promise.all(
     LEADERBOARD_BUCKETS.map((b) =>
-      fetch(`/api/leaderboard?variant=${b.variantParam}&time=${b.timeClass}&limit=10`)
+      fetch(`/api/leaderboard?variant=${b.variantParam}&limit=10`)
         .then((r) =>
           r.ok
             ? (r.json() as Promise<{ leaderboard: LeaderboardEntry[] }>)
@@ -143,7 +124,7 @@ export async function mountLeaderboard(root: HTMLElement): Promise<void> {
 
   for (let i = 0; i < LEADERBOARD_BUCKETS.length; i++) {
     const b = LEADERBOARD_BUCKETS[i];
-    grid.append(buildLeaderboardPanel(b.variantLabel, b.timeClass, b.timeLabel, results[i]));
+    grid.append(buildLeaderboardPanel(b.variantLabel, results[i]));
   }
 }
 
@@ -169,26 +150,23 @@ function buildLeaderboardBanner(): HTMLElement {
 
 function buildLeaderboardPanel(
   variantLabel: string,
-  timeClass: ProfileRatingTimeClass,
-  timeLabel: string,
   data: { leaderboard: LeaderboardEntry[] } | null,
 ): HTMLElement {
   const panel = document.createElement('div');
   panel.className = 'leaderboard-panel';
-  panel.dataset.timeClass = timeClass;
 
   const header = document.createElement('div');
   header.className = 'leaderboard-panel-header';
 
   const subtitle = document.createElement('span');
   subtitle.className = 'leaderboard-panel-subtitle';
-  subtitle.textContent = variantLabel;
+  subtitle.textContent = 'Public rating';
 
   const title = document.createElement('h2');
   title.className = 'leaderboard-panel-title';
-  title.textContent = timeLabel;
+  title.textContent = variantLabel;
 
-  header.append(subtitle, title);
+  header.append(title, subtitle);
   panel.append(header);
 
   if (!data) {
@@ -322,7 +300,7 @@ export function buildProfileRatings(ratings: ProfileBucketRating[]): HTMLElement
   if (variantsShown.length === 0) {
     const empty = document.createElement('p');
     empty.className = 'profile-ratings-empty';
-    empty.textContent = 'No rated time controls played yet.';
+    empty.textContent = 'No rated games yet.';
     section.append(empty);
     return section;
   }
@@ -330,26 +308,13 @@ export function buildProfileRatings(ratings: ProfileBucketRating[]): HTMLElement
   const grid = document.createElement('div');
   grid.className = 'profile-ratings-grid';
 
-  const corner = document.createElement('span');
-  corner.className = 'profile-ratings-corner';
-  corner.setAttribute('aria-hidden', 'true');
-  grid.append(corner);
-  for (const timeClass of PROFILE_TIME_CLASS_ORDER) {
-    const th = document.createElement('span');
-    th.className = 'profile-ratings-th';
-    th.textContent = PROFILE_TIME_CLASS_LABEL[timeClass];
-    grid.append(th);
-  }
-
   for (const variant of variantsShown) {
     const label = document.createElement('span');
     label.className = 'profile-ratings-variant';
     label.textContent = PROFILE_VARIANT_LABEL[variant];
     grid.append(label);
 
-    for (const timeClass of PROFILE_TIME_CLASS_ORDER) {
-      grid.append(buildRatingCell(ratings, variant, timeClass));
-    }
+    grid.append(buildRatingCell(ratings, variant));
   }
 
   section.append(grid);
@@ -359,14 +324,11 @@ export function buildProfileRatings(ratings: ProfileBucketRating[]): HTMLElement
 function buildRatingCell(
   ratings: ProfileBucketRating[],
   variant: ProfileRatingVariant,
-  timeClass: ProfileRatingTimeClass,
 ): HTMLElement {
   const cell = document.createElement('div');
   cell.className = 'profile-rating-cell';
-  cell.dataset.timeClass = timeClass;
-  cell.dataset.timeLabel = PROFILE_TIME_CLASS_LABEL[timeClass];
 
-  const bucket = ratings.find((r) => r.variant === variant && r.timeClass === timeClass);
+  const bucket = ratings.find((r) => r.variant === variant);
 
   const value = document.createElement('span');
   value.className = 'profile-rating-value';

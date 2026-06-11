@@ -21,9 +21,11 @@ export type RatingBucket = {
   timeClass: RatingTimeClass;
 };
 
+export const PUBLIC_RATING_TIME_CLASS: RatingTimeClass = 'blitz';
+
 export const DEFAULT_RATING_BUCKET: RatingBucket = {
   variant: currentRatingVariantForSpec(DARK_CHESS_SPEC_ID),
-  timeClass: 'blitz',
+  timeClass: PUBLIC_RATING_TIME_CLASS,
 };
 
 type BucketInput = {
@@ -36,8 +38,9 @@ type BucketInput = {
 export function bucketForGame(input: BucketInput): RatingBucket | null {
   const timeClass = timeClassFromTimeControl(input.initialMs, input.incrementMs);
   if (!timeClass) return null;
+  if (timeClass !== PUBLIC_RATING_TIME_CLASS) return null;
   const variant = currentRatingVariantForSpec(ratingSpecForGame(input));
-  return { variant, timeClass };
+  return { variant, timeClass: PUBLIC_RATING_TIME_CLASS };
 }
 
 export function parseRatingVariant(value: string | null | undefined): RatingVariant | null {

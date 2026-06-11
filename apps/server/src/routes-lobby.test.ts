@@ -164,6 +164,16 @@ test('lobby: chess request with an off-menu time control is rejected', async () 
   assert.equal(ctx.lobbyQueue.length, 0);
 });
 
+test('lobby: rated chess request from a guest is rejected', async () => {
+  await withRatedFlag(true, async () => {
+    const { ctx } = testContext();
+    const res = await post(ctx, { rated: true, timeControl: tc });
+    assert.equal(res.status, 401);
+    assert.deepEqual(responseJson(res), { error: 'rated_requires_account' });
+    assert.equal(ctx.lobbyQueue.length, 0);
+  });
+});
+
 // ── Dark Mini Xiangqi ──────────────────────────────────────────────────────
 
 test('lobby: a single Dark Mini Xiangqi request waits (202)', async () => {
@@ -191,23 +201,18 @@ test('lobby: two Dark Mini Xiangqi requests match into a DMX room', async () => 
   });
 });
 
-test('lobby: guest Dark Mini Xiangqi rated requests match as casual tickets', async () => {
+test('lobby: guest Dark Mini Xiangqi rated request is rejected', async () => {
   await withFlag(true, async () => {
     await withRatedFlag(true, async () => {
       const { ctx, dmxCalls } = testContext();
-      const first = await post(ctx, {
+      const res = await post(ctx, {
         gameSpecId: DARK_MINI_XIANGQI_SPEC_ID,
         rated: true,
         timeControl: tc,
       });
-      assert.equal(first.status, 202);
-      const second = await post(ctx, {
-        gameSpecId: DARK_MINI_XIANGQI_SPEC_ID,
-        rated: true,
-        timeControl: tc,
-      });
-      assert.equal(second.status, 201);
-      assert.deepEqual(dmxCalls[0], [tc, 'random', undefined, false]);
+      assert.equal(res.status, 401);
+      assert.deepEqual(responseJson(res), { error: 'rated_requires_account' });
+      assert.equal(dmxCalls.length, 0);
     });
   });
 });

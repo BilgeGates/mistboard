@@ -1,19 +1,13 @@
-import { TIME_CONTROLS } from '@mistboard/game';
 import { PROVISIONAL_RD } from './glicko.js';
 import { getPool } from './persistence-db.js';
 import type { GameMode, GameTermination, GameVisibility } from './persistence-game-lifecycle.js';
 import type { GameParticipantColor, GameResult, ProfileGameRecord } from './persistence-games.js';
 import { attachGameParticipants } from './persistence-games.js';
-import type { RatingTimeClass, RatingVariant } from './rating-buckets.js';
-
-// Build a `CASE WHEN ... THEN 'bullet' ... END` fragment from the canonical
-// time-controls list so adding a TC to packages/game/src/time-controls.ts
-// auto-extends the persistence layer's classifier. Values are numeric literals
-// and a closed set of TimeClass string literals — no SQL injection surface.
-const TIME_CLASS_CASE_SQL = `CASE\n${TIME_CONTROLS.map(
-  (tc) =>
-    `         WHEN games.initial_ms = ${tc.initialMs} AND games.increment_ms = ${tc.incrementMs} THEN '${tc.timeClass}'`,
-).join('\n')}\n         ELSE NULL\n       END`;
+import {
+  PUBLIC_RATING_TIME_CLASS,
+  type RatingTimeClass,
+  type RatingVariant,
+} from './rating-buckets.js';
 
 export type AccountRole = 'player' | 'admin';
 
@@ -453,33 +447,31 @@ export async function getUserProfileByHandle(
   const visibilityClause = profileVisibilityClause(isViewer);
   const { rows: ratingRows } = await getPool().query<{
     variant: RatingVariant;
-    time_class: RatingTimeClass;
     elo_rating: number;
     rating_deviation: number;
     games_played: number;
   }>(
-    `SELECT variant, time_class, elo_rating, rating_deviation, games_played
+    `SELECT variant, elo_rating, rating_deviation, games_played
      FROM user_ratings
-     WHERE user_id = $1`,
-    [user.id],
+     WHERE user_id = $1 AND time_class = $2`,
+    [user.id, PUBLIC_RATING_TIME_CLASS],
   );
-  const ratingByBucket = new Map<
-    string,
+  const ratingByVariant = new Map<
+    RatingVariant,
     { eloRating: number; gamesPlayed: number; ratingDeviation: number }
   >();
   for (const row of ratingRows) {
-    ratingByBucket.set(`${row.variant}:${row.time_class}`, {
+    ratingByVariant.set(row.variant, {
       eloRating: row.elo_rating,
       gamesPlayed: row.games_played,
       ratingDeviation: row.rating_deviation,
     });
   }
 
-  // Bucketed game counts derived from time control, so the rating section
-  // shows activity per bucket even pre-rated-flip when user_ratings is empty.
-  const { rows: bucketCountRows } = await getPool().query<{
+  // Public ratings are one pool per variant. Count all completed visible games
+  // in that variant so pre-rated activity still earns a profile row.
+  const { rows: variantCountRows } = await getPool().query<{
     variant: RatingVariant;
-    time_class: RatingTimeClass;
     games_played: string;
   }>(
     `SELECT
@@ -489,7 +481,6 @@ export async function getUserProfileByHandle(
          WHEN COALESCE(games.hidden_draft960, false) THEN 'fog_draft960'
          ELSE 'fog'
        END AS variant,
-       ${TIME_CLASS_CASE_SQL} AS time_class,
        COUNT(*)::text AS games_played
      FROM game_participants
      JOIN games ON games.room_id = game_participants.game_id
@@ -498,25 +489,26 @@ export async function getUserProfileByHandle(
        AND games.status = 'completed'
        AND games.variant IN ('dark-chess', 'fog', 'draft960', 'dark-draft960', 'fog-draft960', 'dark-mini-xiangqi', 'crossroads-chess')
        ${visibilityClause}
-     GROUP BY 1, 2`,
+     GROUP BY 1`,
     [user.id],
   );
-  const bucketGameCounts = new Map<string, number>();
-  for (const row of bucketCountRows) {
-    if (!row.time_class) continue;
-    bucketGameCounts.set(`${row.variant}:${row.time_class}`, Number(row.games_played));
+  const variantGameCounts = new Map<RatingVariant, number>();
+  for (const row of variantCountRows) {
+    variantGameCounts.set(row.variant, Number(row.games_played));
   }
 
-  const bucketKeys = new Set<string>([...ratingByBucket.keys(), ...bucketGameCounts.keys()]);
+  const variantKeys = new Set<RatingVariant>([
+    ...ratingByVariant.keys(),
+    ...variantGameCounts.keys(),
+  ]);
   const ratings: ProfileBucketRating[] = [];
-  for (const key of bucketKeys) {
-    const [variant, timeClass] = key.split(':') as [RatingVariant, RatingTimeClass];
-    const rating = ratingByBucket.get(key);
-    const totalGames = bucketGameCounts.get(key) ?? 0;
+  for (const variant of variantKeys) {
+    const rating = ratingByVariant.get(variant);
+    const totalGames = variantGameCounts.get(variant) ?? 0;
     if (totalGames === 0 && !rating) continue;
     ratings.push({
       variant,
-      timeClass,
+      timeClass: PUBLIC_RATING_TIME_CLASS,
       eloRating: rating?.eloRating ?? null,
       ratedGamesPlayed: rating?.gamesPlayed ?? 0,
       totalGamesPlayed: totalGames,

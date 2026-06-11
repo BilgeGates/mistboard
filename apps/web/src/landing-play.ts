@@ -21,6 +21,7 @@ import {
   darkMiniXiangqiPublicEntryEnabled,
 } from './feature-flags.js';
 import { isRatedModeEnabled } from './rated-flag.js';
+import { isLikelySignedIn } from './signed-in-state.js';
 import { isVariantEnabled } from './variants.js';
 import { ENGINE_OFFER_AFTER_MS, shouldOfferEngine } from './web-utils.js';
 
@@ -139,7 +140,11 @@ const LANDING_TIME_PRESETS: LandingTimePreset[] = TIME_CONTROLS.map((tc) => ({
 // Crossroads gets 5+5 because it is perfect-information. Full
 // Dark Xiangqi keeps its prior single option until it has a live runtime. Used
 // for PvE AND PvP/lobby alike.
-function allowedTimePresetIds(gameSpecId: LandingGameSpecId): ReadonlySet<LandingTimePresetId> {
+function allowedTimePresetIds(
+  gameSpecId: LandingGameSpecId,
+  rated: boolean,
+): ReadonlySet<LandingTimePresetId> {
+  if (rated) return new Set<LandingTimePresetId>(['3m2']);
   if (gameSpecId === CROSSROADS_CHESS_SPEC_ID) {
     return new Set<LandingTimePresetId>(['1m1', '3m2', '5m5']);
   }
@@ -301,7 +306,7 @@ export function buildLandingPlayPanel(
       engineId: defaultEngineId,
       mode: 'lobby',
       title: 'Find opponent',
-      ratedDisabled: !isRatedModeEnabled(),
+      ratedDisabled: !isRatedModeEnabled() || !isLikelySignedIn(),
     });
   });
   challengeButton.addEventListener('click', () => {
@@ -575,7 +580,7 @@ export function maybeOpenPlayDeepLink(engines: PlayableEngine[]): void {
         ),
         mode: 'lobby',
         title: 'Find opponent',
-        ratedDisabled: !isRatedModeEnabled(),
+        ratedDisabled: !isRatedModeEnabled() || !isLikelySignedIn(),
       });
       break;
     case 'friend':
@@ -777,11 +782,11 @@ function openLandingSetupDialog(choice: LandingPlayChoice): void {
   });
 
   // Show only the presets allowed for the current variant (so 5+5 is hidden for
-  // dark chess, here AND in PvP/lobby). Re-runs on variant switch via
-  // syncGameSpecificSections; if the current pick is no longer offered, fall back
-  // to 3+2 (always available).
+  // Crossroads casual games, and rated games collapse to 3+2). Re-runs on
+  // variant/rated switch; if the current pick is no longer offered, fall back to
+  // 3+2 (always available).
   const syncTimeControls = () => {
-    const allowed = allowedTimePresetIds(selectedGameSpecId);
+    const allowed = allowedTimePresetIds(selectedGameSpecId, rated);
     if (!allowed.has(selectedPreset)) selectedPreset = '3m2';
     for (const { button, preset } of presetButtons) {
       const show = allowed.has(preset.id);
@@ -860,6 +865,7 @@ function openLandingSetupDialog(choice: LandingPlayChoice): void {
             rated = v;
           },
           choice.ratedDisabled,
+          syncTimeControls,
         )
       : null;
 
@@ -996,6 +1002,7 @@ function buildRatedToggleSection(
   get: () => boolean,
   set: (v: boolean) => void,
   ratedDisabled = false,
+  onChange: () => void = () => undefined,
 ): HTMLElement {
   const section = document.createElement('div');
   section.className = 'landing-setup-section';
@@ -1025,11 +1032,13 @@ function buildRatedToggleSection(
     ratedButton.addEventListener('click', () => {
       set(true);
       sync();
+      onChange();
     });
   }
   casualButton.addEventListener('click', () => {
     set(false);
     sync();
+    onChange();
   });
   sync();
   group.append(ratedButton, casualButton);

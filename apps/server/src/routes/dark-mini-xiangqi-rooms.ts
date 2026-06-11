@@ -10,7 +10,7 @@ import { gateGameSpecRequest } from './../game-spec-request-gate.js';
 import type { UserAccount } from './../persistence.js';
 import * as persistence from './../persistence.js';
 import type { HttpApiContext } from './lib.js';
-import { parseRoomTimeControl, writeJson } from './lib.js';
+import { isAllowedRatedTimeControl, parseRoomTimeControl, writeJson } from './lib.js';
 
 export function requestsDarkMiniXiangqi(body: Record<string, unknown>): boolean {
   return body.gameSpecId === DARK_MINI_XIANGQI_SPEC_ID;
@@ -61,6 +61,10 @@ export async function handleDarkMiniXiangqiCreate(
   }
   if (wantsRated && !accountUser) {
     writeJson(response, 401, { error: 'rated_requires_account' });
+    return;
+  }
+  if (wantsRated && timeControl && !isAllowedRatedTimeControl(timeControl)) {
+    writeJson(response, 400, { error: 'rated_time_control_unsupported' });
     return;
   }
   const rated = wantsRated && mode === 'pvp';

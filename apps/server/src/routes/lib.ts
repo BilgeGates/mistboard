@@ -45,6 +45,7 @@ const ALLOWED_CROSSROADS_CHESS_TIME_CONTROL_IDS: ReadonlySet<TimeControlId> = ne
   '3m2',
   '5m5',
 ]);
+const ALLOWED_RATED_TIME_CONTROL_IDS: ReadonlySet<TimeControlId> = new Set(['3m2']);
 
 // ── Context ────────────────────────────────────────────────────────────────
 export interface HttpApiContext {
@@ -180,6 +181,11 @@ export function isAllowedTimeControl(tc: RoomTimeControl): boolean {
 export function isAllowedCrossroadsChessTimeControl(tc: RoomTimeControl): boolean {
   const spec = findTimeControl(tc.initialMs, tc.incrementMs);
   return spec !== null && ALLOWED_CROSSROADS_CHESS_TIME_CONTROL_IDS.has(spec.id);
+}
+
+export function isAllowedRatedTimeControl(tc: RoomTimeControl): boolean {
+  const spec = findTimeControl(tc.initialMs, tc.incrementMs);
+  return spec !== null && ALLOWED_RATED_TIME_CONTROL_IDS.has(spec.id);
 }
 
 export function parseRoomTimeControl(value: unknown): RoomTimeControl | null {
