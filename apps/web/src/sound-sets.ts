@@ -16,7 +16,7 @@ import type { SoundKind } from './live-state.js';
 export type SoundSetId = 'mist' | 'futuristic' | 'nes' | 'piano' | 'sfx';
 
 export const SOUND_SETS: ReadonlyArray<{ id: SoundSetId; label: string }> = [
-  { id: 'mist', label: 'Mist (synthesized)' },
+  { id: 'mist', label: 'Mist' },
   { id: 'futuristic', label: 'Futuristic' },
   { id: 'nes', label: 'NES' },
   { id: 'piano', label: 'Piano' },

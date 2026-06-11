@@ -2,6 +2,7 @@ import './theme.css';
 import type { GameFamilyId } from '@mistboard/game';
 import { darkMiniXiangqiEnabled, darkXiangqiEnabled } from './feature-flags.js';
 import { isLikelySignedIn } from './signed-in-state.js';
+import { readStoredSoundSet, SOUND_SETS, type SoundSetId, storeSoundSet } from './sound-sets.js';
 import {
   readStoredXiangqiBoardTheme,
   readStoredXiangqiPieceSet,
@@ -257,7 +258,7 @@ export function buildAppearanceMenu(): HTMLElement {
       false,
     ),
   ]);
-  addCategory('sound', 'Sound', [createVolumeField(), createMuteField()]);
+  addCategory('sound', 'Sound', [createSoundSetField(), createVolumeField(), createMuteField()]);
 
   // Per-game section. The Game selector only appears when a xiangqi variant is
   // enabled; otherwise Board/Pieces drill straight into the chess tiles.
@@ -581,6 +582,36 @@ function createVolumeField(): HTMLLabelElement {
   return field;
 }
 
+// Which sound set plays in live games: Mist (the synthesized default) or one
+// of the adopted file sets. Writing the preference notifies the live sound
+// controller, which preloads the set's files; kinds a set does not cover
+// fall back to the Mist tones.
+function createSoundSetField(): HTMLDivElement {
+  const field = document.createElement('div');
+  field.className = 'theme-control-field theme-control-field-inline';
+  const text = document.createElement('span');
+  text.textContent = 'Sound set';
+
+  const select = document.createElement('select');
+  select.className = 'theme-control-select';
+  select.dataset.soundSetSelect = '';
+  select.setAttribute('aria-label', 'Sound set');
+  for (const set of SOUND_SETS) {
+    const option = document.createElement('option');
+    option.value = set.id;
+    option.textContent = set.label;
+    select.append(option);
+  }
+  select.value = readStoredSoundSet();
+  select.addEventListener('change', () => {
+    storeSoundSet(select.value as SoundSetId);
+    syncThemeControls();
+  });
+
+  field.append(text, select);
+  return field;
+}
+
 function createMuteField(): HTMLLabelElement {
   const field = document.createElement('label');
   field.className = 'theme-control-check-field';
@@ -647,6 +678,11 @@ function syncThemeControls(): void {
   document.querySelectorAll<HTMLInputElement>('input[data-sound-volume]').forEach((input) => {
     input.value = String(Math.round(effectiveVolume * 100));
   });
+  document
+    .querySelectorAll<HTMLSelectElement>('select[data-sound-set-select]')
+    .forEach((select) => {
+      select.value = readStoredSoundSet();
+    });
   document
     .querySelectorAll<HTMLOutputElement>('output[data-sound-volume-value]')
     .forEach((output) => {
