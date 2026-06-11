@@ -562,12 +562,9 @@ export function crossroadsLiveTimeControlLabel(
   return incrementSeconds > 0 ? `${minutes}+${incrementSeconds}` : `${minutes}+0`;
 }
 
-// Which color sits at the top vs bottom of the board for this viewer.
+// Which color sits at the bottom of the board for this viewer.
 function bottomColor(): CrossroadsChessColor {
   return state.seat === 'red' ? 'red' : 'white';
-}
-function topColor(): CrossroadsChessColor {
-  return bottomColor() === 'white' ? 'red' : 'white';
 }
 
 function crossroadsChessEndReasonLabel(reason: string): string {

@@ -3,7 +3,7 @@ import './live-xiangqi.css';
 import './dark-xiangqi-postgame.css';
 import { createDarkXiangqiPlayAgainRoom } from './dark-xiangqi-room-actions.js';
 import { darkXiangqiEnabled } from './feature-flags.js';
-import { type DarkXiangqiWireView, renderDarkXiangqiBoardSvg } from './live-xiangqi-render.js';
+import { type DarkXiangqiWireView, renderDarkXiangqiBoardSvg } from './live-dark-xiangqi.js';
 
 type DarkXiangqiPostgameViewKey = XiangqiColor | 'truth';
 

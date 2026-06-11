@@ -9,9 +9,14 @@ describe('live room bootstrap', () => {
     expect(roomIdFromPath('/play/dxq_abc')).toBeNull();
   });
 
-  it('routes Dark Xiangqi room ids by prefix before query fallback', () => {
-    expect(gameSpecIdForRoomBootstrap('dxq_abc', null)).toBe('dark-xiangqi');
-    expect(gameSpecIdForRoomBootstrap('dxq_abc', 'dark-chess')).toBe('dark-xiangqi');
+  it('routes chess-shell tenant prefixes and leaves self-contained clients alone', () => {
+    // DMX rides the chess live shell, so its prefix resolves here.
+    expect(gameSpecIdForRoomBootstrap('dmxq_abc', null)).toBe('dark-mini-xiangqi');
+    expect(gameSpecIdForRoomBootstrap('dmxq_abc', 'dark-chess')).toBe('dark-mini-xiangqi');
+    // Dark Xiangqi and Crossroads have their own clients (routed before the
+    // shell boots), so the shell never claims their rooms.
+    expect(gameSpecIdForRoomBootstrap('dxq_abc', null)).toBeNull();
+    expect(gameSpecIdForRoomBootstrap('dchess_abc', null)).toBeNull();
     expect(gameSpecIdForRoomBootstrap('room-abc', 'dark-xiangqi')).toBe('dark-xiangqi');
     expect(gameSpecIdForRoomBootstrap('room-abc', 'not-a-spec')).toBeNull();
   });

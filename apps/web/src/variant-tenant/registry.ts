@@ -116,6 +116,14 @@ const WEB_VARIANT_TENANTS: readonly WebVariantTenant[] = [
       import('../dark-xiangqi-postgame.js').then(({ mountDarkXiangqiPostgame }) =>
         mountDarkXiangqiPostgame(root, roomId),
       ),
+    // Self-contained live client (flag-gated dev spike) on the
+    // socket-client + chrome stack — the P2 rehearsal shape.
+    loadLiveRoomClient: () =>
+      import('../live-dark-xiangqi.js').then(
+        ({ bootstrapDarkXiangqiLiveRoom }) =>
+          () =>
+            bootstrapDarkXiangqiLiveRoom(),
+      ),
     // No watch channel, and the landing config keeps both menu and deep-link
     // gates off: Dark Xiangqi (9x10) has no public live runtime (its play
     // surface is the dev-only spike), but stored setup preferences can still

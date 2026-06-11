@@ -1,8 +1,8 @@
 /**
  * Chess-live-shell tenant hooks — the static half of the web VariantTenant
- * registry. Tenants that ride the shared live.ts/live-render shell (Dark
- * Xiangqi, Dark Mini Xiangqi) register their render/reconcile/reset/tick/
- * keyboard hooks here so the shell dispatches without per-variant branches.
+ * registry. Tenants that ride the shared live.ts/live-render shell (currently
+ * Dark Mini Xiangqi) register their render/reconcile/reset/tick/keyboard
+ * hooks here so the shell dispatches without per-variant branches.
  *
  * Deliberately separate from ./registry.ts: these hooks statically import the
  * tenant live-room modules, and only the live-room chunk (live-render/live.ts,
@@ -21,12 +21,6 @@ import {
   tickDarkMiniXiangqiCountdowns,
 } from '../live-mini-xiangqi-room.js';
 import type { LiveRefs } from '../live-state.js';
-import {
-  isDarkXiangqiLiveRoom,
-  reconcileDarkXiangqiInteractionState,
-  renderDarkXiangqiRoom,
-  resetDarkXiangqiReplayState,
-} from '../live-xiangqi-render.js';
 
 export type LiveShellTenant = {
   // Whether the current liveState room belongs to this tenant.
@@ -46,12 +40,6 @@ export type LiveShellTenant = {
 };
 
 const LIVE_SHELL_TENANTS: readonly LiveShellTenant[] = [
-  {
-    isActive: isDarkXiangqiLiveRoom,
-    render: renderDarkXiangqiRoom,
-    reconcileInteractionState: reconcileDarkXiangqiInteractionState,
-    resetReplayState: resetDarkXiangqiReplayState,
-  },
   {
     isActive: isDarkMiniXiangqiLiveRoom,
     render: renderDarkMiniXiangqiRoom,
