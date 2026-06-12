@@ -1,6 +1,11 @@
 # Initial Fog of War Article Drafts
 
-Draft status: content plan and first-pass copy for Mistboard's first two
+> Status: article draft. This is not canonical rules documentation.
+> Canonical source: [`../rules.md`](../rules.md) and [`rulesets.md`](rulesets.md)
+> for current rules.
+> Last reviewed: 2026-06-12.
+
+Summary: content plan and first-pass copy for Mistboard's first two
 evergreen public pages.
 
 ## Initial Article Set

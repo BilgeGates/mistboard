@@ -68,6 +68,35 @@ Before committing documentation changes:
 
 Keep exact private review checklists in ignored private notes, not public docs.
 
+## Source Of Truth Rules
+
+- `docs/STATUS.md` owns the current public state.
+- `docs/ROADMAP.md` owns milestones, gates, deferred work, and parked work.
+- `docs/README.md` owns public navigation.
+- `docs-private/` may keep a local private navigation map, but private
+  navigation does not own product direction.
+- Private track docs may hold depth, rationale, drafts, and operating notes.
+  They should point back to the public roadmap when an item becomes generally
+  actionable.
+- Do not create a second roadmap, status file, launch gate list, or strategic
+  backlog. Update the canonical public file instead, then keep any sensitive
+  detail private.
+
+## Status Headers
+
+Long-lived planning, reference, candidate-ruleset, and draft documents should
+start with a short status block:
+
+```md
+> Status: current | public-alpha | planned | candidate | reference | historical | draft
+> Canonical source: path-to-current-source
+> Last reviewed: YYYY-MM-DD
+```
+
+Use the status to lower ambiguity, not to create a second planning system. If a
+document is marked `draft`, `reference`, `historical`, or `candidate`, it should
+not be treated as a current commitment unless the canonical roadmap says so.
+
 ## Review Rule
 
 Before committing a document, ask:

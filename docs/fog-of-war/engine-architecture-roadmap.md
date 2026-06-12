@@ -1,5 +1,10 @@
 # Fog Of War Engine Architecture Roadmap
 
+> Status: reference architecture direction, not an active implementation plan.
+> Canonical source: [`../ROADMAP.md`](../ROADMAP.md) for current engine-track
+> sequencing.
+> Last reviewed: 2026-06-12.
+
 This page captures the long-term architecture direction for the Fog of War
 engine. It is intentionally contributor-safe: no private compute budgets,
 funding plans, or internal launch strategy.

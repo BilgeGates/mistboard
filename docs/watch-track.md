@@ -1,5 +1,9 @@
 # Watch Track
 
+> Status: reference product track for public watch and presence surfaces.
+> Canonical source: [ROADMAP.md](ROADMAP.md) for active launch sequencing.
+> Last reviewed: 2026-06-12.
+
 This document defines the product path for `/watch` and related public presence
 surfaces. The goal is to make Mistboard feel live and social without weakening
 Fog of War's hidden-information boundary.

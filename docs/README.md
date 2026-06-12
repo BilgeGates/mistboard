@@ -16,15 +16,28 @@ documents.
 | [ROADMAP.md](ROADMAP.md) | Milestones, launch gates, and deferred work. |
 | [project-direction.md](project-direction.md) | Product focus, licensing posture, brand boundaries, and contribution fit. |
 
+## Canonical Public Sources
+
+Use these files as the public source of truth before creating or updating a
+nearby planning document:
+
+| Question | Canonical source |
+|---|---|
+| What is active right now? | [STATUS.md](STATUS.md) |
+| What is planned, gated, deferred, or parked? | [ROADMAP.md](ROADMAP.md) |
+| What is the architecture contract? | [ARCHITECTURE.md](ARCHITECTURE.md) |
+| What are the current rules? | [rules.md](rules.md), [fog-of-war/INDEX.md](fog-of-war/INDEX.md) |
+| What should be public vs private? | [documentation-policy.md](documentation-policy.md) |
+
 ## Product And Rules
 
 | Document | Use it for |
 |---|---|
-| [rules.md](rules.md) | Current dark chess / Fog of War rules baseline. |
+| [rules.md](rules.md) | Rules hub for current, public-alpha, candidate, and historical rulesets. |
 | [fog-of-war/INDEX.md](fog-of-war/INDEX.md) | Index of Fog of War rules, variants, research, engine, and learning notes. |
-| [replay-review-product-model.md](replay-review-product-model.md) | Replay and review product model. |
-| [identity-and-profiles.md](identity-and-profiles.md) | Account, profile, and identity model. |
-| [watch-track.md](watch-track.md) | Public watch and game-viewing surfaces. |
+| [replay-review-product-model.md](replay-review-product-model.md) | Reference model for replay and review surfaces. |
+| [identity-and-profiles.md](identity-and-profiles.md) | Reference model for account, profile, and identity concepts. |
+| [watch-track.md](watch-track.md) | Reference product track for public watch and game-viewing surfaces. |
 
 ## Architecture And Implementation
 
@@ -36,6 +49,21 @@ documents.
 | [specs/incremental-snapshot-protocol.md](specs/incremental-snapshot-protocol.md) | Snapshot delta protocol design and measurements. |
 | [server-restart-pause-resume.md](server-restart-pause-resume.md) | Graceful restart, pause/resume, and reconnect behavior. |
 | [qa-checklist.md](qa-checklist.md) | Manual QA checklist for gameplay and launch gates. |
+
+## Reference And Planning Notes
+
+These are public-safe context documents. They may guide future work, but current
+commitments still live in [STATUS.md](STATUS.md) and [ROADMAP.md](ROADMAP.md).
+
+| Document | Use it for |
+|---|---|
+| [chess-platform-reference.md](chess-platform-reference.md) | Translating common chess-platform patterns into Mistboard priorities. |
+| [product-stage-definition.md](product-stage-definition.md) | Stage vocabulary for product capability discussions. |
+| [research-engine-product-model.md](research-engine-product-model.md) | Reference model for public engine, benchmark, corpus, and annotation surfaces. |
+| [login-track.md](login-track.md) | Planned account hardening and rated-play prerequisites. |
+| [tournament-track.md](tournament-track.md) | Reference planning note for engine events and possible future human events. |
+| [process-improvement-track.md](process-improvement-track.md) | Historical/reference track for repo-native tooling and process improvements. |
+| [game-finish-polish.md](game-finish-polish.md) | Reference polish notes for game-ending UI and sound. |
 
 ## Policy And Operations Boundaries
 
@@ -64,3 +92,5 @@ documents.
   of public docs.
 - When code behavior changes, update the closest public contract doc in the
   same pull request.
+- If a note is tactical, sensitive, or mostly for one operator, keep it in the
+  ignored private notes and summarize only the public-safe contract here.

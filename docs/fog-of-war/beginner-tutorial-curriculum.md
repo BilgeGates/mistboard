@@ -1,5 +1,10 @@
 # Beginner Tutorial Curriculum
 
+> Status: draft curriculum reference, not a current launch gate.
+> Canonical source: [`../ROADMAP.md`](../ROADMAP.md) for launch gates; current
+> implemented tutorial content lives in app code.
+> Last reviewed: 2026-06-12.
+
 This document sketches the first Fog of War learning path for Mistboard. It uses
 proven chess-tutorial mechanics as reference material: short stages, concrete
 board goals, immediate feedback, visible progress, and learning by moving

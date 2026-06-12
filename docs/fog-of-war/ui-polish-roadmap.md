@@ -1,5 +1,10 @@
 # UI Polish Roadmap
 
+> Status: reference quality bar, not the active launch-gate list.
+> Canonical source: [`../ROADMAP.md`](../ROADMAP.md) for current gates and
+> sequencing.
+> Last reviewed: 2026-06-12.
+
 The goal of this track is that a curious chess player — including a top GM — opens a Fog of War game, understands what they are looking at within ten seconds, and *wants to make a move*. First impressions matter unusually much because FOW is a new genre; there is no muscle memory to fall back on.
 
 This roadmap is parallel to engine and platform work but pulls forward when those tracks add features that need a visual surface. It is a quality bar, not a sequence of unrelated polish chores.

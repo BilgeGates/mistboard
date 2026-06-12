@@ -1,5 +1,9 @@
 # EvE Roadmap
 
+> Status: reference infrastructure design. Current engine sequencing lives in
+> [`../ROADMAP.md`](../ROADMAP.md).
+> Last reviewed: 2026-06-12.
+
 EvE is the server-side engine-vs-engine lane for mining games, calibrating engine changes, and feeding the Lab review workflow.
 
 ## Storage Direction

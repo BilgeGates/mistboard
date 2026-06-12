@@ -1,8 +1,13 @@
 # Dark Xiangqi Live Integration Plan
 
+> Status: historical implementation plan for a hidden, flag-gated development
+> spike. Dark Xiangqi is not a public Mistboard game mode.
+> Canonical source: [`../ROADMAP.md`](../ROADMAP.md) for public launch surface.
+> Last reviewed: 2026-06-12.
+
 _Last updated: 2026-05-29_
 
-Status: architecture plan for a hidden, flag-gated integration. Dark Xiangqi is
+Summary: architecture plan for a hidden, flag-gated integration. Dark Xiangqi is
 not a public Mistboard game mode yet.
 
 ## Purpose

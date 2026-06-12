@@ -1,5 +1,10 @@
 # Chess Platform Reference
 
+> Status: reference. This translates common chess-platform patterns into
+> Mistboard priorities; it is not a parity checklist.
+> Canonical source: [ROADMAP.md](ROADMAP.md) for current commitments.
+> Last reviewed: 2026-06-12.
+
 This document translates mature online chess platform patterns into Mistboard
 priorities.
 

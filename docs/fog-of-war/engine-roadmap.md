@@ -1,5 +1,10 @@
 # Fog Of War Engine Notes
 
+> Status: reference notes for public engine-facing boundaries.
+> Canonical source: [`../engine-protocol.md`](../engine-protocol.md) for the
+> current protocol and [`../ROADMAP.md`](../ROADMAP.md) for sequencing.
+> Last reviewed: 2026-06-12.
+
 This public page gives contributors enough context to work on engine-related code without exposing internal research or funding plans.
 
 The core rule is simple:

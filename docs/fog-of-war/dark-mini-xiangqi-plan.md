@@ -1,8 +1,13 @@
 # Dark Mini Xiangqi Plan
 
+> Status: historical integration record plus current public-alpha state.
+> Canonical source: [`../ROADMAP.md`](../ROADMAP.md) for rated, distribution,
+> and launch sequencing.
+> Last reviewed: 2026-06-12.
+
 _Last updated: 2026-06-09_
 
-Status: **public alpha, casual-only.** Dark Mini Xiangqi (DMX) is a real
+Summary: **public alpha, casual-only.** Dark Mini Xiangqi (DMX) is a real
 `GameSpec` with a working PvP live runtime, replay/postgame, family-aware
 appearance, variant-aware lobby, a Misty/EngineV2-backed PvE engine, public
 rules, public entry, and a watch channel for public PvE games. Production still

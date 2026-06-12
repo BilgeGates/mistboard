@@ -1,5 +1,10 @@
 # Identity And Profiles
 
+> Status: reference product model, not a current implementation checklist.
+> Canonical source: [ROADMAP.md](ROADMAP.md) for active identity and rating
+> gates.
+> Last reviewed: 2026-06-12.
+
 This document defines Mistboard identity concepts before they become platform
 features. It is a product and technical scope note, not an implementation plan.
 

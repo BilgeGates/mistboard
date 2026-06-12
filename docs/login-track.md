@@ -1,5 +1,10 @@
 # Login Track
 
+> Status: planned account-hardening track, not an M1 gameplay gate.
+> Canonical source: [ROADMAP.md](ROADMAP.md) for launch sequencing and rated
+> flip prerequisites.
+> Last reviewed: 2026-06-12.
+
 _Last updated: 2026-05-27_
 
 ## Purpose

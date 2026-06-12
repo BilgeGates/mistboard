@@ -1,6 +1,12 @@
 # Dark Shogi Ruleset Candidate
 
-Status: candidate ruleset for research and future runtime planning. A hidden
+> Status: candidate future ruleset. Not implemented and not a public Mistboard
+> game mode.
+> Canonical source: [`../ROADMAP.md`](../ROADMAP.md) for committed variant
+> sequencing.
+> Last reviewed: 2026-06-12.
+
+Summary: candidate ruleset for research and future runtime planning. A hidden
 `dark-shogi` `GameSpec` placeholder exists, but the rules are not implemented,
 not a public Mistboard game mode, and not a compatibility claim with any
 existing hidden-shogi platform.

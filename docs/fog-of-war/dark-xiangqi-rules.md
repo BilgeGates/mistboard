@@ -1,6 +1,11 @@
 # Dark Xiangqi Ruleset
 
-Status: working ruleset for the development spike. The pure rules kernel and
+> Status: candidate ruleset for a flag-gated development spike, not a public
+> Mistboard game mode.
+> Canonical source: [`../ROADMAP.md`](../ROADMAP.md) for public launch surface.
+> Last reviewed: 2026-06-12.
+
+Summary: working ruleset for the development spike. The pure rules kernel and
 `/xiangqi-spike` lab exist, but Dark Xiangqi is not a public Mistboard game mode
 yet.
 

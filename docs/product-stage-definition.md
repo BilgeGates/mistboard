@@ -1,5 +1,9 @@
 # Product Stage Definition
 
+> Status: reference stage vocabulary. It does not replace the current
+> [ROADMAP.md](ROADMAP.md) gate list.
+> Last reviewed: 2026-06-12.
+
 This document defines Mistboard product stages by user-visible capability and
 decision leverage. It exists to prevent every general chess-platform gap from
 becoming equally urgent.

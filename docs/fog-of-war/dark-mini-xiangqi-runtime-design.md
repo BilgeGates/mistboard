@@ -1,6 +1,11 @@
 # Dark Mini Xiangqi Runtime Design
 
-Status: historical implementation note for the hidden Dark Mini Xiangqi spike.
+> Status: historical implementation note. Dark Mini Xiangqi is now public alpha.
+> Canonical source: [`dark-mini-xiangqi-plan.md`](dark-mini-xiangqi-plan.md) for
+> current public-alpha status.
+> Last reviewed: 2026-06-12.
+
+Summary: historical implementation note for the hidden Dark Mini Xiangqi spike.
 Dark Mini Xiangqi is now public alpha; use
 [`dark-mini-xiangqi-plan.md`](dark-mini-xiangqi-plan.md) for current launch
 status. This file remains useful for the runtime-boundary decisions that got

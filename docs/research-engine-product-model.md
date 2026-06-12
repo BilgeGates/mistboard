@@ -1,5 +1,10 @@
 # Research And Engine Product Model
 
+> Status: reference product model for the engine ecosystem.
+> Canonical source: [ROADMAP.md](ROADMAP.md) for current engine-track timing and
+> gates.
+> Last reviewed: 2026-06-12.
+
 Mistboard should make Fog of War engine development and research a visible product
 surface, not only internal infrastructure. This document defines the public
 product model for engines, EvE games, corpora, annotations, and benchmark

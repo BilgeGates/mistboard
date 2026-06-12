@@ -1,5 +1,9 @@
 # Game Finish Polish Track
 
+> Status: reference polish track. Use [ROADMAP.md](ROADMAP.md) for active gates
+> and [STATUS.md](STATUS.md) for shipped state.
+> Last reviewed: 2026-06-12.
+
 Mistboard's finish moment should confirm the result clearly while preserving the
 board as a study surface. The product tone is serious and restrained: no
 confetti, shaking, or long celebratory loops.

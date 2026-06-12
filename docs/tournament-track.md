@@ -1,5 +1,10 @@
 # Tournament Track
 
+> Status: reference planning note. Human tournaments are not a v1 commitment.
+> Canonical source: [ROADMAP.md](ROADMAP.md) for active launch gates and
+> deferred work.
+> Last reviewed: 2026-06-12.
+
 This document defines a staged path from engine events to human PvP
 tournaments. It is a product and architecture planning note, not a commitment to
 build PvP tournaments during v1.

@@ -1,5 +1,10 @@
 # Process Improvement Track
 
+> Status: reference implementation track. Some helpers have shipped; current
+> session rules live in repo agent instructions and current state lives in
+> [STATUS.md](STATUS.md).
+> Last reviewed: 2026-06-12.
+
 _Started: 2026-05-25_
 
 This track turns repeated Mistboard operating lessons into repo-native tooling
