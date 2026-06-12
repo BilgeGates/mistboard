@@ -15,7 +15,10 @@ import {
   requestsCorrespondence,
 } from './routes/correspondence-rooms.js';
 import { variantTenantForRoomId } from './variant-tenant/registry.js';
-import { createTenantRuntimeRoomFromEvents } from './variant-tenant/runtime.js';
+import {
+  createTenantRuntimeRoomFromEvents,
+  tenantSnapshotPayload,
+} from './variant-tenant/runtime.js';
 
 process.env.MISTBOARD_CORRESPONDENCE_ENABLED = 'true';
 
@@ -223,6 +226,40 @@ test('sweepDarkChessDueDeadline flags a due in-memory room through the ws runtim
     assert.ok(status.type === 'finished');
     assert.equal(status.winner, 'black');
     assert.equal(status.reason, 'timeout');
+  } finally {
+    darkChessTenantRooms.clear();
+  }
+});
+
+test('correspondence snapshots carry the chess-shell bridge extras', async () => {
+  const roomId = 'dchx_extras';
+  const created = await createDarkChessCorrespondenceRoom(correspondenceTimeControl(3));
+  assert.ok(created.ok);
+  const room = created.room;
+  try {
+    room.seatTokens.white = {
+      clientId: 'w-client',
+      seat: 'white',
+      tokenHash: 'hash',
+      userId: 'user-w',
+      userHandle: 'whitey',
+      userDisplayName: 'White Player',
+      issuedAt: new Date(1_000),
+      lastSeenAt: new Date(1_000),
+      revokedAt: null,
+    };
+    const payload = tenantSnapshotPayload(darkChessTenant, room, {
+      id: 'w-client',
+      seat: 'white',
+      solo: false,
+    });
+    assert.equal(payload.mode, 'correspondence');
+    // The shell defaults rated to TRUE when absent; the extra keeps casual
+    // correspondence labeled casual.
+    assert.equal(payload.rated, false);
+    assert.deepEqual(payload.seatDisplayNames, { white: 'White Player' });
+    assert.equal(payload.timeControl?.daysPerMove, 3);
+    void roomId;
   } finally {
     darkChessTenantRooms.clear();
   }
