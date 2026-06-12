@@ -40,5 +40,28 @@ export function timeClassFromTimeControl(
 }
 
 export function isOfficialTimeControl(tc: RoomTimeControl): boolean {
+  // The live allowlist never admits a correspondence time control, even one
+  // whose ms values happen to collide with a live spec.
+  if (tc.daysPerMove !== undefined) return false;
   return findTimeControl(tc.initialMs, tc.incrementMs) !== null;
+}
+
+// Correspondence (days-per-move) time controls. Kept apart from
+// TIME_CONTROLS: live specs feed rating buckets and the PvE allowlist, and
+// correspondence is casual-only with no live-engine surface.
+export const DAY_MS = 24 * 60 * 60 * 1000;
+export const DAYS_PER_MOVE_OPTIONS = [1, 3, 7] as const;
+export type DaysPerMove = (typeof DAYS_PER_MOVE_OPTIONS)[number];
+
+export function correspondenceTimeControl(daysPerMove: DaysPerMove): RoomTimeControl {
+  return { initialMs: daysPerMove * DAY_MS, incrementMs: 0, daysPerMove };
+}
+
+export function isOfficialCorrespondenceTimeControl(tc: RoomTimeControl): boolean {
+  return (
+    tc.daysPerMove !== undefined &&
+    (DAYS_PER_MOVE_OPTIONS as readonly number[]).includes(tc.daysPerMove) &&
+    tc.initialMs === tc.daysPerMove * DAY_MS &&
+    tc.incrementMs === 0
+  );
 }

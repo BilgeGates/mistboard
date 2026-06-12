@@ -4,8 +4,18 @@
  * speculative and .unref()'d (leaked-timer rule), re-derived from room state on
  * every schedule call, and append their terminal event through the tenant's
  * event writer so persistence/broadcast behave exactly like a player action.
+ *
+ * Clock policy (derived per room from the persisted time control, see
+ * clockPolicyKindFor) governs which timers exist at all. Days-per-move
+ * (correspondence) rooms arm NO in-memory timers: deadlines are days-scale and
+ * enforced durably by the deadline sweeper, disconnect forfeit does not apply
+ * (disconnecting is normal between correspondence moves), and the pregame
+ * abort window is the per-move allowance anchored to the event log so a
+ * restart never extends it. Deadline state (abortDeadline) is still computed
+ * for the wire.
  */
 
+import { clockPolicyKindFor, DAY_MS } from '@mistboard/game';
 import { logger } from '../obs.js';
 import { ABORT_WINDOW_MS, FORFEIT_WINDOW_MS } from '../room-manager.js';
 import { expireTenantClock, tenantClockRemainingMs } from './runtime.js';
@@ -118,6 +128,31 @@ export function tenantAbortPhaseFor<
   return lastMove === undefined ? `${tenant.colors[0]}-1` : `${tenant.colors[1]}-1`;
 }
 
+// Event-log anchor for a correspondence pregame abort window. The first
+// mover's window starts when the room became fully seated (the latest
+// seat-assigned, falling back to room-created); the second mover's window
+// starts at the first move. Deterministic over the event log, so hydration
+// recomputes the same deadline a restart interrupted.
+export function tenantAbortAnchorAt<
+  C extends string,
+  M,
+  State extends TenantGameStateLike<C>,
+  Spec extends string,
+>(
+  tenant: TenantLifecycleTenant<C>,
+  room: TenantLifecycleRoom<C, M, State, Spec>,
+  phase: TenantAbortPhase<C>,
+): number {
+  const firstMoverPhase = phase === `${tenant.colors[0]}-1`;
+  let anchor = 0;
+  for (const event of room.events) {
+    if (event.type === 'room-created') anchor = Math.max(anchor, event.at);
+    if (firstMoverPhase && event.type === 'seat-assigned') anchor = Math.max(anchor, event.at);
+    if (!firstMoverPhase && event.type === 'move-played') anchor = Math.max(anchor, event.at);
+  }
+  return anchor;
+}
+
 export function tenantForfeitingSeat<
   C extends string,
   M,
@@ -172,6 +207,16 @@ function scheduleTenantAbortTimeout<
     room.abortPhase = null;
     return;
   }
+  if (clockPolicyKindFor(room.projection.timeControl) === 'days-per-move') {
+    // Correspondence: the first-move window is the per-move allowance,
+    // anchored to the event log (not "now") so hydration after a restart
+    // never extends it. No in-memory timer — the deadline sweeper enforces.
+    room.abortPhase = phase;
+    room.abortDeadline =
+      tenantAbortAnchorAt(tenant, room, phase) +
+      (room.projection.timeControl?.daysPerMove ?? 0) * DAY_MS;
+    return;
+  }
   const now = ctx.now?.() ?? Date.now();
   if (room.abortPhase !== phase || room.abortDeadline === null) {
     room.abortPhase = phase;
@@ -210,6 +255,9 @@ function scheduleTenantClockTimeout<
   ctx: TenantLifecycleContext<C, M, State, Spec, Room>,
 ): void {
   clearTenantClockTimer(room);
+  // Correspondence deadlines are days-scale and enforced by the durable
+  // deadline sweeper; an in-memory timer would not survive a restart anyway.
+  if (clockPolicyKindFor(room.projection.timeControl) === 'days-per-move') return;
   const clock = room.projection.clock;
   const activeColor = clock?.activeColor ?? null;
   if (room.projection.state.status.type !== 'playing' || !clock || activeColor === null) return;
@@ -255,6 +303,13 @@ function scheduleTenantForfeitTimeout<
   ctx: TenantLifecycleContext<C, M, State, Spec, Room>,
 ): void {
   clearTenantForfeitTimer(room);
+  // Disconnect forfeit does not apply to correspondence rooms: disconnecting
+  // between moves is the normal way to play days-per-move.
+  if (clockPolicyKindFor(room.projection.timeControl) === 'days-per-move') {
+    room.forfeitSeat = null;
+    room.forfeitDeadline = null;
+    return;
+  }
   const seat = tenantForfeitingSeat(tenant, room);
   if (seat === null) {
     room.forfeitSeat = null;

@@ -3,6 +3,22 @@ import type { ClockState, Color, GameStatus } from './types.js';
 export const defaultClockInitialMs = 5 * 60 * 1000;
 export const defaultClockIncrementMs = 0;
 
+// Clock policy: how the clock transitions when a move completes. 'live' is
+// Fischer deduct-plus-increment; 'days-per-move' is correspondence semantics —
+// the mover's allowance resets to the full per-move budget (initialMs) after
+// every completed move, with no banking. The policy is selected per room from
+// the persisted RoomTimeControl (presence of daysPerMove), never per variant
+// or tenant, so replay and hydration re-derive it from the event log alone.
+export type ClockPolicyKind = 'live' | 'days-per-move';
+
+// Structural parameter (not RoomTimeControl) because events.ts imports this
+// module — importing the type back would be a cycle.
+export function clockPolicyKindFor(
+  timeControl: { daysPerMove?: number } | null | undefined,
+): ClockPolicyKind {
+  return timeControl?.daysPerMove ? 'days-per-move' : 'live';
+}
+
 export function createClock(
   _at: number,
   initialMs = defaultClockInitialMs,
@@ -55,19 +71,28 @@ export function advanceClock(
   at: number,
   movedColor: Color,
   nextStatus: GameStatus,
+  policy: ClockPolicyKind = 'live',
 ): ClockState | undefined {
   if (!clock || clock.activeColor !== movedColor || clock.runningSince === null) return clock;
 
   const elapsed = Math.max(0, at - clock.runningSince);
   const remaining = Math.max(0, clock.remainingMs[movedColor] - elapsed);
   const nextActiveColor = nextStatus.type === 'playing' ? nextStatus.turn : null;
+  // A game-ending move keeps the spent value under both policies; the
+  // days-per-move reset only matters when the mover will move again.
+  const moverNextMs =
+    nextStatus.type !== 'playing'
+      ? remaining
+      : policy === 'days-per-move'
+        ? clock.initialMs
+        : remaining + clock.incrementMs;
 
   return {
     ...clock,
     activeColor: nextActiveColor,
     remainingMs: {
       ...clock.remainingMs,
-      [movedColor]: nextStatus.type === 'playing' ? remaining + clock.incrementMs : remaining,
+      [movedColor]: moverNextMs,
     },
     runningSince: nextActiveColor ? at : null,
   };
@@ -85,10 +110,11 @@ export function nextClockForMove(
   movedColor: Color,
   prevMoveNumber: number,
   nextStatus: GameStatus,
+  policy: ClockPolicyKind = 'live',
 ): ClockState | undefined {
   return isClockFrozenPregame(clock)
     ? armClockOnFirstMoves(clock, at, movedColor, prevMoveNumber, nextStatus)
-    : advanceClock(clock, at, movedColor, nextStatus);
+    : advanceClock(clock, at, movedColor, nextStatus, policy);
 }
 
 export function expireClock(

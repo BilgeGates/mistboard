@@ -2,7 +2,11 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import {
+  correspondenceTimeControl,
+  DAY_MS,
+  DAYS_PER_MOVE_OPTIONS,
   findTimeControl,
+  isOfficialCorrespondenceTimeControl,
   isOfficialTimeControl,
   TIME_CONTROLS,
   timeClassFromTimeControl,
@@ -54,4 +58,50 @@ test('timeClassFromTimeControl returns null for unknown TCs', () => {
 test('isOfficialTimeControl gates loadtest/PVE allowlists', () => {
   assert.equal(isOfficialTimeControl({ initialMs: 180_000, incrementMs: 2_000 }), true);
   assert.equal(isOfficialTimeControl({ initialMs: 600_000, incrementMs: 0 }), false);
+});
+
+test('correspondenceTimeControl mirrors the allowance into initialMs', () => {
+  for (const days of DAYS_PER_MOVE_OPTIONS) {
+    const tc = correspondenceTimeControl(days);
+    assert.equal(tc.initialMs, days * DAY_MS);
+    assert.equal(tc.incrementMs, 0);
+    assert.equal(tc.daysPerMove, days);
+  }
+});
+
+test('isOfficialCorrespondenceTimeControl accepts only the official shapes', () => {
+  assert.equal(isOfficialCorrespondenceTimeControl(correspondenceTimeControl(3)), true);
+  // Unknown day count.
+  assert.equal(
+    isOfficialCorrespondenceTimeControl({ initialMs: 2 * DAY_MS, incrementMs: 0, daysPerMove: 2 }),
+    false,
+  );
+  // Allowance must mirror initialMs.
+  assert.equal(
+    isOfficialCorrespondenceTimeControl({ initialMs: DAY_MS, incrementMs: 0, daysPerMove: 3 }),
+    false,
+  );
+  // Increment is meaningless under days-per-move.
+  assert.equal(
+    isOfficialCorrespondenceTimeControl({
+      initialMs: 3 * DAY_MS,
+      incrementMs: 1_000,
+      daysPerMove: 3,
+    }),
+    false,
+  );
+  // A live time control is not a correspondence one.
+  assert.equal(
+    isOfficialCorrespondenceTimeControl({ initialMs: 180_000, incrementMs: 2_000 }),
+    false,
+  );
+});
+
+test('the live allowlist rejects correspondence time controls', () => {
+  assert.equal(isOfficialTimeControl(correspondenceTimeControl(1)), false);
+  // Even a malformed claim whose ms values collide with a live spec.
+  assert.equal(
+    isOfficialTimeControl({ initialMs: 180_000, incrementMs: 2_000, daysPerMove: 1 }),
+    false,
+  );
 });

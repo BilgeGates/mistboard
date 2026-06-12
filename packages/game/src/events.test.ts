@@ -4,6 +4,7 @@ import { generateChess960Starts, pickDraft960Offer } from './chess960.js';
 import { advanceClock, createClock, expireClock } from './clocks.js';
 import { type GameEvent, replayGameEvents } from './events.js';
 import { DARK_CHESS_SPEC_ID, DARK_DRAFT960_SPEC_ID } from './game-specs.js';
+import { correspondenceTimeControl, DAY_MS } from './time-controls.js';
 import type { ClockState } from './types.js';
 
 // A clock already armed and ticking for white — the post-first-moves state that
@@ -1006,4 +1007,58 @@ test('multiple pause/resume cycles do not leak wall-clock time into player clock
   assert.equal(projection.state.clock?.remainingMs.black, 60_000);
   assert.equal(projection.paused, false);
   assert.equal(projection.state.clock?.activeColor, 'white');
+});
+
+test('replays a correspondence log with the days-per-move reset transition', () => {
+  const clock = createClock(4, DAY_MS, 0);
+  const events: GameEvent[] = [
+    {
+      type: 'room-created',
+      at: 1,
+      roomId: 'corr-room',
+      variant: 'dark-chess',
+      offer: [],
+      timeControl: correspondenceTimeControl(1),
+    },
+    { type: 'seat-assigned', at: 2, roomId: 'corr-room', clientId: 'white-client', seat: 'white' },
+    { type: 'seat-assigned', at: 3, roomId: 'corr-room', clientId: 'black-client', seat: 'black' },
+    { type: 'clock-started', at: 4, roomId: 'corr-room', clock },
+    {
+      type: 'move-played',
+      at: 10_000,
+      roomId: 'corr-room',
+      color: 'white',
+      move: { from: 'e2', to: 'e4' },
+    },
+    {
+      type: 'move-played',
+      at: 20_000,
+      roomId: 'corr-room',
+      color: 'black',
+      move: { from: 'e7', to: 'e5' },
+    },
+  ];
+
+  // Armed after both first moves, exactly like live.
+  const armed = replayGameEvents(events);
+  assert.equal(armed.state.clock?.activeColor, 'white');
+  assert.equal(armed.state.clock?.runningSince, 20_000);
+
+  // White spends six hours, then moves: the allowance resets to the full day
+  // instead of banking the remainder (the days-per-move transition, selected
+  // from the persisted timeControl during replay).
+  const sixHoursLater = 20_000 + DAY_MS / 4;
+  const afterReset = replayGameEvents([
+    ...events,
+    {
+      type: 'move-played',
+      at: sixHoursLater,
+      roomId: 'corr-room',
+      color: 'white',
+      move: { from: 'd2', to: 'd4' },
+    },
+  ]);
+  assert.equal(afterReset.state.clock?.remainingMs.white, DAY_MS);
+  assert.equal(afterReset.state.clock?.activeColor, 'black');
+  assert.equal(afterReset.state.clock?.runningSince, sixHoursLater);
 });

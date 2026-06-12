@@ -13,8 +13,8 @@
  * dark-mini-xiangqi-golden-wire.test.ts).
  */
 
-import type { RoomTimeControl } from '@mistboard/game';
-import { isAbortReason } from '@mistboard/game';
+import type { ClockPolicyKind, RoomTimeControl } from '@mistboard/game';
+import { clockPolicyKindFor, isAbortReason } from '@mistboard/game';
 import type {
   TenantClientEvent,
   TenantClockState,
@@ -75,6 +75,7 @@ export function nextTenantClockForMove<C extends string>(
   movedColor: C,
   prevMoveNumber: number,
   nextStatus: TenantGameStatus<C>,
+  policy: ClockPolicyKind = 'live',
 ): TenantClockState<C> | undefined {
   if (!clock) return clock;
   if (clock.activeColor === null && clock.runningSince === null) {
@@ -91,12 +92,20 @@ export function nextTenantClockForMove<C extends string>(
   if (clock.activeColor !== movedColor || clock.runningSince === null) return clock;
   const remaining = Math.max(0, tenantClockRemainingMs(clock, movedColor, at));
   const nextActiveColor = nextStatus.type === 'playing' ? nextStatus.turn : null;
+  // A game-ending move keeps the spent value under both policies; the
+  // days-per-move reset only matters when the mover will move again.
+  const moverNextMs =
+    nextStatus.type !== 'playing'
+      ? remaining
+      : policy === 'days-per-move'
+        ? clock.initialMs
+        : remaining + clock.incrementMs;
   return {
     ...clock,
     activeColor: nextActiveColor,
     remainingMs: {
       ...clock.remainingMs,
-      [movedColor]: nextStatus.type === 'playing' ? remaining + clock.incrementMs : remaining,
+      [movedColor]: moverNextMs,
     },
     runningSince: nextActiveColor ? at : null,
   };
@@ -329,6 +338,7 @@ export function applyTenantEvent<
           event.color,
           prevMoveNumber,
           nextState.status,
+          clockPolicyKindFor(projection.timeControl),
         ),
       state: nextState,
     };

@@ -6,6 +6,7 @@ import {
   createChess960InitialBoardForSides,
 } from './chess960.js';
 import {
+  clockPolicyKindFor,
   createClock,
   expireClock,
   freezeClock,
@@ -27,6 +28,10 @@ import { variantForId } from './variants.js';
 export type RoomTimeControl = {
   initialMs: number;
   incrementMs: number;
+  // Correspondence: per-move allowance in days. Presence selects the
+  // days-per-move clock policy (see clockPolicyKindFor); initialMs mirrors the
+  // allowance in ms so the clock state shape is reused verbatim on the wire.
+  daysPerMove?: number;
 };
 
 export type GameEvent =
@@ -311,6 +316,7 @@ export function applyGameEvent(projection: GameProjection, event: GameEvent): Ga
       event.color,
       prevMoveNumber,
       nextState.status,
+      clockPolicyKindFor(projection.timeControl),
     );
 
     return {
