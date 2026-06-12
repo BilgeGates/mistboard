@@ -3,7 +3,7 @@ import { isLive } from './live-replay.js';
 import { maybePlayLowTimeSound } from './live-sound.js';
 import { type LiveRefs, liveState } from './live-state.js';
 import { connectionNoticeMode } from './live-status.js';
-import { formatClock, isColor } from './web-utils.js';
+import { formatClock, formatDayClock, isColor } from './web-utils.js';
 
 type ClockRefs = Pick<LiveRefs, 'clockTop' | 'clockBottom' | 'clockNote'>;
 
@@ -101,7 +101,10 @@ export function renderClocks(refs: ClockRefs, view: PlayerView | null): void {
     toMove.setAttribute('aria-hidden', isActive ? 'false' : 'true');
     playerLine.append(toMove);
     const remainingMs = clockRemainingMs(clock, color, displayAt);
-    time.textContent = formatClock(remainingMs, isActive && remainingMs < 10_000);
+    time.textContent =
+      daysPerMoveAllowance() !== null
+        ? formatDayClock(remainingMs)
+        : formatClock(remainingMs, isActive && remainingMs < 10_000);
     const classes = ['clock-time-row'];
     if (isActive) classes.push('active');
     if (isActive && flashThisRender) classes.push('just-activated');
@@ -115,7 +118,20 @@ export function renderClocks(refs: ClockRefs, view: PlayerView | null): void {
       slot.append(row, playerLine);
     }
   });
+  const allowance = daysPerMoveAllowance();
+  if (allowance !== null) {
+    refs.clockNote.textContent = allowance === 1 ? '1 day per move' : `${allowance} days per move`;
+    refs.clockNote.hidden = false;
+  }
   lastActiveClockColor = nextActiveColor;
+}
+
+// The room's days-per-move allowance, or null for live clocks. Present on every
+// state frame of a correspondence room (the tenant snapshot carries the room's
+// persisted time control), so it never flickers across reconnects.
+function daysPerMoveAllowance(): number | null {
+  const days = liveState.timeControl?.daysPerMove;
+  return typeof days === 'number' && days > 0 ? days : null;
 }
 
 // Lightweight per-tick refresh used by the 100ms interval. Updates only the
@@ -129,17 +145,25 @@ export function tickClockTimers(refs: ClockRefs, view: PlayerView | null): void 
   }
   const displayAt = isLive() ? Date.now() : (view.clock.runningSince ?? Date.now());
   const humanColor = isLive() && isColor(liveState.seat) ? liveState.seat : null;
+  // Day-scale rooms keep the per-tick refresh (cheap, and the final hour ticks
+  // in M:SS) but skip the low-time sound: its threshold is a fraction of the
+  // initial budget, which on a days-long clock would chime hours out.
+  const dayScale = daysPerMoveAllowance() !== null;
   const rows = [...Array.from(refs.clockTop.children), ...Array.from(refs.clockBottom.children)];
   for (const row of rows as HTMLDivElement[]) {
     const color = row.dataset.color;
     if (color !== 'white' && color !== 'black') continue;
     const isActive = view.clock.activeColor === color;
     const remainingMs = clockRemainingMs(view.clock, color, displayAt);
-    if (color === humanColor) {
+    if (color === humanColor && !dayScale) {
       maybePlayLowTimeSound(view.id, remainingMs, roomInitialClockMs());
     }
     const strong = row.querySelector('strong');
-    if (strong) strong.textContent = formatClock(remainingMs, isActive && remainingMs < 10_000);
+    if (strong) {
+      strong.textContent = dayScale
+        ? formatDayClock(remainingMs)
+        : formatClock(remainingMs, isActive && remainingMs < 10_000);
+    }
   }
 }
 

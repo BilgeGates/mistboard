@@ -15,7 +15,11 @@ import {
   gameSpecAnalyticsPropsForId,
   track,
 } from './analytics.js';
-import { crossroadsChessEnabled, darkMiniXiangqiPublicEntryEnabled } from './feature-flags.js';
+import {
+  correspondenceEnabled,
+  crossroadsChessEnabled,
+  darkMiniXiangqiPublicEntryEnabled,
+} from './feature-flags.js';
 import { isRatedModeEnabled } from './rated-flag.js';
 import { isLikelySignedIn } from './signed-in-state.js';
 import { webVariantTenantForSpecId, webVariantTenants } from './variant-tenant/registry.js';
@@ -251,6 +255,16 @@ export function buildLandingPlayPanel(
   panel.append(engineButton);
   panel.append(challengeButton, lobbyButton);
 
+  // Days-per-move dark chess, behind its build flag while the track soft-
+  // launches. Last in the row: it is the patient option.
+  if (correspondenceEnabled()) {
+    const correspondenceButton = landingPlayAction('Correspondence', 'correspondence');
+    correspondenceButton.addEventListener('click', () => {
+      openCorrespondenceSetupDialog();
+    });
+    panel.append(correspondenceButton);
+  }
+
   // The always-available engine permanently carries the primary (green) CTA. We
   // deliberately do NOT swap emphasis on live presence: the old signal counted
   // the viewer's own open game tabs and in-progress engine games as "presence",
@@ -319,8 +333,9 @@ function startLiveStatsPolling(stats: HTMLElement): void {
 // stroke, outline-only. Consistency is what makes the row read as a designed set
 // rather than ad-hoc glyphs. swords = matchmaking/versus, link =
 // link-based challenge, bot = engine.
-type LandingPlayIcon = 'computer' | 'friend' | 'lobby';
+type LandingPlayIcon = 'computer' | 'correspondence' | 'friend' | 'lobby';
 const LANDING_PLAY_ICON_SVG: Record<LandingPlayIcon, string> = {
+  correspondence: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M5 22h14"/><path d="M5 2h14"/><path d="M17 22v-4.172a2 2 0 0 0-.586-1.414L12 12l-4.414 4.414A2 2 0 0 0 7 17.828V22"/><path d="M7 2v4.172a2 2 0 0 0 .586 1.414L12 12l4.414-4.414A2 2 0 0 0 17 6.172V2"/></svg>`,
   lobby: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><polyline points="14.5 17.5 3 6 3 3 6 3 17.5 14.5"/><line x1="13" x2="19" y1="19" y2="13"/><line x1="16" x2="20" y1="16" y2="20"/><line x1="19" x2="21" y1="21" y2="19"/><polyline points="14.5 6.5 18 3 21 3 21 6 17.5 9.5"/><line x1="5" x2="9" y1="14" y2="18"/><line x1="7" x2="4" y1="17" y2="20"/><line x1="3" x2="5" y1="19" y2="21"/></svg>`,
   friend: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>`,
   computer: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M12 8V4H8"/><rect width="16" height="12" x="4" y="8" rx="2"/><path d="M2 14h2"/><path d="M20 14h2"/><path d="M15 13v2"/><path d="M9 13v2"/></svg>`,
@@ -851,6 +866,195 @@ function openLandingSetupDialog(choice: LandingPlayChoice): void {
     ? standardButton
     : startButton
   ).focus();
+}
+
+// Correspondence setup: deliberately separate from openLandingSetupDialog. The
+// main dialog's machinery (variant picker, presets, rated toggle, lobby wait)
+// is live-clock shaped; correspondence needs exactly two choices, so a small
+// dedicated dialog stays simpler than threading a fourth mode through it.
+const CORRESPONDENCE_DAY_OPTIONS: { days: number; label: string }[] = [
+  { days: 1, label: '1 day' },
+  { days: 3, label: '3 days' },
+  { days: 7, label: '7 days' },
+];
+
+function openCorrespondenceSetupDialog(): void {
+  const existing = document.querySelector('.landing-setup-overlay');
+  existing?.remove();
+
+  let selectedDays = 3;
+  let preferredColor: LandingColorPreference = loadStoredColorPreference();
+  let syncColorPreferenceControls = () => {};
+
+  const overlay = document.createElement('div');
+  overlay.className = 'landing-setup-overlay';
+  overlay.setAttribute('role', 'presentation');
+
+  const dialog = document.createElement('section');
+  dialog.className = 'landing-setup-dialog';
+  dialog.setAttribute('role', 'dialog');
+  dialog.setAttribute('aria-modal', 'true');
+  dialog.setAttribute('aria-labelledby', 'landing-setup-title');
+
+  const heading = document.createElement('strong');
+  heading.className = 'landing-setup-title';
+  heading.id = 'landing-setup-title';
+  heading.textContent = 'Correspondence';
+
+  const closeButton = document.createElement('button');
+  closeButton.type = 'button';
+  closeButton.className = 'landing-setup-close';
+  closeButton.setAttribute('aria-label', 'Close setup');
+  closeButton.textContent = 'x';
+
+  const header = document.createElement('div');
+  header.className = 'landing-setup-header';
+  header.append(heading, closeButton);
+
+  const intro = document.createElement('p');
+  intro.className = 'landing-setup-status';
+  intro.textContent =
+    'Dark chess at a slow pace: each move has a deadline of days, and you can close the tab between moves. Needs an account on both sides.';
+
+  const daysSection = document.createElement('div');
+  daysSection.className = 'landing-setup-section';
+  daysSection.append(setupSectionLabel('Time per move'));
+  const daysGroup = document.createElement('div');
+  daysGroup.className = 'landing-time-presets';
+  daysGroup.setAttribute('role', 'radiogroup');
+  daysGroup.setAttribute('aria-label', 'Time per move');
+  const dayButtons = CORRESPONDENCE_DAY_OPTIONS.map((option) => {
+    const button = startOptionButton(option.label, option.days === selectedDays);
+    button.addEventListener('click', () => {
+      selectedDays = option.days;
+      for (const candidate of dayButtons) {
+        const selected = candidate.option.days === selectedDays;
+        candidate.button.classList.toggle('selected', selected);
+        candidate.button.setAttribute('aria-checked', selected ? 'true' : 'false');
+      }
+    });
+    daysGroup.append(button);
+    return { button, option };
+  });
+  daysSection.append(daysGroup);
+
+  const colorSection = buildColorPreferenceSection(
+    () => preferredColor,
+    (value) => {
+      preferredColor = value;
+    },
+    () => DARK_CHESS_SPEC_ID,
+    (sync) => {
+      syncColorPreferenceControls = sync;
+    },
+  );
+  syncColorPreferenceControls();
+
+  const status = document.createElement('p');
+  status.className = 'landing-setup-status';
+  status.setAttribute('aria-live', 'polite');
+  if (!isLikelySignedIn()) {
+    status.append('Correspondence games need an account. ', accountLink('Sign in first.'));
+  }
+
+  const startButton = document.createElement('button');
+  startButton.type = 'button';
+  startButton.className = 'landing-setup-start';
+  startButton.textContent = 'Create game';
+  startButton.addEventListener('click', () => {
+    void createCorrespondenceFromPlay(startButton, status, selectedDays, preferredColor);
+  });
+
+  const backButton = document.createElement('button');
+  backButton.type = 'button';
+  backButton.className = 'landing-setup-back';
+  backButton.textContent = 'Cancel';
+
+  const close = () => {
+    document.removeEventListener('keydown', onKeyDown);
+    overlay.remove();
+    if (activeDialogClose === close) activeDialogClose = null;
+  };
+  const onKeyDown = (event: KeyboardEvent) => {
+    if (event.key === 'Escape') close();
+  };
+  closeButton.addEventListener('click', close);
+  backButton.addEventListener('click', close);
+  overlay.addEventListener('click', (event) => {
+    if (event.target === overlay) close();
+  });
+  document.addEventListener('keydown', onKeyDown);
+
+  const actions = document.createElement('div');
+  actions.className = 'landing-setup-actions';
+  actions.append(startButton, backButton);
+
+  dialog.append(header, intro, daysSection, colorSection, status, actions);
+  overlay.append(dialog);
+  document.body.append(overlay);
+  activeDialogClose = close;
+  startButton.focus();
+}
+
+async function createCorrespondenceFromPlay(
+  button: HTMLButtonElement,
+  status: HTMLElement,
+  daysPerMove: number,
+  preferredColor: LandingColorPreference,
+): Promise<void> {
+  button.disabled = true;
+  button.setAttribute('aria-busy', 'true');
+  button.textContent = 'Creating';
+  try {
+    const response = await fetch('/api/rooms', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        gameSpecId: DARK_CHESS_SPEC_ID,
+        mode: 'correspondence',
+        daysPerMove,
+        // The picker offers white/black/random only (chess colors).
+        preferredColor: preferredColor === 'red' ? 'random' : preferredColor,
+      }),
+    });
+    if (response.ok) {
+      const data = (await response.json()) as { url?: string };
+      if (!data.url) throw new Error('room creation did not return a URL');
+      if (!status.isConnected) return;
+      roomNavigator(data.url);
+      return;
+    }
+    const failure = await readRoomCreationFailure(response);
+    if (!status.isConnected) return;
+    status.replaceChildren();
+    if (failure.error === 'correspondence_requires_account') {
+      status.append('Correspondence games need an account. ', accountLink('Sign in'), ' first.');
+    } else if (failure.error === 'invalid_days_per_move') {
+      status.textContent = 'Pick 1, 3, or 7 days per move.';
+    } else if (failure.error === 'server_draining') {
+      status.textContent = 'The server is restarting. Try again in a minute.';
+    } else {
+      status.textContent = 'Correspondence is unavailable right now. Try again later.';
+    }
+    button.textContent = 'Try again';
+    button.disabled = false;
+    button.removeAttribute('aria-busy');
+  } catch (err) {
+    console.warn(err);
+    if (status.isConnected) {
+      status.textContent = 'Could not reach the server. Check your connection and try again.';
+    }
+    button.textContent = 'Try again';
+    button.disabled = false;
+    button.removeAttribute('aria-busy');
+  }
+}
+
+function accountLink(label: string): HTMLAnchorElement {
+  const link = document.createElement('a');
+  link.href = '/account';
+  link.textContent = label;
+  return link;
 }
 
 function buildEngineSetupSection(

@@ -13,6 +13,8 @@ describe('live room bootstrap', () => {
     // DMX rides the chess live shell, so its prefix resolves here.
     expect(gameSpecIdForRoomBootstrap('dmxq_abc', null)).toBe('dark-mini-xiangqi');
     expect(gameSpecIdForRoomBootstrap('dmxq_abc', 'dark-chess')).toBe('dark-mini-xiangqi');
+    // Dark-chess correspondence rooms ride the chess shell too.
+    expect(gameSpecIdForRoomBootstrap('dchx_abc', null)).toBe('dark-chess');
     // Dark Xiangqi and Crossroads have their own clients (routed before the
     // shell boots), so the shell never claims their rooms.
     expect(gameSpecIdForRoomBootstrap('dxq_abc', null)).toBeNull();

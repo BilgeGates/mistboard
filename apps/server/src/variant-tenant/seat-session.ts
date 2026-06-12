@@ -8,6 +8,7 @@
  */
 
 import { randomBytes, randomUUID } from 'node:crypto';
+import { clockPolicyKindFor } from '@mistboard/game';
 import type { UserAccount } from '../persistence.js';
 import { hashSeatToken } from '../server-seat-session.js';
 import type { TenantSeatTokenState } from './tenant.js';
@@ -18,14 +19,19 @@ export type TenantSeatClient<C extends string> = {
   socket: { close(code?: number, reason?: string): unknown };
 };
 
+// Seat assignment reads only displaced + seat off clients (seat is widened to
+// string so spectator refs pass through; only colors are probed for occupancy).
+// The full client shape (socket) is demanded only by
+// displaceOlderTenantSeatClients.
 export type TenantSeatRoom<
   C extends string,
-  Client extends TenantSeatClient<C> = TenantSeatClient<C>,
+  Client extends { displaced: boolean; seat: string } = TenantSeatClient<C>,
 > = {
   clients: Set<Client>;
   projection: {
     creatorPreference?: C | 'random';
     seats: Partial<Record<C, string>>;
+    timeControl?: { daysPerMove?: number } | null;
   };
   rated?: boolean;
   seatTokens: Partial<Record<C, TenantSeatTokenState<C>>>;
@@ -40,11 +46,17 @@ export type TenantSeatAssignment<C extends string> =
       tokenState: TenantSeatTokenState<C>;
       previousTokenState?: TenantSeatTokenState<C>;
     }
-  | { ok: false; reason: 'private room' | 'rated requires account' };
+  | {
+      ok: false;
+      reason: 'private room' | 'rated requires account' | 'correspondence requires account';
+    };
 
-export function assignTenantSeat<C extends string>(
+export function assignTenantSeat<
+  C extends string,
+  Client extends { displaced: boolean; seat: string },
+>(
   tenant: { colors: readonly [C, C] },
-  room: TenantSeatRoom<C>,
+  room: TenantSeatRoom<C, Client>,
   clientId: string,
   rawToken: string | undefined,
   accountUser: UserAccount | null,
@@ -87,7 +99,7 @@ export function assignTenantSeat<C extends string>(
     }
   }
 
-  const occupiedSeats = new Set<C>(
+  const occupiedSeats = new Set<string>(
     [...room.clients].filter((client) => !client.displaced).map((client) => client.seat),
   );
   for (const color of tenant.colors) {
@@ -96,6 +108,13 @@ export function assignTenantSeat<C extends string>(
   const seat = nextAvailableTenantSeat(tenant, room.projection.creatorPreference, occupiedSeats);
   if (!seat) return { ok: false, reason: 'private room' };
   if (room.rated && !accountUser) return { ok: false, reason: 'rated requires account' };
+  // Correspondence (days-per-move) seats are account-required on BOTH sides:
+  // notifications, deadline rows, and cross-device reseat all key off the seat's
+  // user id. The create route gates the creator; this gates the invitee. Keyed
+  // off the clock policy, not a room mode, so every future tenant inherits it.
+  if (!accountUser && clockPolicyKindFor(room.projection.timeControl) === 'days-per-move') {
+    return { ok: false, reason: 'correspondence requires account' };
+  }
 
   const seatToken = randomBytes(32).toString('base64url');
   const seatTokenHash = hashSeatToken(seatToken);
@@ -145,7 +164,7 @@ export function mintTenantSeatToken<C extends string>(
 function nextAvailableTenantSeat<C extends string>(
   tenant: { colors: readonly [C, C] },
   creatorPreference: C | 'random' | undefined,
-  occupiedSeats: ReadonlySet<C>,
+  occupiedSeats: ReadonlySet<string>,
 ): C | null {
   if (creatorPreference !== undefined && creatorPreference !== 'random') {
     if (!occupiedSeats.has(creatorPreference)) return creatorPreference;

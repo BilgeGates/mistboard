@@ -1,6 +1,7 @@
 import type { Color, PlayerView } from '@mistboard/game';
 import type { LiveRefs } from './live-state.js';
 import { liveState } from './live-state.js';
+import { correspondenceAwaitingOpponent } from './live-status.js';
 import { currentView } from './live-view.js';
 import { rematchControls } from './rematch-controls.js';
 import { isColor, oppositeColor } from './web-utils.js';
@@ -40,7 +41,12 @@ export function renderRoomActions(refs: RoomActionRefs, deps: RoomActionDeps): v
     refs.roomActions.replaceChildren(...actions);
     return;
   }
-  if (liveState.roomMode === 'pvp' && view?.status.type === 'pregame' && isColor(liveState.seat)) {
+  // Friend challenges share the link during pregame; correspondence rooms are
+  // 'playing' from creation, so their invite window is "second seat unclaimed".
+  const inviteOpen =
+    (liveState.roomMode === 'pvp' && view?.status.type === 'pregame') ||
+    (view?.status.type === 'playing' && correspondenceAwaitingOpponent());
+  if (inviteOpen && isColor(liveState.seat)) {
     actions.unshift(copyLinkButton());
   }
   if (liveState.engineRequested) actions.push(roomAction('New Debug Room', 'dark-chess', 'engine'));

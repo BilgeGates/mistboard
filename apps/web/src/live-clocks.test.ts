@@ -112,3 +112,44 @@ describe('presence dots — EvE (spectating)', () => {
     expect(dot(refs.clockBottom)).toBeNull();
   });
 });
+
+describe('day-scale clocks (correspondence)', () => {
+  afterEach(() => {
+    liveState.timeControl = null;
+    liveState.roomMode = 'pvp';
+  });
+
+  it('renders day-scale times and the per-move allowance note', () => {
+    liveState.roomMode = 'correspondence';
+    liveState.seat = 'white';
+    liveState.timeControl = { initialMs: 3 * 24 * 3_600_000, incrementMs: 0, daysPerMove: 3 };
+    const refs = makeRefs();
+    const view = playingView();
+    view.clock = {
+      ...createClock(3 * 24 * 3_600_000),
+      activeColor: 'white',
+      remainingMs: { white: 3 * 24 * 3_600_000, black: 3 * 24 * 3_600_000 },
+      runningSince: Date.now(),
+    };
+    renderClocks(refs, view);
+    expect(refs.clockBottom.querySelector('strong')?.textContent).toBe('3d 0h');
+    expect(refs.clockNote.hidden).toBe(false);
+    expect(refs.clockNote.textContent).toBe('3 days per move');
+  });
+
+  it('keeps live formatting when no daysPerMove is present', () => {
+    liveState.seat = 'white';
+    liveState.timeControl = { initialMs: 180_000, incrementMs: 2_000 };
+    const refs = makeRefs();
+    const view = playingView();
+    view.clock = {
+      ...createClock(180_000),
+      activeColor: 'white',
+      remainingMs: { white: 180_000, black: 180_000 },
+      runningSince: Date.now(),
+    };
+    renderClocks(refs, view);
+    expect(refs.clockBottom.querySelector('strong')?.textContent).toBe('3:00');
+    expect(refs.clockNote.hidden).toBe(true);
+  });
+});

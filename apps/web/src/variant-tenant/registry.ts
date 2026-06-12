@@ -15,6 +15,7 @@
 
 import {
   CROSSROADS_CHESS_SPEC_ID,
+  DARK_CHESS_SPEC_ID,
   DARK_MINI_XIANGQI_SPEC_ID,
   DARK_XIANGQI_SPEC_ID,
   DUAL_CHESS_SPEC_ID,
@@ -22,6 +23,7 @@ import {
   type TimeControlId,
 } from '@mistboard/game';
 import {
+  correspondenceEnabled,
   crossroadsChessEnabled,
   darkMiniXiangqiEnabled,
   darkMiniXiangqiPublicEntryEnabled,
@@ -72,9 +74,10 @@ export type WebVariantTenant = {
   enabled(): boolean;
   pageTitle: string;
   // Post-game review route base ('/dark-xiangqi/game'); also the route main.ts
-  // matches for the postgame mount.
-  gameRouteBase: string;
-  mountPostgame(root: HTMLElement, roomId: string): Promise<unknown>;
+  // matches for the postgame mount. Tenants without their own postgame surface
+  // (dark-chess correspondence reviews at the legacy /game/:id) omit both.
+  gameRouteBase?: string;
+  mountPostgame?(root: HTMLElement, roomId: string): Promise<unknown>;
   // Review-link base for finished-game cards (game-meta). Only tenants whose
   // games are linked from shared surfaces set it; others keep the legacy
   // /game/:id link those surfaces always produced.
@@ -106,6 +109,20 @@ const XIANGQI_CAPABILITIES_BASE = {
 } as const;
 
 const WEB_VARIANT_TENANTS: readonly WebVariantTenant[] = [
+  {
+    // Dark-chess correspondence rooms (server registration: correspondence
+    // create flow). Deliberately capability-free: no loadLiveRoomClient (rooms
+    // ride the chess live shell, which speaks the tenant wire since P2), no
+    // postgame route (finished games review at the legacy /game/:id like every
+    // dark-chess game), no landing config (the correspondence picker is its own
+    // flag-gated surface, not a variant-picker row). enabled() only matters to
+    // routing branches that never fire without those capabilities, so a stale
+    // flag cannot strand a live room.
+    gameSpecId: DARK_CHESS_SPEC_ID,
+    roomIdPrefix: 'dchx_',
+    enabled: correspondenceEnabled,
+    pageTitle: 'Dark Chess',
+  },
   {
     gameSpecId: DARK_XIANGQI_SPEC_ID,
     roomIdPrefix: 'dxq_',

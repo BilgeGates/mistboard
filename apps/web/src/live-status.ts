@@ -16,6 +16,17 @@ export function connectionNoticeMode(): ConnectionNoticeTier {
   return liveState.connectionNoticeTier;
 }
 
+// A correspondence room is awaiting its opponent until the second seat is
+// claimed. Tenant dark-chess rooms are status 'playing' from creation (the
+// tenant state has no pregame), so the seat claim is the signal: correspondence
+// seats require accounts, so a claimed seat always carries a display name.
+export function correspondenceAwaitingOpponent(): boolean {
+  if (liveState.roomMode !== 'correspondence') return false;
+  if (!isColor(liveState.seat)) return false;
+  const theirSeat: Color = liveState.seat === 'white' ? 'black' : 'white';
+  return !liveState.seatDisplayNames[theirSeat];
+}
+
 export function actionTone(view: PlayerView | null): InfoTone {
   if (connectionNoticeMode() === 'banner') {
     return liveState.connectionState === 'connecting' ||
@@ -59,6 +70,8 @@ export function actionTitle(view: PlayerView | null): string {
   if (view.status.type === 'playing' && view.status.turn === pveEngineSeat())
     return 'Engine thinking';
   if (view.status.type === 'playing' && view.status.turn === liveState.seat) return 'Your move';
+  if (view.status.type === 'playing' && correspondenceAwaitingOpponent())
+    return 'Waiting for opponent';
   return 'Opponent move';
 }
 
@@ -98,6 +111,11 @@ export function actionBody(
   }
   if (view.status.type === 'playing' && view.status.turn === pveEngineSeat()) {
     return 'The engine is on its own clock. Your clock resumes after its move.';
+  }
+  if (view.status.type === 'playing' && correspondenceAwaitingOpponent()) {
+    return view.status.turn === liveState.seat
+      ? 'Share the invite link below, then make your first move whenever you like.'
+      : 'Share the invite link below to invite your opponent.';
   }
   if (view.status.type === 'playing' && view.status.turn === liveState.seat) {
     return 'Move one of your visible pieces on the board.';
@@ -190,6 +208,8 @@ function rejectedBody(): string {
     return 'This game is in progress. Mistboard never shares live game state with anyone but the seated players. The full replay will be here once the game finishes.';
   if (liveState.closeReason === 'rated requires account')
     return 'This is a rated game. Rated games count toward the dark chess ladder, so both players need an account. Sign in or create one, then reopen the invite to take your seat.';
+  if (liveState.closeReason === 'correspondence requires account')
+    return 'This is a correspondence game. Both players need an account so the game can find you across devices and remind you when it is your move. Sign in or create one, then reopen the invite to take your seat.';
   if (liveState.closeReason === 'origin not allowed')
     return 'This browser origin is not allowed to open the room.';
   if (liveState.closeReason === 'rate limit')

@@ -16,7 +16,7 @@ import { isColor } from './web-utils.js';
 
 export type PlayableSeat = Color | XiangqiColor;
 export type Seat = PlayableSeat | 'spectator';
-export type RoomMode = 'pvp' | 'pve' | 'eve' | 'imported' | 'manual';
+export type RoomMode = 'pvp' | 'pve' | 'eve' | 'imported' | 'manual' | 'correspondence';
 
 // Shared rematch state for chess (white/black) and Dark Mini Xiangqi (red/black).
 // `declined` is a transient, client-only cue (the server doesn't send it); see the
@@ -194,7 +194,9 @@ export const liveState = {
   // Top-level clock + time control for the xiangqi-family runtimes (null for
   // chess, which embeds its clock in the PlayerView, and for untimed games).
   clock: null as XiangqiFamilyClock | null,
-  timeControl: null as { initialMs: number; incrementMs: number } | null,
+  // daysPerMove marks a correspondence clock; the shell switches to day-scale
+  // clock rendering and drops live-only chrome (low-time sound) off it.
+  timeControl: null as { initialMs: number; incrementMs: number; daysPerMove?: number } | null,
   events: [] as GameEvent[],
   reconnectAttempt: 0,
   // Dark Mini Xiangqi reuses this shared rematch state over red/black, so the

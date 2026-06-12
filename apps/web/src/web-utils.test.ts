@@ -3,6 +3,7 @@ import {
   ENGINE_OFFER_AFTER_MS,
   escapeHtml,
   formatClock,
+  formatDayClock,
   isColor,
   oppositeColor,
   shouldOfferEngine,
@@ -115,5 +116,27 @@ describe('shouldOfferEngine', () => {
 
   it('does not offer when no engine is available', () => {
     expect(shouldOfferEngine({ ...base, hasEngine: false })).toBe(false);
+  });
+});
+
+describe('formatDayClock', () => {
+  it('shows days and hours while a day or more remains', () => {
+    expect(formatDayClock(3 * 24 * 3_600_000)).toBe('3d 0h');
+    expect(formatDayClock(2 * 24 * 3_600_000 + 14 * 3_600_000 + 30 * 60_000)).toBe('2d 14h');
+  });
+
+  it('shows hours and minutes inside the final day', () => {
+    expect(formatDayClock(5 * 3_600_000 + 12 * 60_000)).toBe('5h 12m');
+    expect(formatDayClock(3_600_000)).toBe('1h 0m');
+  });
+
+  it('falls back to the live M:SS format inside the final hour', () => {
+    expect(formatDayClock(59 * 60_000)).toBe('59:00');
+    expect(formatDayClock(90_000)).toBe('1:30');
+    expect(formatDayClock(0)).toBe('0:00');
+  });
+
+  it('clamps negative values', () => {
+    expect(formatDayClock(-5_000)).toBe('0:00');
   });
 });

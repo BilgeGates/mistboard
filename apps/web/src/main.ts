@@ -150,9 +150,9 @@ if (replaySample) {
     import('./live.js').then(({ bootstrapLiveRoom }) => bootstrapLiveRoom()),
   );
 } else if (tenantPostgame?.tenant.enabled()) {
-  const { tenant, roomId } = tenantPostgame;
+  const { tenant, mount, roomId } = tenantPostgame;
   setTitle(tenant.pageTitle);
-  void mountOrReport(() => tenant.mountPostgame(appRoot, roomId).then(() => undefined));
+  void mountOrReport(() => mount(appRoot, roomId).then(() => undefined));
 } else if (gameRoomId) {
   setTitle('Game');
   void mountOrReport(() =>
@@ -385,16 +385,20 @@ function gameRoomIdFromPath(value: string): string | null {
 }
 
 // Variant-tenant postgame routes (<gameRouteBase>/:roomId) resolve through the
-// web registry; a miss falls through to the chess routes.
-function tenantPostgameFromPath(
-  value: string,
-): { tenant: WebVariantTenant; roomId: string } | null {
+// web registry; a miss falls through to the chess routes. Tenants without a
+// postgame surface (dark-chess correspondence) are skipped the same way.
+function tenantPostgameFromPath(value: string): {
+  tenant: WebVariantTenant;
+  mount: NonNullable<WebVariantTenant['mountPostgame']>;
+  roomId: string;
+} | null {
   for (const tenant of webVariantTenants()) {
+    if (!tenant.gameRouteBase || !tenant.mountPostgame) continue;
     const prefix = `${tenant.gameRouteBase}/`;
     if (!value.startsWith(prefix)) continue;
     const rest = value.slice(prefix.length);
     if (!rest || rest.includes('/')) continue;
-    return { tenant, roomId: decodeURIComponent(rest) };
+    return { tenant, mount: tenant.mountPostgame.bind(tenant), roomId: decodeURIComponent(rest) };
   }
   return null;
 }

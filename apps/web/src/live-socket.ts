@@ -60,7 +60,7 @@ type StateFrame = {
   forfeitDeadline?: number | null;
   connectedSeats?: ConnectedSeats;
   clock?: XiangqiFamilyClock | null;
-  timeControl?: { initialMs: number; incrementMs: number } | null;
+  timeControl?: { initialMs: number; incrementMs: number; daysPerMove?: number } | null;
   rematch?: {
     offers: { white?: boolean; black?: boolean; red?: boolean };
     finalizedRoomId: string | null;

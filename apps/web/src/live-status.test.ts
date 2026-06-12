@@ -1,7 +1,13 @@
 import type { PlayerView } from '@mistboard/game';
 import { afterEach, describe, expect, it } from 'vitest';
 import { liveState } from './live-state.js';
-import { actionBody, actionTitle, actionTone, connectionNoticeMode } from './live-status.js';
+import {
+  actionBody,
+  actionTitle,
+  actionTone,
+  connectionNoticeMode,
+  correspondenceAwaitingOpponent,
+} from './live-status.js';
 
 function playingView(): PlayerView {
   return {
@@ -92,5 +98,63 @@ describe('action notice text follows the tier, not the raw socket state', () => 
     liveState.connectionState = 'disconnected';
     liveState.connectionNoticeTier = 'banner';
     expect(actionTone(playingView())).toBe('danger');
+  });
+});
+
+describe('correspondence waiting-for-opponent states', () => {
+  afterEach(() => {
+    liveState.roomMode = 'pvp';
+    liveState.seatDisplayNames = {};
+    liveState.closeReason = '';
+  });
+
+  it('is not awaiting when the room is not correspondence or the viewer is unseated', () => {
+    liveState.roomMode = 'pvp';
+    liveState.seat = 'white';
+    expect(correspondenceAwaitingOpponent()).toBe(false);
+    liveState.roomMode = 'correspondence';
+    liveState.seat = 'spectator';
+    expect(correspondenceAwaitingOpponent()).toBe(false);
+  });
+
+  it('keys off the opponent seat claim (display name), not connection presence', () => {
+    liveState.connectionState = 'connected';
+    liveState.roomMode = 'correspondence';
+    liveState.seat = 'white';
+    liveState.seatDisplayNames = { white: 'Creator' };
+    expect(correspondenceAwaitingOpponent()).toBe(true);
+    // Once black has claimed (account-backed name on the wire), the invite
+    // window is over even while black is offline between moves.
+    liveState.seatDisplayNames = { white: 'Creator', black: 'Joiner' };
+    expect(correspondenceAwaitingOpponent()).toBe(false);
+  });
+
+  it('surfaces share-the-link copy until the opponent claims a seat', () => {
+    liveState.connectionState = 'connected';
+    liveState.roomMode = 'correspondence';
+    liveState.seat = 'black'; // creator took black: white (opponent) is on move
+    liveState.seatDisplayNames = { black: 'Creator' };
+    const view = playingView(); // turn: white
+    expect(actionTitle(view)).toBe('Waiting for opponent');
+    expect(actionBody(view, noDraft)).toBe('Share the invite link below to invite your opponent.');
+  });
+
+  it('keeps Your move when the creator can move first, with invite-forward body', () => {
+    liveState.connectionState = 'connected';
+    liveState.roomMode = 'correspondence';
+    liveState.seat = 'white'; // creator took white and is on move
+    liveState.seatDisplayNames = { white: 'Creator' };
+    const view = playingView();
+    expect(actionTitle(view)).toBe('Your move');
+    expect(actionBody(view, noDraft)).toBe(
+      'Share the invite link below, then make your first move whenever you like.',
+    );
+  });
+
+  it('explains the account requirement when a signed-out invitee is rejected', () => {
+    liveState.connectionState = 'rejected';
+    liveState.closeReason = 'correspondence requires account';
+    expect(actionTitle(null)).toBe('Access rejected');
+    expect(actionBody(null, noDraft)).toContain('Both players need an account');
   });
 });

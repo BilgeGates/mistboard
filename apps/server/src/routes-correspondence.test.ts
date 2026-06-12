@@ -19,6 +19,7 @@ import {
   createTenantRuntimeRoomFromEvents,
   tenantSnapshotPayload,
 } from './variant-tenant/runtime.js';
+import { assignTenantSeat } from './variant-tenant/seat-session.js';
 
 process.env.MISTBOARD_CORRESPONDENCE_ENABLED = 'true';
 
@@ -226,6 +227,29 @@ test('sweepDarkChessDueDeadline flags a due in-memory room through the ws runtim
     assert.ok(status.type === 'finished');
     assert.equal(status.winner, 'black');
     assert.equal(status.reason, 'timeout');
+  } finally {
+    darkChessTenantRooms.clear();
+  }
+});
+
+test('correspondence seats require an account on both sides', async () => {
+  const created = await createDarkChessCorrespondenceRoom(correspondenceTimeControl(3));
+  assert.ok(created.ok);
+  const room = created.room;
+  try {
+    // Anonymous claim via the invite link is refused; the close reason gives the
+    // web shell its sign-in copy.
+    const anonymous = assignTenantSeat(darkChessTenant, room, 'anon-client', undefined, null);
+    assert.deepEqual(anonymous, { ok: false, reason: 'correspondence requires account' });
+    const signedInClaim = assignTenantSeat(
+      darkChessTenant,
+      room,
+      'acct-client',
+      undefined,
+      signedIn,
+    );
+    assert.ok(signedInClaim.ok);
+    assert.equal(signedInClaim.tokenState.userId, signedIn.id);
   } finally {
     darkChessTenantRooms.clear();
   }

@@ -31,6 +31,20 @@ export function formatClock(ms: number, showTenths = false): string {
   return `${minutes}:${seconds.toString().padStart(2, '0')}${suffix}`;
 }
 
+// Day-scale clock for correspondence (days-per-move) rooms: two significant
+// units while days or hours remain, then the live M:SS format inside the final
+// hour so the endgame countdown stays readable.
+export function formatDayClock(ms: number): string {
+  const bounded = Math.max(0, ms);
+  const totalMinutes = Math.floor(bounded / 60_000);
+  const days = Math.floor(totalMinutes / (24 * 60));
+  const hours = Math.floor((totalMinutes % (24 * 60)) / 60);
+  const minutes = totalMinutes % 60;
+  if (days > 0) return `${days}d ${hours}h`;
+  if (hours > 0) return `${hours}h ${minutes}m`;
+  return formatClock(bounded);
+}
+
 export function oppositeColor(color: Color): Color {
   return color === 'white' ? 'black' : 'white';
 }
