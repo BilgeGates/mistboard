@@ -13,7 +13,7 @@ Mistboard has two public product pillars:
   through the same auditable information boundary as every other engine, and
   **engine-derived analysis** (game review, training) that a perfect-information
   engine structurally cannot offer — the differentiator and the monetization
-  wedge. See `docs-private/differentiation-thesis.md`.
+  wedge. Longer strategy notes stay in private planning documents.
 
 The landing-page promise should keep the umbrella legible without hiding the
 first playable game: hidden-information games, starting with dark chess. The
@@ -61,8 +61,8 @@ information, ranked integrity, and a serious engine track.
   engine (Fairy-Stockfish, what pychess/chess.com run) categorically cannot build,
   and the paid monetization wedge. **Gated on the engine reaching real strength**
   (Obscuro replication track, post-M5); do not conflate with the M1-bar empty-lobby
-  engine. Free PvP stays free; analysis is the wedge. See
-  `docs-private/differentiation-thesis.md` and the monetization roadmap.
+  engine. Free PvP stays free; analysis is the wedge. Longer differentiation
+  and monetization notes stay in private planning documents.
 - [ ] **Variant pipeline (sequenced 2026-06-10; liquidity-amended same day).**
   Three demand experiments, staggered, none taking the flagship's homepage
   slot before M1-M3. **Liquidity posture: player counts are expected to be

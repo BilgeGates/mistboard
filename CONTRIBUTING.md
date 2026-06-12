@@ -1,7 +1,5 @@
 # Contributing
 
-Thanks for considering a contribution to Mistboard.
-
 Mistboard is an open-source platform foundation for hidden-information games,
 starting with dark chess. "Fog of War chess" is useful secondary wording for SEO
 and rules explanation. Before opening a pull request, check whether the change
@@ -25,7 +23,9 @@ Good contributions:
 - `PlayerView` tests
 - replay and postgame reveal improvements
 - board interaction polish
-- engine protocol surfaces in `packages/game/src/engine-protocol.ts` and `apps/server/src/engine-protocol/` (the private `mistboard-engine` repo holds the actual engine; it is not open for contributions)
+- engine protocol surfaces in `packages/game/src/engine-protocol.ts` and
+  `apps/server/src/engine-protocol/`. The first-party engine implementation is
+  outside this repository; the public contract is the contribution surface here.
 - documentation for rules, protocols, tournaments, and engine integration
 
 Usually out of scope for v1 unless explicitly gate-cleared:
@@ -41,24 +41,44 @@ Usually out of scope for v1 unless explicitly gate-cleared:
 
 ## Development
 
+Prerequisites:
+
+- Node.js 22 or newer
+- npm
+- Docker, only if you need local Postgres-backed flows
+
+First-time setup:
+
 ```bash
 npm install
 npm run agent:scan        # live dirty-state, worktree, hotspot, and test map
 npm run worktree:prepare  # fresh-worktree deps, dist declarations, drift guard
+```
+
+Fast local loop:
+
+```bash
+npm run dev              # in-memory server, fastest for UI work
+```
+
+Open `http://localhost:3000`.
+
+Before a pull request, run checks that match the blast radius:
+
+```bash
 npm run verify -- --changed
 npm run check:drift       # public-doc links, SQL enum drift, fog payload guards
 npm run ci:quick
-npm run dev              # in-memory server, fastest for UI work
-npm run dev:persistent   # Postgres-backed server (required for reconnect/replay testing)
 npm test                 # unit and integration tests, in-memory
-npm run test:persistent  # integration tests against local Postgres
 ```
 
-For local Postgres:
+For replay, reconnect, and persistence work, use local Postgres:
 
 ```bash
 npm run db:up      # start Docker Postgres on port 5435
 npm run db:migrate # apply migrations
+npm run dev:persistent
+npm run test:persistent  # integration tests against local Postgres
 ```
 
 Good entry points for dark chess testing:
@@ -81,6 +101,7 @@ npm run gate:evidence -- --gate mobile-gameplay --result pass
 ```
 
 See [`docs/ROADMAP.md`](docs/ROADMAP.md) for what's currently being worked on.
+See [`docs/README.md`](docs/README.md) for the public documentation map.
 
 ## Pull Requests
 
@@ -92,7 +113,8 @@ Before opening a PR:
 
 - run the relevant tests
 - update docs when behavior changes
-- follow `docs/documentation-policy.md` for public vs private documentation
+- follow [`docs/documentation-policy.md`](docs/documentation-policy.md) for
+  public vs private documentation
 - avoid committing generated corpora, large tournament logs, or local artifacts unless they are explicitly part of a reviewed benchmark/release artifact
 - do not include secrets, production URLs, API keys, or private credentials
 

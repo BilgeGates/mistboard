@@ -54,8 +54,8 @@ Still open against M1:
   without pulling rated or tournament obligations forward
 
 Moved out of M1:
-- Draft960 lobby and Draft960 rated work are M4. The Draft960 article exists,
-  but the launch surface stays standard Fog of War to avoid splitting the pool.
+- Alternate-format lobby and rated work are later. The launch surface stays
+  standard Fog of War to avoid splitting the pool.
 - Dark Xiangqi is a hidden dev spike, not an M1 public launch surface.
 - Per-game OG Phase 2 (loser-view + truth boards) is M3. Cut from M1 by
   decision (2026-05-30): rich per-game share cards only pay off at share
@@ -71,7 +71,10 @@ Release confidence work now active:
 
 ## What's Next
 
-M1 gates → M2 soft launch (200 casual standard 3+2 games) → M3 Elo calibration + standard rated flip + hard launch → M4 Draft960 rated flip → M5+ public engine protocol and benchmark track. DMX/MX runs as a parallel public-alpha distribution experiment: content first, regional readiness second, rated later.
+M1 gates → M2 soft launch (200 casual standard 3+2 games) → M3 Elo calibration
+and standard rated flip + hard launch → later alternate-format rated work → M5+
+public engine protocol and benchmark track. DMX/MX runs as a parallel public-alpha
+distribution experiment: content first, regional readiness second, rated later.
 
 ## Risk
 
