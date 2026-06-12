@@ -78,6 +78,7 @@ function registerFakeLobbyTenant(options: {
     kind: options.kind,
     gameSpecId: options.gameSpecId,
     roomIdPrefix: options.roomIdPrefix,
+    ownsSpecRouting: true,
     errorPrefix: options.errorPrefix,
     enabled: options.enabled,
     rooms: new Map(),

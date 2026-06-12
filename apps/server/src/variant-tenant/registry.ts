@@ -53,6 +53,14 @@ export type VariantTenantRegistration = {
   kind: string;
   gameSpecId: string;
   roomIdPrefix: string;
+  // Whether this registration is the spec's PRIMARY routing surface
+  // (variantTenantForSpecId — today that means the lobby). True for tenants
+  // that solely own their spec (DMX, Dark Xiangqi, Crossroads). False for
+  // registrations owning only a prefixed slice of a spec whose primary
+  // surface lives elsewhere — dark-chess correspondence (dchx_) must not
+  // shadow the legacy chess stack's lobby, which is reached via registry
+  // MISS.
+  ownsSpecRouting: boolean;
   // snake_case identity used in wire error codes: `${errorPrefix}_disabled`,
   // `${errorPrefix}_not_integrated`.
   errorPrefix: string;
@@ -134,6 +142,7 @@ export function variantTenantForRoomId(roomId: string): VariantTenantRegistratio
 
 export function variantTenantForSpecId(gameSpecId: string): VariantTenantRegistration | null {
   for (const registration of registrationsByPrefix.values()) {
+    if (!registration.ownsSpecRouting) continue;
     if (registration.gameSpecId === gameSpecId) return registration;
   }
   return null;

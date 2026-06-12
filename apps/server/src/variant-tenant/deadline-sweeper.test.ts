@@ -15,6 +15,7 @@ function registrationStub(
     kind: 'sweeper-test-tenant',
     gameSpecId: 'sweeper-test-tenant',
     roomIdPrefix: 'sweeptest_',
+    ownsSpecRouting: true,
     errorPrefix: 'sweeper_test_tenant',
     enabled: () => true,
     rooms: new Map(),

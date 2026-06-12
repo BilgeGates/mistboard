@@ -70,6 +70,7 @@ registerVariantTenant({
   kind: darkXiangqiTenant.kind,
   gameSpecId: darkXiangqiTenant.gameSpecId,
   roomIdPrefix: darkXiangqiTenant.roomIdPrefix,
+  ownsSpecRouting: true,
   errorPrefix: 'dark_xiangqi',
   enabled: darkXiangqiTenant.enabled,
   rooms: darkXiangqiRooms as unknown as ReadonlyMap<string, TenantManagedRoom>,

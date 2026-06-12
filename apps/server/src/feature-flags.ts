@@ -36,3 +36,11 @@ export function crossroadsChessEnabled(): boolean {
     process.env.MISTBOARD_DUAL_CHESS_ENABLED === 'true'
   );
 }
+
+// Correspondence (days-per-move) dark chess on the variant-tenant stack.
+// Server-side opt-in: gates room creation; existing dchx_ rooms keep routing
+// if the flag flips off. Correspondence is account-gated and invite-link
+// only at C1.
+export function correspondenceEnabled(): boolean {
+  return process.env.MISTBOARD_CORRESPONDENCE_ENABLED === 'true';
+}

@@ -90,6 +90,7 @@ registerVariantTenant({
   kind: crossroadsChessTenant.kind,
   gameSpecId: crossroadsChessTenant.gameSpecId,
   roomIdPrefix: crossroadsChessTenant.roomIdPrefix,
+  ownsSpecRouting: true,
   errorPrefix: 'crossroads_chess',
   enabled: crossroadsChessTenant.enabled,
   rooms: crossroadsChessRooms as unknown as ReadonlyMap<string, TenantManagedRoom>,

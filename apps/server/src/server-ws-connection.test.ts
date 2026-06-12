@@ -113,6 +113,7 @@ function resolverHarness(options: {
     kind: options.kind,
     gameSpecId: options.kind,
     roomIdPrefix: options.prefix,
+    ownsSpecRouting: true,
     errorPrefix: options.kind.replaceAll('-', '_'),
     enabled: () => options.enabled,
     rooms,

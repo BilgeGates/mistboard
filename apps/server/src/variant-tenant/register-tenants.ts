@@ -6,5 +6,6 @@
  */
 
 import '../crossroads-chess-registration.js';
+import '../dark-chess-registration.js';
 import '../dark-mini-xiangqi-registration.js';
 import '../dark-xiangqi-registration.js';
