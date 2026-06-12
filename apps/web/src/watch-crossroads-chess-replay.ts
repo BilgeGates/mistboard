@@ -8,10 +8,14 @@ import {
   postgameReplayMaxPly,
   postgameViewAtPly,
 } from './crossroads-chess-postgame.js';
-import { renderCrossroadsChessBoardSvg } from './crossroads-chess-render.js';
+import {
+  readCrossroadsChessAppearance,
+  renderCrossroadsChessBoardSvg,
+} from './crossroads-chess-render.js';
 import type { GameMeta, ReplayHandle } from './replay.js';
 import { createPane, type ReplayPaneHandle } from './replay-board.js';
 import { createGameHeaderStrip } from './replay-meta.js';
+import { boardAppearanceChangedEvent } from './theme.js';
 import { formatClock } from './web-utils.js';
 
 const AUTO_PLAY_PLY_MS = 1100;
@@ -145,6 +149,7 @@ export async function mountCrossroadsChessWatchReplay(
     pane.boardEl.innerHTML = renderCrossroadsChessBoardSvg(view, {
       perspective: boardOrientation,
       showFog: false,
+      ...readCrossroadsChessAppearance(),
     });
 
     const result = currentPly >= maxPly ? ` - ${resultLabel(activePostgame.game.result)}` : '';
@@ -306,6 +311,9 @@ export async function mountCrossroadsChessWatchReplay(
     buildGame(result.postgame);
   };
 
+  const syncAppearance = (): void => sync();
+  window.addEventListener(boardAppearanceChangedEvent, syncAppearance);
+
   await load(roomId);
 
   return {
@@ -317,6 +325,7 @@ export async function mountCrossroadsChessWatchReplay(
         window.clearInterval(clockTickTimer);
         clockTickTimer = null;
       }
+      window.removeEventListener(boardAppearanceChangedEvent, syncAppearance);
       root.replaceChildren();
     },
     loadGame: async (sampleId: string) => {

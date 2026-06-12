@@ -17,8 +17,12 @@ describe('Crossroads Chess board renderer', () => {
     expect(svg).toContain('卒'); // a White soldier disk glyph
     // 48 board cells (6x8), each 50x50.
     expect((svg.match(/width="50" height="50"/g) ?? []).length).toBe(48);
+    expect(svg).toContain('var(--board-light)');
+    expect(svg).toContain('var(--board-dark)');
+    expect(svg).toContain('var(--crossroads-frame)');
+    expect(svg).toContain('var(--crossroads-river)');
     // No fog overlay when showFog is false.
-    expect(svg).not.toContain('rgba(22,18,14,0.66)');
+    expect(svg).not.toContain('var(--board-fog-light-fill)');
   });
 
   it('fogs hidden squares and shows shrouded enemies as color-only silhouettes', () => {
@@ -41,9 +45,25 @@ describe('Crossroads Chess board renderer', () => {
     const svg = renderCrossroadsChessBoardSvg(view, { showFog: true });
 
     expect(svg).toContain('?'); // the a3 screen is a shrouded silhouette
-    expect(svg).toContain('rgba(22,18,14,0.66)'); // hidden squares (e.g. f8) are fogged
+    expect(svg).toContain('var(--board-fog-light-fill)'); // hidden squares (e.g. f8) are fogged
     // The hidden Red king must not be drawn as a real piece (no king glyph leak).
     expect(view.board.f8).toBeUndefined();
+  });
+
+  it('uses chess piece sets for chess roles and xiangqi piece sets for xiangqi roles', () => {
+    const view = getCrossroadsChessOpenView(createInitialCrossroadsChessState('h'), 'white');
+    const svg = renderCrossroadsChessBoardSvg(view, {
+      showFog: false,
+      chessPieceSet: 'letter',
+      xiangqiPieceSet: 'western',
+    });
+
+    expect(svg).toContain('/pieces/letter/wK.svg');
+    expect(svg).toContain('/pieces/letter/wN.svg');
+    expect(svg).toContain('>R</text>'); // chariot uses the xiangqi Western set.
+    expect(svg).toContain('>S</text>'); // soldier uses the xiangqi Western set.
+    expect(svg).not.toContain('車');
+    expect(svg).not.toContain('卒');
   });
 
   it('flips the board for the Red perspective', () => {

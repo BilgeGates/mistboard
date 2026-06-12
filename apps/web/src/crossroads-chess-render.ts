@@ -5,7 +5,7 @@
 // (orientation flip + river-strip offset), furniture (grid, river, coords,
 // frame, clip), and the generic interaction layers (last-move, selection,
 // targets, fog, hit). This file supplies only what is Crossroads-Chess-specific: the
-// 6x8 + river descriptor, the disk/recolour piece glyphs, and the gradient defs.
+// 6x8 + river descriptor, the disk/recolour piece glyphs, and the red-piece filter.
 //
 // Driven by the engine's CrossroadsChessPlayerView (packages/game/variants-crossroads-chess),
 // orientation-aware (Red sees the board flipped) and fog-aware (hidden squares
@@ -13,14 +13,10 @@
 
 import {
   CROSSROADS_CHESS_DESCRIPTOR,
-  CROSSROADS_DISK_GLYPHS,
-  CROSSROADS_INK_RED,
-  CROSSROADS_INK_WHITE,
-  CROSSROADS_IVORY_STOPS,
   CROSSROADS_PIECE_RED,
-  CROSSROADS_RED_STOPS,
   type GridCellRef,
   type GridGeometry,
+  type GridPalette,
   PIECE_SVGS,
   renderGridBoardSvg,
 } from '@mistboard/board-render';
@@ -29,15 +25,20 @@ import type {
   CrossroadsChessPieceRole,
   CrossroadsChessPlayerView,
   CrossroadsChessSquare,
+  XiangqiColor,
+  XiangqiPieceRole,
 } from '@mistboard/game';
+import { type PieceSet, readStoredPieceSet } from './theme.js';
+import { readStoredXiangqiPieceSet } from './xiangqi-appearance-storage.js';
+import { renderXiangqiPieceGlyphed, type XiangqiPieceSet } from './xiangqi-piece-sets.js';
 
 const FILES = 6;
 const RANKS = 8;
 const CELL = 50;
 
 const RED = CROSSROADS_PIECE_RED;
-const INK_W = CROSSROADS_INK_WHITE;
-const INK_R = CROSSROADS_INK_RED;
+const DEFAULT_CHESS_PIECE_SET: PieceSet = 'cburnett';
+const DEFAULT_XIANGQI_PIECE_SET: XiangqiPieceSet = 'traditional';
 
 const CHESS_ROLES = new Set<CrossroadsChessPieceRole>([
   'king',
@@ -46,9 +47,35 @@ const CHESS_ROLES = new Set<CrossroadsChessPieceRole>([
   'knight',
   'pawn',
 ]);
-const DISK_GLYPH = CROSSROADS_DISK_GLYPHS as Partial<
-  Record<CrossroadsChessPieceRole, { white: string; red: string }>
->;
+const XIANGQI_ROLES = new Set<CrossroadsChessPieceRole>(['chariot', 'horse', 'cannon', 'soldier']);
+const CHESS_PIECE_CODES: Partial<Record<CrossroadsChessPieceRole, string>> = {
+  bishop: 'B',
+  king: 'K',
+  knight: 'N',
+  pawn: 'P',
+  queen: 'Q',
+};
+
+const CROSSROADS_APP_PALETTE: GridPalette = {
+  ...CROSSROADS_CHESS_DESCRIPTOR.palette,
+  lightCell: 'var(--board-light)',
+  darkCell: 'var(--board-dark)',
+  frameBg: 'var(--crossroads-frame)',
+  frameInner: 'var(--crossroads-frame-inner)',
+  boardEdge: 'var(--crossroads-board-edge)',
+  coord: 'var(--crossroads-coord)',
+  lastMove: 'var(--board-last-move)',
+  fog: 'var(--board-fog-light-fill)',
+};
+const CROSSROADS_APP_DESCRIPTOR = {
+  ...CROSSROADS_CHESS_DESCRIPTOR,
+  strips: CROSSROADS_CHESS_DESCRIPTOR.strips?.map((strip) => ({
+    ...strip,
+    fill: 'var(--crossroads-river)',
+    highlightFill: 'var(--crossroads-river-highlight)',
+  })),
+  palette: CROSSROADS_APP_PALETTE,
+};
 
 export type CrossroadsChessRenderOptions = {
   // Whose side is at the bottom. Defaults to the view's own perspective.
@@ -67,6 +94,10 @@ export type CrossroadsChessRenderOptions = {
   arrows?: readonly { from: CrossroadsChessSquare; to: CrossroadsChessSquare }[];
   // Add a transparent hit layer of <rect data-square="..."> for click handling.
   interactive?: boolean;
+  // Crossroads is a hybrid: orthodox chess roles use the chess piece set;
+  // chariot/horse/cannon/soldier use the xiangqi piece set.
+  chessPieceSet?: PieceSet;
+  xiangqiPieceSet?: XiangqiPieceSet;
 };
 
 let boardCounter = 0;
@@ -77,6 +108,8 @@ export function renderCrossroadsChessBoardSvg(
 ): string {
   const perspective = options.perspective ?? view.perspective;
   const showFog = options.showFog ?? true;
+  const chessPieceSet = options.chessPieceSet ?? DEFAULT_CHESS_PIECE_SET;
+  const xiangqiPieceSet = options.xiangqiPieceSet ?? DEFAULT_XIANGQI_PIECE_SET;
   boardCounter += 1;
   const id = `crossroads-live-${boardCounter}`;
 
@@ -86,11 +119,11 @@ export function renderCrossroadsChessBoardSvg(
   );
   const lastMove = options.lastMove ?? view.lastMove ?? null;
 
-  return renderGridBoardSvg(CROSSROADS_CHESS_DESCRIPTOR, {
+  return renderGridBoardSvg(CROSSROADS_APP_DESCRIPTOR, {
     id,
     flip: perspective === 'red',
     extraDefs: crossroadsChessDefs(id),
-    renderPieces: (geom) => pieceLayer(view, geom, id),
+    renderPieces: (geom) => pieceLayer(view, geom, id, { chessPieceSet, xiangqiPieceSet }),
     lastMove: lastMove ? [coordOf(lastMove.from), coordOf(lastMove.to)] : null,
     selected: options.selected ? coordOf(options.selected) : null,
     highlights: (options.highlights ?? []).map(coordOf),
@@ -103,6 +136,16 @@ export function renderCrossroadsChessBoardSvg(
 }
 
 export const CROSSROADS_CHESS_BOARD_PX = CELL;
+
+export function readCrossroadsChessAppearance(): Pick<
+  CrossroadsChessRenderOptions,
+  'chessPieceSet' | 'xiangqiPieceSet'
+> {
+  return {
+    chessPieceSet: readStoredPieceSet(),
+    xiangqiPieceSet: readStoredXiangqiPieceSet(),
+  };
+}
 
 // ── Coordinates ─────────────────────────────────────────────────────────────
 
@@ -127,25 +170,42 @@ function hiddenSquares(visible: Set<CrossroadsChessSquare>): GridCellRef[] {
 
 // ── Pieces (the Crossroads-Chess-specific layer) ──────────────────────────────────
 
-function pieceLayer(view: CrossroadsChessPlayerView, geom: GridGeometry, id: string): string {
+function pieceLayer(
+  view: CrossroadsChessPlayerView,
+  geom: GridGeometry,
+  id: string,
+  appearance: { chessPieceSet: PieceSet; xiangqiPieceSet: XiangqiPieceSet },
+): string {
   const parts: string[] = [];
   for (const [square, entry] of Object.entries(view.board)) {
     if (!entry) continue;
     const { file, rank } = coordOf(square as CrossroadsChessSquare);
     const { x, y } = geom.topLeft(file, rank);
     if (entry.shrouded) {
-      parts.push(silhouette(entry.color, x, y, id));
+      parts.push(silhouette(entry.color, x, y, appearance.xiangqiPieceSet));
       continue;
     }
     const piece = entry.piece;
     if (CHESS_ROLES.has(piece.role)) {
       const size = CELL * 0.86;
       const inset = (CELL - size) / 2;
-      parts.push(chessPiece(piece.role, piece.color, x + inset, y + inset, size));
-    } else if (DISK_GLYPH[piece.role]) {
+      parts.push(
+        chessPiece(
+          piece.role,
+          piece.color,
+          x + inset,
+          y + inset,
+          size,
+          appearance.chessPieceSet,
+          id,
+        ),
+      );
+    } else if (XIANGQI_ROLES.has(piece.role)) {
       const size = CELL * 0.82;
       const inset = (CELL - size) / 2;
-      parts.push(diskPiece(piece.role, piece.color, x + inset, y + inset, size, id));
+      parts.push(
+        diskPiece(piece.role, piece.color, x + inset, y + inset, size, appearance.xiangqiPieceSet),
+      );
     }
   }
   return parts.join('');
@@ -153,9 +213,7 @@ function pieceLayer(view: CrossroadsChessPlayerView, geom: GridGeometry, id: str
 
 function crossroadsChessDefs(id: string): string {
   return [
-    `<linearGradient id="${id}-river" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#86c0ea"/><stop offset="1" stop-color="#3f86c4"/></linearGradient>`,
-    `<radialGradient id="${id}-ivory" cx="0.38" cy="0.32" r="0.8"><stop offset="0" stop-color="${CROSSROADS_IVORY_STOPS[0]}"/><stop offset="1" stop-color="${CROSSROADS_IVORY_STOPS[1]}"/></radialGradient>`,
-    `<radialGradient id="${id}-red" cx="0.38" cy="0.3" r="0.85"><stop offset="0" stop-color="${CROSSROADS_RED_STOPS[0]}"/><stop offset="1" stop-color="${CROSSROADS_RED_STOPS[1]}"/></radialGradient>`,
+    `<filter id="${id}-red-piece" color-interpolation-filters="sRGB"><feColorMatrix type="matrix" values="0 0 0 0 0.710 0 0 0 0 0.196 0 0 0 0 0.169 0 0 0 1 0"/></filter>`,
   ].join('');
 }
 
@@ -165,7 +223,16 @@ function chessPiece(
   x: number,
   y: number,
   size: number,
+  pieceSet: PieceSet,
+  id: string,
 ): string {
+  if (pieceSet !== 'cburnett') {
+    const code = CHESS_PIECE_CODES[role];
+    if (!code) return '';
+    const href = `/pieces/${pieceSet}/w${code}.svg`;
+    const filter = color === 'red' ? ` filter="url(#${id}-red-piece)"` : '';
+    return `<image href="${href}" x="${x}" y="${y}" width="${size}" height="${size}" preserveAspectRatio="xMidYMid meet"${filter}/>`;
+  }
   let raw = PIECE_SVGS[`white:${role}`];
   if (!raw) return '';
   if (color === 'red') {
@@ -186,31 +253,44 @@ function diskPiece(
   x: number,
   y: number,
   size: number,
-  id: string,
+  pieceSet: XiangqiPieceSet,
 ): string {
-  const glyph = DISK_GLYPH[role]![color];
-  const cx = x + size / 2;
-  const cy = y + size / 2;
-  const r = size / 2 - 1;
-  const ink = color === 'white' ? INK_W : INK_R;
-  const grad = color === 'white' ? `${id}-ivory` : `${id}-red`;
-  return [
-    `<circle cx="${cx}" cy="${cy}" r="${r}" fill="url(#${grad})" stroke="${ink}" stroke-width="2.4"/>`,
-    `<circle cx="${cx}" cy="${cy}" r="${r - 4}" fill="none" stroke="${ink}" stroke-width="1" opacity="0.55"/>`,
-    `<text x="${cx}" y="${cy + 1}" font-family="'Songti SC','STSong','Noto Serif CJK SC','Noto Serif CJK TC',serif" font-weight="700" font-size="${size * 0.5}" fill="${ink}" text-anchor="middle" dominant-baseline="central">${glyph}</text>`,
-  ].join('');
+  return renderXiangqiPieceGlyphed(
+    { color: xiangqiColorForCrossroads(color), role: role as XiangqiPieceRole },
+    pieceSet,
+    {
+      ariaLabel: `${color} ${role}`,
+      className: 'crossroads-xq-piece',
+      x,
+      y,
+      size,
+    },
+  );
 }
 
 // A shrouded enemy: colour is known under fog (field of fire), identity is not.
-function silhouette(color: CrossroadsChessColor, x: number, y: number, id: string): string {
+function silhouette(
+  color: CrossroadsChessColor,
+  x: number,
+  y: number,
+  pieceSet: XiangqiPieceSet,
+): string {
   const size = CELL * 0.7;
-  const cx = x + CELL / 2;
-  const cy = y + CELL / 2;
-  const r = size / 2;
-  const grad = color === 'white' ? `${id}-ivory` : `${id}-red`;
-  const ink = color === 'white' ? INK_W : INK_R;
-  return [
-    `<circle cx="${cx}" cy="${cy}" r="${r}" fill="url(#${grad})" stroke="${ink}" stroke-width="1.5" opacity="0.62"/>`,
-    `<text x="${cx}" y="${cy + 1}" font-size="${size * 0.6}" fill="${ink}" text-anchor="middle" dominant-baseline="central" opacity="0.7">?</text>`,
-  ].join('');
+  const inset = (CELL - size) / 2;
+  return renderXiangqiPieceGlyphed(
+    { color: xiangqiColorForCrossroads(color), role: 'soldier' },
+    pieceSet,
+    {
+      ariaLabel: `${color} hidden piece`,
+      className: 'crossroads-xq-piece crossroads-xq-piece--shrouded',
+      shrouded: true,
+      x: x + inset,
+      y: y + inset,
+      size,
+    },
+  );
+}
+
+function xiangqiColorForCrossroads(color: CrossroadsChessColor): XiangqiColor {
+  return color === 'red' ? 'red' : 'black';
 }

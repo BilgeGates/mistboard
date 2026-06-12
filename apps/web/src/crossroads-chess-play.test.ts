@@ -1,5 +1,6 @@
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { mountCrossroadsChessPlay } from './crossroads-chess-play.js';
+import { boardAppearanceChangedEvent } from './theme.js';
 
 function click(root: HTMLElement, square: string): void {
   root
@@ -12,6 +13,10 @@ function clickButton(root: HTMLElement, label: string): void {
     .find((b) => b.textContent === label)
     ?.click();
 }
+
+beforeEach(() => {
+  Object.defineProperty(window, 'localStorage', { configurable: true, value: memoryStorage() });
+});
 
 describe('Crossroads Chess hot-seat controller', () => {
   afterEach(() => {
@@ -48,6 +53,23 @@ describe('Crossroads Chess hot-seat controller', () => {
     expect(root.querySelector('.crossroads-play-status')?.textContent).toBe('White to move');
   });
 
+  it('rerenders local pieces from the chess and xiangqi appearance settings', () => {
+    const root = document.createElement('div');
+
+    mountCrossroadsChessPlay(root);
+
+    expect(root.innerHTML).toContain('車');
+    expect(root.innerHTML).not.toContain('/pieces/letter/wK.svg');
+
+    window.localStorage.setItem('mistboard.pieceSet', 'letter');
+    window.localStorage.setItem('mistboard.xiangqiPieceSet', 'western');
+    window.dispatchEvent(new Event(boardAppearanceChangedEvent));
+
+    expect(root.innerHTML).toContain('/pieces/letter/wK.svg');
+    expect(root.innerHTML).toContain('>R</text>');
+    expect(root.innerHTML).not.toContain('車');
+  });
+
   it('creates live friend rooms with the Crossroads 5+5 time control', async () => {
     const fetchMock = vi.fn(async () => new Response(JSON.stringify({}), { status: 200 }));
     vi.stubGlobal('fetch', fetchMock);
@@ -68,6 +90,20 @@ describe('Crossroads Chess hot-seat controller', () => {
     });
   });
 });
+
+function memoryStorage(): Storage {
+  const values = new Map<string, string>();
+  return {
+    get length() {
+      return values.size;
+    },
+    clear: () => values.clear(),
+    getItem: (key) => values.get(key) ?? null,
+    key: (index) => Array.from(values.keys())[index] ?? null,
+    removeItem: (key) => values.delete(key),
+    setItem: (key, value) => values.set(key, value),
+  };
+}
 
 describe('Crossroads Chess vs Computer', () => {
   afterEach(() => {

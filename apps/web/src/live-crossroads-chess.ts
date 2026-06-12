@@ -35,7 +35,10 @@ import {
   type GameLifecycleStatusType,
   gameSpecAnalyticsPropsForId,
 } from './analytics.js';
-import { renderCrossroadsChessBoardSvg } from './crossroads-chess-render.js';
+import {
+  readCrossroadsChessAppearance,
+  renderCrossroadsChessBoardSvg,
+} from './crossroads-chess-render.js';
 import { crossroadsChessEnabled } from './feature-flags.js';
 import {
   maybePlayCrossroadsChessSnapshotSound,
@@ -46,6 +49,7 @@ import { createLiveLayout, setLiveLayoutGameSpec } from './live-layout.js';
 import { initLiveSound, playSound, resetLiveSoundState } from './live-sound.js';
 import { clearSeatTokenForRoom, type LiveRefs } from './live-state.js';
 import { roomIdFromPath } from './room-url.js';
+import { boardAppearanceChangedEvent, setBoardFamily } from './theme.js';
 import { createTenantRoomChrome, type WebVariantTenant } from './variant-tenant/room-chrome.js';
 import {
   createTenantSocketClient,
@@ -209,6 +213,7 @@ export function bootstrapCrossroadsChessLiveRoom(): void {
 
   refs = createLiveLayout(app, { debugRequested: false });
   setLiveLayoutGameSpec(app, 'crossroads-chess');
+  setBoardFamily('chess');
   boardHost = refs.board;
   chrome.setRenderTarget(refs, {
     sendSocket: send,
@@ -233,6 +238,7 @@ export function bootstrapCrossroadsChessLiveRoom(): void {
     chrome.tickCountdowns();
   }, 100);
   document.addEventListener('keydown', handleReplayKeyboard);
+  window.addEventListener(boardAppearanceChangedEvent, renderAll);
   renderAll();
 }
 
@@ -425,6 +431,7 @@ function renderBoard(): void {
     selected: state.selected,
     targets,
     lastMove: view.lastMove ?? null,
+    ...readCrossroadsChessAppearance(),
   });
 }
 

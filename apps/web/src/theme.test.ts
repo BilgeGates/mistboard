@@ -99,6 +99,9 @@ describe('appearance family gating', () => {
   });
 
   it('keeps Settings chess-only when no xiangqi variant is enabled', () => {
+    vi.stubEnv('DEV', false);
+    vi.stubEnv('VITE_CROSSROADS_CHESS_ENABLED', 'false');
+    vi.stubEnv('VITE_DUAL_CHESS_ENABLED', 'false');
     vi.stubEnv('VITE_DARK_XIANGQI_ENABLED', 'false');
     vi.stubEnv('VITE_DARK_MINI_XIANGQI_ENABLED', 'false');
 
@@ -110,6 +113,24 @@ describe('appearance family gating', () => {
     // Chess pickers + the shared fog picker stay.
     expect(document.querySelector('[data-theme-tile="piece"]')).not.toBeNull();
     expect(document.querySelector('[data-theme-tile="fog"]')).not.toBeNull();
+  });
+
+  it('surfaces xiangqi pickers for Crossroads without adding a Crossroads family', () => {
+    vi.stubEnv('DEV', false);
+    vi.stubEnv('VITE_CROSSROADS_CHESS_ENABLED', 'true');
+    vi.stubEnv('VITE_DARK_XIANGQI_ENABLED', 'false');
+    vi.stubEnv('VITE_DARK_MINI_XIANGQI_ENABLED', 'false');
+
+    rebuildThemePanel();
+
+    const familySelect = document.querySelector<HTMLSelectElement>(
+      'select[data-board-family-select]',
+    );
+    expect([...familySelect!.options].map((option) => option.value)).toEqual(['chess', 'xiangqi']);
+
+    expect(document.querySelector('[data-theme-tile="piece"]')).not.toBeNull();
+    expect(document.querySelector('[data-theme-tile="xqboard"]')).not.toBeNull();
+    expect(document.querySelector('[data-theme-tile="xqpiece"]')).not.toBeNull();
   });
 
   it('surfaces the Game dropdown + xiangqi pickers when a xiangqi flag is on', () => {

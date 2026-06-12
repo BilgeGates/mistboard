@@ -8,12 +8,16 @@ import type {
 } from '@mistboard/game';
 import './landing.css';
 import './game-route.css';
-import { renderCrossroadsChessBoardSvg } from './crossroads-chess-render.js';
+import {
+  readCrossroadsChessAppearance,
+  renderCrossroadsChessBoardSvg,
+} from './crossroads-chess-render.js';
 import { crossroadsChessEnabled } from './feature-flags.js';
 import { createPane } from './replay-board.js';
 import { createGameHeaderStrip } from './replay-meta.js';
 import { createReplayMovesPanel } from './replay-moves-panel.js';
 import { buildNav } from './site-shell.js';
+import { boardAppearanceChangedEvent, setBoardFamily } from './theme.js';
 
 type CrossroadsChessTimeControl = { initialMs: number; incrementMs: number };
 export type CrossroadsChessPostgameViewKey = CrossroadsChessColor | 'truth';
@@ -65,6 +69,7 @@ const postgameAbortControllers = new WeakMap<HTMLElement, AbortController>();
 
 export function mountCrossroadsChessPostgame(root: HTMLElement, roomId: string): void {
   root.classList.add('landing-page', 'game-route');
+  setBoardFamily('chess');
   root.replaceChildren(buildNav(), loadingView());
   if (!crossroadsChessEnabled()) {
     renderError(root, 'Crossroads Chess unavailable', 'This route is not enabled in this build.');
@@ -204,6 +209,7 @@ function renderPostgame(
       renderCrossroadsChessBoardSvg(view, {
         perspective: boardOrientation,
         showFog: false,
+        ...readCrossroadsChessAppearance(),
       }),
     );
     pane.nameEl.textContent = `${capitalize(boardOrientation)} orientation`;
@@ -218,6 +224,7 @@ function renderPostgame(
     movesPanel.controls.last.disabled = currentPly >= maxPly;
     renderMoveRows(movesPanel.moveList, moves, currentPly, jump);
   };
+  window.addEventListener(boardAppearanceChangedEvent, sync, { signal });
 
   movesPanel.controls.first.onclick = () => jump(0);
   movesPanel.controls.prev.onclick = () => jump(currentPly - 1);

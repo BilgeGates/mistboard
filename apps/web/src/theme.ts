@@ -1,6 +1,10 @@
 import './theme.css';
 import type { GameFamilyId } from '@mistboard/game';
-import { darkMiniXiangqiEnabled, darkXiangqiEnabled } from './feature-flags.js';
+import {
+  crossroadsChessEnabled,
+  darkMiniXiangqiEnabled,
+  darkXiangqiEnabled,
+} from './feature-flags.js';
 import { isLikelySignedIn } from './signed-in-state.js';
 import { readStoredSoundSet, SOUND_SETS, type SoundSetId, storeSoundSet } from './sound-sets.js';
 import {
@@ -18,9 +22,9 @@ import {
 
 export { readStoredXiangqiPieceSet } from './xiangqi-appearance-storage.js';
 
-type BoardTheme = 'standard' | 'contrast' | 'colorblind' | 'blue' | 'green' | 'mono';
-type FogTheme = 'veil' | 'solid' | 'drift' | 'mistveil' | 'void' | 'invisible';
-type PieceSet = 'cburnett' | 'merida' | 'chessnut' | 'fantasy' | 'letter';
+export type BoardTheme = 'standard' | 'contrast' | 'colorblind' | 'blue' | 'green' | 'mono';
+export type FogTheme = 'veil' | 'solid' | 'drift' | 'mistveil' | 'void' | 'invisible';
+export type PieceSet = 'cburnett' | 'merida' | 'chessnut' | 'fantasy' | 'letter';
 export type SiteTheme = 'system' | 'light' | 'dark';
 // The appearance "family" is the GameSpec family (chess-family games share board
 // themes + piece sets; likewise for xiangqi). Driven by gameSpecForId(id).family.
@@ -34,6 +38,7 @@ const soundVolumeStorageKey = 'mistboard.soundVolume';
 const soundMutedStorageKey = 'mistboard.soundMuted';
 export const soundSettingsChangedEvent = 'mistboard:sound-settings-changed';
 export const siteThemeChangedEvent = 'mistboard:site-theme-changed';
+export const boardAppearanceChangedEvent = 'mistboard:board-appearance-changed';
 // Fired when a xiangqi-family appearance setting (board theme or piece set)
 // changes. The xiangqi board renders pieces as inline SVG, so unlike the
 // CSS-driven chess board it must re-render to pick up a new piece set.
@@ -81,12 +86,11 @@ const xiangqiBoardThemes: Array<{ id: XiangqiBoardTheme; label: string }> = [
 const xiangqiPieceSets = XIANGQI_PIECE_SETS;
 const defaultBoardFamily: BoardFamily = 'chess';
 
-// Xiangqi appearance (board themes + piece sets) is shared by full Dark Xiangqi
-// and Dark Mini Xiangqi, so either flag surfaces it. Gated so the hidden variants
-// don't leak a "Xiangqi" option into Settings on production. Evaluated at panel-
-// build time (flags are build-time constants, so this is stable per build).
+// Xiangqi appearance (board themes + piece sets) is shared by full Dark Xiangqi,
+// Dark Mini Xiangqi, and Crossroads Chess's xiangqi-side disk pieces. Gated so
+// xiangqi controls appear only when a consuming surface is available.
 export function xiangqiAppearanceEnabled(): boolean {
-  return darkXiangqiEnabled() || darkMiniXiangqiEnabled();
+  return darkXiangqiEnabled() || darkMiniXiangqiEnabled() || crossroadsChessEnabled();
 }
 
 function enabledAppearanceFamilies(): Array<{ id: BoardFamily; label: string }> {
@@ -253,6 +257,7 @@ export function buildAppearanceMenu(): HTMLElement {
         applyFogTheme(value);
         writeStoredFogTheme(value);
         syncThemeControls();
+        dispatchBoardAppearanceChanged();
       },
       undefined,
       false,
@@ -278,6 +283,7 @@ export function buildAppearanceMenu(): HTMLElement {
         applyBoardTheme(value);
         writeStoredTheme(value);
         syncThemeControls();
+        dispatchBoardAppearanceChanged();
       },
       'chess',
       false,
@@ -315,6 +321,7 @@ export function buildAppearanceMenu(): HTMLElement {
         applyPieceSet(value);
         writeStoredPieceSet(value);
         syncThemeControls();
+        dispatchBoardAppearanceChanged();
       },
       'chess',
       false,
@@ -772,7 +779,7 @@ function writeStoredFogTheme(theme: FogTheme): void {
   }
 }
 
-function readStoredPieceSet(): PieceSet {
+export function readStoredPieceSet(): PieceSet {
   try {
     return normalizePieceSet(window.localStorage.getItem(pieceSetStorageKey));
   } catch {
@@ -790,6 +797,11 @@ function writeStoredPieceSet(pieceSet: PieceSet): void {
 
 function dispatchXiangqiAppearanceChanged(): void {
   window.dispatchEvent(new Event(xiangqiAppearanceChangedEvent));
+  dispatchBoardAppearanceChanged();
+}
+
+function dispatchBoardAppearanceChanged(): void {
+  window.dispatchEvent(new Event(boardAppearanceChangedEvent));
 }
 
 export function readEffectiveSoundVolume(): number {

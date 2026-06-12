@@ -16,8 +16,12 @@ import {
   getCrossroadsChessOpenView,
 } from '@mistboard/game';
 import './crossroads-chess-play.css';
-import { renderCrossroadsChessBoardSvg } from './crossroads-chess-render.js';
+import {
+  readCrossroadsChessAppearance,
+  renderCrossroadsChessBoardSvg,
+} from './crossroads-chess-render.js';
 import { buildNav } from './site-shell.js';
+import { boardAppearanceChangedEvent, setBoardFamily } from './theme.js';
 
 type Opponent = 'human' | 'computer';
 type Difficulty = 'easy' | 'medium' | 'hard';
@@ -31,6 +35,8 @@ const DIFFICULTY: Record<Difficulty, { skill: number; movetime: number }> = {
 const CROSSROADS_LIVE_TIME_CONTROL = { initialMs: 300_000, incrementMs: 5_000 } as const;
 
 export function mountCrossroadsChessPlay(container: HTMLElement): void {
+  setBoardFamily('chess');
+
   let opponent: Opponent = 'human';
   let humanSide: CrossroadsChessColor = 'white';
   let difficulty: Difficulty = 'medium';
@@ -214,6 +220,7 @@ export function mountCrossroadsChessPlay(container: HTMLElement): void {
       interactive: humanToMove(),
       selected,
       targets: selected ? targetsFor(selected) : [],
+      ...readCrossroadsChessAppearance(),
     });
     statusEl.textContent = engineError ?? (botThinking ? 'Computer thinking…' : statusText(state));
     renderSetup();
@@ -285,6 +292,7 @@ export function mountCrossroadsChessPlay(container: HTMLElement): void {
     movesEl.scrollTop = movesEl.scrollHeight;
   }
 
+  window.addEventListener(boardAppearanceChangedEvent, render);
   render();
 }
 
