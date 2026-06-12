@@ -27,6 +27,7 @@ export function renderClocks(refs: ClockRefs, view: PlayerView | null): void {
     );
     const tc = roomCreated?.timeControl;
     if (tc) {
+      const dayScale = daysPerMoveAllowance() !== null;
       const incrementSec = Math.round(tc.incrementMs / 1000);
       const tcLabel =
         incrementSec > 0
@@ -37,13 +38,15 @@ export function renderClocks(refs: ClockRefs, view: PlayerView | null): void {
         const row = document.createElement('div');
         row.className = 'pregame';
         const label = document.createElement('span');
-        label.textContent = capitalize(color);
+        label.textContent = liveState.seatDisplayNames[color] ?? capitalize(color);
         const time = document.createElement('strong');
-        time.textContent = formatClock(tc.initialMs);
+        time.textContent = dayScale ? formatDayClock(tc.initialMs) : formatClock(tc.initialMs);
         row.append(label, time);
         (index === 0 ? refs.clockTop : refs.clockBottom).append(row);
       });
-      refs.clockNote.textContent = `${tcLabel} · clock starts when both players are ready`;
+      refs.clockNote.textContent = dayScale
+        ? daysPerMoveNote()
+        : `${tcLabel} · clock starts when both players are ready`;
       refs.clockNote.hidden = false;
     }
     return;
@@ -118,12 +121,17 @@ export function renderClocks(refs: ClockRefs, view: PlayerView | null): void {
       slot.append(row, playerLine);
     }
   });
-  const allowance = daysPerMoveAllowance();
-  if (allowance !== null) {
-    refs.clockNote.textContent = allowance === 1 ? '1 day per move' : `${allowance} days per move`;
+  if (daysPerMoveAllowance() !== null) {
+    refs.clockNote.textContent = daysPerMoveNote();
     refs.clockNote.hidden = false;
   }
   lastActiveClockColor = nextActiveColor;
+}
+
+function daysPerMoveNote(): string {
+  const allowance = daysPerMoveAllowance();
+  if (allowance === null) return '';
+  return allowance === 1 ? '1 day per move' : `${allowance} days per move`;
 }
 
 // The room's days-per-move allowance, or null for live clocks. Present on every

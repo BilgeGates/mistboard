@@ -574,6 +574,13 @@ function formatLabel(view: PlayerView | null): string {
 }
 
 function timeControlLabel(view: PlayerView | null): string | null {
+  // Day-scale rooms label by their per-move allowance; minutes+increment and
+  // the live time classes are meaningless at days cadence.
+  const daysPerMove = liveState.timeControl?.daysPerMove;
+  if (typeof daysPerMove === 'number' && daysPerMove > 0) {
+    const days = daysPerMove === 1 ? '1 day' : `${daysPerMove} days`;
+    return `${days} per move · Correspondence`;
+  }
   let initialMs: number | null = null;
   let incrementMs: number | null = null;
   if (view?.clock) {
