@@ -99,6 +99,7 @@ function registerFakeLobbyTenant(options: {
       allowsTimeControl: options.allowsTimeControl,
       createRoom: options.createRoom,
     },
+    sweepDueDeadline: null,
   });
 }
 

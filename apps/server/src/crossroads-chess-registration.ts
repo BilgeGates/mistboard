@@ -124,4 +124,7 @@ registerVariantTenant({
       return { id: created.room.id, region: 'global' };
     },
   },
+  // Perfect-info: excluded from correspondence by decision (engine-soaked
+  // everywhere it exists); the per-spec allowlist also fails closed.
+  sweepDueDeadline: null,
 });

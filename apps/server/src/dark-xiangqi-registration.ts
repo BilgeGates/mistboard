@@ -95,4 +95,5 @@ registerVariantTenant({
       handleDarkXiangqiCreate({ ...ctx, createDarkXiangqiRoom }, response, body),
   },
   lobby: null,
+  sweepDueDeadline: null,
 });

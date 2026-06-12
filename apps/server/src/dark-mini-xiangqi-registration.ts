@@ -139,4 +139,6 @@ registerVariantTenant({
       return { id: created.room.id, region: 'global' };
     },
   },
+  // No correspondence surface (yet): DMX rooms are live-clock only.
+  sweepDueDeadline: null,
 });

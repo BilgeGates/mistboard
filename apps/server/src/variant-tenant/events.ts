@@ -5,9 +5,11 @@
  * come from the tenant so structured logs keep their per-variant identity.
  */
 
+import { clockPolicyKindFor } from '@mistboard/game';
 import { logger } from '../obs.js';
 import * as persistence from '../persistence.js';
 import { releaseLiveEngineReservation } from '../server-live-engine-reservations.js';
+import { tenantDurableDeadlineFor } from './lifecycle.js';
 import { appendTenantRuntimeEvent } from './runtime.js';
 import type {
   TenantGameStateLike,
@@ -23,8 +25,16 @@ export type TenantEventWriterPersistence<C extends string, M, Spec extends strin
     options: { abortedReason: string; endedAt?: Date; termination: 'abandoned' },
   ): Promise<boolean>;
   appendRoomEvent(roomId: string, seq: number, event: TenantRoomEvent<C, M, Spec>): Promise<void>;
+  deleteRoomDeadline(roomId: string): Promise<void>;
   isInitialized(): boolean;
   recordGameEnd(roomId: string, summary: persistence.GameSummary): Promise<void>;
+  upsertRoomDeadline(record: {
+    roomId: string;
+    gameSpecId: string;
+    seat: string;
+    seatUserId: string | null;
+    dueAt: Date;
+  }): Promise<void>;
   upsertRoomSeatToken(
     roomId: string,
     token: persistence.RoomSeatTokenRecord<C & persistence.RoomSeatTokenSeat>,
@@ -38,6 +48,7 @@ export type TenantEventWriterContext<
   State extends TenantGameStateLike<C>,
   Spec extends string = string,
 > = {
+  logDeadlineRowFailure?(roomId: string, err: Error): void;
   logGameAbortRecordFailure?(roomId: string, err: Error): void;
   logGameEndRecordFailure?(roomId: string, err: Error): void;
   persistence?: TenantEventWriterPersistence<C, M, Spec>;
@@ -107,6 +118,7 @@ export async function appendTenantEvent<
         }
       }
     }
+    await maintainTenantDeadlineRow(tenant, room, writer);
     return appendedSeq;
   });
   room.pendingWrites = write.then(
@@ -145,6 +157,9 @@ export async function appendTenantSeatAssigned<
     const appendedSeq = appendTenantRuntimeEvent(tenant, room, args.event);
     room.seatTokens[args.event.seat] = args.tokenState;
     writer.scheduleLifecycleTimers(room);
+    // A seat fill can open the first-move window (the room becomes fully
+    // seated), so the durable deadline row is maintained here too.
+    await maintainTenantDeadlineRow(tenant, room, writer);
     return appendedSeq;
   });
   room.pendingWrites = write.then(
@@ -233,6 +248,7 @@ function contextWithDefaults<
   ctx: TenantEventWriterContext<Kind, C, M, State, Spec>,
 ): Required<TenantEventWriterContext<Kind, C, M, State, Spec>> {
   return {
+    logDeadlineRowFailure: (roomId, err) => logTenantDeadlineRowFailure(tenant, roomId, err),
     logGameAbortRecordFailure: (roomId, err) =>
       logTenantGameAbortRecordFailure(tenant, roomId, err),
     logGameEndRecordFailure: (roomId, err) => logTenantGameEndRecordFailure(tenant, roomId, err),
@@ -240,6 +256,59 @@ function contextWithDefaults<
     scheduleLifecycleTimers: () => {},
     ...ctx,
   };
+}
+
+// Maintain the durable room_deadlines row for days-per-move rooms: upsert
+// while the room has an enforceable deadline, delete once it doesn't
+// (terminal, or back to waiting on a seat). Best-effort by design — the
+// event log is the source of truth and the sweeper re-derives before acting,
+// so a failed row write must never fail the move that caused it.
+async function maintainTenantDeadlineRow<
+  Kind extends string,
+  C extends string,
+  M,
+  State extends TenantGameStateLike<C>,
+  View,
+  Spec extends string,
+>(
+  tenant: VariantTenant<Kind, C, M, State, View, Spec>,
+  room: TenantRuntimeRoom<Kind, C, M, State, Spec>,
+  writer: Required<TenantEventWriterContext<Kind, C, M, State, Spec>>,
+): Promise<void> {
+  if (!writer.persistence.isInitialized()) return;
+  if (clockPolicyKindFor(room.projection.timeControl) !== 'days-per-move') return;
+  try {
+    const deadline = tenantDurableDeadlineFor(tenant, room);
+    if (deadline) {
+      await writer.persistence.upsertRoomDeadline({
+        roomId: room.id,
+        gameSpecId: room.gameSpecId,
+        seat: deadline.seat,
+        seatUserId: room.seatTokens[deadline.seat]?.userId ?? null,
+        dueAt: new Date(deadline.dueAt),
+      });
+    } else {
+      await writer.persistence.deleteRoomDeadline(room.id);
+    }
+  } catch (err) {
+    writer.logDeadlineRowFailure(room.id, err as Error);
+  }
+}
+
+function logTenantDeadlineRowFailure(
+  tenant: { persistence: { logKindPrefix: string; logLabel: string } },
+  roomId: string,
+  err: Error,
+): void {
+  logger.error(
+    {
+      kind: `${tenant.persistence.logKindPrefix}_deadline_row_failure`,
+      room_id: roomId,
+      error: err.message,
+      at: Date.now(),
+    },
+    `${tenant.persistence.logLabel} deadline row failure`,
+  );
 }
 
 function logTenantGameAbortRecordFailure(

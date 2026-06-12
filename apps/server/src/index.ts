@@ -47,6 +47,10 @@ import {
 } from './server-ws-connection.js';
 import type { DarkXiangqiLiveRoom } from './server-ws-dark-xiangqi.js';
 import {
+  startTenantDeadlineSweeper,
+  type TenantDeadlineSweeper,
+} from './variant-tenant/deadline-sweeper.js';
+import {
   registeredVariantTenants,
   setVariantTenantFallbackRoomLookup,
 } from './variant-tenant/registry.js';
@@ -201,6 +205,7 @@ const wsConnectionCtx: WebSocketConnectionContext = {
 // up a controlled instance per test process.
 let server: ReturnType<typeof createServer> | null = null;
 let wss: WebSocketServer | null = null;
+let deadlineSweeper: TenantDeadlineSweeper | null = null;
 let shuttingDown = false;
 let seatVacateGraceMsOverride: number | null = null;
 
@@ -228,6 +233,7 @@ export async function startServer(options: StartServerOptions = {}): Promise<Sta
   await initPersistence();
   roomLifecycle.startAbortPolicySweep();
   roomLifecycle.startStalePausedSweep();
+  deadlineSweeper = startTenantDeadlineSweeper();
 
   const httpServer = createServer(
     createHttpRequestHandler({
@@ -319,6 +325,8 @@ export async function stopServer(): Promise<void> {
     }
   }
   roomLifecycle.stopSweeps();
+  deadlineSweeper?.stop();
+  deadlineSweeper = null;
   closeRoomClients(rooms.values());
   for (const registration of registeredVariantTenants()) {
     closeRoomClients(registration.rooms.values());
@@ -551,6 +559,8 @@ async function shutdown(signal: 'SIGINT' | 'SIGTERM'): Promise<void> {
     }
   }
   roomLifecycle.stopSweeps();
+  deadlineSweeper?.stop();
+  deadlineSweeper = null;
   closeRoomClients(rooms.values());
   for (const registration of registeredVariantTenants()) {
     closeRoomClients(registration.rooms.values());

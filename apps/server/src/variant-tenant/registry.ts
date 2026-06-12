@@ -100,6 +100,12 @@ export type VariantTenantRegistration = {
       rated: boolean,
     ): Promise<{ id: string; region: string }>;
   } | null;
+  // Correspondence capability; null = the tenant hosts no days-per-move
+  // rooms. Implementations hydrate the room, re-derive its deadline from the
+  // event log (never trusting the room_deadlines row), and when actually due
+  // append the timeout/abort event through the tenant's writer with
+  // broadcast (sweepTenantRoomDeadline over the ws runtime's lifecycleCtx).
+  sweepDueDeadline: ((roomId: string) => Promise<void>) | null;
 };
 
 const registrationsByPrefix = new Map<string, VariantTenantRegistration>();

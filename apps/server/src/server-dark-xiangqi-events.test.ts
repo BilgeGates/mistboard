@@ -307,8 +307,14 @@ function persistenceFixture(
       await options.appendRoomEvent?.(roomId, seq, event);
       persistence.appendedEvents.push({ roomId, seq, event });
     },
+    deleteRoomDeadline: async () => {
+      persistence.operations.push('delete-deadline');
+    },
     gameEnds: [],
     isInitialized: () => options.initialized !== false,
+    upsertRoomDeadline: async () => {
+      persistence.operations.push('upsert-deadline');
+    },
     operations: [],
     recordGameEnd: async (roomId, summary) => {
       persistence.operations.push('record-game-end');

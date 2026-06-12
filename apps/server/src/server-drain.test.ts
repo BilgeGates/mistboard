@@ -124,6 +124,7 @@ test('drain controller counts live variant-tenant games alongside chess rooms', 
       },
     },
     lobby: null,
+    sweepDueDeadline: null,
   });
 
   const chessRoom = roomFixture({
@@ -274,6 +275,7 @@ test('drain broadcasts reach variant-tenant room clients', async () => {
       },
     },
     lobby: null,
+    sweepDueDeadline: null,
   });
 
   const drain = createDrainController({

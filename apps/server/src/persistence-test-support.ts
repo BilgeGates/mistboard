@@ -46,6 +46,7 @@ export function definePersistenceTests(area: string, registerTests: () => void):
         `TRUNCATE
            engine_move_jobs,
            live_engine_games,
+           room_deadlines,
            room_lifecycle_audit,
            email_login_challenges,
            account_sessions,

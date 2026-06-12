@@ -24,6 +24,8 @@ function fakePersistence() {
     appendRoomEvent: async (_roomId, seq, event) => {
       appended.push({ seq, type: event.type });
     },
+    deleteRoomDeadline: async () => {},
+    upsertRoomDeadline: async () => {},
     isInitialized: () => true,
     recordGameEnd: async (_roomId, summary) => {
       ends.push({ summary });

@@ -133,6 +133,7 @@ function resolverHarness(options: {
       },
     },
     lobby: null,
+    sweepDueDeadline: null,
   };
   return { registration, loadCalls: () => loadCalls };
 }

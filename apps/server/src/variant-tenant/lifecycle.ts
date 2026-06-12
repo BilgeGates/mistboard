@@ -22,9 +22,24 @@ import { expireTenantClock, tenantClockRemainingMs } from './runtime.js';
 import type {
   TenantAbortPhase,
   TenantGameStateLike,
+  TenantProjection,
   TenantRoomEvent,
   TenantRuntimeRoom,
 } from './tenant.js';
+
+// The projection+log slice the abort/deadline derivations read. Satisfied by
+// both TenantRuntimeRoom (event-writer side) and TenantLifecycleRoom (timer
+// side) — these functions never touch clients or timers.
+export type TenantProjectedRoom<
+  C extends string,
+  M,
+  State extends TenantGameStateLike<C>,
+  Spec extends string = string,
+> = {
+  id: string;
+  events: readonly TenantRoomEvent<C, M, Spec>[];
+  projection: TenantProjection<C, State, Spec>;
+};
 
 export type TenantLifecycleClient<C extends string> = {
   displaced: boolean;
@@ -118,7 +133,7 @@ export function tenantAbortPhaseFor<
   Spec extends string,
 >(
   tenant: TenantLifecycleTenant<C>,
-  room: TenantLifecycleRoom<C, M, State, Spec>,
+  room: TenantProjectedRoom<C, M, State, Spec>,
 ): TenantAbortPhase<C> | null {
   const { status, moveNumber, lastMove } = room.projection.state;
   if (status.type !== 'playing' || moveNumber >= 2) return null;
@@ -126,6 +141,89 @@ export function tenantAbortPhaseFor<
     if (!room.projection.seats[color]) return null;
   }
   return lastMove === undefined ? `${tenant.colors[0]}-1` : `${tenant.colors[1]}-1`;
+}
+
+// The durable (sweeper-enforced) deadline of a days-per-move room: who must
+// act and when they flag. Pregame phases use the event-log-anchored abort
+// window; armed mid-game clocks use the persisted clock arithmetic. Null for
+// live-policy rooms, terminal rooms, and rooms still waiting on a seat.
+// Deterministic over the event log — the sweeper and the writer's
+// room_deadlines row both derive from this single function.
+export function tenantDurableDeadlineFor<
+  C extends string,
+  M,
+  State extends TenantGameStateLike<C>,
+  Spec extends string,
+>(
+  tenant: TenantLifecycleTenant<C>,
+  room: TenantProjectedRoom<C, M, State, Spec>,
+): { seat: C; dueAt: number } | null {
+  if (clockPolicyKindFor(room.projection.timeControl) !== 'days-per-move') return null;
+  if (room.projection.state.status.type !== 'playing') return null;
+  const allowanceMs = (room.projection.timeControl?.daysPerMove ?? 0) * DAY_MS;
+  const phase = tenantAbortPhaseFor(tenant, room);
+  if (phase !== null) {
+    const seat = phase === `${tenant.colors[0]}-1` ? tenant.colors[0] : tenant.colors[1];
+    return { seat, dueAt: tenantAbortAnchorAt(tenant, room, phase) + allowanceMs };
+  }
+  const clock = room.projection.clock;
+  if (!clock || clock.activeColor === null || clock.runningSince === null) return null;
+  return {
+    seat: clock.activeColor,
+    dueAt: clock.runningSince + clock.remainingMs[clock.activeColor],
+  };
+}
+
+// Sweeper enforcement for a hydrated days-per-move room: re-derive the
+// deadline from the room itself (never trust the row), and when actually due
+// append the same terminal event the in-memory timers would have — pregame
+// phases abort, armed clocks expire — through the tenant's writer so
+// persistence/broadcast behave exactly like a live flag.
+export async function sweepTenantRoomDeadline<
+  C extends string,
+  M,
+  State extends TenantGameStateLike<C>,
+  Spec extends string,
+  Room extends TenantProjectedRoom<C, M, State, Spec>,
+>(
+  tenant: TenantLifecycleTenant<C>,
+  room: Room,
+  ctx: {
+    appendEvent(room: Room, event: TenantRoomEvent<C, M, Spec>): Promise<number>;
+    broadcastEventAppended(room: Room, event: TenantRoomEvent<C, M, Spec>, seq: number): void;
+    now?(): number;
+  },
+): Promise<'aborted' | 'expired' | 'not-due' | 'no-deadline'> {
+  const deadline = tenantDurableDeadlineFor(tenant, room);
+  if (!deadline) return 'no-deadline';
+  const now = ctx.now?.() ?? Date.now();
+  if (deadline.dueAt > now) return 'not-due';
+  if (tenantAbortPhaseFor(tenant, room) !== null) {
+    const seq = await ctx.appendEvent(room, {
+      type: 'game-aborted',
+      at: now,
+      roomId: room.id,
+      reason: 'pregame-timeout',
+    });
+    const event = room.events[seq];
+    if (event) ctx.broadcastEventAppended(room, event, seq);
+    return 'aborted';
+  }
+  const clock = room.projection.clock;
+  const activeColor = clock?.activeColor ?? null;
+  if (!clock || activeColor === null) return 'no-deadline';
+  const expiredClock = expireTenantClock(clock, now, activeColor);
+  if (!expiredClock) return 'no-deadline';
+  const seq = await ctx.appendEvent(room, {
+    type: 'clock-expired',
+    at: now,
+    roomId: room.id,
+    color: activeColor,
+    clock: expiredClock,
+  });
+  const event = room.events[seq];
+  if (event) ctx.broadcastEventAppended(room, event, seq);
+  return 'expired';
 }
 
 // Event-log anchor for a correspondence pregame abort window. The first
@@ -140,7 +238,7 @@ export function tenantAbortAnchorAt<
   Spec extends string,
 >(
   tenant: TenantLifecycleTenant<C>,
-  room: TenantLifecycleRoom<C, M, State, Spec>,
+  room: TenantProjectedRoom<C, M, State, Spec>,
   phase: TenantAbortPhase<C>,
 ): number {
   const firstMoverPhase = phase === `${tenant.colors[0]}-1`;

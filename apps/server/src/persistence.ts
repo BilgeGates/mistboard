@@ -101,6 +101,12 @@ export {
   queryGames,
   recordGameEnd,
 } from './persistence-games.js';
+export type { DueRoomDeadline, RoomDeadlineRecord } from './persistence-room-deadlines.js';
+export {
+  deleteRoomDeadline,
+  listDueRoomDeadlines,
+  upsertRoomDeadline,
+} from './persistence-room-deadlines.js';
 export type { RoomSeatTokenRecord, RoomSeatTokenSeat } from './persistence-seat-tokens.js';
 export {
   loadRoomSeatTokens,
