@@ -265,6 +265,7 @@ type TestWriterContext = DarkXiangqiEventWriterContext & {
 };
 
 type TestPersistence = DarkXiangqiEventWriterPersistence & {
+  aborts: Array<{ roomId: string; abortedReason: string; termination: string }>;
   appendedEvents: Array<{ roomId: string; seq: number; event: DarkXiangqiEvent }>;
   gameEnds: Array<{ roomId: string; summary: Parameters<TestPersistence['recordGameEnd']>[1] }>;
   operations: string[];
@@ -290,6 +291,16 @@ function persistenceFixture(
   } = {},
 ): TestPersistence {
   const persistence: TestPersistence = {
+    abortRunningGame: async (roomId, opts) => {
+      persistence.operations.push('abort-running-game');
+      persistence.aborts.push({
+        roomId,
+        abortedReason: opts.abortedReason,
+        termination: opts.termination,
+      });
+      return true;
+    },
+    aborts: [],
     appendedEvents: [],
     appendRoomEvent: async (roomId, seq, event) => {
       persistence.operations.push('append');

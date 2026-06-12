@@ -15,7 +15,12 @@ process.env.MISTBOARD_CROSSROADS_CHESS_ENABLED = 'true';
 function fakePersistence() {
   const appended: { seq: number; type: string }[] = [];
   const ends: { summary: import('./persistence.js').GameSummary }[] = [];
+  const aborts: { roomId: string; abortedReason: string }[] = [];
   const persistence: CrossroadsChessEventWriterPersistence = {
+    abortRunningGame: async (roomId, options) => {
+      aborts.push({ roomId, abortedReason: options.abortedReason });
+      return true;
+    },
     appendRoomEvent: async (_roomId, seq, event) => {
       appended.push({ seq, type: event.type });
     },
@@ -25,7 +30,7 @@ function fakePersistence() {
     },
     upsertRoomSeatToken: async () => {},
   };
-  return { persistence, appended, ends };
+  return { persistence, appended, ends, aborts };
 }
 
 function room() {

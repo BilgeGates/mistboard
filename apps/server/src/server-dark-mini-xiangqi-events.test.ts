@@ -91,6 +91,41 @@ test('Dark Mini Xiangqi event writer fails closed before runtime mutation on per
   assert.equal(room.projection.state.board.a3, undefined);
 });
 
+test('Dark Mini Xiangqi event writer flips the running games row on abort', async () => {
+  const room = roomFixture('dmxq_aborted');
+  const persistence = persistenceFixture();
+
+  await appendDarkMiniXiangqiEvent(
+    room,
+    { type: 'game-aborted', at: 2, roomId: room.id, reason: 'pregame-timeout' },
+    writerContext({ persistence }),
+  );
+
+  assert.equal(room.projection.state.status.type, 'aborted');
+  assert.equal(room.gameEndRecorded, true);
+  // Aborts go through abortRunningGame, never recordGameEnd.
+  assert.deepEqual(persistence.operations, ['append', 'abort-running-game']);
+  assert.deepEqual(persistence.aborts, [
+    { roomId: room.id, abortedReason: 'pregame-timeout', termination: 'abandoned' },
+  ]);
+  assert.equal(persistence.gameEnds.length, 0);
+});
+
+test('Dark Mini Xiangqi event writer marks aborts recorded with persistence off', async () => {
+  const room = roomFixture('dmxq_aborted_offline');
+  const persistence = persistenceFixture({ initialized: false });
+
+  await appendDarkMiniXiangqiEvent(
+    room,
+    { type: 'game-aborted', at: 2, roomId: room.id, reason: 'pregame-timeout' },
+    writerContext({ persistence }),
+  );
+
+  assert.equal(room.projection.state.status.type, 'aborted');
+  assert.equal(room.gameEndRecorded, true);
+  assert.deepEqual(persistence.operations, []);
+});
+
 test('Dark Mini Xiangqi event writer records private terminal summaries once', async () => {
   const room = roomFixture('dmxq_finished');
   room.seatTokens.red = seatTokenState('red', 'red-user');
@@ -298,6 +333,7 @@ type TestWriterContext = DarkMiniXiangqiEventWriterContext & {
 };
 
 type TestPersistence = DarkMiniXiangqiEventWriterPersistence & {
+  aborts: Array<{ roomId: string; abortedReason: string; termination: string }>;
   appendedEvents: Array<{ roomId: string; seq: number; event: DarkMiniXiangqiEvent }>;
   gameEnds: Array<{ roomId: string; summary: Parameters<TestPersistence['recordGameEnd']>[1] }>;
   operations: string[];
@@ -318,6 +354,16 @@ function persistenceFixture(
   } = {},
 ): TestPersistence {
   const persistence: TestPersistence = {
+    abortRunningGame: async (roomId, opts) => {
+      persistence.operations.push('abort-running-game');
+      persistence.aborts.push({
+        roomId,
+        abortedReason: opts.abortedReason,
+        termination: opts.termination,
+      });
+      return true;
+    },
+    aborts: [],
     appendedEvents: [],
     appendRoomEvent: async (roomId, seq, event) => {
       persistence.operations.push('append');

@@ -18,6 +18,10 @@ import type {
 } from './tenant.js';
 
 export type TenantEventWriterPersistence<C extends string, M, Spec extends string = string> = {
+  abortRunningGame(
+    roomId: string,
+    options: { abortedReason: string; endedAt?: Date; termination: 'abandoned' },
+  ): Promise<boolean>;
   appendRoomEvent(roomId: string, seq: number, event: TenantRoomEvent<C, M, Spec>): Promise<void>;
   isInitialized(): boolean;
   recordGameEnd(roomId: string, summary: persistence.GameSummary): Promise<void>;
@@ -34,6 +38,7 @@ export type TenantEventWriterContext<
   State extends TenantGameStateLike<C>,
   Spec extends string = string,
 > = {
+  logGameAbortRecordFailure?(roomId: string, err: Error): void;
   logGameEndRecordFailure?(roomId: string, err: Error): void;
   persistence?: TenantEventWriterPersistence<C, M, Spec>;
   scheduleLifecycleTimers?(room: TenantRuntimeRoom<Kind, C, M, State, Spec>): void;
@@ -86,8 +91,21 @@ export async function appendTenantEvent<
         writer.logGameEndRecordFailure(room.id, err as Error);
       }
     }
-    if (room.projection.state.status.type === 'aborted') {
+    if (room.projection.state.status.type === 'aborted' && !room.gameEndRecorded) {
       room.gameEndRecorded = true;
+      // Aborts flip the running games row (status='aborted', no result)
+      // instead of recordGameEnd — mirrors the chess stack. No-op for rooms
+      // that never recorded a game start.
+      if (writer.persistence.isInitialized()) {
+        try {
+          await writer.persistence.abortRunningGame(room.id, {
+            abortedReason: room.projection.state.status.reason,
+            termination: 'abandoned',
+          });
+        } catch (err) {
+          writer.logGameAbortRecordFailure(room.id, err as Error);
+        }
+      }
     }
     return appendedSeq;
   });
@@ -215,11 +233,29 @@ function contextWithDefaults<
   ctx: TenantEventWriterContext<Kind, C, M, State, Spec>,
 ): Required<TenantEventWriterContext<Kind, C, M, State, Spec>> {
   return {
+    logGameAbortRecordFailure: (roomId, err) =>
+      logTenantGameAbortRecordFailure(tenant, roomId, err),
     logGameEndRecordFailure: (roomId, err) => logTenantGameEndRecordFailure(tenant, roomId, err),
     persistence,
     scheduleLifecycleTimers: () => {},
     ...ctx,
   };
+}
+
+function logTenantGameAbortRecordFailure(
+  tenant: { persistence: { logKindPrefix: string; logLabel: string } },
+  roomId: string,
+  err: Error,
+): void {
+  logger.error(
+    {
+      kind: `${tenant.persistence.logKindPrefix}_game_abort_record_failure`,
+      room_id: roomId,
+      error: err.message,
+      at: Date.now(),
+    },
+    `${tenant.persistence.logLabel} game abort record failure`,
+  );
 }
 
 function logTenantGameEndRecordFailure(
