@@ -1062,3 +1062,31 @@ test('replays a correspondence log with the days-per-move reset transition', () 
   assert.equal(afterReset.state.clock?.activeColor, 'black');
   assert.equal(afterReset.state.clock?.runningSince, sixHoursLater);
 });
+
+test('replays a spec-first room-created event (variant-tenant logs omit variant/offer)', () => {
+  // The dark-chess tenant writes room-created with gameSpecId only; the chess
+  // shell and the /game/:id review both replay such logs through this reducer.
+  const events: GameEvent[] = [
+    {
+      type: 'room-created',
+      at: 1,
+      roomId: 'dchx_spec_first',
+      gameSpecId: 'dark-chess',
+      timeControl: { initialMs: 86_400_000, incrementMs: 0, daysPerMove: 1 },
+    },
+    {
+      type: 'move-played',
+      at: 2,
+      roomId: 'dchx_spec_first',
+      color: 'white',
+      move: { from: 'e2', to: 'e4' },
+    },
+  ];
+  const projection = replayGameEvents(events);
+  assert.equal(projection.variant, 'dark-chess');
+  assert.equal(projection.gameSpecId, 'dark-chess');
+  assert.deepEqual(projection.offer, []);
+  assert.equal(projection.state.status.type, 'playing');
+  assert.equal(projection.state.board.e4?.role, 'pawn');
+  assert.equal(projection.timeControl?.daysPerMove, 1);
+});

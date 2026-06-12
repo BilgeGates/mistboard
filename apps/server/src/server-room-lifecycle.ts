@@ -687,7 +687,7 @@ function engineDraftSelectionEvent(
   roomId: string,
   at: number,
 ): Extract<GameEvent, { type: 'draft-start-selected' }> | null {
-  const offer = roomCreated.offers?.black ?? roomCreated.offer;
+  const offer = roomCreated.offers?.black ?? roomCreated.offer ?? [];
   if (offer.length === 0) return null;
   const start = offer[Math.abs(roomIdToSeed(`${roomId}:black-draft`)) % offer.length];
   if (!start) return null;

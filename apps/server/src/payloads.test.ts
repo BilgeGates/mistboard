@@ -222,7 +222,7 @@ test('live Fog Draft960 payload hides opponent offer and selection', () => {
   assert.equal(roomCreated?.type, 'room-created');
   if (roomCreated?.type === 'room-created') {
     assert.deepEqual(
-      roomCreated.offer.map((start) => start.id),
+      roomCreated.offer?.map((start) => start.id),
       whiteOffer.map((start) => start.id),
     );
     assert.deepEqual(roomCreated.offers, { white: whiteOffer });

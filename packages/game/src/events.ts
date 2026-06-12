@@ -13,7 +13,12 @@ import {
   nextClockForMove,
   unfreezeClock,
 } from './clocks.js';
-import { type GameSpecId, gameSpecForLegacyLiveRoom, maybeGameSpecForId } from './game-specs.js';
+import {
+  type GameSpecId,
+  gameSpecForId,
+  gameSpecForLegacyLiveRoom,
+  maybeGameSpecForId,
+} from './game-specs.js';
 import type {
   AbortReason,
   ClockState,
@@ -39,9 +44,13 @@ export type GameEvent =
       type: 'room-created';
       at: number;
       roomId: string;
-      variant: VariantId;
+      // Legacy live rooms always set variant + offer. Variant-tenant logs are
+      // spec-first: they carry gameSpecId only, and the reducer derives the
+      // variant from the spec (the mirror of gameSpecIdForRoomCreatedEvent).
+      // At least one of variant/gameSpecId must be present.
+      variant?: VariantId;
       gameSpecId?: GameSpecId;
-      offer: Chess960Start[];
+      offer?: Chess960Start[];
       offers?: Partial<Record<Color, Chess960Start[]>>;
       timeControl?: RoomTimeControl;
       // Live-game placement region. Optional for old events; new live rooms set
@@ -191,18 +200,26 @@ export function applyGameEvent(projection: GameProjection, event: GameEvent): Ga
   if (event.roomId !== projection.roomId) return projection;
 
   if (event.type === 'room-created') {
-    const state = variantForId(event.variant).createInitialState(event.roomId);
     const gameSpecId = gameSpecIdForRoomCreatedEvent(event);
+    // Spec-first (variant-tenant) logs omit variant; derive it from the spec's
+    // chess-shell rules engine. Specs without one never replay here (the
+    // xiangqi family has its own event union and reducer).
+    const variant = event.variant ?? gameSpecForId(gameSpecId).legacyLiveRoom?.variant;
+    if (!variant) {
+      throw new Error(`room-created for ${gameSpecId} has no chess-family variant to replay`);
+    }
+    const state = variantForId(variant).createInitialState(event.roomId);
+    const offer = event.offer ?? [];
     return {
       ...projection,
-      variant: event.variant,
+      variant,
       gameSpecId,
-      offer: event.offer,
-      offers: event.offers ?? { white: event.offer, black: event.offer },
+      offer,
+      offers: event.offers ?? { white: offer, black: offer },
       timeControl: event.timeControl,
       region: event.region,
       state:
-        event.variant === 'dark-chess' && hasDraftOffer(event)
+        variant === 'dark-chess' && hasDraftOffer(event)
           ? { ...state, status: { type: 'pregame' } }
           : state,
     };
@@ -445,15 +462,17 @@ function offerForColor(projection: GameProjection, color: Color): Chess960Start[
 function gameSpecIdForRoomCreatedEvent(
   event: Extract<GameEvent, { type: 'room-created' }>,
 ): GameSpecId {
-  return (
-    maybeGameSpecForId(event.gameSpecId)?.id ??
-    gameSpecForLegacyLiveRoom({
-      variant: event.variant,
-      hiddenDraft960: hasDraftOffer(event),
-    }).id
-  );
+  const bySpecId = maybeGameSpecForId(event.gameSpecId)?.id;
+  if (bySpecId) return bySpecId;
+  if (!event.variant) {
+    throw new Error(`room-created event has neither a known gameSpecId nor a variant`);
+  }
+  return gameSpecForLegacyLiveRoom({
+    variant: event.variant,
+    hiddenDraft960: hasDraftOffer(event),
+  }).id;
 }
 
 function hasDraftOffer(event: Extract<GameEvent, { type: 'room-created' }>): boolean {
-  return event.offer.length > 0 || !!event.offers?.white?.length || !!event.offers?.black?.length;
+  return !!event.offer?.length || !!event.offers?.white?.length || !!event.offers?.black?.length;
 }
