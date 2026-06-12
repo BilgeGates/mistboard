@@ -1,6 +1,6 @@
 # Status
 
-_Last updated: 2026-06-09_
+_Last updated: 2026-06-11_
 
 **State:** active
 **Launched:** https://mistboard.com
@@ -32,6 +32,17 @@ Recent shipped work:
 - Homepage hero showcase: PvP-first with an engine-vs-engine fallback
 - Unlisted admin engine tracker: `/engines` version roster + `/engine/:id` per-engine profile (PvE-first record, sourced from `game_participants`)
 - Rated-mode plumbing remains off by default and account-gated
+- Variant-tenant live-room platform: a generic server room runtime
+  (rooms, persistence, hydration, ws host, lobby/create dispatch) plus a
+  shared web socket client and room chrome, with variants registered
+  through a single registry entry per side. Dark Mini Xiangqi, Dark
+  Xiangqi, and Crossroads Chess all run on it.
+- Dark chess packaged on the same tenant contract with a replay-parity
+  test suite; the chess/DMX web shell now shares the platform's single
+  connection state machine (reconnect staging, latency reporting, restart
+  banners now uniform across all variants)
+- Deploy safety: the drain gate counts in-progress games across every
+  variant, and server-restart countdown banners reach all live rooms
 
 Still open against M1:
 - Record mobile gameplay end-to-end evidence for iPhone Safari + Android Chrome
