@@ -1,4 +1,5 @@
-const resendApiKey = process.env.RESEND_API_KEY;
+import { sendTransactionalEmail, transactionalEmailConfigured } from './send-email.js';
+
 // MISTBOARD_FEEDBACK_FROM lets feedback use a dedicated sender (e.g.
 // feedback@mistboard.com) without disturbing the auth-email From. Falls back
 // to the auth From so existing deploys keep working with no env change.
@@ -8,7 +9,7 @@ const fromAddress =
   process.env.RESEND_FROM_EMAIL;
 const feedbackTo = process.env.MISTBOARD_FEEDBACK_TO;
 
-export const feedbackEmailEnabled = !!resendApiKey && !!fromAddress && !!feedbackTo;
+export const feedbackEmailEnabled = transactionalEmailConfigured && !!fromAddress && !!feedbackTo;
 
 export interface FeedbackEmailPayload {
   id: string;
@@ -49,39 +50,21 @@ export async function sendFeedbackNotification(payload: FeedbackEmailPayload): P
     `ID:   ${payload.id}`,
   ];
 
-  try {
-    const response = await fetch('https://api.resend.com/emails', {
-      method: 'POST',
-      headers: {
-        authorization: `Bearer ${resendApiKey}`,
-        'content-type': 'application/json',
-      },
-      body: JSON.stringify({
-        from: fromAddress,
-        to: [feedbackTo],
-        subject,
-        text: lines.join('\n'),
-        ...(replyTo ? { reply_to: replyTo } : {}),
-      }),
-    });
-    if (!response.ok) {
-      console.error(
-        JSON.stringify({
-          level: 'error',
-          kind: 'feedback_delivery_failure',
-          provider: 'resend',
-          status: response.status,
-          at: Date.now(),
-        }),
-      );
-    }
-  } catch (err) {
+  const result = await sendTransactionalEmail({
+    from: fromAddress as string,
+    to: [feedbackTo as string],
+    subject,
+    text: lines.join('\n'),
+    ...(replyTo ? { replyTo } : {}),
+  });
+  if (!result.ok) {
     console.error(
       JSON.stringify({
         level: 'error',
         kind: 'feedback_delivery_failure',
         provider: 'resend',
-        error: (err as Error).message,
+        ...(result.statusCode !== undefined ? { status: result.statusCode } : {}),
+        ...(result.error !== undefined ? { error: result.error } : {}),
         at: Date.now(),
       }),
     );

@@ -1,3 +1,5 @@
+import { sendTransactionalEmail, transactionalEmailConfigured } from './send-email.js';
+
 export type EngineAlertEmailPayload = {
   severity: 'critical' | 'warning';
   [field: string]: string | number | undefined;
@@ -15,7 +17,6 @@ type SendOptions = {
   serviceName?: string;
 };
 
-const resendApiKey = process.env.RESEND_API_KEY;
 const alertEmailFrom =
   process.env.MISTBOARD_ALERT_EMAIL_FROM ??
   process.env.MISTBOARD_FEEDBACK_FROM ??
@@ -31,7 +32,7 @@ const alertEmailMinIntervalMs = parsePositiveInt(
 const lastEmailAtBySeverity = new Map<EngineAlertEmailPayload['severity'], number>();
 
 export const engineAlertEmailEnabled =
-  !!resendApiKey && !!alertEmailFrom && alertEmailTo.length > 0;
+  transactionalEmailConfigured && !!alertEmailFrom && alertEmailTo.length > 0;
 
 export async function sendEngineAlertNotification(
   alert: EngineAlertEmailPayload,
@@ -46,26 +47,21 @@ export async function sendEngineAlertNotification(
 
   const at = new Date(nowMs);
   const serviceName = options.serviceName ?? currentServiceName();
-  const fetchImpl = options.fetchImpl ?? fetch;
-  try {
-    const response = await fetchImpl('https://api.resend.com/emails', {
-      method: 'POST',
-      headers: {
-        authorization: `Bearer ${resendApiKey}`,
-        'content-type': 'application/json',
-      },
-      body: JSON.stringify({
-        from: alertEmailFrom,
-        to: alertEmailTo,
-        subject: engineAlertEmailSubject(alert, serviceName),
-        text: engineAlertEmailText(alert, at, serviceName),
-      }),
-    });
-    if (response.ok) return { status: 'sent' };
-    return { status: 'failed', statusCode: response.status };
-  } catch (err) {
-    return { status: 'failed', error: (err as Error).message };
-  }
+  const result = await sendTransactionalEmail(
+    {
+      from: alertEmailFrom as string,
+      to: alertEmailTo,
+      subject: engineAlertEmailSubject(alert, serviceName),
+      text: engineAlertEmailText(alert, at, serviceName),
+    },
+    { fetchImpl: options.fetchImpl },
+  );
+  if (result.ok) return { status: 'sent' };
+  return {
+    status: 'failed',
+    ...(result.statusCode !== undefined ? { statusCode: result.statusCode } : {}),
+    ...(result.error !== undefined ? { error: result.error } : {}),
+  };
 }
 
 export function engineAlertEmailSubject(

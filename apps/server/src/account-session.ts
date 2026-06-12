@@ -2,6 +2,7 @@ import { createHash, randomInt, randomUUID } from 'node:crypto';
 import type { IncomingMessage } from 'node:http';
 import { handleBaseForEmail, maxHandleLength, randomFallbackHandle } from './account-identity.js';
 import * as persistence from './persistence.js';
+import { sendTransactionalEmail, transactionalEmailConfigured } from './send-email.js';
 import { isProductionLikeRuntime } from './server-policy.js';
 
 const accountSessionCookieName = 'mistboard_session';
@@ -9,9 +10,8 @@ export const accountSessionTtlMs = 30 * 24 * 60 * 60 * 1000;
 export const emailLoginCodeTtlMs = 10 * 60 * 1000;
 export const devAuthCodesEnabled =
   !isProductionLikeRuntime() || process.env.MISTBOARD_DEV_AUTH_CODES === 'true';
-const resendApiKey = process.env.RESEND_API_KEY;
 const authEmailFrom = process.env.MISTBOARD_AUTH_EMAIL_FROM ?? process.env.RESEND_FROM_EMAIL;
-export const authEmailDeliveryEnabled = !!resendApiKey && !!authEmailFrom;
+export const authEmailDeliveryEnabled = transactionalEmailConfigured && !!authEmailFrom;
 
 export async function currentAccountUser(
   request: IncomingMessage,
@@ -105,7 +105,7 @@ export async function sendEmailLoginCode(
   email: string,
   code: string,
 ): Promise<{ ok: true } | { ok: false }> {
-  if (!resendApiKey || !authEmailFrom) return { ok: false };
+  if (!authEmailDeliveryEnabled || !authEmailFrom) return { ok: false };
   const subject = 'Your Mistboard login code';
   const text = [
     `Your Mistboard login code is ${code}.`,
@@ -120,44 +120,25 @@ export async function sendEmailLoginCode(
     '<p>If you did not request this code, you can ignore this email.</p>',
   ].join('');
 
-  try {
-    const response = await fetch('https://api.resend.com/emails', {
-      method: 'POST',
-      headers: {
-        authorization: `Bearer ${resendApiKey}`,
-        'content-type': 'application/json',
-      },
-      body: JSON.stringify({
-        from: authEmailFrom,
-        to: [email],
-        subject,
-        text,
-        html,
-      }),
-    });
-    if (response.ok) return { ok: true };
-    console.error(
-      JSON.stringify({
-        level: 'error',
-        kind: 'email_delivery_failure',
-        provider: 'resend',
-        status: response.status,
-        at: Date.now(),
-      }),
-    );
-    return { ok: false };
-  } catch (err) {
-    console.error(
-      JSON.stringify({
-        level: 'error',
-        kind: 'email_delivery_failure',
-        provider: 'resend',
-        error: (err as Error).message,
-        at: Date.now(),
-      }),
-    );
-    return { ok: false };
-  }
+  const result = await sendTransactionalEmail({
+    from: authEmailFrom,
+    to: [email],
+    subject,
+    text,
+    html,
+  });
+  if (result.ok) return { ok: true };
+  console.error(
+    JSON.stringify({
+      level: 'error',
+      kind: 'email_delivery_failure',
+      provider: 'resend',
+      ...(result.statusCode !== undefined ? { status: result.statusCode } : {}),
+      ...(result.error !== undefined ? { error: result.error } : {}),
+      at: Date.now(),
+    }),
+  );
+  return { ok: false };
 }
 
 function escapeHtml(value: string): string {
