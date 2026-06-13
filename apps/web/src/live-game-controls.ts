@@ -12,12 +12,14 @@ export function renderGameControls(
   view: PlayerView | null,
   sendSocket: SendSocket,
 ): void {
-  const isLivePlayableRoom =
-    (liveState.roomMode === 'pvp' || liveState.roomMode === 'pve') &&
+  const isPlayableRoom =
+    (liveState.roomMode === 'pvp' ||
+      liveState.roomMode === 'pve' ||
+      liveState.roomMode === 'correspondence') &&
     isColor(liveState.seat) &&
     view?.status.type === 'playing' &&
     !liveState.solo;
-  if (!isLivePlayableRoom || !view || view.status.type !== 'playing') {
+  if (!isPlayableRoom || !view || view.status.type !== 'playing') {
     refs.gameControlsSection.hidden = true;
     refs.gameControls.replaceChildren();
     return;
@@ -27,11 +29,17 @@ export function renderGameControls(
   // aborted by the side to move. From move 2 on, either player resigns.
   const preMove = view.moveNumber < 2;
   const isSideToMove = view.status.turn === liveState.seat;
+  // Correspondence (day-scale) rooms enforce the abort/forfeit deadlines on the
+  // server sweeper, not a live second-counter, and the day clock already shows
+  // the deadline — so keep the Abort/Resign buttons but drop the seconds-scale
+  // countdown spans (a "172800s" countdown is noise at days cadence).
+  const dayScale =
+    typeof liveState.timeControl?.daysPerMove === 'number' && liveState.timeControl.daysPerMove > 0;
 
   const children: HTMLElement[] = [];
   // Show the abort countdown to both players so the waiting side understands
   // the pause. Timing info only; it leaks no board state.
-  if (preMove && liveState.abortDeadline !== null) {
+  if (preMove && !dayScale && liveState.abortDeadline !== null) {
     const countdown = document.createElement('span');
     countdown.className = 'abort-countdown';
     countdown.dataset.abortCountdown = '';
@@ -40,7 +48,7 @@ export function renderGameControls(
   }
   // Post-move-1: only a present winning player receives forfeitDeadline, so
   // this banner always reads from the beneficiary's point of view.
-  if (!preMove && liveState.forfeitDeadline !== null) {
+  if (!preMove && !dayScale && liveState.forfeitDeadline !== null) {
     const banner = document.createElement('span');
     banner.className = 'forfeit-countdown';
     banner.dataset.forfeitCountdown = '';

@@ -31,9 +31,12 @@ afterEach(() => {
   liveState.solo = false;
   liveState.abortDeadline = null;
   liveState.forfeitDeadline = null;
+  liveState.timeControl = null;
   vi.restoreAllMocks();
   document.body.replaceChildren();
 });
+
+const CORRESPONDENCE_TC = { initialMs: 3 * 86_400_000, incrementMs: 0, daysPerMove: 3 };
 
 describe('renderGameControls', () => {
   it('shows resign for seated PvP players after the first-move abort window', () => {
@@ -67,6 +70,34 @@ describe('renderGameControls', () => {
 
     expect(refs.gameControlsSection.hidden).toBe(true);
     expect(refs.gameControls.childElementCount).toBe(0);
+  });
+
+  it('shows resign for seated correspondence players after the first move', () => {
+    const refs = makeRefs();
+    liveState.roomMode = 'correspondence';
+    liveState.seat = 'white';
+    liveState.timeControl = CORRESPONDENCE_TC;
+
+    renderGameControls(refs, makeView(), vi.fn());
+
+    expect(refs.gameControlsSection.hidden).toBe(false);
+    expect(refs.gameControls.textContent).toBe('Resign');
+  });
+
+  it('shows abort but no seconds countdown for correspondence before the first move', () => {
+    const refs = makeRefs();
+    liveState.roomMode = 'correspondence';
+    liveState.seat = 'white';
+    liveState.timeControl = CORRESPONDENCE_TC;
+    // A live PvE room would render the abort-countdown span from this; day-scale
+    // rooms must suppress it (the day clock shows the deadline) yet keep Abort.
+    liveState.abortDeadline = Date.now() + 10_000;
+
+    renderGameControls(refs, makeView({ moveNumber: 0 }), vi.fn());
+
+    expect(refs.gameControls.querySelector('button')?.textContent).toBe('Abort');
+    expect(refs.gameControls.querySelector('[data-abort-countdown]')).toBeNull();
+    expect(refs.gameControls.textContent).toBe('Abort');
   });
 
   it('shows abort instead of resign during the PvE first-move abort window', () => {
