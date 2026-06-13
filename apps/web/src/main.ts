@@ -5,6 +5,10 @@ import { initializeAccountNav } from './account-nav.js';
 import { setPostHogInstance } from './analytics.js';
 import type { ArticleLang } from './article-i18n.js';
 import { correspondenceEnabled, darkXiangqiEnabled } from './feature-flags.js';
+import {
+  correspondenceNotificationSource,
+  registerNotificationSource,
+} from './notification-nav.js';
 import { setRatedModeEnabled } from './rated-flag.js';
 import { mountRestartBanner, setRestartBanner } from './restart-banner.js';
 import { initializeThemeSettings } from './theme.js';
@@ -15,6 +19,10 @@ import {
 } from './variant-tenant/registry.js';
 
 initializeThemeSettings();
+// Register notification sources before the nav mounts — account-nav mounts the
+// bell once signed in, and a bell with no sources is a no-op. Correspondence is
+// the only source today, behind its build flag.
+if (correspondenceEnabled()) registerNotificationSource(correspondenceNotificationSource);
 initializeAccountNav();
 mountRestartBanner();
 void fetch('/api/server-status')

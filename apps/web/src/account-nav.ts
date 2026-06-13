@@ -3,6 +3,7 @@ import './account-nav.css';
 import { identify, resetIdentity } from './analytics.js';
 import { type ConnectionStatus, createConnectionStatus } from './connection-status.js';
 import { clearSeatTokenForRoom, liveState } from './live-state.js';
+import { clearNotificationBells, mountNotificationBell } from './notification-nav.js';
 import { readSignedInHint, setResolvedSignedIn, writeSignedInHint } from './signed-in-state.js';
 import { buildAppearanceMenu, initializeThemeSettings, resetAppearanceMenus } from './theme.js';
 
@@ -122,6 +123,8 @@ function applyPendingSlots(): void {
 }
 
 function revealSignedOutSlots(): void {
+  // The bell is signed-in-only; drop it when we resolve to signed-out.
+  clearNotificationBells();
   document
     .querySelectorAll<HTMLElement>('[data-account-slot][data-account-pending="1"]')
     .forEach((slot) => {
@@ -175,6 +178,11 @@ function mountAccountNav(nav: HTMLElement, user: AuthUser): void {
   if (utilities.querySelector('[data-account-nav]')) return;
   const slot = utilities.querySelector<HTMLElement>('[data-account-slot]');
   if (!slot) return;
+
+  // The signed-in nav also carries the notification bell (left of the account
+  // menu). Mounted here so it inherits the same signed-in timing + observer;
+  // a no-op when no notification sources are registered.
+  mountNotificationBell(nav);
 
   const path = window.location.pathname.replace(/\/+$/, '') || '/';
   const wasActive = path === '/account' || path.startsWith('/account/');
