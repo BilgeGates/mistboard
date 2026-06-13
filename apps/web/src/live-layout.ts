@@ -1,6 +1,5 @@
 import type { LiveRefs } from './live-state.js';
-import { primaryNavItems, utilityNavItems } from './nav-items.js';
-import { escapeHtml } from './web-utils.js';
+import { buildNav } from './site-shell.js';
 
 export function setLiveLayoutGameSpec(target: HTMLElement, gameSpecId: string | null): void {
   target.classList.toggle('live-route--xiangqi', gameSpecId === 'dark-xiangqi');
@@ -14,7 +13,6 @@ export function createLiveLayout(
   options: { debugRequested: boolean },
 ): LiveRefs {
   target.innerHTML = `
-    ${buildNavHtml()}
     <main class="shell${options.debugRequested ? ' debug-shell' : ''}">
       ${
         options.debugRequested
@@ -103,6 +101,13 @@ export function createLiveLayout(
     </main>
   `;
 
+  // The room rides the shared site nav (brand + Watch/Leaderboard + Learn +
+  // account), prepended as an element so its dropdown and mobile toggle wire
+  // up; account-nav.ts hydrates it via its body MutationObserver like every
+  // other page. Previously this was a hand-rolled static string that drifted
+  // (no Learn menu, no mobile toggle) — converging keeps one nav source.
+  target.prepend(buildNav());
+
   const roomMeta = target.querySelector<HTMLParagraphElement>('[data-room-meta]');
   const gameInfo = target.querySelector<HTMLDivElement>('[data-game-info]');
   const board = target.querySelector<HTMLDivElement>('[data-board]');
@@ -188,33 +193,4 @@ export function createLiveLayout(
     gameControls,
     gameControlsSection,
   };
-}
-
-function buildNavHtml(): string {
-  return `
-    <nav class="site-nav" aria-label="Primary">
-      <a class="site-nav-brand" href="/">
-        <img class="site-nav-logo" src="/logo.svg" alt="" width="28" height="28">
-        <span>MISTBOARD</span>
-      </a>
-      <div class="site-nav-links">
-        ${primaryNavItems()
-          .map(
-            (item) => `<a class="site-nav-link" href="${item.href}">${escapeHtml(item.label)}</a>`,
-          )
-          .join('')}
-      </div>
-      <div class="site-nav-utilities">
-        ${utilityNavItems()
-          .map(
-            (item) => `<a class="site-nav-link" href="${item.href}">${escapeHtml(item.label)}</a>`,
-          )
-          .join('')}
-        <div class="site-nav-auth" data-account-slot>
-          <a class="site-nav-link site-nav-link-signin" href="/account?tab=login">Sign in</a>
-          <a class="site-nav-link-primary" href="/account?tab=register">Register</a>
-        </div>
-      </div>
-    </nav>
-  `;
 }

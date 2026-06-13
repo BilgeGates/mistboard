@@ -978,6 +978,19 @@
   background: var(--site-accent-soft);
 }
 
+/* Correspondence rooms sit in the pregame clock rows before the first move
+   arms the clock, yet one side is already to move. Lift the active row out of
+   the dimmed pregame state and reveal its turn pill so whose-move-it-is reads
+   at a glance (the armed-clock branch reveals the pill via clock-player-line). */
+.clocks div.pregame.active {
+  opacity: 1;
+}
+
+.clocks div.pregame.active .clock-to-move {
+  visibility: visible;
+  opacity: 1;
+}
+
 /* Brief one-shot flash when the active clock flips to the seated player. The
    100ms timer-only refresh (tickClockTimers) doesn't re-mount the row, so the
    animation plays once cleanly. */

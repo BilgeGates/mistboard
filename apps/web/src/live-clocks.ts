@@ -28,6 +28,9 @@ export function renderClocks(refs: ClockRefs, view: PlayerView | null): void {
     const tc = roomCreated?.timeControl;
     if (tc) {
       const dayScale = daysPerMoveAllowance() !== null;
+      // Correspondence rooms are 'playing' before the clock arms (the first
+      // move starts it), so the side to move is already real and marked.
+      const toMove = dayScale && view?.status.type === 'playing' ? view.status.turn : null;
       const incrementSec = Math.round(tc.incrementMs / 1000);
       const tcLabel =
         incrementSec > 0
@@ -36,9 +39,15 @@ export function renderClocks(refs: ClockRefs, view: PlayerView | null): void {
       const colors: Color[] = ['black', 'white'];
       colors.forEach((color, index) => {
         const row = document.createElement('div');
-        row.className = 'pregame';
+        row.className = color === toMove ? 'pregame active' : 'pregame';
         const label = document.createElement('span');
         label.textContent = liveState.seatDisplayNames[color] ?? capitalize(color);
+        if (color === toMove) {
+          const pill = document.createElement('span');
+          pill.className = 'clock-to-move';
+          pill.textContent = color === liveState.seat ? 'your move' : 'to move';
+          label.append(' ', pill);
+        }
         const time = document.createElement('strong');
         time.textContent = dayScale ? formatDayClock(tc.initialMs) : formatClock(tc.initialMs);
         row.append(label, time);
