@@ -7,6 +7,7 @@
  * here before scaling the web service out.
  */
 
+import { sweepDeadlineWarnings } from '../correspondence-deadline-warning.js';
 import { logger } from '../obs.js';
 import * as persistence from '../persistence.js';
 import { variantTenantForRoomId } from './registry.js';
@@ -19,6 +20,10 @@ export type TenantDeadlineSweeperOptions = {
   listDue?: (now: Date) => Promise<Array<{ roomId: string; gameSpecId: string }>>;
   now?: () => number;
   registrationFor?: typeof variantTenantForRoomId;
+  // Deadline-warning pass, run after the due pass each tick. Injectable so
+  // tests can assert it fires without sending real email; defaults to the real
+  // correspondence warning sweep.
+  warnDeadlines?: (now: Date) => Promise<void>;
 };
 
 export type TenantDeadlineSweeper = {
@@ -35,6 +40,7 @@ export function startTenantDeadlineSweeper(
   const listDue = options.listDue ?? ((now: Date) => persistence.listDueRoomDeadlines(now));
   const now = options.now ?? Date.now;
   const registrationFor = options.registrationFor ?? variantTenantForRoomId;
+  const warnDeadlines = options.warnDeadlines ?? ((at: Date) => sweepDeadlineWarnings(at));
 
   async function tick(): Promise<void> {
     if (!isInitialized()) return;
@@ -80,6 +86,17 @@ export function startTenantDeadlineSweeper(
           'deadline sweep room failure',
         );
       }
+    }
+    // Deadline-warning pass: same row source, run after the due pass so a
+    // warning failure can never delay timeout enforcement. The pass handles its
+    // own errors; guard the call defensively regardless.
+    try {
+      await warnDeadlines(new Date(now()));
+    } catch (err) {
+      logger.error(
+        { kind: 'deadline_warning_sweep_failure', error: (err as Error).message, at: now() },
+        'deadline warning sweep failure',
+      );
     }
   }
 

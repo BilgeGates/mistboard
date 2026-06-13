@@ -103,13 +103,16 @@ export {
 } from './persistence-games.js';
 export type {
   CorrespondenceGameSummary,
+  DeadlineWarningCandidate,
   DueRoomDeadline,
   RoomDeadlineRecord,
 } from './persistence-room-deadlines.js';
 export {
   deleteRoomDeadline,
   listCorrespondenceGamesForUser,
+  listDeadlineWarningCandidates,
   listDueRoomDeadlines,
+  markRoomDeadlineWarned,
   upsertRoomDeadline,
 } from './persistence-room-deadlines.js';
 export type { RoomSeatTokenRecord, RoomSeatTokenSeat } from './persistence-seat-tokens.js';

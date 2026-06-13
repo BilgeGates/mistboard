@@ -116,3 +116,72 @@ export async function listDueRoomDeadlines(now: Date, limit = 50): Promise<DueRo
     dueAt: row.due_at as Date,
   }));
 }
+
+// A correspondence game approaching its move deadline, with everything the
+// warning email needs: the recipient account (the seat on the move), the
+// opponent's name, and the per-move allowance in ms (room-created initialMs,
+// which equals daysPerMove for correspondence) so the sweeper can scale the
+// warning lead per game. Allowance comes from the room-created event, so the
+// query needs no room hydration.
+export type DeadlineWarningCandidate = {
+  roomId: string;
+  dueAt: Date;
+  allowanceMs: number;
+  recipientEmail: string;
+  recipientUserId: string;
+  opponentName: string | null;
+};
+
+// Un-warned, not-yet-due rows with a seated account whose deadline falls inside
+// the max-lead window. The sweeper applies the per-game lead (a fraction of the
+// allowance) in code; this just bounds the candidate set cheaply.
+export async function listDeadlineWarningCandidates(
+  now: Date,
+  maxLeadMs: number,
+): Promise<DeadlineWarningCandidate[]> {
+  const { rows } = await getPool().query<{
+    room_id: string;
+    due_at: Date;
+    allowance_ms: string | null;
+    recipient_email: string;
+    recipient_user_id: string;
+    opponent_name: string | null;
+  }>(
+    `SELECT rd.room_id, rd.due_at, rd.seat_user_id AS recipient_user_id,
+            u.email AS recipient_email,
+            COALESCE(opp_user.display_name, opp_user.handle) AS opponent_name,
+            (rc.payload->'timeControl'->>'initialMs') AS allowance_ms
+     FROM room_deadlines rd
+     JOIN users u ON u.id = rd.seat_user_id
+     LEFT JOIN room_seat_tokens opp
+       ON opp.room_id = rd.room_id AND opp.seat <> rd.seat AND opp.revoked_at IS NULL
+     LEFT JOIN users opp_user ON opp_user.id = opp.user_id
+     LEFT JOIN events rc ON rc.room_id = rd.room_id AND rc.payload->>'type' = 'room-created'
+     WHERE rd.warned_at IS NULL
+       AND rd.seat_user_id IS NOT NULL
+       AND rd.due_at > $1
+       AND rd.due_at <= $2
+     ORDER BY rd.due_at`,
+    [now, new Date(now.getTime() + maxLeadMs)],
+  );
+  return rows
+    .filter((row) => row.allowance_ms !== null)
+    .map((row) => ({
+      roomId: row.room_id,
+      dueAt: row.due_at,
+      allowanceMs: Number(row.allowance_ms),
+      recipientEmail: row.recipient_email,
+      recipientUserId: row.recipient_user_id,
+      opponentName: row.opponent_name,
+    }));
+}
+
+// Mark the current deadline warned so the sweeper sends once. Guarded on
+// warned_at IS NULL so a re-arm (a move resets due_at, nulling warned_at) is
+// the only path that sends again — one warning per deadline.
+export async function markRoomDeadlineWarned(roomId: string, at: Date): Promise<void> {
+  await getPool().query(
+    `UPDATE room_deadlines SET warned_at = $2 WHERE room_id = $1 AND warned_at IS NULL`,
+    [roomId, at],
+  );
+}
