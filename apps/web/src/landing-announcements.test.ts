@@ -25,6 +25,16 @@ describe('landing announcements', () => {
     expect(row?.getAttribute('href')).toBe('/rules/dark-mini-xiangqi');
   });
 
+  it('links the Misty announcement to the engine play flow', () => {
+    const panel = buildLandingAnnouncements();
+    const row = [...panel.querySelectorAll<HTMLAnchorElement>('a.landing-news-row')].find((r) =>
+      r.textContent?.includes('Misty 1.0'),
+    );
+
+    expect(row).toBeDefined();
+    expect(row?.getAttribute('href')).toBe('/?play=computer');
+  });
+
   it('links the News box header to /news', () => {
     const top = buildLandingAnnouncements().querySelector<HTMLAnchorElement>('a.site-box-top');
     expect(top?.getAttribute('href')).toBe('/news');

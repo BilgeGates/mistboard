@@ -49,6 +49,8 @@ const baseAnnouncements: Announcement[] = [
     kind: 'release',
     headline: 'Misty 1.0 has launched.',
     body: 'Our Fog of War dark chess engine is now live to play.',
+    href: '/?play=computer',
+    cta: 'Play the engine',
   },
 ];
 
