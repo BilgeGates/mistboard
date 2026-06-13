@@ -101,9 +101,14 @@ export {
   queryGames,
   recordGameEnd,
 } from './persistence-games.js';
-export type { DueRoomDeadline, RoomDeadlineRecord } from './persistence-room-deadlines.js';
+export type {
+  CorrespondenceGameSummary,
+  DueRoomDeadline,
+  RoomDeadlineRecord,
+} from './persistence-room-deadlines.js';
 export {
   deleteRoomDeadline,
+  listCorrespondenceGamesForUser,
   listDueRoomDeadlines,
   upsertRoomDeadline,
 } from './persistence-room-deadlines.js';

@@ -4,7 +4,7 @@ import './styles.css';
 import { initializeAccountNav } from './account-nav.js';
 import { setPostHogInstance } from './analytics.js';
 import type { ArticleLang } from './article-i18n.js';
-import { darkXiangqiEnabled } from './feature-flags.js';
+import { correspondenceEnabled, darkXiangqiEnabled } from './feature-flags.js';
 import { setRatedModeEnabled } from './rated-flag.js';
 import { mountRestartBanner, setRestartBanner } from './restart-banner.js';
 import { initializeThemeSettings } from './theme.js';
@@ -89,6 +89,9 @@ const wantsArticlesIndex =
 const wantsNews = path === '/news' || page === 'news';
 const wantsLegacyPlay = path === '/play' || page === 'play';
 const wantsWatch = path === '/watch' || page === 'watch';
+// Behind the correspondence build flag (soft launch). The nav bell + this
+// dashboard share the gate; the route is invisible until the flag is on.
+const wantsCorrespondence = correspondenceEnabled() && path === '/correspondence';
 const wantsLeaderboard = path === '/leaderboard' || page === 'leaderboard';
 // Unlisted admin game browser. No nav entry; the page itself is admin-gated by
 // the /api/admin/games/query endpoint (open in local dev). Direct-URL only.
@@ -194,6 +197,11 @@ if (replaySample) {
   setTitle('Account');
   void mountOrReport(() =>
     import('./account.js').then(({ mountAccount }) => mountAccount(appRoot)),
+  );
+} else if (wantsCorrespondence) {
+  setTitle('Correspondence');
+  void mountOrReport(() =>
+    import('./correspondence.js').then(({ mountCorrespondence }) => mountCorrespondence(appRoot)),
   );
 } else if (wantsWatch) {
   setTitle('Watch');
