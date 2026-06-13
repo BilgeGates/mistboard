@@ -202,6 +202,48 @@ describe('rules variant sidebar', () => {
     expect(pageText).toContain('BLACK KNOWS');
   });
 
+  it('renders Banqi diagrams and keeps the Taiwanese cannon rule clear', () => {
+    const page = buildArticlePage('banqi');
+    const pageText = page.textContent ?? '';
+
+    expect(pageText).not.toContain('[VISUAL:');
+    expect(pageText).toContain('General > Advisor > Elephant > Chariot > Horse > Soldier');
+    expect(pageText).toContain('The cannon sits outside this rank ladder');
+    expect(pageText).toContain('automatic draw after 50 plies');
+    expect(pageText).toContain('How positions work');
+    expect(pageText).toContain('Taiwanese rules (this page)');
+    expect(pageText).toContain('Hong Kong rules');
+    expect(pageText).toContain('Mainland rules');
+    expect(pageText).toContain('House variants');
+    expect(pageText).toContain('For a capture only');
+    expect(pageText).toContain('A non-capturing cannon move is still just one square');
+    expect(pageText).not.toContain('It slides any distance');
+    expect(pageText).not.toContain('horse, cannon, soldier');
+    const banqiSvgs = [...page.querySelectorAll('.article-figure .xq-article-svg')];
+    expect(banqiSvgs.length).toBeGreaterThanOrEqual(4);
+    expect(
+      banqiSvgs.every((svg) => {
+        const [, , width, height] = svg.getAttribute('viewBox')?.split(/\s+/).map(Number) ?? [];
+        return width > height;
+      }),
+    ).toBe(true);
+    expect(page.querySelector('.xq-piece-back-mark')).not.toBeNull();
+    expect(page.innerHTML).toContain('aria-label="red advisor"');
+    expect(page.innerHTML).toContain('aria-label="black advisor"');
+    expect(page.querySelectorAll('.xq-diagram-title').length).toBeGreaterThanOrEqual(3);
+    expect(page.innerHTML).not.toContain('fill="#5f4a2c"');
+    const figureText = [...page.querySelectorAll('.article-figure')]
+      .map((figure) => figure.textContent)
+      .join('');
+    expect(figureText).not.toContain('?');
+    expect(figureText).toContain('FIRST FLIP ASSIGNS COLOR');
+    expect(figureText).toContain('TAIWAN RANK LADDER');
+    expect(figureText).toContain('Exception: soldier captures general');
+    expect(figureText).toContain('Cannon is outside this ladder');
+    expect(figureText).toContain('CANNON SCREEN CAPTURE');
+    expect(figureText).toContain('FACE-DOWN PIECES SHAPE THE BOARD');
+  });
+
   it('keeps fogged xiangqi blockers as question-mark pieces', () => {
     const page = buildArticlePage('dark-xiangqi');
     const figureText = [...page.querySelectorAll('.article-figure')]

@@ -1763,7 +1763,7 @@ function xqBoardSvg(opts: {
   const boardY = opts.y + 28;
   const clipId = `xq-fog-${xqSvgIdPart(opts.state.id)}-${xqSvgIdPart(opts.label)}-${Math.round(opts.x)}-${Math.round(boardY)}-${perspective}`;
   return [
-    `<text x="${opts.x + XQ_BOARD_W / 2}" y="${opts.y + 14}" font-family="system-ui, sans-serif" font-size="13" font-weight="700" fill="#5f4a2c" text-anchor="middle">${opts.label}</text>`,
+    `<text x="${opts.x + XQ_BOARD_W / 2}" y="${opts.y + 14}" font-family="system-ui, sans-serif" font-size="13" font-weight="700" class="xq-diagram-title" text-anchor="middle">${opts.label}</text>`,
     xqBoardGrid(opts.x, boardY, perspective),
     opts.zones ? xqZoneHighlights(opts.x, boardY, perspective) : '',
     xqFogLayer(view, opts.x, boardY, perspective, clipId),
@@ -2016,7 +2016,7 @@ function mxqBoardCell(opts: {
   layers.push(
     `<rect x="0" y="0" width="${MXQ_BOARD_W}" height="${MXQ_BOARD_H}" rx="${XQ_BOARD_RADIUS}" fill="none" stroke="${XQ_BOARD_STROKE}" stroke-width="${XQ_BOARD_STROKE_WIDTH}"/>`,
   );
-  return `<g transform="translate(${opts.x} 0)"><text x="${MXQ_BOARD_W / 2}" y="11" font-family="system-ui, sans-serif" font-size="11" font-weight="700" fill="#5f4a2c" text-anchor="middle">${opts.label}</text><g transform="translate(0 20)">${layers.join('')}</g></g>`;
+  return `<g transform="translate(${opts.x} 0)"><text x="${MXQ_BOARD_W / 2}" y="11" font-family="system-ui, sans-serif" font-size="11" font-weight="700" class="xq-diagram-title" text-anchor="middle">${opts.label}</text><g transform="translate(0 20)">${layers.join('')}</g></g>`;
 }
 
 const MXQ_BOARD_GAP = 22;
@@ -2737,7 +2737,7 @@ const JIEQI_CAPTURE_PRIVACY = () => xqSvg(
       showCannonTargets: false,
       shroudedStyle: 'back',
     }),
-    `<text x="${JIEQI_PAIR_W / 2}" y="${XQ_BOARD_H + 82}" font-family="system-ui, sans-serif" font-size="13" font-weight="700" fill="#5f4a2c" text-anchor="middle">CAPTURED PIECE KNOWLEDGE</text>`,
+    `<text x="${JIEQI_PAIR_W / 2}" y="${XQ_BOARD_H + 82}" font-family="system-ui, sans-serif" font-size="13" font-weight="700" class="xq-diagram-title" text-anchor="middle">CAPTURED PIECE KNOWLEDGE</text>`,
     jieqiCaptureTray(
       0,
       XQ_BOARD_H + 104,
@@ -2754,6 +2754,223 @@ const JIEQI_CAPTURE_PRIVACY = () => xqSvg(
     ),
   ].join(''),
 );
+
+// ── Banqi rules diagrams ──────────────────────────────────────────────────
+// Future real-game diagram candidate:
+// https://www.youtube.com/watch?v=9QZotFsuWaM
+// Public 神來也暗棋 clip uploaded 2022-11-09 by "暗棋 Dark Chess".
+// Manual parsing is required before using it as a reconstructed position.
+const BANQI_COLS = 8;
+const BANQI_ROWS = 4;
+const BANQI_CELL = 50;
+const BANQI_MARGIN = 16;
+const BANQI_BOARD_W = BANQI_MARGIN * 2 + BANQI_COLS * BANQI_CELL;
+const BANQI_BOARD_H = BANQI_MARGIN * 2 + BANQI_ROWS * BANQI_CELL;
+const BANQI_PIECE_SIZE = 42;
+const BANQI_PAIR_W = JIEQI_PAIR_W;
+const BANQI_CENTER_X = (BANQI_PAIR_W - BANQI_BOARD_W) / 2;
+
+type BanqiPieceSpec = {
+  color?: XiangqiColor;
+  role?: XiangqiPiece['role'];
+  shrouded?: boolean;
+};
+
+function banqiCellCenter(col: number, row: number, x0: number, y0: number): { x: number; y: number } {
+  return {
+    x: x0 + BANQI_MARGIN + col * BANQI_CELL + BANQI_CELL / 2,
+    y: y0 + BANQI_MARGIN + row * BANQI_CELL + BANQI_CELL / 2,
+  };
+}
+
+function banqiBoardGrid(x0: number, y0: number): string {
+  const left = x0 + BANQI_MARGIN;
+  const top = y0 + BANQI_MARGIN;
+  const right = left + BANQI_COLS * BANQI_CELL;
+  const bottom = top + BANQI_ROWS * BANQI_CELL;
+  const parts: string[] = [
+    `<rect x="${x0}" y="${y0}" width="${BANQI_BOARD_W}" height="${BANQI_BOARD_H}" rx="${XQ_BOARD_RADIUS}" class="xq-diagram-bg"/>`,
+  ];
+  for (let c = 0; c <= BANQI_COLS; c += 1) {
+    const x = left + c * BANQI_CELL;
+    parts.push(`<line x1="${x}" y1="${top}" x2="${x}" y2="${bottom}" class="xq-diagram-line" stroke-width="1"/>`);
+  }
+  for (let r = 0; r <= BANQI_ROWS; r += 1) {
+    const y = top + r * BANQI_CELL;
+    parts.push(`<line x1="${left}" y1="${y}" x2="${right}" y2="${y}" class="xq-diagram-line" stroke-width="1"/>`);
+  }
+  parts.push(
+    `<rect x="${x0}" y="${y0}" width="${BANQI_BOARD_W}" height="${BANQI_BOARD_H}" rx="${XQ_BOARD_RADIUS}" fill="none" stroke="${XQ_BOARD_STROKE}" stroke-width="${XQ_BOARD_STROKE_WIDTH}"/>`,
+  );
+  return parts.join('');
+}
+
+function banqiPiece(spec: BanqiPieceSpec, col: number, row: number, x0: number, y0: number): string {
+  const { x, y } = banqiCellCenter(col, row, x0, y0);
+  const piece: XiangqiPiece = {
+    color: spec.color ?? 'black',
+    role: spec.role ?? 'soldier',
+  };
+  return renderXiangqiPieceGlyphed(piece, activeXiangqiPieceSet, {
+    x: x - BANQI_PIECE_SIZE / 2,
+    y: y - BANQI_PIECE_SIZE / 2,
+    size: BANQI_PIECE_SIZE,
+    shrouded: spec.shrouded,
+    shroudedStyle: spec.shrouded ? 'back' : undefined,
+    ariaLabel: spec.shrouded ? 'face-down Banqi piece' : undefined,
+  });
+}
+
+function banqiBackPieces(
+  x0: number,
+  y0: number,
+  revealed?: { col: number; row: number; piece: XiangqiPiece },
+): string {
+  const parts: string[] = [];
+  for (let row = 0; row < BANQI_ROWS; row += 1) {
+    for (let col = 0; col < BANQI_COLS; col += 1) {
+      if (revealed && revealed.col === col && revealed.row === row) {
+        parts.push(banqiPiece(revealed.piece, col, row, x0, y0));
+      } else {
+        parts.push(banqiPiece({ shrouded: true }, col, row, x0, y0));
+      }
+    }
+  }
+  return parts.join('');
+}
+
+function banqiArrow(
+  from: { col: number; row: number },
+  to: { col: number; row: number },
+  x0: number,
+  y0: number,
+  id: string,
+): string {
+  const start = banqiCellCenter(from.col, from.row, x0, y0);
+  const end = banqiCellCenter(to.col, to.row, x0, y0);
+  return [
+    `<defs><marker id="${id}" markerWidth="4" markerHeight="4" refX="2.05" refY="2" orient="auto" overflow="visible" markerUnits="strokeWidth"><path d="M0,0 V4 L3,2 Z" fill="#15781B"/></marker></defs>`,
+    `<line x1="${start.x}" y1="${start.y}" x2="${end.x}" y2="${end.y}" stroke="#15781B" stroke-width="5.25" stroke-linecap="round" opacity="0.38" marker-end="url(#${id})"/>`,
+  ].join('');
+}
+
+const BANQI_SETUP_BOARD = () => xqSvg(
+  BANQI_PAIR_W,
+  BANQI_BOARD_H + 52,
+  [
+    `<text x="${BANQI_PAIR_W / 2}" y="14" font-family="system-ui, sans-serif" font-size="13" font-weight="700" class="xq-diagram-title" text-anchor="middle">FIRST FLIP ASSIGNS COLOR</text>`,
+    banqiBoardGrid(BANQI_CENTER_X, 28),
+    banqiBackPieces(BANQI_CENTER_X, 28, {
+      col: 3,
+      row: 1,
+      piece: { color: 'red', role: 'horse' },
+    }),
+  ].join(''),
+);
+
+const BANQI_RULES_THUMBNAIL = () => xqSvg(
+  BANQI_BOARD_W,
+  BANQI_BOARD_H,
+  [
+    banqiBoardGrid(0, 0),
+    banqiBackPieces(0, 0, {
+      col: 3,
+      row: 1,
+      piece: { color: 'red', role: 'horse' },
+    }),
+  ].join(''),
+);
+
+const BANQI_RANK_ORDER: Array<{ role: XiangqiPiece['role']; label: string }> = [
+  { role: 'general', label: 'General' },
+  { role: 'advisor', label: 'Advisor' },
+  { role: 'elephant', label: 'Elephant' },
+  { role: 'chariot', label: 'Chariot' },
+  { role: 'horse', label: 'Horse' },
+  { role: 'soldier', label: 'Soldier' },
+];
+
+const BANQI_RANK_LADDER = () => xqSvg(
+  BANQI_PAIR_W,
+  238,
+  [
+    `<defs><marker id="banqi-soldier-general-arrow" markerWidth="4" markerHeight="4" refX="2.05" refY="2" orient="auto" overflow="visible" markerUnits="strokeWidth"><path d="M0,0 V4 L3,2 Z" fill="#15781B"/></marker></defs>`,
+    `<rect x="0" y="0" width="${BANQI_PAIR_W}" height="228" rx="${XQ_BOARD_RADIUS}" class="xq-diagram-bg"/>`,
+    `<rect x="0" y="0" width="${BANQI_PAIR_W}" height="228" rx="${XQ_BOARD_RADIUS}" fill="none" class="xq-diagram-line" stroke-width="${XQ_BOARD_STROKE_WIDTH}"/>`,
+    `<text x="${BANQI_PAIR_W / 2}" y="26" font-family="system-ui, sans-serif" font-size="13" font-weight="700" class="xq-diagram-ink" text-anchor="middle">TAIWAN RANK LADDER</text>`,
+    `<text x="42" y="68" font-family="system-ui, sans-serif" font-size="11" font-weight="700" class="xq-diagram-ink">RED</text>`,
+    `<text x="42" y="112" font-family="system-ui, sans-serif" font-size="11" font-weight="700" class="xq-diagram-ink">BLACK</text>`,
+    ...BANQI_RANK_ORDER.map(({ role, label }, index) => {
+      const cx = 98 + index * 80;
+      return [
+        renderXiangqiPieceGlyphed({ color: 'red', role }, activeXiangqiPieceSet, {
+          x: cx - 18,
+          y: 43,
+          size: 36,
+        }),
+        renderXiangqiPieceGlyphed({ color: 'black', role }, activeXiangqiPieceSet, {
+          x: cx - 18,
+          y: 87,
+          size: 36,
+        }),
+        `<text x="${cx}" y="142" font-family="system-ui, sans-serif" font-size="11" class="xq-diagram-ink" text-anchor="middle">${label}</text>`,
+      ].join('');
+    }),
+    `<text x="84" y="172" font-family="system-ui, sans-serif" font-size="12" font-weight="700" class="xq-diagram-ink">HIGH</text>`,
+    `<text x="${BANQI_PAIR_W - 84}" y="172" font-family="system-ui, sans-serif" font-size="12" font-weight="700" class="xq-diagram-ink" text-anchor="end">LOW</text>`,
+    `<path d="M 498 162 C 422 214 174 214 98 162" fill="none" stroke="#15781B" stroke-width="3" stroke-linecap="round" opacity="0.5" marker-end="url(#banqi-soldier-general-arrow)"/>`,
+    `<line x1="91" y1="184" x2="105" y2="198" stroke="#b91c1c" stroke-width="3" stroke-linecap="round"/>`,
+    `<line x1="105" y1="184" x2="91" y2="198" stroke="#b91c1c" stroke-width="3" stroke-linecap="round"/>`,
+    `<text x="${BANQI_PAIR_W / 2}" y="197" font-family="system-ui, sans-serif" font-size="12" font-weight="600" class="xq-diagram-ink" text-anchor="middle">Exception: soldier captures general, but general cannot capture soldier.</text>`,
+    `<text x="${BANQI_PAIR_W / 2}" y="216" font-family="system-ui, sans-serif" font-size="12" font-weight="600" class="xq-diagram-ink" text-anchor="middle">Cannon is outside this ladder.</text>`,
+  ].join(''),
+);
+
+const BANQI_CANNON_CAPTURE = () => xqSvg(
+  BANQI_PAIR_W,
+  BANQI_BOARD_H + 52,
+  [
+    `<text x="${BANQI_PAIR_W / 2}" y="14" font-family="system-ui, sans-serif" font-size="13" font-weight="700" class="xq-diagram-title" text-anchor="middle">CANNON SCREEN CAPTURE</text>`,
+    banqiBoardGrid(BANQI_CENTER_X, 28),
+    banqiArrow(
+      { col: 1, row: 2 },
+      { col: 6, row: 2 },
+      BANQI_CENTER_X,
+      28,
+      'banqi-cannon-screen-capture',
+    ),
+    banqiPiece({ color: 'red', role: 'cannon' }, 1, 2, BANQI_CENTER_X, 28),
+    banqiPiece({ shrouded: true }, 3, 2, BANQI_CENTER_X, 28),
+    banqiPiece({ color: 'black', role: 'general' }, 6, 2, BANQI_CENTER_X, 28),
+  ].join(''),
+);
+
+const BANQI_TUNNEL_READING = () => {
+  const wallCells = [
+    [0, 0], [1, 0], [2, 0], [3, 0], [4, 0], [5, 0], [6, 0], [7, 0],
+    [0, 1], [1, 1], [2, 1], [3, 1], [4, 1], [5, 1], [6, 1], [7, 1],
+    [0, 2], [7, 2],
+    [0, 3], [1, 3], [2, 3], [3, 3], [4, 3], [5, 3], [6, 3], [7, 3],
+  ] as const;
+  return xqSvg(
+    BANQI_PAIR_W,
+    BANQI_BOARD_H + 52,
+    [
+      `<text x="${BANQI_PAIR_W / 2}" y="14" font-family="system-ui, sans-serif" font-size="13" font-weight="700" class="xq-diagram-title" text-anchor="middle">FACE-DOWN PIECES SHAPE THE BOARD</text>`,
+      banqiBoardGrid(BANQI_CENTER_X, 28),
+      ...wallCells.map(([col, row]) => banqiPiece({ shrouded: true }, col, row, BANQI_CENTER_X, 28)),
+      banqiArrow(
+        { col: 2, row: 2 },
+        { col: 5, row: 2 },
+        BANQI_CENTER_X,
+        28,
+        'banqi-tunnel-chase',
+      ),
+      banqiPiece({ color: 'black', role: 'chariot' }, 2, 2, BANQI_CENTER_X, 28),
+      banqiPiece({ color: 'red', role: 'horse' }, 5, 2, BANQI_CENTER_X, 28),
+    ].join(''),
+  );
+};
 
 const XQ_FACING_GENERAL_BEFORE: XiangqiGameState = {
   id: 'xq-facing-general-before',
@@ -5638,21 +5855,22 @@ export const articles: Article[] = [
     kind: 'rules',
     title: 'Banqi (Chinese Dark Chess) Rules',
     summary:
-      'The complete rules of Banqi (暗棋), the half-board xiangqi flip game known as Chinese Dark Chess: flip or move one square each turn, capture by rank, cannons jump, and win by wiping the enemy out.',
+      'Banqi rules: the 4x8 half-board xiangqi flip game, with face-down pieces, rank captures, screen-jumping cannons, and no royal general.',
     showSummaryOnPage: false,
     status: 'draft',
     audience:
       'Players who grew up with banqi and newcomers who want the Taiwanese rules, the rank ladder, and the cannon explained on one page.',
+    thumbnail: { kind: 'svg', svg: BANQI_RULES_THUMBNAIL },
     intro: [
       {
         kind: 'paragraph',
         text:
-          "Banqi (暗棋, 'dark chess', also called half chess or flip chess) is played on half a xiangqi board with all thirty-two pieces shuffled face-down. Each turn you flip an unknown piece or move one of your own one square; captures follow a strict rank order; you win by capturing everything your opponent has, or leaving them no move.",
+          "Banqi (暗棋, 'dark chess', also called half chess or flip chess) is played on half a xiangqi board with all thirty-two pieces shuffled face-down. Each turn, flip an unknown piece or move one of your revealed pieces one square. Captures follow rank, except for the cannon. You win by leaving the opponent with no legal move.",
       },
       {
         kind: 'paragraph',
         text:
-          'It is the casual sibling of [xiangqi](/rules/xiangqi) across Taiwan, Hong Kong, and southern China: a ten-to-twenty-minute game that needs nothing but an ordinary xiangqi set and half the board. It shares its name with [dark chess](/rules/dark-chess), the fog-of-war chess variant played on Mistboard, but it is a different game. This page follows the Taiwanese rules, the most widely played version and the standard in computer play.',
+          'It is the casual sibling of [xiangqi](/rules/xiangqi): a short game that needs only an ordinary xiangqi set and half the board. It shares names with [dark chess](/rules/dark-chess), the fog-of-war chess variant played on Mistboard, but it is a different game. This page follows Taiwanese rules, the version with screen-jumping cannons.',
       },
     ],
     sections: [
@@ -5662,7 +5880,7 @@ export const articles: Article[] = [
           {
             kind: 'paragraph',
             text:
-              'The board is half a xiangqi board: thirty-two squares in a four-by-eight grid. Unlike xiangqi, pieces sit inside the squares rather than on intersections, and the thirty-two shuffled pieces exactly fill the board, every one face-down.',
+              'The board is half a xiangqi board: thirty-two squares in a 4x8 grid, shown here with the long side horizontal. Unlike xiangqi, pieces sit inside the squares rather than on intersections, and the thirty-two shuffled pieces exactly fill the board, every one face-down.',
           },
           {
             kind: 'paragraph',
@@ -5670,8 +5888,8 @@ export const articles: Article[] = [
               'Colors are not assigned in advance. The first player opens the game by flipping any piece: whatever color comes up is theirs, and the opponent plays the other.',
           },
           {
-            kind: 'paragraph',
-            text: '[VISUAL: 4×8 board of face-down pieces with one flipped to reveal a red horse]',
+            kind: 'raw-svg',
+            svg: BANQI_SETUP_BOARD,
           },
         ],
       },
@@ -5681,7 +5899,7 @@ export const articles: Article[] = [
           {
             kind: 'paragraph',
             text:
-              "On your turn, do exactly one of three things: flip any face-down piece (revealing it to both players, even if it turns out to be your opponent's), move one of your face-up pieces one square up, down, left, or right onto an empty square, or capture with one of your face-up pieces. There is no passing. A player with no legal action loses, though while any piece remains face-down, flipping is always available.",
+              "On your turn, do exactly one of three things: flip any face-down piece, move one of your revealed pieces one square orthogonally onto an empty square, or capture with one of your revealed pieces. A flip reveals the piece to both players, even if it belongs to your opponent. There is no passing.",
           },
         ],
       },
@@ -5691,16 +5909,16 @@ export const articles: Article[] = [
           {
             kind: 'paragraph',
             text:
-              'Each piece captures enemy pieces of its own rank or lower by stepping onto an adjacent square. The order, high to low: general, advisor, elephant, chariot, horse, cannon, soldier. Two exceptions cross the ladder: a soldier can capture the general, and the general cannot capture soldiers at all.',
+              'Most pieces capture enemy pieces of their own rank or lower by stepping onto an adjacent square. In Taiwanese rules, the order is General > Advisor > Elephant > Chariot > Horse > Soldier. Two exceptions cross the ladder: a soldier can capture the general, and the general cannot capture soldiers.',
           },
           {
             kind: 'paragraph',
             text:
-              'Face-down pieces cannot be captured. A piece must be flipped before anyone can take it, which makes every flip next to a strong enemy piece a calculated risk.',
+              'The cannon sits outside this rank ladder and uses its own capture rule. Face-down pieces cannot be captured. A piece must be flipped before anyone can take it, which makes every flip next to a strong enemy piece a calculated risk.',
           },
           {
-            kind: 'paragraph',
-            text: '[VISUAL: rank ladder diagram with the soldier-takes-general exception marked]',
+            kind: 'raw-svg',
+            svg: BANQI_RANK_LADDER,
           },
         ],
       },
@@ -5710,16 +5928,16 @@ export const articles: Article[] = [
           {
             kind: 'paragraph',
             text:
-              'The cannon ignores rank entirely when it captures. It captures as in xiangqi: slide any distance along a row or column, jump exactly one piece (the screen, which can be friendly, enemy, or face-down), and take the first piece beyond the screen, up to and including the general.',
+              'The cannon ignores rank when it captures. For a capture only, it may travel any distance along a row or column, jump exactly one intervening piece, and take the first revealed enemy piece beyond that screen. The screen can be friendly, enemy, or face-down.',
           },
           {
             kind: 'paragraph',
             text:
-              'When it is not capturing, the cannon moves one square like every other piece. The screen jump needs distance, so a cannon can never take an adjacent piece, and rank rules still apply to it as a target: anything except a soldier can take the cannon.',
+              'A non-capturing cannon move is still just one square orthogonally, like every other piece. Because a cannon needs a screen to capture, it cannot take an adjacent piece. As a target, the cannon is fragile: any revealed enemy piece except a soldier can capture it by adjacency.',
           },
           {
-            kind: 'paragraph',
-            text: '[VISUAL: cannon jumping a face-down screen to capture a general]',
+            kind: 'raw-svg',
+            svg: BANQI_CANNON_CAPTURE,
           },
         ],
       },
@@ -5729,7 +5947,36 @@ export const articles: Article[] = [
           {
             kind: 'paragraph',
             text:
-              'You win by capturing every enemy piece, or when your opponent has no legal move on their turn. The general is not royal here: capturing it is progress, not victory, and the game continues until one side is wiped out or stuck. Repeating the position is a draw, as is a long stretch with neither a flip nor a capture (forty to fifty moves in most rule sets).',
+              'You win when your opponent has no legal move on their turn. Most often that means every enemy piece has been captured, but a boxed-in opponent can also lose. The general is not royal here: capturing it is progress, not victory, and the game continues until one side is wiped out or stuck.',
+          },
+          {
+            kind: 'paragraph',
+            text:
+              'Draw and cycle rules vary more than the core capture rules. For Mistboard, the working convention is simple: automatic draw after 50 plies (50 individual turns) with no flip and no capture; no separate perpetual-chase loss unless we later add a tournament adjudicator. Over the board, agree on the no-progress and repetition convention before play.',
+          },
+        ],
+      },
+      {
+        heading: 'How positions work',
+        blocks: [
+          {
+            kind: 'paragraph',
+            text:
+              'This is the strategy layer behind the rules. Banqi starts random, but it does not stay random: every flip changes the local fight, every captured piece changes what can still be hiding, and every face-down piece changes the shape of the board.',
+          },
+          {
+            kind: 'paragraph',
+            text:
+              'Face-down pieces are not capturable targets yet, but they occupy squares, block paths, and create tunnels. A piece trapped in a one-square corridor may need to flip a wall or reach a 2x2 open area before it can dodge a pursuer.',
+          },
+          {
+            kind: 'raw-svg',
+            svg: BANQI_TUNNEL_READING,
+          },
+          {
+            kind: 'paragraph',
+            text:
+              'As pieces are revealed and captured, track what remains unknown. If all enemy soldiers are gone, your general becomes much safer. If enemy cannons remain hidden, every line with one screen can become dangerous.',
           },
         ],
       },
@@ -5739,7 +5986,22 @@ export const articles: Article[] = [
           {
             kind: 'paragraph',
             text:
-              "Banqi has real regional variation, so agree on rules before playing over the board. This page follows the Taiwanese rules: every piece moves one square, and the cannon captures by screen jump. Hong Kong and mainland play typically rerank the pieces toward xiangqi material values (general first, then chariot, horse, and cannon ahead of advisor and elephant) and drop the cannon's jump, so it captures by adjacency like everything else. A separate variant family allows capture attempts on face-down pieces, where a failed attempt simply counts as the flip.",
+              'Taiwanese rules (this page): non-cannon pieces move and capture one square by rank. Cannon is outside the rank ladder and captures by screen jump.',
+          },
+          {
+            kind: 'paragraph',
+            text:
+              'Hong Kong rules: pieces still move one square, but the rank order usually follows xiangqi material value more closely, with chariot and horse above cannon, advisor, elephant, and soldier. Cannon captures by adjacency as part of that ladder.',
+          },
+          {
+            kind: 'paragraph',
+            text:
+              "Mainland rules: often close to Taiwanese ranking, but cannon sits in the ladder instead of jumping, commonly just above soldier. Some versions also relax the general-soldier exception depending on which piece moves first.",
+          },
+          {
+            kind: 'paragraph',
+            text:
+              'House variants: some groups allow capture attempts on face-down pieces, where an impossible capture flips the target instead. Decide this, repetition, and no-progress rules before over-the-board play.',
           },
         ],
       },
@@ -5749,13 +6011,13 @@ export const articles: Article[] = [
           {
             kind: 'paragraph',
             text:
-              "暗棋 is Mandarin ànqí, 'dark chess'; the same game is also called 半棋 (half chess), the source of the English name banqi, and 翻棋 (flip chess). AI researchers call it Chinese Dark Chess, and it has had its own Computer Olympiad event since 2010. None of these are [jieqi](/rules/jieqi), the full-board xiangqi variant where shuffled pieces reveal as they move, and none of them are the fog-of-war [dark chess](/rules/dark-chess) played here.",
+              "暗棋 is Mandarin ànqí, 'dark chess'. The same game is also called 半棋 (half chess), the source of the English name banqi, and 翻棋 (flip chess). Computer-game literature often calls it Chinese Dark Chess. None of these are [jieqi](/rules/jieqi), the full-board xiangqi variant where shuffled pieces reveal as they move, and none are the fog-of-war [dark chess](/rules/dark-chess) played here.",
           },
         ],
       },
       relatedClosing({
         heading: 'Where to next',
-        lead: "Banqi isn't playable on Mistboard yet; for now this page is the rules reference. Xiangqi is the parent game, and jieqi is the other hidden-identity cousin.",
+        lead: 'Banqi is not playable on Mistboard yet; this page is the rules reference while we plan the variant. Xiangqi is the parent game, and jieqi is the other hidden-identity cousin.',
         links: [
           { label: 'Xiangqi Rules', href: '/rules/xiangqi', emphasis: 'primary' },
           { label: 'Jieqi', href: '/rules/jieqi', emphasis: 'secondary' },
