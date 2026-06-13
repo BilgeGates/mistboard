@@ -223,6 +223,26 @@ test('during play the general stays confined to its own palace (no enemy-palace 
   assert.equal(vision.directlyVisible.has('e6'), false); // enemy palace, unreachable in play
 });
 
+test('an enemy piece outside all red vision is absent from the view (not shrouded)', () => {
+  // Strongest no-leak property during play: a black piece on a square red has
+  // zero vision of must not appear in red's view.board at all — neither revealed
+  // nor as a shrouded blocker. (Existing tests cover revealed + shrouded; this
+  // pins the fully-hidden case.)
+  const state = playingState({
+    d1: { color: 'red', role: 'general' },
+    d4: { color: 'red', role: 'soldier' },
+    d7: { color: 'black', role: 'general' },
+    a7: { color: 'black', role: 'chariot' }, // far corner, no red line of fire reaches it
+  });
+
+  const view = getMiniXiangqiPlayerView(state, 'red');
+
+  assert.equal(view.visibleSquares.includes('a7'), false);
+  assert.equal('a7' in view.board, false);
+  // Own pieces are always present, so an empty board isn't masking the result.
+  assert.deepEqual(view.board.d1, { piece: { color: 'red', role: 'general' }, shrouded: false });
+});
+
 function destinations(moves: readonly MiniXiangqiMove[]): string[] {
   return moves.map((move) => move.to).sort();
 }
