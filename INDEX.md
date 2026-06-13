@@ -59,8 +59,8 @@ Edit task → find file → open only that file.
 | `server-static-pages.ts` | Static page helpers for non-API HTTP routes: per-game/article page-meta injection, article shell/prerender serving, articles index shell, and sitemap generation. |
 | `server-drain.ts` | Admin drain controller: drain deadline state, active-game counting, rate limiting, token-gated drain/cancel HTTP handling, and restart/cancel WebSocket broadcasts. |
 | `server-ws-connection.ts` | WebSocket edge handling: connection handshake, game-spec gate, account/session lookup, seat assignment, hello snapshot, message dispatch, rate limiting, debug auth, rematch messages, and disconnect behavior. Injects room lifecycle/game-flow callbacks from `index.ts`. |
-| `server-ws-dark-xiangqi.ts` | Hidden Dark Xiangqi WebSocket handler: red/black connection handoff, message dispatch, move/abort/resign events, lifecycle scheduling, and outbound transport handoff. Not yet on the generic tenant ws (its quirks — latency-sample, unknown-message logging, sync expiry-on-move — converge at the registry dispatch collapse). |
-| `dark-xiangqi-tenant.ts` | Hidden Dark Xiangqi `VariantTenant` (P1 near-copy migration): looser-than-DMX event redaction, shrouded-piece wire board, seat-vacated acceptance, legacy GameSummary shape, no snapshot extras. The `dark-xiangqi-runtime` and `server-dark-xiangqi-{events,seat-session,lifecycle,room-factory}` files are thin adapters over `variant-tenant/`; transport + ws untouched. |
+| `server-ws-dark-xiangqi.ts` | Thin adapter over the generic tenant WebSocket runtime (`variant-tenant/ws.ts`) for hidden Dark Xiangqi — the last tenant to converge off a hand-rolled handler at the registry dispatch collapse (2026-06-11). Its quirks (latency-sample, unknown-message logging, strict client-id regex, sync expiry-on-move) moved into the generic runtime; re-exports the bound functions under their pre-migration names. |
+| `dark-xiangqi-tenant.ts` | Hidden Dark Xiangqi `VariantTenant` (P1 near-copy migration): looser-than-DMX event redaction, shrouded-piece wire board, seat-vacated acceptance, legacy GameSummary shape, no snapshot extras. The `dark-xiangqi-runtime` and `server-dark-xiangqi-{events,seat-session,lifecycle,room-factory}` files are thin adapters over `variant-tenant/`; transport untouched (ws converged 2026-06-11). |
 | `dark-xiangqi-runtime.ts` | Thin adapter over `variant-tenant/` runtime for hidden Dark Xiangqi (wire parity pinned by `dark-xiangqi-golden-wire.test.ts`). |
 | `server-dark-xiangqi-room-factory.ts` | Hidden Dark Xiangqi room creation/store/persistence factory behind server feature flags. |
 | `server-dark-xiangqi-seat-session.ts` | Hidden Dark Xiangqi red/black seat authority: token/account reclaim, new token issuance, persistence rollback support, and duplicate-seat displacement. |
@@ -91,6 +91,12 @@ Edit task → find file → open only that file.
 | `routes/annotations.ts` | `/api/annotations` (admin GET/POST/PUT, JSON-lines file backed) |
 | `routes/meta.ts` | `/api/server-status`, `/api/live-stats` |
 | `routes/engines.ts` | `/api/engines/playable` |
+| `routes/correspondence-rooms.ts` | POST `/api/correspondence/rooms` (days-per-move dark-chess seeks/rooms); account-gated, `correspondenceEnabled` flag |
+| `routes/correspondence-games.ts` | GET `/api/correspondence/games` — signed-in player's in-flight correspondence games (your-move-first) + nav-badge count; reads the `room_deadlines` index |
+| `routes/crossroads-chess-rooms.ts` | Crossroads Chess room-creation branch for `POST /api/rooms` (`crossroadsChessEnabled` flag, engine-id parsing) |
+| `routes/crossroads-chess.ts` | Crossroads Chess game/postgame API branch (open perfect-info views; keeps non-chess records out of generic chess replay APIs) |
+| `routes/dark-mini-xiangqi-rooms.ts` | DMX room-creation branch for `POST /api/rooms` (rated-flag/time-control gating via `game-spec-request-gate`) |
+| `routes/dark-mini-xiangqi-games.ts` | DMX postgame/review + publication-JSON API branch; keeps non-chess finished games out of generic chess replay APIs |
 | `account-session.ts` | Account auth: `currentAccountUser`, `ensureUserForEmail`, `hashSecret`, session cookies, email login |
 | `account-identity.ts` | Email normalization, handle generation, display name handling |
 | `build-info.ts` | Build metadata surfaced through status responses |
@@ -116,8 +122,7 @@ Edit task → find file → open only that file.
 | `payloads.ts` | `snapshotPayload` — builds WebSocket snapshot message; applies fog redaction and seat-scoped view logic |
 | `test-builders.ts` | Shared server test builders for `GameProjection`, `PlayerView`, `SnapshotRoom`, `Room`, clients, and seat tokens |
 | `rating-buckets.ts` | Variant × time-class → bucket-id mapping for per-bucket Elo |
-| `elo.ts` | Elo update math |
-| `glicko.ts` | Glicko-2 rating math for the newer rating model |
+| `glicko.ts` | Glicko-2 rating math (Glickman 2013) for the human PvP ladder; self-calibrating via rating deviation, so no offline calibration step |
 | `rating-store.ts` | Rating persistence/store helpers |
 | `migrate.ts` | Schema migrations — run once on startup |
 | `python-pool.ts` | Persistent Python worker pool for live engines (size=4 in prod) |
@@ -147,6 +152,61 @@ Edit task → find file → open only that file.
 | `room-lifecycle-audit.ts` | Lifecycle audit/event helpers |
 | `seat-auth.ts` | Seat-authority verification helpers shared by chess and non-chess room flows |
 | `watch-channels.ts` | Public watch-channel definitions and lookup |
+| `dark-chess-tenant.ts` | Dark chess `VariantTenant` (flagship rules + Model A visibility on the Layer-3 contract). UNREGISTERED for live rooms (legacy UUID rooms stay on `room-manager`); visibility DELEGATES to `payloads.ts` so Model A keeps one redaction point. Equivalence pinned by `dark-chess-tenant.test.ts` + `dark-chess-golden-wire.test.ts` |
+| `dark-chess-golden-wire.test.ts` | Golden wire-parity suite pinning dark-chess tenant per-seat snapshot/event payloads vs the legacy live stack. Regenerate only for intentional wire changes (`MISTBOARD_GOLDEN_RECORD=1`) |
+| `dark-chess-registration.ts` | Dark chess registry entry; fixes the `dchx_` correspondence room-id scheme. Correspondence (days-per-move) rooms ONLY, PvP-only, no rematch/lobby, gated by `MISTBOARD_CORRESPONDENCE_ENABLED`. Side-effect import in `variant-tenant/register-tenants.ts` |
+| `crossroads-chess-registration.ts` | Crossroads Chess registry entry: live-room map, room-factory binding, hydration, rematch context (moved out of `index.ts` at the registry dispatch collapse); registers the type-erased dispatch closures |
+| `dark-mini-xiangqi-runtime.ts` | Thin adapter over `variant-tenant/` runtime for DMX (P0 reference; wire parity pinned by `dark-mini-xiangqi-golden-wire.test.ts`) |
+| `dark-mini-xiangqi-registration.ts` | DMX registry entry: live-room map, room-factory binding, hydration, rematch context; registers dispatch closures |
+| `dark-mini-xiangqi-export.ts` | DMX JSON publication export (honest red/black, coordinate UCI moves; no PGN — xiangqi has no SAN standard) |
+| `dark-xiangqi-registration.ts` | Dark Xiangqi (9x10, hidden/dev-only) registry entry: live-room map, room-factory binding, hydration. No rematch/lobby (lobby answers `dark_xiangqi_not_integrated`) |
+| `crossroads-chess-engine.ts` | Fairy-Stockfish move provider for perfect-info Crossroads Chess (loads `crossroads-chess.ini`, one FSF process/request); the open-mode opponent, NOT the fog engine-worker |
+| `server-crossroads-chess-engine.ts` | Server-side FSF PvE loop for Crossroads Chess; injects engine moves through the same append+broadcast path as humans so clocks/persistence/reconnect/review stay event-sourced |
+| `server-crossroads-chess-events.ts` | Thin adapter over `variant-tenant/events.ts` for Crossroads Chess |
+| `server-crossroads-chess-lifecycle.ts` | Thin adapter over `variant-tenant/lifecycle.ts` for Crossroads Chess; `crossroadsChessConnectedSeats` filters spectators to the pre-migration seat shape |
+| `server-crossroads-chess-live-room.ts` | Live Crossroads Chess client/room type leaf, shared by the ws handler + rematch module to avoid an import cycle |
+| `server-crossroads-chess-rematch.ts` | Thin adapter over `variant-tenant/rematch.ts` for Crossroads Chess |
+| `server-crossroads-chess-room-factory.ts` | Thin adapter over `variant-tenant/room-factory.ts` for Crossroads Chess (running-game record on PvE only) |
+| `server-crossroads-chess-seat-session.ts` | Thin adapter over `variant-tenant/seat-session.ts` for Crossroads Chess |
+| `server-ws-crossroads-chess.ts` | Thin adapter over `variant-tenant/ws.ts` for Crossroads Chess; binds the in-process FSF scheduler into post-connect/post-move hooks; roomMode/pveEngineId ride `snapshotExtras` (golden-pinned) |
+| `server-dark-mini-xiangqi-engine.ts` | Server-side DMX PvE engine-move loop; builds the redacted request via `engine-protocol/build-mini-xiangqi.ts`, calls the internal-engine HTTP client, injects through `appendDarkMiniXiangqiEvent` |
+| `server-dark-mini-xiangqi-events.ts` | Thin adapter over `variant-tenant/events.ts` for DMX |
+| `server-dark-mini-xiangqi-lifecycle.ts` | Thin adapter over `variant-tenant/lifecycle.ts` for DMX |
+| `server-dark-mini-xiangqi-live-room.ts` | Live DMX client/room type leaf shared by the ws handler + rematch module (avoids import cycle) |
+| `server-dark-mini-xiangqi-rematch.ts` | Thin adapter over `variant-tenant/rematch.ts` for DMX |
+| `server-dark-mini-xiangqi-room-factory.ts` | Thin adapter over `variant-tenant/room-factory.ts` for DMX (injected cross-variant id-collision check) |
+| `server-dark-mini-xiangqi-seat-session.ts` | Thin adapter over `variant-tenant/seat-session.ts` for DMX |
+| `server-ws-dark-mini-xiangqi.ts` | Thin adapter over `variant-tenant/ws.ts` for DMX; binds the DMX PvE scheduler into post-connect/post-move hooks |
+| `variant-tenant/tenant.ts` | The `VariantTenant` Layer-3 contract: rules = the type boundary, `TenantGameStateLike` the structural state slice; per-seat redaction is tenant policy |
+| `variant-tenant/runtime.ts` | Generic event-sourced live-room runtime over a tenant: event model, projection replay, clock math, event-log validation, per-seat snapshot payload (wire-parity pinned per tenant by golden fixtures) |
+| `variant-tenant/ws.ts` | Generic tenant WebSocket runtime: `createTenantWsRuntime(tenant)` binds writer/lifecycle/broadcast/connection+message handling into one per-tenant bundle; per-seat redaction via tenant hooks |
+| `variant-tenant/events.ts` | Generic tenant event writer: persistence-first append serialized through `pendingWrites`, lifecycle re-arm, engine-reservation release on game end, terminal GameSummary build |
+| `variant-tenant/lifecycle.ts` | Generic tenant lifecycle timers (pregame abort, active-clock expiry, disconnect forfeit); all speculative + `.unref()`'d; correspondence rooms arm NO in-memory timers |
+| `variant-tenant/seat-session.ts` | Generic tenant seat assignment + seat-token lifecycle (mint/hash, reconnect by token-hash or account id, newer-connection displacement) |
+| `variant-tenant/room-factory.ts` | Generic tenant live-room creation: id minting with cross-variant collision retry, optional PvE engine seating (durable in initial event log), persistence-first writes |
+| `variant-tenant/rematch.ts` | Generic mutual-confirm rematch over tenant rooms: color-swapped new room, pre-issued seat tokens, `pendingRedirects` keyed by old-room seat |
+| `variant-tenant/hydration.ts` | Generic get-or-load for tenant rooms: live-map first, else hydrate persisted event log (validated vs tenant schema) + re-attach seat tokens |
+| `variant-tenant/registry.ts` | `VariantTenant` registry — variant-type-erased routing (kind/gameSpecId/roomIdPrefix/flag + bound closures); the dispatch extension point for `index.ts` sweeps, ws runtime resolver, `/api/rooms` create, `/api/lobby` matcher |
+| `variant-tenant/register-tenants.ts` | The single side-effect import that populates the registry (imports each `*-registration.ts`). Adding a variant = adding its registration import here |
+| `variant-tenant/deadline-sweeper.ts` | Interval sweeper for durable correspondence deadlines: lists due `room_deadlines` rows, routes each to its tenant's `sweepDueDeadline`, which re-derives the deadline from the hydrated room before acting |
+| `correspondence-deadline-warning.ts` | Correspondence deadline-warning email: decides whether a game's warning lead is reached, sends via the shared Resend helper, marks the row to send once per deadline |
+| `send-email.ts` | Shared Resend transactional-email sender — the single wire call to the email provider (auth codes, feedback, engine alerts, correspondence nudges). Never logs (API key must not leak); policy stays caller-owned |
+| `persistence-room-deadlines.ts` | `room_deadlines` persistence: durable index for correspondence deadline enforcement (upsert per event, delete on terminal); the event log stays source of truth |
+| `persistence-correspondence-seeks.ts` | `correspondence_seeks` persistence: the open async-seek board; per-user cap via `countOpenSeeksForUser` |
+| `persistence-engine-jobs.ts` | Live-engine move work-queue (Postgres): enqueue+await on the server, `FOR UPDATE SKIP LOCKED` claim on engine-worker replicas with soft affinity. NOT yet wired (lands behind a flag) |
+| `persistence-engine-seats.ts` | Centralized live-engine seat accounting (Postgres) across an elastic worker fleet; the multi-replica replacement for the in-memory reservation store. NOT yet wired (flag-gated later) |
+| `accounts-count.ts` | CLI: count accounts (total + new in last 7/30d) |
+| `accounts-list.ts` | CLI: list accounts (id/email/created_at) |
+| `article-meta.ts` | Server-side article slug → page meta (title/description/kind) for share cards + canonical URL space; kept in sync with `articles-data.ts` via a web test |
+| `auth-rate-limit.ts` | In-memory per-key sliding-window rate limiter for auth endpoints (persistence-free defense-in-depth); re-exports `clientIpForRateLimit` from `server-policy.ts` |
+| `engine-paths.ts` | Single source of truth for resolving the private `mistboard-engine` repo paths from the public server (`MISTBOARD_ENGINE_DIR` env, else `../mistboard-engine` sibling) |
+| `engine-alert-email-cli.ts` | CLI: send/preview a synthetic engine alert email |
+| `dev-engine-service.ts` | Dev-only entrypoint: run JUST the internal engine HTTP service locally (no Postgres, no worker loop) for live PvE |
+| `finished-game-cache.ts` | `FinishedGameCache` — memoizes immutable derivations of FINISHED games (replay logs, postgame projections); LRU + TTL; never caches running games |
+| `corpus-ingest.ts` | Shared JSONL event-log ingest helpers (replay + game-summary/attribution) used by `import-corpus.ts` and `import-bakeoff-run.ts`; DB-free and testable |
+| `import-bakeoff-run.ts` | CLI: import a bakeoff run dir into Postgres with per-game engine attribution from shard metadata (platform-format artifacts only; engine internals never read) |
+| `server-event-loop-lag.ts` | Server-side event-loop lag (mean since last read) surfaced as the "SERVER" value in the account connection footer / `/api/ping` |
+| `engine-protocol/build-mini-xiangqi.ts` | DMX engine request builder — THE REDACTION BOUNDARY for the 7×7 variant (mini geometry/piece letters, `shrouded` color-only channel, red/black→white/black protocol mapping). Sibling of `engine-protocol/build.ts` |
 
 ## apps/server/integration/ — Two-client WebSocket integration tests
 
@@ -188,8 +248,8 @@ Run with `MISTBOARD_ALLOW_IN_MEMORY_PERSISTENCE=true npm run test:integration --
 | `board-fog.css` | Fog theme rendering rules, including Mistveil tile URL mapping and hidden-square background behavior |
 | `styles.css` | Remaining shared board, live-game, replay, and gameplay surface styles |
 | `live-state.ts` | Live-game module state (`liveState`, seat-token storage, WS base URL resolver) |
-| `live-socket.ts` | WebSocket connect / reconnect / send for live games |
-| `variant-tenant/` | Generic tenant web runtime: `socket-client.ts` (tenant socket host — connection state machine, backoff reconnects, seat-token hand-off, seq-gap resync; extracted from the Crossroads client; chess/DMX `live-socket.ts` converges at P2), `room-chrome.ts` (clocks/countdowns/action status/room actions over a `WebVariantTenant` + lazy state accessors), `replay-controller.ts` (index-based fog-safe replay scrubber; capture stays tenant-owned), `chrome-dom.ts` (element factories). DMX is the chrome reference tenant; Crossroads is the socket-client reference tenant. |
+| `live-socket.ts` | Chess/DMX liveState shell socket — thin frame-application adapter over `variant-tenant/socket-client.ts` (which owns connect/reconnect/resync); projects state frames into `liveState`, the rematch declined-vs-cancelled cue, and per-variant sound dispatch |
+| `variant-tenant/` | Generic tenant web runtime: `socket-client.ts` (tenant socket host — connection state machine, backoff reconnects, seat-token hand-off, seq-gap resync; the single connection state machine for every live surface — the self-contained tenant clients and, since the P2 web convergence, the chess/DMX `live-socket.ts` shell, which is now a thin frame-application adapter over it), `room-chrome.ts` (clocks/countdowns/action status/room actions over a `WebVariantTenant` + lazy state accessors), `replay-controller.ts` (index-based fog-safe replay scrubber; capture stays tenant-owned), `chrome-dom.ts` (element factories). DMX is the chrome reference tenant; Crossroads is the socket-client reference tenant. |
 | `live-render.ts` | Live-game render orchestration: board and draft picker. Reads board helpers from `live-board.ts`, capture rows from `live-captures.ts`, clock rendering from `live-clocks.ts`, dev-view rendering from `live-dev-views.ts`, game controls from `live-game-controls.ts`, room actions from `live-room-actions.ts`, replay/move-list rendering from `live-move-list.ts`, replay state via accessors from `live-replay.ts`, and derived views from `live-view.ts`. Layout shell is in `live-layout.ts`; sound subsystem is in `live-sound.ts`. |
 | `live-board.ts` | Live-game board adapter helpers: fog highlight classes, result classes, legal destination maps, castling aliases, and square file helpers |
 | `live-captures.ts` | Live-game capture strip rows and chessground-styled captured-piece DOM helpers |
@@ -249,7 +309,7 @@ Run with `MISTBOARD_ALLOW_IN_MEMORY_PERSISTENCE=true npm run test:integration --
 | `articles.css` | Article index, article page, and article interactive widget styles loaded by `articles.ts` |
 | `articles-data.ts` | Article content (large; content not code) |
 | `article-i18n.ts` | Article localization strings and language helpers |
-| `dark-xiangqi-postgame.ts` | Flagged Dark Xiangqi postgame/review route renderer |
+| `dark-xiangqi-postgame.ts` | Flagged Dark Xiangqi postgame/review route renderer; reuses `renderDarkXiangqiBoardSvg`. Loads `live-xiangqi.css` + `dark-xiangqi-postgame.css` |
 | `dark-xiangqi-room-actions.ts` | Flagged Dark Xiangqi room creation/action helpers |
 | `account-nav.ts` | Top-nav account menu + sign-in state. Loads `account-nav.css` |
 | `account-nav.css` | Top-nav account/auth slot styles loaded by `account-nav.ts` |
@@ -261,7 +321,6 @@ Run with `MISTBOARD_ALLOW_IN_MEMORY_PERSISTENCE=true npm run test:integration --
 | `variant-marks.ts` | Variant mark/glyph definitions for current and candidate variants |
 | `variant-marks-lab.ts` | DEV-only route for candidate variant marks |
 | `live-room-bootstrap.ts` | Room-id to game-spec bootstrap helper for live routes |
-| `live-xiangqi-render.ts` | Flagged Dark Xiangqi live board renderer |
 | `xiangqi-spike.ts` | `/xiangqi-spike` FoW Xiangqi sandbox (DEV) |
 | `xiangqi-demo.ts` | Flagged Dark Xiangqi reviewer/demo route |
 | `xiangqi-bot.ts` | DEV-only bot for the xiangqi spike |
@@ -272,12 +331,68 @@ Run with `MISTBOARD_ALLOW_IN_MEMORY_PERSISTENCE=true npm run test:integration --
 | `announcements.ts` | Card list for /announcements + landing widget |
 | `annotations.ts` | Annotation read/write for the research feedback workflow |
 | `analytics.ts` | PostHog wrapper + time-class inference (client-side) |
+| `site-box.ts` | Shared homepage/rail widget shell (lichess `lobby__box` grammar): header row with optional "More »" link over a content body. Loads `site-box.css` |
+| `site-box.css` | Shared site-box widget styles (token-only) loaded by `site-box.ts` |
+| `signed-in-state.ts` | Dependency-free signed-in state shared by `account-nav.ts` (authoritative) and read-only consumers (theme gear gating, contact form); localStorage first-paint hint, avoids an account-nav↔theme cycle |
+| `connection-status.ts` | PING/SERVER latency footer for the account dropdown (lichess pattern); polls `GET /api/ping` only while the menu is open |
+| `notification-nav.ts` | Reusable nav bell + count badge aggregating registered notification sources (correspondence "your move" is the first); owns registry/render/refresh, mounted by `account-nav.ts`. Loads `notification-nav.css` |
+| `notification-nav.css` | Nav notification bell/badge/panel styles loaded by `notification-nav.ts` |
+| `landing-activity.ts` | Homepage activity box: live presence (`/api/live-stats`) + durable totals (`/api/stats/public`) in the shared `site-box` shell; omitted entirely when both fetches fail |
+| `news-page.ts` | `/news` route: full announcement history as a dated reverse-chronological feed; the landing News box "More" target. Loads `news-page.css` |
+| `news-page.css` | `/news` dated-feed styles loaded by `news-page.ts` |
+| `database.ts` | Unlisted admin game browser (`/database`): faceted completed-game query with win-rate/termination/length summary + review links; admin-gated by `/api/admin/games/query` (open in local dev), no nav entry. Loads `database.css` |
+| `database.css` | `/database` admin game-browser styles loaded by `database.ts` |
+| `engines.ts` | Unlisted admin engine tracker (`/engines`): roster of every engine version with EvE win/loss/draw records; admin-gated by `/api/admin/engines` (open in local dev), no nav entry. Loads `engines.css` |
+| `engines.css` | `/engines` admin engine-tracker styles loaded by `engines.ts` |
+| `engine-profile.ts` | Unlisted admin per-engine profile (`/engine/:id`): reuses `profile-ui.ts` + `account-profile.css` with a PvE/EvE records block; admin-gated by `/api/admin/engines/:id`, reached from `/engines`. Loads `engine-profile.css` |
+| `engine-profile.css` | `/engine/:id` engine-records block styles (atop `account-profile.css`) loaded by `engine-profile.ts` |
+| `profile-ui.ts` | Shared profile-surface primitives (`buildProfileHeaderShell`, `buildProfileGameRow`) used by the player profile (`/@handle`) and engine profile (`/engine/:id`) so the two render as siblings |
+| `correspondence.ts` | `/correspondence` dashboard: lists the player's in-flight async games from `GET /api/correspondence/games` (your-move-first), with sign-in gate and unavailable-state notices. Loads `correspondence.css` |
+| `correspondence.css` | `/correspondence` dashboard styles loaded by `correspondence.ts` |
+| `rematch-controls.ts` | Shared post-game rematch control block for chess (white/black) and Dark Mini Xiangqi (red/black); reads the unified `liveState.rematch`, only per-game input is the two seat colors |
+| `capture-render.ts` | Shared captured-piece row DOM builder (`captureRow`/`combinedCaptureRow`) using chessground-styled glyphs; sorts via `captures.ts` |
+| `room-url.ts` | Leaf URL helper: `/room/:id` (or bare `/room` in dev) → room id; import-free so the tenant registry's dynamic-import closures can't form module cycles |
+| `sound-sets.ts` | Sound-set registry mapping each `SoundKind` to its audio source: `mist` (synthesized default, zero assets) plus lichess AGPL file sets; partial sets fall back to synthesized tones |
+| `sound-lab.ts` | DEV-only sound audition lab (`/sound-lab`): per-`SoundKind` board + a sample-game playthrough through the real `maybePlaySnapshotSound` pipeline |
+| `live-crossroads-chess.ts` | Self-contained live room client for perfect-information Crossroads Chess (中西象棋); renders the server's open `PlayerView` directly (no fog), uses `variant-tenant/socket-client.ts` + `room-chrome.ts`, owns the open board/move-list/replay/rematch/sounds. Loads `live-crossroads-chess.css` |
+| `live-crossroads-chess.css` | Crossroads Chess live-route (6×8 board) layout styles loaded by `live-crossroads-chess.ts` |
+| `live-crossroads-chess-sound.ts` | Crossroads Chess sound policy: variant move/capture classification over its open `PlayerView`, reusing the shared `SoundController` |
+| `crossroads-chess-play.ts` | `/crossroads-chess` perfect-information play page (no fog): hot-seat or vs Fairy-Stockfish (side + difficulty), bot moves from `POST /api/crossroads-chess/engine-move`. Loads `crossroads-chess-play.css` |
+| `crossroads-chess-play.css` | `/crossroads-chess` play-page styles loaded by `crossroads-chess-play.ts` |
+| `crossroads-chess-render.ts` | Live, fog-aware Crossroads Chess board SVG renderer: thin adapter over the shared `renderGridBoardSvg` cell-board core (6×8+river descriptor, disk/recolour glyphs, red-piece filter) |
+| `crossroads-chess-postgame.ts` | Crossroads Chess postgame/review route renderer: per-seat + truth views from the postgame API, reuses replay panes/header/move-list; handles the legacy `dual-chess` spec alias. Loads `landing.css` + `game-route.css` |
+| `crossroads-chess-replay.ts` | Crossroads Chess article replay: replays a UCI move list through the real kernel, renders each position on demand via the live renderer (sibling of `mini-xiangqi-replay.ts`) |
+| `crossroads-chess-diagram.ts` | Static SVG diagrams for the Crossroads Chess rules article, drawn by `renderCrossroadsChessBoardSvg` so article positions are pixel-identical to the game |
+| `crossroads-chess-sample-game.ts` | Crossroads Chess rules-article sample game data (a Fairy-Stockfish self-play game from the meerkat balance sweep), replayed by `crossroads-chess-replay.ts` |
+| `watch-crossroads-chess-replay.ts` | Mistboard TV (`/watch`) renderer for Crossroads Chess: drives off the postgame API + SVG renderer (the generic chess replay path only understands chess `GameEvent` logs) |
+| `live-mini-xiangqi-room.ts` | Dark Mini Xiangqi live-room logic riding the shared `live.ts` shell via tenant hooks (render/reconcile/reset/tick/keyboard); board interaction, analytics lifecycle, replay controller wiring. Behind `darkMiniXiangqiEnabled` |
+| `live-mini-xiangqi-render.ts` | Bespoke SVG renderer for the 7×7 Dark Mini Xiangqi board: pieces on intersections, Fog of War as an inverse `<mask>` with square cutouts on visible intersections |
+| `live-mini-xiangqi-sound.ts` | Dark Mini Xiangqi sound policy: fog-aware per-event classification over the DMX `PlayerView`, reusing the shared `SoundController` |
+| `dark-mini-xiangqi-postgame.ts` | Dark Mini Xiangqi postgame/review route renderer: red/black/truth views from the postgame API, reuses replay panes/header/move-list + DMX capture split. Behind `darkMiniXiangqiEnabled`. Loads `landing.css` + `game-route.css` |
+| `mini-xiangqi-captures.ts` | Dark Mini Xiangqi captured-piece derivation (truth-view diff against the initial board) + pane capture-split rendering |
+| `mini-xiangqi-replay.ts` | Mini Xiangqi article replay: one 7×7 board stepped through a move list via the real kernel, rendered on demand (sibling of `xiangqi-replay.ts`) |
+| `mini-xiangqi-spike.ts` | `/mini-xiangqi-spike` FoW Mini Xiangqi sandbox (DEV): local play across red/black/god perspectives over the bespoke 7×7 renderer |
+| `watch-mini-xiangqi-replay.ts` | Mistboard TV (`/watch`) renderer for Dark Mini Xiangqi: postgame payload + shared replay chrome + control bar/auto-play, rendering server-computed fog views (leak-safe) |
+| `live-dark-xiangqi.ts` | Self-contained live room client for hidden/dev-only Dark Xiangqi (9×10): the first fog tenant on the `socket-client` + `room-chrome` stack; owns the intersection-board fog SVG, click-to-move, fog-safe replay capture, masked move list, and `renderDarkXiangqiBoardSvg` (reused by the postgame). Behind `darkXiangqiEnabled`. Loads `live-xiangqi.css` |
+| `live-xiangqi.css` | Shared xiangqi live-route board sizing/aspect styles loaded by `live.ts`, `live-dark-xiangqi.ts`, and `dark-xiangqi-postgame.ts` |
+| `dark-xiangqi-postgame.css` | Flagged Dark Xiangqi postgame route styles loaded by `dark-xiangqi-postgame.ts` |
+| `xiangqi-fog.ts` | Shared Fog of War SVG region for every xiangqi board (Dark Mini 7×7, full 9×10, dev spike): one masked region with flat tint + optional drift/mistveil texture mapped to the global fog assets |
+| `xiangqi-piece-sets.ts` | Selectable piece sets for the xiangqi family (all seven roles): traditional/simplified character scripts + western/symbol diagram sets; shared disc/ring, only the inner mark changes |
+| `xiangqi-appearance-storage.ts` | localStorage-backed xiangqi board-theme + piece-set preferences (read/write/normalize), shared by the xiangqi renderers |
+| `xiangqi-replay.ts` | Full xiangqi (9×10) article replay: one board stepped through a move list via the real kernel, rendered on demand (first used by the Xiangqi Rules article) |
+| `shogi4-rules-diagrams.ts` | GENERATED inline SVG diagrams for the Shogi4 rules article (Oca tiles); regenerate via the shogi4 repo's `gen_rules_diagrams.py`, do not hand-edit |
+| `shogi4-sample-game.ts` | GENERATED per-ply Shogi4 sample-game board frames (with hand trays) for the rules article; regenerate via the shogi4 repo's `gen_game_replay.py`, do not hand-edit |
+| `chess-replay.ts` | Lightweight client-side chess game replay: one chessground board stepped through a UCI move list via the rules kernel, positions rendered on demand (chess analogue of `xiangqi-replay.ts`) |
+| `article-prose.ts` | Translatable-prose extraction over the article model, shared by the translation-coverage test and the `i18n:coverage` reporter; excludes move-notation narratives and baked board labels |
+| `variant-tenant/registry.ts` | Web-side `VariantTenant` registry (routing/config mirror of the server registry): per-tenant page routing, review-URL base, watch-replay mount, landing config so `main.ts`/`live-room-bootstrap`/`landing`/`game-meta`/`watch-route` dispatch without per-variant branches; entry-chunk safe. Chess is intentionally unregistered (a miss is the chess fallback) |
+| `variant-tenant/live-shell.ts` | Static half of the registry: tenants that ride the shared `live.ts`/`live-render` shell (currently DMX) register render/reconcile/reset/tick/keyboard hooks here; statically imports the tenant live-room modules so it loads only in the live-room chunk |
+| `vite-env.d.ts` | Vite client type reference (`/// <reference types="vite/client" />`) |
 | `video.ts` | `/video` page (parked, route + nav removed). Loads `video.css` |
 | `video.css` | Parked `/video` page styles loaded by `video.ts` |
 
 ## apps/server/migrations/ — Postgres schema migrations
 
-34 files (`001_init.sql` through `034_drop_test_account_role.sql`). Runner: `migrate.ts` — Postgres advisory-lock + `_migrations` table. Add schema changes as new numbered migrations only.
+43 files (`001_init.sql` through `043_correspondence_seeks.sql`). Runner: `migrate.ts` — Postgres advisory-lock + `_migrations` table. Add schema changes as new numbered migrations only.
 
 **Change schema** → add a new `0NN_*.sql` (never modify a landed migration). Constraint rewrites: drop-then-readd in a new file (see `018_add_resignation_termination.sql`).
 
