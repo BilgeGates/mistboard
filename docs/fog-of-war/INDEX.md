@@ -29,6 +29,13 @@ implementation records, and article drafts.
 | [`dark-xiangqi-live-integration-plan.md`](dark-xiangqi-live-integration-plan.md) | `historical` | Flag-gated live-runtime integration plan for Dark Xiangqi: runtime boundary, unsupported surfaces, implementation slices, and regression matrix. |
 | [`dark-shogi-rules.md`](dark-shogi-rules.md) | `candidate` | Candidate Dark Shogi ruleset: king capture, fog visibility, Lao Tzu-style drops, hidden opponent hands, promotion redaction, and replay safety boundaries. |
 
+## Prototypes
+
+| File | Status | Use it for |
+|---|---|---|
+| [`prototypes/dark-shogi-prototype.html`](prototypes/dark-shogi-prototype.html) | `candidate` | Scripted Dark Shogi scenario sketch for candidate rules and perspective views. |
+| [`prototypes/dark-shogi-freeplay.html`](prototypes/dark-shogi-freeplay.html) | `candidate` | Standalone Dark Shogi freeplay lab for local move/drop experiments and event-redaction probes. |
+
 ## Engine And Research Track
 
 The redacted engine protocol and engine-vs-engine orchestration are implemented

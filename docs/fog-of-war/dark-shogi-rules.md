@@ -21,6 +21,11 @@ For a visual sketch of the candidate rules, open
 directly in a browser. The prototype is scripted and intentionally separate
 from production runtime code.
 
+For manual exploration, open
+[`prototypes/dark-shogi-freeplay.html`](./prototypes/dark-shogi-freeplay.html).
+That prototype supports local move/drop experiments and perspective event
+redaction without touching production runtime code.
+
 ## Relationship To Existing Hidden Shogi
 
 This candidate is closest to fog-style shogi: each player has vision generated
@@ -136,6 +141,9 @@ event views are recipient-scoped.
 - Hidden opponent drops are not sent as "drop" events to the opponent.
 - Hidden opponent promotions are not announced to the opponent.
 - Visible resulting board facts may appear in the opponent's player view.
+- If an opponent move starts in fog and results in a visible board change, the
+  live view should update the board only. Do not add a move-arrival event line
+  that implies a hidden origin, path, or action timing beyond the fresh view.
 
 For example, if an opponent drops a silver in the fog, the recipient should not
 learn that a silver was spent. If the recipient later sees that square, the
