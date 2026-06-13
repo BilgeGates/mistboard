@@ -79,22 +79,20 @@ information, ranked integrity, and a serious engine track.
      casual-only at launch (no rated migration/calibration), watch visibility
      policy, mobile pass. FSF PvE bot already live. Staggered after DMX's
      first telemetry read.
-  3. **Variant-tenant extraction (Layer 3)** — in the post-launch quiet
-     window, BEFORE any new variant stack. The rule-of-three trigger fired
-     2026-06-10 (four live stacks exist: dark chess, DMX, Dark Xiangqi,
-     Crossroads). Extract the `VariantTenant` interface from the four real
-     stacks behind hidden-info regression tests; target: new variant ≈ 5
-     files, zero shared-infrastructure edits.
-  4. **Correspondence on the generic room** — the second liquidity
-     multiplier: days-per-move drops the co-presence requirement, thickening
-     EVERY pool instead of adding thin ones. Built once on the tenant
-     contract (a `clockPolicy` variation + scheduler + notifications), so
-     all variants and all future tenants get async play free. Settle the
-     open forks before building: account-required (lean yes — notifications
-     need an address), notification channel (email first), forfeit-under-fog
-     semantics. Hidden-info games suit async unusually well (belief
-     reasoning rewards thinking time; Kriegspiel was played by mail for a
-     century).
+  3. **Variant-tenant extraction (Layer 3)** — landed 2026-06-11/12. The
+     generic runtime, registry dispatch, web socket client, and tenant chrome
+     are now production surfaces. DMX, Dark Xiangqi, and Crossroads are
+     registered tenants; dark chess has a tenant module and a correspondence
+     room slice while live unprefixed dark-chess rooms remain on the legacy
+     room-manager fallback. Next P2 thinking is the optional live dark-chess
+     convergence, not a blocker for correspondence or new tenants.
+  4. **Correspondence on the generic room** — currently wrapping. It is the
+     second liquidity multiplier: days-per-move drops the co-presence
+     requirement, thickening EVERY pool instead of adding thin ones. Built once
+     on the tenant contract (`clockPolicy`, durable deadlines, scheduler,
+     notifications), so all variants and all future tenants get async play
+     free. Hidden-info games suit async unusually well (belief reasoning
+     rewards thinking time; Kriegspiel was played by mail for a century).
   5. **New tenants, in order:** Kriegspiel (cheapest content, stresses the
      visibility axis; cost correction 2026-06-11: NOT zero new primitives —
      the try loop means the seat can never be sent its legal-move set, and
@@ -131,10 +129,10 @@ information, ranked integrity, and a serious engine track.
 - SSR exploration — server-rendered nav/pages to eliminate auth-state flash and unlock SEO for /articles + /@/handle. Current mitigation is the `mb_signed_in` localStorage hint in `account-nav.ts`. Likely trigger: wanting articles/profiles to rank in search.
 - Dark Xiangqi public launch — hidden/dev-only while the standard dark-chess
   launch gates remain open.
-- Variant generalization (live-room tenant) — **promoted 2026-06-10** into
-  the Planned variant pipeline (step 3): the rule-of-three trigger fired with
-  four live stacks. History and the layer model live in the variant
-  generalization track doc; an earlier registry-first attempt was premature.
+- Variant generalization (live-room tenant) — **landed 2026-06-11/12** as
+  Planned variant pipeline step 3. History, the layer model, and remaining P2
+  live dark-chess convergence notes live in the variant generalization track
+  doc; an earlier registry-first attempt was premature.
 - Hidden-identity / hidden-info game candidates (researched 2026-06-10) —
   the chosen trio (Kriegspiel → jieqi → banqi) is **sequenced in the Planned
   variant pipeline** (step 4); per-game research record below. All three
