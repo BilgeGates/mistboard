@@ -212,6 +212,12 @@ definePersistenceTests('accounts', () => {
 
     const user = await getUserByAccountSession('session-id', tokenHash, now);
     assert.equal(user?.id, 'user_session');
+    // Regression: the session-load RETURNING list once dropped elo_rating, so
+    // session-resolved users came back with eloRating: undefined. It must be a
+    // real number and match what a direct load returns.
+    const direct = await findUserByEmail('session@example.com');
+    assert.equal(typeof user?.eloRating, 'number');
+    assert.equal(user?.eloRating, direct?.eloRating);
 
     await revokeAccountSession('session-id', tokenHash, now);
     assert.equal(await getUserByAccountSession('session-id', tokenHash, now), null);

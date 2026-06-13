@@ -135,11 +135,34 @@ export async function consumeEmailLoginChallenge(
   return rows[0]?.email ? { email: rows[0].email } : null;
 }
 
+// Canonical users-table column list for reads. Keep in lockstep with UserRow
+// and userFromRow below: every SELECT/RETURNING of a full user row derives from
+// this, so a column can't be silently dropped from one query (which once
+// stripped elo_rating from the session-load path).
+const USER_COLUMNS = [
+  'id',
+  'email',
+  'email_verified_at',
+  'handle',
+  'handle_changed_at',
+  'display_name',
+  'display_name_changed_at',
+  'profile_visibility',
+  'account_role',
+  'elo_rating',
+  'created_at',
+  'updated_at',
+].join(', ');
+
+// Same columns qualified with the `users.` alias, for queries that join users to
+// another table (e.g. account_sessions) where bare column names are ambiguous.
+const USER_COLUMNS_QUALIFIED = USER_COLUMNS.split(', ')
+  .map((column) => `users.${column}`)
+  .join(', ');
+
 export async function findUserByEmail(email: string): Promise<UserAccount | null> {
   const { rows } = await getPool().query<UserRow>(
-    `SELECT id, email, email_verified_at, handle, handle_changed_at,
-            display_name, display_name_changed_at, profile_visibility,
-            account_role, elo_rating, created_at, updated_at
+    `SELECT ${USER_COLUMNS}
      FROM users
      WHERE lower(email) = lower($1)
      LIMIT 1`,
@@ -162,9 +185,7 @@ export async function createUser(user: {
     `INSERT INTO users
        (id, email, email_verified_at, handle, display_name, profile_visibility, account_role, created_at, updated_at)
      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $8)
-     RETURNING id, email, email_verified_at, handle, handle_changed_at,
-               display_name, display_name_changed_at, profile_visibility,
-               account_role, elo_rating, created_at, updated_at`,
+     RETURNING ${USER_COLUMNS}`,
     [
       user.id,
       user.email,
@@ -185,9 +206,7 @@ export async function markUserEmailVerified(userId: string, at: Date): Promise<U
      SET email_verified_at = COALESCE(email_verified_at, $2),
          updated_at = $2
      WHERE id = $1
-     RETURNING id, email, email_verified_at, handle, handle_changed_at,
-               display_name, display_name_changed_at, profile_visibility,
-               account_role, elo_rating, created_at, updated_at`,
+     RETURNING ${USER_COLUMNS}`,
     [userId, at],
   );
   return userFromRow(rows[0]!);
@@ -204,9 +223,7 @@ export async function updateUserProfile(
   try {
     await client.query('BEGIN');
     const { rows } = await client.query<UserRow>(
-      `SELECT id, email, email_verified_at, handle, handle_changed_at,
-              display_name, display_name_changed_at, profile_visibility,
-              account_role, elo_rating, created_at, updated_at
+      `SELECT ${USER_COLUMNS}
        FROM users
        WHERE id = $1
        FOR UPDATE`,
@@ -266,9 +283,7 @@ export async function updateUserProfile(
            display_name_changed_at = CASE WHEN $5 THEN $6 ELSE display_name_changed_at END,
            updated_at = $6
        WHERE id = $1
-       RETURNING id, email, email_verified_at, handle, handle_changed_at,
-                 display_name, display_name_changed_at, profile_visibility,
-                 account_role, elo_rating, created_at, updated_at`,
+       RETURNING ${USER_COLUMNS}`,
       [userId, nextHandle, nextDisplayName, handleChanged, displayNameChanged, at],
     );
     await client.query('COMMIT');
@@ -304,9 +319,7 @@ export async function getUserByAccountSession(
        AND account_sessions.user_id = users.id
        AND account_sessions.revoked_at IS NULL
        AND account_sessions.expires_at > $3
-     RETURNING users.id, users.email, users.email_verified_at, users.handle, users.handle_changed_at,
-               users.display_name, users.display_name_changed_at, users.profile_visibility,
-               users.account_role, users.created_at, users.updated_at`,
+     RETURNING ${USER_COLUMNS_QUALIFIED}`,
     [sessionId, tokenHash, at],
   );
   return rows[0] ? userFromRow(rows[0]) : null;
@@ -335,9 +348,7 @@ const PROFILE_GAMES_PAGE = 15;
 // handle doesn't exist.
 async function loadProfileUser(handle: string): Promise<UserAccount | null> {
   const { rows } = await getPool().query<UserRow>(
-    `SELECT id, email, email_verified_at, handle, handle_changed_at,
-            display_name, display_name_changed_at, profile_visibility,
-            account_role, elo_rating, created_at, updated_at
+    `SELECT ${USER_COLUMNS}
      FROM users
      WHERE lower(handle) = lower($1)
      LIMIT 1`,
