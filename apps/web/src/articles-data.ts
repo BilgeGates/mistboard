@@ -2587,6 +2587,15 @@ const XQ_DARK_XIANGQI_THUMBNAIL = () => xqSvg(
 // Jieqi is hidden-identity, not fog. These diagrams reuse the xiangqi board
 // shell but render all non-general pieces as same-color piece backs and keep the
 // whole board visible.
+// Future real-game diagram candidates:
+// https://www.youtube.com/watch?v=Tpmy3-pg9uc
+//   2022 international Jieqi team open broadcast, strongest event provenance.
+// https://www.youtube.com/watch?v=ZmNT0halq8s
+//   2021 international Jieqi online championship broadcast.
+// https://www.youtube.com/watch?v=7HNUtU02C6Q
+//   Shorter Wang Tianyi vs Lei Yongming clip, easier to parse but less formal.
+// Recovering positions from video is manual work. An engine-generated game may
+// be a cleaner article source if we can produce and verify one later.
 const JIEQI_PAIR_W = XQ_BOARD_W * 2 + 28;
 const JIEQI_PAIR_CENTER_X = (JIEQI_PAIR_W - XQ_BOARD_W) / 2;
 
