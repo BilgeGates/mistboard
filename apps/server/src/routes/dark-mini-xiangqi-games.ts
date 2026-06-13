@@ -17,6 +17,7 @@ import {
   replayDarkMiniXiangqiEvents,
 } from './../dark-mini-xiangqi-runtime.js';
 import { darkMiniXiangqiEnabled } from './../feature-flags.js';
+import { FinishedGameCache } from './../finished-game-cache.js';
 import * as persistence from './../persistence.js';
 import { type HttpApiContext, requireMethod, requirePersistence, writeJson } from './lib.js';
 
@@ -56,6 +57,20 @@ const defaultPersistence: DarkMiniXiangqiPostgamePersistence = {
   getGameSummary: (roomId) => persistence.getGameSummary(roomId),
   loadRoomEvents: (roomId) => persistence.loadRoomEvents<DarkMiniXiangqiEvent>(roomId),
 };
+
+// Postgame rebuild is O(plies) × per-ply fogged views, so a Mistboard TV switch
+// to the Dark Mini Xiangqi channel pays it on every game. Finished games are
+// immutable, so memoize the projection by room id, mirroring the Crossroads
+// path. Only consulted on the production path (defaultPersistence); unit tests
+// inject their own `deps` and reuse a fixed room id with different event logs,
+// so they must bypass it to stay deterministic.
+const darkMiniXiangqiPostgameCache = new FinishedGameCache<
+  NonNullable<Awaited<ReturnType<typeof buildDarkMiniXiangqiPostgame>>>
+>();
+
+export function clearDarkMiniXiangqiPostgameCache(): void {
+  darkMiniXiangqiPostgameCache.clear();
+}
 
 export async function tryHandle(
   _ctx: HttpApiContext,
@@ -113,6 +128,20 @@ export async function tryHandle(
 export async function darkMiniXiangqiPostgameForApi(
   roomId: string,
   deps: DarkMiniXiangqiPostgamePersistence = defaultPersistence,
+) {
+  const useCache = deps === defaultPersistence;
+  if (useCache) {
+    const cached = darkMiniXiangqiPostgameCache.get(roomId);
+    if (cached) return cached;
+  }
+  const payload = await buildDarkMiniXiangqiPostgame(roomId, deps);
+  if (payload && useCache) darkMiniXiangqiPostgameCache.set(roomId, payload);
+  return payload;
+}
+
+async function buildDarkMiniXiangqiPostgame(
+  roomId: string,
+  deps: DarkMiniXiangqiPostgamePersistence,
 ) {
   const [game, events] = await Promise.all([
     deps.getGameSummary(roomId),
