@@ -321,6 +321,84 @@ test('delta: snapshot:request triggers a full snapshot reply on the same socket'
   assert.ok(Array.isArray(reply.events));
 });
 
+test('delta: mid-game snapshot:request stays fogged — recovered log never leaks the opponent (model A)', async (t) => {
+  // The recovery channel ships the FULL per-recipient event log, so it is the
+  // highest-blast-radius surface for a fog leak — yet the steady-state delta
+  // test above and the finished-boundary test below leave the MID-GAME resync
+  // path unguarded. After several plies, a resync must still redact: black's
+  // recovered log shows black's own moves but never white's hidden move-played
+  // events. A regression that shipped the raw log on resync would leak here.
+  const port = serverPort;
+  const clients: TestClient[] = [];
+  t.after(async () => closeClients(clients));
+
+  const room = uniqueRoomId('ws-delta-resync-fog');
+  const white = await connectForHello(port, `room=${room}&client=white-resync-0001&reset=1`);
+  const black = await connectForHello(port, `room=${room}&client=black-resync-0001`);
+  clients.push(white, black);
+
+  // White moves, black replies, white moves again: two hidden white plies now
+  // sit in the log, plus one black ply.
+  const whiteReady = await waitForMessage(
+    white.messages,
+    (m) =>
+      m.state.status.type === 'playing' &&
+      m.state.status.turn === 'white' &&
+      m.state.legalMoves.length > 0,
+    'initial white turn',
+  );
+  white.socket.send(JSON.stringify({ type: 'move', ...firstLegalMove(whiteReady) }));
+
+  const blackReady = await waitForMessage(
+    black.messages,
+    (m) =>
+      m.state.status.type === 'playing' &&
+      m.state.status.turn === 'black' &&
+      m.state.legalMoves.length > 0,
+    'black turn',
+  );
+  black.socket.send(JSON.stringify({ type: 'move', ...firstLegalMove(blackReady) }));
+
+  const whiteAgain = await waitForMessage(
+    white.messages,
+    (m) =>
+      m.state.status.type === 'playing' &&
+      m.state.status.turn === 'white' &&
+      m.state.legalMoves.length > 0,
+    'white second turn',
+  );
+  white.socket.send(JSON.stringify({ type: 'move', ...firstLegalMove(whiteAgain) }));
+
+  await waitForMessage(
+    black.messages,
+    (m) => m.state.status.type === 'playing' && m.state.status.turn === 'black',
+    'black turn after white second move',
+  );
+
+  // Force a full resync mid-game from black.
+  const baselineBlack = black.messages.length;
+  black.socket.send(JSON.stringify({ type: 'snapshot:request' }));
+  const resync = await waitForMessageAfter(
+    black,
+    baselineBlack,
+    (m) => m.type === 'snapshot' && m.state.status.type === 'playing',
+    'black mid-game resync snapshot',
+  );
+
+  assert.ok(Array.isArray(resync.events), 'resync snapshot carries the recovery log');
+  const blackOwn = (resync.events ?? []).filter(
+    (e) => e.type === 'move-played' && e.color === 'black',
+  );
+  assert.ok(blackOwn.length >= 1, 'black must see its own move-played in the resync log');
+  const whiteLeak = (resync.events ?? []).find(
+    (e) => e.type === 'move-played' && e.color === 'white',
+  );
+  assert.ok(
+    !whiteLeak,
+    "model A: white's hidden move-played must NOT leak into black's mid-game resync log",
+  );
+});
+
 test('delta: game-end transition broadcasts a snapshot but stays fogged (model A)', async (t) => {
   // Resignation transitions status to 'finished'. The game-end broadcast is a
   // full snapshot to every recipient (a clean final-frame resync at the
