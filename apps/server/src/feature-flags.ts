@@ -31,10 +31,7 @@ export function darkMiniXiangqiEnabled(): boolean {
 // from the client VITE_CROSSROADS_CHESS_ENABLED page flag, so live PvP cannot be
 // exposed in production by accident while the local play surface is enabled.
 export function crossroadsChessEnabled(): boolean {
-  return (
-    process.env.MISTBOARD_CROSSROADS_CHESS_ENABLED === 'true' ||
-    process.env.MISTBOARD_DUAL_CHESS_ENABLED === 'true'
-  );
+  return process.env.MISTBOARD_CROSSROADS_CHESS_ENABLED === 'true';
 }
 
 // Correspondence (days-per-move) dark chess on the variant-tenant stack.

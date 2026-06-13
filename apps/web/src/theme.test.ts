@@ -101,7 +101,6 @@ describe('appearance family gating', () => {
   it('keeps Settings chess-only when no xiangqi variant is enabled', () => {
     vi.stubEnv('DEV', false);
     vi.stubEnv('VITE_CROSSROADS_CHESS_ENABLED', 'false');
-    vi.stubEnv('VITE_DUAL_CHESS_ENABLED', 'false');
     vi.stubEnv('VITE_DARK_XIANGQI_ENABLED', 'false');
     vi.stubEnv('VITE_DARK_MINI_XIANGQI_ENABLED', 'false');
 
