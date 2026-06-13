@@ -325,9 +325,9 @@ test('delta: mid-game snapshot:request stays fogged — recovered log never leak
   // The recovery channel ships the FULL per-recipient event log, so it is the
   // highest-blast-radius surface for a fog leak — yet the steady-state delta
   // test above and the finished-boundary test below leave the MID-GAME resync
-  // path unguarded. After several plies, a resync must still redact: black's
-  // recovered log shows black's own moves but never white's hidden move-played
-  // events. A regression that shipped the raw log on resync would leak here.
+  // path unguarded. After both sides have moved, a resync must still redact:
+  // black's recovered log shows its own move but never white's hidden
+  // move-played. A regression that shipped the raw log on resync would leak here.
   const port = serverPort;
   const clients: TestClient[] = [];
   t.after(async () => closeClients(clients));
@@ -337,8 +337,10 @@ test('delta: mid-game snapshot:request stays fogged — recovered log never leak
   const black = await connectForHello(port, `room=${room}&client=black-resync-0001`);
   clients.push(white, black);
 
-  // White moves, black replies, white moves again: two hidden white plies now
-  // sit in the log, plus one black ply.
+  // White moves (hidden from black), then black replies. Use baseline-relative
+  // waits for every post-send condition: a plain waitForMessage on a repeated
+  // turn condition can match a STALE earlier frame, letting snapshot:request
+  // race ahead of black's own move commit (the flaky empty-log failure).
   const whiteReady = await waitForMessage(
     white.messages,
     (m) =>
@@ -347,40 +349,36 @@ test('delta: mid-game snapshot:request stays fogged — recovered log never leak
       m.state.legalMoves.length > 0,
     'initial white turn',
   );
+  let blackBaseline = black.messages.length;
   white.socket.send(JSON.stringify({ type: 'move', ...firstLegalMove(whiteReady) }));
 
-  const blackReady = await waitForMessage(
-    black.messages,
+  const blackReady = await waitForMessageAfter(
+    black,
+    blackBaseline,
     (m) =>
       m.state.status.type === 'playing' &&
       m.state.status.turn === 'black' &&
       m.state.legalMoves.length > 0,
-    'black turn',
+    'black turn after white move',
   );
+  blackBaseline = black.messages.length;
   black.socket.send(JSON.stringify({ type: 'move', ...firstLegalMove(blackReady) }));
 
-  const whiteAgain = await waitForMessage(
-    white.messages,
-    (m) =>
-      m.state.status.type === 'playing' &&
-      m.state.status.turn === 'white' &&
-      m.state.legalMoves.length > 0,
-    'white second turn',
-  );
-  white.socket.send(JSON.stringify({ type: 'move', ...firstLegalMove(whiteAgain) }));
-
-  await waitForMessage(
-    black.messages,
-    (m) => m.state.status.type === 'playing' && m.state.status.turn === 'black',
-    'black turn after white second move',
+  // Black's own move is committed once the turn flips back to white. Waiting for
+  // that NEW frame guarantees ply-2 is in the log before we resync.
+  await waitForMessageAfter(
+    black,
+    blackBaseline,
+    (m) => m.state.status.type === 'playing' && m.state.status.turn === 'white',
+    'white turn after black move',
   );
 
   // Force a full resync mid-game from black.
-  const baselineBlack = black.messages.length;
+  blackBaseline = black.messages.length;
   black.socket.send(JSON.stringify({ type: 'snapshot:request' }));
   const resync = await waitForMessageAfter(
     black,
-    baselineBlack,
+    blackBaseline,
     (m) => m.type === 'snapshot' && m.state.status.type === 'playing',
     'black mid-game resync snapshot',
   );
