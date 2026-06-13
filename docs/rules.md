@@ -136,16 +136,21 @@ Locked:
   ~40 plies early. Keep the unit explicit (60 moves = 120 plies) so the server
   and engine agree on draw adjudication.
 
-Open implementation blocker:
+Implementation dependency:
 
-- Repetition/chase adjudication needs a concrete classifier before rated or
-  public competitive play. The player article is already locked against a
-  generic threefold or fourfold auto-result: perpetual check and direct
-  perpetual chase are forbidden, while ordinary repeated positions are not an
-  automatic generic loss. Public Jieqi references describe the result as
-  xiangqi-style long-beat adjudication rather than a generic fold count. For
-  the first rules module, implement the no-capture draw and expose repetition
-  telemetry, then add the chase classifier before enabling rated play.
+- Repetition/chase adjudication follows standard xiangqi long-beat rules, not a
+  Mistboard-specific fold count. Public Jieqi references list long-beat loss as
+  a normal xiangqi-family loss condition, and mature xiangqi engines already
+  solve most of this problem.
+- The implementation target is patched Pikafish behavior: use Pikafish's
+  existing `rule_judge`/`detect_chases` style classifier for perpetual check,
+  perpetual chase, mutual forcing, and ordinary repetition, but patch the Jieqi
+  branch's no-capture threshold from `rule40 >= 80` to the Guangdong/Tencent
+  `rule60 >= 120` equivalent.
+- Casual Jieqi may ship before full long-beat parity if repeated cycles expose
+  telemetry and never make a rated claim. Rated or public competitive Jieqi must
+  first pass fixture parity against patched Pikafish plus known WXF/xiangqi
+  long-beat cases.
 
 ### Banqi
 

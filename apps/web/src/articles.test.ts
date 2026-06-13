@@ -177,7 +177,7 @@ describe('rules variant sidebar', () => {
     expect(pageText).not.toContain('[VISUAL:');
     expect(pageText).not.toMatch(/\bsquares?\b/i);
     expect(pageText).toContain('starting point it occupies');
-    expect(pageText).toContain('not by a generic threefold or fourfold auto-loss');
+    expect(pageText).toContain('Repetition follows xiangqi long-beat rules');
     const jieqiSvgs = [...page.querySelectorAll('.article-figure .xq-article-svg')];
     expect(jieqiSvgs.length).toBeGreaterThanOrEqual(4);
     expect(jieqiSvgs.every((svg) => svg.getAttribute('data-xq-layout') === 'pair')).toBe(true);

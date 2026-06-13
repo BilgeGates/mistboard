@@ -5822,7 +5822,7 @@ export const articles: Article[] = [
           {
             kind: 'paragraph',
             text:
-              'Repetition is judged by the kind of cycle, not by a generic threefold or fourfold auto-loss. Perpetual check and direct perpetual chase are forbidden, so the forcing side must change course or lose. The only automatic draw convention in this reference is the xiangqi-family no-capture clock: 60 plies (30 moves by each side) without a capture.',
+              'Repetition follows xiangqi long-beat rules, not a generic threefold or fourfold result. Perpetual check and direct perpetual chase are forbidden, so the forcing side must change course or lose; mutual forcing and ordinary repeated positions are judged by the xiangqi cycle, not by board equality alone. The automatic draw convention in this reference is the Guangdong/Tencent no-capture clock: 60 full moves, meaning 120 plies, without a capture.',
           },
         ],
       },
