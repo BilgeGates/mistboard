@@ -1,5 +1,5 @@
 import { PROVISIONAL_RD } from './glicko.js';
-import { getPool } from './persistence-db.js';
+import { getPool, withTransaction } from './persistence-db.js';
 import type { GameMode, GameTermination, GameVisibility } from './persistence-game-lifecycle.js';
 import type { GameParticipantColor, GameResult, ProfileGameRecord } from './persistence-games.js';
 import { attachGameParticipants } from './persistence-games.js';
@@ -217,40 +217,38 @@ export async function updateUserProfile(
   updates: { handle: string; displayName: string },
   at: Date,
 ): Promise<UpdateUserProfileResult> {
-  const client = await getPool().connect();
   const handleCooldownMs = 30 * 24 * 60 * 60 * 1000;
   const handleReservationMs = 90 * 24 * 60 * 60 * 1000;
   try {
-    await client.query('BEGIN');
-    const { rows } = await client.query<UserRow>(
-      `SELECT ${USER_COLUMNS}
+    return await withTransaction(async (client) => {
+      const { rows } = await client.query<UserRow>(
+        `SELECT ${USER_COLUMNS}
        FROM users
        WHERE id = $1
        FOR UPDATE`,
-      [userId],
-    );
-    const current = rows[0] ? userFromRow(rows[0]) : null;
-    if (!current) throw new Error(`missing user ${userId}`);
+        [userId],
+      );
+      const current = rows[0] ? userFromRow(rows[0]) : null;
+      if (!current) throw new Error(`missing user ${userId}`);
 
-    const nextHandle = updates.handle;
-    const nextDisplayName = updates.displayName;
-    const handleChanged = nextHandle !== current.handle;
-    const displayNameChanged = nextDisplayName !== current.displayName;
+      const nextHandle = updates.handle;
+      const nextDisplayName = updates.displayName;
+      const handleChanged = nextHandle !== current.handle;
+      const displayNameChanged = nextDisplayName !== current.displayName;
 
-    if (handleChanged) {
-      if (
-        current.handleChangedAt &&
-        at.getTime() - current.handleChangedAt.getTime() < handleCooldownMs
-      ) {
-        await client.query('ROLLBACK');
-        return {
-          ok: false,
-          error: 'handle_change_cooldown',
-          availableAt: new Date(current.handleChangedAt.getTime() + handleCooldownMs),
-        };
-      }
-      const { rows: conflicts } = await client.query<{ exists: boolean }>(
-        `SELECT EXISTS (
+      if (handleChanged) {
+        if (
+          current.handleChangedAt &&
+          at.getTime() - current.handleChangedAt.getTime() < handleCooldownMs
+        ) {
+          return {
+            ok: false,
+            error: 'handle_change_cooldown',
+            availableAt: new Date(current.handleChangedAt.getTime() + handleCooldownMs),
+          };
+        }
+        const { rows: conflicts } = await client.query<{ exists: boolean }>(
+          `SELECT EXISTS (
            SELECT 1 FROM users WHERE lower(handle) = lower($1) AND id <> $2
            UNION ALL
            SELECT 1 FROM user_handle_reservations
@@ -258,25 +256,24 @@ export async function updateUserProfile(
              AND user_id <> $2
              AND expires_at > $3
          ) AS exists`,
-        [nextHandle, userId, at],
-      );
-      if (conflicts[0]?.exists) {
-        await client.query('ROLLBACK');
-        return { ok: false, error: 'handle_taken' };
-      }
-      await client.query(
-        `INSERT INTO user_handle_reservations (handle, user_id, reserved_at, expires_at)
+          [nextHandle, userId, at],
+        );
+        if (conflicts[0]?.exists) {
+          return { ok: false, error: 'handle_taken' };
+        }
+        await client.query(
+          `INSERT INTO user_handle_reservations (handle, user_id, reserved_at, expires_at)
          VALUES ($1, $2, $3, $4)
          ON CONFLICT (handle) DO UPDATE
          SET user_id = EXCLUDED.user_id,
              reserved_at = EXCLUDED.reserved_at,
              expires_at = EXCLUDED.expires_at`,
-        [current.handle, userId, at, new Date(at.getTime() + handleReservationMs)],
-      );
-    }
+          [current.handle, userId, at, new Date(at.getTime() + handleReservationMs)],
+        );
+      }
 
-    const { rows: updatedRows } = await client.query<UserRow>(
-      `UPDATE users
+      const { rows: updatedRows } = await client.query<UserRow>(
+        `UPDATE users
        SET handle = $2,
            handle_changed_at = CASE WHEN $4 THEN $6 ELSE handle_changed_at END,
            display_name = $3,
@@ -284,16 +281,13 @@ export async function updateUserProfile(
            updated_at = $6
        WHERE id = $1
        RETURNING ${USER_COLUMNS}`,
-      [userId, nextHandle, nextDisplayName, handleChanged, displayNameChanged, at],
-    );
-    await client.query('COMMIT');
-    return { ok: true, user: userFromRow(updatedRows[0]!) };
+        [userId, nextHandle, nextDisplayName, handleChanged, displayNameChanged, at],
+      );
+      return { ok: true, user: userFromRow(updatedRows[0]!) };
+    });
   } catch (err) {
-    await client.query('ROLLBACK').catch(() => undefined);
     if (isUniqueViolation(err)) return { ok: false, error: 'handle_taken' };
     throw err;
-  } finally {
-    client.release();
   }
 }
 

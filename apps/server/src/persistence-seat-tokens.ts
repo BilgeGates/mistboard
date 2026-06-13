@@ -1,6 +1,6 @@
 import { createHash, timingSafeEqual } from 'node:crypto';
 import type { Color, XiangqiColor } from '@mistboard/game';
-import { getPool } from './persistence-db.js';
+import { getPool, withTransaction } from './persistence-db.js';
 
 export type RoomSeatTokenSeat = Color | XiangqiColor;
 
@@ -109,9 +109,7 @@ export async function replaceRoomSeatTokens(
   roomId: string,
   tokens: Partial<Record<RoomSeatTokenSeat, RoomSeatTokenRecord<RoomSeatTokenSeat>>>,
 ): Promise<void> {
-  const client = await getPool().connect();
-  try {
-    await client.query('BEGIN');
+  await withTransaction(async (client) => {
     await client.query('DELETE FROM room_seat_tokens WHERE room_id = $1', [roomId]);
     for (const token of Object.values(tokens)) {
       if (!token || token.revokedAt) continue;
@@ -131,13 +129,7 @@ export async function replaceRoomSeatTokens(
         ],
       );
     }
-    await client.query('COMMIT');
-  } catch (err) {
-    await client.query('ROLLBACK');
-    throw err;
-  } finally {
-    client.release();
-  }
+  });
 }
 
 export async function verifyRoomSeatToken(

@@ -7,7 +7,7 @@ import {
   type XiangqiColor,
 } from '@mistboard/game';
 import { engineVersionDisplayName } from './engine-registry.js';
-import { getPool } from './persistence-db.js';
+import { getPool, withTransaction } from './persistence-db.js';
 import type {
   GameMode,
   GameReviewStatus,
@@ -906,11 +906,9 @@ export async function gameFacets(): Promise<GameFacets> {
 }
 
 export async function recordGameEnd(roomId: string, summary: GameSummary): Promise<void> {
-  const client = await getPool().connect();
   const mode = summary.mode ?? (summary.corpusId ? 'imported' : 'pvp');
   const visibility = summary.visibility ?? 'public';
-  try {
-    await client.query('BEGIN');
+  await withTransaction(async (client) => {
     const rated = summary.rated ?? false;
     await client.query(
       `INSERT INTO games
@@ -1015,13 +1013,7 @@ export async function recordGameEnd(roomId: string, summary: GameSummary): Promi
         );
       }
     }
-    await client.query('COMMIT');
-  } catch (err) {
-    await client.query('ROLLBACK');
-    throw err;
-  } finally {
-    client.release();
-  }
+  });
 }
 
 function ratedParticipantColorsForVariant(variant: string): {

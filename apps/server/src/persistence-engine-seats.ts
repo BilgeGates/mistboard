@@ -6,7 +6,7 @@
 //
 // Not yet wired into the live reservation path — that flips behind a flag in a
 // later slice, alongside the move work-queue.
-import { getPool } from './persistence-db.js';
+import { getPool, withTransaction } from './persistence-db.js';
 
 export type EngineSeatReservation = {
   reserved: boolean;
@@ -27,9 +27,7 @@ export async function reserveEngineSeat(
   color: 'white' | 'black',
   maxSeats: number,
 ): Promise<EngineSeatReservation> {
-  const client = await getPool().connect();
-  try {
-    await client.query('BEGIN');
+  return withTransaction(async (client) => {
     await client.query('SELECT pg_advisory_xact_lock(hashtext($1))', [`engine-seat:${engineId}`]);
     const own = await client.query('SELECT 1 FROM live_engine_games WHERE room_id = $1', [roomId]);
     let reserved = (own.rowCount ?? 0) > 0;
@@ -51,14 +49,8 @@ export async function reserveEngineSeat(
       'SELECT count(*)::int AS n FROM live_engine_games WHERE engine_id = $1',
       [engineId],
     );
-    await client.query('COMMIT');
     return { reserved, activeSeats: rows[0]?.n ?? 0, maxSeats };
-  } catch (err) {
-    await client.query('ROLLBACK');
-    throw err;
-  } finally {
-    client.release();
-  }
+  });
 }
 
 export async function releaseEngineSeat(roomId: string): Promise<void> {
