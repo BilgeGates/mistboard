@@ -622,6 +622,14 @@
     --cg-w: min(100%, 460px, calc(100dvh - 490px));
   }
 
+  /* Crossroads is a portrait SVG board, so height becomes ~1.33x its
+     width. In the fixed-height TV layout, reserve room for the nav, watch
+     header, replay header, and move controls before sizing the board. */
+  .watch-replay .crossroads-watch-board {
+    width: min(100%, 520px, calc(75dvh - 230px));
+    max-width: min(100%, 520px, calc(75dvh - 230px));
+  }
+
   .watch-queue {
     min-height: 0;
   }
