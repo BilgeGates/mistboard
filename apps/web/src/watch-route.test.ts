@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import type { FeaturedGame } from './game-display.js';
 import {
   formatWatchScope,
+  renderWatchReplaySkeleton,
   resultLabel,
   watchFeedIsDark,
   watchQueueMatchupLabel,
@@ -108,5 +109,17 @@ describe('watch route copy helpers', () => {
 
     expect(watchQueueMatchupLabel(game)).toBe('White Human vs Misty');
     expect(resultLabel(game.result)).toBe('Red wins');
+  });
+});
+
+describe('renderWatchReplaySkeleton', () => {
+  it('fills the slot with the board placeholder the CSS targets', () => {
+    const root = document.createElement('div');
+    root.append(document.createElement('span'));
+    renderWatchReplaySkeleton(root);
+    expect(root.querySelector('.watch-replay-skeleton-board')).not.toBeNull();
+    // It replaces prior content rather than appending to it.
+    expect(root.querySelector('span')).toBeNull();
+    expect(root.firstElementChild?.getAttribute('aria-hidden')).toBe('true');
   });
 });

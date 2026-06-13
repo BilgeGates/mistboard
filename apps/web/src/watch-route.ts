@@ -94,7 +94,16 @@ export async function mountWatch(root: HTMLElement): Promise<void> {
   ): Promise<void> => {
     const kind = watchRendererKind(feed);
     if (!replayHandle || replayHandleKind !== kind) {
+      // Family change (e.g. switching the channel to Crossroads): the live
+      // renderer can't load the new game, so it's torn down and a different
+      // chunk + postgame are fetched — two round trips. Paint a skeleton in the
+      // board slot up front so the area gives feedback instead of going blank
+      // while the swap lands. Null the handle before the await so a failed
+      // mount surfaces the empty state rather than a stale, destroyed handle.
       replayHandle?.destroy();
+      replayHandle = null;
+      replayHandleKind = null;
+      renderWatchReplaySkeleton(watch.replayRoot);
       replayHandle = await mountWatchReplay(watch.replayRoot, roomId, metadataByRoomId, seed, kind);
       replayHandleKind = kind;
       return;
@@ -461,6 +470,24 @@ function renderWatchChannelList(root: HTMLElement, feed: WatchFeed | null): void
     }
     root.append(link);
   }
+}
+
+// A sized placeholder for the board slot while a renderer swap is in flight
+// (channel switch across families, or the first mount). It reserves the board's
+// footprint so the swap doesn't shift layout, and every renderer's mount path
+// calls root.replaceChildren(), so the skeleton is wiped the moment real
+// content is ready. aria-hidden: it's a transient loading affordance, not state.
+export function renderWatchReplaySkeleton(root: HTMLElement): void {
+  const skeleton = document.createElement('div');
+  skeleton.className = 'watch-replay-skeleton';
+  skeleton.setAttribute('aria-hidden', 'true');
+  const board = document.createElement('div');
+  board.className = 'watch-replay-skeleton-board';
+  const caption = document.createElement('div');
+  caption.className = 'watch-replay-skeleton-caption';
+  caption.textContent = 'Loading game';
+  skeleton.append(board, caption);
+  root.replaceChildren(skeleton);
 }
 
 function renderWatchEmptyState(root: HTMLElement, feed: WatchFeed | null): void {

@@ -18,6 +18,7 @@ import {
   replayCrossroadsChessEvents,
 } from '../crossroads-chess-runtime.js';
 import { crossroadsChessEnabled } from '../feature-flags.js';
+import { FinishedGameCache } from '../finished-game-cache.js';
 import * as persistence from '../persistence.js';
 import { readJsonBody, requireMethod, requirePersistence, writeJson } from './lib.js';
 
@@ -67,6 +68,20 @@ const defaultPersistence: CrossroadsChessPostgamePersistence = {
   getGameSummary: (roomId) => persistence.getGameSummary(roomId),
   loadRoomEvents: (roomId) => persistence.loadRoomEvents<CrossroadsChessEvent>(roomId),
 };
+
+// Postgame rebuild is O(plies) × 3 board views per ply, so a Mistboard TV
+// variant switch (which fetches one of these per game) pays it every time.
+// Finished crossroads games are immutable, so memoize the projection by room
+// id. The cache is only consulted on the production path (defaultPersistence);
+// unit tests inject their own `deps` and reuse a fixed room id with different
+// event logs, so they must bypass it to stay deterministic.
+const crossroadsPostgameCache = new FinishedGameCache<
+  NonNullable<Awaited<ReturnType<typeof buildCrossroadsChessPostgame>>>
+>();
+
+export function clearCrossroadsChessPostgameCache(): void {
+  crossroadsPostgameCache.clear();
+}
 
 // POST /api/crossroads-chess/engine-move  { moves: string[], movetime?: number }
 //   -> { move: string | null }   (Fairy-Stockfish best move for the open mode)
@@ -162,6 +177,20 @@ export async function tryHandle(
 export async function crossroadsChessPostgameForApi(
   roomId: string,
   deps: CrossroadsChessPostgamePersistence = defaultPersistence,
+) {
+  const useCache = deps === defaultPersistence;
+  if (useCache) {
+    const cached = crossroadsPostgameCache.get(roomId);
+    if (cached) return cached;
+  }
+  const payload = await buildCrossroadsChessPostgame(roomId, deps);
+  if (payload && useCache) crossroadsPostgameCache.set(roomId, payload);
+  return payload;
+}
+
+async function buildCrossroadsChessPostgame(
+  roomId: string,
+  deps: CrossroadsChessPostgamePersistence,
 ) {
   const [game, events] = await Promise.all([
     deps.getGameSummary(roomId),

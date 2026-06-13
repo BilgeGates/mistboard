@@ -252,6 +252,54 @@
   background: var(--site-panel);
 }
 
+/* Transient placeholder shown in the replay slot while a renderer swap is in
+   flight (channel switch across families, or first mount). Mirrors the
+   empty-state footprint so the board does not shift when real content lands. */
+.watch-replay-skeleton {
+  min-height: min(64vh, 620px);
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+}
+
+.watch-replay-skeleton-board {
+  width: min(100%, 460px);
+  max-width: 460px;
+  aspect-ratio: 1 / 1;
+  border: 1px solid var(--site-border-soft);
+  border-radius: var(--site-radius);
+  background: var(--site-panel-soft);
+  animation: watch-replay-skeleton-pulse 1.25s ease-in-out infinite;
+}
+
+.watch-replay-skeleton-caption {
+  color: var(--site-muted);
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+@keyframes watch-replay-skeleton-pulse {
+  0%,
+  100% {
+    opacity: 0.4;
+  }
+
+  50% {
+    opacity: 0.75;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .watch-replay-skeleton-board {
+    animation: none;
+  }
+}
+
 .watch-queue {
   min-width: 0;
   border: 1px solid var(--site-border-soft);

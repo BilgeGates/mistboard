@@ -1,6 +1,7 @@
 import type { IncomingMessage, ServerResponse } from 'node:http';
 import type { Color, GameEvent, TimeClass } from '@mistboard/game';
 import { currentAccountUser } from './../account-session.js';
+import { FinishedGameCache } from './../finished-game-cache.js';
 import { buildGamePgn, buildGamePublicationJson } from './../game-export.js';
 import * as persistence from './../persistence.js';
 import {
@@ -337,6 +338,17 @@ async function gameEventsForApi(ctx: HttpApiContext, roomId: string): Promise<Ga
   return persisted ?? ctx.rooms.get(roomId)?.events ?? null;
 }
 
+// The first replay's events ride along in every /api/watch response, so a
+// finished game's full event log is loaded + replay-validated on each watch
+// load and each channel switch. Finished games are immutable, so memoize the
+// validated seed by room id; only the 200 (finished + exposable) case is
+// stored, never an in-progress log. Bound by the cache's own TTL/size.
+const watchInitialReplayCache = new FinishedGameCache<{ events: GameEvent[]; roomId: string }>();
+
+export function clearWatchInitialReplayCache(): void {
+  watchInitialReplayCache.clear();
+}
+
 // Events for the first unlocked watch replay, gated by the same public/finished
 // policy as /api/games/:id/events. Returns null when there is nothing to seed
 // or the game is not exposable, in which case the client fetches per-game.
@@ -346,9 +358,13 @@ async function watchInitialReplay(
 ): Promise<{ events: GameEvent[]; roomId: string } | null> {
   const first = unlocked[0];
   if (!first) return null;
+  const cached = watchInitialReplayCache.get(first.roomId);
+  if (cached) return cached;
   const events = await gameEventsForApi(ctx, first.roomId);
   if (!events || eventReplayResponse(events).status !== 200) return null;
-  return { events, roomId: first.roomId };
+  const seed = { events, roomId: first.roomId };
+  watchInitialReplayCache.set(first.roomId, seed);
+  return seed;
 }
 
 async function gameReviewForApi(
