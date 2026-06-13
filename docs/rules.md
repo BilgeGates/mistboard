@@ -84,12 +84,15 @@ Locked:
 - Promotion is not announced.
 - En passant is announced as an ordinary pawn capture, without an en passant
   flag.
-
-Open implementation detail:
-
-- Decide whether the client blocks always-impossible moves locally or sends
-  them to the server for an "impossible" rejection. Either way, the opponent
-  must not learn about rejected tries.
+- Rejected-try handling is server-authoritative. The client may suppress
+  obviously impossible drags as a UI affordance, but every submitted try is
+  classified by the server.
+- Rejected tries are private responses to the mover, not room events. The
+  opponent receives no signal for rejected attempts.
+- Use private rejection classes rather than fractured client logic: malformed
+  input, impossible from the mover's visible board, and illegal against the
+  hidden canonical position. Accepted moves are the only turn events exposed to
+  the room.
 
 ### Jieqi
 
@@ -125,7 +128,13 @@ Locked:
   general-capture rule. Illegal self-check moves are rejected.
 - Facing generals are illegal except as allowed by standard xiangqi move
   legality. Dark pieces block the file like any occupied point.
-- The no-capture progress draw is 60 plies.
+- The no-capture progress draw is 60 full moves, meaning 120 plies/half-moves,
+  per the Guangdong/Tencent ruleset (Tencent 天天象棋 auto-draws at 120 captureless
+  plies). The adopted Pikafish Jieqi engine hardcodes a shorter 40-move rule
+  (`rule40 >= 80`), so the engine build must be patched to draw at 120 plies to
+  match the server; otherwise the engine treats a still-live position as drawn
+  ~40 plies early. Keep the unit explicit (60 moves = 120 plies) so the server
+  and engine agree on draw adjudication.
 
 Open implementation blocker:
 
@@ -133,9 +142,10 @@ Open implementation blocker:
   public competitive play. The player article is already locked against a
   generic threefold or fourfold auto-result: perpetual check and direct
   perpetual chase are forbidden, while ordinary repeated positions are not an
-  automatic generic loss. For the first rules module, implement the no-capture
-  draw and expose repetition telemetry, then add the chase classifier before
-  enabling rated play.
+  automatic generic loss. Public Jieqi references describe the result as
+  xiangqi-style long-beat adjudication rather than a generic fold count. For
+  the first rules module, implement the no-capture draw and expose repetition
+  telemetry, then add the chase classifier before enabling rated play.
 
 ### Banqi
 
@@ -159,10 +169,15 @@ Locked:
 - Non-cannon pieces capture adjacent revealed enemy pieces of the same or lower
   rank, except soldier can capture general and general cannot capture soldier.
 - Cannon movement is one square orthogonally when not capturing.
-- Cannon capture ignores rank and travels any distance along a row or column,
-  jumping exactly one intervening piece as a screen and capturing the first
-  revealed enemy piece beyond it. The screen may be friendly, enemy, or
-  face-down.
+- Cannon capture ignores rank and travels any distance along a row or column.
+  Exactly one piece must stand between the cannon and the captured square (the
+  screen); the screen may be friendly, enemy, or face-down. The target is the
+  first occupied square beyond the screen, and the cannon captures it only if it
+  holds a revealed enemy piece. If that first square beyond the screen holds a
+  friendly or a face-down piece, the line is blocked and there is no capture: the
+  cannon never sees past it to a piece farther along. Consistent with the
+  face-down rule above, a face-down piece is never a capture target, including by
+  cannon.
 - A cannon cannot capture an adjacent piece. As a target, an adjacent cannon can
   be captured by general, advisor, elephant, chariot, or horse, but not by
   soldier. A cannon can capture another cannon only by the screen-capture rule.

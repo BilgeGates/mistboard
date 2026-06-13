@@ -5937,7 +5937,7 @@ export const articles: Article[] = [
           {
             kind: 'paragraph',
             text:
-              'The cannon ignores rank when it captures. For a capture only, it may travel any distance along a row or column, jump exactly one intervening piece, and take the first revealed enemy piece beyond that screen. The screen can be friendly, enemy, or face-down.',
+              'The cannon ignores rank when it captures. For a capture only, it may travel any distance along a row or column and jump exactly one intervening piece, the screen. It then takes the first piece beyond that screen, and only if that piece is a revealed enemy. If a friendly or face-down piece sits there instead, the line is blocked and the cannon cannot reach past it. The screen itself can be friendly, enemy, or face-down.',
           },
           {
             kind: 'paragraph',
