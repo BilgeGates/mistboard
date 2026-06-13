@@ -319,6 +319,31 @@ describe('landing play panel', () => {
     expect(visibleModalTimeControls()).toEqual(['1 + 1', '3 + 2']);
   });
 
+  it('offers correspondence days only for a dark-chess friend challenge', () => {
+    vi.stubEnv('VITE_CORRESPONDENCE_ENABLED', 'true');
+    vi.stubEnv('VITE_DARK_MINI_XIANGQI_ENABLED', 'true');
+    vi.stubEnv('VITE_DARK_MINI_XIANGQI_PUBLIC_ENTRY_ENABLED', 'true');
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => jsonResponse({ playing: 0, online: 0 })),
+    );
+    const panel = buildLandingPlayPanel([]);
+    document.body.append(panel);
+
+    // Challenge a friend, dark chess: correspondence is the long end of the picker.
+    openPlaySetup(panel, 'Challenge a friend');
+    selectModalVariant('dark-chess');
+    expect(visibleCorrespondenceOptions()).toEqual(['1 day', '3 days', '7 days']);
+
+    // Other fog variants (DMX) don't carry correspondence yet — dark chess only.
+    selectModalVariant('dark-mini-xiangqi');
+    expect(visibleCorrespondenceOptions()).toEqual([]);
+
+    // Find opponent (lobby) has none yet — that's the seek board (C3).
+    openPlaySetup(panel, 'Find opponent');
+    expect(visibleCorrespondenceOptions()).toEqual([]);
+  });
+
   it('limits rated setup time controls to 3+2', () => {
     setRatedModeEnabled(true);
     setResolvedSignedIn(true);
@@ -675,7 +700,17 @@ function selectedModalTimeControl(): string | undefined {
 }
 
 function visibleModalTimeControls(): string[] {
-  return [...document.querySelectorAll<HTMLButtonElement>('.landing-time-presets button')]
+  return [
+    ...document.querySelectorAll<HTMLButtonElement>(
+      '.landing-time-presets:not(.landing-correspondence-presets) button',
+    ),
+  ]
+    .filter((button) => !button.hidden)
+    .map((button) => button.textContent?.trim() ?? '');
+}
+
+function visibleCorrespondenceOptions(): string[] {
+  return [...document.querySelectorAll<HTMLButtonElement>('.landing-correspondence-presets button')]
     .filter((button) => !button.hidden)
     .map((button) => button.textContent?.trim() ?? '');
 }

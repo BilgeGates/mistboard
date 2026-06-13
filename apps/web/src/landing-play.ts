@@ -255,15 +255,8 @@ export function buildLandingPlayPanel(
   panel.append(engineButton);
   panel.append(challengeButton, lobbyButton);
 
-  // Days-per-move dark chess, behind its build flag while the track soft-
-  // launches. Last in the row: it is the patient option.
-  if (correspondenceEnabled()) {
-    const correspondenceButton = landingPlayAction('Correspondence', 'correspondence');
-    correspondenceButton.addEventListener('click', () => {
-      openCorrespondenceSetupDialog();
-    });
-    panel.append(correspondenceButton);
-  }
+  // Correspondence is no longer a standalone action: it's the long end of the
+  // time-control axis inside Challenge a friend (see openLandingSetupDialog).
 
   // The always-available engine permanently carries the primary (green) CTA. We
   // deliberately do NOT swap emphasis on live presence: the old signal counted
@@ -582,6 +575,9 @@ function openLandingSetupDialog(choice: LandingPlayChoice): void {
     selectedGameSpecId = DARK_CHESS_SPEC_ID;
   }
   let selectedPreset: LandingTimePresetId = storedPreference.timePresetId ?? '3m2';
+  // Non-null when a correspondence (days-per-move) option is chosen — it takes
+  // over from the real-time preset above. Only offered for Challenge-a-friend.
+  let selectedCorrespondenceDays: number | null = null;
   let selectedEngineId = storedPreference.engineId ?? choice.engineId;
   let preferredColor: LandingColorPreference =
     storedPreference.preferredColor ?? loadStoredColorPreference();
@@ -710,29 +706,71 @@ function openLandingSetupDialog(choice: LandingPlayChoice): void {
     button.addEventListener('click', () => {
       if (button.hidden) return;
       selectedPreset = preset.id;
+      selectedCorrespondenceDays = null;
       syncTimeControls();
     });
     presetGroup.append(button);
     return { button, preset };
   });
 
+  // Correspondence (days-per-move) is the long end of the time-control axis, not
+  // a separate mode — offered only for Challenge-a-friend dark chess (casual,
+  // account-only). Picking one supersedes the real-time presets above.
+  const correspondenceLabel = setupSectionLabel('Correspondence (days per move)');
+  const correspondenceGroup = document.createElement('div');
+  correspondenceGroup.className = 'landing-time-presets landing-correspondence-presets';
+  correspondenceGroup.setAttribute('role', 'radiogroup');
+  correspondenceGroup.setAttribute('aria-label', 'Correspondence time per move');
+  const correspondenceButtons = CORRESPONDENCE_DAY_OPTIONS.map((option) => {
+    const button = startOptionButton(option.label, false);
+    button.addEventListener('click', () => {
+      if (button.hidden) return;
+      selectedCorrespondenceDays = option.days;
+      syncTimeControls();
+    });
+    correspondenceGroup.append(button);
+    return { button, option };
+  });
+
+  const correspondenceAvailable = () =>
+    choice.mode === 'pvp' &&
+    selectedGameSpecId === DARK_CHESS_SPEC_ID &&
+    !rated &&
+    correspondenceEnabled();
+
+  const syncCorrespondenceControls = () => {
+    const available = correspondenceAvailable();
+    correspondenceLabel.hidden = !available;
+    correspondenceGroup.hidden = !available;
+    if (!available) selectedCorrespondenceDays = null;
+    for (const { button, option } of correspondenceButtons) {
+      button.hidden = !available;
+      const selected = available && selectedCorrespondenceDays === option.days;
+      button.classList.toggle('selected', selected);
+      button.setAttribute('aria-checked', selected ? 'true' : 'false');
+    }
+  };
+
   // Show only the presets allowed for the current variant (so 5+5 is hidden for
   // Crossroads casual games, and rated games collapse to 3+2). Re-runs on
   // variant/rated switch; if the current pick is no longer offered, fall back to
-  // 3+2 (always available).
+  // 3+2 (always available). When a correspondence option is active, the
+  // real-time presets render unselected.
   const syncTimeControls = () => {
+    const corrActive = selectedCorrespondenceDays !== null;
     const allowed = allowedTimePresetIds(selectedGameSpecId, rated);
     if (!allowed.has(selectedPreset)) selectedPreset = '3m2';
     for (const { button, preset } of presetButtons) {
       const show = allowed.has(preset.id);
       button.hidden = !show;
-      const selected = show && selectedPreset === preset.id;
+      const selected = show && !corrActive && selectedPreset === preset.id;
       button.classList.toggle('selected', selected);
       button.setAttribute('aria-checked', selected ? 'true' : 'false');
     }
+    syncCorrespondenceControls();
   };
   syncTimeControls();
-  timeSection.append(presetGroup);
+  timeSection.append(presetGroup, correspondenceLabel, correspondenceGroup);
 
   const actions = document.createElement('div');
   actions.className = 'landing-setup-actions';
@@ -752,6 +790,15 @@ function openLandingSetupDialog(choice: LandingPlayChoice): void {
         ? 'Create room'
         : 'Start game';
   startButton.addEventListener('click', () => {
+    if (selectedCorrespondenceDays !== null) {
+      void createCorrespondenceFromPlay(
+        startButton,
+        status,
+        selectedCorrespondenceDays,
+        preferredColor,
+      );
+      return;
+    }
     const setup = selectedRoomSetup(
       selectedGameSpecId,
       startFormat,
@@ -868,133 +915,14 @@ function openLandingSetupDialog(choice: LandingPlayChoice): void {
   ).focus();
 }
 
-// Correspondence setup: deliberately separate from openLandingSetupDialog. The
-// main dialog's machinery (variant picker, presets, rated toggle, lobby wait)
-// is live-clock shaped; correspondence needs exactly two choices, so a small
-// dedicated dialog stays simpler than threading a fourth mode through it.
+// The days-per-move options offered at the long end of the Challenge-a-friend
+// time-control picker (openLandingSetupDialog). Selecting one routes the submit
+// to createCorrespondenceFromPlay instead of the real-time create.
 const CORRESPONDENCE_DAY_OPTIONS: { days: number; label: string }[] = [
   { days: 1, label: '1 day' },
   { days: 3, label: '3 days' },
   { days: 7, label: '7 days' },
 ];
-
-function openCorrespondenceSetupDialog(): void {
-  const existing = document.querySelector('.landing-setup-overlay');
-  existing?.remove();
-
-  let selectedDays = 3;
-  let preferredColor: LandingColorPreference = loadStoredColorPreference();
-  let syncColorPreferenceControls = () => {};
-
-  const overlay = document.createElement('div');
-  overlay.className = 'landing-setup-overlay';
-  overlay.setAttribute('role', 'presentation');
-
-  const dialog = document.createElement('section');
-  dialog.className = 'landing-setup-dialog';
-  dialog.setAttribute('role', 'dialog');
-  dialog.setAttribute('aria-modal', 'true');
-  dialog.setAttribute('aria-labelledby', 'landing-setup-title');
-
-  const heading = document.createElement('strong');
-  heading.className = 'landing-setup-title';
-  heading.id = 'landing-setup-title';
-  heading.textContent = 'Correspondence';
-
-  const closeButton = document.createElement('button');
-  closeButton.type = 'button';
-  closeButton.className = 'landing-setup-close';
-  closeButton.setAttribute('aria-label', 'Close setup');
-  closeButton.textContent = 'x';
-
-  const header = document.createElement('div');
-  header.className = 'landing-setup-header';
-  header.append(heading, closeButton);
-
-  const intro = document.createElement('p');
-  intro.className = 'landing-setup-status';
-  intro.textContent =
-    'Dark chess at a slow pace: each move has a deadline of days, and you can close the tab between moves. Needs an account on both sides.';
-
-  const daysSection = document.createElement('div');
-  daysSection.className = 'landing-setup-section';
-  daysSection.append(setupSectionLabel('Time per move'));
-  const daysGroup = document.createElement('div');
-  daysGroup.className = 'landing-time-presets';
-  daysGroup.setAttribute('role', 'radiogroup');
-  daysGroup.setAttribute('aria-label', 'Time per move');
-  const dayButtons = CORRESPONDENCE_DAY_OPTIONS.map((option) => {
-    const button = startOptionButton(option.label, option.days === selectedDays);
-    button.addEventListener('click', () => {
-      selectedDays = option.days;
-      for (const candidate of dayButtons) {
-        const selected = candidate.option.days === selectedDays;
-        candidate.button.classList.toggle('selected', selected);
-        candidate.button.setAttribute('aria-checked', selected ? 'true' : 'false');
-      }
-    });
-    daysGroup.append(button);
-    return { button, option };
-  });
-  daysSection.append(daysGroup);
-
-  const colorSection = buildColorPreferenceSection(
-    () => preferredColor,
-    (value) => {
-      preferredColor = value;
-    },
-    () => DARK_CHESS_SPEC_ID,
-    (sync) => {
-      syncColorPreferenceControls = sync;
-    },
-  );
-  syncColorPreferenceControls();
-
-  const status = document.createElement('p');
-  status.className = 'landing-setup-status';
-  status.setAttribute('aria-live', 'polite');
-  if (!isLikelySignedIn()) {
-    status.append('Correspondence games need an account. ', accountLink('Sign in first.'));
-  }
-
-  const startButton = document.createElement('button');
-  startButton.type = 'button';
-  startButton.className = 'landing-setup-start';
-  startButton.textContent = 'Create game';
-  startButton.addEventListener('click', () => {
-    void createCorrespondenceFromPlay(startButton, status, selectedDays, preferredColor);
-  });
-
-  const backButton = document.createElement('button');
-  backButton.type = 'button';
-  backButton.className = 'landing-setup-back';
-  backButton.textContent = 'Cancel';
-
-  const close = () => {
-    document.removeEventListener('keydown', onKeyDown);
-    overlay.remove();
-    if (activeDialogClose === close) activeDialogClose = null;
-  };
-  const onKeyDown = (event: KeyboardEvent) => {
-    if (event.key === 'Escape') close();
-  };
-  closeButton.addEventListener('click', close);
-  backButton.addEventListener('click', close);
-  overlay.addEventListener('click', (event) => {
-    if (event.target === overlay) close();
-  });
-  document.addEventListener('keydown', onKeyDown);
-
-  const actions = document.createElement('div');
-  actions.className = 'landing-setup-actions';
-  actions.append(startButton, backButton);
-
-  dialog.append(header, intro, daysSection, colorSection, status, actions);
-  overlay.append(dialog);
-  document.body.append(overlay);
-  activeDialogClose = close;
-  startButton.focus();
-}
 
 async function createCorrespondenceFromPlay(
   button: HTMLButtonElement,
