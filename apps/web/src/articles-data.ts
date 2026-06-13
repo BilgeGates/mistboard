@@ -3264,7 +3264,7 @@ export const articles: Article[] = [
     kind: 'article',
     title: 'How Misty Plays',
     summary:
-      "Misty is the engine you play on Mistboard, built for Fog of War chess and guided by the Obscuro architecture. How it thinks, what's hard, and where it stands.",
+      "Misty is the engine you play on Mistboard, built for Fog of War chess. How it thinks, what's hard, and where it stands.",
     thumbnail: {
       kind: 'image',
       src: '/article-thumbs/misty.jpg',
@@ -3279,7 +3279,7 @@ export const articles: Article[] = [
       {
         kind: 'paragraph',
         text:
-          "Misty is the bot you play on Mistboard, an engine for Fog of War chess. It's our build of [Obscuro](https://arxiv.org/abs/2506.01242) (Zhang & Sandholm, ICLR 2026), the first engine to reach superhuman Fog of War play.",
+          'Misty is the bot you play on Mistboard, an engine built specifically for Fog of War chess.',
       },
     ],
     sections: [
@@ -3304,36 +3304,7 @@ export const articles: Article[] = [
           {
             kind: 'paragraph',
             text:
-              "Under fog there is no single position to search. Misty can't see the opponent's pieces, so the board it has to reason about is really a set of boards: every arrangement consistent with what it has observed. A move that's winning on one board can hang a piece on another. So Misty weighs the whole set at once and looks for a move that holds up across it, the way you'd play a hand of cards against an opponent whose cards you can't see. That's a game-theoretic problem rather than a lookahead one.",
-          },
-          {
-            kind: 'paragraph',
-            text: 'It splits that job into five concerns, the same five Obscuro uses:',
-          },
-          {
-            kind: 'paragraph',
-            text:
-              '**Belief.** It holds that whole set of possible boards explicitly, updating it each move as new observations rule worlds in and out.',
-          },
-          {
-            kind: 'paragraph',
-            text:
-              '**Search scope (KLUSS).** It bounds the subgame to what is actually knowable instead of searching the full game tree.',
-          },
-          {
-            kind: 'paragraph',
-            text:
-              "**Search (CFR).** It runs game-theoretic search by regret minimization, converging toward a strategy an opponent can't easily exploit.",
-          },
-          {
-            kind: 'paragraph',
-            text:
-              '**Evaluation.** Leaf positions get scored by Stockfish at depth one.',
-          },
-          {
-            kind: 'paragraph',
-            text:
-              '**Commit.** It collapses the resulting mixed strategy into the single move it plays.',
+              "Under fog there is no single position to search. Misty can't see the opponent's pieces, so the board it has to reason about is really a set of boards: every arrangement consistent with what it has observed. A move that's winning on one board can hang a piece on another. So Misty weighs the whole set at once and looks for a move that holds up across it.",
           },
         ],
       },
@@ -3343,7 +3314,7 @@ export const articles: Article[] = [
           {
             kind: 'paragraph',
             text:
-              'Two things. The first is the belief set itself. A few plies into a foggy middlegame, "every consistent board" can mean millions of positions, and the worst case is far larger: the Obscuro paper estimates the space of possible boards runs to at least 4 × 10^18, four quintillion. Misty has to rebuild that set every move inside a few seconds, and a heavy fog can blow it up faster than any time budget can keep up with.',
+              'Two things. The first is the possible-board set itself. A few plies into a foggy middlegame, "every consistent board" can mean a very large number of positions. Misty has to keep that uncertainty under control inside a live-game time budget.',
           },
           {
             kind: 'paragraph',

@@ -5,7 +5,7 @@
 //
 // What this codifies (the gotchas hit on 2026-06-03):
 //   1. Cachebust gate — the engine-worker re-clones the private engine repo
-//      ONLY when railpack.json's `echo cachebust-…-<sha>` line changes. If the
+//      ONLY when railpack.json's `echo cachebust-...-<sha>` line changes. If the
 //      engine changed but the cachebust still points at the old SHA, the deploy
 //      ships the OLD engine silently. We compare the cachebust SHA against the
 //      engine repo's origin/main HEAD and refuse (or --bump) on mismatch.
@@ -42,13 +42,15 @@ if (opts.help) {
   process.exit(0);
 }
 
-const cachebustSha = readCachebustSha();
+const cachebust = readCachebust();
 const engineSha = engineHeadSha();
-const match = engineSha.startsWith(cachebustSha) || cachebustSha.startsWith(engineSha);
+const match =
+  cachebust.sha !== null &&
+  (engineSha.startsWith(cachebust.sha) || cachebust.sha.startsWith(engineSha));
 
 console.log('# deploy-engine-worker');
 console.log(`engine ${ENGINE_REF} HEAD: ${engineSha}`);
-console.log(`railpack cachebust SHA:   ${cachebustSha}`);
+console.log(`railpack cachebust:        ${cachebust.raw}`);
 console.log(
   `cachebust matches engine: ${match ? 'yes' : 'NO — engine changed but cachebust not bumped'}`,
 );
@@ -64,8 +66,12 @@ if (opts.bump) {
 }
 
 if (!match) {
-  console.error('\nRefusing: the engine changed but the cachebust still points at the old SHA, so');
-  console.error('the engine-worker would re-deploy the OLD engine. Run with --bump, then');
+  const reason =
+    cachebust.sha === null
+      ? 'the cachebust line has no engine SHA, so Railway may reuse an old private-engine clone.'
+      : 'the engine changed but the cachebust still points at the old SHA, so the engine-worker would re-deploy the OLD engine.';
+  console.error(`\nRefusing: ${reason}`);
+  console.error('Run with --bump, then');
   console.error('commit + push railpack.json, then re-run with --deploy.');
   process.exit(2);
 }
@@ -148,14 +154,15 @@ function railwayEnv() {
   return env;
 }
 
-function readCachebustSha() {
+function readCachebust() {
   const text = readFileSync(RAILPACK, 'utf8');
-  const m = text.match(/echo cachebust-[\w.-]*?-([0-9a-f]{7,40})\b/);
+  const m = text.match(/echo (cachebust-[\w.-]+)/);
   if (!m) {
-    console.error(`could not find an "echo cachebust-…-<sha>" line in ${RAILPACK}`);
+    console.error(`could not find an "echo cachebust-...-<sha>" line in ${RAILPACK}`);
     process.exit(1);
   }
-  return m[1];
+  const sha = m[1].match(/-([0-9a-f]{7,40})$/)?.[1] ?? null;
+  return { raw: m[1], sha };
 }
 
 function bumpCachebust(sha) {

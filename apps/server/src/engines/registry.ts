@@ -30,7 +30,7 @@ export function playableBuiltinEngines(): EngineDefinition[] {
 // records, but are NOT offered in the live PvE picker. No random fallback in the
 // PvE serving path — if Misty can't serve it fails loudly (503), by design.
 const PROD_PLAYABLE_ENGINE_IDS = new Set([
-  'python-v2-v1.0', // Misty 1.0 (frozen GT-CFR v2, gadget-off + early-stop)
+  'python-v2-v1.0', // Misty 1.0
 ]);
 
 // Opt-in extras for load testing / local experimentation. Set
@@ -104,10 +104,8 @@ const PYTHON_ENGINES: Record<string, EngineDefinition> = {
     },
     livePolicy: { timeoutMs: 5_000 },
     notes:
-      'Misty Legacy (v0.9.5 tactical-patches): the pre-GT-CFR first-party engine, ' +
-      'kept in-registry (EvE/records) but hidden from the live picker. ' +
-      'Draw-reduction knobs, ' +
-      'phantom-check guard, recapture exemption.',
+      'Misty Legacy: prior first-party engine kept in-registry (EvE/records) ' +
+      'but hidden from the live picker.',
   },
   // Uses current src/fow_chess/. Skipped by PROD_PLAYABLE_ENGINE_IDS — only
   // available locally via the MISTBOARD_EXTRA_PLAYABLE_ENGINES env var.
@@ -130,16 +128,14 @@ const PYTHON_ENGINES: Record<string, EngineDefinition> = {
     livePolicy: { timeoutMs: 5_000 },
     notes: 'Current first-party engine source checkout. Local-only; for strength testing.',
   },
-  // GT-CFR v2 engine (EngineV2 / Obscuro architecture), current source. The
-  // worker constructs EngineV2Strategy for this id (use_rust_eq, |I|=16). Local-
-  // only: enable via MISTBOARD_EXTRA_PLAYABLE_ENGINES=python-v2-current. Generous
-  // timeout because the worker replays the transcript per move (stateless), so
-  // v2's belief enumeration re-runs each move and late-game moves are slow.
+  // Current v2 development engine. Local-only: enable via
+  // MISTBOARD_EXTRA_PLAYABLE_ENGINES=python-v2-current. Uses a generous timeout
+  // because this path is for strength testing, not the production picker.
   'python-v2-current': {
     id: 'python-v2-current',
     engineId: 'v2',
     engineName: 'Mistboard Engine',
-    name: 'Mistboard Engine v2 (GT-CFR dev)',
+    name: 'Mistboard Engine v2 dev build',
     kind: 'container',
     configHash: 'v2-current',
     playSignature: 'v2-current',
@@ -151,16 +147,11 @@ const PYTHON_ENGINES: Record<string, EngineDefinition> = {
       config_hash: 'current',
     },
     livePolicy: { timeoutMs: 120_000 },
-    notes: 'GT-CFR v2 engine (use_rust_eq, |I|=16). Local-only; slow late-game (stateless replay).',
+    notes: 'Current v2 development engine. Local-only; for strength testing.',
   },
-  // Misty 1.0 — the FROZEN, shipped GT-CFR v2 engine (first production release of
-  // the v2 line; the single player-facing engine). Pinned to mistboard-engine @
-  // a06f9a1. (Internal ids below keep the original "misty-max" pin/hash so
-  // already-recorded games resolve.) Config (validated
-  // 2026-06-02): STRONGEST gadget-OFF + king-aware leaf + clock-aware budget +
-  // convergence early-stop + bottom-K(16M), i=32, KLUSS k=2, mixing off. Stateful
-  // delta-feed (not stateless replay), so fast — early-stop lands moves in ~1-2s.
-  // Bump to python-v2-v1.1 (+ V2_LIVE_ENGINES) on the next engine upgrade.
+  // Misty 1.0 is the frozen, player-facing first-party engine. Internal pins
+  // stay stable so already-recorded games resolve. Bump to python-v2-v1.1
+  // (+ V2_LIVE_ENGINES) on the next engine upgrade.
   'python-v2-v1.0': {
     id: 'python-v2-v1.0',
     engineId: 'v2',
@@ -179,16 +170,11 @@ const PYTHON_ENGINES: Record<string, EngineDefinition> = {
     },
     livePolicy: { timeoutMs: 30_000 },
     notes:
-      'Misty 1.0 — GT-CFR/Obscuro v2: gadget-off + king-aware + clock-aware ' +
-      'budget + early-stop + bottom-K. Validated 2026-06-02 (30-0-0 vs Legacy, ' +
-      '0 hard failures, |P| max 5.9M, ~72s/game).',
+      'Misty 1.0 — frozen first-party engine release for live play. Validated ' +
+      '2026-06-02 against the legacy first-party baseline.',
   },
-  // Dark Mini Xiangqi (7x7) engine. Same EngineV2 core as Misty, parameterized
-  // with MiniXiangqiRules; leaf eval is Fairy-Stockfish's built-in minixiangqi
-  // variant (falls back to a material stub if the FSF binary is absent). The
-  // gameSpecId routes the worker spawn (--game dark-mini-xiangqi) and the
-  // EngineTurnRequest geometry (7-wide squares + mini piece letters). Not in the
-  // chess PvE picker — the Dark Mini Xiangqi route selects it.
+  // Dark Mini Xiangqi engine. Not in the chess PvE picker; the Dark Mini
+  // Xiangqi route selects it through the variant-aware worker protocol.
   'python-dmx-v1.0': {
     id: 'python-dmx-v1.0',
     engineId: 'v2',
@@ -208,9 +194,7 @@ const PYTHON_ENGINES: Record<string, EngineDefinition> = {
     },
     livePolicy: { timeoutMs: 30_000 },
     notes:
-      'Dark Mini Xiangqi (7x7) — EngineV2(MiniXiangqiRules) + Fairy-Stockfish ' +
-      'minixiangqi leaf eval (material-stub fallback). Served via the dedicated ' +
-      'python-dmx pool (--game dark-mini-xiangqi).',
+      'Dark Mini Xiangqi engine served through the variant-aware worker adapter.',
   },
   'python-tier1-v0.9.1': {
     id: 'python-tier1-v0.9.1',
