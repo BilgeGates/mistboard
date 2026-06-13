@@ -193,8 +193,7 @@ const PYTHON_ENGINES: Record<string, EngineDefinition> = {
       engine_pin: 'dmx-v1.0',
     },
     livePolicy: { timeoutMs: 30_000 },
-    notes:
-      'Dark Mini Xiangqi engine served through the variant-aware worker adapter.',
+    notes: 'Dark Mini Xiangqi engine served through the variant-aware worker adapter.',
   },
   'python-tier1-v0.9.1': {
     id: 'python-tier1-v0.9.1',
