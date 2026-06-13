@@ -25,6 +25,18 @@ export {
   revokeAccountSession,
   updateUserProfile,
 } from './persistence-accounts.js';
+export type {
+  CorrespondenceSeekListing,
+  CorrespondenceSeekRecord,
+  SeekColorPreference,
+} from './persistence-correspondence-seeks.js';
+export {
+  countOpenSeeksForUser,
+  createCorrespondenceSeek,
+  deleteCorrespondenceSeek,
+  getCorrespondenceSeek,
+  listOpenCorrespondenceSeeks,
+} from './persistence-correspondence-seeks.js';
 export { close, init, isInitialized, probeDb } from './persistence-db.js';
 export type { FeedbackSubmissionInput } from './persistence-feedback.js';
 export {
