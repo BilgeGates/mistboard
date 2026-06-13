@@ -15,14 +15,14 @@
   },
   "dependencies": {
     "@mistboard/game": "0.0.0",
-    "@vitejs/plugin-react": "^4.3.4",
     "chessground": "^9.2.1",
-    "posthog-js": "^1.372.9",
-    "typescript": "^5.8.0",
-    "vite": "^6.0.0"
+    "posthog-js": "^1.372.9"
   },
   "devDependencies": {
+    "@vitejs/plugin-react": "^4.3.4",
     "happy-dom": "^20.9.0",
+    "typescript": "^5.8.0",
+    "vite": "^6.0.0",
     "vitest": "^4.1.6"
   }
 }
