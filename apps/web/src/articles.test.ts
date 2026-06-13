@@ -217,6 +217,8 @@ describe('rules variant sidebar', () => {
     expect(pageText).toContain('House variants');
     expect(pageText).toContain('For a capture only');
     expect(pageText).toContain('A non-capturing cannon move is still just one square');
+    expect(pageText).toContain('an adjacent cannon can be taken by a general');
+    expect(pageText).not.toContain('any revealed enemy piece except a soldier can capture it');
     expect(pageText).not.toContain('It slides any distance');
     expect(pageText).not.toContain('horse, cannon, soldier');
     const banqiSvgs = [...page.querySelectorAll('.article-figure .xq-article-svg')];

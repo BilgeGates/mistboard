@@ -5942,7 +5942,7 @@ export const articles: Article[] = [
           {
             kind: 'paragraph',
             text:
-              'A non-capturing cannon move is still just one square orthogonally, like every other piece. Because a cannon needs a screen to capture, it cannot take an adjacent piece. As a target, the cannon is fragile: any revealed enemy piece except a soldier can capture it by adjacency.',
+              'A non-capturing cannon move is still just one square orthogonally, like every other piece. Because a cannon needs a screen to capture, it cannot take an adjacent piece. As a target, an adjacent cannon can be taken by a general, advisor, elephant, chariot, or horse, but not by a soldier.',
           },
           {
             kind: 'raw-svg',
