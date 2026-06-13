@@ -6,6 +6,7 @@ An "incident" is anything user-visible or pipeline-blocking that required unplan
 
 | Date | Title | Status | Severity |
 |---|---|---|---|
+| 2026-06-13 | [CI red on main from esbuild npm audit — all deploys blocked](2026-06-13-esbuild-audit-blocked-all-deploys.md) | resolved | sev3 |
 | 2026-06-01 | [Railway us-west2 edge blip — mistboard + windowintochina 502 ~90s](2026-06-01-railway-edge-502-blip.md) | resolved | sev2 |
 | 2026-05-19 | [Railway platform outage — mistboard.com down](2026-05-19-railway-platform-outage.md) | resolved | sev1 |
 | 2026-05-18 | [Landing hero flashes triptych before single-POV](2026-05-18-landing-hero-triptych-flash.md) | resolved | sev3 |
