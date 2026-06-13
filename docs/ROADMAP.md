@@ -163,6 +163,39 @@ information, ranked integrity, and a serious engine track.
     Stratego app (Stratego itself is IP-locked). Largest engine-research
     synergy (imperfect-info family). Park unless the others prove out.
 
+### Tech-debt — deferred structural bets (audit 2026-06-13)
+
+The 2026-06-13 tech-debt audit landed its cheap/high-leverage paydowns (map
+refresh, dead-code, transaction/column/fetch helpers, the reconnect-fog
+regression test). These three remain deferred as larger structural bets; the
+codebase is otherwise unusually clean (0 `as any`, 0 cycles, dev surfaces
+tree-shaken).
+
+- **Shared fog-of-war kernel in `packages/game`** — ~330 LOC of fog/vision/
+  redaction geometry is copy-pasted across `variants-xiangqi`,
+  `variants-crossroads-chess`, and `variants-mini-xiangqi` (cannon/horse/
+  soldier/chariot vision, the PlayerView redaction loop, the repetition key).
+  This compounds: every new variant in the Planned pipeline pays a ~100-LOC tax,
+  and it is four copies of the hidden-info privacy boundary. Highest strategic
+  value of the three, but **gated on a kernel property-test harness first** and
+  best sequenced with the next variant build (jieqi) so the kernel is validated
+  against a fresh consumer.
+- **Legacy chess live-stack swap onto the generic tenant runtime** — the live
+  dark-chess `room_` flow still runs 2,567 LOC of bespoke
+  `room-manager`/`server-room-lifecycle`/`payloads`/`rematch` in parallel to the
+  generic `variant-tenant/` runtime that already replicates it. The
+  `dark-chess-tenant` flagship is built, proven equivalent, and golden-wire-green
+  but deliberately unregistered for live rooms. Biggest single LOC win, **highest
+  blast radius** (flagship + live games). Redaction is already single-sourced
+  (the tenant delegates to `payloads.ts`), so only runtime/lifecycle/rematch are
+  duplicated. Blockers: Draft960 pregame and pause/resume not yet lifted into the
+  tenant event union. Sequence after the fog kernel, behind a deliberate cutover
+  plan.
+- **Split `landing-play.ts` (1803 LOC)** — the 312-line `openLandingSetupDialog`
+  is the worst single function on the conversion-critical path. Clean low-risk
+  seams: setup-dialog (~600), prefs (~120, pure), room-handoff (~350). Tactical,
+  not strategic; do it when landing-play next gets active work.
+
 ---
 
 ## M1 — Pre-distribution gates
