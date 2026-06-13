@@ -39,7 +39,7 @@ import {
 import { darkMiniXiangqiPublicEntryEnabled } from './feature-flags.js';
 import { type MiniXiangqiReplayController, mountMiniXiangqiReplay } from './mini-xiangqi-replay.js';
 import { readStoredXiangqiPieceSet, xiangqiAppearanceChangedEvent } from './theme.js';
-import type { XiangqiPieceSet } from './xiangqi-piece-sets.js';
+import { DEFAULT_XIANGQI_PIECE_SET, type XiangqiPieceSet } from './xiangqi-piece-sets.js';
 import { mountXiangqiReplay, type XiangqiReplayController } from './xiangqi-replay.js';
 
 // Nav + footer come from landing.ts. We avoid re-implementing them by accepting
@@ -946,14 +946,17 @@ function paintXqDiagram(holder: HTMLElement, set: XiangqiPieceSet): void {
     Array.from(holder.children).find((child) =>
       child.classList.contains('article-figure-caption'),
     ) ?? null;
-  for (const child of Array.from(holder.children)) {
-    if (child.classList.contains('xq-article-svg')) child.remove();
+  let html: string;
+  try {
+    html = withXiangqiPieceSet(set, thunk);
+  } catch (err) {
+    console.warn('xiangqi diagram render failed; falling back to default piece set', err);
+    html = withXiangqiPieceSet(DEFAULT_XIANGQI_PIECE_SET, thunk);
   }
   const scratch = document.createElement('div');
-  scratch.innerHTML = withXiangqiPieceSet(set, thunk);
-  for (const node of Array.from(scratch.childNodes)) {
-    holder.insertBefore(node, caption);
-  }
+  scratch.innerHTML = html;
+  const nodes = Array.from(scratch.childNodes);
+  holder.replaceChildren(...nodes, ...(caption ? [caption] : []));
   markXqDiagramsNoTranslate(holder);
 }
 

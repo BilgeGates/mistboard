@@ -169,4 +169,45 @@ describe('rules variant sidebar', () => {
     expect(grids[0]?.querySelector('a[href="/rules/chess"]')).toBeNull();
     expect(grids[1]?.querySelector('a[href="/rules/chess"]')).not.toBeNull();
   });
+
+  it('renders Jieqi visual diagrams instead of placeholder notes', () => {
+    const page = buildArticlePage('jieqi');
+    const pageText = page.textContent ?? '';
+
+    expect(pageText).not.toContain('[VISUAL:');
+    expect(pageText).not.toMatch(/\bsquares?\b/i);
+    expect(pageText).toContain('starting point it occupies');
+    expect(pageText).toContain('not by a generic threefold or fourfold auto-loss');
+    const jieqiSvgs = [...page.querySelectorAll('.article-figure .xq-article-svg')];
+    expect(jieqiSvgs.length).toBeGreaterThanOrEqual(4);
+    expect(jieqiSvgs.every((svg) => svg.getAttribute('data-xq-layout') === 'pair')).toBe(true);
+    const figureText = [...page.querySelectorAll('.article-figure')]
+      .map((figure) => figure.textContent)
+      .join('');
+    expect(figureText).not.toContain('?');
+    expect(page.querySelector('.xq-piece-back-mark')).not.toBeNull();
+    expect(page.innerHTML).toContain('fill="#2f7d62"');
+    expect(page.innerHTML).toContain('fill="#a95f4a"');
+    expect(page.innerHTML).toContain('stroke="#6f342c"');
+    expect(page.innerHTML).not.toContain('fill="#286d55"');
+    expect(page.innerHTML).not.toContain('stroke="#c8ead2"');
+    expect(page.innerHTML).not.toContain('C40 39 60 39 66 50');
+    const captions = [...page.querySelectorAll('.article-figure-caption')].map(
+      (caption) => caption.textContent,
+    );
+    expect(captions).toEqual([]);
+    expect(pageText).toContain('BEFORE: HORSE POINT');
+    expect(pageText).toContain('CAPTURED PIECE KNOWLEDGE');
+    expect(pageText).toContain('RED KNOWS');
+    expect(pageText).toContain('BLACK KNOWS');
+  });
+
+  it('keeps fogged xiangqi blockers as question-mark pieces', () => {
+    const page = buildArticlePage('dark-xiangqi');
+    const figureText = [...page.querySelectorAll('.article-figure')]
+      .map((figure) => figure.textContent)
+      .join('');
+
+    expect(figureText).toContain('?');
+  });
 });

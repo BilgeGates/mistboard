@@ -9,6 +9,7 @@
 import type { XiangqiColor, XiangqiPiece, XiangqiPieceRole } from '@mistboard/game';
 
 export type XiangqiPieceSet = 'traditional' | 'simplified' | 'western' | 'symbols';
+export type XiangqiShroudedStyle = 'question' | 'back';
 
 export const XIANGQI_PIECE_SETS: ReadonlyArray<{ id: XiangqiPieceSet; label: string }> = [
   { id: 'traditional', label: 'Traditional' },
@@ -78,6 +79,7 @@ const WESTERN: Record<XiangqiPieceRole, string> = {
 export type XiangqiPieceRenderOptions = {
   ariaLabel?: string;
   shrouded?: boolean;
+  shroudedStyle?: XiangqiShroudedStyle;
   className?: string;
   x?: number;
   y?: number;
@@ -108,12 +110,21 @@ export function renderXiangqiPieceGlyphed(
   const colorHex = piece.color === 'red' ? '#b91c1c' : '#1f2937';
   const baseFill = '#f3e6c4';
   const ringWidth = 2.5;
-  const ariaLabel = opts.ariaLabel ?? `${piece.color} ${piece.role}`;
+  const ariaLabel =
+    opts.ariaLabel ??
+    (opts.shrouded ? `${piece.color} hidden piece` : `${piece.color} ${piece.role}`);
   const classAttr = opts.className ? ` class="${escapeAttr(opts.className)}"` : '';
   const posAttrs =
     opts.size !== undefined || opts.x !== undefined || opts.y !== undefined
       ? ` x="${opts.x ?? 0}" y="${opts.y ?? 0}" width="${opts.size ?? 100}" height="${opts.size ?? 100}"`
       : '';
+  if (opts.shrouded && opts.shroudedStyle === 'back') {
+    return [
+      `<svg${classAttr}${posAttrs} viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg" aria-label="${escapeAttr(ariaLabel)}">`,
+      pieceBackMark(piece.color),
+      `</svg>`,
+    ].join('');
+  }
   const inner = opts.shrouded
     ? glyphMark('?', colorHex)
     : set === 'symbols'
@@ -130,6 +141,14 @@ export function renderXiangqiPieceGlyphed(
 
 function glyphMark(glyph: string, colorHex: string): string {
   return `<text x="50" y="50" font-family="serif" font-size="46" font-weight="700" fill="${colorHex}" text-anchor="middle" dominant-baseline="central">${glyph}</text>`;
+}
+
+function pieceBackMark(color: XiangqiColor): string {
+  const fill = color === 'red' ? '#a95f4a' : '#2f7d62';
+  const stroke = color === 'red' ? '#6f342c' : '#174536';
+  return [
+    `<circle class="xq-piece-back-mark" cx="50" cy="50" r="43" fill="${fill}" stroke="${stroke}" stroke-width="3"/>`,
+  ].join('');
 }
 
 // Stroked line-art icons (the "Symbols" diagram set). One consistent visual style:

@@ -59,6 +59,7 @@ import {
   DEFAULT_XIANGQI_PIECE_SET,
   renderXiangqiPieceGlyphed,
   type XiangqiPieceSet,
+  type XiangqiShroudedStyle,
 } from './xiangqi-piece-sets.js';
 import type { XiangqiReplaySpec } from './xiangqi-replay.js';
 import {
@@ -1673,6 +1674,7 @@ function xqPiecesLayer(
   x0: number,
   y0: number,
   perspective: XiangqiColor,
+  shroudedStyle?: XiangqiShroudedStyle,
 ): string {
   const entries = view
     ? Object.entries(view.board).map(([sq, entry]) => [sq, entry?.piece, entry?.shrouded] as const)
@@ -1687,6 +1689,7 @@ function xqPiecesLayer(
         y: y - XQ_PIECE_SIZE / 2,
         size: XQ_PIECE_SIZE,
         shrouded,
+        shroudedStyle,
       });
     })
     .join('');
@@ -1749,6 +1752,8 @@ function xqBoardSvg(opts: {
   arrows?: Array<{ from: XiangqiSquare; to: XiangqiSquare }>;
   dots?: Array<{ square: XiangqiSquare; blocked?: boolean; capture?: boolean }>;
   zones?: boolean;
+  showCannonTargets?: boolean;
+  shroudedStyle?: XiangqiShroudedStyle;
   // Raw SVG drawn on top of the pieces (a confrontation line, etc.). The
   // caller positions it with xqPoint using the same x and boardY (y + 28).
   overlay?: string;
@@ -1762,9 +1767,11 @@ function xqBoardSvg(opts: {
     xqBoardGrid(opts.x, boardY, perspective),
     opts.zones ? xqZoneHighlights(opts.x, boardY, perspective) : '',
     xqFogLayer(view, opts.x, boardY, perspective, clipId),
-    xqCannonTargets(opts.state, view, opts.x, boardY, perspective),
+    opts.showCannonTargets === false
+      ? ''
+      : xqCannonTargets(opts.state, view, opts.x, boardY, perspective),
     xqMoveDots(opts.dots, opts.x, boardY, perspective),
-    xqPiecesLayer(opts.state, view, opts.x, boardY, perspective),
+    xqPiecesLayer(opts.state, view, opts.x, boardY, perspective, opts.shroudedStyle),
     xqArrowLayer(opts.arrows, opts.x, boardY, perspective),
     opts.overlay ?? '',
     xqBoardBorder(opts.x, boardY),
@@ -1776,6 +1783,26 @@ function xqSvg(width: number, height: number, body: string): string {
   const paddedHeight = height + XQ_VIEWBOX_PAD * 2;
   const layout = width <= XQ_BOARD_W ? 'single' : width <= XQ_BOARD_W * 2 + 28 ? 'pair' : 'wide';
   return `<svg class="xq-article-svg" data-xq-layout="${layout}" style="--xq-svg-width: ${paddedWidth}px" viewBox="0 0 ${paddedWidth} ${paddedHeight}" role="img" xmlns="http://www.w3.org/2000/svg"><g transform="translate(${XQ_VIEWBOX_PAD} ${XQ_VIEWBOX_PAD})">${body}</g></svg>`;
+}
+
+const XQ_ALL_SQUARES: XiangqiSquare[] = Array.from({ length: 9 * 10 }, (_, i) =>
+  xiangqiSquareOf(i % 9, Math.floor(i / 9) + 1),
+);
+
+function xqStaticView(
+  id: string,
+  board: XiangqiPlayerView['board'],
+  perspective: XiangqiColor = 'red',
+): XiangqiPlayerView {
+  return {
+    id,
+    perspective,
+    board,
+    visibleSquares: XQ_ALL_SQUARES,
+    legalMoves: [],
+    status: { type: 'playing', turn: perspective },
+    moveNumber: 1,
+  };
 }
 
 // ── Mini Xiangqi rules diagrams ────────────────────────────────────────────
@@ -2553,6 +2580,178 @@ const XQ_DARK_XIANGQI_THUMBNAIL = () => xqSvg(
     xqFogLayer(XQ_START_RED, 0, 0, 'red', 'xq-fog-dark-xiangqi-thumbnail'),
     xqPiecesLayer(XQ_START, XQ_START_RED, 0, 0, 'red'),
     xqBoardBorder(0, 0),
+  ].join(''),
+);
+
+// ── Jieqi rules diagrams ──────────────────────────────────────────────────
+// Jieqi is hidden-identity, not fog. These diagrams reuse the xiangqi board
+// shell but render all non-general pieces as same-color piece backs and keep the
+// whole board visible.
+const JIEQI_PAIR_W = XQ_BOARD_W * 2 + 28;
+const JIEQI_PAIR_CENTER_X = (JIEQI_PAIR_W - XQ_BOARD_W) / 2;
+
+const JIEQI_START_VIEW_BOARD = Object.fromEntries(
+  Object.entries(XQ_START.board).map(([sq, piece]) => [
+    sq,
+    { piece, shrouded: piece.role !== 'general' },
+  ]),
+) as XiangqiPlayerView['board'];
+const JIEQI_START_VIEW = xqStaticView('jieqi-start-view', JIEQI_START_VIEW_BOARD);
+const JIEQI_START_BOARD = () => xqSvg(
+  JIEQI_PAIR_W,
+  XQ_BOARD_H + 52,
+  xqBoardSvg({
+    state: XQ_START,
+    view: JIEQI_START_VIEW,
+    x: JIEQI_PAIR_CENTER_X,
+    y: 0,
+    label: 'SHUFFLED START',
+    perspective: 'red',
+    showCannonTargets: false,
+    shroudedStyle: 'back',
+  }),
+);
+const JIEQI_RULES_THUMBNAIL = () => xqSvg(
+  XQ_BOARD_W,
+  XQ_BOARD_H,
+  [
+    xqBoardGrid(0, 0, 'red'),
+    xqPiecesLayer(XQ_START, JIEQI_START_VIEW, 0, 0, 'red', 'back'),
+    xqBoardBorder(0, 0),
+  ].join(''),
+);
+
+const JIEQI_REVEAL_BEFORE_BOARD: XiangqiPlayerView['board'] = {
+  b1: { piece: { color: 'red', role: 'cannon' }, shrouded: true },
+};
+const JIEQI_REVEAL_BEFORE_STATE = xqVisionDemoState('jieqi-reveal-before', {
+  b1: { color: 'red', role: 'cannon' },
+});
+const JIEQI_REVEAL_AFTER_STATE = xqVisionDemoState('jieqi-reveal-after', {
+  c3: { color: 'red', role: 'cannon' },
+});
+const JIEQI_REVEAL_BEFORE_VIEW = xqStaticView(
+  'jieqi-reveal-before-view',
+  JIEQI_REVEAL_BEFORE_BOARD,
+);
+const JIEQI_REVEAL_PAIR = () => xqSvg(
+  JIEQI_PAIR_W,
+  XQ_BOARD_H + 52,
+  [
+    xqBoardSvg({
+      state: JIEQI_REVEAL_BEFORE_STATE,
+      view: JIEQI_REVEAL_BEFORE_VIEW,
+      x: 0,
+      y: 0,
+      label: 'BEFORE: HORSE POINT',
+      perspective: 'red',
+      dots: [{ square: 'c3' as XiangqiSquare }],
+      showCannonTargets: false,
+      shroudedStyle: 'back',
+    }),
+    xqBoardSvg({
+      state: JIEQI_REVEAL_AFTER_STATE,
+      x: XQ_BOARD_W + 28,
+      y: 0,
+      label: 'AFTER: REVEALED CANNON',
+      perspective: 'red',
+      arrows: [{ from: 'b1' as XiangqiSquare, to: 'c3' as XiangqiSquare }],
+      showCannonTargets: false,
+    }),
+  ].join(''),
+);
+
+const JIEQI_REVEALED_ADVISOR_STATE = xqVisionDemoState('jieqi-revealed-advisor', {
+  c6: { color: 'red', role: 'advisor' },
+});
+const JIEQI_REVEALED_ELEPHANT_STATE = xqVisionDemoState('jieqi-revealed-elephant', {
+  g7: { color: 'red', role: 'elephant' },
+  f8: { color: 'black', role: 'soldier' },
+});
+const JIEQI_REVEALED_FREEDOMS = () => xqSvg(
+  JIEQI_PAIR_W,
+  XQ_BOARD_H + 52,
+  [
+    xqBoardSvg({
+      state: JIEQI_REVEALED_ADVISOR_STATE,
+      x: 0,
+      y: 0,
+      label: 'ADVISOR AFTER REVEAL',
+      perspective: 'red',
+      zones: true,
+      dots: xqDots(['b5', 'd5', 'b7', 'd7']),
+    }),
+    xqBoardSvg({
+      state: JIEQI_REVEALED_ELEPHANT_STATE,
+      x: XQ_BOARD_W + 28,
+      y: 0,
+      label: 'ELEPHANT AFTER REVEAL',
+      perspective: 'red',
+      zones: true,
+      dots: [
+        ...xqDots(['e5', 'i5', 'i9']),
+        { square: 'e9' as XiangqiSquare, blocked: true },
+      ],
+    }),
+  ].join(''),
+);
+
+function jieqiCaptureTray(x: number, y: number, label: string, detail: string, shrouded: boolean): string {
+  const pieceSize = 46;
+  const cardW = (JIEQI_PAIR_W - 28) / 2;
+  const cardX = x;
+  return [
+    `<rect x="${cardX}" y="${y}" width="${cardW}" height="94" rx="10" fill="none" class="xq-diagram-line" stroke-width="1.5"/>`,
+    renderXiangqiPieceGlyphed({ color: 'black', role: 'horse' }, activeXiangqiPieceSet, {
+      x: cardX + 18,
+      y: y + 24,
+      size: pieceSize,
+      shrouded,
+      shroudedStyle: 'back',
+    }),
+    `<text x="${cardX + 82}" y="${y + 36}" font-family="system-ui, sans-serif" font-size="13" font-weight="700" class="xq-diagram-ink">${label}</text>`,
+    `<text x="${cardX + 82}" y="${y + 60}" font-family="system-ui, sans-serif" font-size="13" class="xq-diagram-ink">${detail}</text>`,
+  ].join('');
+}
+
+const JIEQI_CAPTURE_BEFORE_STATE = xqVisionDemoState('jieqi-capture-before', {
+  a4: { color: 'red', role: 'chariot' },
+  a7: { color: 'black', role: 'horse' },
+});
+const JIEQI_CAPTURE_BEFORE_VIEW = xqStaticView('jieqi-capture-before-view', {
+  a4: { piece: { color: 'red', role: 'chariot' }, shrouded: false },
+  a7: { piece: { color: 'black', role: 'horse' }, shrouded: true },
+});
+const JIEQI_CAPTURE_PRIVACY = () => xqSvg(
+  JIEQI_PAIR_W,
+  XQ_BOARD_H + 214,
+  [
+    xqBoardSvg({
+      state: JIEQI_CAPTURE_BEFORE_STATE,
+      view: JIEQI_CAPTURE_BEFORE_VIEW,
+      x: JIEQI_PAIR_CENTER_X,
+      y: 0,
+      label: 'CAPTURE',
+      perspective: 'red',
+      arrows: [{ from: 'a4' as XiangqiSquare, to: 'a7' as XiangqiSquare }],
+      showCannonTargets: false,
+      shroudedStyle: 'back',
+    }),
+    `<text x="${JIEQI_PAIR_W / 2}" y="${XQ_BOARD_H + 82}" font-family="system-ui, sans-serif" font-size="13" font-weight="700" fill="#5f4a2c" text-anchor="middle">CAPTURED PIECE KNOWLEDGE</text>`,
+    jieqiCaptureTray(
+      0,
+      XQ_BOARD_H + 104,
+      'RED KNOWS',
+      'the captured piece was a horse',
+      false,
+    ),
+    jieqiCaptureTray(
+      (JIEQI_PAIR_W + 28) / 2,
+      XQ_BOARD_H + 104,
+      'BLACK KNOWS',
+      'one dark piece disappeared',
+      true,
+    ),
   ].join(''),
 );
 
@@ -5291,21 +5490,22 @@ export const articles: Article[] = [
     kind: 'rules',
     title: 'Jieqi (揭棋) Rules',
     summary:
-      'The complete rules of Jieqi (揭棋), xiangqi with shuffled identities: every piece except the generals starts face-down, makes its first move as the point it stands on, and reveals itself after moving. Checkmate the general to win.',
+      'Jieqi (揭棋) rules: xiangqi with hidden non-general pieces that first move by starting point, then reveal and play by identity.',
     showSummaryOnPage: false,
     status: 'draft',
     audience:
       'Xiangqi players and hidden-information fans who want a clean English rules reference for jieqi.',
+    thumbnail: { kind: 'svg', svg: JIEQI_RULES_THUMBNAIL },
     intro: [
       {
         kind: 'paragraph',
         text:
-          "Jieqi (揭棋, 'reveal chess') is xiangqi with shuffled identities. The generals start face-up on their usual point; every other piece starts face-down on a random starting point. A face-down piece makes its first move as the piece that normally starts where it stands, then flips over and is its true self for the rest of the game. Checkmate the general to win, as in xiangqi.",
+          "Jieqi (揭棋, 'reveal chess') keeps xiangqi's board and checkmate goal, but hides every non-general piece. A dark piece first moves, attacks, and captures by the starting point it occupies. After that move, it reveals and plays by identity.",
       },
       {
         kind: 'paragraph',
         text:
-          'The game was invented in Guangzhou in the 1980s and is a park and app staple across Guangdong, Hong Kong, and Macau; Vietnam plays the same game as cờ úp. If xiangqi is new to you, start with [Xiangqi Rules](/rules/xiangqi); the sections below explain only what jieqi changes.',
+          'Use [Xiangqi Rules](/rules/xiangqi) for the base game. This page covers what changes.',
       },
     ],
     sections: [
@@ -5315,91 +5515,114 @@ export const articles: Article[] = [
           {
             kind: 'paragraph',
             text:
-              "Each side's general goes face-up on its palace point. The other fifteen pieces (two advisors, two elephants, two horses, two chariots, two cannons, five soldiers) are shuffled and dealt face-down onto the fifteen remaining standard starting points. Neither player knows which of their own pieces is which.",
+              "Set each general face-up on its normal palace point. Shuffle each side's other fifteen pieces and deal them face-down onto the remaining starting points. Neither player knows any hidden identities, including their own.",
           },
           {
-            kind: 'paragraph',
-            text: '[VISUAL: jieqi starting position, generals face-up, fifteen dark pieces per side]',
-          },
-        ],
-      },
-      {
-        heading: 'Dark pieces move by their point',
-        blocks: [
-          {
-            kind: 'paragraph',
-            text:
-              'A face-down piece moves and captures exactly as the piece that starts on its point in xiangqi: the corner pieces move as chariots, the points beside them as horses, the cannon points as cannons, the advisor points as advisors, the elephant points as elephants, and the five front pieces as soldiers. All the usual blocking rules apply: horse legs, elephant eyes, cannon screens. Position rules bind the first move too, so a dark piece on an advisor point stays inside the palace and a dark piece on an elephant point cannot cross the river.',
-          },
-          {
-            kind: 'paragraph',
-            text:
-              'The moment a dark piece completes its first move, it is flipped face-up for both players to see. From the next move on, it moves as what it really is. The reveal is the gamble at the heart of the game: the chariot-point piece you swing out may turn out to be a soldier.',
-          },
-          {
-            kind: 'paragraph',
-            text: '[VISUAL: dark piece on a chariot point moving down the file, then flipping to reveal a cannon]',
+            kind: 'raw-svg',
+            svg: JIEQI_START_BOARD,
           },
         ],
       },
       {
-        heading: 'Revealed pieces',
+        heading: 'First moves use starting points',
         blocks: [
           {
             kind: 'paragraph',
             text:
-              'A revealed piece follows its normal xiangqi movement, with two freedoms. A revealed advisor may leave the palace: it steps one point diagonally anywhere on the board. A revealed elephant may cross the river: it still moves exactly two points diagonally and is still blocked by a piece on the eye, but the river no longer stops it. Horses, chariots, and cannons move exactly as in xiangqi.',
+              'Before reveal, a dark piece uses the role of the starting point it occupies, not its hidden identity. A dark piece on a corner point plays like a chariot; dark pieces on horse, advisor, elephant, cannon, and soldier points use those matching moves.',
           },
           {
             kind: 'paragraph',
             text:
-              'Soldiers keep their xiangqi rule, judged from wherever they stand: forward only on your own side of the river, forward or sideways once across, never backward. Reveals can put a soldier anywhere (a piece moving backward as a chariot can flip into a soldier deep in your own camp), so a freshly revealed soldier may have a long walk ahead.',
+              'The normal restrictions still apply to that first move: horse legs, elephant eyes, cannon screens, palace limits for advisor points, and the river limit for elephant points. Once the move resolves, the piece flips face-up for both players.',
+          },
+          {
+            kind: 'raw-svg',
+            svg: JIEQI_REVEAL_PAIR,
           },
         ],
       },
       {
-        heading: 'Captured dark pieces stay secret',
+        heading: 'Revealed pieces use identity',
         blocks: [
           {
             kind: 'paragraph',
             text:
-              'When a face-down piece is captured before it ever moved, only the capturer looks at it. The owner sees a dark piece leave the board and learns nothing about which piece is gone. This is the private information at the heart of jieqi: the player who takes your dark pieces knows exactly what is left in your pool, while you can only count what you have taken from theirs.',
+              "After reveal, use the piece's identity from its current point. Advisors may leave the palace, and elephants may cross the river. Their movement shapes do not change: advisors step one point diagonally; elephants move two points diagonally and are still eye-blocked.",
           },
           {
             kind: 'paragraph',
             text:
-              'Some Vietnamese cờ úp play keeps a captured dark piece secret from both players instead; agree on the convention over the board. Apps and tournament play follow the rule above.',
+              'Horses, chariots, and cannons move normally. Soldiers use the normal river rule from wherever they reveal: forward only before crossing, forward or sideways after crossing, never backward.',
+          },
+          {
+            kind: 'raw-svg',
+            svg: JIEQI_REVEALED_FREEDOMS,
           },
         ],
       },
       {
-        heading: 'Winning and draws',
+        heading: 'Captured dark pieces',
         blocks: [
           {
             kind: 'paragraph',
             text:
-              "Unlike fog variants, nothing in jieqi is hidden about the board itself: both players see where every piece stands. What is hidden is identity. Check and checkmate stay fully enforceable because a dark piece's powers come from the point it stands on, which everyone can see.",
+              'If a dark piece is captured before revealing, only the capturer learns what it was. The owner sees one dark piece leave the board, but not its identity. Later, the capturer can rule out that hidden identity elsewhere.',
+          },
+          {
+            kind: 'raw-svg',
+            svg: JIEQI_CAPTURE_PRIVACY,
           },
           {
             kind: 'paragraph',
             text:
-              "Win conditions are xiangqi's: checkmate the general, or leave the opponent with no legal move. The facing-generals rule applies, and dark pieces block the file like any other piece. Perpetual check and perpetual chase are forbidden as in xiangqi, and long stretches with no capture end in a draw (the exact move count varies by venue and app).",
+              'This reference uses the common Jieqi convention: the capturer sees it. Some cờ úp groups handle captured dark pieces differently, so agree on the convention before over-the-board play.',
           },
         ],
       },
       {
-        heading: 'Names and origins',
+        heading: 'Checks, wins, and draws',
         blocks: [
           {
             kind: 'paragraph',
             text:
-              "揭棋 is Mandarin jiēqí; the name means lifting the cover off. Luo Jinsheng of Guangzhou invented it in the 1980s, and it spread through Cantonese park play before the xiangqi apps made it a fixture. Vietnam's cờ úp ('face-down chess') is the same game. English writing sometimes calls it 'dark Chinese chess', which collides with [banqi](/rules/banqi), the half-board flip game the AI literature calls Chinese dark chess. The two are different games: jieqi keeps the full xiangqi board and win condition, while banqi rebuilds the game around flipping and rank capture.",
+              "Every occupied point is visible, so players can see when the general is attacked. An unmoved dark piece attacks from its starting point using that point's role. Once it moves, it reveals immediately; any check from the destination uses the revealed identity.",
+          },
+          {
+            kind: 'paragraph',
+            text:
+              'Win by checkmating the general or leaving the opponent with no legal move. The facing-generals rule still applies, and dark pieces block the file like any other piece.',
+          },
+          {
+            kind: 'paragraph',
+            text:
+              'Repetition is judged by the kind of cycle, not by a generic threefold or fourfold auto-loss. Perpetual check and direct perpetual chase are forbidden, so the forcing side must change course or lose. The only automatic draw convention in this reference is the xiangqi-family no-capture clock: 60 plies (30 moves by each side) without a capture.',
+          },
+        ],
+      },
+      {
+        heading: 'Names',
+        blocks: [
+          {
+            kind: 'paragraph',
+            text:
+              '揭棋 is Mandarin jiēqí, meaning reveal chess. Luo Jinsheng of Guangzhou invented it in the 1980s. Vietnamese play commonly calls this family cờ úp.',
+          },
+          {
+            kind: 'paragraph',
+            text:
+              'English names overlap. Dark Chinese chess may refer to jieqi, but it can also mean [banqi](/rules/banqi), a different half-board flip game. Jieqi keeps the full xiangqi board and checkmate goal; banqi uses a 4x8 board, rank captures, and elimination.',
+          },
+          {
+            kind: 'paragraph',
+            text:
+              'Mistboard also uses [Dark Xiangqi](/rules/dark-xiangqi) and Dark Mini Xiangqi for our Fog of War xiangqi variants. Those are not jieqi: identities stay known, but unseen points are hidden. We have not found an earlier public playable platform for Fog of War xiangqi.',
           },
         ],
       },
       relatedClosing({
         heading: 'Where to next',
-        lead: "Jieqi isn't playable on Mistboard yet; for now this page is the rules reference. Xiangqi is the base game, and banqi is the other hidden-identity cousin.",
+        lead: 'Jieqi is not playable on Mistboard yet; this page is the rules reference while we plan the variant. For the base game, read xiangqi. For the other face-down xiangqi cousin, compare banqi.',
         links: [
           { label: 'Xiangqi Rules', href: '/rules/xiangqi', emphasis: 'primary' },
           { label: 'Banqi', href: '/rules/banqi', emphasis: 'secondary' },
