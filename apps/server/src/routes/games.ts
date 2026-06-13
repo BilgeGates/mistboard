@@ -1,19 +1,15 @@
 import type { IncomingMessage, ServerResponse } from 'node:http';
 import type { Color, GameEvent, TimeClass } from '@mistboard/game';
-import { currentAccountUser } from './../account-session.js';
 import { FinishedGameCache } from './../finished-game-cache.js';
 import { buildGamePgn, buildGamePublicationJson } from './../game-export.js';
 import * as persistence from './../persistence.js';
-import {
-  eventReplayResponse,
-  isProductionLikeRuntime,
-  parsePositiveInteger,
-} from './../server-policy.js';
+import { eventReplayResponse, parsePositiveInteger } from './../server-policy.js';
 import { listWatchChannels, watchChannelForId } from './../watch-channels.js';
 import {
   type HttpApiContext,
   isHttpAdminAuthorized,
   isHttpAdminSession,
+  requireAdminSession,
   requireMethod,
   requirePersistence,
   writeJson,
@@ -108,10 +104,7 @@ export async function tryHandle(
   if (pathname === '/api/admin/games/query') {
     if (!requireMethod(request, response, 'GET')) return true;
     if (!requirePersistence(response)) return true;
-    if (!(await isHttpAdminSession(request))) {
-      writeJson(response, 403, { error: 'admin_required' });
-      return true;
-    }
+    if (!(await requireAdminSession(request, response))) return true;
     const parsed = parseGameQueryFilters(parsedUrl.searchParams);
     if ('error' in parsed) {
       writeJson(response, 400, { error: parsed.error });
@@ -139,10 +132,7 @@ export async function tryHandle(
   if (pathname === '/api/admin/engines') {
     if (!requireMethod(request, response, 'GET')) return true;
     if (!requirePersistence(response)) return true;
-    if (!(await isHttpAdminSession(request))) {
-      writeJson(response, 403, { error: 'admin_required' });
-      return true;
-    }
+    if (!(await requireAdminSession(request, response))) return true;
     const engines = await persistence.listEngineVersionStats();
     writeJson(response, 200, { engines });
     return true;
@@ -154,10 +144,7 @@ export async function tryHandle(
   if (engineProfileMatch) {
     if (!requireMethod(request, response, 'GET')) return true;
     if (!requirePersistence(response)) return true;
-    if (!(await isHttpAdminSession(request))) {
-      writeJson(response, 403, { error: 'admin_required' });
-      return true;
-    }
+    if (!(await requireAdminSession(request, response))) return true;
     const engineId = decodeURIComponent(engineProfileMatch[1]!);
     const profile = await persistence.getEngineProfile(engineId);
     if (!profile) {
@@ -474,10 +461,11 @@ async function gameArtifactsForApi(
   };
 }
 
+// Engine artifacts (belief snapshots, trace rows, move choices) are admin-only
+// in prod. Same gate as the rest of the admin surface — delegate so it can't
+// drift from isHttpAdminSession.
 async function canViewEngineArtifactsForRequest(request: IncomingMessage): Promise<boolean> {
-  if (!isProductionLikeRuntime()) return true;
-  const user = await currentAccountUser(request);
-  return user?.accountRole === 'admin';
+  return isHttpAdminSession(request);
 }
 
 function engineParticipantColors(game: persistence.RecentEveGameRecord): Color[] {

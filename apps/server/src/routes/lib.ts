@@ -186,3 +186,16 @@ export async function isHttpAdminSession(request: IncomingMessage): Promise<bool
   const user = await currentAccountUser(request);
   return user?.accountRole === 'admin';
 }
+
+// Guard wrapper over isHttpAdminSession: writes the 403 admin_required envelope
+// and returns false when the requester isn't a session-admin (caller `return`s).
+// Single source for the browser-admin gate so the admin rule can't drift across
+// route modules.
+export async function requireAdminSession(
+  request: IncomingMessage,
+  response: ServerResponse,
+): Promise<boolean> {
+  if (await isHttpAdminSession(request)) return true;
+  writeJson(response, 403, { error: 'admin_required' });
+  return false;
+}
