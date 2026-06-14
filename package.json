@@ -72,7 +72,8 @@
     "prod:smoke:dmx": "node scripts/prod-dmx-smoke.mjs",
     "prod:smoke:engine-playout": "node scripts/prod-engine-playout.mjs",
     "time:command": "node scripts/time-command.mjs",
-    "research:kqk-belief": "tsx scripts/fow-kqk-belief.ts"
+    "research:kqk-belief": "tsx scripts/fow-kqk-belief.ts",
+    "jieqi:play": "tsx scripts/jieqi-playthrough.ts"
   },
   "engines": {
     "node": ">=22"
