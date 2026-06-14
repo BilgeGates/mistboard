@@ -599,8 +599,8 @@ export async function mountReplay(
     blackPane.el.classList.toggle('revealed', showRevealLabels);
     if (captures) {
       if (splitCaptures) {
-        renderSplitPaneCaptures(whitePane, captures, 'white');
-        renderSplitPaneCaptures(blackPane, captures, 'black');
+        renderSplitPaneCaptures(whitePane, captures, boardOrientation);
+        renderSplitPaneCaptures(blackPane, captures, boardOrientation);
         renderSplitPaneCaptures(truthPane, captures, boardOrientation);
       } else {
         renderPaneCaptures(whitePane.capturesEl, captures.white, 'black');

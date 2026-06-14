@@ -1,4 +1,6 @@
+import type { GameEvent } from '@mistboard/game';
 import { describe, expect, it } from 'vitest';
+import { mountReplay } from './replay.js';
 import {
   compactReplayClockSidesForOrientation,
   resolveWallClockReplayPosition,
@@ -18,6 +20,45 @@ describe('compactReplayClockSidesForOrientation', () => {
       top: 'white',
       bottom: 'black',
     });
+  });
+});
+
+describe('mountReplay capture rows', () => {
+  it('keeps split captures aligned to the shared board orientation across the triptych', async () => {
+    const root = document.createElement('div');
+    document.body.append(root);
+    const replay = await mountReplay(root, 'review-captures-test', {
+      autoplay: false,
+      captureLayout: 'split',
+      initialPly: 4,
+      loaderForId: async () => reviewCaptureEvents,
+      revealOnFinish: false,
+      showControls: false,
+    });
+
+    try {
+      expect(captureLabels(root, '.replay-pane-white .replay-captures-top')).toEqual([
+        'white pawn',
+      ]);
+      expect(captureLabels(root, '.replay-pane-white .replay-captures-bottom')).toEqual([
+        'black pawn',
+      ]);
+      expect(captureLabels(root, '.replay-pane-truth .replay-captures-top')).toEqual([
+        'white pawn',
+      ]);
+      expect(captureLabels(root, '.replay-pane-truth .replay-captures-bottom')).toEqual([
+        'black pawn',
+      ]);
+      expect(captureLabels(root, '.replay-pane-black .replay-captures-top')).toEqual([
+        'white pawn',
+      ]);
+      expect(captureLabels(root, '.replay-pane-black .replay-captures-bottom')).toEqual([
+        'black pawn',
+      ]);
+    } finally {
+      replay.destroy();
+      root.remove();
+    }
   });
 });
 
@@ -83,6 +124,52 @@ describe('resolveWallClockReplayPosition', () => {
     expect(resolveWallClockReplayPosition([], 100, timing)).toBeNull();
   });
 });
+
+function captureLabels(root: ParentNode, selector: string): string[] {
+  const strip = root.querySelector(selector);
+  return [...(strip?.querySelectorAll('.captures-piece') ?? [])].map(
+    (piece) => piece.getAttribute('aria-label') ?? '',
+  );
+}
+
+const reviewCaptureEvents: GameEvent[] = [
+  {
+    type: 'room-created',
+    at: 1,
+    roomId: 'review-captures-test',
+    variant: 'dark-chess',
+  },
+  {
+    type: 'move-played',
+    at: 2,
+    roomId: 'review-captures-test',
+    color: 'white',
+    move: { from: 'e2', to: 'e4' },
+  },
+  {
+    type: 'move-played',
+    at: 3,
+    roomId: 'review-captures-test',
+    color: 'black',
+    move: { from: 'd7', to: 'd5' },
+  },
+  {
+    type: 'move-played',
+    at: 4,
+    roomId: 'review-captures-test',
+    color: 'white',
+    move: { from: 'e4', to: 'd5' },
+    capturedRole: 'pawn',
+  },
+  {
+    type: 'move-played',
+    at: 5,
+    roomId: 'review-captures-test',
+    color: 'black',
+    move: { from: 'd8', to: 'd5' },
+    capturedRole: 'pawn',
+  },
+];
 
 describe('resolveWallClockThinkingElapsedMs', () => {
   it('advances homepage clock text at real elapsed time, not compressed replay speed', () => {
