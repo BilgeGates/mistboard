@@ -20,6 +20,7 @@ import {
   DARK_XIANGQI_SPEC_ID,
   DUAL_CHESS_SPEC_ID,
   type GameSpecId,
+  JIEQI_SPEC_ID,
   type TimeControlId,
 } from '@mistboard/game';
 import {
@@ -28,6 +29,7 @@ import {
   darkMiniXiangqiEnabled,
   darkMiniXiangqiPublicEntryEnabled,
   darkXiangqiEnabled,
+  jieqiEnabled,
 } from '../feature-flags.js';
 import type { GameMeta, ReplayHandle } from '../replay.js';
 
@@ -155,6 +157,34 @@ const WEB_VARIANT_TENANTS: readonly WebVariantTenant[] = [
       timePresetIds: ['3m2'],
       offerInMenu: () => false,
       acceptsDeepLink: () => false,
+    },
+  },
+  {
+    // Identity-hidden jieqi (9x10). A self-contained live client on the
+    // socket-client + chrome stack (no fog: positions are public, only piece
+    // identities are hidden). Flag-gated like Dark Xiangqi; the picker
+    // capabilities stay defined for stored setup preferences even while the
+    // menu and deep-link gates are off.
+    gameSpecId: JIEQI_SPEC_ID,
+    roomIdPrefix: 'jq_',
+    enabled: jieqiEnabled,
+    pageTitle: 'Jieqi',
+    loadLiveRoomClient: () =>
+      import('../live-jieqi.js').then(
+        ({ bootstrapJieqiLiveRoom }) =>
+          () =>
+            bootstrapJieqiLiveRoom(),
+      ),
+    landing: {
+      capabilities: {
+        ...XIANGQI_CAPABILITIES_BASE,
+        supportsRated: false,
+        supportsStartFormat: false,
+        supportsTimeControl: true,
+      },
+      timePresetIds: ['3m2'],
+      offerInMenu: () => false,
+      acceptsDeepLink: jieqiEnabled,
     },
   },
   {

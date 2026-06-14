@@ -9,6 +9,12 @@ export function darkMiniXiangqiEnabled(): boolean {
   return import.meta.env.VITE_DARK_MINI_XIANGQI_ENABLED === 'true';
 }
 
+// Identity-hidden jieqi (揭棋) play surface. Hidden in prod/staging unless the
+// build opts in; mirrors the dark-xiangqi gate.
+export function jieqiEnabled(): boolean {
+  return import.meta.env.VITE_JIEQI_ENABLED === 'true';
+}
+
 export function darkMiniXiangqiPublicEntryEnabled(): boolean {
   return (
     darkMiniXiangqiEnabled() &&
