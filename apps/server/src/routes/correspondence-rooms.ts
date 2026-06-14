@@ -19,7 +19,7 @@ import { writeJson } from './lib.js';
 // Perfect-information specs stay out (engine-unenforceable everywhere they
 // exist). Dark chess launches first; DMX/kriegspiel/jieqi/banqi join by
 // adding their spec id AND a sweepDueDeadline-capable registration.
-const CORRESPONDENCE_ELIGIBLE_SPECS: ReadonlySet<string> = new Set([DARK_CHESS_SPEC_ID]);
+export const CORRESPONDENCE_ELIGIBLE_SPECS: ReadonlySet<string> = new Set([DARK_CHESS_SPEC_ID]);
 
 // Dev/test only: accept compressed non-official allowances (fractional
 // daysPerMove, e.g. 0.002 ≈ 3 minutes) so a full deadline cycle is testable
@@ -111,7 +111,7 @@ export async function handleCorrespondenceCreate(
   });
 }
 
-function parseCorrespondenceTimeControl(daysPerMove: unknown): RoomTimeControl | null {
+export function parseCorrespondenceTimeControl(daysPerMove: unknown): RoomTimeControl | null {
   if (typeof daysPerMove !== 'number' || !Number.isFinite(daysPerMove)) return null;
   if ((DAYS_PER_MOVE_OPTIONS as readonly number[]).includes(daysPerMove)) {
     return correspondenceTimeControl(daysPerMove as DaysPerMove);
@@ -122,7 +122,7 @@ function parseCorrespondenceTimeControl(daysPerMove: unknown): RoomTimeControl |
   return null;
 }
 
-function parsePreferredColor(value: unknown): 'white' | 'black' | 'random' | undefined {
+export function parsePreferredColor(value: unknown): 'white' | 'black' | 'random' | undefined {
   if (value === 'white' || value === 'black' || value === 'random') return value;
   return undefined;
 }

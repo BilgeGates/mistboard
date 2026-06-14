@@ -142,3 +142,117 @@
 .correspondence-cta:hover {
   filter: brightness(1.05);
 }
+
+.correspondence-seekboard {
+  border-top: 1px solid var(--site-border-soft);
+  padding-top: 20px;
+}
+
+/* The CTA base was written for <a>; normalize it for the board's <button>s. */
+.correspondence-post-form button.correspondence-cta,
+.correspondence-seek-action {
+  margin-top: 0;
+  border: none;
+  cursor: pointer;
+  font-family: inherit;
+}
+
+.correspondence-seek-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+/* "Post a game" is a secondary trigger, not a second green primary. */
+.correspondence-seek-toggle {
+  flex-shrink: 0;
+  padding: 6px 14px;
+  border-radius: var(--site-radius);
+  border: 1px solid var(--site-border-soft);
+  background: var(--site-surface);
+  color: var(--site-heading);
+  font-weight: 600;
+  font-size: 13px;
+  font-family: inherit;
+  cursor: pointer;
+}
+
+.correspondence-seek-toggle:hover {
+  border-color: var(--site-border);
+}
+
+.correspondence-seek-toggle.is-open {
+  border-color: var(--site-accent);
+  color: var(--site-accent);
+}
+
+.correspondence-post-form {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.correspondence-post-field {
+  padding: 8px 10px;
+  border: 1px solid var(--site-border-soft);
+  border-radius: var(--site-radius);
+  background: var(--site-surface);
+  color: inherit;
+  font-size: 14px;
+  font-family: inherit;
+}
+
+.correspondence-post-error {
+  margin: 0;
+  flex-basis: 100%;
+  color: var(--site-danger, #c0392b);
+  font-size: 13px;
+}
+
+.correspondence-seek-empty {
+  margin: 0;
+  padding: 16px 14px;
+  border: 1px dashed var(--site-border-soft);
+  border-radius: var(--site-radius);
+  color: var(--site-muted);
+  font-size: 14px;
+}
+
+.correspondence-seek-action {
+  padding: 6px 14px;
+  font-size: 13px;
+}
+
+.correspondence-seek-action.is-cancel {
+  background: transparent;
+  color: var(--site-muted);
+  border: 1px solid var(--site-border-soft);
+}
+
+.correspondence-seek-action.is-cancel:hover {
+  filter: none;
+  border-color: var(--site-border);
+  color: var(--site-heading);
+}
+
+.correspondence-seek-action:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.correspondence-friend-link {
+  margin: 4px 0 0;
+  color: var(--site-muted);
+  font-size: 13px;
+}
+
+.correspondence-friend-link a {
+  color: var(--site-accent);
+  text-decoration: none;
+}
+
+.correspondence-friend-link a:hover {
+  text-decoration: underline;
+}

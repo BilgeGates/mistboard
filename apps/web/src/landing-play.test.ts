@@ -319,7 +319,7 @@ describe('landing play panel', () => {
     expect(visibleModalTimeControls()).toEqual(['1 + 1', '3 + 2']);
   });
 
-  it('offers correspondence days only for a dark-chess friend challenge', () => {
+  it('offers correspondence days for casual dark chess in both friend challenge and find opponent', () => {
     vi.stubEnv('VITE_CORRESPONDENCE_ENABLED', 'true');
     vi.stubEnv('VITE_DARK_MINI_XIANGQI_ENABLED', 'true');
     vi.stubEnv('VITE_DARK_MINI_XIANGQI_PUBLIC_ENTRY_ENABLED', 'true');
@@ -339,9 +339,10 @@ describe('landing play panel', () => {
     selectModalVariant('dark-mini-xiangqi');
     expect(visibleCorrespondenceOptions()).toEqual([]);
 
-    // Find opponent (lobby) has none yet — that's the seek board (C3).
+    // Find opponent offers it too (submitting posts an open seek to the board).
     openPlaySetup(panel, 'Find opponent');
-    expect(visibleCorrespondenceOptions()).toEqual([]);
+    selectModalVariant('dark-chess');
+    expect(visibleCorrespondenceOptions()).toEqual(['1 day', '3 days', '7 days']);
   });
 
   it('limits rated setup time controls to 3+2', () => {

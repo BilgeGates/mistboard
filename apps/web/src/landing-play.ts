@@ -714,8 +714,9 @@ function openLandingSetupDialog(choice: LandingPlayChoice): void {
   });
 
   // Correspondence (days-per-move) is the long end of the time-control axis, not
-  // a separate mode — offered only for Challenge-a-friend dark chess (casual,
-  // account-only). Picking one supersedes the real-time presets above.
+  // a separate mode — offered for casual dark chess in both Challenge-a-friend
+  // (creates a private room) and Find opponent (posts an open seek). Picking one
+  // supersedes the real-time presets above.
   const correspondenceLabel = setupSectionLabel('Correspondence (days per move)');
   const correspondenceGroup = document.createElement('div');
   correspondenceGroup.className = 'landing-time-presets landing-correspondence-presets';
@@ -733,7 +734,7 @@ function openLandingSetupDialog(choice: LandingPlayChoice): void {
   });
 
   const correspondenceAvailable = () =>
-    choice.mode === 'pvp' &&
+    (choice.mode === 'pvp' || choice.mode === 'lobby') &&
     selectedGameSpecId === DARK_CHESS_SPEC_ID &&
     !rated &&
     correspondenceEnabled();
@@ -791,12 +792,18 @@ function openLandingSetupDialog(choice: LandingPlayChoice): void {
         : 'Start game';
   startButton.addEventListener('click', () => {
     if (selectedCorrespondenceDays !== null) {
-      void createCorrespondenceFromPlay(
-        startButton,
-        status,
-        selectedCorrespondenceDays,
-        preferredColor,
-      );
+      // Challenge a friend creates a private invite room; Find opponent posts an
+      // open seek to the board (color server-assigned there, like the live pool).
+      if (choice.mode === 'lobby') {
+        void postCorrespondenceSeekFromPlay(startButton, status, selectedCorrespondenceDays);
+      } else {
+        void createCorrespondenceFromPlay(
+          startButton,
+          status,
+          selectedCorrespondenceDays,
+          preferredColor,
+        );
+      }
       return;
     }
     const setup = selectedRoomSetup(
@@ -915,9 +922,10 @@ function openLandingSetupDialog(choice: LandingPlayChoice): void {
   ).focus();
 }
 
-// The days-per-move options offered at the long end of the Challenge-a-friend
-// time-control picker (openLandingSetupDialog). Selecting one routes the submit
-// to createCorrespondenceFromPlay instead of the real-time create.
+// The days-per-move options offered at the long end of the time-control picker
+// (openLandingSetupDialog). Selecting one routes the submit to the correspondence
+// path — a private room (Challenge a friend) or an open seek (Find opponent) —
+// instead of the real-time create.
 const CORRESPONDENCE_DAY_OPTIONS: { days: number; label: string }[] = [
   { days: 1, label: '1 day' },
   { days: 3, label: '3 days' },
@@ -959,6 +967,58 @@ async function createCorrespondenceFromPlay(
       status.append('Correspondence games need an account. ', accountLink('Sign in'), ' first.');
     } else if (failure.error === 'invalid_days_per_move') {
       status.textContent = 'Pick 1, 3, or 7 days per move.';
+    } else if (failure.error === 'server_draining') {
+      status.textContent = 'The server is restarting. Try again in a minute.';
+    } else {
+      status.textContent = 'Correspondence is unavailable right now. Try again later.';
+    }
+    button.textContent = 'Try again';
+    button.disabled = false;
+    button.removeAttribute('aria-busy');
+  } catch (err) {
+    console.warn(err);
+    if (status.isConnected) {
+      status.textContent = 'Could not reach the server. Check your connection and try again.';
+    }
+    button.textContent = 'Try again';
+    button.disabled = false;
+    button.removeAttribute('aria-busy');
+  }
+}
+
+// Find opponent + a correspondence allowance: post an open seek to the board
+// rather than create a private room. Color is server-assigned (random), matching
+// the live pool's unified-pool rule; players who want a specific color use the
+// "Post a game" form on /correspondence. Lands on the board so the player sees
+// their seek and can join someone else's while they wait.
+async function postCorrespondenceSeekFromPlay(
+  button: HTMLButtonElement,
+  status: HTMLElement,
+  daysPerMove: number,
+): Promise<void> {
+  button.disabled = true;
+  button.setAttribute('aria-busy', 'true');
+  button.textContent = 'Posting';
+  try {
+    const response = await fetch('/api/correspondence/seeks', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ daysPerMove, preferredColor: 'random' }),
+    });
+    if (response.ok) {
+      if (!status.isConnected) return;
+      roomNavigator('/correspondence');
+      return;
+    }
+    const failure = await readRoomCreationFailure(response);
+    if (!status.isConnected) return;
+    status.replaceChildren();
+    if (failure.error === 'not_signed_in' || failure.error === 'correspondence_requires_account') {
+      status.append('Correspondence games need an account. ', accountLink('Sign in'), ' first.');
+    } else if (failure.error === 'invalid_days_per_move') {
+      status.textContent = 'Pick 1, 3, or 7 days per move.';
+    } else if (failure.error === 'seek_limit_reached') {
+      status.textContent = 'You already have the most open games allowed. Cancel one first.';
     } else if (failure.error === 'server_draining') {
       status.textContent = 'The server is restarting. Try again in a minute.';
     } else {

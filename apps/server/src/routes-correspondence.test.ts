@@ -3,6 +3,7 @@ import type { ServerResponse } from 'node:http';
 import test from 'node:test';
 import { correspondenceTimeControl, DAY_MS, type RoomTimeControl } from '@mistboard/game';
 import {
+  createDarkChessCorrespondenceGameForSeek,
   createDarkChessCorrespondenceRoom,
   darkChessTenantRooms,
   sweepDarkChessDueDeadline,
@@ -14,6 +15,7 @@ import {
   handleCorrespondenceCreate,
   requestsCorrespondence,
 } from './routes/correspondence-rooms.js';
+import { tenantDurableDeadlineFor } from './variant-tenant/lifecycle.js';
 import { variantTenantForRoomId } from './variant-tenant/registry.js';
 import {
   createTenantRuntimeRoomFromEvents,
@@ -284,6 +286,70 @@ test('correspondence snapshots carry the chess-shell bridge extras', async () =>
     assert.deepEqual(payload.seatDisplayNames, { white: 'White Player' });
     assert.equal(payload.timeControl?.daysPerMove, 3);
     void roomId;
+  } finally {
+    darkChessTenantRooms.clear();
+  }
+});
+
+test('accepting a seek seats both accounts and the game is live at once', async () => {
+  const created = await createDarkChessCorrespondenceGameForSeek({
+    timeControl: correspondenceTimeControl(3),
+    white: { userId: 'creator-1' },
+    black: { userId: 'accepter-2' },
+  });
+  assert.ok(created.ok);
+  const room = darkChessTenantRooms.get(created.room.id);
+  assert.ok(room);
+  try {
+    // Both seats are account-bound before either player connects, so each
+    // reclaims by user id on connect (no raw token handed back).
+    assert.equal(room.seatTokens.white?.userId, 'creator-1');
+    assert.equal(room.seatTokens.black?.userId, 'accepter-2');
+    assert.ok(room.projection.seats.white);
+    assert.ok(room.projection.seats.black);
+
+    // Live the instant the seek is accepted: status playing with an enforceable
+    // deadline on white. Before the first move that's the first-move (abort)
+    // window, not an armed clock — but it's the exact value the sweeper and the
+    // deadline-row writer key off, so a non-null deadline proves white is on the
+    // hook to move and the game can't sit idle forever.
+    assert.equal(room.projection.state.status.type, 'playing');
+    const deadline = tenantDurableDeadlineFor(darkChessTenant, room);
+    assert.ok(deadline);
+    assert.equal(deadline.seat, 'white');
+
+    // Fog holds on an accept-created room: each seat gets a DIFFERENT redacted
+    // view. A redaction bypass (sending canonical state) would make these equal.
+    const whiteView = tenantSnapshotPayload(darkChessTenant, room, {
+      id: room.seatTokens.white?.clientId ?? 'w',
+      seat: 'white',
+      solo: false,
+    });
+    const blackView = tenantSnapshotPayload(darkChessTenant, room, {
+      id: room.seatTokens.black?.clientId ?? 'b',
+      seat: 'black',
+      solo: false,
+    });
+    assert.notDeepEqual(whiteView.state, blackView.state);
+  } finally {
+    darkChessTenantRooms.clear();
+  }
+});
+
+test('the seek game seats exactly the colors it is handed (creator-chose-black case)', async () => {
+  // Color resolution lives in the route; the game function seats per its
+  // explicit white/black args, so a creator who chose black lands on black.
+  const created = await createDarkChessCorrespondenceGameForSeek({
+    timeControl: correspondenceTimeControl(1),
+    white: { userId: 'accepter' },
+    black: { userId: 'creator' },
+  });
+  assert.ok(created.ok);
+  const room = darkChessTenantRooms.get(created.room.id);
+  assert.ok(room);
+  try {
+    assert.equal(room.seatTokens.white?.userId, 'accepter');
+    assert.equal(room.seatTokens.black?.userId, 'creator');
   } finally {
     darkChessTenantRooms.clear();
   }

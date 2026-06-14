@@ -33,7 +33,7 @@ import {
   handleCorrespondenceCreate,
   requestsCorrespondence,
 } from './routes/correspondence-rooms.js';
-import { recordTenantPersistenceError } from './variant-tenant/events.js';
+import { appendTenantSeatAssigned, recordTenantPersistenceError } from './variant-tenant/events.js';
 import { getOrLoadTenantRoom } from './variant-tenant/hydration.js';
 import { clearTenantRuntimeTimers, sweepTenantRoomDeadline } from './variant-tenant/lifecycle.js';
 import {
@@ -42,6 +42,7 @@ import {
   variantTenantRoomIdTaken,
 } from './variant-tenant/registry.js';
 import { createTenantLiveRoom } from './variant-tenant/room-factory.js';
+import { mintTenantSeatToken } from './variant-tenant/seat-session.js';
 import type { TenantRuntimeRoom } from './variant-tenant/tenant.js';
 import { createTenantWsRuntime, type TenantLiveRoom } from './variant-tenant/ws.js';
 
@@ -75,6 +76,45 @@ export async function createDarkChessCorrespondenceRoom(
     timeControl,
     creatorPreference,
   });
+}
+
+// Accept an open correspondence seek: create a room and pre-seat BOTH accounts
+// (the seek's creator and the accepter) up front, so the game is live the
+// instant the seek is taken — before either player connects. Each seat-assigned
+// event is durable in the log and persists the seat token; the second fills the
+// board, which arms the clock and writes the first room_deadlines row. Players
+// reclaim their seat by account on connect (assignTenantSeat's user-id path), so
+// no raw token needs to be handed back here.
+export async function createDarkChessCorrespondenceGameForSeek(args: {
+  timeControl: RoomTimeControl;
+  white: { userId: string };
+  black: { userId: string };
+}): Promise<
+  | { ok: true; room: { id: string; gameSpecId: string } }
+  | { ok: false; error: 'disabled' | 'persistence_failure' | 'room_id_collision' }
+> {
+  const created = await createDarkChessCorrespondenceRoom(args.timeControl);
+  if (!created.ok) return created;
+  const room = created.room;
+  const at = Date.now();
+  const seats: ReadonlyArray<readonly [Color, { userId: string }]> = [
+    ['white', args.white],
+    ['black', args.black],
+  ];
+  for (const [seat, identity] of seats) {
+    // handle/display resolve via the users join everywhere they're shown; the
+    // seat-token row persists only user_id, so null here is exact, not lossy.
+    const { state } = mintTenantSeatToken(room, seat, {
+      userId: identity.userId,
+      userHandle: null,
+      userDisplayName: null,
+    });
+    await appendTenantSeatAssigned(darkChessTenant, room, {
+      event: { type: 'seat-assigned', at, roomId: room.id, clientId: state.clientId, seat },
+      tokenState: state,
+    });
+  }
+  return { ok: true, room: { id: room.id, gameSpecId: room.gameSpecId } };
 }
 
 function factoryContext() {
