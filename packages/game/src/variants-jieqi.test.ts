@@ -4,6 +4,7 @@ import {
   applyJieqiMove,
   assertValidJieqiDeal,
   createInitialJieqiState,
+  createJieqiDeal,
   getJieqiLegalMoves,
   getJieqiLegalMovesFrom,
   getJieqiPlayerView,
@@ -74,6 +75,20 @@ test('deal maps onto home squares in canonical order', () => {
 
   assert.equal(state.board.a1?.role, 'soldier');
   assert.equal(state.board.a4?.role, 'chariot');
+});
+
+test('createJieqiDeal always produces a valid deal and is rng-deterministic', () => {
+  let counter = 0;
+  const seeded = () => {
+    counter = (counter * 1103515245 + 12345) & 0x7fffffff;
+    return counter / 0x7fffffff;
+  };
+  for (let i = 0; i < 50; i += 1) {
+    assert.doesNotThrow(() => assertValidJieqiDeal(createJieqiDeal(seeded)));
+  }
+
+  const fixed = () => 0.42;
+  assert.deepEqual(createJieqiDeal(fixed), createJieqiDeal(fixed));
 });
 
 test('invalid deals are rejected', () => {

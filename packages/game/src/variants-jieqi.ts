@@ -235,6 +235,28 @@ export function assertValidJieqiDeal(deal: JieqiDeal): void {
   }
 }
 
+function shuffleRoles(roles: JieqiPieceRole[], rng: () => number): JieqiPieceRole[] {
+  const out = [...roles];
+  for (let i = out.length - 1; i > 0; i -= 1) {
+    const j = Math.floor(rng() * (i + 1));
+    [out[i], out[j]] = [out[j], out[i]];
+  }
+  return out;
+}
+
+/**
+ * Build a valid random deal by shuffling the standard 15-piece multiset for each
+ * side. `rng` returns a float in [0, 1); the server supplies a crypto-backed one
+ * (the deal is a hidden-information secret), tests supply a seeded one. The
+ * resulting deal is always valid by construction.
+ */
+export function createJieqiDeal(rng: () => number): JieqiDeal {
+  return {
+    red: shuffleRoles(STANDARD_JIEQI_DEAL.red, rng),
+    black: shuffleRoles(STANDARD_JIEQI_DEAL.black, rng),
+  };
+}
+
 function generalSquare(color: JieqiColor): JieqiSquare {
   return color === 'red' ? squareOf(4, 1) : squareOf(4, 10);
 }

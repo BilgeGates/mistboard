@@ -175,6 +175,7 @@ export function createTenantRuntimeRoom<
   if (!tenant.enabled()) return { ok: false, error: 'disabled' };
 
   const now = options.now ?? Date.now();
+  const setup = tenant.rules.createSetup?.();
   const events: TenantRoomEvent<C, M, Spec>[] = [
     {
       type: 'room-created',
@@ -184,6 +185,7 @@ export function createTenantRuntimeRoom<
       ...(options.creatorPreference ? { creatorPreference: options.creatorPreference } : {}),
       ...(options.rated ? { rated: true } : {}),
       ...(options.timeControl ? { timeControl: options.timeControl } : {}),
+      ...(setup !== undefined ? { setup } : {}),
     },
   ];
   if (options.timeControl) {
@@ -301,6 +303,7 @@ export function applyTenantEvent<
       event.timeControl,
       event.creatorPreference,
       event.rated === true,
+      event.setup,
     );
   }
   if (event.type === 'seat-assigned') {
@@ -625,13 +628,14 @@ function initialTenantProjection<
   timeControl?: RoomTimeControl,
   creatorPreference?: C | 'random',
   rated = false,
+  setup?: unknown,
 ): TenantProjection<C, State, Spec> {
   return {
     roomId,
     ...(creatorPreference ? { creatorPreference } : {}),
     gameSpecId: tenant.gameSpecId,
     rated,
-    state: tenant.rules.createInitialState(roomId),
+    state: tenant.rules.createInitialState(roomId, setup),
     seats: {},
     ...(timeControl ? { timeControl } : {}),
   };

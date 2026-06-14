@@ -62,6 +62,12 @@ export type TenantRoomEvent<C extends string, M, Spec extends string = string> =
       creatorPreference?: C | 'random';
       rated?: boolean;
       timeControl?: RoomTimeControl;
+      // Server-secret per-game setup (e.g. a jieqi deal). Produced by
+      // rules.createSetup at room creation, persisted here as the replay source
+      // of truth, and consumed by rules.createInitialState. Tenants with hidden
+      // setup MUST strip this in visibility.clientEventFor — it is never sent to
+      // a client. Tenants without createSetup never set it.
+      setup?: unknown;
     }
   | { type: 'seat-assigned'; at: number; roomId: string; clientId: string; seat: C }
   // Accepted in event logs only for tenants with wire.acceptsSeatVacated
@@ -207,7 +213,13 @@ export type VariantTenant<
   enabled(): boolean;
   oppositeColor(color: C): C;
   rules: {
-    createInitialState(roomId: string): State;
+    // `setup` is the server-secret per-game setup persisted in the room-created
+    // event (see TenantRoomEvent.setup). Tenants without hidden setup ignore it.
+    createInitialState(roomId: string, setup?: unknown): State;
+    // Optional: produce the per-game server-secret setup at room creation. The
+    // runtime persists the return value in the room-created event and feeds it
+    // back to createInitialState (including on replay).
+    createSetup?(): unknown;
     applyMove(state: State, move: M): State;
     isLegalMove(state: State, move: M): boolean;
     // Terminal-state constructors: the generic runtime never builds variant

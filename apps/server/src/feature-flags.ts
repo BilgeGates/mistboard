@@ -27,6 +27,12 @@ export function darkMiniXiangqiEnabled(): boolean {
   return process.env.MISTBOARD_DARK_MINI_XIANGQI_ENABLED === 'true';
 }
 
+// Jieqi (full-board xiangqi with hidden identities) live rooms. Server-side
+// opt-in, default off — the tenant exists but is not launched.
+export function jieqiEnabled(): boolean {
+  return process.env.MISTBOARD_JIEQI_ENABLED === 'true';
+}
+
 // Perfect-information Crossroads Chess live rooms. Server-side opt-in, separate
 // from the client VITE_CROSSROADS_CHESS_ENABLED page flag, so live PvP cannot be
 // exposed in production by accident while the local play surface is enabled.
