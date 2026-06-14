@@ -9,9 +9,18 @@
 
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
+import {
+  applyJieqiMove,
+  createInitialJieqiState,
+  getJieqiLegalMoves,
+  JIEQI_SPEC_ID,
+  type JieqiMove,
+  STANDARD_JIEQI_DEAL,
+} from '@mistboard/game';
 import { darkMiniXiangqiTenant } from './dark-mini-xiangqi-tenant.js';
 import { getJieqiClientView, jieqiClientEventFor, jieqiTenant } from './jieqi-tenant.js';
 import { createTenantRuntimeRoom, replayTenantEvents } from './variant-tenant/runtime.js';
+import type { TenantRoomEvent } from './variant-tenant/tenant.js';
 
 process.env.MISTBOARD_JIEQI_ENABLED = 'true';
 process.env.MISTBOARD_DARK_MINI_XIANGQI_ENABLED = 'true';
@@ -68,6 +77,34 @@ test('the client view masks every face-down identity', () => {
 
   const spectator = getJieqiClientView(state, { id: 's', seat: 'spectator', solo: false });
   assert.equal(Object.keys(spectator.board).length, 0);
+});
+
+test('a full jieqi game replays through the runtime identically to the kernel', () => {
+  const roomId = 'jq_game';
+  // A fixed deal makes the scripted line reproducible.
+  const events: TenantRoomEvent<'red' | 'black', JieqiMove, typeof JIEQI_SPEC_ID>[] = [
+    { type: 'room-created', at: 1, roomId, gameSpecId: JIEQI_SPEC_ID, setup: STANDARD_JIEQI_DEAL },
+    { type: 'seat-assigned', at: 2, roomId, clientId: 'r', seat: 'red' },
+    { type: 'seat-assigned', at: 3, roomId, clientId: 'b', seat: 'black' },
+  ];
+
+  // Drive a deterministic line with the kernel (first legal move each ply),
+  // recording the move-played events the runtime will replay.
+  let kernelState = createInitialJieqiState(roomId, STANDARD_JIEQI_DEAL);
+  let at = 4;
+  let plies = 0;
+  while (kernelState.status.type === 'playing' && plies < 40) {
+    const move = getJieqiLegalMoves(kernelState)[0];
+    events.push({ type: 'move-played', at: at++, roomId, color: kernelState.status.turn, move });
+    kernelState = applyJieqiMove(kernelState, move);
+    plies += 1;
+  }
+  assert.ok(plies > 0, 'the scripted line made progress');
+
+  // The generic runtime, driven by the tenant, must reach the same canonical
+  // state the kernel did — proving the tenant's move path integrates correctly.
+  const projection = replayTenantEvents(jieqiTenant, events);
+  assert.deepEqual(projection.state, kernelState);
 });
 
 test('tenants without createSetup still emit a setup-free room-created', () => {
