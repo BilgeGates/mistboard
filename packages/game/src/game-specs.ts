@@ -22,17 +22,20 @@ export type MovementRulesId =
 export type ObjectiveRulesId =
   | 'king-capture'
   | 'general-capture'
+  | 'checkmate'
   | 'suicide'
   | 'royal-capture-or-race';
-// 'open' = perfect-information (the Crossroads Chess onboarding mode); every other spec
-// is 'dark' (fog of war).
-export type VisibilityRulesId = 'dark' | 'open';
+// 'open' = perfect-information (the Crossroads Chess onboarding mode); 'dark' is
+// fog of war (positions hidden); 'hidden-identity' is jieqi (positions public,
+// piece identities hidden until revealed).
+export type VisibilityRulesId = 'dark' | 'open' | 'hidden-identity';
 export type SetupRulesId =
   | 'standard'
   | 'draft960'
   | 'mini-standard'
   | 'double-fischer-random'
-  | 'crossroads-standard';
+  | 'crossroads-standard'
+  | 'jieqi-deal';
 export type ReserveRulesId = 'none' | 'crazyhouse' | 'shogi-hands' | 'seirawan-gating';
 export type DropPolicyId = 'none' | 'any-legal-square' | 'seen-squares-only' | 'seirawan-gating';
 export type GameSpecSurface = 'hidden' | 'beta' | 'casual' | 'rated';
@@ -50,6 +53,7 @@ export type RatingPoolBaseId =
   | 'dark_xiangqi'
   | 'dark_shogi'
   | 'dark_omega'
+  | 'jieqi'
   | 'crossroads_chess'
   | 'crossroads_chess_open';
 
@@ -65,6 +69,7 @@ export type GameSpecId =
   | 'dark-xiangqi'
   | 'dark-shogi'
   | 'dark-omega'
+  | 'jieqi'
   | 'crossroads-chess'
   | 'dark-crossroads-chess';
 export type GameSpecAliasId = 'fog-draft960' | 'dual-chess' | 'dark-dual-chess';
@@ -97,6 +102,7 @@ export const DARK_DRAFT960_SPEC_ID = 'dark-draft960' satisfies GameSpecId;
 export const FOG_DRAFT960_SPEC_ID = DARK_DRAFT960_SPEC_ID;
 export const DARK_MINI_XIANGQI_SPEC_ID = 'dark-mini-xiangqi' satisfies GameSpecId;
 export const DARK_XIANGQI_SPEC_ID = 'dark-xiangqi' satisfies GameSpecId;
+export const JIEQI_SPEC_ID = 'jieqi' satisfies GameSpecId;
 export const DARK_SHOGI_SPEC_ID = 'dark-shogi' satisfies GameSpecId;
 export const CROSSROADS_CHESS_SPEC_ID = 'crossroads-chess' satisfies GameSpecId;
 export const DARK_CROSSROADS_CHESS_SPEC_ID = 'dark-crossroads-chess' satisfies GameSpecId;
@@ -242,6 +248,21 @@ export const GAME_SPECS: readonly GameSpec[] = [
     ratingPoolBase: 'dark_xiangqi',
     publicSurface: 'hidden',
     runtimeStatus: 'dev-spike',
+  },
+  {
+    id: JIEQI_SPEC_ID,
+    publicName: 'Jieqi',
+    family: 'xiangqi',
+    board: 'xiangqi-9x10',
+    movement: 'xiangqi',
+    objective: 'checkmate',
+    visibility: 'hidden-identity',
+    setup: 'jieqi-deal',
+    reserves: 'none',
+    dropPolicy: 'none',
+    ratingPoolBase: 'jieqi',
+    publicSurface: 'hidden',
+    runtimeStatus: 'future',
   },
   {
     id: DARK_SHOGI_SPEC_ID,

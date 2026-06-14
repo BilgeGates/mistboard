@@ -11,6 +11,7 @@ import {
   gameSpecForId,
   gameSpecForLegacyLiveRoom,
   isGameSpecId,
+  JIEQI_SPEC_ID,
   legacyLiveRoomForGameSpec,
   maybeGameSpecForId,
 } from './game-specs.js';
@@ -100,6 +101,26 @@ test('Dark Shogi is reserved as a future shogi family spec', () => {
   assert.equal(spec.reserves, 'shogi-hands');
   assert.equal(spec.dropPolicy, 'seen-squares-only');
   assert.equal(spec.ratingPoolBase, 'dark_shogi');
+  assert.equal(spec.publicSurface, 'hidden');
+  assert.equal(spec.runtimeStatus, 'future');
+  assert.equal(spec.legacyLiveRoom, undefined);
+});
+
+test('Jieqi is an xiangqi-family spec on its own hidden-identity axis', () => {
+  const spec = gameSpecForId(JIEQI_SPEC_ID);
+
+  assert.equal(spec.publicName, 'Jieqi');
+  assert.equal(spec.family, 'xiangqi');
+  assert.equal(spec.board, 'xiangqi-9x10');
+  assert.equal(spec.movement, 'xiangqi');
+  // Jieqi is the first checkmate + hidden-identity spec: identities hidden,
+  // positions public (distinct from the fog 'dark' specs).
+  assert.equal(spec.objective, 'checkmate');
+  assert.equal(spec.visibility, 'hidden-identity');
+  assert.equal(spec.setup, 'jieqi-deal');
+  assert.equal(spec.reserves, 'none');
+  assert.equal(spec.dropPolicy, 'none');
+  assert.equal(spec.ratingPoolBase, 'jieqi');
   assert.equal(spec.publicSurface, 'hidden');
   assert.equal(spec.runtimeStatus, 'future');
   assert.equal(spec.legacyLiveRoom, undefined);

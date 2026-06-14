@@ -24,6 +24,7 @@ import {
   createJieqiDeal,
   getJieqiPlayerView,
   isJieqiLegalMove,
+  JIEQI_SPEC_ID,
   type JieqiColor,
   type JieqiDeal,
   type JieqiGameState,
@@ -42,8 +43,8 @@ import type {
   VariantTenant,
 } from './variant-tenant/tenant.js';
 
-// Local spec id — a full GAME_SPECS entry + registration is deferred to launch.
-export const JIEQI_SPEC_ID = 'jieqi';
+// Live-room registration (HTTP create / lobby / ws plumbing) is deferred to the
+// launch capstone; the spec id is first-class (@mistboard/game GAME_SPECS).
 export const JIEQI_ROOM_ID_PREFIX = 'jq_';
 
 export type JieqiTenant = VariantTenant<
