@@ -355,7 +355,10 @@ function renderCapturedPools(liveRefs: LiveRefs, view: JieqiWireView | null): vo
   fillCapturedPool(liveRefs.capturesBottom, view.captured, bottomColor);
 }
 
-function fillCapturedPool(
+// Exported for unit testing the captured-pool data path (revealed identity vs
+// an unidentifiable "?" dark piece) without a live socket — same extraction
+// rationale as live-jieqi-render / live-jieqi-interaction.
+export function fillCapturedPool(
   host: HTMLElement,
   captured: readonly JieqiWireCaptured[],
   owner: JieqiColor,
