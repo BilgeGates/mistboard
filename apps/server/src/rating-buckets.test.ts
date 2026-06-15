@@ -6,6 +6,7 @@ import {
   DARK_DRAFT960_SPEC_ID,
   DARK_MINI_XIANGQI_SPEC_ID,
   gameSpecForId,
+  JIEQI_SPEC_ID,
 } from '@mistboard/game';
 import {
   bucketForGame,
@@ -61,6 +62,20 @@ test('bucketForGame maps Crossroads Chess through its own open rating pool', () 
       variant: gameSpecForId(CROSSROADS_CHESS_SPEC_ID).ratingPoolBase,
       timeClass: PUBLIC_RATING_TIME_CLASS,
     },
+  );
+});
+
+test('bucketForGame fails closed for a casual-only spec (jieqi), never the fog pool', () => {
+  // Jieqi has no current rating pool. A rated jieqi game at the public time
+  // control must yield no bucket (so it is simply not rated) rather than fall
+  // through to the dark-chess fallback and pollute the fog pool.
+  assert.equal(
+    bucketForGame({
+      variant: JIEQI_SPEC_ID,
+      initialMs: 180_000,
+      incrementMs: 2_000,
+    }),
+    null,
   );
 });
 
