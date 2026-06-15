@@ -5,6 +5,7 @@ import {
   DARK_MINI_XIANGQI_SPEC_ID,
   DARK_XIANGQI_SPEC_ID,
   DUAL_CHESS_SPEC_ID,
+  JIEQI_SPEC_ID,
   gameSpecForId,
   TIME_CONTROLS,
   type TimeControlId,
@@ -46,7 +47,8 @@ type LandingGameSpecId =
   | typeof DARK_CHESS_SPEC_ID
   | typeof DARK_MINI_XIANGQI_SPEC_ID
   | typeof DARK_XIANGQI_SPEC_ID
-  | typeof CROSSROADS_CHESS_SPEC_ID;
+  | typeof CROSSROADS_CHESS_SPEC_ID
+  | typeof JIEQI_SPEC_ID;
 type LandingStartFormat = 'standard' | 'draft960';
 type LandingTimePresetId = TimeControlId;
 type LandingTimePreset = {
@@ -1516,6 +1518,22 @@ function roomCreationRequestBody(
       ...(mode === 'pve' && engineId ? { engineId } : {}),
     };
   }
+  if (setup.gameSpecId === JIEQI_SPEC_ID) {
+    // Jieqi PvE sends the picked engine id (unlike DMX, which defaults it
+    // server-side); colors are xiangqi red/black, never rated.
+    return {
+      mode,
+      gameSpecId,
+      timeControl: setup.timeControl,
+      preferredColor:
+        setup.preferredColor === 'white'
+          ? 'red'
+          : setup.preferredColor === 'red' || setup.preferredColor === 'black'
+            ? setup.preferredColor
+            : 'random',
+      ...(mode === 'pve' && engineId ? { engineId } : {}),
+    };
+  }
   if (setup.gameSpecId === DARK_XIANGQI_SPEC_ID || setup.gameSpecId === DARK_MINI_XIANGQI_SPEC_ID) {
     return {
       // DMX supports PvE (the engine id is defaulted server-side, so none is
@@ -1550,7 +1568,9 @@ function roomCreationGameSpecId(
   | typeof DARK_DRAFT960_SPEC_ID
   | typeof DARK_MINI_XIANGQI_SPEC_ID
   | typeof DARK_XIANGQI_SPEC_ID
-  | typeof CROSSROADS_CHESS_SPEC_ID {
+  | typeof CROSSROADS_CHESS_SPEC_ID
+  | typeof JIEQI_SPEC_ID {
+  if (setup.gameSpecId === JIEQI_SPEC_ID) return JIEQI_SPEC_ID;
   if (setup.gameSpecId === CROSSROADS_CHESS_SPEC_ID) return CROSSROADS_CHESS_SPEC_ID;
   if (setup.gameSpecId === DARK_MINI_XIANGQI_SPEC_ID) return DARK_MINI_XIANGQI_SPEC_ID;
   if (setup.gameSpecId === DARK_XIANGQI_SPEC_ID) return DARK_XIANGQI_SPEC_ID;
