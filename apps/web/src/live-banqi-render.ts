@@ -1,0 +1,252 @@
+import {
+  ALL_BANQI_SQUARES,
+  type BanqiMove,
+  type BanqiPlayerView,
+  type BanqiSeat,
+  type BanqiSquare,
+  banqiCoordOf,
+} from '@mistboard/game';
+import { readStoredXiangqiPieceSet } from './xiangqi-appearance-storage.js';
+import { renderXiangqiPieceGlyphed, type XiangqiPieceSet } from './xiangqi-piece-sets.js';
+
+// Bespoke SVG renderer for the banqi board, drawn as half a xiangqi board turned
+// PORTRAIT (taller than wide): the 8 files run top-to-bottom, the 4 ranks run
+// left-to-right. The 8x4 banqi cells are the 32 cells bounded by a 9x5 line grid
+// (half a xiangqi board), so the xiangqi furniture (the palace + the soldier/
+// cannon starting-point marks + the river along the far edge) is drawn on the
+// line intersections while the 32 pieces sit in the CELL centres.
+//
+// Banqi is symmetric-information: BOTH seats see the IDENTICAL board (no per-seat
+// flip), and a face-down tile carries NO colour or identity to anyone (the deal
+// is the only hidden state, hidden from both). A face-down piece renders as a
+// uniform disc (one colour, leaking nothing); a revealed piece renders with its
+// xiangqi glyph.
+
+const FILES = 8; // cells down (9 horizontal lines / files a..i) — the long axis
+const RANKS = 4; // cells across (5 vertical lines / ranks 1..5, river at the far edge)
+const CELL = 76;
+const MARGIN = 26;
+const PIECE_SIZE = 60;
+const WIDTH = MARGIN * 2 + RANKS * CELL;
+const HEIGHT = MARGIN * 2 + FILES * CELL;
+const HIT_HALF = CELL / 2 - 1;
+
+export const BANQI_PIECE_PX = PIECE_SIZE;
+
+export type BanqiBoardRenderOptions = {
+  interactive?: boolean;
+  // The selected own revealed piece (move source), if any.
+  selectedSquare?: BanqiSquare | null;
+  // Board moves of the selected piece (flips excluded — a face-down tile is
+  // clicked directly to flip, so it needs no target dot).
+  legalMoves?: readonly BanqiMove[];
+  pieceSet?: XiangqiPieceSet;
+  // While dragging, omit the source piece so only the floating ghost shows.
+  draggingFrom?: BanqiSquare | null;
+};
+
+// A line intersection. `rankLine` 0..4 runs left→right (rank 1 at the left, the
+// river edge at the right); `fileLine` 0..8 runs top→bottom (file a at the top).
+function point(rankLine: number, fileLine: number): { x: number; y: number } {
+  return { x: MARGIN + rankLine * CELL, y: MARGIN + fileLine * CELL };
+}
+
+// A cell centre for a banqi square (file 0..7 down, rank 1..4 across; identical
+// for both seats, no flip).
+function cellCenter(square: BanqiSquare): { x: number; y: number } {
+  const { file, rank } = banqiCoordOf(square);
+  return { x: MARGIN + (rank - 0.5) * CELL, y: MARGIN + (file + 0.5) * CELL };
+}
+
+function gridLines(): string {
+  const parts: string[] = [];
+  const a = point(0, 0);
+  const z = point(RANKS, FILES);
+  for (let f = 0; f <= FILES; f += 1) {
+    const y = MARGIN + f * CELL;
+    parts.push(`<line x1="${a.x}" y1="${y}" x2="${z.x}" y2="${y}"/>`);
+  }
+  for (let r = 0; r <= RANKS; r += 1) {
+    const x = MARGIN + r * CELL;
+    parts.push(`<line x1="${x}" y1="${a.y}" x2="${x}" y2="${z.y}"/>`);
+  }
+  return parts.join('');
+}
+
+// The bottom palace (xiangqi files d..f, ranks 1..3): two diagonals across the
+// 2x2 cell box at the back rank (here the left edge). Decorative — banqi has no
+// palace confinement.
+function palaceDiagonals(): string {
+  const a = point(0, 3);
+  const b = point(2, 5);
+  const c = point(0, 5);
+  const d = point(2, 3);
+  return [
+    `<line x1="${a.x}" y1="${a.y}" x2="${b.x}" y2="${b.y}"/>`,
+    `<line x1="${c.x}" y1="${c.y}" x2="${d.x}" y2="${d.y}"/>`,
+  ].join('');
+}
+
+// The xiangqi position bracket at a starting point: short L-marks in each
+// on-board quadrant. Soldiers start on rank 4 (files a,c,e,g,i); cannons on
+// rank 3 (files b,h) — the standard markings of a board's near half.
+function positionMark(rankLine: number, fileLine: number): string {
+  const { x, y } = point(rankLine, fileLine);
+  const gap = 4;
+  const len = 7;
+  const parts: string[] = [];
+  for (const sx of [-1, 1]) {
+    if (rankLine + sx < 0 || rankLine + sx > RANKS) continue;
+    for (const sy of [-1, 1]) {
+      if (fileLine + sy < 0 || fileLine + sy > FILES) continue;
+      const px = x + sx * gap;
+      const py = y + sy * gap;
+      parts.push(`<line x1="${px}" y1="${py}" x2="${px + sx * len}" y2="${py}"/>`);
+      parts.push(`<line x1="${px}" y1="${py}" x2="${px}" y2="${py + sy * len}"/>`);
+    }
+  }
+  return parts.join('');
+}
+
+function startMarks(): string {
+  const parts: string[] = [];
+  for (const fileLine of [0, 2, 4, 6, 8]) parts.push(positionMark(3, fileLine)); // soldiers, rank 4
+  for (const fileLine of [1, 7]) parts.push(positionMark(2, fileLine)); // cannons, rank 3
+  return `<g class="banqi-mark">${parts.join('')}</g>`;
+}
+
+// A uniform face-down disc: one colour, no glyph (the deal is hidden from both).
+function faceDownDisc(cx: number, cy: number): string {
+  const r = PIECE_SIZE * 0.46;
+  return [
+    `<g class="banqi-back">`,
+    `<circle cx="${cx}" cy="${cy}" r="${r}"/>`,
+    `<circle class="banqi-back-ring" cx="${cx}" cy="${cy}" r="${r * 0.74}"/>`,
+    `</g>`,
+  ].join('');
+}
+
+function pieceLayer(
+  view: BanqiPlayerView,
+  pieceSet: XiangqiPieceSet,
+  draggingFrom: BanqiSquare | null,
+): string {
+  return ALL_BANQI_SQUARES.map((square) => {
+    const entry = view.board[square];
+    if (!entry) return '';
+    if (square === draggingFrom) return '';
+    const { x, y } = cellCenter(square);
+    if (entry.faceDown) return faceDownDisc(x, y);
+    return renderXiangqiPieceGlyphed({ color: entry.color, role: entry.role }, pieceSet, {
+      ariaLabel: `${entry.color} ${entry.role}`,
+      className: 'banqi-piece',
+      shrouded: false,
+      x: x - PIECE_SIZE / 2,
+      y: y - PIECE_SIZE / 2,
+      size: PIECE_SIZE,
+    });
+  }).join('');
+}
+
+function selectionRing(selection: BanqiSquare | null): string {
+  if (!selection) return '';
+  const { x, y } = cellCenter(selection);
+  return `<rect class="banqi-selection" x="${x - HIT_HALF}" y="${y - HIT_HALF}" width="${HIT_HALF * 2}" height="${HIT_HALF * 2}" rx="6"/>`;
+}
+
+function moveHints(view: BanqiPlayerView, moves: readonly BanqiMove[]): string {
+  return moves
+    .filter((move) => move.from !== move.to)
+    .map((move) => {
+      const { x, y } = cellCenter(move.to);
+      const occupant = view.board[move.to];
+      const capture = !!occupant && !occupant.faceDown;
+      return capture
+        ? `<circle class="banqi-hint-capture" cx="${x}" cy="${y}" r="${CELL * 0.42}"/>`
+        : `<circle class="banqi-hint" cx="${x}" cy="${y}" r="10"/>`;
+    })
+    .join('');
+}
+
+function lastMoveMarkers(view: BanqiPlayerView): string {
+  if (!view.lastMove) return '';
+  const squares =
+    view.lastMove.from === view.lastMove.to
+      ? [view.lastMove.from]
+      : [view.lastMove.from, view.lastMove.to];
+  return squares
+    .map((sq) => {
+      const { x, y } = cellCenter(sq);
+      return `<rect class="banqi-last" x="${x - HIT_HALF}" y="${y - HIT_HALF}" width="${HIT_HALF * 2}" height="${HIT_HALF * 2}"/>`;
+    })
+    .join('');
+}
+
+function hitLayer(): string {
+  return ALL_BANQI_SQUARES.map((square) => {
+    const { x, y } = cellCenter(square);
+    return `<g data-square="${square}" class="banqi-hit"><rect x="${x - HIT_HALF}" y="${y - HIT_HALF}" width="${HIT_HALF * 2}" height="${HIT_HALF * 2}"><title>${square}</title></rect></g>`;
+  }).join('');
+}
+
+// `perspective` is accepted for call-site parity with the other variants, but
+// banqi shows the SAME board to both seats (symmetric info), so it is unused.
+export function renderBanqiBoardSvg(
+  view: BanqiPlayerView,
+  _perspective: BanqiSeat = view.perspective,
+  options: BanqiBoardRenderOptions = {},
+): string {
+  const pieceSet = options.pieceSet ?? readStoredXiangqiPieceSet();
+  const moves = options.selectedSquare
+    ? (options.legalMoves ?? []).filter((m) => m.from === options.selectedSquare)
+    : [];
+  return `
+    <svg class="banqi-board" viewBox="0 0 ${WIDTH} ${HEIGHT}" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Banqi board">
+      <rect class="banqi-board-bg" x="0" y="0" width="${WIDTH}" height="${HEIGHT}" rx="6"/>
+      <g class="banqi-grid">${gridLines()}${palaceDiagonals()}</g>
+      ${startMarks()}
+      ${lastMoveMarkers(view)}
+      ${selectionRing(options.selectedSquare ?? null)}
+      ${moveHints(view, moves)}
+      ${pieceLayer(view, pieceSet, options.draggingFrom ?? null)}
+      ${options.interactive ? hitLayer() : ''}
+    </svg>
+  `;
+}
+
+let stylesInstalled = false;
+
+export function installBanqiBoardStyles(): void {
+  if (stylesInstalled) return;
+  stylesInstalled = true;
+  const style = document.createElement('style');
+  style.textContent = `
+    .banqi-board {
+      display: block;
+      width: 100%;
+      height: auto;
+      touch-action: manipulation;
+      -webkit-user-select: none;
+      user-select: none;
+    }
+    .banqi-board-bg { fill: var(--mini-xq-board-bg, #f0d6a4); }
+    .banqi-grid line {
+      stroke: var(--mini-xq-grid, #5b4a32);
+      stroke-width: 1.5;
+      stroke-linecap: round;
+    }
+    .banqi-mark line { stroke: var(--mini-xq-grid, #5b4a32); stroke-width: 1.5; stroke-linecap: round; opacity: 0.7; }
+    .banqi-selection { fill: rgba(250, 204, 21, 0.20); stroke: #f59e0b; stroke-width: 3; pointer-events: none; }
+    .banqi-hint { fill: #1d4ed8; opacity: 0.7; pointer-events: none; }
+    .banqi-hint-capture {
+      fill: none; stroke: #b91c1c; stroke-dasharray: 6 4; stroke-width: 3; pointer-events: none;
+    }
+    .banqi-last { fill: rgba(250, 204, 21, 0.22); pointer-events: none; }
+    .banqi-piece { pointer-events: none; filter: drop-shadow(0 2px 2px rgba(0, 0, 0, 0.2)); }
+    .banqi-back { pointer-events: none; filter: drop-shadow(0 2px 3px rgba(0, 0, 0, 0.3)); }
+    .banqi-back circle { fill: #2f8f6b; stroke: #184a38; stroke-width: 2; }
+    .banqi-back-ring { fill: none; stroke: rgba(255, 255, 255, 0.28); stroke-width: 1.5; }
+    .banqi-hit rect { fill: transparent; cursor: pointer; }
+  `;
+  document.head.append(style);
+}

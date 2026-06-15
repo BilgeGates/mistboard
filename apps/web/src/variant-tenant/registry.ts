@@ -14,6 +14,7 @@
  */
 
 import {
+  BANQI_SPEC_ID,
   CROSSROADS_CHESS_SPEC_ID,
   DARK_CHESS_SPEC_ID,
   DARK_MINI_XIANGQI_SPEC_ID,
@@ -24,6 +25,7 @@ import {
   type TimeControlId,
 } from '@mistboard/game';
 import {
+  banqiEnabled,
   correspondenceEnabled,
   crossroadsChessEnabled,
   darkMiniXiangqiEnabled,
@@ -222,6 +224,47 @@ const WEB_VARIANT_TENANTS: readonly WebVariantTenant[] = [
         },
       ],
       defaultEngineId: 'pikafish-jieqi-strong',
+    },
+  },
+  {
+    // Banqi (8x4 Chinese Dark Chess). Symmetric-information: a face-down tile
+    // carries no colour or identity to anyone (the deal is the only hidden
+    // state, hidden from both seats equally). A self-contained live client on
+    // the socket-client + chrome stack, with no fog. Flag-gated like jieqi; the
+    // picker capabilities stay defined for stored setup preferences even while
+    // the menu gate is off. No watch channel yet.
+    gameSpecId: BANQI_SPEC_ID,
+    roomIdPrefix: 'bq_',
+    enabled: banqiEnabled,
+    pageTitle: 'Banqi',
+    gameRouteBase: '/banqi/game',
+    mountPostgame: (root, roomId) =>
+      import('../live-banqi-postgame.js').then(({ mountBanqiPostgame }) =>
+        mountBanqiPostgame(root, roomId),
+      ),
+    reviewRouteBase: '/banqi/game',
+    loadLiveRoomClient: () =>
+      import('../live-banqi.js').then(
+        ({ bootstrapBanqiLiveRoom }) =>
+          () =>
+            bootstrapBanqiLiveRoom(),
+      ),
+    landing: {
+      capabilities: {
+        firstColor: 'red',
+        firstGlyph: '帥',
+        firstLabel: 'Red',
+        glyphClass: 'xiangqi',
+        secondColor: 'black',
+        secondGlyph: '將',
+        secondLabel: 'Black',
+        supportsRated: false,
+        supportsStartFormat: false,
+        supportsTimeControl: true,
+      },
+      timePresetIds: ['3m2'],
+      offerInMenu: () => false,
+      acceptsDeepLink: banqiEnabled,
     },
   },
   {

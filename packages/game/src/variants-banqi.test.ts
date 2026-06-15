@@ -1,0 +1,327 @@
+import assert from 'node:assert/strict';
+import test from 'node:test';
+import {
+  ALL_BANQI_SQUARES,
+  applyBanqiMove,
+  assertValidBanqiDeal,
+  type BanqiBoard,
+  type BanqiColor,
+  type BanqiDeal,
+  type BanqiGameState,
+  type BanqiMove,
+  type BanqiPiece,
+  type BanqiPieceRole,
+  banqiInkForSeat,
+  banqiMoverInk,
+  banqiSeatToMove,
+  banqiSquareFromIndex,
+  banqiTruthView,
+  createBanqiDeal,
+  createInitialBanqiState,
+  DEFAULT_NO_PROGRESS_PLY_LIMIT,
+  getBanqiLegalMoves,
+  getBanqiLegalMovesFrom,
+  getBanqiPlayerView,
+  isBanqiLegalMove,
+  oppositeBanqiColor,
+} from './variants-banqi.js';
+
+function up(color: BanqiColor, role: BanqiPieceRole): BanqiPiece {
+  return { color, role, faceDown: false };
+}
+
+function down(color: BanqiColor, role: BanqiPieceRole): BanqiPiece {
+  return { color, role, faceDown: true };
+}
+
+// A mid-game state where the `first` seat (to move at ply 0) owns `moverInk`.
+function playingFor(board: BanqiBoard, moverInk: BanqiColor = 'red'): BanqiGameState {
+  return {
+    id: 'test',
+    board,
+    status: { type: 'playing', turn: 'red' },
+    ply: 0,
+    firstColor: moverInk,
+    moveNumber: 1,
+    noProgressClock: 0,
+    repCounts: {},
+    captures: [],
+  };
+}
+
+function dests(state: BanqiGameState, from: BanqiMove['from']): string[] {
+  return getBanqiLegalMovesFrom(state, from)
+    .map((m) => m.to)
+    .sort();
+}
+
+function seededRng(seed: number): () => number {
+  let s = seed >>> 0;
+  return () => {
+    s = (s * 1664525 + 1013904223) >>> 0;
+    return s / 0x100000000;
+  };
+}
+
+// ── Setup + deal ──────────────────────────────────────────────────────────────
+
+test('initial state is 32 face-down pieces, no ink bound, first seat flips only', () => {
+  const deal = createBanqiDeal(seededRng(7));
+  const state = createInitialBanqiState('init', deal);
+
+  assert.equal(Object.keys(state.board).length, 32);
+  assert.ok(Object.values(state.board).every((p) => p?.faceDown === true));
+  assert.equal(state.status.type === 'playing' && state.status.turn, 'red');
+  assert.equal(state.ply, 0);
+  assert.equal(state.firstColor, null);
+  assert.equal(banqiSeatToMove(state), 'red');
+  assert.equal(banqiMoverInk(state), null); // ink unbound until the first flip
+
+  // Pre-binding: every legal action is a flip (one per square).
+  const moves = getBanqiLegalMoves(state);
+  assert.equal(moves.length, 32);
+  assert.ok(moves.every((m) => m.from === m.to));
+});
+
+test('createBanqiDeal is a valid permutation of the 32-piece set', () => {
+  const deal = createBanqiDeal(seededRng(99));
+  assert.doesNotThrow(() => assertValidBanqiDeal(deal));
+  assert.equal(deal.filter((p) => p.color === 'red').length, 16);
+  assert.equal(deal.filter((p) => p.color === 'black').length, 16);
+  assert.equal(deal.filter((p) => p.role === 'soldier').length, 10); // 5 per side
+  assert.equal(deal.filter((p) => p.role === 'general').length, 2);
+});
+
+test('assertValidBanqiDeal rejects wrong length and wrong multiset', () => {
+  const deal = createBanqiDeal(seededRng(1));
+  assert.throws(() => assertValidBanqiDeal(deal.slice(0, 31)));
+  const bad: BanqiDeal = deal.map((p, i) => (i === 0 ? { color: 'red', role: 'general' } : p));
+  // two red generals now (a1 forced to red general), one black general missing
+  assert.throws(() => assertValidBanqiDeal(bad));
+});
+
+// ── Flip + first-flip ink binding ──────────────────────────────────────────────
+
+test('first flip binds the first seat to the revealed ink', () => {
+  const deal = createBanqiDeal(seededRng(42));
+  const state = createInitialBanqiState('bind', deal);
+  const revealedInk = deal[0].color; // a1 = square index 0
+
+  const next = applyBanqiMove(state, { from: 'a1', to: 'a1' });
+
+  assert.equal(next.firstColor, revealedInk);
+  assert.equal(banqiInkForSeat(next, 'red'), revealedInk); // opener reveals their own ink
+  assert.equal(next.board.a1?.faceDown, false);
+  assert.equal(next.ply, 1);
+  // The second seat is now to move, owning the opposite ink.
+  assert.equal(next.status.type === 'playing' && next.status.turn, 'black');
+  assert.equal(banqiMoverInk(next), oppositeBanqiColor(revealedInk));
+});
+
+// ── Per-piece move generation (one orthogonal step) ────────────────────────────
+
+test('soldier steps one square and captures along the ladder (general yes, advisor no)', () => {
+  const board: BanqiBoard = {
+    d2: up('red', 'soldier'),
+    d3: up('black', 'general'), // soldier captures general (cycle)
+    d1: up('black', 'advisor'), // soldier cannot capture advisor
+    c2: up('black', 'soldier'), // equal rank → capturable
+    // e2 left empty → a quiet step
+  };
+  const state = playingFor(board, 'red');
+  assert.deepEqual(dests(state, 'd2'), ['c2', 'd3', 'e2']);
+});
+
+test('general captures down the ladder but not the soldier', () => {
+  const board: BanqiBoard = {
+    d2: up('red', 'general'),
+    d3: up('black', 'soldier'), // general cannot capture soldier (cycle)
+    d1: up('black', 'advisor'), // general > advisor → capture
+    c2: up('black', 'general'), // equal rank → capture
+  };
+  const state = playingFor(board, 'red');
+  assert.deepEqual(dests(state, 'd2'), ['c2', 'd1', 'e2']);
+});
+
+test('chariot moves exactly one orthogonal step (banqi does NOT slide)', () => {
+  const board: BanqiBoard = { a1: up('red', 'chariot') };
+  const state = playingFor(board, 'red');
+  // A xiangqi chariot would reach the whole rank/file; banqi steps once.
+  assert.deepEqual(dests(state, 'a1'), ['a2', 'b1']);
+});
+
+test('a piece is blocked by friendly, face-down, and uncapturable enemy neighbours', () => {
+  const board: BanqiBoard = {
+    d2: up('red', 'horse'),
+    d3: up('red', 'soldier'), // friendly → blocked
+    d1: down('black', 'soldier'), // face-down → blocked (identity unknown)
+    c2: up('black', 'general'), // horse < general → uncapturable
+    e2: up('black', 'horse'), // equal rank → capturable
+  };
+  const state = playingFor(board, 'red');
+  assert.deepEqual(dests(state, 'd2'), ['e2']);
+});
+
+// ── Cannon ─────────────────────────────────────────────────────────────────────
+
+test('cannon makes a single non-capturing step and does not slide', () => {
+  const board: BanqiBoard = { a1: up('red', 'cannon') }; // empty board otherwise
+  const state = playingFor(board, 'red');
+  assert.deepEqual(dests(state, 'a1'), ['a2', 'b1']);
+});
+
+test('cannon captures a revealed enemy across exactly one screen (screen may be face-down)', () => {
+  const board: BanqiBoard = {
+    a1: up('red', 'cannon'),
+    c1: down('red', 'advisor'), // the screen — face-down is fine
+    e1: up('black', 'soldier'), // the target — revealed enemy
+  };
+  const state = playingFor(board, 'red');
+  // Non-capturing step b1 / a2, plus the screen capture on e1. Not c1 (the screen).
+  assert.deepEqual(dests(state, 'a1'), ['a2', 'b1', 'e1']);
+});
+
+test('cannon cannot capture a face-down target (target must be revealed)', () => {
+  const board: BanqiBoard = {
+    a1: up('red', 'cannon'),
+    c1: up('red', 'advisor'), // screen
+    e1: down('black', 'soldier'), // face-down target → no capture
+  };
+  const state = playingFor(board, 'red');
+  assert.deepEqual(dests(state, 'a1'), ['a2', 'b1']);
+});
+
+// ── Illegal moves ──────────────────────────────────────────────────────────────
+
+test('applyBanqiMove rejects an illegal move by returning the same state', () => {
+  const board: BanqiBoard = { a1: up('red', 'chariot'), c1: up('red', 'horse') };
+  const state = playingFor(board, 'red');
+  const next = applyBanqiMove(state, { from: 'a1', to: 'c1' }); // onto a friendly
+  assert.equal(next, state);
+});
+
+// ── Draw: no-progress clock (40 plies, resets on capture OR flip) ───────────────
+
+test('no-progress clock draws at the 40-ply limit', () => {
+  const board: BanqiBoard = { a1: up('red', 'chariot'), h4: up('black', 'chariot') };
+  const state: BanqiGameState = {
+    ...playingFor(board, 'red'),
+    noProgressClock: DEFAULT_NO_PROGRESS_PLY_LIMIT - 1,
+  };
+  const next = applyBanqiMove(state, { from: 'a1', to: 'b1' }); // a quiet move
+  assert.equal(next.noProgressClock, DEFAULT_NO_PROGRESS_PLY_LIMIT);
+  assert.equal(next.status.type, 'finished');
+  assert.equal(next.status.type === 'finished' && next.status.reason, 'no-progress');
+  assert.equal(next.status.type === 'finished' && next.status.winner, null);
+});
+
+test('a flip resets the no-progress clock', () => {
+  const board: BanqiBoard = { a1: up('red', 'chariot'), h4: down('black', 'soldier') };
+  const state: BanqiGameState = {
+    ...playingFor(board, 'red'),
+    noProgressClock: DEFAULT_NO_PROGRESS_PLY_LIMIT - 1,
+  };
+  const next = applyBanqiMove(state, { from: 'h4', to: 'h4' }); // flip resets
+  assert.equal(next.noProgressClock, 0);
+  assert.equal(next.status.type, 'playing');
+});
+
+test('a capture resets the no-progress clock', () => {
+  // h4 keeps black alive so the game continues past the capture.
+  const board: BanqiBoard = {
+    a1: up('red', 'chariot'),
+    b1: up('black', 'horse'),
+    h4: up('black', 'chariot'),
+  };
+  const state: BanqiGameState = {
+    ...playingFor(board, 'red'),
+    noProgressClock: DEFAULT_NO_PROGRESS_PLY_LIMIT - 1,
+  };
+  const next = applyBanqiMove(state, { from: 'a1', to: 'b1' }); // chariot > horse
+  assert.equal(next.noProgressClock, 0);
+  assert.equal(next.captures.length, 1);
+  assert.equal(next.status.type, 'playing');
+});
+
+// ── Draw: threefold repetition ─────────────────────────────────────────────────
+
+test('threefold position repetition is a draw (before the no-progress clock)', () => {
+  const board: BanqiBoard = { a1: up('red', 'chariot'), h4: up('black', 'chariot') };
+  let state = playingFor(board, 'red');
+  const cycle: BanqiMove[] = [
+    { from: 'a1', to: 'b1' },
+    { from: 'h4', to: 'g4' },
+    { from: 'b1', to: 'a1' },
+    { from: 'g4', to: 'h4' },
+  ];
+  let i = 0;
+  while (state.status.type === 'playing' && i < 60) {
+    state = applyBanqiMove(state, cycle[i % 4]);
+    i += 1;
+  }
+  assert.equal(state.status.type, 'finished');
+  assert.equal(state.status.type === 'finished' && state.status.reason, 'repetition');
+  assert.equal(state.status.type === 'finished' && state.status.winner, null);
+  // It fired on repetition, not on the no-progress clock.
+  assert.ok(state.noProgressClock < DEFAULT_NO_PROGRESS_PLY_LIMIT);
+});
+
+// ── Win: no legal move (subsumes all-pieces-captured) ──────────────────────────
+
+test('capturing the opponents last movable piece with no flips left wins', () => {
+  // The `first` seat owns black ink and is to move; it takes red's lone soldier,
+  // leaving the `second` seat (red ink) with no piece and no flip → it loses.
+  const board: BanqiBoard = { a4: up('red', 'soldier'), b4: up('black', 'soldier') };
+  const state = playingFor(board, 'black'); // first seat = black ink
+  const next = applyBanqiMove(state, { from: 'b4', to: 'a4' });
+
+  assert.equal(banqiSeatToMove(next), 'black');
+  assert.equal(banqiMoverInk(next), 'red'); // the side with nothing left
+  assert.equal(getBanqiLegalMoves(next).length, 0);
+  assert.equal(next.status.type, 'finished');
+  assert.equal(next.status.type === 'finished' && next.status.reason, 'stalemate');
+  assert.equal(next.status.type === 'finished' && next.status.winner, 'red');
+});
+
+// ── Symmetric information (§8) ─────────────────────────────────────────────────
+
+test('both seats see the identical masked board; face-down tiles carry no ink', () => {
+  const board: BanqiBoard = {
+    a1: up('red', 'chariot'),
+    b1: down('black', 'general'), // a hidden black general
+    c1: down('red', 'soldier'),
+    h4: up('black', 'horse'),
+  };
+  const state = playingFor(board, 'red'); // first seat to move
+
+  const firstView = getBanqiPlayerView(state, 'red');
+  const secondView = getBanqiPlayerView(state, 'black');
+
+  assert.deepEqual(firstView.board, secondView.board); // identical mask for both
+  assert.deepEqual(firstView.board.b1, { faceDown: true }); // no ink leaked
+  assert.deepEqual(firstView.board.a1, { color: 'red', role: 'chariot', faceDown: false });
+
+  // Only the side to move carries legal moves.
+  assert.ok(firstView.legalMoves.length > 0);
+  assert.equal(secondView.legalMoves.length, 0);
+  assert.equal(firstView.firstColor, 'red'); // binding exposed for client rendering
+});
+
+test('truth view reveals every face-down identity (postgame only)', () => {
+  const board: BanqiBoard = { a1: up('red', 'chariot'), b1: down('black', 'general') };
+  const state = playingFor(board, 'red');
+  const truth = banqiTruthView(state);
+  assert.deepEqual(truth.board.b1, { color: 'black', role: 'general', faceDown: false });
+});
+
+// ── Geometry sanity ────────────────────────────────────────────────────────────
+
+test('square indexing matches the engine convention (a1=0 … h4=31)', () => {
+  assert.equal(ALL_BANQI_SQUARES.length, 32);
+  assert.equal(banqiSquareFromIndex(0), 'a1');
+  assert.equal(banqiSquareFromIndex(7), 'h1');
+  assert.equal(banqiSquareFromIndex(8), 'a2');
+  assert.equal(banqiSquareFromIndex(31), 'h4');
+});
+
+void isBanqiLegalMove; // exercised via applyBanqiMove; exported for the server

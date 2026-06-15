@@ -33,6 +33,13 @@ export function jieqiEnabled(): boolean {
   return process.env.MISTBOARD_JIEQI_ENABLED === 'true';
 }
 
+// Banqi (8x4 Chinese Dark Chess, symmetric hidden-identity) live rooms.
+// Server-side opt-in, default off — the tenant exists but is not launched. PvP
+// only at first (PvE is gated on an engine, like jieqi).
+export function banqiEnabled(): boolean {
+  return process.env.MISTBOARD_BANQI_ENABLED === 'true';
+}
+
 // Perfect-information Crossroads Chess live rooms. Server-side opt-in, separate
 // from the client VITE_CROSSROADS_CHESS_ENABLED page flag, so live PvP cannot be
 // exposed in production by accident while the local play surface is enabled.

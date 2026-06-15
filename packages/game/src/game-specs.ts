@@ -7,7 +7,8 @@ export type BoardGeometryId =
   | 'xiangqi-9x10'
   | 'shogi-9x9'
   | 'omega-10x10-plus-corners'
-  | 'crossroads-6x8';
+  | 'crossroads-6x8'
+  | 'banqi-8x4';
 export type MovementRulesId =
   | 'orthodox-chess'
   | 'mini-xiangqi'
@@ -15,19 +16,24 @@ export type MovementRulesId =
   | 'shogi'
   | 'omega'
   | 'seirawan'
-  | 'crossroads-chess';
+  | 'crossroads-chess'
+  | 'banqi';
 // 'royal-capture-or-race': capture/checkmate the royal OR race it to the enemy
 // home rank (the Crossroads Chess "Try"). Open mode keeps checkmate, dark switches to
 // king-capture; the visibility axis + rules module resolve which.
+// 'last-mover': win by leaving the opponent with no legal move (banqi). The
+// general is NOT royal — capturing it does not end the game (the opponent flips
+// or plays on) — so this subsumes "all pieces captured" and stalemate alike.
 export type ObjectiveRulesId =
   | 'king-capture'
   | 'general-capture'
   | 'checkmate'
   | 'suicide'
-  | 'royal-capture-or-race';
+  | 'royal-capture-or-race'
+  | 'last-mover';
 // 'open' = perfect-information (the Crossroads Chess onboarding mode); 'dark' is
-// fog of war (positions hidden); 'hidden-identity' is jieqi (positions public,
-// piece identities hidden until revealed).
+// fog of war (positions hidden); 'hidden-identity' is jieqi/banqi (positions
+// public, piece identities hidden until revealed).
 export type VisibilityRulesId = 'dark' | 'open' | 'hidden-identity';
 export type SetupRulesId =
   | 'standard'
@@ -35,7 +41,8 @@ export type SetupRulesId =
   | 'mini-standard'
   | 'double-fischer-random'
   | 'crossroads-standard'
-  | 'jieqi-deal';
+  | 'jieqi-deal'
+  | 'banqi-deal';
 export type ReserveRulesId = 'none' | 'crazyhouse' | 'shogi-hands' | 'seirawan-gating';
 export type DropPolicyId = 'none' | 'any-legal-square' | 'seen-squares-only' | 'seirawan-gating';
 export type GameSpecSurface = 'hidden' | 'beta' | 'casual' | 'rated';
@@ -54,6 +61,7 @@ export type RatingPoolBaseId =
   | 'dark_shogi'
   | 'dark_omega'
   | 'jieqi'
+  | 'banqi'
   | 'crossroads_chess'
   | 'crossroads_chess_open';
 
@@ -70,6 +78,7 @@ export type GameSpecId =
   | 'dark-shogi'
   | 'dark-omega'
   | 'jieqi'
+  | 'banqi'
   | 'crossroads-chess'
   | 'dark-crossroads-chess';
 export type GameSpecAliasId = 'fog-draft960' | 'dual-chess' | 'dark-dual-chess';
@@ -103,6 +112,7 @@ export const FOG_DRAFT960_SPEC_ID = DARK_DRAFT960_SPEC_ID;
 export const DARK_MINI_XIANGQI_SPEC_ID = 'dark-mini-xiangqi' satisfies GameSpecId;
 export const DARK_XIANGQI_SPEC_ID = 'dark-xiangqi' satisfies GameSpecId;
 export const JIEQI_SPEC_ID = 'jieqi' satisfies GameSpecId;
+export const BANQI_SPEC_ID = 'banqi' satisfies GameSpecId;
 export const DARK_SHOGI_SPEC_ID = 'dark-shogi' satisfies GameSpecId;
 export const CROSSROADS_CHESS_SPEC_ID = 'crossroads-chess' satisfies GameSpecId;
 export const DARK_CROSSROADS_CHESS_SPEC_ID = 'dark-crossroads-chess' satisfies GameSpecId;
@@ -261,6 +271,26 @@ export const GAME_SPECS: readonly GameSpec[] = [
     reserves: 'none',
     dropPolicy: 'none',
     ratingPoolBase: 'jieqi',
+    publicSurface: 'hidden',
+    runtimeStatus: 'future',
+  },
+  {
+    // Banqi (半棋 / Chinese Dark Chess): an 8x4 half-xiangqi board with the
+    // xiangqi piece set, all face-down at start. Symmetric hidden-identity (both
+    // seats see the same masked board; only the deal is hidden). Win by leaving
+    // the opponent with no legal move — the general is not royal. Rules engine:
+    // packages/game/src/variants-banqi.ts.
+    id: BANQI_SPEC_ID,
+    publicName: 'Banqi',
+    family: 'xiangqi',
+    board: 'banqi-8x4',
+    movement: 'banqi',
+    objective: 'last-mover',
+    visibility: 'hidden-identity',
+    setup: 'banqi-deal',
+    reserves: 'none',
+    dropPolicy: 'none',
+    ratingPoolBase: 'banqi',
     publicSurface: 'hidden',
     runtimeStatus: 'future',
   },

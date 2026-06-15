@@ -15,6 +15,12 @@ export function jieqiEnabled(): boolean {
   return import.meta.env.VITE_JIEQI_ENABLED === 'true';
 }
 
+// Banqi (8x4 Chinese Dark Chess, symmetric hidden-identity) play surface. Hidden
+// in prod/staging unless the build opts in; mirrors the jieqi gate.
+export function banqiEnabled(): boolean {
+  return import.meta.env.VITE_BANQI_ENABLED === 'true';
+}
+
 export function darkMiniXiangqiPublicEntryEnabled(): boolean {
   return (
     darkMiniXiangqiEnabled() &&

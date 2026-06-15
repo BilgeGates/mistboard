@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import {
+  BANQI_SPEC_ID,
   DARK_CHESS_SPEC_ID,
   DARK_DRAFT960_SPEC_ID,
   DARK_MINI_XIANGQI_SPEC_ID,
@@ -126,6 +127,26 @@ test('Jieqi is an xiangqi-family spec on its own hidden-identity axis', () => {
   assert.equal(spec.legacyLiveRoom, undefined);
 });
 
+test('Banqi is an xiangqi-family hidden-identity spec on the 8x4 board', () => {
+  const spec = gameSpecForId(BANQI_SPEC_ID);
+
+  assert.equal(spec.publicName, 'Banqi');
+  assert.equal(spec.family, 'xiangqi');
+  assert.equal(spec.board, 'banqi-8x4');
+  assert.equal(spec.movement, 'banqi');
+  // Banqi wins by leaving the opponent with no legal move (the general is not
+  // royal), and like jieqi hides identities on a public board.
+  assert.equal(spec.objective, 'last-mover');
+  assert.equal(spec.visibility, 'hidden-identity');
+  assert.equal(spec.setup, 'banqi-deal');
+  assert.equal(spec.reserves, 'none');
+  assert.equal(spec.dropPolicy, 'none');
+  assert.equal(spec.ratingPoolBase, 'banqi');
+  assert.equal(spec.publicSurface, 'hidden');
+  assert.equal(spec.runtimeStatus, 'future');
+  assert.equal(spec.legacyLiveRoom, undefined);
+});
+
 test('future composites are composed from rule modules', () => {
   const sunTzu = gameSpecForId('sun-tzu');
   const laoTzu = gameSpecForId('lao-tzu');
@@ -182,6 +203,7 @@ test('game spec ids are unique and discoverable', () => {
   assert.equal(isGameSpecId('dark-mini-xiangqi'), true);
   assert.equal(isGameSpecId('dark-xiangqi'), true);
   assert.equal(isGameSpecId('dark-shogi'), true);
+  assert.equal(isGameSpecId('banqi'), true);
   assert.equal(isGameSpecId('not-a-spec'), false);
   assert.equal(maybeGameSpecForId('dark-draft960')?.id, DARK_DRAFT960_SPEC_ID);
   assert.equal(maybeGameSpecForId('fog-draft960')?.id, DARK_DRAFT960_SPEC_ID);

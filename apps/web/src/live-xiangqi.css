@@ -28,6 +28,23 @@
   width: 100%;
 }
 
+/* Banqi is half a xiangqi board turned PORTRAIT (8 files tall x 4 ranks wide).
+   Size it by viewport height like the other xiangqi boards so the pieces are
+   large, and centre it against the side rail. */
+.live-route--banqi .board-shell {
+  width: min(100%, 68vh, 400px);
+  align-self: center;
+}
+
+.live-route--banqi .board-stage,
+.live-route--banqi .board-status {
+  aspect-ratio: 356 / 660;
+}
+
+.live-route--banqi .board-status {
+  width: 100%;
+}
+
 .xiangqi-live-board {
   aspect-ratio: 552 / 612;
   width: min(100%, 72vh);

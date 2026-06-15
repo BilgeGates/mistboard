@@ -5,6 +5,7 @@
  * load. Adding a variant = adding its registration import here.
  */
 
+import '../banqi-registration.js';
 import '../crossroads-chess-registration.js';
 import '../dark-chess-registration.js';
 import '../dark-mini-xiangqi-registration.js';

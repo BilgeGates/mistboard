@@ -1,5 +1,15 @@
-import { DARK_MINI_XIANGQI_SPEC_ID, DARK_XIANGQI_SPEC_ID, JIEQI_SPEC_ID } from '@mistboard/game';
-import { darkMiniXiangqiEnabled, darkXiangqiEnabled, jieqiEnabled } from './feature-flags.js';
+import {
+  BANQI_SPEC_ID,
+  DARK_MINI_XIANGQI_SPEC_ID,
+  DARK_XIANGQI_SPEC_ID,
+  JIEQI_SPEC_ID,
+} from '@mistboard/game';
+import {
+  banqiEnabled,
+  darkMiniXiangqiEnabled,
+  darkXiangqiEnabled,
+  jieqiEnabled,
+} from './feature-flags.js';
 
 export type GameSpecGateDecision =
   | { type: 'pass' }
@@ -11,7 +21,9 @@ export type GameSpecGateDecision =
         | 'dark_mini_xiangqi_disabled'
         | 'dark_mini_xiangqi_not_integrated'
         | 'jieqi_disabled'
-        | 'jieqi_not_integrated';
+        | 'jieqi_not_integrated'
+        | 'banqi_disabled'
+        | 'banqi_not_integrated';
       httpStatus: 404 | 501;
       wsCloseReason: string;
     };
@@ -21,7 +33,8 @@ type GameSpecGateError = Extract<GameSpecGateDecision, { type: 'reject' }>['erro
 type HiddenRuntimeSpec =
   | typeof DARK_XIANGQI_SPEC_ID
   | typeof DARK_MINI_XIANGQI_SPEC_ID
-  | typeof JIEQI_SPEC_ID;
+  | typeof JIEQI_SPEC_ID
+  | typeof BANQI_SPEC_ID;
 
 const HIDDEN_RUNTIME_SPECS: Record<
   HiddenRuntimeSpec,
@@ -41,6 +54,11 @@ const HIDDEN_RUNTIME_SPECS: Record<
     enabled: jieqiEnabled,
     disabledError: 'jieqi_disabled',
     notIntegratedError: 'jieqi_not_integrated',
+  },
+  [BANQI_SPEC_ID]: {
+    enabled: banqiEnabled,
+    disabledError: 'banqi_disabled',
+    notIntegratedError: 'banqi_not_integrated',
   },
 };
 
@@ -74,7 +92,12 @@ function requestedHiddenRuntimeSpec(input: {
   // `gameSpecId` is the canonical selector. Keep the legacy `variant` guard only
   // to fail closed if an older or hand-written client sends non-chess specs
   // through the chess room path.
-  for (const spec of [DARK_XIANGQI_SPEC_ID, DARK_MINI_XIANGQI_SPEC_ID, JIEQI_SPEC_ID] as const) {
+  for (const spec of [
+    DARK_XIANGQI_SPEC_ID,
+    DARK_MINI_XIANGQI_SPEC_ID,
+    JIEQI_SPEC_ID,
+    BANQI_SPEC_ID,
+  ] as const) {
     if (input.gameSpecId === spec || input.variant === spec) return spec;
   }
   return null;

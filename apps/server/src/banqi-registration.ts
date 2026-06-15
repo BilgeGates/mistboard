@@ -1,0 +1,94 @@
+/**
+ * Banqi registry entry. Owns the tenant's live-room map, the room-factory
+ * binding, and hydration. No rematch flow and no lobby surface yet — the lobby
+ * route answers banqi_not_integrated while the flag is on. PvP, live-clock only
+ * (PvE and correspondence come later). Imported for side effects by
+ * variant-tenant/register-tenants.ts.
+ */
+
+import type { RoomTimeControl } from '@mistboard/game';
+import type { BanqiCreatorPreference, BanqiRuntimeRoom } from './banqi-runtime.js';
+import { banqiTenant } from './banqi-tenant.js';
+import * as persistence from './persistence.js';
+import { handleBanqiCreate, requestsBanqi } from './routes/banqi-rooms.js';
+import { type BanqiLiveRoomCreation, createBanqiLiveRoom } from './server-banqi-room-factory.js';
+import {
+  type BanqiLiveRoom,
+  clearBanqiRuntimeTimers,
+  handleBanqiWebSocketConnection,
+} from './server-ws-banqi.js';
+import { recordTenantPersistenceError } from './variant-tenant/events.js';
+import { getOrLoadTenantRoom } from './variant-tenant/hydration.js';
+import {
+  registerVariantTenant,
+  type TenantManagedRoom,
+  variantTenantRoomIdTaken,
+} from './variant-tenant/registry.js';
+import { countActiveTenantGames } from './variant-tenant/runtime.js';
+
+export const banqiRooms = new Map<string, BanqiLiveRoom>();
+
+export async function createBanqiRoom(
+  timeControl?: RoomTimeControl,
+  creatorPreference?: BanqiCreatorPreference,
+): Promise<BanqiLiveRoomCreation> {
+  return createBanqiLiveRoom(
+    {
+      appendRoomEvent: persistence.appendRoomEvent,
+      banqiRooms,
+      isRoomIdTaken: (roomId) => variantTenantRoomIdTaken(roomId, banqiTenant.kind),
+      isPersistenceEnabled: persistence.isInitialized,
+      recordPersistenceError: (roomId, seq, eventType, err) =>
+        recordTenantPersistenceError(banqiTenant, roomId, seq, eventType, err),
+    },
+    timeControl,
+    creatorPreference,
+  );
+}
+
+export async function getOrLoadBanqiRoom(roomId: string): Promise<BanqiLiveRoom | null> {
+  const room = await getOrLoadTenantRoom(
+    banqiTenant,
+    banqiRooms as unknown as Map<string, BanqiRuntimeRoom>,
+    roomId,
+  );
+  return room as BanqiLiveRoom | null;
+}
+
+registerVariantTenant({
+  kind: banqiTenant.kind,
+  gameSpecId: banqiTenant.gameSpecId,
+  roomIdPrefix: banqiTenant.roomIdPrefix,
+  watch: {
+    channelId: 'banqi',
+    family: 'xiangqi',
+    label: 'Banqi',
+    legacyVariants: ['banqi'],
+  },
+  ownsSpecRouting: true,
+  errorPrefix: 'banqi',
+  enabled: banqiTenant.enabled,
+  rooms: banqiRooms as unknown as ReadonlyMap<string, TenantManagedRoom>,
+  activeGameCount: () => countActiveTenantGames(banqiRooms.values()),
+  getOrLoadRoom: (roomId) => getOrLoadBanqiRoom(roomId) as Promise<TenantManagedRoom | null>,
+  attachWebSocket: (ctx, socket, request, room) =>
+    handleBanqiWebSocketConnection(
+      {
+        defaultRoomRegion: ctx.defaultRoomRegion,
+        wsMessageLimit: ctx.wsMessageLimit,
+        wsMessageWindowMs: ctx.wsMessageWindowMs,
+      },
+      socket,
+      request,
+      room as unknown as BanqiLiveRoom,
+    ),
+  clearRuntimeTimers: (room) => clearBanqiRuntimeTimers(room as unknown as BanqiLiveRoom),
+  clearRooms: () => banqiRooms.clear(),
+  http: {
+    matchesCreateRequest: requestsBanqi,
+    handleCreate: (ctx, _request, response, body) =>
+      handleBanqiCreate({ ...ctx, createBanqiRoom }, response, body),
+  },
+  lobby: null,
+  sweepDueDeadline: null,
+});
