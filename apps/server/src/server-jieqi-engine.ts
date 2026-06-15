@@ -22,11 +22,7 @@ import {
   type JieqiGameState,
   type JieqiMove,
 } from '@mistboard/game';
-import {
-  isJieqiEngineClientId,
-  jieqiEngineTierFor,
-  jieqiLiveEngineMove,
-} from './jieqi-engine.js';
+import { isJieqiEngineClientId, jieqiEngineTierFor, jieqiLiveEngineMove } from './jieqi-engine.js';
 import { jieqiStateToPikafishFen, pikafishUciToJieqiMove } from './jieqi-fen.js';
 import type { JieqiSpecId } from './jieqi-runtime.js';
 import { logger } from './obs.js';

@@ -5,8 +5,8 @@ import {
   DARK_MINI_XIANGQI_SPEC_ID,
   DARK_XIANGQI_SPEC_ID,
   DUAL_CHESS_SPEC_ID,
-  JIEQI_SPEC_ID,
   gameSpecForId,
+  JIEQI_SPEC_ID,
   TIME_CONTROLS,
   type TimeControlId,
 } from '@mistboard/game';

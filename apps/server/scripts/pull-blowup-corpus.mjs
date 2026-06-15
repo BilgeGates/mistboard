@@ -148,10 +148,10 @@ try {
     const eventsPath = join(args.out, `${g.room_id}.jsonl`);
     const metaPath = join(args.out, `${g.room_id}.meta.json`);
 
-    await writeFile(eventsPath, events.map((r) => JSON.stringify(r.payload)).join('\n') + '\n');
+    await writeFile(eventsPath, `${events.map((r) => JSON.stringify(r.payload)).join('\n')}\n`);
     await writeFile(
       metaPath,
-      JSON.stringify(
+      `${JSON.stringify(
         {
           roomId: g.room_id,
           variant: g.variant,
@@ -175,7 +175,7 @@ try {
         },
         null,
         2,
-      ) + '\n',
+      )}\n`,
     );
     written++;
     const tag = engineWasForfeiter ? 'ENGINE-FORFEIT' : 'opp-forfeit';

@@ -33,13 +33,13 @@
 
 import {
   coordOf,
-  squareOf,
   type JieqiBoard,
   type JieqiGameState,
   type JieqiMove,
   type JieqiPiece,
   type JieqiPieceRole,
   type JieqiSquare,
+  squareOf,
 } from '@mistboard/game';
 
 const RED_ROLE_CHAR: Record<JieqiPieceRole, string> = {

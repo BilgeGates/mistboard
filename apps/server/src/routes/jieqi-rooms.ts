@@ -2,7 +2,7 @@ import { randomBytes } from 'node:crypto';
 import type { ServerResponse } from 'node:http';
 import { JIEQI_SPEC_ID, type RoomTimeControl } from '@mistboard/game';
 import { gateGameSpecRequest } from './../game-spec-request-gate.js';
-import { JIEQI_DEFAULT_ENGINE_ID, isJieqiEngineClientId } from './../jieqi-engine.js';
+import { isJieqiEngineClientId, JIEQI_DEFAULT_ENGINE_ID } from './../jieqi-engine.js';
 import * as persistence from './../persistence.js';
 import { parseRoomTimeControl, writeJson } from './lib.js';
 

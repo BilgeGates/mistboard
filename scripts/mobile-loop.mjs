@@ -86,7 +86,7 @@ async function main() {
 
     const url = `${DEV_URL}${scene.path}`;
     const t0 = Date.now();
-    let status = 'ok';
+    let _status = 'ok';
     try {
       await page.goto(url, { waitUntil: 'networkidle', timeout: 15000 });
       // small settle for late layout shifts (board sizing, font swap)
@@ -102,7 +102,7 @@ async function main() {
       });
       console.log(`✓ ${scene.name.padEnd(28)} ${scene.path.padEnd(36)} ${Date.now() - t0}ms`);
     } catch (err) {
-      status = 'fail';
+      _status = 'fail';
       results.push({
         scene: scene.name,
         path: scene.path,

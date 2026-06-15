@@ -72,7 +72,9 @@ export function pikaJieqiPath(): string {
   if (explicit) {
     const resolved = resolve(explicit);
     if (!existsSync(resolved)) {
-      throw new Error(`MISTBOARD_PIKAFISH_PATH points at ${resolved} but the binary does not exist`);
+      throw new Error(
+        `MISTBOARD_PIKAFISH_PATH points at ${resolved} but the binary does not exist`,
+      );
     }
     return resolved;
   }
@@ -142,7 +144,10 @@ export async function jieqiLiveEngineMove(
   }
 }
 
-export function jieqiEngineMove(fen: string, opts: JieqiEngineOptions = {}): Promise<string | null> {
+export function jieqiEngineMove(
+  fen: string,
+  opts: JieqiEngineOptions = {},
+): Promise<string | null> {
   const bin = pikaJieqiPath();
   const movetimeMs = opts.movetimeMs ?? 500;
   const skill = opts.skill === undefined ? null : Math.max(0, Math.min(20, Math.floor(opts.skill)));
@@ -233,7 +238,12 @@ function maxConcurrentProcesses(): number {
 }
 
 function queueTimeoutMs(): number {
-  return boundedEnvInt('MISTBOARD_PIKAFISH_QUEUE_TIMEOUT_MS', DEFAULT_QUEUE_TIMEOUT_MS, 100, 30_000);
+  return boundedEnvInt(
+    'MISTBOARD_PIKAFISH_QUEUE_TIMEOUT_MS',
+    DEFAULT_QUEUE_TIMEOUT_MS,
+    100,
+    30_000,
+  );
 }
 
 function boundedEnvInt(name: string, fallback: number, min: number, max: number): number {

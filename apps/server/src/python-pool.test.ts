@@ -51,7 +51,7 @@ after(() => {
   rmSync(dir, { recursive: true, force: true });
 });
 
-function makePool(stateFile: string): PythonPool {
+function makePool(_stateFile: string): PythonPool {
   return new PythonPool({
     engineId: 'fake',
     size: 2,

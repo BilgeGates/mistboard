@@ -986,7 +986,7 @@
         return false;
       }
 
-      function playBotDecision(s) {
+      function _playBotDecision(s) {
         const color = s.turn;
         s.botTurns += 1;
         if (shouldBotPass(s, color)) return passTurn(s, color, "Bot endgame heuristic.");
