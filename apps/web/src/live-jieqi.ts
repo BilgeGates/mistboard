@@ -340,19 +340,22 @@ function handleSquareClick(view: JieqiWireView, square: JieqiSquare): void {
 
 // ── Captured pool ─────────────────────────────────────────────────────────────
 
-// A captured piece belongs to its former owner's pool; convention places the
-// opponent's lost pieces in the top slot (next to the opponent's clock) and the
-// viewer's lost pieces in the bottom slot. A null role (a dark piece the viewer
+// Lichess convention: a player's captured material sits next to that player.
+// The bottom strip is the viewer's side, so it shows the pieces the viewer has
+// captured (the opponent's lost pieces); the top strip is the opponent's side,
+// so it shows the pieces the opponent has captured (the viewer's lost pieces).
+// fillCapturedPool filters by former owner, so top filters the viewer's color
+// and bottom filters the opponent's color. A null role (a dark piece the viewer
 // did not capture, so cannot identify) renders face-down ("?"). Reuses the
 // existing .captures-strip / .mini-xq-capture-piece styling (no new CSS).
 function renderCapturedPools(liveRefs: LiveRefs, view: JieqiWireView | null): void {
   liveRefs.capturesTop.replaceChildren();
   liveRefs.capturesBottom.replaceChildren();
   if (!view) return;
-  const bottomColor = orientationFor(view);
-  const topColor = bottomColor === 'red' ? 'black' : 'red';
-  fillCapturedPool(liveRefs.capturesTop, view.captured, topColor);
-  fillCapturedPool(liveRefs.capturesBottom, view.captured, bottomColor);
+  const viewer = orientationFor(view);
+  const opponent = viewer === 'red' ? 'black' : 'red';
+  fillCapturedPool(liveRefs.capturesTop, view.captured, viewer);
+  fillCapturedPool(liveRefs.capturesBottom, view.captured, opponent);
 }
 
 // Exported for unit testing the captured-pool data path (revealed identity vs

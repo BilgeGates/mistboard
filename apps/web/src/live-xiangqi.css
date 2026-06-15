@@ -11,6 +11,23 @@
   width: 100%;
 }
 
+/* Jieqi reuses this stylesheet but is its own route. The board is the full 9x10
+   grid (viewBox 660x732), so cap it by viewport height a touch tighter than the
+   xiangqi board to keep the page from scrolling, and bound its width so it never
+   bleeds into the move panel. */
+.live-route--jieqi .board-shell {
+  width: min(100%, 64vh, 560px);
+}
+
+.live-route--jieqi .board-stage,
+.live-route--jieqi .board-status {
+  aspect-ratio: 660 / 732;
+}
+
+.live-route--jieqi .board-status {
+  width: 100%;
+}
+
 .xiangqi-live-board {
   aspect-ratio: 552 / 612;
   width: min(100%, 72vh);
