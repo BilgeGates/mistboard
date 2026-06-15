@@ -23,6 +23,11 @@ export const shogi4Article: Article = {
     summary:
       "The complete rules of Shogi4 (4x4 Shogi), Oca Studios' public-domain animal drop-shogi on a 4×4 board: how the Carp, Tapir, Raccoon-dog, Fox, and royal move, plus the friendly-jump, evolution, drops, and king-capture wins.",
     showSummaryOnPage: false,
+    // Guest rules page: hosted for an outside project (linked from
+    // brianhliou.com), not a Mistboard variant. Keep it reachable but out of
+    // every index/landing/rail listing. Its own page still renders the rail
+    // (other games), with nothing highlighted — see buildVariantSidebar.
+    showInIndex: false,
     status: 'published',
     publishedAt: '2026-06-05',
     updatedAt: '2026-06-06',

@@ -577,11 +577,16 @@ export function buildArticlePage(slug: string, lang?: ArticleLang): HTMLElement 
 // rules article with the current one highlighted. Pass null for the rules
 // index, which shares the shell without a current page. Reuses the TOC nav
 // grammar so the two rails read as one system.
+// The current page is force-included so a dev-only draft still shows itself
+// highlighted — but NOT when it opted out of listings via showInIndex:false
+// (a guest page like shogi4): those render the rail without self-including, so
+// nothing is highlighted and the page reads as "other games on this site."
 function buildVariantSidebar(currentSlug: string | null, lang?: ArticleLang): HTMLElement | null {
   const entries = articles.filter(
     (article) =>
       article.kind === 'rules' &&
-      (article.slug === currentSlug || isArticleListedInThisEnv(article)),
+      (isArticleListedInThisEnv(article) ||
+        (article.slug === currentSlug && article.showInIndex !== false)),
   );
   if (entries.length < 2) return null;
 
