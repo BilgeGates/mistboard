@@ -403,6 +403,7 @@ describe('landing play panel', () => {
   });
 
   it('keeps Dark Mini Xiangqi hidden from public entry unless its public-entry flag is enabled', () => {
+    vi.stubEnv('DEV', false);
     vi.stubEnv('VITE_DARK_MINI_XIANGQI_ENABLED', 'true');
     vi.stubGlobal(
       'fetch',
@@ -520,6 +521,7 @@ describe('landing play panel', () => {
   });
 
   it('allows a soft-launch Dark Mini Xiangqi deep link without public picker entry', async () => {
+    vi.stubEnv('DEV', false);
     vi.stubEnv('VITE_DARK_MINI_XIANGQI_ENABLED', 'true');
     const fetchSpy = vi.fn(async (input: RequestInfo | URL, _init?: RequestInit) => {
       if (String(input) === '/api/live-stats') return jsonResponse({ playing: 0, online: 0 });
@@ -550,6 +552,7 @@ describe('landing play panel', () => {
   });
 
   it('allows a rated soft-launch Dark Mini Xiangqi lobby deep link without public picker entry', async () => {
+    vi.stubEnv('DEV', false);
     vi.stubEnv('VITE_DARK_MINI_XIANGQI_ENABLED', 'true');
     setRatedModeEnabled(true);
     setResolvedSignedIn(true);

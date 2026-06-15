@@ -8,6 +8,7 @@ describe('article public listing gates', () => {
   });
 
   it('keeps Dark Mini Xiangqi off public article surfaces during soft launch', () => {
+    vi.stubEnv('DEV', false);
     vi.stubEnv('VITE_DARK_MINI_XIANGQI_ENABLED', 'true');
 
     expect(buildHomeArticleCards(50)?.textContent).not.toContain('Dark Mini Xiangqi');
@@ -100,6 +101,7 @@ describe('rules variant sidebar', () => {
   });
 
   it('keeps prelaunch variants out of the sidebar unless they are the current page', () => {
+    vi.stubEnv('DEV', false);
     vi.stubEnv('VITE_DARK_MINI_XIANGQI_ENABLED', 'true');
 
     const darkChess = buildArticlePage('dark-chess');

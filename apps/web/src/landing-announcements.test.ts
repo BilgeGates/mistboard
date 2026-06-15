@@ -7,6 +7,7 @@ describe('landing announcements', () => {
   });
 
   it('hides the Dark Mini Xiangqi announcement until public entry is enabled', () => {
+    vi.stubEnv('DEV', false);
     vi.stubEnv('VITE_DARK_MINI_XIANGQI_ENABLED', 'true');
 
     expect(buildLandingAnnouncements().textContent).not.toContain('Dark Mini Xiangqi');

@@ -33,15 +33,23 @@ describe('web variant launch registry', () => {
     );
   });
 
-  it('shows public leaderboard buckets for live public variants', () => {
-    expect(leaderboardVariants.map((v) => v.gameSpecId)).toEqual([
+  it('shows public leaderboard buckets for live public variants', async () => {
+    // Pin prod semantics: dev auto-on would otherwise surface the soft-launch DMX bucket.
+    vi.resetModules();
+    vi.stubEnv('DEV', false);
+    const prod = await import('./variants.js');
+    expect(prod.leaderboardVariants.map((v) => v.gameSpecId)).toEqual([
       DARK_CHESS_SPEC_ID,
       CROSSROADS_CHESS_SPEC_ID,
     ]);
+    vi.unstubAllEnvs();
+    vi.resetModules();
   });
 
   it('adds Dark Mini Xiangqi profile buckets behind the DMX render flag', async () => {
     vi.resetModules();
+    // Pin prod semantics so the render flag alone (no public-entry) keeps DMX off the leaderboard.
+    vi.stubEnv('DEV', false);
     vi.stubEnv('VITE_DARK_MINI_XIANGQI_ENABLED', 'true');
     const flagged = await import('./variants.js');
     expect(flagged.profileRatingVariants.map((v) => v.gameSpecId)).toEqual([

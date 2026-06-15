@@ -5,8 +5,10 @@ export function darkXiangqiEnabled(): boolean {
   return import.meta.env.VITE_DARK_XIANGQI_ENABLED === 'true';
 }
 
+// Dark Mini Xiangqi (7x7) play surface. Always on in dev for convenience (like
+// Crossroads below); in prod/staging it is hidden unless the build opts in.
 export function darkMiniXiangqiEnabled(): boolean {
-  return import.meta.env.VITE_DARK_MINI_XIANGQI_ENABLED === 'true';
+  return import.meta.env.DEV || import.meta.env.VITE_DARK_MINI_XIANGQI_ENABLED === 'true';
 }
 
 // Identity-hidden jieqi (揭棋) play surface. Hidden in prod/staging unless the
@@ -24,7 +26,8 @@ export function banqiEnabled(): boolean {
 export function darkMiniXiangqiPublicEntryEnabled(): boolean {
   return (
     darkMiniXiangqiEnabled() &&
-    import.meta.env.VITE_DARK_MINI_XIANGQI_PUBLIC_ENTRY_ENABLED === 'true'
+    (import.meta.env.DEV ||
+      import.meta.env.VITE_DARK_MINI_XIANGQI_PUBLIC_ENTRY_ENABLED === 'true')
   );
 }
 
