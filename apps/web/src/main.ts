@@ -125,6 +125,9 @@ const wantsPixelLab = import.meta.env.DEV && path === '/pixel-lab';
 const wantsVariantMarksLab = import.meta.env.DEV && path === '/variant-marks';
 // Hidden DEV-only audition lab for sound sets. No nav entry.
 const wantsSoundLab = import.meta.env.DEV && path === '/sound-lab';
+// Hidden DEV-only Fog-of-War game deep-dive reader (replay triptych + prose
+// annotation panel). No nav entry; pilot for the game-analysis article series.
+const wantsDeepDive = import.meta.env.DEV && path === '/deepdive';
 // Tenants with a self-contained live client (Crossroads) are routed to it
 // *before* the shared live-room shell so they never touch the fog-critical
 // live.ts monolith; tenants riding the chess shell fall through to it.
@@ -249,6 +252,11 @@ if (replaySample) {
   setTitle('Sound lab');
   void mountOrReport(() =>
     import('./sound-lab.js').then(({ mountSoundLab }) => mountSoundLab(appRoot)),
+  );
+} else if (wantsDeepDive) {
+  setTitle('Deep-dive');
+  void mountOrReport(() =>
+    import('./deepdive.js').then(({ mountDeepDive }) => mountDeepDive(appRoot)),
   );
 } else if (wantsLegacyPlay) {
   window.history.replaceState(null, '', '/');
