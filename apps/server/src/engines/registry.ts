@@ -324,10 +324,55 @@ const CROSSROADS_CHESS_ENGINES: Record<string, EngineDefinition> = {
   },
 };
 
+// Jieqi (揭棋) PvE engines — the Pikafish jieqi branch driven as a UCI subprocess
+// (Tier-B, server-jieqi-engine.ts), same shape as crossroads/FSF. LAUNCH uses the
+// no-net `jieqi_old` classical build (clean GPL-3, no net-licensing problem); the
+// strength track swaps in a self-trained NNUE via MISTBOARD_PIKAFISH_NET. Not added
+// to PROD_PLAYABLE_ENGINE_IDS yet — gated until the vertical ships.
+const JIEQI_ENGINES: Record<string, EngineDefinition> = {
+  'pikafish-jieqi-amateur': {
+    id: 'pikafish-jieqi-amateur',
+    engineId: 'pikafish-jieqi',
+    engineName: 'PikaJieQi',
+    name: 'PikaJieQi - Amateur',
+    kind: 'container',
+    gameSpecId: 'jieqi',
+    configHash: 'pikafish-jieqi-amateur',
+    playSignature: 'pikafish-jieqi-amateur',
+    config: { kind: 'pikafish', skill: 3, movetime_ms: 200 },
+    notes: 'Jieqi PikaJieQi (Pikafish jieqi_old, no-net classical eval) amateur tier.',
+  },
+  'pikafish-jieqi-strong': {
+    id: 'pikafish-jieqi-strong',
+    engineId: 'pikafish-jieqi',
+    engineName: 'PikaJieQi',
+    name: 'PikaJieQi - Strong',
+    kind: 'container',
+    gameSpecId: 'jieqi',
+    configHash: 'pikafish-jieqi-strong',
+    playSignature: 'pikafish-jieqi-strong',
+    config: { kind: 'pikafish', skill: 12, movetime_ms: 500 },
+    notes: 'Default Jieqi PikaJieQi tier.',
+  },
+  'pikafish-jieqi-strongest': {
+    id: 'pikafish-jieqi-strongest',
+    engineId: 'pikafish-jieqi',
+    engineName: 'PikaJieQi',
+    name: 'PikaJieQi - Strongest',
+    kind: 'container',
+    gameSpecId: 'jieqi',
+    configHash: 'pikafish-jieqi-strongest',
+    playSignature: 'pikafish-jieqi-strongest',
+    config: { kind: 'pikafish', skill: 20, movetime_ms: 1200 },
+    notes: 'Top Jieqi PikaJieQi tier (longer movetime).',
+  },
+};
+
 const KNOWN_ENGINES: Record<string, EngineDefinition> = {
   ...BUILTIN_ENGINES,
   ...PYTHON_ENGINES,
   ...CROSSROADS_CHESS_ENGINES,
+  ...JIEQI_ENGINES,
 };
 
 export function latestBuiltinEngineIds(): { white: string; black: string } {

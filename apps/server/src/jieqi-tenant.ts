@@ -34,6 +34,7 @@ import {
   oppositeJieqiColor,
 } from '@mistboard/game';
 import { jieqiEnabled } from './feature-flags.js';
+import { isJieqiEngineClientId, jieqiEngineDisplayName } from './jieqi-engine.js';
 import type * as persistence from './persistence.js';
 import type {
   TenantClientEvent,
@@ -162,6 +163,11 @@ export const jieqiTenant: JieqiTenant = {
   visibility: {
     clientEventFor: jieqiClientEventFor,
     viewForClient: (state, client) => getJieqiClientView(state, client),
+  },
+  engine: {
+    isEngineClientId: isJieqiEngineClientId,
+    displayName: jieqiEngineDisplayName,
+    reservationReleaseTag: 'jieqi',
   },
   persistence: {
     resultForWinner: (winner: JieqiColor | null): persistence.GameResult => {

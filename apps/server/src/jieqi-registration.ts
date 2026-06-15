@@ -11,7 +11,11 @@ import type { JieqiCreatorPreference, JieqiRuntimeRoom } from './jieqi-runtime.j
 import { jieqiTenant } from './jieqi-tenant.js';
 import * as persistence from './persistence.js';
 import { handleJieqiCreate, requestsJieqi } from './routes/jieqi-rooms.js';
-import { createJieqiLiveRoom, type JieqiLiveRoomCreation } from './server-jieqi-room-factory.js';
+import {
+  createJieqiLiveRoom,
+  type JieqiLiveRoomCreation,
+  type JieqiRoomEngineSeat,
+} from './server-jieqi-room-factory.js';
 import {
   clearJieqiRuntimeTimers,
   handleJieqiWebSocketConnection,
@@ -31,6 +35,7 @@ export const jieqiRooms = new Map<string, JieqiLiveRoom>();
 export async function createJieqiRoom(
   timeControl?: RoomTimeControl,
   creatorPreference?: JieqiCreatorPreference,
+  engine?: JieqiRoomEngineSeat,
 ): Promise<JieqiLiveRoomCreation> {
   return createJieqiLiveRoom(
     {
@@ -43,6 +48,7 @@ export async function createJieqiRoom(
     },
     timeControl,
     creatorPreference,
+    engine,
   );
 }
 

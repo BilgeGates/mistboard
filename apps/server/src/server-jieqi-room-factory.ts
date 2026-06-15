@@ -10,6 +10,11 @@ import { jieqiTenant } from './jieqi-tenant.js';
 import type { JieqiLiveRoom } from './server-ws-jieqi.js';
 import { createTenantLiveRoom } from './variant-tenant/room-factory.js';
 
+export type JieqiRoomEngineSeat = {
+  engineId: string;
+  seat: 'red' | 'black';
+};
+
 export type JieqiLiveRoomCreation =
   | { ok: true; room: JieqiLiveRoom }
   | { ok: false; error: 'jieqi_disabled' | 'persistence_failure' | 'room_id_collision' };
@@ -27,6 +32,7 @@ export async function createJieqiLiveRoom(
   ctx: JieqiLiveRoomFactoryContext,
   timeControl?: RoomTimeControl,
   creatorPreference?: JieqiCreatorPreference,
+  engine?: JieqiRoomEngineSeat,
 ): Promise<JieqiLiveRoomCreation> {
   const created = await createTenantLiveRoom(
     jieqiTenant,
@@ -38,7 +44,7 @@ export async function createJieqiLiveRoom(
       isPersistenceEnabled: ctx.isPersistenceEnabled,
       recordPersistenceError: ctx.recordPersistenceError,
     },
-    { timeControl, creatorPreference },
+    { timeControl, creatorPreference, engine },
   );
   if (!created.ok) {
     return created.error === 'disabled'
