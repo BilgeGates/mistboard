@@ -169,6 +169,12 @@ const WEB_VARIANT_TENANTS: readonly WebVariantTenant[] = [
     roomIdPrefix: 'jq_',
     enabled: jieqiEnabled,
     pageTitle: 'Jieqi',
+    gameRouteBase: '/jieqi/game',
+    mountPostgame: (root, roomId) =>
+      import('../live-jieqi-postgame.js').then(({ mountJieqiPostgame }) =>
+        mountJieqiPostgame(root, roomId),
+      ),
+    reviewRouteBase: '/jieqi/game',
     loadLiveRoomClient: () =>
       import('../live-jieqi.js').then(
         ({ bootstrapJieqiLiveRoom }) =>

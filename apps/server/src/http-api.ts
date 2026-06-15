@@ -20,6 +20,7 @@ import * as darkXiangqiGamesRoute from './routes/dark-xiangqi-games.js';
 import * as enginesRoute from './routes/engines.js';
 import * as feedbackRoute from './routes/feedback.js';
 import * as gamesRoute from './routes/games.js';
+import * as jieqiGamesRoute from './routes/jieqi-games.js';
 import * as leaderboardRoute from './routes/leaderboard.js';
 import type { HttpApiContext } from './routes/lib.js';
 import * as lobbyRoute from './routes/lobby.js';
@@ -65,6 +66,7 @@ const routes: RouteModule[] = [
   lobbyRoute,
   darkMiniXiangqiGamesRoute,
   darkXiangqiGamesRoute,
+  jieqiGamesRoute,
   crossroadsChessRoute,
   gamesRoute,
   usersRoute,

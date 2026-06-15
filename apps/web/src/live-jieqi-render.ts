@@ -1,10 +1,4 @@
-import type {
-  JieqiColor,
-  JieqiGameState,
-  JieqiMove,
-  JieqiPlayerView,
-  JieqiSquare,
-} from '@mistboard/game';
+import type { JieqiColor, JieqiMove, JieqiPlayerView, JieqiSquare } from '@mistboard/game';
 import { readStoredXiangqiPieceSet } from './xiangqi-appearance-storage.js';
 import { renderXiangqiPieceGlyphed, type XiangqiPieceSet } from './xiangqi-piece-sets.js';
 
@@ -77,26 +71,6 @@ export function renderJieqiBoardSvg(
 }
 
 export const JIEQI_PIECE_PX = PIECE_SIZE;
-
-// A full-information "truth" view (every identity revealed) for postgame replay.
-export function jieqiTruthView(state: JieqiGameState): JieqiPlayerView {
-  const board: JieqiPlayerView['board'] = {};
-  for (const [square, piece] of Object.entries(state.board)) {
-    if (piece)
-      board[square as JieqiSquare] = { color: piece.color, role: piece.role, faceDown: false };
-  }
-  return {
-    id: state.id,
-    perspective: 'red',
-    board,
-    legalMoves: [],
-    captured: state.captures.map((c) => ({ owner: c.owner, role: c.role })),
-    inCheck: false,
-    status: state.status,
-    moveNumber: state.moveNumber,
-    lastMove: state.lastMove,
-  };
-}
 
 function gridLines(): string {
   const parts: string[] = [];

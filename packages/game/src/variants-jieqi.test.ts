@@ -17,6 +17,7 @@ import {
   type JieqiPiece,
   type JieqiPieceRole,
   jieqiHomeSquares,
+  jieqiTruthView,
   STANDARD_JIEQI_DEAL,
 } from './variants-jieqi.js';
 
@@ -341,4 +342,34 @@ test('a piece captured while revealed is known to both players', () => {
   assert.deepEqual(getJieqiPlayerView(after, 'black').captured, [
     { owner: 'black', role: 'cannon' },
   ]);
+});
+
+// ── Truth view (postgame review) ────────────────────────────────────────────
+
+test('jieqiTruthView reveals every identity and captures carry full roles', () => {
+  // A dark-piece capture so a still-dark role lands in the capture pool.
+  const state = playing({
+    d1: up('red', 'general'),
+    f10: up('black', 'general'),
+    a1: up('red', 'chariot'),
+    a3: dark('black', 'cannon'),
+    e5: dark('red', 'horse'),
+  });
+  const after = applyJieqiMove(state, { from: 'a1', to: 'a3' });
+  const truth = jieqiTruthView(after);
+
+  // Every occupied square is revealed in the truth view — no faceDown:true.
+  for (const [square, entry] of Object.entries(truth.board)) {
+    assert.equal(entry?.faceDown, false, `truth square ${square} must be revealed`);
+  }
+  // The still-dark red horse is revealed by identity in the truth view, unlike
+  // the per-player view where the owner's own dark pieces stay masked.
+  assert.deepEqual(truth.board.e5, { color: 'red', role: 'horse', faceDown: false });
+  // The captured dark piece carries its full role (no per-viewer redaction).
+  assert.deepEqual(truth.captured, [{ owner: 'black', role: 'cannon' }]);
+  // Truth view is rendered from red's perspective and is never in check / has no
+  // legal moves attached (it is a static review projection).
+  assert.equal(truth.perspective, 'red');
+  assert.equal(truth.inCheck, false);
+  assert.deepEqual(truth.legalMoves, []);
 });

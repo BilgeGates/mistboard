@@ -555,6 +555,31 @@ export function applyJieqiMove(
 
 // ── Player view (redaction) ─────────────────────────────────────────────────
 
+// A full-information "truth" view (every identity revealed, every captured role
+// carried with its full role) for postgame review. Unlike getJieqiPlayerView,
+// nothing is redacted: this is the canonical board projected onto the player-view
+// shape, so the review renderer can show every face-up identity. Never ship this
+// to a live client — it is the postgame-only counterpart to the per-color views.
+export function jieqiTruthView(state: JieqiGameState): JieqiPlayerView {
+  const board: JieqiPlayerBoard = {};
+  for (const [square, piece] of Object.entries(state.board)) {
+    if (piece) {
+      board[square as JieqiSquare] = { color: piece.color, role: piece.role, faceDown: false };
+    }
+  }
+  return {
+    id: state.id,
+    perspective: 'red',
+    board,
+    legalMoves: [],
+    captured: state.captures.map((c) => ({ owner: c.owner, role: c.role })),
+    inCheck: false,
+    status: state.status,
+    moveNumber: state.moveNumber,
+    lastMove: state.lastMove,
+  };
+}
+
 export function getJieqiPlayerView(state: JieqiGameState, color: JieqiColor): JieqiPlayerView {
   const board: JieqiPlayerBoard = {};
   for (const [sq, piece] of Object.entries(state.board)) {

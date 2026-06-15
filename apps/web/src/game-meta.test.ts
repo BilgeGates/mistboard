@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { FeaturedGame } from './game-display.js';
-import { gameMetaForGame, timeControlLabelForGame } from './game-meta.js';
+import { gameMetaForGame, reviewUrlForGame, timeControlLabelForGame } from './game-meta.js';
 
 function game(overrides: Partial<FeaturedGame>): FeaturedGame {
   return {
@@ -45,6 +45,20 @@ describe('gameMetaForGame timeControl', () => {
       game({ mode: 'eve', timeControl: null, initialMs: null, incrementMs: null }),
     );
     expect(meta.timeControl).toBeNull();
+  });
+});
+
+describe('reviewUrlForGame', () => {
+  it('routes a finished jieqi game to its family-native review base', () => {
+    expect(reviewUrlForGame(game({ variant: 'jieqi', roomId: 'jq_review' }))).toBe(
+      '/jieqi/game/jq_review',
+    );
+  });
+
+  it('falls back to the legacy /game/:id review link for dark chess', () => {
+    expect(reviewUrlForGame(game({ variant: 'dark-chess', roomId: 'dchx_review' }))).toBe(
+      '/game/dchx_review',
+    );
   });
 });
 
