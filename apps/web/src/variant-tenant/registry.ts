@@ -198,9 +198,30 @@ const WEB_VARIANT_TENANTS: readonly WebVariantTenant[] = [
         supportsStartFormat: false,
         supportsTimeControl: true,
       },
-      timePresetIds: ['3m2'],
-      offerInMenu: () => false,
+      timePresetIds: ['3m2', '5m5'],
+      offerInMenu: jieqiEnabled,
       acceptsDeepLink: jieqiEnabled,
+      engineOptions: [
+        {
+          id: 'pikafish-jieqi-amateur',
+          name: 'PikaJieQi - Amateur',
+          familyName: 'PikaJieQi',
+          kind: 'container',
+        },
+        {
+          id: 'pikafish-jieqi-strong',
+          name: 'PikaJieQi - Strong',
+          familyName: 'PikaJieQi',
+          kind: 'container',
+        },
+        {
+          id: 'pikafish-jieqi-strongest',
+          name: 'PikaJieQi - Strongest',
+          familyName: 'PikaJieQi',
+          kind: 'container',
+        },
+      ],
+      defaultEngineId: 'pikafish-jieqi-strong',
     },
   },
   {
