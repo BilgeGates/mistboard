@@ -26,8 +26,7 @@ export function banqiEnabled(): boolean {
 export function darkMiniXiangqiPublicEntryEnabled(): boolean {
   return (
     darkMiniXiangqiEnabled() &&
-    (import.meta.env.DEV ||
-      import.meta.env.VITE_DARK_MINI_XIANGQI_PUBLIC_ENTRY_ENABLED === 'true')
+    (import.meta.env.DEV || import.meta.env.VITE_DARK_MINI_XIANGQI_PUBLIC_ENTRY_ENABLED === 'true')
   );
 }
 
