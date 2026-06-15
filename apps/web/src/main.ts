@@ -128,6 +128,9 @@ const wantsSoundLab = import.meta.env.DEV && path === '/sound-lab';
 // Hidden DEV-only Fog-of-War game deep-dive reader (replay triptych + prose
 // annotation panel). No nav entry; pilot for the game-analysis article series.
 const wantsDeepDive = import.meta.env.DEV && path === '/deepdive';
+// Hidden DEV-only engine-output inspector (replay board + per-ply move ranking).
+// No nav entry; spike for admin-gated engine self-review.
+const wantsEngineReview = import.meta.env.DEV && path === '/engine-review';
 // Tenants with a self-contained live client (Crossroads) are routed to it
 // *before* the shared live-room shell so they never touch the fog-critical
 // live.ts monolith; tenants riding the chess shell fall through to it.
@@ -257,6 +260,11 @@ if (replaySample) {
   setTitle('Deep-dive');
   void mountOrReport(() =>
     import('./deepdive.js').then(({ mountDeepDive }) => mountDeepDive(appRoot)),
+  );
+} else if (wantsEngineReview) {
+  setTitle('Engine review');
+  void mountOrReport(() =>
+    import('./engine-review.js').then(({ mountEngineReview }) => mountEngineReview(appRoot)),
   );
 } else if (wantsLegacyPlay) {
   window.history.replaceState(null, '', '/');
