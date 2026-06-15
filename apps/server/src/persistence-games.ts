@@ -22,6 +22,10 @@ import {
 } from './rating-store.js';
 
 const MIN_TIMEOUT_SOURCE_PLY_COUNT = 10;
+// Still used by listRecentPublicGames, which (unlike the watch feed) has no
+// termination/last-event consistency guard, so the floor is its only filter
+// against 1-ply / no-terminal-event noise. The watch feed itself no longer
+// uses a ply floor (it relies on the consistency guard + seal-until-finished).
 const MIN_TV_PVP_PLY_COUNT = 30;
 
 export type GameResult = 'white-wins' | 'black-wins' | 'red-wins' | 'draw';
@@ -599,8 +603,14 @@ export async function listWatchUnlockedGames(
   const boundedLimit = Math.max(1, Math.min(options.limit ?? 64, 64));
   const now = options.now ?? new Date();
   const variants = watchVariantFilter(options.variants);
-  const variantClause = variants ? 'AND games.variant = ANY($5::text[])' : '';
-  const values: unknown[] = [MIN_TIMEOUT_SOURCE_PLY_COUNT, boundedLimit, MIN_TV_PVP_PLY_COUNT, now];
+  const variantClause = variants ? 'AND games.variant = ANY($3::text[])' : '';
+  // Unified "seal until finished": sealed (uncountable, unviewable) while the
+  // game is running, unlocked when it completes — no per-mode ply floor. A
+  // completed non-aborted game already has both first moves (an earlier decisive
+  // event aborts instead of completing), so the floors only hid real short
+  // games while postgame review showed them. The termination/last-event
+  // consistency check below still excludes reconnect noise.
+  const values: unknown[] = [boundedLimit, now];
   if (variants) values.push(variants);
   const { rows } = await getPool().query<RecentEveGameRow>(
     `WITH last_events AS (
@@ -624,10 +634,7 @@ export async function listWatchUnlockedGames(
      WHERE games.status = 'completed'
        ${variantClause}
        AND games.mode IN ('pvp', 'pve', 'eve')
-       AND games.ended_at <= $4
-       AND NOT (games.termination = 'timeout' AND games.ply_count < $1)
-       AND NOT (games.mode = 'pvp' AND games.ply_count < $3)
-       AND NOT (games.mode = 'pve' AND games.ply_count < 2)
+       AND games.ended_at <= $2
        AND (
          (games.termination IN ('checkmate', 'draw', 'king-captured', 'general-captured') AND last_events.type = 'move-played')
          OR (games.termination = 'timeout' AND last_events.type = 'clock-expired')
@@ -639,7 +646,7 @@ export async function listWatchUnlockedGames(
          OR (games.mode IN ('pve', 'eve') AND games.visibility <> 'private')
        )
      ORDER BY games.ended_at DESC, games.room_id DESC
-     LIMIT $2`,
+     LIMIT $1`,
     values,
   );
   return attachGameParticipants(rows.map(recentEveGameRecordFromRow));

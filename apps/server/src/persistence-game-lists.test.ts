@@ -477,9 +477,22 @@ definePersistenceTests('game lists', () => {
       now,
       variants: ['dark-chess', 'draft960'],
     });
+    // Seal-until-finished, no per-mode ply floor: the short PvP/PvE/timeout games
+    // unlock once completed, same as a long game (postgame review already showed
+    // them). The termination/last-event consistency guard still excludes noise
+    // (watch-no-event, watch-nonterminal-event), and visibility still hides
+    // private games. Newest ended_at first, then room_id desc.
     assert.deepEqual(
       unlocked.map((game) => game.roomId),
-      ['watch-pvp-newest', 'watch-pve-link', 'watch-eve', 'watch-old'],
+      [
+        'watch-short-timeout',
+        'watch-short-pvp',
+        'watch-short-pve',
+        'watch-pvp-newest',
+        'watch-pve-link',
+        'watch-eve',
+        'watch-old',
+      ],
     );
     assert.equal(
       await countWatchSealedGames({
