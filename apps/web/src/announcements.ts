@@ -1,4 +1,4 @@
-import { darkMiniXiangqiPublicEntryEnabled } from './feature-flags.js';
+import { darkMiniXiangqiPublicEntryEnabled, jieqiEnabled } from './feature-flags.js';
 
 // Entries for the landing News box and the /news page.
 //
@@ -16,9 +16,20 @@ export type Announcement = {
   href?: string;
   cta?: string; // inline link label on /news; falls back to "Read more"
   requiresDarkMiniXiangqiPublicEntry?: boolean;
+  // Gated to the jieqi flag so it only shows once jieqi PvE is live.
+  requiresJieqi?: boolean;
 };
 
 const baseAnnouncements: Announcement[] = [
+  {
+    date: '2026-06-15',
+    kind: 'release',
+    headline: 'Jieqi (揭棋) is open for alpha play.',
+    body: 'Hidden-identity xiangqi: every non-general piece starts face-down and reveals as it moves. Take on PikaJieQi, our jieqi engine.',
+    href: '/rules/jieqi',
+    cta: 'Read rules',
+    requiresJieqi: true,
+  },
   {
     date: '2026-06-11',
     kind: 'release',
@@ -57,6 +68,7 @@ const baseAnnouncements: Announcement[] = [
 export function announcements(): Announcement[] {
   return baseAnnouncements.filter(
     (announcement) =>
-      !announcement.requiresDarkMiniXiangqiPublicEntry || darkMiniXiangqiPublicEntryEnabled(),
+      (!announcement.requiresDarkMiniXiangqiPublicEntry || darkMiniXiangqiPublicEntryEnabled()) &&
+      (!announcement.requiresJieqi || jieqiEnabled()),
   );
 }

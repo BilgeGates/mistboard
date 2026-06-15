@@ -4,8 +4,9 @@ import {
   JIEQI_REVEALED_FREEDOMS,
   JIEQI_RULES_THUMBNAIL,
   JIEQI_START_BOARD,
-  relatedClosing,
+  playClosing,
 } from '../diagrams.js';
+import { JIEQI_SAMPLE_GAME } from '../../jieqi-sample-game.js';
 import type { Article } from '../types.js';
 
 export const jieqiArticle: Article = {
@@ -16,7 +17,7 @@ export const jieqiArticle: Article = {
     summary:
       'Jieqi (揭棋) rules: xiangqi with hidden non-general pieces that first move by starting point, then reveal and play by identity.',
     showSummaryOnPage: false,
-    status: 'draft',
+    status: 'published',
     audience:
       'Xiangqi players and hidden-information fans who want a clean English rules reference for jieqi.',
     thumbnail: { kind: 'svg', svg: JIEQI_RULES_THUMBNAIL },
@@ -125,6 +126,28 @@ export const jieqiArticle: Article = {
         ],
       },
       {
+        heading: 'A sample game',
+        blocks: [
+          {
+            kind: 'paragraph',
+            text:
+              'Step through a full self-play game below. Dark pieces show as colored backs and flip to their dealt identity the first time they move, so a corner that plays like a chariot can reveal a soldier. Red wins by checkmate.',
+          },
+          {
+            kind: 'jieqi-replay',
+            spec: {
+              red: JIEQI_SAMPLE_GAME.red,
+              black: JIEQI_SAMPLE_GAME.black,
+              event: JIEQI_SAMPLE_GAME.event,
+              outcome: 'Red wins by checkmate · 36 moves',
+              resultText: JIEQI_SAMPLE_GAME.result,
+              deal: JIEQI_SAMPLE_GAME.deal,
+              moves: JIEQI_SAMPLE_GAME.moves,
+            },
+          },
+        ],
+      },
+      {
         heading: 'Names',
         blocks: [
           {
@@ -144,11 +167,13 @@ export const jieqiArticle: Article = {
           },
         ],
       },
-      relatedClosing({
+      playClosing({
         heading: 'Where to next',
-        lead: 'Jieqi is not playable on Mistboard yet; this page is the rules reference while we plan the variant. For the base game, read xiangqi. For the other face-down xiangqi cousin, compare banqi.',
-        links: [
-          { label: 'Xiangqi Rules', href: '/rules/xiangqi', emphasis: 'primary' },
+        lead: 'Jieqi is playable on Mistboard — take on PikaJieQi, our jieqi engine, at the strength you pick. For the base game, read xiangqi; for the other face-down xiangqi cousin, compare banqi.',
+        playLabel: 'Play vs PikaJieQi',
+        playHref: '/?play=engine&gameSpecId=jieqi',
+        secondary: [
+          { label: 'Xiangqi Rules', href: '/rules/xiangqi', emphasis: 'secondary' },
           { label: 'Banqi', href: '/rules/banqi', emphasis: 'secondary' },
           { label: 'Dark Xiangqi', href: '/rules/dark-xiangqi', emphasis: 'secondary' },
           { label: 'All rules', href: '/rules', emphasis: 'secondary' },

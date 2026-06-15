@@ -22,6 +22,7 @@ import {
   type CtaBlock,
   findArticle,
   type InteractiveBlock,
+  type JieqiReplayBlock,
   type LiveBoardsBlock,
   type MiniXiangqiReplayBlock,
   type RawSvgBlock,
@@ -37,6 +38,7 @@ import {
   mountCrossroadsChessReplay,
 } from './crossroads-chess-replay.js';
 import { darkMiniXiangqiPublicEntryEnabled } from './feature-flags.js';
+import { type JieqiReplayController, mountJieqiReplay } from './jieqi-replay.js';
 import { type MiniXiangqiReplayController, mountMiniXiangqiReplay } from './mini-xiangqi-replay.js';
 import { readStoredXiangqiPieceSet, xiangqiAppearanceChangedEvent } from './theme.js';
 import { DEFAULT_XIANGQI_PIECE_SET, type XiangqiPieceSet } from './xiangqi-piece-sets.js';
@@ -803,7 +805,8 @@ type PendingBlock =
   | XiangqiReplayBlock
   | ChessReplayBlock
   | MiniXiangqiReplayBlock
-  | CrossroadsReplayBlock;
+  | CrossroadsReplayBlock
+  | JieqiReplayBlock;
 const pendingMounts = new WeakMap<HTMLElement, PendingBlock>();
 
 function renderBlock(block: ArticleBlock): HTMLElement {
@@ -819,6 +822,7 @@ function renderBlock(block: ArticleBlock): HTMLElement {
   if (block.kind === 'mxq-replay') return renderMiniXiangqiReplayBlock(block);
   if (block.kind === 'chess-replay') return renderChessReplayBlock(block);
   if (block.kind === 'crossroads-replay') return renderCrossroadsReplayBlock(block);
+  if (block.kind === 'jieqi-replay') return renderJieqiReplayBlock(block);
   return renderInteractiveBlock(block);
 }
 
@@ -846,6 +850,26 @@ function renderCrossroadsReplayBlock(block: CrossroadsReplayBlock): HTMLElement 
   const figure = document.createElement('figure');
   figure.className = 'article-figure article-figure-interactive article-figure-crossroads';
   figure.dataset.pendingWidget = 'crossroads-replay';
+
+  const mountTarget = document.createElement('div');
+  mountTarget.className = 'article-interactive-target';
+  figure.append(mountTarget);
+
+  if (block.caption) {
+    const cap = document.createElement('figcaption');
+    cap.className = 'article-figure-caption';
+    cap.textContent = block.caption;
+    figure.append(cap);
+  }
+
+  pendingMounts.set(figure, block);
+  return figure;
+}
+
+function renderJieqiReplayBlock(block: JieqiReplayBlock): HTMLElement {
+  const figure = document.createElement('figure');
+  figure.className = 'article-figure article-figure-interactive article-figure-jieqi';
+  figure.dataset.pendingWidget = 'jieqi-replay';
 
   const mountTarget = document.createElement('div');
   mountTarget.className = 'article-interactive-target';
@@ -1287,6 +1311,7 @@ export function mountPendingWidgets(
   | ChessReplayController
   | MiniXiangqiReplayController
   | CrossroadsChessReplayController
+  | JieqiReplayController
 > {
   const controllers: Array<
     | StepperController
@@ -1295,6 +1320,7 @@ export function mountPendingWidgets(
     | ChessReplayController
     | MiniXiangqiReplayController
     | CrossroadsChessReplayController
+    | JieqiReplayController
   > = [];
   const pending = root.querySelectorAll<HTMLElement>('[data-pending-widget]');
   pending.forEach((figure) => {
@@ -1314,6 +1340,8 @@ export function mountPendingWidgets(
       controllers.push(mountChessReplay(target, block.spec));
     } else if (block.kind === 'crossroads-replay') {
       controllers.push(mountCrossroadsChessReplay(target, block.spec));
+    } else if (block.kind === 'jieqi-replay') {
+      controllers.push(mountJieqiReplay(target, block.spec));
     }
     pendingMounts.delete(figure);
     delete figure.dataset.pendingWidget;

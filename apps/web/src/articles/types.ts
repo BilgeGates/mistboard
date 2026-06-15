@@ -7,6 +7,7 @@ import type { LiveBoardsOptions, SteppedBoardsOptions } from '@mistboard/board-r
 import type { Square } from '@mistboard/game';
 import type { ChessReplaySpec } from '../chess-replay.js';
 import type { CrossroadsReplaySpec } from '../crossroads-chess-replay.js';
+import type { JieqiReplaySpec } from '../jieqi-replay.js';
 import type { MiniXiangqiReplaySpec } from '../mini-xiangqi-replay.js';
 import type { XiangqiReplaySpec } from '../xiangqi-replay.js';
 
@@ -73,6 +74,14 @@ export type ChessReplayBlock = {
 export type CrossroadsReplayBlock = {
   kind: 'crossroads-replay';
   spec: CrossroadsReplaySpec;
+  caption?: string;
+};
+
+// Jieqi analogue: a 9x10 board stepped through a move list + hidden deal, each
+// position replayed through the real kernel; dark pieces flip on first move.
+export type JieqiReplayBlock = {
+  kind: 'jieqi-replay';
+  spec: JieqiReplaySpec;
   caption?: string;
 };
 
@@ -151,6 +160,7 @@ export type ArticleBlock =
   | ChessReplayBlock
   | MiniXiangqiReplayBlock
   | CrossroadsReplayBlock
+  | JieqiReplayBlock
   | CodeBlock;
 
 // `blocks` is the structured body. `paragraphs` is the legacy outline body
