@@ -1,6 +1,13 @@
 import {
+  boardToPieces,
+  DARK_CHESS_START_STATE,
   KRIEGSPIEL_CHECK_BOARD,
+  KRIEGSPIEL_CHECK_FILE,
   KRIEGSPIEL_CHECK_FOG,
+  KRIEGSPIEL_CHECK_KNIGHT,
+  KRIEGSPIEL_CHECK_LONG_DIAG,
+  KRIEGSPIEL_CHECK_RANK,
+  KRIEGSPIEL_CHECK_SHORT_DIAG,
   KRIEGSPIEL_HERO_BOARD,
   KRIEGSPIEL_HERO_FOG_W,
   relatedClosing,
@@ -12,11 +19,15 @@ export const kriegspielArticle: Article = {
     kind: 'rules',
     title: 'Kriegspiel Rules',
     summary:
-      'The complete rules of Kriegspiel, the 1899 ancestor of dark chess: you see only your own pieces, an umpire rejects illegal tries and announces captures, checks, and pawn tries, and checkmate wins.',
+      'The complete rules of Kriegspiel, the 1899 ancestor of dark chess: you see only your own pieces, an umpire rejects illegal tries and announces captures and checks, and checkmate wins.',
     showSummaryOnPage: false,
     status: 'draft',
     audience:
       'Chess and dark chess players who want the full rules of Kriegspiel, the original umpired hidden-information chess.',
+    thumbnail: {
+      pieces: boardToPieces(DARK_CHESS_START_STATE.board).filter((p) => p.color === 'white'),
+      orientation: 'white',
+    },
     intro: [
       {
         kind: 'paragraph',
@@ -26,7 +37,7 @@ export const kriegspielArticle: Article = {
       {
         kind: 'paragraph',
         text:
-          'Henry Michael Temple invented Kriegspiel in 1899, borrowing the umpire from the Prussian war games that gave it its name. It is the direct ancestor of [dark chess](/rules/dark-chess). If standard chess is new to you, start with [Chess Rules](/rules/chess); everything below assumes them.',
+          'Michael Henry Temple invented Kriegspiel in 1899, borrowing the umpire from the Prussian war games that gave it its name. It is the direct ancestor of [dark chess](/rules/dark-chess). If standard chess is new to you, start with [Chess Rules](/rules/chess); everything below assumes them.',
       },
     ],
     sections: [
@@ -41,12 +52,12 @@ export const kriegspielArticle: Article = {
           {
             kind: 'paragraph',
             text:
-              'Every chess rule is enforced even though you cannot verify it yourself. You can never move into check, and the king is never captured: an attempt that would lose your king is simply rejected. This is the deepest difference from [dark chess](/rules/dark-chess), where nothing is announced and the king falls by capture.',
+              'Every chess rule is enforced even though you cannot verify it yourself. You can never move into check, and the king is never captured: an attempt that would lose your king is rejected.',
           },
           {
             kind: 'paragraph',
             text:
-              'Rejected tries are information. Each refusal tells you something stands in the way, and a careful player probes with tries before committing. Your opponent is not told your attempts were rejected, only that you eventually moved.',
+              'Your clock keeps running until a legal move is accepted, so rejected tries cost time. Your opponent is never told an attempt was rejected, only that you eventually moved.',
           },
           {
             kind: 'live-boards',
@@ -68,27 +79,27 @@ export const kriegspielArticle: Article = {
           {
             kind: 'paragraph',
             text:
-              "**Captures.** When a piece is captured, both players hear the square and whether the captured unit was a pawn or a piece, never which piece. 'Pawn gone on d4' tells the owner a pawn died and tells the capturer what they took was a pawn. Capture announcements are also how you track how much material your opponent has left.",
+              "**Captures.** When a piece is captured, both players hear the square and whether the captured unit was a pawn or a piece, never which piece.",
           },
           {
             kind: 'paragraph',
             text:
-              "**Checks.** A check is announced to both players with its direction from the checked king's point of view: on the rank, on the file, on the long diagonal, on the short diagonal, or by a knight. A double check announces both directions. The checking piece's square is never given, though you can often deduce it.",
+              "**Checks.** A check is announced to both players as a direction from the checked king: along the rank, along the file, along the long diagonal, along the short diagonal, or by a knight. The long and short diagonals are the longer and shorter of the two diagonals through the king's square. A double check names both directions. The announcement gives the line, never the square, so the checker could stand anywhere along it.",
           },
           {
             kind: 'live-boards',
             spec: {
               layout: 'grid',
               boards: [
-                { board: KRIEGSPIEL_CHECK_BOARD, fogSquares: KRIEGSPIEL_CHECK_FOG, orientation: 'white', label: 'RANK', arrows: [{ orig: 'a4', dest: 'e4' }] },
-                { board: KRIEGSPIEL_CHECK_BOARD, fogSquares: KRIEGSPIEL_CHECK_FOG, orientation: 'white', label: 'FILE', arrows: [{ orig: 'e8', dest: 'e4' }] },
-                { board: KRIEGSPIEL_CHECK_BOARD, fogSquares: KRIEGSPIEL_CHECK_FOG, orientation: 'white', label: 'LONG DIAGONAL', arrows: [{ orig: 'a8', dest: 'e4' }] },
-                { board: KRIEGSPIEL_CHECK_BOARD, fogSquares: KRIEGSPIEL_CHECK_FOG, orientation: 'white', label: 'SHORT DIAGONAL', arrows: [{ orig: 'h7', dest: 'e4' }] },
-                { board: KRIEGSPIEL_CHECK_BOARD, fogSquares: KRIEGSPIEL_CHECK_FOG, orientation: 'white', label: 'KNIGHT', arrows: [{ orig: 'd6', dest: 'e4' }] },
+                { board: KRIEGSPIEL_CHECK_BOARD, fogSquares: KRIEGSPIEL_CHECK_FOG, orientation: 'white', label: 'RANK', highlightSquares: KRIEGSPIEL_CHECK_RANK },
+                { board: KRIEGSPIEL_CHECK_BOARD, fogSquares: KRIEGSPIEL_CHECK_FOG, orientation: 'white', label: 'FILE', highlightSquares: KRIEGSPIEL_CHECK_FILE },
+                { board: KRIEGSPIEL_CHECK_BOARD, fogSquares: KRIEGSPIEL_CHECK_FOG, orientation: 'white', label: 'LONG DIAGONAL', highlightSquares: KRIEGSPIEL_CHECK_LONG_DIAG },
+                { board: KRIEGSPIEL_CHECK_BOARD, fogSquares: KRIEGSPIEL_CHECK_FOG, orientation: 'white', label: 'SHORT DIAGONAL', highlightSquares: KRIEGSPIEL_CHECK_SHORT_DIAG },
+                { board: KRIEGSPIEL_CHECK_BOARD, fogSquares: KRIEGSPIEL_CHECK_FOG, orientation: 'white', label: 'KNIGHT', highlightSquares: KRIEGSPIEL_CHECK_KNIGHT },
               ],
             },
             caption:
-              "The five check announcements, from the checked king's point of view. The arrow is the announced direction; the checking piece stays hidden.",
+              'Each panel is one announced direction, from the king on c3. The gold covers every square the checker could occupy; the announcement gives the direction, not the square. The long diagonal runs eight squares here, the short only five.',
           } as ArticleBlock,
         ],
       },
@@ -98,7 +109,7 @@ export const kriegspielArticle: Article = {
           {
             kind: 'paragraph',
             text:
-              'At the start of each turn, the umpire tells the player to move how many pawn captures they have. A pawn capture is the one move you cannot even attempt without an enemy piece actually standing on the target square, so the count is hard information about where your opponent is. The count includes en passant captures.',
+              'At the start of each turn, the umpire announces how many pawn captures the player to move has, en passant included. A pawn capture is the only move that needs an enemy piece already on the target square.',
           },
         ],
       },
@@ -108,7 +119,7 @@ export const kriegspielArticle: Article = {
           {
             kind: 'paragraph',
             text:
-              'Castling is never announced; a legal castle is just another completed move. Promotion is silent too: your opponent learns about the new queen the hard way. En passant captures are announced as ordinary pawn captures, without the fact that they were en passant.',
+              'Castling is never announced; a legal castle is just another completed move. Promotion is silent: your opponent is not told a pawn has promoted. En passant is announced as an ordinary pawn capture, without revealing that it was en passant.',
           },
         ],
       },
@@ -118,7 +129,7 @@ export const kriegspielArticle: Article = {
           {
             kind: 'paragraph',
             text:
-              'Checkmate ends the game, announced by the umpire. Mates in Kriegspiel are usually accidental: the winner often does not know the mating move was mate until the announcement. Stalemate and the standard chess draws (repetition, fifty moves, insufficient material) are announced the same way.',
+              'Checkmate ends the game, announced by the umpire. Stalemate and the standard chess draws (repetition, fifty moves, insufficient material) are announced the same way.',
           },
         ],
       },
@@ -128,7 +139,7 @@ export const kriegspielArticle: Article = {
           {
             kind: 'paragraph',
             text:
-              "Kriegspiel has no single rulebook. This page follows the convention online play standardized, the Internet Chess Club ruleset later adopted by the computer Kriegspiel olympiads: pawn-try counts each turn, captures announced as pawn or piece with the square, and illegal tries seen only by the player making them. The older English club rules instead let a player ask 'any?' about pawn captures, with a yes obliging one capture try, and over-the-board play often makes every rejection audible to both players, which itself leaks information. Agree on a convention before you play with a human umpire.",
+              "Kriegspiel has no single rulebook. This page follows the Internet Chess Club ruleset, later used by the computer Kriegspiel olympiads: a pawn-try count each turn, captures announced as pawn or piece with the square, and illegal tries seen only by the player making them. Older English club rules differ: a player asks 'any?' about pawn captures, and a yes obliges one capture try.",
           },
         ],
       },
@@ -143,7 +154,7 @@ export const kriegspielArticle: Article = {
           {
             kind: 'paragraph',
             text:
-              'Dark chess, born in 1989, removed the umpire by changing the rules instead: each side sees the squares its pieces can reach, nothing is announced, and the king falls by capture. Kriegspiel keeps every chess rule and pays for it with an umpire; dark chess gives up check and checkmate to need no referee at all. The two variants are the same idea solved two ways.',
+              'Dark chess, born in 1989, hides the same information a different way: each side simply sees the squares its own pieces can reach, the rest of the board is fog, and the king falls by capture. Kriegspiel keeps every chess rule and pays for it with an umpire; dark chess gives up check and checkmate so the hidden information becomes a fixed function of the position, one a computer can compute and render as fog with nothing to announce. That computability is why dark chess, as Fog of War, is the version that spread across online play. The two are the same idea solved two ways.',
           },
         ],
       },

@@ -3037,11 +3037,20 @@ export const KRIEGSPIEL_HERO_BOARD: Board = {
 };
 export const KRIEGSPIEL_HERO_FOG_W = kriegspielFog(KRIEGSPIEL_HERO_BOARD, 'white');
 
-// Check-direction taxonomy: the checked king alone on e4, everything else
-// fogged. Each panel's arrow shows one announced direction; the checking
-// piece itself is never shown (the announcement does not locate it). From
-// e4 the long diagonal is the a8-h1 line (8 squares), the short is b1-h7 (7).
+// Check-direction taxonomy: the checked king alone on c3, everything else
+// fogged. Each panel highlights the full line or region the checker could be
+// on; the announcement gives the direction, never the square, so the marking
+// covers every square it could come from. c3 is chosen so the long diagonal
+// (a1-h8, 8 squares) reads visibly longer than the short (a5-e1, 5 squares).
 export const KRIEGSPIEL_CHECK_BOARD: Board = {
-  e4: { color: 'white', role: 'king' },
+  c3: { color: 'white', role: 'king' },
 };
 export const KRIEGSPIEL_CHECK_FOG = kriegspielFog(KRIEGSPIEL_CHECK_BOARD, 'white');
+
+// Highlighted squares per announced direction, all measured from the king on
+// c3 and excluding c3 itself.
+export const KRIEGSPIEL_CHECK_RANK: Square[] = ['a3', 'b3', 'd3', 'e3', 'f3', 'g3', 'h3'];
+export const KRIEGSPIEL_CHECK_FILE: Square[] = ['c1', 'c2', 'c4', 'c5', 'c6', 'c7', 'c8'];
+export const KRIEGSPIEL_CHECK_LONG_DIAG: Square[] = ['a1', 'b2', 'd4', 'e5', 'f6', 'g7', 'h8'];
+export const KRIEGSPIEL_CHECK_SHORT_DIAG: Square[] = ['a5', 'b4', 'd2', 'e1'];
+export const KRIEGSPIEL_CHECK_KNIGHT: Square[] = ['a2', 'a4', 'b1', 'b5', 'd1', 'd5', 'e2', 'e4'];
