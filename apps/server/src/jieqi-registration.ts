@@ -59,6 +59,12 @@ registerVariantTenant({
   kind: jieqiTenant.kind,
   gameSpecId: jieqiTenant.gameSpecId,
   roomIdPrefix: jieqiTenant.roomIdPrefix,
+  watch: {
+    channelId: 'jieqi',
+    family: 'xiangqi',
+    label: 'Jieqi',
+    legacyVariants: ['jieqi'],
+  },
   ownsSpecRouting: true,
   errorPrefix: 'jieqi',
   enabled: jieqiTenant.enabled,

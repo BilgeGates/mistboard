@@ -1,5 +1,5 @@
 import type { GameEvent } from '@mistboard/game';
-import { webVariantTenants } from './variant-tenant/registry.js';
+import { webVariantTenantForSpecId } from './variant-tenant/registry.js';
 import './watch-route.css';
 import { displayParticipantName, type FeaturedGame, sourceLabel } from './game-display.js';
 import { gameMetaForGame, reviewUrlForGame } from './game-meta.js';
@@ -40,9 +40,12 @@ type WatchFeed = {
   initialReplay?: WatchInitialReplay;
 };
 
-// Which replay renderer family a channel needs: a registered tenant's watch
-// family, or 'chess' (the chessground fallback). A channel switch across
-// families must re-mount, not loadGame.
+// Which replay renderer a channel needs, keyed by the channel's primary
+// gameSpecId (the registry's unambiguous tenant key), or 'chess' (the
+// chessground fallback for the unregistered dark-chess stack). It must NOT key
+// on the coarse watch.family: jieqi and Dark Mini Xiangqi both render in the
+// 'xiangqi' family, so a family key would resolve both channels to the same
+// tenant. A channel switch across renderers must re-mount, not loadGame.
 type WatchRendererKind = string;
 
 const WATCH_ACTIVE_POLL_MS = 15_000;
@@ -78,10 +81,12 @@ export async function mountWatch(root: HTMLElement): Promise<void> {
 
   const watchRendererKind = (feed: WatchFeed): WatchRendererKind => {
     const channel = feed.channels.find((entry) => entry.id === feed.activeChannel);
-    const tenant = channel
-      ? webVariantTenants().find((entry) => entry.watch?.family === channel.family)
-      : null;
-    return tenant?.watch ? tenant.watch.family : 'chess';
+    const specId = channel?.gameSpecIds[0] ?? null;
+    const tenant = webVariantTenantForSpecId(specId);
+    // Key on the channel's primary spec id (unambiguous per tenant) so two
+    // channels in the same render family resolve to distinct renderers; only a
+    // tenant that owns a watch renderer counts, else fall back to chessground.
+    return tenant?.watch && specId ? specId : 'chess';
   };
 
   // Mount the right-kind replay handle, re-mounting when the family changes
@@ -277,8 +282,10 @@ async function mountWatchReplay(
   kind: WatchRendererKind = 'chess',
 ): Promise<ReplayHandle> {
   // Tenant renderers load through the registry's dynamic-import closures, so
-  // they stay out of the chess path's bundle.
-  const tenant = webVariantTenants().find((entry) => entry.watch?.family === kind) ?? null;
+  // they stay out of the chess path's bundle. `kind` is the channel's spec id
+  // (chess uses the chessground fallback below), so the tenant resolves
+  // unambiguously even when two channels share a render family.
+  const tenant = kind === 'chess' ? null : webVariantTenantForSpecId(kind);
   if (tenant?.watch) {
     return await tenant.watch.mountReplay(root, roomId, {
       autoplay: true,

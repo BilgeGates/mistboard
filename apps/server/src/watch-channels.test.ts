@@ -4,7 +4,12 @@ import {
   CROSSROADS_CHESS_SPEC_ID,
   DARK_CHESS_SPEC_ID,
   DARK_DRAFT960_SPEC_ID,
+  JIEQI_SPEC_ID,
 } from '@mistboard/game';
+// Watch channels (other than the hardcoded dark-chess default) derive from the
+// variant-tenant registry, so the registrations must be populated for the
+// derived channels to appear. This side-effect import registers every tenant.
+import './variant-tenant/register-tenants.js';
 import { defaultWatchChannel, listWatchChannels, watchChannelForId } from './watch-channels.js';
 
 test('watch channels expose Dark chess as the default channel', () => {
@@ -46,4 +51,35 @@ test('watch channel list is immutable by convention', () => {
     listWatchChannels().map((channel) => channel.id),
     ['dark-chess'],
   );
+});
+
+test('Jieqi watch channel is absent while the jieqi flag is off', () => {
+  assert.equal(watchChannelForId('jieqi'), null);
+  assert.equal(
+    listWatchChannels().some((channel) => channel.id === 'jieqi'),
+    false,
+  );
+});
+
+test('watch channels expose Jieqi behind its live-room flag', () => {
+  process.env.MISTBOARD_JIEQI_ENABLED = 'true';
+  try {
+    const channel = watchChannelForId('jieqi');
+    assert.equal(channel?.id, 'jieqi');
+    assert.equal(channel?.label, 'Jieqi');
+    assert.equal(channel?.family, 'xiangqi');
+    assert.equal(channel?.default, false);
+    assert.deepEqual(channel?.gameSpecIds, [JIEQI_SPEC_ID]);
+    assert.deepEqual(channel?.legacyVariants, ['jieqi']);
+    // Dark chess stays the default and leads the rail; jieqi follows it.
+    const channels = listWatchChannels();
+    assert.equal(channels[0]?.id, 'dark-chess');
+    assert.equal(defaultWatchChannel().id, 'dark-chess');
+    assert.deepEqual(
+      channels.map((entry) => entry.id),
+      ['dark-chess', 'jieqi'],
+    );
+  } finally {
+    delete process.env.MISTBOARD_JIEQI_ENABLED;
+  }
 });

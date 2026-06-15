@@ -96,6 +96,12 @@ registerVariantTenant({
   kind: darkMiniXiangqiTenant.kind,
   gameSpecId: darkMiniXiangqiTenant.gameSpecId,
   roomIdPrefix: darkMiniXiangqiTenant.roomIdPrefix,
+  watch: {
+    channelId: 'dark-mini-xiangqi',
+    family: 'xiangqi',
+    label: 'Dark Mini Xiangqi',
+    legacyVariants: ['dark-mini-xiangqi'],
+  },
   ownsSpecRouting: true,
   errorPrefix: 'dark_mini_xiangqi',
   enabled: darkMiniXiangqiTenant.enabled,

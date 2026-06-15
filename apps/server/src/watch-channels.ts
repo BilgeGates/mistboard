@@ -1,14 +1,15 @@
 import {
-  CROSSROADS_CHESS_SPEC_ID,
   DARK_CHESS_SPEC_ID,
   DARK_DRAFT960_SPEC_ID,
-  DARK_MINI_XIANGQI_SPEC_ID,
   type GameFamilyId,
   type GameSpecId,
 } from '@mistboard/game';
-import { crossroadsChessEnabled, darkMiniXiangqiEnabled } from './feature-flags.js';
+import { registeredVariantTenants } from './variant-tenant/registry.js';
 
-export type WatchChannelId = 'dark-chess' | 'dark-mini-xiangqi' | 'crossroads-chess';
+// Channel ids are open-ended (one per watchable variant tenant) plus the
+// hardcoded dark-chess channel, so this is a string alias rather than a closed
+// union — adding a watchable variant must not require editing this type.
+export type WatchChannelId = string;
 
 export type WatchChannel = {
   default: boolean;
@@ -19,44 +20,73 @@ export type WatchChannel = {
   legacyVariants: readonly string[];
 };
 
-const WATCH_CHANNELS: readonly WatchChannel[] = [
-  {
-    default: true,
-    family: 'chess',
-    gameSpecIds: [DARK_CHESS_SPEC_ID, DARK_DRAFT960_SPEC_ID],
-    id: 'dark-chess',
-    label: 'Dark chess',
-    legacyVariants: ['dark-chess', 'draft960'],
-  },
-  {
-    default: false,
-    family: 'xiangqi',
-    gameSpecIds: [DARK_MINI_XIANGQI_SPEC_ID],
-    id: 'dark-mini-xiangqi',
-    label: 'Dark Mini Xiangqi',
-    legacyVariants: ['dark-mini-xiangqi'],
-  },
-  {
-    default: false,
-    family: 'crossroads-chess',
-    gameSpecIds: [CROSSROADS_CHESS_SPEC_ID],
-    id: 'crossroads-chess',
-    label: 'Crossroads Chess',
-    legacyVariants: ['crossroads-chess', 'dual-chess'],
-  },
+// Dark chess is the one channel that cannot be derived from the registry: it is
+// a registry MISS (the legacy chess stack is deliberately unregistered), so it
+// stays a hardcoded constant and is always enabled + the default. Every other
+// channel derives from a registered tenant's `watch` field.
+const DARK_CHESS_CHANNEL: WatchChannel = {
+  default: true,
+  family: 'chess',
+  gameSpecIds: [DARK_CHESS_SPEC_ID, DARK_DRAFT960_SPEC_ID],
+  id: 'dark-chess',
+  label: 'Dark chess',
+  legacyVariants: ['dark-chess', 'draft960'],
+};
+
+// Canonical rail order. The registry's Map iteration order tracks tenant
+// import order in register-tenants.ts, which is not the watch rail's order, so
+// the derived channels are sorted by this list (dark-chess always leads as the
+// hardcoded default). Ids absent here sort to the end in registry order, so a
+// new tenant's channel appears without editing this list (just later in the
+// rail than the curated ones).
+const WATCH_CHANNEL_ORDER: readonly string[] = [
+  'dark-chess',
+  'dark-mini-xiangqi',
+  'jieqi',
+  'crossroads-chess',
 ];
+
+function channelOrderIndex(channelId: string): number {
+  const index = WATCH_CHANNEL_ORDER.indexOf(channelId);
+  return index === -1 ? WATCH_CHANNEL_ORDER.length : index;
+}
+
+// The per-variant channels mapped from every registered tenant that declares a
+// watch surface, sorted into the canonical rail order. Derived (not hardcoded)
+// so adding a watchable variant = setting `watch` on its registration.
+function channelsDerivedFromRegistry(): WatchChannel[] {
+  const channels: WatchChannel[] = [];
+  for (const registration of registeredVariantTenants()) {
+    const watch = registration.watch;
+    if (!watch) continue;
+    channels.push({
+      default: watch.default ?? false,
+      family: watch.family as GameFamilyId,
+      gameSpecIds: [registration.gameSpecId as GameSpecId],
+      id: watch.channelId,
+      label: watch.label,
+      legacyVariants: watch.legacyVariants,
+    });
+  }
+  channels.sort((a, b) => channelOrderIndex(a.id) - channelOrderIndex(b.id));
+  return channels;
+}
 
 // Channels can be gated behind a feature flag so a variant's watch tab only
 // appears once the variant is being launched. Hidden channels are also
-// unreachable by deep link (watchChannelForId returns null for them).
+// unreachable by deep link (watchChannelForId returns null for them). Dark
+// chess is always on; every derived channel reuses its tenant's enabled() so
+// the watch rail can never drift from the live-room gate.
 function channelEnabled(channel: WatchChannel): boolean {
-  if (channel.id === 'dark-mini-xiangqi') return darkMiniXiangqiEnabled();
-  if (channel.id === 'crossroads-chess') return crossroadsChessEnabled();
-  return true;
+  if (channel.id === DARK_CHESS_CHANNEL.id) return true;
+  const registration = registeredVariantTenants().find(
+    (entry) => entry.watch?.channelId === channel.id,
+  );
+  return registration?.enabled() ?? false;
 }
 
 export function listWatchChannels(): readonly WatchChannel[] {
-  return WATCH_CHANNELS.filter(channelEnabled);
+  return [DARK_CHESS_CHANNEL, ...channelsDerivedFromRegistry()].filter(channelEnabled);
 }
 
 export function defaultWatchChannel(): WatchChannel {

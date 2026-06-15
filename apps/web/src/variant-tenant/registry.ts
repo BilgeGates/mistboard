@@ -181,6 +181,16 @@ const WEB_VARIANT_TENANTS: readonly WebVariantTenant[] = [
           () =>
             bootstrapJieqiLiveRoom(),
       ),
+    // Renders in the 'xiangqi' family (intersection board) like Dark Mini
+    // Xiangqi, but watch-route dispatch keys on the channel's spec id, not the
+    // family, so the two never collide on the same renderer.
+    watch: {
+      family: 'xiangqi',
+      mountReplay: (root, roomId, options) =>
+        import('../watch-jieqi-replay.js').then(({ mountJieqiWatchReplay }) =>
+          mountJieqiWatchReplay(root, roomId, options),
+        ),
+    },
     landing: {
       capabilities: {
         ...XIANGQI_CAPABILITIES_BASE,

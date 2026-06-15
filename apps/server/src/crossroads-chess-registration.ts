@@ -90,6 +90,13 @@ registerVariantTenant({
   kind: crossroadsChessTenant.kind,
   gameSpecId: crossroadsChessTenant.gameSpecId,
   roomIdPrefix: crossroadsChessTenant.roomIdPrefix,
+  watch: {
+    channelId: 'crossroads-chess',
+    family: 'crossroads-chess',
+    label: 'Crossroads Chess',
+    // 'dual-chess' is the pre-rename alias still seen in persisted records.
+    legacyVariants: ['crossroads-chess', 'dual-chess'],
+  },
   ownsSpecRouting: true,
   errorPrefix: 'crossroads_chess',
   enabled: crossroadsChessTenant.enabled,

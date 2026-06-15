@@ -49,10 +49,28 @@ export type TenantCreateHttpContext = {
   reserveLiveEngineSeat(engineId: string, color: 'white' | 'black'): Promise<string | null>;
 };
 
+// Mistboard TV channel metadata for a registered tenant. Optional: tenants
+// without a watch surface (correspondence-only dark-chess, the dark-xiangqi
+// dev spike) omit it. watch-channels.ts derives the per-variant channels from
+// the tenants that set this, keeping "a new watchable variant = one registry
+// field" true. `default` only ever describes the dark-chess channel, which is a
+// registry MISS (not a tenant), so registered tenants never set it; the field
+// is kept for shape completeness.
+export type VariantTenantWatchChannel = {
+  channelId: string;
+  label: string;
+  family: string;
+  legacyVariants: readonly string[];
+  default?: boolean;
+};
+
 export type VariantTenantRegistration = {
   kind: string;
   gameSpecId: string;
   roomIdPrefix: string;
+  // Mistboard TV channel for this tenant, or null/absent when it has no watch
+  // surface. Derived into WatchChannel by watch-channels.ts.
+  watch?: VariantTenantWatchChannel | null;
   // Whether this registration is the spec's PRIMARY routing surface
   // (variantTenantForSpecId — today that means the lobby). True for tenants
   // that solely own their spec (DMX, Dark Xiangqi, Crossroads). False for
