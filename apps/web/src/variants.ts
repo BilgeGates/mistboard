@@ -4,29 +4,33 @@
 // here instead of hunting hardcoded lists across the UI.
 //
 // Note: this is the CLIENT registry. A variant that introduces a new server
-// rating pool (e.g. Xiangqi) also needs the server-side pool added (rating
-// bucket type + migration) as part of that variant's integration — the client
-// registry doesn't substitute for that, it just centralizes the UI surface.
+// rating pool also needs the server-side pool added (the `rated` spec flag +
+// a user_ratings CHECK migration) as part of that variant's integration — the
+// client registry doesn't substitute for that, it just centralizes the UI surface.
 
 import {
+  BANQI_SPEC_ID,
   CROSSROADS_CHESS_SPEC_ID,
   DARK_CHESS_SPEC_ID,
   DARK_DRAFT960_SPEC_ID,
   DARK_MINI_XIANGQI_SPEC_ID,
   type GameSpecId,
   gameSpecForId,
-  type RatingPoolBaseId,
+  JIEQI_SPEC_ID,
+  type RatingVariant,
+  ratingPoolForSpec,
 } from '@mistboard/game';
 import {
+  banqiEnabled,
   crossroadsChessEnabled,
   darkMiniXiangqiEnabled,
   darkMiniXiangqiPublicEntryEnabled,
+  jieqiEnabled,
 } from './feature-flags.js';
 
-export type RatingVariantId = Extract<
-  RatingPoolBaseId,
-  'fog' | 'fog_draft960' | 'dark_mini_xiangqi' | 'crossroads_chess_open'
->;
+// The rated-pool union lives on the game spec now (single source of truth). Kept
+// as a local alias so existing call sites keep the `RatingVariantId` name.
+export type RatingVariantId = RatingVariant;
 
 export interface VariantDef {
   id: RatingVariantId;
@@ -46,10 +50,14 @@ const draft960Enabled = import.meta.env.VITE_DRAFT960_ENABLED === 'true';
 const darkMiniEnabled = darkMiniXiangqiEnabled();
 const darkMiniPublicEntryEnabled = darkMiniXiangqiPublicEntryEnabled();
 const crossroadsEnabled = crossroadsChessEnabled();
+const jieqiOn = jieqiEnabled();
+const banqiOn = banqiEnabled();
 const darkChessSpec = gameSpecForId(DARK_CHESS_SPEC_ID);
 const draft960Spec = gameSpecForId(DARK_DRAFT960_SPEC_ID);
 const darkMiniXiangqiSpec = gameSpecForId(DARK_MINI_XIANGQI_SPEC_ID);
 const crossroadsChessSpec = gameSpecForId(CROSSROADS_CHESS_SPEC_ID);
+const jieqiSpec = gameSpecForId(JIEQI_SPEC_ID);
+const banqiSpec = gameSpecForId(BANQI_SPEC_ID);
 
 export const VARIANTS: VariantDef[] = [
   {
@@ -91,6 +99,28 @@ export const VARIANTS: VariantDef[] = [
     onLeaderboard: true,
     onProfile: true,
   },
+  // Jieqi + Banqi launched casual and are rating-ready (gated globally by
+  // MISTBOARD_RATED_ENABLED). Not lobby-selectable (no open-seek matchmaking);
+  // shown on the rating surfaces whenever their variant flag is on, consistent
+  // with the other rated variants. They light up the moment rated is enabled.
+  {
+    id: currentRatingVariantForSpec(JIEQI_SPEC_ID),
+    gameSpecId: jieqiSpec.id,
+    apiParam: JIEQI_SPEC_ID,
+    label: jieqiSpec.publicName,
+    enabled: false,
+    onLeaderboard: jieqiOn,
+    onProfile: jieqiOn,
+  },
+  {
+    id: currentRatingVariantForSpec(BANQI_SPEC_ID),
+    gameSpecId: banqiSpec.id,
+    apiParam: BANQI_SPEC_ID,
+    label: banqiSpec.publicName,
+    enabled: false,
+    onLeaderboard: banqiOn,
+    onProfile: banqiOn,
+  },
 ];
 
 /** Variants shown on public rating surfaces (leaderboard + profile grid). */
@@ -106,20 +136,8 @@ export function isVariantEnabled(id: RatingVariantId): boolean {
   return VARIANTS.some((v) => v.id === id && v.enabled);
 }
 
-function currentRatingVariantForSpec(
-  id:
-    | typeof DARK_CHESS_SPEC_ID
-    | typeof DARK_DRAFT960_SPEC_ID
-    | typeof DARK_MINI_XIANGQI_SPEC_ID
-    | typeof CROSSROADS_CHESS_SPEC_ID,
-): RatingVariantId {
-  const ratingPool = gameSpecForId(id).ratingPoolBase;
-  if (
-    ratingPool === 'fog' ||
-    ratingPool === 'fog_draft960' ||
-    ratingPool === 'dark_mini_xiangqi' ||
-    ratingPool === 'crossroads_chess_open'
-  )
-    return ratingPool;
-  throw new Error(`game spec ${id} is not a current web rating variant`);
+function currentRatingVariantForSpec(id: GameSpecId): RatingVariantId {
+  const pool = ratingPoolForSpec(id);
+  if (!pool) throw new Error(`game spec ${id} is not a current web rating variant`);
+  return pool;
 }

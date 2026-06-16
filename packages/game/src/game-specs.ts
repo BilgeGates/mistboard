@@ -98,6 +98,10 @@ export type GameSpec = {
   ratingPoolBase: RatingPoolBaseId;
   publicSurface: GameSpecSurface;
   runtimeStatus: GameSpecRuntimeStatus;
+  // Active rating pool flag: true ⇒ this spec's ratingPoolBase is one of the
+  // currently-rated pools (RATED_POOL_BASES derives from this). Casual-only
+  // specs omit it. Gated globally by MISTBOARD_RATED_ENABLED regardless.
+  rated?: boolean;
   legacyLiveRoom?: {
     variant: VariantId;
     hiddenDraft960: boolean;
@@ -134,6 +138,7 @@ export const GAME_SPECS: readonly GameSpec[] = [
     reserves: 'none',
     dropPolicy: 'none',
     ratingPoolBase: 'fog',
+    rated: true,
     publicSurface: 'casual',
     runtimeStatus: 'live',
     legacyLiveRoom: { variant: 'dark-chess', hiddenDraft960: false },
@@ -150,6 +155,7 @@ export const GAME_SPECS: readonly GameSpec[] = [
     reserves: 'none',
     dropPolicy: 'none',
     ratingPoolBase: 'fog_draft960',
+    rated: true,
     publicSurface: 'hidden',
     runtimeStatus: 'live',
     legacyLiveRoom: { variant: 'dark-chess', hiddenDraft960: true },
@@ -241,6 +247,7 @@ export const GAME_SPECS: readonly GameSpec[] = [
     reserves: 'none',
     dropPolicy: 'none',
     ratingPoolBase: 'dark_mini_xiangqi',
+    rated: true,
     publicSurface: 'hidden',
     runtimeStatus: 'dev-spike',
   },
@@ -271,6 +278,7 @@ export const GAME_SPECS: readonly GameSpec[] = [
     reserves: 'none',
     dropPolicy: 'none',
     ratingPoolBase: 'jieqi',
+    rated: true,
     publicSurface: 'hidden',
     runtimeStatus: 'future',
   },
@@ -291,6 +299,7 @@ export const GAME_SPECS: readonly GameSpec[] = [
     reserves: 'none',
     dropPolicy: 'none',
     ratingPoolBase: 'banqi',
+    rated: true,
     publicSurface: 'hidden',
     runtimeStatus: 'future',
   },
@@ -340,6 +349,7 @@ export const GAME_SPECS: readonly GameSpec[] = [
     reserves: 'none',
     dropPolicy: 'none',
     ratingPoolBase: 'crossroads_chess_open',
+    rated: true,
     publicSurface: 'hidden',
     runtimeStatus: 'dev-spike',
   },
@@ -414,4 +424,34 @@ export function legacyLiveRoomForGameSpec(id: GameSpecId): GameSpec['legacyLiveR
 
 function isTruthyLegacyFlag(value: boolean | string | null | undefined): boolean {
   return value === true || value === '1' || value === 'true' || value === 'yes';
+}
+
+// --- Rating pools (single source of truth: the `rated` flag on each spec) ---
+
+// The compile-time shadow of the active rated-pool set. Keep this union in sync
+// with the `rated: true` specs; the game-specs test guards that they agree, and
+// the union must match the user_ratings CHECK constraint (latest migration).
+export type RatingVariant = Extract<
+  RatingPoolBaseId,
+  'fog' | 'fog_draft960' | 'dark_mini_xiangqi' | 'crossroads_chess_open' | 'jieqi' | 'banqi'
+>;
+
+// The active rated-pool set, derived from the `rated` flag. This is the ONE
+// runtime list; server bucketing + web leaderboard/profile all derive from it,
+// so a new rated variant is just a `rated: true` spec flag + a CHECK migration.
+export const RATED_POOL_BASES: readonly RatingVariant[] = GAME_SPECS.flatMap((spec) =>
+  spec.rated ? [spec.ratingPoolBase as RatingVariant] : [],
+);
+
+const RATED_POOL_BASE_SET = new Set<string>(RATED_POOL_BASES);
+
+export function isRatedPoolBase(value: string | null | undefined): value is RatingVariant {
+  return value != null && RATED_POOL_BASE_SET.has(value);
+}
+
+// The active rating pool for a spec, or null when the spec is casual-only.
+// Callers fail closed on null (the game is simply not rated).
+export function ratingPoolForSpec(id: GameSpecId): RatingVariant | null {
+  const pool = gameSpecForId(id).ratingPoolBase;
+  return isRatedPoolBase(pool) ? pool : null;
 }

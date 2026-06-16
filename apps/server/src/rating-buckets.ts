@@ -1,20 +1,19 @@
 import {
-  CROSSROADS_CHESS_SPEC_ID,
   DARK_CHESS_SPEC_ID,
   DARK_DRAFT960_SPEC_ID,
-  DARK_MINI_XIANGQI_SPEC_ID,
   type GameSpecId,
-  gameSpecForId,
-  JIEQI_SPEC_ID,
-  type RatingPoolBaseId,
+  isRatedPoolBase,
+  maybeGameSpecForId,
+  type RatingVariant,
+  ratingPoolForSpec,
   type TimeClass,
   timeClassFromTimeControl,
 } from '@mistboard/game';
 
-export type RatingVariant = Extract<
-  RatingPoolBaseId,
-  'fog' | 'fog_draft960' | 'dark_mini_xiangqi' | 'crossroads_chess_open'
->;
+// Rated-pool vocabulary lives on the game spec (single source of truth):
+// RatingVariant + ratingPoolForSpec derive from each spec's `rated` flag.
+// Re-exported here so existing server importers keep their import path.
+export type { RatingVariant } from '@mistboard/game';
 export type RatingTimeClass = TimeClass;
 
 export type RatingBucket = {
@@ -40,22 +39,19 @@ export function bucketForGame(input: BucketInput): RatingBucket | null {
   const timeClass = timeClassFromTimeControl(input.initialMs, input.incrementMs);
   if (!timeClass) return null;
   if (timeClass !== PUBLIC_RATING_TIME_CLASS) return null;
-  // Fail closed: a spec with no current rating pool (e.g. jieqi, which is
-  // casual-only) yields no bucket, so a rated game on it is simply not rated
-  // rather than silently mis-credited to the fog pool.
+  // Fail closed: a casual-only spec (no active rating pool) yields no bucket, so
+  // a rated game on it is simply not rated rather than mis-credited to fog.
   const variant = ratingPoolForSpec(ratingSpecForGame(input));
   if (!variant) return null;
   return { variant, timeClass: PUBLIC_RATING_TIME_CLASS };
 }
 
+// Accepts a canonical pool name ('fog'), a game spec id ('dark-chess'), or a
+// spec alias ('fog-draft960') and returns the rated pool, or null if casual.
 export function parseRatingVariant(value: string | null | undefined): RatingVariant | null {
-  if (value === 'fog' || value === 'dark-chess') return 'fog';
-  if (value === 'fog_draft960' || value === 'fog-draft960' || value === 'dark-draft960')
-    return 'fog_draft960';
-  if (value === 'dark_mini_xiangqi' || value === 'dark-mini-xiangqi') return 'dark_mini_xiangqi';
-  if (value === 'crossroads_chess_open' || value === 'crossroads-chess')
-    return 'crossroads_chess_open';
-  return null;
+  if (isRatedPoolBase(value)) return value;
+  const spec = maybeGameSpecForId(value);
+  return spec ? ratingPoolForSpec(spec.id) : null;
 }
 
 export function parseRatingTimeClass(value: string | null | undefined): RatingTimeClass | null {
@@ -65,27 +61,17 @@ export function parseRatingTimeClass(value: string | null | undefined): RatingTi
   return null;
 }
 
+// Map a game's variant string to the spec whose rating pool it belongs to. Any
+// known spec maps to itself (each rated variant buckets into its own pool); the
+// dark-chess family splits on hiddenDraft960; unknown/legacy values fall back to
+// the dark-chess family. ratingPoolForSpec then fails closed for casual specs.
 function ratingSpecForGame(input: BucketInput): GameSpecId {
-  if (input.variant === CROSSROADS_CHESS_SPEC_ID) return CROSSROADS_CHESS_SPEC_ID;
-  if (input.variant === DARK_MINI_XIANGQI_SPEC_ID) return DARK_MINI_XIANGQI_SPEC_ID;
-  // Jieqi is casual-only: map it to its own spec so ratingPoolForSpec returns
-  // null (no pool) rather than letting it fall through to the dark-chess
-  // fallback and pollute the fog pool.
-  if (input.variant === JIEQI_SPEC_ID) return JIEQI_SPEC_ID;
+  const spec = maybeGameSpecForId(input.variant);
+  if (spec) {
+    if (spec.id === DARK_CHESS_SPEC_ID && input.hiddenDraft960) return DARK_DRAFT960_SPEC_ID;
+    return spec.id;
+  }
   return input.hiddenDraft960 ? DARK_DRAFT960_SPEC_ID : DARK_CHESS_SPEC_ID;
-}
-
-// The current rating pool for a spec, or null when the spec has no rated pool.
-function ratingPoolForSpec(id: GameSpecId): RatingVariant | null {
-  const ratingPool = gameSpecForId(id).ratingPoolBase;
-  if (
-    ratingPool === 'fog' ||
-    ratingPool === 'fog_draft960' ||
-    ratingPool === 'dark_mini_xiangqi' ||
-    ratingPool === 'crossroads_chess_open'
-  )
-    return ratingPool;
-  return null;
 }
 
 function currentRatingVariantForSpec(id: GameSpecId): RatingVariant {

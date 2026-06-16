@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import {
   BANQI_SPEC_ID,
+  CROSSROADS_CHESS_SPEC_ID,
   DARK_CHESS_SPEC_ID,
   DARK_DRAFT960_SPEC_ID,
   DARK_MINI_XIANGQI_SPEC_ID,
@@ -12,9 +13,13 @@ import {
   gameSpecForId,
   gameSpecForLegacyLiveRoom,
   isGameSpecId,
+  isRatedPoolBase,
   JIEQI_SPEC_ID,
   legacyLiveRoomForGameSpec,
   maybeGameSpecForId,
+  RATED_POOL_BASES,
+  type RatingVariant,
+  ratingPoolForSpec,
 } from './game-specs.js';
 
 test('current dark chess maps to the flagship chess spec', () => {
@@ -243,4 +248,38 @@ test('current live specs can be converted back to the existing room wire shape',
   assert.equal(legacyLiveRoomForGameSpec(DARK_MINI_XIANGQI_SPEC_ID), null);
   assert.equal(legacyLiveRoomForGameSpec(DARK_XIANGQI_SPEC_ID), null);
   assert.equal(legacyLiveRoomForGameSpec(DARK_SHOGI_SPEC_ID), null);
+});
+
+test('RATED_POOL_BASES derives from the rated flag and matches the RatingVariant union', () => {
+  // The runtime set is exactly the ratingPoolBase of every `rated: true` spec.
+  const fromFlag = GAME_SPECS.filter((spec) => spec.rated).map((spec) => spec.ratingPoolBase);
+  assert.deepEqual([...RATED_POOL_BASES].sort(), [...fromFlag].sort());
+
+  // The compile-time RatingVariant union must match the runtime set. This Record
+  // literal forces every union member to appear exactly once (a missing or extra
+  // member is a compile error); comparing its keys to RATED_POOL_BASES guards the
+  // type, the `rated` flags, and the user_ratings CHECK migration against drift.
+  const unionMembers: Record<RatingVariant, true> = {
+    fog: true,
+    fog_draft960: true,
+    dark_mini_xiangqi: true,
+    crossroads_chess_open: true,
+    jieqi: true,
+    banqi: true,
+  };
+  assert.deepEqual(Object.keys(unionMembers).sort(), [...RATED_POOL_BASES].sort());
+});
+
+test('ratingPoolForSpec is rated for launched pools and null for casual-only specs', () => {
+  assert.equal(ratingPoolForSpec(DARK_CHESS_SPEC_ID), 'fog');
+  assert.equal(ratingPoolForSpec(DARK_DRAFT960_SPEC_ID), 'fog_draft960');
+  assert.equal(ratingPoolForSpec(CROSSROADS_CHESS_SPEC_ID), 'crossroads_chess_open');
+  assert.equal(ratingPoolForSpec(JIEQI_SPEC_ID), 'jieqi');
+  assert.equal(ratingPoolForSpec(BANQI_SPEC_ID), 'banqi');
+  // Casual-only specs (no `rated` flag) have no active pool.
+  assert.equal(ratingPoolForSpec(DARK_XIANGQI_SPEC_ID), null);
+  assert.equal(ratingPoolForSpec(DARK_SHOGI_SPEC_ID), null);
+  assert.equal(isRatedPoolBase('jieqi'), true);
+  assert.equal(isRatedPoolBase('dark_xiangqi'), false);
+  assert.equal(isRatedPoolBase('not-a-pool'), false);
 });

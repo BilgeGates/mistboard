@@ -1,7 +1,9 @@
 import {
+  BANQI_SPEC_ID,
   type Color,
   CROSSROADS_CHESS_SPEC_ID,
   DARK_MINI_XIANGQI_SPEC_ID,
+  JIEQI_SPEC_ID,
   TIME_CONTROLS,
   type TimeClass,
   type XiangqiColor,
@@ -1028,6 +1030,11 @@ function ratedParticipantColorsForVariant(variant: string): {
   black: RatedParticipantColor;
 } {
   if (variant === DARK_MINI_XIANGQI_SPEC_ID) return { white: 'red', black: 'black' };
+  // Jieqi + Banqi are red/black (red = first mover = the white rating slot, like
+  // DMX; banqi keys on the SEAT, not ink). The default result mapping below then
+  // applies (red-wins -> white-wins, black-wins passthrough), so no result arm.
+  if (variant === JIEQI_SPEC_ID || variant === BANQI_SPEC_ID)
+    return { white: 'red', black: 'black' };
   if (variant === CROSSROADS_CHESS_SPEC_ID) return { white: 'white', black: 'red' };
   return { white: 'white', black: 'black' };
 }

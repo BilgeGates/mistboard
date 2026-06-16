@@ -1,12 +1,13 @@
 // Profile + leaderboard pages — extracted from landing.ts.
 
+import type { RatingVariant } from '@mistboard/game';
 import './account-profile.css';
 import type { FeaturedGame } from './game-display.js';
 import { buildProfileGameRow, buildProfileHeaderShell } from './profile-ui.js';
 import { buildLoadingState, buildNav, buildNotice } from './site-shell.js';
 import { leaderboardVariants, profileRatingVariants } from './variants.js';
 
-type ProfileRatingVariant = 'fog' | 'fog_draft960' | 'dark_mini_xiangqi' | 'crossroads_chess_open';
+type ProfileRatingVariant = RatingVariant;
 type ProfileRatingTimeClass = 'bullet' | 'blitz' | 'rapid';
 type ProfileBucketRating = {
   variant: ProfileRatingVariant;
@@ -56,6 +57,8 @@ const PROFILE_VARIANT_LABEL: Record<ProfileRatingVariant, string> = {
   fog_draft960: 'Dark Draft960',
   dark_mini_xiangqi: 'Dark Mini Xiangqi',
   crossroads_chess_open: 'Crossroads Chess',
+  jieqi: 'Jieqi',
+  banqi: 'Banqi',
 };
 
 // Profile rating grid is subject-scoped: render-capable soft-launch variants can

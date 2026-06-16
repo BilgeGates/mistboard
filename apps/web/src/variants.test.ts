@@ -1,4 +1,5 @@
 import {
+  BANQI_SPEC_ID,
   CROSSROADS_CHESS_SPEC_ID,
   DARK_CHESS_SPEC_ID,
   DARK_DRAFT960_SPEC_ID,
@@ -6,6 +7,7 @@ import {
   DARK_SHOGI_SPEC_ID,
   DARK_XIANGQI_SPEC_ID,
   gameSpecForId,
+  JIEQI_SPEC_ID,
 } from '@mistboard/game';
 import { describe, expect, it, vi } from 'vitest';
 import {
@@ -127,6 +129,39 @@ describe('web variant launch registry', () => {
       [DARK_DRAFT960_SPEC_ID, 'dark-draft960'],
       [DARK_MINI_XIANGQI_SPEC_ID, 'dark-mini-xiangqi'],
       [CROSSROADS_CHESS_SPEC_ID, 'crossroads-chess'],
+      [JIEQI_SPEC_ID, 'jieqi'],
+      [BANQI_SPEC_ID, 'banqi'],
     ]);
+  });
+
+  it('shows Jieqi + Banqi on rating surfaces behind their flags, never in the lobby', async () => {
+    // Rating-ready: visible on leaderboard/profile when their variant flag is on
+    // (gated globally by MISTBOARD_RATED_ENABLED on the server), but never
+    // lobby-selectable — neither has open-seek matchmaking.
+    vi.resetModules();
+    vi.stubEnv('VITE_JIEQI_ENABLED', 'true');
+    vi.stubEnv('VITE_BANQI_ENABLED', 'true');
+    const flagged = await import('./variants.js');
+
+    for (const specId of [JIEQI_SPEC_ID, BANQI_SPEC_ID]) {
+      expect(flagged.leaderboardVariants.map((v) => v.gameSpecId)).toContain(specId);
+      expect(flagged.profileRatingVariants.map((v) => v.gameSpecId)).toContain(specId);
+      expect(flagged.enabledVariants.map((v) => v.gameSpecId)).not.toContain(specId);
+    }
+
+    vi.unstubAllEnvs();
+    vi.resetModules();
+  });
+
+  it('keeps Jieqi + Banqi off the rating surfaces when their flags are off', async () => {
+    vi.resetModules();
+    vi.stubEnv('DEV', false);
+    const prod = await import('./variants.js');
+    for (const specId of [JIEQI_SPEC_ID, BANQI_SPEC_ID]) {
+      expect(prod.leaderboardVariants.map((v) => v.gameSpecId)).not.toContain(specId);
+      expect(prod.profileRatingVariants.map((v) => v.gameSpecId)).not.toContain(specId);
+    }
+    vi.unstubAllEnvs();
+    vi.resetModules();
   });
 });
