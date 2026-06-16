@@ -2,11 +2,11 @@ export const MISTBOARD_ENGINE_SNAPSHOT_ID = 'engine-v2-2026-05-24';
 export const MISTBOARD_ENGINE_SNAPSHOT_NAME = 'Mistboard Engine v2.0';
 export const MISTBOARD_ENGINE_BASELINE_NAME = 'Mistboard Engine v0.9.5';
 
-// Current player-facing engine identity (the v2 engine, streamlined release
-// 2026-06-02). Used for the homepage self-play showcase and as the canonical
+// Current player-facing engine identity (the v2 engine). v1.1 shipped 2026-06-16,
+// superseding v1.0. Used for the homepage self-play showcase and as the canonical
 // display name wherever the engine's subject id appears.
-export const MISTBOARD_ENGINE_MISTY_ID = 'python-v2-v1.0';
-export const MISTBOARD_ENGINE_MISTY_NAME = 'Misty 1.0';
+export const MISTBOARD_ENGINE_MISTY_ID = 'python-v2-v1.1';
+export const MISTBOARD_ENGINE_MISTY_NAME = 'Misty 1.1';
 
 export type GameParticipant = {
   color: 'white' | 'black' | 'red';
@@ -108,6 +108,8 @@ function engineDisplayName(name: string | null | undefined): string | null {
     'builtin-random-legal': 'Random Legal v1',
     [MISTBOARD_ENGINE_SNAPSHOT_ID]: MISTBOARD_ENGINE_SNAPSHOT_NAME,
     [MISTBOARD_ENGINE_MISTY_ID]: MISTBOARD_ENGINE_MISTY_NAME,
+    'python-v2-v1.0': 'Misty 1.0', // historical: 1.0 games still display correctly post-1.1
+
     'python-random-legal': 'Random Legal Python v1',
     'python-tier1-v0.7.0': 'Mistboard Engine preview',
     'python-tier1-v0.7.22': 'Mistboard Engine preview',

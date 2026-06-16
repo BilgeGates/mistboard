@@ -8,8 +8,11 @@ import {
 } from './engine-registry.js';
 
 test('playable live engine client ids = the single streamlined PVE engine (Misty)', () => {
-  // Streamlined release (2026-06-02): only Misty (python-v2-v1.0) is player-facing.
-  assert.equal(isPlayableLiveEngineClientId('python-v2-v1.0'), true);
+  // Streamlined release (2026-06-02): only the latest Misty is player-facing.
+  // v1.1 shipped 2026-06-16, superseding v1.0 in the picker (1.0 stays in the
+  // registry so historical games resolve, but is no longer offered).
+  assert.equal(isPlayableLiveEngineClientId('python-v2-v1.1'), true);
+  assert.equal(isPlayableLiveEngineClientId('python-v2-v1.0'), false);
 });
 
 test('playable live engine client ids exclude hidden, retired, EvE aliases, and humans', () => {

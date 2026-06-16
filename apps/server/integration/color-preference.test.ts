@@ -17,7 +17,7 @@ let httpBase: string;
 let priorExtraEngines: string | undefined;
 
 before(async () => {
-  // The prod PvE default is now Misty (python-v2-v1.0), which needs Stockfish +
+  // The prod PvE default is now Misty (python-v2-v1.1), which needs Stockfish +
   // a python worker this hermetic test doesn't have. The PvE cases here only
   // care about seat assignment, so opt the builtin random engine in and request
   // it explicitly — a cheap, reservation-free stand-in.

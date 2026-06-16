@@ -30,7 +30,7 @@ export function playableBuiltinEngines(): EngineDefinition[] {
 // records, but are NOT offered in the live PvE picker. No random fallback in the
 // PvE serving path — if Misty can't serve it fails loudly (503), by design.
 const PROD_PLAYABLE_ENGINE_IDS = new Set([
-  'python-v2-v1.0', // Misty 1.0
+  'python-v2-v1.1', // Misty 1.1 (supersedes 1.0 2026-06-16; latest-only picker)
 ]);
 
 // Opt-in extras for load testing / local experimentation. Set
@@ -149,6 +149,68 @@ const PYTHON_ENGINES: Record<string, EngineDefinition> = {
     livePolicy: { timeoutMs: 120_000 },
     notes: 'Current v2 development engine. Local-only; for strength testing.',
   },
+  // Local-only A/B for the human gadget match (2026-06-14). Both use current
+  // src/fow_chess/; the live worker maps the engine-id to an engine_profile
+  // (strongest = shipped gadget-off; faithful = Obscuro Resolve, cvar=0). Enable:
+  // MISTBOARD_EXTRA_PLAYABLE_ENGINES=python-v2-strongest,python-v2-faithful
+  'python-v2-strongest': {
+    id: 'python-v2-strongest',
+    engineId: 'v2',
+    engineName: 'Misty',
+    name: 'Misty (Strongest · gadget-off)',
+    kind: 'container',
+    configHash: 'v2-strongest-local',
+    playSignature: 'v2-strongest',
+    config: {
+      kind: 'python-subprocess',
+      strategy: 'v2',
+      version: 'current',
+      config: 'v2-strongest',
+      config_hash: 'current',
+    },
+    livePolicy: { timeoutMs: 120_000 },
+    notes: 'Local-only A/B: shipped STRONGEST profile (gadget-off). Worker maps id->profile.',
+  },
+  'python-v2-faithful': {
+    id: 'python-v2-faithful',
+    engineId: 'v2',
+    engineName: 'Misty',
+    name: 'Misty (Faithful · Resolve)',
+    kind: 'container',
+    configHash: 'v2-faithful-local',
+    playSignature: 'v2-faithful',
+    config: {
+      kind: 'python-subprocess',
+      strategy: 'v2',
+      version: 'current',
+      config: 'v2-faithful',
+      config_hash: 'current',
+    },
+    livePolicy: { timeoutMs: 120_000 },
+    notes: 'Local-only A/B: faithful Obscuro Resolve (cvar=0, gadget-on). Worker maps id->profile.',
+  },
+  // Local-only A/B for the king-safe human gate (2026-06-15). v1.1-rc2 = shipped
+  // v1.0 + ONLY the king-only commit backstop (no gadget); the worker maps this
+  // id to engine_profile 'v1.1-rc2'. Enable:
+  // MISTBOARD_EXTRA_PLAYABLE_ENGINES=python-v2-v1.0,python-v2-kingsafe
+  'python-v2-kingsafe': {
+    id: 'python-v2-kingsafe',
+    engineId: 'v2',
+    engineName: 'Misty',
+    name: 'Misty (King-safe · v1.1-rc2)',
+    kind: 'container',
+    configHash: 'v2-kingsafe-local',
+    playSignature: 'v2-kingsafe',
+    config: {
+      kind: 'python-subprocess',
+      strategy: 'v2',
+      version: 'current',
+      config: 'v2-kingsafe',
+      config_hash: 'current',
+    },
+    livePolicy: { timeoutMs: 120_000 },
+    notes: 'Local-only A/B: v1.0 + king-only commit backstop (v1.1-rc2). Worker maps id->profile.',
+  },
   // Misty 1.0 is the frozen, player-facing first-party engine. Internal pins
   // stay stable so already-recorded games resolve. Bump to python-v2-v1.1
   // (+ V2_LIVE_ENGINES) on the next engine upgrade.
@@ -171,7 +233,33 @@ const PYTHON_ENGINES: Record<string, EngineDefinition> = {
     livePolicy: { timeoutMs: 30_000 },
     notes:
       'Misty 1.0 — frozen first-party engine release for live play. Validated ' +
-      '2026-06-02 against the legacy first-party baseline.',
+      '2026-06-02 against the legacy first-party baseline. Superseded by 1.1 ' +
+      '2026-06-16; kept in registry so already-recorded 1.0 games resolve.',
+  },
+  // Misty 1.1 — the player-facing release that SUPERSEDES 1.0 (2026-06-16). The
+  // faithful/Resolve arm: the only config 0% on BOTH catastrophe rigs (king-suicide
+  // + queen-in-fog hang) at no strength cost vs 1.0 (40-position move-divergence:
+  // 85% identical moves, ~0.03 mean EV gap). Worker maps id -> engine_profile v1.1.
+  'python-v2-v1.1': {
+    id: 'python-v2-v1.1',
+    engineId: 'v2',
+    engineName: 'Misty',
+    name: 'Misty 1.1',
+    kind: 'container',
+    configHash: 'v2-v1.1-17f55c5',
+    playSignature: '17f55c5',
+    config: {
+      kind: 'python-subprocess',
+      strategy: 'v2',
+      version: '1.1',
+      config: 'v2-faithful-resolve',
+      config_hash: '17f55c5',
+      engine_pin: 'misty-1.1@17f55c5',
+    },
+    livePolicy: { timeoutMs: 30_000 },
+    notes:
+      'Misty 1.1 — faithful/Resolve, catastrophe-complete (king + queen). ' +
+      'Shipped 2026-06-16, supersedes 1.0.',
   },
   // Dark Mini Xiangqi engine. Not in the chess PvE picker; the Dark Mini
   // Xiangqi route selects it through the variant-aware worker protocol.
@@ -368,11 +456,54 @@ const JIEQI_ENGINES: Record<string, EngineDefinition> = {
   },
 };
 
+// MistyBanqi (our own Rust αβ+TT engine, Tier-B UCI subprocess — banqi-engine.ts).
+// Fixed-strength, so tiers vary only movetime (deeper = stronger). ids match
+// banqi-engine.ts (the route/scheduler key off those, not this registry).
+const BANQI_ENGINES: Record<string, EngineDefinition> = {
+  'misty-banqi-amateur': {
+    id: 'misty-banqi-amateur',
+    engineId: 'misty-banqi',
+    engineName: 'MistyBanqi',
+    name: 'MistyBanqi - Amateur',
+    kind: 'container',
+    gameSpecId: 'banqi',
+    configHash: 'misty-banqi-amateur',
+    playSignature: 'misty-banqi-amateur',
+    config: { kind: 'banqi-uci', movetime_ms: 200 },
+    notes: 'Banqi MistyBanqi 0.1.0 (standalone Rust αβ+TT UCI engine) amateur tier.',
+  },
+  'misty-banqi-strong': {
+    id: 'misty-banqi-strong',
+    engineId: 'misty-banqi',
+    engineName: 'MistyBanqi',
+    name: 'MistyBanqi - Strong',
+    kind: 'container',
+    gameSpecId: 'banqi',
+    configHash: 'misty-banqi-strong',
+    playSignature: 'misty-banqi-strong',
+    config: { kind: 'banqi-uci', movetime_ms: 600 },
+    notes: 'Default Banqi MistyBanqi tier.',
+  },
+  'misty-banqi-strongest': {
+    id: 'misty-banqi-strongest',
+    engineId: 'misty-banqi',
+    engineName: 'MistyBanqi',
+    name: 'MistyBanqi - Strongest',
+    kind: 'container',
+    gameSpecId: 'banqi',
+    configHash: 'misty-banqi-strongest',
+    playSignature: 'misty-banqi-strongest',
+    config: { kind: 'banqi-uci', movetime_ms: 1500 },
+    notes: 'Top Banqi MistyBanqi tier (longer movetime).',
+  },
+};
+
 const KNOWN_ENGINES: Record<string, EngineDefinition> = {
   ...BUILTIN_ENGINES,
   ...PYTHON_ENGINES,
   ...CROSSROADS_CHESS_ENGINES,
   ...JIEQI_ENGINES,
+  ...BANQI_ENGINES,
 };
 
 export function latestBuiltinEngineIds(): { white: string; black: string } {

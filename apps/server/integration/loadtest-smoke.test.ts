@@ -37,7 +37,7 @@ let baselineFallbacks = 0;
 let priorExtraEngines: string | undefined;
 
 before(async () => {
-  // The prod PvE picker now offers only Misty (python-v2-v1.0), and the prod
+  // The prod PvE picker now offers only Misty (python-v2-v1.1), and the prod
   // default engine is Misty — both require Stockfish + a python worker, which
   // this hermetic web-only canary does not have. Opt the builtin random engine
   // back in for THIS test (it's the lightweight, can't-fail stand-in the canary
