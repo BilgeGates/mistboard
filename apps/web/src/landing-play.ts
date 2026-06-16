@@ -920,6 +920,12 @@ function openLandingSetupDialog(choice: LandingPlayChoice): void {
     if (preferredColor === 'black' && capabilities.secondColor !== 'black') {
       preferredColor = capabilities.secondColor;
     }
+    // Some variants (Banqi) have no choosable side — the ink is bound by the
+    // first mover's opening flip — so suppress the color picker and randomize.
+    const hideColorPicker =
+      webVariantTenantForSpecId(selectedGameSpecId)?.landing?.hideColorPicker ?? false;
+    if (hideColorPicker) preferredColor = 'random';
+    if (colorSection) colorSection.hidden = hideColorPicker;
     if (startGroup) startGroup.hidden = !capabilities.supportsStartFormat;
     if (ratingSection) ratingSection.hidden = !capabilities.supportsRated;
     if (engineSection) {

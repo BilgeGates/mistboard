@@ -36,6 +36,7 @@ import {
 import { jieqiEnabled } from './feature-flags.js';
 import { isJieqiEngineClientId, jieqiEngineDisplayName } from './jieqi-engine.js';
 import type * as persistence from './persistence.js';
+import { tenantPveEngineId } from './variant-tenant/runtime.js';
 import type {
   TenantClientEvent,
   TenantRoomEvent,
@@ -168,6 +169,15 @@ export const jieqiTenant: JieqiTenant = {
     isEngineClientId: isJieqiEngineClientId,
     displayName: jieqiEngineDisplayName,
     reservationReleaseTag: 'jieqi',
+  },
+  // Emit the room mode + engine id so the client knows a finished PvE game was
+  // PvE and "Play again" re-creates a PvE game vs the same engine (not a PvP
+  // invite). Mirrors crossroads/DMX; Jieqi's core snapshot carries no extras.
+  wire: {
+    snapshotExtras: (room) => {
+      const pveEngineId = tenantPveEngineId(jieqiTenant, room);
+      return pveEngineId === null ? { roomMode: 'pvp' } : { roomMode: 'pve', pveEngineId };
+    },
   },
   persistence: {
     resultForWinner: (winner: JieqiColor | null): persistence.GameResult => {

@@ -68,6 +68,10 @@ export type WebTenantLandingConfig = {
   // into the landing engine section.
   engineOptions?: readonly WebTenantEngineOption[];
   defaultEngineId?: string;
+  // Suppress the create-game color/side picker. For Banqi there is no side to
+  // choose: the ink (red/black) is bound by the first mover's opening flip, so a
+  // Red/Black picker is meaningless — the seat is randomized instead.
+  hideColorPicker?: boolean;
 };
 
 export type WebVariantTenant = {
@@ -286,6 +290,7 @@ const WEB_VARIANT_TENANTS: readonly WebVariantTenant[] = [
         },
       ],
       defaultEngineId: 'misty-banqi-strong',
+      hideColorPicker: true,
     },
   },
   {

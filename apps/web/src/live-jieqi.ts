@@ -90,6 +90,8 @@ type JieqiLiveFrame = {
   clock?: JieqiLiveClock | null;
   connectedSeats?: Record<JieqiColor, boolean>;
   abortDeadline?: number | null;
+  roomMode?: 'pve' | 'pvp';
+  pveEngineId?: string | null;
   timeControl?: { initialMs: number; incrementMs: number } | null;
   clients?: number;
   events?: JieqiWireEvent[];
@@ -109,6 +111,8 @@ const state = {
   connectedSeats: { red: false, black: false } as Record<JieqiColor, boolean>,
   events: [] as JieqiWireEvent[],
   abortDeadline: null as number | null,
+  roomMode: 'pvp' as 'pve' | 'pvp',
+  pveEngineId: null as string | null,
 };
 
 let client: TenantSocketClient | null = null;
@@ -152,18 +156,18 @@ const chrome = createTenantRoomChrome(jieqiWebTenant, {
   timeControl: () => state.timeControl,
   connectedSeats: () => state.connectedSeats,
   abortDeadline: () => state.abortDeadline,
-  // Not on the Jieqi wire (tenant core snapshot, no extras): the forfeit banner
-  // and rematch block never arm.
+  // Not on the Jieqi wire: the forfeit banner and rematch block never arm.
   forfeitDeadline: () => null,
-  roomMode: () => 'pvp',
+  roomMode: () => state.roomMode,
   room: () => state.room,
   debugRequested: () => false,
   isReplayLive: () => replay.isLive(),
   orientation: () => orientationFor(state.view),
   playAgainRequestBody: () => ({
-    mode: 'pvp',
+    mode: state.roomMode,
     gameSpecId: 'jieqi',
     preferredColor: 'random',
+    ...(state.roomMode === 'pve' && state.pveEngineId ? { engineId: state.pveEngineId } : {}),
     ...(state.timeControl ? { timeControl: state.timeControl } : {}),
   }),
   rematchControls: () => null,
@@ -250,6 +254,8 @@ function applyFrame(frame: JieqiLiveFrame): void {
   state.clock = frame.clock ?? null;
   state.timeControl = frame.timeControl ?? state.timeControl;
   state.seats = frame.seats ?? state.seats;
+  state.roomMode = frame.roomMode ?? state.roomMode;
+  state.pveEngineId = frame.pveEngineId ?? state.pveEngineId;
   if (frame.connectedSeats) state.connectedSeats = frame.connectedSeats;
   state.abortDeadline = frame.abortDeadline ?? null;
   if (frame.events) state.events = frame.events;

@@ -41,6 +41,7 @@ import {
 import { banqiEngineDisplayName, isBanqiEngineClientId } from './banqi-engine.js';
 import { banqiEnabled } from './feature-flags.js';
 import type * as persistence from './persistence.js';
+import { tenantPveEngineId } from './variant-tenant/runtime.js';
 import type {
   TenantClientEvent,
   TenantRoomEvent,
@@ -180,6 +181,16 @@ export const banqiTenant: BanqiTenant = {
     isEngineClientId: isBanqiEngineClientId,
     displayName: banqiEngineDisplayName,
     reservationReleaseTag: 'banqi',
+  },
+  // Banqi's core snapshot has no forfeit/rematch surface; the only extras are
+  // the room mode + engine id. Without them the client can't tell a finished
+  // PvE game from a PvP one, so "Play again" fell back to a PvP invite instead
+  // of re-creating a PvE game vs the same engine.
+  wire: {
+    snapshotExtras: (room) => {
+      const pveEngineId = tenantPveEngineId(banqiTenant, room);
+      return pveEngineId === null ? { roomMode: 'pvp' } : { roomMode: 'pve', pveEngineId };
+    },
   },
   persistence: {
     // The winner is a SEAT ('red' = first mover). Recorded directly; the actual
