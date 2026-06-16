@@ -29,6 +29,7 @@ import {
   jieqiEnabled,
   revealChessEnabled,
 } from './feature-flags.js';
+import type { VariantMiniId } from './variant-mini-boards.js';
 
 // The rated-pool union lives on the game spec now (single source of truth). Kept
 // as a local alias so existing call sites keep the `RatingVariantId` name.
@@ -46,6 +47,8 @@ export interface VariantDef {
   onLeaderboard: boolean;
   /** Shown on subject-scoped profile rating grids. */
   onProfile: boolean;
+  /** Which mini-board (renderVariantMiniBoard) represents this variant in the UI. */
+  miniId: VariantMiniId;
 }
 
 const draft960Enabled = import.meta.env.VITE_DRAFT960_ENABLED === 'true';
@@ -69,6 +72,7 @@ export const VARIANTS: VariantDef[] = [
     gameSpecId: darkChessSpec.id,
     apiParam: 'fog',
     label: darkChessSpec.publicName,
+    miniId: 'dark-chess',
     enabled: true,
     onLeaderboard: true,
     onProfile: true,
@@ -81,6 +85,7 @@ export const VARIANTS: VariantDef[] = [
     gameSpecId: draft960Spec.id,
     apiParam: 'dark-draft960',
     label: draft960Spec.publicName,
+    miniId: 'draft960',
     enabled: draft960Enabled,
     onLeaderboard: false,
     onProfile: false,
@@ -90,6 +95,7 @@ export const VARIANTS: VariantDef[] = [
     gameSpecId: darkMiniXiangqiSpec.id,
     apiParam: DARK_MINI_XIANGQI_SPEC_ID,
     label: darkMiniXiangqiSpec.publicName,
+    miniId: 'dark-mini-xiangqi',
     enabled: darkMiniPublicEntryEnabled,
     onLeaderboard: darkMiniPublicEntryEnabled,
     onProfile: darkMiniEnabled,
@@ -99,6 +105,7 @@ export const VARIANTS: VariantDef[] = [
     gameSpecId: crossroadsChessSpec.id,
     apiParam: CROSSROADS_CHESS_SPEC_ID,
     label: crossroadsChessSpec.publicName,
+    miniId: 'crossroads',
     enabled: crossroadsEnabled,
     onLeaderboard: true,
     onProfile: true,
@@ -112,6 +119,7 @@ export const VARIANTS: VariantDef[] = [
     gameSpecId: jieqiSpec.id,
     apiParam: JIEQI_SPEC_ID,
     label: jieqiSpec.publicName,
+    miniId: 'jieqi',
     enabled: false,
     onLeaderboard: jieqiOn,
     onProfile: jieqiOn,
@@ -121,6 +129,7 @@ export const VARIANTS: VariantDef[] = [
     gameSpecId: banqiSpec.id,
     apiParam: BANQI_SPEC_ID,
     label: banqiSpec.publicName,
+    miniId: 'banqi',
     enabled: false,
     onLeaderboard: banqiOn,
     onProfile: banqiOn,
@@ -130,6 +139,7 @@ export const VARIANTS: VariantDef[] = [
     gameSpecId: revealChessSpec.id,
     apiParam: REVEAL_CHESS_SPEC_ID,
     label: revealChessSpec.publicName,
+    miniId: 'reveal-chess',
     enabled: false,
     onLeaderboard: revealChessOn,
     onProfile: revealChessOn,
@@ -147,6 +157,16 @@ export const enabledVariants = VARIANTS.filter((v) => v.enabled);
 
 export function isVariantEnabled(id: RatingVariantId): boolean {
   return VARIANTS.some((v) => v.id === id && v.enabled);
+}
+
+/** Mini-board id for a game spec (picker/landing), or null if none. */
+export function variantMiniIdForGameSpec(id: GameSpecId): VariantMiniId | null {
+  return VARIANTS.find((v) => v.gameSpecId === id)?.miniId ?? null;
+}
+
+/** Mini-board id for a rating variant (leaderboard/profile), or null if none. */
+export function variantMiniIdForRating(id: RatingVariantId): VariantMiniId | null {
+  return VARIANTS.find((v) => v.id === id)?.miniId ?? null;
 }
 
 function currentRatingVariantForSpec(id: GameSpecId): RatingVariantId {

@@ -24,8 +24,9 @@ import {
 } from './feature-flags.js';
 import { isRatedModeEnabled } from './rated-flag.js';
 import { isLikelySignedIn } from './signed-in-state.js';
+import { renderVariantMiniBoard } from './variant-mini-boards.js';
 import { webVariantTenantForSpecId, webVariantTenants } from './variant-tenant/registry.js';
-import { isVariantEnabled } from './variants.js';
+import { isVariantEnabled, variantMiniIdForGameSpec } from './variants.js';
 import { ENGINE_OFFER_AFTER_MS, shouldOfferEngine } from './web-utils.js';
 
 export type PlayableEngine = {
@@ -623,23 +624,46 @@ function openLandingSetupDialog(choice: LandingPlayChoice): void {
   // through direct soft-launch links.
   const variantSelectable = variantOptions.length > 1;
   if (variantSelectable) {
-    const gameSpecSelect = document.createElement('select');
-    gameSpecSelect.className = 'landing-variant-select landing-engine-select';
-    gameSpecSelect.setAttribute('aria-label', 'Variant');
+    // A visual radiogroup of variant cards (mini-board + name) replaces the old
+    // native <select>, so the picker doubles as a showcase of what's playable.
+    const grid = document.createElement('div');
+    grid.className = 'landing-variant-grid';
+    grid.setAttribute('role', 'radiogroup');
+    grid.setAttribute('aria-label', 'Variant');
+    const cards = new Map<LandingGameSpecId, HTMLButtonElement>();
     for (const { gameSpecId, label } of variantOptions) {
-      const option = document.createElement('option');
-      option.value = gameSpecId;
-      option.textContent = label;
-      gameSpecSelect.append(option);
+      const card = document.createElement('button');
+      card.type = 'button';
+      card.className = 'landing-variant-card';
+      card.setAttribute('role', 'radio');
+      const miniId = variantMiniIdForGameSpec(gameSpecId);
+      if (miniId) {
+        const thumb = document.createElement('span');
+        thumb.className = 'landing-variant-card-thumb';
+        thumb.innerHTML = renderVariantMiniBoard(miniId, { size: 100, label: `${label} board` });
+        card.append(thumb);
+      }
+      const name = document.createElement('span');
+      name.className = 'landing-variant-card-name';
+      name.textContent = label;
+      card.append(name);
+      card.addEventListener('click', () => {
+        selectedGameSpecId = gameSpecId;
+        syncVariantControls();
+        syncGameSpecificSections();
+      });
+      cards.set(gameSpecId, card);
+      grid.append(card);
     }
     syncVariantControls = () => {
-      gameSpecSelect.value = selectedGameSpecId;
+      for (const [specId, card] of cards) {
+        const on = specId === selectedGameSpecId;
+        card.classList.toggle('selected', on);
+        card.setAttribute('aria-checked', on ? 'true' : 'false');
+      }
     };
-    gameSpecSelect.addEventListener('change', () => {
-      selectedGameSpecId = parseLandingGameSpecId(gameSpecSelect.value);
-      syncGameSpecificSections();
-    });
-    variantSection.append(gameSpecSelect);
+    syncVariantControls();
+    variantSection.append(grid);
   } else {
     const variantControl = document.createElement('div');
     variantControl.className = 'landing-variant-control';

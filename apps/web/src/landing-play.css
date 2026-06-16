@@ -473,6 +473,57 @@
   font-weight: 800;
 }
 
+/* Variant picker: a small grid of mini-board cards (replaces the native select). */
+.landing-variant-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(92px, 1fr));
+  gap: 8px;
+}
+
+.landing-variant-card {
+  display: grid;
+  gap: 6px;
+  justify-items: center;
+  padding: 8px;
+  border: 1px solid var(--site-border);
+  border-radius: var(--site-radius-sm);
+  background: var(--site-panel);
+  color: var(--site-text);
+  cursor: pointer;
+  font: inherit;
+}
+
+.landing-variant-card-thumb {
+  display: block;
+  width: 100%;
+  max-width: 76px;
+  aspect-ratio: 1 / 1;
+}
+
+.landing-variant-card-thumb svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.landing-variant-card-name {
+  font-size: 12px;
+  font-weight: 750;
+  line-height: 1.2;
+  text-align: center;
+}
+
+.landing-variant-card.selected {
+  border-color: var(--site-accent);
+  background: var(--site-accent-soft);
+  box-shadow: inset 0 0 0 1px var(--site-accent);
+}
+
+.landing-variant-card:hover,
+.landing-variant-card:focus-visible {
+  border-color: var(--site-accent);
+}
+
 .landing-setup-actions {
   display: grid;
   grid-template-columns: 1fr 1fr;
