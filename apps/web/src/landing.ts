@@ -69,21 +69,11 @@ export async function mountLanding(root: HTMLElement): Promise<void> {
     povByRoomId[g.roomId] = pickHeroPovForGame(g);
   }
 
-  // Keep the "Review this game" link pointed at whatever game the hero is
-  // currently showing. Only real games have a /game/:id page, so the static
-  // engine fallback leaves the link hidden.
-  const syncReviewLink = (sampleId: string) => {
-    if (!usingRealGames) return;
-    stage.reviewLink.href = `/game/${encodeURIComponent(sampleId)}`;
-    stage.reviewLink.hidden = false;
-  };
-
   const replay = await mountReplay(stage.replayRoot, currentSample, {
     autoplay: true,
     showControls: false,
     keyboardNav: false,
     revealOnFinish: false,
-    onSampleChange: syncReviewLink,
     orientationForId: (sampleId) => povByRoomId[sampleId] ?? 'white',
     // Cycle the corpus per-visitor, pacing each game by its real per-move
     // timing: PvP uses recorded move deltas, EvE uses engine think time.
@@ -102,11 +92,6 @@ export async function mountLanding(root: HTMLElement): Promise<void> {
     endStatusMode: 'clock',
     panes: { resolver: (sampleId) => povByRoomId[sampleId] ?? 'white' },
   });
-
-  // The review link is wired via onSampleChange (synced to the cycling hero);
-  // ensure it reflects the initial sample in case the first load fired before
-  // the handle returned.
-  syncReviewLink(replay.activeSampleId());
 
   // Upgrade the play panel + deep-link handling once the real playable engines
   // load. The shell already rendered with the "Misty" placeholder, so this is an
@@ -180,10 +165,7 @@ export async function mountLanding(root: HTMLElement): Promise<void> {
     for (const id of nextPool) poolIds.add(id);
     // First time real games arrive, jump straight to one instead of letting the
     // static Misty-vs-Misty placeholder play out — it runs ~3 min before the loop
-    // would rotate, so visitors otherwise only ever see the fallback. The jump's
-    // loadGame fires onSampleChange -> syncReviewLink with the real id (which also
-    // clears the bogus /game/engine-v2-gNNNN link), so flip usingRealGames first
-    // or syncReviewLink early-returns and the link stays hidden.
+    // would rotate, so visitors otherwise only ever see the fallback.
     const leavingStaticFallback = !usingRealGames;
     if (leavingStaticFallback) usingRealGames = true;
     replay.updateLoopPool(nextPool, { jumpNow: leavingStaticFallback });
@@ -465,7 +447,6 @@ function buildLandingStage(
 ): {
   el: HTMLElement;
   replayRoot: HTMLElement;
-  reviewLink: HTMLAnchorElement;
   applyEngines: (engines: PlayableEngine[]) => void;
 } {
   const stage = document.createElement('main');
@@ -502,19 +483,7 @@ function buildLandingStage(
   const replayRoot = document.createElement('div');
   replayRoot.id = 'landing-replay';
 
-  const fogNote = document.createElement('p');
-  fogNote.className = 'landing-hero-fog-note';
-  fogNote.textContent = 'One player’s view. The rest is hidden in the fog.';
-
-  // Small, explicit CTA so only this target opens the full replay — the board
-  // itself is not clickable. Shown/wired only for real games (the static engine
-  // fallback samples have no /game/:id page). Href tracks the cycling hero.
-  const reviewLink = document.createElement('a');
-  reviewLink.className = 'landing-review-link';
-  reviewLink.textContent = 'Review this game →';
-  reviewLink.hidden = true;
-
-  boardColumn.append(replayRoot, fogNote, reviewLink);
+  boardColumn.append(replayRoot);
   centerColumn.append(boardColumn);
   const articleCards = buildHomeArticleCards();
   if (articleCards) centerColumn.append(articleCards);
@@ -542,7 +511,7 @@ function buildLandingStage(
   // The footer lives only on the homepage now (stripped from interior routes),
   // blended into the bottom of the stage rather than rendered as a separate bar.
   stage.append(section, buildHomeFooter());
-  return { el: stage, replayRoot, reviewLink, applyEngines };
+  return { el: stage, replayRoot, applyEngines };
 }
 
 // Build-time static render of the homepage (nav + stage), baked by the prerender

@@ -199,8 +199,8 @@ export type ReplayOptions = {
   enginePanels?: EngineReviewPanels;
   /**
    * Called whenever the active sample changes (initial mount and every loop
-   * transition). Lets a host keep an out-of-band control — e.g. the landing
-   * hero's "Review this game" link — pointed at the game currently showing.
+   * transition). Lets a host keep out-of-band controls pointed at the game
+   * currently showing.
    */
   onSampleChange?: (sampleId: string) => void;
 };
