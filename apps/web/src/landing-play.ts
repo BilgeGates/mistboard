@@ -925,7 +925,13 @@ function openLandingSetupDialog(choice: LandingPlayChoice): void {
     const hideColorPicker =
       webVariantTenantForSpecId(selectedGameSpecId)?.landing?.hideColorPicker ?? false;
     if (hideColorPicker) preferredColor = 'random';
-    if (colorSection) colorSection.hidden = hideColorPicker;
+    if (colorSection) {
+      // `.hidden` alone won't hide it: `.landing-setup-section` sets
+      // `display: grid`, which overrides the `[hidden]` attribute's
+      // `display: none`. Toggle the inline display so it actually disappears.
+      colorSection.hidden = hideColorPicker;
+      colorSection.style.display = hideColorPicker ? 'none' : '';
+    }
     if (startGroup) startGroup.hidden = !capabilities.supportsStartFormat;
     if (ratingSection) ratingSection.hidden = !capabilities.supportsRated;
     if (engineSection) {
