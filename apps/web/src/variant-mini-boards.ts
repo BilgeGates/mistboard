@@ -14,7 +14,9 @@ export type VariantMiniId =
   | 'dark-mini-xiangqi'
   | 'jieqi'
   | 'banqi'
-  | 'crossroads';
+  | 'crossroads'
+  | 'kriegspiel'
+  | 'reveal-chess';
 
 export interface VariantMiniDef {
   id: VariantMiniId;
@@ -50,13 +52,13 @@ const XQ_BACK_RED_FILL = '#a95f4a';
 const XQ_BACK_RED_RING = '#6f342c';
 const XQ_BACK_BLACK_FILL = '#2f7d62';
 const XQ_BACK_BLACK_RING = '#174536';
-// Crossroads keeps a faint river band over its chess checker.
-const RIVER_FILL = 'rgba(214, 230, 234, 0.62)';
+// Crossroads' river bar along the top boundary of its chess checker.
+const CROSSROADS_RIVER = '#5e84b0';
 
 // board geometry inside the 100x100 viewBox (leaves room for the rounded frame)
-const OX = 4;
-const OY = 4;
-const SIZE = 92;
+const OX = 2;
+const OY = 2;
+const SIZE = 96;
 
 // ---- low-level draw helpers ----------------------------------------------
 
@@ -66,6 +68,20 @@ function chessPieceAt(key: string, cx: number, cy: number, cell: number): string
   const inner = svg.replace(/^<svg[^>]*>/, '').replace(/<\/svg>\s*$/, '');
   const s = cell * 0.92;
   return `<svg x="${cx - s / 2}" y="${cy - s / 2}" width="${s}" height="${s}" viewBox="0 0 45 45">${inner}</svg>`;
+}
+
+// A face-down chess piece (Reveal Chess): a blank ivory token with a dark rim.
+function chessBackToken(cx: number, cy: number, cell: number): string {
+  const r = cell * 0.4;
+  return [
+    `<circle cx="${cx}" cy="${cy}" r="${r}" fill="#efe7d6" stroke="#33312c" stroke-width="2"/>`,
+    `<circle cx="${cx}" cy="${cy}" r="${r * 0.58}" fill="none" stroke="#33312c" stroke-width="1" opacity="0.4"/>`,
+  ].join('');
+}
+
+// A "?" mark for an unseen enemy piece under Kriegspiel fog.
+function kriegspielUnknown(cx: number, cy: number, cell: number): string {
+  return `<text x="${cx}" y="${cy}" font-family="system-ui, sans-serif" font-size="${cell * 0.62}" font-weight="800" fill="rgba(238,238,210,0.92)" text-anchor="middle" dominant-baseline="central">?</text>`;
 }
 
 function checker(cols: number, rows: number, cell: number): string {
@@ -96,8 +112,24 @@ function fogCell(c: number, r: number, cell: number): string {
 type XqColor = 'red' | 'black';
 
 const XQ_TRAD: Record<XqColor, Record<string, string>> = {
-  red: { general: '帥', advisor: '仕', elephant: '相', horse: '傌', chariot: '俥', cannon: '炮', soldier: '兵' },
-  black: { general: '將', advisor: '士', elephant: '象', horse: '馬', chariot: '車', cannon: '砲', soldier: '卒' },
+  red: {
+    general: '帥',
+    advisor: '仕',
+    elephant: '相',
+    horse: '傌',
+    chariot: '俥',
+    cannon: '炮',
+    soldier: '兵',
+  },
+  black: {
+    general: '將',
+    advisor: '士',
+    elephant: '象',
+    horse: '馬',
+    chariot: '車',
+    cannon: '砲',
+    soldier: '卒',
+  },
 };
 
 // A piece disc with the baked traditional glyph path (font-independent), sized
@@ -111,7 +143,10 @@ function xiangqiDisc(cx: number, cy: number, size: number, color: XqColor, role:
     `<g transform="translate(${cx - size / 2} ${cy - size / 2}) scale(${scale})">`,
     `<circle cx="50" cy="50" r="46" fill="${XQ_DISC}" stroke="${ink}" stroke-width="2.5"/>`,
     `<circle cx="50" cy="50" r="38" fill="none" stroke="${ink}" stroke-width="1.5"/>`,
-    path ? `<path d="${path}" fill="${ink}"/>` : '',
+    // glyph scaled up slightly about the disc centre so the character reads bigger
+    path
+      ? `<g transform="translate(50 50) scale(1.12) translate(-50 -50)"><path d="${path}" fill="${ink}"/></g>`
+      : '',
     `</g>`,
   ].join('');
 }
@@ -147,7 +182,10 @@ function xqGeom(cols: number, rows: number, margin = 9): XqGeom {
 // optional palace box gets corner-to-corner diagonals.
 function xqBoard(
   g: XqGeom,
-  opts: { riverGapAfterRow?: number; palace?: { cLo: number; cHi: number; rLo: number; rHi: number } } = {},
+  opts: {
+    riverGapAfterRow?: number;
+    palace?: { cLo: number; cHi: number; rLo: number; rHi: number };
+  } = {},
 ): string {
   const lines: string[] = [];
   for (let r = 0; r < g.rows; r += 1) {
@@ -158,15 +196,23 @@ function xqBoard(
     if (opts.riverGapAfterRow !== undefined && !edge) {
       const rg = opts.riverGapAfterRow;
       lines.push(`<line x1="${g.px(c)}" y1="${g.py(0)}" x2="${g.px(c)}" y2="${g.py(rg)}"/>`);
-      lines.push(`<line x1="${g.px(c)}" y1="${g.py(rg + 1)}" x2="${g.px(c)}" y2="${g.py(g.rows - 1)}"/>`);
+      lines.push(
+        `<line x1="${g.px(c)}" y1="${g.py(rg + 1)}" x2="${g.px(c)}" y2="${g.py(g.rows - 1)}"/>`,
+      );
     } else {
-      lines.push(`<line x1="${g.px(c)}" y1="${g.py(0)}" x2="${g.px(c)}" y2="${g.py(g.rows - 1)}"/>`);
+      lines.push(
+        `<line x1="${g.px(c)}" y1="${g.py(0)}" x2="${g.px(c)}" y2="${g.py(g.rows - 1)}"/>`,
+      );
     }
   }
   if (opts.palace) {
     const p = opts.palace;
-    lines.push(`<line x1="${g.px(p.cLo)}" y1="${g.py(p.rLo)}" x2="${g.px(p.cHi)}" y2="${g.py(p.rHi)}"/>`);
-    lines.push(`<line x1="${g.px(p.cHi)}" y1="${g.py(p.rLo)}" x2="${g.px(p.cLo)}" y2="${g.py(p.rHi)}"/>`);
+    lines.push(
+      `<line x1="${g.px(p.cLo)}" y1="${g.py(p.rLo)}" x2="${g.px(p.cHi)}" y2="${g.py(p.rHi)}"/>`,
+    );
+    lines.push(
+      `<line x1="${g.px(p.cHi)}" y1="${g.py(p.rLo)}" x2="${g.px(p.cLo)}" y2="${g.py(p.rHi)}"/>`,
+    );
   }
   return [
     `<rect x="${OX}" y="${OY}" width="${SIZE}" height="${SIZE}" fill="${XQ_BG}"/>`,
@@ -226,35 +272,37 @@ const XQ_RED_VISIBLE = new Set<string>(
 );
 
 function darkXiangqiBody(): string {
-  // Red's base on files a..e, ranks 1..5: the back-rank court (chariot, horse,
-  // elephant, advisor, general), the cannon on b3 behind the rank-4 soldiers
-  // (a, c, e). Fog is computed from real vision — the advisor file (d) has a
-  // blind spot (d2, d4, d5) and c2 is screened by the elephant's horse-leg.
+  // Red's base on files a..e, ranks 1..5, mirrored horizontally (columns flipped
+  // f -> 4-f; glyphs stay upright). The back-rank court (chariot, horse, elephant,
+  // advisor, general), the cannon on b3 behind the rank-4 soldiers (a, c, e), and
+  // real-vision fog — the advisor file (d) blind spot (d2, d4, d5) plus c2 where
+  // the elephant screens the horse's leg.
   const g = xqGeom(5, 5);
   const disc = g.gx * 0.86;
+  const px = (f: number) => g.px(4 - f); // mirror columns; keep pieces unflipped
   const fileCh = (f: number) => String.fromCharCode(97 + f);
   const fog: string[] = [];
   for (let f = 0; f <= 4; f += 1) {
     for (let rank = 1; rank <= 5; rank += 1) {
       if (XQ_RED_VISIBLE.has(`${fileCh(f)}${rank}`)) continue;
-      const cx = g.px(f);
+      const cx = px(f);
       const cy = g.py(5 - rank);
       fog.push(
         `<rect x="${cx - g.gx / 2}" y="${cy - g.gy / 2}" width="${g.gx}" height="${g.gy}" fill="${XQ_FOG}"/>`,
       );
     }
   }
-  const court = ['chariot', 'horse', 'elephant', 'advisor', 'general'].map((role, c) =>
-    xiangqiDisc(g.px(c), g.py(4), disc, 'red', role),
+  const court = ['chariot', 'horse', 'elephant', 'advisor', 'general'].map((role, f) =>
+    xiangqiDisc(px(f), g.py(4), disc, 'red', role),
   );
   // The visible half of the palace: file f is off this crop, so draw the two
-  // diagonals over the advisor (col 3) and general (col 4) files only.
-  const halfPalace = `<g stroke="${XQ_LINE}" stroke-width="1" stroke-linecap="round"><line x1="${g.px(3)}" y1="${g.py(4)}" x2="${g.px(4)}" y2="${g.py(3)}"/><line x1="${g.px(3)}" y1="${g.py(2)}" x2="${g.px(4)}" y2="${g.py(3)}"/></g>`;
+  // diagonals over the advisor (file d) and general (file e) files only.
+  const halfPalace = `<g stroke="${XQ_LINE}" stroke-width="1" stroke-linecap="round"><line x1="${px(3)}" y1="${g.py(4)}" x2="${px(4)}" y2="${g.py(3)}"/><line x1="${px(3)}" y1="${g.py(2)}" x2="${px(4)}" y2="${g.py(3)}"/></g>`;
   const pieces = [
     ...court,
-    xiangqiDisc(g.px(1), g.py(2), disc, 'red', 'cannon'),
+    xiangqiDisc(px(1), g.py(2), disc, 'red', 'cannon'),
     // soldiers sit on rank 4, two rows ahead of the cannon's rank
-    ...[0, 2, 4].map((c) => xiangqiDisc(g.px(c), g.py(1), disc, 'red', 'soldier')),
+    ...[0, 2, 4].map((f) => xiangqiDisc(px(f), g.py(1), disc, 'red', 'soldier')),
   ];
   return [xqBoard(g), halfPalace, fog.join(''), ...pieces].join('');
 }
@@ -298,21 +346,24 @@ function darkMiniXiangqiBody(): string {
 }
 
 function jieqiBody(): string {
-  // Full xiangqi board, every piece face-down except two revealed identities.
+  // Same crop as Dark Xiangqi (mirrored), but jieqi hides identities, not
+  // positions: every piece except the general is flipped to its blank
+  // solid-colour back. No position fog — the whole board is visible.
   const g = xqGeom(5, 5);
-  const disc = g.gx * 0.94;
-  const blackBacks: Array<[number, number]> = [[0, 0], [1, 0], [3, 0], [4, 0], [2, 1]];
-  const redBacks: Array<[number, number]> = [[0, 4], [2, 4], [4, 4], [3, 3]];
-  const backs = [
-    ...blackBacks.map(([c, r]) => xiangqiBackDisc(g.px(c), g.py(r), disc, 'black')),
-    ...redBacks.map(([c, r]) => xiangqiBackDisc(g.px(c), g.py(r), disc, 'red')),
-  ].join('');
-  return [
-    xqBoard(g, { riverGapAfterRow: 2 }),
-    backs,
-    xiangqiDisc(g.px(1), g.py(1), disc, 'black', 'horse'),
-    xiangqiDisc(g.px(1), g.py(4), disc, 'red', 'chariot'),
-  ].join('');
+  const disc = g.gx * 0.86;
+  const px = (f: number) => g.px(4 - f);
+  const court = ['chariot', 'horse', 'elephant', 'advisor', 'general'].map((role, f) =>
+    role === 'general'
+      ? xiangqiDisc(px(f), g.py(4), disc, 'red', role)
+      : xiangqiBackDisc(px(f), g.py(4), disc, 'red'),
+  );
+  const halfPalace = `<g stroke="${XQ_LINE}" stroke-width="1" stroke-linecap="round"><line x1="${px(3)}" y1="${g.py(4)}" x2="${px(4)}" y2="${g.py(3)}"/><line x1="${px(3)}" y1="${g.py(2)}" x2="${px(4)}" y2="${g.py(3)}"/></g>`;
+  const pieces = [
+    ...court,
+    xiangqiBackDisc(px(1), g.py(2), disc, 'red'),
+    ...[0, 2, 4].map((f) => xiangqiBackDisc(px(f), g.py(1), disc, 'red')),
+  ];
+  return [xqBoard(g), halfPalace, ...pieces].join('');
 }
 
 function banqiBody(): string {
@@ -330,48 +381,123 @@ function banqiBody(): string {
   const disc = Math.min(cw, ch) * 0.86;
   const lines: string[] = [];
   for (let r = 0; r <= rows; r += 1) {
-    lines.push(`<line x1="${left}" y1="${top + r * ch}" x2="${left + cols * cw}" y2="${top + r * ch}"/>`);
+    lines.push(
+      `<line x1="${left}" y1="${top + r * ch}" x2="${left + cols * cw}" y2="${top + r * ch}"/>`,
+    );
   }
   for (let c = 0; c <= cols; c += 1) {
-    lines.push(`<line x1="${left + c * cw}" y1="${top}" x2="${left + c * cw}" y2="${top + rows * ch}"/>`);
+    lines.push(
+      `<line x1="${left + c * cw}" y1="${top}" x2="${left + c * cw}" y2="${top + rows * ch}"/>`,
+    );
   }
-  const revealed = new Set(['1,1', '2,2']);
-  const colorAt = (c: number, r: number): XqColor => ((c + r) % 2 === 0 ? 'red' : 'black');
+  // Two generals flipped face-up; everything else a uniform face-down back
+  // (banqi backs are colour-agnostic — you don't know colour or rank until a
+  // flip). Green keeps it distinct from jieqi's red backs.
+  const redGeneral: [number, number] = [1, 2];
+  const blackGeneral: [number, number] = [2, 1];
+  const revealed = new Set([
+    `${redGeneral[0]},${redGeneral[1]}`,
+    `${blackGeneral[0]},${blackGeneral[1]}`,
+  ]);
   const backs: string[] = [];
   for (let r = 0; r < rows; r += 1) {
     for (let c = 0; c < cols; c += 1) {
       if (revealed.has(`${c},${r}`)) continue;
-      backs.push(xiangqiBackDisc(ccx(c), ccy(r), disc, colorAt(c, r)));
+      backs.push(xiangqiBackDisc(ccx(c), ccy(r), disc, 'black'));
     }
   }
   return [
     `<rect x="${OX}" y="${OY}" width="${SIZE}" height="${SIZE}" fill="${XQ_BG}"/>`,
     `<g stroke="${XQ_LINE}" stroke-width="1" stroke-linecap="round">${lines.join('')}</g>`,
     backs.join(''),
-    xiangqiDisc(ccx(1), ccy(1), disc, 'red', 'general'),
-    xiangqiDisc(ccx(2), ccy(2), disc, 'black', 'chariot'),
+    xiangqiDisc(ccx(redGeneral[0]), ccy(redGeneral[1]), disc, 'red', 'general'),
+    xiangqiDisc(ccx(blackGeneral[0]), ccy(blackGeneral[1]), disc, 'black', 'general'),
   ].join('');
 }
 
 function crossroadsBody(): string {
+  // The crossroads: xiangqi pieces hold the left flank, chess pieces the right,
+  // on one chess checker. Bottom rank cannon-horse | knight-king; the rank in
+  // front two soldiers | two pawns. The river gets its own band along the top,
+  // so the checker sits fully below it (no clipped top row).
+  const riverH = 7;
+  const boardTop = OY + riverH;
+  const cw = SIZE / 4;
+  const ch = (SIZE - riverH) / 4;
+  const cx = (c: number) => OX + (c + 0.5) * cw;
+  const cy = (r: number) => boardTop + (r + 0.5) * ch;
+  const pieceCell = Math.min(cw, ch);
+  const disc = pieceCell * 0.86;
+  const cells: string[] = [];
+  for (let r = 0; r < 4; r += 1) {
+    for (let c = 0; c < 4; c += 1) {
+      const light = (r + c) % 2 === 0;
+      cells.push(
+        `<rect x="${OX + c * cw}" y="${boardTop + r * ch}" width="${cw}" height="${ch}" fill="${light ? CHESS_LIGHT : CHESS_DARK}"/>`,
+      );
+    }
+  }
+  const river = `<rect x="${OX}" y="${OY}" width="${SIZE}" height="${riverH}" fill="${CROSSROADS_RIVER}"/>`;
+  const pieces = [
+    xiangqiDisc(cx(0), cy(3), disc, 'black', 'cannon'),
+    xiangqiDisc(cx(1), cy(3), disc, 'black', 'horse'),
+    xiangqiDisc(cx(0), cy(2), disc, 'black', 'soldier'),
+    xiangqiDisc(cx(1), cy(2), disc, 'black', 'soldier'),
+    chessPieceAt('white:knight', cx(2), cy(3), pieceCell),
+    chessPieceAt('white:king', cx(3), cy(3), pieceCell),
+    chessPieceAt('white:pawn', cx(2), cy(2), pieceCell),
+    chessPieceAt('white:pawn', cx(3), cy(2), pieceCell),
+  ];
+  return [cells.join(''), river, ...pieces].join('');
+}
+
+function kriegspielBody(): string {
+  // Blind chess: you see your own army in full, but the enemy half is total
+  // fog with no vision — only the knowledge that unknown pieces (?) are there.
   const cell = SIZE / 4;
   const center = (c: number, r: number) => ({ x: OX + (c + 0.5) * cell, y: OY + (r + 0.5) * cell });
-  const k = center(1, 0);
-  const n = center(3, 0);
-  // chess top, river across the middle, xiangqi disc below
-  const river = `<rect x="${OX}" y="${OY + cell * 1.85}" width="${SIZE}" height="${cell * 0.3}" fill="${RIVER_FILL}"/>`;
-  const road = `<line x1="${OX + SIZE / 2}" y1="${OY}" x2="${OX + SIZE / 2}" y2="${OY + SIZE}" stroke="${XQ_LINE}" stroke-width="1.2" opacity="0.4"/>`;
-  const g = center(2, 3);
-  const g2 = center(0, 3);
-  return [
-    checker(4, 4, cell),
-    river,
-    road,
-    chessPieceAt('white:king', k.x, k.y, cell),
-    chessPieceAt('black:knight', n.x, n.y, cell),
-    xiangqiDisc(g.x, g.y, cell * 0.84, 'red', 'cannon'),
-    xiangqiDisc(g2.x, g2.y, cell * 0.84, 'black', 'elephant'),
-  ].join('');
+  const backRank = ['white:king', 'white:bishop', 'white:knight', 'white:rook'];
+  const pieces: string[] = [];
+  for (let c = 0; c < 4; c += 1) {
+    const pawn = center(c, 2);
+    const piece = center(c, 3);
+    pieces.push(chessPieceAt('white:pawn', pawn.x, pawn.y, cell));
+    pieces.push(chessPieceAt(backRank[c]!, piece.x, piece.y, cell));
+  }
+  const fog: string[] = [];
+  for (let c = 0; c < 4; c += 1) {
+    fog.push(fogCell(c, 0, cell));
+    fog.push(fogCell(c, 1, cell));
+  }
+  const unknowns = [
+    [0, 1],
+    [2, 0],
+    [3, 1],
+  ].map(([c, r]) => {
+    const p = center(c as number, r as number);
+    return kriegspielUnknown(p.x, p.y, cell);
+  });
+  return [checker(4, 4, cell), ...pieces, ...fog, ...unknowns].join('');
+}
+
+function revealChessBody(): string {
+  // Hidden-identity chess (chess jieqi): every piece starts face-down (a blank
+  // token) except the king, which is face-up. No fog — only identities hide.
+  const cell = SIZE / 4;
+  const center = (c: number, r: number) => ({ x: OX + (c + 0.5) * cell, y: OY + (r + 0.5) * cell });
+  const kingCol = 1;
+  const pieces: string[] = [];
+  for (let c = 0; c < 4; c += 1) {
+    const pawn = center(c, 2);
+    const back = center(c, 3);
+    pieces.push(chessBackToken(pawn.x, pawn.y, cell));
+    if (c === kingCol) {
+      pieces.push(chessPieceAt('white:king', back.x, back.y, cell));
+    } else {
+      pieces.push(chessBackToken(back.x, back.y, cell));
+    }
+  }
+  return [checker(4, 4, cell), ...pieces].join('');
 }
 
 // ---- registry + render entry ----------------------------------------------
@@ -384,6 +510,8 @@ const BODIES: Record<VariantMiniId, () => string> = {
   jieqi: jieqiBody,
   banqi: banqiBody,
   crossroads: crossroadsBody,
+  kriegspiel: kriegspielBody,
+  'reveal-chess': revealChessBody,
 };
 
 export const VARIANT_MINIS: readonly VariantMiniDef[] = [
@@ -416,7 +544,7 @@ export const VARIANT_MINIS: readonly VariantMiniDef[] = [
     label: 'Dark Mini Xiangqi',
     shortLabel: 'MX',
     accent: '#c2410c',
-    blurb: "A real-opening cut: general by its palace, cannon, and chariot.",
+    blurb: 'A real-opening cut: general by its palace, cannon, and chariot.',
     frame: XQ_FRAME,
   },
   {
@@ -424,7 +552,7 @@ export const VARIANT_MINIS: readonly VariantMiniDef[] = [
     label: 'Jieqi',
     shortLabel: 'JQ',
     accent: '#6d4aa0',
-    blurb: 'Face-down discs on the points, two identities shown.',
+    blurb: 'The xiangqi opening with every piece flipped face-down but the general.',
     frame: XQ_FRAME,
   },
   {
@@ -432,7 +560,7 @@ export const VARIANT_MINIS: readonly VariantMiniDef[] = [
     label: 'Banqi',
     shortLabel: 'BQ',
     accent: '#2563a6',
-    blurb: 'Face-down pieces in cells, a couple flipped.',
+    blurb: 'Face-down pieces in cells; both generals flipped up.',
     frame: XQ_FRAME,
   },
   {
@@ -440,7 +568,23 @@ export const VARIANT_MINIS: readonly VariantMiniDef[] = [
     label: 'Crossroads Chess',
     shortLabel: 'CR',
     accent: '#3f7d4e',
-    blurb: 'Chess above, river across, a cannon below.',
+    blurb: 'Xiangqi cannon and horse beside chess knight and king, river on top.',
+    frame: CHESS_FRAME,
+  },
+  {
+    id: 'kriegspiel',
+    label: 'Kriegspiel',
+    shortLabel: 'KS',
+    accent: '#566273',
+    blurb: 'Your army shown; the enemy unseen, only unknowns in the fog.',
+    frame: CHESS_FRAME,
+  },
+  {
+    id: 'reveal-chess',
+    label: 'Reveal Chess',
+    shortLabel: 'RV',
+    accent: '#9b3f74',
+    blurb: 'Chess with hidden identities: every piece face-down but the king.',
     frame: CHESS_FRAME,
   },
 ];
@@ -461,7 +605,8 @@ export function renderVariantMiniBoard(
   const size = opts.size ?? 96;
   const label = opts.label ?? `${def.label} board`;
   const classAttr = opts.className ? ` class="${escapeAttr(opts.className)}"` : '';
-  const clipId = `mini-clip-${(clipSeq += 1)}`;
+  clipSeq += 1;
+  const clipId = `mini-clip-${clipSeq}`;
   const body = BODIES[id]();
   return [
     `<svg${classAttr} width="${size}" height="${size}" viewBox="0 0 100 100" role="img" aria-label="${escapeAttr(label)}" xmlns="http://www.w3.org/2000/svg">`,

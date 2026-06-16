@@ -57,7 +57,10 @@ function buildMiniBoardGrid(): HTMLElement {
 
     const lead = document.createElement('div');
     lead.className = 'variant-mini-lead';
-    lead.innerHTML = renderVariantMiniBoard(def.id, { size: 132, label: `${def.label} mini-board` });
+    lead.innerHTML = renderVariantMiniBoard(def.id, {
+      size: 132,
+      label: `${def.label} mini-board`,
+    });
 
     const text = document.createElement('div');
     text.className = 'variant-mark-text';

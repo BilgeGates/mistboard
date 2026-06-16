@@ -20,7 +20,8 @@ const cards = VARIANT_MINIS.map((def) => {
 
 const ramp = VARIANT_MINIS.map((def) => {
   const cells = MINI_SIZES.map(
-    (size) => `<span class="cell">${renderVariantMiniBoard(def.id, { size, label: `${def.label} ${size}` })}</span>`,
+    (size) =>
+      `<span class="cell">${renderVariantMiniBoard(def.id, { size, label: `${def.label} ${size}` })}</span>`,
   ).join('');
   return `<div class="row"><span class="name">${def.label}</span>${cells}</div>`;
 }).join('');
