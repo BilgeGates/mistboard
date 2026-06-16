@@ -5,7 +5,8 @@ import './account-profile.css';
 import type { FeaturedGame } from './game-display.js';
 import { buildProfileGameRow, buildProfileHeaderShell } from './profile-ui.js';
 import { buildLoadingState, buildNav, buildNotice } from './site-shell.js';
-import { leaderboardVariants, profileRatingVariants } from './variants.js';
+import { renderVariantMiniBoard, type VariantMiniId } from './variant-mini-boards.js';
+import { leaderboardVariants, profileRatingVariants, variantMiniIdForRating } from './variants.js';
 
 type ProfileRatingVariant = RatingVariant;
 type ProfileRatingTimeClass = 'bullet' | 'blitz' | 'rapid';
@@ -47,9 +48,11 @@ type LeaderboardEntry = {
 const LEADERBOARD_BUCKETS: {
   variantParam: string;
   variantLabel: string;
+  miniId: VariantMiniId;
 }[] = leaderboardVariants.map((v) => ({
   variantParam: v.apiParam,
   variantLabel: v.label,
+  miniId: v.miniId,
 }));
 
 const PROFILE_VARIANT_LABEL: Record<ProfileRatingVariant, string> = {
@@ -128,8 +131,23 @@ export async function mountLeaderboard(root: HTMLElement): Promise<void> {
 
   for (let i = 0; i < LEADERBOARD_BUCKETS.length; i++) {
     const b = LEADERBOARD_BUCKETS[i];
-    grid.append(buildLeaderboardPanel(b.variantLabel, results[i]));
+    grid.append(buildLeaderboardPanel(b.variantLabel, b.miniId, results[i]));
   }
+}
+
+// Decorative variant mini-board (the same board-crop art as the picker/articles).
+// aria-hidden because every call site already renders the variant name in text.
+function buildVariantThumb(
+  miniId: VariantMiniId,
+  px: number,
+  className: string,
+  label: string,
+): HTMLElement {
+  const thumb = document.createElement('span');
+  thumb.className = className;
+  thumb.setAttribute('aria-hidden', 'true');
+  thumb.innerHTML = renderVariantMiniBoard(miniId, { size: px, label });
+  return thumb;
 }
 
 function buildLeaderboardBanner(): HTMLElement {
@@ -154,6 +172,7 @@ function buildLeaderboardBanner(): HTMLElement {
 
 function buildLeaderboardPanel(
   variantLabel: string,
+  miniId: VariantMiniId,
   data: { leaderboard: LeaderboardEntry[] } | null,
 ): HTMLElement {
   const panel = document.createElement('div');
@@ -162,15 +181,22 @@ function buildLeaderboardPanel(
   const header = document.createElement('div');
   header.className = 'leaderboard-panel-header';
 
-  const subtitle = document.createElement('span');
-  subtitle.className = 'leaderboard-panel-subtitle';
-  subtitle.textContent = 'Blitz rating';
+  const heading = document.createElement('div');
+  heading.className = 'leaderboard-panel-heading';
 
   const title = document.createElement('h2');
   title.className = 'leaderboard-panel-title';
   title.textContent = variantLabel;
 
-  header.append(title, subtitle);
+  const subtitle = document.createElement('span');
+  subtitle.className = 'leaderboard-panel-subtitle';
+  subtitle.textContent = 'Blitz rating';
+
+  heading.append(title, subtitle);
+  header.append(
+    buildVariantThumb(miniId, 44, 'leaderboard-panel-thumb', `${variantLabel} board`),
+    heading,
+  );
   panel.append(header);
 
   if (!data) {
@@ -315,9 +341,25 @@ export function buildProfileRatings(ratings: ProfileBucketRating[]): HTMLElement
   for (const variant of variantsShown) {
     const label = document.createElement('span');
     label.className = 'profile-ratings-variant';
-    label.textContent = PROFILE_VARIANT_LABEL[variant];
-    grid.append(label);
 
+    const miniId = variantMiniIdForRating(variant);
+    if (miniId) {
+      label.append(
+        buildVariantThumb(
+          miniId,
+          36,
+          'profile-ratings-variant-thumb',
+          `${PROFILE_VARIANT_LABEL[variant]} board`,
+        ),
+      );
+    }
+
+    const name = document.createElement('span');
+    name.className = 'profile-ratings-variant-name';
+    name.textContent = PROFILE_VARIANT_LABEL[variant];
+    label.append(name);
+
+    grid.append(label);
     grid.append(buildRatingCell(ratings, variant));
   }
 
