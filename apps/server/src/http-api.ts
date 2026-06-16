@@ -12,6 +12,7 @@ import type { IncomingMessage, ServerResponse } from 'node:http';
 import * as accountRoute from './routes/account.js';
 import * as annotationsRoute from './routes/annotations.js';
 import * as authRoute from './routes/auth.js';
+import * as banqiGamesRoute from './routes/banqi-games.js';
 import * as correspondenceGamesRoute from './routes/correspondence-games.js';
 import * as correspondenceSeeksRoute from './routes/correspondence-seeks.js';
 import * as crossroadsChessRoute from './routes/crossroads-chess.js';
@@ -67,6 +68,7 @@ const routes: RouteModule[] = [
   darkMiniXiangqiGamesRoute,
   darkXiangqiGamesRoute,
   jieqiGamesRoute,
+  banqiGamesRoute,
   crossroadsChessRoute,
   gamesRoute,
   usersRoute,

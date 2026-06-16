@@ -111,7 +111,7 @@ export const banqiArticle: Article = {
           {
             kind: 'paragraph',
             text:
-              'Draw and cycle rules vary more than the core capture rules. For Mistboard, the working convention is simple: automatic draw after 50 plies (50 individual turns) with no flip and no capture; no separate perpetual-chase loss unless we later add a tournament adjudicator. Over the board, agree on the no-progress and repetition convention before play.',
+              'Draw and cycle rules vary more than the core capture rules. Mistboard uses two automatic draws: 40 plies (40 individual turns) with no flip and no capture, and threefold repetition (the same position reached three times). Both counters reset on any flip or capture, since those moves cannot be taken back. There is no separate perpetual-chase loss unless we later add a tournament adjudicator. Over the board, agree on the no-progress and repetition convention before play.',
           },
         ],
       },
