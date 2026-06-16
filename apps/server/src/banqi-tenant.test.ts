@@ -19,6 +19,7 @@ import {
   createInitialBanqiState,
   getBanqiLegalMoves,
 } from '@mistboard/game';
+import { BANQI_DEFAULT_ENGINE_ID } from './banqi-engine.js';
 import { banqiClientEventFor, banqiTenant, getBanqiClientView } from './banqi-tenant.js';
 import { createTenantRuntimeRoom, replayTenantEvents } from './variant-tenant/runtime.js';
 import type { TenantRoomEvent } from './variant-tenant/tenant.js';
@@ -119,4 +120,37 @@ test('a full banqi game replays through the runtime identically to the kernel', 
   // state the kernel did — proving the tenant's move path integrates correctly.
   const projection = replayTenantEvents(banqiTenant, events);
   assert.deepEqual(projection.state, kernelState);
+});
+
+// wire.snapshotExtras is what tells the client a finished game was PvE and which
+// engine to rematch. Build a real seat map via replayTenantEvents, then read the
+// extras a client would receive. snapshotExtras only reads room.projection.seats
+// (via tenantPveEngineId) and ignores the client, so a minimal room wrapping the
+// real projection is the faithful fixture.
+function banqiSnapshotExtrasFor(redClient: string, blackClient: string) {
+  const roomId = 'bq_extras';
+  const deal = createBanqiDeal(seeded(7));
+  const events: TenantRoomEvent<BanqiSeat, BanqiMove, typeof BANQI_SPEC_ID>[] = [
+    { type: 'room-created', at: 1, roomId, gameSpecId: BANQI_SPEC_ID, setup: deal },
+    { type: 'seat-assigned', at: 2, roomId, clientId: redClient, seat: 'red' },
+    { type: 'seat-assigned', at: 3, roomId, clientId: blackClient, seat: 'black' },
+  ];
+  const projection = replayTenantEvents(banqiTenant, events);
+  const snapshotExtras = banqiTenant.wire?.snapshotExtras;
+  assert.ok(snapshotExtras, 'banqi tenant must define wire.snapshotExtras');
+  return snapshotExtras({ projection } as never, { seat: 'black' } as never);
+}
+
+test('banqi snapshot marks a PvE room (engine seat) as roomMode:pve with the engine id', () => {
+  // Regression guard for the "Play again made a PvP invite" bug: the client can
+  // only re-create a PvE game vs the same engine if the snapshot says the room
+  // is PvE and which engine holds a seat.
+  assert.deepEqual(banqiSnapshotExtrasFor(BANQI_DEFAULT_ENGINE_ID, 'human-1'), {
+    roomMode: 'pve',
+    pveEngineId: BANQI_DEFAULT_ENGINE_ID,
+  });
+});
+
+test('banqi snapshot marks a human-vs-human room as roomMode:pvp (no engine id)', () => {
+  assert.deepEqual(banqiSnapshotExtrasFor('human-1', 'human-2'), { roomMode: 'pvp' });
 });

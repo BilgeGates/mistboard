@@ -18,6 +18,7 @@ import {
   STANDARD_JIEQI_DEAL,
 } from '@mistboard/game';
 import { darkMiniXiangqiTenant } from './dark-mini-xiangqi-tenant.js';
+import { JIEQI_DEFAULT_ENGINE_ID } from './jieqi-engine.js';
 import { getJieqiClientView, jieqiClientEventFor, jieqiTenant } from './jieqi-tenant.js';
 import { createTenantRuntimeRoom, replayTenantEvents } from './variant-tenant/runtime.js';
 import type { TenantRoomEvent } from './variant-tenant/tenant.js';
@@ -113,4 +114,32 @@ test('tenants without createSetup still emit a setup-free room-created', () => {
   const event = created.room.events[0];
   if (event.type !== 'room-created') throw new Error('expected room-created first');
   assert.ok(!('setup' in event), 'additive setup field does not touch other tenants');
+});
+
+// wire.snapshotExtras tells the client a finished game was PvE and which engine
+// to rematch — the same fix banqi got. Mirror its guard so jieqi's "Play again"
+// can't silently regress back to a PvP invite. snapshotExtras only reads
+// room.projection.seats (via tenantPveEngineId) and ignores the client.
+function jieqiSnapshotExtrasFor(redClient: string, blackClient: string) {
+  const roomId = 'jq_extras';
+  const events: TenantRoomEvent<'red' | 'black', JieqiMove, typeof JIEQI_SPEC_ID>[] = [
+    { type: 'room-created', at: 1, roomId, gameSpecId: JIEQI_SPEC_ID, setup: STANDARD_JIEQI_DEAL },
+    { type: 'seat-assigned', at: 2, roomId, clientId: redClient, seat: 'red' },
+    { type: 'seat-assigned', at: 3, roomId, clientId: blackClient, seat: 'black' },
+  ];
+  const projection = replayTenantEvents(jieqiTenant, events);
+  const snapshotExtras = jieqiTenant.wire?.snapshotExtras;
+  assert.ok(snapshotExtras, 'jieqi tenant must define wire.snapshotExtras');
+  return snapshotExtras({ projection } as never, { seat: 'black' } as never);
+}
+
+test('jieqi snapshot marks a PvE room (engine seat) as roomMode:pve with the engine id', () => {
+  assert.deepEqual(jieqiSnapshotExtrasFor(JIEQI_DEFAULT_ENGINE_ID, 'human-1'), {
+    roomMode: 'pve',
+    pveEngineId: JIEQI_DEFAULT_ENGINE_ID,
+  });
+});
+
+test('jieqi snapshot marks a human-vs-human room as roomMode:pvp (no engine id)', () => {
+  assert.deepEqual(jieqiSnapshotExtrasFor('human-1', 'human-2'), { roomMode: 'pvp' });
 });
