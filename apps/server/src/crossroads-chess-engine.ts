@@ -40,8 +40,8 @@ const CROSSROADS_CHESS_ENGINE_TIERS = [
   {
     id: 'fairy-stockfish-crossroads-very-strong',
     name: 'Fairy Stockfish - Strongest',
-    skill: 16,
-    movetimeMs: 600,
+    skill: 20,
+    movetimeMs: 2000,
   },
 ] as const satisfies readonly CrossroadsChessEngineTier[];
 

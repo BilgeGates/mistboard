@@ -406,9 +406,9 @@ const CROSSROADS_CHESS_ENGINES: Record<string, EngineDefinition> = {
     gameSpecId: 'crossroads-chess',
     configHash: 'fsf-crossroads-very-strong',
     playSignature: 'fsf-crossroads-very-strong',
-    config: { kind: 'fairy-stockfish', skill: 16, movetime_ms: 600 },
+    config: { kind: 'fairy-stockfish', skill: 20, movetime_ms: 2000 },
     notes:
-      'Top Crossroads Chess Fairy-Stockfish tier capped below full strength plus the live immediate-loss guard.',
+      'Top Crossroads Chess Fairy-Stockfish tier at full skill with a longer think budget plus the live immediate-loss guard.',
   },
 };
 
@@ -451,8 +451,8 @@ const JIEQI_ENGINES: Record<string, EngineDefinition> = {
     gameSpecId: 'jieqi',
     configHash: 'pikafish-jieqi-strongest',
     playSignature: 'pikafish-jieqi-strongest',
-    config: { kind: 'pikafish', skill: 20, movetime_ms: 1200 },
-    notes: 'Top Jieqi PikaJieQi tier (longer movetime).',
+    config: { kind: 'pikafish', skill: 20, movetime_ms: 2500 },
+    notes: 'Top Jieqi PikaJieQi tier at full skill with a longer think budget.',
   },
 };
 

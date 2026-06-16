@@ -45,7 +45,7 @@ const JIEQI_ENGINE_TIERS = [
     id: 'pikafish-jieqi-strongest',
     name: 'PikaJieQi - Strongest',
     skill: 20,
-    movetimeMs: 1200,
+    movetimeMs: 2500,
   },
 ] as const satisfies readonly JieqiEngineTier[];
 
