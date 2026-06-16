@@ -73,7 +73,8 @@
     "prod:smoke:engine-playout": "node scripts/prod-engine-playout.mjs",
     "time:command": "node scripts/time-command.mjs",
     "research:kqk-belief": "tsx scripts/fow-kqk-belief.ts",
-    "jieqi:play": "tsx scripts/jieqi-playthrough.ts"
+    "jieqi:play": "tsx scripts/jieqi-playthrough.ts",
+    "reveal-chess:play": "tsx scripts/reveal-chess-playthrough.ts"
   },
   "engines": {
     "node": ">=22"
