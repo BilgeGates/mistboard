@@ -946,9 +946,11 @@
   margin-inline: auto;
 }
 
-/* Banqi board is a wide 8x4 half-board; size it for that landscape aspect. */
+/* Banqi sample-game board: rendered with the diagram primitives (xq-diagram-bg,
+   50px cells) so it matches the other banqi figures; size it so the board reads
+   at the same width as those inline board diagrams (~500px). */
 .raw-svg-stepper-frame.raw-svg-stepper-frame-banqi > svg {
-  width: min(460px, 100%);
+  width: min(510px, 100%);
   margin-inline: auto;
 }
 

@@ -12,12 +12,39 @@ import {
   type BanqiDeal,
   type BanqiGameState,
   type BanqiMove,
+  type BanqiPlayerView,
   type BanqiSeat,
   type BanqiSquare,
   createInitialBanqiState,
   getBanqiPlayerView,
 } from '@mistboard/game';
-import { installBanqiBoardStyles, renderBanqiBoardSvg } from './live-banqi-render.js';
+import {
+  BANQI_BOARD_H,
+  BANQI_BOARD_W,
+  banqiBoardGrid,
+  banqiPiece,
+  xqSvg,
+} from './articles/diagrams.js';
+
+// Render a banqi position in the rules-page DIAGRAM style — the xq-diagram-bg
+// board, 50px cells, solid-colour glyph pieces, and "back" face-down tiles,
+// shared with the other banqi diagrams — rather than the larger live-game board,
+// so the sample game matches the surrounding figures.
+function renderBanqiBoardDiagram(view: BanqiPlayerView): string {
+  const parts = [banqiBoardGrid(0, 0)];
+  for (const [square, entry] of Object.entries(view.board)) {
+    if (!entry) continue;
+    // 'a1'..'h4' → col = file (a=0); row = 4 − rank (rank 4 sits on top).
+    const col = square.charCodeAt(0) - 97;
+    const row = 4 - Number(square[1]);
+    parts.push(
+      entry.faceDown
+        ? banqiPiece({ shrouded: true }, col, row, 0, 0)
+        : banqiPiece({ color: entry.color, role: entry.role }, col, row, 0, 0),
+    );
+  }
+  return xqSvg(BANQI_BOARD_W, BANQI_BOARD_H, parts.join(''));
+}
 
 export type BanqiReplaySpec = {
   red: string;
@@ -46,7 +73,6 @@ function tokenToMove(tok: string): BanqiMove | null {
 }
 
 export function mountBanqiReplay(host: HTMLElement, spec: BanqiReplaySpec): BanqiReplayController {
-  installBanqiBoardStyles();
   const perspective = spec.perspective ?? 'red';
   const moves = spec.moves
     .trim()
@@ -117,10 +143,7 @@ export function mountBanqiReplay(host: HTMLElement, spec: BanqiReplaySpec): Banq
 
   let index = 0;
   function render(): void {
-    frame.innerHTML = renderBanqiBoardSvg(
-      getBanqiPlayerView(states[index]!, perspective),
-      perspective,
-    );
+    frame.innerHTML = renderBanqiBoardDiagram(getBanqiPlayerView(states[index]!, perspective));
     counter.textContent = index === 0 ? 'Start' : `${index} / ${total}`;
     first.disabled = index === 0;
     prev.disabled = index === 0;
