@@ -79,11 +79,6 @@ function chessBackToken(cx: number, cy: number, cell: number): string {
   ].join('');
 }
 
-// A "?" mark for an unseen enemy piece under Kriegspiel fog.
-function kriegspielUnknown(cx: number, cy: number, cell: number): string {
-  return `<text x="${cx}" y="${cy}" font-family="system-ui, sans-serif" font-size="${cell * 0.62}" font-weight="800" fill="rgba(238,238,210,0.92)" text-anchor="middle" dominant-baseline="central">?</text>`;
-}
-
 function checker(cols: number, rows: number, cell: number): string {
   const out: string[] = [];
   for (let r = 0; r < rows; r += 1) {
@@ -452,8 +447,8 @@ function crossroadsBody(): string {
 }
 
 function kriegspielBody(): string {
-  // Blind chess: you see your own army in full, but the enemy half is total
-  // fog with no vision — only the knowledge that unknown pieces (?) are there.
+  // Blind chess: you only ever see your own army, alone on the board — the
+  // enemy is never shown (no fog, no markers).
   const cell = SIZE / 4;
   const center = (c: number, r: number) => ({ x: OX + (c + 0.5) * cell, y: OY + (r + 0.5) * cell });
   const backRank = ['white:king', 'white:bishop', 'white:knight', 'white:rook'];
@@ -464,20 +459,7 @@ function kriegspielBody(): string {
     pieces.push(chessPieceAt('white:pawn', pawn.x, pawn.y, cell));
     pieces.push(chessPieceAt(backRank[c]!, piece.x, piece.y, cell));
   }
-  const fog: string[] = [];
-  for (let c = 0; c < 4; c += 1) {
-    fog.push(fogCell(c, 0, cell));
-    fog.push(fogCell(c, 1, cell));
-  }
-  const unknowns = [
-    [0, 1],
-    [2, 0],
-    [3, 1],
-  ].map(([c, r]) => {
-    const p = center(c as number, r as number);
-    return kriegspielUnknown(p.x, p.y, cell);
-  });
-  return [checker(4, 4, cell), ...pieces, ...fog, ...unknowns].join('');
+  return [checker(4, 4, cell), ...pieces].join('');
 }
 
 function revealChessBody(): string {
@@ -576,7 +558,7 @@ export const VARIANT_MINIS: readonly VariantMiniDef[] = [
     label: 'Kriegspiel',
     shortLabel: 'KS',
     accent: '#566273',
-    blurb: 'Your army shown; the enemy unseen, only unknowns in the fog.',
+    blurb: 'Blind chess: only your own army, alone on the board.',
     frame: CHESS_FRAME,
   },
   {
