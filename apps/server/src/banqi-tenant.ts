@@ -38,6 +38,7 @@ import {
   isBanqiLegalMove,
   oppositeBanqiSeat,
 } from '@mistboard/game';
+import { banqiEngineDisplayName, isBanqiEngineClientId } from './banqi-engine.js';
 import { banqiEnabled } from './feature-flags.js';
 import type * as persistence from './persistence.js';
 import type {
@@ -170,6 +171,15 @@ export const banqiTenant: BanqiTenant = {
   visibility: {
     clientEventFor: banqiClientEventFor,
     viewForClient: (state, client) => getBanqiClientView(state, client),
+  },
+  // Mark the MistyBanqi engine seat as always-present so the disconnect-forfeit
+  // logic never forfeits it (a PvE engine has no WS client). Without this, the
+  // engine seat reads as "disconnected" and the game self-forfeits mid-play
+  // ("the human wins by abandonment") once the forfeit window elapses.
+  engine: {
+    isEngineClientId: isBanqiEngineClientId,
+    displayName: banqiEngineDisplayName,
+    reservationReleaseTag: 'banqi',
   },
   persistence: {
     // The winner is a SEAT ('red' = first mover). Recorded directly; the actual

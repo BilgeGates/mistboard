@@ -1,7 +1,7 @@
 /**
  * Thin adapter over the generic tenant room factory
- * (variant-tenant/room-factory.ts) for banqi. PvP only — no PvE/rated options
- * and no running-game record (recordGameStart omitted), matching the jieqi factory.
+ * (variant-tenant/room-factory.ts) for banqi. PvP + PvE (Tier-B MistyBanqi engine
+ * seat); no running-game record (recordGameStart omitted), matching the jieqi factory.
  */
 
 import type { RoomTimeControl } from '@mistboard/game';
@@ -9,6 +9,11 @@ import type { BanqiCreatorPreference, BanqiEvent, BanqiRuntimeRoom } from './ban
 import { banqiTenant } from './banqi-tenant.js';
 import type { BanqiLiveRoom } from './server-ws-banqi.js';
 import { createTenantLiveRoom } from './variant-tenant/room-factory.js';
+
+export type BanqiRoomEngineSeat = {
+  engineId: string;
+  seat: 'red' | 'black';
+};
 
 export type BanqiLiveRoomCreation =
   | { ok: true; room: BanqiLiveRoom }
@@ -27,6 +32,7 @@ export async function createBanqiLiveRoom(
   ctx: BanqiLiveRoomFactoryContext,
   timeControl?: RoomTimeControl,
   creatorPreference?: BanqiCreatorPreference,
+  engine?: BanqiRoomEngineSeat,
 ): Promise<BanqiLiveRoomCreation> {
   const created = await createTenantLiveRoom(
     banqiTenant,
@@ -38,7 +44,7 @@ export async function createBanqiLiveRoom(
       isPersistenceEnabled: ctx.isPersistenceEnabled,
       recordPersistenceError: ctx.recordPersistenceError,
     },
-    { timeControl, creatorPreference },
+    { timeControl, creatorPreference, engine },
   );
   if (!created.ok) {
     return created.error === 'disabled'

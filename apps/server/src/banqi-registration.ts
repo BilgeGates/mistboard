@@ -11,7 +11,11 @@ import type { BanqiCreatorPreference, BanqiRuntimeRoom } from './banqi-runtime.j
 import { banqiTenant } from './banqi-tenant.js';
 import * as persistence from './persistence.js';
 import { handleBanqiCreate, requestsBanqi } from './routes/banqi-rooms.js';
-import { type BanqiLiveRoomCreation, createBanqiLiveRoom } from './server-banqi-room-factory.js';
+import {
+  type BanqiLiveRoomCreation,
+  type BanqiRoomEngineSeat,
+  createBanqiLiveRoom,
+} from './server-banqi-room-factory.js';
 import {
   type BanqiLiveRoom,
   clearBanqiRuntimeTimers,
@@ -31,6 +35,7 @@ export const banqiRooms = new Map<string, BanqiLiveRoom>();
 export async function createBanqiRoom(
   timeControl?: RoomTimeControl,
   creatorPreference?: BanqiCreatorPreference,
+  engine?: BanqiRoomEngineSeat,
 ): Promise<BanqiLiveRoomCreation> {
   return createBanqiLiveRoom(
     {
@@ -43,6 +48,7 @@ export async function createBanqiRoom(
     },
     timeControl,
     creatorPreference,
+    engine,
   );
 }
 

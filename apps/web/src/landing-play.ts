@@ -1,4 +1,5 @@
 import {
+  BANQI_SPEC_ID,
   CROSSROADS_CHESS_SPEC_ID,
   DARK_CHESS_SPEC_ID,
   DARK_DRAFT960_SPEC_ID,
@@ -48,7 +49,8 @@ type LandingGameSpecId =
   | typeof DARK_MINI_XIANGQI_SPEC_ID
   | typeof DARK_XIANGQI_SPEC_ID
   | typeof CROSSROADS_CHESS_SPEC_ID
-  | typeof JIEQI_SPEC_ID;
+  | typeof JIEQI_SPEC_ID
+  | typeof BANQI_SPEC_ID;
 type LandingStartFormat = 'standard' | 'draft960';
 type LandingTimePresetId = TimeControlId;
 type LandingTimePreset = {
@@ -1534,6 +1536,22 @@ function roomCreationRequestBody(
       ...(mode === 'pve' && engineId ? { engineId } : {}),
     };
   }
+  if (setup.gameSpecId === BANQI_SPEC_ID) {
+    // Banqi PvE sends the picked MistyBanqi id; seats are red/black move-order
+    // (ink binds on the first flip), never rated.
+    return {
+      mode,
+      gameSpecId,
+      timeControl: setup.timeControl,
+      preferredColor:
+        setup.preferredColor === 'white'
+          ? 'red'
+          : setup.preferredColor === 'red' || setup.preferredColor === 'black'
+            ? setup.preferredColor
+            : 'random',
+      ...(mode === 'pve' && engineId ? { engineId } : {}),
+    };
+  }
   if (setup.gameSpecId === DARK_XIANGQI_SPEC_ID || setup.gameSpecId === DARK_MINI_XIANGQI_SPEC_ID) {
     return {
       // DMX supports PvE (the engine id is defaulted server-side, so none is
@@ -1569,8 +1587,10 @@ function roomCreationGameSpecId(
   | typeof DARK_MINI_XIANGQI_SPEC_ID
   | typeof DARK_XIANGQI_SPEC_ID
   | typeof CROSSROADS_CHESS_SPEC_ID
-  | typeof JIEQI_SPEC_ID {
+  | typeof JIEQI_SPEC_ID
+  | typeof BANQI_SPEC_ID {
   if (setup.gameSpecId === JIEQI_SPEC_ID) return JIEQI_SPEC_ID;
+  if (setup.gameSpecId === BANQI_SPEC_ID) return BANQI_SPEC_ID;
   if (setup.gameSpecId === CROSSROADS_CHESS_SPEC_ID) return CROSSROADS_CHESS_SPEC_ID;
   if (setup.gameSpecId === DARK_MINI_XIANGQI_SPEC_ID) return DARK_MINI_XIANGQI_SPEC_ID;
   if (setup.gameSpecId === DARK_XIANGQI_SPEC_ID) return DARK_XIANGQI_SPEC_ID;

@@ -262,9 +262,30 @@ const WEB_VARIANT_TENANTS: readonly WebVariantTenant[] = [
         supportsStartFormat: false,
         supportsTimeControl: true,
       },
-      timePresetIds: ['3m2'],
-      offerInMenu: () => false,
+      timePresetIds: ['1m1', '3m2', '5m5'],
+      offerInMenu: banqiEnabled,
       acceptsDeepLink: banqiEnabled,
+      engineOptions: [
+        {
+          id: 'misty-banqi-amateur',
+          name: 'MistyBanqi - Amateur',
+          familyName: 'MistyBanqi',
+          kind: 'container',
+        },
+        {
+          id: 'misty-banqi-strong',
+          name: 'MistyBanqi - Strong',
+          familyName: 'MistyBanqi',
+          kind: 'container',
+        },
+        {
+          id: 'misty-banqi-strongest',
+          name: 'MistyBanqi - Strongest',
+          familyName: 'MistyBanqi',
+          kind: 'container',
+        },
+      ],
+      defaultEngineId: 'misty-banqi-strong',
     },
   },
   {
