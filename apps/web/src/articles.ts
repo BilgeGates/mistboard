@@ -262,8 +262,11 @@ export function buildHomeArticleCards(limit = 8): HTMLElement | null {
   );
   const cards = HOME_ARTICLE_SLUGS.flatMap((slug) => {
     const article = eligible.get(slug);
-    return article ? [landingArticleCard(article)] : [];
-  }).slice(0, limit);
+    return article ? [article] : [];
+  })
+    .sort((a, b) => homeArticlePublishDateKey(b).localeCompare(homeArticlePublishDateKey(a)))
+    .map(landingArticleCard)
+    .slice(0, limit);
   if (cards.length === 0) return null;
 
   const section = document.createElement('section');
@@ -302,6 +305,10 @@ export function buildHomeArticleCards(limit = 8): HTMLElement | null {
   carousel.append(prev, track, next);
   section.append(header, carousel);
   return section;
+}
+
+function homeArticlePublishDateKey(article: Article): string {
+  return article.publishedAt ?? '';
 }
 
 function carouselNavButton(dir: 'prev' | 'next', glyph: string): HTMLButtonElement {

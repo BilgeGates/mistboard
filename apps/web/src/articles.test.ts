@@ -27,7 +27,7 @@ describe('article public listing gates', () => {
     expect(buildRulesIndex().textContent).toContain('Mini Xiangqi');
   });
 
-  it('limits the homepage article widget to the curated cards', () => {
+  it('limits the homepage article widget to curated cards ordered by publish date', () => {
     vi.stubEnv('VITE_DARK_MINI_XIANGQI_ENABLED', 'true');
     vi.stubEnv('VITE_DARK_MINI_XIANGQI_PUBLIC_ENTRY_ENABLED', 'true');
 
@@ -37,10 +37,10 @@ describe('article public listing gates', () => {
     ].map((link) => link.getAttribute('href'));
 
     expect(hrefs).toEqual([
-      '/articles/server-enforced-fog',
-      '/rules/crossroads-chess',
-      '/rules/dark-mini-xiangqi',
       '/rules/jieqi',
+      '/rules/crossroads-chess',
+      '/articles/server-enforced-fog',
+      '/rules/dark-mini-xiangqi',
       '/rules/dark-chess',
     ]);
   });
