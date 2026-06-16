@@ -700,6 +700,19 @@
   fill: var(--xq-diagram-fog, rgba(36, 25, 15, 0.55));
 }
 
+.xq-article-svg .xq-jieqi-capture-card {
+  fill: var(--site-panel-soft, transparent);
+  stroke: var(--site-border-soft, var(--xq-diagram-ink, #4b3c2a));
+}
+
+.xq-article-svg .xq-jieqi-capture-label {
+  fill: var(--site-heading, var(--xq-diagram-ink, #4b3c2a));
+}
+
+.xq-article-svg .xq-jieqi-capture-detail {
+  fill: var(--site-text, var(--xq-diagram-ink, #4b3c2a));
+}
+
 /* Xiangqi game replay widget: reuses the stepper controls; only the header
    (players + event) needs its own styling. */
 .xq-replay {

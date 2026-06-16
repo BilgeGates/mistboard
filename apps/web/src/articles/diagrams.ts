@@ -2498,7 +2498,7 @@ export function jieqiCaptureTray(x: number, y: number, label: string, detail: st
   const cardW = (JIEQI_PAIR_W - 28) / 2;
   const cardX = x;
   return [
-    `<rect x="${cardX}" y="${y}" width="${cardW}" height="94" rx="10" fill="none" class="xq-diagram-line" stroke-width="1.5"/>`,
+    `<rect x="${cardX}" y="${y}" width="${cardW}" height="94" rx="10" class="xq-jieqi-capture-card" stroke-width="1.5"/>`,
     renderXiangqiPieceGlyphed({ color: 'black', role: 'horse' }, activeXiangqiPieceSet, {
       x: cardX + 18,
       y: y + 24,
@@ -2506,8 +2506,8 @@ export function jieqiCaptureTray(x: number, y: number, label: string, detail: st
       shrouded,
       shroudedStyle: 'back',
     }),
-    `<text x="${cardX + 82}" y="${y + 36}" font-family="system-ui, sans-serif" font-size="13" font-weight="700" class="xq-diagram-ink">${label}</text>`,
-    `<text x="${cardX + 82}" y="${y + 60}" font-family="system-ui, sans-serif" font-size="13" class="xq-diagram-ink">${detail}</text>`,
+    `<text x="${cardX + 82}" y="${y + 36}" font-family="system-ui, sans-serif" font-size="13" font-weight="700" class="xq-jieqi-capture-label">${label}</text>`,
+    `<text x="${cardX + 82}" y="${y + 60}" font-family="system-ui, sans-serif" font-size="13" class="xq-jieqi-capture-detail">${detail}</text>`,
   ].join('');
 }
 
