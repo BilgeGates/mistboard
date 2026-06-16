@@ -194,7 +194,7 @@ function buildLeaderboardPanel(
 
   heading.append(title, subtitle);
   header.append(
-    buildVariantThumb(miniId, 44, 'leaderboard-panel-thumb', `${variantLabel} board`),
+    buildVariantThumb(miniId, 80, 'leaderboard-panel-thumb', `${variantLabel} board`),
     heading,
   );
   panel.append(header);
@@ -220,18 +220,10 @@ function buildLeaderboardPanel(
 }
 
 function renderLeaderboardTable(entries: LeaderboardEntry[]): HTMLTableElement {
+  // Compact, header-less list in the lichess/playstrategy idiom: rank, player,
+  // rating only — no column headings, no games column. Order carries the rest.
   const table = document.createElement('table');
   table.className = 'leaderboard-table';
-
-  const thead = document.createElement('thead');
-  const headerRow = document.createElement('tr');
-  for (const label of ['#', 'Player', 'Games', 'Rating']) {
-    const th = document.createElement('th');
-    th.textContent = label;
-    headerRow.append(th);
-  }
-  thead.append(headerRow);
-  table.append(thead);
 
   const tbody = document.createElement('tbody');
   for (const entry of entries) {
@@ -248,18 +240,20 @@ function renderLeaderboardTable(entries: LeaderboardEntry[]): HTMLTableElement {
     link.textContent = entry.displayName;
     nameTd.append(link);
 
-    const gamesTd = document.createElement('td');
-    gamesTd.className = 'leaderboard-games';
-    gamesTd.textContent = String(entry.gamesPlayed);
-
     const ratingTd = document.createElement('td');
     ratingTd.className = 'leaderboard-rating';
-    // "?" marks a provisional rating (RD still high) — shown so the board isn't
-    // empty at low liquidity, but flagged as not yet settled.
-    ratingTd.textContent = entry.provisional ? `${entry.eloRating}?` : String(entry.eloRating);
-    if (entry.provisional) ratingTd.classList.add('leaderboard-rating-provisional');
+    ratingTd.textContent = String(entry.eloRating);
+    if (entry.provisional) {
+      // "?" marks a provisional rating (RD still high) — shown so the board isn't
+      // empty at low liquidity, but flagged as not yet settled.
+      ratingTd.classList.add('leaderboard-rating-provisional');
+      const q = document.createElement('span');
+      q.className = 'leaderboard-rating-q';
+      q.textContent = '?';
+      ratingTd.append(q);
+    }
 
-    tr.append(rankTd, nameTd, gamesTd, ratingTd);
+    tr.append(rankTd, nameTd, ratingTd);
     tbody.append(tr);
   }
   table.append(tbody);

@@ -727,17 +727,6 @@
   font-size: 14px;
 }
 
-.leaderboard-table thead th {
-  padding: 8px 12px;
-  text-align: left;
-  font-size: 11px;
-  font-weight: 700;
-  letter-spacing: 0.05em;
-  text-transform: uppercase;
-  color: var(--site-muted);
-  border-bottom: 2px solid var(--site-border);
-}
-
 /* Lichess-style zebra rows: striping carries the row rhythm, no per-row borders. */
 .leaderboard-table tbody tr {
   transition: background 80ms ease;
@@ -752,19 +741,17 @@
 }
 
 .leaderboard-table td {
-  padding: 10px;
+  padding: 5px 12px;
   vertical-align: middle;
 }
 
-.leaderboard-table th:nth-child(1),
 .leaderboard-rank {
-  width: 34px;
-}
-
-.leaderboard-rank {
+  width: 30px;
+  padding-right: 8px;
+  text-align: right;
   color: var(--site-muted);
   font-variant-numeric: tabular-nums;
-  font-size: 13px;
+  font-size: 12px;
 }
 
 .leaderboard-player {
@@ -784,25 +771,18 @@
   text-decoration: underline;
 }
 
-.leaderboard-table th:nth-child(4),
 .leaderboard-rating {
   text-align: right;
   font-variant-numeric: tabular-nums;
   font-weight: 700;
   color: var(--site-heading);
-  width: 76px;
+  width: 64px;
 }
 
-.leaderboard-table th:nth-child(3),
-.leaderboard-games {
-  width: 56px;
-}
-
-.leaderboard-games {
+.leaderboard-rating-q {
+  margin-left: 1px;
   color: var(--site-muted);
-  font-variant-numeric: tabular-nums;
-  font-size: 13px;
-  text-align: right;
+  font-weight: 500;
 }
 
 .leaderboard-grid {
@@ -830,10 +810,10 @@
 }
 
 .leaderboard-panel-thumb {
-  flex: 0 0 44px;
+  flex: 0 0 80px;
   display: flex;
-  width: 44px;
-  height: 44px;
+  width: 80px;
+  height: 80px;
 }
 
 .leaderboard-panel-thumb svg {
@@ -901,9 +881,8 @@
     padding: 20px 0 32px;
   }
 
-  .leaderboard-table td,
-  .leaderboard-table thead th {
-    padding: 8px 8px;
+  .leaderboard-table td {
+    padding: 6px 8px;
   }
 
   .leaderboard-rating {
