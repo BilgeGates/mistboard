@@ -1,7 +1,9 @@
 import { buildNav } from './site-shell.js';
 import { renderVariantMark, VARIANT_MARKS, type VariantMarkDef } from './variant-marks.js';
+import { renderVariantMiniBoard, VARIANT_MINIS } from './variant-mini-boards.js';
 
 const PREVIEW_SIZES = [96, 48, 24, 16] as const;
+const MINI_SIZES = [96, 64, 48, 32, 24, 16] as const;
 
 export function mountVariantMarksLab(root: HTMLElement): void {
   root.replaceChildren();
@@ -10,9 +12,106 @@ export function mountVariantMarksLab(root: HTMLElement): void {
 
   const main = document.createElement('main');
   main.className = 'site-section variant-marks-lab';
-  main.append(buildIntro(), buildMarkGrid(), buildScaleStrip());
+  main.append(
+    buildIntro(),
+    buildMiniBoardIntro(),
+    buildMiniBoardGrid(),
+    buildMiniBoardScaleStrip(),
+    buildMarkGrid(),
+    buildScaleStrip(),
+  );
 
   root.append(buildNav(), main);
+}
+
+function buildMiniBoardIntro(): HTMLElement {
+  const header = document.createElement('header');
+  header.className = 'variant-marks-header variant-minis-header';
+
+  const eyebrow = document.createElement('p');
+  eyebrow.className = 'variant-marks-eyebrow';
+  eyebrow.textContent = 'Mini-board candidates';
+
+  const title = document.createElement('h2');
+  title.className = 'site-section-heading';
+  title.textContent = 'Each variant as a cropped board';
+
+  const copy = document.createElement('p');
+  copy.className = 'site-section-copy';
+  copy.textContent =
+    'Instead of an abstract glyph, a 4x4 crop of the real board: chess pieces, xiangqi generals, face-down tiles, fog. Reads as the actual game, but watch where it collapses below ~32px.';
+
+  header.append(eyebrow, title, copy);
+  return header;
+}
+
+function buildMiniBoardGrid(): HTMLElement {
+  const grid = document.createElement('section');
+  grid.className = 'variant-minis-grid';
+  grid.setAttribute('aria-label', 'Variant mini-board previews');
+
+  for (const def of VARIANT_MINIS) {
+    const card = document.createElement('article');
+    card.className = 'variant-mini-card';
+    card.style.setProperty('--variant-mark-accent', def.accent);
+
+    const lead = document.createElement('div');
+    lead.className = 'variant-mini-lead';
+    lead.innerHTML = renderVariantMiniBoard(def.id, { size: 132, label: `${def.label} mini-board` });
+
+    const text = document.createElement('div');
+    text.className = 'variant-mark-text';
+
+    const title = document.createElement('h3');
+    title.textContent = def.label;
+
+    const accent = document.createElement('span');
+    accent.className = 'variant-mini-accent-chip';
+    accent.textContent = def.shortLabel;
+
+    const titleRow = document.createElement('div');
+    titleRow.className = 'variant-mini-title-row';
+    titleRow.append(title, accent);
+
+    const description = document.createElement('p');
+    description.textContent = def.blurb;
+
+    text.append(titleRow, description);
+    card.append(lead, text);
+    grid.append(card);
+  }
+
+  return grid;
+}
+
+function buildMiniBoardScaleStrip(): HTMLElement {
+  const section = document.createElement('section');
+  section.className = 'variant-mini-scale';
+  section.setAttribute('aria-label', 'Mini-board size ramp');
+
+  for (const def of VARIANT_MINIS) {
+    const row = document.createElement('div');
+    row.className = 'variant-mini-scale-row';
+
+    const name = document.createElement('span');
+    name.className = 'variant-mini-scale-name';
+    name.textContent = def.label;
+    row.append(name);
+
+    for (const size of MINI_SIZES) {
+      const cell = document.createElement('span');
+      cell.className = 'variant-mini-scale-cell';
+      cell.innerHTML = renderVariantMiniBoard(def.id, {
+        size,
+        label: `${def.label} at ${size}px`,
+      });
+      row.append(cell);
+    }
+
+    section.append(row);
+  }
+
+  return section;
 }
 
 function buildIntro(): HTMLElement {
@@ -159,6 +258,90 @@ function installVariantMarksLabStyles(): void {
       font-weight: 800;
       letter-spacing: 0.08em;
       text-transform: uppercase;
+    }
+
+    .variant-minis-header {
+      margin-top: 8px;
+    }
+
+    .variant-minis-grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 14px;
+    }
+
+    .variant-mini-card {
+      display: grid;
+      grid-template-columns: 132px minmax(0, 1fr);
+      gap: 16px;
+      align-items: center;
+      padding: 16px;
+      border: 1px solid var(--site-border);
+      border-radius: 8px;
+      background: var(--site-panel);
+      color: var(--site-text);
+      box-shadow: 0 12px 28px rgba(29, 37, 34, 0.08);
+    }
+
+    .variant-mini-lead {
+      display: grid;
+      place-items: center;
+      width: 132px;
+      height: 132px;
+    }
+
+    .variant-mini-title-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .variant-mini-title-row h3 {
+      margin: 0;
+      color: var(--site-text);
+      font-size: 16px;
+      line-height: 1.2;
+    }
+
+    .variant-mini-accent-chip {
+      display: inline-grid;
+      place-items: center;
+      min-width: 26px;
+      height: 18px;
+      padding: 0 6px;
+      border-radius: 5px;
+      background: var(--variant-mark-accent);
+      color: #fff;
+      font-size: 11px;
+      font-weight: 800;
+      letter-spacing: 0.02em;
+    }
+
+    .variant-mini-scale {
+      display: grid;
+      gap: 10px;
+      padding: 16px;
+      border: 1px solid var(--site-border);
+      border-radius: 8px;
+      background: var(--site-panel);
+    }
+
+    .variant-mini-scale-row {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+
+    .variant-mini-scale-name {
+      flex: 0 0 132px;
+      color: var(--site-muted);
+      font-size: 13px;
+      font-weight: 700;
+    }
+
+    .variant-mini-scale-cell {
+      display: grid;
+      place-items: center;
     }
 
     .variant-marks-grid {
