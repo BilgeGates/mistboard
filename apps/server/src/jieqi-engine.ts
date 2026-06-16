@@ -22,29 +22,29 @@ export type JieqiEngineTier = {
   id: string;
   name: string;
   movetimeMs: number;
-  skill: number;
+  // Optional hard search-depth cap. jieqi_old has NO Skill Level / UCI_Elo knob
+  // (verified: absent from its UCI options), so depth is the only real strength
+  // limiter — a shallow classical search is genuinely beatable. The top tier omits
+  // it (full strength, time-bounded). Depths are starting points; calibrate vs play.
+  depth?: number;
 };
 
-// jieqi_old is a fixed-strength classical engine; tiers are primarily movetime
-// (depth) with a Stockfish-style Skill Level as a secondary knob (ignored by builds
-// that do not implement it).
 const JIEQI_ENGINE_TIERS = [
   {
     id: 'pikafish-jieqi-amateur',
     name: 'PikaJieQi - Amateur',
-    skill: 3,
-    movetimeMs: 200,
+    depth: 4,
+    movetimeMs: 800,
   },
   {
     id: JIEQI_DEFAULT_ENGINE_ID,
     name: 'PikaJieQi - Strong',
-    skill: 12,
-    movetimeMs: 500,
+    depth: 10,
+    movetimeMs: 1200,
   },
   {
     id: 'pikafish-jieqi-strongest',
     name: 'PikaJieQi - Strongest',
-    skill: 20,
     movetimeMs: 2500,
   },
 ] as const satisfies readonly JieqiEngineTier[];
@@ -119,7 +119,7 @@ export function isJieqiEngineClientId(clientId: string | undefined): boolean {
   return jieqiEngineTierFor(clientId) !== null;
 }
 
-export type JieqiEngineOptions = { movetimeMs?: number; skill?: number };
+export type JieqiEngineOptions = { movetimeMs?: number; depth?: number };
 
 /**
  * Ask PikaJieQi for a move given a redacted current-position FEN (see jieqi-fen.ts).
@@ -136,7 +136,7 @@ export async function jieqiLiveEngineMove(
   const release = await acquireSlot();
   try {
     return await jieqiEngineMove(fen, {
-      skill: tier.skill,
+      depth: tier.depth,
       movetimeMs: opts.movetimeMs ?? tier.movetimeMs,
     });
   } finally {
@@ -150,7 +150,7 @@ export function jieqiEngineMove(
 ): Promise<string | null> {
   const bin = pikaJieqiPath();
   const movetimeMs = opts.movetimeMs ?? 500;
-  const skill = opts.skill === undefined ? null : Math.max(0, Math.min(20, Math.floor(opts.skill)));
+  const depth = opts.depth !== undefined ? Math.max(1, Math.floor(opts.depth)) : null;
 
   return new Promise<string | null>((resolveMove, reject) => {
     const child = spawn(bin, [], { stdio: ['pipe', 'pipe', 'pipe'] });
@@ -193,11 +193,12 @@ export function jieqiEngineMove(
     const commands = [
       'uci',
       ...netOption(),
-      ...(skill === null ? [] : [`setoption name Skill Level value ${skill}`]),
       'ucinewgame',
       'isready',
       `position fen ${fen}`,
-      `go movetime ${movetimeMs}`,
+      // depth cap (if any) stops the search early for weaker tiers; movetime bounds
+      // latency on the deep tiers. `go depth N movetime T` halts at whichever hits first.
+      depth === null ? `go movetime ${movetimeMs}` : `go depth ${depth} movetime ${movetimeMs}`,
     ];
     child.stdin.write(`${commands.join('\n')}\n`);
   });

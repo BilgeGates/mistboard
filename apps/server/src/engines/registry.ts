@@ -413,10 +413,13 @@ const CROSSROADS_CHESS_ENGINES: Record<string, EngineDefinition> = {
 };
 
 // Jieqi (揭棋) PvE engines — the Pikafish jieqi branch driven as a UCI subprocess
-// (Tier-B, server-jieqi-engine.ts), same shape as crossroads/FSF. LAUNCH uses the
-// no-net `jieqi_old` classical build (clean GPL-3, no net-licensing problem); the
-// strength track swaps in a self-trained NNUE via MISTBOARD_PIKAFISH_NET. Not added
-// to PROD_PLAYABLE_ENGINE_IDS yet — gated until the vertical ships.
+// (Tier-B, server-jieqi-engine.ts). LAUNCH uses the no-net `jieqi_old` classical
+// build (clean GPL-3, no net-licensing problem). Unlike crossroads/FSF, jieqi_old
+// has NO Skill Level / UCI_Elo knob (verified absent from its UCI options), so the
+// tiers vary by search DEPTH/time (like banqi-uci), not skill. The OPERATIVE search
+// params live in jieqi-engine.ts (JIEQI_ENGINE_TIERS); the `config` values here are
+// catalog metadata kept in sync. Not added to PROD_PLAYABLE_ENGINE_IDS yet — gated
+// until the vertical ships.
 const JIEQI_ENGINES: Record<string, EngineDefinition> = {
   'pikafish-jieqi-amateur': {
     id: 'pikafish-jieqi-amateur',
@@ -427,8 +430,9 @@ const JIEQI_ENGINES: Record<string, EngineDefinition> = {
     gameSpecId: 'jieqi',
     configHash: 'pikafish-jieqi-amateur',
     playSignature: 'pikafish-jieqi-amateur',
-    config: { kind: 'pikafish', skill: 3, movetime_ms: 200 },
-    notes: 'Jieqi PikaJieQi (Pikafish jieqi_old, no-net classical eval) amateur tier.',
+    config: { kind: 'pikafish', depth: 4, movetime_ms: 800 },
+    notes:
+      'Jieqi PikaJieQi (jieqi_old, no-net classical eval) — depth-capped (4) to a beatable amateur level.',
   },
   'pikafish-jieqi-strong': {
     id: 'pikafish-jieqi-strong',
@@ -439,8 +443,8 @@ const JIEQI_ENGINES: Record<string, EngineDefinition> = {
     gameSpecId: 'jieqi',
     configHash: 'pikafish-jieqi-strong',
     playSignature: 'pikafish-jieqi-strong',
-    config: { kind: 'pikafish', skill: 12, movetime_ms: 500 },
-    notes: 'Default Jieqi PikaJieQi tier.',
+    config: { kind: 'pikafish', depth: 10, movetime_ms: 1200 },
+    notes: 'Default Jieqi PikaJieQi tier — depth-capped (10), solid strength.',
   },
   'pikafish-jieqi-strongest': {
     id: 'pikafish-jieqi-strongest',
@@ -451,8 +455,8 @@ const JIEQI_ENGINES: Record<string, EngineDefinition> = {
     gameSpecId: 'jieqi',
     configHash: 'pikafish-jieqi-strongest',
     playSignature: 'pikafish-jieqi-strongest',
-    config: { kind: 'pikafish', skill: 20, movetime_ms: 2500 },
-    notes: 'Top Jieqi PikaJieQi tier at full skill with a longer think budget.',
+    config: { kind: 'pikafish', movetime_ms: 2500 },
+    notes: 'Top Jieqi PikaJieQi tier — full strength, time-bounded (no depth cap).',
   },
 };
 
