@@ -2742,7 +2742,7 @@ export const BANQI_RANK_LADDER = () => {
       `<rect x="${L}" y="${T}" width="${BANQI_BOARD_W}" height="${BANQI_BOARD_H}" rx="${XQ_BOARD_RADIUS}" class="xq-diagram-bg"/>`,
       `<rect x="${L}" y="${T}" width="${BANQI_BOARD_W}" height="${BANQI_BOARD_H}" rx="${XQ_BOARD_RADIUS}" fill="none" stroke="${XQ_BOARD_STROKE}" stroke-width="${XQ_BOARD_STROKE_WIDTH}"/>`,
       `<text x="${L + 20}" y="${T + 54}" font-family="system-ui, sans-serif" font-size="11" font-weight="700" class="xq-diagram-ink">RED</text>`,
-      `<text x="${L + 20}" y="${T + 110}" font-family="system-ui, sans-serif" font-size="11" font-weight="700" class="xq-diagram-ink">BLACK</text>`,
+      `<text x="${L + 20}" y="${T + 104}" font-family="system-ui, sans-serif" font-size="11" font-weight="700" class="xq-diagram-ink">BLACK</text>`,
       ...BANQI_RANK_ORDER.map(({ role, label }, index) => {
         const cx = pieceX(index);
         return [
@@ -2753,14 +2753,14 @@ export const BANQI_RANK_LADDER = () => {
           }),
           renderXiangqiPieceGlyphed({ color: 'black', role }, activeXiangqiPieceSet, {
             x: cx - 18,
-            y: T + 88,
+            y: T + 82,
             size: 36,
           }),
           `<text x="${cx}" y="${T + 150}" font-family="system-ui, sans-serif" font-size="11" class="xq-diagram-ink" text-anchor="middle">${label}</text>`,
         ].join('');
       }),
-      `<text x="${L + 60}" y="${T + 182}" font-family="system-ui, sans-serif" font-size="12" font-weight="700" class="xq-diagram-ink" text-anchor="middle">HIGH</text>`,
-      `<text x="${L + BANQI_BOARD_W - 60}" y="${T + 182}" font-family="system-ui, sans-serif" font-size="12" font-weight="700" class="xq-diagram-ink" text-anchor="middle">LOW</text>`,
+      `<text x="${L + 60}" y="${T + 200}" font-family="system-ui, sans-serif" font-size="12" font-weight="700" class="xq-diagram-ink" text-anchor="middle">HIGH</text>`,
+      `<text x="${L + BANQI_BOARD_W - 60}" y="${T + 200}" font-family="system-ui, sans-serif" font-size="12" font-weight="700" class="xq-diagram-ink" text-anchor="middle">LOW</text>`,
     ].join(''),
   );
 };
