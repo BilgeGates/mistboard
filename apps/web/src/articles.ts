@@ -41,6 +41,7 @@ import { darkMiniXiangqiPublicEntryEnabled } from './feature-flags.js';
 import { type JieqiReplayController, mountJieqiReplay } from './jieqi-replay.js';
 import { type MiniXiangqiReplayController, mountMiniXiangqiReplay } from './mini-xiangqi-replay.js';
 import { readStoredXiangqiPieceSet, xiangqiAppearanceChangedEvent } from './theme.js';
+import { renderVariantMiniBoard, type VariantMiniId } from './variant-mini-boards.js';
 import { DEFAULT_XIANGQI_PIECE_SET, type XiangqiPieceSet } from './xiangqi-piece-sets.js';
 import { mountXiangqiReplay, type XiangqiReplayController } from './xiangqi-replay.js';
 
@@ -225,7 +226,9 @@ function buildRulesLanding(lang?: ArticleLang): HTMLElement {
       const tile = document.createElement('a');
       tile.className = 'rules-landing-tile';
       tile.href = `${lang ? ARTICLE_LANG_PREFIX[lang] : ''}/rules/${article.slug}`;
-      if (article.thumbnail) tile.append(renderArticleThumbnail(article.thumbnail));
+      const miniTile = renderVariantMiniThumb(article.slug);
+      if (miniTile) tile.append(miniTile);
+      else if (article.thumbnail) tile.append(renderArticleThumbnail(article.thumbnail));
       const label = document.createElement('span');
       label.className = 'rules-landing-tile-label';
       label.textContent = variantNavLabel(localized.title);
@@ -628,7 +631,9 @@ function buildVariantSidebar(currentSlug: string | null, lang?: ArticleLang): HT
       const link = document.createElement('a');
       link.className = 'article-variant-link';
       link.href = `${lang ? ARTICLE_LANG_PREFIX[lang] : ''}/rules/${entry.slug}`;
-      if (entry.thumbnail) link.append(renderArticleThumbnail(entry.thumbnail));
+      const miniRail = renderVariantMiniThumb(entry.slug);
+      if (miniRail) link.append(miniRail);
+      else if (entry.thumbnail) link.append(renderArticleThumbnail(entry.thumbnail));
       const localized = lang ? translateArticle(entry, lang) : entry;
       const label = document.createElement('span');
       label.className = 'article-variant-label';
@@ -1509,6 +1514,41 @@ export function renderArticleThumbnail(thumb: ArticleThumbnail): HTMLElement {
   board.className = 'articles-thumb-board cg-wrap';
   wrap.append(board);
   pendingThumbnails.set(board, thumb);
+  return wrap;
+}
+
+// Variant rules articles whose rail/landing thumbnail is the shared mini-board
+// (the renderVariantMiniBoard family). Base-game articles (chess, xiangqi, …)
+// aren't here and keep their own existing thumbnails.
+const VARIANT_MINI_BY_SLUG: Record<string, VariantMiniId> = {
+  'dark-chess': 'dark-chess',
+  'dark-draft960': 'draft960',
+  'dark-xiangqi': 'dark-xiangqi',
+  'dark-mini-xiangqi': 'dark-mini-xiangqi',
+  jieqi: 'jieqi',
+  banqi: 'banqi',
+  'crossroads-chess': 'crossroads',
+  kriegspiel: 'kriegspiel',
+  'reveal-chess': 'reveal-chess',
+};
+
+// A rail/landing thumbnail rendered as the variant's mini-board, or null if the
+// slug has no mini (caller falls back to the article's own thumbnail).
+function renderVariantMiniThumb(slug: string): HTMLElement | null {
+  const miniId = VARIANT_MINI_BY_SLUG[slug];
+  if (!miniId) return null;
+  const wrap = document.createElement('div');
+  wrap.className = 'articles-index-card-thumb variant-mini-thumb';
+  wrap.setAttribute('aria-hidden', 'true');
+  markNoTranslate(wrap);
+  wrap.innerHTML = renderVariantMiniBoard(miniId, { size: 100 });
+  const svg = wrap.firstElementChild;
+  if (svg instanceof SVGSVGElement) {
+    svg.setAttribute('width', '100%');
+    svg.setAttribute('height', '100%');
+    svg.setAttribute('preserveAspectRatio', 'xMidYMid meet');
+    svg.style.display = 'block';
+  }
   return wrap;
 }
 
