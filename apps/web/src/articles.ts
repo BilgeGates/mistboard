@@ -1518,12 +1518,16 @@ export function renderArticleThumbnail(thumb: ArticleThumbnail): HTMLElement {
 }
 
 // Variant rules articles whose rail/landing thumbnail is the shared mini-board
-// (the renderVariantMiniBoard family). Base-game articles (chess, xiangqi, …)
-// aren't here and keep their own existing thumbnails.
+// (the renderVariantMiniBoard family). Base-game articles map to their no-fog
+// markers (same board crop as the dark variant, fog removed) so the whole rail
+// reads in one visual language.
 const VARIANT_MINI_BY_SLUG: Record<string, VariantMiniId> = {
+  chess: 'chess',
   'dark-chess': 'dark-chess',
   'dark-draft960': 'draft960',
+  xiangqi: 'xiangqi',
   'dark-xiangqi': 'dark-xiangqi',
+  'mini-xiangqi': 'mini-xiangqi',
   'dark-mini-xiangqi': 'dark-mini-xiangqi',
   jieqi: 'jieqi',
   banqi: 'banqi',

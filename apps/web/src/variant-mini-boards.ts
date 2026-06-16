@@ -8,9 +8,12 @@ import { createInitialXiangqiState, getPlayerView as getXiangqiPlayerView } from
 // no mounting, so they drop straight into the variant lab review surface.
 
 export type VariantMiniId =
+  | 'chess'
   | 'dark-chess'
   | 'draft960'
+  | 'xiangqi'
   | 'dark-xiangqi'
+  | 'mini-xiangqi'
   | 'dark-mini-xiangqi'
   | 'jieqi'
   | 'banqi'
@@ -217,10 +220,11 @@ function xqBoard(
 
 // ---- per-variant tile bodies ---------------------------------------------
 
-function darkChessBody(): string {
+// Chess corner crop: a real chess quarter (back rank under a rank of pawns). The
+// dark variant shrouds the enemy half; standard chess leaves it as plain board.
+function chessCornerBody(showFog = true): string {
   const cell = SIZE / 4;
   const center = (c: number, r: number) => ({ x: OX + (c + 0.5) * cell, y: OY + (r + 0.5) * cell });
-  // Friendly half: a real chess quarter — back rank under a rank of pawns.
   const backRank = ['white:king', 'white:bishop', 'white:knight', 'white:rook'];
   const pieces: string[] = [];
   for (let c = 0; c < 4; c += 1) {
@@ -229,13 +233,15 @@ function darkChessBody(): string {
     pieces.push(chessPieceAt('white:pawn', pawn.x, pawn.y, cell));
     pieces.push(chessPieceAt(backRank[c]!, piece.x, piece.y, cell));
   }
-  // Enemy half (top two rows) fully shrouded — hidden pieces aren't drawn.
-  const fog: string[] = [];
-  for (let c = 0; c < 4; c += 1) {
-    fog.push(fogCell(c, 0, cell));
-    fog.push(fogCell(c, 1, cell));
+  // Enemy half (top two rows): shrouded in Dark Chess, empty board otherwise.
+  const overlay: string[] = [];
+  if (showFog) {
+    for (let c = 0; c < 4; c += 1) {
+      overlay.push(fogCell(c, 0, cell));
+      overlay.push(fogCell(c, 1, cell));
+    }
   }
-  return [checker(4, 4, cell), ...pieces, ...fog].join('');
+  return [checker(4, 4, cell), ...pieces, ...overlay].join('');
 }
 
 function draft960Body(): string {
@@ -266,25 +272,28 @@ const XQ_RED_VISIBLE = new Set<string>(
   getXiangqiPlayerView(createInitialXiangqiState('xq-mini-tile'), 'red').visibleSquares,
 );
 
-function darkXiangqiBody(): string {
+function xiangqiCourtBody(showFog = true): string {
   // Red's base on files a..e, ranks 1..5, mirrored horizontally (columns flipped
   // f -> 4-f; glyphs stay upright). The back-rank court (chariot, horse, elephant,
   // advisor, general), the cannon on b3 behind the rank-4 soldiers (a, c, e), and
-  // real-vision fog — the advisor file (d) blind spot (d2, d4, d5) plus c2 where
-  // the elephant screens the horse's leg.
+  // (in Dark Xiangqi) real-vision fog — the advisor file (d) blind spot (d2, d4,
+  // d5) plus c2 where the elephant screens the horse's leg. Standard xiangqi
+  // leaves those same squares as plain intersections.
   const g = xqGeom(5, 5);
   const disc = g.gx * 0.86;
   const px = (f: number) => g.px(4 - f); // mirror columns; keep pieces unflipped
   const fileCh = (f: number) => String.fromCharCode(97 + f);
   const fog: string[] = [];
-  for (let f = 0; f <= 4; f += 1) {
-    for (let rank = 1; rank <= 5; rank += 1) {
-      if (XQ_RED_VISIBLE.has(`${fileCh(f)}${rank}`)) continue;
-      const cx = px(f);
-      const cy = g.py(5 - rank);
-      fog.push(
-        `<rect x="${cx - g.gx / 2}" y="${cy - g.gy / 2}" width="${g.gx}" height="${g.gy}" fill="${XQ_FOG}"/>`,
-      );
+  if (showFog) {
+    for (let f = 0; f <= 4; f += 1) {
+      for (let rank = 1; rank <= 5; rank += 1) {
+        if (XQ_RED_VISIBLE.has(`${fileCh(f)}${rank}`)) continue;
+        const cx = px(f);
+        const cy = g.py(5 - rank);
+        fog.push(
+          `<rect x="${cx - g.gx / 2}" y="${cy - g.gy / 2}" width="${g.gx}" height="${g.gy}" fill="${XQ_FOG}"/>`,
+        );
+      }
     }
   }
   const court = ['chariot', 'horse', 'elephant', 'advisor', 'general'].map((role, f) =>
@@ -302,7 +311,7 @@ function darkXiangqiBody(): string {
   return [xqBoard(g), halfPalace, fog.join(''), ...pieces].join('');
 }
 
-function darkMiniXiangqiBody(): string {
+function miniXiangqiCutBody(showFog = true): string {
   // A 4x4-cell (5x5-point) cut of the real mini-xiangqi opening, window shifted
   // right one file (c..g): horse-general-horse-cannon-chariot back rank, so the
   // palace + general sit off-centre left and a chariot enters on the right.
@@ -328,15 +337,19 @@ function darkMiniXiangqiBody(): string {
       return xiangqiDisc(p.x, p.y, disc, 'red', 'soldier');
     }),
   ].join('');
-  // Fog the far approach but leave the cannon file (col 3) open — its sightline
-  // is clear; every other file is screened by a soldier.
-  const fogYBottom = (g.py(1) + g.py(2)) / 2;
-  const leftX1 = (g.px(2) + g.px(3)) / 2;
-  const rightX0 = (g.px(3) + g.px(4)) / 2;
-  const fog = [
-    `<rect x="${OX}" y="${OY}" width="${leftX1 - OX}" height="${fogYBottom - OY}" fill="${XQ_FOG}"/>`,
-    `<rect x="${rightX0}" y="${OY}" width="${OX + SIZE - rightX0}" height="${fogYBottom - OY}" fill="${XQ_FOG}"/>`,
-  ].join('');
+  // Dark variant: fog the far approach but leave the cannon file (col 3) open —
+  // its sightline is clear; every other file is screened by a soldier. Standard
+  // mini-xiangqi shows the same approach as plain board.
+  let fog = '';
+  if (showFog) {
+    const fogYBottom = (g.py(1) + g.py(2)) / 2;
+    const leftX1 = (g.px(2) + g.px(3)) / 2;
+    const rightX0 = (g.px(3) + g.px(4)) / 2;
+    fog = [
+      `<rect x="${OX}" y="${OY}" width="${leftX1 - OX}" height="${fogYBottom - OY}" fill="${XQ_FOG}"/>`,
+      `<rect x="${rightX0}" y="${OY}" width="${OX + SIZE - rightX0}" height="${fogYBottom - OY}" fill="${XQ_FOG}"/>`,
+    ].join('');
+  }
   return [xqBoard(g, { palace: { cLo: 0, cHi: 2, rLo: 2, rHi: 4 } }), pieces, fog].join('');
 }
 
@@ -485,10 +498,13 @@ function revealChessBody(): string {
 // ---- registry + render entry ----------------------------------------------
 
 const BODIES: Record<VariantMiniId, () => string> = {
-  'dark-chess': darkChessBody,
+  chess: () => chessCornerBody(false),
+  'dark-chess': () => chessCornerBody(true),
   draft960: draft960Body,
-  'dark-xiangqi': darkXiangqiBody,
-  'dark-mini-xiangqi': darkMiniXiangqiBody,
+  xiangqi: () => xiangqiCourtBody(false),
+  'dark-xiangqi': () => xiangqiCourtBody(true),
+  'mini-xiangqi': () => miniXiangqiCutBody(false),
+  'dark-mini-xiangqi': () => miniXiangqiCutBody(true),
   jieqi: jieqiBody,
   banqi: banqiBody,
   crossroads: crossroadsBody,
@@ -497,6 +513,14 @@ const BODIES: Record<VariantMiniId, () => string> = {
 };
 
 export const VARIANT_MINIS: readonly VariantMiniDef[] = [
+  {
+    id: 'chess',
+    label: 'Chess',
+    shortLabel: 'CH',
+    accent: '#6b7280',
+    blurb: 'The classic start: a back rank under a rank of pawns, nothing hidden.',
+    frame: CHESS_FRAME,
+  },
   {
     id: 'dark-chess',
     label: 'Dark chess',
@@ -514,17 +538,33 @@ export const VARIANT_MINIS: readonly VariantMiniDef[] = [
     frame: CHESS_FRAME,
   },
   {
+    id: 'xiangqi',
+    label: 'Xiangqi',
+    shortLabel: 'XQ',
+    accent: '#8b5a24',
+    blurb: "Red's court and cannon across the river board, nothing hidden.",
+    frame: XQ_FRAME,
+  },
+  {
     id: 'dark-xiangqi',
     label: 'Dark Xiangqi',
-    shortLabel: 'XQ',
+    shortLabel: 'DX',
     accent: '#9f342d',
     blurb: "Red's court and cannon; fog marks the squares no red piece can reach.",
     frame: XQ_FRAME,
   },
   {
+    id: 'mini-xiangqi',
+    label: 'Mini Xiangqi',
+    shortLabel: 'MX',
+    accent: '#a16207',
+    blurb: 'The small-board opening: general by its palace, cannon, and chariot.',
+    frame: XQ_FRAME,
+  },
+  {
     id: 'dark-mini-xiangqi',
     label: 'Dark Mini Xiangqi',
-    shortLabel: 'MX',
+    shortLabel: 'DMX',
     accent: '#c2410c',
     blurb: 'A real-opening cut: general by its palace, cannon, and chariot.',
     frame: XQ_FRAME,
