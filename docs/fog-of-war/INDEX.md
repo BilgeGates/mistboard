@@ -33,6 +33,8 @@ implementation records, and article drafts.
 
 | File | Status | Use it for |
 |---|---|---|
+| [`prototypes/dark-go-v0.html`](prototypes/dark-go-v0.html) | `candidate` | Standalone 9x9 Phantom Go rules lab with Mistboard-style private views. |
+| [`prototypes/dark-go-bot-game-viewer.html`](prototypes/dark-go-bot-game-viewer.html) | `candidate` | Dark Go bot-game viewer for replaying sample game records across private perspectives. |
 | [`prototypes/dark-shogi-prototype.html`](prototypes/dark-shogi-prototype.html) | `candidate` | Scripted Dark Shogi scenario sketch for candidate rules and perspective views. |
 | [`prototypes/dark-shogi-freeplay.html`](prototypes/dark-shogi-freeplay.html) | `candidate` | Standalone Dark Shogi freeplay lab for local move/drop experiments and event-redaction probes. |
 
