@@ -242,8 +242,6 @@ describe('rules variant sidebar', () => {
     expect(figureText).not.toContain('?');
     expect(figureText).toContain('FIRST FLIP ASSIGNS COLOR');
     expect(figureText).toContain('TAIWAN RANK LADDER');
-    expect(figureText).toContain('Exception: soldier captures general');
-    expect(figureText).toContain('Cannon is outside this ladder');
     expect(figureText).toContain('CANNON SCREEN CAPTURE');
     expect(figureText).toContain('FACE-DOWN PIECES SHAPE THE BOARD');
   });

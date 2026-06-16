@@ -9,12 +9,12 @@ import {
 import { readStoredXiangqiPieceSet } from './xiangqi-appearance-storage.js';
 import { renderXiangqiPieceGlyphed, type XiangqiPieceSet } from './xiangqi-piece-sets.js';
 
-// Bespoke SVG renderer for the banqi board, drawn as half a xiangqi board turned
-// PORTRAIT (taller than wide): the 8 files run top-to-bottom, the 4 ranks run
-// left-to-right. The 8x4 banqi cells are the 32 cells bounded by a 9x5 line grid
+// Bespoke SVG renderer for the banqi board, drawn as the bottom HALF of a xiangqi
+// board in its natural HORIZONTAL orientation: 8 files run left-to-right, 4 ranks
+// bottom-to-top. The 8x4 banqi cells are the 32 cells bounded by a 9x5 line grid
 // (half a xiangqi board), so the xiangqi furniture (the palace + the soldier/
-// cannon starting-point marks + the river along the far edge) is drawn on the
-// line intersections while the 32 pieces sit in the CELL centres.
+// cannon starting-point marks) is drawn on the line intersections while the 32
+// pieces sit in the CELL centres.
 //
 // Banqi is symmetric-information: BOTH seats see the IDENTICAL board (no per-seat
 // flip), and a face-down tile carries NO colour or identity to anyone (the deal
@@ -22,13 +22,13 @@ import { renderXiangqiPieceGlyphed, type XiangqiPieceSet } from './xiangqi-piece
 // uniform disc (one colour, leaking nothing); a revealed piece renders with its
 // xiangqi glyph.
 
-const FILES = 8; // cells down (9 horizontal lines / files a..i) — the long axis
-const RANKS = 4; // cells across (5 vertical lines / ranks 1..5, river at the far edge)
-const CELL = 76;
-const MARGIN = 26;
-const PIECE_SIZE = 60;
-const WIDTH = MARGIN * 2 + RANKS * CELL;
-const HEIGHT = MARGIN * 2 + FILES * CELL;
+const FILES = 8; // cells across (9 vertical lines / files a..i)
+const RANKS = 4; // cells down (5 horizontal lines / ranks 1..5, river at the top)
+const CELL = 64;
+const MARGIN = 28;
+const PIECE_SIZE = 52;
+const WIDTH = MARGIN * 2 + FILES * CELL;
+const HEIGHT = MARGIN * 2 + RANKS * CELL;
 const HIT_HALF = CELL / 2 - 1;
 
 export const BANQI_PIECE_PX = PIECE_SIZE;
@@ -45,42 +45,42 @@ export type BanqiBoardRenderOptions = {
   draggingFrom?: BanqiSquare | null;
 };
 
-// A line intersection. `rankLine` 0..4 runs left→right (rank 1 at the left, the
-// river edge at the right); `fileLine` 0..8 runs top→bottom (file a at the top).
-function point(rankLine: number, fileLine: number): { x: number; y: number } {
-  return { x: MARGIN + rankLine * CELL, y: MARGIN + fileLine * CELL };
+// A line intersection. `fileLine` 0..8 runs left→right (file a at the left);
+// `rankLine` 0..4 runs top→bottom (the river edge at the top, rank 1 at the
+// bottom).
+function point(fileLine: number, rankLine: number): { x: number; y: number } {
+  return { x: MARGIN + fileLine * CELL, y: MARGIN + rankLine * CELL };
 }
 
-// A cell centre for a banqi square (file 0..7 down, rank 1..4 across; identical
-// for both seats, no flip).
+// A cell centre for a banqi square (file 0..7 across, rank 1..4 up; identical for
+// both seats, no flip — rank 1 sits at the bottom).
 function cellCenter(square: BanqiSquare): { x: number; y: number } {
   const { file, rank } = banqiCoordOf(square);
-  return { x: MARGIN + (rank - 0.5) * CELL, y: MARGIN + (file + 0.5) * CELL };
+  return { x: MARGIN + (file + 0.5) * CELL, y: MARGIN + (4.5 - rank) * CELL };
 }
 
 function gridLines(): string {
   const parts: string[] = [];
   const a = point(0, 0);
-  const z = point(RANKS, FILES);
-  for (let f = 0; f <= FILES; f += 1) {
-    const y = MARGIN + f * CELL;
+  const z = point(FILES, RANKS);
+  for (let r = 0; r <= RANKS; r += 1) {
+    const y = MARGIN + r * CELL;
     parts.push(`<line x1="${a.x}" y1="${y}" x2="${z.x}" y2="${y}"/>`);
   }
-  for (let r = 0; r <= RANKS; r += 1) {
-    const x = MARGIN + r * CELL;
+  for (let f = 0; f <= FILES; f += 1) {
+    const x = MARGIN + f * CELL;
     parts.push(`<line x1="${x}" y1="${a.y}" x2="${x}" y2="${z.y}"/>`);
   }
   return parts.join('');
 }
 
 // The bottom palace (xiangqi files d..f, ranks 1..3): two diagonals across the
-// 2x2 cell box at the back rank (here the left edge). Decorative — banqi has no
-// palace confinement.
+// 2x2 cell box at the back rank. Decorative — banqi has no palace confinement.
 function palaceDiagonals(): string {
-  const a = point(0, 3);
-  const b = point(2, 5);
-  const c = point(0, 5);
-  const d = point(2, 3);
+  const a = point(3, 2);
+  const b = point(5, 4);
+  const c = point(5, 2);
+  const d = point(3, 4);
   return [
     `<line x1="${a.x}" y1="${a.y}" x2="${b.x}" y2="${b.y}"/>`,
     `<line x1="${c.x}" y1="${c.y}" x2="${d.x}" y2="${d.y}"/>`,
@@ -90,15 +90,15 @@ function palaceDiagonals(): string {
 // The xiangqi position bracket at a starting point: short L-marks in each
 // on-board quadrant. Soldiers start on rank 4 (files a,c,e,g,i); cannons on
 // rank 3 (files b,h) — the standard markings of a board's near half.
-function positionMark(rankLine: number, fileLine: number): string {
-  const { x, y } = point(rankLine, fileLine);
+function positionMark(fileLine: number, rankLine: number): string {
+  const { x, y } = point(fileLine, rankLine);
   const gap = 4;
   const len = 7;
   const parts: string[] = [];
   for (const sx of [-1, 1]) {
-    if (rankLine + sx < 0 || rankLine + sx > RANKS) continue;
+    if (fileLine + sx < 0 || fileLine + sx > FILES) continue;
     for (const sy of [-1, 1]) {
-      if (fileLine + sy < 0 || fileLine + sy > FILES) continue;
+      if (rankLine + sy < 0 || rankLine + sy > RANKS) continue;
       const px = x + sx * gap;
       const py = y + sy * gap;
       parts.push(`<line x1="${px}" y1="${py}" x2="${px + sx * len}" y2="${py}"/>`);
@@ -110,8 +110,8 @@ function positionMark(rankLine: number, fileLine: number): string {
 
 function startMarks(): string {
   const parts: string[] = [];
-  for (const fileLine of [0, 2, 4, 6, 8]) parts.push(positionMark(3, fileLine)); // soldiers, rank 4
-  for (const fileLine of [1, 7]) parts.push(positionMark(2, fileLine)); // cannons, rank 3
+  for (const fileLine of [0, 2, 4, 6, 8]) parts.push(positionMark(fileLine, 1)); // soldiers, rank 4
+  for (const fileLine of [1, 7]) parts.push(positionMark(fileLine, 2)); // cannons, rank 3
   return `<g class="banqi-mark">${parts.join('')}</g>`;
 }
 
@@ -163,7 +163,7 @@ function moveHints(view: BanqiPlayerView, moves: readonly BanqiMove[]): string {
       const capture = !!occupant && !occupant.faceDown;
       return capture
         ? `<circle class="banqi-hint-capture" cx="${x}" cy="${y}" r="${CELL * 0.42}"/>`
-        : `<circle class="banqi-hint" cx="${x}" cy="${y}" r="10"/>`;
+        : `<circle class="banqi-hint" cx="${x}" cy="${y}" r="9"/>`;
     })
     .join('');
 }
@@ -228,6 +228,8 @@ export function installBanqiBoardStyles(): void {
       touch-action: manipulation;
       -webkit-user-select: none;
       user-select: none;
+      /* Match the room-page boards' soft card lift (xiangqi-live-board). */
+      filter: drop-shadow(0 14px 36px rgba(37, 31, 24, 0.18));
     }
     .banqi-board-bg { fill: var(--mini-xq-board-bg, #f0d6a4); }
     .banqi-grid line {

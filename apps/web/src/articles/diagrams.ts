@@ -2596,6 +2596,37 @@ export function banqiBoardGrid(x0: number, y0: number): string {
     const y = top + r * BANQI_CELL;
     parts.push(`<line x1="${left}" y1="${y}" x2="${right}" y2="${y}" class="xq-diagram-line" stroke-width="1"/>`);
   }
+  // Half-xiangqi furniture (matches the live board): the bottom palace's
+  // diagonals (files d-f, ranks 1-3) and the soldier/cannon starting-point
+  // brackets. Drawn on the line intersections; pieces still sit in the cells.
+  const pt = (col: number, row: number) => ({ x: left + col * BANQI_CELL, y: top + row * BANQI_CELL });
+  for (const [a, b] of [
+    [pt(3, 2), pt(5, 4)],
+    [pt(5, 2), pt(3, 4)],
+  ]) {
+    parts.push(`<line x1="${a.x}" y1="${a.y}" x2="${b.x}" y2="${b.y}" class="xq-diagram-line" stroke-width="1"/>`);
+  }
+  const mark = (col: number, row: number): void => {
+    const { x, y } = pt(col, row);
+    const gap = 3;
+    const len = 5;
+    for (const sx of [-1, 1]) {
+      if (col + sx < 0 || col + sx > BANQI_COLS) continue;
+      for (const sy of [-1, 1]) {
+        if (row + sy < 0 || row + sy > BANQI_ROWS) continue;
+        const px = x + sx * gap;
+        const py = y + sy * gap;
+        parts.push(
+          `<line x1="${px}" y1="${py}" x2="${px + sx * len}" y2="${py}" class="xq-diagram-line" stroke-width="1"/>`,
+        );
+        parts.push(
+          `<line x1="${px}" y1="${py}" x2="${px}" y2="${py + sy * len}" class="xq-diagram-line" stroke-width="1"/>`,
+        );
+      }
+    }
+  };
+  for (const col of [0, 2, 4, 6, 8]) mark(col, 1); // soldiers, rank 4
+  for (const col of [1, 7]) mark(col, 2); // cannons, rank 3
   parts.push(
     `<rect x="${x0}" y="${y0}" width="${BANQI_BOARD_W}" height="${BANQI_BOARD_H}" rx="${XQ_BOARD_RADIUS}" fill="none" stroke="${XQ_BOARD_STROKE}" stroke-width="${XQ_BOARD_STROKE_WIDTH}"/>`,
   );
@@ -2642,9 +2673,19 @@ export function banqiArrow(
   x0: number,
   y0: number,
   id: string,
+  // Pull the arrowhead back from the target cell centre by this many px, so the
+  // pointy end lands on the OUTER edge of the captured piece rather than its middle.
+  endInset = 0,
 ): string {
   const start = banqiCellCenter(from.col, from.row, x0, y0);
-  const end = banqiCellCenter(to.col, to.row, x0, y0);
+  const rawEnd = banqiCellCenter(to.col, to.row, x0, y0);
+  const dx = rawEnd.x - start.x;
+  const dy = rawEnd.y - start.y;
+  const length = Math.hypot(dx, dy) || 1;
+  const end = {
+    x: rawEnd.x - (dx / length) * endInset,
+    y: rawEnd.y - (dy / length) * endInset,
+  };
   return [
     `<defs><marker id="${id}" markerWidth="4" markerHeight="4" refX="2.05" refY="2" orient="auto" overflow="visible" markerUnits="strokeWidth"><path d="M0,0 V4 L3,2 Z" fill="#15781B"/></marker></defs>`,
     `<line x1="${start.x}" y1="${start.y}" x2="${end.x}" y2="${end.y}" stroke="#15781B" stroke-width="5.25" stroke-linecap="round" opacity="0.38" marker-end="url(#${id})"/>`,
@@ -2687,41 +2728,42 @@ export const BANQI_RANK_ORDER: Array<{ role: XiangqiPiece['role']; label: string
   { role: 'soldier', label: 'Soldier' },
 ];
 
-export const BANQI_RANK_LADDER = () => xqSvg(
-  BANQI_PAIR_W,
-  238,
-  [
-    `<defs><marker id="banqi-soldier-general-arrow" markerWidth="4" markerHeight="4" refX="2.05" refY="2" orient="auto" overflow="visible" markerUnits="strokeWidth"><path d="M0,0 V4 L3,2 Z" fill="#15781B"/></marker></defs>`,
-    `<rect x="0" y="0" width="${BANQI_PAIR_W}" height="228" rx="${XQ_BOARD_RADIUS}" class="xq-diagram-bg"/>`,
-    `<rect x="0" y="0" width="${BANQI_PAIR_W}" height="228" rx="${XQ_BOARD_RADIUS}" fill="none" class="xq-diagram-line" stroke-width="${XQ_BOARD_STROKE_WIDTH}"/>`,
-    `<text x="${BANQI_PAIR_W / 2}" y="26" font-family="system-ui, sans-serif" font-size="13" font-weight="700" class="xq-diagram-ink" text-anchor="middle">TAIWAN RANK LADDER</text>`,
-    `<text x="42" y="68" font-family="system-ui, sans-serif" font-size="11" font-weight="700" class="xq-diagram-ink">RED</text>`,
-    `<text x="42" y="112" font-family="system-ui, sans-serif" font-size="11" font-weight="700" class="xq-diagram-ink">BLACK</text>`,
-    ...BANQI_RANK_ORDER.map(({ role, label }, index) => {
-      const cx = 98 + index * 80;
-      return [
-        renderXiangqiPieceGlyphed({ color: 'red', role }, activeXiangqiPieceSet, {
-          x: cx - 18,
-          y: 43,
-          size: 36,
-        }),
-        renderXiangqiPieceGlyphed({ color: 'black', role }, activeXiangqiPieceSet, {
-          x: cx - 18,
-          y: 87,
-          size: 36,
-        }),
-        `<text x="${cx}" y="142" font-family="system-ui, sans-serif" font-size="11" class="xq-diagram-ink" text-anchor="middle">${label}</text>`,
-      ].join('');
-    }),
-    `<text x="84" y="172" font-family="system-ui, sans-serif" font-size="12" font-weight="700" class="xq-diagram-ink">HIGH</text>`,
-    `<text x="${BANQI_PAIR_W - 84}" y="172" font-family="system-ui, sans-serif" font-size="12" font-weight="700" class="xq-diagram-ink" text-anchor="end">LOW</text>`,
-    `<path d="M 498 162 C 422 214 174 214 98 162" fill="none" stroke="#15781B" stroke-width="3" stroke-linecap="round" opacity="0.5" marker-end="url(#banqi-soldier-general-arrow)"/>`,
-    `<line x1="91" y1="184" x2="105" y2="198" stroke="#b91c1c" stroke-width="3" stroke-linecap="round"/>`,
-    `<line x1="105" y1="184" x2="91" y2="198" stroke="#b91c1c" stroke-width="3" stroke-linecap="round"/>`,
-    `<text x="${BANQI_PAIR_W / 2}" y="197" font-family="system-ui, sans-serif" font-size="12" font-weight="600" class="xq-diagram-ink" text-anchor="middle">Exception: soldier captures general, but general cannot capture soldier.</text>`,
-    `<text x="${BANQI_PAIR_W / 2}" y="216" font-family="system-ui, sans-serif" font-size="12" font-weight="600" class="xq-diagram-ink" text-anchor="middle">Cannon is outside this ladder.</text>`,
-  ].join(''),
-);
+export const BANQI_RANK_LADDER = () => {
+  // Same footprint as the half-xiangqi board diagrams: a BANQI_BOARD_W x
+  // BANQI_BOARD_H panel centred at BANQI_CENTER_X, with the title above it.
+  const L = BANQI_CENTER_X;
+  const T = 28;
+  const pieceX = (index: number): number => L + 78 + index * 56;
+  return xqSvg(
+    BANQI_PAIR_W,
+    BANQI_BOARD_H + 52,
+    [
+      `<text x="${BANQI_PAIR_W / 2}" y="14" font-family="system-ui, sans-serif" font-size="13" font-weight="700" class="xq-diagram-title" text-anchor="middle">TAIWAN RANK LADDER</text>`,
+      `<rect x="${L}" y="${T}" width="${BANQI_BOARD_W}" height="${BANQI_BOARD_H}" rx="${XQ_BOARD_RADIUS}" class="xq-diagram-bg"/>`,
+      `<rect x="${L}" y="${T}" width="${BANQI_BOARD_W}" height="${BANQI_BOARD_H}" rx="${XQ_BOARD_RADIUS}" fill="none" stroke="${XQ_BOARD_STROKE}" stroke-width="${XQ_BOARD_STROKE_WIDTH}"/>`,
+      `<text x="${L + 20}" y="${T + 54}" font-family="system-ui, sans-serif" font-size="11" font-weight="700" class="xq-diagram-ink">RED</text>`,
+      `<text x="${L + 20}" y="${T + 110}" font-family="system-ui, sans-serif" font-size="11" font-weight="700" class="xq-diagram-ink">BLACK</text>`,
+      ...BANQI_RANK_ORDER.map(({ role, label }, index) => {
+        const cx = pieceX(index);
+        return [
+          renderXiangqiPieceGlyphed({ color: 'red', role }, activeXiangqiPieceSet, {
+            x: cx - 18,
+            y: T + 32,
+            size: 36,
+          }),
+          renderXiangqiPieceGlyphed({ color: 'black', role }, activeXiangqiPieceSet, {
+            x: cx - 18,
+            y: T + 88,
+            size: 36,
+          }),
+          `<text x="${cx}" y="${T + 150}" font-family="system-ui, sans-serif" font-size="11" class="xq-diagram-ink" text-anchor="middle">${label}</text>`,
+        ].join('');
+      }),
+      `<text x="${L + 60}" y="${T + 182}" font-family="system-ui, sans-serif" font-size="12" font-weight="700" class="xq-diagram-ink" text-anchor="middle">HIGH</text>`,
+      `<text x="${L + BANQI_BOARD_W - 60}" y="${T + 182}" font-family="system-ui, sans-serif" font-size="12" font-weight="700" class="xq-diagram-ink" text-anchor="middle">LOW</text>`,
+    ].join(''),
+  );
+};
 
 export const BANQI_CANNON_CAPTURE = () => xqSvg(
   BANQI_PAIR_W,
@@ -2735,10 +2777,13 @@ export const BANQI_CANNON_CAPTURE = () => xqSvg(
       BANQI_CENTER_X,
       28,
       'banqi-cannon-screen-capture',
+      BANQI_PIECE_SIZE / 2 + 4,
     ),
     banqiPiece({ color: 'red', role: 'cannon' }, 1, 2, BANQI_CENTER_X, 28),
     banqiPiece({ shrouded: true }, 3, 2, BANQI_CENTER_X, 28),
     banqiPiece({ color: 'black', role: 'general' }, 6, 2, BANQI_CENTER_X, 28),
+    // Red ring marks the capture target (the revealed enemy beyond the screen).
+    `<circle cx="${banqiCellCenter(6, 2, BANQI_CENTER_X, 28).x}" cy="${banqiCellCenter(6, 2, BANQI_CENTER_X, 28).y}" r="${BANQI_PIECE_SIZE / 2 + 4}" fill="none" stroke="#b91c1c" stroke-width="2.5"/>`,
   ].join(''),
 );
 
