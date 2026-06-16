@@ -460,6 +460,55 @@ const ZH_HANS: Record<string, string> = {
     '象（相）沿斜线走两个交叉点，且不能过河。如果有一枚隐藏的棋子塞在中点的象眼上，斜线落点就会消失，而象眼位置则显示为一个「?」标记。',
   'Playable Dark Xiangqi games are not public yet. These rules are published first so players can review the variant before live play opens.':
     '可对弈的迷雾象棋目前尚未公开。这些规则先行发布，好让玩家在实战开放之前先了解这一变体。',
+
+  // -- Jieqi (rules) --
+  'Jieqi (揭棋) Rules': '揭棋规则',
+  'Jieqi (揭棋) rules: xiangqi with hidden non-general pieces that first move by starting point, then reveal and play by identity.':
+    '揭棋规则：在象棋基础上将除将帅以外的棋子全部暗置，暗子先按所在起始位置的兵种行棋，走子后翻明并按真实身份行棋。',
+  "Jieqi (揭棋, 'reveal chess') keeps xiangqi's board and checkmate goal, but hides every non-general piece. A dark piece first moves, attacks, and captures by the starting point it occupies. After that move, it reveals and plays by identity.":
+    '揭棋（意为“翻开的棋”）沿用象棋的棋盘和将死取胜的目标，但把除将帅以外的每一枚棋子都暗置。暗子最初的走子、攻击和吃子都按它所在的起始位置对应的兵种进行。走出那一步之后，它便翻明，并按真实身份行棋。',
+  'Use [Xiangqi Rules](/rules/xiangqi) for the base game. This page covers what changes.':
+    '底层游戏请参阅[象棋规则](/rules/xiangqi)。本页只讲解揭棋改变了什么。',
+  Setup: '布局',
+  "Set each general face-up on its normal palace point. Shuffle each side's other fifteen pieces and deal them face-down onto the remaining starting points. Neither player knows any hidden identities, including their own.":
+    '将双方的将帅各自正面朝上摆在九宫内通常的位置。把每一方其余十五枚棋子洗混，背面朝下地发到剩余的起始位置上。任何一方都不知道任何暗子的身份，包括自己的暗子。',
+  'First moves use starting points': '首步按起始位置行棋',
+  'Before reveal, a dark piece uses the role of the starting point it occupies, not its hidden identity. A dark piece on a corner point plays like a chariot; dark pieces on horse, advisor, elephant, cannon, and soldier points use those matching moves.':
+    '翻明之前，暗子按其所在起始位置对应的兵种行棋，而不是按它隐藏的真实身份。位于角点的暗子像车一样走；位于马、士、象、炮、兵起始位置上的暗子，则分别按这些兵种的走法行棋。',
+  'The normal restrictions still apply to that first move: horse legs, elephant eyes, cannon screens, palace limits for advisor points, and the river limit for elephant points. Once the move resolves, the piece flips face-up for both players.':
+    '通常的限制对这首步同样适用：蹩马腿、塞象眼、炮架，士位受九宫限制，象位受河界限制。这步走完后，该棋子即对双方翻为正面朝上。',
+  'Revealed pieces use identity': '翻明后的棋子按真实身份行棋',
+  "After reveal, use the piece's identity from its current point. Advisors may leave the palace, and elephants may cross the river. Their movement shapes do not change: advisors step one point diagonally; elephants move two points diagonally and are still eye-blocked.":
+    '翻明之后，棋子从它当前所在的位置按其真实身份行棋。士可以离开九宫，象可以过河。它们的走子形状不变：士斜走一个交叉点；象斜走两个交叉点，并且仍会被塞象眼。',
+  'Horses, chariots, and cannons move normally. Soldiers use the normal river rule from wherever they reveal: forward only before crossing, forward or sideways after crossing, never backward.':
+    '马、车、炮按常规走法行棋。兵（卒）则从它翻明的位置起套用通常的过河规则：过河前只能向前，过河后可向前或横走，永不后退。',
+  'Captured dark pieces': '被吃掉的暗子',
+  'If a dark piece is captured before revealing, only the capturer learns what it was. The owner sees one dark piece leave the board, but not its identity. Later, the capturer can rule out that hidden identity elsewhere.':
+    '如果一枚暗子在翻明之前被吃掉，只有吃子的一方知道它是什么。棋子的主人只看到一枚暗子离开棋盘，却看不到它的身份。此后，吃子的一方便可以排除其他位置上存在这个隐藏身份的可能。',
+  'This reference uses the common Jieqi convention: the capturer sees it. Some cờ úp groups handle captured dark pieces differently, so agree on the convention before over-the-board play.':
+    '本规则参考采用揭棋的常见约定：吃子一方可见。某些 cờ úp（越南揭棋）流派对被吃暗子的处理方式不同，因此在线下实地对弈前应先就采用的约定达成一致。',
+  'Checks, wins, and draws': '将军、胜负与和棋',
+  "Every occupied point is visible, so players can see when the general is attacked. An unmoved dark piece attacks from its starting point using that point's role. Once it moves, it reveals immediately; any check from the destination uses the revealed identity.":
+    '每个被占据的交叉点都是可见的，因此双方都能看出将帅何时受到攻击。尚未走动的暗子按其起始位置对应的兵种从该位置发动攻击。一旦走动，它立即翻明；任何来自落点的将军都按翻明后的真实身份计算。',
+  'Win by checkmating the general or leaving the opponent with no legal move. The facing-generals rule still applies, and dark pieces block the file like any other piece.':
+    '将死对方将帅，或让对方无合法走法可走，即可获胜。将帅对脸的规则依然有效，暗子也和其他棋子一样会挡住纵线。',
+  'Repetition follows xiangqi long-beat rules, not a generic threefold or fourfold result. Perpetual check and direct perpetual chase are forbidden, so the forcing side must change course or lose; mutual forcing and ordinary repeated positions are judged by the xiangqi cycle, not by board equality alone. The automatic draw convention in this reference is the Guangdong/Tencent no-capture clock: 60 full moves, meaning 120 plies, without a capture.':
+    '重复局面依照象棋的长打规则裁定，而不是笼统地按三次或四次重复出结果。长将和直接的长捉都被禁止，因此发动逼着的一方必须改变着法，否则判负；互打以及普通的重复局面则依据象棋的循环判例裁定，而不能只看局面是否相同。本规则参考采用的自动判和约定是广东/腾讯的无吃子回合数：连续 60 个完整回合（即 120 个半回合）无吃子即判和。',
+  Names: '名称',
+  '揭棋 is Mandarin jiēqí, meaning reveal chess. Luo Jinsheng of Guangzhou invented it in the 1980s. Vietnamese play commonly calls this family cờ úp.':
+    '揭棋的普通话读音为 jiēqí，意为“翻开的棋”。它由广州的罗锦生于 20 世纪 80 年代发明。越南的玩法通常把这一类游戏称为 cờ úp。',
+  'English names overlap. Dark Chinese chess may refer to jieqi, but it can also mean [banqi](/rules/banqi), a different half-board flip game. Jieqi keeps the full xiangqi board and checkmate goal; banqi uses a 4x8 board, rank captures, and elimination.':
+    '英文名称常有重叠。“Dark Chinese chess”可能指揭棋，但也可能指[暗棋](/rules/banqi)（banqi），那是另一种半盘翻子游戏。揭棋保留完整的象棋棋盘和将死取胜的目标；暗棋则使用 4×8 的棋盘，按子力等级吃子，以吃光对方取胜。',
+  'Mistboard also uses [Dark Xiangqi](/rules/dark-xiangqi) and Dark Mini Xiangqi for our Fog of War xiangqi variants. Those are not jieqi: identities stay known, but unseen points are hidden. We have not found an earlier public playable platform for Fog of War xiangqi.':
+    'Mistboard 还以[迷雾象棋](/rules/dark-xiangqi)和迷雾迷你象棋作为我们的战争迷雾象棋变体。它们并不是揭棋：棋子的身份始终是已知的，只是看不到的交叉点被隐藏起来。我们尚未发现更早的、可公开对弈的战争迷雾象棋平台。',
+  'Jieqi is not playable on Mistboard yet; this page is the rules reference while we plan the variant. For the base game, read xiangqi. For the other face-down xiangqi cousin, compare banqi.':
+    '揭棋目前还不能在 Mistboard 上对弈；在我们筹备这个变体期间，本页作为规则参考。底层游戏请阅读象棋。另一种翻面的象棋近亲，可对照暗棋。',
+  'Jieqi is playable on Mistboard — take on PikaJieQi, our jieqi engine, at the strength you pick. For the base game, read xiangqi; for the other face-down xiangqi cousin, compare banqi.':
+    '揭棋现在可以在 Mistboard 上对弈——以你选择的强度挑战我们的揭棋引擎 PikaJieQi。底层游戏请阅读象棋；另一种翻面的象棋近亲，可对照暗棋。',
+  'Play vs PikaJieQi': '对战 PikaJieQi',
+  'Step through a full self-play game below. Dark pieces show as colored backs and flip to their dealt identity the first time they move, so a corner that plays like a chariot can reveal a soldier. Red wins by checkmate.':
+    '在下方逐步查看一整盘自我对弈的棋局。暗子以彩色背面显示，第一次走动时翻开，显示其发到的身份，因此一个像车一样走子的角落棋子，翻开后可能是一个兵。红方以将死获胜。',
+  Banqi: '暗棋',
 };
 
 const ZH_HANT: Record<string, string> = {
@@ -892,6 +941,55 @@ const ZH_HANT: Record<string, string> = {
     '象（相）沿斜線走兩個交叉點，且不能過河。如果有一枚隱藏的棋子塞在中點的象眼上，斜線落點就會消失，而象眼位置則顯示為一個「?」標記。',
   'Playable Dark Xiangqi games are not public yet. These rules are published first so players can review the variant before live play opens.':
     '可對弈的迷霧象棋目前尚未公開。這些規則先行發布，好讓玩家在實戰開放之前先了解這一變體。',
+
+  // -- Jieqi (rules) --
+  'Jieqi (揭棋) Rules': '揭棋規則',
+  'Jieqi (揭棋) rules: xiangqi with hidden non-general pieces that first move by starting point, then reveal and play by identity.':
+    '揭棋規則：在象棋基礎上將除將帥以外的棋子全部暗置，暗子先按所在起始位置的兵種行棋，走子後翻明並按真實身份行棋。',
+  "Jieqi (揭棋, 'reveal chess') keeps xiangqi's board and checkmate goal, but hides every non-general piece. A dark piece first moves, attacks, and captures by the starting point it occupies. After that move, it reveals and plays by identity.":
+    '揭棋（意為「翻開的棋」）沿用象棋的棋盤和將死取勝的目標，但把除將帥以外的每一枚棋子都暗置。暗子最初的走子、攻擊和吃子都按牠所在的起始位置對應的兵種進行。走出那一步之後，牠便翻明，並按真實身份行棋。',
+  'Use [Xiangqi Rules](/rules/xiangqi) for the base game. This page covers what changes.':
+    '底層遊戲請參閱[象棋規則](/rules/xiangqi)。本頁只講解揭棋改變了什麼。',
+  Setup: '佈局',
+  "Set each general face-up on its normal palace point. Shuffle each side's other fifteen pieces and deal them face-down onto the remaining starting points. Neither player knows any hidden identities, including their own.":
+    '將雙方的將帥各自正面朝上擺在九宮內通常的位置。把每一方其餘十五枚棋子洗混，背面朝下地發到剩餘的起始位置上。任何一方都不知道任何暗子的身份，包括自己的暗子。',
+  'First moves use starting points': '首步按起始位置行棋',
+  'Before reveal, a dark piece uses the role of the starting point it occupies, not its hidden identity. A dark piece on a corner point plays like a chariot; dark pieces on horse, advisor, elephant, cannon, and soldier points use those matching moves.':
+    '翻明之前，暗子按其所在起始位置對應的兵種行棋，而不是按牠隱藏的真實身份。位於角點的暗子像車一樣走；位於馬、士、象、炮、兵起始位置上的暗子，則分別按這些兵種的走法行棋。',
+  'The normal restrictions still apply to that first move: horse legs, elephant eyes, cannon screens, palace limits for advisor points, and the river limit for elephant points. Once the move resolves, the piece flips face-up for both players.':
+    '通常的限制對這首步同樣適用：蹩馬腿、塞象眼、炮架，士位受九宮限制，象位受河界限制。這步走完後，該棋子即對雙方翻為正面朝上。',
+  'Revealed pieces use identity': '翻明後的棋子按真實身份行棋',
+  "After reveal, use the piece's identity from its current point. Advisors may leave the palace, and elephants may cross the river. Their movement shapes do not change: advisors step one point diagonally; elephants move two points diagonally and are still eye-blocked.":
+    '翻明之後，棋子從牠當前所在的位置按其真實身份行棋。士可以離開九宮，象可以過河。牠們的走子形狀不變：士斜走一個交叉點；象斜走兩個交叉點，並且仍會被塞象眼。',
+  'Horses, chariots, and cannons move normally. Soldiers use the normal river rule from wherever they reveal: forward only before crossing, forward or sideways after crossing, never backward.':
+    '馬、車、炮按常規走法行棋。兵（卒）則從牠翻明的位置起套用通常的過河規則：過河前只能向前，過河後可向前或橫走，永不後退。',
+  'Captured dark pieces': '被吃掉的暗子',
+  'If a dark piece is captured before revealing, only the capturer learns what it was. The owner sees one dark piece leave the board, but not its identity. Later, the capturer can rule out that hidden identity elsewhere.':
+    '如果一枚暗子在翻明之前被吃掉，只有吃子的一方知道牠是什麼。棋子的主人只看到一枚暗子離開棋盤，卻看不到牠的身份。此後，吃子的一方便可以排除其他位置上存在這個隱藏身份的可能。',
+  'This reference uses the common Jieqi convention: the capturer sees it. Some cờ úp groups handle captured dark pieces differently, so agree on the convention before over-the-board play.':
+    '本規則參考採用揭棋的常見約定：吃子一方可見。某些 cờ úp（越南揭棋）流派對被吃暗子的處理方式不同，因此在線下實地對弈前應先就採用的約定達成一致。',
+  'Checks, wins, and draws': '將軍、勝負與和棋',
+  "Every occupied point is visible, so players can see when the general is attacked. An unmoved dark piece attacks from its starting point using that point's role. Once it moves, it reveals immediately; any check from the destination uses the revealed identity.":
+    '每個被佔據的交叉點都是可見的，因此雙方都能看出將帥何時受到攻擊。尚未走動的暗子按其起始位置對應的兵種從該位置發動攻擊。一旦走動，牠立即翻明；任何來自落點的將軍都按翻明後的真實身份計算。',
+  'Win by checkmating the general or leaving the opponent with no legal move. The facing-generals rule still applies, and dark pieces block the file like any other piece.':
+    '將死對方將帥，或讓對方無合法走法可走，即可獲勝。將帥對臉的規則依然有效，暗子也和其他棋子一樣會擋住縱線。',
+  'Repetition follows xiangqi long-beat rules, not a generic threefold or fourfold result. Perpetual check and direct perpetual chase are forbidden, so the forcing side must change course or lose; mutual forcing and ordinary repeated positions are judged by the xiangqi cycle, not by board equality alone. The automatic draw convention in this reference is the Guangdong/Tencent no-capture clock: 60 full moves, meaning 120 plies, without a capture.':
+    '重複局面依照象棋的長打規則裁定，而不是籠統地按三次或四次重複出結果。長將和直接的長捉都被禁止，因此發動逼著的一方必須改變著法，否則判負；互打以及普通的重複局面則依據象棋的循環判例裁定，而不能只看局面是否相同。本規則參考採用的自動判和約定是廣東／騰訊的無吃子回合數：連續 60 個完整回合（即 120 個半回合）無吃子即判和。',
+  Names: '名稱',
+  '揭棋 is Mandarin jiēqí, meaning reveal chess. Luo Jinsheng of Guangzhou invented it in the 1980s. Vietnamese play commonly calls this family cờ úp.':
+    '揭棋的官話讀音為 jiēqí，意為「翻開的棋」。它由廣州的羅錦生於 20 世紀 80 年代發明。越南的玩法通常把這一類遊戲稱為 cờ úp。',
+  'English names overlap. Dark Chinese chess may refer to jieqi, but it can also mean [banqi](/rules/banqi), a different half-board flip game. Jieqi keeps the full xiangqi board and checkmate goal; banqi uses a 4x8 board, rank captures, and elimination.':
+    '英文名稱常有重疊。「Dark Chinese chess」可能指揭棋，但也可能指[暗棋](/rules/banqi)（banqi），那是另一種半盤翻子遊戲。揭棋保留完整的象棋棋盤和將死取勝的目標；暗棋則使用 4×8 的棋盤，按子力等級吃子，以吃光對方取勝。',
+  'Mistboard also uses [Dark Xiangqi](/rules/dark-xiangqi) and Dark Mini Xiangqi for our Fog of War xiangqi variants. Those are not jieqi: identities stay known, but unseen points are hidden. We have not found an earlier public playable platform for Fog of War xiangqi.':
+    'Mistboard 還以[迷霧象棋](/rules/dark-xiangqi)和迷霧迷你象棋作為我們的戰爭迷霧象棋變體。它們並不是揭棋：棋子的身份始終是已知的，只是看不到的交叉點被隱藏起來。我們尚未發現更早的、可公開對弈的戰爭迷霧象棋平台。',
+  'Jieqi is not playable on Mistboard yet; this page is the rules reference while we plan the variant. For the base game, read xiangqi. For the other face-down xiangqi cousin, compare banqi.':
+    '揭棋目前還不能在 Mistboard 上對弈；在我們籌備這個變體期間，本頁作為規則參考。底層遊戲請閱讀象棋。另一種翻面的象棋近親，可對照暗棋。',
+  'Jieqi is playable on Mistboard — take on PikaJieQi, our jieqi engine, at the strength you pick. For the base game, read xiangqi; for the other face-down xiangqi cousin, compare banqi.':
+    '揭棋現在可以在 Mistboard 上對弈——以你選擇的強度挑戰我們的揭棋引擎 PikaJieQi。底層遊戲請閱讀象棋；另一種翻面的象棋近親，可對照暗棋。',
+  'Play vs PikaJieQi': '對戰 PikaJieQi',
+  'Step through a full self-play game below. Dark pieces show as colored backs and flip to their dealt identity the first time they move, so a corner that plays like a chariot can reveal a soldier. Red wins by checkmate.':
+    '在下方逐步查看一整盤自我對弈的棋局。暗子以彩色背面顯示，第一次走動時翻開，顯示其發到的身份，因此一個像車一樣走子的角落棋子，翻開後可能是一個兵。紅方以將死獲勝。',
+  Banqi: '暗棋',
 };
 
 const ARTICLE_DICTS: Record<ArticleLang, Record<string, string>> = {

@@ -252,6 +252,7 @@ const HOME_ARTICLE_SLUGS = [
   'server-enforced-fog',
   'crossroads-chess',
   'dark-mini-xiangqi',
+  'jieqi',
   'dark-chess',
 ] as const;
 

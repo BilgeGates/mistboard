@@ -18,6 +18,7 @@ export const jieqiArticle: Article = {
       'Jieqi (揭棋) rules: xiangqi with hidden non-general pieces that first move by starting point, then reveal and play by identity.',
     showSummaryOnPage: false,
     status: 'published',
+    publishedAt: '2026-06-15',
     audience:
       'Xiangqi players and hidden-information fans who want a clean English rules reference for jieqi.',
     thumbnail: { kind: 'svg', svg: JIEQI_RULES_THUMBNAIL },
