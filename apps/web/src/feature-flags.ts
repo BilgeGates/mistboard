@@ -23,6 +23,12 @@ export function banqiEnabled(): boolean {
   return import.meta.env.VITE_BANQI_ENABLED === 'true';
 }
 
+// Reveal Chess (chess-jieqi, hidden identities on an 8x8 board) play surface.
+// Hidden in prod/staging unless the build opts in; mirrors the jieqi gate.
+export function revealChessEnabled(): boolean {
+  return import.meta.env.VITE_REVEAL_CHESS_ENABLED === 'true';
+}
+
 export function darkMiniXiangqiPublicEntryEnabled(): boolean {
   return (
     darkMiniXiangqiEnabled() &&

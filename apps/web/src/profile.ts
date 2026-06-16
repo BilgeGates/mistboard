@@ -59,6 +59,7 @@ const PROFILE_VARIANT_LABEL: Record<ProfileRatingVariant, string> = {
   crossroads_chess_open: 'Crossroads Chess',
   jieqi: 'Jieqi',
   banqi: 'Banqi',
+  reveal_chess: 'Reveal Chess',
 };
 
 // Profile rating grid is subject-scoped: render-capable soft-launch variants can

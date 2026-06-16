@@ -42,7 +42,8 @@ export type SetupRulesId =
   | 'double-fischer-random'
   | 'crossroads-standard'
   | 'jieqi-deal'
-  | 'banqi-deal';
+  | 'banqi-deal'
+  | 'reveal-chess-deal';
 export type ReserveRulesId = 'none' | 'crazyhouse' | 'shogi-hands' | 'seirawan-gating';
 export type DropPolicyId = 'none' | 'any-legal-square' | 'seen-squares-only' | 'seirawan-gating';
 export type GameSpecSurface = 'hidden' | 'beta' | 'casual' | 'rated';
@@ -63,7 +64,8 @@ export type RatingPoolBaseId =
   | 'jieqi'
   | 'banqi'
   | 'crossroads_chess'
-  | 'crossroads_chess_open';
+  | 'crossroads_chess_open'
+  | 'reveal_chess';
 
 export type GameSpecId =
   | 'dark-chess'
@@ -80,7 +82,8 @@ export type GameSpecId =
   | 'jieqi'
   | 'banqi'
   | 'crossroads-chess'
-  | 'dark-crossroads-chess';
+  | 'dark-crossroads-chess'
+  | 'reveal-chess';
 export type GameSpecAliasId = 'fog-draft960' | 'dual-chess' | 'dark-dual-chess';
 export type GameSpecLookupId = GameSpecId | GameSpecAliasId;
 
@@ -119,6 +122,7 @@ export const JIEQI_SPEC_ID = 'jieqi' satisfies GameSpecId;
 export const BANQI_SPEC_ID = 'banqi' satisfies GameSpecId;
 export const DARK_SHOGI_SPEC_ID = 'dark-shogi' satisfies GameSpecId;
 export const CROSSROADS_CHESS_SPEC_ID = 'crossroads-chess' satisfies GameSpecId;
+export const REVEAL_CHESS_SPEC_ID = 'reveal-chess' satisfies GameSpecId;
 export const DARK_CROSSROADS_CHESS_SPEC_ID = 'dark-crossroads-chess' satisfies GameSpecId;
 // Compatibility aliases for records and links created before the Crossroads
 // rename. New code should use CROSSROADS_CHESS_SPEC_ID.
@@ -368,6 +372,26 @@ export const GAME_SPECS: readonly GameSpec[] = [
     publicSurface: 'hidden',
     runtimeStatus: 'future',
   },
+  {
+    // Reveal Chess (chess-jieqi): standard chess with hidden piece identities.
+    // Both kings start face-up; each side's other 15 pieces are dealt face-down
+    // and reveal their true identity on first move (origin-role proxy until
+    // then). Real check/checkmate. Rules engine: variants-reveal-chess.ts.
+    id: REVEAL_CHESS_SPEC_ID,
+    publicName: 'Reveal Chess',
+    family: 'chess',
+    board: 'chess-8x8',
+    movement: 'orthodox-chess',
+    objective: 'checkmate',
+    visibility: 'hidden-identity',
+    setup: 'reveal-chess-deal',
+    reserves: 'none',
+    dropPolicy: 'none',
+    ratingPoolBase: 'reveal_chess',
+    rated: true,
+    publicSurface: 'hidden',
+    runtimeStatus: 'future',
+  },
 ] as const;
 
 const gameSpecsById = new Map<GameSpecId, GameSpec>(GAME_SPECS.map((spec) => [spec.id, spec]));
@@ -433,7 +457,13 @@ function isTruthyLegacyFlag(value: boolean | string | null | undefined): boolean
 // the union must match the user_ratings CHECK constraint (latest migration).
 export type RatingVariant = Extract<
   RatingPoolBaseId,
-  'fog' | 'fog_draft960' | 'dark_mini_xiangqi' | 'crossroads_chess_open' | 'jieqi' | 'banqi'
+  | 'fog'
+  | 'fog_draft960'
+  | 'dark_mini_xiangqi'
+  | 'crossroads_chess_open'
+  | 'jieqi'
+  | 'banqi'
+  | 'reveal_chess'
 >;
 
 // The active rated-pool set, derived from the `rated` flag. This is the ONE

@@ -9,6 +9,7 @@ import {
   DARK_XIANGQI_SPEC_ID,
   gameSpecForId,
   JIEQI_SPEC_ID,
+  REVEAL_CHESS_SPEC_ID,
 } from '@mistboard/game';
 import {
   bucketForGame,
@@ -79,6 +80,13 @@ test('bucketForGame maps Jieqi and Banqi through their own rating pools', () => 
     bucketForGame({ variant: BANQI_SPEC_ID, initialMs: 180_000, incrementMs: 2_000 }),
     { variant: gameSpecForId(BANQI_SPEC_ID).ratingPoolBase, timeClass: PUBLIC_RATING_TIME_CLASS },
   );
+  assert.deepEqual(
+    bucketForGame({ variant: REVEAL_CHESS_SPEC_ID, initialMs: 180_000, incrementMs: 2_000 }),
+    {
+      variant: gameSpecForId(REVEAL_CHESS_SPEC_ID).ratingPoolBase,
+      timeClass: PUBLIC_RATING_TIME_CLASS,
+    },
+  );
 });
 
 test('bucketForGame fails closed for a casual-only spec (dark-xiangqi), never the fog pool', () => {
@@ -114,6 +122,7 @@ test('parseRatingVariant keeps legacy leaderboard API params stable', () => {
   assert.equal(parseRatingVariant('crossroads_chess_open'), 'crossroads_chess_open');
   assert.equal(parseRatingVariant('jieqi'), 'jieqi');
   assert.equal(parseRatingVariant('banqi'), 'banqi');
+  assert.equal(parseRatingVariant('reveal-chess'), 'reveal_chess');
   assert.equal(parseRatingVariant('dark-xiangqi'), null);
   assert.equal(parseRatingVariant('dark-shogi'), null);
 });

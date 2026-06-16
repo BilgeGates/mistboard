@@ -18,6 +18,7 @@ import {
   gameSpecForId,
   JIEQI_SPEC_ID,
   type RatingVariant,
+  REVEAL_CHESS_SPEC_ID,
   ratingPoolForSpec,
 } from '@mistboard/game';
 import {
@@ -26,6 +27,7 @@ import {
   darkMiniXiangqiEnabled,
   darkMiniXiangqiPublicEntryEnabled,
   jieqiEnabled,
+  revealChessEnabled,
 } from './feature-flags.js';
 
 // The rated-pool union lives on the game spec now (single source of truth). Kept
@@ -52,12 +54,14 @@ const darkMiniPublicEntryEnabled = darkMiniXiangqiPublicEntryEnabled();
 const crossroadsEnabled = crossroadsChessEnabled();
 const jieqiOn = jieqiEnabled();
 const banqiOn = banqiEnabled();
+const revealChessOn = revealChessEnabled();
 const darkChessSpec = gameSpecForId(DARK_CHESS_SPEC_ID);
 const draft960Spec = gameSpecForId(DARK_DRAFT960_SPEC_ID);
 const darkMiniXiangqiSpec = gameSpecForId(DARK_MINI_XIANGQI_SPEC_ID);
 const crossroadsChessSpec = gameSpecForId(CROSSROADS_CHESS_SPEC_ID);
 const jieqiSpec = gameSpecForId(JIEQI_SPEC_ID);
 const banqiSpec = gameSpecForId(BANQI_SPEC_ID);
+const revealChessSpec = gameSpecForId(REVEAL_CHESS_SPEC_ID);
 
 export const VARIANTS: VariantDef[] = [
   {
@@ -120,6 +124,15 @@ export const VARIANTS: VariantDef[] = [
     enabled: false,
     onLeaderboard: banqiOn,
     onProfile: banqiOn,
+  },
+  {
+    id: currentRatingVariantForSpec(REVEAL_CHESS_SPEC_ID),
+    gameSpecId: revealChessSpec.id,
+    apiParam: REVEAL_CHESS_SPEC_ID,
+    label: revealChessSpec.publicName,
+    enabled: false,
+    onLeaderboard: revealChessOn,
+    onProfile: revealChessOn,
   },
 ];
 

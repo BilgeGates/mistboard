@@ -19,6 +19,7 @@ import {
   maybeGameSpecForId,
   RATED_POOL_BASES,
   type RatingVariant,
+  REVEAL_CHESS_SPEC_ID,
   ratingPoolForSpec,
 } from './game-specs.js';
 
@@ -266,6 +267,7 @@ test('RATED_POOL_BASES derives from the rated flag and matches the RatingVariant
     crossroads_chess_open: true,
     jieqi: true,
     banqi: true,
+    reveal_chess: true,
   };
   assert.deepEqual(Object.keys(unionMembers).sort(), [...RATED_POOL_BASES].sort());
 });
@@ -276,6 +278,7 @@ test('ratingPoolForSpec is rated for launched pools and null for casual-only spe
   assert.equal(ratingPoolForSpec(CROSSROADS_CHESS_SPEC_ID), 'crossroads_chess_open');
   assert.equal(ratingPoolForSpec(JIEQI_SPEC_ID), 'jieqi');
   assert.equal(ratingPoolForSpec(BANQI_SPEC_ID), 'banqi');
+  assert.equal(ratingPoolForSpec(REVEAL_CHESS_SPEC_ID), 'reveal_chess');
   // Casual-only specs (no `rated` flag) have no active pool.
   assert.equal(ratingPoolForSpec(DARK_XIANGQI_SPEC_ID), null);
   assert.equal(ratingPoolForSpec(DARK_SHOGI_SPEC_ID), null);

@@ -11,5 +11,6 @@ export * from './variants-banqi.js';
 export * from './variants-crossroads-chess.js';
 export * from './variants-jieqi.js';
 export * from './variants-mini-xiangqi.js';
+export * from './variants-reveal-chess.js';
 export * from './variants-shogi.js';
 export * from './variants-xiangqi.js';

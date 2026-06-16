@@ -8,6 +8,7 @@ import {
   DARK_XIANGQI_SPEC_ID,
   gameSpecForId,
   JIEQI_SPEC_ID,
+  REVEAL_CHESS_SPEC_ID,
 } from '@mistboard/game';
 import { describe, expect, it, vi } from 'vitest';
 import {
@@ -131,19 +132,21 @@ describe('web variant launch registry', () => {
       [CROSSROADS_CHESS_SPEC_ID, 'crossroads-chess'],
       [JIEQI_SPEC_ID, 'jieqi'],
       [BANQI_SPEC_ID, 'banqi'],
+      [REVEAL_CHESS_SPEC_ID, 'reveal-chess'],
     ]);
   });
 
-  it('shows Jieqi + Banqi on rating surfaces behind their flags, never in the lobby', async () => {
+  it('shows Jieqi + Banqi + Reveal Chess on rating surfaces behind their flags, never in the lobby', async () => {
     // Rating-ready: visible on leaderboard/profile when their variant flag is on
     // (gated globally by MISTBOARD_RATED_ENABLED on the server), but never
-    // lobby-selectable — neither has open-seek matchmaking.
+    // lobby-selectable — none has open-seek matchmaking.
     vi.resetModules();
     vi.stubEnv('VITE_JIEQI_ENABLED', 'true');
     vi.stubEnv('VITE_BANQI_ENABLED', 'true');
+    vi.stubEnv('VITE_REVEAL_CHESS_ENABLED', 'true');
     const flagged = await import('./variants.js');
 
-    for (const specId of [JIEQI_SPEC_ID, BANQI_SPEC_ID]) {
+    for (const specId of [JIEQI_SPEC_ID, BANQI_SPEC_ID, REVEAL_CHESS_SPEC_ID]) {
       expect(flagged.leaderboardVariants.map((v) => v.gameSpecId)).toContain(specId);
       expect(flagged.profileRatingVariants.map((v) => v.gameSpecId)).toContain(specId);
       expect(flagged.enabledVariants.map((v) => v.gameSpecId)).not.toContain(specId);
@@ -153,11 +156,11 @@ describe('web variant launch registry', () => {
     vi.resetModules();
   });
 
-  it('keeps Jieqi + Banqi off the rating surfaces when their flags are off', async () => {
+  it('keeps Jieqi + Banqi + Reveal Chess off the rating surfaces when their flags are off', async () => {
     vi.resetModules();
     vi.stubEnv('DEV', false);
     const prod = await import('./variants.js');
-    for (const specId of [JIEQI_SPEC_ID, BANQI_SPEC_ID]) {
+    for (const specId of [JIEQI_SPEC_ID, BANQI_SPEC_ID, REVEAL_CHESS_SPEC_ID]) {
       expect(prod.leaderboardVariants.map((v) => v.gameSpecId)).not.toContain(specId);
       expect(prod.profileRatingVariants.map((v) => v.gameSpecId)).not.toContain(specId);
     }
