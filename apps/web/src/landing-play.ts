@@ -636,6 +636,7 @@ function openLandingSetupDialog(choice: LandingPlayChoice): void {
       card.type = 'button';
       card.className = 'landing-variant-card';
       card.setAttribute('role', 'radio');
+      card.dataset.gameSpec = gameSpecId;
       const miniId = variantMiniIdForGameSpec(gameSpecId);
       if (miniId) {
         const thumb = document.createElement('span');

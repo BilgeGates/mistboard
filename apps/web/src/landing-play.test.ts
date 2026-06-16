@@ -152,13 +152,9 @@ describe('landing play panel', () => {
     );
 
     challengeButton?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
-    const variantSelect = document.querySelector<HTMLSelectElement>('.landing-variant-select');
-    expect(variantSelect).not.toBeNull();
-    expect([...variantSelect!.options].map((option) => option.value)).toContain(
-      'dark-mini-xiangqi',
-    );
-    variantSelect!.value = 'dark-mini-xiangqi';
-    variantSelect!.dispatchEvent(new Event('change', { bubbles: true }));
+    expect(variantPickerPresent()).toBe(true);
+    expect(variantPickerSpecs()).toContain('dark-mini-xiangqi');
+    selectModalVariant('dark-mini-xiangqi');
     expect(document.body.textContent).toContain('Red');
     // Mini is timed: the time-control section is shown like the other variants.
     const timeSection = document
@@ -196,9 +192,8 @@ describe('landing play panel', () => {
     document.body.append(panel);
 
     openPlaySetup(panel, 'Challenge a friend');
-    const variantSelect = document.querySelector<HTMLSelectElement>('.landing-variant-select');
-    expect(variantSelect).not.toBeNull();
-    expect([...variantSelect!.options].map((option) => option.value)).toContain('crossroads-chess');
+    expect(variantPickerPresent()).toBe(true);
+    expect(variantPickerSpecs()).toContain('crossroads-chess');
     selectModalVariant('crossroads-chess');
     expect(modalColorOptions()).toEqual([
       { label: 'White', glyph: '♚', classes: 'landing-color-glyph white' },
@@ -298,8 +293,7 @@ describe('landing play panel', () => {
     expect(panel.querySelector<HTMLAnchorElement>('.landing-play-action-crossroads')).toBeNull();
 
     openPlaySetup(panel, 'Challenge a friend');
-    const variantSelect = document.querySelector<HTMLSelectElement>('.landing-variant-select');
-    expect([...variantSelect!.options].map((option) => option.value)).toContain('crossroads-chess');
+    expect(variantPickerSpecs()).toContain('crossroads-chess');
   });
 
   it('keeps 5+5 hidden for fog variants in the setup modal', () => {
@@ -391,15 +385,11 @@ describe('landing play panel', () => {
     document.body.append(panel);
 
     openPlaySetup(panel, 'Play the engine');
-    let variantSelect = document.querySelector<HTMLSelectElement>('.landing-variant-select');
-    let options = variantSelect ? [...variantSelect.options].map((option) => option.value) : [];
-    expect(options).toContain('crossroads-chess');
+    expect(variantPickerSpecs()).toContain('crossroads-chess');
     document.querySelector('.landing-setup-overlay')?.remove();
 
     openPlaySetup(panel, 'Find opponent');
-    variantSelect = document.querySelector<HTMLSelectElement>('.landing-variant-select');
-    options = variantSelect ? [...variantSelect.options].map((option) => option.value) : [];
-    expect(options).toContain('crossroads-chess');
+    expect(variantPickerSpecs()).toContain('crossroads-chess');
   });
 
   it('keeps Dark Mini Xiangqi hidden from public entry unless its public-entry flag is enabled', () => {
@@ -415,9 +405,7 @@ describe('landing play panel', () => {
       .find((candidate) => candidate.textContent === 'Challenge a friend')
       ?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
 
-    const variantSelect = document.querySelector<HTMLSelectElement>('.landing-variant-select');
-    const options = variantSelect ? [...variantSelect.options].map((option) => option.value) : [];
-    expect(options).not.toContain('dark-mini-xiangqi');
+    expect(variantPickerSpecs()).not.toContain('dark-mini-xiangqi');
   });
 
   it('uses gameSpecId, not variant, to deep-link the challenge variant projection', () => {
@@ -431,8 +419,7 @@ describe('landing play panel', () => {
 
     maybeOpenPlayDeepLink([]);
 
-    const variantSelect = document.querySelector<HTMLSelectElement>('.landing-variant-select');
-    expect(variantSelect?.value).toBe('dark-mini-xiangqi');
+    expect(selectedVariantSpec()).toBe('dark-mini-xiangqi');
     expect(window.location.search).toBe('');
   });
 
@@ -451,9 +438,7 @@ describe('landing play panel', () => {
     maybeOpenPlayDeepLink([
       { id: 'python-v2-v1.0', name: 'Misty', familyName: 'Misty', kind: 'fog-chess' },
     ]);
-    expect(document.querySelector<HTMLSelectElement>('.landing-variant-select')?.value).toBe(
-      'dark-mini-xiangqi',
-    );
+    expect(selectedVariantSpec()).toBe('dark-mini-xiangqi');
     document
       .querySelector<HTMLButtonElement>('.landing-setup-start')
       ?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
@@ -532,7 +517,7 @@ describe('landing play panel', () => {
     window.history.replaceState(null, '', '/?play=friend&gameSpecId=dark-mini-xiangqi');
 
     maybeOpenPlayDeepLink([]);
-    expect(document.querySelector('.landing-variant-select')).toBeNull();
+    expect(variantPickerPresent()).toBe(false);
     expect(document.querySelector('.landing-variant-control')?.textContent).toBe(
       'Dark Mini Xiangqi',
     );
@@ -561,7 +546,7 @@ describe('landing play panel', () => {
     window.history.replaceState(null, '', '/?play=lobby&gameSpecId=dark-mini-xiangqi');
 
     maybeOpenPlayDeepLink([]);
-    expect(document.querySelector('.landing-variant-select')).toBeNull();
+    expect(variantPickerPresent()).toBe(false);
     expect(document.querySelector('.landing-variant-control')?.textContent).toBe(
       'Dark Mini Xiangqi',
     );
@@ -589,10 +574,8 @@ describe('landing play panel', () => {
       .find((b) => b.textContent === 'Challenge a friend')
       ?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
 
-    const variantSelect = document.querySelector<HTMLSelectElement>('.landing-variant-select');
     // With only Dark Xiangqi's flag on (no DMX), there's no second variant, so no picker.
-    const options = variantSelect ? [...variantSelect.options].map((o) => o.value) : [];
-    expect(options).not.toContain('dark-xiangqi');
+    expect(variantPickerSpecs()).not.toContain('dark-xiangqi');
   });
 
   it('sends the chess game spec id when finding a chess opponent', async () => {
@@ -617,9 +600,7 @@ describe('landing play panel', () => {
     const panel = buildLandingPlayPanel([]);
     document.body.append(panel);
     openLobbySetup(panel);
-    const variantSelect = document.querySelector<HTMLSelectElement>('.landing-variant-select');
-    variantSelect!.value = 'dark-mini-xiangqi';
-    variantSelect!.dispatchEvent(new Event('change', { bubbles: true }));
+    selectModalVariant('dark-mini-xiangqi');
     document
       .querySelector<HTMLButtonElement>('.landing-setup-start')
       ?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
@@ -684,10 +665,27 @@ function clickModalTimeControl(label: string): void {
 }
 
 function selectModalVariant(gameSpecId: string): void {
-  const variantSelect = document.querySelector<HTMLSelectElement>('.landing-variant-select');
-  expect(variantSelect).not.toBeNull();
-  variantSelect!.value = gameSpecId;
-  variantSelect!.dispatchEvent(new Event('change', { bubbles: true }));
+  const card = document.querySelector<HTMLButtonElement>(
+    `.landing-variant-card[data-game-spec="${gameSpecId}"]`,
+  );
+  expect(card).not.toBeNull();
+  card!.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+}
+
+// The variant picker is a card grid (was a <select>): these read the cards.
+function variantPickerSpecs(): string[] {
+  return [...document.querySelectorAll<HTMLElement>('.landing-variant-card[data-game-spec]')].map(
+    (el) => el.dataset.gameSpec ?? '',
+  );
+}
+
+function selectedVariantSpec(): string | undefined {
+  return document.querySelector<HTMLElement>('.landing-variant-card.selected[data-game-spec]')
+    ?.dataset.gameSpec;
+}
+
+function variantPickerPresent(): boolean {
+  return document.querySelector('.landing-variant-grid') !== null;
 }
 
 function selectModalEngine(engineId: string): void {
