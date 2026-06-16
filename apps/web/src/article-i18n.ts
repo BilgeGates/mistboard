@@ -509,6 +509,8 @@ const ZH_HANS: Record<string, string> = {
   Banqi: '暗棋',
   // -- Banqi (rules) --
   'Banqi (Chinese Dark Chess) Rules': '暗棋规则',
+  'Step through a real game below: MistyBanqi (Strongest) as Red against a human as Black. Black wins the opening material — the first eight captures are all Black’s — but Red keeps its elephant, the highest piece left, and grinds out the win. A clean illustration that in Banqi, rank beats raw material. Tiles flip to their dealt piece the first time they are turned over.':
+    '在下方逐步回放一盘真实对局：红方是 MistyBanqi（最强），黑方是人类。黑方在开局赢得子力——前八次吃子都是黑方——但红方留住了象，也就是盘面上等级最高的棋子，最终碾压获胜。这清楚地说明：在暗棋中，等级胜过单纯的子力。每枚棋子第一次被翻开时，会翻出它所发到的身份。',
   'Banqi rules: the 4x8 half-board xiangqi flip game, with face-down pieces, rank captures, screen-jumping cannons, and no royal general.':
     '暗棋规则：在半张 4×8 象棋棋盘上进行的翻子游戏。棋子背面朝下，按等级吃子，炮靠隔子（炮架）吃，将帅不是王棋。',
   "Banqi (暗棋, 'dark chess', also called half chess or flip chess) is played on half a xiangqi board with all thirty-two pieces shuffled face-down. Each turn, flip an unknown piece or move one of your revealed pieces one square. Captures follow rank, except for the cannon. You win by leaving the opponent with no legal move.":
@@ -1040,6 +1042,8 @@ const ZH_HANT: Record<string, string> = {
   Banqi: '暗棋',
   // -- Banqi (rules) --
   'Banqi (Chinese Dark Chess) Rules': '暗棋規則',
+  'Step through a real game below: MistyBanqi (Strongest) as Red against a human as Black. Black wins the opening material — the first eight captures are all Black’s — but Red keeps its elephant, the highest piece left, and grinds out the win. A clean illustration that in Banqi, rank beats raw material. Tiles flip to their dealt piece the first time they are turned over.':
+    '在下方逐步回放一盤真實對局：紅方是 MistyBanqi（最強），黑方是人類。黑方在開局贏得子力——前八次吃子都是黑方——但紅方留住了象，也就是盤面上等級最高的棋子，最終碾壓獲勝。這清楚地說明：在暗棋中，等級勝過單純的子力。每枚棋子第一次被翻開時，會翻出它所發到的身份。',
   'Banqi rules: the 4x8 half-board xiangqi flip game, with face-down pieces, rank captures, screen-jumping cannons, and no royal general.':
     '暗棋規則：在半張 4×8 象棋棋盤上進行的翻子遊戲。棋子背面朝下，按等級吃子，砲靠隔子（砲架）吃，將帥不是王棋。',
   "Banqi (暗棋, 'dark chess', also called half chess or flip chess) is played on half a xiangqi board with all thirty-two pieces shuffled face-down. Each turn, flip an unknown piece or move one of your revealed pieces one square. Captures follow rank, except for the cannon. You win by leaving the opponent with no legal move.":

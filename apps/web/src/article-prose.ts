@@ -44,6 +44,7 @@ const BLOCK_PROSE: {
   'chess-replay': caption,
   'crossroads-replay': caption,
   'jieqi-replay': caption,
+  'banqi-replay': caption,
   code: caption,
 };
 

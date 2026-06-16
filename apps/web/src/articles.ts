@@ -16,6 +16,7 @@ import {
   type ArticleSection,
   type ArticleThumbnail,
   articles,
+  type BanqiReplayBlock,
   type ChessReplayBlock,
   type CodeBlock,
   type CrossroadsReplayBlock,
@@ -32,6 +33,7 @@ import {
   withXiangqiPieceSet,
   type XiangqiReplayBlock,
 } from './articles-data.js';
+import { type BanqiReplayController, mountBanqiReplay } from './banqi-replay.js';
 import { type ChessReplayController, mountChessReplay } from './chess-replay.js';
 import {
   type CrossroadsChessReplayController,
@@ -819,7 +821,8 @@ type PendingBlock =
   | ChessReplayBlock
   | MiniXiangqiReplayBlock
   | CrossroadsReplayBlock
-  | JieqiReplayBlock;
+  | JieqiReplayBlock
+  | BanqiReplayBlock;
 const pendingMounts = new WeakMap<HTMLElement, PendingBlock>();
 
 function renderBlock(block: ArticleBlock): HTMLElement {
@@ -836,6 +839,7 @@ function renderBlock(block: ArticleBlock): HTMLElement {
   if (block.kind === 'chess-replay') return renderChessReplayBlock(block);
   if (block.kind === 'crossroads-replay') return renderCrossroadsReplayBlock(block);
   if (block.kind === 'jieqi-replay') return renderJieqiReplayBlock(block);
+  if (block.kind === 'banqi-replay') return renderBanqiReplayBlock(block);
   return renderInteractiveBlock(block);
 }
 
@@ -883,6 +887,26 @@ function renderJieqiReplayBlock(block: JieqiReplayBlock): HTMLElement {
   const figure = document.createElement('figure');
   figure.className = 'article-figure article-figure-interactive article-figure-jieqi';
   figure.dataset.pendingWidget = 'jieqi-replay';
+
+  const mountTarget = document.createElement('div');
+  mountTarget.className = 'article-interactive-target';
+  figure.append(mountTarget);
+
+  if (block.caption) {
+    const cap = document.createElement('figcaption');
+    cap.className = 'article-figure-caption';
+    cap.textContent = block.caption;
+    figure.append(cap);
+  }
+
+  pendingMounts.set(figure, block);
+  return figure;
+}
+
+function renderBanqiReplayBlock(block: BanqiReplayBlock): HTMLElement {
+  const figure = document.createElement('figure');
+  figure.className = 'article-figure article-figure-interactive article-figure-banqi';
+  figure.dataset.pendingWidget = 'banqi-replay';
 
   const mountTarget = document.createElement('div');
   mountTarget.className = 'article-interactive-target';
@@ -1325,6 +1349,7 @@ export function mountPendingWidgets(
   | MiniXiangqiReplayController
   | CrossroadsChessReplayController
   | JieqiReplayController
+  | BanqiReplayController
 > {
   const controllers: Array<
     | StepperController
@@ -1355,6 +1380,8 @@ export function mountPendingWidgets(
       controllers.push(mountCrossroadsChessReplay(target, block.spec));
     } else if (block.kind === 'jieqi-replay') {
       controllers.push(mountJieqiReplay(target, block.spec));
+    } else if (block.kind === 'banqi-replay') {
+      controllers.push(mountBanqiReplay(target, block.spec));
     }
     pendingMounts.delete(figure);
     delete figure.dataset.pendingWidget;

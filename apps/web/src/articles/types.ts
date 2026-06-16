@@ -5,6 +5,7 @@
 import type { BoardSpec, CompositionLayout } from '@mistboard/board-render';
 import type { LiveBoardsOptions, SteppedBoardsOptions } from '@mistboard/board-render/interactive';
 import type { Square } from '@mistboard/game';
+import type { BanqiReplaySpec } from '../banqi-replay.js';
 import type { ChessReplaySpec } from '../chess-replay.js';
 import type { CrossroadsReplaySpec } from '../crossroads-chess-replay.js';
 import type { JieqiReplaySpec } from '../jieqi-replay.js';
@@ -85,6 +86,14 @@ export type JieqiReplayBlock = {
   caption?: string;
 };
 
+// Banqi analogue: an 8x4 board stepped through a move list + hidden deal, each
+// position replayed through the real kernel; tiles flip on first turn-over.
+export type BanqiReplayBlock = {
+  kind: 'banqi-replay';
+  spec: BanqiReplaySpec;
+  caption?: string;
+};
+
 // Mini Xiangqi analogue of XiangqiReplayBlock: a 7x7 board stepped through a
 // move list, each position rendered on demand from the rules kernel.
 export type MiniXiangqiReplayBlock = {
@@ -161,6 +170,7 @@ export type ArticleBlock =
   | MiniXiangqiReplayBlock
   | CrossroadsReplayBlock
   | JieqiReplayBlock
+  | BanqiReplayBlock
   | CodeBlock;
 
 // `blocks` is the structured body. `paragraphs` is the legacy outline body

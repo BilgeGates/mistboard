@@ -1,3 +1,4 @@
+import { BANQI_SAMPLE_GAME } from '../../banqi-sample-game.js';
 import {
   BANQI_CANNON_CAPTURE,
   BANQI_RANK_LADDER,
@@ -173,6 +174,28 @@ export const banqiArticle: Article = {
             kind: 'paragraph',
             text:
               "暗棋 is Mandarin ànqí, 'dark chess'. The same game is also called 半棋 (half chess), the source of the English name banqi, and 翻棋 (flip chess). Computer-game literature often calls it Chinese Dark Chess. None of these are [jieqi](/rules/jieqi), the full-board xiangqi variant where shuffled pieces reveal as they move, and none are the fog-of-war [dark chess](/rules/dark-chess) played here.",
+          },
+        ],
+      },
+      {
+        heading: 'A sample game',
+        blocks: [
+          {
+            kind: 'paragraph',
+            text:
+              'Step through a real game below: MistyBanqi (Strongest) as Red against a human as Black. Black wins the opening material — the first eight captures are all Black’s — but Red keeps its elephant, the highest piece left, and grinds out the win. A clean illustration that in Banqi, rank beats raw material. Tiles flip to their dealt piece the first time they are turned over.',
+          },
+          {
+            kind: 'banqi-replay',
+            spec: {
+              red: BANQI_SAMPLE_GAME.red,
+              black: BANQI_SAMPLE_GAME.black,
+              event: BANQI_SAMPLE_GAME.event,
+              outcome: 'Red wins by resignation · 49 moves',
+              resultText: BANQI_SAMPLE_GAME.result,
+              deal: BANQI_SAMPLE_GAME.deal,
+              moves: BANQI_SAMPLE_GAME.moves,
+            },
           },
         ],
       },

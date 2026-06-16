@@ -946,6 +946,12 @@
   margin-inline: auto;
 }
 
+/* Banqi board is a wide 8x4 half-board; size it for that landscape aspect. */
+.raw-svg-stepper-frame.raw-svg-stepper-frame-banqi > svg {
+  width: min(460px, 100%);
+  margin-inline: auto;
+}
+
 .stepper-boards {
   display: flex;
   gap: 16px;
