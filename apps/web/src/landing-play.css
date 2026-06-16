@@ -348,7 +348,14 @@
 }
 
 .landing-color-option .landing-color-glyph {
-  font-size: 26px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  /* Fixed box so the chess king (36px) and xiangqi general (22px) make
+     equal-height options. The king's font is larger because a unicode chess
+     glyph fills less of its em box than a dense CJK character. */
+  height: 36px;
+  font-size: 36px;
   line-height: 1;
   letter-spacing: -2px;
   color: var(--site-text);
@@ -473,18 +480,20 @@
   font-weight: 800;
 }
 
-/* Variant picker: a small grid of mini-board cards (replaces the native select). */
+/* Variant picker: a grid of mini-board cards (replaces the native select).
+   Wraps to ~2 rows so the minis stay comfortably large; consistent card widths
+   via auto-fill. */
 .landing-variant-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(92px, 1fr));
-  gap: 8px;
+  grid-template-columns: repeat(auto-fill, minmax(86px, 1fr));
+  gap: 6px;
 }
 
 .landing-variant-card {
   display: grid;
-  gap: 6px;
+  gap: 5px;
   justify-items: center;
-  padding: 8px;
+  padding: 6px;
   border: 1px solid var(--site-border);
   border-radius: var(--site-radius-sm);
   background: var(--site-panel);
@@ -496,7 +505,7 @@
 .landing-variant-card-thumb {
   display: block;
   width: 100%;
-  max-width: 76px;
+  max-width: 68px;
   aspect-ratio: 1 / 1;
 }
 
@@ -508,8 +517,8 @@
 
 .landing-variant-card-name {
   font-size: 12px;
-  font-weight: 750;
-  line-height: 1.2;
+  font-weight: 700;
+  line-height: 1.15;
   text-align: center;
 }
 
