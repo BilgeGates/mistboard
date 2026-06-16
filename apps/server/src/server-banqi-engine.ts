@@ -14,11 +14,11 @@
  */
 
 import {
-  getBanqiLegalMoves,
-  isBanqiLegalMove,
   type BanqiGameState,
   type BanqiMove,
   type BanqiSeat,
+  getBanqiLegalMoves,
+  isBanqiLegalMove,
 } from '@mistboard/game';
 import { banqiEngineTierFor, banqiLiveEngineMove, isBanqiEngineClientId } from './banqi-engine.js';
 import { banqiStateToEngineFen, engineUciToBanqiMove } from './banqi-fen.js';
@@ -100,7 +100,12 @@ export async function playBanqiEngineMoveIfReady(
     uci = await banqiLiveEngineMove(engineId, fen, { movetimeMs });
   } catch (err) {
     logger.error(
-      { kind: 'banqi_engine_request_failed', room_id: room.id, engine_id: engineId, error: (err as Error).message },
+      {
+        kind: 'banqi_engine_request_failed',
+        room_id: room.id,
+        engine_id: engineId,
+        error: (err as Error).message,
+      },
       'Banqi engine request failed',
     );
     fallbackReason = 'request-failed';

@@ -74,7 +74,9 @@ export async function handleBanqiCreate(
   let engine: { engineId: string; seat: 'red' | 'black' } | undefined;
   if (mode === 'pve') {
     const engineId =
-      typeof body.engineId === 'string' && body.engineId.length > 0 ? body.engineId : BANQI_DEFAULT_ENGINE_ID;
+      typeof body.engineId === 'string' && body.engineId.length > 0
+        ? body.engineId
+        : BANQI_DEFAULT_ENGINE_ID;
     if (!isBanqiEngineClientId(engineId)) {
       writeJson(response, 400, { error: 'invalid_engine' });
       return;

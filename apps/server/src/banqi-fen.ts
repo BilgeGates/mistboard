@@ -26,15 +26,15 @@
 // exactly the face-down-on-board multiset with no own-captured-while-dark over-disclosure.
 
 import {
-  banqiCoordOf,
-  banqiMoverInk,
-  banqiSquareOf,
   type BanqiBoard,
   type BanqiGameState,
   type BanqiMove,
   type BanqiPiece,
   type BanqiPieceRole,
   type BanqiSquare,
+  banqiCoordOf,
+  banqiMoverInk,
+  banqiSquareOf,
 } from '@mistboard/game';
 
 const RED_ROLE_CHAR: Record<BanqiPieceRole, string> = {
@@ -90,7 +90,10 @@ function poolField(board: BanqiBoard): string {
   const counts = new Map<string, number>();
   for (const piece of Object.values(board)) {
     if (!piece?.faceDown) continue;
-    counts.set(`${piece.color}:${piece.role}`, (counts.get(`${piece.color}:${piece.role}`) ?? 0) + 1);
+    counts.set(
+      `${piece.color}:${piece.role}`,
+      (counts.get(`${piece.color}:${piece.role}`) ?? 0) + 1,
+    );
   }
   let out = '';
   for (const color of ['red', 'black'] as const) {
@@ -108,9 +111,13 @@ function poolField(board: BanqiBoard): string {
 export function banqiStateToEngineFen(state: BanqiGameState): string {
   const ink = banqiMoverInk(state);
   const turn = ink === null ? '-' : ink === 'red' ? 'r' : 'b';
-  return [boardField(state.board), turn, poolField(state.board), state.noProgressClock, state.moveNumber].join(
-    ' ',
-  );
+  return [
+    boardField(state.board),
+    turn,
+    poolField(state.board),
+    state.noProgressClock,
+    state.moveNumber,
+  ].join(' ');
 }
 
 /** Platform square -> engine UCI token: file a..h + rank digit 0..3 (rank-1, 0-indexed). */
@@ -130,6 +137,7 @@ const ENGINE_UCI = /^([a-h])([0-3])([a-h])([0-3])$/;
 export function engineUciToBanqiMove(uci: string): BanqiMove | null {
   const m = ENGINE_UCI.exec(uci.trim());
   if (!m) return null;
-  const sq = (f: string, r: string): BanqiSquare => banqiSquareOf(f.charCodeAt(0) - 97, Number(r) + 1);
+  const sq = (f: string, r: string): BanqiSquare =>
+    banqiSquareOf(f.charCodeAt(0) - 97, Number(r) + 1);
   return { from: sq(m[1], m[2]), to: sq(m[3], m[4]) };
 }

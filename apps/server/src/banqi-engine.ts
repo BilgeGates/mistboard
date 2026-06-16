@@ -52,16 +52,30 @@ export function banqiEnginePath(): string {
   if (explicit) {
     const resolved = resolve(explicit);
     if (!existsSync(resolved)) {
-      throw new Error(`MISTBOARD_BANQI_ENGINE_PATH points at ${resolved} but the binary does not exist`);
+      throw new Error(
+        `MISTBOARD_BANQI_ENGINE_PATH points at ${resolved} but the binary does not exist`,
+      );
     }
     return resolved;
   }
   const home = process.env.HOME;
   if (home) {
-    const dev = resolve(home, 'projects', 'mistboard-engine', 'banqi-engine', 'target', 'release', 'banqi-engine');
+    const dev = resolve(
+      home,
+      'projects',
+      'mistboard-engine',
+      'banqi-engine',
+      'target',
+      'release',
+      'banqi-engine',
+    );
     if (existsSync(dev)) return dev;
   }
-  for (const candidate of [resolve(process.cwd(), 'bin', 'banqi-engine'), '/app/bin/banqi-engine', '/usr/local/bin/banqi-engine']) {
+  for (const candidate of [
+    resolve(process.cwd(), 'bin', 'banqi-engine'),
+    '/app/bin/banqi-engine',
+    '/usr/local/bin/banqi-engine',
+  ]) {
     if (existsSync(candidate)) return candidate;
   }
   throw new Error('MistyBanqi (banqi) binary not found. Set MISTBOARD_BANQI_ENGINE_PATH.');
@@ -102,7 +116,10 @@ export async function banqiLiveEngineMove(
   }
 }
 
-export function banqiEngineMove(fen: string, opts: BanqiEngineOptions = {}): Promise<string | null> {
+export function banqiEngineMove(
+  fen: string,
+  opts: BanqiEngineOptions = {},
+): Promise<string | null> {
   const bin = banqiEnginePath();
   const movetimeMs = opts.movetimeMs ?? 600;
 
@@ -123,7 +140,10 @@ export function banqiEngineMove(fen: string, opts: BanqiEngineOptions = {}): Pro
       run();
     };
 
-    const timer = setTimeout(() => finish(() => reject(new Error('banqi-engine move timed out'))), movetimeMs + 4000);
+    const timer = setTimeout(
+      () => finish(() => reject(new Error('banqi-engine move timed out'))),
+      movetimeMs + 4000,
+    );
 
     child.on('error', (err) => finish(() => reject(err)));
     child.stdout.on('data', (chunk: Buffer) => {
@@ -141,7 +161,13 @@ export function banqiEngineMove(fen: string, opts: BanqiEngineOptions = {}): Pro
       }
     });
 
-    const commands = ['uci', 'ucinewgame', 'isready', `position fen ${fen}`, `go movetime ${movetimeMs}`];
+    const commands = [
+      'uci',
+      'ucinewgame',
+      'isready',
+      `position fen ${fen}`,
+      `go movetime ${movetimeMs}`,
+    ];
     child.stdin.write(`${commands.join('\n')}\n`);
   });
 }
