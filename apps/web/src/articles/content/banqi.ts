@@ -4,7 +4,7 @@ import {
   BANQI_RULES_THUMBNAIL,
   BANQI_SETUP_BOARD,
   BANQI_TUNNEL_READING,
-  relatedClosing,
+  playClosing,
 } from '../diagrams.js';
 import type { Article } from '../types.js';
 
@@ -12,11 +12,13 @@ export const banqiArticle: Article = {
     slug: 'banqi',
     boardFamily: 'xiangqi',
     kind: 'rules',
+    playableOnMistboard: true,
     title: 'Banqi (Chinese Dark Chess) Rules',
     summary:
       'Banqi rules: the 4x8 half-board xiangqi flip game, with face-down pieces, rank captures, screen-jumping cannons, and no royal general.',
     showSummaryOnPage: false,
-    status: 'draft',
+    status: 'published',
+    publishedAt: '2026-06-15',
     audience:
       'Players who grew up with banqi and newcomers who want the Taiwanese rules, the rank ladder, and the cannon explained on one page.',
     thumbnail: { kind: 'svg', svg: BANQI_RULES_THUMBNAIL },
@@ -174,11 +176,13 @@ export const banqiArticle: Article = {
           },
         ],
       },
-      relatedClosing({
+      playClosing({
         heading: 'Where to next',
-        lead: 'Banqi is not playable on Mistboard yet; this page is the rules reference while we plan the variant. Xiangqi is the parent game, and jieqi is the other hidden-identity cousin.',
-        links: [
-          { label: 'Xiangqi Rules', href: '/rules/xiangqi', emphasis: 'primary' },
+        lead: 'Banqi is playable on Mistboard: challenge a friend to a game. Xiangqi is the parent game, and jieqi is the other hidden-identity cousin.',
+        playLabel: 'Challenge a friend',
+        playHref: '/?play=friend&gameSpecId=banqi',
+        secondary: [
+          { label: 'Xiangqi Rules', href: '/rules/xiangqi', emphasis: 'secondary' },
           { label: 'Jieqi', href: '/rules/jieqi', emphasis: 'secondary' },
           { label: 'Dark Chess', href: '/rules/dark-chess', emphasis: 'secondary' },
           { label: 'All rules', href: '/rules', emphasis: 'secondary' },

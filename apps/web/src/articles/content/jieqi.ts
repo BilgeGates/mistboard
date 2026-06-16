@@ -13,6 +13,7 @@ export const jieqiArticle: Article = {
     slug: 'jieqi',
     boardFamily: 'xiangqi',
     kind: 'rules',
+    playableOnMistboard: true,
     title: 'Jieqi (揭棋) Rules',
     summary:
       'Jieqi (揭棋) rules: xiangqi with hidden non-general pieces that first move by starting point, then reveal and play by identity.',

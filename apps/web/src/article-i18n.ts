@@ -507,6 +507,58 @@ const ZH_HANS: Record<string, string> = {
   'Step through a full self-play game below. Dark pieces show as colored backs and flip to their dealt identity the first time they move, so a corner that plays like a chariot can reveal a soldier. Red wins by checkmate.':
     '在下方逐步查看一整盘自我对弈的棋局。暗子以彩色背面显示，第一次走动时翻开，显示其发到的身份，因此一个像车一样走子的角落棋子，翻开后可能是一个兵。红方以将死获胜。',
   Banqi: '暗棋',
+  // -- Banqi (rules) --
+  'Banqi (Chinese Dark Chess) Rules': '暗棋规则',
+  'Banqi rules: the 4x8 half-board xiangqi flip game, with face-down pieces, rank captures, screen-jumping cannons, and no royal general.':
+    '暗棋规则：在半张 4×8 象棋棋盘上进行的翻子游戏。棋子背面朝下，按等级吃子，炮靠隔子（炮架）吃，将帅不是王棋。',
+  "Banqi (暗棋, 'dark chess', also called half chess or flip chess) is played on half a xiangqi board with all thirty-two pieces shuffled face-down. Each turn, flip an unknown piece or move one of your revealed pieces one square. Captures follow rank, except for the cannon. You win by leaving the opponent with no legal move.":
+    '暗棋（又称半棋或翻棋）在半张象棋棋盘上进行，三十二枚棋子洗匀后全部背面朝下。每一回合，你或翻开一枚未知棋子，或将一枚已翻开的棋子移动一格。除炮以外，吃子都按等级进行。当对手没有合法着法可走时，你获胜。',
+  'It is the casual sibling of [xiangqi](/rules/xiangqi): a short game that needs only an ordinary xiangqi set and half the board. It shares names with [dark chess](/rules/dark-chess), the fog-of-war chess variant played on Mistboard, but it is a different game. This page follows Taiwanese rules, the version with screen-jumping cannons.':
+    '它是[象棋](/rules/xiangqi)的休闲近亲：一局简短的对弈，只需一副普通象棋和半张棋盘。它与 Mistboard 上的战争迷雾变体[迷雾国际象棋](/rules/dark-chess)名称相近，但其实是不同的游戏。本页采用台湾规则，即炮靠隔子吃的版本。',
+  'The board is half a xiangqi board: thirty-two squares in a 4x8 grid, shown here with the long side horizontal. Unlike xiangqi, pieces sit inside the squares rather than on intersections, and the thirty-two shuffled pieces exactly fill the board, every one face-down.':
+    '棋盘是半张象棋棋盘：4×8 共三十二个方格，此处以长边横置显示。与象棋不同，棋子放在方格之内，而不是交叉点上；洗匀后的三十二枚棋子恰好填满棋盘，每一枚都背面朝下。',
+  'Colors are not assigned in advance. The first player opens the game by flipping any piece: whatever color comes up is theirs, and the opponent plays the other.':
+    '颜色不会事先分配。先行的一方翻开任意一枚棋子来开局：翻出什么颜色，那一方就执该色，对手执另一色。',
+  Turns: '回合',
+  'On your turn, do exactly one of three things: flip any face-down piece, move one of your revealed pieces one square orthogonally onto an empty square, or capture with one of your revealed pieces. A flip reveals the piece to both players, even if it belongs to your opponent. There is no passing.':
+    '轮到你时，只能做三件事之一：翻开任意一枚背面朝下的棋子，将你的一枚已翻开的棋子沿上下左右走一格到空格，或用你的一枚已翻开的棋子吃子。翻子会向双方亮出该棋子，即使它属于对手也是如此。不能虚着（不可跳过行棋）。',
+  'Capture by rank': '按等级吃子',
+  'Most pieces capture enemy pieces of their own rank or lower by stepping onto an adjacent square. In Taiwanese rules, the order is General > Advisor > Elephant > Chariot > Horse > Soldier. Two exceptions cross the ladder: a soldier can capture the general, and the general cannot capture soldiers.':
+    '大多数棋子可以走到相邻方格，吃掉与自己同级或更低级的敌方棋子。在台湾规则中，等级顺序为 将 ＞ 士 ＞ 象 ＞ 车 ＞ 马 ＞ 卒。有两个跨越等级的例外：卒可以吃将，而将不能吃卒。',
+  'The cannon sits outside this rank ladder and uses its own capture rule. Face-down pieces cannot be captured. A piece must be flipped before anyone can take it, which makes every flip next to a strong enemy piece a calculated risk.':
+    '炮不在这一等级序列之内，使用自己的吃子规则。背面朝下的棋子不能被吃。任何棋子都必须先翻开，才能被吃，因此在强敌旁边翻子，每一次都是经过权衡的冒险。',
+  'The cannon': '炮',
+  'The cannon ignores rank when it captures. For a capture only, it may travel any distance along a row or column and jump exactly one intervening piece, the screen. It then takes the first piece beyond that screen, and only if that piece is a revealed enemy. If a friendly or face-down piece sits there instead, the line is blocked and the cannon cannot reach past it. The screen itself can be friendly, enemy, or face-down.':
+    '炮吃子时不论等级。仅在吃子时，它可以沿一行或一列移动任意距离，并恰好越过中间一枚棋子，即炮架。它吃掉炮架另一侧的第一枚棋子，且仅当该棋子是已翻开的敌方棋子。如果那里是己方棋子或背面朝下的棋子，则该线被挡住，炮无法越过它。炮架本身可以是己方、敌方或背面朝下的棋子。',
+  'A non-capturing cannon move is still just one square orthogonally, like every other piece. Because a cannon needs a screen to capture, it cannot take an adjacent piece. As a target, an adjacent cannon can be taken by a general, advisor, elephant, chariot, or horse, but not by a soldier.':
+    '炮在不吃子时，与其他棋子一样，也只能沿上下左右走一格。由于炮吃子需要炮架，它不能吃相邻的棋子。作为被吃目标，相邻的炮可以被将、士、象、车或马吃掉，但不能被卒吃掉。',
+  'You win when your opponent has no legal move on their turn. Most often that means every enemy piece has been captured, but a boxed-in opponent can also lose. The general is not royal here: capturing it is progress, not victory, and the game continues until one side is wiped out or stuck.':
+    '当对手轮到行棋却没有合法着法时，你获胜。最常见的情形是敌方棋子全部被吃，但被困死、无路可走的对手同样会输。这里的将不是王棋：吃掉它只是进展，而非胜利，棋局会一直进行，直到一方被吃光或被困死。',
+  'Draw and cycle rules vary more than the core capture rules. Mistboard uses two automatic draws: 40 plies (40 individual turns) with no flip and no capture, and threefold repetition (the same position reached three times). Both counters reset on any flip or capture, since those moves cannot be taken back. There is no separate perpetual-chase loss unless we later add a tournament adjudicator. Over the board, agree on the no-progress and repetition convention before play.':
+    '和棋与循环规则的分歧比核心吃子规则更大。Mistboard 采用两种自动和棋：连续 40 步（双方合计 40 个单步）内既无翻子也无吃子，以及三次重复局面（同一局面出现三次）。任何翻子或吃子都会重置这两个计数，因为这类着法无法收回。除非日后加入比赛裁决，否则不另设长捉判负。线下对弈时，请在开局前先约定无进展和重复局面的处理方式。',
+  'How positions work': '局面是如何运作的',
+  'This is the strategy layer behind the rules. Banqi starts random, but it does not stay random: every flip changes the local fight, every captured piece changes what can still be hiding, and every face-down piece changes the shape of the board.':
+    '这是规则背后的策略层面。暗棋开局是随机的，但不会一直随机：每一次翻子都会改变局部的战斗，每吃掉一枚棋子都会改变还可能藏着什么，每一枚背面朝下的棋子都会改变棋盘的形状。',
+  'Face-down pieces are not capturable targets yet, but they occupy squares, block paths, and create tunnels. A piece trapped in a one-square corridor may need to flip a wall or reach a 2x2 open area before it can dodge a pursuer.':
+    '背面朝下的棋子还不是可被吃的目标，但它们占据方格、阻挡通路，并形成通道。困在单格走廊里的棋子，可能需要先翻开一道「墙」，或走到一块 2×2 的开阔区域，才能躲开追兵。',
+  'As pieces are revealed and captured, track what remains unknown. If all enemy soldiers are gone, your general becomes much safer. If enemy cannons remain hidden, every line with one screen can become dangerous.':
+    '随着棋子被翻开和吃掉，要留意还有哪些未知。如果敌方的卒全部消失，你的将会安全得多。如果敌方还有炮藏着没翻开，那么任何只隔着一枚炮架的直线都可能变得危险。',
+  'Regional rules': '各地规则',
+  'Taiwanese rules (this page): non-cannon pieces move and capture one square by rank. Cannon is outside the rank ladder and captures by screen jump.':
+    '台湾规则（本页）：除炮以外的棋子按等级走一格、吃一格。炮不在等级序列之内，靠隔子（越过炮架）吃子。',
+  'Hong Kong rules: pieces still move one square, but the rank order usually follows xiangqi material value more closely, with chariot and horse above cannon, advisor, elephant, and soldier. Cannon captures by adjacency as part of that ladder.':
+    '香港规则：棋子同样走一格，但等级顺序通常更贴近象棋的子力价值，车和马排在炮、士、象、卒之上。炮作为这一序列的一部分，靠相邻吃子。',
+  'Mainland rules: often close to Taiwanese ranking, but cannon sits in the ladder instead of jumping, commonly just above soldier. Some versions also relax the general-soldier exception depending on which piece moves first.':
+    '大陆规则：往往与台湾的等级相近，但炮处在序列之内而不靠隔子吃，通常恰好排在卒之上。某些版本还会根据哪枚棋子先动，放宽将与卒之间的那条例外。',
+  'House variants: some groups allow capture attempts on face-down pieces, where an impossible capture flips the target instead. Decide this, repetition, and no-progress rules before over-the-board play.':
+    '自定义变体：有些圈子允许尝试吃背面朝下的棋子，若该吃子无法成立，则改为翻开目标棋子。线下对弈前，请先就这一点以及重复局面、无进展规则达成一致。',
+  "暗棋 is Mandarin ànqí, 'dark chess'. The same game is also called 半棋 (half chess), the source of the English name banqi, and 翻棋 (flip chess). Computer-game literature often calls it Chinese Dark Chess. None of these are [jieqi](/rules/jieqi), the full-board xiangqi variant where shuffled pieces reveal as they move, and none are the fog-of-war [dark chess](/rules/dark-chess) played here.":
+    '「暗棋」的普通话读音是 ànqí，意为「dark chess」。同一个游戏也叫「半棋」（英文名 banqi 即由此而来）和「翻棋」。计算机博弈文献常称它为 Chinese Dark Chess。这些都不是[揭棋](/rules/jieqi)，即在整张象棋棋盘上、棋子洗匀后随走随翻的那种变体，也都不是这里所玩的战争迷雾[迷雾国际象棋](/rules/dark-chess)。',
+  'Banqi is playable on Mistboard: challenge a friend to a game. Xiangqi is the parent game, and jieqi is the other hidden-identity cousin.':
+    '暗棋现已可在 Mistboard 上对弈：邀请好友来一局。象棋是它的母游戏，揭棋则是另一种隐藏身份的近亲。',
+  'Challenge a friend': '挑战好友',
+  Jieqi: '揭棋',
+  'Dark Chess': '迷雾国际象棋',
 };
 
 const ZH_HANT: Record<string, string> = {
@@ -986,6 +1038,58 @@ const ZH_HANT: Record<string, string> = {
   'Step through a full self-play game below. Dark pieces show as colored backs and flip to their dealt identity the first time they move, so a corner that plays like a chariot can reveal a soldier. Red wins by checkmate.':
     '在下方逐步查看一整盤自我對弈的棋局。暗子以彩色背面顯示，第一次走動時翻開，顯示其發到的身份，因此一個像車一樣走子的角落棋子，翻開後可能是一個兵。紅方以將死獲勝。',
   Banqi: '暗棋',
+  // -- Banqi (rules) --
+  'Banqi (Chinese Dark Chess) Rules': '暗棋規則',
+  'Banqi rules: the 4x8 half-board xiangqi flip game, with face-down pieces, rank captures, screen-jumping cannons, and no royal general.':
+    '暗棋規則：在半張 4×8 象棋棋盤上進行的翻子遊戲。棋子背面朝下，按等級吃子，砲靠隔子（砲架）吃，將帥不是王棋。',
+  "Banqi (暗棋, 'dark chess', also called half chess or flip chess) is played on half a xiangqi board with all thirty-two pieces shuffled face-down. Each turn, flip an unknown piece or move one of your revealed pieces one square. Captures follow rank, except for the cannon. You win by leaving the opponent with no legal move.":
+    '暗棋（又稱半棋或翻棋）在半張象棋棋盤上進行，三十二枚棋子洗勻後全部背面朝下。每一回合，你或翻開一枚未知棋子，或將一枚已翻開的棋子移動一格。除砲以外，吃子都按等級進行。當對手沒有合法著法可走時，你獲勝。',
+  'It is the casual sibling of [xiangqi](/rules/xiangqi): a short game that needs only an ordinary xiangqi set and half the board. It shares names with [dark chess](/rules/dark-chess), the fog-of-war chess variant played on Mistboard, but it is a different game. This page follows Taiwanese rules, the version with screen-jumping cannons.':
+    '它是[象棋](/rules/xiangqi)的休閒近親：一局簡短的對弈，只需一副普通象棋和半張棋盤。它與 Mistboard 上的戰爭迷霧變體[迷霧國際象棋](/rules/dark-chess)名稱相近，但其實是不同的遊戲。本頁採用臺灣規則，即砲靠隔子吃的版本。',
+  'The board is half a xiangqi board: thirty-two squares in a 4x8 grid, shown here with the long side horizontal. Unlike xiangqi, pieces sit inside the squares rather than on intersections, and the thirty-two shuffled pieces exactly fill the board, every one face-down.':
+    '棋盤是半張象棋棋盤：4×8 共三十二個方格，此處以長邊橫置顯示。與象棋不同，棋子放在方格之內，而不是交叉點上；洗勻後的三十二枚棋子恰好填滿棋盤，每一枚都背面朝下。',
+  'Colors are not assigned in advance. The first player opens the game by flipping any piece: whatever color comes up is theirs, and the opponent plays the other.':
+    '顏色不會事先分配。先行的一方翻開任意一枚棋子來開局：翻出什麼顏色，那一方就執該色，對手執另一色。',
+  Turns: '回合',
+  'On your turn, do exactly one of three things: flip any face-down piece, move one of your revealed pieces one square orthogonally onto an empty square, or capture with one of your revealed pieces. A flip reveals the piece to both players, even if it belongs to your opponent. There is no passing.':
+    '輪到你時，只能做三件事之一：翻開任意一枚背面朝下的棋子，將你的一枚已翻開的棋子沿上下左右走一格到空格，或用你的一枚已翻開的棋子吃子。翻子會向雙方亮出該棋子，即使它屬於對手也是如此。不能虛著（不可跳過行棋）。',
+  'Capture by rank': '按等級吃子',
+  'Most pieces capture enemy pieces of their own rank or lower by stepping onto an adjacent square. In Taiwanese rules, the order is General > Advisor > Elephant > Chariot > Horse > Soldier. Two exceptions cross the ladder: a soldier can capture the general, and the general cannot capture soldiers.':
+    '大多數棋子可以走到相鄰方格，吃掉與自己同級或更低級的敵方棋子。在臺灣規則中，等級順序為 將 ＞ 士 ＞ 象 ＞ 車 ＞ 馬 ＞ 卒。有兩個跨越等級的例外：卒可以吃將，而將不能吃卒。',
+  'The cannon sits outside this rank ladder and uses its own capture rule. Face-down pieces cannot be captured. A piece must be flipped before anyone can take it, which makes every flip next to a strong enemy piece a calculated risk.':
+    '砲不在這一等級序列之內，使用自己的吃子規則。背面朝下的棋子不能被吃。任何棋子都必須先翻開，才能被吃，因此在強敵旁邊翻子，每一次都是經過權衡的冒險。',
+  'The cannon': '砲',
+  'The cannon ignores rank when it captures. For a capture only, it may travel any distance along a row or column and jump exactly one intervening piece, the screen. It then takes the first piece beyond that screen, and only if that piece is a revealed enemy. If a friendly or face-down piece sits there instead, the line is blocked and the cannon cannot reach past it. The screen itself can be friendly, enemy, or face-down.':
+    '砲吃子時不論等級。僅在吃子時，它可以沿一行或一列移動任意距離，並恰好越過中間一枚棋子，即砲架。它吃掉砲架另一側的第一枚棋子，且僅當該棋子是已翻開的敵方棋子。如果那裡是己方棋子或背面朝下的棋子，則該線被擋住，砲無法越過它。砲架本身可以是己方、敵方或背面朝下的棋子。',
+  'A non-capturing cannon move is still just one square orthogonally, like every other piece. Because a cannon needs a screen to capture, it cannot take an adjacent piece. As a target, an adjacent cannon can be taken by a general, advisor, elephant, chariot, or horse, but not by a soldier.':
+    '砲在不吃子時，與其他棋子一樣，也只能沿上下左右走一格。由於砲吃子需要砲架，它不能吃相鄰的棋子。作為被吃目標，相鄰的砲可以被將、士、象、車或馬吃掉，但不能被卒吃掉。',
+  'You win when your opponent has no legal move on their turn. Most often that means every enemy piece has been captured, but a boxed-in opponent can also lose. The general is not royal here: capturing it is progress, not victory, and the game continues until one side is wiped out or stuck.':
+    '當對手輪到行棋卻沒有合法著法時，你獲勝。最常見的情形是敵方棋子全部被吃，但被困死、無路可走的對手同樣會輸。這裡的將不是王棋：吃掉它只是進展，而非勝利，棋局會一直進行，直到一方被吃光或被困死。',
+  'Draw and cycle rules vary more than the core capture rules. Mistboard uses two automatic draws: 40 plies (40 individual turns) with no flip and no capture, and threefold repetition (the same position reached three times). Both counters reset on any flip or capture, since those moves cannot be taken back. There is no separate perpetual-chase loss unless we later add a tournament adjudicator. Over the board, agree on the no-progress and repetition convention before play.':
+    '和棋與循環規則的分歧比核心吃子規則更大。Mistboard 採用兩種自動和棋：連續 40 步（雙方合計 40 個單步）內既無翻子也無吃子，以及三次重複局面（同一局面出現三次）。任何翻子或吃子都會重置這兩個計數，因為這類著法無法收回。除非日後加入比賽裁決，否則不另設長捉判負。線下對弈時，請在開局前先約定無進展和重複局面的處理方式。',
+  'How positions work': '局面是如何運作的',
+  'This is the strategy layer behind the rules. Banqi starts random, but it does not stay random: every flip changes the local fight, every captured piece changes what can still be hiding, and every face-down piece changes the shape of the board.':
+    '這是規則背後的策略層面。暗棋開局是隨機的，但不會一直隨機：每一次翻子都會改變局部的戰鬥，每吃掉一枚棋子都會改變還可能藏著什麼，每一枚背面朝下的棋子都會改變棋盤的形狀。',
+  'Face-down pieces are not capturable targets yet, but they occupy squares, block paths, and create tunnels. A piece trapped in a one-square corridor may need to flip a wall or reach a 2x2 open area before it can dodge a pursuer.':
+    '背面朝下的棋子還不是可被吃的目標，但它們佔據方格、阻擋通路，並形成通道。困在單格走廊裡的棋子，可能需要先翻開一道「牆」，或走到一塊 2×2 的開闊區域，才能躲開追兵。',
+  'As pieces are revealed and captured, track what remains unknown. If all enemy soldiers are gone, your general becomes much safer. If enemy cannons remain hidden, every line with one screen can become dangerous.':
+    '隨著棋子被翻開和吃掉，要留意還有哪些未知。如果敵方的卒全部消失，你的將會安全得多。如果敵方還有砲藏著沒翻開，那麼任何只隔著一枚砲架的直線都可能變得危險。',
+  'Regional rules': '各地規則',
+  'Taiwanese rules (this page): non-cannon pieces move and capture one square by rank. Cannon is outside the rank ladder and captures by screen jump.':
+    '臺灣規則（本頁）：除砲以外的棋子按等級走一格、吃一格。砲不在等級序列之內，靠隔子（越過砲架）吃子。',
+  'Hong Kong rules: pieces still move one square, but the rank order usually follows xiangqi material value more closely, with chariot and horse above cannon, advisor, elephant, and soldier. Cannon captures by adjacency as part of that ladder.':
+    '香港規則：棋子同樣走一格，但等級順序通常更貼近象棋的子力價值，車和馬排在砲、士、象、卒之上。砲作為這一序列的一部分，靠相鄰吃子。',
+  'Mainland rules: often close to Taiwanese ranking, but cannon sits in the ladder instead of jumping, commonly just above soldier. Some versions also relax the general-soldier exception depending on which piece moves first.':
+    '大陸規則：往往與臺灣的等級相近，但砲處在序列之內而不靠隔子吃，通常恰好排在卒之上。某些版本還會根據哪枚棋子先動，放寬將與卒之間的那條例外。',
+  'House variants: some groups allow capture attempts on face-down pieces, where an impossible capture flips the target instead. Decide this, repetition, and no-progress rules before over-the-board play.':
+    '自訂變體：有些圈子允許嘗試吃背面朝下的棋子，若該吃子無法成立，則改為翻開目標棋子。線下對弈前，請先就這一點以及重複局面、無進展規則達成一致。',
+  "暗棋 is Mandarin ànqí, 'dark chess'. The same game is also called 半棋 (half chess), the source of the English name banqi, and 翻棋 (flip chess). Computer-game literature often calls it Chinese Dark Chess. None of these are [jieqi](/rules/jieqi), the full-board xiangqi variant where shuffled pieces reveal as they move, and none are the fog-of-war [dark chess](/rules/dark-chess) played here.":
+    '「暗棋」的普通話讀音是 ànqí，意為「dark chess」。同一個遊戲也叫「半棋」（英文名 banqi 即由此而來）和「翻棋」。電腦博弈文獻常稱它為 Chinese Dark Chess。這些都不是[揭棋](/rules/jieqi)，即在整張象棋棋盤上、棋子洗勻後隨走隨翻的那種變體，也都不是這裡所玩的戰爭迷霧[迷霧國際象棋](/rules/dark-chess)。',
+  'Banqi is playable on Mistboard: challenge a friend to a game. Xiangqi is the parent game, and jieqi is the other hidden-identity cousin.':
+    '暗棋現已可在 Mistboard 上對弈：邀請好友來一局。象棋是它的母遊戲，揭棋則是另一種隱藏身份的近親。',
+  'Challenge a friend': '挑戰好友',
+  Jieqi: '揭棋',
+  'Dark Chess': '迷霧國際象棋',
 };
 
 const ARTICLE_DICTS: Record<ArticleLang, Record<string, string>> = {
