@@ -253,6 +253,16 @@ const WEB_VARIANT_TENANTS: readonly WebVariantTenant[] = [
           () =>
             bootstrapBanqiLiveRoom(),
       ),
+    // Banqi renders its own 8×4 SVG board; the watch-route dispatch keys on the
+    // channel's spec id (not family), so this never collides with the other
+    // 'xiangqi'-family SVG tenants on the same renderer.
+    watch: {
+      family: 'xiangqi',
+      mountReplay: (root, roomId, options) =>
+        import('../watch-banqi-replay.js').then(({ mountBanqiWatchReplay }) =>
+          mountBanqiWatchReplay(root, roomId, options),
+        ),
+    },
     landing: {
       capabilities: {
         firstColor: 'red',
