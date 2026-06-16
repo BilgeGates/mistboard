@@ -170,7 +170,7 @@ export const jieqiArticle: Article = {
       },
       playClosing({
         heading: 'Where to next',
-        lead: 'Jieqi is playable on Mistboard — take on PikaJieQi, our jieqi engine, at the strength you pick. For the base game, read xiangqi; for the other face-down xiangqi cousin, compare banqi.',
+        lead: 'Jieqi is playable on Mistboard. Take on PikaJieQi, our jieqi engine, at the strength you pick. For the base game, read xiangqi; for the other face-down xiangqi cousin, compare banqi.',
         playLabel: 'Play vs PikaJieQi',
         playHref: '/?play=engine&gameSpecId=jieqi',
         secondary: [

@@ -501,10 +501,8 @@ const ZH_HANS: Record<string, string> = {
     '英文名称常有重叠。“Dark Chinese chess”可能指揭棋，但也可能指[暗棋](/rules/banqi)（banqi），那是另一种半盘翻子游戏。揭棋保留完整的象棋棋盘和将死取胜的目标；暗棋则使用 4×8 的棋盘，按子力等级吃子，以吃光对方取胜。',
   'Mistboard also uses [Dark Xiangqi](/rules/dark-xiangqi) and Dark Mini Xiangqi for our Fog of War xiangqi variants. Those are not jieqi: identities stay known, but unseen points are hidden. We have not found an earlier public playable platform for Fog of War xiangqi.':
     'Mistboard 还以[迷雾象棋](/rules/dark-xiangqi)和迷雾迷你象棋作为我们的战争迷雾象棋变体。它们并不是揭棋：棋子的身份始终是已知的，只是看不到的交叉点被隐藏起来。我们尚未发现更早的、可公开对弈的战争迷雾象棋平台。',
-  'Jieqi is not playable on Mistboard yet; this page is the rules reference while we plan the variant. For the base game, read xiangqi. For the other face-down xiangqi cousin, compare banqi.':
-    '揭棋目前还不能在 Mistboard 上对弈；在我们筹备这个变体期间，本页作为规则参考。底层游戏请阅读象棋。另一种翻面的象棋近亲，可对照暗棋。',
-  'Jieqi is playable on Mistboard — take on PikaJieQi, our jieqi engine, at the strength you pick. For the base game, read xiangqi; for the other face-down xiangqi cousin, compare banqi.':
-    '揭棋现在可以在 Mistboard 上对弈——以你选择的强度挑战我们的揭棋引擎 PikaJieQi。底层游戏请阅读象棋；另一种翻面的象棋近亲，可对照暗棋。',
+  'Jieqi is playable on Mistboard. Take on PikaJieQi, our jieqi engine, at the strength you pick. For the base game, read xiangqi; for the other face-down xiangqi cousin, compare banqi.':
+    '揭棋现在已可在 Mistboard 上对弈。来挑战我们的揭棋引擎 PikaJieQi，强度由你选择。底层游戏请阅读象棋；另一种翻面的象棋近亲，可对照暗棋。',
   'Play vs PikaJieQi': '对战 PikaJieQi',
   'Step through a full self-play game below. Dark pieces show as colored backs and flip to their dealt identity the first time they move, so a corner that plays like a chariot can reveal a soldier. Red wins by checkmate.':
     '在下方逐步查看一整盘自我对弈的棋局。暗子以彩色背面显示，第一次走动时翻开，显示其发到的身份，因此一个像车一样走子的角落棋子，翻开后可能是一个兵。红方以将死获胜。',
@@ -982,10 +980,8 @@ const ZH_HANT: Record<string, string> = {
     '英文名稱常有重疊。「Dark Chinese chess」可能指揭棋，但也可能指[暗棋](/rules/banqi)（banqi），那是另一種半盤翻子遊戲。揭棋保留完整的象棋棋盤和將死取勝的目標；暗棋則使用 4×8 的棋盤，按子力等級吃子，以吃光對方取勝。',
   'Mistboard also uses [Dark Xiangqi](/rules/dark-xiangqi) and Dark Mini Xiangqi for our Fog of War xiangqi variants. Those are not jieqi: identities stay known, but unseen points are hidden. We have not found an earlier public playable platform for Fog of War xiangqi.':
     'Mistboard 還以[迷霧象棋](/rules/dark-xiangqi)和迷霧迷你象棋作為我們的戰爭迷霧象棋變體。它們並不是揭棋：棋子的身份始終是已知的，只是看不到的交叉點被隱藏起來。我們尚未發現更早的、可公開對弈的戰爭迷霧象棋平台。',
-  'Jieqi is not playable on Mistboard yet; this page is the rules reference while we plan the variant. For the base game, read xiangqi. For the other face-down xiangqi cousin, compare banqi.':
-    '揭棋目前還不能在 Mistboard 上對弈；在我們籌備這個變體期間，本頁作為規則參考。底層遊戲請閱讀象棋。另一種翻面的象棋近親，可對照暗棋。',
-  'Jieqi is playable on Mistboard — take on PikaJieQi, our jieqi engine, at the strength you pick. For the base game, read xiangqi; for the other face-down xiangqi cousin, compare banqi.':
-    '揭棋現在可以在 Mistboard 上對弈——以你選擇的強度挑戰我們的揭棋引擎 PikaJieQi。底層遊戲請閱讀象棋；另一種翻面的象棋近親，可對照暗棋。',
+  'Jieqi is playable on Mistboard. Take on PikaJieQi, our jieqi engine, at the strength you pick. For the base game, read xiangqi; for the other face-down xiangqi cousin, compare banqi.':
+    '揭棋現在已可在 Mistboard 上對弈。來挑戰我們的揭棋引擎 PikaJieQi，強度由你選擇。底層遊戲請閱讀象棋；另一種翻面的象棋近親，可對照暗棋。',
   'Play vs PikaJieQi': '對戰 PikaJieQi',
   'Step through a full self-play game below. Dark pieces show as colored backs and flip to their dealt identity the first time they move, so a corner that plays like a chariot can reveal a soldier. Red wins by checkmate.':
     '在下方逐步查看一整盤自我對弈的棋局。暗子以彩色背面顯示，第一次走動時翻開，顯示其發到的身份，因此一個像車一樣走子的角落棋子，翻開後可能是一個兵。紅方以將死獲勝。',
