@@ -4,7 +4,7 @@
 // through to the variant's review route. Admin-gated by the
 // /api/admin/games/query endpoint (open in local dev). No nav entry.
 import './database.css';
-import { findTimeControl } from '@mistboard/game';
+import { findTimeControl, maybeGameSpecForId } from '@mistboard/game';
 import { displayParticipantName, type FeaturedGame, sourceLabel } from './game-display.js';
 
 type GameRow = FeaturedGame & {
@@ -557,13 +557,14 @@ function resultLabel(result: string): string {
 }
 
 function variantLabel(variant: string): string {
+  // Legacy/alias strings + 'Dark Chess' casing handled explicitly (the dark-chess
+  // spec publicName is the lowercase 'Dark chess'); everything else derives from
+  // the canonical spec so new variants are labelled without editing here.
   if (variant === 'fog' || variant === 'dark-chess') return 'Dark Chess';
   if (variant === 'draft960' || variant === 'fog-draft960' || variant === 'dark-draft960')
     return 'Dark Draft960';
   if (isCrossroadsChessVariant(variant)) return 'Crossroads Chess';
-  if (variant === 'dark-xiangqi') return 'Dark Xiangqi';
-  if (variant === 'dark-mini-xiangqi') return 'Dark Mini Xiangqi';
-  return variant;
+  return maybeGameSpecForId(variant)?.publicName ?? variant;
 }
 
 function isCrossroadsChessVariant(variant: string): boolean {

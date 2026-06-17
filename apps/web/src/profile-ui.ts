@@ -2,6 +2,7 @@
 // the engine profile (/engine/:id) so the two render as siblings. The header
 // shell and the game-row are identical across both subjects; only the middle
 // block (rating buckets vs engine records) differs and stays per-page.
+import { maybeGameSpecForId } from '@mistboard/game';
 import { displayParticipantName, type FeaturedGame, sourceLabel } from './game-display.js';
 import { timeControlLabelForGame } from './game-meta.js';
 
@@ -123,16 +124,19 @@ function profileSideLabel(game: FeaturedGame): string {
 }
 
 function profileGameSpecLabel(game: FeaturedGame): string {
-  if (isCrossroadsChessVariant(game)) return 'Crossroads Chess';
-  if (game.variant === 'dark-mini-xiangqi') return 'Dark Mini Xiangqi';
-  if (game.variant === 'dark-xiangqi') return 'Dark Xiangqi';
+  // Legacy/alias variant strings the canonical spec map doesn't resolve, plus the
+  // 'Dark Chess' casing this pill uses (the dark-chess spec publicName is the
+  // lowercase 'Dark chess'). Everything else derives from the canonical spec so a
+  // new variant (banqi, jieqi, reveal-chess, ...) is labelled without editing here.
+  if (game.variant === 'fog' || game.variant === 'dark-chess') return 'Dark Chess';
   if (
     game.variant === 'dark-draft960' ||
     game.variant === 'fog-draft960' ||
     game.variant === 'draft960'
   )
     return 'Dark Draft960';
-  return 'Dark Chess';
+  if (isCrossroadsChessVariant(game)) return 'Crossroads Chess';
+  return maybeGameSpecForId(game.variant)?.publicName ?? 'Dark Chess';
 }
 
 function profileResultLabel(game: FeaturedGame): string {
