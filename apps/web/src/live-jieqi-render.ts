@@ -188,7 +188,7 @@ function hitLayer(perspective: JieqiColor): string {
       const sq = jieqiSquareOf(f, r);
       const { x, y } = intersection(f, r, perspective);
       parts.push(
-        `<g data-square="${sq}" class="jieqi-hit"><rect x="${x - HIT_HALF}" y="${y - HIT_HALF}" width="${HIT_HALF * 2}" height="${HIT_HALF * 2}"><title>${sq}</title></rect></g>`,
+        `<g data-square="${sq}" class="jieqi-hit"><rect x="${x - HIT_HALF}" y="${y - HIT_HALF}" width="${HIT_HALF * 2}" height="${HIT_HALF * 2}"/></g>`,
       );
     }
   }

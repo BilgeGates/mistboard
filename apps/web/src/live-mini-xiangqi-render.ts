@@ -262,7 +262,7 @@ function hitLayer(perspective: MiniXiangqiColor): string {
       const sq = miniXiangqiSquareOf(f, r);
       const { x, y } = intersection(f, r, perspective);
       parts.push(
-        `<g data-square="${sq}" class="mini-xq-hit"><rect x="${x - HIT_HALF}" y="${y - HIT_HALF}" width="${HIT_HALF * 2}" height="${HIT_HALF * 2}"><title>${sq}</title></rect></g>`,
+        `<g data-square="${sq}" class="mini-xq-hit"><rect x="${x - HIT_HALF}" y="${y - HIT_HALF}" width="${HIT_HALF * 2}" height="${HIT_HALF * 2}"/></g>`,
       );
     }
   }

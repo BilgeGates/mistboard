@@ -181,7 +181,7 @@ function lastMoveMarkers(view: BanqiPlayerView): string {
 function hitLayer(): string {
   return ALL_BANQI_SQUARES.map((square) => {
     const { x, y } = cellCenter(square);
-    return `<g data-square="${square}" class="banqi-hit"><rect x="${x - HIT_HALF}" y="${y - HIT_HALF}" width="${HIT_HALF * 2}" height="${HIT_HALF * 2}"><title>${square}</title></rect></g>`;
+    return `<g data-square="${square}" class="banqi-hit"><rect x="${x - HIT_HALF}" y="${y - HIT_HALF}" width="${HIT_HALF * 2}" height="${HIT_HALF * 2}"/></g>`;
   }).join('');
 }
 
