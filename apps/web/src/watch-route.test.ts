@@ -6,6 +6,7 @@ import {
   resultLabel,
   watchFeedIsDark,
   watchQueueMatchupLabel,
+  watchQueueResultLabel,
 } from './watch-route.js';
 
 describe('watch route copy helpers', () => {
@@ -109,6 +110,29 @@ describe('watch route copy helpers', () => {
 
     expect(watchQueueMatchupLabel(game)).toBe('White Human vs Misty');
     expect(resultLabel(game.result)).toBe('Red wins');
+  });
+
+  it('labels a banqi queue result by bound ink, not the seat token', () => {
+    const base: FeaturedGame = {
+      blackName: null,
+      corpusId: null,
+      mode: 'pvp',
+      plyCount: 40,
+      result: 'red-wins',
+      roomId: 'bq_watch',
+      termination: 'stalemate',
+      variant: 'banqi',
+      whiteName: null,
+    };
+    // First-mover ('red') seat won, but it flipped BLACK on the opening move, so
+    // the surviving pieces are black ink: the queue must read "Black wins".
+    expect(watchQueueResultLabel({ ...base, firstColor: 'black' })).toBe('Black wins');
+    // Same seat result, red ink (the seat == ink case) stays "Red wins".
+    expect(watchQueueResultLabel({ ...base, firstColor: 'red' })).toBe('Red wins');
+    // No firstColor (unreplayable/legacy) falls back to move order, never a wrong ink.
+    expect(watchQueueResultLabel(base)).toBe('First wins');
+    // Non-banqi variants are untouched by the ink translation.
+    expect(watchQueueResultLabel({ ...base, variant: 'crossroads-chess' })).toBe('Red wins');
   });
 });
 

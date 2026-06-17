@@ -1,4 +1,5 @@
 import type { GameEvent } from '@mistboard/game';
+import { banqiResultLabel } from './banqi-result-label.js';
 import { renderVariantMiniBoard, type VariantMiniId } from './variant-mini-boards.js';
 import { webVariantTenantForSpecId } from './variant-tenant/registry.js';
 import './watch-route.css';
@@ -636,7 +637,7 @@ function renderWatchQueue(
     meta.className = 'watch-queue-meta';
     const result = document.createElement('span');
     result.className = 'watch-queue-result';
-    result.textContent = resultLabel(game.result);
+    result.textContent = watchQueueResultLabel(game);
     const detail = document.createElement('span');
     detail.className = 'watch-queue-detail';
     const detailParts = [
@@ -732,4 +733,12 @@ export function resultLabel(result: string): string {
   if (result === 'black-wins') return 'Black wins';
   if (result === 'red-wins') return 'Red wins';
   return 'Draw';
+}
+
+// Banqi seats are decoupled from ink, so its seat-keyed result needs the game's
+// firstColor to read by ink ("Black wins"). Every other variant has seat == ink
+// and uses the plain label.
+export function watchQueueResultLabel(game: FeaturedGame): string {
+  if (game.variant === 'banqi') return banqiResultLabel(game.result, game.firstColor ?? null);
+  return resultLabel(game.result);
 }

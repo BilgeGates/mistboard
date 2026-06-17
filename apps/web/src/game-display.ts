@@ -45,6 +45,10 @@ export type FeaturedGame = {
   incrementMs?: number | null;
   participants?: GameParticipant[];
   playerColor?: GameParticipant['color'];
+  // Banqi only: the ink bound to the first-mover seat on the opening flip, so list
+  // surfaces can show the result by ink ("Black wins") rather than the seat token.
+  // Absent/null for every other variant (seat == ink) and for unreplayable games.
+  firstColor?: 'red' | 'black' | null;
 };
 
 export function displayParticipantName(

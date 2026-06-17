@@ -1,9 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import {
-  banqiPostgameApiUrl,
-  banqiResultLabel,
-  mountBanqiPostgame,
-} from './live-banqi-postgame.js';
+import { banqiResultLabel } from './banqi-result-label.js';
+import { banqiPostgameApiUrl, mountBanqiPostgame } from './live-banqi-postgame.js';
 
 describe('banqiResultLabel translates the seat-keyed result to the bound ink', () => {
   // The reported bug: a game black-ink-wins (red side eaten), but the recorded

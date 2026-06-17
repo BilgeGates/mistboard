@@ -108,6 +108,9 @@ export type RecentEveGameRecord = GameRecord & {
   timeControl: Record<string, unknown> | null;
   initialMs: number | null;
   incrementMs: number | null;
+  // Banqi only: the first-mover seat's bound ink, derived (not stored) and
+  // attached by the watch feed so the client can label results by ink.
+  firstColor?: 'red' | 'black' | null;
 };
 
 export type WatchUnlockedGameOptions = {

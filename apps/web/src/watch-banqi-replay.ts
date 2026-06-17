@@ -3,11 +3,11 @@
 // public and only the deal is hidden, so the postgame ships a SINGLE truth
 // surface (no per-color triptych) and there is no fog to pass to the renderer.
 import type { BanqiPlayerView } from '@mistboard/game';
+import { banqiResultLabel } from './banqi-result-label.js';
 import { fillCapturedPool } from './live-banqi.js';
 import {
   type BanqiPostgameResponse,
   type BanqiPostgameViewKey,
-  banqiResultLabel,
   loadBanqiPostgame,
   postgameReplayMaxPly,
   postgameViewAtPly,

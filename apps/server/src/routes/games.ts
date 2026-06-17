@@ -1,5 +1,6 @@
 import type { IncomingMessage, ServerResponse } from 'node:http';
 import type { Color, GameEvent, TimeClass } from '@mistboard/game';
+import { attachBanqiFirstColors } from './../banqi-first-color.js';
 import { FinishedGameCache } from './../finished-game-cache.js';
 import { buildGamePgn, buildGamePublicationJson } from './../game-export.js';
 import * as persistence from './../persistence.js';
@@ -56,6 +57,9 @@ export async function tryHandle(
       }),
     );
     const active = channelResults.find((result) => result.channel.id === channel.id)!;
+    // Banqi results are seat-keyed; attach each banqi game's derived firstColor so
+    // the queue can label them by ink. Only the active channel's list is sent.
+    await attachBanqiFirstColors(active.unlocked);
     // Embed the events for the first replay so the client paints pieces on the
     // initial board without a second round trip to /api/games/:id/events. Only
     // the default (unlocked[0]) board is seeded; deep links to other games fall
