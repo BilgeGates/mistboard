@@ -1,5 +1,5 @@
 import { createClock, type PlayerView } from '@mistboard/game';
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { renderClocks } from './live-clocks.js';
 import { liveState } from './live-state.js';
 
@@ -114,7 +114,16 @@ describe('presence dots — EvE (spectating)', () => {
 });
 
 describe('day-scale clocks (correspondence)', () => {
+  // These tests set runningSince to "now" and assert the exact rendered remaining,
+  // which a live clock counts down from. Freeze the clock so the elapsed between
+  // setup and render is deterministically zero — otherwise '3d 0h' flakes to
+  // '2d 23h' (and '3:00' to '2:59') on slower CI runners.
+  beforeEach(() => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-06-17T00:00:00.000Z'));
+  });
   afterEach(() => {
+    vi.useRealTimers();
     liveState.timeControl = null;
     liveState.roomMode = 'pvp';
   });
