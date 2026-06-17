@@ -739,7 +739,12 @@
     .landing-cta-secondary
   ) {
   border-color: var(--site-border);
-  background: var(--site-panel-soft);
+  /* background-color, not the `background` shorthand: the shorthand resets
+     background-image to none, which wiped the custom chevron on
+     .landing-engine-select. The `:is()` group's specificity (0,3,1, lifted by
+     the `.landing-custom-time input` member) outranks the dark chevron rule
+     below (0,3,0), so the reset won and the arrow vanished in dark mode. */
+  background-color: var(--site-panel-soft);
   color: var(--site-text);
 }
 
