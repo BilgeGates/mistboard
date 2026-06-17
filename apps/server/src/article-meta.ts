@@ -102,6 +102,12 @@ export const ARTICLE_META: Record<
     description:
       'The complete rules of Banqi (暗棋), the half-board xiangqi flip game known as Chinese Dark Chess: flip or move one square each turn, capture by rank, cannons jump, and win by wiping the enemy out.',
   },
+  'reveal-chess': {
+    title: 'Reveal Chess Rules',
+    kind: 'rules',
+    description:
+      'The complete rules of Reveal Chess, standard chess with a hidden starting arrangement: every piece except the king starts face-down, moves by the square it occupies, and reveals its true identity the moment it moves. Checkmate to win.',
+  },
 };
 
 export function canonicalArticleBase(slug: string): 'articles' | 'rules' {
