@@ -1,7 +1,39 @@
-.dark-xiangqi-postgame-route {
+.dark-xiangqi-postgame-route,
+.jieqi-postgame-route {
   min-height: 100vh;
   background: #eef2f0;
   color: #202620;
+}
+
+/* Single-board review: perspective selector (Red / Truth / Black). */
+.dxq-postgame__view-selector {
+  display: inline-flex;
+  gap: 2px;
+  padding: 3px;
+  border: 1px solid #d4ddd7;
+  border-radius: var(--site-radius);
+  background: #e7ece9;
+}
+
+.dxq-postgame__view-button {
+  border: 0;
+  border-radius: calc(var(--site-radius) - 3px);
+  padding: 5px 14px;
+  font: inherit;
+  font-size: 0.85rem;
+  color: #58665b;
+  background: transparent;
+  cursor: pointer;
+}
+
+.dxq-postgame__view-button:hover {
+  color: #263129;
+}
+
+.dxq-postgame__view-button.is-active {
+  color: #1f2521;
+  background: #ffffff;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.12);
 }
 
 .dxq-postgame {
@@ -91,6 +123,22 @@ button.dxq-postgame__link {
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 12px;
   align-items: start;
+}
+
+/* Jieqi shows a SINGLE board (one perspective at a time), so override the
+   three-column triptych grid with a centred column — otherwise the lone board
+   sits in column 2 with two empty columns beside it. */
+.jieqi-postgame-route .dxq-postgame__boards {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+}
+
+.jieqi-postgame-route .dxq-postgame__replay-controls,
+.jieqi-postgame-route .dxq-postgame__board-wrap {
+  width: 100%;
+  max-width: 460px;
 }
 
 .dxq-postgame__replay-controls {

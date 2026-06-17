@@ -22,7 +22,7 @@ describe('Jieqi postgame page', () => {
     expect(jieqiPostgameApiUrl('jq room')).toBe('/api/jieqi/games/jq%20room');
   });
 
-  it('renders the review triptych: truth shows revealed glyphs, per-color shows backs', async () => {
+  it('renders one board with a perspective selector (truth default; per-color shows backs)', async () => {
     const fetchSpy = vi.fn(async () => jsonResponse(postgameFixture()));
     vi.stubGlobal('fetch', fetchSpy);
     const root = document.createElement('div');
@@ -33,39 +33,41 @@ describe('Jieqi postgame page', () => {
     expect(fetchSpy).toHaveBeenCalledWith('/api/jieqi/games/jq_postgame');
     expect(root.textContent).toContain('Game review');
     expect(root.textContent).toContain('Red wins');
-    expect(root.textContent).toContain('Red view');
-    expect(root.textContent).toContain('Server truth');
-    expect(root.textContent).toContain('Black view');
     // No jieqi play-again action in v1; the review keeps Back home + Room.
     expect(root.textContent).toContain('Back home');
     expect(root.textContent).toContain('Room');
     expect(root.textContent).not.toContain('Play again');
     expect(root.textContent).toContain('Red b3-b10');
     expect(root.textContent).toContain('Ply 1 of 1');
-    // Three boards: red view, server truth, black view.
-    expect(root.querySelectorAll('.jieqi-board')).toHaveLength(3);
 
-    // The TRUTH board reveals every identity: the black cannon on h8 renders with
-    // its glyph (aria-label "black cannon"), never as a hidden back.
-    const truth = boardWrap(root, 'Server truth');
-    expect(truth.innerHTML).toContain('aria-label="black cannon"');
-    expect(truth.innerHTML).not.toContain('hidden piece');
+    // ONE board now (the old three-board triptych is collapsed to a single board).
+    expect(root.querySelectorAll('.jieqi-board')).toHaveLength(1);
 
-    // The RED view masks Black's still-face-down piece on h8 as a back ("hidden
-    // piece"), never as an identified black cannon.
-    const red = boardWrap(root, 'Red view');
-    expect(red.innerHTML).toContain('aria-label="black hidden piece"');
-    expect(red.innerHTML).not.toContain('aria-label="black cannon"');
+    // The perspective selector exposes all three views (short labels, full aria).
+    const viewButtons = [
+      ...root.querySelectorAll<HTMLButtonElement>('.dxq-postgame__view-button'),
+    ];
+    expect(viewButtons.map((button) => button.textContent)).toEqual(['Red', 'Truth', 'Black']);
+    expect(viewButtons.map((button) => button.getAttribute('aria-label'))).toEqual([
+      'Red view',
+      'Server truth',
+      'Black view',
+    ]);
+
+    // Default = Server truth: every identity revealed (black cannon on h8 shows its
+    // glyph, never a hidden back), and the Truth button is the active one.
+    const boardHtml = () => root.querySelector('.jieqi-board')?.innerHTML ?? '';
+    expect(boardHtml()).toContain('aria-label="black cannon"');
+    expect(boardHtml()).not.toContain('hidden piece');
+    const truthButton = viewButtons.find((button) => button.textContent === 'Truth')!;
+    expect(truthButton.getAttribute('aria-pressed')).toBe('true');
+
+    // Switching to the Red view masks Black's still-face-down piece on h8 as a back.
+    viewButtons.find((button) => button.textContent === 'Red')!.click();
+    expect(boardHtml()).toContain('aria-label="black hidden piece"');
+    expect(boardHtml()).not.toContain('aria-label="black cannon"');
   });
 });
-
-function boardWrap(root: HTMLElement, label: string): HTMLElement {
-  const wrap = [...root.querySelectorAll<HTMLElement>('.dxq-postgame__board-wrap')].find((el) =>
-    el.textContent?.includes(label),
-  );
-  if (!wrap) throw new Error(`Missing board wrap: ${label}`);
-  return wrap;
-}
 
 function postgameFixture() {
   // Red cannon b3 -> b10 captured a black dark piece (a horse); Red's cannon is
