@@ -127,32 +127,48 @@ export async function banqiPostgameForApi(
     // This is the final-position "here is the full deal" surface, used as a
     // fallback only — the replay below steps through the masked per-ply history.
     view: banqiTruthView(projection.state),
-    // Single 'truth' history so the replay slider can step through every ply.
-    history: { truth: banqiPostgameHistory(events) },
+    // Two per-ply histories: 'truth' is the AS-PLAYED masked replay (unflipped
+    // tiles render face-down, reproducing the game as it actually looked);
+    // 'revealed' is the spoiler overlay (every face-down identity shown at every
+    // ply) that the review's Reveal toggle swaps in. The watch surface only reads
+    // the masked 'truth' history, so it never spoils the deal.
+    history: banqiPostgameHistory(events),
   };
 }
 
-// Per-ply replay snapshots use the MASKED player view (not the full-truth view):
-// a tile that has not been flipped yet at a given ply must render face-down, so
-// the review reproduces the game as it was actually played — tiles turning over
-// one at a time — instead of revealing the whole deal from move 0. Banqi is
-// symmetric, so either seat's mask yields the identical board; 'red' is arbitrary.
-function banqiPostgameHistory(events: readonly BanqiEvent[]): BanqiPostgameSnapshot[] {
+// Per-ply replay snapshots, built in two parallel tracks:
+//
+//   truth   — the MASKED player view: a tile not yet flipped at a given ply
+//             renders face-down, so the replay reproduces the game as it was
+//             actually played (tiles turning over one at a time) instead of
+//             revealing the whole deal from move 0. Banqi is symmetric, so
+//             either seat's mask yields the identical board; 'red' is arbitrary.
+//   revealed — the full-truth view: every face-down identity shown at every ply,
+//             the spoiler overlay the review's Reveal toggle swaps in.
+//
+// The misnomer is historical: 'truth' is the canonical as-played replay surface
+// (the watch reads it), 'revealed' is the optional overlay.
+function banqiPostgameHistory(events: readonly BanqiEvent[]): {
+  truth: BanqiPostgameSnapshot[];
+  revealed: BanqiPostgameSnapshot[];
+} {
   const created = events[0];
-  if (!created || created.type !== 'room-created') return [];
+  if (!created || created.type !== 'room-created') return { truth: [], revealed: [] };
   let projection = replayTenantEvents(banqiTenant, [created]);
   let ply = 0;
-  const history: BanqiPostgameSnapshot[] = [
+  const truth: BanqiPostgameSnapshot[] = [
     { ply, view: getBanqiPlayerView(projection.state, 'red') },
   ];
+  const revealed: BanqiPostgameSnapshot[] = [{ ply, view: banqiTruthView(projection.state) }];
 
   for (const event of events.slice(1)) {
     projection = applyTenantEvent(banqiTenant, projection, event);
     if (event.type !== 'move-played') continue;
     ply += 1;
-    history.push({ ply, view: getBanqiPlayerView(projection.state, 'red') });
+    truth.push({ ply, view: getBanqiPlayerView(projection.state, 'red') });
+    revealed.push({ ply, view: banqiTruthView(projection.state) });
   }
-  return history;
+  return { truth, revealed };
 }
 
 function banqiPostgameTimeline(

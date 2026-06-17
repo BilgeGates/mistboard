@@ -1,20 +1,30 @@
-import type { BanqiColor, BanqiGameStatus, BanqiMove, BanqiPlayerView } from '@mistboard/game';
+import type {
+  BanqiColor,
+  BanqiGameStatus,
+  BanqiMove,
+  BanqiPlayerView,
+  BanqiSeat,
+} from '@mistboard/game';
 import './live-xiangqi.css';
+import './landing.css';
+import './game-route.css';
 import { banqiResultLabel, seatInkLabel } from './banqi-result-label.js';
-import './dark-xiangqi-postgame.css';
 import { banqiEnabled } from './feature-flags.js';
 import { fillCapturedPool } from './live-banqi.js';
 import { installBanqiBoardStyles, renderBanqiBoardSvg } from './live-banqi-render.js';
+import { createPane } from './replay-board.js';
+import { createShareButton } from './replay-meta.js';
+import { createReplayMovesPanel } from './replay-moves-panel.js';
 import { buildNav } from './site-shell.js';
 
 // Postgame review for banqi. Banqi is SYMMETRIC-information: a face-down tile is
-// hidden from both seats equally, so there is a single "truth" review surface
-// (no per-seat split). The server may still ship per-seat masked views for shape
-// parity with jieqi; this renderer keys off entry.faceDown either way, so a
-// per-seat view renders the still-face-down tiles as neutral backs while the
-// truth view reveals every identity.
+// hidden from both seats equally, so there is a single review board (no per-seat
+// split). The layout mirrors the jieqi review — a left info rail, one center
+// board, and a right moves panel — with a Reveal toggle that swaps the as-played
+// masked replay ('truth' history, unflipped tiles shown as backs) for the spoiler
+// overlay ('revealed' history, every face-down identity unmasked at that ply).
 
-export type BanqiPostgameViewKey = BanqiColor | 'truth';
+export type BanqiPostgameViewKey = BanqiColor | 'truth' | 'revealed';
 
 const postgameAbortControllers = new WeakMap<HTMLElement, AbortController>();
 
@@ -53,16 +63,15 @@ export type BanqiPostgameResponse = {
   history?: Partial<Record<BanqiPostgameViewKey, Array<{ ply: number; view: BanqiPlayerView }>>>;
 };
 
+type BanqiMoveEntry = { move: BanqiMove; ply: number; color: BanqiSeat };
+
 type LoadResult =
   | { ok: true; postgame: BanqiPostgameResponse }
   | { ok: false; status: number; error: string };
 
 export function mountBanqiPostgame(root: HTMLElement, roomId: string): void {
-  root.classList.add('landing-page', 'banqi-postgame-route');
+  root.classList.add('landing-page', 'game-route');
   installBanqiBoardStyles();
-  // Nav lives INSIDE the .landing-page flex column (crossroads pattern), so the
-  // route's 100vh floor accounts for it and the page does not scroll. Each render
-  // path rebuilds it as the first child.
   root.replaceChildren(buildNav(), loadingView());
   if (!banqiEnabled()) {
     renderError(root, 'Banqi unavailable', 'This route is not enabled in this build.');
@@ -71,7 +80,7 @@ export function mountBanqiPostgame(root: HTMLElement, roomId: string): void {
   void loadBanqiPostgame(roomId)
     .then((result) => {
       if (result.ok) {
-        renderPostgame(root, result.postgame);
+        renderPostgame(root, result.postgame, banqiInitialPlyFromSearch(window.location.search));
         return;
       }
       renderError(root, errorTitle(result.status), errorBody(result));
@@ -102,142 +111,193 @@ export function banqiPostgameApiUrl(roomId: string): string {
   return url.pathname;
 }
 
-function renderPostgame(root: HTMLElement, postgame: BanqiPostgameResponse): void {
+function renderPostgame(
+  root: HTMLElement,
+  postgame: BanqiPostgameResponse,
+  initialPly: number | null = null,
+): void {
   const priorAbort = postgameAbortControllers.get(root);
   if (priorAbort) priorAbort.abort();
   const abortController = new AbortController();
   postgameAbortControllers.set(root, abortController);
+  const signal = abortController.signal;
 
-  const page = document.createElement('main');
-  page.className = 'dxq-postgame';
+  const shell = document.createElement('main');
+  shell.className = 'game-shell banqi-postgame-shell';
+  const page = document.createElement('div');
+  page.className =
+    'game-replay replay-page replay-meta-header analysis-tools-collapsed banqi-postgame-page';
 
-  const header = document.createElement('header');
-  header.className = 'dxq-postgame__header';
-  const titleBlock = document.createElement('div');
+  // Info rail on the LEFT (not a full-width top strip) so the board claims the
+  // full column height. The rail carries the title, result, time control, seats,
+  // and the review actions.
+  const rail = document.createElement('aside');
+  rail.className = 'banqi-review-rail side-panel';
+  const railSection = document.createElement('section');
+  railSection.className = 'panel-section';
+
   const eyebrow = document.createElement('p');
-  eyebrow.className = 'dxq-postgame__eyebrow';
+  eyebrow.className = 'banqi-review-rail__eyebrow';
   eyebrow.textContent = 'Game review';
   const title = document.createElement('h1');
-  title.className = 'dxq-postgame__title';
+  title.className = 'banqi-review-rail__title';
   title.textContent = 'Banqi';
-  const summary = document.createElement('p');
-  summary.className = 'dxq-postgame__summary';
-  summary.textContent = `${banqiResultLabel(postgame.game.result, postgame.view.firstColor)} by ${labelize(postgame.game.termination)} · ${postgame.game.plyCount} plies`;
-  titleBlock.append(eyebrow, title, summary);
-  header.append(titleBlock, postgameActions(postgame));
 
-  const layout = document.createElement('section');
-  layout.className = 'dxq-postgame__layout';
-  layout.setAttribute('aria-label', 'Banqi postgame');
+  const result = document.createElement('div');
+  result.className = 'banqi-review-rail__result';
+  const chip = document.createElement('span');
+  chip.className = `replay-game-header-result-chip replay-game-header-result-${resultChipKind(postgame.game.result, postgame.view.firstColor)}`;
+  chip.textContent = banqiResultLabel(postgame.game.result, postgame.view.firstColor);
+  const detail = document.createElement('span');
+  detail.className = 'replay-game-header-result-detail';
+  detail.textContent = `by ${labelize(postgame.game.termination)}`;
+  result.append(chip, detail);
 
-  const side = document.createElement('aside');
-  side.className = 'dxq-postgame__side';
-  side.append(detailsPanel(postgame), timelinePanel(postgame));
+  const meta = document.createElement('p');
+  meta.className = 'banqi-review-rail__meta';
+  meta.textContent = [
+    timeControlLabel(postgame),
+    `${postgame.game.plyCount} plies`,
+    postgame.game.rated ? 'Rated' : 'Casual',
+  ].join(' · ');
 
-  layout.append(boardsPanel(postgame, abortController.signal), side);
-  page.append(header, layout);
-  root.replaceChildren(buildNav(), page);
-}
+  // Banqi postgame payloads carry no seat names, so the rows fall back to the
+  // ink labels (Red and Black are the two flips; the result chip resolves which
+  // ink the winning seat bound to).
+  const seats = document.createElement('div');
+  seats.className = 'banqi-review-rail__seats';
+  seats.append(seatCell('Red').el, seatCell('Black').el);
 
-function boardsPanel(postgame: BanqiPostgameResponse, signal: AbortSignal): HTMLElement {
-  const panel = document.createElement('div');
-  panel.className = 'dxq-postgame__boards';
-  const views = postgameViewEntries(postgame);
+  const actions = document.createElement('div');
+  actions.className = 'banqi-review-rail__actions';
+  const revealBtn = headerAction('Reveal tiles');
+  revealBtn.setAttribute('aria-pressed', 'false');
+  revealBtn.title = 'Toggle face-down tile identities (h)';
+  const flipBtn = headerAction('Flip');
+  flipBtn.setAttribute('aria-label', 'Flip board');
+  flipBtn.title = 'Flip board (f)';
+  const share = createShareButton();
+  const home = headerLink('Home', '/');
+  const room = headerLink('Room', `/room/${encodeURIComponent(postgame.game.roomId)}`);
+  actions.append(revealBtn, flipBtn, share, home, room);
+
+  railSection.append(eyebrow, title, result, meta, seats, actions);
+  rail.append(railSection);
+
+  const layout = document.createElement('div');
+  layout.className = 'replay-layout replay-layout-crossroads';
+  // Empty pane label: no caption strip above the board, so it gets the full height.
+  const pane = createPane('', 'truth', true, 'split');
+  pane.boardEl.classList.add('banqi-postgame-board', 'banqi-live-board');
+  layout.append(pane.el);
+
+  const movesPanel = createReplayMovesPanel();
+
+  page.append(rail, layout, movesPanel.el);
+  shell.append(page);
+  root.replaceChildren(buildNav(), shell);
+
+  const moves: BanqiMoveEntry[] = postgame.timeline
+    .filter(
+      (entry): entry is typeof entry & { move: BanqiMove; ply: number; color: BanqiSeat } =>
+        entry.type === 'move-played' &&
+        !!entry.move &&
+        typeof entry.ply === 'number' &&
+        !!entry.color,
+    )
+    .map((entry) => ({ move: entry.move, ply: entry.ply, color: entry.color }));
   const maxPly = postgameReplayMaxPly(postgame);
-  let currentPly = maxPly;
+  let currentPly = initialPly === null ? maxPly : clampPly(initialPly, maxPly);
   let boardOrientation: BanqiColor = 'red';
-  const boardTargets: Array<{
-    board: HTMLElement;
-    capturesTop: HTMLElement;
-    capturesBottom: HTMLElement;
-    entry: { key: BanqiPostgameViewKey; label: string; view: BanqiPlayerView };
-  }> = [];
+  // Default to the as-played board: unflipped tiles show as face-down backs, the
+  // way the position actually looked. The toggle (button / `h`) reveals the deal.
+  let revealed = false;
 
-  const controls = document.createElement('div');
-  controls.className = 'dxq-postgame__replay-controls';
-  const first = replayControlButton('|<', 'First ply');
-  const previous = replayControlButton('<', 'Previous ply');
-  const status = document.createElement('span');
-  status.className = 'dxq-postgame__replay-status';
-  status.setAttribute('aria-live', 'polite');
-  const next = replayControlButton('>', 'Next ply');
-  const last = replayControlButton('>|', 'Final ply');
-  const flip = replayControlButton('Flip', 'Flip all boards');
-  flip.title = 'Flip all boards (f)';
-
-  const syncReplay = () => {
-    for (const { board, capturesTop, capturesBottom, entry } of boardTargets) {
-      const view = postgameViewAtPly(postgame, entry.key, currentPly) ?? entry.view;
-      // Banqi is symmetric: the truth view renders every identity revealed; the
-      // per-key views render still-face-down tiles as neutral backs (the renderer
-      // keys off entry.faceDown). The board SVG carries no id-based defs, so
-      // multiple boards on one page do not collide.
-      board.innerHTML = renderBanqiBoardSvg(view, boardOrientation, {});
-      renderCapturedPools(capturesTop, capturesBottom, view, boardOrientation);
-    }
-    status.textContent = `Ply ${currentPly} of ${maxPly}`;
-    first.disabled = currentPly <= 0;
-    previous.disabled = currentPly <= 0;
-    next.disabled = currentPly >= maxPly;
-    last.disabled = currentPly >= maxPly;
+  const jump = (ply: number, options: { replaceUrl?: boolean } = {}) => {
+    currentPly = clampPly(ply, maxPly);
+    if (options.replaceUrl !== false) replaceReviewPlyInUrl(currentPly, maxPly);
+    sync();
   };
 
-  first.addEventListener('click', () => {
-    currentPly = 0;
-    syncReplay();
-  });
-  previous.addEventListener('click', () => {
-    currentPly = Math.max(0, currentPly - 1);
-    syncReplay();
-  });
-  next.addEventListener('click', () => {
-    currentPly = Math.min(maxPly, currentPly + 1);
-    syncReplay();
-  });
-  last.addEventListener('click', () => {
-    currentPly = maxPly;
-    syncReplay();
-  });
-  flip.addEventListener('click', () => {
+  const sync = () => {
+    // Reveal on → 'revealed' (every face-down identity). Reveal off → 'truth'
+    // (the as-played mask). Banqi is symmetric, so both seats render the identical
+    // board; only the masking differs.
+    const viewKey: BanqiPostgameViewKey = revealed ? 'revealed' : 'truth';
+    const view =
+      postgameViewAtPly(postgame, viewKey, currentPly) ??
+      postgameViewAtPly(postgame, 'truth', currentPly) ??
+      postgame.view;
+    pane.boardEl.innerHTML = renderBanqiBoardSvg(view, boardOrientation, {});
+    renderCapturedPools(pane.topCapturesEl, pane.capturesEl, view, boardOrientation);
+    movesPanel.meta.textContent =
+      moves.length === 0
+        ? 'No moves'
+        : `Move ${Math.ceil(currentPly / 2)} · ply ${currentPly} of ${maxPly}`;
+    movesPanel.controls.first.disabled = currentPly <= 0;
+    movesPanel.controls.prev.disabled = currentPly <= 0;
+    movesPanel.controls.next.disabled = currentPly >= maxPly;
+    movesPanel.controls.last.disabled = currentPly >= maxPly;
+    renderMoveRows(movesPanel.moveList, moves, currentPly, postgame.view.firstColor, jump);
+  };
+
+  movesPanel.controls.first.onclick = () => jump(0);
+  movesPanel.controls.prev.onclick = () => jump(currentPly - 1);
+  movesPanel.controls.next.onclick = () => jump(currentPly + 1);
+  movesPanel.controls.last.onclick = () => jump(maxPly);
+
+  const flip = () => {
     boardOrientation = oppositeBanqiColor(boardOrientation);
-    syncReplay();
-  });
+    sync();
+  };
+  flipBtn.onclick = flip;
+
+  const toggleReveal = () => {
+    revealed = !revealed;
+    revealBtn.textContent = revealed ? 'Hide tiles' : 'Reveal tiles';
+    revealBtn.setAttribute('aria-pressed', String(revealed));
+    sync();
+  };
+  revealBtn.onclick = toggleReveal;
+
   document.addEventListener(
     'keydown',
     (event) => {
       if (event.metaKey || event.ctrlKey || event.altKey) return;
       const target = event.target as HTMLElement | null;
-      if (target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA')) return;
-      if (event.key !== 'f' && event.key !== 'F') return;
-      event.preventDefault();
-      boardOrientation = oppositeBanqiColor(boardOrientation);
-      syncReplay();
+      if (
+        target &&
+        (target.isContentEditable ||
+          target.tagName === 'INPUT' ||
+          target.tagName === 'TEXTAREA' ||
+          target.tagName === 'SELECT')
+      ) {
+        return;
+      }
+      if (event.key === 'f' || event.key === 'F') {
+        event.preventDefault();
+        flip();
+      } else if (event.key === 'h' || event.key === 'H') {
+        event.preventDefault();
+        toggleReveal();
+      } else if (event.key === 'ArrowLeft') {
+        event.preventDefault();
+        jump(currentPly - 1);
+      } else if (event.key === 'ArrowRight') {
+        event.preventDefault();
+        jump(currentPly + 1);
+      } else if (event.key === 'ArrowUp') {
+        event.preventDefault();
+        jump(0);
+      } else if (event.key === 'ArrowDown') {
+        event.preventDefault();
+        jump(maxPly);
+      }
     },
     { signal },
   );
 
-  controls.append(first, previous, status, next, last, flip);
-  panel.append(controls);
-
-  for (const entry of views) {
-    const boardWrap = document.createElement('section');
-    boardWrap.className = 'dxq-postgame__board-wrap';
-    const heading = document.createElement('h2');
-    heading.className = 'dxq-postgame__board-title';
-    heading.textContent = entry.label;
-    const capturesTop = document.createElement('div');
-    capturesTop.className = 'captures-strip';
-    const board = document.createElement('div');
-    board.className = 'dxq-postgame__board banqi-live-board';
-    board.setAttribute('aria-label', `${entry.label} final Banqi board`);
-    const capturesBottom = document.createElement('div');
-    capturesBottom.className = 'captures-strip';
-    boardTargets.push({ board, capturesTop, capturesBottom, entry });
-    boardWrap.append(heading, capturesTop, board, capturesBottom);
-    panel.append(boardWrap);
-  }
-  syncReplay();
-  return panel;
+  sync();
 }
 
 // Lichess convention: a player's captured material sits next to that player. The
@@ -252,7 +312,7 @@ function renderCapturedPools(
 ): void {
   top.replaceChildren();
   bottom.replaceChildren();
-  const opponent = orientation === 'red' ? 'black' : 'red';
+  const opponent = oppositeBanqiColor(orientation);
   fillCapturedPool(top, view.captured, orientation);
   fillCapturedPool(bottom, view.captured, opponent);
 }
@@ -261,30 +321,13 @@ function oppositeBanqiColor(color: BanqiColor): BanqiColor {
   return color === 'red' ? 'black' : 'red';
 }
 
-// Exported for any watch-replay surface to reuse the per-ply view selection,
-// mirroring the jieqi postgame module's exported helpers. Banqi is symmetric, so
-// the review reduces to the single truth surface when per-seat views are absent.
+// Banqi is symmetric, so the review reduces to the single truth surface. Exported
+// for the watch-replay surface to reuse the per-ply view selection, mirroring the
+// jieqi postgame module's exported helpers.
 export function postgameViewEntries(
   postgame: BanqiPostgameResponse,
 ): Array<{ key: BanqiPostgameViewKey; label: string; view: BanqiPlayerView }> {
-  const views = postgame.views;
-  if (views?.red && views.truth && views.black) {
-    return [
-      { key: 'red', label: 'Red view', view: views.red },
-      { key: 'truth', label: 'Server truth', view: views.truth },
-      { key: 'black', label: 'Black view', view: views.black },
-    ];
-  }
   return [{ key: 'truth', label: 'Server truth', view: postgame.view }];
-}
-
-function replayControlButton(text: string, label: string): HTMLButtonElement {
-  const button = document.createElement('button');
-  button.type = 'button';
-  button.className = 'dxq-postgame__replay-button';
-  button.setAttribute('aria-label', label);
-  button.textContent = text;
-  return button;
 }
 
 export function postgameReplayMaxPly(postgame: BanqiPostgameResponse): number {
@@ -307,70 +350,82 @@ export function postgameViewAtPly(
   return selected?.view ?? null;
 }
 
-// No banqi play-again room action exists yet (v1), so the review offers only the
-// Back home + Room links — no fabricated server action.
-function postgameActions(postgame: BanqiPostgameResponse): HTMLElement {
-  const actions = document.createElement('nav');
-  actions.className = 'dxq-postgame__actions';
-  actions.setAttribute('aria-label', 'Game links');
-  const home = document.createElement('a');
-  home.className = 'dxq-postgame__link';
-  home.href = '/';
-  home.textContent = 'Back home';
-  const room = document.createElement('a');
-  room.className = 'dxq-postgame__link';
-  room.href = `/room/${encodeURIComponent(postgame.game.roomId)}`;
-  room.textContent = 'Room';
-  actions.append(home, room);
-  return actions;
-}
-
-function detailsPanel(postgame: BanqiPostgameResponse): HTMLElement {
-  const panel = document.createElement('section');
-  panel.className = 'dxq-postgame__panel';
-  const heading = document.createElement('h2');
-  heading.textContent = 'Game';
-  const details = document.createElement('dl');
-  details.className = 'dxq-postgame__details';
-  details.append(
-    detailRow('Result', banqiResultLabel(postgame.game.result, postgame.view.firstColor)),
-    detailRow('Ending', labelize(postgame.game.termination)),
-    detailRow('Clock', timeControlLabel(postgame)),
-    detailRow('Ended', dateLabel(postgame.game.endedAt)),
-  );
-  panel.append(heading, details);
-  return panel;
-}
-
-function timelinePanel(postgame: BanqiPostgameResponse): HTMLElement {
-  const panel = document.createElement('section');
-  panel.className = 'dxq-postgame__panel';
-  const heading = document.createElement('h2');
-  heading.textContent = 'Moves';
-  const list = document.createElement('ol');
-  list.className = 'dxq-postgame__moves';
-  const moves = postgame.timeline.filter((entry) => entry.type === 'move-played' && entry.move);
+// Two ply per row (one full move): the first-mover seat takes the left cell, the
+// second-mover seat the right, keyed by ply parity (ply 1 is the first mover).
+function renderMoveRows(
+  list: HTMLOListElement,
+  moves: BanqiMoveEntry[],
+  activePly: number,
+  firstColor: BanqiColor | null,
+  onJump: (ply: number) => void,
+): void {
+  list.replaceChildren();
   if (moves.length === 0) {
     const empty = document.createElement('li');
-    empty.className = 'dxq-postgame__move';
+    empty.className = 'move-row move-empty';
     empty.textContent = 'No moves';
     list.append(empty);
-  } else {
-    for (const entry of moves) {
-      const item = document.createElement('li');
-      item.className = 'dxq-postgame__move';
-      const number = document.createElement('span');
-      number.className = 'dxq-postgame__move-number';
-      number.textContent = String(entry.ply ?? '');
-      const move = document.createElement('span');
-      const mover = entry.color ? seatInkLabel(entry.color, postgame.view.firstColor) : '';
-      move.textContent = `${mover} ${moveLabel(entry.move!)}`.trim();
-      item.append(number, move);
-      list.append(item);
-    }
+    return;
   }
-  panel.append(heading, list);
-  return panel;
+  const byPly = new Map<number, BanqiMoveEntry>();
+  for (const move of moves) byPly.set(move.ply, move);
+  const maxPly = Math.max(...moves.map((move) => move.ply));
+  const fullMoves = Math.ceil(maxPly / 2);
+  for (let moveNumber = 1; moveNumber <= fullMoves; moveNumber += 1) {
+    const row = document.createElement('li');
+    row.className = 'move-row';
+    const number = document.createElement('span');
+    number.className = 'move-number';
+    number.textContent = String(moveNumber);
+    row.append(
+      number,
+      moveCell(
+        byPly.get(moveNumber * 2 - 1),
+        'white',
+        moveNumber * 2 - 1,
+        activePly,
+        firstColor,
+        onJump,
+      ),
+      moveCell(byPly.get(moveNumber * 2), 'black', moveNumber * 2, activePly, firstColor, onJump),
+    );
+    list.append(row);
+  }
+  scrollActiveMoveIntoView(list);
+}
+
+function moveCell(
+  entry: BanqiMoveEntry | undefined,
+  cell: 'white' | 'black',
+  ply: number,
+  activePly: number,
+  firstColor: BanqiColor | null,
+  onJump: (ply: number) => void,
+): HTMLElement {
+  if (!entry) {
+    const empty = document.createElement('span');
+    empty.className = `${cell}-ply move-empty`;
+    return empty;
+  }
+  const button = document.createElement('button');
+  button.type = 'button';
+  button.className = `${cell}-ply${activePly === ply ? ' active' : ''}`;
+  button.textContent = moveLabel(entry.move);
+  button.title = `${seatInkLabel(entry.color, firstColor)} ply ${ply}: ${moveLabel(entry.move)}`;
+  button.onclick = () => onJump(ply);
+  return button;
+}
+
+function scrollActiveMoveIntoView(list: HTMLOListElement): void {
+  window.requestAnimationFrame(() => {
+    const active = list.querySelector<HTMLButtonElement>('button.active');
+    if (!active) return;
+    const listRect = list.getBoundingClientRect();
+    const activeRect = active.getBoundingClientRect();
+    const centeredDelta =
+      activeRect.top - listRect.top - (list.clientHeight - activeRect.height) / 2;
+    list.scrollTo({ top: Math.max(0, list.scrollTop + centeredDelta), behavior: 'auto' });
+  });
 }
 
 // A flip (self-move) reads as the flipped square; a board move as from-to.
@@ -378,19 +433,78 @@ function moveLabel(move: BanqiMove): string {
   return move.from === move.to ? `${move.from} flip` : `${move.from}-${move.to}`;
 }
 
-function detailRow(label: string, value: string): HTMLElement {
+// Banqi seats are first/second mover bound to an ink on the opening flip, so the
+// result chip maps to a color via the bound ink: red ink → the "white" chip (like
+// jieqi's first mover), black ink → the "black" chip. Draws and pre-flip aborts
+// fall through to the neutral chip.
+function resultChipKind(result: string, firstColor: BanqiColor | null): 'white' | 'black' | 'draw' {
+  if (result === 'draw') return 'draw';
+  const winnerInk =
+    result === 'red-wins'
+      ? firstColor
+      : result === 'black-wins'
+        ? firstColor === null
+          ? null
+          : oppositeBanqiColor(firstColor)
+        : null;
+  if (winnerInk === 'red') return 'white';
+  if (winnerInk === 'black') return 'black';
+  return 'draw';
+}
+
+type SeatCell = { el: HTMLDivElement };
+
+function seatCell(name: string): SeatCell {
   const row = document.createElement('div');
-  const dt = document.createElement('dt');
-  dt.textContent = label;
-  const dd = document.createElement('dd');
-  dd.textContent = value;
-  row.append(dt, dd);
-  return row;
+  row.className = 'replay-clock-row';
+  const label = document.createElement('span');
+  label.className = 'replay-clock-side';
+  label.textContent = name;
+  const time = document.createElement('span');
+  time.className = 'replay-clock-time';
+  row.append(label, time);
+  return { el: row };
+}
+
+function headerAction(label: string): HTMLButtonElement {
+  const button = document.createElement('button');
+  button.type = 'button';
+  button.className = 'replay-button replay-game-header-action replay-game-header-action-secondary';
+  button.textContent = label;
+  return button;
+}
+
+function headerLink(label: string, href: string): HTMLAnchorElement {
+  const link = document.createElement('a');
+  link.className = 'replay-button replay-game-header-action replay-game-header-action-secondary';
+  link.href = href;
+  link.textContent = label;
+  return link;
+}
+
+export function banqiInitialPlyFromSearch(search: string): number | null {
+  const raw = new URLSearchParams(search).get('ply');
+  if (raw === null || !/^\d+$/.test(raw)) return null;
+  return Number.parseInt(raw, 10);
+}
+
+function clampPly(ply: number, maxPly: number): number {
+  return Math.max(0, Math.min(maxPly, ply));
+}
+
+function replaceReviewPlyInUrl(ply: number, maxPly: number): void {
+  const url = new URL(window.location.href);
+  if (ply >= maxPly) {
+    url.searchParams.delete('ply');
+  } else {
+    url.searchParams.set('ply', String(ply));
+  }
+  window.history.replaceState(window.history.state, '', `${url.pathname}${url.search}${url.hash}`);
 }
 
 function loadingView(): HTMLElement {
   const shell = document.createElement('main');
-  shell.className = 'dxq-postgame__notice';
+  shell.className = 'game-shell';
   const heading = document.createElement('h1');
   heading.textContent = 'Loading game';
   shell.append(heading);
@@ -399,7 +513,7 @@ function loadingView(): HTMLElement {
 
 function renderError(root: HTMLElement, titleText: string, bodyText: string): void {
   const shell = document.createElement('main');
-  shell.className = 'dxq-postgame__error';
+  shell.className = 'game-shell';
   const title = document.createElement('h1');
   title.textContent = titleText;
   const body = document.createElement('p');
@@ -450,18 +564,6 @@ function clockLabel(ms: number): string {
   const minutes = Math.floor(totalSeconds / 60);
   const seconds = totalSeconds % 60;
   return `${minutes}:${String(seconds).padStart(2, '0')}`;
-}
-
-function dateLabel(value: string): string {
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return value;
-  return date.toLocaleString(undefined, {
-    day: 'numeric',
-    hour: 'numeric',
-    minute: '2-digit',
-    month: 'short',
-    year: 'numeric',
-  });
 }
 
 function labelize(value: string): string {

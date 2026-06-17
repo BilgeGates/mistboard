@@ -448,17 +448,19 @@
 }
 
 /* ------------------------------------------------------------------ *
- * Jieqi review: info rail (left) + board (center, full height) + moves
- * (right). The rail relocates what was a full-width top header strip so
- * the board reclaims the vertical space. Scoped to the jieqi page; the
- * dark-chess review keeps its top-header model for now.
+ * Jieqi / Banqi review: info rail (left) + board (center, full height) +
+ * moves (right). The rail relocates what was a full-width top header strip
+ * so the board reclaims the vertical space. Scoped to the tenant review
+ * pages; the dark-chess review keeps its top-header model for now.
  * ------------------------------------------------------------------ */
-.jieqi-review-rail .panel-section {
+.jieqi-review-rail .panel-section,
+.banqi-review-rail .panel-section {
   display: grid;
   gap: 10px;
 }
 
-.jieqi-review-rail__eyebrow {
+.jieqi-review-rail__eyebrow,
+.banqi-review-rail__eyebrow {
   margin: 0;
   font-size: 12px;
   font-weight: 700;
@@ -467,60 +469,94 @@
   opacity: 0.62;
 }
 
-.jieqi-review-rail__title {
+.jieqi-review-rail__title,
+.banqi-review-rail__title {
   margin: 0;
   font-size: clamp(20px, 2vw, 26px);
   line-height: 1.1;
 }
 
-.jieqi-review-rail__result {
+.jieqi-review-rail__result,
+.banqi-review-rail__result {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   gap: 6px;
 }
 
-.jieqi-review-rail__meta {
+.jieqi-review-rail__meta,
+.banqi-review-rail__meta {
   margin: 0;
   font-size: 13px;
   opacity: 0.66;
 }
 
-.jieqi-review-rail__seats {
+.jieqi-review-rail__seats,
+.banqi-review-rail__seats {
   display: grid;
   gap: 6px;
 }
 
-.jieqi-review-rail__actions {
+.jieqi-review-rail__actions,
+.banqi-review-rail__actions {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
   margin-top: 2px;
 }
 
+/* Banqi's board is wide (8x4, landscape ~1.82:1), not tall like jieqi/xiangqi:
+   size it to fill the center column up to a cap, height following naturally. */
+.game-replay .banqi-postgame-board {
+  aspect-ratio: 568 / 312;
+  width: min(100%, 560px);
+  max-width: 560px;
+  margin: 0 auto;
+  background: transparent;
+  box-shadow: none;
+  overflow: visible;
+}
+
+.game-replay .banqi-postgame-board .banqi-board {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
 @media (min-width: 1100px) {
-  .game-replay.jieqi-postgame-page.replay-meta-header {
+  .game-replay.jieqi-postgame-page.replay-meta-header,
+  .game-replay.banqi-postgame-page.replay-meta-header {
     grid-template-columns: clamp(190px, 16vw, 240px) minmax(0, 1fr) clamp(220px, 20vw, 320px);
   }
 
-  .game-replay.jieqi-postgame-page .jieqi-review-rail {
+  .game-replay.jieqi-postgame-page .jieqi-review-rail,
+  .game-replay.banqi-postgame-page .banqi-review-rail {
     grid-column: 1;
     grid-row: 1;
     align-self: start;
   }
 
-  .game-replay.jieqi-postgame-page .replay-layout {
+  .game-replay.jieqi-postgame-page .replay-layout,
+  .game-replay.banqi-postgame-page .replay-layout {
     grid-column: 2;
     grid-row: 1;
   }
 
-  .game-replay.jieqi-postgame-page .replay-moves-panel {
+  .game-replay.jieqi-postgame-page .replay-moves-panel,
+  .game-replay.banqi-postgame-page .replay-moves-panel {
     grid-column: 3;
     grid-row: 1;
   }
 
   /* The board owns the full column height now, so the move list can run longer. */
-  .game-replay.jieqi-postgame-page .replay-moves-panel .move-list {
+  .game-replay.jieqi-postgame-page .replay-moves-panel .move-list,
+  .game-replay.banqi-postgame-page .replay-moves-panel .move-list {
     height: clamp(280px, 54vh, 600px);
+  }
+
+  /* The wide banqi board is short, so center it vertically in its tall column
+     rather than pinning it to the top like the tall jieqi board. */
+  .game-replay.banqi-postgame-page .replay-layout {
+    align-self: center;
   }
 }

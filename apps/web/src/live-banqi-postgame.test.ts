@@ -43,7 +43,7 @@ describe('Banqi postgame page', () => {
     expect(banqiPostgameApiUrl('bq room')).toBe('/api/banqi/games/bq%20room');
   });
 
-  it('renders the review triptych: truth shows revealed glyphs, per-key shows backs', async () => {
+  it('renders a single review board, info rail, and two-ply move rows', async () => {
     const fetchSpy = vi.fn(async () => jsonResponse(postgameFixture()));
     vi.stubGlobal('fetch', fetchSpy);
     const root = document.createElement('div');
@@ -52,45 +52,75 @@ describe('Banqi postgame page', () => {
     await flushPromises();
 
     expect(fetchSpy).toHaveBeenCalledWith('/api/banqi/games/bq_postgame');
+    // Single clean left rail (title, result, meta, actions) — not the old triptych.
     expect(root.textContent).toContain('Game review');
+    expect(root.textContent).toContain('Banqi');
     expect(root.textContent).toContain('Red wins');
-    expect(root.textContent).toContain('Red view');
-    expect(root.textContent).toContain('Server truth');
-    expect(root.textContent).toContain('Black view');
-    // No banqi play-again action in v1; the review keeps Back home + Room.
-    expect(root.textContent).toContain('Back home');
+    expect(root.querySelector('.banqi-review-rail')).not.toBeNull();
+    expect(root.textContent).toContain('Home');
     expect(root.textContent).toContain('Room');
     expect(root.textContent).not.toContain('Play again');
-    expect(root.textContent).toContain('Red c2-c3');
-    expect(root.textContent).toContain('Ply 1 of 1');
-    // Three boards: red view, server truth, black view.
-    expect(root.querySelectorAll('.banqi-board')).toHaveLength(3);
+    // Exactly one board (banqi is symmetric — no per-seat split).
+    expect(root.querySelectorAll('.banqi-board')).toHaveLength(1);
 
-    // The TRUTH board reveals every identity: the black horse on d3 renders with
-    // its glyph (aria-label "black horse"), never as a hidden back.
-    const truth = boardWrap(root, 'Server truth');
-    expect(truth.innerHTML).toContain('aria-label="black horse"');
+    // The move list shows two plies per row: a numbered row whose left ("white")
+    // cell holds the first mover's move.
+    const row = root.querySelector('.move-row');
+    expect(row).not.toBeNull();
+    expect(row?.querySelector('.move-number')?.textContent).toBe('1');
+    const whitePly = row?.querySelector<HTMLButtonElement>('.white-ply');
+    expect(whitePly?.textContent).toBe('c2-c3');
+    expect(root.textContent).toContain('ply 1 of 1');
+  });
 
-    // The RED view keeps Black's still-face-down tile on d3 as a neutral back,
-    // never as an identified black horse.
-    const red = boardWrap(root, 'Red view');
-    expect(red.innerHTML).toContain('banqi-back');
-    expect(red.innerHTML).not.toContain('aria-label="black horse"');
+  it('hides unflipped tiles by default and reveals them on toggle', async () => {
+    const fetchSpy = vi.fn(async () => jsonResponse(postgameFixture()));
+    vi.stubGlobal('fetch', fetchSpy);
+    const root = document.createElement('div');
+
+    mountBanqiPostgame(root, 'bq_postgame');
+    await flushPromises();
+
+    const board = () => root.querySelector('.banqi-postgame-board') as HTMLElement;
+    // Default (as-played): Black's still-face-down tile on d3 renders as a neutral
+    // back, never as an identified black horse.
+    expect(board().innerHTML).toContain('banqi-back');
+    expect(board().innerHTML).not.toContain('aria-label="black horse"');
+
+    const reveal = [...root.querySelectorAll<HTMLButtonElement>('button')].find(
+      (el) => el.textContent === 'Reveal tiles',
+    );
+    expect(reveal).not.toBeUndefined();
+    reveal!.click();
+
+    // Revealed: the black horse on d3 now renders with its glyph; the button flips.
+    expect(reveal!.textContent).toBe('Hide tiles');
+    expect(board().innerHTML).toContain('aria-label="black horse"');
+  });
+
+  it('steps through plies with the arrow keys', async () => {
+    const fetchSpy = vi.fn(async () => jsonResponse(postgameFixture()));
+    vi.stubGlobal('fetch', fetchSpy);
+    const root = document.createElement('div');
+
+    mountBanqiPostgame(root, 'bq_postgame');
+    await flushPromises();
+
+    const meta = () => root.querySelector('.replay-meta')?.textContent ?? '';
+    expect(meta()).toContain('ply 1 of 1');
+
+    document.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowLeft' }));
+    expect(meta()).toContain('ply 0 of 1');
+
+    document.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight' }));
+    expect(meta()).toContain('ply 1 of 1');
   });
 });
 
-function boardWrap(root: HTMLElement, label: string): HTMLElement {
-  const wrap = [...root.querySelectorAll<HTMLElement>('.dxq-postgame__board-wrap')].find((el) =>
-    el.textContent?.includes(label),
-  );
-  if (!wrap) throw new Error(`Missing board wrap: ${label}`);
-  return wrap;
-}
-
 function postgameFixture() {
   // Red chariot c2 -> c3 (a quiet step). The black horse on d3 stays face-down in
-  // the per-seat views (banqi is symmetric: a face-down tile reveals nothing to
-  // anyone) but is revealed in the truth view. Black resigns.
+  // the as-played ('truth') history but is unmasked in the 'revealed' overlay that
+  // the Reveal toggle swaps in. Black resigns.
   return {
     game: {
       roomId: 'bq_postgame',
@@ -115,23 +145,38 @@ function postgameFixture() {
       { type: 'move-played', at: 4, color: 'red', move: { from: 'c2', to: 'c3' }, ply: 1 },
       { type: 'seat-resigned', at: 5, color: 'black', winner: 'red' },
     ],
-    view: truthView('bq_postgame_truth'),
+    view: revealedView('bq_postgame_truth', 1),
     history: {
-      red: [{ ply: 1, view: redView('bq_postgame_red_1') }],
-      truth: [{ ply: 1, view: truthView('bq_postgame_truth_1') }],
-      black: [{ ply: 1, view: blackView('bq_postgame_black_1') }],
-    },
-    views: {
-      red: redView('bq_postgame_red'),
-      truth: truthView('bq_postgame_truth'),
-      black: blackView('bq_postgame_black'),
+      // As-played: d3 stays a face-down back; only c2->c3 (a revealed chariot) moves.
+      truth: [maskedSnapshot('bq_t0', 0), maskedSnapshot('bq_t1', 1)],
+      // Spoiler overlay: every face-down identity (the d3 horse) unmasked per ply.
+      revealed: [revealedSnapshot('bq_r0', 0), revealedSnapshot('bq_r1', 1)],
     },
   };
 }
 
 const finished = { type: 'finished', winner: 'red', reason: 'resignation' } as const;
+const playing = { type: 'playing', turn: 'black' } as const;
 
-function truthView(id: string) {
+function maskedView(id: string, ply: number) {
+  return {
+    id,
+    perspective: 'red',
+    board:
+      ply === 0
+        ? { c2: { color: 'red', role: 'chariot', faceDown: false }, d3: { faceDown: true } }
+        : { c3: { color: 'red', role: 'chariot', faceDown: false }, d3: { faceDown: true } },
+    legalMoves: [],
+    captured: [],
+    status: ply === 0 ? playing : finished,
+    ply,
+    firstColor: 'red',
+    moveNumber: 1,
+    lastMove: ply === 0 ? undefined : { from: 'c2', to: 'c3' },
+  };
+}
+
+function revealedView(id: string, ply: number) {
   return {
     id,
     perspective: 'red',
@@ -140,49 +185,21 @@ function truthView(id: string) {
       d3: { color: 'black', role: 'horse', faceDown: false },
     },
     legalMoves: [],
-    captured: [{ owner: 'black', role: 'soldier' }],
+    captured: [],
     status: finished,
-    ply: 1,
+    ply,
     firstColor: 'red',
     moveNumber: 1,
     lastMove: { from: 'c2', to: 'c3' },
   };
 }
 
-function redView(id: string) {
-  return {
-    id,
-    perspective: 'red',
-    board: {
-      c3: { color: 'red', role: 'chariot', faceDown: false },
-      d3: { faceDown: true },
-    },
-    legalMoves: [],
-    captured: [{ owner: 'black', role: 'soldier' }],
-    status: finished,
-    ply: 1,
-    firstColor: 'red',
-    moveNumber: 1,
-    lastMove: { from: 'c2', to: 'c3' },
-  };
+function revealedSnapshot(id: string, ply: number) {
+  return { ply, view: revealedView(id, ply) };
 }
 
-function blackView(id: string) {
-  return {
-    id,
-    perspective: 'black',
-    board: {
-      c3: { color: 'red', role: 'chariot', faceDown: false },
-      d3: { faceDown: true },
-    },
-    legalMoves: [],
-    captured: [{ owner: 'black', role: 'soldier' }],
-    status: finished,
-    ply: 1,
-    firstColor: 'red',
-    moveNumber: 1,
-    lastMove: { from: 'c2', to: 'c3' },
-  };
+function maskedSnapshot(id: string, ply: number) {
+  return { ply, view: maskedView(id, ply) };
 }
 
 function jsonResponse(body: unknown, init: ResponseInit = {}): Response {

@@ -125,6 +125,32 @@ test('Banqi postgame history masks unflipped tiles per ply', async () => {
   });
 });
 
+test('Banqi postgame ships a parallel revealed history spoiling every ply', async () => {
+  const payload = await banqiPostgameForApi(ROOM_ID, deps(gameRecord(), finishedFlipEvents()));
+  assert.ok(payload);
+
+  // The reveal overlay mirrors the masked history ply-for-ply but unmasks the
+  // whole deal at every snapshot, including ply 0 where the as-played board is
+  // still entirely face-down. This is what the review's Reveal toggle swaps in.
+  assert.deepEqual(
+    payload.history.revealed?.map((snapshot) => snapshot.ply),
+    [0, 1],
+  );
+  const startBoard = payload.history.revealed?.[0]?.view.board ?? {};
+  const startEntries = Object.entries(startBoard);
+  assert.equal(startEntries.length, 32);
+  for (const [square, entry] of startEntries) {
+    assert.equal(entry?.faceDown, false, `revealed ply-0 square ${square} must be unmasked`);
+  }
+  // a1 holds the red general (deal index 0) from move 0 in the revealed track,
+  // even though it is only flipped at ply 1 in the masked track.
+  assert.deepEqual(payload.history.revealed?.[0]?.view.board.a1, {
+    color: 'red',
+    role: 'general',
+    faceDown: false,
+  });
+});
+
 test('Banqi postgame builds a move-and-terminal timeline', async () => {
   const payload = await banqiPostgameForApi(ROOM_ID, deps(gameRecord(), finishedFlipEvents()));
   assert.ok(payload);
