@@ -21,11 +21,13 @@ import {
   isBanqiLegalMove,
 } from '@mistboard/game';
 import { banqiEngineTierFor, banqiLiveEngineMove, isBanqiEngineClientId } from './banqi-engine.js';
-import { banqiStateToEngineFen, engineUciToBanqiMove } from './banqi-fen.js';
+import { banqiMoveToEngineUci, banqiStateToEngineFen, engineUciToBanqiMove } from './banqi-fen.js';
+import { banqiTenant } from './banqi-tenant.js';
+import type { BanqiEvent } from './banqi-runtime.js';
 import type { BanqiSpecId } from './banqi-runtime.js';
 import { logger } from './obs.js';
 import type { TenantLifecycleContext } from './variant-tenant/lifecycle.js';
-import { tenantClockRemainingMs } from './variant-tenant/runtime.js';
+import { replayTenantEvents, tenantClockRemainingMs } from './variant-tenant/runtime.js';
 import type { TenantRoomEvent } from './variant-tenant/tenant.js';
 import type { TenantLiveRoom } from './variant-tenant/ws.js';
 
@@ -55,6 +57,29 @@ function bothSeatsFilled(room: BanqiEngineRoom): boolean {
 function engineToMove(room: BanqiEngineRoom, seat: BanqiSeat): boolean {
   const status = room.projection.state.status;
   return status.type === 'playing' && status.turn === seat && bothSeatsFilled(room);
+}
+
+// Build the repetition WINDOW the engine needs to detect threefold from GAME history: the
+// redacted FEN at the last irreversible move (capture/flip) plus the quiet plies since.
+// `noProgressClock` counts exactly those quiet plies, so the last K move-played events are
+// the window (a flip/capture would have reset the clock to 0); replaying the event prefix
+// before them yields the window-start state. Empty window (clock 0) => current FEN only,
+// i.e. prior behavior. The replayed moves are all quiet, which the engine replays safely.
+function banqiEngineRepWindow(room: BanqiEngineRoom): { fen: string; moves: string[] } {
+  const state = room.projection.state;
+  const k = state.noProgressClock;
+  if (k <= 0) return { fen: banqiStateToEngineFen(state), moves: [] };
+  const moveEvents = (room.events as readonly BanqiEvent[]).filter(
+    (e): e is Extract<BanqiEvent, { type: 'move-played' }> => e.type === 'move-played',
+  );
+  if (k >= moveEvents.length) return { fen: banqiStateToEngineFen(state), moves: [] };
+  const firstWindowed = moveEvents[moveEvents.length - k]!;
+  const cutoff = room.events.indexOf(firstWindowed);
+  const startState = replayTenantEvents(banqiTenant, room.events.slice(0, cutoff)).state;
+  return {
+    fen: banqiStateToEngineFen(startState),
+    moves: moveEvents.slice(moveEvents.length - k).map((e) => banqiMoveToEngineUci(e.move)),
+  };
 }
 
 export function scheduleBanqiEngineMove(ctx: BanqiEngineContext, room: BanqiEngineRoom): void {
@@ -88,7 +113,7 @@ export async function playBanqiEngineMoveIfReady(
   const remainingMs = clock ? tenantClockRemainingMs(clock, seat, now) : null;
   if (remainingMs !== null && remainingMs <= 0) return;
 
-  const fen = banqiStateToEngineFen(room.projection.state);
+  const { fen, moves } = banqiEngineRepWindow(room);
   const movetimeMs =
     remainingMs === null
       ? tier.movetimeMs
@@ -97,7 +122,7 @@ export async function playBanqiEngineMoveIfReady(
   let uci: string | null = null;
   let fallbackReason: 'request-failed' | 'illegal-move' | 'no-move' | null = null;
   try {
-    uci = await banqiLiveEngineMove(engineId, fen, { movetimeMs });
+    uci = await banqiLiveEngineMove(engineId, fen, { movetimeMs, moves });
   } catch (err) {
     logger.error(
       {

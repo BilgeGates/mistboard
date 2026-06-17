@@ -94,23 +94,30 @@ export function isBanqiEngineClientId(clientId: string | undefined): boolean {
   return banqiEngineTierFor(clientId) !== null;
 }
 
-export type BanqiEngineOptions = { movetimeMs?: number };
+// `moves`: the quiet plies since the last irreversible move (capture/flip). When present,
+// `fen` is the position at that irreversible move (window start), and the engine replays
+// the moves to seed its repetition history — so it avoids/seeks threefold (perpetual-chase)
+// draws instead of shuffling into them blind. Omit for the prior FEN-only behavior.
+export type BanqiEngineOptions = { movetimeMs?: number; moves?: string[] };
 
 /**
- * Ask MistyBanqi for a move given a redacted current-position FEN (see banqi-fen.ts).
- * Returns the engine's bestmove in engine UCI (rank 0..3, e.g. "a0b0", flip "a0a0") or
- * null if there is no move. The FEN is server-built and trusted; written to stdin.
+ * Ask MistyBanqi for a move given a redacted FEN (see banqi-fen.ts) and an optional
+ * repetition window (`opts.moves`; see BanqiEngineOptions). Returns the engine's bestmove
+ * in engine UCI (rank 0..3, e.g. "a0b0", flip "a0a0") or null. FEN is server-built/trusted.
  */
 export async function banqiLiveEngineMove(
   engineId: string,
   fen: string,
-  opts: { movetimeMs?: number } = {},
+  opts: { movetimeMs?: number; moves?: string[] } = {},
 ): Promise<string | null> {
   const tier = banqiEngineTierFor(engineId);
   if (!tier) throw new Error(`unknown Banqi engine: ${engineId}`);
   const release = await acquireSlot();
   try {
-    return await banqiEngineMove(fen, { movetimeMs: opts.movetimeMs ?? tier.movetimeMs });
+    return await banqiEngineMove(fen, {
+      movetimeMs: opts.movetimeMs ?? tier.movetimeMs,
+      moves: opts.moves,
+    });
   } finally {
     release();
   }
@@ -161,13 +168,11 @@ export function banqiEngineMove(
       }
     });
 
-    const commands = [
-      'uci',
-      'ucinewgame',
-      'isready',
-      `position fen ${fen}`,
-      `go movetime ${movetimeMs}`,
-    ];
+    const position =
+      opts.moves && opts.moves.length > 0
+        ? `position fen ${fen} moves ${opts.moves.join(' ')}`
+        : `position fen ${fen}`;
+    const commands = ['uci', 'ucinewgame', 'isready', position, `go movetime ${movetimeMs}`];
     child.stdin.write(`${commands.join('\n')}\n`);
   });
 }
