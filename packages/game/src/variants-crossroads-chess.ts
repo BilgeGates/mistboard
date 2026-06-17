@@ -21,6 +21,14 @@
 // Soldier (forward-only, gains sideways after the river) (xiangqi).
 
 import type { AbortReason } from './types.js';
+import {
+  cannonVisionInto,
+  emptyVision,
+  horseVisionInto,
+  type VisionAccum as KernelVisionAccum,
+  slideVisionInto,
+  type VisionProbe,
+} from './xiangqi-vision-kernel.js';
 
 export type CrossroadsChessColor = 'white' | 'red';
 
@@ -101,13 +109,9 @@ export type CrossroadsChessPlayerView = {
   lastMove?: CrossroadsChessMove;
 };
 
-type VisionAccum = {
-  directlyVisible: Set<CrossroadsChessSquare>;
-  shroudedBlockers: Set<CrossroadsChessSquare>;
-  cannonScreens: Set<CrossroadsChessSquare>;
-  cannonTargets: Set<CrossroadsChessSquare>;
-  cannonPath: Set<CrossroadsChessSquare>;
-};
+// The cannon/horse/slide walks, emptyVision, and the VisionAccum shape live in
+// the shared xiangqi-vision-kernel; this alias binds the square type.
+type VisionAccum = KernelVisionAccum<CrossroadsChessSquare>;
 
 const FILE_CHARS = ['a', 'b', 'c', 'd', 'e', 'f'] as const;
 const FILE_COUNT = 6;
@@ -742,7 +746,16 @@ export function computeCrossroadsChessVision(
   state: CrossroadsChessGameState,
   color: CrossroadsChessColor,
 ): VisionAccum {
-  const accum = emptyVision();
+  const accum = emptyVision<CrossroadsChessSquare>();
+  const probe: VisionProbe<CrossroadsChessSquare> = {
+    inBounds: crossroadsChessInBounds,
+    squareOf: crossroadsChessSquareOf,
+    isOccupied: (file, rank) => crossroadsChessIsOccupied(state.board, file, rank),
+    isEnemyAt: (file, rank) => {
+      const target = state.board[crossroadsChessSquareOf(file, rank)];
+      return target !== undefined && target.color !== color;
+    },
+  };
   for (const [sq, piece] of Object.entries(state.board)) {
     if (!piece || piece.color !== color) continue;
     const square = sq as CrossroadsChessSquare;
@@ -758,19 +771,19 @@ export function computeCrossroadsChessVision(
           addIfOnBoard(accum.directlyVisible, file + df, rank + dr);
         break;
       case 'horse':
-        horseVisionInto(accum, state.board, file, rank);
+        horseVisionInto(accum, probe, file, rank);
         break;
       case 'bishop':
-        slideVisionInto(accum.directlyVisible, state.board, file, rank, DIAGONAL);
+        slideVisionInto(accum.directlyVisible, probe, DIAGONAL, file, rank);
         break;
       case 'chariot':
-        slideVisionInto(accum.directlyVisible, state.board, file, rank, ORTHOGONAL);
+        slideVisionInto(accum.directlyVisible, probe, ORTHOGONAL, file, rank);
         break;
       case 'queen':
-        slideVisionInto(accum.directlyVisible, state.board, file, rank, ALL_DIRECTIONS);
+        slideVisionInto(accum.directlyVisible, probe, ALL_DIRECTIONS, file, rank);
         break;
       case 'cannon':
-        cannonVisionInto(accum, state.board, color, file, rank);
+        cannonVisionInto(accum, probe, file, rank);
         break;
       case 'pawn':
         pawnVisionInto(accum.directlyVisible, state.board, color, file, rank);
@@ -871,80 +884,6 @@ export function getCrossroadsChessOpenView(
 
 // ── Per-piece vision ────────────────────────────────────────────────────────
 
-function slideVisionInto(
-  set: Set<CrossroadsChessSquare>,
-  board: CrossroadsChessBoard,
-  file: number,
-  rank: number,
-  directions: readonly (readonly [number, number])[],
-): void {
-  for (const [df, dr] of directions) {
-    let f = file + df;
-    let r = rank + dr;
-    while (crossroadsChessInBounds(f, r)) {
-      set.add(crossroadsChessSquareOf(f, r));
-      if (crossroadsChessIsOccupied(board, f, r)) break;
-      f += df;
-      r += dr;
-    }
-  }
-}
-
-function horseVisionInto(
-  accum: VisionAccum,
-  board: CrossroadsChessBoard,
-  file: number,
-  rank: number,
-): void {
-  for (const [df, dr, legDf, legDr] of HORSE_JUMPS) {
-    const legF = file + legDf;
-    const legR = rank + legDr;
-    const destF = file + df;
-    const destR = rank + dr;
-    if (!crossroadsChessInBounds(destF, destR) || !crossroadsChessInBounds(legF, legR)) continue;
-    if (crossroadsChessIsOccupied(board, legF, legR)) {
-      accum.shroudedBlockers.add(crossroadsChessSquareOf(legF, legR));
-    } else {
-      accum.directlyVisible.add(crossroadsChessSquareOf(destF, destR));
-    }
-  }
-}
-
-function cannonVisionInto(
-  accum: VisionAccum,
-  board: CrossroadsChessBoard,
-  color: CrossroadsChessColor,
-  file: number,
-  rank: number,
-): void {
-  for (const [df, dr] of ORTHOGONAL) {
-    let f = file + df;
-    let r = rank + dr;
-    while (crossroadsChessInBounds(f, r) && !crossroadsChessIsOccupied(board, f, r)) {
-      accum.directlyVisible.add(crossroadsChessSquareOf(f, r));
-      f += df;
-      r += dr;
-    }
-    if (!crossroadsChessInBounds(f, r)) continue;
-    accum.cannonScreens.add(crossroadsChessSquareOf(f, r));
-    f += df;
-    r += dr;
-
-    const candidates: CrossroadsChessSquare[] = [];
-    while (crossroadsChessInBounds(f, r) && !crossroadsChessIsOccupied(board, f, r)) {
-      candidates.push(crossroadsChessSquareOf(f, r));
-      f += df;
-      r += dr;
-    }
-    if (!crossroadsChessInBounds(f, r)) continue;
-    const targetSq = crossroadsChessSquareOf(f, r);
-    const target = board[targetSq];
-    if (!target || target.color === color) continue;
-    for (const sq of candidates) accum.cannonPath.add(sq);
-    accum.cannonTargets.add(targetSq);
-  }
-}
-
 function pawnVisionInto(
   set: Set<CrossroadsChessSquare>,
   board: CrossroadsChessBoard,
@@ -987,16 +926,6 @@ function soldierVisionInto(
 }
 
 // ── Small helpers ───────────────────────────────────────────────────────────
-
-function emptyVision(): VisionAccum {
-  return {
-    directlyVisible: new Set(),
-    shroudedBlockers: new Set(),
-    cannonScreens: new Set(),
-    cannonTargets: new Set(),
-    cannonPath: new Set(),
-  };
-}
 
 function mergePlayerBoardEntry(
   board: CrossroadsChessPlayerBoard,

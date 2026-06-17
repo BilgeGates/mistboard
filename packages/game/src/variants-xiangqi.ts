@@ -22,6 +22,15 @@ import { Board as EoBoard } from 'elephantops/board';
 import { makeSquare as eoMakeSquare, parseSquare as eoParseSquare } from 'elephantops/util';
 import { Xiangqi as EoXiangqi } from 'elephantops/xiangqi';
 import type { AbortReason } from './types.js';
+import {
+  cannonVisionInto,
+  emptyVision,
+  horseVisionInto,
+  type VisionAccum as KernelVisionAccum,
+  ORTHOGONAL_STEPS,
+  slideVisionInto,
+  type VisionProbe,
+} from './xiangqi-vision-kernel.js';
 
 export type XiangqiColor = EoColor; // 'red' | 'black'
 
@@ -499,26 +508,9 @@ export function applyMove(
 // cannon screens), the player sees blocked occupancy as a shrouded "?" rather
 // than learning the piece identity.
 
-type VisionAccum = {
-  directlyVisible: Set<XiangqiSquare>;
-  shroudedBlockers: Set<XiangqiSquare>;
-  cannonScreens: Set<XiangqiSquare>;
-  cannonTargets: Set<XiangqiSquare>;
-  // Empty squares between a cannon's screen and its target. These are tracked
-  // for diagnostics and marker experiments, but player views keep them fogged
-  // because the cannon cannot legally land there.
-  cannonPath: Set<XiangqiSquare>;
-};
-
-function emptyVision(): VisionAccum {
-  return {
-    directlyVisible: new Set(),
-    shroudedBlockers: new Set(),
-    cannonScreens: new Set(),
-    cannonTargets: new Set(),
-    cannonPath: new Set(),
-  };
-}
+// The cannon/horse/slide walks, emptyVision, and the VisionAccum shape live in
+// the shared xiangqi-vision-kernel; this alias binds the square type.
+type VisionAccum = KernelVisionAccum<XiangqiSquare>;
 
 function addIfOnBoard(set: Set<XiangqiSquare>, file: number, rank: number): void {
   if (inBounds(file, rank)) set.add(squareOf(file, rank));
@@ -615,115 +607,6 @@ function elephantVisionInto(
   }
 }
 
-function horseVisionInto(
-  accum: VisionAccum,
-  board: XiangqiBoard,
-  file: number,
-  rank: number,
-): void {
-  // Legal L-shaped destinations only. A blocked leg hides the destinations it
-  // controls and reveals the leg as occupied-but-unknown.
-  for (const [df, dr, legDf, legDr] of [
-    [1, 2, 0, 1],
-    [1, -2, 0, -1],
-    [-1, 2, 0, 1],
-    [-1, -2, 0, -1],
-    [2, 1, 1, 0],
-    [2, -1, 1, 0],
-    [-2, 1, -1, 0],
-    [-2, -1, -1, 0],
-  ] as const) {
-    const legF = file + legDf;
-    const legR = rank + legDr;
-    const destF = file + df;
-    const destR = rank + dr;
-    if (!inBounds(destF, destR) || !inBounds(legF, legR)) continue;
-    if (isOccupied(board, legF, legR)) {
-      accum.shroudedBlockers.add(squareOf(legF, legR));
-    } else {
-      accum.directlyVisible.add(squareOf(destF, destR));
-    }
-  }
-}
-
-function chariotVisionInto(
-  set: Set<XiangqiSquare>,
-  board: XiangqiBoard,
-  file: number,
-  rank: number,
-): void {
-  // Rook-like: walk each ray, include each square, stop after the first piece.
-  for (const [df, dr] of [
-    [1, 0],
-    [-1, 0],
-    [0, 1],
-    [0, -1],
-  ] as const) {
-    let f = file + df,
-      r = rank + dr;
-    while (inBounds(f, r)) {
-      set.add(squareOf(f, r));
-      if (isOccupied(board, f, r)) break;
-      f += df;
-      r += dr;
-    }
-  }
-}
-
-function cannonVisionInto(
-  accum: VisionAccum,
-  board: XiangqiBoard,
-  color: XiangqiColor,
-  file: number,
-  rank: number,
-): void {
-  // Vision = squares the cannon can legally reach plus cannon-specific
-  // occupancy needed to explain screened captures. Along each rook ray:
-  //   1. Empty squares up to the first piece → quiet-move targets, visible.
-  //   2. First piece encountered = the SCREEN, always visible.
-  //   3. If there is an ENEMY piece past the screen, the cannon can capture
-  //      it; the empty squares between screen and target are tracked as
-  //      cannonPath but not surfaced as visible squares.
-  //   4. The enemy target is rendered per A/B/C mode (cannonTargets).
-  //   5. If there is no enemy target (only own piece past screen, or off
-  //      board), the cannon cannot attack past the screen — vision ends
-  //      at the screen.
-  for (const [df, dr] of [
-    [1, 0],
-    [-1, 0],
-    [0, 1],
-    [0, -1],
-  ] as const) {
-    let f = file + df,
-      r = rank + dr;
-    // Phase 1: empty squares up to screen.
-    while (inBounds(f, r) && !isOccupied(board, f, r)) {
-      accum.directlyVisible.add(squareOf(f, r));
-      f += df;
-      r += dr;
-    }
-    if (!inBounds(f, r)) continue;
-    // Phase 2: screen.
-    accum.cannonScreens.add(squareOf(f, r));
-    f += df;
-    r += dr;
-    // Phase 3: collect empty squares past screen as candidates.
-    const candidates: XiangqiSquare[] = [];
-    while (inBounds(f, r) && !isOccupied(board, f, r)) {
-      candidates.push(squareOf(f, r));
-      f += df;
-      r += dr;
-    }
-    if (!inBounds(f, r)) continue;
-    // Phase 4: target — only count it (and promote candidates) if enemy.
-    const targetSq = squareOf(f, r);
-    const targetPiece = board[targetSq];
-    if (!targetPiece || targetPiece.color === color) continue;
-    for (const sq of candidates) accum.cannonPath.add(sq);
-    accum.cannonTargets.add(targetSq);
-  }
-}
-
 function soldierVisionInto(
   set: Set<XiangqiSquare>,
   color: XiangqiColor,
@@ -740,7 +623,16 @@ function soldierVisionInto(
 }
 
 export function computeVision(state: XiangqiGameState, color: XiangqiColor): VisionAccum {
-  const accum = emptyVision();
+  const accum = emptyVision<XiangqiSquare>();
+  const probe: VisionProbe<XiangqiSquare> = {
+    inBounds,
+    squareOf,
+    isOccupied: (file, rank) => isOccupied(state.board, file, rank),
+    isEnemyAt: (file, rank) => {
+      const target = state.board[squareOf(file, rank)];
+      return target !== undefined && target.color !== color;
+    },
+  };
   for (const [sq, piece] of Object.entries(state.board)) {
     if (!piece || piece.color !== color) continue;
     // The own square is always directly visible.
@@ -757,13 +649,13 @@ export function computeVision(state: XiangqiGameState, color: XiangqiColor): Vis
         elephantVisionInto(accum, color, state.board, file, rank);
         break;
       case 'horse':
-        horseVisionInto(accum, state.board, file, rank);
+        horseVisionInto(accum, probe, file, rank);
         break;
       case 'chariot':
-        chariotVisionInto(accum.directlyVisible, state.board, file, rank);
+        slideVisionInto(accum.directlyVisible, probe, ORTHOGONAL_STEPS, file, rank);
         break;
       case 'cannon':
-        cannonVisionInto(accum, state.board, color, file, rank);
+        cannonVisionInto(accum, probe, file, rank);
         break;
       case 'soldier':
         soldierVisionInto(accum.directlyVisible, color, file, rank);

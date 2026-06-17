@@ -6,6 +6,15 @@
 // important rules and privacy boundaries.
 
 import type { AbortReason } from './types.js';
+import {
+  cannonVisionInto,
+  emptyVision,
+  horseVisionInto,
+  type VisionAccum as KernelVisionAccum,
+  ORTHOGONAL_STEPS,
+  slideVisionInto,
+  type VisionProbe,
+} from './xiangqi-vision-kernel.js';
 
 export type MiniXiangqiColor = 'red' | 'black';
 
@@ -119,13 +128,9 @@ export type MiniXiangqiGameState = {
   positionCounts: Record<string, number>;
 };
 
-type VisionAccum = {
-  directlyVisible: Set<MiniXiangqiSquare>;
-  shroudedBlockers: Set<MiniXiangqiSquare>;
-  cannonScreens: Set<MiniXiangqiSquare>;
-  cannonTargets: Set<MiniXiangqiSquare>;
-  cannonPath: Set<MiniXiangqiSquare>;
-};
+// The cannon/horse/slide walks, emptyVision, and the VisionAccum shape live in
+// the shared xiangqi-vision-kernel; this alias binds the square type.
+type VisionAccum = KernelVisionAccum<MiniXiangqiSquare>;
 
 const FILE_CHARS = ['a', 'b', 'c', 'd', 'e', 'f', 'g'] as const;
 const BOARD_SIZE = 7;
@@ -358,7 +363,16 @@ export function computeMiniXiangqiVision(
   state: MiniXiangqiGameState,
   color: MiniXiangqiColor,
 ): VisionAccum {
-  const accum = emptyMiniXiangqiVision();
+  const accum = emptyVision<MiniXiangqiSquare>();
+  const probe: VisionProbe<MiniXiangqiSquare> = {
+    inBounds: miniXiangqiInBounds,
+    squareOf: miniXiangqiSquareOf,
+    isOccupied: (file, rank) => miniXiangqiIsOccupied(state.board, file, rank),
+    isEnemyAt: (file, rank) => {
+      const target = state.board[miniXiangqiSquareOf(file, rank)];
+      return target !== undefined && target.color !== color;
+    },
+  };
   for (const [sq, piece] of Object.entries(state.board)) {
     if (!piece || piece.color !== color) continue;
     const square = sq as MiniXiangqiSquare;
@@ -369,13 +383,13 @@ export function computeMiniXiangqiVision(
         generalVisionInto(accum.directlyVisible, color, state.board, file, rank);
         break;
       case 'horse':
-        horseVisionInto(accum, state.board, file, rank);
+        horseVisionInto(accum, probe, file, rank);
         break;
       case 'chariot':
-        chariotVisionInto(accum.directlyVisible, state.board, file, rank);
+        slideVisionInto(accum.directlyVisible, probe, ORTHOGONAL_STEPS, file, rank);
         break;
       case 'cannon':
-        cannonVisionInto(accum, state.board, color, file, rank);
+        cannonVisionInto(accum, probe, file, rank);
         break;
       case 'soldier':
         soldierVisionInto(accum.directlyVisible, color, file, rank);
@@ -536,16 +550,6 @@ function miniXiangqiFacingGeneralCaptureTarget(
   return null;
 }
 
-function emptyMiniXiangqiVision(): VisionAccum {
-  return {
-    directlyVisible: new Set(),
-    shroudedBlockers: new Set(),
-    cannonScreens: new Set(),
-    cannonTargets: new Set(),
-    cannonPath: new Set(),
-  };
-}
-
 function generalVisionInto(
   set: Set<MiniXiangqiSquare>,
   color: MiniXiangqiColor,
@@ -572,88 +576,6 @@ function generalVisionInto(
   const piece = board[own];
   const facing = piece ? miniXiangqiFacingGeneralCaptureTarget(board, own, piece) : null;
   if (facing) set.add(facing);
-}
-
-function horseVisionInto(
-  accum: VisionAccum,
-  board: MiniXiangqiBoard,
-  file: number,
-  rank: number,
-): void {
-  for (const [df, dr, legDf, legDr] of [
-    [1, 2, 0, 1],
-    [1, -2, 0, -1],
-    [-1, 2, 0, 1],
-    [-1, -2, 0, -1],
-    [2, 1, 1, 0],
-    [2, -1, 1, 0],
-    [-2, 1, -1, 0],
-    [-2, -1, -1, 0],
-  ] as const) {
-    const legF = file + legDf;
-    const legR = rank + legDr;
-    const destF = file + df;
-    const destR = rank + dr;
-    if (!miniXiangqiInBounds(destF, destR) || !miniXiangqiInBounds(legF, legR)) continue;
-    if (miniXiangqiIsOccupied(board, legF, legR)) {
-      accum.shroudedBlockers.add(miniXiangqiSquareOf(legF, legR));
-    } else {
-      accum.directlyVisible.add(miniXiangqiSquareOf(destF, destR));
-    }
-  }
-}
-
-function chariotVisionInto(
-  set: Set<MiniXiangqiSquare>,
-  board: MiniXiangqiBoard,
-  file: number,
-  rank: number,
-): void {
-  for (const [df, dr] of orthogonalDirections()) {
-    let f = file + df;
-    let r = rank + dr;
-    while (miniXiangqiInBounds(f, r)) {
-      set.add(miniXiangqiSquareOf(f, r));
-      if (miniXiangqiIsOccupied(board, f, r)) break;
-      f += df;
-      r += dr;
-    }
-  }
-}
-
-function cannonVisionInto(
-  accum: VisionAccum,
-  board: MiniXiangqiBoard,
-  color: MiniXiangqiColor,
-  file: number,
-  rank: number,
-): void {
-  for (const [df, dr] of orthogonalDirections()) {
-    let f = file + df;
-    let r = rank + dr;
-    while (miniXiangqiInBounds(f, r) && !miniXiangqiIsOccupied(board, f, r)) {
-      accum.directlyVisible.add(miniXiangqiSquareOf(f, r));
-      f += df;
-      r += dr;
-    }
-    if (!miniXiangqiInBounds(f, r)) continue;
-    accum.cannonScreens.add(miniXiangqiSquareOf(f, r));
-    f += df;
-    r += dr;
-
-    const candidates: MiniXiangqiSquare[] = [];
-    while (miniXiangqiInBounds(f, r) && !miniXiangqiIsOccupied(board, f, r)) {
-      candidates.push(miniXiangqiSquareOf(f, r));
-      f += df;
-      r += dr;
-    }
-    if (!miniXiangqiInBounds(f, r)) continue;
-    const targetSq = miniXiangqiSquareOf(f, r);
-    const target = board[targetSq];
-    if (!target || target.color === color) continue;
-    for (const sq of candidates) accum.cannonPath.add(sq);
-    accum.cannonTargets.add(targetSq);
-  }
 }
 
 function soldierVisionInto(
