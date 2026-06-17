@@ -8,6 +8,8 @@ describe('profile ratings rail', () => {
   });
 
   it('shows soft-launch profile rows before rated games', async () => {
+    // Pin prod semantics so dev-on variants (jieqi/banqi) don't add extra rows.
+    vi.stubEnv('DEV', false);
     vi.stubEnv('VITE_DARK_MINI_XIANGQI_ENABLED', 'true');
     const { buildProfileRatings } = await import('./profile.js');
 

@@ -70,6 +70,8 @@ describe('web variant launch registry', () => {
 
   it('adds Dark Mini Xiangqi leaderboard buckets behind the public-entry flag', async () => {
     vi.resetModules();
+    // Pin prod semantics so dev-on variants (jieqi/banqi) don't pollute the assertion.
+    vi.stubEnv('DEV', false);
     vi.stubEnv('VITE_DARK_MINI_XIANGQI_ENABLED', 'true');
     vi.stubEnv('VITE_DARK_MINI_XIANGQI_PUBLIC_ENTRY_ENABLED', 'true');
     const flagged = await import('./variants.js');

@@ -11,16 +11,18 @@ export function darkMiniXiangqiEnabled(): boolean {
   return import.meta.env.DEV || import.meta.env.VITE_DARK_MINI_XIANGQI_ENABLED === 'true';
 }
 
-// Identity-hidden jieqi (揭棋) play surface. Hidden in prod/staging unless the
-// build opts in; mirrors the dark-xiangqi gate.
+// Identity-hidden jieqi (揭棋) play surface. Always on in dev for convenience
+// (like DMX/Crossroads/correspondence); in prod/staging it is hidden unless the
+// build opts in.
 export function jieqiEnabled(): boolean {
-  return import.meta.env.VITE_JIEQI_ENABLED === 'true';
+  return import.meta.env.DEV || import.meta.env.VITE_JIEQI_ENABLED === 'true';
 }
 
-// Banqi (8x4 Chinese Dark Chess, symmetric hidden-identity) play surface. Hidden
-// in prod/staging unless the build opts in; mirrors the jieqi gate.
+// Banqi (8x4 Chinese Dark Chess, symmetric hidden-identity) play surface. Always
+// on in dev for convenience; in prod/staging it is hidden unless the build opts
+// in; mirrors the jieqi gate.
 export function banqiEnabled(): boolean {
-  return import.meta.env.VITE_BANQI_ENABLED === 'true';
+  return import.meta.env.DEV || import.meta.env.VITE_BANQI_ENABLED === 'true';
 }
 
 // Reveal Chess (chess-jieqi, hidden identities on an 8x8 board) play surface.
