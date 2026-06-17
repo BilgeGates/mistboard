@@ -762,3 +762,43 @@
     order: 2;
   }
 }
+
+/* ------------------------------------------------------------------ *
+ * Jieqi watch: a single board (jieqi hides identities symmetrically, so
+ * the per-seat boards are identical). The triptych layout left a lone
+ * board small and left-aligned, so center it and size it up; let the
+ * captured-piece strips wrap into clean rows instead of clipping; and
+ * drop the per-board caption. Scoped by :has(.jieqi-board) so the banqi /
+ * dark-mini-xiangqi watch surfaces are untouched.
+ * ------------------------------------------------------------------ */
+.watch-replay .replay-layout-all:has(.jieqi-board) {
+  grid-template-columns: minmax(0, min(100%, 46dvh, 440px));
+  justify-content: center;
+}
+
+/* Let the board fill the (wider) single column instead of its triptych-era cap. */
+.watch-replay .replay-layout-all:has(.jieqi-board) .replay-board {
+  width: 100%;
+  max-width: none;
+}
+
+.watch-replay .replay-layout-all:has(.jieqi-board) .replay-pane-label {
+  display: none;
+}
+
+/* The capture row already wraps (.mini-xq-captures-row); the clip came from the
+   fixed single-row height on the .captures-strip parent. Let it grow — and pin
+   both strip and row to the full board width so a wrapping flex row doesn't
+   collapse to min-content (one piece wide) and stack the pieces vertically. */
+.watch-replay .replay-layout-all:has(.jieqi-board) .captures-strip {
+  height: auto;
+  min-height: 0;
+  width: 100%;
+  overflow: visible;
+}
+
+.watch-replay .replay-layout-all:has(.jieqi-board) .captures-row {
+  width: 100%;
+  justify-content: center;
+  overflow: visible;
+}

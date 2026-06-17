@@ -5,8 +5,9 @@
 // face-down piece is a blank back to BOTH players — so the red-view and
 // black-view boards are pixel-identical to each other and differ from truth only
 // in that truth flips the unmoved identities up. A triptych would show the same
-// board three times, so the watch (like banqi) renders a single Truth pane,
-// matching the postgame review.
+// board three times, so the watch renders a single board. It defaults to the
+// as-played hidden view (face-down backs) with a Reveal/Hide control, matching
+// the postgame review.
 import type { JieqiPlayerView } from '@mistboard/game';
 import { fillCapturedPool } from './live-jieqi.js';
 import {
@@ -15,7 +16,6 @@ import {
   loadJieqiPostgame,
   postgameReplayMaxPly,
   postgameViewAtPly,
-  postgameViewEntries,
 } from './live-jieqi-postgame.js';
 import { installJieqiBoardStyles, renderJieqiBoardSvg } from './live-jieqi-render.js';
 import type { ReplayHandle } from './replay.js';
@@ -42,14 +42,13 @@ export function mountJieqiWatchReplay(
       installStyles: installJieqiBoardStyles,
       loadPostgame: loadJieqiPostgame,
       maxPly: postgameReplayMaxPly,
-      // Truth only: the per-color boards are identical to each other (symmetric
-      // identity-hiding), so a triptych is redundant. Truth's tray also shows both
-      // sides' real captured identities, which is more informative on a replay than
-      // the per-color "your own captured dark piece is unknown" asymmetry.
-      viewEntries: (postgame) =>
-        postgameViewEntries(postgame)
-          .filter((entry) => entry.key === 'truth')
-          .map((entry) => ({ key: entry.key, label: entry.label })),
+      // A single board (the per-color boards are identical — jieqi hides identities
+      // symmetrically). The pane's fallback key is 'truth' (always present); the
+      // board itself defaults to the as-played hidden view via `reveal` below, and
+      // the Reveal/Hide control swaps to truth. The 'Truth' label is hidden in CSS.
+      viewEntries: () => [{ key: 'truth', label: 'Truth' }],
+      // Default to the as-played (hidden-identity) board; reveal swaps to truth.
+      reveal: { hiddenKey: 'red', truthKey: 'truth' },
       viewAtPly: postgameViewAtPly,
       paneKind,
       // No fog: the truth view shows every identity; per-color views render the

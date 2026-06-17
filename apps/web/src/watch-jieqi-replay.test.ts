@@ -28,9 +28,19 @@ describe('Jieqi watch replay', () => {
     expect(root.textContent).toContain('Red');
     expect(root.textContent).toContain('Black');
     expect(root.textContent).toContain('Ply 0 / 1');
-    // A single Truth pane (not a triptych): jieqi's per-color boards are identical
-    // to each other, so the watch shows one board, matching the postgame review.
+    // A single board (not a triptych): jieqi's per-color boards are identical, so
+    // the watch shows one board, matching the postgame review.
     expect(root.querySelectorAll('.jieqi-board')).toHaveLength(1);
+
+    // Defaults to the as-played hidden view, so the face-down soldier renders as a
+    // back, and a Reveal control is offered.
+    const board = () => root.querySelector('.jieqi-board')?.innerHTML ?? '';
+    expect(board()).toContain('hidden piece');
+    const revealBtn = root.querySelector<HTMLButtonElement>(
+      '[aria-label="Reveal hidden identities"]',
+    );
+    expect(revealBtn).toBeTruthy();
+    expect(revealBtn?.textContent).toBe('Reveal');
 
     root.querySelector<HTMLButtonElement>('[aria-label="Next move"]')?.click();
     expect(root.textContent).toContain('Ply 1 / 1 — Red wins');

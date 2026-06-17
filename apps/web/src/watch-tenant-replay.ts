@@ -46,6 +46,10 @@ export type TenantWatchAdapter<Postgame extends WatchPostgameMeta, View, ViewKey
   // pane is a per-color view rather than truth).
   renderBoard(view: View, orientation: 'red' | 'black', key: ViewKey): string;
   fillCaptures(host: HTMLElement, view: View, owner: 'red' | 'black'): void;
+  // When set, the (single) board defaults to the as-played hidden-identity view
+  // (hiddenKey) and a Reveal/Hide control (and the `h` key) swaps it to truth.
+  // Tenants without hidden identities omit this and keep their fixed view.
+  reveal?: { hiddenKey: ViewKey; truthKey: ViewKey };
 };
 
 export type TenantWatchReplayOptions = {
@@ -146,6 +150,9 @@ export async function mountTenantWatchReplay<
   let currentPly = 0;
   let boardOrientation: 'red' | 'black' = 'red';
   let activePostgame: Postgame | null = null;
+  // Default to the as-played (hidden) board when the tenant supports reveal.
+  let revealed = false;
+  let revealBtn: HTMLButtonElement | null = null;
 
   // Lichess convention: a player's captured material sits next to that player.
   const renderPaneCaptures = (
@@ -154,6 +161,11 @@ export async function mountTenantWatchReplay<
     bottomColor: 'red' | 'black',
   ): void => {
     const topColor: 'red' | 'black' = bottomColor === 'red' ? 'black' : 'red';
+    // Reset before each per-ply re-render: the family fill helpers append a row
+    // rather than replace, so without this the rows accumulate across plies as the
+    // TV auto-advances (a fixed-height strip used to hide it by clipping).
+    pane.topCapturesEl.replaceChildren();
+    pane.capturesEl.replaceChildren();
     adapter.fillCaptures(pane.topCapturesEl, view, topColor);
     adapter.fillCaptures(pane.capturesEl, view, bottomColor);
   };
@@ -168,9 +180,16 @@ export async function mountTenantWatchReplay<
   const sync = (): void => {
     if (!activePostgame || !controls) return;
     for (const target of boardTargets) {
-      const view = adapter.viewAtPly(activePostgame, target.key, currentPly);
+      const key = adapter.reveal
+        ? ((revealed ? adapter.reveal.truthKey : adapter.reveal.hiddenKey) as ViewKey)
+        : target.key;
+      // Fall back to the pane's own key if the chosen view is missing (e.g. a game
+      // stored without per-color histories): better a revealed board than blank.
+      const view =
+        adapter.viewAtPly(activePostgame, key, currentPly) ??
+        adapter.viewAtPly(activePostgame, target.key, currentPly);
       if (view) {
-        target.pane.boardEl.innerHTML = adapter.renderBoard(view, boardOrientation, target.key);
+        target.pane.boardEl.innerHTML = adapter.renderBoard(view, boardOrientation, key);
         renderPaneCaptures(target.pane, view, boardOrientation);
       }
     }
@@ -220,6 +239,13 @@ export async function mountTenantWatchReplay<
   const manualJump = (ply: number): void => {
     setPaused(true);
     currentPly = Math.max(0, Math.min(maxPly, ply));
+    sync();
+  };
+
+  const toggleReveal = (): void => {
+    if (!adapter.reveal) return;
+    revealed = !revealed;
+    if (revealBtn) revealBtn.textContent = revealed ? 'Hide' : 'Reveal';
     sync();
   };
 
@@ -284,6 +310,12 @@ export async function mountTenantWatchReplay<
     const last = controlButton('>|', 'Last move');
     const flip = controlButton('↕ Flip', 'Flip boards');
     bar.append(first, prev, play, next, last, flip);
+    if (adapter.reveal) {
+      revealBtn = controlButton(revealed ? 'Hide' : 'Reveal', 'Reveal hidden identities');
+      revealBtn.title = 'Reveal hidden identities (h)';
+      revealBtn.onclick = toggleReveal;
+      bar.append(revealBtn);
+    }
     const plyLine = document.createElement('div');
     plyLine.className = 'replay-ply-line';
     const plyLabel = document.createElement('span');
@@ -323,6 +355,26 @@ export async function mountTenantWatchReplay<
     buildGame(result.postgame);
   };
 
+  // Keyboard reveal toggle (`h`), only when the tenant supports reveal.
+  const onKeydown = (event: KeyboardEvent): void => {
+    if (!adapter.reveal || event.metaKey || event.ctrlKey || event.altKey) return;
+    const target = event.target as HTMLElement | null;
+    if (
+      target &&
+      (target.isContentEditable ||
+        target.tagName === 'INPUT' ||
+        target.tagName === 'TEXTAREA' ||
+        target.tagName === 'SELECT')
+    ) {
+      return;
+    }
+    if (event.key === 'h' || event.key === 'H') {
+      event.preventDefault();
+      toggleReveal();
+    }
+  };
+  if (adapter.reveal) window.addEventListener('keydown', onKeydown);
+
   await load(roomId);
 
   return {
@@ -330,6 +382,7 @@ export async function mountTenantWatchReplay<
     destroy: () => {
       destroyed = true;
       clearTimer();
+      if (adapter.reveal) window.removeEventListener('keydown', onKeydown);
       root.replaceChildren();
     },
     loadGame: async (sampleId: string) => {
