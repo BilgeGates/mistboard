@@ -50,6 +50,11 @@ export type TenantWatchAdapter<Postgame extends WatchPostgameMeta, View, ViewKey
   // (hiddenKey) and a Reveal/Hide control (and the `h` key) swaps it to truth.
   // Tenants without hidden identities omit this and keep their fixed view.
   reveal?: { hiddenKey: ViewKey; truthKey: ViewKey };
+  // Override the result string when the recorded result key (seat-based) is not
+  // the player-facing color. Banqi needs this: its seats are first/second mover
+  // and the ink binds on the opening flip, so "red-wins" may be a Black-ink win.
+  // Tenants where seat == ink (jieqi, mini-xiangqi) omit it and keep the default.
+  resultLabel?(result: string, postgame: Postgame): string;
 };
 
 export type TenantWatchReplayOptions = {
@@ -193,7 +198,10 @@ export async function mountTenantWatchReplay<
         renderPaneCaptures(target.pane, view, boardOrientation);
       }
     }
-    const result = currentPly >= maxPly ? ` — ${resultLabel(activePostgame.game.result)}` : '';
+    const result =
+      currentPly >= maxPly
+        ? ` — ${adapter.resultLabel?.(activePostgame.game.result, activePostgame) ?? resultLabel(activePostgame.game.result)}`
+        : '';
     controls.plyLabel.textContent = `Ply ${currentPly} / ${maxPly}${result}`;
     controls.first.disabled = currentPly <= 0;
     controls.prev.disabled = currentPly <= 0;
@@ -262,7 +270,8 @@ export async function mountTenantWatchReplay<
     header.title.textContent = matchupLabel(postgame.game.mode);
     const chip = document.createElement('span');
     chip.className = `replay-game-header-result-chip replay-game-header-result-${resultChipKind(postgame.game.result)}`;
-    chip.textContent = resultLabel(postgame.game.result);
+    chip.textContent =
+      adapter.resultLabel?.(postgame.game.result, postgame) ?? resultLabel(postgame.game.result);
     const detail = document.createElement('span');
     detail.className = 'replay-game-header-result-detail';
     detail.textContent = `by ${labelize(postgame.game.termination)}`;

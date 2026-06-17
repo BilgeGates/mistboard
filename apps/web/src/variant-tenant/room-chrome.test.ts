@@ -117,6 +117,44 @@ describe('tenant room chrome action status', () => {
     chrome.renderActionStatus();
     expect(refs.actionSection.hidden).toBe(true);
   });
+
+  it('renders the finished winner via the tenant seatLabel, not the raw seat token', () => {
+    // Banqi regression: the winner is a SEAT ('white' here = first mover), but the
+    // ink binds on the opening flip, so the first-mover seat can win with the OTHER
+    // ink. The "X wins" line must use the tenant's ink-aware label, never the seat.
+    const inkTenant: WebVariantTenant<Color> = {
+      ...tenant,
+      seatLabel: (seat) => (seat === 'white' ? 'Black' : 'Red'),
+      reasonPhrase: () => 'no legal move',
+    };
+    const { chrome, refs } = chromeHarness(
+      {
+        view: {
+          id: 'test_room',
+          status: { type: 'finished', winner: 'white', reason: 'stalemate' },
+          moveNumber: 12,
+        },
+      },
+      inkTenant,
+    );
+    chrome.renderActionStatus();
+    expect(refs.actionStatus.textContent).toContain('Black wins by no legal move.');
+    expect(refs.actionStatus.textContent).not.toContain('White wins');
+  });
+
+  it('renders the spectator "to move" label via the tenant seatLabel', () => {
+    const inkTenant: WebVariantTenant<Color> = {
+      ...tenant,
+      seatLabel: (seat) => (seat === 'white' ? 'First' : 'Second'),
+    };
+    const { chrome, refs } = chromeHarness(
+      { seat: 'spectator', view: playingView({ status: { type: 'playing', turn: 'red' } }) },
+      inkTenant,
+    );
+    chrome.renderActionStatus();
+    expect(refs.actionStatus.textContent).toContain('Second to move');
+    expect(refs.actionStatus.textContent).not.toContain('Red to move');
+  });
 });
 
 describe('tenant room chrome meta and invite emphasis', () => {

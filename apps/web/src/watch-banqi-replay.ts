@@ -7,6 +7,7 @@ import { fillCapturedPool } from './live-banqi.js';
 import {
   type BanqiPostgameResponse,
   type BanqiPostgameViewKey,
+  banqiResultLabel,
   loadBanqiPostgame,
   postgameReplayMaxPly,
   postgameViewAtPly,
@@ -44,6 +45,9 @@ export function mountBanqiWatchReplay(
       // Symmetric board: no fog/perspective to apply.
       renderBoard: (view, orientation) => renderBanqiBoardSvg(view, orientation),
       fillCaptures: (host, view, owner) => fillCapturedPool(host, view.captured, owner),
+      // Banqi seats (first/second mover) are decoupled from ink; the recorded
+      // result is seat-keyed, so translate it to the bound ink for display.
+      resultLabel: (result, postgame) => banqiResultLabel(result, postgame.view.firstColor),
     },
   );
 }

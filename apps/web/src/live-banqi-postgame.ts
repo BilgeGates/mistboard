@@ -121,7 +121,7 @@ function renderPostgame(root: HTMLElement, postgame: BanqiPostgameResponse): voi
   title.textContent = 'Banqi';
   const summary = document.createElement('p');
   summary.className = 'dxq-postgame__summary';
-  summary.textContent = `${resultLabel(postgame.game.result)} by ${labelize(postgame.game.termination)} · ${postgame.game.plyCount} plies`;
+  summary.textContent = `${banqiResultLabel(postgame.game.result, postgame.view.firstColor)} by ${labelize(postgame.game.termination)} · ${postgame.game.plyCount} plies`;
   titleBlock.append(eyebrow, title, summary);
   header.append(titleBlock, postgameActions(postgame));
 
@@ -332,7 +332,7 @@ function detailsPanel(postgame: BanqiPostgameResponse): HTMLElement {
   const details = document.createElement('dl');
   details.className = 'dxq-postgame__details';
   details.append(
-    detailRow('Result', resultLabel(postgame.game.result)),
+    detailRow('Result', banqiResultLabel(postgame.game.result, postgame.view.firstColor)),
     detailRow('Ending', labelize(postgame.game.termination)),
     detailRow('Clock', timeControlLabel(postgame)),
     detailRow('Ended', dateLabel(postgame.game.endedAt)),
@@ -362,7 +362,8 @@ function timelinePanel(postgame: BanqiPostgameResponse): HTMLElement {
       number.className = 'dxq-postgame__move-number';
       number.textContent = String(entry.ply ?? '');
       const move = document.createElement('span');
-      move.textContent = `${capitalize(entry.color ?? '')} ${moveLabel(entry.move!)}`;
+      const mover = entry.color ? seatInkLabel(entry.color, postgame.view.firstColor) : '';
+      move.textContent = `${mover} ${moveLabel(entry.move!)}`.trim();
       item.append(number, move);
       list.append(item);
     }
@@ -426,9 +427,21 @@ async function safeJson(response: Response): Promise<{ error?: unknown } | null>
   }
 }
 
-function resultLabel(result: string): string {
-  if (result === 'red-wins') return 'Red wins';
-  if (result === 'black-wins') return 'Black wins';
+// Banqi seats are first/second mover ('red' seat = first); the ink binds on the opening flip
+// (view.firstColor). The recorded result and the timeline's `color` are keyed by SEAT, so the
+// raw token shows "Red" even when the first-mover seat flipped black. Translate seat → bound
+// ink for every player-facing label, falling back to move order before the flip binds.
+function seatInkLabel(seat: BanqiColor, firstColor: BanqiColor | null): string {
+  if (firstColor === null) return seat === 'red' ? 'First' : 'Second';
+  const ink = seat === 'red' ? firstColor : firstColor === 'red' ? 'black' : 'red';
+  return ink === 'red' ? 'Red' : 'Black';
+}
+
+// Shared by this review surface and the Mistboard TV watch renderer
+// (watch-banqi-replay) so banqi's result string is ink-aware in both places.
+export function banqiResultLabel(result: string, firstColor: BanqiColor | null): string {
+  if (result === 'red-wins') return `${seatInkLabel('red', firstColor)} wins`;
+  if (result === 'black-wins') return `${seatInkLabel('black', firstColor)} wins`;
   if (result === 'draw') return 'Draw';
   return labelize(result);
 }

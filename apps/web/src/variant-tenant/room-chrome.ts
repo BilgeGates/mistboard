@@ -479,7 +479,7 @@ export function createTenantRoomChrome<C extends string>(
     if (view.status.type === 'finished') return 'Game finished';
     if (view.status.type === 'aborted') return 'Game aborted';
     if (ctx.seat() === view.status.turn) return 'Your move';
-    return `${capitalize(view.status.turn)} to move`;
+    return `${seatName(view.status.turn)} to move`;
   }
 
   function actionBody(view: TenantWebView<C> | null): string {
@@ -491,7 +491,7 @@ export function createTenantRoomChrome<C extends string>(
     if (view.status.type === 'finished') {
       const reason = tenant.reasonPhrase(view.status.reason);
       return view.status.winner
-        ? `${capitalize(view.status.winner)} wins by ${reason}.`
+        ? `${seatName(view.status.winner)} wins by ${reason}.`
         : `Draw by ${reason}.`;
     }
     if (view.status.type === 'aborted') {

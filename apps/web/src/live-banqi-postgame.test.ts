@@ -1,5 +1,29 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { banqiPostgameApiUrl, mountBanqiPostgame } from './live-banqi-postgame.js';
+import {
+  banqiPostgameApiUrl,
+  banqiResultLabel,
+  mountBanqiPostgame,
+} from './live-banqi-postgame.js';
+
+describe('banqiResultLabel translates the seat-keyed result to the bound ink', () => {
+  // The reported bug: a game black-ink-wins (red side eaten), but the recorded
+  // result is seat-keyed 'red-wins' (the first-mover seat survived) and the
+  // notification read "Red wins" because the first-mover seat owns the black ink.
+  it('maps the winning SEAT to its flip-bound ink', () => {
+    // First-mover ('red') seat flipped black → owns black ink.
+    expect(banqiResultLabel('red-wins', 'black')).toBe('Black wins');
+    expect(banqiResultLabel('black-wins', 'black')).toBe('Red wins');
+    // First-mover seat flipped red → seat == ink (the existing common case).
+    expect(banqiResultLabel('red-wins', 'red')).toBe('Red wins');
+    expect(banqiResultLabel('black-wins', 'red')).toBe('Black wins');
+  });
+
+  it('keeps draws ink-agnostic and falls back to move order before the flip binds', () => {
+    expect(banqiResultLabel('draw', 'red')).toBe('Draw');
+    expect(banqiResultLabel('red-wins', null)).toBe('First wins');
+    expect(banqiResultLabel('black-wins', null)).toBe('Second wins');
+  });
+});
 
 describe('Banqi postgame page', () => {
   beforeEach(() => {
