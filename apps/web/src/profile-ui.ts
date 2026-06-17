@@ -12,6 +12,7 @@ export function buildProfileHeaderShell(opts: {
   eyebrow: string;
   title: string;
   metaParts: HTMLElement[];
+  stats?: HTMLElement;
 }): HTMLElement {
   const header = document.createElement('section');
   header.className = 'profile-header';
@@ -24,20 +25,29 @@ export function buildProfileHeaderShell(opts: {
   title.className = 'site-section-heading';
   title.textContent = opts.title;
 
-  const meta = document.createElement('p');
-  meta.className = 'account-copy profile-header-meta';
-  opts.metaParts.forEach((part, index) => {
-    if (index > 0) meta.append(document.createTextNode(' · '));
-    meta.append(part);
-  });
+  header.append(eyebrow, title);
 
-  header.append(eyebrow, title, meta);
+  if (opts.metaParts.length > 0) {
+    const meta = document.createElement('p');
+    meta.className = 'account-copy profile-header-meta';
+    opts.metaParts.forEach((part, index) => {
+      if (index > 0) meta.append(document.createTextNode(' · '));
+      meta.append(part);
+    });
+    header.append(meta);
+  }
+
+  if (opts.stats) header.append(opts.stats);
+
   return header;
 }
 
 // One finished-game row from the subject's perspective (game.playerColor is the
 // subject's seat). Works for a human or an engine seat alike.
-export function buildProfileGameRow(game: FeaturedGame): HTMLElement {
+export function buildProfileGameRow(
+  game: FeaturedGame,
+  opts: { timeOnly?: boolean } = {},
+): HTMLElement {
   const item = document.createElement('li');
   const link = document.createElement('a');
   link.href = profileGameHref(game);
@@ -61,7 +71,7 @@ export function buildProfileGameRow(game: FeaturedGame): HTMLElement {
 
   const date = document.createElement('span');
   date.className = 'profile-game-date';
-  date.textContent = formatGameDate(game.endedAt);
+  date.textContent = opts.timeOnly ? formatGameTime(game.endedAt) : formatGameDate(game.endedAt);
 
   topLine.append(opponent, date);
 
@@ -75,11 +85,10 @@ export function buildProfileGameRow(game: FeaturedGame): HTMLElement {
   details.append(
     buildGameDetail(profileGameSpecLabel(game), 'profile-game-variant'),
     buildGameDetail(profileSideLabel(game), 'profile-game-side'),
-    buildGameDetail(
-      isCasual ? 'Casual' : 'Rated',
-      isCasual ? 'profile-game-casual' : 'profile-game-rated',
-    ),
   );
+  // Only rated games get a badge; casual (the default, and every game while
+  // rated is gated off) stays untagged so the feed isn't littered with "Casual".
+  if (!isCasual) details.append(buildGameDetail('Rated', 'profile-game-rated'));
   // Time control sits with the leading fixed-width pills (see CSS) when present;
   // clockless games (engine self-play) simply omit it.
   const timeControl = timeControlLabelForGame(game);
@@ -147,6 +156,15 @@ function formatGameDate(value: string | undefined): string {
   return new Intl.DateTimeFormat(undefined, { dateStyle: 'medium', timeStyle: 'short' }).format(
     date,
   );
+}
+
+// Time-only label for the date-grouped activity feed, where the day header
+// already carries the date.
+function formatGameTime(value: string | undefined): string {
+  if (!value) return '';
+  const date = new Date(value);
+  if (!Number.isFinite(date.getTime())) return '';
+  return new Intl.DateTimeFormat(undefined, { timeStyle: 'short' }).format(date);
 }
 
 function opponentColor(

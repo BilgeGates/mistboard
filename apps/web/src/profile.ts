@@ -269,21 +269,9 @@ async function fetchUserProfile(handle: string): Promise<UserProfile | null> {
 }
 
 function buildProfileHeader(profile: UserProfile): HTMLElement {
+  // Joined + game count moved into the stat strip below; only the role badge
+  // (admin) remains on the inline meta line, and only when present.
   const metaParts: HTMLElement[] = [];
-
-  const joinedLabel = formatJoinedDate(profile.user.createdAt);
-  if (joinedLabel) {
-    const joined = document.createElement('span');
-    joined.className = 'profile-joined';
-    joined.textContent = `Joined ${joinedLabel}`;
-    metaParts.push(joined);
-  }
-
-  const gameCount = document.createElement('span');
-  gameCount.className = 'profile-game-count';
-  gameCount.textContent = `${profile.gamesTotal} ${profile.gamesTotal === 1 ? 'game' : 'games'}`;
-  metaParts.push(gameCount);
-
   const roleBadge = buildRoleBadge(profile.user.accountRole);
   if (roleBadge) metaParts.push(roleBadge);
 
@@ -291,7 +279,63 @@ function buildProfileHeader(profile: UserProfile): HTMLElement {
     eyebrow: profile.isViewer ? 'Your profile' : 'Player profile',
     title: `@${profile.user.handle}`,
     metaParts,
+    stats: buildProfileStats(profile),
   });
+}
+
+// Header stat strip: neutral/positive figures only — no win/loss record (which
+// just accumulates losses). Top variant + best rating come from the ratings we
+// already load, so nothing here needs a server aggregate.
+function buildProfileStats(profile: UserProfile): HTMLElement {
+  const strip = document.createElement('div');
+  strip.className = 'profile-stats';
+
+  const items: Array<[string, string]> = [
+    [String(profile.gamesTotal), profile.gamesTotal === 1 ? 'Game' : 'Games'],
+  ];
+
+  const top = topVariantLabel(profile.ratings);
+  if (top) items.push([top, 'Top variant']);
+
+  const best = bestRating(profile.ratings);
+  if (best != null) items.push([String(best), 'Best rating']);
+
+  const joined = formatJoinedDate(profile.user.createdAt);
+  if (joined) items.push([joined, 'Member since']);
+
+  for (const [value, label] of items) {
+    const item = document.createElement('div');
+    item.className = 'profile-stat';
+    const valueEl = document.createElement('span');
+    valueEl.className = 'profile-stat-value';
+    valueEl.textContent = value;
+    const labelEl = document.createElement('span');
+    labelEl.className = 'profile-stat-label';
+    labelEl.textContent = label;
+    item.append(valueEl, labelEl);
+    strip.append(item);
+  }
+  return strip;
+}
+
+// Most-played variant (rated or casual) by total completed games.
+function topVariantLabel(ratings: ProfileBucketRating[]): string | null {
+  let top: ProfileBucketRating | null = null;
+  for (const r of ratings) {
+    if (r.totalGamesPlayed <= 0) continue;
+    if (!top || r.totalGamesPlayed > top.totalGamesPlayed) top = r;
+  }
+  return top ? PROFILE_VARIANT_LABEL[top.variant] : null;
+}
+
+// Highest current rating across rated variants, or null if none are rated.
+function bestRating(ratings: ProfileBucketRating[]): number | null {
+  let best: number | null = null;
+  for (const r of ratings) {
+    if (r.eloRating == null || r.ratedGamesPlayed <= 0) continue;
+    if (best == null || r.eloRating > best) best = r.eloRating;
+  }
+  return best;
 }
 
 function buildRoleBadge(role: UserProfile['user']['accountRole']): HTMLElement | null {
@@ -309,6 +353,21 @@ function formatJoinedDate(value: string | undefined): string | null {
   const date = new Date(value);
   if (!Number.isFinite(date.getTime())) return null;
   return new Intl.DateTimeFormat(undefined, { month: 'long', year: 'numeric' }).format(date);
+}
+
+// Local calendar day used to group activity rows under one header.
+function dayKey(value: string | undefined): string {
+  if (!value) return 'unknown';
+  const date = new Date(value);
+  if (!Number.isFinite(date.getTime())) return 'unknown';
+  return `${date.getFullYear()}-${date.getMonth()}-${date.getDate()}`;
+}
+
+function dayLabel(value: string | undefined): string {
+  if (!value) return 'Earlier';
+  const date = new Date(value);
+  if (!Number.isFinite(date.getTime())) return 'Earlier';
+  return new Intl.DateTimeFormat(undefined, { dateStyle: 'medium' }).format(date);
 }
 
 export function buildProfileRatings(ratings: ProfileBucketRating[]): HTMLElement {
@@ -425,8 +484,26 @@ function buildProfileGames(profile: UserProfile): HTMLElement {
   }
 
   const list = document.createElement('ol');
-  list.className = 'profile-game-list';
-  for (const game of profile.games) list.append(buildProfileGameRow(game));
+  list.className = 'profile-game-list profile-activity';
+
+  // Group rows under day headers; the cursor persists across "Load more" pages
+  // so an appended page that continues the same day doesn't repeat its header.
+  let lastDay = '';
+  const appendGames = (games: FeaturedGame[]) => {
+    for (const game of games) {
+      const day = dayKey(game.endedAt);
+      if (day !== lastDay) {
+        lastDay = day;
+        const header = document.createElement('li');
+        header.className = 'profile-activity-day';
+        header.textContent = dayLabel(game.endedAt);
+        list.append(header);
+      }
+      list.append(buildProfileGameRow(game, { timeOnly: true }));
+    }
+  };
+
+  appendGames(profile.games);
   section.append(list);
 
   // Track how many rows are rendered so "Load more" knows the next offset and
@@ -454,7 +531,7 @@ function buildProfileGames(profile: UserProfile): HTMLElement {
       button.textContent = 'Load more';
       return;
     }
-    for (const game of page.games) list.append(buildProfileGameRow(game));
+    appendGames(page.games);
     rendered += page.games.length;
     if (rendered >= page.total || page.games.length === 0) {
       moreWrap.remove();
