@@ -28,11 +28,15 @@ import {
   jieqiStateToPikafishFen,
   pikafishUciToJieqiMove,
 } from './jieqi-fen.js';
-import { jieqiTenant } from './jieqi-tenant.js';
 import type { JieqiEvent, JieqiSpecId } from './jieqi-runtime.js';
+import { jieqiTenant } from './jieqi-tenant.js';
 import { logger } from './obs.js';
 import type { TenantLifecycleContext } from './variant-tenant/lifecycle.js';
-import { applyTenantEvent, replayTenantEvents, tenantClockRemainingMs } from './variant-tenant/runtime.js';
+import {
+  applyTenantEvent,
+  replayTenantEvents,
+  tenantClockRemainingMs,
+} from './variant-tenant/runtime.js';
 import type { TenantRoomEvent } from './variant-tenant/tenant.js';
 import type { TenantLiveRoom } from './variant-tenant/ws.js';
 

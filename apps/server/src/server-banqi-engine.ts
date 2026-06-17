@@ -22,9 +22,8 @@ import {
 } from '@mistboard/game';
 import { banqiEngineTierFor, banqiLiveEngineMove, isBanqiEngineClientId } from './banqi-engine.js';
 import { banqiMoveToEngineUci, banqiStateToEngineFen, engineUciToBanqiMove } from './banqi-fen.js';
+import type { BanqiEvent, BanqiSpecId } from './banqi-runtime.js';
 import { banqiTenant } from './banqi-tenant.js';
-import type { BanqiEvent } from './banqi-runtime.js';
-import type { BanqiSpecId } from './banqi-runtime.js';
 import { logger } from './obs.js';
 import type { TenantLifecycleContext } from './variant-tenant/lifecycle.js';
 import { replayTenantEvents, tenantClockRemainingMs } from './variant-tenant/runtime.js';
