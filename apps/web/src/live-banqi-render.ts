@@ -119,11 +119,7 @@ function startMarks(): string {
 // hidden from both). A flat disc with no inner ring keeps the back clean.
 function faceDownDisc(cx: number, cy: number): string {
   const r = PIECE_SIZE * 0.46;
-  return [
-    `<g class="banqi-back">`,
-    `<circle cx="${cx}" cy="${cy}" r="${r}"/>`,
-    `</g>`,
-  ].join('');
+  return [`<g class="banqi-back">`, `<circle cx="${cx}" cy="${cy}" r="${r}"/>`, `</g>`].join('');
 }
 
 function pieceLayer(
