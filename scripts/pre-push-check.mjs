@@ -101,7 +101,13 @@ function buildPlan(files, options) {
       kind: 'broad',
       reason: 'repo tooling, package, workflow, deploy, or shared package files changed',
       cleanDist: true,
-      commands: [['npm', 'run', 'ci:quick']],
+      // check:drift is near-instant and guards push-time invariants (INDEX
+      // coverage, fog-redaction payload guard, SQL enum parity) that ci:quick
+      // does not re-check, so run it as a fast-fail prefix.
+      commands: [
+        ['npm', 'run', 'check:drift'],
+        ['npm', 'run', 'ci:quick'],
+      ],
     };
   }
 
@@ -113,7 +119,9 @@ function buildPlan(files, options) {
       kind: 'targeted',
       reason: 'app-level deploy-affecting files changed',
       cleanDist: false,
-      commands: [command],
+      // Fast-fail drift prefix: a new source file missing from INDEX.md (or a
+      // dropped redaction guard) lands via this branch, which verify does not catch.
+      commands: [['npm', 'run', 'check:drift'], command],
     };
   }
 

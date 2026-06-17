@@ -15,6 +15,7 @@ const checks = [
   ['docs', checkDocs],
   ['sql-enums', checkSqlEnums],
   ['payload-redaction', checkPayloadRedaction],
+  ['index', checkIndex],
 ];
 
 const selected = options.only ? checks.filter(([name]) => name === options.only) : checks;
@@ -283,6 +284,52 @@ function checkPayloadRedaction() {
   return issues;
 }
 
+// INDEX.md is the agent-orientation map ("read this before opening any source
+// file"). Manual upkeep loses the race against velocity, so gate it: every
+// non-test source file under apps/{web,server}/src must appear as a backticked
+// entry in INDEX.md, else the map silently drifts (whole launched variant
+// families went missing this way). Match by basename so the existing
+// `dir/{a,b,c}.ts` shorthand still counts.
+function checkIndex() {
+  const index = readFile('INDEX.md');
+  const indexedBasenames = new Set();
+  for (const match of index.matchAll(/`([^`]+)`/g)) {
+    for (const token of expandBraces(match[1])) {
+      if (token.includes('.')) indexedBasenames.add(token.split('/').pop());
+    }
+  }
+
+  // Directories whose contents are intentionally not indexed file-by-file:
+  // per-article content/data modules and one-off generators. Each is documented
+  // in INDEX.md with a glob row, so the exclusion is explicit, not silent drift.
+  const ignoredPrefixes = ['apps/web/src/articles/content/', 'apps/server/src/scripts/'];
+
+  const issues = [];
+  const files = gitLines(['ls-files', 'apps/web/src', 'apps/server/src'])
+    .filter((file) => file.endsWith('.ts') && !file.endsWith('.test.ts'))
+    .filter((file) => !basename(file).startsWith('_')) // dev scratch (e.g. _harness.ts)
+    .filter((file) => !ignoredPrefixes.some((prefix) => file.startsWith(prefix)));
+
+  for (const file of files) {
+    if (!indexedBasenames.has(basename(file))) {
+      issues.push(`INDEX.md has no entry for ${file}`);
+    }
+  }
+  return issues;
+}
+
+function basename(file) {
+  return file.split('/').pop();
+}
+
+// Expand a single `dir/{a,b,c}.ts` INDEX token into its concrete filenames.
+function expandBraces(token) {
+  const match = token.match(/^([^{]*)\{([^}]*)\}(.*)$/);
+  if (!match) return [token];
+  const [, prefix, inner, suffix] = match;
+  return inner.split(',').map((part) => `${prefix}${part.trim()}${suffix}`);
+}
+
 function readFile(file) {
   return readFileSync(file, 'utf8');
 }
@@ -303,5 +350,6 @@ function printHelp() {
 Checks:
   docs                public Markdown links resolve and do not link to docs-private/
   sql-enums           selected SQL check constraints match TypeScript unions
-  payload-redaction   live snapshot/event payloads still use PlayerView filters`);
+  payload-redaction   live snapshot/event payloads still use PlayerView filters
+  index               every apps/{web,server}/src source file is listed in INDEX.md`);
 }

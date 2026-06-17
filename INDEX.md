@@ -207,6 +207,38 @@ Edit task → find file → open only that file.
 | `import-bakeoff-run.ts` | CLI: import a bakeoff run dir into Postgres with per-game engine attribution from shard metadata (platform-format artifacts only; engine internals never read) |
 | `server-event-loop-lag.ts` | Server-side event-loop lag (mean since last read) surfaced as the "SERVER" value in the account connection footer / `/api/ping` |
 | `engine-protocol/build-mini-xiangqi.ts` | DMX engine request builder — THE REDACTION BOUNDARY for the 7×7 variant (mini geometry/piece letters, `shrouded` color-only channel, red/black→white/black protocol mapping). Sibling of `engine-protocol/build.ts` |
+| `jieqi-tenant.ts` | Jieqi (揭棋, full-board xiangqi with hidden piece identities) `VariantTenant`: NOT a fog tenant — every occupied square is public, only piece IDENTITY is hidden. Guards it in two places: the per-game DEAL is a crypto-RNG server secret stripped by `clientEventFor` before any client sees the room-created event, and face-down pieces are redacted in the player view (capture-reveal is capturer-only). Sibling of `banqi-tenant.ts`/`reveal-chess-tenant.ts` |
+| `jieqi-runtime.ts` | Jieqi live-room type aliases over the generic `variant-tenant/` runtime (types-only — no legacy export names; ws/factory/routes/registration call the generic `tenant*` functions directly) |
+| `jieqi-registration.ts` | Jieqi registry entry (live-room map, room-factory binding, hydration); side-effect import in `variant-tenant/register-tenants.ts` |
+| `jieqi-fen.ts` | Jieqi UCI FEN encoder — THE REDACTION BOUNDARY for the PikaJieQi engine; a dark piece's COLOUR is known and only its role is hidden (the key contrast with banqi, which hides ink too). Sibling of `banqi-fen.ts` |
+| `jieqi-engine.ts` | PikaJieQi move provider for Jieqi PvE (Pikafish jieqi fork, Tier-B UCI subprocess, one process per request, NOT the fog engine-worker); fed a redacted FEN from `jieqi-fen.ts` |
+| `server-jieqi-engine.ts` | Server-side PikaJieQi PvE loop; injects engine moves through the same append+broadcast path as humans so clocks/persistence/reconnect/review stay event-sourced |
+| `server-jieqi-room-factory.ts` | Thin adapter over `variant-tenant/room-factory.ts` for jieqi (PvP + Tier-B engine seat; no running-game record) |
+| `server-ws-jieqi.ts` | Jieqi WebSocket handler — thin adapter over `variant-tenant/ws.ts`; positions are public so no fog wiring; the PikaJieQi scheduler rides the post-connect/post-move hook |
+| `banqi-tenant.ts` | Banqi (半棋, 8×4 Chinese Dark Chess) `VariantTenant`: symmetric-information — every occupied square is public (face-down or revealed) and a face-down tile carries NO ink/identity to either seat. The only hidden state is the DEAL: a crypto-RNG server secret stripped by `clientEventFor`; the masked board comes from `getBanqiPlayerView`. Seat = move-order (`first`/`second`); ink binds on the opening flip |
+| `banqi-runtime.ts` | Banqi live-room type aliases over the generic `variant-tenant/` runtime (types-only). Tenant `C` = seat (`BanqiSeat`), not ink (`BanqiColor`) |
+| `banqi-registration.ts` | Banqi registry entry (live-room map, room-factory binding, hydration). PvP + PvE; no rematch/lobby yet (lobby answers `banqi_not_integrated`). Side-effect import in `variant-tenant/register-tenants.ts` |
+| `banqi-fen.ts` | Banqi UCI FEN encoder — THE REDACTION BOUNDARY for the MistyBanqi engine; a face-down tile encodes as `X` with NO colour (banqi hides ink too, unlike jieqi). Sibling of `jieqi-fen.ts` |
+| `banqi-first-color.ts` | Recovers a finished banqi game's bound `firstColor` (ink) by replaying the event log, since results are stored by seat not ink; per-room cache for the polled watch feed |
+| `banqi-engine.ts` | MistyBanqi move provider for Banqi PvE: our own `banqi-engine` Rust αβ+Star1+TT UCI subprocess (Tier-B, one process per request, NOT the fog engine-worker); fed a redacted current-position FEN from `banqi-fen.ts` |
+| `server-banqi-engine.ts` | Server-side MistyBanqi PvE loop; injects engine moves through the shared append+broadcast path. Mirrors `server-jieqi-engine.ts` |
+| `server-banqi-room-factory.ts` | Thin adapter over `variant-tenant/room-factory.ts` for banqi (PvP + Tier-B engine seat; no running-game record) |
+| `server-ws-banqi.ts` | Banqi WebSocket handler — thin adapter over `variant-tenant/ws.ts` (positions public, so no fog wiring); the Tier-B MistyBanqi scheduler rides the post-connect/post-move hook |
+| `reveal-chess-tenant.ts` | Reveal Chess (chess-jieqi, "hidden Fischer Random" — standard 8×8 chess with hidden piece identities) `VariantTenant`: NOT a fog tenant; identity is the only hidden axis. Per-game DEAL is a crypto-RNG server secret stripped by `clientEventFor`; face-down pieces redacted in the player view. FLAG-OFF in prod. Sibling of `jieqi-tenant.ts` |
+| `reveal-chess-runtime.ts` | Reveal Chess live-room type aliases over the generic `variant-tenant/` runtime (types-only) |
+| `reveal-chess-registration.ts` | Reveal Chess registry entry (live-room map, room-factory binding, hydration); side-effect import in `variant-tenant/register-tenants.ts` |
+| `server-reveal-chess-room-factory.ts` | Thin adapter over `variant-tenant/room-factory.ts` for Reveal Chess (PvP; no PvE engine yet) |
+| `server-ws-reveal-chess.ts` | Reveal Chess WebSocket handler — thin adapter over `variant-tenant/ws.ts` (positions public, identity hidden; no fog wiring) |
+| `routes/jieqi-rooms.ts` | POST `/api/rooms` jieqi branch (time-control gating, engine-id parsing); binds the tenant room factory |
+| `routes/jieqi-games.ts` | Jieqi postgame/review API branch; keeps non-chess finished games out of generic chess replay APIs |
+| `routes/banqi-rooms.ts` | POST `/api/rooms` banqi branch (time-control gating; `preferredColor` selects the move-order seat) |
+| `routes/banqi-games.ts` | Banqi postgame/review API branch (single public truth surface; keeps non-chess records out of generic chess replay APIs) |
+| `routes/reveal-chess-rooms.ts` | POST `/api/rooms` Reveal Chess branch (`revealChessEnabled` flag) |
+| `routes/reveal-chess-games.ts` | Reveal Chess postgame/review API branch |
+| `routes/correspondence-seeks.ts` | Correspondence open-seek board API (post/join/list days-per-move dark-chess seeks); account-gated, `correspondenceEnabled` flag; backed by `persistence-correspondence-seeks.ts` (per-user cap). Accept pre-seats both players via the live seat-assigned path |
+| `engines/builtin/capture-seeker.ts` | Builtin capture-seeking engine: greedy piece-value capture heuristic (EvE smoke + calibration baseline) |
+| `engines/builtin/random-legal.ts` | Builtin random-legal engine: deterministic random legal move baseline for EvE smoke + calibration |
+| `scripts/*.ts` (under `apps/server/src/scripts/`) | One-off server-side generators (`generate-default-og`, `generate-bicolor-screenshot`, `mini-xiangqi-sim`). Excluded from the INDEX coverage gate (generator dir) |
 
 ## apps/server/integration/ — Two-client WebSocket integration tests
 
@@ -387,12 +419,36 @@ Run with `MISTBOARD_ALLOW_IN_MEMORY_PERSISTENCE=true npm run test:integration --
 | `variant-tenant/registry.ts` | Web-side `VariantTenant` registry (routing/config mirror of the server registry): per-tenant page routing, review-URL base, watch-replay mount, landing config so `main.ts`/`live-room-bootstrap`/`landing`/`game-meta`/`watch-route` dispatch without per-variant branches; entry-chunk safe. Chess is intentionally unregistered (a miss is the chess fallback) |
 | `variant-tenant/live-shell.ts` | Static half of the registry: tenants that ride the shared `live.ts`/`live-render` shell (currently DMX) register render/reconcile/reset/tick/keyboard hooks here; statically imports the tenant live-room modules so it loads only in the live-room chunk |
 | `vite-env.d.ts` | Vite client type reference (`/// <reference types="vite/client" />`) |
-| `video.ts` | `/video` page (parked, route + nav removed). Loads `video.css` |
-| `video.css` | Parked `/video` page styles loaded by `video.ts` |
+| `live-jieqi.ts` | Live multiplayer room client for Jieqi (揭棋) — self-contained tenant client on the `socket-client` + `room-chrome` stack; identity-hidden xiangqi (board public, piece roles hidden until revealed). Renders the server `JieqiPlayerView`; no client-side hidden-info inference. Loads `live-xiangqi.css` |
+| `live-jieqi-render.ts` | Jieqi board SVG renderer: xiangqi pieces on intersections, face-down pieces as backs, revealed roles glyphed; reuses the shared xiangqi piece-sets/appearance |
+| `live-jieqi-interaction.ts` | Pure click-to-move decision for the jieqi board (web half of the interaction contract, kept out of the DOM client so it is unit-testable) |
+| `live-jieqi-postgame.ts` | Jieqi postgame/review route renderer (truth view once finished); reuses replay panes/header/move-list |
+| `jieqi-replay.ts` | Jieqi rules-article replay: replays a move list (+ the deal) through the real jieqi kernel, rendering each position on demand (sibling of `banqi-replay.ts`) |
+| `jieqi-sample-game.ts` | Jieqi rules-article sample game data, replayed by `jieqi-replay.ts` |
+| `watch-jieqi-replay.ts` | Mistboard TV (`/watch`) renderer for Jieqi — thin adapter over the shared `watch-tenant-replay.ts` |
+| `live-banqi.ts` | Live multiplayer room client for Banqi (半棋) — self-contained tenant client on the `socket-client` + `room-chrome` stack; symmetric-information so NO fog (renders the masked `BanqiPlayerView` the server sends; the only hidden state is the deal, hidden from both seats equally). Modeled on the jieqi room. Owns `fillCapturedPool` reused by banqi postgame/watch |
+| `live-banqi-render.ts` | Banqi board SVG renderer (8×4): xiangqi-style discs, face-down tiles as backs; reuses the shared xiangqi piece-sets/appearance |
+| `live-banqi-interaction.ts` | Pure click-to-move decision for the banqi board (FLIP a face-down tile = one-click self-move; otherwise select-then-move). Unit-testable, no DOM |
+| `live-banqi-postgame.ts` | Banqi postgame/review route renderer (single public truth surface; banqi is symmetric-information). Loads `live-xiangqi.css` + `dark-xiangqi-postgame.css` |
+| `banqi-replay.ts` | Banqi rules-article replay: replays the deal + move list through the real banqi kernel, rendering each position on demand; face-down tiles flip to their dealt piece on first turn (sibling of `jieqi-replay.ts`) |
+| `banqi-sample-game.ts` | Banqi rules-article sample game data (a real MistyBanqi-vs-human game), replayed by `banqi-replay.ts` |
+| `banqi-result-label.ts` | Banqi seat→bound-ink result labels (`seatInkLabel`/`banqiResultLabel`): translates the stored move-order seat to the ink that bound on the opening flip. Import-light so result-only surfaces (the watch queue) reuse it without board renderers |
+| `watch-banqi-replay.ts` | Mistboard TV (`/watch`) renderer for Banqi — thin adapter over `watch-tenant-replay.ts` (single public truth surface, no fog) |
+| `live-reveal-chess.ts` | Live multiplayer room client for Reveal Chess (chess-jieqi) — self-contained tenant client on the `socket-client` + `room-chrome` stack; identity-hidden 8×8 chess (cburnett pieces). No fog: renders only the server `RevealChessPlayerView`, never infers a hidden identity. Loads `live-reveal-chess.css` |
+| `reveal-chess-render.ts` | Reveal Chess board renderer: thin adapter over the shared `renderGridBoardSvg` cell-board core (8×8 descriptor, cburnett glyphs for revealed pieces, face-down disc token) |
+| `reveal-chess-postgame.ts` | Reveal Chess postgame/review route renderer; reuses replay panes/header/move-list. Loads `landing.css` + `game-route.css` + `live-reveal-chess.css` |
+| `watch-reveal-chess-replay.ts` | Mistboard TV (`/watch`) renderer for Reveal Chess — thin adapter over `watch-tenant-replay.ts` |
+| `watch-tenant-replay.ts` | Generic Mistboard TV (`/watch`) renderer for the tenant SVG family (Jieqi, Banqi, DMX): shared "TV" chrome — header, board panes (single truth pane or per-color triptych), control bar + auto-play, ply nav, `ReplayHandle`. Each variant supplies a small `TenantWatchAdapter`; the per-variant module is then ~30 lines. Crossroads/dark-chess stay on the chessground path in `replay.ts` |
+| `deepdive.ts` | DEV-only (`/deepdive`) Fog-of-War game deep-dive reader: reuses the production replay board + fog triptych + move rail and hangs a prose annotation panel off its `onPlyChange` hook (no `replay.ts` edits); synthesizes moves→`GameEvent[]` (the seed of the chess.com-PGN importer) |
+| `engine-review.ts` | DEV-only (`/engine-review`) engine-output inspector: reuses the production replay board + fog view and hangs an engine-output panel off `onPlyChange` (per-ply eval + full move ranking with action-value + policy %); static fixture baked from the offline self-review spike |
+| `variant-mini-boards.ts` | Homepage variant mini-board widgets (small static SVG boards shown per variant); follow board-appearance settings via the shared appearance events. Loads `variant-mini-boards.css` |
+| `articles/diagrams.ts` | Article diagram + board constants and the helpers that build them (relocated verbatim from `articles-data.ts`); every declaration is exported so the per-article content modules + the `articles-data.ts` barrel import what they reference. Large (content, not logic) |
+| `articles/reveal-chess-diagrams.ts` | Static board diagrams for the Reveal Chess rules article (reuse the production renderer fed by real kernel states so diagrams can't drift; brown palette baked for self-contained SVG) |
+| `articles/content/*.ts` | Per-article content modules (one per rules article: banqi, jieqi, chess, dark-chess, xiangqi, kriegspiel, misty, ...); prose/data, not code. Built from `articles/diagrams.ts` constants, barrel-imported by `articles-data.ts`. Excluded from the INDEX coverage gate (content dir) |
 
 ## apps/server/migrations/ — Postgres schema migrations
 
-43 files (`001_init.sql` through `043_correspondence_seeks.sql`). Runner: `migrate.ts` — Postgres advisory-lock + `_migrations` table. Add schema changes as new numbered migrations only.
+45 files (`001_init.sql` through `045_allow_reveal_chess_rating_bucket.sql`). Runner: `migrate.ts` — Postgres advisory-lock + `_migrations` table. Add schema changes as new numbered migrations only.
 
 **Change schema** → add a new `0NN_*.sql` (never modify a landed migration). Constraint rewrites: drop-then-readd in a new file (see `018_add_resignation_termination.sql`).
 
