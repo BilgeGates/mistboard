@@ -67,6 +67,7 @@ import {
   thinkingBudgetMsFromMeta,
 } from './replay-meta.js';
 import { createReplayMovesPanel, renderReplayMovesPanel } from './replay-moves-panel.js';
+import { delayForPly, moveEventAtPly, thinkingDurationForPly } from './replay-playback.js';
 import {
   compactReplayClockSidesForOrientation,
   DEFAULT_BETWEEN_GAME_DELAY_MS,
@@ -79,17 +80,7 @@ import {
   type WallClockReplayPosition,
 } from './replay-wall-clock.js';
 
-const COMPUTE_SCALE = 50;
-const LEGACY_RECORDED_TIME_SCALE = 0.12;
-const MIN_RECORDED_DELTA_MS = 150;
-const MIN_PLAY_MS = 700;
-const MAX_PLAY_MS = 2500;
-const MIN_THINKING_BUDGET_PLAY_MS = 700;
-
 const replayAbortControllers = new WeakMap<HTMLElement, AbortController>();
-
-type MovePlayedEvent = Extract<GameEvent, { type: 'move-played' }>;
-type MovePlayedExt = MovePlayedEvent & { compute_ms?: number; thinkTimeMs?: number };
 
 export type { AnnotationConfig } from './replay-annotations.js';
 export type { EngineReviewPanels } from './replay-engine-panels.js';
@@ -692,7 +683,7 @@ export async function mountReplay(
   function currentAnnotContext(): AnnotationContext | null {
     if (!annotation) return null;
     if (currentPly < 1) return null;
-    const moveEvent = moveEventAtPly(currentPly);
+    const moveEvent = moveEventAtPly(events, currentPly);
     if (!moveEvent || moveEvent.type !== 'move-played') return null;
 
     const gameIndex = annotation.gameIndexForSampleId(activeSample);
@@ -789,17 +780,6 @@ export async function mountReplay(
         a.game_path === activeSample &&
         a.manifest_url === annotation.manifestUrl,
     );
-  }
-
-  function moveEventAtPly(ply: number): GameEvent | null {
-    if (ply < 1) return null;
-    let seen = 0;
-    for (const event of events) {
-      if (event.type !== 'move-played') continue;
-      seen += 1;
-      if (seen === ply) return event;
-    }
-    return null;
   }
 
   function scheduleLoopIfNeeded(): void {
@@ -904,7 +884,7 @@ export async function mountReplay(
 
     const plyMs = positiveMs(wallClockLoop.plyMs, FALLBACK_PLAY_MS);
     const nextPly = currentPly + 1;
-    const thinkMs = thinkingDurationForPly(nextPly) ?? plyMs;
+    const thinkMs = thinkingDurationForPly(events, nextPly) ?? plyMs;
     const elapsedMs = resolveWallClockThinkingElapsedMs(wallClockPosition.plyElapsedMs, thinkMs);
     return {
       activeColor: state.status.turn,
@@ -935,7 +915,12 @@ export async function mountReplay(
       scheduleLoopIfNeeded();
       return;
     }
-    const delay = delayForPly(nextPly);
+    const delay = delayForPly(
+      events,
+      nextPly,
+      thinkingBudgetMsFromMeta(currentMeta()?.timeControl),
+      clampPace,
+    );
     playTimer = window.setTimeout(() => {
       clearClockTickTimer();
       setCurrentPly(nextPly);
@@ -962,7 +947,7 @@ export async function mountReplay(
     if (state.status.type !== 'playing') return;
     const activeColor = state.status.turn;
     const clock = state.clock;
-    const nextEvent = moveEventAtPly(nextPly);
+    const nextEvent = moveEventAtPly(events, nextPly);
     if (!nextEvent || nextEvent.type !== 'move-played') return;
     const startWall = performance.now();
     const tickElapsed = (): number => {
@@ -988,7 +973,7 @@ export async function mountReplay(
     }
 
     const budgetMs = thinkingBudgetMsFromMeta(meta?.timeControl);
-    const thinkMs = thinkingDurationForPly(nextPly) ?? delay;
+    const thinkMs = thinkingDurationForPly(events, nextPly) ?? delay;
     if (budgetMs === null || thinkMs <= 0) return;
     const tick = (): void => {
       const fraction = tickElapsed();
@@ -1010,80 +995,6 @@ export async function mountReplay(
   function currentReplayEventIndex(): number {
     if (events.length === 0) return 0;
     return sliceToPly(events, currentPly).length;
-  }
-
-  function delayForPly(ply: number): number {
-    const raw =
-      thinkTimeDelayForPly(ply) ??
-      recordedDelayForPly(ply) ??
-      computeDelayForPly(ply) ??
-      FALLBACK_PLAY_MS;
-    return clampPace ? clampPlay(raw) : raw;
-  }
-
-  function thinkTimeDelayForPly(ply: number): number | null {
-    const event = moveEventAtPly(ply);
-    if (!event || event.type !== 'move-played') return null;
-    const ext = event as MovePlayedExt;
-    if (typeof ext.thinkTimeMs !== 'number' || ext.thinkTimeMs < 0) return null;
-    const thinkMs = Math.max(0, ext.thinkTimeMs);
-    if (thinkingBudgetMsFromMeta(currentMeta()?.timeControl) !== null) {
-      return Math.max(MIN_THINKING_BUDGET_PLAY_MS, thinkMs);
-    }
-    return thinkMs;
-  }
-
-  function thinkingDurationForPly(ply: number): number | null {
-    const event = moveEventAtPly(ply);
-    if (!event || event.type !== 'move-played') return null;
-    const ext = event as MovePlayedExt;
-    if (typeof ext.thinkTimeMs === 'number' && ext.thinkTimeMs >= 0) {
-      return ext.thinkTimeMs;
-    }
-    if (typeof ext.compute_ms === 'number' && ext.compute_ms >= 0) {
-      return ext.compute_ms;
-    }
-    return null;
-  }
-
-  function recordedDelayForPly(ply: number): number | null {
-    const event = moveEventAtPly(ply);
-    if (!event || event.type !== 'move-played') return null;
-    const previousAt = ply > 1 ? moveEventAtPly(ply - 1)?.at : replayStartAt();
-    if (typeof previousAt !== 'number') return null;
-
-    const elapsed = event.at - previousAt;
-    if (!Number.isFinite(elapsed) || elapsed < MIN_RECORDED_DELTA_MS) return null;
-    return clampPlay(elapsed * LEGACY_RECORDED_TIME_SCALE);
-  }
-
-  function computeDelayForPly(ply: number): number | null {
-    const event = moveEventAtPly(ply);
-    if (!event || event.type !== 'move-played') return null;
-    const ext = event as MovePlayedExt;
-    if (typeof ext.compute_ms === 'number' && ext.compute_ms >= 0) {
-      return clampPlay(ext.compute_ms * COMPUTE_SCALE);
-    }
-    return null;
-  }
-
-  function replayStartAt(): number | null {
-    let startedAt: number | null = null;
-    for (const event of events) {
-      if (event.type === 'move-played') break;
-      if (
-        event.type === 'clock-started' ||
-        event.type === 'draft-start-resolved' ||
-        event.type === 'room-created'
-      ) {
-        startedAt = event.at;
-      }
-    }
-    return startedAt;
-  }
-
-  function clampPlay(ms: number): number {
-    return Math.min(MAX_PLAY_MS, Math.max(MIN_PLAY_MS, ms));
   }
 
   async function loadGame(sampleId: string, loadOptions: ReplayLoadOptions = {}): Promise<void> {
@@ -1281,14 +1192,6 @@ export async function mountReplay(
       [winner]: 'win',
       [winner === 'white' ? 'black' : 'white']: 'loss',
     });
-  }
-
-  function endGameReasonLabel(reason: string): string {
-    if (reason === 'king-captured') return 'King captured';
-    if (reason === 'timeout') return 'Timeout';
-    if (reason === 'checkmate') return 'Checkmate';
-    if (reason === 'draw') return 'Draw';
-    return reason;
   }
 
   if (showControls) {
@@ -1504,4 +1407,12 @@ function gameOverSuffix(state: GameState): string {
   const winner = state.status.winner;
   if (!winner) return ` — drawn (${state.status.reason})`;
   return ` — ${winner} wins (${state.status.reason})`;
+}
+
+function endGameReasonLabel(reason: string): string {
+  if (reason === 'king-captured') return 'King captured';
+  if (reason === 'timeout') return 'Timeout';
+  if (reason === 'checkmate') return 'Checkmate';
+  if (reason === 'draw') return 'Draw';
+  return reason;
 }
