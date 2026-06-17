@@ -127,6 +127,7 @@ information, ranked integrity, and a serious engine track.
 - FUCI / engine submission — Stage E1+ post-distribution.
 - Half-open TCP smoke and browser-level E2E (Playwright) — out of scope for v1.
 - SSR exploration — server-rendered nav/pages to eliminate auth-state flash and unlock SEO for /articles + /@/handle. Current mitigation is the `mb_signed_in` localStorage hint in `account-nav.ts`. Likely trigger: wanting articles/profiles to rank in search.
+- Profile rating-history chart (profile overhaul **Phase 3**) — a lichess-style per-variant rating-over-time chart with a time-range toggle (1M/3M/6M/1Y/ALL), the centerpiece of the profile page. Phase 1 (ratings rail + two-column layout) and Phase 2 (header stat strip + date-grouped activity feed) shipped 2026-06-16; the chart is parked because it needs rated live **plus** enough per-game rating history to plot more than a flat line (rating deltas are already stored on `game_participants`). Trigger: rated standard flipped on (M3) and profiles accruing rated games. Promote to a GitHub issue when M3 lands.
 - Dark Xiangqi public launch — hidden/dev-only while the standard dark-chess
   launch gates remain open.
 - Variant generalization (live-room tenant) — **landed 2026-06-11/12** as
