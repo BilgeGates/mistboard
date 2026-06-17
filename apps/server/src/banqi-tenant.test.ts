@@ -154,3 +154,51 @@ test('banqi snapshot marks a PvE room (engine seat) as roomMode:pve with the eng
 test('banqi snapshot marks a human-vs-human room as roomMode:pvp (no engine id)', () => {
   assert.deepEqual(banqiSnapshotExtrasFor('human-1', 'human-2'), { roomMode: 'pvp' });
 });
+
+// The valid GameTermination values, kept in sync with the games_termination_check
+// CHECK constraint. A termination() output outside this set throws at the DB write
+// (a constraint violation), silently dropping the finished game — exactly the bug
+// that lost the first no-progress banqi draw, whose kernel reason 'no-progress' is
+// NOT a GameTermination ('progress-clock' is).
+const VALID_GAME_TERMINATIONS = new Set([
+  'king-captured',
+  'general-captured',
+  'timeout',
+  'checkmate',
+  'draw',
+  'resignation',
+  'engine-failure',
+  'worker-aborted',
+  'server-restarted',
+  'abandoned',
+  'abandonment',
+  'no-legal-moves',
+  'stalemate',
+  'repetition',
+  'progress-clock',
+  'truncated',
+  'race',
+]);
+
+test('every banqi kernel end reason maps to a persistable GameTermination', () => {
+  // The full BanqiGameEndReason union. If a reason is added to the kernel, add it
+  // here too — the point is that termination() must translate each into a value the
+  // DB CHECK accepts, never blind-cast an unknown string through.
+  const banqiEndReasons = [
+    'stalemate',
+    'no-progress',
+    'repetition',
+    'timeout',
+    'resignation',
+    'abandonment',
+  ];
+  for (const reason of banqiEndReasons) {
+    const mapped = banqiTenant.persistence.termination(reason);
+    assert.ok(
+      VALID_GAME_TERMINATIONS.has(mapped),
+      `banqi termination(${reason}) -> ${mapped} is not a persistable GameTermination`,
+    );
+  }
+  // The no-progress draw specifically — the reason that was being dropped.
+  assert.equal(banqiTenant.persistence.termination('no-progress'), 'progress-clock');
+});

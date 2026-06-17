@@ -200,7 +200,13 @@ export const banqiTenant: BanqiTenant = {
       if (winner === 'black') return 'black-wins';
       return 'draw';
     },
-    termination: (reason: string) => reason as persistence.GameTermination,
+    // The kernel spells the 40-ply no-progress draw 'no-progress'; the canonical
+    // GameTermination value (shared with xiangqi/mini-xiangqi/crossroads, and the
+    // only one the games_termination_check CHECK accepts) is 'progress-clock'.
+    // Translate it — a blind cast launders the invalid string past TS and only
+    // fails at the DB write, silently dropping every no-progress draw.
+    termination: (reason: string): persistence.GameTermination =>
+      reason === 'no-progress' ? 'progress-clock' : (reason as persistence.GameTermination),
     logKindPrefix: 'banqi',
     logLabel: 'Banqi',
   },

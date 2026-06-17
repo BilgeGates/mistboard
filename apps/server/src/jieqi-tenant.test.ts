@@ -143,3 +143,50 @@ test('jieqi snapshot marks a PvE room (engine seat) as roomMode:pve with the eng
 test('jieqi snapshot marks a human-vs-human room as roomMode:pvp (no engine id)', () => {
   assert.deepEqual(jieqiSnapshotExtrasFor('human-1', 'human-2'), { roomMode: 'pvp' });
 });
+
+// The valid GameTermination values, kept in sync with the games_termination_check
+// CHECK constraint. A termination() output outside this set throws at the DB write,
+// silently dropping the finished game. Jieqi's no-capture draw clock spells its reason
+// 'no-capture-clock', which is NOT a GameTermination ('progress-clock' is) — the same
+// latent bug that lost a no-progress banqi draw, before any jieqi game hit it.
+const VALID_GAME_TERMINATIONS = new Set([
+  'king-captured',
+  'general-captured',
+  'timeout',
+  'checkmate',
+  'draw',
+  'resignation',
+  'engine-failure',
+  'worker-aborted',
+  'server-restarted',
+  'abandoned',
+  'abandonment',
+  'no-legal-moves',
+  'stalemate',
+  'repetition',
+  'progress-clock',
+  'truncated',
+  'race',
+]);
+
+test('every jieqi kernel end reason maps to a persistable GameTermination', () => {
+  // The full JieqiGameEndReason union. If a reason is added to the kernel, add it here
+  // too — termination() must translate each into a value the DB CHECK accepts.
+  const jieqiEndReasons = [
+    'checkmate',
+    'stalemate',
+    'no-capture-clock',
+    'timeout',
+    'resignation',
+    'abandonment',
+  ];
+  for (const reason of jieqiEndReasons) {
+    const mapped = jieqiTenant.persistence.termination(reason);
+    assert.ok(
+      VALID_GAME_TERMINATIONS.has(mapped),
+      `jieqi termination(${reason}) -> ${mapped} is not a persistable GameTermination`,
+    );
+  }
+  // The no-capture draw clock specifically — the reason that would be dropped.
+  assert.equal(jieqiTenant.persistence.termination('no-capture-clock'), 'progress-clock');
+});

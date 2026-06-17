@@ -185,7 +185,12 @@ export const jieqiTenant: JieqiTenant = {
       if (winner === 'black') return 'black-wins';
       return 'draw';
     },
-    termination: (reason: string) => reason as persistence.GameTermination,
+    // The kernel spells the no-capture draw clock 'no-capture-clock'; the canonical
+    // GameTermination value (the only no-progress reason the games_termination_check
+    // CHECK accepts) is 'progress-clock'. Translate it — a blind cast launders the
+    // invalid string past TS and only fails at the DB write, silently dropping the game.
+    termination: (reason: string): persistence.GameTermination =>
+      reason === 'no-capture-clock' ? 'progress-clock' : (reason as persistence.GameTermination),
     logKindPrefix: 'jieqi',
     logLabel: 'Jieqi',
   },
