@@ -430,7 +430,8 @@
 }
 
 /* Variant rail entries: a board thumb makes each variant recognizable
-   at a glance. 80px is a chessground-safe multiple of 8. */
+   at a glance. 112px matches the leaderboard + profile rails (and the
+   marker reads bolder, closer to the homepage card); a multiple of 8. */
 .article-toc-nav a.article-variant-link {
   display: flex;
   align-items: center;
@@ -439,9 +440,9 @@
 }
 
 .article-variant-sidebar .articles-index-card-thumb {
-  flex: 0 0 80px;
-  width: 80px;
-  height: 80px;
+  flex: 0 0 112px;
+  width: 112px;
+  height: 112px;
   border-radius: 5px;
   box-shadow: none;
   /* Inactive entries sit back; the current variant (and hover) reads at

@@ -387,10 +387,10 @@
 }
 
 .profile-rating-thumb {
-  flex: 0 0 80px;
+  flex: 0 0 112px;
   display: flex;
-  width: 80px;
-  height: 80px;
+  width: 112px;
+  height: 112px;
 }
 
 .profile-rating-thumb svg {
@@ -856,10 +856,10 @@
 }
 
 .leaderboard-panel-thumb {
-  flex: 0 0 80px;
+  flex: 0 0 112px;
   display: flex;
-  width: 80px;
-  height: 80px;
+  width: 112px;
+  height: 112px;
 }
 
 .leaderboard-panel-thumb svg {

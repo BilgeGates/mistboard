@@ -194,7 +194,7 @@ function buildLeaderboardPanel(
 
   heading.append(title, subtitle);
   header.append(
-    buildVariantThumb(miniId, 80, 'leaderboard-panel-thumb', `${variantLabel} board`),
+    buildVariantThumb(miniId, 112, 'leaderboard-panel-thumb', `${variantLabel} board`),
     heading,
   );
   panel.append(header);
@@ -399,7 +399,7 @@ export function buildProfileRatings(ratings: ProfileBucketRating[]): HTMLElement
   return section;
 }
 
-// One variant row in the ratings rail: the variant's 80px mini-board (matching
+// One variant row in the ratings rail: the variant's 112px mini-board (matching
 // the leaderboard + rules rail) beside its name, rating, and games count.
 // Never-played / unrated variants dim back so the rail reads as intentional.
 function buildRatingRailRow(
@@ -420,7 +420,7 @@ function buildRatingRailRow(
     row.append(
       buildVariantThumb(
         miniId,
-        80,
+        112,
         'profile-rating-thumb',
         `${PROFILE_VARIANT_LABEL[variant]} board`,
       ),
