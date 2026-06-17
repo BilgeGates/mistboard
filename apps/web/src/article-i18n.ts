@@ -534,10 +534,10 @@ const ZH_HANS: Record<string, string> = {
     '炮吃子时不论等级。仅在吃子时，它可以沿一行或一列移动任意距离，并恰好越过中间一枚棋子，即炮架。它吃掉炮架另一侧的第一枚棋子，且仅当该棋子是已翻开的敌方棋子。如果那里是己方棋子或背面朝下的棋子，则该线被挡住，炮无法越过它。炮架本身可以是己方、敌方或背面朝下的棋子。',
   'A non-capturing cannon move is still just one square orthogonally, like every other piece. Because a cannon needs a screen to capture, it cannot take an adjacent piece. As a target, an adjacent cannon can be taken by a general, advisor, elephant, chariot, or horse, but not by a soldier.':
     '炮在不吃子时，与其他棋子一样，也只能沿上下左右走一格。由于炮吃子需要炮架，它不能吃相邻的棋子。作为被吃目标，相邻的炮可以被将、士、象、车或马吃掉，但不能被卒吃掉。',
-  'You win when your opponent has no legal move on their turn. Most often that means every enemy piece has been captured, but a boxed-in opponent can also lose. The general is not royal here: capturing it is progress, not victory, and the game continues until one side is wiped out or stuck.':
-    '当对手轮到行棋却没有合法着法时，你获胜。最常见的情形是敌方棋子全部被吃，但被困死、无路可走的对手同样会输。这里的将不是王棋：吃掉它只是进展，而非胜利，棋局会一直进行，直到一方被吃光或被困死。',
-  'Draw and cycle rules vary more than the core capture rules. Mistboard uses two automatic draws: 40 plies (40 individual turns) with no flip and no capture, and threefold repetition (the same position reached three times). Both counters reset on any flip or capture, since those moves cannot be taken back. There is no separate perpetual-chase loss unless we later add a tournament adjudicator. Over the board, agree on the no-progress and repetition convention before play.':
-    '和棋与循环规则的分歧比核心吃子规则更大。Mistboard 采用两种自动和棋：连续 40 步（双方合计 40 个单步）内既无翻子也无吃子，以及三次重复局面（同一局面出现三次）。任何翻子或吃子都会重置这两个计数，因为这类着法无法收回。除非日后加入比赛裁决，否则不另设长捉判负。线下对弈时，请在开局前先约定无进展和重复局面的处理方式。',
+  'You win when your opponent has no legal move — usually because every enemy piece is captured, sometimes because they are boxed in. The general is not royal: capturing it is progress, not the win, and play continues until one side is wiped out or stuck.':
+    '当对手轮到自己却无棋可走时，你获胜——通常是因为敌方棋子被全部吃光，有时则是被困死、无路可走。这里的将不是王棋：吃掉它只是进展，而非胜利，棋局会一直进行到一方被吃光或被困死为止。',
+  'Mistboard draws a game two ways: 40 plies (single moves) with no flip or capture, or threefold repetition — the same position three times. Either counter resets on any flip or capture, since those cannot be taken back. There is no perpetual-chase rule; over the board, agree the no-progress and repetition limits before you start.':
+    'Mistboard 有两种自动和棋：连续 40 步（单步）内没有翻子也没有吃子，或者同一局面出现三次的三次重复。任何翻子或吃子都会让相应计数清零，因为这类着法无法收回。这里没有长捉判负规则；线下对弈时，请在开局前约定无进展与重复局面的处理标准。',
   'How positions work': '局面是如何运作的',
   'This is the strategy layer behind the rules. Banqi starts random, but it does not stay random: every flip changes the local fight, every captured piece changes what can still be hiding, and every face-down piece changes the shape of the board.':
     '这是规则背后的策略层面。暗棋开局是随机的，但不会一直随机：每一次翻子都会改变局部的战斗，每吃掉一枚棋子都会改变还可能藏着什么，每一枚背面朝下的棋子都会改变棋盘的形状。',
@@ -1068,10 +1068,10 @@ const ZH_HANT: Record<string, string> = {
     '砲吃子時不論等級。僅在吃子時，它可以沿一行或一列移動任意距離，並恰好越過中間一枚棋子，即砲架。它吃掉砲架另一側的第一枚棋子，且僅當該棋子是已翻開的敵方棋子。如果那裡是己方棋子或背面朝下的棋子，則該線被擋住，砲無法越過它。砲架本身可以是己方、敵方或背面朝下的棋子。',
   'A non-capturing cannon move is still just one square orthogonally, like every other piece. Because a cannon needs a screen to capture, it cannot take an adjacent piece. As a target, an adjacent cannon can be taken by a general, advisor, elephant, chariot, or horse, but not by a soldier.':
     '砲在不吃子時，與其他棋子一樣，也只能沿上下左右走一格。由於砲吃子需要砲架，它不能吃相鄰的棋子。作為被吃目標，相鄰的砲可以被將、士、象、車或馬吃掉，但不能被卒吃掉。',
-  'You win when your opponent has no legal move on their turn. Most often that means every enemy piece has been captured, but a boxed-in opponent can also lose. The general is not royal here: capturing it is progress, not victory, and the game continues until one side is wiped out or stuck.':
-    '當對手輪到行棋卻沒有合法著法時，你獲勝。最常見的情形是敵方棋子全部被吃，但被困死、無路可走的對手同樣會輸。這裡的將不是王棋：吃掉它只是進展，而非勝利，棋局會一直進行，直到一方被吃光或被困死。',
-  'Draw and cycle rules vary more than the core capture rules. Mistboard uses two automatic draws: 40 plies (40 individual turns) with no flip and no capture, and threefold repetition (the same position reached three times). Both counters reset on any flip or capture, since those moves cannot be taken back. There is no separate perpetual-chase loss unless we later add a tournament adjudicator. Over the board, agree on the no-progress and repetition convention before play.':
-    '和棋與循環規則的分歧比核心吃子規則更大。Mistboard 採用兩種自動和棋：連續 40 步（雙方合計 40 個單步）內既無翻子也無吃子，以及三次重複局面（同一局面出現三次）。任何翻子或吃子都會重置這兩個計數，因為這類著法無法收回。除非日後加入比賽裁決，否則不另設長捉判負。線下對弈時，請在開局前先約定無進展和重複局面的處理方式。',
+  'You win when your opponent has no legal move — usually because every enemy piece is captured, sometimes because they are boxed in. The general is not royal: capturing it is progress, not the win, and play continues until one side is wiped out or stuck.':
+    '當對手輪到自己卻無棋可走時，你獲勝——通常是因為敵方棋子被全部吃光，有時則是被困死、無路可走。這裡的將不是王棋：吃掉它只是進展，而非勝利，棋局會一直進行到一方被吃光或被困死為止。',
+  'Mistboard draws a game two ways: 40 plies (single moves) with no flip or capture, or threefold repetition — the same position three times. Either counter resets on any flip or capture, since those cannot be taken back. There is no perpetual-chase rule; over the board, agree the no-progress and repetition limits before you start.':
+    'Mistboard 有兩種自動和棋：連續 40 步（單步）內沒有翻子也沒有吃子，或者同一局面出現三次的三次重複。任何翻子或吃子都會讓相應計數清零，因為這類著法無法收回。這裡沒有長捉判負規則；線下對弈時，請在開局前約定無進展與重複局面的處理標準。',
   'How positions work': '局面是如何運作的',
   'This is the strategy layer behind the rules. Banqi starts random, but it does not stay random: every flip changes the local fight, every captured piece changes what can still be hiding, and every face-down piece changes the shape of the board.':
     '這是規則背後的策略層面。暗棋開局是隨機的，但不會一直隨機：每一次翻子都會改變局部的戰鬥，每吃掉一枚棋子都會改變還可能藏著什麼，每一枚背面朝下的棋子都會改變棋盤的形狀。',

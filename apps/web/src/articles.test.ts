@@ -212,7 +212,7 @@ describe('rules variant sidebar', () => {
     expect(pageText).not.toContain('[VISUAL:');
     expect(pageText).toContain('General > Advisor > Elephant > Chariot > Horse > Soldier');
     expect(pageText).toContain('The cannon sits outside this rank ladder');
-    expect(pageText).toContain('40 plies (40 individual turns) with no flip and no capture');
+    expect(pageText).toContain('40 plies (single moves) with no flip or capture');
     expect(pageText).toContain('threefold repetition');
     expect(pageText).toContain('Taiwanese rules (this page)');
     expect(pageText).toContain('Hong Kong rules');

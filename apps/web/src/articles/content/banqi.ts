@@ -108,12 +108,12 @@ export const banqiArticle: Article = {
           {
             kind: 'paragraph',
             text:
-              'You win when your opponent has no legal move on their turn. Most often that means every enemy piece has been captured, but a boxed-in opponent can also lose. The general is not royal here: capturing it is progress, not victory, and the game continues until one side is wiped out or stuck.',
+              'You win when your opponent has no legal move — usually because every enemy piece is captured, sometimes because they are boxed in. The general is not royal: capturing it is progress, not the win, and play continues until one side is wiped out or stuck.',
           },
           {
             kind: 'paragraph',
             text:
-              'Draw and cycle rules vary more than the core capture rules. Mistboard uses two automatic draws: 40 plies (40 individual turns) with no flip and no capture, and threefold repetition (the same position reached three times). Both counters reset on any flip or capture, since those moves cannot be taken back. There is no separate perpetual-chase loss unless we later add a tournament adjudicator. Over the board, agree on the no-progress and repetition convention before play.',
+              'Mistboard draws a game two ways: 40 plies (single moves) with no flip or capture, or threefold repetition — the same position three times. Either counter resets on any flip or capture, since those cannot be taken back. There is no perpetual-chase rule; over the board, agree the no-progress and repetition limits before you start.',
           },
         ],
       },
