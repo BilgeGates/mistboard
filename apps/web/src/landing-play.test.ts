@@ -274,10 +274,11 @@ describe('landing play panel', () => {
     selectModalVariant('crossroads-chess');
     const engineSelect = document.querySelector<HTMLSelectElement>('select[aria-label="Engine"]');
     expect(engineSelect).not.toBeNull();
+    // Strongest-first ordering: toughest opponent sits at the top of the picker.
     expect([...engineSelect!.options].map((option) => [option.value, option.textContent])).toEqual([
-      ['fairy-stockfish-crossroads-amateur', 'Fairy Stockfish - Amateur'],
-      ['fairy-stockfish-crossroads-strong', 'Fairy Stockfish - Strong'],
       ['fairy-stockfish-crossroads-very-strong', 'Fairy Stockfish - Strongest'],
+      ['fairy-stockfish-crossroads-strong', 'Fairy Stockfish - Strong'],
+      ['fairy-stockfish-crossroads-amateur', 'Fairy Stockfish - Amateur'],
     ]);
     expect(engineSelect!.value).toBe('fairy-stockfish-crossroads-strong');
     selectModalEngine('fairy-stockfish-crossroads-very-strong');
@@ -294,6 +295,58 @@ describe('landing play panel', () => {
       engineId: 'fairy-stockfish-crossroads-very-strong',
     });
     expect(window.location.pathname).toBe('/room/dchess_engine');
+  });
+
+  it('remembers each variant engine pick independently (no cross-variant clobber)', () => {
+    vi.stubEnv('VITE_CROSSROADS_CHESS_ENABLED', 'true');
+    vi.stubEnv('VITE_JIEQI_ENABLED', 'true');
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => jsonResponse({ playing: 0, online: 0 })),
+    );
+    const panel = buildLandingPlayPanel([]);
+    document.body.append(panel);
+
+    openPlaySetup(panel, 'Play the engine');
+    // Pick the strongest Crossroads engine (the default is the middle tier)...
+    selectModalVariant('crossroads-chess');
+    selectModalEngine('fairy-stockfish-crossroads-very-strong');
+    // ...then visit Jieqi (which resolves to its own engine)...
+    selectModalVariant('jieqi');
+    expect(document.querySelector<HTMLSelectElement>('select[aria-label="Engine"]')!.value).toBe(
+      'pikafish-jieqi-strong',
+    );
+    // ...and back to Crossroads: the earlier pick must survive the round-trip.
+    selectModalVariant('crossroads-chess');
+    expect(document.querySelector<HTMLSelectElement>('select[aria-label="Engine"]')!.value).toBe(
+      'fairy-stockfish-crossroads-very-strong',
+    );
+  });
+
+  it('makes the last-played engine sticky across reopening the setup dialog', async () => {
+    vi.stubEnv('VITE_CROSSROADS_CHESS_ENABLED', 'true');
+    const fetchSpy = vi.fn(async (input: RequestInfo | URL, _init?: RequestInit) => {
+      if (String(input) === '/api/live-stats') return jsonResponse({ playing: 0, online: 0 });
+      if (String(input) === '/api/rooms') return jsonResponse({ url: '/room/dchess_engine' });
+      return jsonResponse({}, { status: 404 });
+    });
+    vi.stubGlobal('fetch', fetchSpy);
+    const panel = buildLandingPlayPanel([]);
+    document.body.append(panel);
+
+    openPlaySetup(panel, 'Play the engine');
+    selectModalVariant('crossroads-chess');
+    selectModalEngine('fairy-stockfish-crossroads-very-strong');
+    clickModalColor('Black');
+    clickModalButton('Start game');
+    await flushPromises();
+
+    // Reopen: the strongest tier (a non-default pick) should be preselected.
+    openPlaySetup(panel, 'Play the engine');
+    selectModalVariant('crossroads-chess');
+    expect(document.querySelector<HTMLSelectElement>('select[aria-label="Engine"]')!.value).toBe(
+      'fairy-stockfish-crossroads-very-strong',
+    );
   });
 
   it('shows a specific error when Crossroads room creation is disabled server-side', async () => {

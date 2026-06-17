@@ -86,7 +86,12 @@ type LandingRoomSetup = {
   preferredColor: LandingColorPreference;
 };
 type LandingSetupPreference = {
+  // Legacy single-slot engine pick (pre per-variant). Still read/written for
+  // back-compat; `engineIdByGameSpec` is the source of truth going forward.
   engineId?: string;
+  // Last-played engine per variant, so picking a banqi engine never clobbers the
+  // remembered jieqi engine (and vice versa).
+  engineIdByGameSpec?: Partial<Record<LandingGameSpecId, string>>;
   gameSpecId?: LandingGameSpecId;
   preferredColor?: LandingColorPreference;
   rated?: boolean;
@@ -590,7 +595,19 @@ function openLandingSetupDialog(choice: LandingPlayChoice): void {
   // real-time presets or the correspondence day-chips show; only ever flips to
   // 'correspondence' when that segment is actually offered (correspondenceAvailable).
   let selectedTimeMode: 'realtime' | 'correspondence' = 'realtime';
-  let selectedEngineId = storedPreference.engineId ?? choice.engineId;
+  // Engine choice is remembered per variant rather than sharing one slot across
+  // all PvE variants. Seed from the stored per-variant map; migrate the legacy
+  // single engineId onto the variant the dialog opens on (the last one played) so
+  // existing players keep their pick.
+  const engineByGameSpec = new Map<LandingGameSpecId, string>();
+  for (const [spec, id] of Object.entries(storedPreference.engineIdByGameSpec ?? {})) {
+    if (id) engineByGameSpec.set(spec as LandingGameSpecId, id);
+  }
+  if (storedPreference.engineId && !engineByGameSpec.has(selectedGameSpecId)) {
+    engineByGameSpec.set(selectedGameSpecId, storedPreference.engineId);
+  }
+  let selectedEngineId =
+    engineByGameSpec.get(selectedGameSpecId) ?? storedPreference.engineId ?? choice.engineId;
   let preferredColor: LandingColorPreference =
     storedPreference.preferredColor ?? loadStoredColorPreference();
   let syncGameSpecificSections = () => {};
@@ -684,8 +701,9 @@ function openLandingSetupDialog(choice: LandingPlayChoice): void {
       ? buildEngineSetupSection(
           choice.engines ?? fallbackPlayableEngines(),
           selectedEngineId,
-          (engineId) => {
+          (engineId, gameSpecId) => {
             selectedEngineId = engineId;
+            engineByGameSpec.set(gameSpecId, engineId);
           },
         )
       : null;
@@ -971,7 +989,10 @@ function openLandingSetupDialog(choice: LandingPlayChoice): void {
     if (startGroup) startGroup.hidden = !capabilities.supportsStartFormat;
     if (ratingSection) ratingSection.hidden = !capabilities.supportsRated;
     if (engineSection) {
-      engineSection.sync(selectedGameSpecId, selectedEngineId);
+      engineSection.sync(
+        selectedGameSpecId,
+        engineByGameSpec.get(selectedGameSpecId) ?? selectedEngineId,
+      );
       engineSection.section.hidden =
         selectedGameSpecId !== DARK_CHESS_SPEC_ID &&
         !webVariantTenantForSpecId(selectedGameSpecId)?.landing?.engineOptions;
@@ -1129,7 +1150,7 @@ function accountLink(label: string): HTMLAnchorElement {
 function buildEngineSetupSection(
   engines: PlayableEngine[],
   selectedEngineId: string | undefined,
-  onSelect: (engineId: string) => void,
+  onSelect: (engineId: string, gameSpecId: LandingGameSpecId) => void,
 ): {
   section: HTMLElement;
   sync(gameSpecId: LandingGameSpecId, selectedEngineId: string | undefined): void;
@@ -1152,7 +1173,7 @@ function buildEngineSetupSection(
       currentEngineId && availableEngines.some((engine) => engine.id === currentEngineId)
         ? currentEngineId
         : defaultEngineIdForGameSpec(gameSpecId, availableEngines);
-    if (selected) onSelect(selected);
+    if (selected) onSelect(selected, gameSpecId);
 
     // Streamlined release: a single player-facing dark-chess engine (Misty).
     // Show it as a static label; Crossroads has three strengths, so it renders a
@@ -1175,7 +1196,7 @@ function buildEngineSetupSection(
       select.append(option);
     }
     select.value = selected;
-    select.addEventListener('change', () => onSelect(select.value));
+    select.addEventListener('change', () => onSelect(select.value, gameSpecId));
     body.append(select);
   };
 
@@ -1268,6 +1289,7 @@ function loadSetupPreference(mode: LandingPlayMode): LandingSetupPreference {
     if (!parsed || typeof parsed !== 'object') return {};
     return {
       engineId: typeof parsed.engineId === 'string' ? parsed.engineId : undefined,
+      engineIdByGameSpec: normalizeStoredEngineMap(parsed.engineIdByGameSpec),
       gameSpecId: normalizeStoredGameSpecId(parsed.gameSpecId),
       preferredColor: normalizeStoredColorPreference(parsed.preferredColor),
       rated: typeof parsed.rated === 'boolean' ? parsed.rated : undefined,
@@ -1285,12 +1307,19 @@ function storeSetupPreference(
   timePresetId: LandingTimePresetId,
   engineId?: string,
 ): void {
+  // Merge into the existing per-variant engine map so persisting one variant's
+  // pick never drops another variant's remembered engine.
+  const engineIdByGameSpec = { ...(loadSetupPreference(mode).engineIdByGameSpec ?? {}) };
+  if (mode === 'pve' && engineId) engineIdByGameSpec[setup.gameSpecId] = engineId;
   const preference: LandingSetupPreference = {
     gameSpecId: setup.gameSpecId,
     rated: setup.rated,
     startFormat: setup.startFormat,
     timePresetId,
   };
+  if (Object.keys(engineIdByGameSpec).length > 0) {
+    preference.engineIdByGameSpec = engineIdByGameSpec;
+  }
   if (mode !== 'lobby') preference.preferredColor = setup.preferredColor;
   if (mode === 'pve' && engineId) preference.engineId = engineId;
   try {
@@ -1311,6 +1340,22 @@ function normalizeStoredGameSpecId(value: unknown): LandingGameSpecId | undefine
   )
     return CROSSROADS_CHESS_SPEC_ID;
   return undefined;
+}
+
+function normalizeStoredEngineMap(
+  value: unknown,
+): Partial<Record<LandingGameSpecId, string>> | undefined {
+  if (!value || typeof value !== 'object') return undefined;
+  const out: Record<string, string> = {};
+  for (const [spec, id] of Object.entries(value as Record<string, unknown>)) {
+    if (typeof id === 'string') out[spec] = id;
+  }
+  // Stale entries (engine ids no longer valid for a variant) are harmless: the
+  // engine section re-validates against the variant's current option list and
+  // falls back to that variant's default.
+  return Object.keys(out).length > 0
+    ? (out as Partial<Record<LandingGameSpecId, string>>)
+    : undefined;
 }
 
 function normalizeStoredColorPreference(value: unknown): LandingColorPreference | undefined {

@@ -209,10 +209,11 @@ const WEB_VARIANT_TENANTS: readonly WebVariantTenant[] = [
       timePresetIds: ['1m1', '3m2', '5m5'],
       offerInMenu: jieqiEnabled,
       acceptsDeepLink: jieqiEnabled,
+      // Ordered strongest-first so the toughest opponent sits at the top of the picker.
       engineOptions: [
         {
-          id: 'pikafish-jieqi-amateur',
-          name: 'PikaJieQi - Amateur',
+          id: 'pikafish-jieqi-strongest',
+          name: 'PikaJieQi - Strongest',
           familyName: 'PikaJieQi',
           kind: 'container',
         },
@@ -223,8 +224,8 @@ const WEB_VARIANT_TENANTS: readonly WebVariantTenant[] = [
           kind: 'container',
         },
         {
-          id: 'pikafish-jieqi-strongest',
-          name: 'PikaJieQi - Strongest',
+          id: 'pikafish-jieqi-amateur',
+          name: 'PikaJieQi - Amateur',
           familyName: 'PikaJieQi',
           kind: 'container',
         },
@@ -281,10 +282,11 @@ const WEB_VARIANT_TENANTS: readonly WebVariantTenant[] = [
       timePresetIds: ['1m1', '3m2', '5m5'],
       offerInMenu: banqiEnabled,
       acceptsDeepLink: banqiEnabled,
+      // Ordered strongest-first so the toughest opponent sits at the top of the picker.
       engineOptions: [
         {
-          id: 'misty-banqi-amateur',
-          name: 'MistyBanqi - Amateur',
+          id: 'misty-banqi-strongest',
+          name: 'MistyBanqi - Strongest',
           familyName: 'MistyBanqi',
           kind: 'container',
         },
@@ -295,8 +297,8 @@ const WEB_VARIANT_TENANTS: readonly WebVariantTenant[] = [
           kind: 'container',
         },
         {
-          id: 'misty-banqi-strongest',
-          name: 'MistyBanqi - Strongest',
+          id: 'misty-banqi-amateur',
+          name: 'MistyBanqi - Amateur',
           familyName: 'MistyBanqi',
           kind: 'container',
         },
@@ -376,10 +378,11 @@ const WEB_VARIANT_TENANTS: readonly WebVariantTenant[] = [
       timePresetIds: ['1m1', '3m2', '5m5'],
       offerInMenu: crossroadsChessEnabled,
       acceptsDeepLink: crossroadsChessEnabled,
+      // Ordered strongest-first so the toughest opponent sits at the top of the picker.
       engineOptions: [
         {
-          id: 'fairy-stockfish-crossroads-amateur',
-          name: 'Fairy Stockfish - Amateur',
+          id: 'fairy-stockfish-crossroads-very-strong',
+          name: 'Fairy Stockfish - Strongest',
           familyName: 'Fairy Stockfish',
           kind: 'container',
         },
@@ -390,8 +393,8 @@ const WEB_VARIANT_TENANTS: readonly WebVariantTenant[] = [
           kind: 'container',
         },
         {
-          id: 'fairy-stockfish-crossroads-very-strong',
-          name: 'Fairy Stockfish - Strongest',
+          id: 'fairy-stockfish-crossroads-amateur',
+          name: 'Fairy Stockfish - Amateur',
           familyName: 'Fairy Stockfish',
           kind: 'container',
         },
