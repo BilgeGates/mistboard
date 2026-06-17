@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
-describe('profile rated grid', () => {
+describe('profile ratings rail', () => {
   afterEach(() => {
     vi.unstubAllEnvs();
     vi.resetModules();
@@ -16,7 +16,7 @@ describe('profile rated grid', () => {
     expect(section.textContent).toContain('Dark Chess');
     expect(section.textContent).toContain('Dark Mini Xiangqi');
     expect(section.textContent).toContain('Crossroads Chess');
-    expect(section.querySelectorAll('.profile-rating-cell-empty')).toHaveLength(3);
+    expect(section.querySelectorAll('.profile-rating-row-empty')).toHaveLength(3);
   });
 
   it('shows Crossroads rated leaderboard panels even when play is not enabled', async () => {

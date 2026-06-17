@@ -88,11 +88,11 @@ export async function mountProfile(root: HTMLElement, handle: string): Promise<v
     return;
   }
 
-  shell.append(
-    buildProfileHeader(profile),
-    buildProfileRatings(profile.ratings),
-    buildProfileGames(profile),
-  );
+  const body = document.createElement('div');
+  body.className = 'profile-body';
+  body.append(buildProfileRatings(profile.ratings), buildProfileGames(profile));
+
+  shell.append(buildProfileHeader(profile), body);
 }
 
 export async function mountLeaderboard(root: HTMLElement): Promise<void> {
@@ -316,7 +316,7 @@ export function buildProfileRatings(ratings: ProfileBucketRating[]): HTMLElement
   section.className = 'profile-ratings';
 
   const heading = document.createElement('h2');
-  heading.textContent = 'Rated';
+  heading.textContent = 'Ratings';
   section.append(heading);
 
   const variantsShown = PROFILE_VARIANT_ORDER;
@@ -329,80 +329,83 @@ export function buildProfileRatings(ratings: ProfileBucketRating[]): HTMLElement
     return section;
   }
 
-  const grid = document.createElement('div');
-  grid.className = 'profile-ratings-grid';
+  const rail = document.createElement('div');
+  rail.className = 'profile-ratings-rail';
 
   for (const variant of variantsShown) {
-    const label = document.createElement('span');
-    label.className = 'profile-ratings-variant';
-
-    const miniId = variantMiniIdForRating(variant);
-    if (miniId) {
-      label.append(
-        buildVariantThumb(
-          miniId,
-          36,
-          'profile-ratings-variant-thumb',
-          `${PROFILE_VARIANT_LABEL[variant]} board`,
-        ),
-      );
-    }
-
-    const name = document.createElement('span');
-    name.className = 'profile-ratings-variant-name';
-    name.textContent = PROFILE_VARIANT_LABEL[variant];
-    label.append(name);
-
-    grid.append(label);
-    grid.append(buildRatingCell(ratings, variant));
+    rail.append(buildRatingRailRow(ratings, variant));
   }
 
-  section.append(grid);
+  section.append(rail);
   return section;
 }
 
-function buildRatingCell(
+// One variant row in the ratings rail: the variant's 80px mini-board (matching
+// the leaderboard + rules rail) beside its name, rating, and games count.
+// Never-played / unrated variants dim back so the rail reads as intentional.
+function buildRatingRailRow(
   ratings: ProfileBucketRating[],
   variant: ProfileRatingVariant,
 ): HTMLElement {
-  const cell = document.createElement('div');
-  cell.className = 'profile-rating-cell';
+  const row = document.createElement('div');
+  row.className = 'profile-rating-row';
 
   const bucket = ratings.find((r) => r.variant === variant);
+  // "Rated" hinges on the rating itself, not the total games count: a rated
+  // player always has rated games, so this is the correct (and demo-safe) gate.
+  const isRated = bucket != null && bucket.eloRating != null && bucket.ratedGamesPlayed > 0;
+  if (!isRated) row.classList.add('profile-rating-row-empty');
+
+  const miniId = variantMiniIdForRating(variant);
+  if (miniId) {
+    row.append(
+      buildVariantThumb(
+        miniId,
+        80,
+        'profile-rating-thumb',
+        `${PROFILE_VARIANT_LABEL[variant]} board`,
+      ),
+    );
+  }
+
+  const meta = document.createElement('div');
+  meta.className = 'profile-rating-meta';
+
+  const name = document.createElement('span');
+  name.className = 'profile-rating-name';
+  name.textContent = PROFILE_VARIANT_LABEL[variant];
+  meta.append(name);
 
   const value = document.createElement('span');
   value.className = 'profile-rating-value';
 
-  if (!bucket || bucket.totalGamesPlayed === 0) {
-    cell.classList.add('profile-rating-cell-empty');
-    value.textContent = '—';
-    value.classList.add('profile-rating-value-empty');
-    cell.append(value);
-    return cell;
-  }
+  if (bucket != null && bucket.eloRating != null && bucket.ratedGamesPlayed > 0) {
+    value.textContent = String(bucket.eloRating);
+    if (bucket.provisional) {
+      // "?" marks a provisional rating (still settling). RD itself is not shown.
+      const q = document.createElement('span');
+      q.className = 'profile-rating-q';
+      q.textContent = '?';
+      value.append(q);
+    }
+    meta.append(value);
 
-  if (bucket.eloRating == null) {
-    cell.classList.add('profile-rating-cell-unrated');
-    value.textContent = 'Unrated';
-    value.classList.add('profile-rating-value-unrated');
-    cell.append(value);
-    return cell;
-  }
-
-  cell.classList.add('profile-rating-cell-rated');
-  // "?" marks a provisional rating (still settling). RD itself is not shown.
-  value.textContent = bucket.provisional ? `${bucket.eloRating}?` : String(bucket.eloRating);
-  if (bucket.provisional) value.classList.add('profile-rating-value-provisional');
-  cell.append(value);
-
-  if (bucket.ratedGamesPlayed > 0) {
     const count = document.createElement('span');
     count.className = 'profile-rating-games';
     count.textContent = `${bucket.ratedGamesPlayed} rated ${bucket.ratedGamesPlayed === 1 ? 'game' : 'games'}`;
-    cell.append(count);
+    meta.append(count);
+  } else if (bucket != null && bucket.totalGamesPlayed > 0) {
+    value.textContent = 'Unrated';
+    value.classList.add('profile-rating-value-unrated');
+    meta.append(value);
+  } else {
+    value.textContent = '—';
+    value.classList.add('profile-rating-value-empty');
+    meta.append(value);
   }
 
-  return cell;
+  row.append(meta);
+  return row;
 }
 
 function buildProfileGames(profile: UserProfile): HTMLElement {

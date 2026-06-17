@@ -11,6 +11,19 @@
   width: min(460px, calc(100% - 24px));
 }
 
+.profile-shell {
+  width: min(1000px, calc(100% - 24px));
+}
+
+/* Two-column profile body: a ratings rail beside the games/activity column. */
+.profile-body {
+  display: grid;
+  grid-template-columns: 312px minmax(0, 1fr);
+  gap: 16px;
+  align-items: start;
+  margin-top: 16px;
+}
+
 .account-settings-shell {
   display: grid;
   gap: 12px;
@@ -292,7 +305,7 @@
 }
 
 .profile-ratings {
-  margin-top: 12px;
+  margin-top: 0;
   padding: 0;
   overflow: hidden;
 }
@@ -313,118 +326,104 @@
   font-size: 14px;
 }
 
-.profile-ratings-grid {
-  display: grid;
-  grid-template-columns: minmax(150px, 220px) minmax(160px, 1fr);
-  gap: 8px;
-  align-items: stretch;
-  padding: 16px;
+.profile-ratings-rail {
+  display: flex;
+  flex-direction: column;
 }
 
-.profile-ratings-variant {
+/* One variant row: 80px mini-board (matching the leaderboard + rules rail)
+   beside the variant name, rating, and games count. */
+.profile-rating-row {
   display: flex;
   align-items: center;
-  gap: 10px;
-  min-height: 64px;
-  padding: 10px 12px;
-  border-left: 3px solid var(--site-accent);
-  border-radius: 6px 3px 3px 6px;
-  background: var(--site-panel-soft);
-  color: var(--site-text);
-  font-size: 15px;
-  font-weight: 600;
+  gap: 12px;
+  padding: 11px 16px;
+  border-bottom: 1px solid var(--site-border-soft);
 }
 
-.profile-ratings-variant-thumb {
-  flex: 0 0 36px;
+.profile-rating-row:last-child {
+  border-bottom: none;
+}
+
+.profile-rating-row:hover {
+  background: var(--site-zebra);
+}
+
+/* Never-played / unrated variants sit back so the rail reads intentional. */
+.profile-rating-row-empty {
+  opacity: 0.5;
+}
+
+.profile-rating-thumb {
+  flex: 0 0 80px;
   display: flex;
-  width: 36px;
-  height: 36px;
+  width: 80px;
+  height: 80px;
 }
 
-.profile-ratings-variant-thumb svg {
+.profile-rating-thumb svg {
   display: block;
   width: 100%;
   height: 100%;
 }
 
-.profile-ratings-variant-name {
-  min-width: 0;
-}
-
-.profile-rating-cell {
+.profile-rating-meta {
   display: flex;
   flex-direction: column;
-  justify-content: center;
-  gap: 3px;
+  gap: 1px;
   min-width: 0;
-  min-height: 64px;
-  padding: 10px 12px;
-  border: 1px solid var(--site-border-soft);
-  border-radius: var(--site-radius-sm);
-  background: var(--site-panel);
 }
 
-.profile-rating-cell-empty {
-  background: var(--site-panel-soft);
-}
-
-.profile-rating-cell-rated {
-  border-color: color-mix(in srgb, var(--site-accent) 32%, var(--site-border));
-  background: color-mix(in srgb, var(--site-accent-soft) 38%, var(--site-panel));
+.profile-rating-name {
+  color: var(--site-muted);
+  font-size: 10px;
+  font-weight: 750;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
 }
 
 .profile-rating-value {
   color: var(--site-heading);
-  font-size: 18px;
+  font-size: 20px;
   font-weight: 700;
   font-variant-numeric: tabular-nums;
-  line-height: 1.2;
+  line-height: 1.25;
+}
+
+.profile-rating-q {
+  margin-left: 1px;
+  color: var(--site-muted);
+  font-size: 14px;
+  font-weight: 500;
 }
 
 .profile-rating-value-empty {
   color: color-mix(in srgb, var(--site-muted) 55%, transparent);
+  font-size: 18px;
   font-weight: 500;
 }
 
 .profile-rating-value-unrated {
   color: var(--site-muted);
+  font-size: 15px;
   font-weight: 500;
   font-style: italic;
 }
 
 .profile-rating-games {
   color: var(--site-muted);
-  font-size: 13px;
+  font-size: 12px;
   line-height: 1.2;
 }
 
 @media (max-width: 720px) {
-  .profile-ratings-grid {
+  .profile-body {
     grid-template-columns: 1fr;
-    gap: 8px;
-    padding: 14px;
-  }
-
-  .profile-ratings-variant {
-    min-height: 0;
-    margin-top: 8px;
-    border-radius: var(--site-radius-sm);
-  }
-
-  .profile-ratings-grid > .profile-ratings-variant:first-of-type {
-    margin-top: 0;
-  }
-
-  .profile-rating-cell {
-    row-gap: 2px;
-    min-height: 54px;
-    align-items: center;
   }
 }
 
 .profile-games {
-  margin-top: 12px;
+  margin-top: 0;
   padding: 0;
   overflow: hidden;
 }
