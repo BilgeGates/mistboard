@@ -39,7 +39,10 @@ type CtxOverrides = Partial<{
   variantDetail: string | null;
 }>;
 
-function chromeHarness(overrides: CtxOverrides = {}) {
+function chromeHarness(
+  overrides: CtxOverrides = {},
+  tenantOverride: WebVariantTenant<Color> = tenant,
+) {
   const ctx: TenantChromeContext<Color> = {
     view: () => overrides.view ?? playingView(),
     seat: () => overrides.seat ?? 'white',
@@ -61,7 +64,7 @@ function chromeHarness(overrides: CtxOverrides = {}) {
       : {}),
   };
   const refs = refsFixture();
-  const chrome = createTenantRoomChrome(tenant, ctx);
+  const chrome = createTenantRoomChrome(tenantOverride, ctx);
   chrome.setRenderTarget(refs, { reconnectNow: () => {}, sendSocket: () => true });
   return { chrome, refs };
 }
@@ -128,6 +131,24 @@ describe('tenant room chrome meta and invite emphasis', () => {
     chrome.renderMeta();
     expect(refs.gameInfo.textContent).toContain('Testboard');
     expect(refs.gameInfo.textContent).not.toContain('·');
+  });
+
+  it('labels the seat by capitalize(seat) without a seatLabel hook', () => {
+    const { chrome, refs } = chromeHarness({ seat: 'white' });
+    chrome.renderMeta();
+    expect(refs.gameInfo.textContent).toContain('White');
+  });
+
+  it('labels the seat via the tenant seatLabel override (banqi ink/sequence)', () => {
+    // Banqi-style: seat names are not colors, so the chrome must honor the tenant's label.
+    const labelTenant: WebVariantTenant<Color> = {
+      ...tenant,
+      seatLabel: (seat) => (seat === 'white' ? 'First' : 'Second'),
+    };
+    const { chrome, refs } = chromeHarness({ seat: 'white' }, labelTenant);
+    chrome.renderMeta();
+    expect(refs.gameInfo.textContent).toContain('First');
+    expect(refs.gameInfo.textContent).not.toContain('White');
   });
 
   it('marks copy-invite primary only while waiting for the opponent', () => {

@@ -133,6 +133,23 @@ function connection(): TenantConnectionState {
 
 // ── Shared tenant room chrome ────────────────────────────────────────────────
 
+// Banqi seats are first/second mover ('red' seat = first); the actual ink is bound by the
+// opening flip (view.firstColor). The first-mover seat plays firstColor; the second-mover
+// seat plays the opposite. Null until the flip binds.
+export function banqiSeatInk(seat: BanqiSeat, view: BanqiWireView | null): BanqiColor | null {
+  if (!view || view.firstColor === null) return null;
+  return seat === 'red' ? view.firstColor : view.firstColor === 'red' ? 'black' : 'red';
+}
+
+// A seat's player label. Banqi's seat names are NOT colors, so labeling by seat shows the
+// engine as "Red" even when it flipped black. Label by the bound ink once the flip
+// assigns it, else by move order ("First"/"Second") — colors do not exist pre-flip.
+function banqiSeatLabel(seat: BanqiSeat): string {
+  const ink = banqiSeatInk(seat, state.view);
+  if (ink) return ink === 'red' ? 'Red' : 'Black';
+  return seat === 'red' ? 'First' : 'Second';
+}
+
 const banqiWebTenant: WebVariantTenant<BanqiSeat> = {
   displayName: 'Banqi',
   colors: ['red', 'black'],
@@ -146,6 +163,10 @@ const banqiWebTenant: WebVariantTenant<BanqiSeat> = {
   rejectedBody: 'This Banqi room is not active. Create a new invite to start a game.',
   spectatorBody: 'Watching without private information.',
   selectInstruction: 'Tap a face-down tile to flip it, or select one of your pieces to move.',
+  // Banqi colors are assigned by the opening flip; label players by ink (or move order
+  // before the flip), and surface the opening "to move" before the clock arms.
+  seatLabel: banqiSeatLabel,
+  showPregameTurn: true,
 };
 
 const chrome = createTenantRoomChrome(banqiWebTenant, {
@@ -166,7 +187,9 @@ const chrome = createTenantRoomChrome(banqiWebTenant, {
   playAgainRequestBody: () => ({
     mode: state.roomMode,
     gameSpecId: 'banqi',
-    preferredColor: 'random',
+    // Swap who opens each rematch: the 'red' seat moves first, so request the seat opposite
+    // this game's to alternate the opener (you and the engine take turns going first).
+    preferredColor: isBanqiSeat(state.seat) ? (state.seat === 'red' ? 'black' : 'red') : 'random',
     ...(state.roomMode === 'pve' && state.pveEngineId ? { engineId: state.pveEngineId } : {}),
     ...(state.timeControl ? { timeControl: state.timeControl } : {}),
   }),

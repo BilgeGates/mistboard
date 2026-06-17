@@ -62,6 +62,16 @@ export type WebVariantTenant<C extends string> = {
   rejectedBody: string;
   spectatorBody: string;
   selectInstruction: string;
+  // Optional: how to label a seat's player. Default (chess/xiangqi/jieqi/crossroads):
+  // capitalize(seat), because the seat name IS the color. Banqi overrides — its seats are
+  // first/second mover and the ink is bound by the opening flip, so the label is the bound
+  // ink ("Red"/"Black") once flipped, else the move order ("First"/"Second"). The tenant
+  // reads its own live view for this; the chrome passes only the seat.
+  seatLabel?(seat: C): string;
+  // Optional: mark the side-to-move on the unarmed (pregame) clock rows, so the opening
+  // "to move" is clear before the clock starts. Default off; banqi opts in because its
+  // colors do not exist until the first flip, making the mover otherwise ambiguous.
+  showPregameTurn?: boolean;
 };
 
 export type TenantChromeContext<C extends string> = {
@@ -124,6 +134,11 @@ export function createTenantRoomChrome<C extends string>(
     return tenant.isColor(seat) ? seat : null;
   }
 
+  // A seat's display label: the tenant's ink-aware override (banqi) or the seat name.
+  function seatName(color: C): string {
+    return tenant.seatLabel?.(color) ?? capitalize(color);
+  }
+
   function setRenderTarget(
     nextRefs: LiveRefs,
     callbacks: { reconnectNow: () => void; sendSocket: (payload: unknown) => boolean },
@@ -181,12 +196,24 @@ export function createTenantRoomChrome<C extends string>(
         incrementSec > 0
           ? `${formatClock(timeControl.initialMs)}+${incrementSec}`
           : formatClock(timeControl.initialMs);
+      // Side to move before the clock arms (opt-in; clarifies the opener when seat names
+      // aren't colors, e.g. banqi pre-flip).
+      const pregameTurn =
+        tenant.showPregameTurn && view?.status.type === 'playing' ? view.status.turn : null;
       colors.forEach((color, index) => {
+        const isTurn = color === pregameTurn;
         const row = document.createElement('div');
-        row.className = 'pregame';
+        row.className = isTurn ? 'pregame active' : 'pregame';
         row.dataset.color = color;
         const label = document.createElement('span');
-        label.textContent = capitalize(color);
+        label.textContent = seatName(color);
+        if (isTurn) {
+          const toMove = document.createElement('span');
+          toMove.className = 'clock-to-move';
+          toMove.textContent = 'to move';
+          toMove.setAttribute('aria-hidden', 'false');
+          label.append(' ', toMove);
+        }
         const time = document.createElement('strong');
         time.textContent = formatClock(clock ? clock.remainingMs[color] : timeControl.initialMs);
         row.append(label, time);
@@ -228,7 +255,7 @@ export function createTenantRoomChrome<C extends string>(
       playerLine.append(presenceDot(ctx.connectedSeats()[color] ?? false));
       const nameEl = document.createElement('span');
       nameEl.className = 'clock-name';
-      const name = color === ctx.seat() ? 'You' : capitalize(color);
+      const name = color === ctx.seat() ? 'You' : seatName(color);
       nameEl.textContent = name;
       nameEl.title = name;
       playerLine.append(nameEl);
@@ -284,10 +311,10 @@ export function createTenantRoomChrome<C extends string>(
     refs.gameInfo.replaceChildren(
       infoItem('Variant', detail ? `${tenant.displayName} · ${detail}` : tenant.displayName),
       infoItem('Mode', 'Casual'),
-      infoItem('Seat', seat ? capitalize(seat) : 'Spectator'),
+      infoItem('Seat', seat ? seatName(seat) : 'Spectator'),
     );
     if (ctx.debugRequested()) {
-      refs.roomMeta.textContent = `${tenant.displayName}${seat ? ` · Playing as ${capitalize(seat)}` : ''}`;
+      refs.roomMeta.textContent = `${tenant.displayName}${seat ? ` · Playing as ${seatName(seat)}` : ''}`;
     }
   }
 
