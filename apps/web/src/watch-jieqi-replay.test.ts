@@ -28,14 +28,15 @@ describe('Jieqi watch replay', () => {
     expect(root.textContent).toContain('Red');
     expect(root.textContent).toContain('Black');
     expect(root.textContent).toContain('Ply 0 / 1');
-    // Three panes (red view, truth, black view) each render a jieqi board.
-    expect(root.querySelectorAll('.jieqi-board')).toHaveLength(3);
+    // A single Truth pane (not a triptych): jieqi's per-color boards are identical
+    // to each other, so the watch shows one board, matching the postgame review.
+    expect(root.querySelectorAll('.jieqi-board')).toHaveLength(1);
 
     root.querySelector<HTMLButtonElement>('[aria-label="Next move"]')?.click();
     expect(root.textContent).toContain('Ply 1 / 1 — Red wins');
 
     root.querySelector<HTMLButtonElement>('[aria-label="Flip boards"]')?.click();
-    expect(root.querySelectorAll('.jieqi-board')).toHaveLength(3);
+    expect(root.querySelectorAll('.jieqi-board')).toHaveLength(1);
 
     await handle.loadGame('jq_next');
     expect(fetchSpy).toHaveBeenCalledWith('/api/jieqi/games/jq_next');
