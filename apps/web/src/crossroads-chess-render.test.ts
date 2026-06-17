@@ -1,3 +1,4 @@
+import { XIANGQI_GLYPH_PATHS } from '@mistboard/board-render';
 import {
   type CrossroadsChessGameState,
   createInitialCrossroadsChessState,
@@ -13,8 +14,8 @@ describe('Crossroads Chess board renderer', () => {
     const svg = renderCrossroadsChessBoardSvg(view, { showFog: false });
 
     expect(svg).toContain('<svg');
-    expect(svg).toContain('車'); // a White chariot disk glyph
-    expect(svg).toContain('卒'); // a White soldier disk glyph
+    expect(svg).toContain(XIANGQI_GLYPH_PATHS.車); // a White chariot disk glyph
+    expect(svg).toContain(XIANGQI_GLYPH_PATHS.卒); // a White soldier disk glyph
     // 48 board cells (6x8), each 50x50.
     expect((svg.match(/width="50" height="50"/g) ?? []).length).toBe(48);
     expect(svg).toContain('var(--board-light)');
@@ -62,8 +63,8 @@ describe('Crossroads Chess board renderer', () => {
     expect(svg).toContain('/pieces/letter/wN.svg');
     expect(svg).toContain('>R</text>'); // chariot uses the xiangqi Western set.
     expect(svg).toContain('>S</text>'); // soldier uses the xiangqi Western set.
-    expect(svg).not.toContain('車');
-    expect(svg).not.toContain('卒');
+    expect(svg).not.toContain(XIANGQI_GLYPH_PATHS.車);
+    expect(svg).not.toContain(XIANGQI_GLYPH_PATHS.卒);
   });
 
   it('flips the board for the Red perspective', () => {

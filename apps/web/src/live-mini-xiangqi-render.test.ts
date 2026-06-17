@@ -1,10 +1,12 @@
+import { XIANGQI_GLYPH_PATHS } from '@mistboard/board-render';
 import { createInitialMiniXiangqiState, getMiniXiangqiPlayerView } from '@mistboard/game';
 import { describe, expect, it } from 'vitest';
 import { miniXiangqiTruthView, renderMiniXiangqiBoardSvg } from './live-mini-xiangqi-render.js';
 
-// Traditional glyphs: red general 帥, black general 將.
-const RED_GENERAL = '帥';
-const BLACK_GENERAL = '將';
+// Pieces render as baked glyph paths (Noto Sans CJK SC Bold), not literal text,
+// so match on the path for the red general 帥 vs the black general 將.
+const RED_GENERAL = XIANGQI_GLYPH_PATHS.帥;
+const BLACK_GENERAL = XIANGQI_GLYPH_PATHS.將;
 
 describe('Dark Mini Xiangqi board renderer', () => {
   it('renders an intersection board with an inverse fog mask for a player view', () => {

@@ -10,6 +10,7 @@
 // styled with CSS in Step 6 (board renderer); the rendered string is a complete
 // inline `<svg>` element so it can be dropped into innerHTML.
 
+import { XIANGQI_GLYPH_PATHS } from '@mistboard/board-render';
 import type { XiangqiColor, XiangqiPiece, XiangqiPieceRole } from '@mistboard/game';
 
 const CHARACTERS: Record<XiangqiColor, Record<XiangqiPieceRole, string>> = {
@@ -69,14 +70,21 @@ export function renderXiangqiPiece(
     opts.size !== undefined || opts.x !== undefined || opts.y !== undefined
       ? ` x="${opts.x ?? 0}" y="${opts.y ?? 0}" width="${opts.size ?? 100}" height="${opts.size ?? 100}"`
       : '';
+  // Chinese characters draw from baked Noto Sans CJK SC Bold outlines (shared
+  // with renderXiangqiPieceGlyphed, the OG cards and the variant mini-boards) so
+  // every surface renders one identical glyph. The '?' shroud mark — and any
+  // character with no baked path — falls back to font-agnostic <text>.
+  const bakedPath = opts.shrouded ? undefined : XIANGQI_GLYPH_PATHS[glyph];
+  const glyphMark = bakedPath
+    ? `<path d="${bakedPath}" fill="${colorHex}"/>`
+    : `<text x="50" y="50" font-family="serif" font-size="46" font-weight="700" fill="${colorHex}" text-anchor="middle" dominant-baseline="central">${glyph}</text>`;
   return [
     `<svg${classAttr}${posAttrs} viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg" aria-label="${escapeAttr(ariaLabel)}">`,
     // Outer ring shadow (subtle depth)
     `<circle cx="50" cy="50" r="46" fill="${baseFill}" stroke="${colorHex}" stroke-width="${ringWidth}"/>`,
     // Inner ring — traditional double-ring look
     `<circle cx="50" cy="50" r="38" fill="none" stroke="${colorHex}" stroke-width="1.5"/>`,
-    // Glyph
-    `<text x="50" y="50" font-family="serif" font-size="46" font-weight="700" fill="${colorHex}" text-anchor="middle" dominant-baseline="central">${glyph}</text>`,
+    glyphMark,
     `</svg>`,
   ].join('');
 }

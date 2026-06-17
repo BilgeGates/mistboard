@@ -1,3 +1,4 @@
+import { XIANGQI_GLYPH_PATHS } from '@mistboard/board-render';
 import { describe, expect, it } from 'vitest';
 import {
   CROSSROADS_CHESS_START_FEN,
@@ -16,7 +17,7 @@ describe('Crossroads Chess article diagrams', () => {
     expect(svg).toMatch(/--crossroads-svg-width:/);
     // A chess piece (Cburnett SVG, 45-unit viewBox) and a xiangqi disk glyph.
     expect(svg).toMatch(/viewBox="0 0 45 45"/);
-    expect(svg).toContain('車'); // white chariot disk
+    expect(svg).toContain(XIANGQI_GLYPH_PATHS.車); // white chariot disk
   });
 
   it('maps move dots, capture rings, and highlights onto the renderer layers', () => {

@@ -1,3 +1,4 @@
+import { XIANGQI_GLYPH_PATHS } from '@mistboard/board-render';
 import type { XiangqiColor, XiangqiPieceRole } from '@mistboard/game';
 import { describe, expect, it } from 'vitest';
 import { renderXiangqiPiece, xiangqiCharacter } from './xiangqi-pieces.js';
@@ -47,7 +48,8 @@ describe('xiangqi piece sprites', () => {
         const svg = renderXiangqiPiece({ color, role });
         expect(svg.startsWith('<svg')).toBe(true);
         expect(svg.endsWith('</svg>')).toBe(true);
-        expect(svg).toContain(xiangqiCharacter(color, role));
+        // Pieces draw the shared baked glyph path, not literal <text>.
+        expect(svg).toContain(XIANGQI_GLYPH_PATHS[xiangqiCharacter(color, role)]);
         expect(svg).toContain('viewBox="0 0 100 100"');
         expect(svg).toContain(`aria-label="${color} ${role}"`);
       }
@@ -64,7 +66,7 @@ describe('xiangqi piece sprites', () => {
   it('replaces the character with "?" when rendered as shrouded', () => {
     const svg = renderXiangqiPiece({ color: 'black', role: 'horse' }, { shrouded: true });
     expect(svg).toContain('>?<');
-    expect(svg).not.toContain('馬');
+    expect(svg).not.toContain(XIANGQI_GLYPH_PATHS.馬);
   });
 
   it('supports overriding the accessible label for hidden live pieces', () => {

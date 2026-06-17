@@ -1,3 +1,4 @@
+import { XIANGQI_GLYPH_PATHS } from '@mistboard/board-render';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { mountCrossroadsChessPlay } from './crossroads-chess-play.js';
 import { boardAppearanceChangedEvent } from './theme.js';
@@ -58,7 +59,7 @@ describe('Crossroads Chess hot-seat controller', () => {
 
     mountCrossroadsChessPlay(root);
 
-    expect(root.innerHTML).toContain('車');
+    expect(root.innerHTML).toContain(XIANGQI_GLYPH_PATHS.車);
     expect(root.innerHTML).not.toContain('/pieces/letter/wK.svg');
 
     window.localStorage.setItem('mistboard.pieceSet', 'letter');
@@ -67,7 +68,7 @@ describe('Crossroads Chess hot-seat controller', () => {
 
     expect(root.innerHTML).toContain('/pieces/letter/wK.svg');
     expect(root.innerHTML).toContain('>R</text>');
-    expect(root.innerHTML).not.toContain('車');
+    expect(root.innerHTML).not.toContain(XIANGQI_GLYPH_PATHS.車);
   });
 
   it('creates live friend rooms with the Crossroads 5+5 time control', async () => {

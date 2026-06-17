@@ -5,7 +5,10 @@
 // and full Dark Xiangqi. Four sets: two Chinese-character scripts (traditional
 // default + simplified) and two "piece diagram" sets (Western Latin initials +
 // stroked line-art symbols). The disc/ring is shared; only the inner mark changes.
+// Chinese characters render from baked Noto Sans CJK SC Bold outlines (see
+// cjkGlyphMark) so the live board matches the OG cards and variant mini-boards.
 
+import { XIANGQI_GLYPH_PATHS } from '@mistboard/board-render';
 import type { XiangqiColor, XiangqiPiece, XiangqiPieceRole } from '@mistboard/game';
 
 export type XiangqiPieceSet = 'traditional' | 'simplified' | 'western' | 'symbols';
@@ -129,7 +132,7 @@ export function renderXiangqiPieceGlyphed(
     ? glyphMark('?', colorHex)
     : set === 'symbols'
       ? symbolMark(piece.role, colorHex)
-      : glyphMark(xiangqiGlyph(set, piece.color, piece.role), colorHex);
+      : cjkGlyphMark(xiangqiGlyph(set, piece.color, piece.role), colorHex);
   return [
     `<svg${classAttr}${posAttrs} viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg" aria-label="${escapeAttr(ariaLabel)}">`,
     `<circle cx="50" cy="50" r="46" fill="${baseFill}" stroke="${colorHex}" stroke-width="${ringWidth}"/>`,
@@ -137,6 +140,19 @@ export function renderXiangqiPieceGlyphed(
     inner,
     `</svg>`,
   ].join('');
+}
+
+// Chinese piece characters draw from baked Noto Sans CJK SC Bold outlines (the
+// same XIANGQI_GLYPH_PATHS the OG cards and variant mini-boards use) so every
+// surface renders one identical glyph and never depends on the viewer's system
+// serif. Falls back to <text> for any character with no baked path (Western
+// Latin initials, the '?' shroud mark) — those are font-agnostic anyway.
+function cjkGlyphMark(glyph: string, colorHex: string): string {
+  const path = XIANGQI_GLYPH_PATHS[glyph];
+  if (!path) return glyphMark(glyph, colorHex);
+  // The path is pre-positioned for the 100-unit piece box (font-size 46,
+  // centered on 50,50) — identical geometry to glyphMark — so it drops in flat.
+  return `<path d="${path}" fill="${colorHex}"/>`;
 }
 
 function glyphMark(glyph: string, colorHex: string): string {

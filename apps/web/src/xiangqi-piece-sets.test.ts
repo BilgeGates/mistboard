@@ -1,3 +1,4 @@
+import { XIANGQI_GLYPH_PATHS } from '@mistboard/board-render';
 import type { XiangqiPiece } from '@mistboard/game';
 import { describe, expect, it } from 'vitest';
 import {
@@ -40,9 +41,12 @@ describe('xiangqiGlyph', () => {
 describe('renderXiangqiPieceGlyphed', () => {
   const redGeneral: XiangqiPiece = { color: 'red', role: 'general' };
 
-  it('renders the traditional character with a labeled disc', () => {
+  it('renders the traditional character as the shared baked glyph path', () => {
     const svg = renderXiangqiPieceGlyphed(redGeneral, 'traditional', {});
-    expect(svg).toContain('帥');
+    // Unified rendering: the live board draws the same baked Noto outline the OG
+    // cards and variant mini-boards use, not a system-serif <text> glyph.
+    expect(svg).toContain(`<path d="${XIANGQI_GLYPH_PATHS.帥}"`);
+    expect(svg).not.toContain('<text');
     expect(svg).toContain('aria-label="red general"');
   });
 
@@ -53,7 +57,7 @@ describe('renderXiangqiPieceGlyphed', () => {
   it('renders stroked line-art (no character text) for the symbols set', () => {
     const svg = renderXiangqiPieceGlyphed(redGeneral, 'symbols', {});
     expect(svg).toContain('<path');
-    expect(svg).not.toContain('帥');
+    expect(svg).not.toContain(XIANGQI_GLYPH_PATHS.帥);
   });
 
   it('renders a distinct symbol for advisor and elephant', () => {
@@ -70,7 +74,7 @@ describe('renderXiangqiPieceGlyphed', () => {
       ariaLabel: 'red hidden piece',
     });
     expect(svg).toContain('?');
-    expect(svg).not.toContain('帥');
+    expect(svg).not.toContain(XIANGQI_GLYPH_PATHS.帥);
     expect(svg).toContain('aria-label="red hidden piece"');
   });
 });
