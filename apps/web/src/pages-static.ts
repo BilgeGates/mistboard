@@ -27,7 +27,6 @@ const publicStatsModes: Array<{
 }> = [
   { key: 'pvp', label: 'Player vs player' },
   { key: 'pve', label: 'Player vs engine' },
-  { key: 'eve', label: 'Engine lab' },
 ];
 
 const numberFormat = new Intl.NumberFormat('en-US');
@@ -211,7 +210,7 @@ function buildPlatformActivity(): HTMLElement {
   heading.textContent = 'Player game activity';
 
   const intro = aboutParagraph([
-    'Mistboard tracks completed games as durable replay records. The main totals count player-facing games only: player vs player and player vs engine. Engine lab games are shown separately because they can be generated in batches.',
+    'Mistboard tracks completed games as durable replay records. These totals count player-facing games: player vs player and player vs engine.',
   ]);
 
   const body = document.createElement('div');

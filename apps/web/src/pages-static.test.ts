@@ -45,7 +45,7 @@ describe('about page platform activity', () => {
     expect(root.textContent).toContain('1,234');
     expect(root.textContent).toContain('last 30 days');
     expect(root.textContent).toContain('Player vs player');
-    expect(root.textContent).toContain('Engine lab');
+    expect(root.textContent).not.toContain('Engine lab');
     const pageText = root.textContent ?? '';
     expect(pageText.indexOf('Open source foundation')).toBeLessThan(
       pageText.indexOf('Player game activity'),
@@ -55,10 +55,9 @@ describe('about page platform activity', () => {
     expect(root.querySelectorAll('.platform-activity-y-axis text').length).toBeGreaterThan(1);
     expect(root.querySelectorAll('.platform-activity-x-axis text').length).toBeGreaterThan(2);
     const modeItems = root.querySelectorAll('.platform-activity-mode-item');
-    expect(modeItems).toHaveLength(3);
+    expect(modeItems).toHaveLength(2);
     expect(modeItems[0]?.textContent).toBe('Player vs player 42');
     expect(modeItems[1]?.textContent).toBe('Player vs engine 31');
-    expect(modeItems[2]?.textContent).toBe('Engine lab 9');
     expect(root.querySelector('.platform-activity-mode-list')?.getAttribute('aria-label')).toBe(
       'Mode split',
     );

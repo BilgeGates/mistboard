@@ -164,10 +164,6 @@
   background: color-mix(in srgb, var(--site-accent) 62%, var(--site-muted));
 }
 
-.platform-activity-mode-item.mode-eve::before {
-  background: var(--site-muted);
-}
-
 .source-block {
   display: grid;
   gap: 8px;
