@@ -1,4 +1,5 @@
 import type { GameEvent } from '@mistboard/game';
+import { renderVariantMiniBoard, type VariantMiniId } from './variant-mini-boards.js';
 import { webVariantTenantForSpecId } from './variant-tenant/registry.js';
 import './watch-route.css';
 import { displayParticipantName, type FeaturedGame, sourceLabel } from './game-display.js';
@@ -450,6 +451,20 @@ function renderWatchStatus(root: HTMLElement, feed: WatchFeed | null): void {
   root.append(sealed, sealedLabel, hint);
 }
 
+// The shared mini-board marker for each watch channel, so the TV rail reads in
+// the same icon language as the picker, rules rail, leaderboard, and profile.
+// Channel ids match VariantMiniId ids except crossroads-chess -> crossroads;
+// the dark-chess channel (which also carries dark-draft960 games) shows the
+// dark-chess marker. An unmapped channel keeps its (empty) marker slot so the
+// rows stay grid-aligned.
+const CHANNEL_MINI_BY_ID: Record<string, VariantMiniId> = {
+  'dark-chess': 'dark-chess',
+  'dark-mini-xiangqi': 'dark-mini-xiangqi',
+  jieqi: 'jieqi',
+  banqi: 'banqi',
+  'crossroads-chess': 'crossroads',
+};
+
 function renderWatchChannelList(root: HTMLElement, feed: WatchFeed | null): void {
   root.replaceChildren();
   root.hidden = !feed || feed.channels.length <= 1;
@@ -464,13 +479,33 @@ function renderWatchChannelList(root: HTMLElement, feed: WatchFeed | null): void
     link.className = 'watch-channel-link';
     link.href = `/watch?channel=${encodeURIComponent(channel.id)}`;
     link.setAttribute('aria-label', `${channel.label} (${channel.unlockedCount})`);
+    // Decorative variant marker; aria-hidden because the link's aria-label
+    // already names the channel. notranslate keeps Google Translate off the
+    // SVG's aria-label text.
+    const thumb = document.createElement('span');
+    thumb.className = 'watch-channel-thumb';
+    thumb.setAttribute('aria-hidden', 'true');
+    const miniId = CHANNEL_MINI_BY_ID[channel.id];
+    if (miniId) {
+      thumb.classList.add('notranslate');
+      thumb.setAttribute('translate', 'no');
+      thumb.innerHTML = renderVariantMiniBoard(miniId, {
+        size: 112,
+        label: `${channel.label} board`,
+      });
+    }
     const label = document.createElement('span');
     label.className = 'watch-channel-name';
     label.textContent = channel.label;
     const count = document.createElement('span');
     count.className = 'watch-channel-count';
     count.textContent = String(channel.unlockedCount);
-    link.append(label, count);
+    // Name + count stacked beside the big marker (mirrors the rules-page
+    // variant rail's marker-left / text-right row).
+    const text = document.createElement('span');
+    text.className = 'watch-channel-text';
+    text.append(label, count);
+    link.append(thumb, text);
     if (channel.id === feed.activeChannel) {
       link.classList.add('active');
       link.setAttribute('aria-current', 'page');
