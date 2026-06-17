@@ -18,6 +18,7 @@ import {
   variantForId,
 } from '@mistboard/game';
 import { engineVersionDisplayName, loadEngine } from './engine-registry.js';
+import { ABORT_WINDOW_MS, FORFEIT_WINDOW_MS } from './lifecycle-windows.js';
 import { chooseLiveEngineMove, type LiveEngineFallbackEvent } from './live-engine.js';
 import { engineCounters, logger } from './obs.js';
 import { computeConnectedSeats, eventAppendedPayload, snapshotPayload } from './payloads.js';
@@ -26,6 +27,10 @@ import * as persistence from './persistence.js';
 import { recordRoomLifecycleAuditSafe } from './room-lifecycle-audit.js';
 import { isServerEngineClient, modeForProjection } from './server-policy.js';
 import type { Client, Room, SeatTokenState } from './server-types.js';
+
+// Re-exported for back-compat: these moved to lifecycle-windows.ts, but
+// room-manager.test.ts and historical importers still resolve them from here.
+export { ABORT_WINDOW_MS, FORFEIT_WINDOW_MS } from './lifecycle-windows.js';
 
 export interface RoomManagerContext {
   send: (client: Client, payload: unknown) => void;
@@ -565,10 +570,6 @@ export async function expireActiveClock(
   });
 }
 
-// How long the side to move has to play their first move before the game is
-// auto-aborted. One window for white's move 1, then a fresh one for black's.
-export const ABORT_WINDOW_MS = 30_000;
-
 // Which pre-move abort window (if any) is live for the current state. Returns
 // null once both players have completed their first move (moveNumber >= 2),
 // when not playing. The clock is frozen throughout this phase, so this timer
@@ -629,10 +630,6 @@ export function scheduleAbortTimeout(ctx: RoomManagerContext, room: Room): void 
   }, delay + 25);
   room.abortTimer.unref();
 }
-
-// How long a disconnected player has to return before forfeiting an
-// in-progress game (post-move-1). Reconnecting within the window cancels it.
-export const FORFEIT_WINDOW_MS = 30_000;
 
 export function clearForfeitTimer(room: Room): void {
   if (room.forfeitTimer) clearTimeout(room.forfeitTimer);

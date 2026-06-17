@@ -16,8 +16,8 @@
  */
 
 import { clockPolicyKindFor, DAY_MS } from '@mistboard/game';
+import { ABORT_WINDOW_MS, FORFEIT_WINDOW_MS } from '../lifecycle-windows.js';
 import { logger } from '../obs.js';
-import { ABORT_WINDOW_MS, FORFEIT_WINDOW_MS } from '../room-manager.js';
 import { expireTenantClock, tenantClockRemainingMs } from './runtime.js';
 import type {
   TenantAbortPhase,
