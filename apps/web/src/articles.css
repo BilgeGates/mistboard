@@ -643,48 +643,12 @@
 }
 
 /* Xiangqi diagram theming. The diagrams draw their own board (chessground can't
-   render a xiangqi grid), so their colors come from CSS vars driven by the same
-   data-xiangqi-board-theme / data-fog-theme attributes the live xiangqi board
-   uses. Changing the board/fog picker restyles every diagram with no re-render,
-   the xiangqi equivalent of chess board-theme CSS. Defaults match the live
-   board's Tournament + Solid look so a diagram reads as a sibling of a live
-   game. (Piece sets are inline glyphs, so they re-render in JS instead.) */
-:root {
-  --xq-diagram-bg: #d9bd82;
-  --xq-diagram-ink: #4b3c2a;
-  --xq-diagram-fog: rgba(36, 25, 15, 0.55);
-}
-:root[data-xiangqi-board-theme="tournament"] {
-  --xq-diagram-bg: #d9bd82;
-  --xq-diagram-ink: #4b3c2a;
-}
-:root[data-xiangqi-board-theme="blue"] {
-  --xq-diagram-bg: #cdddea;
-  --xq-diagram-ink: #2c4a63;
-}
-:root[data-xiangqi-board-theme="mono"] {
-  --xq-diagram-bg: #e6e2d9;
-  --xq-diagram-ink: #555150;
-}
-:root[data-fog-theme="solid"] {
-  --xq-diagram-fog: rgba(36, 25, 15, 0.62);
-}
-:root[data-fog-theme="veil"] {
-  --xq-diagram-fog: rgba(36, 25, 15, 0.48);
-}
-:root[data-fog-theme="mistveil"] {
-  --xq-diagram-fog: rgba(48, 40, 30, 0.55);
-}
-:root[data-fog-theme="drift"] {
-  --xq-diagram-fog: rgba(36, 25, 15, 0.4);
-}
-:root[data-fog-theme="void"] {
-  --xq-diagram-fog: rgba(16, 12, 8, 0.82);
-}
-:root[data-fog-theme="invisible"] {
-  --xq-diagram-fog: rgba(36, 25, 15, 0);
-}
-
+   render a xiangqi grid), so their colors come from the shared --xq-diagram-*
+   tokens (defined in app-base.css, driven by data-xiangqi-board-theme /
+   data-fog-theme). Changing the board/fog picker restyles every diagram with no
+   re-render, the xiangqi equivalent of chess board-theme CSS. (Piece sets are
+   inline glyphs, so they re-render in JS instead.) The same tokens drive the
+   variant mini-board markers in variant-mini-boards.css. */
 .xq-article-svg .xq-diagram-bg {
   fill: var(--xq-diagram-bg, #d9bd82);
 }

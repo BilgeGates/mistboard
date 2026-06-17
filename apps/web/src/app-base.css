@@ -342,6 +342,50 @@
   --xq-fog-fill: rgba(46, 43, 37, 0);
 }
 
+/* Xiangqi diagram/marker board tokens. The board surface (bg + grid ink) tracks
+   data-xiangqi-board-theme; the fog tint tracks data-fog-theme. Shared by the
+   article diagrams (.xq-article-svg, consumer rules in articles.css) and the
+   variant mini-board markers (.variant-mini, consumer rules in
+   variant-mini-boards.css). Defined here (not articles.css) so markers theme
+   correctly on non-article surfaces (home, profile, watch). Defaults match the
+   live board's Tournament + Solid look. (Piece sets are inline glyphs, so they
+   re-render in JS instead.) */
+:root {
+  --xq-diagram-bg: #d9bd82;
+  --xq-diagram-ink: #4b3c2a;
+  --xq-diagram-fog: rgba(36, 25, 15, 0.55);
+}
+:root[data-xiangqi-board-theme="tournament"] {
+  --xq-diagram-bg: #d9bd82;
+  --xq-diagram-ink: #4b3c2a;
+}
+:root[data-xiangqi-board-theme="blue"] {
+  --xq-diagram-bg: #cdddea;
+  --xq-diagram-ink: #2c4a63;
+}
+:root[data-xiangqi-board-theme="mono"] {
+  --xq-diagram-bg: #e6e2d9;
+  --xq-diagram-ink: #555150;
+}
+:root[data-fog-theme="solid"] {
+  --xq-diagram-fog: rgba(36, 25, 15, 0.62);
+}
+:root[data-fog-theme="veil"] {
+  --xq-diagram-fog: rgba(36, 25, 15, 0.48);
+}
+:root[data-fog-theme="mistveil"] {
+  --xq-diagram-fog: rgba(48, 40, 30, 0.55);
+}
+:root[data-fog-theme="drift"] {
+  --xq-diagram-fog: rgba(36, 25, 15, 0.4);
+}
+:root[data-fog-theme="void"] {
+  --xq-diagram-fog: rgba(16, 12, 8, 0.82);
+}
+:root[data-fog-theme="invisible"] {
+  --xq-diagram-fog: rgba(36, 25, 15, 0);
+}
+
 /* Texture layers inside the xiangqi fog region. The same full-board art that
    drives chess drives these: fog.webp for drift, the reassembled mistveil.webp
    (the 64 chess tiles restitched) for mistveil. Hidden by default; each shows
