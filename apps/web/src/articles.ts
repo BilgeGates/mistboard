@@ -258,6 +258,7 @@ const HOME_ARTICLE_SLUGS = [
   'crossroads-chess',
   'dark-mini-xiangqi',
   'jieqi',
+  'banqi',
   'dark-chess',
 ] as const;
 

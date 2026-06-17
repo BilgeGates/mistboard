@@ -38,6 +38,7 @@ describe('article public listing gates', () => {
 
     expect(hrefs).toEqual([
       '/rules/jieqi',
+      '/rules/banqi',
       '/rules/crossroads-chess',
       '/articles/server-enforced-fog',
       '/rules/dark-mini-xiangqi',
