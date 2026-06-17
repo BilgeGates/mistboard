@@ -401,6 +401,11 @@
   height: var(--capture-piece-size);
 }
 
+/* Anchor the count badge to the glyph when same-role captures are stacked. */
+.captures-strip .mini-xq-capture-piece.has-count {
+  position: relative;
+}
+
 .captures-strip .mini-xq-capture-piece svg {
   display: block;
   width: 100%;

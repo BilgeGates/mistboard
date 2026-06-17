@@ -47,4 +47,28 @@ describe('fillCapturedPool', () => {
     const labels = pieces(el).map((span) => span.getAttribute('aria-label'));
     expect(labels).toEqual(['red soldier', 'red general']);
   });
+
+  it('stacks repeats of a role into one glyph with a count badge', () => {
+    const el = host();
+    // Non-consecutive duplicates must collapse into a single glyph (a full banqi
+    // pool would otherwise overflow the strip).
+    const captured: Captured[] = [
+      { owner: 'red', role: 'soldier' },
+      { owner: 'red', role: 'cannon' },
+      { owner: 'red', role: 'soldier' },
+      { owner: 'red', role: 'soldier' },
+    ];
+    fillCapturedPool(el, captured, 'red');
+    const glyphs = pieces(el);
+    // One glyph per distinct role, in first-capture order.
+    expect(glyphs.map((span) => span.getAttribute('aria-label'))).toEqual([
+      'red soldier x3',
+      'red cannon',
+    ]);
+    const soldier = glyphs[0]!;
+    expect(soldier.classList.contains('has-count')).toBe(true);
+    expect(soldier.querySelector('.captures-count-badge')?.textContent).toBe('3');
+    // A singleton role carries no badge.
+    expect(glyphs[1]!.querySelector('.captures-count-badge')).toBeNull();
+  });
 });

@@ -409,16 +409,34 @@ export function fillCapturedPool(
   const mine = captured.filter((entry) => entry.owner === owner);
   host.classList.toggle('has-captures', mine.length > 0);
   if (mine.length === 0) return;
+  // Group repeats of the same role into one glyph + a count badge so a full pool
+  // (banqi tops out at 16 captures per side) stays inside the board width instead
+  // of overflowing the fixed-height strip. Keep first-capture order (no ladder
+  // sort) so the row reads as material taken over time.
+  const order: BanqiPieceRole[] = [];
+  const counts = new Map<BanqiPieceRole, number>();
+  for (const entry of mine) {
+    if (!counts.has(entry.role)) order.push(entry.role);
+    counts.set(entry.role, (counts.get(entry.role) ?? 0) + 1);
+  }
   const pieceSet = readStoredXiangqiPieceSet();
   const row = document.createElement('div');
   row.className = 'captures-row mini-xq-captures-row';
-  for (const entry of mine) {
+  for (const role of order) {
+    const count = counts.get(role) ?? 1;
     const span = document.createElement('span');
-    span.className = 'mini-xq-capture-piece';
-    span.setAttribute('aria-label', `${owner} ${entry.role}`);
-    span.innerHTML = renderXiangqiPieceGlyphed({ color: owner, role: entry.role }, pieceSet, {
-      ariaLabel: `${owner} ${entry.role}`,
+    span.className = count > 1 ? 'mini-xq-capture-piece has-count' : 'mini-xq-capture-piece';
+    span.setAttribute('aria-label', count > 1 ? `${owner} ${role} x${count}` : `${owner} ${role}`);
+    span.innerHTML = renderXiangqiPieceGlyphed({ color: owner, role }, pieceSet, {
+      ariaLabel: `${owner} ${role}`,
     });
+    if (count > 1) {
+      const badge = document.createElement('span');
+      badge.className = 'captures-count-badge';
+      badge.textContent = String(count);
+      badge.setAttribute('aria-hidden', 'true');
+      span.append(badge);
+    }
     row.append(span);
   }
   host.append(row);
