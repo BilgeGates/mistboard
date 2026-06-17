@@ -100,16 +100,6 @@ export const VARIANTS: VariantDef[] = [
     onLeaderboard: darkMiniPublicEntryEnabled,
     onProfile: darkMiniEnabled,
   },
-  {
-    id: currentRatingVariantForSpec(CROSSROADS_CHESS_SPEC_ID),
-    gameSpecId: crossroadsChessSpec.id,
-    apiParam: CROSSROADS_CHESS_SPEC_ID,
-    label: crossroadsChessSpec.publicName,
-    miniId: 'crossroads',
-    enabled: crossroadsEnabled,
-    onLeaderboard: true,
-    onProfile: true,
-  },
   // Jieqi + Banqi launched casual and are rating-ready (gated globally by
   // MISTBOARD_RATED_ENABLED). Not lobby-selectable (no open-seek matchmaking);
   // shown on the rating surfaces whenever their variant flag is on, consistent
@@ -143,6 +133,19 @@ export const VARIANTS: VariantDef[] = [
     enabled: false,
     onLeaderboard: revealChessOn,
     onProfile: revealChessOn,
+  },
+  // Perfect-information Crossroads is intentionally ranked last across the
+  // lobby/leaderboard/profile lineups: it is the platform's one perfect-info
+  // surface (everything else is hidden-info), kept playable but de-emphasized.
+  {
+    id: currentRatingVariantForSpec(CROSSROADS_CHESS_SPEC_ID),
+    gameSpecId: crossroadsChessSpec.id,
+    apiParam: CROSSROADS_CHESS_SPEC_ID,
+    label: crossroadsChessSpec.publicName,
+    miniId: 'crossroads',
+    enabled: crossroadsEnabled,
+    onLeaderboard: true,
+    onProfile: true,
   },
 ];
 

@@ -131,10 +131,11 @@ describe('web variant launch registry', () => {
       [DARK_CHESS_SPEC_ID, 'fog'],
       [DARK_DRAFT960_SPEC_ID, 'dark-draft960'],
       [DARK_MINI_XIANGQI_SPEC_ID, 'dark-mini-xiangqi'],
-      [CROSSROADS_CHESS_SPEC_ID, 'crossroads-chess'],
       [JIEQI_SPEC_ID, 'jieqi'],
       [BANQI_SPEC_ID, 'banqi'],
       [REVEAL_CHESS_SPEC_ID, 'reveal-chess'],
+      // Perfect-info Crossroads is ranked last on purpose (hidden-info variants first).
+      [CROSSROADS_CHESS_SPEC_ID, 'crossroads-chess'],
     ]);
   });
 

@@ -36,13 +36,16 @@ export const articles: Article[] = [
   darkXiangqiArticle,
   miniXiangqiArticle,
   darkMiniXiangqiArticle,
-  crossroadsChessArticle,
   serverEnforcedFogArticle,
   shogi4Article,
   kriegspielArticle,
   jieqiArticle,
   banqiArticle,
   revealChessArticle,
+  // Perfect-information Crossroads is intentionally last in the rules rail /
+  // article index: the platform's one perfect-info surface, kept listed but
+  // de-emphasized relative to the hidden-info variants.
+  crossroadsChessArticle,
 ];
 
 export function findArticle(slug: string): Article | undefined {

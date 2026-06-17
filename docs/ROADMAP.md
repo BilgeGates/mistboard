@@ -79,6 +79,17 @@ information, ranked integrity, and a serious engine track.
      casual-only at launch (no rated migration/calibration), watch visibility
      policy, mobile pass. FSF PvE bot already live. Staggered after DMX's
      first telemetry read.
+     **Update 2026-06-17:** launched (flag on), then **demoted to last** in
+     every lineup (lobby / leaderboard / profile / rules) while kept fully
+     playable. Rationale: perfect-info Crossroads is the platform's only
+     perfect-information surface and competes head-on with perfect-info fairy
+     variants on the incumbents (pychess/chess.com run the same Fairy-Stockfish),
+     where Mistboard has no structural edge; the hidden-info axis is the
+     differentiator. The "designed variants" demand test was never validly run
+     (near-zero traffic), so this is a positioning call, not a demand verdict.
+     **Dark Crossroads becomes the intended flagship Crossroads surface**,
+     riding the fog-vision kernel generalization + tenant/randomness work
+     (step 5). Do not re-promote the perfect-info surface to a primary slot.
   3. **Variant-tenant extraction (Layer 3)** — landed 2026-06-11/12. The
      generic runtime, registry dispatch, web socket client, and tenant chrome
      are now production surfaces. DMX, Dark Xiangqi, and Crossroads are
