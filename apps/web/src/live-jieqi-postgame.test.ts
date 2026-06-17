@@ -22,7 +22,7 @@ describe('Jieqi postgame page', () => {
     expect(jieqiPostgameApiUrl('jq room')).toBe('/api/jieqi/games/jq%20room');
   });
 
-  it('renders one board with a perspective selector (truth default; per-color shows backs)', async () => {
+  it('renders a single truth board with no perspective picker', async () => {
     const fetchSpy = vi.fn(async () => jsonResponse(postgameFixture()));
     vi.stubGlobal('fetch', fetchSpy);
     const root = document.createElement('div');
@@ -40,32 +40,15 @@ describe('Jieqi postgame page', () => {
     expect(root.textContent).toContain('Red b3-b10');
     expect(root.textContent).toContain('Ply 1 of 1');
 
-    // ONE board now (the old three-board triptych is collapsed to a single board).
+    // A SINGLE truth board, and no perspective picker.
     expect(root.querySelectorAll('.jieqi-board')).toHaveLength(1);
+    expect(root.querySelectorAll('.dxq-postgame__view-button')).toHaveLength(0);
 
-    // The perspective selector exposes all three views (short labels, full aria).
-    const viewButtons = [
-      ...root.querySelectorAll<HTMLButtonElement>('.dxq-postgame__view-button'),
-    ];
-    expect(viewButtons.map((button) => button.textContent)).toEqual(['Red', 'Truth', 'Black']);
-    expect(viewButtons.map((button) => button.getAttribute('aria-label'))).toEqual([
-      'Red view',
-      'Server truth',
-      'Black view',
-    ]);
-
-    // Default = Server truth: every identity revealed (black cannon on h8 shows its
-    // glyph, never a hidden back), and the Truth button is the active one.
-    const boardHtml = () => root.querySelector('.jieqi-board')?.innerHTML ?? '';
-    expect(boardHtml()).toContain('aria-label="black cannon"');
-    expect(boardHtml()).not.toContain('hidden piece');
-    const truthButton = viewButtons.find((button) => button.textContent === 'Truth')!;
-    expect(truthButton.getAttribute('aria-pressed')).toBe('true');
-
-    // Switching to the Red view masks Black's still-face-down piece on h8 as a back.
-    viewButtons.find((button) => button.textContent === 'Red')!.click();
-    expect(boardHtml()).toContain('aria-label="black hidden piece"');
-    expect(boardHtml()).not.toContain('aria-label="black cannon"');
+    // The truth surface reveals every identity: the black cannon on h8 renders with
+    // its glyph (aria-label "black cannon"), never as a hidden back.
+    const boardHtml = root.querySelector('.jieqi-board')?.innerHTML ?? '';
+    expect(boardHtml).toContain('aria-label="black cannon"');
+    expect(boardHtml).not.toContain('hidden piece');
   });
 });
 

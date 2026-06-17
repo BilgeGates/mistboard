@@ -132,15 +132,13 @@ function boardsPanel(postgame: JieqiPostgameResponse, signal: AbortSignal): HTML
   const panel = document.createElement('div');
   panel.className = 'dxq-postgame__boards';
   const views = postgameViewEntries(postgame);
+  // Single truth board, no perspective picker. Jieqi identities are hidden from
+  // both seats equally, so a per-seat split adds nothing over the truth surface
+  // (the only player-specific delta is captured-tray knowledge); show the truth.
+  const entry = views.find((candidate) => candidate.key === 'truth') ?? views[0];
   const maxPly = postgameReplayMaxPly(postgame);
   let currentPly = maxPly;
   let boardOrientation: JieqiColor = 'red';
-  // One board with a switchable perspective (replaces the old three-board
-  // triptych). Default to Server truth — side-neutral and information-complete;
-  // we don't know which side the viewer played, so we can't default to "their"
-  // fog view until the player identity is threaded through.
-  let selectedKey: JieqiPostgameViewKey =
-    views.find((entry) => entry.key === 'truth')?.key ?? views[0]?.key ?? 'truth';
 
   const controls = document.createElement('div');
   controls.className = 'dxq-postgame__replay-controls';
@@ -154,12 +152,6 @@ function boardsPanel(postgame: JieqiPostgameResponse, signal: AbortSignal): HTML
   const flip = replayControlButton('Flip', 'Flip the board');
   flip.title = 'Flip the board (f)';
 
-  // Perspective selector + the single board + its capture strips.
-  const viewSelector = document.createElement('div');
-  viewSelector.className = 'dxq-postgame__view-selector';
-  viewSelector.setAttribute('role', 'group');
-  viewSelector.setAttribute('aria-label', 'Board perspective');
-  const viewButtons = new Map<JieqiPostgameViewKey, HTMLButtonElement>();
   const boardWrap = document.createElement('section');
   boardWrap.className = 'dxq-postgame__board-wrap';
   const capturesTop = document.createElement('div');
@@ -172,11 +164,8 @@ function boardsPanel(postgame: JieqiPostgameResponse, signal: AbortSignal): HTML
   boardWrap.append(capturesTop, board, capturesBottom);
 
   const syncReplay = () => {
-    const entry = views.find((candidate) => candidate.key === selectedKey) ?? views[0];
     if (!entry) return;
     const view = postgameViewAtPly(postgame, entry.key, currentPly) ?? entry.view;
-    // Jieqi has NO visibility fog: the truth view renders every identity revealed;
-    // the per-color views render the opponent's face-down pieces as backs.
     board.innerHTML = renderJieqiBoardSvg(view, boardOrientation, {});
     renderCapturedPools(capturesTop, capturesBottom, view, boardOrientation);
     status.textContent = `Ply ${currentPly} of ${maxPly}`;
@@ -184,11 +173,6 @@ function boardsPanel(postgame: JieqiPostgameResponse, signal: AbortSignal): HTML
     previous.disabled = currentPly <= 0;
     next.disabled = currentPly >= maxPly;
     last.disabled = currentPly >= maxPly;
-    for (const [key, button] of viewButtons) {
-      const active = key === selectedKey;
-      button.classList.toggle('is-active', active);
-      button.setAttribute('aria-pressed', String(active));
-    }
   };
 
   first.addEventListener('click', () => {
@@ -225,32 +209,10 @@ function boardsPanel(postgame: JieqiPostgameResponse, signal: AbortSignal): HTML
     { signal },
   );
 
-  for (const entry of views) {
-    const button = document.createElement('button');
-    button.type = 'button';
-    button.className = 'dxq-postgame__view-button';
-    button.textContent = viewShortLabel(entry.key);
-    button.setAttribute('aria-label', entry.label);
-    button.addEventListener('click', () => {
-      selectedKey = entry.key;
-      syncReplay();
-    });
-    viewButtons.set(entry.key, button);
-    viewSelector.append(button);
-  }
-
   controls.append(first, previous, status, next, last, flip);
-  panel.append(controls);
-  if (views.length > 1) panel.append(viewSelector);
-  panel.append(boardWrap);
+  panel.append(controls, boardWrap);
   syncReplay();
   return panel;
-}
-
-function viewShortLabel(key: JieqiPostgameViewKey): string {
-  if (key === 'truth') return 'Truth';
-  if (key === 'red') return 'Red';
-  return 'Black';
 }
 
 // Lichess convention: a player's captured material sits next to that player. The
