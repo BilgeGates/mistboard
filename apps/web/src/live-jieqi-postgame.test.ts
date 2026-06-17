@@ -22,7 +22,7 @@ describe('Jieqi postgame page', () => {
     expect(jieqiPostgameApiUrl('jq room')).toBe('/api/jieqi/games/jq%20room');
   });
 
-  it('renders a single truth board with no perspective picker', async () => {
+  it('renders a dark-chess-style review: single board, two-column moves, reveal toggle, arrow nav', async () => {
     const fetchSpy = vi.fn(async () => jsonResponse(postgameFixture()));
     vi.stubGlobal('fetch', fetchSpy);
     const root = document.createElement('div');
@@ -31,24 +31,39 @@ describe('Jieqi postgame page', () => {
     await flushPromises();
 
     expect(fetchSpy).toHaveBeenCalledWith('/api/jieqi/games/jq_postgame');
-    expect(root.textContent).toContain('Game review');
+    expect(root.textContent).toContain('Jieqi');
     expect(root.textContent).toContain('Red wins');
-    // No jieqi play-again action in v1; the review keeps Back home + Room.
-    expect(root.textContent).toContain('Back home');
+    // No jieqi play-again action in v1; the review keeps Home + Room links.
+    expect(root.textContent).toContain('Home');
     expect(root.textContent).toContain('Room');
     expect(root.textContent).not.toContain('Play again');
-    expect(root.textContent).toContain('Red b3-b10');
-    expect(root.textContent).toContain('Ply 1 of 1');
+    // Two-column move list (dark-chess style): the cell shows the bare coordinate
+    // move, not a "Red"-prefixed line.
+    expect(root.textContent).toContain('b3-b10');
+    expect(root.textContent).toContain('ply 1 of 1');
 
-    // A SINGLE truth board, and no perspective picker.
+    // A SINGLE board (no triptych, no perspective picker).
     expect(root.querySelectorAll('.jieqi-board')).toHaveLength(1);
     expect(root.querySelectorAll('.dxq-postgame__view-button')).toHaveLength(0);
 
-    // The truth surface reveals every identity: the black cannon on h8 renders with
-    // its glyph (aria-label "black cannon"), never as a hidden back.
-    const boardHtml = root.querySelector('.jieqi-board')?.innerHTML ?? '';
-    expect(boardHtml).toContain('aria-label="black cannon"');
-    expect(boardHtml).not.toContain('hidden piece');
+    // Default is the as-played board (identities hidden): h8 renders as a face-down
+    // back, not the revealed black cannon.
+    const boardHtml = () => root.querySelector('.jieqi-board')?.innerHTML ?? '';
+    expect(boardHtml()).toContain('hidden piece');
+    expect(boardHtml()).not.toContain('aria-label="black cannon"');
+
+    // Toggling reveal on shows server truth, where h8 is the black cannon glyph.
+    const revealBtn = Array.from(root.querySelectorAll('button')).find((btn) =>
+      /identities/i.test(btn.textContent ?? ''),
+    );
+    expect(revealBtn).toBeTruthy();
+    revealBtn?.click();
+    expect(boardHtml()).toContain('aria-label="black cannon"');
+    expect(boardHtml()).not.toContain('hidden piece');
+
+    // Arrow keys scrub the replay: ArrowLeft from the final ply steps back to ply 0.
+    document.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowLeft' }));
+    expect(root.textContent).toContain('ply 0 of 1');
   });
 });
 

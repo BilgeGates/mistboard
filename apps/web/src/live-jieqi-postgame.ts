@@ -1,9 +1,13 @@
 import type { JieqiColor, JieqiGameStatus, JieqiMove, JieqiPlayerView } from '@mistboard/game';
 import './live-xiangqi.css';
-import './dark-xiangqi-postgame.css';
+import './landing.css';
+import './game-route.css';
 import { jieqiEnabled } from './feature-flags.js';
 import { fillCapturedPool } from './live-jieqi.js';
 import { installJieqiBoardStyles, renderJieqiBoardSvg } from './live-jieqi-render.js';
+import { createPane } from './replay-board.js';
+import { createShareButton } from './replay-meta.js';
+import { createReplayMovesPanel } from './replay-moves-panel.js';
 import { buildNav } from './site-shell.js';
 
 export type JieqiPostgameViewKey = JieqiColor | 'truth';
@@ -45,19 +49,16 @@ export type JieqiPostgameResponse = {
   history?: Partial<Record<JieqiPostgameViewKey, Array<{ ply: number; view: JieqiPlayerView }>>>;
 };
 
+type JieqiMoveEntry = { move: JieqiMove; ply: number; color: JieqiColor };
+
 type LoadResult =
   | { ok: true; postgame: JieqiPostgameResponse }
   | { ok: false; status: number; error: string };
 
 export function mountJieqiPostgame(root: HTMLElement, roomId: string): void {
-  root.classList.add('landing-page', 'jieqi-postgame-route');
-  // Site nav as a sibling before `root` — renderPostgame() only replaces `root`,
-  // so the nav survives the re-render (matches the xiangqi-spike pattern).
-  if (root.parentElement && !document.querySelector('.site-nav')) {
-    root.before(buildNav());
-  }
+  root.classList.add('landing-page', 'game-route');
   installJieqiBoardStyles();
-  root.replaceChildren(loadingView());
+  root.replaceChildren(buildNav(), loadingView());
   if (!jieqiEnabled()) {
     renderError(root, 'Jieqi unavailable', 'This route is not enabled in this build.');
     return;
@@ -65,7 +66,7 @@ export function mountJieqiPostgame(root: HTMLElement, roomId: string): void {
   void loadJieqiPostgame(roomId)
     .then((result) => {
       if (result.ok) {
-        renderPostgame(root, result.postgame);
+        renderPostgame(root, result.postgame, jieqiInitialPlyFromSearch(window.location.search));
         return;
       }
       renderError(root, errorTitle(result.status), errorBody(result));
@@ -96,129 +97,197 @@ export function jieqiPostgameApiUrl(roomId: string): string {
   return url.pathname;
 }
 
-function renderPostgame(root: HTMLElement, postgame: JieqiPostgameResponse): void {
+function renderPostgame(
+  root: HTMLElement,
+  postgame: JieqiPostgameResponse,
+  initialPly: number | null = null,
+): void {
   const priorAbort = postgameAbortControllers.get(root);
   if (priorAbort) priorAbort.abort();
   const abortController = new AbortController();
   postgameAbortControllers.set(root, abortController);
+  const signal = abortController.signal;
 
-  root.replaceChildren();
-  const page = document.createElement('main');
-  page.className = 'dxq-postgame';
+  const shell = document.createElement('main');
+  shell.className = 'game-shell jieqi-postgame-shell';
+  const page = document.createElement('div');
+  page.className =
+    'game-replay replay-page replay-meta-header analysis-tools-collapsed jieqi-postgame-page';
 
-  const header = document.createElement('header');
-  header.className = 'dxq-postgame__header';
-  const titleBlock = document.createElement('div');
+  // Info rail on the LEFT (not a full-width top strip) so the board claims the
+  // full column height. The rail carries the title, result, time control, seats,
+  // and the review actions.
+  const rail = document.createElement('aside');
+  rail.className = 'jieqi-review-rail side-panel';
+  const railSection = document.createElement('section');
+  railSection.className = 'panel-section';
+
   const eyebrow = document.createElement('p');
-  eyebrow.className = 'dxq-postgame__eyebrow';
+  eyebrow.className = 'jieqi-review-rail__eyebrow';
   eyebrow.textContent = 'Game review';
   const title = document.createElement('h1');
-  title.className = 'dxq-postgame__title';
+  title.className = 'jieqi-review-rail__title';
   title.textContent = 'Jieqi';
-  const summary = document.createElement('p');
-  summary.className = 'dxq-postgame__summary';
-  summary.textContent = `${resultLabel(postgame.game.result)} by ${labelize(postgame.game.termination)} · ${postgame.game.plyCount} plies`;
-  titleBlock.append(eyebrow, title, summary);
-  header.append(titleBlock, postgameActions(postgame));
 
-  const layout = document.createElement('section');
-  layout.className = 'dxq-postgame__layout';
-  layout.setAttribute('aria-label', 'Jieqi postgame');
+  const result = document.createElement('div');
+  result.className = 'jieqi-review-rail__result';
+  const chip = document.createElement('span');
+  chip.className = `replay-game-header-result-chip replay-game-header-result-${resultChipKind(postgame.game.result)}`;
+  chip.textContent = resultLabel(postgame.game.result);
+  const detail = document.createElement('span');
+  detail.className = 'replay-game-header-result-detail';
+  detail.textContent = `by ${labelize(postgame.game.termination)}`;
+  result.append(chip, detail);
 
-  const side = document.createElement('aside');
-  side.className = 'dxq-postgame__side';
-  side.append(detailsPanel(postgame), timelinePanel(postgame));
+  const meta = document.createElement('p');
+  meta.className = 'jieqi-review-rail__meta';
+  meta.textContent = [
+    timeControlLabel(postgame),
+    `${postgame.game.plyCount} plies`,
+    postgame.game.rated ? 'Rated' : 'Casual',
+  ].join(' · ');
 
-  layout.append(boardsPanel(postgame, abortController.signal), side);
-  page.append(header, layout);
-  root.append(page);
-}
+  // Jieqi postgame payloads carry no seat names, so the rows fall back to the
+  // color labels (Red moves first, like White in chess).
+  const seats = document.createElement('div');
+  seats.className = 'jieqi-review-rail__seats';
+  seats.append(seatCell('Red').el, seatCell('Black').el);
 
-function boardsPanel(postgame: JieqiPostgameResponse, signal: AbortSignal): HTMLElement {
-  const panel = document.createElement('div');
-  panel.className = 'dxq-postgame__boards';
-  const views = postgameViewEntries(postgame);
-  // Single truth board, no perspective picker. Jieqi identities are hidden from
-  // both seats equally, so a per-seat split adds nothing over the truth surface
-  // (the only player-specific delta is captured-tray knowledge); show the truth.
-  const entry = views.find((candidate) => candidate.key === 'truth') ?? views[0];
+  const actions = document.createElement('div');
+  actions.className = 'jieqi-review-rail__actions';
+  const revealBtn = headerAction('Reveal identities');
+  revealBtn.setAttribute('aria-pressed', 'true');
+  revealBtn.title = 'Toggle hidden-piece identities (h)';
+  const flipBtn = headerAction('Flip');
+  flipBtn.setAttribute('aria-label', 'Flip board');
+  flipBtn.title = 'Flip board (f)';
+  const share = createShareButton();
+  const home = headerLink('Home', '/');
+  const room = headerLink('Room', `/room/${encodeURIComponent(postgame.game.roomId)}`);
+  actions.append(revealBtn, flipBtn, share, home, room);
+
+  railSection.append(eyebrow, title, result, meta, seats, actions);
+  rail.append(railSection);
+
+  const layout = document.createElement('div');
+  layout.className = 'replay-layout replay-layout-crossroads';
+  // Empty pane label: no caption strip above the board, so it gets the full height.
+  const pane = createPane('', 'truth', true, 'split');
+  pane.boardEl.classList.add('jieqi-postgame-board');
+  // With no top strip, the board can take the freed column height; cap by viewport
+  // height (and a px ceiling) since jieqi's board is ~10% taller than wide.
+  pane.boardEl.style.width = 'min(66vh, 540px)';
+  pane.boardEl.style.maxWidth = '540px';
+  pane.boardEl.style.margin = '0 auto';
+  layout.append(pane.el);
+
+  const movesPanel = createReplayMovesPanel();
+
+  page.append(rail, layout, movesPanel.el);
+  shell.append(page);
+  root.replaceChildren(buildNav(), shell);
+
+  const moves: JieqiMoveEntry[] = postgame.timeline
+    .filter(
+      (entry): entry is typeof entry & { move: JieqiMove; ply: number; color: JieqiColor } =>
+        entry.type === 'move-played' &&
+        !!entry.move &&
+        typeof entry.ply === 'number' &&
+        !!entry.color,
+    )
+    .map((entry) => ({ move: entry.move, ply: entry.ply, color: entry.color }));
   const maxPly = postgameReplayMaxPly(postgame);
-  let currentPly = maxPly;
+  let currentPly = initialPly === null ? maxPly : clampPly(initialPly, maxPly);
   let boardOrientation: JieqiColor = 'red';
+  // Default to the as-played board: unmoved pieces show as face-down backs, the way
+  // the position actually looked. The toggle (button / `h`) reveals server truth.
+  let revealed = false;
 
-  const controls = document.createElement('div');
-  controls.className = 'dxq-postgame__replay-controls';
-  const first = replayControlButton('|<', 'First ply');
-  const previous = replayControlButton('<', 'Previous ply');
-  const status = document.createElement('span');
-  status.className = 'dxq-postgame__replay-status';
-  status.setAttribute('aria-live', 'polite');
-  const next = replayControlButton('>', 'Next ply');
-  const last = replayControlButton('>|', 'Final ply');
-  const flip = replayControlButton('Flip', 'Flip the board');
-  flip.title = 'Flip the board (f)';
-
-  const boardWrap = document.createElement('section');
-  boardWrap.className = 'dxq-postgame__board-wrap';
-  const capturesTop = document.createElement('div');
-  capturesTop.className = 'captures-strip';
-  const board = document.createElement('div');
-  board.className = 'dxq-postgame__board jieqi-live-board';
-  board.setAttribute('aria-label', 'Jieqi board');
-  const capturesBottom = document.createElement('div');
-  capturesBottom.className = 'captures-strip';
-  boardWrap.append(capturesTop, board, capturesBottom);
-
-  const syncReplay = () => {
-    if (!entry) return;
-    const view = postgameViewAtPly(postgame, entry.key, currentPly) ?? entry.view;
-    board.innerHTML = renderJieqiBoardSvg(view, boardOrientation, {});
-    renderCapturedPools(capturesTop, capturesBottom, view, boardOrientation);
-    status.textContent = `Ply ${currentPly} of ${maxPly}`;
-    first.disabled = currentPly <= 0;
-    previous.disabled = currentPly <= 0;
-    next.disabled = currentPly >= maxPly;
-    last.disabled = currentPly >= maxPly;
+  const jump = (ply: number, options: { replaceUrl?: boolean } = {}) => {
+    currentPly = clampPly(ply, maxPly);
+    if (options.replaceUrl !== false) replaceReviewPlyInUrl(currentPly, maxPly);
+    sync();
   };
 
-  first.addEventListener('click', () => {
-    currentPly = 0;
-    syncReplay();
-  });
-  previous.addEventListener('click', () => {
-    currentPly = Math.max(0, currentPly - 1);
-    syncReplay();
-  });
-  next.addEventListener('click', () => {
-    currentPly = Math.min(maxPly, currentPly + 1);
-    syncReplay();
-  });
-  last.addEventListener('click', () => {
-    currentPly = maxPly;
-    syncReplay();
-  });
-  flip.addEventListener('click', () => {
+  const sync = () => {
+    // Reveal on → truth (every identity). Reveal off → the orientation seat's
+    // as-played view: identical board to the other seat (jieqi hides identities
+    // symmetrically), differing only in captured-tray knowledge.
+    const viewKey: JieqiPostgameViewKey = revealed ? 'truth' : boardOrientation;
+    const fallback = revealed
+      ? (postgame.views?.truth ?? postgame.view)
+      : (postgame.views?.[boardOrientation] ?? postgame.view);
+    const view = postgameViewAtPly(postgame, viewKey, currentPly) ?? fallback;
+    pane.boardEl.innerHTML = renderJieqiBoardSvg(view, boardOrientation, {});
+    renderCapturedPools(pane.topCapturesEl, pane.capturesEl, view, boardOrientation);
+    movesPanel.meta.textContent =
+      moves.length === 0
+        ? 'No moves'
+        : `Move ${Math.ceil(currentPly / 2)} · ply ${currentPly} of ${maxPly}`;
+    movesPanel.controls.first.disabled = currentPly <= 0;
+    movesPanel.controls.prev.disabled = currentPly <= 0;
+    movesPanel.controls.next.disabled = currentPly >= maxPly;
+    movesPanel.controls.last.disabled = currentPly >= maxPly;
+    renderMoveRows(movesPanel.moveList, moves, currentPly, jump);
+  };
+
+  movesPanel.controls.first.onclick = () => jump(0);
+  movesPanel.controls.prev.onclick = () => jump(currentPly - 1);
+  movesPanel.controls.next.onclick = () => jump(currentPly + 1);
+  movesPanel.controls.last.onclick = () => jump(maxPly);
+
+  const flip = () => {
     boardOrientation = oppositeJieqiColor(boardOrientation);
-    syncReplay();
-  });
+    sync();
+  };
+  flipBtn.onclick = flip;
+
+  const toggleReveal = () => {
+    revealed = !revealed;
+    revealBtn.textContent = revealed ? 'Hide identities' : 'Reveal identities';
+    revealBtn.setAttribute('aria-pressed', String(!revealed));
+    sync();
+  };
+  revealBtn.onclick = toggleReveal;
+
   document.addEventListener(
     'keydown',
     (event) => {
       if (event.metaKey || event.ctrlKey || event.altKey) return;
       const target = event.target as HTMLElement | null;
-      if (target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA')) return;
-      if (event.key !== 'f' && event.key !== 'F') return;
-      event.preventDefault();
-      boardOrientation = oppositeJieqiColor(boardOrientation);
-      syncReplay();
+      if (
+        target &&
+        (target.isContentEditable ||
+          target.tagName === 'INPUT' ||
+          target.tagName === 'TEXTAREA' ||
+          target.tagName === 'SELECT')
+      ) {
+        return;
+      }
+      if (event.key === 'f' || event.key === 'F') {
+        event.preventDefault();
+        flip();
+      } else if (event.key === 'h' || event.key === 'H') {
+        event.preventDefault();
+        toggleReveal();
+      } else if (event.key === 'ArrowLeft') {
+        event.preventDefault();
+        jump(currentPly - 1);
+      } else if (event.key === 'ArrowRight') {
+        event.preventDefault();
+        jump(currentPly + 1);
+      } else if (event.key === 'ArrowUp') {
+        event.preventDefault();
+        jump(0);
+      } else if (event.key === 'ArrowDown') {
+        event.preventDefault();
+        jump(maxPly);
+      }
     },
     { signal },
   );
 
-  controls.append(first, previous, status, next, last, flip);
-  panel.append(controls, boardWrap);
-  syncReplay();
-  return panel;
+  sync();
 }
 
 // Lichess convention: a player's captured material sits next to that player. The
@@ -233,7 +302,7 @@ function renderCapturedPools(
 ): void {
   top.replaceChildren();
   bottom.replaceChildren();
-  const opponent = orientation === 'red' ? 'black' : 'red';
+  const opponent = oppositeJieqiColor(orientation);
   fillCapturedPool(top, view.captured, orientation);
   fillCapturedPool(bottom, view.captured, opponent);
 }
@@ -258,15 +327,6 @@ export function postgameViewEntries(
   return [{ key: 'truth', label: 'Server truth', view: postgame.view }];
 }
 
-function replayControlButton(text: string, label: string): HTMLButtonElement {
-  const button = document.createElement('button');
-  button.type = 'button';
-  button.className = 'dxq-postgame__replay-button';
-  button.setAttribute('aria-label', label);
-  button.textContent = text;
-  return button;
-}
-
 export function postgameReplayMaxPly(postgame: JieqiPostgameResponse): number {
   const history = Object.values(postgame.history ?? {}).flat();
   return Math.max(postgame.game.plyCount, ...history.map((snapshot) => snapshot.ply), 0);
@@ -287,84 +347,139 @@ export function postgameViewAtPly(
   return selected?.view ?? null;
 }
 
-// No jieqi play-again room action exists yet (v1), so the review offers only the
-// Back home + Room links — no fabricated server action.
-function postgameActions(postgame: JieqiPostgameResponse): HTMLElement {
-  const actions = document.createElement('nav');
-  actions.className = 'dxq-postgame__actions';
-  actions.setAttribute('aria-label', 'Game links');
-  const home = document.createElement('a');
-  home.className = 'dxq-postgame__link';
-  home.href = '/';
-  home.textContent = 'Back home';
-  const room = document.createElement('a');
-  room.className = 'dxq-postgame__link';
-  room.href = `/room/${encodeURIComponent(postgame.game.roomId)}`;
-  room.textContent = 'Room';
-  actions.append(home, room);
-  return actions;
-}
-
-function detailsPanel(postgame: JieqiPostgameResponse): HTMLElement {
-  const panel = document.createElement('section');
-  panel.className = 'dxq-postgame__panel';
-  const heading = document.createElement('h2');
-  heading.textContent = 'Game';
-  const details = document.createElement('dl');
-  details.className = 'dxq-postgame__details';
-  details.append(
-    detailRow('Result', resultLabel(postgame.game.result)),
-    detailRow('Ending', labelize(postgame.game.termination)),
-    detailRow('Clock', timeControlLabel(postgame)),
-    detailRow('Ended', dateLabel(postgame.game.endedAt)),
-  );
-  panel.append(heading, details);
-  return panel;
-}
-
-function timelinePanel(postgame: JieqiPostgameResponse): HTMLElement {
-  const panel = document.createElement('section');
-  panel.className = 'dxq-postgame__panel';
-  const heading = document.createElement('h2');
-  heading.textContent = 'Moves';
-  const list = document.createElement('ol');
-  list.className = 'dxq-postgame__moves';
-  const moves = postgame.timeline.filter((entry) => entry.type === 'move-played' && entry.move);
+export function renderMoveRows(
+  list: HTMLOListElement,
+  moves: JieqiMoveEntry[],
+  activePly: number,
+  onJump: (ply: number) => void,
+): void {
+  list.replaceChildren();
   if (moves.length === 0) {
     const empty = document.createElement('li');
-    empty.className = 'dxq-postgame__move';
+    empty.className = 'move-row move-empty';
     empty.textContent = 'No moves';
     list.append(empty);
-  } else {
-    for (const entry of moves) {
-      const item = document.createElement('li');
-      item.className = 'dxq-postgame__move';
-      const number = document.createElement('span');
-      number.className = 'dxq-postgame__move-number';
-      number.textContent = String(entry.ply ?? '');
-      const move = document.createElement('span');
-      move.textContent = `${capitalize(entry.color ?? '')} ${entry.move!.from}-${entry.move!.to}`;
-      item.append(number, move);
-      list.append(item);
-    }
+    return;
   }
-  panel.append(heading, list);
-  return panel;
+  const byPly = new Map<number, JieqiMoveEntry>();
+  for (const move of moves) byPly.set(move.ply, move);
+  const maxPly = Math.max(...moves.map((move) => move.ply));
+  const fullMoves = Math.ceil(maxPly / 2);
+  for (let moveNumber = 1; moveNumber <= fullMoves; moveNumber += 1) {
+    const row = document.createElement('li');
+    row.className = 'move-row';
+    const number = document.createElement('span');
+    number.className = 'move-number';
+    number.textContent = String(moveNumber);
+    // Red is the first mover, so it takes the left ("white") cell; Black the right.
+    row.append(
+      number,
+      moveCell(byPly.get(moveNumber * 2 - 1), 'white', moveNumber * 2 - 1, activePly, onJump),
+      moveCell(byPly.get(moveNumber * 2), 'black', moveNumber * 2, activePly, onJump),
+    );
+    list.append(row);
+  }
+  scrollActiveMoveIntoView(list);
 }
 
-function detailRow(label: string, value: string): HTMLElement {
+function moveCell(
+  entry: JieqiMoveEntry | undefined,
+  cell: 'white' | 'black',
+  ply: number,
+  activePly: number,
+  onJump: (ply: number) => void,
+): HTMLElement {
+  if (!entry) {
+    const empty = document.createElement('span');
+    empty.className = `${cell}-ply move-empty`;
+    return empty;
+  }
+  const button = document.createElement('button');
+  button.type = 'button';
+  button.className = `${cell}-ply${activePly === ply ? ' active' : ''}`;
+  button.textContent = moveLabel(entry.move);
+  button.title = `${capitalize(entry.color)} ply ${ply}: ${moveLabel(entry.move)}`;
+  button.onclick = () => onJump(ply);
+  return button;
+}
+
+function scrollActiveMoveIntoView(list: HTMLOListElement): void {
+  window.requestAnimationFrame(() => {
+    const active = list.querySelector<HTMLButtonElement>('button.active');
+    if (!active) return;
+    const listRect = list.getBoundingClientRect();
+    const activeRect = active.getBoundingClientRect();
+    const centeredDelta =
+      activeRect.top - listRect.top - (list.clientHeight - activeRect.height) / 2;
+    list.scrollTo({ top: Math.max(0, list.scrollTop + centeredDelta), behavior: 'auto' });
+  });
+}
+
+function moveLabel(move: JieqiMove): string {
+  return `${move.from}-${move.to}`;
+}
+
+function resultChipKind(result: string): 'white' | 'black' | 'draw' {
+  // Red is the first mover, so it maps to the "white" chip in the shared header
+  // palette (matching the Jieqi watch surface).
+  if (result === 'red-wins') return 'white';
+  if (result === 'black-wins') return 'black';
+  return 'draw';
+}
+
+type SeatCell = { el: HTMLDivElement };
+
+function seatCell(name: string): SeatCell {
   const row = document.createElement('div');
-  const dt = document.createElement('dt');
-  dt.textContent = label;
-  const dd = document.createElement('dd');
-  dd.textContent = value;
-  row.append(dt, dd);
-  return row;
+  row.className = 'replay-clock-row';
+  const label = document.createElement('span');
+  label.className = 'replay-clock-side';
+  label.textContent = name;
+  const time = document.createElement('span');
+  time.className = 'replay-clock-time';
+  row.append(label, time);
+  return { el: row };
+}
+
+function headerAction(label: string): HTMLButtonElement {
+  const button = document.createElement('button');
+  button.type = 'button';
+  button.className = 'replay-button replay-game-header-action replay-game-header-action-secondary';
+  button.textContent = label;
+  return button;
+}
+
+function headerLink(label: string, href: string): HTMLAnchorElement {
+  const link = document.createElement('a');
+  link.className = 'replay-button replay-game-header-action replay-game-header-action-secondary';
+  link.href = href;
+  link.textContent = label;
+  return link;
+}
+
+export function jieqiInitialPlyFromSearch(search: string): number | null {
+  const raw = new URLSearchParams(search).get('ply');
+  if (raw === null || !/^\d+$/.test(raw)) return null;
+  return Number.parseInt(raw, 10);
+}
+
+function clampPly(ply: number, maxPly: number): number {
+  return Math.max(0, Math.min(maxPly, ply));
+}
+
+function replaceReviewPlyInUrl(ply: number, maxPly: number): void {
+  const url = new URL(window.location.href);
+  if (ply >= maxPly) {
+    url.searchParams.delete('ply');
+  } else {
+    url.searchParams.set('ply', String(ply));
+  }
+  window.history.replaceState(window.history.state, '', `${url.pathname}${url.search}${url.hash}`);
 }
 
 function loadingView(): HTMLElement {
   const shell = document.createElement('main');
-  shell.className = 'dxq-postgame__notice';
+  shell.className = 'game-shell';
   const heading = document.createElement('h1');
   heading.textContent = 'Loading game';
   shell.append(heading);
@@ -372,15 +487,14 @@ function loadingView(): HTMLElement {
 }
 
 function renderError(root: HTMLElement, titleText: string, bodyText: string): void {
-  root.replaceChildren();
   const shell = document.createElement('main');
-  shell.className = 'dxq-postgame__error';
+  shell.className = 'game-shell';
   const title = document.createElement('h1');
   title.textContent = titleText;
   const body = document.createElement('p');
   body.textContent = bodyText;
   shell.append(title, body);
-  root.append(shell);
+  root.replaceChildren(buildNav(), shell);
 }
 
 function errorTitle(status: number): string {
@@ -432,18 +546,6 @@ function clockLabel(ms: number): string {
   const minutes = Math.floor(totalSeconds / 60);
   const seconds = totalSeconds % 60;
   return `${minutes}:${String(seconds).padStart(2, '0')}`;
-}
-
-function dateLabel(value: string): string {
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return value;
-  return date.toLocaleString(undefined, {
-    day: 'numeric',
-    hour: 'numeric',
-    minute: '2-digit',
-    month: 'short',
-    year: 'numeric',
-  });
 }
 
 function labelize(value: string): string {
