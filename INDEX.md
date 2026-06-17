@@ -16,6 +16,7 @@ Edit task → find file → open only that file.
 | `engine-protocol.ts` | Public redacted engine request/response contract shared by server and external/first-party engines |
 | `variants.ts` | Variants (`draft960Variant`, `darkChessVariant`); fog kernel: `fogVisibleSquares`, `fogMovesFrom`, `fogPawnMoves`, `fogSlideMoves`, `fogCastlingMoves`, `applyFogMove` |
 | `variants-xiangqi.ts` | FoW Xiangqi variant (flagged/dev-only live room + `/xiangqi-spike`); cannon vision = field of fire |
+| `xiangqi-vision-kernel.ts` | Geometry-parameterized FoW vision walks shared by the xiangqi-family kernels (full Xiangqi, Dark Mini Xiangqi, Crossroads Chess): the cannon screen-walk, horse blocked-leg walk, and rook/slider ray walk + `VisionAccum`/`emptyVision`, driven by a per-variant `VisionProbe`. Per-piece rules that genuinely differ (general/advisor/elephant/soldier/pawn) stay in each variant kernel |
 | `variants-shogi.ts` | Shogi rules kernel reserved for future hidden-information variants |
 | `events.ts` | `GameEvent` union type, `replayGameEvents` reducer, `GameProjection` |
 | `notation.ts` | `algebraicMoveLabels` — algebraic/coordinate notation for move lists and replay |
@@ -76,6 +77,7 @@ Edit task → find file → open only that file.
 | `server-room-lifecycle.ts` | Room lifecycle edge handling: room creation/hydration, Draft960 offer seeding, abandoned-room aborts, seat-vacate timers, stale guest prestart abort sweeps, stale paused-room sweeps, paused-room grace resume, and runtime room reset. Injects canonical maps/callbacks from `index.ts`. |
 | `rematch.ts` | Mutual-confirm rematch state machine + finalize. `offerRematch`, `cancelRematch`, `declineRematch`, `finalizeRematchIfReady`, `maybeReplayRematchRedirect`. |
 | `room-manager.ts` | Core game loop: `playMove`, `appendEvent`, `broadcastSnapshot`, `scheduleClockTimeout`, `expireActiveClock`, `scheduleRandomEngineMove`, `playRandomEngineMoveIfReady`, seat token persistence, bid/draft resolution. Context: `RoomManagerContext`. |
+| `lifecycle-windows.ts` | Neutral leaf holding the `ABORT_WINDOW_MS` (pregame first-move) and `FORFEIT_WINDOW_MS` (disconnect) constants, shared by both live-room stacks (legacy `room-manager` + generic `variant-tenant/lifecycle`) so the tenant runtime imports no game-lifecycle constant from the legacy stack |
 | `http-api.ts` | Thin HTTP dispatcher (79 LOC). Walks `routes/*` modules in declared order; each `tryHandle()` returns true to claim the request or false to fall through. Re-exports `HttpApiContext`, `parseVariantId`, `parseHiddenDraft960`, `parseRoomTimeControl`, `isPveAllowedTimeControl`, `readJsonBody`, `writeJson`, `requireMethod`, `requirePersistence` from `routes/lib.ts` so external consumers (`index.ts`, loadtest) don't need to know things moved |
 | `routes/lib.ts` | Shared HTTP utilities: `HttpApiContext` interface, `writeJson`, `requireMethod`, `requirePersistence`, `readJsonBody`, the parse helpers, `hashIp`, `isHttpAdminAuthorized`. Imported by every route module |
 | `routes/auth.ts` | `/api/auth/{me,logout,email/start,email/confirm}` |
