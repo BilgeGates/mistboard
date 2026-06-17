@@ -93,7 +93,10 @@ export function mountBanqiReplay(host: HTMLElement, spec: BanqiReplaySpec): Banq
   const header = document.createElement('div');
   header.className = 'xq-replay-header';
   const headerPlayers = document.createElement('div');
-  headerPlayers.textContent = `${spec.red} (Red) vs ${spec.black} (Black)`;
+  // Banqi has no fixed sides — the seats are first/second to move, and the
+  // opening flip decides each player's colour. So label the matchup by sequence,
+  // not by ink (which the board shows as the game plays out).
+  headerPlayers.textContent = `${spec.red} (first) vs ${spec.black} (second)`;
   const headerEvent = document.createElement('div');
   headerEvent.className = 'xq-replay-header-event';
   headerEvent.textContent = spec.event;

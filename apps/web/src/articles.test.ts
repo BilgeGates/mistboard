@@ -214,7 +214,6 @@ describe('rules variant sidebar', () => {
     expect(pageText).toContain('The cannon sits outside this rank ladder');
     expect(pageText).toContain('40 plies (40 individual turns) with no flip and no capture');
     expect(pageText).toContain('threefold repetition');
-    expect(pageText).toContain('How positions work');
     expect(pageText).toContain('Taiwanese rules (this page)');
     expect(pageText).toContain('Hong Kong rules');
     expect(pageText).toContain('Mainland rules');
@@ -226,7 +225,7 @@ describe('rules variant sidebar', () => {
     expect(pageText).not.toContain('It slides any distance');
     expect(pageText).not.toContain('horse, cannon, soldier');
     const banqiSvgs = [...page.querySelectorAll('.article-figure .xq-article-svg')];
-    expect(banqiSvgs.length).toBeGreaterThanOrEqual(4);
+    expect(banqiSvgs.length).toBeGreaterThanOrEqual(3);
     expect(
       banqiSvgs.every((svg) => {
         const [, , width, height] = svg.getAttribute('viewBox')?.split(/\s+/).map(Number) ?? [];
@@ -245,7 +244,6 @@ describe('rules variant sidebar', () => {
     expect(figureText).toContain('FIRST FLIP ASSIGNS COLOR');
     expect(figureText).toContain('TAIWAN RANK LADDER');
     expect(figureText).toContain('CANNON SCREEN CAPTURE');
-    expect(figureText).toContain('FACE-DOWN PIECES SHAPE THE BOARD');
   });
 
   it('keeps fogged xiangqi blockers as question-mark pieces', () => {

@@ -2741,26 +2741,24 @@ export const BANQI_RANK_LADDER = () => {
       `<text x="${BANQI_PAIR_W / 2}" y="14" font-family="system-ui, sans-serif" font-size="13" font-weight="700" class="xq-diagram-title" text-anchor="middle">TAIWAN RANK LADDER</text>`,
       `<rect x="${L}" y="${T}" width="${BANQI_BOARD_W}" height="${BANQI_BOARD_H}" rx="${XQ_BOARD_RADIUS}" class="xq-diagram-bg"/>`,
       `<rect x="${L}" y="${T}" width="${BANQI_BOARD_W}" height="${BANQI_BOARD_H}" rx="${XQ_BOARD_RADIUS}" fill="none" stroke="${XQ_BOARD_STROKE}" stroke-width="${XQ_BOARD_STROKE_WIDTH}"/>`,
-      `<text x="${L + 20}" y="${T + 54}" font-family="system-ui, sans-serif" font-size="11" font-weight="700" class="xq-diagram-ink">RED</text>`,
-      `<text x="${L + 20}" y="${T + 104}" font-family="system-ui, sans-serif" font-size="11" font-weight="700" class="xq-diagram-ink">BLACK</text>`,
       ...BANQI_RANK_ORDER.map(({ role, label }, index) => {
         const cx = pieceX(index);
         return [
           renderXiangqiPieceGlyphed({ color: 'red', role }, activeXiangqiPieceSet, {
             x: cx - 18,
-            y: T + 32,
+            y: T + 44,
             size: 36,
           }),
           renderXiangqiPieceGlyphed({ color: 'black', role }, activeXiangqiPieceSet, {
             x: cx - 18,
-            y: T + 82,
+            y: T + 94,
             size: 36,
           }),
-          `<text x="${cx}" y="${T + 150}" font-family="system-ui, sans-serif" font-size="11" class="xq-diagram-ink" text-anchor="middle">${label}</text>`,
+          `<text x="${cx}" y="${T + 164}" font-family="system-ui, sans-serif" font-size="11" class="xq-diagram-ink" text-anchor="middle">${label}</text>`,
         ].join('');
       }),
-      `<text x="${L + 60}" y="${T + 200}" font-family="system-ui, sans-serif" font-size="12" font-weight="700" class="xq-diagram-ink" text-anchor="middle">HIGH</text>`,
-      `<text x="${L + BANQI_BOARD_W - 60}" y="${T + 200}" font-family="system-ui, sans-serif" font-size="12" font-weight="700" class="xq-diagram-ink" text-anchor="middle">LOW</text>`,
+      `<text x="${L + 60}" y="${T + 206}" font-family="system-ui, sans-serif" font-size="12" font-weight="700" class="xq-diagram-ink" text-anchor="middle">HIGH</text>`,
+      `<text x="${L + BANQI_BOARD_W - 60}" y="${T + 206}" font-family="system-ui, sans-serif" font-size="12" font-weight="700" class="xq-diagram-ink" text-anchor="middle">LOW</text>`,
     ].join(''),
   );
 };

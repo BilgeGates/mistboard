@@ -509,8 +509,8 @@ const ZH_HANS: Record<string, string> = {
   Banqi: '暗棋',
   // -- Banqi (rules) --
   'Banqi (Chinese Dark Chess) Rules': '暗棋规则',
-  'Step through a real game below: MistyBanqi (Strongest) as Red against a human as Black. Black wins the opening material — the first eight captures are all Black’s — but Red keeps its elephant, the highest piece left, and grinds out the win. A clean illustration that in Banqi, rank beats raw material. Tiles flip to their dealt piece the first time they are turned over.':
-    '在下方逐步回放一盘真实对局：红方是 MistyBanqi（最强），黑方是人类。黑方在开局赢得子力——前八次吃子都是黑方——但红方留住了象，也就是盘面上等级最高的棋子，最终碾压获胜。这清楚地说明：在暗棋中，等级胜过单纯的子力。每枚棋子第一次被翻开时，会翻出它所发到的身份。',
+  'Step through a real game below — MistyBanqi (Strongest) moving first, a human second. The opening flip leaves MistyBanqi playing Red and the human Black. Black wins the opening material — the first eight captures are all Black’s — but Red keeps its elephant, the highest piece left, and grinds out the win. A clean illustration that in Banqi, rank beats raw material. Tiles flip to their dealt piece the first time they are turned over.':
+    '在下方逐步回放一盘真实对局——MistyBanqi（最强）先手，人类后手。开局的第一次翻子让 MistyBanqi 执红、人类执黑。黑方在开局赢得子力——前八次吃子都是黑方——但红方留住了象，也就是盘面上等级最高的棋子，最终碾压获胜。这清楚地说明：在暗棋中，等级胜过单纯的子力。每枚棋子第一次被翻开时，会翻出它所发到的身份。',
   'Banqi rules: the 4x8 half-board xiangqi flip game, with face-down pieces, rank captures, screen-jumping cannons, and no royal general.':
     '暗棋规则：在半张 4×8 象棋棋盘上进行的翻子游戏。棋子背面朝下，按等级吃子，炮靠隔子（炮架）吃，将帅不是王棋。',
   "Banqi (暗棋, 'dark chess', also called half chess or flip chess) is played on half a xiangqi board with all thirty-two pieces shuffled face-down. Each turn, flip an unknown piece or move one of your revealed pieces one square. Captures follow rank, except for the cannon. You win by leaving the opponent with no legal move.":
@@ -556,8 +556,9 @@ const ZH_HANS: Record<string, string> = {
     '自定义变体：有些圈子允许尝试吃背面朝下的棋子，若该吃子无法成立，则改为翻开目标棋子。线下对弈前，请先就这一点以及重复局面、无进展规则达成一致。',
   "暗棋 is Mandarin ànqí, 'dark chess'. The same game is also called 半棋 (half chess), the source of the English name banqi, and 翻棋 (flip chess). Computer-game literature often calls it Chinese Dark Chess. None of these are [jieqi](/rules/jieqi), the full-board xiangqi variant where shuffled pieces reveal as they move, and none are the fog-of-war [dark chess](/rules/dark-chess) played here.":
     '「暗棋」的普通话读音是 ànqí，意为「dark chess」。同一个游戏也叫「半棋」（英文名 banqi 即由此而来）和「翻棋」。计算机博弈文献常称它为 Chinese Dark Chess。这些都不是[揭棋](/rules/jieqi)，即在整张象棋棋盘上、棋子洗匀后随走随翻的那种变体，也都不是这里所玩的战争迷雾[迷雾国际象棋](/rules/dark-chess)。',
-  'Banqi is playable on Mistboard: challenge a friend to a game. Xiangqi is the parent game, and jieqi is the other hidden-identity cousin.':
-    '暗棋现已可在 Mistboard 上对弈：邀请好友来一局。象棋是它的母游戏，揭棋则是另一种隐藏身份的近亲。',
+  'Banqi is playable on Mistboard: take on MistyBanqi at the strength you pick, or challenge a friend. Xiangqi is the parent game, and jieqi is the other hidden-identity cousin.':
+    '暗棋可在 Mistboard 上对弈：挑选难度与 MistyBanqi 对战，或邀请好友对局。象棋是它的母游戏，揭棋则是另一种隐藏身份的近亲。',
+  'Play MistyBanqi': '对战 MistyBanqi',
   'Challenge a friend': '挑战好友',
   Jieqi: '揭棋',
   'Dark Chess': '迷雾国际象棋',
@@ -1042,8 +1043,8 @@ const ZH_HANT: Record<string, string> = {
   Banqi: '暗棋',
   // -- Banqi (rules) --
   'Banqi (Chinese Dark Chess) Rules': '暗棋規則',
-  'Step through a real game below: MistyBanqi (Strongest) as Red against a human as Black. Black wins the opening material — the first eight captures are all Black’s — but Red keeps its elephant, the highest piece left, and grinds out the win. A clean illustration that in Banqi, rank beats raw material. Tiles flip to their dealt piece the first time they are turned over.':
-    '在下方逐步回放一盤真實對局：紅方是 MistyBanqi（最強），黑方是人類。黑方在開局贏得子力——前八次吃子都是黑方——但紅方留住了象，也就是盤面上等級最高的棋子，最終碾壓獲勝。這清楚地說明：在暗棋中，等級勝過單純的子力。每枚棋子第一次被翻開時，會翻出它所發到的身份。',
+  'Step through a real game below — MistyBanqi (Strongest) moving first, a human second. The opening flip leaves MistyBanqi playing Red and the human Black. Black wins the opening material — the first eight captures are all Black’s — but Red keeps its elephant, the highest piece left, and grinds out the win. A clean illustration that in Banqi, rank beats raw material. Tiles flip to their dealt piece the first time they are turned over.':
+    '在下方逐步回放一盤真實對局——MistyBanqi（最強）先手，人類後手。開局的第一次翻子讓 MistyBanqi 執紅、人類執黑。黑方在開局贏得子力——前八次吃子都是黑方——但紅方留住了象，也就是盤面上等級最高的棋子，最終碾壓獲勝。這清楚地說明：在暗棋中，等級勝過單純的子力。每枚棋子第一次被翻開時，會翻出它所發到的身份。',
   'Banqi rules: the 4x8 half-board xiangqi flip game, with face-down pieces, rank captures, screen-jumping cannons, and no royal general.':
     '暗棋規則：在半張 4×8 象棋棋盤上進行的翻子遊戲。棋子背面朝下，按等級吃子，砲靠隔子（砲架）吃，將帥不是王棋。',
   "Banqi (暗棋, 'dark chess', also called half chess or flip chess) is played on half a xiangqi board with all thirty-two pieces shuffled face-down. Each turn, flip an unknown piece or move one of your revealed pieces one square. Captures follow rank, except for the cannon. You win by leaving the opponent with no legal move.":
@@ -1089,8 +1090,9 @@ const ZH_HANT: Record<string, string> = {
     '自訂變體：有些圈子允許嘗試吃背面朝下的棋子，若該吃子無法成立，則改為翻開目標棋子。線下對弈前，請先就這一點以及重複局面、無進展規則達成一致。',
   "暗棋 is Mandarin ànqí, 'dark chess'. The same game is also called 半棋 (half chess), the source of the English name banqi, and 翻棋 (flip chess). Computer-game literature often calls it Chinese Dark Chess. None of these are [jieqi](/rules/jieqi), the full-board xiangqi variant where shuffled pieces reveal as they move, and none are the fog-of-war [dark chess](/rules/dark-chess) played here.":
     '「暗棋」的普通話讀音是 ànqí，意為「dark chess」。同一個遊戲也叫「半棋」（英文名 banqi 即由此而來）和「翻棋」。電腦博弈文獻常稱它為 Chinese Dark Chess。這些都不是[揭棋](/rules/jieqi)，即在整張象棋棋盤上、棋子洗勻後隨走隨翻的那種變體，也都不是這裡所玩的戰爭迷霧[迷霧國際象棋](/rules/dark-chess)。',
-  'Banqi is playable on Mistboard: challenge a friend to a game. Xiangqi is the parent game, and jieqi is the other hidden-identity cousin.':
-    '暗棋現已可在 Mistboard 上對弈：邀請好友來一局。象棋是它的母遊戲，揭棋則是另一種隱藏身份的近親。',
+  'Banqi is playable on Mistboard: take on MistyBanqi at the strength you pick, or challenge a friend. Xiangqi is the parent game, and jieqi is the other hidden-identity cousin.':
+    '暗棋可在 Mistboard 上對弈：挑選難度與 MistyBanqi 對戰，或邀請好友對局。象棋是它的母遊戲，揭棋則是另一種隱藏身分的近親。',
+  'Play MistyBanqi': '對戰 MistyBanqi',
   'Challenge a friend': '挑戰好友',
   Jieqi: '揭棋',
   'Dark Chess': '迷霧國際象棋',

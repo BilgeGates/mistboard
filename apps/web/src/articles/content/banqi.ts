@@ -4,7 +4,6 @@ import {
   BANQI_RANK_LADDER,
   BANQI_RULES_THUMBNAIL,
   BANQI_SETUP_BOARD,
-  BANQI_TUNNEL_READING,
   playClosing,
 } from '../diagrams.js';
 import type { Article } from '../types.js';
@@ -119,30 +118,6 @@ export const banqiArticle: Article = {
         ],
       },
       {
-        heading: 'How positions work',
-        blocks: [
-          {
-            kind: 'paragraph',
-            text:
-              'This is the strategy layer behind the rules. Banqi starts random, but it does not stay random: every flip changes the local fight, every captured piece changes what can still be hiding, and every face-down piece changes the shape of the board.',
-          },
-          {
-            kind: 'paragraph',
-            text:
-              'Face-down pieces are not capturable targets yet, but they occupy squares, block paths, and create tunnels. A piece trapped in a one-square corridor may need to flip a wall or reach a 2x2 open area before it can dodge a pursuer.',
-          },
-          {
-            kind: 'raw-svg',
-            svg: BANQI_TUNNEL_READING,
-          },
-          {
-            kind: 'paragraph',
-            text:
-              'As pieces are revealed and captured, track what remains unknown. If all enemy soldiers are gone, your general becomes much safer. If enemy cannons remain hidden, every line with one screen can become dangerous.',
-          },
-        ],
-      },
-      {
         heading: 'Regional rules',
         blocks: [
           {
@@ -183,7 +158,7 @@ export const banqiArticle: Article = {
           {
             kind: 'paragraph',
             text:
-              'Step through a real game below: MistyBanqi (Strongest) as Red against a human as Black. Black wins the opening material — the first eight captures are all Black’s — but Red keeps its elephant, the highest piece left, and grinds out the win. A clean illustration that in Banqi, rank beats raw material. Tiles flip to their dealt piece the first time they are turned over.',
+              'Step through a real game below — MistyBanqi (Strongest) moving first, a human second. The opening flip leaves MistyBanqi playing Red and the human Black. Black wins the opening material — the first eight captures are all Black’s — but Red keeps its elephant, the highest piece left, and grinds out the win. A clean illustration that in Banqi, rank beats raw material. Tiles flip to their dealt piece the first time they are turned over.',
           },
           {
             kind: 'banqi-replay',
@@ -191,7 +166,7 @@ export const banqiArticle: Article = {
               red: BANQI_SAMPLE_GAME.red,
               black: BANQI_SAMPLE_GAME.black,
               event: BANQI_SAMPLE_GAME.event,
-              outcome: 'Red wins by resignation · 49 moves',
+              outcome: 'MistyBanqi (Red) wins by resignation · 49 moves',
               resultText: BANQI_SAMPLE_GAME.result,
               deal: BANQI_SAMPLE_GAME.deal,
               moves: BANQI_SAMPLE_GAME.moves,
@@ -201,10 +176,11 @@ export const banqiArticle: Article = {
       },
       playClosing({
         heading: 'Where to next',
-        lead: 'Banqi is playable on Mistboard: challenge a friend to a game. Xiangqi is the parent game, and jieqi is the other hidden-identity cousin.',
-        playLabel: 'Challenge a friend',
-        playHref: '/?play=friend&gameSpecId=banqi',
+        lead: 'Banqi is playable on Mistboard: take on MistyBanqi at the strength you pick, or challenge a friend. Xiangqi is the parent game, and jieqi is the other hidden-identity cousin.',
+        playLabel: 'Play MistyBanqi',
+        playHref: '/?play=computer&gameSpecId=banqi',
         secondary: [
+          { label: 'Challenge a friend', href: '/?play=friend&gameSpecId=banqi', emphasis: 'secondary' },
           { label: 'Xiangqi Rules', href: '/rules/xiangqi', emphasis: 'secondary' },
           { label: 'Jieqi', href: '/rules/jieqi', emphasis: 'secondary' },
           { label: 'Dark Chess', href: '/rules/dark-chess', emphasis: 'secondary' },
