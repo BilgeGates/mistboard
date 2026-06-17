@@ -333,7 +333,12 @@ function landingArticleCard(article: Article): HTMLElement {
 
   const thumb = document.createElement('div');
   thumb.className = 'landing-article-card-thumb';
-  if (article.thumbnail) {
+  // Variant articles use their mini-board marker (the shared icon language);
+  // non-variant articles (e.g. concept pieces) keep their own diagram.
+  const mini = renderVariantMiniThumb(article.slug);
+  if (mini) {
+    thumb.append(mini);
+  } else if (article.thumbnail) {
     thumb.append(renderArticleThumbnail(article.thumbnail));
   } else {
     thumb.classList.add('is-empty');

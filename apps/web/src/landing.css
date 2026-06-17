@@ -134,7 +134,7 @@
 }
 
 .landing-article-card {
-  flex: 0 0 clamp(228px, 42%, 288px);
+  flex: 0 0 clamp(150px, 28%, 184px);
   display: flex;
   flex-direction: column;
   border: 1px solid rgba(29, 37, 34, 0.1);
