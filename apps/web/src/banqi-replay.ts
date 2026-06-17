@@ -9,11 +9,9 @@
 
 import {
   applyBanqiMove,
-  type BanqiDeal,
   type BanqiGameState,
   type BanqiMove,
   type BanqiPlayerView,
-  type BanqiSeat,
   type BanqiSquare,
   createInitialBanqiState,
   getBanqiPlayerView,
@@ -25,6 +23,7 @@ import {
   banqiPiece,
   xqSvg,
 } from './articles/diagrams.js';
+import type { BanqiReplaySpec } from './articles/types.js';
 
 // Render a banqi position in the rules-page DIAGRAM style — the xq-diagram-bg
 // board, 50px cells, solid-colour glyph pieces, and "back" face-down tiles,
@@ -45,22 +44,6 @@ function renderBanqiBoardDiagram(view: BanqiPlayerView): string {
   }
   return xqSvg(BANQI_BOARD_W, BANQI_BOARD_H, parts.join(''));
 }
-
-export type BanqiReplaySpec = {
-  red: string;
-  black: string;
-  event: string;
-  // Short result line shown under the players (e.g. "Red wins by resignation · 49 moves").
-  outcome?: string;
-  // Shown on the final ply. The kernel reports the real result; this overrides
-  // the narrative text there.
-  resultText: string;
-  // The 32-tile deal in ALL_BANQI_SQUARES order — reveals follow it.
-  deal: BanqiDeal;
-  // Space-separated from+to tokens (files a-h, ranks 1-4); a flip is from==to.
-  moves: string;
-  perspective?: BanqiSeat;
-};
 
 export type BanqiReplayController = { destroy(): void };
 
