@@ -1,4 +1,4 @@
-import { darkMiniXiangqiPublicEntryEnabled, jieqiEnabled } from './feature-flags.js';
+import { banqiEnabled, darkMiniXiangqiPublicEntryEnabled, jieqiEnabled } from './feature-flags.js';
 
 // Entries for the landing News box and the /news page.
 //
@@ -18,9 +18,20 @@ export type Announcement = {
   requiresDarkMiniXiangqiPublicEntry?: boolean;
   // Gated to the jieqi flag so it only shows once jieqi PvE is live.
   requiresJieqi?: boolean;
+  // Gated to the banqi flag so it only shows once banqi is live.
+  requiresBanqi?: boolean;
 };
 
 const baseAnnouncements: Announcement[] = [
+  {
+    date: '2026-06-17',
+    kind: 'release',
+    headline: 'Banqi (半棋) is open for alpha play.',
+    body: 'Chinese Dark Chess on an 8 by 4 board: all 32 pieces start face-down and flip as you play. Challenge a friend to a match.',
+    href: '/rules/banqi',
+    cta: 'Read rules',
+    requiresBanqi: true,
+  },
   {
     date: '2026-06-15',
     kind: 'release',
@@ -69,6 +80,7 @@ export function announcements(): Announcement[] {
   return baseAnnouncements.filter(
     (announcement) =>
       (!announcement.requiresDarkMiniXiangqiPublicEntry || darkMiniXiangqiPublicEntryEnabled()) &&
-      (!announcement.requiresJieqi || jieqiEnabled()),
+      (!announcement.requiresJieqi || jieqiEnabled()) &&
+      (!announcement.requiresBanqi || banqiEnabled()),
   );
 }
