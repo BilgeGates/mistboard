@@ -23,11 +23,16 @@ import {
   type JieqiMove,
 } from '@mistboard/game';
 import { isJieqiEngineClientId, jieqiEngineTierFor, jieqiLiveEngineMove } from './jieqi-engine.js';
-import { jieqiStateToPikafishFen, pikafishUciToJieqiMove } from './jieqi-fen.js';
-import type { JieqiSpecId } from './jieqi-runtime.js';
+import {
+  jieqiMoveToPikafishUci,
+  jieqiStateToPikafishFen,
+  pikafishUciToJieqiMove,
+} from './jieqi-fen.js';
+import { jieqiTenant } from './jieqi-tenant.js';
+import type { JieqiEvent, JieqiSpecId } from './jieqi-runtime.js';
 import { logger } from './obs.js';
 import type { TenantLifecycleContext } from './variant-tenant/lifecycle.js';
-import { tenantClockRemainingMs } from './variant-tenant/runtime.js';
+import { applyTenantEvent, replayTenantEvents, tenantClockRemainingMs } from './variant-tenant/runtime.js';
 import type { TenantRoomEvent } from './variant-tenant/tenant.js';
 import type { TenantLiveRoom } from './variant-tenant/ws.js';
 
@@ -57,6 +62,45 @@ function bothSeatsFilled(room: JieqiEngineRoom): boolean {
 function engineToMove(room: JieqiEngineRoom, seat: JieqiColor): boolean {
   const status = room.projection.state.status;
   return status.type === 'playing' && status.turn === seat && bothSeatsFilled(room);
+}
+
+// Build the repetition WINDOW for PikaJieQi: the redacted FEN at the last irreversible
+// move (capture OR reveal) plus the quiet plies since, sent as `position fen <ws> moves
+// <...>` so pikafish's is_repeated() (gated on pliesFromNull>=4) activates and honors the
+// xiangqi repetition / perpetual-check / perpetual-chase rules. The window must contain NO
+// reveal: a reveal flips a dark piece to an identity the engine cannot replay from a UCI
+// move (and noCaptureClock only resets on capture, not reveal), so we detect both here by
+// replaying move-by-move — capture = target occupied, reveal = moving piece faceDown.
+// Within a window every piece's revealed-ness is constant, so the window-start redacted FEN
+// plus the quiet moves leak no hidden identity and replay cleanly. Empty window => FEN only.
+function jieqiEngineRepWindow(room: JieqiEngineRoom): { fen: string; moves: string[] } {
+  const events = room.events as readonly JieqiEvent[];
+  const created = events[0];
+  if (!created || created.type !== 'room-created') {
+    return { fen: jieqiStateToPikafishFen(room.projection.state), moves: [] };
+  }
+  let proj = replayTenantEvents(jieqiTenant, [created]);
+  let startState = proj.state;
+  let windowMoves: JieqiMove[] = [];
+  for (const event of events.slice(1)) {
+    if (event.type !== 'move-played') {
+      proj = applyTenantEvent(jieqiTenant, proj, event);
+      continue;
+    }
+    const board = proj.state.board;
+    const irreversible = board[event.move.from]?.faceDown === true || board[event.move.to] != null;
+    proj = applyTenantEvent(jieqiTenant, proj, event);
+    if (irreversible) {
+      startState = proj.state;
+      windowMoves = [];
+    } else {
+      windowMoves.push(event.move);
+    }
+  }
+  return {
+    fen: jieqiStateToPikafishFen(startState),
+    moves: windowMoves.map(jieqiMoveToPikafishUci),
+  };
 }
 
 export function scheduleJieqiEngineMove(ctx: JieqiEngineContext, room: JieqiEngineRoom): void {
@@ -90,7 +134,7 @@ export async function playJieqiEngineMoveIfReady(
   const remainingMs = clock ? tenantClockRemainingMs(clock, seat, now) : null;
   if (remainingMs !== null && remainingMs <= 0) return;
 
-  const fen = jieqiStateToPikafishFen(room.projection.state);
+  const { fen, moves } = jieqiEngineRepWindow(room);
   const movetimeMs =
     remainingMs === null
       ? tier.movetimeMs
@@ -99,7 +143,7 @@ export async function playJieqiEngineMoveIfReady(
   let uci: string | null = null;
   let fallbackReason: 'request-failed' | 'illegal-move' | 'no-move' | null = null;
   try {
-    uci = await jieqiLiveEngineMove(engineId, fen, { movetimeMs });
+    uci = await jieqiLiveEngineMove(engineId, fen, { movetimeMs, moves });
   } catch (err) {
     logger.error(
       {

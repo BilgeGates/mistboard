@@ -119,17 +119,23 @@ export function isJieqiEngineClientId(clientId: string | undefined): boolean {
   return jieqiEngineTierFor(clientId) !== null;
 }
 
-export type JieqiEngineOptions = { movetimeMs?: number; depth?: number };
+// `moves`: the quiet plies since the last irreversible move (capture OR reveal), with `fen`
+// being the position at that point. Pikafish replays them to build its position stack, which
+// activates is_repeated() (gated on pliesFromNull>=4) so it honors xiangqi repetition /
+// perpetual-check / perpetual-chase rules instead of being blind to threefold. Omit for the
+// prior FEN-only behavior. Safe under redaction: a window has no reveal, so the window-start
+// FEN's dark tiles stay dark and the replayed moves are all of already-revealed pieces.
+export type JieqiEngineOptions = { movetimeMs?: number; depth?: number; moves?: string[] };
 
 /**
- * Ask PikaJieQi for a move given a redacted current-position FEN (see jieqi-fen.ts).
- * Returns the engine's bestmove in Pikafish UCI (rank 0..9, e.g. "e7a7") or null if
- * there is no move. The FEN is server-built and trusted; it is written to stdin.
+ * Ask PikaJieQi for a move given a redacted FEN (see jieqi-fen.ts) and an optional
+ * repetition window (`opts.moves`; see JieqiEngineOptions). Returns the engine's bestmove in
+ * Pikafish UCI (rank 0..9, e.g. "e7a7") or null. The FEN is server-built and trusted.
  */
 export async function jieqiLiveEngineMove(
   engineId: string,
   fen: string,
-  opts: { movetimeMs?: number } = {},
+  opts: { movetimeMs?: number; moves?: string[] } = {},
 ): Promise<string | null> {
   const tier = jieqiEngineTierFor(engineId);
   if (!tier) throw new Error(`unknown Jieqi engine: ${engineId}`);
@@ -138,6 +144,7 @@ export async function jieqiLiveEngineMove(
     return await jieqiEngineMove(fen, {
       depth: tier.depth,
       movetimeMs: opts.movetimeMs ?? tier.movetimeMs,
+      moves: opts.moves,
     });
   } finally {
     release();
@@ -190,12 +197,16 @@ export function jieqiEngineMove(
       }
     });
 
+    const position =
+      opts.moves && opts.moves.length > 0
+        ? `position fen ${fen} moves ${opts.moves.join(' ')}`
+        : `position fen ${fen}`;
     const commands = [
       'uci',
       ...netOption(),
       'ucinewgame',
       'isready',
-      `position fen ${fen}`,
+      position,
       // depth cap (if any) stops the search early for weaker tiers; movetime bounds
       // latency on the deep tiers. `go depth N movetime T` halts at whichever hits first.
       depth === null ? `go movetime ${movetimeMs}` : `go depth ${depth} movetime ${movetimeMs}`,
