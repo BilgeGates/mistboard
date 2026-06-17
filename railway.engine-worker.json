@@ -15,7 +15,6 @@
       "/scripts/start.mjs",
       "/package.json",
       "/package-lock.json",
-      "/nixpacks.toml",
       "/railpack.json",
       "/railway.engine-worker.json",
       "/tsconfig.base.json"

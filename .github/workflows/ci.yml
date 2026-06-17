@@ -15,7 +15,6 @@ on:
       - "docker-compose.yml"
       - "railway*.json"
       - "railpack.json"
-      - "nixpacks.toml"
   pull_request:
     paths:
       - ".github/workflows/ci.yml"
@@ -28,7 +27,6 @@ on:
       - "docker-compose.yml"
       - "railway*.json"
       - "railpack.json"
-      - "nixpacks.toml"
 
 concurrency:
   group: ci-node-${{ github.event_name }}-${{ github.ref }}

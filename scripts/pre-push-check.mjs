@@ -157,7 +157,6 @@ function needsBroadColdGate(file) {
     file.endsWith('/package-lock.json') ||
     file === 'docker-compose.yml' ||
     file === 'railpack.json' ||
-    file === 'nixpacks.toml' ||
     /^railway.*\.json$/.test(file) ||
     /^tsconfig.*\.json$/.test(file) ||
     file.includes('vite.config')
@@ -173,7 +172,6 @@ function isCiOrDeployWatchedPath(file) {
     file === 'package-lock.json' ||
     file === 'docker-compose.yml' ||
     file === 'railpack.json' ||
-    file === 'nixpacks.toml' ||
     file === '.github/workflows/ci.yml' ||
     /^railway.*\.json$/.test(file) ||
     /^tsconfig.*\.json$/.test(file)

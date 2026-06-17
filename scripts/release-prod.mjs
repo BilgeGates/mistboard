@@ -22,7 +22,6 @@ const CI_TRIGGER_PATTERNS = [
   'docker-compose.yml',
   'railway*.json',
   'railpack.json',
-  'nixpacks.toml',
 ];
 const VALID_SMOKE_TIERS = new Set(['full', 'web', 'lite', 'none']);
 
