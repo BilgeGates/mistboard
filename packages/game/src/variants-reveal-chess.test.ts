@@ -122,7 +122,9 @@ test('a face-down piece moves by ORIGIN role, then reveals to its true identity'
   assert.deepEqual([...destsFrom(pawnState, 'a5')], ['a6']);
 });
 
-test('pawns: one-square advance only, no two-square move, diagonal capture only', () => {
+test('a REVEALED pawn advances one square only (no two-square), captures diagonally', () => {
+  // faceDown:false => already moved/revealed, so it never gets the two-square
+  // advance even when it sits on its home rank (the back-rank-slide edge case).
   const state = makeState({
     e1: { color: 'white', role: 'king', faceDown: false },
     e8: { color: 'black', role: 'king', faceDown: false },
@@ -131,8 +133,52 @@ test('pawns: one-square advance only, no two-square move, diagonal capture only'
   });
   const dests = destsFrom(state, 'a2');
   assert.ok(dests.has('a3'), 'one-square advance');
-  assert.ok(!dests.has('a4'), 'NO two-square advance');
+  assert.ok(!dests.has('a4'), 'a revealed pawn gets NO two-square advance');
   assert.ok(dests.has('b3'), 'diagonal capture of the enemy knight');
+});
+
+test('a face-down piece on its home pawn rank gets the two-square advance, revealing on arrival', () => {
+  const state = makeState({
+    e1: { color: 'white', role: 'king', faceDown: false },
+    e8: { color: 'black', role: 'king', faceDown: false },
+    // Face-down piece on the white pawn rank (origin role pawn); truly a knight.
+    a2: { color: 'white', role: 'knight', faceDown: true },
+    // Face-down piece on a back-rank home square (origin role rook): NOT on the
+    // pawn rank, so no pawn two-square move.
+    b1: { color: 'white', role: 'pawn', faceDown: true },
+  });
+  const dests = destsFrom(state, 'a2');
+  assert.ok(dests.has('a3'), 'one-square advance');
+  assert.ok(dests.has('a4'), 'face-down home-rank piece DOES get the two-square advance');
+  assert.ok(
+    !destsFrom(state, 'b1').has('b3'),
+    'a back-rank face-down piece has no pawn two-square',
+  );
+
+  // The two-square move reveals the piece (truly a knight) on a4.
+  const after = applyRevealChessMove(state, { from: 'a2', to: 'a4' });
+  const landed = after.board.a4;
+  assert.ok(landed && landed.faceDown === false && landed.role === 'knight', 'revealed on arrival');
+});
+
+test('the two-square advance is blocked when the intervening or target square is occupied', () => {
+  const blockedAhead = makeState({
+    e1: { color: 'white', role: 'king', faceDown: false },
+    e8: { color: 'black', role: 'king', faceDown: false },
+    a2: { color: 'white', role: 'pawn', faceDown: true },
+    a3: { color: 'black', role: 'knight', faceDown: false },
+  });
+  assert.ok(!destsFrom(blockedAhead, 'a2').has('a4'), 'blocked: intervening square occupied');
+
+  const blockedTarget = makeState({
+    e1: { color: 'white', role: 'king', faceDown: false },
+    e8: { color: 'black', role: 'king', faceDown: false },
+    a2: { color: 'white', role: 'pawn', faceDown: true },
+    a4: { color: 'black', role: 'knight', faceDown: false },
+  });
+  const dests = destsFrom(blockedTarget, 'a2');
+  assert.ok(dests.has('a3'), 'one-square still available');
+  assert.ok(!dests.has('a4'), 'blocked: target square occupied');
 });
 
 test('promotion on advance, and the reveal jackpot (slide as rook, reveal pawn, promote)', () => {

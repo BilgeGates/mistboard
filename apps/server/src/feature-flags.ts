@@ -40,6 +40,13 @@ export function banqiEnabled(): boolean {
   return process.env.MISTBOARD_BANQI_ENABLED === 'true';
 }
 
+// Reveal Chess (standard 8x8 chess with hidden piece identities) live rooms.
+// Server-side opt-in, default off — the tenant exists but is not launched.
+// PvP-only (no engine/bot at first).
+export function revealChessEnabled(): boolean {
+  return process.env.MISTBOARD_REVEAL_CHESS_ENABLED === 'true';
+}
+
 // Perfect-information Crossroads Chess live rooms. Server-side opt-in, separate
 // from the client VITE_CROSSROADS_CHESS_ENABLED page flag, so live PvP cannot be
 // exposed in production by accident while the local play surface is enabled.

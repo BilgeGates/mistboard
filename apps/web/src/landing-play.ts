@@ -8,6 +8,7 @@ import {
   DUAL_CHESS_SPEC_ID,
   gameSpecForId,
   JIEQI_SPEC_ID,
+  REVEAL_CHESS_SPEC_ID,
   TIME_CONTROLS,
   type TimeControlId,
 } from '@mistboard/game';
@@ -51,7 +52,8 @@ type LandingGameSpecId =
   | typeof DARK_XIANGQI_SPEC_ID
   | typeof CROSSROADS_CHESS_SPEC_ID
   | typeof JIEQI_SPEC_ID
-  | typeof BANQI_SPEC_ID;
+  | typeof BANQI_SPEC_ID
+  | typeof REVEAL_CHESS_SPEC_ID;
 type LandingStartFormat = 'standard' | 'draft960';
 type LandingTimePresetId = TimeControlId;
 type LandingTimePreset = {
@@ -1617,6 +1619,17 @@ function roomCreationRequestBody(
       ...(mode === 'pve' && engineId ? { engineId } : {}),
     };
   }
+  if (setup.gameSpecId === REVEAL_CHESS_SPEC_ID) {
+    // Reveal Chess is PvP-only and casual-only (rated not launched); colors are
+    // standard chess white/black, with no draft960 / start-format axis.
+    return {
+      mode,
+      gameSpecId,
+      timeControl: setup.timeControl,
+      rated: false,
+      preferredColor: setup.preferredColor,
+    };
+  }
   if (setup.gameSpecId === DARK_XIANGQI_SPEC_ID || setup.gameSpecId === DARK_MINI_XIANGQI_SPEC_ID) {
     return {
       // DMX supports PvE (the engine id is defaulted server-side, so none is
@@ -1653,9 +1666,11 @@ function roomCreationGameSpecId(
   | typeof DARK_XIANGQI_SPEC_ID
   | typeof CROSSROADS_CHESS_SPEC_ID
   | typeof JIEQI_SPEC_ID
-  | typeof BANQI_SPEC_ID {
+  | typeof BANQI_SPEC_ID
+  | typeof REVEAL_CHESS_SPEC_ID {
   if (setup.gameSpecId === JIEQI_SPEC_ID) return JIEQI_SPEC_ID;
   if (setup.gameSpecId === BANQI_SPEC_ID) return BANQI_SPEC_ID;
+  if (setup.gameSpecId === REVEAL_CHESS_SPEC_ID) return REVEAL_CHESS_SPEC_ID;
   if (setup.gameSpecId === CROSSROADS_CHESS_SPEC_ID) return CROSSROADS_CHESS_SPEC_ID;
   if (setup.gameSpecId === DARK_MINI_XIANGQI_SPEC_ID) return DARK_MINI_XIANGQI_SPEC_ID;
   if (setup.gameSpecId === DARK_XIANGQI_SPEC_ID) return DARK_XIANGQI_SPEC_ID;

@@ -17,10 +17,13 @@
 //     from its destination uses the revealed identity.
 //   - Capturer-only reveal: if a face-down piece is captured, only the capturer
 //     learns its identity (the owner never knew it).
-//   - Pawns: one-square advance toward the far rank + diagonal capture only. NO
-//     two-square move, NO en passant. A pawn promotes the instant it occupies
-//     its far rank, whether it arrived by advance OR by reveal (owner picks;
-//     defaults to queen).
+//   - Pawns: one-square advance toward the far rank + diagonal capture, plus a
+//     two-square advance available ONLY to a still-face-down piece on its home
+//     pawn rank (2/7) — face-down means unmoved, so the rule stays unambiguous
+//     under the shuffle. NO en passant (the two-square move's standard
+//     corrective is deliberately omitted for v1). A pawn promotes the instant it
+//     occupies its far rank, whether it arrived by advance OR by reveal (owner
+//     picks; defaults to queen).
 //   - Castling: legal when the king is unmoved on its home square and the corner
 //     holds a face-down piece (origin role rook). The castle is that piece's
 //     first move: it resolves as a rook castle, then reveals on d/f (may flip to
@@ -405,7 +408,18 @@ function pseudoDests(board: RevealChessBoard, from: RevealChessSquare): RevealCh
     case 'pawn': {
       const dir = forwardDir(color);
       const ahead = sqAt(file, rank + dir);
-      if (ahead && !board[ahead]) dests.push(ahead); // one-square advance only
+      if (ahead && !board[ahead]) {
+        dests.push(ahead); // one-square advance
+        // Two-square advance: only a still-face-down piece on its home pawn rank
+        // (2 for white, 7 for black) is eligible. face-down => unmoved, which
+        // keeps the rule unambiguous under the shuffle: a revealed pawn that slid
+        // onto its home rank is NOT face-down, so it never qualifies. Both the
+        // intervening and target squares must be empty.
+        if (piece.faceDown && rank === pawnRank(color)) {
+          const twoAhead = sqAt(file, rank + 2 * dir);
+          if (twoAhead && !board[twoAhead]) dests.push(twoAhead);
+        }
+      }
       for (const df of [-1, 1]) {
         const to = sqAt(file + df, rank + dir);
         if (!to) continue;

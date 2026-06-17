@@ -218,6 +218,45 @@ describe('landing play panel', () => {
     expect(window.location.pathname).toBe('/room/dchess_home');
   });
 
+  it('creates a Reveal Chess room (not dark chess) from the flagged challenge variant', async () => {
+    // Regression: roomCreationGameSpecId once lacked a reveal-chess case, so the
+    // create POST silently fell back to dark-chess despite the picker selection.
+    // Each menu-offered variant must round-trip its own gameSpecId into the body.
+    vi.stubEnv('VITE_REVEAL_CHESS_ENABLED', 'true');
+    const fetchSpy = vi.fn(async (input: RequestInfo | URL, _init?: RequestInit) => {
+      if (String(input) === '/api/live-stats') return jsonResponse({ playing: 0, online: 0 });
+      if (String(input) === '/api/rooms') return jsonResponse({ url: '/room/rc_home' });
+      return jsonResponse({}, { status: 404 });
+    });
+    vi.stubGlobal('fetch', fetchSpy);
+    const panel = buildLandingPlayPanel([]);
+    document.body.append(panel);
+
+    openPlaySetup(panel, 'Challenge a friend');
+    expect(variantPickerSpecs()).toContain('reveal-chess');
+    selectModalVariant('reveal-chess');
+    // White/black (standard chess colors), casual-only, no draft960 axis.
+    expect(modalColorOptions()).toEqual([
+      { label: 'White', glyph: '♚', classes: 'landing-color-glyph white' },
+      { label: 'Random', glyph: '♚♚', classes: 'landing-color-glyph random' },
+      { label: 'Black', glyph: '♚', classes: 'landing-color-glyph black' },
+    ]);
+    expect(visibleModalTimeControls()).toEqual(['1 + 1', '3 + 2', '5 + 5']);
+    clickModalButton('5 + 5');
+    clickModalColor('White');
+    clickModalButton('Create room');
+    await flushPromises();
+
+    expect(roomPostBody(fetchSpy)).toEqual({
+      mode: 'pvp',
+      gameSpecId: 'reveal-chess',
+      timeControl: { initialMs: 300_000, incrementMs: 5_000 },
+      rated: false,
+      preferredColor: 'white',
+    });
+    expect(window.location.pathname).toBe('/room/rc_home');
+  });
+
   it('creates a Crossroads Chess engine room with the selected Fairy-Stockfish tier', async () => {
     vi.stubEnv('VITE_CROSSROADS_CHESS_ENABLED', 'true');
     const fetchSpy = vi.fn(async (input: RequestInfo | URL, _init?: RequestInit) => {

@@ -3,12 +3,14 @@ import {
   DARK_MINI_XIANGQI_SPEC_ID,
   DARK_XIANGQI_SPEC_ID,
   JIEQI_SPEC_ID,
+  REVEAL_CHESS_SPEC_ID,
 } from '@mistboard/game';
 import {
   banqiEnabled,
   darkMiniXiangqiEnabled,
   darkXiangqiEnabled,
   jieqiEnabled,
+  revealChessEnabled,
 } from './feature-flags.js';
 
 export type GameSpecGateDecision =
@@ -23,7 +25,9 @@ export type GameSpecGateDecision =
         | 'jieqi_disabled'
         | 'jieqi_not_integrated'
         | 'banqi_disabled'
-        | 'banqi_not_integrated';
+        | 'banqi_not_integrated'
+        | 'reveal_chess_disabled'
+        | 'reveal_chess_not_integrated';
       httpStatus: 404 | 501;
       wsCloseReason: string;
     };
@@ -34,7 +38,8 @@ type HiddenRuntimeSpec =
   | typeof DARK_XIANGQI_SPEC_ID
   | typeof DARK_MINI_XIANGQI_SPEC_ID
   | typeof JIEQI_SPEC_ID
-  | typeof BANQI_SPEC_ID;
+  | typeof BANQI_SPEC_ID
+  | typeof REVEAL_CHESS_SPEC_ID;
 
 const HIDDEN_RUNTIME_SPECS: Record<
   HiddenRuntimeSpec,
@@ -59,6 +64,11 @@ const HIDDEN_RUNTIME_SPECS: Record<
     enabled: banqiEnabled,
     disabledError: 'banqi_disabled',
     notIntegratedError: 'banqi_not_integrated',
+  },
+  [REVEAL_CHESS_SPEC_ID]: {
+    enabled: revealChessEnabled,
+    disabledError: 'reveal_chess_disabled',
+    notIntegratedError: 'reveal_chess_not_integrated',
   },
 };
 
@@ -97,6 +107,7 @@ function requestedHiddenRuntimeSpec(input: {
     DARK_MINI_XIANGQI_SPEC_ID,
     JIEQI_SPEC_ID,
     BANQI_SPEC_ID,
+    REVEAL_CHESS_SPEC_ID,
   ] as const) {
     if (input.gameSpecId === spec || input.variant === spec) return spec;
   }

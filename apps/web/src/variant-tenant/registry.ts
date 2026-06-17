@@ -22,6 +22,7 @@ import {
   DUAL_CHESS_SPEC_ID,
   type GameSpecId,
   JIEQI_SPEC_ID,
+  REVEAL_CHESS_SPEC_ID,
   type TimeControlId,
 } from '@mistboard/game';
 import {
@@ -32,6 +33,7 @@ import {
   darkMiniXiangqiPublicEntryEnabled,
   darkXiangqiEnabled,
   jieqiEnabled,
+  revealChessEnabled,
 } from '../feature-flags.js';
 import type { GameMeta, ReplayHandle } from '../replay.js';
 
@@ -395,6 +397,55 @@ const WEB_VARIANT_TENANTS: readonly WebVariantTenant[] = [
         },
       ],
       defaultEngineId: 'fairy-stockfish-crossroads-strong',
+    },
+  },
+  {
+    // Reveal Chess (chess-jieqi): standard 8x8 chess with hidden piece
+    // IDENTITIES. Identity-hidden like jieqi (positions are public; only a
+    // face-down piece's role is hidden), but on a chess board with chess colors,
+    // so it renders in the 'chess' family with the cburnett pieces + a face-down
+    // disc token. A self-contained live client on the socket-client + chrome
+    // stack, with no fog. Flag-gated and PvP-only at launch (no PvE engine), so
+    // the picker capabilities stay defined for stored setup preferences while the
+    // menu and deep-link gates are off.
+    gameSpecId: REVEAL_CHESS_SPEC_ID,
+    roomIdPrefix: 'rc_',
+    enabled: revealChessEnabled,
+    pageTitle: 'Reveal Chess',
+    gameRouteBase: '/reveal-chess/game',
+    mountPostgame: (root, roomId) =>
+      import('../reveal-chess-postgame.js').then(({ mountRevealChessPostgame }) =>
+        mountRevealChessPostgame(root, roomId),
+      ),
+    reviewRouteBase: '/reveal-chess/game',
+    loadLiveRoomClient: () =>
+      import('../live-reveal-chess.js').then(
+        ({ bootstrapRevealChessLiveRoom }) =>
+          () =>
+            bootstrapRevealChessLiveRoom(),
+      ),
+    watch: {
+      family: 'chess',
+      mountReplay: (root, roomId, options) =>
+        import('../watch-reveal-chess-replay.js').then(({ mountRevealChessWatchReplay }) =>
+          mountRevealChessWatchReplay(root, roomId, options),
+        ),
+    },
+    landing: {
+      capabilities: {
+        firstColor: 'white',
+        firstGlyph: '♚',
+        firstLabel: 'White',
+        secondColor: 'black',
+        secondGlyph: '♚',
+        secondLabel: 'Black',
+        supportsRated: false,
+        supportsStartFormat: false,
+        supportsTimeControl: true,
+      },
+      timePresetIds: ['1m1', '3m2', '5m5'],
+      offerInMenu: revealChessEnabled,
+      acceptsDeepLink: revealChessEnabled,
     },
   },
 ];
