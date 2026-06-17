@@ -92,14 +92,24 @@ export async function appendTenantEvent<
       room.projection.state.status.type === 'finished' &&
       !room.gameEndRecorded
     ) {
+      // Claim the record up front so a concurrent event can't double-write, but
+      // RETRY the write itself: the games row is the only record of a finished
+      // game's result, so a single transient DB hiccup must not silently drop it
+      // forever (a finished game emits no further events to trigger a re-attempt).
       room.gameEndRecorded = true;
-      try {
-        await writer.persistence.recordGameEnd(
-          room.id,
-          tenant.persistence.buildGameSummary?.(room) ?? buildTenantGameSummary(tenant, room),
-        );
-      } catch (err) {
-        writer.logGameEndRecordFailure(room.id, err as Error);
+      const summary =
+        tenant.persistence.buildGameSummary?.(room) ?? buildTenantGameSummary(tenant, room);
+      for (let attempt = 0; attempt < 3; attempt += 1) {
+        try {
+          await writer.persistence.recordGameEnd(room.id, summary);
+          break;
+        } catch (err) {
+          if (attempt === 2) {
+            writer.logGameEndRecordFailure(room.id, err as Error);
+          } else {
+            await new Promise((resolve) => setTimeout(resolve, 150 * (attempt + 1)));
+          }
+        }
       }
     }
     if (room.projection.state.status.type === 'aborted' && !room.gameEndRecorded) {
