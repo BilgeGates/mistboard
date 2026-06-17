@@ -324,18 +324,26 @@ describe('landing play panel', () => {
     const panel = buildLandingPlayPanel([]);
     document.body.append(panel);
 
-    // Challenge a friend, dark chess: correspondence is the long end of the picker.
+    // Challenge a friend, dark chess: the Real time / Correspondence segmented
+    // toggle is offered, and flipping to Correspondence reveals the day chips.
     openPlaySetup(panel, 'Challenge a friend');
     selectModalVariant('dark-chess');
+    expect(correspondenceToggleVisible()).toBe(true);
+    expect(visibleCorrespondenceOptions()).toEqual([]); // hidden until the segment is active
+    clickModalButton('Correspondence');
     expect(visibleCorrespondenceOptions()).toEqual(['1 day', '3 days', '7 days']);
 
-    // Other fog variants (DMX) don't carry correspondence yet — dark chess only.
+    // Other fog variants (DMX) don't carry correspondence yet — dark chess only —
+    // so the toggle disappears and the picker falls back to real time.
     selectModalVariant('dark-mini-xiangqi');
+    expect(correspondenceToggleVisible()).toBe(false);
     expect(visibleCorrespondenceOptions()).toEqual([]);
 
     // Find opponent offers it too (submitting posts an open seek to the board).
     openPlaySetup(panel, 'Find opponent');
     selectModalVariant('dark-chess');
+    expect(correspondenceToggleVisible()).toBe(true);
+    clickModalButton('Correspondence');
     expect(visibleCorrespondenceOptions()).toEqual(['1 day', '3 days', '7 days']);
   });
 
@@ -711,10 +719,19 @@ function visibleModalTimeControls(): string[] {
     .map((button) => button.textContent?.trim() ?? '');
 }
 
+// Day chips are revealed/hidden as a group by the active time-control segment, so
+// read the group's hidden state rather than each button's.
 function visibleCorrespondenceOptions(): string[] {
-  return [...document.querySelectorAll<HTMLButtonElement>('.landing-correspondence-presets button')]
-    .filter((button) => !button.hidden)
-    .map((button) => button.textContent?.trim() ?? '');
+  const group = document.querySelector<HTMLElement>('.landing-correspondence-presets');
+  if (!group || group.hidden) return [];
+  return [...group.querySelectorAll<HTMLButtonElement>('button')].map(
+    (button) => button.textContent?.trim() ?? '',
+  );
+}
+
+function correspondenceToggleVisible(): boolean {
+  const toggle = document.querySelector<HTMLElement>('.landing-time-mode');
+  return toggle !== null && !toggle.hidden;
 }
 
 function selectedModalColor(): string | undefined {

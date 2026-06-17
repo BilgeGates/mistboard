@@ -581,8 +581,13 @@ function openLandingSetupDialog(choice: LandingPlayChoice): void {
   }
   let selectedPreset: LandingTimePresetId = storedPreference.timePresetId ?? '3m2';
   // Non-null when a correspondence (days-per-move) option is chosen — it takes
-  // over from the real-time preset above. Only offered for Challenge-a-friend.
+  // over from the real-time preset above. Only offered for Challenge-a-friend
+  // and Find opponent on casual dark chess.
   let selectedCorrespondenceDays: number | null = null;
+  // Which side of the time-control segmented toggle is active. Drives whether the
+  // real-time presets or the correspondence day-chips show; only ever flips to
+  // 'correspondence' when that segment is actually offered (correspondenceAvailable).
+  let selectedTimeMode: 'realtime' | 'correspondence' = 'realtime';
   let selectedEngineId = storedPreference.engineId ?? choice.engineId;
   let preferredColor: LandingColorPreference =
     storedPreference.preferredColor ?? loadStoredColorPreference();
@@ -725,6 +730,32 @@ function openLandingSetupDialog(choice: LandingPlayChoice): void {
   timeSection.className = 'landing-setup-section';
   timeSection.append(setupSectionLabel('Time control'));
 
+  // Lichess-style segmented toggle: Real time vs Correspondence. It only appears
+  // when correspondence is actually offered for the current selection (casual
+  // dark chess in Challenge-a-friend / Find opponent); otherwise the section is
+  // real-time-only and the toggle stays hidden. Correspondence is the long end of
+  // the time axis, not a separate mode — Challenge-a-friend creates a private
+  // room, Find opponent posts an open seek.
+  const timeModeToggle = document.createElement('div');
+  timeModeToggle.className = 'landing-start-options landing-time-mode';
+  timeModeToggle.setAttribute('role', 'radiogroup');
+  timeModeToggle.setAttribute('aria-label', 'Time control type');
+  const realtimeModeButton = startOptionButton('Real time', true);
+  const correspondenceModeButton = startOptionButton('Correspondence', false);
+  realtimeModeButton.addEventListener('click', () => {
+    selectedTimeMode = 'realtime';
+    selectedCorrespondenceDays = null;
+    syncTimeControls();
+  });
+  correspondenceModeButton.addEventListener('click', () => {
+    selectedTimeMode = 'correspondence';
+    if (selectedCorrespondenceDays === null) {
+      selectedCorrespondenceDays = DEFAULT_CORRESPONDENCE_DAYS;
+    }
+    syncTimeControls();
+  });
+  timeModeToggle.append(realtimeModeButton, correspondenceModeButton);
+
   const presetGroup = document.createElement('div');
   presetGroup.className = 'landing-time-presets';
   presetGroup.setAttribute('role', 'radiogroup');
@@ -735,6 +766,7 @@ function openLandingSetupDialog(choice: LandingPlayChoice): void {
     button.addEventListener('click', () => {
       if (button.hidden) return;
       selectedPreset = preset.id;
+      selectedTimeMode = 'realtime';
       selectedCorrespondenceDays = null;
       syncTimeControls();
     });
@@ -742,19 +774,15 @@ function openLandingSetupDialog(choice: LandingPlayChoice): void {
     return { button, preset };
   });
 
-  // Correspondence (days-per-move) is the long end of the time-control axis, not
-  // a separate mode — offered for casual dark chess in both Challenge-a-friend
-  // (creates a private room) and Find opponent (posts an open seek). Picking one
-  // supersedes the real-time presets above.
-  const correspondenceLabel = setupSectionLabel('Correspondence (days per move)');
   const correspondenceGroup = document.createElement('div');
   correspondenceGroup.className = 'landing-time-presets landing-correspondence-presets';
   correspondenceGroup.setAttribute('role', 'radiogroup');
-  correspondenceGroup.setAttribute('aria-label', 'Correspondence time per move');
+  correspondenceGroup.setAttribute('aria-label', 'Days per move');
   const correspondenceButtons = CORRESPONDENCE_DAY_OPTIONS.map((option) => {
     const button = startOptionButton(option.label, false);
     button.addEventListener('click', () => {
       if (button.hidden) return;
+      selectedTimeMode = 'correspondence';
       selectedCorrespondenceDays = option.days;
       syncTimeControls();
     });
@@ -768,26 +796,28 @@ function openLandingSetupDialog(choice: LandingPlayChoice): void {
     !rated &&
     correspondenceEnabled();
 
-  const syncCorrespondenceControls = () => {
-    const available = correspondenceAvailable();
-    correspondenceLabel.hidden = !available;
-    correspondenceGroup.hidden = !available;
-    if (!available) selectedCorrespondenceDays = null;
-    for (const { button, option } of correspondenceButtons) {
-      button.hidden = !available;
-      const selected = available && selectedCorrespondenceDays === option.days;
-      button.classList.toggle('selected', selected);
-      button.setAttribute('aria-checked', selected ? 'true' : 'false');
-    }
-  };
-
-  // Show only the presets allowed for the current variant (so 5+5 is hidden for
-  // Crossroads casual games, and rated games collapse to 3+2). Re-runs on
-  // variant/rated switch; if the current pick is no longer offered, fall back to
-  // 3+2 (always available). When a correspondence option is active, the
-  // real-time presets render unselected.
+  // Re-scope the picker to the current variant/rated/mode. Hides the segmented
+  // toggle (and forces real time) when correspondence isn't offered; shows exactly
+  // one chip group for the active segment; keeps the allowed real-time presets in
+  // sync (5+5 is hidden for Crossroads casual, rated collapses to 3+2, and a pick
+  // that is no longer offered falls back to 3+2).
   const syncTimeControls = () => {
-    const corrActive = selectedCorrespondenceDays !== null;
+    const corrAvailable = correspondenceAvailable();
+    if (!corrAvailable) {
+      selectedTimeMode = 'realtime';
+      selectedCorrespondenceDays = null;
+    }
+    const corrActive = selectedTimeMode === 'correspondence';
+
+    timeModeToggle.hidden = !corrAvailable;
+    realtimeModeButton.classList.toggle('selected', !corrActive);
+    realtimeModeButton.setAttribute('aria-checked', !corrActive ? 'true' : 'false');
+    correspondenceModeButton.classList.toggle('selected', corrActive);
+    correspondenceModeButton.setAttribute('aria-checked', corrActive ? 'true' : 'false');
+
+    presetGroup.hidden = corrActive;
+    correspondenceGroup.hidden = !corrActive;
+
     const allowed = allowedTimePresetIds(selectedGameSpecId, rated);
     if (!allowed.has(selectedPreset)) selectedPreset = '3m2';
     for (const { button, preset } of presetButtons) {
@@ -797,10 +827,14 @@ function openLandingSetupDialog(choice: LandingPlayChoice): void {
       button.classList.toggle('selected', selected);
       button.setAttribute('aria-checked', selected ? 'true' : 'false');
     }
-    syncCorrespondenceControls();
+    for (const { button, option } of correspondenceButtons) {
+      const selected = corrActive && selectedCorrespondenceDays === option.days;
+      button.classList.toggle('selected', selected);
+      button.setAttribute('aria-checked', selected ? 'true' : 'false');
+    }
   };
   syncTimeControls();
-  timeSection.append(presetGroup, correspondenceLabel, correspondenceGroup);
+  timeSection.append(timeModeToggle, presetGroup, correspondenceGroup);
 
   const actions = document.createElement('div');
   actions.className = 'landing-setup-actions';
@@ -947,12 +981,13 @@ function openLandingSetupDialog(choice: LandingPlayChoice): void {
   };
   syncGameSpecificSections();
 
+  // Section order mirrors lichess's flow: variant → time control → game type
+  // (casual/rated) → engine strength → side/color → actions.
   actions.append(startButton, backButton);
-  dialog.append(header, variantSection);
-  if (engineSection) dialog.append(engineSection.section);
-  dialog.append(timeSection);
-  if (colorSection) dialog.append(colorSection);
+  dialog.append(header, variantSection, timeSection);
   if (ratingSection) dialog.append(ratingSection);
+  if (engineSection) dialog.append(engineSection.section);
+  if (colorSection) dialog.append(colorSection);
   dialog.append(status, actions);
   overlay.append(dialog);
   document.body.append(overlay);
@@ -972,6 +1007,9 @@ const CORRESPONDENCE_DAY_OPTIONS: { days: number; label: string }[] = [
   { days: 3, label: '3 days' },
   { days: 7, label: '7 days' },
 ];
+// Pre-selected day-chip when the player first flips to the Correspondence segment,
+// so the Start button is immediately valid (mirrors lichess defaulting its slider).
+const DEFAULT_CORRESPONDENCE_DAYS = 3;
 
 async function createCorrespondenceFromPlay(
   button: HTMLButtonElement,
@@ -1197,19 +1235,9 @@ function buildRatedToggleSection(
   sync();
   group.append(ratedButton, casualButton);
 
-  const helper = document.createElement('p');
-  helper.className = 'landing-rated-helper';
-  helper.append(
-    ratedDisabled
-      ? 'Rated beta is not launched yet. Casual games are open anytime. '
-      : 'Rated games require an account and count toward the selected ladder. During beta, ratings may be recalibrated. ',
-  );
-  const link = document.createElement('a');
-  link.href = '/faq';
-  link.textContent = 'How rated works';
-  helper.append(link);
-
-  section.append(group, helper);
+  // The Rated segment's own "COMING SOON" badge already signals the beta state,
+  // so the explanatory helper paragraph is dropped to keep the dialog compact.
+  section.append(group);
   return section;
 }
 

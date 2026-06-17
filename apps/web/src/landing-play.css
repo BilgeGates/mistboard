@@ -265,11 +265,11 @@
 
 .landing-setup-dialog {
   display: grid;
-  gap: 20px;
+  gap: 14px;
   width: min(100%, 520px);
   max-height: min(720px, calc(100vh - 36px));
   overflow: auto;
-  padding: 24px;
+  padding: 20px;
   border: 1px solid color-mix(in srgb, var(--site-accent) 22%, transparent);
   border-radius: var(--site-radius);
   background: var(--site-panel);
@@ -328,14 +328,31 @@
   padding: 9px 10px;
 }
 
+/* Connected segmented control (lichess-style): one bordered, rounded track whose
+   segments share hairline dividers instead of floating as separate boxed chips
+   with gaps. Used for Game type, Color/Side, and Fog start format. The active
+   segment fills solid green (see .landing-start-option.selected). */
 .landing-start-options {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 8px;
+  gap: 0;
+  border: 1px solid var(--site-border);
+  border-radius: var(--site-radius-sm);
+  overflow: hidden;
 }
 
 .landing-start-options.three {
   grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.landing-start-options > .landing-start-option {
+  border: 0;
+  border-inline-end: 1px solid var(--site-border);
+  border-radius: 0;
+}
+
+.landing-start-options > .landing-start-option:last-child {
+  border-inline-end: 0;
 }
 
 .landing-color-option {
@@ -398,33 +415,70 @@
   color: #b91c1c;
 }
 
-.landing-color-option.selected .landing-color-glyph {
-  color: var(--site-accent);
-}
+/* On the solid-green selected fill the glyph keeps its own ink (white king,
+   black king, red general) via the per-color rules above — selection only fills
+   the cell and whitens the label, so no selected-glyph override is needed. The
+   white king's stroke keeps it legible on green. */
 
-.landing-color-option.selected .landing-color-glyph.white,
-.landing-color-option.selected .landing-color-glyph.black,
-.landing-color-option.selected .landing-color-glyph.random .white,
-.landing-color-option.selected .landing-color-glyph.random .black {
-  /* Keep the king's own color when selected; the accent ring + soft bg already
-     signal selection. Otherwise the glyph turns green and loses its meaning. */
-  color: inherit;
-}
-
-.landing-color-option.selected .landing-color-glyph.white,
-.landing-color-option.selected .landing-color-glyph.random .white {
-  color: #f8faf5;
-}
-
-.landing-color-option.selected .landing-color-glyph.black,
-.landing-color-option.selected .landing-color-glyph.random .black {
-  color: #1a1a1a;
-}
-
+/* Chips auto-balance to the number of *visible* options: 2 dark-chess presets
+   split the row 50/50, 3 Crossroads presets split 33/33/33 — no dead gap from a
+   fixed 3-column grid. Hidden chips drop out of flex flow. */
 .landing-time-presets {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  display: flex;
+  flex-wrap: wrap;
   gap: 8px;
+}
+
+.landing-time-presets > .landing-start-option {
+  flex: 1 1 0;
+  min-width: 72px;
+}
+
+/* A flex/grid `display` on the group out-specifies the UA `[hidden]` rule, so a
+   hidden chip group would otherwise stay laid out. Re-assert display:none for the
+   segmented toggle and the chip groups when the active segment hides them. */
+.landing-time-mode[hidden],
+.landing-time-presets[hidden] {
+  display: none;
+}
+
+/* Real time / Correspondence axis switch, rendered as lichess-style underline
+   tabs rather than a filled segment: the tab picks *which axis*, the chips below
+   pick the *value*, so the two read as different roles. Overrides the connected
+   segmented-control styling it inherits from .landing-start-options. */
+.landing-time-mode {
+  display: flex;
+  justify-content: center;
+  gap: 18px;
+  border: 0;
+  border-bottom: 1px solid var(--site-border);
+  border-radius: 0;
+  overflow: visible;
+  margin-bottom: 10px;
+}
+
+.landing-time-mode > .landing-start-option {
+  flex: 0 0 auto;
+  min-height: 32px;
+  margin-bottom: -1px;
+  padding: 6px 12px;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  border-radius: 0;
+  background: transparent;
+  color: var(--site-muted);
+  font-weight: 750;
+}
+
+.landing-time-mode > .landing-start-option:hover:not(:disabled) {
+  color: var(--site-text);
+}
+
+.landing-time-mode > .landing-start-option.selected {
+  background: transparent;
+  color: var(--site-accent-strong);
+  border-bottom-color: var(--site-accent);
+  font-weight: 800;
 }
 
 .landing-custom-time {
@@ -475,8 +529,9 @@
 
 .landing-start-option.selected {
   border-color: var(--site-accent);
-  background: var(--site-accent-soft);
-  box-shadow: inset 0 0 0 1px var(--site-accent);
+  background: var(--site-accent);
+  color: var(--site-on-accent);
+  box-shadow: none;
   font-weight: 800;
 }
 
@@ -533,10 +588,20 @@
   border-color: var(--site-accent);
 }
 
+/* One prominent primary CTA (lichess-style), Cancel as a quieter secondary below
+   it. The header X + Esc + backdrop-click also dismiss, so Cancel is deliberately
+   de-emphasized rather than given equal weight. */
 .landing-setup-actions {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: 1fr;
   gap: 8px;
+  margin-top: 2px;
+}
+
+.landing-setup-actions .landing-setup-start {
+  min-height: 46px;
+  font-size: 15px;
+  font-weight: 800;
 }
 
 .landing-setup-status {
@@ -621,23 +686,6 @@
   letter-spacing: 0.11em;
   text-transform: uppercase;
   color: var(--site-muted);
-}
-
-.landing-rated-helper {
-  margin: 0;
-  color: var(--site-muted);
-  font-size: 12px;
-  line-height: 1.45;
-}
-
-.landing-rated-helper a {
-  color: var(--site-accent);
-  font-weight: 760;
-  text-decoration: none;
-}
-
-.landing-rated-helper a:hover {
-  text-decoration: underline;
 }
 
 .landing-start-option:hover:not(:disabled),

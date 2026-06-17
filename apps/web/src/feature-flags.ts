@@ -36,11 +36,13 @@ export function darkMiniXiangqiPublicEntryEnabled(): boolean {
   );
 }
 
-// Dark-chess correspondence (days-per-move) entry points. The server gates the
-// create route independently (MISTBOARD_CORRESPONDENCE_ENABLED); this only
-// hides the landing picker, so an off web flag never strands a live room.
+// Dark-chess correspondence (days-per-move) entry points. Always on in dev for
+// convenience (matching Crossroads/DMX); in prod/staging it is hidden unless the
+// build opts in. The server gates the create route independently
+// (MISTBOARD_CORRESPONDENCE_ENABLED); this only hides the landing picker, so an
+// off web flag never strands a live room.
 export function correspondenceEnabled(): boolean {
-  return import.meta.env.VITE_CORRESPONDENCE_ENABLED === 'true';
+  return import.meta.env.DEV || import.meta.env.VITE_CORRESPONDENCE_ENABLED === 'true';
 }
 
 // Perfect-information Crossroads Chess play surface. Always on in dev for
