@@ -4,6 +4,7 @@ import './dark-xiangqi-postgame.css';
 import { jieqiEnabled } from './feature-flags.js';
 import { fillCapturedPool } from './live-jieqi.js';
 import { installJieqiBoardStyles, renderJieqiBoardSvg } from './live-jieqi-render.js';
+import { buildNav } from './site-shell.js';
 
 export type JieqiPostgameViewKey = JieqiColor | 'truth';
 
@@ -50,6 +51,11 @@ type LoadResult =
 
 export function mountJieqiPostgame(root: HTMLElement, roomId: string): void {
   root.classList.add('landing-page', 'jieqi-postgame-route');
+  // Site nav as a sibling before `root` — renderPostgame() only replaces `root`,
+  // so the nav survives the re-render (matches the xiangqi-spike pattern).
+  if (root.parentElement && !document.querySelector('.site-nav')) {
+    root.before(buildNav());
+  }
   installJieqiBoardStyles();
   root.replaceChildren(loadingView());
   if (!jieqiEnabled()) {

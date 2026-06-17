@@ -1,8 +1,45 @@
-.dark-xiangqi-postgame-route,
-.jieqi-postgame-route {
+.dark-xiangqi-postgame-route {
   min-height: 100vh;
   background: #eef2f0;
   color: #202620;
+}
+
+/* Jieqi review follows the site theme (light + dark), like the crossroads review,
+   rather than the hardcoded light the dark-xiangqi route uses. */
+.jieqi-postgame-route {
+  min-height: 100vh;
+  background: var(--site-bg);
+  color: var(--site-text);
+}
+
+.jieqi-postgame-route .dxq-postgame__panel,
+.jieqi-postgame-route .dxq-postgame__replay-controls,
+.jieqi-postgame-route .dxq-postgame__replay-button,
+.jieqi-postgame-route .dxq-postgame__replay-status {
+  background: var(--site-panel);
+  color: var(--site-text);
+  border-color: var(--site-border);
+}
+
+.jieqi-postgame-route .dxq-postgame__replay-button:disabled {
+  color: var(--site-muted);
+  background: var(--site-bg);
+}
+
+.jieqi-postgame-route .dxq-postgame__title,
+.jieqi-postgame-route .dxq-postgame__board-title,
+.jieqi-postgame-route .dxq-postgame__panel h2 {
+  color: var(--site-heading);
+}
+
+.jieqi-postgame-route .dxq-postgame__eyebrow,
+.jieqi-postgame-route .dxq-postgame__summary,
+.jieqi-postgame-route .dxq-postgame__details dt {
+  color: var(--site-muted);
+}
+
+.jieqi-postgame-route .dxq-postgame__details dd {
+  color: var(--site-text);
 }
 
 .dxq-postgame {
@@ -94,19 +131,24 @@ button.dxq-postgame__link {
   align-items: start;
 }
 
-/* Jieqi review: a single (tall 9×10) truth board beside the moves panel, with the
-   board column capped by viewport height so the page never scrolls — mirrors the
-   crossroads-chess two-column layout. (Banqi keeps the shared stacked layout; its
-   short board fits.) */
+/* Board | side, side-by-side (crossroads-style): the board column is capped by
+   viewport height so the page fits without scrolling, and the side panel collapses
+   to a single column (Game above Moves) so it sits beside the board instead of a
+   full-width Game|Moves grid below it. */
 .jieqi-postgame-route .dxq-postgame__layout {
-  grid-template-columns: minmax(0, min(50vh, 420px)) minmax(260px, 320px);
+  grid-template-columns: minmax(0, min(56vh, 400px)) minmax(280px, 340px);
   justify-content: center;
+  align-items: start;
+}
+
+.jieqi-postgame-route .dxq-postgame__side {
+  grid-template-columns: minmax(0, 1fr);
 }
 
 .jieqi-postgame-route .dxq-postgame__boards {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 10px;
 }
 
 .dxq-postgame__replay-controls {
