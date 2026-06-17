@@ -135,8 +135,12 @@
 
 .landing-article-card {
   flex: 0 0 clamp(150px, 28%, 184px);
-  display: flex;
-  flex-direction: column;
+  /* Block flow, not a flex column. A direct flex child gets its display
+     blockified (display:-webkit-box rewritten to flow-root), which breaks the
+     title's -webkit-line-clamp in Safari/older Chrome. Block flow keeps the
+     title a normal block child so the clamp (and its ellipsis) is honored, and
+     lets the card grow rather than shrink-clip the title if a clamp fails. */
+  display: block;
   border: 1px solid rgba(29, 37, 34, 0.1);
   border-radius: var(--site-radius);
   background: var(--site-panel);
@@ -202,7 +206,14 @@
   -webkit-line-clamp: 2;
   line-clamp: 2;
   overflow: hidden;
-  padding: 10px 12px 13px;
+  /* Vertical gap via margin, horizontal inset via padding. Chrome 149's
+     -webkit-line-clamp no longer truncates text: it only caps the box to N
+     line-heights and leans on overflow:hidden. Vertical padding would extend
+     that clip box past the 2nd line, letting the untruncated 3rd line peek
+     through; margin keeps the clamp box exactly two text-lines tall so the
+     overflow is clipped cleanly. */
+  margin: 10px 0 13px;
+  padding: 0 12px;
   font-size: 15px;
   font-weight: 700;
   line-height: 1.3;
