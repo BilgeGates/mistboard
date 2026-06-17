@@ -4,6 +4,7 @@ import {
   type BanqiPlayerView,
   type BanqiSeat,
   banqiTruthView,
+  getBanqiPlayerView,
   oppositeBanqiSeat,
 } from '@mistboard/game';
 import type { BanqiEvent } from './../banqi-runtime.js';
@@ -123,24 +124,33 @@ export async function banqiPostgameForApi(
     },
     timeline: banqiPostgameTimeline(events),
     // Truth view: every identity revealed (postgame-only; never on a live wire).
+    // This is the final-position "here is the full deal" surface, used as a
+    // fallback only — the replay below steps through the masked per-ply history.
     view: banqiTruthView(projection.state),
     // Single 'truth' history so the replay slider can step through every ply.
     history: { truth: banqiPostgameHistory(events) },
   };
 }
 
+// Per-ply replay snapshots use the MASKED player view (not the full-truth view):
+// a tile that has not been flipped yet at a given ply must render face-down, so
+// the review reproduces the game as it was actually played — tiles turning over
+// one at a time — instead of revealing the whole deal from move 0. Banqi is
+// symmetric, so either seat's mask yields the identical board; 'red' is arbitrary.
 function banqiPostgameHistory(events: readonly BanqiEvent[]): BanqiPostgameSnapshot[] {
   const created = events[0];
   if (!created || created.type !== 'room-created') return [];
   let projection = replayTenantEvents(banqiTenant, [created]);
   let ply = 0;
-  const history: BanqiPostgameSnapshot[] = [{ ply, view: banqiTruthView(projection.state) }];
+  const history: BanqiPostgameSnapshot[] = [
+    { ply, view: getBanqiPlayerView(projection.state, 'red') },
+  ];
 
   for (const event of events.slice(1)) {
     projection = applyTenantEvent(banqiTenant, projection, event);
     if (event.type !== 'move-played') continue;
     ply += 1;
-    history.push({ ply, view: banqiTruthView(projection.state) });
+    history.push({ ply, view: getBanqiPlayerView(projection.state, 'red') });
   }
   return history;
 }

@@ -4,9 +4,10 @@
   color: #202620;
 }
 
-/* Jieqi review follows the site theme (light + dark), like the crossroads review,
-   rather than the hardcoded light the dark-xiangqi route uses. */
-.jieqi-postgame-route {
+/* Jieqi and banqi reviews follow the site theme (light + dark), like the
+   crossroads review, rather than the hardcoded light the dark-xiangqi route uses. */
+.jieqi-postgame-route,
+.banqi-postgame-route {
   min-height: 100vh;
   background: var(--site-bg);
   color: var(--site-text);
@@ -15,31 +16,65 @@
 .jieqi-postgame-route .dxq-postgame__panel,
 .jieqi-postgame-route .dxq-postgame__replay-controls,
 .jieqi-postgame-route .dxq-postgame__replay-button,
-.jieqi-postgame-route .dxq-postgame__replay-status {
+.jieqi-postgame-route .dxq-postgame__replay-status,
+.banqi-postgame-route .dxq-postgame__panel,
+.banqi-postgame-route .dxq-postgame__replay-controls,
+.banqi-postgame-route .dxq-postgame__replay-button,
+.banqi-postgame-route .dxq-postgame__replay-status {
   background: var(--site-panel);
   color: var(--site-text);
   border-color: var(--site-border);
 }
 
-.jieqi-postgame-route .dxq-postgame__replay-button:disabled {
+.jieqi-postgame-route .dxq-postgame__replay-button:disabled,
+.banqi-postgame-route .dxq-postgame__replay-button:disabled {
   color: var(--site-muted);
   background: var(--site-bg);
 }
 
 .jieqi-postgame-route .dxq-postgame__title,
 .jieqi-postgame-route .dxq-postgame__board-title,
-.jieqi-postgame-route .dxq-postgame__panel h2 {
+.jieqi-postgame-route .dxq-postgame__panel h2,
+.banqi-postgame-route .dxq-postgame__title,
+.banqi-postgame-route .dxq-postgame__board-title,
+.banqi-postgame-route .dxq-postgame__panel h2 {
   color: var(--site-heading);
 }
 
 .jieqi-postgame-route .dxq-postgame__eyebrow,
 .jieqi-postgame-route .dxq-postgame__summary,
-.jieqi-postgame-route .dxq-postgame__details dt {
+.jieqi-postgame-route .dxq-postgame__details dt,
+.banqi-postgame-route .dxq-postgame__eyebrow,
+.banqi-postgame-route .dxq-postgame__summary,
+.banqi-postgame-route .dxq-postgame__details dt {
   color: var(--site-muted);
 }
 
-.jieqi-postgame-route .dxq-postgame__details dd {
+.jieqi-postgame-route .dxq-postgame__details dd,
+.banqi-postgame-route .dxq-postgame__details dd {
   color: var(--site-text);
+}
+
+/* Banqi additionally themes the surfaces the original jieqi block left hardcoded
+   light (header underline, action links, move chips). Scoped to banqi so the
+   launched jieqi review keeps its established look. */
+.banqi-postgame-route .dxq-postgame__header {
+  border-bottom-color: var(--site-border);
+}
+
+.banqi-postgame-route .dxq-postgame__link {
+  border-color: var(--site-border);
+  background: var(--site-panel);
+  color: var(--site-text);
+}
+
+.banqi-postgame-route .dxq-postgame__move {
+  background: var(--site-panel-soft, var(--site-bg));
+  color: var(--site-text);
+}
+
+.banqi-postgame-route .dxq-postgame__move-number {
+  color: var(--site-muted);
 }
 
 .dxq-postgame {
@@ -148,6 +183,29 @@ button.dxq-postgame__link {
 .jieqi-postgame-route .dxq-postgame__boards {
   display: flex;
   flex-direction: column;
+  gap: 10px;
+}
+
+/* Banqi is the same board | side layout, but its board is WIDE (8x4 ≈ 1.8:1)
+   rather than tall, so the board column is sized by width (capped by viewport
+   height on short screens) instead of the tall-board 56vh cap. */
+.banqi-postgame-route .dxq-postgame__layout {
+  grid-template-columns: minmax(0, min(86vh, 560px)) minmax(280px, 340px);
+  justify-content: center;
+  align-items: start;
+}
+
+.banqi-postgame-route .dxq-postgame__side {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.banqi-postgame-route .dxq-postgame__boards {
+  display: flex;
+  flex-direction: column;
+  /* Stretch so the (width:100%) board SVG fills the board column instead of
+     collapsing to its 300px default — the base rule's align-items:start would
+     otherwise shrink the wide banqi board to a sliver. */
+  align-items: stretch;
   gap: 10px;
 }
 

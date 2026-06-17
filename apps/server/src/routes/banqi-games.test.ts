@@ -101,7 +101,7 @@ test('Banqi postgame ships a single truth surface, not per-seat views', async ()
   assert.equal(payload.view.perspective, 'red');
 });
 
-test('Banqi postgame history snapshots the truth view per ply', async () => {
+test('Banqi postgame history masks unflipped tiles per ply', async () => {
   const payload = await banqiPostgameForApi(ROOM_ID, deps(gameRecord(), finishedFlipEvents()));
   assert.ok(payload);
 
@@ -110,8 +110,19 @@ test('Banqi postgame history snapshots the truth view per ply', async () => {
     payload.history.truth?.map((snapshot) => snapshot.ply),
     [0, 1],
   );
-  // The flip is visible in the truth history: a1 face-down at ply 0, revealed at 1.
-  assert.equal(payload.history.truth?.[0]?.view.board.a1?.faceDown, false);
+  // The replay reproduces the actual flips: at ply 0 every tile is still face-down
+  // (nothing has been revealed), and a1 only turns over at ply 1 when it is flipped.
+  // Without the mask the whole deal would show from move 0, defeating the replay.
+  const startBoard = payload.history.truth?.[0]?.view.board ?? {};
+  for (const [square, entry] of Object.entries(startBoard)) {
+    assert.equal(entry?.faceDown, true, `ply-0 square ${square} must be face-down`);
+  }
+  assert.equal(payload.history.truth?.[1]?.view.board.a1?.faceDown, false);
+  assert.deepEqual(payload.history.truth?.[1]?.view.board.a1, {
+    color: 'red',
+    role: 'general',
+    faceDown: false,
+  });
 });
 
 test('Banqi postgame builds a move-and-terminal timeline', async () => {

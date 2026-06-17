@@ -4,6 +4,7 @@ import './dark-xiangqi-postgame.css';
 import { banqiEnabled } from './feature-flags.js';
 import { fillCapturedPool } from './live-banqi.js';
 import { installBanqiBoardStyles, renderBanqiBoardSvg } from './live-banqi-render.js';
+import { buildNav } from './site-shell.js';
 
 // Postgame review for banqi. Banqi is SYMMETRIC-information: a face-down tile is
 // hidden from both seats equally, so there is a single "truth" review surface
@@ -58,7 +59,10 @@ type LoadResult =
 export function mountBanqiPostgame(root: HTMLElement, roomId: string): void {
   root.classList.add('landing-page', 'banqi-postgame-route');
   installBanqiBoardStyles();
-  root.replaceChildren(loadingView());
+  // Nav lives INSIDE the .landing-page flex column (crossroads pattern), so the
+  // route's 100vh floor accounts for it and the page does not scroll. Each render
+  // path rebuilds it as the first child.
+  root.replaceChildren(buildNav(), loadingView());
   if (!banqiEnabled()) {
     renderError(root, 'Banqi unavailable', 'This route is not enabled in this build.');
     return;
@@ -103,7 +107,6 @@ function renderPostgame(root: HTMLElement, postgame: BanqiPostgameResponse): voi
   const abortController = new AbortController();
   postgameAbortControllers.set(root, abortController);
 
-  root.replaceChildren();
   const page = document.createElement('main');
   page.className = 'dxq-postgame';
 
@@ -132,7 +135,7 @@ function renderPostgame(root: HTMLElement, postgame: BanqiPostgameResponse): voi
 
   layout.append(boardsPanel(postgame, abortController.signal), side);
   page.append(header, layout);
-  root.append(page);
+  root.replaceChildren(buildNav(), page);
 }
 
 function boardsPanel(postgame: BanqiPostgameResponse, signal: AbortSignal): HTMLElement {
@@ -393,7 +396,6 @@ function loadingView(): HTMLElement {
 }
 
 function renderError(root: HTMLElement, titleText: string, bodyText: string): void {
-  root.replaceChildren();
   const shell = document.createElement('main');
   shell.className = 'dxq-postgame__error';
   const title = document.createElement('h1');
@@ -401,7 +403,7 @@ function renderError(root: HTMLElement, titleText: string, bodyText: string): vo
   const body = document.createElement('p');
   body.textContent = bodyText;
   shell.append(title, body);
-  root.append(shell);
+  root.replaceChildren(buildNav(), shell);
 }
 
 function errorTitle(status: number): string {

@@ -115,13 +115,13 @@ function startMarks(): string {
   return `<g class="banqi-mark">${parts.join('')}</g>`;
 }
 
-// A uniform face-down disc: one colour, no glyph (the deal is hidden from both).
+// A uniform face-down disc: one colour, a single ring, no glyph (the deal is
+// hidden from both). A flat disc with no inner ring keeps the back clean.
 function faceDownDisc(cx: number, cy: number): string {
   const r = PIECE_SIZE * 0.46;
   return [
     `<g class="banqi-back">`,
     `<circle cx="${cx}" cy="${cy}" r="${r}"/>`,
-    `<circle class="banqi-back-ring" cx="${cx}" cy="${cy}" r="${r * 0.74}"/>`,
     `</g>`,
   ].join('');
 }
@@ -247,7 +247,6 @@ export function installBanqiBoardStyles(): void {
     .banqi-piece { pointer-events: none; filter: drop-shadow(0 2px 2px rgba(0, 0, 0, 0.2)); }
     .banqi-back { pointer-events: none; filter: drop-shadow(0 2px 3px rgba(0, 0, 0, 0.3)); }
     .banqi-back circle { fill: #2f8f6b; stroke: #184a38; stroke-width: 2; }
-    .banqi-back-ring { fill: none; stroke: rgba(255, 255, 255, 0.28); stroke-width: 1.5; }
     .banqi-hit rect { fill: transparent; cursor: pointer; }
   `;
   document.head.append(style);
