@@ -541,11 +541,15 @@ export function applyCrossroadsChessMove(
     // Stalemate is a LOSS for the side with no legal move (anti-draw design).
     nextStatus = { type: 'finished', winner: movingPiece.color, reason: 'stalemate' };
   } else if ((newPositionCounts[repKey] ?? 0) >= 3) {
-    // Threefold repetition is a LOSS (anti-draw). The mover completed the
-    // repetition, so the opponent (next to move) is awarded the win.
-    // TODO(phase-d): confirm the winning side against Fairy-Stockfish
-    // `nFoldValue=loss` semantics used in the meerkat balance sweeps.
-    nextStatus = { type: 'finished', winner: nextTurn, reason: 'repetition' };
+    // Threefold repetition is a DRAW under fog. Open Crossroads makes it a LOSS
+    // for the repeater (see applyCrossroadsChessOpenMove), but that rule needs
+    // perfect information to be fair: it punishes a player who, seeing the whole
+    // board, chooses to repeat. Under fog neither side can see the canonical
+    // position recur, so the side that happens to complete the third occurrence
+    // could not perceive or avoid it. Drawing matches dark chess and the rest of
+    // the fog family; the progress clock below still carries the anti-draw
+    // pressure against genuine stalling.
+    nextStatus = { type: 'finished', winner: null, reason: 'repetition' };
   } else if (newProgressClock >= (opts.progressClockLimit ?? DEFAULT_PROGRESS_CLOCK_LIMIT)) {
     // The only real draw: 50-move-style no-progress rule.
     nextStatus = { type: 'finished', winner: null, reason: 'progress-clock' };

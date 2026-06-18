@@ -233,8 +233,10 @@ test('stalemate is a loss for the side with no legal move', () => {
   assert.equal(after.status.type === 'finished' && after.status.winner, 'white');
 });
 
-test('threefold repetition ends the game (anti-draw loss)', () => {
+test('threefold repetition is a DRAW under fog (dark referee)', () => {
   // Two lone kings shuffling on opposite files repeat positions until 3-fold.
+  // Open Crossroads makes this a loss for the repeater, but under fog neither
+  // side can see the canonical position recur, so the dark referee draws.
   let s = stateWith({ a1: p('white', 'king'), f8: p('red', 'king') }, 'white');
   const cycle: [CrossroadsChessSquare, CrossroadsChessSquare][] = [
     ['a1', 'a2'],
@@ -246,6 +248,30 @@ test('threefold repetition ends the game (anti-draw loss)', () => {
   for (let i = 0; i < 16 && !finished; i += 1) {
     const [from, to] = cycle[i % cycle.length];
     s = applyCrossroadsChessMove(s, { from, to });
+    if (s.status.type === 'finished') {
+      finished = true;
+      assert.equal(s.status.reason, 'repetition');
+      // Fog fairness: a repetition draws (no winner), matching dark chess.
+      assert.equal(s.status.winner, null);
+    }
+  }
+  assert.equal(finished, true, 'expected a repetition terminal within a few cycles');
+});
+
+test('threefold repetition is a LOSS for the repeater in open Crossroads', () => {
+  // Perfect-info mode keeps the anti-draw rule: with full sight of the board the
+  // mover who completes the repetition is choosing it, so the opponent wins.
+  let s = stateWith({ a1: p('white', 'king'), f8: p('red', 'king') }, 'white');
+  const cycle: [CrossroadsChessSquare, CrossroadsChessSquare][] = [
+    ['a1', 'a2'],
+    ['f8', 'f7'],
+    ['a2', 'a1'],
+    ['f7', 'f8'],
+  ];
+  let finished = false;
+  for (let i = 0; i < 16 && !finished; i += 1) {
+    const [from, to] = cycle[i % cycle.length];
+    s = applyCrossroadsChessOpenMove(s, { from, to });
     if (s.status.type === 'finished') {
       finished = true;
       assert.equal(s.status.reason, 'repetition');
