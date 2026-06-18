@@ -25,6 +25,7 @@ import {
   DUAL_CHESS_SPEC_ID,
   type GameSpecId,
   JIEQI_SPEC_ID,
+  KRIEGSPIEL_SPEC_ID,
   REVEAL_CHESS_SPEC_ID,
   type TimeControlId,
 } from '@mistboard/game';
@@ -39,6 +40,7 @@ import {
   darkShogiEnabled,
   darkXiangqiEnabled,
   jieqiEnabled,
+  kriegspielEnabled,
   revealChessEnabled,
 } from '../feature-flags.js';
 import type { GameMeta, ReplayHandle } from '../replay.js';
@@ -594,6 +596,47 @@ const WEB_VARIANT_TENANTS: readonly WebVariantTenant[] = [
       timePresetIds: ['1m1', '3m2', '5m5'],
       offerInMenu: darkCrazyhouseEnabled,
       acceptsDeepLink: darkCrazyhouseEnabled,
+    },
+  },
+  {
+    // Kriegspiel (standard chess played blind): a hidden-info tenant on the
+    // socket-client + chrome stack with the fog-safe replay-CAPTURE model
+    // (live-kriegspiel.ts). The board shows only the viewer's own army; the
+    // opponent's move never arrives — only the UMPIRE ANNOUNCEMENT does (capture
+    // square + pawn/piece, check category), with the move coordinates redacted.
+    // The try-loop bounce surfaces as 'kriegspiel-illegal'. Real checkmate.
+    // PvP-only, no bot. Standard white-first, so it gets a White/Black picker.
+    gameSpecId: KRIEGSPIEL_SPEC_ID,
+    roomIdPrefix: 'kr_',
+    enabled: kriegspielEnabled,
+    pageTitle: 'Kriegspiel',
+    gameRouteBase: '/kriegspiel/game',
+    mountPostgame: (root, roomId) =>
+      import('../kriegspiel-postgame.js').then(({ mountKriegspielPostgame }) =>
+        mountKriegspielPostgame(root, roomId),
+      ),
+    reviewRouteBase: '/kriegspiel/game',
+    loadLiveRoomClient: () =>
+      import('../live-kriegspiel.js').then(
+        ({ bootstrapKriegspielLiveRoom }) =>
+          () =>
+            bootstrapKriegspielLiveRoom(),
+      ),
+    landing: {
+      capabilities: {
+        firstColor: 'white',
+        firstGlyph: '♚',
+        firstLabel: 'White',
+        secondColor: 'black',
+        secondGlyph: '♚',
+        secondLabel: 'Black',
+        supportsRated: false,
+        supportsStartFormat: false,
+        supportsTimeControl: true,
+      },
+      timePresetIds: ['1m1', '3m2', '5m5'],
+      offerInMenu: kriegspielEnabled,
+      acceptsDeepLink: kriegspielEnabled,
     },
   },
 ];

@@ -76,3 +76,11 @@ export function darkShogiEnabled(): boolean {
 export function darkCrazyhouseEnabled(): boolean {
   return import.meta.env.VITE_DARK_CRAZYHOUSE_ENABLED === 'true';
 }
+
+// Kriegspiel (standard chess played blind) play surface. Server-side opt-in is
+// MISTBOARD_KRIEGSPIEL_ENABLED; this gates the landing picker and deep links.
+// Not DEV-on by default — test locally by relaunching the dev server with
+// VITE_KRIEGSPIEL_ENABLED=true.
+export function kriegspielEnabled(): boolean {
+  return import.meta.env.VITE_KRIEGSPIEL_ENABLED === 'true';
+}
