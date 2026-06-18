@@ -155,7 +155,7 @@ function buildAbout(): HTMLElement {
 
   const featuresHeading = aboutSubheading('Play and study');
   const featuresP = aboutParagraph([
-    'Play dark chess over a link, join the lobby, or play an engine. Afterward, review the game from either player’s perspective or with the full board revealed. Rules and articles cover openings and future hidden-information variants such as dark xiangqi.',
+    'Play dark chess over a link, join the lobby, or play an engine. Afterward, review the game from either player’s perspective or with the full board revealed. Rules and articles cover openings and other hidden-information variants beyond dark chess.',
   ]);
 
   const fairnessHeading = aboutSubheading('Trust by design');
@@ -242,7 +242,7 @@ async function fetchPublicStats(): Promise<PublicSiteStats> {
 function renderPlatformActivityLoading(body: HTMLElement): void {
   const loading = document.createElement('p');
   loading.className = 'platform-activity-status';
-  loading.textContent = 'Loading activity totals...';
+  loading.textContent = 'Loading activity totals…';
   body.replaceChildren(loading);
 }
 
@@ -485,7 +485,7 @@ function buildSource(): HTMLElement {
 
   const heading = document.createElement('h1');
   heading.className = 'site-section-heading';
-  heading.textContent = 'Source And Licenses';
+  heading.textContent = 'Source and Licenses';
 
   const intro = document.createElement('p');
   intro.textContent =
@@ -536,6 +536,11 @@ function buildFaq(): HTMLElement {
     ' has the full rules.',
   ]);
 
+  const qAccount = aboutSubheading('Do I need an account?');
+  const aAccount = aboutParagraph([
+    'Not for casual play. Start or join games over a link, play the lobby, or play an engine without signing up. An account adds a handle, a profile, and rated play.',
+  ]);
+
   const q2 = aboutSubheading('How do I report a bug or get in touch?');
   const a2 = aboutParagraph([
     'File an issue on ',
@@ -547,14 +552,19 @@ function buildFaq(): HTMLElement {
 
   const q3 = aboutSubheading('How does Mistboard prevent cheating?');
   const a3 = aboutParagraph([
-    'Mistboard is built so the hidden board is not sitting in your opponent’s browser waiting to be uncovered. The server owns the full position, computes each seat’s legal view, and sends only that redacted view over the wire. The code is ',
+    'Mistboard is built so the hidden board is not sitting in your opponent’s browser waiting to be uncovered. The server owns the full position, computes each player’s legal view, and sends only that redacted view over the wire. The code is ',
     aboutExternalLink('open source', GITHUB_URL),
     ', so this trust boundary can be inspected. Outside assistance, account abuse, and attempts to break the fog filter are still fair-play violations.',
   ]);
 
   const q4 = aboutSubheading('Do Mistboard engines see the full board?');
   const a4 = aboutParagraph([
-    'No. Engines get the same fogged view for their side, plus only the game facts that side is allowed to know. They are truly playing dark chess and hidden-information variants, not cheating by seeing the true board. The true board stays server-side for adjudication.',
+    'No. Engines get the same fogged view for their side, plus only the game facts that side is allowed to know. They are playing dark chess and hidden-information variants, not cheating by seeing the true board. The true board stays server-side for adjudication.',
+  ]);
+
+  const qWatch = aboutSubheading('Can I watch a live game?');
+  const aWatch = aboutParagraph([
+    'No. Live games are not spectatable, so no one can feed a player the full board mid-game. Once a game finishes, anyone can replay it from either side or with the full board revealed.',
   ]);
 
   const q5 = aboutSubheading('How does rated play work?');
@@ -562,7 +572,23 @@ function buildFaq(): HTMLElement {
     'Rated dark chess is account-backed human-vs-human play. During beta, the ladder may be provisional while ratings calibrate. Engine games and casual games do not count.',
   ]);
 
-  section.append(heading, q1, a1, q2, a2, q3, a3, q4, a4, q5, a5);
+  section.append(
+    heading,
+    q1,
+    a1,
+    qAccount,
+    aAccount,
+    q2,
+    a2,
+    q3,
+    a3,
+    q4,
+    a4,
+    qWatch,
+    aWatch,
+    q5,
+    a5,
+  );
   return section;
 }
 

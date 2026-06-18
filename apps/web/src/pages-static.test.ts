@@ -36,7 +36,7 @@ describe('about page platform activity', () => {
     document.body.append(root);
     mountAbout(root);
 
-    expect(root.textContent).toContain('Loading activity totals...');
+    expect(root.textContent).toContain('Loading activity totals…');
     await flushPromises();
 
     expect(fetchMock).toHaveBeenCalledWith('/api/stats/public', { credentials: 'same-origin' });

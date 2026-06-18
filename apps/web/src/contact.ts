@@ -57,7 +57,7 @@ export function buildContact(
   messageInput.required = true;
   messageInput.rows = 6;
   messageInput.maxLength = 5000;
-  messageInput.placeholder = "What's on your mind?";
+  messageInput.placeholder = 'What’s on your mind?';
   messageLabel.append(messageLabelText, messageInput);
 
   // Lane slot: rendered in user-lane shape if we have a synchronous hint that
@@ -100,14 +100,14 @@ export function buildContact(
         Object.assign(document.createElement('strong'), { textContent: `@${user.handle}` }),
       );
       if (user.email) {
-        hint.append(document.createTextNode(` — we'll reply to ${user.email}.`));
+        hint.append(document.createTextNode(`. We’ll reply to ${user.email}.`));
       } else {
         hint.append(document.createTextNode('.'));
       }
     } else {
       // Placeholder used when we only have the localStorage hint and haven't
       // yet resolved the authoritative user.
-      hint.textContent = "Signed in — we'll reply to your account email.";
+      hint.textContent = 'Signed in. We’ll reply to your account email.';
     }
     laneSlot.replaceChildren(hint);
   };
@@ -195,15 +195,15 @@ export function buildContact(
         if (response.ok) {
           messageInput.value = '';
           if (!signedIn) emailInput.value = '';
-          status.textContent = 'Thanks — message received.';
+          status.textContent = 'Thanks, message received.';
           status.dataset.state = 'ok';
         } else if (response.status === 429) {
           status.textContent = signedIn
             ? 'Too many submissions. Try again in a bit.'
-            : 'Daily limit reached — sign in for unlimited replies, or try again tomorrow.';
+            : 'Daily limit reached. Sign in for unlimited replies, or try again tomorrow.';
           status.dataset.state = 'error';
         } else {
-          status.textContent = "Couldn't send. Try again, or email if it keeps failing.";
+          status.textContent = 'Couldn’t send. Try again, or email if it keeps failing.';
           status.dataset.state = 'error';
         }
       } catch {
