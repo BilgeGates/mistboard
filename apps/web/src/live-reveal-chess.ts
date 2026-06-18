@@ -36,7 +36,7 @@ import { clearSeatTokenForRoom, type LiveRefs } from './live-state.js';
 import { renderRevealChessBoardSvg, revealChessFacedownDisc } from './reveal-chess-render.js';
 import { roomIdFromPath } from './room-url.js';
 import { boardAppearanceChangedEvent, setBoardFamily } from './theme.js';
-import { scrollActiveMoveIntoView } from './variant-tenant/chrome-dom.js';
+import { syncMoveListScroll } from './variant-tenant/chrome-dom.js';
 import { createTenantReplayController } from './variant-tenant/replay-controller.js';
 import { createTenantRoomChrome, type WebVariantTenant } from './variant-tenant/room-chrome.js';
 import {
@@ -564,7 +564,7 @@ function renderVisibleMoveList(liveRefs: LiveRefs): void {
     item.append(number, white, black);
     liveRefs.moveList.append(item);
   }
-  scrollActiveMoveIntoView(liveRefs.moveList);
+  syncMoveListScroll(liveRefs.moveList, { live: replay.isLive(), plyCount: replay.latestPly() });
 }
 
 export function visibleMoveRows(

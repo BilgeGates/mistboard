@@ -38,6 +38,7 @@ import {
   shogiKomaSvg,
 } from './shogi-render.js';
 import { boardAppearanceChangedEvent, setBoardFamily } from './theme.js';
+import { syncMoveListScroll } from './variant-tenant/chrome-dom.js';
 import { createTenantReplayController } from './variant-tenant/replay-controller.js';
 import { createTenantRoomChrome, type WebVariantTenant } from './variant-tenant/room-chrome.js';
 import {
@@ -597,6 +598,7 @@ function renderVisibleMoveList(liveRefs: LiveRefs): void {
     );
     liveRefs.moveList.append(item);
   }
+  syncMoveListScroll(liveRefs.moveList, { live: replay.isLive(), plyCount: replay.latestPly() });
 }
 
 function moveCell(

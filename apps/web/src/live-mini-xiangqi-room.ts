@@ -27,7 +27,7 @@ import type { LiveRefs } from './live-state.js';
 import { liveState } from './live-state.js';
 import { rematchControls } from './rematch-controls.js';
 import { setBoardFamily } from './theme.js';
-import { scrollActiveMoveIntoView } from './variant-tenant/chrome-dom.js';
+import { syncMoveListScroll } from './variant-tenant/chrome-dom.js';
 import { createTenantReplayController } from './variant-tenant/replay-controller.js';
 import { createTenantRoomChrome, type WebVariantTenant } from './variant-tenant/room-chrome.js';
 
@@ -485,7 +485,7 @@ function renderVisibleMoveList(refs: LiveRefs): void {
     item.append(number, red, black);
     refs.moveList.append(item);
   }
-  scrollActiveMoveIntoView(refs.moveList);
+  syncMoveListScroll(refs.moveList, { live: replay.isLive(), plyCount: replay.latestPly() });
 }
 
 function visibleMoveRows(
