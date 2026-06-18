@@ -3,6 +3,7 @@ import {
   CROSSROADS_CHESS_SPEC_ID,
   canonicalVariantOrderIndex,
   DARK_CHESS_SPEC_ID,
+  DARK_CROSSROADS_CHESS_SPEC_ID,
   DARK_DRAFT960_SPEC_ID,
   DARK_MINI_XIANGQI_SPEC_ID,
   DARK_XIANGQI_SPEC_ID,
@@ -52,6 +53,7 @@ type LandingGameSpecId =
   | typeof DARK_MINI_XIANGQI_SPEC_ID
   | typeof DARK_XIANGQI_SPEC_ID
   | typeof CROSSROADS_CHESS_SPEC_ID
+  | typeof DARK_CROSSROADS_CHESS_SPEC_ID
   | typeof JIEQI_SPEC_ID
   | typeof BANQI_SPEC_ID
   | typeof REVEAL_CHESS_SPEC_ID;
@@ -1714,6 +1716,18 @@ function roomCreationRequestBody(
       preferredColor: setup.preferredColor,
     };
   }
+  if (setup.gameSpecId === DARK_CROSSROADS_CHESS_SPEC_ID) {
+    // Dark Crossroads is PvP-only and casual-only (no engine — Fairy-Stockfish is
+    // perfect-info — and rated not launched); colors are the variant's own
+    // white/red, passed straight through (the picker normalizes 'black' -> 'red').
+    return {
+      mode: 'pvp',
+      gameSpecId,
+      timeControl: setup.timeControl,
+      rated: false,
+      preferredColor: setup.preferredColor === 'black' ? 'red' : setup.preferredColor,
+    };
+  }
   if (setup.gameSpecId === DARK_XIANGQI_SPEC_ID || setup.gameSpecId === DARK_MINI_XIANGQI_SPEC_ID) {
     return {
       // DMX supports PvE (the engine id is defaulted server-side, so none is
@@ -1749,6 +1763,7 @@ function roomCreationGameSpecId(
   | typeof DARK_MINI_XIANGQI_SPEC_ID
   | typeof DARK_XIANGQI_SPEC_ID
   | typeof CROSSROADS_CHESS_SPEC_ID
+  | typeof DARK_CROSSROADS_CHESS_SPEC_ID
   | typeof JIEQI_SPEC_ID
   | typeof BANQI_SPEC_ID
   | typeof REVEAL_CHESS_SPEC_ID {
@@ -1756,6 +1771,7 @@ function roomCreationGameSpecId(
   if (setup.gameSpecId === BANQI_SPEC_ID) return BANQI_SPEC_ID;
   if (setup.gameSpecId === REVEAL_CHESS_SPEC_ID) return REVEAL_CHESS_SPEC_ID;
   if (setup.gameSpecId === CROSSROADS_CHESS_SPEC_ID) return CROSSROADS_CHESS_SPEC_ID;
+  if (setup.gameSpecId === DARK_CROSSROADS_CHESS_SPEC_ID) return DARK_CROSSROADS_CHESS_SPEC_ID;
   if (setup.gameSpecId === DARK_MINI_XIANGQI_SPEC_ID) return DARK_MINI_XIANGQI_SPEC_ID;
   if (setup.gameSpecId === DARK_XIANGQI_SPEC_ID) return DARK_XIANGQI_SPEC_ID;
   return setup.startFormat === 'draft960' ? DARK_DRAFT960_SPEC_ID : DARK_CHESS_SPEC_ID;
