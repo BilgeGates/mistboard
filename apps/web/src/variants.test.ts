@@ -1,6 +1,7 @@
 import {
   BANQI_SPEC_ID,
   CROSSROADS_CHESS_SPEC_ID,
+  canonicalVariantOrderIndex,
   DARK_CHESS_SPEC_ID,
   DARK_DRAFT960_SPEC_ID,
   DARK_MINI_XIANGQI_SPEC_ID,
@@ -20,6 +21,17 @@ import {
 } from './variants.js';
 
 describe('web variant launch registry', () => {
+  it('lists VARIANTS in the shared canonical variant order', () => {
+    // The leaderboard/profile grids render in VARIANTS order; it must match the
+    // one canonical order every surface (picker, watch, rules rail) sorts by, so
+    // the variant sequence is identical everywhere.
+    const order = VARIANTS.map((v) => v.gameSpecId);
+    const canonical = [...order].sort(
+      (a, b) => canonicalVariantOrderIndex(a) - canonicalVariantOrderIndex(b),
+    );
+    expect(order).toEqual(canonical);
+  });
+
   it('uses shared game-spec labels for current dark chess formats', () => {
     expect(VARIANTS).toEqual(
       expect.arrayContaining([

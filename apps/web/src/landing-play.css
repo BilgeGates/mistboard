@@ -588,6 +588,28 @@
   border-color: var(--site-accent);
 }
 
+/* No computer opponent yet: greyed out in the engine flow, with a "Soon" pill. */
+.landing-variant-card-disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.landing-variant-card-disabled:hover,
+.landing-variant-card-disabled:focus-visible {
+  border-color: var(--site-border);
+}
+
+.landing-variant-card-badge {
+  padding: 1px 6px;
+  border-radius: 999px;
+  background: var(--site-bg);
+  color: var(--site-muted);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
 /* One prominent primary CTA (lichess-style), Cancel as a quieter secondary below
    it. The header X + Esc + backdrop-click also dismiss, so Cancel is deliberately
    de-emphasized rather than given equal weight. */

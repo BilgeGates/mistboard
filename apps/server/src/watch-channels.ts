@@ -1,4 +1,5 @@
 import {
+  CANONICAL_VARIANT_ORDER,
   DARK_CHESS_SPEC_ID,
   DARK_DRAFT960_SPEC_ID,
   type GameFamilyId,
@@ -33,19 +34,14 @@ const DARK_CHESS_CHANNEL: WatchChannel = {
   legacyVariants: ['dark-chess', 'draft960'],
 };
 
-// Canonical rail order. The registry's Map iteration order tracks tenant
-// import order in register-tenants.ts, which is not the watch rail's order, so
-// the derived channels are sorted by this list (dark-chess always leads as the
-// hardcoded default). Ids absent here sort to the end in registry order, so a
-// new tenant's channel appears without editing this list (just later in the
-// rail than the curated ones).
-const WATCH_CHANNEL_ORDER: readonly string[] = [
-  'dark-chess',
-  'dark-mini-xiangqi',
-  'dark-xiangqi',
-  'jieqi',
-  'crossroads-chess',
-];
+// Rail order, derived from the shared CANONICAL_VARIANT_ORDER so the watch rail
+// matches the play menu / leaderboard / rules rail. Every watch channel id equals
+// its spec id, so the spec order IS the channel order (dark-draft960 has no
+// channel and is simply never matched). The registry's Map iteration order tracks
+// tenant import order, not the rail's order, so derived channels are sorted by
+// this list; dark-chess always leads as the hardcoded default, and ids absent
+// here sort to the end.
+const WATCH_CHANNEL_ORDER: readonly string[] = CANONICAL_VARIANT_ORDER;
 
 function channelOrderIndex(channelId: string): number {
   const index = WATCH_CHANNEL_ORDER.indexOf(channelId);

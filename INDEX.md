@@ -408,6 +408,7 @@ Run with `MISTBOARD_ALLOW_IN_MEMORY_PERSISTENCE=true npm run test:integration --
 | `mini-xiangqi-replay.ts` | Mini Xiangqi article replay: one 7×7 board stepped through a move list via the real kernel, rendered on demand (sibling of `xiangqi-replay.ts`) |
 | `mini-xiangqi-spike.ts` | `/mini-xiangqi-spike` FoW Mini Xiangqi sandbox (DEV): local play across red/black/god perspectives over the bespoke 7×7 renderer |
 | `watch-mini-xiangqi-replay.ts` | Mistboard TV (`/watch`) renderer for Dark Mini Xiangqi: postgame payload + shared replay chrome + control bar/auto-play, rendering server-computed fog views (leak-safe) |
+| `watch-dark-xiangqi-replay.ts` | Mistboard TV (`/watch`) renderer for full Dark Xiangqi (9×10) — thin adapter over `watch-tenant-replay.ts` rendering the red/truth/black fog triptych (per-view fog mask) |
 | `live-dark-xiangqi.ts` | Self-contained live room client for hidden/dev-only Dark Xiangqi (9×10): the first fog tenant on the `socket-client` + `room-chrome` stack; owns the intersection-board fog SVG, click-to-move, fog-safe replay capture, masked move list, and `renderDarkXiangqiBoardSvg` (reused by the postgame). Behind `darkXiangqiEnabled`. Loads `live-xiangqi.css` |
 | `live-xiangqi.css` | Shared xiangqi live-route board sizing/aspect styles loaded by `live.ts`, `live-dark-xiangqi.ts`, and `dark-xiangqi-postgame.ts` |
 | `dark-xiangqi-postgame.css` | Flagged Dark Xiangqi postgame route styles loaded by `dark-xiangqi-postgame.ts` |

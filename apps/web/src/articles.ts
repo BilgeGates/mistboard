@@ -7,7 +7,12 @@ import {
   type StepperController,
   type ThumbnailBoardController,
 } from '@mistboard/board-render/interactive';
-import type { Color, Square } from '@mistboard/game';
+import {
+  type Color,
+  canonicalVariantOrderIndex,
+  type GameSpecId,
+  type Square,
+} from '@mistboard/game';
 import './articles.css';
 import { ARTICLE_LANG_PREFIX, type ArticleLang, translateArticle } from './article-i18n.js';
 import {
@@ -212,7 +217,19 @@ function buildRulesLanding(lang?: ArticleLang): HTMLElement {
     (article) => article.kind === 'rules' && isArticleListedInThisEnv(article),
   );
   const tileGroups = [
-    { title: copy.railPlayable, items: entries.filter((entry) => entry.playableOnMistboard) },
+    {
+      title: copy.railPlayable,
+      // Playable variant tiles follow the one canonical variant order shared with
+      // the play menu / leaderboard / watch rail. Variant-rules slugs equal their
+      // game-spec id, so sort by that; .filter() already returns a fresh array.
+      items: entries
+        .filter((entry) => entry.playableOnMistboard)
+        .sort(
+          (a, b) =>
+            canonicalVariantOrderIndex(a.slug as GameSpecId) -
+            canonicalVariantOrderIndex(b.slug as GameSpecId),
+        ),
+    },
     { title: copy.railReference, items: entries.filter((entry) => !entry.playableOnMistboard) },
   ];
   for (const group of tileGroups) {
@@ -620,7 +637,19 @@ function buildVariantSidebar(currentSlug: string | null, lang?: ArticleLang): HT
   box.className = 'article-toc-sticky';
 
   const groups = [
-    { title: copy.railPlayable, items: entries.filter((entry) => entry.playableOnMistboard) },
+    {
+      title: copy.railPlayable,
+      // Playable variant tiles follow the one canonical variant order shared with
+      // the play menu / leaderboard / watch rail. Variant-rules slugs equal their
+      // game-spec id, so sort by that; .filter() already returns a fresh array.
+      items: entries
+        .filter((entry) => entry.playableOnMistboard)
+        .sort(
+          (a, b) =>
+            canonicalVariantOrderIndex(a.slug as GameSpecId) -
+            canonicalVariantOrderIndex(b.slug as GameSpecId),
+        ),
+    },
     { title: copy.railReference, items: entries.filter((entry) => !entry.playableOnMistboard) },
   ];
 

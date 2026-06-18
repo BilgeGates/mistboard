@@ -129,6 +129,30 @@ export const DARK_CROSSROADS_CHESS_SPEC_ID = 'dark-crossroads-chess' satisfies G
 export const DUAL_CHESS_SPEC_ID = 'dual-chess' satisfies GameSpecAliasId;
 export const DARK_DUAL_CHESS_SPEC_ID = 'dark-dual-chess' satisfies GameSpecAliasId;
 
+// Single source of truth for variant DISPLAY order across every surface: the
+// play-menu picker, the leaderboard/profile grids, the Mistboard TV watch rail,
+// and the /rules rail. Hidden-information variants lead, grouped by family (chess
+// fog, xiangqi fog mini→full, xiangqi identity, chess identity); the one
+// perfect-information variant (Crossroads) sorts last. Specs not listed here sort
+// to the end in their own order, so a new variant appears without editing callers
+// that already sort by canonicalVariantOrderIndex (just curate it here).
+export const CANONICAL_VARIANT_ORDER: readonly GameSpecId[] = [
+  DARK_CHESS_SPEC_ID,
+  DARK_DRAFT960_SPEC_ID,
+  DARK_MINI_XIANGQI_SPEC_ID,
+  DARK_XIANGQI_SPEC_ID,
+  JIEQI_SPEC_ID,
+  BANQI_SPEC_ID,
+  REVEAL_CHESS_SPEC_ID,
+  CROSSROADS_CHESS_SPEC_ID,
+];
+
+/** Sort index for {@link CANONICAL_VARIANT_ORDER}; unlisted specs sort to the end. */
+export function canonicalVariantOrderIndex(id: GameSpecId): number {
+  const index = CANONICAL_VARIANT_ORDER.indexOf(id);
+  return index === -1 ? CANONICAL_VARIANT_ORDER.length : index;
+}
+
 export const GAME_SPECS: readonly GameSpec[] = [
   {
     id: DARK_CHESS_SPEC_ID,

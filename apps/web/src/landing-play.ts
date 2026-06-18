@@ -1,6 +1,7 @@
 import {
   BANQI_SPEC_ID,
   CROSSROADS_CHESS_SPEC_ID,
+  canonicalVariantOrderIndex,
   DARK_CHESS_SPEC_ID,
   DARK_DRAFT960_SPEC_ID,
   DARK_MINI_XIANGQI_SPEC_ID,
@@ -159,6 +160,11 @@ function enabledLandingVariantGameSpecs(
       label: gameSpecForId(tenant.gameSpecId).publicName,
     });
   }
+  // The tenant registry iterates in import order, not the rail's order; present
+  // the picker in the one canonical variant order shared with every surface.
+  specs.sort(
+    (a, b) => canonicalVariantOrderIndex(a.gameSpecId) - canonicalVariantOrderIndex(b.gameSpecId),
+  );
   return specs;
 }
 
@@ -559,6 +565,17 @@ export function maybeOpenPlayDeepLink(engines: PlayableEngine[]): void {
   window.history.replaceState(null, '', url);
 }
 
+// Whether a variant has a computer opponent in the play menu. Dark chess uses
+// the always-on empty-lobby/fallback engine, and DMX defaults its engine
+// server-side (so neither carries tenant engineOptions); other variants need a
+// tenant PvE engine option. PvP-first variants with no bot yet (Dark Xiangqi,
+// Reveal Chess) return false, so the engine flow greys them out instead of
+// offering a dead "Play the engine" that silently falls back to a PvP room.
+function landingVariantSupportsPve(gameSpecId: LandingGameSpecId): boolean {
+  if (gameSpecId === DARK_CHESS_SPEC_ID || gameSpecId === DARK_MINI_XIANGQI_SPEC_ID) return true;
+  return Boolean(webVariantTenantForSpecId(gameSpecId)?.landing?.engineOptions);
+}
+
 function openLandingSetupDialog(choice: LandingPlayChoice): void {
   const existing = document.querySelector('.landing-setup-overlay');
   existing?.remove();
@@ -584,6 +601,11 @@ function openLandingSetupDialog(choice: LandingPlayChoice): void {
       ]
     : publicVariantOptions;
   if (!variantOptions.some((option) => option.gameSpecId === selectedGameSpecId)) {
+    selectedGameSpecId = DARK_CHESS_SPEC_ID;
+  }
+  // In the engine flow, never default-select a variant with no bot (it shows
+  // greyed-out below); fall back to dark chess, which always has an engine.
+  if (choice.mode === 'pve' && !landingVariantSupportsPve(selectedGameSpecId)) {
     selectedGameSpecId = DARK_CHESS_SPEC_ID;
   }
   let selectedPreset: LandingTimePresetId = storedPreference.timePresetId ?? '3m2';
@@ -661,6 +683,16 @@ function openLandingSetupDialog(choice: LandingPlayChoice): void {
       card.className = 'landing-variant-card';
       card.setAttribute('role', 'radio');
       card.dataset.gameSpec = gameSpecId;
+      // No computer opponent yet (Dark Xiangqi, Reveal Chess): grey the card out
+      // of the engine flow rather than letting it be picked and silently create
+      // a PvP room.
+      const pveDisabled = choice.mode === 'pve' && !landingVariantSupportsPve(gameSpecId);
+      if (pveDisabled) {
+        card.disabled = true;
+        card.classList.add('landing-variant-card-disabled');
+        card.setAttribute('aria-disabled', 'true');
+        card.title = `${label} has no computer opponent yet`;
+      }
       const miniId = variantMiniIdForGameSpec(gameSpecId);
       if (miniId) {
         const thumb = document.createElement('span');
@@ -672,11 +704,18 @@ function openLandingSetupDialog(choice: LandingPlayChoice): void {
       name.className = 'landing-variant-card-name';
       name.textContent = label;
       card.append(name);
-      card.addEventListener('click', () => {
-        selectedGameSpecId = gameSpecId;
-        syncVariantControls();
-        syncGameSpecificSections();
-      });
+      if (pveDisabled) {
+        const badge = document.createElement('span');
+        badge.className = 'landing-variant-card-badge';
+        badge.textContent = 'Soon';
+        card.append(badge);
+      } else {
+        card.addEventListener('click', () => {
+          selectedGameSpecId = gameSpecId;
+          syncVariantControls();
+          syncGameSpecificSections();
+        });
+      }
       cards.set(gameSpecId, card);
       grid.append(card);
     }

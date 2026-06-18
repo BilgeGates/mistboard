@@ -173,7 +173,7 @@ const WEB_VARIANT_TENANTS: readonly WebVariantTenant[] = [
         supportsStartFormat: false,
         supportsTimeControl: true,
       },
-      timePresetIds: ['3m2'],
+      timePresetIds: ['1m1', '3m2', '5m5'],
       offerInMenu: darkXiangqiEnabled,
       acceptsDeepLink: darkXiangqiEnabled,
     },

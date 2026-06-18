@@ -1,3 +1,4 @@
+import { canonicalVariantOrderIndex, type GameSpecId } from '@mistboard/game';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { buildLandingPlayPanel, maybeOpenPlayDeepLink, setRoomNavigator } from './landing-play.js';
 import { setRatedModeEnabled } from './rated-flag.js';
@@ -692,6 +693,55 @@ describe('landing play panel', () => {
       ?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
 
     expect(variantPickerSpecs()).not.toContain('dark-xiangqi');
+  });
+
+  it('greys out Dark Xiangqi (no bot) in the Play-the-engine flow, but not DMX', () => {
+    vi.stubEnv('VITE_DARK_MINI_XIANGQI_ENABLED', 'true');
+    vi.stubEnv('VITE_DARK_MINI_XIANGQI_PUBLIC_ENTRY_ENABLED', 'true');
+    vi.stubEnv('VITE_DARK_XIANGQI_ENABLED', 'true');
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => jsonResponse({ playing: 0, online: 0 })),
+    );
+    const panel = buildLandingPlayPanel([]);
+    document.body.append(panel);
+    openPlaySetup(panel, 'Play the engine');
+
+    const dxq = document.querySelector<HTMLButtonElement>(
+      '.landing-variant-card[data-game-spec="dark-xiangqi"]',
+    );
+    // No engine yet: disabled + greyed with a Soon badge.
+    expect(dxq?.disabled).toBe(true);
+    expect(dxq?.classList.contains('landing-variant-card-disabled')).toBe(true);
+    expect(dxq?.textContent).toContain('Soon');
+    // DMX defaults its engine server-side, so it stays selectable in the engine flow.
+    const dmx = document.querySelector<HTMLButtonElement>(
+      '.landing-variant-card[data-game-spec="dark-mini-xiangqi"]',
+    );
+    expect(dmx?.disabled).toBe(false);
+  });
+
+  it('orders the variant picker by the shared canonical variant order', () => {
+    vi.stubEnv('VITE_DARK_MINI_XIANGQI_ENABLED', 'true');
+    vi.stubEnv('VITE_DARK_MINI_XIANGQI_PUBLIC_ENTRY_ENABLED', 'true');
+    vi.stubEnv('VITE_DARK_XIANGQI_ENABLED', 'true');
+    vi.stubEnv('VITE_JIEQI_ENABLED', 'true');
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => jsonResponse({ playing: 0, online: 0 })),
+    );
+    const panel = buildLandingPlayPanel([]);
+    document.body.append(panel);
+    openPlaySetup(panel, 'Challenge a friend');
+
+    const specs = variantPickerSpecs();
+    const canonical = [...specs].sort(
+      (a, b) =>
+        canonicalVariantOrderIndex(a as GameSpecId) - canonicalVariantOrderIndex(b as GameSpecId),
+    );
+    expect(specs).toEqual(canonical);
+    // DMX precedes full Dark Xiangqi (the picker used to list dark-xiangqi 2nd).
+    expect(specs.indexOf('dark-mini-xiangqi')).toBeLessThan(specs.indexOf('dark-xiangqi'));
   });
 
   it('sends the chess game spec id when finding a chess opponent', async () => {
