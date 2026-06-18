@@ -106,7 +106,7 @@ describe('appearance family gating', () => {
 
     rebuildThemePanel();
 
-    expect(document.querySelector('select[data-board-family-select]')).toBeNull();
+    expect(document.querySelector('[data-board-family-select]')).toBeNull();
     expect(document.querySelector('[data-theme-tile="xqboard"]')).toBeNull();
     expect(document.querySelector('[data-theme-tile="xqpiece"]')).toBeNull();
     // Chess pickers + the shared fog picker stay.
@@ -122,22 +122,24 @@ describe('appearance family gating', () => {
 
     rebuildThemePanel();
 
-    const familySelect = document.querySelector<HTMLSelectElement>(
-      'select[data-board-family-select]',
-    );
-    expect([...familySelect!.options].map((option) => option.value)).toEqual(['chess', 'xiangqi']);
+    const familyGroup = document.querySelector<HTMLElement>('[data-board-family-select]');
+    expect(
+      [...familyGroup!.querySelectorAll<HTMLButtonElement>('[data-board-family-option]')].map(
+        (option) => option.dataset.boardFamilyOption,
+      ),
+    ).toEqual(['chess', 'xiangqi']);
 
     expect(document.querySelector('[data-theme-tile="piece"]')).not.toBeNull();
     expect(document.querySelector('[data-theme-tile="xqboard"]')).not.toBeNull();
     expect(document.querySelector('[data-theme-tile="xqpiece"]')).not.toBeNull();
   });
 
-  it('surfaces the Game dropdown + xiangqi pickers when a xiangqi flag is on', () => {
+  it('surfaces the Game toggle + xiangqi pickers when a xiangqi flag is on', () => {
     vi.stubEnv('VITE_DARK_MINI_XIANGQI_ENABLED', 'true');
 
     rebuildThemePanel();
 
-    expect(document.querySelector('select[data-board-family-select]')).not.toBeNull();
+    expect(document.querySelector('[data-board-family-select]')).not.toBeNull();
     expect(document.querySelector('[data-theme-tile="xqboard"]')).not.toBeNull();
     expect(document.querySelector('[data-theme-tile="xqpiece"]')).not.toBeNull();
   });

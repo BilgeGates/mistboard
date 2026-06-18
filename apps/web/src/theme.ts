@@ -461,39 +461,48 @@ export function createSiteThemeButton(theme: SiteTheme, label: string): HTMLButt
   return button;
 }
 
-// Picks which game family's board + piece pickers are shown, as a dropdown.
-// Defaults to the active page's family (set by the route via setBoardFamily);
-// switching it lets you configure another family's appearance.
+// Picks which game family's board + piece pickers are shown. The options sit
+// inline as a segmented toggle (no nested dropdown to open). Defaults to the
+// active page's family (set by the route via setBoardFamily); switching it lets
+// you configure another family's appearance.
 function createBoardFamilyField(): HTMLDivElement {
   const field = document.createElement('div');
   field.className = 'theme-control-field theme-control-field-inline';
   const text = document.createElement('span');
   text.textContent = 'Game';
 
-  const select = document.createElement('select');
-  select.className = 'theme-control-select';
-  select.dataset.boardFamilySelect = '';
-  select.setAttribute('aria-label', 'Board and piece game family');
+  const group = document.createElement('div');
+  group.className = 'theme-control-segmented';
+  group.dataset.boardFamilySelect = '';
+  group.setAttribute('role', 'radiogroup');
+  group.setAttribute('aria-label', 'Board and piece game family');
+  const active = currentBoardFamily();
   for (const family of enabledAppearanceFamilies()) {
-    const option = document.createElement('option');
-    option.value = family.id;
+    const option = document.createElement('button');
+    option.type = 'button';
+    option.className = 'theme-mode-option';
+    option.dataset.boardFamilyOption = family.id;
+    option.setAttribute('role', 'radio');
+    option.setAttribute('aria-checked', String(family.id === active));
     option.textContent = family.label;
-    select.append(option);
+    if (family.id === active) option.classList.add('selected');
+    option.addEventListener('click', () => setBoardFamily(family.id));
+    group.append(option);
   }
-  select.value = currentBoardFamily();
-  select.addEventListener('change', () => setBoardFamily(select.value as BoardFamily));
 
-  field.append(text, select);
+  field.append(text, group);
   return field;
 }
 
 function syncBoardFamilyControls(): void {
   const active = currentBoardFamily();
-  document
-    .querySelectorAll<HTMLSelectElement>('select[data-board-family-select]')
-    .forEach((select) => {
-      select.value = active;
-    });
+  document.querySelectorAll<HTMLElement>('[data-board-family-select]').forEach((group) => {
+    for (const option of group.querySelectorAll<HTMLButtonElement>('[data-board-family-option]')) {
+      const selected = option.dataset.boardFamilyOption === active;
+      option.classList.toggle('selected', selected);
+      option.setAttribute('aria-checked', String(selected));
+    }
+  });
 }
 
 type TileKind = 'board' | 'fog' | 'piece' | 'xqboard' | 'xqpiece';

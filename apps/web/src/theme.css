@@ -91,6 +91,20 @@
   outline-offset: 1px;
 }
 
+/* The Game family toggle: options sit inline as a segmented control so the
+   choice is one click, with no nested dropdown to open. Reuses the
+   .theme-mode-option button styling. */
+.theme-control-segmented {
+  display: inline-flex;
+  gap: 6px;
+  justify-self: end;
+}
+
+.theme-control-segmented .theme-mode-option {
+  min-height: 30px;
+  padding: 0 12px;
+}
+
 .theme-control-trigger {
   display: inline-flex;
   align-items: center;
