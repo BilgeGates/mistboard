@@ -32,7 +32,7 @@ import './live-kriegspiel.css';
 import { kriegspielEnabled } from './feature-flags.js';
 import { renderKriegspielBoardSvg } from './kriegspiel-render.js';
 import { createLiveLayout, setLiveLayoutGameSpec } from './live-layout.js';
-import { initLiveSound, resetLiveSoundState } from './live-sound.js';
+import { initLiveSound, playSound, resetLiveSoundState } from './live-sound.js';
 import { clearSeatTokenForRoom, type LiveRefs } from './live-state.js';
 import { roomIdFromPath } from './room-url.js';
 import { boardAppearanceChangedEvent, setBoardFamily } from './theme.js';
@@ -277,7 +277,23 @@ function applyEventFrame(frame: KriegspielLiveFrame): void {
   const events = state.events;
   applyFrame(frame);
   state.events = events;
-  if (frame.event) state.events = [...events, frame.event];
+  if (frame.event) {
+    state.events = [...events, frame.event];
+    if (isMoveEvent(frame.event)) playMoveSound(frame.event);
+  }
+}
+
+// The drama beat for a single move. In Kriegspiel a capture is heard, not seen —
+// the opponent's move that takes one of your pieces plays a distinct "captured"
+// cue, the closest thing to feeling the blow land in the dark. Check has no
+// dedicated cue; its red banner + threat squares carry that moment visually.
+function playMoveSound(event: KriegspielMovePlayed): void {
+  const captured = Boolean(event.move.announcement?.capture);
+  if (isColor(state.seat) && event.color !== state.seat) {
+    playSound(captured ? 'captured' : 'move');
+  } else {
+    playSound(captured ? 'capture' : 'move');
+  }
 }
 
 function onServerMessage(message: { type: string; [key: string]: unknown }): void {
