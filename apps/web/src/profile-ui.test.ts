@@ -105,6 +105,76 @@ describe('profile game rows', () => {
     expect(row.textContent).toContain('Red');
   });
 
+  it('renders a banqi row vs the engine (not "vs White") and routes to the banqi surface', () => {
+    // Regression: banqi names sides red/black, and a black player's opponent is
+    // red. The opponent-colour resolver used to fall through to 'white', which
+    // has no participant, so the row showed the literal seat "vs White" instead
+    // of the engine. The href also fell through to /game/:id, whose chess-family
+    // replay reducer 403s on banqi events.
+    const row = buildProfileGameRow(
+      game({
+        roomId: 'bq_profile',
+        variant: 'banqi',
+        result: 'black-wins',
+        participants: [
+          {
+            color: 'red',
+            displayName: 'MistyBanqi - Strongest',
+            subjectType: 'engine-version',
+            subjectId: 'python-banqi-v1.0',
+            visibility: 'private',
+          },
+          {
+            color: 'black',
+            displayName: 'dev-testing',
+            subjectType: 'user',
+            subjectId: 'u_dev',
+            visibility: 'private',
+          },
+        ],
+        playerColor: 'black',
+      }),
+    );
+
+    const link = row.querySelector('a');
+    expect(link?.getAttribute('href')).toBe('/banqi/game/bq_profile');
+    expect(row.textContent).toContain('Win');
+    expect(row.textContent).toContain('vs MistyBanqi - Strongest');
+    expect(row.textContent).not.toContain('vs White');
+    expect(row.textContent).toContain('Banqi');
+    expect(row.textContent).toContain('Black');
+  });
+
+  it('routes jieqi profile rows to the jieqi surface', () => {
+    const row = buildProfileGameRow(
+      game({
+        roomId: 'jq_profile',
+        variant: 'jieqi',
+        result: 'red-wins',
+        participants: [
+          {
+            color: 'red',
+            displayName: 'Red Player',
+            subjectType: 'user',
+            subjectId: 'red-user',
+            visibility: 'private',
+          },
+          {
+            color: 'black',
+            displayName: 'PikaJieQi',
+            subjectType: 'engine-version',
+            subjectId: 'python-jieqi-v1.0',
+            visibility: 'private',
+          },
+        ],
+        playerColor: 'red',
+      }),
+    );
+
+    expect(row.querySelector('a')?.getAttribute('href')).toBe('/jieqi/game/jq_profile');
+    expect(row.textContent).toContain('vs PikaJieQi');
+  });
+
   it('keeps chess profile rows on the chess game route', () => {
     const row = buildProfileGameRow(game());
     expect(row.querySelector('a')?.getAttribute('href')).toBe('/game/room_1');

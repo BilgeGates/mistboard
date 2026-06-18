@@ -177,7 +177,7 @@ function opponentColor(
 ): 'white' | 'black' | 'red' {
   if (color === 'red') return isCrossroadsChessVariant(game) ? 'white' : 'black';
   if (color === 'white' && isCrossroadsChessVariant(game)) return 'red';
-  if (color === 'black' && isXiangqiVariant(game)) return 'red';
+  if (color === 'black' && isRedBlackVariant(game)) return 'red';
   if (color === 'black') return 'white';
   return 'black';
 }
@@ -192,11 +192,29 @@ function profileGameHref(game: FeaturedGame): string {
   if (game.variant === 'dark-xiangqi') {
     return `/dark-xiangqi/game/${encodeURIComponent(game.roomId)}`;
   }
+  // Variant-tenant postgame surfaces own their own replay endpoint
+  // (/api/banqi|jieqi/games/:id). Routing these to the dark-chess /game/:id
+  // surface 403s: its replay loader hits /api/games/:id/events, whose
+  // chess-family reducer throws on a non-chess event log.
+  if (game.variant === 'banqi') {
+    return `/banqi/game/${encodeURIComponent(game.roomId)}`;
+  }
+  if (game.variant === 'jieqi') {
+    return `/jieqi/game/${encodeURIComponent(game.roomId)}`;
+  }
   return `/game/${encodeURIComponent(game.roomId)}`;
 }
 
-function isXiangqiVariant(game: FeaturedGame): boolean {
-  return game.variant === 'dark-mini-xiangqi' || game.variant === 'dark-xiangqi';
+// Variants that name sides red/black rather than white/black: the xiangqi family
+// plus banqi and jieqi. Used to resolve the opponent's seat colour — black's
+// opponent is red, not white. Crossroads (white/red) is handled separately.
+function isRedBlackVariant(game: FeaturedGame): boolean {
+  return (
+    game.variant === 'dark-mini-xiangqi' ||
+    game.variant === 'dark-xiangqi' ||
+    game.variant === 'banqi' ||
+    game.variant === 'jieqi'
+  );
 }
 
 function isCrossroadsChessVariant(game: FeaturedGame): boolean {
