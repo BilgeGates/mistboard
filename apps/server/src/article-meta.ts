@@ -102,6 +102,18 @@ export const ARTICLE_META: Record<
     description:
       'The complete rules of Kriegspiel, the 1899 ancestor of dark chess: you see only your own pieces, an umpire rejects illegal tries and announces captures, checks, and pawn tries, and checkmate wins.',
   },
+  'dark-crazyhouse': {
+    title: 'Dark Crazyhouse (Fog of War) Rules',
+    kind: 'rules',
+    description:
+      'Crazyhouse under Fog of War: captured pieces flip color into your hand and drop back into play, hands are private, you can parachute a drop into the fog, and the king falls by capture.',
+  },
+  'dark-crossroads-chess': {
+    title: 'Dark Crossroads Chess (Fog of War) Rules',
+    kind: 'rules',
+    description:
+      'Crossroads Chess under Fog of War: each side sees only the squares its pieces reach, there are no check warnings, the king falls by capture, and the race to the far rank becomes a one-move gamble in the dark.',
+  },
   jieqi: {
     title: 'Jieqi (揭棋) Rules',
     kind: 'rules',

@@ -55,11 +55,11 @@ export const darkShogiArticle: Article = {
   intro: [
     {
       kind: 'paragraph',
-      text: 'Dark Shogi is the Fog of War version of [shogi](/rules/shogi): pieces keep their shogi movement and the drop rule still puts captured pieces back in play, but unseen enemy pieces stay hidden, each side\'s reserve is private, and danger is never announced. Capture the king to win.',
+      text: 'Dark Shogi is [shogi](/rules/shogi) under Fog of War. Pieces keep their shogi movement, and the drop rule still puts captured pieces back in play, but enemy pieces outside your vision are hidden, each side\'s reserve is private, and nothing warns you about danger. Capture the king to win.',
     },
     {
       kind: 'paragraph',
-      text: 'If shogi is new to you, start with [Shogi Rules](/rules/shogi). If you already play shogi, the sections below explain only what fog changes.',
+      text: 'For the base game, read [Shogi Rules](/rules/shogi). If you already play, the sections below cover only what fog changes.',
     },
   ],
   sections: [
@@ -68,7 +68,7 @@ export const darkShogiArticle: Article = {
       blocks: [
         {
           kind: 'paragraph',
-          text: 'At the start you see your own 20 pieces and every square they reach. Everything past that is fog. The board below is Black\'s view of the opening: the front rank of pawns and the squares just ahead of them are lit, and the whole far side, including all of White\'s army, is dark.',
+          text: 'At the start you see your own 20 pieces and every square they reach. Everything past that is fog. The board below is Black\'s view of the opening: the rank of pawns and the squares just ahead of them are lit, and the whole far half of the board, including all of White\'s army, is dark.',
         },
         {
           kind: 'raw-svg',
@@ -82,11 +82,11 @@ export const darkShogiArticle: Article = {
       blocks: [
         {
           kind: 'paragraph',
-          text: 'You see a square if one of your pieces could move to it. A slider sees up to the first piece in its path and stops there, so you see the piece you can hit but nothing behind it. Vision is recomputed from the true position after every move, so opening a line, dropping a piece, or advancing a pawn instantly changes what you know.',
+          text: 'You see a square when one of your pieces reaches it. A rook, bishop, or lance sees up to the first piece in its path and stops there, so you see the piece you can hit but nothing behind it. Vision is recomputed from the true board after every move, so opening a line, advancing a pawn, or dropping a piece changes what you know on the spot.',
         },
         {
           kind: 'paragraph',
-          text: 'In the board below, Black\'s rook looks straight up an open file. It sees the White pawn it can capture, but the White king sheltering one square behind that pawn is still in the fog. Slide the pawn away and the king would appear.',
+          text: 'Below, Black\'s rook looks straight up an open file. It sees the White pawn it can capture, but the White king sheltering one square behind that pawn stays in the fog. Move the pawn aside and the king appears.',
         },
         {
           kind: 'raw-svg',
@@ -100,11 +100,11 @@ export const darkShogiArticle: Article = {
       blocks: [
         {
           kind: 'paragraph',
-          text: 'Captured pieces still join your hand and can still be dropped, but your reserve is yours alone to see. In open shogi both hands sit face-up beside the board; under fog you see only your own. You never know exactly which pieces your opponent is holding, so a drop can come out of the fog as a genuine surprise.',
+          text: 'Captured pieces still join your hand, and you can still drop them, but your reserve is yours alone to see. In open shogi both hands sit face-up beside the board. Under fog you see only your own, so you never know exactly what your opponent is holding, and a drop can come out of nowhere as a real surprise.',
         },
         {
           kind: 'paragraph',
-          text: 'You can drop into the fog as well. A piece dropped onto a square your opponent cannot see simply will not appear for them until one of their pieces looks at it. The two-pawn rule and the dead-square rule still apply, judged against the true board.',
+          text: 'You can drop into the fog too. A piece dropped onto a square your opponent cannot see stays invisible to them until one of their pieces reaches it. The two-pawn rule (no second unpromoted pawn on a file) and the dead-piece rule (no pawn or lance on the last rank, no knight on the last two) still apply, checked against the true board.',
         },
       ],
     },
@@ -113,20 +113,20 @@ export const darkShogiArticle: Article = {
       blocks: [
         {
           kind: 'paragraph',
-          text: 'Capture the king to win. There is no check and no checkmate: the server never tells you your king is attacked, and it will happily let you move into danger or leave a threat unanswered. You have to read the threat yourself from what your own pieces can see.',
+          text: 'Capture the king and you win on the spot. There is no check and no checkmate. The server never tells you your king is attacked, and it will let you walk into danger or leave a threat unanswered. You read the threats yourself, from what your own pieces can see.',
         },
         {
           kind: 'paragraph',
-          text: 'Because there is no checkmate, the drop-pawn-mate restriction from open shogi is gone. A dropped pawn that takes the king next move is just a winning move like any other.',
+          text: 'With no checkmate, the drop-pawn-mate ban from open shogi is gone. A pawn dropped where it captures the king next move is just a winning move like any other.',
         },
       ],
     },
     {
-      heading: 'Draws',
+      heading: 'How a game ends',
       blocks: [
         {
           kind: 'paragraph',
-          text: 'A game auto-draws on repetition, judged from the true position rather than either player\'s view. There is no stalemate draw: a side with no legal move loses, and with no check to freeze a king in place, that almost never happens.',
+          text: 'Almost every Dark Shogi game ends when a king is captured. The other endings are the ordinary ones for a timed online game: running out of time, resigning, or abandoning the board. There is no checkmate to call the game early, so play runs until a king actually comes off.',
         },
       ],
     },
@@ -135,13 +135,14 @@ export const darkShogiArticle: Article = {
       blocks: [
         {
           kind: 'paragraph',
-          text: 'Dark Shogi is in development on Mistboard and not playable yet. There is no set release date.',
+          text: 'Dark Shogi is in development on Mistboard and not playable yet, with no set release date. For the open-information base game, read Shogi Rules. For chess under the same fog, read Dark Chess.',
         },
         {
           kind: 'cta',
           buttons: [
             { label: 'Shogi Rules', href: '/rules/shogi', emphasis: 'secondary' },
-            { label: 'Back to all rules', href: '/rules', emphasis: 'secondary' },
+            { label: 'Dark Chess', href: '/rules/dark-chess', emphasis: 'secondary' },
+            { label: 'All rules', href: '/rules', emphasis: 'secondary' },
           ],
         } as ArticleBlock,
       ],
