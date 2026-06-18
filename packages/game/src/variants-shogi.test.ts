@@ -8,13 +8,16 @@ import {
   createInitialShogiBoard,
   createInitialShogiState,
   createShogiPiece,
+  getLegalShogiDrops,
   getLegalShogiMoves,
   getLegalShogiMovesFrom,
   isLegalShogiMove,
   isPromotionZone,
+  isShogiDrop,
   mustPromote,
   opponentOf,
   type ShogiBoard,
+  type ShogiBoardMove,
   type ShogiGameState,
   type ShogiPiece,
   type ShogiPieceRole,
@@ -128,7 +131,7 @@ test('initial state starts with black to move', () => {
 
 test('initial position has 30 legal black moves and known opening moves', () => {
   const state = createInitialShogiState('t');
-  const moves = getLegalShogiMoves(state);
+  const moves = getLegalShogiMoves(state).filter((m): m is ShogiBoardMove => !isShogiDrop(m));
 
   assert.equal(moves.length, 30);
   assert.equal(moves.filter((move) => move.from.endsWith('g')).length, 9);
@@ -147,7 +150,7 @@ test('initial position has mirrored 30 legal white moves', () => {
     ...createInitialShogiState('t'),
     status: { type: 'playing' as const, turn: 'white' as const },
   };
-  const moves = getLegalShogiMoves(state);
+  const moves = getLegalShogiMoves(state).filter((m): m is ShogiBoardMove => !isShogiDrop(m));
 
   assert.equal(moves.length, 30);
   assert.ok(hasMove(moves, '3c', '3d'), 'white pawn 3c->3d should be legal');
@@ -357,4 +360,48 @@ test('applyShogiMove ends the game on king capture without adding a hand piece',
   assert.deepEqual(next.status, { type: 'finished', winner: 'black', reason: 'king-captured' });
   assert.deepEqual(next.lastMove, { from: '5e', to: '5c' });
   assert.equal(getLegalShogiMoves(next).length, 0);
+});
+
+test('drops: a hand piece drops onto an empty square and leaves the hand', () => {
+  const state: ShogiGameState = {
+    id: 't',
+    board: { '5i': createShogiPiece('black', 'K'), '5a': createShogiPiece('white', 'K') },
+    hands: { black: { P: 1 }, white: {} },
+    status: { type: 'playing', turn: 'black' },
+    moveNumber: 1,
+  };
+  assert.ok(
+    getLegalShogiDrops(state).some((d) => d.drop === 'P' && d.to === '5e'),
+    'P drop on 5e should be legal',
+  );
+  const next = applyShogiMove(state, { drop: 'P', to: '5e' });
+  assert.deepEqual(next.board['5e'], createShogiPiece('black', 'P'));
+  assert.equal(next.hands.black.P ?? 0, 0);
+  assert.equal(next.status.type === 'playing' && next.status.turn, 'white');
+  assert.deepEqual(next.lastMove, { drop: 'P', to: '5e' });
+});
+
+test('drops: nifu blocks a second pawn in a file, and last-rank pawn drops are dead', () => {
+  const state: ShogiGameState = {
+    id: 't',
+    board: {
+      '5i': createShogiPiece('black', 'K'),
+      '5a': createShogiPiece('white', 'K'),
+      '5g': createShogiPiece('black', 'P'),
+    },
+    hands: { black: { P: 1 }, white: {} },
+    status: { type: 'playing', turn: 'black' },
+    moveNumber: 1,
+  };
+  const drops = getLegalShogiDrops(state);
+  assert.ok(!drops.some((d) => d.drop === 'P' && d.to.startsWith('5')), 'nifu blocks file 5');
+  assert.ok(
+    !drops.some((d) => d.drop === 'P' && d.to.endsWith('a')),
+    'last-rank pawn drop is dead',
+  );
+  assert.ok(
+    drops.some((d) => d.drop === 'P' && d.to === '4e'),
+    'a pawn drop in file 4 is legal',
+  );
+  assert.equal(applyShogiMove(state, { drop: 'P', to: '5e' }), state, 'a nifu drop is a no-op');
 });

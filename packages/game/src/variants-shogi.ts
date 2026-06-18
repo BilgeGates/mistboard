@@ -21,11 +21,21 @@ export type ShogiBoard = Partial<Record<ShogiSquare, ShogiPiece>>;
 export type ShogiHand = Partial<Record<ShogiHandRole, number>>;
 export type ShogiHands = Record<ShogiColor, ShogiHand>;
 
-export type ShogiMove = {
+export type ShogiBoardMove = {
   from: ShogiSquare;
   to: ShogiSquare;
   promote?: boolean;
 };
+// A drop places a piece from hand onto an empty square (always unpromoted).
+export type ShogiDropMove = {
+  drop: ShogiHandRole;
+  to: ShogiSquare;
+};
+export type ShogiMove = ShogiBoardMove | ShogiDropMove;
+
+export function isShogiDrop(move: ShogiMove): move is ShogiDropMove {
+  return 'drop' in move;
+}
 
 export type ShogiGameStatus =
   | { type: 'playing'; turn: ShogiColor }
@@ -141,14 +151,15 @@ export function getLegalShogiMoves(state: ShogiGameState): ShogiMove[] {
     if (piece?.color !== state.status.turn) continue;
     moves.push(...getLegalShogiMovesFrom(state, square));
   }
+  moves.push(...getLegalShogiDrops(state));
   return moves;
 }
 
-export function getLegalShogiMovesFrom(state: ShogiGameState, from: ShogiSquare): ShogiMove[] {
+export function getLegalShogiMovesFrom(state: ShogiGameState, from: ShogiSquare): ShogiBoardMove[] {
   if (state.status.type !== 'playing') return [];
   const piece = state.board[from];
   if (!piece || piece.color !== state.status.turn) return [];
-  const moves: ShogiMove[] = [];
+  const moves: ShogiBoardMove[] = [];
   for (const to of controlledSquares(state.board, from, piece)) {
     if (state.board[to]?.color === piece.color) continue;
     if (!canMovePromote(piece, from, to)) {
@@ -164,7 +175,59 @@ export function getLegalShogiMovesFrom(state: ShogiGameState, from: ShogiSquare)
   return moves;
 }
 
+// Every legal drop for the side to move: each hand role onto each empty square
+// that satisfies nifu (one unpromoted Pawn per file) and the dead-piece rule
+// (P/L on the last rank, N on the last two, have no move).
+export function getLegalShogiDrops(state: ShogiGameState): ShogiDropMove[] {
+  if (state.status.type !== 'playing') return [];
+  const color = state.status.turn;
+  const hand = state.hands[color];
+  const roles = (Object.keys(hand) as ShogiHandRole[]).filter((role) => (hand[role] ?? 0) > 0);
+  if (roles.length === 0) return [];
+  const drops: ShogiDropMove[] = [];
+  for (const role of roles) {
+    for (let file = 1; file <= 9; file += 1) {
+      for (let rankIndex = 0; rankIndex < 9; rankIndex += 1) {
+        const to = shogiSquareOf(file, rankIndex);
+        if (state.board[to]) continue;
+        if (canDropShogiPiece(state.board, color, role, to)) drops.push({ drop: role, to });
+      }
+    }
+  }
+  return drops;
+}
+
+function canDropShogiPiece(
+  board: ShogiBoard,
+  color: ShogiColor,
+  role: ShogiHandRole,
+  to: ShogiSquare,
+): boolean {
+  const piece = createShogiPiece(color, role); // dropped pieces are always unpromoted
+  // Dead-piece rule: a piece with no in-bounds reach from its square (P/L on the
+  // far rank, N on the far two) may not be dropped there.
+  if (controlledSquares(board, to, piece).length === 0) return false;
+  // Nifu: no second unpromoted Pawn of this colour in the file.
+  if (role === 'P') {
+    const { file } = shogiCoordOf(to);
+    for (let rankIndex = 0; rankIndex < 9; rankIndex += 1) {
+      const existing = board[shogiSquareOf(file, rankIndex)];
+      if (existing && existing.color === color && existing.role === 'P' && !existing.promoted) {
+        return false;
+      }
+    }
+  }
+  return true;
+}
+
 export function isLegalShogiMove(state: ShogiGameState, move: ShogiMove): boolean {
+  if (state.status.type !== 'playing') return false;
+  if (isShogiDrop(move)) {
+    const hand = state.hands[state.status.turn];
+    if ((hand[move.drop] ?? 0) <= 0) return false;
+    if (state.board[move.to]) return false;
+    return canDropShogiPiece(state.board, state.status.turn, move.drop, move.to);
+  }
   return getLegalShogiMovesFrom(state, move.from).some(
     (candidate) => candidate.to === move.to && Boolean(candidate.promote) === Boolean(move.promote),
   );
@@ -173,6 +236,22 @@ export function isLegalShogiMove(state: ShogiGameState, move: ShogiMove): boolea
 export function applyShogiMove(state: ShogiGameState, move: ShogiMove): ShogiGameState {
   if (state.status.type !== 'playing') return state;
   if (!isLegalShogiMove(state, move)) return state;
+
+  if (isShogiDrop(move)) {
+    const color = state.status.turn;
+    const nextBoard: ShogiBoard = { ...state.board };
+    const nextHands = cloneHands(state.hands);
+    removeHandPiece(nextHands, color, move.drop);
+    nextBoard[move.to] = createShogiPiece(color, move.drop);
+    return {
+      ...state,
+      board: nextBoard,
+      hands: nextHands,
+      status: { type: 'playing', turn: opponentOf(color) },
+      moveNumber: color === 'white' ? state.moveNumber + 1 : state.moveNumber,
+      lastMove: move,
+    };
+  }
 
   const piece = state.board[move.from];
   if (!piece) return state;
@@ -359,6 +438,12 @@ function cloneHands(hands: ShogiHands): ShogiHands {
     black: { ...hands.black },
     white: { ...hands.white },
   };
+}
+
+function removeHandPiece(hands: ShogiHands, color: ShogiColor, role: ShogiHandRole): void {
+  const count = hands[color][role] ?? 0;
+  if (count <= 1) delete hands[color][role];
+  else hands[color][role] = count - 1;
 }
 
 function addHandPiece(hands: ShogiHands, color: ShogiColor, role: ShogiHandRole): void {

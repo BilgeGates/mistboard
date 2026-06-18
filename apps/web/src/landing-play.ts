@@ -78,7 +78,7 @@ type LandingGameSpecCapabilities = {
   supportsStartFormat: boolean;
   supportsTimeControl: boolean;
 };
-type LandingRoomSetup = {
+export type LandingRoomSetup = {
   gameSpecId: LandingGameSpecId;
   startFormat: LandingStartFormat;
   rated: boolean;
@@ -1657,7 +1657,7 @@ async function createRoomFromPlay(
   }
 }
 
-function roomCreationRequestBody(
+export function roomCreationRequestBody(
   mode: 'pvp' | 'pve',
   setup: LandingRoomSetup,
   engineId?: string,
@@ -1755,7 +1755,7 @@ function roomCreationRequestBody(
   };
 }
 
-function roomCreationGameSpecId(
+export function roomCreationGameSpecId(
   setup: LandingRoomSetup,
 ):
   | typeof DARK_CHESS_SPEC_ID
