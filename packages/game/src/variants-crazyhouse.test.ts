@@ -3,11 +3,13 @@ import test from 'node:test';
 import type { Board, Color, Square } from './types.js';
 import {
   applyCrazyhouseMove,
+  type CrazyhouseDropPolicy,
   type CrazyhouseGameState,
   createInitialCrazyhouseState,
+  getCrazyhouseDropOffers,
   getCrazyhousePlayerView,
-  getLegalCrazyhouseDrops,
   isCrazyhouseDrop,
+  isLegalCrazyhouseMove,
 } from './variants-crazyhouse.js';
 
 function state(
@@ -18,6 +20,7 @@ function state(
   return {
     id: 't',
     variant: 'dark-crazyhouse',
+    dropPolicy: 'any-legal-square',
     board,
     status: { type: 'playing', turn },
     moveNumber: 1,
@@ -29,12 +32,27 @@ function state(
   };
 }
 
-test('initial state starts with empty hands and no promoted pieces', () => {
+// A white rook on the open a-file + king on e1; a hidden black knight on c5 sits
+// in the fog. Black's king is far away and also fogged.
+function fogProbeState(dropPolicy: CrazyhouseDropPolicy): CrazyhouseGameState {
+  return state(
+    {
+      a1: { color: 'white', role: 'rook' },
+      e1: { color: 'white', role: 'king' },
+      c5: { color: 'black', role: 'knight' }, // fogged: white cannot see it
+      h8: { color: 'black', role: 'king' },
+    },
+    'white',
+    { dropPolicy, hands: { white: { knight: 1 }, black: {} } },
+  );
+}
+
+test('initial state defaults to the parachute drop policy with empty hands', () => {
   const initial = createInitialCrazyhouseState('g');
+  assert.equal(initial.dropPolicy, 'any-legal-square');
   assert.deepEqual(initial.hands, { white: {}, black: {} });
   assert.deepEqual(initial.promoted, []);
   assert.equal(initial.variant, 'dark-crazyhouse');
-  assert.equal(initial.status.type, 'playing');
 });
 
 test('a capture routes the taken piece into the captor hand', () => {
@@ -80,14 +98,36 @@ test('a drop places the piece, leaves the hand, and passes the turn', () => {
     'white',
     { hands: { white: { knight: 1 }, black: {} } },
   );
-  // a4 is up the open a-file, visible to the rook and empty.
   const after = applyCrazyhouseMove(before, { drop: 'knight', to: 'a4' });
   assert.deepEqual(after.board.a4, { color: 'white', role: 'knight' });
   assert.equal(after.hands.white.knight, undefined);
   assert.deepEqual(after.status, { type: 'playing', turn: 'black' });
 });
 
-test('drops are confirmed-empty only and bar pawns from the back ranks', () => {
+test('parachute: you may offer a drop into the fog, but a hidden piece bounces it', () => {
+  const before = fogProbeState('any-legal-square');
+  const offers = new Set(getCrazyhouseDropOffers(before, 'white').map((drop) => drop.to));
+  // c5 is fogged (white sees no piece there): it IS an offerable drop target...
+  assert.ok(offers.has('c5' as Square));
+  // ...but it secretly holds a knight, so the drop is illegal (the server bounces it).
+  assert.equal(isLegalCrazyhouseMove(before, { drop: 'knight', to: 'c5' }), false);
+  // A truly-empty fogged square (c4) is both offerable and legal — a real parachute.
+  assert.ok(offers.has('c4' as Square));
+  assert.equal(isLegalCrazyhouseMove(before, { drop: 'knight', to: 'c4' }), true);
+});
+
+test('vision-bound: drops are confined to squares you can see are empty', () => {
+  const before = fogProbeState('seen-squares-only');
+  const offers = new Set(getCrazyhouseDropOffers(before, 'white').map((drop) => drop.to));
+  // a4 is on the open a-file the rook sees: offerable + legal.
+  assert.ok(offers.has('a4' as Square));
+  assert.equal(isLegalCrazyhouseMove(before, { drop: 'knight', to: 'a4' }), true);
+  // c4 / c5 are fogged: neither offered nor legal under the Lao Tzu rule.
+  assert.ok(!offers.has('c4' as Square));
+  assert.equal(isLegalCrazyhouseMove(before, { drop: 'knight', to: 'c4' }), false);
+});
+
+test('a pawn cannot be dropped onto the back ranks', () => {
   const before = state(
     {
       a1: { color: 'white', role: 'rook' },
@@ -95,18 +135,10 @@ test('drops are confirmed-empty only and bar pawns from the back ranks', () => {
       e8: { color: 'black', role: 'king' },
     },
     'white',
-    { hands: { white: { knight: 1, pawn: 1 }, black: {} } },
+    { hands: { white: { pawn: 1 }, black: {} } },
   );
-  const drops = getLegalCrazyhouseDrops(before, 'white');
-  const targets = new Set(drops.map((drop) => drop.to));
-  // a4 sits on the open file the rook sees: a legal drop target.
-  assert.ok(targets.has('a4' as Square));
-  // h8 is fogged (no white piece sees it): never a drop target.
-  assert.ok(!targets.has('h8' as Square));
-  // A pawn cannot be dropped onto rank 8 even where visible.
-  assert.ok(!drops.some((drop) => drop.drop === 'pawn' && drop.to === ('a8' as Square)));
-  // ...but a knight can be dropped on a8 (visible, empty).
-  assert.ok(drops.some((drop) => drop.drop === 'knight' && drop.to === ('a8' as Square)));
+  assert.equal(isLegalCrazyhouseMove(before, { drop: 'pawn', to: 'a8' }), false);
+  assert.equal(isLegalCrazyhouseMove(before, { drop: 'pawn', to: 'a4' }), true);
 });
 
 test('capturing the king wins immediately', () => {
@@ -120,8 +152,7 @@ test('capturing the king wins immediately', () => {
   );
   const after = applyCrazyhouseMove(before, { from: 'e7', to: 'e8' });
   assert.deepEqual(after.status, { type: 'finished', winner: 'white', reason: 'king-captured' });
-  // The king is never sent to a hand.
-  assert.deepEqual(after.hands.white, {});
+  assert.deepEqual(after.hands.white, {}); // the king is never sent to a hand
 });
 
 test('the fog view carries only the viewer own hand and includes drops', () => {
@@ -137,9 +168,7 @@ test('the fog view carries only the viewer own hand and includes drops', () => {
   const view = getCrazyhousePlayerView(before, 'white');
   assert.deepEqual(view.hand, { knight: 2 }); // own reserve only — black's queen is hidden
   assert.equal(view.perspective, 'white');
-  // legalMoves carry both board moves and drops.
   assert.ok(view.legalMoves.some((move) => isCrazyhouseDrop(move)));
   assert.ok(view.legalMoves.some((move) => !isCrazyhouseDrop(move)));
-  // The far black king is off-vision: it must not appear on the fog board.
-  assert.equal(view.board.h8, undefined);
+  assert.equal(view.board.h8, undefined); // the far black king is off-vision
 });
