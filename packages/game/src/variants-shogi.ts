@@ -50,6 +50,23 @@ export type ShogiGameState = {
   lastMove?: ShogiMove;
 };
 
+// The fog view for one side. Only pieces on visible squares appear on `board`
+// (field-of-fire vision, no silhouettes — shogi has no screen mechanic); `hand`
+// is the viewer's OWN captured pieces only (each side's reserve is private under
+// fog, like the off-vision board). `lastMove` is left for the tenant to strip to
+// own-moves-only, matching the other dark variants.
+export type ShogiPlayerView = {
+  id: string;
+  perspective: ShogiColor;
+  board: ShogiBoard;
+  hand: ShogiHand;
+  visibleSquares: ShogiSquare[];
+  legalMoves: ShogiMove[];
+  status: ShogiGameStatus;
+  moveNumber: number;
+  lastMove?: ShogiMove;
+};
+
 export type ShogiCoord = {
   file: number;
   rank: ShogiRank;
@@ -231,6 +248,46 @@ export function isLegalShogiMove(state: ShogiGameState, move: ShogiMove): boolea
   return getLegalShogiMovesFrom(state, move.from).some(
     (candidate) => candidate.to === move.to && Boolean(candidate.promote) === Boolean(move.promote),
   );
+}
+
+// ── Fog of War view ──────────────────────────────────────────────────────────
+//
+// Vision is field of fire: a side sees its own pieces and every square they
+// attack/reach. Sliders stop at the first piece (which is therefore visible), so
+// there are no shrouded silhouettes — shogi has no screen mechanic. Defined for
+// finished states too, so post-game replay does not collapse the loser's view.
+
+export function shogiVisibleSquares(state: ShogiGameState, color: ShogiColor): ShogiSquare[] {
+  const visible = new Set<ShogiSquare>();
+  for (const [square, piece] of Object.entries(state.board)) {
+    if (piece?.color !== color) continue;
+    const from = square as ShogiSquare;
+    visible.add(from);
+    for (const target of controlledSquares(state.board, from, piece)) visible.add(target);
+  }
+  return [...visible].sort();
+}
+
+export function getShogiPlayerView(state: ShogiGameState, color: ShogiColor): ShogiPlayerView {
+  const visible = shogiVisibleSquares(state, color);
+  const board: ShogiBoard = {};
+  for (const square of visible) {
+    const piece = state.board[square];
+    if (piece) board[square] = piece;
+  }
+  const legalMoves =
+    state.status.type === 'playing' && state.status.turn === color ? getLegalShogiMoves(state) : [];
+  return {
+    id: state.id,
+    perspective: color,
+    board,
+    hand: { ...state.hands[color] }, // each side sees only its own hand
+    visibleSquares: visible,
+    legalMoves,
+    status: state.status,
+    moveNumber: state.moveNumber,
+    lastMove: state.lastMove,
+  };
 }
 
 export function applyShogiMove(state: ShogiGameState, move: ShogiMove): ShogiGameState {

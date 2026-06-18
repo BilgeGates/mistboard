@@ -11,6 +11,7 @@ import {
   getLegalShogiDrops,
   getLegalShogiMoves,
   getLegalShogiMovesFrom,
+  getShogiPlayerView,
   isLegalShogiMove,
   isPromotionZone,
   isShogiDrop,
@@ -404,4 +405,28 @@ test('drops: nifu blocks a second pawn in a file, and last-rank pawn drops are d
     'a pawn drop in file 4 is legal',
   );
   assert.equal(applyShogiMove(state, { drop: 'P', to: '5e' }), state, 'a nifu drop is a no-op');
+});
+
+test('fog view: sees own pieces + field of fire, hides far enemies and the enemy hand', () => {
+  const state: ShogiGameState = {
+    id: 't',
+    board: {
+      '5i': createShogiPiece('black', 'K'),
+      '5g': createShogiPiece('black', 'P'),
+      '5a': createShogiPiece('white', 'K'),
+      '1a': createShogiPiece('white', 'L'),
+    },
+    hands: { black: { R: 1 }, white: { B: 2 } },
+    status: { type: 'playing', turn: 'black' },
+    moveNumber: 1,
+  };
+  const view = getShogiPlayerView(state, 'black');
+  assert.deepEqual(view.board['5i'], createShogiPiece('black', 'K'));
+  assert.deepEqual(view.board['5g'], createShogiPiece('black', 'P'));
+  assert.equal(view.board['5a'], undefined, 'far white king is fogged');
+  assert.equal(view.board['1a'], undefined, 'far white lance is fogged');
+  assert.deepEqual(view.hand, { R: 1 }, 'sees its own hand');
+  assert.equal((view as { hand: Record<string, number> }).hand.B, undefined, 'not the enemy hand');
+  assert.ok(view.visibleSquares.includes('5f'), 'black pawn on 5g controls 5f');
+  assert.ok(!view.visibleSquares.includes('5a'), 'far enemy square is not visible');
 });
