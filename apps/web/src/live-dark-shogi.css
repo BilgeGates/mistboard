@@ -1,0 +1,183 @@
+/* Dark Shogi live room. Layout, clocks, and chrome ride the shared live-layout;
+   this file adds the 9x9 square board sizing, the reserves (hand) strips that
+   reuse the capture-strip slots, the drop/promotion affordances, and the
+   fog-masked move list (opponent plies render as a dimmed placeholder, the same
+   convention as Dark Xiangqi / Dark Crossroads). */
+
+.live-route--shogi .board-shell {
+  width: min(100%, 64vh, 560px);
+}
+
+.live-route--shogi .board-stage {
+  aspect-ratio: 1 / 1;
+}
+
+.shogi-live-board {
+  aspect-ratio: 1 / 1;
+}
+
+.shogi-live-board svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.shogi-live-board--disabled {
+  display: grid;
+  place-items: center;
+  background: var(--site-panel);
+  border-radius: var(--site-radius-sm);
+}
+
+/* ── Reserves (hands) ──────────────────────────────────────────────────────
+   Rendered into the capture-strip slots: opponent's reserve above the board,
+   yours below. Your own pieces are droppable (buttons); the opponent's strip is
+   a count-only display. */
+
+.shogi-hands {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px;
+  min-height: 44px;
+  width: 100%;
+}
+
+.shogi-hands__label {
+  color: var(--muted);
+  font-size: 0.72rem;
+  letter-spacing: 0.02em;
+  margin-right: 0.2rem;
+}
+
+.shogi-hands__empty {
+  color: var(--muted);
+  font-size: 0.78rem;
+  font-style: italic;
+}
+
+.shogi-hand-koma {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  border: 1px solid transparent;
+  border-radius: var(--site-radius-sm);
+  background: transparent;
+  cursor: default;
+}
+
+.shogi-hand-koma--droppable {
+  cursor: pointer;
+}
+
+.shogi-hand-koma--droppable:hover {
+  background: color-mix(in srgb, var(--board-selected, #cfe39a) 40%, transparent);
+}
+
+.shogi-hand-koma--selected {
+  border-color: color-mix(in srgb, var(--board-selected, #5f7d33) 90%, var(--site-border));
+  background: color-mix(in srgb, var(--board-selected, #cfe39a) 55%, transparent);
+}
+
+.shogi-hand-koma__svg {
+  width: 32px;
+  height: 32px;
+  pointer-events: none;
+}
+
+.shogi-hand-koma__count {
+  position: absolute;
+  right: -2px;
+  bottom: -2px;
+  min-width: 14px;
+  padding: 0 3px;
+  border-radius: 7px;
+  background: var(--site-heading, #333);
+  color: var(--site-bg, #fff);
+  font-size: 0.62rem;
+  font-weight: 700;
+  line-height: 14px;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ── Promotion choice ─────────────────────────────────────────────────────── */
+
+.shogi-promotion {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px;
+  background: var(--site-panel);
+  border: 1px solid var(--site-border);
+  border-radius: var(--site-radius-sm);
+  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.28);
+}
+
+.shogi-promotion__title {
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--site-heading, var(--site-text));
+}
+
+.shogi-promotion__choices {
+  display: flex;
+  gap: 8px;
+}
+
+.shogi-promotion__choice {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 8px 12px;
+  border: 1px solid var(--site-border);
+  border-radius: var(--site-radius-sm);
+  background: var(--site-bg);
+  cursor: pointer;
+  font-size: 0.74rem;
+}
+
+.shogi-promotion__choice:hover {
+  border-color: color-mix(in srgb, var(--board-selected, #5f7d33) 80%, var(--site-border));
+}
+
+.shogi-promotion__choice svg {
+  width: 40px;
+  height: 40px;
+}
+
+/* ── Fog-masked move list (Dark Crossroads convention) ─────────────────────── */
+
+.dsg-move-row {
+  display: grid;
+  grid-template-columns: 2.4rem 1fr 1fr;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 1px 0;
+}
+
+.dsg-move-row__number {
+  color: var(--muted);
+  text-align: right;
+  padding-right: 0.4rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.dsg-move-row__move {
+  padding: 1px 6px;
+  border-radius: var(--site-radius-sm);
+  font-variant-numeric: tabular-nums;
+}
+
+.dsg-move-row__move.masked {
+  color: var(--muted);
+}
+
+.dsg-move-row__move.active {
+  background: color-mix(in srgb, currentColor 16%, transparent);
+}

@@ -147,7 +147,7 @@ describe('web variant launch registry', () => {
   });
 
   it('keeps Dark Shogi represented but not launch-enabled', () => {
-    expect(gameSpecForId(DARK_SHOGI_SPEC_ID).runtimeStatus).toBe('future');
+    expect(gameSpecForId(DARK_SHOGI_SPEC_ID).runtimeStatus).toBe('dev-spike');
     expect(VARIANTS.map((v) => v.gameSpecId)).not.toContain(DARK_SHOGI_SPEC_ID);
     expect(enabledVariants.map((v) => v.gameSpecId)).not.toContain(DARK_SHOGI_SPEC_ID);
     expect(leaderboardVariants.map((v) => v.gameSpecId)).not.toContain(DARK_SHOGI_SPEC_ID);

@@ -8,6 +8,7 @@ export function setLiveLayoutGameSpec(target: HTMLElement, gameSpecId: string | 
   target.classList.toggle('live-route--jieqi', gameSpecId === 'jieqi');
   target.classList.toggle('live-route--banqi', gameSpecId === 'banqi');
   target.classList.toggle('live-route--reveal-chess', gameSpecId === 'reveal-chess');
+  target.classList.toggle('live-route--shogi', gameSpecId === 'dark-shogi');
 }
 
 // Static room chrome only. Live game decisions stay in live-render.ts.

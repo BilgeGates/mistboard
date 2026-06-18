@@ -6,6 +6,7 @@ import {
   DARK_CROSSROADS_CHESS_SPEC_ID,
   DARK_DRAFT960_SPEC_ID,
   DARK_MINI_XIANGQI_SPEC_ID,
+  DARK_SHOGI_SPEC_ID,
   DARK_XIANGQI_SPEC_ID,
   DUAL_CHESS_SPEC_ID,
   gameSpecForId,
@@ -54,6 +55,7 @@ type LandingGameSpecId =
   | typeof DARK_XIANGQI_SPEC_ID
   | typeof CROSSROADS_CHESS_SPEC_ID
   | typeof DARK_CROSSROADS_CHESS_SPEC_ID
+  | typeof DARK_SHOGI_SPEC_ID
   | typeof JIEQI_SPEC_ID
   | typeof BANQI_SPEC_ID
   | typeof REVEAL_CHESS_SPEC_ID;
@@ -1728,6 +1730,21 @@ export function roomCreationRequestBody(
       preferredColor: setup.preferredColor === 'black' ? 'red' : setup.preferredColor,
     };
   }
+  if (setup.gameSpecId === DARK_SHOGI_SPEC_ID) {
+    // Dark Shogi is PvP-only and casual-only (no bot yet, rated not launched).
+    // The color picker is hidden (seat randomized), so preferredColor is normally
+    // 'random'; black (sente) / white (gote) pass straight through for deep links.
+    return {
+      mode: 'pvp',
+      gameSpecId,
+      timeControl: setup.timeControl,
+      rated: false,
+      preferredColor:
+        setup.preferredColor === 'black' || setup.preferredColor === 'white'
+          ? setup.preferredColor
+          : 'random',
+    };
+  }
   if (setup.gameSpecId === DARK_XIANGQI_SPEC_ID || setup.gameSpecId === DARK_MINI_XIANGQI_SPEC_ID) {
     return {
       // DMX supports PvE (the engine id is defaulted server-side, so none is
@@ -1764,6 +1781,7 @@ export function roomCreationGameSpecId(
   | typeof DARK_XIANGQI_SPEC_ID
   | typeof CROSSROADS_CHESS_SPEC_ID
   | typeof DARK_CROSSROADS_CHESS_SPEC_ID
+  | typeof DARK_SHOGI_SPEC_ID
   | typeof JIEQI_SPEC_ID
   | typeof BANQI_SPEC_ID
   | typeof REVEAL_CHESS_SPEC_ID {
@@ -1772,6 +1790,7 @@ export function roomCreationGameSpecId(
   if (setup.gameSpecId === REVEAL_CHESS_SPEC_ID) return REVEAL_CHESS_SPEC_ID;
   if (setup.gameSpecId === CROSSROADS_CHESS_SPEC_ID) return CROSSROADS_CHESS_SPEC_ID;
   if (setup.gameSpecId === DARK_CROSSROADS_CHESS_SPEC_ID) return DARK_CROSSROADS_CHESS_SPEC_ID;
+  if (setup.gameSpecId === DARK_SHOGI_SPEC_ID) return DARK_SHOGI_SPEC_ID;
   if (setup.gameSpecId === DARK_MINI_XIANGQI_SPEC_ID) return DARK_MINI_XIANGQI_SPEC_ID;
   if (setup.gameSpecId === DARK_XIANGQI_SPEC_ID) return DARK_XIANGQI_SPEC_ID;
   return setup.startFormat === 'draft960' ? DARK_DRAFT960_SPEC_ID : DARK_CHESS_SPEC_ID;

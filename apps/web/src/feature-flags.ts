@@ -60,3 +60,11 @@ export function crossroadsChessEnabled(): boolean {
 export function darkCrossroadsChessEnabled(): boolean {
   return import.meta.env.VITE_DARK_CROSSROADS_CHESS_ENABLED === 'true';
 }
+
+// Dark Shogi (the fog 9x9 variant) play surface. Server-side opt-in is
+// MISTBOARD_DARK_SHOGI_ENABLED; this gates the landing picker and deep links.
+// Not DEV-on by default — like Dark Crossroads, test locally by relaunching the
+// dev server with VITE_DARK_SHOGI_ENABLED=true.
+export function darkShogiEnabled(): boolean {
+  return import.meta.env.VITE_DARK_SHOGI_ENABLED === 'true';
+}

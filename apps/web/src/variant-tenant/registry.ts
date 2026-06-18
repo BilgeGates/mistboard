@@ -19,6 +19,7 @@ import {
   DARK_CHESS_SPEC_ID,
   DARK_CROSSROADS_CHESS_SPEC_ID,
   DARK_MINI_XIANGQI_SPEC_ID,
+  DARK_SHOGI_SPEC_ID,
   DARK_XIANGQI_SPEC_ID,
   DUAL_CHESS_SPEC_ID,
   type GameSpecId,
@@ -33,6 +34,7 @@ import {
   darkCrossroadsChessEnabled,
   darkMiniXiangqiEnabled,
   darkMiniXiangqiPublicEntryEnabled,
+  darkShogiEnabled,
   darkXiangqiEnabled,
   jieqiEnabled,
   revealChessEnabled,
@@ -511,6 +513,53 @@ const WEB_VARIANT_TENANTS: readonly WebVariantTenant[] = [
       timePresetIds: ['1m1', '3m2', '5m5'],
       offerInMenu: darkCrossroadsChessEnabled,
       acceptsDeepLink: darkCrossroadsChessEnabled,
+    },
+  },
+  {
+    // Dark Shogi (fog 9x9): a fog tenant on the socket-client + chrome stack with
+    // the fog-safe replay-CAPTURE model (live-dark-shogi.ts). Net-new surface vs
+    // the other fog tenants — a koma board (shogi-render.ts), reserve (hand)
+    // strips, drop + promotion interaction — and PRIVATE hands (the view carries
+    // only your own reserve). PvP-only (no bot yet). Flag-gated; postgame review
+    // is the black/truth/white fog triptych. Color choice is deferred for v1:
+    // hideColorPicker randomizes the seat (Banqi precedent), so the placeholder
+    // capability colors below never render.
+    gameSpecId: DARK_SHOGI_SPEC_ID,
+    roomIdPrefix: 'dsg_',
+    enabled: darkShogiEnabled,
+    pageTitle: 'Dark Shogi',
+    gameRouteBase: '/dark-shogi/game',
+    mountPostgame: (root, roomId) =>
+      import('../dark-shogi-postgame.js').then(({ mountDarkShogiPostgame }) =>
+        mountDarkShogiPostgame(root, roomId),
+      ),
+    reviewRouteBase: '/dark-shogi/game',
+    loadLiveRoomClient: () =>
+      import('../live-dark-shogi.js').then(
+        ({ bootstrapDarkShogiLiveRoom }) =>
+          () =>
+            bootstrapDarkShogiLiveRoom(),
+      ),
+    landing: {
+      capabilities: {
+        // Placeholders — the color section is hidden (hideColorPicker), so the
+        // seat is randomized and these never reach the UI. Shogi is sente
+        // (black) vs gote (white); a real picker waits on widening the picker's
+        // white/red/black color model.
+        firstColor: 'white',
+        firstGlyph: '☗',
+        firstLabel: 'White',
+        secondColor: 'black',
+        secondGlyph: '☖',
+        secondLabel: 'Black',
+        supportsRated: false,
+        supportsStartFormat: false,
+        supportsTimeControl: true,
+      },
+      timePresetIds: ['1m1', '3m2', '5m5'],
+      offerInMenu: darkShogiEnabled,
+      acceptsDeepLink: darkShogiEnabled,
+      hideColorPicker: true,
     },
   },
 ];

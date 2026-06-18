@@ -1,0 +1,130 @@
+/* Dark Shogi review. Reuses the shared .dxq-postgame__* scaffold
+   (dark-xiangqi-postgame.css); this block re-themes it to the site palette
+   (light + dark) and lays out the black/truth/white triptych so the page fits
+   without vertical scrolling — the same approach as the dark-crossroads route.
+   Adds the reserve (hand) strips above/below each board. */
+
+.dark-shogi-postgame-route {
+  min-height: 100vh;
+  background: var(--site-bg);
+  color: var(--site-text);
+}
+
+.dark-shogi-postgame-route .dxq-postgame__panel,
+.dark-shogi-postgame-route .dxq-postgame__replay-controls,
+.dark-shogi-postgame-route .dxq-postgame__replay-button,
+.dark-shogi-postgame-route .dxq-postgame__replay-status,
+.dark-shogi-postgame-route .dxq-postgame__link {
+  background: var(--site-panel);
+  color: var(--site-text);
+  border-color: var(--site-border);
+}
+
+.dark-shogi-postgame-route .dxq-postgame__link--primary {
+  border-color: #237960;
+  background: #237960;
+  color: #ffffff;
+}
+
+.dark-shogi-postgame-route .dxq-postgame__replay-button:disabled {
+  color: var(--site-muted);
+  background: var(--site-bg);
+}
+
+.dark-shogi-postgame-route .dxq-postgame__title,
+.dark-shogi-postgame-route .dxq-postgame__board-title,
+.dark-shogi-postgame-route .dxq-postgame__panel h2 {
+  color: var(--site-heading);
+}
+
+.dark-shogi-postgame-route .dxq-postgame__eyebrow,
+.dark-shogi-postgame-route .dxq-postgame__summary,
+.dark-shogi-postgame-route .dxq-postgame__details dt,
+.dark-shogi-postgame-route .dxq-postgame__move-number {
+  color: var(--site-muted);
+}
+
+.dark-shogi-postgame-route .dxq-postgame__details dd {
+  color: var(--site-text);
+}
+
+.dark-shogi-postgame-route .dxq-postgame__header {
+  border-bottom-color: var(--site-border);
+}
+
+.dark-shogi-postgame-route .dxq-postgame__move {
+  /* Two plies per row (Black | White), themed chip. */
+  grid-template-columns: 30px minmax(0, 1fr) minmax(0, 1fr);
+  background: var(--site-panel-soft, var(--site-bg));
+  color: var(--site-text);
+}
+
+.dark-shogi-postgame-route .dxq-postgame__layout {
+  grid-template-columns: minmax(0, 1fr) minmax(250px, 310px);
+  align-items: start;
+}
+
+.dark-shogi-postgame-route .dxq-postgame__side {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.dark-shogi-postgame-route .dxq-postgame__board {
+  /* The 9x9 board is square — cap by viewport height so three sit in a row
+     without overflowing. */
+  max-width: min(100%, 46vh);
+  aspect-ratio: 1 / 1;
+  margin-inline: auto;
+}
+
+.dark-shogi-postgame-route .dxq-postgame__board svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+/* ── Reserves (hand) strips ────────────────────────────────────────────────── */
+
+.dark-shogi-postgame-route .dsg-postgame__reserve {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  min-height: 30px;
+  max-width: min(100%, 46vh);
+  margin-inline: auto;
+}
+
+.dark-shogi-postgame-route .dsg-postgame__reserve-koma {
+  position: relative;
+  display: inline-flex;
+  width: 28px;
+  height: 28px;
+}
+
+.dark-shogi-postgame-route .dsg-postgame__reserve-koma .shogi-hand-koma__svg {
+  width: 28px;
+  height: 28px;
+}
+
+.dark-shogi-postgame-route .dsg-postgame__reserve-count {
+  position: absolute;
+  right: -3px;
+  bottom: -3px;
+  min-width: 13px;
+  padding: 0 2px;
+  border-radius: 7px;
+  background: var(--site-heading, #333);
+  color: var(--site-bg, #fff);
+  font-size: 0.58rem;
+  font-weight: 700;
+  line-height: 13px;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+
+.dark-shogi-postgame-route .dsg-postgame__reserve-empty {
+  color: var(--site-muted);
+  font-size: 0.7rem;
+  font-style: italic;
+}
