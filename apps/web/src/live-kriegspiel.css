@@ -149,17 +149,32 @@
   }
 }
 
-/* ── Promotion picker ─────────────────────────────────────────────────────── */
+/* The mate banner is terminal, not an ongoing threat — hold it steady. */
+.kriegspiel-umpire__check--mate {
+  animation: none;
+}
+
+/* ── Promotion picker ───────────────────────────────────────────────────────
+   The shared `.promotion-picker` makes this an absolute full-board overlay and
+   styles `.promotion-picker button` as overlapping white discs (built for the
+   chessground board). Kriegspiel overrides that: center a panel of real piece
+   buttons that flow in a row. The choice selectors are scoped under
+   `.kriegspiel-promotion` so they out-specify `.promotion-picker button`. */
 
 .kriegspiel-promotion {
+  display: grid;
+  place-items: center;
+}
+
+.kriegspiel-promotion__panel {
   display: flex;
   flex-direction: column;
-  gap: 8px;
-  padding: 12px;
+  gap: 10px;
+  padding: 14px 16px;
   background: var(--site-panel);
   border: 1px solid var(--site-border);
   border-radius: var(--site-radius-sm);
-  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.28);
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.42);
 }
 
 .kriegspiel-promotion__title {
@@ -173,17 +188,51 @@
   gap: 8px;
 }
 
-.kriegspiel-promotion__choice {
+.kriegspiel-promotion .kriegspiel-promotion__choice {
+  position: static;
   display: grid;
   place-items: center;
-  width: 48px;
-  height: 48px;
+  width: 58px;
+  height: 58px;
+  padding: 0;
   border: 1px solid var(--site-border);
   border-radius: var(--site-radius-sm);
   background: var(--site-bg);
+  box-shadow: none;
+  transform: none;
   cursor: pointer;
-  font-size: 1.6rem;
-  line-height: 1;
+}
+
+.kriegspiel-promotion .kriegspiel-promotion__choice:hover,
+.kriegspiel-promotion .kriegspiel-promotion__choice:focus-visible {
+  border-color: color-mix(in srgb, var(--board-selected, #5f7d33) 80%, var(--site-border));
+  background: color-mix(in srgb, var(--board-selected, #cfe39a) 24%, var(--site-bg));
+  box-shadow: none;
+  transform: none;
+  outline: none;
+}
+
+.kriegspiel-promotion__svg {
+  width: 46px;
+  height: 46px;
+  pointer-events: none;
+}
+
+/* ── Umpire-zone strips: let them grow (the shared capture strip is a fixed,
+   clipped height built for a single row of captured pieces). ─────────────── */
+
+.live-route--kriegspiel .captures-strip,
+.live-route--kriegspiel .board-shell > .captures-strip {
+  height: auto;
+  min-height: 52px;
+  overflow: visible;
+}
+
+/* ── Postgame button row: the shared .room-actions-row has no gap of its own. */
+
+.live-route--kriegspiel .room-actions-row {
+  display: grid;
+  gap: 8px;
 }
 
 .kriegspiel-promotion__choice:hover {

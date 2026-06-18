@@ -27,12 +27,20 @@ const KRIEGSPIEL_DESCRIPTOR: GridBoardDescriptor = {
   files: FILES,
   ranks: RANKS,
   cell: CELL,
+  // Borderless, like the dark-chess fog board: no brown frame or board edge,
+  // just the squares, coords, and fog tint (which tracks the fog-appearance
+  // picker through --board-fog-light-fill).
+  framePad: 0,
+  pad: 0,
+  frameRadius: 0,
+  boardRadius: 0,
+  boardEdgeWidth: 0,
   palette: {
     lightCell: 'var(--board-light)',
     darkCell: 'var(--board-dark)',
-    frameBg: 'var(--crossroads-frame)',
-    frameInner: 'var(--crossroads-frame-inner)',
-    boardEdge: 'var(--crossroads-board-edge)',
+    frameBg: 'transparent',
+    frameInner: 'transparent',
+    boardEdge: 'transparent',
     coord: 'var(--crossroads-coord)',
     lastMove: 'var(--board-last-move)',
     selected: 'rgba(255,205,80,0.55)',
@@ -133,5 +141,15 @@ function chessPiece(role: PieceRole, color: Color, x: number, y: number, size: n
   return raw.replace(
     /^<svg[^>]*>/,
     `<svg x="${x}" y="${y}" width="${size}" height="${size}" viewBox="0 0 45 45" xmlns="http://www.w3.org/2000/svg">`,
+  );
+}
+
+// A standalone cburnett glyph for the promotion picker (matches the board).
+export function kriegspielPromotionPieceSvg(role: PieceRole, color: Color): string {
+  const raw = PIECE_SVGS[`${color}:${role}`];
+  if (!raw) return '';
+  return raw.replace(
+    /^<svg[^>]*>/,
+    '<svg viewBox="0 0 45 45" class="kriegspiel-promotion__svg" role="img" xmlns="http://www.w3.org/2000/svg">',
   );
 }

@@ -30,7 +30,7 @@ import {
 } from '@mistboard/game';
 import './live-kriegspiel.css';
 import { kriegspielEnabled } from './feature-flags.js';
-import { renderKriegspielBoardSvg } from './kriegspiel-render.js';
+import { kriegspielPromotionPieceSvg, renderKriegspielBoardSvg } from './kriegspiel-render.js';
 import { createLiveLayout, setLiveLayoutGameSpec } from './live-layout.js';
 import { initLiveSound, playSound, resetLiveSoundState } from './live-sound.js';
 import { clearSeatTokenForRoom, type LiveRefs } from './live-state.js';
@@ -498,20 +498,33 @@ function umpireCallZone(view: KriegspielPlayerView | null): HTMLElement {
   }
   const announcement = latest.move.announcement;
   const fromOpponent = latest.color !== state.seat;
+  const cats = announcement?.check?.length
+    ? announcement.check.map((c) => CHECK_LABELS[c]).join(' and ')
+    : '';
+  const mated = view.status.type === 'finished' && view.status.reason === 'checkmate';
+
+  // Checkmate ends the game — announce the mate, not a bare check.
+  if (mated) {
+    const banner = document.createElement('div');
+    banner.className = 'kriegspiel-umpire__check kriegspiel-umpire__check--mate';
+    banner.textContent = fromOpponent
+      ? `Checkmate${cats ? ` — by ${cats}` : ''}.`
+      : 'Checkmate. You win.';
+    zone.append(banner);
+    if (announcement?.capture)
+      zone.append(umpireLine(captureLine(announcement.capture, fromOpponent)));
+    return zone;
+  }
+
   // A check against the viewer (the opponent's move checked me) is the loudest
   // signal — surface it as a banner.
-  if (fromOpponent && announcement?.check?.length) {
+  if (fromOpponent && cats) {
     const banner = document.createElement('div');
     banner.className = 'kriegspiel-umpire__check';
-    banner.textContent = `Check — by ${announcement.check.map((c) => CHECK_LABELS[c]).join(' and ')}`;
+    banner.textContent = `Check — by ${cats}`;
     zone.append(banner);
-    if (announcement.capture) {
-      zone.append(
-        umpireLine(
-          `Opponent captured a ${announcement.capture.kind} on ${announcement.capture.square}.`,
-        ),
-      );
-    }
+    if (announcement?.capture)
+      zone.append(umpireLine(captureLine(announcement.capture, fromOpponent)));
     return zone;
   }
   zone.append(umpireLine(umpireCallText(latest, fromOpponent), 'call'));
@@ -535,6 +548,13 @@ function umpireCallText(event: KriegspielMovePlayed, fromOpponent: boolean): str
       : `You gave check (${announcement.check.map((c) => CHECK_LABELS[c]).join(', ')}).`;
   }
   return fromOpponent ? 'Opponent moved.' : 'You moved.';
+}
+
+function captureLine(
+  capture: { square: Square; kind: 'pawn' | 'piece' },
+  fromOpponent: boolean,
+): string {
+  return `${fromOpponent ? 'Opponent' : 'You'} captured a ${capture.kind} on ${capture.square}.`;
 }
 
 function umpireLine(text: string, variant: 'muted' | 'call' = 'call'): HTMLElement {
@@ -596,15 +616,10 @@ function renderPromotion(view: KriegspielPlayerView | null): void {
   const choices = pending.roles
     .map(
       (role) =>
-        `<button type="button" class="kriegspiel-promotion__choice" data-promote="${role}">${promotionGlyph(role, color)}</button>`,
+        `<button type="button" class="kriegspiel-promotion__choice" data-promote="${role}">${kriegspielPromotionPieceSvg(role, color)}</button>`,
     )
     .join('');
-  refs.promotion.innerHTML = `<div class="kriegspiel-promotion__title">Promote to</div><div class="kriegspiel-promotion__choices">${choices}</div>`;
-}
-
-function promotionGlyph(role: KriegspielPromotionRole, color: Color): string {
-  const raw = PIECE_GLYPHS[`${color}:${role}`];
-  return raw ?? '';
+  refs.promotion.innerHTML = `<div class="kriegspiel-promotion__panel"><div class="kriegspiel-promotion__title">Promote to</div><div class="kriegspiel-promotion__choices">${choices}</div></div>`;
 }
 
 // ── Umpire log (the move list) ────────────────────────────────────────────────
@@ -756,16 +771,3 @@ function orientationFor(view: KriegspielPlayerView | null): Color {
 function isColor(value: unknown): value is Color {
   return value === 'white' || value === 'black';
 }
-
-// Unicode chess glyphs for the promotion picker (the board itself uses cburnett
-// SVGs; the picker is a compact text affordance).
-const PIECE_GLYPHS: Record<string, string> = {
-  'white:queen': '♕',
-  'white:rook': '♖',
-  'white:bishop': '♗',
-  'white:knight': '♘',
-  'black:queen': '♛',
-  'black:rook': '♜',
-  'black:bishop': '♝',
-  'black:knight': '♞',
-};
