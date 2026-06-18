@@ -1,66 +1,99 @@
 import {
   applyCrazyhouseMove,
-  createInitialCrazyhouseState,
+  type Board,
   type Color,
+  createInitialCrazyhouseState,
   type CrazyhouseGameState,
   getCrazyhousePlayerView,
+  type Square,
 } from '@mistboard/game';
-import { renderCrazyhouseBoardSvg } from '../../crazyhouse-render.js';
+import { boardToPieces } from '../diagrams.js';
 import type { Article, ArticleBlock } from '../types.js';
 
-// ── Fog diagram builders ─────────────────────────────────────────────────────
-// Baked once from the real fog view (getCrazyhousePlayerView) + the real live
-// renderer (renderCrazyhouseBoardSvg), so every board shows exactly what the
-// server would send that player. All boards render white-at-bottom to match the
-// dark-chess house style; the perspective arg only sets orientation, not whose
-// view it is (the view comes from getCrazyhousePlayerView).
+// ── Fog diagrams ─────────────────────────────────────────────────────────────
+// Rendered through the shared live-boards (chessground) figure, the same board
+// the Dark Chess article uses, so the style, border, and size match exactly.
+// Each board carries the TRUE position plus the fogSquares to shroud; fogSquares
+// is computed from the real fog view (getCrazyhousePlayerView), so every diagram
+// shows exactly what the server would send that player.
 
-function fogSvg(state: CrazyhouseGameState, viewer: Color): string {
-  return renderCrazyhouseBoardSvg(getCrazyhousePlayerView(state, viewer), {
-    showFog: true,
-    perspective: 'white',
-  });
+const ALL_SQUARES: Square[] = (() => {
+  const out: Square[] = [];
+  for (const file of 'abcdefgh') {
+    for (let rank = 1; rank <= 8; rank += 1) out.push(`${file}${rank}` as Square);
+  }
+  return out;
+})();
+
+function fog(state: CrazyhouseGameState, viewer: Color): Square[] {
+  const visible = new Set<Square>(getCrazyhousePlayerView(state, viewer).visibleSquares);
+  return ALL_SQUARES.filter((square) => !visible.has(square));
 }
 
-const START_FOG_SVG = fogSvg(createInitialCrazyhouseState('diagram'), 'black');
+function position(
+  board: Board,
+  turn: Color,
+  hands: CrazyhouseGameState['hands'],
+): CrazyhouseGameState {
+  return {
+    id: 'diagram',
+    variant: 'dark-crazyhouse',
+    board,
+    status: { type: 'playing', turn },
+    moveNumber: 10,
+    castlingRights: [],
+    halfmoveClock: 0,
+    dropPolicy: 'any-legal-square',
+    hands,
+    promoted: [],
+  };
+}
 
-// A mid-game position used for the drop-into-fog story. White holds a knight in
-// hand and is to move. White's army lights its own reaches; the far side, where
-// the knight is about to land, is fog from White's side.
-const DROP_BOARD = {
-  e1: { color: 'white', role: 'king' },
-  a1: { color: 'white', role: 'rook' },
-  d4: { color: 'white', role: 'pawn' },
-  e8: { color: 'black', role: 'king' },
-  f5: { color: 'black', role: 'pawn' },
-  c6: { color: 'black', role: 'knight' },
-} as const;
+const START = createInitialCrazyhouseState('diagram');
 
-const DROP_BEFORE: CrazyhouseGameState = {
-  id: 'diagram',
-  variant: 'dark-crazyhouse',
-  board: { ...DROP_BOARD },
-  status: { type: 'playing', turn: 'white' },
-  moveNumber: 10,
-  castlingRights: [],
-  halfmoveClock: 0,
-  dropPolicy: 'any-legal-square',
-  hands: { white: { knight: 1 }, black: {} },
-  promoted: [],
-};
+// Capture into hand: White's rook on the open a-file sees the Black knight on a5
+// (field of fire) and takes it. The knight becomes a white piece in White's hand.
+const CAPTURE_BEFORE = position(
+  {
+    e1: { color: 'white', role: 'king' },
+    a1: { color: 'white', role: 'rook' },
+    a5: { color: 'black', role: 'knight' },
+    e8: { color: 'black', role: 'king' },
+  },
+  'white',
+  { white: {}, black: {} },
+);
+const CAPTURE_AFTER = applyCrazyhouseMove(CAPTURE_BEFORE, { from: 'a1', to: 'a5' });
 
-// White parachutes the knight onto e6, a square White cannot see. It is truly
-// empty, so the drop resolves.
-const DROP_AFTER = applyCrazyhouseMove(DROP_BEFORE, { drop: 'knight', to: 'e6' });
+// A plain drop onto a square White already sees: White's rook lights the open
+// d-file, and White drops a knight from hand onto the empty d3.
+const DROP_BASIC_BEFORE = position(
+  {
+    e1: { color: 'white', role: 'king' },
+    d1: { color: 'white', role: 'rook' },
+    e8: { color: 'black', role: 'king' },
+  },
+  'white',
+  { white: { knight: 1 }, black: {} },
+);
+const DROP_BASIC_AFTER = applyCrazyhouseMove(DROP_BASIC_BEFORE, { drop: 'knight', to: 'd3' });
 
-// Black steps the king e8 -> d7 and finally looks at e6, where the knight has
-// been sitting all along.
-const REVEAL_AFTER_LOOK = applyCrazyhouseMove(DROP_AFTER, { from: 'e8', to: 'd7' });
-
-const DROP_BEFORE_WHITE_SVG = fogSvg(DROP_BEFORE, 'white');
-const DROP_AFTER_WHITE_SVG = fogSvg(DROP_AFTER, 'white');
-const DROP_AFTER_BLACK_SVG = fogSvg(DROP_AFTER, 'black');
-const REVEAL_BLACK_SVG = fogSvg(REVEAL_AFTER_LOOK, 'black');
+// The parachute story: White holds a knight and is to move; e6 is deep in Black's
+// half, outside White's vision, but truly empty, so the drop resolves.
+const PARACHUTE_BEFORE = position(
+  {
+    e1: { color: 'white', role: 'king' },
+    a1: { color: 'white', role: 'rook' },
+    d4: { color: 'white', role: 'pawn' },
+    e8: { color: 'black', role: 'king' },
+    f5: { color: 'black', role: 'pawn' },
+    c6: { color: 'black', role: 'knight' },
+  },
+  'white',
+  { white: { knight: 1 }, black: {} },
+);
+const PARACHUTE_AFTER = applyCrazyhouseMove(PARACHUTE_BEFORE, { drop: 'knight', to: 'e6' });
+const PARACHUTE_REVEAL = applyCrazyhouseMove(PARACHUTE_AFTER, { from: 'e8', to: 'd7' });
 
 export const darkCrazyhouseArticle: Article = {
   slug: 'dark-crazyhouse',
@@ -73,7 +106,10 @@ export const darkCrazyhouseArticle: Article = {
   publishedAt: '2026-06-18',
   audience:
     'Crazyhouse players, dark chess players, and anyone who wants a clean first explanation of crazyhouse under fog.',
-  thumbnail: { kind: 'svg', svg: START_FOG_SVG },
+  thumbnail: {
+    pieces: boardToPieces(START.board).filter((piece) => piece.color === 'white'),
+    orientation: 'white',
+  },
   intro: [
     {
       kind: 'paragraph',
@@ -90,12 +126,23 @@ export const darkCrazyhouseArticle: Article = {
       blocks: [
         {
           kind: 'paragraph',
-          text: 'You start from the standard chess setup and see the squares your own pieces could legally move to, plus the squares they stand on. Everything else is fog. The board below is Black\'s view of the opening: the front rank of pawns and the squares just past them are lit, and the whole far side, including all of White\'s army, is dark.',
+          text: 'You start from the standard chess setup and see the squares your own pieces could legally move to, plus the squares they stand on. Everything else is fog. Below is White\'s view of the opening next to the true board: the front rank and the squares just past it are lit, and the whole far side, including all of Black\'s army, is dark.',
         },
         {
-          kind: 'raw-svg',
-          svg: START_FOG_SVG,
-          caption: "Black's view of the starting position. White's pieces are all in the fog.",
+          kind: 'live-boards',
+          spec: {
+            layout: 'pair',
+            boards: [
+              {
+                board: START.board,
+                fogSquares: fog(START, 'white'),
+                orientation: 'white',
+                label: "WHITE'S VIEW",
+              },
+              { board: START.board, orientation: 'white', label: 'SERVER TRUTH' },
+            ],
+          },
+          caption: "White's view of the starting position beside the true board. Black's army is all in the fog.",
         } as ArticleBlock,
         {
           kind: 'paragraph',
@@ -111,6 +158,28 @@ export const darkCrazyhouseArticle: Article = {
           text: 'When you capture a piece it does not leave the game. It switches to your color and goes into your hand, a private reserve you can spend later. A captured queen becomes a queen you can drop; a captured rook becomes a rook you can drop, and so on. A pawn that had promoted reverts: capture a promoted queen and you hold a pawn, not a queen.',
         },
         {
+          kind: 'live-boards',
+          spec: {
+            layout: 'pair',
+            boards: [
+              {
+                board: CAPTURE_BEFORE.board,
+                fogSquares: fog(CAPTURE_BEFORE, 'white'),
+                orientation: 'white',
+                label: 'BEFORE',
+                arrows: [{ orig: 'a1', dest: 'a5' }],
+              },
+              {
+                board: CAPTURE_AFTER.board,
+                fogSquares: fog(CAPTURE_AFTER, 'white'),
+                orientation: 'white',
+                label: 'AFTER',
+              },
+            ],
+          },
+          caption: "White's rook takes the knight on a5. That knight is now a white piece in White's hand, ready to drop.",
+        } as ArticleBlock,
+        {
           kind: 'paragraph',
           text: 'In open crazyhouse both hands sit face-up beside the board. Under fog you see only your own. You never know exactly what your opponent is holding, so a drop can come out of nowhere. Kings are never captured into a hand: capturing a king ends the game.',
         },
@@ -123,6 +192,27 @@ export const darkCrazyhouseArticle: Article = {
           kind: 'paragraph',
           text: 'On your turn you may drop a piece from your hand onto an empty square instead of moving a piece on the board. A drop spends that piece from your hand and places it as your own. The standard crazyhouse drop rules carry over: a pawn may not be dropped onto the first or eighth rank, and a dropped piece is live immediately. It can capture, give the threats a real piece gives, and on the very next move it can take the king.',
         },
+        {
+          kind: 'live-boards',
+          spec: {
+            layout: 'pair',
+            boards: [
+              {
+                board: DROP_BASIC_BEFORE.board,
+                fogSquares: fog(DROP_BASIC_BEFORE, 'white'),
+                orientation: 'white',
+                label: 'BEFORE',
+              },
+              {
+                board: DROP_BASIC_AFTER.board,
+                fogSquares: fog(DROP_BASIC_AFTER, 'white'),
+                orientation: 'white',
+                label: 'AFTER',
+              },
+            ],
+          },
+          caption: "White drops a knight from hand onto d3, a square White already sees. The piece is live at once.",
+        } as ArticleBlock,
         {
           kind: 'paragraph',
           text: 'Because there is no checkmate under fog (see below), the open-crazyhouse ban on dropping a pawn for mate does not apply. A dropped pawn that captures the king is a winning move like any other.',
@@ -137,28 +227,50 @@ export const darkCrazyhouseArticle: Article = {
           text: 'This is the rule fog adds. You may drop onto any square that looks empty from your side, including squares hidden in the fog. You are not limited to squares you can see. Below, White holds a knight in hand and drops it onto e6, deep in Black\'s half and outside White\'s vision. The square is truly empty, so the knight lands. After the drop White can see e6 (a White piece is now there) and the squares the knight covers.',
         },
         {
-          kind: 'raw-svg',
-          svg: DROP_BEFORE_WHITE_SVG,
-          caption: "White's view before the drop: e6 is in the fog. White still drops there.",
-        } as ArticleBlock,
-        {
-          kind: 'raw-svg',
-          svg: DROP_AFTER_WHITE_SVG,
-          caption: 'After the drop: the knight is on e6 and White now sees it and the squares it reaches.',
+          kind: 'live-boards',
+          spec: {
+            layout: 'pair',
+            boards: [
+              {
+                board: PARACHUTE_BEFORE.board,
+                fogSquares: fog(PARACHUTE_BEFORE, 'white'),
+                orientation: 'white',
+                label: 'WHITE, BEFORE',
+              },
+              {
+                board: PARACHUTE_AFTER.board,
+                fogSquares: fog(PARACHUTE_AFTER, 'white'),
+                orientation: 'white',
+                label: 'WHITE, AFTER',
+              },
+            ],
+          },
+          caption: "White's view: e6 is in the fog, White drops there anyway, and afterward sees the knight and the squares it reaches.",
         } as ArticleBlock,
         {
           kind: 'paragraph',
           text: 'From the other side the knight simply appears out of the fog later. Black does not see e6 the moment the knight lands, because no Black piece looks at it. The drop is on the board, fully real, and invisible to its target until a Black piece reaches the square. Below is Black\'s view: first the empty fog right after White drops, then the same knight once Black walks the king to d7 and looks at e6.',
         },
         {
-          kind: 'raw-svg',
-          svg: DROP_AFTER_BLACK_SVG,
-          caption: "Black's view right after the drop: e6 is still dark. The knight is there; Black cannot see it.",
-        } as ArticleBlock,
-        {
-          kind: 'raw-svg',
-          svg: REVEAL_BLACK_SVG,
-          caption: 'Black plays Kd7 and finally looks at e6. The parachuted knight was there all along.',
+          kind: 'live-boards',
+          spec: {
+            layout: 'pair',
+            boards: [
+              {
+                board: PARACHUTE_AFTER.board,
+                fogSquares: fog(PARACHUTE_AFTER, 'black'),
+                orientation: 'white',
+                label: 'BLACK, AFTER DROP',
+              },
+              {
+                board: PARACHUTE_REVEAL.board,
+                fogSquares: fog(PARACHUTE_REVEAL, 'black'),
+                orientation: 'white',
+                label: 'BLACK, AFTER Kd7',
+              },
+            ],
+          },
+          caption: "Black's view: e6 is still dark right after the drop, then the parachuted knight appears once Black plays Kd7 and looks.",
         } as ArticleBlock,
       ],
     },
