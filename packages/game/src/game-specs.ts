@@ -53,6 +53,7 @@ export type RatingPoolBaseId =
   | 'fog'
   | 'fog_draft960'
   | 'dark_crazyhouse'
+  | 'kriegspiel'
   | 'dark_antichess'
   | 'sun_tzu'
   | 'lao_tzu'
@@ -71,6 +72,7 @@ export type GameSpecId =
   | 'dark-chess'
   | 'dark-draft960'
   | 'dark-crazyhouse'
+  | 'kriegspiel'
   | 'dark-antichess'
   | 'sun-tzu'
   | 'lao-tzu'
@@ -122,6 +124,7 @@ export const JIEQI_SPEC_ID = 'jieqi' satisfies GameSpecId;
 export const BANQI_SPEC_ID = 'banqi' satisfies GameSpecId;
 export const DARK_SHOGI_SPEC_ID = 'dark-shogi' satisfies GameSpecId;
 export const DARK_CRAZYHOUSE_SPEC_ID = 'dark-crazyhouse' satisfies GameSpecId;
+export const KRIEGSPIEL_SPEC_ID = 'kriegspiel' satisfies GameSpecId;
 export const CROSSROADS_CHESS_SPEC_ID = 'crossroads-chess' satisfies GameSpecId;
 export const REVEAL_CHESS_SPEC_ID = 'reveal-chess' satisfies GameSpecId;
 export const DARK_CROSSROADS_CHESS_SPEC_ID = 'dark-crossroads-chess' satisfies GameSpecId;
@@ -201,6 +204,21 @@ export const GAME_SPECS: readonly GameSpec[] = [
     reserves: 'crazyhouse',
     dropPolicy: 'any-legal-square',
     ratingPoolBase: 'dark_crazyhouse',
+    publicSurface: 'hidden',
+    runtimeStatus: 'dev-spike',
+  },
+  {
+    id: 'kriegspiel',
+    publicName: 'Kriegspiel',
+    family: 'chess',
+    board: 'chess-8x8',
+    movement: 'orthodox-chess',
+    objective: 'checkmate',
+    visibility: 'dark',
+    setup: 'standard',
+    reserves: 'none',
+    dropPolicy: 'none',
+    ratingPoolBase: 'kriegspiel',
     publicSurface: 'hidden',
     runtimeStatus: 'dev-spike',
   },

@@ -6,6 +6,7 @@ import {
   DARK_SHOGI_SPEC_ID,
   DARK_XIANGQI_SPEC_ID,
   JIEQI_SPEC_ID,
+  KRIEGSPIEL_SPEC_ID,
   REVEAL_CHESS_SPEC_ID,
 } from '@mistboard/game';
 import {
@@ -16,6 +17,7 @@ import {
   darkShogiEnabled,
   darkXiangqiEnabled,
   jieqiEnabled,
+  kriegspielEnabled,
   revealChessEnabled,
 } from './feature-flags.js';
 
@@ -38,6 +40,8 @@ export type GameSpecGateDecision =
         | 'dark_crossroads_chess_not_integrated'
         | 'dark_shogi_disabled'
         | 'dark_shogi_not_integrated'
+        | 'kriegspiel_disabled'
+        | 'kriegspiel_not_integrated'
         | 'dark_crazyhouse_disabled'
         | 'dark_crazyhouse_not_integrated';
       httpStatus: 404 | 501;
@@ -54,6 +58,7 @@ type HiddenRuntimeSpec =
   | typeof REVEAL_CHESS_SPEC_ID
   | typeof DARK_CROSSROADS_CHESS_SPEC_ID
   | typeof DARK_SHOGI_SPEC_ID
+  | typeof KRIEGSPIEL_SPEC_ID
   | typeof DARK_CRAZYHOUSE_SPEC_ID;
 
 const HIDDEN_RUNTIME_SPECS: Record<
@@ -94,6 +99,11 @@ const HIDDEN_RUNTIME_SPECS: Record<
     enabled: darkShogiEnabled,
     disabledError: 'dark_shogi_disabled',
     notIntegratedError: 'dark_shogi_not_integrated',
+  },
+  [KRIEGSPIEL_SPEC_ID]: {
+    enabled: kriegspielEnabled,
+    disabledError: 'kriegspiel_disabled',
+    notIntegratedError: 'kriegspiel_not_integrated',
   },
   [DARK_CRAZYHOUSE_SPEC_ID]: {
     enabled: darkCrazyhouseEnabled,
@@ -140,6 +150,7 @@ function requestedHiddenRuntimeSpec(input: {
     REVEAL_CHESS_SPEC_ID,
     DARK_CROSSROADS_CHESS_SPEC_ID,
     DARK_SHOGI_SPEC_ID,
+    KRIEGSPIEL_SPEC_ID,
     DARK_CRAZYHOUSE_SPEC_ID,
   ] as const) {
     if (input.gameSpecId === spec || input.variant === spec) return spec;

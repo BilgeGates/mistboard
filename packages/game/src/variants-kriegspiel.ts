@@ -33,8 +33,6 @@ import { makeSquare, parseSquare } from 'chessops/util';
 import type { Board, Color, GameStatus, Move, PieceRole, Square } from './types.js';
 import { draft960Variant, isLegalStandardChessMove, positionFromState } from './variants.js';
 
-export const KRIEGSPIEL_SPEC_ID = 'kriegspiel';
-
 // Kriegspiel never has a pregame status (the room seats both sides, then play
 // begins), matching the tenant's TenantGameStateLike contract.
 export type KriegspielGameStatus = Exclude<GameStatus, { type: 'pregame' }>;
