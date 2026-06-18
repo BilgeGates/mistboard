@@ -130,7 +130,7 @@ describe('rules variant sidebar', () => {
     const titles = [...(sidebar?.querySelectorAll('.article-toc-title') ?? [])].map(
       (title) => title.textContent,
     );
-    expect(titles).toEqual(['On Mistboard', 'Not yet on Mistboard']);
+    expect(titles).toEqual(['On Mistboard', 'References']);
 
     const navs = sidebar?.querySelectorAll('.article-toc-nav');
     expect(navs?.[0]?.querySelector('a[href="/rules/dark-chess"]')).not.toBeNull();
@@ -167,7 +167,7 @@ describe('rules variant sidebar', () => {
     const titles = [...landing.querySelectorAll('.rules-landing-group-title')].map(
       (el) => el.textContent,
     );
-    expect(titles).toEqual(['On Mistboard', 'Not yet on Mistboard']);
+    expect(titles).toEqual(['On Mistboard', 'References']);
     const grids = landing.querySelectorAll('.rules-landing-grid');
     expect(grids[0]?.querySelector('a[href="/rules/dark-chess"]')).not.toBeNull();
     expect(grids[0]?.querySelector('a[href="/rules/chess"]')).toBeNull();

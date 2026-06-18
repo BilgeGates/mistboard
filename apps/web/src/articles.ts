@@ -87,7 +87,7 @@ const ARTICLE_INDEX_COPY: Record<
     rulesIntro: string;
     rulesLandingBody: string[];
     railPlayable: string;
-    railNotYet: string;
+    railReference: string;
     published: string;
     updated: string;
     dateLocale: string;
@@ -103,7 +103,7 @@ const ARTICLE_INDEX_COPY: Record<
       'The base games anchor the rules. Their dark variants play the same game under fog: each side sees only the squares its pieces reach, there are no check warnings, and you win by capturing the king.',
     ],
     railPlayable: 'On Mistboard',
-    railNotYet: 'Not yet on Mistboard',
+    railReference: 'References',
     published: 'Published',
     updated: 'Updated',
     dateLocale: 'en-US',
@@ -118,7 +118,7 @@ const ARTICLE_INDEX_COPY: Record<
       '基础棋类是规则的根基。黑暗变体在迷雾下进行同一种游戏：双方只能看到己方棋子所及的格子，没有将军提示，吃掉对方的王即获胜。',
     ],
     railPlayable: '可在 Mistboard 对弈',
-    railNotYet: '暂未上线',
+    railReference: '参考资料',
     published: '发布于',
     updated: '更新于',
     dateLocale: 'zh-CN',
@@ -133,7 +133,7 @@ const ARTICLE_INDEX_COPY: Record<
       '基礎棋類是規則的根基。黑暗變體在迷霧下進行同一種遊戲：雙方只能看到己方棋子所及的格子，沒有將軍提示，吃掉對方的王即獲勝。',
     ],
     railPlayable: '可在 Mistboard 對弈',
-    railNotYet: '暫未上線',
+    railReference: '參考資料',
     published: '發布於',
     updated: '更新於',
     dateLocale: 'zh-TW',
@@ -213,7 +213,7 @@ function buildRulesLanding(lang?: ArticleLang): HTMLElement {
   );
   const tileGroups = [
     { title: copy.railPlayable, items: entries.filter((entry) => entry.playableOnMistboard) },
-    { title: copy.railNotYet, items: entries.filter((entry) => !entry.playableOnMistboard) },
+    { title: copy.railReference, items: entries.filter((entry) => !entry.playableOnMistboard) },
   ];
   for (const group of tileGroups) {
     if (group.items.length === 0) continue;
@@ -621,7 +621,7 @@ function buildVariantSidebar(currentSlug: string | null, lang?: ArticleLang): HT
 
   const groups = [
     { title: copy.railPlayable, items: entries.filter((entry) => entry.playableOnMistboard) },
-    { title: copy.railNotYet, items: entries.filter((entry) => !entry.playableOnMistboard) },
+    { title: copy.railReference, items: entries.filter((entry) => !entry.playableOnMistboard) },
   ];
 
   for (const group of groups) {
