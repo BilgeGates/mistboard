@@ -66,6 +66,18 @@ export const ARTICLE_META: Record<
     description:
       'A modern variant that fuses chess and xiangqi on a 6 by 8 river board. The pieces you already know from both games, and two ways to win: checkmate, or race your king across.',
   },
+  shogi: {
+    title: 'Shogi Rules',
+    kind: 'rules',
+    description:
+      'Standard shogi rules, the primer behind Dark Shogi: how the eight pieces move, promotion in the far ranks, the drop rule that puts captured pieces back in play, and how a game is won.',
+  },
+  'dark-shogi': {
+    title: 'Dark Shogi (Fog of War) Rules',
+    kind: 'rules',
+    description:
+      'Shogi under Fog of War: each side sees only the squares its pieces reach, captured-piece hands are private, there are no check warnings, and the king falls by capture.',
+  },
   shogi4: {
     title: 'Shogi4 (4×4 Shogi) Rules',
     kind: 'rules',

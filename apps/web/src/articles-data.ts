@@ -15,6 +15,7 @@ import { darkChessArticle } from './articles/content/dark-chess.js';
 import { darkChessConceptsArticle } from './articles/content/dark-chess-concepts.js';
 import { darkDraft960Article } from './articles/content/dark-draft960.js';
 import { darkMiniXiangqiArticle } from './articles/content/dark-mini-xiangqi.js';
+import { darkShogiArticle } from './articles/content/dark-shogi.js';
 import { darkXiangqiArticle } from './articles/content/dark-xiangqi.js';
 import { jieqiArticle } from './articles/content/jieqi.js';
 import { kriegspielArticle } from './articles/content/kriegspiel.js';
@@ -22,6 +23,7 @@ import { miniXiangqiArticle } from './articles/content/mini-xiangqi.js';
 import { mistyArticle } from './articles/content/misty.js';
 import { revealChessArticle } from './articles/content/reveal-chess.js';
 import { serverEnforcedFogArticle } from './articles/content/server-enforced-fog.js';
+import { shogiArticle } from './articles/content/shogi.js';
 import { shogi4Article } from './articles/content/shogi4.js';
 import { xiangqiArticle } from './articles/content/xiangqi.js';
 import articleSnapshotFog from './article-snapshot-fog.json' with { type: 'json' };
@@ -37,7 +39,9 @@ export const articles: Article[] = [
   miniXiangqiArticle,
   darkMiniXiangqiArticle,
   serverEnforcedFogArticle,
+  shogiArticle,
   shogi4Article,
+  darkShogiArticle,
   kriegspielArticle,
   jieqiArticle,
   banqiArticle,
