@@ -37,6 +37,9 @@ export type GridPalette = {
   fog: string;
   // Colour for annotation arrows. Optional; defaults to a muted green.
   arrow?: string;
+  // Fill for "threat" squares (e.g. Kriegspiel checker candidates), drawn OVER
+  // the fog so it reads on hidden squares. Optional; defaults to a muted red.
+  threat?: string;
 };
 
 export type GridBoardDescriptor = {
@@ -91,6 +94,10 @@ export type GridBoardLayers = {
   arrows?: readonly GridArrowRef[] | null;
   // Squares to fog (hidden). Omit / null to draw no fog overlay.
   fogHidden?: readonly GridCellRef[] | null;
+  // Squares to mark as a threat, drawn OVER the fog (so it shows on hidden
+  // squares). Kriegspiel uses this for the squares a checking piece could
+  // occupy, derived purely from the umpire's call. Omit / null for none.
+  threats?: readonly GridCellRef[] | null;
   // Names the hit-layer rects (data-square="…") so a host can delegate clicks.
   squareName?: (file: number, rank: number) => string;
   interactive?: boolean;
@@ -227,6 +234,10 @@ export function renderGridBoardSvg(
   const fogLayer = (): string =>
     (layers.fogHidden ?? []).map((ref) => cellRect(ref, palette.fog)).join('');
 
+  const threatColor = palette.threat ?? 'rgba(200,48,48,0.34)';
+  const threatLayer = (): string =>
+    (layers.threats ?? []).map((ref) => cellRect(ref, threatColor)).join('');
+
   const arrowColor = palette.arrow ?? '#2f7d2f';
   const arrows = layers.arrows ?? [];
   const arrowMarkerDef =
@@ -267,6 +278,9 @@ export function renderGridBoardSvg(
     layers.renderPieces(geom),
     targetLayer(),
     fogLayer(),
+    // Threat squares ride OVER the fog — the checker is on a hidden square, so
+    // the mark must show through the shroud.
+    threatLayer(),
     layers.interactive ? hitLayer() : '',
   ].join('');
 

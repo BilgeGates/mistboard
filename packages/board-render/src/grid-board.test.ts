@@ -115,6 +115,24 @@ test('highlights fill multiple squares with the selection colour', () => {
   assert.equal((svg.match(/fill="rgba\(255,205,80,0\.55\)"/g) ?? []).length, baseSelected + 3);
 });
 
+test('threats fill squares with the threat colour, drawn over the fog', () => {
+  const svg = renderGridBoardSvg(crossroads, {
+    ...noPieces,
+    fogHidden: [{ file: 3, rank: 5 }],
+    threats: [
+      { file: 3, rank: 5 },
+      { file: 4, rank: 6 },
+    ],
+  });
+  // Two threat squares in the default threat colour...
+  assert.equal((svg.match(/fill="rgba\(200,48,48,0\.34\)"/g) ?? []).length, 2);
+  // ...and the threat on the fogged square is painted AFTER the fog (so it
+  // shows through the shroud).
+  const fogIndex = svg.indexOf('fill="rgba(22,18,14,0.66)"');
+  const threatIndex = svg.indexOf('fill="rgba(200,48,48,0.34)"');
+  assert.ok(fogIndex >= 0 && threatIndex > fogIndex, 'threat layer must paint after fog');
+});
+
 test('arrows draw a marker def and one line per arrow', () => {
   const none = renderGridBoardSvg(crossroads, noPieces);
   assert.doesNotMatch(none, /<marker id="b-arrow"/);

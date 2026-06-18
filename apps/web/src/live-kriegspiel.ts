@@ -19,13 +19,14 @@
 //   * the move list — a two-column umpire log: the viewer's own plies in full,
 //     the opponent's plies as the announcement alone.
 
-import type {
-  Color,
-  KriegspielCheckType,
-  KriegspielPlayerView,
-  Move,
-  PieceRole,
-  Square,
+import {
+  type Color,
+  type KriegspielCheckType,
+  type KriegspielPlayerView,
+  kriegspielCheckCandidateSquares,
+  type Move,
+  type PieceRole,
+  type Square,
 } from '@mistboard/game';
 import './live-kriegspiel.css';
 import { kriegspielEnabled } from './feature-flags.js';
@@ -427,13 +428,39 @@ function renderBoard(view: KriegspielPlayerView | null): void {
   const interactive = replay.isLive() && iAmPlayer() && isMyTurn(view) && !state.pendingPromotion;
   const selected = interactive ? state.selected : null;
   const targets = interactive && state.selected ? moveTargets(view, state.selected) : [];
+  // When the opponent's move checked us, draw the squares the checker could be
+  // on (the umpire's call, in board-space). Live position only.
+  const threats = replay.isLive() ? checkThreats(view) : [];
   refs.board.innerHTML = renderKriegspielBoardSvg(view, {
     perspective,
     showFog: true,
     selected,
     targets,
+    threats,
     interactive,
   });
+}
+
+// The squares a checking piece could occupy, derived purely from the umpire's
+// latest call against us + our own (visible) pieces. Empty unless the opponent's
+// most recent move announced a check.
+function checkThreats(view: KriegspielPlayerView): Square[] {
+  const seat = state.seat;
+  if (!isColor(seat)) return [];
+  const latest = latestMoveEvent();
+  if (!latest || latest.color === seat) return [];
+  const categories = latest.move.announcement?.check;
+  if (!categories || categories.length === 0) return [];
+  const king = kingSquareFor(view, seat);
+  if (!king) return [];
+  return kriegspielCheckCandidateSquares(king, categories, Object.keys(view.board) as Square[]);
+}
+
+function kingSquareFor(view: KriegspielPlayerView, color: Color): Square | null {
+  for (const [square, piece] of Object.entries(view.board)) {
+    if (piece && piece.color === color && piece.role === 'king') return square as Square;
+  }
+  return null;
 }
 
 // The two umpire zones: the top strip is the umpire's latest call (the check

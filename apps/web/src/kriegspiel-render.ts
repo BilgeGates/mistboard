@@ -55,6 +55,9 @@ export type KriegspielRenderOptions = {
   // Offered destination squares for the selection (dots / capture rings). In
   // Kriegspiel these are pseudo-legal — some are probes that will bounce.
   targets?: readonly Square[];
+  // Squares a checking piece could occupy (the umpire's call, drawn over the
+  // fog). Empty / omitted when the viewer is not in check.
+  threats?: readonly Square[];
   // Add a transparent hit layer of <rect data-square="..."> for click handling.
   interactive?: boolean;
 };
@@ -83,6 +86,7 @@ export function renderKriegspielBoardSvg(
     selected: options.selected ? coordOf(options.selected) : null,
     targets: (options.targets ?? []).map((sq) => ({ ...coordOf(sq), occupied: occupied.has(sq) })),
     fogHidden: showFog ? hiddenSquares(visible) : null,
+    threats: (options.threats ?? []).map(coordOf),
     interactive: options.interactive ?? false,
     squareName: (file, rank) => squareAt(file, rank),
   });

@@ -11,6 +11,7 @@ import {
   kriegspielAnnouncementFor,
   kriegspielCaptureAnnouncement,
   kriegspielCheckAnnouncement,
+  kriegspielCheckCandidateSquares,
   kriegspielPawnTries,
 } from './variants-kriegspiel.js';
 
@@ -237,6 +238,46 @@ test('applying a checkmating move finishes the game with the right check call', 
   // The mate is delivered along the a-file.
   const announcement = kriegspielAnnouncementFor(before, move, after);
   assert.deepEqual(announcement, { check: ['file'] });
+});
+
+test('check candidates: a knight check marks the (≤8) knight squares around the king', () => {
+  const squares = kriegspielCheckCandidateSquares('e1', ['knight'], []).sort();
+  // From e1 the in-board knight squares are c2, d3, f3, g2.
+  assert.deepEqual(squares, ['c2', 'd3', 'f3', 'g2']);
+});
+
+test('check candidates: a file check walks the king file, stopping at own pieces', () => {
+  // King e1, own pawn on e3 blocks the upward walk after e2.
+  const squares = kriegspielCheckCandidateSquares('e1', ['file'], ['e3']).sort();
+  // Upward: e2 (then e3 is own → stop). Downward: none (e1 is rank 1).
+  assert.deepEqual(squares, ['e2']);
+});
+
+test('check candidates: a rank check walks both ways along the king rank', () => {
+  const squares = kriegspielCheckCandidateSquares('d4', ['rank'], ['b4']).sort();
+  // Left: c4 (then b4 own → stop). Right: e4,f4,g4,h4.
+  assert.deepEqual(squares, ['c4', 'e4', 'f4', 'g4', 'h4']);
+});
+
+test('check candidates: long vs short diagonal pick different diagonals through the king', () => {
+  // King b8: the long diagonal is the b8-h2 run; the short is just a7.
+  assert.deepEqual(kriegspielCheckCandidateSquares('b8', ['long-diagonal'], []).sort(), [
+    'c7',
+    'd6',
+    'e5',
+    'f4',
+    'g3',
+    'h2',
+  ]);
+  assert.deepEqual(kriegspielCheckCandidateSquares('b8', ['short-diagonal'], []), ['a7']);
+});
+
+test('check candidates: a double check unions both candidate sets', () => {
+  const squares = kriegspielCheckCandidateSquares('e1', ['file', 'knight'], []);
+  // The file ray e2..e8 plus the knight squares, all present.
+  assert.ok(squares.includes('e5'));
+  assert.ok(squares.includes('f3'));
+  assert.ok(squares.includes('d3'));
 });
 
 test('applying a quiet checking move keeps play going, turn passes', () => {

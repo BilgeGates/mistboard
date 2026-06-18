@@ -314,6 +314,84 @@ export function kriegspielAnnouncementFor(
   return announcement;
 }
 
+// ── Spatial check rendering ──────────────────────────────────────────────────
+// Turn the umpire's literal check call into the squares a checking piece could
+// occupy, derived ONLY from the call + the player's own (visible) pieces. This
+// adds no information the player couldn't compute themselves — it just draws the
+// umpire's sentence in board-space. Own pieces block a slider's line, so the
+// walk stops at the first own piece (the checker can't be there or beyond it).
+
+const KNIGHT_DELTAS: readonly [number, number][] = [
+  [1, 2],
+  [2, 1],
+  [2, -1],
+  [1, -2],
+  [-1, -2],
+  [-2, -1],
+  [-2, 1],
+  [-1, 2],
+];
+
+function fileRankOf(square: Square): { f: number; r: number } {
+  return { f: square.charCodeAt(0) - 97, r: Number(square.slice(1)) - 1 };
+}
+
+function squareOf(f: number, r: number): Square | null {
+  if (f < 0 || f > 7 || r < 0 || r > 7) return null;
+  return `${String.fromCharCode(97 + f)}${r + 1}` as Square;
+}
+
+export function kriegspielCheckCandidateSquares(
+  kingSquare: Square,
+  categories: readonly KriegspielCheckType[],
+  ownSquares: Iterable<Square>,
+): Square[] {
+  const own = new Set<Square>(ownSquares);
+  const { f: kf, r: kr } = fileRankOf(kingSquare);
+  const out = new Set<Square>();
+
+  const walk = (df: number, dr: number): void => {
+    let f = kf + df;
+    let r = kr + dr;
+    for (;;) {
+      const square = squareOf(f, r);
+      if (!square || own.has(square)) break; // edge, or own piece blocks the line
+      out.add(square);
+      f += df;
+      r += dr;
+    }
+  };
+
+  for (const category of categories) {
+    if (category === 'knight') {
+      for (const [df, dr] of KNIGHT_DELTAS) {
+        const square = squareOf(kf + df, kr + dr);
+        if (square && !own.has(square)) out.add(square);
+      }
+    } else if (category === 'file') {
+      walk(0, 1);
+      walk(0, -1);
+    } else if (category === 'rank') {
+      walk(1, 0);
+      walk(-1, 0);
+    } else {
+      // long-/short-diagonal: walk the matching one of the king's two diagonals.
+      const lenNE = 8 - Math.abs(kf - kr);
+      const lenNW = 8 - Math.abs(kf + kr - 7);
+      const neIsLong = lenNE >= lenNW;
+      const useNE = category === 'long-diagonal' ? neIsLong : !neIsLong;
+      if (useNE) {
+        walk(1, 1);
+        walk(-1, -1);
+      } else {
+        walk(1, -1);
+        walk(-1, 1);
+      }
+    }
+  }
+  return [...out];
+}
+
 // ── Player view ──────────────────────────────────────────────────────────────
 
 export function getKriegspielPlayerView(
