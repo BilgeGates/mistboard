@@ -7,8 +7,9 @@
 // we hand it a redacted CURRENT-position FEN built by banqi-fen.ts. One process per
 // request (stateless, robust); promote to a persistent pool only under real load.
 //
-// Fixed-strength classical engine (no net), so "tiers" are just movetime (search
-// depth). v0.1.0.
+// Fixed-strength classical engine (no net). Tiers are a NODE budget (positions searched),
+// not a time budget — so the bot plays the same strength on any CPU (prod's slow shared vCPU
+// was under-searching the old movetime tiers). A movetime cap bounds latency. v0.1.0.
 
 import { spawn } from 'node:child_process';
 import { existsSync } from 'node:fs';
@@ -19,14 +20,27 @@ export const BANQI_DEFAULT_ENGINE_ID = 'misty-banqi-strong';
 export type BanqiEngineTier = {
   id: string;
   name: string;
-  movetimeMs: number;
+  // Strength is a NODE budget, not a time budget: `go nodes N` searches the same number of
+  // positions on any CPU, so the bot plays the same strength regardless of how slow/loaded the
+  // prod box is. (Movetime-only tiers under-searched in prod: 600ms on a slow shared vCPU reaches
+  // ~200K nodes vs ~1.2M on a dev Mac — the bot was far weaker in prod than in testing.)
+  nodes: number;
+  // Latency cap (ms): `go nodes N movetime CAP` halts at whichever hits first, so a slow box never
+  // exceeds CAP per move. Generous enough that a normal prod CPU reaches the full node budget.
+  movetimeCapMs: number;
 };
 
-// MistyBanqi is fixed-strength; tiers vary only movetime (more time = deeper αβ = stronger).
+// Node budgets chosen from the hw3 depth sweep (2026-06-17): ~500K is the αβ convergence knee,
+// ~1.5M+ is where deep search starts beating hw3. Caps keep moves playable. Tune freely.
 const BANQI_ENGINE_TIERS = [
-  { id: 'misty-banqi-amateur', name: 'MistyBanqi - Amateur', movetimeMs: 200 },
-  { id: BANQI_DEFAULT_ENGINE_ID, name: 'MistyBanqi - Strong', movetimeMs: 600 },
-  { id: 'misty-banqi-strongest', name: 'MistyBanqi - Strongest', movetimeMs: 1500 },
+  { id: 'misty-banqi-amateur', name: 'MistyBanqi - Amateur', nodes: 100_000, movetimeCapMs: 1500 },
+  { id: BANQI_DEFAULT_ENGINE_ID, name: 'MistyBanqi - Strong', nodes: 500_000, movetimeCapMs: 2500 },
+  {
+    id: 'misty-banqi-strongest',
+    name: 'MistyBanqi - Strongest',
+    nodes: 1_500_000,
+    movetimeCapMs: 5000,
+  },
 ] as const satisfies readonly BanqiEngineTier[];
 
 export const BANQI_PLAYABLE_ENGINES: readonly BanqiEngineTier[] = BANQI_ENGINE_TIERS;
@@ -98,7 +112,7 @@ export function isBanqiEngineClientId(clientId: string | undefined): boolean {
 // `fen` is the position at that irreversible move (window start), and the engine replays
 // the moves to seed its repetition history — so it avoids/seeks threefold (perpetual-chase)
 // draws instead of shuffling into them blind. Omit for the prior FEN-only behavior.
-export type BanqiEngineOptions = { movetimeMs?: number; moves?: string[] };
+export type BanqiEngineOptions = { nodes?: number; movetimeCapMs?: number; moves?: string[] };
 
 /**
  * Ask MistyBanqi for a move given a redacted FEN (see banqi-fen.ts) and an optional
@@ -108,14 +122,15 @@ export type BanqiEngineOptions = { movetimeMs?: number; moves?: string[] };
 export async function banqiLiveEngineMove(
   engineId: string,
   fen: string,
-  opts: { movetimeMs?: number; moves?: string[] } = {},
+  opts: BanqiEngineOptions = {},
 ): Promise<string | null> {
   const tier = banqiEngineTierFor(engineId);
   if (!tier) throw new Error(`unknown Banqi engine: ${engineId}`);
   const release = await acquireSlot();
   try {
     return await banqiEngineMove(fen, {
-      movetimeMs: opts.movetimeMs ?? tier.movetimeMs,
+      nodes: opts.nodes ?? tier.nodes,
+      movetimeCapMs: opts.movetimeCapMs ?? tier.movetimeCapMs,
       moves: opts.moves,
     });
   } finally {
@@ -128,7 +143,8 @@ export function banqiEngineMove(
   opts: BanqiEngineOptions = {},
 ): Promise<string | null> {
   const bin = banqiEnginePath();
-  const movetimeMs = opts.movetimeMs ?? 600;
+  const nodes = opts.nodes ?? 500_000;
+  const movetimeCapMs = opts.movetimeCapMs ?? 2500;
 
   return new Promise<string | null>((resolveMove, reject) => {
     const child = spawn(bin, [], { stdio: ['pipe', 'pipe', 'pipe'] });
@@ -149,7 +165,7 @@ export function banqiEngineMove(
 
     const timer = setTimeout(
       () => finish(() => reject(new Error('banqi-engine move timed out'))),
-      movetimeMs + 4000,
+      movetimeCapMs + 4000,
     );
 
     child.on('error', (err) => finish(() => reject(err)));
@@ -172,7 +188,14 @@ export function banqiEngineMove(
       opts.moves && opts.moves.length > 0
         ? `position fen ${fen} moves ${opts.moves.join(' ')}`
         : `position fen ${fen}`;
-    const commands = ['uci', 'ucinewgame', 'isready', position, `go movetime ${movetimeMs}`];
+    // Node budget = CPU-independent strength; movetime cap bounds latency (halt at whichever first).
+    const commands = [
+      'uci',
+      'ucinewgame',
+      'isready',
+      position,
+      `go nodes ${nodes} movetime ${movetimeCapMs}`,
+    ];
     child.stdin.write(`${commands.join('\n')}\n`);
   });
 }

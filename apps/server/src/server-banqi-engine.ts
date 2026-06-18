@@ -113,15 +113,17 @@ export async function playBanqiEngineMoveIfReady(
   if (remainingMs !== null && remainingMs <= 0) return;
 
   const { fen, moves } = banqiEngineRepWindow(room);
-  const movetimeMs =
+  // Strength = the tier's NODE budget; the movetime CAP bounds latency and is further
+  // clamped by the remaining game clock so the engine never overshoots its own time.
+  const movetimeCapMs =
     remainingMs === null
-      ? tier.movetimeMs
-      : Math.max(MIN_MOVETIME_MS, Math.min(tier.movetimeMs, remainingMs - CLOCK_SAFETY_MS));
+      ? tier.movetimeCapMs
+      : Math.max(MIN_MOVETIME_MS, Math.min(tier.movetimeCapMs, remainingMs - CLOCK_SAFETY_MS));
 
   let uci: string | null = null;
   let fallbackReason: 'request-failed' | 'illegal-move' | 'no-move' | null = null;
   try {
-    uci = await banqiLiveEngineMove(engineId, fen, { movetimeMs, moves });
+    uci = await banqiLiveEngineMove(engineId, fen, { nodes: tier.nodes, movetimeCapMs, moves });
   } catch (err) {
     logger.error(
       {
