@@ -19,8 +19,27 @@
 //   * 'seen-squares-only' (VISION-BOUND): you may only drop onto squares you can
 //     currently see are empty. No fog drops, no bounce. This is the Lao Tzu rule.
 
-import type { Board, Color, GameState, Move, PieceRole, PlayerView, Square } from './types.js';
+import type {
+  Board,
+  Color,
+  GameState,
+  GameStatus,
+  Move,
+  PieceRole,
+  PlayerView,
+  Square,
+} from './types.js';
 import { capturedRoleFor, darkChessVariant } from './variants.js';
+
+// Crazyhouse is created already `playing` (it inherits the dark-chess start) and
+// never enters `pregame`, so the live state carries the narrower status the
+// tenant runtime expects.
+type CrazyhousePlayStatus = Exclude<GameStatus, { type: 'pregame' }>;
+
+function playableStatus(status: GameStatus): CrazyhousePlayStatus {
+  if (status.type === 'pregame') throw new Error('crazyhouse never enters pregame');
+  return status;
+}
 
 export type CrazyhouseDropRole = Exclude<PieceRole, 'king'>;
 export type CrazyhouseHand = Partial<Record<CrazyhouseDropRole, number>>;
@@ -39,8 +58,9 @@ export function isCrazyhouseDrop(move: CrazyhouseMove): move is CrazyhouseDropMo
   return 'drop' in move;
 }
 
-export type CrazyhouseGameState = Omit<GameState, 'variant' | 'lastMove'> & {
+export type CrazyhouseGameState = Omit<GameState, 'variant' | 'lastMove' | 'status'> & {
   variant: 'dark-crazyhouse';
+  status: CrazyhousePlayStatus;
   dropPolicy: CrazyhouseDropPolicy;
   lastMove?: CrazyhouseMove;
   hands: CrazyhouseHands;
@@ -99,6 +119,7 @@ export function createInitialCrazyhouseState(
   return {
     ...base,
     variant: 'dark-crazyhouse',
+    status: playableStatus(base.status),
     dropPolicy,
     lastMove: undefined,
     hands: { white: {}, black: {} },
@@ -264,6 +285,7 @@ export function applyCrazyhouseMove(
     ...state,
     ...next,
     variant: 'dark-crazyhouse',
+    status: playableStatus(next.status),
     lastMove: move,
     hands,
     promoted: nextPromoted(state.promoted, move),

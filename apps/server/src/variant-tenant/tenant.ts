@@ -278,6 +278,12 @@ export type VariantTenant<
     // (pre-rename aliases, e.g. Crossroads' 'dual-chess'). Validation-only:
     // new rooms and projections always carry the canonical tenant.gameSpecId.
     legacyGameSpecIds?: readonly string[];
+    // When a client move is rejected (failed the legality / canonicalization
+    // check), produce a payload to send ONLY back to the mover, or null to stay
+    // silent (the default for every existing tenant). Dark Crazyhouse uses it
+    // for the parachute drop BOUNCE: a drop onto a square that is occupied in
+    // truth is rejected, and the mover is told the square is occupied (a probe).
+    rejectionFor?(state: State, move: M, seat: TenantSeat<C>): Record<string, unknown> | null;
   };
   persistence: {
     resultForWinner(winner: C | null): persistence.GameResult;

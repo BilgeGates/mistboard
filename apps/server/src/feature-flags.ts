@@ -69,6 +69,14 @@ export function darkShogiEnabled(): boolean {
   return process.env.MISTBOARD_DARK_SHOGI_ENABLED === 'true';
 }
 
+// Dark Crazyhouse (chess + drops, under fog) live rooms. Server-side opt-in,
+// default off — the tenant exists but is not launched. PvP-only (no bot: drops
+// explode the belief search). Rides the dark-chess fog kernel + the Dark Shogi
+// hands/drops pattern.
+export function darkCrazyhouseEnabled(): boolean {
+  return process.env.MISTBOARD_DARK_CRAZYHOUSE_ENABLED === 'true';
+}
+
 // Correspondence (days-per-move) dark chess on the variant-tenant stack.
 // Server-side opt-in: gates room creation; existing dchx_ rooms keep routing
 // if the flag flips off. Correspondence is account-gated and invite-link

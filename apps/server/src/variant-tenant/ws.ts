@@ -366,7 +366,13 @@ export function createTenantWsRuntime<
       : tenant.rules.isLegalMove(room.projection.state, move)
         ? move
         : null;
-    if (canonical === null) return;
+    if (canonical === null) {
+      // A tenant may turn a rejection into a per-mover signal (the Crazyhouse
+      // parachute bounce). Sent only to this client, so it never leaks to others.
+      const rejection = tenant.wire?.rejectionFor?.(room.projection.state, move, client.seat);
+      if (rejection) sendPayload(client, rejection);
+      return;
+    }
     const event: TenantRoomEvent<C, M, Spec> = {
       type: 'move-played',
       at: Date.now(),

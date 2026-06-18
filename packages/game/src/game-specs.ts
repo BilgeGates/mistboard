@@ -121,6 +121,7 @@ export const DARK_XIANGQI_SPEC_ID = 'dark-xiangqi' satisfies GameSpecId;
 export const JIEQI_SPEC_ID = 'jieqi' satisfies GameSpecId;
 export const BANQI_SPEC_ID = 'banqi' satisfies GameSpecId;
 export const DARK_SHOGI_SPEC_ID = 'dark-shogi' satisfies GameSpecId;
+export const DARK_CRAZYHOUSE_SPEC_ID = 'dark-crazyhouse' satisfies GameSpecId;
 export const CROSSROADS_CHESS_SPEC_ID = 'crossroads-chess' satisfies GameSpecId;
 export const REVEAL_CHESS_SPEC_ID = 'reveal-chess' satisfies GameSpecId;
 export const DARK_CROSSROADS_CHESS_SPEC_ID = 'dark-crossroads-chess' satisfies GameSpecId;
@@ -201,7 +202,7 @@ export const GAME_SPECS: readonly GameSpec[] = [
     dropPolicy: 'any-legal-square',
     ratingPoolBase: 'dark_crazyhouse',
     publicSurface: 'hidden',
-    runtimeStatus: 'future',
+    runtimeStatus: 'dev-spike',
   },
   {
     id: 'dark-antichess',
