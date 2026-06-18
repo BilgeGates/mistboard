@@ -123,10 +123,7 @@ const darkCrossroadsChessWebTenant: WebVariantTenant<CrossroadsChessColor> = {
   isColor: isCrossroadsChessColor,
   oppositeColor: (color) => (color === 'white' ? 'red' : 'white'),
   enabled: darkCrossroadsChessEnabled,
-  // No standalone postgame route yet (parity fast-follow); the review link
-  // lands back on the live room, which shows each seat's own final fog view and
-  // never reveals the opponent.
-  reviewUrl: (roomId) => `/room/${encodeURIComponent(roomId)}`,
+  reviewUrl: (roomId) => `/dark-crossroads-chess/game/${encodeURIComponent(roomId)}`,
   reasonPhrase: darkCrossroadsChessEndReasonLabel,
   disabledTitle: 'Dark Crossroads Chess disabled',
   disabledBody: 'This client build has the room renderer off.',

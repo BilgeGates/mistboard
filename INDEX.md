@@ -102,6 +102,7 @@ Edit task → find file → open only that file.
 | `routes/correspondence-games.ts` | GET `/api/correspondence/games` — signed-in player's in-flight correspondence games (your-move-first) + nav-badge count; reads the `room_deadlines` index |
 | `routes/crossroads-chess-rooms.ts` | Crossroads Chess room-creation branch for `POST /api/rooms` (`crossroadsChessEnabled` flag, engine-id parsing) |
 | `routes/dark-crossroads-chess-rooms.ts` | Hidden Dark Crossroads Chess direct room creation branch for `POST /api/rooms`: request claiming, flag/supported-surface gate (PvP-only, no rated/engine), room-factory result mapping |
+| `routes/dark-crossroads-chess-games.ts` | Hidden Dark Crossroads Chess postgame/review API branch (`GET /api/dark-crossroads-chess/games/:id`): the reveal gate (only a FINISHED game exposes the truth board + opponent history), per-seat fog views, per-ply history, timeline. Injectable persistence for the reveal-gate unit test |
 | `routes/crossroads-chess.ts` | Crossroads Chess game/postgame API branch (open perfect-info views; keeps non-chess records out of generic chess replay APIs) |
 | `routes/dark-mini-xiangqi-rooms.ts` | DMX room-creation branch for `POST /api/rooms` (rated-flag/time-control gating via `game-spec-request-gate`) |
 | `routes/dark-mini-xiangqi-games.ts` | DMX postgame/review + publication-JSON API branch; keeps non-chess finished games out of generic chess replay APIs |
@@ -400,6 +401,9 @@ Run with `MISTBOARD_ALLOW_IN_MEMORY_PERSISTENCE=true npm run test:integration --
 | `live-crossroads-chess.css` | Crossroads Chess live-route (6×8 board) layout styles loaded by `live-crossroads-chess.ts` |
 | `live-dark-crossroads-chess.ts` | Self-contained live room client for hidden/dev-only Dark Crossroads Chess (6×8): the FOG sibling of `live-crossroads-chess.ts`. Reuses the (already fog-aware) crossroads board renderer but follows the Dark Xiangqi fog model — fog-safe replay CAPTURE (never reconstructs the opponent's hidden state), masked move list, bare wire (no rematch/roomMode). Behind `darkCrossroadsChessEnabled`. Loads `live-crossroads-chess.css` + `live-dark-crossroads-chess.css` |
 | `live-dark-crossroads-chess.css` | Dark Crossroads Chess live-route masked move-list styles loaded by `live-dark-crossroads-chess.ts` (board/layout reuse `live-crossroads-chess.css`) |
+| `dark-crossroads-chess-postgame.ts` | Flagged Dark Crossroads Chess postgame/review route renderer: the white/truth/red fog triptych with shared per-ply replay scrub (`renderCrossroadsChessBoardSvg`, `showFog` off only on the truth board). Reuses the shared `.dxq-postgame__*` scaffold + `dark-crossroads-chess-postgame.css` |
+| `dark-crossroads-chess-postgame.css` | Dark Crossroads Chess review route-scoped theme + triptych layout override on the shared `dark-xiangqi-postgame.css` scaffold |
+| `dark-crossroads-chess-room-actions.ts` | Dark Crossroads Chess play-again helper (`POST /api/rooms` for a fresh PvP room), used by the postgame review |
 | `live-crossroads-chess-sound.ts` | Crossroads Chess sound policy: variant move/capture classification over its open `PlayerView`, reusing the shared `SoundController` |
 | `crossroads-chess-play.ts` | `/crossroads-chess` perfect-information play page (no fog): hot-seat or vs Fairy-Stockfish (side + difficulty), bot moves from `POST /api/crossroads-chess/engine-move`. Loads `crossroads-chess-play.css` |
 | `crossroads-chess-play.css` | `/crossroads-chess` play-page styles loaded by `crossroads-chess-play.ts` |

@@ -475,13 +475,19 @@ const WEB_VARIANT_TENANTS: readonly WebVariantTenant[] = [
     // fog); the board renderer is shared with the open variant (already
     // fog-aware). PvP-only — Fairy-Stockfish is perfect-info and can't play fog
     // crossroads, so there is no PvE. Flag-gated; the picker capabilities stay
-    // defined while the menu/deep-link gates are off. No postgame route or watch
-    // channel yet — both are parity fast-follows (as they were for Dark Xiangqi),
-    // so the review link lands on the live room rather than 404-ing.
+    // defined while the menu/deep-link gates are off. Postgame review is wired
+    // (the white/truth/red fog triptych); the watch channel is still a parity
+    // fast-follow (as it was for Dark Xiangqi).
     gameSpecId: DARK_CROSSROADS_CHESS_SPEC_ID,
     roomIdPrefix: 'ddchess_',
     enabled: darkCrossroadsChessEnabled,
     pageTitle: 'Dark Crossroads Chess',
+    gameRouteBase: '/dark-crossroads-chess/game',
+    mountPostgame: (root, roomId) =>
+      import('../dark-crossroads-chess-postgame.js').then(({ mountDarkCrossroadsChessPostgame }) =>
+        mountDarkCrossroadsChessPostgame(root, roomId),
+      ),
+    reviewRouteBase: '/dark-crossroads-chess/game',
     loadLiveRoomClient: () =>
       import('../live-dark-crossroads-chess.js').then(
         ({ bootstrapDarkCrossroadsChessLiveRoom }) =>
