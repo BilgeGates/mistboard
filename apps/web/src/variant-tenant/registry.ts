@@ -108,7 +108,10 @@ export type WebVariantTenant = {
     mountReplay(
       root: HTMLElement,
       roomId: string,
-      options: { autoplay: boolean; metadataByRoomId: Record<string, GameMeta> },
+      options: {
+        autoplay: boolean;
+        metadataByRoomId: Record<string, GameMeta>;
+      },
     ): Promise<ReplayHandle>;
   };
   landing?: WebTenantLandingConfig;
@@ -299,28 +302,17 @@ const WEB_VARIANT_TENANTS: readonly WebVariantTenant[] = [
       timePresetIds: ['1m1', '3m2', '5m5'],
       offerInMenu: banqiEnabled,
       acceptsDeepLink: banqiEnabled,
-      // Ordered strongest-first so the toughest opponent sits at the top of the picker.
+      // One versioned bot (was 3 difficulty tiers; consolidated 2026-06-18 with the v0.2.0
+      // cheap-strength eval). Single full-strength MistyBanqi.
       engineOptions: [
         {
-          id: 'misty-banqi-strongest',
-          name: 'MistyBanqi - Strongest',
-          familyName: 'MistyBanqi',
-          kind: 'container',
-        },
-        {
-          id: 'misty-banqi-strong',
-          name: 'MistyBanqi - Strong',
-          familyName: 'MistyBanqi',
-          kind: 'container',
-        },
-        {
-          id: 'misty-banqi-amateur',
-          name: 'MistyBanqi - Amateur',
+          id: 'misty-banqi',
+          name: 'MistyBanqi',
           familyName: 'MistyBanqi',
           kind: 'container',
         },
       ],
-      defaultEngineId: 'misty-banqi-strong',
+      defaultEngineId: 'misty-banqi',
       hideColorPicker: true,
     },
   },

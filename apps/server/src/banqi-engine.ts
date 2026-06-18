@@ -7,19 +7,25 @@
 // we hand it a redacted CURRENT-position FEN built by banqi-fen.ts. One process per
 // request (stateless, robust); promote to a persistent pool only under real load.
 //
-// Fixed-strength classical engine (no net). Tiers are a NODE budget (positions searched),
+// Fixed-strength classical engine (no net). Strength is a NODE budget (positions searched),
 // not a time budget — so the bot plays the same strength on any CPU (prod's slow shared vCPU
-// was under-searching the old movetime tiers). A movetime cap bounds latency. v0.1.0.
+// was under-searching the old movetime tiers). A movetime cap bounds latency. One versioned
+// bot (v0.2.0; was 3 difficulty tiers through 2026-06-18).
 
 import { spawn } from 'node:child_process';
 import { existsSync } from 'node:fs';
 import { resolve } from 'node:path';
 
-export const BANQI_DEFAULT_ENGINE_ID = 'misty-banqi-strong';
+// Bump on every shipped eval/search change; the binary self-reports "MistyBanqi <version>"
+// over UCI, and the engines registry records it (configHash) on each game so we can always
+// tell which build played.
+export const BANQI_ENGINE_VERSION = '0.2.0';
+export const BANQI_DEFAULT_ENGINE_ID = 'misty-banqi';
 
 export type BanqiEngineTier = {
   id: string;
   name: string;
+  version: string;
   // Strength is a NODE budget, not a time budget: `go nodes N` searches the same number of
   // positions on any CPU, so the bot plays the same strength regardless of how slow/loaded the
   // prod box is. (Movetime-only tiers under-searched in prod: 600ms on a slow shared vCPU reaches
@@ -30,24 +36,28 @@ export type BanqiEngineTier = {
   movetimeCapMs: number;
 };
 
-// Node budgets chosen from the hw3 depth sweep (2026-06-17): ~500K is the αβ convergence knee,
-// ~1.5M+ is where deep search starts beating hw3. Caps keep moves playable. Tune freely.
-const BANQI_ENGINE_TIERS = [
-  { id: 'misty-banqi-amateur', name: 'MistyBanqi - Amateur', nodes: 100_000, movetimeCapMs: 1500 },
-  { id: BANQI_DEFAULT_ENGINE_ID, name: 'MistyBanqi - Strong', nodes: 500_000, movetimeCapMs: 2500 },
-  {
-    id: 'misty-banqi-strongest',
-    name: 'MistyBanqi - Strongest',
-    nodes: 1_500_000,
-    movetimeCapMs: 5000,
-  },
-] as const satisfies readonly BanqiEngineTier[];
+// ONE versioned bot (2026-06-18). Was 3 difficulty tiers (amateur/strong/strongest); collapsed
+// to a single full-strength MistyBanqi when the cheap-strength eval shipped (v0.2.0: cover_mat +
+// king_ctx + value-aware mobility + adaptive domination + corrected value table, +16.6% vs hw3).
+// 1.5M nodes is the strongest budget; the cap keeps moves playable.
+const MISTY_BANQI: BanqiEngineTier = {
+  id: BANQI_DEFAULT_ENGINE_ID,
+  name: 'MistyBanqi',
+  version: BANQI_ENGINE_VERSION,
+  nodes: 1_500_000,
+  movetimeCapMs: 5000,
+};
 
-export const BANQI_PLAYABLE_ENGINES: readonly BanqiEngineTier[] = BANQI_ENGINE_TIERS;
+export const BANQI_PLAYABLE_ENGINES: readonly BanqiEngineTier[] = [MISTY_BANQI];
 
-const BANQI_ENGINE_BY_ID: ReadonlyMap<string, BanqiEngineTier> = new Map(
-  BANQI_ENGINE_TIERS.map((engine) => [engine.id, engine]),
-);
+// Legacy tier ids from old / in-flight game records still RESOLVE to the single bot (so the
+// engine keeps moving and they display fine), but are not offered in the picker.
+const BANQI_LEGACY_IDS = ['misty-banqi-strong', 'misty-banqi-amateur', 'misty-banqi-strongest'];
+
+const BANQI_ENGINE_BY_ID: ReadonlyMap<string, BanqiEngineTier> = new Map<string, BanqiEngineTier>([
+  [MISTY_BANQI.id, MISTY_BANQI],
+  ...BANQI_LEGACY_IDS.map((id) => [id, MISTY_BANQI] as [string, BanqiEngineTier]),
+]);
 
 const DEFAULT_MAX_CONCURRENT = 2;
 const DEFAULT_QUEUE_TIMEOUT_MS = 5_000;
@@ -112,7 +122,11 @@ export function isBanqiEngineClientId(clientId: string | undefined): boolean {
 // `fen` is the position at that irreversible move (window start), and the engine replays
 // the moves to seed its repetition history — so it avoids/seeks threefold (perpetual-chase)
 // draws instead of shuffling into them blind. Omit for the prior FEN-only behavior.
-export type BanqiEngineOptions = { nodes?: number; movetimeCapMs?: number; moves?: string[] };
+export type BanqiEngineOptions = {
+  nodes?: number;
+  movetimeCapMs?: number;
+  moves?: string[];
+};
 
 /**
  * Ask MistyBanqi for a move given a redacted FEN (see banqi-fen.ts) and an optional

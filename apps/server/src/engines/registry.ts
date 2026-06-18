@@ -211,6 +211,28 @@ const PYTHON_ENGINES: Record<string, EngineDefinition> = {
     livePolicy: { timeoutMs: 120_000 },
     notes: 'Local-only A/B: v1.0 + king-only commit backstop (v1.1-rc2). Worker maps id->profile.',
   },
+  // SHIPPED v1.1 + the |P|-adaptive catastrophe prune; the worker maps this id to
+  // engine_profile 'v1.1-rc3'. The human gate for the adaptive prune (2026-06-16).
+  // Enable: MISTBOARD_EXTRA_PLAYABLE_ENGINES=python-v2-adaptive
+  'python-v2-adaptive': {
+    id: 'python-v2-adaptive',
+    engineId: 'v2',
+    engineName: 'Misty',
+    name: 'Misty (King-floor · v1.1-rc5)',
+    kind: 'container',
+    configHash: 'v2-adaptive-local',
+    playSignature: 'v2-adaptive',
+    config: {
+      kind: 'python-subprocess',
+      strategy: 'v2',
+      version: 'current',
+      config: 'v2-adaptive',
+      config_hash: 'current',
+    },
+    livePolicy: { timeoutMs: 120_000 },
+    notes:
+      'Local-only A/B: v1.1 + adaptive prune + carryover |P|-gate (v1.1-rc4). Worker maps id->profile.',
+  },
   // Misty 1.0 is the frozen, player-facing first-party engine. Internal pins
   // stay stable so already-recorded games resolve. Bump to python-v2-v1.1
   // (+ V2_LIVE_ENGINES) on the next engine upgrade.
@@ -461,9 +483,26 @@ const JIEQI_ENGINES: Record<string, EngineDefinition> = {
 };
 
 // MistyBanqi (our own Rust αβ+TT engine, Tier-B UCI subprocess — banqi-engine.ts).
-// Fixed-strength, so tiers vary only movetime (deeper = stronger). ids match
-// banqi-engine.ts (the route/scheduler key off those, not this registry).
+// ONE versioned bot since 2026-06-18 (was 3 difficulty tiers). configHash carries the
+// engine version, so each game record tells which build played. The route/scheduler key off
+// banqi-engine.ts ids, not this registry. The legacy *-amateur/strong/strongest entries are
+// KEPT (not served, not in the picker) so old game records still resolve via isKnownEngineClientId.
 const BANQI_ENGINES: Record<string, EngineDefinition> = {
+  'misty-banqi': {
+    id: 'misty-banqi',
+    engineId: 'misty-banqi',
+    engineName: 'MistyBanqi',
+    name: 'MistyBanqi',
+    kind: 'container',
+    gameSpecId: 'banqi',
+    configHash: 'misty-banqi-0.2.0',
+    playSignature: 'misty-banqi-0.2.0',
+    config: { kind: 'banqi-uci', movetime_ms: 1500 },
+    notes:
+      'MistyBanqi 0.2.0 — cheap-strength eval (cover_mat + king_ctx + value-aware mobility + ' +
+      'adaptive domination + corrected value table; +16.6% / losses -67% vs hw3). Single ' +
+      'full-strength bot at 1.5M nodes (banqi-engine.ts). Consolidated the 3 difficulty tiers.',
+  },
   'misty-banqi-amateur': {
     id: 'misty-banqi-amateur',
     engineId: 'misty-banqi',
