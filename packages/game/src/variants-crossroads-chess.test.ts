@@ -153,31 +153,52 @@ test('soldier is forward-only before the river and gains sideways after', () => 
   assert.deepEqual(destinations(after, 'c5'), new Set(['c6', 'b5', 'd5']));
 });
 
-test('reaching the enemy far rank with the King wins by Race', () => {
+test('reaching the enemy far rank ARMS a pending Try, resolved on the reply', () => {
+  // Dark mode: the King reaching a clear far rank does not win outright — it
+  // arms a Try and hands the opponent one reply. Red cannot capture the safe
+  // King, so any reply resolves the Try as a White Race win.
   const s = stateWith({ c7: p('white', 'king'), a1: p('red', 'king') });
-  const after = applyCrossroadsChessMove(s, { from: 'c7', to: 'c8' });
-  assert.equal(after.status.type, 'finished');
-  assert.equal(after.status.type === 'finished' && after.status.winner, 'white');
-  assert.equal(after.status.type === 'finished' && after.status.reason, 'race');
+  const armed = applyCrossroadsChessMove(s, { from: 'c7', to: 'c8' });
+  assert.equal(armed.status.type, 'playing', 'reaching the far rank does not win outright');
+  assert.equal(armed.pendingTry, 'white');
+  const resolved = applyCrossroadsChessMove(armed, { from: 'a1', to: 'a2' });
+  assert.equal(resolved.status.type === 'finished' && resolved.status.reason, 'race');
+  assert.equal(resolved.status.type === 'finished' && resolved.status.winner, 'white');
 });
 
-test('dark Try is safe-arrival only: an attacked far rank does NOT win', () => {
-  // A red chariot on a8 rakes rank 8, so the White King reaching c8 lands en
-  // prise. The move is LEGAL in dark mode (no check restriction), but it must
-  // NOT win by Race — the game continues and Red can capture the King. This is
-  // the fog-relevant case: a defender covering the far rank foils the Try, even
-  // one the racer could not see (the kernel reads the canonical board).
+test('a pending Try: the opponent answers it by capturing the en-prise King', () => {
+  // A red chariot on a8 rakes rank 8, so White's King reaching c8 arms a Try but
+  // lands en prise. This is the fog-relevant case — a defender covering the far
+  // rank (even one the racer could not see; the kernel reads the canonical
+  // board) can answer the Try by capturing the King on its single reply.
   const guarded = stateWith({
     c7: p('white', 'king'),
     a8: p('red', 'chariot'),
     a1: p('red', 'king'),
   });
-  const reached = applyCrossroadsChessMove(guarded, { from: 'c7', to: 'c8' });
-  assert.equal(reached.status.type, 'playing', 'no Try onto an attacked far-rank square');
-  // Red takes the en-prise King -> king-capture win for Red.
-  const captured = applyCrossroadsChessMove(reached, { from: 'a8', to: 'c8' });
+  const armed = applyCrossroadsChessMove(guarded, { from: 'c7', to: 'c8' });
+  assert.equal(armed.status.type, 'playing', 'reaching the far rank does not win outright');
+  assert.equal(armed.pendingTry, 'white');
+  // Red answers the Try by taking the King -> king-capture win for Red.
+  const captured = applyCrossroadsChessMove(armed, { from: 'a8', to: 'c8' });
   assert.equal(captured.status.type === 'finished' && captured.status.reason, 'king-captured');
   assert.equal(captured.status.type === 'finished' && captured.status.winner, 'red');
+  // But if Red ignores the Try instead of capturing, it resolves as a White win.
+  const ignored = applyCrossroadsChessMove(armed, { from: 'a1', to: 'b1' });
+  assert.equal(ignored.status.type === 'finished' && ignored.status.reason, 'race');
+  assert.equal(ignored.status.type === 'finished' && ignored.status.winner, 'white');
+});
+
+test('pendingTry in the fog view is racer-only (hidden-info regression)', () => {
+  // White arms a Try. The racer's view must expose it (for their banner); the
+  // opponent's must NOT — under fog it would betray an out-of-vision racing King.
+  const armed = applyCrossroadsChessMove(
+    stateWith({ c7: p('white', 'king'), a1: p('red', 'king') }),
+    { from: 'c7', to: 'c8' },
+  );
+  assert.equal(armed.pendingTry, 'white');
+  assert.equal(getCrossroadsChessPlayerView(armed, 'white').pendingTry, 'white');
+  assert.equal(getCrossroadsChessPlayerView(armed, 'red').pendingTry, undefined);
 });
 
 test('capturing the enemy King wins (dark-mode king-capture)', () => {

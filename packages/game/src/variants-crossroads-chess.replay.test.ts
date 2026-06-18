@@ -95,14 +95,20 @@ for (const game of CROSSROADS_CHESS_REPLAY_GAMES) {
     }
 
     // Terminal cross-check. FSF ends "Try" games exactly when the King reaches
-    // the enemy home rank — our 'race' terminal must agree on side + reason.
-    // ("checkmate/stalemate" games end on a check our king-capture engine does
-    // not adjudicate, so we only assert the full move sequence replayed.)
+    // the enemy home rank. Our DARK engine uses the pending-Try model: that move
+    // ARMS a Try (resolved on the opponent's reply) rather than winning outright,
+    // so an FSF Try game — which stops at that move — replays to a Try ARMED for
+    // the winning side (or, if the loser had no legal reply, finished 'race').
+    // Either way the winning side must match FSF. ("checkmate/stalemate" games
+    // end on a check our king-capture engine does not adjudicate, so we only
+    // assert the full move sequence replayed.)
     if (game.reason.startsWith('Try')) {
-      assert.equal(s.status.type, 'finished');
+      const winner = game.result === 'W' ? 'white' : 'red';
       if (s.status.type === 'finished') {
         assert.equal(s.status.reason, 'race');
-        assert.equal(s.status.winner, game.result === 'W' ? 'white' : 'red');
+        assert.equal(s.status.winner, winner);
+      } else {
+        assert.equal(s.pendingTry, winner, 'a Try game must leave the winner a pending Try');
       }
     }
   });

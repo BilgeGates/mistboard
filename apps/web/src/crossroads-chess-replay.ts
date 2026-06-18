@@ -2,12 +2,14 @@
 //
 // Sibling of mini-xiangqi-replay.ts: the spec carries a move list, not per-ply
 // board images. Each position is produced by replaying the moves through the real
-// Crossroads Chess kernel (createInitialCrossroadsChessState + applyCrossroadsChessMove) and
-// rendered on demand by the live board renderer, so the article shows the actual
-// variant rather than precomputed engine FENs.
+// Crossroads Chess kernel and rendered on demand by the live board renderer, so
+// the article shows the actual variant rather than precomputed engine FENs. This
+// is the PERFECT-INFORMATION article, so it advances with the open kernel
+// (applyCrossroadsChessOpenMove): the dark kernel now arms a pending Try on a
+// far-rank arrival instead of winning outright, which the open referee never does.
 
 import {
-  applyCrossroadsChessMove,
+  applyCrossroadsChessOpenMove,
   type CrossroadsChessColor,
   type CrossroadsChessGameState,
   type CrossroadsChessMove,
@@ -60,7 +62,9 @@ export function mountCrossroadsChessReplay(
   ];
   for (const move of moves) {
     states.push(
-      applyCrossroadsChessMove(states[states.length - 1]!, move, { progressClockLimit: Infinity }),
+      applyCrossroadsChessOpenMove(states[states.length - 1]!, move, {
+        progressClockLimit: Infinity,
+      }),
     );
   }
   const total = moves.length;

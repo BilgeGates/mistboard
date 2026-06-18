@@ -33,3 +33,19 @@
 .ddchess-move-row__move.active {
   background: color-mix(in srgb, currentColor 16%, transparent);
 }
+
+/* Pending-Try banner: shown to the racer while their King sits on the far rank
+   awaiting the opponent's one reply. Loud (the game is one move from resolving),
+   themed so it reads in light + dark. */
+.ddchess-try-banner {
+  margin-bottom: 6px;
+  padding: 8px 10px;
+  border: 1px solid color-mix(in srgb, var(--board-last-move, goldenrod) 60%, var(--site-border));
+  border-radius: var(--site-radius-sm);
+  background: color-mix(in srgb, var(--board-last-move, goldenrod) 22%, var(--site-panel));
+  color: var(--site-heading, var(--site-text));
+  font-size: 0.82rem;
+  font-weight: 600;
+  line-height: 1.3;
+  list-style: none;
+}

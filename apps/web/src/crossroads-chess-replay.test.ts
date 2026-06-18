@@ -1,5 +1,5 @@
 import {
-  applyCrossroadsChessMove,
+  applyCrossroadsChessOpenMove,
   type CrossroadsChessMove,
   type CrossroadsChessSquare,
   createInitialCrossroadsChessState,
@@ -26,8 +26,8 @@ describe('Crossroads Chess sample game', () => {
         from: tok.slice(0, 2) as CrossroadsChessSquare,
         to: tok.slice(2, 4) as CrossroadsChessSquare,
       };
-      const next = applyCrossroadsChessMove(state, move, { progressClockLimit: Infinity });
-      // applyCrossroadsChessMove returns the same state object on an illegal move.
+      const next = applyCrossroadsChessOpenMove(state, move, { progressClockLimit: Infinity });
+      // applyCrossroadsChessOpenMove returns the same state object on an illegal move.
       expect(next, `move ${i + 1} (${tok}) should be legal`).not.toBe(state);
       state = next;
     });

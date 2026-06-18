@@ -96,6 +96,11 @@ export type CrossroadsChessGameState = {
   progressClock: number;
   lastMove?: CrossroadsChessMove;
   positionCounts: Record<string, number>;
+  // Dark-mode "pending Try": a King reached the enemy far rank and is awaiting
+  // the opponent's single reply. Set to the racing side. On the opponent's next
+  // move it resolves — they capture the King (king-capture win) or they cannot,
+  // and the racer wins by Race. Only ever set for one ply; absent in open mode.
+  pendingTry?: CrossroadsChessColor;
 };
 
 export type CrossroadsChessPlayerView = {
@@ -107,6 +112,10 @@ export type CrossroadsChessPlayerView = {
   status: CrossroadsChessGameStatus;
   moveNumber: number;
   lastMove?: CrossroadsChessMove;
+  // Present only when it equals the viewer's own color: the viewer has a pending
+  // Try (their King reached the far rank, awaiting the opponent's reply). It is
+  // redacted for the opponent so fog never reveals an out-of-vision racing King.
+  pendingTry?: CrossroadsChessColor;
 };
 
 // The cannon/horse/slide walks, emptyVision, and the VisionAccum shape live in
@@ -502,23 +511,32 @@ export function applyCrossroadsChessMove(
   newPositionCounts[repKey] = (newPositionCounts[repKey] ?? 0) + 1;
 
   let nextStatus: CrossroadsChessGameStatus = { type: 'playing', turn: nextTurn };
+  let nextPendingTry: CrossroadsChessColor | undefined;
   if (capturedPiece?.role === 'king') {
-    // King capture: the dark-mode win (check is unenforceable under fog).
+    // King capture: the dark-mode win (check is unenforceable under fog). This
+    // also resolves a pending Try the other way — the opponent took the racing
+    // King on their reply.
     nextStatus = { type: 'finished', winner: movingPiece.color, reason: 'king-captured' };
-  } else if (
-    movingPiece.role === 'king' &&
-    rankOf(move.to) === farRank(movingPiece.color) &&
-    !isCrossroadsChessKingAttacked(newBoard, movingPiece.color)
-  ) {
-    // The Race ("Try"): the King wins by reaching the enemy far rank on a SAFE
-    // square. Dark mode has no check restriction, so a King may legally step
-    // onto an attacked far-rank square — but that does NOT win: it is en prise
-    // and will be captured (a king-capture loss). A defender covering the far
-    // rank foils the Try, INCLUDING one the racer cannot see under fog: this
-    // kernel reads the canonical board, so hidden coverage counts. (The open
-    // mode reaches the same rule via move legality, since its king moves are
-    // self-check filtered.)
-    nextStatus = { type: 'finished', winner: movingPiece.color, reason: 'race' };
+  } else if (state.pendingTry !== undefined) {
+    // A Try was pending (armed last ply by THIS mover's opponent) and this reply
+    // did NOT capture the racing King (the branch above). The Try succeeds — the
+    // racer wins by Race. Checked before a fresh arm so a counter-Try reply does
+    // not pre-empt the racer's standing Try.
+    nextStatus = { type: 'finished', winner: state.pendingTry, reason: 'race' };
+  } else if (movingPiece.role === 'king' && rankOf(move.to) === farRank(movingPiece.color)) {
+    // The Race ("Try"): the King reached the enemy far rank. Instead of winning
+    // outright we ARM the Try and hand the opponent exactly ONE reply. If they
+    // can capture the King — which under fog they can do iff a piece already
+    // bears on it — they win by king-capture; otherwise the Try resolves as a
+    // Race win next ply. (The open mode keeps the instant win: its king moves
+    // are self-check filtered, so an arrival is always safe and unanswerable.)
+    if (hasCrossroadsChessLegalMove(newBoard, nextTurn)) {
+      nextStatus = { type: 'playing', turn: nextTurn };
+      nextPendingTry = movingPiece.color;
+    } else {
+      // The opponent has no reply at all, so the Try cannot be answered.
+      nextStatus = { type: 'finished', winner: movingPiece.color, reason: 'race' };
+    }
   } else if (!hasCrossroadsChessLegalMove(newBoard, nextTurn)) {
     // Stalemate is a LOSS for the side with no legal move (anti-draw design).
     nextStatus = { type: 'finished', winner: movingPiece.color, reason: 'stalemate' };
@@ -541,6 +559,7 @@ export function applyCrossroadsChessMove(
     progressClock: newProgressClock,
     lastMove: move,
     positionCounts: newPositionCounts,
+    pendingTry: nextPendingTry,
   };
 }
 
@@ -859,6 +878,10 @@ export function getCrossroadsChessPlayerView(
     status: state.status,
     moveNumber: state.moveNumber,
     lastMove: state.lastMove,
+    // Only the racing side learns its Try is pending; the opponent's view stays
+    // fogged (a defender sees the racing King via field-of-fire iff it can
+    // capture, which needs no extra signal).
+    pendingTry: state.pendingTry === color ? state.pendingTry : undefined,
   };
 }
 
@@ -889,6 +912,9 @@ export function getCrossroadsChessOpenView(
     status: state.status,
     moveNumber: state.moveNumber,
     lastMove: state.lastMove,
+    // Open mode never arms a pending Try (its king moves are self-check filtered,
+    // so a far-rank arrival wins outright); carried for view-shape parity.
+    pendingTry: state.pendingTry,
   };
 }
 

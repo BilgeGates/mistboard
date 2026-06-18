@@ -373,6 +373,16 @@ function renderVisibleMoveList(liveRefs: LiveRefs): void {
   );
   const plyCount = replay.visiblePlyCount();
   liveRefs.moveList.replaceChildren();
+  // The pending-Try banner: shown only to the racer (the server redacts
+  // pendingTry from the opponent). Their King reached the far rank and the game
+  // is one reply from resolving — Race win unless the opponent captures it.
+  if (state.view?.pendingTry === state.seat) {
+    const banner = document.createElement('li');
+    banner.className = 'ddchess-try-banner';
+    banner.textContent =
+      'Try pending — your King reached the far rank. You win unless the opponent captures it on their reply.';
+    liveRefs.moveList.append(banner);
+  }
   if (plyCount === 0) {
     const item = document.createElement('li');
     item.className = 'ddchess-move-row';
