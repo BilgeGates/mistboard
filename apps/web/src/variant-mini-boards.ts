@@ -40,7 +40,9 @@ export type VariantMiniId =
   | 'jieqi'
   | 'banqi'
   | 'crossroads'
+  | 'dark-crossroads-chess'
   | 'kriegspiel'
+  | 'dark-crazyhouse'
   | 'reveal-chess';
 
 export type VariantMiniFamily = 'chess' | 'xiangqi';
@@ -512,6 +514,38 @@ function kriegspielBody(ctx: MiniCtx): string {
   return fiveWideChessBody(KINGSIDE_FIVE, [0, 1, 2], ctx);
 }
 
+// Crazyhouse under fog: the dark-chess field-of-fire board (only the top row
+// fogs), plus a piece PARACHUTED onto a fogged square, the crazyhouse signature.
+function darkCrazyhouseBody(ctx: MiniCtx): string {
+  const cell = SIZE / 5;
+  const drop = { x: OX + 2.5 * cell, y: OY + 0.5 * cell };
+  return (
+    fiveWideChessBody(KINGSIDE_FIVE, [0], ctx) +
+    chessPieceAt('white:knight', drop.x, drop.y, cell, ctx.chessSet)
+  );
+}
+
+// Dark Crossroads: the chess+xiangqi fusion board with fog laid over the two
+// empty ranks ahead of the armies (the dark layer on the Crossroads board).
+function darkCrossroadsBody(ctx: MiniCtx): string {
+  const riverH = 7;
+  const boardTop = OY + riverH;
+  const cw = SIZE / 4;
+  const ch = (SIZE - riverH) / 4;
+  const fog: string[] = [];
+  for (let r = 0; r < 2; r += 1) {
+    for (let c = 0; c < 4; c += 1) {
+      const x = OX + c * cw;
+      const y = boardTop + r * ch;
+      fog.push(
+        `<rect class="vm-chess-fog" x="${x}" y="${y}" width="${cw}" height="${ch}"/>`,
+        `<rect class="vm-chess-fog-inset" x="${x + 0.5}" y="${y + 0.5}" width="${cw - 1}" height="${ch - 1}" fill="none" stroke-width="0.8"/>`,
+      );
+    }
+  }
+  return crossroadsBody(ctx) + fog.join('');
+}
+
 function revealChessBody(ctx: MiniCtx): string {
   // Hidden-identity chess (chess jieqi): every piece starts face-down (a blank
   // token) except the king, which is face-up. No fog — only identities hide.
@@ -545,7 +579,9 @@ const BODIES: Record<VariantMiniId, (ctx: MiniCtx) => string> = {
   jieqi: jieqiBody,
   banqi: banqiBody,
   crossroads: crossroadsBody,
+  'dark-crossroads-chess': darkCrossroadsBody,
   kriegspiel: kriegspielBody,
+  'dark-crazyhouse': darkCrazyhouseBody,
   'reveal-chess': revealChessBody,
 };
 
@@ -631,11 +667,27 @@ export const VARIANT_MINIS: readonly VariantMiniDef[] = [
     family: 'chess',
   },
   {
+    id: 'dark-crossroads-chess',
+    label: 'Dark Crossroads',
+    shortLabel: 'DC',
+    accent: '#2f5d4a',
+    blurb: 'The Crossroads fusion played blind: race the king to the far rank or capture it.',
+    family: 'chess',
+  },
+  {
     id: 'kriegspiel',
     label: 'Kriegspiel',
     shortLabel: 'KS',
     accent: '#566273',
     blurb: 'Blind chess: only your own army, alone on the board.',
+    family: 'chess',
+  },
+  {
+    id: 'dark-crazyhouse',
+    label: 'Dark Crazyhouse',
+    shortLabel: 'CZ',
+    accent: '#7a4f86',
+    blurb: 'Fog chess with drops: captures flip to your hand and parachute back in.',
     family: 'chess',
   },
   {
