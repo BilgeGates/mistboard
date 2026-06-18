@@ -517,6 +517,70 @@ describe('Dark Mini Xiangqi replay scrubber', () => {
     handleDarkMiniXiangqiReplayKeyboard(replayKey('ArrowRight'));
     expect(refs.replayMeta.textContent).toBe('Live · ply 3 of 3');
   });
+
+  // Regression: stepping back must keep every move row rendered — only the
+  // highlight moves. The list used to be capped at the scrubbed ply, so
+  // back-scrolling made later moves vanish and reappear on the way forward.
+  it('keeps every move row when scrubbing back, moving only the highlight', () => {
+    const refs = refsFixture();
+    // Red (the viewer) plays plies 1 and 3; Black's reply at ply 2 stays hidden.
+    liveState.events = [
+      { type: 'move-played', at: 1, color: 'red', move: { from: 'd1', to: 'd2' }, ply: 1 },
+      { type: 'move-played', at: 3, color: 'red', move: { from: 'd2', to: 'd3' }, ply: 3 },
+    ] as never;
+    const frames: MiniView[] = [
+      {
+        id: 'g',
+        perspective: 'red',
+        board: { d2: { piece: { color: 'red', role: 'general' }, shrouded: false } },
+        visibleSquares: ['d2'],
+        legalMoves: [],
+        status: { type: 'playing', turn: 'black' },
+        moveNumber: 1,
+        lastMove: { from: 'd1', to: 'd2' },
+      },
+      {
+        id: 'g',
+        perspective: 'red',
+        board: { d2: { piece: { color: 'red', role: 'general' }, shrouded: false } },
+        visibleSquares: ['d2'],
+        legalMoves: [],
+        status: { type: 'playing', turn: 'red' },
+        moveNumber: 2,
+        lastMove: { from: 'd1', to: 'd2' },
+      },
+      {
+        id: 'g',
+        perspective: 'red',
+        board: { d3: { piece: { color: 'red', role: 'general' }, shrouded: false } },
+        visibleSquares: ['d3'],
+        legalMoves: [],
+        status: { type: 'playing', turn: 'black' },
+        moveNumber: 2,
+        lastMove: { from: 'd2', to: 'd3' },
+      },
+    ];
+    for (const frame of frames) feed(refs, frame);
+
+    const rowText = () =>
+      [...refs.moveList.querySelectorAll('.xiangqi-move-row')].map((row) =>
+        row.textContent?.replace(/\s+/g, ' ').trim(),
+      );
+
+    // Live: both full-move rows present, nothing highlighted.
+    expect(refs.replayMeta.textContent).toBe('Live · ply 3 of 3');
+    expect(rowText()).toEqual(['1.d1-d2...', '2.d2-d3']);
+    expect(refs.moveList.querySelectorAll('.xiangqi-move-row__move.active').length).toBe(0);
+
+    // Step all the way back: the rows must NOT collapse — the highlight moves
+    // onto Red's first move (ply 1) while the full list stays put.
+    clickReplay(refs, 'first');
+    expect(refs.replayMeta.textContent).toBe('Replay · ply 1 of 3');
+    expect(rowText()).toEqual(['1.d1-d2...', '2.d2-d3']);
+    const active = refs.moveList.querySelectorAll('.xiangqi-move-row__move.active');
+    expect(active.length).toBe(1);
+    expect(active[0]?.textContent).toBe('d1-d2');
+  });
 });
 
 function viewFixture(): MiniView {

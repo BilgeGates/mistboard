@@ -27,6 +27,7 @@ import type { LiveRefs } from './live-state.js';
 import { liveState } from './live-state.js';
 import { rematchControls } from './rematch-controls.js';
 import { setBoardFamily } from './theme.js';
+import { scrollActiveMoveIntoView } from './variant-tenant/chrome-dom.js';
 import { createTenantReplayController } from './variant-tenant/replay-controller.js';
 import { createTenantRoomChrome, type WebVariantTenant } from './variant-tenant/room-chrome.js';
 
@@ -443,9 +444,12 @@ function renderVisibleMoveList(refs: LiveRefs): void {
   const moves = (liveState.events as unknown as MiniXiangqiWireEvent[]).filter(
     (event): event is MiniXiangqiMoveEvent => isMiniXiangqiMoveEvent(event),
   );
-  const plyCount = replay.visiblePlyCount();
+  // Render every move that has been played, always. Stepping back only moves the
+  // active highlight (replay.activePly()); it must never drop rows. The ceiling
+  // is the full game length, not the scrubbed ply.
+  const totalPly = replay.latestPly();
   refs.moveList.replaceChildren();
-  if (plyCount === 0) {
+  if (totalPly === 0) {
     const item = document.createElement('li');
     item.className = 'move-row masked';
     item.textContent = 'No visible moves yet';
@@ -453,7 +457,7 @@ function renderVisibleMoveList(refs: LiveRefs): void {
     return;
   }
   const activePly = replay.activePly();
-  for (const row of visibleMoveRows(moves, plyCount)) {
+  for (const row of visibleMoveRows(moves, totalPly)) {
     const item = document.createElement('li');
     item.className = 'move-row xiangqi-move-row';
     const number = document.createElement('span');
@@ -477,10 +481,11 @@ function renderVisibleMoveList(refs: LiveRefs): void {
     ]
       .filter(Boolean)
       .join(' ');
-    black.textContent = blackPly <= plyCount ? (row.black ?? '...') : '';
+    black.textContent = blackPly <= totalPly ? (row.black ?? '...') : '';
     item.append(number, red, black);
     refs.moveList.append(item);
   }
+  scrollActiveMoveIntoView(refs.moveList);
 }
 
 function visibleMoveRows(

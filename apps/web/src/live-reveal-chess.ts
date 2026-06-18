@@ -36,6 +36,7 @@ import { clearSeatTokenForRoom, type LiveRefs } from './live-state.js';
 import { renderRevealChessBoardSvg, revealChessFacedownDisc } from './reveal-chess-render.js';
 import { roomIdFromPath } from './room-url.js';
 import { boardAppearanceChangedEvent, setBoardFamily } from './theme.js';
+import { scrollActiveMoveIntoView } from './variant-tenant/chrome-dom.js';
 import { createTenantReplayController } from './variant-tenant/replay-controller.js';
 import { createTenantRoomChrome, type WebVariantTenant } from './variant-tenant/room-chrome.js';
 import {
@@ -527,9 +528,12 @@ function renderVisibleMoveList(liveRefs: LiveRefs): void {
   const moves = state.events.filter((event): event is RevealChessMoveEvent =>
     isRevealChessMoveEvent(event),
   );
-  const plyCount = replay.visiblePlyCount();
+  // Render every move that has been played, always. Stepping back only moves the
+  // active highlight (replay.activePly()); it must never drop rows. The ceiling
+  // is the full game length, not the scrubbed ply.
+  const totalPly = replay.latestPly();
   liveRefs.moveList.replaceChildren();
-  if (plyCount === 0) {
+  if (totalPly === 0) {
     const item = document.createElement('li');
     item.className = 'move-row';
     item.textContent = 'No moves yet';
@@ -537,7 +541,7 @@ function renderVisibleMoveList(liveRefs: LiveRefs): void {
     return;
   }
   const activePly = replay.activePly();
-  for (const row of visibleMoveRows(moves, plyCount)) {
+  for (const row of visibleMoveRows(moves, totalPly)) {
     const item = document.createElement('li');
     item.className = 'move-row reveal-chess-move-row';
     const number = document.createElement('span');
@@ -556,10 +560,11 @@ function renderVisibleMoveList(liveRefs: LiveRefs): void {
     black.className = ['reveal-chess-move-row__move', activePly === blackPly ? 'active' : '']
       .filter(Boolean)
       .join(' ');
-    black.textContent = blackPly <= plyCount ? (row.black ?? '...') : '';
+    black.textContent = blackPly <= totalPly ? (row.black ?? '...') : '';
     item.append(number, white, black);
     liveRefs.moveList.append(item);
   }
+  scrollActiveMoveIntoView(liveRefs.moveList);
 }
 
 export function visibleMoveRows(
