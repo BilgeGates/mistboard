@@ -440,15 +440,15 @@ function renderWatchStatus(root: HTMLElement, feed: WatchFeed | null): void {
   sealed.textContent = feed ? String(feed.sealedCount) : 'n/a';
   const sealedLabel = document.createElement('span');
   sealedLabel.className = 'watch-status-label';
-  sealedLabel.textContent =
-    feed && watchFeedIsDark(feed) ? 'dark games sealed' : 'games in progress';
+  // Every variant seals until the game finishes — the watch feed only ever
+  // serves completed games (listWatchUnlockedGames) and each tenant's postgame
+  // route 404s a running game. So the status is uniform across channels; the
+  // old "games in progress / available while live" branch claimed a live feed
+  // that never existed and read as a hidden-info leak for jieqi/banqi.
+  sealedLabel.textContent = 'games sealed';
   const hint = document.createElement('span');
   hint.className = 'watch-status-hint';
-  hint.textContent = feed
-    ? watchFeedIsDark(feed)
-      ? 'unlock after completion'
-      : 'available while live'
-    : 'feed unavailable';
+  hint.textContent = feed ? 'unlock after completion' : 'feed unavailable';
   root.append(sealed, sealedLabel, hint);
 }
 
@@ -551,7 +551,7 @@ function renderWatchEmptyState(root: HTMLElement, feed: WatchFeed | null): void 
     ? feed.sealedCount > 0
       ? watchFeedIsDark(feed)
         ? 'Dark games are being played, but they stay hidden until completion.'
-        : 'Games are being played now.'
+        : 'Games are being played now, but they stay hidden until completion.'
       : watchFeedIsDark(feed)
         ? 'Start a dark game and it can become the next replay after it finishes.'
         : 'Start a game and it can become the next replay after it finishes.'
