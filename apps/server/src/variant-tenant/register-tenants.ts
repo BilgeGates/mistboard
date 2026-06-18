@@ -10,6 +10,7 @@ import '../crossroads-chess-registration.js';
 import '../dark-chess-registration.js';
 import '../dark-crossroads-chess-registration.js';
 import '../dark-mini-xiangqi-registration.js';
+import '../dark-shogi-registration.js';
 import '../dark-xiangqi-registration.js';
 import '../jieqi-registration.js';
 import '../reveal-chess-registration.js';

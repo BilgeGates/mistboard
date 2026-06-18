@@ -4,6 +4,8 @@
 // Shogi has hands, promoted piece identity, and drop actions, so the dark
 // runtime needs a separate state family.
 
+import type { AbortReason } from './types.js';
+
 export type ShogiColor = 'black' | 'white';
 export type ShogiPieceRole = 'K' | 'R' | 'B' | 'G' | 'S' | 'N' | 'L' | 'P';
 export type ShogiPromotableRole = Exclude<ShogiPieceRole, 'K' | 'G'>;
@@ -37,9 +39,18 @@ export function isShogiDrop(move: ShogiMove): move is ShogiDropMove {
   return 'drop' in move;
 }
 
+// king-captured / repetition come from the rules kernel; timeout / resignation /
+// abandonment come from the tenant runtime (TenantEndReason).
+export type ShogiGameEndReason =
+  | 'king-captured'
+  | 'repetition'
+  | 'timeout'
+  | 'resignation'
+  | 'abandonment';
 export type ShogiGameStatus =
   | { type: 'playing'; turn: ShogiColor }
-  | { type: 'finished'; winner: ShogiColor | null; reason: 'king-captured' | 'repetition' };
+  | { type: 'finished'; winner: ShogiColor | null; reason: ShogiGameEndReason }
+  | { type: 'aborted'; reason: AbortReason };
 
 export type ShogiGameState = {
   id: string;

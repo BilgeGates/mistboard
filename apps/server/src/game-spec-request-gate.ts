@@ -2,6 +2,7 @@ import {
   BANQI_SPEC_ID,
   DARK_CROSSROADS_CHESS_SPEC_ID,
   DARK_MINI_XIANGQI_SPEC_ID,
+  DARK_SHOGI_SPEC_ID,
   DARK_XIANGQI_SPEC_ID,
   JIEQI_SPEC_ID,
   REVEAL_CHESS_SPEC_ID,
@@ -10,6 +11,7 @@ import {
   banqiEnabled,
   darkCrossroadsChessEnabled,
   darkMiniXiangqiEnabled,
+  darkShogiEnabled,
   darkXiangqiEnabled,
   jieqiEnabled,
   revealChessEnabled,
@@ -31,7 +33,9 @@ export type GameSpecGateDecision =
         | 'reveal_chess_disabled'
         | 'reveal_chess_not_integrated'
         | 'dark_crossroads_chess_disabled'
-        | 'dark_crossroads_chess_not_integrated';
+        | 'dark_crossroads_chess_not_integrated'
+        | 'dark_shogi_disabled'
+        | 'dark_shogi_not_integrated';
       httpStatus: 404 | 501;
       wsCloseReason: string;
     };
@@ -44,7 +48,8 @@ type HiddenRuntimeSpec =
   | typeof JIEQI_SPEC_ID
   | typeof BANQI_SPEC_ID
   | typeof REVEAL_CHESS_SPEC_ID
-  | typeof DARK_CROSSROADS_CHESS_SPEC_ID;
+  | typeof DARK_CROSSROADS_CHESS_SPEC_ID
+  | typeof DARK_SHOGI_SPEC_ID;
 
 const HIDDEN_RUNTIME_SPECS: Record<
   HiddenRuntimeSpec,
@@ -79,6 +84,11 @@ const HIDDEN_RUNTIME_SPECS: Record<
     enabled: darkCrossroadsChessEnabled,
     disabledError: 'dark_crossroads_chess_disabled',
     notIntegratedError: 'dark_crossroads_chess_not_integrated',
+  },
+  [DARK_SHOGI_SPEC_ID]: {
+    enabled: darkShogiEnabled,
+    disabledError: 'dark_shogi_disabled',
+    notIntegratedError: 'dark_shogi_not_integrated',
   },
 };
 
@@ -119,6 +129,7 @@ function requestedHiddenRuntimeSpec(input: {
     BANQI_SPEC_ID,
     REVEAL_CHESS_SPEC_ID,
     DARK_CROSSROADS_CHESS_SPEC_ID,
+    DARK_SHOGI_SPEC_ID,
   ] as const) {
     if (input.gameSpecId === spec || input.variant === spec) return spec;
   }

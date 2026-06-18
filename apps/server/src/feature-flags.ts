@@ -62,6 +62,13 @@ export function darkCrossroadsChessEnabled(): boolean {
   return process.env.MISTBOARD_DARK_CROSSROADS_CHESS_ENABLED === 'true';
 }
 
+// Dark Shogi (the fog 9x9 variant, with drops + private hands) live rooms.
+// Server-side opt-in, default off — the tenant exists but is not launched.
+// PvP-only at first (no bot).
+export function darkShogiEnabled(): boolean {
+  return process.env.MISTBOARD_DARK_SHOGI_ENABLED === 'true';
+}
+
 // Correspondence (days-per-move) dark chess on the variant-tenant stack.
 // Server-side opt-in: gates room creation; existing dchx_ rooms keep routing
 // if the flag flips off. Correspondence is account-gated and invite-link

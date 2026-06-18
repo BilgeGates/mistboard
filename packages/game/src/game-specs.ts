@@ -347,7 +347,7 @@ export const GAME_SPECS: readonly GameSpec[] = [
     dropPolicy: 'seen-squares-only',
     ratingPoolBase: 'dark_shogi',
     publicSurface: 'hidden',
-    runtimeStatus: 'future',
+    runtimeStatus: 'dev-spike',
   },
   {
     id: 'dark-omega',

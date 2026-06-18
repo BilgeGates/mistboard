@@ -96,7 +96,7 @@ test('Dark Mini Xiangqi is a separate xiangqi-family spike spec', () => {
   assert.equal(spec.legacyLiveRoom, undefined);
 });
 
-test('Dark Shogi is reserved as a future shogi family spec', () => {
+test('Dark Shogi is a dev-spike shogi family spec', () => {
   const spec = gameSpecForId(DARK_SHOGI_SPEC_ID);
 
   assert.equal(spec.publicName, 'Dark Shogi');
@@ -110,7 +110,7 @@ test('Dark Shogi is reserved as a future shogi family spec', () => {
   assert.equal(spec.dropPolicy, 'seen-squares-only');
   assert.equal(spec.ratingPoolBase, 'dark_shogi');
   assert.equal(spec.publicSurface, 'hidden');
-  assert.equal(spec.runtimeStatus, 'future');
+  assert.equal(spec.runtimeStatus, 'dev-spike');
   assert.equal(spec.legacyLiveRoom, undefined);
 });
 
