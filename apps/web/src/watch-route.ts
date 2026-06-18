@@ -460,13 +460,15 @@ function renderWatchStatus(root: HTMLElement, feed: WatchFeed | null): void {
 // rows stay grid-aligned.
 const CHANNEL_MINI_BY_ID: Record<string, VariantMiniId> = {
   'dark-chess': 'dark-chess',
+  'dark-xiangqi': 'dark-xiangqi',
   'dark-mini-xiangqi': 'dark-mini-xiangqi',
   jieqi: 'jieqi',
   banqi: 'banqi',
   'crossroads-chess': 'crossroads',
+  'reveal-chess': 'reveal-chess',
 };
 
-function renderWatchChannelList(root: HTMLElement, feed: WatchFeed | null): void {
+export function renderWatchChannelList(root: HTMLElement, feed: WatchFeed | null): void {
   root.replaceChildren();
   root.hidden = !feed || feed.channels.length <= 1;
   const rail = root.closest<HTMLElement>('.watch-channel-rail');

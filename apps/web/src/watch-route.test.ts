@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import type { FeaturedGame } from './game-display.js';
 import {
   formatWatchScope,
+  renderWatchChannelList,
   renderWatchReplaySkeleton,
   resultLabel,
   watchFeedIsDark,
@@ -145,5 +146,33 @@ describe('renderWatchReplaySkeleton', () => {
     // It replaces prior content rather than appending to it.
     expect(root.querySelector('span')).toBeNull();
     expect(root.firstElementChild?.getAttribute('aria-hidden')).toBe('true');
+  });
+});
+
+describe('renderWatchChannelList', () => {
+  function channel(id: string, label: string) {
+    return { family: 'xiangqi', gameSpecIds: [id], id, label, sealedCount: 0, unlockedCount: 1 };
+  }
+
+  // Regression: every launchable channel needs a CHANNEL_MINI_BY_ID entry, or
+  // its rail marker renders as an empty slot. dark-xiangqi shipped without one.
+  it('renders a board marker for the dark-xiangqi channel', () => {
+    const feed = {
+      activeChannel: 'dark-chess',
+      channels: [channel('dark-chess', 'Dark Chess'), channel('dark-xiangqi', 'Dark Xiangqi')],
+      now: '2026-06-17T00:00:00.000Z',
+      unlockLimit: 64,
+      sealedCount: 0,
+      unlocked: [],
+    };
+    const root = document.createElement('nav');
+    renderWatchChannelList(root, feed);
+
+    const links = root.querySelectorAll('a.watch-channel-link');
+    expect(links).toHaveLength(2);
+    for (const link of links) {
+      const thumb = link.querySelector('.watch-channel-thumb');
+      expect(thumb?.querySelector('svg'), `${link.textContent} marker`).not.toBeNull();
+    }
   });
 });
