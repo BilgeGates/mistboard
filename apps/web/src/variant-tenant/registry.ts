@@ -17,6 +17,7 @@ import {
   BANQI_SPEC_ID,
   CROSSROADS_CHESS_SPEC_ID,
   DARK_CHESS_SPEC_ID,
+  DARK_CROSSROADS_CHESS_SPEC_ID,
   DARK_MINI_XIANGQI_SPEC_ID,
   DARK_XIANGQI_SPEC_ID,
   DUAL_CHESS_SPEC_ID,
@@ -29,6 +30,7 @@ import {
   banqiEnabled,
   correspondenceEnabled,
   crossroadsChessEnabled,
+  darkCrossroadsChessEnabled,
   darkMiniXiangqiEnabled,
   darkMiniXiangqiPublicEntryEnabled,
   darkXiangqiEnabled,
@@ -463,6 +465,52 @@ const WEB_VARIANT_TENANTS: readonly WebVariantTenant[] = [
         },
       ],
       defaultEngineId: 'fairy-stockfish-crossroads-strong',
+    },
+  },
+  {
+    // Dark Crossroads Chess (fog 6x8): the FOG sibling of perfect-info
+    // Crossroads. A self-contained live client on the socket-client + chrome
+    // stack with the fog-safe replay-CAPTURE model (live-dark-crossroads-chess.ts,
+    // NOT the open client's reconstruct-from-state path, which would leak under
+    // fog); the board renderer is shared with the open variant (already
+    // fog-aware). PvP-only — Fairy-Stockfish is perfect-info and can't play fog
+    // crossroads, so there is no PvE. Flag-gated; the picker capabilities stay
+    // defined while the menu/deep-link gates are off. Postgame review is wired
+    // (the white/truth/red fog triptych); the watch channel is still a parity
+    // fast-follow (as it was for Dark Xiangqi).
+    gameSpecId: DARK_CROSSROADS_CHESS_SPEC_ID,
+    roomIdPrefix: 'ddchess_',
+    enabled: darkCrossroadsChessEnabled,
+    pageTitle: 'Dark Crossroads Chess',
+    gameRouteBase: '/dark-crossroads-chess/game',
+    mountPostgame: (root, roomId) =>
+      import('../dark-crossroads-chess-postgame.js').then(({ mountDarkCrossroadsChessPostgame }) =>
+        mountDarkCrossroadsChessPostgame(root, roomId),
+      ),
+    reviewRouteBase: '/dark-crossroads-chess/game',
+    loadLiveRoomClient: () =>
+      import('../live-dark-crossroads-chess.js').then(
+        ({ bootstrapDarkCrossroadsChessLiveRoom }) =>
+          () =>
+            bootstrapDarkCrossroadsChessLiveRoom(),
+      ),
+    landing: {
+      // White vs Red (the variant's actual colors), so the picker's
+      // preferredColor maps straight onto the room route's parser.
+      capabilities: {
+        firstColor: 'white',
+        firstGlyph: '♚',
+        firstLabel: 'White',
+        secondColor: 'red',
+        secondGlyph: '♚',
+        secondLabel: 'Red',
+        supportsRated: false,
+        supportsStartFormat: false,
+        supportsTimeControl: true,
+      },
+      timePresetIds: ['1m1', '3m2', '5m5'],
+      offerInMenu: darkCrossroadsChessEnabled,
+      acceptsDeepLink: darkCrossroadsChessEnabled,
     },
   },
 ];

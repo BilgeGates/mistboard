@@ -54,6 +54,14 @@ export function crossroadsChessEnabled(): boolean {
   return process.env.MISTBOARD_CROSSROADS_CHESS_ENABLED === 'true';
 }
 
+// Dark Crossroads Chess (the fog 6x8 variant) live rooms. Server-side opt-in,
+// default off — the tenant exists but is not launched. PvP-only (Fairy-
+// Stockfish is perfect-info and cannot play fog crossroads, so there is no
+// engine/bot). Independently gateable from the perfect-info Crossroads flag.
+export function darkCrossroadsChessEnabled(): boolean {
+  return process.env.MISTBOARD_DARK_CROSSROADS_CHESS_ENABLED === 'true';
+}
+
 // Correspondence (days-per-move) dark chess on the variant-tenant stack.
 // Server-side opt-in: gates room creation; existing dchx_ rooms keep routing
 // if the flag flips off. Correspondence is account-gated and invite-link

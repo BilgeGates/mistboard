@@ -16,6 +16,7 @@ import * as banqiGamesRoute from './routes/banqi-games.js';
 import * as correspondenceGamesRoute from './routes/correspondence-games.js';
 import * as correspondenceSeeksRoute from './routes/correspondence-seeks.js';
 import * as crossroadsChessRoute from './routes/crossroads-chess.js';
+import * as darkCrossroadsChessGamesRoute from './routes/dark-crossroads-chess-games.js';
 import * as darkMiniXiangqiGamesRoute from './routes/dark-mini-xiangqi-games.js';
 import * as darkXiangqiGamesRoute from './routes/dark-xiangqi-games.js';
 import * as enginesRoute from './routes/engines.js';
@@ -68,6 +69,7 @@ const routes: RouteModule[] = [
   lobbyRoute,
   darkMiniXiangqiGamesRoute,
   darkXiangqiGamesRoute,
+  darkCrossroadsChessGamesRoute,
   jieqiGamesRoute,
   banqiGamesRoute,
   revealChessGamesRoute,
