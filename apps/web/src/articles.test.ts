@@ -37,6 +37,7 @@ describe('article public listing gates', () => {
     ].map((link) => link.getAttribute('href'));
 
     expect(hrefs).toEqual([
+      '/rules/reveal-chess',
       '/rules/jieqi',
       '/rules/banqi',
       '/rules/crossroads-chess',

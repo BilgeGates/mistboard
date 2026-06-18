@@ -158,13 +158,13 @@ test('future composites are composed from rule modules', () => {
   const sunTzu = gameSpecForId('sun-tzu');
   const laoTzu = gameSpecForId('lao-tzu');
   const darkCrazyhouse = gameSpecForId('dark-crazyhouse');
-  const darkSuicide = gameSpecForId('dark-suicide');
+  const darkAntichess = gameSpecForId('dark-antichess');
   const darkSeirawan = gameSpecForId('dark-seirawan');
   const darkOmega = gameSpecForId('dark-omega');
 
   assert.equal(darkCrazyhouse.reserves, 'crazyhouse');
   assert.equal(darkCrazyhouse.dropPolicy, 'any-legal-square');
-  assert.equal(darkSuicide.objective, 'suicide');
+  assert.equal(darkAntichess.objective, 'antichess');
   assert.equal(sunTzu.setup, 'double-fischer-random');
   assert.equal(sunTzu.reserves, 'crazyhouse');
   assert.equal(sunTzu.dropPolicy, 'any-legal-square');

@@ -277,6 +277,7 @@ const HOME_ARTICLE_SLUGS = [
   'dark-xiangqi',
   'jieqi',
   'banqi',
+  'reveal-chess',
   'dark-chess',
 ] as const;
 

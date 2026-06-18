@@ -22,6 +22,10 @@ export const darkDraft960Article: Article = {
     summary:
       "Dark Chess with a sealed opening draft: each player picks one of three Chess960 back ranks and never sees the other's.",
     status: 'published',
+    // Draft960 is a hidden format toggle inside Dark Chess (M4-gated), not its own
+    // launched variant: keep the page reachable by direct URL but drop it from the
+    // rules rail and the articles index until it launches.
+    showInIndex: false,
     publishedAt: '2026-05-31',
     audience:
       'Readers who have grokked dark chess (start with the rules article if not). Curious chess players following the Mistboard OG card to learn what makes Dark Draft960 unique.',

@@ -28,7 +28,7 @@ export type ObjectiveRulesId =
   | 'king-capture'
   | 'general-capture'
   | 'checkmate'
-  | 'suicide'
+  | 'antichess'
   | 'royal-capture-or-race'
   | 'last-mover';
 // 'open' = perfect-information (the Crossroads Chess onboarding mode); 'dark' is
@@ -53,7 +53,7 @@ export type RatingPoolBaseId =
   | 'fog'
   | 'fog_draft960'
   | 'dark_crazyhouse'
-  | 'dark_suicide'
+  | 'dark_antichess'
   | 'sun_tzu'
   | 'lao_tzu'
   | 'dark_seirawan'
@@ -71,7 +71,7 @@ export type GameSpecId =
   | 'dark-chess'
   | 'dark-draft960'
   | 'dark-crazyhouse'
-  | 'dark-suicide'
+  | 'dark-antichess'
   | 'sun-tzu'
   | 'lao-tzu'
   | 'dark-seirawan'
@@ -204,17 +204,17 @@ export const GAME_SPECS: readonly GameSpec[] = [
     runtimeStatus: 'future',
   },
   {
-    id: 'dark-suicide',
-    publicName: 'Dark Suicide',
+    id: 'dark-antichess',
+    publicName: 'Dark Antichess',
     family: 'chess',
     board: 'chess-8x8',
     movement: 'orthodox-chess',
-    objective: 'suicide',
+    objective: 'antichess',
     visibility: 'dark',
     setup: 'standard',
     reserves: 'none',
     dropPolicy: 'none',
-    ratingPoolBase: 'dark_suicide',
+    ratingPoolBase: 'dark_antichess',
     publicSurface: 'hidden',
     runtimeStatus: 'future',
   },
@@ -417,7 +417,7 @@ export const GAME_SPECS: readonly GameSpec[] = [
     ratingPoolBase: 'reveal_chess',
     rated: true,
     publicSurface: 'hidden',
-    runtimeStatus: 'future',
+    runtimeStatus: 'live',
   },
 ] as const;
 

@@ -3,6 +3,7 @@ import {
   darkMiniXiangqiPublicEntryEnabled,
   darkXiangqiEnabled,
   jieqiEnabled,
+  revealChessEnabled,
 } from './feature-flags.js';
 
 // Entries for the landing News box and the /news page.
@@ -27,9 +28,20 @@ export type Announcement = {
   requiresBanqi?: boolean;
   // Gated to the dark-xiangqi flag so it only shows once Dark Xiangqi is live.
   requiresDarkXiangqi?: boolean;
+  // Gated to the reveal-chess flag so it only shows once Reveal Chess is live.
+  requiresRevealChess?: boolean;
 };
 
 const baseAnnouncements: Announcement[] = [
+  {
+    date: '2026-06-18',
+    kind: 'release',
+    headline: 'Reveal Chess is open for alpha play.',
+    body: 'Standard chess with a hidden starting arrangement: every piece but the king begins face-down and reveals its true identity the moment it moves. Challenge a friend to a match.',
+    href: '/rules/reveal-chess',
+    cta: 'Read rules',
+    requiresRevealChess: true,
+  },
   {
     date: '2026-06-18',
     kind: 'release',
@@ -98,6 +110,7 @@ export function announcements(): Announcement[] {
       (!announcement.requiresDarkMiniXiangqiPublicEntry || darkMiniXiangqiPublicEntryEnabled()) &&
       (!announcement.requiresJieqi || jieqiEnabled()) &&
       (!announcement.requiresBanqi || banqiEnabled()) &&
-      (!announcement.requiresDarkXiangqi || darkXiangqiEnabled()),
+      (!announcement.requiresDarkXiangqi || darkXiangqiEnabled()) &&
+      (!announcement.requiresRevealChess || revealChessEnabled()),
   );
 }
