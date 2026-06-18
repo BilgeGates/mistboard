@@ -68,31 +68,38 @@ information, ranked integrity, and a serious engine track.
   distribution (the bottleneck — ~0 variant plays/wk). Catalog organized by
   *what is hidden* (position / identity), not by game.
 
-  **Playable catalog — target 9:**
+  **Playable catalog — target 10:**
   - **Live (4):** Dark Chess (flagship) · Dark Mini Xiangqi · Jieqi · Banqi.
-  - **Build slate (5), cheapest → heaviest:**
-    1. **Dark Xiangqi** — TURN ON (launch-WIRING, not just a flag flip; verified
-       2026-06-17). Rules + fog-vision kernel + live tenant + client + postgame +
-       rules article all built, BUT reachable today only via dev routes
-       (`/xiangqi-spike`, `/xiangqi-demo`, flag-gated); NOT in the play menu /
-       lobby / watch / rating-variant list. Work = wire create-flow + lobby +
-       watch + variant entry, then flag + ladder. Ship PvP/correspondence-first
-       like Banqi; **no bot gate** (strong fog-xiangqi bot = the separate research
-       bet).
+  - **Build slate (6), cheapest → heaviest:**
+    1. **Dark Xiangqi** — LAUNCH-PARITY COMPLETE, landed flag-off (create-flow +
+       lobby + watch channel + rating-ready pool all wired). ONLY REMAINING = the
+       flag flip (`VITE/MISTBOARD_DARK_XIANGQI_ENABLED`) + runtimeStatus→live.
+       Ship PvP-first like Banqi; **no bot gate** (strong fog-xiangqi bot = the
+       separate research bet).
     2. **Reveal Chess** — FINISH. Landed flag-off; needs sample-game replay +
        zh, then flip. Ship quiet, low in the rail (curiosity, not flagship).
-    3. **Dark Crossroads** — PROTOTYPE. Reuses perfect-info Crossroads' guts;
-       new work = fog visibility (cannon Mode-D field-of-fire) + 3 rule forks
-       (king-capture / redefine "safe Try" under fog / cannon+horse vision).
-       The prototype decides the fusion line's fate.
-    4. **Dark Shogi** — BUILD. Base shogi rules exist, but needs a shogi
-       fog-vision kernel + live client + tenant + a drops-under-fog decision +
-       bot question (~Dark Crossroads sized, not a flag flip). Best demand case
-       in the deferred bucket (large existing community); pulled up 2026-06-17.
+    3. **Dark Crossroads** — BUILT + deployed flag-off 2026-06-18 (server tenant
+       on the generic VariantTenant runtime + web client + postgame triptych +
+       pending-Try rule: reaching the far rank arms a Try the opponent gets one
+       reply to refute). Remaining = real playtest + flip. PvP-first, no bot
+       (FSF is perfect-info, can't play fog crossroads).
+    4. **Dark Shogi** — BUILT + deployed flag-off 2026-06-18, end-to-end (fog
+       kernel with drops + private hands · server tenant + reveal route · 9×9 koma
+       web client with drop/promotion UI · postgame · `/rules/shogi` +
+       `/rules/dark-shogi` articles, also live flag-off). Remaining = 2-player
+       playtest + flip; color picker / PvE bot / watch channel are post-launch
+       fast-follows, not gates.
     5. **Kriegspiel** — BUILD (pulled in 2026-06-17). Positioning play (the
        1899 original, done right nowhere modern). Cost: the try-loop wire
        primitive (also hardens the tenant contract for all future variants) +
        a weak sampled-belief bot. Publish the rules article first.
+    6. **Dark Crazyhouse** — BUILD (pulled into the slate 2026-06-18, out of the
+       deferred bucket). Cheaper than it was: crazyhouse is chess with shogi-style
+       drops, so this is Dark Chess + the drops-under-fog + private-hands pattern
+       just built for Dark Shogi, on the existing 8×8 chess board + chess fog.
+       Mostly a kernel port (chess drops + private hands + revert-on-capture) plus
+       reusing the Dark Shogi hand/drop client pattern; king-capture win like dark
+       chess. No bot gate (drops explode the belief bot; same posture as the others).
 
   **Turned OFF / hidden:**
   - **Crossroads Chess (perfect-info)** — leaning OFF, **EXECUTION HELD**
@@ -107,8 +114,9 @@ information, ranked integrity, and a serious engine track.
 
   **Deferred behind a distribution signal** (build only if a live port —
   jieqi/banqi/DMX/dark-xiangqi — shows players returning + plays accumulating):
-  - dark-crazyhouse, dark-suicide — net-new rule kernels (no base rules) + design
-    wrinkles (antichess forced-capture under fog).
+  - dark-suicide — net-new rule kernel (no base rules) + a design wrinkle
+    (antichess forced-capture under fog). (dark-crazyhouse was pulled into the
+    build slate 2026-06-18 — it rides the Dark Shogi drops machinery.)
   - Double-dark (Fogged Jieqi/Banqi) — prototype-only, uncommitted.
 
   **Separate research bet, NOT a launch gate:** a strong Dark Xiangqi bot
