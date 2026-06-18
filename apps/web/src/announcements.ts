@@ -1,4 +1,9 @@
-import { banqiEnabled, darkMiniXiangqiPublicEntryEnabled, jieqiEnabled } from './feature-flags.js';
+import {
+  banqiEnabled,
+  darkMiniXiangqiPublicEntryEnabled,
+  darkXiangqiEnabled,
+  jieqiEnabled,
+} from './feature-flags.js';
 
 // Entries for the landing News box and the /news page.
 //
@@ -20,9 +25,20 @@ export type Announcement = {
   requiresJieqi?: boolean;
   // Gated to the banqi flag so it only shows once banqi is live.
   requiresBanqi?: boolean;
+  // Gated to the dark-xiangqi flag so it only shows once Dark Xiangqi is live.
+  requiresDarkXiangqi?: boolean;
 };
 
 const baseAnnouncements: Announcement[] = [
+  {
+    date: '2026-06-18',
+    kind: 'release',
+    headline: 'Dark Xiangqi is open for alpha play.',
+    body: 'Fog of War on the full 9 by 10 xiangqi board: each side sees only the points its pieces reach. Challenge a friend to a match.',
+    href: '/rules/dark-xiangqi',
+    cta: 'Read rules',
+    requiresDarkXiangqi: true,
+  },
   {
     date: '2026-06-17',
     kind: 'release',
@@ -81,6 +97,7 @@ export function announcements(): Announcement[] {
     (announcement) =>
       (!announcement.requiresDarkMiniXiangqiPublicEntry || darkMiniXiangqiPublicEntryEnabled()) &&
       (!announcement.requiresJieqi || jieqiEnabled()) &&
-      (!announcement.requiresBanqi || banqiEnabled()),
+      (!announcement.requiresBanqi || banqiEnabled()) &&
+      (!announcement.requiresDarkXiangqi || darkXiangqiEnabled()),
   );
 }

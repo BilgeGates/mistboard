@@ -42,6 +42,7 @@ describe('article public listing gates', () => {
       '/rules/crossroads-chess',
       '/articles/server-enforced-fog',
       '/rules/dark-mini-xiangqi',
+      '/rules/dark-xiangqi',
       '/rules/dark-chess',
     ]);
   });

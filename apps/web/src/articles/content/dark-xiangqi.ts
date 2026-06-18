@@ -20,6 +20,7 @@ export const darkXiangqiArticle: Article = {
       'Xiangqi under Fog of War: each side sees only the points its pieces reach, hidden blockers matter, and the general falls by capture.',
     showSummaryOnPage: false,
     status: 'published',
+    playableOnMistboard: true,
     publishedAt: '2026-05-26',
     updatedAt: '2026-05-30',
     audience:
