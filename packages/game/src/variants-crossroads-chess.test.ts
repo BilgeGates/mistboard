@@ -161,6 +161,25 @@ test('reaching the enemy far rank with the King wins by Race', () => {
   assert.equal(after.status.type === 'finished' && after.status.reason, 'race');
 });
 
+test('dark Try is safe-arrival only: an attacked far rank does NOT win', () => {
+  // A red chariot on a8 rakes rank 8, so the White King reaching c8 lands en
+  // prise. The move is LEGAL in dark mode (no check restriction), but it must
+  // NOT win by Race — the game continues and Red can capture the King. This is
+  // the fog-relevant case: a defender covering the far rank foils the Try, even
+  // one the racer could not see (the kernel reads the canonical board).
+  const guarded = stateWith({
+    c7: p('white', 'king'),
+    a8: p('red', 'chariot'),
+    a1: p('red', 'king'),
+  });
+  const reached = applyCrossroadsChessMove(guarded, { from: 'c7', to: 'c8' });
+  assert.equal(reached.status.type, 'playing', 'no Try onto an attacked far-rank square');
+  // Red takes the en-prise King -> king-capture win for Red.
+  const captured = applyCrossroadsChessMove(reached, { from: 'a8', to: 'c8' });
+  assert.equal(captured.status.type === 'finished' && captured.status.reason, 'king-captured');
+  assert.equal(captured.status.type === 'finished' && captured.status.winner, 'red');
+});
+
 test('capturing the enemy King wins (dark-mode king-capture)', () => {
   const s = stateWith({ a1: p('white', 'chariot'), a5: p('red', 'king'), f8: p('red', 'chariot') });
   const after = applyCrossroadsChessMove(s, { from: 'a1', to: 'a5' });

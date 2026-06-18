@@ -11,6 +11,7 @@
   "scripts": {
     "dev": "concurrently --kill-others-on-fail --names server,web --prefix-colors blue,green 'npm run dev --workspace @mistboard/server' 'npm run dev --workspace @mistboard/web'",
     "dev:persistent": "concurrently --kill-others-on-fail --names server,web --prefix-colors blue,green 'npm run dev:persistent --workspace @mistboard/server' 'npm run dev --workspace @mistboard/web'",
+    "dev:dark-crossroads": "VITE_DARK_CROSSROADS_CHESS_ENABLED=true MISTBOARD_DARK_CROSSROADS_CHESS_ENABLED=true npm run dev",
     "db:up": "docker compose up -d postgres",
     "db:migrate": "env DATABASE_URL=postgres://mistboard:mistboard@localhost:5435/mistboard npm run migrate --workspace @mistboard/server",
     "db:seed:profiles": "env DATABASE_URL=postgres://mistboard:mistboard@localhost:5435/mistboard npm run seed:profiles --workspace @mistboard/server",

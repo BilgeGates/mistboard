@@ -505,9 +505,19 @@ export function applyCrossroadsChessMove(
   if (capturedPiece?.role === 'king') {
     // King capture: the dark-mode win (check is unenforceable under fog).
     nextStatus = { type: 'finished', winner: movingPiece.color, reason: 'king-captured' };
-  } else if (movingPiece.role === 'king' && rankOf(move.to) === farRank(movingPiece.color)) {
-    // The Race ("Try"): the King reaches the enemy far rank. Under fog this is
-    // the "unsafe" reading (reaching wins even if a hidden enemy attacks it).
+  } else if (
+    movingPiece.role === 'king' &&
+    rankOf(move.to) === farRank(movingPiece.color) &&
+    !isCrossroadsChessKingAttacked(newBoard, movingPiece.color)
+  ) {
+    // The Race ("Try"): the King wins by reaching the enemy far rank on a SAFE
+    // square. Dark mode has no check restriction, so a King may legally step
+    // onto an attacked far-rank square — but that does NOT win: it is en prise
+    // and will be captured (a king-capture loss). A defender covering the far
+    // rank foils the Try, INCLUDING one the racer cannot see under fog: this
+    // kernel reads the canonical board, so hidden coverage counts. (The open
+    // mode reaches the same rule via move legality, since its king moves are
+    // self-check filtered.)
     nextStatus = { type: 'finished', winner: movingPiece.color, reason: 'race' };
   } else if (!hasCrossroadsChessLegalMove(newBoard, nextTurn)) {
     // Stalemate is a LOSS for the side with no legal move (anti-draw design).
