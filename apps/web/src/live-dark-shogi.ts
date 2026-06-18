@@ -98,6 +98,9 @@ const state = {
   selected: null as ShogiSquare | null,
   selectedDrop: null as ShogiHandRole | null,
   pendingPromotion: null as { from: ShogiSquare; to: ShogiSquare } | null,
+  // The square a parachute drop bounced off (a probe: it is occupied). Cleared
+  // on the next action.
+  bounce: null as ShogiSquare | null,
 };
 
 let client: TenantSocketClient | null = null;
@@ -188,6 +191,7 @@ export function bootstrapDarkShogiLiveRoom(): void {
   state.selected = null;
   state.selectedDrop = null;
   state.pendingPromotion = null;
+  state.bounce = null;
   lastCapturedView = null;
   lastCapturedPositionKey = null;
   replay.reset();
@@ -224,6 +228,7 @@ export function bootstrapDarkShogiLiveRoom(): void {
     applyHello: (frame) => applyFrame(frame as DarkShogiLiveFrame),
     applySnapshot: (frame) => applyFrame(frame as DarkShogiLiveFrame),
     applyEvent: (frame) => applyEventFrame(frame as DarkShogiLiveFrame),
+    onServerMessage,
     render: renderAll,
   });
   client.connect();
@@ -261,6 +266,15 @@ function handleReplayKeyboard(event: KeyboardEvent): void {
   replay.handleKeyboard(event, renderAll);
 }
 
+function onServerMessage(message: { type: string; [key: string]: unknown }): void {
+  // The parachute bounce: a drop landed on a hidden piece. Record the square as a
+  // probe (it is occupied) and clear the pending drop so the player can retry.
+  if (message.type === 'drop-rejected' && typeof message.to === 'string') {
+    state.bounce = message.to as ShogiSquare;
+    state.selectedDrop = null;
+  }
+}
+
 // ── Interaction ──────────────────────────────────────────────────────────────
 
 function onBoardClick(event: MouseEvent): void {
@@ -272,6 +286,7 @@ function onBoardClick(event: MouseEvent): void {
   if (!target) return;
   const square = target.getAttribute('data-square') as ShogiSquare | null;
   if (!square) return;
+  state.bounce = null;
 
   // Drop mode: the next board click places the selected reserve piece.
   if (state.selectedDrop) {
@@ -335,6 +350,7 @@ function onHandClick(event: MouseEvent): void {
   if (!target) return;
   const role = target.getAttribute('data-drop') as ShogiHandRole | null;
   if (!role || (view.hand[role] ?? 0) <= 0) return;
+  state.bounce = null;
   state.selected = null;
   state.selectedDrop = state.selectedDrop === role ? null : role;
   renderAll();
@@ -551,6 +567,12 @@ function renderVisibleMoveList(liveRefs: LiveRefs): void {
   const moves = state.events.filter((event): event is DarkShogiMovePlayed => isMoveEvent(event));
   const plyCount = replay.visiblePlyCount();
   liveRefs.moveList.replaceChildren();
+  if (state.bounce) {
+    const banner = document.createElement('li');
+    banner.className = 'dsg-bounce-banner';
+    banner.textContent = `Drop bounced: ${state.bounce} is occupied. Try another square.`;
+    liveRefs.moveList.append(banner);
+  }
   if (plyCount === 0) {
     const item = document.createElement('li');
     item.className = 'dsg-move-row';

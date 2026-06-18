@@ -181,3 +181,17 @@
 .dsg-move-row__move.active {
   background: color-mix(in srgb, currentColor 16%, transparent);
 }
+
+/* Parachute-bounce banner: a drop landed on a hidden piece (a probe). */
+.dsg-bounce-banner {
+  margin-bottom: 6px;
+  padding: 8px 10px;
+  border: 1px solid color-mix(in srgb, #b23 50%, var(--site-border));
+  border-radius: var(--site-radius-sm);
+  background: color-mix(in srgb, #b23 16%, var(--site-panel));
+  color: var(--site-heading, var(--site-text));
+  font-size: 0.8rem;
+  font-weight: 600;
+  line-height: 1.3;
+  list-style: none;
+}

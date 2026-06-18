@@ -430,3 +430,30 @@ test('fog view: sees own pieces + field of fire, hides far enemies and the enemy
   assert.ok(view.visibleSquares.includes('5f'), 'black pawn on 5g controls 5f');
   assert.ok(!view.visibleSquares.includes('5a'), 'far enemy square is not visible');
 });
+
+test('shogi drops are OFFERED from the view (parachute) and bounce on a hidden piece', () => {
+  // Black sees up file 5 (rook on 5e) to the White pawn on 5c; the White knight
+  // tucked in the fogged corner (1a) is invisible to Black.
+  const state: ShogiGameState = {
+    id: 't',
+    board: {
+      '5i': createShogiPiece('black', 'K'),
+      '5e': createShogiPiece('black', 'R'),
+      '5c': createShogiPiece('white', 'P'),
+      '1a': createShogiPiece('white', 'N'),
+    },
+    hands: { black: { S: 1 }, white: {} },
+    status: { type: 'playing', turn: 'black' },
+    moveNumber: 1,
+  };
+  const view = getShogiPlayerView(state, 'black');
+  // 1a is fogged: it is absent from the view board (no leak of the hidden knight)...
+  assert.equal(view.board['1a'], undefined);
+  // ...yet a Silver drop onto 1a IS offered, exactly like any other fogged square,
+  // so the offer list never reveals which fogged squares are occupied.
+  assert.ok(view.legalMoves.some((m) => isShogiDrop(m) && m.drop === 'S' && m.to === '1a'));
+  // ...but the drop bounces: 1a is occupied in truth, so it is not legal to resolve.
+  assert.equal(isLegalShogiMove(state, { drop: 'S', to: '1a' }), false);
+  // The truth-legal drop enumeration (server / bots) correctly excludes 1a.
+  assert.ok(!getLegalShogiDrops(state).some((m) => m.drop === 'S' && m.to === '1a'));
+});

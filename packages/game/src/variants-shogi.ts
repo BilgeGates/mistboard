@@ -203,12 +203,34 @@ export function getLegalShogiMovesFrom(state: ShogiGameState, from: ShogiSquare)
   return moves;
 }
 
-// Every legal drop for the side to move: each hand role onto each empty square
-// that satisfies nifu (one unpromoted Pawn per file) and the dead-piece rule
-// (P/L on the last rank, N on the last two, have no move).
+// Every TRUTH-legal drop for the side to move: each hand role onto each truly-
+// empty square that satisfies nifu (one unpromoted Pawn per file) and the dead-
+// piece rule (P/L on the last rank, N on the last two, have no move). Used for
+// the server's resolution (isLegalShogiMove) and bot enumeration.
 export function getLegalShogiDrops(state: ShogiGameState): ShogiDropMove[] {
   if (state.status.type !== 'playing') return [];
   const color = state.status.turn;
+  return shogiDropsOnto(state, color, (to) => !state.board[to]);
+}
+
+// The drops a player may OFFER from their VIEW (the leak-free PARACHUTE set): any
+// square the viewer sees no piece on (visible-empty OR fogged), filtered by the
+// same nifu + dead-piece rules — which depend only on geometry and the player's
+// OWN, always-visible, pawns, so they never reveal a fogged square's occupancy. A
+// drop onto a square occupied in truth is rejected by the server (the bounce).
+export function getShogiDropOffers(
+  state: ShogiGameState,
+  color: ShogiColor,
+  viewBoard: ShogiBoard,
+): ShogiDropMove[] {
+  return shogiDropsOnto(state, color, (to) => !viewBoard[to]);
+}
+
+function shogiDropsOnto(
+  state: ShogiGameState,
+  color: ShogiColor,
+  isOpen: (to: ShogiSquare) => boolean,
+): ShogiDropMove[] {
   const hand = state.hands[color];
   const roles = (Object.keys(hand) as ShogiHandRole[]).filter((role) => (hand[role] ?? 0) > 0);
   if (roles.length === 0) return [];
@@ -217,7 +239,9 @@ export function getLegalShogiDrops(state: ShogiGameState): ShogiDropMove[] {
     for (let file = 1; file <= 9; file += 1) {
       for (let rankIndex = 0; rankIndex < 9; rankIndex += 1) {
         const to = shogiSquareOf(file, rankIndex);
-        if (state.board[to]) continue;
+        if (!isOpen(to)) continue;
+        // canDropShogiPiece reads only geometry (dead-piece) + the dropper's own
+        // pawns (nifu), so passing the true board here never leaks fogged pieces.
         if (canDropShogiPiece(state.board, color, role, to)) drops.push({ drop: role, to });
       }
     }
@@ -286,8 +310,16 @@ export function getShogiPlayerView(state: ShogiGameState, color: ShogiColor): Sh
     const piece = state.board[square];
     if (piece) board[square] = piece;
   }
+  // Board moves are truth-legal (the server knows the board); drops are OFFERED
+  // from this view (the parachute set) so the list never leaks which fogged
+  // squares are occupied. A drop onto a hidden piece bounces server-side.
   const legalMoves =
-    state.status.type === 'playing' && state.status.turn === color ? getLegalShogiMoves(state) : [];
+    state.status.type === 'playing' && state.status.turn === color
+      ? [
+          ...getLegalShogiMoves(state).filter((move) => !isShogiDrop(move)),
+          ...getShogiDropOffers(state, color, board),
+        ]
+      : [];
   return {
     id: state.id,
     perspective: color,

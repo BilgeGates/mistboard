@@ -23,6 +23,7 @@ import {
   DARK_SHOGI_SPEC_ID,
   getShogiPlayerView,
   isLegalShogiMove,
+  isShogiDrop,
   opponentOf,
   type ShogiColor,
   type ShogiGameState,
@@ -189,6 +190,15 @@ export const darkShogiTenant: DarkShogiTenant = {
   },
   wire: {
     acceptsSeatVacated: true,
+    // The parachute bounce: drops are offered from the player's view (so the
+    // offer list never leaks fogged occupancy), so a drop may land on a square
+    // that is occupied in truth. Reject it and tell ONLY the mover (a probe).
+    rejectionFor: (state, move, seat) => {
+      if (seat === 'spectator') return null;
+      if (!isShogiDrop(move)) return null;
+      if (!state.board[move.to]) return null;
+      return { type: 'drop-rejected', to: move.to, reason: 'occupied' };
+    },
   },
   persistence: {
     resultForWinner: darkShogiResult,
