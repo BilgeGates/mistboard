@@ -802,3 +802,48 @@
   justify-content: center;
   overflow: visible;
 }
+
+/* ------------------------------------------------------------------ *
+ * Banqi watch: a single public truth board (banqi hides only the deal,
+ * not identities, so there is one board, no triptych). Like the jieqi
+ * block above, the triptych grid left the lone board small and
+ * left-aligned; this centers it and sizes it up. The difference is the
+ * aspect ratio: the banqi board is WIDE (8x4, viewBox ~568x312 ≈ 1.82:1),
+ * so it can take far more width than the near-square jieqi board before
+ * its height threatens the fixed-height (no-scroll) layout. Size the
+ * single column off viewport height — board height = width * 312/568, so
+ * 84dvh of width lands the board at ~46dvh tall, the same vertical
+ * footprint the jieqi block already proves fits inside 100dvh. The 760px
+ * cap bounds it on wide screens; 100% bounds it to the column.
+ * Scoped by :has(.banqi-board) so the jieqi / dark-mini-xiangqi surfaces
+ * are untouched.
+ * ------------------------------------------------------------------ */
+.watch-replay .replay-layout-all:has(.banqi-board) {
+  grid-template-columns: minmax(0, min(100%, 84dvh, 760px));
+  justify-content: center;
+}
+
+/* Let the board fill the (wider) single column instead of its triptych-era cap. */
+.watch-replay .replay-layout-all:has(.banqi-board) .replay-board {
+  width: 100%;
+  max-width: none;
+}
+
+.watch-replay .replay-layout-all:has(.banqi-board) .replay-pane-label {
+  display: none;
+}
+
+/* Capture strips: let them grow and pin to the full board width so a wrapping
+   flex row doesn't collapse to min-content and stack the pieces vertically. */
+.watch-replay .replay-layout-all:has(.banqi-board) .captures-strip {
+  height: auto;
+  min-height: 0;
+  width: 100%;
+  overflow: visible;
+}
+
+.watch-replay .replay-layout-all:has(.banqi-board) .captures-row {
+  width: 100%;
+  justify-content: center;
+  overflow: visible;
+}
