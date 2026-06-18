@@ -15,13 +15,21 @@
   width: min(1000px, calc(100% - 24px));
 }
 
-/* Two-column profile body: a ratings rail beside the games/activity column. */
+/* Two-column profile body: a full-height ratings rail beside the main column
+   (header stacked over games/activity), so the header is left-aligned to the
+   games panel instead of spanning the full width and the rail runs the top. */
 .profile-body {
   display: grid;
   grid-template-columns: 312px minmax(0, 1fr);
   gap: 16px;
   align-items: start;
-  margin-top: 16px;
+}
+
+.profile-main {
+  display: grid;
+  gap: 16px;
+  align-content: start;
+  min-width: 0;
 }
 
 .account-settings-shell {
@@ -451,6 +459,11 @@
 @media (max-width: 720px) {
   .profile-body {
     grid-template-columns: 1fr;
+  }
+
+  /* Header + games above the ratings rail when stacked. */
+  .profile-main {
+    order: -1;
   }
 }
 

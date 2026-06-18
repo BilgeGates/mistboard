@@ -88,11 +88,15 @@ export async function mountProfile(root: HTMLElement, handle: string): Promise<v
     return;
   }
 
+  const main = document.createElement('div');
+  main.className = 'profile-main';
+  main.append(buildProfileHeader(profile), buildProfileGames(profile));
+
   const body = document.createElement('div');
   body.className = 'profile-body';
-  body.append(buildProfileRatings(profile.ratings), buildProfileGames(profile));
+  body.append(buildProfileRatings(profile.ratings), main);
 
-  shell.append(buildProfileHeader(profile), body);
+  shell.append(body);
 }
 
 export async function mountLeaderboard(root: HTMLElement): Promise<void> {
