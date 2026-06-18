@@ -52,6 +52,10 @@
   min-height: 0;
   background: #f3d7a1;
   border: 1px solid rgba(79, 52, 22, 0.28);
+  /* Keep in sync with BOARD_RADIUS in live-dark-xiangqi.ts. overflow:hidden
+     clips the full-bleed fog cells to the rounded corner. */
+  border-radius: 16px;
+  overflow: hidden;
   box-shadow: 0 18px 50px rgba(37, 31, 24, 0.16);
 }
 

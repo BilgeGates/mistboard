@@ -345,15 +345,33 @@ function timelinePanel(postgame: DarkXiangqiPostgameResponse): HTMLElement {
     empty.textContent = 'No moves';
     list.append(empty);
   } else {
-    for (const entry of moves) {
+    // Group plies into move rows: one numbered row per Red+Black pair (Red moves
+    // first in xiangqi). Fall back to array index / ply parity when the wire
+    // entry omits ply or color, so the pairing stays robust.
+    const rows = new Map<number, { red?: string; black?: string }>();
+    moves.forEach((entry, index) => {
+      const ply = entry.ply ?? index + 1;
+      const color = entry.color ?? (ply % 2 === 1 ? 'red' : 'black');
+      const moveNumber = Math.max(1, Math.ceil(ply / 2));
+      const row = rows.get(moveNumber) ?? {};
+      const text = `${entry.move!.from}-${entry.move!.to}`;
+      if (color === 'black') row.black = text;
+      else row.red = text;
+      rows.set(moveNumber, row);
+    });
+    for (const [moveNumber, row] of [...rows.entries()].sort((a, b) => a[0] - b[0])) {
       const item = document.createElement('li');
       item.className = 'dxq-postgame__move';
       const number = document.createElement('span');
       number.className = 'dxq-postgame__move-number';
-      number.textContent = String(entry.ply ?? '');
-      const move = document.createElement('span');
-      move.textContent = `${capitalize(entry.color ?? '')} ${entry.move!.from}-${entry.move!.to}`;
-      item.append(number, move);
+      number.textContent = String(moveNumber);
+      const red = document.createElement('span');
+      red.className = 'dxq-postgame__move-ply dxq-postgame__move-ply--red';
+      red.textContent = row.red ?? '';
+      const black = document.createElement('span');
+      black.className = 'dxq-postgame__move-ply dxq-postgame__move-ply--black';
+      black.textContent = row.black ?? '';
+      item.append(number, red, black);
       list.append(item);
     }
   }

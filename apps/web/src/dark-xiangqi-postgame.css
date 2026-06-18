@@ -1,7 +1,79 @@
 .dark-xiangqi-postgame-route {
   min-height: 100vh;
-  background: #eef2f0;
-  color: #202620;
+  background: var(--site-bg);
+  color: var(--site-text);
+}
+
+/* Dark Xiangqi review follows the site theme (light + dark), like jieqi/banqi,
+   instead of the original hardcoded light. */
+.dark-xiangqi-postgame-route .dxq-postgame__panel,
+.dark-xiangqi-postgame-route .dxq-postgame__replay-controls,
+.dark-xiangqi-postgame-route .dxq-postgame__replay-button,
+.dark-xiangqi-postgame-route .dxq-postgame__replay-status,
+.dark-xiangqi-postgame-route .dxq-postgame__link {
+  background: var(--site-panel);
+  color: var(--site-text);
+  border-color: var(--site-border);
+}
+
+.dark-xiangqi-postgame-route .dxq-postgame__link--primary {
+  border-color: #237960;
+  background: #237960;
+  color: #ffffff;
+}
+
+.dark-xiangqi-postgame-route .dxq-postgame__replay-button:disabled {
+  color: var(--site-muted);
+  background: var(--site-bg);
+}
+
+.dark-xiangqi-postgame-route .dxq-postgame__title,
+.dark-xiangqi-postgame-route .dxq-postgame__board-title,
+.dark-xiangqi-postgame-route .dxq-postgame__panel h2 {
+  color: var(--site-heading);
+}
+
+.dark-xiangqi-postgame-route .dxq-postgame__eyebrow,
+.dark-xiangqi-postgame-route .dxq-postgame__summary,
+.dark-xiangqi-postgame-route .dxq-postgame__details dt,
+.dark-xiangqi-postgame-route .dxq-postgame__move-number {
+  color: var(--site-muted);
+}
+
+.dark-xiangqi-postgame-route .dxq-postgame__details dd {
+  color: var(--site-text);
+}
+
+.dark-xiangqi-postgame-route .dxq-postgame__header {
+  border-bottom-color: var(--site-border);
+}
+
+.dark-xiangqi-postgame-route .dxq-postgame__move {
+  /* Two plies per row (Red | Black), themed chip. */
+  grid-template-columns: 30px minmax(0, 1fr) minmax(0, 1fr);
+  background: var(--site-panel-soft, var(--site-bg));
+  color: var(--site-text);
+}
+
+.dark-xiangqi-postgame-route .dxq-postgame__move-ply--red {
+  color: var(--site-text);
+}
+
+/* Composition: triptych (3 boards across) on the left, Game + Moves stacked in
+   a right rail, with the boards height-capped so the page fits without vertical
+   scrolling (the original stacked boards-then-panels layout overflowed). */
+.dark-xiangqi-postgame-route .dxq-postgame__layout {
+  grid-template-columns: minmax(0, 1fr) minmax(250px, 310px);
+  align-items: start;
+}
+
+.dark-xiangqi-postgame-route .dxq-postgame__side {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.dark-xiangqi-postgame-route .dxq-postgame__board {
+  max-width: min(100%, 48vh);
+  margin-inline: auto;
 }
 
 /* Jieqi and banqi reviews follow the site theme (light + dark), like the

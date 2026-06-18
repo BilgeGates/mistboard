@@ -1,6 +1,6 @@
 # Roadmap
 
-_Last updated: 2026-06-09_
+_Last updated: 2026-06-17_
 
 ## Product Pillars
 
@@ -63,7 +63,63 @@ information, ranked integrity, and a serious engine track.
   (Obscuro replication track, post-M5); do not conflate with the M1-bar empty-lobby
   engine. Free PvP stays free; analysis is the wedge. Longer differentiation
   and monetization notes stay in private planning documents.
-- [ ] **Variant pipeline (sequenced 2026-06-10; liquidity-amended same day).**
+- [ ] **CANONICAL VARIANT CATALOG (LOCKED 2026-06-17).** The set is frozen;
+  after the build slate below ships we pause adding variants and shift fully to
+  distribution (the bottleneck — ~0 variant plays/wk). Catalog organized by
+  *what is hidden* (position / identity), not by game.
+
+  **Playable catalog — target 9:**
+  - **Live (4):** Dark Chess (flagship) · Dark Mini Xiangqi · Jieqi · Banqi.
+  - **Build slate (5), cheapest → heaviest:**
+    1. **Dark Xiangqi** — TURN ON (launch-WIRING, not just a flag flip; verified
+       2026-06-17). Rules + fog-vision kernel + live tenant + client + postgame +
+       rules article all built, BUT reachable today only via dev routes
+       (`/xiangqi-spike`, `/xiangqi-demo`, flag-gated); NOT in the play menu /
+       lobby / watch / rating-variant list. Work = wire create-flow + lobby +
+       watch + variant entry, then flag + ladder. Ship PvP/correspondence-first
+       like Banqi; **no bot gate** (strong fog-xiangqi bot = the separate research
+       bet).
+    2. **Reveal Chess** — FINISH. Landed flag-off; needs sample-game replay +
+       zh, then flip. Ship quiet, low in the rail (curiosity, not flagship).
+    3. **Dark Crossroads** — PROTOTYPE. Reuses perfect-info Crossroads' guts;
+       new work = fog visibility (cannon Mode-D field-of-fire) + 3 rule forks
+       (king-capture / redefine "safe Try" under fog / cannon+horse vision).
+       The prototype decides the fusion line's fate.
+    4. **Dark Shogi** — BUILD. Base shogi rules exist, but needs a shogi
+       fog-vision kernel + live client + tenant + a drops-under-fog decision +
+       bot question (~Dark Crossroads sized, not a flag flip). Best demand case
+       in the deferred bucket (large existing community); pulled up 2026-06-17.
+    5. **Kriegspiel** — BUILD (pulled in 2026-06-17). Positioning play (the
+       1899 original, done right nowhere modern). Cost: the try-loop wire
+       primitive (also hardens the tenant contract for all future variants) +
+       a weak sampled-belief bot. Publish the rules article first.
+
+  **Turned OFF / hidden:**
+  - **Crossroads Chess (perfect-info)** — leaning OFF, **EXECUTION HELD**
+    (2026-06-17): the lone perfect-info surface breaks the "everything here hides
+    something" catalog story. When flipped off, the rules article is **kept and
+    relocated to the "not yet on Mistboard" rail section** (not removed). Code
+    kept as Dark Crossroads' substrate; returns later only as Dark Crossroads'
+    "learn in the clear" mode (the FSF strong bot rides that). Not yet acted on.
+  - **Draft960** (`dark-draft960`) — locked hidden; pull its rules page from the
+    rail (keep reachable by direct URL, unlisted). A format toggle, never a
+    variant.
+
+  **Deferred behind a distribution signal** (build only if a live port —
+  jieqi/banqi/DMX/dark-xiangqi — shows players returning + plays accumulating):
+  - dark-crazyhouse, dark-suicide — net-new rule kernels (no base rules) + design
+    wrinkles (antichess forced-capture under fog).
+  - Double-dark (Fogged Jieqi/Banqi) — prototype-only, uncommitted.
+
+  **Separate research bet, NOT a launch gate:** a strong Dark Xiangqi bot
+  (green-field, paper-worthy; rides the engine-verticalization track, funded only
+  if Dark Xiangqi pulls players).
+
+  **Placeholder spec IDs** (`sun-tzu`/`lao-tzu`/`dark-seirawan`/`dark-omega` —
+  plus `dark-crazyhouse`/`dark-suicide` which are deferred above) are reserved
+  names with near-zero app code; not a committed backlog. Safe to leave or prune.
+
+- [ ] **Variant pipeline (sequenced 2026-06-10; liquidity-amended same day; superseded by the locked catalog above — kept for historical sequencing context).**
   Three demand experiments, staggered, none taking the flagship's homepage
   slot before M1-M3. **Liquidity posture: player counts are expected to be
   low; PvE and (later) correspondence are the liquidity strategy, not PvP

@@ -38,8 +38,10 @@ describe('Dark Xiangqi postgame page', () => {
     expect(root.textContent).toContain('Black view');
     expect(root.textContent).toContain('Play again');
     expect(root.textContent).toContain('Back home');
-    expect(root.textContent).toContain('Red b3-b4');
-    expect(root.textContent).toContain('Black b8-b7');
+    // Moves are grouped two plies per numbered row (Red move, then Black move).
+    const firstMoveRow = root.querySelector('.dxq-postgame__move');
+    expect(firstMoveRow?.textContent).toContain('b3-b4');
+    expect(firstMoveRow?.textContent).toContain('b8-b7');
     expect(root.textContent).toContain('Ply 2 of 2');
     expect(root.querySelectorAll('.xq-live-svg')).toHaveLength(3);
     expect(root.innerHTML).toContain('aria-label="black hidden piece"');

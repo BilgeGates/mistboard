@@ -93,6 +93,9 @@ const CELL = 60;
 const MARGIN = 36;
 const WIDTH = MARGIN * 2 + (FILE_COUNT - 1) * CELL;
 const HEIGHT = MARGIN * 2 + (RANK_COUNT - 1) * CELL;
+// Corner rounding (viewBox units). Kept in sync with the `.xiangqi-live-board`
+// container border-radius so the SVG bg/border and the clipped container agree.
+const BOARD_RADIUS = 16;
 const RIVER_TOP = MARGIN + 4 * CELL;
 const RIVER_BOTTOM = MARGIN + 5 * CELL;
 const PIECE_SIZE = 52;
@@ -325,11 +328,17 @@ function boardSvg(
   perspective: XiangqiColor,
   options: { interactive: boolean; showFog?: boolean },
 ): string {
-  const maskId = `xq-live-fog-${view.id.replace(/[^a-zA-Z0-9_-]/g, '')}-${perspective}`;
+  // Key the fog mask by the VIEW's own perspective, not the render orientation.
+  // The postgame triptych draws the red, truth, and black views in one document,
+  // all with the same board orientation and the same view.id (one game) — keying
+  // by render orientation made the red and black masks collide, so the black
+  // board resolved url(#…) to the red board's mask and showed RED's fog. The
+  // view's perspective (red vs black) is unique per fogged board.
+  const maskId = `xq-live-fog-${view.id.replace(/[^a-zA-Z0-9_-]/g, '')}-${view.perspective}`;
   const fog = options.showFog === false ? '' : fogLayer(view, perspective, maskId);
   return `
     <svg class="xq-live-svg" viewBox="0 0 ${WIDTH} ${HEIGHT}" xmlns="http://www.w3.org/2000/svg">
-      <rect class="xq-live-bg" x="0" y="0" width="${WIDTH}" height="${HEIGHT}" rx="8"/>
+      <rect class="xq-live-bg" x="0" y="0" width="${WIDTH}" height="${HEIGHT}" rx="${BOARD_RADIUS}"/>
       <g class="xq-live-grid">${gridLayer()}</g>
       <g class="xq-live-palace">${palaceLayer(perspective)}</g>
       <g class="xq-live-river">${riverLayer(perspective)}</g>
@@ -339,7 +348,7 @@ function boardSvg(
       <g class="xq-live-hints">${hintLayer(view, perspective)}</g>
       <g class="xq-live-pieces">${pieceLayer(view, perspective)}</g>
       <g class="xq-live-clicks">${options.interactive ? clickLayer(perspective) : ''}</g>
-      <rect class="xq-live-border" x="0" y="0" width="${WIDTH}" height="${HEIGHT}" rx="8"/>
+      <rect class="xq-live-border" x="0" y="0" width="${WIDTH}" height="${HEIGHT}" rx="${BOARD_RADIUS}"/>
     </svg>
   `;
 }
@@ -406,7 +415,7 @@ function fogLayer(view: DarkXiangqiWireView, perspective: XiangqiColor, maskId: 
     })
     .join('');
   return xiangqiFogRegion(
-    { width: WIDTH, height: HEIGHT, cell: CELL, margin: MARGIN, rx: 8 },
+    { width: WIDTH, height: HEIGHT, cell: CELL, margin: MARGIN, rx: BOARD_RADIUS },
     maskId,
     'xq-live-fog-mask',
     cutouts,

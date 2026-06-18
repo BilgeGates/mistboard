@@ -662,7 +662,7 @@ describe('landing play panel', () => {
     });
   });
 
-  it('does not offer Dark Xiangqi (9x10) in the play menu — it has no runtime', () => {
+  it('offers Dark Xiangqi (9x10) in the play menu when its flag is on', () => {
     vi.stubEnv('VITE_DARK_XIANGQI_ENABLED', 'true');
     vi.stubGlobal(
       'fetch',
@@ -674,7 +674,23 @@ describe('landing play panel', () => {
       .find((b) => b.textContent === 'Challenge a friend')
       ?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
 
-    // With only Dark Xiangqi's flag on (no DMX), there's no second variant, so no picker.
+    // Flag on: Dark Xiangqi is a second variant (alongside dark chess), so the
+    // picker appears and lists it. PvP-first launch, like Banqi.
+    expect(variantPickerSpecs()).toContain('dark-xiangqi');
+  });
+
+  it('does not offer Dark Xiangqi in the play menu when its flag is off', () => {
+    vi.stubEnv('VITE_DARK_XIANGQI_ENABLED', 'false');
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => jsonResponse({ playing: 0, online: 0 })),
+    );
+    const panel = buildLandingPlayPanel([]);
+    document.body.append(panel);
+    [...panel.querySelectorAll('button')]
+      .find((b) => b.textContent === 'Challenge a friend')
+      ?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+
     expect(variantPickerSpecs()).not.toContain('dark-xiangqi');
   });
 

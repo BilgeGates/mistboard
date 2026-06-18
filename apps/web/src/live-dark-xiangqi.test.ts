@@ -35,7 +35,32 @@ describe('Dark Xiangqi board svg', () => {
       'xq-live-fog-mask',
     );
   });
+
+  it('gives red and black views distinct fog mask ids (postgame triptych)', () => {
+    // Hidden-info regression: the postgame triptych draws the red, truth, and
+    // black views in ONE document, same game id, same board orientation. Keying
+    // the fog mask by render orientation made red and black share an id, so the
+    // black board's url(#…) resolved to the red board's mask and showed RED's
+    // fog. Each view's fog must own a unique mask id.
+    const id = 'xq-shared';
+    const redView: DarkXiangqiWireView = { ...viewFixture(), id, perspective: 'red' };
+    const blackView: DarkXiangqiWireView = {
+      ...viewFixture(),
+      id,
+      perspective: 'black',
+      visibleSquares: ['a9', 'a10'],
+    };
+    const redMask = fogMaskId(renderDarkXiangqiBoardSvg(redView, 'red'));
+    const blackMask = fogMaskId(renderDarkXiangqiBoardSvg(blackView, 'red'));
+    expect(redMask).not.toBeNull();
+    expect(blackMask).not.toBeNull();
+    expect(blackMask).not.toBe(redMask);
+  });
 });
+
+function fogMaskId(svg: string): string | null {
+  return svg.match(/id="(xq-live-fog-[^"]+)"/)?.[1] ?? null;
+}
 
 describe('Dark Xiangqi click-to-move decisions', () => {
   it('selects an own visible piece with legal moves', () => {

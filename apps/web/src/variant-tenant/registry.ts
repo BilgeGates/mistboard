@@ -151,10 +151,12 @@ const WEB_VARIANT_TENANTS: readonly WebVariantTenant[] = [
           () =>
             bootstrapDarkXiangqiLiveRoom(),
       ),
-    // No watch channel, and the landing config keeps both menu and deep-link
-    // gates off: Dark Xiangqi (9x10) has no public live runtime (its play
-    // surface is the dev-only spike), but stored setup preferences can still
-    // reference it, so its picker capabilities stay defined.
+    // PvP-first launch, gated on the flag (like Banqi's PvP-only launch). The
+    // live client (live-dark-xiangqi.ts) runs on the socket-client + chrome
+    // stack, so a menu-created dxq_ room is fully playable. No PvE: Fairy-
+    // Stockfish is perfect-info and can't play fog xiangqi, so a belief bot is a
+    // separate research track. No watch channel yet (added post-launch, as
+    // Banqi's was).
     landing: {
       capabilities: {
         ...XIANGQI_CAPABILITIES_BASE,
@@ -163,8 +165,8 @@ const WEB_VARIANT_TENANTS: readonly WebVariantTenant[] = [
         supportsTimeControl: true,
       },
       timePresetIds: ['3m2'],
-      offerInMenu: () => false,
-      acceptsDeepLink: () => false,
+      offerInMenu: darkXiangqiEnabled,
+      acceptsDeepLink: darkXiangqiEnabled,
     },
   },
   {
