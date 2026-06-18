@@ -509,7 +509,7 @@ const ZH_HANS: Record<string, string> = {
   Banqi: '暗棋',
   // -- Banqi (rules) --
   'Banqi (Chinese Dark Chess) Rules': '暗棋规则',
-  'Step through a real game below — MistyBanqi (Strongest) moving first, a human second. The opening flip leaves MistyBanqi playing Red and the human Black. Black wins the opening material — the first eight captures are all Black’s — but Red keeps its elephant, the highest piece left, and grinds out the win. A clean illustration that in Banqi, rank beats raw material. Tiles flip to their dealt piece the first time they are turned over.':
+  'Step through a real game below: MistyBanqi (Strongest) moving first, a human second. The opening flip leaves MistyBanqi playing Red and the human Black. Black wins the opening material (the first eight captures are all Black’s), but Red keeps its elephant, the highest piece left, and grinds out the win. A clean illustration that in Banqi, rank beats raw material. Tiles flip to their dealt piece the first time they are turned over.':
     '在下方逐步回放一盘真实对局——MistyBanqi（最强）先手，人类后手。开局的第一次翻子让 MistyBanqi 执红、人类执黑。黑方在开局赢得子力——前八次吃子都是黑方——但红方留住了象，也就是盘面上等级最高的棋子，最终碾压获胜。这清楚地说明：在暗棋中，等级胜过单纯的子力。每枚棋子第一次被翻开时，会翻出它所发到的身份。',
   'Banqi rules: the 4x8 half-board xiangqi flip game, with face-down pieces, rank captures, screen-jumping cannons, and no royal general.':
     '暗棋规则：在半张 4×8 象棋棋盘上进行的翻子游戏。棋子背面朝下，按等级吃子，炮靠隔子（炮架）吃，将帅不是王棋。',
@@ -527,16 +527,16 @@ const ZH_HANS: Record<string, string> = {
   'Capture by rank': '按等级吃子',
   'Most pieces capture enemy pieces of their own rank or lower by stepping onto an adjacent square. In Taiwanese rules, the order is General > Advisor > Elephant > Chariot > Horse > Soldier. Two exceptions cross the ladder: a soldier can capture the general, and the general cannot capture soldiers.':
     '大多数棋子可以走到相邻方格，吃掉与自己同级或更低级的敌方棋子。在台湾规则中，等级顺序为 将 ＞ 士 ＞ 象 ＞ 车 ＞ 马 ＞ 卒。有两个跨越等级的例外：卒可以吃将，而将不能吃卒。',
-  'The cannon sits outside this rank ladder and uses its own capture rule. Face-down pieces cannot be captured. A piece must be flipped before anyone can take it, which makes every flip next to a strong enemy piece a calculated risk.':
-    '炮不在这一等级序列之内，使用自己的吃子规则。背面朝下的棋子不能被吃。任何棋子都必须先翻开，才能被吃，因此在强敌旁边翻子，每一次都是经过权衡的冒险。',
+  'The cannon sits outside this rank ladder and uses its own capture rule. As a target, though, it still ranks just above the soldier, shown in the dashed slot below. Face-down pieces cannot be captured at all: a piece must be flipped before anyone can take it, which makes every flip next to a strong enemy piece a calculated risk.':
+    '炮不在这一等级序列之内，使用自己的吃子规则。不过作为被吃目标，它仍排在卒之上，如下方虚线格中所示。背面朝下的棋子完全不能被吃：任何棋子都必须先翻开，才能被吃，因此在强敌旁边翻子，每一次都是经过权衡的冒险。',
   'The cannon': '炮',
   'The cannon ignores rank when it captures. For a capture only, it may travel any distance along a row or column and jump exactly one intervening piece, the screen. It then takes the first piece beyond that screen, and only if that piece is a revealed enemy. If a friendly or face-down piece sits there instead, the line is blocked and the cannon cannot reach past it. The screen itself can be friendly, enemy, or face-down.':
     '炮吃子时不论等级。仅在吃子时，它可以沿一行或一列移动任意距离，并恰好越过中间一枚棋子，即炮架。它吃掉炮架另一侧的第一枚棋子，且仅当该棋子是已翻开的敌方棋子。如果那里是己方棋子或背面朝下的棋子，则该线被挡住，炮无法越过它。炮架本身可以是己方、敌方或背面朝下的棋子。',
   'A non-capturing cannon move is still just one square orthogonally, like every other piece. Because a cannon needs a screen to capture, it cannot take an adjacent piece. As a target, an adjacent cannon can be taken by a general, advisor, elephant, chariot, or horse, but not by a soldier.':
     '炮在不吃子时，与其他棋子一样，也只能沿上下左右走一格。由于炮吃子需要炮架，它不能吃相邻的棋子。作为被吃目标，相邻的炮可以被将、士、象、车或马吃掉，但不能被卒吃掉。',
-  'You win when your opponent has no legal move — usually because every enemy piece is captured, sometimes because they are boxed in. The general is not royal: capturing it is progress, not the win, and play continues until one side is wiped out or stuck.':
+  'You win when your opponent has no legal move, usually because every enemy piece is captured, sometimes because they are boxed in. The general is not royal: capturing it is progress, not the win, and play continues until one side is wiped out or stuck.':
     '当对手轮到自己却无棋可走时，你获胜——通常是因为敌方棋子被全部吃光，有时则是被困死、无路可走。这里的将不是王棋：吃掉它只是进展，而非胜利，棋局会一直进行到一方被吃光或被困死为止。',
-  'Mistboard draws a game two ways: 40 plies (single moves) with no flip or capture, or threefold repetition — the same position three times. Either counter resets on any flip or capture, since those cannot be taken back. There is no perpetual-chase rule; over the board, agree the no-progress and repetition limits before you start.':
+  'Mistboard draws a game two ways: 40 plies (single moves) with no flip or capture, or threefold repetition, the same position three times. Either counter resets on any flip or capture, since those cannot be taken back. There is no perpetual-chase rule; over the board, agree the no-progress and repetition limits before you start.':
     'Mistboard 有两种自动和棋：连续 40 步（单步）内没有翻子也没有吃子，或者同一局面出现三次的三次重复。任何翻子或吃子都会让相应计数清零，因为这类着法无法收回。这里没有长捉判负规则；线下对弈时，请在开局前约定无进展与重复局面的处理标准。',
   'How positions work': '局面是如何运作的',
   'This is the strategy layer behind the rules. Banqi starts random, but it does not stay random: every flip changes the local fight, every captured piece changes what can still be hiding, and every face-down piece changes the shape of the board.':
@@ -1043,7 +1043,7 @@ const ZH_HANT: Record<string, string> = {
   Banqi: '暗棋',
   // -- Banqi (rules) --
   'Banqi (Chinese Dark Chess) Rules': '暗棋規則',
-  'Step through a real game below — MistyBanqi (Strongest) moving first, a human second. The opening flip leaves MistyBanqi playing Red and the human Black. Black wins the opening material — the first eight captures are all Black’s — but Red keeps its elephant, the highest piece left, and grinds out the win. A clean illustration that in Banqi, rank beats raw material. Tiles flip to their dealt piece the first time they are turned over.':
+  'Step through a real game below: MistyBanqi (Strongest) moving first, a human second. The opening flip leaves MistyBanqi playing Red and the human Black. Black wins the opening material (the first eight captures are all Black’s), but Red keeps its elephant, the highest piece left, and grinds out the win. A clean illustration that in Banqi, rank beats raw material. Tiles flip to their dealt piece the first time they are turned over.':
     '在下方逐步回放一盤真實對局——MistyBanqi（最強）先手，人類後手。開局的第一次翻子讓 MistyBanqi 執紅、人類執黑。黑方在開局贏得子力——前八次吃子都是黑方——但紅方留住了象，也就是盤面上等級最高的棋子，最終碾壓獲勝。這清楚地說明：在暗棋中，等級勝過單純的子力。每枚棋子第一次被翻開時，會翻出它所發到的身份。',
   'Banqi rules: the 4x8 half-board xiangqi flip game, with face-down pieces, rank captures, screen-jumping cannons, and no royal general.':
     '暗棋規則：在半張 4×8 象棋棋盤上進行的翻子遊戲。棋子背面朝下，按等級吃子，砲靠隔子（砲架）吃，將帥不是王棋。',
@@ -1061,16 +1061,16 @@ const ZH_HANT: Record<string, string> = {
   'Capture by rank': '按等級吃子',
   'Most pieces capture enemy pieces of their own rank or lower by stepping onto an adjacent square. In Taiwanese rules, the order is General > Advisor > Elephant > Chariot > Horse > Soldier. Two exceptions cross the ladder: a soldier can capture the general, and the general cannot capture soldiers.':
     '大多數棋子可以走到相鄰方格，吃掉與自己同級或更低級的敵方棋子。在臺灣規則中，等級順序為 將 ＞ 士 ＞ 象 ＞ 車 ＞ 馬 ＞ 卒。有兩個跨越等級的例外：卒可以吃將，而將不能吃卒。',
-  'The cannon sits outside this rank ladder and uses its own capture rule. Face-down pieces cannot be captured. A piece must be flipped before anyone can take it, which makes every flip next to a strong enemy piece a calculated risk.':
-    '砲不在這一等級序列之內，使用自己的吃子規則。背面朝下的棋子不能被吃。任何棋子都必須先翻開，才能被吃，因此在強敵旁邊翻子，每一次都是經過權衡的冒險。',
+  'The cannon sits outside this rank ladder and uses its own capture rule. As a target, though, it still ranks just above the soldier, shown in the dashed slot below. Face-down pieces cannot be captured at all: a piece must be flipped before anyone can take it, which makes every flip next to a strong enemy piece a calculated risk.':
+    '砲不在這一等級序列之內，使用自己的吃子規則。不過作為被吃目標，它仍排在卒之上，如下方虛線格中所示。背面朝下的棋子完全不能被吃：任何棋子都必須先翻開，才能被吃，因此在強敵旁邊翻子，每一次都是經過權衡的冒險。',
   'The cannon': '砲',
   'The cannon ignores rank when it captures. For a capture only, it may travel any distance along a row or column and jump exactly one intervening piece, the screen. It then takes the first piece beyond that screen, and only if that piece is a revealed enemy. If a friendly or face-down piece sits there instead, the line is blocked and the cannon cannot reach past it. The screen itself can be friendly, enemy, or face-down.':
     '砲吃子時不論等級。僅在吃子時，它可以沿一行或一列移動任意距離，並恰好越過中間一枚棋子，即砲架。它吃掉砲架另一側的第一枚棋子，且僅當該棋子是已翻開的敵方棋子。如果那裡是己方棋子或背面朝下的棋子，則該線被擋住，砲無法越過它。砲架本身可以是己方、敵方或背面朝下的棋子。',
   'A non-capturing cannon move is still just one square orthogonally, like every other piece. Because a cannon needs a screen to capture, it cannot take an adjacent piece. As a target, an adjacent cannon can be taken by a general, advisor, elephant, chariot, or horse, but not by a soldier.':
     '砲在不吃子時，與其他棋子一樣，也只能沿上下左右走一格。由於砲吃子需要砲架，它不能吃相鄰的棋子。作為被吃目標，相鄰的砲可以被將、士、象、車或馬吃掉，但不能被卒吃掉。',
-  'You win when your opponent has no legal move — usually because every enemy piece is captured, sometimes because they are boxed in. The general is not royal: capturing it is progress, not the win, and play continues until one side is wiped out or stuck.':
+  'You win when your opponent has no legal move, usually because every enemy piece is captured, sometimes because they are boxed in. The general is not royal: capturing it is progress, not the win, and play continues until one side is wiped out or stuck.':
     '當對手輪到自己卻無棋可走時，你獲勝——通常是因為敵方棋子被全部吃光，有時則是被困死、無路可走。這裡的將不是王棋：吃掉它只是進展，而非勝利，棋局會一直進行到一方被吃光或被困死為止。',
-  'Mistboard draws a game two ways: 40 plies (single moves) with no flip or capture, or threefold repetition — the same position three times. Either counter resets on any flip or capture, since those cannot be taken back. There is no perpetual-chase rule; over the board, agree the no-progress and repetition limits before you start.':
+  'Mistboard draws a game two ways: 40 plies (single moves) with no flip or capture, or threefold repetition, the same position three times. Either counter resets on any flip or capture, since those cannot be taken back. There is no perpetual-chase rule; over the board, agree the no-progress and repetition limits before you start.':
     'Mistboard 有兩種自動和棋：連續 40 步（單步）內沒有翻子也沒有吃子，或者同一局面出現三次的三次重複。任何翻子或吃子都會讓相應計數清零，因為這類著法無法收回。這裡沒有長捉判負規則；線下對弈時，請在開局前約定無進展與重複局面的處理標準。',
   'How positions work': '局面是如何運作的',
   'This is the strategy layer behind the rules. Banqi starts random, but it does not stay random: every flip changes the local fight, every captured piece changes what can still be hiding, and every face-down piece changes the shape of the board.':

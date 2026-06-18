@@ -2731,19 +2731,37 @@ export const BANQI_RANK_ORDER: Array<{ role: XiangqiPiece['role']; label: string
 export const BANQI_RANK_LADDER = () => {
   // Same footprint as the half-xiangqi board diagrams: a BANQI_BOARD_W x
   // BANQI_BOARD_H panel centred at BANQI_CENTER_X, with the title above it.
+  // The cannon is drawn set apart (dashed slot) between horse and soldier: it
+  // never captures by this ladder (screen jump, ignores rank), but as a TARGET
+  // it ranks there, above only the soldier. The caption states the dual nature
+  // so the horse-takes-cannon / soldier-cannot boundary is visible, not just
+  // buried in the prose. Cannon ink-coloured dashing adapts to every board
+  // theme (all three diagram backgrounds are light).
   const L = BANQI_CENTER_X;
   const T = 28;
-  const pieceX = (index: number): number => L + 78 + index * 56;
+  const ladder: Array<{ role: XiangqiPiece['role']; label: string; targetOnly?: boolean }> = [
+    ...BANQI_RANK_ORDER.slice(0, -1),
+    { role: 'cannon', label: 'Cannon', targetOnly: true },
+    BANQI_RANK_ORDER[BANQI_RANK_ORDER.length - 1],
+  ];
+  const count = ladder.length;
+  const step = 56;
+  const boardCenterX = L + BANQI_BOARD_W / 2;
+  const pieceX = (index: number): number => boardCenterX + (index - (count - 1) / 2) * step;
   return xqSvg(
     BANQI_PAIR_W,
-    BANQI_BOARD_H + 52,
+    BANQI_BOARD_H + 80,
     [
       `<text x="${BANQI_PAIR_W / 2}" y="14" font-family="system-ui, sans-serif" font-size="13" font-weight="700" class="xq-diagram-title" text-anchor="middle">TAIWAN RANK LADDER</text>`,
       `<rect x="${L}" y="${T}" width="${BANQI_BOARD_W}" height="${BANQI_BOARD_H}" rx="${XQ_BOARD_RADIUS}" class="xq-diagram-bg"/>`,
       `<rect x="${L}" y="${T}" width="${BANQI_BOARD_W}" height="${BANQI_BOARD_H}" rx="${XQ_BOARD_RADIUS}" fill="none" stroke="${XQ_BOARD_STROKE}" stroke-width="${XQ_BOARD_STROKE_WIDTH}"/>`,
-      ...BANQI_RANK_ORDER.map(({ role, label }, index) => {
+      ...ladder.map(({ role, label, targetOnly }, index) => {
         const cx = pieceX(index);
+        const marker = targetOnly
+          ? `<rect x="${cx - 25}" y="${T + 38}" width="50" height="134" rx="12" fill="var(--xq-diagram-ink, #4b3c2a)" fill-opacity="0.06" stroke="var(--xq-diagram-ink, #4b3c2a)" stroke-width="1.5" stroke-dasharray="5 3"/>`
+          : '';
         return [
+          marker,
           renderXiangqiPieceGlyphed({ color: 'red', role }, activeXiangqiPieceSet, {
             x: cx - 18,
             y: T + 44,
@@ -2759,6 +2777,8 @@ export const BANQI_RANK_LADDER = () => {
       }),
       `<text x="${L + 60}" y="${T + 206}" font-family="system-ui, sans-serif" font-size="12" font-weight="700" class="xq-diagram-ink" text-anchor="middle">HIGH</text>`,
       `<text x="${L + BANQI_BOARD_W - 60}" y="${T + 206}" font-family="system-ui, sans-serif" font-size="12" font-weight="700" class="xq-diagram-ink" text-anchor="middle">LOW</text>`,
+      `<text x="${BANQI_PAIR_W / 2}" y="${T + 252}" font-family="system-ui, sans-serif" font-size="11" class="xq-diagram-ink" text-anchor="middle">Attacking, the cannon jumps a screen and ignores rank.</text>`,
+      `<text x="${BANQI_PAIR_W / 2}" y="${T + 269}" font-family="system-ui, sans-serif" font-size="11" class="xq-diagram-ink" text-anchor="middle">As a target it ranks here: taken by horse and up, never by a soldier.</text>`,
     ].join(''),
   );
 };
