@@ -397,7 +397,7 @@ export const GAME_SPECS: readonly GameSpec[] = [
     dropPolicy: 'none',
     ratingPoolBase: 'crossroads_chess',
     publicSurface: 'hidden',
-    runtimeStatus: 'future',
+    runtimeStatus: 'dev-spike',
   },
   {
     // Reveal Chess (chess-jieqi): standard chess with hidden piece identities.

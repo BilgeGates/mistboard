@@ -190,7 +190,7 @@ test('Crossroads Chess is two specs sharing one family/board, split on visibilit
     assert.equal(spec.publicSurface, 'hidden');
   }
   assert.equal(open.runtimeStatus, 'dev-spike');
-  assert.equal(dark.runtimeStatus, 'future');
+  assert.equal(dark.runtimeStatus, 'dev-spike');
   // The split: perfect-info onboarding vs the real fog mode, on separate pools.
   assert.equal(open.publicName, 'Crossroads Chess');
   assert.equal(dark.publicName, 'Dark Crossroads Chess');

@@ -17,6 +17,7 @@ import {
   BANQI_SPEC_ID,
   CROSSROADS_CHESS_SPEC_ID,
   DARK_CHESS_SPEC_ID,
+  DARK_CROSSROADS_CHESS_SPEC_ID,
   DARK_MINI_XIANGQI_SPEC_ID,
   DARK_XIANGQI_SPEC_ID,
   DUAL_CHESS_SPEC_ID,
@@ -29,6 +30,7 @@ import {
   banqiEnabled,
   correspondenceEnabled,
   crossroadsChessEnabled,
+  darkCrossroadsChessEnabled,
   darkMiniXiangqiEnabled,
   darkMiniXiangqiPublicEntryEnabled,
   darkXiangqiEnabled,
@@ -463,6 +465,46 @@ const WEB_VARIANT_TENANTS: readonly WebVariantTenant[] = [
         },
       ],
       defaultEngineId: 'fairy-stockfish-crossroads-strong',
+    },
+  },
+  {
+    // Dark Crossroads Chess (fog 6x8): the FOG sibling of perfect-info
+    // Crossroads. A self-contained live client on the socket-client + chrome
+    // stack with the fog-safe replay-CAPTURE model (live-dark-crossroads-chess.ts,
+    // NOT the open client's reconstruct-from-state path, which would leak under
+    // fog); the board renderer is shared with the open variant (already
+    // fog-aware). PvP-only — Fairy-Stockfish is perfect-info and can't play fog
+    // crossroads, so there is no PvE. Flag-gated; the picker capabilities stay
+    // defined while the menu/deep-link gates are off. No postgame route or watch
+    // channel yet — both are parity fast-follows (as they were for Dark Xiangqi),
+    // so the review link lands on the live room rather than 404-ing.
+    gameSpecId: DARK_CROSSROADS_CHESS_SPEC_ID,
+    roomIdPrefix: 'ddchess_',
+    enabled: darkCrossroadsChessEnabled,
+    pageTitle: 'Dark Crossroads Chess',
+    loadLiveRoomClient: () =>
+      import('../live-dark-crossroads-chess.js').then(
+        ({ bootstrapDarkCrossroadsChessLiveRoom }) =>
+          () =>
+            bootstrapDarkCrossroadsChessLiveRoom(),
+      ),
+    landing: {
+      // White vs Red (the variant's actual colors), so the picker's
+      // preferredColor maps straight onto the room route's parser.
+      capabilities: {
+        firstColor: 'white',
+        firstGlyph: '♚',
+        firstLabel: 'White',
+        secondColor: 'red',
+        secondGlyph: '♚',
+        secondLabel: 'Red',
+        supportsRated: false,
+        supportsStartFormat: false,
+        supportsTimeControl: true,
+      },
+      timePresetIds: ['1m1', '3m2', '5m5'],
+      offerInMenu: darkCrossroadsChessEnabled,
+      acceptsDeepLink: darkCrossroadsChessEnabled,
     },
   },
 ];

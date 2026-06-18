@@ -52,3 +52,11 @@ export function correspondenceEnabled(): boolean {
 export function crossroadsChessEnabled(): boolean {
   return import.meta.env.DEV || import.meta.env.VITE_CROSSROADS_CHESS_ENABLED === 'true';
 }
+
+// Dark Crossroads Chess (the fog 6x8 variant) play surface. Server-side opt-in
+// is MISTBOARD_DARK_CROSSROADS_CHESS_ENABLED; this gates the landing picker and
+// deep links. Not DEV-on by default — like Dark Xiangqi, test locally by
+// relaunching the dev server with VITE_DARK_CROSSROADS_CHESS_ENABLED=true.
+export function darkCrossroadsChessEnabled(): boolean {
+  return import.meta.env.VITE_DARK_CROSSROADS_CHESS_ENABLED === 'true';
+}
