@@ -20,7 +20,10 @@ function allShogiSquares(): ShogiSquare[] {
 }
 
 // A truth-style view: the full board, every square visible.
-function truthView(state: ShogiGameState, perspective: 'black' | 'white' = 'black'): ShogiPlayerView {
+function truthView(
+  state: ShogiGameState,
+  perspective: 'black' | 'white' = 'black',
+): ShogiPlayerView {
   return {
     id: state.id,
     perspective,

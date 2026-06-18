@@ -100,7 +100,7 @@ test('Dark Shogi postgame returns a full-truth view revealing every piece + ever
   // Truth view: all 81 squares visible, every board entry a fully-known piece.
   assert.equal(payload.view.visibleSquares.length, 81);
   for (const [square, piece] of Object.entries(payload.view.board)) {
-    assert.ok(piece && piece.color && piece.role, `truth square ${square} must carry a piece`);
+    assert.ok(piece?.color && piece.role, `truth square ${square} must carry a piece`);
   }
 });
 
