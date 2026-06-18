@@ -68,3 +68,11 @@ export function darkCrossroadsChessEnabled(): boolean {
 export function darkShogiEnabled(): boolean {
   return import.meta.env.VITE_DARK_SHOGI_ENABLED === 'true';
 }
+
+// Dark Crazyhouse (the fog 8x8 chess + drops variant) play surface. Server-side
+// opt-in is MISTBOARD_DARK_CRAZYHOUSE_ENABLED; this gates the landing picker and
+// deep links. Not DEV-on by default — test locally by relaunching the dev server
+// with VITE_DARK_CRAZYHOUSE_ENABLED=true.
+export function darkCrazyhouseEnabled(): boolean {
+  return import.meta.env.VITE_DARK_CRAZYHOUSE_ENABLED === 'true';
+}

@@ -69,7 +69,8 @@ export type CrazyhouseGameState = Omit<GameState, 'variant' | 'lastMove' | 'stat
   promoted: Square[];
 };
 
-export type CrazyhousePlayerView = Omit<PlayerView, 'legalMoves' | 'lastMove'> & {
+export type CrazyhousePlayerView = Omit<PlayerView, 'legalMoves' | 'lastMove' | 'status'> & {
+  status: CrazyhousePlayStatus;
   // Board moves + OFFERABLE drops (under parachute these include fogged squares
   // that may bounce). Computed from the view, never from the true board.
   legalMoves: CrazyhouseMove[];
@@ -303,6 +304,7 @@ export function getCrazyhousePlayerView(
       : [];
   return {
     ...base,
+    status: playableStatus(base.status),
     legalMoves: [...base.legalMoves, ...drops],
     hand: { ...state.hands[color] }, // each side sees only its own reserve
     lastMove: state.lastMove, // the crazyhouse last action (board or drop); tenant redacts to own-only

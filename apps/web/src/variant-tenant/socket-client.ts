@@ -71,6 +71,10 @@ export type TenantSocketClientOptions = {
   applySnapshot(frame: TenantSocketFrame): void;
   applyEvent(frame: TenantSocketFrame): void;
   onRematchState?(message: Record<string, unknown>): void;
+  // Tenant-specific server messages the core does not recognize (hello / snapshot
+  // / event-appended / pong / rematch / restart). Dark Crazyhouse uses it for the
+  // 'drop-rejected' parachute bounce. Called before the trailing re-render.
+  onServerMessage?(message: { type: string; [key: string]: unknown }): void;
   // Full re-render, called after every connection/frame state change.
   render(): void;
 };
@@ -304,6 +308,8 @@ export function createTenantSocketClient(options: TenantSocketClientOptions): Te
       connectionState = 'connected';
       options.applyEvent(message);
       if (message.seq !== undefined) lastSeq = message.seq;
+    } else {
+      options.onServerMessage?.(message as unknown as { type: string; [key: string]: unknown });
     }
     options.render();
   }

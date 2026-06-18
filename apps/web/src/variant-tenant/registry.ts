@@ -17,6 +17,7 @@ import {
   BANQI_SPEC_ID,
   CROSSROADS_CHESS_SPEC_ID,
   DARK_CHESS_SPEC_ID,
+  DARK_CRAZYHOUSE_SPEC_ID,
   DARK_CROSSROADS_CHESS_SPEC_ID,
   DARK_MINI_XIANGQI_SPEC_ID,
   DARK_SHOGI_SPEC_ID,
@@ -31,6 +32,7 @@ import {
   banqiEnabled,
   correspondenceEnabled,
   crossroadsChessEnabled,
+  darkCrazyhouseEnabled,
   darkCrossroadsChessEnabled,
   darkMiniXiangqiEnabled,
   darkMiniXiangqiPublicEntryEnabled,
@@ -560,6 +562,40 @@ const WEB_VARIANT_TENANTS: readonly WebVariantTenant[] = [
       offerInMenu: darkShogiEnabled,
       acceptsDeepLink: darkShogiEnabled,
       hideColorPicker: true,
+    },
+  },
+  {
+    // Dark Crazyhouse (fog 8x8 chess + drops): a fog tenant on the socket-client +
+    // chrome stack with the fog-safe replay-CAPTURE model (live-dark-crazyhouse.ts).
+    // Reuses the existing 8x8 chess board + chess fog; new surface is the reserve
+    // (hand) strips + drop UI + 4-way promotion + the PARACHUTE BOUNCE (a fog drop
+    // onto a hidden piece comes back as 'drop-rejected'). PRIVATE hands. PvP-only,
+    // no bot. Standard white-first, so it gets a real White/Black color picker.
+    gameSpecId: DARK_CRAZYHOUSE_SPEC_ID,
+    roomIdPrefix: 'dczh_',
+    enabled: darkCrazyhouseEnabled,
+    pageTitle: 'Dark Crazyhouse',
+    loadLiveRoomClient: () =>
+      import('../live-dark-crazyhouse.js').then(
+        ({ bootstrapDarkCrazyhouseLiveRoom }) =>
+          () =>
+            bootstrapDarkCrazyhouseLiveRoom(),
+      ),
+    landing: {
+      capabilities: {
+        firstColor: 'white',
+        firstGlyph: '♚',
+        firstLabel: 'White',
+        secondColor: 'black',
+        secondGlyph: '♚',
+        secondLabel: 'Black',
+        supportsRated: false,
+        supportsStartFormat: false,
+        supportsTimeControl: true,
+      },
+      timePresetIds: ['1m1', '3m2', '5m5'],
+      offerInMenu: darkCrazyhouseEnabled,
+      acceptsDeepLink: darkCrazyhouseEnabled,
     },
   },
 ];
