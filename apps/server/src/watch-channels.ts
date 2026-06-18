@@ -42,6 +42,7 @@ const DARK_CHESS_CHANNEL: WatchChannel = {
 const WATCH_CHANNEL_ORDER: readonly string[] = [
   'dark-chess',
   'dark-mini-xiangqi',
+  'dark-xiangqi',
   'jieqi',
   'crossroads-chess',
 ];

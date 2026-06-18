@@ -4,6 +4,7 @@ import {
   CROSSROADS_CHESS_SPEC_ID,
   DARK_CHESS_SPEC_ID,
   DARK_DRAFT960_SPEC_ID,
+  DARK_XIANGQI_SPEC_ID,
   JIEQI_SPEC_ID,
 } from '@mistboard/game';
 // Watch channels (other than the hardcoded dark-chess default) derive from the
@@ -81,5 +82,35 @@ test('watch channels expose Jieqi behind its live-room flag', () => {
     );
   } finally {
     delete process.env.MISTBOARD_JIEQI_ENABLED;
+  }
+});
+
+test('Dark Xiangqi watch channel is absent while the dark-xiangqi flag is off', () => {
+  assert.equal(watchChannelForId('dark-xiangqi'), null);
+  assert.equal(
+    listWatchChannels().some((channel) => channel.id === 'dark-xiangqi'),
+    false,
+  );
+});
+
+test('watch channels expose Dark Xiangqi behind its live-room flag', () => {
+  process.env.MISTBOARD_DARK_XIANGQI_ENABLED = 'true';
+  try {
+    const channel = watchChannelForId('dark-xiangqi');
+    assert.equal(channel?.id, 'dark-xiangqi');
+    assert.equal(channel?.label, 'Dark Xiangqi');
+    assert.equal(channel?.family, 'xiangqi');
+    assert.equal(channel?.default, false);
+    assert.deepEqual(channel?.gameSpecIds, [DARK_XIANGQI_SPEC_ID]);
+    assert.deepEqual(channel?.legacyVariants, ['dark-xiangqi']);
+    // Dark chess stays the default and leads the rail; dark-xiangqi follows it.
+    const channels = listWatchChannels();
+    assert.equal(channels[0]?.id, 'dark-chess');
+    assert.deepEqual(
+      channels.map((entry) => entry.id),
+      ['dark-chess', 'dark-xiangqi'],
+    );
+  } finally {
+    delete process.env.MISTBOARD_DARK_XIANGQI_ENABLED;
   }
 });

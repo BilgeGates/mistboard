@@ -14,6 +14,7 @@ import {
   DARK_CHESS_SPEC_ID,
   DARK_DRAFT960_SPEC_ID,
   DARK_MINI_XIANGQI_SPEC_ID,
+  DARK_XIANGQI_SPEC_ID,
   type GameSpecId,
   gameSpecForId,
   JIEQI_SPEC_ID,
@@ -26,6 +27,7 @@ import {
   crossroadsChessEnabled,
   darkMiniXiangqiEnabled,
   darkMiniXiangqiPublicEntryEnabled,
+  darkXiangqiEnabled,
   jieqiEnabled,
   revealChessEnabled,
 } from './feature-flags.js';
@@ -58,9 +60,11 @@ const crossroadsEnabled = crossroadsChessEnabled();
 const jieqiOn = jieqiEnabled();
 const banqiOn = banqiEnabled();
 const revealChessOn = revealChessEnabled();
+const darkXiangqiOn = darkXiangqiEnabled();
 const darkChessSpec = gameSpecForId(DARK_CHESS_SPEC_ID);
 const draft960Spec = gameSpecForId(DARK_DRAFT960_SPEC_ID);
 const darkMiniXiangqiSpec = gameSpecForId(DARK_MINI_XIANGQI_SPEC_ID);
+const darkXiangqiSpec = gameSpecForId(DARK_XIANGQI_SPEC_ID);
 const crossroadsChessSpec = gameSpecForId(CROSSROADS_CHESS_SPEC_ID);
 const jieqiSpec = gameSpecForId(JIEQI_SPEC_ID);
 const banqiSpec = gameSpecForId(BANQI_SPEC_ID);
@@ -99,6 +103,19 @@ export const VARIANTS: VariantDef[] = [
     enabled: darkMiniPublicEntryEnabled,
     onLeaderboard: darkMiniPublicEntryEnabled,
     onProfile: darkMiniEnabled,
+  },
+  // Full Dark Xiangqi (9x10 fog): launched PvP-first (no bot, no open-seek
+  // lobby), rating-ready like jieqi/banqi — shown on the rating surfaces whenever
+  // its flag is on, lighting up the moment global rated is enabled.
+  {
+    id: currentRatingVariantForSpec(DARK_XIANGQI_SPEC_ID),
+    gameSpecId: darkXiangqiSpec.id,
+    apiParam: DARK_XIANGQI_SPEC_ID,
+    label: darkXiangqiSpec.publicName,
+    miniId: 'dark-xiangqi',
+    enabled: false,
+    onLeaderboard: darkXiangqiOn,
+    onProfile: darkXiangqiOn,
   },
   // Jieqi + Banqi launched casual and are rating-ready (gated globally by
   // MISTBOARD_RATED_ENABLED). Not lobby-selectable (no open-seek matchmaking);

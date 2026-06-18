@@ -267,6 +267,9 @@ export const GAME_SPECS: readonly GameSpec[] = [
     reserves: 'none',
     dropPolicy: 'none',
     ratingPoolBase: 'dark_xiangqi',
+    // Rating-ready (like Banqi/Jieqi): the pool exists so it lights up the moment
+    // the global rated flag flips. Launches PvP-first, casual until then.
+    rated: true,
     publicSurface: 'hidden',
     runtimeStatus: 'dev-spike',
   },
@@ -460,6 +463,7 @@ export type RatingVariant = Extract<
   | 'fog'
   | 'fog_draft960'
   | 'dark_mini_xiangqi'
+  | 'dark_xiangqi'
   | 'crossroads_chess_open'
   | 'jieqi'
   | 'banqi'

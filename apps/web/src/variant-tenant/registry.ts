@@ -143,20 +143,29 @@ const WEB_VARIANT_TENANTS: readonly WebVariantTenant[] = [
       import('../dark-xiangqi-postgame.js').then(({ mountDarkXiangqiPostgame }) =>
         mountDarkXiangqiPostgame(root, roomId),
       ),
-    // Self-contained live client (flag-gated dev spike) on the
-    // socket-client + chrome stack — the P2 rehearsal shape.
+    // Self-contained live client (flag-gated) on the socket-client + chrome
+    // stack — the P2 rehearsal shape.
     loadLiveRoomClient: () =>
       import('../live-dark-xiangqi.js').then(
         ({ bootstrapDarkXiangqiLiveRoom }) =>
           () =>
             bootstrapDarkXiangqiLiveRoom(),
       ),
+    // Mistboard TV channel. Renders in the 'xiangqi' family (intersection board)
+    // like the other xiangqi tenants; watch-route dispatch keys on the channel's
+    // spec id, not the family, so they never collide on the same renderer.
+    watch: {
+      family: 'xiangqi',
+      mountReplay: (root, roomId, options) =>
+        import('../watch-dark-xiangqi-replay.js').then(({ mountDarkXiangqiWatchReplay }) =>
+          mountDarkXiangqiWatchReplay(root, roomId, options),
+        ),
+    },
     // PvP-first launch, gated on the flag (like Banqi's PvP-only launch). The
     // live client (live-dark-xiangqi.ts) runs on the socket-client + chrome
     // stack, so a menu-created dxq_ room is fully playable. No PvE: Fairy-
     // Stockfish is perfect-info and can't play fog xiangqi, so a belief bot is a
-    // separate research track. No watch channel yet (added post-launch, as
-    // Banqi's was).
+    // separate research track.
     landing: {
       capabilities: {
         ...XIANGQI_CAPABILITIES_BASE,

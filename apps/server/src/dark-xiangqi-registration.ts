@@ -70,6 +70,12 @@ registerVariantTenant({
   kind: darkXiangqiTenant.kind,
   gameSpecId: darkXiangqiTenant.gameSpecId,
   roomIdPrefix: darkXiangqiTenant.roomIdPrefix,
+  watch: {
+    channelId: 'dark-xiangqi',
+    family: 'xiangqi',
+    label: 'Dark Xiangqi',
+    legacyVariants: ['dark-xiangqi'],
+  },
   ownsSpecRouting: true,
   errorPrefix: 'dark_xiangqi',
   enabled: darkXiangqiTenant.enabled,

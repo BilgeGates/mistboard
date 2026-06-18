@@ -5,11 +5,11 @@ import { createDarkXiangqiPlayAgainRoom } from './dark-xiangqi-room-actions.js';
 import { darkXiangqiEnabled } from './feature-flags.js';
 import { type DarkXiangqiWireView, renderDarkXiangqiBoardSvg } from './live-dark-xiangqi.js';
 
-type DarkXiangqiPostgameViewKey = XiangqiColor | 'truth';
+export type DarkXiangqiPostgameViewKey = XiangqiColor | 'truth';
 
 const postgameAbortControllers = new WeakMap<HTMLElement, AbortController>();
 
-type DarkXiangqiPostgameResponse = {
+export type DarkXiangqiPostgameResponse = {
   game: {
     roomId: string;
     variant: 'dark-xiangqi';
@@ -228,7 +228,7 @@ function oppositeXiangqiColor(color: XiangqiColor): XiangqiColor {
   return color === 'red' ? 'black' : 'red';
 }
 
-function postgameViewEntries(
+export function postgameViewEntries(
   postgame: DarkXiangqiPostgameResponse,
 ): Array<{ key: DarkXiangqiPostgameViewKey; label: string; view: DarkXiangqiWireView }> {
   const views = postgame.views;
@@ -251,12 +251,12 @@ function replayControlButton(text: string, label: string): HTMLButtonElement {
   return button;
 }
 
-function postgameReplayMaxPly(postgame: DarkXiangqiPostgameResponse): number {
+export function postgameReplayMaxPly(postgame: DarkXiangqiPostgameResponse): number {
   const history = Object.values(postgame.history ?? {}).flat();
   return Math.max(postgame.game.plyCount, ...history.map((snapshot) => snapshot.ply), 0);
 }
 
-function postgameViewAtPly(
+export function postgameViewAtPly(
   postgame: DarkXiangqiPostgameResponse,
   key: DarkXiangqiPostgameViewKey,
   ply: number,

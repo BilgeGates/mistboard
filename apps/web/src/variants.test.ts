@@ -16,6 +16,7 @@ import {
   leaderboardVariants,
   profileRatingVariants,
   VARIANTS,
+  variantMiniIdForGameSpec,
 } from './variants.js';
 
 describe('web variant launch registry', () => {
@@ -94,12 +95,26 @@ describe('web variant launch registry', () => {
     vi.resetModules();
   });
 
-  it('keeps Dark Xiangqi represented but not launch-enabled', () => {
-    expect(gameSpecForId(DARK_XIANGQI_SPEC_ID).runtimeStatus).toBe('dev-spike');
-    expect(VARIANTS.map((v) => v.gameSpecId)).not.toContain(DARK_XIANGQI_SPEC_ID);
+  it('makes Dark Xiangqi rating-ready behind its flag, never lobby-selectable, with a thumbnail', async () => {
+    // In VARIANTS (so it has a picker mini-board + a rating bucket) but never
+    // lobby-selectable (no open-seek), and on the rating surfaces only when its
+    // flag is on — gated globally by MISTBOARD_RATED_ENABLED on the server.
+    expect(VARIANTS.map((v) => v.gameSpecId)).toContain(DARK_XIANGQI_SPEC_ID);
     expect(enabledVariants.map((v) => v.gameSpecId)).not.toContain(DARK_XIANGQI_SPEC_ID);
+    expect(variantMiniIdForGameSpec(DARK_XIANGQI_SPEC_ID)).toBe('dark-xiangqi');
+    // Flag off (default test env): off the rating surfaces.
     expect(leaderboardVariants.map((v) => v.gameSpecId)).not.toContain(DARK_XIANGQI_SPEC_ID);
     expect(profileRatingVariants.map((v) => v.gameSpecId)).not.toContain(DARK_XIANGQI_SPEC_ID);
+
+    // Flag on: shown on leaderboard + profile, still not lobby-selectable.
+    vi.resetModules();
+    vi.stubEnv('VITE_DARK_XIANGQI_ENABLED', 'true');
+    const flagged = await import('./variants.js');
+    expect(flagged.leaderboardVariants.map((v) => v.gameSpecId)).toContain(DARK_XIANGQI_SPEC_ID);
+    expect(flagged.profileRatingVariants.map((v) => v.gameSpecId)).toContain(DARK_XIANGQI_SPEC_ID);
+    expect(flagged.enabledVariants.map((v) => v.gameSpecId)).not.toContain(DARK_XIANGQI_SPEC_ID);
+    vi.unstubAllEnvs();
+    vi.resetModules();
   });
 
   it('shows Crossroads on rating surfaces and enables it behind its play flag', async () => {
@@ -131,6 +146,7 @@ describe('web variant launch registry', () => {
       [DARK_CHESS_SPEC_ID, 'fog'],
       [DARK_DRAFT960_SPEC_ID, 'dark-draft960'],
       [DARK_MINI_XIANGQI_SPEC_ID, 'dark-mini-xiangqi'],
+      [DARK_XIANGQI_SPEC_ID, 'dark-xiangqi'],
       [JIEQI_SPEC_ID, 'jieqi'],
       [BANQI_SPEC_ID, 'banqi'],
       [REVEAL_CHESS_SPEC_ID, 'reveal-chess'],

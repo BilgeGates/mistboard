@@ -72,6 +72,7 @@ test('Dark Xiangqi is representable as a separate family without live-room mappi
   assert.equal(spec.reserves, 'none');
   assert.equal(spec.dropPolicy, 'none');
   assert.equal(spec.ratingPoolBase, 'dark_xiangqi');
+  assert.equal(spec.rated, true);
   assert.equal(spec.publicSurface, 'hidden');
   assert.equal(spec.runtimeStatus, 'dev-spike');
   assert.equal(spec.legacyLiveRoom, undefined);
@@ -264,6 +265,7 @@ test('RATED_POOL_BASES derives from the rated flag and matches the RatingVariant
     fog: true,
     fog_draft960: true,
     dark_mini_xiangqi: true,
+    dark_xiangqi: true,
     crossroads_chess_open: true,
     jieqi: true,
     banqi: true,
@@ -279,10 +281,10 @@ test('ratingPoolForSpec is rated for launched pools and null for casual-only spe
   assert.equal(ratingPoolForSpec(JIEQI_SPEC_ID), 'jieqi');
   assert.equal(ratingPoolForSpec(BANQI_SPEC_ID), 'banqi');
   assert.equal(ratingPoolForSpec(REVEAL_CHESS_SPEC_ID), 'reveal_chess');
+  assert.equal(ratingPoolForSpec(DARK_XIANGQI_SPEC_ID), 'dark_xiangqi');
   // Casual-only specs (no `rated` flag) have no active pool.
-  assert.equal(ratingPoolForSpec(DARK_XIANGQI_SPEC_ID), null);
   assert.equal(ratingPoolForSpec(DARK_SHOGI_SPEC_ID), null);
   assert.equal(isRatedPoolBase('jieqi'), true);
-  assert.equal(isRatedPoolBase('dark_xiangqi'), false);
+  assert.equal(isRatedPoolBase('dark_xiangqi'), true);
   assert.equal(isRatedPoolBase('not-a-pool'), false);
 });
