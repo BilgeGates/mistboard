@@ -575,6 +575,12 @@ const WEB_VARIANT_TENANTS: readonly WebVariantTenant[] = [
     roomIdPrefix: 'dczh_',
     enabled: darkCrazyhouseEnabled,
     pageTitle: 'Dark Crazyhouse',
+    gameRouteBase: '/dark-crazyhouse/game',
+    mountPostgame: (root, roomId) =>
+      import('../dark-crazyhouse-postgame.js').then(({ mountDarkCrazyhousePostgame }) =>
+        mountDarkCrazyhousePostgame(root, roomId),
+      ),
+    reviewRouteBase: '/dark-crazyhouse/game',
     loadLiveRoomClient: () =>
       import('../live-dark-crazyhouse.js').then(
         ({ bootstrapDarkCrazyhouseLiveRoom }) =>
