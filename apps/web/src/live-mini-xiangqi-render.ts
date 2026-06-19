@@ -320,24 +320,15 @@ export function installMiniXiangqiBoardStyles(): void {
       --mini-xq-grid: #555150;
     }
     /* Per-skin fog tints + texture toggles are shared with the full board and
-       live in app-base.css (--xq-fog-fill, .xq-fog-tex). */
-    .mini-xq-drag-ghost {
-      position: fixed;
-      z-index: 999;
-      pointer-events: none;
-      opacity: 0.92;
-      filter: drop-shadow(0 6px 8px rgba(0, 0, 0, 0.4));
-      will-change: left, top;
-    }
-    .mini-xq-board,
-    .mini-xq-drag-ghost {
+       live in app-base.css (--xq-fog-fill, .xq-fog-tex). The drag ghost is the
+       shared .board-drag-ghost (styles.css), floated by installBoardDrag. */
+    .mini-xq-board {
       -webkit-user-select: none;
       user-select: none;
       -webkit-touch-callout: none;
     }
     .mini-xq-board image,
-    .mini-xq-piece,
-    .mini-xq-drag-ghost image {
+    .mini-xq-piece {
       -webkit-user-drag: none;
     }
     .mini-xq-board {

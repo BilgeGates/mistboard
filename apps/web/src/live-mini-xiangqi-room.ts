@@ -27,6 +27,7 @@ import type { LiveRefs } from './live-state.js';
 import { liveState } from './live-state.js';
 import { rematchControls } from './rematch-controls.js';
 import { setBoardFamily } from './theme.js';
+import { installBoardDrag } from './variant-tenant/board-drag.js';
 import { syncMoveListScroll } from './variant-tenant/chrome-dom.js';
 import { createTenantReplayController } from './variant-tenant/replay-controller.js';
 import { createTenantRoomChrome, type WebVariantTenant } from './variant-tenant/room-chrome.js';
@@ -53,10 +54,12 @@ type MiniXiangqiVisibleMoveRow = { fullMove: number; red?: string; black?: strin
 
 let selectedSquare: MiniXiangqiSquare | null = null;
 // Drag-and-drop state. Click-to-move stays the primary path; a real drag (moved
-// past a small threshold) commits on drop and suppresses the trailing click.
+// past a small threshold) commits on drop, via the shared installBoardDrag helper.
 let dragFrom: MiniXiangqiSquare | null = null;
-let dragGhost: HTMLDivElement | null = null;
-let suppressNextClick = false;
+// The board element the shared drag is installed on. DMX has no single mount
+// point (renderDarkMiniXiangqiRoom runs per render), so the drag is installed
+// once per distinct board element and re-used across innerHTML re-renders.
+let dragBoardEl: HTMLElement | null = null;
 let lastCapturedView: MiniXiangqiPlayerView | null = null;
 let lastCapturedPositionKey: string | null = null;
 let renderCallbacks: { reconnectNow: () => void; sendSocket: (payload: unknown) => boolean } = {
@@ -151,6 +154,10 @@ export function renderDarkMiniXiangqiRoom(
   installMiniXiangqiBoardStyles();
   renderCallbacks = callbacks;
   lastRefs = refs;
+  if (dragBoardEl !== refs.board) {
+    installMiniXiangqiBoardDrag(refs);
+    dragBoardEl = refs.board;
+  }
   chrome.setRenderTarget(refs, callbacks);
   chrome.resetHostPanels();
   chrome.renderClocks();
@@ -176,7 +183,7 @@ export function renderDarkMiniXiangqiRoom(
     return;
   }
 
-  renderBoard(refs, displayedView, callbacks.sendSocket);
+  renderBoard(refs, displayedView);
   renderVisibleMoveList(refs);
 }
 
@@ -262,11 +269,7 @@ function buildPlayAgainRoomRequestBody(): Record<string, unknown> {
   };
 }
 
-function renderBoard(
-  refs: LiveRefs,
-  view: MiniXiangqiPlayerView | null,
-  sendSocket: (payload: unknown) => boolean,
-): void {
+function renderBoard(refs: LiveRefs, view: MiniXiangqiPlayerView | null): void {
   refs.board.className = 'board mini-xiangqi-live-board';
   refs.board.setAttribute('aria-label', 'Dark Mini Xiangqi board');
   if (!view) {
@@ -289,111 +292,67 @@ function renderBoard(
     legalMoves: hints,
     draggingFrom: dragFrom,
   });
-  refs.board.querySelectorAll<SVGElement>('[data-square]').forEach((el) => {
-    el.addEventListener('click', () => {
-      if (suppressNextClick) {
-        suppressNextClick = false;
-        return; // trailing click from a completed drag — already handled
-      }
-      const square = el.dataset.square as MiniXiangqiSquare | undefined;
-      if (!square) return;
-      handleSquareClick(view, square, sendSocket);
-      renderBoard(refs, view, sendSocket);
-    });
-    el.addEventListener('pointerdown', (event) => {
-      beginMiniXiangqiDrag(event, refs, view, sendSocket, el);
-    });
+  // Click + drag are delegated to the persistent board container once per board
+  // element (installMiniXiangqiBoardDrag), so they survive these innerHTML
+  // re-renders.
+}
+
+// Click + drag, delegated to the persistent board container via the shared
+// installBoardDrag helper. Click is the existing click-to-move; drag lifts a
+// visible own piece and drops it on a legal target. A tap that never crosses the
+// movement threshold falls through to the click handler.
+function installMiniXiangqiBoardDrag(refs: LiveRefs): void {
+  installBoardDrag({
+    board: refs.board,
+    ghostSizePx: MINI_XIANGQI_PIECE_PX,
+    onSquareClick: (square) => {
+      const view = currentMiniView();
+      if (!view) return;
+      handleSquareClick(view, square as MiniXiangqiSquare, renderCallbacks.sendSocket);
+      if (lastRefs) renderBoard(lastRefs, view);
+    },
+    canDragFrom: (square) => canDragMiniPiece(square as MiniXiangqiSquare),
+    ghostHtml: (square) => {
+      const entry = currentMiniView()?.board[square as MiniXiangqiSquare];
+      if (!entry || entry.shrouded !== false) return null;
+      return miniXiangqiPieceGhostSvg(entry.piece);
+    },
+    onDragStart: (from) => {
+      selectedSquare = from as MiniXiangqiSquare;
+      dragFrom = from as MiniXiangqiSquare;
+      const view = currentMiniView();
+      if (lastRefs && view) renderBoard(lastRefs, view);
+    },
+    onDrop: (from, to) => dropMiniPiece(from as MiniXiangqiSquare, to as MiniXiangqiSquare | null),
   });
 }
 
-// Drag-to-move. Click-to-move is untouched: a pointerdown that never crosses the
-// movement threshold falls through to the click handler. Once it does cross, we
-// select the source, float a ghost piece, and commit (or re-select) on drop,
-// swallowing the trailing click so it doesn't double-handle.
-function beginMiniXiangqiDrag(
-  event: PointerEvent,
-  refs: LiveRefs,
-  view: MiniXiangqiPlayerView,
-  sendSocket: (payload: unknown) => boolean,
-  el: SVGElement,
-): void {
-  if (event.button !== 0) return;
-  const square = el.dataset.square as MiniXiangqiSquare | undefined;
-  if (!square || !canSelect(view, square)) return;
+// Any of your visible pieces can be lifted on your turn (it snaps back if you
+// drop it somewhere it cannot move), not just ones with a legal move right now.
+// Distinct from canSelect (which click-to-move uses and DOES require a move).
+function canDragMiniPiece(square: MiniXiangqiSquare): boolean {
+  const view = currentMiniView();
+  if (!view || !canInteract(view)) return false;
   const entry = view.board[square];
-  if (!entry || entry.shrouded !== false) return;
+  return !!entry && entry.shrouded === false && entry.piece.color === liveState.seat;
+}
 
-  const from = square;
-  const startX = event.clientX;
-  const startY = event.clientY;
-  let dragging = false;
-
-  const onMove = (move: PointerEvent) => {
-    if (!dragging) {
-      if (Math.abs(move.clientX - startX) + Math.abs(move.clientY - startY) <= 4) {
-        return; // still within tap tolerance
-      }
-      dragging = true;
-      dragFrom = from;
-      selectedSquare = from; // show selection ring + legal-move hints
-      renderBoard(refs, view, sendSocket);
-      dragGhost = document.createElement('div');
-      dragGhost.className = 'mini-xq-drag-ghost';
-      dragGhost.style.width = `${MINI_XIANGQI_PIECE_PX}px`;
-      dragGhost.style.height = `${MINI_XIANGQI_PIECE_PX}px`;
-      dragGhost.innerHTML = miniXiangqiPieceGhostSvg(entry.piece);
-      document.body.append(dragGhost);
+function dropMiniPiece(from: MiniXiangqiSquare, to: MiniXiangqiSquare | null): void {
+  dragFrom = null;
+  const view = currentMiniView();
+  const move = to && view ? view.legalMoves.find((m) => m.from === from && m.to === to) : undefined;
+  if (move && view) {
+    selectedSquare = null;
+    if (renderCallbacks.sendSocket({ type: 'move', from: move.from, to: move.to })) {
+      playSound(soundForOwnMiniXiangqiMove(view, move));
     }
-    move.preventDefault();
-    positionMiniXiangqiGhost(move.clientX, move.clientY);
-  };
-
-  const onUp = (up: PointerEvent) => {
-    document.removeEventListener('pointermove', onMove);
-    document.removeEventListener('pointerup', onUp);
-    if (!dragging) return; // a tap — let the click handler run click-to-move
-    removeMiniXiangqiGhost();
-    dragFrom = null;
-    suppressNextClick = true;
-    setTimeout(() => {
-      suppressNextClick = false;
-    }, 0);
-    const target = miniXiangqiSquareUnderPoint(up.clientX, up.clientY);
-    const legal =
-      target && target !== from
-        ? view.legalMoves.find((m) => m.from === from && m.to === target)
-        : undefined;
-    if (legal) {
-      selectedSquare = null;
-      if (sendSocket({ type: 'move', from: legal.from, to: legal.to })) {
-        playSound(soundForOwnMiniXiangqiMove(view, legal));
-      }
-    } else {
-      selectedSquare = from; // dropped off-target — keep selected for a follow-up click
-    }
-    renderBoard(refs, view, sendSocket);
-  };
-
-  document.addEventListener('pointermove', onMove);
-  document.addEventListener('pointerup', onUp);
-}
-
-function positionMiniXiangqiGhost(clientX: number, clientY: number): void {
-  if (!dragGhost) return;
-  dragGhost.style.left = `${clientX - MINI_XIANGQI_PIECE_PX / 2}px`;
-  dragGhost.style.top = `${clientY - MINI_XIANGQI_PIECE_PX / 2}px`;
-}
-
-function removeMiniXiangqiGhost(): void {
-  dragGhost?.remove();
-  dragGhost = null;
-}
-
-function miniXiangqiSquareUnderPoint(clientX: number, clientY: number): MiniXiangqiSquare | null {
-  const hit = document
-    .elementFromPoint(clientX, clientY)
-    ?.closest('[data-square]') as HTMLElement | null;
-  return (hit?.dataset.square as MiniXiangqiSquare | undefined) ?? null;
+  } else {
+    // Dropped off a legal target. Keep the piece selected only if it actually has
+    // moves (so a follow-up click can complete one); otherwise snap it back clean.
+    const hasMoves = !!view && view.legalMoves.some((m) => m.from === from);
+    selectedSquare = hasMoves ? from : null;
+  }
+  if (lastRefs && view) renderBoard(lastRefs, view);
 }
 
 function handleSquareClick(
