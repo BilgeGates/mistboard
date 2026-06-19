@@ -440,6 +440,20 @@
   pointer-events: none;
 }
 
+/* The stacked-count badge overhangs its tile by 1px (bottom/right: -1px) for a
+   sticker look, but .captures-row / .captures-strip clip it with overflow:hidden
+   and shave the bottom off. The grouped xiangqi-family rows hold at most one tile
+   per role (≤7), so they never need the horizontal clip the dense chess pool
+   relies on — drop the clip on those rows so the full badge shows. Covers banqi /
+   jieqi / DMX across live, postgame review, and watch surfaces. */
+.captures-row.mini-xq-captures-row {
+  overflow: visible;
+}
+
+.captures-strip:has(.mini-xq-captures-row) {
+  overflow: visible;
+}
+
 .board cg-board {
   border-radius: 0;
 }

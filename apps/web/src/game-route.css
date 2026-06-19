@@ -523,6 +523,13 @@
   height: auto;
 }
 
+/* The wide banqi review board (up to 560px) reads the fixed 28px capture tiles
+   as too small; size them up to match the live room's tiles. The strip has the
+   vertical room, and ≤7 grouped tiles per side stay well within the board width. */
+.game-replay.banqi-postgame-page .replay-captures {
+  --capture-piece-size: 36px;
+}
+
 @media (min-width: 1100px) {
   .game-replay.jieqi-postgame-page.replay-meta-header,
   .game-replay.banqi-postgame-page.replay-meta-header {

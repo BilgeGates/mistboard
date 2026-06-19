@@ -834,10 +834,13 @@
 }
 
 /* Capture strips: let them grow and pin to the full board width so a wrapping
-   flex row doesn't collapse to min-content and stack the pieces vertically. */
+   flex row doesn't collapse to min-content and stack the pieces vertically.
+   Reserve one row's height even when empty so the board doesn't jump when the
+   first capture lands (the grouped ≤7-tile row never wraps, so this floor also
+   fits a full pool). */
 .watch-replay .replay-layout-all:has(.banqi-board) .captures-strip {
   height: auto;
-  min-height: 0;
+  min-height: calc(var(--capture-piece-size) + 8px);
   width: 100%;
   overflow: visible;
 }
