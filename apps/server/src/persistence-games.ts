@@ -45,6 +45,12 @@ export type GameParticipant = {
   subjectType: GameParticipantSubjectType;
   subjectId: string | null;
   visibility: GameVisibility;
+  // Engine build version for engine-version seats whose subject_id is version-less (the
+  // variant-tenant UCI engines — jieqi/banqi/crossroads, e.g. subject_id 'misty-banqi'),
+  // so games are queryable by build. Null for humans and for engines that already encode
+  // the version in subject_id (Misty/DMX). Optional + omitted-when-null to keep the
+  // participant shape unchanged for the many constructors that don't set it.
+  engineVersion?: string | null;
   // Rating before/after this game, for rated games only (null otherwise). Lets
   // the game page show the +/- delta. Optional so the many non-DB participant
   // constructors don't need to supply it.
@@ -980,13 +986,14 @@ export async function recordGameEnd(roomId: string, summary: GameSummary): Promi
     for (const participant of participants) {
       await client.query(
         `INSERT INTO game_participants
-           (game_id, color, subject_type, subject_id, display_name, visibility)
-         VALUES ($1, $2, $3, $4, $5, $6)
+           (game_id, color, subject_type, subject_id, display_name, visibility, engine_version)
+         VALUES ($1, $2, $3, $4, $5, $6, $7)
          ON CONFLICT (game_id, color) DO UPDATE SET
            subject_type = EXCLUDED.subject_type,
            subject_id = EXCLUDED.subject_id,
            display_name = EXCLUDED.display_name,
-           visibility = EXCLUDED.visibility`,
+           visibility = EXCLUDED.visibility,
+           engine_version = EXCLUDED.engine_version`,
         [
           roomId,
           participant.color,
@@ -994,6 +1001,7 @@ export async function recordGameEnd(roomId: string, summary: GameSummary): Promi
           participant.subjectId,
           participant.displayName,
           participant.visibility,
+          participant.engineVersion ?? null,
         ],
       );
     }
@@ -1072,11 +1080,12 @@ async function loadGameParticipants(roomIds: string[]): Promise<Map<string, Game
     subject_id: string | null;
     display_name: string;
     visibility: GameVisibility;
+    engine_version: string | null;
     elo_before: number | null;
     elo_after: number | null;
   }>(
     `SELECT game_id, color, subject_type, subject_id, display_name, visibility,
-            elo_before, elo_after
+            engine_version, elo_before, elo_after
      FROM game_participants
      WHERE game_id = ANY($1)
      ORDER BY game_id, CASE color WHEN 'white' THEN 0 WHEN 'red' THEN 0 ELSE 1 END`,
@@ -1090,6 +1099,9 @@ async function loadGameParticipants(roomIds: string[]): Promise<Map<string, Game
       subjectType: row.subject_type,
       subjectId: row.subject_id,
       visibility: row.visibility,
+      // Omitted-when-null so the participant shape is unchanged for games without a
+      // recorded engine build (humans, pre-versioning rows, version-in-id engines).
+      ...(row.engine_version != null ? { engineVersion: row.engine_version } : {}),
       // Only present for rated games; omitted (not null) for unrated so callers
       // and tests that don't care see the original participant shape.
       ...(row.elo_before != null ? { ratingBefore: row.elo_before } : {}),

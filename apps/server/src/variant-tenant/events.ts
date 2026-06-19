@@ -368,11 +368,15 @@ function tenantParticipant<
 ): persistence.GameParticipant {
   const seatedClientId = room.projection.seats[color];
   if (seatedClientId && tenant.engine?.isEngineClientId(seatedClientId)) {
+    const engineVersion = tenant.engine.engineVersion?.(seatedClientId) ?? null;
     return {
       color: color as persistence.GameParticipantColor,
       displayName: tenant.engine.displayName(seatedClientId),
       subjectType: 'engine-version',
       subjectId: seatedClientId,
+      // Records the engine build for version-less subject_ids (variant-tenant UCI engines),
+      // so PvE games are queryable by version. Omitted-when-null to keep the shape stable.
+      ...(engineVersion != null ? { engineVersion } : {}),
       visibility,
     };
   }

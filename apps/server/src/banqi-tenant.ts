@@ -38,7 +38,11 @@ import {
   isBanqiLegalMove,
   oppositeBanqiSeat,
 } from '@mistboard/game';
-import { banqiEngineDisplayName, isBanqiEngineClientId } from './banqi-engine.js';
+import {
+  banqiEngineDisplayName,
+  banqiEngineVersion,
+  isBanqiEngineClientId,
+} from './banqi-engine.js';
 import { banqiEnabled } from './feature-flags.js';
 import type * as persistence from './persistence.js';
 import { tenantPveEngineId } from './variant-tenant/runtime.js';
@@ -180,6 +184,7 @@ export const banqiTenant: BanqiTenant = {
   engine: {
     isEngineClientId: isBanqiEngineClientId,
     displayName: banqiEngineDisplayName,
+    engineVersion: banqiEngineVersion,
     reservationReleaseTag: 'banqi',
   },
   // Banqi's core snapshot has no forfeit/rematch surface; the only extras are

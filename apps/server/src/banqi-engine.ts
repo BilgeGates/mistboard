@@ -118,6 +118,12 @@ export function isBanqiEngineClientId(clientId: string | undefined): boolean {
   return banqiEngineTierFor(clientId) !== null;
 }
 
+// Engine BUILD version recorded per PvE game (subject_id is version-less). Bump
+// BANQI_ENGINE_VERSION on each shipped eval/search change.
+export function banqiEngineVersion(clientId: string | undefined): string | null {
+  return isBanqiEngineClientId(clientId) ? BANQI_ENGINE_VERSION : null;
+}
+
 // `moves`: the quiet plies since the last irreversible move (capture/flip). When present,
 // `fen` is the position at that irreversible move (window start), and the engine replays
 // the moves to seed its repetition history — so it avoids/seeks threefold (perpetual-chase)

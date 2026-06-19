@@ -34,7 +34,11 @@ import {
   oppositeJieqiColor,
 } from '@mistboard/game';
 import { jieqiEnabled } from './feature-flags.js';
-import { isJieqiEngineClientId, jieqiEngineDisplayName } from './jieqi-engine.js';
+import {
+  isJieqiEngineClientId,
+  jieqiEngineDisplayName,
+  jieqiEngineVersion,
+} from './jieqi-engine.js';
 import type * as persistence from './persistence.js';
 import { tenantPveEngineId } from './variant-tenant/runtime.js';
 import type {
@@ -168,6 +172,7 @@ export const jieqiTenant: JieqiTenant = {
   engine: {
     isEngineClientId: isJieqiEngineClientId,
     displayName: jieqiEngineDisplayName,
+    engineVersion: jieqiEngineVersion,
     reservationReleaseTag: 'jieqi',
   },
   // Emit the room mode + engine id so the client knows a finished PvE game was

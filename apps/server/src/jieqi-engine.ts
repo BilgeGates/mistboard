@@ -17,6 +17,9 @@ import { existsSync } from 'node:fs';
 import { resolve } from 'node:path';
 
 export const JIEQI_DEFAULT_ENGINE_ID = 'pikafish-jieqi-strong';
+// Engine BUILD version recorded per PvE game (subject_id encodes only the tier). The shipped
+// engine is the no-net classical Pikafish jieqi_old build; bump on any engine/config change.
+export const JIEQI_ENGINE_VERSION = '0.1.0';
 
 export type JieqiEngineTier = {
   id: string;
@@ -117,6 +120,10 @@ export function jieqiEngineDisplayName(engineId: string): string {
 
 export function isJieqiEngineClientId(clientId: string | undefined): boolean {
   return jieqiEngineTierFor(clientId) !== null;
+}
+
+export function jieqiEngineVersion(clientId: string | undefined): string | null {
+  return isJieqiEngineClientId(clientId) ? JIEQI_ENGINE_VERSION : null;
 }
 
 // `moves`: the quiet plies since the last irreversible move (capture OR reveal), with `fen`

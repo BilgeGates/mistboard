@@ -16,6 +16,9 @@ import { fileURLToPath } from 'node:url';
 const HERE = dirname(fileURLToPath(import.meta.url));
 const VARIANT = 'dualchess';
 export const CROSSROADS_CHESS_DEFAULT_ENGINE_ID = 'fairy-stockfish-crossroads-strong';
+// Engine BUILD version recorded per PvE game (subject_id encodes only the tier). The shipped
+// engine is Fairy-Stockfish 14 for the Crossroads variant; bump on any engine/config change.
+export const CROSSROADS_CHESS_ENGINE_VERSION = '0.1.0';
 
 export type CrossroadsChessEngineTier = {
   id: string;
@@ -120,6 +123,10 @@ export function crossroadsChessEngineDisplayName(engineId: string): string {
 
 export function isCrossroadsChessEngineClientId(clientId: string | undefined): boolean {
   return crossroadsChessEngineTierFor(clientId) !== null;
+}
+
+export function crossroadsChessEngineVersion(clientId: string | undefined): string | null {
+  return isCrossroadsChessEngineClientId(clientId) ? CROSSROADS_CHESS_ENGINE_VERSION : null;
 }
 
 export async function crossroadsChessLiveEngineMove(

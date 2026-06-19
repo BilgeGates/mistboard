@@ -258,6 +258,10 @@ export type VariantTenant<
   engine?: {
     isEngineClientId(clientId: string | undefined): boolean;
     displayName(engineId: string): string;
+    // Engine BUILD version for this engine id (e.g. '0.2.0'), recorded per game so PvE games
+    // are queryable by build. Optional: only the variant-tenant UCI engines whose subject_id
+    // is version-less (jieqi/banqi/crossroads) implement it; returns null for unknown ids.
+    engineVersion?(clientId: string | undefined): string | null;
     // Observability tag on engine-seat reservation releases (`<tag>-finished`).
     reservationReleaseTag: string;
   };

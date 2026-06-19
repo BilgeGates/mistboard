@@ -29,6 +29,7 @@ import {
 } from '@mistboard/game';
 import {
   crossroadsChessEngineDisplayName,
+  crossroadsChessEngineVersion,
   isCrossroadsChessEngineClientId,
 } from './crossroads-chess-engine.js';
 import { crossroadsChessEnabled } from './feature-flags.js';
@@ -151,6 +152,7 @@ export const crossroadsChessTenant: CrossroadsChessTenant = {
   engine: {
     isEngineClientId: isCrossroadsChessEngineClientId,
     displayName: crossroadsChessEngineDisplayName,
+    engineVersion: crossroadsChessEngineVersion,
     // No live reservation system for the in-process FSF engine; the tag only
     // labels release log lines if a reservation ever appears.
     reservationReleaseTag: 'crossroads-chess',
