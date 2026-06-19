@@ -495,13 +495,13 @@ const BANQI_ENGINES: Record<string, EngineDefinition> = {
     name: 'MistyBanqi',
     kind: 'container',
     gameSpecId: 'banqi',
-    configHash: 'misty-banqi-0.2.0',
-    playSignature: 'misty-banqi-0.2.0',
+    configHash: 'misty-banqi-0.2.1',
+    playSignature: 'misty-banqi-0.2.1',
     config: { kind: 'banqi-uci', movetime_ms: 1500 },
     notes:
-      'MistyBanqi 0.2.0 — cheap-strength eval (cover_mat + king_ctx + value-aware mobility + ' +
-      'adaptive domination + corrected value table; +16.6% / losses -67% vs hw3). Single ' +
-      'full-strength bot at 1.5M nodes (banqi-engine.ts). Consolidated the 3 difficulty tiers.',
+      'MistyBanqi 0.2.1 — adds the gen_danger general-safety eval term (proximity+escape-aware, ' +
+      'FEATURES 506 + w_king 28) on top of v0.2.0 cheap-strength. Modal ~385/arm vs hw3: ' +
+      'no-regression + own-general-loss 35.5%->26% (~2.7sigma). Single full-strength bot at 1.5M nodes.',
   },
   'misty-banqi-amateur': {
     id: 'misty-banqi-amateur',
