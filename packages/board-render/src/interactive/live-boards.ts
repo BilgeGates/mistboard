@@ -1,6 +1,7 @@
-import type { Board, Color, Square } from '@mistboard/game';
+import type { Board, Color, PieceRole, Square } from '@mistboard/game';
 import type { Api } from 'chessground/api';
 import type * as cg from 'chessground/types';
+import { PIECE_SVGS } from '../pieces.js';
 import { boardFen, fogHiddenClass, mountBoard } from './board.js';
 
 export type LiveBoardArrow = {
@@ -9,11 +10,20 @@ export type LiveBoardArrow = {
   brush?: 'green' | 'red' | 'blue' | 'yellow';
 };
 
+// A crazyhouse/shogi-style reserve shown beneath the board: the pieces a player
+// holds in hand, each with a count. Rendered as cburnett glyphs to match the
+// board's default piece set and the live game-room reserve strip.
+export type LiveBoardPocket = {
+  color: Color;
+  counts: Partial<Record<PieceRole, number>>;
+};
+
 export type LiveBoardSpec = {
   board: Board;
   fogSquares?: Square[];
   orientation?: Color;
   label?: string;
+  pocket?: LiveBoardPocket;
   arrows?: LiveBoardArrow[];
   highlightSquares?: Square[];
   // Squares to mark as a legal move to an empty square: a small filled green
@@ -63,6 +73,41 @@ function squareClasses(
   return classes;
 }
 
+const POCKET_ORDER: PieceRole[] = ['queen', 'rook', 'bishop', 'knight', 'pawn'];
+
+function renderPocket(pocket: LiveBoardPocket): HTMLElement {
+  const strip = document.createElement('div');
+  strip.className = 'live-boards-pocket';
+
+  const label = document.createElement('span');
+  label.className = 'live-boards-pocket-label';
+  label.textContent = 'HAND';
+  strip.append(label);
+
+  const held = POCKET_ORDER.filter((role) => (pocket.counts[role] ?? 0) > 0);
+  if (held.length === 0) {
+    const empty = document.createElement('span');
+    empty.className = 'live-boards-pocket-empty';
+    empty.textContent = 'empty';
+    strip.append(empty);
+    return strip;
+  }
+  for (const role of held) {
+    const count = pocket.counts[role] ?? 0;
+    const item = document.createElement('span');
+    item.className = 'live-boards-pocket-piece';
+    item.innerHTML = PIECE_SVGS[`${pocket.color}:${role}`] ?? '';
+    if (count > 1) {
+      const badge = document.createElement('span');
+      badge.className = 'live-boards-pocket-count';
+      badge.textContent = String(count);
+      item.append(badge);
+    }
+    strip.append(item);
+  }
+  return strip;
+}
+
 export function mountLiveBoards(host: HTMLElement, opts: LiveBoardsOptions): LiveBoardsController {
   host.classList.add('live-boards');
   host.dataset.layout = opts.layout;
@@ -84,6 +129,7 @@ export function mountLiveBoards(host: HTMLElement, opts: LiveBoardsOptions): Liv
     boardWrap.append(boardEl);
 
     cell.append(labelEl, boardWrap);
+    if (spec.pocket) cell.append(renderPocket(spec.pocket));
     host.append(cell);
 
     const fog = spec.fogSquares ?? [];
