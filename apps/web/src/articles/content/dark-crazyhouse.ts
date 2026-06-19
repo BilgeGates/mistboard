@@ -148,7 +148,6 @@ export const darkCrazyhouseArticle: Article = {
               },
             ],
           },
-          caption: 'The same opening from both sides. Each player sees only their own front; the far half is dark.',
         } as ArticleBlock,
         {
           kind: 'paragraph',
@@ -185,7 +184,6 @@ export const darkCrazyhouseArticle: Article = {
               },
             ],
           },
-          caption: "White's rook takes the knight on a5, and it lands in White's hand.",
         } as ArticleBlock,
         {
           kind: 'paragraph',
@@ -225,7 +223,6 @@ export const darkCrazyhouseArticle: Article = {
               },
             ],
           },
-          caption: 'White drops the knight onto d3, a square it already sees.',
         } as ArticleBlock,
         {
           kind: 'paragraph',
@@ -252,7 +249,6 @@ export const darkCrazyhouseArticle: Article = {
               },
             ],
           },
-          caption: "White's view: e6 is in the fog, White drops there anyway, and afterward sees the knight.",
         } as ArticleBlock,
         {
           kind: 'live-boards',
@@ -273,7 +269,6 @@ export const darkCrazyhouseArticle: Article = {
               },
             ],
           },
-          caption: "Black's view: e6 stays dark after the drop, then the knight appears once Black plays Kd7 and looks.",
         } as ArticleBlock,
         {
           kind: 'paragraph',

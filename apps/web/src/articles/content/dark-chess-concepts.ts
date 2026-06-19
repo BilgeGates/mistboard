@@ -176,7 +176,6 @@ export const darkChessConceptsArticle: Article = {
                 { board: WORLD_KINGSIDE.board, fogSquares: WORLDS_VIEW_FOG, orientation: 'white', label: 'WHAT YOU SEE' },
               ],
             },
-            caption: 'Your view: the near half only. Everything past it is fog.',
           } as ArticleBlock,
           {
             kind: 'paragraph',
@@ -193,7 +192,6 @@ export const darkChessConceptsArticle: Article = {
                 { board: WORLD_QUEENSIDE.board, orientation: 'white', label: 'WORLD C' },
               ],
             },
-            caption: 'Three of the many truths behind that one view. Filtered to the same fog, all three collapse to the board above.',
           } as ArticleBlock,
           {
             kind: 'paragraph',
@@ -238,7 +236,6 @@ export const darkChessConceptsArticle: Article = {
                 { board: WORLD_QUEENSIDE.board, orientation: 'white', label: 'KING QUEENSIDE', highlightSquares: ['c8' as Square] },
               ],
             },
-            caption: 'Dozens of exact positions, two buckets that matter: attack the kingside or attack the queenside. You plan against the bucket, not the position.',
           } as ArticleBlock,
           {
             kind: 'paragraph',
@@ -270,7 +267,6 @@ export const darkChessConceptsArticle: Article = {
                 { board: SURVIVE_PATIENT_STATE.board, orientation: 'white', label: 'BLOCK: Nc3', arrows: [{ orig: 'b1', dest: 'c3' }] },
               ],
             },
-            caption: 'Ignore the b4 signal and a hidden bishop ends the game on e1. Nc3 shuts the diagonal in every world. Same view, two outcomes.',
           } as ArticleBlock,
           {
             kind: 'paragraph',

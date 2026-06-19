@@ -43,7 +43,6 @@ export const crossroadsChessArticle: Article = {
           {
             kind: 'raw-svg',
             svg: renderCrossroadsChessBoard({ fen: CROSSROADS_CHESS_START_FEN }),
-            caption: 'The starting position. White moves up the board, Red moves down.',
           } as ArticleBlock,
           {
             kind: 'paragraph',
@@ -292,7 +291,6 @@ export const crossroadsChessArticle: Article = {
               resultText: CROSSROADS_CHESS_SAMPLE_GAME.result,
               moves: CROSSROADS_CHESS_SAMPLE_GAME.moves,
             },
-            caption: 'Fairy-Stockfish self-play on the canonical 6 by 8 setup. White wins the race.',
           } as ArticleBlock,
         ],
       },

@@ -68,8 +68,6 @@ export const kriegspielArticle: Article = {
                 { board: KRIEGSPIEL_HERO_BOARD, orientation: 'white', label: "UMPIRE'S BOARD" },
               ],
             },
-            caption:
-              'The same position. Unlike dark chess, Kriegspiel grants no derived vision: your board holds your pieces and nothing else.',
           } as ArticleBlock,
         ],
       },
@@ -98,8 +96,6 @@ export const kriegspielArticle: Article = {
                 { board: KRIEGSPIEL_CHECK_BOARD, fogSquares: KRIEGSPIEL_CHECK_FOG, orientation: 'white', label: 'KNIGHT', highlightSquares: KRIEGSPIEL_CHECK_KNIGHT },
               ],
             },
-            caption:
-              'Each panel is one announced direction, from the king on c3. The gold covers every square the checker could occupy; the announcement gives the direction, not the square. The long diagonal runs eight squares here, the short only five.',
           } as ArticleBlock,
         ],
       },

@@ -132,7 +132,6 @@ export const darkCrossroadsChessArticle: Article = {
         {
           kind: 'raw-svg',
           svg: START_FOG_SVG,
-          caption: "White's view of the starting position. Red's pieces are all in the fog.",
         } as ArticleBlock,
         {
           kind: 'paragraph',
@@ -154,7 +153,6 @@ export const darkCrossroadsChessArticle: Article = {
         {
           kind: 'raw-svg',
           svg: FIELD_OF_FIRE_SVG,
-          caption: 'The chariot sees the soldier it can reach; the king behind it stays hidden.',
         } as ArticleBlock,
         {
           kind: 'paragraph',
@@ -163,8 +161,6 @@ export const darkCrossroadsChessArticle: Article = {
         {
           kind: 'raw-svg',
           svg: CANNON_SVG,
-          caption:
-            'The cannon sees its screen and the enemy it can capture beyond it as silhouettes. The squares past its reach stay in the fog.',
         } as ArticleBlock,
       ],
     },
@@ -204,8 +200,6 @@ export const darkCrossroadsChessArticle: Article = {
         {
           kind: 'raw-svg',
           svg: TRY_SVG,
-          caption:
-            "Red's view after White's king reaches rank 8. Red has one move to capture it; with nothing bearing on the king's square, the Try succeeds and White wins the race.",
         } as ArticleBlock,
       ],
     },

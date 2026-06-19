@@ -92,7 +92,6 @@ export const shogiArticle: Article = {
         {
           kind: 'raw-svg',
           svg: START_BOARD_SVG,
-          caption: 'The starting position. Black sits at the bottom and moves first.',
         } as ArticleBlock,
         {
           kind: 'paragraph',

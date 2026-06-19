@@ -44,7 +44,6 @@ export const serverEnforcedFogArticle: Article = {
                 { board: SERVER_FOG_FRAME_B.state.board, fogSquares: SERVER_FOG_FOG_B, orientation: 'white', label: "BLACK'S VIEW" },
               ],
             },
-            caption: 'Same position after 1.e4 e5 2.Nf3 Nc6 3.Bc4 Nf6. The center board is canonical server state; the side boards are the payloads sent to each player.',
           } as ArticleBlock,
           { kind: 'paragraph', text: 'The triptych is the architecture in miniature. The center board exists only on the server. White and Black each receive a different projection, and neither projection contains the full truth with a visual layer hiding it.' },
           { kind: 'paragraph', text: 'The rule is simple: compute truth once, project the allowed view per seat, and keep the full event log private until the game is over.' },
@@ -63,7 +62,7 @@ export const serverEnforcedFogArticle: Article = {
         heading: 'Sample data payload',
         blocks: [
           { kind: 'paragraph', text: 'The live move stream uses `event-appended`, a per-move frame. This is the white payload from the position above, shortened to the fields that matter:' },
-          { kind: 'code', language: 'json', text: SERVER_FOG_DELTA_PAYLOAD, caption: 'Representative steady-state frame. The real payload carries complete board, square, move, and clock values.' },
+          { kind: 'code', language: 'json', text: SERVER_FOG_DELTA_PAYLOAD },
           { kind: 'paragraph', text: '**Core fields:** `seat` identifies the recipient, `seq` orders the stream, `state.board` is the redacted board, `state.visibleSquares` is the clear-vs-fog mask, and `state.status` carries the canonical turn/result state.' },
           { kind: 'paragraph', text: 'If the appended event is visible to this seat, the frame includes one filtered `event`. If the move is hidden, `event` is omitted and the projected `state` still advances. The player knows a turn happened, not what happened in the fog.' },
           { kind: 'paragraph', text: 'Snapshots still exist for first connect, explicit recovery, and final resync. They carry the filtered event history needed to hydrate the client, so they are larger than per-move frames.' },

@@ -73,7 +73,6 @@ export const darkShogiArticle: Article = {
         {
           kind: 'raw-svg',
           svg: START_FOG_SVG,
-          caption: "Black's view of the starting position. White's pieces are all in the fog.",
         } as ArticleBlock,
       ],
     },
@@ -91,7 +90,6 @@ export const darkShogiArticle: Article = {
         {
           kind: 'raw-svg',
           svg: FIELD_OF_FIRE_SVG,
-          caption: 'The rook sees the pawn it can reach; the king behind it stays hidden.',
         } as ArticleBlock,
       ],
     },

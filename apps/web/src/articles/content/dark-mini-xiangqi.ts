@@ -115,8 +115,6 @@ export const darkMiniXiangqiArticle: Article = {
               event: 'Misty 1.0 · Fog of War self-play',
               resultText:
                 'Black’s cannon takes the horse on c1; the Red general must recapture, and the waiting chariot runs the open c-file to capture it. Black wins.',
-              caption:
-                'Misty 1.0 plays both sides of Dark Mini Xiangqi. Step through all 62 plies and compare the same position under Red’s fog, the server’s truth, and Black’s fog.',
             },
           } as ArticleBlock,
         ],
