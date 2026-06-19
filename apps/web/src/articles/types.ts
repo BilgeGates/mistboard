@@ -9,6 +9,7 @@ import type { ChessReplaySpec } from '../chess-replay.js';
 import type { CrossroadsReplaySpec } from '../crossroads-chess-replay.js';
 import type { JieqiReplaySpec } from '../jieqi-replay.js';
 import type { MiniXiangqiReplaySpec } from '../mini-xiangqi-replay.js';
+import type { ShogiReplaySpec } from '../shogi-replay.js';
 import type { XiangqiReplaySpec } from '../xiangqi-replay.js';
 
 export type ParagraphBlock = { kind: 'paragraph'; text: string };
@@ -120,6 +121,14 @@ export type MiniXiangqiReplayBlock = {
   caption?: string;
 };
 
+// Shogi analogue: a 9x9 board plus hands, stepped through a western shogi move
+// list and replayed through the real kernel.
+export type ShogiReplayBlock = {
+  kind: 'shogi-replay';
+  spec: ShogiReplaySpec;
+  caption?: string;
+};
+
 export type CtaButton = {
   label: string;
   href: string;
@@ -189,6 +198,7 @@ export type ArticleBlock =
   | XiangqiReplayBlock
   | ChessReplayBlock
   | MiniXiangqiReplayBlock
+  | ShogiReplayBlock
   | CrossroadsReplayBlock
   | JieqiReplayBlock
   | BanqiReplayBlock

@@ -98,7 +98,7 @@ export const shogiArticle: Article = {
   kind: 'rules',
   title: 'Shogi Rules',
   summary:
-    'Standard shogi rules, the primer behind Dark Shogi: how the eight pieces move, promotion in the far ranks, the drop rule that puts captured pieces back in play, and how a game is won.',
+    'Standard shogi rules, the open-information primer behind Dark Shogi: setup, piece movement, promotion, drops, and how games end.',
   showSummaryOnPage: false,
   status: 'draft',
   publishedAt: '2026-06-18',
@@ -108,7 +108,7 @@ export const shogiArticle: Article = {
   intro: [
     {
       kind: 'paragraph',
-      text: 'Shogi (将棋) is Japanese chess, a two-player game on a 9 by 9 board. It shares a common ancestor with chess and xiangqi in the Indian game chaturanga, and took its modern form in Japan by the 16th century. Its signature rule has no equal in Western chess: a captured piece switches sides and can be dropped back onto the board as your own.',
+      text: 'Shogi (将棋), often called Japanese chess, is a two-player strategy game on a 9 by 9 board. It shares ancestry with chess and xiangqi through the Indian game chaturanga, and took its modern form in Japan by the 16th century. Its defining rule is the drop: a captured piece switches sides and can return to the board as your own.',
     },
   ],
   sections: [
@@ -117,7 +117,7 @@ export const shogiArticle: Article = {
       blocks: [
         {
           kind: 'paragraph',
-          text: 'Shogi is played on a 9 by 9 grid of plain wooden squares, with no colors or markings. Each player starts with 20 pieces filling the three ranks nearest them. Black (the side conventionally drawn at the bottom) moves first, then players alternate.',
+          text: 'Shogi is played on a plain wooden 9 by 9 grid, with no alternating colors. Each player starts with 20 pieces spread across the three ranks nearest them. Black, or sente, is conventionally drawn at the bottom and moves first; White, or gote, moves second.',
         },
         {
           kind: 'raw-svg',
@@ -126,7 +126,7 @@ export const shogiArticle: Article = {
         } as ArticleBlock,
         {
           kind: 'paragraph',
-          text: 'The pieces are flat five-sided tiles, the same wood color for both sides. Ownership shows in which way a piece points: every tile aims its tip at the enemy, so the pieces facing up the board are yours and the ones facing down are your opponent\'s. Each tile carries one or two Japanese characters naming the piece.',
+          text: 'The pieces are flat five-sided tiles, the same wood color for both sides. Ownership comes from direction: every tile points toward the opponent, so the pieces facing up the board belong to Black and the pieces facing down belong to White. Each tile carries one or two Japanese characters naming the piece.',
         },
       ],
     },
@@ -135,7 +135,7 @@ export const shogiArticle: Article = {
       blocks: [
         {
           kind: 'paragraph',
-          text: 'There are eight kinds of piece. The king, rook, and bishop move exactly as they do in chess; the diagrams below cover the five that are unique to shogi, the dots marking every square the piece can move to or capture on. Shogi pieces capture the way they move: you take an enemy piece by moving onto its square, with no separate capturing rule like the chess pawn.',
+          text: 'There are eight kinds of piece. The king, rook, and bishop move as they do in chess; the diagrams below cover the five that are specific to shogi, with dots marking every square the piece can move to or capture on. Shogi pieces capture the way they move: move onto an enemy piece to take it.',
         },
         {
           kind: 'paragraph',
@@ -147,16 +147,16 @@ export const shogiArticle: Article = {
         },
         {
           kind: 'paragraph',
-          text: '**Bishop (角):** moves any number of empty squares diagonally, like the chess bishop. With no second bishop and no color-bound partner, a single bishop only ever reaches half the board until it promotes.',
+          text: '**Bishop (角):** moves any number of empty squares diagonally, like the chess bishop. With only one bishop, it reaches only half the board until it promotes.',
         },
         {
           kind: 'paragraph',
-          text: '**Gold general (金):** moves one square straight in any direction, or one square diagonally forward. It cannot step diagonally backward. The gold never promotes, and it is the shape that most promoted pieces turn into.',
+          text: '**Gold general (金):** moves one square orthogonally in any direction, or one square diagonally forward. It cannot step diagonally backward. The gold never promotes, and most promoted pieces use the gold\'s move.',
         },
         moveDiagram('G'),
         {
           kind: 'paragraph',
-          text: '**Silver general (銀):** moves one square straight forward, or one square in any of the four diagonals. It cannot step straight sideways or straight back, which makes a retreating silver slow and a little awkward.',
+          text: '**Silver general (銀):** moves one square straight forward, or one square in any of the four diagonals. It cannot step straight sideways or straight back, so a silver attacks flexibly but retreats slowly.',
         },
         moveDiagram('S'),
         {
@@ -166,7 +166,7 @@ export const shogiArticle: Article = {
         moveDiagram('N'),
         {
           kind: 'paragraph',
-          text: '**Lance (香):** moves any number of empty squares straight forward, never sideways or back. Think of it as a rook that can only charge ahead.',
+          text: '**Lance (香):** moves any number of empty squares straight forward, never sideways or back. It is a rook reduced to one forward file.',
         },
         moveDiagram('L'),
         {
@@ -181,7 +181,7 @@ export const shogiArticle: Article = {
       blocks: [
         {
           kind: 'paragraph',
-          text: 'The far three ranks, the opponent\'s home rows, are the promotion zone. A piece may promote when it moves into, within, or out of that zone, by flipping over to its promoted side (usually printed in red). Promotion is a free upgrade and is optional, with one exception below.',
+          text: 'The far three ranks on the opponent\'s side are the promotion zone. A piece may promote when it moves into, within, or out of that zone, flipping to its promoted side (usually printed in red). Promotion is optional, except when an unpromoted piece would otherwise have no future move.',
         },
         {
           kind: 'paragraph',
@@ -195,7 +195,7 @@ export const shogiArticle: Article = {
         },
         {
           kind: 'paragraph',
-          text: 'The king and the gold do not promote. Promotion is forced only when a piece would otherwise have no legal move: a pawn or lance reaching the last rank, or a knight reaching the last two ranks, must promote, because an unpromoted one would be stuck forever.',
+          text: 'The king and gold do not promote. Promotion is forced only when a piece would otherwise have no legal move: a pawn or lance reaching the last rank, or a knight reaching the last two ranks, must promote.',
         },
       ],
     },
@@ -204,15 +204,15 @@ export const shogiArticle: Article = {
       blocks: [
         {
           kind: 'paragraph',
-          text: 'When you capture a piece it does not leave the game. It joins your hand, a reserve of captured pieces beside the board, and switches to your color. On any turn, instead of moving a piece, you may drop one piece from your hand onto an empty square. It arrives unpromoted, facing the enemy, and is now yours to use.',
+          text: 'When you capture a piece, it does not leave the game. It joins your hand, the reserve of captured pieces beside the board, and switches to your side. On any turn, instead of moving a piece already on the board, you may drop one piece from your hand onto an empty square. It enters unpromoted, points toward the opponent, and is now yours to use.',
         },
         {
           kind: 'paragraph',
-          text: 'Drops are why shogi rarely simplifies into a quiet endgame: material never really leaves, it changes hands, so attacks can be reinforced from nowhere and the board stays full. A piece you capture today can be parachuted behind your opponent\'s lines tomorrow.',
+          text: 'Drops are why shogi rarely simplifies into a quiet endgame. Material never truly disappears, it changes hands. Attacks can be reinforced from reserve, and the board stays tactically full long after the first exchanges.',
         },
         {
           kind: 'paragraph',
-          text: 'Three restrictions keep drops fair, and the first two govern where a pawn can land. By the **two-pawn** rule (nifu), you cannot drop a pawn onto a file that already holds one of your unpromoted pawns. And you cannot drop a pawn or lance on the last rank, where it could never move again (a knight needs the last two free). Below, a pawn holds the centre file and the far rank is closed: every red square is off limits to a dropped pawn.',
+          text: 'Three restrictions keep drops fair, and the first two govern where a pawn can land. By the **two-pawn** rule (nifu), you cannot drop a pawn onto a file that already holds one of your unpromoted pawns. You also cannot drop a pawn or lance on the last rank, where it could never move again (a knight needs the last two ranks free). Below, a pawn holds the centre file and the far rank is closed: every red square is off limits to a dropped pawn.',
         },
         pawnDropDiagram(),
         {
@@ -226,11 +226,11 @@ export const shogiArticle: Article = {
       blocks: [
         {
           kind: 'paragraph',
-          text: 'A king attacked by an enemy piece is **in check**, and you must answer it: move the king to safety, block the line, or capture the attacker. As in chess, you may not make a move that leaves your own king in check.',
+          text: 'A king attacked by an enemy piece is **in check**, and the checked player must answer it: move the king to safety, block the line, or capture the attacker. As in chess, you may not make a move that leaves your own king in check.',
         },
         {
           kind: 'paragraph',
-          text: 'The game is won by **checkmate**: the opponent\'s king is in check and has no legal way out. Because captured pieces come back as drops, attacks build quickly and games are decided by checkmate far more often than they peter out.',
+          text: 'The game is won by **checkmate**: the opponent\'s king is in check and has no legal way out. Because captured pieces return as drops, attacks build quickly and games are usually decided by mate rather than by quiet simplification.',
         },
       ],
     },
@@ -239,17 +239,42 @@ export const shogiArticle: Article = {
       blocks: [
         {
           kind: 'paragraph',
-          text: 'Draws are rare. **Repetition (千日手, sennichite):** if the same position with the same side to move occurs four times, the game is drawn, unless the repetition was forced by perpetual check, in which case the checking player must do something else or lose.',
+          text: 'Draws are rare. **Repetition (千日手, sennichite):** if the same position with the same side to move occurs four times, the game is drawn, unless one player is forcing the cycle with perpetual check. In that case, the checking player must choose another move or lose.',
         },
         {
           kind: 'paragraph',
-          text: '**Impasse (持将棋, jishogi):** if both kings march into the far ranks where they can no longer be mated, the game is settled by counting piece values, with rook and bishop worth five and everything else worth one. There is no stalemate draw: a side with no legal move has simply lost.',
+          text: '**Impasse (持将棋, jishogi):** if both kings enter the far ranks and can no longer realistically be mated, the game is settled by counting piece values, with rook and bishop worth five and everything else worth one. There is no stalemate draw: a side with no legal move has lost.',
         },
+      ],
+    },
+    {
+      heading: 'A famous game',
+      blocks: [
+        {
+          kind: 'paragraph',
+          text:
+            'To see shogi\'s pieces, promotions, and drops work together in a real game, step through the 61st NHK Cup final from March 18, 2012. Yoshiharu Habu defeated Akira Watanabe in 147 moves, winning his fourth consecutive NHK Cup and becoming the first Lifetime NHK Cup Champion. Watanabe resigns after 147.Gx9c.',
+        },
+        {
+          kind: 'shogi-replay',
+          spec: {
+            // The public western score for this game has a few transcription
+            // errors that do not replay legally: 10.P-4b is S-4b, 24.P-7c is
+            // P-7d, and 136.Lx8e+ is unpromoted Lx8e. The 11.G4i-5h origin is
+            // added to disambiguate which gold moves.
+            notation:
+              'P-7f P-8d S-6h P-3d P-6f S-6b P-5f P-5d S-4h S-4b G4i-5h G-3b G-7h K-4a K-6i G-5b S-7g S-3c B-7i B-3a P-3f P-4d G5h-6g P-7d S-3g B-6d B-6h G5b-4c K-7i K-3a K-8h K-2b S-4f S-5c N-3g P-9d P-1f P-1d P-2f B-7c R-3h S-2d L-1h P-9e P-6e P-8e N-2e S-4b P-3e Sx3e Sx3e Px3e P-1e S*3g R-3i Px1e P-6d Bx6d Lx1e Lx1e S*6e Sx2f+ Sx6d Px6d Rx3e S*2d Nx1c+ Nx1c P*1d Sx3e Bx3e P*1b Px1c+ Px1c B*7a +S-2e B3ex4d Gx4d Bx4d+ S-3c +B-7a R-4b P*3d Sx3d N*4f R*3i S*4h R-3f+ +Bx8a P*4e Nx3d +Rx3d +Bx9a P-8f +Bx6d Px8g+ Kx8g P*8e K-8h N*8f G7h-6h P-9f P*3e +Sx3e P*3f +Sx3f L*3i N*9e N*2f +R-3e Sx8f R-6b Sx9e Rx6d Lx3f +Rx3f S*4d P-1d N*3d K-1b S*3c L*8f Sx8f Px8f N*2d Px2d Sx3b P-8g+ Kx8g L*8a P*8d Lx8d P*8e Rx6g+ Gx6g Lx8e Kx9f G*8f K-9e B*7c G*8d P*9d Kx9d B*7b L*8c P*9c Gx9c',
+            sente: 'Yoshiharu Habu',
+            gote: 'Akira Watanabe',
+            event: '61st NHK Cup Final, 2012',
+            resultText: 'Watanabe resigns. Habu (Sente) wins the 61st NHK Cup final.',
+          },
+        } as ArticleBlock,
       ],
     },
     relatedClosing({
       heading: 'Where to next',
-      lead: 'Shogi is the open-information base game. Add Fog of War for Dark Shogi, where enemy pieces outside your vision disappear, each hand is private, and the king falls by capture.',
+      lead: 'Shogi is the open-information base game. Dark Shogi keeps the same movement and drops, then adds fog: enemy pieces outside your vision disappear, hands are private, and the king falls by capture.',
       links: [
         { label: 'Read Dark Shogi', href: '/rules/dark-shogi', emphasis: 'primary' },
         { label: 'All rules', href: '/rules', emphasis: 'secondary' },

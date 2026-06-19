@@ -41,6 +41,7 @@ const BLOCK_PROSE: {
   ],
   'xq-replay': caption,
   'mxq-replay': caption,
+  'shogi-replay': caption,
   'chess-replay': caption,
   'crossroads-replay': caption,
   'jieqi-replay': caption,
