@@ -10,7 +10,7 @@ import {
   KRIEGSPIEL_CHECK_SHORT_DIAG,
   KRIEGSPIEL_HERO_BOARD,
   KRIEGSPIEL_HERO_FOG_W,
-  relatedClosing,
+  playClosing,
 } from '../diagrams.js';
 import type { Article, ArticleBlock } from '../types.js';
 
@@ -21,7 +21,9 @@ export const kriegspielArticle: Article = {
     summary:
       'The complete rules of Kriegspiel, the 1899 ancestor of dark chess: you see only your own pieces, an umpire rejects illegal tries and announces captures and checks, and checkmate wins.',
     showSummaryOnPage: false,
-    status: 'draft',
+    status: 'published',
+    publishedAt: '2026-06-19',
+    playableOnMistboard: true,
     audience:
       'Chess and dark chess players who want the full rules of Kriegspiel, the original umpired hidden-information chess.',
     thumbnail: {
@@ -154,11 +156,13 @@ export const kriegspielArticle: Article = {
           },
         ],
       },
-      relatedClosing({
+      playClosing({
         heading: 'Where to next',
-        lead: "Kriegspiel isn't playable on Mistboard yet; for now this page is the rules reference. Its descendant dark chess is playable today.",
-        links: [
-          { label: 'Read Dark Chess', href: '/rules/dark-chess', emphasis: 'primary' },
+        lead: "Kriegspiel is playable on Mistboard: challenge a friend to a game. There's no computer opponent yet, since the umpire makes it a harder engine problem than dark chess's computable fog.",
+        playLabel: 'Challenge a friend',
+        playHref: '/?play=friend&gameSpecId=kriegspiel',
+        secondary: [
+          { label: 'Read Dark Chess', href: '/rules/dark-chess', emphasis: 'secondary' },
           { label: 'Chess Rules', href: '/rules/chess', emphasis: 'secondary' },
           { label: 'All rules', href: '/rules', emphasis: 'secondary' },
         ],
