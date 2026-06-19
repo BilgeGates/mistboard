@@ -47,7 +47,11 @@ import {
 import { darkMiniXiangqiPublicEntryEnabled } from './feature-flags.js';
 import { type JieqiReplayController, mountJieqiReplay } from './jieqi-replay.js';
 import { type MiniXiangqiReplayController, mountMiniXiangqiReplay } from './mini-xiangqi-replay.js';
-import { readStoredXiangqiPieceSet, xiangqiAppearanceChangedEvent } from './theme.js';
+import {
+  readStoredXiangqiPieceSet,
+  shogiAppearanceChangedEvent,
+  xiangqiAppearanceChangedEvent,
+} from './theme.js';
 import { renderVariantMiniBoard, type VariantMiniId } from './variant-mini-boards.js';
 import { DEFAULT_XIANGQI_PIECE_SET, type XiangqiPieceSet } from './xiangqi-piece-sets.js';
 import { mountXiangqiReplay, type XiangqiReplayController } from './xiangqi-replay.js';
@@ -1088,14 +1092,55 @@ function trackXqDiagram(holder: HTMLElement, thunk: () => string): void {
   ensureXqDiagramListener();
 }
 
+// Shogi diagram repaint, the shogi twin of the xiangqi machinery above. Unlike
+// xiangqi (board theme rides on CSS vars), the shogi board bakes its palette into
+// the SVG, so BOTH the piece set and the board theme need a JS re-render — the
+// thunk already reads both from storage, so the painter just re-runs it.
+const shogiDiagramThunks = new WeakMap<HTMLElement, () => string>();
+let shogiDiagramListenerInstalled = false;
+
+function paintShogiDiagram(holder: HTMLElement): void {
+  const thunk = shogiDiagramThunks.get(holder);
+  if (!thunk) return;
+  const caption =
+    Array.from(holder.children).find((child) =>
+      child.classList.contains('article-figure-caption'),
+    ) ?? null;
+  const scratch = document.createElement('div');
+  scratch.innerHTML = thunk();
+  holder.replaceChildren(...Array.from(scratch.childNodes), ...(caption ? [caption] : []));
+}
+
+function ensureShogiDiagramListener(): void {
+  if (shogiDiagramListenerInstalled) return;
+  shogiDiagramListenerInstalled = true;
+  window.addEventListener(shogiAppearanceChangedEvent, () => {
+    document.querySelectorAll<HTMLElement>('[data-shogi-diagram]').forEach(paintShogiDiagram);
+  });
+}
+
+function trackShogiDiagram(holder: HTMLElement, thunk: () => string): void {
+  holder.dataset.shogiDiagram = '';
+  shogiDiagramThunks.set(holder, thunk);
+  ensureShogiDiagramListener();
+}
+
 function renderRawSvgBlock(block: RawSvgBlock): HTMLElement {
   const figure = document.createElement('figure');
   figure.className = 'article-figure article-figure-static';
+  if (block.className) figure.classList.add(...block.className.split(/\s+/).filter(Boolean));
   if (typeof block.svg === 'function') {
-    trackXqDiagram(figure, block.svg);
-    paintXqDiagram(figure, readStoredXiangqiPieceSet());
-    if (figure.querySelector('.xq-article-svg')) {
-      figure.classList.add('article-figure-xq');
+    // Render once to detect the family (and seed the figure), then track for
+    // re-render on that family's appearance event.
+    figure.innerHTML = block.svg();
+    if (figure.querySelector('.shogi-board-svg')) {
+      trackShogiDiagram(figure, block.svg);
+    } else {
+      trackXqDiagram(figure, block.svg);
+      paintXqDiagram(figure, readStoredXiangqiPieceSet());
+      if (figure.querySelector('.xq-article-svg')) {
+        figure.classList.add('article-figure-xq');
+      }
     }
   } else {
     figure.innerHTML = block.svg;

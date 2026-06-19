@@ -97,6 +97,56 @@ describe('Dark Shogi board renderer', () => {
     expect((svg.match(/<circle/g) ?? []).length).toBeGreaterThanOrEqual(2);
   });
 
+  it('renders the chosen piece set: western Latin initials, promoted as +X', () => {
+    const state: ShogiGameState = {
+      id: 'w',
+      board: {
+        '5e': { color: 'black', role: 'R', promoted: false },
+        '5c': { color: 'black', role: 'P', promoted: true },
+      },
+      hands: { black: {}, white: {} },
+      status: { type: 'playing', turn: 'black' },
+      moveNumber: 1,
+    };
+    const svg = renderShogiBoardSvg(truthView(state), { showFog: false, pieceSet: 'western' });
+    expect(svg).toContain('>R<'); // rook initial, not a kanji
+    expect(svg).toContain('>+P<'); // promoted pawn as +P
+    expect(svg).toContain('#b22222'); // ...inked red
+    expect(svg).not.toContain('飛'); // no kanji leaks through in western mode
+  });
+
+  it('renders image piece sets as <image> with the side-oriented lishogi art', () => {
+    const state: ShogiGameState = {
+      id: 'img',
+      board: {
+        '5i': { color: 'black', role: 'K', promoted: false }, // own -> sente art (0)
+        '5a': { color: 'white', role: 'K', promoted: false }, // opponent -> gote art (1)
+      },
+      hands: { black: {}, white: {} },
+      status: { type: 'playing', turn: 'black' },
+      moveNumber: 1,
+    };
+    const svg = renderShogiBoardSvg(truthView(state), { showFog: false, pieceSet: 'chess' });
+    expect(svg).toContain('<image href="/piece-sets/chess/0OU.svg"');
+    expect(svg).toContain('<image href="/piece-sets/chess/1OU.svg"');
+    expect(svg).not.toContain('王'); // image sets draw the koma art, not a kanji glyph
+    expect(svg).not.toContain('玉');
+  });
+
+  it('applies the selected board theme palette (kaya fog tint)', () => {
+    const state: ShogiGameState = {
+      id: 'k',
+      board: { '5e': { color: 'black', role: 'K', promoted: false } },
+      hands: { black: {}, white: {} },
+      status: { type: 'playing', turn: 'black' },
+      moveNumber: 1,
+    };
+    const view = getShogiPlayerView(state, 'black');
+    const svg = renderShogiBoardSvg(view, { showFog: true, boardTheme: 'kaya' });
+    expect(svg).toContain('rgba(240,229,205,0.88)'); // kaya fog
+    expect(svg).not.toContain('rgba(231,221,197,0.88)'); // ...not the wood default
+  });
+
   it('renders standalone hand + promotion koma', () => {
     const pawn = shogiHandKomaSvg('P', 'black');
     expect(pawn).toContain('<svg');

@@ -368,12 +368,13 @@
   border-radius: 4px;
 }
 
-/* Family-scoped appearance fields: chess pickers in chess contexts, xiangqi
-   pickers in xiangqi contexts. The fog field is untagged and always shows. */
-:root[data-board-family="xiangqi"] .theme-control-field[data-appearance-family="chess"] {
-  display: none;
-}
-:root:not([data-board-family="xiangqi"]) .theme-control-field[data-appearance-family="xiangqi"] {
+/* Family-scoped appearance fields: each family's board/piece pickers show only in
+   that family's context (chess, xiangqi, or shogi). The fog field is untagged and
+   always shows. A field is hidden whenever its family tag differs from the active
+   board family. */
+:root[data-board-family="chess"] [data-appearance-family]:not([data-appearance-family="chess"]),
+:root[data-board-family="xiangqi"] [data-appearance-family]:not([data-appearance-family="xiangqi"]),
+:root[data-board-family="shogi"] [data-appearance-family]:not([data-appearance-family="shogi"]) {
   display: none;
 }
 
@@ -427,6 +428,52 @@
   font-size: 14px;
   font-weight: 700;
   line-height: 1;
+}
+
+/* Shogi board swatches (solid wood tone per scheme; values track the light cell
+   of each palette in shogi-render.ts). */
+.theme-tile-preview-shogiboard[data-id="wood"] {
+  background: #f4ddb0;
+}
+.theme-tile-preview-shogiboard[data-id="kaya"] {
+  background: #f7e7c2;
+}
+.theme-tile-preview-shogiboard[data-id="plain"] {
+  background: #ece4d4;
+}
+
+/* Shogi piece tiles show a representative koma (飛 / R for text sets, the sente
+   king art for image sets) on a wood tone. */
+.theme-tile-preview-shogipiece {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #e9cf9b;
+  color: #3a2c14;
+  font-size: 15px;
+  font-weight: 600;
+  line-height: 1;
+}
+.theme-tile-preview-shogipiece img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+/* CC attribution line under the shogi image piece sets (required by the
+   licenses). Compact, muted, links inherit the accent. */
+.theme-attribution {
+  font-size: 11px;
+  line-height: 1.4;
+  color: var(--site-muted, #8a929b);
+  padding: 2px 2px 0;
+}
+.theme-attribution a {
+  color: inherit;
+  text-decoration: underline;
+}
+.theme-attribution a:hover {
+  color: var(--site-accent);
 }
 
 /* Board palette previews: diagonal split of light + dark squares. Values

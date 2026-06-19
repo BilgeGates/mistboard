@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="136" height="136">
+    <g stroke="#000" filter="drop-shadow(2px 2px 1px rgba(0,0,0,0.5))">
+        <path fill="#c9983f" stroke-width="1.197" d="m106.403 25.838 14.857 105.706H14.74L29.597 25.838 68 11.86z"/>
+        <g transform="matrix(-.8922 .74026 .74026 .8922 -377.356 350.571)">
+            <path fill="#fff" stroke-linejoin="round" stroke-width="3" d="M-436.502 62.748h-19.365l9.683-38.514z"/>
+            <circle cx="-446.184" cy="24.234" r="2.879" fill-rule="evenodd" stroke-width="1.253"/>
+        </g>
+        <g transform="rotate(39.683 -229.183 886.39)scale(1.15932)">
+            <path fill="#fff" stroke-linejoin="round" stroke-width="3" d="M-436.502 62.748h-19.365l9.683-38.514z"/>
+            <circle cx="-446.184" cy="24.234" r="2.879" fill-rule="evenodd" stroke-width="1.253"/>
+        </g>
+        <g transform="translate(585.26 -.623)scale(1.15932)">
+            <path fill="#fff" stroke-linejoin="round" stroke-width="3" d="M-436.502 62.748h-19.365l9.683-31.09z"/>
+            <circle cx="-446.184" cy="31.658" r="2.879" fill-rule="evenodd" stroke-width="1.253"/>
+        </g>
+        <path fill="#fff" fill-rule="evenodd" stroke-linejoin="bevel" stroke-width="2.319" d="M51.53 69.785a26.736 26.842 0 0 1 32.92 0L67.99 90.936z"/>
+        <path fill-rule="evenodd" stroke-linejoin="round" stroke-width="8.576" d="M68 77.296c1.744 11.029-6.815 17.037-26.933 38.983-3.618 1.936-6.359 2.276-8.664-.182.209-.266 20.146-25.95 35.596-38.8z"/>
+        <path fill-rule="evenodd" stroke-linejoin="round" stroke-width="8.576" d="M68 77.296c-1.744 11.029 6.815 17.037 26.934 38.983 3.617 1.936 6.358 2.276 8.664-.182-.21-.266-20.147-25.95-35.598-38.8z"/>
+        <path fill="#fff" fill-rule="evenodd" stroke-width="2.319" d="M68.74 72.047a26.736 26.842 0 0 0-17.394 5.824l5.589 7.054a26.736 26.842 0 0 1 22.13-.025l5.569-7.029a26.736 26.842 0 0 0-15.893-5.824Z"/>
+    </g>
+</svg>

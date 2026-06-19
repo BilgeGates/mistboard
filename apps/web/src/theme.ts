@@ -3,8 +3,23 @@ import type { GameFamilyId } from '@mistboard/game';
 import {
   crossroadsChessEnabled,
   darkMiniXiangqiEnabled,
+  darkShogiEnabled,
   darkXiangqiEnabled,
 } from './feature-flags.js';
+import {
+  readStoredShogiBoardTheme,
+  readStoredShogiPieceSet,
+  SHOGI_BOARD_THEMES,
+  type ShogiBoardTheme,
+  writeStoredShogiBoardTheme,
+  writeStoredShogiPieceSet,
+} from './shogi-appearance-storage.js';
+import {
+  SHOGI_IMAGE_SET_CREDITS,
+  SHOGI_PIECE_SETS,
+  type ShogiPieceSet,
+  shogiPieceTilePreview,
+} from './shogi-piece-sets.js';
 import { isLikelySignedIn } from './signed-in-state.js';
 import { readStoredSoundSet, SOUND_SETS, type SoundSetId, storeSoundSet } from './sound-sets.js';
 import {
@@ -20,6 +35,7 @@ import {
   xiangqiPreviewGlyph,
 } from './xiangqi-piece-sets.js';
 
+export { readStoredShogiPieceSet } from './shogi-appearance-storage.js';
 export { readStoredXiangqiPieceSet } from './xiangqi-appearance-storage.js';
 
 export type BoardTheme = 'standard' | 'contrast' | 'colorblind' | 'blue' | 'green' | 'mono';
@@ -43,6 +59,10 @@ export const boardAppearanceChangedEvent = 'mistboard:board-appearance-changed';
 // changes. The xiangqi board renders pieces as inline SVG, so unlike the
 // CSS-driven chess board it must re-render to pick up a new piece set.
 export const xiangqiAppearanceChangedEvent = 'mistboard:xiangqi-appearance-changed';
+// Fired when a shogi appearance setting (board theme or piece set) changes. Like
+// xiangqi, the shogi board renders pieces as inline SVG, so it re-renders to pick
+// up a new set rather than restyling through CSS.
+export const shogiAppearanceChangedEvent = 'mistboard:shogi-appearance-changed';
 const defaultSiteTheme: SiteTheme = 'system';
 const defaultTheme: BoardTheme = 'green';
 const defaultFogTheme: FogTheme = 'solid';
@@ -84,6 +104,8 @@ const xiangqiBoardThemes: Array<{ id: XiangqiBoardTheme; label: string }> = [
   { id: 'mono', label: 'Monochrome' },
 ];
 const xiangqiPieceSets = XIANGQI_PIECE_SETS;
+const shogiBoardThemes = SHOGI_BOARD_THEMES;
+const shogiPieceSets = SHOGI_PIECE_SETS;
 const defaultBoardFamily: BoardFamily = 'chess';
 
 // Xiangqi appearance (board themes + piece sets) is shared by full Dark Xiangqi,
@@ -93,10 +115,17 @@ export function xiangqiAppearanceEnabled(): boolean {
   return darkXiangqiEnabled() || darkMiniXiangqiEnabled() || crossroadsChessEnabled();
 }
 
+// Shogi appearance (board theme + piece set) drives the Dark Shogi board. Gated
+// on the variant flag so the Shogi controls appear only when it is playable.
+export function shogiAppearanceEnabled(): boolean {
+  return darkShogiEnabled();
+}
+
 function enabledAppearanceFamilies(): Array<{ id: BoardFamily; label: string }> {
   return [
     { id: 'chess', label: 'Chess' },
     ...(xiangqiAppearanceEnabled() ? [{ id: 'xiangqi' as BoardFamily, label: 'Xiangqi' }] : []),
+    ...(shogiAppearanceEnabled() ? [{ id: 'shogi' as BoardFamily, label: 'Shogi' }] : []),
   ];
 }
 let navObserver: MutationObserver | null = null;
@@ -109,6 +138,8 @@ export function initializeThemeSettings(): void {
   applyPieceSet(readStoredPieceSet());
   applyXiangqiBoardTheme(readStoredXiangqiBoardTheme());
   applyXiangqiPieceSet(readStoredXiangqiPieceSet());
+  applyShogiBoardTheme(readStoredShogiBoardTheme());
+  applyShogiPieceSet(readStoredShogiPieceSet());
   if (!document.documentElement.dataset.boardFamily) {
     document.documentElement.dataset.boardFamily = 'chess';
   }
@@ -157,6 +188,14 @@ function applyXiangqiBoardTheme(theme: XiangqiBoardTheme): void {
 
 function applyXiangqiPieceSet(pieceSet: XiangqiPieceSet): void {
   document.documentElement.dataset.xiangqiPieceSet = pieceSet;
+}
+
+function applyShogiBoardTheme(theme: ShogiBoardTheme): void {
+  document.documentElement.dataset.shogiBoardTheme = theme;
+}
+
+function applyShogiPieceSet(pieceSet: ShogiPieceSet): void {
+  document.documentElement.dataset.shogiPieceSet = pieceSet;
 }
 
 function mountThemeControls(): void {
@@ -308,6 +347,25 @@ export function buildAppearanceMenu(): HTMLElement {
       ),
     );
   }
+  if (shogiAppearanceEnabled()) {
+    boardBody.push(
+      createTileField(
+        'shogiboard',
+        'Board colors',
+        'Shogi board color scheme',
+        shogiBoardThemes,
+        readStoredShogiBoardTheme(),
+        (value) => {
+          applyShogiBoardTheme(value);
+          writeStoredShogiBoardTheme(value);
+          syncThemeControls();
+          dispatchShogiAppearanceChanged();
+        },
+        'shogi',
+        false,
+      ),
+    );
+  }
   addCategory('board', 'Board', boardBody);
 
   const pieceBody: HTMLElement[] = [
@@ -344,6 +402,26 @@ export function buildAppearanceMenu(): HTMLElement {
         'xiangqi',
         false,
       ),
+    );
+  }
+  if (shogiAppearanceEnabled()) {
+    pieceBody.push(
+      createTileField(
+        'shogipiece',
+        'Pieces',
+        'Shogi piece set',
+        shogiPieceSets,
+        readStoredShogiPieceSet(),
+        (value) => {
+          applyShogiPieceSet(value);
+          writeStoredShogiPieceSet(value);
+          syncThemeControls();
+          dispatchShogiAppearanceChanged();
+        },
+        'shogi',
+        false,
+      ),
+      createShogiArtCredit(),
     );
   }
   addCategory('pieces', 'Pieces', pieceBody);
@@ -505,7 +583,7 @@ function syncBoardFamilyControls(): void {
   });
 }
 
-type TileKind = 'board' | 'fog' | 'piece' | 'xqboard' | 'xqpiece';
+type TileKind = 'board' | 'fog' | 'piece' | 'xqboard' | 'xqpiece' | 'shogiboard' | 'shogipiece';
 
 function createTileField<T extends string>(
   kind: TileKind,
@@ -542,10 +620,21 @@ function createTileField<T extends string>(
     const preview = document.createElement('span');
     preview.className = `theme-tile-preview theme-tile-preview-${kind}`;
     preview.dataset.id = option.id;
-    // Xiangqi piece tiles show a representative glyph; the board tiles use a CSS
-    // color swatch like the chess board tiles.
+    // Xiangqi / shogi piece tiles show a representative glyph; the board tiles use
+    // a CSS color swatch like the chess board tiles.
     if (kind === 'xqpiece') {
       preview.textContent = xiangqiPreviewGlyph(option.id as XiangqiPieceSet);
+    } else if (kind === 'shogipiece') {
+      const shogiPreview = shogiPieceTilePreview(option.id as ShogiPieceSet);
+      if (shogiPreview.kind === 'image') {
+        const img = document.createElement('img');
+        img.src = shogiPreview.href;
+        img.alt = '';
+        img.loading = 'lazy';
+        preview.append(img);
+      } else {
+        preview.textContent = shogiPreview.text;
+      }
     }
     tile.append(preview);
 
@@ -560,6 +649,36 @@ function createTileField<T extends string>(
   }
   field.append(row);
   return field;
+}
+
+// Visible CC attribution for the bundled image piece sets (required by CC BY /
+// CC BY-SA). Family-tagged so it shows only alongside the shogi piece tiles.
+function createShogiArtCredit(): HTMLDivElement {
+  const note = document.createElement('div');
+  note.className = 'theme-attribution';
+  note.dataset.appearanceFamily = 'shogi';
+  note.append(document.createTextNode('Piece art: '));
+  SHOGI_IMAGE_SET_CREDITS.forEach((credit, index) => {
+    if (index > 0) note.append(document.createTextNode('; '));
+    const author = document.createElement('a');
+    author.href = credit.authorUrl;
+    author.target = '_blank';
+    author.rel = 'noopener';
+    author.textContent = credit.author;
+    const license = document.createElement('a');
+    license.href = credit.licenseUrl;
+    license.target = '_blank';
+    license.rel = 'noopener';
+    license.textContent = credit.license;
+    note.append(
+      document.createTextNode(`${credit.sets} by `),
+      author,
+      document.createTextNode(' ('),
+      license,
+      document.createTextNode(')'),
+    );
+  });
+  return note;
 }
 
 function createVolumeField(): HTMLLabelElement {
@@ -688,9 +807,11 @@ function syncThemeControls(): void {
   syncBoardFamilyControls();
   syncTileRow('board', boardTheme);
   syncTileRow('xqboard', readStoredXiangqiBoardTheme());
+  syncTileRow('shogiboard', readStoredShogiBoardTheme());
   syncTileRow('fog', fogTheme);
   syncTileRow('piece', pieceSet);
   syncTileRow('xqpiece', readStoredXiangqiPieceSet());
+  syncTileRow('shogipiece', readStoredShogiPieceSet());
   document.querySelectorAll<HTMLInputElement>('input[data-sound-volume]').forEach((input) => {
     input.value = String(Math.round(effectiveVolume * 100));
   });
@@ -807,6 +928,14 @@ function writeStoredPieceSet(pieceSet: PieceSet): void {
 function dispatchXiangqiAppearanceChanged(): void {
   window.dispatchEvent(new Event(xiangqiAppearanceChangedEvent));
   dispatchBoardAppearanceChanged();
+}
+
+function dispatchShogiAppearanceChanged(): void {
+  // Only the shogi-specific event — NOT the chess-wide boardAppearanceChangedEvent
+  // — so a shogi set/theme change re-renders only the shogi surfaces (live board,
+  // postgame, rules diagrams) and never refreshes the chess variant rail (which
+  // would re-floor and visibly shrink its thumbnails).
+  window.dispatchEvent(new Event(shogiAppearanceChangedEvent));
 }
 
 function dispatchBoardAppearanceChanged(): void {

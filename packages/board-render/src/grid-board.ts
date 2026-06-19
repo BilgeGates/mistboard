@@ -101,6 +101,9 @@ export type GridBoardLayers = {
   // Names the hit-layer rects (data-square="…") so a host can delegate clicks.
   squareName?: (file: number, rank: number) => string;
   interactive?: boolean;
+  // Draw the file/rank coordinate labels. Defaults to true; set false for clean
+  // teaching diagrams (e.g. the shogi rules page).
+  coords?: boolean;
 };
 
 const DEFAULT_FILE_LABEL = (file: number): string => String.fromCharCode(97 + file);
@@ -274,7 +277,7 @@ export function renderGridBoardSvg(
     lastMoveLayer(),
     selectionLayer(),
     highlightLayer(),
-    coordsLayer(),
+    layers.coords === false ? '' : coordsLayer(),
     layers.renderPieces(geom),
     targetLayer(),
     fogLayer(),

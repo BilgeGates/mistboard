@@ -53,16 +53,26 @@ function moveDiagram(
   const piece = createShogiPiece('black', role, promoted);
   const board: ShogiBoard = { [square]: piece };
   const targets = controlledSquares(board, square, piece);
+  const view = diagramView(board);
   return {
     kind: 'raw-svg',
-    svg: renderShogiBoardSvg(diagramView(board), { showFog: false, targets }),
+    // A thunk (not a baked string) so the diagram follows the live appearance
+    // picker: renderShogiBoardSvg reads the stored piece set + board theme, and
+    // articles.ts re-runs it on shogiAppearanceChangedEvent.
+    svg: () => renderShogiBoardSvg(view, { showFog: false, targets, showCoords: false }),
+    className: 'shogi-figure-move',
   } as ArticleBlock;
 }
 
-const START_BOARD_SVG = renderShogiBoardSvg(
-  diagramView(createInitialShogiState('diagram').board),
-  { showFog: false },
-);
+const START_VIEW = diagramView(createInitialShogiState('diagram').board);
+// Baked kanji/wood for the index/rail thumbnail (a static brand image); the
+// in-article board below uses a live thunk instead.
+const START_BOARD_SVG = renderShogiBoardSvg(START_VIEW, {
+  showFog: false,
+  pieceSet: 'kanji',
+  boardTheme: 'wood',
+  showCoords: false,
+});
 
 export const shogiArticle: Article = {
   slug: 'shogi',
@@ -73,6 +83,7 @@ export const shogiArticle: Article = {
   showSummaryOnPage: false,
   status: 'draft',
   publishedAt: '2026-06-18',
+  boardFamily: 'shogi',
   audience: 'Mistboard visitors who want the regular shogi baseline before reading Dark Shogi.',
   thumbnail: { kind: 'svg', svg: START_BOARD_SVG },
   intro: [
@@ -91,7 +102,8 @@ export const shogiArticle: Article = {
         },
         {
           kind: 'raw-svg',
-          svg: START_BOARD_SVG,
+          svg: () => renderShogiBoardSvg(START_VIEW, { showFog: false, showCoords: false }),
+          className: 'shogi-figure-board',
         } as ArticleBlock,
         {
           kind: 'paragraph',
@@ -157,9 +169,10 @@ export const shogiArticle: Article = {
         },
         {
           kind: 'paragraph',
-          text: 'Rook and bishop keep their long range and gain a little more. A promoted **rook (龍, dragon)** moves as a rook plus one square diagonally. A promoted **bishop (馬, horse)** moves as a bishop plus one square straight. The dragon below shows the rook lines with the four added diagonal steps.',
+          text: 'Rook and bishop keep their long range and gain a little more. A promoted **rook (龍, dragon)** moves as a rook plus one square diagonally. A promoted **bishop (馬, horse)** moves as a bishop plus one square straight. The dragon and horse below show each long-range line with its added one-square steps.',
         },
         moveDiagram('R', true),
+        moveDiagram('B', true),
         {
           kind: 'paragraph',
           text: 'The silver, knight, lance, and pawn all promote to the **gold general\'s** move shown earlier: one step in any straight direction plus the two forward diagonals. A promoted pawn (と, tokin) is the workhorse of shogi, a cheap piece that suddenly moves like a gold.',

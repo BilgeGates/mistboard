@@ -5,8 +5,14 @@
 // Crossroads boards ride. The core owns geometry (orientation flip), furniture
 // (grid, coords, frame, clip) and the generic interaction layers (last-move,
 // selection, targets, fog, hit). This file supplies only what is shogi-specific:
-// the 9x9 descriptor, the pentagonal koma glyph (kanji on a wedge tile that
-// points toward the enemy), and the hand-koma used by the reserves strip.
+// the 9x9 descriptor, the themed wood palette, the pentagonal koma glyph (a piece
+// face on a wedge tile that points toward the enemy), and the hand-koma used by
+// the reserves strip.
+//
+// Appearance: board theme + piece set are user-selectable (shogi-appearance-
+// storage.ts), so the palette and the koma glyph are resolved per render from
+// the stored preference (or an explicit option, used by the rules diagrams to
+// pin the kanji default). The live board re-renders on shogiAppearanceChangedEvent.
 //
 // Driven by the engine's ShogiPlayerView. There are NO shrouded silhouettes —
 // shogi has no screen mechanic, so the fog view simply omits pieces off vision;
@@ -24,12 +30,22 @@ import {
   type ShogiHandRole,
   type ShogiMove,
   type ShogiPiece,
-  type ShogiPieceRole,
   type ShogiPlayerView,
   type ShogiSquare,
   shogiCoordOf,
   shogiSquareOf,
 } from '@mistboard/game';
+import {
+  readStoredShogiBoardTheme,
+  readStoredShogiPieceSet,
+  type ShogiBoardTheme,
+} from './shogi-appearance-storage.js';
+import {
+  type ShogiPieceSet,
+  shogiGlyph,
+  shogiImagePieceHref,
+  shogiImageSet,
+} from './shogi-piece-sets.js';
 
 const FILES = 9;
 const RANKS = 9;
@@ -39,65 +55,72 @@ const CELL = 48;
 // ghost is sized to this so the lifted piece matches what sits on the board.
 export const SHOGI_PIECE_PX = CELL * 0.9;
 
-// Single-character koma faces. King differs by side (王 sente / 玉 gote), the
-// rest share a face; ownership reads from tile color + orientation.
-const KANJI: Record<ShogiPieceRole, string> = {
-  K: '王',
-  R: '飛',
-  B: '角',
-  G: '金',
-  S: '銀',
-  N: '桂',
-  L: '香',
-  P: '歩',
-};
-const PROMOTED_KANJI: Partial<Record<ShogiPieceRole, string>> = {
-  R: '龍',
-  B: '馬',
-  S: '全',
-  N: '圭',
-  L: '杏',
-  P: 'と',
-};
-const KANJI_FONT = '"Hiragino Mincho ProN","Yu Mincho","Noto Serif JP",serif';
-
-// Wood-tile palette. Literal colors (not theme vars) — Dark Shogi is a hidden
-// dev-spike with no board-theme axis yet, so it stays self-contained.
-const SHOGI_PALETTE: GridPalette = {
-  lightCell: '#f4ddb0',
-  darkCell: '#ecd09c',
-  // Borderless to match the fog aesthetic of the other variants: the wood
-  // checker carries Shogi's identity, so the heavy brown frame goes transparent
-  // and the cells run edge-to-edge (see SHOGI_DESCRIPTOR frame-zeroing below).
-  frameBg: 'transparent',
-  frameInner: 'transparent',
-  boardEdge: 'transparent',
-  coord: '#8a6d3f',
-  lastMove: 'rgba(230,201,95,0.62)',
-  selected: 'rgba(207,227,154,0.70)',
-  targetDot: '#5f7d33',
-  targetRing: '#5f7d33',
-  // A pale mist over un-attacked cells (the fog overlay is drawn over pieces, so
-  // it must be translucent; off-vision pieces are already absent from the view).
-  fog: 'rgba(231,221,197,0.88)',
+// Per-theme cell + fog colors. The frame is always transparent (borderless, to
+// match the fog aesthetic of the other variants) and the interaction colors
+// (last-move, selection, targets) are constant across themes.
+const SHOGI_BOARD_PALETTES: Record<
+  ShogiBoardTheme,
+  { lightCell: string; darkCell: string; coord: string; fog: string }
+> = {
+  wood: {
+    lightCell: '#f4ddb0',
+    darkCell: '#ecd09c',
+    coord: '#8a6d3f',
+    fog: 'rgba(231,221,197,0.88)',
+  },
+  kaya: {
+    lightCell: '#f7e7c2',
+    darkCell: '#f1ddb0',
+    coord: '#9a7b46',
+    fog: 'rgba(240,229,205,0.88)',
+  },
+  plain: {
+    lightCell: '#ece4d4',
+    darkCell: '#e3d8c4',
+    coord: '#8c8270',
+    fog: 'rgba(232,227,216,0.9)',
+  },
 };
 
-const SHOGI_DESCRIPTOR = {
-  files: FILES,
-  ranks: RANKS,
-  cell: CELL,
-  palette: SHOGI_PALETTE,
-  framePad: 0,
-  pad: 0,
-  frameRadius: 0,
-  boardRadius: 0,
-  boardEdgeWidth: 0,
-  // Shogi files run 9..1 left-to-right from Black's side; ranks fall back to the
-  // core's numeric labels (the core has no rank-letter hook — cosmetic only,
-  // every interaction is click-driven by data-square).
-  fileLabel: (file: number) => String(FILES - file),
-  svgClass: 'shogi-board-svg',
-};
+function paletteFor(theme: ShogiBoardTheme): GridPalette {
+  const c = SHOGI_BOARD_PALETTES[theme] ?? SHOGI_BOARD_PALETTES.wood;
+  return {
+    lightCell: c.lightCell,
+    darkCell: c.darkCell,
+    // Borderless: the wood checker carries Shogi's identity, so the frame goes
+    // transparent and the cells run edge-to-edge (see frame-zeroing below).
+    frameBg: 'transparent',
+    frameInner: 'transparent',
+    boardEdge: 'transparent',
+    coord: c.coord,
+    lastMove: 'rgba(230,201,95,0.62)',
+    selected: 'rgba(207,227,154,0.70)',
+    targetDot: '#5f7d33',
+    targetRing: '#5f7d33',
+    // A pale mist over un-attacked cells (the fog overlay is drawn over pieces, so
+    // it must be translucent; off-vision pieces are already absent from the view).
+    fog: c.fog,
+  };
+}
+
+function shogiDescriptor(theme: ShogiBoardTheme) {
+  return {
+    files: FILES,
+    ranks: RANKS,
+    cell: CELL,
+    palette: paletteFor(theme),
+    framePad: 0,
+    pad: 0,
+    frameRadius: 0,
+    boardRadius: 0,
+    boardEdgeWidth: 0,
+    // Shogi files run 9..1 left-to-right from Black's side; ranks fall back to the
+    // core's numeric labels (the core has no rank-letter hook — cosmetic only,
+    // every interaction is click-driven by data-square).
+    fileLabel: (file: number) => String(FILES - file),
+    svgClass: 'shogi-board-svg',
+  };
+}
 
 export type ShogiRenderOptions = {
   // Whose side sits at the bottom. Defaults to the view's own perspective.
@@ -112,6 +135,13 @@ export type ShogiRenderOptions = {
   interactive?: boolean;
   // While dragging, omit the source koma so only the floating ghost shows.
   draggingFrom?: ShogiSquare | null;
+  // Override the piece set / board theme. The live board omits both and reads
+  // the stored preference.
+  pieceSet?: ShogiPieceSet;
+  boardTheme?: ShogiBoardTheme;
+  // Draw file/rank coordinate labels. Defaults to true; the rules diagrams pass
+  // false for clean teaching boards.
+  showCoords?: boolean;
 };
 
 let boardCounter = 0;
@@ -122,6 +152,8 @@ export function renderShogiBoardSvg(
 ): string {
   const perspective = options.perspective ?? view.perspective;
   const showFog = options.showFog ?? true;
+  const set = options.pieceSet ?? readStoredShogiPieceSet();
+  const theme = options.boardTheme ?? readStoredShogiBoardTheme();
   boardCounter += 1;
   const id = `shogi-live-${boardCounter}`;
 
@@ -134,23 +166,28 @@ export function renderShogiBoardSvg(
       : [coordOf(lastMove.from), coordOf(lastMove.to)]
     : null;
 
-  return renderGridBoardSvg(SHOGI_DESCRIPTOR, {
+  return renderGridBoardSvg(shogiDescriptor(theme), {
     id,
     flip: perspective === 'white',
-    renderPieces: (geom) => pieceLayer(view, geom, perspective, options.draggingFrom ?? null),
+    renderPieces: (geom) => pieceLayer(view, geom, perspective, options.draggingFrom ?? null, set),
     lastMove: lastCells,
     selected: options.selected ? coordOf(options.selected) : null,
     targets: (options.targets ?? []).map((sq) => ({ ...coordOf(sq), occupied: occupied.has(sq) })),
     fogHidden: showFog ? hiddenSquares(visible) : null,
     interactive: options.interactive ?? false,
+    coords: options.showCoords ?? true,
     squareName: (file, rank) => squareAt(file, rank),
   });
 }
 
 // A standalone mini-koma (reserves strip, promotion preview). pointsUp false
 // renders an opponent-oriented (upside-down) tile, used for the postgame top
-// reserve.
-export function shogiKomaSvg(piece: ShogiPiece, pointsUp = true): string {
+// reserve. The piece set follows the stored preference unless pinned.
+export function shogiKomaSvg(
+  piece: ShogiPiece,
+  pointsUp = true,
+  set: ShogiPieceSet = readStoredShogiPieceSet(),
+): string {
   const size = 40;
   return `<svg viewBox="0 0 ${size} ${size}" class="shogi-hand-koma__svg" role="img" aria-label="${piece.color} ${piece.role}${piece.promoted ? ' promoted' : ''}" xmlns="http://www.w3.org/2000/svg">${komaFragment(
     piece,
@@ -158,20 +195,29 @@ export function shogiKomaSvg(piece: ShogiPiece, pointsUp = true): string {
     0,
     size,
     pointsUp,
+    set,
   )}</svg>`;
 }
 
 // Reserves are always unpromoted hand pieces — a thin wrapper over the general
 // koma for the hand strip.
-export function shogiHandKomaSvg(role: ShogiHandRole, color: ShogiColor, pointsUp = true): string {
-  return shogiKomaSvg({ color, role, promoted: false }, pointsUp);
+export function shogiHandKomaSvg(
+  role: ShogiHandRole,
+  color: ShogiColor,
+  pointsUp = true,
+  set: ShogiPieceSet = readStoredShogiPieceSet(),
+): string {
+  return shogiKomaSvg({ color, role, promoted: false }, pointsUp, set);
 }
 
 // The standalone koma for the floating drag ghost (board-drag.ts mounts it in a
 // sized <div>). Only your OWN visible board pieces are draggable, so the koma
 // always points up (toward the enemy) like every piece you own. The SVG fills
 // its container so the SHOGI_PIECE_PX-sized ghost scales the koma to board size.
-export function shogiPieceGhostSvg(piece: ShogiPiece): string {
+export function shogiPieceGhostSvg(
+  piece: ShogiPiece,
+  set: ShogiPieceSet = readStoredShogiPieceSet(),
+): string {
   const size = 40;
   return `<svg viewBox="0 0 ${size} ${size}" class="shogi-piece-ghost__svg" width="100%" height="100%" role="img" aria-hidden="true" xmlns="http://www.w3.org/2000/svg">${komaFragment(
     piece,
@@ -179,6 +225,7 @@ export function shogiPieceGhostSvg(piece: ShogiPiece): string {
     0,
     size,
     true,
+    set,
   )}</svg>`;
 }
 
@@ -214,9 +261,12 @@ function pieceLayer(
   geom: GridGeometry,
   perspective: ShogiColor,
   draggingFrom: ShogiSquare | null,
+  set: ShogiPieceSet,
 ): string {
-  const tile = CELL * 0.9;
-  const inset = (CELL - tile) / 2;
+  // Image sets are self-contained koma art designed to fill the cell; text koma
+  // draw a pentagon inset slightly inside it.
+  const drawSize = shogiImageSet(set) ? CELL : CELL * 0.9;
+  const drawInset = (CELL - drawSize) / 2;
   const parts: string[] = [];
   for (const [square, piece] of Object.entries(view.board)) {
     if (!piece) continue;
@@ -226,31 +276,57 @@ function pieceLayer(
     // A piece you own points up-screen (toward the enemy); the opponent's points
     // down. Your side is whoever sits at the bottom (the perspective player).
     const pointsUp = piece.color === perspective;
-    parts.push(komaFragment(piece, x + inset, y + inset, tile, pointsUp));
+    parts.push(komaFragment(piece, x + drawInset, y + drawInset, drawSize, pointsUp, set));
   }
   return parts.join('');
 }
 
-// A single pentagonal koma at (x,y) of the given size. The shape is always drawn
-// pointing up and rotated 180° for the down orientation, so the kanji rotates
-// with the tile (you read the opponent's pieces upside-down, as in real shogi).
+// A single pentagonal koma at (x,y) of the given size. The tile is always drawn
+// pointing up and rotated 180° for the down orientation, so ownership reads from
+// which way it points (toward the enemy). The glyph is centered in the tile body
+// (dominant-baseline central, ~0.6·size, the centroid of the home-plate pentagon)
+// and sized to fill it.
+//
+// Image sets place a bundled lishogi koma SVG (a complete, side-oriented koma —
+// 0XX sente apex-up, 1XX gote apex-down), so they need neither a drawn pentagon
+// nor a rotation; the right file already points the right way.
+//
+// Text sets draw a pentagon + glyph. Kanji are read with the koma — rotated for
+// the opponent, as on a real board. Latin letters carry no orientation, so the
+// western set keeps them upright (and re-seats them in the now-top body of a
+// flipped tile); ownership still reads from the tile's direction + color, and an
+// upside-down "R" never looks broken.
 function komaFragment(
   piece: ShogiPiece,
   x: number,
   y: number,
   size: number,
   pointsUp: boolean,
+  set: ShogiPieceSet,
 ): string {
+  const imageSet = shogiImageSet(set);
+  if (imageSet) {
+    const href = shogiImagePieceHref(imageSet, piece, pointsUp);
+    return `<image href="${href}" x="${x.toFixed(2)}" y="${y.toFixed(2)}" width="${size.toFixed(2)}" height="${size.toFixed(2)}"/>`;
+  }
   const fill = piece.color === 'black' ? '#d9a441' : '#f3e6c8';
   const stroke = piece.color === 'black' ? '#9a7320' : '#b89f68';
-  const textFill = piece.promoted ? '#b22222' : '#3a2c14';
-  const path = pentagonPath(x, y, size);
-  const glyph = kanjiFor(piece);
-  const body =
-    `<path d="${path}" fill="${fill}" stroke="${stroke}" stroke-width="1.4" stroke-linejoin="round"/>` +
-    `<text x="${x + size / 2}" y="${y + size * 0.66}" text-anchor="middle" font-size="${(size * 0.5).toFixed(1)}" font-family='${KANJI_FONT}' font-weight="600" fill="${textFill}">${glyph}</text>`;
-  if (pointsUp) return body;
-  return `<g transform="rotate(180 ${x + size / 2} ${y + size / 2})">${body}</g>`;
+  const glyph = shogiGlyph(set, piece);
+  const textFill = piece.promoted && glyph.promotedInk ? '#b22222' : '#3a2c14';
+  const cx = (x + size / 2).toFixed(2);
+  const cy = (y + size / 2).toFixed(2);
+  const rotateGlyph = set !== 'western';
+
+  const tilePath = `<path d="${pentagonPath(x, y, size)}" fill="${fill}" stroke="${stroke}" stroke-width="1.4" stroke-linejoin="round"/>`;
+  const tile = pointsUp ? tilePath : `<g transform="rotate(180 ${cx} ${cy})">${tilePath}</g>`;
+
+  // Upright glyphs sit in the body: 0.6 of an apex-up tile, 0.4 of a flipped one.
+  const baselineY = (y + size * (rotateGlyph || pointsUp ? 0.6 : 0.4)).toFixed(2);
+  const textEl = `<text x="${cx}" y="${baselineY}" text-anchor="middle" dominant-baseline="central" font-size="${(size * glyph.fontScale).toFixed(1)}" font-family='${glyph.fontFamily}' font-weight="${glyph.fontWeight}" fill="${textFill}">${glyph.text}</text>`;
+  const text =
+    !pointsUp && rotateGlyph ? `<g transform="rotate(180 ${cx} ${cy})">${textEl}</g>` : textEl;
+
+  return tile + text;
 }
 
 // Home-plate pentagon (apex up), as an absolute-coordinate path.
@@ -268,10 +344,4 @@ function pentagonPath(x: number, y: number, s: number): string {
         `${i === 0 ? 'M' : 'L'}${(x + px * s).toFixed(2)} ${(y + py * s).toFixed(2)}`,
     )
     .join(' ')} Z`;
-}
-
-function kanjiFor(piece: ShogiPiece): string {
-  if (piece.role === 'K') return piece.color === 'black' ? '王' : '玉';
-  if (piece.promoted) return PROMOTED_KANJI[piece.role] ?? KANJI[piece.role];
-  return KANJI[piece.role];
 }

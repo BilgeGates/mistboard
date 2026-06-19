@@ -44,7 +44,7 @@ import {
   shogiKomaSvg,
   shogiPieceGhostSvg,
 } from './shogi-render.js';
-import { boardAppearanceChangedEvent, setBoardFamily } from './theme.js';
+import { setBoardFamily, shogiAppearanceChangedEvent } from './theme.js';
 import { installBoardDrag } from './variant-tenant/board-drag.js';
 import { syncMoveListScroll } from './variant-tenant/chrome-dom.js';
 import { createTenantReplayController } from './variant-tenant/replay-controller.js';
@@ -226,7 +226,7 @@ export function bootstrapDarkShogiLiveRoom(): void {
 
   refs = createLiveLayout(app, { debugRequested: false });
   setLiveLayoutGameSpec(app, 'dark-shogi');
-  setBoardFamily('chess');
+  setBoardFamily('shogi');
   boardHost = refs.board;
   chrome.setRenderTarget(refs, {
     sendSocket: send,
@@ -255,7 +255,7 @@ export function bootstrapDarkShogiLiveRoom(): void {
     chrome.tickCountdowns();
   }, 100);
   document.addEventListener('keydown', handleReplayKeyboard);
-  window.addEventListener(boardAppearanceChangedEvent, renderAll);
+  window.addEventListener(shogiAppearanceChangedEvent, renderAll);
   renderAll();
 }
 

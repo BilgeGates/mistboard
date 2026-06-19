@@ -113,12 +113,19 @@ export async function mountArticle(
   } = await import('./articles.js');
   const { findArticle } = await import('./articles-data.js');
   const { translateArticle } = await import('./article-i18n.js');
-  const { setBoardFamily, xiangqiAppearanceEnabled } = await import('./theme.js');
+  const { setBoardFamily, shogiAppearanceEnabled, xiangqiAppearanceEnabled } = await import(
+    './theme.js'
+  );
   const base = findArticle(slug);
   // Show the family's board/piece pickers while the article is open so the
-  // diagrams react to the right controls (xiangqi only when its flag is on).
+  // diagrams react to the right controls (each family only when its flag is on).
+  const family = base?.boardFamily;
   setBoardFamily(
-    base?.boardFamily === 'xiangqi' && xiangqiAppearanceEnabled() ? 'xiangqi' : 'chess',
+    family === 'xiangqi' && xiangqiAppearanceEnabled()
+      ? 'xiangqi'
+      : family === 'shogi' && shogiAppearanceEnabled()
+        ? 'shogi'
+        : 'chess',
   );
   const article = base && lang ? translateArticle(base, lang) : base;
   if (article) document.title = `${article.title} · Mistboard`;

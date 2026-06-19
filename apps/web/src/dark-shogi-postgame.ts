@@ -15,7 +15,7 @@ import './dark-shogi-postgame.css';
 import { createDarkShogiPlayAgainRoom } from './dark-shogi-room-actions.js';
 import { darkShogiEnabled } from './feature-flags.js';
 import { renderShogiBoardSvg, SHOGI_HAND_ORDER, shogiHandKomaSvg } from './shogi-render.js';
-import { setBoardFamily } from './theme.js';
+import { setBoardFamily, shogiAppearanceChangedEvent } from './theme.js';
 
 export type DarkShogiPostgameViewKey = ShogiColor | 'truth';
 
@@ -66,7 +66,7 @@ type PostgameEntry = { key: DarkShogiPostgameViewKey; label: string; view: Shogi
 
 export function mountDarkShogiPostgame(root: HTMLElement, roomId: string): void {
   root.classList.add('landing-page', 'dark-shogi-postgame-route');
-  setBoardFamily('chess');
+  setBoardFamily('shogi');
   root.replaceChildren(loadingView());
   if (!darkShogiEnabled()) {
     renderError(root, 'Dark Shogi unavailable', 'This route is not enabled in this build.');
@@ -220,6 +220,9 @@ function boardsPanel(postgame: DarkShogiPostgameResponse, signal: AbortSignal): 
     },
     { signal },
   );
+  // Re-render the board when the shogi piece set / board theme changes (the koma
+  // are inline SVG, so a new set needs a redraw rather than a CSS restyle).
+  window.addEventListener(shogiAppearanceChangedEvent, syncReplay, { signal });
 
   controls.append(first, previous, status, next, last, flip);
   panel.append(controls);

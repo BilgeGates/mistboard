@@ -3,20 +3,23 @@ import {
   createShogiPiece,
   getShogiPlayerView,
   type ShogiBoard,
-  type ShogiGameState,
 } from '@mistboard/game';
 import { renderShogiBoardSvg } from '../../shogi-render.js';
 import type { Article, ArticleBlock } from '../types.js';
 
 // ── Fog diagram builders ─────────────────────────────────────────────────────
-// Baked once from the real fog view (getShogiPlayerView) + the real renderer, so
-// the diagrams show exactly what the server would send a player.
+// Built from the real fog view (getShogiPlayerView) + the real renderer, so the
+// diagrams show exactly what the server would send a player. The in-article boards
+// are thunks (they follow the live appearance picker via shogiAppearanceChanged);
+// the thumbnail bakes the kanji/wood default.
 
-function fogView(state: ShogiGameState): string {
-  return renderShogiBoardSvg(getShogiPlayerView(state, 'black'), { showFog: true });
-}
-
-const START_FOG_SVG = fogView(createInitialShogiState('diagram'));
+const START_FOG_VIEW = getShogiPlayerView(createInitialShogiState('diagram'), 'black');
+const START_FOG_SVG = renderShogiBoardSvg(START_FOG_VIEW, {
+  showFog: true,
+  pieceSet: 'kanji',
+  boardTheme: 'wood',
+  showCoords: false,
+});
 
 // Black rook on an open file: it sees up to the first enemy piece (the pawn on
 // 5c) and no further, so the king hiding behind it on 5a stays in the fog.
@@ -26,18 +29,15 @@ const FIELD_OF_FIRE_BOARD: ShogiBoard = {
   '5c': createShogiPiece('white', 'P'),
   '5a': createShogiPiece('white', 'K'),
 };
-const FIELD_OF_FIRE_SVG = renderShogiBoardSvg(
-  getShogiPlayerView(
-    {
-      id: 'diagram',
-      board: FIELD_OF_FIRE_BOARD,
-      hands: { black: {}, white: {} },
-      status: { type: 'playing', turn: 'black' },
-      moveNumber: 1,
-    },
-    'black',
-  ),
-  { showFog: true },
+const FIELD_OF_FIRE_VIEW = getShogiPlayerView(
+  {
+    id: 'diagram',
+    board: FIELD_OF_FIRE_BOARD,
+    hands: { black: {}, white: {} },
+    status: { type: 'playing', turn: 'black' },
+    moveNumber: 1,
+  },
+  'black',
 );
 
 export const darkShogiArticle: Article = {
@@ -49,6 +49,7 @@ export const darkShogiArticle: Article = {
   showSummaryOnPage: false,
   status: 'draft',
   publishedAt: '2026-06-18',
+  boardFamily: 'shogi',
   audience:
     'Shogi players, dark chess players, and anyone who wants a clean first explanation of shogi under fog.',
   thumbnail: { kind: 'svg', svg: START_FOG_SVG },
@@ -72,7 +73,7 @@ export const darkShogiArticle: Article = {
         },
         {
           kind: 'raw-svg',
-          svg: START_FOG_SVG,
+          svg: () => renderShogiBoardSvg(START_FOG_VIEW, { showFog: true, showCoords: false }),
         } as ArticleBlock,
       ],
     },
@@ -89,7 +90,7 @@ export const darkShogiArticle: Article = {
         },
         {
           kind: 'raw-svg',
-          svg: FIELD_OF_FIRE_SVG,
+          svg: () => renderShogiBoardSvg(FIELD_OF_FIRE_VIEW, { showFog: true, showCoords: false }),
         } as ArticleBlock,
       ],
     },

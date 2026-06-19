@@ -145,6 +145,9 @@ export type RawSvgBlock = {
   // chess diagrams restyle through chessground sprites + board-theme CSS.
   svg: string | (() => string);
   caption?: string;
+  // Extra class on the <figure>, for per-diagram sizing (e.g. the shogi rules
+  // page caps its full board vs. its compact per-piece move diagrams).
+  className?: string;
 };
 
 export type RawSvgStepperStep = {
@@ -257,6 +260,6 @@ export type Article = {
   // Which appearance family this article's diagrams belong to. Drives the
   // Settings board/piece pickers while the article is open (xiangqi diagrams
   // react to the xiangqi pickers). Defaults to chess when unset.
-  boardFamily?: 'chess' | 'xiangqi';
+  boardFamily?: 'chess' | 'xiangqi' | 'shogi';
   sections: ArticleSection[];
 };

@@ -1,0 +1,27 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="136" height="136">
+    <g stroke="#000" filter="drop-shadow(2px 2px 1px rgba(0,0,0,0.5))">
+        <path fill="#e8bc5d" stroke-width="1.197" d="M29.597 110.162 14.74 4.456h106.52l-14.857 105.706L68 124.14z"/>
+        <path fill-rule="evenodd" stroke-linejoin="round" stroke-width="10.495" d="M62.895 70.805V20.012h10.211v50.793"/>
+        <g transform="translate(284.13 226.532)scale(-1.17259)">
+            <path fill="#fff" stroke-linejoin="round" stroke-width="2.966" d="m192.38 131.62-15.162 15.162-16.76-31.923Z"/>
+            <circle cx="32.243" cy="194.678" r="3.188" fill-rule="evenodd" stroke-width="1.387" transform="rotate(-45)"/>
+        </g>
+        <g transform="rotate(45 -430.151 773.001)scale(1.29842 -1.29842)">
+            <path fill="#fff" stroke-linejoin="round" stroke-width="2.679" d="M-436.502 62.748h-19.365l9.683-31.09z"/>
+            <circle cx="-446.184" cy="31.658" r="2.879" fill-rule="evenodd" stroke-width="1.253"/>
+        </g>
+        <g transform="translate(-511.336 143.656)scale(-1.29842)">
+            <path fill="#fff" stroke-linejoin="round" stroke-width="2.679" d="M-436.502 62.748h-19.365l9.683-31.09z"/>
+            <circle cx="-446.184" cy="31.658" r="2.879" fill-rule="evenodd" stroke-width="1.253"/>
+        </g>
+        <g transform="translate(284.814 226.532)scale(-1.17259)">
+            <path fill="#fff" stroke-linejoin="round" stroke-width="2.897" d="M-436.502 62.748h-19.365l9.683-31.09z" transform="matrix(0 -1.1073 -.94662 0 244.3 -354.86)"/>
+            <circle cx="53.122" cy="249.988" r="3.188" fill-rule="evenodd" stroke-width="1.387" transform="rotate(-45)"/>
+        </g>
+        <g transform="translate(284.814 226.532)scale(-1.17259)">
+            <path fill="#fff" stroke-linejoin="round" stroke-width="2.897" d="M-436.502 62.748h-19.365l9.683-31.09z" transform="matrix(0 -1.1073 .94662 0 125.503 -354.86)"/>
+            <circle cx="11.502" cy="208.368" r="3.188" fill-rule="evenodd" stroke-width="1.387" transform="rotate(-45)"/>
+        </g>
+        <circle cx="-336.342" cy="68.559" r="12.746" fill="#fff" fill-rule="evenodd" stroke-width="4.027" transform="translate(-203.34 119.392)scale(-.80673)"/>
+    </g>
+</svg>

@@ -642,6 +642,27 @@
   }
 }
 
+/* Shogi rules diagrams. raw-svg boards otherwise stretch to the full article
+   column; cap the full board and shrink the per-piece move diagrams to a compact
+   size (lishogi-style) so a 9x9 showing one piece doesn't dominate. Sizing
+   classes ride on the <figure> (RawSvgBlock.className). */
+.article-figure.shogi-figure-board > svg {
+  width: min(384px, 100%);
+  margin-inline: auto;
+}
+.article-figure.shogi-figure-move {
+  margin: 18px 0;
+}
+.article-figure.shogi-figure-move > svg {
+  width: min(330px, 82%);
+  margin-inline: auto;
+}
+@media (max-width: 560px) {
+  .article-figure.shogi-figure-move > svg {
+    width: min(330px, 92%);
+  }
+}
+
 /* Xiangqi diagram theming. The diagrams draw their own board (chessground can't
    render a xiangqi grid), so their colors come from the shared --xq-diagram-*
    tokens (defined in app-base.css, driven by data-xiangqi-board-theme /
