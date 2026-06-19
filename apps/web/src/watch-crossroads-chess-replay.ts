@@ -260,7 +260,10 @@ export async function mountCrossroadsChessWatchReplay(
 
     const layout = document.createElement('div');
     layout.className = 'replay-layout replay-layout-crossroads watch-crossroads-layout';
-    pane = createPane('Full board', 'truth', false);
+    // Single board on the watch page; a "Full board" pane label is redundant
+    // with the matchup header above, so drop it (also reclaims vertical room).
+    pane = createPane('', 'truth', false);
+    pane.labelEl.remove();
     pane.boardEl.classList.add('crossroads-watch-board');
     layout.append(pane.el);
 

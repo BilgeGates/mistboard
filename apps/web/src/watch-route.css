@@ -709,16 +709,17 @@
     --cg-w: min(100%, 460px, calc(100dvh - 490px));
   }
 
-  /* Crossroads is a portrait SVG board, so height becomes ~1.33x its
-     width. In the fixed-height TV layout, reserve room for the nav, watch
-     header, replay header, and move controls before sizing the board.
-     The non-board chrome above + below measures ~321px (height-independent),
-     and the 1.33x aspect ratio amplifies the width budget into height, so a
-     230px reserve left the "Ply n / n" strip ~15px past the viewport at every
-     height. 260px reserves ~347px of height for chrome (~25px clearance). */
+  /* Crossroads is a portrait SVG board, so height becomes ~1.33x its width,
+     which amplifies any width budget into height. In the fixed-height TV
+     layout we reserve room for the nav, watch header, replay header, and move
+     controls before sizing the board. The pane label is removed for this watch
+     board, leaving ~297px of non-board chrome above + below; the 300px reserve
+     (×1.33 ≈ 400px of height) keeps the board comfortably smaller than the
+     viewport so the controls + "Ply n / n" strip never clip (~95px clearance),
+     and the 460px cap matches the standard watch board. */
   .watch-replay .crossroads-watch-board {
-    width: min(100%, 520px, calc(75dvh - 260px));
-    max-width: min(100%, 520px, calc(75dvh - 260px));
+    width: min(100%, 460px, calc(75dvh - 300px));
+    max-width: min(100%, 460px, calc(75dvh - 300px));
   }
 
   .watch-queue {
