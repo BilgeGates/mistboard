@@ -262,8 +262,8 @@ const ZH_HANS: Record<string, string> = {
   'Chess under Fog of War: each side sees only the squares its pieces reach, there are no check warnings, and the king falls by capture.':
     '战争迷雾下的国际象棋：每一方只能看到己方棋子可及的格子，没有将军提示，王被吃掉即负。',
   'Is dark chess the same as fog of war chess?': '迷雾国际象棋和「暗棋」是同一种游戏吗？',
-  'Yes. "Dark chess" and "fog of war chess" are two names for this same variant: hidden-information chess where you see only the squares your pieces reach. It is sometimes confused with [banqi](https://en.wikipedia.org/wiki/Banqi), the Chinese game also nicknamed "dark chess," which plays with xiangqi pieces turned face-down. That is a different game.':
-    '不是。迷雾国际象棋（英文 dark chess / fog of war chess）是隐藏信息的国际象棋：你只能看到己方棋子可及的格子。它有时会和[暗棋](https://en.wikipedia.org/wiki/Banqi)（一种将象棋棋子翻面的中国游戏）混淆，但两者是不同的游戏。',
+  'Yes. "Dark chess" and "fog of war chess" are two names for this same variant: hidden-information chess where you see only the squares your pieces reach. It is sometimes confused with [banqi](/rules/banqi), the Chinese game also nicknamed "dark chess," which plays with xiangqi pieces turned face-down. That is a different game.':
+    '不是。迷雾国际象棋（英文 dark chess / fog of war chess）是隐藏信息的国际象棋：你只能看到己方棋子可及的格子。它有时会和[暗棋](/rules/banqi)（一种将象棋棋子翻面的中国游戏）混淆，但两者是不同的游戏。',
   'Dark Chess Concepts': '迷雾国际象棋概念',
   'Strategy concepts for dark chess: how to read fogged squares, pawn signals, vanished moves, and capture clues after you know the rules.':
     '迷雾国际象棋的策略概念：在理解规则之后，学习如何解读迷雾格、兵的信号、消失的走法和吃子线索。',
@@ -801,8 +801,8 @@ const ZH_HANT: Record<string, string> = {
   'Chess under Fog of War: each side sees only the squares its pieces reach, there are no check warnings, and the king falls by capture.':
     '戰爭迷霧下的國際象棋：每一方只能看到己方棋子可及的格子，沒有將軍提示，王被吃掉即負。',
   'Is dark chess the same as fog of war chess?': '迷霧國際象棋和「暗棋」是同一種遊戲嗎？',
-  'Yes. "Dark chess" and "fog of war chess" are two names for this same variant: hidden-information chess where you see only the squares your pieces reach. It is sometimes confused with [banqi](https://en.wikipedia.org/wiki/Banqi), the Chinese game also nicknamed "dark chess," which plays with xiangqi pieces turned face-down. That is a different game.':
-    '不是。迷霧國際象棋（英文 dark chess / fog of war chess）是隱藏資訊的國際象棋：你只能看到己方棋子可及的格子。它有時會和[暗棋](https://en.wikipedia.org/wiki/Banqi)（一種將象棋棋子翻面的中國遊戲）混淆，但兩者是不同的遊戲。',
+  'Yes. "Dark chess" and "fog of war chess" are two names for this same variant: hidden-information chess where you see only the squares your pieces reach. It is sometimes confused with [banqi](/rules/banqi), the Chinese game also nicknamed "dark chess," which plays with xiangqi pieces turned face-down. That is a different game.':
+    '不是。迷霧國際象棋（英文 dark chess / fog of war chess）是隱藏資訊的國際象棋：你只能看到己方棋子可及的格子。它有時會和[暗棋](/rules/banqi)（一種將象棋棋子翻面的中國遊戲）混淆，但兩者是不同的遊戲。',
   'Dark Chess Concepts': '迷霧國際象棋概念',
   'Strategy concepts for dark chess: how to read fogged squares, pawn signals, vanished moves, and capture clues after you know the rules.':
     '迷霧國際象棋的策略概念：在理解規則之後，學習如何解讀迷霧格、兵的訊號、消失的走法和吃子線索。',
