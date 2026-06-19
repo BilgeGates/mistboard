@@ -113,11 +113,11 @@ export const darkCrazyhouseArticle: Article = {
   intro: [
     {
       kind: 'paragraph',
-      text: 'Dark Crazyhouse is the Fog of War version of [crazyhouse](https://en.wikipedia.org/wiki/Crazyhouse): you keep every piece you capture and can drop it back onto the board as your own, but unseen enemy pieces stay hidden, each side\'s reserve is private, and danger is never announced. Capture the king to win.',
+      text: 'Dark Crazyhouse is [crazyhouse](https://en.wikipedia.org/wiki/Crazyhouse) under Fog of War. You keep every piece you capture and drop it back as your own, but unseen enemy pieces stay hidden, your reserve is private, and nothing is announced. Capture the king to win.',
     },
     {
       kind: 'paragraph',
-      text: 'It runs on the same fog as [Dark Chess](/rules/dark-chess). If the fog rule is new to you, read that first. The sections below cover only what crazyhouse adds: hands, drops, and the one drop that fog makes strange.',
+      text: 'It runs on the same fog as [Dark Chess](/rules/dark-chess); read that first if the fog rule is new. Below is only what crazyhouse adds: hands, drops, and the drop fog makes strange.',
     },
   ],
   sections: [
@@ -126,12 +126,12 @@ export const darkCrazyhouseArticle: Article = {
       blocks: [
         {
           kind: 'paragraph',
-          text: 'You start from the standard chess setup and see the squares your own pieces could legally move to, plus the squares they stand on. Everything else is fog. Below is White\'s view of the opening next to the true board: the front rank and the squares just past it are lit, and the whole far side, including all of Black\'s army, is dark.',
+          text: 'You start from the standard setup and see the squares your pieces could move to, plus the squares they stand on. Everything else is fog. White\'s view, the true board, and Black\'s view:',
         },
         {
           kind: 'live-boards',
           spec: {
-            layout: 'pair',
+            layout: 'triptych',
             boards: [
               {
                 board: START.board,
@@ -140,13 +140,19 @@ export const darkCrazyhouseArticle: Article = {
                 label: "WHITE'S VIEW",
               },
               { board: START.board, orientation: 'white', label: 'SERVER TRUTH' },
+              {
+                board: START.board,
+                fogSquares: fog(START, 'black'),
+                orientation: 'white',
+                label: "BLACK'S VIEW",
+              },
             ],
           },
-          caption: "White's view of the starting position beside the true board. Black's army is all in the fog.",
+          caption: 'The same opening from both sides. Each player sees only their own front; the far half is dark.',
         } as ArticleBlock,
         {
           kind: 'paragraph',
-          text: 'Vision works exactly as it does in dark chess. You see a square if one of your pieces could move there; a slider sees up to the first piece in its path and no further. Vision is recomputed from the true position after every move, so opening a line, advancing a pawn, or dropping a piece instantly changes what you know.',
+          text: 'Vision is field of fire, recomputed after every move: open a line, advance a pawn, or drop a piece and what you see changes at once. It works exactly as in dark chess.',
         },
       ],
     },
@@ -155,7 +161,7 @@ export const darkCrazyhouseArticle: Article = {
       blocks: [
         {
           kind: 'paragraph',
-          text: 'When you capture a piece it does not leave the game. It switches to your color and goes into your hand, a private reserve you can spend later. A captured queen becomes a queen you can drop; a captured rook becomes a rook you can drop, and so on. A pawn that had promoted reverts: capture a promoted queen and you hold a pawn, not a queen.',
+          text: 'Capture a piece and it does not leave the game: it switches to your color and enters your hand, a private reserve you spend by dropping. A captured rook is a rook in hand; a promoted pawn reverts, so a captured promoted queen gives you a pawn, not a queen. The king is never taken into a hand.',
         },
         {
           kind: 'live-boards',
@@ -179,11 +185,11 @@ export const darkCrazyhouseArticle: Article = {
               },
             ],
           },
-          caption: "White's rook takes the knight on a5. That knight is now a white piece in White's hand, ready to drop.",
+          caption: "White's rook takes the knight on a5, and it lands in White's hand.",
         } as ArticleBlock,
         {
           kind: 'paragraph',
-          text: 'In open crazyhouse both hands sit face-up beside the board. Under fog you see only your own. You never know exactly what your opponent is holding, so a drop can come out of nowhere. Kings are never captured into a hand: capturing a king ends the game.',
+          text: 'This is where fog bites. Open crazyhouse lays both reserves face-up; here you see only your own. You can still read the enemy reserve indirectly, since every piece of yours that vanishes has been captured into it, but you never see it laid out, and nothing tells you when a held piece comes back. The dangerous case is a drop into your fog: it lands fully real and sits there unseen until one of your pieces looks at the square.',
         },
       ],
     },
@@ -192,7 +198,11 @@ export const darkCrazyhouseArticle: Article = {
       blocks: [
         {
           kind: 'paragraph',
-          text: 'On your turn you may drop a piece from your hand onto an empty square instead of moving a piece on the board. A drop spends that piece from your hand and places it as your own. The standard crazyhouse drop rules carry over: a pawn may not be dropped onto the first or eighth rank, and a dropped piece is live immediately. It can capture, give the threats a real piece gives, and on the very next move it can take the king.',
+          text: 'Instead of moving a piece on the board, you may drop one from your hand onto an empty square. Standard crazyhouse rules hold: no pawn on the first or eighth rank, and the dropped piece is live at once, free to capture or take the king next move. With no checkmate under fog, the ban on dropping a pawn for mate does not apply.',
+        },
+        {
+          kind: 'paragraph',
+          text: '**Into vision.** Dropping onto a square you can see is an ordinary placement.',
         },
         {
           kind: 'live-boards',
@@ -215,20 +225,11 @@ export const darkCrazyhouseArticle: Article = {
               },
             ],
           },
-          caption: "White drops a knight from hand onto d3, a square White already sees. The piece is live at once.",
+          caption: 'White drops the knight onto d3, a square it already sees.',
         } as ArticleBlock,
         {
           kind: 'paragraph',
-          text: 'Because there is no checkmate under fog (see below), the open-crazyhouse ban on dropping a pawn for mate does not apply. A dropped pawn that captures the king is a winning move like any other.',
-        },
-      ],
-    },
-    {
-      heading: 'Parachute: you can drop into the fog',
-      blocks: [
-        {
-          kind: 'paragraph',
-          text: 'This is the rule fog adds. You may drop onto any square that looks empty from your side, including squares hidden in the fog. You are not limited to squares you can see. Below, White holds a knight in hand and drops it onto e6, deep in Black\'s half and outside White\'s vision. The square is truly empty, so the knight lands. After the drop White can see e6 (a White piece is now there) and the squares the knight covers.',
+          text: '**Into the fog.** You may also drop onto a square you cannot see, as long as it is truly empty. The piece lands, fully real, and stays invisible to your opponent until one of their pieces reaches it. A knight can appear deep in enemy territory with no warning.',
         },
         {
           kind: 'live-boards',
@@ -251,12 +252,8 @@ export const darkCrazyhouseArticle: Article = {
               },
             ],
           },
-          caption: "White's view: e6 is in the fog, White drops there anyway, and afterward sees the knight and the squares it reaches.",
+          caption: "White's view: e6 is in the fog, White drops there anyway, and afterward sees the knight.",
         } as ArticleBlock,
-        {
-          kind: 'paragraph',
-          text: 'From the other side the knight simply appears out of the fog later. Black does not see e6 the moment the knight lands, because no Black piece looks at it. The drop is on the board, fully real, and invisible to its target until a Black piece reaches the square. Below is Black\'s view: first the empty fog right after White drops, then the same knight once Black walks the king to d7 and looks at e6.',
-        },
         {
           kind: 'live-boards',
           spec: {
@@ -276,20 +273,11 @@ export const darkCrazyhouseArticle: Article = {
               },
             ],
           },
-          caption: "Black's view: e6 is still dark right after the drop, then the parachuted knight appears once Black plays Kd7 and looks.",
+          caption: "Black's view: e6 stays dark after the drop, then the knight appears once Black plays Kd7 and looks.",
         } as ArticleBlock,
-      ],
-    },
-    {
-      heading: 'A bounced drop is a probe',
-      blocks: [
         {
           kind: 'paragraph',
-          text: 'A drop only resolves if the square is truly empty. If you parachute onto a fogged square that already holds a piece, the drop is illegal and the server rejects it. Nothing moves, your hand is untouched, and it is still your turn. That rejection is information: you now know a piece is sitting on that square, even though you still cannot see what it is. Drop, get bounced, and you have probed the fog for the price of one rejected attempt.',
-        },
-        {
-          kind: 'paragraph',
-          text: 'The list of drop targets your client offers always includes fogged squares, so the offer itself never tells you which hidden squares are occupied. You only learn that by attempting the drop and seeing whether it lands.',
+          text: '**A bounced drop.** If the hidden square already holds a piece, the drop is illegal and bounces: nothing moves, your hand is intact, and it is still your turn. The rejection is information, you now know a piece sits there, though not what it is. Your client always offers fogged squares as drop targets, so the offer never reveals which are occupied; you learn that only by trying.',
         },
       ],
     },
@@ -298,7 +286,7 @@ export const darkCrazyhouseArticle: Article = {
       blocks: [
         {
           kind: 'paragraph',
-          text: 'Capture the king to win. There is no check and no checkmate: the server never tells you your king is attacked, and it will let you move into danger or leave a threat unanswered. You read the threat yourself from what your own pieces can see, and a piece dropped into the fog is the threat you will not see coming.',
+          text: 'Capture the king to win. There is no check and no checkmate: the server never warns you, and will let you move into danger or leave a threat standing. You read threats from what your own pieces see, and a piece dropped into the fog is the one you will not see coming.',
         },
       ],
     },
@@ -307,7 +295,7 @@ export const darkCrazyhouseArticle: Article = {
       blocks: [
         {
           kind: 'paragraph',
-          text: 'A game auto-draws on threefold repetition of the true position (same side to move, same rights) and on the 50-move rule. Both are judged from the true board, not either player\'s view. A drop adds material and resets the 50-move counter, the same as a pawn move or a capture. There is no stalemate draw and no insufficient-material draw.',
+          text: 'The game draws on threefold repetition of the true position and on the 50-move rule, both judged from the true board, not either player\'s view. A drop adds material and resets the 50-move count, like a pawn move or a capture. There is no stalemate draw and no insufficient-material draw.',
         },
       ],
     },
