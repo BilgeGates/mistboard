@@ -646,6 +646,23 @@
   display: none;
 }
 
+/* The piece lifted under the cursor while dragging (board-drag.ts appends it to
+   <body> and sets size + left/top inline). Scaled up a touch with a drop shadow
+   so it reads as picked up off the board. */
+.board-drag-ghost {
+  position: fixed;
+  z-index: 60;
+  pointer-events: none;
+  transform: scale(1.08);
+  filter: drop-shadow(0 8px 10px rgba(20, 29, 25, 0.4));
+}
+
+.board-drag-ghost svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
 .board-paused__badge {
   display: grid;
   gap: 6px;

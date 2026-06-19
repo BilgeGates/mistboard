@@ -26,6 +26,8 @@ import type {
 import './live-crossroads-chess.css';
 import './live-dark-crossroads-chess.css';
 import {
+  CROSSROADS_CHESS_BOARD_PX,
+  crossroadsChessPieceGhostSvg,
   readCrossroadsChessAppearance,
   renderCrossroadsChessBoardSvg,
 } from './crossroads-chess-render.js';
@@ -40,6 +42,7 @@ import { initLiveSound, playSound, resetLiveSoundState } from './live-sound.js';
 import { clearSeatTokenForRoom, type LiveRefs } from './live-state.js';
 import { roomIdFromPath } from './room-url.js';
 import { boardAppearanceChangedEvent, setBoardFamily } from './theme.js';
+import { installBoardDrag } from './variant-tenant/board-drag.js';
 import { syncMoveListScroll } from './variant-tenant/chrome-dom.js';
 import { createTenantReplayController } from './variant-tenant/replay-controller.js';
 import { createTenantRoomChrome, type WebVariantTenant } from './variant-tenant/room-chrome.js';
@@ -108,6 +111,9 @@ const state = {
 let client: TenantSocketClient | null = null;
 let refs: LiveRefs | null = null;
 let boardHost: HTMLElement | null = null;
+// The square a piece is being dragged from (its piece is lifted off the board so
+// only the floating ghost shows). Null when not dragging.
+let draggingFrom: CrossroadsChessSquare | null = null;
 let lastCapturedView: CrossroadsChessPlayerView | null = null;
 let lastCapturedPositionKey: string | null = null;
 
@@ -197,6 +203,7 @@ export function bootstrapDarkCrossroadsChessLiveRoom(): void {
   const room = roomIdFromPath(window.location.pathname) ?? params.get('room') ?? 'ddchess_dev';
   state.room = room;
   state.selected = null;
+  draggingFrom = null;
   lastCapturedView = null;
   lastCapturedPositionKey = null;
   replay.reset();
@@ -228,7 +235,7 @@ export function bootstrapDarkCrossroadsChessLiveRoom(): void {
     reconnectNow: () => client?.connect(),
   });
 
-  boardHost?.addEventListener('click', onBoardClick);
+  installBoardInteraction();
 
   client = createTenantSocketClient({
     room,
@@ -278,15 +285,33 @@ function handleReplayKeyboard(event: KeyboardEvent): void {
 
 // ── Interaction ──────────────────────────────────────────────────────────────
 
-function onBoardClick(event: MouseEvent): void {
+// Click + drag, delegated to the persistent board container once at mount so they
+// survive every innerHTML re-render. Click is the existing select/move; drag
+// lifts an own visible piece and drops it on a legal target. A tap that never
+// crosses the movement threshold falls through to the click handler.
+function installBoardInteraction(): void {
+  if (!boardHost) return;
+  installBoardDrag({
+    board: boardHost,
+    ghostSizePx: CROSSROADS_CHESS_BOARD_PX,
+    onSquareClick: (square) => handleSquareClick(square as CrossroadsChessSquare),
+    canDragFrom: (square) => canDragCrossroadsPiece(square as CrossroadsChessSquare),
+    ghostHtml: (square) => crossroadsGhostHtml(square as CrossroadsChessSquare),
+    onDragStart: (from) => {
+      state.selected = from as CrossroadsChessSquare;
+      draggingFrom = from as CrossroadsChessSquare;
+      if (state.view) renderBoard(state.view);
+    },
+    onDrop: (from, to) =>
+      dropCrossroadsPiece(from as CrossroadsChessSquare, to as CrossroadsChessSquare | null),
+  });
+}
+
+function handleSquareClick(square: CrossroadsChessSquare): void {
   const view = state.view;
   if (!view) return;
   if (!replay.isLive()) return;
   if (!iAmPlayer() || !isMyTurn(view)) return;
-  const target = (event.target as HTMLElement | null)?.closest('[data-square]');
-  if (!target) return;
-  const square = target.getAttribute('data-square') as CrossroadsChessSquare | null;
-  if (!square) return;
 
   if (state.selected === null) {
     if (legalTargets(view, square).length === 0) return;
@@ -301,10 +326,7 @@ function onBoardClick(event: MouseEvent): void {
   }
   const targets = legalTargets(view, state.selected);
   if (targets.includes(square)) {
-    const move = { from: state.selected, to: square };
-    if (send({ type: 'move', ...move })) {
-      playSound(soundForOwnCrossroadsChessMove(view, move));
-    }
+    sendCrossroadsMove(view, state.selected, square);
     state.selected = null;
     renderBoard(view);
     return;
@@ -312,6 +334,53 @@ function onBoardClick(event: MouseEvent): void {
   // Clicked elsewhere: reselect if the new square has moves, else clear.
   state.selected = legalTargets(view, square).length > 0 ? square : null;
   renderBoard(view);
+}
+
+// Send a move (promotion is mandatory-Queen and derived server-side from the
+// destination rank, so the wire move carries only from/to — same as click). The
+// click and drag paths both route through here.
+function sendCrossroadsMove(
+  view: CrossroadsChessPlayerView,
+  from: CrossroadsChessSquare,
+  to: CrossroadsChessSquare,
+): void {
+  const move = { from, to };
+  if (send({ type: 'move', ...move })) {
+    playSound(soundForOwnCrossroadsChessMove(view, move));
+  }
+}
+
+// An own VISIBLE piece on your turn. Shrouded enemy silhouettes carry no
+// identity and are never draggable. Any of your visible pieces can be lifted —
+// it snaps back if dropped somewhere it cannot move.
+function canDragCrossroadsPiece(square: CrossroadsChessSquare): boolean {
+  const view = state.view;
+  if (!view || !replay.isLive() || connection() !== 'connected') return false;
+  if (!iAmPlayer() || !isMyTurn(view)) return false;
+  const entry = view.board[square];
+  if (!entry || entry.shrouded) return false;
+  return entry.piece.color === state.seat;
+}
+
+function crossroadsGhostHtml(square: CrossroadsChessSquare): string | null {
+  const entry = state.view?.board[square];
+  if (!entry || entry.shrouded) return null;
+  return crossroadsChessPieceGhostSvg(entry.piece, readCrossroadsChessAppearance());
+}
+
+function dropCrossroadsPiece(from: CrossroadsChessSquare, to: CrossroadsChessSquare | null): void {
+  draggingFrom = null;
+  const view = state.view;
+  const targets = view ? legalTargets(view, from) : [];
+  if (view && to && targets.includes(to)) {
+    sendCrossroadsMove(view, from, to);
+    state.selected = null;
+  } else {
+    // Dropped off a legal target. Keep the piece selected only if it actually has
+    // moves (so a follow-up click can complete one); otherwise snap back clean.
+    state.selected = targets.length > 0 ? from : null;
+  }
+  if (state.view) renderBoard(state.view);
 }
 
 function legalTargets(
@@ -376,6 +445,9 @@ function renderBoard(view: CrossroadsChessPlayerView | null): void {
     showFog: true,
     selected,
     targets,
+    // The lifted source is omitted only on the interactive live position; replay
+    // and the opponent's turn never drag, so draggingFrom is always null there.
+    draggingFrom: interactive ? draggingFrom : null,
     interactive,
     ...readCrossroadsChessAppearance(),
   });

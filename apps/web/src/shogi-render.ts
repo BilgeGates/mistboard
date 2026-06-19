@@ -35,6 +35,10 @@ const FILES = 9;
 const RANKS = 9;
 const CELL = 48;
 
+// On-board koma tile size (the piece footprint inside a cell). The floating drag
+// ghost is sized to this so the lifted piece matches what sits on the board.
+export const SHOGI_PIECE_PX = CELL * 0.9;
+
 // Single-character koma faces. King differs by side (王 sente / 玉 gote), the
 // rest share a face; ownership reads from tile color + orientation.
 const KANJI: Record<ShogiPieceRole, string> = {
@@ -106,6 +110,8 @@ export type ShogiRenderOptions = {
   targets?: readonly ShogiSquare[];
   // Add a transparent hit layer of <rect data-square="..."> for click handling.
   interactive?: boolean;
+  // While dragging, omit the source koma so only the floating ghost shows.
+  draggingFrom?: ShogiSquare | null;
 };
 
 let boardCounter = 0;
@@ -131,7 +137,7 @@ export function renderShogiBoardSvg(
   return renderGridBoardSvg(SHOGI_DESCRIPTOR, {
     id,
     flip: perspective === 'white',
-    renderPieces: (geom) => pieceLayer(view, geom, perspective),
+    renderPieces: (geom) => pieceLayer(view, geom, perspective, options.draggingFrom ?? null),
     lastMove: lastCells,
     selected: options.selected ? coordOf(options.selected) : null,
     targets: (options.targets ?? []).map((sq) => ({ ...coordOf(sq), occupied: occupied.has(sq) })),
@@ -161,6 +167,21 @@ export function shogiHandKomaSvg(role: ShogiHandRole, color: ShogiColor, pointsU
   return shogiKomaSvg({ color, role, promoted: false }, pointsUp);
 }
 
+// The standalone koma for the floating drag ghost (board-drag.ts mounts it in a
+// sized <div>). Only your OWN visible board pieces are draggable, so the koma
+// always points up (toward the enemy) like every piece you own. The SVG fills
+// its container so the SHOGI_PIECE_PX-sized ghost scales the koma to board size.
+export function shogiPieceGhostSvg(piece: ShogiPiece): string {
+  const size = 40;
+  return `<svg viewBox="0 0 ${size} ${size}" class="shogi-piece-ghost__svg" width="100%" height="100%" role="img" aria-hidden="true" xmlns="http://www.w3.org/2000/svg">${komaFragment(
+    piece,
+    0,
+    0,
+    size,
+    true,
+  )}</svg>`;
+}
+
 export const SHOGI_HAND_ORDER: readonly ShogiHandRole[] = ['R', 'B', 'G', 'S', 'N', 'L', 'P'];
 
 // ── Coordinates ─────────────────────────────────────────────────────────────
@@ -188,12 +209,18 @@ function hiddenSquares(visible: Set<ShogiSquare>): GridCellRef[] {
 
 // ── Pieces ───────────────────────────────────────────────────────────────────
 
-function pieceLayer(view: ShogiPlayerView, geom: GridGeometry, perspective: ShogiColor): string {
+function pieceLayer(
+  view: ShogiPlayerView,
+  geom: GridGeometry,
+  perspective: ShogiColor,
+  draggingFrom: ShogiSquare | null,
+): string {
   const tile = CELL * 0.9;
   const inset = (CELL - tile) / 2;
   const parts: string[] = [];
   for (const [square, piece] of Object.entries(view.board)) {
     if (!piece) continue;
+    if (square === draggingFrom) continue;
     const { file, rank } = coordOf(square as ShogiSquare);
     const { x, y } = geom.topLeft(file, rank);
     // A piece you own points up-screen (toward the enemy); the opponent's points

@@ -72,6 +72,37 @@ export function renderJieqiBoardSvg(
 
 export const JIEQI_PIECE_PX = PIECE_SIZE;
 
+// The standalone piece for the floating drag ghost (board-drag.ts mounts it in a
+// sized <div>). Mirrors pieceLayer exactly: a face-down piece's ghost is the
+// colour-known "back" (it moves AND reveals, so it is draggable), and a revealed
+// piece's ghost is its glyph.
+export function jieqiPieceGhostSvg(
+  entry: JieqiPlayerView['board'][JieqiSquare],
+  pieceSet?: XiangqiPieceSet,
+): string {
+  if (!entry) return '';
+  const set = pieceSet ?? readStoredXiangqiPieceSet();
+  const inner = entry.faceDown
+    ? renderXiangqiPieceGlyphed({ color: entry.color, role: 'soldier' }, set, {
+        ariaLabel: `${entry.color} hidden piece`,
+        className: 'jieqi-piece',
+        shrouded: true,
+        shroudedStyle: 'back',
+        x: 0,
+        y: 0,
+        size: PIECE_SIZE,
+      })
+    : renderXiangqiPieceGlyphed({ color: entry.color, role: entry.role }, set, {
+        ariaLabel: `${entry.color} ${entry.role}`,
+        className: 'jieqi-piece',
+        shrouded: false,
+        x: 0,
+        y: 0,
+        size: PIECE_SIZE,
+      });
+  return `<svg width="${PIECE_SIZE}" height="${PIECE_SIZE}" viewBox="0 0 ${PIECE_SIZE} ${PIECE_SIZE}" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">${inner}</svg>`;
+}
+
 function gridLines(): string {
   const parts: string[] = [];
   for (let r = 0; r < RANKS; r += 1) {

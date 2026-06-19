@@ -26,7 +26,9 @@ import {
 import './live-dark-crazyhouse.css';
 import {
   CRAZYHOUSE_HAND_ORDER,
+  CRAZYHOUSE_PIECE_PX,
   crazyhouseHandPieceSvg,
+  crazyhousePieceGhostSvg,
   renderCrazyhouseBoardSvg,
 } from './crazyhouse-render.js';
 import { darkCrazyhouseEnabled } from './feature-flags.js';
@@ -40,6 +42,7 @@ import { initLiveSound, playSound, resetLiveSoundState } from './live-sound.js';
 import { clearSeatTokenForRoom, type LiveRefs } from './live-state.js';
 import { roomIdFromPath } from './room-url.js';
 import { boardAppearanceChangedEvent, setBoardFamily } from './theme.js';
+import { installBoardDrag } from './variant-tenant/board-drag.js';
 import { createTenantReplayController } from './variant-tenant/replay-controller.js';
 import { createTenantRoomChrome, type WebVariantTenant } from './variant-tenant/room-chrome.js';
 import {
@@ -108,6 +111,9 @@ const state = {
   abortDeadline: null as number | null,
   selected: null as Square | null,
   selectedDrop: null as CrazyhouseDropRole | null,
+  // The square a board piece is being dragged from (its piece is lifted off the
+  // board so only the floating ghost shows). Null when not dragging.
+  draggingFrom: null as Square | null,
   pendingPromotion: null as { from: Square; to: Square; roles: CrazyhousePromotionRole[] } | null,
   // The square a parachute drop bounced off (a probe: it is occupied). Cleared on
   // the next action.
@@ -199,6 +205,7 @@ export function bootstrapDarkCrazyhouseLiveRoom(): void {
   state.room = room;
   state.selected = null;
   state.selectedDrop = null;
+  state.draggingFrom = null;
   state.pendingPromotion = null;
   state.bounce = null;
   lastCapturedView = null;
@@ -229,7 +236,7 @@ export function bootstrapDarkCrazyhouseLiveRoom(): void {
     reconnectNow: () => client?.connect(),
   });
 
-  boardHost?.addEventListener('click', onBoardClick);
+  installBoardDragInteraction();
   refs.capturesBottom.addEventListener('click', onHandClick);
   refs.promotion.addEventListener('click', onPromotionClick);
 
@@ -291,15 +298,74 @@ function handleReplayKeyboard(event: KeyboardEvent): void {
 
 // ── Interaction ──────────────────────────────────────────────────────────────
 
-function onBoardClick(event: MouseEvent): void {
+// Click + drag are delegated to the persistent board container once at mount
+// (installBoardDragInteraction) so they survive every innerHTML re-render. Click is
+// the existing select/move/drop; drag lifts a visible own piece and drops it on a
+// target. A tap that never crosses the movement threshold falls through to click.
+function installBoardDragInteraction(): void {
+  if (!boardHost) return;
+  installBoardDrag({
+    board: boardHost,
+    ghostSizePx: CRAZYHOUSE_PIECE_PX,
+    onSquareClick: (square) => handleSquareClick(square as Square),
+    canDragFrom: (square) => canDragBoardPiece(square as Square),
+    ghostHtml: (square) => {
+      const piece = state.view?.board[square as Square];
+      if (!piece) return null;
+      return crazyhousePieceGhostSvg(piece.role, piece.color);
+    },
+    onDragStart: (from) => {
+      // Lift the piece off the board and select it so the ghost is the only copy
+      // and the legal-target dots show for the source square.
+      state.selected = from as Square;
+      state.selectedDrop = null;
+      state.draggingFrom = from as Square;
+      renderAll();
+    },
+    onDrop: (from, to) => dropBoardPiece(from as Square, to as Square | null),
+  });
+}
+
+// A visible own board piece can be dragged on your turn (it snaps back if you drop
+// it somewhere it cannot move). Your own pieces are always visible under fog, so a
+// piece sitting in your view.board with your colour is yours. Hand drops stay
+// click-only and are NOT routed through here.
+function canDragBoardPiece(square: Square): boolean {
+  const view = state.view;
+  if (!view || !canActNow(view) || state.pendingPromotion) return false;
+  const piece = view.board[square];
+  return !!piece && piece.color === state.seat;
+}
+
+// A drag ended over `to` (null if dropped off-board or back on the source). Do
+// EXACTLY what a click board move from→to does, including opening the promotion
+// picker (submitBoardMove). Snap-back: keep the piece selected only if it has
+// moves, else deselect.
+function dropBoardPiece(from: Square, to: Square | null): void {
+  state.draggingFrom = null;
+  const view = state.view;
+  state.bounce = null;
+  if (to && view) {
+    const matches = boardMovesFromTo(view, from, to);
+    if (matches.length > 0) {
+      // Routes promotions through the SAME 4-way picker as click (submitBoardMove
+      // sets pendingPromotion instead of auto-sending) and clears selection itself.
+      submitBoardMove(from, to, matches);
+      return;
+    }
+  }
+  // Dropped off a legal target: keep selected only if the piece has moves (so a
+  // follow-up click can complete one), else snap back clean.
+  state.selected = view && moveTargets(view, from).length > 0 ? from : null;
+  state.selectedDrop = null;
+  renderAll();
+}
+
+function handleSquareClick(square: Square): void {
   const view = state.view;
   if (!view) return;
   if (!canActNow(view)) return;
   if (state.pendingPromotion) return;
-  const target = (event.target as HTMLElement | null)?.closest('[data-square]');
-  if (!target) return;
-  const square = target.getAttribute('data-square') as Square | null;
-  if (!square) return;
   state.bounce = null;
 
   if (state.selectedDrop) {
@@ -469,6 +535,7 @@ function renderBoard(view: CrazyhousePlayerView | null): void {
     selected,
     targets,
     interactive,
+    draggingFrom: interactive ? state.draggingFrom : null,
   });
 }
 

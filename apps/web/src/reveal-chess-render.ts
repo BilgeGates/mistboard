@@ -70,6 +70,8 @@ export type RevealChessRenderOptions = {
   highlights?: readonly RevealChessSquare[];
   // Add a transparent hit layer of <rect data-square="..."> for click handling.
   interactive?: boolean;
+  // While dragging, omit the source piece so only the floating ghost shows.
+  draggingFrom?: RevealChessSquare | null;
 };
 
 let boardCounter = 0;
@@ -88,7 +90,7 @@ export function renderRevealChessBoardSvg(
   return renderGridBoardSvg(REVEAL_CHESS_DESCRIPTOR, {
     id,
     flip: perspective === 'black',
-    renderPieces: (geom) => pieceLayer(view, geom),
+    renderPieces: (geom) => pieceLayer(view, geom, options.draggingFrom ?? null),
     lastMove: lastMove ? [coordOf(lastMove.from), coordOf(lastMove.to)] : null,
     selected: options.selected ? coordOf(options.selected) : null,
     highlights: (options.highlights ?? []).map(coordOf),
@@ -99,6 +101,32 @@ export function renderRevealChessBoardSvg(
 }
 
 export const REVEAL_CHESS_BOARD_PX = CELL;
+
+// Pixel size of the floating drag ghost (board-drag.ts mounts it in a sized
+// <div>). One cell, so the ghost matches the on-board footprint.
+export const REVEAL_CHESS_PIECE_PX = CELL;
+
+// The standalone token for the floating drag ghost: a face-down entry's ghost is
+// the same "?" ownership disc the board draws; a revealed entry's ghost is its
+// cburnett glyph (drawn with the same 0.86-cell inset as the board). Mirrors the
+// two cases in pieceLayer so the ghost looks identical to the piece being lifted.
+export function revealChessPieceGhostSvg(
+  entry:
+    | { color: RevealChessColor; role: RevealChessPieceRole; faceDown: false }
+    | { color: RevealChessColor; faceDown: true },
+): string {
+  const inner = entry.faceDown
+    ? facedownDisc(entry.color, 0, 0)
+    : (() => {
+        const size = CELL * 0.86;
+        const inset = (CELL - size) / 2;
+        return chessPiece(entry.role, entry.color, inset, inset, size);
+      })();
+  return (
+    `<svg width="${CELL}" height="${CELL}" viewBox="0 0 ${CELL} ${CELL}" ` +
+    `xmlns="http://www.w3.org/2000/svg" aria-hidden="true">${inner}</svg>`
+  );
+}
 
 // ── Coordinates ─────────────────────────────────────────────────────────────
 
@@ -112,10 +140,15 @@ function squareAt(file: number, rank: number): RevealChessSquare {
 
 // ── Pieces (the Reveal-Chess-specific layer) ──────────────────────────────────
 
-function pieceLayer(view: RevealChessPlayerView, geom: GridGeometry): string {
+function pieceLayer(
+  view: RevealChessPlayerView,
+  geom: GridGeometry,
+  draggingFrom: RevealChessSquare | null,
+): string {
   const parts: string[] = [];
   for (const [square, entry] of Object.entries(view.board)) {
     if (!entry) continue;
+    if (square === draggingFrom) continue;
     const { file, rank } = coordOf(square as RevealChessSquare);
     const { x, y } = geom.topLeft(file, rank);
     if (entry.faceDown) {

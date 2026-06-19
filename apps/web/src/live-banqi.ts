@@ -26,7 +26,12 @@ import type {
 import './live-xiangqi.css';
 import { banqiEnabled } from './feature-flags.js';
 import { banqiClickResult } from './live-banqi-interaction.js';
-import { installBanqiBoardStyles, renderBanqiBoardSvg } from './live-banqi-render.js';
+import {
+  BANQI_PIECE_PX,
+  banqiPieceGhostSvg,
+  installBanqiBoardStyles,
+  renderBanqiBoardSvg,
+} from './live-banqi-render.js';
 import {
   maybePlayBanqiSnapshotSound,
   resetBanqiSoundState,
@@ -36,6 +41,7 @@ import { createLiveLayout, setLiveLayoutGameSpec } from './live-layout.js';
 import { initLiveSound, playSound, resetLiveSoundState } from './live-sound.js';
 import { clearSeatTokenForRoom, type LiveRefs } from './live-state.js';
 import { roomIdFromPath } from './room-url.js';
+import { installBoardDrag } from './variant-tenant/board-drag.js';
 import { syncMoveListScroll } from './variant-tenant/chrome-dom.js';
 import { createTenantReplayController } from './variant-tenant/replay-controller.js';
 import { createTenantRoomChrome, type WebVariantTenant } from './variant-tenant/room-chrome.js';
@@ -124,6 +130,9 @@ const state = {
 let client: TenantSocketClient | null = null;
 let refs: LiveRefs | null = null;
 let selectedSquare: BanqiSquare | null = null;
+// The square a piece is being dragged from (its piece is lifted off the board so
+// only the floating ghost shows). Null when not dragging.
+let draggingFrom: BanqiSquare | null = null;
 let lastCapturedView: BanqiWireView | null = null;
 let lastCapturedPositionKey: string | null = null;
 
@@ -258,6 +267,7 @@ export function bootstrapBanqiLiveRoom(): void {
     // connect() drops any pending backoff timer and reconnects immediately.
     reconnectNow: () => client?.connect(),
   });
+  installBanqiBoardInteraction(refs);
 
   client = createTenantSocketClient({
     room,
@@ -348,20 +358,15 @@ function renderBoard(liveRefs: LiveRefs, view: BanqiWireView | null): void {
   liveRefs.board.innerHTML = renderBanqiBoardSvg(view, perspective, {
     interactive: true,
     selectedSquare,
+    draggingFrom,
     // A face-down tile is clicked directly to flip, so the renderer wants only
     // the selected piece's board moves (it already excludes self-move flips).
     legalMoves: selectedSquare
       ? view.legalMoves.filter((move) => move.from === selectedSquare && move.to !== move.from)
       : [],
   });
-  liveRefs.board.querySelectorAll<SVGElement>('[data-square]').forEach((el) => {
-    el.addEventListener('click', () => {
-      const square = el.dataset.square as BanqiSquare | undefined;
-      if (!square) return;
-      handleSquareClick(view, square);
-      renderBoard(liveRefs, view);
-    });
-  });
+  // Click + drag are delegated to the persistent board container once at mount
+  // (installBanqiBoardInteraction), so they survive these innerHTML re-renders.
 }
 
 function handleSquareClick(view: BanqiWireView, square: BanqiSquare): void {
@@ -380,6 +385,70 @@ function handleSquareClick(view: BanqiWireView, square: BanqiSquare): void {
   if (send({ type: 'move', from: result.move.from, to: result.move.to })) {
     playSound(soundForOwnBanqiMove(view, result.move));
   }
+}
+
+// Click + drag, delegated to the persistent board container once at mount so they
+// survive every innerHTML re-render. Click is the existing flip/select/move; drag
+// lifts a revealed piece and drops it on a legal target. A tap that never crosses
+// the movement threshold falls through to the click handler.
+function installBanqiBoardInteraction(liveRefs: LiveRefs): void {
+  installBoardDrag({
+    board: liveRefs.board,
+    ghostSizePx: BANQI_PIECE_PX,
+    onSquareClick: (square) => {
+      const view = state.view;
+      if (!view) return;
+      handleSquareClick(view, square as BanqiSquare);
+      renderBoard(liveRefs, view);
+    },
+    canDragFrom: (square) => canDragBanqiPiece(square as BanqiSquare),
+    ghostHtml: (square) => {
+      const entry = state.view?.board[square as BanqiSquare];
+      if (!entry || entry.faceDown) return null;
+      return banqiPieceGhostSvg({ color: entry.color, role: entry.role });
+    },
+    onDragStart: (from) => {
+      selectedSquare = from as BanqiSquare;
+      draggingFrom = from as BanqiSquare;
+      if (state.view) renderBoard(liveRefs, state.view);
+    },
+    onDrop: (from, to) => dropBanqiPiece(liveRefs, from as BanqiSquare, to as BanqiSquare | null),
+  });
+}
+
+// A revealed own piece with a board move can be dragged; face-down tiles stay
+// click-only (a flip is a self-move, not a drag to another square).
+function canDragBanqiPiece(square: BanqiSquare): boolean {
+  const view = state.view;
+  if (!view || !replay.isLive() || connection() !== 'connected') return false;
+  if (!isBanqiSeat(state.seat)) return false;
+  if (view.status.type !== 'playing' || view.status.turn !== state.seat) return false;
+  const entry = view.board[square];
+  if (!entry || entry.faceDown) return false;
+  // Any of your face-up pieces can be lifted on your turn (it snaps back if you
+  // drop it somewhere it cannot move), not just ones with a legal move right now.
+  return entry.color === banqiSeatInk(state.seat, view);
+}
+
+function dropBanqiPiece(liveRefs: LiveRefs, from: BanqiSquare, to: BanqiSquare | null): void {
+  draggingFrom = null;
+  const view = state.view;
+  const move =
+    to && view
+      ? view.legalMoves.find((m) => m.from === from && m.to === to && m.to !== m.from)
+      : undefined;
+  if (move && view) {
+    selectedSquare = null;
+    if (send({ type: 'move', from: move.from, to: move.to })) {
+      playSound(soundForOwnBanqiMove(view, move));
+    }
+  } else {
+    // Dropped off a legal target. Keep the piece selected only if it actually has
+    // moves (so a follow-up click can complete one); otherwise snap it back clean.
+    const hasMoves = !!view && view.legalMoves.some((m) => m.from === from && m.to !== m.from);
+    selectedSquare = hasMoves ? from : null;
+  }
+  if (state.view) renderBoard(liveRefs, state.view);
 }
 
 // ── Captured pool ─────────────────────────────────────────────────────────────

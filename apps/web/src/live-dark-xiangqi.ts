@@ -31,6 +31,7 @@ import { createLiveLayout, setLiveLayoutGameSpec } from './live-layout.js';
 import { initLiveSound, playSound, resetLiveSoundState } from './live-sound.js';
 import { clearSeatTokenForRoom, type LiveRefs } from './live-state.js';
 import { roomIdFromPath } from './room-url.js';
+import { installBoardDrag } from './variant-tenant/board-drag.js';
 import { syncMoveListScroll } from './variant-tenant/chrome-dom.js';
 import { createTenantReplayController } from './variant-tenant/replay-controller.js';
 import { createTenantRoomChrome, type WebVariantTenant } from './variant-tenant/room-chrome.js';
@@ -125,6 +126,9 @@ const state = {
 let client: TenantSocketClient | null = null;
 let refs: LiveRefs | null = null;
 let selectedSquare: XiangqiSquare | null = null;
+// The square a piece is being dragged from (its piece is lifted off the board so
+// only the floating ghost shows). Null when not dragging.
+let draggingFrom: XiangqiSquare | null = null;
 let lastCapturedView: DarkXiangqiWireView | null = null;
 let lastCapturedPositionKey: string | null = null;
 
@@ -231,6 +235,7 @@ export function bootstrapDarkXiangqiLiveRoom(): void {
     // connect() drops any pending backoff timer and reconnects immediately.
     reconnectNow: () => client?.connect(),
   });
+  installDarkXiangqiBoardInteraction(refs);
 
   client = createTenantSocketClient({
     room,
@@ -324,14 +329,8 @@ function renderBoard(liveRefs: LiveRefs, view: DarkXiangqiWireView | null): void
 
   const perspective = orientationFor(view);
   liveRefs.board.innerHTML = boardSvg(view, perspective, { interactive: true });
-  liveRefs.board.querySelectorAll<SVGElement>('[data-square]').forEach((el) => {
-    el.addEventListener('click', () => {
-      const square = el.dataset.square as XiangqiSquare | undefined;
-      if (!square) return;
-      handleSquareClick(view, square);
-      renderBoard(liveRefs, view);
-    });
-  });
+  // Click + drag are delegated to the persistent board container once at mount
+  // (installDarkXiangqiBoardInteraction), so they survive these innerHTML re-renders.
 }
 
 function boardSvg(
@@ -357,7 +356,7 @@ function boardSvg(
       <g class="xq-live-lastmove">${lastMoveLayer(view, perspective)}</g>
       <g class="xq-live-selection">${selectionLayer(selectedSquare, perspective)}</g>
       <g class="xq-live-hints">${hintLayer(view, perspective)}</g>
-      <g class="xq-live-pieces">${pieceLayer(view, perspective)}</g>
+      <g class="xq-live-pieces">${pieceLayer(view, perspective, draggingFrom)}</g>
       <g class="xq-live-clicks">${options.interactive ? clickLayer(perspective) : ''}</g>
       <rect class="xq-live-border" x="0" y="0" width="${WIDTH}" height="${HEIGHT}" rx="${BOARD_RADIUS}"/>
     </svg>
@@ -467,10 +466,16 @@ function hintLayer(view: DarkXiangqiWireView, perspective: XiangqiColor): string
     .join('');
 }
 
-function pieceLayer(view: DarkXiangqiWireView, perspective: XiangqiColor): string {
+function pieceLayer(
+  view: DarkXiangqiWireView,
+  perspective: XiangqiColor,
+  draggingFromSquare: XiangqiSquare | null,
+): string {
   const parts: string[] = [];
   for (const [square, entry] of Object.entries(view.board)) {
     if (!entry) continue;
+    // While dragging, omit the source piece so only the floating ghost shows.
+    if (square === draggingFromSquare) continue;
     const coord = coordOf(square as XiangqiSquare);
     const center = intersection(coord.file, coord.rank, perspective);
     const piece =
@@ -519,6 +524,83 @@ function handleSquareClick(view: DarkXiangqiWireView, square: XiangqiSquare): vo
   if (send({ type: 'move', from: result.move.from, to: result.move.to })) {
     playSound(soundForOwnDarkXiangqiMove(view, result.move));
   }
+}
+
+// The standalone piece SVG for the floating drag ghost (board-drag.ts mounts it
+// in a sized <div>). Only your own VISIBLE pieces are draggable, so the entry is
+// always a known piece — never shrouded.
+function darkXiangqiPieceGhostSvg(piece: XiangqiPiece): string {
+  return renderXiangqiPiece(piece, {
+    ariaLabel: `${piece.color} ${piece.role}`,
+    className: 'xq-piece',
+    size: PIECE_SIZE,
+  });
+}
+
+// Click + drag, delegated to the persistent board container once at mount so they
+// survive every innerHTML re-render. Click is the existing select/move; drag lifts
+// one of your visible pieces and drops it on a legal target. A tap that never
+// crosses the movement threshold falls through to the click handler.
+function installDarkXiangqiBoardInteraction(liveRefs: LiveRefs): void {
+  installBoardDrag({
+    board: liveRefs.board,
+    ghostSizePx: PIECE_SIZE,
+    onSquareClick: (square) => {
+      const view = state.view;
+      if (!view) return;
+      handleSquareClick(view, square as XiangqiSquare);
+      renderBoard(liveRefs, view);
+    },
+    canDragFrom: (square) => canDragDarkXiangqiPiece(square as XiangqiSquare),
+    ghostHtml: (square) => {
+      const entry = state.view?.board[square as XiangqiSquare];
+      if (!entry || entry.shrouded) return null;
+      return darkXiangqiPieceGhostSvg(entry.piece);
+    },
+    onDragStart: (from) => {
+      selectedSquare = from as XiangqiSquare;
+      draggingFrom = from as XiangqiSquare;
+      if (state.view) renderBoard(liveRefs, state.view);
+    },
+    onDrop: (from, to) =>
+      dropDarkXiangqiPiece(liveRefs, from as XiangqiSquare, to as XiangqiSquare | null),
+  });
+}
+
+// Your own visible piece can be lifted on your turn. A shrouded entry is an enemy
+// occupancy with no piece type, so it is never yours; your own pieces are NEVER
+// shrouded. (It snaps back if dropped somewhere it cannot move, so any of your
+// visible pieces is draggable, not just ones with a legal move right now.)
+function canDragDarkXiangqiPiece(square: XiangqiSquare): boolean {
+  const view = state.view;
+  if (!view || !replay.isLive() || connection() !== 'connected') return false;
+  if (!isXiangqiColor(state.seat)) return false;
+  if (view.status.type !== 'playing' || view.status.turn !== state.seat) return false;
+  const entry = view.board[square];
+  if (!entry || entry.shrouded) return false;
+  return entry.piece.color === view.perspective;
+}
+
+function dropDarkXiangqiPiece(
+  liveRefs: LiveRefs,
+  from: XiangqiSquare,
+  to: XiangqiSquare | null,
+): void {
+  draggingFrom = null;
+  const view = state.view;
+  const move = to && view ? view.legalMoves.find((m) => m.from === from && m.to === to) : undefined;
+  if (move && view) {
+    selectedSquare = null;
+    if (send({ type: 'move', from: move.from, to: move.to })) {
+      playSound(soundForOwnDarkXiangqiMove(view, move));
+    }
+  } else {
+    // Dropped off a legal target. Keep the piece selected only if it actually has
+    // moves (so a follow-up click can complete one); otherwise snap it back clean.
+    const hasMoves = !!view && view.legalMoves.some((m) => m.from === from);
+    selectedSquare = hasMoves ? from : null;
+  }
+  if (state.view) renderBoard(liveRefs, state.view);
 }
 
 export type DarkXiangqiClickResult =

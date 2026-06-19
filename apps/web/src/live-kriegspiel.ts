@@ -30,12 +30,18 @@ import {
 } from '@mistboard/game';
 import './live-kriegspiel.css';
 import { kriegspielEnabled } from './feature-flags.js';
-import { kriegspielPromotionPieceSvg, renderKriegspielBoardSvg } from './kriegspiel-render.js';
+import {
+  KRIEGSPIEL_PIECE_PX,
+  kriegspielPieceGhostSvg,
+  kriegspielPromotionPieceSvg,
+  renderKriegspielBoardSvg,
+} from './kriegspiel-render.js';
 import { createLiveLayout, setLiveLayoutGameSpec } from './live-layout.js';
 import { initLiveSound, playSound, resetLiveSoundState } from './live-sound.js';
 import { clearSeatTokenForRoom, type LiveRefs } from './live-state.js';
 import { roomIdFromPath } from './room-url.js';
 import { boardAppearanceChangedEvent, setBoardFamily } from './theme.js';
+import { installBoardDrag } from './variant-tenant/board-drag.js';
 import { createTenantReplayController } from './variant-tenant/replay-controller.js';
 import { createTenantRoomChrome, type WebVariantTenant } from './variant-tenant/room-chrome.js';
 import {
@@ -123,11 +129,13 @@ const state = {
   // The from/to of a try the umpire refused (illegal). Cleared on the next
   // action. This is the only feedback a refused try yields — no "why".
   bounce: null as { from?: Square; to?: Square } | null,
+  // The square a piece is being dragged from (its piece is lifted off the board
+  // so only the floating ghost shows). Null when not dragging.
+  draggingFrom: null as Square | null,
 };
 
 let client: TenantSocketClient | null = null;
 let refs: LiveRefs | null = null;
-let boardHost: HTMLElement | null = null;
 let lastCapturedView: KriegspielPlayerView | null = null;
 let lastCapturedPositionKey: string | null = null;
 
@@ -211,6 +219,7 @@ export function bootstrapKriegspielLiveRoom(): void {
   state.selected = null;
   state.pendingPromotion = null;
   state.bounce = null;
+  state.draggingFrom = null;
   lastCapturedView = null;
   lastCapturedPositionKey = null;
   replay.reset();
@@ -232,13 +241,12 @@ export function bootstrapKriegspielLiveRoom(): void {
   refs = createLiveLayout(app, { debugRequested: false });
   setLiveLayoutGameSpec(app, 'kriegspiel');
   setBoardFamily('chess');
-  boardHost = refs.board;
   chrome.setRenderTarget(refs, {
     sendSocket: send,
     reconnectNow: () => client?.connect(),
   });
 
-  boardHost?.addEventListener('click', onBoardClick);
+  installBoardInteraction(refs);
   refs.promotion.addEventListener('click', onPromotionClick);
 
   client = createTenantSocketClient({
@@ -316,15 +324,37 @@ function handleReplayKeyboard(event: KeyboardEvent): void {
 
 // ── Interaction ──────────────────────────────────────────────────────────────
 
-function onBoardClick(event: MouseEvent): void {
+// Click + drag, delegated to the persistent board container once at mount so they
+// survive every innerHTML re-render. Click is the existing select-then-move; drag
+// lifts a piece and drops it on a target (routing promotions through the same
+// picker). A tap that never crosses the movement threshold falls through to the
+// click handler.
+function installBoardInteraction(liveRefs: LiveRefs): void {
+  installBoardDrag({
+    board: liveRefs.board,
+    ghostSizePx: KRIEGSPIEL_PIECE_PX,
+    onSquareClick: (square) => handleSquareClick(square as Square),
+    canDragFrom: (square) => canDragPiece(square as Square),
+    ghostHtml: (square) => {
+      const piece = state.view?.board[square as Square];
+      if (!piece) return null;
+      return kriegspielPieceGhostSvg(piece.role, piece.color);
+    },
+    onDragStart: (from) => {
+      state.selected = from as Square;
+      state.draggingFrom = from as Square;
+      state.bounce = null;
+      renderAll();
+    },
+    onDrop: (from, to) => dropPiece(from as Square, to as Square | null),
+  });
+}
+
+function handleSquareClick(square: Square): void {
   const view = state.view;
   if (!view) return;
   if (!canActNow(view)) return;
   if (state.pendingPromotion) return;
-  const target = (event.target as HTMLElement | null)?.closest('[data-square]');
-  if (!target) return;
-  const square = target.getAttribute('data-square') as Square | null;
-  if (!square) return;
   state.bounce = null;
 
   if (state.selected === null) {
@@ -344,6 +374,42 @@ function onBoardClick(event: MouseEvent): void {
     return;
   }
   state.selected = moveTargets(view, square).length > 0 ? square : null;
+  renderAll();
+}
+
+// Every piece on the viewer's board is the viewer's own (the opponent's army is
+// never sent under Kriegspiel fog), so any of them can be lifted on your turn —
+// it snaps back if dropped somewhere it cannot move. Verify the seat colour
+// defensively regardless.
+function canDragPiece(square: Square): boolean {
+  const view = state.view;
+  if (!view || !canActNow(view) || state.pendingPromotion) return false;
+  const piece = view.board[square];
+  return !!piece && piece.color === state.seat;
+}
+
+// A drag ended over `to` (null if dropped off-board or back on `from`). Run the
+// exact click-to-move path for from→to, including the promotion picker — a drag
+// that lands a promotion routes through the SAME picker (it never auto-sends a
+// promotion). Snap-back keeps the piece selected only if it has a legal target.
+function dropPiece(from: Square, to: Square | null): void {
+  state.draggingFrom = null;
+  const view = state.view;
+  if (!view || !canActNow(view)) {
+    state.selected = null;
+    renderAll();
+    return;
+  }
+  const matches = to ? movesFromTo(view, from, to) : [];
+  if (to && matches.length > 0) {
+    // submitMove handles promotion: it opens the picker instead of sending when
+    // the move set carries promotions, so a dragged promotion lands in the picker.
+    submitMove(from, to, matches);
+    return;
+  }
+  // Dropped off a legal target: keep it selected only if it has moves (so a
+  // follow-up click can complete one); otherwise snap back deselected.
+  state.selected = moveTargets(view, from).length > 0 ? from : null;
   renderAll();
 }
 
@@ -376,6 +442,7 @@ function onPromotionClick(event: MouseEvent): void {
 function clearSelection(): void {
   state.selected = null;
   state.pendingPromotion = null;
+  state.draggingFrom = null;
 }
 
 function movesFromTo(view: KriegspielPlayerView, from: Square, to: Square): Move[] {
@@ -454,7 +521,10 @@ function renderBoard(view: KriegspielPlayerView | null): void {
     targets,
     threats,
     interactive,
+    draggingFrom: state.draggingFrom,
   });
+  // Click + drag are delegated to the persistent board container once at mount
+  // (installBoardInteraction), so they survive these innerHTML re-renders.
 }
 
 // The squares a checking piece could occupy, derived purely from the umpire's

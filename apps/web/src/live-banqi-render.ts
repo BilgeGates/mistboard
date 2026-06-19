@@ -1,6 +1,8 @@
 import {
   ALL_BANQI_SQUARES,
+  type BanqiColor,
   type BanqiMove,
+  type BanqiPieceRole,
   type BanqiPlayerView,
   type BanqiSeat,
   type BanqiSquare,
@@ -44,6 +46,24 @@ export type BanqiBoardRenderOptions = {
   // While dragging, omit the source piece so only the floating ghost shows.
   draggingFrom?: BanqiSquare | null;
 };
+
+// The standalone disc for the floating drag ghost (board-drag.ts mounts it in a
+// sized <div>). Only revealed pieces are draggable, so the entry is always known.
+export function banqiPieceGhostSvg(
+  entry: { color: BanqiColor; role: BanqiPieceRole },
+  pieceSet?: XiangqiPieceSet,
+): string {
+  const set = pieceSet ?? readStoredXiangqiPieceSet();
+  const inner = renderXiangqiPieceGlyphed(entry, set, {
+    ariaLabel: `${entry.color} ${entry.role}`,
+    className: 'banqi-piece',
+    shrouded: false,
+    x: 0,
+    y: 0,
+    size: PIECE_SIZE,
+  });
+  return `<svg width="${PIECE_SIZE}" height="${PIECE_SIZE}" viewBox="0 0 ${PIECE_SIZE} ${PIECE_SIZE}" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">${inner}</svg>`;
+}
 
 // A line intersection. `fileLine` 0..8 runs left→right (file a at the left);
 // `rankLine` 0..4 runs top→bottom (the river edge at the top, rank 1 at the

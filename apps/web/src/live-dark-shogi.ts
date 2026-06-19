@@ -39,10 +39,13 @@ import { roomIdFromPath } from './room-url.js';
 import {
   renderShogiBoardSvg,
   SHOGI_HAND_ORDER,
+  SHOGI_PIECE_PX,
   shogiHandKomaSvg,
   shogiKomaSvg,
+  shogiPieceGhostSvg,
 } from './shogi-render.js';
 import { boardAppearanceChangedEvent, setBoardFamily } from './theme.js';
+import { installBoardDrag } from './variant-tenant/board-drag.js';
 import { syncMoveListScroll } from './variant-tenant/chrome-dom.js';
 import { createTenantReplayController } from './variant-tenant/replay-controller.js';
 import { createTenantRoomChrome, type WebVariantTenant } from './variant-tenant/room-chrome.js';
@@ -103,6 +106,9 @@ const state = {
   abortDeadline: null as number | null,
   selected: null as ShogiSquare | null,
   selectedDrop: null as ShogiHandRole | null,
+  // The square a board piece is being dragged from (its koma is lifted off the
+  // board so only the floating ghost shows). Null when not dragging.
+  draggingFrom: null as ShogiSquare | null,
   pendingPromotion: null as { from: ShogiSquare; to: ShogiSquare } | null,
   // The square a parachute drop bounced off (a probe: it is occupied). Cleared
   // on the next action.
@@ -196,6 +202,7 @@ export function bootstrapDarkShogiLiveRoom(): void {
   state.room = room;
   state.selected = null;
   state.selectedDrop = null;
+  state.draggingFrom = null;
   state.pendingPromotion = null;
   state.bounce = null;
   lastCapturedView = null;
@@ -226,7 +233,7 @@ export function bootstrapDarkShogiLiveRoom(): void {
     reconnectNow: () => client?.connect(),
   });
 
-  boardHost?.addEventListener('click', onBoardClick);
+  installBoardInteraction();
   refs.capturesBottom.addEventListener('click', onHandClick);
   refs.promotion.addEventListener('click', onPromotionClick);
 
@@ -288,15 +295,84 @@ function onServerMessage(message: { type: string; [key: string]: unknown }): voi
 
 // ── Interaction ──────────────────────────────────────────────────────────────
 
-function onBoardClick(event: MouseEvent): void {
+// Click + drag, delegated to the persistent board container once at mount so they
+// survive every innerHTML re-render. Click is the existing select/drop/move/
+// promotion flow; drag lifts a visible own koma and drops it on a legal target,
+// routing through the SAME submit path (so an optional promotion still prompts).
+// A tap that never crosses the movement threshold falls through to the click
+// handler. Hand drops stay click-only (the hand strip is a separate host).
+function installBoardInteraction(): void {
+  if (!boardHost) return;
+  installBoardDrag({
+    board: boardHost,
+    ghostSizePx: SHOGI_PIECE_PX,
+    onSquareClick: (square) => {
+      const view = state.view;
+      if (!view) return;
+      handleSquareClick(view, square as ShogiSquare);
+    },
+    canDragFrom: (square) => canDragShogiPiece(square as ShogiSquare),
+    ghostHtml: (square) => {
+      const piece = state.view?.board[square as ShogiSquare];
+      if (!piece) return null;
+      return shogiPieceGhostSvg(piece);
+    },
+    onDragStart: (from) => {
+      // Lift the koma: select it (so a snap-back leaves it ready for a click
+      // follow-up) and hide it from the board so only the ghost shows.
+      state.bounce = null;
+      state.selectedDrop = null;
+      state.selected = from as ShogiSquare;
+      state.draggingFrom = from as ShogiSquare;
+      renderAll();
+    },
+    onDrop: (from, to) => dropShogiPiece(from as ShogiSquare, to as ShogiSquare | null),
+  });
+}
+
+// A drag may begin from a visible own board piece on your turn (replay live +
+// connected). Any of your visible pieces can be lifted (it snaps back if dropped
+// where it cannot move), not just ones with a legal move right now. Hand drops
+// are NOT draggable — they stay click-only.
+function canDragShogiPiece(square: ShogiSquare): boolean {
   const view = state.view;
-  if (!view) return;
+  if (!view || !canActNow(view)) return false;
+  if (state.pendingPromotion) return false;
+  const piece = view.board[square];
+  return !!piece && piece.color === state.seat;
+}
+
+// A drop ended over `to` (null if off-board or back on `from`). Do EXACTLY what a
+// click from→to does: find the matching legal move(s) and route through
+// submitBoardMove, which opens the optional-promotion prompt when needed. A
+// snap-back keeps the piece selected only if it has moves, else clears it.
+function dropShogiPiece(from: ShogiSquare, to: ShogiSquare | null): void {
+  state.draggingFrom = null;
+  const view = state.view;
+  if (!view || !canActNow(view)) {
+    clearSelection();
+    renderAll();
+    return;
+  }
+  const matches = to
+    ? view.legalMoves.filter(
+        (move): move is Extract<ShogiMove, { from: ShogiSquare }> =>
+          !isShogiDrop(move) && move.from === from && move.to === to,
+      )
+    : [];
+  if (matches.length > 0) {
+    submitBoardMove(from, to as ShogiSquare, matches);
+    return;
+  }
+  // Snap-back: a movable piece stays selected (ready for a click follow-up); a
+  // piece with no legal move snaps back deselected.
+  state.selected = moveTargets(view, from).length > 0 ? from : null;
+  renderAll();
+}
+
+function handleSquareClick(view: ShogiPlayerView, square: ShogiSquare): void {
   if (!canActNow(view)) return;
   if (state.pendingPromotion) return; // resolve the promotion choice first
-  const target = (event.target as HTMLElement | null)?.closest('[data-square]');
-  if (!target) return;
-  const square = target.getAttribute('data-square') as ShogiSquare | null;
-  if (!square) return;
   state.bounce = null;
 
   // Drop mode: the next board click places the selected reserve piece.
@@ -395,6 +471,7 @@ function onPromotionClick(event: MouseEvent): void {
 function clearSelection(): void {
   state.selected = null;
   state.selectedDrop = null;
+  state.draggingFrom = null;
   state.pendingPromotion = null;
 }
 
@@ -476,6 +553,7 @@ function renderBoard(view: ShogiPlayerView | null): void {
     selected,
     targets,
     interactive,
+    draggingFrom: interactive ? state.draggingFrom : null,
   });
 }
 

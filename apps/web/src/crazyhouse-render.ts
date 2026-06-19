@@ -32,6 +32,11 @@ import {
 const FILES = 8;
 const RANKS = 8;
 const CELL = 50;
+const PIECE_SIZE = CELL * 0.86;
+
+// Pixel size of a board piece — exported so the drag layer can size the floating
+// ghost to match the rendered piece.
+export const CRAZYHOUSE_PIECE_PX = PIECE_SIZE;
 
 const CRAZYHOUSE_DESCRIPTOR: GridBoardDescriptor = {
   files: FILES,
@@ -66,6 +71,8 @@ export type CrazyhouseRenderOptions = {
   targets?: readonly Square[];
   // Add a transparent hit layer of <rect data-square="..."> for click handling.
   interactive?: boolean;
+  // While dragging, omit the source piece so only the floating ghost shows.
+  draggingFrom?: Square | null;
 };
 
 const HAND_ROLE_ORDER: readonly CrazyhouseDropRole[] = [
@@ -101,7 +108,7 @@ export function renderCrazyhouseBoardSvg(
   return renderGridBoardSvg(CRAZYHOUSE_DESCRIPTOR, {
     id,
     flip: perspective === 'black',
-    renderPieces: (geom) => pieceLayer(view, geom),
+    renderPieces: (geom) => pieceLayer(view, geom, options.draggingFrom ?? null),
     lastMove: lastCells,
     selected: options.selected ? coordOf(options.selected) : null,
     targets: (options.targets ?? []).map((sq) => ({ ...coordOf(sq), occupied: occupied.has(sq) })),
@@ -118,6 +125,18 @@ export function crazyhouseHandPieceSvg(role: CrazyhouseDropRole, color: Color): 
   return raw.replace(
     /^<svg[^>]*>/,
     '<svg viewBox="0 0 45 45" class="crazyhouse-hand-piece__svg" role="img" xmlns="http://www.w3.org/2000/svg">',
+  );
+}
+
+// The standalone cburnett glyph for the floating drag ghost (board-drag.ts mounts
+// it in a sized <div>). Only your own visible board pieces are draggable, so the
+// piece identity is always known.
+export function crazyhousePieceGhostSvg(role: PieceRole, color: Color): string {
+  const raw = PIECE_SVGS[`${color}:${role}`];
+  if (!raw) return '';
+  return raw.replace(
+    /^<svg[^>]*>/,
+    `<svg width="${PIECE_SIZE}" height="${PIECE_SIZE}" viewBox="0 0 45 45" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">`,
   );
 }
 
@@ -143,12 +162,18 @@ function hiddenSquares(visible: Set<Square>): GridCellRef[] {
 
 // ── Pieces ───────────────────────────────────────────────────────────────────
 
-function pieceLayer(view: CrazyhousePlayerView, geom: GridGeometry): string {
-  const size = CELL * 0.86;
+function pieceLayer(
+  view: CrazyhousePlayerView,
+  geom: GridGeometry,
+  draggingFrom: Square | null,
+): string {
+  const size = PIECE_SIZE;
   const inset = (CELL - size) / 2;
   const parts: string[] = [];
   for (const [square, piece] of Object.entries(view.board)) {
     if (!piece) continue;
+    // While dragging, lift the source piece off the board so only the ghost shows.
+    if (square === draggingFrom) continue;
     const { file, rank } = coordOf(square as Square);
     const { x, y } = geom.topLeft(file, rank);
     parts.push(chessPiece(piece.role, piece.color, x + inset, y + inset, size));

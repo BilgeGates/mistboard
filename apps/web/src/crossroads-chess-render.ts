@@ -106,6 +106,8 @@ export type CrossroadsChessRenderOptions = {
   // chariot/horse/cannon/soldier use the xiangqi piece set.
   chessPieceSet?: PieceSet;
   xiangqiPieceSet?: XiangqiPieceSet;
+  // While dragging, omit the source piece so only the floating ghost shows.
+  draggingFrom?: CrossroadsChessSquare | null;
 };
 
 let boardCounter = 0;
@@ -131,7 +133,12 @@ export function renderCrossroadsChessBoardSvg(
     id,
     flip: perspective === 'red',
     extraDefs: crossroadsChessDefs(id),
-    renderPieces: (geom) => pieceLayer(view, geom, id, { chessPieceSet, xiangqiPieceSet }),
+    renderPieces: (geom) =>
+      pieceLayer(view, geom, id, {
+        chessPieceSet,
+        xiangqiPieceSet,
+        draggingFrom: options.draggingFrom ?? null,
+      }),
     lastMove: lastMove ? [coordOf(lastMove.from), coordOf(lastMove.to)] : null,
     selected: options.selected ? coordOf(options.selected) : null,
     highlights: (options.highlights ?? []).map(coordOf),
@@ -182,41 +189,81 @@ function pieceLayer(
   view: CrossroadsChessPlayerView,
   geom: GridGeometry,
   id: string,
-  appearance: { chessPieceSet: PieceSet; xiangqiPieceSet: XiangqiPieceSet },
+  appearance: {
+    chessPieceSet: PieceSet;
+    xiangqiPieceSet: XiangqiPieceSet;
+    draggingFrom: CrossroadsChessSquare | null;
+  },
 ): string {
   const parts: string[] = [];
   for (const [square, entry] of Object.entries(view.board)) {
     if (!entry) continue;
+    // While dragging, omit the source piece so only the floating ghost shows.
+    if (square === appearance.draggingFrom) continue;
     const { file, rank } = coordOf(square as CrossroadsChessSquare);
     const { x, y } = geom.topLeft(file, rank);
     if (entry.shrouded) {
       parts.push(silhouette(entry.color, x, y, appearance.xiangqiPieceSet));
       continue;
     }
-    const piece = entry.piece;
-    if (CHESS_ROLES.has(piece.role)) {
-      const size = CELL * 0.86;
-      const inset = (CELL - size) / 2;
-      parts.push(
-        chessPiece(
-          piece.role,
-          piece.color,
-          x + inset,
-          y + inset,
-          size,
-          appearance.chessPieceSet,
-          id,
-        ),
-      );
-    } else if (XIANGQI_ROLES.has(piece.role)) {
-      const size = CELL * 0.82;
-      const inset = (CELL - size) / 2;
-      parts.push(
-        diskPiece(piece.role, piece.color, x + inset, y + inset, size, appearance.xiangqiPieceSet),
-      );
-    }
+    parts.push(fusionPiece(entry.piece, x, y, id, appearance));
   }
   return parts.join('');
+}
+
+// One own visible fusion piece at a cell's top-left: a chess glyph for orthodox
+// roles, a xiangqi disk for chariot/horse/cannon/soldier. Shared by the board
+// layer and the standalone drag ghost.
+function fusionPiece(
+  piece: { role: CrossroadsChessPieceRole; color: CrossroadsChessColor },
+  x: number,
+  y: number,
+  id: string,
+  appearance: { chessPieceSet: PieceSet; xiangqiPieceSet: XiangqiPieceSet },
+): string {
+  if (CHESS_ROLES.has(piece.role)) {
+    const size = CELL * 0.86;
+    const inset = (CELL - size) / 2;
+    return chessPiece(
+      piece.role,
+      piece.color,
+      x + inset,
+      y + inset,
+      size,
+      appearance.chessPieceSet,
+      id,
+    );
+  }
+  if (XIANGQI_ROLES.has(piece.role)) {
+    const size = CELL * 0.82;
+    const inset = (CELL - size) / 2;
+    return diskPiece(
+      piece.role,
+      piece.color,
+      x + inset,
+      y + inset,
+      size,
+      appearance.xiangqiPieceSet,
+    );
+  }
+  return '';
+}
+
+// The standalone glyph for the floating drag ghost (board-drag.ts mounts it in a
+// CELL-sized <div>). Only own visible pieces are draggable, so the piece is
+// always known. Self-contained: it carries its own red-piece filter def so the
+// chess recolour works off-board.
+export function crossroadsChessPieceGhostSvg(
+  piece: { role: CrossroadsChessPieceRole; color: CrossroadsChessColor },
+  appearance: Pick<CrossroadsChessRenderOptions, 'chessPieceSet' | 'xiangqiPieceSet'> = {},
+): string {
+  boardCounter += 1;
+  const id = `crossroads-ghost-${boardCounter}`;
+  const inner = fusionPiece(piece, 0, 0, id, {
+    chessPieceSet: appearance.chessPieceSet ?? DEFAULT_CHESS_PIECE_SET,
+    xiangqiPieceSet: appearance.xiangqiPieceSet ?? DEFAULT_XIANGQI_PIECE_SET,
+  });
+  return `<svg width="${CELL}" height="${CELL}" viewBox="0 0 ${CELL} ${CELL}" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><defs>${crossroadsChessDefs(id)}</defs>${inner}</svg>`;
 }
 
 function crossroadsChessDefs(id: string): string {

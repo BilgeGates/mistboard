@@ -38,9 +38,15 @@ import {
 } from './live-reveal-chess-sound.js';
 import { initLiveSound, playSound, resetLiveSoundState } from './live-sound.js';
 import { clearSeatTokenForRoom, type LiveRefs } from './live-state.js';
-import { renderRevealChessBoardSvg, revealChessFacedownDisc } from './reveal-chess-render.js';
+import {
+  REVEAL_CHESS_PIECE_PX,
+  renderRevealChessBoardSvg,
+  revealChessFacedownDisc,
+  revealChessPieceGhostSvg,
+} from './reveal-chess-render.js';
 import { roomIdFromPath } from './room-url.js';
 import { boardAppearanceChangedEvent, setBoardFamily } from './theme.js';
+import { installBoardDrag } from './variant-tenant/board-drag.js';
 import { syncMoveListScroll } from './variant-tenant/chrome-dom.js';
 import { createTenantReplayController } from './variant-tenant/replay-controller.js';
 import { createTenantRoomChrome, type WebVariantTenant } from './variant-tenant/room-chrome.js';
@@ -132,6 +138,9 @@ const state = {
 let client: TenantSocketClient | null = null;
 let refs: LiveRefs | null = null;
 let selectedSquare: RevealChessSquare | null = null;
+// The square a piece is being dragged from (its piece is lifted off the board so
+// only the floating ghost shows). Null when not dragging.
+let draggingFrom: RevealChessSquare | null = null;
 // A pending promotion: the from/to of a known-pawn move whose promotion role the
 // player still has to pick. While set, the board is non-interactive (the picker
 // owns the next input).
@@ -225,6 +234,7 @@ export function bootstrapRevealChessLiveRoom(): void {
   const room = roomIdFromPath(window.location.pathname) ?? params.get('room') ?? 'rc_dev';
   state.room = room;
   selectedSquare = null;
+  draggingFrom = null;
   pendingPromotion = null;
   lastCapturedView = null;
   lastCapturedPositionKey = null;
@@ -253,6 +263,7 @@ export function bootstrapRevealChessLiveRoom(): void {
     // connect() drops any pending backoff timer and reconnects immediately.
     reconnectNow: () => client?.connect(),
   });
+  installRevealChessBoardInteraction(refs);
 
   client = createTenantSocketClient({
     room,
@@ -327,6 +338,7 @@ function renderAll(): void {
     refs.board.className = 'board reveal-chess-live-board reveal-chess-live-board--disabled';
     refs.board.replaceChildren();
     selectedSquare = null;
+    draggingFrom = null;
     pendingPromotion = null;
     return;
   }
@@ -350,15 +362,78 @@ function renderBoard(liveRefs: LiveRefs, view: RevealChessWireView | null): void
     selected: selectedSquare,
     targets: selectedSquare ? legalTargets(view, selectedSquare) : [],
     lastMove: view.lastMove ?? null,
+    draggingFrom,
   });
-  liveRefs.board.querySelectorAll<SVGElement>('[data-square]').forEach((el) => {
-    el.addEventListener('click', () => {
-      const square = el.dataset.square as RevealChessSquare | undefined;
-      if (!square) return;
-      handleSquareClick(view, square);
-    });
-  });
+  // Click + drag are delegated to the persistent board container once at mount
+  // (installRevealChessBoardInteraction), so they survive these innerHTML
+  // re-renders.
   if (pendingPromotion) renderPromotionPicker(liveRefs, view, pendingPromotion);
+}
+
+// Click + drag, delegated to the persistent board container once at mount so they
+// survive every innerHTML re-render. Click is the existing select/move (untouched);
+// drag lifts one of your pieces (face-down or revealed) and drops it on a legal
+// target, routing a known-pawn promotion through the SAME picker as click-to-move.
+// A tap that never crosses the movement threshold falls through to the click
+// handler.
+function installRevealChessBoardInteraction(liveRefs: LiveRefs): void {
+  installBoardDrag({
+    board: liveRefs.board,
+    ghostSizePx: REVEAL_CHESS_PIECE_PX,
+    onSquareClick: (square) => {
+      const view = state.view;
+      if (!view) return;
+      handleSquareClick(view, square as RevealChessSquare);
+    },
+    canDragFrom: (square) => canDragRevealChessPiece(square as RevealChessSquare),
+    ghostHtml: (square) => {
+      const entry = state.view?.board[square as RevealChessSquare];
+      if (!entry) return null;
+      return revealChessPieceGhostSvg(entry);
+    },
+    onDragStart: (from) => {
+      selectedSquare = from as RevealChessSquare;
+      draggingFrom = from as RevealChessSquare;
+      if (state.view) renderBoard(liveRefs, state.view);
+    },
+    onDrop: (from, to) =>
+      dropRevealChessPiece(liveRefs, from as RevealChessSquare, to as RevealChessSquare | null),
+  });
+}
+
+// Any of your pieces (face-down or revealed) can be lifted on your turn — a
+// face-down piece moves AND reveals (like jieqi), so it is draggable. It snaps
+// back if dropped somewhere it cannot move. Mirrors canSelect's gate minus the
+// has-a-legal-move requirement, so a piece with no move still lifts and snaps
+// back.
+function canDragRevealChessPiece(square: RevealChessSquare): boolean {
+  const view = state.view;
+  if (!view || !replay.isLive() || connection() !== 'connected' || pendingPromotion) return false;
+  if (!canInteract(view)) return false;
+  const entry = view.board[square];
+  return !!entry && entry.color === state.seat;
+}
+
+function dropRevealChessPiece(
+  liveRefs: LiveRefs,
+  from: RevealChessSquare,
+  to: RevealChessSquare | null,
+): void {
+  draggingFrom = null;
+  const view = state.view;
+  const move = to && view ? view.legalMoves.find((m) => m.from === from && m.to === to) : undefined;
+  if (move && view) {
+    // Take the exact click-to-move path for from→to, including the promotion
+    // picker (submitMove opens it for a known-pawn promotion instead of sending,
+    // and clears selectedSquare + re-renders in both branches).
+    submitMove(view, move.from, move.to);
+    return;
+  }
+  // Dropped off a legal target. Keep the piece selected only if it actually has a
+  // move (so a follow-up click can complete one); otherwise snap it back clean.
+  const hasMoves = !!view && view.legalMoves.some((m) => m.from === from);
+  selectedSquare = hasMoves ? from : null;
+  if (state.view) renderBoard(liveRefs, state.view);
 }
 
 function legalTargets(view: RevealChessWireView, from: RevealChessSquare): RevealChessSquare[] {

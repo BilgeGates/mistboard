@@ -27,7 +27,12 @@ import type {
 import './live-xiangqi.css';
 import { jieqiEnabled } from './feature-flags.js';
 import { jieqiClickResult } from './live-jieqi-interaction.js';
-import { installJieqiBoardStyles, renderJieqiBoardSvg } from './live-jieqi-render.js';
+import {
+  installJieqiBoardStyles,
+  JIEQI_PIECE_PX,
+  jieqiPieceGhostSvg,
+  renderJieqiBoardSvg,
+} from './live-jieqi-render.js';
 import {
   maybePlayJieqiSnapshotSound,
   resetJieqiSoundState,
@@ -37,6 +42,7 @@ import { createLiveLayout, setLiveLayoutGameSpec } from './live-layout.js';
 import { initLiveSound, playSound, resetLiveSoundState } from './live-sound.js';
 import { clearSeatTokenForRoom, type LiveRefs } from './live-state.js';
 import { roomIdFromPath } from './room-url.js';
+import { installBoardDrag } from './variant-tenant/board-drag.js';
 import { syncMoveListScroll } from './variant-tenant/chrome-dom.js';
 import { createTenantReplayController } from './variant-tenant/replay-controller.js';
 import { createTenantRoomChrome, type WebVariantTenant } from './variant-tenant/room-chrome.js';
@@ -124,6 +130,9 @@ const state = {
 let client: TenantSocketClient | null = null;
 let refs: LiveRefs | null = null;
 let selectedSquare: JieqiSquare | null = null;
+// The square a piece is being dragged from (its piece is lifted off the board so
+// only the floating ghost shows). Null when not dragging.
+let draggingFrom: JieqiSquare | null = null;
 let lastCapturedView: JieqiWireView | null = null;
 let lastCapturedPositionKey: string | null = null;
 
@@ -235,6 +244,7 @@ export function bootstrapJieqiLiveRoom(): void {
     // connect() drops any pending backoff timer and reconnects immediately.
     reconnectNow: () => client?.connect(),
   });
+  installJieqiBoardInteraction(refs);
 
   client = createTenantSocketClient({
     room,
@@ -325,18 +335,13 @@ function renderBoard(liveRefs: LiveRefs, view: JieqiWireView | null): void {
   liveRefs.board.innerHTML = renderJieqiBoardSvg(view, perspective, {
     interactive: true,
     selectedSquare,
+    draggingFrom,
     legalMoves: selectedSquare
       ? view.legalMoves.filter((move) => move.from === selectedSquare)
       : [],
   });
-  liveRefs.board.querySelectorAll<SVGElement>('[data-square]').forEach((el) => {
-    el.addEventListener('click', () => {
-      const square = el.dataset.square as JieqiSquare | undefined;
-      if (!square) return;
-      handleSquareClick(view, square);
-      renderBoard(liveRefs, view);
-    });
-  });
+  // Click + drag are delegated to the persistent board container once at mount
+  // (installJieqiBoardInteraction), so they survive these innerHTML re-renders.
 }
 
 function handleSquareClick(view: JieqiWireView, square: JieqiSquare): void {
@@ -355,6 +360,68 @@ function handleSquareClick(view: JieqiWireView, square: JieqiSquare): void {
   if (send({ type: 'move', from: result.move.from, to: result.move.to })) {
     playSound(soundForOwnJieqiMove(view, result.move));
   }
+}
+
+// Click + drag, delegated to the persistent board container once at mount so they
+// survive every innerHTML re-render. Click is the existing select/move; drag lifts
+// one of your pieces (face-down or revealed) and drops it on a legal target. A tap
+// that never crosses the movement threshold falls through to the click handler.
+function installJieqiBoardInteraction(liveRefs: LiveRefs): void {
+  installBoardDrag({
+    board: liveRefs.board,
+    ghostSizePx: JIEQI_PIECE_PX,
+    onSquareClick: (square) => {
+      const view = state.view;
+      if (!view) return;
+      handleSquareClick(view, square as JieqiSquare);
+      renderBoard(liveRefs, view);
+    },
+    canDragFrom: (square) => canDragJieqiPiece(square as JieqiSquare),
+    ghostHtml: (square) => {
+      const entry = state.view?.board[square as JieqiSquare];
+      if (!entry) return null;
+      return jieqiPieceGhostSvg(entry);
+    },
+    onDragStart: (from) => {
+      selectedSquare = from as JieqiSquare;
+      draggingFrom = from as JieqiSquare;
+      if (state.view) renderBoard(liveRefs, state.view);
+    },
+    onDrop: (from, to) => dropJieqiPiece(liveRefs, from as JieqiSquare, to as JieqiSquare | null),
+  });
+}
+
+// Any of YOUR OWN pieces can be lifted on your turn — INCLUDING face-down ones
+// (a face-down jieqi piece moves AND reveals, so it is draggable, unlike banqi
+// where face-down = click-to-flip). It snaps back if you drop it somewhere it
+// cannot move, so this need not require a legal move right now.
+function canDragJieqiPiece(square: JieqiSquare): boolean {
+  const view = state.view;
+  if (!view || !replay.isLive() || connection() !== 'connected') return false;
+  if (!isJieqiColor(state.seat)) return false;
+  if (view.status.type !== 'playing' || view.status.turn !== state.seat) return false;
+  const entry = view.board[square];
+  if (!entry) return false;
+  // Jieqi seats ARE colors (red/black): a piece is yours if its color is your seat.
+  return entry.color === state.seat;
+}
+
+function dropJieqiPiece(liveRefs: LiveRefs, from: JieqiSquare, to: JieqiSquare | null): void {
+  draggingFrom = null;
+  const view = state.view;
+  const move = to && view ? view.legalMoves.find((m) => m.from === from && m.to === to) : undefined;
+  if (move && view) {
+    selectedSquare = null;
+    if (send({ type: 'move', from: move.from, to: move.to })) {
+      playSound(soundForOwnJieqiMove(view, move));
+    }
+  } else {
+    // Dropped off a legal target. Keep the piece selected only if it actually has
+    // moves (so a follow-up click can complete one); otherwise snap it back clean.
+    const hasMoves = !!view && view.legalMoves.some((m) => m.from === from);
+    selectedSquare = hasMoves ? from : null;
+  }
+  if (state.view) renderBoard(liveRefs, state.view);
 }
 
 // ── Captured pool ─────────────────────────────────────────────────────────────

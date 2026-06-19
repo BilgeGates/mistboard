@@ -22,6 +22,11 @@ import type { Color, KriegspielPlayerView, Move, PieceRole, Square } from '@mist
 const FILES = 8;
 const RANKS = 8;
 const CELL = 50;
+const PIECE_SIZE = CELL * 0.86;
+
+// Pixel size of a board piece, exported so the drag helper can size the floating
+// ghost to match the lifted piece exactly.
+export const KRIEGSPIEL_PIECE_PX = PIECE_SIZE;
 
 const KRIEGSPIEL_DESCRIPTOR: GridBoardDescriptor = {
   files: FILES,
@@ -68,6 +73,8 @@ export type KriegspielRenderOptions = {
   threats?: readonly Square[];
   // Add a transparent hit layer of <rect data-square="..."> for click handling.
   interactive?: boolean;
+  // While dragging, omit the source piece so only the floating ghost shows.
+  draggingFrom?: Square | null;
 };
 
 let boardCounter = 0;
@@ -89,7 +96,7 @@ export function renderKriegspielBoardSvg(
   return renderGridBoardSvg(KRIEGSPIEL_DESCRIPTOR, {
     id,
     flip: perspective === 'black',
-    renderPieces: (geom) => pieceLayer(view, geom),
+    renderPieces: (geom) => pieceLayer(view, geom, options.draggingFrom ?? null),
     lastMove: lastCells,
     selected: options.selected ? coordOf(options.selected) : null,
     targets: (options.targets ?? []).map((sq) => ({ ...coordOf(sq), occupied: occupied.has(sq) })),
@@ -122,12 +129,17 @@ function hiddenSquares(visible: Set<Square>): GridCellRef[] {
 
 // ── Pieces ───────────────────────────────────────────────────────────────────
 
-function pieceLayer(view: KriegspielPlayerView, geom: GridGeometry): string {
-  const size = CELL * 0.86;
+function pieceLayer(
+  view: KriegspielPlayerView,
+  geom: GridGeometry,
+  draggingFrom: Square | null,
+): string {
+  const size = PIECE_SIZE;
   const inset = (CELL - size) / 2;
   const parts: string[] = [];
   for (const [square, piece] of Object.entries(view.board)) {
     if (!piece) continue;
+    if (square === draggingFrom) continue;
     const { file, rank } = coordOf(square as Square);
     const { x, y } = geom.topLeft(file, rank);
     parts.push(chessPiece(piece.role, piece.color, x + inset, y + inset, size));
@@ -151,5 +163,16 @@ export function kriegspielPromotionPieceSvg(role: PieceRole, color: Color): stri
   return raw.replace(
     /^<svg[^>]*>/,
     '<svg viewBox="0 0 45 45" class="kriegspiel-promotion__svg" role="img" xmlns="http://www.w3.org/2000/svg">',
+  );
+}
+
+// The standalone glyph for the floating drag ghost (board-drag.ts mounts it in a
+// sized <div>). The dragged piece is always one of the viewer's own known pieces.
+export function kriegspielPieceGhostSvg(role: PieceRole, color: Color): string {
+  const raw = PIECE_SVGS[`${color}:${role}`];
+  if (!raw) return '';
+  return raw.replace(
+    /^<svg[^>]*>/,
+    `<svg width="${PIECE_SIZE}" height="${PIECE_SIZE}" viewBox="0 0 45 45" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">`,
   );
 }
