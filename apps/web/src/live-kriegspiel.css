@@ -228,13 +228,6 @@
   overflow: visible;
 }
 
-/* ── Postgame button row: the shared .room-actions-row has no gap of its own. */
-
-.live-route--kriegspiel .room-actions-row {
-  display: grid;
-  gap: 8px;
-}
-
 .kriegspiel-promotion__choice:hover {
   border-color: color-mix(in srgb, var(--board-selected, #5f7d33) 80%, var(--site-border));
 }

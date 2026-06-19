@@ -27,8 +27,13 @@ import {
 } from '@mistboard/game';
 import './live-dark-shogi.css';
 import { darkShogiEnabled } from './feature-flags.js';
+import {
+  maybePlayDarkShogiSnapshotSound,
+  resetDarkShogiSoundState,
+  soundForOwnDarkShogiMove,
+} from './live-dark-shogi-sound.js';
 import { createLiveLayout, setLiveLayoutGameSpec } from './live-layout.js';
-import { initLiveSound, resetLiveSoundState } from './live-sound.js';
+import { initLiveSound, playSound, resetLiveSoundState } from './live-sound.js';
 import { clearSeatTokenForRoom, type LiveRefs } from './live-state.js';
 import { roomIdFromPath } from './room-url.js';
 import {
@@ -199,6 +204,7 @@ export function bootstrapDarkShogiLiveRoom(): void {
   chrome.resetState();
   initLiveSound();
   resetLiveSoundState();
+  resetDarkShogiSoundState();
 
   if (params.get('reset') === '1') {
     clearSeatTokenForRoom(room);
@@ -227,7 +233,10 @@ export function bootstrapDarkShogiLiveRoom(): void {
   client = createTenantSocketClient({
     room,
     applyHello: (frame) => applyFrame(frame as DarkShogiLiveFrame),
-    applySnapshot: (frame) => applyFrame(frame as DarkShogiLiveFrame),
+    applySnapshot: (frame) => {
+      applyFrame(frame as DarkShogiLiveFrame);
+      maybePlayDarkShogiSnapshotSound(state.view, state.seat);
+    },
     applyEvent: (frame) => applyEventFrame(frame as DarkShogiLiveFrame),
     onServerMessage,
     render: renderAll,
@@ -261,6 +270,7 @@ function applyEventFrame(frame: DarkShogiLiveFrame): void {
   applyFrame(frame);
   state.events = events;
   if (frame.event) state.events = [...events, frame.event];
+  maybePlayDarkShogiSnapshotSound(state.view, state.seat);
 }
 
 function handleReplayKeyboard(event: KeyboardEvent): void {
@@ -292,7 +302,9 @@ function onBoardClick(event: MouseEvent): void {
   // Drop mode: the next board click places the selected reserve piece.
   if (state.selectedDrop) {
     if (dropTargets(view, state.selectedDrop).includes(square)) {
-      send({ type: 'move', from: `*${state.selectedDrop}`, to: square });
+      if (send({ type: 'move', from: `*${state.selectedDrop}`, to: square })) {
+        playSound('drop');
+      }
       clearSelection();
       renderAll();
       return;
@@ -337,7 +349,9 @@ function submitBoardMove(
     renderAll();
     return;
   }
-  send({ type: 'move', from, to, ...(canPromote ? { promotion: 'promote' } : {}) });
+  if (send({ type: 'move', from, to, ...(canPromote ? { promotion: 'promote' } : {}) })) {
+    playSound(soundForOwnDarkShogiMove(state.view, { from, to }));
+  }
   clearSelection();
   renderAll();
 }
@@ -364,12 +378,16 @@ function onPromotionClick(event: MouseEvent): void {
   if (!target) return;
   const choice = target.getAttribute('data-promote');
   if (choice !== 'yes' && choice !== 'no') return;
-  send({
-    type: 'move',
-    from: pending.from,
-    to: pending.to,
-    ...(choice === 'yes' ? { promotion: 'promote' } : {}),
-  });
+  if (
+    send({
+      type: 'move',
+      from: pending.from,
+      to: pending.to,
+      ...(choice === 'yes' ? { promotion: 'promote' } : {}),
+    })
+  ) {
+    playSound(soundForOwnDarkShogiMove(state.view, { from: pending.from, to: pending.to }));
+  }
   clearSelection();
   renderAll();
 }

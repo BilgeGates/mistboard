@@ -112,8 +112,3 @@
   cursor: pointer;
   text-decoration: underline;
 }
-
-.room-actions-row {
-  display: grid;
-  gap: 10px;
-}

@@ -1347,6 +1347,14 @@
   gap: 8px;
 }
 
+/* The postgame button row (review / play again / home), built by room-chrome for
+   every tenant. One shared gap so all variants match; previously each route
+   redefined it (or, for crazyhouse/shogi, never did). */
+.room-actions-row {
+  display: grid;
+  gap: 10px;
+}
+
 .share-room {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;

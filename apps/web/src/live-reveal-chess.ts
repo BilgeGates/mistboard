@@ -31,7 +31,12 @@ import type {
 import './live-reveal-chess.css';
 import { revealChessEnabled } from './feature-flags.js';
 import { createLiveLayout, setLiveLayoutGameSpec } from './live-layout.js';
-import { initLiveSound, resetLiveSoundState } from './live-sound.js';
+import {
+  maybePlayRevealChessSnapshotSound,
+  resetRevealChessSoundState,
+  soundForOwnRevealChessMove,
+} from './live-reveal-chess-sound.js';
+import { initLiveSound, playSound, resetLiveSoundState } from './live-sound.js';
 import { clearSeatTokenForRoom, type LiveRefs } from './live-state.js';
 import { renderRevealChessBoardSvg, revealChessFacedownDisc } from './reveal-chess-render.js';
 import { roomIdFromPath } from './room-url.js';
@@ -227,6 +232,7 @@ export function bootstrapRevealChessLiveRoom(): void {
   chrome.resetState();
   initLiveSound();
   resetLiveSoundState();
+  resetRevealChessSoundState();
 
   if (params.get('reset') === '1') {
     clearSeatTokenForRoom(room);
@@ -251,7 +257,10 @@ export function bootstrapRevealChessLiveRoom(): void {
   client = createTenantSocketClient({
     room,
     applyHello: (frame) => applyFrame(frame as RevealChessLiveFrame),
-    applySnapshot: (frame) => applyFrame(frame as RevealChessLiveFrame),
+    applySnapshot: (frame) => {
+      applyFrame(frame as RevealChessLiveFrame);
+      maybePlayRevealChessSnapshotSound(state.view, state.seat);
+    },
     applyEvent: (frame) => applyEventFrame(frame as RevealChessLiveFrame),
     render: renderAll,
   });
@@ -287,6 +296,7 @@ function applyEventFrame(frame: RevealChessLiveFrame): void {
   applyFrame(frame);
   state.events = events;
   if (frame.event) state.events = [...events, frame.event];
+  maybePlayRevealChessSnapshotSound(state.view, state.seat);
 }
 
 function handleReplayKeyboard(event: KeyboardEvent): void {
@@ -397,7 +407,9 @@ function submitMove(
     return;
   }
   selectedSquare = null;
-  send({ type: 'move', from, to });
+  if (send({ type: 'move', from, to })) {
+    playSound(soundForOwnRevealChessMove(view, { from, to }));
+  }
   renderBoard(refs!, view);
 }
 
@@ -456,7 +468,9 @@ function renderPromotionPicker(
     button.addEventListener('click', () => {
       const move = promotion;
       pendingPromotion = null;
-      send({ type: 'move', from: move.from, to: move.to, promotion: role });
+      if (send({ type: 'move', from: move.from, to: move.to, promotion: role })) {
+        playSound(soundForOwnRevealChessMove(state.view, { from: move.from, to: move.to }));
+      }
       if (state.view) renderBoard(liveRefs, state.view);
     });
     choices.append(button);

@@ -30,8 +30,13 @@ import {
   renderCrazyhouseBoardSvg,
 } from './crazyhouse-render.js';
 import { darkCrazyhouseEnabled } from './feature-flags.js';
+import {
+  maybePlayDarkCrazyhouseSnapshotSound,
+  resetDarkCrazyhouseSoundState,
+  soundForOwnDarkCrazyhouseMove,
+} from './live-dark-crazyhouse-sound.js';
 import { createLiveLayout, setLiveLayoutGameSpec } from './live-layout.js';
-import { initLiveSound, resetLiveSoundState } from './live-sound.js';
+import { initLiveSound, playSound, resetLiveSoundState } from './live-sound.js';
 import { clearSeatTokenForRoom, type LiveRefs } from './live-state.js';
 import { roomIdFromPath } from './room-url.js';
 import { boardAppearanceChangedEvent, setBoardFamily } from './theme.js';
@@ -202,6 +207,7 @@ export function bootstrapDarkCrazyhouseLiveRoom(): void {
   chrome.resetState();
   initLiveSound();
   resetLiveSoundState();
+  resetDarkCrazyhouseSoundState();
 
   if (params.get('reset') === '1') {
     clearSeatTokenForRoom(room);
@@ -230,7 +236,10 @@ export function bootstrapDarkCrazyhouseLiveRoom(): void {
   client = createTenantSocketClient({
     room,
     applyHello: (frame) => applyFrame(frame as DarkCrazyhouseLiveFrame),
-    applySnapshot: (frame) => applyFrame(frame as DarkCrazyhouseLiveFrame),
+    applySnapshot: (frame) => {
+      applyFrame(frame as DarkCrazyhouseLiveFrame);
+      maybePlayDarkCrazyhouseSnapshotSound(state.view, state.seat);
+    },
     applyEvent: (frame) => applyEventFrame(frame as DarkCrazyhouseLiveFrame),
     onServerMessage: onServerMessage,
     render: renderAll,
@@ -264,6 +273,7 @@ function applyEventFrame(frame: DarkCrazyhouseLiveFrame): void {
   applyFrame(frame);
   state.events = events;
   if (frame.event) state.events = [...events, frame.event];
+  maybePlayDarkCrazyhouseSnapshotSound(state.view, state.seat);
 }
 
 function onServerMessage(message: { type: string; [key: string]: unknown }): void {
@@ -294,7 +304,9 @@ function onBoardClick(event: MouseEvent): void {
 
   if (state.selectedDrop) {
     if (dropTargets(view, state.selectedDrop).includes(square)) {
-      send({ type: 'move', from: `*${DROP_LETTER[state.selectedDrop]}`, to: square });
+      if (send({ type: 'move', from: `*${DROP_LETTER[state.selectedDrop]}`, to: square })) {
+        playSound('drop');
+      }
       clearSelection();
       renderAll();
       return;
@@ -331,7 +343,9 @@ function submitBoardMove(from: Square, to: Square, matches: CrazyhouseMove[]): v
     renderAll();
     return;
   }
-  send({ type: 'move', from, to });
+  if (send({ type: 'move', from, to })) {
+    playSound(soundForOwnDarkCrazyhouseMove(state.view, { from, to }));
+  }
   clearSelection();
   renderAll();
 }
@@ -358,7 +372,9 @@ function onPromotionClick(event: MouseEvent): void {
   if (!target) return;
   const role = target.getAttribute('data-promote') as CrazyhousePromotionRole | null;
   if (!role || !pending.roles.includes(role)) return;
-  send({ type: 'move', from: pending.from, to: pending.to, promotion: role });
+  if (send({ type: 'move', from: pending.from, to: pending.to, promotion: role })) {
+    playSound(soundForOwnDarkCrazyhouseMove(state.view, { from: pending.from, to: pending.to }));
+  }
   clearSelection();
   renderAll();
 }

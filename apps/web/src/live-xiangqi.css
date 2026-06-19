@@ -140,11 +140,6 @@
   stroke-width: 1.5;
 }
 
-.room-actions-row {
-  display: grid;
-  gap: 10px;
-}
-
 .xiangqi-move-list .move-row {
   display: block;
   padding: 7px 10px;
