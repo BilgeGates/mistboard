@@ -43,13 +43,6 @@
   width: 100%;
 }
 
-.shogi-hands__label {
-  color: var(--muted);
-  font-size: 0.72rem;
-  letter-spacing: 0.02em;
-  margin-right: 0.2rem;
-}
-
 .shogi-hands__empty {
   color: var(--muted);
   font-size: 0.78rem;

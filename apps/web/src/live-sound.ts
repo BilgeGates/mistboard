@@ -427,6 +427,22 @@ export function tonesForSound(kind: SoundKind): SoundTone[] {
       { delay: 0.09, duration: 0.16, frequency: 523.25, gain: 0.045, type: 'sine' },
     ];
   }
+  if (kind === 'flip') {
+    // A face-down tile turned over: a crisp click into a short woody body, the
+    // banqi / jieqi / reveal-chess signature.
+    return [
+      { delay: 0, duration: 0.04, frequency: 560, gain: 0.05, type: 'square' },
+      { delay: 0.018, duration: 0.085, frequency: 320, gain: 0.05, type: 'triangle' },
+    ];
+  }
+  if (kind === 'drop') {
+    // A piece placed from hand: a soft tick into a low thud, distinct from the
+    // slide of a board move (crazyhouse / shogi).
+    return [
+      { delay: 0, duration: 0.028, frequency: 300, gain: 0.035, type: 'triangle' },
+      { delay: 0.01, duration: 0.13, frequency: 125, gain: 0.07, type: 'sine' },
+    ];
+  }
   return [{ delay: 0, duration: 0.09, frequency: 320, gain: 0.055, type: 'sine' }];
 }
 

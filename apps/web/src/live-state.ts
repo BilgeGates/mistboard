@@ -138,6 +138,8 @@ export type SoundKind =
   | 'captured'
   | 'castle'
   | 'draw'
+  | 'drop'
+  | 'flip'
   | 'game-start'
   | 'king-capture'
   | 'king-fall'

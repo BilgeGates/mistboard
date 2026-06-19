@@ -28,8 +28,13 @@ import './live-xiangqi.css';
 import { jieqiEnabled } from './feature-flags.js';
 import { jieqiClickResult } from './live-jieqi-interaction.js';
 import { installJieqiBoardStyles, renderJieqiBoardSvg } from './live-jieqi-render.js';
+import {
+  maybePlayJieqiSnapshotSound,
+  resetJieqiSoundState,
+  soundForOwnJieqiMove,
+} from './live-jieqi-sound.js';
 import { createLiveLayout, setLiveLayoutGameSpec } from './live-layout.js';
-import { initLiveSound, resetLiveSoundState } from './live-sound.js';
+import { initLiveSound, playSound, resetLiveSoundState } from './live-sound.js';
 import { clearSeatTokenForRoom, type LiveRefs } from './live-state.js';
 import { roomIdFromPath } from './room-url.js';
 import { syncMoveListScroll } from './variant-tenant/chrome-dom.js';
@@ -210,6 +215,7 @@ export function bootstrapJieqiLiveRoom(): void {
   installJieqiBoardStyles();
   initLiveSound();
   resetLiveSoundState();
+  resetJieqiSoundState();
 
   if (params.get('reset') === '1') {
     clearSeatTokenForRoom(room);
@@ -233,7 +239,10 @@ export function bootstrapJieqiLiveRoom(): void {
   client = createTenantSocketClient({
     room,
     applyHello: (frame) => applyFrame(frame as JieqiLiveFrame),
-    applySnapshot: (frame) => applyFrame(frame as JieqiLiveFrame),
+    applySnapshot: (frame) => {
+      applyFrame(frame as JieqiLiveFrame);
+      maybePlayJieqiSnapshotSound(state.view, state.seat);
+    },
     applyEvent: (frame) => applyEventFrame(frame as JieqiLiveFrame),
     render: renderAll,
   });
@@ -267,6 +276,7 @@ function applyEventFrame(frame: JieqiLiveFrame): void {
   applyFrame(frame);
   state.events = events;
   if (frame.event) state.events = [...events, frame.event];
+  maybePlayJieqiSnapshotSound(state.view, state.seat);
 }
 
 function handleReplayKeyboard(event: KeyboardEvent): void {
@@ -342,7 +352,9 @@ function handleSquareClick(view: JieqiWireView, square: JieqiSquare): void {
     return;
   }
   selectedSquare = null;
-  send({ type: 'move', from: result.move.from, to: result.move.to });
+  if (send({ type: 'move', from: result.move.from, to: result.move.to })) {
+    playSound(soundForOwnJieqiMove(view, result.move));
+  }
 }
 
 // ── Captured pool ─────────────────────────────────────────────────────────────

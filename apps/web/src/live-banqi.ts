@@ -27,8 +27,13 @@ import './live-xiangqi.css';
 import { banqiEnabled } from './feature-flags.js';
 import { banqiClickResult } from './live-banqi-interaction.js';
 import { installBanqiBoardStyles, renderBanqiBoardSvg } from './live-banqi-render.js';
+import {
+  maybePlayBanqiSnapshotSound,
+  resetBanqiSoundState,
+  soundForOwnBanqiMove,
+} from './live-banqi-sound.js';
 import { createLiveLayout, setLiveLayoutGameSpec } from './live-layout.js';
-import { initLiveSound, resetLiveSoundState } from './live-sound.js';
+import { initLiveSound, playSound, resetLiveSoundState } from './live-sound.js';
 import { clearSeatTokenForRoom, type LiveRefs } from './live-state.js';
 import { roomIdFromPath } from './room-url.js';
 import { syncMoveListScroll } from './variant-tenant/chrome-dom.js';
@@ -233,6 +238,7 @@ export function bootstrapBanqiLiveRoom(): void {
   installBanqiBoardStyles();
   initLiveSound();
   resetLiveSoundState();
+  resetBanqiSoundState();
 
   if (params.get('reset') === '1') {
     clearSeatTokenForRoom(room);
@@ -256,7 +262,10 @@ export function bootstrapBanqiLiveRoom(): void {
   client = createTenantSocketClient({
     room,
     applyHello: (frame) => applyFrame(frame as BanqiLiveFrame),
-    applySnapshot: (frame) => applyFrame(frame as BanqiLiveFrame),
+    applySnapshot: (frame) => {
+      applyFrame(frame as BanqiLiveFrame);
+      maybePlayBanqiSnapshotSound(state.view, state.seat);
+    },
     applyEvent: (frame) => applyEventFrame(frame as BanqiLiveFrame),
     render: renderAll,
   });
@@ -290,6 +299,7 @@ function applyEventFrame(frame: BanqiLiveFrame): void {
   applyFrame(frame);
   state.events = events;
   if (frame.event) state.events = [...events, frame.event];
+  maybePlayBanqiSnapshotSound(state.view, state.seat);
 }
 
 function handleReplayKeyboard(event: KeyboardEvent): void {
@@ -367,7 +377,9 @@ function handleSquareClick(view: BanqiWireView, square: BanqiSquare): void {
     return;
   }
   selectedSquare = null;
-  send({ type: 'move', from: result.move.from, to: result.move.to });
+  if (send({ type: 'move', from: result.move.from, to: result.move.to })) {
+    playSound(soundForOwnBanqiMove(view, result.move));
+  }
 }
 
 // ── Captured pool ─────────────────────────────────────────────────────────────

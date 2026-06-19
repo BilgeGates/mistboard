@@ -30,8 +30,13 @@ import {
   renderCrossroadsChessBoardSvg,
 } from './crossroads-chess-render.js';
 import { darkCrossroadsChessEnabled } from './feature-flags.js';
+import {
+  maybePlayCrossroadsChessSnapshotSound,
+  resetCrossroadsChessSoundState,
+  soundForOwnCrossroadsChessMove,
+} from './live-crossroads-chess-sound.js';
 import { createLiveLayout, setLiveLayoutGameSpec } from './live-layout.js';
-import { initLiveSound, resetLiveSoundState } from './live-sound.js';
+import { initLiveSound, playSound, resetLiveSoundState } from './live-sound.js';
 import { clearSeatTokenForRoom, type LiveRefs } from './live-state.js';
 import { roomIdFromPath } from './room-url.js';
 import { boardAppearanceChangedEvent, setBoardFamily } from './theme.js';
@@ -198,6 +203,7 @@ export function bootstrapDarkCrossroadsChessLiveRoom(): void {
   chrome.resetState();
   initLiveSound();
   resetLiveSoundState();
+  resetCrossroadsChessSoundState();
 
   if (params.get('reset') === '1') {
     clearSeatTokenForRoom(room);
@@ -227,7 +233,10 @@ export function bootstrapDarkCrossroadsChessLiveRoom(): void {
   client = createTenantSocketClient({
     room,
     applyHello: (frame) => applyFrame(frame as DarkCrossroadsLiveFrame),
-    applySnapshot: (frame) => applyFrame(frame as DarkCrossroadsLiveFrame),
+    applySnapshot: (frame) => {
+      applyFrame(frame as DarkCrossroadsLiveFrame);
+      maybePlayCrossroadsChessSnapshotSound(state.view, state.seat);
+    },
     applyEvent: (frame) => applyEventFrame(frame as DarkCrossroadsLiveFrame),
     render: renderAll,
   });
@@ -260,6 +269,7 @@ function applyEventFrame(frame: DarkCrossroadsLiveFrame): void {
   applyFrame(frame);
   state.events = events;
   if (frame.event) state.events = [...events, frame.event];
+  maybePlayCrossroadsChessSnapshotSound(state.view, state.seat);
 }
 
 function handleReplayKeyboard(event: KeyboardEvent): void {
@@ -291,7 +301,10 @@ function onBoardClick(event: MouseEvent): void {
   }
   const targets = legalTargets(view, state.selected);
   if (targets.includes(square)) {
-    send({ type: 'move', from: state.selected, to: square });
+    const move = { from: state.selected, to: square };
+    if (send({ type: 'move', ...move })) {
+      playSound(soundForOwnCrossroadsChessMove(view, move));
+    }
     state.selected = null;
     renderBoard(view);
     return;

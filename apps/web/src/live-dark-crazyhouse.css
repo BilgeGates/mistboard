@@ -4,7 +4,7 @@
    parachute-bounce banner, and the fog-masked move list. */
 
 .live-route--crazyhouse .board-shell {
-  width: min(100%, 62vh, 540px);
+  width: min(100%, 64vh, 560px);
 }
 
 .live-route--crazyhouse .board-stage {

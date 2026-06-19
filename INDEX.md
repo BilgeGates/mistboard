@@ -462,6 +462,7 @@ Run with `MISTBOARD_ALLOW_IN_MEMORY_PERSISTENCE=true npm run test:integration --
 | `watch-mini-xiangqi-replay.ts` | Mistboard TV (`/watch`) renderer for Dark Mini Xiangqi: postgame payload + shared replay chrome + control bar/auto-play, rendering server-computed fog views (leak-safe) |
 | `watch-dark-xiangqi-replay.ts` | Mistboard TV (`/watch`) renderer for full Dark Xiangqi (9×10) — thin adapter over `watch-tenant-replay.ts` rendering the red/truth/black fog triptych (per-view fog mask) |
 | `live-dark-xiangqi.ts` | Self-contained live room client for hidden/dev-only Dark Xiangqi (9×10): the first fog tenant on the `socket-client` + `room-chrome` stack; owns the intersection-board fog SVG, click-to-move, fog-safe replay capture, masked move list, and `renderDarkXiangqiBoardSvg` (reused by the postgame). Behind `darkXiangqiEnabled`. Loads `live-xiangqi.css` |
+| `live-dark-xiangqi-sound.ts` | Dark Xiangqi sound policy: fog-safe own-move classification (cannon-capture, general-capture) + visible-piece-count opponent diff over the redacted view, reusing the shared `SoundController` |
 | `live-xiangqi.css` | Shared xiangqi live-route board sizing/aspect styles loaded by `live.ts`, `live-dark-xiangqi.ts`, and `dark-xiangqi-postgame.ts` |
 | `dark-xiangqi-postgame.css` | Flagged Dark Xiangqi postgame route styles loaded by `dark-xiangqi-postgame.ts` |
 | `xiangqi-fog.ts` | Shared Fog of War SVG region for every xiangqi board (Dark Mini 7×7, full 9×10, dev spike): one masked region with flat tint + optional drift/mistveil texture mapped to the global fog assets |
@@ -479,6 +480,7 @@ Run with `MISTBOARD_ALLOW_IN_MEMORY_PERSISTENCE=true npm run test:integration --
 | `live-jieqi-render.ts` | Jieqi board SVG renderer: xiangqi pieces on intersections, face-down pieces as backs, revealed roles glyphed; reuses the shared xiangqi piece-sets/appearance |
 | `live-jieqi-interaction.ts` | Pure click-to-move decision for the jieqi board (web half of the interaction contract, kept out of the DOM client so it is unit-testable) |
 | `live-jieqi-postgame.ts` | Jieqi postgame/review route renderer (truth view once finished); reuses replay panes/header/move-list |
+| `live-jieqi-sound.ts` | Jieqi sound policy: a public flip on a move-reveal + fog-safe opponent classification (a private capture-reveal stays `captured`, never leaking the captured identity), reusing the shared `SoundController` |
 | `jieqi-replay.ts` | Jieqi rules-article replay: replays a move list (+ the deal) through the real jieqi kernel, rendering each position on demand (sibling of `banqi-replay.ts`) |
 | `jieqi-sample-game.ts` | Jieqi rules-article sample game data, replayed by `jieqi-replay.ts` |
 | `watch-jieqi-replay.ts` | Mistboard TV (`/watch`) renderer for Jieqi — thin adapter over the shared `watch-tenant-replay.ts` |
@@ -486,6 +488,7 @@ Run with `MISTBOARD_ALLOW_IN_MEMORY_PERSISTENCE=true npm run test:integration --
 | `live-banqi-render.ts` | Banqi board SVG renderer (8×4): xiangqi-style discs, face-down tiles as backs; reuses the shared xiangqi piece-sets/appearance |
 | `live-banqi-interaction.ts` | Pure click-to-move decision for the banqi board (FLIP a face-down tile = one-click self-move; otherwise select-then-move). Unit-testable, no DOM |
 | `live-banqi-postgame.ts` | Banqi postgame/review route renderer (single public truth surface; banqi is symmetric-information). Loads `live-xiangqi.css` + `dark-xiangqi-postgame.css` |
+| `live-banqi-sound.ts` | Banqi sound policy: a flip on a face-down reveal (own move + the opponent's public flip), capture/cannon classification, reusing the shared `SoundController` (banqi is symmetric-information, so opponent flips are sounded precisely) |
 | `banqi-replay.ts` | Banqi rules-article replay: replays the deal + move list through the real banqi kernel, rendering each position on demand; face-down tiles flip to their dealt piece on first turn (sibling of `jieqi-replay.ts`) |
 | `banqi-sample-game.ts` | Banqi rules-article sample game data (a real MistyBanqi-vs-human game), replayed by `banqi-replay.ts` |
 | `banqi-result-label.ts` | Banqi seat→bound-ink result labels (`seatInkLabel`/`banqiResultLabel`): translates the stored move-order seat to the ink that bound on the opening flip. Import-light so result-only surfaces (the watch queue) reuse it without board renderers |

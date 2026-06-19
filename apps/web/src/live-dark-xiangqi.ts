@@ -22,8 +22,13 @@ import type {
 } from '@mistboard/game';
 import './live-xiangqi.css';
 import { darkXiangqiEnabled } from './feature-flags.js';
+import {
+  maybePlayDarkXiangqiSnapshotSound,
+  resetDarkXiangqiSoundState,
+  soundForOwnDarkXiangqiMove,
+} from './live-dark-xiangqi-sound.js';
 import { createLiveLayout, setLiveLayoutGameSpec } from './live-layout.js';
-import { initLiveSound, resetLiveSoundState } from './live-sound.js';
+import { initLiveSound, playSound, resetLiveSoundState } from './live-sound.js';
 import { clearSeatTokenForRoom, type LiveRefs } from './live-state.js';
 import { roomIdFromPath } from './room-url.js';
 import { syncMoveListScroll } from './variant-tenant/chrome-dom.js';
@@ -206,6 +211,7 @@ export function bootstrapDarkXiangqiLiveRoom(): void {
   chrome.resetState();
   initLiveSound();
   resetLiveSoundState();
+  resetDarkXiangqiSoundState();
 
   if (params.get('reset') === '1') {
     clearSeatTokenForRoom(room);
@@ -229,7 +235,10 @@ export function bootstrapDarkXiangqiLiveRoom(): void {
   client = createTenantSocketClient({
     room,
     applyHello: (frame) => applyFrame(frame as DarkXiangqiLiveFrame),
-    applySnapshot: (frame) => applyFrame(frame as DarkXiangqiLiveFrame),
+    applySnapshot: (frame) => {
+      applyFrame(frame as DarkXiangqiLiveFrame);
+      maybePlayDarkXiangqiSnapshotSound(state.view, state.seat);
+    },
     applyEvent: (frame) => applyEventFrame(frame as DarkXiangqiLiveFrame),
     render: renderAll,
   });
@@ -261,6 +270,7 @@ function applyEventFrame(frame: DarkXiangqiLiveFrame): void {
   applyFrame(frame);
   state.events = events;
   if (frame.event) state.events = [...events, frame.event];
+  maybePlayDarkXiangqiSnapshotSound(state.view, state.seat);
 }
 
 function handleReplayKeyboard(event: KeyboardEvent): void {
@@ -506,7 +516,9 @@ function handleSquareClick(view: DarkXiangqiWireView, square: XiangqiSquare): vo
     return;
   }
   selectedSquare = null;
-  send({ type: 'move', from: result.move.from, to: result.move.to });
+  if (send({ type: 'move', from: result.move.from, to: result.move.to })) {
+    playSound(soundForOwnDarkXiangqiMove(view, result.move));
+  }
 }
 
 export type DarkXiangqiClickResult =

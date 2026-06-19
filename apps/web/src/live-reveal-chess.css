@@ -1,9 +1,9 @@
 .live-route--reveal-chess .board-panel {
-  grid-template-columns: minmax(220px, 300px) minmax(0, min(58vh, 520px)) minmax(220px, 300px);
+  grid-template-columns: minmax(220px, 300px) minmax(0, min(64vh, 560px)) minmax(220px, 300px);
 }
 
 .live-route--reveal-chess .board-shell {
-  width: min(100%, 58vh, 520px);
+  width: min(100%, 64vh, 560px);
 }
 
 .live-route--reveal-chess .board-stage {
@@ -48,9 +48,13 @@
   opacity: 0.7;
 }
 
+.reveal-chess-move-row__move {
+  padding: 1px 6px;
+  border-radius: var(--site-radius-sm);
+}
+
 .reveal-chess-move-row__move.active {
-  font-weight: 700;
-  text-decoration: underline;
+  background: color-mix(in srgb, currentColor 16%, transparent);
 }
 
 /* Promotion picker: a small overlay anchored over the board while a known pawn
