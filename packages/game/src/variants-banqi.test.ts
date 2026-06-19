@@ -283,6 +283,26 @@ test('capturing the opponents last movable piece with no flips left wins', () =>
   assert.equal(next.status.type === 'finished' && next.status.winner, 'red');
 });
 
+test('flipping the last face-down tile that leaves the flipper with nothing ends the game at once', () => {
+  // The `red` seat (red ink) has no piece left and only the last face-down tile
+  // to flip; it reveals a black piece, so after the flip red owns nothing and no
+  // flips remain. Black is to move but red can never act again — the game must
+  // end now (black wins) instead of forcing black to play a pointless move first.
+  const board: BanqiBoard = {
+    a1: up('black', 'general'),
+    h4: down('black', 'soldier'), // the last face-down tile, dealt to black
+  };
+  const state = playingFor(board, 'red'); // red seat = red ink, red to move
+  assert.deepEqual(getBanqiLegalMoves(state), [{ from: 'h4', to: 'h4' }]); // flip is red's only move
+
+  const next = applyBanqiMove(state, { from: 'h4', to: 'h4' });
+
+  assert.equal(banqiSeatToMove(next), 'black'); // it is black's turn...
+  assert.equal(next.status.type, 'finished'); // ...but the game is already over
+  assert.equal(next.status.type === 'finished' && next.status.reason, 'stalemate');
+  assert.equal(next.status.type === 'finished' && next.status.winner, 'black');
+});
+
 // ── Symmetric information (§8) ─────────────────────────────────────────────────
 
 test('both seats see the identical masked board; face-down tiles carry no ink', () => {
