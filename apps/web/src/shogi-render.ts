@@ -62,9 +62,12 @@ const KANJI_FONT = '"Hiragino Mincho ProN","Yu Mincho","Noto Serif JP",serif';
 const SHOGI_PALETTE: GridPalette = {
   lightCell: '#f4ddb0',
   darkCell: '#ecd09c',
-  frameBg: '#5a4327',
-  frameInner: '#d8b97e',
-  boardEdge: '#7a5c33',
+  // Borderless to match the fog aesthetic of the other variants: the wood
+  // checker carries Shogi's identity, so the heavy brown frame goes transparent
+  // and the cells run edge-to-edge (see SHOGI_DESCRIPTOR frame-zeroing below).
+  frameBg: 'transparent',
+  frameInner: 'transparent',
+  boardEdge: 'transparent',
   coord: '#8a6d3f',
   lastMove: 'rgba(230,201,95,0.62)',
   selected: 'rgba(207,227,154,0.70)',
@@ -80,6 +83,11 @@ const SHOGI_DESCRIPTOR = {
   ranks: RANKS,
   cell: CELL,
   palette: SHOGI_PALETTE,
+  framePad: 0,
+  pad: 0,
+  frameRadius: 0,
+  boardRadius: 0,
+  boardEdgeWidth: 0,
   // Shogi files run 9..1 left-to-right from Black's side; ranks fall back to the
   // core's numeric labels (the core has no rank-letter hook — cosmetic only,
   // every interaction is click-driven by data-square).

@@ -96,7 +96,17 @@
 
 /* ── Promotion choice ─────────────────────────────────────────────────────── */
 
+/* The container carries the shared `.promotion-picker`, which makes it an
+   absolute full-board overlay and styles its `button` descendants as overlapping
+   white discs. Center an inner panel inside the overlay and reset the choice
+   buttons (scoped under `.crazyhouse-promotion` so they out-specify
+   `.promotion-picker button`), the same way the Kriegspiel picker does. */
 .crazyhouse-promotion {
+  display: grid;
+  place-items: center;
+}
+
+.crazyhouse-promotion__panel {
   display: flex;
   flex-direction: column;
   gap: 8px;
@@ -118,7 +128,8 @@
   gap: 8px;
 }
 
-.crazyhouse-promotion__choice {
+.crazyhouse-promotion .crazyhouse-promotion__choice {
+  position: static;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -128,11 +139,16 @@
   border: 1px solid var(--site-border);
   border-radius: var(--site-radius-sm);
   background: var(--site-bg);
+  box-shadow: none;
+  transform: none;
   cursor: pointer;
 }
 
-.crazyhouse-promotion__choice:hover {
+.crazyhouse-promotion .crazyhouse-promotion__choice:hover {
   border-color: color-mix(in srgb, var(--board-selected, #5f7d33) 80%, var(--site-border));
+  background: var(--site-bg);
+  box-shadow: none;
+  transform: none;
 }
 
 .crazyhouse-promotion__choice svg {

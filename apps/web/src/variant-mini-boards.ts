@@ -3,9 +3,12 @@ import { PIECE_SVGS } from '@mistboard/board-render';
 import {
   createInitialXiangqiState,
   getPlayerView as getXiangqiPlayerView,
+  type ShogiPiece,
+  type ShogiPieceRole,
   type XiangqiColor,
   type XiangqiPieceRole,
 } from '@mistboard/game';
+import { shogiKomaSvg } from './shogi-render.js';
 import {
   boardAppearanceChangedEvent,
   type PieceSet,
@@ -43,9 +46,11 @@ export type VariantMiniId =
   | 'dark-crossroads-chess'
   | 'kriegspiel'
   | 'dark-crazyhouse'
-  | 'reveal-chess';
+  | 'reveal-chess'
+  | 'shogi'
+  | 'dark-shogi';
 
-export type VariantMiniFamily = 'chess' | 'xiangqi';
+export type VariantMiniFamily = 'chess' | 'xiangqi' | 'shogi';
 
 export interface VariantMiniDef {
   id: VariantMiniId;
@@ -566,6 +571,65 @@ function revealChessBody(ctx: MiniCtx): string {
   return [checker(4, 4, cell), ...pieces].join('');
 }
 
+// ---- shogi (wood grid + kanji koma) ---------------------------------------
+
+// A koma (shogi piece) placed at a cell centre. Reuses the live koma art — a
+// wedge tile + kanji, colours inlined — re-wrapped at the marker scale the way
+// chessPieceAt re-wraps the cburnett glyphs.
+function shogiKomaAt(piece: ShogiPiece, cx: number, cy: number, cell: number): string {
+  const s = cell * 0.92;
+  const x = cx - s / 2;
+  const y = cy - s / 2;
+  const inner = shogiKomaSvg(piece)
+    .replace(/^<svg[^>]*>/, '')
+    .replace(/<\/svg>\s*$/, '');
+  return `<svg x="${x}" y="${y}" width="${s}" height="${s}" viewBox="0 0 40 40">${inner}</svg>`;
+}
+
+// Shogi: a 5-file crop of Black's (sente) opening on the wood grid — the back
+// rank from the lance inward, the bishop and rook on the second rank, a full
+// row of pawns. Dark Shogi lays fog over the far two rows (the half past the
+// reach of your own army).
+function shogiBody(showFog: boolean): string {
+  const cols = 5;
+  const rows = 5;
+  const cell = SIZE / cols;
+  const cx = (c: number) => OX + (c + 0.5) * cell;
+  const cy = (r: number) => OY + (r + 0.5) * cell;
+  const lines: string[] = [];
+  for (let r = 0; r <= rows; r += 1) {
+    lines.push(`<line x1="${OX}" y1="${OY + r * cell}" x2="${OX + SIZE}" y2="${OY + r * cell}"/>`);
+  }
+  for (let c = 0; c <= cols; c += 1) {
+    lines.push(`<line x1="${OX + c * cell}" y1="${OY}" x2="${OX + c * cell}" y2="${OY + SIZE}"/>`);
+  }
+  const fog: string[] = [];
+  if (showFog) {
+    for (let r = 0; r < 2; r += 1) {
+      for (let c = 0; c < cols; c += 1) {
+        fog.push(
+          `<rect class="vm-shogi-fog" x="${OX + c * cell}" y="${OY + r * cell}" width="${cell}" height="${cell}"/>`,
+        );
+      }
+    }
+  }
+  const koma = (role: ShogiPieceRole, c: number, r: number): string =>
+    shogiKomaAt({ color: 'black', role, promoted: false }, cx(c), cy(r), cell);
+  const backRank: ShogiPieceRole[] = ['L', 'N', 'S', 'G', 'K'];
+  const pieces = [
+    ...backRank.map((role, c) => koma(role, c, 4)),
+    koma('B', 1, 3),
+    koma('R', 3, 3),
+    ...[0, 1, 2, 3, 4].map((c) => koma('P', c, 2)),
+  ];
+  return [
+    `<rect class="vm-shogi-bg" x="${OX}" y="${OY}" width="${SIZE}" height="${SIZE}"/>`,
+    `<g class="vm-shogi-line" stroke-width="1">${lines.join('')}</g>`,
+    fog.join(''),
+    ...pieces,
+  ].join('');
+}
+
 // ---- registry + render entry ----------------------------------------------
 
 const BODIES: Record<VariantMiniId, (ctx: MiniCtx) => string> = {
@@ -583,6 +647,8 @@ const BODIES: Record<VariantMiniId, (ctx: MiniCtx) => string> = {
   kriegspiel: kriegspielBody,
   'dark-crazyhouse': darkCrazyhouseBody,
   'reveal-chess': revealChessBody,
+  shogi: () => shogiBody(false),
+  'dark-shogi': () => shogiBody(true),
 };
 
 export const VARIANT_MINIS: readonly VariantMiniDef[] = [
@@ -698,6 +764,22 @@ export const VARIANT_MINIS: readonly VariantMiniDef[] = [
     blurb: 'Chess with hidden identities: every piece face-down but the king.',
     family: 'chess',
   },
+  {
+    id: 'shogi',
+    label: 'Shogi',
+    shortLabel: 'SG',
+    accent: '#a06a2c',
+    blurb: 'Japanese chess: wedge koma, drops from hand, promotion in the far zone.',
+    family: 'shogi',
+  },
+  {
+    id: 'dark-shogi',
+    label: 'Dark Shogi',
+    shortLabel: 'DS',
+    accent: '#7d5320',
+    blurb: 'Shogi played blind: your own koma and their reach, the rest in fog.',
+    family: 'shogi',
+  },
 ];
 
 export function variantMiniForId(id: VariantMiniId): VariantMiniDef {
@@ -731,7 +813,12 @@ export function renderVariantMiniBoard(
   clipSeq += 1;
   const clipId = `mini-clip-${clipSeq}`;
   const body = BODIES[id](ctx);
-  const frameClass = def.family === 'xiangqi' ? 'vm-frame-xq' : 'vm-frame-chess';
+  const frameClass =
+    def.family === 'xiangqi'
+      ? 'vm-frame-xq'
+      : def.family === 'shogi'
+        ? 'vm-frame-shogi'
+        : 'vm-frame-chess';
   const className = opts.className ? `variant-mini ${opts.className}` : 'variant-mini';
   const dataClass = opts.className ? ` data-mini-class="${escapeAttr(opts.className)}"` : '';
   return [

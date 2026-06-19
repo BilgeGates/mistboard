@@ -551,16 +551,18 @@ function renderPromotion(view: ShogiPlayerView | null): void {
   refs.promotion.hidden = false;
   refs.promotion.className = 'promotion-picker shogi-promotion';
   refs.promotion.innerHTML = `
-    <div class="shogi-promotion__title">Promote?</div>
-    <div class="shogi-promotion__choices">
-      <button type="button" class="shogi-promotion__choice" data-promote="yes">
-        ${shogiKomaSvg({ color: piece.color, role: piece.role, promoted: true })}
-        <span>Promote</span>
-      </button>
-      <button type="button" class="shogi-promotion__choice" data-promote="no">
-        ${shogiKomaSvg({ color: piece.color, role: piece.role, promoted: false })}
-        <span>Keep</span>
-      </button>
+    <div class="shogi-promotion__panel">
+      <div class="shogi-promotion__title">Promote?</div>
+      <div class="shogi-promotion__choices">
+        <button type="button" class="shogi-promotion__choice" data-promote="yes">
+          ${shogiKomaSvg({ color: piece.color, role: piece.role, promoted: true })}
+          <span>Promote</span>
+        </button>
+        <button type="button" class="shogi-promotion__choice" data-promote="no">
+          ${shogiKomaSvg({ color: piece.color, role: piece.role, promoted: false })}
+          <span>Keep</span>
+        </button>
+      </div>
     </div>`;
 }
 

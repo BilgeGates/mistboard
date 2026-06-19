@@ -20,7 +20,9 @@ describe('Crossroads Chess board renderer', () => {
     expect((svg.match(/width="50" height="50"/g) ?? []).length).toBe(48);
     expect(svg).toContain('var(--board-light)');
     expect(svg).toContain('var(--board-dark)');
-    expect(svg).toContain('var(--crossroads-frame)');
+    // Borderless to match the fog aesthetic: the frame is transparent (the
+    // checker cells and river strip carry the fusion identity, no brown frame).
+    expect(svg).not.toContain('var(--crossroads-frame)');
     expect(svg).toContain('var(--crossroads-river)');
     // No fog overlay when showFog is false.
     expect(svg).not.toContain('var(--board-fog-light-fill)');

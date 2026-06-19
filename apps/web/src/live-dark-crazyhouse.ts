@@ -547,7 +547,7 @@ function renderPromotion(view: CrazyhousePlayerView | null): void {
         )}</button>`,
     )
     .join('');
-  refs.promotion.innerHTML = `<div class="crazyhouse-promotion__title">Promote to</div><div class="crazyhouse-promotion__choices">${choices}</div>`;
+  refs.promotion.innerHTML = `<div class="crazyhouse-promotion__panel"><div class="crazyhouse-promotion__title">Promote to</div><div class="crazyhouse-promotion__choices">${choices}</div></div>`;
 }
 
 function renderVisibleMoveList(liveRefs: LiveRefs): void {

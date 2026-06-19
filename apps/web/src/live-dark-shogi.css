@@ -107,7 +107,17 @@
 
 /* ── Promotion choice ─────────────────────────────────────────────────────── */
 
+/* The container carries the shared `.promotion-picker`, which makes it an
+   absolute full-board overlay and styles its `button` descendants as overlapping
+   white discs. Center an inner panel inside the overlay and reset the choice
+   buttons (scoped under `.shogi-promotion` so they out-specify
+   `.promotion-picker button`), the same way the Kriegspiel picker does. */
 .shogi-promotion {
+  display: grid;
+  place-items: center;
+}
+
+.shogi-promotion__panel {
   display: flex;
   flex-direction: column;
   gap: 8px;
@@ -129,21 +139,29 @@
   gap: 8px;
 }
 
-.shogi-promotion__choice {
+.shogi-promotion .shogi-promotion__choice {
+  position: static;
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: 4px;
+  width: auto;
+  height: auto;
   padding: 8px 12px;
   border: 1px solid var(--site-border);
   border-radius: var(--site-radius-sm);
   background: var(--site-bg);
+  box-shadow: none;
+  transform: none;
   cursor: pointer;
   font-size: 0.74rem;
 }
 
-.shogi-promotion__choice:hover {
+.shogi-promotion .shogi-promotion__choice:hover {
   border-color: color-mix(in srgb, var(--board-selected, #5f7d33) 80%, var(--site-border));
+  background: var(--site-bg);
+  box-shadow: none;
+  transform: none;
 }
 
 .shogi-promotion__choice svg {
