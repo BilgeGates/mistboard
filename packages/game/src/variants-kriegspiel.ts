@@ -31,7 +31,12 @@ import { SquareSet } from 'chessops/squareSet';
 import type { Square as ChessopsSquare } from 'chessops/types';
 import { makeSquare, parseSquare } from 'chessops/util';
 import type { Board, Color, GameStatus, Move, PieceRole, Square } from './types.js';
-import { draft960Variant, isLegalStandardChessMove, positionFromState } from './variants.js';
+import {
+  draft960Variant,
+  isLegalStandardChessMove,
+  positionFromState,
+  standardChessRepetitionDraw,
+} from './variants.js';
 
 // Kriegspiel never has a pregame status (the room seats both sides, then play
 // begins), matching the tenant's TenantGameStateLike contract.
@@ -91,10 +96,21 @@ export function isLegalKriegspielMove(state: KriegspielGameState, move: Move): b
 
 export function applyKriegspielMove(state: KriegspielGameState, move: Move): KriegspielGameState {
   if (state.status.type !== 'playing') return state;
-  const next = draft960Variant.applyMove(asChess(state), move);
-  // draft960's apply never yields pregame; narrow to the Kriegspiel status.
-  const status = next.status as KriegspielGameStatus;
-  return { ...next, variant: 'kriegspiel', status };
+  const chessState = asChess(state);
+  const next = draft960Variant.applyMove(chessState, move);
+  // draft960 returns the input unchanged when the move is illegal.
+  if (next === chessState) return state;
+  // draft960's apply ends the game on checkmate / stalemate / insufficient
+  // material (via chessops outcome()), but NOT on the fifty-move or
+  // threefold-repetition draws. Kriegspiel is standard chess and the umpire
+  // (the server) auto-claims those, so add them here, the same rule
+  // darkChessVariant applies.
+  let status = next.status as KriegspielGameStatus;
+  const { positionCounts, isDraw } = standardChessRepetitionDraw(chessState, next);
+  if (status.type === 'playing' && isDraw) {
+    status = { type: 'finished', winner: null, reason: 'draw' };
+  }
+  return { ...next, variant: 'kriegspiel', status, positionCounts };
 }
 
 // ── Offered (pseudo-legal) moves ───────────────────────────────────────────

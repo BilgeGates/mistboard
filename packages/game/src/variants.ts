@@ -289,6 +289,19 @@ function applyFogMove(state: GameState, move: Move): GameState {
   };
 }
 
+// The standard-chess auto-draws that chessops' outcome() does NOT cover:
+// fifty-move and threefold repetition. Reused by Kriegspiel, whose apply rides
+// the chessops engine and would otherwise never claim them.
+export function standardChessRepetitionDraw(
+  previousState: GameState,
+  nextState: GameState,
+): { positionCounts: Record<string, number>; isDraw: boolean } {
+  const positionCounts = nextPositionCounts(previousState, nextState);
+  const isDraw =
+    nextState.halfmoveClock >= 100 || (positionCounts[positionRepetitionKey(nextState)] ?? 0) >= 3;
+  return { positionCounts, isDraw };
+}
+
 function nextPositionCounts(
   previousState: GameState,
   nextState: GameState,

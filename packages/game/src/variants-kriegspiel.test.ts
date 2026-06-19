@@ -240,6 +240,36 @@ test('applying a checkmating move finishes the game with the right check call', 
   assert.deepEqual(announcement, { check: ['file'] });
 });
 
+test('the umpire auto-claims the fifty-move and threefold draws (standard chess)', () => {
+  const back = {
+    e1: { color: 'white', role: 'king' },
+    a1: { color: 'white', role: 'rook' },
+    e8: { color: 'black', role: 'king' },
+    h8: { color: 'black', role: 'rook' },
+  } as const;
+  // Fifty-move: a quiet move at half-move 100.
+  const fifty = ks(back, 'white', { halfmoveClock: 99 });
+  assert.deepEqual(applyKriegspielMove(fifty, { from: 'a1', to: 'b1' }).status, {
+    type: 'finished',
+    winner: null,
+    reason: 'draw',
+  });
+  // Threefold: shuffle the rooks back to the start position three times.
+  let state = ks(back, 'white');
+  const shuffle = [
+    ['a1', 'b1'],
+    ['h8', 'g8'],
+    ['b1', 'a1'],
+    ['g8', 'h8'],
+    ['a1', 'b1'],
+    ['h8', 'g8'],
+    ['b1', 'a1'],
+    ['g8', 'h8'],
+  ] as const;
+  for (const [from, to] of shuffle) state = applyKriegspielMove(state, { from, to });
+  assert.equal(state.status.type === 'finished' && state.status.reason, 'draw');
+});
+
 test('check candidates: a knight check marks the (≤8) knight squares around the king', () => {
   const squares = kriegspielCheckCandidateSquares('e1', ['knight'], []).sort();
   // From e1 the in-board knight squares are c2, d3, f3, g2.
