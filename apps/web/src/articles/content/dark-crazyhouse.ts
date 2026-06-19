@@ -102,7 +102,7 @@ export const darkCrazyhouseArticle: Article = {
   summary:
     'Crazyhouse under Fog of War: captured pieces flip color into your hand and drop back into play, hands are private, you can parachute a drop into the fog, and the king falls by capture.',
   showSummaryOnPage: false,
-  status: 'draft',
+  status: 'published',
   publishedAt: '2026-06-18',
   audience:
     'Crazyhouse players, dark chess players, and anyone who wants a clean first explanation of crazyhouse under fog.',
