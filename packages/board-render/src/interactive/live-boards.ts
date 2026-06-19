@@ -96,7 +96,12 @@ function renderPocket(pocket: LiveBoardPocket): HTMLElement {
     const count = pocket.counts[role] ?? 0;
     const item = document.createElement('span');
     item.className = 'live-boards-pocket-piece';
-    item.innerHTML = PIECE_SVGS[`${pocket.color}:${role}`] ?? '';
+    // The cburnett source has width/height but no viewBox, so it will not scale
+    // into the pocket box; re-wrap with a viewBox the way the board renderer does.
+    item.innerHTML = (PIECE_SVGS[`${pocket.color}:${role}`] ?? '').replace(
+      /^<svg[^>]*>/,
+      '<svg viewBox="0 0 45 45" xmlns="http://www.w3.org/2000/svg">',
+    );
     if (count > 1) {
       const badge = document.createElement('span');
       badge.className = 'live-boards-pocket-count';
