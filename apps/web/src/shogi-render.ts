@@ -142,6 +142,9 @@ export type ShogiRenderOptions = {
   // Draw file/rank coordinate labels. Defaults to true; the rules diagrams pass
   // false for clean teaching boards.
   showCoords?: boolean;
+  // Squares to tint as forbidden (red). The rules diagrams use this to show the
+  // drop restrictions, e.g. the file a pawn cannot be dropped onto (nifu).
+  forbidden?: readonly ShogiSquare[];
 };
 
 let boardCounter = 0;
@@ -174,6 +177,7 @@ export function renderShogiBoardSvg(
     selected: options.selected ? coordOf(options.selected) : null,
     targets: (options.targets ?? []).map((sq) => ({ ...coordOf(sq), occupied: occupied.has(sq) })),
     fogHidden: showFog ? hiddenSquares(visible) : null,
+    threats: (options.forbidden ?? []).map((sq) => coordOf(sq)),
     interactive: options.interactive ?? false,
     coords: options.showCoords ?? true,
     squareName: (file, rank) => squareAt(file, rank),

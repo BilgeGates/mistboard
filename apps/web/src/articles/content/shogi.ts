@@ -64,6 +64,25 @@ function moveDiagram(
   } as ArticleBlock;
 }
 
+// The two pawn-drop restrictions on one board: a pawn already holds the centre
+// file (the two-pawn rule, nifu), and the last rank is closed (a dropped pawn
+// there could never move). Every red square is off limits to a dropped pawn.
+function pawnDropDiagram(): ArticleBlock {
+  const pawnSquare: ShogiSquare = '5f';
+  const file: ShogiSquare[] = ['5a', '5b', '5c', '5d', '5e', '5f', '5g', '5h', '5i'];
+  const lastRank: ShogiSquare[] = ['1a', '2a', '3a', '4a', '5a', '6a', '7a', '8a', '9a'];
+  const board: ShogiBoard = { [pawnSquare]: createShogiPiece('black', 'P', false) };
+  const view = diagramView(board);
+  const forbidden = [...new Set<ShogiSquare>([...file, ...lastRank])].filter(
+    (square) => square !== pawnSquare,
+  );
+  return {
+    kind: 'raw-svg',
+    svg: () => renderShogiBoardSvg(view, { showFog: false, showCoords: false, forbidden }),
+    className: 'shogi-figure-move',
+  } as ArticleBlock;
+}
+
 const START_VIEW = diagramView(createInitialShogiState('diagram').board);
 // Baked kanji/wood for the index/rail thumbnail (a static brand image); the
 // in-article board below uses a live thunk instead.
@@ -116,23 +135,20 @@ export const shogiArticle: Article = {
       blocks: [
         {
           kind: 'paragraph',
-          text: 'There are eight kinds of piece. In each diagram below the dots are the squares the marked black piece can move to or capture on. Shogi pieces capture the way they move: you take an enemy piece by moving onto its square, with no separate capturing rule like the chess pawn.',
+          text: 'There are eight kinds of piece. The king, rook, and bishop move exactly as they do in chess; the diagrams below cover the five that are unique to shogi, the dots marking every square the piece can move to or capture on. Shogi pieces capture the way they move: you take an enemy piece by moving onto its square, with no separate capturing rule like the chess pawn.',
         },
         {
           kind: 'paragraph',
           text: '**King (王 / 玉):** moves one square in any of the eight directions, exactly like the chess king.',
         },
-        moveDiagram('K'),
         {
           kind: 'paragraph',
           text: '**Rook (飛):** moves any number of empty squares straight along a rank or file, like the chess rook. The first piece in its path stops it, and an enemy there can be captured.',
         },
-        moveDiagram('R'),
         {
           kind: 'paragraph',
           text: '**Bishop (角):** moves any number of empty squares diagonally, like the chess bishop. With no second bishop and no color-bound partner, a single bishop only ever reaches half the board until it promotes.',
         },
-        moveDiagram('B'),
         {
           kind: 'paragraph',
           text: '**Gold general (金):** moves one square straight in any direction, or one square diagonally forward. It cannot step diagonally backward. The gold never promotes, and it is the shape that most promoted pieces turn into.',
@@ -196,7 +212,12 @@ export const shogiArticle: Article = {
         },
         {
           kind: 'paragraph',
-          text: 'Three restrictions keep drops fair. You cannot drop a pawn onto a file that already has one of your unpromoted pawns (the **two-pawn** rule, nifu). You cannot drop a piece where it would never have a legal move (a pawn or lance on the last rank, a knight on the last two). And you cannot drop a pawn that gives immediate checkmate (the **drop-pawn-mate** rule, uchifuzume), though you may freely move a pawn into the same mate.',
+          text: 'Three restrictions keep drops fair, and the first two govern where a pawn can land. By the **two-pawn** rule (nifu), you cannot drop a pawn onto a file that already holds one of your unpromoted pawns. And you cannot drop a pawn or lance on the last rank, where it could never move again (a knight needs the last two free). Below, a pawn holds the centre file and the far rank is closed: every red square is off limits to a dropped pawn.',
+        },
+        pawnDropDiagram(),
+        {
+          kind: 'paragraph',
+          text: 'The third is the **drop-pawn-mate** rule (uchifuzume): you cannot drop a pawn that gives immediate checkmate, though you may freely move a pawn into the same mate.',
         },
       ],
     },

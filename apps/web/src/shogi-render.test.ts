@@ -147,6 +147,14 @@ describe('Dark Shogi board renderer', () => {
     expect(svg).not.toContain('rgba(231,221,197,0.88)'); // ...not the wood default
   });
 
+  it('tints forbidden squares red (drop-restriction diagrams)', () => {
+    const svg = renderShogiBoardSvg(truthView(createInitialShogiState('f')), {
+      showFog: false,
+      forbidden: ['5e', '5d'],
+    });
+    expect(svg).toContain('rgba(200,48,48,0.34)'); // the shared renderer's threat tint
+  });
+
   it('renders standalone hand + promotion koma', () => {
     const pawn = shogiHandKomaSvg('P', 'black');
     expect(pawn).toContain('<svg');
