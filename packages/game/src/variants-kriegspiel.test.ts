@@ -199,6 +199,25 @@ test('double check announces both categories, de-duplicated', () => {
   assert.deepEqual(categories, ['file', 'knight']);
 });
 
+test('a discovered double check, reached by a move, announces both directions', () => {
+  // Ne6-c7 gives a knight check on e8 and unveils the rook's file check down the
+  // now-clear e-file: a real double check arising from a single move.
+  const before = ks(
+    {
+      a1: { color: 'white', role: 'king' },
+      e6: { color: 'white', role: 'knight' },
+      e1: { color: 'white', role: 'rook' },
+      e8: { color: 'black', role: 'king' },
+    },
+    'white',
+  );
+  const after = applyKriegspielMove(before, { from: 'e6', to: 'c7' });
+  assert.deepEqual(after.status, { type: 'playing', turn: 'black' });
+  assert.deepEqual(kriegspielAnnouncementFor(before, { from: 'e6', to: 'c7' }, after), {
+    check: ['file', 'knight'],
+  });
+});
+
 test('no check yields no categories', () => {
   const state = createInitialKriegspielState('g1');
   assert.deepEqual(kriegspielCheckAnnouncement(state), []);
