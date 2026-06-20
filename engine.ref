@@ -1,0 +1,8 @@
+bba9fff
+# ^ The mistboard-engine commit the prod build checks out (railpack build step).
+# Single source of truth for the deployed engine version — committed, reviewable,
+# and independent of any Railway env var. To ship a new engine version: bump this
+# sha AND the matching registry engine_pin (apps/server/src/engines/registry.ts),
+# then deploy. The railpack reads only the first line; this comment is ignored.
+#
+# bba9fff = Misty 1.2 (carryover fix; prune + opening-system landed dormant).

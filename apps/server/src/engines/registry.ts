@@ -30,7 +30,7 @@ export function playableBuiltinEngines(): EngineDefinition[] {
 // records, but are NOT offered in the live PvE picker. No random fallback in the
 // PvE serving path — if Misty can't serve it fails loudly (503), by design.
 const PROD_PLAYABLE_ENGINE_IDS = new Set([
-  'python-v2-v1.1', // Misty 1.1 (supersedes 1.0 2026-06-16; latest-only picker)
+  'python-v2-v1.2', // Misty 1.2 (supersedes 1.1 2026-06-19: carryover fix; latest-only picker)
 ]);
 
 // Opt-in extras for load testing / local experimentation. Set
@@ -233,6 +233,30 @@ const PYTHON_ENGINES: Record<string, EngineDefinition> = {
     notes:
       'Local-only A/B: v1.1 + adaptive prune + carryover |P|-gate (v1.1-rc4). Worker maps id->profile.',
   },
+  // SHIPPED-base + carryover FULLY OFF (v1.1-rc6): fixes the opening regret-reuse
+  // corruption (the live-vs-replay ghost) and restores warm==cold reproducibility.
+  // The worker maps this id to engine_profile 'v1.1-rc6'. Local play-test 2026-06-19.
+  // Enable: MISTBOARD_EXTRA_PLAYABLE_ENGINES=python-v2-nocarry
+  'python-v2-nocarry': {
+    id: 'python-v2-nocarry',
+    engineId: 'v2',
+    engineName: 'Misty',
+    name: 'Misty (No-carry · v1.1-rc6)',
+    kind: 'container',
+    configHash: 'v2-nocarry-local',
+    playSignature: 'v2-nocarry',
+    config: {
+      kind: 'python-subprocess',
+      strategy: 'v2',
+      version: 'current',
+      config: 'v2-nocarry',
+      config_hash: 'current',
+    },
+    livePolicy: { timeoutMs: 120_000 },
+    notes:
+      'Local-only A/B: v1.1 + carryover OFF (v1.1-rc6) — opening corruption fix + ' +
+      'reproducible warm==cold. Worker maps id->profile.',
+  },
   // Misty 1.0 is the frozen, player-facing first-party engine. Internal pins
   // stay stable so already-recorded games resolve. Bump to python-v2-v1.1
   // (+ V2_LIVE_ENGINES) on the next engine upgrade.
@@ -281,7 +305,33 @@ const PYTHON_ENGINES: Record<string, EngineDefinition> = {
     livePolicy: { timeoutMs: 30_000 },
     notes:
       'Misty 1.1 — faithful/Resolve, catastrophe-complete (king + queen). ' +
-      'Shipped 2026-06-16, supersedes 1.0.',
+      'Shipped 2026-06-16, superseded by 1.2 2026-06-19.',
+  },
+  // Misty 1.2 — SUPERSEDES 1.1 (2026-06-19). = v1.1 + carryover OFF *only*: fixes the
+  // opening regret-reuse corruption (the live-vs-replay ghost) + restores warm==cold
+  // reproducibility, and changes nothing else vs v1.1 (the adaptive prune is NOT
+  // enabled here — it ships as its own gated version). Worker maps id -> v1.2.
+  // Pinned to engine freeze commit bba9fff (branch ship-misty-1.2).
+  'python-v2-v1.2': {
+    id: 'python-v2-v1.2',
+    engineId: 'v2',
+    engineName: 'Misty',
+    name: 'Misty 1.2',
+    kind: 'container',
+    configHash: 'v2-v1.2-bba9fff',
+    playSignature: 'bba9fff',
+    config: {
+      kind: 'python-subprocess',
+      strategy: 'v2',
+      version: '1.2',
+      config: 'v2-carryover-fix',
+      config_hash: 'bba9fff',
+      engine_pin: 'misty-1.2@bba9fff',
+    },
+    livePolicy: { timeoutMs: 30_000 },
+    notes:
+      'Misty 1.2 — carryover fix only (opening corruption + reproducibility); ' +
+      'v1.1 minus the bug. Shipped 2026-06-19, supersedes 1.1.',
   },
   // Dark Mini Xiangqi engine. Not in the chess PvE picker; the Dark Mini
   // Xiangqi route selects it through the variant-aware worker protocol.
