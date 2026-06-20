@@ -163,6 +163,8 @@ Current postgame behavior:
 - Player-perspective replay preserves fog for earlier plies.
 - A full-truth postgame view may reveal the final board and both hands after the
   game is over.
+- Local review can render from the finished live room while the server process
+  is still running; persistent dev keeps that review available after restart.
 - Public replay/export must be added only after tests prove that live seated
   payloads and historical player views remain redacted correctly.
 

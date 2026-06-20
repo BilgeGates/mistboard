@@ -9,7 +9,7 @@ import {
   isShogiDrop,
   type ShogiMove,
 } from '@mistboard/game';
-import type { DarkShogiEvent } from '../dark-shogi-runtime.js';
+import { createDarkShogiRuntimeRoomFromEvents, type DarkShogiEvent } from '../dark-shogi-runtime.js';
 import type { RecentEveGameRecord } from '../persistence.js';
 import {
   type DarkShogiPostgamePersistence,
@@ -88,6 +88,12 @@ function deps(
   };
 }
 
+function liveFinishedRoom() {
+  const hydrated = createDarkShogiRuntimeRoomFromEvents(finishedGameEvents());
+  assert.ok(hydrated.ok);
+  return hydrated.room;
+}
+
 test('Dark Shogi postgame returns a full-truth view revealing every piece + every square', async () => {
   const payload = await darkShogiPostgameForApi(ROOM_ID, deps(gameRecord(), finishedGameEvents()));
   assert.ok(payload);
@@ -149,6 +155,26 @@ test('Dark Shogi postgame history snapshots every perspective per ply', async ()
   );
   assert.equal(payload.history?.black?.length, MOVE_COUNT + 1);
   assert.equal(payload.history?.white?.length, MOVE_COUNT + 1);
+});
+
+test('Dark Shogi postgame can render from a finished live room without persistence', async () => {
+  const room = liveFinishedRoom();
+  const payload = await darkShogiPostgameForApi(ROOM_ID, {
+    getGameSummary: async () => {
+      throw new Error('persistence should not be queried');
+    },
+    getLiveRoom: () => room,
+    isPersistenceEnabled: () => false,
+    loadRoomEvents: async () => {
+      throw new Error('persistence should not be queried');
+    },
+  });
+  assert.ok(payload);
+  assert.equal(payload.game.roomId, ROOM_ID);
+  assert.equal(payload.game.variant, DARK_SHOGI_SPEC_ID);
+  assert.equal(payload.game.visibility, 'private');
+  assert.equal(payload.timeline.filter((entry) => entry.type === 'move-played').length, MOVE_COUNT);
+  assert.equal(payload.history?.truth?.at(-1)?.ply, MOVE_COUNT);
 });
 
 // ── The reveal gate ─────────────────────────────────────────────────────────

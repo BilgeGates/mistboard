@@ -12,14 +12,18 @@ import {
   applyDarkShogiEvent,
   type DarkShogiEvent,
   type DarkShogiProjection,
+  type DarkShogiRuntimeRoom,
   type DarkShogiWirePlayerView,
   getDarkShogiClientView,
   isDarkShogiEventLog,
   replayDarkShogiEvents,
 } from './../dark-shogi-runtime.js';
+import { darkShogiTenant } from './../dark-shogi-tenant.js';
+import { darkShogiRooms } from './../dark-shogi-registration.js';
 import { darkShogiEnabled } from './../feature-flags.js';
 import * as persistence from './../persistence.js';
-import { type HttpApiContext, requireMethod, requirePersistence, writeJson } from './lib.js';
+import { buildTenantGameSummary } from './../variant-tenant/events.js';
+import { type HttpApiContext, requireMethod, writeJson } from './lib.js';
 
 type DarkShogiPostgameViewKey = ShogiColor | 'truth';
 
@@ -46,12 +50,16 @@ type DarkShogiPostgameTerminal =
 // The persistence slice the reveal builder needs, injected so the reveal-gate
 // and masking are unit-testable without a live database.
 export type DarkShogiPostgamePersistence = {
+  getLiveRoom?(roomId: string): DarkShogiRuntimeRoom | null;
   getGameSummary(roomId: string): ReturnType<typeof persistence.getGameSummary>;
+  isPersistenceEnabled?(): boolean;
   loadRoomEvents(roomId: string): Promise<DarkShogiEvent[] | null>;
 };
 
 const livePersistence: DarkShogiPostgamePersistence = {
+  getLiveRoom: (roomId) => darkShogiRooms.get(roomId) ?? null,
   getGameSummary: (roomId) => persistence.getGameSummary(roomId),
+  isPersistenceEnabled: () => persistence.isInitialized(),
   loadRoomEvents: (roomId) => persistence.loadRoomEvents<DarkShogiEvent>(roomId),
 };
 
@@ -70,7 +78,6 @@ export async function tryHandle(
     writeJson(response, 404, { error: 'not_found' });
     return true;
   }
-  if (!requirePersistence(response)) return true;
 
   const roomId = decodeURIComponent(postgameMatch[1]!);
   const payload = await darkShogiPostgameForApi(roomId, livePersistence);
@@ -83,33 +90,43 @@ export async function tryHandle(
 }
 
 export async function darkShogiPostgameForApi(roomId: string, deps: DarkShogiPostgamePersistence) {
+  const persistenceEnabled = deps.isPersistenceEnabled?.() ?? true;
   const [game, events] = await Promise.all([
-    deps.getGameSummary(roomId),
-    deps.loadRoomEvents(roomId),
+    persistenceEnabled ? deps.getGameSummary(roomId) : null,
+    persistenceEnabled ? deps.loadRoomEvents(roomId) : null,
   ]);
-  if (!game || game.variant !== DARK_SHOGI_SPEC_ID) return null;
-  if (!events || !isDarkShogiEventLog(events, roomId)) return null;
+  if (game && game.variant !== DARK_SHOGI_SPEC_ID) return null;
+  if (events && !isDarkShogiEventLog(events, roomId)) return null;
 
-  const projection = replayDarkShogiEvents(events);
+  let source: { game: persistence.RecentEveGameRecord; events: readonly DarkShogiEvent[] } | null =
+    game && events ? { game, events } : null;
+  if (!source) {
+    const room = deps.getLiveRoom?.(roomId) ?? null;
+    await room?.pendingWrites.catch(() => undefined);
+    source = darkShogiPostgameFromLiveRoom(roomId, room);
+  }
+  if (!source) return null;
+
+  const projection = replayDarkShogiEvents(source.events);
   // The reveal gate: only a FINISHED game exposes the truth board and the
   // opponent's hidden history. A live or aborted-mid-play room returns 404.
   if (projection.state.status.type !== 'finished') return null;
 
-  const latestMoveColor = latestDarkShogiMoveColor(events);
+  const latestMoveColor = latestDarkShogiMoveColor(source.events);
   return {
     game: {
-      roomId: game.roomId,
-      variant: game.variant,
-      mode: game.mode,
-      result: game.result,
-      termination: game.termination,
-      plyCount: game.plyCount,
-      startedAt: game.startedAt.toISOString(),
-      endedAt: game.endedAt.toISOString(),
-      rated: game.rated,
-      visibility: game.visibility,
-      initialMs: game.initialMs,
-      incrementMs: game.incrementMs,
+      roomId: source.game.roomId,
+      variant: source.game.variant,
+      mode: source.game.mode,
+      result: source.game.result,
+      termination: source.game.termination,
+      plyCount: source.game.plyCount,
+      startedAt: source.game.startedAt.toISOString(),
+      endedAt: source.game.endedAt.toISOString(),
+      rated: source.game.rated,
+      visibility: source.game.visibility,
+      initialMs: source.game.initialMs,
+      incrementMs: source.game.incrementMs,
     },
     state: {
       status: projection.state.status,
@@ -117,10 +134,53 @@ export async function darkShogiPostgameForApi(roomId: string, deps: DarkShogiPos
       clock: projection.clock,
       timeControl: projection.timeControl,
     },
-    timeline: darkShogiPostgameTimeline(events),
+    timeline: darkShogiPostgameTimeline(source.events),
     view: darkShogiTruthView(projection.state),
     views: darkShogiPostgameViews(projection.state, latestMoveColor),
-    history: darkShogiPostgameHistory(events),
+    history: darkShogiPostgameHistory(source.events),
+  };
+}
+
+function darkShogiPostgameFromLiveRoom(
+  roomId: string,
+  room: DarkShogiRuntimeRoom | null,
+): { game: persistence.RecentEveGameRecord; events: readonly DarkShogiEvent[] } | null {
+  if (!room || room.id !== roomId) return null;
+  if (room.projection.state.status.type !== 'finished') return null;
+  if (!isDarkShogiEventLog(room.events, roomId)) return null;
+  const summary = buildTenantGameSummary(darkShogiTenant, room);
+  return {
+    game: recentGameRecordFromSummary(room.id, summary),
+    events: room.events,
+  };
+}
+
+function recentGameRecordFromSummary(
+  roomId: string,
+  summary: persistence.GameSummary,
+): persistence.RecentEveGameRecord {
+  return {
+    roomId,
+    variant: summary.variant,
+    mode: summary.mode ?? (summary.corpusId ? 'imported' : 'pvp'),
+    result: summary.result,
+    termination: summary.termination,
+    plyCount: summary.plyCount,
+    startedAt: summary.startedAt,
+    endedAt: summary.endedAt,
+    whiteName: summary.whiteName,
+    blackName: summary.blackName,
+    corpusId: summary.corpusId,
+    rated: summary.rated ?? false,
+    jobId: null,
+    gameIndex: null,
+    whiteEngineId: null,
+    blackEngineId: null,
+    timeControl: null,
+    initialMs: summary.initialMs ?? null,
+    incrementMs: summary.incrementMs ?? null,
+    visibility: summary.visibility ?? 'private',
+    participants: summary.participants ?? [],
   };
 }
 
