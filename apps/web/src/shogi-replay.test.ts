@@ -22,9 +22,7 @@ describe('Shogi article replay', () => {
     expect(replay.moves).toHaveLength(147);
     expect(replay.states).toHaveLength(148);
     expect(replay.moves.some(isShogiDrop)).toBe(true);
-    expect(
-      replay.moves.some((move) => !isShogiDrop(move) && Boolean(move.promote)),
-    ).toBe(true);
+    expect(replay.moves.some((move) => !isShogiDrop(move) && Boolean(move.promote))).toBe(true);
     expect(replay.moves.at(-1)).toMatchObject({ to: '9c' });
     expect(replay.states.at(-1)?.status).toMatchObject({ type: 'playing', turn: 'white' });
   });

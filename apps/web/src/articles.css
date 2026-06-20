@@ -667,11 +667,11 @@
 }
 .shogi-article-pair-label {
   fill: var(--site-heading);
-  font: 600 18px/1 var(--font-sans, system-ui, sans-serif);
+  font: 600 18px / 1 var(--font-sans, system-ui, sans-serif);
 }
 .shogi-hand-row-label {
   fill: var(--site-muted);
-  font: 600 13px/1 var(--font-sans, system-ui, sans-serif);
+  font: 600 13px / 1 var(--font-sans, system-ui, sans-serif);
 }
 .shogi-hand-row {
   fill: var(--site-panel-soft);
