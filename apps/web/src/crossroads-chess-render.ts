@@ -102,6 +102,9 @@ export type CrossroadsChessRenderOptions = {
   arrows?: readonly { from: CrossroadsChessSquare; to: CrossroadsChessSquare }[];
   // Add a transparent hit layer of <rect data-square="..."> for click handling.
   interactive?: boolean;
+  // Draw board coordinate labels. Defaults to true for live play; review
+  // triptychs can disable them to keep the three-board layout quiet.
+  coords?: boolean;
   // Crossroads is a hybrid: orthodox chess roles use the chess piece set;
   // chariot/horse/cannon/soldier use the xiangqi piece set.
   chessPieceSet?: PieceSet;
@@ -146,6 +149,7 @@ export function renderCrossroadsChessBoardSvg(
     arrows: (options.arrows ?? []).map((a) => ({ from: coordOf(a.from), to: coordOf(a.to) })),
     fogHidden: showFog ? hiddenSquares(visible) : null,
     interactive: options.interactive ?? false,
+    coords: options.coords ?? true,
     squareName: (file, rank) => squareAt(file, rank),
   });
 }

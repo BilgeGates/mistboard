@@ -58,22 +58,15 @@
   color: var(--site-text);
 }
 
-/* Composition: triptych (3 boards across) on the left, Game + Moves stacked in a
-   right rail; the boards are height-capped so the page fits without vertical
-   scrolling. */
-.dark-crossroads-chess-postgame-route .dxq-postgame__layout {
-  grid-template-columns: minmax(0, 1fr) minmax(250px, 310px);
-  align-items: start;
-}
-
-.dark-crossroads-chess-postgame-route .dxq-postgame__side {
-  grid-template-columns: minmax(0, 1fr);
+.dark-crossroads-chess-postgame-route .dxq-postgame__boards {
+  gap: clamp(12px, 1.2vw, 18px);
+  justify-items: center;
 }
 
 .dark-crossroads-chess-postgame-route .dxq-postgame__board {
-  /* The 6x8 board is taller than wide; cap by viewport height so three sit in a
-     row without overflowing. */
-  max-width: min(100%, 42vh);
+  /* The 6x8 board is taller than wide. Keep the triptych below the square-board
+     routes so the panes breathe and the nav/header do not crowd the first row. */
+  max-width: min(100%, 35vh, 320px);
   margin-inline: auto;
 }
 

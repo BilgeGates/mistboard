@@ -13,10 +13,10 @@ import {
   readCrossroadsChessAppearance,
   renderCrossroadsChessBoardSvg,
 } from './crossroads-chess-render.js';
-import { createDarkCrossroadsChessPlayAgainRoom } from './dark-crossroads-chess-room-actions.js';
 import { createDxqPostgameShell, createDxqReplayControls } from './dxq-postgame-shell.js';
 import { darkCrossroadsChessEnabled } from './feature-flags.js';
 import { handlePostgameReplayKeyboard } from './postgame-keyboard.js';
+import { buildNav } from './site-shell.js';
 import { setBoardFamily } from './theme.js';
 
 export type DarkCrossroadsChessPostgameViewKey = CrossroadsChessColor | 'truth';
@@ -70,7 +70,7 @@ type LoadResult =
 export function mountDarkCrossroadsChessPostgame(root: HTMLElement, roomId: string): void {
   root.classList.add('landing-page', 'dark-crossroads-chess-postgame-route');
   setBoardFamily('chess');
-  root.replaceChildren(loadingView());
+  root.replaceChildren(buildNav(), loadingView());
   if (!darkCrossroadsChessEnabled()) {
     renderError(
       root,
@@ -122,8 +122,8 @@ function renderPostgame(root: HTMLElement, postgame: DarkCrossroadsChessPostgame
   const abortController = new AbortController();
   postgameAbortControllers.set(root, abortController);
 
-  root.replaceChildren();
-  root.append(
+  root.replaceChildren(
+    buildNav(),
     createDxqPostgameShell({
       actions: postgameActions(postgame),
       ariaLabel: 'Dark Crossroads Chess postgame',
@@ -165,6 +165,7 @@ function boardsPanel(
       board.innerHTML = renderCrossroadsChessBoardSvg(view, {
         perspective: boardOrientation,
         showFog: entry.key !== 'truth',
+        coords: false,
         ...appearance,
       });
     }
@@ -283,33 +284,6 @@ function postgameActions(postgame: DarkCrossroadsChessPostgameResponse): HTMLEle
   const actions = document.createElement('nav');
   actions.className = 'dxq-postgame__actions';
   actions.setAttribute('aria-label', 'Game links');
-  let playAgainStatus: 'creating' | 'failed' | 'idle' = 'idle';
-  const playAgain = document.createElement('button');
-  playAgain.type = 'button';
-  playAgain.className = 'dxq-postgame__link dxq-postgame__link--primary';
-  const syncPlayAgain = () => {
-    playAgain.disabled = playAgainStatus === 'creating';
-    playAgain.textContent =
-      playAgainStatus === 'creating'
-        ? 'Creating'
-        : playAgainStatus === 'failed'
-          ? 'Try play again'
-          : 'Play again';
-  };
-  playAgain.addEventListener('click', () => {
-    playAgainStatus = 'creating';
-    syncPlayAgain();
-    void createDarkCrossroadsChessPlayAgainRoom({ timeControl: postgameTimeControl(postgame) })
-      .then((url) => {
-        window.location.assign(url);
-      })
-      .catch((err) => {
-        console.warn(err);
-        playAgainStatus = 'failed';
-        syncPlayAgain();
-      });
-  });
-  syncPlayAgain();
   const home = document.createElement('a');
   home.className = 'dxq-postgame__link';
   home.href = '/';
@@ -318,7 +292,7 @@ function postgameActions(postgame: DarkCrossroadsChessPostgameResponse): HTMLEle
   room.className = 'dxq-postgame__link';
   room.href = `/room/${encodeURIComponent(postgame.game.roomId)}`;
   room.textContent = 'Room';
-  actions.append(playAgain, home, room);
+  actions.append(home, room);
   return actions;
 }
 
@@ -406,7 +380,6 @@ function loadingView(): HTMLElement {
 }
 
 function renderError(root: HTMLElement, titleText: string, bodyText: string): void {
-  root.replaceChildren();
   const shell = document.createElement('main');
   shell.className = 'dxq-postgame__error';
   const title = document.createElement('h1');
@@ -414,7 +387,7 @@ function renderError(root: HTMLElement, titleText: string, bodyText: string): vo
   const body = document.createElement('p');
   body.textContent = bodyText;
   shell.append(title, body);
-  root.append(shell);
+  root.replaceChildren(buildNav(), shell);
 }
 
 function errorTitle(status: number): string {
