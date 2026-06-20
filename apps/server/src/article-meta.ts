@@ -94,7 +94,7 @@ export const ARTICLE_META: Record<
     title: 'How MistyBanqi Plays',
     kind: 'article',
     description:
-      'MistyBanqi is the engine you play in Banqi on Mistboard: a classical search engine with a hand-written evaluation. How it thinks, and the one blind spot worth knowing — it can draw a game it has already won.',
+      'MistyBanqi is the engine you play in Banqi on Mistboard: a classical search engine with a hand-written evaluation. How it thinks, and the blind spot worth knowing: it can draw a game it has already won.',
   },
   'server-enforced-fog': {
     title: 'Programming Dark Chess with Server-Side Truth',
