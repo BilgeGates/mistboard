@@ -839,7 +839,7 @@ function handleSquareClick(s: SpikeState, square: XiangqiSquare): SpikeState {
   }
 
   const legal = getLegalMovesFrom(s.game, s.selection);
-  const move = legal.find((m) => m.to === square);
+  const move = legal.find((m: XiangqiMove) => m.to === square);
   if (move) {
     const next = applyMove(s.game, move);
     return {
