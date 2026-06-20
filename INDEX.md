@@ -378,6 +378,7 @@ Run with `MISTBOARD_ALLOW_IN_MEMORY_PERSISTENCE=true npm run test:integration --
 | `article-i18n.ts` | Article localization strings and language helpers |
 | `dark-xiangqi-postgame.ts` | Flagged Dark Xiangqi postgame/review route renderer; reuses `renderDarkXiangqiBoardSvg`. Loads `live-xiangqi.css` + `dark-xiangqi-postgame.css` |
 | `dxq-postgame-shell.ts` | Shared postgame review shell + replay controls for the hidden triptych SVG variants; owns the left summary rail / board grid / moves rail scaffold while variant routes keep board-specific rendering |
+| `postgame-keyboard.ts` | Shared postgame review keyboard navigation helper: left/right/home/end ply stepping plus flipped-board toggling, wired into hidden triptych review routes |
 | `dark-xiangqi-room-actions.ts` | Flagged Dark Xiangqi room creation/action helpers |
 | `account-nav.ts` | Top-nav account menu + sign-in state. Loads `account-nav.css` |
 | `account-nav.css` | Top-nav account/auth slot styles loaded by `account-nav.ts` |
