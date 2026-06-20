@@ -53,6 +53,33 @@ describe('landing play panel', () => {
     expect(overlay?.textContent).not.toContain('Random Legal');
   });
 
+  it('shows the mini-board marker when only one variant is available', () => {
+    vi.stubEnv('DEV', false);
+    vi.stubEnv('VITE_DARK_MINI_XIANGQI_ENABLED', 'false');
+    vi.stubEnv('VITE_DARK_MINI_XIANGQI_PUBLIC_ENTRY_ENABLED', 'false');
+    vi.stubEnv('VITE_DARK_XIANGQI_ENABLED', 'false');
+    vi.stubEnv('VITE_JIEQI_ENABLED', 'false');
+    vi.stubEnv('VITE_BANQI_ENABLED', 'false');
+    vi.stubEnv('VITE_REVEAL_CHESS_ENABLED', 'false');
+    vi.stubEnv('VITE_CROSSROADS_CHESS_ENABLED', 'false');
+    vi.stubEnv('VITE_DARK_CROSSROADS_CHESS_ENABLED', 'false');
+    vi.stubEnv('VITE_DARK_SHOGI_ENABLED', 'false');
+    vi.stubEnv('VITE_DARK_CRAZYHOUSE_ENABLED', 'false');
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => jsonResponse({ playing: 0, online: 0 })),
+    );
+    const panel = buildLandingPlayPanel([]);
+    document.body.append(panel);
+
+    openPlaySetup(panel, 'Play the engine');
+
+    const control = document.querySelector<HTMLElement>('.landing-variant-control');
+    expect(variantPickerPresent()).toBe(false);
+    expect(control?.textContent).toContain('Dark chess');
+    expect(control?.querySelector('svg[data-mini-id="dark-chess"]')).not.toBeNull();
+  });
+
   it('creates dark chess rooms with a canonical game spec id behind the Variant UI', async () => {
     const fetchSpy = vi.fn(async (input: RequestInfo | URL, _init?: RequestInit) => {
       if (String(input) === '/api/live-stats') return jsonResponse({ playing: 0, online: 0 });

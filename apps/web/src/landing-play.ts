@@ -739,7 +739,18 @@ function openLandingSetupDialog(choice: LandingPlayChoice): void {
   } else {
     const variantControl = document.createElement('div');
     variantControl.className = 'landing-variant-control';
-    variantControl.textContent = gameSpecForId(selectedGameSpecId).publicName;
+    const label = gameSpecForId(selectedGameSpecId).publicName;
+    const miniId = variantMiniIdForGameSpec(selectedGameSpecId);
+    if (miniId) {
+      const thumb = document.createElement('span');
+      thumb.className = 'landing-variant-control-thumb';
+      thumb.innerHTML = renderVariantMiniBoard(miniId, { size: 100, label: `${label} board` });
+      variantControl.append(thumb);
+    }
+    const name = document.createElement('span');
+    name.className = 'landing-variant-control-name';
+    name.textContent = label;
+    variantControl.append(name);
     variantSection.append(variantControl);
   }
 

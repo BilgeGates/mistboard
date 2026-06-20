@@ -316,16 +316,35 @@
 }
 
 .landing-variant-control {
-  min-height: 42px;
+  min-height: 48px;
   display: flex;
   align-items: center;
+  gap: 10px;
   border: 1px solid var(--site-border);
   border-radius: var(--site-radius-sm);
   background: var(--site-panel-soft);
   color: var(--site-text);
   font-size: 14px;
   font-weight: 760;
-  padding: 9px 10px;
+  padding: 6px 10px;
+}
+
+.landing-variant-control-thumb {
+  display: block;
+  width: 34px;
+  height: 34px;
+  flex: 0 0 34px;
+}
+
+.landing-variant-control-thumb svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.landing-variant-control-name {
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 
 /* Connected segmented control (lichess-style): one bordered, rounded track whose
