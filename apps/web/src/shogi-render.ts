@@ -56,34 +56,33 @@ const CELL = 48;
 export const SHOGI_PIECE_PX = CELL * 0.9;
 const KOMA_GLYPH_CENTER_Y = 0.62;
 
-// Per-theme cell + fog colors. The frame is always transparent (borderless, to
+// Per-theme cell colors. The frame is always transparent (borderless, to
 // match the fog aesthetic of the other variants) and the interaction colors
 // (last-move, selection, targets) are constant across themes.
 const SHOGI_BOARD_PALETTES: Record<
   ShogiBoardTheme,
-  { lightCell: string; darkCell: string; coord: string; fog: string }
+  { lightCell: string; darkCell: string; coord: string }
 > = {
   wood: {
     lightCell: '#f4ddb0',
     darkCell: '#ecd09c',
     coord: '#8a6d3f',
-    fog: 'rgba(231,221,197,0.88)',
   },
   kaya: {
     lightCell: '#f7e7c2',
     darkCell: '#f1ddb0',
     coord: '#9a7b46',
-    fog: 'rgba(240,229,205,0.88)',
   },
   plain: {
     lightCell: '#ece4d4',
     darkCell: '#e3d8c4',
     coord: '#8c8270',
-    fog: 'rgba(232,227,216,0.9)',
   },
 };
 
-function paletteFor(theme: ShogiBoardTheme): GridPalette {
+const SHOGI_FOG_FALLBACK = 'rgba(46, 43, 37, 0.82)';
+
+function paletteFor(theme: ShogiBoardTheme, fogFill = SHOGI_FOG_FALLBACK): GridPalette {
   const c = SHOGI_BOARD_PALETTES[theme] ?? SHOGI_BOARD_PALETTES.wood;
   return {
     lightCell: c.lightCell,
@@ -98,18 +97,18 @@ function paletteFor(theme: ShogiBoardTheme): GridPalette {
     selected: 'rgba(207,227,154,0.70)',
     targetDot: '#5f7d33',
     targetRing: '#5f7d33',
-    // A pale mist over un-attacked cells (the fog overlay is drawn over pieces, so
-    // it must be translucent; off-vision pieces are already absent from the view).
-    fog: c.fog,
+    // Off-vision pieces are already absent from the view, so fog can be a real
+    // dark field instead of a pale disabled-state wash.
+    fog: fogFill,
   };
 }
 
-function shogiDescriptor(theme: ShogiBoardTheme) {
+function shogiDescriptor(theme: ShogiBoardTheme, fogFill?: string) {
   return {
     files: FILES,
     ranks: RANKS,
     cell: CELL,
-    palette: paletteFor(theme),
+    palette: paletteFor(theme, fogFill),
     framePad: 0,
     pad: 0,
     frameRadius: 0,
@@ -121,6 +120,15 @@ function shogiDescriptor(theme: ShogiBoardTheme) {
     fileLabel: (file: number) => String(FILES - file),
     svgClass: 'shogi-board-svg',
   };
+}
+
+function shogiFogPatternDefs(id: string): string {
+  const boardSize = FILES * CELL;
+  return `<pattern id="${id}-fog" patternUnits="userSpaceOnUse" width="${boardSize}" height="${boardSize}">
+<rect class="shogi-fog-tint" width="${boardSize}" height="${boardSize}" fill="${SHOGI_FOG_FALLBACK}"/>
+<image class="shogi-fog-tex shogi-fog-tex-drift" href="/fog/fog.webp" x="0" y="0" width="${boardSize}" height="${boardSize}" preserveAspectRatio="xMidYMid slice"/>
+<image class="shogi-fog-tex shogi-fog-tex-mist" href="/fog/mistveil.webp" x="0" y="0" width="${boardSize}" height="${boardSize}" preserveAspectRatio="xMidYMid slice"/>
+</pattern>`;
 }
 
 export type ShogiRenderOptions = {
@@ -170,9 +178,10 @@ export function renderShogiBoardSvg(
       : [coordOf(lastMove.from), coordOf(lastMove.to)]
     : null;
 
-  return renderGridBoardSvg(shogiDescriptor(theme), {
+  return renderGridBoardSvg(shogiDescriptor(theme, `url(#${id}-fog)`), {
     id,
     flip: perspective === 'white',
+    extraDefs: showFog ? shogiFogPatternDefs(id) : '',
     renderPieces: (geom) => pieceLayer(view, geom, perspective, options.draggingFrom ?? null, set),
     lastMove: lastCells,
     selected: options.selected ? coordOf(options.selected) : null,

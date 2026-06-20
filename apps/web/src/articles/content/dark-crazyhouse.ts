@@ -98,7 +98,7 @@ const PARACHUTE_REVEAL = applyCrazyhouseMove(PARACHUTE_AFTER, { from: 'e8', to: 
 export const darkCrazyhouseArticle: Article = {
   slug: 'dark-crazyhouse',
   kind: 'rules',
-  title: 'Dark Crazyhouse (Fog of War) Rules',
+  title: 'Dark Crazyhouse Rules',
   summary:
     'Crazyhouse under Fog of War: captured pieces flip color into your hand and drop back into play, hands are private, you can parachute a drop into the fog, and the king falls by capture.',
   showSummaryOnPage: false,

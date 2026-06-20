@@ -50,58 +50,92 @@ function placeSvg(svg: string, x: number, y: number, width: number, height = wid
   );
 }
 
+function boardRowSvg(boards: readonly { label: string; svg: string }[], boardSize: number): string {
+  const pad = 18;
+  const gap = boards.length === 3 ? 20 : 34;
+  const labelY = 24;
+  const boardY = 42;
+  const width = pad * 2 + boardSize * boards.length + gap * (boards.length - 1);
+  const height = boardY + boardSize + 16;
+  return `<svg class="shogi-article-pair" viewBox="0 0 ${width} ${height}" role="img" xmlns="http://www.w3.org/2000/svg">
+<rect x="0" y="0" width="${width}" height="${height}" rx="10" class="shogi-article-panel-bg" fill="var(--site-panel, #fff8e8)" stroke="var(--site-border-soft, rgba(29,37,34,0.12))"/>
+${boards
+  .map((board, index) => {
+    const x = pad + index * (boardSize + gap);
+    return `<text x="${x + boardSize / 2}" y="${labelY}" text-anchor="middle" class="shogi-article-pair-label" fill="#3a2c14" font-family="system-ui, sans-serif" font-size="18" font-weight="600">${board.label}</text>
+${placeSvg(board.svg, x, boardY, boardSize)}`;
+  })
+  .join('\n')}
+</svg>`;
+}
+
 function pairedBoardSvg(input: {
   leftLabel: string;
   leftSvg: string;
   rightLabel: string;
   rightSvg: string;
 }): string {
-  const boardSize = 340;
-  const pad = 18;
-  const gap = 34;
-  const labelY = 24;
-  const boardY = 42;
-  const width = pad * 2 + boardSize * 2 + gap;
-  const height = boardY + boardSize + 16;
-  const rightX = pad + boardSize + gap;
-  return `<svg class="shogi-article-pair" viewBox="0 0 ${width} ${height}" role="img" xmlns="http://www.w3.org/2000/svg">
-<rect x="0" y="0" width="${width}" height="${height}" rx="10" fill="#fff8e8"/>
-<text x="${pad + boardSize / 2}" y="${labelY}" text-anchor="middle" class="shogi-article-pair-label" fill="#3a2c14" font-family="system-ui, sans-serif" font-size="18" font-weight="600">${input.leftLabel}</text>
-<text x="${rightX + boardSize / 2}" y="${labelY}" text-anchor="middle" class="shogi-article-pair-label" fill="#3a2c14" font-family="system-ui, sans-serif" font-size="18" font-weight="600">${input.rightLabel}</text>
-${placeSvg(input.leftSvg, pad, boardY, boardSize)}
-${placeSvg(input.rightSvg, rightX, boardY, boardSize)}
-</svg>`;
+  return boardRowSvg(
+    [
+      { label: input.leftLabel, svg: input.leftSvg },
+      { label: input.rightLabel, svg: input.rightSvg },
+    ],
+    340,
+  );
+}
+
+function triptychBoardSvg(input: {
+  leftLabel: string;
+  leftSvg: string;
+  middleLabel: string;
+  middleSvg: string;
+  rightLabel: string;
+  rightSvg: string;
+}): string {
+  return boardRowSvg(
+    [
+      { label: input.leftLabel, svg: input.leftSvg },
+      { label: input.middleLabel, svg: input.middleSvg },
+      { label: input.rightLabel, svg: input.rightSvg },
+    ],
+    226,
+  );
 }
 
 function pieceInHand(role: ShogiHandRole, color: ShogiColor, x: number, y: number): string {
   return placeSvg(shogiHandKomaSvg(role, color, color === 'black'), x, y, 38);
 }
 
-function fogHandSlots(x: number, y: number, count: number): string {
-  const slots: string[] = [];
-  for (let i = 0; i < count; i += 1) {
-    const slotX = x + i * 42;
-    slots.push(
-      `<rect x="${slotX}" y="${y}" width="38" height="38" rx="5" class="shogi-hand-fog-slot" fill="rgba(232, 227, 216, 0.9)" stroke="#c9bda9" stroke-width="1.2"/>`,
-    );
-  }
-  return slots.join('');
+function fogHandBand(x: number, y: number, width: number): string {
+  return `<rect x="${x}" y="${y}" width="${width}" height="38" rx="7" class="shogi-hand-fog-band" fill="rgba(46, 43, 37, 0.82)" stroke="#3a523f" stroke-width="1.2"/>`;
 }
 
 function handPrivacySvg(): string {
-  const width = 700;
+  const width = 760;
   const height = 214;
-  const panelWidth = 314;
-  const gap = 32;
+  const panelWidth = 224;
+  const gap = 26;
   const leftX = 18;
-  const rightX = leftX + panelWidth + gap;
+  const middleX = leftX + panelWidth + gap;
+  const rightX = middleX + panelWidth + gap;
   const topY = 60;
   const bottomY = 136;
   return `<svg class="shogi-hand-privacy-svg" viewBox="0 0 ${width} ${height}" role="img" xmlns="http://www.w3.org/2000/svg">
-<rect x="0" y="0" width="${width}" height="${height}" rx="10" fill="#fff8e8"/>
-<text x="${leftX + panelWidth / 2}" y="24" text-anchor="middle" class="shogi-article-pair-label" fill="#3a2c14" font-family="system-ui, sans-serif" font-size="18" font-weight="600">True hands</text>
-<text x="${rightX + panelWidth / 2}" y="24" text-anchor="middle" class="shogi-article-pair-label" fill="#3a2c14" font-family="system-ui, sans-serif" font-size="18" font-weight="600">Black sees</text>
+<rect x="0" y="0" width="${width}" height="${height}" rx="10" class="shogi-article-panel-bg" fill="var(--site-panel, #fff8e8)" stroke="var(--site-border-soft, rgba(29,37,34,0.12))"/>
+<text x="${leftX + panelWidth / 2}" y="24" text-anchor="middle" class="shogi-article-pair-label" fill="#3a2c14" font-family="system-ui, sans-serif" font-size="18" font-weight="600">Black sees</text>
+<text x="${middleX + panelWidth / 2}" y="24" text-anchor="middle" class="shogi-article-pair-label" fill="#3a2c14" font-family="system-ui, sans-serif" font-size="18" font-weight="600">True hands</text>
+<text x="${rightX + panelWidth / 2}" y="24" text-anchor="middle" class="shogi-article-pair-label" fill="#3a2c14" font-family="system-ui, sans-serif" font-size="18" font-weight="600">White sees</text>
 <g transform="translate(${leftX} 0)">
+<text x="0" y="${topY - 10}" class="shogi-hand-row-label" fill="#736650" font-family="system-ui, sans-serif" font-size="13" font-weight="600">White hand hidden</text>
+<rect x="0" y="${topY}" width="${panelWidth}" height="48" rx="7" class="shogi-hand-row" fill="#fbf6ea" stroke="#d2c4ac" stroke-width="1.5"/>
+${fogHandBand(8, topY + 5, panelWidth - 16)}
+<text x="0" y="${bottomY - 10}" class="shogi-hand-row-label" fill="#736650" font-family="system-ui, sans-serif" font-size="13" font-weight="600">Black hand visible</text>
+<rect x="0" y="${bottomY}" width="${panelWidth}" height="48" rx="7" class="shogi-hand-row" fill="#fbf6ea" stroke="#d2c4ac" stroke-width="1.5"/>
+${pieceInHand('S', 'black', 8, bottomY + 5)}
+${pieceInHand('P', 'black', 50, bottomY + 5)}
+${pieceInHand('P', 'black', 92, bottomY + 5)}
+</g>
+<g transform="translate(${middleX} 0)">
 <text x="0" y="${topY - 10}" class="shogi-hand-row-label" fill="#736650" font-family="system-ui, sans-serif" font-size="13" font-weight="600">White hand</text>
 <rect x="0" y="${topY}" width="${panelWidth}" height="48" rx="7" class="shogi-hand-row" fill="#fbf6ea" stroke="#d2c4ac" stroke-width="1.5"/>
 ${pieceInHand('R', 'white', 8, topY + 5)}
@@ -112,14 +146,12 @@ ${pieceInHand('P', 'black', 50, bottomY + 5)}
 ${pieceInHand('P', 'black', 92, bottomY + 5)}
 </g>
 <g transform="translate(${rightX} 0)">
-<text x="0" y="${topY - 10}" class="shogi-hand-row-label" fill="#736650" font-family="system-ui, sans-serif" font-size="13" font-weight="600">White hand hidden</text>
+<text x="0" y="${topY - 10}" class="shogi-hand-row-label" fill="#736650" font-family="system-ui, sans-serif" font-size="13" font-weight="600">White hand visible</text>
 <rect x="0" y="${topY}" width="${panelWidth}" height="48" rx="7" class="shogi-hand-row" fill="#fbf6ea" stroke="#d2c4ac" stroke-width="1.5"/>
-${fogHandSlots(8, topY + 5, 3)}
-<text x="0" y="${bottomY - 10}" class="shogi-hand-row-label" fill="#736650" font-family="system-ui, sans-serif" font-size="13" font-weight="600">Black hand visible</text>
+${pieceInHand('R', 'white', 8, topY + 5)}
+<text x="0" y="${bottomY - 10}" class="shogi-hand-row-label" fill="#736650" font-family="system-ui, sans-serif" font-size="13" font-weight="600">Black hand hidden</text>
 <rect x="0" y="${bottomY}" width="${panelWidth}" height="48" rx="7" class="shogi-hand-row" fill="#fbf6ea" stroke="#d2c4ac" stroke-width="1.5"/>
-${pieceInHand('S', 'black', 8, bottomY + 5)}
-${pieceInHand('P', 'black', 50, bottomY + 5)}
-${pieceInHand('P', 'black', 92, bottomY + 5)}
+${fogHandBand(8, bottomY + 5, panelWidth - 16)}
 </g>
 </svg>`;
 }
@@ -127,6 +159,7 @@ ${pieceInHand('P', 'black', 92, bottomY + 5)}
 const START_STATE = createInitialShogiState('diagram');
 const START_TRUE_VIEW = truthView(START_STATE.board);
 const START_FOG_VIEW = getShogiPlayerView(START_STATE, 'black');
+const START_WHITE_VIEW = getShogiPlayerView(START_STATE, 'white');
 const START_FOG_SVG = renderShogiBoardSvg(START_FOG_VIEW, {
   showFog: true,
   pieceSet: 'kanji',
@@ -160,14 +193,27 @@ function openingDiagram(): ArticleBlock {
   return {
     kind: 'raw-svg',
     svg: () =>
-      pairedBoardSvg({
-        leftLabel: 'Server truth',
-        leftSvg: renderShogiBoardSvg(START_TRUE_VIEW, { showFog: false, showCoords: false }),
-        rightLabel: 'Black sees',
-        rightSvg: renderShogiBoardSvg(START_FOG_VIEW, { showFog: true, showCoords: false }),
+      triptychBoardSvg({
+        leftLabel: 'Black sees',
+        leftSvg: renderShogiBoardSvg(START_FOG_VIEW, {
+          showFog: true,
+          showCoords: false,
+          perspective: 'black',
+        }),
+        middleLabel: 'Server truth',
+        middleSvg: renderShogiBoardSvg(START_TRUE_VIEW, {
+          showFog: false,
+          showCoords: false,
+          perspective: 'black',
+        }),
+        rightLabel: 'White sees',
+        rightSvg: renderShogiBoardSvg(START_WHITE_VIEW, {
+          showFog: true,
+          showCoords: false,
+          perspective: 'black',
+        }),
       }),
-    className: 'shogi-figure-pair',
-    caption: 'The server holds the full start position. Black receives only its army and the squares those pieces reach.',
+    className: 'shogi-figure-triptych',
   } as ArticleBlock;
 }
 
@@ -190,7 +236,6 @@ function fieldOfFireDiagram(): ArticleBlock {
         }),
       }),
     className: 'shogi-figure-pair',
-    caption: 'The rook sees the pawn it can hit, but the king behind that pawn stays hidden.',
   } as ArticleBlock;
 }
 
@@ -199,16 +244,15 @@ function privateHandsDiagram(): ArticleBlock {
     kind: 'raw-svg',
     svg: () => handPrivacySvg(),
     className: 'shogi-figure-hand',
-    caption: 'Captured pieces in your hand are visible to you; the opponent hand is private.',
   } as ArticleBlock;
 }
 
 export const darkShogiArticle: Article = {
   slug: 'dark-shogi',
   kind: 'rules',
-  title: 'Dark Shogi (Fog of War) Rules',
+  title: 'Dark Shogi Rules',
   summary:
-    'Shogi under Fog of War: each side sees only the squares its pieces reach, captured pieces stay private in hand, check warnings disappear, and the king falls by capture.',
+    'Shogi under Fog of War: the Shogi rules supply the board, pieces, promotion, and drop mechanic; this page covers vision, private hands, drop bounces, and king capture.',
   showSummaryOnPage: false,
   status: 'draft',
   publishedAt: '2026-06-18',
@@ -219,49 +263,61 @@ export const darkShogiArticle: Article = {
   intro: [
     {
       kind: 'paragraph',
-      text: 'Dark Shogi is [shogi](/rules/shogi) under Fog of War. Pieces keep their shogi movement, and drops still put captured pieces back into play, but enemy pieces outside your vision are hidden, each side\'s hand is private, and there are no check warnings. Capture the king to win.',
+      text: 'Dark Shogi is [Shogi](/rules/shogi) played under Mistboard\'s Fog of War model. The board, pieces, setup, promotion, captures, and drop mechanic come from Shogi; this page covers only the hidden-information changes.',
     },
     {
       kind: 'paragraph',
-      text: 'For the open-information base game, read [Shogi Rules](/rules/shogi). If you already play shogi, the sections below focus on what fog changes.',
+      text: 'If Shogi is new to you, start with [Shogi Rules](/rules/shogi). If you already play, the short version is: hidden enemy pieces stay hidden, each hand is private, check disappears, and the king is actually captured.',
     },
   ],
   sections: [
     {
-      heading: 'The starting position',
+      heading: 'Board and fog',
       blocks: [
         {
           kind: 'paragraph',
-          text: 'At the start, you see your own 20 pieces and every square they reach. Everything beyond that is fog. The pair below compares the server\'s true opening board with Black\'s opening view: the pawn rank and the squares just ahead of it are visible, while the far half of the board, including White\'s army, remains hidden.',
+          text: 'The game starts from the standard Shogi setup. Black, or sente, moves first in Shogi, so these examples use Black\'s board orientation unless a label says otherwise. At the start, you see your own 20 pieces and every square they reach. Everything else is fog. The server still holds the full position, and your opponent receives a different view of the same truth.',
         },
         openingDiagram(),
+        {
+          kind: 'paragraph',
+          text: 'Vision is recomputed after every legal move and accepted drop, so advancing, capturing, promoting, or opening a slider line changes what you know immediately.',
+        },
       ],
     },
     {
-      heading: 'Vision is field of fire',
+      heading: 'What you see',
       blocks: [
         {
           kind: 'paragraph',
-          text: 'You see a square when one of your pieces reaches it. A rook, bishop, or lance sees up to the first piece in its path and stops there, so you see the piece you can hit but nothing behind it. Vision is recomputed from the true board after every move, which means opening a line, advancing a pawn, or dropping a piece changes what you know immediately.',
+          text: 'A square is visible when one of your pieces reaches it under Shogi movement. A rook, bishop, or lance sees up to the first occupied square and stops there, so you see the piece you can hit but not anything behind it. The other pieces use the same movement shown in the Shogi rules.',
         },
         {
           kind: 'paragraph',
-          text: 'Below, Black\'s rook looks straight up an open file. It sees the White pawn it can capture, but the White king one square behind that pawn stays in the fog. If the pawn moves away, the king appears.',
+          text: 'Fog does not tell you whether an unseen square is empty or occupied. Below, Black\'s rook sees the White pawn it can capture, but the White king one square behind that pawn stays hidden until the line opens.',
         },
         fieldOfFireDiagram(),
       ],
     },
     {
-      heading: 'Hands are private',
+      heading: 'Private hands and drops',
       blocks: [
         {
           kind: 'paragraph',
-          text: 'Captured pieces still join your hand, and you can still drop them, but your reserve is yours alone to see. In open shogi both hands sit face-up beside the board. Under fog, you see only your own hand, so you never know exactly what your opponent is holding.',
+          text: 'Captured pieces still switch sides and enter your hand as in Shogi, but only your own reserve is visible. The opponent hand is not sent to you, including its count; it has to be inferred from captures and missing pieces.',
         },
         privateHandsDiagram(),
         {
           kind: 'paragraph',
-          text: 'You can drop into the fog too. A piece dropped onto a square your opponent cannot see stays invisible to them until one of their pieces reaches it. The two-pawn rule still applies, and so do the dead-drop rules: no pawn or lance on the last rank, and no knight on the last two ranks. These restrictions are checked against the true board.',
+          text: 'Drops keep Shogi\'s placement restrictions: no second unpromoted pawn on a file, no pawn or lance on the last rank, and no knight on the last two ranks. Because Dark Shogi has no checkmate, the standard Shogi ban on drop-pawn mate does not apply.',
+        },
+        {
+          kind: 'paragraph',
+          text: '**Into the fog.** You may offer a drop onto any square your view shows empty, including a fogged square. If the square is truly empty, the piece lands and may stay invisible to your opponent until one of their pieces reaches it.',
+        },
+        {
+          kind: 'paragraph',
+          text: '**A bounced drop.** If the hidden square is occupied in truth, the drop bounces: nothing moves, your hand is intact, and it is still your turn. That can become a retry loop: choose another candidate square, or choose a different legal move. The rejection tells only you that the square is occupied, not which piece is there.',
         },
       ],
     },
@@ -270,20 +326,11 @@ export const darkShogiArticle: Article = {
       blocks: [
         {
           kind: 'paragraph',
-          text: 'Capture the king and you win on the spot. There is no check and no checkmate. The server never tells you your king is attacked, and it will allow moves that walk into danger or leave a threat unanswered. You must read threats from what your own pieces can see.',
+          text: 'Capture the king to win. There is no check, no checkmate, and no warning when your king is attacked. The server allows moves that walk into danger or leave a threat unanswered, so you read threats from what your own pieces can see.',
         },
         {
           kind: 'paragraph',
-          text: 'Because there is no checkmate, the open-shogi ban on drop-pawn mate does not apply. A pawn dropped where it attacks the king is legal; if the king is captured next move, that capture wins.',
-        },
-      ],
-    },
-    {
-      heading: 'How a game ends',
-      blocks: [
-        {
-          kind: 'paragraph',
-          text: 'The main ending is king capture. The other endings are the ordinary ones for a timed online game: running out of time, resigning, or abandoning the board. There is no checkmate to call the game early, so play continues until a king actually comes off the board.',
+          text: 'Timed rooms can also end by timeout, resignation, or abandonment. There is no visible checkmate claim to call the game early, so the main rules ending is a king actually coming off the board.',
         },
       ],
     },

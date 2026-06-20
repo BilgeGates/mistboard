@@ -73,10 +73,10 @@ export const ARTICLE_META: Record<
       'Standard shogi rules, the primer behind Dark Shogi: how the eight pieces move, promotion in the far ranks, the drop rule that puts captured pieces back in play, and how a game is won.',
   },
   'dark-shogi': {
-    title: 'Dark Shogi (Fog of War) Rules',
+    title: 'Dark Shogi Rules',
     kind: 'rules',
     description:
-      'Shogi under Fog of War: each side sees only the squares its pieces reach, captured-piece hands are private, there are no check warnings, and the king falls by capture.',
+      'Shogi under Fog of War: the Shogi rules supply the board, pieces, promotion, and drop mechanic; this page covers vision, private hands, drop bounces, and king capture.',
   },
   shogi4: {
     title: 'Shogi4 (4×4 Shogi) Rules',
@@ -103,13 +103,13 @@ export const ARTICLE_META: Record<
       'The complete rules of Kriegspiel, the 1899 ancestor of dark chess: you see only your own pieces, an umpire rejects illegal tries and announces captures, checks, and pawn tries, and checkmate wins.',
   },
   'dark-crazyhouse': {
-    title: 'Dark Crazyhouse (Fog of War) Rules',
+    title: 'Dark Crazyhouse Rules',
     kind: 'rules',
     description:
       'Crazyhouse under Fog of War: captured pieces flip color into your hand and drop back into play, hands are private, you can parachute a drop into the fog, and the king falls by capture.',
   },
   'dark-crossroads-chess': {
-    title: 'Dark Crossroads Chess (Fog of War) Rules',
+    title: 'Dark Crossroads Chess Rules',
     kind: 'rules',
     description:
       'Crossroads Chess under Fog of War: each side sees only the squares its pieces reach, there are no check warnings, the king falls by capture, and the race to the far rank becomes a one-move gamble in the dark.',

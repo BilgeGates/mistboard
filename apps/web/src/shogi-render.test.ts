@@ -49,7 +49,7 @@ describe('Dark Shogi board renderer', () => {
     // 81 board cells (9x9), each 48x48; no fog/selection/hit rects when clean.
     expect((svg.match(/width="48" height="48"/g) ?? []).length).toBe(81);
     // No fog overlay when showFog is false.
-    expect(svg).not.toContain('rgba(231,221,197,0.88)');
+    expect(svg).not.toContain('fill="url(#');
   });
 
   it('fogs squares outside vision and never leaks off-vision enemies', () => {
@@ -68,7 +68,10 @@ describe('Dark Shogi board renderer', () => {
     const view = getShogiPlayerView(state, 'black');
     const svg = renderShogiBoardSvg(view, { showFog: true });
 
-    expect(svg).toContain('rgba(231,221,197,0.88)'); // hidden squares are fogged
+    expect(svg).toMatch(/<pattern id="shogi-live-\d+-fog"/); // hidden squares are fogged
+    expect(svg).toContain('/fog/fog.webp');
+    expect(svg).toContain('/fog/mistveil.webp');
+    expect(svg).toContain('fill="url(#shogi-live-');
     expect(svg).toContain('飛'); // the Black rook is visible to its owner
     expect(view.board['5a']).toBeUndefined(); // the far White king never reaches the view
     expect(svg).not.toContain('玉'); // ...so its glyph cannot leak
@@ -133,7 +136,7 @@ describe('Dark Shogi board renderer', () => {
     expect(svg).not.toContain('玉');
   });
 
-  it('applies the selected board theme palette (kaya fog tint)', () => {
+  it('applies the selected board theme palette under the shared dark fog', () => {
     const state: ShogiGameState = {
       id: 'k',
       board: { '5e': { color: 'black', role: 'K', promoted: false } },
@@ -143,8 +146,9 @@ describe('Dark Shogi board renderer', () => {
     };
     const view = getShogiPlayerView(state, 'black');
     const svg = renderShogiBoardSvg(view, { showFog: true, boardTheme: 'kaya' });
-    expect(svg).toContain('rgba(240,229,205,0.88)'); // kaya fog
-    expect(svg).not.toContain('rgba(231,221,197,0.88)'); // ...not the wood default
+    expect(svg).toContain('#f7e7c2'); // kaya light cell
+    expect(svg).toContain('#f1ddb0'); // kaya dark cell
+    expect(svg).toContain('rgba(46, 43, 37, 0.82)'); // shared dark fog fallback
   });
 
   it('tints forbidden squares red (drop-restriction diagrams)', () => {

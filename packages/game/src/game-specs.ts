@@ -363,7 +363,7 @@ export const GAME_SPECS: readonly GameSpec[] = [
     visibility: 'dark',
     setup: 'standard',
     reserves: 'shogi-hands',
-    dropPolicy: 'seen-squares-only',
+    dropPolicy: 'any-legal-square',
     ratingPoolBase: 'dark_shogi',
     publicSurface: 'hidden',
     runtimeStatus: 'dev-spike',

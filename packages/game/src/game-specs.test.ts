@@ -107,7 +107,7 @@ test('Dark Shogi is a dev-spike shogi family spec', () => {
   assert.equal(spec.visibility, 'dark');
   assert.equal(spec.setup, 'standard');
   assert.equal(spec.reserves, 'shogi-hands');
-  assert.equal(spec.dropPolicy, 'seen-squares-only');
+  assert.equal(spec.dropPolicy, 'any-legal-square');
   assert.equal(spec.ratingPoolBase, 'dark_shogi');
   assert.equal(spec.publicSurface, 'hidden');
   assert.equal(spec.runtimeStatus, 'dev-spike');
