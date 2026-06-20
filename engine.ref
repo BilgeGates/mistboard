@@ -1,8 +1,9 @@
-df4c973
+bba9fff
 # ^ The mistboard-engine commit the prod build checks out (railpack build step).
-# ROLLED BACK 2026-06-20 from bba9fff (Misty 1.2): v1.2 forfeited engine turns in
-# prod (critical engine-worker alert), while local serving was fine — a deploy/
-# packaging issue (the new opening_system import, or the _assert_belief_consistent
-# worker change). df4c973 = the pre-v1.2 engine (working v1.1-era worker).
+# RE-SHIP PHASE 1 (2026-06-20): roll the ENGINE forward to bba9fff (Misty 1.2)
+# while the registry still OFFERS v1.1 (PROD_PLAYABLE) — so the engine-worker
+# becomes able to load+serve python-v2-v1.2 with NO window where the web offers
+# an engine the worker can't yet load (the cross-service desync that forfeited the
+# first v1.2 deploy). Phase 2 flips PROD_PLAYABLE -> v1.2 once this is healthy.
 # Single source of truth for the deployed engine version; bump this + the registry
 # engine_pin to ship. The railpack reads only the first line; this comment is ignored.
