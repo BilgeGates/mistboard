@@ -339,7 +339,7 @@ export const darkShogiArticle: Article = {
       blocks: [
         {
           kind: 'paragraph',
-          text: 'Dark Shogi is in development on Mistboard and is not playable yet. This page is the rules reference, not a launch announcement. For the open-information base game, read Shogi Rules. For chess under the same fog model, read Dark Chess.',
+          text: 'Dark Shogi is implemented behind development flags for internal playtesting. It is not a public pool yet: rooms are casual PvP only, and postgame review requires a persistent server session. For the open-information base game, read Shogi Rules. For chess under the same fog model, read Dark Chess.',
         },
         {
           kind: 'cta',

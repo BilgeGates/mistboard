@@ -1,34 +1,33 @@
-# Dark Shogi Ruleset Candidate
+# Dark Shogi Ruleset
 
-> Status: candidate future ruleset. Not implemented and not a public Mistboard
-> game mode.
+> Status: implemented behind development flags for internal playtesting. Not a
+> public Mistboard game mode.
 > Canonical source: [`../ROADMAP.md`](../ROADMAP.md) for committed variant
 > sequencing.
-> Last reviewed: 2026-06-12.
+> Last reviewed: 2026-06-20.
 
-Summary: candidate ruleset for research and future runtime planning. A hidden
-`dark-shogi` `GameSpec` placeholder exists, but the rules are not implemented,
-not a public Mistboard game mode, and not a compatibility claim with any
-existing hidden-shogi platform.
+Summary: ruleset and implementation notes for the hidden `dark-shogi` GameSpec.
+The runtime is flag-gated, casual PvP-only, and not a public Mistboard pool. It
+is not a compatibility claim with any existing hidden-shogi platform.
 
 Dark Shogi applies Mistboard's hidden-information model to shogi while keeping
 the product rule: the server owns canonical truth, clients receive only
 recipient-scoped views, and hidden opponent state must not leak through legal
 move lists, event history, or replay.
 
-For a visual sketch of the candidate rules, open
+For a visual sketch of the early candidate rules, open
 [`prototypes/dark-shogi-prototype.html`](./prototypes/dark-shogi-prototype.html)
-directly in a browser. The prototype is scripted and intentionally separate
-from production runtime code.
+directly in a browser. The prototype is scripted and intentionally separate from
+the production runtime code.
 
 For manual exploration, open
 [`prototypes/dark-shogi-freeplay.html`](./prototypes/dark-shogi-freeplay.html).
-That prototype supports local move/drop experiments and perspective event
-redaction without touching production runtime code.
+That prototype remains useful for isolated move/drop experiments and perspective
+event redaction without touching production runtime code.
 
 ## Relationship To Existing Hidden Shogi
 
-This candidate is closest to fog-style shogi: each player has vision generated
+This ruleset is closest to fog-style shogi: each player has vision generated
 by their own pieces. It is not tsuitate shogi, where players mostly see only
 their own material and receive limited referee feedback.
 
@@ -90,14 +89,20 @@ delta. A full-truth postgame view may reveal both hands after the game ends.
 
 ## Drops
 
-Dark Shogi uses a Lao Tzu-style drop policy: pieces may be dropped only on
-visible empty squares.
+Dark Shogi uses a parachute-style drop policy: pieces may be offered onto any
+square that appears open in the player's current fog view. If the square is
+occupied in the canonical position by a hidden piece, the server rejects the
+drop as a bounce; nothing moves, the hand is intact, and it remains that
+player's turn.
 
 Drop rules:
 
 - A player may drop only a piece from their own hand.
-- A drop square must be visible to the dropping player.
-- A drop square must be empty in the canonical position.
+- A drop square must have no visible piece in the dropping player's current
+  view. It may still contain a hidden piece in truth.
+- If the drop square is empty in the canonical position, the piece lands.
+- If the drop square is occupied in the canonical position, the drop bounces
+  with only a generic occupied-square signal to the mover.
 - Drops cannot capture.
 - Standard no-future-move restrictions apply: pawns and lances cannot be dropped
   on the final rank; knights cannot be dropped on the final two ranks.
@@ -109,9 +114,8 @@ A pawn drop that attacks the king is legal. It is not an immediate win. The
 opponent may respond, ignore it, or fail to notice; the game ends only if the
 king is later captured.
 
-Blind drop attempts into hidden squares are out of scope for the candidate
-ruleset. If a future experiment allows them, failed attempts must return only a
-generic failure and must not identify whether the target square was occupied.
+The bounce is private to the mover. It must not reveal the hidden piece identity
+or produce a public opponent-hand delta.
 
 ## Promotion
 
@@ -153,7 +157,7 @@ silver appears as board state.
 
 The live game ends when a king is captured.
 
-Candidate postgame behavior:
+Current postgame behavior:
 
 - The terminal event records the captured king and winner in canonical history.
 - Player-perspective replay preserves fog for earlier plies.
@@ -164,7 +168,7 @@ Candidate postgame behavior:
 
 ## Draws
 
-Initial candidate draw rules:
+Current draw rules:
 
 - Fourfold repetition over canonical board placement, promotion states, hands,
   and side to move is a draw.
@@ -175,33 +179,23 @@ Initial candidate draw rules:
 
 ## Implementation Boundaries
 
-Do not implement Dark Shogi by extending chess `VariantId` or by reusing chess
-`PlayerView` directly. It should be a separate `GameSpec` and runtime family
-when implementation starts.
-
-Minimum future runtime concepts:
-
-- shogi board geometry,
-- shogi piece roles and promoted roles,
-- canonical hands,
-- recipient-scoped hand views,
-- move actions,
-- drop actions,
-- promotion choice,
-- king-capture terminal events,
-- replay-derived state.
+Dark Shogi is a separate `GameSpec` and runtime family, not a chess `VariantId`
+extension and not a chess `PlayerView` reuse. It uses the tenant runtime stack
+with shogi-specific board geometry, roles, promoted roles, canonical hands,
+recipient-scoped hand views, move actions, drop actions, promotion choice,
+king-capture terminal events, and replay-derived state.
 
 ## Regression Targets
 
-Any implementation must assert:
+The implementation must keep asserting:
 
-- legal drop lists do not reveal hidden empty squares,
+- drop offers and bounces do not reveal hidden piece identity,
 - opponent hand state is not transmitted live,
 - hidden opponent drops do not decrement public counters,
 - hidden opponent promotions are not announced,
 - pawn drops that attack the king are legal,
 - check, checkmate, and pawn-drop-mate are not used for legality or termination,
-- visible-square drops still enforce canonical occupancy,
+- accepted drops and bounced drops still enforce canonical occupancy,
 - captured promoted pieces enter hand unpromoted,
 - recipient event history hides opponent action coordinates,
 - replay can reconstruct canonical state without sending canonical truth to the
