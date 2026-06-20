@@ -5,6 +5,7 @@ import { createDarkXiangqiPlayAgainRoom } from './dark-xiangqi-room-actions.js';
 import { createDxqPostgameShell, createDxqReplayControls } from './dxq-postgame-shell.js';
 import { darkXiangqiEnabled } from './feature-flags.js';
 import { type DarkXiangqiWireView, renderDarkXiangqiBoardSvg } from './live-dark-xiangqi.js';
+import { handlePostgameReplayKeyboard } from './postgame-keyboard.js';
 
 export type DarkXiangqiPostgameViewKey = XiangqiColor | 'truth';
 
@@ -167,13 +168,28 @@ function boardsPanel(postgame: DarkXiangqiPostgameResponse, signal: AbortSignal)
   document.addEventListener(
     'keydown',
     (event) => {
-      if (event.metaKey || event.ctrlKey || event.altKey) return;
-      const target = event.target as HTMLElement | null;
-      if (target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA')) return;
-      if (event.key !== 'f' && event.key !== 'F') return;
-      event.preventDefault();
-      boardOrientation = oppositeXiangqiColor(boardOrientation);
-      syncReplay();
+      handlePostgameReplayKeyboard(event, {
+        flip: () => {
+          boardOrientation = oppositeXiangqiColor(boardOrientation);
+          syncReplay();
+        },
+        first: () => {
+          currentPly = 0;
+          syncReplay();
+        },
+        previous: () => {
+          currentPly = Math.max(0, currentPly - 1);
+          syncReplay();
+        },
+        next: () => {
+          currentPly = Math.min(maxPly, currentPly + 1);
+          syncReplay();
+        },
+        last: () => {
+          currentPly = maxPly;
+          syncReplay();
+        },
+      });
     },
     { signal },
   );

@@ -59,6 +59,7 @@ const DROP_LETTER: Record<CrazyhouseDropRole, string> = {
   knight: 'N',
   pawn: 'P',
 };
+const HAND_DROP_MIME = 'application/x-mistboard-crazyhouse-drop';
 
 // ── Wire shapes (the subset this client consumes) ───────────────────────────
 
@@ -125,6 +126,7 @@ let refs: LiveRefs | null = null;
 let boardHost: HTMLElement | null = null;
 let lastCapturedView: CrazyhousePlayerView | null = null;
 let lastCapturedPositionKey: string | null = null;
+let draggedDropRole: CrazyhouseDropRole | null = null;
 
 const replay = createTenantReplayController<CrazyhousePlayerView>();
 
@@ -237,7 +239,11 @@ export function bootstrapDarkCrazyhouseLiveRoom(): void {
   });
 
   installBoardDragInteraction();
+  boardHost?.addEventListener('dragover', onBoardDragOver);
+  boardHost?.addEventListener('drop', onBoardDrop);
   refs.capturesBottom.addEventListener('click', onHandClick);
+  refs.capturesBottom.addEventListener('dragstart', onHandDragStart);
+  refs.capturesBottom.addEventListener('dragend', onHandDragEnd);
   refs.promotion.addEventListener('click', onPromotionClick);
 
   client = createTenantSocketClient({
@@ -369,12 +375,7 @@ function handleSquareClick(square: Square): void {
   state.bounce = null;
 
   if (state.selectedDrop) {
-    if (dropTargets(view, state.selectedDrop).includes(square)) {
-      if (send({ type: 'move', from: `*${DROP_LETTER[state.selectedDrop]}`, to: square })) {
-        playSound('drop');
-      }
-      clearSelection();
-      renderAll();
+    if (submitDrop(view, state.selectedDrop, square)) {
       return;
     }
     state.selectedDrop = null; // clicked off a drop square: cancel, fall through
@@ -400,6 +401,37 @@ function handleSquareClick(square: Square): void {
   renderAll();
 }
 
+function onBoardDragOver(event: DragEvent): void {
+  const view = state.view;
+  if (!view || !canActNow(view) || state.pendingPromotion) return;
+  const role = draggedDropRole ?? state.selectedDrop ?? dropRoleFromTransfer(event.dataTransfer);
+  const square = dragTargetSquare(event);
+  if (!role || !square || !dropTargets(view, role).includes(square)) return;
+  event.preventDefault();
+  if (event.dataTransfer) event.dataTransfer.dropEffect = 'move';
+}
+
+function onBoardDrop(event: DragEvent): void {
+  const view = state.view;
+  if (!view || !canActNow(view) || state.pendingPromotion) return;
+  const role = draggedDropRole ?? dropRoleFromTransfer(event.dataTransfer) ?? state.selectedDrop;
+  const square = dragTargetSquare(event);
+  if (!role || !square) return;
+  if (!submitDrop(view, role, square)) return;
+  event.preventDefault();
+  draggedDropRole = null;
+}
+
+function dragTargetSquare(event: DragEvent): Square | null {
+  const target = (event.target as HTMLElement | null)?.closest('[data-square]');
+  return (target?.getAttribute('data-square') as Square | null) ?? null;
+}
+
+function dropRoleFromTransfer(dataTransfer: DataTransfer | null): CrazyhouseDropRole | null {
+  const raw = dataTransfer?.getData(HAND_DROP_MIME) ?? '';
+  return isDropRole(raw) ? raw : null;
+}
+
 function submitBoardMove(from: Square, to: Square, matches: CrazyhouseMove[]): void {
   const promotions = matches
     .map((move) => (isCrazyhouseDrop(move) ? undefined : move.promotion))
@@ -416,6 +448,16 @@ function submitBoardMove(from: Square, to: Square, matches: CrazyhouseMove[]): v
   renderAll();
 }
 
+function submitDrop(view: CrazyhousePlayerView, role: CrazyhouseDropRole, square: Square): boolean {
+  if (!dropTargets(view, role).includes(square)) return false;
+  if (send({ type: 'move', from: `*${DROP_LETTER[role]}`, to: square })) {
+    playSound('drop');
+  }
+  clearSelection();
+  renderAll();
+  return true;
+}
+
 function onHandClick(event: MouseEvent): void {
   const view = state.view;
   if (!view) return;
@@ -429,6 +471,32 @@ function onHandClick(event: MouseEvent): void {
   state.selected = null;
   state.selectedDrop = state.selectedDrop === role ? null : role;
   renderAll();
+}
+
+function onHandDragStart(event: DragEvent): void {
+  const view = state.view;
+  if (!view || !canActNow(view) || state.pendingPromotion) return;
+  const target = (event.target as HTMLElement | null)?.closest('[data-drop]');
+  const role = target?.getAttribute('data-drop') ?? '';
+  if (!isDropRole(role) || (view.hand[role] ?? 0) <= 0 || !event.dataTransfer) return;
+  event.dataTransfer.effectAllowed = 'move';
+  event.dataTransfer.setData(HAND_DROP_MIME, role);
+  event.dataTransfer.setData('text/plain', DROP_LETTER[role]);
+  draggedDropRole = role;
+  state.bounce = null;
+  state.selected = null;
+  state.selectedDrop = role;
+  renderBoard(view);
+}
+
+function onHandDragEnd(): void {
+  if (!draggedDropRole) return;
+  const shouldClearSelection = state.selectedDrop === draggedDropRole;
+  draggedDropRole = null;
+  if (shouldClearSelection) {
+    state.selectedDrop = null;
+    renderAll();
+  }
 }
 
 function onPromotionClick(event: MouseEvent): void {
@@ -471,6 +539,10 @@ function dropTargets(view: CrazyhousePlayerView, role: CrazyhouseDropRole): Squa
     if (isCrazyhouseDrop(move) && move.drop === role) seen.add(move.to);
   }
   return [...seen];
+}
+
+function isDropRole(value: string): value is CrazyhouseDropRole {
+  return CRAZYHOUSE_HAND_ORDER.includes(value as CrazyhouseDropRole);
 }
 
 function canActNow(view: CrazyhousePlayerView): boolean {
@@ -548,7 +620,7 @@ function activeTargets(view: CrazyhousePlayerView): Square[] {
 function renderHands(view: CrazyhousePlayerView | null): void {
   if (!refs) return;
   const seat = state.seat;
-  refs.capturesTop.replaceChildren(opponentReserveStrip());
+  refs.capturesTop.replaceChildren();
   if (!view || !isColor(seat)) {
     refs.capturesBottom.replaceChildren();
     return;
@@ -573,16 +645,6 @@ function ownReserveStrip(view: CrazyhousePlayerView, seat: Color, droppable: boo
   return strip;
 }
 
-function opponentReserveStrip(): HTMLElement {
-  const strip = document.createElement('div');
-  strip.className = 'crazyhouse-hands crazyhouse-hands--opponent';
-  const note = document.createElement('span');
-  note.className = 'crazyhouse-hands__empty';
-  note.textContent = 'Opponent reserve: hidden';
-  strip.append(note);
-  return strip;
-}
-
 function handPiece(
   role: CrazyhouseDropRole,
   color: Color,
@@ -601,6 +663,9 @@ function handPiece(
     .join(' ');
   button.dataset.drop = role;
   button.disabled = !droppable;
+  button.draggable = droppable;
+  button.setAttribute('aria-label', `${role} in hand, ${count} available`);
+  button.setAttribute('aria-grabbed', selected ? 'true' : 'false');
   button.setAttribute('aria-pressed', selected ? 'true' : 'false');
   button.innerHTML = crazyhouseHandPieceSvg(role, color);
   const badge = document.createElement('span');

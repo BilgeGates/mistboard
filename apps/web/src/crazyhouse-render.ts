@@ -32,7 +32,7 @@ import {
 const FILES = 8;
 const RANKS = 8;
 const CELL = 50;
-const PIECE_SIZE = CELL * 0.86;
+const PIECE_SIZE = CELL;
 
 // Pixel size of a board piece — exported so the drag layer can size the floating
 // ghost to match the rendered piece.
@@ -45,16 +45,23 @@ const CRAZYHOUSE_DESCRIPTOR: GridBoardDescriptor = {
   palette: {
     lightCell: 'var(--board-light)',
     darkCell: 'var(--board-dark)',
-    frameBg: 'var(--crossroads-frame)',
-    frameInner: 'var(--crossroads-frame-inner)',
-    boardEdge: 'var(--crossroads-board-edge)',
-    coord: 'var(--crossroads-coord)',
+    frameBg: 'var(--board-frame)',
+    frameInner: 'transparent',
+    boardEdge: 'var(--board-frame)',
+    coord: 'transparent',
     lastMove: 'var(--board-last-move)',
-    selected: 'rgba(255,205,80,0.55)',
-    targetDot: 'rgba(45,100,45,0.62)',
-    targetRing: 'rgba(170,40,40,0.62)',
-    fog: 'var(--board-fog-light-fill)',
+    selected: 'rgba(31,111,91,0.32)',
+    targetDot: 'rgba(31,111,91,0.72)',
+    targetRing: 'rgba(31,111,91,0.48)',
+    fog: 'transparent',
   },
+  framePad: 1,
+  pad: 0,
+  frameRadius: 0,
+  frameInnerRadius: 0,
+  frameInnerWidth: 0,
+  boardRadius: 0,
+  boardEdgeWidth: 0,
   // chess polarity: a1 is a dark square.
   darkWhenEven: false,
   svgClass: 'crazyhouse-live-svg',
@@ -108,11 +115,15 @@ export function renderCrazyhouseBoardSvg(
   return renderGridBoardSvg(CRAZYHOUSE_DESCRIPTOR, {
     id,
     flip: perspective === 'black',
-    renderPieces: (geom) => pieceLayer(view, geom, options.draggingFrom ?? null),
+    renderPieces: (geom) =>
+      [
+        pieceLayer(view, geom, options.draggingFrom ?? null),
+        showFog ? fogLayer(visible, geom) : '',
+      ].join(''),
     lastMove: lastCells,
     selected: options.selected ? coordOf(options.selected) : null,
     targets: (options.targets ?? []).map((sq) => ({ ...coordOf(sq), occupied: occupied.has(sq) })),
-    fogHidden: showFog ? hiddenSquares(visible) : null,
+    fogHidden: null,
     interactive: options.interactive ?? false,
     squareName: (file, rank) => squareAt(file, rank),
   });
@@ -160,6 +171,22 @@ function hiddenSquares(visible: Set<Square>): GridCellRef[] {
   return refs;
 }
 
+function fogLayer(visible: Set<Square>, geom: GridGeometry): string {
+  return hiddenSquares(visible)
+    .map((ref) => {
+      const { x, y } = geom.topLeft(ref.file, ref.rank);
+      const colorClass = isLightSquare(ref)
+        ? 'crazyhouse-fog-square--light'
+        : 'crazyhouse-fog-square--dark';
+      return `<rect class="crazyhouse-fog-square ${colorClass}" x="${x}" y="${y}" width="${CELL}" height="${CELL}"/>`;
+    })
+    .join('');
+}
+
+function isLightSquare(ref: GridCellRef): boolean {
+  return (ref.file + ref.rank) % 2 === 0;
+}
+
 // ── Pieces ───────────────────────────────────────────────────────────────────
 
 function pieceLayer(
@@ -168,7 +195,6 @@ function pieceLayer(
   draggingFrom: Square | null,
 ): string {
   const size = PIECE_SIZE;
-  const inset = (CELL - size) / 2;
   const parts: string[] = [];
   for (const [square, piece] of Object.entries(view.board)) {
     if (!piece) continue;
@@ -176,7 +202,7 @@ function pieceLayer(
     if (square === draggingFrom) continue;
     const { file, rank } = coordOf(square as Square);
     const { x, y } = geom.topLeft(file, rank);
-    parts.push(chessPiece(piece.role, piece.color, x + inset, y + inset, size));
+    parts.push(chessPiece(piece.role, piece.color, x, y, size));
   }
   return parts.join('');
 }

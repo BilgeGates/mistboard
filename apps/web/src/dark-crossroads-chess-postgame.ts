@@ -16,6 +16,7 @@ import {
 import { createDarkCrossroadsChessPlayAgainRoom } from './dark-crossroads-chess-room-actions.js';
 import { createDxqPostgameShell, createDxqReplayControls } from './dxq-postgame-shell.js';
 import { darkCrossroadsChessEnabled } from './feature-flags.js';
+import { handlePostgameReplayKeyboard } from './postgame-keyboard.js';
 import { setBoardFamily } from './theme.js';
 
 export type DarkCrossroadsChessPostgameViewKey = CrossroadsChessColor | 'truth';
@@ -197,13 +198,28 @@ function boardsPanel(
   document.addEventListener(
     'keydown',
     (event) => {
-      if (event.metaKey || event.ctrlKey || event.altKey) return;
-      const target = event.target as HTMLElement | null;
-      if (target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA')) return;
-      if (event.key !== 'f' && event.key !== 'F') return;
-      event.preventDefault();
-      boardOrientation = boardOrientation === 'white' ? 'red' : 'white';
-      syncReplay();
+      handlePostgameReplayKeyboard(event, {
+        flip: () => {
+          boardOrientation = boardOrientation === 'white' ? 'red' : 'white';
+          syncReplay();
+        },
+        first: () => {
+          currentPly = 0;
+          syncReplay();
+        },
+        previous: () => {
+          currentPly = Math.max(0, currentPly - 1);
+          syncReplay();
+        },
+        next: () => {
+          currentPly = Math.min(maxPly, currentPly + 1);
+          syncReplay();
+        },
+        last: () => {
+          currentPly = maxPly;
+          syncReplay();
+        },
+      });
     },
     { signal },
   );

@@ -19,6 +19,8 @@ import {
 import { createDarkCrazyhousePlayAgainRoom } from './dark-crazyhouse-room-actions.js';
 import { createDxqPostgameShell, createDxqReplayControls } from './dxq-postgame-shell.js';
 import { darkCrazyhouseEnabled } from './feature-flags.js';
+import { handlePostgameReplayKeyboard } from './postgame-keyboard.js';
+import { buildNav } from './site-shell.js';
 import { setBoardFamily } from './theme.js';
 
 export type DarkCrazyhousePostgameViewKey = Color | 'truth';
@@ -83,7 +85,7 @@ type PostgameEntry = {
 export function mountDarkCrazyhousePostgame(root: HTMLElement, roomId: string): void {
   root.classList.add('landing-page', 'dark-crazyhouse-postgame-route');
   setBoardFamily('chess');
-  root.replaceChildren(loadingView());
+  root.replaceChildren(buildNav(), loadingView());
   if (!darkCrazyhouseEnabled()) {
     renderError(root, 'Dark Crazyhouse unavailable', 'This route is not enabled in this build.');
     return;
@@ -128,8 +130,8 @@ function renderPostgame(root: HTMLElement, postgame: DarkCrazyhousePostgameRespo
   const abortController = new AbortController();
   postgameAbortControllers.set(root, abortController);
 
-  root.replaceChildren();
-  root.append(
+  root.replaceChildren(
+    buildNav(),
     createDxqPostgameShell({
       actions: postgameActions(postgame),
       ariaLabel: 'Dark Crazyhouse postgame',
@@ -201,13 +203,28 @@ function boardsPanel(postgame: DarkCrazyhousePostgameResponse, signal: AbortSign
   document.addEventListener(
     'keydown',
     (event) => {
-      if (event.metaKey || event.ctrlKey || event.altKey) return;
-      const target = event.target as HTMLElement | null;
-      if (target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA')) return;
-      if (event.key !== 'f' && event.key !== 'F') return;
-      event.preventDefault();
-      boardOrientation = boardOrientation === 'white' ? 'black' : 'white';
-      syncReplay();
+      handlePostgameReplayKeyboard(event, {
+        flip: () => {
+          boardOrientation = boardOrientation === 'white' ? 'black' : 'white';
+          syncReplay();
+        },
+        first: () => {
+          currentPly = 0;
+          syncReplay();
+        },
+        previous: () => {
+          currentPly = Math.max(0, currentPly - 1);
+          syncReplay();
+        },
+        next: () => {
+          currentPly = Math.min(maxPly, currentPly + 1);
+          syncReplay();
+        },
+        last: () => {
+          currentPly = maxPly;
+          syncReplay();
+        },
+      });
     },
     { signal },
   );
@@ -457,7 +474,6 @@ function loadingView(): HTMLElement {
 }
 
 function renderError(root: HTMLElement, titleText: string, bodyText: string): void {
-  root.replaceChildren();
   const shell = document.createElement('main');
   shell.className = 'dxq-postgame__error';
   const title = document.createElement('h1');
@@ -465,7 +481,7 @@ function renderError(root: HTMLElement, titleText: string, bodyText: string): vo
   const body = document.createElement('p');
   body.textContent = bodyText;
   shell.append(title, body);
-  root.append(shell);
+  root.replaceChildren(buildNav(), shell);
 }
 
 function errorTitle(status: number): string {

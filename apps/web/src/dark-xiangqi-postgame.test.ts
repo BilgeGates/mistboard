@@ -57,6 +57,18 @@ describe('Dark Xiangqi postgame page', () => {
     document.dispatchEvent(new KeyboardEvent('keydown', { key: 'f' }));
     expect(blackCannonY(root)).toBe('190');
 
+    document.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowLeft' }));
+    expect(root.textContent).toContain('Ply 1 of 2');
+
+    document.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowUp' }));
+    expect(root.textContent).toContain('Ply 0 of 2');
+
+    document.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight' }));
+    expect(root.textContent).toContain('Ply 1 of 2');
+
+    document.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown' }));
+    expect(root.textContent).toContain('Ply 2 of 2');
+
     root
       .querySelector<HTMLButtonElement>('.dxq-postgame__replay-button[aria-label="Previous ply"]')
       ?.click();
