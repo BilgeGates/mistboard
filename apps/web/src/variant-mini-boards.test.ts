@@ -15,9 +15,10 @@ describe('variant mini-board markers', () => {
     const svg = renderVariantMiniBoard('dark-crossroads', { size: 100 });
     const host = document.createElement('div');
     host.innerHTML = svg;
-    const fogCells = [...host.querySelectorAll<SVGRectElement>('rect.vm-chess-fog')].map(
-      (rect) => [rect.getAttribute('x'), rect.getAttribute('y')],
-    );
+    const fogCells = [...host.querySelectorAll<SVGRectElement>('rect.vm-chess-fog')].map((rect) => [
+      rect.getAttribute('x'),
+      rect.getAttribute('y'),
+    ]);
 
     expect(svg).toContain('data-mini-id="dark-crossroads"');
     expect(svg).toContain('vm-river');

@@ -621,7 +621,13 @@ function revealChessBody(ctx: MiniCtx): string {
 // A koma (shogi piece) placed at an absolute top-left. Reuses the live koma art — a
 // wedge tile + kanji, colours inlined — re-wrapped at the marker scale the way
 // chessPieceAt re-wraps the cburnett glyphs.
-function shogiKomaAt(piece: ShogiPiece, x: number, y: number, size: number, pointsUp = true): string {
+function shogiKomaAt(
+  piece: ShogiPiece,
+  x: number,
+  y: number,
+  size: number,
+  pointsUp = true,
+): string {
   const inner = shogiKomaSvg(piece, pointsUp)
     .replace(/^<svg[^>]*>/, '')
     .replace(/<\/svg>\s*$/, '');
