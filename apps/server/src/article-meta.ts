@@ -90,6 +90,12 @@ export const ARTICLE_META: Record<
     description:
       "Misty is the engine you play on Mistboard, built for Fog of War chess and guided by the Obscuro architecture. How it thinks, what's hard, and where it stands.",
   },
+  mistybanqi: {
+    title: 'How MistyBanqi Plays',
+    kind: 'article',
+    description:
+      'MistyBanqi is the engine you play in Banqi on Mistboard: a classical search engine with a hand-written evaluation. How it thinks, and the one blind spot worth knowing — it can draw a game it has already won.',
+  },
   'server-enforced-fog': {
     title: 'Programming Dark Chess with Server-Side Truth',
     kind: 'article',
