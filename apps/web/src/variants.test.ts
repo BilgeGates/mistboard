@@ -11,6 +11,7 @@ import {
   DARK_XIANGQI_SPEC_ID,
   gameSpecForId,
   JIEQI_SPEC_ID,
+  KRIEGSPIEL_SPEC_ID,
   REVEAL_CHESS_SPEC_ID,
 } from '@mistboard/game';
 import { describe, expect, it, vi } from 'vitest';
@@ -159,6 +160,7 @@ describe('web variant launch registry', () => {
   it('uses mini-board markers for soft-launch play-menu variants', () => {
     expect(variantMiniIdForGameSpec(DARK_CROSSROADS_CHESS_SPEC_ID)).toBe('dark-crossroads');
     expect(variantMiniIdForGameSpec(DARK_CRAZYHOUSE_SPEC_ID)).toBe('dark-crazyhouse');
+    expect(variantMiniIdForGameSpec(KRIEGSPIEL_SPEC_ID)).toBe('kriegspiel');
   });
 
   it('uses canonical game-spec API params for current variants', () => {

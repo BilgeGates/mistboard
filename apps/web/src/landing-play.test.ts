@@ -664,6 +664,25 @@ describe('landing play panel', () => {
     });
   });
 
+  it('shows the Kriegspiel mini-board marker in the variant grid', () => {
+    vi.stubEnv('DEV', false);
+    vi.stubEnv('VITE_KRIEGSPIEL_ENABLED', 'true');
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => jsonResponse({ playing: 0, online: 0 })),
+    );
+    window.history.replaceState(null, '', '/?play=friend&gameSpecId=kriegspiel');
+
+    maybeOpenPlayDeepLink([]);
+
+    const card = document.querySelector<HTMLElement>(
+      '.landing-variant-card[data-game-spec="kriegspiel"]',
+    );
+    expect(variantPickerPresent()).toBe(true);
+    expect(card?.textContent).toContain('Kriegspiel');
+    expect(card?.querySelector('svg[data-mini-id="kriegspiel"]')).not.toBeNull();
+  });
+
   it('allows a rated soft-launch Dark Mini Xiangqi lobby deep link without public picker entry', async () => {
     vi.stubEnv('DEV', false);
     vi.stubEnv('VITE_DARK_MINI_XIANGQI_ENABLED', 'true');

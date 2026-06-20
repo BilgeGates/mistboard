@@ -21,6 +21,7 @@ import {
   type GameSpecId,
   gameSpecForId,
   JIEQI_SPEC_ID,
+  KRIEGSPIEL_SPEC_ID,
   type RatingVariant,
   REVEAL_CHESS_SPEC_ID,
   ratingPoolForSpec,
@@ -88,6 +89,7 @@ const VARIANT_MINI_BY_GAME_SPEC: Partial<Record<GameSpecId, VariantMiniId>> = {
   [DARK_CROSSROADS_CHESS_SPEC_ID]: 'dark-crossroads',
   [DARK_SHOGI_SPEC_ID]: 'dark-shogi',
   [DARK_CRAZYHOUSE_SPEC_ID]: 'dark-crazyhouse',
+  [KRIEGSPIEL_SPEC_ID]: 'kriegspiel',
 };
 
 export const VARIANTS: VariantDef[] = [
