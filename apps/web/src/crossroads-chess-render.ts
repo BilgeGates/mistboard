@@ -35,10 +35,12 @@ import { renderXiangqiPieceGlyphed, type XiangqiPieceSet } from './xiangqi-piece
 const FILES = 6;
 const RANKS = 8;
 const CELL = 50;
+const CROSSROADS_BOARD_WIDTH = FILES * CELL;
+const CROSSROADS_BOARD_HEIGHT =
+  RANKS * CELL +
+  (CROSSROADS_CHESS_DESCRIPTOR.strips ?? []).reduce((sum, strip) => sum + strip.height, 0);
 
 const RED = CROSSROADS_PIECE_RED;
-const DEFAULT_CHESS_PIECE_SET: PieceSet = 'cburnett';
-const DEFAULT_XIANGQI_PIECE_SET: XiangqiPieceSet = 'traditional';
 
 const CHESS_ROLES = new Set<CrossroadsChessPieceRole>([
   'king',
@@ -121,8 +123,8 @@ export function renderCrossroadsChessBoardSvg(
 ): string {
   const perspective = options.perspective ?? view.perspective;
   const showFog = options.showFog ?? true;
-  const chessPieceSet = options.chessPieceSet ?? DEFAULT_CHESS_PIECE_SET;
-  const xiangqiPieceSet = options.xiangqiPieceSet ?? DEFAULT_XIANGQI_PIECE_SET;
+  const chessPieceSet = options.chessPieceSet ?? readStoredPieceSet();
+  const xiangqiPieceSet = options.xiangqiPieceSet ?? readStoredXiangqiPieceSet();
   boardCounter += 1;
   const id = `crossroads-live-${boardCounter}`;
 
@@ -131,11 +133,20 @@ export function renderCrossroadsChessBoardSvg(
     Object.keys(view.board) as CrossroadsChessSquare[],
   );
   const lastMove = options.lastMove ?? view.lastMove ?? null;
+  const fogDescriptor = showFog
+    ? {
+        ...CROSSROADS_APP_DESCRIPTOR,
+        palette: {
+          ...CROSSROADS_APP_DESCRIPTOR.palette,
+          fog: `url(#${id}-fog)`,
+        },
+      }
+    : CROSSROADS_APP_DESCRIPTOR;
 
-  return renderGridBoardSvg(CROSSROADS_APP_DESCRIPTOR, {
+  return renderGridBoardSvg(fogDescriptor, {
     id,
     flip: perspective === 'red',
-    extraDefs: crossroadsChessDefs(id),
+    extraDefs: `${crossroadsChessDefs(id)}${showFog ? crossroadsFogPatternDefs(id, perspective === 'red') : ''}`,
     renderPieces: (geom) =>
       pieceLayer(view, geom, id, {
         chessPieceSet,
@@ -264,8 +275,8 @@ export function crossroadsChessPieceGhostSvg(
   boardCounter += 1;
   const id = `crossroads-ghost-${boardCounter}`;
   const inner = fusionPiece(piece, 0, 0, id, {
-    chessPieceSet: appearance.chessPieceSet ?? DEFAULT_CHESS_PIECE_SET,
-    xiangqiPieceSet: appearance.xiangqiPieceSet ?? DEFAULT_XIANGQI_PIECE_SET,
+    chessPieceSet: appearance.chessPieceSet ?? readStoredPieceSet(),
+    xiangqiPieceSet: appearance.xiangqiPieceSet ?? readStoredXiangqiPieceSet(),
   });
   return `<svg width="${CELL}" height="${CELL}" viewBox="0 0 ${CELL} ${CELL}" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><defs>${crossroadsChessDefs(id)}</defs>${inner}</svg>`;
 }
@@ -274,6 +285,52 @@ function crossroadsChessDefs(id: string): string {
   return [
     `<filter id="${id}-red-piece" color-interpolation-filters="sRGB"><feColorMatrix type="matrix" values="0 0 0 0 0.710 0 0 0 0 0.196 0 0 0 0 0.169 0 0 0 1 0"/></filter>`,
   ].join('');
+}
+
+function crossroadsFogPatternDefs(id: string, flip: boolean): string {
+  const tiles: string[] = [];
+  for (let file = 0; file < FILES; file += 1) {
+    for (let rank = 1; rank <= RANKS; rank += 1) {
+      const { col, row } = visualCell(file, rank, flip);
+      const x = col * CELL;
+      const y = row * CELL + stripOffsetForRow(row);
+      const colorClass = isLightSquare(file, rank)
+        ? 'crossroads-fog-tile--light'
+        : 'crossroads-fog-tile--dark';
+      const visualClass = `fog-tile-f${col}r${row}`;
+      tiles.push(
+        [
+          `<g class="crossroads-fog-tile ${colorClass} ${visualClass}">`,
+          `<rect class="crossroads-fog-fill" x="${x}" y="${y}" width="${CELL}" height="${CELL}"/>`,
+          `<image class="crossroads-fog-tex crossroads-fog-tex-drift" href="/fog/fog.webp" x="${x}" y="${y}" width="${CELL}" height="${CELL}" preserveAspectRatio="xMidYMid slice"/>`,
+          `<image class="crossroads-fog-tex crossroads-fog-tex-mist" href="/fog/mistveil/f${col}r${row}.webp" x="${x}" y="${y}" width="${CELL}" height="${CELL}" preserveAspectRatio="xMidYMid slice"/>`,
+          `<rect class="crossroads-fog-shadow" x="${x + 0.5}" y="${y + 0.5}" width="${CELL - 1}" height="${CELL - 1}" fill="none"/>`,
+          `</g>`,
+        ].join(''),
+      );
+    }
+  }
+  return `<pattern id="${id}-fog" patternUnits="userSpaceOnUse" width="${CROSSROADS_BOARD_WIDTH}" height="${CROSSROADS_BOARD_HEIGHT}">${tiles.join('')}</pattern>`;
+}
+
+function visualCell(file: number, rank: number, flip: boolean): { col: number; row: number } {
+  return {
+    col: flip ? FILES - 1 - file : file,
+    row: flip ? rank - 1 : RANKS - rank,
+  };
+}
+
+function stripOffsetForRow(row: number): number {
+  return (CROSSROADS_CHESS_DESCRIPTOR.strips ?? []).reduce(
+    (sum, strip) => (row >= strip.afterRow ? sum + strip.height : sum),
+    0,
+  );
+}
+
+function isLightSquare(file: number, rank: number): boolean {
+  const even = (file + rank) % 2 === 0;
+  const darkWhenEven = CROSSROADS_CHESS_DESCRIPTOR.darkWhenEven ?? true;
+  return darkWhenEven ? !even : even;
 }
 
 function chessPiece(

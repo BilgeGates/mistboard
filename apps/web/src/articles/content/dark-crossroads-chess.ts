@@ -9,7 +9,11 @@ import {
   crossroadsChessPositionRepetitionKey,
   getCrossroadsChessPlayerView,
 } from '@mistboard/game';
-import { renderCrossroadsChessBoardSvg } from '../../crossroads-chess-render.js';
+import {
+  readCrossroadsChessAppearance,
+  renderCrossroadsChessBoardSvg,
+  type CrossroadsChessRenderOptions,
+} from '../../crossroads-chess-render.js';
 import type { Article, ArticleBlock } from '../types.js';
 
 // ── Fog diagram builders ─────────────────────────────────────────────────────
@@ -47,16 +51,20 @@ function stateOf(
 function fogView(
   state: CrossroadsChessGameState,
   color: CrossroadsChessColor,
+  options: CrossroadsChessRenderOptions = {},
 ): string {
   return renderCrossroadsChessBoardSvg(getCrossroadsChessPlayerView(state, color), {
     perspective: color,
     showFog: true,
+    ...readCrossroadsChessAppearance(),
+    ...options,
   });
 }
 
 // White's view of the opening. White sees its own 12 pieces, the empty squares
 // just ahead, and nothing past the river. Red's whole army is in the fog.
-const START_FOG_SVG = fogView(createInitialCrossroadsChessState('diagram'), 'white');
+const START_FOG_STATE = createInitialCrossroadsChessState('diagram');
+const startFogSvg = () => fogView(START_FOG_STATE, 'white');
 
 // Field of fire: a White chariot looks up an open file. It sees the Red soldier
 // it can reach and stops there; the Red king sheltering one square behind that
@@ -68,7 +76,8 @@ const FIELD_OF_FIRE_BOARD: CrossroadsChessBoard = {
   c7: piece('red', 'king'),
   a8: piece('red', 'chariot'),
 };
-const FIELD_OF_FIRE_SVG = fogView(stateOf(FIELD_OF_FIRE_BOARD, 'white'), 'white');
+const FIELD_OF_FIRE_STATE = stateOf(FIELD_OF_FIRE_BOARD, 'white');
+const fieldOfFireSvg = () => fogView(FIELD_OF_FIRE_STATE, 'white');
 
 // The cannon's screen-capture under fog: White's cannon on c2 sees the empty
 // file ahead, then the first piece (the Red soldier screen on c5), then the
@@ -81,23 +90,26 @@ const CANNON_BOARD: CrossroadsChessBoard = {
   c7: piece('red', 'horse'),
   c8: piece('red', 'king'),
 };
-const CANNON_SVG = fogView(stateOf(CANNON_BOARD, 'white'), 'white');
+const CANNON_STATE = stateOf(CANNON_BOARD, 'white');
+const cannonSvg = () => fogView(CANNON_STATE, 'white');
 
 // The Try: White's king has just reached rank 8 (the enemy far rank). Under fog
-// the win is not instant. The king is shown from Red's side, where Red must find
-// a capture this one ply or lose the race. Here no Red piece bears on f8, so the
-// Try will succeed.
+// the win is not instant. Red gets one reply, and here the Red chariot has a
+// clear file to f8, so the Try fails by king capture.
 const TRY_BOARD: CrossroadsChessBoard = {
   f8: piece('white', 'king'),
   a6: piece('white', 'chariot'),
+  f5: piece('red', 'chariot'),
   c7: piece('red', 'king'),
   a1: piece('red', 'soldier'),
 };
 // Red is to move and must answer the armed Try.
-const TRY_SVG = fogView(
-  stateOf(TRY_BOARD, 'red', { pendingTry: 'white', lastMove: { from: 'f7', to: 'f8' } }),
-  'red',
-);
+const TRY_STATE = stateOf(TRY_BOARD, 'red', {
+  pendingTry: 'white',
+  lastMove: { from: 'f7', to: 'f8' },
+});
+const trySvg = () =>
+  fogView(TRY_STATE, 'red', { highlights: ['f8'], arrows: [{ from: 'f5', to: 'f8' }] });
 
 export const darkCrossroadsChessArticle: Article = {
   slug: 'dark-crossroads-chess',
@@ -110,7 +122,7 @@ export const darkCrossroadsChessArticle: Article = {
   publishedAt: '2026-06-20',
   audience:
     'Crossroads Chess players, dark chess players, and anyone who wants a clean first explanation of the chess-xiangqi fusion under fog.',
-  thumbnail: { kind: 'svg', svg: START_FOG_SVG },
+  thumbnail: { kind: 'svg', svg: startFogSvg },
   intro: [
     {
       kind: 'paragraph',
@@ -135,7 +147,7 @@ export const darkCrossroadsChessArticle: Article = {
         },
         {
           kind: 'raw-svg',
-          svg: START_FOG_SVG,
+          svg: startFogSvg,
           className: 'dark-crossroads-figure',
         } as ArticleBlock,
       ],
@@ -153,7 +165,7 @@ export const darkCrossroadsChessArticle: Article = {
         },
         {
           kind: 'raw-svg',
-          svg: FIELD_OF_FIRE_SVG,
+          svg: fieldOfFireSvg,
           className: 'dark-crossroads-figure',
         } as ArticleBlock,
         {
@@ -162,7 +174,7 @@ export const darkCrossroadsChessArticle: Article = {
         },
         {
           kind: 'raw-svg',
-          svg: CANNON_SVG,
+          svg: cannonSvg,
           className: 'dark-crossroads-figure',
         } as ArticleBlock,
       ],
@@ -185,15 +197,17 @@ export const darkCrossroadsChessArticle: Article = {
       blocks: [
         {
           kind: 'paragraph',
-          text: 'In the base game, a king that reaches an undefended enemy back rank wins at once. Under fog, you cannot know whether the arrival square is defended. So reaching the far rank arms a Try and gives the opponent exactly one reply.',
+          text: 'In the base game, the king has to reach the enemy back rank safely. A back-rank square protected by the opponent is not a win. Under fog, you cannot know for sure whether the arrival square is safe, so reaching the far rank arms a Try and gives the opponent exactly one reply.',
         },
         {
           kind: 'paragraph',
-          text: 'If the opponent already has a piece bearing on your king, they can capture it on that reply and win. If they cannot, the Try succeeds and you win the race. A dark race is not just a pathing problem. It is an information bet.',
+          text: 'If the opponent can capture your king on that reply, the Try fails and they win by king capture. If they cannot take it immediately, your king has made it safely to the end and you win the race. A dark race is not just a pathing problem. It is an information bet.',
         },
         {
           kind: 'raw-svg',
-          svg: TRY_SVG,
+          svg: trySvg,
+          caption:
+            "Red's view after White reaches f8. The chariot on f5 can take the king, so this Try fails.",
           className: 'dark-crossroads-figure',
         } as ArticleBlock,
       ],

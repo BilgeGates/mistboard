@@ -1,5 +1,7 @@
+import { XIANGQI_GLYPH_PATHS } from '@mistboard/board-render';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { buildArticlePage, buildHomeArticleCards, buildRulesIndex } from './articles.js';
+import { boardAppearanceChangedEvent } from './theme.js';
 
 describe('article public listing gates', () => {
   afterEach(() => {
@@ -86,6 +88,23 @@ describe('article public listing gates', () => {
     expect(grids[1]?.querySelector('a[href="/rules/dark-crossroads-chess"]')).not.toBeNull();
   });
 
+  it('rerenders Dark Crossroads diagrams from the piece settings', () => {
+    Object.defineProperty(window, 'localStorage', { configurable: true, value: memoryStorage() });
+    const page = buildArticlePage('dark-crossroads-chess');
+    document.body.append(page);
+
+    expect(page.innerHTML).toContain(XIANGQI_GLYPH_PATHS.車);
+    expect(page.innerHTML).not.toContain('/pieces/letter/wK.svg');
+
+    window.localStorage.setItem('mistboard.pieceSet', 'letter');
+    window.localStorage.setItem('mistboard.xiangqiPieceSet', 'western');
+    window.dispatchEvent(new Event(boardAppearanceChangedEvent));
+
+    expect(page.innerHTML).toContain('/pieces/letter/wK.svg');
+    expect(page.innerHTML).toContain('>R</text>');
+    expect(page.innerHTML).not.toContain(XIANGQI_GLYPH_PATHS.車);
+  });
+
   it('links the Dark Chess rules CTA to engine play', () => {
     const page = buildArticlePage('dark-chess');
     const links = [...page.querySelectorAll<HTMLAnchorElement>('a')].map((link) => ({
@@ -103,6 +122,20 @@ describe('article public listing gates', () => {
     });
   });
 });
+
+function memoryStorage(): Storage {
+  const values = new Map<string, string>();
+  return {
+    get length() {
+      return values.size;
+    },
+    clear: () => values.clear(),
+    getItem: (key) => values.get(key) ?? null,
+    key: (index) => Array.from(values.keys())[index] ?? null,
+    removeItem: (key) => values.delete(key),
+    setItem: (key, value) => values.set(key, value),
+  };
+}
 
 describe('rules variant sidebar', () => {
   afterEach(() => {

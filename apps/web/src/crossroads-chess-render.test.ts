@@ -25,7 +25,8 @@ describe('Crossroads Chess board renderer', () => {
     expect(svg).not.toContain('var(--crossroads-frame)');
     expect(svg).toContain('var(--crossroads-river)');
     // No fog overlay when showFog is false.
-    expect(svg).not.toContain('var(--board-fog-light-fill)');
+    expect(svg).not.toContain('crossroads-fog-fill');
+    expect(svg).not.toContain('/fog/fog.webp');
   });
 
   it('fogs hidden squares and shows shrouded enemies as color-only silhouettes', () => {
@@ -48,7 +49,19 @@ describe('Crossroads Chess board renderer', () => {
     const svg = renderCrossroadsChessBoardSvg(view, { showFog: true });
 
     expect(svg).toContain('?'); // the a3 screen is a shrouded silhouette
-    expect(svg).toContain('var(--board-fog-light-fill)'); // hidden squares (e.g. f8) are fogged
+    expect(svg).toContain('crossroads-fog-fill'); // hidden squares (e.g. f8) are fogged
+    expect(svg).toContain('crossroads-fog-tile--light');
+    expect(svg).toContain('crossroads-fog-tile--dark');
+    expect(svg).toContain('crossroads-fog-tex-drift');
+    expect(svg).toContain('crossroads-fog-tex-mist');
+    expect(svg).toContain('/fog/fog.webp');
+    expect(svg).toContain('/fog/mistveil/f0r0.webp');
+    expect(svg).toContain('/fog/mistveil/f5r7.webp');
+    expect(svg).toContain('fill="url(#crossroads-live-');
+    expect(svg).toContain('fog-tile-f0r0');
+    expect(svg).toContain('fog-tile-f5r7');
+    expect(svg).not.toContain('var(--board-fog-light-fill)');
+    expect(svg).not.toContain('var(--xq-fog-fill');
     // The hidden Red king must not be drawn as a real piece (no king glyph leak).
     expect(view.board.f8).toBeUndefined();
   });

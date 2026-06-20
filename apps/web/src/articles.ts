@@ -50,6 +50,7 @@ import { type JieqiReplayController, mountJieqiReplay } from './jieqi-replay.js'
 import { type MiniXiangqiReplayController, mountMiniXiangqiReplay } from './mini-xiangqi-replay.js';
 import { mountShogiReplay, type ShogiReplayController } from './shogi-replay.js';
 import {
+  boardAppearanceChangedEvent,
   readStoredXiangqiPieceSet,
   shogiAppearanceChangedEvent,
   xiangqiAppearanceChangedEvent,
@@ -1150,6 +1151,48 @@ function trackShogiDiagram(holder: HTMLElement, thunk: () => string): void {
   ensureShogiDiagramListener();
 }
 
+// Crossroads Chess is a hybrid: chess piece art and xiangqi disk art both come
+// from the live appearance settings, and xiangqi changes also dispatch the
+// board-appearance event. Re-run the thunk when either side of the hybrid piece
+// set changes.
+const crossroadsDiagramThunks = new WeakMap<HTMLElement, () => string>();
+let crossroadsDiagramListenerInstalled = false;
+
+function paintCrossroadsDiagram(holder: HTMLElement): void {
+  const thunk = crossroadsDiagramThunks.get(holder);
+  if (!thunk) return;
+  const caption =
+    Array.from(holder.children).find((child) =>
+      child.classList.contains('article-figure-caption'),
+    ) ?? null;
+  const scratch = document.createElement('div');
+  scratch.innerHTML = thunk();
+  holder.replaceChildren(...Array.from(scratch.childNodes), ...(caption ? [caption] : []));
+  markNoTranslate(holder);
+}
+
+const crossroadsThumbPainters = new WeakMap<HTMLElement, () => void>();
+
+function ensureCrossroadsDiagramListener(): void {
+  if (crossroadsDiagramListenerInstalled) return;
+  crossroadsDiagramListenerInstalled = true;
+  window.addEventListener(boardAppearanceChangedEvent, () => {
+    document
+      .querySelectorAll<HTMLElement>('[data-crossroads-diagram]')
+      .forEach(paintCrossroadsDiagram);
+    document.querySelectorAll<HTMLElement>('[data-crossroads-thumb]').forEach((wrap) => {
+      crossroadsThumbPainters.get(wrap)?.();
+    });
+  });
+}
+
+function trackCrossroadsDiagram(holder: HTMLElement, thunk: () => string): void {
+  holder.dataset.crossroadsDiagram = '';
+  crossroadsDiagramThunks.set(holder, thunk);
+  ensureCrossroadsDiagramListener();
+  markNoTranslate(holder);
+}
+
 function renderRawSvgBlock(block: RawSvgBlock): HTMLElement {
   const figure = document.createElement('figure');
   figure.className = 'article-figure article-figure-static';
@@ -1160,6 +1203,8 @@ function renderRawSvgBlock(block: RawSvgBlock): HTMLElement {
     figure.innerHTML = block.svg();
     if (figure.querySelector('.shogi-board-svg')) {
       trackShogiDiagram(figure, block.svg);
+    } else if (figure.querySelector('.crossroads-live-svg, .crossroads-article-svg')) {
+      trackCrossroadsDiagram(figure, block.svg);
     } else {
       trackXqDiagram(figure, block.svg);
       paintXqDiagram(figure, readStoredXiangqiPieceSet());
@@ -1628,11 +1673,20 @@ export function renderArticleThumbnail(thumb: ArticleThumbnail): HTMLElement {
     };
     if (typeof thumb.svg === 'function') {
       const svgThunk = thumb.svg;
-      const paint = () => applySvg(withXiangqiPieceSet(readStoredXiangqiPieceSet(), svgThunk));
-      paint();
-      wrap.dataset.xqThumb = '';
-      xqThumbPainters.set(wrap, paint);
-      ensureXqDiagramListener();
+      const first = svgThunk();
+      if (first.includes('crossroads-live-svg') || first.includes('crossroads-article-svg')) {
+        const paint = () => applySvg(svgThunk());
+        applySvg(first);
+        wrap.dataset.crossroadsThumb = '';
+        crossroadsThumbPainters.set(wrap, paint);
+        ensureCrossroadsDiagramListener();
+      } else {
+        const paint = () => applySvg(withXiangqiPieceSet(readStoredXiangqiPieceSet(), svgThunk));
+        paint();
+        wrap.dataset.xqThumb = '';
+        xqThumbPainters.set(wrap, paint);
+        ensureXqDiagramListener();
+      }
     } else {
       applySvg(thumb.svg);
     }
