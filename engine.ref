@@ -1,8 +1,8 @@
-bba9fff
+df4c973
 # ^ The mistboard-engine commit the prod build checks out (railpack build step).
-# Single source of truth for the deployed engine version — committed, reviewable,
-# and independent of any Railway env var. To ship a new engine version: bump this
-# sha AND the matching registry engine_pin (apps/server/src/engines/registry.ts),
-# then deploy. The railpack reads only the first line; this comment is ignored.
-#
-# bba9fff = Misty 1.2 (carryover fix; prune + opening-system landed dormant).
+# ROLLED BACK 2026-06-20 from bba9fff (Misty 1.2): v1.2 forfeited engine turns in
+# prod (critical engine-worker alert), while local serving was fine — a deploy/
+# packaging issue (the new opening_system import, or the _assert_belief_consistent
+# worker change). df4c973 = the pre-v1.2 engine (working v1.1-era worker).
+# Single source of truth for the deployed engine version; bump this + the registry
+# engine_pin to ship. The railpack reads only the first line; this comment is ignored.

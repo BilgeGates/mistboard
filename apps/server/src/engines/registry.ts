@@ -30,7 +30,9 @@ export function playableBuiltinEngines(): EngineDefinition[] {
 // records, but are NOT offered in the live PvE picker. No random fallback in the
 // PvE serving path — if Misty can't serve it fails loudly (503), by design.
 const PROD_PLAYABLE_ENGINE_IDS = new Set([
-  'python-v2-v1.2', // Misty 1.2 (supersedes 1.1 2026-06-19: carryover fix; latest-only picker)
+  // ROLLED BACK to v1.1 2026-06-20: Misty 1.2 forfeited engine turns in prod
+  // (a deploy/packaging issue, not the engine logic). Restore v1.2 once fixed.
+  'python-v2-v1.1', // Misty 1.1 (carryover bug present, but it serves)
 ]);
 
 // Opt-in extras for load testing / local experimentation. Set
