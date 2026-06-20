@@ -16,6 +16,19 @@ const FEEDBACK_FILE = resolve(
   'annotations.jsonl',
 );
 
+function devWebSocketUrlForApiUrl(apiUrl: string): string | null {
+  try {
+    const url = new URL(apiUrl);
+    url.protocol = url.protocol === 'https:' ? 'wss:' : 'ws:';
+    url.pathname = '';
+    url.search = '';
+    url.hash = '';
+    return url.toString().replace(/\/$/, '');
+  } catch {
+    return null;
+  }
+}
+
 function annotationsApiPlugin(): Plugin {
   return {
     name: 'mistboard-annotations-api',
@@ -112,21 +125,35 @@ function copyFilteredPublicDirPlugin(): Plugin {
   };
 }
 
-export default defineConfig({
-  plugins: [annotationsApiPlugin(), copyFilteredPublicDirPlugin()],
-  build: {
-    copyPublicDir: false,
-  },
-  test: {
-    environment: 'happy-dom',
-    include: ['src/**/*.test.ts'],
-  },
-  server: {
-    proxy: {
-      '/api': {
-        target: DEV_API_URL,
-        changeOrigin: true,
+export default defineConfig(({ command }) => {
+  const derivedDevWebSocketUrl =
+    command === 'serve' && !process.env.VITE_MISTBOARD_WS_URL && process.env.MISTBOARD_DEV_API_URL
+      ? devWebSocketUrlForApiUrl(DEV_API_URL)
+      : null;
+
+  return {
+    plugins: [annotationsApiPlugin(), copyFilteredPublicDirPlugin()],
+    build: {
+      copyPublicDir: false,
+    },
+    ...(derivedDevWebSocketUrl
+      ? {
+          define: {
+            'import.meta.env.VITE_MISTBOARD_WS_URL': JSON.stringify(derivedDevWebSocketUrl),
+          },
+        }
+      : {}),
+    test: {
+      environment: 'happy-dom',
+      include: ['src/**/*.test.ts'],
+    },
+    server: {
+      proxy: {
+        '/api': {
+          target: DEV_API_URL,
+          changeOrigin: true,
+        },
       },
     },
-  },
+  };
 });
