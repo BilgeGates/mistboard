@@ -89,8 +89,8 @@
   flex-wrap: wrap;
   align-items: center;
   justify-content: center;
-  gap: 3px;
-  min-height: 30px;
+  gap: 4px;
+  min-height: 42px;
   max-width: min(100%, 46vh);
   margin-inline: auto;
 }
@@ -98,13 +98,13 @@
 .dark-shogi-postgame-route .dsg-postgame__reserve-koma {
   position: relative;
   display: inline-flex;
-  width: 28px;
-  height: 28px;
+  width: 38px;
+  height: 38px;
 }
 
 .dark-shogi-postgame-route .dsg-postgame__reserve-koma .shogi-hand-koma__svg {
-  width: 28px;
-  height: 28px;
+  width: 38px;
+  height: 38px;
 }
 
 .dark-shogi-postgame-route .dsg-postgame__reserve-count {

@@ -30,16 +30,33 @@
 }
 
 /* ── Reserves (hands) ──────────────────────────────────────────────────────
-   Rendered into the capture-strip slots: opponent's reserve above the board,
-   yours below. Your own pieces are droppable (buttons); the opponent's strip is
-   a count-only display. */
+   Rendered into the bottom capture-strip slot. The opponent hand is private and
+   omitted entirely; only your own droppable hand stays visible. */
+
+.live-route--shogi .board-shell > .captures-strip {
+  overflow: visible;
+}
+
+.live-route--shogi .captures-strip-top:empty {
+  height: 0;
+  min-height: 0;
+  padding: 0;
+}
+
+.live-route--shogi .captures-strip-bottom {
+  height: auto;
+  min-height: 60px;
+  padding: 6px 2px 0;
+}
 
 .shogi-hands {
+  --shogi-hand-size: clamp(44px, 8.5cqw, 56px);
+
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 4px;
-  min-height: 44px;
+  gap: 5px;
+  min-height: calc(var(--shogi-hand-size) + 6px);
   width: 100%;
 }
 
@@ -54,8 +71,8 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 36px;
-  height: 36px;
+  width: var(--shogi-hand-size);
+  height: var(--shogi-hand-size);
   padding: 0;
   border: 1px solid transparent;
   border-radius: var(--site-radius-sm);
@@ -77,8 +94,8 @@
 }
 
 .shogi-hand-koma__svg {
-  width: 32px;
-  height: 32px;
+  width: calc(var(--shogi-hand-size) - 4px);
+  height: calc(var(--shogi-hand-size) - 4px);
   pointer-events: none;
 }
 

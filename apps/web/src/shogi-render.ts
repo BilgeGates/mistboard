@@ -51,9 +51,9 @@ const FILES = 9;
 const RANKS = 9;
 const CELL = 48;
 
-// On-board koma tile size (the piece footprint inside a cell). The floating drag
-// ghost is sized to this so the lifted piece matches what sits on the board.
+// On-board text-koma tile size in the renderer's internal SVG units.
 export const SHOGI_PIECE_PX = CELL * 0.9;
+export const SHOGI_FILES = FILES;
 const KOMA_GLYPH_CENTER_Y = 0.62;
 
 // Per-theme cell colors. The frame is always transparent (borderless, to
@@ -148,8 +148,8 @@ export type ShogiRenderOptions = {
   // the stored preference.
   pieceSet?: ShogiPieceSet;
   boardTheme?: ShogiBoardTheme;
-  // Draw file/rank coordinate labels. Defaults to true; the rules diagrams pass
-  // false for clean teaching boards.
+  // Draw file/rank coordinate labels. Defaults to false; live and review boards
+  // should stay visually clean, while specific teaching diagrams can opt in.
   showCoords?: boolean;
   // Squares to tint as forbidden (red). The rules diagrams use this to show the
   // drop restrictions, e.g. the file a pawn cannot be dropped onto (nifu).
@@ -189,9 +189,13 @@ export function renderShogiBoardSvg(
     fogHidden: showFog ? hiddenSquares(visible) : null,
     threats: (options.forbidden ?? []).map((sq) => coordOf(sq)),
     interactive: options.interactive ?? false,
-    coords: options.showCoords ?? true,
+    coords: options.showCoords ?? false,
     squareName: (file, rank) => squareAt(file, rank),
   });
+}
+
+export function shogiBoardPieceScale(set: ShogiPieceSet = readStoredShogiPieceSet()): number {
+  return shogiImageSet(set) ? 1 : 0.9;
 }
 
 // A standalone mini-koma (reserves strip, promotion preview). pointsUp false
@@ -227,7 +231,7 @@ export function shogiHandKomaSvg(
 // The standalone koma for the floating drag ghost (board-drag.ts mounts it in a
 // sized <div>). Only your OWN visible board pieces are draggable, so the koma
 // always points up (toward the enemy) like every piece you own. The SVG fills
-// its container so the SHOGI_PIECE_PX-sized ghost scales the koma to board size.
+// its container so the responsive drag helper can scale the koma to board size.
 export function shogiPieceGhostSvg(
   piece: ShogiPiece,
   set: ShogiPieceSet = readStoredShogiPieceSet(),

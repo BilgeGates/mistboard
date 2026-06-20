@@ -149,6 +149,7 @@ function boardsPanel(postgame: DarkShogiPostgameResponse, signal: AbortSignal): 
       board.innerHTML = renderShogiBoardSvg(view, {
         perspective: boardOrientation,
         showFog: entry.key !== 'truth',
+        showCoords: false,
       });
       const revealed: readonly ShogiColor[] =
         entry.key === 'truth' ? ['black', 'white'] : [entry.key];
@@ -247,10 +248,6 @@ function renderReserve(
 ): void {
   host.replaceChildren();
   if (!revealed.includes(color)) {
-    const note = document.createElement('span');
-    note.className = 'dsg-postgame__reserve-empty';
-    note.textContent = 'hidden';
-    host.append(note);
     return;
   }
   const hand = handForColorAtPly(postgame, color, ply);

@@ -7,7 +7,12 @@ import {
   shogiSquareOf,
 } from '@mistboard/game';
 import { describe, expect, it } from 'vitest';
-import { renderShogiBoardSvg, shogiHandKomaSvg, shogiKomaSvg } from './shogi-render.js';
+import {
+  renderShogiBoardSvg,
+  shogiBoardPieceScale,
+  shogiHandKomaSvg,
+  shogiKomaSvg,
+} from './shogi-render.js';
 
 function allShogiSquares(): ShogiSquare[] {
   const squares: ShogiSquare[] = [];
@@ -50,6 +55,16 @@ describe('Dark Shogi board renderer', () => {
     expect((svg.match(/width="48" height="48"/g) ?? []).length).toBe(81);
     // No fog overlay when showFog is false.
     expect(svg).not.toContain('fill="url(#');
+  });
+
+  it('keeps board coordinates off by default, with explicit opt-in', () => {
+    const view = truthView(createInitialShogiState('coords'));
+
+    const clean = renderShogiBoardSvg(view, { showFog: false });
+    expect(clean).not.toContain('font-size="9" fill="#8a6d3f"');
+
+    const labeled = renderShogiBoardSvg(view, { showFog: false, showCoords: true });
+    expect((labeled.match(/font-size="9" fill="#8a6d3f"/g) ?? []).length).toBe(18);
   });
 
   it('fogs squares outside vision and never leaks off-vision enemies', () => {
@@ -134,6 +149,13 @@ describe('Dark Shogi board renderer', () => {
     expect(svg).toContain('<image href="/piece-sets/chess/1OU.svg"');
     expect(svg).not.toContain('王'); // image sets draw the koma art, not a kanji glyph
     expect(svg).not.toContain('玉');
+  });
+
+  it('matches drag ghost scale to text and image board pieces', () => {
+    expect(shogiBoardPieceScale('kanji')).toBe(0.9);
+    expect(shogiBoardPieceScale('western')).toBe(0.9);
+    expect(shogiBoardPieceScale('chess')).toBe(1);
+    expect(shogiBoardPieceScale('international')).toBe(1);
   });
 
   it('applies the selected board theme palette under the shared dark fog', () => {

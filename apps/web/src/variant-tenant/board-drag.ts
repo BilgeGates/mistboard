@@ -15,8 +15,9 @@ export interface BoardDragHandlers {
   // The persistent container that holds the `[data-square]` hit elements. Its
   // inner SVG is replaced on every render, but the container itself stays.
   board: HTMLElement;
-  // Pixel size of the floating ghost piece.
-  ghostSizePx: number;
+  // Pixel size of the floating ghost piece. A function lets responsive boards
+  // match the currently rendered cell size instead of their internal SVG units.
+  ghostSizePx: number | (() => number);
   // A click (tap) on `square` — the existing click-to-move handler.
   onSquareClick: (square: string) => void;
   // Whether a drag may begin from `square` (an own, movable piece on your turn).
@@ -34,6 +35,11 @@ export interface BoardDragHandlers {
 }
 
 const MOVE_THRESHOLD_PX = 4;
+
+function ghostSizePx(handlers: BoardDragHandlers): number {
+  const size = handlers.ghostSizePx;
+  return typeof size === 'function' ? size() : size;
+}
 
 function squareOf(target: EventTarget | null): string | null {
   const el = (target as Element | null)?.closest('[data-square]') as HTMLElement | null;
@@ -55,8 +61,9 @@ export function installBoardDrag(handlers: BoardDragHandlers): void {
   };
   const positionGhost = (x: number, y: number): void => {
     if (!ghost) return;
-    ghost.style.left = `${x - handlers.ghostSizePx / 2}px`;
-    ghost.style.top = `${y - handlers.ghostSizePx / 2}px`;
+    const size = ghostSizePx(handlers);
+    ghost.style.left = `${x - size / 2}px`;
+    ghost.style.top = `${y - size / 2}px`;
   };
 
   handlers.board.addEventListener('click', (event) => {
@@ -89,10 +96,11 @@ export function installBoardDrag(handlers: BoardDragHandlers): void {
         handlers.onDragStart(from);
         const html = handlers.ghostHtml(from);
         if (html) {
+          const size = ghostSizePx(handlers);
           ghost = document.createElement('div');
           ghost.className = 'board-drag-ghost';
-          ghost.style.width = `${handlers.ghostSizePx}px`;
-          ghost.style.height = `${handlers.ghostSizePx}px`;
+          ghost.style.width = `${size}px`;
+          ghost.style.height = `${size}px`;
           ghost.innerHTML = html;
           document.body.append(ghost);
         }

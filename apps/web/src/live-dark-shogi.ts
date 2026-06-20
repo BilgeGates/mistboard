@@ -38,8 +38,9 @@ import { clearSeatTokenForRoom, type LiveRefs } from './live-state.js';
 import { roomIdFromPath } from './room-url.js';
 import {
   renderShogiBoardSvg,
+  SHOGI_FILES,
   SHOGI_HAND_ORDER,
-  SHOGI_PIECE_PX,
+  shogiBoardPieceScale,
   shogiHandKomaSvg,
   shogiKomaSvg,
   shogiPieceGhostSvg,
@@ -305,7 +306,12 @@ function installBoardInteraction(): void {
   if (!boardHost) return;
   installBoardDrag({
     board: boardHost,
-    ghostSizePx: SHOGI_PIECE_PX,
+    ghostSizePx: () => {
+      const rect = boardHost?.getBoundingClientRect();
+      return rect && rect.width > 0
+        ? (rect.width / SHOGI_FILES) * shogiBoardPieceScale()
+        : 48 * shogiBoardPieceScale();
+    },
     onSquareClick: (square) => {
       const view = state.view;
       if (!view) return;
@@ -550,6 +556,7 @@ function renderBoard(view: ShogiPlayerView | null): void {
   refs.board.innerHTML = renderShogiBoardSvg(view, {
     perspective,
     showFog: true,
+    showCoords: false,
     selected,
     targets,
     interactive,
@@ -568,7 +575,7 @@ function activeTargets(view: ShogiPlayerView): ShogiSquare[] {
 function renderHands(view: ShogiPlayerView | null): void {
   if (!refs) return;
   const seat = state.seat;
-  refs.capturesTop.replaceChildren(opponentReserveStrip());
+  refs.capturesTop.replaceChildren();
   if (!view || !isShogiColor(seat)) {
     refs.capturesBottom.replaceChildren();
     return;
@@ -591,16 +598,6 @@ function ownReserveStrip(view: ShogiPlayerView, seat: ShogiColor, droppable: boo
   for (const role of entries) {
     strip.append(handKoma(role, seat, view.hand[role] ?? 0, droppable));
   }
-  return strip;
-}
-
-function opponentReserveStrip(): HTMLElement {
-  const strip = document.createElement('div');
-  strip.className = 'shogi-hands shogi-hands--opponent';
-  const note = document.createElement('span');
-  note.className = 'shogi-hands__empty';
-  note.textContent = 'Opponent reserve: hidden';
-  strip.append(note);
   return strip;
 }
 
