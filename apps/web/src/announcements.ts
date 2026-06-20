@@ -1,6 +1,7 @@
 import {
   banqiEnabled,
   darkMiniXiangqiPublicEntryEnabled,
+  darkShogiEnabled,
   darkXiangqiEnabled,
   jieqiEnabled,
   revealChessEnabled,
@@ -28,11 +29,22 @@ export type Announcement = {
   requiresBanqi?: boolean;
   // Gated to the dark-xiangqi flag so it only shows once Dark Xiangqi is live.
   requiresDarkXiangqi?: boolean;
+  // Gated to the dark-shogi flag so it only shows once Dark Shogi is live.
+  requiresDarkShogi?: boolean;
   // Gated to the reveal-chess flag so it only shows once Reveal Chess is live.
   requiresRevealChess?: boolean;
 };
 
 const baseAnnouncements: Announcement[] = [
+  {
+    date: '2026-06-20',
+    kind: 'release',
+    headline: 'Dark Shogi has launched.',
+    body: 'Shogi under Fog of War is now live for invite games, with private hands, drops into the fog, and king capture wins.',
+    href: '/rules/dark-shogi',
+    cta: 'Read rules',
+    requiresDarkShogi: true,
+  },
   {
     date: '2026-06-18',
     kind: 'release',
@@ -111,6 +123,7 @@ export function announcements(): Announcement[] {
       (!announcement.requiresJieqi || jieqiEnabled()) &&
       (!announcement.requiresBanqi || banqiEnabled()) &&
       (!announcement.requiresDarkXiangqi || darkXiangqiEnabled()) &&
+      (!announcement.requiresDarkShogi || darkShogiEnabled()) &&
       (!announcement.requiresRevealChess || revealChessEnabled()),
   );
 }

@@ -277,6 +277,7 @@ function buildRulesLanding(lang?: ArticleLang): HTMLElement {
 // mountArticleThumbnails pass; rotation is started by initLandingCarousel once
 // the section is in the document (it needs measured widths).
 const HOME_ARTICLE_SLUGS = [
+  'dark-shogi',
   'server-enforced-fog',
   'crossroads-chess',
   'dark-mini-xiangqi',

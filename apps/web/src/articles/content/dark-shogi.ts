@@ -250,12 +250,13 @@ function privateHandsDiagram(): ArticleBlock {
 export const darkShogiArticle: Article = {
   slug: 'dark-shogi',
   kind: 'rules',
+  playableOnMistboard: true,
   title: 'Dark Shogi Rules',
   summary:
     'Shogi under Fog of War: the Shogi rules supply the board, pieces, promotion, and drop mechanic; this page covers vision, private hands, drop bounces, and king capture.',
   showSummaryOnPage: false,
-  status: 'draft',
-  publishedAt: '2026-06-18',
+  status: 'published',
+  publishedAt: '2026-06-20',
   boardFamily: 'shogi',
   audience:
     'Shogi players, dark chess players, and anyone who wants a clean first explanation of shogi under fog.',

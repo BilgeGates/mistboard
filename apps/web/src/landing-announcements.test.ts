@@ -26,6 +26,24 @@ describe('landing announcements', () => {
     expect(row?.getAttribute('href')).toBe('/rules/dark-mini-xiangqi');
   });
 
+  it('hides the Dark Shogi announcement until the dark shogi flag is enabled', () => {
+    vi.stubEnv('VITE_DARK_SHOGI_ENABLED', 'false');
+
+    expect(buildLandingAnnouncements().textContent).not.toContain('Dark Shogi');
+  });
+
+  it('shows the Dark Shogi launch announcement when the dark shogi flag is enabled', () => {
+    vi.stubEnv('VITE_DARK_SHOGI_ENABLED', 'true');
+
+    const panel = buildLandingAnnouncements();
+    const row = [...panel.querySelectorAll<HTMLAnchorElement>('a.landing-news-row')].find((r) =>
+      r.textContent?.includes('Dark Shogi'),
+    );
+
+    expect(row).toBeDefined();
+    expect(row?.getAttribute('href')).toBe('/rules/dark-shogi');
+  });
+
   it('hides the Banqi announcement until the banqi flag is enabled', () => {
     vi.stubEnv('DEV', false);
     expect(buildLandingAnnouncements().textContent).not.toContain('Banqi');
