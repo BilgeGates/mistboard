@@ -393,13 +393,17 @@
   height: 36px;
   font-size: 36px;
   line-height: 1;
-  letter-spacing: -2px;
+  letter-spacing: 0;
   color: var(--site-text);
 }
 
 .landing-color-option .landing-color-glyph.xiangqi {
   font-size: 22px;
   letter-spacing: 0;
+}
+
+.landing-color-option .landing-color-glyph.shogi {
+  font-size: 30px;
 }
 
 .landing-color-option .landing-color-glyph.white {

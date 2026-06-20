@@ -803,6 +803,38 @@ describe('landing play panel', () => {
     expect(card?.querySelector('svg[data-mini-id="dark-crazyhouse"]')).not.toBeNull();
   });
 
+  it('shows Dark Shogi sente and gote color choices in the setup modal', async () => {
+    vi.stubEnv('VITE_DARK_SHOGI_ENABLED', 'true');
+    const fetchSpy = vi.fn(async (input: RequestInfo | URL, _init?: RequestInit) => {
+      if (String(input) === '/api/live-stats') return jsonResponse({ playing: 0, online: 0 });
+      if (String(input) === '/api/rooms') return jsonResponse({ url: '/room/dsg_color' });
+      return jsonResponse({}, { status: 404 });
+    });
+    vi.stubGlobal('fetch', fetchSpy);
+    setRoomNavigator(() => {});
+    const panel = buildLandingPlayPanel([]);
+    document.body.append(panel);
+
+    openPlaySetup(panel, 'Challenge a friend');
+    selectModalVariant('dark-shogi');
+
+    expect(modalColorOptions()).toEqual([
+      { label: 'Sente', glyph: '☗', classes: 'landing-color-glyph black shogi' },
+      { label: 'Random', glyph: '☗☖', classes: 'landing-color-glyph random shogi' },
+      { label: 'Gote', glyph: '☖', classes: 'landing-color-glyph white shogi' },
+    ]);
+
+    clickModalColor('Gote');
+    clickModalButton('Create room');
+    await flushPromises();
+
+    expect(roomPostBody(fetchSpy)).toMatchObject({
+      mode: 'pvp',
+      gameSpecId: 'dark-shogi',
+      preferredColor: 'white',
+    });
+  });
+
   it('orders the variant picker by the shared canonical variant order', () => {
     vi.stubEnv('VITE_DARK_MINI_XIANGQI_ENABLED', 'true');
     vi.stubEnv('VITE_DARK_MINI_XIANGQI_PUBLIC_ENTRY_ENABLED', 'true');

@@ -72,14 +72,15 @@ type LandingTimePreset = {
   incrementMs: number;
 };
 type LandingColorPreference = 'white' | 'red' | 'black' | 'random';
+type LandingPlayerColor = Exclude<LandingColorPreference, 'random'>;
 type LandingGameSpecCapabilities = {
-  firstColor: Extract<LandingColorPreference, 'red' | 'white'>;
+  firstColor: LandingPlayerColor;
   firstGlyph: string;
-  firstLabel: 'Red' | 'White';
+  firstLabel: string;
   glyphClass?: string;
-  secondColor: Extract<LandingColorPreference, 'black' | 'red'>;
+  secondColor: LandingPlayerColor;
   secondGlyph: string;
-  secondLabel: 'Black' | 'Red';
+  secondLabel: string;
   supportsRated: boolean;
   supportsStartFormat: boolean;
   supportsTimeControl: boolean;
@@ -1023,15 +1024,7 @@ function openLandingSetupDialog(choice: LandingPlayChoice): void {
     if (!capabilities.supportsRated) {
       rated = false;
     }
-    if (preferredColor === 'white' && capabilities.firstColor !== 'white') {
-      preferredColor = capabilities.firstColor;
-    }
-    if (preferredColor === 'red' && capabilities.secondColor !== 'red') {
-      preferredColor = capabilities.firstColor === 'red' ? 'red' : capabilities.secondColor;
-    }
-    if (preferredColor === 'black' && capabilities.secondColor !== 'black') {
-      preferredColor = capabilities.secondColor;
-    }
+    preferredColor = coerceColorPreferenceForCapabilities(preferredColor, capabilities);
     // Some variants (Banqi) have no choosable side — the ink is bound by the
     // first mover's opening flip — so suppress the color picker and randomize.
     const hideColorPicker =
@@ -1421,6 +1414,19 @@ function normalizeStoredColorPreference(value: unknown): LandingColorPreference 
   return undefined;
 }
 
+function coerceColorPreferenceForCapabilities(
+  preferredColor: LandingColorPreference,
+  capabilities: LandingGameSpecCapabilities,
+): LandingColorPreference {
+  if (preferredColor === 'random') return preferredColor;
+  if (preferredColor === capabilities.firstColor || preferredColor === capabilities.secondColor) {
+    return preferredColor;
+  }
+  if (preferredColor === 'white') return capabilities.firstColor;
+  if (preferredColor === 'black') return capabilities.secondColor;
+  return capabilities.firstColor === 'red' ? capabilities.firstColor : capabilities.secondColor;
+}
+
 function normalizeStoredStartFormat(value: unknown): LandingStartFormat | undefined {
   if (value === 'standard' || value === 'draft960') return value;
   return undefined;
@@ -1747,8 +1753,7 @@ export function roomCreationRequestBody(
   }
   if (setup.gameSpecId === DARK_SHOGI_SPEC_ID) {
     // Dark Shogi is PvP-only and casual-only (no bot yet, rated not launched).
-    // The color picker is hidden (seat randomized), so preferredColor is normally
-    // 'random'; black (sente) / white (gote) pass straight through for deep links.
+    // Shogi colors are black (sente) / white (gote), passed straight through.
     return {
       mode: 'pvp',
       gameSpecId,

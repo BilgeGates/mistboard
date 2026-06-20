@@ -56,13 +56,13 @@ export type WebTenantEngineOption = {
 // LANDING_GAME_SPEC_CAPABILITIES table plus the picker/menu gates around it.
 export type WebTenantLandingConfig = {
   capabilities: {
-    firstColor: 'white' | 'red';
+    firstColor: 'white' | 'red' | 'black';
     firstGlyph: string;
-    firstLabel: 'White' | 'Red';
+    firstLabel: string;
     glyphClass?: string;
-    secondColor: 'red' | 'black';
+    secondColor: 'white' | 'red' | 'black';
     secondGlyph: string;
-    secondLabel: 'Black' | 'Red';
+    secondLabel: string;
     supportsRated: boolean;
     supportsStartFormat: boolean;
     supportsTimeControl: boolean;
@@ -517,9 +517,9 @@ const WEB_VARIANT_TENANTS: readonly WebVariantTenant[] = [
     // the other fog tenants — a koma board (shogi-render.ts), reserve (hand)
     // strips, drop + promotion interaction — and PRIVATE hands (the view carries
     // only your own reserve). PvP-only (no bot yet). Flag-gated; postgame review
-    // is the black/truth/white fog triptych. Color choice is deferred for v1:
-    // hideColorPicker randomizes the seat (Banqi precedent), so the placeholder
-    // capability colors below never render.
+    // is the black/truth/white fog triptych. Shogi declares black (sente) as the
+    // first side and white (gote) as the second, so future shogi-family tenants
+    // can reuse the same picker model.
     gameSpecId: DARK_SHOGI_SPEC_ID,
     roomIdPrefix: 'dsg_',
     enabled: darkShogiEnabled,
@@ -538,16 +538,13 @@ const WEB_VARIANT_TENANTS: readonly WebVariantTenant[] = [
       ),
     landing: {
       capabilities: {
-        // Placeholders — the color section is hidden (hideColorPicker), so the
-        // seat is randomized and these never reach the UI. Shogi is sente
-        // (black) vs gote (white); a real picker waits on widening the picker's
-        // white/red/black color model.
-        firstColor: 'white',
+        firstColor: 'black',
         firstGlyph: '☗',
-        firstLabel: 'White',
-        secondColor: 'black',
+        firstLabel: 'Sente',
+        glyphClass: 'shogi',
+        secondColor: 'white',
         secondGlyph: '☖',
-        secondLabel: 'Black',
+        secondLabel: 'Gote',
         supportsRated: false,
         supportsStartFormat: false,
         supportsTimeControl: true,
@@ -555,7 +552,6 @@ const WEB_VARIANT_TENANTS: readonly WebVariantTenant[] = [
       timePresetIds: ['1m1', '3m2', '5m5'],
       offerInMenu: darkShogiEnabled,
       acceptsDeepLink: darkShogiEnabled,
-      hideColorPicker: true,
     },
   },
   {
