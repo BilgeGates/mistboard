@@ -9,13 +9,10 @@
 // Kriegspiel is stricter than fog, so the surface is different from the other
 // tenants: the board shows ONLY the viewer's own pieces (everything else is
 // shrouded), and the opponent's move never arrives — only the UMPIRE
-// ANNOUNCEMENT does. This client renders that umpire voice in three places:
-//   * the top strip — the umpire's latest call (a prominent CHECK banner when
-//     the opponent's move put the viewer in check, else a capture / "moved"
-//     line);
-//   * the bottom strip — the viewer's turn state and PAWN-TRY count, plus the
-//     TRY-LOOP bounce ("illegal, try again") when a pseudo-legal probe is
-//     refused by the umpire;
+// ANNOUNCEMENT does. This client renders that umpire voice in two places:
+//   * the bottom status area: the latest umpire call, check banner, turn state,
+//     PAWN-TRY count, and TRY-LOOP bounce ("illegal, try again") when a
+//     pseudo-legal probe is refused by the umpire;
 //   * the move list — a two-column umpire log: the viewer's own plies in full,
 //     the opponent's plies as the announcement alone.
 
@@ -487,7 +484,9 @@ function renderAll(): void {
   if (!kriegspielEnabled()) {
     refs.board.className = 'board kriegspiel-live-board kriegspiel-live-board--disabled';
     refs.board.replaceChildren();
+    refs.capturesTop.hidden = true;
     refs.capturesTop.replaceChildren();
+    refs.capturesBottom.hidden = false;
     refs.capturesBottom.replaceChildren();
     clearSelection();
     return;
@@ -549,13 +548,17 @@ function kingSquareFor(view: KriegspielPlayerView, color: Color): Square | null 
   return null;
 }
 
-// The two umpire zones: the top strip is the umpire's latest call (the check
-// banner lives here); the bottom strip is the viewer's turn state, pawn-try
-// count, and the try-loop bounce.
+// Keep every Kriegspiel status line below the board: the umpire's latest call,
+// check banner, turn state, pawn-try count, and try-loop bounce.
 function renderUmpireZones(view: KriegspielPlayerView | null): void {
   if (!refs) return;
-  refs.capturesTop.replaceChildren(umpireCallZone(view));
-  refs.capturesBottom.replaceChildren(turnStateZone(view));
+  refs.capturesTop.hidden = true;
+  refs.capturesTop.replaceChildren();
+  refs.capturesBottom.hidden = false;
+  const zone = document.createElement('div');
+  zone.className = 'kriegspiel-bottom-status';
+  zone.append(umpireCallZone(view), turnStateZone(view));
+  refs.capturesBottom.replaceChildren(zone);
 }
 
 function umpireCallZone(view: KriegspielPlayerView | null): HTMLElement {
@@ -578,7 +581,7 @@ function umpireCallZone(view: KriegspielPlayerView | null): HTMLElement {
     const banner = document.createElement('div');
     banner.className = 'kriegspiel-umpire__check kriegspiel-umpire__check--mate';
     banner.textContent = fromOpponent
-      ? `Checkmate${cats ? ` — by ${cats}` : ''}.`
+      ? `Checkmate${cats ? ` by ${cats}` : ''}.`
       : 'Checkmate. You win.';
     zone.append(banner);
     if (announcement?.capture)
@@ -591,7 +594,7 @@ function umpireCallZone(view: KriegspielPlayerView | null): HTMLElement {
   if (fromOpponent && cats) {
     const banner = document.createElement('div');
     banner.className = 'kriegspiel-umpire__check';
-    banner.textContent = `Check — by ${cats}`;
+    banner.textContent = `Check by ${cats}.`;
     zone.append(banner);
     if (announcement?.capture)
       zone.append(umpireLine(captureLine(announcement.capture, fromOpponent)));
@@ -609,8 +612,7 @@ function umpireCallText(event: KriegspielMovePlayed, fromOpponent: boolean): str
     ? ` ${fromOpponent ? '' : 'and gave '}check (${announcement.check.map((c) => CHECK_LABELS[c]).join(', ')})`
     : '';
   if (captured) {
-    const verb = fromOpponent ? 'captured' : 'captured';
-    return `${subject} ${verb} a ${captured.kind} on ${captured.square}${check}.`;
+    return `${subject} captured a ${captured.kind} on ${captured.square}${check}.`;
   }
   if (announcement?.check?.length) {
     return fromOpponent
@@ -642,8 +644,8 @@ function turnStateZone(view: KriegspielPlayerView | null): HTMLElement {
     const bounce = document.createElement('div');
     bounce.className = 'kriegspiel-turn__bounce';
     const attempt =
-      state.bounce.from && state.bounce.to ? ` (${state.bounce.from}–${state.bounce.to})` : '';
-    bounce.textContent = `Illegal${attempt} — the umpire says no. Try another move.`;
+      state.bounce.from && state.bounce.to ? ` (${state.bounce.from}-${state.bounce.to})` : '';
+    bounce.textContent = `Illegal${attempt}: the umpire says no. Try another move.`;
     zone.append(bounce);
   }
   if (!iAmPlayer()) {

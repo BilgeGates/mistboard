@@ -13,12 +13,15 @@ import {
   isKriegspielEventLog,
   type KriegspielEvent,
   type KriegspielProjection,
+  type KriegspielRuntimeRoom,
   type KriegspielWirePlayerView,
   replayKriegspielEvents,
 } from './../kriegspiel-runtime.js';
-import type { KriegspielWireMove } from './../kriegspiel-tenant.js';
+import { kriegspielRooms } from './../kriegspiel-registration.js';
+import { kriegspielTenant, type KriegspielWireMove } from './../kriegspiel-tenant.js';
 import * as persistence from './../persistence.js';
-import { type HttpApiContext, requireMethod, requirePersistence, writeJson } from './lib.js';
+import { buildTenantGameSummary } from './../variant-tenant/events.js';
+import { type HttpApiContext, requireMethod, writeJson } from './lib.js';
 
 type KriegspielPostgameViewKey = Color | 'truth';
 
@@ -45,12 +48,16 @@ type KriegspielPostgameTerminal =
 // The persistence slice the reveal builder needs, injected so the reveal-gate
 // and masking are unit-testable without a live database.
 export type KriegspielPostgamePersistence = {
+  getLiveRoom?(roomId: string): KriegspielRuntimeRoom | null;
   getGameSummary(roomId: string): ReturnType<typeof persistence.getGameSummary>;
+  isPersistenceEnabled?(): boolean;
   loadRoomEvents(roomId: string): Promise<KriegspielEvent[] | null>;
 };
 
 const livePersistence: KriegspielPostgamePersistence = {
+  getLiveRoom: (roomId) => kriegspielRooms.get(roomId) ?? null,
   getGameSummary: (roomId) => persistence.getGameSummary(roomId),
+  isPersistenceEnabled: () => persistence.isInitialized(),
   loadRoomEvents: (roomId) => persistence.loadRoomEvents<KriegspielEvent>(roomId),
 };
 
@@ -69,7 +76,6 @@ export async function tryHandle(
     writeJson(response, 404, { error: 'not_found' });
     return true;
   }
-  if (!requirePersistence(response)) return true;
 
   const roomId = decodeURIComponent(postgameMatch[1]!);
   const payload = await kriegspielPostgameForApi(roomId, livePersistence);
@@ -85,33 +91,43 @@ export async function kriegspielPostgameForApi(
   roomId: string,
   deps: KriegspielPostgamePersistence,
 ) {
+  const persistenceEnabled = deps.isPersistenceEnabled?.() ?? true;
   const [game, events] = await Promise.all([
-    deps.getGameSummary(roomId),
-    deps.loadRoomEvents(roomId),
+    persistenceEnabled ? deps.getGameSummary(roomId) : null,
+    persistenceEnabled ? deps.loadRoomEvents(roomId) : null,
   ]);
-  if (!game || game.variant !== KRIEGSPIEL_SPEC_ID) return null;
-  if (!events || !isKriegspielEventLog(events, roomId)) return null;
+  if (game && game.variant !== KRIEGSPIEL_SPEC_ID) return null;
+  if (events && !isKriegspielEventLog(events, roomId)) return null;
 
-  const projection = replayKriegspielEvents(events);
+  let source: { game: persistence.RecentEveGameRecord; events: readonly KriegspielEvent[] } | null =
+    game && events ? { game, events } : null;
+  if (!source) {
+    const room = deps.getLiveRoom?.(roomId) ?? null;
+    await room?.pendingWrites.catch(() => undefined);
+    source = kriegspielPostgameFromLiveRoom(roomId, room);
+  }
+  if (!source) return null;
+
+  const projection = replayKriegspielEvents(source.events);
   // The reveal gate: only a FINISHED game exposes the truth board and the
   // opponent's hidden history. A live or aborted-mid-play room returns 404.
   if (projection.state.status.type !== 'finished') return null;
 
-  const latestMoveColor = latestKriegspielMoveColor(events);
+  const latestMoveColor = latestKriegspielMoveColor(source.events);
   return {
     game: {
-      roomId: game.roomId,
-      variant: game.variant,
-      mode: game.mode,
-      result: game.result,
-      termination: game.termination,
-      plyCount: game.plyCount,
-      startedAt: game.startedAt.toISOString(),
-      endedAt: game.endedAt.toISOString(),
-      rated: game.rated,
-      visibility: game.visibility,
-      initialMs: game.initialMs,
-      incrementMs: game.incrementMs,
+      roomId: source.game.roomId,
+      variant: source.game.variant,
+      mode: source.game.mode,
+      result: source.game.result,
+      termination: source.game.termination,
+      plyCount: source.game.plyCount,
+      startedAt: source.game.startedAt.toISOString(),
+      endedAt: source.game.endedAt.toISOString(),
+      rated: source.game.rated,
+      visibility: source.game.visibility,
+      initialMs: source.game.initialMs,
+      incrementMs: source.game.incrementMs,
     },
     state: {
       status: projection.state.status,
@@ -119,10 +135,53 @@ export async function kriegspielPostgameForApi(
       clock: projection.clock,
       timeControl: projection.timeControl,
     },
-    timeline: kriegspielPostgameTimeline(events),
+    timeline: kriegspielPostgameTimeline(source.events),
     view: kriegspielTruthView(projection.state),
     views: kriegspielPostgameViews(projection.state, latestMoveColor),
-    history: kriegspielPostgameHistory(events),
+    history: kriegspielPostgameHistory(source.events),
+  };
+}
+
+function kriegspielPostgameFromLiveRoom(
+  roomId: string,
+  room: KriegspielRuntimeRoom | null,
+): { game: persistence.RecentEveGameRecord; events: readonly KriegspielEvent[] } | null {
+  if (!room || room.id !== roomId) return null;
+  if (room.projection.state.status.type !== 'finished') return null;
+  if (!isKriegspielEventLog(room.events, roomId)) return null;
+  const summary = buildTenantGameSummary(kriegspielTenant, room);
+  return {
+    game: recentGameRecordFromSummary(room.id, summary),
+    events: room.events,
+  };
+}
+
+function recentGameRecordFromSummary(
+  roomId: string,
+  summary: persistence.GameSummary,
+): persistence.RecentEveGameRecord {
+  return {
+    roomId,
+    variant: summary.variant,
+    mode: summary.mode ?? (summary.corpusId ? 'imported' : 'pvp'),
+    result: summary.result,
+    termination: summary.termination,
+    plyCount: summary.plyCount,
+    startedAt: summary.startedAt,
+    endedAt: summary.endedAt,
+    whiteName: summary.whiteName,
+    blackName: summary.blackName,
+    corpusId: summary.corpusId,
+    rated: summary.rated ?? false,
+    jobId: null,
+    gameIndex: null,
+    whiteEngineId: null,
+    blackEngineId: null,
+    timeControl: null,
+    initialMs: summary.initialMs ?? null,
+    incrementMs: summary.incrementMs ?? null,
+    visibility: summary.visibility ?? 'private',
+    participants: summary.participants ?? [],
   };
 }
 

@@ -1,7 +1,5 @@
 /* Kriegspiel live room. Layout, clocks, and chrome ride the shared live-layout;
-   this file adds the 8x8 chess board sizing, the two UMPIRE ZONES that reuse the
-   capture-strip slots (top = the umpire's latest call + check banner; bottom =
-   the viewer's turn state, pawn-try count, and the try-loop bounce), and the
+   this file adds the 8x8 chess board sizing, the bottom umpire status area, and the
    two-column umpire-log move list (own plies full, opponent plies as the
    announcement alone). */
 
@@ -23,6 +21,56 @@
   height: 100%;
 }
 
+.kriegspiel-live-svg .kriegspiel-fog-square {
+  stroke: var(--board-fog-shadow);
+  stroke-width: 1;
+  vector-effect: non-scaling-stroke;
+}
+
+.kriegspiel-fog-tint--light {
+  fill: var(--board-fog-light-fill);
+}
+
+.kriegspiel-fog-tint--dark {
+  fill: var(--board-fog-dark-fill);
+}
+
+:root[data-fog-theme="solid"] .kriegspiel-fog-tint--light {
+  fill: var(--board-fog-light-background);
+}
+
+:root[data-fog-theme="solid"] .kriegspiel-fog-tint--dark {
+  fill: var(--board-fog-dark-background);
+}
+
+.kriegspiel-fog-tex {
+  display: none;
+}
+
+:root[data-fog-theme="drift"] .kriegspiel-fog-tex-drift {
+  display: block;
+}
+
+:root[data-fog-theme="mistveil"] .kriegspiel-fog-tex-mist {
+  display: inline;
+}
+
+:root[data-fog-theme="void"] .kriegspiel-fog-tint {
+  fill: #000;
+}
+
+:root[data-fog-theme="void"] .kriegspiel-live-svg .kriegspiel-fog-square {
+  stroke: #080808;
+}
+
+:root[data-fog-theme="invisible"] .kriegspiel-fog-tint {
+  fill: transparent;
+}
+
+:root[data-fog-theme="invisible"] .kriegspiel-live-svg .kriegspiel-fog-square {
+  stroke: none;
+}
+
 .kriegspiel-live-board--disabled {
   display: grid;
   place-items: center;
@@ -30,7 +78,14 @@
   border-radius: var(--site-radius-sm);
 }
 
-/* ── Umpire zones (reuse the capture-strip slots) ──────────────────────────── */
+/* ── Bottom umpire status (reuse the bottom capture-strip slot) ─────────────── */
+
+.kriegspiel-bottom-status {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 100%;
+}
 
 .kriegspiel-umpire,
 .kriegspiel-turn {
@@ -83,7 +138,7 @@
   }
 }
 
-/* ── Turn state (bottom strip) ─────────────────────────────────────────────── */
+/* ── Turn state ────────────────────────────────────────────────────────────── */
 
 .kriegspiel-turn__line {
   font-size: 0.86rem;
@@ -226,6 +281,10 @@
   height: auto;
   min-height: 52px;
   overflow: visible;
+}
+
+.live-route--kriegspiel .captures-strip-top[hidden] {
+  display: none;
 }
 
 .kriegspiel-promotion__choice:hover {
