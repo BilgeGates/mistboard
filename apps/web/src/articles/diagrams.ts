@@ -9,8 +9,6 @@ import {
   type BackRankRole,
   type Board,
   type Chess960Start,
-  computeMiniXiangqiVision,
-  computeVision as computeXiangqiVision,
   createChess960CastlingRightsForSides,
   createChess960InitialBoardForSides,
   createInitialMiniXiangqiBoard,
@@ -1392,34 +1390,6 @@ export function xqFogLayer(
   ].join('');
 }
 
-export function xqCannonTargets(
-  state: XiangqiGameState,
-  view: XiangqiPlayerView | null,
-  x0: number,
-  y0: number,
-  perspective: XiangqiColor,
-): string {
-  if (!view) return '';
-  const visible = new Set(view.visibleSquares);
-  const targets = [...computeXiangqiVision(state, view.perspective).cannonTargets].filter((sq) =>
-    visible.has(sq),
-  );
-  return targets
-    .map((sq) => {
-      const { file, rank } = xqCoord(sq);
-      const { x, y } = xqPoint(file, rank, perspective, x0, y0);
-      const outer = 16;
-      const inner = 10;
-      return [
-        `<path d="M ${x - outer} ${y - inner} L ${x - outer} ${y - outer} L ${x - inner} ${y - outer}" fill="none" stroke="#2563eb" stroke-width="2" stroke-linecap="round"/>`,
-        `<path d="M ${x + inner} ${y - outer} L ${x + outer} ${y - outer} L ${x + outer} ${y - inner}" fill="none" stroke="#2563eb" stroke-width="2" stroke-linecap="round"/>`,
-        `<path d="M ${x - outer} ${y + inner} L ${x - outer} ${y + outer} L ${x - inner} ${y + outer}" fill="none" stroke="#2563eb" stroke-width="2" stroke-linecap="round"/>`,
-        `<path d="M ${x + inner} ${y + outer} L ${x + outer} ${y + outer} L ${x + outer} ${y + inner}" fill="none" stroke="#2563eb" stroke-width="2" stroke-linecap="round"/>`,
-      ].join('');
-    })
-    .join('');
-}
-
 // Movement-diagram destination markers, following the standard board-UI
 // vocabulary:
 //   - filled green dot  = a legal move to an empty point
@@ -1540,7 +1510,6 @@ export function xqBoardSvg(opts: {
   arrows?: Array<{ from: XiangqiSquare; to: XiangqiSquare }>;
   dots?: Array<{ square: XiangqiSquare; blocked?: boolean; capture?: boolean }>;
   zones?: boolean;
-  showCannonTargets?: boolean;
   shroudedStyle?: XiangqiShroudedStyle;
   // Raw SVG drawn on top of the pieces (a confrontation line, etc.). The
   // caller positions it with xqPoint using the same x and boardY (y + 28).
@@ -1555,9 +1524,6 @@ export function xqBoardSvg(opts: {
     xqBoardGrid(opts.x, boardY, perspective),
     opts.zones ? xqZoneHighlights(opts.x, boardY, perspective) : '',
     xqFogLayer(view, opts.x, boardY, perspective, clipId),
-    opts.showCannonTargets === false
-      ? ''
-      : xqCannonTargets(opts.state, view, opts.x, boardY, perspective),
     xqMoveDots(opts.dots, opts.x, boardY, perspective),
     xqPiecesLayer(opts.state, view, opts.x, boardY, perspective, opts.shroudedStyle),
     xqArrowLayer(opts.arrows, opts.x, boardY, perspective),
@@ -1762,30 +1728,8 @@ export function miniXqFogBoardSvg(view: MiniXiangqiPlayerView, clipId: string): 
   return `<svg class="xq-article-svg" data-xq-layout="single" style="--xq-svg-width: ${w}px" viewBox="0 0 ${w} ${h}" role="img" xmlns="http://www.w3.org/2000/svg" aria-label="Dark Mini Xiangqi board"><g transform="translate(${XQ_VIEWBOX_PAD} ${XQ_VIEWBOX_PAD})">${body}</g></svg>`;
 }
 
-// Blue corner brackets on the squares a cannon can capture under fog (the
-// "target revealed" half of the cannon rule), matching the full Dark Xiangqi
-// diagrams. Computed from the real vision so it cannot drift from the rules.
-export function mxqCannonTargetMarkers(state: MiniXiangqiGameState, perspective: MiniXiangqiColor): string {
-  const vision = computeMiniXiangqiVision(state, perspective);
-  return [...vision.cannonTargets]
-    .map((sq) => {
-      const { file, rank } = miniXiangqiCoordOf(sq);
-      const { x, y } = mxqPoint(file, rank);
-      const outer = 16;
-      const inner = 10;
-      const stroke = 'fill="none" stroke="#2563eb" stroke-width="2" stroke-linecap="round"';
-      return [
-        `<path d="M ${x - outer} ${y - inner} L ${x - outer} ${y - outer} L ${x - inner} ${y - outer}" ${stroke}/>`,
-        `<path d="M ${x + inner} ${y - outer} L ${x + outer} ${y - outer} L ${x + outer} ${y - inner}" ${stroke}/>`,
-        `<path d="M ${x - outer} ${y + inner} L ${x - outer} ${y + outer} L ${x - inner} ${y + outer}" ${stroke}/>`,
-        `<path d="M ${x + inner} ${y + outer} L ${x + outer} ${y + outer} L ${x + outer} ${y + inner}" ${stroke}/>`,
-      ].join('');
-    })
-    .join('');
-}
-
-// One labeled board in a comparison pair: the fogged player view (with cannon
-// targets) when a view is given, otherwise the full server-truth board.
+// One labeled board in a comparison pair: the fogged player view when a view is
+// given, otherwise the full server-truth board.
 export function mxqBoardCell(opts: {
   x: number;
   label: string;
@@ -1796,7 +1740,6 @@ export function mxqBoardCell(opts: {
   const layers: string[] = [mxqGridLayer()];
   if (opts.view && opts.fogClipId) {
     layers.push(mxqFogLayer(opts.view, opts.fogClipId));
-    layers.push(mxqCannonTargetMarkers(opts.state, opts.view.perspective));
     layers.push(mxqViewPiecesLayer(opts.view));
   } else {
     layers.push(mxqPiecesLayer(opts.state.board));
@@ -2404,7 +2347,6 @@ export const JIEQI_START_BOARD = () => xqSvg(
     y: 0,
     label: 'SHUFFLED START',
     perspective: 'red',
-    showCannonTargets: false,
     shroudedStyle: 'back',
   }),
 );
@@ -2443,7 +2385,6 @@ export const JIEQI_REVEAL_PAIR = () => xqSvg(
       label: 'BEFORE: HORSE POINT',
       perspective: 'red',
       dots: [{ square: 'c3' as XiangqiSquare }],
-      showCannonTargets: false,
       shroudedStyle: 'back',
     }),
     xqBoardSvg({
@@ -2453,7 +2394,6 @@ export const JIEQI_REVEAL_PAIR = () => xqSvg(
       label: 'AFTER: REVEALED CANNON',
       perspective: 'red',
       arrows: [{ from: 'b1' as XiangqiSquare, to: 'c3' as XiangqiSquare }],
-      showCannonTargets: false,
     }),
   ].join(''),
 );
@@ -2531,7 +2471,6 @@ export const JIEQI_CAPTURE_PRIVACY = () => xqSvg(
       label: 'CAPTURE',
       perspective: 'red',
       arrows: [{ from: 'a4' as XiangqiSquare, to: 'a7' as XiangqiSquare }],
-      showCannonTargets: false,
       shroudedStyle: 'back',
     }),
     `<text x="${JIEQI_PAIR_W / 2}" y="${XQ_BOARD_H + 82}" font-family="system-ui, sans-serif" font-size="13" font-weight="700" class="xq-diagram-title" text-anchor="middle">CAPTURED PIECE KNOWLEDGE</text>`,

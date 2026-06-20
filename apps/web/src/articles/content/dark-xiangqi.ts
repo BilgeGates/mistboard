@@ -100,7 +100,7 @@ export const darkXiangqiArticle: Article = {
           { kind: 'sub-heading', text: 'Cannons' },
           {
             kind: 'paragraph',
-            text: 'A cannon moves like a chariot when it is not capturing. To capture, it jumps exactly one screen and lands on the first enemy piece beyond it. Under fog, the target is visible and marked, while the screen appears as unknown occupancy.',
+            text: 'A cannon moves like a chariot when it is not capturing. To capture, it jumps exactly one screen and lands on the first enemy piece beyond it. Under fog, the screen appears as unknown occupancy and the target is visible as the enemy piece.',
           },
           {
             kind: 'raw-svg',
