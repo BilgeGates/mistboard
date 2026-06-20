@@ -464,7 +464,7 @@ function buildLandingStage(
   const about = document.createElement('h1');
   about.className = 'landing-about';
   about.textContent =
-    'Play Dark Chess (Fog of War) and other hidden-information strategy games, free in your browser.';
+    'Play original strategy variants, built for serious play, free in your browser.';
   leftRail.append(buildLandingAnnouncements(), about);
   // Activity box arrives async (two API fetches) and may not render at all
   // (no persistence, API down), so it slots in above the about line on
