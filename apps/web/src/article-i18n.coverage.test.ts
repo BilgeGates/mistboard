@@ -22,6 +22,7 @@ const TRANSLATION_LOCKED_SLUGS: string[] = [
   'dark-mini-xiangqi',
   'jieqi',
   'banqi',
+  'mistybanqi',
 ];
 
 function truncate(text: string): string {

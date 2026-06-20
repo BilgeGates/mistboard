@@ -16,7 +16,7 @@ export const banqiEngineArticle: Article = {
   summary:
     'MistyBanqi is the engine you play in Banqi on Mistboard: a classical search engine with a hand-written evaluation. How it thinks, and the blind spot worth knowing: it can draw a game it has already won.',
   showSummaryOnPage: false,
-  status: 'draft',
+  status: 'published',
   publishedAt: '2026-06-20',
   audience:
     'Banqi players curious about the bot they play against, and anyone who wants to know where a hand-written engine cracks.',
