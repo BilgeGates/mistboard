@@ -68,6 +68,24 @@ describe('article public listing gates', () => {
     });
   });
 
+  it('publishes Dark Crossroads Chess as a reference rules page', () => {
+    vi.stubEnv('DEV', false);
+
+    const page = buildArticlePage('dark-crossroads-chess');
+    const landing = buildRulesIndex();
+    const grids = landing.querySelectorAll('.rules-landing-grid');
+
+    expect(page.textContent).toContain('Dark Crossroads Chess Rules');
+    expect(page.textContent).toContain('active Mistboard playtesting');
+    expect(page.textContent).not.toContain('not playable yet');
+    expect(page.querySelectorAll('.dark-crossroads-figure > svg.crossroads-live-svg')).toHaveLength(
+      4,
+    );
+    expect(landing.textContent).toContain('Dark Crossroads Chess');
+    expect(grids[0]?.querySelector('a[href="/rules/dark-crossroads-chess"]')).toBeNull();
+    expect(grids[1]?.querySelector('a[href="/rules/dark-crossroads-chess"]')).not.toBeNull();
+  });
+
   it('links the Dark Chess rules CTA to engine play', () => {
     const page = buildArticlePage('dark-chess');
     const links = [...page.querySelectorAll<HTMLAnchorElement>('a')].map((link) => ({

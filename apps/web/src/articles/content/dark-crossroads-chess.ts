@@ -106,109 +106,104 @@ export const darkCrossroadsChessArticle: Article = {
   summary:
     'Crossroads Chess under Fog of War: each side sees only the squares its pieces reach, there are no check warnings, the king falls by capture, and the race to the far rank becomes a one-move gamble in the dark.',
   showSummaryOnPage: false,
-  status: 'draft',
-  publishedAt: '2026-06-18',
+  status: 'published',
+  publishedAt: '2026-06-20',
   audience:
     'Crossroads Chess players, dark chess players, and anyone who wants a clean first explanation of the chess-xiangqi fusion under fog.',
   thumbnail: { kind: 'svg', svg: START_FOG_SVG },
   intro: [
     {
       kind: 'paragraph',
-      text: 'Dark Crossroads Chess is the Fog of War version of [Crossroads Chess](/rules/crossroads-chess): the same chess-and-xiangqi fusion on a 6 by 8 river board, but you see only the squares your own pieces reach. Hidden enemy pieces stay dark, danger is never announced, and there is no checkmate. You win by capturing the enemy king, or by racing your own king across the board.',
+      text: 'Dark Crossroads Chess is [Crossroads Chess](/rules/crossroads-chess) under Fog of War. The board, pieces, river, movement rules, promotion, and racing idea all come from the base game. This page covers only what changes when each player sees only the squares their own pieces reach.',
     },
     {
       kind: 'paragraph',
-      text: 'If the fusion is new to you, start with [Crossroads Chess](/rules/crossroads-chess) for the board and the pieces. The sections below explain only what fog changes.',
+      text: 'Start with the base rules if the fusion is new. Here, hidden enemy pieces stay dark, danger is never announced, checkmate disappears, and the far-rank race turns into a one-reply gamble.',
     },
   ],
   sections: [
     {
-      heading: 'The starting position',
+      heading: 'What carries over',
       blocks: [
         {
           kind: 'paragraph',
-          text: 'At the start you see your own 12 pieces and every square they reach. Everything past that is fog. The board below is White\'s view of the opening: the back two ranks and the empty squares just ahead are lit, and the far half of the board, including all of Red\'s army across the river, is dark.',
+          text: 'Every piece moves as it does in Crossroads Chess. Soldiers still care about the river, pawns still promote, cannons still need screens, horses still have blocked legs, and the king is still both a royal piece and a runner. Fog changes information and endings, not the movement grammar.',
+        },
+        {
+          kind: 'paragraph',
+          text: 'At the start, White sees only White\'s pieces and the squares they reach. Red\'s army is not shown just because it exists across the river.',
         },
         {
           kind: 'raw-svg',
           svg: START_FOG_SVG,
+          className: 'dark-crossroads-figure',
         } as ArticleBlock,
-        {
-          kind: 'paragraph',
-          text: 'White moves first, up the board toward rank 8. Red moves down toward rank 1. The river still runs between the fourth and fifth ranks, and only soldiers care about crossing it.',
-        },
       ],
     },
     {
-      heading: 'Vision is field of fire',
+      heading: 'Vision is attack geometry',
       blocks: [
         {
           kind: 'paragraph',
-          text: 'You see a square if one of your pieces could move to it. A slider (chariot, bishop, queen) sees up to the first piece in its path and stops there, so you see the piece you can hit but nothing behind it. Vision is recomputed from the true position after every move, so opening a line or advancing a piece instantly changes what you know.',
+          text: 'You see a square if one of your pieces could move to it from the true position. A slider (chariot, bishop, queen) sees up to the first piece in its path and stops there. You see the piece you can hit, but not what stands behind it.',
         },
         {
           kind: 'paragraph',
-          text: 'In the board below, White\'s chariot looks straight up an open file. It sees the Red soldier it can capture, but the Red king sheltering one square behind that soldier is still in the fog. Take the soldier and the king would appear.',
+          text: 'Here White\'s chariot sees the Red soldier on the file, but the Red king one square behind that soldier stays hidden. Capture the soldier and the information changes.',
         },
         {
           kind: 'raw-svg',
           svg: FIELD_OF_FIRE_SVG,
+          className: 'dark-crossroads-figure',
         } as ArticleBlock,
         {
           kind: 'paragraph',
-          text: 'The xiangqi pieces bend this rule, because their attacks have gaps. The cannon needs a screen to capture, so it shows you the screen and the enemy it can hit beyond it as silhouettes (color known, identity hidden), while the squares it cannot reach stay dark. The horse can be blocked at its leg, so a piece sitting on the leg square removes the leaps it would block. Vision is the field of fire of your real pieces, not a plain line of sight.',
+          text: 'The xiangqi pieces make the fog sharper than plain line of sight. A cannon can reveal the screen and the target beyond it, because that is its real capture geometry. A horse loses the leaps blocked by an occupied leg square. The board shows what your army can actually reach, not a guessed ray through the fog.',
         },
         {
           kind: 'raw-svg',
           svg: CANNON_SVG,
+          className: 'dark-crossroads-figure',
         } as ArticleBlock,
       ],
     },
     {
-      heading: 'No check, no checkmate',
+      heading: 'No check, only capture',
       blocks: [
         {
           kind: 'paragraph',
-          text: 'There is no check in the dark. The server never tells you your king is attacked, and it will happily let you move into danger or leave a threat unanswered. With hidden pieces, no one can reliably prove a king is trapped, so checkmate is gone. You read the threats yourself from what your own pieces can see.',
+          text: 'Open Crossroads Chess has check and checkmate. Dark Crossroads does not. The server never tells you your king is attacked, never forces you to answer a threat, and never rejects a move just because your king would be unsafe.',
         },
         {
           kind: 'paragraph',
-          text: 'Because there is no check, the king moves a little more freely than in open Crossroads Chess: it may step onto a square an enemy attacks, and you are never forced to answer a threat you cannot see. That freedom cuts both ways, since the same blind spots hide the enemy king from you.',
+          text: 'Instead, the king falls by capture. If a move lands on the enemy king, the game ends immediately. This is the fog version of the royal rule: the danger is real, but it is your job to infer it.',
         },
       ],
     },
     {
-      heading: 'Win condition: capture the king',
+      heading: 'The race becomes a Try',
       blocks: [
         {
           kind: 'paragraph',
-          text: 'The first way to win is to capture the enemy king outright. Any move that lands on the enemy king ends the game on the spot, whoever it belongs to. There is no warning and no reprieve, so a king that wanders into a fogged line of fire is simply lost.',
-        },
-      ],
-    },
-    {
-      heading: 'Win condition: the race (the Try)',
-      blocks: [
-        {
-          kind: 'paragraph',
-          text: 'The king is also your runner. As in open Crossroads Chess, you win by getting your own king to the enemy far rank: White to rank 8, Red to rank 1. Under fog this is not an instant win, because you cannot see whether the arrival square is defended. Reaching the far rank instead arms a "Try" and hands your opponent exactly one reply.',
+          text: 'In the base game, a king that reaches an undefended enemy back rank wins at once. Under fog, you cannot know whether the arrival square is defended. So reaching the far rank arms a Try and gives the opponent exactly one reply.',
         },
         {
           kind: 'paragraph',
-          text: 'If the opponent has a piece that already bears on your king, they capture it on that reply and win by king capture. If they cannot, the Try succeeds on their move and you win the race. Racing the king into the fog is a real gamble: you are betting that no hidden piece is watching the square you land on.',
+          text: 'If the opponent already has a piece bearing on your king, they can capture it on that reply and win. If they cannot, the Try succeeds and you win the race. A dark race is not just a pathing problem. It is an information bet.',
         },
         {
           kind: 'raw-svg',
           svg: TRY_SVG,
+          className: 'dark-crossroads-figure',
         } as ArticleBlock,
       ],
     },
     {
-      heading: 'Draws',
+      heading: 'Draws under fog',
       blocks: [
         {
           kind: 'paragraph',
-          text: 'Crossroads Chess is built to be fought out, and fog keeps draws rare. Threefold repetition is a draw, judged from the true position rather than either view, since under fog neither side can see the canonical position recur to force or avoid it. A long run with no capture and no pawn or soldier move ends in a no-progress draw. There is no stalemate draw: a side with no legal move loses, which with no check to freeze a king almost never happens.',
+          text: 'The draw rules are also fog-aware. In open Crossroads Chess, threefold repetition is charged as a loss to the side forcing it. In Dark Crossroads Chess, repetition is a draw, judged from the true position, because neither player can see the whole board well enough to own the cycle. The no-progress clock still draws after a long run with no capture and no pawn or soldier move.',
         },
       ],
     },
@@ -217,7 +212,7 @@ export const darkCrossroadsChessArticle: Article = {
       blocks: [
         {
           kind: 'paragraph',
-          text: 'Dark Crossroads Chess is in development on Mistboard and not playable yet. There is no set release date.',
+          text: 'Dark Crossroads Chess is in active Mistboard playtesting. Public matchmaking and the main play-menu entry are still gated, but the rules page is published so players can review the variant before broader play opens.',
         },
         {
           kind: 'cta',
