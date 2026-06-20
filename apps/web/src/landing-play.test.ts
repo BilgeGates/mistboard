@@ -721,6 +721,42 @@ describe('landing play panel', () => {
     expect(dmx?.disabled).toBe(false);
   });
 
+  it('shows the Dark Crossroads marker even when the engine card is disabled', () => {
+    vi.stubEnv('VITE_DARK_CROSSROADS_CHESS_ENABLED', 'true');
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => jsonResponse({ playing: 0, online: 0 })),
+    );
+    const panel = buildLandingPlayPanel([]);
+    document.body.append(panel);
+    openPlaySetup(panel, 'Play the engine');
+
+    const card = document.querySelector<HTMLButtonElement>(
+      '.landing-variant-card[data-game-spec="dark-crossroads-chess"]',
+    );
+    expect(card?.disabled).toBe(true);
+    expect(card?.textContent).toContain('Soon');
+    expect(card?.querySelector('svg[data-mini-id="dark-crossroads"]')).not.toBeNull();
+  });
+
+  it('shows the Dark Crazyhouse entry with the shared Crazyhouse image', () => {
+    vi.stubEnv('VITE_DARK_CRAZYHOUSE_ENABLED', 'true');
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => jsonResponse({ playing: 0, online: 0 })),
+    );
+    const panel = buildLandingPlayPanel([]);
+    document.body.append(panel);
+    openPlaySetup(panel, 'Play the engine');
+
+    const card = document.querySelector<HTMLButtonElement>(
+      '.landing-variant-card[data-game-spec="dark-crazyhouse"]',
+    );
+    expect(card?.disabled).toBe(true);
+    expect(card?.textContent).toContain('Soon');
+    expect(card?.querySelector('svg[data-mini-id="dark-crazyhouse"]')).not.toBeNull();
+  });
+
   it('orders the variant picker by the shared canonical variant order', () => {
     vi.stubEnv('VITE_DARK_MINI_XIANGQI_ENABLED', 'true');
     vi.stubEnv('VITE_DARK_MINI_XIANGQI_PUBLIC_ENTRY_ENABLED', 'true');

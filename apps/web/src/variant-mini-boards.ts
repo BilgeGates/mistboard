@@ -1,7 +1,10 @@
 import './variant-mini-boards.css';
 import { PIECE_SVGS } from '@mistboard/board-render';
 import {
+  createInitialCrossroadsChessState,
   createInitialXiangqiState,
+  crossroadsChessSquareOf,
+  getCrossroadsChessVisibleSquares,
   getPlayerView as getXiangqiPlayerView,
   type ShogiPiece,
   type ShogiPieceRole,
@@ -43,12 +46,13 @@ export type VariantMiniId =
   | 'jieqi'
   | 'banqi'
   | 'crossroads'
-  | 'dark-crossroads-chess'
   | 'kriegspiel'
-  | 'dark-crazyhouse'
   | 'reveal-chess'
   | 'shogi'
-  | 'dark-shogi';
+  | 'dark-shogi'
+  | 'crazyhouse'
+  | 'dark-crazyhouse'
+  | 'dark-crossroads';
 
 export type VariantMiniFamily = 'chess' | 'xiangqi' | 'shogi';
 
@@ -110,14 +114,12 @@ function chessPieceAt(key: string, cx: number, cy: number, cell: number, set: Pi
   return `<image href="/pieces/${set}/${code}.svg" x="${x}" y="${y}" width="${s}" height="${s}"/>`;
 }
 
-// A face-down chess piece (Reveal Chess): a blank ivory token with a dark rim.
+// A face-down chess piece (Reveal Chess): a white hidden back, aligned with the
+// Banqi face-down mark (single solid fill + thin outline, no inner ring).
 // Identity-hiding only, so it does not vary with the chosen piece set.
 function chessBackToken(cx: number, cy: number, cell: number): string {
   const r = cell * 0.4;
-  return [
-    `<circle cx="${cx}" cy="${cy}" r="${r}" fill="#efe7d6" stroke="#33312c" stroke-width="2"/>`,
-    `<circle cx="${cx}" cy="${cy}" r="${r * 0.58}" fill="none" stroke="#33312c" stroke-width="1" opacity="0.4"/>`,
-  ].join('');
+  return `<circle class="vm-chess-back-token" cx="${cx}" cy="${cy}" r="${r}" fill="#f4efe4" stroke="#3a342b" stroke-width="0.5"/>`;
 }
 
 function checker(cols: number, rows: number, cell: number): string {
@@ -476,11 +478,15 @@ function banqiBody(ctx: MiniCtx): string {
   ].join('');
 }
 
-function crossroadsBody(ctx: MiniCtx): string {
+function crossroadsBody(
+  ctx: MiniCtx,
+  fogCells: readonly (readonly [number, number])[] = [],
+): string {
   // The crossroads: xiangqi pieces hold the left flank, chess pieces the right,
   // on one chess checker. Bottom rank cannon-horse | knight-king; the rank in
   // front two soldiers | two pawns. The river gets its own band along the top,
-  // so the checker sits fully below it (no clipped top row).
+  // so the checker sits fully below it (no clipped top row). Dark Crossroads
+  // fog cells are supplied by the actual opening vision crop below.
   const riverH = 7;
   const boardTop = OY + riverH;
   const cw = SIZE / 4;
@@ -499,6 +505,15 @@ function crossroadsBody(ctx: MiniCtx): string {
     }
   }
   const river = `<rect class="vm-river" x="${OX}" y="${OY}" width="${SIZE}" height="${riverH}"/>`;
+  const fog: string[] = [];
+  for (const [c, r] of fogCells) {
+    const x = OX + c * cw;
+    const y = boardTop + r * ch;
+    fog.push(`<rect class="vm-chess-fog" x="${x}" y="${y}" width="${cw}" height="${ch}"/>`);
+    fog.push(
+      `<rect class="vm-chess-fog-inset" x="${x + 0.5}" y="${y + 0.5}" width="${cw - 1}" height="${ch - 1}" fill="none" stroke-width="0.8"/>`,
+    );
+  }
   const pieces = [
     xiangqiDisc(cx(0), cy(3), disc, 'black', 'cannon', ctx.xqSet),
     xiangqiDisc(cx(1), cy(3), disc, 'black', 'horse', ctx.xqSet),
@@ -509,7 +524,69 @@ function crossroadsBody(ctx: MiniCtx): string {
     chessPieceAt('white:pawn', cx(2), cy(2), pieceCell, ctx.chessSet),
     chessPieceAt('white:pawn', cx(3), cy(2), pieceCell, ctx.chessSet),
   ];
-  return [cells.join(''), river, ...pieces].join('');
+  return [cells.join(''), river, ...fog, ...pieces].join('');
+}
+
+const DARK_CROSSROADS_FOG_CELLS = darkCrossroadsMiniFogCells();
+
+function darkCrossroadsMiniFogCells(): readonly (readonly [number, number])[] {
+  const visible = new Set(
+    getCrossroadsChessVisibleSquares(
+      createInitialCrossroadsChessState('crossroads-mini-tile'),
+      'white',
+    ),
+  );
+  const cells: Array<readonly [number, number]> = [];
+  // The marker crop is files b..e and ranks 4..1. In the real opening, pawns on
+  // d/e see two empty ranks ahead, while soldiers on b/c see only one.
+  for (let r = 0; r < 4; r += 1) {
+    for (let c = 0; c < 4; c += 1) {
+      const square = crossroadsChessSquareOf(c + 1, 4 - r);
+      if (!visible.has(square)) cells.push([c, r]);
+    }
+  }
+  return cells;
+}
+
+// Crazyhouse: a chess crop with the variant's signature reserve. Captured pieces
+// flip sides and wait "in hand" to be dropped back onto the board, so the marker
+// pairs a 4x3 checker over a hand tray of waiting pieces.
+function crazyhouseBody(ctx: MiniCtx): string {
+  const cols = 4;
+  const boardRows = 3;
+  const cell = SIZE / cols;
+  const boardH = boardRows * cell;
+  const center = (c: number, r: number) => ({
+    x: OX + (c + 0.5) * cell,
+    y: OY + (r + 0.5) * cell,
+  });
+  const cells: string[] = [];
+  for (let r = 0; r < boardRows; r += 1) {
+    for (let c = 0; c < cols; c += 1) {
+      const light = (r + c) % 2 === 0;
+      cells.push(
+        `<rect class="${light ? 'vm-sq-light' : 'vm-sq-dark'}" x="${OX + c * cell}" y="${OY + r * cell}" width="${cell}" height="${cell}"/>`,
+      );
+    }
+  }
+  const back = ['white:rook', 'white:knight', 'white:queen', 'white:king'];
+  const boardPieces = [
+    ...back.map((key, c) => chessPieceAt(key, center(c, 2).x, center(c, 2).y, cell, ctx.chessSet)),
+    ...[0, 1, 2, 3].map((c) =>
+      chessPieceAt('white:pawn', center(c, 1).x, center(c, 1).y, cell, ctx.chessSet),
+    ),
+  ];
+  const trayY = OY + boardH;
+  const trayH = SIZE - boardH;
+  const tray = [
+    `<rect class="vm-hand-tray" x="${OX}" y="${trayY}" width="${SIZE}" height="${trayH}"/>`,
+    `<line class="vm-hand-tray-edge" x1="${OX}" y1="${trayY}" x2="${OX + SIZE}" y2="${trayY}" stroke-width="1"/>`,
+  ];
+  const hand = ['white:knight', 'white:bishop', 'white:pawn'];
+  const handPieces = hand.map((key, i) =>
+    chessPieceAt(key, OX + (i + 0.5) * (SIZE / 3), trayY + trayH / 2, trayH, ctx.chessSet),
+  );
+  return [cells.join(''), ...boardPieces, ...tray, ...handPieces].join('');
 }
 
 // Blind chess: you only ever see your own army. Every square without one of your
@@ -517,38 +594,6 @@ function crossroadsBody(ctx: MiniCtx): string {
 // the inverse of dark chess, where field-of-fire vision keeps them clear.
 function kriegspielBody(ctx: MiniCtx): string {
   return fiveWideChessBody(KINGSIDE_FIVE, [0, 1, 2], ctx);
-}
-
-// Crazyhouse under fog: the dark-chess field-of-fire board (only the top row
-// fogs), plus a piece PARACHUTED onto a fogged square, the crazyhouse signature.
-function darkCrazyhouseBody(ctx: MiniCtx): string {
-  const cell = SIZE / 5;
-  const drop = { x: OX + 2.5 * cell, y: OY + 0.5 * cell };
-  return (
-    fiveWideChessBody(KINGSIDE_FIVE, [0], ctx) +
-    chessPieceAt('white:knight', drop.x, drop.y, cell, ctx.chessSet)
-  );
-}
-
-// Dark Crossroads: the chess+xiangqi fusion board with fog laid over the two
-// empty ranks ahead of the armies (the dark layer on the Crossroads board).
-function darkCrossroadsBody(ctx: MiniCtx): string {
-  const riverH = 7;
-  const boardTop = OY + riverH;
-  const cw = SIZE / 4;
-  const ch = (SIZE - riverH) / 4;
-  const fog: string[] = [];
-  for (let r = 0; r < 2; r += 1) {
-    for (let c = 0; c < 4; c += 1) {
-      const x = OX + c * cw;
-      const y = boardTop + r * ch;
-      fog.push(
-        `<rect class="vm-chess-fog" x="${x}" y="${y}" width="${cw}" height="${ch}"/>`,
-        `<rect class="vm-chess-fog-inset" x="${x + 0.5}" y="${y + 0.5}" width="${cw - 1}" height="${ch - 1}" fill="none" stroke-width="0.8"/>`,
-      );
-    }
-  }
-  return crossroadsBody(ctx) + fog.join('');
 }
 
 function revealChessBody(ctx: MiniCtx): string {
@@ -573,58 +618,53 @@ function revealChessBody(ctx: MiniCtx): string {
 
 // ---- shogi (wood grid + kanji koma) ---------------------------------------
 
-// A koma (shogi piece) placed at a cell centre. Reuses the live koma art — a
+// A koma (shogi piece) placed at an absolute top-left. Reuses the live koma art — a
 // wedge tile + kanji, colours inlined — re-wrapped at the marker scale the way
 // chessPieceAt re-wraps the cburnett glyphs.
-function shogiKomaAt(piece: ShogiPiece, cx: number, cy: number, cell: number): string {
-  const s = cell * 0.92;
-  const x = cx - s / 2;
-  const y = cy - s / 2;
-  const inner = shogiKomaSvg(piece)
+function shogiKomaAt(piece: ShogiPiece, x: number, y: number, size: number, pointsUp = true): string {
+  const inner = shogiKomaSvg(piece, pointsUp)
     .replace(/^<svg[^>]*>/, '')
     .replace(/<\/svg>\s*$/, '');
-  return `<svg x="${x}" y="${y}" width="${s}" height="${s}" viewBox="0 0 40 40">${inner}</svg>`;
+  return `<svg x="${x}" y="${y}" width="${size}" height="${size}" viewBox="0 0 40 40">${inner}</svg>`;
 }
 
-// Shogi: a 5-file crop of Black's (sente) opening on the wood grid — the back
-// rank from the lance inward, the bishop and rook on the second rank, a full
-// row of pawns. Dark Shogi lays fog over the far two rows (the half past the
-// reach of your own army).
+// Shogi: a 5x5 crop of one camp's bottom-right corner (sente), pentagon komas
+// pointing up-screen toward the enemy. Columns left->right are files 5..1, rows
+// top->bottom ranks 5..1, so the back rank (king, gold, silver, knight, lance)
+// sits at the bottom, the lone rook on file 2 holds the gap rank, and the pawns
+// run across the rank ahead; the far edge beyond the camp's sight is fogged in
+// Dark Shogi.
 function shogiBody(showFog: boolean): string {
-  const cols = 5;
-  const rows = 5;
-  const cell = SIZE / cols;
-  const cx = (c: number) => OX + (c + 0.5) * cell;
-  const cy = (r: number) => OY + (r + 0.5) * cell;
+  const n = 5;
+  const cw = SIZE / n;
+  const koma = cw * 0.86;
+  const inset = (cw - koma) / 2;
+  const place = (role: ShogiPieceRole, c: number, r: number): string =>
+    shogiKomaAt(
+      { color: 'black', role, promoted: false },
+      OX + (n - 1 - c) * cw + inset,
+      OY + r * cw + inset,
+      koma,
+      true,
+    );
   const lines: string[] = [];
-  for (let r = 0; r <= rows; r += 1) {
-    lines.push(`<line x1="${OX}" y1="${OY + r * cell}" x2="${OX + SIZE}" y2="${OY + r * cell}"/>`);
-  }
-  for (let c = 0; c <= cols; c += 1) {
-    lines.push(`<line x1="${OX + c * cell}" y1="${OY}" x2="${OX + c * cell}" y2="${OY + SIZE}"/>`);
+  for (let i = 1; i < n; i += 1) {
+    lines.push(`<line x1="${OX}" y1="${OY + i * cw}" x2="${OX + SIZE}" y2="${OY + i * cw}"/>`);
+    lines.push(`<line x1="${OX + i * cw}" y1="${OY}" x2="${OX + i * cw}" y2="${OY + SIZE}"/>`);
   }
   const fog: string[] = [];
   if (showFog) {
-    for (let r = 0; r < 2; r += 1) {
-      for (let c = 0; c < cols; c += 1) {
-        fog.push(
-          `<rect class="vm-shogi-fog" x="${OX + c * cell}" y="${OY + r * cell}" width="${cell}" height="${cell}"/>`,
-        );
-      }
-    }
+    fog.push(`<rect class="vm-shogi-fog" x="${OX}" y="${OY}" width="${SIZE}" height="${cw}"/>`);
   }
-  const koma = (role: ShogiPieceRole, c: number, r: number): string =>
-    shogiKomaAt({ color: 'black', role, promoted: false }, cx(c), cy(r), cell);
-  const backRank: ShogiPieceRole[] = ['L', 'N', 'S', 'G', 'K'];
+  const backRank: ShogiPieceRole[] = ['K', 'G', 'S', 'N', 'L'];
   const pieces = [
-    ...backRank.map((role, c) => koma(role, c, 4)),
-    koma('B', 1, 3),
-    koma('R', 3, 3),
-    ...[0, 1, 2, 3, 4].map((c) => koma('P', c, 2)),
+    ...backRank.map((role, c) => place(role, c, 4)),
+    place('R', 3, 3),
+    ...[0, 1, 2, 3, 4].map((c) => place('P', c, 2)),
   ];
   return [
     `<rect class="vm-shogi-bg" x="${OX}" y="${OY}" width="${SIZE}" height="${SIZE}"/>`,
-    `<g class="vm-shogi-line" stroke-width="1">${lines.join('')}</g>`,
+    `<g class="vm-shogi-line" stroke-width="1" stroke-linecap="round">${lines.join('')}</g>`,
     fog.join(''),
     ...pieces,
   ].join('');
@@ -643,12 +683,13 @@ const BODIES: Record<VariantMiniId, (ctx: MiniCtx) => string> = {
   jieqi: jieqiBody,
   banqi: banqiBody,
   crossroads: crossroadsBody,
-  'dark-crossroads-chess': darkCrossroadsBody,
   kriegspiel: kriegspielBody,
-  'dark-crazyhouse': darkCrazyhouseBody,
   'reveal-chess': revealChessBody,
   shogi: () => shogiBody(false),
   'dark-shogi': () => shogiBody(true),
+  crazyhouse: crazyhouseBody,
+  'dark-crazyhouse': crazyhouseBody,
+  'dark-crossroads': (ctx) => crossroadsBody(ctx, DARK_CROSSROADS_FOG_CELLS),
 };
 
 export const VARIANT_MINIS: readonly VariantMiniDef[] = [
@@ -733,27 +774,11 @@ export const VARIANT_MINIS: readonly VariantMiniDef[] = [
     family: 'chess',
   },
   {
-    id: 'dark-crossroads-chess',
-    label: 'Dark Crossroads',
-    shortLabel: 'DC',
-    accent: '#2f5d4a',
-    blurb: 'The Crossroads fusion played blind: race the king to the far rank or capture it.',
-    family: 'chess',
-  },
-  {
     id: 'kriegspiel',
     label: 'Kriegspiel',
     shortLabel: 'KS',
     accent: '#566273',
     blurb: 'Blind chess: only your own army, alone on the board.',
-    family: 'chess',
-  },
-  {
-    id: 'dark-crazyhouse',
-    label: 'Dark Crazyhouse',
-    shortLabel: 'CZ',
-    accent: '#7a4f86',
-    blurb: 'Fog chess with drops: captures flip to your hand and parachute back in.',
     family: 'chess',
   },
   {
@@ -779,6 +804,30 @@ export const VARIANT_MINIS: readonly VariantMiniDef[] = [
     accent: '#7d5320',
     blurb: 'Shogi played blind: your own koma and their reach, the rest in fog.',
     family: 'shogi',
+  },
+  {
+    id: 'crazyhouse',
+    label: 'Crazyhouse',
+    shortLabel: 'ZH',
+    accent: '#b0533a',
+    blurb: 'Chess with drops: captured pieces wait in hand, ready to parachute back in.',
+    family: 'chess',
+  },
+  {
+    id: 'dark-crazyhouse',
+    label: 'Dark Crazyhouse',
+    shortLabel: 'DCZ',
+    accent: '#884230',
+    blurb: 'Dark Crazyhouse uses the Crazyhouse drop marker while the variant art settles.',
+    family: 'chess',
+  },
+  {
+    id: 'dark-crossroads',
+    label: 'Dark Crossroads',
+    shortLabel: 'DCR',
+    accent: '#2f5e3a',
+    blurb: 'Crossroads opening vision: pawns see two ranks ahead, soldiers one.',
+    family: 'chess',
   },
 ];
 

@@ -164,6 +164,32 @@ describe('rules variant sidebar', () => {
     );
   });
 
+  it('uses shared Shogi mini markers on rule article surfaces', () => {
+    const landing = buildRulesIndex();
+    expect(
+      landing.querySelector('.rules-landing-tile[href="/rules/shogi"] svg[data-mini-id="shogi"]'),
+    ).not.toBeNull();
+    expect(
+      landing.querySelector(
+        '.rules-landing-tile[href="/rules/dark-shogi"] svg[data-mini-id="dark-shogi"]',
+      ),
+    ).not.toBeNull();
+
+    const shogi = buildArticlePage('shogi');
+    expect(
+      shogi.querySelector(
+        '.article-variant-sidebar a[aria-current="page"] svg[data-mini-id="shogi"]',
+      ),
+    ).not.toBeNull();
+
+    const darkShogi = buildArticlePage('dark-shogi');
+    expect(
+      darkShogi.querySelector(
+        '.article-variant-sidebar a[aria-current="page"] svg[data-mini-id="dark-shogi"]',
+      ),
+    ).not.toBeNull();
+  });
+
   it('groups the tile grid like the rail: playable first, reference after', () => {
     const landing = buildRulesIndex();
     const titles = [...landing.querySelectorAll('.rules-landing-group-title')].map(

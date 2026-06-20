@@ -12,8 +12,11 @@ import {
   BANQI_SPEC_ID,
   CROSSROADS_CHESS_SPEC_ID,
   DARK_CHESS_SPEC_ID,
+  DARK_CRAZYHOUSE_SPEC_ID,
+  DARK_CROSSROADS_CHESS_SPEC_ID,
   DARK_DRAFT960_SPEC_ID,
   DARK_MINI_XIANGQI_SPEC_ID,
+  DARK_SHOGI_SPEC_ID,
   DARK_XIANGQI_SPEC_ID,
   type GameSpecId,
   gameSpecForId,
@@ -69,6 +72,23 @@ const crossroadsChessSpec = gameSpecForId(CROSSROADS_CHESS_SPEC_ID);
 const jieqiSpec = gameSpecForId(JIEQI_SPEC_ID);
 const banqiSpec = gameSpecForId(BANQI_SPEC_ID);
 const revealChessSpec = gameSpecForId(REVEAL_CHESS_SPEC_ID);
+
+// Marker coverage is broader than the rated/current variant registry: the play
+// picker can surface soft-launch tenants, and rules/articles can reference
+// variants that are not leaderboard rows.
+const VARIANT_MINI_BY_GAME_SPEC: Partial<Record<GameSpecId, VariantMiniId>> = {
+  [DARK_CHESS_SPEC_ID]: 'dark-chess',
+  [DARK_DRAFT960_SPEC_ID]: 'draft960',
+  [DARK_MINI_XIANGQI_SPEC_ID]: 'dark-mini-xiangqi',
+  [DARK_XIANGQI_SPEC_ID]: 'dark-xiangqi',
+  [JIEQI_SPEC_ID]: 'jieqi',
+  [BANQI_SPEC_ID]: 'banqi',
+  [REVEAL_CHESS_SPEC_ID]: 'reveal-chess',
+  [CROSSROADS_CHESS_SPEC_ID]: 'crossroads',
+  [DARK_CROSSROADS_CHESS_SPEC_ID]: 'dark-crossroads',
+  [DARK_SHOGI_SPEC_ID]: 'dark-shogi',
+  [DARK_CRAZYHOUSE_SPEC_ID]: 'dark-crazyhouse',
+};
 
 export const VARIANTS: VariantDef[] = [
   {
@@ -181,7 +201,7 @@ export function isVariantEnabled(id: RatingVariantId): boolean {
 
 /** Mini-board id for a game spec (picker/landing), or null if none. */
 export function variantMiniIdForGameSpec(id: GameSpecId): VariantMiniId | null {
-  return VARIANTS.find((v) => v.gameSpecId === id)?.miniId ?? null;
+  return VARIANT_MINI_BY_GAME_SPEC[id] ?? null;
 }
 
 /** Mini-board id for a rating variant (leaderboard/profile), or null if none. */

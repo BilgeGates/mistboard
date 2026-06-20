@@ -1547,7 +1547,10 @@ function articleCard(article: Article, lang?: ArticleLang): HTMLLIElement {
   const base = article.kind === 'rules' ? 'rules' : 'articles';
   link.href = `${lang ? ARTICLE_LANG_PREFIX[lang] : ''}/${base}/${article.slug}`;
 
-  if (article.thumbnail) {
+  const mini = renderVariantMiniThumb(article.slug);
+  if (mini) {
+    link.append(mini);
+  } else if (article.thumbnail) {
     link.append(renderArticleThumbnail(article.thumbnail));
   }
 
@@ -1671,6 +1674,8 @@ const VARIANT_MINI_BY_SLUG: Record<string, VariantMiniId> = {
   'crossroads-chess': 'crossroads',
   kriegspiel: 'kriegspiel',
   'reveal-chess': 'reveal-chess',
+  shogi: 'shogi',
+  'dark-shogi': 'dark-shogi',
 };
 
 // A rail/landing thumbnail rendered as the variant's mini-board, or null if the

@@ -159,10 +159,20 @@ describe('Dark Shogi board renderer', () => {
     const pawn = shogiHandKomaSvg('P', 'black');
     expect(pawn).toContain('<svg');
     expect(pawn).toContain('歩');
+    expect(pawn).toContain('dominant-baseline="central"');
+    expect(pawn).toContain('y="24.80"');
 
     // A promoted pawn (tokin) shows the promoted face in red.
     const tokin = shogiKomaSvg({ color: 'black', role: 'P', promoted: true });
     expect(tokin).toContain('と');
     expect(tokin).toContain('#b22222');
+  });
+
+  it('uses centered kanji placement on live board koma', () => {
+    const svg = renderShogiBoardSvg(truthView(createInitialShogiState('baseline')), {
+      showFog: false,
+    });
+
+    expect(svg).toContain('dominant-baseline="central"');
   });
 });

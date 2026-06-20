@@ -54,6 +54,7 @@ const CELL = 48;
 // On-board koma tile size (the piece footprint inside a cell). The floating drag
 // ghost is sized to this so the lifted piece matches what sits on the board.
 export const SHOGI_PIECE_PX = CELL * 0.9;
+const KOMA_GLYPH_CENTER_Y = 0.62;
 
 // Per-theme cell + fog colors. The frame is always transparent (borderless, to
 // match the fog aesthetic of the other variants) and the interaction colors
@@ -324,8 +325,10 @@ function komaFragment(
   const tilePath = `<path d="${pentagonPath(x, y, size)}" fill="${fill}" stroke="${stroke}" stroke-width="1.4" stroke-linejoin="round"/>`;
   const tile = pointsUp ? tilePath : `<g transform="rotate(180 ${cx} ${cy})">${tilePath}</g>`;
 
-  // Upright glyphs sit in the body: 0.6 of an apex-up tile, 0.4 of a flipped one.
-  const baselineY = (y + size * (rotateGlyph || pointsUp ? 0.6 : 0.4)).toFixed(2);
+  // Upright glyphs sit in the body: the inverse keeps western glyphs in the
+  // visible body when the tile points down but the glyph itself stays upright.
+  const baselineFactor = rotateGlyph || pointsUp ? KOMA_GLYPH_CENTER_Y : 1 - KOMA_GLYPH_CENTER_Y;
+  const baselineY = (y + size * baselineFactor).toFixed(2);
   const textEl = `<text x="${cx}" y="${baselineY}" text-anchor="middle" dominant-baseline="central" font-size="${(size * glyph.fontScale).toFixed(1)}" font-family='${glyph.fontFamily}' font-weight="${glyph.fontWeight}" fill="${textFill}">${glyph.text}</text>`;
   const text =
     !pointsUp && rotateGlyph ? `<g transform="rotate(180 ${cx} ${cy})">${textEl}</g>` : textEl;
