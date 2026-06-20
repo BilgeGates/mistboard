@@ -75,7 +75,7 @@
   right: 0;
   z-index: 30;
   display: none;
-  min-width: 244px;
+  width: min(288px, calc(100vw - 32px));
   flex-direction: column;
   border: 1px solid var(--site-border);
   border-radius: var(--site-radius);
