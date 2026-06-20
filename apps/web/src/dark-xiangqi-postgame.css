@@ -443,6 +443,130 @@ button.dxq-postgame__link {
   color: #58665b;
 }
 
+.postgame-review-shell .dxq-postgame__panel,
+.postgame-review-shell .dxq-postgame__replay-controls,
+.postgame-review-shell .dxq-postgame__replay-button,
+.postgame-review-shell .dxq-postgame__replay-status,
+.postgame-review-shell .dxq-postgame__link {
+  background: var(--site-panel);
+  color: var(--site-text);
+  border-color: var(--site-border);
+}
+
+.postgame-review-shell .dxq-postgame__link--primary {
+  border-color: #237960;
+  background: #237960;
+  color: #ffffff;
+}
+
+.postgame-review-shell .dxq-postgame__replay-button:disabled,
+.postgame-review-shell .dxq-postgame__link:disabled {
+  color: var(--site-muted);
+  background: var(--site-bg);
+}
+
+.postgame-review-shell .dxq-postgame__title,
+.postgame-review-shell .dxq-postgame__board-title,
+.postgame-review-shell .dxq-postgame__panel h2 {
+  color: var(--site-heading);
+}
+
+.postgame-review-shell .dxq-postgame__eyebrow,
+.postgame-review-shell .dxq-postgame__summary,
+.postgame-review-shell .dxq-postgame__details dt,
+.postgame-review-shell .dxq-postgame__move-number {
+  color: var(--site-muted);
+}
+
+.postgame-review-shell .dxq-postgame__details dd {
+  color: var(--site-text);
+}
+
+.postgame-review-shell .dxq-postgame__header {
+  border-bottom-color: var(--site-border);
+}
+
+.postgame-review-shell .dxq-postgame__move {
+  background: var(--site-panel-soft, var(--site-bg));
+  color: var(--site-text);
+}
+
+@media (min-width: 861px) {
+  .postgame-review-shell {
+    display: grid;
+    grid-template-columns:
+      clamp(200px, 14vw, 240px)
+      minmax(0, 1fr)
+      clamp(190px, 13vw, 230px);
+    gap: 10px;
+    max-width: 1600px;
+  }
+
+  .postgame-review-shell .dxq-postgame__header {
+    grid-column: 1;
+    grid-row: 1;
+    align-items: stretch;
+    align-self: start;
+    flex-direction: column;
+    gap: 10px;
+    margin-bottom: 0;
+    padding: 12px;
+    border: 1px solid var(--site-border);
+    border-radius: var(--site-radius);
+    background: var(--site-panel);
+  }
+
+  .postgame-review-shell .dxq-postgame__title {
+    font-size: 18px;
+    line-height: 1.18;
+  }
+
+  .postgame-review-shell .dxq-postgame__summary {
+    font-size: 13px;
+  }
+
+  .postgame-review-shell .dxq-postgame__actions {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 6px;
+    justify-content: stretch;
+  }
+
+  .postgame-review-shell .dxq-postgame__link {
+    width: 100%;
+    min-height: 30px;
+    padding: 5px 8px;
+    font-size: 12px;
+  }
+
+  .postgame-review-shell .dxq-postgame__layout,
+  .postgame-review-shell .dxq-postgame__side {
+    display: contents;
+  }
+
+  .postgame-review-shell .dxq-postgame__boards {
+    grid-column: 2;
+    grid-row: 1 / span 2;
+    gap: 8px;
+  }
+
+  .postgame-review-shell .dxq-postgame__side > .dxq-postgame__panel:first-child {
+    grid-column: 1;
+    grid-row: 2;
+    align-self: start;
+  }
+
+  .postgame-review-shell .dxq-postgame__side > .dxq-postgame__panel:last-child {
+    grid-column: 3;
+    grid-row: 1 / span 2;
+    align-self: start;
+  }
+
+  .postgame-review-shell .dxq-postgame__moves {
+    max-height: 54vh;
+  }
+}
+
 @media (max-width: 860px) {
   .dxq-postgame__header {
     align-items: start;

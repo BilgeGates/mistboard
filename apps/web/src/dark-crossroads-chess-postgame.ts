@@ -14,6 +14,7 @@ import {
   renderCrossroadsChessBoardSvg,
 } from './crossroads-chess-render.js';
 import { createDarkCrossroadsChessPlayAgainRoom } from './dark-crossroads-chess-room-actions.js';
+import { createDxqPostgameShell, createDxqReplayControls } from './dxq-postgame-shell.js';
 import { darkCrossroadsChessEnabled } from './feature-flags.js';
 import { setBoardFamily } from './theme.js';
 
@@ -121,35 +122,17 @@ function renderPostgame(root: HTMLElement, postgame: DarkCrossroadsChessPostgame
   postgameAbortControllers.set(root, abortController);
 
   root.replaceChildren();
-  const page = document.createElement('main');
-  page.className = 'dxq-postgame';
-
-  const header = document.createElement('header');
-  header.className = 'dxq-postgame__header';
-  const titleBlock = document.createElement('div');
-  const eyebrow = document.createElement('p');
-  eyebrow.className = 'dxq-postgame__eyebrow';
-  eyebrow.textContent = 'Game review';
-  const title = document.createElement('h1');
-  title.className = 'dxq-postgame__title';
-  title.textContent = 'Dark Crossroads Chess';
-  const summary = document.createElement('p');
-  summary.className = 'dxq-postgame__summary';
-  summary.textContent = `${resultLabel(postgame.game.result)} by ${labelize(postgame.game.termination)} · ${postgame.game.plyCount} plies`;
-  titleBlock.append(eyebrow, title, summary);
-  header.append(titleBlock, postgameActions(postgame));
-
-  const layout = document.createElement('section');
-  layout.className = 'dxq-postgame__layout';
-  layout.setAttribute('aria-label', 'Dark Crossroads Chess postgame');
-
-  const side = document.createElement('aside');
-  side.className = 'dxq-postgame__side';
-  side.append(detailsPanel(postgame), timelinePanel(postgame));
-
-  layout.append(boardsPanel(postgame, abortController.signal), side);
-  page.append(header, layout);
-  root.append(page);
+  root.append(
+    createDxqPostgameShell({
+      actions: postgameActions(postgame),
+      ariaLabel: 'Dark Crossroads Chess postgame',
+      boardsPanel: boardsPanel(postgame, abortController.signal),
+      detailsPanel: detailsPanel(postgame),
+      summary: `${resultLabel(postgame.game.result)} by ${labelize(postgame.game.termination)} · ${postgame.game.plyCount} plies`,
+      timelinePanel: timelinePanel(postgame),
+      title: 'Dark Crossroads Chess',
+    }),
+  );
 }
 
 function boardsPanel(
@@ -172,17 +155,8 @@ function boardsPanel(
     };
   }> = [];
 
-  const controls = document.createElement('div');
-  controls.className = 'dxq-postgame__replay-controls';
-  const first = replayControlButton('|<', 'First ply');
-  const previous = replayControlButton('<', 'Previous ply');
-  const status = document.createElement('span');
-  status.className = 'dxq-postgame__replay-status';
-  status.setAttribute('aria-live', 'polite');
-  const next = replayControlButton('>', 'Next ply');
-  const last = replayControlButton('>|', 'Final ply');
-  const flip = replayControlButton('Flip', 'Flip all boards');
-  flip.title = 'Flip all boards (f)';
+  const controls = createDxqReplayControls();
+  const { first, previous, status, next, last, flip } = controls;
 
   const syncReplay = () => {
     for (const { board, entry } of boardTargets) {
@@ -234,8 +208,7 @@ function boardsPanel(
     { signal },
   );
 
-  controls.append(first, previous, status, next, last, flip);
-  panel.append(controls);
+  panel.append(controls.el);
 
   for (const entry of views) {
     const boardWrap = document.createElement('section');
@@ -268,15 +241,6 @@ export function postgameViewEntries(postgame: DarkCrossroadsChessPostgameRespons
     ];
   }
   return [{ key: 'truth', label: 'Server truth', view: postgame.view }];
-}
-
-function replayControlButton(text: string, label: string): HTMLButtonElement {
-  const button = document.createElement('button');
-  button.type = 'button';
-  button.className = 'dxq-postgame__replay-button';
-  button.setAttribute('aria-label', label);
-  button.textContent = text;
-  return button;
 }
 
 export function postgameReplayMaxPly(postgame: DarkCrossroadsChessPostgameResponse): number {

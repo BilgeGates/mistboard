@@ -304,32 +304,40 @@
   }
 }
 
-/* Desktop grid for the game-review surface: header (full-width) +
- * boards (left, fluid) + moves rail (right). Replaces the 3-column
+/* Desktop grid for the game-review surface: game summary rail (left) +
+ * boards (center, fluid) + moves rail (right). Replaces the 3-column
  * (meta | boards | moves) grid above when metadataMode === 'header'.
  */
 @media (min-width: 1100px) {
   .game-replay.replay-page.replay-meta-header {
-    grid-template-columns: minmax(0, 1fr) clamp(240px, 21vw, 340px);
-    column-gap: 14px;
+    grid-template-columns:
+      clamp(200px, 14vw, 240px)
+      minmax(0, 1fr)
+      clamp(190px, 13vw, 230px);
+    column-gap: 10px;
+    row-gap: 10px;
   }
 
   .game-replay.replay-meta-header .replay-game-header {
-    grid-column: 1 / -1;
+    grid-column: 1;
     grid-row: 1;
+    flex-direction: column;
+    justify-content: flex-start;
+    gap: 10px;
+    align-self: start;
+    padding: 12px;
+    min-width: 0;
   }
 
   .game-replay.replay-meta-header .replay-layout {
-    grid-column: 1;
-    grid-row: 2;
+    grid-column: 2;
+    grid-row: 1;
     grid-template-columns: repeat(3, minmax(0, 1fr));
     justify-content: stretch;
     justify-self: stretch;
     align-self: start;
-    gap: 10px;
-    /* Trim the triptych card frame (base is 14px) to claw back a little
-       vertical headroom so the page clears the viewport with slack. */
-    padding: 10px;
+    gap: 8px;
+    padding: 8px;
     max-width: none;
   }
 
@@ -343,7 +351,7 @@
   }
 
   .game-replay.crossroads-postgame-page.replay-meta-header .replay-game-header {
-    padding: 6px 12px;
+    padding: 10px;
     gap: 8px;
   }
 
@@ -360,6 +368,12 @@
 
   .game-replay.replay-meta-header .replay-pane {
     gap: 2px;
+    min-width: 0;
+  }
+
+  .game-replay.replay-meta-header .replay-board {
+    width: 100%;
+    max-width: none;
   }
 
   .game-replay.replay-meta-header .replay-board.cg-wrap {
@@ -382,39 +396,91 @@
   }
 
   .game-replay.replay-meta-header .replay-moves-panel {
-    grid-column: 2;
-    grid-row: 2;
+    grid-column: 3;
+    grid-row: 1;
     align-self: start;
     width: 100%;
     max-width: none;
+    padding-left: 0;
   }
 
   .game-replay.replay-meta-header .replay-moves-panel .move-list {
-    /* The move list scrolls internally, so a shorter visible window is the
-       cheapest way to keep the review page within one viewport. */
-    height: clamp(220px, 36vh, 420px);
-  }
-
-  /* Tighten the in-replay header strip: the default 16px/20px padding, 42px
-     clock rows, and 6px center gap make it ~150px tall and push the page into
-     a vertical scroll. */
-  .game-replay.replay-meta-header .replay-game-header {
-    padding: 10px 16px;
-    gap: 14px;
+    height: clamp(260px, 54vh, 600px);
   }
 
   .game-replay.replay-meta-header .replay-game-header-center {
-    gap: 4px;
+    order: 1;
+    align-items: stretch;
+    gap: 8px;
+    padding: 0;
+  }
+
+  .game-replay.replay-meta-header .replay-game-header-title,
+  .game-replay.replay-meta-header .replay-game-header-result,
+  .game-replay.replay-meta-header .replay-game-header-meta {
+    justify-content: flex-start;
+    text-align: left;
+  }
+
+  .game-replay.replay-meta-header .replay-game-header-title {
+    font-size: 18px;
+    line-height: 1.18;
+  }
+
+  .game-replay.replay-meta-header .replay-game-header-actions {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 6px;
+    justify-content: stretch;
+    margin-top: 0;
+  }
+
+  .game-replay.replay-meta-header .replay-game-header-actions:empty {
+    display: none;
+  }
+
+  .game-replay.replay-meta-header .replay-game-header-action {
+    justify-content: center;
+    width: 100%;
+    min-height: 30px;
+    padding: 5px 8px;
+    font-size: 12px;
+  }
+
+  .game-replay.replay-meta-header .replay-game-header-cell {
+    order: 2;
+    width: 100%;
+    min-width: 0;
+    justify-content: stretch;
+  }
+
+  .game-replay.replay-meta-header .replay-game-header-cell-black {
+    order: 3;
   }
 
   .game-replay.replay-meta-header .replay-game-header-cell .replay-clock-row {
-    min-height: 36px;
-    padding: 6px 12px;
+    width: 100%;
+    min-height: 34px;
+    grid-template-columns: minmax(0, 1fr) auto;
+    row-gap: 4px;
+    padding: 6px 8px;
+  }
+
+  .game-replay.replay-meta-header .replay-game-header-cell .replay-clock-to-move {
+    grid-column: 1 / -1;
+    grid-row: 2;
+    justify-self: start;
+  }
+
+  .game-replay.replay-meta-header .replay-game-header-cell .replay-clock-time {
+    grid-column: 2;
+    grid-row: 1;
+    font-size: 15px;
   }
 
   .game-replay.replay-meta-header .replay-tools-row {
     grid-column: 1 / -1;
-    grid-row: 3;
+    grid-row: 2;
   }
 }
 

@@ -7,6 +7,8 @@ import type {
 import './landing.css';
 import './game-route.css';
 import './live-reveal-chess.css';
+import './dark-xiangqi-postgame.css';
+import { createDxqPostgameShell, createDxqReplayControls } from './dxq-postgame-shell.js';
 import { revealChessEnabled } from './feature-flags.js';
 import { fillCapturedPool } from './live-reveal-chess.js';
 import { renderRevealChessBoardSvg } from './reveal-chess-render.js';
@@ -110,34 +112,16 @@ function renderPostgame(root: HTMLElement, postgame: RevealChessPostgameResponse
   postgameAbortControllers.set(root, abortController);
 
   root.replaceChildren();
-  const page = document.createElement('main');
-  page.className = 'dxq-postgame reveal-chess-postgame';
-
-  const header = document.createElement('header');
-  header.className = 'dxq-postgame__header';
-  const titleBlock = document.createElement('div');
-  const eyebrow = document.createElement('p');
-  eyebrow.className = 'dxq-postgame__eyebrow';
-  eyebrow.textContent = 'Game review';
-  const title = document.createElement('h1');
-  title.className = 'dxq-postgame__title';
-  title.textContent = 'Reveal Chess';
-  const summary = document.createElement('p');
-  summary.className = 'dxq-postgame__summary';
-  summary.textContent = `${resultLabel(postgame.game.result)} by ${labelize(postgame.game.termination)} · ${postgame.game.plyCount} plies`;
-  titleBlock.append(eyebrow, title, summary);
-  header.append(titleBlock, postgameActions(postgame));
-
-  const layout = document.createElement('section');
-  layout.className = 'dxq-postgame__layout';
-  layout.setAttribute('aria-label', 'Reveal Chess postgame');
-
-  const side = document.createElement('aside');
-  side.className = 'dxq-postgame__side';
-  side.append(detailsPanel(postgame), timelinePanel(postgame));
-
-  layout.append(boardsPanel(postgame, abortController.signal), side);
-  page.append(header, layout);
+  const page = createDxqPostgameShell({
+    actions: postgameActions(postgame),
+    ariaLabel: 'Reveal Chess postgame',
+    boardsPanel: boardsPanel(postgame, abortController.signal),
+    detailsPanel: detailsPanel(postgame),
+    pageClassName: 'reveal-chess-postgame',
+    summary: `${resultLabel(postgame.game.result)} by ${labelize(postgame.game.termination)} · ${postgame.game.plyCount} plies`,
+    timelinePanel: timelinePanel(postgame),
+    title: 'Reveal Chess',
+  });
   root.replaceChildren(buildNav(), page);
 }
 
@@ -155,17 +139,8 @@ function boardsPanel(postgame: RevealChessPostgameResponse, signal: AbortSignal)
     entry: { key: RevealChessPostgameViewKey; label: string; view: RevealChessPlayerView };
   }> = [];
 
-  const controls = document.createElement('div');
-  controls.className = 'dxq-postgame__replay-controls';
-  const first = replayControlButton('|<', 'First ply');
-  const previous = replayControlButton('<', 'Previous ply');
-  const status = document.createElement('span');
-  status.className = 'dxq-postgame__replay-status';
-  status.setAttribute('aria-live', 'polite');
-  const next = replayControlButton('>', 'Next ply');
-  const last = replayControlButton('>|', 'Final ply');
-  const flip = replayControlButton('Flip', 'Flip all boards');
-  flip.title = 'Flip all boards (f)';
+  const controls = createDxqReplayControls();
+  const { first, previous, status, next, last, flip } = controls;
 
   const syncReplay = () => {
     for (const { board, capturesTop, capturesBottom, entry } of boardTargets) {
@@ -227,8 +202,7 @@ function boardsPanel(postgame: RevealChessPostgameResponse, signal: AbortSignal)
   );
   window.addEventListener(boardAppearanceChangedEvent, syncReplay, { signal });
 
-  controls.append(first, previous, status, next, last, flip);
-  panel.append(controls);
+  panel.append(controls.el);
 
   for (const entry of views) {
     const boardWrap = document.createElement('section');
@@ -286,15 +260,6 @@ export function postgameViewEntries(
     ];
   }
   return [{ key: 'truth', label: 'Server truth', view: postgame.view }];
-}
-
-function replayControlButton(text: string, label: string): HTMLButtonElement {
-  const button = document.createElement('button');
-  button.type = 'button';
-  button.className = 'dxq-postgame__replay-button';
-  button.setAttribute('aria-label', label);
-  button.textContent = text;
-  return button;
 }
 
 export function postgameReplayMaxPly(postgame: RevealChessPostgameResponse): number {
