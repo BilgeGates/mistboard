@@ -12,11 +12,11 @@ import './live-dark-shogi.css';
 // theme + board/reserve overrides live in our own file.
 import './dark-xiangqi-postgame.css';
 import './dark-shogi-postgame.css';
-import { createDarkShogiPlayAgainRoom } from './dark-shogi-room-actions.js';
 import { createDxqPostgameShell, createDxqReplayControls } from './dxq-postgame-shell.js';
 import { darkShogiEnabled } from './feature-flags.js';
 import { handlePostgameReplayKeyboard } from './postgame-keyboard.js';
 import { renderShogiBoardSvg, SHOGI_HAND_ORDER, shogiHandKomaSvg } from './shogi-render.js';
+import { buildNav } from './site-shell.js';
 import { setBoardFamily, shogiAppearanceChangedEvent } from './theme.js';
 
 export type DarkShogiPostgameViewKey = ShogiColor | 'truth';
@@ -69,7 +69,7 @@ type PostgameEntry = { key: DarkShogiPostgameViewKey; label: string; view: Shogi
 export function mountDarkShogiPostgame(root: HTMLElement, roomId: string): void {
   root.classList.add('landing-page', 'dark-shogi-postgame-route');
   setBoardFamily('shogi');
-  root.replaceChildren(loadingView());
+  root.replaceChildren(buildNav(), loadingView());
   if (!darkShogiEnabled()) {
     renderError(root, 'Dark Shogi unavailable', 'This route is not enabled in this build.');
     return;
@@ -111,8 +111,8 @@ function renderPostgame(root: HTMLElement, postgame: DarkShogiPostgameResponse):
   const abortController = new AbortController();
   postgameAbortControllers.set(root, abortController);
 
-  root.replaceChildren();
-  root.append(
+  root.replaceChildren(
+    buildNav(),
     createDxqPostgameShell({
       actions: postgameActions(postgame),
       ariaLabel: 'Dark Shogi postgame',
@@ -336,42 +336,15 @@ function postgameActions(postgame: DarkShogiPostgameResponse): HTMLElement {
   const actions = document.createElement('nav');
   actions.className = 'dxq-postgame__actions';
   actions.setAttribute('aria-label', 'Game links');
-  let playAgainStatus: 'creating' | 'failed' | 'idle' = 'idle';
-  const playAgain = document.createElement('button');
-  playAgain.type = 'button';
-  playAgain.className = 'dxq-postgame__link dxq-postgame__link--primary';
-  const syncPlayAgain = () => {
-    playAgain.disabled = playAgainStatus === 'creating';
-    playAgain.textContent =
-      playAgainStatus === 'creating'
-        ? 'Creating'
-        : playAgainStatus === 'failed'
-          ? 'Try play again'
-          : 'Play again';
-  };
-  playAgain.addEventListener('click', () => {
-    playAgainStatus = 'creating';
-    syncPlayAgain();
-    void createDarkShogiPlayAgainRoom({ timeControl: postgameTimeControl(postgame) })
-      .then((url) => {
-        window.location.assign(url);
-      })
-      .catch((err) => {
-        console.warn(err);
-        playAgainStatus = 'failed';
-        syncPlayAgain();
-      });
-  });
-  syncPlayAgain();
   const home = document.createElement('a');
   home.className = 'dxq-postgame__link';
   home.href = '/';
-  home.textContent = 'Back home';
+  home.textContent = 'Home';
   const room = document.createElement('a');
   room.className = 'dxq-postgame__link';
   room.href = `/room/${encodeURIComponent(postgame.game.roomId)}`;
   room.textContent = 'Room';
-  actions.append(playAgain, home, room);
+  actions.append(home, room);
   return actions;
 }
 
@@ -464,7 +437,6 @@ function loadingView(): HTMLElement {
 }
 
 function renderError(root: HTMLElement, titleText: string, bodyText: string): void {
-  root.replaceChildren();
   const shell = document.createElement('main');
   shell.className = 'dxq-postgame__error';
   const title = document.createElement('h1');
@@ -472,7 +444,7 @@ function renderError(root: HTMLElement, titleText: string, bodyText: string): vo
   const body = document.createElement('p');
   body.textContent = bodyText;
   shell.append(title, body);
-  root.append(shell);
+  root.replaceChildren(buildNav(), shell);
 }
 
 function errorTitle(status: number): string {

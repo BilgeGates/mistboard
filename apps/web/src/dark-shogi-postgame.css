@@ -1,8 +1,6 @@
 /* Dark Shogi review. Reuses the shared .dxq-postgame__* scaffold
    (dark-xiangqi-postgame.css); this block re-themes it to the site palette
-   (light + dark) and lays out the black/truth/white triptych so the page fits
-   without vertical scrolling — the same approach as the dark-crossroads route.
-   Adds the reserve (hand) strips above/below each board. */
+   (light + dark) and adds the reserve (hand) strips above/below each board. */
 
 .dark-shogi-postgame-route {
   min-height: 100vh;
@@ -18,12 +16,6 @@
   background: var(--site-panel);
   color: var(--site-text);
   border-color: var(--site-border);
-}
-
-.dark-shogi-postgame-route .dxq-postgame__link--primary {
-  border-color: #237960;
-  background: #237960;
-  color: #ffffff;
 }
 
 .dark-shogi-postgame-route .dxq-postgame__replay-button:disabled {
@@ -57,15 +49,6 @@
   grid-template-columns: 30px minmax(0, 1fr) minmax(0, 1fr);
   background: var(--site-panel-soft, var(--site-bg));
   color: var(--site-text);
-}
-
-.dark-shogi-postgame-route .dxq-postgame__layout {
-  grid-template-columns: minmax(0, 1fr) minmax(250px, 310px);
-  align-items: start;
-}
-
-.dark-shogi-postgame-route .dxq-postgame__side {
-  grid-template-columns: minmax(0, 1fr);
 }
 
 .dark-shogi-postgame-route .dxq-postgame__board {
