@@ -303,6 +303,30 @@ test('flipping the last face-down tile that leaves the flipper with nothing ends
   assert.equal(next.status.type === 'finished' && next.status.winner, 'black');
 });
 
+test('a side wiped out while only OPPONENT tiles remain to flip loses at once', () => {
+  // Black ink (the `red` seat) captures red ink's last piece while a black tile is
+  // still face-down. Red ink is now to move and DOES have a legal move — it could
+  // flip that tile — but the tile is black's, so red can never hold a piece again.
+  // The game ends now (the `red` seat / black ink wins) instead of forcing red ink
+  // to flip black's tiles out first. This is the case the no-face-down-tiles rule
+  // missed: a legal flip exists, yet the side is provably eliminated because no
+  // tile of its OWN colour remains.
+  const board: BanqiBoard = {
+    a4: up('red', 'soldier'), // red ink's last piece
+    b4: up('black', 'chariot'), // black ink captures it (chariot outranks soldier)
+    h1: down('black', 'advisor'), // a black tile still face-down: a legal flip, but not red's colour
+  };
+  const state = playingFor(board, 'black'); // `red` seat owns black ink and moves first
+  const next = applyBanqiMove(state, { from: 'b4', to: 'a4' });
+
+  assert.equal(banqiSeatToMove(next), 'black'); // the `black` seat (red ink) is to move...
+  assert.equal(banqiMoverInk(next), 'red'); // ...the side that was just wiped out
+  assert.ok(ALL_BANQI_SQUARES.some((sq) => next.board[sq]?.faceDown)); // a legal flip WAS available
+  assert.equal(next.status.type, 'finished'); // ...yet the game is already over
+  assert.equal(next.status.type === 'finished' && next.status.reason, 'stalemate');
+  assert.equal(next.status.type === 'finished' && next.status.winner, 'red');
+});
+
 // ── Symmetric information (§8) ─────────────────────────────────────────────────
 
 test('both seats see the identical masked board; face-down tiles carry no ink', () => {

@@ -19,7 +19,7 @@ import { resolve } from 'node:path';
 // Bump on every shipped eval/search change; the binary self-reports "MistyBanqi <version>"
 // over UCI, and the engines registry records it (configHash) on each game so we can always
 // tell which build played.
-export const BANQI_ENGINE_VERSION = '0.2.1';
+export const BANQI_ENGINE_VERSION = '0.2.3';
 export const BANQI_DEFAULT_ENGINE_ID = 'misty-banqi';
 
 export type BanqiEngineTier = {

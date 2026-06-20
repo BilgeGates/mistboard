@@ -93,7 +93,7 @@ export type BanqiDealPiece = { color: BanqiColor; role: BanqiPieceRole };
 export type BanqiDeal = BanqiDealPiece[];
 
 export type BanqiGameEndReason =
-  | 'stalemate' // a side has no legal move: the side to move now, or the waiting side once it is wiped out with no flips left (subsumes all-pieces-captured)
+  | 'stalemate' // a side can no longer act: it has no legal move on its turn, or it is provably eliminated (no piece on the board and no tile of its colour left to flip up) — subsumes all-pieces-captured
   | 'no-progress' // 40 plies with no capture and no flip
   | 'repetition' // threefold position repetition
   | 'timeout'
@@ -495,30 +495,33 @@ function computeBanqiStatus(
       reason: 'stalemate',
     };
   }
-  // Early adjudication of a decided game: the side NOT to move may already be
-  // doomed. Once no face-down tile remains (no flips for anyone) a side with no
-  // piece on the board can never act again — its no-legal-move loss on its next
-  // turn is certain no matter what the side to move does. Ending now spares the
-  // winner a pointless final move, e.g. when the opponent flips your last
-  // face-down tile, revealing it as yours and leaving themselves with nothing
-  // while it is still your turn.
-  //
-  // The engine's result() (Python board.py + Rust banqi_rust) mirrors this exact
-  // adjudication, so all three rule definitions agree on the terminal ply.
-  const anyFaceDown = ALL_BANQI_SQUARES.some((sq) => state.board[sq]?.faceDown);
-  const waitingSeat = oppositeBanqiSeat(banqiSeatToMove(state));
-  const waitingInk = banqiInkForSeat(state, waitingSeat);
-  if (!anyFaceDown && waitingInk !== null) {
-    const waitingHasPiece = ALL_BANQI_SQUARES.some((sq) => {
-      const piece = state.board[sq];
-      return piece && !piece.faceDown && piece.color === waitingInk;
-    });
-    if (!waitingHasPiece) {
-      // The side to move outlasts the wiped-out waiting side and wins.
-      return { type: 'finished', winner: banqiSeatToMove(state), reason: 'stalemate' };
-    }
+  // Provable-elimination adjudication. A side is finished the moment it has no
+  // piece on the board AND no tile of its colour still face-down: it can never
+  // hold a piece again, so every remaining turn of its is a forced flip of an
+  // opponent tile that ends in a certain no-legal-move loss. We adjudicate now —
+  // outcome-identical to playing it out, just sooner — sparing both sides the
+  // pointless tail (e.g. your last piece is captured while only opponent tiles
+  // remain, or you flip the last tile and it is the opponent's). `color` is the
+  // TRUE identity even while face-down, and the remaining face-down composition is
+  // publicly inferable (fixed deal minus reveals minus captures), so reading it
+  // here leaks nothing. The draw clocks above still take precedence. The engine's
+  // result() (Python board.py + Rust banqi_rust) mirrors this exact adjudication,
+  // so all three rule kernels agree on the terminal ply.
+  const seatToMove = banqiSeatToMove(state);
+  const isEliminated = (seat: BanqiSeat): boolean => {
+    const ink = banqiInkForSeat(state, seat);
+    if (ink === null) return false; // colours not bound yet (pre-first-flip)
+    return !ALL_BANQI_SQUARES.some((sq) => state.board[sq]?.color === ink);
+  };
+  if (isEliminated(seatToMove)) {
+    // The side to move can never act with a piece again; it loses now.
+    return { type: 'finished', winner: oppositeBanqiSeat(seatToMove), reason: 'stalemate' };
   }
-  return { type: 'playing', turn: banqiSeatToMove(state) };
+  if (isEliminated(oppositeBanqiSeat(seatToMove))) {
+    // The side to move outlasts the wiped-out waiting side and wins.
+    return { type: 'finished', winner: seatToMove, reason: 'stalemate' };
+  }
+  return { type: 'playing', turn: seatToMove };
 }
 
 export function applyBanqiMove(
