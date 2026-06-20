@@ -9,7 +9,10 @@ import {
   isShogiDrop,
   type ShogiMove,
 } from '@mistboard/game';
-import { createDarkShogiRuntimeRoomFromEvents, type DarkShogiEvent } from '../dark-shogi-runtime.js';
+import {
+  createDarkShogiRuntimeRoomFromEvents,
+  type DarkShogiEvent,
+} from '../dark-shogi-runtime.js';
 import type { RecentEveGameRecord } from '../persistence.js';
 import {
   type DarkShogiPostgamePersistence,

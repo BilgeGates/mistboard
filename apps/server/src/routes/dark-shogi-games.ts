@@ -8,6 +8,7 @@ import {
   type ShogiSquare,
   shogiSquareOf,
 } from '@mistboard/game';
+import { darkShogiRooms } from './../dark-shogi-registration.js';
 import {
   applyDarkShogiEvent,
   type DarkShogiEvent,
@@ -19,7 +20,6 @@ import {
   replayDarkShogiEvents,
 } from './../dark-shogi-runtime.js';
 import { darkShogiTenant } from './../dark-shogi-tenant.js';
-import { darkShogiRooms } from './../dark-shogi-registration.js';
 import { darkShogiEnabled } from './../feature-flags.js';
 import * as persistence from './../persistence.js';
 import { buildTenantGameSummary } from './../variant-tenant/events.js';
