@@ -1727,6 +1727,7 @@ const VARIANT_MINI_BY_SLUG: Record<string, VariantMiniId> = {
   jieqi: 'jieqi',
   banqi: 'banqi',
   'crossroads-chess': 'crossroads',
+  'dark-crossroads-chess': 'dark-crossroads',
   kriegspiel: 'kriegspiel',
   'reveal-chess': 'reveal-chess',
   shogi: 'shogi',

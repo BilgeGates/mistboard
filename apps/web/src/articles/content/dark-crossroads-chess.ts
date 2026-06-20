@@ -114,6 +114,7 @@ const trySvg = () =>
 export const darkCrossroadsChessArticle: Article = {
   slug: 'dark-crossroads-chess',
   kind: 'rules',
+  playableOnMistboard: true,
   title: 'Dark Crossroads Chess Rules',
   summary:
     'Crossroads Chess under Fog of War: each side sees only the squares its pieces reach, there are no check warnings, the king falls by capture, and the race to the far rank becomes a one-move gamble in the dark.',
@@ -226,17 +227,21 @@ export const darkCrossroadsChessArticle: Article = {
       blocks: [
         {
           kind: 'paragraph',
-          text: 'Dark Crossroads Chess is in active Mistboard playtesting. Public matchmaking and the main play-menu entry are still gated, but the rules page is published so players can review the variant before broader play opens.',
+          text: 'Dark Crossroads Chess is available for invite games on Mistboard. Public matchmaking is still gated while playtesting continues, but you can create a casual room and send the link to an opponent.',
         },
         {
           kind: 'cta',
           buttons: [
             {
+              label: 'Create invite',
+              href: '/?play=friend&gameSpecId=dark-crossroads-chess',
+              emphasis: 'primary',
+            },
+            {
               label: 'Crossroads Chess Rules',
               href: '/rules/crossroads-chess',
               emphasis: 'secondary',
             },
-            { label: 'Back to all rules', href: '/rules', emphasis: 'secondary' },
           ],
         } as ArticleBlock,
       ],

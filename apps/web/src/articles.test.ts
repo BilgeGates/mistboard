@@ -70,22 +70,40 @@ describe('article public listing gates', () => {
     });
   });
 
-  it('publishes Dark Crossroads Chess as a reference rules page', () => {
+  it('publishes Dark Crossroads Chess as a playable invite rules page', () => {
     vi.stubEnv('DEV', false);
 
     const page = buildArticlePage('dark-crossroads-chess');
     const landing = buildRulesIndex();
     const grids = landing.querySelectorAll('.rules-landing-grid');
+    const links = [...page.querySelectorAll<HTMLAnchorElement>('a')].map((link) => ({
+      href: link.getAttribute('href'),
+      text: link.textContent,
+    }));
 
     expect(page.textContent).toContain('Dark Crossroads Chess Rules');
-    expect(page.textContent).toContain('active Mistboard playtesting');
+    expect(page.textContent).toContain('available for invite games');
     expect(page.textContent).not.toContain('not playable yet');
     expect(page.querySelectorAll('.dark-crossroads-figure > svg.crossroads-live-svg')).toHaveLength(
       4,
     );
+    expect(links).toContainEqual({
+      href: '/?play=friend&gameSpecId=dark-crossroads-chess',
+      text: 'Create invite',
+    });
     expect(landing.textContent).toContain('Dark Crossroads Chess');
-    expect(grids[0]?.querySelector('a[href="/rules/dark-crossroads-chess"]')).toBeNull();
-    expect(grids[1]?.querySelector('a[href="/rules/dark-crossroads-chess"]')).not.toBeNull();
+    expect(grids[0]?.querySelector('a[href="/rules/dark-crossroads-chess"]')).not.toBeNull();
+    expect(
+      grids[0]?.querySelector(
+        'a[href="/rules/dark-crossroads-chess"] svg[data-mini-id="dark-crossroads"]',
+      ),
+    ).not.toBeNull();
+    expect(grids[1]?.querySelector('a[href="/rules/dark-crossroads-chess"]')).toBeNull();
+    expect(
+      page.querySelector(
+        '.article-variant-sidebar a[aria-current="page"] svg[data-mini-id="dark-crossroads"]',
+      ),
+    ).not.toBeNull();
   });
 
   it('rerenders Dark Crossroads diagrams from the piece settings', () => {
