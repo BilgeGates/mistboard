@@ -1,9 +1,10 @@
-bba9fff
+5259395
 # ^ The mistboard-engine commit the prod build checks out (railpack build step).
-# RE-SHIP PHASE 1 (2026-06-20): roll the ENGINE forward to bba9fff (Misty 1.2)
-# while the registry still OFFERS v1.1 (PROD_PLAYABLE) — so the engine-worker
-# becomes able to load+serve python-v2-v1.2 with NO window where the web offers
-# an engine the worker can't yet load (the cross-service desync that forfeited the
-# first v1.2 deploy). Phase 2 flips PROD_PLAYABLE -> v1.2 once this is healthy.
+# v1.3 PHASE 1 (2026-06-20): roll the ENGINE forward to 5259395 (Misty 1.3 =
+# v1.2 + adaptive prune ON + curated opening book ON; engine branch
+# ship/v1.3-2026-06-20) while the registry still OFFERS v1.2 (PROD_PLAYABLE) — so
+# the engine-worker becomes able to load+serve python-v2-v1.3 with NO window where
+# the web offers an engine the worker can't yet load (the desync that forfeited the
+# first v1.2 deploy). Phase 2 flips PROD_PLAYABLE -> v1.3 once this is healthy.
 # Single source of truth for the deployed engine version; bump this + the registry
 # engine_pin to ship. The railpack reads only the first line; this comment is ignored.

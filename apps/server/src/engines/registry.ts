@@ -337,6 +337,34 @@ const PYTHON_ENGINES: Record<string, EngineDefinition> = {
       'Misty 1.2 — carryover fix only (opening corruption + reproducibility); ' +
       'v1.1 minus the bug. Shipped 2026-06-19, supersedes 1.1.',
   },
+  // Misty 1.3 — OPENING-HARDENING candidate (2026-06-20). = v1.2 + the two
+  // opening-catastrophe layers v1.2 shipped dormant, turned ON: the adaptive prune
+  // (rc6 config: hv_prune_adaptive + king-floor 0.02) + the curated opening book.
+  // Carryover stays OFF. Pinned to engine commit 5259395 (branch
+  // ship/v1.3-2026-06-20). Worker maps id -> v1.3. KNOWN here so the engine-worker
+  // can load it; OFFERED to players only when added to PROD_PLAYABLE_ENGINE_IDS
+  // (the Phase-2 flip) — kept out for now so Phase-1 has no offer-without-serve gap.
+  'python-v2-v1.3': {
+    id: 'python-v2-v1.3',
+    engineId: 'v2',
+    engineName: 'Misty',
+    name: 'Misty 1.3',
+    kind: 'container',
+    configHash: 'v2-v1.3-5259395',
+    playSignature: '5259395',
+    config: {
+      kind: 'python-subprocess',
+      strategy: 'v2',
+      version: '1.3',
+      config: 'v2-prune-book',
+      config_hash: '5259395',
+      engine_pin: 'misty-1.3@5259395',
+    },
+    livePolicy: { timeoutMs: 30_000 },
+    notes:
+      'Misty 1.3 — v1.2 + adaptive prune ON + curated opening book ON ' +
+      '(opening-hardening). Gated 2026-06-20.',
+  },
   // Dark Mini Xiangqi engine. Not in the chess PvE picker; the Dark Mini
   // Xiangqi route selects it through the variant-aware worker protocol.
   'python-dmx-v1.0': {
