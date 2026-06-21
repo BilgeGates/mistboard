@@ -7,6 +7,7 @@ import {
   type Square,
 } from '@mistboard/game';
 import { kriegspielEnabled } from './../feature-flags.js';
+import { kriegspielRooms } from './../kriegspiel-registration.js';
 import {
   applyKriegspielEvent,
   getKriegspielClientView,
@@ -17,8 +18,7 @@ import {
   type KriegspielWirePlayerView,
   replayKriegspielEvents,
 } from './../kriegspiel-runtime.js';
-import { kriegspielRooms } from './../kriegspiel-registration.js';
-import { kriegspielTenant, type KriegspielWireMove } from './../kriegspiel-tenant.js';
+import { type KriegspielWireMove, kriegspielTenant } from './../kriegspiel-tenant.js';
 import * as persistence from './../persistence.js';
 import { buildTenantGameSummary } from './../variant-tenant/events.js';
 import { type HttpApiContext, requireMethod, writeJson } from './lib.js';

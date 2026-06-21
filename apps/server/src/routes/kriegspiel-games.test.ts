@@ -11,7 +11,10 @@ import {
   type KriegspielEvent,
 } from '../kriegspiel-runtime.js';
 import type { RecentEveGameRecord } from '../persistence.js';
-import { type KriegspielPostgamePersistence, kriegspielPostgameForApi } from './kriegspiel-games.js';
+import {
+  type KriegspielPostgamePersistence,
+  kriegspielPostgameForApi,
+} from './kriegspiel-games.js';
 
 const ROOM_ID = 'kr_postgame';
 const MOVES: Move[] = [
@@ -122,7 +125,10 @@ test('Kriegspiel postgame can render from a finished live room without persisten
   assert.equal(payload.game.roomId, ROOM_ID);
   assert.equal(payload.game.variant, KRIEGSPIEL_SPEC_ID);
   assert.equal(payload.game.visibility, 'private');
-  assert.equal(payload.timeline.filter((entry) => entry.type === 'move-played').length, MOVES.length);
+  assert.equal(
+    payload.timeline.filter((entry) => entry.type === 'move-played').length,
+    MOVES.length,
+  );
   assert.equal(payload.history?.truth?.at(-1)?.ply, MOVES.length);
 });
 

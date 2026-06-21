@@ -99,7 +99,9 @@ function kriegspielFogPatternDefs(id: string): string {
     'background-repeat:repeat',
     `background-size:${CELL}px ${CELL}px`,
   ].join(';');
-  const pattern = (tone: 'light' | 'dark') => `<pattern id="${id}-fog-${tone}" patternUnits="userSpaceOnUse" width="${boardSize}" height="${boardSize}">
+  const pattern = (
+    tone: 'light' | 'dark',
+  ) => `<pattern id="${id}-fog-${tone}" patternUnits="userSpaceOnUse" width="${boardSize}" height="${boardSize}">
 <rect class="kriegspiel-fog-tint kriegspiel-fog-tint--${tone}" width="${boardSize}" height="${boardSize}"/>
 <foreignObject class="kriegspiel-fog-tex kriegspiel-fog-tex-drift" x="0" y="0" width="${boardSize}" height="${boardSize}">
   <div xmlns="http://www.w3.org/1999/xhtml" style="${driftStyle}"></div>
