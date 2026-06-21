@@ -240,6 +240,7 @@ Edit task → find file → open only that file.
 | `article-meta.ts` | Server-side article slug → page meta (title/description/kind) for share cards + canonical URL space; kept in sync with `articles-data.ts` via a web test |
 | `auth-rate-limit.ts` | In-memory per-key sliding-window rate limiter for auth endpoints (persistence-free defense-in-depth); re-exports `clientIpForRateLimit` from `server-policy.ts` |
 | `engine-paths.ts` | Single source of truth for resolving the private `mistboard-engine` repo paths from the public server (`MISTBOARD_ENGINE_DIR` env, else `../mistboard-engine` sibling) |
+| `dev-decision-log-artifacts.ts` | Local-dev bridge that reshapes live-engine decision-log JSONL into review artifact summaries/payloads when persistence is disabled; gated by `FOW_DECISION_LOG_DIR` or the engine repo's `lab/decision_log/` |
 | `engine-alert-email-cli.ts` | CLI: send/preview a synthetic engine alert email |
 | `dev-engine-service.ts` | Dev-only entrypoint: run JUST the internal engine HTTP service locally (no Postgres, no worker loop) for live PvE |
 | `finished-game-cache.ts` | `FinishedGameCache` — memoizes immutable derivations of FINISHED games (replay logs, postgame projections); LRU + TTL; never caches running games |

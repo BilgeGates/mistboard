@@ -1,6 +1,11 @@
 import type { IncomingMessage, ServerResponse } from 'node:http';
 import type { Color, GameEvent, TimeClass } from '@mistboard/game';
 import { attachBanqiFirstColors } from './../banqi-first-color.js';
+import {
+  decisionLogAvailable,
+  devArtifactPayloads,
+  devArtifactSummaries,
+} from './../dev-decision-log-artifacts.js';
 import { FinishedGameCache } from './../finished-game-cache.js';
 import { buildGamePgn, buildGamePublicationJson } from './../game-export.js';
 import * as persistence from './../persistence.js';
@@ -368,11 +373,19 @@ async function gameReviewForApi(
   const replayResponse = eventReplayResponse(events);
   if (!game || replayResponse.status !== 200) return null;
 
-  const canViewEngineArtifacts = await canViewEngineArtifactsForRequest(request);
-  const artifactSummaries = persistence.isInitialized()
+  const devReview = !persistence.isInitialized() && decisionLogAvailable(roomId);
+  const canViewEngineArtifacts = (await canViewEngineArtifactsForRequest(request)) || devReview;
+  let artifactSummaries = persistence.isInitialized()
     ? await persistence.listGameDebugArtifactSummaries(roomId)
     : [];
-  const engineColors = engineParticipantColors(game);
+  let engineColors = engineParticipantColors(game);
+  if (devReview) {
+    const devArtifacts = devArtifactSummaries(roomId, replayResponse.body.events);
+    if (devArtifacts) {
+      artifactSummaries = devArtifacts.summaries;
+      if (engineColors.length === 0) engineColors = devArtifacts.engineColors;
+    }
+  }
   const hasEngineParticipant = engineColors.length > 0;
   const beliefArtifacts = artifactSummaries.filter(
     (artifact) => artifact.artifactType === 'belief-snapshot',
@@ -428,7 +441,16 @@ async function gameArtifactsForApi(
   color: Color | null,
   request: IncomingMessage,
 ): Promise<{ status: 200; body: Record<string, unknown> } | { status: 403 } | null> {
-  if (!persistence.isInitialized()) return null;
+  if (!persistence.isInitialized()) {
+    if (!decisionLogAvailable(roomId)) return null;
+    const game = await gameSummaryForApi(ctx, roomId);
+    const events = await gameEventsForApi(ctx, roomId);
+    const replayResponse = eventReplayResponse(events);
+    if (!game || replayResponse.status !== 200) return null;
+    const artifacts = devArtifactPayloads(roomId, replayResponse.body.events, artifactType, color);
+    if (!artifacts) return null;
+    return { status: 200, body: { artifacts } };
+  }
   const game = await gameSummaryForApi(ctx, roomId);
   const events = await gameEventsForApi(ctx, roomId);
   const replayResponse = eventReplayResponse(events);
