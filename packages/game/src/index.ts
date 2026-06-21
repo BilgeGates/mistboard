@@ -12,6 +12,7 @@ export * from './variants.js';
 export * from './variants-banqi.js';
 export * from './variants-crazyhouse.js';
 export * from './variants-crossroads-chess.js';
+export * from './variants-drop-mini-xiangqi.js';
 export * from './variants-jieqi.js';
 export * from './variants-kriegspiel.js';
 export * from './variants-mini-xiangqi.js';
