@@ -1,5 +1,7 @@
 import {
   banqiEnabled,
+  darkCrazyhouseEnabled,
+  darkCrossroadsChessEnabled,
   darkMiniXiangqiPublicEntryEnabled,
   darkShogiEnabled,
   darkXiangqiEnabled,
@@ -31,8 +33,12 @@ export type Announcement = {
   requiresBanqi?: boolean;
   // Gated to the dark-xiangqi flag so it only shows once Dark Xiangqi is live.
   requiresDarkXiangqi?: boolean;
+  // Gated to the dark-crossroads flag so it only shows once Dark Crossroads is live.
+  requiresDarkCrossroadsChess?: boolean;
   // Gated to the dark-shogi flag so it only shows once Dark Shogi is live.
   requiresDarkShogi?: boolean;
+  // Gated to the dark-crazyhouse flag so it only shows once Dark Crazyhouse is live.
+  requiresDarkCrazyhouse?: boolean;
   // Gated to the reveal-chess flag so it only shows once Reveal Chess is live.
   requiresRevealChess?: boolean;
   // Gated to the Kriegspiel flag so it only shows once Kriegspiel is live.
@@ -40,6 +46,24 @@ export type Announcement = {
 };
 
 const baseAnnouncements: Announcement[] = [
+  {
+    date: '2026-06-20',
+    kind: 'release',
+    headline: 'Dark Crazyhouse has launched.',
+    body: 'Crazyhouse under Fog of War is now live for invite games, with private hands, captured pieces entering reserve, and drops into the fog.',
+    href: '/rules/dark-crazyhouse',
+    cta: 'Read rules',
+    requiresDarkCrazyhouse: true,
+  },
+  {
+    date: '2026-06-20',
+    kind: 'release',
+    headline: 'Dark Crossroads Chess has launched.',
+    body: 'Crossroads Chess under Fog of War is now live for invite games, with hidden enemy pieces, no check warnings, and the far-rank Try.',
+    href: '/rules/dark-crossroads-chess',
+    cta: 'Read rules',
+    requiresDarkCrossroadsChess: true,
+  },
   {
     date: '2026-06-20',
     kind: 'release',
@@ -106,6 +130,14 @@ const baseAnnouncements: Announcement[] = [
   },
   {
     date: '2026-05-09',
+    kind: 'release',
+    headline: 'Dark Chess is open for alpha play.',
+    body: 'Fog of War chess is live on Mistboard, with private vision, no check warnings, and king capture wins.',
+    href: '/rules/dark-chess',
+    cta: 'Read rules',
+  },
+  {
+    date: '2026-05-09',
     kind: 'status',
     headline: 'Mistboard is in alpha.',
     body: 'Casual dark chess is open. Rated beta is coming.',
@@ -138,7 +170,9 @@ export function announcements(): Announcement[] {
       (!announcement.requiresJieqi || jieqiEnabled()) &&
       (!announcement.requiresBanqi || banqiEnabled()) &&
       (!announcement.requiresDarkXiangqi || darkXiangqiEnabled()) &&
+      (!announcement.requiresDarkCrossroadsChess || darkCrossroadsChessEnabled()) &&
       (!announcement.requiresDarkShogi || darkShogiEnabled()) &&
+      (!announcement.requiresDarkCrazyhouse || darkCrazyhouseEnabled()) &&
       (!announcement.requiresRevealChess || revealChessEnabled()) &&
       (!announcement.requiresKriegspiel || kriegspielEnabled()),
   );
