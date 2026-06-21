@@ -400,6 +400,32 @@ const PYTHON_ENGINES: Record<string, EngineDefinition> = {
       'Misty 1.4 — v1.3 + FoW castle-into-check fix (search move-gen sees ' +
       'fog-castles, devalues a king-walking castle). Shipped 2026-06-20.',
   },
+  // ★ v1.5 OPENING-BOOK update (2026-06-21): v1.4 profile + curated book (drop the
+  // now-redundant 2.Nc3 forces, add a forced ...dxe4 for the ~6% move-2 c6 commit-slip).
+  // Pinned to engine 8b4935b (branch ship/v1.5-2026-06-21 = live 3ae331c + the book).
+  // Worker maps id -> v1.5. KNOWN here so the engine-worker can load it; OFFERED to
+  // players only when added to PROD_PLAYABLE_ENGINE_IDS (the Phase-2 flip).
+  'python-v2-v1.5': {
+    id: 'python-v2-v1.5',
+    engineId: 'v2',
+    engineName: 'Misty',
+    name: 'Misty 1.5',
+    kind: 'container',
+    configHash: 'v2-v1.5-8b4935b',
+    playSignature: '8b4935b',
+    config: {
+      kind: 'python-subprocess',
+      strategy: 'v2',
+      version: '1.5',
+      config: 'v2-opening-book',
+      config_hash: '8b4935b',
+      engine_pin: 'misty-1.5@8b4935b',
+    },
+    livePolicy: { timeoutMs: 30_000 },
+    notes:
+      'Misty 1.5 — v1.4 profile + curated opening book (drop redundant Nc3 ' +
+      'forces, force ...dxe4 for the move-2 c6 slip). Shipped 2026-06-21.',
+  },
   // Dark Mini Xiangqi engine. Not in the chess PvE picker; the Dark Mini
   // Xiangqi route selects it through the variant-aware worker protocol.
   'python-dmx-v1.0': {

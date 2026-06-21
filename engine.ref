@@ -1,10 +1,9 @@
-3ae331c
+8b4935b
 # ^ The mistboard-engine commit the prod build checks out (railpack build step).
-# DMX hardening (2026-06-21): 3ae331c = cdecd59 (Misty 1.4 castle fix for
-# dark chess) + DMX guarded recommended profile, bounded mini belief cap,
-# Modal bakeoff default alignment, and the live-build constructor/guard fix.
-# The chess engine id still maps to Misty 1.4; the DMX id maps to the stronger
-# guarded mini profile.
-# Rollback target: cdecd59 for chess-only Misty 1.4. Single source of truth for
+# v1.5 OPENING-BOOK update (2026-06-21): 8b4935b = 3ae331c (Misty 1.4 castle fix +
+# DMX hardening) + the curated opening book (drop the now-redundant Nc3 forces, add a
+# forced ...dxe4 for the ~6% move-2 c6 commit-slip) + the python-v2-v1.5 profile/worker
+# mapping. The chess engine id maps to Misty 1.5; the DMX id is unchanged.
+# Rollback target: 3ae331c (Misty 1.4 + DMX, prior book). Single source of truth for
 # the deployed engine; bump this + the registry engine_pin to ship. The railpack
 # reads only the first line; this comment is ignored.
