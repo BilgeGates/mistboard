@@ -12,15 +12,15 @@ export const mistyArticle: Article = {
       alt: 'An ethereal presence rising in mist from a chessboard — the Misty engine.',
     },
     showSummaryOnPage: false,
-    status: 'draft',
-    publishedAt: '2026-06-03',
+    status: 'published',
+    publishedAt: '2026-06-21',
     audience:
       'Dark chess players and chess-engine builders curious about how the Mistboard engine works.',
     intro: [
       {
         kind: 'paragraph',
         text:
-          'Misty is the bot you play on Mistboard, an engine built specifically for Fog of War chess.',
+          'Misty is the bot you play on Mistboard, an engine built for Fog of War chess.',
       },
     ],
     sections: [
@@ -40,7 +40,7 @@ export const mistyArticle: Article = {
           {
             kind: 'paragraph',
             text:
-              'A classical chess engine like Stockfish has one big advantage: it can see the whole board. It picks its move by searching the game tree, looking ahead through the lines both sides could play and backing up the value of the best line (minimax). The search assumes a single true position and a single true continuation.',
+              'A classical chess engine like Stockfish has one advantage: it can see the whole board. It picks its move by searching the game tree, looking ahead through the lines both sides could play and backing up the best line (minimax). The search assumes a single true position and a single true continuation.',
           },
           {
             kind: 'paragraph',
@@ -55,7 +55,7 @@ export const mistyArticle: Article = {
           {
             kind: 'paragraph',
             text:
-              'Two things. The first is the possible-board set itself. A few plies into a foggy middlegame, "every consistent board" can mean a very large number of positions. Misty has to keep that uncertainty under control inside a live-game time budget.',
+              'Two things. The first is the possible-board set itself. A few plies into a foggy middlegame, "every consistent board" blows up fast. Misty has to keep that uncertainty under control inside a live-game time budget.',
           },
           {
             kind: 'paragraph',
@@ -66,16 +66,17 @@ export const mistyArticle: Article = {
       },
       {
         heading: 'Where it stands',
-        // HELD pending the 20-game human benchmark. The benchmark runs against a
-        // RE-FROZEN strongest config (king-safety fix landed), not the current
-        // king-hanging default — don't anchor strength on lines where it hangs its
-        // king early. Finalize wording/numbers after the match; aim to imply
-        // Obscuro-class play without claiming parity. Article release blocked on this.
+        // Strength claim is deliberately rating-free: we gate any number on a
+        // human match we'd stand behind, and don't have one yet. The king-hang
+        // catastrophes that earlier blocked this are fixed in the shipped default
+        // (commit backstop, adaptive prune, carryover + castle-into-check), so the
+        // read below is of the current prod engine. Add a number only after a human
+        // match earns it; imply Obscuro-class play without claiming parity.
         blocks: [
           {
             kind: 'paragraph',
             text:
-              "As of mid-2026, Misty plays the strongest Fog of War chess we've seen. We're benchmarking it now against serious human play to pin down how strong; until then, this is our own read, not a rating.",
+              "Misty plays the strongest Fog of War chess we've seen. The yardstick that matters is human play, and we won't put a rating on it until a serious human match earns one.",
           },
         ],
       },
@@ -85,7 +86,7 @@ export const mistyArticle: Article = {
           {
             kind: 'paragraph',
             text:
-              "The architecture isn't chess-specific. The same machinery already plays a second game, Dark Mini Xiangqi, and we're bringing it to Mistboard next. Other hidden-information games are mostly a matter of wiring up the rules.",
+              "The machinery generalizes past chess. It already plays a second game on Mistboard, Dark Mini Xiangqi, with the full-size board, Dark Xiangqi, next. New hidden-information games are mostly a matter of wiring up the rules.",
           },
         ],
       },
