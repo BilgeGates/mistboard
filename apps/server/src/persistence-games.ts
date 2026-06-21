@@ -35,6 +35,7 @@ export type GameParticipantColor = Color | XiangqiColor;
 export type GameParticipantSubjectType =
   | 'guest'
   | 'user'
+  | 'bot'
   | 'engine-version'
   | 'manual'
   | 'imported';

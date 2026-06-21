@@ -574,6 +574,42 @@ test('buildGameSummary: engine seat forces rated=false even when room.rated=true
   assert.equal(summary.participants?.[0]?.subjectType, 'engine-version');
 });
 
+test('buildGameSummary: first-party engine seat records bot profile identity', () => {
+  const events: GameEvent[] = [
+    { type: 'room-created', at: 1, roomId: 'room-bot-pve', variant: 'dark-chess', offer: [] },
+    {
+      type: 'seat-assigned',
+      at: 2,
+      roomId: 'room-bot-pve',
+      clientId: 'human-c',
+      seat: 'white',
+    },
+    {
+      type: 'seat-assigned',
+      at: 3,
+      roomId: 'room-bot-pve',
+      clientId: 'python-v2-v1.4',
+      seat: 'black',
+    },
+    { type: 'seat-resigned', at: 4, roomId: 'room-bot-pve', color: 'white' },
+  ];
+  const room = makeRoom('room-bot-pve', 'dark-chess', events);
+  room.mode = 'pve';
+  room.rated = true;
+  const ctx = makeCtx();
+
+  const summary = buildGameSummary(ctx, room);
+
+  assert.equal(summary.rated, false, 'bot participant must force casual');
+  assert.deepEqual(summary.participants?.[1], {
+    color: 'black',
+    displayName: 'Misty',
+    subjectType: 'bot',
+    subjectId: 'misty-dark-chess',
+    visibility: 'public',
+  });
+});
+
 test('buildGameSummary: guest seats force rated=false even when room.rated=true', () => {
   // Account-gate: rated requires durable identity on BOTH seats. Two anonymous
   // guests playing a rated-requested room are recorded casual.

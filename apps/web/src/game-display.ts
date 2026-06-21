@@ -11,7 +11,7 @@ export const MISTBOARD_ENGINE_MISTY_NAME = 'Misty 1.1';
 export type GameParticipant = {
   color: 'white' | 'black' | 'red';
   displayName: string;
-  subjectType: 'guest' | 'user' | 'engine-version' | 'manual' | 'imported';
+  subjectType: 'guest' | 'user' | 'bot' | 'engine-version' | 'manual' | 'imported';
   subjectId: string | null;
   visibility: 'private' | 'link' | 'unlisted' | 'public';
   ratingBefore?: number | null;

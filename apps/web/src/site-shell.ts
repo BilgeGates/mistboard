@@ -206,6 +206,7 @@ function pathMatchesNavItem(path: string, href: string): boolean {
   return (
     path === href ||
     (href === '/account' && path.startsWith('/account/')) ||
+    (href === '/bots' && path.startsWith('/bot/')) ||
     (href === '/rules' && (path === '/zh-hans/rules' || path === '/zh-hant/rules')) ||
     (href === '/articles' &&
       (path === '/zh-hans/articles' ||

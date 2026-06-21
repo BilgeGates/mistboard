@@ -1,0 +1,160 @@
+.bots-shell {
+  display: grid;
+  gap: 18px;
+  width: min(1040px, calc(100% - 24px));
+  margin: 0 auto;
+  padding: 28px 0 42px;
+}
+
+.bots-directory-header {
+  display: grid;
+  gap: 8px;
+}
+
+.bots-directory-header .site-section-heading {
+  margin: 0;
+}
+
+.bots-sub,
+.bots-status {
+  margin: 0;
+  color: var(--site-muted);
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.bots-directory {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 12px;
+}
+
+.bot-card,
+.bot-profile-play,
+.bot-profile-about {
+  border: 1px solid var(--site-border);
+  border-radius: 3px;
+  background: var(--site-panel);
+  box-shadow: 0 2px 2px color-mix(in srgb, var(--site-shadow) 20%, transparent);
+}
+
+.bot-card {
+  display: grid;
+  gap: 12px;
+  align-content: start;
+  padding: 16px;
+}
+
+.bot-card-title {
+  color: var(--site-heading);
+  font-size: 20px;
+  font-weight: 650;
+  line-height: 1.2;
+  text-decoration: none;
+}
+
+.bot-card-title:hover,
+.bot-card-title:focus-visible,
+.bot-profile-link:hover,
+.bot-profile-link:focus-visible {
+  color: var(--site-accent);
+  outline: none;
+}
+
+.bot-card-details,
+.bot-variant-list,
+.bot-card-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+  align-items: center;
+}
+
+.bot-chip {
+  display: inline-flex;
+  align-items: center;
+  min-height: 24px;
+  padding: 3px 8px;
+  border: 1px solid var(--site-border-soft);
+  border-radius: 3px;
+  background: var(--site-panel-soft);
+  color: var(--site-muted);
+  font-size: 12px;
+  font-weight: 650;
+  line-height: 1;
+}
+
+.bot-variant-chip {
+  background: color-mix(in srgb, #4f8edb 12%, var(--site-panel));
+  color: color-mix(in srgb, #4f8edb 82%, var(--site-heading));
+}
+
+.bot-card-actions {
+  margin-top: 2px;
+}
+
+.bot-profile-link {
+  display: inline-flex;
+  align-items: center;
+  min-height: 32px;
+  padding: 6px 9px;
+  color: var(--site-muted);
+  font-size: 13px;
+  font-weight: 650;
+  line-height: 1;
+  text-decoration: none;
+}
+
+.bot-play-button-error {
+  border-color: color-mix(in srgb, #c45b52 60%, var(--site-border));
+  color: #c45b52;
+}
+
+.profile-role-bot {
+  background: color-mix(in srgb, #4f8edb 18%, var(--site-panel));
+  color: #4f8edb;
+}
+
+.bot-profile-shell {
+  display: grid;
+  gap: 16px;
+}
+
+.bot-stats .profile-stat-value {
+  font-size: 18px;
+}
+
+.bot-profile-play,
+.bot-profile-about {
+  padding: 16px;
+}
+
+.bot-profile-play h2,
+.bot-profile-about h2 {
+  margin: 0 0 8px;
+  color: var(--site-heading);
+  font-size: 17px;
+  font-weight: 550;
+}
+
+.bot-profile-play p,
+.bot-profile-about p {
+  margin: 0 0 12px;
+  color: var(--site-muted);
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.bot-profile-about p {
+  margin-bottom: 0;
+}
+
+@media (max-width: 560px) {
+  .bots-directory {
+    grid-template-columns: 1fr;
+  }
+
+  .bot-card {
+    padding: 14px;
+  }
+}

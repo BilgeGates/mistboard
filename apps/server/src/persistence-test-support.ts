@@ -51,6 +51,7 @@ export function definePersistenceTests(area: string, registerTests: () => void):
            email_login_challenges,
            account_sessions,
            user_handle_reservations,
+           bot_profiles,
            artifact_owners,
            game_participants,
            room_seat_tokens,
