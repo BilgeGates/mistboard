@@ -1,6 +1,6 @@
-788a536
+653aa33
 # ^ The mistboard-engine commit the prod build checks out (railpack build step).
-# Misty DMX (2026-06-20): roll the ENGINE forward to 788a536. This keeps the
+# Misty DMX (2026-06-20): roll the ENGINE forward to 653aa33. This keeps the
 # existing Misty 1.3 dark-chess serving path, adds the private DMX profile,
 # royal guard, Modal bakeoff harness, DMX runtime tests, and the v1.3 serveability
 # mapping required by the public prod registry.
