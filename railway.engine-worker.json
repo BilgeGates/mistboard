@@ -11,6 +11,7 @@
       "!/apps/server/scripts/**",
       "/packages/game/**",
       "/packages/board-render/**",
+      "/engine.ref",
       "/scripts/build.mjs",
       "/scripts/start.mjs",
       "/package.json",
