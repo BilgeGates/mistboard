@@ -1,10 +1,10 @@
 /**
  * Dark Crossroads Chess (6x8, hidden/dev-only) registry entry. Owns the
- * tenant's live-room map, the room-factory binding, and hydration. No rematch
- * flow, no lobby surface, no watch channel yet (deep-link PvP only, like the
- * Dark Xiangqi launch) — the lobby route answers dark_crossroads_chess_not_
- * integrated while the flag is on. Imported for side effects by
- * variant-tenant/register-tenants.ts.
+ * tenant's live-room map, the room-factory binding, hydration, and watch
+ * channel metadata. No rematch flow and no lobby surface (deep-link PvP only,
+ * like the Dark Xiangqi launch) — the lobby route answers
+ * dark_crossroads_chess_not_integrated while the flag is on. Imported for side
+ * effects by variant-tenant/register-tenants.ts.
  */
 
 import type { RoomTimeControl } from '@mistboard/game';
@@ -73,7 +73,12 @@ registerVariantTenant({
   kind: darkCrossroadsChessTenant.kind,
   gameSpecId: darkCrossroadsChessTenant.gameSpecId,
   roomIdPrefix: darkCrossroadsChessTenant.roomIdPrefix,
-  watch: null,
+  watch: {
+    channelId: darkCrossroadsChessTenant.gameSpecId,
+    label: 'Dark Crossroads Chess',
+    family: 'crossroads-chess',
+    legacyVariants: ['dark-crossroads-chess', 'dark-dual-chess'],
+  },
   ownsSpecRouting: true,
   errorPrefix: 'dark_crossroads_chess',
   enabled: darkCrossroadsChessTenant.enabled,

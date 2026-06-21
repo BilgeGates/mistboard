@@ -135,11 +135,9 @@ export const DARK_DUAL_CHESS_SPEC_ID = 'dark-dual-chess' satisfies GameSpecAlias
 
 // Single source of truth for variant DISPLAY order across every surface: the
 // play-menu picker, the leaderboard/profile grids, the Mistboard TV watch rail,
-// and the /rules rail. Hidden-information variants lead, grouped by family (chess
-// fog, xiangqi fog mini→full, xiangqi identity, chess identity); the one
-// perfect-information variant (Crossroads) sorts last. Specs not listed here sort
-// to the end in their own order, so a new variant appears without editing callers
-// that already sort by canonicalVariantOrderIndex (just curate it here).
+// and the /rules rail. Specs not listed here sort to the end in their own order,
+// so a new variant appears without editing callers that already sort by
+// canonicalVariantOrderIndex (just curate it here).
 export const CANONICAL_VARIANT_ORDER: readonly GameSpecId[] = [
   DARK_CHESS_SPEC_ID,
   DARK_DRAFT960_SPEC_ID,
@@ -149,6 +147,9 @@ export const CANONICAL_VARIANT_ORDER: readonly GameSpecId[] = [
   BANQI_SPEC_ID,
   REVEAL_CHESS_SPEC_ID,
   CROSSROADS_CHESS_SPEC_ID,
+  DARK_CROSSROADS_CHESS_SPEC_ID,
+  DARK_SHOGI_SPEC_ID,
+  DARK_CRAZYHOUSE_SPEC_ID,
 ];
 
 /** Sort index for {@link CANONICAL_VARIANT_ORDER}; unlisted specs sort to the end. */
@@ -204,8 +205,9 @@ export const GAME_SPECS: readonly GameSpec[] = [
     reserves: 'crazyhouse',
     dropPolicy: 'any-legal-square',
     ratingPoolBase: 'dark_crazyhouse',
+    rated: true,
     publicSurface: 'hidden',
-    runtimeStatus: 'dev-spike',
+    runtimeStatus: 'live',
   },
   {
     id: 'kriegspiel',
@@ -296,7 +298,7 @@ export const GAME_SPECS: readonly GameSpec[] = [
     ratingPoolBase: 'dark_mini_xiangqi',
     rated: true,
     publicSurface: 'hidden',
-    runtimeStatus: 'dev-spike',
+    runtimeStatus: 'live',
   },
   {
     id: DARK_XIANGQI_SPEC_ID,
@@ -314,7 +316,7 @@ export const GAME_SPECS: readonly GameSpec[] = [
     // the global rated flag flips. Launches PvP-first, casual until then.
     rated: true,
     publicSurface: 'hidden',
-    runtimeStatus: 'dev-spike',
+    runtimeStatus: 'live',
   },
   {
     id: JIEQI_SPEC_ID,
@@ -330,7 +332,7 @@ export const GAME_SPECS: readonly GameSpec[] = [
     ratingPoolBase: 'jieqi',
     rated: true,
     publicSurface: 'hidden',
-    runtimeStatus: 'future',
+    runtimeStatus: 'live',
   },
   {
     // Banqi (半棋 / Chinese Dark Chess): an 8x4 half-xiangqi board with the
@@ -351,7 +353,7 @@ export const GAME_SPECS: readonly GameSpec[] = [
     ratingPoolBase: 'banqi',
     rated: true,
     publicSurface: 'hidden',
-    runtimeStatus: 'future',
+    runtimeStatus: 'live',
   },
   {
     id: DARK_SHOGI_SPEC_ID,
@@ -365,8 +367,9 @@ export const GAME_SPECS: readonly GameSpec[] = [
     reserves: 'shogi-hands',
     dropPolicy: 'any-legal-square',
     ratingPoolBase: 'dark_shogi',
+    rated: true,
     publicSurface: 'hidden',
-    runtimeStatus: 'dev-spike',
+    runtimeStatus: 'live',
   },
   {
     id: 'dark-omega',
@@ -401,7 +404,7 @@ export const GAME_SPECS: readonly GameSpec[] = [
     ratingPoolBase: 'crossroads_chess_open',
     rated: true,
     publicSurface: 'hidden',
-    runtimeStatus: 'dev-spike',
+    runtimeStatus: 'live',
   },
   {
     id: DARK_CROSSROADS_CHESS_SPEC_ID,
@@ -415,8 +418,9 @@ export const GAME_SPECS: readonly GameSpec[] = [
     reserves: 'none',
     dropPolicy: 'none',
     ratingPoolBase: 'crossroads_chess',
+    rated: true,
     publicSurface: 'hidden',
-    runtimeStatus: 'dev-spike',
+    runtimeStatus: 'live',
   },
   {
     // Reveal Chess (chess-jieqi): standard chess with hidden piece identities.
@@ -507,6 +511,9 @@ export type RatingVariant = Extract<
   | 'fog_draft960'
   | 'dark_mini_xiangqi'
   | 'dark_xiangqi'
+  | 'dark_crazyhouse'
+  | 'dark_shogi'
+  | 'crossroads_chess'
   | 'crossroads_chess_open'
   | 'jieqi'
   | 'banqi'

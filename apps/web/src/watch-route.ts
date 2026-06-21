@@ -465,6 +465,9 @@ const CHANNEL_MINI_BY_ID: Record<string, VariantMiniId> = {
   jieqi: 'jieqi',
   banqi: 'banqi',
   'crossroads-chess': 'crossroads',
+  'dark-crossroads-chess': 'dark-crossroads',
+  'dark-shogi': 'dark-shogi',
+  'dark-crazyhouse': 'dark-crazyhouse',
   'reveal-chess': 'reveal-chess',
 };
 

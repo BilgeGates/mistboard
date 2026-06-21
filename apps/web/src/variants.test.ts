@@ -159,11 +159,32 @@ describe('web variant launch registry', () => {
     vi.resetModules();
   });
 
-  it('keeps Dark Shogi represented but not launch-enabled', () => {
-    expect(gameSpecForId(DARK_SHOGI_SPEC_ID).runtimeStatus).toBe('dev-spike');
-    expect(VARIANTS.map((v) => v.gameSpecId)).not.toContain(DARK_SHOGI_SPEC_ID);
+  it('shows the 10 launched variants on local rating surfaces', () => {
+    expect(leaderboardVariants.map((v) => v.gameSpecId)).toEqual([
+      DARK_CHESS_SPEC_ID,
+      DARK_MINI_XIANGQI_SPEC_ID,
+      DARK_XIANGQI_SPEC_ID,
+      JIEQI_SPEC_ID,
+      BANQI_SPEC_ID,
+      REVEAL_CHESS_SPEC_ID,
+      CROSSROADS_CHESS_SPEC_ID,
+      DARK_CROSSROADS_CHESS_SPEC_ID,
+      DARK_SHOGI_SPEC_ID,
+      DARK_CRAZYHOUSE_SPEC_ID,
+    ]);
+    expect(profileRatingVariants.map((v) => v.gameSpecId)).toEqual([
+      DARK_CHESS_SPEC_ID,
+      DARK_MINI_XIANGQI_SPEC_ID,
+      DARK_XIANGQI_SPEC_ID,
+      JIEQI_SPEC_ID,
+      BANQI_SPEC_ID,
+      REVEAL_CHESS_SPEC_ID,
+      CROSSROADS_CHESS_SPEC_ID,
+      DARK_CROSSROADS_CHESS_SPEC_ID,
+      DARK_SHOGI_SPEC_ID,
+      DARK_CRAZYHOUSE_SPEC_ID,
+    ]);
     expect(enabledVariants.map((v) => v.gameSpecId)).not.toContain(DARK_SHOGI_SPEC_ID);
-    expect(leaderboardVariants.map((v) => v.gameSpecId)).not.toContain(DARK_SHOGI_SPEC_ID);
     expect(variantMiniIdForGameSpec(DARK_SHOGI_SPEC_ID)).toBe('dark-shogi');
   });
 
@@ -182,8 +203,10 @@ describe('web variant launch registry', () => {
       [JIEQI_SPEC_ID, 'jieqi'],
       [BANQI_SPEC_ID, 'banqi'],
       [REVEAL_CHESS_SPEC_ID, 'reveal-chess'],
-      // Perfect-info Crossroads is ranked last on purpose (hidden-info variants first).
       [CROSSROADS_CHESS_SPEC_ID, 'crossroads-chess'],
+      [DARK_CROSSROADS_CHESS_SPEC_ID, 'dark-crossroads-chess'],
+      [DARK_SHOGI_SPEC_ID, 'dark-shogi'],
+      [DARK_CRAZYHOUSE_SPEC_ID, 'dark-crazyhouse'],
     ]);
   });
 
@@ -212,6 +235,44 @@ describe('web variant launch registry', () => {
     vi.stubEnv('DEV', false);
     const prod = await import('./variants.js');
     for (const specId of [JIEQI_SPEC_ID, BANQI_SPEC_ID, REVEAL_CHESS_SPEC_ID]) {
+      expect(prod.leaderboardVariants.map((v) => v.gameSpecId)).not.toContain(specId);
+      expect(prod.profileRatingVariants.map((v) => v.gameSpecId)).not.toContain(specId);
+    }
+    vi.unstubAllEnvs();
+    vi.resetModules();
+  });
+
+  it('shows Dark Crossroads + Dark Shogi + Dark Crazyhouse on rating surfaces behind their flags, never in the lobby', async () => {
+    vi.resetModules();
+    vi.stubEnv('DEV', false);
+    vi.stubEnv('VITE_DARK_CROSSROADS_CHESS_ENABLED', 'true');
+    vi.stubEnv('VITE_DARK_SHOGI_ENABLED', 'true');
+    vi.stubEnv('VITE_DARK_CRAZYHOUSE_ENABLED', 'true');
+    const flagged = await import('./variants.js');
+
+    for (const specId of [
+      DARK_CROSSROADS_CHESS_SPEC_ID,
+      DARK_SHOGI_SPEC_ID,
+      DARK_CRAZYHOUSE_SPEC_ID,
+    ]) {
+      expect(flagged.leaderboardVariants.map((v) => v.gameSpecId)).toContain(specId);
+      expect(flagged.profileRatingVariants.map((v) => v.gameSpecId)).toContain(specId);
+      expect(flagged.enabledVariants.map((v) => v.gameSpecId)).not.toContain(specId);
+    }
+
+    vi.unstubAllEnvs();
+    vi.resetModules();
+  });
+
+  it('keeps Dark Crossroads + Dark Shogi + Dark Crazyhouse off production rating surfaces when their flags are off', async () => {
+    vi.resetModules();
+    vi.stubEnv('DEV', false);
+    const prod = await import('./variants.js');
+    for (const specId of [
+      DARK_CROSSROADS_CHESS_SPEC_ID,
+      DARK_SHOGI_SPEC_ID,
+      DARK_CRAZYHOUSE_SPEC_ID,
+    ]) {
       expect(prod.leaderboardVariants.map((v) => v.gameSpecId)).not.toContain(specId);
       expect(prod.profileRatingVariants.map((v) => v.gameSpecId)).not.toContain(specId);
     }

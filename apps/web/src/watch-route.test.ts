@@ -156,10 +156,21 @@ describe('renderWatchChannelList', () => {
 
   // Regression: every launchable channel needs a CHANNEL_MINI_BY_ID entry, or
   // its rail marker renders as an empty slot. dark-xiangqi shipped without one.
-  it('renders a board marker for the dark-xiangqi channel', () => {
+  it('renders a board marker for every launched watch channel', () => {
     const feed = {
       activeChannel: 'dark-chess',
-      channels: [channel('dark-chess', 'Dark Chess'), channel('dark-xiangqi', 'Dark Xiangqi')],
+      channels: [
+        channel('dark-chess', 'Dark Chess'),
+        channel('dark-mini-xiangqi', 'Dark Mini Xiangqi'),
+        channel('dark-xiangqi', 'Dark Xiangqi'),
+        channel('jieqi', 'Jieqi'),
+        channel('banqi', 'Banqi'),
+        channel('reveal-chess', 'Reveal Chess'),
+        channel('crossroads-chess', 'Crossroads Chess'),
+        channel('dark-crossroads-chess', 'Dark Crossroads Chess'),
+        channel('dark-shogi', 'Dark Shogi'),
+        channel('dark-crazyhouse', 'Dark Crazyhouse'),
+      ],
       now: '2026-06-17T00:00:00.000Z',
       unlockLimit: 64,
       sealedCount: 0,
@@ -169,7 +180,7 @@ describe('renderWatchChannelList', () => {
     renderWatchChannelList(root, feed);
 
     const links = root.querySelectorAll('a.watch-channel-link');
-    expect(links).toHaveLength(2);
+    expect(links).toHaveLength(10);
     for (const link of links) {
       const thumb = link.querySelector('.watch-channel-thumb');
       expect(thumb?.querySelector('svg'), `${link.textContent} marker`).not.toBeNull();

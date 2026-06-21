@@ -29,8 +29,11 @@ import {
 import {
   banqiEnabled,
   crossroadsChessEnabled,
+  darkCrazyhouseEnabled,
+  darkCrossroadsChessEnabled,
   darkMiniXiangqiEnabled,
   darkMiniXiangqiPublicEntryEnabled,
+  darkShogiEnabled,
   darkXiangqiEnabled,
   jieqiEnabled,
   revealChessEnabled,
@@ -65,11 +68,17 @@ const jieqiOn = jieqiEnabled();
 const banqiOn = banqiEnabled();
 const revealChessOn = revealChessEnabled();
 const darkXiangqiOn = darkXiangqiEnabled();
+const darkCrossroadsChessOn = darkCrossroadsChessEnabled();
+const darkShogiOn = darkShogiEnabled();
+const darkCrazyhouseOn = darkCrazyhouseEnabled();
 const darkChessSpec = gameSpecForId(DARK_CHESS_SPEC_ID);
 const draft960Spec = gameSpecForId(DARK_DRAFT960_SPEC_ID);
 const darkMiniXiangqiSpec = gameSpecForId(DARK_MINI_XIANGQI_SPEC_ID);
 const darkXiangqiSpec = gameSpecForId(DARK_XIANGQI_SPEC_ID);
 const crossroadsChessSpec = gameSpecForId(CROSSROADS_CHESS_SPEC_ID);
+const darkCrossroadsChessSpec = gameSpecForId(DARK_CROSSROADS_CHESS_SPEC_ID);
+const darkShogiSpec = gameSpecForId(DARK_SHOGI_SPEC_ID);
+const darkCrazyhouseSpec = gameSpecForId(DARK_CRAZYHOUSE_SPEC_ID);
 const jieqiSpec = gameSpecForId(JIEQI_SPEC_ID);
 const banqiSpec = gameSpecForId(BANQI_SPEC_ID);
 const revealChessSpec = gameSpecForId(REVEAL_CHESS_SPEC_ID);
@@ -185,6 +194,36 @@ export const VARIANTS: VariantDef[] = [
     enabled: crossroadsEnabled,
     onLeaderboard: true,
     onProfile: true,
+  },
+  {
+    id: currentRatingVariantForSpec(DARK_CROSSROADS_CHESS_SPEC_ID),
+    gameSpecId: darkCrossroadsChessSpec.id,
+    apiParam: DARK_CROSSROADS_CHESS_SPEC_ID,
+    label: darkCrossroadsChessSpec.publicName,
+    miniId: 'dark-crossroads',
+    enabled: false,
+    onLeaderboard: darkCrossroadsChessOn,
+    onProfile: darkCrossroadsChessOn,
+  },
+  {
+    id: currentRatingVariantForSpec(DARK_SHOGI_SPEC_ID),
+    gameSpecId: darkShogiSpec.id,
+    apiParam: DARK_SHOGI_SPEC_ID,
+    label: darkShogiSpec.publicName,
+    miniId: 'dark-shogi',
+    enabled: false,
+    onLeaderboard: darkShogiOn,
+    onProfile: darkShogiOn,
+  },
+  {
+    id: currentRatingVariantForSpec(DARK_CRAZYHOUSE_SPEC_ID),
+    gameSpecId: darkCrazyhouseSpec.id,
+    apiParam: DARK_CRAZYHOUSE_SPEC_ID,
+    label: darkCrazyhouseSpec.publicName,
+    miniId: 'dark-crazyhouse',
+    enabled: false,
+    onLeaderboard: darkCrazyhouseOn,
+    onProfile: darkCrazyhouseOn,
   },
 ];
 

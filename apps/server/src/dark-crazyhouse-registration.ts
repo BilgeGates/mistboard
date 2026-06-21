@@ -1,9 +1,9 @@
 /**
  * Dark Crazyhouse (chess + drops under fog, hidden/dev-only) registry entry.
- * Owns the tenant's live-room map, the room-factory binding, and hydration. No
- * rematch/lobby/watch yet (deep-link PvP only, like Dark Shogi) — the lobby
- * route answers dark_crazyhouse_not_integrated while the flag is on. Imported for
- * side effects by variant-tenant/register-tenants.ts.
+ * Owns the tenant's live-room map, the room-factory binding, hydration, and
+ * watch channel metadata. No rematch/lobby yet (deep-link PvP only, like Dark
+ * Shogi) — the lobby route answers dark_crazyhouse_not_integrated while the flag
+ * is on. Imported for side effects by variant-tenant/register-tenants.ts.
  */
 
 import type { RoomTimeControl } from '@mistboard/game';
@@ -70,7 +70,12 @@ registerVariantTenant({
   kind: darkCrazyhouseTenant.kind,
   gameSpecId: darkCrazyhouseTenant.gameSpecId,
   roomIdPrefix: darkCrazyhouseTenant.roomIdPrefix,
-  watch: null,
+  watch: {
+    channelId: darkCrazyhouseTenant.gameSpecId,
+    label: 'Dark Crazyhouse',
+    family: 'chess',
+    legacyVariants: ['dark-crazyhouse'],
+  },
   ownsSpecRouting: true,
   errorPrefix: 'dark_crazyhouse',
   enabled: darkCrazyhouseTenant.enabled,

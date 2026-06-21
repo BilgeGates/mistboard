@@ -1,9 +1,10 @@
 /**
  * Dark Shogi (9x9, hidden/dev-only) registry entry. Owns the tenant's live-room
- * map, the room-factory binding, and hydration. No rematch/lobby/watch yet
- * (deep-link PvP only, like the Dark Xiangqi / Dark Crossroads launches) — the
- * lobby route answers dark_shogi_not_integrated while the flag is on. Imported
- * for side effects by variant-tenant/register-tenants.ts.
+ * map, the room-factory binding, hydration, and watch channel metadata. No
+ * rematch/lobby yet (deep-link PvP only, like the Dark Xiangqi / Dark
+ * Crossroads launches) — the lobby route answers dark_shogi_not_integrated
+ * while the flag is on. Imported for side effects by
+ * variant-tenant/register-tenants.ts.
  */
 
 import type { RoomTimeControl } from '@mistboard/game';
@@ -62,7 +63,12 @@ registerVariantTenant({
   kind: darkShogiTenant.kind,
   gameSpecId: darkShogiTenant.gameSpecId,
   roomIdPrefix: darkShogiTenant.roomIdPrefix,
-  watch: null,
+  watch: {
+    channelId: darkShogiTenant.gameSpecId,
+    label: 'Dark Shogi',
+    family: 'shogi',
+    legacyVariants: ['dark-shogi'],
+  },
   ownsSpecRouting: true,
   errorPrefix: 'dark_shogi',
   enabled: darkShogiTenant.enabled,

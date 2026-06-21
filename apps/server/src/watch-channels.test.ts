@@ -1,11 +1,17 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import {
+  BANQI_SPEC_ID,
   CROSSROADS_CHESS_SPEC_ID,
   DARK_CHESS_SPEC_ID,
+  DARK_CRAZYHOUSE_SPEC_ID,
+  DARK_CROSSROADS_CHESS_SPEC_ID,
   DARK_DRAFT960_SPEC_ID,
+  DARK_MINI_XIANGQI_SPEC_ID,
+  DARK_SHOGI_SPEC_ID,
   DARK_XIANGQI_SPEC_ID,
   JIEQI_SPEC_ID,
+  REVEAL_CHESS_SPEC_ID,
 } from '@mistboard/game';
 // Watch channels (other than the hardcoded dark-chess default) derive from the
 // variant-tenant registry, so the registrations must be populated for the
@@ -27,7 +33,9 @@ test('watch channel lookup defaults empty input and rejects unknown channels', (
   assert.equal(watchChannelForId('dark-chess')?.id, 'dark-chess');
   assert.equal(watchChannelForId('crossroads-chess'), null);
   assert.equal(watchChannelForId('dark-xiangqi'), null);
+  assert.equal(watchChannelForId('dark-crossroads-chess'), null);
   assert.equal(watchChannelForId('dark-shogi'), null);
+  assert.equal(watchChannelForId('dark-crazyhouse'), null);
 });
 
 test('watch channels expose Crossroads Chess behind its live-room flag', () => {
@@ -112,5 +120,69 @@ test('watch channels expose Dark Xiangqi behind its live-room flag', () => {
     );
   } finally {
     delete process.env.MISTBOARD_DARK_XIANGQI_ENABLED;
+  }
+});
+
+test('watch channels expose every launched variant behind its live-room flag in canonical order', () => {
+  process.env.MISTBOARD_DARK_MINI_XIANGQI_ENABLED = 'true';
+  process.env.MISTBOARD_DARK_XIANGQI_ENABLED = 'true';
+  process.env.MISTBOARD_JIEQI_ENABLED = 'true';
+  process.env.MISTBOARD_BANQI_ENABLED = 'true';
+  process.env.MISTBOARD_REVEAL_CHESS_ENABLED = 'true';
+  process.env.MISTBOARD_CROSSROADS_CHESS_ENABLED = 'true';
+  process.env.MISTBOARD_DARK_CROSSROADS_CHESS_ENABLED = 'true';
+  process.env.MISTBOARD_DARK_SHOGI_ENABLED = 'true';
+  process.env.MISTBOARD_DARK_CRAZYHOUSE_ENABLED = 'true';
+  try {
+    const channels = listWatchChannels();
+    assert.deepEqual(
+      channels.map((entry) => entry.id),
+      [
+        'dark-chess',
+        DARK_MINI_XIANGQI_SPEC_ID,
+        DARK_XIANGQI_SPEC_ID,
+        JIEQI_SPEC_ID,
+        BANQI_SPEC_ID,
+        REVEAL_CHESS_SPEC_ID,
+        CROSSROADS_CHESS_SPEC_ID,
+        DARK_CROSSROADS_CHESS_SPEC_ID,
+        DARK_SHOGI_SPEC_ID,
+        DARK_CRAZYHOUSE_SPEC_ID,
+      ],
+    );
+    assert.deepEqual(watchChannelForId(DARK_CROSSROADS_CHESS_SPEC_ID), {
+      default: false,
+      family: 'crossroads-chess',
+      gameSpecIds: [DARK_CROSSROADS_CHESS_SPEC_ID],
+      id: DARK_CROSSROADS_CHESS_SPEC_ID,
+      label: 'Dark Crossroads Chess',
+      legacyVariants: ['dark-crossroads-chess', 'dark-dual-chess'],
+    });
+    assert.deepEqual(watchChannelForId(DARK_SHOGI_SPEC_ID), {
+      default: false,
+      family: 'shogi',
+      gameSpecIds: [DARK_SHOGI_SPEC_ID],
+      id: DARK_SHOGI_SPEC_ID,
+      label: 'Dark Shogi',
+      legacyVariants: ['dark-shogi'],
+    });
+    assert.deepEqual(watchChannelForId(DARK_CRAZYHOUSE_SPEC_ID), {
+      default: false,
+      family: 'chess',
+      gameSpecIds: [DARK_CRAZYHOUSE_SPEC_ID],
+      id: DARK_CRAZYHOUSE_SPEC_ID,
+      label: 'Dark Crazyhouse',
+      legacyVariants: ['dark-crazyhouse'],
+    });
+  } finally {
+    delete process.env.MISTBOARD_DARK_MINI_XIANGQI_ENABLED;
+    delete process.env.MISTBOARD_DARK_XIANGQI_ENABLED;
+    delete process.env.MISTBOARD_JIEQI_ENABLED;
+    delete process.env.MISTBOARD_BANQI_ENABLED;
+    delete process.env.MISTBOARD_REVEAL_CHESS_ENABLED;
+    delete process.env.MISTBOARD_CROSSROADS_CHESS_ENABLED;
+    delete process.env.MISTBOARD_DARK_CROSSROADS_CHESS_ENABLED;
+    delete process.env.MISTBOARD_DARK_SHOGI_ENABLED;
+    delete process.env.MISTBOARD_DARK_CRAZYHOUSE_ENABLED;
   }
 });

@@ -597,8 +597,8 @@ function kriegspielBody(ctx: MiniCtx): string {
 }
 
 function revealChessBody(ctx: MiniCtx): string {
-  // Hidden-identity chess (chess jieqi): every piece starts face-down (a blank
-  // token) except the king, which is face-up. No fog — only identities hide.
+  // Hidden-identity chess (chess jieqi): every piece starts face-down except the
+  // king, which is face-up. No fog — only identities hide.
   const cell = SIZE / 4;
   const center = (c: number, r: number) => ({ x: OX + (c + 0.5) * cell, y: OY + (r + 0.5) * cell });
   const kingCol = 1;

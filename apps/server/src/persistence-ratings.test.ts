@@ -8,6 +8,7 @@ import {
   recordGameEnd,
   recordGameStart,
 } from './persistence.js';
+import type { ProfileBucketRating } from './persistence-accounts.js';
 import {
   assert,
   definePersistenceTests,
@@ -15,6 +16,7 @@ import {
   TEST_DATABASE_URL,
   test,
 } from './persistence-test-support.js';
+import type { RatingVariant } from './rating-buckets.js';
 
 definePersistenceTests('ratings', () => {
   test('rated PvP game updates both players Glicko ratings', async () => {
@@ -626,6 +628,134 @@ definePersistenceTests('ratings', () => {
     assert.equal(crossroadsRating?.eloRating, null);
     assert.equal(crossroadsRating?.ratedGamesPlayed, 0);
     assert.equal(crossroadsRating?.totalGamesPlayed, 1);
+  });
+
+  test('getUserProfileByHandle counts launched variant activity buckets', async () => {
+    const now = new Date('2026-05-08T12:00:00.000Z');
+    await createUser({
+      id: 'user_variant_profile',
+      email: 'variant-profile@example.com',
+      emailVerifiedAt: now,
+      handle: 'variant-profile',
+      displayName: 'Variant Profile',
+      profileVisibility: 'public',
+      now,
+    });
+
+    const variants: Array<{
+      roomId: string;
+      variant: string;
+      bucket: RatingVariant;
+      firstColor: 'white' | 'black' | 'red';
+      secondColor: 'white' | 'black' | 'red';
+      result: 'white-wins' | 'black-wins' | 'red-wins' | 'draw';
+    }> = [
+      {
+        roomId: 'profile-dark-xiangqi',
+        variant: 'dark-xiangqi',
+        bucket: 'dark_xiangqi',
+        firstColor: 'red',
+        secondColor: 'black',
+        result: 'red-wins',
+      },
+      {
+        roomId: 'profile-jieqi',
+        variant: 'jieqi',
+        bucket: 'jieqi',
+        firstColor: 'red',
+        secondColor: 'black',
+        result: 'black-wins',
+      },
+      {
+        roomId: 'profile-banqi',
+        variant: 'banqi',
+        bucket: 'banqi',
+        firstColor: 'red',
+        secondColor: 'black',
+        result: 'red-wins',
+      },
+      {
+        roomId: 'profile-reveal',
+        variant: 'reveal-chess',
+        bucket: 'reveal_chess',
+        firstColor: 'white',
+        secondColor: 'black',
+        result: 'white-wins',
+      },
+      {
+        roomId: 'profile-dark-crossroads',
+        variant: 'dark-crossroads-chess',
+        bucket: 'crossroads_chess',
+        firstColor: 'white',
+        secondColor: 'red',
+        result: 'red-wins',
+      },
+      {
+        roomId: 'profile-dark-shogi',
+        variant: 'dark-shogi',
+        bucket: 'dark_shogi',
+        firstColor: 'black',
+        secondColor: 'white',
+        result: 'black-wins',
+      },
+      {
+        roomId: 'profile-dark-crazyhouse',
+        variant: 'dark-crazyhouse',
+        bucket: 'dark_crazyhouse',
+        firstColor: 'white',
+        secondColor: 'black',
+        result: 'black-wins',
+      },
+    ];
+
+    for (let i = 0; i < variants.length; i++) {
+      const entry = variants[i]!;
+      await recordGameEnd(entry.roomId, {
+        variant: entry.variant,
+        mode: 'pvp',
+        result: entry.result,
+        termination: 'resignation',
+        plyCount: 12 + i,
+        startedAt: now,
+        endedAt: new Date(now.getTime() + (i + 1) * 60_000),
+        whiteClient: null,
+        blackClient: null,
+        whiteName: null,
+        blackName: null,
+        corpusId: null,
+        rated: false,
+        visibility: 'public',
+        initialMs: 180_000,
+        incrementMs: 2_000,
+        participants: [
+          {
+            color: entry.firstColor,
+            displayName: 'Variant Profile',
+            subjectType: 'user',
+            subjectId: 'user_variant_profile',
+            visibility: 'public',
+          },
+          {
+            color: entry.secondColor,
+            displayName: 'Guest',
+            subjectType: 'guest',
+            subjectId: null,
+            visibility: 'public',
+          },
+        ],
+      });
+    }
+
+    const profile = await getUserProfileByHandle('variant-profile', null);
+    assert.equal(profile?.gamesTotal, variants.length);
+    const profileRatings: readonly ProfileBucketRating[] = profile?.ratings ?? [];
+    for (const entry of variants) {
+      const rating = profileRatings.find((candidate) => candidate.variant === entry.bucket);
+      assert.equal(rating?.timeClass, 'blitz', entry.variant);
+      assert.equal(rating?.eloRating, null, entry.variant);
+      assert.equal(rating?.ratedGamesPlayed, 0, entry.variant);
+      assert.equal(rating?.totalGamesPlayed, 1, entry.variant);
+    }
   });
 
   test('getUserGamesPage paginates a user games newest-first with a stable total', async () => {

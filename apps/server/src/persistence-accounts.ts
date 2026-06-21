@@ -481,9 +481,17 @@ export async function getUserProfileByHandle(
   }>(
     `SELECT
        CASE
-         WHEN games.variant = 'crossroads-chess' THEN 'crossroads_chess_open'
+         WHEN games.variant IN ('crossroads-chess', 'dual-chess') THEN 'crossroads_chess_open'
+         WHEN games.variant IN ('dark-crossroads-chess', 'dark-dual-chess') THEN 'crossroads_chess'
          WHEN games.variant = 'dark-mini-xiangqi' THEN 'dark_mini_xiangqi'
-         WHEN COALESCE(games.hidden_draft960, false) THEN 'fog_draft960'
+         WHEN games.variant = 'dark-xiangqi' THEN 'dark_xiangqi'
+         WHEN games.variant = 'jieqi' THEN 'jieqi'
+         WHEN games.variant = 'banqi' THEN 'banqi'
+         WHEN games.variant = 'reveal-chess' THEN 'reveal_chess'
+         WHEN games.variant = 'dark-shogi' THEN 'dark_shogi'
+         WHEN games.variant = 'dark-crazyhouse' THEN 'dark_crazyhouse'
+         WHEN games.variant IN ('draft960', 'dark-draft960', 'fog-draft960')
+              OR COALESCE(games.hidden_draft960, false) THEN 'fog_draft960'
          ELSE 'fog'
        END AS variant,
        COUNT(*)::text AS games_played
@@ -492,7 +500,7 @@ export async function getUserProfileByHandle(
      WHERE game_participants.subject_type = 'user'
        AND game_participants.subject_id = $1
        AND games.status = 'completed'
-       AND games.variant IN ('dark-chess', 'fog', 'draft960', 'dark-draft960', 'fog-draft960', 'dark-mini-xiangqi', 'crossroads-chess')
+       AND games.variant IN ('dark-chess', 'fog', 'draft960', 'dark-draft960', 'fog-draft960', 'dark-mini-xiangqi', 'dark-xiangqi', 'jieqi', 'banqi', 'reveal-chess', 'crossroads-chess', 'dual-chess', 'dark-crossroads-chess', 'dark-dual-chess', 'dark-shogi', 'dark-crazyhouse')
        ${visibilityClause}
      GROUP BY 1`,
     [user.id],

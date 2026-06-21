@@ -473,9 +473,8 @@ const WEB_VARIANT_TENANTS: readonly WebVariantTenant[] = [
     // fog); the board renderer is shared with the open variant (already
     // fog-aware). PvP-only — Fairy-Stockfish is perfect-info and can't play fog
     // crossroads, so there is no PvE. Flag-gated; the picker capabilities stay
-    // defined while the menu/deep-link gates are off. Postgame review is wired
-    // (the white/truth/red fog triptych); the watch channel is still a parity
-    // fast-follow (as it was for Dark Xiangqi).
+    // defined while the menu/deep-link gates are off. Postgame review and
+    // Mistboard TV share the white/truth/red fog triptych.
     gameSpecId: DARK_CROSSROADS_CHESS_SPEC_ID,
     roomIdPrefix: 'ddchess_',
     enabled: darkCrossroadsChessEnabled,
@@ -492,6 +491,14 @@ const WEB_VARIANT_TENANTS: readonly WebVariantTenant[] = [
           () =>
             bootstrapDarkCrossroadsChessLiveRoom(),
       ),
+    watch: {
+      family: 'crossroads-chess',
+      mountReplay: (root, roomId, options) =>
+        import('../watch-dark-crossroads-chess-replay.js').then(
+          ({ mountDarkCrossroadsChessWatchReplay }) =>
+            mountDarkCrossroadsChessWatchReplay(root, roomId, options),
+        ),
+    },
     landing: {
       // White vs Red (the variant's actual colors), so the picker's
       // preferredColor maps straight onto the room route's parser.
@@ -536,6 +543,13 @@ const WEB_VARIANT_TENANTS: readonly WebVariantTenant[] = [
           () =>
             bootstrapDarkShogiLiveRoom(),
       ),
+    watch: {
+      family: 'shogi',
+      mountReplay: (root, roomId, options) =>
+        import('../watch-dark-shogi-replay.js').then(({ mountDarkShogiWatchReplay }) =>
+          mountDarkShogiWatchReplay(root, roomId, options),
+        ),
+    },
     landing: {
       capabilities: {
         firstColor: 'black',
@@ -577,6 +591,13 @@ const WEB_VARIANT_TENANTS: readonly WebVariantTenant[] = [
           () =>
             bootstrapDarkCrazyhouseLiveRoom(),
       ),
+    watch: {
+      family: 'chess',
+      mountReplay: (root, roomId, options) =>
+        import('../watch-dark-crazyhouse-replay.js').then(({ mountDarkCrazyhouseWatchReplay }) =>
+          mountDarkCrazyhouseWatchReplay(root, roomId, options),
+        ),
+    },
     landing: {
       capabilities: {
         firstColor: 'white',

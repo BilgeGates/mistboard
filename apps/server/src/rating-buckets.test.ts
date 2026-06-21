@@ -4,6 +4,8 @@ import {
   BANQI_SPEC_ID,
   CROSSROADS_CHESS_SPEC_ID,
   DARK_CHESS_SPEC_ID,
+  DARK_CRAZYHOUSE_SPEC_ID,
+  DARK_CROSSROADS_CHESS_SPEC_ID,
   DARK_DRAFT960_SPEC_ID,
   DARK_MINI_XIANGQI_SPEC_ID,
   DARK_SHOGI_SPEC_ID,
@@ -98,11 +100,24 @@ test('bucketForGame maps Jieqi and Banqi through their own rating pools', () => 
   );
 });
 
-test('bucketForGame fails closed for a casual-only spec (dark-shogi), never the fog pool', () => {
+test('bucketForGame maps the remaining live PvP variants through their own rating pools', () => {
+  for (const specId of [
+    DARK_CROSSROADS_CHESS_SPEC_ID,
+    DARK_SHOGI_SPEC_ID,
+    DARK_CRAZYHOUSE_SPEC_ID,
+  ] as const) {
+    assert.deepEqual(bucketForGame({ variant: specId, initialMs: 180_000, incrementMs: 2_000 }), {
+      variant: gameSpecForId(specId).ratingPoolBase,
+      timeClass: PUBLIC_RATING_TIME_CLASS,
+    });
+  }
+});
+
+test('bucketForGame fails closed for future casual-only specs, never the fog pool', () => {
   // A spec with no active rating pool must yield no bucket (simply not rated)
   // rather than fall through to the dark-chess fallback and pollute the fog pool.
   assert.equal(
-    bucketForGame({ variant: DARK_SHOGI_SPEC_ID, initialMs: 180_000, incrementMs: 2_000 }),
+    bucketForGame({ variant: 'dark-antichess', initialMs: 180_000, incrementMs: 2_000 }),
     null,
   );
 });
@@ -134,5 +149,10 @@ test('parseRatingVariant keeps legacy leaderboard API params stable', () => {
   assert.equal(parseRatingVariant('reveal-chess'), 'reveal_chess');
   assert.equal(parseRatingVariant('dark-xiangqi'), 'dark_xiangqi');
   assert.equal(parseRatingVariant('dark_xiangqi'), 'dark_xiangqi');
-  assert.equal(parseRatingVariant('dark-shogi'), null);
+  assert.equal(parseRatingVariant('dark-crossroads-chess'), 'crossroads_chess');
+  assert.equal(parseRatingVariant('crossroads_chess'), 'crossroads_chess');
+  assert.equal(parseRatingVariant('dark-shogi'), 'dark_shogi');
+  assert.equal(parseRatingVariant('dark_shogi'), 'dark_shogi');
+  assert.equal(parseRatingVariant('dark-crazyhouse'), 'dark_crazyhouse');
+  assert.equal(parseRatingVariant('dark_crazyhouse'), 'dark_crazyhouse');
 });
