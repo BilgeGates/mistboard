@@ -1,10 +1,10 @@
-cdecd59
+e72a61d
 # ^ The mistboard-engine commit the prod build checks out (railpack build step).
-# Misty 1.4 (2026-06-20): roll the ENGINE forward to cdecd59 = the live 653aa33
-# (v1.3 dark-chess serving + DMX/mini-xiangqi) + the FoW castle-into-check fix +
-# the v1.4 profile/worker mapping. The search move-gen now generates fog-castles,
-# so the engine devalues a castle that walks its king onto a fog-attacked square
-# (prod a6f2e491 O-O->Qxg8). Base-code fix — every served engine-id picks it up.
-# Rollback target: 653aa33 (revert this line). Single source of truth for the
-# deployed engine; bump this + the registry engine_pin to ship. The railpack reads
-# only the first line; this comment is ignored.
+# DMX hardening (2026-06-21): e72a61d = cdecd59 (Misty 1.4 castle fix for
+# dark chess) + 16204a9 (Dark Mini Xiangqi guarded recommended profile,
+# bounded mini belief cap, and Modal bakeoff default alignment). The chess
+# engine id still maps to Misty 1.4; the DMX id maps to the stronger guarded
+# mini profile.
+# Rollback target: cdecd59 for chess-only Misty 1.4. Single source of truth for
+# the deployed engine; bump this + the registry engine_pin to ship. The railpack
+# reads only the first line; this comment is ignored.
