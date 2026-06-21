@@ -539,7 +539,7 @@ definePersistenceTests('ratings', () => {
         },
         {
           color: 'black',
-          displayName: 'Misty (Dark Mini Xiangqi)',
+          displayName: 'Misty DMX',
           subjectType: 'engine-version',
           subjectId: 'python-dmx-v1.0',
           visibility: 'public',

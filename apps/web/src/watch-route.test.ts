@@ -76,7 +76,7 @@ describe('watch route copy helpers', () => {
       whiteName: null,
     };
 
-    expect(watchQueueMatchupLabel(game)).toBe('Red Human vs Misty (Dark Mini Xiangqi)');
+    expect(watchQueueMatchupLabel(game)).toBe('Red Human vs Misty DMX');
     expect(resultLabel(game.result)).toBe('Red wins');
   });
 

@@ -9,9 +9,10 @@ import {
 
 test('playable live engine client ids = the single streamlined PVE engine (Misty)', () => {
   // Streamlined release (2026-06-02): only the latest Misty is player-facing.
-  // v1.2 shipped 2026-06-20, superseding v1.1 in the picker (1.1 stays in the
-  // registry so historical games resolve, but is no longer offered).
-  assert.equal(isPlayableLiveEngineClientId('python-v2-v1.2'), true);
+  // v1.3 shipped 2026-06-20, superseding v1.2 in the picker. Older versions
+  // stay in the registry so historical games resolve, but are no longer offered.
+  assert.equal(isPlayableLiveEngineClientId('python-v2-v1.3'), true);
+  assert.equal(isPlayableLiveEngineClientId('python-v2-v1.2'), false);
   assert.equal(isPlayableLiveEngineClientId('python-v2-v1.1'), false);
   assert.equal(isPlayableLiveEngineClientId('python-v2-v1.0'), false);
 });
@@ -35,6 +36,7 @@ test('playable live engine client ids exclude hidden, retired, EvE aliases, and 
 test('Dark Mini Xiangqi has a dedicated engine that stays out of the chess PvE picker', () => {
   const engine = loadEngine(DARK_MINI_XIANGQI_DEFAULT_ENGINE_ID);
   assert.equal(engine.id, 'python-dmx-v1.0');
+  assert.equal(engine.name, 'Misty DMX');
   assert.equal(engine.gameSpecId, 'dark-mini-xiangqi');
   assert.equal(isDarkMiniXiangqiEngineClientId(engine.id), true);
   assert.equal(isPlayableLiveEngineClientId(engine.id), false);

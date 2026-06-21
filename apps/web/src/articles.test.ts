@@ -152,7 +152,7 @@ describe('article public listing gates', () => {
     expect(page.textContent).not.toContain('not yet a public game mode');
     expect(links).toContainEqual({
       href: '/?play=computer&gameSpecId=dark-mini-xiangqi',
-      text: 'Play Misty',
+      text: 'Play Misty DMX',
     });
     expect(links).toContainEqual({
       href: '/?play=friend&gameSpecId=dark-mini-xiangqi',

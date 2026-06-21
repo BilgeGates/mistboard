@@ -53,7 +53,7 @@ describe('profile game rows', () => {
           },
           {
             color: 'black',
-            displayName: 'Misty (Dark Mini Xiangqi)',
+            displayName: 'Misty DMX',
             subjectType: 'engine-version',
             subjectId: 'python-dmx-v1.0',
             visibility: 'private',
@@ -66,7 +66,7 @@ describe('profile game rows', () => {
     const link = row.querySelector('a');
     expect(link?.getAttribute('href')).toBe('/dark-mini-xiangqi/game/dmxq_profile');
     expect(row.textContent).toContain('Win');
-    expect(row.textContent).toContain('vs Misty (Dark Mini Xiangqi)');
+    expect(row.textContent).toContain('vs Misty DMX');
     expect(row.textContent).toContain('Dark Mini Xiangqi');
     expect(row.textContent).toContain('Red');
   });

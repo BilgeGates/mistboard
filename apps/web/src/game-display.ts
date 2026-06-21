@@ -121,7 +121,7 @@ function engineDisplayName(name: string | null | undefined): string | null {
     'python-tier1-v0.9.1': 'Mistboard Engine preview',
     'python-tier1-v0.9.5': MISTBOARD_ENGINE_BASELINE_NAME,
     'python-tier1-current': 'Mistboard Engine dev build',
-    'python-dmx-v1.0': 'Misty (Dark Mini Xiangqi)',
+    'python-dmx-v1.0': 'Misty DMX',
   };
   return known[name] ?? null;
 }
