@@ -47,9 +47,9 @@ describe('article public listing gates', () => {
     ].map((link) => link.getAttribute('href'));
 
     expect(hrefs).toEqual([
+      '/articles/misty',
       '/articles/mistybanqi',
       '/articles/server-enforced-fog',
-      '/articles/misty',
       '/articles/dark-chess-concepts',
     ]);
   });
