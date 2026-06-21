@@ -4,6 +4,7 @@ import {
   darkShogiEnabled,
   darkXiangqiEnabled,
   jieqiEnabled,
+  kriegspielEnabled,
   revealChessEnabled,
 } from './feature-flags.js';
 
@@ -22,6 +23,7 @@ export type Announcement = {
   body?: string;
   href?: string;
   cta?: string; // inline link label on /news; falls back to "Read more"
+  showInHomeArticleWidget?: boolean;
   requiresDarkMiniXiangqiPublicEntry?: boolean;
   // Gated to the jieqi flag so it only shows once jieqi PvE is live.
   requiresJieqi?: boolean;
@@ -33,6 +35,8 @@ export type Announcement = {
   requiresDarkShogi?: boolean;
   // Gated to the reveal-chess flag so it only shows once Reveal Chess is live.
   requiresRevealChess?: boolean;
+  // Gated to the Kriegspiel flag so it only shows once Kriegspiel is live.
+  requiresKriegspiel?: boolean;
 };
 
 const baseAnnouncements: Announcement[] = [
@@ -44,6 +48,16 @@ const baseAnnouncements: Announcement[] = [
     href: '/rules/dark-shogi',
     cta: 'Read rules',
     requiresDarkShogi: true,
+  },
+  {
+    date: '2026-06-20',
+    kind: 'release',
+    headline: 'Kriegspiel is open for alpha play.',
+    body: 'The original hidden-information chess: see only your own pieces, try moves through the umpire, and challenge a friend to a match.',
+    href: '/rules/kriegspiel',
+    cta: 'Read rules',
+    showInHomeArticleWidget: false,
+    requiresKriegspiel: true,
   },
   {
     date: '2026-06-18',
@@ -70,6 +84,7 @@ const baseAnnouncements: Announcement[] = [
     body: 'Chinese Dark Chess on an 8 by 4 board: all 32 pieces start face-down and flip as you play. Challenge a friend to a match.',
     href: '/rules/banqi',
     cta: 'Read rules',
+    showInHomeArticleWidget: false,
     requiresBanqi: true,
   },
   {
@@ -124,6 +139,7 @@ export function announcements(): Announcement[] {
       (!announcement.requiresBanqi || banqiEnabled()) &&
       (!announcement.requiresDarkXiangqi || darkXiangqiEnabled()) &&
       (!announcement.requiresDarkShogi || darkShogiEnabled()) &&
-      (!announcement.requiresRevealChess || revealChessEnabled()),
+      (!announcement.requiresRevealChess || revealChessEnabled()) &&
+      (!announcement.requiresKriegspiel || kriegspielEnabled()),
   );
 }

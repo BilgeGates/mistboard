@@ -110,19 +110,29 @@ describe('web variant launch registry', () => {
     vi.resetModules();
   });
 
-  it('makes Dark Xiangqi rating-ready behind its flag, never lobby-selectable, with a thumbnail', async () => {
+  it('makes Dark Xiangqi rating-ready in dev and production-gated, never lobby-selectable, with a thumbnail', async () => {
     // In VARIANTS (so it has a picker mini-board + a rating bucket) but never
     // lobby-selectable (no open-seek), and on the rating surfaces only when its
-    // flag is on — gated globally by MISTBOARD_RATED_ENABLED on the server.
+    // flag is on in production — gated globally by MISTBOARD_RATED_ENABLED on the server.
     expect(VARIANTS.map((v) => v.gameSpecId)).toContain(DARK_XIANGQI_SPEC_ID);
     expect(enabledVariants.map((v) => v.gameSpecId)).not.toContain(DARK_XIANGQI_SPEC_ID);
     expect(variantMiniIdForGameSpec(DARK_XIANGQI_SPEC_ID)).toBe('dark-xiangqi');
-    // Flag off (default test env): off the rating surfaces.
-    expect(leaderboardVariants.map((v) => v.gameSpecId)).not.toContain(DARK_XIANGQI_SPEC_ID);
-    expect(profileRatingVariants.map((v) => v.gameSpecId)).not.toContain(DARK_XIANGQI_SPEC_ID);
+    // Dev default: present on local rating surfaces.
+    expect(leaderboardVariants.map((v) => v.gameSpecId)).toContain(DARK_XIANGQI_SPEC_ID);
+    expect(profileRatingVariants.map((v) => v.gameSpecId)).toContain(DARK_XIANGQI_SPEC_ID);
 
-    // Flag on: shown on leaderboard + profile, still not lobby-selectable.
+    // Production flag off: hidden from rating surfaces.
     vi.resetModules();
+    vi.stubEnv('DEV', false);
+    const prod = await import('./variants.js');
+    expect(prod.leaderboardVariants.map((v) => v.gameSpecId)).not.toContain(DARK_XIANGQI_SPEC_ID);
+    expect(prod.profileRatingVariants.map((v) => v.gameSpecId)).not.toContain(DARK_XIANGQI_SPEC_ID);
+    vi.unstubAllEnvs();
+    vi.resetModules();
+
+    // Production flag on: shown on leaderboard + profile, still not lobby-selectable.
+    vi.resetModules();
+    vi.stubEnv('DEV', false);
     vi.stubEnv('VITE_DARK_XIANGQI_ENABLED', 'true');
     const flagged = await import('./variants.js');
     expect(flagged.leaderboardVariants.map((v) => v.gameSpecId)).toContain(DARK_XIANGQI_SPEC_ID);

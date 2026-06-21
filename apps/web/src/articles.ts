@@ -14,6 +14,7 @@ import {
   type Square,
 } from '@mistboard/game';
 import './articles.css';
+import { type Announcement, announcements } from './announcements.js';
 import { ARTICLE_LANG_PREFIX, type ArticleLang, translateArticle } from './article-i18n.js';
 import {
   type Article,
@@ -179,9 +180,10 @@ function buildContentIndex(kind: Article['kind'], lang?: ArticleLang): HTMLEleme
   const list = document.createElement('ul');
   list.className = 'articles-index-list';
 
-  for (const article of articles) {
-    if (article.kind !== kind) continue;
-    if (!isArticleListedInThisEnv(article)) continue;
+  const entries = articles
+    .filter((article) => article.kind === kind && isArticleListedInThisEnv(article))
+    .sort(compareArticlesNewestFirst);
+  for (const article of entries) {
     list.append(articleCard(lang ? translateArticle(article, lang) : article, lang));
   }
 
@@ -279,6 +281,7 @@ function buildRulesLanding(lang?: ArticleLang): HTMLElement {
 // the section is in the document (it needs measured widths).
 const HOME_ARTICLE_SLUGS = [
   'dark-shogi',
+  'mistybanqi',
   'server-enforced-fog',
   'crossroads-chess',
   'dark-mini-xiangqi',
@@ -289,16 +292,48 @@ const HOME_ARTICLE_SLUGS = [
   'dark-chess',
 ] as const;
 
+type HomeCardItem =
+  | {
+      kind: 'announcement';
+      date: string;
+      order: number;
+      announcement: Announcement;
+    }
+  | {
+      kind: 'article';
+      date: string;
+      order: number;
+      article: Article;
+    };
+
 export function buildHomeArticleCards(limit = 8): HTMLElement | null {
   const eligible = new Map(
     articles.filter(isArticleListedInThisEnv).map((article) => [article.slug, article]),
   );
-  const cards = HOME_ARTICLE_SLUGS.flatMap((slug) => {
+  const articleItems = HOME_ARTICLE_SLUGS.flatMap<HomeCardItem>((slug, index) => {
     const article = eligible.get(slug);
-    return article ? [article] : [];
-  })
-    .sort((a, b) => homeArticlePublishDateKey(b).localeCompare(homeArticlePublishDateKey(a)))
-    .map(landingArticleCard)
+    return article
+      ? [{ kind: 'article', date: articleDateKey(article), order: index + 1, article }]
+      : [];
+  });
+  const latestAnnouncement = latestVisibleAnnouncement();
+  const announcementItems: HomeCardItem[] = latestAnnouncement
+    ? [
+        {
+          kind: 'announcement',
+          date: latestAnnouncement.date,
+          order: 0,
+          announcement: latestAnnouncement,
+        },
+      ]
+    : [];
+  const cards = [...announcementItems, ...articleItems]
+    .sort(compareHomeCardItems)
+    .map((item) =>
+      item.kind === 'announcement'
+        ? landingAnnouncementCard(item.announcement)
+        : landingArticleCard(item.article),
+    )
     .slice(0, limit);
   if (cards.length === 0) return null;
 
@@ -340,8 +375,26 @@ export function buildHomeArticleCards(limit = 8): HTMLElement | null {
   return section;
 }
 
-function homeArticlePublishDateKey(article: Article): string {
-  return article.publishedAt ?? '';
+function articleDateKey(article: Article): string {
+  return article.publishedAt ?? article.updatedAt ?? '';
+}
+
+function compareArticlesNewestFirst(a: Article, b: Article): number {
+  const dateCompare = articleDateKey(b).localeCompare(articleDateKey(a));
+  if (dateCompare !== 0) return dateCompare;
+  return a.title.localeCompare(b.title);
+}
+
+function compareHomeCardItems(a: HomeCardItem, b: HomeCardItem): number {
+  const dateCompare = b.date.localeCompare(a.date);
+  if (dateCompare !== 0) return dateCompare;
+  return a.order - b.order;
+}
+
+function latestVisibleAnnouncement(): Announcement | undefined {
+  return [...announcements()]
+    .filter((announcement) => announcement.showInHomeArticleWidget === true)
+    .sort((a, b) => b.date.localeCompare(a.date))[0];
 }
 
 function carouselNavButton(dir: 'prev' | 'next', glyph: string): HTMLButtonElement {
@@ -356,6 +409,7 @@ function carouselNavButton(dir: 'prev' | 'next', glyph: string): HTMLButtonEleme
 function landingArticleCard(article: Article): HTMLElement {
   const link = document.createElement('a');
   link.className = 'landing-article-card';
+  link.dataset.cardKind = 'article';
   const base = article.kind === 'rules' ? 'rules' : 'articles';
   link.href = `/${base}/${article.slug}`;
 
@@ -384,6 +438,38 @@ function landingArticleCard(article: Article): HTMLElement {
   const title = document.createElement('strong');
   title.className = 'landing-article-card-title';
   title.textContent = article.title;
+
+  link.append(thumb, title);
+  return link;
+}
+
+function landingAnnouncementCard(announcement: Announcement): HTMLElement {
+  const link = document.createElement('a');
+  link.className = 'landing-article-card landing-announcement-card';
+  link.dataset.cardKind = 'announcement';
+  const href = announcement.href ?? '/news';
+  link.href = href;
+  if (/^https?:/.test(href)) {
+    link.target = '_blank';
+    link.rel = 'noopener noreferrer';
+  }
+
+  const thumb = document.createElement('div');
+  thumb.className = 'landing-article-card-thumb landing-announcement-thumb';
+
+  const kicker = document.createElement('span');
+  kicker.className = 'landing-article-card-kicker';
+  kicker.textContent = 'News';
+  thumb.append(kicker);
+
+  const date = document.createElement('span');
+  date.className = 'landing-article-card-date';
+  date.textContent = formatCardDate(announcement.date);
+  thumb.append(date);
+
+  const title = document.createElement('strong');
+  title.className = 'landing-article-card-title';
+  title.textContent = announcement.headline;
 
   link.append(thumb, title);
   return link;

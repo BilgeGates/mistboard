@@ -17,13 +17,13 @@ import type { Article, ArticleBlock } from '../types.js';
 export const kriegspielArticle: Article = {
     slug: 'kriegspiel',
     kind: 'rules',
+    playableOnMistboard: true,
     title: 'Kriegspiel Rules',
     summary:
       'The complete rules of Kriegspiel, the 1899 ancestor of dark chess: you see only your own pieces, an umpire rejects illegal tries and announces captures and checks, and checkmate wins.',
     showSummaryOnPage: false,
     status: 'published',
     publishedAt: '2026-06-19',
-    playableOnMistboard: true,
     audience:
       'Chess and dark chess players who want the full rules of Kriegspiel, the original umpired hidden-information chess.',
     thumbnail: {
@@ -158,7 +158,8 @@ export const kriegspielArticle: Article = {
       },
       playClosing({
         heading: 'Where to next',
-        lead: "Kriegspiel is playable on Mistboard: challenge a friend to a game. There's no computer opponent yet, since the umpire makes it a harder engine problem than dark chess's computable fog.",
+        lead:
+          "Kriegspiel is playable on Mistboard: challenge a friend to a game. There's no computer opponent yet, since the umpire makes it a harder engine problem than dark chess's computable fog.",
         playLabel: 'Challenge a friend',
         playHref: '/?play=friend&gameSpecId=kriegspiel',
         secondary: [

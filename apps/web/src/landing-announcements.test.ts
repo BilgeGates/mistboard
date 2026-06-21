@@ -14,6 +14,7 @@ describe('landing announcements', () => {
   });
 
   it('shows the Dark Mini Xiangqi announcement when public entry is enabled', () => {
+    vi.stubEnv('DEV', false);
     vi.stubEnv('VITE_DARK_MINI_XIANGQI_ENABLED', 'true');
     vi.stubEnv('VITE_DARK_MINI_XIANGQI_PUBLIC_ENTRY_ENABLED', 'true');
 
@@ -61,7 +62,26 @@ describe('landing announcements', () => {
     expect(row?.getAttribute('href')).toBe('/rules/banqi');
   });
 
+  it('hides the Kriegspiel announcement until the Kriegspiel flag is enabled', () => {
+    vi.stubEnv('DEV', false);
+    expect(buildLandingAnnouncements().textContent).not.toContain('Kriegspiel');
+  });
+
+  it('shows the Kriegspiel announcement when the Kriegspiel flag is enabled', () => {
+    vi.stubEnv('VITE_KRIEGSPIEL_ENABLED', 'true');
+
+    const panel = buildLandingAnnouncements();
+    const row = [...panel.querySelectorAll<HTMLAnchorElement>('a.landing-news-row')].find((r) =>
+      r.textContent?.includes('Kriegspiel'),
+    );
+
+    expect(row).toBeDefined();
+    expect(row?.getAttribute('href')).toBe('/rules/kriegspiel');
+  });
+
   it('links the Misty announcement to the engine play flow', () => {
+    vi.stubEnv('DEV', false);
+
     const panel = buildLandingAnnouncements();
     const row = [...panel.querySelectorAll<HTMLAnchorElement>('a.landing-news-row')].find((r) =>
       r.textContent?.includes('Misty 1.0'),

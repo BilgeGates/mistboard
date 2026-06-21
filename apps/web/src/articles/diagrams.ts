@@ -2505,6 +2505,8 @@ export const BANQI_BOARD_H = BANQI_MARGIN * 2 + BANQI_ROWS * BANQI_CELL;
 export const BANQI_PIECE_SIZE = 42;
 export const BANQI_PAIR_W = JIEQI_PAIR_W;
 export const BANQI_CENTER_X = (BANQI_PAIR_W - BANQI_BOARD_W) / 2;
+export const BANQI_RIGHT_HALF_W = BANQI_MARGIN * 2 + (BANQI_COLS / 2) * BANQI_CELL;
+export const BANQI_RIGHT_HALF_X0 = -(BANQI_COLS / 2) * BANQI_CELL;
 
 export type BanqiPieceSpec = {
   color?: XiangqiColor;
@@ -2658,32 +2660,27 @@ export const BANQI_RULES_THUMBNAIL = () => xqSvg(
   ].join(''),
 );
 
-// Distinct thumbnail for the "How MistyBanqi Plays" engine article: a real
-// finished position from the article's conversion game (MistyBanqi up ten pieces
-// to two, a position it has won and then drew). Four tiles stay face-down.
-
+// Distinct thumbnail for the "How MistyBanqi Plays" engine article: the right
+// half of a real finished position from the article's conversion game
+// (MistyBanqi up ten pieces to two, a position it has won and then drew).
 export const BANQI_ENGINE_THUMBNAIL = () =>
   xqSvg(
-    BANQI_BOARD_W,
+    BANQI_RIGHT_HALF_W,
     BANQI_BOARD_H,
     [
-      banqiBoardGrid(0, 0),
-      banqiPiece({ color: 'red', role: 'advisor' }, 0, 0, 0, 0),
-      banqiPiece({ color: 'red', role: 'advisor' }, 5, 0, 0, 0),
-      banqiPiece({ shrouded: true }, 3, 0, 0, 0),
-      banqiPiece({ shrouded: true }, 4, 0, 0, 0),
-      banqiPiece({ shrouded: true }, 7, 0, 0, 0),
-      banqiPiece({ shrouded: true }, 1, 1, 0, 0),
-      banqiPiece({ color: 'black', role: 'advisor' }, 4, 1, 0, 0),
-      banqiPiece({ color: 'red', role: 'horse' }, 5, 1, 0, 0),
-      banqiPiece({ color: 'red', role: 'general' }, 6, 1, 0, 0),
-      banqiPiece({ color: 'red', role: 'soldier' }, 7, 1, 0, 0),
-      banqiPiece({ color: 'red', role: 'chariot' }, 1, 2, 0, 0),
-      banqiPiece({ color: 'black', role: 'elephant' }, 5, 2, 0, 0),
-      banqiPiece({ color: 'red', role: 'cannon' }, 6, 2, 0, 0),
-      banqiPiece({ color: 'red', role: 'soldier' }, 0, 3, 0, 0),
-      banqiPiece({ color: 'red', role: 'elephant' }, 2, 3, 0, 0),
-      banqiPiece({ color: 'red', role: 'soldier' }, 7, 3, 0, 0),
+      `<g data-banqi-thumbnail-crop="right-half">`,
+      banqiBoardGrid(BANQI_RIGHT_HALF_X0, 0),
+      banqiPiece({ shrouded: true }, 4, 0, BANQI_RIGHT_HALF_X0, 0),
+      banqiPiece({ color: 'red', role: 'advisor' }, 5, 0, BANQI_RIGHT_HALF_X0, 0),
+      banqiPiece({ shrouded: true }, 7, 0, BANQI_RIGHT_HALF_X0, 0),
+      banqiPiece({ color: 'black', role: 'advisor' }, 4, 1, BANQI_RIGHT_HALF_X0, 0),
+      banqiPiece({ color: 'red', role: 'horse' }, 5, 1, BANQI_RIGHT_HALF_X0, 0),
+      banqiPiece({ color: 'red', role: 'general' }, 6, 1, BANQI_RIGHT_HALF_X0, 0),
+      banqiPiece({ color: 'red', role: 'soldier' }, 7, 1, BANQI_RIGHT_HALF_X0, 0),
+      banqiPiece({ color: 'black', role: 'elephant' }, 5, 2, BANQI_RIGHT_HALF_X0, 0),
+      banqiPiece({ color: 'red', role: 'cannon' }, 6, 2, BANQI_RIGHT_HALF_X0, 0),
+      banqiPiece({ color: 'red', role: 'soldier' }, 7, 3, BANQI_RIGHT_HALF_X0, 0),
+      `</g>`,
     ].join(''),
   );
 

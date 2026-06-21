@@ -187,6 +187,31 @@
   background: linear-gradient(135deg, #2f5d4f, #1f6f5b);
 }
 
+.landing-announcement-thumb {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 14px;
+  background:
+    linear-gradient(135deg, rgba(29, 37, 34, 0.94), rgba(47, 93, 79, 0.92)), var(--site-panel-soft);
+}
+
+.landing-article-card-kicker {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 64px;
+  min-height: 34px;
+  padding: 5px 12px;
+  border: 1px solid rgba(255, 255, 255, 0.28);
+  border-radius: var(--site-radius-sm);
+  color: #ffffff;
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
 .landing-article-card-date {
   position: absolute;
   top: 8px;

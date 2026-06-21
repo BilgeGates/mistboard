@@ -1,8 +1,9 @@
-// Client build-time gates for hidden or prelaunch surfaces. Defaults are off;
-// production or staging must opt in explicitly at build time.
+// Client build-time gates for hidden or prelaunch surfaces. Dev defaults are on
+// for local parity with launched variants; production/staging must opt in
+// explicitly at build time.
 
 export function darkXiangqiEnabled(): boolean {
-  return import.meta.env.VITE_DARK_XIANGQI_ENABLED === 'true';
+  return import.meta.env.DEV || import.meta.env.VITE_DARK_XIANGQI_ENABLED === 'true';
 }
 
 // Dark Mini Xiangqi (7x7) play surface. Always on in dev for convenience (like
@@ -26,9 +27,10 @@ export function banqiEnabled(): boolean {
 }
 
 // Reveal Chess (chess-jieqi, hidden identities on an 8x8 board) play surface.
-// Hidden in prod/staging unless the build opts in; mirrors the jieqi gate.
+// Always on in dev for convenience; hidden in prod/staging unless the build
+// opts in; mirrors the jieqi gate.
 export function revealChessEnabled(): boolean {
-  return import.meta.env.VITE_REVEAL_CHESS_ENABLED === 'true';
+  return import.meta.env.DEV || import.meta.env.VITE_REVEAL_CHESS_ENABLED === 'true';
 }
 
 export function darkMiniXiangqiPublicEntryEnabled(): boolean {
@@ -55,32 +57,27 @@ export function crossroadsChessEnabled(): boolean {
 
 // Dark Crossroads Chess (the fog 6x8 variant) play surface. Server-side opt-in
 // is MISTBOARD_DARK_CROSSROADS_CHESS_ENABLED; this gates the landing picker and
-// deep links. Not DEV-on by default — like Dark Xiangqi, test locally by
-// relaunching the dev server with VITE_DARK_CROSSROADS_CHESS_ENABLED=true.
+// deep links. Always on in dev for local parity with production launch flags.
 export function darkCrossroadsChessEnabled(): boolean {
-  return import.meta.env.VITE_DARK_CROSSROADS_CHESS_ENABLED === 'true';
+  return import.meta.env.DEV || import.meta.env.VITE_DARK_CROSSROADS_CHESS_ENABLED === 'true';
 }
 
 // Dark Shogi (the fog 9x9 variant) play surface. Server-side opt-in is
 // MISTBOARD_DARK_SHOGI_ENABLED; this gates the landing picker and deep links.
-// Not DEV-on by default — like Dark Crossroads, test locally by relaunching the
-// dev server with VITE_DARK_SHOGI_ENABLED=true.
+// Always on in dev for local parity with production launch flags.
 export function darkShogiEnabled(): boolean {
-  return import.meta.env.VITE_DARK_SHOGI_ENABLED === 'true';
+  return import.meta.env.DEV || import.meta.env.VITE_DARK_SHOGI_ENABLED === 'true';
 }
 
 // Dark Crazyhouse (the fog 8x8 chess + drops variant) play surface. Server-side
 // opt-in is MISTBOARD_DARK_CRAZYHOUSE_ENABLED; this gates the landing picker and
-// deep links. Not DEV-on by default — test locally by relaunching the dev server
-// with VITE_DARK_CRAZYHOUSE_ENABLED=true.
+// deep links. Always on in dev for local parity with production launch flags.
 export function darkCrazyhouseEnabled(): boolean {
-  return import.meta.env.VITE_DARK_CRAZYHOUSE_ENABLED === 'true';
+  return import.meta.env.DEV || import.meta.env.VITE_DARK_CRAZYHOUSE_ENABLED === 'true';
 }
 
 // Kriegspiel (standard chess played blind) play surface. Server-side opt-in is
-// MISTBOARD_KRIEGSPIEL_ENABLED; this gates the landing picker and deep links.
-// Not DEV-on by default — test locally by relaunching the dev server with
-// VITE_KRIEGSPIEL_ENABLED=true.
+// MISTBOARD_KRIEGSPIEL_ENABLED; this gates launch copy and deep-link surfaces.
 export function kriegspielEnabled(): boolean {
-  return import.meta.env.VITE_KRIEGSPIEL_ENABLED === 'true';
+  return import.meta.env.DEV || import.meta.env.VITE_KRIEGSPIEL_ENABLED === 'true';
 }

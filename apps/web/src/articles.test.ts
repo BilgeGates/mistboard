@@ -1,6 +1,16 @@
 import { XIANGQI_GLYPH_PATHS } from '@mistboard/board-render';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { buildArticlePage, buildHomeArticleCards, buildRulesIndex } from './articles.js';
+import {
+  BANQI_ENGINE_THUMBNAIL,
+  BANQI_RIGHT_HALF_W,
+  BANQI_RULES_THUMBNAIL,
+} from './articles/diagrams.js';
+import {
+  buildArticlePage,
+  buildArticlesIndex,
+  buildHomeArticleCards,
+  buildRulesIndex,
+} from './articles.js';
 import { boardAppearanceChangedEvent } from './theme.js';
 
 describe('article public listing gates', () => {
@@ -29,17 +39,34 @@ describe('article public listing gates', () => {
     expect(buildRulesIndex().textContent).toContain('Mini Xiangqi');
   });
 
-  it('limits the homepage article widget to curated cards ordered by publish date', () => {
+  it('orders the articles page by publish date newest first', () => {
+    vi.stubEnv('DEV', true);
+
+    const hrefs = [
+      ...buildArticlesIndex().querySelectorAll<HTMLAnchorElement>('.articles-index-card'),
+    ].map((link) => link.getAttribute('href'));
+
+    expect(hrefs).toEqual([
+      '/articles/mistybanqi',
+      '/articles/server-enforced-fog',
+      '/articles/misty',
+      '/articles/dark-chess-concepts',
+    ]);
+  });
+
+  it('limits the homepage article widget to curated article cards ordered by publish date', () => {
     vi.stubEnv('VITE_DARK_MINI_XIANGQI_ENABLED', 'true');
     vi.stubEnv('VITE_DARK_MINI_XIANGQI_PUBLIC_ENTRY_ENABLED', 'true');
 
     const hrefs = [
-      ...(buildHomeArticleCards(50)?.querySelectorAll<HTMLAnchorElement>('.landing-article-card') ??
-        []),
+      ...(buildHomeArticleCards(50)?.querySelectorAll<HTMLAnchorElement>(
+        '.landing-article-card[data-card-kind="article"]',
+      ) ?? []),
     ].map((link) => link.getAttribute('href'));
 
     expect(hrefs).toEqual([
       '/rules/dark-shogi',
+      '/articles/mistybanqi',
       '/rules/reveal-chess',
       '/rules/jieqi',
       '/rules/banqi',
@@ -49,6 +76,69 @@ describe('article public listing gates', () => {
       '/rules/dark-xiangqi',
       '/rules/dark-chess',
     ]);
+  });
+
+  it('keeps release announcements out of the homepage article widget by default', () => {
+    vi.stubEnv('VITE_KRIEGSPIEL_ENABLED', 'true');
+
+    const cards = buildHomeArticleCards(50);
+
+    expect(cards?.querySelector('.landing-announcement-card')).toBeNull();
+    expect(cards?.textContent).not.toContain('Reveal Chess is open for alpha play.');
+    expect(cards?.textContent).not.toContain('Kriegspiel is open for alpha play.');
+  });
+
+  it('does not show the Banqi alpha announcement in the homepage article widget', () => {
+    vi.stubEnv('DEV', false);
+    vi.stubEnv('VITE_BANQI_ENABLED', 'true');
+
+    const cards = buildHomeArticleCards(50);
+
+    expect(cards?.querySelector('.landing-announcement-card[href="/rules/banqi"]')).toBeNull();
+    expect(cards?.textContent).not.toContain('Banqi (半棋) is open for alpha play.');
+  });
+
+  it('keeps Banqi rules surfaces on the variant marker while the MistyBanqi thumbnail crops the right half', () => {
+    const rules = buildRulesIndex();
+    expect(
+      rules.querySelector('.rules-landing-tile[href="/rules/banqi"] svg[data-mini-id="banqi"]'),
+    ).not.toBeNull();
+    expect(BANQI_RULES_THUMBNAIL()).not.toContain('data-banqi-thumbnail-crop');
+
+    const thumbnail = BANQI_ENGINE_THUMBNAIL();
+    expect(thumbnail).toContain('data-banqi-thumbnail-crop="right-half"');
+    expect(thumbnail).toContain(`--xq-svg-width: ${BANQI_RIGHT_HALF_W + 8}px`);
+
+    const articles = buildArticlesIndex();
+    const card = articles.querySelector<HTMLAnchorElement>(
+      '.articles-index-card[href="/articles/mistybanqi"]',
+    );
+    expect(card?.querySelector('svg g[data-banqi-thumbnail-crop="right-half"]')).not.toBeNull();
+
+    const home = buildHomeArticleCards(50);
+    expect(
+      home?.querySelector('.landing-article-card[href="/rules/banqi"] svg[data-mini-id="banqi"]'),
+    ).not.toBeNull();
+    expect(
+      home?.querySelector(
+        '.landing-article-card[href="/articles/mistybanqi"] svg g[data-banqi-thumbnail-crop="right-half"]',
+      ),
+    ).not.toBeNull();
+  });
+
+  it('describes Kriegspiel as playable with a friend-room CTA', () => {
+    const page = buildArticlePage('kriegspiel');
+    const links = [...page.querySelectorAll<HTMLAnchorElement>('a')].map((link) => ({
+      href: link.getAttribute('href'),
+      text: link.textContent,
+    }));
+
+    expect(page.textContent).toContain('Kriegspiel is playable on Mistboard');
+    expect(page.textContent).not.toContain("Kriegspiel isn't playable");
+    expect(links).toContainEqual({
+      href: '/?play=friend&gameSpecId=kriegspiel',
+      text: 'Challenge a friend',
+    });
   });
 
   it('describes Dark Mini Xiangqi as playable alpha with play CTAs', () => {

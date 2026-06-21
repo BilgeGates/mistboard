@@ -23,7 +23,8 @@ describe('landing play panel', () => {
     vi.unstubAllGlobals();
   });
 
-  it('keeps Dark Xiangqi hidden unless the client flag is enabled', () => {
+  it('keeps Dark Xiangqi hidden in production unless the client flag is enabled', () => {
+    vi.stubEnv('DEV', false);
     vi.stubGlobal(
       'fetch',
       vi.fn(async () => jsonResponse({ playing: 0, online: 0 })),
@@ -727,6 +728,7 @@ describe('landing play panel', () => {
   });
 
   it('does not offer Dark Xiangqi in the play menu when its flag is off', () => {
+    vi.stubEnv('DEV', false);
     vi.stubEnv('VITE_DARK_XIANGQI_ENABLED', 'false');
     vi.stubGlobal(
       'fetch',
