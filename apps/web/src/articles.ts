@@ -1818,6 +1818,7 @@ const VARIANT_MINI_BY_SLUG: Record<string, VariantMiniId> = {
   'reveal-chess': 'reveal-chess',
   shogi: 'shogi',
   'dark-shogi': 'dark-shogi',
+  'dark-crazyhouse': 'dark-crazyhouse',
 };
 
 // A rail/landing thumbnail rendered as the variant's mini-board, or null if the

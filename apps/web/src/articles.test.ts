@@ -196,6 +196,38 @@ describe('article public listing gates', () => {
     ).not.toBeNull();
   });
 
+  it('publishes Dark Crazyhouse as a playable invite rules page with the variant marker', () => {
+    vi.stubEnv('DEV', false);
+
+    const page = buildArticlePage('dark-crazyhouse');
+    const landing = buildRulesIndex();
+    const grids = landing.querySelectorAll('.rules-landing-grid');
+    const links = [...page.querySelectorAll<HTMLAnchorElement>('a')].map((link) => ({
+      href: link.getAttribute('href'),
+      text: link.textContent,
+    }));
+
+    expect(page.textContent).toContain('Dark Crazyhouse Rules');
+    expect(page.textContent).toContain('available for invite games');
+    expect(page.textContent).not.toContain('not playable yet');
+    expect(links).toContainEqual({
+      href: '/?play=friend&gameSpecId=dark-crazyhouse',
+      text: 'Create invite',
+    });
+    expect(grids[0]?.querySelector('a[href="/rules/dark-crazyhouse"]')).not.toBeNull();
+    expect(
+      grids[0]?.querySelector(
+        'a[href="/rules/dark-crazyhouse"] svg[data-mini-id="dark-crazyhouse"]',
+      ),
+    ).not.toBeNull();
+    expect(grids[1]?.querySelector('a[href="/rules/dark-crazyhouse"]')).toBeNull();
+    expect(
+      page.querySelector(
+        '.article-variant-sidebar a[aria-current="page"] svg[data-mini-id="dark-crazyhouse"]',
+      ),
+    ).not.toBeNull();
+  });
+
   it('rerenders Dark Crossroads diagrams from the piece settings', () => {
     Object.defineProperty(window, 'localStorage', { configurable: true, value: memoryStorage() });
     const page = buildArticlePage('dark-crossroads-chess');

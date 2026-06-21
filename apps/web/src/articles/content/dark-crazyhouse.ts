@@ -98,6 +98,7 @@ const PARACHUTE_REVEAL = applyCrazyhouseMove(PARACHUTE_AFTER, { from: 'e8', to: 
 export const darkCrazyhouseArticle: Article = {
   slug: 'dark-crazyhouse',
   kind: 'rules',
+  playableOnMistboard: true,
   title: 'Dark Crazyhouse Rules',
   summary:
     'Crazyhouse under Fog of War: captured pieces flip color into your hand and drop back into play, hands are private, you can parachute a drop into the fog, and the king falls by capture.',
@@ -299,11 +300,16 @@ export const darkCrazyhouseArticle: Article = {
       blocks: [
         {
           kind: 'paragraph',
-          text: 'Dark Crazyhouse is in development on Mistboard and not playable yet. There is no set release date.',
+          text: 'Dark Crazyhouse is available for invite games on Mistboard. Public matchmaking is still gated while playtesting continues, but you can create a casual room and send the link to an opponent.',
         },
         {
           kind: 'cta',
           buttons: [
+            {
+              label: 'Create invite',
+              href: '/?play=friend&gameSpecId=dark-crazyhouse',
+              emphasis: 'primary',
+            },
             { label: 'Dark Chess Rules', href: '/rules/dark-chess', emphasis: 'secondary' },
             { label: 'Back to all rules', href: '/rules', emphasis: 'secondary' },
           ],
