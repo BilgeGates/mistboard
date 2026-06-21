@@ -60,6 +60,7 @@ export type WebTenantLandingConfig = {
     firstGlyph: string;
     firstLabel: string;
     glyphClass?: string;
+    pickerLabel?: string;
     secondColor: 'white' | 'red' | 'black';
     secondGlyph: string;
     secondLabel: string;
@@ -78,9 +79,8 @@ export type WebTenantLandingConfig = {
   // into the landing engine section.
   engineOptions?: readonly WebTenantEngineOption[];
   defaultEngineId?: string;
-  // Suppress the create-game color/side picker. For Banqi there is no side to
-  // choose: the ink (red/black) is bound by the first mover's opening flip, so a
-  // Red/Black picker is meaningless — the seat is randomized instead.
+  // Suppress the create-game color/side picker for variants where the server
+  // should always assign a side.
   hideColorPicker?: boolean;
 };
 
@@ -291,12 +291,13 @@ const WEB_VARIANT_TENANTS: readonly WebVariantTenant[] = [
     landing: {
       capabilities: {
         firstColor: 'red',
-        firstGlyph: '帥',
-        firstLabel: 'Red',
-        glyphClass: 'xiangqi',
+        firstGlyph: '1',
+        firstLabel: 'First',
+        glyphClass: 'banqi-seat',
+        pickerLabel: 'Move order',
         secondColor: 'black',
-        secondGlyph: '將',
-        secondLabel: 'Black',
+        secondGlyph: '2',
+        secondLabel: 'Second',
         supportsRated: false,
         supportsStartFormat: false,
         supportsTimeControl: true,
@@ -315,7 +316,6 @@ const WEB_VARIANT_TENANTS: readonly WebVariantTenant[] = [
         },
       ],
       defaultEngineId: 'misty-banqi',
-      hideColorPicker: true,
     },
   },
   {

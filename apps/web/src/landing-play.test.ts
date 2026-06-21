@@ -286,6 +286,43 @@ describe('landing play panel', () => {
     expect(window.location.pathname).toBe('/room/rc_home');
   });
 
+  it('shows Banqi first and second move-order choices in the setup modal', async () => {
+    vi.stubEnv('VITE_BANQI_ENABLED', 'true');
+    const fetchSpy = vi.fn(async (input: RequestInfo | URL, _init?: RequestInit) => {
+      if (String(input) === '/api/live-stats') return jsonResponse({ playing: 0, online: 0 });
+      if (String(input) === '/api/rooms') return jsonResponse({ url: '/room/bq_home' });
+      return jsonResponse({}, { status: 404 });
+    });
+    vi.stubGlobal('fetch', fetchSpy);
+    const panel = buildLandingPlayPanel([]);
+    document.body.append(panel);
+
+    openPlaySetup(panel, 'Challenge a friend');
+    selectModalVariant('banqi');
+
+    const picker = document
+      .querySelector('.landing-color-option')
+      ?.closest<HTMLElement>('.landing-start-options');
+    expect(picker?.getAttribute('aria-label')).toBe('Move order');
+    expect(modalColorOptions()).toEqual([
+      { label: 'First', glyph: '1', classes: 'landing-color-glyph red banqi-seat' },
+      { label: 'Random', glyph: '12', classes: 'landing-color-glyph random banqi-seat' },
+      { label: 'Second', glyph: '2', classes: 'landing-color-glyph black banqi-seat' },
+    ]);
+
+    clickModalColor('Second');
+    clickModalButton('Create room');
+    await flushPromises();
+
+    expect(roomPostBody(fetchSpy)).toEqual({
+      mode: 'pvp',
+      gameSpecId: 'banqi',
+      timeControl: { initialMs: 180_000, incrementMs: 2_000 },
+      preferredColor: 'black',
+    });
+    expect(window.location.pathname).toBe('/room/bq_home');
+  });
+
   it('creates a Crossroads Chess engine room with the selected Fairy-Stockfish tier', async () => {
     vi.stubEnv('VITE_CROSSROADS_CHESS_ENABLED', 'true');
     const fetchSpy = vi.fn(async (input: RequestInfo | URL, _init?: RequestInit) => {

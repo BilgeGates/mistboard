@@ -420,6 +420,14 @@
   color: #b91c1c;
 }
 
+.landing-color-option .landing-color-glyph.banqi-seat,
+.landing-color-option .landing-color-glyph.banqi-seat .black,
+.landing-color-option .landing-color-glyph.banqi-seat .red {
+  color: var(--site-text);
+  -webkit-text-stroke: 0;
+  text-shadow: none;
+}
+
 .landing-color-option .landing-color-glyph.random {
   letter-spacing: 0;
 }

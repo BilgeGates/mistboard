@@ -78,6 +78,7 @@ type LandingGameSpecCapabilities = {
   firstGlyph: string;
   firstLabel: string;
   glyphClass?: string;
+  pickerLabel?: string;
   secondColor: LandingPlayerColor;
   secondGlyph: string;
   secondLabel: string;
@@ -1446,7 +1447,8 @@ function buildColorPreferenceSection(
 ): HTMLElement {
   const section = document.createElement('div');
   section.className = 'landing-setup-section';
-  section.append(setupSectionLabel('Color'));
+  const sectionLabel = setupSectionLabel('Color');
+  section.append(sectionLabel);
 
   const group = document.createElement('div');
   group.className = 'landing-start-options three';
@@ -1464,6 +1466,9 @@ function buildColorPreferenceSection(
     const firstValue: LandingColorPreference = capabilities.firstColor;
     const secondValue: LandingColorPreference = capabilities.secondColor;
     const current = get();
+    const pickerLabel = capabilities.pickerLabel ?? 'Color';
+    sectionLabel.textContent = pickerLabel;
+    group.setAttribute('aria-label', pickerLabel);
     updateColorOptionButton(firstButton, firstValue, capabilities.firstLabel, gameSpecId);
     updateColorOptionButton(randomButton, 'random', 'Random', gameSpecId);
     updateColorOptionButton(blackButton, secondValue, capabilities.secondLabel, gameSpecId);
