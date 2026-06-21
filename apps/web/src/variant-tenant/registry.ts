@@ -60,6 +60,7 @@ export type WebTenantLandingConfig = {
     firstGlyph: string;
     firstLabel: string;
     glyphClass?: string;
+    neutralGlyphColor?: boolean;
     pickerLabel?: string;
     secondColor: 'white' | 'red' | 'black';
     secondGlyph: string;
@@ -294,6 +295,7 @@ const WEB_VARIANT_TENANTS: readonly WebVariantTenant[] = [
         firstGlyph: '1',
         firstLabel: 'First',
         glyphClass: 'banqi-seat',
+        neutralGlyphColor: true,
         pickerLabel: 'Move order',
         secondColor: 'black',
         secondGlyph: '2',

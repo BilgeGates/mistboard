@@ -78,6 +78,7 @@ type LandingGameSpecCapabilities = {
   firstGlyph: string;
   firstLabel: string;
   glyphClass?: string;
+  neutralGlyphColor?: boolean;
   pickerLabel?: string;
   secondColor: LandingPlayerColor;
   secondGlyph: string;
@@ -1535,8 +1536,10 @@ function updateColorOptionButton(
   const glyph = button.querySelector<HTMLSpanElement>('.landing-color-glyph');
   const text = button.querySelector<HTMLSpanElement>('.landing-color-label');
   if (glyph) {
-    glyph.className = `landing-color-glyph ${value}`;
     const capabilities = landingGameSpecCapabilities(gameSpecId);
+    glyph.className = capabilities.neutralGlyphColor
+      ? `landing-color-glyph${value === 'random' ? ' random' : ''}`
+      : `landing-color-glyph ${value}`;
     if (capabilities.glyphClass) glyph.classList.add(capabilities.glyphClass);
     glyph.replaceChildren(...colorGlyphNodes(value, gameSpecId));
   }
@@ -1550,10 +1553,10 @@ function colorGlyphNodes(
   const capabilities = landingGameSpecCapabilities(gameSpecId);
   if (value === 'random') {
     const first = document.createElement('span');
-    first.className = capabilities.firstColor;
+    first.className = capabilities.neutralGlyphColor ? '' : capabilities.firstColor;
     first.textContent = capabilities.firstGlyph;
     const second = document.createElement('span');
-    second.className = capabilities.secondColor;
+    second.className = capabilities.neutralGlyphColor ? '' : capabilities.secondColor;
     second.textContent = capabilities.secondGlyph;
     return [first, second];
   }

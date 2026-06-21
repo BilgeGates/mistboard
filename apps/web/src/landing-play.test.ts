@@ -305,9 +305,9 @@ describe('landing play panel', () => {
       ?.closest<HTMLElement>('.landing-start-options');
     expect(picker?.getAttribute('aria-label')).toBe('Move order');
     expect(modalColorOptions()).toEqual([
-      { label: 'First', glyph: '1', classes: 'landing-color-glyph red banqi-seat' },
+      { label: 'First', glyph: '1', classes: 'landing-color-glyph banqi-seat' },
       { label: 'Random', glyph: '12', classes: 'landing-color-glyph random banqi-seat' },
-      { label: 'Second', glyph: '2', classes: 'landing-color-glyph black banqi-seat' },
+      { label: 'Second', glyph: '2', classes: 'landing-color-glyph banqi-seat' },
     ]);
 
     clickModalColor('Second');
