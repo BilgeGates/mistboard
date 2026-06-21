@@ -17,6 +17,7 @@ import {
   isGameSpecId,
   isRatedPoolBase,
   JIEQI_SPEC_ID,
+  KRIEGSPIEL_SPEC_ID,
   legacyLiveRoomForGameSpec,
   maybeGameSpecForId,
   RATED_POOL_BASES,
@@ -277,6 +278,7 @@ test('RATED_POOL_BASES derives from the rated flag and matches the RatingVariant
     crossroads_chess_open: true,
     jieqi: true,
     banqi: true,
+    kriegspiel: true,
     reveal_chess: true,
   };
   assert.deepEqual(Object.keys(unionMembers).sort(), [...RATED_POOL_BASES].sort());
@@ -293,8 +295,10 @@ test('ratingPoolForSpec is rated for launched pools and null for casual-only spe
   assert.equal(ratingPoolForSpec(DARK_CROSSROADS_CHESS_SPEC_ID), 'crossroads_chess');
   assert.equal(ratingPoolForSpec(DARK_SHOGI_SPEC_ID), 'dark_shogi');
   assert.equal(ratingPoolForSpec(DARK_CRAZYHOUSE_SPEC_ID), 'dark_crazyhouse');
+  assert.equal(ratingPoolForSpec(KRIEGSPIEL_SPEC_ID), 'kriegspiel');
   assert.equal(isRatedPoolBase('jieqi'), true);
   assert.equal(isRatedPoolBase('dark_xiangqi'), true);
   assert.equal(isRatedPoolBase('dark_shogi'), true);
+  assert.equal(isRatedPoolBase('kriegspiel'), true);
   assert.equal(isRatedPoolBase('not-a-pool'), false);
 });

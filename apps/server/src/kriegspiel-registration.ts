@@ -1,6 +1,6 @@
 /**
- * Kriegspiel (hidden/dev-only) registry entry. Owns the tenant's live-room
- * map, the room-factory binding, and hydration. No rematch/lobby/watch yet
+ * Kriegspiel registry entry. Owns the tenant's live-room map, the room-factory
+ * binding, hydration, and watch channel metadata. No rematch/lobby yet
  * (deep-link PvP only, like the Dark Xiangqi / Dark Crossroads / Dark Shogi
  * launches) — the lobby route answers kriegspiel_not_integrated while the flag
  * is on. Imported for side effects by variant-tenant/register-tenants.ts.
@@ -62,7 +62,12 @@ registerVariantTenant({
   kind: kriegspielTenant.kind,
   gameSpecId: kriegspielTenant.gameSpecId,
   roomIdPrefix: kriegspielTenant.roomIdPrefix,
-  watch: null,
+  watch: {
+    channelId: kriegspielTenant.gameSpecId,
+    label: 'Kriegspiel',
+    family: 'chess',
+    legacyVariants: ['kriegspiel'],
+  },
   ownsSpecRouting: true,
   errorPrefix: 'kriegspiel',
   enabled: kriegspielTenant.enabled,

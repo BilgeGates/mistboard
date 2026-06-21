@@ -468,6 +468,7 @@ const CHANNEL_MINI_BY_ID: Record<string, VariantMiniId> = {
   'dark-crossroads-chess': 'dark-crossroads',
   'dark-shogi': 'dark-shogi',
   'dark-crazyhouse': 'dark-crazyhouse',
+  kriegspiel: 'kriegspiel',
   'reveal-chess': 'reveal-chess',
 };
 

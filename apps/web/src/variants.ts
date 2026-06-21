@@ -36,6 +36,7 @@ import {
   darkShogiEnabled,
   darkXiangqiEnabled,
   jieqiEnabled,
+  kriegspielEnabled,
   revealChessEnabled,
 } from './feature-flags.js';
 import type { VariantMiniId } from './variant-mini-boards.js';
@@ -71,6 +72,7 @@ const darkXiangqiOn = darkXiangqiEnabled();
 const darkCrossroadsChessOn = darkCrossroadsChessEnabled();
 const darkShogiOn = darkShogiEnabled();
 const darkCrazyhouseOn = darkCrazyhouseEnabled();
+const kriegspielOn = kriegspielEnabled();
 const darkChessSpec = gameSpecForId(DARK_CHESS_SPEC_ID);
 const draft960Spec = gameSpecForId(DARK_DRAFT960_SPEC_ID);
 const darkMiniXiangqiSpec = gameSpecForId(DARK_MINI_XIANGQI_SPEC_ID);
@@ -79,6 +81,7 @@ const crossroadsChessSpec = gameSpecForId(CROSSROADS_CHESS_SPEC_ID);
 const darkCrossroadsChessSpec = gameSpecForId(DARK_CROSSROADS_CHESS_SPEC_ID);
 const darkShogiSpec = gameSpecForId(DARK_SHOGI_SPEC_ID);
 const darkCrazyhouseSpec = gameSpecForId(DARK_CRAZYHOUSE_SPEC_ID);
+const kriegspielSpec = gameSpecForId(KRIEGSPIEL_SPEC_ID);
 const jieqiSpec = gameSpecForId(JIEQI_SPEC_ID);
 const banqiSpec = gameSpecForId(BANQI_SPEC_ID);
 const revealChessSpec = gameSpecForId(REVEAL_CHESS_SPEC_ID);
@@ -224,6 +227,16 @@ export const VARIANTS: VariantDef[] = [
     enabled: false,
     onLeaderboard: darkCrazyhouseOn,
     onProfile: darkCrazyhouseOn,
+  },
+  {
+    id: currentRatingVariantForSpec(KRIEGSPIEL_SPEC_ID),
+    gameSpecId: kriegspielSpec.id,
+    apiParam: KRIEGSPIEL_SPEC_ID,
+    label: kriegspielSpec.publicName,
+    miniId: 'kriegspiel',
+    enabled: false,
+    onLeaderboard: kriegspielOn,
+    onProfile: kriegspielOn,
   },
 ];
 

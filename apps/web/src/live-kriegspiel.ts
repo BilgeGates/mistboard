@@ -1,6 +1,5 @@
-// Live multiplayer room client for hidden/dev-only Kriegspiel (standard chess
-// played blind). A hidden-info tenant on the same stack as Dark Crazyhouse /
-// Dark Shogi:
+// Live multiplayer room client for Kriegspiel (standard chess played blind). A
+// hidden-info tenant on the same stack as Dark Crazyhouse / Dark Shogi:
 //   * the generic socket client + shared room chrome,
 //   * the fog-safe replay CAPTURE controller (replays only the per-seat
 //     snapshots received; never reconstructs hidden state),

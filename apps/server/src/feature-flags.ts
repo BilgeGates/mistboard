@@ -78,8 +78,9 @@ export function darkCrazyhouseEnabled(): boolean {
 }
 
 // Kriegspiel (standard chess played blind, ICC wild-16) live rooms. Server-side
-// opt-in, default off — the tenant exists but is not launched. PvP-only (no bot
-// yet). Real check/checkmate; the umpire announces captures + check categories.
+// opt-in, default off. PvP-only (no bot yet), with watch/profile/leaderboard
+// surfaces when the flag is enabled. Real check/checkmate; the umpire announces
+// captures + check categories.
 export function kriegspielEnabled(): boolean {
   return process.env.MISTBOARD_KRIEGSPIEL_ENABLED === 'true';
 }

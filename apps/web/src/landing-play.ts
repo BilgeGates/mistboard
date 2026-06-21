@@ -1785,8 +1785,8 @@ export function roomCreationRequestBody(
     };
   }
   if (setup.gameSpecId === KRIEGSPIEL_SPEC_ID) {
-    // Kriegspiel is PvP-only and casual-only (no bot yet, rated not launched);
-    // standard chess white/black, passed straight through.
+    // Kriegspiel is PvP-only from setup (no bot yet; rated rooms are not exposed
+    // here); standard chess white/black, passed straight through.
     return {
       mode: 'pvp',
       gameSpecId,

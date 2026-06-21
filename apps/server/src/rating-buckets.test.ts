@@ -155,4 +155,5 @@ test('parseRatingVariant keeps legacy leaderboard API params stable', () => {
   assert.equal(parseRatingVariant('dark_shogi'), 'dark_shogi');
   assert.equal(parseRatingVariant('dark-crazyhouse'), 'dark_crazyhouse');
   assert.equal(parseRatingVariant('dark_crazyhouse'), 'dark_crazyhouse');
+  assert.equal(parseRatingVariant('kriegspiel'), 'kriegspiel');
 });

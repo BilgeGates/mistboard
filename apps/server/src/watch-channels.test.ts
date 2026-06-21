@@ -11,6 +11,7 @@ import {
   DARK_SHOGI_SPEC_ID,
   DARK_XIANGQI_SPEC_ID,
   JIEQI_SPEC_ID,
+  KRIEGSPIEL_SPEC_ID,
   REVEAL_CHESS_SPEC_ID,
 } from '@mistboard/game';
 // Watch channels (other than the hardcoded dark-chess default) derive from the
@@ -36,6 +37,7 @@ test('watch channel lookup defaults empty input and rejects unknown channels', (
   assert.equal(watchChannelForId('dark-crossroads-chess'), null);
   assert.equal(watchChannelForId('dark-shogi'), null);
   assert.equal(watchChannelForId('dark-crazyhouse'), null);
+  assert.equal(watchChannelForId('kriegspiel'), null);
 });
 
 test('watch channels expose Crossroads Chess behind its live-room flag', () => {
@@ -133,6 +135,7 @@ test('watch channels expose every launched variant behind its live-room flag in 
   process.env.MISTBOARD_DARK_CROSSROADS_CHESS_ENABLED = 'true';
   process.env.MISTBOARD_DARK_SHOGI_ENABLED = 'true';
   process.env.MISTBOARD_DARK_CRAZYHOUSE_ENABLED = 'true';
+  process.env.MISTBOARD_KRIEGSPIEL_ENABLED = 'true';
   try {
     const channels = listWatchChannels();
     assert.deepEqual(
@@ -148,6 +151,7 @@ test('watch channels expose every launched variant behind its live-room flag in 
         DARK_CROSSROADS_CHESS_SPEC_ID,
         DARK_SHOGI_SPEC_ID,
         DARK_CRAZYHOUSE_SPEC_ID,
+        KRIEGSPIEL_SPEC_ID,
       ],
     );
     assert.deepEqual(watchChannelForId(DARK_CROSSROADS_CHESS_SPEC_ID), {
@@ -174,6 +178,14 @@ test('watch channels expose every launched variant behind its live-room flag in 
       label: 'Dark Crazyhouse',
       legacyVariants: ['dark-crazyhouse'],
     });
+    assert.deepEqual(watchChannelForId(KRIEGSPIEL_SPEC_ID), {
+      default: false,
+      family: 'chess',
+      gameSpecIds: [KRIEGSPIEL_SPEC_ID],
+      id: KRIEGSPIEL_SPEC_ID,
+      label: 'Kriegspiel',
+      legacyVariants: ['kriegspiel'],
+    });
   } finally {
     delete process.env.MISTBOARD_DARK_MINI_XIANGQI_ENABLED;
     delete process.env.MISTBOARD_DARK_XIANGQI_ENABLED;
@@ -184,5 +196,6 @@ test('watch channels expose every launched variant behind its live-room flag in 
     delete process.env.MISTBOARD_DARK_CROSSROADS_CHESS_ENABLED;
     delete process.env.MISTBOARD_DARK_SHOGI_ENABLED;
     delete process.env.MISTBOARD_DARK_CRAZYHOUSE_ENABLED;
+    delete process.env.MISTBOARD_KRIEGSPIEL_ENABLED;
   }
 });

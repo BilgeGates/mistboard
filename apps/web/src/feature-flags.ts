@@ -77,7 +77,8 @@ export function darkCrazyhouseEnabled(): boolean {
 }
 
 // Kriegspiel (standard chess played blind) play surface. Server-side opt-in is
-// MISTBOARD_KRIEGSPIEL_ENABLED; this gates launch copy and deep-link surfaces.
+// MISTBOARD_KRIEGSPIEL_ENABLED; this gates play entry, watch, profile, and
+// leaderboard surfaces.
 export function kriegspielEnabled(): boolean {
   return import.meta.env.DEV || import.meta.env.VITE_KRIEGSPIEL_ENABLED === 'true';
 }

@@ -150,6 +150,7 @@ export const CANONICAL_VARIANT_ORDER: readonly GameSpecId[] = [
   DARK_CROSSROADS_CHESS_SPEC_ID,
   DARK_SHOGI_SPEC_ID,
   DARK_CRAZYHOUSE_SPEC_ID,
+  KRIEGSPIEL_SPEC_ID,
 ];
 
 /** Sort index for {@link CANONICAL_VARIANT_ORDER}; unlisted specs sort to the end. */
@@ -221,8 +222,9 @@ export const GAME_SPECS: readonly GameSpec[] = [
     reserves: 'none',
     dropPolicy: 'none',
     ratingPoolBase: 'kriegspiel',
+    rated: true,
     publicSurface: 'hidden',
-    runtimeStatus: 'dev-spike',
+    runtimeStatus: 'live',
   },
   {
     id: 'dark-antichess',
@@ -517,6 +519,7 @@ export type RatingVariant = Extract<
   | 'crossroads_chess_open'
   | 'jieqi'
   | 'banqi'
+  | 'kriegspiel'
   | 'reveal_chess'
 >;
 

@@ -648,6 +648,13 @@ const WEB_VARIANT_TENANTS: readonly WebVariantTenant[] = [
           () =>
             bootstrapKriegspielLiveRoom(),
       ),
+    watch: {
+      family: 'chess',
+      mountReplay: (root, roomId, options) =>
+        import('../watch-kriegspiel-replay.js').then(({ mountKriegspielWatchReplay }) =>
+          mountKriegspielWatchReplay(root, roomId, options),
+        ),
+    },
     landing: {
       capabilities: {
         firstColor: 'white',

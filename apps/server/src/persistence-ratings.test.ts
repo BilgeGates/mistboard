@@ -706,6 +706,14 @@ definePersistenceTests('ratings', () => {
         secondColor: 'black',
         result: 'black-wins',
       },
+      {
+        roomId: 'profile-kriegspiel',
+        variant: 'kriegspiel',
+        bucket: 'kriegspiel',
+        firstColor: 'white',
+        secondColor: 'black',
+        result: 'white-wins',
+      },
     ];
 
     for (let i = 0; i < variants.length; i++) {

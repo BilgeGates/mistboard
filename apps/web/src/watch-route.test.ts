@@ -170,6 +170,7 @@ describe('renderWatchChannelList', () => {
         channel('dark-crossroads-chess', 'Dark Crossroads Chess'),
         channel('dark-shogi', 'Dark Shogi'),
         channel('dark-crazyhouse', 'Dark Crazyhouse'),
+        channel('kriegspiel', 'Kriegspiel'),
       ],
       now: '2026-06-17T00:00:00.000Z',
       unlockLimit: 64,
@@ -180,7 +181,7 @@ describe('renderWatchChannelList', () => {
     renderWatchChannelList(root, feed);
 
     const links = root.querySelectorAll('a.watch-channel-link');
-    expect(links).toHaveLength(10);
+    expect(links).toHaveLength(11);
     for (const link of links) {
       const thumb = link.querySelector('.watch-channel-thumb');
       expect(thumb?.querySelector('svg'), `${link.textContent} marker`).not.toBeNull();
