@@ -1,10 +1,10 @@
-e72a61d
+3ae331c
 # ^ The mistboard-engine commit the prod build checks out (railpack build step).
-# DMX hardening (2026-06-21): e72a61d = cdecd59 (Misty 1.4 castle fix for
-# dark chess) + 16204a9 (Dark Mini Xiangqi guarded recommended profile,
-# bounded mini belief cap, and Modal bakeoff default alignment). The chess
-# engine id still maps to Misty 1.4; the DMX id maps to the stronger guarded
-# mini profile.
+# DMX hardening (2026-06-21): 3ae331c = cdecd59 (Misty 1.4 castle fix for
+# dark chess) + DMX guarded recommended profile, bounded mini belief cap,
+# Modal bakeoff default alignment, and the live-build constructor/guard fix.
+# The chess engine id still maps to Misty 1.4; the DMX id maps to the stronger
+# guarded mini profile.
 # Rollback target: cdecd59 for chess-only Misty 1.4. Single source of truth for
 # the deployed engine; bump this + the registry engine_pin to ship. The railpack
 # reads only the first line; this comment is ignored.

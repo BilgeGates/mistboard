@@ -409,20 +409,20 @@ const PYTHON_ENGINES: Record<string, EngineDefinition> = {
     name: 'Misty DMX 1.0',
     kind: 'container',
     gameSpecId: 'dark-mini-xiangqi',
-    configHash: 'dmx-v1.0-e72a61d',
-    playSignature: 'e72a61d',
+    configHash: 'dmx-v1.0-3ae331c',
+    playSignature: '3ae331c',
     config: {
       kind: 'python-subprocess',
       strategy: 'v2-mini',
       version: '1.0',
       config: 'dmx-misty-dmx',
-      config_hash: 'e72a61d',
-      engine_pin: 'dmx-v1.0@e72a61d',
+      config_hash: '3ae331c',
+      engine_pin: 'dmx-v1.0@3ae331c',
     },
     livePolicy: { timeoutMs: 30_000 },
     notes:
       'Misty DMX 1.0 — Dark Mini Xiangqi engine served through the variant-aware worker adapter. ' +
-      'Pinned to engine e72a61d (guarded recommended profile + bounded mini belief cap).',
+      'Pinned to engine 3ae331c (guarded recommended profile + bounded mini belief cap + live-build guard fix).',
   },
   'python-tier1-v0.9.1': {
     id: 'python-tier1-v0.9.1',
