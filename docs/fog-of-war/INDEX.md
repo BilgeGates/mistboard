@@ -48,7 +48,7 @@ references or boundary notes, not in-repo workflows.
 | File | Status | Use it for |
 |---|---|---|
 | [`engine-extraction-plan.md`](engine-extraction-plan.md) | `historical` | Public/private boundary for engine work: public platform and protocol, private first-party engine, phased extraction plan. The extraction has already happened. |
-| [`engine-roadmap.md`](engine-roadmap.md) | `reference` | Public-facing engine interface notes: FUCI protocol and `PlayerView`-only engine contract. |
+| [`engine-roadmap.md`](engine-roadmap.md) | `reference` | Public-facing engine interface notes: FUCI protocol, `PlayerView`-only engine contract, and the FSF/UCI fork boundary. |
 | [`engine-architecture-roadmap.md`](engine-architecture-roadmap.md) | `reference` | Long-arc engine architecture: belief layer, analysis workers, synthesis, anytime protocol, learning loop, and research families. |
 | [`engine-algorithm-family.md`](engine-algorithm-family.md) | `reference` | Why Fog of War is structurally an imperfect-information problem rather than a normal chess-variant engine problem. |
 | [`engine-deep-cfr-feasibility.md`](engine-deep-cfr-feasibility.md) | `reference` | Scoping analysis for Deep CFR and neural CFR approaches in Fog of War chess. |

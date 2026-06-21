@@ -8,8 +8,26 @@
 // so this is an engine balance probe, not the product referee.
 
 import { type ChildProcessWithoutNullStreams, spawn } from 'node:child_process';
-import { existsSync } from 'node:fs';
+import { existsSync, writeFileSync } from 'node:fs';
 import { resolve } from 'node:path';
+import {
+  applyDropMiniXiangqiMove,
+  createInitialDropMiniXiangqiState,
+  DEFAULT_DROP_MINI_XIANGQI_RULES,
+  type DropMiniXiangqiDropRole,
+  type DropMiniXiangqiGameState,
+  type DropMiniXiangqiHand,
+  type DropMiniXiangqiMove,
+  type DropMiniXiangqiRules,
+  GUARDED_DROP_MINI_XIANGQI_RULES,
+  isLegalDropMiniXiangqiMove,
+} from '../../packages/game/src/variants-drop-mini-xiangqi.ts';
+import type {
+  MiniXiangqiBoard,
+  MiniXiangqiColor,
+  MiniXiangqiPieceRole,
+  MiniXiangqiSquare,
+} from '../../packages/game/src/variants-mini-xiangqi.ts';
 
 type FsfPolicy = 'wild' | 'no-threat' | 'home';
 
@@ -17,6 +35,7 @@ type CliOptions = {
   fsfPath: string;
   games: number;
   iniPath: string;
+  htmlPath: string | null;
   maxPlies: number;
   mode: 'probe' | 'selfplay' | 'both';
   movetimeMs: number;
@@ -58,6 +77,31 @@ type SelfPlayResult = {
   reason: string;
 };
 
+type ReplaySnapshot = {
+  board: MiniXiangqiBoard;
+  cooldownHands: Record<MiniXiangqiColor, DropMiniXiangqiHand>;
+  hands: Record<MiniXiangqiColor, DropMiniXiangqiHand>;
+  lastMove: DropMiniXiangqiMove | null;
+  moveNumber: number;
+  ply: number;
+  status: string;
+  token: string;
+  turn: MiniXiangqiColor | null;
+  warning: string | null;
+};
+
+type ReplayGame = {
+  dropChecks: number;
+  drops: number;
+  finalFen: string;
+  firstDropPly: number | null;
+  label: string;
+  moves: string[];
+  policy: FsfPolicy;
+  reason: string;
+  snapshots: ReplaySnapshot[];
+};
+
 const FSF_VARIANT_BY_POLICY: Record<FsfPolicy, string> = {
   wild: 'dropminixiangqi-wild',
   'no-threat': 'dropminixiangqi-no-threat',
@@ -71,6 +115,19 @@ const ALL_PIECES_IN_HAND_FEN = 'rcnkncr/p1ppp1p/7/7/7/P1PPP1P/RCNKNCR[RCNP] w - 
 const DEFAULT_POLICIES: readonly FsfPolicy[] = ['wild', 'no-threat', 'home'];
 const UCI_DROP = /^[A-Z]@[a-g][1-7]$/;
 const PERFT_LINE = /^([A-Z]@[a-g][1-7]|[a-g][1-7][a-g][1-7][a-z]?):\s+(\d+)$/;
+const FSF_DROP_ROLE: Record<string, DropMiniXiangqiDropRole> = {
+  C: 'cannon',
+  N: 'horse',
+  P: 'soldier',
+  R: 'chariot',
+};
+const ROLE_LABEL: Record<MiniXiangqiPieceRole, string> = {
+  cannon: 'C',
+  chariot: 'R',
+  general: 'G',
+  horse: 'H',
+  soldier: 'S',
+};
 
 class FsfSession {
   private readonly child: ChildProcessWithoutNullStreams;
@@ -330,13 +387,15 @@ async function runProbe(opts: CliOptions): Promise<void> {
   }
 }
 
-async function runSelfPlay(opts: CliOptions): Promise<void> {
+async function runSelfPlay(opts: CliOptions): Promise<SelfPlayResult[]> {
   console.log('\n== FSF Drop Mini Xiangqi self-play ==');
+  const allResults: SelfPlayResult[] = [];
   for (const policy of opts.policies) {
     const results: SelfPlayResult[] = [];
     for (let game = 1; game <= opts.games; game += 1) {
       const result = await withFsf(opts, policy, (fsf) => selfPlayOne(fsf, opts, policy));
       results.push(result);
+      allResults.push(result);
       console.log(
         `${policy} #${game}: plies=${result.moves.length} drops=${result.drops} firstDrop=${
           result.firstDropPly ?? 'none'
@@ -353,6 +412,7 @@ async function runSelfPlay(opts: CliOptions): Promise<void> {
       )} avgDrops=${avgDrops.toFixed(1)}`,
     );
   }
+  return allResults;
 }
 
 async function selfPlayOne(
@@ -397,6 +457,526 @@ async function selfPlayOne(
   };
 }
 
+function writeHtmlReport(opts: CliOptions, results: SelfPlayResult[]): void {
+  if (!opts.htmlPath) return;
+  if (results.length === 0) {
+    throw new Error('--html requires self-play results; use --mode selfplay or --mode both');
+  }
+  const games = results.map((result, index) => buildReplayGame(result, index + 1));
+  writeFileSync(opts.htmlPath, replayHtml(opts, games), 'utf8');
+  console.log(`\nHTML replay: ${opts.htmlPath}`);
+}
+
+function buildReplayGame(result: SelfPlayResult, gameNumber: number): ReplayGame {
+  return {
+    dropChecks: result.dropChecks,
+    drops: result.drops,
+    finalFen: result.finalFen,
+    firstDropPly: result.firstDropPly,
+    label: `${result.policy} #${gameNumber}`,
+    moves: result.moves,
+    policy: result.policy,
+    reason: result.reason,
+    snapshots: snapshotsFor(result),
+  };
+}
+
+function snapshotsFor(result: SelfPlayResult): ReplaySnapshot[] {
+  let state = createInitialDropMiniXiangqiState(
+    `fsf-${result.policy}`,
+    rulesForFsfPolicy(result.policy),
+  );
+  const snapshots: ReplaySnapshot[] = [snapshotOf(state, 0, 'start', null)];
+
+  for (let i = 0; i < result.moves.length; i += 1) {
+    const token = result.moves[i];
+    const move = parseFsfMove(token);
+    if (!move) {
+      snapshots.push(snapshotOf(state, i + 1, token, `could not parse FSF move: ${token}`));
+      break;
+    }
+    if (!isLegalDropMiniXiangqiMove(state, move)) {
+      snapshots.push(snapshotOf(state, i + 1, token, `illegal under Mistboard kernel: ${token}`));
+      break;
+    }
+    state = applyDropMiniXiangqiMove(state, move);
+    snapshots.push(snapshotOf(state, i + 1, token, null));
+  }
+
+  return snapshots;
+}
+
+function parseFsfMove(token: string): DropMiniXiangqiMove | null {
+  const drop = token.match(/^([CNPR])@([a-g][1-7])$/);
+  if (drop) {
+    const role = FSF_DROP_ROLE[drop[1]];
+    if (!role) return null;
+    return { drop: role, to: drop[2] as MiniXiangqiSquare };
+  }
+  const boardMove = token.match(/^([a-g][1-7])([a-g][1-7])(?:[a-z])?$/);
+  if (boardMove) {
+    return {
+      from: boardMove[1] as MiniXiangqiSquare,
+      to: boardMove[2] as MiniXiangqiSquare,
+    };
+  }
+  return null;
+}
+
+function rulesForFsfPolicy(policy: FsfPolicy): DropMiniXiangqiRules {
+  if (policy === 'home') return GUARDED_DROP_MINI_XIANGQI_RULES;
+  if (policy === 'no-threat') {
+    return {
+      ...DEFAULT_DROP_MINI_XIANGQI_RULES,
+      dropAttack: 'forbid-immediate-general-threat',
+    };
+  }
+  return DEFAULT_DROP_MINI_XIANGQI_RULES;
+}
+
+function snapshotOf(
+  state: DropMiniXiangqiGameState,
+  ply: number,
+  token: string,
+  warning: string | null,
+): ReplaySnapshot {
+  return {
+    board: cloneBoard(state.board),
+    cooldownHands: cloneHands(state.cooldownHands),
+    hands: cloneHands(state.hands),
+    lastMove: state.lastMove ? { ...state.lastMove } : null,
+    moveNumber: state.moveNumber,
+    ply,
+    status: statusText(state),
+    token,
+    turn: state.status.type === 'playing' ? state.status.turn : null,
+    warning,
+  };
+}
+
+function cloneBoard(board: MiniXiangqiBoard): MiniXiangqiBoard {
+  const clone: MiniXiangqiBoard = {};
+  for (const [square, piece] of Object.entries(board)) {
+    if (piece) clone[square as MiniXiangqiSquare] = { ...piece };
+  }
+  return clone;
+}
+
+function cloneHands(
+  hands: Record<MiniXiangqiColor, DropMiniXiangqiHand>,
+): Record<MiniXiangqiColor, DropMiniXiangqiHand> {
+  return {
+    black: { ...hands.black },
+    red: { ...hands.red },
+  };
+}
+
+function statusText(state: DropMiniXiangqiGameState): string {
+  if (state.status.type === 'playing') return `turn: ${state.status.turn}`;
+  if (state.status.type === 'finished') {
+    return `finished: ${state.status.reason}, winner=${state.status.winner ?? 'draw'}`;
+  }
+  return `aborted: ${state.status.reason}`;
+}
+
+function replayHtml(opts: CliOptions, games: ReplayGame[]): string {
+  const payload = {
+    generatedAt: new Date().toISOString(),
+    games,
+    options: {
+      maxPlies: opts.maxPlies,
+      movetimeMs: opts.movetimeMs,
+      policies: opts.policies,
+      skill: opts.skill,
+    },
+  };
+  const data = JSON.stringify(payload).replace(/</g, '\\u003c');
+  return `<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Drop Mini Xiangqi Wild FSF Replay</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --bg: #f5f1e8;
+      --ink: #241b14;
+      --muted: #6f6257;
+      --line: #9a6a35;
+      --panel: #fffaf0;
+      --red: #b4232d;
+      --black: #202020;
+      --accent: #286d5a;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      color: var(--ink);
+      background: var(--bg);
+    }
+    main {
+      width: min(1180px, calc(100vw - 32px));
+      margin: 0 auto;
+      padding: 24px 0 36px;
+    }
+    header {
+      display: flex;
+      justify-content: space-between;
+      gap: 16px;
+      align-items: end;
+      margin-bottom: 16px;
+    }
+    h1 {
+      font-size: 24px;
+      line-height: 1.15;
+      margin: 0 0 4px;
+    }
+    .subtle {
+      color: var(--muted);
+      font-size: 13px;
+    }
+    .controls {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      align-items: center;
+      margin: 0 0 16px;
+      padding: 12px;
+      background: var(--panel);
+      border: 1px solid rgba(36, 27, 20, 0.12);
+      border-radius: 8px;
+    }
+    button,
+    select {
+      height: 34px;
+      border: 1px solid rgba(36, 27, 20, 0.18);
+      border-radius: 6px;
+      background: #fff;
+      color: var(--ink);
+      padding: 0 10px;
+      font: inherit;
+    }
+    button {
+      cursor: pointer;
+    }
+    button:hover {
+      border-color: var(--accent);
+    }
+    input[type="range"] {
+      flex: 1 1 260px;
+      min-width: 160px;
+      accent-color: var(--accent);
+    }
+    .layout {
+      display: grid;
+      grid-template-columns: minmax(320px, 480px) minmax(260px, 1fr);
+      gap: 16px;
+      align-items: start;
+    }
+    .panel {
+      background: var(--panel);
+      border: 1px solid rgba(36, 27, 20, 0.12);
+      border-radius: 8px;
+      padding: 14px;
+    }
+    .board {
+      display: grid;
+      grid-template-columns: repeat(7, minmax(38px, 1fr));
+      aspect-ratio: 1;
+      border: 2px solid var(--line);
+      border-radius: 8px;
+      overflow: hidden;
+      background:
+        linear-gradient(rgba(154, 106, 53, 0.55) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(154, 106, 53, 0.55) 1px, transparent 1px),
+        #f8e6bd;
+      background-size: calc(100% / 6) calc(100% / 6);
+      background-position: 0 0;
+    }
+    .cell {
+      position: relative;
+      display: grid;
+      place-items: center;
+      min-width: 0;
+      min-height: 0;
+    }
+    .cell::after {
+      content: attr(data-square);
+      position: absolute;
+      left: 4px;
+      bottom: 3px;
+      font-size: 10px;
+      color: rgba(36, 27, 20, 0.42);
+    }
+    .cell.last-from {
+      background: rgba(40, 109, 90, 0.16);
+    }
+    .cell.last-to {
+      background: rgba(180, 35, 45, 0.16);
+    }
+    .piece {
+      width: min(82%, 54px);
+      aspect-ratio: 1;
+      display: grid;
+      place-items: center;
+      border-radius: 50%;
+      background: #fff9e8;
+      border: 2px solid currentColor;
+      box-shadow: 0 2px 4px rgba(36, 27, 20, 0.18);
+      font-family: ui-serif, Georgia, serif;
+      font-size: clamp(18px, 5vw, 32px);
+      font-weight: 700;
+      line-height: 1;
+    }
+    .piece.red {
+      color: var(--red);
+    }
+    .piece.black {
+      color: var(--black);
+    }
+    .meta {
+      display: grid;
+      gap: 8px;
+      margin-top: 12px;
+      font-size: 14px;
+    }
+    .hands {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+    }
+    .hand {
+      padding: 8px;
+      border-radius: 6px;
+      background: rgba(255, 255, 255, 0.55);
+    }
+    .move-list {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      max-height: 520px;
+      overflow: auto;
+      padding-right: 2px;
+    }
+    .move-list button {
+      height: 28px;
+      font-size: 12px;
+      padding: 0 8px;
+    }
+    .move-list button.current {
+      color: #fff;
+      background: var(--accent);
+      border-color: var(--accent);
+    }
+    .move-list button.drop {
+      border-color: rgba(180, 35, 45, 0.45);
+    }
+    .warning {
+      display: none;
+      margin-top: 10px;
+      padding: 8px;
+      border-radius: 6px;
+      color: #7a240d;
+      background: #ffe6d8;
+    }
+    .warning.visible {
+      display: block;
+    }
+    @media (max-width: 820px) {
+      header {
+        display: block;
+      }
+      .layout {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <header>
+      <div>
+        <h1>Drop Mini Xiangqi FSF Replay</h1>
+        <div class="subtle">Generated <span id="generatedAt"></span>. FSF uses orthodox check semantics; replay validation uses the Mistboard lab kernel.</div>
+      </div>
+      <div class="subtle" id="runMeta"></div>
+    </header>
+    <section class="controls" aria-label="Replay controls">
+      <select id="gameSelect" aria-label="Game"></select>
+      <button type="button" id="firstBtn">First</button>
+      <button type="button" id="prevBtn">Prev</button>
+      <input id="plyRange" type="range" min="0" value="0" aria-label="Ply">
+      <button type="button" id="nextBtn">Next</button>
+      <button type="button" id="lastBtn">Last</button>
+    </section>
+    <section class="layout">
+      <div class="panel">
+        <div class="board" id="board"></div>
+        <div class="meta">
+          <div><strong id="plyLabel"></strong></div>
+          <div id="statusLine"></div>
+          <div class="hands">
+            <div class="hand" id="redHand"></div>
+            <div class="hand" id="blackHand"></div>
+          </div>
+          <div class="warning" id="warning"></div>
+        </div>
+      </div>
+      <div class="panel">
+        <div class="subtle" id="gameSummary"></div>
+        <div class="move-list" id="moveList"></div>
+      </div>
+    </section>
+  </main>
+  <script>
+    const DATA = ${data};
+    const files = ['a', 'b', 'c', 'd', 'e', 'f', 'g'];
+    const ranks = [7, 6, 5, 4, 3, 2, 1];
+    const roleLabel = ${JSON.stringify(ROLE_LABEL)};
+    let gameIndex = 0;
+    let plyIndex = 0;
+
+    const boardEl = document.getElementById('board');
+    const gameSelect = document.getElementById('gameSelect');
+    const gameSummary = document.getElementById('gameSummary');
+    const generatedAt = document.getElementById('generatedAt');
+    const runMeta = document.getElementById('runMeta');
+    const moveList = document.getElementById('moveList');
+    const plyLabel = document.getElementById('plyLabel');
+    const plyRange = document.getElementById('plyRange');
+    const redHand = document.getElementById('redHand');
+    const blackHand = document.getElementById('blackHand');
+    const statusLine = document.getElementById('statusLine');
+    const warning = document.getElementById('warning');
+
+    generatedAt.textContent = new Date(DATA.generatedAt).toLocaleString();
+    runMeta.textContent =
+      'policies=' + DATA.options.policies.join(',') +
+      ' | skill=' + DATA.options.skill +
+      ' | movetime=' + DATA.options.movetimeMs + 'ms' +
+      ' | max plies=' + DATA.options.maxPlies;
+
+    DATA.games.forEach((game, index) => {
+      const option = document.createElement('option');
+      option.value = String(index);
+      option.textContent = game.label + ' (' + game.moves.length + ' plies)';
+      gameSelect.append(option);
+    });
+
+    gameSelect.addEventListener('change', () => {
+      gameIndex = Number(gameSelect.value);
+      plyIndex = 0;
+      render();
+    });
+    document.getElementById('firstBtn').addEventListener('click', () => {
+      plyIndex = 0;
+      render();
+    });
+    document.getElementById('prevBtn').addEventListener('click', () => {
+      plyIndex = Math.max(0, plyIndex - 1);
+      render();
+    });
+    document.getElementById('nextBtn').addEventListener('click', () => {
+      const game = DATA.games[gameIndex];
+      plyIndex = Math.min(game.snapshots.length - 1, plyIndex + 1);
+      render();
+    });
+    document.getElementById('lastBtn').addEventListener('click', () => {
+      const game = DATA.games[gameIndex];
+      plyIndex = game.snapshots.length - 1;
+      render();
+    });
+    plyRange.addEventListener('input', () => {
+      plyIndex = Number(plyRange.value);
+      render();
+    });
+
+    function render() {
+      const game = DATA.games[gameIndex];
+      const snap = game.snapshots[plyIndex];
+      gameSelect.value = String(gameIndex);
+      plyRange.max = String(game.snapshots.length - 1);
+      plyRange.value = String(plyIndex);
+      boardEl.innerHTML = '';
+
+      const last = snap.lastMove;
+      for (const rank of ranks) {
+        for (const file of files) {
+          const square = file + rank;
+          const cell = document.createElement('div');
+          cell.className = 'cell';
+          cell.dataset.square = square;
+          if (last && 'from' in last && last.from === square) cell.classList.add('last-from');
+          if (last && last.to === square) cell.classList.add('last-to');
+          const piece = snap.board[square];
+          if (piece) {
+            const pieceEl = document.createElement('div');
+            pieceEl.className = 'piece ' + piece.color;
+            pieceEl.title = piece.color + ' ' + piece.role;
+            const label = roleLabel[piece.role];
+            pieceEl.textContent = piece.color === 'red' ? label : label.toLowerCase();
+            cell.append(pieceEl);
+          }
+          boardEl.append(cell);
+        }
+      }
+
+      plyLabel.textContent = 'Ply ' + snap.ply + ': ' + snap.token;
+      statusLine.textContent = snap.status + ' | move ' + snap.moveNumber;
+      redHand.textContent = 'Red hand: ' + handText(snap.hands.red) + ' | cooldown: ' + handText(snap.cooldownHands.red);
+      blackHand.textContent = 'Black hand: ' + handText(snap.hands.black) + ' | cooldown: ' + handText(snap.cooldownHands.black);
+      warning.textContent = snap.warning || '';
+      warning.classList.toggle('visible', Boolean(snap.warning));
+      gameSummary.textContent =
+        game.label +
+        ' | reason=' + game.reason +
+        ' | drops=' + game.drops +
+        ' | drop-checks=' + game.dropChecks +
+        ' | first drop=' + (game.firstDropPly || 'none');
+      renderMoveList(game);
+    }
+
+    function handText(hand) {
+      const parts = ['chariot', 'cannon', 'horse', 'soldier']
+        .filter((role) => hand[role])
+        .map((role) => roleLabel[role] + ':' + hand[role]);
+      return parts.length ? parts.join(' ') : '-';
+    }
+
+    function renderMoveList(game) {
+      moveList.innerHTML = '';
+      const start = document.createElement('button');
+      start.type = 'button';
+      start.textContent = '0 start';
+      start.className = plyIndex === 0 ? 'current' : '';
+      start.addEventListener('click', () => {
+        plyIndex = 0;
+        render();
+      });
+      moveList.append(start);
+
+      game.moves.forEach((move, index) => {
+        const button = document.createElement('button');
+        button.type = 'button';
+        button.textContent = String(index + 1) + ' ' + move;
+        if (move.includes('@')) button.classList.add('drop');
+        if (plyIndex === index + 1) button.classList.add('current');
+        button.addEventListener('click', () => {
+          plyIndex = index + 1;
+          render();
+        });
+        moveList.append(button);
+      });
+    }
+
+    render();
+  </script>
+</body>
+</html>`;
+}
+
 function average(values: number[]): number {
   if (values.length === 0) return 0;
   return values.reduce((sum, value) => sum + value, 0) / values.length;
@@ -406,6 +986,7 @@ function parseArgs(argv: string[]): CliOptions {
   const opts: CliOptions = {
     fsfPath: defaultFsfPath(),
     games: 1,
+    htmlPath: null,
     iniPath: resolve('scripts/variant-lab/drop-mini-xiangqi-fsf.ini'),
     maxPlies: 120,
     mode: 'both',
@@ -425,6 +1006,7 @@ function parseArgs(argv: string[]): CliOptions {
     if (arg === '--fsf') opts.fsfPath = resolve(next());
     else if (arg === '--games') opts.games = parsePositiveInt(next(), arg);
     else if (arg === '--help' || arg === '-h') usageAndExit();
+    else if (arg === '--html') opts.htmlPath = resolve(next());
     else if (arg === '--ini') opts.iniPath = resolve(next());
     else if (arg === '--mode') opts.mode = parseMode(next());
     else if (arg === '--movetime') opts.movetimeMs = parsePositiveInt(next(), arg);
@@ -491,14 +1073,17 @@ Options:
   --movetime MS                  default: 100
   --skill N                      default: 8
   --fsf PATH                     default: MISTBOARD_FSF_PATH or local dev FSF
+  --html PATH                    write a local replay HTML for self-play games
   --ini PATH                     default: scripts/variant-lab/drop-mini-xiangqi-fsf.ini`);
   process.exit(0);
 }
 
 async function main(): Promise<void> {
   const opts = parseArgs(process.argv.slice(2));
+  let selfPlayResults: SelfPlayResult[] = [];
   if (opts.mode === 'probe' || opts.mode === 'both') await runProbe(opts);
-  if (opts.mode === 'selfplay' || opts.mode === 'both') await runSelfPlay(opts);
+  if (opts.mode === 'selfplay' || opts.mode === 'both') selfPlayResults = await runSelfPlay(opts);
+  writeHtmlReport(opts, selfPlayResults);
 }
 
 main().catch((err: unknown) => {

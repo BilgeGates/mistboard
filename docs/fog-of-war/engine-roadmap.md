@@ -53,6 +53,45 @@ The random engine should stay available for smoke tests and baselines. It should
 not be the main player-facing learning opponent unless explicitly surfaced as a
 debug or novelty option.
 
+## Fairy-Stockfish And Other UCI Engines
+
+Mistboard uses Fairy-Stockfish as a useful perfect-information engine, not as
+the source of truth for hidden-information play. The server and `packages/game`
+rules remain authoritative; UCI engines propose moves that the server validates.
+
+Current posture:
+
+- Crossroads Chess is the production FSF runtime dependency. It is
+  perfect-information, so FSF can play it directly through `crossroads-chess.ini`.
+- Dark Crossroads and the other fog variants should not use FSF as a live bot:
+  a perfect-information searcher sees the wrong problem. It can still provide
+  comparison games, fixtures, and leaf-evaluation baselines.
+- Drop Mini Xiangqi uses FSF as a lab tool for balance exploration. FSF's
+  orthodox check semantics are close enough for pressure tests, but not identical
+  to Mistboard's general-capture Drop Mini kernel.
+- Jieqi and Banqi use the same UCI-subprocess shape, but different engines:
+  PikaJieQi for Jieqi and MistyBanqi for Banqi.
+
+Decision: maintain a narrow, upstream-tracking Fairy-Stockfish fork once an
+FSF-backed surface remains part of the public runtime. The fork should own build
+reproducibility, variant config, small rule patches, and release artifacts. It
+should not become a second Mistboard rules engine, and it should not absorb the
+hidden-information Misty work.
+
+The practical target is:
+
+- a pinned source ref and binary release for Mistboard deploys,
+- license/source hygiene for distributed GPL-family artifacts,
+- CI or lab parity checks that compare FSF move generation with the
+  corresponding `packages/game` kernel for any launched FSF-backed variant,
+- deliberate engine-version bumps in engine registry metadata when config or
+  binary behavior changes.
+
+Do not fork just to make experiments easier. Use local `MISTBOARD_FSF_PATH`,
+variant INI files, and lab scripts while a variant is still exploratory. Fork
+when the engine is serving users, when exact rule agreement matters, or when
+local patches become a required part of the product.
+
 Engine tiers are enabled per time control only when they meet that time
 control's latency and quality bar. `3+2` remains the primary calibration bucket.
 `1+1` and longer controls can be supported for a tier after the serving path can
