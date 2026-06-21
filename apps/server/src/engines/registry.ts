@@ -30,11 +30,12 @@ export function playableBuiltinEngines(): EngineDefinition[] {
 // records, but are NOT offered in the live PvE picker. No random fallback in the
 // PvE serving path — if Misty can't serve it fails loudly (503), by design.
 const PROD_PLAYABLE_ENGINE_IDS = new Set([
-  // RE-SHIP PHASE 2 (2026-06-20): the v1.2 forfeit was a railpack checkout-quoting
-  // bug (engine-worker build failed -> stuck on old code that couldn't load v1.2).
-  // Fixed in 447f3f2; engine-worker now deploys bba9fff (which has v1.2 in
-  // V2_LIVE_ENGINES) cleanly. Safe to offer v1.2 — the worker can already load it.
-  'python-v2-v1.2', // Misty 1.2 (carryover fix; v1.1 minus the opening bug)
+  // GO-LIVE (2026-06-20): flip the player-facing PvE engine python-v2-v1.2 -> v1.3.
+  // Misty 1.3 = v1.2 + adaptive prune ON + curated opening book ON (opening-
+  // hardening). The engine-worker already deploys engine 5259395 (Phase 1) and
+  // serves python-v2-v1.3, so this flip has no offer-without-serve window. v1.2
+  // stays KNOWN (for replay/provenance); roll back by restoring 'python-v2-v1.2'.
+  'python-v2-v1.3', // Misty 1.3 (adaptive prune + curated book ON; supersedes 1.2)
 ]);
 
 // Opt-in extras for load testing / local experimentation. Set
