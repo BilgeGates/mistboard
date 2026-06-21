@@ -112,8 +112,8 @@ const state = {
   abortDeadline: null as number | null,
   selected: null as Square | null,
   selectedDrop: null as CrazyhouseDropRole | null,
-  // The square a board piece is being dragged from (its piece is lifted off the
-  // board so only the floating ghost shows). Null when not dragging.
+  // The square a board piece is being dragged from. The renderer keeps a dim
+  // source shadow while the shared drag layer shows the floating ghost.
   draggingFrom: null as Square | null,
   pendingPromotion: null as { from: Square; to: Square; roles: CrazyhousePromotionRole[] } | null,
   // The square a parachute drop bounced off (a probe: it is occupied). Cleared on
@@ -321,8 +321,8 @@ function installBoardDragInteraction(): void {
       return crazyhousePieceGhostSvg(piece.role, piece.color);
     },
     onDragStart: (from) => {
-      // Lift the piece off the board and select it so the ghost is the only copy
-      // and the legal-target dots show for the source square.
+      // Select the piece so legal-target dots show while the shared drag layer
+      // floats the picked-up ghost.
       state.selected = from as Square;
       state.selectedDrop = null;
       state.draggingFrom = from as Square;

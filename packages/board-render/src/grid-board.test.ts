@@ -95,6 +95,8 @@ test('interaction layers render only the data they are given', () => {
   assert.match(svg, /fill="rgba\(255,205,80,0\.55\)"/);
   assert.equal((svg.match(/fill="rgba\(45,100,45,0\.62\)"/g) ?? []).length, 1);
   assert.equal((svg.match(/stroke="rgba\(170,40,40,0\.62\)"/g) ?? []).length, 1);
+  assert.equal((svg.match(/class="mb-grid-target-hover"/g) ?? []).length, 2);
+  assert.match(svg, /fill="rgba\(31,111,91,0\.30\)"/);
   // The fogged square is filled with the fog colour.
   assert.match(svg, /fill="rgba\(22,18,14,0\.66\)"/);
 });

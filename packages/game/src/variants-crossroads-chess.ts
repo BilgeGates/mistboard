@@ -869,8 +869,8 @@ export function getCrossroadsChessPlayerView(
   }
 
   const legalMoves =
-    state.status.type === 'playing' && state.status.turn === color
-      ? getCrossroadsChessLegalMoves(state)
+    state.status.type === 'playing'
+      ? getCrossroadsChessLegalMoves({ ...state, status: { type: 'playing', turn: color } })
       : [];
 
   return {

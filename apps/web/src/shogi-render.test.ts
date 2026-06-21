@@ -110,8 +110,9 @@ describe('Dark Shogi board renderer', () => {
     expect((svg.match(/data-square="/g) ?? []).length).toBe(81);
     expect(svg).toContain('data-square="2h"');
     expect(svg).toContain('data-square="5e"');
-    // Selection highlight + two move dots (empty targets).
-    expect(svg).toContain('rgba(207,227,154,0.70)');
+    // Selection highlight + two move dots (empty targets) + hover-square overlays.
+    expect(svg).toContain('rgba(31,111,91,0.32)');
+    expect(svg).toContain('mb-grid-target-hover');
     expect((svg.match(/<circle/g) ?? []).length).toBeGreaterThanOrEqual(2);
   });
 

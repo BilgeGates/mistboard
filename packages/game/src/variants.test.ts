@@ -21,6 +21,18 @@ test('Draft960 exposes legal moves once playing', () => {
   assert.equal(draft960Variant.getLegalMoves(state, 'black').length, 0);
 });
 
+test('Draft960 player views carry own candidate moves off-turn', () => {
+  const state: GameState = {
+    ...draft960Variant.createInitialState('view-legal-moves'),
+    status: { type: 'playing', turn: 'white' } as const,
+  };
+
+  const blackView = draft960Variant.getPlayerView(state, 'black');
+
+  assert.ok(blackView.legalMoves.some((move) => move.from === 'e7' && move.to === 'e5'));
+  assert.equal(draft960Variant.getLegalMoves(state, 'black').length, 0);
+});
+
 test('Draft960 applies legal moves through the rules adapter', () => {
   const state = {
     ...draft960Variant.createInitialState('apply-move'),
@@ -159,7 +171,10 @@ test('Fog of War visibility is computed for a player even off-turn', () => {
 
   const view = darkChessVariant.getPlayerView(state, 'black');
 
-  assert.equal(view.legalMoves.length, 0);
+  assert.ok(
+    view.legalMoves.some((move) => move.from === 'a4' && move.to === 'a1'),
+    'off-turn fog view should still expose the viewer legal test moves',
+  );
   assert.deepEqual(view.board.a4, { color: 'black', role: 'rook' });
   assert.deepEqual(view.board.e8, { color: 'black', role: 'king' });
   assert.deepEqual(view.board.a1, { color: 'white', role: 'rook' });

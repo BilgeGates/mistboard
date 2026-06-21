@@ -603,10 +603,11 @@ export function getBanqiPlayerView(state: BanqiGameState, seat: BanqiSeat): Banq
       : { color: piece.color, role: piece.role, faceDown: false };
   }
 
-  const legalMoves =
-    state.status.type === 'playing' && banqiSeatToMove(state) === seat
-      ? getBanqiLegalMoves(state)
-      : [];
+  const legalMoveState =
+    state.status.type === 'playing' && banqiSeatToMove(state) !== seat
+      ? { ...state, ply: state.ply + 1 }
+      : state;
+  const legalMoves = state.status.type === 'playing' ? getBanqiLegalMoves(legalMoveState) : [];
 
   return {
     id: state.id,

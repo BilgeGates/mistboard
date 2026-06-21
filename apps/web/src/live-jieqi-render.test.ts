@@ -37,4 +37,21 @@ describe('renderJieqiBoardSvg', () => {
     expect(svg).toContain('jieqi-selection');
     expect(svg).toContain('jieqi-hint');
   });
+
+  it('renders target hover highlights inside the interactive hit layer', () => {
+    const svg = renderJieqiBoardSvg(view, 'red', {
+      interactive: true,
+      selectedSquare: 'a1',
+      legalMoves: view.legalMoves.filter((move) => move.from === 'a1'),
+    });
+
+    expect(svg).toContain('jieqi-hit--target');
+    expect(svg).toContain('jieqi-target-hover');
+  });
+
+  it('marks the dragged source as a translucent origin shadow', () => {
+    const svg = renderJieqiBoardSvg(view, 'red', { draggingFrom: 'a1' });
+
+    expect(svg).toContain('jieqi-piece jieqi-piece--drag-source');
+  });
 });

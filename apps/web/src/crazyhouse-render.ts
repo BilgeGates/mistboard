@@ -13,6 +13,7 @@
 // known chess piece.
 
 import {
+  GRID_INTERACTION_COLORS,
   type GridBoardDescriptor,
   type GridCellRef,
   type GridGeometry,
@@ -50,9 +51,10 @@ const CRAZYHOUSE_DESCRIPTOR: GridBoardDescriptor = {
     boardEdge: 'var(--board-frame)',
     coord: 'transparent',
     lastMove: 'var(--board-last-move)',
-    selected: 'rgba(31,111,91,0.32)',
-    targetDot: 'rgba(31,111,91,0.72)',
-    targetRing: 'rgba(31,111,91,0.48)',
+    selected: GRID_INTERACTION_COLORS.selected,
+    targetDot: GRID_INTERACTION_COLORS.targetDot,
+    targetRing: GRID_INTERACTION_COLORS.targetRing,
+    targetHover: GRID_INTERACTION_COLORS.targetHover,
     fog: 'transparent',
   },
   framePad: 1,
@@ -78,7 +80,7 @@ export type CrazyhouseRenderOptions = {
   targets?: readonly Square[];
   // Add a transparent hit layer of <rect data-square="..."> for click handling.
   interactive?: boolean;
-  // While dragging, omit the source piece so only the floating ghost shows.
+  // While dragging, keep a translucent copy on the source square.
   draggingFrom?: Square | null;
 };
 
@@ -198,20 +200,28 @@ function pieceLayer(
   const parts: string[] = [];
   for (const [square, piece] of Object.entries(view.board)) {
     if (!piece) continue;
-    // While dragging, lift the source piece off the board so only the ghost shows.
-    if (square === draggingFrom) continue;
     const { file, rank } = coordOf(square as Square);
     const { x, y } = geom.topLeft(file, rank);
-    parts.push(chessPiece(piece.role, piece.color, x, y, size));
+    parts.push(chessPiece(piece.role, piece.color, x, y, size, square === draggingFrom));
   }
   return parts.join('');
 }
 
-function chessPiece(role: PieceRole, color: Color, x: number, y: number, size: number): string {
+function chessPiece(
+  role: PieceRole,
+  color: Color,
+  x: number,
+  y: number,
+  size: number,
+  dragSource: boolean,
+): string {
   const raw = PIECE_SVGS[`${color}:${role}`];
   if (!raw) return '';
+  const className = dragSource
+    ? 'crazyhouse-board-piece crazyhouse-board-piece--drag-source'
+    : 'crazyhouse-board-piece';
   return raw.replace(
     /^<svg[^>]*>/,
-    `<svg x="${x}" y="${y}" width="${size}" height="${size}" viewBox="0 0 45 45" xmlns="http://www.w3.org/2000/svg">`,
+    `<svg x="${x}" y="${y}" width="${size}" height="${size}" viewBox="0 0 45 45" class="${className}" xmlns="http://www.w3.org/2000/svg">`,
   );
 }

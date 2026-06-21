@@ -1,0 +1,26 @@
+body .cg-wrap piece.ghost {
+  opacity: 0.38;
+}
+
+body .cg-wrap cg-board square.selected {
+  background-color: rgba(31, 111, 91, 0.32);
+}
+
+body .cg-wrap cg-board square.move-dest:hover::after,
+body .cg-wrap cg-board square.premove-dest:hover::after {
+  inset: 0;
+  border: 0;
+  border-radius: 0;
+  background: rgba(31, 111, 91, 0.3);
+  box-shadow: none;
+}
+
+body .cg-wrap cg-board square.oc.move-dest:hover::after,
+body .cg-wrap cg-board square.oc.premove-dest:hover::after {
+  inset: 0;
+  border: 0;
+}
+
+body .cg-wrap cg-board square.premove-dest:hover::after {
+  background: rgba(37, 77, 122, 0.28);
+}

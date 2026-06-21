@@ -171,4 +171,8 @@ test('the fog view carries only the viewer own hand and includes drops', () => {
   assert.ok(view.legalMoves.some((move) => isCrazyhouseDrop(move)));
   assert.ok(view.legalMoves.some((move) => !isCrazyhouseDrop(move)));
   assert.equal(view.board.h8, undefined); // the far black king is off-vision
+
+  const blackView = getCrazyhousePlayerView(before, 'black');
+  assert.deepEqual(blackView.hand, { queen: 1 });
+  assert.ok(blackView.legalMoves.some((move) => isCrazyhouseDrop(move) && move.drop === 'queen'));
 });

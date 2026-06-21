@@ -298,10 +298,7 @@ export function getCrazyhousePlayerView(
   color: Color,
 ): CrazyhousePlayerView {
   const base = darkChessVariant.getPlayerView(chessOf(state), color);
-  const drops =
-    state.status.type === 'playing' && state.status.turn === color
-      ? getCrazyhouseDropOffers(state, color, base)
-      : [];
+  const drops = state.status.type === 'playing' ? getCrazyhouseDropOffers(state, color, base) : [];
   return {
     ...base,
     status: playableStatus(base.status),

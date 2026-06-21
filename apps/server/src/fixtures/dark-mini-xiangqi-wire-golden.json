@@ -14,11 +14,7 @@
               "clients": 0,
               "seat": "red",
               "solo": false,
-              "mode": "pvp",
-              "pveEngineId": null,
-              "rated": false,
               "abortDeadline": null,
-              "forfeitDeadline": null,
               "clock": {
                 "activeColor": null,
                 "incrementMs": 2000,
@@ -278,6 +274,10 @@
                 "initialMs": 180000,
                 "incrementMs": 2000
               },
+              "mode": "pvp",
+              "pveEngineId": null,
+              "rated": false,
+              "forfeitDeadline": null,
               "rematch": {
                 "offers": {
                   "red": false,
@@ -294,11 +294,7 @@
               "clients": 0,
               "seat": "black",
               "solo": false,
-              "mode": "pvp",
-              "pveEngineId": null,
-              "rated": false,
               "abortDeadline": null,
-              "forfeitDeadline": null,
               "clock": {
                 "activeColor": null,
                 "incrementMs": 2000,
@@ -470,7 +466,84 @@
                   "g6",
                   "g7"
                 ],
-                "legalMoves": [],
+                "legalMoves": [
+                  {
+                    "from": "b7",
+                    "to": "b6"
+                  },
+                  {
+                    "from": "b7",
+                    "to": "b5"
+                  },
+                  {
+                    "from": "b7",
+                    "to": "b4"
+                  },
+                  {
+                    "from": "b7",
+                    "to": "b3"
+                  },
+                  {
+                    "from": "b7",
+                    "to": "b2"
+                  },
+                  {
+                    "from": "f7",
+                    "to": "f6"
+                  },
+                  {
+                    "from": "f7",
+                    "to": "f5"
+                  },
+                  {
+                    "from": "f7",
+                    "to": "f4"
+                  },
+                  {
+                    "from": "f7",
+                    "to": "f3"
+                  },
+                  {
+                    "from": "f7",
+                    "to": "f2"
+                  },
+                  {
+                    "from": "a6",
+                    "to": "a5"
+                  },
+                  {
+                    "from": "a6",
+                    "to": "b6"
+                  },
+                  {
+                    "from": "c6",
+                    "to": "c5"
+                  },
+                  {
+                    "from": "c6",
+                    "to": "b6"
+                  },
+                  {
+                    "from": "d6",
+                    "to": "d5"
+                  },
+                  {
+                    "from": "e6",
+                    "to": "e5"
+                  },
+                  {
+                    "from": "e6",
+                    "to": "f6"
+                  },
+                  {
+                    "from": "g6",
+                    "to": "g5"
+                  },
+                  {
+                    "from": "g6",
+                    "to": "f6"
+                  }
+                ],
                 "status": {
                   "type": "playing",
                   "turn": "red"
@@ -481,6 +554,10 @@
                 "initialMs": 180000,
                 "incrementMs": 2000
               },
+              "mode": "pvp",
+              "pveEngineId": null,
+              "rated": false,
+              "forfeitDeadline": null,
               "rematch": {
                 "offers": {
                   "red": false,
@@ -497,11 +574,7 @@
               "clients": 0,
               "seat": "spectator",
               "solo": false,
-              "mode": "pvp",
-              "pveEngineId": null,
-              "rated": false,
               "abortDeadline": null,
-              "forfeitDeadline": null,
               "clock": {
                 "activeColor": null,
                 "incrementMs": 2000,
@@ -534,6 +607,10 @@
                 "initialMs": 180000,
                 "incrementMs": 2000
               },
+              "mode": "pvp",
+              "pveEngineId": null,
+              "rated": false,
+              "forfeitDeadline": null,
               "rematch": {
                 "offers": {
                   "red": false,
@@ -555,11 +632,7 @@
               "clients": 0,
               "seat": "red",
               "solo": false,
-              "mode": "pvp",
-              "pveEngineId": null,
-              "rated": false,
               "abortDeadline": null,
-              "forfeitDeadline": null,
               "clock": {
                 "activeColor": null,
                 "incrementMs": 2000,
@@ -828,6 +901,10 @@
                 "initialMs": 180000,
                 "incrementMs": 2000
               },
+              "mode": "pvp",
+              "pveEngineId": null,
+              "rated": false,
+              "forfeitDeadline": null,
               "rematch": {
                 "offers": {
                   "red": false,
@@ -844,11 +921,7 @@
               "clients": 0,
               "seat": "black",
               "solo": false,
-              "mode": "pvp",
-              "pveEngineId": null,
-              "rated": false,
               "abortDeadline": null,
-              "forfeitDeadline": null,
               "clock": {
                 "activeColor": null,
                 "incrementMs": 2000,
@@ -1022,7 +1095,84 @@
                   "g6",
                   "g7"
                 ],
-                "legalMoves": [],
+                "legalMoves": [
+                  {
+                    "from": "b7",
+                    "to": "b6"
+                  },
+                  {
+                    "from": "b7",
+                    "to": "b5"
+                  },
+                  {
+                    "from": "b7",
+                    "to": "b4"
+                  },
+                  {
+                    "from": "b7",
+                    "to": "b3"
+                  },
+                  {
+                    "from": "b7",
+                    "to": "b2"
+                  },
+                  {
+                    "from": "f7",
+                    "to": "f6"
+                  },
+                  {
+                    "from": "f7",
+                    "to": "f5"
+                  },
+                  {
+                    "from": "f7",
+                    "to": "f4"
+                  },
+                  {
+                    "from": "f7",
+                    "to": "f3"
+                  },
+                  {
+                    "from": "f7",
+                    "to": "f2"
+                  },
+                  {
+                    "from": "a6",
+                    "to": "a5"
+                  },
+                  {
+                    "from": "a6",
+                    "to": "b6"
+                  },
+                  {
+                    "from": "c6",
+                    "to": "c5"
+                  },
+                  {
+                    "from": "c6",
+                    "to": "b6"
+                  },
+                  {
+                    "from": "d6",
+                    "to": "d5"
+                  },
+                  {
+                    "from": "e6",
+                    "to": "e5"
+                  },
+                  {
+                    "from": "e6",
+                    "to": "f6"
+                  },
+                  {
+                    "from": "g6",
+                    "to": "g5"
+                  },
+                  {
+                    "from": "g6",
+                    "to": "f6"
+                  }
+                ],
                 "status": {
                   "type": "playing",
                   "turn": "red"
@@ -1033,6 +1183,10 @@
                 "initialMs": 180000,
                 "incrementMs": 2000
               },
+              "mode": "pvp",
+              "pveEngineId": null,
+              "rated": false,
+              "forfeitDeadline": null,
               "rematch": {
                 "offers": {
                   "red": false,
@@ -1049,11 +1203,7 @@
               "clients": 0,
               "seat": "spectator",
               "solo": false,
-              "mode": "pvp",
-              "pveEngineId": null,
-              "rated": false,
               "abortDeadline": null,
-              "forfeitDeadline": null,
               "clock": {
                 "activeColor": null,
                 "incrementMs": 2000,
@@ -1088,6 +1238,10 @@
                 "initialMs": 180000,
                 "incrementMs": 2000
               },
+              "mode": "pvp",
+              "pveEngineId": null,
+              "rated": false,
+              "forfeitDeadline": null,
               "rematch": {
                 "offers": {
                   "red": false,
@@ -1120,11 +1274,7 @@
               "clients": 0,
               "seat": "red",
               "solo": false,
-              "mode": "pvp",
-              "pveEngineId": null,
-              "rated": false,
               "abortDeadline": null,
-              "forfeitDeadline": null,
               "clock": {
                 "activeColor": null,
                 "incrementMs": 2000,
@@ -1394,6 +1544,10 @@
                 "initialMs": 180000,
                 "incrementMs": 2000
               },
+              "mode": "pvp",
+              "pveEngineId": null,
+              "rated": false,
+              "forfeitDeadline": null,
               "rematch": {
                 "offers": {
                   "red": false,
@@ -1410,11 +1564,7 @@
               "clients": 0,
               "seat": "black",
               "solo": false,
-              "mode": "pvp",
-              "pveEngineId": null,
-              "rated": false,
               "abortDeadline": null,
-              "forfeitDeadline": null,
               "clock": {
                 "activeColor": null,
                 "incrementMs": 2000,
@@ -1596,7 +1746,84 @@
                   "g6",
                   "g7"
                 ],
-                "legalMoves": [],
+                "legalMoves": [
+                  {
+                    "from": "b7",
+                    "to": "b6"
+                  },
+                  {
+                    "from": "b7",
+                    "to": "b5"
+                  },
+                  {
+                    "from": "b7",
+                    "to": "b4"
+                  },
+                  {
+                    "from": "b7",
+                    "to": "b3"
+                  },
+                  {
+                    "from": "b7",
+                    "to": "b2"
+                  },
+                  {
+                    "from": "f7",
+                    "to": "f6"
+                  },
+                  {
+                    "from": "f7",
+                    "to": "f5"
+                  },
+                  {
+                    "from": "f7",
+                    "to": "f4"
+                  },
+                  {
+                    "from": "f7",
+                    "to": "f3"
+                  },
+                  {
+                    "from": "f7",
+                    "to": "f2"
+                  },
+                  {
+                    "from": "a6",
+                    "to": "a5"
+                  },
+                  {
+                    "from": "a6",
+                    "to": "b6"
+                  },
+                  {
+                    "from": "c6",
+                    "to": "c5"
+                  },
+                  {
+                    "from": "c6",
+                    "to": "b6"
+                  },
+                  {
+                    "from": "d6",
+                    "to": "d5"
+                  },
+                  {
+                    "from": "e6",
+                    "to": "e5"
+                  },
+                  {
+                    "from": "e6",
+                    "to": "f6"
+                  },
+                  {
+                    "from": "g6",
+                    "to": "g5"
+                  },
+                  {
+                    "from": "g6",
+                    "to": "f6"
+                  }
+                ],
                 "status": {
                   "type": "playing",
                   "turn": "red"
@@ -1607,6 +1834,10 @@
                 "initialMs": 180000,
                 "incrementMs": 2000
               },
+              "mode": "pvp",
+              "pveEngineId": null,
+              "rated": false,
+              "forfeitDeadline": null,
               "rematch": {
                 "offers": {
                   "red": false,
@@ -1623,11 +1854,7 @@
               "clients": 0,
               "seat": "spectator",
               "solo": false,
-              "mode": "pvp",
-              "pveEngineId": null,
-              "rated": false,
               "abortDeadline": null,
-              "forfeitDeadline": null,
               "clock": {
                 "activeColor": null,
                 "incrementMs": 2000,
@@ -1663,6 +1890,10 @@
                 "initialMs": 180000,
                 "incrementMs": 2000
               },
+              "mode": "pvp",
+              "pveEngineId": null,
+              "rated": false,
+              "forfeitDeadline": null,
               "rematch": {
                 "offers": {
                   "red": false,
@@ -1695,11 +1926,7 @@
               "clients": 0,
               "seat": "red",
               "solo": false,
-              "mode": "pvp",
-              "pveEngineId": null,
-              "rated": false,
               "abortDeadline": null,
-              "forfeitDeadline": null,
               "clock": {
                 "activeColor": null,
                 "incrementMs": 2000,
@@ -1893,7 +2120,88 @@
                   "g2",
                   "g3"
                 ],
-                "legalMoves": [],
+                "legalMoves": [
+                  {
+                    "from": "a1",
+                    "to": "a2"
+                  },
+                  {
+                    "from": "b1",
+                    "to": "b2"
+                  },
+                  {
+                    "from": "b1",
+                    "to": "b3"
+                  },
+                  {
+                    "from": "b1",
+                    "to": "b4"
+                  },
+                  {
+                    "from": "b1",
+                    "to": "b5"
+                  },
+                  {
+                    "from": "b1",
+                    "to": "b6"
+                  },
+                  {
+                    "from": "f1",
+                    "to": "f2"
+                  },
+                  {
+                    "from": "f1",
+                    "to": "f3"
+                  },
+                  {
+                    "from": "f1",
+                    "to": "f4"
+                  },
+                  {
+                    "from": "f1",
+                    "to": "f5"
+                  },
+                  {
+                    "from": "f1",
+                    "to": "f6"
+                  },
+                  {
+                    "from": "c2",
+                    "to": "c3"
+                  },
+                  {
+                    "from": "c2",
+                    "to": "b2"
+                  },
+                  {
+                    "from": "d2",
+                    "to": "d3"
+                  },
+                  {
+                    "from": "e2",
+                    "to": "e3"
+                  },
+                  {
+                    "from": "e2",
+                    "to": "f2"
+                  },
+                  {
+                    "from": "g2",
+                    "to": "g3"
+                  },
+                  {
+                    "from": "g2",
+                    "to": "f2"
+                  },
+                  {
+                    "from": "a3",
+                    "to": "a4"
+                  },
+                  {
+                    "from": "a3",
+                    "to": "b3"
+                  }
+                ],
                 "status": {
                   "type": "playing",
                   "turn": "black"
@@ -1908,6 +2216,10 @@
                 "initialMs": 180000,
                 "incrementMs": 2000
               },
+              "mode": "pvp",
+              "pveEngineId": null,
+              "rated": false,
+              "forfeitDeadline": null,
               "rematch": {
                 "offers": {
                   "red": false,
@@ -1924,11 +2236,7 @@
               "clients": 0,
               "seat": "black",
               "solo": false,
-              "mode": "pvp",
-              "pveEngineId": null,
-              "rated": false,
               "abortDeadline": null,
-              "forfeitDeadline": null,
               "clock": {
                 "activeColor": null,
                 "incrementMs": 2000,
@@ -2198,6 +2506,10 @@
                 "initialMs": 180000,
                 "incrementMs": 2000
               },
+              "mode": "pvp",
+              "pveEngineId": null,
+              "rated": false,
+              "forfeitDeadline": null,
               "rematch": {
                 "offers": {
                   "red": false,
@@ -2214,11 +2526,7 @@
               "clients": 0,
               "seat": "spectator",
               "solo": false,
-              "mode": "pvp",
-              "pveEngineId": null,
-              "rated": false,
               "abortDeadline": null,
-              "forfeitDeadline": null,
               "clock": {
                 "activeColor": null,
                 "incrementMs": 2000,
@@ -2254,6 +2562,10 @@
                 "initialMs": 180000,
                 "incrementMs": 2000
               },
+              "mode": "pvp",
+              "pveEngineId": null,
+              "rated": false,
+              "forfeitDeadline": null,
               "rematch": {
                 "offers": {
                   "red": false,
@@ -2290,11 +2602,7 @@
               "clients": 0,
               "seat": "red",
               "solo": false,
-              "mode": "pvp",
-              "pveEngineId": null,
-              "rated": false,
               "abortDeadline": null,
-              "forfeitDeadline": null,
               "clock": {
                 "activeColor": "red",
                 "incrementMs": 2000,
@@ -2580,6 +2888,10 @@
                 "initialMs": 180000,
                 "incrementMs": 2000
               },
+              "mode": "pvp",
+              "pveEngineId": null,
+              "rated": false,
+              "forfeitDeadline": null,
               "rematch": {
                 "offers": {
                   "red": false,
@@ -2596,11 +2908,7 @@
               "clients": 0,
               "seat": "black",
               "solo": false,
-              "mode": "pvp",
-              "pveEngineId": null,
-              "rated": false,
               "abortDeadline": null,
-              "forfeitDeadline": null,
               "clock": {
                 "activeColor": "red",
                 "incrementMs": 2000,
@@ -2794,7 +3102,88 @@
                   "g6",
                   "g7"
                 ],
-                "legalMoves": [],
+                "legalMoves": [
+                  {
+                    "from": "a7",
+                    "to": "a6"
+                  },
+                  {
+                    "from": "b7",
+                    "to": "b6"
+                  },
+                  {
+                    "from": "b7",
+                    "to": "b5"
+                  },
+                  {
+                    "from": "b7",
+                    "to": "b4"
+                  },
+                  {
+                    "from": "b7",
+                    "to": "b3"
+                  },
+                  {
+                    "from": "b7",
+                    "to": "b2"
+                  },
+                  {
+                    "from": "f7",
+                    "to": "f6"
+                  },
+                  {
+                    "from": "f7",
+                    "to": "f5"
+                  },
+                  {
+                    "from": "f7",
+                    "to": "f4"
+                  },
+                  {
+                    "from": "f7",
+                    "to": "f3"
+                  },
+                  {
+                    "from": "f7",
+                    "to": "f2"
+                  },
+                  {
+                    "from": "c6",
+                    "to": "c5"
+                  },
+                  {
+                    "from": "c6",
+                    "to": "b6"
+                  },
+                  {
+                    "from": "d6",
+                    "to": "d5"
+                  },
+                  {
+                    "from": "e6",
+                    "to": "e5"
+                  },
+                  {
+                    "from": "e6",
+                    "to": "f6"
+                  },
+                  {
+                    "from": "g6",
+                    "to": "g5"
+                  },
+                  {
+                    "from": "g6",
+                    "to": "f6"
+                  },
+                  {
+                    "from": "a5",
+                    "to": "a4"
+                  },
+                  {
+                    "from": "a5",
+                    "to": "b5"
+                  }
+                ],
                 "status": {
                   "type": "playing",
                   "turn": "red"
@@ -2809,6 +3198,10 @@
                 "initialMs": 180000,
                 "incrementMs": 2000
               },
+              "mode": "pvp",
+              "pveEngineId": null,
+              "rated": false,
+              "forfeitDeadline": null,
               "rematch": {
                 "offers": {
                   "red": false,
@@ -2825,11 +3218,7 @@
               "clients": 0,
               "seat": "spectator",
               "solo": false,
-              "mode": "pvp",
-              "pveEngineId": null,
-              "rated": false,
               "abortDeadline": null,
-              "forfeitDeadline": null,
               "clock": {
                 "activeColor": "red",
                 "incrementMs": 2000,
@@ -2865,6 +3254,10 @@
                 "initialMs": 180000,
                 "incrementMs": 2000
               },
+              "mode": "pvp",
+              "pveEngineId": null,
+              "rated": false,
+              "forfeitDeadline": null,
               "rematch": {
                 "offers": {
                   "red": false,
@@ -2901,11 +3294,7 @@
               "clients": 0,
               "seat": "red",
               "solo": false,
-              "mode": "pvp",
-              "pveEngineId": null,
-              "rated": false,
               "abortDeadline": null,
-              "forfeitDeadline": null,
               "clock": {
                 "activeColor": "black",
                 "incrementMs": 2000,
@@ -3110,7 +3499,96 @@
                   "g2",
                   "g3"
                 ],
-                "legalMoves": [],
+                "legalMoves": [
+                  {
+                    "from": "b1",
+                    "to": "a1"
+                  },
+                  {
+                    "from": "b1",
+                    "to": "b2"
+                  },
+                  {
+                    "from": "b1",
+                    "to": "b3"
+                  },
+                  {
+                    "from": "b1",
+                    "to": "b4"
+                  },
+                  {
+                    "from": "b1",
+                    "to": "b5"
+                  },
+                  {
+                    "from": "b1",
+                    "to": "b6"
+                  },
+                  {
+                    "from": "f1",
+                    "to": "f2"
+                  },
+                  {
+                    "from": "f1",
+                    "to": "f3"
+                  },
+                  {
+                    "from": "f1",
+                    "to": "f4"
+                  },
+                  {
+                    "from": "f1",
+                    "to": "f5"
+                  },
+                  {
+                    "from": "f1",
+                    "to": "f6"
+                  },
+                  {
+                    "from": "c2",
+                    "to": "c3"
+                  },
+                  {
+                    "from": "c2",
+                    "to": "b2"
+                  },
+                  {
+                    "from": "d2",
+                    "to": "d3"
+                  },
+                  {
+                    "from": "e2",
+                    "to": "e3"
+                  },
+                  {
+                    "from": "e2",
+                    "to": "f2"
+                  },
+                  {
+                    "from": "g2",
+                    "to": "g3"
+                  },
+                  {
+                    "from": "g2",
+                    "to": "f2"
+                  },
+                  {
+                    "from": "a3",
+                    "to": "a4"
+                  },
+                  {
+                    "from": "a3",
+                    "to": "b3"
+                  },
+                  {
+                    "from": "a2",
+                    "to": "b2"
+                  },
+                  {
+                    "from": "a2",
+                    "to": "a1"
+                  }
+                ],
                 "status": {
                   "type": "playing",
                   "turn": "black"
@@ -3125,6 +3603,10 @@
                 "initialMs": 180000,
                 "incrementMs": 2000
               },
+              "mode": "pvp",
+              "pveEngineId": null,
+              "rated": false,
+              "forfeitDeadline": null,
               "rematch": {
                 "offers": {
                   "red": false,
@@ -3141,11 +3623,7 @@
               "clients": 0,
               "seat": "black",
               "solo": false,
-              "mode": "pvp",
-              "pveEngineId": null,
-              "rated": false,
               "abortDeadline": null,
-              "forfeitDeadline": null,
               "clock": {
                 "activeColor": "black",
                 "incrementMs": 2000,
@@ -3431,6 +3909,10 @@
                 "initialMs": 180000,
                 "incrementMs": 2000
               },
+              "mode": "pvp",
+              "pveEngineId": null,
+              "rated": false,
+              "forfeitDeadline": null,
               "rematch": {
                 "offers": {
                   "red": false,
@@ -3447,11 +3929,7 @@
               "clients": 0,
               "seat": "spectator",
               "solo": false,
-              "mode": "pvp",
-              "pveEngineId": null,
-              "rated": false,
               "abortDeadline": null,
-              "forfeitDeadline": null,
               "clock": {
                 "activeColor": "black",
                 "incrementMs": 2000,
@@ -3487,6 +3965,10 @@
                 "initialMs": 180000,
                 "incrementMs": 2000
               },
+              "mode": "pvp",
+              "pveEngineId": null,
+              "rated": false,
+              "forfeitDeadline": null,
               "rematch": {
                 "offers": {
                   "red": false,
@@ -3523,11 +4005,7 @@
               "clients": 0,
               "seat": "red",
               "solo": false,
-              "mode": "pvp",
-              "pveEngineId": null,
-              "rated": false,
               "abortDeadline": null,
-              "forfeitDeadline": null,
               "clock": {
                 "activeColor": "red",
                 "incrementMs": 2000,
@@ -3839,6 +4317,10 @@
                 "initialMs": 180000,
                 "incrementMs": 2000
               },
+              "mode": "pvp",
+              "pveEngineId": null,
+              "rated": false,
+              "forfeitDeadline": null,
               "rematch": {
                 "offers": {
                   "red": false,
@@ -3855,11 +4337,7 @@
               "clients": 0,
               "seat": "black",
               "solo": false,
-              "mode": "pvp",
-              "pveEngineId": null,
-              "rated": false,
               "abortDeadline": null,
-              "forfeitDeadline": null,
               "clock": {
                 "activeColor": "red",
                 "incrementMs": 2000,
@@ -4072,7 +4550,92 @@
                   "g6",
                   "g7"
                 ],
-                "legalMoves": [],
+                "legalMoves": [
+                  {
+                    "from": "a7",
+                    "to": "a6"
+                  },
+                  {
+                    "from": "a7",
+                    "to": "a5"
+                  },
+                  {
+                    "from": "b7",
+                    "to": "b6"
+                  },
+                  {
+                    "from": "b7",
+                    "to": "b5"
+                  },
+                  {
+                    "from": "b7",
+                    "to": "b4"
+                  },
+                  {
+                    "from": "b7",
+                    "to": "b3"
+                  },
+                  {
+                    "from": "b7",
+                    "to": "b2"
+                  },
+                  {
+                    "from": "f7",
+                    "to": "f6"
+                  },
+                  {
+                    "from": "f7",
+                    "to": "f5"
+                  },
+                  {
+                    "from": "f7",
+                    "to": "f4"
+                  },
+                  {
+                    "from": "f7",
+                    "to": "f3"
+                  },
+                  {
+                    "from": "f7",
+                    "to": "f2"
+                  },
+                  {
+                    "from": "c6",
+                    "to": "c5"
+                  },
+                  {
+                    "from": "c6",
+                    "to": "b6"
+                  },
+                  {
+                    "from": "d6",
+                    "to": "d5"
+                  },
+                  {
+                    "from": "e6",
+                    "to": "e5"
+                  },
+                  {
+                    "from": "e6",
+                    "to": "f6"
+                  },
+                  {
+                    "from": "g6",
+                    "to": "g5"
+                  },
+                  {
+                    "from": "g6",
+                    "to": "f6"
+                  },
+                  {
+                    "from": "a4",
+                    "to": "a3"
+                  },
+                  {
+                    "from": "a4",
+                    "to": "b4"
+                  }
+                ],
                 "status": {
                   "type": "playing",
                   "turn": "red"
@@ -4087,6 +4650,10 @@
                 "initialMs": 180000,
                 "incrementMs": 2000
               },
+              "mode": "pvp",
+              "pveEngineId": null,
+              "rated": false,
+              "forfeitDeadline": null,
               "rematch": {
                 "offers": {
                   "red": false,
@@ -4103,11 +4670,7 @@
               "clients": 0,
               "seat": "spectator",
               "solo": false,
-              "mode": "pvp",
-              "pveEngineId": null,
-              "rated": false,
               "abortDeadline": null,
-              "forfeitDeadline": null,
               "clock": {
                 "activeColor": "red",
                 "incrementMs": 2000,
@@ -4143,6 +4706,10 @@
                 "initialMs": 180000,
                 "incrementMs": 2000
               },
+              "mode": "pvp",
+              "pveEngineId": null,
+              "rated": false,
+              "forfeitDeadline": null,
               "rematch": {
                 "offers": {
                   "red": false,
@@ -4179,11 +4746,7 @@
               "clients": 0,
               "seat": "red",
               "solo": false,
-              "mode": "pvp",
-              "pveEngineId": null,
-              "rated": false,
               "abortDeadline": null,
-              "forfeitDeadline": null,
               "clock": {
                 "activeColor": "black",
                 "incrementMs": 2000,
@@ -4406,7 +4969,88 @@
                   "g2",
                   "g3"
                 ],
-                "legalMoves": [],
+                "legalMoves": [
+                  {
+                    "from": "b1",
+                    "to": "b2"
+                  },
+                  {
+                    "from": "b1",
+                    "to": "b3"
+                  },
+                  {
+                    "from": "b1",
+                    "to": "b4"
+                  },
+                  {
+                    "from": "b1",
+                    "to": "b5"
+                  },
+                  {
+                    "from": "b1",
+                    "to": "b6"
+                  },
+                  {
+                    "from": "f1",
+                    "to": "f2"
+                  },
+                  {
+                    "from": "f1",
+                    "to": "f3"
+                  },
+                  {
+                    "from": "f1",
+                    "to": "f4"
+                  },
+                  {
+                    "from": "f1",
+                    "to": "f5"
+                  },
+                  {
+                    "from": "f1",
+                    "to": "f6"
+                  },
+                  {
+                    "from": "c2",
+                    "to": "c3"
+                  },
+                  {
+                    "from": "c2",
+                    "to": "b2"
+                  },
+                  {
+                    "from": "d2",
+                    "to": "d3"
+                  },
+                  {
+                    "from": "e2",
+                    "to": "e3"
+                  },
+                  {
+                    "from": "e2",
+                    "to": "f2"
+                  },
+                  {
+                    "from": "g2",
+                    "to": "g3"
+                  },
+                  {
+                    "from": "g2",
+                    "to": "f2"
+                  },
+                  {
+                    "from": "a3",
+                    "to": "a4"
+                  },
+                  {
+                    "from": "a3",
+                    "to": "b3"
+                  },
+                  {
+                    "from": "a1",
+                    "to": "a2"
+                  }
+                ],
                 "status": {
                   "type": "playing",
                   "turn": "black"
@@ -4421,6 +5065,10 @@
                 "initialMs": 180000,
                 "incrementMs": 2000
               },
+              "mode": "pvp",
+              "pveEngineId": null,
+              "rated": false,
+              "forfeitDeadline": null,
               "rematch": {
                 "offers": {
                   "red": false,
@@ -4437,11 +5085,7 @@
               "clients": 0,
               "seat": "black",
               "solo": false,
-              "mode": "pvp",
-              "pveEngineId": null,
-              "rated": false,
               "abortDeadline": null,
-              "forfeitDeadline": null,
               "clock": {
                 "activeColor": "black",
                 "incrementMs": 2000,
@@ -4750,6 +5394,10 @@
                 "initialMs": 180000,
                 "incrementMs": 2000
               },
+              "mode": "pvp",
+              "pveEngineId": null,
+              "rated": false,
+              "forfeitDeadline": null,
               "rematch": {
                 "offers": {
                   "red": false,
@@ -4766,11 +5414,7 @@
               "clients": 0,
               "seat": "spectator",
               "solo": false,
-              "mode": "pvp",
-              "pveEngineId": null,
-              "rated": false,
               "abortDeadline": null,
-              "forfeitDeadline": null,
               "clock": {
                 "activeColor": "black",
                 "incrementMs": 2000,
@@ -4806,6 +5450,10 @@
                 "initialMs": 180000,
                 "incrementMs": 2000
               },
+              "mode": "pvp",
+              "pveEngineId": null,
+              "rated": false,
+              "forfeitDeadline": null,
               "rematch": {
                 "offers": {
                   "red": false,
@@ -4842,11 +5490,7 @@
               "clients": 0,
               "seat": "red",
               "solo": false,
-              "mode": "pvp",
-              "pveEngineId": null,
-              "rated": false,
               "abortDeadline": null,
-              "forfeitDeadline": null,
               "clock": {
                 "activeColor": "red",
                 "incrementMs": 2000,
@@ -5149,6 +5793,10 @@
                 "initialMs": 180000,
                 "incrementMs": 2000
               },
+              "mode": "pvp",
+              "pveEngineId": null,
+              "rated": false,
+              "forfeitDeadline": null,
               "rematch": {
                 "offers": {
                   "red": false,
@@ -5165,11 +5813,7 @@
               "clients": 0,
               "seat": "black",
               "solo": false,
-              "mode": "pvp",
-              "pveEngineId": null,
-              "rated": false,
               "abortDeadline": null,
-              "forfeitDeadline": null,
               "clock": {
                 "activeColor": "red",
                 "incrementMs": 2000,
@@ -5387,7 +6031,96 @@
                   "g6",
                   "g7"
                 ],
-                "legalMoves": [],
+                "legalMoves": [
+                  {
+                    "from": "a7",
+                    "to": "a6"
+                  },
+                  {
+                    "from": "a7",
+                    "to": "a5"
+                  },
+                  {
+                    "from": "a7",
+                    "to": "a4"
+                  },
+                  {
+                    "from": "b7",
+                    "to": "b6"
+                  },
+                  {
+                    "from": "b7",
+                    "to": "b5"
+                  },
+                  {
+                    "from": "b7",
+                    "to": "b4"
+                  },
+                  {
+                    "from": "b7",
+                    "to": "b3"
+                  },
+                  {
+                    "from": "b7",
+                    "to": "b2"
+                  },
+                  {
+                    "from": "f7",
+                    "to": "f6"
+                  },
+                  {
+                    "from": "f7",
+                    "to": "f5"
+                  },
+                  {
+                    "from": "f7",
+                    "to": "f4"
+                  },
+                  {
+                    "from": "f7",
+                    "to": "f3"
+                  },
+                  {
+                    "from": "f7",
+                    "to": "f2"
+                  },
+                  {
+                    "from": "c6",
+                    "to": "c5"
+                  },
+                  {
+                    "from": "c6",
+                    "to": "b6"
+                  },
+                  {
+                    "from": "d6",
+                    "to": "d5"
+                  },
+                  {
+                    "from": "e6",
+                    "to": "e5"
+                  },
+                  {
+                    "from": "e6",
+                    "to": "f6"
+                  },
+                  {
+                    "from": "g6",
+                    "to": "g5"
+                  },
+                  {
+                    "from": "g6",
+                    "to": "f6"
+                  },
+                  {
+                    "from": "a3",
+                    "to": "a2"
+                  },
+                  {
+                    "from": "a3",
+                    "to": "b3"
+                  }
+                ],
                 "status": {
                   "type": "playing",
                   "turn": "red"
@@ -5402,6 +6135,10 @@
                 "initialMs": 180000,
                 "incrementMs": 2000
               },
+              "mode": "pvp",
+              "pveEngineId": null,
+              "rated": false,
+              "forfeitDeadline": null,
               "rematch": {
                 "offers": {
                   "red": false,
@@ -5418,11 +6155,7 @@
               "clients": 0,
               "seat": "spectator",
               "solo": false,
-              "mode": "pvp",
-              "pveEngineId": null,
-              "rated": false,
               "abortDeadline": null,
-              "forfeitDeadline": null,
               "clock": {
                 "activeColor": "red",
                 "incrementMs": 2000,
@@ -5458,6 +6191,10 @@
                 "initialMs": 180000,
                 "incrementMs": 2000
               },
+              "mode": "pvp",
+              "pveEngineId": null,
+              "rated": false,
+              "forfeitDeadline": null,
               "rematch": {
                 "offers": {
                   "red": false,
@@ -5494,11 +6231,7 @@
               "clients": 0,
               "seat": "red",
               "solo": false,
-              "mode": "pvp",
-              "pveEngineId": null,
-              "rated": false,
               "abortDeadline": null,
-              "forfeitDeadline": 999999,
               "clock": {
                 "activeColor": "red",
                 "incrementMs": 2000,
@@ -5801,6 +6534,10 @@
                 "initialMs": 180000,
                 "incrementMs": 2000
               },
+              "mode": "pvp",
+              "pveEngineId": null,
+              "rated": false,
+              "forfeitDeadline": 999999,
               "rematch": {
                 "offers": {
                   "red": false,
@@ -5817,11 +6554,7 @@
               "clients": 0,
               "seat": "black",
               "solo": false,
-              "mode": "pvp",
-              "pveEngineId": null,
-              "rated": false,
               "abortDeadline": null,
-              "forfeitDeadline": null,
               "clock": {
                 "activeColor": "red",
                 "incrementMs": 2000,
@@ -6039,7 +6772,96 @@
                   "g6",
                   "g7"
                 ],
-                "legalMoves": [],
+                "legalMoves": [
+                  {
+                    "from": "a7",
+                    "to": "a6"
+                  },
+                  {
+                    "from": "a7",
+                    "to": "a5"
+                  },
+                  {
+                    "from": "a7",
+                    "to": "a4"
+                  },
+                  {
+                    "from": "b7",
+                    "to": "b6"
+                  },
+                  {
+                    "from": "b7",
+                    "to": "b5"
+                  },
+                  {
+                    "from": "b7",
+                    "to": "b4"
+                  },
+                  {
+                    "from": "b7",
+                    "to": "b3"
+                  },
+                  {
+                    "from": "b7",
+                    "to": "b2"
+                  },
+                  {
+                    "from": "f7",
+                    "to": "f6"
+                  },
+                  {
+                    "from": "f7",
+                    "to": "f5"
+                  },
+                  {
+                    "from": "f7",
+                    "to": "f4"
+                  },
+                  {
+                    "from": "f7",
+                    "to": "f3"
+                  },
+                  {
+                    "from": "f7",
+                    "to": "f2"
+                  },
+                  {
+                    "from": "c6",
+                    "to": "c5"
+                  },
+                  {
+                    "from": "c6",
+                    "to": "b6"
+                  },
+                  {
+                    "from": "d6",
+                    "to": "d5"
+                  },
+                  {
+                    "from": "e6",
+                    "to": "e5"
+                  },
+                  {
+                    "from": "e6",
+                    "to": "f6"
+                  },
+                  {
+                    "from": "g6",
+                    "to": "g5"
+                  },
+                  {
+                    "from": "g6",
+                    "to": "f6"
+                  },
+                  {
+                    "from": "a3",
+                    "to": "a2"
+                  },
+                  {
+                    "from": "a3",
+                    "to": "b3"
+                  }
+                ],
                 "status": {
                   "type": "playing",
                   "turn": "red"
@@ -6054,6 +6876,10 @@
                 "initialMs": 180000,
                 "incrementMs": 2000
               },
+              "mode": "pvp",
+              "pveEngineId": null,
+              "rated": false,
+              "forfeitDeadline": null,
               "rematch": {
                 "offers": {
                   "red": false,
@@ -6070,11 +6896,7 @@
               "clients": 0,
               "seat": "spectator",
               "solo": false,
-              "mode": "pvp",
-              "pveEngineId": null,
-              "rated": false,
               "abortDeadline": null,
-              "forfeitDeadline": null,
               "clock": {
                 "activeColor": "red",
                 "incrementMs": 2000,
@@ -6110,6 +6932,10 @@
                 "initialMs": 180000,
                 "incrementMs": 2000
               },
+              "mode": "pvp",
+              "pveEngineId": null,
+              "rated": false,
+              "forfeitDeadline": null,
               "rematch": {
                 "offers": {
                   "red": false,
@@ -6131,11 +6957,7 @@
               "clients": 0,
               "seat": "red",
               "solo": false,
-              "mode": "pvp",
-              "pveEngineId": null,
-              "rated": false,
               "abortDeadline": null,
-              "forfeitDeadline": null,
               "clock": {
                 "activeColor": null,
                 "incrementMs": 2000,
@@ -6368,6 +7190,10 @@
                 "initialMs": 180000,
                 "incrementMs": 2000
               },
+              "mode": "pvp",
+              "pveEngineId": null,
+              "rated": false,
+              "forfeitDeadline": null,
               "rematch": {
                 "offers": {
                   "red": false,
@@ -6384,11 +7210,7 @@
               "clients": 0,
               "seat": "black",
               "solo": false,
-              "mode": "pvp",
-              "pveEngineId": null,
-              "rated": false,
               "abortDeadline": null,
-              "forfeitDeadline": null,
               "clock": {
                 "activeColor": null,
                 "incrementMs": 2000,
@@ -6628,6 +7450,10 @@
                 "initialMs": 180000,
                 "incrementMs": 2000
               },
+              "mode": "pvp",
+              "pveEngineId": null,
+              "rated": false,
+              "forfeitDeadline": null,
               "rematch": {
                 "offers": {
                   "red": false,
@@ -6644,11 +7470,7 @@
               "clients": 0,
               "seat": "spectator",
               "solo": false,
-              "mode": "pvp",
-              "pveEngineId": null,
-              "rated": false,
               "abortDeadline": null,
-              "forfeitDeadline": null,
               "clock": {
                 "activeColor": null,
                 "incrementMs": 2000,
@@ -6685,6 +7507,10 @@
                 "initialMs": 180000,
                 "incrementMs": 2000
               },
+              "mode": "pvp",
+              "pveEngineId": null,
+              "rated": false,
+              "forfeitDeadline": null,
               "rematch": {
                 "offers": {
                   "red": false,
@@ -6721,11 +7547,7 @@
               "clients": 0,
               "seat": "red",
               "solo": false,
-              "mode": "pvp",
-              "pveEngineId": null,
-              "rated": false,
               "abortDeadline": null,
-              "forfeitDeadline": null,
               "clock": {
                 "activeColor": null,
                 "incrementMs": 2000,
@@ -6958,6 +7780,10 @@
                 "initialMs": 180000,
                 "incrementMs": 2000
               },
+              "mode": "pvp",
+              "pveEngineId": null,
+              "rated": false,
+              "forfeitDeadline": null,
               "rematch": {
                 "offers": {
                   "red": true,
@@ -6974,11 +7800,7 @@
               "clients": 0,
               "seat": "black",
               "solo": false,
-              "mode": "pvp",
-              "pveEngineId": null,
-              "rated": false,
               "abortDeadline": null,
-              "forfeitDeadline": null,
               "clock": {
                 "activeColor": null,
                 "incrementMs": 2000,
@@ -7218,6 +8040,10 @@
                 "initialMs": 180000,
                 "incrementMs": 2000
               },
+              "mode": "pvp",
+              "pveEngineId": null,
+              "rated": false,
+              "forfeitDeadline": null,
               "rematch": {
                 "offers": {
                   "red": true,
@@ -7234,11 +8060,7 @@
               "clients": 0,
               "seat": "spectator",
               "solo": false,
-              "mode": "pvp",
-              "pveEngineId": null,
-              "rated": false,
               "abortDeadline": null,
-              "forfeitDeadline": null,
               "clock": {
                 "activeColor": null,
                 "incrementMs": 2000,
@@ -7275,6 +8097,10 @@
                 "initialMs": 180000,
                 "incrementMs": 2000
               },
+              "mode": "pvp",
+              "pveEngineId": null,
+              "rated": false,
+              "forfeitDeadline": null,
               "rematch": {
                 "offers": {
                   "red": true,
@@ -7296,11 +8122,7 @@
               "clients": 0,
               "seat": "red",
               "solo": false,
-              "mode": "pvp",
-              "pveEngineId": null,
-              "rated": false,
               "abortDeadline": null,
-              "forfeitDeadline": null,
               "clock": {
                 "activeColor": null,
                 "incrementMs": 2000,
@@ -7533,6 +8355,10 @@
                 "initialMs": 180000,
                 "incrementMs": 2000
               },
+              "mode": "pvp",
+              "pveEngineId": null,
+              "rated": false,
+              "forfeitDeadline": null,
               "rematch": {
                 "offers": {
                   "red": true,
@@ -7549,11 +8375,7 @@
               "clients": 0,
               "seat": "black",
               "solo": false,
-              "mode": "pvp",
-              "pveEngineId": null,
-              "rated": false,
               "abortDeadline": null,
-              "forfeitDeadline": null,
               "clock": {
                 "activeColor": null,
                 "incrementMs": 2000,
@@ -7793,6 +8615,10 @@
                 "initialMs": 180000,
                 "incrementMs": 2000
               },
+              "mode": "pvp",
+              "pveEngineId": null,
+              "rated": false,
+              "forfeitDeadline": null,
               "rematch": {
                 "offers": {
                   "red": true,
@@ -7809,11 +8635,7 @@
               "clients": 0,
               "seat": "spectator",
               "solo": false,
-              "mode": "pvp",
-              "pveEngineId": null,
-              "rated": false,
               "abortDeadline": null,
-              "forfeitDeadline": null,
               "clock": {
                 "activeColor": null,
                 "incrementMs": 2000,
@@ -7850,6 +8672,10 @@
                 "initialMs": 180000,
                 "incrementMs": 2000
               },
+              "mode": "pvp",
+              "pveEngineId": null,
+              "rated": false,
+              "forfeitDeadline": null,
               "rematch": {
                 "offers": {
                   "red": true,
@@ -7876,11 +8702,7 @@
               "clients": 0,
               "seat": "red",
               "solo": false,
-              "mode": "pve",
-              "pveEngineId": "python-dmx-v1.0",
-              "rated": false,
               "abortDeadline": null,
-              "forfeitDeadline": null,
               "connectedSeats": {
                 "red": true,
                 "black": false
@@ -8115,6 +8937,10 @@
                 },
                 "moveNumber": 1
               },
+              "mode": "pve",
+              "pveEngineId": "python-dmx-v1.0",
+              "rated": false,
+              "forfeitDeadline": null,
               "rematch": {
                 "offers": {
                   "red": false,
@@ -8131,11 +8957,7 @@
               "clients": 0,
               "seat": "black",
               "solo": false,
-              "mode": "pve",
-              "pveEngineId": "python-dmx-v1.0",
-              "rated": false,
               "abortDeadline": null,
-              "forfeitDeadline": null,
               "connectedSeats": {
                 "red": true,
                 "black": false
@@ -8279,13 +9101,94 @@
                   "g6",
                   "g7"
                 ],
-                "legalMoves": [],
+                "legalMoves": [
+                  {
+                    "from": "b7",
+                    "to": "b6"
+                  },
+                  {
+                    "from": "b7",
+                    "to": "b5"
+                  },
+                  {
+                    "from": "b7",
+                    "to": "b4"
+                  },
+                  {
+                    "from": "b7",
+                    "to": "b3"
+                  },
+                  {
+                    "from": "b7",
+                    "to": "b2"
+                  },
+                  {
+                    "from": "f7",
+                    "to": "f6"
+                  },
+                  {
+                    "from": "f7",
+                    "to": "f5"
+                  },
+                  {
+                    "from": "f7",
+                    "to": "f4"
+                  },
+                  {
+                    "from": "f7",
+                    "to": "f3"
+                  },
+                  {
+                    "from": "f7",
+                    "to": "f2"
+                  },
+                  {
+                    "from": "a6",
+                    "to": "a5"
+                  },
+                  {
+                    "from": "a6",
+                    "to": "b6"
+                  },
+                  {
+                    "from": "c6",
+                    "to": "c5"
+                  },
+                  {
+                    "from": "c6",
+                    "to": "b6"
+                  },
+                  {
+                    "from": "d6",
+                    "to": "d5"
+                  },
+                  {
+                    "from": "e6",
+                    "to": "e5"
+                  },
+                  {
+                    "from": "e6",
+                    "to": "f6"
+                  },
+                  {
+                    "from": "g6",
+                    "to": "g5"
+                  },
+                  {
+                    "from": "g6",
+                    "to": "f6"
+                  }
+                ],
                 "status": {
                   "type": "playing",
                   "turn": "red"
                 },
                 "moveNumber": 1
               },
+              "mode": "pve",
+              "pveEngineId": "python-dmx-v1.0",
+              "rated": false,
+              "forfeitDeadline": null,
               "rematch": {
                 "offers": {
                   "red": false,
@@ -8302,11 +9205,7 @@
               "clients": 0,
               "seat": "spectator",
               "solo": false,
-              "mode": "pve",
-              "pveEngineId": "python-dmx-v1.0",
-              "rated": false,
               "abortDeadline": null,
-              "forfeitDeadline": null,
               "connectedSeats": {
                 "red": true,
                 "black": false
@@ -8327,6 +9226,10 @@
                 },
                 "moveNumber": 1
               },
+              "mode": "pve",
+              "pveEngineId": "python-dmx-v1.0",
+              "rated": false,
+              "forfeitDeadline": null,
               "rematch": {
                 "offers": {
                   "red": false,
@@ -8348,11 +9251,7 @@
               "clients": 0,
               "seat": "red",
               "solo": false,
-              "mode": "pve",
-              "pveEngineId": "python-dmx-v1.0",
-              "rated": false,
               "abortDeadline": null,
-              "forfeitDeadline": null,
               "connectedSeats": {
                 "red": true,
                 "black": false
@@ -8588,6 +9487,10 @@
                 },
                 "moveNumber": 1
               },
+              "mode": "pve",
+              "pveEngineId": "python-dmx-v1.0",
+              "rated": false,
+              "forfeitDeadline": null,
               "rematch": {
                 "offers": {
                   "red": false,
@@ -8604,11 +9507,7 @@
               "clients": 0,
               "seat": "black",
               "solo": false,
-              "mode": "pve",
-              "pveEngineId": "python-dmx-v1.0",
-              "rated": false,
               "abortDeadline": null,
-              "forfeitDeadline": null,
               "connectedSeats": {
                 "red": true,
                 "black": false
@@ -8760,13 +9659,94 @@
                   "g6",
                   "g7"
                 ],
-                "legalMoves": [],
+                "legalMoves": [
+                  {
+                    "from": "b7",
+                    "to": "b6"
+                  },
+                  {
+                    "from": "b7",
+                    "to": "b5"
+                  },
+                  {
+                    "from": "b7",
+                    "to": "b4"
+                  },
+                  {
+                    "from": "b7",
+                    "to": "b3"
+                  },
+                  {
+                    "from": "b7",
+                    "to": "b2"
+                  },
+                  {
+                    "from": "f7",
+                    "to": "f6"
+                  },
+                  {
+                    "from": "f7",
+                    "to": "f5"
+                  },
+                  {
+                    "from": "f7",
+                    "to": "f4"
+                  },
+                  {
+                    "from": "f7",
+                    "to": "f3"
+                  },
+                  {
+                    "from": "f7",
+                    "to": "f2"
+                  },
+                  {
+                    "from": "a6",
+                    "to": "a5"
+                  },
+                  {
+                    "from": "a6",
+                    "to": "b6"
+                  },
+                  {
+                    "from": "c6",
+                    "to": "c5"
+                  },
+                  {
+                    "from": "c6",
+                    "to": "b6"
+                  },
+                  {
+                    "from": "d6",
+                    "to": "d5"
+                  },
+                  {
+                    "from": "e6",
+                    "to": "e5"
+                  },
+                  {
+                    "from": "e6",
+                    "to": "f6"
+                  },
+                  {
+                    "from": "g6",
+                    "to": "g5"
+                  },
+                  {
+                    "from": "g6",
+                    "to": "f6"
+                  }
+                ],
                 "status": {
                   "type": "playing",
                   "turn": "red"
                 },
                 "moveNumber": 1
               },
+              "mode": "pve",
+              "pveEngineId": "python-dmx-v1.0",
+              "rated": false,
+              "forfeitDeadline": null,
               "rematch": {
                 "offers": {
                   "red": false,
@@ -8783,11 +9763,7 @@
               "clients": 0,
               "seat": "spectator",
               "solo": false,
-              "mode": "pve",
-              "pveEngineId": "python-dmx-v1.0",
-              "rated": false,
               "abortDeadline": null,
-              "forfeitDeadline": null,
               "connectedSeats": {
                 "red": true,
                 "black": false
@@ -8809,6 +9785,10 @@
                 },
                 "moveNumber": 1
               },
+              "mode": "pve",
+              "pveEngineId": "python-dmx-v1.0",
+              "rated": false,
+              "forfeitDeadline": null,
               "rematch": {
                 "offers": {
                   "red": false,
@@ -8841,11 +9821,7 @@
               "clients": 0,
               "seat": "red",
               "solo": false,
-              "mode": "pve",
-              "pveEngineId": "python-dmx-v1.0",
-              "rated": false,
               "abortDeadline": null,
-              "forfeitDeadline": null,
               "connectedSeats": {
                 "red": true,
                 "black": false
@@ -9010,6 +9986,10 @@
                 },
                 "moveNumber": 1
               },
+              "mode": "pve",
+              "pveEngineId": "python-dmx-v1.0",
+              "rated": false,
+              "forfeitDeadline": null,
               "rematch": {
                 "offers": {
                   "red": false,
@@ -9026,11 +10006,7 @@
               "clients": 0,
               "seat": "black",
               "solo": false,
-              "mode": "pve",
-              "pveEngineId": "python-dmx-v1.0",
-              "rated": false,
               "abortDeadline": null,
-              "forfeitDeadline": null,
               "connectedSeats": {
                 "red": true,
                 "black": false
@@ -9195,6 +10171,10 @@
                 },
                 "moveNumber": 1
               },
+              "mode": "pve",
+              "pveEngineId": "python-dmx-v1.0",
+              "rated": false,
+              "forfeitDeadline": null,
               "rematch": {
                 "offers": {
                   "red": false,
@@ -9211,11 +10191,7 @@
               "clients": 0,
               "seat": "spectator",
               "solo": false,
-              "mode": "pve",
-              "pveEngineId": "python-dmx-v1.0",
-              "rated": false,
               "abortDeadline": null,
-              "forfeitDeadline": null,
               "connectedSeats": {
                 "red": true,
                 "black": false
@@ -9237,6 +10213,10 @@
                 },
                 "moveNumber": 1
               },
+              "mode": "pve",
+              "pveEngineId": "python-dmx-v1.0",
+              "rated": false,
+              "forfeitDeadline": null,
               "rematch": {
                 "offers": {
                   "red": false,
@@ -9278,11 +10258,7 @@
               "clients": 0,
               "seat": "red",
               "solo": false,
-              "mode": "pvp",
-              "pveEngineId": null,
-              "rated": false,
               "abortDeadline": null,
-              "forfeitDeadline": null,
               "clock": {
                 "activeColor": null,
                 "incrementMs": 1000,
@@ -9551,6 +10527,10 @@
                 "initialMs": 60000,
                 "incrementMs": 1000
               },
+              "mode": "pvp",
+              "pveEngineId": null,
+              "rated": false,
+              "forfeitDeadline": null,
               "rematch": {
                 "offers": {
                   "red": false,
@@ -9567,11 +10547,7 @@
               "clients": 0,
               "seat": "black",
               "solo": false,
-              "mode": "pvp",
-              "pveEngineId": null,
-              "rated": false,
               "abortDeadline": null,
-              "forfeitDeadline": null,
               "clock": {
                 "activeColor": null,
                 "incrementMs": 1000,
@@ -9752,7 +10728,84 @@
                   "g6",
                   "g7"
                 ],
-                "legalMoves": [],
+                "legalMoves": [
+                  {
+                    "from": "b7",
+                    "to": "b6"
+                  },
+                  {
+                    "from": "b7",
+                    "to": "b5"
+                  },
+                  {
+                    "from": "b7",
+                    "to": "b4"
+                  },
+                  {
+                    "from": "b7",
+                    "to": "b3"
+                  },
+                  {
+                    "from": "b7",
+                    "to": "b2"
+                  },
+                  {
+                    "from": "f7",
+                    "to": "f6"
+                  },
+                  {
+                    "from": "f7",
+                    "to": "f5"
+                  },
+                  {
+                    "from": "f7",
+                    "to": "f4"
+                  },
+                  {
+                    "from": "f7",
+                    "to": "f3"
+                  },
+                  {
+                    "from": "f7",
+                    "to": "f2"
+                  },
+                  {
+                    "from": "a6",
+                    "to": "a5"
+                  },
+                  {
+                    "from": "a6",
+                    "to": "b6"
+                  },
+                  {
+                    "from": "c6",
+                    "to": "c5"
+                  },
+                  {
+                    "from": "c6",
+                    "to": "b6"
+                  },
+                  {
+                    "from": "d6",
+                    "to": "d5"
+                  },
+                  {
+                    "from": "e6",
+                    "to": "e5"
+                  },
+                  {
+                    "from": "e6",
+                    "to": "f6"
+                  },
+                  {
+                    "from": "g6",
+                    "to": "g5"
+                  },
+                  {
+                    "from": "g6",
+                    "to": "f6"
+                  }
+                ],
                 "status": {
                   "type": "playing",
                   "turn": "red"
@@ -9763,6 +10816,10 @@
                 "initialMs": 60000,
                 "incrementMs": 1000
               },
+              "mode": "pvp",
+              "pveEngineId": null,
+              "rated": false,
+              "forfeitDeadline": null,
               "rematch": {
                 "offers": {
                   "red": false,
@@ -9779,11 +10836,7 @@
               "clients": 0,
               "seat": "spectator",
               "solo": false,
-              "mode": "pvp",
-              "pveEngineId": null,
-              "rated": false,
               "abortDeadline": null,
-              "forfeitDeadline": null,
               "clock": {
                 "activeColor": null,
                 "incrementMs": 1000,
@@ -9819,6 +10872,10 @@
                 "initialMs": 60000,
                 "incrementMs": 1000
               },
+              "mode": "pvp",
+              "pveEngineId": null,
+              "rated": false,
+              "forfeitDeadline": null,
               "rematch": {
                 "offers": {
                   "red": false,
@@ -9840,11 +10897,7 @@
               "clients": 0,
               "seat": "red",
               "solo": false,
-              "mode": "pvp",
-              "pveEngineId": null,
-              "rated": false,
               "abortDeadline": null,
-              "forfeitDeadline": null,
               "clock": {
                 "activeColor": null,
                 "incrementMs": 1000,
@@ -10037,7 +11090,88 @@
                   "g2",
                   "g3"
                 ],
-                "legalMoves": [],
+                "legalMoves": [
+                  {
+                    "from": "a1",
+                    "to": "a2"
+                  },
+                  {
+                    "from": "b1",
+                    "to": "b2"
+                  },
+                  {
+                    "from": "b1",
+                    "to": "b3"
+                  },
+                  {
+                    "from": "b1",
+                    "to": "b4"
+                  },
+                  {
+                    "from": "b1",
+                    "to": "b5"
+                  },
+                  {
+                    "from": "b1",
+                    "to": "b6"
+                  },
+                  {
+                    "from": "f1",
+                    "to": "f2"
+                  },
+                  {
+                    "from": "f1",
+                    "to": "f3"
+                  },
+                  {
+                    "from": "f1",
+                    "to": "f4"
+                  },
+                  {
+                    "from": "f1",
+                    "to": "f5"
+                  },
+                  {
+                    "from": "f1",
+                    "to": "f6"
+                  },
+                  {
+                    "from": "c2",
+                    "to": "c3"
+                  },
+                  {
+                    "from": "c2",
+                    "to": "b2"
+                  },
+                  {
+                    "from": "d2",
+                    "to": "d3"
+                  },
+                  {
+                    "from": "e2",
+                    "to": "e3"
+                  },
+                  {
+                    "from": "e2",
+                    "to": "f2"
+                  },
+                  {
+                    "from": "g2",
+                    "to": "g3"
+                  },
+                  {
+                    "from": "g2",
+                    "to": "f2"
+                  },
+                  {
+                    "from": "a3",
+                    "to": "a4"
+                  },
+                  {
+                    "from": "a3",
+                    "to": "b3"
+                  }
+                ],
                 "status": {
                   "type": "playing",
                   "turn": "black"
@@ -10052,6 +11186,10 @@
                 "initialMs": 60000,
                 "incrementMs": 1000
               },
+              "mode": "pvp",
+              "pveEngineId": null,
+              "rated": false,
+              "forfeitDeadline": null,
               "rematch": {
                 "offers": {
                   "red": false,
@@ -10068,11 +11206,7 @@
               "clients": 0,
               "seat": "black",
               "solo": false,
-              "mode": "pvp",
-              "pveEngineId": null,
-              "rated": false,
               "abortDeadline": null,
-              "forfeitDeadline": null,
               "clock": {
                 "activeColor": null,
                 "incrementMs": 1000,
@@ -10341,6 +11475,10 @@
                 "initialMs": 60000,
                 "incrementMs": 1000
               },
+              "mode": "pvp",
+              "pveEngineId": null,
+              "rated": false,
+              "forfeitDeadline": null,
               "rematch": {
                 "offers": {
                   "red": false,
@@ -10357,11 +11495,7 @@
               "clients": 0,
               "seat": "spectator",
               "solo": false,
-              "mode": "pvp",
-              "pveEngineId": null,
-              "rated": false,
               "abortDeadline": null,
-              "forfeitDeadline": null,
               "clock": {
                 "activeColor": null,
                 "incrementMs": 1000,
@@ -10397,6 +11531,10 @@
                 "initialMs": 60000,
                 "incrementMs": 1000
               },
+              "mode": "pvp",
+              "pveEngineId": null,
+              "rated": false,
+              "forfeitDeadline": null,
               "rematch": {
                 "offers": {
                   "red": false,
@@ -10433,11 +11571,7 @@
               "clients": 0,
               "seat": "red",
               "solo": false,
-              "mode": "pvp",
-              "pveEngineId": null,
-              "rated": false,
               "abortDeadline": null,
-              "forfeitDeadline": null,
               "clock": {
                 "activeColor": "red",
                 "incrementMs": 1000,
@@ -10722,6 +11856,10 @@
                 "initialMs": 60000,
                 "incrementMs": 1000
               },
+              "mode": "pvp",
+              "pveEngineId": null,
+              "rated": false,
+              "forfeitDeadline": null,
               "rematch": {
                 "offers": {
                   "red": false,
@@ -10738,11 +11876,7 @@
               "clients": 0,
               "seat": "black",
               "solo": false,
-              "mode": "pvp",
-              "pveEngineId": null,
-              "rated": false,
               "abortDeadline": null,
-              "forfeitDeadline": null,
               "clock": {
                 "activeColor": "red",
                 "incrementMs": 1000,
@@ -10935,7 +12069,88 @@
                   "g6",
                   "g7"
                 ],
-                "legalMoves": [],
+                "legalMoves": [
+                  {
+                    "from": "a7",
+                    "to": "a6"
+                  },
+                  {
+                    "from": "b7",
+                    "to": "b6"
+                  },
+                  {
+                    "from": "b7",
+                    "to": "b5"
+                  },
+                  {
+                    "from": "b7",
+                    "to": "b4"
+                  },
+                  {
+                    "from": "b7",
+                    "to": "b3"
+                  },
+                  {
+                    "from": "b7",
+                    "to": "b2"
+                  },
+                  {
+                    "from": "f7",
+                    "to": "f6"
+                  },
+                  {
+                    "from": "f7",
+                    "to": "f5"
+                  },
+                  {
+                    "from": "f7",
+                    "to": "f4"
+                  },
+                  {
+                    "from": "f7",
+                    "to": "f3"
+                  },
+                  {
+                    "from": "f7",
+                    "to": "f2"
+                  },
+                  {
+                    "from": "c6",
+                    "to": "c5"
+                  },
+                  {
+                    "from": "c6",
+                    "to": "b6"
+                  },
+                  {
+                    "from": "d6",
+                    "to": "d5"
+                  },
+                  {
+                    "from": "e6",
+                    "to": "e5"
+                  },
+                  {
+                    "from": "e6",
+                    "to": "f6"
+                  },
+                  {
+                    "from": "g6",
+                    "to": "g5"
+                  },
+                  {
+                    "from": "g6",
+                    "to": "f6"
+                  },
+                  {
+                    "from": "a5",
+                    "to": "a4"
+                  },
+                  {
+                    "from": "a5",
+                    "to": "b5"
+                  }
+                ],
                 "status": {
                   "type": "playing",
                   "turn": "red"
@@ -10950,6 +12165,10 @@
                 "initialMs": 60000,
                 "incrementMs": 1000
               },
+              "mode": "pvp",
+              "pveEngineId": null,
+              "rated": false,
+              "forfeitDeadline": null,
               "rematch": {
                 "offers": {
                   "red": false,
@@ -10966,11 +12185,7 @@
               "clients": 0,
               "seat": "spectator",
               "solo": false,
-              "mode": "pvp",
-              "pveEngineId": null,
-              "rated": false,
               "abortDeadline": null,
-              "forfeitDeadline": null,
               "clock": {
                 "activeColor": "red",
                 "incrementMs": 1000,
@@ -11006,6 +12221,10 @@
                 "initialMs": 60000,
                 "incrementMs": 1000
               },
+              "mode": "pvp",
+              "pveEngineId": null,
+              "rated": false,
+              "forfeitDeadline": null,
               "rematch": {
                 "offers": {
                   "red": false,
@@ -11042,11 +12261,7 @@
               "clients": 0,
               "seat": "red",
               "solo": false,
-              "mode": "pvp",
-              "pveEngineId": null,
-              "rated": false,
               "abortDeadline": null,
-              "forfeitDeadline": null,
               "clock": {
                 "activeColor": null,
                 "incrementMs": 1000,
@@ -11267,6 +12482,10 @@
                 "initialMs": 60000,
                 "incrementMs": 1000
               },
+              "mode": "pvp",
+              "pveEngineId": null,
+              "rated": false,
+              "forfeitDeadline": null,
               "rematch": {
                 "offers": {
                   "red": false,
@@ -11283,11 +12502,7 @@
               "clients": 0,
               "seat": "black",
               "solo": false,
-              "mode": "pvp",
-              "pveEngineId": null,
-              "rated": false,
               "abortDeadline": null,
-              "forfeitDeadline": null,
               "clock": {
                 "activeColor": null,
                 "incrementMs": 1000,
@@ -11512,6 +12727,10 @@
                 "initialMs": 60000,
                 "incrementMs": 1000
               },
+              "mode": "pvp",
+              "pveEngineId": null,
+              "rated": false,
+              "forfeitDeadline": null,
               "rematch": {
                 "offers": {
                   "red": false,
@@ -11528,11 +12747,7 @@
               "clients": 0,
               "seat": "spectator",
               "solo": false,
-              "mode": "pvp",
-              "pveEngineId": null,
-              "rated": false,
               "abortDeadline": null,
-              "forfeitDeadline": null,
               "clock": {
                 "activeColor": null,
                 "incrementMs": 1000,
@@ -11569,6 +12784,10 @@
                 "initialMs": 60000,
                 "incrementMs": 1000
               },
+              "mode": "pvp",
+              "pveEngineId": null,
+              "rated": false,
+              "forfeitDeadline": null,
               "rematch": {
                 "offers": {
                   "red": false,

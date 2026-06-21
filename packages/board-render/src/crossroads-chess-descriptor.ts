@@ -5,7 +5,7 @@
 // uses <text> glyphs with the page's fonts; the OG card uses the baked Noto
 // paths because resvg has no fonts).
 
-import type { GridBoardDescriptor } from './grid-board.js';
+import { GRID_INTERACTION_COLORS, type GridBoardDescriptor } from './grid-board.js';
 
 // meerkat palette (matches crossroads-chess-diagram.ts)
 export const CROSSROADS_PIECE_RED = '#b5322b';
@@ -30,9 +30,10 @@ export const CROSSROADS_CHESS_DESCRIPTOR: GridBoardDescriptor = {
     boardEdge: '#3a2c20',
     coord: 'rgba(60,45,30,0.55)',
     lastMove: 'rgba(255,205,80,0.45)',
-    selected: 'rgba(255,205,80,0.55)',
-    targetDot: 'rgba(45,100,45,0.62)',
-    targetRing: 'rgba(170,40,40,0.62)',
+    selected: GRID_INTERACTION_COLORS.selected,
+    targetDot: GRID_INTERACTION_COLORS.targetDot,
+    targetRing: GRID_INTERACTION_COLORS.targetRing,
+    targetHover: GRID_INTERACTION_COLORS.targetHover,
     fog: 'rgba(22,18,14,0.66)',
   },
   svgClass: 'crossroads-live-svg',

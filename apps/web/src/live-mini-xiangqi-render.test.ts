@@ -94,4 +94,39 @@ describe('Dark Mini Xiangqi board renderer', () => {
     expect(svg).toContain('class="mini-xq-hint-capture"');
     expect(svg).toContain('class="mini-xq-hint"');
   });
+
+  it('renders target hover highlights inside the interactive hit layer', () => {
+    const view = {
+      id: 'hover-test',
+      perspective: 'red',
+      board: {
+        b1: { piece: { color: 'red', role: 'cannon' }, shrouded: false },
+        b4: { piece: { color: 'black', role: 'soldier' }, shrouded: false },
+      },
+      visibleSquares: ['b1', 'b2', 'b4'],
+      legalMoves: [
+        { from: 'b1', to: 'b2' },
+        { from: 'b1', to: 'b4' },
+      ],
+      status: { type: 'playing', turn: 'red' },
+      moveNumber: 1,
+    };
+
+    const svg = renderMiniXiangqiBoardSvg(view as never, 'red', {
+      interactive: true,
+      selectedSquare: 'b1' as never,
+      legalMoves: view.legalMoves as never,
+    });
+
+    expect(svg).toContain('mini-xq-hit--target');
+    expect(svg).toContain('mini-xq-target-hover');
+  });
+
+  it('marks the dragged source as a translucent origin shadow', () => {
+    const state = createInitialMiniXiangqiState('drag-source');
+    const view = getMiniXiangqiPlayerView(state, 'red');
+    const svg = renderMiniXiangqiBoardSvg(view, 'red', { draggingFrom: 'd1' });
+
+    expect(svg).toContain('mini-xq-piece mini-xq-piece--drag-source');
+  });
 });

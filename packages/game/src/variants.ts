@@ -119,7 +119,7 @@ export const draft960Variant: Variant = {
       variant: state.variant,
       board: state.board,
       visibleSquares: Object.keys(state.board) as PlayerView['visibleSquares'],
-      legalMoves: getLegalMoves(state, player),
+      legalMoves: state.status.type === 'playing' ? getMovesForPlayer(state, player) : [],
       status: state.status,
       perspective: player,
       moveNumber: state.moveNumber,
@@ -165,10 +165,7 @@ export const darkChessVariant: Variant = {
       variant: state.variant,
       board,
       visibleSquares,
-      legalMoves:
-        state.status.type === 'playing' && state.status.turn === player
-          ? getFogMovesForPlayer(state, player)
-          : [],
+      legalMoves: state.status.type === 'playing' ? getFogMovesForPlayer(state, player) : [],
       status: state.status,
       perspective: player,
       moveNumber: state.moveNumber,

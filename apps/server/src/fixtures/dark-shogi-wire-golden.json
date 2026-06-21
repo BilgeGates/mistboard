@@ -531,7 +531,128 @@
                   "9c",
                   "9d"
                 ],
-                "legalMoves": [],
+                "legalMoves": [
+                  {
+                    "from": "9a",
+                    "to": "9b"
+                  },
+                  {
+                    "from": "7a",
+                    "to": "7b"
+                  },
+                  {
+                    "from": "7a",
+                    "to": "6b"
+                  },
+                  {
+                    "from": "6a",
+                    "to": "6b"
+                  },
+                  {
+                    "from": "6a",
+                    "to": "5b"
+                  },
+                  {
+                    "from": "6a",
+                    "to": "7b"
+                  },
+                  {
+                    "from": "5a",
+                    "to": "4b"
+                  },
+                  {
+                    "from": "5a",
+                    "to": "5b"
+                  },
+                  {
+                    "from": "5a",
+                    "to": "6b"
+                  },
+                  {
+                    "from": "4a",
+                    "to": "4b"
+                  },
+                  {
+                    "from": "4a",
+                    "to": "3b"
+                  },
+                  {
+                    "from": "4a",
+                    "to": "5b"
+                  },
+                  {
+                    "from": "3a",
+                    "to": "3b"
+                  },
+                  {
+                    "from": "3a",
+                    "to": "4b"
+                  },
+                  {
+                    "from": "1a",
+                    "to": "1b"
+                  },
+                  {
+                    "from": "8b",
+                    "to": "7b"
+                  },
+                  {
+                    "from": "8b",
+                    "to": "6b"
+                  },
+                  {
+                    "from": "8b",
+                    "to": "5b"
+                  },
+                  {
+                    "from": "8b",
+                    "to": "4b"
+                  },
+                  {
+                    "from": "8b",
+                    "to": "3b"
+                  },
+                  {
+                    "from": "8b",
+                    "to": "9b"
+                  },
+                  {
+                    "from": "9c",
+                    "to": "9d"
+                  },
+                  {
+                    "from": "8c",
+                    "to": "8d"
+                  },
+                  {
+                    "from": "7c",
+                    "to": "7d"
+                  },
+                  {
+                    "from": "6c",
+                    "to": "6d"
+                  },
+                  {
+                    "from": "5c",
+                    "to": "5d"
+                  },
+                  {
+                    "from": "4c",
+                    "to": "4d"
+                  },
+                  {
+                    "from": "3c",
+                    "to": "3d"
+                  },
+                  {
+                    "from": "2c",
+                    "to": "2d"
+                  },
+                  {
+                    "from": "1c",
+                    "to": "1d"
+                  }
+                ],
                 "status": {
                   "type": "playing",
                   "turn": "black"
@@ -1161,7 +1282,128 @@
                   "9c",
                   "9d"
                 ],
-                "legalMoves": [],
+                "legalMoves": [
+                  {
+                    "from": "9a",
+                    "to": "9b"
+                  },
+                  {
+                    "from": "7a",
+                    "to": "7b"
+                  },
+                  {
+                    "from": "7a",
+                    "to": "6b"
+                  },
+                  {
+                    "from": "6a",
+                    "to": "6b"
+                  },
+                  {
+                    "from": "6a",
+                    "to": "5b"
+                  },
+                  {
+                    "from": "6a",
+                    "to": "7b"
+                  },
+                  {
+                    "from": "5a",
+                    "to": "4b"
+                  },
+                  {
+                    "from": "5a",
+                    "to": "5b"
+                  },
+                  {
+                    "from": "5a",
+                    "to": "6b"
+                  },
+                  {
+                    "from": "4a",
+                    "to": "4b"
+                  },
+                  {
+                    "from": "4a",
+                    "to": "3b"
+                  },
+                  {
+                    "from": "4a",
+                    "to": "5b"
+                  },
+                  {
+                    "from": "3a",
+                    "to": "3b"
+                  },
+                  {
+                    "from": "3a",
+                    "to": "4b"
+                  },
+                  {
+                    "from": "1a",
+                    "to": "1b"
+                  },
+                  {
+                    "from": "8b",
+                    "to": "7b"
+                  },
+                  {
+                    "from": "8b",
+                    "to": "6b"
+                  },
+                  {
+                    "from": "8b",
+                    "to": "5b"
+                  },
+                  {
+                    "from": "8b",
+                    "to": "4b"
+                  },
+                  {
+                    "from": "8b",
+                    "to": "3b"
+                  },
+                  {
+                    "from": "8b",
+                    "to": "9b"
+                  },
+                  {
+                    "from": "9c",
+                    "to": "9d"
+                  },
+                  {
+                    "from": "8c",
+                    "to": "8d"
+                  },
+                  {
+                    "from": "7c",
+                    "to": "7d"
+                  },
+                  {
+                    "from": "6c",
+                    "to": "6d"
+                  },
+                  {
+                    "from": "5c",
+                    "to": "5d"
+                  },
+                  {
+                    "from": "4c",
+                    "to": "4d"
+                  },
+                  {
+                    "from": "3c",
+                    "to": "3d"
+                  },
+                  {
+                    "from": "2c",
+                    "to": "2d"
+                  },
+                  {
+                    "from": "1c",
+                    "to": "1d"
+                  }
+                ],
                 "status": {
                   "type": "playing",
                   "turn": "black"
@@ -1839,7 +2081,128 @@
                   "9c",
                   "9d"
                 ],
-                "legalMoves": [],
+                "legalMoves": [
+                  {
+                    "from": "9a",
+                    "to": "9b"
+                  },
+                  {
+                    "from": "7a",
+                    "to": "7b"
+                  },
+                  {
+                    "from": "7a",
+                    "to": "6b"
+                  },
+                  {
+                    "from": "6a",
+                    "to": "6b"
+                  },
+                  {
+                    "from": "6a",
+                    "to": "5b"
+                  },
+                  {
+                    "from": "6a",
+                    "to": "7b"
+                  },
+                  {
+                    "from": "5a",
+                    "to": "4b"
+                  },
+                  {
+                    "from": "5a",
+                    "to": "5b"
+                  },
+                  {
+                    "from": "5a",
+                    "to": "6b"
+                  },
+                  {
+                    "from": "4a",
+                    "to": "4b"
+                  },
+                  {
+                    "from": "4a",
+                    "to": "3b"
+                  },
+                  {
+                    "from": "4a",
+                    "to": "5b"
+                  },
+                  {
+                    "from": "3a",
+                    "to": "3b"
+                  },
+                  {
+                    "from": "3a",
+                    "to": "4b"
+                  },
+                  {
+                    "from": "1a",
+                    "to": "1b"
+                  },
+                  {
+                    "from": "8b",
+                    "to": "7b"
+                  },
+                  {
+                    "from": "8b",
+                    "to": "6b"
+                  },
+                  {
+                    "from": "8b",
+                    "to": "5b"
+                  },
+                  {
+                    "from": "8b",
+                    "to": "4b"
+                  },
+                  {
+                    "from": "8b",
+                    "to": "3b"
+                  },
+                  {
+                    "from": "8b",
+                    "to": "9b"
+                  },
+                  {
+                    "from": "9c",
+                    "to": "9d"
+                  },
+                  {
+                    "from": "8c",
+                    "to": "8d"
+                  },
+                  {
+                    "from": "7c",
+                    "to": "7d"
+                  },
+                  {
+                    "from": "6c",
+                    "to": "6d"
+                  },
+                  {
+                    "from": "5c",
+                    "to": "5d"
+                  },
+                  {
+                    "from": "4c",
+                    "to": "4d"
+                  },
+                  {
+                    "from": "3c",
+                    "to": "3d"
+                  },
+                  {
+                    "from": "2c",
+                    "to": "2d"
+                  },
+                  {
+                    "from": "1c",
+                    "to": "1d"
+                  }
+                ],
                 "status": {
                   "type": "playing",
                   "turn": "black"
@@ -2191,7 +2554,136 @@
                   "9h",
                   "9i"
                 ],
-                "legalMoves": [],
+                "legalMoves": [
+                  {
+                    "from": "1f",
+                    "to": "1e"
+                  },
+                  {
+                    "from": "9g",
+                    "to": "9f"
+                  },
+                  {
+                    "from": "8g",
+                    "to": "8f"
+                  },
+                  {
+                    "from": "7g",
+                    "to": "7f"
+                  },
+                  {
+                    "from": "6g",
+                    "to": "6f"
+                  },
+                  {
+                    "from": "5g",
+                    "to": "5f"
+                  },
+                  {
+                    "from": "4g",
+                    "to": "4f"
+                  },
+                  {
+                    "from": "3g",
+                    "to": "3f"
+                  },
+                  {
+                    "from": "2g",
+                    "to": "2f"
+                  },
+                  {
+                    "from": "2h",
+                    "to": "1h"
+                  },
+                  {
+                    "from": "2h",
+                    "to": "3h"
+                  },
+                  {
+                    "from": "2h",
+                    "to": "4h"
+                  },
+                  {
+                    "from": "2h",
+                    "to": "5h"
+                  },
+                  {
+                    "from": "2h",
+                    "to": "6h"
+                  },
+                  {
+                    "from": "2h",
+                    "to": "7h"
+                  },
+                  {
+                    "from": "9i",
+                    "to": "9h"
+                  },
+                  {
+                    "from": "7i",
+                    "to": "7h"
+                  },
+                  {
+                    "from": "7i",
+                    "to": "6h"
+                  },
+                  {
+                    "from": "6i",
+                    "to": "6h"
+                  },
+                  {
+                    "from": "6i",
+                    "to": "5h"
+                  },
+                  {
+                    "from": "6i",
+                    "to": "7h"
+                  },
+                  {
+                    "from": "5i",
+                    "to": "4h"
+                  },
+                  {
+                    "from": "5i",
+                    "to": "5h"
+                  },
+                  {
+                    "from": "5i",
+                    "to": "6h"
+                  },
+                  {
+                    "from": "4i",
+                    "to": "4h"
+                  },
+                  {
+                    "from": "4i",
+                    "to": "3h"
+                  },
+                  {
+                    "from": "4i",
+                    "to": "5h"
+                  },
+                  {
+                    "from": "3i",
+                    "to": "3h"
+                  },
+                  {
+                    "from": "3i",
+                    "to": "4h"
+                  },
+                  {
+                    "from": "2i",
+                    "to": "1g"
+                  },
+                  {
+                    "from": "1i",
+                    "to": "1h"
+                  },
+                  {
+                    "from": "1i",
+                    "to": "1g"
+                  }
+                ],
                 "status": {
                   "type": "playing",
                   "turn": "white"
@@ -3250,7 +3742,128 @@
                   "9c",
                   "9d"
                 ],
-                "legalMoves": [],
+                "legalMoves": [
+                  {
+                    "from": "9a",
+                    "to": "9b"
+                  },
+                  {
+                    "from": "7a",
+                    "to": "7b"
+                  },
+                  {
+                    "from": "7a",
+                    "to": "6b"
+                  },
+                  {
+                    "from": "6a",
+                    "to": "6b"
+                  },
+                  {
+                    "from": "6a",
+                    "to": "5b"
+                  },
+                  {
+                    "from": "6a",
+                    "to": "7b"
+                  },
+                  {
+                    "from": "5a",
+                    "to": "4b"
+                  },
+                  {
+                    "from": "5a",
+                    "to": "5b"
+                  },
+                  {
+                    "from": "5a",
+                    "to": "6b"
+                  },
+                  {
+                    "from": "4a",
+                    "to": "4b"
+                  },
+                  {
+                    "from": "4a",
+                    "to": "3b"
+                  },
+                  {
+                    "from": "4a",
+                    "to": "5b"
+                  },
+                  {
+                    "from": "3a",
+                    "to": "3b"
+                  },
+                  {
+                    "from": "3a",
+                    "to": "4b"
+                  },
+                  {
+                    "from": "8b",
+                    "to": "7b"
+                  },
+                  {
+                    "from": "8b",
+                    "to": "6b"
+                  },
+                  {
+                    "from": "8b",
+                    "to": "5b"
+                  },
+                  {
+                    "from": "8b",
+                    "to": "4b"
+                  },
+                  {
+                    "from": "8b",
+                    "to": "3b"
+                  },
+                  {
+                    "from": "8b",
+                    "to": "9b"
+                  },
+                  {
+                    "from": "2b",
+                    "to": "1a"
+                  },
+                  {
+                    "from": "9c",
+                    "to": "9d"
+                  },
+                  {
+                    "from": "8c",
+                    "to": "8d"
+                  },
+                  {
+                    "from": "7c",
+                    "to": "7d"
+                  },
+                  {
+                    "from": "6c",
+                    "to": "6d"
+                  },
+                  {
+                    "from": "5c",
+                    "to": "5d"
+                  },
+                  {
+                    "from": "4c",
+                    "to": "4d"
+                  },
+                  {
+                    "from": "3c",
+                    "to": "3d"
+                  },
+                  {
+                    "from": "2c",
+                    "to": "2d"
+                  },
+                  {
+                    "from": "1c",
+                    "to": "1d"
+                  }
+                ],
                 "status": {
                   "type": "playing",
                   "turn": "black"
@@ -3610,7 +4223,140 @@
                   "9h",
                   "9i"
                 ],
-                "legalMoves": [],
+                "legalMoves": [
+                  {
+                    "from": "1e",
+                    "to": "1d"
+                  },
+                  {
+                    "from": "9g",
+                    "to": "9f"
+                  },
+                  {
+                    "from": "8g",
+                    "to": "8f"
+                  },
+                  {
+                    "from": "7g",
+                    "to": "7f"
+                  },
+                  {
+                    "from": "6g",
+                    "to": "6f"
+                  },
+                  {
+                    "from": "5g",
+                    "to": "5f"
+                  },
+                  {
+                    "from": "4g",
+                    "to": "4f"
+                  },
+                  {
+                    "from": "3g",
+                    "to": "3f"
+                  },
+                  {
+                    "from": "2g",
+                    "to": "2f"
+                  },
+                  {
+                    "from": "2h",
+                    "to": "1h"
+                  },
+                  {
+                    "from": "2h",
+                    "to": "3h"
+                  },
+                  {
+                    "from": "2h",
+                    "to": "4h"
+                  },
+                  {
+                    "from": "2h",
+                    "to": "5h"
+                  },
+                  {
+                    "from": "2h",
+                    "to": "6h"
+                  },
+                  {
+                    "from": "2h",
+                    "to": "7h"
+                  },
+                  {
+                    "from": "9i",
+                    "to": "9h"
+                  },
+                  {
+                    "from": "7i",
+                    "to": "7h"
+                  },
+                  {
+                    "from": "7i",
+                    "to": "6h"
+                  },
+                  {
+                    "from": "6i",
+                    "to": "6h"
+                  },
+                  {
+                    "from": "6i",
+                    "to": "5h"
+                  },
+                  {
+                    "from": "6i",
+                    "to": "7h"
+                  },
+                  {
+                    "from": "5i",
+                    "to": "4h"
+                  },
+                  {
+                    "from": "5i",
+                    "to": "5h"
+                  },
+                  {
+                    "from": "5i",
+                    "to": "6h"
+                  },
+                  {
+                    "from": "4i",
+                    "to": "4h"
+                  },
+                  {
+                    "from": "4i",
+                    "to": "3h"
+                  },
+                  {
+                    "from": "4i",
+                    "to": "5h"
+                  },
+                  {
+                    "from": "3i",
+                    "to": "3h"
+                  },
+                  {
+                    "from": "3i",
+                    "to": "4h"
+                  },
+                  {
+                    "from": "2i",
+                    "to": "1g"
+                  },
+                  {
+                    "from": "1i",
+                    "to": "1h"
+                  },
+                  {
+                    "from": "1i",
+                    "to": "1g"
+                  },
+                  {
+                    "from": "1i",
+                    "to": "1f"
+                  }
+                ],
                 "status": {
                   "type": "playing",
                   "turn": "white"
@@ -4718,7 +5464,140 @@
                   "9c",
                   "9d"
                 ],
-                "legalMoves": [],
+                "legalMoves": [
+                  {
+                    "from": "9a",
+                    "to": "9b"
+                  },
+                  {
+                    "from": "7a",
+                    "to": "7b"
+                  },
+                  {
+                    "from": "7a",
+                    "to": "6b"
+                  },
+                  {
+                    "from": "6a",
+                    "to": "6b"
+                  },
+                  {
+                    "from": "6a",
+                    "to": "5b"
+                  },
+                  {
+                    "from": "6a",
+                    "to": "7b"
+                  },
+                  {
+                    "from": "5a",
+                    "to": "4b"
+                  },
+                  {
+                    "from": "5a",
+                    "to": "5b"
+                  },
+                  {
+                    "from": "5a",
+                    "to": "6b"
+                  },
+                  {
+                    "from": "4a",
+                    "to": "4b"
+                  },
+                  {
+                    "from": "4a",
+                    "to": "3b"
+                  },
+                  {
+                    "from": "4a",
+                    "to": "5b"
+                  },
+                  {
+                    "from": "3a",
+                    "to": "3b"
+                  },
+                  {
+                    "from": "3a",
+                    "to": "4b"
+                  },
+                  {
+                    "from": "2a",
+                    "to": "1c"
+                  },
+                  {
+                    "from": "8b",
+                    "to": "7b"
+                  },
+                  {
+                    "from": "8b",
+                    "to": "6b"
+                  },
+                  {
+                    "from": "8b",
+                    "to": "5b"
+                  },
+                  {
+                    "from": "8b",
+                    "to": "4b"
+                  },
+                  {
+                    "from": "8b",
+                    "to": "3b"
+                  },
+                  {
+                    "from": "8b",
+                    "to": "9b"
+                  },
+                  {
+                    "from": "2b",
+                    "to": "1a"
+                  },
+                  {
+                    "from": "2b",
+                    "to": "1c"
+                  },
+                  {
+                    "from": "1b",
+                    "to": "1c"
+                  },
+                  {
+                    "from": "9c",
+                    "to": "9d"
+                  },
+                  {
+                    "from": "8c",
+                    "to": "8d"
+                  },
+                  {
+                    "from": "7c",
+                    "to": "7d"
+                  },
+                  {
+                    "from": "6c",
+                    "to": "6d"
+                  },
+                  {
+                    "from": "5c",
+                    "to": "5d"
+                  },
+                  {
+                    "from": "4c",
+                    "to": "4d"
+                  },
+                  {
+                    "from": "3c",
+                    "to": "3d"
+                  },
+                  {
+                    "from": "2c",
+                    "to": "2d"
+                  },
+                  {
+                    "from": "1d",
+                    "to": "1e"
+                  }
+                ],
                 "status": {
                   "type": "playing",
                   "turn": "black"
@@ -5092,7 +5971,149 @@
                   "9h",
                   "9i"
                 ],
-                "legalMoves": [],
+                "legalMoves": [
+                  {
+                    "from": "1d",
+                    "to": "1c"
+                  },
+                  {
+                    "from": "1d",
+                    "to": "1c",
+                    "promote": true
+                  },
+                  {
+                    "from": "9g",
+                    "to": "9f"
+                  },
+                  {
+                    "from": "8g",
+                    "to": "8f"
+                  },
+                  {
+                    "from": "7g",
+                    "to": "7f"
+                  },
+                  {
+                    "from": "6g",
+                    "to": "6f"
+                  },
+                  {
+                    "from": "5g",
+                    "to": "5f"
+                  },
+                  {
+                    "from": "4g",
+                    "to": "4f"
+                  },
+                  {
+                    "from": "3g",
+                    "to": "3f"
+                  },
+                  {
+                    "from": "2g",
+                    "to": "2f"
+                  },
+                  {
+                    "from": "2h",
+                    "to": "1h"
+                  },
+                  {
+                    "from": "2h",
+                    "to": "3h"
+                  },
+                  {
+                    "from": "2h",
+                    "to": "4h"
+                  },
+                  {
+                    "from": "2h",
+                    "to": "5h"
+                  },
+                  {
+                    "from": "2h",
+                    "to": "6h"
+                  },
+                  {
+                    "from": "2h",
+                    "to": "7h"
+                  },
+                  {
+                    "from": "9i",
+                    "to": "9h"
+                  },
+                  {
+                    "from": "7i",
+                    "to": "7h"
+                  },
+                  {
+                    "from": "7i",
+                    "to": "6h"
+                  },
+                  {
+                    "from": "6i",
+                    "to": "6h"
+                  },
+                  {
+                    "from": "6i",
+                    "to": "5h"
+                  },
+                  {
+                    "from": "6i",
+                    "to": "7h"
+                  },
+                  {
+                    "from": "5i",
+                    "to": "4h"
+                  },
+                  {
+                    "from": "5i",
+                    "to": "5h"
+                  },
+                  {
+                    "from": "5i",
+                    "to": "6h"
+                  },
+                  {
+                    "from": "4i",
+                    "to": "4h"
+                  },
+                  {
+                    "from": "4i",
+                    "to": "3h"
+                  },
+                  {
+                    "from": "4i",
+                    "to": "5h"
+                  },
+                  {
+                    "from": "3i",
+                    "to": "3h"
+                  },
+                  {
+                    "from": "3i",
+                    "to": "4h"
+                  },
+                  {
+                    "from": "2i",
+                    "to": "1g"
+                  },
+                  {
+                    "from": "1i",
+                    "to": "1h"
+                  },
+                  {
+                    "from": "1i",
+                    "to": "1g"
+                  },
+                  {
+                    "from": "1i",
+                    "to": "1f"
+                  },
+                  {
+                    "from": "1i",
+                    "to": "1e"
+                  }
+                ],
                 "status": {
                   "type": "playing",
                   "turn": "white"
@@ -6250,7 +7271,128 @@
                   "9c",
                   "9d"
                 ],
-                "legalMoves": [],
+                "legalMoves": [
+                  {
+                    "from": "9a",
+                    "to": "9b"
+                  },
+                  {
+                    "from": "7a",
+                    "to": "7b"
+                  },
+                  {
+                    "from": "7a",
+                    "to": "6b"
+                  },
+                  {
+                    "from": "6a",
+                    "to": "6b"
+                  },
+                  {
+                    "from": "6a",
+                    "to": "5b"
+                  },
+                  {
+                    "from": "6a",
+                    "to": "7b"
+                  },
+                  {
+                    "from": "5a",
+                    "to": "4b"
+                  },
+                  {
+                    "from": "5a",
+                    "to": "5b"
+                  },
+                  {
+                    "from": "5a",
+                    "to": "6b"
+                  },
+                  {
+                    "from": "4a",
+                    "to": "4b"
+                  },
+                  {
+                    "from": "4a",
+                    "to": "3b"
+                  },
+                  {
+                    "from": "4a",
+                    "to": "5b"
+                  },
+                  {
+                    "from": "3a",
+                    "to": "3b"
+                  },
+                  {
+                    "from": "3a",
+                    "to": "4b"
+                  },
+                  {
+                    "from": "8b",
+                    "to": "7b"
+                  },
+                  {
+                    "from": "8b",
+                    "to": "6b"
+                  },
+                  {
+                    "from": "8b",
+                    "to": "5b"
+                  },
+                  {
+                    "from": "8b",
+                    "to": "4b"
+                  },
+                  {
+                    "from": "8b",
+                    "to": "3b"
+                  },
+                  {
+                    "from": "8b",
+                    "to": "9b"
+                  },
+                  {
+                    "from": "2b",
+                    "to": "1a"
+                  },
+                  {
+                    "from": "9c",
+                    "to": "9d"
+                  },
+                  {
+                    "from": "8c",
+                    "to": "8d"
+                  },
+                  {
+                    "from": "7c",
+                    "to": "7d"
+                  },
+                  {
+                    "from": "6c",
+                    "to": "6d"
+                  },
+                  {
+                    "from": "5c",
+                    "to": "5d"
+                  },
+                  {
+                    "from": "4c",
+                    "to": "4d"
+                  },
+                  {
+                    "from": "3c",
+                    "to": "3d"
+                  },
+                  {
+                    "from": "2c",
+                    "to": "2d"
+                  },
+                  {
+                    "from": "1c",
+                    "to": "1d"
+                  }
+                ],
                 "status": {
                   "type": "playing",
                   "turn": "black"
@@ -7535,7 +8677,128 @@
                   "9c",
                   "9d"
                 ],
-                "legalMoves": [],
+                "legalMoves": [
+                  {
+                    "from": "9a",
+                    "to": "9b"
+                  },
+                  {
+                    "from": "7a",
+                    "to": "7b"
+                  },
+                  {
+                    "from": "7a",
+                    "to": "6b"
+                  },
+                  {
+                    "from": "6a",
+                    "to": "6b"
+                  },
+                  {
+                    "from": "6a",
+                    "to": "5b"
+                  },
+                  {
+                    "from": "6a",
+                    "to": "7b"
+                  },
+                  {
+                    "from": "5a",
+                    "to": "4b"
+                  },
+                  {
+                    "from": "5a",
+                    "to": "5b"
+                  },
+                  {
+                    "from": "5a",
+                    "to": "6b"
+                  },
+                  {
+                    "from": "4a",
+                    "to": "4b"
+                  },
+                  {
+                    "from": "4a",
+                    "to": "3b"
+                  },
+                  {
+                    "from": "4a",
+                    "to": "5b"
+                  },
+                  {
+                    "from": "3a",
+                    "to": "3b"
+                  },
+                  {
+                    "from": "3a",
+                    "to": "4b"
+                  },
+                  {
+                    "from": "1a",
+                    "to": "1b"
+                  },
+                  {
+                    "from": "8b",
+                    "to": "7b"
+                  },
+                  {
+                    "from": "8b",
+                    "to": "6b"
+                  },
+                  {
+                    "from": "8b",
+                    "to": "5b"
+                  },
+                  {
+                    "from": "8b",
+                    "to": "4b"
+                  },
+                  {
+                    "from": "8b",
+                    "to": "3b"
+                  },
+                  {
+                    "from": "8b",
+                    "to": "9b"
+                  },
+                  {
+                    "from": "9c",
+                    "to": "9d"
+                  },
+                  {
+                    "from": "8c",
+                    "to": "8d"
+                  },
+                  {
+                    "from": "7c",
+                    "to": "7d"
+                  },
+                  {
+                    "from": "6c",
+                    "to": "6d"
+                  },
+                  {
+                    "from": "5c",
+                    "to": "5d"
+                  },
+                  {
+                    "from": "4c",
+                    "to": "4d"
+                  },
+                  {
+                    "from": "3c",
+                    "to": "3d"
+                  },
+                  {
+                    "from": "2c",
+                    "to": "2d"
+                  },
+                  {
+                    "from": "1c",
+                    "to": "1d"
+                  }
+                ],
                 "status": {
                   "type": "playing",
                   "turn": "black"
@@ -8641,7 +9904,128 @@
                   "9c",
                   "9d"
                 ],
-                "legalMoves": [],
+                "legalMoves": [
+                  {
+                    "from": "9a",
+                    "to": "9b"
+                  },
+                  {
+                    "from": "7a",
+                    "to": "7b"
+                  },
+                  {
+                    "from": "7a",
+                    "to": "6b"
+                  },
+                  {
+                    "from": "6a",
+                    "to": "6b"
+                  },
+                  {
+                    "from": "6a",
+                    "to": "5b"
+                  },
+                  {
+                    "from": "6a",
+                    "to": "7b"
+                  },
+                  {
+                    "from": "5a",
+                    "to": "4b"
+                  },
+                  {
+                    "from": "5a",
+                    "to": "5b"
+                  },
+                  {
+                    "from": "5a",
+                    "to": "6b"
+                  },
+                  {
+                    "from": "4a",
+                    "to": "4b"
+                  },
+                  {
+                    "from": "4a",
+                    "to": "3b"
+                  },
+                  {
+                    "from": "4a",
+                    "to": "5b"
+                  },
+                  {
+                    "from": "3a",
+                    "to": "3b"
+                  },
+                  {
+                    "from": "3a",
+                    "to": "4b"
+                  },
+                  {
+                    "from": "1a",
+                    "to": "1b"
+                  },
+                  {
+                    "from": "8b",
+                    "to": "7b"
+                  },
+                  {
+                    "from": "8b",
+                    "to": "6b"
+                  },
+                  {
+                    "from": "8b",
+                    "to": "5b"
+                  },
+                  {
+                    "from": "8b",
+                    "to": "4b"
+                  },
+                  {
+                    "from": "8b",
+                    "to": "3b"
+                  },
+                  {
+                    "from": "8b",
+                    "to": "9b"
+                  },
+                  {
+                    "from": "9c",
+                    "to": "9d"
+                  },
+                  {
+                    "from": "8c",
+                    "to": "8d"
+                  },
+                  {
+                    "from": "7c",
+                    "to": "7d"
+                  },
+                  {
+                    "from": "6c",
+                    "to": "6d"
+                  },
+                  {
+                    "from": "5c",
+                    "to": "5d"
+                  },
+                  {
+                    "from": "4c",
+                    "to": "4d"
+                  },
+                  {
+                    "from": "3c",
+                    "to": "3d"
+                  },
+                  {
+                    "from": "2c",
+                    "to": "2d"
+                  },
+                  {
+                    "from": "1c",
+                    "to": "1d"
+                  }
+                ],
                 "status": {
                   "type": "playing",
                   "turn": "black"
@@ -8968,7 +10352,136 @@
                   "9h",
                   "9i"
                 ],
-                "legalMoves": [],
+                "legalMoves": [
+                  {
+                    "from": "1f",
+                    "to": "1e"
+                  },
+                  {
+                    "from": "9g",
+                    "to": "9f"
+                  },
+                  {
+                    "from": "8g",
+                    "to": "8f"
+                  },
+                  {
+                    "from": "7g",
+                    "to": "7f"
+                  },
+                  {
+                    "from": "6g",
+                    "to": "6f"
+                  },
+                  {
+                    "from": "5g",
+                    "to": "5f"
+                  },
+                  {
+                    "from": "4g",
+                    "to": "4f"
+                  },
+                  {
+                    "from": "3g",
+                    "to": "3f"
+                  },
+                  {
+                    "from": "2g",
+                    "to": "2f"
+                  },
+                  {
+                    "from": "2h",
+                    "to": "1h"
+                  },
+                  {
+                    "from": "2h",
+                    "to": "3h"
+                  },
+                  {
+                    "from": "2h",
+                    "to": "4h"
+                  },
+                  {
+                    "from": "2h",
+                    "to": "5h"
+                  },
+                  {
+                    "from": "2h",
+                    "to": "6h"
+                  },
+                  {
+                    "from": "2h",
+                    "to": "7h"
+                  },
+                  {
+                    "from": "9i",
+                    "to": "9h"
+                  },
+                  {
+                    "from": "7i",
+                    "to": "7h"
+                  },
+                  {
+                    "from": "7i",
+                    "to": "6h"
+                  },
+                  {
+                    "from": "6i",
+                    "to": "6h"
+                  },
+                  {
+                    "from": "6i",
+                    "to": "5h"
+                  },
+                  {
+                    "from": "6i",
+                    "to": "7h"
+                  },
+                  {
+                    "from": "5i",
+                    "to": "4h"
+                  },
+                  {
+                    "from": "5i",
+                    "to": "5h"
+                  },
+                  {
+                    "from": "5i",
+                    "to": "6h"
+                  },
+                  {
+                    "from": "4i",
+                    "to": "4h"
+                  },
+                  {
+                    "from": "4i",
+                    "to": "3h"
+                  },
+                  {
+                    "from": "4i",
+                    "to": "5h"
+                  },
+                  {
+                    "from": "3i",
+                    "to": "3h"
+                  },
+                  {
+                    "from": "3i",
+                    "to": "4h"
+                  },
+                  {
+                    "from": "2i",
+                    "to": "1g"
+                  },
+                  {
+                    "from": "1i",
+                    "to": "1h"
+                  },
+                  {
+                    "from": "1i",
+                    "to": "1g"
+                  }
+                ],
                 "status": {
                   "type": "playing",
                   "turn": "white"
@@ -10023,7 +11536,128 @@
                   "9c",
                   "9d"
                 ],
-                "legalMoves": [],
+                "legalMoves": [
+                  {
+                    "from": "9a",
+                    "to": "9b"
+                  },
+                  {
+                    "from": "7a",
+                    "to": "7b"
+                  },
+                  {
+                    "from": "7a",
+                    "to": "6b"
+                  },
+                  {
+                    "from": "6a",
+                    "to": "6b"
+                  },
+                  {
+                    "from": "6a",
+                    "to": "5b"
+                  },
+                  {
+                    "from": "6a",
+                    "to": "7b"
+                  },
+                  {
+                    "from": "5a",
+                    "to": "4b"
+                  },
+                  {
+                    "from": "5a",
+                    "to": "5b"
+                  },
+                  {
+                    "from": "5a",
+                    "to": "6b"
+                  },
+                  {
+                    "from": "4a",
+                    "to": "4b"
+                  },
+                  {
+                    "from": "4a",
+                    "to": "3b"
+                  },
+                  {
+                    "from": "4a",
+                    "to": "5b"
+                  },
+                  {
+                    "from": "3a",
+                    "to": "3b"
+                  },
+                  {
+                    "from": "3a",
+                    "to": "4b"
+                  },
+                  {
+                    "from": "8b",
+                    "to": "7b"
+                  },
+                  {
+                    "from": "8b",
+                    "to": "6b"
+                  },
+                  {
+                    "from": "8b",
+                    "to": "5b"
+                  },
+                  {
+                    "from": "8b",
+                    "to": "4b"
+                  },
+                  {
+                    "from": "8b",
+                    "to": "3b"
+                  },
+                  {
+                    "from": "8b",
+                    "to": "9b"
+                  },
+                  {
+                    "from": "2b",
+                    "to": "1a"
+                  },
+                  {
+                    "from": "9c",
+                    "to": "9d"
+                  },
+                  {
+                    "from": "8c",
+                    "to": "8d"
+                  },
+                  {
+                    "from": "7c",
+                    "to": "7d"
+                  },
+                  {
+                    "from": "6c",
+                    "to": "6d"
+                  },
+                  {
+                    "from": "5c",
+                    "to": "5d"
+                  },
+                  {
+                    "from": "4c",
+                    "to": "4d"
+                  },
+                  {
+                    "from": "3c",
+                    "to": "3d"
+                  },
+                  {
+                    "from": "2c",
+                    "to": "2d"
+                  },
+                  {
+                    "from": "1c",
+                    "to": "1d"
+                  }
+                ],
                 "status": {
                   "type": "playing",
                   "turn": "black"

@@ -30,4 +30,48 @@ describe('Dark Crazyhouse board renderer', () => {
     expect(svg).toMatch(/<svg x="\d+" y="\d+" width="50" height="50" viewBox="0 0 45 45"/);
     expect(svg).not.toContain('width="43" height="43"');
   });
+
+  it('emits hit targets, selection, and drop target markers when interactive', () => {
+    const view = getCrazyhousePlayerView(createInitialCrazyhouseState('dczh-interactive'), 'white');
+    const svg = renderCrazyhouseBoardSvg(
+      {
+        ...view,
+        board: {
+          a1: { color: 'white', role: 'king' },
+          a2: { color: 'black', role: 'pawn' },
+        },
+      },
+      {
+        showFog: false,
+        interactive: true,
+        selected: 'a1',
+        targets: ['a2', 'a3'],
+      },
+    );
+
+    expect((svg.match(/data-square="/g) ?? []).length).toBe(64);
+    expect(svg).toContain('data-square="a1"');
+    expect(svg).toContain('rgba(31,111,91,0.32)');
+    expect(svg).toContain('rgba(31,111,91,0.72)');
+    expect(svg).toContain('rgba(31,111,91,0.48)');
+    expect(svg).toContain('mb-grid-target-hover');
+  });
+
+  it('marks the dragged source piece as an origin ghost', () => {
+    const view = getCrazyhousePlayerView(createInitialCrazyhouseState('dczh-drag-source'), 'white');
+    const svg = renderCrazyhouseBoardSvg(
+      {
+        ...view,
+        board: {
+          a1: { color: 'white', role: 'king' },
+        },
+      },
+      {
+        showFog: false,
+        draggingFrom: 'a1',
+      },
+    );
+
+    expect(svg).toContain('crazyhouse-board-piece crazyhouse-board-piece--drag-source');
+  });
 });

@@ -313,11 +313,15 @@ export function getShogiPlayerView(state: ShogiGameState, color: ShogiColor): Sh
   // Board moves are truth-legal (the server knows the board); drops are OFFERED
   // from this view (the parachute set) so the list never leaks which fogged
   // squares are occupied. A drop onto a hidden piece bounces server-side.
+  const viewMoveState =
+    state.status.type === 'playing'
+      ? { ...state, status: { type: 'playing' as const, turn: color } }
+      : state;
   const legalMoves =
-    state.status.type === 'playing' && state.status.turn === color
+    state.status.type === 'playing'
       ? [
-          ...getLegalShogiMoves(state).filter((move) => !isShogiDrop(move)),
-          ...getShogiDropOffers(state, color, board),
+          ...getLegalShogiMoves(viewMoveState).filter((move) => !isShogiDrop(move)),
+          ...getShogiDropOffers(viewMoveState, color, board),
         ]
       : [];
   return {

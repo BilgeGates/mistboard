@@ -19,6 +19,7 @@
 // every board entry it carries is a fully-known piece (color, role, promoted).
 
 import {
+  GRID_INTERACTION_COLORS,
   type GridCellRef,
   type GridGeometry,
   type GridPalette,
@@ -94,9 +95,10 @@ function paletteFor(theme: ShogiBoardTheme, fogFill = SHOGI_FOG_FALLBACK): GridP
     boardEdge: 'transparent',
     coord: c.coord,
     lastMove: 'rgba(230,201,95,0.62)',
-    selected: 'rgba(207,227,154,0.70)',
-    targetDot: '#5f7d33',
-    targetRing: '#5f7d33',
+    selected: GRID_INTERACTION_COLORS.selected,
+    targetDot: GRID_INTERACTION_COLORS.targetDot,
+    targetRing: GRID_INTERACTION_COLORS.targetRing,
+    targetHover: GRID_INTERACTION_COLORS.targetHover,
     // Off-vision pieces are already absent from the view, so fog can be a real
     // dark field instead of a pale disabled-state wash.
     fog: fogFill,

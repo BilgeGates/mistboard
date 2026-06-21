@@ -25,7 +25,7 @@ export type JieqiBoardRenderOptions = {
   selectedSquare?: JieqiSquare | null;
   legalMoves?: readonly JieqiMove[];
   pieceSet?: XiangqiPieceSet;
-  // While dragging, omit the source piece so only the floating ghost shows.
+  // While dragging, render the origin as a dim source shadow.
   draggingFrom?: JieqiSquare | null;
 };
 
@@ -56,6 +56,7 @@ export function renderJieqiBoardSvg(
   options: JieqiBoardRenderOptions = {},
 ): string {
   const pieceSet = options.pieceSet ?? readStoredXiangqiPieceSet();
+  const legalMoves = options.legalMoves ?? [];
   return `
     <svg class="jieqi-board" viewBox="0 0 ${WIDTH} ${HEIGHT}" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Jieqi board">
       <rect class="jieqi-board-bg" x="0" y="0" width="${WIDTH}" height="${HEIGHT}" rx="10"/>
@@ -63,9 +64,9 @@ export function renderJieqiBoardSvg(
       <g class="jieqi-grid">${gridLines()}${palaceCrosses(perspective)}</g>
       ${lastMoveMarkers(view, perspective)}
       ${selectionRing(options.selectedSquare ?? null, perspective)}
-      ${moveHints(view, options.legalMoves ?? [], perspective)}
+      ${options.interactive ? '' : moveHints(view, legalMoves, perspective)}
       ${pieceLayer(view, perspective, pieceSet, options.draggingFrom ?? null)}
-      ${options.interactive ? hitLayer(perspective) : ''}
+      ${options.interactive ? hitLayer(perspective, view, legalMoves) : ''}
     </svg>
   `;
 }
@@ -151,13 +152,13 @@ function pieceLayer(
   return Object.entries(view.board)
     .map(([square, entry]) => {
       if (!entry) return '';
-      if (square === draggingFrom) return '';
+      const dragSource = square === draggingFrom;
       const { file, rank } = jieqiCoordOf(square as JieqiSquare);
       const { x, y } = intersection(file, rank, perspective);
       if (entry.faceDown) {
         return renderXiangqiPieceGlyphed({ color: entry.color, role: 'soldier' }, pieceSet, {
           ariaLabel: `${entry.color} hidden piece`,
-          className: 'jieqi-piece',
+          className: dragSource ? 'jieqi-piece jieqi-piece--drag-source' : 'jieqi-piece',
           shrouded: true,
           shroudedStyle: 'back',
           x: x - PIECE_SIZE / 2,
@@ -167,7 +168,7 @@ function pieceLayer(
       }
       return renderXiangqiPieceGlyphed({ color: entry.color, role: entry.role }, pieceSet, {
         ariaLabel: `${entry.color} ${entry.role}`,
-        className: 'jieqi-piece',
+        className: dragSource ? 'jieqi-piece jieqi-piece--drag-source' : 'jieqi-piece',
         shrouded: false,
         x: x - PIECE_SIZE / 2,
         y: y - PIECE_SIZE / 2,
@@ -212,14 +213,27 @@ function lastMoveMarkers(view: JieqiPlayerView, perspective: JieqiColor): string
     .join('');
 }
 
-function hitLayer(perspective: JieqiColor): string {
+function hitLayer(
+  perspective: JieqiColor,
+  view: JieqiPlayerView,
+  moves: readonly JieqiMove[],
+): string {
+  const targets = new Map<JieqiSquare, { capture: boolean }>();
+  for (const move of moves) targets.set(move.to, { capture: view.board[move.to] !== undefined });
   const parts: string[] = [];
   for (let f = 0; f < FILES; f += 1) {
     for (let r = 1; r <= RANKS; r += 1) {
       const sq = jieqiSquareOf(f, r);
       const { x, y } = intersection(f, r, perspective);
+      const target = targets.get(sq);
+      const marker = target
+        ? target.capture
+          ? `<circle class="jieqi-hint-capture" cx="${x}" cy="${y}" r="28"/>`
+          : `<circle class="jieqi-hint" cx="${x}" cy="${y}" r="10"/>`
+        : '';
+      const hover = target ? `<circle class="jieqi-target-hover" cx="${x}" cy="${y}" r="31"/>` : '';
       parts.push(
-        `<g data-square="${sq}" class="jieqi-hit"><rect x="${x - HIT_HALF}" y="${y - HIT_HALF}" width="${HIT_HALF * 2}" height="${HIT_HALF * 2}"/></g>`,
+        `<g data-square="${sq}" class="jieqi-hit${target ? ' jieqi-hit--target' : ''}">${hover}${marker}<rect x="${x - HIT_HALF}" y="${y - HIT_HALF}" width="${HIT_HALF * 2}" height="${HIT_HALF * 2}"/></g>`,
       );
     }
   }
@@ -248,16 +262,29 @@ export function installJieqiBoardStyles(): void {
       stroke-width: 2;
       stroke-linecap: round;
     }
-    .jieqi-selection { fill: none; stroke: #f59e0b; stroke-width: 4; pointer-events: none; }
-    .jieqi-hint { fill: #1d4ed8; opacity: 0.78; pointer-events: none; }
+    .jieqi-selection { fill: rgba(31, 111, 91, 0.32); stroke: none; pointer-events: none; }
+    .jieqi-hint { fill: rgba(31, 111, 91, 0.72); opacity: 0.78; pointer-events: none; }
     .jieqi-hint-capture {
-      fill: none; stroke: #b91c1c; stroke-dasharray: 6 4; stroke-width: 3; pointer-events: none;
+      fill: none; stroke: rgba(31, 111, 91, 0.48); stroke-width: 3; pointer-events: none;
+    }
+    .jieqi-target-hover {
+      fill: rgba(31, 111, 91, 0.3);
+      opacity: 0;
+      pointer-events: none;
+    }
+    .jieqi-hit--target:hover .jieqi-target-hover {
+      opacity: 1;
+    }
+    .jieqi-hit--target:hover .jieqi-hint,
+    .jieqi-hit--target:hover .jieqi-hint-capture {
+      opacity: 0;
     }
     .jieqi-last {
       fill: rgba(250, 204, 21, 0.22); stroke: rgba(180, 83, 9, 0.55);
       stroke-width: 2; pointer-events: none;
     }
     .jieqi-piece { pointer-events: none; filter: drop-shadow(0 2px 2px rgba(0, 0, 0, 0.2)); }
+    .jieqi-piece--drag-source { opacity: 0.34; }
     .jieqi-hit rect { fill: transparent; cursor: pointer; }
   `;
   document.head.append(style);

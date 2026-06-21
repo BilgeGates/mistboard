@@ -43,7 +43,7 @@ export type BanqiBoardRenderOptions = {
   // clicked directly to flip, so it needs no target dot).
   legalMoves?: readonly BanqiMove[];
   pieceSet?: XiangqiPieceSet;
-  // While dragging, omit the source piece so only the floating ghost shows.
+  // While dragging, render the origin as a dim source shadow.
   draggingFrom?: BanqiSquare | null;
 };
 
@@ -137,9 +137,9 @@ function startMarks(): string {
 
 // A uniform face-down disc: one colour, a single ring, no glyph (the deal is
 // hidden from both). A flat disc with no inner ring keeps the back clean.
-function faceDownDisc(cx: number, cy: number): string {
+function faceDownDisc(cx: number, cy: number, className = 'banqi-back'): string {
   const r = PIECE_SIZE * 0.46;
-  return [`<g class="banqi-back">`, `<circle cx="${cx}" cy="${cy}" r="${r}"/>`, `</g>`].join('');
+  return [`<g class="${className}">`, `<circle cx="${cx}" cy="${cy}" r="${r}"/>`, `</g>`].join('');
 }
 
 function pieceLayer(
@@ -150,12 +150,14 @@ function pieceLayer(
   return ALL_BANQI_SQUARES.map((square) => {
     const entry = view.board[square];
     if (!entry) return '';
-    if (square === draggingFrom) return '';
+    const dragSource = square === draggingFrom;
     const { x, y } = cellCenter(square);
-    if (entry.faceDown) return faceDownDisc(x, y);
+    if (entry.faceDown) {
+      return faceDownDisc(x, y, dragSource ? 'banqi-back banqi-drag-source' : 'banqi-back');
+    }
     return renderXiangqiPieceGlyphed({ color: entry.color, role: entry.role }, pieceSet, {
       ariaLabel: `${entry.color} ${entry.role}`,
-      className: 'banqi-piece',
+      className: dragSource ? 'banqi-piece banqi-drag-source' : 'banqi-piece',
       shrouded: false,
       x: x - PIECE_SIZE / 2,
       y: y - PIECE_SIZE / 2,
@@ -198,10 +200,26 @@ function lastMoveMarkers(view: BanqiPlayerView): string {
     .join('');
 }
 
-function hitLayer(): string {
+function hitLayerWithTargets(moves: readonly BanqiMove[], view?: BanqiPlayerView): string {
+  const targets = new Map<BanqiSquare, { capture: boolean }>();
+  if (view) {
+    for (const move of moves) {
+      const occupant = view.board[move.to];
+      targets.set(move.to, { capture: !!occupant && !occupant.faceDown });
+    }
+  }
   return ALL_BANQI_SQUARES.map((square) => {
     const { x, y } = cellCenter(square);
-    return `<g data-square="${square}" class="banqi-hit"><rect x="${x - HIT_HALF}" y="${y - HIT_HALF}" width="${HIT_HALF * 2}" height="${HIT_HALF * 2}"/></g>`;
+    const target = targets.get(square);
+    const marker = target
+      ? target.capture
+        ? `<circle class="banqi-hint-capture" cx="${x}" cy="${y}" r="${CELL * 0.42}"/>`
+        : `<circle class="banqi-hint" cx="${x}" cy="${y}" r="9"/>`
+      : '';
+    const hover = target
+      ? `<rect class="banqi-target-hover" x="${x - HIT_HALF}" y="${y - HIT_HALF}" width="${HIT_HALF * 2}" height="${HIT_HALF * 2}" rx="6"/>`
+      : '';
+    return `<g data-square="${square}" class="banqi-hit${target ? ' banqi-hit--target' : ''}">${hover}${marker}<rect x="${x - HIT_HALF}" y="${y - HIT_HALF}" width="${HIT_HALF * 2}" height="${HIT_HALF * 2}"/></g>`;
   }).join('');
 }
 
@@ -223,9 +241,9 @@ export function renderBanqiBoardSvg(
       ${startMarks()}
       ${lastMoveMarkers(view)}
       ${selectionRing(options.selectedSquare ?? null)}
-      ${moveHints(view, moves)}
+      ${options.interactive ? '' : moveHints(view, moves)}
       ${pieceLayer(view, pieceSet, options.draggingFrom ?? null)}
-      ${options.interactive ? hitLayer() : ''}
+      ${options.interactive ? hitLayerWithTargets(moves, view) : ''}
     </svg>
   `;
 }
@@ -254,14 +272,27 @@ export function installBanqiBoardStyles(): void {
       stroke-linecap: round;
     }
     .banqi-mark line { stroke: var(--mini-xq-grid, #5b4a32); stroke-width: 1.5; stroke-linecap: round; opacity: 0.7; }
-    .banqi-selection { fill: rgba(250, 204, 21, 0.20); stroke: #f59e0b; stroke-width: 3; pointer-events: none; }
-    .banqi-hint { fill: #1d4ed8; opacity: 0.7; pointer-events: none; }
+    .banqi-selection { fill: rgba(31, 111, 91, 0.32); stroke: none; pointer-events: none; }
+    .banqi-hint { fill: rgba(31, 111, 91, 0.72); opacity: 0.7; pointer-events: none; }
     .banqi-hint-capture {
-      fill: none; stroke: #b91c1c; stroke-dasharray: 6 4; stroke-width: 3; pointer-events: none;
+      fill: none; stroke: rgba(31, 111, 91, 0.48); stroke-width: 3; pointer-events: none;
+    }
+    .banqi-target-hover {
+      fill: rgba(31, 111, 91, 0.3);
+      opacity: 0;
+      pointer-events: none;
+    }
+    .banqi-hit--target:hover .banqi-target-hover {
+      opacity: 1;
+    }
+    .banqi-hit--target:hover .banqi-hint,
+    .banqi-hit--target:hover .banqi-hint-capture {
+      opacity: 0;
     }
     .banqi-last { fill: rgba(250, 204, 21, 0.22); pointer-events: none; }
     .banqi-piece { pointer-events: none; filter: drop-shadow(0 2px 2px rgba(0, 0, 0, 0.2)); }
     .banqi-back { pointer-events: none; filter: drop-shadow(0 2px 3px rgba(0, 0, 0, 0.3)); }
+    .banqi-drag-source { opacity: 0.34; }
     .banqi-back circle { fill: #2f8f6b; stroke: #184a38; stroke-width: 2; }
     .banqi-hit rect { fill: transparent; cursor: pointer; }
   `;

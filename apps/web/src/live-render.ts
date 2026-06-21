@@ -673,6 +673,7 @@ function renderBoard(view: PlayerView | null): void {
     pendingPromotion === null;
   const boardIsLive = canInteractWithOwnPieces && moveColor !== null;
   const movableColor = boardIsLive ? moveColor : ownSeat;
+  const dests = view ? legalDests(view) : new Map<cg.Key, cg.Key[]>();
   refs.board.classList.toggle('finished-board', view?.status.type === 'finished');
   refs.board.classList.toggle('paused-board', paused);
   renderPausedOverlay(paused);
@@ -689,7 +690,7 @@ function renderBoard(view: PlayerView | null): void {
     lastMove: view?.lastMove ? ([view.lastMove.from, view.lastMove.to] as cg.Key[]) : undefined,
     movable: {
       color: movableColor ?? undefined,
-      dests: view ? legalDests(view) : new Map<cg.Key, cg.Key[]>(),
+      dests,
       free: false,
       rookCastle: true,
       showDests: true,
@@ -700,24 +701,32 @@ function renderBoard(view: PlayerView | null): void {
     orientation,
     premovable: {
       castle: true,
+      customDests: dests,
       enabled: canInteractWithOwnPieces && !boardIsLive && ownSeat !== null,
       showDests: true,
     },
     selectable: { enabled: canInteractWithOwnPieces },
-    draggable: { enabled: canInteractWithOwnPieces, showGhost: true },
+    draggable: { enabled: true, showGhost: true },
     turnColor: view?.status.type === 'playing' ? view.status.turn : undefined,
     viewOnly: false,
   } satisfies Config;
 
   if (ground) {
     ground.set(config);
+    ensureDragGhostElement();
     maybePlayPremove();
     return;
   }
 
   ground = mountBoard(refs.board, config);
   liveState.ground = ground;
+  ensureDragGhostElement();
   maybePlayPremove();
+}
+
+function ensureDragGhostElement(): void {
+  if (!ground || refs.board.querySelector('piece.ghost')) return;
+  ground.redrawAll();
 }
 
 function maybePlayPremove(): void {

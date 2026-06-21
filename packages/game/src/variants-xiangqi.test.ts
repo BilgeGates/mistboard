@@ -819,15 +819,15 @@ test('cannon-vision mode D is the inverse of mode C', () => {
   }
 });
 
-test("player view legal-moves: only when it is the player's turn", () => {
+test('player view legal-moves carry own candidate moves off-turn', () => {
   const state = createInitialXiangqiState('t'); // red to move
   const redView = getPlayerView(state, 'red');
   assert.equal(redView.legalMoves.length, 44);
   const blackView = getPlayerView(state, 'black');
-  assert.equal(
-    blackView.legalMoves.length,
-    0,
-    "black should have no legal moves when it is red's turn",
+  assert.ok(blackView.legalMoves.some((move) => move.from === 'a10' && move.to === 'a9'));
+  assert.deepEqual(
+    getLegalMoves(state).filter((move) => move.from === 'a10'),
+    [],
   );
 });
 

@@ -334,10 +334,10 @@ test('truth view reveals every identity (postgame), redacting nothing', () => {
   }
 });
 
-test('only the side to move has legal moves in its view', () => {
+test('player views carry own candidate moves off-turn', () => {
   const state = createInitialRevealChessState('g');
   assert.ok(getRevealChessPlayerView(state, 'white').legalMoves.length > 0);
-  assert.equal(getRevealChessPlayerView(state, 'black').legalMoves.length, 0);
+  assert.ok(getRevealChessPlayerView(state, 'black').legalMoves.length > 0);
   assert.equal(oppositeRevealChessColor('white'), 'black');
 });
 

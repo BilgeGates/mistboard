@@ -25,6 +25,10 @@
   background: var(--board-frame);
 }
 
+.crazyhouse-live-svg .crazyhouse-board-piece--drag-source {
+  opacity: 0.34;
+}
+
 .crazyhouse-live-svg .crazyhouse-fog-square {
   fill: var(--board-fog-light-fill);
   stroke: var(--board-fog-shadow);

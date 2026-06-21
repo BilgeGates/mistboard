@@ -741,7 +741,9 @@ export function getPlayerView(
   const visibleSquares = [...visibleSet].sort();
 
   const legalMoves =
-    state.status.type === 'playing' && state.status.turn === color ? getLegalMoves(state) : [];
+    state.status.type === 'playing'
+      ? getLegalMoves({ ...state, status: { type: 'playing', turn: color } })
+      : [];
 
   return {
     id: state.id,

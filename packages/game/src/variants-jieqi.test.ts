@@ -44,6 +44,17 @@ function destinations(moves: JieqiMove[]): string[] {
   return moves.map((m) => m.to).sort();
 }
 
+test('player views carry own candidate moves off-turn', () => {
+  const state = createInitialJieqiState('view-legal');
+
+  assert.ok(getJieqiPlayerView(state, 'red').legalMoves.length > 0);
+  assert.ok(getJieqiPlayerView(state, 'black').legalMoves.length > 0);
+  assert.equal(
+    getJieqiLegalMoves(state).some((move) => move.from === 'e10'),
+    false,
+  );
+});
+
 // ── Setup + deal ────────────────────────────────────────────────────────────
 
 test('initial state deals 15 dark pieces per side and face-up generals', () => {

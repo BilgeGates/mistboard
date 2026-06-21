@@ -451,8 +451,8 @@ export function getMiniXiangqiPlayerView(
     ]),
   ].sort();
   const legalMoves =
-    state.status.type === 'playing' && state.status.turn === color
-      ? getMiniXiangqiLegalMoves(state)
+    state.status.type === 'playing'
+      ? getMiniXiangqiLegalMoves({ ...state, status: { type: 'playing', turn: color } })
       : [];
 
   return {

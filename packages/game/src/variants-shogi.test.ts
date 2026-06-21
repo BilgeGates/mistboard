@@ -457,3 +457,14 @@ test('shogi drops are OFFERED from the view (parachute) and bounce on a hidden p
   // The truth-legal drop enumeration (server / bots) correctly excludes 1a.
   assert.ok(!getLegalShogiDrops(state).some((m) => m.drop === 'S' && m.to === '1a'));
 });
+
+test('shogi player views carry own candidate moves off-turn', () => {
+  const state = createInitialShogiState('view-legal');
+
+  assert.ok(getShogiPlayerView(state, 'black').legalMoves.length > 0);
+  assert.ok(getShogiPlayerView(state, 'white').legalMoves.length > 0);
+  assert.equal(
+    getLegalShogiMoves(state).some((move) => !isShogiDrop(move) && move.from === '5a'),
+    false,
+  );
+});

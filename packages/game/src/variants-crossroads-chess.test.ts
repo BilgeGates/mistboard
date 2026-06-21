@@ -295,6 +295,14 @@ test('player view never reveals a fully hidden enemy piece', () => {
   assert.equal(view.visibleSquares.includes('b2'), true);
 });
 
+test('player views carry own candidate moves off-turn', () => {
+  const state = createInitialCrossroadsChessState('view-legal');
+
+  assert.ok(getCrossroadsChessPlayerView(state, 'white').legalMoves.length > 0);
+  assert.ok(getCrossroadsChessPlayerView(state, 'red').legalMoves.length > 0);
+  assert.equal(getCrossroadsChessLegalMovesFrom(state, 'f8').length, 0);
+});
+
 test('cannon reveals the enemy target through its screen', () => {
   const s = stateWith(
     { a1: p('white', 'cannon'), a3: p('red', 'soldier'), a6: p('red', 'chariot') },

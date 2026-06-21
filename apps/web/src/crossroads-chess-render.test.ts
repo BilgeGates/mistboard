@@ -104,8 +104,9 @@ describe('Crossroads Chess board renderer', () => {
     // 48 transparent hit targets, one per square.
     expect((svg.match(/data-square="/g) ?? []).length).toBe(48);
     expect(svg).toContain('data-square="d1"');
-    // Selection highlight + two move dots (empty targets).
-    expect(svg).toContain('rgba(255,205,80,0.55)');
-    expect((svg.match(/rgba\(45,100,45,0\.62\)/g) ?? []).length).toBe(2);
+    // Selection highlight + two move dots (empty targets) + hover-square overlays.
+    expect(svg).toContain('rgba(31,111,91,0.32)');
+    expect((svg.match(/rgba\(31,111,91,0\.72\)/g) ?? []).length).toBe(2);
+    expect(svg).toContain('mb-grid-target-hover');
   });
 });

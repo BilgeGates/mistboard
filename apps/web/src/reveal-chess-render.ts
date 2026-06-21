@@ -19,6 +19,7 @@
 // a hidden identity (the hidden-info invariant on the client side).
 
 import {
+  GRID_INTERACTION_COLORS,
   type GridBoardDescriptor,
   type GridCellRef,
   type GridGeometry,
@@ -50,9 +51,10 @@ const REVEAL_CHESS_DESCRIPTOR: GridBoardDescriptor = {
     boardEdge: 'var(--crossroads-board-edge)',
     coord: 'var(--crossroads-coord)',
     lastMove: 'var(--board-last-move)',
-    selected: 'rgba(255,205,80,0.55)',
-    targetDot: 'rgba(45,100,45,0.62)',
-    targetRing: 'rgba(170,40,40,0.62)',
+    selected: GRID_INTERACTION_COLORS.selected,
+    targetDot: GRID_INTERACTION_COLORS.targetDot,
+    targetRing: GRID_INTERACTION_COLORS.targetRing,
+    targetHover: GRID_INTERACTION_COLORS.targetHover,
     fog: 'var(--board-fog-light-fill)',
   },
   svgClass: 'reveal-chess-live-svg',

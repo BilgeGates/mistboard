@@ -599,7 +599,9 @@ export function getJieqiPlayerView(state: JieqiGameState, color: JieqiColor): Ji
   });
 
   const legalMoves =
-    state.status.type === 'playing' && state.status.turn === color ? getJieqiLegalMoves(state) : [];
+    state.status.type === 'playing'
+      ? getJieqiLegalMoves({ ...state, status: { type: 'playing', turn: color } })
+      : [];
 
   let inCheck = false;
   if (state.status.type === 'playing') {

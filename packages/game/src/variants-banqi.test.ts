@@ -345,9 +345,9 @@ test('both seats see the identical masked board; face-down tiles carry no ink', 
   assert.deepEqual(firstView.board.b1, { faceDown: true }); // no ink leaked
   assert.deepEqual(firstView.board.a1, { color: 'red', role: 'chariot', faceDown: false });
 
-  // Only the side to move carries legal moves.
+  // Player views carry each seat's own candidate moves even while waiting.
   assert.ok(firstView.legalMoves.length > 0);
-  assert.equal(secondView.legalMoves.length, 0);
+  assert.ok(secondView.legalMoves.length > 0);
   assert.equal(firstView.firstColor, 'red'); // binding exposed for client rendering
 });
 

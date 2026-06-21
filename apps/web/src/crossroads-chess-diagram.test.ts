@@ -27,9 +27,9 @@ describe('Crossroads Chess article diagrams', () => {
       captures: ['c6'],
       highlights: ['c4'],
     });
-    expect(svg).toMatch(/fill="rgba\(45,100,45,0\.62\)"/); // move dot (empty target)
-    expect(svg).toMatch(/stroke="rgba\(170,40,40,0\.62\)"/); // capture ring (occupied)
-    expect(svg).toMatch(/fill="rgba\(255,205,80,0\.55\)"/); // highlight square
+    expect(svg).toMatch(/fill="rgba\(31,111,91,0\.72\)"/); // move dot (empty target)
+    expect(svg).toMatch(/stroke="rgba\(31,111,91,0\.48\)"/); // capture ring (occupied)
+    expect(svg).toMatch(/fill="rgba\(31,111,91,0\.32\)"/); // highlight square
   });
 
   it('draws an annotation arrow for the race diagram', () => {

@@ -788,8 +788,8 @@ export function getRevealChessPlayerView(
   });
 
   const legalMoves =
-    state.status.type === 'playing' && state.status.turn === color
-      ? getRevealChessLegalMoves(state)
+    state.status.type === 'playing'
+      ? getRevealChessLegalMoves({ ...state, status: { type: 'playing', turn: color } })
       : [];
 
   const inCheck = state.status.type === 'playing' ? isKingInCheck(state.board, color) : false;

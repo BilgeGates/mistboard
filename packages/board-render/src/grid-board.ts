@@ -34,6 +34,7 @@ export type GridPalette = {
   selected: string;
   targetDot: string;
   targetRing: string;
+  targetHover?: string;
   fog: string;
   // Colour for annotation arrows. Optional; defaults to a muted green.
   arrow?: string;
@@ -107,6 +108,12 @@ export type GridBoardLayers = {
 };
 
 const DEFAULT_FILE_LABEL = (file: number): string => String.fromCharCode(97 + file);
+export const GRID_INTERACTION_COLORS = {
+  selected: 'rgba(31,111,91,0.32)',
+  targetDot: 'rgba(31,111,91,0.72)',
+  targetRing: 'rgba(31,111,91,0.48)',
+  targetHover: 'rgba(31,111,91,0.30)',
+} as const;
 
 function layout(descriptor: GridBoardDescriptor) {
   const { files, ranks, cell } = descriptor;
@@ -224,15 +231,17 @@ export function renderGridBoardSvg(
   };
 
   const targetLayer = (): string =>
-    (layers.targets ?? [])
-      .map((ref) => {
-        const { x, y } = geom.center(ref.file, ref.rank);
-        if (ref.occupied) {
-          return `<circle cx="${x}" cy="${y}" r="${cell * 0.43}" fill="none" stroke="${palette.targetRing}" stroke-width="3.5"/>`;
-        }
-        return `<circle cx="${x}" cy="${y}" r="${cell * 0.15}" fill="${palette.targetDot}"/>`;
-      })
-      .join('');
+    layers.interactive
+      ? ''
+      : (layers.targets ?? [])
+          .map((ref) => {
+            const { x, y } = geom.center(ref.file, ref.rank);
+            if (ref.occupied) {
+              return `<circle class="mb-grid-target-ring" cx="${x}" cy="${y}" r="${cell * 0.43}" fill="none" stroke="${palette.targetRing}" stroke-width="3.5" pointer-events="none"/>`;
+            }
+            return `<circle class="mb-grid-target-dot" cx="${x}" cy="${y}" r="${cell * 0.15}" fill="${palette.targetDot}" pointer-events="none"/>`;
+          })
+          .join('');
 
   const fogLayer = (): string =>
     (layers.fogHidden ?? []).map((ref) => cellRect(ref, palette.fog)).join('');
@@ -258,12 +267,24 @@ export function renderGridBoardSvg(
 
   const hitLayer = (): string => {
     const name = layers.squareName ?? ((f, r) => `${fileLabel(f)}${r}`);
+    const targetByCell = new Map<string, GridTargetRef>();
+    for (const ref of layers.targets ?? []) targetByCell.set(`${ref.file}:${ref.rank}`, ref);
     const parts: string[] = [];
     for (let file = 0; file < files; file += 1) {
       for (let rank = 1; rank <= ranks; rank += 1) {
         const { x, y } = geom.topLeft(file, rank);
+        const target = targetByCell.get(`${file}:${rank}`);
+        const center = geom.center(file, rank);
+        const targetMarker = target
+          ? target.occupied
+            ? `<circle class="mb-grid-target-ring" cx="${center.x}" cy="${center.y}" r="${cell * 0.43}" fill="none" stroke="${palette.targetRing}" stroke-width="3.5" pointer-events="none"/>`
+            : `<circle class="mb-grid-target-dot" cx="${center.x}" cy="${center.y}" r="${cell * 0.15}" fill="${palette.targetDot}" pointer-events="none"/>`
+          : '';
+        const hover = target
+          ? `<rect class="mb-grid-target-hover" x="${x}" y="${y}" width="${cell}" height="${cell}" fill="${palette.targetHover ?? GRID_INTERACTION_COLORS.targetHover}" pointer-events="none"/>`
+          : '';
         parts.push(
-          `<rect x="${x}" y="${y}" width="${cell}" height="${cell}" fill="transparent" data-square="${name(file, rank)}" style="cursor:pointer"/>`,
+          `<g class="mb-grid-hit${target ? ' mb-grid-hit--target' : ''}" data-square="${name(file, rank)}">${hover}${targetMarker}<rect class="mb-grid-hit-zone" x="${x}" y="${y}" width="${cell}" height="${cell}"/></g>`,
         );
       }
     }

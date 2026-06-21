@@ -126,8 +126,8 @@ const state = {
 let client: TenantSocketClient | null = null;
 let refs: LiveRefs | null = null;
 let selectedSquare: XiangqiSquare | null = null;
-// The square a piece is being dragged from (its piece is lifted off the board so
-// only the floating ghost shows). Null when not dragging.
+// The square a piece is being dragged from. The renderer keeps a dim source
+// shadow while the shared drag layer shows the floating ghost.
 let draggingFrom: XiangqiSquare | null = null;
 let lastCapturedView: DarkXiangqiWireView | null = null;
 let lastCapturedPositionKey: string | null = null;
@@ -355,9 +355,9 @@ function boardSvg(
       <g class="xq-live-fog">${fog}</g>
       <g class="xq-live-lastmove">${lastMoveLayer(view, perspective)}</g>
       <g class="xq-live-selection">${selectionLayer(selectedSquare, perspective)}</g>
-      <g class="xq-live-hints">${hintLayer(view, perspective)}</g>
+      <g class="xq-live-hints">${options.interactive ? '' : hintLayer(view, perspective)}</g>
       <g class="xq-live-pieces">${pieceLayer(view, perspective, draggingFrom)}</g>
-      <g class="xq-live-clicks">${options.interactive ? clickLayer(perspective) : ''}</g>
+      <g class="xq-live-clicks">${options.interactive ? clickLayer(view, perspective) : ''}</g>
       <rect class="xq-live-border" x="0" y="0" width="${WIDTH}" height="${HEIGHT}" rx="${BOARD_RADIUS}"/>
     </svg>
   `;
@@ -474,8 +474,7 @@ function pieceLayer(
   const parts: string[] = [];
   for (const [square, entry] of Object.entries(view.board)) {
     if (!entry) continue;
-    // While dragging, omit the source piece so only the floating ghost shows.
-    if (square === draggingFromSquare) continue;
+    const dragSource = square === draggingFromSquare;
     const coord = coordOf(square as XiangqiSquare);
     const center = intersection(coord.file, coord.rank, perspective);
     const piece =
@@ -487,21 +486,38 @@ function pieceLayer(
         y: center.y - PIECE_SIZE / 2,
         size: PIECE_SIZE,
         shrouded: entry.shrouded,
-        className: 'xq-piece',
+        className: dragSource ? 'xq-piece xq-piece--drag-source' : 'xq-piece',
       }),
     );
   }
   return parts.join('');
 }
 
-function clickLayer(perspective: XiangqiColor): string {
+function clickLayer(view: DarkXiangqiWireView, perspective: XiangqiColor): string {
+  const targets = new Map<XiangqiSquare, { capture: boolean }>();
+  if (selectedSquare) {
+    for (const move of view.legalMoves) {
+      if (move.from === selectedSquare) {
+        targets.set(move.to, { capture: view.board[move.to] !== undefined });
+      }
+    }
+  }
   const parts: string[] = [];
   for (let file = 0; file < FILE_COUNT; file++) {
     for (let rank = 1; rank <= RANK_COUNT; rank++) {
       const square = `${FILES[file]}${rank}` as XiangqiSquare;
       const center = intersection(file, rank, perspective);
+      const target = targets.get(square);
+      const marker = target
+        ? target.capture
+          ? `<circle class="xq-live-hint-capture" cx="${center.x}" cy="${center.y}" r="28"/>`
+          : `<circle class="xq-live-hint-dot" cx="${center.x}" cy="${center.y}" r="7"/>`
+        : '';
+      const hover = target
+        ? `<circle class="xq-live-target-hover" cx="${center.x}" cy="${center.y}" r="31"/>`
+        : '';
       parts.push(
-        `<rect class="xq-live-hit" data-square="${square}" x="${center.x - HIT_HALF}" y="${center.y - HIT_HALF}" width="${HIT_HALF * 2}" height="${HIT_HALF * 2}"/>`,
+        `<g class="xq-live-hit${target ? ' xq-live-hit--target' : ''}" data-square="${square}">${hover}${marker}<rect x="${center.x - HIT_HALF}" y="${center.y - HIT_HALF}" width="${HIT_HALF * 2}" height="${HIT_HALF * 2}"/></g>`,
       );
     }
   }

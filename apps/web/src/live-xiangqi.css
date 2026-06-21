@@ -106,31 +106,53 @@
 }
 
 .xq-live-selection-cell {
-  fill: none;
-  stroke: #f59e0b;
-  stroke-width: 3;
+  fill: rgba(31, 111, 91, 0.32);
+  stroke: none;
 }
 
 .xq-live-hint-dot {
-  fill: #166534;
+  fill: rgba(31, 111, 91, 0.72);
   opacity: 0.9;
+  pointer-events: none;
 }
 
 .xq-live-hint-capture {
   fill: none;
-  stroke: #b91c1c;
-  stroke-dasharray: 6 4;
+  stroke: rgba(31, 111, 91, 0.48);
   stroke-width: 3;
+  pointer-events: none;
+}
+
+.xq-live-target-hover {
+  fill: rgba(31, 111, 91, 0.3);
+  opacity: 0;
+  pointer-events: none;
+}
+
+.xq-live-hit--target:hover .xq-live-target-hover {
+  opacity: 1;
+}
+
+.xq-live-hit--target:hover .xq-live-hint-dot,
+.xq-live-hit--target:hover .xq-live-hint-capture {
+  opacity: 0;
 }
 
 .xq-live-hit {
   cursor: pointer;
+}
+
+.xq-live-hit rect {
   fill: transparent;
 }
 
 .xq-piece {
   filter: drop-shadow(0 3px 4px rgba(35, 27, 18, 0.25));
   pointer-events: none;
+}
+
+.xq-piece--drag-source {
+  opacity: 0.34;
 }
 
 .xq-live-border {

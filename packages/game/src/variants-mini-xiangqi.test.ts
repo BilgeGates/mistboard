@@ -43,6 +43,17 @@ test('initial red has 19 legal moves', () => {
   assert.deepEqual(destinations(getMiniXiangqiLegalMovesFrom(state, 'a2')), ['a3', 'b2']);
 });
 
+test('player views carry own candidate moves off-turn', () => {
+  const state = createInitialMiniXiangqiState('view-legal');
+
+  assert.ok(getMiniXiangqiPlayerView(state, 'red').legalMoves.length > 0);
+  assert.ok(getMiniXiangqiPlayerView(state, 'black').legalMoves.length > 0);
+  assert.equal(
+    getMiniXiangqiLegalMoves(state).some((move) => move.from === 'd7'),
+    false,
+  );
+});
+
 test('soldiers move forward and sideways from the start but not backward', () => {
   const state = playingState({
     d4: { color: 'red', role: 'soldier' },

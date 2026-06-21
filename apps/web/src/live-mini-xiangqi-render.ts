@@ -36,8 +36,7 @@ export type MiniXiangqiBoardRenderOptions = {
   selectedSquare?: MiniXiangqiSquare | null;
   legalMoves?: readonly MiniXiangqiMove[];
   pieceSet?: XiangqiPieceSet;
-  // While a piece is being dragged, omit it from the board so only the floating
-  // ghost is shown (no doubled piece).
+  // While a piece is being dragged, render its origin as a dim source shadow.
   draggingFrom?: MiniXiangqiSquare | null;
 };
 
@@ -55,6 +54,7 @@ export function renderMiniXiangqiBoardSvg(
   miniXqFogMaskCounter += 1;
   const maskId = `mini-xq-fog-${miniXqFogMaskCounter}`;
   const fog = showFog ? fogLayer(view, perspective, maskId) : '';
+  const legalMoves = options.legalMoves ?? [];
   return `
     <svg class="mini-xq-board" viewBox="0 0 ${WIDTH} ${HEIGHT}" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Dark Mini Xiangqi board">
       <rect class="mini-xq-board-bg" x="0" y="0" width="${WIDTH}" height="${HEIGHT}" rx="10"/>
@@ -63,9 +63,9 @@ export function renderMiniXiangqiBoardSvg(
       <g class="mini-xq-fog">${fog}</g>
       ${lastMoveMarkers(view, perspective)}
       ${selectionRing(options.selectedSquare ?? null, perspective)}
-      ${moveHints(view, options.legalMoves ?? [], perspective)}
+      ${options.interactive ? '' : moveHints(view, legalMoves, perspective)}
       ${pieceLayer(view, perspective, pieceSet, options.draggingFrom ?? null)}
-      ${options.interactive ? hitLayer(perspective) : ''}
+      ${options.interactive ? hitLayer(perspective, view, legalMoves) : ''}
     </svg>
   `;
 }
@@ -171,7 +171,7 @@ function pieceLayer(
   return Object.entries(view.board)
     .map(([square, entry]) => {
       if (!entry) return '';
-      if (square === draggingFrom) return ''; // shown as the floating ghost instead
+      const dragSource = square === draggingFrom;
       const { file, rank } = miniXiangqiCoordOf(square as MiniXiangqiSquare);
       const { x, y } = intersection(file, rank, perspective);
       const piece =
@@ -180,7 +180,7 @@ function pieceLayer(
           : entry.piece;
       return renderXiangqiPieceGlyphed(piece, pieceSet, {
         ariaLabel: entry.shrouded ? `${entry.color} hidden piece` : `${piece.color} ${piece.role}`,
-        className: 'mini-xq-piece',
+        className: dragSource ? 'mini-xq-piece mini-xq-piece--drag-source' : 'mini-xq-piece',
         shrouded: entry.shrouded,
         x: x - PIECE_SIZE / 2,
         y: y - PIECE_SIZE / 2,
@@ -255,14 +255,29 @@ function lastMoveMarkers(view: MiniXiangqiPlayerView, perspective: MiniXiangqiCo
     .join('');
 }
 
-function hitLayer(perspective: MiniXiangqiColor): string {
+function hitLayer(
+  perspective: MiniXiangqiColor,
+  view: MiniXiangqiPlayerView,
+  moves: readonly MiniXiangqiMove[],
+): string {
+  const targets = new Map<MiniXiangqiSquare, { capture: boolean }>();
+  for (const move of moves) targets.set(move.to, { capture: view.board[move.to] !== undefined });
   const parts: string[] = [];
   for (let f = 0; f < FILES; f += 1) {
     for (let r = 1; r <= RANKS; r += 1) {
       const sq = miniXiangqiSquareOf(f, r);
       const { x, y } = intersection(f, r, perspective);
+      const target = targets.get(sq);
+      const marker = target
+        ? target.capture
+          ? `<circle class="mini-xq-hint-capture" cx="${x}" cy="${y}" r="28"/>`
+          : `<circle class="mini-xq-hint" cx="${x}" cy="${y}" r="10"/>`
+        : '';
+      const hover = target
+        ? `<circle class="mini-xq-target-hover" cx="${x}" cy="${y}" r="31"/>`
+        : '';
       parts.push(
-        `<g data-square="${sq}" class="mini-xq-hit"><rect x="${x - HIT_HALF}" y="${y - HIT_HALF}" width="${HIT_HALF * 2}" height="${HIT_HALF * 2}"/></g>`,
+        `<g data-square="${sq}" class="mini-xq-hit${target ? ' mini-xq-hit--target' : ''}">${hover}${marker}<rect x="${x - HIT_HALF}" y="${y - HIT_HALF}" width="${HIT_HALF * 2}" height="${HIT_HALF * 2}"/></g>`,
       );
     }
   }
@@ -354,22 +369,32 @@ export function installMiniXiangqiBoardStyles(): void {
       pointer-events: none;
     }
     .mini-xq-selection {
-      fill: none;
-      stroke: #f59e0b;
-      stroke-width: 4;
+      fill: rgba(31, 111, 91, 0.32);
+      stroke: none;
       pointer-events: none;
     }
     .mini-xq-hint {
-      fill: #1d4ed8;
+      fill: rgba(31, 111, 91, 0.72);
       opacity: 0.78;
       pointer-events: none;
     }
     .mini-xq-hint-capture {
       fill: none;
-      stroke: #b91c1c;
-      stroke-dasharray: 6 4;
+      stroke: rgba(31, 111, 91, 0.48);
       stroke-width: 3;
       pointer-events: none;
+    }
+    .mini-xq-target-hover {
+      fill: rgba(31, 111, 91, 0.3);
+      opacity: 0;
+      pointer-events: none;
+    }
+    .mini-xq-hit--target:hover .mini-xq-target-hover {
+      opacity: 1;
+    }
+    .mini-xq-hit--target:hover .mini-xq-hint,
+    .mini-xq-hit--target:hover .mini-xq-hint-capture {
+      opacity: 0;
     }
     .mini-xq-last {
       fill: rgba(250, 204, 21, 0.22);
@@ -380,6 +405,9 @@ export function installMiniXiangqiBoardStyles(): void {
     .mini-xq-piece {
       pointer-events: none;
       filter: drop-shadow(0 2px 2px rgba(0, 0, 0, 0.2));
+    }
+    .mini-xq-piece--drag-source {
+      opacity: 0.34;
     }
     .mini-xq-hit rect {
       fill: transparent;

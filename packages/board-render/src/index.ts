@@ -30,7 +30,7 @@ export type {
   GridStrip,
   GridTargetRef,
 } from './grid-board.js';
-export { createGridGeometry, renderGridBoardSvg } from './grid-board.js';
+export { createGridGeometry, GRID_INTERACTION_COLORS, renderGridBoardSvg } from './grid-board.js';
 export type { CompositionLayout } from './layouts.js';
 export { boardsInLayout, layoutPlacements } from './layouts.js';
 export { PIECE_SVGS } from './pieces.js';
