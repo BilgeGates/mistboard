@@ -84,6 +84,7 @@ describe('Reveal Chess postgame page', () => {
   });
 
   it('shows the disabled notice when the build flag is off', async () => {
+    vi.stubEnv('DEV', false);
     vi.stubEnv('VITE_REVEAL_CHESS_ENABLED', 'false');
     const root = document.createElement('div');
     mountRevealChessPostgame(root, 'rc_off');

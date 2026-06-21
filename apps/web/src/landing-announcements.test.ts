@@ -28,6 +28,7 @@ describe('landing announcements', () => {
   });
 
   it('hides the Dark Shogi announcement until the dark shogi flag is enabled', () => {
+    vi.stubEnv('DEV', false);
     vi.stubEnv('VITE_DARK_SHOGI_ENABLED', 'false');
 
     expect(buildLandingAnnouncements().textContent).not.toContain('Dark Shogi');
