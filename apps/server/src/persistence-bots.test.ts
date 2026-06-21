@@ -90,10 +90,22 @@ definePersistenceTests('bot profiles', () => {
       ['test-bot'],
     );
     assert.equal(bots[0]?.gamesTotal, 1);
+    assert.deepEqual(bots[0]?.record, {
+      games: 1,
+      wins: 1,
+      losses: 0,
+      draws: 0,
+    });
     assert.equal(bots[0]?.play.engineId, 'python-v2-v1.4');
 
     const profile = await getPublicBotProfile('test-bot');
     assert.equal(profile?.gamesTotal, 1);
+    assert.deepEqual(profile?.record, {
+      games: 1,
+      wins: 1,
+      losses: 0,
+      draws: 0,
+    });
     assert.equal(profile?.games.length, 1);
     assert.equal(profile?.games[0]?.roomId, 'test-bot-public-game');
     assert.equal(profile?.games[0]?.playerColor, 'black');

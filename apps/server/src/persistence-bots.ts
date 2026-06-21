@@ -29,8 +29,16 @@ export type BotProfile = {
   updatedAt: Date;
 };
 
+export type BotModeRecord = {
+  games: number;
+  wins: number;
+  losses: number;
+  draws: number;
+};
+
 export type BotDirectoryEntry = BotProfile & {
   gamesTotal: number;
+  record: BotModeRecord;
 };
 
 export type BotProfilePage = BotDirectoryEntry & {
@@ -55,6 +63,9 @@ type BotProfileRow = {
 
 type BotDirectoryRow = BotProfileRow & {
   games_total: string;
+  wins: string;
+  losses: string;
+  draws: string;
 };
 
 const BOT_GAMES_PAGE = 15;
@@ -62,7 +73,27 @@ const BOT_GAMES_PAGE = 15;
 export async function listPublicBots(): Promise<BotDirectoryEntry[]> {
   const { rows } = await getPool().query<BotDirectoryRow>(
     `SELECT bot_profiles.*,
-            COUNT(games.room_id)::text AS games_total
+            COUNT(games.room_id)::text AS games_total,
+            COUNT(*) FILTER (
+              WHERE games.result = 'draw'
+            )::text AS draws,
+            COUNT(*) FILTER (
+              WHERE games.room_id IS NOT NULL
+                AND (
+                  (game_participants.color = 'white' AND games.result = 'white-wins')
+                  OR (game_participants.color = 'black' AND games.result = 'black-wins')
+                  OR (game_participants.color = 'red' AND games.result = 'red-wins')
+                )
+            )::text AS wins,
+            COUNT(*) FILTER (
+              WHERE games.room_id IS NOT NULL
+                AND games.result <> 'draw'
+                AND NOT (
+                  (game_participants.color = 'white' AND games.result = 'white-wins')
+                  OR (game_participants.color = 'black' AND games.result = 'black-wins')
+                  OR (game_participants.color = 'red' AND games.result = 'red-wins')
+                )
+            )::text AS losses
        FROM bot_profiles
        LEFT JOIN game_participants
          ON game_participants.subject_type = 'bot'
@@ -79,13 +110,34 @@ export async function listPublicBots(): Promise<BotDirectoryEntry[]> {
   return rows.map((row) => ({
     ...botFromRow(row),
     gamesTotal: Number(row.games_total),
+    record: recordFromRow(row),
   }));
 }
 
 export async function getPublicBotProfile(botId: string): Promise<BotProfilePage | null> {
   const { rows } = await getPool().query<BotDirectoryRow>(
     `SELECT bot_profiles.*,
-            COUNT(games.room_id)::text AS games_total
+            COUNT(games.room_id)::text AS games_total,
+            COUNT(*) FILTER (
+              WHERE games.result = 'draw'
+            )::text AS draws,
+            COUNT(*) FILTER (
+              WHERE games.room_id IS NOT NULL
+                AND (
+                  (game_participants.color = 'white' AND games.result = 'white-wins')
+                  OR (game_participants.color = 'black' AND games.result = 'black-wins')
+                  OR (game_participants.color = 'red' AND games.result = 'red-wins')
+                )
+            )::text AS wins,
+            COUNT(*) FILTER (
+              WHERE games.room_id IS NOT NULL
+                AND games.result <> 'draw'
+                AND NOT (
+                  (game_participants.color = 'white' AND games.result = 'white-wins')
+                  OR (game_participants.color = 'black' AND games.result = 'black-wins')
+                  OR (game_participants.color = 'red' AND games.result = 'red-wins')
+                )
+            )::text AS losses
        FROM bot_profiles
        LEFT JOIN game_participants
          ON game_participants.subject_type = 'bot'
@@ -108,6 +160,7 @@ export async function getPublicBotProfile(botId: string): Promise<BotProfilePage
   return {
     ...botFromRow(row),
     gamesTotal: Number(row.games_total),
+    record: recordFromRow(row),
     games,
   };
 }
@@ -204,5 +257,14 @@ function botFromRow(row: BotProfileRow): BotProfile {
     visibility: row.visibility,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
+  };
+}
+
+function recordFromRow(row: BotDirectoryRow): BotModeRecord {
+  return {
+    games: Number(row.games_total),
+    wins: Number(row.wins),
+    losses: Number(row.losses),
+    draws: Number(row.draws),
   };
 }

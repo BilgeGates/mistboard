@@ -16,6 +16,13 @@ type BotPlay = {
   preferredColor: 'random';
 };
 
+type BotRecord = {
+  games: number;
+  wins: number;
+  losses: number;
+  draws: number;
+};
+
 type BotProfile = {
   id: string;
   displayName: string;
@@ -25,6 +32,7 @@ type BotProfile = {
   supportedGameSpecIds: string[];
   play: BotPlay;
   gamesTotal: number;
+  record: BotRecord;
   games?: FeaturedGame[];
 };
 
@@ -144,7 +152,7 @@ function buildBotCard(bot: BotProfile): HTMLElement {
   details.append(
     detailChip(defaultGameSpecLabel(bot)),
     detailChip(timeControlLabel(bot.play.timeControl)),
-    detailChip(gameCountLabel(bot.gamesTotal)),
+    detailChip(recordLabel(bot.record), 'bot-record-chip'),
   );
 
   const variants = document.createElement('div');
@@ -189,6 +197,7 @@ function buildBotStats(bot: BotProfile): HTMLElement {
   stats.className = 'profile-stats bot-stats';
   stats.append(
     statCell(gameSpecLabel(bot.defaultGameSpecId), 'Default'),
+    statCell(recordLabel(bot.record), 'Record'),
     statCell(timeControlLabel(bot.play.timeControl), 'Play clock'),
     statCell(String(supportedGameSpecIds(bot).length), 'Variants'),
   );
@@ -356,4 +365,8 @@ function timeControlLabel(timeControl: BotPlay['timeControl']): string {
 
 function gameCountLabel(games: number): string {
   return `${new Intl.NumberFormat().format(games)} ${games === 1 ? 'game' : 'games'}`;
+}
+
+function recordLabel(record: BotRecord): string {
+  return `${record.wins}-${record.losses}-${record.draws}`;
 }

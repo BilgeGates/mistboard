@@ -89,6 +89,11 @@
   color: color-mix(in srgb, #4f8edb 82%, var(--site-heading));
 }
 
+.bot-record-chip {
+  background: color-mix(in srgb, var(--site-accent) 14%, var(--site-panel));
+  color: var(--site-accent-strong);
+}
+
 .bot-card-actions {
   margin-top: 2px;
 }

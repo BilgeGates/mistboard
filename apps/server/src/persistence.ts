@@ -27,6 +27,7 @@ export {
 } from './persistence-accounts.js';
 export type {
   BotDirectoryEntry,
+  BotModeRecord,
   BotOwnerType,
   BotProfile,
   BotProfilePage,
