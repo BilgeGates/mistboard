@@ -30,12 +30,15 @@ export function playableBuiltinEngines(): EngineDefinition[] {
 // records, but are NOT offered in the live PvE picker. No random fallback in the
 // PvE serving path — if Misty can't serve it fails loudly (503), by design.
 const PROD_PLAYABLE_ENGINE_IDS = new Set([
-  // GO-LIVE (2026-06-20): flip the player-facing PvE engine python-v2-v1.2 -> v1.3.
-  // Misty 1.3 = v1.2 + adaptive prune ON + curated opening book ON (opening-
-  // hardening). The engine-worker already deploys engine 5259395 (Phase 1) and
-  // serves python-v2-v1.3, so this flip has no offer-without-serve window. v1.2
-  // stays KNOWN (for replay/provenance); roll back by restoring 'python-v2-v1.2'.
-  'python-v2-v1.3', // Misty 1.3 (adaptive prune + curated book ON; supersedes 1.2)
+  // GO-LIVE (2026-06-20): flip the player-facing PvE engine python-v2-v1.3 -> v1.4.
+  // Misty 1.4 = v1.3 profile + the FoW castle-into-check fix (search move-gen now
+  // generates fog-castles, so it devalues a castle that walks its king onto a
+  // fog-attacked square). The engine-worker already deploys engine cdecd59 (Phase 1,
+  // engine-ref-deployed=cdecd59 verified) and serves python-v2-v1.4, so this flip
+  // has no offer-without-serve window. (The fix is base-code, so v1.3 served from
+  // cdecd59 already had it — this flip is the accurate-provenance relabel.) v1.3
+  // stays KNOWN (for replay/provenance); roll back by restoring 'python-v2-v1.3'.
+  'python-v2-v1.4', // Misty 1.4 (castle-into-check fix; supersedes 1.3)
 ]);
 
 // Opt-in extras for load testing / local experimentation. Set
