@@ -123,13 +123,13 @@ test('Dark Mini Xiangqi postgame names seats from participants', async () => {
             subjectType: 'guest',
             subjectId: null,
             visibility: 'private',
-          },
-          {
-            color: 'black',
-            displayName: 'Misty DMX',
-            subjectType: 'engine-version',
-            subjectId: 'python-dmx-v1.0',
-            visibility: 'private',
+        },
+        {
+          color: 'black',
+          displayName: 'Misty DMX 1.0',
+          subjectType: 'engine-version',
+          subjectId: 'python-dmx-v1.0',
+          visibility: 'private',
           },
         ],
       }),
@@ -139,7 +139,7 @@ test('Dark Mini Xiangqi postgame names seats from participants', async () => {
   assert.ok(payload);
 
   assert.equal(payload.game.redName, 'Guest');
-  assert.equal(payload.game.blackName, 'Misty DMX');
+  assert.equal(payload.game.blackName, 'Misty DMX 1.0');
 });
 
 test('Dark Mini Xiangqi postgame maps legacy seat labels to Guest names', async () => {

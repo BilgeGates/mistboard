@@ -345,6 +345,15 @@ const WEB_VARIANT_TENANTS: readonly WebVariantTenant[] = [
       timePresetIds: ['1m1', '3m2'],
       offerInMenu: darkMiniXiangqiPublicEntryEnabled,
       acceptsDeepLink: darkMiniXiangqiEnabled,
+      engineOptions: [
+        {
+          id: 'python-dmx-v1.0',
+          name: 'Misty DMX 1.0',
+          familyName: 'Misty DMX',
+          kind: 'container',
+        },
+      ],
+      defaultEngineId: 'python-dmx-v1.0',
     },
   },
   {

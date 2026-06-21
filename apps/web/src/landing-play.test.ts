@@ -599,6 +599,7 @@ describe('landing play panel', () => {
 
     openPlaySetup(panel, 'Play the engine');
     selectModalVariant('dark-mini-xiangqi');
+    expect(document.querySelector('.landing-variant-control')?.textContent).toBe('Misty DMX 1.0');
     clickModalColor('Black');
     clickModalButton('Start game');
     await flushPromises();

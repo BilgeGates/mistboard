@@ -372,7 +372,7 @@ const PYTHON_ENGINES: Record<string, EngineDefinition> = {
     id: 'python-dmx-v1.0',
     engineId: 'v2',
     engineName: 'Misty DMX',
-    name: 'Misty DMX',
+    name: 'Misty DMX 1.0',
     kind: 'container',
     gameSpecId: 'dark-mini-xiangqi',
     configHash: 'dmx-v1.0-misty-dmx',
@@ -386,7 +386,7 @@ const PYTHON_ENGINES: Record<string, EngineDefinition> = {
       engine_pin: 'dmx-v1.0',
     },
     livePolicy: { timeoutMs: 30_000 },
-    notes: 'Misty DMX — Dark Mini Xiangqi engine served through the variant-aware worker adapter.',
+    notes: 'Misty DMX 1.0 — Dark Mini Xiangqi engine served through the variant-aware worker adapter.',
   },
   'python-tier1-v0.9.1': {
     id: 'python-tier1-v0.9.1',

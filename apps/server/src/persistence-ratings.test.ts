@@ -539,7 +539,7 @@ definePersistenceTests('ratings', () => {
         },
         {
           color: 'black',
-          displayName: 'Misty DMX',
+          displayName: 'Misty DMX 1.0',
           subjectType: 'engine-version',
           subjectId: 'python-dmx-v1.0',
           visibility: 'public',
