@@ -364,7 +364,38 @@ const PYTHON_ENGINES: Record<string, EngineDefinition> = {
     livePolicy: { timeoutMs: 30_000 },
     notes:
       'Misty 1.3 — v1.2 + adaptive prune ON + curated opening book ON ' +
-      '(opening-hardening). Gated 2026-06-20.',
+      '(opening-hardening). Gated 2026-06-20. Superseded by v1.4 (castle fix).',
+  },
+  // Misty 1.4 — FoW CASTLE-INTO-CHECK fix (2026-06-20). Same PROFILE as v1.3 (every
+  // knob identical); the behavioral delta is base-code: the WS2 search move-gen now
+  // generates fog-castles (gen_fow_pseudo_legal_moves), so the engine SEES and
+  // devalues a castle that walks its king onto a fog-attacked square — v1.3 never
+  // generated that move in the losing belief worlds and committed it (prod a6f2e491:
+  // O-O onto an attacked g8, then Qxg8). Pinned to engine commit cdecd59 (branch
+  // ship/v1.4-2026-06-20 = live 653aa33 + the castle fix). Worker maps id -> v1.4.
+  // KNOWN here so the engine-worker can load it; OFFERED to players only when added
+  // to PROD_PLAYABLE_ENGINE_IDS (the Phase-2 flip) — kept out for now so Phase-1 has
+  // no offer-without-serve gap.
+  'python-v2-v1.4': {
+    id: 'python-v2-v1.4',
+    engineId: 'v2',
+    engineName: 'Misty',
+    name: 'Misty 1.4',
+    kind: 'container',
+    configHash: 'v2-v1.4-cdecd59',
+    playSignature: 'cdecd59',
+    config: {
+      kind: 'python-subprocess',
+      strategy: 'v2',
+      version: '1.4',
+      config: 'v2-castle-fix',
+      config_hash: 'cdecd59',
+      engine_pin: 'misty-1.4@cdecd59',
+    },
+    livePolicy: { timeoutMs: 30_000 },
+    notes:
+      'Misty 1.4 — v1.3 + FoW castle-into-check fix (search move-gen sees ' +
+      'fog-castles, devalues a king-walking castle). Shipped 2026-06-20.',
   },
   // Dark Mini Xiangqi engine. Not in the chess PvE picker; the Dark Mini
   // Xiangqi route selects it through the variant-aware worker protocol.

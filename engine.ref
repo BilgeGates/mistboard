@@ -1,8 +1,10 @@
-653aa33
+cdecd59
 # ^ The mistboard-engine commit the prod build checks out (railpack build step).
-# Misty DMX (2026-06-20): roll the ENGINE forward to 653aa33. This keeps the
-# existing Misty 1.3 dark-chess serving path, adds the private DMX profile,
-# royal guard, Modal bakeoff harness, DMX runtime tests, and the v1.3 serveability
-# mapping required by the public prod registry.
-# Single source of truth for the deployed engine version; bump this + the registry
-# engine_pin to ship. The railpack reads only the first line; this comment is ignored.
+# Misty 1.4 (2026-06-20): roll the ENGINE forward to cdecd59 = the live 653aa33
+# (v1.3 dark-chess serving + DMX/mini-xiangqi) + the FoW castle-into-check fix +
+# the v1.4 profile/worker mapping. The search move-gen now generates fog-castles,
+# so the engine devalues a castle that walks its king onto a fog-attacked square
+# (prod a6f2e491 O-O->Qxg8). Base-code fix — every served engine-id picks it up.
+# Rollback target: 653aa33 (revert this line). Single source of truth for the
+# deployed engine; bump this + the registry engine_pin to ship. The railpack reads
+# only the first line; this comment is ignored.
