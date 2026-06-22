@@ -55,6 +55,16 @@ export type AddForumPostResult =
   | { ok: true; post: ForumPost }
   | { ok: false; error: 'topic_not_found' | 'topic_locked' };
 
+export type ForumTopicModerationAction = 'pin' | 'unpin' | 'lock' | 'unlock' | 'hide';
+
+export type ModerateForumTopicResult =
+  | { ok: true; topic: ForumTopicDetail | null }
+  | { ok: false; error: 'topic_not_found' };
+
+export type HideForumPostResult =
+  | { ok: true; topicHidden: boolean }
+  | { ok: false; error: 'post_not_found' };
+
 export async function listForumCategories(): Promise<ForumCategory[]> {
   const { rows } = await getPool().query<ForumCategoryRow>(
     `SELECT c.id, c.slug, c.name, c.description, c.sort_order, c.topic_write_policy,
@@ -195,6 +205,87 @@ export async function addForumPost(input: {
   });
 }
 
+export async function moderateForumTopic(input: {
+  topicId: string;
+  moderatorAccountId: string | null;
+  action: ForumTopicModerationAction;
+  reason: string | null;
+  now: Date;
+}): Promise<ModerateForumTopicResult> {
+  const result = await withTransaction<{ ok: true } | { ok: false; error: 'topic_not_found' }>(
+    async (client) => {
+      const patch = topicModerationPatch(input.action);
+      const { rowCount } = await client.query(
+        `UPDATE forum_topics
+         SET ${patch}, updated_at = $2
+         WHERE id = $1 AND hidden_at IS NULL`,
+        [input.topicId, input.now, input.moderatorAccountId, input.reason],
+      );
+      if (rowCount === 0) return { ok: false, error: 'topic_not_found' };
+      return { ok: true };
+    },
+  );
+  if (!result.ok) return result;
+  if (input.action === 'hide') return { ok: true, topic: null };
+  const topic = await getForumTopic(input.topicId);
+  if (!topic) throw new Error(`forum topic ${input.topicId} missing after moderation`);
+  return { ok: true, topic };
+}
+
+export async function hideForumPost(input: {
+  postId: string;
+  moderatorAccountId: string | null;
+  reason: string | null;
+  now: Date;
+}): Promise<HideForumPostResult> {
+  return withTransaction(async (client) => {
+    const { rows: posts } = await client.query<{ topic_id: string }>(
+      `UPDATE forum_posts
+       SET hidden_at = $2,
+           hidden_by_account_id = $3,
+           hidden_reason = $4,
+           updated_at = $2
+       WHERE id = $1 AND hidden_at IS NULL
+       RETURNING topic_id`,
+      [input.postId, input.now, input.moderatorAccountId, input.reason],
+    );
+    const post = posts[0];
+    if (!post) return { ok: false, error: 'post_not_found' };
+
+    const { rows: visibleRows } = await client.query<{
+      visible_count: number;
+      last_visible_post_at: Date | null;
+    }>(
+      `SELECT COUNT(*)::int AS visible_count, MAX(created_at) AS last_visible_post_at
+       FROM forum_posts
+       WHERE topic_id = $1 AND hidden_at IS NULL`,
+      [post.topic_id],
+    );
+    const visible = visibleRows[0] ?? { visible_count: 0, last_visible_post_at: null };
+    const topicHidden = visible.visible_count === 0;
+    await client.query(
+      `UPDATE forum_topics
+       SET post_count = $2,
+           last_post_at = COALESCE($3, last_post_at),
+           hidden_at = CASE WHEN $4 THEN $5 ELSE hidden_at END,
+           hidden_by_account_id = CASE WHEN $4 THEN $6 ELSE hidden_by_account_id END,
+           hidden_reason = CASE WHEN $4 THEN $7 ELSE hidden_reason END,
+           updated_at = $5
+       WHERE id = $1`,
+      [
+        post.topic_id,
+        visible.visible_count,
+        visible.last_visible_post_at,
+        topicHidden,
+        input.now,
+        input.moderatorAccountId,
+        input.reason,
+      ],
+    );
+    return { ok: true, topicHidden };
+  });
+}
+
 export async function countRecentForumTopicsByUser(userId: string, since: Date): Promise<number> {
   const { rows } = await getPool().query<{ count: string }>(
     `SELECT COUNT(*)::text AS count
@@ -235,6 +326,21 @@ const FORUM_TOPIC_SELECT = `SELECT t.id, t.slug, t.title, t.post_count, t.pinned
    FROM forum_topics t
    JOIN forum_categories c ON c.id = t.category_id
    LEFT JOIN users u ON u.id = t.author_account_id`;
+
+function topicModerationPatch(action: ForumTopicModerationAction): string {
+  switch (action) {
+    case 'pin':
+      return 'pinned_at = $2';
+    case 'unpin':
+      return 'pinned_at = NULL';
+    case 'lock':
+      return 'locked_at = $2';
+    case 'unlock':
+      return 'locked_at = NULL';
+    case 'hide':
+      return 'hidden_at = $2, hidden_by_account_id = $3, hidden_reason = $4';
+  }
+}
 
 type ForumCategoryRow = {
   id: string;

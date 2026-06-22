@@ -61,8 +61,11 @@ export type {
   ForumCategory,
   ForumPost,
   ForumTopicDetail,
+  ForumTopicModerationAction,
   ForumTopicSummary,
   ForumTopicWritePolicy,
+  HideForumPostResult,
+  ModerateForumTopicResult,
 } from './persistence-forum.js';
 export {
   addForumPost,
@@ -70,8 +73,10 @@ export {
   countRecentForumTopicsByUser,
   createForumTopic,
   getForumTopic,
+  hideForumPost,
   listForumCategories,
   listForumTopics,
+  moderateForumTopic,
 } from './persistence-forum.js';
 export type {
   GameDebugArtifactInput,

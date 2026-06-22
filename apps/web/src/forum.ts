@@ -124,10 +124,11 @@ export async function mountForumTopic(root: HTMLElement, topicId: string): Promi
   const sidebar = document.createElement('aside');
   sidebar.className = 'forum-sidebar';
   sidebar.append(topicMetaBox(topic));
+  if (user?.accountRole === 'admin') sidebar.append(topicModerationBox(topic));
 
   const main = document.createElement('section');
   main.className = 'forum-main';
-  main.append(postList(topic.posts));
+  main.append(postList(topic.posts, user));
   if (topic.locked) main.append(statusPanel('This topic is locked.'));
   else main.append(user ? replyForm(topic.id, user) : signInBox('Sign in to reply.'));
 
@@ -217,7 +218,7 @@ function topicCard(topic: ForumTopicSummary): HTMLElement {
   return card;
 }
 
-function postList(posts: ForumPost[]): HTMLElement {
+function postList(posts: ForumPost[], user: AuthUser | null): HTMLElement {
   const wrap = document.createElement('section');
   wrap.className = 'forum-post-list';
   for (const post of posts) {
@@ -230,6 +231,7 @@ function postList(posts: ForumPost[]): HTMLElement {
     body.className = 'forum-post-body';
     body.textContent = post.bodyText;
     article.append(meta, body);
+    if (user?.accountRole === 'admin') article.append(postModerationBox(post));
     wrap.append(article);
   }
   return wrap;
@@ -390,6 +392,52 @@ function topicMetaBox(topic: ForumTopicDetail): HTMLElement {
   return box;
 }
 
+function topicModerationBox(topic: ForumTopicDetail): HTMLElement {
+  const box = document.createElement('section');
+  box.className = 'forum-auth-box forum-moderation-box';
+  const heading = document.createElement('strong');
+  heading.textContent = 'Moderation';
+  const actions = document.createElement('div');
+  actions.className = 'forum-moderation-actions';
+  actions.append(
+    moderationButton(topic.pinned ? 'Unpin' : 'Pin', () =>
+      submitTopicModeration(topic.id, topic.pinned ? 'unpin' : 'pin'),
+    ),
+    moderationButton(topic.locked ? 'Unlock' : 'Lock', () =>
+      submitTopicModeration(topic.id, topic.locked ? 'unlock' : 'lock'),
+    ),
+    moderationButton('Hide topic', () => submitTopicModeration(topic.id, 'hide'), true),
+  );
+  box.append(heading, actions);
+  return box;
+}
+
+function postModerationBox(post: ForumPost): HTMLElement {
+  const actions = document.createElement('div');
+  actions.className = 'forum-moderation-actions forum-post-actions';
+  actions.append(moderationButton('Hide post', () => submitPostModeration(post.id), true));
+  return actions;
+}
+
+function moderationButton(
+  text: string,
+  submit: () => Promise<void>,
+  confirmAction = false,
+): HTMLButtonElement {
+  const button = document.createElement('button');
+  button.type = 'button';
+  button.className = 'forum-moderation-button';
+  button.textContent = text;
+  button.addEventListener('click', () => {
+    if (confirmAction && !window.confirm(`${text}?`)) return;
+    button.disabled = true;
+    void submit().catch(() => {
+      button.disabled = false;
+    });
+  });
+  return button;
+}
+
 function signInBox(text: string): HTMLElement {
   const box = document.createElement('section');
   box.className = 'forum-auth-box';
@@ -438,6 +486,32 @@ function errorMessageForStatus(status: number): string {
   if (status === 429) return 'You are posting too quickly.';
   if (status >= 500) return 'Forum is unavailable.';
   return 'Check the fields and try again.';
+}
+
+async function submitTopicModeration(
+  topicId: string,
+  action: 'pin' | 'unpin' | 'lock' | 'unlock' | 'hide',
+): Promise<void> {
+  const resp = await fetch(`/api/forum/topics/${encodeURIComponent(topicId)}/moderation`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json', accept: 'application/json' },
+    body: JSON.stringify({ action }),
+  });
+  if (!resp.ok) throw new Error(`topic_moderation_failed_${resp.status}`);
+  if (action === 'hide') window.location.href = '/forum';
+  else window.location.reload();
+}
+
+async function submitPostModeration(postId: string): Promise<void> {
+  const resp = await fetch(`/api/forum/posts/${encodeURIComponent(postId)}/moderation`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json', accept: 'application/json' },
+    body: JSON.stringify({ action: 'hide' }),
+  });
+  if (!resp.ok) throw new Error(`post_moderation_failed_${resp.status}`);
+  const payload = (await resp.json()) as { topicHidden?: boolean };
+  if (payload.topicHidden) window.location.href = '/forum';
+  else window.location.reload();
 }
 
 async function fetchForumCategories(): Promise<ForumCategory[]> {

@@ -6,8 +6,10 @@ import {
   createForumTopic,
   createUser,
   getForumTopic,
+  hideForumPost,
   listForumCategories,
   listForumTopics,
+  moderateForumTopic,
 } from './persistence.js';
 import { getPool } from './persistence-db.js';
 import { assert, definePersistenceTests, test } from './persistence-test-support.js';
@@ -154,6 +156,93 @@ definePersistenceTests('forum', () => {
     assert.deepEqual(reply, { ok: false, error: 'topic_locked' });
   });
 
+  test('forum moderation can pin, lock, hide posts, and hide topics', async () => {
+    const now = new Date('2026-06-01T00:00:00Z');
+    await createUser({
+      id: 'forum_user_mod_author',
+      email: 'mod-author@example.com',
+      emailVerifiedAt: now,
+      handle: 'modauthor',
+      displayName: 'Mod Author',
+      now,
+    });
+    await createUser({
+      id: 'forum_user_moderator',
+      email: 'moderator@example.com',
+      emailVerifiedAt: now,
+      handle: 'moderator',
+      displayName: 'Moderator',
+      accountRole: 'admin',
+      now,
+    });
+    await createForumTopic({
+      id: 'topic_moderated',
+      postId: 'post_moderated_open',
+      categorySlug: 'strategy',
+      authorAccountId: 'forum_user_mod_author',
+      authorRole: 'player',
+      title: 'Moderated topic',
+      slug: 'moderated-topic',
+      bodyText: 'Opening post.',
+      now,
+    });
+    await addForumPost({
+      id: 'post_moderated_reply',
+      topicId: 'topic_moderated',
+      authorAccountId: 'forum_user_mod_author',
+      bodyText: 'Reply to hide.',
+      now: new Date('2026-06-01T00:05:00Z'),
+    });
+
+    const pinned = await moderateForumTopic({
+      topicId: 'topic_moderated',
+      moderatorAccountId: 'forum_user_moderator',
+      action: 'pin',
+      reason: null,
+      now: new Date('2026-06-01T00:06:00Z'),
+    });
+    assert.equal(pinned.ok, true);
+    assert.equal(pinned.ok ? pinned.topic?.pinnedAt instanceof Date : false, true);
+
+    const locked = await moderateForumTopic({
+      topicId: 'topic_moderated',
+      moderatorAccountId: 'forum_user_moderator',
+      action: 'lock',
+      reason: null,
+      now: new Date('2026-06-01T00:07:00Z'),
+    });
+    assert.equal(locked.ok, true);
+    assert.equal(locked.ok ? locked.topic?.lockedAt instanceof Date : false, true);
+
+    const hiddenPost = await hideForumPost({
+      postId: 'post_moderated_reply',
+      moderatorAccountId: 'forum_user_moderator',
+      reason: 'cleanup',
+      now: new Date('2026-06-01T00:08:00Z'),
+    });
+    assert.deepEqual(hiddenPost, { ok: true, topicHidden: false });
+    const detailAfterPostHide = await getForumTopic('topic_moderated');
+    assert.equal(detailAfterPostHide?.postCount, 1);
+    assert.deepEqual(
+      detailAfterPostHide?.posts.map((post) => post.id),
+      ['post_moderated_open'],
+    );
+
+    const hiddenTopic = await moderateForumTopic({
+      topicId: 'topic_moderated',
+      moderatorAccountId: 'forum_user_moderator',
+      action: 'hide',
+      reason: 'duplicate',
+      now: new Date('2026-06-01T00:09:00Z'),
+    });
+    assert.deepEqual(hiddenTopic, { ok: true, topic: null });
+    assert.equal(await getForumTopic('topic_moderated'), null);
+    assert.equal(
+      (await listForumTopics({ limit: 10 })).some((topic) => topic.id === 'topic_moderated'),
+      false,
+    );
+  });
+
   test('forum write routes require an account session', async () => {
     const response = captureResponse();
     const handled = await tryHandleForumRoute(
@@ -168,7 +257,34 @@ definePersistenceTests('forum', () => {
     assert.equal(response.status, 401);
     assert.deepEqual(JSON.parse(response.body), { error: 'not_signed_in' });
   });
+
+  test('forum moderation route rejects unknown actions', async () => {
+    const response = captureResponse();
+    const handled = await tryHandleForumRoute(
+      {},
+      requestWithJson({ action: 'feature' }),
+      response,
+      '/api/forum/topics/topic_missing/moderation',
+      new URL('http://localhost/api/forum/topics/topic_missing/moderation'),
+    );
+
+    assert.equal(handled, true);
+    assert.equal(response.status, 400);
+    assert.deepEqual(JSON.parse(response.body), { error: 'invalid_action' });
+  });
 });
+
+function requestWithJson(body: unknown): IncomingMessage {
+  const chunks = [Buffer.from(JSON.stringify(body))];
+  const request = {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    async *[Symbol.asyncIterator]() {
+      yield* chunks;
+    },
+  };
+  return request as unknown as IncomingMessage;
+}
 
 function captureResponse(): ServerResponse & ResponseCapture {
   const capture = {

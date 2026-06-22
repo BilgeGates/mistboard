@@ -35,6 +35,18 @@ const topic = {
   lastPostAt: '2026-06-01T00:00:00.000Z',
 };
 
+const adminUser = {
+  id: 'admin_1',
+  email: 'admin@example.com',
+  emailVerified: true,
+  handle: 'admin',
+  handleChangedAt: null,
+  displayName: 'Admin',
+  displayNameChangedAt: null,
+  profileVisibility: 'public',
+  accountRole: 'admin',
+};
+
 describe('forum pages', () => {
   afterEach(() => {
     vi.restoreAllMocks();
@@ -67,19 +79,7 @@ describe('forum pages', () => {
       if (url.startsWith('/api/forum/categories')) return json({ categories });
       if (url.startsWith('/api/forum/topics')) return json({ topics: [topic] });
       if (url.startsWith('/api/auth/me')) {
-        return json({
-          user: {
-            id: 'admin_1',
-            email: 'admin@example.com',
-            emailVerified: true,
-            handle: 'admin',
-            handleChangedAt: null,
-            displayName: 'Admin',
-            displayNameChangedAt: null,
-            profileVisibility: 'public',
-            accountRole: 'admin',
-          },
-        });
+        return json({ user: adminUser });
       }
       throw new Error(`unexpected fetch ${url}`);
     });
@@ -91,6 +91,43 @@ describe('forum pages', () => {
     const announcement = root.querySelector<HTMLOptionElement>('option[value="announcements"]');
     expect(announcement?.disabled).toBe(false);
     expect(announcement?.selected).toBe(true);
+  });
+
+  it('renders topic moderation controls for admins', async () => {
+    vi.spyOn(globalThis, 'fetch').mockImplementation(async (input) => {
+      const url = String(input);
+      if (url.startsWith('/api/forum/topics/topic_strategy')) {
+        return json({
+          topic: {
+            ...topic,
+            posts: [
+              {
+                id: 'post_1',
+                author: { handle: 'alice', displayName: 'Alice' },
+                bodyText: 'Opening post.',
+                createdAt: '2026-06-01T00:00:00.000Z',
+                updatedAt: '2026-06-01T00:00:00.000Z',
+              },
+            ],
+          },
+        });
+      }
+      if (url.startsWith('/api/auth/me')) return json({ user: adminUser });
+      throw new Error(`unexpected fetch ${url}`);
+    });
+    const root = document.createElement('div');
+    const { mountForumTopic } = await import('./forum.js');
+
+    await mountForumTopic(root, 'topic_strategy');
+
+    const buttonLabels = Array.from(root.querySelectorAll('button'), (button) =>
+      button.textContent?.trim(),
+    );
+    expect(root.textContent).toContain('Moderation');
+    expect(buttonLabels).toContain('Pin');
+    expect(buttonLabels).toContain('Lock');
+    expect(buttonLabels).toContain('Hide topic');
+    expect(buttonLabels).toContain('Hide post');
   });
 
   it('renders topic posts as escaped plaintext', async () => {

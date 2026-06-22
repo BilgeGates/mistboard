@@ -2,11 +2,18 @@ import { randomUUID } from 'node:crypto';
 import type { IncomingMessage, ServerResponse } from 'node:http';
 import { currentAccountUser } from './../account-session.js';
 import * as persistence from './../persistence.js';
-import { readJsonBody, requireMethod, requirePersistence, writeJson } from './lib.js';
+import {
+  readJsonBody,
+  requireAdminSession,
+  requireMethod,
+  requirePersistence,
+  writeJson,
+} from './lib.js';
 
 const titleMinLength = 3;
 const titleMaxLength = 120;
 const bodyMaxLength = 5000;
+const moderationReasonMaxLength = 240;
 const topicWindowMs = 10 * 60 * 1000;
 const topicLimitPerWindow = 3;
 const postWindowMs = 10 * 60 * 1000;
@@ -73,6 +80,20 @@ export async function tryHandle(
     if (!requireMethod(request, response, 'POST')) return true;
     if (!requirePersistence(response)) return true;
     return createPost(request, response, decodeURIComponent(postsMatch[1]!));
+  }
+
+  const topicModerationMatch = pathname.match(/^\/api\/forum\/topics\/([^/]+)\/moderation$/);
+  if (topicModerationMatch) {
+    if (!requireMethod(request, response, 'POST')) return true;
+    if (!requirePersistence(response)) return true;
+    return moderateTopic(request, response, decodeURIComponent(topicModerationMatch[1]!));
+  }
+
+  const postModerationMatch = pathname.match(/^\/api\/forum\/posts\/([^/]+)\/moderation$/);
+  if (postModerationMatch) {
+    if (!requireMethod(request, response, 'POST')) return true;
+    if (!requirePersistence(response)) return true;
+    return moderatePost(request, response, decodeURIComponent(postModerationMatch[1]!));
   }
 
   const topicMatch = pathname.match(/^\/api\/forum\/topics\/([^/]+)$/);
@@ -180,6 +201,73 @@ async function createPost(
   return true;
 }
 
+async function moderateTopic(
+  request: IncomingMessage,
+  response: ServerResponse,
+  topicId: string,
+): Promise<boolean> {
+  if (!(await requireAdminSession(request, response))) return true;
+  const user = await currentAccountUser(request);
+  const body = await readJsonBody(request);
+  const action = normalizeTopicModerationAction(body.action);
+  if (!action) {
+    writeJson(response, 400, { error: 'invalid_action' });
+    return true;
+  }
+  const reason = normalizeModerationReason(typeof body.reason === 'string' ? body.reason : null);
+  if (reason === false) {
+    writeJson(response, 400, { error: 'invalid_reason' });
+    return true;
+  }
+  const result = await persistence.moderateForumTopic({
+    topicId,
+    moderatorAccountId: user?.id ?? null,
+    action,
+    reason,
+    now: new Date(),
+  });
+  if (!result.ok) {
+    writeJson(response, 404, { error: result.error });
+    return true;
+  }
+  writeJson(response, 200, {
+    ok: true,
+    ...(result.topic ? { topic: serializeTopicDetail(result.topic) } : {}),
+  });
+  return true;
+}
+
+async function moderatePost(
+  request: IncomingMessage,
+  response: ServerResponse,
+  postId: string,
+): Promise<boolean> {
+  if (!(await requireAdminSession(request, response))) return true;
+  const user = await currentAccountUser(request);
+  const body = await readJsonBody(request);
+  if (body.action !== 'hide') {
+    writeJson(response, 400, { error: 'invalid_action' });
+    return true;
+  }
+  const reason = normalizeModerationReason(typeof body.reason === 'string' ? body.reason : null);
+  if (reason === false) {
+    writeJson(response, 400, { error: 'invalid_reason' });
+    return true;
+  }
+  const result = await persistence.hideForumPost({
+    postId,
+    moderatorAccountId: user?.id ?? null,
+    reason,
+    now: new Date(),
+  });
+  if (!result.ok) {
+    writeJson(response, 404, { error: result.error });
+    return true;
+  }
+  writeJson(response, 200, { ok: true, topicHidden: result.topicHidden });
+  return true;
+}
+
 function serializeTopicDetail(topic: persistence.ForumTopicDetail): ForumTopicJson & {
   posts: ForumPostJson[];
 } {
@@ -232,6 +320,28 @@ function normalizeBodyText(value: string): string | null {
   const text = value.replace(/\r\n?/g, '\n').trim();
   if (text.length === 0 || text.length > bodyMaxLength) return null;
   return text;
+}
+
+function normalizeModerationReason(value: string | null): string | null | false {
+  if (value === null) return null;
+  const reason = value.trim();
+  if (reason.length === 0) return null;
+  return reason.length <= moderationReasonMaxLength ? reason : false;
+}
+
+function normalizeTopicModerationAction(
+  value: unknown,
+): persistence.ForumTopicModerationAction | null {
+  if (
+    value === 'pin' ||
+    value === 'unpin' ||
+    value === 'lock' ||
+    value === 'unlock' ||
+    value === 'hide'
+  ) {
+    return value;
+  }
+  return null;
 }
 
 function slugifyTitle(value: string): string {
