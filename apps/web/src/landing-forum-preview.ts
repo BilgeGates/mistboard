@@ -122,7 +122,7 @@ function latestPostCell(category: ForumCategorySummary): HTMLElement {
   title.textContent = category.latestPost.topic.title;
   const meta = document.createElement('span');
   meta.className = 'landing-forum-row-meta';
-  meta.textContent = `${authorLabel(category.latestPost.author)} · ${formatDate(category.latestPost.createdAt)}`;
+  meta.textContent = latestPostMetaText(category.latestPost.author, category.latestPost.createdAt);
   cell.append(title, meta);
   return cell;
 }
@@ -139,6 +139,10 @@ function plainRow(text: string): HTMLElement {
 
 function authorLabel(author: ForumAuthor): string {
   return author?.displayName ?? 'Deleted account';
+}
+
+function latestPostMetaText(author: ForumAuthor, createdAt: string): string {
+  return `by ${authorLabel(author)} · ${formatDate(createdAt)}`;
 }
 
 function formatCount(value: number): string {

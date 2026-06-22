@@ -50,6 +50,7 @@ describe('landing forum preview', () => {
     expect(categoryLink?.getAttribute('href')).toBe('/forum/strategy');
     expect(latestPostLink?.getAttribute('href')).toBe('/forum/t/topic_1/first-topic#post_post_1');
     expect(categoryRow?.textContent).toContain('First topic');
+    expect(categoryRow?.textContent).toContain('by Alice');
     expect(categoryRow?.textContent).toContain('Strategy');
     expect(categoryRow?.textContent).toContain('2');
   });
