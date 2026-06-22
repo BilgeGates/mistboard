@@ -311,6 +311,18 @@ a.forum-topic-title:focus-visible,
   white-space: pre-wrap;
 }
 
+.forum-post-permalink {
+  color: var(--site-accent-strong);
+  font-weight: 800;
+  text-decoration: none;
+}
+
+.forum-post-permalink:hover,
+.forum-post-permalink:focus-visible {
+  color: var(--site-link);
+  text-decoration: underline;
+}
+
 .forum-form {
   display: grid;
   gap: 10px;

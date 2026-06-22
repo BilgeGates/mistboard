@@ -177,7 +177,7 @@ export async function mountForumTopic(root: HTMLElement, topicId: string): Promi
 
   const main = document.createElement('section');
   main.className = 'forum-main';
-  main.append(postList(topic.posts, user));
+  main.append(postList(topic, user));
   if (topic.locked) main.append(statusPanel('This topic is locked.'));
   else main.append(user ? replyForm(topic.id, user) : signInBox('Sign in to reply.'));
 
@@ -420,16 +420,19 @@ function topicCard(topic: ForumTopicSummary): HTMLElement {
   return card;
 }
 
-function postList(posts: ForumPost[], user: AuthUser | null): HTMLElement {
+function postList(topic: ForumTopicDetail, user: AuthUser | null): HTMLElement {
   const wrap = document.createElement('section');
   wrap.className = 'forum-post-list';
-  for (const post of posts) {
+  for (const post of topic.posts) {
     const article = document.createElement('article');
     article.className = 'forum-post';
     article.id = postDomId(post.id);
     const meta = document.createElement('p');
     meta.className = 'forum-post-meta';
-    meta.textContent = `${authorLabel(post.author)} · ${formatDate(post.createdAt)}`;
+    meta.append(
+      document.createTextNode(`${authorLabel(post.author)} · ${formatDate(post.createdAt)} · `),
+      postPermalink(topic, post),
+    );
     const body = document.createElement('p');
     body.className = 'forum-post-body';
     body.textContent = post.bodyText;
@@ -438,6 +441,14 @@ function postList(posts: ForumPost[], user: AuthUser | null): HTMLElement {
     wrap.append(article);
   }
   return wrap;
+}
+
+function postPermalink(topic: { id: string; slug: string }, post: ForumPost): HTMLAnchorElement {
+  const link = document.createElement('a');
+  link.className = 'forum-post-permalink';
+  link.href = postHref(topic, post.id);
+  link.textContent = 'Link';
+  return link;
 }
 
 function newTopicForm(categories: ForumCategory[], user: AuthUser): HTMLElement {

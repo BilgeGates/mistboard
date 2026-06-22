@@ -252,6 +252,9 @@ describe('forum pages', () => {
 
     expect(root.querySelector('script')).toBeNull();
     expect(root.querySelector<HTMLElement>('.forum-post')?.id).toBe('post_post_1');
+    expect(
+      root.querySelector<HTMLAnchorElement>('.forum-post-permalink')?.getAttribute('href'),
+    ).toBe('/forum/t/topic_strategy/scouting-the-center#post_post_1');
     expect(root.querySelector('.forum-post-body')?.textContent).toContain(
       'Hello <script>alert(1)</script>',
     );
