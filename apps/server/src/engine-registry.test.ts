@@ -9,10 +9,11 @@ import {
 
 test('playable live engine client ids = the single streamlined PVE engine (Misty)', () => {
   // Streamlined release (2026-06-02): only the latest Misty is player-facing.
-  // v1.4 shipped 2026-06-20, superseding v1.3 in the picker (castle-into-check
-  // fix). Older versions stay in the registry so historical games resolve, but
-  // are no longer offered.
-  assert.equal(isPlayableLiveEngineClientId('python-v2-v1.4'), true);
+  // v1.5 shipped 2026-06-21, superseding v1.4 in the picker (opening-book update:
+  // drop redundant Nc3 forces, force ...dxe4). Older versions stay in the registry
+  // so historical games resolve, but are no longer offered.
+  assert.equal(isPlayableLiveEngineClientId('python-v2-v1.5'), true);
+  assert.equal(isPlayableLiveEngineClientId('python-v2-v1.4'), false);
   assert.equal(isPlayableLiveEngineClientId('python-v2-v1.3'), false);
   assert.equal(isPlayableLiveEngineClientId('python-v2-v1.2'), false);
   assert.equal(isPlayableLiveEngineClientId('python-v2-v1.1'), false);
