@@ -219,7 +219,9 @@ export async function moderateForumTopic(input: {
         `UPDATE forum_topics
          SET ${patch}, updated_at = $2
          WHERE id = $1 AND hidden_at IS NULL`,
-        [input.topicId, input.now, input.moderatorAccountId, input.reason],
+        input.action === 'hide'
+          ? [input.topicId, input.now, input.moderatorAccountId, input.reason]
+          : [input.topicId, input.now],
       );
       if (rowCount === 0) return { ok: false, error: 'topic_not_found' };
       return { ok: true };
