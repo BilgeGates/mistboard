@@ -444,6 +444,86 @@ describe('forum pages', () => {
     expect(root.querySelector('.forum-post-edited')?.textContent).toContain('edited');
   });
 
+  it('edits an authored topic title inline', async () => {
+    window.history.pushState(null, '', '/forum/t/topic_strategy/scouting-the-center');
+    const aliceUser = {
+      ...adminUser,
+      id: 'forum_user_alice',
+      handle: 'alice',
+      displayName: 'Alice',
+      accountRole: 'player' as const,
+    };
+    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockImplementation(async (input, init) => {
+      const url = String(input);
+      if (url.startsWith('/api/forum/categories')) return json({ categories });
+      if (url === '/api/forum/topics/topic_strategy' && init?.method === 'PATCH') {
+        return json({
+          topic: {
+            ...topic,
+            title: 'Scouting the flank',
+            slug: 'scouting-the-flank',
+            updatedAt: '2026-06-01T00:10:00.000Z',
+            posts: [
+              {
+                id: 'post_1',
+                author: { handle: 'alice', displayName: 'Alice' },
+                bodyText: 'Opening post.',
+                createdAt: '2026-06-01T00:00:00.000Z',
+                updatedAt: '2026-06-01T00:00:00.000Z',
+              },
+            ],
+          },
+        });
+      }
+      if (url.startsWith('/api/forum/topics/topic_strategy')) {
+        return json({
+          topic: {
+            ...topic,
+            posts: [
+              {
+                id: 'post_1',
+                author: { handle: 'alice', displayName: 'Alice' },
+                bodyText: 'Opening post.',
+                createdAt: '2026-06-01T00:00:00.000Z',
+                updatedAt: '2026-06-01T00:00:00.000Z',
+              },
+            ],
+          },
+        });
+      }
+      if (url.startsWith('/api/auth/me')) return json({ user: aliceUser });
+      throw new Error(`unexpected fetch ${url}`);
+    });
+    const root = document.createElement('div');
+    document.body.append(root);
+    const { mountForumTopic } = await import('./forum.js');
+
+    await mountForumTopic(root, 'topic_strategy');
+    const edit = root.querySelector<HTMLButtonElement>('.forum-topic-edit');
+    if (!edit) throw new Error('missing topic edit button');
+    edit.click();
+    const form = root.querySelector<HTMLFormElement>('.forum-topic-edit-form');
+    const title = form?.querySelector<HTMLInputElement>('input[name="title"]');
+    if (!form || !title) throw new Error('missing topic edit form');
+    title.value = 'Scouting the flank';
+
+    form.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
+    await flushPromises();
+    await flushPromises();
+
+    const editCall = fetchSpy.mock.calls.find(
+      ([input, init]) =>
+        String(input) === '/api/forum/topics/topic_strategy' && init?.method === 'PATCH',
+    );
+    expect(JSON.parse(String(editCall?.[1]?.body))).toEqual({ title: 'Scouting the flank' });
+    expect(root.querySelector('.forum-topic-edit-form')).toBeNull();
+    expect(root.querySelector('h1')?.textContent).toBe('Scouting the flank');
+    expect(window.location.pathname).toBe('/forum/t/topic_strategy/scouting-the-flank');
+    expect(
+      root.querySelector<HTMLAnchorElement>('.forum-post-permalink')?.getAttribute('href'),
+    ).toBe('/forum/t/topic_strategy/scouting-the-flank#post_post_1');
+  });
+
   it('redirects a new reply to its stable post anchor', async () => {
     window.history.pushState(null, '', '/forum/t/topic_strategy/scouting-the-center');
     const fetchSpy = vi.spyOn(globalThis, 'fetch').mockImplementation(async (input, init) => {

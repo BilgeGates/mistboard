@@ -68,6 +68,7 @@ type ForumTopicDetail = ForumTopicSummary & {
 
 const topicListPageSize = 25;
 const postPageSize = 25;
+const forumTopicTitleMaxLength = 120;
 const forumPostBodyMaxLength = 5000;
 
 class ForumNotFound extends Error {}
@@ -193,7 +194,7 @@ export async function mountForumTopic(root: HTMLElement, topicId: string): Promi
   }
 
   document.title = `${topic.title} · Forum · Mistboard`;
-  shell.append(topicHeader(topic));
+  shell.append(topicHeader(topic, user));
   const hasNextPostPage = topic.posts.length > postPageSize;
   const visiblePosts = topic.posts.slice(0, postPageSize);
 
@@ -242,7 +243,7 @@ function pageHeader(title: string, subtitle: string): HTMLElement {
   return header;
 }
 
-function topicHeader(topic: ForumTopicDetail): HTMLElement {
+function topicHeader(topic: ForumTopicDetail, user: AuthUser | null): HTMLElement {
   const header = document.createElement('header');
   header.className = 'forum-header';
   const breadcrumbs = document.createElement('nav');
@@ -262,10 +263,14 @@ function topicHeader(topic: ForumTopicDetail): HTMLElement {
   const heading = document.createElement('h1');
   heading.className = 'site-section-heading';
   heading.textContent = topic.title;
+  const titleRow = document.createElement('div');
+  titleRow.className = 'forum-topic-title-row';
+  titleRow.append(heading);
+  if (canEditTopic(topic, user) && !topic.locked) titleRow.append(topicEditButton(topic, heading));
   const meta = document.createElement('p');
   meta.className = 'forum-sub';
   meta.textContent = `${topic.category.name} · ${topic.postCount} ${topic.postCount === 1 ? 'post' : 'posts'} · last activity ${formatDate(topic.lastPostAt)}`;
-  header.append(breadcrumbs, heading, meta);
+  header.append(breadcrumbs, titleRow, meta);
   return header;
 }
 
@@ -528,6 +533,99 @@ function topicCard(topic: ForumTopicSummary): HTMLElement {
   return card;
 }
 
+function topicEditButton(topic: ForumTopicDetail, heading: HTMLElement): HTMLButtonElement {
+  const button = document.createElement('button');
+  button.type = 'button';
+  button.className = 'forum-topic-edit';
+  button.textContent = 'Edit title';
+  button.setAttribute('aria-label', `Edit ${topic.title} title`);
+  button.addEventListener('click', () => {
+    showTopicEditForm(topic, heading);
+  });
+  return button;
+}
+
+function showTopicEditForm(topic: ForumTopicDetail, heading: HTMLElement): void {
+  const header = heading.closest('.forum-header');
+  if (!header || header.querySelector('.forum-topic-edit-form')) return;
+
+  const form = document.createElement('form');
+  form.className = 'forum-topic-edit-form';
+  const input = document.createElement('input');
+  input.name = 'title';
+  input.maxLength = forumTopicTitleMaxLength;
+  input.required = true;
+  input.value = topic.title;
+  const error = errorLine();
+  const actions = document.createElement('div');
+  actions.className = 'forum-post-edit-actions';
+  const save = submitButton('Save title');
+  const cancel = document.createElement('button');
+  cancel.type = 'button';
+  cancel.textContent = 'Cancel';
+  actions.append(save, cancel);
+  form.append(labeled('Title', input), error, actions);
+
+  const close = () => {
+    form.remove();
+  };
+  cancel.addEventListener('click', close);
+  form.addEventListener('submit', (event) => {
+    event.preventDefault();
+    void submitTopicEdit(topic, form, save, error)
+      .then((updated) => {
+        topic.title = updated.title;
+        topic.slug = updated.slug;
+        topic.updatedAt = updated.updatedAt;
+        heading.textContent = updated.title;
+        document.title = `${updated.title} · Forum · Mistboard`;
+        refreshTopicLinks(updated);
+        window.history.replaceState(null, '', topicHref(updated));
+        close();
+      })
+      .catch(() => undefined);
+  });
+
+  heading.closest('.forum-topic-title-row')?.after(form);
+  input.focus();
+  input.setSelectionRange(input.value.length, input.value.length);
+}
+
+async function submitTopicEdit(
+  topic: ForumTopicDetail,
+  form: HTMLFormElement,
+  submit: HTMLButtonElement,
+  error: HTMLElement,
+): Promise<ForumTopicDetail> {
+  submit.disabled = true;
+  error.textContent = '';
+  const data = new FormData(form);
+  try {
+    const resp = await fetch(`/api/forum/topics/${encodeURIComponent(topic.id)}`, {
+      method: 'PATCH',
+      headers: { 'content-type': 'application/json', accept: 'application/json' },
+      body: JSON.stringify({ title: String(data.get('title') ?? '') }),
+    });
+    if (!resp.ok) throw new Error(errorMessageForTopicEditStatus(resp.status));
+    const payload = (await resp.json()) as { topic: ForumTopicDetail };
+    return payload.topic;
+  } catch (err) {
+    error.textContent = err instanceof Error ? err.message : 'Topic title could not be edited.';
+    throw err;
+  } finally {
+    submit.disabled = false;
+  }
+}
+
+function refreshTopicLinks(topic: { id: string; slug: string }): void {
+  const prefix = `/forum/t/${encodeURIComponent(topic.id)}/`;
+  const nextBase = topicHref(topic);
+  for (const link of document.querySelectorAll<HTMLAnchorElement>(`a[href^="${prefix}"]`)) {
+    const current = new URL(link.getAttribute('href') ?? '', window.location.origin);
+    link.setAttribute('href', `${nextBase}${current.search}${current.hash}`);
+  }
+}
+
 function postList(
   topic: ForumTopicDetail,
   posts: ForumPost[],
@@ -711,6 +809,10 @@ function canEditPost(post: ForumPost, user: AuthUser | null): boolean {
   return Boolean(user && (user.accountRole === 'admin' || post.author?.handle === user.handle));
 }
 
+function canEditTopic(topic: ForumTopicDetail, user: AuthUser | null): boolean {
+  return Boolean(user && (user.accountRole === 'admin' || topic.author?.handle === user.handle));
+}
+
 function newTopicForm(categories: ForumCategory[], user: AuthUser): HTMLElement {
   const form = document.createElement('form');
   form.className = 'forum-form';
@@ -737,7 +839,7 @@ function newTopicForm(categories: ForumCategory[], user: AuthUser): HTMLElement 
   }
   const title = document.createElement('input');
   title.name = 'title';
-  title.maxLength = 120;
+  title.maxLength = forumTopicTitleMaxLength;
   title.required = true;
   const body = document.createElement('textarea');
   body.name = 'body';
@@ -1044,6 +1146,14 @@ function errorMessageForPostEditStatus(status: number): string {
   if (status === 404) return 'This post is not available.';
   if (status >= 500) return 'Forum is unavailable.';
   return 'Check the post and try again.';
+}
+
+function errorMessageForTopicEditStatus(status: number): string {
+  if (status === 401) return 'Sign in to edit.';
+  if (status === 403) return 'This topic title cannot be edited.';
+  if (status === 404) return 'This topic is not available.';
+  if (status >= 500) return 'Forum is unavailable.';
+  return 'Check the title and try again.';
 }
 
 async function submitTopicModeration(

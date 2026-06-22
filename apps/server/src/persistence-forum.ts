@@ -84,6 +84,10 @@ export type UpdateForumPostResult =
   | { ok: true; post: ForumPost }
   | { ok: false; error: 'post_not_found' | 'forbidden' };
 
+export type UpdateForumTopicResult =
+  | { ok: true; topic: ForumTopicDetail }
+  | { ok: false; error: 'topic_not_found' | 'forbidden' };
+
 export type ForumTopicModerationAction = 'pin' | 'unpin' | 'lock' | 'unlock' | 'hide';
 
 export type ModerateForumTopicResult =
@@ -350,6 +354,46 @@ export async function updateForumPost(input: {
     );
     return { ok: true, post: postFromRow(rows[0]!) };
   });
+}
+
+export async function updateForumTopic(input: {
+  topicId: string;
+  editorAccountId: string;
+  editorRole: AccountRole;
+  title: string;
+  slug: string;
+  now: Date;
+}): Promise<UpdateForumTopicResult> {
+  const result = await withTransaction<
+    { ok: true } | { ok: false; error: 'topic_not_found' | 'forbidden' }
+  >(async (client) => {
+    const { rows: targets } = await client.query<{ author_account_id: string | null }>(
+      `SELECT author_account_id
+       FROM forum_topics
+       WHERE id = $1 AND hidden_at IS NULL
+       FOR UPDATE`,
+      [input.topicId],
+    );
+    const target = targets[0];
+    if (!target) return { ok: false, error: 'topic_not_found' };
+    if (target.author_account_id !== input.editorAccountId && input.editorRole !== 'admin') {
+      return { ok: false, error: 'forbidden' };
+    }
+
+    await client.query(
+      `UPDATE forum_topics
+       SET title = $2,
+           slug = $3,
+           updated_at = $4
+       WHERE id = $1`,
+      [input.topicId, input.title, input.slug, input.now],
+    );
+    return { ok: true };
+  });
+  if (!result.ok) return result;
+  const topic = await getForumTopic(input.topicId);
+  if (!topic) throw new Error(`forum topic ${input.topicId} missing after update`);
+  return { ok: true, topic };
 }
 
 export async function moderateForumTopic(input: {

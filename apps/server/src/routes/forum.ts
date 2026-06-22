@@ -151,18 +151,24 @@ export async function tryHandle(
 
   const topicMatch = pathname.match(/^\/api\/forum\/topics\/([^/]+)$/);
   if (topicMatch) {
-    if (!requireMethod(request, response, 'GET')) return true;
     if (!requirePersistence(response)) return true;
-    const postLimitParam = parsedUrl.searchParams.get('limit');
-    const topic = await persistence.getForumTopic(decodeURIComponent(topicMatch[1]!), {
-      postLimit: postLimitParam === null ? undefined : clampInt(postLimitParam, 100, 1, 100),
-      postOffset: clampInt(parsedUrl.searchParams.get('offset'), 0, 0, 10_000),
-    });
-    if (!topic) {
-      writeJson(response, 404, { error: 'not_found' });
+    const method = request.method ?? 'GET';
+    const topicId = decodeURIComponent(topicMatch[1]!);
+    if (method === 'GET') {
+      const postLimitParam = parsedUrl.searchParams.get('limit');
+      const topic = await persistence.getForumTopic(topicId, {
+        postLimit: postLimitParam === null ? undefined : clampInt(postLimitParam, 100, 1, 100),
+        postOffset: clampInt(parsedUrl.searchParams.get('offset'), 0, 0, 10_000),
+      });
+      if (!topic) {
+        writeJson(response, 404, { error: 'not_found' });
+        return true;
+      }
+      writeJson(response, 200, { topic: serializeTopicDetail(topic) });
       return true;
     }
-    writeJson(response, 200, { topic: serializeTopicDetail(topic) });
+    if (method === 'PATCH') return updateTopic(request, response, topicId);
+    writeJson(response, 405, { error: 'method_not_allowed' });
     return true;
   }
 
@@ -255,6 +261,38 @@ async function createPost(
     return true;
   }
   writeJson(response, 201, { post: serializePost(result.post) });
+  return true;
+}
+
+async function updateTopic(
+  request: IncomingMessage,
+  response: ServerResponse,
+  topicId: string,
+): Promise<boolean> {
+  const user = await currentAccountUser(request);
+  if (!user) {
+    writeJson(response, 401, { error: 'not_signed_in' });
+    return true;
+  }
+  const body = await readJsonBody(request);
+  const title = normalizeTitle(typeof body.title === 'string' ? body.title : '');
+  if (!title) {
+    writeJson(response, 400, { error: 'invalid_title' });
+    return true;
+  }
+  const result = await persistence.updateForumTopic({
+    topicId,
+    editorAccountId: user.id,
+    editorRole: user.accountRole,
+    title,
+    slug: slugifyTitle(title),
+    now: new Date(),
+  });
+  if (!result.ok) {
+    writeJson(response, result.error === 'topic_not_found' ? 404 : 403, { error: result.error });
+    return true;
+  }
+  writeJson(response, 200, { topic: serializeTopicDetail(result.topic) });
   return true;
 }
 

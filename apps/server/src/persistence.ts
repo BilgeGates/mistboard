@@ -66,6 +66,7 @@ export type {
   ForumTopicWritePolicy,
   HideForumPostResult,
   ModerateForumTopicResult,
+  UpdateForumTopicResult,
 } from './persistence-forum.js';
 export {
   addForumPost,
@@ -79,6 +80,7 @@ export {
   moderateForumTopic,
   searchForumTopics,
   updateForumPost,
+  updateForumTopic,
 } from './persistence-forum.js';
 export type {
   GameDebugArtifactInput,

@@ -12,6 +12,7 @@ import {
   moderateForumTopic,
   searchForumTopics,
   updateForumPost,
+  updateForumTopic,
 } from './persistence.js';
 import { getPool } from './persistence-db.js';
 import { assert, definePersistenceTests, test } from './persistence-test-support.js';
@@ -140,6 +141,36 @@ definePersistenceTests('forum', () => {
     assert.equal(titleMatches[0]?.id, 'topic_strategy');
     const bodyMatches = await searchForumTopics({ query: 'knights', limit: 5 });
     assert.equal(bodyMatches[0]?.id, 'topic_strategy');
+
+    const forbiddenTopicEdit = await updateForumTopic({
+      topicId: 'topic_strategy',
+      editorAccountId: 'forum_user_bob',
+      editorRole: 'player',
+      title: 'Bob should not retitle this',
+      slug: 'bob-should-not-retitle-this',
+      now: new Date('2026-06-01T00:05:30Z'),
+    });
+    assert.deepEqual(forbiddenTopicEdit, { ok: false, error: 'forbidden' });
+
+    const editedTopic = await updateForumTopic({
+      topicId: 'topic_strategy',
+      editorAccountId: 'forum_user_alice',
+      editorRole: 'player',
+      title: 'How should we scout the center?',
+      slug: 'how-should-we-scout-the-center',
+      now: new Date('2026-06-01T00:05:45Z'),
+    });
+    assert.equal(editedTopic.ok, true);
+    assert.equal(editedTopic.ok ? editedTopic.topic.title : '', 'How should we scout the center?');
+    assert.equal(editedTopic.ok ? editedTopic.topic.slug : '', 'how-should-we-scout-the-center');
+    assert.equal(
+      editedTopic.ok ? editedTopic.topic.lastPostAt.toISOString() : '',
+      '2026-06-01T00:05:00.000Z',
+    );
+    assert.equal(
+      editedTopic.ok ? editedTopic.topic.updatedAt.toISOString() : '',
+      '2026-06-01T00:05:45.000Z',
+    );
 
     const forbiddenEdit = await updateForumPost({
       postId: 'post_strategy_reply',
@@ -329,6 +360,19 @@ definePersistenceTests('forum', () => {
     assert.equal(handled, true);
     assert.equal(response.status, 401);
     assert.deepEqual(JSON.parse(response.body), { error: 'not_signed_in' });
+
+    const topicEditResponse = captureResponse();
+    const topicEditHandled = await tryHandleForumRoute(
+      {},
+      requestWithJson({ title: 'Edited topic title' }, 'PATCH'),
+      topicEditResponse,
+      '/api/forum/topics/topic_missing',
+      new URL('http://localhost/api/forum/topics/topic_missing'),
+    );
+
+    assert.equal(topicEditHandled, true);
+    assert.equal(topicEditResponse.status, 401);
+    assert.deepEqual(JSON.parse(topicEditResponse.body), { error: 'not_signed_in' });
 
     const editResponse = captureResponse();
     const editHandled = await tryHandleForumRoute(
