@@ -10,8 +10,6 @@ import { DROP_MINI_XIANGQI_DEFAULT_ENGINE_ID } from './server-drop-mini-xiangqi-
 import { replayTenantEvents } from './variant-tenant/runtime.js';
 import type { TenantRoomEvent } from './variant-tenant/tenant.js';
 
-process.env.MISTBOARD_DROP_MINI_XIANGQI_ENABLED = 'true';
-
 test('Drop Mini Xiangqi tenant parses board moves and drop moves from client messages', () => {
   assert.deepEqual(dropMiniXiangqiTenant.rules.moveFromMessage({ from: 'd1', to: 'd2' }), {
     from: 'd1',

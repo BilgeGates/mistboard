@@ -27,11 +27,11 @@ export function darkMiniXiangqiEnabled(): boolean {
   return process.env.MISTBOARD_DARK_MINI_XIANGQI_ENABLED === 'true';
 }
 
-// Drop Mini Xiangqi (7x7 mini xiangqi with crazyhouse-style reserves). Server-
-// side opt-in, default off. PvP-only at launch; FSF lab support remains a
-// separate research surface, not a production engine protocol.
+// Drop Mini Xiangqi (7x7 mini xiangqi with crazyhouse-style reserves). Public
+// by default; keep this helper so existing tenant and route code can use the
+// same shape as still-gated variants.
 export function dropMiniXiangqiEnabled(): boolean {
-  return process.env.MISTBOARD_DROP_MINI_XIANGQI_ENABLED === 'true';
+  return true;
 }
 
 // Jieqi (full-board xiangqi with hidden identities) live rooms. Server-side

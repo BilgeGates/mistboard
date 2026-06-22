@@ -60,6 +60,7 @@ describe('web variant launch registry', () => {
     const prod = await import('./variants.js');
     expect(prod.leaderboardVariants.map((v) => v.gameSpecId)).toEqual([
       DARK_CHESS_SPEC_ID,
+      DROP_MINI_XIANGQI_SPEC_ID,
       CROSSROADS_CHESS_SPEC_ID,
     ]);
     vi.unstubAllEnvs();
@@ -75,10 +76,12 @@ describe('web variant launch registry', () => {
     expect(flagged.profileRatingVariants.map((v) => v.gameSpecId)).toEqual([
       DARK_CHESS_SPEC_ID,
       DARK_MINI_XIANGQI_SPEC_ID,
+      DROP_MINI_XIANGQI_SPEC_ID,
       CROSSROADS_CHESS_SPEC_ID,
     ]);
     expect(flagged.leaderboardVariants.map((v) => v.gameSpecId)).toEqual([
       DARK_CHESS_SPEC_ID,
+      DROP_MINI_XIANGQI_SPEC_ID,
       CROSSROADS_CHESS_SPEC_ID,
     ]);
     vi.unstubAllEnvs();
@@ -95,6 +98,7 @@ describe('web variant launch registry', () => {
     expect(flagged.leaderboardVariants.map((v) => v.gameSpecId)).toEqual([
       DARK_CHESS_SPEC_ID,
       DARK_MINI_XIANGQI_SPEC_ID,
+      DROP_MINI_XIANGQI_SPEC_ID,
       CROSSROADS_CHESS_SPEC_ID,
     ]);
     expect(flagged.enabledVariants.map((v) => v.gameSpecId)).toContain(DARK_MINI_XIANGQI_SPEC_ID);

@@ -80,20 +80,18 @@ describe('article public listing gates', () => {
     ]);
   });
 
-  it('keeps release announcements out of the homepage article widget by default', () => {
+  it('keeps still-gated release announcements out of the homepage article widget by default', () => {
     vi.stubEnv('DEV', false);
     vi.stubEnv('VITE_KRIEGSPIEL_ENABLED', 'true');
 
     const cards = buildHomeArticleCards(50);
 
-    expect(cards?.querySelector('.landing-announcement-card')).toBeNull();
     expect(cards?.textContent).not.toContain('Reveal Chess is open for alpha play.');
     expect(cards?.textContent).not.toContain('Kriegspiel is open for alpha play.');
   });
 
-  it('shows the Drop Mini Xiangqi launch announcement in the homepage article widget', () => {
+  it('shows the Drop Mini Xiangqi launch announcement in the homepage article widget by default', () => {
     vi.stubEnv('DEV', false);
-    vi.stubEnv('VITE_DROP_MINI_XIANGQI_ENABLED', 'true');
 
     const cards = buildHomeArticleCards(50);
     const announcement = cards?.querySelector<HTMLAnchorElement>(

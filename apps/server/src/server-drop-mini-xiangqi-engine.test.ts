@@ -12,8 +12,6 @@ import {
 } from './server-drop-mini-xiangqi-engine.js';
 import { appendTenantRuntimeEvent, createTenantRuntimeRoom } from './variant-tenant/runtime.js';
 
-process.env.MISTBOARD_DROP_MINI_XIANGQI_ENABLED = 'true';
-
 type DropMiniEngineRoom = Parameters<typeof playDropMiniXiangqiEngineMoveIfReady>[1];
 type DropMiniEngineContext = Parameters<typeof playDropMiniXiangqiEngineMoveIfReady>[0];
 

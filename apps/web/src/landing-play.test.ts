@@ -54,7 +54,7 @@ describe('landing play panel', () => {
     expect(overlay?.textContent).not.toContain('Random Legal');
   });
 
-  it('shows the mini-board marker when only one variant is available', () => {
+  it('shows the variant picker when Drop Mini Xiangqi is available by default', () => {
     vi.stubEnv('DEV', false);
     vi.stubEnv('VITE_DARK_MINI_XIANGQI_ENABLED', 'false');
     vi.stubEnv('VITE_DARK_MINI_XIANGQI_PUBLIC_ENTRY_ENABLED', 'false');
@@ -75,10 +75,9 @@ describe('landing play panel', () => {
 
     openPlaySetup(panel, 'Play the engine');
 
-    const control = document.querySelector<HTMLElement>('.landing-variant-control');
-    expect(variantPickerPresent()).toBe(false);
-    expect(control?.textContent).toContain('Dark chess');
-    expect(control?.querySelector('svg[data-mini-id="dark-chess"]')).not.toBeNull();
+    expect(variantPickerPresent()).toBe(true);
+    expect(variantPickerSpecs()).toContain('dark-chess');
+    expect(variantPickerSpecs()).toContain('drop-mini-xiangqi');
   });
 
   it('creates dark chess rooms with a canonical game spec id behind the Variant UI', async () => {
@@ -364,7 +363,6 @@ describe('landing play panel', () => {
   });
 
   it('creates a Drop Mini Xiangqi engine room with the selected built-in tier', async () => {
-    vi.stubEnv('VITE_DROP_MINI_XIANGQI_ENABLED', 'true');
     const fetchSpy = vi.fn(async (input: RequestInfo | URL, _init?: RequestInit) => {
       if (String(input) === '/api/live-stats') return jsonResponse({ playing: 0, online: 0 });
       if (String(input) === '/api/rooms') return jsonResponse({ url: '/room/dmxqd_engine' });

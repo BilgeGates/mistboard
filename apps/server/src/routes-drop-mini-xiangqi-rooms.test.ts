@@ -10,8 +10,6 @@ import {
   requestsDropMiniXiangqi,
 } from './routes/drop-mini-xiangqi-rooms.js';
 
-const dropMiniXiangqiFlag = 'MISTBOARD_DROP_MINI_XIANGQI_ENABLED';
-
 type ResponseCapture = {
   body: string;
   headers: Record<string, string>;
@@ -33,127 +31,103 @@ test('Drop Mini Xiangqi PvE color selection honors random and explicit black', (
 });
 
 test('Drop Mini Xiangqi PvE route seats the built-in engine opposite the human', async () => {
-  const before = process.env[dropMiniXiangqiFlag];
-  process.env[dropMiniXiangqiFlag] = 'true';
-  try {
-    let requestedEngine: unknown;
-    const response = captureResponse();
-    await handleDropMiniXiangqiCreate(
-      testContext({
-        createDropMiniXiangqiRoom: async (_timeControl, _creatorPreference, _rated, engine) => {
-          requestedEngine = engine;
-          return { ok: true, room: dropMiniXiangqiRoom('dmxqd_pve') };
-        },
-      }),
-      response,
-      {
-        gameSpecId: DROP_MINI_XIANGQI_SPEC_ID,
-        mode: 'pve',
-        engineId: 'misty-drop-mini-level-3',
-        preferredColor: 'black',
+  let requestedEngine: unknown;
+  const response = captureResponse();
+  await handleDropMiniXiangqiCreate(
+    testContext({
+      createDropMiniXiangqiRoom: async (_timeControl, _creatorPreference, _rated, engine) => {
+        requestedEngine = engine;
+        return { ok: true, room: dropMiniXiangqiRoom('dmxqd_pve') };
       },
-    );
-
-    assert.deepEqual(requestedEngine, {
+    }),
+    response,
+    {
+      gameSpecId: DROP_MINI_XIANGQI_SPEC_ID,
+      mode: 'pve',
       engineId: 'misty-drop-mini-level-3',
-      seat: 'red',
-    });
-    assert.equal(response.status, 201);
-    assert.equal(responseJson(response).mode, 'pve');
-    assert.equal(responseJson(response).rated, false);
-  } finally {
-    restoreFlag(before);
-  }
+      preferredColor: 'black',
+    },
+  );
+
+  assert.deepEqual(requestedEngine, {
+    engineId: 'misty-drop-mini-level-3',
+    seat: 'red',
+  });
+  assert.equal(response.status, 201);
+  assert.equal(responseJson(response).mode, 'pve');
+  assert.equal(responseJson(response).rated, false);
 });
 
 test('Drop Mini Xiangqi PvE route carries bot id into engine room creation', async () => {
-  const before = process.env[dropMiniXiangqiFlag];
-  process.env[dropMiniXiangqiFlag] = 'true';
-  try {
-    let requestedEngine: unknown;
-    const response = captureResponse();
-    await handleDropMiniXiangqiCreate(
-      testContext({
-        createDropMiniXiangqiRoom: async (_timeControl, _creatorPreference, _rated, engine) => {
-          requestedEngine = engine;
-          return { ok: true, room: dropMiniXiangqiRoom('dmxqd_bot_pve') };
-        },
-      }),
-      response,
-      {
-        botId: 'misty-drop-mini-level-3',
-        engineId: 'misty-drop-mini-level-3',
-        gameSpecId: DROP_MINI_XIANGQI_SPEC_ID,
-        mode: 'pve',
-        preferredColor: 'red',
+  let requestedEngine: unknown;
+  const response = captureResponse();
+  await handleDropMiniXiangqiCreate(
+    testContext({
+      createDropMiniXiangqiRoom: async (_timeControl, _creatorPreference, _rated, engine) => {
+        requestedEngine = engine;
+        return { ok: true, room: dropMiniXiangqiRoom('dmxqd_bot_pve') };
       },
-    );
-
-    assert.deepEqual(requestedEngine, {
-      engineId: 'misty-drop-mini-level-3',
-      seat: 'black',
+    }),
+    response,
+    {
       botId: 'misty-drop-mini-level-3',
-    });
-    assert.equal(response.status, 201);
-  } finally {
-    restoreFlag(before);
-  }
+      engineId: 'misty-drop-mini-level-3',
+      gameSpecId: DROP_MINI_XIANGQI_SPEC_ID,
+      mode: 'pve',
+      preferredColor: 'red',
+    },
+  );
+
+  assert.deepEqual(requestedEngine, {
+    engineId: 'misty-drop-mini-level-3',
+    seat: 'black',
+    botId: 'misty-drop-mini-level-3',
+  });
+  assert.equal(response.status, 201);
 });
 
 test('Drop Mini Xiangqi PvE route rejects rated engine games before room creation', async () => {
-  const before = process.env[dropMiniXiangqiFlag];
-  process.env[dropMiniXiangqiFlag] = 'true';
-  try {
-    let createCalls = 0;
-    const response = captureResponse();
-    await handleDropMiniXiangqiCreate(
-      testContext({
-        createDropMiniXiangqiRoom: async () => {
-          createCalls += 1;
-          return { ok: true, room: dropMiniXiangqiRoom('dmxqd_unreachable') };
-        },
-      }),
-      response,
-      { gameSpecId: DROP_MINI_XIANGQI_SPEC_ID, mode: 'pve', rated: true },
-    );
+  let createCalls = 0;
+  const response = captureResponse();
+  await handleDropMiniXiangqiCreate(
+    testContext({
+      createDropMiniXiangqiRoom: async () => {
+        createCalls += 1;
+        return { ok: true, room: dropMiniXiangqiRoom('dmxqd_unreachable') };
+      },
+    }),
+    response,
+    { gameSpecId: DROP_MINI_XIANGQI_SPEC_ID, mode: 'pve', rated: true },
+  );
 
-    assert.equal(response.status, 501);
-    assert.deepEqual(responseJson(response), {
-      error: 'drop_mini_xiangqi_unsupported_surface',
-    });
-    assert.equal(createCalls, 0);
-  } finally {
-    restoreFlag(before);
-  }
+  assert.equal(response.status, 501);
+  assert.deepEqual(responseJson(response), {
+    error: 'drop_mini_xiangqi_unsupported_surface',
+  });
+  assert.equal(createCalls, 0);
 });
 
 test('Drop Mini Xiangqi PvE route rejects unknown built-in engine ids', async () => {
-  const before = process.env[dropMiniXiangqiFlag];
-  process.env[dropMiniXiangqiFlag] = 'true';
-  try {
-    let createCalls = 0;
-    const response = captureResponse();
-    await handleDropMiniXiangqiCreate(
-      testContext({
-        createDropMiniXiangqiRoom: async () => {
-          createCalls += 1;
-          return { ok: true, room: dropMiniXiangqiRoom('dmxqd_unreachable') };
-        },
-      }),
-      response,
-      {
-        gameSpecId: DROP_MINI_XIANGQI_SPEC_ID,
-        mode: 'pve',
-        engineId: 'not-a-drop-mini-engine',
+  let createCalls = 0;
+  const response = captureResponse();
+  await handleDropMiniXiangqiCreate(
+    testContext({
+      createDropMiniXiangqiRoom: async () => {
+        createCalls += 1;
+        return { ok: true, room: dropMiniXiangqiRoom('dmxqd_unreachable') };
       },
-    );
+    }),
+    response,
+    {
+      gameSpecId: DROP_MINI_XIANGQI_SPEC_ID,
+      mode: 'pve',
+      engineId: 'not-a-drop-mini-engine',
+    },
+  );
 
-    assert.equal(response.status, 400);
-    assert.deepEqual(responseJson(response), { error: 'invalid_engine' });
-    assert.equal(createCalls, 0);
-  } finally {
-    restoreFlag(before);
-  }
+  assert.equal(response.status, 400);
+  assert.deepEqual(responseJson(response), { error: 'invalid_engine' });
+  assert.equal(createCalls, 0);
 });
 
 function captureResponse(): ServerResponse & ResponseCapture {
@@ -244,12 +218,4 @@ function dropMiniXiangqiRoom(roomId: string): DropMiniXiangqiRuntimeRoom {
     engineReservationId: null,
     pveBotId: null,
   };
-}
-
-function restoreFlag(value: string | undefined): void {
-  if (value === undefined) {
-    delete process.env[dropMiniXiangqiFlag];
-  } else {
-    process.env[dropMiniXiangqiFlag] = value;
-  }
 }

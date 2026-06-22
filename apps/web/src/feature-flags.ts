@@ -12,10 +12,10 @@ export function darkMiniXiangqiEnabled(): boolean {
   return import.meta.env.DEV || import.meta.env.VITE_DARK_MINI_XIANGQI_ENABLED === 'true';
 }
 
-// Drop Mini Xiangqi (7x7 mini xiangqi with crazyhouse-style reserves). Always
-// on in dev for local variant-lab parity; prod/staging must opt in explicitly.
+// Drop Mini Xiangqi (7x7 mini xiangqi with crazyhouse-style reserves). Public
+// by default; keep this helper so the tenant registry matches gated variants.
 export function dropMiniXiangqiEnabled(): boolean {
-  return import.meta.env.DEV || import.meta.env.VITE_DROP_MINI_XIANGQI_ENABLED === 'true';
+  return true;
 }
 
 // Identity-hidden jieqi (揭棋) play surface. Always on in dev for convenience

@@ -10,6 +10,7 @@ import {
   DARK_MINI_XIANGQI_SPEC_ID,
   DARK_SHOGI_SPEC_ID,
   DARK_XIANGQI_SPEC_ID,
+  DROP_MINI_XIANGQI_SPEC_ID,
   JIEQI_SPEC_ID,
   KRIEGSPIEL_SPEC_ID,
   REVEAL_CHESS_SPEC_ID,
@@ -32,6 +33,7 @@ test('watch channel lookup defaults empty input and rejects unknown channels', (
   assert.equal(watchChannelForId(null)?.id, 'dark-chess');
   assert.equal(watchChannelForId(undefined)?.id, 'dark-chess');
   assert.equal(watchChannelForId('dark-chess')?.id, 'dark-chess');
+  assert.equal(watchChannelForId('drop-mini-xiangqi')?.id, 'drop-mini-xiangqi');
   assert.equal(watchChannelForId('crossroads-chess'), null);
   assert.equal(watchChannelForId('dark-xiangqi'), null);
   assert.equal(watchChannelForId('dark-crossroads-chess'), null);
@@ -50,7 +52,7 @@ test('watch channels expose Crossroads Chess behind its live-room flag', () => {
     assert.deepEqual(channel?.legacyVariants, ['crossroads-chess', 'dual-chess']);
     assert.deepEqual(
       listWatchChannels().map((entry) => entry.id),
-      ['dark-chess', 'crossroads-chess'],
+      ['dark-chess', DROP_MINI_XIANGQI_SPEC_ID, 'crossroads-chess'],
     );
   } finally {
     delete process.env.MISTBOARD_CROSSROADS_CHESS_ENABLED;
@@ -60,7 +62,7 @@ test('watch channels expose Crossroads Chess behind its live-room flag', () => {
 test('watch channel list is immutable by convention', () => {
   assert.deepEqual(
     listWatchChannels().map((channel) => channel.id),
-    ['dark-chess'],
+    ['dark-chess', DROP_MINI_XIANGQI_SPEC_ID],
   );
 });
 
@@ -88,7 +90,7 @@ test('watch channels expose Jieqi behind its live-room flag', () => {
     assert.equal(defaultWatchChannel().id, 'dark-chess');
     assert.deepEqual(
       channels.map((entry) => entry.id),
-      ['dark-chess', 'jieqi'],
+      ['dark-chess', DROP_MINI_XIANGQI_SPEC_ID, 'jieqi'],
     );
   } finally {
     delete process.env.MISTBOARD_JIEQI_ENABLED;
@@ -118,7 +120,7 @@ test('watch channels expose Dark Xiangqi behind its live-room flag', () => {
     assert.equal(channels[0]?.id, 'dark-chess');
     assert.deepEqual(
       channels.map((entry) => entry.id),
-      ['dark-chess', 'dark-xiangqi'],
+      ['dark-chess', DROP_MINI_XIANGQI_SPEC_ID, 'dark-xiangqi'],
     );
   } finally {
     delete process.env.MISTBOARD_DARK_XIANGQI_ENABLED;
@@ -143,6 +145,7 @@ test('watch channels expose every launched variant behind its live-room flag in 
       [
         'dark-chess',
         DARK_MINI_XIANGQI_SPEC_ID,
+        DROP_MINI_XIANGQI_SPEC_ID,
         DARK_XIANGQI_SPEC_ID,
         JIEQI_SPEC_ID,
         BANQI_SPEC_ID,
