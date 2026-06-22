@@ -1,36 +1,28 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import {
-  FIRST_PARTY_BOT_PROFILES,
-  firstPartyBotForEngine,
-  MISTY_DARK_CHESS_ACTIVE_ENGINE_ID,
-} from './first-party-bots.js';
+import { firstPartyBotForEngine, firstPartyBotForId } from './first-party-bots.js';
 
-test('Misty bot profile uses the current player-facing engine for new games', () => {
-  const misty = FIRST_PARTY_BOT_PROFILES.find((bot) => bot.id === 'misty-dark-chess');
-  assert.equal(misty?.activeEngineId, MISTY_DARK_CHESS_ACTIVE_ENGINE_ID);
-  assert.equal(firstPartyBotForEngine(MISTY_DARK_CHESS_ACTIVE_ENGINE_ID)?.id, 'misty-dark-chess');
-});
+test('first-party Jieqi and Crossroads bot profiles expose three levels', () => {
+  assert.equal(firstPartyBotForEngine('pikafish-jieqi-amateur')?.id, 'pika-jieqi-amateur');
+  assert.equal(firstPartyBotForEngine('pikafish-jieqi-strong')?.id, 'pika-jieqi');
+  assert.equal(firstPartyBotForEngine('pikafish-jieqi-strongest')?.id, 'pika-jieqi-strongest');
 
-test('historical Misty engine releases still attribute to the stable bot profile', () => {
-  for (const engineId of [
-    'python-v2-v1.0',
-    'python-v2-v1.1',
-    'python-v2-v1.2',
-    'python-v2-v1.3',
-    'python-v2-v1.4',
-  ]) {
-    assert.equal(firstPartyBotForEngine(engineId)?.id, 'misty-dark-chess', engineId);
-  }
-});
+  assert.equal(
+    firstPartyBotForEngine('fairy-stockfish-crossroads-amateur')?.id,
+    'fairy-stockfish-crossroads-amateur',
+  );
+  assert.equal(
+    firstPartyBotForEngine('fairy-stockfish-crossroads-strong')?.id,
+    'fairy-stockfish-crossroads',
+  );
+  assert.equal(
+    firstPartyBotForEngine('fairy-stockfish-crossroads-very-strong')?.id,
+    'fairy-stockfish-crossroads-strongest',
+  );
 
-test('Drop Mini Xiangqi levels are separate public bot identities', () => {
-  for (const level of [1, 2, 3]) {
-    const id = `misty-drop-mini-level-${level}`;
-    const bot = FIRST_PARTY_BOT_PROFILES.find((candidate) => candidate.id === id);
-    assert.equal(bot?.displayName, `Misty Drop Mini level ${level}`);
-    assert.equal(bot?.activeEngineId, id);
-    assert.equal(bot?.defaultGameSpecId, 'drop-mini-xiangqi');
-    assert.equal(firstPartyBotForEngine(id)?.id, id);
-  }
+  assert.equal(firstPartyBotForId('pika-jieqi')?.displayName, 'PikaJieQi - Strong');
+  assert.equal(
+    firstPartyBotForId('fairy-stockfish-crossroads')?.displayName,
+    'Fairy Stockfish Crossroads - Strong',
+  );
 });

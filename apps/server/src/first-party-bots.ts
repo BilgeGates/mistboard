@@ -29,9 +29,21 @@ export const FIRST_PARTY_BOT_PROFILES: readonly FirstPartyBotProfile[] = [
     defaultGameSpecId: 'dark-mini-xiangqi',
   },
   {
+    id: 'pika-jieqi-amateur',
+    displayName: 'PikaJieQi - Amateur',
+    activeEngineId: 'pikafish-jieqi-amateur',
+    defaultGameSpecId: 'jieqi',
+  },
+  {
     id: 'pika-jieqi',
-    displayName: 'PikaJieQi',
+    displayName: 'PikaJieQi - Strong',
     activeEngineId: 'pikafish-jieqi-strong',
+    defaultGameSpecId: 'jieqi',
+  },
+  {
+    id: 'pika-jieqi-strongest',
+    displayName: 'PikaJieQi - Strongest',
+    activeEngineId: 'pikafish-jieqi-strongest',
     defaultGameSpecId: 'jieqi',
   },
   {
@@ -41,9 +53,21 @@ export const FIRST_PARTY_BOT_PROFILES: readonly FirstPartyBotProfile[] = [
     defaultGameSpecId: 'banqi',
   },
   {
+    id: 'fairy-stockfish-crossroads-amateur',
+    displayName: 'Fairy Stockfish Crossroads - Amateur',
+    activeEngineId: 'fairy-stockfish-crossroads-amateur',
+    defaultGameSpecId: 'crossroads-chess',
+  },
+  {
     id: 'fairy-stockfish-crossroads',
-    displayName: 'Fairy Stockfish Crossroads',
+    displayName: 'Fairy Stockfish Crossroads - Strong',
     activeEngineId: 'fairy-stockfish-crossroads-strong',
+    defaultGameSpecId: 'crossroads-chess',
+  },
+  {
+    id: 'fairy-stockfish-crossroads-strongest',
+    displayName: 'Fairy Stockfish Crossroads - Strongest',
+    activeEngineId: 'fairy-stockfish-crossroads-very-strong',
     defaultGameSpecId: 'crossroads-chess',
   },
   {
