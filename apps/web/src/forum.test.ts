@@ -298,6 +298,46 @@ describe('forum pages', () => {
     expect(buttonLabels).toContain('Hide post');
   });
 
+  it('renders topic breadcrumbs and category navigation', async () => {
+    vi.spyOn(globalThis, 'fetch').mockImplementation(async (input) => {
+      const url = String(input);
+      if (url.startsWith('/api/forum/categories')) return json({ categories });
+      if (url.startsWith('/api/forum/topics/topic_strategy')) {
+        return json({
+          topic: {
+            ...topic,
+            posts: [
+              {
+                id: 'post_1',
+                author: { handle: 'alice', displayName: 'Alice' },
+                bodyText: 'Opening post.',
+                createdAt: '2026-06-01T00:00:00.000Z',
+                updatedAt: '2026-06-01T00:00:00.000Z',
+              },
+            ],
+          },
+        });
+      }
+      if (url.startsWith('/api/auth/me')) return json({ user: null });
+      throw new Error(`unexpected fetch ${url}`);
+    });
+    const root = document.createElement('div');
+    const { mountForumTopic } = await import('./forum.js');
+
+    await mountForumTopic(root, 'topic_strategy');
+
+    const breadcrumbs = Array.from(
+      root.querySelectorAll<HTMLAnchorElement>('.forum-breadcrumbs a'),
+    );
+    expect(breadcrumbs.map((link) => link.textContent)).toEqual(['Forum', 'Strategy']);
+    expect(breadcrumbs.map((link) => link.getAttribute('href'))).toEqual([
+      '/forum',
+      '/forum?category=strategy',
+    ]);
+    expect(root.querySelector<HTMLInputElement>('input[name="q"]')).not.toBeNull();
+    expect(root.querySelector('.forum-category-card-active')?.textContent).toContain('Strategy');
+  });
+
   it('redirects a new reply to its stable post anchor', async () => {
     window.history.pushState(null, '', '/forum/t/topic_strategy/scouting-the-center');
     const fetchSpy = vi.spyOn(globalThis, 'fetch').mockImplementation(async (input, init) => {

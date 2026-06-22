@@ -173,10 +173,12 @@ export async function mountForumTopic(root: HTMLElement, topicId: string): Promi
   const postPage = pageFromParam(query.get('page'));
   const postOffset = (postPage - 1) * postPageSize;
   let topic: ForumTopicDetail;
+  let categories: ForumCategory[];
   let user: AuthUser | null;
   try {
-    [topic, user] = await Promise.all([
+    [topic, categories, user] = await Promise.all([
       fetchForumTopic(topicId, { limit: postPageSize + 1, offset: postOffset }),
+      fetchForumCategories().catch(() => []),
       fetchCurrentUser().catch(() => null),
     ]);
   } catch (err) {
@@ -199,6 +201,8 @@ export async function mountForumTopic(root: HTMLElement, topicId: string): Promi
 
   const sidebar = document.createElement('aside');
   sidebar.className = 'forum-sidebar';
+  sidebar.append(forumSearchForm(null));
+  if (categories.length > 0) sidebar.append(categoryList(categories, topic.category.slug));
   sidebar.append(topicMetaBox(topic));
   if (user?.accountRole === 'admin') sidebar.append(topicModerationBox(topic));
 
@@ -240,17 +244,27 @@ function pageHeader(title: string, subtitle: string): HTMLElement {
 function topicHeader(topic: ForumTopicDetail): HTMLElement {
   const header = document.createElement('header');
   header.className = 'forum-header';
-  const back = document.createElement('a');
-  back.href = '/forum';
-  back.className = 'forum-back-link';
-  back.textContent = 'Forum';
+  const breadcrumbs = document.createElement('nav');
+  breadcrumbs.className = 'forum-breadcrumbs';
+  breadcrumbs.setAttribute('aria-label', 'Forum breadcrumbs');
+  const forum = document.createElement('a');
+  forum.href = '/forum';
+  forum.textContent = 'Forum';
+  const separator = document.createElement('span');
+  separator.className = 'forum-breadcrumb-separator';
+  separator.setAttribute('aria-hidden', 'true');
+  separator.textContent = '/';
+  const category = document.createElement('a');
+  category.href = categoryHref(topic.category);
+  category.textContent = topic.category.name;
+  breadcrumbs.append(forum, separator, category);
   const heading = document.createElement('h1');
   heading.className = 'site-section-heading';
   heading.textContent = topic.title;
   const meta = document.createElement('p');
   meta.className = 'forum-sub';
   meta.textContent = `${topic.category.name} · ${topic.postCount} ${topic.postCount === 1 ? 'post' : 'posts'} · last activity ${formatDate(topic.lastPostAt)}`;
-  header.append(back, heading, meta);
+  header.append(breadcrumbs, heading, meta);
   return header;
 }
 
