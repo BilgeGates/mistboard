@@ -25,11 +25,12 @@ describe('profile ratings rail', () => {
   it('shows Crossroads rated leaderboard panels even when play is not enabled', async () => {
     vi.stubEnv('DEV', false);
     vi.stubEnv('VITE_CROSSROADS_CHESS_ENABLED', 'false');
-    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockImplementation(async () =>
-      new Response(JSON.stringify({ leaderboard: [] }), {
-        headers: { 'content-type': 'application/json' },
-        status: 200,
-      }),
+    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockImplementation(
+      async () =>
+        new Response(JSON.stringify({ leaderboard: [] }), {
+          headers: { 'content-type': 'application/json' },
+          status: 200,
+        }),
     );
     const root = document.createElement('div');
     const { mountLeaderboard } = await import('./profile.js');
