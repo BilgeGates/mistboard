@@ -27,6 +27,7 @@ import {
   type CodeBlock,
   type CrossroadsReplayBlock,
   type CtaBlock,
+  type DropMiniXiangqiReplayBlock,
   findArticle,
   type InteractiveBlock,
   type JieqiReplayBlock,
@@ -46,6 +47,10 @@ import {
   type CrossroadsChessReplayController,
   mountCrossroadsChessReplay,
 } from './crossroads-chess-replay.js';
+import {
+  type DropMiniXiangqiReplayController,
+  mountDropMiniXiangqiReplay,
+} from './drop-mini-xiangqi-replay.js';
 import { darkMiniXiangqiPublicEntryEnabled } from './feature-flags.js';
 import { type JieqiReplayController, mountJieqiReplay } from './jieqi-replay.js';
 import { type MiniXiangqiReplayController, mountMiniXiangqiReplay } from './mini-xiangqi-replay.js';
@@ -280,6 +285,7 @@ function buildRulesLanding(lang?: ArticleLang): HTMLElement {
 // mountArticleThumbnails pass; rotation is started by initLandingCarousel once
 // the section is in the document (it needs measured widths).
 const HOME_ARTICLE_SLUGS = [
+  'drop-mini-xiangqi',
   'dark-shogi',
   'mistybanqi',
   'server-enforced-fog',
@@ -951,6 +957,7 @@ type PendingBlock =
   | XiangqiReplayBlock
   | ChessReplayBlock
   | MiniXiangqiReplayBlock
+  | DropMiniXiangqiReplayBlock
   | ShogiReplayBlock
   | CrossroadsReplayBlock
   | JieqiReplayBlock
@@ -968,6 +975,7 @@ function renderBlock(block: ArticleBlock): HTMLElement {
   if (block.kind === 'live-boards') return renderLiveBoardsBlock(block);
   if (block.kind === 'xq-replay') return renderXiangqiReplayBlock(block);
   if (block.kind === 'mxq-replay') return renderMiniXiangqiReplayBlock(block);
+  if (block.kind === 'drop-mini-xiangqi-replay') return renderDropMiniXiangqiReplayBlock(block);
   if (block.kind === 'shogi-replay') return renderShogiReplayBlock(block);
   if (block.kind === 'chess-replay') return renderChessReplayBlock(block);
   if (block.kind === 'crossroads-replay') return renderCrossroadsReplayBlock(block);
@@ -1080,6 +1088,27 @@ function renderMiniXiangqiReplayBlock(block: MiniXiangqiReplayBlock): HTMLElemen
   const figure = document.createElement('figure');
   figure.className = 'article-figure article-figure-interactive article-figure-xq';
   figure.dataset.pendingWidget = 'mxq-replay';
+
+  const mountTarget = document.createElement('div');
+  mountTarget.className = 'article-interactive-target';
+  figure.append(mountTarget);
+
+  if (block.caption) {
+    const cap = document.createElement('figcaption');
+    cap.className = 'article-figure-caption';
+    cap.textContent = block.caption;
+    figure.append(cap);
+  }
+
+  pendingMounts.set(figure, block);
+  return figure;
+}
+
+function renderDropMiniXiangqiReplayBlock(block: DropMiniXiangqiReplayBlock): HTMLElement {
+  const figure = document.createElement('figure');
+  figure.className =
+    'article-figure article-figure-interactive article-figure-xq article-figure-drop-mini-xiangqi';
+  figure.dataset.pendingWidget = 'drop-mini-xiangqi-replay';
 
   const mountTarget = document.createElement('div');
   mountTarget.className = 'article-interactive-target';
@@ -1585,6 +1614,7 @@ export function mountPendingWidgets(
   | XiangqiReplayController
   | ChessReplayController
   | MiniXiangqiReplayController
+  | DropMiniXiangqiReplayController
   | ShogiReplayController
   | CrossroadsChessReplayController
   | JieqiReplayController
@@ -1596,9 +1626,11 @@ export function mountPendingWidgets(
     | XiangqiReplayController
     | ChessReplayController
     | MiniXiangqiReplayController
+    | DropMiniXiangqiReplayController
     | ShogiReplayController
     | CrossroadsChessReplayController
     | JieqiReplayController
+    | BanqiReplayController
   > = [];
   const pending = root.querySelectorAll<HTMLElement>('[data-pending-widget]');
   pending.forEach((figure) => {
@@ -1614,6 +1646,8 @@ export function mountPendingWidgets(
       controllers.push(mountXiangqiReplay(target, block.spec));
     } else if (block.kind === 'mxq-replay') {
       controllers.push(mountMiniXiangqiReplay(target, block.spec));
+    } else if (block.kind === 'drop-mini-xiangqi-replay') {
+      controllers.push(mountDropMiniXiangqiReplay(target, block.spec));
     } else if (block.kind === 'shogi-replay') {
       controllers.push(mountShogiReplay(target, block.spec));
     } else if (block.kind === 'chess-replay') {

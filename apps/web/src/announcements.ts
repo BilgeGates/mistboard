@@ -50,12 +50,13 @@ export type Announcement = {
 
 const baseAnnouncements: Announcement[] = [
   {
-    date: '2026-06-21',
+    date: '2026-06-22',
     kind: 'release',
-    headline: 'Drop Mini Xiangqi is open for alpha play.',
-    body: 'Mini Xiangqi now has a reserve variant on Mistboard: capture pieces into hand, then drop them back onto the 7 by 7 board.',
+    headline: 'Drop Mini Xiangqi has launched.',
+    body: 'The 7 by 7 reserve fight is live with no enemy-palace drops, a full rules page, and a 114-ply FSF sample game to study.',
     href: '/rules/drop-mini-xiangqi',
-    cta: 'Read rules',
+    cta: 'Study the rules',
+    showInHomeArticleWidget: true,
     requiresDropMiniXiangqi: true,
   },
   {

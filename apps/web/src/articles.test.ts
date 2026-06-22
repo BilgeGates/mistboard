@@ -66,6 +66,7 @@ describe('article public listing gates', () => {
     ].map((link) => link.getAttribute('href'));
 
     expect(hrefs).toEqual([
+      '/rules/drop-mini-xiangqi',
       '/rules/dark-shogi',
       '/articles/mistybanqi',
       '/rules/reveal-chess',
@@ -80,6 +81,7 @@ describe('article public listing gates', () => {
   });
 
   it('keeps release announcements out of the homepage article widget by default', () => {
+    vi.stubEnv('DEV', false);
     vi.stubEnv('VITE_KRIEGSPIEL_ENABLED', 'true');
 
     const cards = buildHomeArticleCards(50);
@@ -87,6 +89,19 @@ describe('article public listing gates', () => {
     expect(cards?.querySelector('.landing-announcement-card')).toBeNull();
     expect(cards?.textContent).not.toContain('Reveal Chess is open for alpha play.');
     expect(cards?.textContent).not.toContain('Kriegspiel is open for alpha play.');
+  });
+
+  it('shows the Drop Mini Xiangqi launch announcement in the homepage article widget', () => {
+    vi.stubEnv('DEV', false);
+    vi.stubEnv('VITE_DROP_MINI_XIANGQI_ENABLED', 'true');
+
+    const cards = buildHomeArticleCards(50);
+    const announcement = cards?.querySelector<HTMLAnchorElement>(
+      '.landing-announcement-card[href="/rules/drop-mini-xiangqi"]',
+    );
+
+    expect(announcement).not.toBeNull();
+    expect(announcement?.textContent).toContain('Drop Mini Xiangqi has launched.');
   });
 
   it('does not show the Banqi alpha announcement in the homepage article widget', () => {
@@ -240,6 +255,8 @@ describe('article public listing gates', () => {
 
     expect(page.textContent).toContain('Drop Mini Xiangqi Rules');
     expect(page.textContent).toContain('open for alpha play');
+    expect(page.textContent).toContain('A sample game');
+    expect(page.querySelector('[data-pending-widget="drop-mini-xiangqi-replay"]')).not.toBeNull();
     expect(links).toContainEqual({
       href: '/?play=friend&gameSpecId=drop-mini-xiangqi',
       text: 'Create invite',

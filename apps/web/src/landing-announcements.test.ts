@@ -89,6 +89,25 @@ describe('landing announcements', () => {
     expect(row?.getAttribute('href')).toBe('/rules/dark-crazyhouse');
   });
 
+  it('hides the Drop Mini Xiangqi announcement until the flag is enabled', () => {
+    vi.stubEnv('DEV', false);
+
+    expect(buildLandingAnnouncements().textContent).not.toContain('Drop Mini Xiangqi');
+  });
+
+  it('shows the Drop Mini Xiangqi launch announcement when the flag is enabled', () => {
+    vi.stubEnv('DEV', false);
+    vi.stubEnv('VITE_DROP_MINI_XIANGQI_ENABLED', 'true');
+
+    const panel = buildLandingAnnouncements();
+    const row = [...panel.querySelectorAll<HTMLAnchorElement>('a.landing-news-row')].find((r) =>
+      r.textContent?.includes('Drop Mini Xiangqi'),
+    );
+
+    expect(row).toBeDefined();
+    expect(row?.getAttribute('href')).toBe('/rules/drop-mini-xiangqi');
+  });
+
   it('hides the Banqi announcement until the banqi flag is enabled', () => {
     vi.stubEnv('DEV', false);
     expect(buildLandingAnnouncements().textContent).not.toContain('Banqi');

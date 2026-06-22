@@ -7,6 +7,7 @@ import type { LiveBoardsOptions, SteppedBoardsOptions } from '@mistboard/board-r
 import type { BanqiDeal, BanqiSeat, Square } from '@mistboard/game';
 import type { ChessReplaySpec } from '../chess-replay.js';
 import type { CrossroadsReplaySpec } from '../crossroads-chess-replay.js';
+import type { DropMiniXiangqiReplaySpec } from '../drop-mini-xiangqi-replay.js';
 import type { JieqiReplaySpec } from '../jieqi-replay.js';
 import type { MiniXiangqiReplaySpec } from '../mini-xiangqi-replay.js';
 import type { ShogiReplaySpec } from '../shogi-replay.js';
@@ -121,6 +122,14 @@ export type MiniXiangqiReplayBlock = {
   caption?: string;
 };
 
+// Drop Mini Xiangqi analogue: a 7x7 board plus both reserves, stepped through
+// board moves and drops against the real kernel.
+export type DropMiniXiangqiReplayBlock = {
+  kind: 'drop-mini-xiangqi-replay';
+  spec: DropMiniXiangqiReplaySpec;
+  caption?: string;
+};
+
 // Shogi analogue: a 9x9 board plus hands, stepped through a western shogi move
 // list and replayed through the real kernel.
 export type ShogiReplayBlock = {
@@ -198,6 +207,7 @@ export type ArticleBlock =
   | XiangqiReplayBlock
   | ChessReplayBlock
   | MiniXiangqiReplayBlock
+  | DropMiniXiangqiReplayBlock
   | ShogiReplayBlock
   | CrossroadsReplayBlock
   | JieqiReplayBlock
