@@ -202,9 +202,17 @@ describe('forum pages', () => {
       root.querySelector('.forum-topic-row:not(.forum-topic-list-header) .forum-topic-row-replies')
         ?.textContent,
     ).toBe('1');
-    expect(root.querySelector('.forum-pager-current')?.textContent).toBe('Page 2');
-    const pageLinks = Array.from(root.querySelectorAll<HTMLAnchorElement>('.forum-pager-link'));
-    expect(pageLinks.map((link) => link.textContent)).toEqual(['Previous', 'Next']);
+    const pagers = Array.from(root.querySelectorAll<HTMLElement>('.forum-pager'));
+    expect(pagers).toHaveLength(2);
+    expect(pagers.map((pager) => pager.getAttribute('aria-label'))).toEqual([
+      'Forum topic pages',
+      'Forum topic pages',
+    ]);
+    expect(pagers[0]?.querySelector('.forum-pager-current')?.textContent).toBe('2');
+    const pageLinks = Array.from(
+      pagers[0]?.querySelectorAll<HTMLAnchorElement>('.forum-pager-link') ?? [],
+    );
+    expect(pageLinks.map((link) => link.textContent)).toEqual(['1', '3']);
     expect(pageLinks.map((link) => link.getAttribute('href'))).toEqual([
       '/forum?category=strategy',
       '/forum?category=strategy&page=3',
@@ -244,8 +252,13 @@ describe('forum pages', () => {
     expect(root.querySelectorAll('.forum-topic-row:not(.forum-topic-list-header)')).toHaveLength(
       25,
     );
-    const pageLinks = Array.from(root.querySelectorAll<HTMLAnchorElement>('.forum-pager-link'));
-    expect(pageLinks.map((link) => link.textContent)).toEqual(['Previous', 'Next']);
+    const pagers = Array.from(root.querySelectorAll<HTMLElement>('.forum-pager'));
+    expect(pagers).toHaveLength(2);
+    expect(pagers[0]?.querySelector('.forum-pager-current')?.textContent).toBe('2');
+    const pageLinks = Array.from(
+      pagers[0]?.querySelectorAll<HTMLAnchorElement>('.forum-pager-link') ?? [],
+    );
+    expect(pageLinks.map((link) => link.textContent)).toEqual(['1', '3']);
     expect(pageLinks.map((link) => link.getAttribute('href'))).toEqual([
       '/forum?q=central+fog',
       '/forum?q=central+fog&page=3',
@@ -830,9 +843,17 @@ describe('forum pages', () => {
     expect(
       root.querySelector<HTMLAnchorElement>('.forum-post-permalink')?.getAttribute('href'),
     ).toBe('/forum/t/topic_strategy/scouting-the-center?page=2#post_post_page_0');
-    expect(root.querySelector('.forum-pager-current')?.textContent).toBe('Page 2');
-    const pageLinks = Array.from(root.querySelectorAll<HTMLAnchorElement>('.forum-pager-link'));
-    expect(pageLinks.map((link) => link.textContent)).toEqual(['Previous', 'Next']);
+    const pagers = Array.from(root.querySelectorAll<HTMLElement>('.forum-pager'));
+    expect(pagers).toHaveLength(2);
+    expect(pagers.map((pager) => pager.getAttribute('aria-label'))).toEqual([
+      'Forum post pages',
+      'Forum post pages',
+    ]);
+    expect(pagers[0]?.querySelector('.forum-pager-current')?.textContent).toBe('2');
+    const pageLinks = Array.from(
+      pagers[0]?.querySelectorAll<HTMLAnchorElement>('.forum-pager-link') ?? [],
+    );
+    expect(pageLinks.map((link) => link.textContent)).toEqual(['1', '3']);
     expect(pageLinks.map((link) => link.getAttribute('href'))).toEqual([
       '/forum/t/topic_strategy/scouting-the-center',
       '/forum/t/topic_strategy/scouting-the-center?page=3',

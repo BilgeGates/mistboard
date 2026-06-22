@@ -143,6 +143,15 @@ export async function mountForum(root: HTMLElement): Promise<void> {
   } else {
     main.append(categoryIndex(categories), sectionTitle('Recent topics'));
   }
+  const needsTopicPager = topicPage > 1 || hasNextPage;
+  const topicPageOptions = {
+    categorySlug: searchQuery ? null : categoryFilter,
+    searchQuery,
+    page: topicPage,
+    hasNext: hasNextPage,
+    hasPrevious: topicPage > 1,
+  };
+  if (needsTopicPager) main.append(topicPager(topicPageOptions));
   main.append(
     topicList(
       visibleTopics,
@@ -153,17 +162,7 @@ export async function mountForum(root: HTMLElement): Promise<void> {
           : undefined,
     ),
   );
-  if (topicPage > 1 || hasNextPage) {
-    main.append(
-      topicPager({
-        categorySlug: searchQuery ? null : categoryFilter,
-        searchQuery,
-        page: topicPage,
-        hasNext: hasNextPage,
-        hasPrevious: topicPage > 1,
-      }),
-    );
-  }
+  if (needsTopicPager) main.append(topicPager(topicPageOptions));
 
   body.replaceChildren(sidebar, main);
 }
@@ -215,6 +214,14 @@ export async function mountForumTopic(root: HTMLElement, topicId: string): Promi
 
   const main = document.createElement('section');
   main.className = 'forum-main';
+  const needsPostPager = postPage > 1 || hasNextPostPage;
+  const postPageOptions = {
+    topic,
+    page: postPage,
+    hasNext: hasNextPostPage,
+    hasPrevious: postPage > 1,
+  };
+  if (needsPostPager) main.append(postPager(postPageOptions));
   main.append(
     postList(
       topic,
@@ -224,16 +231,7 @@ export async function mountForumTopic(root: HTMLElement, topicId: string): Promi
       postPage,
     ),
   );
-  if (postPage > 1 || hasNextPostPage) {
-    main.append(
-      postPager({
-        topic,
-        page: postPage,
-        hasNext: hasNextPostPage,
-        hasPrevious: postPage > 1,
-      }),
-    );
-  }
+  if (needsPostPager) main.append(postPager(postPageOptions));
   if (topic.locked) main.append(statusPanel('This topic is locked.'));
   else main.append(user ? replyForm(topic, user) : signInBox('Sign in to reply.'));
 
@@ -449,36 +447,14 @@ function topicPager(options: {
   hasPrevious: boolean;
   hasNext: boolean;
 }): HTMLElement {
-  const nav = document.createElement('nav');
-  nav.className = 'forum-pager';
-  nav.setAttribute('aria-label', 'Forum topic pages');
-  nav.append(
-    options.hasPrevious
-      ? pagerLink(
-          'Previous',
-          forumHref(
-            { categorySlug: options.categorySlug, searchQuery: options.searchQuery },
-            options.page - 1,
-          ),
-        )
-      : pagerSpacer(),
-  );
-  const current = document.createElement('span');
-  current.className = 'forum-pager-current';
-  current.textContent = `Page ${options.page}`;
-  nav.append(current);
-  nav.append(
-    options.hasNext
-      ? pagerLink(
-          'Next',
-          forumHref(
-            { categorySlug: options.categorySlug, searchQuery: options.searchQuery },
-            options.page + 1,
-          ),
-        )
-      : pagerSpacer(),
-  );
-  return nav;
+  return forumPager({
+    ariaLabel: 'Forum topic pages',
+    page: options.page,
+    hasPrevious: options.hasPrevious,
+    hasNext: options.hasNext,
+    hrefForPage: (page) =>
+      forumHref({ categorySlug: options.categorySlug, searchQuery: options.searchQuery }, page),
+  });
 }
 
 function postPager(options: {
@@ -487,23 +463,37 @@ function postPager(options: {
   hasPrevious: boolean;
   hasNext: boolean;
 }): HTMLElement {
+  return forumPager({
+    ariaLabel: 'Forum post pages',
+    page: options.page,
+    hasPrevious: options.hasPrevious,
+    hasNext: options.hasNext,
+    hrefForPage: (page) => topicPageHref(options.topic, page),
+  });
+}
+
+function forumPager(options: {
+  ariaLabel: string;
+  page: number;
+  hasPrevious: boolean;
+  hasNext: boolean;
+  hrefForPage: (page: number) => string;
+}): HTMLElement {
   const nav = document.createElement('nav');
   nav.className = 'forum-pager';
-  nav.setAttribute('aria-label', 'Forum post pages');
-  nav.append(
-    options.hasPrevious
-      ? pagerLink('Previous', topicPageHref(options.topic, options.page - 1))
-      : pagerSpacer(),
-  );
+  nav.setAttribute('aria-label', options.ariaLabel);
+  if (options.page > 2) nav.append(pagerLink('1', options.hrefForPage(1)));
+  if (options.page > 3) nav.append(pagerEllipsis());
+  if (options.hasPrevious) {
+    nav.append(pagerLink(String(options.page - 1), options.hrefForPage(options.page - 1)));
+  }
   const current = document.createElement('span');
   current.className = 'forum-pager-current';
-  current.textContent = `Page ${options.page}`;
+  current.setAttribute('aria-current', 'page');
+  current.textContent = String(options.page);
   nav.append(current);
-  nav.append(
-    options.hasNext
-      ? pagerLink('Next', topicPageHref(options.topic, options.page + 1))
-      : pagerSpacer(),
-  );
+  if (options.hasNext)
+    nav.append(pagerLink(String(options.page + 1), options.hrefForPage(options.page + 1)));
   return nav;
 }
 
@@ -515,11 +505,12 @@ function pagerLink(text: string, href: string): HTMLAnchorElement {
   return link;
 }
 
-function pagerSpacer(): HTMLElement {
-  const spacer = document.createElement('span');
-  spacer.className = 'forum-pager-spacer';
-  spacer.setAttribute('aria-hidden', 'true');
-  return spacer;
+function pagerEllipsis(): HTMLElement {
+  const ellipsis = document.createElement('span');
+  ellipsis.className = 'forum-pager-ellipsis';
+  ellipsis.setAttribute('aria-hidden', 'true');
+  ellipsis.textContent = '...';
+  return ellipsis;
 }
 
 function topicRow(topic: ForumTopicSummary): HTMLElement {
