@@ -2,14 +2,24 @@ export type FirstPartyBotProfile = {
   id: string;
   displayName: string;
   activeEngineId: string;
+  attributionEngineIds?: readonly string[];
   defaultGameSpecId: string;
 };
+
+export const MISTY_DARK_CHESS_ACTIVE_ENGINE_ID = 'python-v2-v1.5';
 
 export const FIRST_PARTY_BOT_PROFILES: readonly FirstPartyBotProfile[] = [
   {
     id: 'misty-dark-chess',
     displayName: 'Misty',
-    activeEngineId: 'python-v2-v1.4',
+    activeEngineId: MISTY_DARK_CHESS_ACTIVE_ENGINE_ID,
+    attributionEngineIds: [
+      'python-v2-v1.0',
+      'python-v2-v1.1',
+      'python-v2-v1.2',
+      'python-v2-v1.3',
+      'python-v2-v1.4',
+    ],
     defaultGameSpecId: 'dark-chess',
   },
   {
@@ -38,7 +48,13 @@ export const FIRST_PARTY_BOT_PROFILES: readonly FirstPartyBotProfile[] = [
   },
 ];
 
-const botByEngineId = new Map(FIRST_PARTY_BOT_PROFILES.map((bot) => [bot.activeEngineId, bot]));
+const botByEngineId = new Map<string, FirstPartyBotProfile>();
+for (const bot of FIRST_PARTY_BOT_PROFILES) {
+  botByEngineId.set(bot.activeEngineId, bot);
+  for (const engineId of bot.attributionEngineIds ?? []) {
+    botByEngineId.set(engineId, bot);
+  }
+}
 
 export function firstPartyBotForEngine(engineId: string): FirstPartyBotProfile | null {
   return botByEngineId.get(engineId) ?? null;

@@ -10,7 +10,7 @@ test('renders bot rating snapshots as an audit table', () => {
     snapshot({
       displayName: 'Misty',
       botId: 'misty-dark-chess',
-      activeEngineId: 'python-v2-v1.4',
+      activeEngineId: 'python-v2-v1.5',
       rating: 1812,
       ratingDeviation: 77.4,
       games: 32,
@@ -33,7 +33,7 @@ test('renders bot rating snapshots as an audit table', () => {
   ]);
 
   assert.match(markdown, /\| Misty \(`misty-dark-chess`\)/);
-  assert.match(markdown, /\| `python-v2-v1\.4` /);
+  assert.match(markdown, /\| `python-v2-v1\.5` /);
   assert.match(markdown, /\| 1812 \| 77 \| 32 \| published \| eve-anchor tournament:test-cup /);
   assert.match(markdown, /\| Draft Bot \(`draft-bot`\)/);
   assert.match(markdown, /\| 1700 \| - \| 8 \| draft \| manual /);

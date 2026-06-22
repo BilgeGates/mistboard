@@ -19,7 +19,7 @@ test('builds published bot rating drafts from rated engine Elo rows', () => {
     report({
       rows: [
         row({
-          engineId: 'python-v2-v1.4',
+          engineId: 'python-v2-v1.5',
           elo: 312.4,
           games: 32,
           ciWilson: 76.6,
@@ -32,7 +32,7 @@ test('builds published bot rating drafts from rated engine Elo rows', () => {
     [
       {
         id: 'misty-dark-chess',
-        activeEngineId: 'python-v2-v1.4',
+        activeEngineId: 'python-v2-v1.5',
         defaultGameSpecId: 'dark-chess',
       },
       {
@@ -47,7 +47,7 @@ test('builds published bot rating drafts from rated engine Elo rows', () => {
   assert.equal(plan.drafts.length, 1);
   assert.deepEqual(plan.drafts[0], {
     botId: 'misty-dark-chess',
-    engineId: 'python-v2-v1.4',
+    engineId: 'python-v2-v1.5',
     gameSpecId: 'dark-chess',
     timeClass: 'blitz',
     rating: 1812,
@@ -91,7 +91,7 @@ function row(overrides: Partial<EngineEloRow> = {}): EngineEloRow {
     ciWilson: 90,
     draws: 0,
     elo: 0,
-    engineId: 'python-v2-v1.4',
+    engineId: 'python-v2-v1.5',
     games: 8,
     isAnchor: false,
     losses: 0,

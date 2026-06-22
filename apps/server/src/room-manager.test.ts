@@ -574,7 +574,7 @@ test('buildGameSummary: engine seat forces rated=false even when room.rated=true
   assert.equal(summary.participants?.[0]?.subjectType, 'engine-version');
 });
 
-test('buildGameSummary: first-party engine seat records bot profile identity', () => {
+test('buildGameSummary: current first-party engine seat records bot profile identity', () => {
   const events: GameEvent[] = [
     { type: 'room-created', at: 1, roomId: 'room-bot-pve', variant: 'dark-chess', offer: [] },
     {
@@ -588,7 +588,7 @@ test('buildGameSummary: first-party engine seat records bot profile identity', (
       type: 'seat-assigned',
       at: 3,
       roomId: 'room-bot-pve',
-      clientId: 'python-v2-v1.4',
+      clientId: 'python-v2-v1.5',
       seat: 'black',
     },
     { type: 'seat-resigned', at: 4, roomId: 'room-bot-pve', color: 'white' },
@@ -608,6 +608,41 @@ test('buildGameSummary: first-party engine seat records bot profile identity', (
     subjectId: 'misty-dark-chess',
     visibility: 'public',
   });
+});
+
+test('buildGameSummary: historical first-party engine seat records bot profile identity', () => {
+  const events: GameEvent[] = [
+    {
+      type: 'room-created',
+      at: 1,
+      roomId: 'room-bot-historical-pve',
+      variant: 'dark-chess',
+      offer: [],
+    },
+    {
+      type: 'seat-assigned',
+      at: 2,
+      roomId: 'room-bot-historical-pve',
+      clientId: 'human-c',
+      seat: 'white',
+    },
+    {
+      type: 'seat-assigned',
+      at: 3,
+      roomId: 'room-bot-historical-pve',
+      clientId: 'python-v2-v1.4',
+      seat: 'black',
+    },
+    { type: 'seat-resigned', at: 4, roomId: 'room-bot-historical-pve', color: 'white' },
+  ];
+  const room = makeRoom('room-bot-historical-pve', 'dark-chess', events);
+  room.mode = 'pve';
+  const ctx = makeCtx();
+
+  const summary = buildGameSummary(ctx, room);
+
+  assert.equal(summary.participants?.[1]?.subjectType, 'bot');
+  assert.equal(summary.participants?.[1]?.subjectId, 'misty-dark-chess');
 });
 
 test('buildGameSummary: guest seats force rated=false even when room.rated=true', () => {

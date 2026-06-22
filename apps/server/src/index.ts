@@ -6,6 +6,7 @@ import { WebSocketServer } from 'ws';
 // Populates the VariantTenant registry (one registration module per variant).
 import './variant-tenant/register-tenants.js';
 import { darkXiangqiRooms } from './dark-xiangqi-registration.js';
+import { MISTY_DARK_CHESS_ACTIVE_ENGINE_ID } from './first-party-bots.js';
 import { runMigrations } from './migrate.js';
 import * as persistence from './persistence.js';
 import type { RematchOrchestrator } from './rematch.js';
@@ -103,7 +104,7 @@ const stalePausedSweepMs = serverConfig.stalePausedSweepMs;
 // no random fallback. Name kept for compat; it is no longer a builtin. If Misty
 // can't serve, room creation / reservation fails loudly (503) rather than
 // silently substituting random.
-const pveBuiltinEngineClientId = 'python-v2-v1.0';
+const pveBuiltinEngineClientId = MISTY_DARK_CHESS_ACTIVE_ENGINE_ID;
 const persistenceErrors: Array<{ at: number; roomId: string; eventType: string }> = [];
 const PERSISTENCE_ERROR_RETENTION_MS = 3_600_000;
 

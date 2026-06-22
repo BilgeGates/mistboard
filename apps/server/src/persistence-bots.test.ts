@@ -52,7 +52,7 @@ definePersistenceTests('bot profiles', () => {
       startedAt,
       endedAt: publicEndedAt,
       whiteClient: 'human-client',
-      blackClient: 'python-v2-v1.4',
+      blackClient: 'python-v2-v1.5',
       whiteName: null,
       blackName: 'Test Bot',
       corpusId: null,
@@ -87,7 +87,7 @@ definePersistenceTests('bot profiles', () => {
       startedAt,
       endedAt: privateEndedAt,
       whiteClient: 'human-client-2',
-      blackClient: 'python-v2-v1.4',
+      blackClient: 'python-v2-v1.5',
       whiteName: null,
       blackName: 'Test Bot',
       corpusId: null,
@@ -129,7 +129,7 @@ definePersistenceTests('bot profiles', () => {
     assert.equal(bots[0]?.rating?.source, 'eve-anchor');
     assert.equal(bots[0]?.rating?.sourceRef, 'eve-report-2026-01-01');
     assert.equal(bots[0]?.rating?.provisional, false);
-    assert.equal(bots[0]?.play.engineId, 'python-v2-v1.4');
+    assert.equal(bots[0]?.play.engineId, 'python-v2-v1.5');
 
     const profile = await getPublicBotProfile('test-bot');
     assert.equal(profile?.gamesTotal, 1);
@@ -314,7 +314,7 @@ async function insertBotProfile(
       `INSERT INTO bot_profiles
          (id, display_name, bio, owner_type, active_engine_id, default_game_spec_id,
           supported_game_spec_ids, play_initial_ms, play_increment_ms, visibility)
-       VALUES ($1, $2, '', 'system', 'python-v2-v1.4', $3,
+       VALUES ($1, $2, '', 'system', 'python-v2-v1.5', $3,
                ARRAY[$3], 180000, 2000, $4)`,
       [id, displayName, opts.gameSpecId ?? 'dark-chess', visibility],
     );
