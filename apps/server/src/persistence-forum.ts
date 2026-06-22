@@ -88,6 +88,10 @@ export type UpdateForumTopicResult =
   | { ok: true; topic: ForumTopicDetail }
   | { ok: false; error: 'topic_not_found' | 'forbidden' };
 
+export type MoveForumTopicResult =
+  | { ok: true; topic: ForumTopicDetail }
+  | { ok: false; error: 'topic_not_found' | 'category_not_found' };
+
 export type ForumTopicModerationAction = 'pin' | 'unpin' | 'lock' | 'unlock' | 'hide';
 
 export type ModerateForumTopicResult =
@@ -393,6 +397,39 @@ export async function updateForumTopic(input: {
   if (!result.ok) return result;
   const topic = await getForumTopic(input.topicId);
   if (!topic) throw new Error(`forum topic ${input.topicId} missing after update`);
+  return { ok: true, topic };
+}
+
+export async function moveForumTopic(input: {
+  topicId: string;
+  categorySlug: string;
+  now: Date;
+}): Promise<MoveForumTopicResult> {
+  const result = await withTransaction<
+    { ok: true } | { ok: false; error: 'topic_not_found' | 'category_not_found' }
+  >(async (client) => {
+    const { rows: categories } = await client.query<{ id: string }>(
+      `SELECT id
+       FROM forum_categories
+       WHERE slug = $1`,
+      [input.categorySlug],
+    );
+    const category = categories[0];
+    if (!category) return { ok: false, error: 'category_not_found' };
+
+    const { rowCount } = await client.query(
+      `UPDATE forum_topics
+       SET category_id = $2,
+           updated_at = $3
+       WHERE id = $1 AND hidden_at IS NULL`,
+      [input.topicId, category.id, input.now],
+    );
+    if (rowCount === 0) return { ok: false, error: 'topic_not_found' };
+    return { ok: true };
+  });
+  if (!result.ok) return result;
+  const topic = await getForumTopic(input.topicId);
+  if (!topic) throw new Error(`forum topic ${input.topicId} missing after move`);
   return { ok: true, topic };
 }
 

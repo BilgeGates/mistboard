@@ -135,6 +135,13 @@ export async function tryHandle(
     return moderateTopic(request, response, decodeURIComponent(topicModerationMatch[1]!));
   }
 
+  const topicCategoryMatch = pathname.match(/^\/api\/forum\/topics\/([^/]+)\/category$/);
+  if (topicCategoryMatch) {
+    if (!requireMethod(request, response, 'PATCH')) return true;
+    if (!requirePersistence(response)) return true;
+    return moveTopic(request, response, decodeURIComponent(topicCategoryMatch[1]!));
+  }
+
   const postMatch = pathname.match(/^\/api\/forum\/posts\/([^/]+)$/);
   if (postMatch) {
     if (!requireMethod(request, response, 'PATCH')) return true;
@@ -290,6 +297,33 @@ async function updateTopic(
   });
   if (!result.ok) {
     writeJson(response, result.error === 'topic_not_found' ? 404 : 403, { error: result.error });
+    return true;
+  }
+  writeJson(response, 200, { topic: serializeTopicDetail(result.topic) });
+  return true;
+}
+
+async function moveTopic(
+  request: IncomingMessage,
+  response: ServerResponse,
+  topicId: string,
+): Promise<boolean> {
+  if (!(await requireAdminSession(request, response))) return true;
+  const body = await readJsonBody(request);
+  const categorySlug = normalizeSlug(
+    typeof body.categorySlug === 'string' ? body.categorySlug : '',
+  );
+  if (!categorySlug) {
+    writeJson(response, 400, { error: 'invalid_category' });
+    return true;
+  }
+  const result = await persistence.moveForumTopic({
+    topicId,
+    categorySlug,
+    now: new Date(),
+  });
+  if (!result.ok) {
+    writeJson(response, result.error === 'topic_not_found' ? 404 : 400, { error: result.error });
     return true;
   }
   writeJson(response, 200, { topic: serializeTopicDetail(result.topic) });

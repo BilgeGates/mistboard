@@ -265,6 +265,7 @@ describe('forum pages', () => {
   it('renders topic moderation controls for admins', async () => {
     vi.spyOn(globalThis, 'fetch').mockImplementation(async (input) => {
       const url = String(input);
+      if (url.startsWith('/api/forum/categories')) return json({ categories });
       if (url.startsWith('/api/forum/topics/topic_strategy')) {
         return json({
           topic: {
@@ -297,6 +298,71 @@ describe('forum pages', () => {
     expect(buttonLabels).toContain('Lock');
     expect(buttonLabels).toContain('Hide topic');
     expect(buttonLabels).toContain('Hide post');
+    expect(buttonLabels).toContain('Move');
+    expect(root.querySelector('.forum-topic-move-form')?.textContent).toContain('Move to');
+  });
+
+  it('moves a topic category from moderation controls', async () => {
+    window.history.pushState(null, '', '/forum/t/topic_strategy/scouting-the-center');
+    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockImplementation(async (input, init) => {
+      const url = String(input);
+      if (url.startsWith('/api/forum/categories')) return json({ categories });
+      if (url === '/api/forum/topics/topic_strategy/category' && init?.method === 'PATCH') {
+        return json({
+          topic: {
+            ...topic,
+            category: { slug: 'announcements', name: 'Announcements' },
+            posts: [
+              {
+                id: 'post_1',
+                author: { handle: 'alice', displayName: 'Alice' },
+                bodyText: 'Opening post.',
+                createdAt: '2026-06-01T00:00:00.000Z',
+                updatedAt: '2026-06-01T00:00:00.000Z',
+              },
+            ],
+          },
+        });
+      }
+      if (url.startsWith('/api/forum/topics/topic_strategy')) {
+        return json({
+          topic: {
+            ...topic,
+            posts: [
+              {
+                id: 'post_1',
+                author: { handle: 'alice', displayName: 'Alice' },
+                bodyText: 'Opening post.',
+                createdAt: '2026-06-01T00:00:00.000Z',
+                updatedAt: '2026-06-01T00:00:00.000Z',
+              },
+            ],
+          },
+        });
+      }
+      if (url.startsWith('/api/auth/me')) return json({ user: adminUser });
+      throw new Error(`unexpected fetch ${url}`);
+    });
+    const root = document.createElement('div');
+    document.body.append(root);
+    const { mountForumTopic } = await import('./forum.js');
+
+    await mountForumTopic(root, 'topic_strategy');
+    const form = root.querySelector<HTMLFormElement>('.forum-topic-move-form');
+    const select = form?.querySelector<HTMLSelectElement>('select[name="categorySlug"]');
+    if (!form || !select) throw new Error('missing topic move form');
+    select.value = 'announcements';
+
+    form.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
+    await flushPromises();
+    await flushPromises();
+
+    const moveCall = fetchSpy.mock.calls.find(
+      ([input, init]) =>
+        String(input) === '/api/forum/topics/topic_strategy/category' && init?.method === 'PATCH',
+    );
+    expect(JSON.parse(String(moveCall?.[1]?.body))).toEqual({ categorySlug: 'announcements' });
+    expect(window.location.pathname).toBe('/forum/t/topic_strategy/scouting-the-center');
   });
 
   it('renders topic breadcrumbs and category navigation', async () => {

@@ -473,6 +473,54 @@ a.forum-topic-title:focus-visible,
   opacity: 0.65;
 }
 
+.forum-topic-move-form {
+  display: grid;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.forum-topic-move-form label {
+  display: grid;
+  gap: 5px;
+  color: var(--site-muted);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.forum-topic-move-form select {
+  width: 100%;
+  border: 1px solid var(--site-border);
+  border-radius: var(--site-radius-sm);
+  background: var(--site-panel-soft);
+  color: var(--site-text);
+  font: inherit;
+  padding: 8px 10px;
+}
+
+.forum-topic-move-form button {
+  justify-self: start;
+  border: 1px solid var(--site-border);
+  border-radius: var(--site-radius-sm);
+  background: var(--site-panel-soft);
+  color: var(--site-text);
+  cursor: pointer;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 800;
+  padding: 7px 10px;
+}
+
+.forum-topic-move-form button:hover:not(:disabled),
+.forum-topic-move-form button:focus-visible {
+  border-color: var(--site-accent-strong);
+  color: var(--site-accent-strong);
+}
+
+.forum-topic-move-form button:disabled {
+  cursor: default;
+  opacity: 0.65;
+}
+
 .forum-search-form {
   display: grid;
   gap: 8px;

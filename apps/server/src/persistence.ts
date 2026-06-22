@@ -66,6 +66,7 @@ export type {
   ForumTopicWritePolicy,
   HideForumPostResult,
   ModerateForumTopicResult,
+  MoveForumTopicResult,
   UpdateForumTopicResult,
 } from './persistence-forum.js';
 export {
@@ -78,6 +79,7 @@ export {
   listForumCategories,
   listForumTopics,
   moderateForumTopic,
+  moveForumTopic,
   searchForumTopics,
   updateForumPost,
   updateForumTopic,

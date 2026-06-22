@@ -206,7 +206,7 @@ export async function mountForumTopic(root: HTMLElement, topicId: string): Promi
   sidebar.append(forumSearchForm(null));
   if (categories.length > 0) sidebar.append(categoryList(categories, topic.category.slug));
   sidebar.append(topicMetaBox(topic));
-  if (user?.accountRole === 'admin') sidebar.append(topicModerationBox(topic));
+  if (user?.accountRole === 'admin') sidebar.append(topicModerationBox(topic, categories));
 
   const main = document.createElement('section');
   main.className = 'forum-main';
@@ -996,7 +996,7 @@ function topicMetaBox(topic: ForumTopicDetail): HTMLElement {
   return box;
 }
 
-function topicModerationBox(topic: ForumTopicDetail): HTMLElement {
+function topicModerationBox(topic: ForumTopicDetail, categories: ForumCategory[]): HTMLElement {
   const box = document.createElement('section');
   box.className = 'forum-auth-box forum-moderation-box';
   const heading = document.createElement('strong');
@@ -1013,7 +1013,36 @@ function topicModerationBox(topic: ForumTopicDetail): HTMLElement {
     moderationButton('Hide topic', () => submitTopicModeration(topic.id, 'hide'), true),
   );
   box.append(heading, actions);
+  const move = topicMoveForm(topic, categories);
+  if (move) box.append(move);
   return box;
+}
+
+function topicMoveForm(topic: ForumTopicDetail, categories: ForumCategory[]): HTMLElement | null {
+  const moveTargets = categories.filter((category) => category.slug !== topic.category.slug);
+  if (moveTargets.length === 0) return null;
+  const form = document.createElement('form');
+  form.className = 'forum-topic-move-form';
+  const select = document.createElement('select');
+  select.name = 'categorySlug';
+  for (const category of moveTargets) {
+    const option = document.createElement('option');
+    option.value = category.slug;
+    option.textContent = category.name;
+    select.append(option);
+  }
+  const submit = document.createElement('button');
+  submit.type = 'submit';
+  submit.textContent = 'Move';
+  form.append(labeled('Move to', select), submit);
+  form.addEventListener('submit', (event) => {
+    event.preventDefault();
+    submit.disabled = true;
+    void submitTopicMove(topic, select.value).catch(() => {
+      submit.disabled = false;
+    });
+  });
+  return form;
 }
 
 function postModerationBox(post: ForumPost): HTMLElement {
@@ -1168,6 +1197,17 @@ async function submitTopicModeration(
   if (!resp.ok) throw new Error(`topic_moderation_failed_${resp.status}`);
   if (action === 'hide') window.location.href = '/forum';
   else window.location.reload();
+}
+
+async function submitTopicMove(topic: ForumTopicDetail, categorySlug: string): Promise<void> {
+  const resp = await fetch(`/api/forum/topics/${encodeURIComponent(topic.id)}/category`, {
+    method: 'PATCH',
+    headers: { 'content-type': 'application/json', accept: 'application/json' },
+    body: JSON.stringify({ categorySlug }),
+  });
+  if (!resp.ok) throw new Error(`topic_move_failed_${resp.status}`);
+  const payload = (await resp.json()) as { topic: ForumTopicDetail };
+  window.location.href = topicHref(payload.topic);
 }
 
 async function submitPostModeration(postId: string): Promise<void> {

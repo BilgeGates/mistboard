@@ -10,6 +10,7 @@ import {
   listForumCategories,
   listForumTopics,
   moderateForumTopic,
+  moveForumTopic,
   searchForumTopics,
   updateForumPost,
   updateForumTopic,
@@ -317,6 +318,28 @@ definePersistenceTests('forum', () => {
     });
     assert.equal(adminEdit.ok, true);
     assert.equal(adminEdit.ok ? adminEdit.post.bodyText : '', 'Moderator cleanup.');
+
+    const moved = await moveForumTopic({
+      topicId: 'topic_moderated',
+      categorySlug: 'support',
+      now: new Date('2026-06-01T00:07:45Z'),
+    });
+    assert.equal(moved.ok, true);
+    assert.equal(moved.ok ? moved.topic.category.slug : '', 'support');
+    assert.equal(moved.ok ? moved.topic.lastPostAt.toISOString() : '', '2026-06-01T00:05:00.000Z');
+    assert.equal(moved.ok ? moved.topic.updatedAt.toISOString() : '', '2026-06-01T00:07:45.000Z');
+    assert.equal(
+      (await listForumTopics({ categorySlug: 'support', limit: 10 })).some(
+        (topic) => topic.id === 'topic_moderated',
+      ),
+      true,
+    );
+    assert.equal(
+      (await listForumTopics({ categorySlug: 'strategy', limit: 10 })).some(
+        (topic) => topic.id === 'topic_moderated',
+      ),
+      false,
+    );
 
     const hiddenPost = await hideForumPost({
       postId: 'post_moderated_reply',
