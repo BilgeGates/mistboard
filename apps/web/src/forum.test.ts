@@ -42,7 +42,14 @@ const topic = {
   title: 'Scouting the center',
   category: { slug: 'strategy', name: 'Strategy' },
   author: { handle: 'alice', displayName: 'Alice' },
-  postCount: 1,
+  latestPost: {
+    post: {
+      id: 'post_strategy_reply',
+    },
+    author: { handle: 'bob', displayName: 'Bob' },
+    createdAt: '2026-06-01T00:05:00.000Z',
+  },
+  postCount: 2,
   pinned: false,
   locked: false,
   createdAt: '2026-06-01T00:00:00.000Z',
@@ -93,9 +100,12 @@ describe('forum pages', () => {
     expect(
       root.querySelector<HTMLAnchorElement>('a.forum-category-index-last')?.getAttribute('href'),
     ).toBe('/forum/t/topic_strategy/scouting-the-center#post_post_strategy_reply');
-    expect(root.querySelector<HTMLAnchorElement>('.forum-topic-card')?.getAttribute('href')).toBe(
+    expect(root.querySelector<HTMLAnchorElement>('.forum-topic-title')?.getAttribute('href')).toBe(
       '/forum/t/topic_strategy/scouting-the-center',
     );
+    expect(
+      root.querySelector<HTMLAnchorElement>('.forum-topic-latest-link')?.getAttribute('href'),
+    ).toBe('/forum/t/topic_strategy/scouting-the-center#post_post_strategy_reply');
   });
 
   it('renders a selected category as a focused topic view', async () => {

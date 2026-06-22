@@ -38,6 +38,13 @@ type ForumTopicSummary = {
     name: string;
   };
   author: ForumAuthor;
+  latestPost: {
+    post: {
+      id: string;
+    };
+    author: ForumAuthor;
+    createdAt: string;
+  } | null;
   postCount: number;
   pinned: boolean;
   locked: boolean;
@@ -315,22 +322,35 @@ function topicList(topics: ForumTopicSummary[]): HTMLElement {
 }
 
 function topicCard(topic: ForumTopicSummary): HTMLElement {
-  const card = document.createElement('a');
+  const card = document.createElement('article');
   card.className = 'forum-topic-card';
-  card.href = topicHref(topic);
   const flags = document.createElement('div');
   flags.className = 'forum-topic-flags';
   flags.append(pill(topic.category.name));
   if (topic.pinned) flags.append(pill('Pinned'));
   if (topic.locked) flags.append(pill('Locked'));
 
-  const title = document.createElement('strong');
+  const title = document.createElement('a');
   title.className = 'forum-topic-title';
+  title.href = topicHref(topic);
   title.textContent = topic.title;
 
   const meta = document.createElement('p');
   meta.className = 'forum-topic-meta';
-  meta.textContent = `${authorLabel(topic.author)} · ${topic.postCount} ${topic.postCount === 1 ? 'post' : 'posts'} · ${formatDate(topic.lastPostAt)}`;
+  meta.append(
+    document.createTextNode(
+      `${authorLabel(topic.author)} · ${topic.postCount} ${topic.postCount === 1 ? 'post' : 'posts'} · `,
+    ),
+  );
+  if (topic.latestPost) {
+    const latest = document.createElement('a');
+    latest.className = 'forum-topic-latest-link';
+    latest.href = postHref(topic, topic.latestPost.post.id);
+    latest.textContent = `Latest ${authorLabel(topic.latestPost.author)} · ${formatDate(topic.latestPost.createdAt)}`;
+    meta.append(latest);
+  } else {
+    meta.append(document.createTextNode(`Last activity ${formatDate(topic.lastPostAt)}`));
+  }
 
   card.append(flags, title, meta);
   return card;

@@ -25,6 +25,13 @@ type ForumTopicJson = {
   title: string;
   category: persistence.ForumTopicSummary['category'];
   author: persistence.ForumAuthor;
+  latestPost: {
+    post: {
+      id: string;
+    };
+    author: persistence.ForumAuthor;
+    createdAt: string;
+  } | null;
   postCount: number;
   pinned: boolean;
   locked: boolean;
@@ -328,6 +335,13 @@ function serializeTopicSummary(topic: persistence.ForumTopicSummary): ForumTopic
     title: topic.title,
     category: topic.category,
     author: topic.author,
+    latestPost: topic.latestPost
+      ? {
+          post: topic.latestPost.post,
+          author: topic.latestPost.author,
+          createdAt: topic.latestPost.createdAt.toISOString(),
+        }
+      : null,
     postCount: topic.postCount,
     pinned: topic.pinnedAt !== null,
     locked: topic.lockedAt !== null,

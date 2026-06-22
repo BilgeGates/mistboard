@@ -42,12 +42,21 @@ export type ForumTopicSummary = {
     name: string;
   };
   author: ForumAuthor;
+  latestPost: ForumTopicLatestPost | null;
   postCount: number;
   pinnedAt: Date | null;
   lockedAt: Date | null;
   createdAt: Date;
   updatedAt: Date;
   lastPostAt: Date;
+};
+
+export type ForumTopicLatestPost = {
+  post: {
+    id: string;
+  };
+  author: ForumAuthor;
+  createdAt: Date;
 };
 
 export type ForumPost = {
@@ -369,10 +378,22 @@ async function listForumPosts(topicId: string): Promise<ForumPost[]> {
 const FORUM_TOPIC_SELECT = `SELECT t.id, t.slug, t.title, t.post_count, t.pinned_at, t.locked_at,
           t.created_at, t.updated_at, t.last_post_at,
           c.slug AS category_slug, c.name AS category_name,
-          u.handle AS author_handle, COALESCE(u.display_name, u.handle) AS author_display_name
+          u.handle AS author_handle, COALESCE(u.display_name, u.handle) AS author_display_name,
+          latest_post.id AS latest_post_id,
+          latest_post.created_at AS latest_post_created_at,
+          latest_u.handle AS latest_post_author_handle,
+          COALESCE(latest_u.display_name, latest_u.handle) AS latest_post_author_display_name
    FROM forum_topics t
    JOIN forum_categories c ON c.id = t.category_id
-   LEFT JOIN users u ON u.id = t.author_account_id`;
+   LEFT JOIN users u ON u.id = t.author_account_id
+   LEFT JOIN LATERAL (
+     SELECT p.id, p.author_account_id, p.created_at
+     FROM forum_posts p
+     WHERE p.topic_id = t.id AND p.hidden_at IS NULL
+     ORDER BY p.created_at DESC, p.id DESC
+     LIMIT 1
+   ) latest_post ON TRUE
+   LEFT JOIN users latest_u ON latest_u.id = latest_post.author_account_id`;
 
 function topicModerationPatch(action: ForumTopicModerationAction): string {
   switch (action) {
@@ -421,6 +442,10 @@ type ForumTopicRow = {
   category_name: string;
   author_handle: string | null;
   author_display_name: string | null;
+  latest_post_id: string | null;
+  latest_post_created_at: Date | null;
+  latest_post_author_handle: string | null;
+  latest_post_author_display_name: string | null;
 };
 
 type ForumPostRow = {
@@ -477,6 +502,19 @@ function topicFromRow(row: ForumTopicRow): ForumTopicSummary {
       name: row.category_name,
     },
     author: authorFromRow(row.author_handle, row.author_display_name),
+    latestPost:
+      row.latest_post_id && row.latest_post_created_at
+        ? {
+            post: {
+              id: row.latest_post_id,
+            },
+            author: authorFromRow(
+              row.latest_post_author_handle,
+              row.latest_post_author_display_name,
+            ),
+            createdAt: row.latest_post_created_at,
+          }
+        : null,
     postCount: row.post_count,
     pinnedAt: row.pinned_at,
     lockedAt: row.locked_at,

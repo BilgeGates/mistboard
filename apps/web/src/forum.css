@@ -237,6 +237,21 @@ a.forum-category-index-last:hover .forum-category-latest-title {
 .forum-topic-title {
   font-size: 17px;
   line-height: 1.3;
+  text-decoration: none;
+}
+
+a.forum-topic-title:hover,
+a.forum-topic-title:focus-visible,
+.forum-topic-latest-link:hover,
+.forum-topic-latest-link:focus-visible {
+  color: var(--site-link);
+  text-decoration: underline;
+}
+
+.forum-topic-latest-link {
+  color: var(--site-accent-strong);
+  font-weight: 800;
+  text-decoration: none;
 }
 
 .forum-post {

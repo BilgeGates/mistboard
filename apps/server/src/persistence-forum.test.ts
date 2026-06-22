@@ -100,6 +100,8 @@ definePersistenceTests('forum', () => {
     assert.equal(topics[0]?.postCount, 2);
     assert.equal(topics[0]?.category.slug, 'strategy');
     assert.equal(topics[0]?.author?.handle, 'alice');
+    assert.equal(topics[0]?.latestPost?.post.id, 'post_strategy_reply');
+    assert.equal(topics[0]?.latestPost?.author?.handle, 'bob');
 
     const categories = await listForumCategories();
     const strategy = categories.find((category) => category.slug === 'strategy');
