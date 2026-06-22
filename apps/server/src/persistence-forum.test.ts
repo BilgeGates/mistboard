@@ -108,6 +108,7 @@ definePersistenceTests('forum', () => {
     assert.equal(strategy?.topicCount, 1);
     assert.equal(strategy?.postCount, 2);
     assert.equal(strategy?.latestPost?.topic.id, 'topic_strategy');
+    assert.equal(strategy?.latestPost?.topic.postCount, 2);
     assert.equal(strategy?.latestPost?.post.id, 'post_strategy_reply');
     assert.equal(strategy?.latestPost?.author?.handle, 'bob');
 
@@ -118,6 +119,11 @@ definePersistenceTests('forum', () => {
       'I like opening with central pawns.\nWhat else works?',
     );
     assert.equal(detail?.posts[1]?.author?.handle, 'bob');
+
+    const pagedDetail = await getForumTopic('topic_strategy', { postLimit: 1, postOffset: 1 });
+    assert.equal(pagedDetail?.postCount, 2);
+    assert.equal(pagedDetail?.posts.length, 1);
+    assert.equal(pagedDetail?.posts[0]?.id, 'post_strategy_reply');
 
     assert.equal(
       await countRecentForumTopicsByUser('forum_user_alice', new Date('2026-05-31T23:59:00Z')),

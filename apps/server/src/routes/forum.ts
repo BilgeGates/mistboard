@@ -59,6 +59,7 @@ type ForumCategoryJson = {
       id: string;
       slug: string;
       title: string;
+      postCount: number;
     };
     author: persistence.ForumAuthor;
     createdAt: string;
@@ -130,7 +131,11 @@ export async function tryHandle(
   if (topicMatch) {
     if (!requireMethod(request, response, 'GET')) return true;
     if (!requirePersistence(response)) return true;
-    const topic = await persistence.getForumTopic(decodeURIComponent(topicMatch[1]!));
+    const postLimitParam = parsedUrl.searchParams.get('limit');
+    const topic = await persistence.getForumTopic(decodeURIComponent(topicMatch[1]!), {
+      postLimit: postLimitParam === null ? undefined : clampInt(postLimitParam, 100, 1, 100),
+      postOffset: clampInt(parsedUrl.searchParams.get('offset'), 0, 0, 10_000),
+    });
     if (!topic) {
       writeJson(response, 404, { error: 'not_found' });
       return true;

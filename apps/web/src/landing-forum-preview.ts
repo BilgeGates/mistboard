@@ -20,6 +20,7 @@ type ForumCategorySummary = {
       id: string;
       slug: string;
       title: string;
+      postCount: number;
     };
     author: ForumAuthor;
     createdAt: string;
@@ -111,7 +112,11 @@ function latestPostCell(category: ForumCategorySummary): HTMLElement {
   }
   const cell = document.createElement('a');
   cell.className = 'landing-forum-row-last';
-  cell.href = postHref(category.latestPost.topic, category.latestPost.post.id);
+  cell.href = postHref(
+    category.latestPost.topic,
+    category.latestPost.post.id,
+    pageForPostCount(category.latestPost.topic.postCount),
+  );
   const title = document.createElement('span');
   title.className = 'landing-forum-row-last-title';
   title.textContent = category.latestPost.topic.title;
@@ -144,16 +149,27 @@ function categoryHref(category: { slug: string }): string {
   return `/forum?category=${encodeURIComponent(category.slug)}`;
 }
 
+const postPageSize = 25;
+
 function topicHref(topic: { id: string; slug: string }): string {
   return `/forum/t/${encodeURIComponent(topic.id)}/${encodeURIComponent(topic.slug)}`;
 }
 
-function postHref(topic: { id: string; slug: string }, postId: string): string {
-  return `${topicHref(topic)}#${postDomId(postId)}`;
+function topicPageHref(topic: { id: string; slug: string }, page: number): string {
+  const href = topicHref(topic);
+  return page > 1 ? `${href}?page=${page}` : href;
+}
+
+function postHref(topic: { id: string; slug: string }, postId: string, page = 1): string {
+  return `${topicPageHref(topic, page)}#${postDomId(postId)}`;
 }
 
 function postDomId(postId: string): string {
   return `post_${postId}`;
+}
+
+function pageForPostCount(postCount: number): number {
+  return Math.max(1, Math.ceil(postCount / postPageSize));
 }
 
 function formatDate(iso: string): string {

@@ -29,6 +29,7 @@ const categories = [
         id: 'topic_strategy',
         slug: 'scouting-the-center',
         title: 'Scouting the center',
+        postCount: 2,
       },
       author: { handle: 'bob', displayName: 'Bob' },
       createdAt: '2026-06-01T00:05:00.000Z',
@@ -166,6 +167,42 @@ describe('forum pages', () => {
     ]);
   });
 
+  it('links latest posts to their topic page when threads are long', async () => {
+    const longTopic = { ...topic, postCount: 26 };
+    const longCategories = categories.map((category) =>
+      category.slug === 'strategy' && category.latestPost
+        ? {
+            ...category,
+            latestPost: {
+              ...category.latestPost,
+              topic: {
+                ...category.latestPost.topic,
+                postCount: 26,
+              },
+            },
+          }
+        : category,
+    );
+    vi.spyOn(globalThis, 'fetch').mockImplementation(async (input) => {
+      const url = String(input);
+      if (url.startsWith('/api/forum/categories')) return json({ categories: longCategories });
+      if (url.startsWith('/api/forum/topics')) return json({ topics: [longTopic] });
+      if (url.startsWith('/api/auth/me')) return json({ user: null });
+      throw new Error(`unexpected fetch ${url}`);
+    });
+    const root = document.createElement('div');
+    const { mountForum } = await import('./forum.js');
+
+    await mountForum(root);
+
+    expect(
+      root.querySelector<HTMLAnchorElement>('a.forum-category-index-last')?.getAttribute('href'),
+    ).toBe('/forum/t/topic_strategy/scouting-the-center?page=2#post_post_strategy_reply');
+    expect(
+      root.querySelector<HTMLAnchorElement>('.forum-topic-latest-link')?.getAttribute('href'),
+    ).toBe('/forum/t/topic_strategy/scouting-the-center?page=2#post_post_strategy_reply');
+  });
+
   it('allows admins to start announcement topics', async () => {
     vi.spyOn(globalThis, 'fetch').mockImplementation(async (input) => {
       const url = String(input);
@@ -275,6 +312,47 @@ describe('forum pages', () => {
     expect(JSON.parse(String(postCall?.[1]?.body))).toEqual({ body: 'A sharper reply.' });
     expect(window.location.pathname).toBe('/forum/t/topic_strategy/scouting-the-center');
     expect(window.location.hash).toBe('#post_post_created');
+  });
+
+  it('paginates topic posts with stable page URLs', async () => {
+    const fetchedUrls: string[] = [];
+    window.history.pushState(null, '', '/forum/t/topic_strategy/scouting-the-center?page=2');
+    vi.spyOn(globalThis, 'fetch').mockImplementation(async (input) => {
+      const url = String(input);
+      fetchedUrls.push(url);
+      if (url.startsWith('/api/forum/topics/topic_strategy')) {
+        return json({
+          topic: {
+            ...topic,
+            postCount: 52,
+            posts: Array.from({ length: 26 }, (_, index) => ({
+              id: `post_page_${index}`,
+              author: { handle: 'alice', displayName: 'Alice' },
+              bodyText: `Post ${index}`,
+              createdAt: '2026-06-01T00:00:00.000Z',
+              updatedAt: '2026-06-01T00:00:00.000Z',
+            })),
+          },
+        });
+      }
+      if (url.startsWith('/api/auth/me')) return json({ user: null });
+      throw new Error(`unexpected fetch ${url}`);
+    });
+    const root = document.createElement('div');
+    const { mountForumTopic } = await import('./forum.js');
+
+    await mountForumTopic(root, 'topic_strategy');
+
+    expect(fetchedUrls).toContain('/api/forum/topics/topic_strategy?limit=26&offset=25');
+    expect(root.querySelectorAll('.forum-post')).toHaveLength(25);
+    expect(root.querySelector<HTMLElement>('.forum-post')?.id).toBe('post_post_page_0');
+    expect(root.querySelector('.forum-pager-current')?.textContent).toBe('Page 2');
+    const pageLinks = Array.from(root.querySelectorAll<HTMLAnchorElement>('.forum-pager-link'));
+    expect(pageLinks.map((link) => link.textContent)).toEqual(['Previous', 'Next']);
+    expect(pageLinks.map((link) => link.getAttribute('href'))).toEqual([
+      '/forum/t/topic_strategy/scouting-the-center',
+      '/forum/t/topic_strategy/scouting-the-center?page=3',
+    ]);
   });
 
   it('renders topic posts as escaped plaintext', async () => {

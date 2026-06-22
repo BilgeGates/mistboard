@@ -24,6 +24,7 @@ describe('landing forum preview', () => {
                   id: 'topic_1',
                   slug: 'first-topic',
                   title: 'First topic',
+                  postCount: 2,
                 },
                 author: { handle: 'alice', displayName: 'Alice' },
                 createdAt: '2026-06-01T00:00:00.000Z',

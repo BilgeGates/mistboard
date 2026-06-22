@@ -28,6 +28,7 @@ export type ForumCategoryLatestPost = {
     id: string;
     slug: string;
     title: string;
+    postCount: number;
   };
   author: ForumAuthor;
   createdAt: Date;
@@ -97,6 +98,7 @@ export async function listForumCategories(): Promise<ForumCategory[]> {
             latest.topic_id AS latest_topic_id,
             latest.topic_slug AS latest_topic_slug,
             latest.topic_title AS latest_topic_title,
+            latest.topic_post_count AS latest_topic_post_count,
             latest.post_id AS latest_post_id,
             latest.created_at AS latest_post_created_at,
             latest.author_handle AS latest_post_author_handle,
@@ -107,6 +109,7 @@ export async function listForumCategories(): Promise<ForumCategory[]> {
        SELECT latest_topic.id AS topic_id,
               latest_topic.slug AS topic_slug,
               latest_topic.title AS topic_title,
+              latest_topic.post_count AS topic_post_count,
               latest_post.id AS post_id,
               latest_post.created_at AS created_at,
               u.handle AS author_handle,
@@ -125,7 +128,8 @@ export async function listForumCategories(): Promise<ForumCategory[]> {
        LIMIT 1
      ) latest ON TRUE
      GROUP BY c.id, latest.topic_id, latest.topic_slug, latest.topic_title,
-              latest.post_id, latest.created_at, latest.author_handle, latest.author_display_name
+              latest.topic_post_count, latest.post_id, latest.created_at,
+              latest.author_handle, latest.author_display_name
      ORDER BY c.sort_order ASC, c.name ASC`,
   );
   return rows.map(categoryFromRow);
@@ -149,7 +153,10 @@ export async function listForumTopics(
   return rows.map(topicFromRow);
 }
 
-export async function getForumTopic(id: string): Promise<ForumTopicDetail | null> {
+export async function getForumTopic(
+  id: string,
+  options: { postLimit?: number; postOffset?: number } = {},
+): Promise<ForumTopicDetail | null> {
   const { rows } = await getPool().query<ForumTopicRow>(
     `${FORUM_TOPIC_SELECT}
      WHERE t.id = $1 AND t.hidden_at IS NULL`,
@@ -157,7 +164,7 @@ export async function getForumTopic(id: string): Promise<ForumTopicDetail | null
   );
   const topic = rows[0] ? topicFromRow(rows[0]) : null;
   if (!topic) return null;
-  const posts = await listForumPosts(id);
+  const posts = await listForumPosts(id, { limit: options.postLimit, offset: options.postOffset });
   return { ...topic, posts };
 }
 
@@ -362,15 +369,21 @@ export async function countRecentForumPostsByUser(userId: string, since: Date): 
   return Number(rows[0]?.count ?? '0');
 }
 
-async function listForumPosts(topicId: string): Promise<ForumPost[]> {
+async function listForumPosts(
+  topicId: string,
+  options: { limit?: number; offset?: number } = {},
+): Promise<ForumPost[]> {
+  const limit = options.limit === undefined ? null : clampInt(options.limit, 1, 100);
+  const offset = clampInt(options.offset ?? 0, 0, 10_000);
   const { rows } = await getPool().query<ForumPostRow>(
     `SELECT p.id, p.body_text, p.created_at, p.updated_at,
             u.handle AS author_handle, COALESCE(u.display_name, u.handle) AS author_display_name
      FROM forum_posts p
      LEFT JOIN users u ON u.id = p.author_account_id
      WHERE p.topic_id = $1 AND p.hidden_at IS NULL
-     ORDER BY p.created_at ASC, p.id ASC`,
-    [topicId],
+     ORDER BY p.created_at ASC, p.id ASC
+     LIMIT $2::int OFFSET $3::int`,
+    [topicId, limit, offset],
   );
   return rows.map(postFromRow);
 }
@@ -422,6 +435,7 @@ type ForumCategoryRow = {
   latest_topic_id: string | null;
   latest_topic_slug: string | null;
   latest_topic_title: string | null;
+  latest_topic_post_count: number | null;
   latest_post_id: string | null;
   latest_post_created_at: Date | null;
   latest_post_author_handle: string | null;
@@ -481,6 +495,7 @@ function categoryFromRow(row: ForumCategoryRow): ForumCategory {
               id: row.latest_topic_id,
               slug: row.latest_topic_slug,
               title: row.latest_topic_title,
+              postCount: row.latest_topic_post_count ?? 1,
             },
             author: authorFromRow(
               row.latest_post_author_handle,
