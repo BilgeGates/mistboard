@@ -153,6 +153,37 @@ export async function listForumTopics(
   return rows.map(topicFromRow);
 }
 
+export async function searchForumTopics(options: {
+  query: string;
+  limit?: number;
+  offset?: number;
+}): Promise<ForumTopicSummary[]> {
+  const query = options.query.trim();
+  if (query.length < 2) return [];
+  const limit = clampInt(options.limit ?? 20, 1, 50);
+  const offset = clampInt(options.offset ?? 0, 0, 10_000);
+  const pattern = `%${escapeLike(query)}%`;
+  const { rows } = await getPool().query<ForumTopicRow>(
+    `${FORUM_TOPIC_SELECT}
+     WHERE t.hidden_at IS NULL
+       AND (
+         t.title ILIKE $1 ESCAPE '\\'
+         OR EXISTS (
+           SELECT 1
+           FROM forum_posts matched_post
+           WHERE matched_post.topic_id = t.id
+             AND matched_post.hidden_at IS NULL
+             AND matched_post.body_text ILIKE $1 ESCAPE '\\'
+         )
+       )
+     ORDER BY (t.pinned_at IS NOT NULL) DESC, t.pinned_at DESC NULLS LAST,
+              t.last_post_at DESC, t.created_at DESC
+     LIMIT $2 OFFSET $3`,
+    [pattern, limit, offset],
+  );
+  return rows.map(topicFromRow);
+}
+
 export async function getForumTopic(
   id: string,
   options: { postLimit?: number; postOffset?: number } = {},
@@ -557,4 +588,8 @@ function authorFromRow(handle: string | null, displayName: string | null): Forum
 function clampInt(value: number, min: number, max: number): number {
   if (!Number.isFinite(value)) return min;
   return Math.max(min, Math.min(Math.trunc(value), max));
+}
+
+function escapeLike(value: string): string {
+  return value.replace(/[\\%_]/g, '\\$&');
 }

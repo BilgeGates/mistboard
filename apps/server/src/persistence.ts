@@ -77,6 +77,7 @@ export {
   listForumCategories,
   listForumTopics,
   moderateForumTopic,
+  searchForumTopics,
 } from './persistence-forum.js';
 export type {
   GameDebugArtifactInput,

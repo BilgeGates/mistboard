@@ -89,6 +89,7 @@ export async function mountForum(root: HTMLElement): Promise<void> {
 
   const query = new URLSearchParams(window.location.search);
   const categoryFilter = query.get('category');
+  const searchQuery = searchQueryFromParam(query.get('q'));
   const topicPage = pageFromParam(query.get('page'));
   const topicOffset = (topicPage - 1) * topicListPageSize;
   let categories: ForumCategory[];
@@ -97,11 +98,17 @@ export async function mountForum(root: HTMLElement): Promise<void> {
   try {
     [categories, topics, user] = await Promise.all([
       fetchForumCategories(),
-      fetchForumTopics({
-        categorySlug: categoryFilter,
-        limit: topicListPageSize + 1,
-        offset: topicOffset,
-      }),
+      searchQuery
+        ? searchForumTopics({
+            query: searchQuery,
+            limit: topicListPageSize + 1,
+            offset: topicOffset,
+          })
+        : fetchForumTopics({
+            categorySlug: categoryFilter,
+            limit: topicListPageSize + 1,
+            offset: topicOffset,
+          }),
       fetchCurrentUser().catch(() => null),
     ]);
   } catch {
@@ -113,24 +120,37 @@ export async function mountForum(root: HTMLElement): Promise<void> {
 
   const sidebar = document.createElement('aside');
   sidebar.className = 'forum-sidebar';
-  const selectedCategory = categories.find((category) => category.slug === categoryFilter);
+  sidebar.append(forumSearchForm(searchQuery));
+  const selectedCategory = searchQuery
+    ? undefined
+    : categories.find((category) => category.slug === categoryFilter);
   if (selectedCategory) sidebar.append(categoryList(categories, selectedCategory.slug));
   sidebar.append(user ? newTopicForm(categories, user) : signInBox('Sign in to start a topic.'));
 
   const main = document.createElement('section');
   main.className = 'forum-main';
-  if (selectedCategory) {
+  if (searchQuery) {
+    main.append(searchHeaderBox(searchQuery));
+  } else if (selectedCategory) {
     main.append(categoryHeaderBox(selectedCategory));
   } else {
     main.append(categoryIndex(categories), sectionTitle('Recent topics'));
   }
   main.append(
-    topicList(visibleTopics, topicPage > 1 ? 'No forum topics on this page.' : undefined),
+    topicList(
+      visibleTopics,
+      topicPage > 1
+        ? 'No forum topics on this page.'
+        : searchQuery
+          ? 'No forum topics matched.'
+          : undefined,
+    ),
   );
   if (topicPage > 1 || hasNextPage) {
     main.append(
       topicPager({
-        categorySlug: categoryFilter,
+        categorySlug: searchQuery ? null : categoryFilter,
+        searchQuery,
         page: topicPage,
         hasNext: hasNextPage,
         hasPrevious: topicPage > 1,
@@ -349,6 +369,17 @@ function categoryHeaderBox(category: ForumCategory): HTMLElement {
   return box;
 }
 
+function searchHeaderBox(query: string): HTMLElement {
+  const box = document.createElement('section');
+  box.className = 'forum-category-header-box';
+  const heading = document.createElement('h2');
+  heading.textContent = 'Search results';
+  const copy = document.createElement('p');
+  copy.textContent = `"${query}"`;
+  box.append(heading, copy);
+  return box;
+}
+
 function sectionTitle(text: string): HTMLElement {
   const heading = document.createElement('h2');
   heading.className = 'forum-section-title';
@@ -369,6 +400,7 @@ function topicList(topics: ForumTopicSummary[], emptyText = 'No forum topics yet
 
 function topicPager(options: {
   categorySlug: string | null;
+  searchQuery: string | null;
   page: number;
   hasPrevious: boolean;
   hasNext: boolean;
@@ -378,7 +410,13 @@ function topicPager(options: {
   nav.setAttribute('aria-label', 'Forum topic pages');
   nav.append(
     options.hasPrevious
-      ? pagerLink('Previous', forumHref(options.categorySlug, options.page - 1))
+      ? pagerLink(
+          'Previous',
+          forumHref(
+            { categorySlug: options.categorySlug, searchQuery: options.searchQuery },
+            options.page - 1,
+          ),
+        )
       : pagerSpacer(),
   );
   const current = document.createElement('span');
@@ -387,7 +425,13 @@ function topicPager(options: {
   nav.append(current);
   nav.append(
     options.hasNext
-      ? pagerLink('Next', forumHref(options.categorySlug, options.page + 1))
+      ? pagerLink(
+          'Next',
+          forumHref(
+            { categorySlug: options.categorySlug, searchQuery: options.searchQuery },
+            options.page + 1,
+          ),
+        )
       : pagerSpacer(),
   );
   return nav;
@@ -555,6 +599,32 @@ function newTopicForm(categories: ForumCategory[], user: AuthUser): HTMLElement 
     event.preventDefault();
     void submitTopic(form, submit, error);
   });
+  return form;
+}
+
+function forumSearchForm(query: string | null): HTMLElement {
+  const form = document.createElement('form');
+  form.className = 'forum-search-form';
+  form.action = '/forum';
+  form.method = 'get';
+  const input = document.createElement('input');
+  input.type = 'search';
+  input.name = 'q';
+  input.maxLength = 120;
+  input.placeholder = 'Search forum';
+  input.autocomplete = 'off';
+  input.value = query ?? '';
+  const submit = document.createElement('button');
+  submit.type = 'submit';
+  submit.textContent = 'Search';
+  form.append(input, submit);
+  if (query) {
+    const clear = document.createElement('a');
+    clear.className = 'forum-search-clear';
+    clear.href = '/forum';
+    clear.textContent = 'Clear';
+    form.append(clear);
+  }
   return form;
 }
 
@@ -750,9 +820,13 @@ function categoryHref(category: { slug: string }): string {
   return `/forum?category=${encodeURIComponent(category.slug)}`;
 }
 
-function forumHref(categorySlug: string | null, page: number): string {
+function forumHref(
+  options: { categorySlug?: string | null; searchQuery?: string | null },
+  page: number,
+): string {
   const params = new URLSearchParams();
-  if (categorySlug) params.set('category', categorySlug);
+  if (options.searchQuery) params.set('q', options.searchQuery);
+  else if (options.categorySlug) params.set('category', options.categorySlug);
   if (page > 1) params.set('page', String(page));
   const query = params.toString();
   return `/forum${query ? `?${query}` : ''}`;
@@ -790,6 +864,11 @@ function pageFromParam(value: string | null): number {
   const parsed = Number(value ?? '1');
   if (!Number.isFinite(parsed) || parsed < 1) return 1;
   return Math.trunc(parsed);
+}
+
+function searchQueryFromParam(value: string | null): string | null {
+  const query = (value ?? '').trim().replace(/\s+/g, ' ');
+  return query.length >= 2 && query.length <= 120 ? query : null;
 }
 
 function errorMessageForStatus(status: number): string {
@@ -845,6 +924,23 @@ async function fetchForumTopics(
     headers: { accept: 'application/json' },
   });
   if (!resp.ok) throw new Error(`forum_topics_failed_${resp.status}`);
+  const data = (await resp.json()) as { topics: ForumTopicSummary[] };
+  return data.topics;
+}
+
+async function searchForumTopics(options: {
+  query: string;
+  limit?: number;
+  offset?: number;
+}): Promise<ForumTopicSummary[]> {
+  const params = new URLSearchParams();
+  params.set('q', options.query);
+  if (options.limit) params.set('limit', String(options.limit));
+  if (options.offset !== undefined) params.set('offset', String(options.offset));
+  const resp = await fetch(`/api/forum/search?${params}`, {
+    headers: { accept: 'application/json' },
+  });
+  if (!resp.ok) throw new Error(`forum_search_failed_${resp.status}`);
   const data = (await resp.json()) as { topics: ForumTopicSummary[] };
   return data.topics;
 }

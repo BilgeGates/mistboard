@@ -10,6 +10,7 @@ import {
   listForumCategories,
   listForumTopics,
   moderateForumTopic,
+  searchForumTopics,
 } from './persistence.js';
 import { getPool } from './persistence-db.js';
 import { assert, definePersistenceTests, test } from './persistence-test-support.js';
@@ -133,6 +134,23 @@ definePersistenceTests('forum', () => {
       await countRecentForumPostsByUser('forum_user_bob', new Date('2026-05-31T23:59:00Z')),
       1,
     );
+
+    const titleMatches = await searchForumTopics({ query: 'scout', limit: 5 });
+    assert.equal(titleMatches[0]?.id, 'topic_strategy');
+    const bodyMatches = await searchForumTopics({ query: 'knights', limit: 5 });
+    assert.equal(bodyMatches[0]?.id, 'topic_strategy');
+
+    const searchResponse = captureResponse();
+    const handled = await tryHandleForumRoute(
+      {},
+      { method: 'GET', headers: {} } as unknown as IncomingMessage,
+      searchResponse,
+      '/api/forum/search',
+      new URL('http://localhost/api/forum/search?q=knights'),
+    );
+    assert.equal(handled, true);
+    assert.equal(searchResponse.status, 200);
+    assert.equal(JSON.parse(searchResponse.body).topics[0]?.id, 'topic_strategy');
   });
 
   test('locked forum topics reject replies', async () => {

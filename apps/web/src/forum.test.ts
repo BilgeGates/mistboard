@@ -167,6 +167,44 @@ describe('forum pages', () => {
     ]);
   });
 
+  it('renders backend forum search with paginated result URLs', async () => {
+    const fetchedUrls: string[] = [];
+    window.history.pushState(null, '', '/forum?q=central%20fog&page=2');
+    vi.spyOn(globalThis, 'fetch').mockImplementation(async (input) => {
+      const url = String(input);
+      fetchedUrls.push(url);
+      if (url.startsWith('/api/forum/categories')) return json({ categories });
+      if (url.startsWith('/api/forum/search')) {
+        return json({
+          topics: Array.from({ length: 26 }, (_, index) => ({
+            ...topic,
+            id: `topic_search_${index}`,
+            title: `Search result ${index}`,
+            slug: `search-result-${index}`,
+          })),
+        });
+      }
+      if (url.startsWith('/api/auth/me')) return json({ user: null });
+      throw new Error(`unexpected fetch ${url}`);
+    });
+    const root = document.createElement('div');
+    const { mountForum } = await import('./forum.js');
+
+    await mountForum(root);
+
+    expect(fetchedUrls).toContain('/api/forum/search?q=central+fog&limit=26&offset=25');
+    expect(root.textContent).toContain('Search results');
+    expect(root.textContent).toContain('"central fog"');
+    expect(root.querySelector<HTMLInputElement>('input[name="q"]')?.value).toBe('central fog');
+    expect(root.querySelectorAll('.forum-topic-card')).toHaveLength(25);
+    const pageLinks = Array.from(root.querySelectorAll<HTMLAnchorElement>('.forum-pager-link'));
+    expect(pageLinks.map((link) => link.textContent)).toEqual(['Previous', 'Next']);
+    expect(pageLinks.map((link) => link.getAttribute('href'))).toEqual([
+      '/forum?q=central+fog',
+      '/forum?q=central+fog&page=3',
+    ]);
+  });
+
   it('links latest posts to their topic page when threads are long', async () => {
     const longTopic = { ...topic, postCount: 26 };
     const longCategories = categories.map((category) =>

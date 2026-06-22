@@ -89,6 +89,21 @@ export async function tryHandle(
     return true;
   }
 
+  if (pathname === '/api/forum/search') {
+    if (!requireMethod(request, response, 'GET')) return true;
+    if (!requirePersistence(response)) return true;
+    const query = normalizeSearchQuery(parsedUrl.searchParams.get('q'));
+    const topics = query
+      ? await persistence.searchForumTopics({
+          query,
+          limit: clampInt(parsedUrl.searchParams.get('limit'), 20, 1, 50),
+          offset: clampInt(parsedUrl.searchParams.get('offset'), 0, 0, 10_000),
+        })
+      : [];
+    writeJson(response, 200, { topics: topics.map(serializeTopicSummary) });
+    return true;
+  }
+
   if (pathname === '/api/forum/topics') {
     if (!requirePersistence(response)) return true;
     const method = request.method ?? 'GET';
@@ -390,6 +405,11 @@ function normalizeModerationReason(value: string | null): string | null | false 
   const reason = value.trim();
   if (reason.length === 0) return null;
   return reason.length <= moderationReasonMaxLength ? reason : false;
+}
+
+function normalizeSearchQuery(value: string | null): string | null {
+  const query = (value ?? '').trim().replace(/\s+/g, ' ');
+  return query.length >= 2 && query.length <= 120 ? query : null;
 }
 
 function normalizeTopicModerationAction(
