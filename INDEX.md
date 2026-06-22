@@ -116,6 +116,7 @@ Edit task → find file → open only that file.
 | `routes/games.ts` | All `/api/games/*` + `/api/eve-games/recent` (8 routes) + game-data helpers (`gameSummaryForApi`, `gameEventsForApi`, `gameReviewForApi`, `gameArtifactsForApi`, engine-color helpers) |
 | `routes/leaderboard.ts` | `/api/leaderboard` |
 | `routes/feedback.ts` | `/api/feedback` + honeypot + anon rate-limit + email-and-persist fan-out |
+| `routes/forum.ts` | `/api/forum/*`: category/topic reads, account-gated topic/reply writes, plaintext validation, admin-only announcement category enforcement, and per-account posting rate limits |
 | `routes/annotations.ts` | `/api/annotations` (admin GET/POST/PUT, JSON-lines file backed) |
 | `routes/meta.ts` | `/api/server-status`, `/api/live-stats` |
 | `routes/engines.ts` | `/api/engines/playable` |
@@ -156,6 +157,7 @@ Edit task → find file → open only that file.
 | `persistence-games.ts` | Completed-game persistence, game summaries/lists, watch/unlock queries, participant attribution, game-end persistence |
 | `persistence-accounts.ts` | Account/profile/session/email-login queries and leaderboard/account-role helpers |
 | `persistence-bots.ts` | Bot profile/rating/game persistence: public bot directory, bot profile pages, rating snapshots, and bot game records |
+| `persistence-forum.ts` | Forum category/topic/post persistence: visible lists, topic detail, create topic, add reply, and recent-write counters for API rate limits |
 | `persistence-feedback.ts` | Feedback persistence |
 | `persistence-site-stats.ts` | Site statistics query |
 | `persistence-test-support.ts` | Shared Postgres test harness: migration, truncation reset, DB URL gating, and persistence test helpers |
@@ -353,6 +355,7 @@ Run with `MISTBOARD_ALLOW_IN_MEMORY_PERSISTENCE=true npm run test:integration --
 | `game-route.css` | Public game-review route styles loaded by `landing.ts`, including replay review layout, analysis panel sizing, and export links |
 | `landing-announcements.ts` | Landing announcement panel/card renderer: announcement ordering, article thumbnail lookup, kind/date labels, and CTA labels. Loads `landing-announcements.css` |
 | `landing-announcements.css` | Landing announcement panel/card styles loaded by `landing-announcements.ts` |
+| `landing-forum-preview.ts` | Homepage forum preview widget: hydrates recent forum topics into a shared `site-box` panel and links to `/forum` / topic routes. Loads `landing-forum-preview.css` |
 | `landing-play.ts` | Homepage play panel, setup dialog, open-lobby request card, room creation, lobby queue polling, empty-lobby engine offer, and play deep-link handling |
 | `landing-play.css` | Homepage play/setup/lobby base styles loaded before `landing.css`, so homepage responsive layout overrides stay in the route stylesheet |
 | `landing-showcase.ts` | Homepage replay showcase catalog and hero POV selection for the landing replay loop |
@@ -371,6 +374,7 @@ Run with `MISTBOARD_ALLOW_IN_MEMORY_PERSISTENCE=true npm run test:integration --
 | `account-profile.css` | Account, profile, and leaderboard route styles loaded by `account.ts` and `profile.ts` |
 | `pages-static.ts` | `/about` + `/source` + `/faq` + `/terms` + `/articles` (index + slug) + 404 mounts. Builders for about/source/faq/terms/notfound + shared text primitives (`aboutSubheading`/`aboutParagraph`/`aboutLink`/`aboutExternalLink`, `sourceBlock`/`textLine`/`linkLine`). Uses `site-shell.ts` for shared chrome and loads `pages-static.css` |
 | `pages-static.css` | Static about/source page helper styles loaded by `pages-static.ts` |
+| `forum.ts` | `/forum` and `/forum/t/:id/:slug` route mounts: categories, topic list/detail, sign-in-gated topic/reply forms, admin announcement option, plaintext rendering. Loads `forum.css` |
 | `contact.ts` | `buildContact` — `/contact` form builder (anon vs signed-in lanes, honeypot, submit/error states). Mounted by `landing.ts` (mountContact is 15 lines, uses buildNav/Footer) and loads `contact.css` |
 | `contact.css` | `/contact` form styles loaded by `contact.ts` |
 | `confirm-dialog.ts` | Shared confirmation dialog primitive for irreversible/important user actions |
