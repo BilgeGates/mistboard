@@ -45,10 +45,12 @@ describe('landing forum preview', () => {
       '.landing-forum-row:not(.landing-forum-header)',
     );
     const categoryLink = box.querySelector<HTMLAnchorElement>('a.landing-forum-row-main');
-    const latestPostLink = box.querySelector<HTMLAnchorElement>('a.landing-forum-row-last');
+    const latestPostLink = box.querySelector<HTMLAnchorElement>('a.landing-forum-row-last-title');
+    const latestAuthorLink = box.querySelector<HTMLAnchorElement>('a.landing-forum-row-author');
     expect(header?.textContent).toContain('Forum');
     expect(categoryLink?.getAttribute('href')).toBe('/forum/strategy');
     expect(latestPostLink?.getAttribute('href')).toBe('/forum/t/topic_1/first-topic#post_post_1');
+    expect(latestAuthorLink?.getAttribute('href')).toBe('/@/alice');
     expect(categoryRow?.textContent).toContain('First topic');
     expect(categoryRow?.textContent).toContain('by Alice');
     expect(categoryRow?.textContent).toContain('Strategy');

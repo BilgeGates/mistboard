@@ -110,19 +110,19 @@ function latestPostCell(category: ForumCategorySummary): HTMLElement {
     cell.textContent = 'No posts yet';
     return cell;
   }
-  const cell = document.createElement('a');
+  const cell = document.createElement('span');
   cell.className = 'landing-forum-row-last';
-  cell.href = postHref(
+  const title = document.createElement('a');
+  title.className = 'landing-forum-row-last-title';
+  title.href = postHref(
     category.latestPost.topic,
     category.latestPost.post.id,
     pageForPostCount(category.latestPost.topic.postCount),
   );
-  const title = document.createElement('span');
-  title.className = 'landing-forum-row-last-title';
   title.textContent = category.latestPost.topic.title;
   const meta = document.createElement('span');
   meta.className = 'landing-forum-row-meta';
-  meta.textContent = latestPostMetaText(category.latestPost.author, category.latestPost.createdAt);
+  appendLatestPostMeta(meta, category.latestPost.author, category.latestPost.createdAt);
   cell.append(title, meta);
   return cell;
 }
@@ -141,8 +141,25 @@ function authorLabel(author: ForumAuthor): string {
   return author?.displayName ?? 'Deleted account';
 }
 
-function latestPostMetaText(author: ForumAuthor, createdAt: string): string {
-  return `by ${authorLabel(author)} · ${formatDate(createdAt)}`;
+function appendLatestPostMeta(parent: HTMLElement, author: ForumAuthor, createdAt: string): void {
+  parent.append(
+    document.createTextNode('by '),
+    authorProfileLink(author),
+    document.createTextNode(` · ${formatDate(createdAt)}`),
+  );
+}
+
+function authorProfileLink(author: ForumAuthor): HTMLElement {
+  if (!author) {
+    const span = document.createElement('span');
+    span.textContent = authorLabel(author);
+    return span;
+  }
+  const link = document.createElement('a');
+  link.className = 'landing-forum-row-author';
+  link.href = `/@/${encodeURIComponent(author.handle)}`;
+  link.textContent = author.displayName;
+  return link;
 }
 
 function formatCount(value: number): string {

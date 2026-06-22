@@ -363,18 +363,21 @@ function latestPostCell(category: ForumCategory): HTMLElement {
     cell.textContent = 'No posts yet';
     return cell;
   }
-  const cell = document.createElement('a');
+  const cell = document.createElement('span');
   cell.className = 'forum-category-index-last';
-  cell.href = postHref(
+  const title = document.createElement('a');
+  title.className = 'forum-category-latest-title';
+  title.href = postHref(
     category.latestPost.topic,
     category.latestPost.post.id,
     pageForPostCount(category.latestPost.topic.postCount),
   );
-  const title = document.createElement('span');
-  title.className = 'forum-category-latest-title';
   title.textContent = category.latestPost.topic.title;
   const meta = document.createElement('span');
-  meta.textContent = latestPostMetaText(category.latestPost.author, category.latestPost.createdAt);
+  meta.className = 'forum-category-latest-meta';
+  appendLatestPostMeta(meta, category.latestPost.author, category.latestPost.createdAt, {
+    authorClassName: 'forum-category-latest-author',
+  });
   cell.append(title, meta);
   return cell;
 }
@@ -555,8 +558,11 @@ function topicRow(topic: ForumTopicSummary, options: { showCategory?: boolean } 
     const latest = document.createElement('a');
     latest.className = 'forum-topic-latest-link';
     latest.href = postHref(topic, topic.latestPost.post.id, pageForPostCount(topic.postCount));
-    latest.textContent = latestPostMetaText(topic.latestPost.author, topic.latestPost.createdAt);
-    latestCell.append(latest);
+    latest.textContent = formatDate(topic.latestPost.createdAt);
+    appendLatestPostMeta(latestCell, topic.latestPost.author, topic.latestPost.createdAt, {
+      authorClassName: 'forum-topic-author',
+      dateNode: latest,
+    });
   } else {
     latestCell.textContent = formatDate(topic.lastPostAt);
   }
@@ -1310,8 +1316,18 @@ function authorLabel(author: ForumAuthor): string {
   return author?.displayName ?? 'Deleted account';
 }
 
-function latestPostMetaText(author: ForumAuthor, createdAt: string): string {
-  return `by ${authorLabel(author)} · ${formatDate(createdAt)}`;
+function appendLatestPostMeta(
+  parent: HTMLElement,
+  author: ForumAuthor,
+  createdAt: string,
+  options: { authorClassName: string; dateNode?: Node },
+): void {
+  parent.append(
+    document.createTextNode('by '),
+    authorProfileLink(author, options.authorClassName),
+    document.createTextNode(' · '),
+    options.dateNode ?? document.createTextNode(formatDate(createdAt)),
+  );
 }
 
 function authorProfileLink(author: ForumAuthor, className: string): HTMLElement {

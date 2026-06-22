@@ -95,15 +95,18 @@ describe('forum pages', () => {
     expect(root.textContent).toContain('Topics');
     expect(root.textContent).toContain('Posts');
     expect(root.textContent).toContain('Bob');
-    expect(root.querySelector('a.forum-category-index-last')?.textContent).toContain('by Bob');
+    expect(root.querySelector('.forum-category-latest-meta')?.textContent).toContain('by Bob');
     expect(root.textContent).toContain('Scouting the center');
     expect(root.textContent).toContain('Sign in to start a topic.');
     expect(
       root.querySelector<HTMLAnchorElement>('a.forum-category-index-main')?.getAttribute('href'),
     ).toBe('/forum/announcements');
     expect(
-      root.querySelector<HTMLAnchorElement>('a.forum-category-index-last')?.getAttribute('href'),
+      root.querySelector<HTMLAnchorElement>('a.forum-category-latest-title')?.getAttribute('href'),
     ).toBe('/forum/t/topic_strategy/scouting-the-center#post_post_strategy_reply');
+    expect(
+      root.querySelector<HTMLAnchorElement>('.forum-category-latest-author')?.getAttribute('href'),
+    ).toBe('/@/bob');
     expect(root.querySelector<HTMLAnchorElement>('.forum-topic-title')?.getAttribute('href')).toBe(
       '/forum/t/topic_strategy/scouting-the-center',
     );
@@ -113,7 +116,15 @@ describe('forum pages', () => {
     expect(
       root.querySelector<HTMLAnchorElement>('.forum-topic-latest-link')?.getAttribute('href'),
     ).toBe('/forum/t/topic_strategy/scouting-the-center#post_post_strategy_reply');
-    expect(root.querySelector('.forum-topic-latest-link')?.textContent).toContain('by Bob');
+    expect(
+      root.querySelector('.forum-topic-row:not(.forum-topic-list-header) .forum-topic-row-latest')
+        ?.textContent,
+    ).toContain('by Bob');
+    expect(
+      root
+        .querySelector<HTMLAnchorElement>('.forum-topic-row-latest .forum-topic-author')
+        ?.getAttribute('href'),
+    ).toBe('/@/bob');
     expect(root.querySelector('.forum-topic-flags')?.textContent).toContain('Strategy');
   });
 
@@ -303,7 +314,7 @@ describe('forum pages', () => {
     await mountForum(root);
 
     expect(
-      root.querySelector<HTMLAnchorElement>('a.forum-category-index-last')?.getAttribute('href'),
+      root.querySelector<HTMLAnchorElement>('a.forum-category-latest-title')?.getAttribute('href'),
     ).toBe('/forum/t/topic_strategy/scouting-the-center?page=2#post_post_strategy_reply');
     expect(
       root.querySelector<HTMLAnchorElement>('.forum-topic-latest-link')?.getAttribute('href'),
