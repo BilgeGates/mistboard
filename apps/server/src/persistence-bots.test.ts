@@ -1,4 +1,5 @@
 import type { IncomingMessage, ServerResponse } from 'node:http';
+import { listBotRatingSnapshots } from './bot-rating-snapshots.js';
 import { getPublicBotProfile, listPublicBots, recordGameEnd } from './persistence.js';
 import {
   assert,
@@ -175,6 +176,56 @@ definePersistenceTests('bot profiles', () => {
 
     const hiddenVariantResponse = await routeGet('/api/bots/hidden-variant-bot');
     assert.equal(hiddenVariantResponse.status, 404);
+  });
+
+  test('bot rating snapshot audit query separates latest, public, and history views', async () => {
+    await insertBotProfile('audit-bot', 'Audit Bot', 'public');
+    await insertBotRatingSnapshot('audit-bot', {
+      rating: 1800,
+      ratingDeviation: 95,
+      games: 24,
+      source: 'eve-anchor',
+      sourceRef: 'published-report',
+      published: true,
+      createdAt: new Date('2026-01-01T00:00:00Z'),
+    });
+    await insertBotRatingSnapshot('audit-bot', {
+      rating: 1900,
+      ratingDeviation: 88,
+      games: 30,
+      source: 'manual',
+      sourceRef: 'draft-report',
+      published: false,
+      createdAt: new Date('2026-01-02T00:00:00Z'),
+    });
+
+    const client = new pg.Client({ connectionString: TEST_DATABASE_URL });
+    await client.connect();
+    try {
+      const latest = await listBotRatingSnapshots(client, { botId: 'audit-bot' });
+      assert.equal(latest.length, 1);
+      assert.equal(latest[0]?.rating, 1900);
+      assert.equal(latest[0]?.published, false);
+
+      const published = await listBotRatingSnapshots(client, {
+        botId: 'audit-bot',
+        visibility: 'published',
+      });
+      assert.equal(published.length, 1);
+      assert.equal(published[0]?.rating, 1800);
+      assert.equal(published[0]?.published, true);
+
+      const history = await listBotRatingSnapshots(client, {
+        botId: 'audit-bot',
+        history: true,
+      });
+      assert.deepEqual(
+        history.map((snapshot) => snapshot.rating),
+        [1900, 1800],
+      );
+    } finally {
+      await client.end();
+    }
   });
 });
 
