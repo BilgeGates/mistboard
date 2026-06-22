@@ -9,6 +9,7 @@ import type { FeaturedGame } from './game-display.js';
 import { gameMetaForGame } from './game-meta.js';
 import { buildLandingActivity } from './landing-activity.js';
 import { buildLandingAnnouncements } from './landing-announcements.js';
+import { buildLandingForumPreview } from './landing-forum-preview.js';
 import {
   buildLandingPlayPanel,
   buildLobbyRequestsWindow,
@@ -487,6 +488,7 @@ function buildLandingStage(
   centerColumn.append(boardColumn);
   const articleCards = buildHomeArticleCards();
   if (articleCards) centerColumn.append(articleCards);
+  centerColumn.append(buildLandingForumPreview({ hydrate: !opts.skipLiveWidgets }));
 
   // ── Right rail: the pairing CTAs, with the open-pairing-requests browser
   // stacked beneath them. ──

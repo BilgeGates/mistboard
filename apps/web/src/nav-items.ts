@@ -8,6 +8,7 @@ export interface NavItem {
 export function primaryNavItems(): NavItem[] {
   return [
     { label: 'Watch', href: '/watch' },
+    { label: 'Forum', href: '/forum' },
     { label: 'Bots', href: '/bots' },
     { label: 'Leaderboard', href: '/leaderboard' },
   ];

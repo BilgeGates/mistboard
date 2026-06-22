@@ -95,6 +95,8 @@ const wantsArticlesIndex =
   path === '/zh-hant/articles' ||
   page === 'articles';
 const wantsNews = path === '/news' || page === 'news';
+const wantsForum = path === '/forum' || page === 'forum';
+const forumTopicId = forumTopicIdFromPath(path);
 const wantsLegacyPlay = path === '/play' || page === 'play';
 const wantsWatch = path === '/watch' || page === 'watch';
 // Behind the correspondence build flag (soft launch). The nav bell + this
@@ -293,6 +295,14 @@ if (replaySample) {
 } else if (wantsNews) {
   setTitle('News');
   void mountOrReport(() => import('./pages-static.js').then(({ mountNews }) => mountNews(appRoot)));
+} else if (forumTopicId) {
+  setTitle('Forum');
+  void mountOrReport(() =>
+    import('./forum.js').then(({ mountForumTopic }) => mountForumTopic(appRoot, forumTopicId)),
+  );
+} else if (wantsForum) {
+  setTitle('Forum');
+  void mountOrReport(() => import('./forum.js').then(({ mountForum }) => mountForum(appRoot)));
 } else if (wantsArticlesIndex) {
   setTitle(articleLang ? '文章' : 'Articles');
   void mountOrReport(() =>
@@ -455,6 +465,11 @@ function liveRoomIdFromPath(value: string): string | null {
 
 function profileHandleFromPath(value: string): string | null {
   const match = value.match(/^\/@\/([^/]+)$/);
+  return match ? decodeURIComponent(match[1]!) : null;
+}
+
+function forumTopicIdFromPath(value: string): string | null {
+  const match = value.match(/^\/forum\/t\/([^/]+)(?:\/[^/]+)?$/);
   return match ? decodeURIComponent(match[1]!) : null;
 }
 

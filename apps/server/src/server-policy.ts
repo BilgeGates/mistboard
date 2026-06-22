@@ -92,6 +92,7 @@ export function isClientRoute(pathname: string): boolean {
     normalized === '/correspondence' ||
     normalized === '/leaderboard' ||
     normalized === '/news' ||
+    normalized === '/forum' ||
     normalized === '/database' ||
     normalized === '/engines' ||
     normalized === '/bots' ||
@@ -105,6 +106,7 @@ export function isClientRoute(pathname: string): boolean {
     normalized.startsWith('/zh-hans/articles/') ||
     normalized.startsWith('/zh-hant/articles/') ||
     normalized.startsWith('/rules/') ||
+    normalized.startsWith('/forum/t/') ||
     normalized.startsWith('/zh-hans/rules/') ||
     normalized.startsWith('/zh-hant/rules/') ||
     normalized.startsWith('/dark-xiangqi/game/') ||

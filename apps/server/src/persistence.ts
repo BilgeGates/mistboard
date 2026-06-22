@@ -55,6 +55,25 @@ export {
   insertFeedbackSubmission,
 } from './persistence-feedback.js';
 export type {
+  AddForumPostResult,
+  CreateForumTopicResult,
+  ForumAuthor,
+  ForumCategory,
+  ForumPost,
+  ForumTopicDetail,
+  ForumTopicSummary,
+  ForumTopicWritePolicy,
+} from './persistence-forum.js';
+export {
+  addForumPost,
+  countRecentForumPostsByUser,
+  countRecentForumTopicsByUser,
+  createForumTopic,
+  getForumTopic,
+  listForumCategories,
+  listForumTopics,
+} from './persistence-forum.js';
+export type {
   GameDebugArtifactInput,
   GameDebugArtifactPayload,
   GameDebugArtifactSummary,
