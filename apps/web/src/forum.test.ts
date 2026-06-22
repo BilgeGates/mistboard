@@ -73,6 +73,7 @@ const adminUser = {
 describe('forum pages', () => {
   afterEach(() => {
     vi.restoreAllMocks();
+    vi.unstubAllGlobals();
     document.body.replaceChildren();
     window.history.pushState(null, '', '/');
   });
@@ -300,6 +301,75 @@ describe('forum pages', () => {
     expect(buttonLabels).toContain('Hide post');
     expect(buttonLabels).toContain('Move');
     expect(root.querySelector('.forum-topic-move-form')?.textContent).toContain('Move to');
+  });
+
+  it('sends admin moderation reasons when hiding forum content', async () => {
+    window.history.pushState(null, '', '/forum/t/topic_strategy/scouting-the-center');
+    vi.stubGlobal(
+      'prompt',
+      vi.fn().mockReturnValueOnce('duplicate topic').mockReturnValueOnce('spam post'),
+    );
+    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockImplementation(async (input, init) => {
+      const url = String(input);
+      if (url === '/api/forum/topics/topic_strategy/moderation' && init?.method === 'POST') {
+        return json({ ok: true });
+      }
+      if (url === '/api/forum/posts/post_1/moderation' && init?.method === 'POST') {
+        return json({ ok: true, topicHidden: true });
+      }
+      if (url.startsWith('/api/forum/categories')) return json({ categories });
+      if (url.startsWith('/api/forum/topics/topic_strategy')) {
+        return json({
+          topic: {
+            ...topic,
+            posts: [
+              {
+                id: 'post_1',
+                author: { handle: 'alice', displayName: 'Alice' },
+                bodyText: 'Opening post.',
+                createdAt: '2026-06-01T00:00:00.000Z',
+                updatedAt: '2026-06-01T00:00:00.000Z',
+              },
+            ],
+          },
+        });
+      }
+      if (url.startsWith('/api/auth/me')) return json({ user: adminUser });
+      throw new Error(`unexpected fetch ${url}`);
+    });
+    const root = document.createElement('div');
+    const { mountForumTopic } = await import('./forum.js');
+
+    await mountForumTopic(root, 'topic_strategy');
+    const hideTopic = Array.from(root.querySelectorAll<HTMLButtonElement>('button')).find(
+      (button) => button.textContent?.trim() === 'Hide topic',
+    );
+    const hidePost = Array.from(root.querySelectorAll<HTMLButtonElement>('button')).find(
+      (button) => button.textContent?.trim() === 'Hide post',
+    );
+    if (!hideTopic || !hidePost) throw new Error('missing hide moderation buttons');
+
+    hideTopic.click();
+    await flushPromises();
+    hidePost.click();
+    await flushPromises();
+
+    const topicCall = fetchSpy.mock.calls.find(
+      ([input, init]) =>
+        String(input) === '/api/forum/topics/topic_strategy/moderation' && init?.method === 'POST',
+    );
+    const postCall = fetchSpy.mock.calls.find(
+      ([input, init]) =>
+        String(input) === '/api/forum/posts/post_1/moderation' && init?.method === 'POST',
+    );
+    expect(JSON.parse(String(topicCall?.[1]?.body))).toEqual({
+      action: 'hide',
+      reason: 'duplicate topic',
+    });
+    expect(JSON.parse(String(postCall?.[1]?.body))).toEqual({
+      action: 'hide',
+      reason: 'spam post',
+    });
   });
 
   it('moves a topic category from moderation controls', async () => {

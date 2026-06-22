@@ -70,6 +70,7 @@ const topicListPageSize = 25;
 const postPageSize = 25;
 const forumTopicTitleMaxLength = 120;
 const forumPostBodyMaxLength = 5000;
+const forumModerationReasonMaxLength = 240;
 
 class ForumNotFound extends Error {}
 
@@ -1052,7 +1053,9 @@ function topicModerationBox(topic: ForumTopicDetail, categories: ForumCategory[]
     moderationButton(topic.locked ? 'Unlock' : 'Lock', () =>
       submitTopicModeration(topic.id, topic.locked ? 'unlock' : 'lock'),
     ),
-    moderationButton('Hide topic', () => submitTopicModeration(topic.id, 'hide'), true),
+    moderationButton('Hide topic', (reason) => submitTopicModeration(topic.id, 'hide', reason), {
+      reasonPrompt: 'Reason for hiding this topic (optional)',
+    }),
   );
   box.append(heading, actions);
   const move = topicMoveForm(topic, categories);
@@ -1090,27 +1093,44 @@ function topicMoveForm(topic: ForumTopicDetail, categories: ForumCategory[]): HT
 function postModerationBox(post: ForumPost): HTMLElement {
   const actions = document.createElement('div');
   actions.className = 'forum-moderation-actions forum-post-actions';
-  actions.append(moderationButton('Hide post', () => submitPostModeration(post.id), true));
+  actions.append(
+    moderationButton('Hide post', (reason) => submitPostModeration(post.id, reason), {
+      reasonPrompt: 'Reason for hiding this post (optional)',
+    }),
+  );
   return actions;
 }
 
 function moderationButton(
   text: string,
-  submit: () => Promise<void>,
-  confirmAction = false,
+  submit: (reason: string | null) => Promise<void>,
+  options: { confirmAction?: boolean; reasonPrompt?: string } = {},
 ): HTMLButtonElement {
   const button = document.createElement('button');
   button.type = 'button';
   button.className = 'forum-moderation-button';
   button.textContent = text;
   button.addEventListener('click', () => {
-    if (confirmAction && !window.confirm(`${text}?`)) return;
+    const reason = options.reasonPrompt ? promptModerationReason(options.reasonPrompt) : null;
+    if (reason === false) return;
+    if (options.confirmAction && !window.confirm(`${text}?`)) return;
     button.disabled = true;
-    void submit().catch(() => {
+    void submit(reason).catch(() => {
       button.disabled = false;
     });
   });
   return button;
+}
+
+function promptModerationReason(promptText: string): string | null | false {
+  const value = window.prompt(promptText, '');
+  if (value === null) return false;
+  const reason = value.trim();
+  if (reason.length > forumModerationReasonMaxLength) {
+    window.alert(`Reason must be ${forumModerationReasonMaxLength} characters or less.`);
+    return false;
+  }
+  return reason.length > 0 ? reason : null;
 }
 
 function signInBox(text: string): HTMLElement {
@@ -1230,11 +1250,14 @@ function errorMessageForTopicEditStatus(status: number): string {
 async function submitTopicModeration(
   topicId: string,
   action: 'pin' | 'unpin' | 'lock' | 'unlock' | 'hide',
+  reason: string | null = null,
 ): Promise<void> {
+  const body: { action: typeof action; reason?: string } = { action };
+  if (reason) body.reason = reason;
   const resp = await fetch(`/api/forum/topics/${encodeURIComponent(topicId)}/moderation`, {
     method: 'POST',
     headers: { 'content-type': 'application/json', accept: 'application/json' },
-    body: JSON.stringify({ action }),
+    body: JSON.stringify(body),
   });
   if (!resp.ok) throw new Error(`topic_moderation_failed_${resp.status}`);
   if (action === 'hide') window.location.href = '/forum';
@@ -1252,11 +1275,13 @@ async function submitTopicMove(topic: ForumTopicDetail, categorySlug: string): P
   window.location.href = topicHref(payload.topic);
 }
 
-async function submitPostModeration(postId: string): Promise<void> {
+async function submitPostModeration(postId: string, reason: string | null = null): Promise<void> {
+  const body: { action: 'hide'; reason?: string } = { action: 'hide' };
+  if (reason) body.reason = reason;
   const resp = await fetch(`/api/forum/posts/${encodeURIComponent(postId)}/moderation`, {
     method: 'POST',
     headers: { 'content-type': 'application/json', accept: 'application/json' },
-    body: JSON.stringify({ action: 'hide' }),
+    body: JSON.stringify(body),
   });
   if (!resp.ok) throw new Error(`post_moderation_failed_${resp.status}`);
   const payload = (await resp.json()) as { topicHidden?: boolean };
