@@ -111,6 +111,10 @@ const wantsEngines = path === '/engines';
 const engineProfileId = path.startsWith('/engine/')
   ? decodeURIComponent(path.slice('/engine/'.length))
   : null;
+const wantsBots = path === '/bots';
+const botProfileId = path.startsWith('/bot/')
+  ? decodeURIComponent(path.slice('/bot/'.length))
+  : null;
 const profileHandle = profileHandleFromPath(path);
 // Hidden spike: FoW Xiangqi Phase A. No nav entry, no landing link, and no
 // dev default; enabling it is an explicit build-time flag.
@@ -196,6 +200,14 @@ if (replaySample) {
     import('./engine-profile.js').then(({ mountEngineProfile }) =>
       mountEngineProfile(appRoot, engineProfileId),
     ),
+  );
+} else if (wantsBots) {
+  setTitle('Bots');
+  void mountOrReport(() => import('./bots.js').then(({ mountBots }) => mountBots(appRoot)));
+} else if (botProfileId) {
+  setTitle('Bot');
+  void mountOrReport(() =>
+    import('./bots.js').then(({ mountBotProfile }) => mountBotProfile(appRoot, botProfileId)),
   );
 } else if (profileHandle) {
   setTitle(`@${profileHandle}`);

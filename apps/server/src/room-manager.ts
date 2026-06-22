@@ -18,6 +18,7 @@ import {
   variantForId,
 } from '@mistboard/game';
 import { engineVersionDisplayName, loadEngine } from './engine-registry.js';
+import { firstPartyBotForEngine } from './first-party-bots.js';
 import { ABORT_WINDOW_MS, FORFEIT_WINDOW_MS } from './lifecycle-windows.js';
 import { chooseLiveEngineMove, type LiveEngineFallbackEvent } from './live-engine.js';
 import { engineCounters, logger } from './obs.js';
@@ -248,6 +249,16 @@ function inMemoryParticipant(
 ): persistence.GameParticipant {
   if (clientId && isServerEngineClient(clientId)) {
     const engineVersionId = clientId === 'random-engine' ? pveBuiltinEngineClientId : clientId;
+    const bot = firstPartyBotForEngine(engineVersionId);
+    if (bot) {
+      return {
+        color,
+        displayName: displayName ?? bot.displayName,
+        subjectType: 'bot',
+        subjectId: bot.id,
+        visibility,
+      };
+    }
     return {
       color,
       displayName: displayName ?? engineVersionDisplayName(engineVersionId),

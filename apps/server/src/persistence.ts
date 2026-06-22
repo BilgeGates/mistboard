@@ -26,6 +26,16 @@ export {
   updateUserProfile,
 } from './persistence-accounts.js';
 export type {
+  BotDirectoryEntry,
+  BotModeRecord,
+  BotOwnerType,
+  BotProfile,
+  BotProfilePage,
+  BotRatingSnapshot,
+  BotRatingSource,
+} from './persistence-bots.js';
+export { getPublicBotProfile, listPublicBots } from './persistence-bots.js';
+export type {
   CorrespondenceSeekListing,
   CorrespondenceSeekRecord,
   SeekColorPreference,
