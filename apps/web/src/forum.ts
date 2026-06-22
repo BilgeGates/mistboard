@@ -819,7 +819,7 @@ function postBodyNodes(text: string): HTMLElement[] {
     if (paragraphLines.length === 0) return;
     const paragraph = document.createElement('p');
     paragraph.className = 'forum-post-paragraph';
-    paragraph.textContent = paragraphLines.join('\n');
+    appendLinkedText(paragraph, paragraphLines.join('\n'));
     nodes.push(paragraph);
     paragraphLines = [];
   };
@@ -827,7 +827,7 @@ function postBodyNodes(text: string): HTMLElement[] {
     if (quoteLines.length === 0) return;
     const quote = document.createElement('blockquote');
     quote.className = 'forum-post-quote-block';
-    quote.textContent = quoteLines.join('\n');
+    appendLinkedText(quote, quoteLines.join('\n'));
     nodes.push(quote);
     quoteLines = [];
   };
@@ -846,6 +846,47 @@ function postBodyNodes(text: string): HTMLElement[] {
   flushQuote();
   flushParagraph();
   return nodes;
+}
+
+function appendLinkedText(parent: HTMLElement, text: string): void {
+  const urlPattern = /\bhttps?:\/\/[^\s<>"']+/gi;
+  let cursor = 0;
+  for (const match of text.matchAll(urlPattern)) {
+    const rawUrl = match[0];
+    const start = match.index ?? 0;
+    const { urlText, trailingText } = trimLinkedUrl(rawUrl);
+    if (start > cursor) parent.append(document.createTextNode(text.slice(cursor, start)));
+    const link = forumPostLink(urlText);
+    parent.append(link ?? document.createTextNode(urlText));
+    if (trailingText) parent.append(document.createTextNode(trailingText));
+    cursor = start + rawUrl.length;
+  }
+  if (cursor < text.length) parent.append(document.createTextNode(text.slice(cursor)));
+}
+
+function trimLinkedUrl(rawUrl: string): { urlText: string; trailingText: string } {
+  let urlText = rawUrl;
+  let trailingText = '';
+  while (/[),.;:!?]/.test(urlText.at(-1) ?? '')) {
+    trailingText = `${urlText.at(-1)}${trailingText}`;
+    urlText = urlText.slice(0, -1);
+  }
+  return { urlText, trailingText };
+}
+
+function forumPostLink(urlText: string): HTMLAnchorElement | null {
+  try {
+    const url = new URL(urlText);
+    if (url.protocol !== 'http:' && url.protocol !== 'https:') return null;
+    const link = document.createElement('a');
+    link.href = url.href;
+    link.target = '_blank';
+    link.rel = 'nofollow noopener noreferrer';
+    link.textContent = urlText;
+    return link;
+  } catch {
+    return null;
+  }
 }
 
 function canEditPost(post: ForumPost, user: AuthUser | null): boolean {

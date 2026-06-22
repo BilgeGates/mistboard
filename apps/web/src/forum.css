@@ -396,6 +396,19 @@ a.forum-topic-title:focus-visible,
   padding-left: 10px;
 }
 
+.forum-post-body a {
+  color: var(--site-accent-strong);
+  font-weight: 760;
+  overflow-wrap: anywhere;
+  text-decoration: none;
+}
+
+.forum-post-body a:hover,
+.forum-post-body a:focus-visible {
+  color: var(--site-link);
+  text-decoration: underline;
+}
+
 .forum-post-permalink {
   color: var(--site-accent-strong);
   font-weight: 800;

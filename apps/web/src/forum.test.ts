@@ -791,6 +791,54 @@ describe('forum pages', () => {
     ]);
   });
 
+  it('autolinks safe forum post URLs without rendering unsafe schemes', async () => {
+    vi.spyOn(globalThis, 'fetch').mockImplementation(async (input) => {
+      const url = String(input);
+      if (url.startsWith('/api/forum/topics/topic_strategy')) {
+        return json({
+          topic: {
+            ...topic,
+            posts: [
+              {
+                id: 'post_1',
+                author: { handle: 'alice', displayName: 'Alice' },
+                bodyText:
+                  'Study https://mistboard.com/rules/dark-chess.\n> Source http://example.com/thread\nNo javascript:alert(1)',
+                createdAt: '2026-06-01T00:00:00.000Z',
+                updatedAt: '2026-06-01T00:00:00.000Z',
+              },
+            ],
+          },
+        });
+      }
+      if (url.startsWith('/api/auth/me')) return json({ user: null });
+      throw new Error(`unexpected fetch ${url}`);
+    });
+    const root = document.createElement('div');
+    const { mountForumTopic } = await import('./forum.js');
+
+    await mountForumTopic(root, 'topic_strategy');
+
+    const links = Array.from(root.querySelectorAll<HTMLAnchorElement>('.forum-post-body a'));
+    expect(links.map((link) => link.textContent)).toEqual([
+      'https://mistboard.com/rules/dark-chess',
+      'http://example.com/thread',
+    ]);
+    expect(links.map((link) => link.getAttribute('href'))).toEqual([
+      'https://mistboard.com/rules/dark-chess',
+      'http://example.com/thread',
+    ]);
+    expect(links.every((link) => link.target === '_blank')).toBe(true);
+    expect(links.every((link) => link.rel === 'nofollow noopener noreferrer')).toBe(true);
+    expect(root.querySelector('.forum-post-body')?.textContent).toContain(
+      'https://mistboard.com/rules/dark-chess.',
+    );
+    expect(root.querySelector('.forum-post-body')?.textContent).toContain('javascript:alert(1)');
+    expect(links.some((link) => (link.getAttribute('href') ?? '').startsWith('javascript:'))).toBe(
+      false,
+    );
+  });
+
   it('renders topic posts as escaped plaintext', async () => {
     vi.spyOn(globalThis, 'fetch').mockImplementation(async (input) => {
       const url = String(input);
