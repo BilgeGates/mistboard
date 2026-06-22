@@ -484,6 +484,7 @@ export async function getUserProfileByHandle(
          WHEN games.variant IN ('crossroads-chess', 'dual-chess') THEN 'crossroads_chess_open'
          WHEN games.variant IN ('dark-crossroads-chess', 'dark-dual-chess') THEN 'crossroads_chess'
          WHEN games.variant = 'dark-mini-xiangqi' THEN 'dark_mini_xiangqi'
+         WHEN games.variant = 'drop-mini-xiangqi' THEN 'drop_mini_xiangqi'
          WHEN games.variant = 'dark-xiangqi' THEN 'dark_xiangqi'
          WHEN games.variant = 'jieqi' THEN 'jieqi'
          WHEN games.variant = 'banqi' THEN 'banqi'
@@ -501,7 +502,7 @@ export async function getUserProfileByHandle(
      WHERE game_participants.subject_type = 'user'
        AND game_participants.subject_id = $1
        AND games.status = 'completed'
-       AND games.variant IN ('dark-chess', 'fog', 'draft960', 'dark-draft960', 'fog-draft960', 'dark-mini-xiangqi', 'dark-xiangqi', 'jieqi', 'banqi', 'reveal-chess', 'crossroads-chess', 'dual-chess', 'dark-crossroads-chess', 'dark-dual-chess', 'dark-shogi', 'dark-crazyhouse', 'kriegspiel')
+       AND games.variant IN ('dark-chess', 'fog', 'draft960', 'dark-draft960', 'fog-draft960', 'dark-mini-xiangqi', 'drop-mini-xiangqi', 'dark-xiangqi', 'jieqi', 'banqi', 'reveal-chess', 'crossroads-chess', 'dual-chess', 'dark-crossroads-chess', 'dark-dual-chess', 'dark-shogi', 'dark-crazyhouse', 'kriegspiel')
        ${visibilityClause}
      GROUP BY 1`,
     [user.id],

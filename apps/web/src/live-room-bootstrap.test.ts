@@ -19,6 +19,7 @@ describe('live room bootstrap', () => {
     // shell boots), so the shell never claims their rooms.
     expect(gameSpecIdForRoomBootstrap('dxq_abc', null)).toBeNull();
     expect(gameSpecIdForRoomBootstrap('dchess_abc', null)).toBeNull();
+    expect(gameSpecIdForRoomBootstrap('dmxqd_abc', null)).toBeNull();
     expect(gameSpecIdForRoomBootstrap('room-abc', 'dark-xiangqi')).toBe('dark-xiangqi');
     expect(gameSpecIdForRoomBootstrap('room-abc', 'not-a-spec')).toBeNull();
   });

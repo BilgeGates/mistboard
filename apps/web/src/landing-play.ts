@@ -9,6 +9,7 @@ import {
   DARK_MINI_XIANGQI_SPEC_ID,
   DARK_SHOGI_SPEC_ID,
   DARK_XIANGQI_SPEC_ID,
+  DROP_MINI_XIANGQI_SPEC_ID,
   DUAL_CHESS_SPEC_ID,
   gameSpecForId,
   JIEQI_SPEC_ID,
@@ -23,11 +24,7 @@ import {
   gameSpecAnalyticsPropsForId,
   track,
 } from './analytics.js';
-import {
-  correspondenceEnabled,
-  crossroadsChessEnabled,
-  darkMiniXiangqiPublicEntryEnabled,
-} from './feature-flags.js';
+import { correspondenceEnabled, crossroadsChessEnabled } from './feature-flags.js';
 import { isRatedModeEnabled } from './rated-flag.js';
 import { isLikelySignedIn } from './signed-in-state.js';
 import { renderVariantMiniBoard } from './variant-mini-boards.js';
@@ -54,6 +51,7 @@ type LandingPlayMode = 'lobby' | 'pvp' | 'pve';
 type LandingGameSpecId =
   | typeof DARK_CHESS_SPEC_ID
   | typeof DARK_MINI_XIANGQI_SPEC_ID
+  | typeof DROP_MINI_XIANGQI_SPEC_ID
   | typeof DARK_XIANGQI_SPEC_ID
   | typeof CROSSROADS_CHESS_SPEC_ID
   | typeof DARK_CROSSROADS_CHESS_SPEC_ID
@@ -1384,8 +1382,9 @@ function storeSetupPreference(
 
 function normalizeStoredGameSpecId(value: unknown): LandingGameSpecId | undefined {
   if (value === DARK_CHESS_SPEC_ID) return DARK_CHESS_SPEC_ID;
-  if (value === DARK_MINI_XIANGQI_SPEC_ID && darkMiniXiangqiPublicEntryEnabled()) {
-    return DARK_MINI_XIANGQI_SPEC_ID;
+  if (typeof value === 'string') {
+    const tenant = webVariantTenantForSpecId(value);
+    if (tenant?.landing?.offerInMenu()) return tenant.gameSpecId as LandingGameSpecId;
   }
   if (
     (value === CROSSROADS_CHESS_SPEC_ID || value === DUAL_CHESS_SPEC_ID) &&
@@ -1736,6 +1735,22 @@ export function roomCreationRequestBody(
       ...(mode === 'pve' && engineId ? { engineId } : {}),
     };
   }
+  if (setup.gameSpecId === DROP_MINI_XIANGQI_SPEC_ID) {
+    // Drop Mini Xiangqi is open-info red/black mini xiangqi with reserves.
+    // It is PvP/lobby-only for now, but rating-ready behind the global rated gate.
+    return {
+      mode: 'pvp',
+      gameSpecId,
+      timeControl: setup.timeControl,
+      rated: setup.rated,
+      preferredColor:
+        setup.preferredColor === 'white'
+          ? 'red'
+          : setup.preferredColor === 'red' || setup.preferredColor === 'black'
+            ? setup.preferredColor
+            : 'random',
+    };
+  }
   if (setup.gameSpecId === REVEAL_CHESS_SPEC_ID) {
     // Reveal Chess is PvP-only and casual-only (rated not launched); colors are
     // standard chess white/black, with no draft960 / start-format axis.
@@ -1834,6 +1849,7 @@ export function roomCreationGameSpecId(
   | typeof DARK_CHESS_SPEC_ID
   | typeof DARK_DRAFT960_SPEC_ID
   | typeof DARK_MINI_XIANGQI_SPEC_ID
+  | typeof DROP_MINI_XIANGQI_SPEC_ID
   | typeof DARK_XIANGQI_SPEC_ID
   | typeof CROSSROADS_CHESS_SPEC_ID
   | typeof DARK_CROSSROADS_CHESS_SPEC_ID
@@ -1845,6 +1861,7 @@ export function roomCreationGameSpecId(
   | typeof REVEAL_CHESS_SPEC_ID {
   if (setup.gameSpecId === JIEQI_SPEC_ID) return JIEQI_SPEC_ID;
   if (setup.gameSpecId === BANQI_SPEC_ID) return BANQI_SPEC_ID;
+  if (setup.gameSpecId === DROP_MINI_XIANGQI_SPEC_ID) return DROP_MINI_XIANGQI_SPEC_ID;
   if (setup.gameSpecId === REVEAL_CHESS_SPEC_ID) return REVEAL_CHESS_SPEC_ID;
   if (setup.gameSpecId === CROSSROADS_CHESS_SPEC_ID) return CROSSROADS_CHESS_SPEC_ID;
   if (setup.gameSpecId === DARK_CROSSROADS_CHESS_SPEC_ID) return DARK_CROSSROADS_CHESS_SPEC_ID;

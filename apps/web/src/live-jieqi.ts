@@ -46,6 +46,7 @@ import { installBoardDrag } from './variant-tenant/board-drag.js';
 import { syncMoveListScroll } from './variant-tenant/chrome-dom.js';
 import { createTenantReplayController } from './variant-tenant/replay-controller.js';
 import { createTenantRoomChrome, type WebVariantTenant } from './variant-tenant/room-chrome.js';
+import { installSelectionClickAway } from './variant-tenant/selection-click-away.js';
 import {
   createTenantSocketClient,
   type TenantConnectionState,
@@ -245,6 +246,15 @@ export function bootstrapJieqiLiveRoom(): void {
     reconnectNow: () => client?.connect(),
   });
   installJieqiBoardInteraction(refs);
+  installSelectionClickAway({
+    roots: () => [refs?.board],
+    hasSelection: () => selectedSquare !== null,
+    clearSelection: () => {
+      selectedSquare = null;
+      draggingFrom = null;
+      if (refs) renderBoard(refs, replay.currentView(state.view));
+    },
+  });
 
   client = createTenantSocketClient({
     room,
@@ -416,10 +426,7 @@ function dropJieqiPiece(liveRefs: LiveRefs, from: JieqiSquare, to: JieqiSquare |
       playSound(soundForOwnJieqiMove(view, move));
     }
   } else {
-    // Dropped off a legal target. Keep the piece selected only if it actually has
-    // moves (so a follow-up click can complete one); otherwise snap it back clean.
-    const hasMoves = !!view && view.legalMoves.some((m) => m.from === from);
-    selectedSquare = hasMoves ? from : null;
+    selectedSquare = null;
   }
   if (state.view) renderBoard(liveRefs, state.view);
 }

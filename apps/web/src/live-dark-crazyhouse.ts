@@ -43,8 +43,10 @@ import { clearSeatTokenForRoom, type LiveRefs } from './live-state.js';
 import { roomIdFromPath } from './room-url.js';
 import { boardAppearanceChangedEvent, setBoardFamily } from './theme.js';
 import { installBoardDrag } from './variant-tenant/board-drag.js';
+import { installHandDrag } from './variant-tenant/hand-drag.js';
 import { createTenantReplayController } from './variant-tenant/replay-controller.js';
 import { createTenantRoomChrome, type WebVariantTenant } from './variant-tenant/room-chrome.js';
+import { installSelectionClickAway } from './variant-tenant/selection-click-away.js';
 import {
   createTenantSocketClient,
   type TenantConnectionState,
@@ -59,8 +61,6 @@ const DROP_LETTER: Record<CrazyhouseDropRole, string> = {
   knight: 'N',
   pawn: 'P',
 };
-const HAND_DROP_MIME = 'application/x-mistboard-crazyhouse-drop';
-
 // ── Wire shapes (the subset this client consumes) ───────────────────────────
 
 type DarkCrazyhouseLiveClock = {
@@ -126,7 +126,6 @@ let refs: LiveRefs | null = null;
 let boardHost: HTMLElement | null = null;
 let lastCapturedView: CrazyhousePlayerView | null = null;
 let lastCapturedPositionKey: string | null = null;
-let draggedDropRole: CrazyhouseDropRole | null = null;
 
 const replay = createTenantReplayController<CrazyhousePlayerView>();
 
@@ -239,12 +238,19 @@ export function bootstrapDarkCrazyhouseLiveRoom(): void {
   });
 
   installBoardDragInteraction();
-  boardHost?.addEventListener('dragover', onBoardDragOver);
-  boardHost?.addEventListener('drop', onBoardDrop);
+  installHandDragInteraction();
   refs.capturesBottom.addEventListener('click', onHandClick);
-  refs.capturesBottom.addEventListener('dragstart', onHandDragStart);
-  refs.capturesBottom.addEventListener('dragend', onHandDragEnd);
   refs.promotion.addEventListener('click', onPromotionClick);
+  installSelectionClickAway({
+    roots: () => [boardHost, refs?.capturesBottom],
+    hasSelection: () =>
+      state.pendingPromotion === null && (state.selected !== null || state.selectedDrop !== null),
+    clearSelection: () => {
+      clearSelection();
+      state.draggingFrom = null;
+      renderAll();
+    },
+  });
 
   client = createTenantSocketClient({
     room,
@@ -308,6 +314,7 @@ function handleReplayKeyboard(event: KeyboardEvent): void {
 // (installBoardDragInteraction) so they survive every innerHTML re-render. Click is
 // the existing select/move/drop; drag lifts a visible own piece and drops it on a
 // target. A tap that never crosses the movement threshold falls through to click.
+// Reserve drops use installHandDragInteraction below.
 function installBoardDragInteraction(): void {
   if (!boardHost) return;
   installBoardDrag({
@@ -332,10 +339,27 @@ function installBoardDragInteraction(): void {
   });
 }
 
+function installHandDragInteraction(): void {
+  if (!refs) return;
+  installHandDrag({
+    hand: refs.capturesBottom,
+    ghostSizePx: CRAZYHOUSE_PIECE_PX,
+    isRole: isDropRole,
+    canDragRole: canDragHandRole,
+    ghostHtml: (role) => (isColor(state.seat) ? crazyhouseHandPieceSvg(role, state.seat) : null),
+    onDragStart: (role) => {
+      state.bounce = null;
+      state.selected = null;
+      state.selectedDrop = role;
+      renderAll();
+    },
+    onDrop: (role, to) => dropHandPiece(role, to),
+  });
+}
+
 // A visible own board piece can be dragged on your turn (it snaps back if you drop
 // it somewhere it cannot move). Your own pieces are always visible under fog, so a
-// piece sitting in your view.board with your colour is yours. Hand drops stay
-// click-only and are NOT routed through here.
+// piece sitting in your view.board with your colour is yours.
 function canDragBoardPiece(square: Square): boolean {
   const view = state.view;
   if (!view || !canActNow(view) || state.pendingPromotion) return false;
@@ -345,8 +369,7 @@ function canDragBoardPiece(square: Square): boolean {
 
 // A drag ended over `to` (null if dropped off-board or back on the source). Do
 // EXACTLY what a click board move from→to does, including opening the promotion
-// picker (submitBoardMove). Snap-back: keep the piece selected only if it has
-// moves, else deselect.
+// picker (submitBoardMove). A failed drop clears the selection and target dots.
 function dropBoardPiece(from: Square, to: Square | null): void {
   state.draggingFrom = null;
   const view = state.view;
@@ -360,9 +383,7 @@ function dropBoardPiece(from: Square, to: Square | null): void {
       return;
     }
   }
-  // Dropped off a legal target: keep selected only if the piece has moves (so a
-  // follow-up click can complete one), else snap back clean.
-  state.selected = view && moveTargets(view, from).length > 0 ? from : null;
+  state.selected = null;
   state.selectedDrop = null;
   renderAll();
 }
@@ -401,37 +422,6 @@ function handleSquareClick(square: Square): void {
   renderAll();
 }
 
-function onBoardDragOver(event: DragEvent): void {
-  const view = state.view;
-  if (!view || !canActNow(view) || state.pendingPromotion) return;
-  const role = draggedDropRole ?? state.selectedDrop ?? dropRoleFromTransfer(event.dataTransfer);
-  const square = dragTargetSquare(event);
-  if (!role || !square || !dropTargets(view, role).includes(square)) return;
-  event.preventDefault();
-  if (event.dataTransfer) event.dataTransfer.dropEffect = 'move';
-}
-
-function onBoardDrop(event: DragEvent): void {
-  const view = state.view;
-  if (!view || !canActNow(view) || state.pendingPromotion) return;
-  const role = draggedDropRole ?? dropRoleFromTransfer(event.dataTransfer) ?? state.selectedDrop;
-  const square = dragTargetSquare(event);
-  if (!role || !square) return;
-  if (!submitDrop(view, role, square)) return;
-  event.preventDefault();
-  draggedDropRole = null;
-}
-
-function dragTargetSquare(event: DragEvent): Square | null {
-  const target = (event.target as HTMLElement | null)?.closest('[data-square]');
-  return (target?.getAttribute('data-square') as Square | null) ?? null;
-}
-
-function dropRoleFromTransfer(dataTransfer: DataTransfer | null): CrazyhouseDropRole | null {
-  const raw = dataTransfer?.getData(HAND_DROP_MIME) ?? '';
-  return isDropRole(raw) ? raw : null;
-}
-
 function submitBoardMove(from: Square, to: Square, matches: CrazyhouseMove[]): void {
   const promotions = matches
     .map((move) => (isCrazyhouseDrop(move) ? undefined : move.promotion))
@@ -458,6 +448,27 @@ function submitDrop(view: CrazyhousePlayerView, role: CrazyhouseDropRole, square
   return true;
 }
 
+function canDragHandRole(role: CrazyhouseDropRole): boolean {
+  const view = state.view;
+  if (!view || !canActNow(view) || state.pendingPromotion) return false;
+  return (view.hand[role] ?? 0) > 0;
+}
+
+function dropHandPiece(role: CrazyhouseDropRole, to: string | null): void {
+  const view = state.view;
+  if (!view || !canActNow(view) || state.pendingPromotion) {
+    clearSelection();
+    renderAll();
+    return;
+  }
+  state.bounce = null;
+  state.selected = null;
+  state.selectedDrop = role;
+  if (to && isSquare(to) && submitDrop(view, role, to)) return;
+  clearSelection();
+  renderAll();
+}
+
 function onHandClick(event: MouseEvent): void {
   const view = state.view;
   if (!view) return;
@@ -471,32 +482,6 @@ function onHandClick(event: MouseEvent): void {
   state.selected = null;
   state.selectedDrop = state.selectedDrop === role ? null : role;
   renderAll();
-}
-
-function onHandDragStart(event: DragEvent): void {
-  const view = state.view;
-  if (!view || !canActNow(view) || state.pendingPromotion) return;
-  const target = (event.target as HTMLElement | null)?.closest('[data-drop]');
-  const role = target?.getAttribute('data-drop') ?? '';
-  if (!isDropRole(role) || (view.hand[role] ?? 0) <= 0 || !event.dataTransfer) return;
-  event.dataTransfer.effectAllowed = 'move';
-  event.dataTransfer.setData(HAND_DROP_MIME, role);
-  event.dataTransfer.setData('text/plain', DROP_LETTER[role]);
-  draggedDropRole = role;
-  state.bounce = null;
-  state.selected = null;
-  state.selectedDrop = role;
-  renderBoard(view);
-}
-
-function onHandDragEnd(): void {
-  if (!draggedDropRole) return;
-  const shouldClearSelection = state.selectedDrop === draggedDropRole;
-  draggedDropRole = null;
-  if (shouldClearSelection) {
-    state.selectedDrop = null;
-    renderAll();
-  }
 }
 
 function onPromotionClick(event: MouseEvent): void {
@@ -663,7 +648,7 @@ function handPiece(
     .join(' ');
   button.dataset.drop = role;
   button.disabled = !droppable;
-  button.draggable = droppable;
+  button.draggable = false;
   button.setAttribute('aria-label', `${role} in hand, ${count} available`);
   button.setAttribute('aria-grabbed', selected ? 'true' : 'false');
   button.setAttribute('aria-pressed', selected ? 'true' : 'false');
@@ -843,6 +828,10 @@ function orientationFor(view: CrazyhousePlayerView | null): Color {
 
 function isColor(value: unknown): value is Color {
   return value === 'white' || value === 'black';
+}
+
+function isSquare(value: string): value is Square {
+  return /^[a-h][1-8]$/.test(value);
 }
 
 export type { CrazyhouseHand };

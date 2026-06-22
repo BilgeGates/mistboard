@@ -46,6 +46,7 @@ import { installBoardDrag } from './variant-tenant/board-drag.js';
 import { syncMoveListScroll } from './variant-tenant/chrome-dom.js';
 import { createTenantReplayController } from './variant-tenant/replay-controller.js';
 import { createTenantRoomChrome, type WebVariantTenant } from './variant-tenant/room-chrome.js';
+import { installSelectionClickAway } from './variant-tenant/selection-click-away.js';
 import {
   createTenantSocketClient,
   type TenantConnectionState,
@@ -236,6 +237,15 @@ export function bootstrapDarkCrossroadsChessLiveRoom(): void {
   });
 
   installBoardInteraction();
+  installSelectionClickAway({
+    roots: () => [boardHost],
+    hasSelection: () => state.selected !== null,
+    clearSelection: () => {
+      state.selected = null;
+      draggingFrom = null;
+      if (state.view) renderBoard(replay.currentView(state.view));
+    },
+  });
 
   client = createTenantSocketClient({
     room,
@@ -376,9 +386,7 @@ function dropCrossroadsPiece(from: CrossroadsChessSquare, to: CrossroadsChessSqu
     sendCrossroadsMove(view, from, to);
     state.selected = null;
   } else {
-    // Dropped off a legal target. Keep the piece selected only if it actually has
-    // moves (so a follow-up click can complete one); otherwise snap back clean.
-    state.selected = targets.length > 0 ? from : null;
+    state.selected = null;
   }
   if (state.view) renderBoard(state.view);
 }

@@ -31,6 +31,7 @@ import { installBoardDrag } from './variant-tenant/board-drag.js';
 import { syncMoveListScroll } from './variant-tenant/chrome-dom.js';
 import { createTenantReplayController } from './variant-tenant/replay-controller.js';
 import { createTenantRoomChrome, type WebVariantTenant } from './variant-tenant/room-chrome.js';
+import { installSelectionClickAway } from './variant-tenant/selection-click-away.js';
 
 // Live-room shell for Dark Mini Xiangqi — the web reference tenant of the
 // Layer-3 extraction. The variant-agnostic chrome (clocks, countdowns, action
@@ -60,6 +61,7 @@ let dragFrom: MiniXiangqiSquare | null = null;
 // point (renderDarkMiniXiangqiRoom runs per render), so the drag is installed
 // once per distinct board element and re-used across innerHTML re-renders.
 let dragBoardEl: HTMLElement | null = null;
+let uninstallClickAway: (() => void) | null = null;
 let lastCapturedView: MiniXiangqiPlayerView | null = null;
 let lastCapturedPositionKey: string | null = null;
 let renderCallbacks: { reconnectNow: () => void; sendSocket: (payload: unknown) => boolean } = {
@@ -155,7 +157,17 @@ export function renderDarkMiniXiangqiRoom(
   renderCallbacks = callbacks;
   lastRefs = refs;
   if (dragBoardEl !== refs.board) {
+    uninstallClickAway?.();
     installMiniXiangqiBoardDrag(refs);
+    uninstallClickAway = installSelectionClickAway({
+      roots: () => [refs.board],
+      hasSelection: () => selectedSquare !== null,
+      clearSelection: () => {
+        selectedSquare = null;
+        dragFrom = null;
+        renderBoard(refs, replay.currentView(currentMiniView()));
+      },
+    });
     dragBoardEl = refs.board;
   }
   chrome.setRenderTarget(refs, callbacks);
@@ -347,10 +359,7 @@ function dropMiniPiece(from: MiniXiangqiSquare, to: MiniXiangqiSquare | null): v
       playSound(soundForOwnMiniXiangqiMove(view, move));
     }
   } else {
-    // Dropped off a legal target. Keep the piece selected only if it actually has
-    // moves (so a follow-up click can complete one); otherwise snap it back clean.
-    const hasMoves = !!view && view.legalMoves.some((m) => m.from === from);
-    selectedSquare = hasMoves ? from : null;
+    selectedSquare = null;
   }
   if (lastRefs && view) renderBoard(lastRefs, view);
 }

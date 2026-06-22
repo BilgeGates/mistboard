@@ -95,8 +95,8 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 52px;
-  height: 52px;
+  width: 58px;
+  height: 58px;
   padding: 0;
   border: 1px solid color-mix(in srgb, var(--site-border) 74%, transparent);
   border-radius: var(--site-radius-sm);
@@ -122,8 +122,8 @@
 }
 
 .crazyhouse-hand-piece__svg {
-  width: 44px;
-  height: 44px;
+  width: 50px;
+  height: 50px;
   pointer-events: none;
 }
 

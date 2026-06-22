@@ -50,7 +50,7 @@
 }
 
 .shogi-hands {
-  --shogi-hand-size: clamp(44px, 8.5cqw, 56px);
+  --shogi-hand-size: clamp(48px, 9cqw, 60px);
 
   display: flex;
   flex-wrap: wrap;
@@ -58,6 +58,13 @@
   gap: 5px;
   min-height: calc(var(--shogi-hand-size) + 6px);
   width: 100%;
+}
+
+.shogi-hands--own {
+  padding: 6px;
+  border: 1px solid var(--site-border);
+  border-radius: var(--site-radius-sm);
+  background: color-mix(in srgb, var(--site-panel) 82%, var(--site-bg));
 }
 
 .shogi-hands__empty {
@@ -74,14 +81,18 @@
   width: var(--shogi-hand-size);
   height: var(--shogi-hand-size);
   padding: 0;
-  border: 1px solid transparent;
+  border: 1px solid color-mix(in srgb, var(--site-border) 74%, transparent);
   border-radius: var(--site-radius-sm);
-  background: transparent;
+  background: var(--site-bg);
   cursor: default;
 }
 
 .shogi-hand-koma--droppable {
-  cursor: pointer;
+  cursor: grab;
+}
+
+.shogi-hand-koma--droppable:active {
+  cursor: grabbing;
 }
 
 .shogi-hand-koma--droppable:hover {

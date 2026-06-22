@@ -21,6 +21,7 @@ import * as darkCrossroadsChessGamesRoute from './routes/dark-crossroads-chess-g
 import * as darkMiniXiangqiGamesRoute from './routes/dark-mini-xiangqi-games.js';
 import * as darkShogiGamesRoute from './routes/dark-shogi-games.js';
 import * as darkXiangqiGamesRoute from './routes/dark-xiangqi-games.js';
+import * as dropMiniXiangqiGamesRoute from './routes/drop-mini-xiangqi-games.js';
 import * as enginesRoute from './routes/engines.js';
 import * as feedbackRoute from './routes/feedback.js';
 import * as gamesRoute from './routes/games.js';
@@ -71,6 +72,7 @@ const routes: RouteModule[] = [
   correspondenceSeeksRoute,
   lobbyRoute,
   darkMiniXiangqiGamesRoute,
+  dropMiniXiangqiGamesRoute,
   darkXiangqiGamesRoute,
   darkCrossroadsChessGamesRoute,
   darkShogiGamesRoute,

@@ -2,6 +2,7 @@ export type ClientMessage = {
   type: string;
   startId?: number;
   color?: string;
+  drop?: string;
   from?: string;
   to?: string;
   promotion?: string;

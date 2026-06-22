@@ -14,11 +14,13 @@ import {
   getDropMiniXiangqiPlayerView,
   getLegalDropMiniXiangqiDrops,
   getLegalDropMiniXiangqiMoves,
+  isDropMiniXiangqiGeneralInCheck,
   isLegalDropMiniXiangqiMove,
+  WILD_DROP_MINI_XIANGQI_RULES,
 } from './variants-drop-mini-xiangqi.js';
 import type { MiniXiangqiBoard, MiniXiangqiColor } from './variants-mini-xiangqi.js';
 
-test('initial state uses wild drop-anywhere policy with empty hands', () => {
+test('initial state uses no-enemy-palace drop policy with empty hands', () => {
   const state = createInitialDropMiniXiangqiState('drop-mini-initial');
 
   assert.deepEqual(state.rules, DEFAULT_DROP_MINI_XIANGQI_RULES);
@@ -32,6 +34,7 @@ test('non-general captures add the captured role to the capturer hand', () => {
     a1: { color: 'red', role: 'chariot' },
     a2: { color: 'black', role: 'horse' },
     d1: { color: 'red', role: 'general' },
+    d4: { color: 'red', role: 'soldier' },
     d7: { color: 'black', role: 'general' },
   });
 
@@ -43,15 +46,17 @@ test('non-general captures add the captured role to the capturer hand', () => {
   assert.equal(next.progressClock, 0);
 });
 
-test('capturing the general ends the game and never creates a hand piece', () => {
+test('direct general captures are illegal under checkmate rules', () => {
   const state = playingState({
     d1: { color: 'red', role: 'general' },
     d7: { color: 'black', role: 'general' },
   });
 
+  assert.equal(isLegalDropMiniXiangqiMove(state, { from: 'd1', to: 'd7' }), false);
   const next = applyDropMiniXiangqiMove(state, { from: 'd1', to: 'd7' });
 
-  assert.deepEqual(next.status, { type: 'finished', winner: 'red', reason: 'general-captured' });
+  assert.deepEqual(next.status, { type: 'playing', turn: 'red' });
+  assert.deepEqual(next.board.d7, { color: 'black', role: 'general' });
   assert.deepEqual(next.hands.red, {});
 });
 
@@ -59,14 +64,15 @@ test('drops consume a hand piece and place it as the dropping color', () => {
   const state = playingState(
     {
       d1: { color: 'red', role: 'general' },
+      d4: { color: 'red', role: 'soldier' },
       d7: { color: 'black', role: 'general' },
     },
     { hands: { red: { horse: 1 }, black: {} }, progressClock: 12 },
   );
 
-  const next = applyDropMiniXiangqiMove(state, { drop: 'horse', to: 'e5' });
+  const next = applyDropMiniXiangqiMove(state, { drop: 'horse', to: 'a5' });
 
-  assert.deepEqual(next.board.e5, { color: 'red', role: 'horse' });
+  assert.deepEqual(next.board.a5, { color: 'red', role: 'horse' });
   assert.deepEqual(next.hands.red, {});
   assert.deepEqual(next.status, { type: 'playing', turn: 'black' });
   assert.equal(next.progressClock, 0);
@@ -76,6 +82,7 @@ test('drop validation rejects no-hand, occupied-square, and general-drop attempt
   const state = playingState(
     {
       d1: { color: 'red', role: 'general' },
+      d4: { color: 'red', role: 'soldier' },
       d7: { color: 'black', role: 'general' },
     },
     { hands: { red: { horse: 1 }, black: {} } },
@@ -87,21 +94,61 @@ test('drop validation rejects no-hand, occupied-square, and general-drop attempt
   assert.equal(isLegalDropMiniXiangqiMove(state, generalDrop), false);
 });
 
-test('wild any-empty policy allows center, enemy-home, and palace drops', () => {
+test('default drop policy allows center and enemy-home edge drops but rejects enemy palace', () => {
   const state = playingState(
     {
       d1: { color: 'red', role: 'general' },
+      d4: { color: 'red', role: 'soldier' },
       d7: { color: 'black', role: 'general' },
     },
     { hands: { red: { horse: 3 }, black: {} } },
   );
 
-  assert.equal(isLegalDropMiniXiangqiMove(state, { drop: 'horse', to: 'd4' }), true);
+  assert.equal(isLegalDropMiniXiangqiMove(state, { drop: 'horse', to: 'c4' }), true);
   assert.equal(isLegalDropMiniXiangqiMove(state, { drop: 'horse', to: 'a7' }), true);
+  assert.equal(isLegalDropMiniXiangqiMove(state, { drop: 'horse', to: 'd5' }), false);
+  assert.equal(isLegalDropMiniXiangqiMove(state, { drop: 'horse', to: 'e7' }), false);
+});
+
+test('default drop policy rejects enemy palace symmetrically', () => {
+  const redState = playingState(
+    {
+      d1: { color: 'red', role: 'general' },
+      d4: { color: 'red', role: 'soldier' },
+      d7: { color: 'black', role: 'general' },
+    },
+    { hands: { red: { horse: 1 }, black: {} } },
+  );
+  const blackState = playingState(
+    {
+      d1: { color: 'red', role: 'general' },
+      d4: { color: 'red', role: 'soldier' },
+      d7: { color: 'black', role: 'general' },
+    },
+    { turn: 'black', hands: { red: {}, black: { horse: 1 } } },
+  );
+
+  assert.equal(isLegalDropMiniXiangqiMove(redState, { drop: 'horse', to: 'c5' }), false);
+  assert.equal(isLegalDropMiniXiangqiMove(redState, { drop: 'horse', to: 'f5' }), true);
+  assert.equal(isLegalDropMiniXiangqiMove(blackState, { drop: 'horse', to: 'e3' }), false);
+  assert.equal(isLegalDropMiniXiangqiMove(blackState, { drop: 'horse', to: 'b3' }), true);
+});
+
+test('wild comparator any-empty policy allows enemy palace drops', () => {
+  const state = playingState(
+    {
+      d1: { color: 'red', role: 'general' },
+      d4: { color: 'red', role: 'soldier' },
+      d7: { color: 'black', role: 'general' },
+    },
+    { hands: { red: { horse: 2 }, black: {} }, rules: WILD_DROP_MINI_XIANGQI_RULES },
+  );
+
+  assert.equal(isLegalDropMiniXiangqiMove(state, { drop: 'horse', to: 'd5' }), true);
   assert.equal(isLegalDropMiniXiangqiMove(state, { drop: 'horse', to: 'e7' }), true);
 });
 
-test('wild policy allows immediate general-capture threats by every drop role', () => {
+test('wild policy allows immediate checks by every drop role', () => {
   const baseHands: DropMiniXiangqiHands = {
     red: { chariot: 1, cannon: 1, horse: 1, soldier: 1 },
     black: {},
@@ -112,11 +159,12 @@ test('wild policy allows immediate general-capture threats by every drop role', 
       playingState(
         {
           d1: { color: 'red', role: 'general' },
+          d4: { color: 'red', role: 'soldier' },
           d7: { color: 'black', role: 'general' },
         },
-        { hands: baseHands },
+        { hands: baseHands, rules: WILD_DROP_MINI_XIANGQI_RULES },
       ),
-      { drop: 'chariot', to: 'd4' },
+      { drop: 'chariot', to: 'a7' },
     ),
     true,
   );
@@ -125,12 +173,12 @@ test('wild policy allows immediate general-capture threats by every drop role', 
       playingState(
         {
           d1: { color: 'red', role: 'general' },
-          d5: { color: 'red', role: 'soldier' },
+          d6: { color: 'red', role: 'soldier' },
           d7: { color: 'black', role: 'general' },
         },
-        { hands: baseHands },
+        { hands: baseHands, rules: WILD_DROP_MINI_XIANGQI_RULES },
       ),
-      { drop: 'cannon', to: 'd3' },
+      { drop: 'cannon', to: 'd5' },
     ),
     true,
   );
@@ -139,9 +187,10 @@ test('wild policy allows immediate general-capture threats by every drop role', 
       playingState(
         {
           d1: { color: 'red', role: 'general' },
+          d4: { color: 'red', role: 'soldier' },
           d7: { color: 'black', role: 'general' },
         },
-        { hands: baseHands },
+        { hands: baseHands, rules: WILD_DROP_MINI_XIANGQI_RULES },
       ),
       { drop: 'horse', to: 'c5' },
     ),
@@ -152,9 +201,10 @@ test('wild policy allows immediate general-capture threats by every drop role', 
       playingState(
         {
           d1: { color: 'red', role: 'general' },
+          d4: { color: 'red', role: 'soldier' },
           d7: { color: 'black', role: 'general' },
         },
-        { hands: baseHands },
+        { hands: baseHands, rules: WILD_DROP_MINI_XIANGQI_RULES },
       ),
       { drop: 'soldier', to: 'd6' },
     ),
@@ -162,7 +212,7 @@ test('wild policy allows immediate general-capture threats by every drop role', 
   );
 });
 
-test('wild policy allows dropping elsewhere while generals already face', () => {
+test('wild policy still requires a drop to answer an existing check', () => {
   const state = playingState(
     {
       d1: { color: 'red', role: 'general' },
@@ -171,7 +221,9 @@ test('wild policy allows dropping elsewhere while generals already face', () => 
     { hands: { red: { horse: 1 }, black: {} } },
   );
 
-  assert.equal(isLegalDropMiniXiangqiMove(state, { drop: 'horse', to: 'a4' }), true);
+  assert.equal(isDropMiniXiangqiGeneralInCheck(state, 'red'), true);
+  assert.equal(isLegalDropMiniXiangqiMove(state, { drop: 'horse', to: 'a4' }), false);
+  assert.equal(isLegalDropMiniXiangqiMove(state, { drop: 'horse', to: 'd4' }), true);
 });
 
 test('guarded comparator enforces home-three-ranks symmetrically', () => {
@@ -233,11 +285,72 @@ test('legal board moves still delegate to Mini Xiangqi movement', () => {
     b3: { color: 'red', role: 'soldier' },
     b6: { color: 'black', role: 'horse' },
     d1: { color: 'red', role: 'general' },
+    d4: { color: 'red', role: 'soldier' },
     d7: { color: 'black', role: 'general' },
   });
 
   assert.equal(isLegalDropMiniXiangqiMove(state, { from: 'b1', to: 'b6' }), true);
   assert.equal(isLegalDropMiniXiangqiMove(state, { from: 'b1', to: 'b5' }), false);
+});
+
+test('board moves cannot expose the moving side general to check', () => {
+  const state = playingState({
+    a1: { color: 'red', role: 'chariot' },
+    d1: { color: 'red', role: 'general' },
+    d4: { color: 'red', role: 'soldier' },
+    d7: { color: 'black', role: 'general' },
+  });
+
+  assert.equal(isLegalDropMiniXiangqiMove(state, { from: 'd4', to: 'c4' }), false);
+  assert.equal(isLegalDropMiniXiangqiMove(state, { from: 'd4', to: 'd5' }), true);
+  assert.equal(isLegalDropMiniXiangqiMove(state, { from: 'a1', to: 'a2' }), true);
+});
+
+test('a player in check must answer the check', () => {
+  const state = playingState(
+    {
+      a1: { color: 'red', role: 'chariot' },
+      d1: { color: 'red', role: 'general' },
+      d5: { color: 'black', role: 'chariot' },
+      e7: { color: 'black', role: 'general' },
+    },
+    { hands: { red: { soldier: 1 }, black: {} } },
+  );
+
+  assert.equal(isDropMiniXiangqiGeneralInCheck(state, 'red'), true);
+  assert.equal(isLegalDropMiniXiangqiMove(state, { from: 'a1', to: 'a2' }), false);
+  assert.equal(isLegalDropMiniXiangqiMove(state, { drop: 'soldier', to: 'd3' }), true);
+});
+
+test('checkmate ends the game before the general is captured', () => {
+  const state = playingState({
+    c1: { color: 'red', role: 'chariot' },
+    d1: { color: 'red', role: 'general' },
+    d4: { color: 'red', role: 'chariot' },
+    e1: { color: 'red', role: 'chariot' },
+    d7: { color: 'black', role: 'general' },
+  });
+
+  const next = applyDropMiniXiangqiMove(state, { from: 'd4', to: 'd3' });
+
+  assert.deepEqual(next.status, { type: 'finished', winner: 'red', reason: 'checkmate' });
+  assert.deepEqual(next.board.d7, { color: 'black', role: 'general' });
+  assert.deepEqual(next.hands.red, {});
+});
+
+test('no legal move without check is a xiangqi stalemate loss', () => {
+  const state = playingState({
+    a5: { color: 'red', role: 'chariot' },
+    c1: { color: 'red', role: 'chariot' },
+    d1: { color: 'red', role: 'general' },
+    d4: { color: 'red', role: 'soldier' },
+    e1: { color: 'red', role: 'chariot' },
+    d7: { color: 'black', role: 'general' },
+  });
+
+  const next = applyDropMiniXiangqiMove(state, { from: 'a5', to: 'a6' });
+
+  assert.deepEqual(next.status, { type: 'finished', winner: 'red', reason: 'stalemate' });
 });
 
 test('quiet board moves increment progress while captures and drops reset it', () => {
@@ -246,6 +359,7 @@ test('quiet board moves increment progress while captures and drops reset it', (
       {
         a1: { color: 'red', role: 'chariot' },
         d1: { color: 'red', role: 'general' },
+        d4: { color: 'red', role: 'soldier' },
         d7: { color: 'black', role: 'general' },
       },
       { progressClock: 4 },
@@ -258,6 +372,7 @@ test('quiet board moves increment progress while captures and drops reset it', (
         a1: { color: 'red', role: 'chariot' },
         a2: { color: 'black', role: 'horse' },
         d1: { color: 'red', role: 'general' },
+        d4: { color: 'red', role: 'soldier' },
         d7: { color: 'black', role: 'general' },
       },
       { progressClock: 4 },
@@ -268,6 +383,7 @@ test('quiet board moves increment progress while captures and drops reset it', (
     playingState(
       {
         d1: { color: 'red', role: 'general' },
+        d4: { color: 'red', role: 'soldier' },
         d7: { color: 'black', role: 'general' },
       },
       { hands: { red: { horse: 1 }, black: {} }, progressClock: 4 },
@@ -285,6 +401,7 @@ test('progress-clock draw still applies after quiet board moves', () => {
     {
       a1: { color: 'red', role: 'chariot' },
       d1: { color: 'red', role: 'general' },
+      d4: { color: 'red', role: 'soldier' },
       d7: { color: 'black', role: 'general' },
     },
     { progressClock: 1 },
@@ -332,6 +449,7 @@ test('one-turn cooldown withholds a capture for the capturer next turn', () => {
         a1: { color: 'red', role: 'chariot' },
         a2: { color: 'black', role: 'horse' },
         d1: { color: 'red', role: 'general' },
+        d4: { color: 'red', role: 'soldier' },
         d7: { color: 'black', role: 'general' },
       },
       { rules: COOLDOWN_DROP_MINI_XIANGQI_RULES },
@@ -340,7 +458,7 @@ test('one-turn cooldown withholds a capture for the capturer next turn', () => {
   );
   const blackMoved = applyDropMiniXiangqiMove(captured, { from: 'd7', to: 'e7' });
   const redCannotUseCooldown = getLegalDropMiniXiangqiDrops(blackMoved, 'red');
-  const redMoved = applyDropMiniXiangqiMove(blackMoved, { from: 'd1', to: 'e1' });
+  const redMoved = applyDropMiniXiangqiMove(blackMoved, { from: 'd1', to: 'c1' });
 
   assert.deepEqual(captured.hands.red, {});
   assert.deepEqual(captured.cooldownHands.red, { horse: 1 });
@@ -355,6 +473,7 @@ test('player view is perfect information with public hands', () => {
   const state = playingState(
     {
       d1: { color: 'red', role: 'general' },
+      d4: { color: 'red', role: 'soldier' },
       d7: { color: 'black', role: 'general' },
     },
     { hands: { red: { horse: 1 }, black: { cannon: 1 } } },
@@ -363,6 +482,7 @@ test('player view is perfect information with public hands', () => {
   const view = getDropMiniXiangqiPlayerView(state, 'red');
 
   assert.deepEqual(view.board.d7, { color: 'black', role: 'general' });
+  assert.equal(view.inCheck, false);
   assert.deepEqual(view.hands, { red: { horse: 1 }, black: { cannon: 1 } });
   assert.equal(
     view.legalMoves.some((move) => 'drop' in move && move.to === 'a4'),

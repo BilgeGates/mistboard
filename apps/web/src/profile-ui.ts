@@ -189,6 +189,9 @@ function profileGameHref(game: FeaturedGame): string {
   if (game.variant === 'dark-mini-xiangqi') {
     return `/dark-mini-xiangqi/game/${encodeURIComponent(game.roomId)}`;
   }
+  if (game.variant === 'drop-mini-xiangqi') {
+    return `/drop-mini-xiangqi/game/${encodeURIComponent(game.roomId)}`;
+  }
   if (game.variant === 'dark-xiangqi') {
     return `/dark-xiangqi/game/${encodeURIComponent(game.roomId)}`;
   }
@@ -211,6 +214,7 @@ function profileGameHref(game: FeaturedGame): string {
 function isRedBlackVariant(game: FeaturedGame): boolean {
   return (
     game.variant === 'dark-mini-xiangqi' ||
+    game.variant === 'drop-mini-xiangqi' ||
     game.variant === 'dark-xiangqi' ||
     game.variant === 'banqi' ||
     game.variant === 'jieqi'

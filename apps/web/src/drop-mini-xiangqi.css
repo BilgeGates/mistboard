@@ -1,0 +1,87 @@
+.drop-mini-reserve-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: nowrap;
+  gap: 8px;
+  line-height: 0;
+  max-width: 100%;
+  overflow: visible;
+  width: 100%;
+}
+
+.drop-mini-reserve-piece {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 var(--drop-mini-hand-tile-size);
+  width: var(--drop-mini-hand-tile-size);
+  height: var(--drop-mini-hand-tile-size);
+  border: 1px solid color-mix(in srgb, var(--site-border) 74%, transparent);
+  border-radius: var(--site-radius-sm);
+  padding: 0;
+  background: var(--site-bg);
+  color: inherit;
+}
+
+.drop-mini-reserve-piece svg {
+  display: block;
+  width: var(--drop-mini-hand-piece-size);
+  height: var(--drop-mini-hand-piece-size);
+}
+
+button.drop-mini-reserve-piece {
+  cursor: grab;
+}
+
+button.drop-mini-reserve-piece:active {
+  cursor: grabbing;
+}
+
+button.drop-mini-reserve-piece:hover:not(:disabled),
+.drop-mini-reserve-piece.selected {
+  border-color: color-mix(in srgb, var(--board-selected, #5f7d33) 90%, var(--site-border));
+  background: color-mix(in srgb, var(--board-selected, #cfe39a) 55%, transparent);
+}
+
+button.drop-mini-reserve-piece:disabled {
+  cursor: default;
+  opacity: 0.42;
+}
+
+.drop-mini-reserve-piece--cooldown {
+  opacity: 0.68;
+}
+
+.drop-mini-cooldown-badge {
+  top: -1px;
+  right: -1px;
+  bottom: auto;
+  background: #334155;
+}
+
+.drop-mini-reserve-container {
+  container-type: inline-size;
+}
+
+.drop-mini-reserve-strip {
+  --drop-mini-hand-piece-size: clamp(34px, calc(100cqw * 54 / 516), 62px);
+  --drop-mini-hand-tile-size: calc(var(--drop-mini-hand-piece-size) + 8px);
+  --drop-mini-hand-band-height: calc(var(--drop-mini-hand-piece-size) + 24px);
+
+  height: var(--drop-mini-hand-band-height);
+  min-height: var(--drop-mini-hand-band-height);
+  padding: 8px 2px;
+  box-sizing: border-box;
+  overflow: visible;
+}
+
+.drop-mini-reserve-strip:empty {
+  height: var(--drop-mini-hand-band-height);
+  min-height: var(--drop-mini-hand-band-height);
+}
+
+.drop-mini-reserve-strip .drop-mini-reserve-row {
+  min-height: var(--drop-mini-hand-tile-size);
+}

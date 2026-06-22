@@ -22,6 +22,7 @@ import {
   DARK_MINI_XIANGQI_SPEC_ID,
   DARK_SHOGI_SPEC_ID,
   DARK_XIANGQI_SPEC_ID,
+  DROP_MINI_XIANGQI_SPEC_ID,
   DUAL_CHESS_SPEC_ID,
   type GameSpecId,
   JIEQI_SPEC_ID,
@@ -39,6 +40,7 @@ import {
   darkMiniXiangqiPublicEntryEnabled,
   darkShogiEnabled,
   darkXiangqiEnabled,
+  dropMiniXiangqiEnabled,
   jieqiEnabled,
   kriegspielEnabled,
   revealChessEnabled,
@@ -356,6 +358,46 @@ const WEB_VARIANT_TENANTS: readonly WebVariantTenant[] = [
         },
       ],
       defaultEngineId: 'python-dmx-v1.0',
+    },
+  },
+  {
+    // Drop Mini Xiangqi (open 7x7 mini xiangqi with crazyhouse-style reserves).
+    // Self-contained live client on the socket-client + chrome stack, using the
+    // mini-xiangqi SVG board and reserve strips. PvP-first; FSF remains a lab
+    // viewer until there is a production engine protocol for this rule set.
+    gameSpecId: DROP_MINI_XIANGQI_SPEC_ID,
+    roomIdPrefix: 'dmxqd_',
+    enabled: dropMiniXiangqiEnabled,
+    pageTitle: 'Drop Mini Xiangqi',
+    gameRouteBase: '/drop-mini-xiangqi/game',
+    mountPostgame: (root, roomId) =>
+      import('../drop-mini-xiangqi-postgame.js').then(({ mountDropMiniXiangqiPostgame }) =>
+        mountDropMiniXiangqiPostgame(root, roomId),
+      ),
+    reviewRouteBase: '/drop-mini-xiangqi/game',
+    loadLiveRoomClient: () =>
+      import('../live-drop-mini-xiangqi.js').then(
+        ({ bootstrapDropMiniXiangqiLiveRoom }) =>
+          () =>
+            bootstrapDropMiniXiangqiLiveRoom(),
+      ),
+    watch: {
+      family: 'xiangqi',
+      mountReplay: (root, roomId, options) =>
+        import('../watch-drop-mini-xiangqi-replay.js').then(({ mountDropMiniXiangqiWatchReplay }) =>
+          mountDropMiniXiangqiWatchReplay(root, roomId, options),
+        ),
+    },
+    landing: {
+      capabilities: {
+        ...XIANGQI_CAPABILITIES_BASE,
+        supportsRated: true,
+        supportsStartFormat: false,
+        supportsTimeControl: true,
+      },
+      timePresetIds: ['1m1', '3m2', '5m5'],
+      offerInMenu: dropMiniXiangqiEnabled,
+      acceptsDeepLink: dropMiniXiangqiEnabled,
     },
   },
   {

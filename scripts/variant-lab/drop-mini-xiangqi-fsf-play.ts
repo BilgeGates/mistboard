@@ -4,8 +4,9 @@
 //   node_modules/.bin/tsx scripts/variant-lab/drop-mini-xiangqi-fsf-play.ts
 //   node_modules/.bin/tsx scripts/variant-lab/drop-mini-xiangqi-fsf-play.ts --mode selfplay --games 3
 //
-// FSF uses orthodox check semantics. Mistboard's S0 kernel is general-capture,
-// so this is an engine balance probe, not the product referee.
+// FSF uses orthodox check semantics. Mistboard now uses checkmate semantics for
+// Drop Mini Xiangqi, so this is close enough for balance probes while remaining
+// lab-only.
 
 import { type ChildProcessWithoutNullStreams, spawn } from 'node:child_process';
 import { existsSync, writeFileSync } from 'node:fs';
@@ -21,6 +22,7 @@ import {
   type DropMiniXiangqiRules,
   GUARDED_DROP_MINI_XIANGQI_RULES,
   isLegalDropMiniXiangqiMove,
+  WILD_DROP_MINI_XIANGQI_RULES,
 } from '../../packages/game/src/variants-drop-mini-xiangqi.ts';
 import type {
   MiniXiangqiBoard,
@@ -29,7 +31,7 @@ import type {
   MiniXiangqiSquare,
 } from '../../packages/game/src/variants-mini-xiangqi.ts';
 
-type FsfPolicy = 'wild' | 'no-threat' | 'home';
+type FsfPolicy = 'wild' | 'no-enemy-palace' | 'no-threat' | 'home';
 
 type CliOptions = {
   fsfPath: string;
@@ -104,6 +106,7 @@ type ReplayGame = {
 
 const FSF_VARIANT_BY_POLICY: Record<FsfPolicy, string> = {
   wild: 'dropminixiangqi-wild',
+  'no-enemy-palace': 'dropminixiangqi-no-enemy-palace',
   'no-threat': 'dropminixiangqi-no-threat',
   home: 'dropminixiangqi-home',
 };
@@ -112,7 +115,7 @@ const START_FEN = 'rcnkncr/p1ppp1p/7/7/7/P1PPP1P/RCNKNCR[] w - - 0 1';
 const CANNON_IN_HAND_FEN = 'rcnkncr/p1ppp1p/7/7/7/P1PPP1P/RCNKNCR[C] w - - 0 1';
 const ALL_PIECES_IN_HAND_FEN = 'rcnkncr/p1ppp1p/7/7/7/P1PPP1P/RCNKNCR[RCNP] w - - 0 1';
 
-const DEFAULT_POLICIES: readonly FsfPolicy[] = ['wild', 'no-threat', 'home'];
+const DEFAULT_POLICIES: readonly FsfPolicy[] = ['wild', 'no-enemy-palace', 'no-threat', 'home'];
 const UCI_DROP = /^[A-Z]@[a-g][1-7]$/;
 const PERFT_LINE = /^([A-Z]@[a-g][1-7]|[a-g][1-7][a-g][1-7][a-z]?):\s+(\d+)$/;
 const FSF_DROP_ROLE: Record<string, DropMiniXiangqiDropRole> = {
@@ -127,6 +130,22 @@ const ROLE_LABEL: Record<MiniXiangqiPieceRole, string> = {
   general: 'G',
   horse: 'H',
   soldier: 'S',
+};
+const PIECE_GLYPH: Record<MiniXiangqiColor, Record<MiniXiangqiPieceRole, string>> = {
+  black: {
+    cannon: '砲',
+    chariot: '車',
+    general: '將',
+    horse: '馬',
+    soldier: '卒',
+  },
+  red: {
+    cannon: '炮',
+    chariot: '俥',
+    general: '帥',
+    horse: '傌',
+    soldier: '兵',
+  },
 };
 
 class FsfSession {
@@ -371,7 +390,7 @@ async function runProbe(opts: CliOptions): Promise<void> {
           ? []
           : [...wildMoves].filter((move) => !result.perft.moves.includes(move));
       console.log(
-        `${policy.padEnd(9)} legal=${result.perft.nodes.toString().padStart(3)} drops=${result.perft.drops.length
+        `${policy.padEnd(17)} legal=${result.perft.nodes.toString().padStart(3)} drops=${result.perft.drops.length
           .toString()
           .padStart(
             3,
@@ -525,13 +544,14 @@ function parseFsfMove(token: string): DropMiniXiangqiMove | null {
 
 function rulesForFsfPolicy(policy: FsfPolicy): DropMiniXiangqiRules {
   if (policy === 'home') return GUARDED_DROP_MINI_XIANGQI_RULES;
+  if (policy === 'no-enemy-palace') return DEFAULT_DROP_MINI_XIANGQI_RULES;
   if (policy === 'no-threat') {
     return {
-      ...DEFAULT_DROP_MINI_XIANGQI_RULES,
+      ...WILD_DROP_MINI_XIANGQI_RULES,
       dropAttack: 'forbid-immediate-general-threat',
     };
   }
-  return DEFAULT_DROP_MINI_XIANGQI_RULES;
+  return WILD_DROP_MINI_XIANGQI_RULES;
 }
 
 function snapshotOf(
@@ -599,148 +619,311 @@ function replayHtml(opts: CliOptions, games: ReplayGame[]): string {
   <title>Drop Mini Xiangqi Wild FSF Replay</title>
   <style>
     :root {
-      color-scheme: light;
-      --bg: #f5f1e8;
-      --ink: #241b14;
-      --muted: #6f6257;
-      --line: #9a6a35;
-      --panel: #fffaf0;
-      --red: #b4232d;
-      --black: #202020;
-      --accent: #286d5a;
+      color-scheme: dark;
+      --page: #171a1e;
+      --shell: #22262b;
+      --shell-2: #2c3137;
+      --board: #ecd7aa;
+      --ink: #191713;
+      --cream: #fff8e6;
+      --muted: #aeb7be;
+      --muted-dark: #5f5141;
+      --red: #bc3038;
+      --black: #121417;
+      --accent: #1f9a7a;
+      --accent-2: #78d2bf;
+      --warning: #ffb27c;
     }
     * { box-sizing: border-box; }
     body {
       margin: 0;
       font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-      color: var(--ink);
-      background: var(--bg);
+      color: var(--cream);
+      background: linear-gradient(180deg, #101316 0%, var(--page) 48%, #1d2024 100%);
     }
     main {
-      width: min(1180px, calc(100vw - 32px));
+      width: min(1420px, calc(100vw - 32px));
       margin: 0 auto;
-      padding: 24px 0 36px;
+      padding: 20px 0 32px;
     }
     header {
       display: flex;
       justify-content: space-between;
       gap: 16px;
-      align-items: end;
-      margin-bottom: 16px;
+      align-items: flex-end;
+      margin-bottom: 14px;
+    }
+    .eyebrow {
+      margin: 0 0 6px;
+      color: var(--accent-2);
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: 0;
+      text-transform: uppercase;
     }
     h1 {
-      font-size: 24px;
+      font-size: 28px;
       line-height: 1.15;
-      margin: 0 0 4px;
+      margin: 0;
     }
     .subtle {
       color: var(--muted);
       font-size: 13px;
     }
+    .run-card {
+      min-width: 290px;
+      padding: 10px 12px;
+      border: 1px solid rgba(255, 248, 230, 0.11);
+      border-radius: 8px;
+      background: rgba(255, 248, 230, 0.04);
+      color: #d7dde1;
+      font-size: 13px;
+      line-height: 1.45;
+      text-align: right;
+    }
     .controls {
       display: flex;
       flex-wrap: wrap;
-      gap: 8px;
+      gap: 10px;
       align-items: center;
-      margin: 0 0 16px;
-      padding: 12px;
-      background: var(--panel);
-      border: 1px solid rgba(36, 27, 20, 0.12);
+      margin: 0 0 14px;
+      padding: 10px;
+      background: var(--shell);
+      border: 1px solid rgba(255, 248, 230, 0.1);
       border-radius: 8px;
+    }
+    .select-wrap {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      height: 36px;
+      padding: 0 8px;
+      border-radius: 6px;
+      background: rgba(255, 248, 230, 0.05);
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 700;
+      text-transform: uppercase;
     }
     button,
     select {
-      height: 34px;
-      border: 1px solid rgba(36, 27, 20, 0.18);
+      height: 36px;
+      border: 1px solid rgba(255, 248, 230, 0.16);
       border-radius: 6px;
-      background: #fff;
-      color: var(--ink);
-      padding: 0 10px;
+      background: #30363d;
+      color: var(--cream);
+      padding: 0 12px;
       font: inherit;
+    }
+    select {
+      min-width: 210px;
+      background: #1d2227;
+      color: var(--cream);
     }
     button {
       cursor: pointer;
     }
     button:hover {
       border-color: var(--accent);
+      color: #ffffff;
+    }
+    .icon-button {
+      width: 40px;
+      padding: 0;
+      font-weight: 800;
+      line-height: 1;
     }
     input[type="range"] {
       flex: 1 1 260px;
       min-width: 160px;
       accent-color: var(--accent);
     }
+    .frame-label {
+      min-width: 100px;
+      color: #d8e0e5;
+      font-size: 13px;
+      text-align: right;
+    }
     .layout {
       display: grid;
-      grid-template-columns: minmax(320px, 480px) minmax(260px, 1fr);
-      gap: 16px;
+      grid-template-columns: minmax(360px, 760px) minmax(320px, 1fr);
+      gap: 18px;
       align-items: start;
     }
-    .panel {
-      background: var(--panel);
-      border: 1px solid rgba(36, 27, 20, 0.12);
+    .board-panel,
+    .side-panel {
       border-radius: 8px;
-      padding: 14px;
+      border: 1px solid rgba(255, 248, 230, 0.11);
     }
-    .board {
-      display: grid;
-      grid-template-columns: repeat(7, minmax(38px, 1fr));
+    .board-panel {
+      padding: 14px;
+      background: #f3e6c8;
+      color: var(--ink);
+      box-shadow: 0 18px 52px rgba(0, 0, 0, 0.32);
+    }
+    .board-stage {
+      position: relative;
       aspect-ratio: 1;
-      border: 2px solid var(--line);
       border-radius: 8px;
       overflow: hidden;
-      background:
-        linear-gradient(rgba(154, 106, 53, 0.55) 1px, transparent 1px),
-        linear-gradient(90deg, rgba(154, 106, 53, 0.55) 1px, transparent 1px),
-        #f8e6bd;
-      background-size: calc(100% / 6) calc(100% / 6);
-      background-position: 0 0;
+      background: var(--board);
+      border: 1px solid rgba(25, 23, 19, 0.35);
     }
-    .cell {
-      position: relative;
-      display: grid;
-      place-items: center;
-      min-width: 0;
-      min-height: 0;
+    .board-stage svg {
+      display: block;
+      width: 100%;
+      height: 100%;
     }
-    .cell::after {
-      content: attr(data-square);
-      position: absolute;
-      left: 4px;
-      bottom: 3px;
-      font-size: 10px;
-      color: rgba(36, 27, 20, 0.42);
+    .svg-board-bg {
+      fill: url(#boardWash);
     }
-    .cell.last-from {
-      background: rgba(40, 109, 90, 0.16);
+    .svg-board-frame {
+      fill: none;
+      stroke: rgba(60, 38, 13, 0.64);
+      stroke-width: 4;
     }
-    .cell.last-to {
-      background: rgba(180, 35, 45, 0.16);
+    .grid-line {
+      stroke: rgba(91, 62, 28, 0.72);
+      stroke-width: 2.2;
+      stroke-linecap: round;
     }
-    .piece {
-      width: min(82%, 54px);
-      aspect-ratio: 1;
-      display: grid;
-      place-items: center;
-      border-radius: 50%;
-      background: #fff9e8;
-      border: 2px solid currentColor;
-      box-shadow: 0 2px 4px rgba(36, 27, 20, 0.18);
-      font-family: ui-serif, Georgia, serif;
-      font-size: clamp(18px, 5vw, 32px);
+    .palace-line {
+      stroke: rgba(91, 62, 28, 0.5);
+      stroke-width: 2;
+      stroke-linecap: round;
+    }
+    .coord-label {
+      fill: rgba(45, 35, 22, 0.55);
+      font-size: 16px;
       font-weight: 700;
+      text-anchor: middle;
+      dominant-baseline: middle;
+    }
+    .move-vector {
+      stroke: rgba(31, 154, 122, 0.7);
+      stroke-width: 7;
+      stroke-linecap: round;
+    }
+    .last-ring {
+      fill: none;
+      stroke-width: 7;
+    }
+    .last-from {
+      stroke: rgba(31, 154, 122, 0.82);
+    }
+    .last-to {
+      stroke: rgba(188, 48, 56, 0.86);
+    }
+    .piece-shadow {
+      filter: url(#pieceShadow);
+    }
+    .piece-disc {
+      fill: #f8ead0;
+      stroke-width: 3.2;
+    }
+    .piece-disc.red {
+      stroke: #9e2428;
+    }
+    .piece-disc.black {
+      stroke: #141a1f;
+    }
+    .piece-inner-ring {
+      fill: none;
+      opacity: 0.72;
+      stroke-width: 1.8;
+    }
+    .piece-inner-ring.red {
+      stroke: #9e2428;
+    }
+    .piece-inner-ring.black {
+      stroke: #141a1f;
+    }
+    .piece-text {
+      font-family: "Noto Serif CJK SC", "Songti SC", "STSong", serif;
+      font-size: 39px;
+      font-weight: 700;
+      text-anchor: middle;
+      dominant-baseline: central;
       line-height: 1;
     }
-    .piece.red {
-      color: var(--red);
+    .piece-text.red {
+      fill: #9e2428;
     }
-    .piece.black {
-      color: var(--black);
+    .piece-text.black {
+      fill: #141a1f;
     }
     .meta {
       display: grid;
-      gap: 8px;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 8px 12px;
       margin-top: 12px;
-      font-size: 14px;
+      align-items: center;
+      font-size: 13px;
+      color: var(--muted-dark);
+    }
+    .ply-title {
+      color: var(--ink);
+      font-size: 16px;
+      font-weight: 800;
+    }
+    .status-pill {
+      justify-self: end;
+      max-width: 100%;
+      border-radius: 999px;
+      padding: 5px 9px;
+      background: rgba(31, 154, 122, 0.12);
+      color: #205c4d;
+      font-size: 12px;
+      font-weight: 800;
+      white-space: nowrap;
+    }
+    .side-panel {
+      display: grid;
+      gap: 14px;
+      padding: 14px;
+      background: var(--shell);
+      box-shadow: 0 18px 52px rgba(0, 0, 0, 0.22);
+    }
+    .section-title {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 8px;
+      color: #f6efe1;
+      font-size: 13px;
+      font-weight: 800;
+      text-transform: uppercase;
+    }
+    .stats {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 8px;
+    }
+    .stat {
+      min-width: 0;
+      padding: 9px 10px;
+      border-radius: 8px;
+      background: var(--shell-2);
+      border: 1px solid rgba(255, 248, 230, 0.08);
+    }
+    .stat span {
+      display: block;
+      color: var(--muted);
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      white-space: nowrap;
+    }
+    .stat strong {
+      display: block;
+      overflow: hidden;
+      margin-top: 3px;
+      color: #fff7e8;
+      font-size: 18px;
+      line-height: 1.15;
+      text-overflow: ellipsis;
+      white-space: nowrap;
     }
     .hands {
       display: grid;
@@ -748,22 +931,84 @@ function replayHtml(opts: CliOptions, games: ReplayGame[]): string {
       gap: 8px;
     }
     .hand {
-      padding: 8px;
+      min-width: 0;
+      padding: 10px;
+      border-radius: 8px;
+      background: #f6ecd7;
+      color: var(--ink);
+    }
+    .hand-title {
+      display: flex;
+      justify-content: space-between;
+      gap: 8px;
+      margin-bottom: 8px;
+      font-size: 12px;
+      font-weight: 800;
+      text-transform: uppercase;
+    }
+    .hand-title strong {
+      color: var(--muted-dark);
+    }
+    .hand-chips {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 6px;
+    }
+    .hand-chip {
+      min-width: 0;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 5px;
+      min-height: 30px;
+      padding: 4px 6px;
       border-radius: 6px;
-      background: rgba(255, 255, 255, 0.55);
+      border: 1px solid rgba(25, 23, 19, 0.16);
+      background: rgba(255, 255, 255, 0.45);
+      font-size: 12px;
+      font-weight: 800;
+    }
+    .hand-chip.dim {
+      color: rgba(25, 23, 19, 0.4);
+    }
+    .hand-chip small {
+      color: #8d4c1e;
+      font-size: 10px;
+      font-weight: 800;
+    }
+    .timeline {
+      min-height: 0;
+    }
+    .timeline-head {
+      display: flex;
+      justify-content: space-between;
+      gap: 10px;
+      margin-bottom: 8px;
+      color: #f6efe1;
+      font-size: 13px;
+      font-weight: 800;
+      text-transform: uppercase;
     }
     .move-list {
-      display: flex;
-      flex-wrap: wrap;
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(92px, 1fr));
       gap: 6px;
-      max-height: 520px;
+      max-height: min(570px, calc(100vh - 250px));
       overflow: auto;
       padding-right: 2px;
     }
     .move-list button {
-      height: 28px;
+      min-width: 0;
+      height: 34px;
+      display: flex;
+      align-items: center;
+      justify-content: flex-start;
+      gap: 6px;
       font-size: 12px;
-      padding: 0 8px;
+      padding: 0 9px;
+      background: #30363d;
+      border-color: rgba(255, 248, 230, 0.12);
+      text-align: left;
     }
     .move-list button.current {
       color: #fff;
@@ -771,63 +1016,676 @@ function replayHtml(opts: CliOptions, games: ReplayGame[]): string {
       border-color: var(--accent);
     }
     .move-list button.drop {
-      border-color: rgba(180, 35, 45, 0.45);
+      border-color: rgba(188, 48, 56, 0.72);
+      box-shadow: inset 3px 0 0 var(--red);
+    }
+    .move-index {
+      flex: 0 0 auto;
+      color: rgba(255, 248, 230, 0.58);
+      font-weight: 800;
+    }
+    .move-token {
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
     }
     .warning {
       display: none;
-      margin-top: 10px;
-      padding: 8px;
-      border-radius: 6px;
-      color: #7a240d;
-      background: #ffe6d8;
+      padding: 9px 10px;
+      border-radius: 8px;
+      color: #3b1605;
+      background: var(--warning);
+      font-size: 13px;
+      font-weight: 700;
     }
     .warning.visible {
       display: block;
     }
-    @media (max-width: 820px) {
+    @media (max-width: 980px) {
       header {
         display: block;
       }
+      .run-card {
+        margin-top: 12px;
+        text-align: left;
+      }
       .layout {
         grid-template-columns: 1fr;
+      }
+      .move-list {
+        max-height: 360px;
+      }
+    }
+    @media (max-width: 620px) {
+      main {
+        width: min(100vw - 20px, 1420px);
+        padding-top: 12px;
+      }
+      h1 {
+        font-size: 22px;
+      }
+      .controls {
+        gap: 8px;
+      }
+      .select-wrap,
+      select {
+        width: 100%;
+      }
+      .frame-label {
+        flex: 1 1 100%;
+        text-align: left;
+      }
+      .stats,
+      .hands {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    /* Mistboard app-shell skin for the standalone lab export. */
+    :root {
+      color-scheme: light;
+      --site-radius: 7px;
+      --site-radius-sm: 5px;
+      --site-bg: hsl(168, 10%, 93%);
+      --site-bg-soft: hsl(168, 10%, 89%);
+      --site-text: hsl(168, 3%, 30%);
+      --site-heading: hsl(168, 8%, 19%);
+      --site-muted: hsl(168, 2%, 47%);
+      --site-panel: #ffffff;
+      --site-panel-soft: hsl(168, 12%, 96.5%);
+      --site-border: hsl(168, 5%, 84%);
+      --site-border-soft: hsl(168, 5%, 89%);
+      --site-accent: #1f6f5b;
+      --site-accent-strong: #185947;
+      --site-accent-soft: #eef8f2;
+      --site-on-accent: #ffffff;
+      --site-hover: hsl(168, 6%, 88%);
+      --site-shadow: rgba(29, 37, 34, 0.15);
+      --site-warning-bg: #fff4d6;
+      --site-warning-border: #e6c870;
+      --site-warning-text: #5a3d05;
+      --xq-board-bg: #f5dca8;
+      --xq-line: #5a3a14;
+      --xq-edge: #8b5a24;
+      --xq-red: #b8322c;
+      --xq-black: #1f2521;
+      --accent: var(--site-accent);
+      --red: var(--xq-red);
+      --black: var(--xq-black);
+    }
+    body {
+      color: var(--site-text);
+      background: var(--site-bg);
+      font-family:
+        "Noto Sans", ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
+        sans-serif;
+    }
+    .site-nav {
+      position: sticky;
+      top: 0;
+      z-index: 10;
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      min-height: 58px;
+      padding: 12px clamp(16px, 3vw, 34px);
+      background: var(--site-bg);
+      border-bottom: 1px solid transparent;
+    }
+    .site-nav-brand {
+      display: inline-flex;
+      align-items: center;
+      gap: 9px;
+      color: var(--site-text);
+      font-size: 14px;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      text-decoration: none;
+    }
+    .site-nav-logo {
+      position: relative;
+      width: 28px;
+      height: 28px;
+      flex: 0 0 auto;
+      border-radius: var(--site-radius-sm);
+      background:
+        linear-gradient(90deg, rgba(31, 111, 91, 0.88) 0 50%, rgba(31, 37, 33, 0.92) 50% 100%),
+        #ffffff;
+      box-shadow: inset 0 0 0 1px rgba(29, 37, 34, 0.18);
+    }
+    .site-nav-logo::before,
+    .site-nav-logo::after {
+      content: "";
+      position: absolute;
+      inset: 6px;
+      border-radius: 50%;
+      border: 2px solid rgba(255, 255, 255, 0.9);
+    }
+    .site-nav-logo::after {
+      inset: 11px;
+      background: rgba(255, 255, 255, 0.92);
+      border: 0;
+    }
+    .site-nav-links,
+    .site-nav-utilities {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .site-nav-utilities {
+      margin-left: auto;
+    }
+    .site-nav-link {
+      border: 0;
+      border-radius: var(--site-radius-sm);
+      background: transparent;
+      color: var(--site-muted);
+      font-size: 14px;
+      font-weight: 600;
+      padding: 7px 10px;
+      text-decoration: none;
+    }
+    .site-nav-link.active {
+      color: var(--site-text);
+      background: var(--site-hover);
+      box-shadow: inset 0 -2px 0 var(--site-accent);
+    }
+    main.game-shell {
+      width: 100%;
+      max-width: 1600px;
+      margin: 0 auto;
+      padding: 18px 16px 28px;
+    }
+    header.game-header {
+      display: flex;
+      align-items: flex-end;
+      justify-content: space-between;
+      gap: 16px;
+      margin-bottom: 16px;
+      padding-bottom: 14px;
+      border-bottom: 1px solid #e1ddd2;
+    }
+    .game-header-text {
+      display: grid;
+      gap: 4px;
+      min-width: 0;
+    }
+    .game-source {
+      margin: 0;
+      color: #5a6960;
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: 0;
+      text-transform: uppercase;
+    }
+    .game-title {
+      margin: 0;
+      color: #1f2521;
+      font-size: clamp(22px, 3vw, 34px);
+      line-height: 1.1;
+      overflow-wrap: anywhere;
+    }
+    .game-summary-line {
+      margin: 0;
+      color: #5a6960;
+      font-size: 14px;
+    }
+    .run-card {
+      min-width: 260px;
+      padding: 0;
+      border: 0;
+      border-radius: 0;
+      background: transparent;
+      color: var(--site-muted);
+      font-size: 12px;
+      line-height: 1.45;
+      text-align: right;
+    }
+    .layout {
+      display: grid;
+      grid-template-columns: clamp(200px, 14vw, 240px) minmax(0, 1fr) clamp(200px, 14vw, 240px);
+      gap: 10px;
+      align-items: start;
+    }
+    .board-panel {
+      display: grid;
+      gap: 10px;
+      justify-items: center;
+      min-width: 0;
+      padding: 14px;
+      border: 1px solid var(--site-border-soft);
+      border-radius: var(--site-radius);
+      background: var(--site-panel-soft);
+      box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03);
+    }
+    .board-stage {
+      width: min(100%, 72vh, 720px);
+      aspect-ratio: 1;
+      border: 1px solid rgba(79, 52, 22, 0.28);
+      border-radius: 16px;
+      background: var(--xq-board-bg);
+      box-shadow: 0 18px 50px rgba(37, 31, 24, 0.16);
+    }
+    .svg-board-bg {
+      fill: var(--xq-board-bg);
+    }
+    .svg-board-frame {
+      stroke: var(--xq-edge);
+      stroke-width: 2;
+    }
+    .grid-line,
+    .palace-line {
+      stroke: var(--xq-line);
+      stroke-width: 1.8;
+    }
+    .coord-label {
+      fill: rgba(90, 58, 20, 0.62);
+      font-size: 14px;
+      font-weight: 700;
+    }
+    .move-vector {
+      stroke: rgba(31, 111, 91, 0.58);
+      stroke-width: 6;
+    }
+    .last-ring {
+      stroke-width: 6;
+    }
+    .last-from {
+      stroke: rgba(31, 111, 91, 0.72);
+    }
+    .last-to {
+      stroke: rgba(184, 50, 44, 0.72);
+    }
+    .piece-shadow {
+      filter: drop-shadow(0 3px 4px rgba(35, 27, 18, 0.24));
+    }
+    .piece-disc.red,
+    .piece-disc.black {
+      fill: #f8ead0;
+      stroke-width: 3;
+    }
+    .piece-disc.red {
+      stroke: var(--xq-red);
+    }
+    .piece-disc.black {
+      stroke: var(--xq-black);
+    }
+    .piece-inner-ring {
+      fill: none;
+      opacity: 0.74;
+      stroke-width: 1.6;
+    }
+    .piece-inner-ring.red {
+      stroke: var(--xq-red);
+    }
+    .piece-inner-ring.black {
+      stroke: var(--xq-black);
+    }
+    .piece-text {
+      font-family: "Noto Serif CJK SC", "Songti SC", "STSong", serif;
+      font-size: 39px;
+      font-weight: 700;
+    }
+    .piece-text.red {
+      fill: var(--xq-red);
+    }
+    .piece-text.black {
+      fill: var(--xq-black);
+    }
+    .meta {
+      width: 100%;
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 5px 10px;
+      margin-top: 0;
+      color: var(--site-muted);
+    }
+    .ply-title {
+      color: var(--site-heading);
+      font-size: 15px;
+      font-weight: 700;
+    }
+    .status-pill {
+      border-radius: 999px;
+      padding: 4px 9px;
+      background: var(--site-accent-soft);
+      color: var(--site-accent-strong);
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+    }
+    .side-panel {
+      display: grid;
+      gap: 10px;
+      min-width: 0;
+      padding: 0;
+      border: 0;
+      border-radius: 0;
+      background: transparent;
+      box-shadow: none;
+    }
+    .panel-section {
+      display: grid;
+      gap: 8px;
+      padding: 10px;
+      border: 1px solid #d3d9d2;
+      border-radius: var(--site-radius);
+      background: #f7f5ef;
+    }
+    .section-title,
+    .timeline-head {
+      color: var(--site-heading);
+      font-size: 13px;
+      font-weight: 700;
+      text-transform: none;
+    }
+    .section-title {
+      margin: 0;
+    }
+    .stats {
+      grid-template-columns: 1fr;
+      gap: 3px;
+    }
+    .stat {
+      display: grid;
+      grid-template-columns: minmax(48px, 0.72fr) minmax(0, 1fr);
+      align-items: center;
+      gap: 6px;
+      min-height: 22px;
+      padding: 0;
+      border: 0;
+      border-radius: 0;
+      background: transparent;
+    }
+    .stat span {
+      color: var(--site-muted);
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: none;
+    }
+    .stat strong {
+      margin-top: 0;
+      color: var(--site-heading);
+      font-size: 12px;
+      font-weight: 700;
+    }
+    .hands {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 8px;
+    }
+    .hand {
+      padding: 0;
+      border-radius: 0;
+      background: transparent;
+      color: var(--site-text);
+    }
+    .hand-title {
+      margin-bottom: 6px;
+      color: var(--site-heading);
+      font-size: 12px;
+      font-weight: 700;
+      text-transform: none;
+    }
+    .hand-title strong {
+      color: var(--site-muted);
+    }
+    .hand-chips {
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 4px;
+    }
+    .hand-chip {
+      min-height: 28px;
+      padding: 4px 5px;
+      border: 1px solid var(--site-border-soft);
+      border-radius: var(--site-radius-sm);
+      background: var(--site-panel);
+      color: var(--site-heading);
+      font-size: 12px;
+      font-weight: 700;
+    }
+    .hand-chip.dim {
+      color: var(--site-muted);
+      opacity: 0.58;
+    }
+    .hand-chip small {
+      color: var(--site-accent-strong);
+    }
+    .controls {
+      display: grid;
+      gap: 8px;
+      margin: 0;
+      padding: 10px;
+      border: 1px solid #d3d9d2;
+      border-radius: var(--site-radius);
+      background: #f7f5ef;
+    }
+    .select-wrap {
+      display: grid;
+      gap: 5px;
+      height: auto;
+      padding: 0;
+      border-radius: 0;
+      background: transparent;
+      color: var(--site-muted);
+      font-size: 12px;
+      font-weight: 700;
+      text-transform: none;
+    }
+    .transport-row {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 6px;
+    }
+    button,
+    select {
+      min-height: 30px;
+      height: auto;
+      border: 1px solid var(--site-border);
+      border-radius: var(--site-radius-sm);
+      background: linear-gradient(to bottom, #f5f5f5, #ededed);
+      color: var(--site-text);
+      font: inherit;
+      font-size: 12px;
+      font-weight: 700;
+      padding: 5px 8px;
+    }
+    select {
+      width: 100%;
+      min-width: 0;
+      background: var(--site-panel);
+      font-weight: 600;
+    }
+    button:hover {
+      border-color: var(--site-accent);
+      color: var(--site-accent-strong);
+    }
+    .icon-button {
+      width: auto;
+    }
+    input[type="range"] {
+      width: 100%;
+      min-width: 0;
+      accent-color: var(--site-accent);
+    }
+    .frame-label {
+      min-width: 0;
+      color: var(--site-muted);
+      font-size: 12px;
+      text-align: left;
+    }
+    .move-list {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 0;
+      max-height: min(520px, calc(100vh - 270px));
+      overflow: auto;
+      padding: 0;
+      border: 1px solid var(--site-border-soft);
+      border-radius: var(--site-radius-sm);
+      background: var(--site-panel);
+    }
+    .move-list button {
+      display: grid;
+      grid-template-columns: 34px minmax(0, 1fr);
+      gap: 8px;
+      align-items: center;
+      justify-content: stretch;
+      min-height: 28px;
+      height: 28px;
+      border: 0;
+      border-radius: 0;
+      background: transparent;
+      color: var(--site-text);
+      font-size: 12px;
+      font-weight: 600;
+      text-align: left;
+    }
+    .move-list button:nth-child(odd) {
+      background: var(--site-panel-soft);
+    }
+    .move-list button.current {
+      background: var(--site-accent-soft);
+      box-shadow: inset 3px 0 0 var(--site-accent);
+      color: var(--site-heading);
+    }
+    .move-list button.drop {
+      border: 0;
+      box-shadow: inset 3px 0 0 rgba(184, 50, 44, 0.55);
+    }
+    .move-list button.current.drop {
+      box-shadow: inset 3px 0 0 var(--site-accent);
+    }
+    .move-index {
+      color: var(--site-muted);
+      font-size: 12px;
+      font-weight: 700;
+    }
+    .warning {
+      border: 1px solid var(--site-warning-border);
+      border-radius: var(--site-radius-sm);
+      background: var(--site-warning-bg);
+      color: var(--site-warning-text);
+      font-size: 12px;
+    }
+    @media (max-width: 1100px) {
+      header.game-header {
+        align-items: flex-start;
+        flex-direction: column;
+      }
+      .run-card {
+        text-align: left;
+      }
+      .layout {
+        grid-template-columns: minmax(0, 1fr);
+      }
+      .meta-rail {
+        order: 2;
+      }
+      .board-panel {
+        order: 1;
+      }
+      .move-rail {
+        order: 3;
+      }
+      .move-list {
+        max-height: 360px;
+      }
+    }
+    @media (max-width: 700px) {
+      .site-nav {
+        min-height: 50px;
+        padding: 10px 16px;
+      }
+      .site-nav-brand span:last-child {
+        display: none;
+      }
+      .site-nav-links {
+        gap: 2px;
+      }
+      .site-nav-link {
+        padding: 6px 8px;
+      }
+      main.game-shell {
+        padding: 12px 10px 22px;
+      }
+      .hand-chips {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
       }
     }
   </style>
 </head>
 <body>
-  <main>
-    <header>
-      <div>
-        <h1>Drop Mini Xiangqi FSF Replay</h1>
-        <div class="subtle">Generated <span id="generatedAt"></span>. FSF uses orthodox check semantics; replay validation uses the Mistboard lab kernel.</div>
+  <nav class="site-nav" aria-label="Mistboard">
+    <a class="site-nav-brand" href="#">
+      <span class="site-nav-logo" aria-hidden="true"></span>
+      <span>MISTBOARD</span>
+    </a>
+    <div class="site-nav-links" aria-label="Primary">
+      <span class="site-nav-link active">Watch</span>
+      <span class="site-nav-link">Lab</span>
+    </div>
+    <div class="site-nav-utilities">
+      <span class="site-nav-link">Drop Mini Xiangqi</span>
+    </div>
+  </nav>
+  <main class="game-shell">
+    <header class="game-header">
+      <div class="game-header-text">
+        <p class="game-source">Variant lab replay</p>
+        <h1 class="game-title">Drop Mini Xiangqi FSF Replay</h1>
+        <p class="game-summary-line">Generated <span id="generatedAt"></span>. FSF orthodox check semantics, Mistboard kernel validation.</p>
       </div>
-      <div class="subtle" id="runMeta"></div>
+      <div class="run-card" id="runMeta"></div>
     </header>
-    <section class="controls" aria-label="Replay controls">
-      <select id="gameSelect" aria-label="Game"></select>
-      <button type="button" id="firstBtn">First</button>
-      <button type="button" id="prevBtn">Prev</button>
-      <input id="plyRange" type="range" min="0" value="0" aria-label="Ply">
-      <button type="button" id="nextBtn">Next</button>
-      <button type="button" id="lastBtn">Last</button>
-    </section>
-    <section class="layout">
-      <div class="panel">
-        <div class="board" id="board"></div>
-        <div class="meta">
-          <div><strong id="plyLabel"></strong></div>
-          <div id="statusLine"></div>
+    <section class="layout game-replay replay-page replay-meta-header">
+      <aside class="side-panel meta-rail">
+        <section class="panel-section">
+          <div class="section-title">
+            <span id="gameSummary"></span>
+            <span id="gameResult"></span>
+          </div>
+          <div class="stats" id="statGrid"></div>
+        </section>
+        <section class="panel-section">
+          <div class="section-title">
+            <span>Reserves</span>
+          </div>
           <div class="hands">
             <div class="hand" id="redHand"></div>
             <div class="hand" id="blackHand"></div>
           </div>
-          <div class="warning" id="warning"></div>
+        </section>
+        <div class="warning" id="warning"></div>
+      </aside>
+      <section class="board-panel">
+        <div class="board-stage" id="board"></div>
+        <div class="meta">
+          <div class="ply-title" id="plyLabel"></div>
+          <div class="status-pill" id="statusLine"></div>
+          <div class="subtle" id="positionMeta"></div>
         </div>
-      </div>
-      <div class="panel">
-        <div class="subtle" id="gameSummary"></div>
-        <div class="move-list" id="moveList"></div>
-      </div>
+      </section>
+      <aside class="side-panel move-rail">
+        <section class="controls panel-section" aria-label="Replay controls">
+          <label class="select-wrap">Game <select id="gameSelect" aria-label="Game"></select></label>
+          <div class="transport-row">
+            <button class="icon-button" type="button" id="firstBtn" title="First ply">|&lt;</button>
+            <button class="icon-button" type="button" id="prevBtn" title="Previous ply">&lt;</button>
+            <button class="icon-button" type="button" id="nextBtn" title="Next ply">&gt;</button>
+            <button class="icon-button" type="button" id="lastBtn" title="Last ply">&gt;|</button>
+          </div>
+          <input id="plyRange" type="range" min="0" value="0" aria-label="Ply">
+          <div class="frame-label" id="frameLabel"></div>
+        </section>
+        <section class="panel-section timeline">
+          <div class="timeline-head">
+            <span>Moves</span>
+            <span id="timelineMeta"></span>
+          </div>
+          <div class="move-list" id="moveList"></div>
+        </section>
+      </aside>
     </section>
   </main>
   <script>
@@ -835,33 +1693,50 @@ function replayHtml(opts: CliOptions, games: ReplayGame[]): string {
     const files = ['a', 'b', 'c', 'd', 'e', 'f', 'g'];
     const ranks = [7, 6, 5, 4, 3, 2, 1];
     const roleLabel = ${JSON.stringify(ROLE_LABEL)};
+    const pieceGlyph = ${JSON.stringify(PIECE_GLYPH)};
+    const roleOrder = ['chariot', 'cannon', 'horse', 'soldier'];
+    const boardSize = 720;
+    const margin = 58;
+    const step = (boardSize - margin * 2) / 6;
     let gameIndex = 0;
     let plyIndex = 0;
 
     const boardEl = document.getElementById('board');
+    const frameLabel = document.getElementById('frameLabel');
     const gameSelect = document.getElementById('gameSelect');
+    const gameResult = document.getElementById('gameResult');
     const gameSummary = document.getElementById('gameSummary');
     const generatedAt = document.getElementById('generatedAt');
+    const positionMeta = document.getElementById('positionMeta');
     const runMeta = document.getElementById('runMeta');
     const moveList = document.getElementById('moveList');
     const plyLabel = document.getElementById('plyLabel');
     const plyRange = document.getElementById('plyRange');
     const redHand = document.getElementById('redHand');
     const blackHand = document.getElementById('blackHand');
+    const statGrid = document.getElementById('statGrid');
     const statusLine = document.getElementById('statusLine');
+    const timelineMeta = document.getElementById('timelineMeta');
     const warning = document.getElementById('warning');
 
     generatedAt.textContent = new Date(DATA.generatedAt).toLocaleString();
-    runMeta.textContent =
-      'policies=' + DATA.options.policies.join(',') +
-      ' | skill=' + DATA.options.skill +
-      ' | movetime=' + DATA.options.movetimeMs + 'ms' +
-      ' | max plies=' + DATA.options.maxPlies;
+    runMeta.innerHTML =
+      '<strong>' + DATA.games.length + ' games</strong><br>' +
+      'policies: ' + escapeHtml(DATA.options.policies.join(', ')) + '<br>' +
+      'skill ' + DATA.options.skill +
+      ' | movetime ' + DATA.options.movetimeMs + 'ms' +
+      ' | max ' + DATA.options.maxPlies + ' plies';
 
     DATA.games.forEach((game, index) => {
       const option = document.createElement('option');
       option.value = String(index);
-      option.textContent = game.label + ' (' + game.moves.length + ' plies)';
+      option.textContent =
+        game.label +
+        ' | ' +
+        game.moves.length +
+        ' plies | ' +
+        game.drops +
+        ' drops';
       gameSelect.append(option);
     });
 
@@ -892,64 +1767,162 @@ function replayHtml(opts: CliOptions, games: ReplayGame[]): string {
       plyIndex = Number(plyRange.value);
       render();
     });
+    document.addEventListener('keydown', (event) => {
+      const tag = event.target && event.target.tagName;
+      if (tag === 'INPUT' || tag === 'SELECT' || tag === 'BUTTON') return;
+      const game = DATA.games[gameIndex];
+      if (event.key === 'ArrowLeft') {
+        plyIndex = Math.max(0, plyIndex - 1);
+        render();
+      } else if (event.key === 'ArrowRight') {
+        plyIndex = Math.min(game.snapshots.length - 1, plyIndex + 1);
+        render();
+      } else if (event.key === 'Home') {
+        plyIndex = 0;
+        render();
+      } else if (event.key === 'End') {
+        plyIndex = game.snapshots.length - 1;
+        render();
+      }
+    });
 
     function render() {
       const game = DATA.games[gameIndex];
       const snap = game.snapshots[plyIndex];
+      const lastPly = game.snapshots.length - 1;
       gameSelect.value = String(gameIndex);
-      plyRange.max = String(game.snapshots.length - 1);
+      plyRange.max = String(lastPly);
       plyRange.value = String(plyIndex);
-      boardEl.innerHTML = '';
+      boardEl.innerHTML = boardSvg(snap);
 
-      const last = snap.lastMove;
-      for (const rank of ranks) {
-        for (const file of files) {
-          const square = file + rank;
-          const cell = document.createElement('div');
-          cell.className = 'cell';
-          cell.dataset.square = square;
-          if (last && 'from' in last && last.from === square) cell.classList.add('last-from');
-          if (last && last.to === square) cell.classList.add('last-to');
-          const piece = snap.board[square];
-          if (piece) {
-            const pieceEl = document.createElement('div');
-            pieceEl.className = 'piece ' + piece.color;
-            pieceEl.title = piece.color + ' ' + piece.role;
-            const label = roleLabel[piece.role];
-            pieceEl.textContent = piece.color === 'red' ? label : label.toLowerCase();
-            cell.append(pieceEl);
-          }
-          boardEl.append(cell);
-        }
-      }
-
-      plyLabel.textContent = 'Ply ' + snap.ply + ': ' + snap.token;
-      statusLine.textContent = snap.status + ' | move ' + snap.moveNumber;
-      redHand.textContent = 'Red hand: ' + handText(snap.hands.red) + ' | cooldown: ' + handText(snap.cooldownHands.red);
-      blackHand.textContent = 'Black hand: ' + handText(snap.hands.black) + ' | cooldown: ' + handText(snap.cooldownHands.black);
+      frameLabel.textContent = 'Ply ' + snap.ply + ' / ' + lastPly;
+      plyLabel.textContent = snap.token === 'start' ? 'Start position' : 'Ply ' + snap.ply + ': ' + snap.token;
+      statusLine.textContent = snap.status;
+      positionMeta.textContent = 'Move ' + snap.moveNumber + ' | turn ' + (snap.turn || 'none');
+      gameSummary.textContent = game.label;
+      gameResult.textContent = game.reason;
+      timelineMeta.textContent = game.moves.length + ' plies';
+      renderStats(game, snap, lastPly);
+      redHand.innerHTML = handMarkup('red', snap.hands.red, snap.cooldownHands.red);
+      blackHand.innerHTML = handMarkup('black', snap.hands.black, snap.cooldownHands.black);
       warning.textContent = snap.warning || '';
       warning.classList.toggle('visible', Boolean(snap.warning));
-      gameSummary.textContent =
-        game.label +
-        ' | reason=' + game.reason +
-        ' | drops=' + game.drops +
-        ' | drop-checks=' + game.dropChecks +
-        ' | first drop=' + (game.firstDropPly || 'none');
       renderMoveList(game);
     }
 
-    function handText(hand) {
-      const parts = ['chariot', 'cannon', 'horse', 'soldier']
-        .filter((role) => hand[role])
-        .map((role) => roleLabel[role] + ':' + hand[role]);
-      return parts.length ? parts.join(' ') : '-';
+    function boardSvg(snap) {
+      const parts = [];
+      parts.push('<svg viewBox="0 0 720 720" role="img" aria-label="Drop Mini Xiangqi board">');
+      parts.push('<defs>');
+      parts.push('<linearGradient id="boardWash" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#f5e7c7"/><stop offset="0.52" stop-color="#e4c88f"/><stop offset="1" stop-color="#d4ad68"/></linearGradient>');
+      parts.push('<radialGradient id="redDisc" cx="38%" cy="30%" r="72%"><stop offset="0" stop-color="#da4a52"/><stop offset="1" stop-color="#862027"/></radialGradient>');
+      parts.push('<radialGradient id="blackDisc" cx="38%" cy="30%" r="72%"><stop offset="0" stop-color="#333941"/><stop offset="1" stop-color="#070809"/></radialGradient>');
+      parts.push('<filter id="pieceShadow" x="-30%" y="-30%" width="160%" height="160%"><feDropShadow dx="0" dy="5" stdDeviation="5" flood-color="#2b1a07" flood-opacity="0.34"/></filter>');
+      parts.push('<marker id="arrowHead" viewBox="0 0 10 10" refX="7" refY="5" markerWidth="4" markerHeight="4" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="rgba(31,154,122,0.72)"/></marker>');
+      parts.push('</defs>');
+      parts.push('<rect class="svg-board-bg" x="18" y="18" width="684" height="684" rx="10"/>');
+      parts.push('<rect class="svg-board-frame" x="' + margin + '" y="' + margin + '" width="' + step * 6 + '" height="' + step * 6 + '" rx="6"/>');
+      for (let i = 0; i < 7; i += 1) {
+        const offset = margin + step * i;
+        parts.push('<line class="grid-line" x1="' + margin + '" y1="' + offset + '" x2="' + (margin + step * 6) + '" y2="' + offset + '"/>');
+        parts.push('<line class="grid-line" x1="' + offset + '" y1="' + margin + '" x2="' + offset + '" y2="' + (margin + step * 6) + '"/>');
+      }
+      addPalace(parts, ['c7', 'e5'], ['e7', 'c5']);
+      addPalace(parts, ['c3', 'e1'], ['e3', 'c1']);
+      files.forEach((file, index) => {
+        const x = margin + step * index;
+        parts.push('<text class="coord-label" x="' + x + '" y="32">' + file + '</text>');
+        parts.push('<text class="coord-label" x="' + x + '" y="688">' + file + '</text>');
+      });
+      ranks.forEach((rank) => {
+        const y = pointForSquare('a' + rank).y;
+        parts.push('<text class="coord-label" x="32" y="' + y + '">' + rank + '</text>');
+        parts.push('<text class="coord-label" x="688" y="' + y + '">' + rank + '</text>');
+      });
+
+      const last = snap.lastMove;
+      if (last && 'from' in last) {
+        const from = pointForSquare(last.from);
+        const to = pointForSquare(last.to);
+        parts.push('<line class="move-vector" x1="' + from.x + '" y1="' + from.y + '" x2="' + to.x + '" y2="' + to.y + '" marker-end="url(#arrowHead)"/>');
+        parts.push('<circle class="last-ring last-from" cx="' + from.x + '" cy="' + from.y + '" r="38"/>');
+        parts.push('<circle class="last-ring last-to" cx="' + to.x + '" cy="' + to.y + '" r="42"/>');
+      } else if (last) {
+        const to = pointForSquare(last.to);
+        parts.push('<circle class="last-ring last-to" cx="' + to.x + '" cy="' + to.y + '" r="42"/>');
+      }
+
+      for (const rank of ranks) {
+        for (const file of files) {
+          const square = file + rank;
+          const piece = snap.board[square];
+          if (!piece) continue;
+          const point = pointForSquare(square);
+          const label = pieceGlyph[piece.color][piece.role] || roleLabel[piece.role];
+          parts.push('<g class="piece-shadow">');
+          parts.push('<title>' + escapeHtml(piece.color + ' ' + piece.role + ' on ' + square) + '</title>');
+          parts.push('<circle class="piece-disc ' + piece.color + '" cx="' + point.x + '" cy="' + point.y + '" r="33"/>');
+          parts.push('<circle class="piece-inner-ring ' + piece.color + '" cx="' + point.x + '" cy="' + point.y + '" r="24"/>');
+          parts.push('<text class="piece-text ' + piece.color + '" x="' + point.x + '" y="' + (point.y + 1) + '">' + label + '</text>');
+          parts.push('</g>');
+        }
+      }
+      parts.push('</svg>');
+      return parts.join('');
+    }
+
+    function addPalace(parts, first, second) {
+      const a = pointForSquare(first[0]);
+      const b = pointForSquare(first[1]);
+      const c = pointForSquare(second[0]);
+      const d = pointForSquare(second[1]);
+      parts.push('<line class="palace-line" x1="' + a.x + '" y1="' + a.y + '" x2="' + b.x + '" y2="' + b.y + '"/>');
+      parts.push('<line class="palace-line" x1="' + c.x + '" y1="' + c.y + '" x2="' + d.x + '" y2="' + d.y + '"/>');
+    }
+
+    function pointForSquare(square) {
+      const fileIndex = files.indexOf(square[0]);
+      const rank = Number(square[1]);
+      return {
+        x: margin + step * fileIndex,
+        y: margin + step * (7 - rank),
+      };
+    }
+
+    function renderStats(game, snap, lastPly) {
+      const firstDrop = game.firstDropPly === null || game.firstDropPly === undefined ? 'none' : String(game.firstDropPly);
+      const stats = [
+        ['Ply', snap.ply + '/' + lastPly],
+        ['Drops', String(game.drops)],
+        ['Drop checks', String(game.dropChecks)],
+        ['First drop', firstDrop],
+        ['Policy', game.policy],
+        ['Move', String(snap.moveNumber)],
+      ];
+      statGrid.innerHTML = stats
+        .map((item) => '<div class="stat"><span>' + escapeHtml(item[0]) + '</span><strong>' + escapeHtml(item[1]) + '</strong></div>')
+        .join('');
+    }
+
+    function handMarkup(color, hand, cooldown) {
+      const activeTotal = roleOrder.reduce((sum, role) => sum + (hand[role] || 0), 0);
+      const chips = roleOrder
+        .map((role) => {
+          const count = hand[role] || 0;
+          const cooling = cooldown[role] || 0;
+          const classes = 'hand-chip' + (count || cooling ? '' : ' dim');
+          const cooldownText = cooling ? '<small>cd ' + cooling + '</small>' : '';
+          return '<div class="' + classes + '"><span>' + pieceGlyph[color][role] + '</span><strong>' + count + '</strong>' + cooldownText + '</div>';
+        })
+        .join('');
+      return '<div class="hand-title"><span>' + color + ' reserve</span><strong>' + activeTotal + '</strong></div><div class="hand-chips">' + chips + '</div>';
     }
 
     function renderMoveList(game) {
       moveList.innerHTML = '';
       const start = document.createElement('button');
       start.type = 'button';
-      start.textContent = '0 start';
+      start.innerHTML = '<span class="move-index">0</span><span class="move-token">start</span>';
       start.className = plyIndex === 0 ? 'current' : '';
       start.addEventListener('click', () => {
         plyIndex = 0;
@@ -960,7 +1933,12 @@ function replayHtml(opts: CliOptions, games: ReplayGame[]): string {
       game.moves.forEach((move, index) => {
         const button = document.createElement('button');
         button.type = 'button';
-        button.textContent = String(index + 1) + ' ' + move;
+        button.innerHTML =
+          '<span class="move-index">' +
+          String(index + 1) +
+          '</span><span class="move-token">' +
+          escapeHtml(move) +
+          '</span>';
         if (move.includes('@')) button.classList.add('drop');
         if (plyIndex === index + 1) button.classList.add('current');
         button.addEventListener('click', () => {
@@ -969,6 +1947,11 @@ function replayHtml(opts: CliOptions, games: ReplayGame[]): string {
         });
         moveList.append(button);
       });
+    }
+
+    function escapeHtml(value) {
+      const map = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' };
+      return String(value).replace(/[&<>"']/g, (char) => map[char]);
     }
 
     render();
@@ -1067,7 +2050,8 @@ function usageAndExit(): never {
 
 Options:
   --mode probe|selfplay|both      default: both
-  --policies wild,no-threat,home  default: all three
+  --policies wild,no-enemy-palace,no-threat,home
+                                  default: all four
   --games N                      default: 1
   --plies N                      default: 120
   --movetime MS                  default: 100

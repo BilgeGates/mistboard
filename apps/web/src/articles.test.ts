@@ -23,9 +23,10 @@ describe('article public listing gates', () => {
     vi.stubEnv('DEV', false);
     vi.stubEnv('VITE_DARK_MINI_XIANGQI_ENABLED', 'true');
 
+    const rules = buildRulesIndex();
     expect(buildHomeArticleCards(50)?.textContent).not.toContain('Dark Mini Xiangqi');
-    expect(buildRulesIndex().textContent).not.toContain('Dark Mini Xiangqi');
-    expect(buildRulesIndex().textContent).not.toContain('Mini Xiangqi');
+    expect(rules.textContent).not.toContain('Dark Mini Xiangqi');
+    expect(rules.querySelector('a[href="/rules/mini-xiangqi"]')).toBeNull();
     expect(buildArticlePage('dark-mini-xiangqi').textContent).toContain('Dark Mini Xiangqi');
     expect(buildArticlePage('mini-xiangqi').textContent).toContain('Mini Xiangqi');
   });
@@ -228,6 +229,39 @@ describe('article public listing gates', () => {
     ).not.toBeNull();
   });
 
+  it('publishes Drop Mini Xiangqi as a playable rules page with the variant marker', () => {
+    const page = buildArticlePage('drop-mini-xiangqi');
+    const landing = buildRulesIndex();
+    const grids = landing.querySelectorAll('.rules-landing-grid');
+    const links = [...page.querySelectorAll<HTMLAnchorElement>('a')].map((link) => ({
+      href: link.getAttribute('href'),
+      text: link.textContent,
+    }));
+
+    expect(page.textContent).toContain('Drop Mini Xiangqi Rules');
+    expect(page.textContent).toContain('open for alpha play');
+    expect(links).toContainEqual({
+      href: '/?play=friend&gameSpecId=drop-mini-xiangqi',
+      text: 'Create invite',
+    });
+    expect(links).toContainEqual({
+      href: '/?play=lobby&gameSpecId=drop-mini-xiangqi',
+      text: 'Find opponent',
+    });
+    expect(grids[0]?.querySelector('a[href="/rules/drop-mini-xiangqi"]')).not.toBeNull();
+    expect(
+      grids[0]?.querySelector(
+        'a[href="/rules/drop-mini-xiangqi"] svg[data-mini-id="drop-mini-xiangqi"]',
+      ),
+    ).not.toBeNull();
+    expect(grids[1]?.querySelector('a[href="/rules/drop-mini-xiangqi"]')).toBeNull();
+    expect(
+      page.querySelector(
+        '.article-variant-sidebar a[aria-current="page"] svg[data-mini-id="drop-mini-xiangqi"]',
+      ),
+    ).not.toBeNull();
+  });
+
   it('rerenders Dark Crossroads diagrams from the piece settings', () => {
     Object.defineProperty(window, 'localStorage', { configurable: true, value: memoryStorage() });
     const page = buildArticlePage('dark-crossroads-chess');
@@ -301,9 +335,12 @@ describe('rules variant sidebar', () => {
     vi.stubEnv('VITE_DARK_MINI_XIANGQI_ENABLED', 'true');
 
     const darkChess = buildArticlePage('dark-chess');
-    expect(darkChess.querySelector('.article-variant-sidebar')?.textContent).not.toContain(
-      'Mini Xiangqi',
-    );
+    expect(
+      darkChess.querySelector('.article-variant-sidebar a[href="/rules/mini-xiangqi"]'),
+    ).toBeNull();
+    expect(
+      darkChess.querySelector('.article-variant-sidebar a[href="/rules/dark-mini-xiangqi"]'),
+    ).toBeNull();
 
     const miniXiangqi = buildArticlePage('mini-xiangqi');
     const sidebar = miniXiangqi.querySelector('.article-variant-sidebar');

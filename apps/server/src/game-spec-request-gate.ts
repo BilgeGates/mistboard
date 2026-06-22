@@ -5,6 +5,7 @@ import {
   DARK_MINI_XIANGQI_SPEC_ID,
   DARK_SHOGI_SPEC_ID,
   DARK_XIANGQI_SPEC_ID,
+  DROP_MINI_XIANGQI_SPEC_ID,
   JIEQI_SPEC_ID,
   KRIEGSPIEL_SPEC_ID,
   REVEAL_CHESS_SPEC_ID,
@@ -16,6 +17,7 @@ import {
   darkMiniXiangqiEnabled,
   darkShogiEnabled,
   darkXiangqiEnabled,
+  dropMiniXiangqiEnabled,
   jieqiEnabled,
   kriegspielEnabled,
   revealChessEnabled,
@@ -30,6 +32,8 @@ export type GameSpecGateDecision =
         | 'dark_xiangqi_not_integrated'
         | 'dark_mini_xiangqi_disabled'
         | 'dark_mini_xiangqi_not_integrated'
+        | 'drop_mini_xiangqi_disabled'
+        | 'drop_mini_xiangqi_not_integrated'
         | 'jieqi_disabled'
         | 'jieqi_not_integrated'
         | 'banqi_disabled'
@@ -53,6 +57,7 @@ type GameSpecGateError = Extract<GameSpecGateDecision, { type: 'reject' }>['erro
 type HiddenRuntimeSpec =
   | typeof DARK_XIANGQI_SPEC_ID
   | typeof DARK_MINI_XIANGQI_SPEC_ID
+  | typeof DROP_MINI_XIANGQI_SPEC_ID
   | typeof JIEQI_SPEC_ID
   | typeof BANQI_SPEC_ID
   | typeof REVEAL_CHESS_SPEC_ID
@@ -74,6 +79,11 @@ const HIDDEN_RUNTIME_SPECS: Record<
     enabled: darkMiniXiangqiEnabled,
     disabledError: 'dark_mini_xiangqi_disabled',
     notIntegratedError: 'dark_mini_xiangqi_not_integrated',
+  },
+  [DROP_MINI_XIANGQI_SPEC_ID]: {
+    enabled: dropMiniXiangqiEnabled,
+    disabledError: 'drop_mini_xiangqi_disabled',
+    notIntegratedError: 'drop_mini_xiangqi_not_integrated',
   },
   [JIEQI_SPEC_ID]: {
     enabled: jieqiEnabled,
@@ -145,6 +155,7 @@ function requestedHiddenRuntimeSpec(input: {
   for (const spec of [
     DARK_XIANGQI_SPEC_ID,
     DARK_MINI_XIANGQI_SPEC_ID,
+    DROP_MINI_XIANGQI_SPEC_ID,
     JIEQI_SPEC_ID,
     BANQI_SPEC_ID,
     REVEAL_CHESS_SPEC_ID,

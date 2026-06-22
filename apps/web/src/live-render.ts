@@ -62,6 +62,7 @@ import {
 } from './live-status.js';
 import { currentCaptures, currentProjection, currentView } from './live-view.js';
 import { activeLiveShellTenant, liveShellTenants } from './variant-tenant/live-shell.js';
+import { installSelectionClickAway } from './variant-tenant/selection-click-away.js';
 import { escapeHtml, isColor } from './web-utils.js';
 
 // ── Constants ─────────────────────────────────────────────────────────────────
@@ -187,6 +188,11 @@ export function initRender(
   resetMoveListState();
   resetClockState();
   refs = createLiveLayout(target, { debugRequested: liveState.debugRequested });
+  installSelectionClickAway({
+    roots: () => [refs.board, refs.promotion],
+    hasSelection: () => pendingPromotion === null && ground !== null,
+    clearSelection: () => ground?.selectSquare(null),
+  });
   initLiveSound();
   resetLiveSoundState();
 }

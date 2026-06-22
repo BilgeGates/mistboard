@@ -20,6 +20,7 @@ import { darkDraft960Article } from './articles/content/dark-draft960.js';
 import { darkMiniXiangqiArticle } from './articles/content/dark-mini-xiangqi.js';
 import { darkShogiArticle } from './articles/content/dark-shogi.js';
 import { darkXiangqiArticle } from './articles/content/dark-xiangqi.js';
+import { dropMiniXiangqiArticle } from './articles/content/drop-mini-xiangqi.js';
 import { jieqiArticle } from './articles/content/jieqi.js';
 import { kriegspielArticle } from './articles/content/kriegspiel.js';
 import { miniXiangqiArticle } from './articles/content/mini-xiangqi.js';
@@ -41,6 +42,7 @@ export const articles: Article[] = [
   darkXiangqiArticle,
   miniXiangqiArticle,
   darkMiniXiangqiArticle,
+  dropMiniXiangqiArticle,
   serverEnforcedFogArticle,
   shogiArticle,
   shogi4Article,

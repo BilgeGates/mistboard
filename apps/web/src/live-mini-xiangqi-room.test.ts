@@ -100,6 +100,21 @@ describe('Dark Mini Xiangqi live room', () => {
     expect(sent).toEqual([{ type: 'move', from: 'b1', to: 'b2' }]);
   });
 
+  it('clears selected target dots on an outside click', () => {
+    const refs = refsFixture();
+    const outside = document.createElement('button');
+    document.body.append(outside);
+    renderDarkMiniXiangqiRoom(refs, { reconnectNow: () => {}, sendSocket: () => true });
+
+    refs.board.querySelector<SVGElement>('[data-square="b1"]')?.dispatchEvent(clickEvent());
+    expect(refs.board.querySelector('.mini-xq-hint')).not.toBeNull();
+
+    outside.dispatchEvent(new Event('pointerdown', { bubbles: true }));
+
+    expect(refs.board.querySelector('.mini-xq-hint')).toBeNull();
+    outside.remove();
+  });
+
   it('shows resign controls only after the first-move window', () => {
     const refs = refsFixture();
     liveState.state = { ...viewFixture(), moveNumber: 2 } as never;

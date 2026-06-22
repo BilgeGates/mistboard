@@ -3,7 +3,11 @@ import { buildNav } from './site-shell.js';
 
 export function setLiveLayoutGameSpec(target: HTMLElement, gameSpecId: string | null): void {
   target.classList.toggle('live-route--xiangqi', gameSpecId === 'dark-xiangqi');
-  target.classList.toggle('live-route--mini-xiangqi', gameSpecId === 'dark-mini-xiangqi');
+  target.classList.toggle(
+    'live-route--mini-xiangqi',
+    gameSpecId === 'dark-mini-xiangqi' || gameSpecId === 'drop-mini-xiangqi',
+  );
+  target.classList.toggle('live-route--drop-mini-xiangqi', gameSpecId === 'drop-mini-xiangqi');
   target.classList.toggle('live-route--crossroads-chess', gameSpecId === 'crossroads-chess');
   target.classList.toggle('live-route--jieqi', gameSpecId === 'jieqi');
   target.classList.toggle('live-route--banqi', gameSpecId === 'banqi');

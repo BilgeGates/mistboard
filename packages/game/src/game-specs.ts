@@ -45,7 +45,12 @@ export type SetupRulesId =
   | 'banqi-deal'
   | 'reveal-chess-deal';
 export type ReserveRulesId = 'none' | 'crazyhouse' | 'shogi-hands' | 'seirawan-gating';
-export type DropPolicyId = 'none' | 'any-legal-square' | 'seen-squares-only' | 'seirawan-gating';
+export type DropPolicyId =
+  | 'none'
+  | 'any-legal-square'
+  | 'not-enemy-palace'
+  | 'seen-squares-only'
+  | 'seirawan-gating';
 export type GameSpecSurface = 'hidden' | 'beta' | 'casual' | 'rated';
 export type GameSpecRuntimeStatus = 'live' | 'dev-spike' | 'future';
 
@@ -59,6 +64,7 @@ export type RatingPoolBaseId =
   | 'lao_tzu'
   | 'dark_seirawan'
   | 'dark_mini_xiangqi'
+  | 'drop_mini_xiangqi'
   | 'dark_xiangqi'
   | 'dark_shogi'
   | 'dark_omega'
@@ -78,6 +84,7 @@ export type GameSpecId =
   | 'lao-tzu'
   | 'dark-seirawan'
   | 'dark-mini-xiangqi'
+  | 'drop-mini-xiangqi'
   | 'dark-xiangqi'
   | 'dark-shogi'
   | 'dark-omega'
@@ -119,6 +126,7 @@ export const DARK_DRAFT960_SPEC_ID = 'dark-draft960' satisfies GameSpecId;
 // DARK_DRAFT960_SPEC_ID; "fog" remains only in legacy rating/API vocabulary.
 export const FOG_DRAFT960_SPEC_ID = DARK_DRAFT960_SPEC_ID;
 export const DARK_MINI_XIANGQI_SPEC_ID = 'dark-mini-xiangqi' satisfies GameSpecId;
+export const DROP_MINI_XIANGQI_SPEC_ID = 'drop-mini-xiangqi' satisfies GameSpecId;
 export const DARK_XIANGQI_SPEC_ID = 'dark-xiangqi' satisfies GameSpecId;
 export const JIEQI_SPEC_ID = 'jieqi' satisfies GameSpecId;
 export const BANQI_SPEC_ID = 'banqi' satisfies GameSpecId;
@@ -142,6 +150,7 @@ export const CANONICAL_VARIANT_ORDER: readonly GameSpecId[] = [
   DARK_CHESS_SPEC_ID,
   DARK_DRAFT960_SPEC_ID,
   DARK_MINI_XIANGQI_SPEC_ID,
+  DROP_MINI_XIANGQI_SPEC_ID,
   DARK_XIANGQI_SPEC_ID,
   JIEQI_SPEC_ID,
   BANQI_SPEC_ID,
@@ -298,6 +307,25 @@ export const GAME_SPECS: readonly GameSpec[] = [
     reserves: 'none',
     dropPolicy: 'none',
     ratingPoolBase: 'dark_mini_xiangqi',
+    rated: true,
+    publicSurface: 'hidden',
+    runtimeStatus: 'live',
+  },
+  {
+    // Drop Mini Xiangqi: mini xiangqi plus crazyhouse-style reserves. Perfect
+    // information; red/black seats match the 7x7 Dark Mini Xiangqi board.
+    // Rules engine: packages/game/src/variants-drop-mini-xiangqi.ts.
+    id: DROP_MINI_XIANGQI_SPEC_ID,
+    publicName: 'Drop Mini Xiangqi',
+    family: 'xiangqi',
+    board: 'xiangqi-7x7',
+    movement: 'mini-xiangqi',
+    objective: 'checkmate',
+    visibility: 'open',
+    setup: 'mini-standard',
+    reserves: 'crazyhouse',
+    dropPolicy: 'not-enemy-palace',
+    ratingPoolBase: 'drop_mini_xiangqi',
     rated: true,
     publicSurface: 'hidden',
     runtimeStatus: 'live',
@@ -512,6 +540,7 @@ export type RatingVariant = Extract<
   | 'fog'
   | 'fog_draft960'
   | 'dark_mini_xiangqi'
+  | 'drop_mini_xiangqi'
   | 'dark_xiangqi'
   | 'dark_crazyhouse'
   | 'dark_shogi'

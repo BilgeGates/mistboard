@@ -12,6 +12,12 @@ export function darkMiniXiangqiEnabled(): boolean {
   return import.meta.env.DEV || import.meta.env.VITE_DARK_MINI_XIANGQI_ENABLED === 'true';
 }
 
+// Drop Mini Xiangqi (7x7 mini xiangqi with crazyhouse-style reserves). Always
+// on in dev for local variant-lab parity; prod/staging must opt in explicitly.
+export function dropMiniXiangqiEnabled(): boolean {
+  return import.meta.env.DEV || import.meta.env.VITE_DROP_MINI_XIANGQI_ENABLED === 'true';
+}
+
 // Identity-hidden jieqi (揭棋) play surface. Always on in dev for convenience
 // (like DMX/Crossroads/correspondence); in prod/staging it is hidden unless the
 // build opts in.

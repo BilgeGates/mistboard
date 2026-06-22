@@ -9,6 +9,7 @@ import {
   DARK_MINI_XIANGQI_SPEC_ID,
   DARK_SHOGI_SPEC_ID,
   DARK_XIANGQI_SPEC_ID,
+  DROP_MINI_XIANGQI_SPEC_ID,
   gameSpecForId,
   JIEQI_SPEC_ID,
   KRIEGSPIEL_SPEC_ID,
@@ -159,10 +160,11 @@ describe('web variant launch registry', () => {
     vi.resetModules();
   });
 
-  it('shows the 11 launched variants on local rating surfaces', () => {
+  it('shows the 12 launched variants on local rating surfaces', () => {
     expect(leaderboardVariants.map((v) => v.gameSpecId)).toEqual([
       DARK_CHESS_SPEC_ID,
       DARK_MINI_XIANGQI_SPEC_ID,
+      DROP_MINI_XIANGQI_SPEC_ID,
       DARK_XIANGQI_SPEC_ID,
       JIEQI_SPEC_ID,
       BANQI_SPEC_ID,
@@ -176,6 +178,7 @@ describe('web variant launch registry', () => {
     expect(profileRatingVariants.map((v) => v.gameSpecId)).toEqual([
       DARK_CHESS_SPEC_ID,
       DARK_MINI_XIANGQI_SPEC_ID,
+      DROP_MINI_XIANGQI_SPEC_ID,
       DARK_XIANGQI_SPEC_ID,
       JIEQI_SPEC_ID,
       BANQI_SPEC_ID,
@@ -193,6 +196,7 @@ describe('web variant launch registry', () => {
   it('uses mini-board markers for soft-launch play-menu variants', () => {
     expect(variantMiniIdForGameSpec(DARK_CROSSROADS_CHESS_SPEC_ID)).toBe('dark-crossroads');
     expect(variantMiniIdForGameSpec(DARK_CRAZYHOUSE_SPEC_ID)).toBe('dark-crazyhouse');
+    expect(variantMiniIdForGameSpec(DROP_MINI_XIANGQI_SPEC_ID)).toBe('drop-mini-xiangqi');
     expect(variantMiniIdForGameSpec(KRIEGSPIEL_SPEC_ID)).toBe('kriegspiel');
   });
 
@@ -201,6 +205,7 @@ describe('web variant launch registry', () => {
       [DARK_CHESS_SPEC_ID, 'fog'],
       [DARK_DRAFT960_SPEC_ID, 'dark-draft960'],
       [DARK_MINI_XIANGQI_SPEC_ID, 'dark-mini-xiangqi'],
+      [DROP_MINI_XIANGQI_SPEC_ID, 'drop-mini-xiangqi'],
       [DARK_XIANGQI_SPEC_ID, 'dark-xiangqi'],
       [JIEQI_SPEC_ID, 'jieqi'],
       [BANQI_SPEC_ID, 'banqi'],

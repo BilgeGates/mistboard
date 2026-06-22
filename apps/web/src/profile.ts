@@ -59,6 +59,7 @@ const PROFILE_VARIANT_LABEL: Record<ProfileRatingVariant, string> = {
   fog: 'Dark Chess',
   fog_draft960: 'Dark Draft960',
   dark_mini_xiangqi: 'Dark Mini Xiangqi',
+  drop_mini_xiangqi: 'Drop Mini Xiangqi',
   dark_xiangqi: 'Dark Xiangqi',
   dark_crazyhouse: 'Dark Crazyhouse',
   dark_shogi: 'Dark Shogi',

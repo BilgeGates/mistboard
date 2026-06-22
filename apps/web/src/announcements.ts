@@ -5,6 +5,7 @@ import {
   darkMiniXiangqiPublicEntryEnabled,
   darkShogiEnabled,
   darkXiangqiEnabled,
+  dropMiniXiangqiEnabled,
   jieqiEnabled,
   kriegspielEnabled,
   revealChessEnabled,
@@ -43,9 +44,20 @@ export type Announcement = {
   requiresRevealChess?: boolean;
   // Gated to the Kriegspiel flag so it only shows once Kriegspiel is live.
   requiresKriegspiel?: boolean;
+  // Gated to the Drop Mini Xiangqi flag so it only shows once the live room is enabled.
+  requiresDropMiniXiangqi?: boolean;
 };
 
 const baseAnnouncements: Announcement[] = [
+  {
+    date: '2026-06-21',
+    kind: 'release',
+    headline: 'Drop Mini Xiangqi is open for alpha play.',
+    body: 'Mini Xiangqi now has a reserve variant on Mistboard: capture pieces into hand, then drop them back onto the 7 by 7 board.',
+    href: '/rules/drop-mini-xiangqi',
+    cta: 'Read rules',
+    requiresDropMiniXiangqi: true,
+  },
   {
     date: '2026-06-20',
     kind: 'release',
@@ -174,6 +186,7 @@ export function announcements(): Announcement[] {
       (!announcement.requiresDarkShogi || darkShogiEnabled()) &&
       (!announcement.requiresDarkCrazyhouse || darkCrazyhouseEnabled()) &&
       (!announcement.requiresRevealChess || revealChessEnabled()) &&
-      (!announcement.requiresKriegspiel || kriegspielEnabled()),
+      (!announcement.requiresKriegspiel || kriegspielEnabled()) &&
+      (!announcement.requiresDropMiniXiangqi || dropMiniXiangqiEnabled()),
   );
 }

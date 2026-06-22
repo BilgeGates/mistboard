@@ -38,6 +38,15 @@ describe('variant mini-board markers', () => {
     expect(svg).toContain('vm-frame-chess');
   });
 
+  it('renders the Drop Mini Xiangqi marker with an open board and reserve tray', () => {
+    const svg = renderVariantMiniBoard('drop-mini-xiangqi', { size: 100 });
+
+    expect(svg).toContain('data-mini-id="drop-mini-xiangqi"');
+    expect(svg).toContain('vm-hand-tray');
+    expect(svg).not.toContain('vm-xq-fog');
+    expect(svg).toContain('vm-frame-xq');
+  });
+
   it('renders the Reveal Chess marker backs as white Banqi-style outlined discs', () => {
     const svg = renderVariantMiniBoard('reveal-chess', { size: 100 });
     const host = document.createElement('div');
@@ -55,12 +64,13 @@ describe('variant mini-board markers', () => {
     expect(svg).not.toContain('opacity="0.4"');
   });
 
-  it('includes Kriegspiel, Dark Crossroads, and Dark Crazyhouse on the marker lab sheet', () => {
+  it('includes Kriegspiel, Drop Mini, Dark Crossroads, and Dark Crazyhouse on the marker lab sheet', () => {
     const root = document.createElement('div');
 
     mountVariantMarksLab(root);
 
     expect(root.querySelector('svg[data-mini-id="kriegspiel"]')).not.toBeNull();
+    expect(root.querySelector('svg[data-mini-id="drop-mini-xiangqi"]')).not.toBeNull();
     expect(root.querySelector('svg[data-mini-id="dark-crossroads"]')).not.toBeNull();
     expect(root.querySelector('svg[data-mini-id="dark-crazyhouse"]')).not.toBeNull();
   });

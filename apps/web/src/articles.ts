@@ -1810,6 +1810,7 @@ const VARIANT_MINI_BY_SLUG: Record<string, VariantMiniId> = {
   'dark-xiangqi': 'dark-xiangqi',
   'mini-xiangqi': 'mini-xiangqi',
   'dark-mini-xiangqi': 'dark-mini-xiangqi',
+  'drop-mini-xiangqi': 'drop-mini-xiangqi',
   jieqi: 'jieqi',
   banqi: 'banqi',
   'crossroads-chess': 'crossroads',

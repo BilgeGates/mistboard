@@ -40,6 +40,7 @@ import { boardAppearanceChangedEvent, setBoardFamily } from './theme.js';
 import { installBoardDrag } from './variant-tenant/board-drag.js';
 import { createTenantReplayController } from './variant-tenant/replay-controller.js';
 import { createTenantRoomChrome, type WebVariantTenant } from './variant-tenant/room-chrome.js';
+import { installSelectionClickAway } from './variant-tenant/selection-click-away.js';
 import {
   createTenantSocketClient,
   type TenantConnectionState,
@@ -244,6 +245,14 @@ export function bootstrapKriegspielLiveRoom(): void {
 
   installBoardInteraction(refs);
   refs.promotion.addEventListener('click', onPromotionClick);
+  installSelectionClickAway({
+    roots: () => [refs?.board],
+    hasSelection: () => state.pendingPromotion === null && state.selected !== null,
+    clearSelection: () => {
+      clearSelection();
+      renderAll();
+    },
+  });
 
   client = createTenantSocketClient({
     room,
@@ -387,7 +396,7 @@ function canDragPiece(square: Square): boolean {
 // A drag ended over `to` (null if dropped off-board or back on `from`). Run the
 // exact click-to-move path for from→to, including the promotion picker — a drag
 // that lands a promotion routes through the SAME picker (it never auto-sends a
-// promotion). Snap-back keeps the piece selected only if it has a legal target.
+// promotion). A failed drop clears the selection and target dots.
 function dropPiece(from: Square, to: Square | null): void {
   state.draggingFrom = null;
   const view = state.view;
@@ -403,9 +412,7 @@ function dropPiece(from: Square, to: Square | null): void {
     submitMove(from, to, matches);
     return;
   }
-  // Dropped off a legal target: keep it selected only if it has moves (so a
-  // follow-up click can complete one); otherwise snap back deselected.
-  state.selected = moveTargets(view, from).length > 0 ? from : null;
+  state.selected = null;
   renderAll();
 }
 

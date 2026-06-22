@@ -18,6 +18,11 @@ test('registry: DMX registration resolves by room id prefix and spec id', () => 
   assert.equal(bySpec?.roomIdPrefix, 'dmxq_');
 });
 
+test('registry: Drop Mini Xiangqi registration resolves by room id prefix and spec id', () => {
+  assert.equal(variantTenantForRoomId('dmxqd_some-room')?.kind, 'drop-mini-xiangqi');
+  assert.equal(variantTenantForSpecId('drop-mini-xiangqi')?.roomIdPrefix, 'dmxqd_');
+});
+
 test('registry: Dark Xiangqi registration resolves by room id prefix and spec id', () => {
   assert.equal(variantTenantForRoomId('dxq_some-room')?.kind, 'dark-xiangqi');
   assert.equal(variantTenantForSpecId('dark-xiangqi')?.roomIdPrefix, 'dxq_');

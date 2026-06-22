@@ -48,8 +48,10 @@ import {
 import { setBoardFamily, shogiAppearanceChangedEvent } from './theme.js';
 import { installBoardDrag } from './variant-tenant/board-drag.js';
 import { syncMoveListScroll } from './variant-tenant/chrome-dom.js';
+import { installHandDrag } from './variant-tenant/hand-drag.js';
 import { createTenantReplayController } from './variant-tenant/replay-controller.js';
 import { createTenantRoomChrome, type WebVariantTenant } from './variant-tenant/room-chrome.js';
+import { installSelectionClickAway } from './variant-tenant/selection-click-away.js';
 import {
   createTenantSocketClient,
   type TenantConnectionState,
@@ -235,8 +237,19 @@ export function bootstrapDarkShogiLiveRoom(): void {
   });
 
   installBoardInteraction();
+  installHandInteraction();
   refs.capturesBottom.addEventListener('click', onHandClick);
   refs.promotion.addEventListener('click', onPromotionClick);
+  installSelectionClickAway({
+    roots: () => [boardHost, refs?.capturesBottom],
+    hasSelection: () =>
+      state.pendingPromotion === null && (state.selected !== null || state.selectedDrop !== null),
+    clearSelection: () => {
+      clearSelection();
+      state.draggingFrom = null;
+      renderAll();
+    },
+  });
 
   client = createTenantSocketClient({
     room,
@@ -301,17 +314,12 @@ function onServerMessage(message: { type: string; [key: string]: unknown }): voi
 // promotion flow; drag lifts a visible own koma and drops it on a legal target,
 // routing through the SAME submit path (so an optional promotion still prompts).
 // A tap that never crosses the movement threshold falls through to the click
-// handler. Hand drops stay click-only (the hand strip is a separate host).
+// handler. Reserve drops use installHandInteraction below.
 function installBoardInteraction(): void {
   if (!boardHost) return;
   installBoardDrag({
     board: boardHost,
-    ghostSizePx: () => {
-      const rect = boardHost?.getBoundingClientRect();
-      return rect && rect.width > 0
-        ? (rect.width / SHOGI_FILES) * shogiBoardPieceScale()
-        : 48 * shogiBoardPieceScale();
-    },
+    ghostSizePx: shogiDragPieceSizePx,
     onSquareClick: (square) => {
       const view = state.view;
       if (!view) return;
@@ -324,8 +332,8 @@ function installBoardInteraction(): void {
       return shogiPieceGhostSvg(piece);
     },
     onDragStart: (from) => {
-      // Lift the koma: select it (so a snap-back leaves it ready for a click
-      // follow-up) and hide it from the board so only the ghost shows.
+      // Lift the koma: select it while dragging and hide it from the board so
+      // only the ghost shows.
       state.bounce = null;
       state.selectedDrop = null;
       state.selected = from as ShogiSquare;
@@ -336,10 +344,35 @@ function installBoardInteraction(): void {
   });
 }
 
+function installHandInteraction(): void {
+  if (!refs) return;
+  installHandDrag({
+    hand: refs.capturesBottom,
+    ghostSizePx: shogiDragPieceSizePx,
+    isRole: isHandRole,
+    canDragRole: canDragHandRole,
+    ghostHtml: (role) =>
+      isShogiColor(state.seat) ? shogiHandKomaSvg(role, state.seat, true) : null,
+    onDragStart: (role) => {
+      state.bounce = null;
+      state.selected = null;
+      state.selectedDrop = role;
+      renderAll();
+    },
+    onDrop: (role, to) => dropHandKoma(role, to),
+  });
+}
+
+function shogiDragPieceSizePx(): number {
+  const rect = boardHost?.getBoundingClientRect();
+  return rect && rect.width > 0
+    ? (rect.width / SHOGI_FILES) * shogiBoardPieceScale()
+    : 48 * shogiBoardPieceScale();
+}
+
 // A drag may begin from a visible own board piece on your turn (replay live +
 // connected). Any of your visible pieces can be lifted (it snaps back if dropped
-// where it cannot move), not just ones with a legal move right now. Hand drops
-// are NOT draggable — they stay click-only.
+// where it cannot move), not just ones with a legal move right now.
 function canDragShogiPiece(square: ShogiSquare): boolean {
   const view = state.view;
   if (!view || !canActNow(view)) return false;
@@ -351,7 +384,7 @@ function canDragShogiPiece(square: ShogiSquare): boolean {
 // A drop ended over `to` (null if off-board or back on `from`). Do EXACTLY what a
 // click from→to does: find the matching legal move(s) and route through
 // submitBoardMove, which opens the optional-promotion prompt when needed. A
-// snap-back keeps the piece selected only if it has moves, else clears it.
+// failed drop clears the selection and target dots.
 function dropShogiPiece(from: ShogiSquare, to: ShogiSquare | null): void {
   state.draggingFrom = null;
   const view = state.view;
@@ -370,9 +403,33 @@ function dropShogiPiece(from: ShogiSquare, to: ShogiSquare | null): void {
     submitBoardMove(from, to as ShogiSquare, matches);
     return;
   }
-  // Snap-back: a movable piece stays selected (ready for a click follow-up); a
-  // piece with no legal move snaps back deselected.
-  state.selected = moveTargets(view, from).length > 0 ? from : null;
+  state.selected = null;
+  renderAll();
+}
+
+function canDragHandRole(role: ShogiHandRole): boolean {
+  const view = state.view;
+  if (!view || !canActNow(view) || state.pendingPromotion) return false;
+  return (view.hand[role] ?? 0) > 0;
+}
+
+function dropHandKoma(role: ShogiHandRole, to: string | null): void {
+  const view = state.view;
+  if (!view || !canActNow(view) || state.pendingPromotion) {
+    clearSelection();
+    renderAll();
+    return;
+  }
+  state.bounce = null;
+  state.selected = null;
+  state.selectedDrop = role;
+  if (to && isShogiSquare(to) && dropTargets(view, role).includes(to)) {
+    if (send({ type: 'move', from: `*${role}`, to })) {
+      playSound('drop');
+    }
+    clearSelection();
+  }
+  if (!to || !isShogiSquare(to) || !dropTargets(view, role).includes(to)) clearSelection();
   renderAll();
 }
 
@@ -619,6 +676,7 @@ function handKoma(
     .join(' ');
   button.dataset.drop = role;
   button.disabled = !droppable;
+  button.setAttribute('aria-grabbed', selected ? 'true' : 'false');
   button.setAttribute('aria-pressed', selected ? 'true' : 'false');
   button.innerHTML = shogiHandKomaSvg(role, color);
   const badge = document.createElement('span');
@@ -795,6 +853,14 @@ function isMoveEvent(event: DarkShogiLiveEvent): event is DarkShogiMovePlayed {
   const candidate = move as { from?: unknown; to?: unknown; drop?: unknown };
   if (typeof candidate.to !== 'string') return false;
   return typeof candidate.from === 'string' || typeof candidate.drop === 'string';
+}
+
+function isHandRole(value: string): value is ShogiHandRole {
+  return SHOGI_HAND_ORDER.includes(value as ShogiHandRole);
+}
+
+function isShogiSquare(value: string): value is ShogiSquare {
+  return /^[1-9][a-i]$/.test(value);
 }
 
 function orientationFor(view: ShogiPlayerView | null): ShogiColor {

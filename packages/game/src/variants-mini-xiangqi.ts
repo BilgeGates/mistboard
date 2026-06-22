@@ -106,6 +106,7 @@ export type MiniXiangqiPlayerView = {
 
 export type MiniXiangqiGameEndReason =
   | 'general-captured'
+  | 'checkmate'
   | 'stalemate'
   | 'timeout'
   | 'resignation'

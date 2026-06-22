@@ -18,6 +18,7 @@ import {
   DARK_MINI_XIANGQI_SPEC_ID,
   DARK_SHOGI_SPEC_ID,
   DARK_XIANGQI_SPEC_ID,
+  DROP_MINI_XIANGQI_SPEC_ID,
   type GameSpecId,
   gameSpecForId,
   JIEQI_SPEC_ID,
@@ -35,6 +36,7 @@ import {
   darkMiniXiangqiPublicEntryEnabled,
   darkShogiEnabled,
   darkXiangqiEnabled,
+  dropMiniXiangqiEnabled,
   jieqiEnabled,
   kriegspielEnabled,
   revealChessEnabled,
@@ -64,6 +66,7 @@ export interface VariantDef {
 const draft960Enabled = import.meta.env.VITE_DRAFT960_ENABLED === 'true';
 const darkMiniEnabled = darkMiniXiangqiEnabled();
 const darkMiniPublicEntryEnabled = darkMiniXiangqiPublicEntryEnabled();
+const dropMiniXiangqiOn = dropMiniXiangqiEnabled();
 const crossroadsEnabled = crossroadsChessEnabled();
 const jieqiOn = jieqiEnabled();
 const banqiOn = banqiEnabled();
@@ -76,6 +79,7 @@ const kriegspielOn = kriegspielEnabled();
 const darkChessSpec = gameSpecForId(DARK_CHESS_SPEC_ID);
 const draft960Spec = gameSpecForId(DARK_DRAFT960_SPEC_ID);
 const darkMiniXiangqiSpec = gameSpecForId(DARK_MINI_XIANGQI_SPEC_ID);
+const dropMiniXiangqiSpec = gameSpecForId(DROP_MINI_XIANGQI_SPEC_ID);
 const darkXiangqiSpec = gameSpecForId(DARK_XIANGQI_SPEC_ID);
 const crossroadsChessSpec = gameSpecForId(CROSSROADS_CHESS_SPEC_ID);
 const darkCrossroadsChessSpec = gameSpecForId(DARK_CROSSROADS_CHESS_SPEC_ID);
@@ -93,6 +97,7 @@ const VARIANT_MINI_BY_GAME_SPEC: Partial<Record<GameSpecId, VariantMiniId>> = {
   [DARK_CHESS_SPEC_ID]: 'dark-chess',
   [DARK_DRAFT960_SPEC_ID]: 'draft960',
   [DARK_MINI_XIANGQI_SPEC_ID]: 'dark-mini-xiangqi',
+  [DROP_MINI_XIANGQI_SPEC_ID]: 'drop-mini-xiangqi',
   [DARK_XIANGQI_SPEC_ID]: 'dark-xiangqi',
   [JIEQI_SPEC_ID]: 'jieqi',
   [BANQI_SPEC_ID]: 'banqi',
@@ -137,6 +142,16 @@ export const VARIANTS: VariantDef[] = [
     enabled: darkMiniPublicEntryEnabled,
     onLeaderboard: darkMiniPublicEntryEnabled,
     onProfile: darkMiniEnabled,
+  },
+  {
+    id: currentRatingVariantForSpec(DROP_MINI_XIANGQI_SPEC_ID),
+    gameSpecId: dropMiniXiangqiSpec.id,
+    apiParam: DROP_MINI_XIANGQI_SPEC_ID,
+    label: dropMiniXiangqiSpec.publicName,
+    miniId: 'drop-mini-xiangqi',
+    enabled: false,
+    onLeaderboard: dropMiniXiangqiOn,
+    onProfile: dropMiniXiangqiOn,
   },
   // Full Dark Xiangqi (9x10 fog): launched PvP-first (no bot, no open-seek
   // lobby), rating-ready like jieqi/banqi — shown on the rating surfaces whenever
