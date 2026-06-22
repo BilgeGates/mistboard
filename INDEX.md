@@ -133,6 +133,9 @@ Edit task → find file → open only that file.
 | `routes/crossroads-chess.ts` | Crossroads Chess game/postgame API branch (open perfect-info views; keeps non-chess records out of generic chess replay APIs) |
 | `routes/dark-mini-xiangqi-rooms.ts` | DMX room-creation branch for `POST /api/rooms` (rated-flag/time-control gating via `game-spec-request-gate`) |
 | `routes/dark-mini-xiangqi-games.ts` | DMX postgame/review + publication-JSON API branch; keeps non-chess finished games out of generic chess replay APIs |
+| `routes/drop-mini-xiangqi-rooms.ts` | Drop Mini Xiangqi room-creation branch for `POST /api/rooms` (PvP/lobby only for now; rated/time-control gating via `game-spec-request-gate`) |
+| `routes/drop-mini-xiangqi-games.ts` | Drop Mini Xiangqi postgame/review API branch; exposes the finished open-information board, reserve history, and move timeline |
+| `routes/bots.ts` | Public bot directory/profile API (`/api/bots`, `/api/bots/:id`) filtered to playable enabled variants |
 | `account-session.ts` | Account auth: `currentAccountUser`, `ensureUserForEmail`, `hashSecret`, session cookies, email login |
 | `account-identity.ts` | Email normalization, handle generation, display name handling |
 | `build-info.ts` | Build metadata surfaced through status responses |
@@ -151,6 +154,7 @@ Edit task → find file → open only that file.
 | `persistence-game-lifecycle.ts` | Room event loading/append, running-game lifecycle, stale-room cleanup, debug artifact persistence |
 | `persistence-games.ts` | Completed-game persistence, game summaries/lists, watch/unlock queries, participant attribution, game-end persistence |
 | `persistence-accounts.ts` | Account/profile/session/email-login queries and leaderboard/account-role helpers |
+| `persistence-bots.ts` | Bot profile/rating/game persistence: public bot directory, bot profile pages, rating snapshots, and bot game records |
 | `persistence-feedback.ts` | Feedback persistence |
 | `persistence-site-stats.ts` | Site statistics query |
 | `persistence-test-support.ts` | Shared Postgres test harness: migration, truncation reset, DB URL gating, and persistence test helpers |
@@ -160,6 +164,10 @@ Edit task → find file → open only that file.
 | `rating-buckets.ts` | Variant × time-class → bucket-id mapping for per-bucket Elo |
 | `glicko.ts` | Glicko-2 rating math (Glickman 2013) for the human PvP ladder; self-calibrating via rating deviation, so no offline calibration step |
 | `rating-store.ts` | Rating persistence/store helpers |
+| `first-party-bots.ts` | Static first-party bot profile registry mapping public bot ids to active engine ids and default variants |
+| `bot-rating-import.ts` | Converts engine Elo reports into draft bot rating snapshot plans for first-party bot profiles |
+| `bot-rating-snapshots.ts` | Bot rating snapshot list/promotion helpers and audit-row rendering |
+| `bot-rating-promote.ts` | CLI for promoting draft bot rating snapshots to published bot ratings |
 | `migrate.ts` | Schema migrations — run once on startup |
 | `python-pool.ts` | Persistent Python worker pool for live engines (size=4 in prod) |
 | `engine-service.ts` | Internal HTTP engine service and live engine reservation admission control |
@@ -199,6 +207,8 @@ Edit task → find file → open only that file.
 | `dark-mini-xiangqi-runtime.ts` | Thin adapter over `variant-tenant/` runtime for DMX (P0 reference; wire parity pinned by `dark-mini-xiangqi-golden-wire.test.ts`) |
 | `dark-mini-xiangqi-registration.ts` | DMX registry entry: live-room map, room-factory binding, hydration, rematch context; registers dispatch closures |
 | `dark-mini-xiangqi-export.ts` | DMX JSON publication export (honest red/black, coordinate UCI moves; no PGN — xiangqi has no SAN standard) |
+| `drop-mini-xiangqi-tenant.ts` | Drop Mini Xiangqi `VariantTenant`: open-information 7x7 mini xiangqi with crazyhouse-style reserves, public events, public board state, and board/drop move parsing |
+| `drop-mini-xiangqi-registration.ts` | Drop Mini Xiangqi registry entry: live-room map, room-factory binding, hydration, WebSocket runtime, HTTP create route, lobby route, and watch metadata |
 | `dark-xiangqi-registration.ts` | Dark Xiangqi (9x10, hidden/dev-only) registry entry: live-room map, room-factory binding, hydration. No rematch/lobby (lobby answers `dark_xiangqi_not_integrated`) |
 | `crossroads-chess-engine.ts` | Fairy-Stockfish move provider for perfect-info Crossroads Chess (loads `crossroads-chess.ini`, one FSF process/request); the open-mode opponent, NOT the fog engine-worker |
 | `server-crossroads-chess-engine.ts` | Server-side FSF PvE loop for Crossroads Chess; injects engine moves through the same append+broadcast path as humans so clocks/persistence/reconnect/review stay event-sourced |
@@ -423,6 +433,7 @@ Run with `MISTBOARD_ALLOW_IN_MEMORY_PERSISTENCE=true npm run test:integration --
 | `engine-profile.ts` | Unlisted admin per-engine profile (`/engine/:id`): reuses `profile-ui.ts` + `account-profile.css` with a PvE/EvE records block; admin-gated by `/api/admin/engines/:id`, reached from `/engines`. Loads `engine-profile.css` |
 | `engine-profile.css` | `/engine/:id` engine-records block styles (atop `account-profile.css`) loaded by `engine-profile.ts` |
 | `profile-ui.ts` | Shared profile-surface primitives (`buildProfileHeaderShell`, `buildProfileGameRow`) used by the player profile (`/@handle`) and engine profile (`/engine/:id`) so the two render as siblings |
+| `bots.ts` | Public bot directory and profile route (`/bots`, `/bot/:id`): profile shell, published bot rating, playable CTA, and recent bot game rows |
 | `correspondence.ts` | `/correspondence` dashboard: lists the player's in-flight async games from `GET /api/correspondence/games` (your-move-first), with sign-in gate and unavailable-state notices. Loads `correspondence.css` |
 | `correspondence.css` | `/correspondence` dashboard styles loaded by `correspondence.ts` |
 | `rematch-controls.ts` | Shared post-game rematch control block for chess (white/black) and Dark Mini Xiangqi (red/black); reads the unified `liveState.rematch`, only per-game input is the two seat colors |
@@ -472,8 +483,13 @@ Run with `MISTBOARD_ALLOW_IN_MEMORY_PERSISTENCE=true npm run test:integration --
 | `dark-mini-xiangqi-postgame.ts` | Dark Mini Xiangqi postgame/review route renderer: red/black/truth views from the postgame API, reuses replay panes/header/move-list + DMX capture split. Behind `darkMiniXiangqiEnabled`. Loads `landing.css` + `game-route.css` |
 | `mini-xiangqi-captures.ts` | Dark Mini Xiangqi captured-piece derivation (truth-view diff against the initial board) + pane capture-split rendering |
 | `mini-xiangqi-replay.ts` | Mini Xiangqi article replay: one 7×7 board stepped through a move list via the real kernel, rendered on demand (sibling of `xiangqi-replay.ts`) |
+| `drop-mini-xiangqi-view.ts` | Shared Drop Mini Xiangqi view helpers: open board projection, legal board/drop target derivation, move labels, and reserve strip rendering |
+| `live-drop-mini-xiangqi.ts` | Drop Mini Xiangqi live room client on the tenant socket/chrome stack: open 7x7 board, board moves, reserve drops, draggable hands, move list, and replay capture |
+| `drop-mini-xiangqi-postgame.ts` | Drop Mini Xiangqi postgame/review route renderer: truth-board replay with reserve strips and per-ply history from the postgame API |
+| `drop-mini-xiangqi-replay.ts` | Drop Mini Xiangqi rules-article replay: parses board/drop notation, replays through the real kernel, and renders the sample game with reserve strips |
 | `mini-xiangqi-spike.ts` | `/mini-xiangqi-spike` FoW Mini Xiangqi sandbox (DEV): local play across red/black/god perspectives over the bespoke 7×7 renderer |
 | `watch-mini-xiangqi-replay.ts` | Mistboard TV (`/watch`) renderer for Dark Mini Xiangqi: postgame payload + shared replay chrome + control bar/auto-play, rendering server-computed fog views (leak-safe) |
+| `watch-drop-mini-xiangqi-replay.ts` | Mistboard TV (`/watch`) renderer for Drop Mini Xiangqi: open-information replay over the postgame API, with board orientation and reserve strips |
 | `watch-dark-xiangqi-replay.ts` | Mistboard TV (`/watch`) renderer for full Dark Xiangqi (9×10) — thin adapter over `watch-tenant-replay.ts` rendering the red/truth/black fog triptych (per-view fog mask) |
 | `watch-fog-triptych-replay.ts` | Generic Mistboard TV (`/watch`) replay chrome for fog triptych variants: header, three panes, control bar, autoplay, ply navigation, result labels, and optional private/truth reserve strips |
 | `watch-dark-crossroads-chess-replay.ts` | Mistboard TV (`/watch`) renderer for Dark Crossroads Chess: adapter over `watch-fog-triptych-replay.ts`, using the Dark Crossroads postgame payload and crossroads SVG renderer |
@@ -495,6 +511,8 @@ Run with `MISTBOARD_ALLOW_IN_MEMORY_PERSISTENCE=true npm run test:integration --
 | `variant-tenant/registry.ts` | Web-side `VariantTenant` registry (routing/config mirror of the server registry): per-tenant page routing, review-URL base, watch-replay mount, landing config so `main.ts`/`live-room-bootstrap`/`landing`/`game-meta`/`watch-route` dispatch without per-variant branches; entry-chunk safe. Chess is intentionally unregistered (a miss is the chess fallback) |
 | `variant-tenant/live-shell.ts` | Static half of the registry: tenants that ride the shared `live.ts`/`live-render` shell (currently DMX) register render/reconcile/reset/tick/keyboard hooks here; statically imports the tenant live-room modules so it loads only in the live-room chunk |
 | `variant-tenant/board-drag.ts` | Shared drag-to-move for the self-rendered SVG variant boards (extracted from DMX): pointer state machine, floating ghost, 4px tap threshold, click-suppression. Delegated to the board container ONCE at mount (survives `innerHTML` re-renders); the caller supplies `canDragFrom` / `ghostHtml` / `onDrop`. Click-to-move is preserved (a sub-threshold tap falls through). The `.board-drag-ghost` CSS lives in styles.css. |
+| `variant-tenant/hand-drag.ts` | Shared pointer drag for reserve/hand pieces into variant board hit zones, used by drop variants with rendered hand strips |
+| `variant-tenant/selection-click-away.ts` | Shared document-level click-away helper that clears selected board/hand pieces when the user clicks outside registered roots |
 | `vite-env.d.ts` | Vite client type reference (`/// <reference types="vite/client" />`) |
 | `live-jieqi.ts` | Live multiplayer room client for Jieqi (揭棋) — self-contained tenant client on the `socket-client` + `room-chrome` stack; identity-hidden xiangqi (board public, piece roles hidden until revealed). Renders the server `JieqiPlayerView`; no client-side hidden-info inference. Loads `live-xiangqi.css` |
 | `live-jieqi-render.ts` | Jieqi board SVG renderer: xiangqi pieces on intersections, face-down pieces as backs, revealed roles glyphed; reuses the shared xiangqi piece-sets/appearance |
