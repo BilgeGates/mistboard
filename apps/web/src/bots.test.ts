@@ -60,6 +60,7 @@ function bot(overrides: Record<string, unknown> = {}): Record<string, unknown> {
 
 describe('bot pages', () => {
   afterEach(() => {
+    document.querySelector('[data-bot-play-dialog]')?.remove();
     vi.restoreAllMocks();
   });
 
@@ -68,7 +69,7 @@ describe('bot pages', () => {
       new Response(
         JSON.stringify({
           bots: [
-            bot(),
+            bot({ supportedGameSpecIds: ['dark-chess', 'dark-draft960', 'banqi'] }),
             bot({
               id: 'community-bot',
               displayName: 'Community Bot',
@@ -91,6 +92,7 @@ describe('bot pages', () => {
     expect(root.textContent).toContain('Searches hidden positions');
     expect(root.querySelector('.bot-card-rating-value')?.textContent).toBe('1,812');
     expect(root.querySelector('.bot-rating-strip')?.textContent).toContain('Banqi Rapid');
+    expect(root.textContent).not.toContain('Draft960');
     expect(root.querySelector<HTMLAnchorElement>('.bot-card-title')?.href).toContain(
       '/bot/misty-dark-chess',
     );
@@ -113,5 +115,97 @@ describe('bot pages', () => {
     expect(root.querySelector('.bot-profile-rating')?.textContent).toContain('48 rated games');
     expect(root.querySelector('.bot-profile-rating')?.textContent).toContain('Banqi · Rapid');
     expect(root.querySelector('.bot-profile-variants')?.textContent).toContain('Banqi');
+  });
+
+  it('opens a setup dialog before creating a bot game', async () => {
+    const fetchMock = vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      new Response(JSON.stringify({ bots: [bot()] }), {
+        headers: { 'content-type': 'application/json' },
+        status: 200,
+      }),
+    );
+    const root = document.createElement('div');
+    const { mountBots } = await import('./bots.js');
+
+    await mountBots(root);
+    root.querySelector<HTMLButtonElement>('.bot-play-button')?.click();
+
+    expect(document.querySelector('[data-bot-play-dialog]')?.textContent).toContain('Start game');
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  it('posts the confirmed bot side choice', async () => {
+    const fetchMock = vi.spyOn(globalThis, 'fetch').mockImplementation(async (input) => {
+      if (String(input) === '/api/bots') {
+        return new Response(JSON.stringify({ bots: [bot()] }), {
+          headers: { 'content-type': 'application/json' },
+          status: 200,
+        });
+      }
+      if (String(input) === '/api/rooms') {
+        return new Response(JSON.stringify({}), {
+          headers: { 'content-type': 'application/json' },
+          status: 201,
+        });
+      }
+      return new Response(null, { status: 404 });
+    });
+    const root = document.createElement('div');
+    const { mountBots } = await import('./bots.js');
+
+    await mountBots(root);
+    root.querySelector<HTMLButtonElement>('.bot-play-button')?.click();
+    [...document.querySelectorAll<HTMLButtonElement>('.bot-play-choice')]
+      .find((button) => button.textContent === 'Black')
+      ?.click();
+    document.querySelector<HTMLButtonElement>('.bot-play-dialog-start')?.click();
+
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    const postInit = fetchMock.mock.calls[1]?.[1] as RequestInit;
+    expect(JSON.parse(String(postInit.body))).toMatchObject({
+      mode: 'pve',
+      botId: 'misty-dark-chess',
+      preferredColor: 'black',
+      rated: false,
+    });
+  });
+
+  it('labels Banqi choices as move order instead of fixed colors', async () => {
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          bots: [
+            bot({
+              defaultGameSpecId: 'banqi',
+              supportedGameSpecIds: ['banqi'],
+              play: {
+                mode: 'pve',
+                gameSpecId: 'banqi',
+                engineId: 'misty-banqi',
+                timeControl: {
+                  initialMs: 180_000,
+                  incrementMs: 2_000,
+                },
+                preferredColor: 'random',
+              },
+            }),
+          ],
+        }),
+        { headers: { 'content-type': 'application/json' }, status: 200 },
+      ),
+    );
+    const root = document.createElement('div');
+    const { mountBots } = await import('./bots.js');
+
+    await mountBots(root);
+    root.querySelector<HTMLButtonElement>('.bot-play-button')?.click();
+
+    const dialogText = document.querySelector('[data-bot-play-dialog]')?.textContent ?? '';
+    expect(dialogText).toContain('Move order');
+    expect(dialogText).toContain('First');
+    expect(dialogText).toContain('Second');
+    expect(dialogText).not.toContain('Red');
   });
 });

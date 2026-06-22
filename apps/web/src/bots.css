@@ -1,14 +1,14 @@
 .bots-shell {
   display: grid;
-  gap: 18px;
-  width: min(1040px, calc(100% - 24px));
+  gap: 14px;
+  width: min(980px, calc(100% - 24px));
   margin: 0 auto;
-  padding: 28px 0 42px;
+  padding: 22px 0 38px;
 }
 
 .bots-directory-header {
   display: grid;
-  gap: 8px;
+  gap: 6px;
 }
 
 .bots-directory-header .site-section-heading {
@@ -19,18 +19,18 @@
 .bots-status {
   margin: 0;
   color: var(--site-muted);
-  font-size: 14px;
+  font-size: 13px;
   line-height: 1.5;
 }
 
 .bots-directory {
   display: grid;
-  gap: 18px;
+  gap: 14px;
 }
 
 .bot-directory-section {
   display: grid;
-  gap: 8px;
+  gap: 7px;
 }
 
 .bot-directory-section-header {
@@ -43,7 +43,7 @@
 .bot-directory-section h2 {
   margin: 0;
   color: var(--site-heading);
-  font-size: 18px;
+  font-size: 16px;
   font-weight: 550;
 }
 
@@ -76,9 +76,9 @@
 
 .bot-card {
   display: grid;
-  gap: 10px;
+  gap: 7px;
   align-content: start;
-  padding: 16px;
+  padding: 12px 14px;
   border: 0;
   border-bottom: 1px solid var(--site-border-soft);
   border-radius: 0;
@@ -95,7 +95,7 @@
 
 .bot-card-header {
   display: flex;
-  gap: 12px;
+  gap: 10px;
   align-items: start;
   justify-content: space-between;
   min-width: 0;
@@ -112,8 +112,8 @@
 .bot-badge {
   display: inline-flex;
   align-items: center;
-  min-height: 20px;
-  padding: 2px 6px;
+  min-height: 18px;
+  padding: 2px 5px;
   border-radius: 3px;
   background: color-mix(in srgb, #4f8edb 18%, var(--site-panel));
   color: #4f8edb;
@@ -133,7 +133,7 @@
 
 .bot-card-rating-value {
   color: var(--site-heading);
-  font-size: 20px;
+  font-size: 18px;
   font-weight: 750;
   line-height: 1;
 }
@@ -148,7 +148,7 @@
 .bot-card-title {
   min-width: 0;
   color: var(--site-heading);
-  font-size: 18px;
+  font-size: 16px;
   font-weight: 650;
   line-height: 1.2;
   text-decoration: none;
@@ -169,7 +169,7 @@
 .bot-rating-strip {
   display: flex;
   flex-wrap: wrap;
-  gap: 7px;
+  gap: 5px;
   align-items: center;
 }
 
@@ -177,20 +177,20 @@
   margin: 0;
   max-width: 74ch;
   color: var(--site-muted);
-  font-size: 13px;
-  line-height: 1.45;
+  font-size: 12px;
+  line-height: 1.4;
 }
 
 .bot-chip {
   display: inline-flex;
   align-items: center;
-  min-height: 24px;
-  padding: 3px 8px;
+  min-height: 21px;
+  padding: 2px 7px;
   border: 1px solid var(--site-border-soft);
   border-radius: 3px;
   background: var(--site-panel-soft);
   color: var(--site-muted);
-  font-size: 12px;
+  font-size: 11px;
   font-weight: 650;
   line-height: 1;
 }
@@ -217,10 +217,10 @@
 .bot-rating-chip {
   display: inline-grid;
   grid-template-columns: auto auto;
-  gap: 6px;
+  gap: 5px;
   align-items: baseline;
-  min-height: 26px;
-  padding: 4px 8px;
+  min-height: 23px;
+  padding: 3px 7px;
   border: 1px solid var(--site-border-soft);
   border-radius: 3px;
   background: color-mix(in srgb, var(--site-accent) 10%, var(--site-panel));
@@ -233,7 +233,7 @@
 
 .bot-rating-chip-value {
   color: var(--site-heading);
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 800;
 }
 
@@ -253,7 +253,7 @@
 .bot-profile-link {
   display: inline-flex;
   align-items: center;
-  min-height: 32px;
+  min-height: 30px;
   padding: 6px 9px;
   color: var(--site-muted);
   font-size: 13px;
@@ -265,6 +265,146 @@
 .bot-play-button-error {
   border-color: color-mix(in srgb, #c45b52 60%, var(--site-border));
   color: #c45b52;
+}
+
+.bot-play-dialog-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: grid;
+  place-items: center;
+  padding: 16px;
+  background: rgba(15, 30, 24, 0.42);
+}
+
+.bot-play-dialog {
+  display: grid;
+  gap: 14px;
+  width: min(400px, 100%);
+  padding: 16px;
+  border: 1px solid var(--site-border);
+  border-radius: 4px;
+  background: var(--site-panel);
+  box-shadow: 0 18px 48px rgba(15, 30, 24, 0.22);
+  color: var(--site-text);
+}
+
+.bot-play-dialog:focus {
+  outline: none;
+}
+
+.bot-play-dialog-header,
+.bot-play-dialog-actions {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.bot-play-dialog-header h2 {
+  margin: 0;
+  color: var(--site-heading);
+  font-size: 18px;
+  font-weight: 650;
+  line-height: 1.2;
+}
+
+.bot-play-dialog-close,
+.bot-play-dialog-cancel {
+  min-height: 30px;
+  border: 1px solid var(--site-border);
+  border-radius: 3px;
+  background: var(--site-panel);
+  color: var(--site-muted);
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.bot-play-dialog-close {
+  width: 30px;
+  padding: 0;
+  line-height: 1;
+}
+
+.bot-play-dialog-cancel {
+  padding: 5px 10px;
+}
+
+.bot-play-dialog-meta,
+.bot-play-dialog-error {
+  margin: 0;
+  color: var(--site-muted);
+  font-size: 13px;
+  line-height: 1.4;
+}
+
+.bot-play-choice-group {
+  display: grid;
+  gap: 7px;
+}
+
+.bot-play-choice-label {
+  color: var(--site-heading);
+  font-size: 12px;
+  font-weight: 750;
+  text-transform: uppercase;
+}
+
+.bot-play-choice-options {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  overflow: hidden;
+  border: 1px solid var(--site-border);
+  border-radius: 3px;
+  background: var(--site-border);
+}
+
+.bot-play-choice {
+  min-width: 0;
+  min-height: 36px;
+  border: 0;
+  border-radius: 0;
+  background: var(--site-panel);
+  color: var(--site-text);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.bot-play-choice + .bot-play-choice {
+  border-left: 1px solid var(--site-border);
+}
+
+.bot-play-choice:hover,
+.bot-play-choice:focus-visible,
+.bot-play-dialog-close:hover,
+.bot-play-dialog-close:focus-visible,
+.bot-play-dialog-cancel:hover,
+.bot-play-dialog-cancel:focus-visible {
+  border-color: var(--site-accent);
+  outline: 3px solid var(--site-focus);
+  outline-offset: -1px;
+}
+
+.bot-play-choice.selected {
+  background: color-mix(in srgb, var(--site-accent) 18%, var(--site-panel));
+  color: var(--site-accent-strong);
+}
+
+.bot-play-dialog-error {
+  color: #a0453d;
+  font-weight: 650;
+}
+
+.bot-play-dialog-actions {
+  justify-content: flex-end;
+}
+
+.bot-play-dialog-start {
+  min-height: 32px;
+  padding: 6px 12px;
 }
 
 .profile-role-bot {

@@ -13,7 +13,18 @@ type BotPlay = {
     initialMs: number;
     incrementMs: number;
   };
-  preferredColor: 'random';
+  preferredColor: BotPreferredColor;
+};
+
+type BotPreferredColor = 'random' | 'white' | 'black' | 'red';
+
+type BotPlayChoice = {
+  preferredColor: BotPreferredColor;
+};
+
+type BotColorChoice = {
+  value: BotPreferredColor;
+  label: string;
 };
 
 type BotRecord = {
@@ -56,12 +67,13 @@ class BotNotFound extends Error {}
 
 const GAME_SPEC_LABELS: Record<string, string> = {
   'dark-chess': 'Dark Chess',
-  'dark-draft960': 'Dark Draft960',
   'dark-mini-xiangqi': 'Dark Mini Xiangqi',
   jieqi: 'Jieqi',
   banqi: 'Banqi',
   'crossroads-chess': 'Crossroads Chess',
 };
+
+const HIDDEN_BOT_GAME_SPEC_IDS = new Set(['dark-draft960']);
 
 export async function mountBots(root: HTMLElement): Promise<void> {
   root.replaceChildren();
@@ -340,7 +352,7 @@ function buildBotPlayPanel(bot: BotProfile): HTMLElement {
   const meta = document.createElement('p');
   meta.textContent = `${gameSpecLabel(bot.play.gameSpecId)} · ${timeControlLabel(
     bot.play.timeControl,
-  )} · random color`;
+  )} · choose side`;
 
   section.append(heading, meta, buildPlayButton(bot));
   return section;
@@ -427,14 +439,138 @@ function buildPlayButton(bot: BotProfile): HTMLButtonElement {
   button.className = 'landing-setup-start bot-play-button';
   button.textContent = 'Play';
   button.addEventListener('click', () => {
-    void startBotGame(bot, button);
+    openBotPlayDialog(bot);
   });
   return button;
 }
 
-async function startBotGame(bot: BotProfile, button: HTMLButtonElement): Promise<void> {
+function openBotPlayDialog(bot: BotProfile): void {
+  document.querySelector<HTMLElement>('[data-bot-play-dialog]')?.remove();
+
+  const choices = botColorChoices(bot);
+  let preferredColor = choices.some((choice) => choice.value === bot.play.preferredColor)
+    ? bot.play.preferredColor
+    : 'random';
+
+  const backdrop = document.createElement('div');
+  backdrop.className = 'bot-play-dialog-backdrop';
+  backdrop.dataset.botPlayDialog = '';
+
+  const dialog = document.createElement('section');
+  dialog.className = 'bot-play-dialog';
+  dialog.setAttribute('role', 'dialog');
+  dialog.setAttribute('aria-modal', 'true');
+  dialog.setAttribute('aria-labelledby', 'bot-play-dialog-title');
+  dialog.tabIndex = -1;
+
+  const header = document.createElement('div');
+  header.className = 'bot-play-dialog-header';
+
+  const heading = document.createElement('h2');
+  heading.id = 'bot-play-dialog-title';
+  heading.textContent = `Play ${bot.displayName}`;
+
+  const close = document.createElement('button');
+  close.type = 'button';
+  close.className = 'bot-play-dialog-close';
+  close.setAttribute('aria-label', 'Close');
+  close.textContent = 'x';
+
+  header.append(heading, close);
+
+  const meta = document.createElement('p');
+  meta.className = 'bot-play-dialog-meta';
+  meta.textContent = `${gameSpecLabel(bot.play.gameSpecId)} · ${timeControlLabel(
+    bot.play.timeControl,
+  )}`;
+
+  const choiceGroup = document.createElement('div');
+  choiceGroup.className = 'bot-play-choice-group';
+
+  const choiceLabel = document.createElement('span');
+  choiceLabel.className = 'bot-play-choice-label';
+  choiceLabel.textContent = bot.play.gameSpecId === 'banqi' ? 'Move order' : 'Side';
+
+  const options = document.createElement('div');
+  options.className = 'bot-play-choice-options';
+
+  const choiceButtons: HTMLButtonElement[] = [];
+  const selectChoice = (value: BotPreferredColor): void => {
+    preferredColor = value;
+    for (const button of choiceButtons) {
+      const selected = button.dataset.choice === value;
+      button.classList.toggle('selected', selected);
+      button.setAttribute('aria-pressed', selected ? 'true' : 'false');
+    }
+  };
+
+  for (const choice of choices) {
+    const choiceButton = document.createElement('button');
+    choiceButton.type = 'button';
+    choiceButton.className = 'bot-play-choice';
+    choiceButton.dataset.choice = choice.value;
+    choiceButton.textContent = choice.label;
+    choiceButton.setAttribute('aria-pressed', choice.value === preferredColor ? 'true' : 'false');
+    choiceButton.addEventListener('click', () => selectChoice(choice.value));
+    choiceButtons.push(choiceButton);
+    options.append(choiceButton);
+  }
+
+  choiceGroup.append(choiceLabel, options);
+
+  const error = document.createElement('p');
+  error.className = 'bot-play-dialog-error';
+  error.hidden = true;
+
+  const actions = document.createElement('div');
+  actions.className = 'bot-play-dialog-actions';
+
+  const cancel = document.createElement('button');
+  cancel.type = 'button';
+  cancel.className = 'bot-play-dialog-cancel';
+  cancel.textContent = 'Cancel';
+
+  const start = document.createElement('button');
+  start.type = 'button';
+  start.className = 'landing-setup-start bot-play-dialog-start';
+  start.textContent = 'Start game';
+
+  actions.append(cancel, start);
+  dialog.append(header, meta, choiceGroup, error, actions);
+  backdrop.append(dialog);
+
+  function closeDialog(): void {
+    document.removeEventListener('keydown', handleKeydown);
+    backdrop.remove();
+  }
+  function handleKeydown(event: KeyboardEvent): void {
+    if (event.key === 'Escape') closeDialog();
+  }
+
+  close.addEventListener('click', closeDialog);
+  cancel.addEventListener('click', closeDialog);
+  backdrop.addEventListener('click', (event) => {
+    if (event.target === backdrop) closeDialog();
+  });
+  start.addEventListener('click', () => {
+    void startBotGame(bot, start, { preferredColor }, error);
+  });
+
+  document.addEventListener('keydown', handleKeydown);
+  document.body.append(backdrop);
+  selectChoice(preferredColor);
+  dialog.focus();
+}
+
+async function startBotGame(
+  bot: BotProfile,
+  button: HTMLButtonElement,
+  choice: BotPlayChoice,
+  error?: HTMLElement,
+): Promise<void> {
   button.disabled = true;
   button.classList.remove('bot-play-button-error');
+  if (error) error.hidden = true;
   button.textContent = 'Starting...';
   try {
     const response = await fetch('/api/rooms', {
@@ -443,7 +579,7 @@ async function startBotGame(bot: BotProfile, button: HTMLButtonElement): Promise
         accept: 'application/json',
         'content-type': 'application/json',
       },
-      body: JSON.stringify(roomRequestForBot(bot)),
+      body: JSON.stringify(roomRequestForBot(bot, choice)),
     });
     if (!response.ok) throw new Error(`room_create_failed_${response.status}`);
     const data = (await response.json()) as { url?: string };
@@ -453,16 +589,56 @@ async function startBotGame(bot: BotProfile, button: HTMLButtonElement): Promise
     button.disabled = false;
     button.classList.add('bot-play-button-error');
     button.textContent = 'Try again';
+    if (error) {
+      error.textContent = 'Could not start this game.';
+      error.hidden = false;
+    }
   }
 }
 
-function roomRequestForBot(bot: BotProfile): Record<string, unknown> {
+function roomRequestForBot(bot: BotProfile, choice: BotPlayChoice): Record<string, unknown> {
   return {
     mode: bot.play.mode,
     botId: bot.id,
-    preferredColor: bot.play.preferredColor,
+    preferredColor: choice.preferredColor,
     rated: false,
   };
+}
+
+function botColorChoices(bot: BotProfile): BotColorChoice[] {
+  if (bot.play.gameSpecId === 'banqi') {
+    return [
+      { value: 'random', label: 'Random' },
+      { value: 'red', label: 'First' },
+      { value: 'black', label: 'Second' },
+    ];
+  }
+
+  if (bot.play.gameSpecId === 'crossroads-chess') {
+    return [
+      { value: 'random', label: 'Random' },
+      { value: 'white', label: 'White' },
+      { value: 'red', label: 'Red' },
+    ];
+  }
+
+  if (usesRedBlackSeats(bot.play.gameSpecId)) {
+    return [
+      { value: 'random', label: 'Random' },
+      { value: 'red', label: 'Red' },
+      { value: 'black', label: 'Black' },
+    ];
+  }
+
+  return [
+    { value: 'random', label: 'Random' },
+    { value: 'white', label: 'White' },
+    { value: 'black', label: 'Black' },
+  ];
+}
+
+function usesRedBlackSeats(gameSpecId: string): boolean {
+  return ['dark-mini-xiangqi', 'dark-xiangqi', 'drop-mini-xiangqi', 'jieqi'].includes(gameSpecId);
 }
 
 function detailChip(label: string, extraClass?: string): HTMLElement {
@@ -537,12 +713,15 @@ function buildBotRatingGrid(ratings: readonly BotRatingSnapshot[]): HTMLElement 
 }
 
 function supportedGameSpecIds(bot: BotProfile): string[] {
-  return bot.supportedGameSpecIds.length > 0 ? bot.supportedGameSpecIds : [bot.defaultGameSpecId];
+  const gameSpecIds =
+    bot.supportedGameSpecIds.length > 0 ? bot.supportedGameSpecIds : [bot.defaultGameSpecId];
+  return gameSpecIds.filter((gameSpecId) => !HIDDEN_BOT_GAME_SPEC_IDS.has(gameSpecId));
 }
 
 function botRatings(bot: BotProfile): BotRatingSnapshot[] {
-  if (bot.ratings && bot.ratings.length > 0) return bot.ratings;
-  return bot.rating ? [bot.rating] : [];
+  const ratings =
+    bot.ratings && bot.ratings.length > 0 ? bot.ratings : bot.rating ? [bot.rating] : [];
+  return ratings.filter((rating) => !HIDDEN_BOT_GAME_SPEC_IDS.has(rating.gameSpecId));
 }
 
 function primaryRating(bot: BotProfile): BotRatingSnapshot | null {
