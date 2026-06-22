@@ -13,8 +13,7 @@ import { createJieqiRoom, getOrLoadJieqiRoom, jieqiRooms } from './jieqi-registr
 import { handleJieqiCreate, type JieqiCreateContext, requestsJieqi } from './routes/jieqi-rooms.js';
 import { variantTenantForRoomId, variantTenantForSpecId } from './variant-tenant/registry.js';
 
-const FLAG = 'MISTBOARD_JIEQI_ENABLED';
-process.env[FLAG] = 'true';
+const jieqiFlag = 'MISTBOARD_JIEQI_ENABLED';
 
 type ResponseCapture = { body: string; status: number | null };
 
@@ -59,31 +58,34 @@ test('requestsJieqi claims only canonical jieqi spec requests', () => {
   assert.equal(requestsJieqi({ gameSpecId: 'dark-xiangqi' }), false);
 });
 
-test('jieqi create is hidden when the flag is off', async () => {
-  delete process.env[FLAG];
-  try {
+test('jieqi create works when the launch flag is enabled', async () => {
+  await withJieqiFlag(async () => {
     const response = captureResponse();
-    await handleJieqiCreate(createContext(), response, { gameSpecId: JIEQI_SPEC_ID, mode: 'pvp' });
-    assert.equal(response.status, 404);
-    assert.deepEqual(responseJson(response), { error: 'jieqi_disabled' });
-  } finally {
-    process.env[FLAG] = 'true';
-  }
+    await handleJieqiCreate(createContext(), response, {
+      gameSpecId: JIEQI_SPEC_ID,
+      mode: 'pvp',
+    });
+    assert.equal(response.status, 201);
+    assert.equal(responseJson(response).gameSpecId, JIEQI_SPEC_ID);
+    jieqiRooms.clear();
+  });
 });
 
 test('jieqi create rejects unsupported surfaces before creating a room', async () => {
-  const response = captureResponse();
-  await handleJieqiCreate(createContext(), response, {
-    gameSpecId: JIEQI_SPEC_ID,
-    mode: 'pvp',
-    rated: true,
+  await withJieqiFlag(async () => {
+    const response = captureResponse();
+    await handleJieqiCreate(createContext(), response, {
+      gameSpecId: JIEQI_SPEC_ID,
+      mode: 'pvp',
+      rated: true,
+    });
+    assert.equal(response.status, 501);
+    assert.deepEqual(responseJson(response), { error: 'jieqi_unsupported_surface' });
   });
-  assert.equal(response.status, 501);
-  assert.deepEqual(responseJson(response), { error: 'jieqi_unsupported_surface' });
 });
 
 test('jieqi create makes a hostable room that hydrates back with its deal', async () => {
-  try {
+  await withJieqiFlag(async () => {
     const response = captureResponse();
     await handleJieqiCreate(createContext(), response, { gameSpecId: JIEQI_SPEC_ID, mode: 'pvp' });
     assert.equal(response.status, 201);
@@ -99,7 +101,17 @@ test('jieqi create makes a hostable room that hydrates back with its deal', asyn
     if (created.type === 'room-created') {
       assert.ok(created.setup, 'the server-secret deal is persisted in the room log');
     }
-  } finally {
     jieqiRooms.clear();
-  }
+  });
 });
+
+async function withJieqiFlag(fn: () => Promise<void>): Promise<void> {
+  const previous = process.env[jieqiFlag];
+  process.env[jieqiFlag] = 'true';
+  try {
+    await fn();
+  } finally {
+    if (previous === undefined) delete process.env[jieqiFlag];
+    else process.env[jieqiFlag] = previous;
+  }
+}

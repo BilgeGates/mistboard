@@ -83,12 +83,17 @@ describe('Reveal Chess postgame page', () => {
     expect(root.textContent).not.toContain('Red wins');
   });
 
-  it('shows the disabled notice when the build flag is off', async () => {
+  it('does not fetch postgame data when the build flag is false', async () => {
     vi.stubEnv('DEV', false);
     vi.stubEnv('VITE_REVEAL_CHESS_ENABLED', 'false');
+    const fetchSpy = vi.fn(async () => jsonResponse(postgameFixture()));
+    vi.stubGlobal('fetch', fetchSpy);
     const root = document.createElement('div');
-    mountRevealChessPostgame(root, 'rc_off');
+
+    mountRevealChessPostgame(root, 'rc_postgame');
     await flushPromises();
+
+    expect(fetchSpy).not.toHaveBeenCalled();
     expect(root.textContent).toContain('Reveal Chess unavailable');
   });
 });

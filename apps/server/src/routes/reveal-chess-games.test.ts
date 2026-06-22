@@ -1,5 +1,4 @@
 import assert from 'node:assert/strict';
-import type { IncomingMessage, ServerResponse } from 'node:http';
 import test from 'node:test';
 import {
   REVEAL_CHESS_SPEC_ID,
@@ -8,11 +7,9 @@ import {
 } from '@mistboard/game';
 import type { RecentEveGameRecord } from '../persistence.js';
 import type { RevealChessEvent } from '../reveal-chess-runtime.js';
-import type { HttpApiContext } from './lib.js';
 import {
   type RevealChessPostgamePersistence,
   revealChessPostgameForApi,
-  tryHandle,
 } from './reveal-chess-games.js';
 
 const ROOM_ID = 'rc_postgame';
@@ -221,37 +218,15 @@ test('Reveal Chess postgame returns null when there is no game or event log', as
   assert.equal(await revealChessPostgameForApi(ROOM_ID, deps(gameRecord(), null)), null);
 });
 
-// Mock just enough of the http req/res for the flag-gate branch, which fires
-// before any persistence call.
-function mockResponse(): { response: ServerResponse; status: () => number | null } {
-  let status: number | null = null;
-  const response = {
-    writeHead(code: number) {
-      status = code;
-      return response;
-    },
-    end() {
-      return response;
-    },
-  } as unknown as ServerResponse;
-  return { response, status: () => status };
-}
-
-test('Reveal Chess postgame route returns 404 when the reveal-chess flag is off', async () => {
+test('Reveal Chess postgame does not require launch env flags', async () => {
   const previous = process.env.MISTBOARD_REVEAL_CHESS_ENABLED;
   delete process.env.MISTBOARD_REVEAL_CHESS_ENABLED;
   try {
-    const request = { method: 'GET' } as IncomingMessage;
-    const { response, status } = mockResponse();
-    const handled = await tryHandle(
-      {} as HttpApiContext,
-      request,
-      response,
-      `/api/reveal-chess/games/${ROOM_ID}`,
-      new URL(`http://localhost/api/reveal-chess/games/${ROOM_ID}`),
+    const payload = await revealChessPostgameForApi(
+      ROOM_ID,
+      deps(gameRecord(), finishedCaptureEvents()),
     );
-    assert.equal(handled, true);
-    assert.equal(status(), 404);
+    assert.ok(payload);
   } finally {
     if (previous === undefined) delete process.env.MISTBOARD_REVEAL_CHESS_ENABLED;
     else process.env.MISTBOARD_REVEAL_CHESS_ENABLED = previous;

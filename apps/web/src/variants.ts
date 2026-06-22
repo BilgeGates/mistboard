@@ -23,6 +23,7 @@ import {
   gameSpecForId,
   JIEQI_SPEC_ID,
   KRIEGSPIEL_SPEC_ID,
+  MINI_XIANGQI_SPEC_ID,
   type RatingVariant,
   REVEAL_CHESS_SPEC_ID,
   ratingPoolForSpec,
@@ -91,11 +92,12 @@ const banqiSpec = gameSpecForId(BANQI_SPEC_ID);
 const revealChessSpec = gameSpecForId(REVEAL_CHESS_SPEC_ID);
 
 // Marker coverage is broader than the rated/current variant registry: the play
-// picker can surface soft-launch tenants, and rules/articles can reference
-// variants that are not leaderboard rows.
+// picker can surface casual tenants, and rules/articles can reference variants
+// that are not leaderboard rows.
 const VARIANT_MINI_BY_GAME_SPEC: Partial<Record<GameSpecId, VariantMiniId>> = {
   [DARK_CHESS_SPEC_ID]: 'dark-chess',
   [DARK_DRAFT960_SPEC_ID]: 'draft960',
+  [MINI_XIANGQI_SPEC_ID]: 'mini-xiangqi',
   [DARK_MINI_XIANGQI_SPEC_ID]: 'dark-mini-xiangqi',
   [DROP_MINI_XIANGQI_SPEC_ID]: 'drop-mini-xiangqi',
   [DARK_XIANGQI_SPEC_ID]: 'dark-xiangqi',
@@ -154,8 +156,7 @@ export const VARIANTS: VariantDef[] = [
     onProfile: dropMiniXiangqiOn,
   },
   // Full Dark Xiangqi (9x10 fog): launched PvP-first (no bot, no open-seek
-  // lobby), rating-ready like jieqi/banqi — shown on the rating surfaces whenever
-  // its flag is on, lighting up the moment global rated is enabled.
+  // lobby), rating-ready like jieqi/banqi.
   {
     id: currentRatingVariantForSpec(DARK_XIANGQI_SPEC_ID),
     gameSpecId: darkXiangqiSpec.id,
@@ -167,9 +168,7 @@ export const VARIANTS: VariantDef[] = [
     onProfile: darkXiangqiOn,
   },
   // Jieqi + Banqi launched casual and are rating-ready (gated globally by
-  // MISTBOARD_RATED_ENABLED). Not lobby-selectable (no open-seek matchmaking);
-  // shown on the rating surfaces whenever their variant flag is on, consistent
-  // with the other rated variants. They light up the moment rated is enabled.
+  // MISTBOARD_RATED_ENABLED). Not lobby-selectable (no open-seek matchmaking).
   {
     id: currentRatingVariantForSpec(JIEQI_SPEC_ID),
     gameSpecId: jieqiSpec.id,

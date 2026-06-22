@@ -91,10 +91,10 @@ test('a persistence failure aborts creation and records the error', async () => 
   assert.equal(errors.length, 1);
 });
 
-test('the flag gates room creation', async () => {
+test('Crossroads room creation returns disabled when the launch flag is off', async () => {
   process.env.MISTBOARD_CROSSROADS_CHESS_ENABLED = 'false';
   const { ctx } = fakeCtx();
   const created = await createCrossroadsChessLiveRoom(ctx, TC);
-  assert.equal(created.ok === false && created.error, 'crossroads_chess_disabled');
+  assert.deepEqual(created, { ok: false, error: 'crossroads_chess_disabled' });
   process.env.MISTBOARD_CROSSROADS_CHESS_ENABLED = 'true';
 });

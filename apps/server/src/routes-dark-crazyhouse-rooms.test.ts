@@ -24,7 +24,7 @@ test('Dark Crazyhouse room route only claims canonical Dark Crazyhouse game spec
   assert.equal(requestsDarkCrazyhouse({ variant: 'dark-chess' }), false);
 });
 
-test('Dark Crazyhouse room route hides flagged-off requests', async () => {
+test('Dark Crazyhouse room route returns disabled when the launch flag is off', async () => {
   const before = process.env[darkCrazyhouseFlag];
   delete process.env[darkCrazyhouseFlag];
   try {

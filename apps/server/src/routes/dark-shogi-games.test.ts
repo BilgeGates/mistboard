@@ -1,5 +1,4 @@
 import assert from 'node:assert/strict';
-import type { IncomingMessage, ServerResponse } from 'node:http';
 import test from 'node:test';
 import {
   applyShogiMove,
@@ -14,12 +13,7 @@ import {
   type DarkShogiEvent,
 } from '../dark-shogi-runtime.js';
 import type { RecentEveGameRecord } from '../persistence.js';
-import {
-  type DarkShogiPostgamePersistence,
-  darkShogiPostgameForApi,
-  tryHandle,
-} from './dark-shogi-games.js';
-import type { HttpApiContext } from './lib.js';
+import { type DarkShogiPostgamePersistence, darkShogiPostgameForApi } from './dark-shogi-games.js';
 
 const ROOM_ID = 'dsg_postgame';
 const MOVE_COUNT = 4;
@@ -200,37 +194,16 @@ test('Dark Shogi postgame returns null when there is no game or event log', asyn
   assert.equal(await darkShogiPostgameForApi(ROOM_ID, deps(gameRecord(), null)), null);
 });
 
-// Mock just enough of the http req/res for the flag-gate branch, which fires
-// before any persistence call.
-function mockResponse(): { response: ServerResponse; status: () => number | null } {
-  let status: number | null = null;
-  const response = {
-    writeHead(code: number) {
-      status = code;
-      return response;
-    },
-    end() {
-      return response;
-    },
-  } as unknown as ServerResponse;
-  return { response, status: () => status };
-}
-
-test('Dark Shogi postgame route returns 404 when the flag is off', async () => {
+test('Dark Shogi postgame does not require launch env flags', async () => {
   const previous = process.env.MISTBOARD_DARK_SHOGI_ENABLED;
   delete process.env.MISTBOARD_DARK_SHOGI_ENABLED;
   try {
-    const request = { method: 'GET' } as IncomingMessage;
-    const { response, status } = mockResponse();
-    const handled = await tryHandle(
-      {} as HttpApiContext,
-      request,
-      response,
-      `/api/dark-shogi/games/${ROOM_ID}`,
-      new URL(`http://localhost/api/dark-shogi/games/${ROOM_ID}`),
+    const payload = await darkShogiPostgameForApi(
+      ROOM_ID,
+      deps(gameRecord(), finishedGameEvents()),
     );
-    assert.equal(handled, true);
-    assert.equal(status(), 404);
+    assert.ok(payload);
+    assert.equal(payload.game.variant, DARK_SHOGI_SPEC_ID);
   } finally {
     if (previous === undefined) delete process.env.MISTBOARD_DARK_SHOGI_ENABLED;
     else process.env.MISTBOARD_DARK_SHOGI_ENABLED = previous;

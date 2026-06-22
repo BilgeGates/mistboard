@@ -1,5 +1,6 @@
 import {
   DARK_MINI_XIANGQI_SPEC_ID,
+  MINI_XIANGQI_SPEC_ID,
   type MiniXiangqiColor,
   type MiniXiangqiGameEndReason,
   type MiniXiangqiMove,
@@ -78,18 +79,33 @@ const lifecycleTracker = createGameLifecycleTracker();
 const replay = createTenantReplayController<MiniXiangqiPlayerView>();
 
 const darkMiniXiangqiWebTenant: WebVariantTenant<MiniXiangqiColor> = {
-  displayName: 'Dark Mini Xiangqi',
+  get displayName() {
+    return isOpenMiniXiangqiLiveRoom() ? 'Mini Xiangqi' : 'Dark Mini Xiangqi';
+  },
   colors: ['red', 'black'],
   isColor: isMiniColor,
   oppositeColor: (color) => (color === 'red' ? 'black' : 'red'),
-  enabled: darkMiniXiangqiEnabled,
-  reviewUrl: (roomId) => `/dark-mini-xiangqi/game/${encodeURIComponent(roomId)}`,
+  enabled: miniXiangqiShellEnabled,
+  reviewUrl: (roomId) =>
+    `/${isOpenMiniXiangqiLiveRoom() ? 'mini-xiangqi' : 'dark-mini-xiangqi'}/game/${encodeURIComponent(roomId)}`,
   reasonPhrase: (reason) => miniXiangqiReasonPhrase(reason as MiniXiangqiGameEndReason),
-  disabledTitle: 'Dark Mini Xiangqi disabled',
+  get disabledTitle() {
+    return `${isOpenMiniXiangqiLiveRoom() ? 'Mini Xiangqi' : 'Dark Mini Xiangqi'} disabled`;
+  },
   disabledBody: 'This client build has the room renderer off.',
-  rejectedBody: 'This Dark Mini Xiangqi room is not active. Create a new invite to start a game.',
-  spectatorBody: 'Watching without private information.',
-  selectInstruction: 'Select one of your visible pieces, then choose a destination.',
+  get rejectedBody() {
+    return `This ${isOpenMiniXiangqiLiveRoom() ? 'Mini Xiangqi' : 'Dark Mini Xiangqi'} room is not active. Create a new invite to start a game.`;
+  },
+  get spectatorBody() {
+    return isOpenMiniXiangqiLiveRoom()
+      ? 'Watching the full board.'
+      : 'Watching without private information.';
+  },
+  get selectInstruction() {
+    return isOpenMiniXiangqiLiveRoom()
+      ? 'Select one of your pieces, then choose a destination.'
+      : 'Select one of your visible pieces, then choose a destination.';
+  },
 };
 
 const chrome = createTenantRoomChrome(darkMiniXiangqiWebTenant, {
@@ -120,7 +136,7 @@ const chrome = createTenantRoomChrome(darkMiniXiangqiWebTenant, {
 });
 
 export function isDarkMiniXiangqiLiveRoom(): boolean {
-  return liveState.gameSpecId === 'dark-mini-xiangqi';
+  return isMiniXiangqiShellRoom();
 }
 
 export function resetDarkMiniXiangqiReplayState(): void {
@@ -150,7 +166,7 @@ export function renderDarkMiniXiangqiRoom(
 ): void {
   setLiveLayoutGameSpec(
     refs.board.closest('#app') ?? refs.board.ownerDocument.body,
-    'dark-mini-xiangqi',
+    liveState.gameSpecId,
   );
   setBoardFamily('xiangqi');
   installMiniXiangqiBoardStyles();
@@ -188,7 +204,7 @@ export function renderDarkMiniXiangqiRoom(
   chrome.renderActionStatus();
   chrome.renderGameControls();
 
-  if (!darkMiniXiangqiEnabled()) {
+  if (!miniXiangqiShellEnabled()) {
     refs.board.className = 'board mini-xiangqi-live-board mini-xiangqi-live-board--disabled';
     refs.board.replaceChildren();
     selectedSquare = null;
@@ -212,7 +228,7 @@ function trackMiniXiangqiLifecycle(view: MiniXiangqiPlayerView | null): void {
   const tc = liveState.timeControl;
   const baseProps = {
     gameId: view.id,
-    ...gameSpecAnalyticsPropsForId(DARK_MINI_XIANGQI_SPEC_ID),
+    ...gameSpecAnalyticsPropsForId(currentMiniXiangqiSpecId()),
     rated: liveState.rated,
     roomMode: liveState.roomMode,
     initialMs: tc?.initialMs ?? null,
@@ -265,6 +281,15 @@ function miniXiangqiReasonPhrase(reason: MiniXiangqiGameEndReason): string {
 }
 
 function buildPlayAgainRoomRequestBody(): Record<string, unknown> {
+  if (isOpenMiniXiangqiLiveRoom()) {
+    return {
+      mode: 'pvp',
+      gameSpecId: MINI_XIANGQI_SPEC_ID,
+      preferredColor: 'random',
+      rated: false,
+      ...(liveState.timeControl ? { timeControl: liveState.timeControl } : {}),
+    };
+  }
   const mode = liveState.roomMode === 'pve' ? 'pve' : 'pvp';
   const preferredColor =
     mode === 'pve' && (liveState.seat === 'red' || liveState.seat === 'black')
@@ -283,7 +308,10 @@ function buildPlayAgainRoomRequestBody(): Record<string, unknown> {
 
 function renderBoard(refs: LiveRefs, view: MiniXiangqiPlayerView | null): void {
   refs.board.className = 'board mini-xiangqi-live-board';
-  refs.board.setAttribute('aria-label', 'Dark Mini Xiangqi board');
+  refs.board.setAttribute(
+    'aria-label',
+    `${isOpenMiniXiangqiLiveRoom() ? 'Mini Xiangqi' : 'Dark Mini Xiangqi'} board`,
+  );
   if (!view) {
     refs.board.replaceChildren();
     return;
@@ -296,10 +324,13 @@ function renderBoard(refs: LiveRefs, view: MiniXiangqiPlayerView | null): void {
   // Only ever highlight the viewer's own last move. The server already redacts
   // an opponent's move, but gating on board ownership here makes the fog
   // guarantee hold for every rendered view — live, replayed, or reconnected.
-  const renderView = viewerOwnsLastMove(view) ? view : { ...view, lastMove: undefined };
+  const renderView =
+    isOpenMiniXiangqiLiveRoom() || viewerOwnsLastMove(view)
+      ? view
+      : { ...view, lastMove: undefined };
   refs.board.innerHTML = renderMiniXiangqiBoardSvg(renderView, perspective, {
     interactive: true,
-    showFog: true,
+    showFog: !isOpenMiniXiangqiLiveRoom(),
     selectedSquare,
     legalMoves: hints,
     draggingFrom: dragFrom,
@@ -419,8 +450,10 @@ function renderVisibleMoveList(refs: LiveRefs): void {
   refs.moveList.replaceChildren();
   if (totalPly === 0) {
     const item = document.createElement('li');
-    item.className = 'move-row masked';
-    item.textContent = 'No visible moves yet';
+    item.className = ['move-row', isOpenMiniXiangqiLiveRoom() ? '' : 'masked']
+      .filter(Boolean)
+      .join(' ');
+    item.textContent = isOpenMiniXiangqiLiveRoom() ? 'No moves yet' : 'No visible moves yet';
     refs.moveList.append(item);
     return;
   }
@@ -555,4 +588,22 @@ function viewerOwnsLastMove(view: MiniXiangqiPlayerView): boolean {
 
 function isMiniColor(value: unknown): value is MiniXiangqiColor {
   return value === 'red' || value === 'black';
+}
+
+function isOpenMiniXiangqiLiveRoom(): boolean {
+  return liveState.gameSpecId === MINI_XIANGQI_SPEC_ID;
+}
+
+function isMiniXiangqiShellRoom(): boolean {
+  return liveState.gameSpecId === DARK_MINI_XIANGQI_SPEC_ID || isOpenMiniXiangqiLiveRoom();
+}
+
+function currentMiniXiangqiSpecId():
+  | typeof DARK_MINI_XIANGQI_SPEC_ID
+  | typeof MINI_XIANGQI_SPEC_ID {
+  return isOpenMiniXiangqiLiveRoom() ? MINI_XIANGQI_SPEC_ID : DARK_MINI_XIANGQI_SPEC_ID;
+}
+
+function miniXiangqiShellEnabled(): boolean {
+  return isOpenMiniXiangqiLiveRoom() ? true : darkMiniXiangqiEnabled();
 }

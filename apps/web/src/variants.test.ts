@@ -13,6 +13,7 @@ import {
   gameSpecForId,
   JIEQI_SPEC_ID,
   KRIEGSPIEL_SPEC_ID,
+  MINI_XIANGQI_SPEC_ID,
   REVEAL_CHESS_SPEC_ID,
 } from '@mistboard/game';
 import { describe, expect, it, vi } from 'vitest';
@@ -188,8 +189,16 @@ describe('web variant launch registry', () => {
   it('uses mini-board markers for soft-launch play-menu variants', () => {
     expect(variantMiniIdForGameSpec(DARK_CROSSROADS_CHESS_SPEC_ID)).toBe('dark-crossroads');
     expect(variantMiniIdForGameSpec(DARK_CRAZYHOUSE_SPEC_ID)).toBe('dark-crazyhouse');
+    expect(variantMiniIdForGameSpec(MINI_XIANGQI_SPEC_ID)).toBe('mini-xiangqi');
     expect(variantMiniIdForGameSpec(DROP_MINI_XIANGQI_SPEC_ID)).toBe('drop-mini-xiangqi');
     expect(variantMiniIdForGameSpec(KRIEGSPIEL_SPEC_ID)).toBe('kriegspiel');
+  });
+
+  it('keeps casual Mini Xiangqi out of rating variant surfaces', () => {
+    expect(VARIANTS.map((v) => v.gameSpecId)).not.toContain(MINI_XIANGQI_SPEC_ID);
+    expect(leaderboardVariants.map((v) => v.gameSpecId)).not.toContain(MINI_XIANGQI_SPEC_ID);
+    expect(profileRatingVariants.map((v) => v.gameSpecId)).not.toContain(MINI_XIANGQI_SPEC_ID);
+    expect(enabledVariants.map((v) => v.gameSpecId)).not.toContain(MINI_XIANGQI_SPEC_ID);
   });
 
   it('uses canonical game-spec API params for current variants', () => {

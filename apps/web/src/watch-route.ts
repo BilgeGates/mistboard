@@ -461,6 +461,7 @@ function renderWatchStatus(root: HTMLElement, feed: WatchFeed | null): void {
 const CHANNEL_MINI_BY_ID: Record<string, VariantMiniId> = {
   'dark-chess': 'dark-chess',
   'dark-xiangqi': 'dark-xiangqi',
+  'mini-xiangqi': 'mini-xiangqi',
   'dark-mini-xiangqi': 'dark-mini-xiangqi',
   'drop-mini-xiangqi': 'drop-mini-xiangqi',
   jieqi: 'jieqi',

@@ -8,7 +8,7 @@ import {
 
 const darkMiniXiangqiFlag = 'MISTBOARD_DARK_MINI_XIANGQI_ENABLED';
 
-test('Dark Mini Xiangqi live room factory is hidden while the flag is off', async () => {
+test('Dark Mini Xiangqi live room factory returns disabled when the launch flag is off', async () => {
   const before = process.env[darkMiniXiangqiFlag];
   delete process.env[darkMiniXiangqiFlag];
   try {

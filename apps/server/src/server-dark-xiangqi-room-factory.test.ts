@@ -8,15 +8,15 @@ import type { DarkXiangqiLiveRoom } from './server-ws-dark-xiangqi.js';
 
 const darkXiangqiFlag = 'MISTBOARD_DARK_XIANGQI_ENABLED';
 
-test('Dark Xiangqi live room factory is hidden while the flag is off', async () => {
+test('Dark Xiangqi live room factory returns disabled when the launch flag is off', async () => {
   const before = process.env[darkXiangqiFlag];
   delete process.env[darkXiangqiFlag];
   try {
-    const ctx = factoryContext({ ids: ['dxq_disabled'] });
+    const ctx = factoryContext({ ids: ['dxq_baseline'] });
     const result = await createDarkXiangqiLiveRoom(ctx);
 
     assert.deepEqual(result, { ok: false, error: 'dark_xiangqi_disabled' });
-    assert.equal(ctx.darkXiangqiRooms.size, 0);
+    assert.equal(ctx.darkXiangqiRooms.has('dxq_baseline'), false);
   } finally {
     restoreFlag(before);
   }

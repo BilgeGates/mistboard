@@ -27,24 +27,11 @@ import {
   type GameSpecId,
   JIEQI_SPEC_ID,
   KRIEGSPIEL_SPEC_ID,
+  MINI_XIANGQI_SPEC_ID,
   REVEAL_CHESS_SPEC_ID,
   type TimeControlId,
 } from '@mistboard/game';
-import {
-  banqiEnabled,
-  correspondenceEnabled,
-  crossroadsChessEnabled,
-  darkCrazyhouseEnabled,
-  darkCrossroadsChessEnabled,
-  darkMiniXiangqiEnabled,
-  darkMiniXiangqiPublicEntryEnabled,
-  darkShogiEnabled,
-  darkXiangqiEnabled,
-  dropMiniXiangqiEnabled,
-  jieqiEnabled,
-  kriegspielEnabled,
-  revealChessEnabled,
-} from '../feature-flags.js';
+import { correspondenceEnabled } from '../feature-flags.js';
 import type { GameMeta, ReplayHandle } from '../replay.js';
 
 export type WebTenantEngineOption = {
@@ -132,6 +119,8 @@ const XIANGQI_CAPABILITIES_BASE = {
   secondLabel: 'Black',
 } as const;
 
+const alwaysEnabled = () => true;
+
 const WEB_VARIANT_TENANTS: readonly WebVariantTenant[] = [
   {
     // Dark-chess correspondence rooms (server registration: correspondence
@@ -150,15 +139,14 @@ const WEB_VARIANT_TENANTS: readonly WebVariantTenant[] = [
   {
     gameSpecId: DARK_XIANGQI_SPEC_ID,
     roomIdPrefix: 'dxq_',
-    enabled: darkXiangqiEnabled,
+    enabled: alwaysEnabled,
     pageTitle: 'Dark Xiangqi',
     gameRouteBase: '/dark-xiangqi/game',
     mountPostgame: (root, roomId) =>
       import('../dark-xiangqi-postgame.js').then(({ mountDarkXiangqiPostgame }) =>
         mountDarkXiangqiPostgame(root, roomId),
       ),
-    // Self-contained live client (flag-gated) on the socket-client + chrome
-    // stack — the P2 rehearsal shape.
+    // Self-contained live client on the socket-client + chrome stack.
     loadLiveRoomClient: () =>
       import('../live-dark-xiangqi.js').then(
         ({ bootstrapDarkXiangqiLiveRoom }) =>
@@ -175,9 +163,9 @@ const WEB_VARIANT_TENANTS: readonly WebVariantTenant[] = [
           mountDarkXiangqiWatchReplay(root, roomId, options),
         ),
     },
-    // PvP-first launch, gated on the flag (like Banqi's PvP-only launch). The
-    // live client (live-dark-xiangqi.ts) runs on the socket-client + chrome
-    // stack, so a menu-created dxq_ room is fully playable. No PvE: Fairy-
+    // PvP-first launch. The live client (live-dark-xiangqi.ts) runs on the
+    // socket-client + chrome stack, so a menu-created dxq_ room is fully
+    // playable. No PvE: Fairy-
     // Stockfish is perfect-info and can't play fog xiangqi, so a belief bot is a
     // separate research track.
     landing: {
@@ -188,19 +176,17 @@ const WEB_VARIANT_TENANTS: readonly WebVariantTenant[] = [
         supportsTimeControl: true,
       },
       timePresetIds: ['1m1', '3m2', '5m5'],
-      offerInMenu: darkXiangqiEnabled,
-      acceptsDeepLink: darkXiangqiEnabled,
+      offerInMenu: alwaysEnabled,
+      acceptsDeepLink: alwaysEnabled,
     },
   },
   {
     // Identity-hidden jieqi (9x10). A self-contained live client on the
     // socket-client + chrome stack (no fog: positions are public, only piece
-    // identities are hidden). Flag-gated like Dark Xiangqi; the picker
-    // capabilities stay defined for stored setup preferences even while the
-    // menu and deep-link gates are off.
+    // identities are hidden).
     gameSpecId: JIEQI_SPEC_ID,
     roomIdPrefix: 'jq_',
-    enabled: jieqiEnabled,
+    enabled: alwaysEnabled,
     pageTitle: 'Jieqi',
     gameRouteBase: '/jieqi/game',
     mountPostgame: (root, roomId) =>
@@ -232,8 +218,8 @@ const WEB_VARIANT_TENANTS: readonly WebVariantTenant[] = [
         supportsTimeControl: true,
       },
       timePresetIds: ['1m1', '3m2', '5m5'],
-      offerInMenu: jieqiEnabled,
-      acceptsDeepLink: jieqiEnabled,
+      offerInMenu: alwaysEnabled,
+      acceptsDeepLink: alwaysEnabled,
       // Ordered strongest-first so the toughest opponent sits at the top of the picker.
       engineOptions: [
         {
@@ -262,12 +248,10 @@ const WEB_VARIANT_TENANTS: readonly WebVariantTenant[] = [
     // Banqi (8x4 Chinese Dark Chess). Symmetric-information: a face-down tile
     // carries no colour or identity to anyone (the deal is the only hidden
     // state, hidden from both seats equally). A self-contained live client on
-    // the socket-client + chrome stack, with no fog. Flag-gated like jieqi; the
-    // picker capabilities stay defined for stored setup preferences even while
-    // the menu gate is off. No watch channel yet.
+    // the socket-client + chrome stack, with no fog.
     gameSpecId: BANQI_SPEC_ID,
     roomIdPrefix: 'bq_',
-    enabled: banqiEnabled,
+    enabled: alwaysEnabled,
     pageTitle: 'Banqi',
     gameRouteBase: '/banqi/game',
     mountPostgame: (root, roomId) =>
@@ -307,8 +291,8 @@ const WEB_VARIANT_TENANTS: readonly WebVariantTenant[] = [
         supportsTimeControl: true,
       },
       timePresetIds: ['1m1', '3m2', '5m5'],
-      offerInMenu: banqiEnabled,
-      acceptsDeepLink: banqiEnabled,
+      offerInMenu: alwaysEnabled,
+      acceptsDeepLink: alwaysEnabled,
       // One versioned bot (was 3 difficulty tiers; consolidated 2026-06-18 with the v0.2.0
       // cheap-strength eval). Single full-strength MistyBanqi.
       engineOptions: [
@@ -323,9 +307,42 @@ const WEB_VARIANT_TENANTS: readonly WebVariantTenant[] = [
     },
   },
   {
+    // Open-information 7x7 Mini Xiangqi. It deliberately rides the shared
+    // mini-xiangqi live shell with no fog mask, no reserve strips, no bot, and
+    // no ratings at launch.
+    gameSpecId: MINI_XIANGQI_SPEC_ID,
+    roomIdPrefix: 'mxq_',
+    enabled: alwaysEnabled,
+    pageTitle: 'Mini Xiangqi',
+    gameRouteBase: '/mini-xiangqi/game',
+    mountPostgame: (root, roomId) =>
+      import('../mini-xiangqi-postgame.js').then(({ mountMiniXiangqiPostgame }) =>
+        mountMiniXiangqiPostgame(root, roomId),
+      ),
+    reviewRouteBase: '/mini-xiangqi/game',
+    watch: {
+      family: 'xiangqi',
+      mountReplay: (root, roomId, options) =>
+        import('../watch-mini-open-xiangqi-replay.js').then(({ mountMiniOpenXiangqiWatchReplay }) =>
+          mountMiniOpenXiangqiWatchReplay(root, roomId, options),
+        ),
+    },
+    landing: {
+      capabilities: {
+        ...XIANGQI_CAPABILITIES_BASE,
+        supportsRated: false,
+        supportsStartFormat: false,
+        supportsTimeControl: true,
+      },
+      timePresetIds: ['1m1', '3m2', '5m5'],
+      offerInMenu: alwaysEnabled,
+      acceptsDeepLink: alwaysEnabled,
+    },
+  },
+  {
     gameSpecId: DARK_MINI_XIANGQI_SPEC_ID,
     roomIdPrefix: 'dmxq_',
-    enabled: darkMiniXiangqiEnabled,
+    enabled: alwaysEnabled,
     pageTitle: 'Dark Mini Xiangqi',
     gameRouteBase: '/dark-mini-xiangqi/game',
     mountPostgame: (root, roomId) =>
@@ -347,8 +364,8 @@ const WEB_VARIANT_TENANTS: readonly WebVariantTenant[] = [
         supportsTimeControl: true,
       },
       timePresetIds: ['1m1', '3m2'],
-      offerInMenu: darkMiniXiangqiPublicEntryEnabled,
-      acceptsDeepLink: darkMiniXiangqiEnabled,
+      offerInMenu: alwaysEnabled,
+      acceptsDeepLink: alwaysEnabled,
       engineOptions: [
         {
           id: 'python-dmx-v1.0',
@@ -367,7 +384,7 @@ const WEB_VARIANT_TENANTS: readonly WebVariantTenant[] = [
     // launch tiers; FSF remains a lab viewer until the variant adapter is real.
     gameSpecId: DROP_MINI_XIANGQI_SPEC_ID,
     roomIdPrefix: 'dmxqd_',
-    enabled: dropMiniXiangqiEnabled,
+    enabled: alwaysEnabled,
     pageTitle: 'Drop Mini Xiangqi',
     gameRouteBase: '/drop-mini-xiangqi/game',
     mountPostgame: (root, roomId) =>
@@ -396,8 +413,8 @@ const WEB_VARIANT_TENANTS: readonly WebVariantTenant[] = [
         supportsTimeControl: true,
       },
       timePresetIds: ['1m1', '3m2', '5m5'],
-      offerInMenu: dropMiniXiangqiEnabled,
-      acceptsDeepLink: dropMiniXiangqiEnabled,
+      offerInMenu: alwaysEnabled,
+      acceptsDeepLink: alwaysEnabled,
       engineOptions: [
         {
           id: 'misty-drop-mini-level-1',
@@ -427,12 +444,10 @@ const WEB_VARIANT_TENANTS: readonly WebVariantTenant[] = [
     // face-down piece's role is hidden), but on a chess board with chess colors,
     // so it renders in the 'chess' family with the cburnett pieces + a face-down
     // disc token. A self-contained live client on the socket-client + chrome
-    // stack, with no fog. Flag-gated and PvP-only at launch (no PvE engine), so
-    // the picker capabilities stay defined for stored setup preferences while the
-    // menu and deep-link gates are off.
+    // stack, with no fog. PvP-only at launch (no PvE engine).
     gameSpecId: REVEAL_CHESS_SPEC_ID,
     roomIdPrefix: 'rc_',
-    enabled: revealChessEnabled,
+    enabled: alwaysEnabled,
     pageTitle: 'Reveal Chess',
     gameRouteBase: '/reveal-chess/game',
     mountPostgame: (root, roomId) =>
@@ -466,8 +481,8 @@ const WEB_VARIANT_TENANTS: readonly WebVariantTenant[] = [
         supportsTimeControl: true,
       },
       timePresetIds: ['1m1', '3m2', '5m5'],
-      offerInMenu: revealChessEnabled,
-      acceptsDeepLink: revealChessEnabled,
+      offerInMenu: alwaysEnabled,
+      acceptsDeepLink: alwaysEnabled,
     },
   },
   // Perfect-information Crossroads is intentionally ranked last in the lobby
@@ -477,7 +492,7 @@ const WEB_VARIANT_TENANTS: readonly WebVariantTenant[] = [
     gameSpecId: CROSSROADS_CHESS_SPEC_ID,
     legacyGameSpecIds: [DUAL_CHESS_SPEC_ID],
     roomIdPrefix: 'dchess_',
-    enabled: crossroadsChessEnabled,
+    enabled: alwaysEnabled,
     pageTitle: 'Crossroads Chess',
     gameRouteBase: '/crossroads-chess/game',
     mountPostgame: (root, roomId) =>
@@ -513,8 +528,8 @@ const WEB_VARIANT_TENANTS: readonly WebVariantTenant[] = [
         supportsTimeControl: true,
       },
       timePresetIds: ['1m1', '3m2', '5m5'],
-      offerInMenu: crossroadsChessEnabled,
-      acceptsDeepLink: crossroadsChessEnabled,
+      offerInMenu: alwaysEnabled,
+      acceptsDeepLink: alwaysEnabled,
       // Ordered strongest-first so the toughest opponent sits at the top of the picker.
       engineOptions: [
         {
@@ -546,12 +561,11 @@ const WEB_VARIANT_TENANTS: readonly WebVariantTenant[] = [
     // NOT the open client's reconstruct-from-state path, which would leak under
     // fog); the board renderer is shared with the open variant (already
     // fog-aware). PvP-only — Fairy-Stockfish is perfect-info and can't play fog
-    // crossroads, so there is no PvE. Flag-gated; the picker capabilities stay
-    // defined while the menu/deep-link gates are off. Postgame review and
-    // Mistboard TV share the white/truth/red fog triptych.
+    // crossroads, so there is no PvE. Postgame review and Mistboard TV share the
+    // white/truth/red fog triptych.
     gameSpecId: DARK_CROSSROADS_CHESS_SPEC_ID,
     roomIdPrefix: 'ddchess_',
-    enabled: darkCrossroadsChessEnabled,
+    enabled: alwaysEnabled,
     pageTitle: 'Dark Crossroads Chess',
     gameRouteBase: '/dark-crossroads-chess/game',
     mountPostgame: (root, roomId) =>
@@ -588,8 +602,8 @@ const WEB_VARIANT_TENANTS: readonly WebVariantTenant[] = [
         supportsTimeControl: true,
       },
       timePresetIds: ['1m1', '3m2', '5m5'],
-      offerInMenu: darkCrossroadsChessEnabled,
-      acceptsDeepLink: darkCrossroadsChessEnabled,
+      offerInMenu: alwaysEnabled,
+      acceptsDeepLink: alwaysEnabled,
     },
   },
   {
@@ -597,13 +611,13 @@ const WEB_VARIANT_TENANTS: readonly WebVariantTenant[] = [
     // the fog-safe replay-CAPTURE model (live-dark-shogi.ts). Net-new surface vs
     // the other fog tenants — a koma board (shogi-render.ts), reserve (hand)
     // strips, drop + promotion interaction — and PRIVATE hands (the view carries
-    // only your own reserve). PvP-only (no bot yet). Flag-gated; postgame review
-    // is the black/truth/white fog triptych. Shogi declares black (sente) as the
-    // first side and white (gote) as the second, so future shogi-family tenants
-    // can reuse the same picker model.
+    // only your own reserve). PvP-only (no bot yet). Postgame review is the
+    // black/truth/white fog triptych. Shogi declares black (sente) as the first
+    // side and white (gote) as the second, so future shogi-family tenants can
+    // reuse the same picker model.
     gameSpecId: DARK_SHOGI_SPEC_ID,
     roomIdPrefix: 'dsg_',
-    enabled: darkShogiEnabled,
+    enabled: alwaysEnabled,
     pageTitle: 'Dark Shogi',
     gameRouteBase: '/dark-shogi/game',
     mountPostgame: (root, roomId) =>
@@ -638,8 +652,8 @@ const WEB_VARIANT_TENANTS: readonly WebVariantTenant[] = [
         supportsTimeControl: true,
       },
       timePresetIds: ['1m1', '3m2', '5m5'],
-      offerInMenu: darkShogiEnabled,
-      acceptsDeepLink: darkShogiEnabled,
+      offerInMenu: alwaysEnabled,
+      acceptsDeepLink: alwaysEnabled,
     },
   },
   {
@@ -651,7 +665,7 @@ const WEB_VARIANT_TENANTS: readonly WebVariantTenant[] = [
     // no bot. Standard white-first, so it gets a real White/Black color picker.
     gameSpecId: DARK_CRAZYHOUSE_SPEC_ID,
     roomIdPrefix: 'dczh_',
-    enabled: darkCrazyhouseEnabled,
+    enabled: alwaysEnabled,
     pageTitle: 'Dark Crazyhouse',
     gameRouteBase: '/dark-crazyhouse/game',
     mountPostgame: (root, roomId) =>
@@ -685,8 +699,8 @@ const WEB_VARIANT_TENANTS: readonly WebVariantTenant[] = [
         supportsTimeControl: true,
       },
       timePresetIds: ['1m1', '3m2', '5m5'],
-      offerInMenu: darkCrazyhouseEnabled,
-      acceptsDeepLink: darkCrazyhouseEnabled,
+      offerInMenu: alwaysEnabled,
+      acceptsDeepLink: alwaysEnabled,
     },
   },
   {
@@ -699,7 +713,7 @@ const WEB_VARIANT_TENANTS: readonly WebVariantTenant[] = [
     // PvP-only, no bot. Standard white-first, so it gets a White/Black picker.
     gameSpecId: KRIEGSPIEL_SPEC_ID,
     roomIdPrefix: 'kr_',
-    enabled: kriegspielEnabled,
+    enabled: alwaysEnabled,
     pageTitle: 'Kriegspiel',
     gameRouteBase: '/kriegspiel/game',
     mountPostgame: (root, roomId) =>
@@ -733,8 +747,8 @@ const WEB_VARIANT_TENANTS: readonly WebVariantTenant[] = [
         supportsTimeControl: true,
       },
       timePresetIds: ['1m1', '3m2', '5m5'],
-      offerInMenu: kriegspielEnabled,
-      acceptsDeepLink: kriegspielEnabled,
+      offerInMenu: alwaysEnabled,
+      acceptsDeepLink: alwaysEnabled,
     },
   },
 ];

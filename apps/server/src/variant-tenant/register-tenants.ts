@@ -16,4 +16,5 @@ import '../dark-xiangqi-registration.js';
 import '../drop-mini-xiangqi-registration.js';
 import '../jieqi-registration.js';
 import '../kriegspiel-registration.js';
+import '../mini-xiangqi-registration.js';
 import '../reveal-chess-registration.js';

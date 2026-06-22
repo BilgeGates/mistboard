@@ -5,8 +5,9 @@
   display: flex;
   align-items: center;
   justify-content: flex-start;
-  gap: 16px;
-  padding: 12px clamp(16px, 3vw, 34px);
+  gap: clamp(18px, 2.2vw, 26px);
+  min-height: 53px;
+  padding: 0 clamp(16px, 2.4vw, 34px);
   background: var(--site-nav-bg);
   border-bottom: 1px solid var(--site-nav-border);
 }
@@ -14,17 +15,19 @@
 .site-nav-brand {
   display: inline-flex;
   align-items: center;
-  gap: 9px;
-  font-weight: 700;
-  letter-spacing: 0.08em;
-  font-size: 14px;
+  gap: 8px;
+  flex: 0 0 auto;
+  font-weight: 400;
+  letter-spacing: 0;
+  font-size: 25px;
+  line-height: 1;
   color: var(--site-text);
   text-decoration: none;
 }
 
 .site-nav-logo {
-  width: 28px;
-  height: 28px;
+  width: 31px;
+  height: 31px;
   flex: 0 0 auto;
   border-radius: var(--site-radius-sm);
 }
@@ -32,7 +35,7 @@
 .site-nav-links,
 .site-nav-utilities {
   display: flex;
-  gap: 6px;
+  gap: 0;
   align-items: center;
   min-width: 0;
 }
@@ -47,33 +50,56 @@
 }
 
 .site-nav-link {
+  display: inline-flex;
+  align-items: center;
   border: 0;
   border-radius: var(--site-radius-sm);
-  font-size: 14px;
+  min-height: 32px;
+  padding: 0 9px;
+  font-size: 13px;
+  line-height: 1;
   color: var(--site-muted);
   text-decoration: none;
   font-weight: 600;
-  padding: 7px 10px;
   background: transparent;
   font-family: inherit;
+  white-space: nowrap;
   transition:
     background 140ms ease,
     color 140ms ease;
+}
+
+.site-nav-links > .site-nav-link,
+.site-nav-menu-toggle {
+  min-height: 53px;
+  padding: 0 11px;
+  border-radius: 0;
+  color: var(--site-muted);
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: 0;
+  text-transform: uppercase;
 }
 
 .site-nav-link:hover,
 .site-nav-link:focus-visible,
 .site-nav-link.active {
   color: var(--site-text);
-  background: var(--site-hover);
+  background: transparent;
 }
 
 .site-nav-link.active {
-  box-shadow: inset 0 -2px 0 var(--site-accent);
+  box-shadow: none;
+}
+
+.site-nav-links > .site-nav-link.active,
+.site-nav-menu-toggle.active {
+  box-shadow: inset 0 -3px 0 var(--site-accent);
 }
 
 /* Register = filled accent (green) button, like lichess's filled blue Register. */
 .site-nav-link-register {
+  min-height: 30px;
   background: var(--site-accent);
   color: var(--site-on-accent);
   font-weight: 700;
@@ -92,8 +118,6 @@
 }
 
 .site-nav-menu-toggle {
-  display: inline-flex;
-  align-items: center;
   gap: 6px;
   cursor: pointer;
 }
@@ -128,7 +152,16 @@
 
 .site-nav-menu-panel .site-nav-link {
   display: block;
+  min-height: 0;
+  padding: 7px 10px;
+  text-transform: none;
   white-space: nowrap;
+}
+
+.site-nav-menu-panel .site-nav-link:hover,
+.site-nav-menu-panel .site-nav-link:focus-visible,
+.site-nav-menu-panel .site-nav-link.active {
+  background: var(--site-hover);
 }
 
 .site-loading {
@@ -345,7 +378,16 @@
   }
 
   .site-nav-collapse .site-nav-link {
+    min-height: 0;
     padding: 11px 8px;
+  }
+
+  .site-nav-collapse .site-nav-links > .site-nav-link,
+  .site-nav-collapse .site-nav-menu-toggle {
+    min-height: 0;
+    border-radius: var(--site-radius-sm);
+    font-size: 14px;
+    text-transform: none;
   }
 
   .site-nav-menu,

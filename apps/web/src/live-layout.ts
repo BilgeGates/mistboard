@@ -5,7 +5,9 @@ export function setLiveLayoutGameSpec(target: HTMLElement, gameSpecId: string | 
   target.classList.toggle('live-route--xiangqi', gameSpecId === 'dark-xiangqi');
   target.classList.toggle(
     'live-route--mini-xiangqi',
-    gameSpecId === 'dark-mini-xiangqi' || gameSpecId === 'drop-mini-xiangqi',
+    gameSpecId === 'mini-xiangqi' ||
+      gameSpecId === 'dark-mini-xiangqi' ||
+      gameSpecId === 'drop-mini-xiangqi',
   );
   target.classList.toggle('live-route--drop-mini-xiangqi', gameSpecId === 'drop-mini-xiangqi');
   target.classList.toggle('live-route--crossroads-chess', gameSpecId === 'crossroads-chess');

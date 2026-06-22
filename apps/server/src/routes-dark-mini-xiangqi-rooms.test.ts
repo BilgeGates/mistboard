@@ -27,7 +27,7 @@ test('Dark Mini Xiangqi room route only claims canonical Dark Mini Xiangqi game 
   assert.equal(requestsDarkMiniXiangqi({ variant: 'dark-chess' }), false);
 });
 
-test('Dark Mini Xiangqi room route hides flagged-off requests', async () => {
+test('Dark Mini Xiangqi room route returns disabled when the launch flag is off', async () => {
   const before = process.env[darkMiniXiangqiFlag];
   delete process.env[darkMiniXiangqiFlag];
   try {

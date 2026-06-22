@@ -166,6 +166,7 @@ export async function serveSitemap(params: {
     '/zh-hant/rules',
     '/about',
     '/learn',
+    '/puzzles',
     '/leaderboard',
     '/forum',
     '/source',

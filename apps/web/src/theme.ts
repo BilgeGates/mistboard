@@ -1,12 +1,6 @@
 import './theme.css';
 import type { GameFamilyId } from '@mistboard/game';
 import {
-  crossroadsChessEnabled,
-  darkMiniXiangqiEnabled,
-  darkShogiEnabled,
-  darkXiangqiEnabled,
-} from './feature-flags.js';
-import {
   readStoredShogiBoardTheme,
   readStoredShogiPieceSet,
   SHOGI_BOARD_THEMES,
@@ -109,16 +103,16 @@ const shogiPieceSets = SHOGI_PIECE_SETS;
 const defaultBoardFamily: BoardFamily = 'chess';
 
 // Xiangqi appearance (board themes + piece sets) is shared by full Dark Xiangqi,
-// Dark Mini Xiangqi, and Crossroads Chess's xiangqi-side disk pieces. Gated so
-// xiangqi controls appear only when a consuming surface is available.
+// Dark Mini Xiangqi, Mini Xiangqi, and Crossroads Chess's xiangqi-side disk
+// pieces. These variants are baseline surfaces, so the family controls are
+// always available.
 export function xiangqiAppearanceEnabled(): boolean {
-  return darkXiangqiEnabled() || darkMiniXiangqiEnabled() || crossroadsChessEnabled();
+  return true;
 }
 
-// Shogi appearance (board theme + piece set) drives the Dark Shogi board. Gated
-// on the variant flag so the Shogi controls appear only when it is playable.
+// Shogi appearance (board theme + piece set) drives the Dark Shogi board.
 export function shogiAppearanceEnabled(): boolean {
-  return darkShogiEnabled();
+  return true;
 }
 
 function enabledAppearanceFamilies(): Array<{ id: BoardFamily; label: string }> {

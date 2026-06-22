@@ -33,6 +33,8 @@ import * as leaderboardRoute from './routes/leaderboard.js';
 import type { HttpApiContext } from './routes/lib.js';
 import * as lobbyRoute from './routes/lobby.js';
 import * as metaRoute from './routes/meta.js';
+import * as miniXiangqiGamesRoute from './routes/mini-xiangqi-games.js';
+import * as puzzlesRoute from './routes/puzzles.js';
 import * as revealChessGamesRoute from './routes/reveal-chess-games.js';
 import * as roomsRoute from './routes/rooms.js';
 import * as usersRoute from './routes/users.js';
@@ -71,10 +73,12 @@ const routes: RouteModule[] = [
   feedbackRoute,
   forumRoute,
   metaRoute,
+  puzzlesRoute,
   roomsRoute,
   correspondenceGamesRoute,
   correspondenceSeeksRoute,
   lobbyRoute,
+  miniXiangqiGamesRoute,
   darkMiniXiangqiGamesRoute,
   dropMiniXiangqiGamesRoute,
   darkXiangqiGamesRoute,

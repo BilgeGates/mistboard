@@ -5,8 +5,8 @@
   "license": "AGPL-3.0-or-later",
   "type": "module",
   "scripts": {
-    "dev": "env MISTBOARD_DARK_MINI_XIANGQI_ENABLED=true MISTBOARD_DARK_XIANGQI_ENABLED=true MISTBOARD_JIEQI_ENABLED=true MISTBOARD_BANQI_ENABLED=true MISTBOARD_REVEAL_CHESS_ENABLED=true MISTBOARD_CROSSROADS_CHESS_ENABLED=true MISTBOARD_DARK_CROSSROADS_CHESS_ENABLED=true MISTBOARD_DARK_SHOGI_ENABLED=true MISTBOARD_DARK_CRAZYHOUSE_ENABLED=true MISTBOARD_KRIEGSPIEL_ENABLED=true tsx watch src/main.ts",
-    "dev:persistent": "env DATABASE_URL=postgres://mistboard:mistboard@localhost:5435/mistboard MISTBOARD_DARK_MINI_XIANGQI_ENABLED=true MISTBOARD_DARK_XIANGQI_ENABLED=true MISTBOARD_JIEQI_ENABLED=true MISTBOARD_BANQI_ENABLED=true MISTBOARD_REVEAL_CHESS_ENABLED=true MISTBOARD_CROSSROADS_CHESS_ENABLED=true MISTBOARD_DARK_CROSSROADS_CHESS_ENABLED=true MISTBOARD_DARK_SHOGI_ENABLED=true MISTBOARD_DARK_CRAZYHOUSE_ENABLED=true MISTBOARD_KRIEGSPIEL_ENABLED=true tsx watch src/main.ts",
+    "dev": "tsx watch src/main.ts",
+    "dev:persistent": "env DATABASE_URL=postgres://mistboard:mistboard@localhost:5435/mistboard tsx watch src/main.ts",
     "start": "node dist/main.js",
     "build": "tsc -p tsconfig.json",
     "test": "tsc -p tsconfig.json && node --test --test-concurrency=8 dist/*.test.js dist/variant-tenant/*.test.js dist/routes/*.test.js",

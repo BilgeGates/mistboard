@@ -78,8 +78,8 @@ const PROFILE_VARIANT_LABEL: Record<ProfileRatingVariant, string> = {
   reveal_chess: 'Reveal Chess',
 };
 
-// Profile rating grid is subject-scoped: render-capable soft-launch variants can
-// show here before they are advertised on the public leaderboard.
+// Profile rating grid is subject-scoped and follows the baseline rating variant
+// registry.
 const PROFILE_VARIANT_ORDER: ProfileRatingVariant[] = profileRatingVariants.map((v) => v.id);
 
 export async function mountProfile(root: HTMLElement, handle: string): Promise<void> {

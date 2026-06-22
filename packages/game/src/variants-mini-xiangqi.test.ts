@@ -2,13 +2,19 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import {
   applyMiniXiangqiMove,
+  applyMiniXiangqiOpenMove,
   computeMiniXiangqiVision,
   createInitialMiniXiangqiBoard,
   createInitialMiniXiangqiState,
   getMiniXiangqiLegalMoves,
   getMiniXiangqiLegalMovesFrom,
+  getMiniXiangqiOpenLegalMoves,
+  getMiniXiangqiOpenLegalMovesFrom,
+  getMiniXiangqiOpenPlayerView,
   getMiniXiangqiPlayerView,
+  isMiniXiangqiGeneralInCheck,
   isMiniXiangqiLegalMove,
+  isMiniXiangqiOpenLegalMove,
   type MiniXiangqiBoard,
   type MiniXiangqiGameState,
   type MiniXiangqiMove,
@@ -114,6 +120,80 @@ test('general can capture the opposing general across a clear file', () => {
   assert.equal(moves.includes('d7'), true);
   const next = applyMiniXiangqiMove(state, { from: 'd1', to: 'd7' });
   assert.deepEqual(next.status, { type: 'finished', winner: 'red', reason: 'general-captured' });
+});
+
+test('open player view is full-information with open legal moves', () => {
+  const state = createInitialMiniXiangqiState('open-view');
+  const view = getMiniXiangqiOpenPlayerView(state, 'red');
+
+  assert.equal(Object.keys(view.board).length, 24);
+  assert.equal(view.visibleSquares.length, 49);
+  assert.equal(view.legalMoves.length, 19);
+  assert.ok(Object.values(view.board).every((entry) => entry?.shrouded === false));
+  assert.ok(getMiniXiangqiOpenLegalMoves(state, 'black').length > 0);
+});
+
+test('open mode forbids direct general capture', () => {
+  const state = playingState({
+    d1: { color: 'red', role: 'general' },
+    d7: { color: 'black', role: 'general' },
+  });
+
+  assert.equal(isMiniXiangqiLegalMove(state, { from: 'd1', to: 'd7' }), true);
+  assert.equal(isMiniXiangqiOpenLegalMove(state, { from: 'd1', to: 'd7' }), false);
+
+  const next = applyMiniXiangqiOpenMove(state, { from: 'd1', to: 'd7' });
+
+  assert.deepEqual(next.status, { type: 'playing', turn: 'red' });
+  assert.deepEqual(next.board.d1, { color: 'red', role: 'general' });
+  assert.deepEqual(next.board.d7, { color: 'black', role: 'general' });
+});
+
+test('open mode filters moves that expose the moving general', () => {
+  const state = playingState({
+    a1: { color: 'red', role: 'chariot' },
+    d1: { color: 'red', role: 'general' },
+    d4: { color: 'red', role: 'soldier' },
+    d7: { color: 'black', role: 'general' },
+  });
+
+  assert.equal(isMiniXiangqiGeneralInCheck(state, 'red'), false);
+  assert.equal(isMiniXiangqiOpenLegalMove(state, { from: 'd4', to: 'c4' }), false);
+  assert.equal(isMiniXiangqiOpenLegalMove(state, { from: 'd4', to: 'd5' }), true);
+  assert.deepEqual(destinations(getMiniXiangqiOpenLegalMovesFrom(state, 'd4')), ['d5']);
+});
+
+test('open mode checkmate ends before the general is captured', () => {
+  const state = playingState({
+    c1: { color: 'red', role: 'chariot' },
+    c4: { color: 'red', role: 'chariot' },
+    d1: { color: 'red', role: 'general' },
+    d2: { color: 'red', role: 'soldier' },
+    e1: { color: 'red', role: 'chariot' },
+    d7: { color: 'black', role: 'general' },
+  });
+
+  assert.equal(isMiniXiangqiGeneralInCheck(state, 'black'), false);
+
+  const next = applyMiniXiangqiOpenMove(state, { from: 'c4', to: 'd4' });
+
+  assert.deepEqual(next.status, { type: 'finished', winner: 'red', reason: 'checkmate' });
+  assert.deepEqual(next.board.d7, { color: 'black', role: 'general' });
+});
+
+test('open mode stalemate is a loss for the player with no legal move', () => {
+  const state = playingState({
+    a5: { color: 'red', role: 'chariot' },
+    c1: { color: 'red', role: 'chariot' },
+    d1: { color: 'red', role: 'general' },
+    d4: { color: 'red', role: 'soldier' },
+    e1: { color: 'red', role: 'chariot' },
+    d7: { color: 'black', role: 'general' },
+  });
+
+  const next = applyMiniXiangqiOpenMove(state, { from: 'a5', to: 'a6' });
+
+  assert.deepEqual(next.status, { type: 'finished', winner: 'red', reason: 'stalemate' });
 });
 
 test('progress clock draw is server-adjudicated', () => {

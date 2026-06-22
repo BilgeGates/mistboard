@@ -85,6 +85,7 @@ describe('playable engines loading', () => {
     window.history.replaceState(null, '', '/');
 
     expect(landingRoomClientKindForUrl('/room/dchess_created')).toBe('tenant');
+    expect(landingRoomClientKindForUrl('/room/mxq_created')).toBe('standard');
     expect(landingRoomClientKindForUrl('/room/dark_created')).toBe('standard');
   });
 });

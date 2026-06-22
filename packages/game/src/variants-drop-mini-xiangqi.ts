@@ -1,7 +1,7 @@
 import {
   createInitialMiniXiangqiState,
-  getMiniXiangqiLegalMoves,
-  getMiniXiangqiLegalMovesFrom,
+  getMiniXiangqiOpenLegalMoves,
+  isMiniXiangqiGeneralInCheckOnBoard,
   type MiniXiangqiBoard,
   type MiniXiangqiColor,
   type MiniXiangqiGameState,
@@ -9,6 +9,7 @@ import {
   type MiniXiangqiMove,
   type MiniXiangqiPieceRole,
   type MiniXiangqiSquare,
+  miniXiangqiBoardAfterMove,
   miniXiangqiCoordOf,
   miniXiangqiInPalace,
   miniXiangqiPositionRepetitionKey,
@@ -223,7 +224,7 @@ function applyBoardMove(
   const capturedPiece = state.board[move.to];
   if (!movingPiece || capturedPiece?.role === 'general') return state;
 
-  const board = simulateDropMiniXiangqiBoardMove(state.board, move);
+  const board = miniXiangqiBoardAfterMove(state.board, move);
   const nextTurn = oppositeMiniXiangqiColor(movingColor);
   const nextMoveNumber = movingColor === 'black' ? state.moveNumber + 1 : state.moveNumber;
   const progressClock = capturedPiece ? 0 : state.progressClock + 1;
@@ -330,7 +331,7 @@ function isLegalDropMiniXiangqiDrop(
     return false;
   }
   const board: MiniXiangqiBoard = { ...state.board, [move.to]: { color, role: move.drop } };
-  if (isDropMiniXiangqiGeneralInCheckOnBoard(board, color)) return false;
+  if (isMiniXiangqiGeneralInCheckOnBoard(board, color)) return false;
   return true;
 }
 
@@ -341,7 +342,7 @@ function createsImmediateGeneralCaptureThreat(
 ): boolean {
   const opponent = oppositeMiniXiangqiColor(color);
   const board: MiniXiangqiBoard = { ...state.board, [move.to]: { color, role: move.drop } };
-  return isDropMiniXiangqiGeneralInCheckOnBoard(board, opponent);
+  return isMiniXiangqiGeneralInCheckOnBoard(board, opponent);
 }
 
 function hasLegalDropMiniXiangqiMove(
@@ -360,14 +361,9 @@ function getLegalDropMiniXiangqiBoardMoves(
   color: MiniXiangqiColor,
 ): MiniXiangqiMove[] {
   if (state.status.type !== 'playing') return [];
-  const pseudoMoves = getMiniXiangqiLegalMoves({
+  return getMiniXiangqiOpenLegalMoves({
     ...miniStateOf(state),
     status: { type: 'playing', turn: color },
-  });
-  return pseudoMoves.filter((move) => {
-    if (state.board[move.to]?.role === 'general') return false;
-    const board = simulateDropMiniXiangqiBoardMove(state.board, move);
-    return !isDropMiniXiangqiGeneralInCheckOnBoard(board, color);
   });
 }
 
@@ -375,65 +371,7 @@ export function isDropMiniXiangqiGeneralInCheck(
   state: DropMiniXiangqiGameState,
   color: MiniXiangqiColor,
 ): boolean {
-  return isDropMiniXiangqiGeneralInCheckOnBoard(state.board, color);
-}
-
-function isDropMiniXiangqiGeneralInCheckOnBoard(
-  board: MiniXiangqiBoard,
-  color: MiniXiangqiColor,
-): boolean {
-  const general = findGeneral(board, color);
-  if (!general) return true;
-  return isDropMiniXiangqiSquareAttacked(board, oppositeMiniXiangqiColor(color), general);
-}
-
-function isDropMiniXiangqiSquareAttacked(
-  board: MiniXiangqiBoard,
-  byColor: MiniXiangqiColor,
-  target: MiniXiangqiSquare,
-): boolean {
-  const attackState: MiniXiangqiGameState = {
-    id: 'drop-mini-attack-check',
-    board,
-    status: { type: 'playing', turn: byColor },
-    moveNumber: 1,
-    progressClock: 0,
-    positionCounts: {},
-  };
-  for (const [square, piece] of Object.entries(board)) {
-    if (!piece || piece.color !== byColor || piece.role === 'general') continue;
-    if (
-      getMiniXiangqiLegalMovesFrom(attackState, square as MiniXiangqiSquare).some(
-        (move) => move.to === target,
-      )
-    ) {
-      return true;
-    }
-  }
-
-  const enemyGeneral = findGeneral(board, byColor);
-  if (!enemyGeneral) return false;
-  const attacker = miniXiangqiCoordOf(enemyGeneral);
-  const attacked = miniXiangqiCoordOf(target);
-  if (attacker.file !== attacked.file || attacker.rank === attacked.rank) return false;
-  const lo = Math.min(attacker.rank, attacked.rank);
-  const hi = Math.max(attacker.rank, attacked.rank);
-  for (let rank = lo + 1; rank < hi; rank += 1) {
-    if (board[miniXiangqiSquareOf(attacker.file, rank)]) return false;
-  }
-  return true;
-}
-
-function simulateDropMiniXiangqiBoardMove(
-  board: MiniXiangqiBoard,
-  move: MiniXiangqiMove,
-): MiniXiangqiBoard {
-  const movingPiece = board[move.from];
-  if (!movingPiece) return { ...board };
-  const next: MiniXiangqiBoard = { ...board };
-  delete next[move.from];
-  next[move.to] = movingPiece;
-  return next;
+  return isMiniXiangqiGeneralInCheckOnBoard(state.board, color);
 }
 
 function miniStateOf(state: DropMiniXiangqiGameState): MiniXiangqiGameState {
@@ -462,13 +400,6 @@ function isDropRegionLegal(
   }
   const { rank } = miniXiangqiCoordOf(square);
   return color === 'red' ? rank <= 3 : rank >= 5;
-}
-
-function findGeneral(board: MiniXiangqiBoard, color: MiniXiangqiColor): MiniXiangqiSquare | null {
-  for (const [square, piece] of Object.entries(board)) {
-    if (piece?.color === color && piece.role === 'general') return square as MiniXiangqiSquare;
-  }
-  return null;
 }
 
 function addCapturedToReserve(

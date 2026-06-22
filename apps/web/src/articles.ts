@@ -82,17 +82,9 @@ function isArticleVisibleInThisEnv(article: Article): boolean {
   return import.meta.env.DEV;
 }
 
-const DARK_MINI_XIANGQI_PRELAUNCH_RULE_SLUGS = new Set(['mini-xiangqi', 'dark-mini-xiangqi']);
-
 function isArticleListedInThisEnv(article: Article): boolean {
   if (!isArticleVisibleInThisEnv(article)) return false;
   if (article.showInIndex === false) return false;
-  if (
-    DARK_MINI_XIANGQI_PRELAUNCH_RULE_SLUGS.has(article.slug) &&
-    !darkMiniXiangqiPublicEntryEnabled()
-  ) {
-    return false;
-  }
   return true;
 }
 

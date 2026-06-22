@@ -1,11 +1,9 @@
 import assert from 'node:assert/strict';
-import type { IncomingMessage, ServerResponse } from 'node:http';
 import test from 'node:test';
 import { JIEQI_SPEC_ID, STANDARD_JIEQI_DEAL } from '@mistboard/game';
 import type { JieqiEvent } from '../jieqi-runtime.js';
 import type { RecentEveGameRecord } from '../persistence.js';
-import { type JieqiPostgamePersistence, jieqiPostgameForApi, tryHandle } from './jieqi-games.js';
-import type { HttpApiContext } from './lib.js';
+import { type JieqiPostgamePersistence, jieqiPostgameForApi } from './jieqi-games.js';
 
 const ROOM_ID = 'jq_postgame';
 
@@ -173,37 +171,12 @@ test('Jieqi postgame returns null when there is no game or event log', async () 
   assert.equal(await jieqiPostgameForApi(ROOM_ID, deps(gameRecord(), null)), null);
 });
 
-// Mock just enough of the http req/res for the flag-gate branch, which fires
-// before any persistence call.
-function mockResponse(): { response: ServerResponse; status: () => number | null } {
-  let status: number | null = null;
-  const response = {
-    writeHead(code: number) {
-      status = code;
-      return response;
-    },
-    end() {
-      return response;
-    },
-  } as unknown as ServerResponse;
-  return { response, status: () => status };
-}
-
-test('Jieqi postgame route returns 404 when the jieqi flag is off', async () => {
+test('Jieqi postgame does not require launch env flags', async () => {
   const previous = process.env.MISTBOARD_JIEQI_ENABLED;
   delete process.env.MISTBOARD_JIEQI_ENABLED;
   try {
-    const request = { method: 'GET' } as IncomingMessage;
-    const { response, status } = mockResponse();
-    const handled = await tryHandle(
-      {} as HttpApiContext,
-      request,
-      response,
-      `/api/jieqi/games/${ROOM_ID}`,
-      new URL(`http://localhost/api/jieqi/games/${ROOM_ID}`),
-    );
-    assert.equal(handled, true);
-    assert.equal(status(), 404);
+    const payload = await jieqiPostgameForApi(ROOM_ID, deps(gameRecord(), finishedCaptureEvents()));
+    assert.ok(payload);
   } finally {
     if (previous === undefined) delete process.env.MISTBOARD_JIEQI_ENABLED;
     else process.env.MISTBOARD_JIEQI_ENABLED = previous;

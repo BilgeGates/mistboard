@@ -287,12 +287,13 @@ test('lobby: guest Dark Mini Xiangqi rated request is rejected', async () => {
   });
 });
 
-test('lobby: Dark Mini Xiangqi requests are rejected when the flag is off', async () => {
+test('lobby: Dark Mini Xiangqi requests are disabled when the launch flag is off', async () => {
   await withFlag(false, async () => {
     const { ctx } = testContext();
     const res = await post(ctx, { gameSpecId: DARK_MINI_XIANGQI_SPEC_ID, timeControl: tc });
     assert.equal(res.status, 404);
     assert.deepEqual(responseJson(res), { error: 'dark_mini_xiangqi_disabled' });
+    assert.equal(ctx.lobbyQueue.length, 0);
   });
 });
 
@@ -355,12 +356,13 @@ test('lobby: Crossroads Chess allows 5+5 and rejects off-menu time controls', as
   });
 });
 
-test('lobby: Crossroads Chess requests are rejected when the flag is off', async () => {
+test('lobby: Crossroads Chess requests are disabled when the launch flag is off', async () => {
   await withCrossroadsFlag(false, async () => {
     const { ctx } = testContext();
     const res = await post(ctx, { gameSpecId: CROSSROADS_CHESS_SPEC_ID, timeControl: tc });
     assert.equal(res.status, 404);
     assert.deepEqual(responseJson(res), { error: 'crossroads_chess_disabled' });
+    assert.equal(ctx.lobbyQueue.length, 0);
   });
 });
 

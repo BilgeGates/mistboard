@@ -14,6 +14,7 @@ import {
   gameSpecForId,
   JIEQI_SPEC_ID,
   KRIEGSPIEL_SPEC_ID,
+  MINI_XIANGQI_SPEC_ID,
   REVEAL_CHESS_SPEC_ID,
   TIME_CONTROLS,
   type TimeControlId,
@@ -50,6 +51,7 @@ type LandingPlayChoice = {
 type LandingPlayMode = 'lobby' | 'pvp' | 'pve';
 type LandingGameSpecId =
   | typeof DARK_CHESS_SPEC_ID
+  | typeof MINI_XIANGQI_SPEC_ID
   | typeof DARK_MINI_XIANGQI_SPEC_ID
   | typeof DROP_MINI_XIANGQI_SPEC_ID
   | typeof DARK_XIANGQI_SPEC_ID
@@ -151,9 +153,8 @@ function allowedTimePresetIds(
   if (tenantLanding) return new Set<LandingTimePresetId>(tenantLanding.timePresetIds);
   return new Set<LandingTimePresetId>(['1m1', '3m2']);
 }
-// Dark chess is always offered; DMX appears in normal entry points only after
-// its public-entry flag is on. Direct soft-launch deep links can still select it
-// when the render/capability flag is on.
+// Dark chess is always offered. Integrated tenant variants join the normal play
+// entry points through their registry landing config.
 function enabledLandingVariantGameSpecs(
   _mode: LandingPlayMode,
 ): { gameSpecId: LandingGameSpecId; label: string }[] {
@@ -674,9 +675,9 @@ function openLandingSetupDialog(choice: LandingPlayChoice): void {
   variantSection.className = 'landing-setup-section';
   variantSection.append(setupSectionLabel('Variant'));
 
-  // The picker appears only when a second public-entry variant exists beyond
-  // chess. The option set is mode-aware because some variants are surfaced only
-  // through direct soft-launch links.
+  // The picker appears only when a second variant exists beyond chess. The
+  // option set is mode-aware because PvE can show non-engine variants as
+  // disabled cards instead of hiding them entirely.
   const variantSelectable = variantOptions.length > 1;
   if (variantSelectable) {
     // A visual radiogroup of variant cards (mini-board + name) replaces the old
@@ -1751,6 +1752,22 @@ export function roomCreationRequestBody(
       ...(mode === 'pve' && engineId ? { engineId } : {}),
     };
   }
+  if (setup.gameSpecId === MINI_XIANGQI_SPEC_ID) {
+    // Mini Xiangqi is open-info red/black mini xiangqi without drops, PvP-only
+    // and casual-only for now.
+    return {
+      mode: 'pvp',
+      gameSpecId,
+      timeControl: setup.timeControl,
+      rated: false,
+      preferredColor:
+        setup.preferredColor === 'white'
+          ? 'red'
+          : setup.preferredColor === 'red' || setup.preferredColor === 'black'
+            ? setup.preferredColor
+            : 'random',
+    };
+  }
   if (setup.gameSpecId === REVEAL_CHESS_SPEC_ID) {
     // Reveal Chess is PvP-only and casual-only (rated not launched); colors are
     // standard chess white/black, with no draft960 / start-format axis.
@@ -1848,6 +1865,7 @@ export function roomCreationGameSpecId(
 ):
   | typeof DARK_CHESS_SPEC_ID
   | typeof DARK_DRAFT960_SPEC_ID
+  | typeof MINI_XIANGQI_SPEC_ID
   | typeof DARK_MINI_XIANGQI_SPEC_ID
   | typeof DROP_MINI_XIANGQI_SPEC_ID
   | typeof DARK_XIANGQI_SPEC_ID
@@ -1861,6 +1879,7 @@ export function roomCreationGameSpecId(
   | typeof REVEAL_CHESS_SPEC_ID {
   if (setup.gameSpecId === JIEQI_SPEC_ID) return JIEQI_SPEC_ID;
   if (setup.gameSpecId === BANQI_SPEC_ID) return BANQI_SPEC_ID;
+  if (setup.gameSpecId === MINI_XIANGQI_SPEC_ID) return MINI_XIANGQI_SPEC_ID;
   if (setup.gameSpecId === DROP_MINI_XIANGQI_SPEC_ID) return DROP_MINI_XIANGQI_SPEC_ID;
   if (setup.gameSpecId === REVEAL_CHESS_SPEC_ID) return REVEAL_CHESS_SPEC_ID;
   if (setup.gameSpecId === CROSSROADS_CHESS_SPEC_ID) return CROSSROADS_CHESS_SPEC_ID;

@@ -161,6 +161,7 @@ describe('renderWatchChannelList', () => {
       activeChannel: 'dark-chess',
       channels: [
         channel('dark-chess', 'Dark Chess'),
+        channel('mini-xiangqi', 'Mini Xiangqi'),
         channel('dark-mini-xiangqi', 'Dark Mini Xiangqi'),
         channel('dark-xiangqi', 'Dark Xiangqi'),
         channel('jieqi', 'Jieqi'),
@@ -181,7 +182,7 @@ describe('renderWatchChannelList', () => {
     renderWatchChannelList(root, feed);
 
     const links = root.querySelectorAll('a.watch-channel-link');
-    expect(links).toHaveLength(11);
+    expect(links).toHaveLength(12);
     for (const link of links) {
       const thumb = link.querySelector('.watch-channel-thumb');
       expect(thumb?.querySelector('svg'), `${link.textContent} marker`).not.toBeNull();

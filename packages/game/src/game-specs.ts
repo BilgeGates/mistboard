@@ -63,6 +63,7 @@ export type RatingPoolBaseId =
   | 'sun_tzu'
   | 'lao_tzu'
   | 'dark_seirawan'
+  | 'mini_xiangqi'
   | 'dark_mini_xiangqi'
   | 'drop_mini_xiangqi'
   | 'dark_xiangqi'
@@ -83,6 +84,7 @@ export type GameSpecId =
   | 'sun-tzu'
   | 'lao-tzu'
   | 'dark-seirawan'
+  | 'mini-xiangqi'
   | 'dark-mini-xiangqi'
   | 'drop-mini-xiangqi'
   | 'dark-xiangqi'
@@ -125,6 +127,7 @@ export const DARK_DRAFT960_SPEC_ID = 'dark-draft960' satisfies GameSpecId;
 // Compatibility alias for pre-taxonomy code and URLs. New code should use
 // DARK_DRAFT960_SPEC_ID; "fog" remains only in legacy rating/API vocabulary.
 export const FOG_DRAFT960_SPEC_ID = DARK_DRAFT960_SPEC_ID;
+export const MINI_XIANGQI_SPEC_ID = 'mini-xiangqi' satisfies GameSpecId;
 export const DARK_MINI_XIANGQI_SPEC_ID = 'dark-mini-xiangqi' satisfies GameSpecId;
 export const DROP_MINI_XIANGQI_SPEC_ID = 'drop-mini-xiangqi' satisfies GameSpecId;
 export const DARK_XIANGQI_SPEC_ID = 'dark-xiangqi' satisfies GameSpecId;
@@ -149,6 +152,7 @@ export const DARK_DUAL_CHESS_SPEC_ID = 'dark-dual-chess' satisfies GameSpecAlias
 export const CANONICAL_VARIANT_ORDER: readonly GameSpecId[] = [
   DARK_CHESS_SPEC_ID,
   DARK_DRAFT960_SPEC_ID,
+  MINI_XIANGQI_SPEC_ID,
   DARK_MINI_XIANGQI_SPEC_ID,
   DROP_MINI_XIANGQI_SPEC_ID,
   DARK_XIANGQI_SPEC_ID,
@@ -199,7 +203,7 @@ export const GAME_SPECS: readonly GameSpec[] = [
     dropPolicy: 'none',
     ratingPoolBase: 'fog_draft960',
     rated: true,
-    publicSurface: 'hidden',
+    publicSurface: 'casual',
     runtimeStatus: 'live',
     legacyLiveRoom: { variant: 'dark-chess', hiddenDraft960: true },
   },
@@ -216,7 +220,7 @@ export const GAME_SPECS: readonly GameSpec[] = [
     dropPolicy: 'any-legal-square',
     ratingPoolBase: 'dark_crazyhouse',
     rated: true,
-    publicSurface: 'hidden',
+    publicSurface: 'casual',
     runtimeStatus: 'live',
   },
   {
@@ -232,7 +236,7 @@ export const GAME_SPECS: readonly GameSpec[] = [
     dropPolicy: 'none',
     ratingPoolBase: 'kriegspiel',
     rated: true,
-    publicSurface: 'hidden',
+    publicSurface: 'casual',
     runtimeStatus: 'live',
   },
   {
@@ -296,6 +300,24 @@ export const GAME_SPECS: readonly GameSpec[] = [
     runtimeStatus: 'future',
   },
   {
+    // Mini Xiangqi: the open-information 7x7 base game for the mini-xiangqi
+    // cluster. It is the clean rules/puzzle/training substrate for Drop Mini
+    // Xiangqi and Dark Mini Xiangqi; casual-only until the pool earns rating.
+    id: MINI_XIANGQI_SPEC_ID,
+    publicName: 'Mini Xiangqi',
+    family: 'xiangqi',
+    board: 'xiangqi-7x7',
+    movement: 'mini-xiangqi',
+    objective: 'checkmate',
+    visibility: 'open',
+    setup: 'mini-standard',
+    reserves: 'none',
+    dropPolicy: 'none',
+    ratingPoolBase: 'mini_xiangqi',
+    publicSurface: 'casual',
+    runtimeStatus: 'live',
+  },
+  {
     id: DARK_MINI_XIANGQI_SPEC_ID,
     publicName: 'Dark Mini Xiangqi',
     family: 'xiangqi',
@@ -308,7 +330,7 @@ export const GAME_SPECS: readonly GameSpec[] = [
     dropPolicy: 'none',
     ratingPoolBase: 'dark_mini_xiangqi',
     rated: true,
-    publicSurface: 'hidden',
+    publicSurface: 'casual',
     runtimeStatus: 'live',
   },
   {
@@ -327,7 +349,7 @@ export const GAME_SPECS: readonly GameSpec[] = [
     dropPolicy: 'not-enemy-palace',
     ratingPoolBase: 'drop_mini_xiangqi',
     rated: true,
-    publicSurface: 'hidden',
+    publicSurface: 'casual',
     runtimeStatus: 'live',
   },
   {
@@ -345,7 +367,7 @@ export const GAME_SPECS: readonly GameSpec[] = [
     // Rating-ready (like Banqi/Jieqi): the pool exists so it lights up the moment
     // the global rated flag flips. Launches PvP-first, casual until then.
     rated: true,
-    publicSurface: 'hidden',
+    publicSurface: 'casual',
     runtimeStatus: 'live',
   },
   {
@@ -361,7 +383,7 @@ export const GAME_SPECS: readonly GameSpec[] = [
     dropPolicy: 'none',
     ratingPoolBase: 'jieqi',
     rated: true,
-    publicSurface: 'hidden',
+    publicSurface: 'casual',
     runtimeStatus: 'live',
   },
   {
@@ -382,7 +404,7 @@ export const GAME_SPECS: readonly GameSpec[] = [
     dropPolicy: 'none',
     ratingPoolBase: 'banqi',
     rated: true,
-    publicSurface: 'hidden',
+    publicSurface: 'casual',
     runtimeStatus: 'live',
   },
   {
@@ -398,7 +420,7 @@ export const GAME_SPECS: readonly GameSpec[] = [
     dropPolicy: 'any-legal-square',
     ratingPoolBase: 'dark_shogi',
     rated: true,
-    publicSurface: 'hidden',
+    publicSurface: 'casual',
     runtimeStatus: 'live',
   },
   {
@@ -433,7 +455,7 @@ export const GAME_SPECS: readonly GameSpec[] = [
     dropPolicy: 'none',
     ratingPoolBase: 'crossroads_chess_open',
     rated: true,
-    publicSurface: 'hidden',
+    publicSurface: 'casual',
     runtimeStatus: 'live',
   },
   {
@@ -449,7 +471,7 @@ export const GAME_SPECS: readonly GameSpec[] = [
     dropPolicy: 'none',
     ratingPoolBase: 'crossroads_chess',
     rated: true,
-    publicSurface: 'hidden',
+    publicSurface: 'casual',
     runtimeStatus: 'live',
   },
   {
@@ -469,7 +491,7 @@ export const GAME_SPECS: readonly GameSpec[] = [
     dropPolicy: 'none',
     ratingPoolBase: 'reveal_chess',
     rated: true,
-    publicSurface: 'hidden',
+    publicSurface: 'casual',
     runtimeStatus: 'live',
   },
 ] as const;

@@ -21,8 +21,7 @@ import {
 } from './routes/reveal-chess-rooms.js';
 import { variantTenantForRoomId, variantTenantForSpecId } from './variant-tenant/registry.js';
 
-const FLAG = 'MISTBOARD_REVEAL_CHESS_ENABLED';
-process.env[FLAG] = 'true';
+const revealChessFlag = 'MISTBOARD_REVEAL_CHESS_ENABLED';
 
 type ResponseCapture = { body: string; status: number | null };
 
@@ -67,44 +66,46 @@ test('requestsRevealChess claims only canonical reveal-chess spec requests', () 
   assert.equal(requestsRevealChess({ gameSpecId: 'jieqi' }), false);
 });
 
-test('reveal-chess create is hidden when the flag is off', async () => {
-  delete process.env[FLAG];
-  try {
+test('reveal-chess create works when the launch flag is enabled', async () => {
+  await withRevealChessFlag(async () => {
     const response = captureResponse();
     await handleRevealChessCreate(createContext(), response, {
       gameSpecId: REVEAL_CHESS_SPEC_ID,
       mode: 'pvp',
     });
-    assert.equal(response.status, 404);
-    assert.deepEqual(responseJson(response), { error: 'reveal_chess_disabled' });
-  } finally {
-    process.env[FLAG] = 'true';
-  }
+    assert.equal(response.status, 201);
+    assert.equal(responseJson(response).gameSpecId, REVEAL_CHESS_SPEC_ID);
+    revealChessRooms.clear();
+  });
 });
 
 test('reveal-chess create rejects unsupported surfaces before creating a room', async () => {
-  const response = captureResponse();
-  await handleRevealChessCreate(createContext(), response, {
-    gameSpecId: REVEAL_CHESS_SPEC_ID,
-    mode: 'pvp',
-    rated: true,
+  await withRevealChessFlag(async () => {
+    const response = captureResponse();
+    await handleRevealChessCreate(createContext(), response, {
+      gameSpecId: REVEAL_CHESS_SPEC_ID,
+      mode: 'pvp',
+      rated: true,
+    });
+    assert.equal(response.status, 501);
+    assert.deepEqual(responseJson(response), { error: 'reveal_chess_unsupported_surface' });
   });
-  assert.equal(response.status, 501);
-  assert.deepEqual(responseJson(response), { error: 'reveal_chess_unsupported_surface' });
 });
 
 test('reveal-chess create rejects a PvE request (no engine/bot)', async () => {
-  const response = captureResponse();
-  await handleRevealChessCreate(createContext(), response, {
-    gameSpecId: REVEAL_CHESS_SPEC_ID,
-    mode: 'pve',
+  await withRevealChessFlag(async () => {
+    const response = captureResponse();
+    await handleRevealChessCreate(createContext(), response, {
+      gameSpecId: REVEAL_CHESS_SPEC_ID,
+      mode: 'pve',
+    });
+    assert.equal(response.status, 501);
+    assert.deepEqual(responseJson(response), { error: 'reveal_chess_unsupported_surface' });
   });
-  assert.equal(response.status, 501);
-  assert.deepEqual(responseJson(response), { error: 'reveal_chess_unsupported_surface' });
 });
 
 test('reveal-chess create makes a hostable room that hydrates back with its deal', async () => {
-  try {
+  await withRevealChessFlag(async () => {
     const response = captureResponse();
     await handleRevealChessCreate(createContext(), response, {
       gameSpecId: REVEAL_CHESS_SPEC_ID,
@@ -123,7 +124,17 @@ test('reveal-chess create makes a hostable room that hydrates back with its deal
     if (created.type === 'room-created') {
       assert.ok(created.setup, 'the server-secret deal is persisted in the room log');
     }
-  } finally {
     revealChessRooms.clear();
-  }
+  });
 });
+
+async function withRevealChessFlag(fn: () => Promise<void>): Promise<void> {
+  const previous = process.env[revealChessFlag];
+  process.env[revealChessFlag] = 'true';
+  try {
+    await fn();
+  } finally {
+    if (previous === undefined) delete process.env[revealChessFlag];
+    else process.env[revealChessFlag] = previous;
+  }
+}

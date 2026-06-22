@@ -40,7 +40,7 @@ export function requestsCrossroadsChess(body: Record<string, unknown>): boolean 
 }
 
 // Create a perfect-information Crossroads Chess live room. Supports PvP and
-// server-owned Fairy-Stockfish PvE, flag-gated, not rated.
+// server-owned Fairy-Stockfish PvE, not rated.
 export async function handleCrossroadsChessCreate(
   ctx: CrossroadsChessCreateContext,
   response: ServerResponse,

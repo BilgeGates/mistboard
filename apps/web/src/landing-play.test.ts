@@ -4,6 +4,22 @@ import { buildLandingPlayPanel, maybeOpenPlayDeepLink, setRoomNavigator } from '
 import { setRatedModeEnabled } from './rated-flag.js';
 import { setResolvedSignedIn } from './signed-in-state.js';
 
+const BASELINE_PICKER_SPECS = [
+  'dark-chess',
+  'mini-xiangqi',
+  'dark-mini-xiangqi',
+  'drop-mini-xiangqi',
+  'dark-xiangqi',
+  'jieqi',
+  'banqi',
+  'reveal-chess',
+  'crossroads-chess',
+  'dark-crossroads-chess',
+  'dark-shogi',
+  'dark-crazyhouse',
+  'kriegspiel',
+];
+
 describe('landing play panel', () => {
   beforeEach(() => {
     Object.defineProperty(window, 'localStorage', {
@@ -23,15 +39,18 @@ describe('landing play panel', () => {
     vi.unstubAllGlobals();
   });
 
-  it('keeps Dark Xiangqi hidden in production unless the client flag is enabled', () => {
+  it('shows integrated variants in production without client launch flags', () => {
     vi.stubEnv('DEV', false);
+    vi.stubEnv('VITE_DARK_XIANGQI_ENABLED', 'false');
     vi.stubGlobal(
       'fetch',
       vi.fn(async () => jsonResponse({ playing: 0, online: 0 })),
     );
     const panel = buildLandingPlayPanel([]);
+    document.body.append(panel);
+    openPlaySetup(panel, 'Challenge a friend');
 
-    expect(panel.textContent).not.toContain('Dark Xiangqi');
+    expect(variantPickerSpecs()).toEqual(BASELINE_PICKER_SPECS);
   });
 
   it('shows the Misty brand placeholder, not a built-in engine name, before the roster loads', () => {
@@ -54,7 +73,7 @@ describe('landing play panel', () => {
     expect(overlay?.textContent).not.toContain('Random Legal');
   });
 
-  it('shows the variant picker when Drop Mini Xiangqi is available by default', () => {
+  it('shows mini-board markers for the baseline picker variants', () => {
     vi.stubEnv('DEV', false);
     vi.stubEnv('VITE_DARK_MINI_XIANGQI_ENABLED', 'false');
     vi.stubEnv('VITE_DARK_MINI_XIANGQI_PUBLIC_ENTRY_ENABLED', 'false');
@@ -76,8 +95,22 @@ describe('landing play panel', () => {
     openPlaySetup(panel, 'Play the engine');
 
     expect(variantPickerPresent()).toBe(true);
-    expect(variantPickerSpecs()).toContain('dark-chess');
-    expect(variantPickerSpecs()).toContain('drop-mini-xiangqi');
+    expect(variantPickerSpecs()).toEqual(BASELINE_PICKER_SPECS);
+    expect(
+      document.querySelector(
+        '.landing-variant-card[data-game-spec="dark-chess"] svg[data-mini-id="dark-chess"]',
+      ),
+    ).not.toBeNull();
+    expect(
+      document.querySelector(
+        '.landing-variant-card[data-game-spec="mini-xiangqi"] svg[data-mini-id="mini-xiangqi"]',
+      ),
+    ).not.toBeNull();
+    expect(
+      document.querySelector(
+        '.landing-variant-card[data-game-spec="dark-shogi"] svg[data-mini-id="dark-shogi"]',
+      ),
+    ).not.toBeNull();
   });
 
   it('creates dark chess rooms with a canonical game spec id behind the Variant UI', async () => {
@@ -206,6 +239,42 @@ describe('landing play panel', () => {
       preferredColor: 'random',
     });
     expect(window.location.pathname).toBe('/room/dmxq_home');
+  });
+
+  it('creates a casual Mini Xiangqi room from the flagged challenge variant', async () => {
+    const fetchSpy = vi.fn(async (input: RequestInfo | URL, _init?: RequestInit) => {
+      if (String(input) === '/api/live-stats') return jsonResponse({ playing: 0, online: 0 });
+      if (String(input) === '/api/rooms') return jsonResponse({ url: '/room/mxq_home' });
+      return jsonResponse({}, { status: 404 });
+    });
+    vi.stubGlobal('fetch', fetchSpy);
+    const panel = buildLandingPlayPanel([]);
+    document.body.append(panel);
+
+    openPlaySetup(panel, 'Challenge a friend');
+    expect(variantPickerPresent()).toBe(true);
+    expect(variantPickerSpecs()).toContain('mini-xiangqi');
+    selectModalVariant('mini-xiangqi');
+    expect(modalColorOptions()).toEqual([
+      { label: 'Red', glyph: '帥', classes: 'landing-color-glyph red xiangqi' },
+      { label: 'Random', glyph: '帥將', classes: 'landing-color-glyph random xiangqi' },
+      { label: 'Black', glyph: '將', classes: 'landing-color-glyph black xiangqi' },
+    ]);
+    expect(visibleModalTimeControls()).toEqual(['1 + 1', '3 + 2', '5 + 5']);
+    expect(document.body.textContent).toContain('Ratedcoming soon');
+    clickModalButton('5 + 5');
+    clickModalColor('Red');
+    clickModalButton('Create room');
+    await flushPromises();
+
+    expect(roomPostBody(fetchSpy)).toEqual({
+      mode: 'pvp',
+      gameSpecId: 'mini-xiangqi',
+      timeControl: { initialMs: 300_000, incrementMs: 5_000 },
+      rated: false,
+      preferredColor: 'red',
+    });
+    expect(window.location.pathname).toBe('/room/mxq_home');
   });
 
   it('creates a timed Crossroads Chess room from the flagged challenge variant', async () => {
@@ -592,9 +661,10 @@ describe('landing play panel', () => {
     expect(variantPickerSpecs()).toContain('crossroads-chess');
   });
 
-  it('keeps Dark Mini Xiangqi hidden from public entry unless its public-entry flag is enabled', () => {
+  it('keeps Dark Mini Xiangqi in public entry when the old public-entry flag is off', () => {
     vi.stubEnv('DEV', false);
     vi.stubEnv('VITE_DARK_MINI_XIANGQI_ENABLED', 'true');
+    vi.stubEnv('VITE_DARK_MINI_XIANGQI_PUBLIC_ENTRY_ENABLED', 'false');
     vi.stubGlobal(
       'fetch',
       vi.fn(async () => jsonResponse({ playing: 0, online: 0 })),
@@ -605,7 +675,7 @@ describe('landing play panel', () => {
       .find((candidate) => candidate.textContent === 'Challenge a friend')
       ?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
 
-    expect(variantPickerSpecs()).not.toContain('dark-mini-xiangqi');
+    expect(variantPickerSpecs()).toContain('dark-mini-xiangqi');
   });
 
   it('uses gameSpecId, not variant, to deep-link the challenge variant projection', () => {
@@ -706,9 +776,10 @@ describe('landing play panel', () => {
     expect(window.location.search).toBe('');
   });
 
-  it('allows a soft-launch Dark Mini Xiangqi deep link without public picker entry', async () => {
+  it('selects a Dark Mini Xiangqi deep link from the baseline picker', async () => {
     vi.stubEnv('DEV', false);
-    vi.stubEnv('VITE_DARK_MINI_XIANGQI_ENABLED', 'true');
+    vi.stubEnv('VITE_DARK_MINI_XIANGQI_ENABLED', 'false');
+    vi.stubEnv('VITE_DARK_MINI_XIANGQI_PUBLIC_ENTRY_ENABLED', 'false');
     const fetchSpy = vi.fn(async (input: RequestInfo | URL, _init?: RequestInit) => {
       if (String(input) === '/api/live-stats') return jsonResponse({ playing: 0, online: 0 });
       if (String(input) === '/api/rooms') return jsonResponse({ url: '/room/dmxq_soft' });
@@ -718,10 +789,8 @@ describe('landing play panel', () => {
     window.history.replaceState(null, '', '/?play=friend&gameSpecId=dark-mini-xiangqi');
 
     maybeOpenPlayDeepLink([]);
-    expect(variantPickerPresent()).toBe(false);
-    expect(document.querySelector('.landing-variant-control')?.textContent).toBe(
-      'Dark Mini Xiangqi',
-    );
+    expect(variantPickerPresent()).toBe(true);
+    expect(selectedVariantSpec()).toBe('dark-mini-xiangqi');
     document
       .querySelector<HTMLButtonElement>('.landing-setup-start')
       ?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
@@ -756,9 +825,10 @@ describe('landing play panel', () => {
     expect(card?.querySelector('svg[data-mini-id="kriegspiel"]')).not.toBeNull();
   });
 
-  it('allows a rated soft-launch Dark Mini Xiangqi lobby deep link without public picker entry', async () => {
+  it('selects a rated Dark Mini Xiangqi lobby deep link from the baseline picker', async () => {
     vi.stubEnv('DEV', false);
-    vi.stubEnv('VITE_DARK_MINI_XIANGQI_ENABLED', 'true');
+    vi.stubEnv('VITE_DARK_MINI_XIANGQI_ENABLED', 'false');
+    vi.stubEnv('VITE_DARK_MINI_XIANGQI_PUBLIC_ENTRY_ENABLED', 'false');
     setRatedModeEnabled(true);
     setResolvedSignedIn(true);
     const fetchSpy = lobbyFetchSpy();
@@ -766,10 +836,8 @@ describe('landing play panel', () => {
     window.history.replaceState(null, '', '/?play=lobby&gameSpecId=dark-mini-xiangqi');
 
     maybeOpenPlayDeepLink([]);
-    expect(variantPickerPresent()).toBe(false);
-    expect(document.querySelector('.landing-variant-control')?.textContent).toBe(
-      'Dark Mini Xiangqi',
-    );
+    expect(variantPickerPresent()).toBe(true);
+    expect(selectedVariantSpec()).toBe('dark-mini-xiangqi');
     document
       .querySelector<HTMLButtonElement>('.landing-setup-start')
       ?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
@@ -782,8 +850,8 @@ describe('landing play panel', () => {
     });
   });
 
-  it('offers Dark Xiangqi (9x10) in the play menu when its flag is on', () => {
-    vi.stubEnv('VITE_DARK_XIANGQI_ENABLED', 'true');
+  it('offers Dark Xiangqi (9x10) in the play menu', () => {
+    vi.stubEnv('VITE_DARK_XIANGQI_ENABLED', 'false');
     vi.stubGlobal(
       'fetch',
       vi.fn(async () => jsonResponse({ playing: 0, online: 0 })),
@@ -794,12 +862,10 @@ describe('landing play panel', () => {
       .find((b) => b.textContent === 'Challenge a friend')
       ?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
 
-    // Flag on: Dark Xiangqi is a second variant (alongside dark chess), so the
-    // picker appears and lists it. PvP-first launch, like Banqi.
     expect(variantPickerSpecs()).toContain('dark-xiangqi');
   });
 
-  it('does not offer Dark Xiangqi in the play menu when its flag is off', () => {
+  it('keeps Dark Xiangqi in the play menu when the old flag is off', () => {
     vi.stubEnv('DEV', false);
     vi.stubEnv('VITE_DARK_XIANGQI_ENABLED', 'false');
     vi.stubGlobal(
@@ -812,7 +878,7 @@ describe('landing play panel', () => {
       .find((b) => b.textContent === 'Challenge a friend')
       ?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
 
-    expect(variantPickerSpecs()).not.toContain('dark-xiangqi');
+    expect(variantPickerSpecs()).toContain('dark-xiangqi');
   });
 
   it('greys out Dark Xiangqi (no bot) in the Play-the-engine flow, but not DMX', () => {
@@ -839,6 +905,23 @@ describe('landing play panel', () => {
       '.landing-variant-card[data-game-spec="dark-mini-xiangqi"]',
     );
     expect(dmx?.disabled).toBe(false);
+  });
+
+  it('greys out Mini Xiangqi in the Play-the-engine flow until it has a bot', () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => jsonResponse({ playing: 0, online: 0 })),
+    );
+    const panel = buildLandingPlayPanel([]);
+    document.body.append(panel);
+    openPlaySetup(panel, 'Play the engine');
+
+    const mini = document.querySelector<HTMLButtonElement>(
+      '.landing-variant-card[data-game-spec="mini-xiangqi"]',
+    );
+    expect(mini?.disabled).toBe(true);
+    expect(mini?.classList.contains('landing-variant-card-disabled')).toBe(true);
+    expect(mini?.textContent).toContain('Soon');
   });
 
   it('shows the Dark Crossroads marker even when the engine card is disabled', () => {
@@ -928,6 +1011,7 @@ describe('landing play panel', () => {
         canonicalVariantOrderIndex(a as GameSpecId) - canonicalVariantOrderIndex(b as GameSpecId),
     );
     expect(specs).toEqual(canonical);
+    expect(specs.indexOf('mini-xiangqi')).toBeLessThan(specs.indexOf('dark-mini-xiangqi'));
     // DMX precedes full Dark Xiangqi (the picker used to list dark-xiangqi 2nd).
     expect(specs.indexOf('dark-mini-xiangqi')).toBeLessThan(specs.indexOf('dark-xiangqi'));
   });
@@ -961,6 +1045,27 @@ describe('landing play panel', () => {
     await flushPromises();
 
     expect(lobbyPostBody(fetchSpy).gameSpecId).toBe('dark-mini-xiangqi');
+  });
+
+  it('sends the Mini Xiangqi game spec id as a casual lobby seek', async () => {
+    setRatedModeEnabled(true);
+    setResolvedSignedIn(true);
+    const fetchSpy = lobbyFetchSpy();
+    vi.stubGlobal('fetch', fetchSpy);
+    const panel = buildLandingPlayPanel([]);
+    document.body.append(panel);
+    openLobbySetup(panel);
+    selectModalVariant('mini-xiangqi');
+    document
+      .querySelector<HTMLButtonElement>('.landing-setup-start')
+      ?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    await flushPromises();
+
+    expect(lobbyPostBody(fetchSpy)).toMatchObject({
+      gameSpecId: 'mini-xiangqi',
+      rated: false,
+      timeControl: { initialMs: 180_000, incrementMs: 2_000 },
+    });
   });
 
   it('sends the Crossroads Chess game spec id and rapid time control when finding an opponent', async () => {

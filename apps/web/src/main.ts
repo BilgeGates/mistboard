@@ -4,7 +4,7 @@ import './styles.css';
 import { initializeAccountNav } from './account-nav.js';
 import { setPostHogInstance } from './analytics.js';
 import type { ArticleLang } from './article-i18n.js';
-import { correspondenceEnabled, darkXiangqiEnabled } from './feature-flags.js';
+import { correspondenceEnabled } from './feature-flags.js';
 import {
   correspondenceNotificationSource,
   registerNotificationSource,
@@ -100,6 +100,8 @@ const forumCategorySlug = forumCategorySlugFromPath(path);
 const wantsForum = path === '/forum' || forumCategorySlug !== null || page === 'forum';
 const wantsLegacyPlay = path === '/play' || page === 'play';
 const wantsWatch = path === '/watch' || page === 'watch';
+const puzzleId = puzzleIdFromPath(path);
+const wantsPuzzles = path === '/puzzles' || page === 'puzzles' || puzzleId !== null;
 // Behind the correspondence build flag (soft launch). The nav bell + this
 // dashboard share the gate; the route is invisible until the flag is on.
 const wantsCorrespondence = correspondenceEnabled() && path === '/correspondence';
@@ -119,13 +121,12 @@ const botProfileId = path.startsWith('/bot/')
   ? decodeURIComponent(path.slice('/bot/'.length))
   : null;
 const profileHandle = profileHandleFromPath(path);
-// Hidden spike: FoW Xiangqi Phase A. No nav entry, no landing link, and no
-// dev default; enabling it is an explicit build-time flag.
-const wantsXiangqiSpike = darkXiangqiEnabled() && path === '/xiangqi-spike';
+// Hidden DEV-only spike: FoW Xiangqi Phase A. No nav entry, no landing link.
+const wantsXiangqiSpike = import.meta.env.DEV && path === '/xiangqi-spike';
 // Hidden DEV-only spike for the candidate 7x7 Dark Mini Xiangqi ruleset.
 const wantsMiniXiangqiSpike = import.meta.env.DEV && path === '/mini-xiangqi-spike';
-// Hidden reviewer demo: no nav entry, direct-link only, build-time flagged.
-const wantsXiangqiDemo = darkXiangqiEnabled() && path === '/xiangqi-demo';
+// Hidden DEV-only reviewer demo: no nav entry, direct-link only.
+const wantsXiangqiDemo = import.meta.env.DEV && path === '/xiangqi-demo';
 // Hidden DEV-only spike: pixel-art piece + fog style probes. No nav entry.
 const wantsPixelLab = import.meta.env.DEV && path === '/pixel-lab';
 // Hidden DEV-only identity lab for candidate variant marks. No nav entry.
@@ -236,6 +237,11 @@ if (replaySample) {
   setTitle('Watch');
   void mountOrReport(() =>
     import('./watch-route.js').then(({ mountWatch }) => mountWatch(appRoot)),
+  );
+} else if (wantsPuzzles) {
+  setTitle('Puzzles');
+  void mountOrReport(() =>
+    import('./puzzles.js').then(({ mountPuzzles }) => mountPuzzles(appRoot, puzzleId)),
   );
 } else if (wantsXiangqiSpike) {
   setTitle('Xiangqi spike');
@@ -461,6 +467,11 @@ function tenantPostgameFromPath(value: string): {
 function liveRoomIdFromPath(value: string): string | null {
   if (value === '/room') return 'dev-room';
   const match = value.match(/^\/room\/([^/]+)$/);
+  return match ? decodeURIComponent(match[1]!) : null;
+}
+
+function puzzleIdFromPath(value: string): string | null {
+  const match = value.match(/^\/puzzles\/([^/]+)$/);
   return match ? decodeURIComponent(match[1]!) : null;
 }
 

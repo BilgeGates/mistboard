@@ -8,6 +8,7 @@ import {
   DROP_MINI_XIANGQI_SPEC_ID,
   JIEQI_SPEC_ID,
   KRIEGSPIEL_SPEC_ID,
+  MINI_XIANGQI_SPEC_ID,
   REVEAL_CHESS_SPEC_ID,
 } from '@mistboard/game';
 import {
@@ -32,6 +33,7 @@ export type GameSpecGateDecision =
         | 'dark_xiangqi_not_integrated'
         | 'dark_mini_xiangqi_disabled'
         | 'dark_mini_xiangqi_not_integrated'
+        | 'mini_xiangqi_not_integrated'
         | 'drop_mini_xiangqi_disabled'
         | 'drop_mini_xiangqi_not_integrated'
         | 'jieqi_disabled'
@@ -126,6 +128,14 @@ export function gateGameSpecRequest(input: {
   gameSpecId?: unknown;
   variant?: unknown;
 }): GameSpecGateDecision {
+  if (input.variant === MINI_XIANGQI_SPEC_ID) {
+    return {
+      type: 'reject',
+      error: 'mini_xiangqi_not_integrated',
+      httpStatus: 501,
+      wsCloseReason: 'game spec not integrated',
+    };
+  }
   const requested = requestedHiddenRuntimeSpec(input);
   if (!requested) return { type: 'pass' };
   const spec = HIDDEN_RUNTIME_SPECS[requested];

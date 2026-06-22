@@ -11,8 +11,8 @@
   "scripts": {
     "dev": "concurrently --kill-others-on-fail --names server,web --prefix-colors blue,green 'npm run dev --workspace @mistboard/server' 'npm run dev --workspace @mistboard/web'",
     "dev:persistent": "concurrently --kill-others-on-fail --names server,web --prefix-colors blue,green 'npm run dev:persistent --workspace @mistboard/server' 'npm run dev --workspace @mistboard/web'",
-    "dev:dark-crossroads": "npm run db:up && VITE_DARK_CROSSROADS_CHESS_ENABLED=true MISTBOARD_DARK_CROSSROADS_CHESS_ENABLED=true npm run dev:persistent",
-    "dev:dark-shogi": "npm run db:up && VITE_DARK_SHOGI_ENABLED=true MISTBOARD_DARK_SHOGI_ENABLED=true npm run dev:persistent",
+    "dev:dark-crossroads": "npm run db:up && npm run dev:persistent",
+    "dev:dark-shogi": "npm run db:up && npm run dev:persistent",
     "db:up": "docker compose up -d postgres",
     "db:migrate": "env DATABASE_URL=postgres://mistboard:mistboard@localhost:5435/mistboard npm run migrate --workspace @mistboard/server",
     "db:seed:profiles": "env DATABASE_URL=postgres://mistboard:mistboard@localhost:5435/mistboard npm run seed:profiles --workspace @mistboard/server",
@@ -66,6 +66,7 @@
     "test:dark-xiangqi:persistent": "npm run test:dark-xiangqi:persistent --workspace @mistboard/web",
     "test:mobile:shots": "npm run mobile:loop",
     "engine:capture-beliefs": "node scripts/capture-belief-artifacts.mjs",
+    "puzzles:mine:mini-xiangqi": "tsx scripts/variant-lab/mini-xiangqi-puzzle-miner.ts",
     "release:local-smoke": "node scripts/release-local-smoke.mjs",
     "release:prod": "node scripts/release-prod.mjs",
     "deploy:engine-worker": "node scripts/deploy-engine-worker.mjs",

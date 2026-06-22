@@ -1,16 +1,3 @@
-import {
-  banqiEnabled,
-  darkCrazyhouseEnabled,
-  darkCrossroadsChessEnabled,
-  darkMiniXiangqiPublicEntryEnabled,
-  darkShogiEnabled,
-  darkXiangqiEnabled,
-  dropMiniXiangqiEnabled,
-  jieqiEnabled,
-  kriegspielEnabled,
-  revealChessEnabled,
-} from './feature-flags.js';
-
 // Entries for the landing News box and the /news page.
 //
 // Workflow: when shipping a user-facing change, append a new entry with
@@ -27,25 +14,6 @@ export type Announcement = {
   href?: string;
   cta?: string; // inline link label on /news; falls back to "Read more"
   showInHomeArticleWidget?: boolean;
-  requiresDarkMiniXiangqiPublicEntry?: boolean;
-  // Gated to the jieqi flag so it only shows once jieqi PvE is live.
-  requiresJieqi?: boolean;
-  // Gated to the banqi flag so it only shows once banqi is live.
-  requiresBanqi?: boolean;
-  // Gated to the dark-xiangqi flag so it only shows once Dark Xiangqi is live.
-  requiresDarkXiangqi?: boolean;
-  // Gated to the dark-crossroads flag so it only shows once Dark Crossroads is live.
-  requiresDarkCrossroadsChess?: boolean;
-  // Gated to the dark-shogi flag so it only shows once Dark Shogi is live.
-  requiresDarkShogi?: boolean;
-  // Gated to the dark-crazyhouse flag so it only shows once Dark Crazyhouse is live.
-  requiresDarkCrazyhouse?: boolean;
-  // Gated to the reveal-chess flag so it only shows once Reveal Chess is live.
-  requiresRevealChess?: boolean;
-  // Gated to the Kriegspiel flag so it only shows once Kriegspiel is live.
-  requiresKriegspiel?: boolean;
-  // Gated to the Drop Mini Xiangqi flag so it only shows once the live room is enabled.
-  requiresDropMiniXiangqi?: boolean;
 };
 
 const baseAnnouncements: Announcement[] = [
@@ -57,7 +25,6 @@ const baseAnnouncements: Announcement[] = [
     href: '/rules/drop-mini-xiangqi',
     cta: 'Study the rules',
     showInHomeArticleWidget: true,
-    requiresDropMiniXiangqi: true,
   },
   {
     date: '2026-06-20',
@@ -66,7 +33,6 @@ const baseAnnouncements: Announcement[] = [
     body: 'Crazyhouse under Fog of War is now live for invite games, with private hands, captured pieces entering reserve, and drops into the fog.',
     href: '/rules/dark-crazyhouse',
     cta: 'Read rules',
-    requiresDarkCrazyhouse: true,
   },
   {
     date: '2026-06-20',
@@ -75,7 +41,6 @@ const baseAnnouncements: Announcement[] = [
     body: 'Crossroads Chess under Fog of War is now live for invite games, with hidden enemy pieces, no check warnings, and the far-rank Try.',
     href: '/rules/dark-crossroads-chess',
     cta: 'Read rules',
-    requiresDarkCrossroadsChess: true,
   },
   {
     date: '2026-06-20',
@@ -84,7 +49,6 @@ const baseAnnouncements: Announcement[] = [
     body: 'Shogi under Fog of War is now live for invite games, with private hands, drops into the fog, and king capture wins.',
     href: '/rules/dark-shogi',
     cta: 'Read rules',
-    requiresDarkShogi: true,
   },
   {
     date: '2026-06-20',
@@ -94,7 +58,6 @@ const baseAnnouncements: Announcement[] = [
     href: '/rules/kriegspiel',
     cta: 'Read rules',
     showInHomeArticleWidget: false,
-    requiresKriegspiel: true,
   },
   {
     date: '2026-06-18',
@@ -103,7 +66,6 @@ const baseAnnouncements: Announcement[] = [
     body: 'Standard chess with a hidden starting arrangement: every piece but the king begins face-down and reveals its true identity the moment it moves. Challenge a friend to a match.',
     href: '/rules/reveal-chess',
     cta: 'Read rules',
-    requiresRevealChess: true,
   },
   {
     date: '2026-06-18',
@@ -112,7 +74,6 @@ const baseAnnouncements: Announcement[] = [
     body: 'Fog of War on the full 9 by 10 xiangqi board: each side sees only the points its pieces reach. Challenge a friend to a match.',
     href: '/rules/dark-xiangqi',
     cta: 'Read rules',
-    requiresDarkXiangqi: true,
   },
   {
     date: '2026-06-17',
@@ -122,7 +83,6 @@ const baseAnnouncements: Announcement[] = [
     href: '/rules/banqi',
     cta: 'Read rules',
     showInHomeArticleWidget: false,
-    requiresBanqi: true,
   },
   {
     date: '2026-06-15',
@@ -131,7 +91,6 @@ const baseAnnouncements: Announcement[] = [
     body: 'Hidden-identity xiangqi: every non-general piece starts face-down and reveals as it moves. Take on PikaJieQi, our jieqi engine.',
     href: '/rules/jieqi',
     cta: 'Read rules',
-    requiresJieqi: true,
   },
   {
     date: '2026-06-11',
@@ -164,7 +123,6 @@ const baseAnnouncements: Announcement[] = [
     body: 'A smaller Fog of War variant on a 7 by 7 xiangqi board, with Misty engine support.',
     href: '/rules/dark-mini-xiangqi',
     cta: 'Read rules',
-    requiresDarkMiniXiangqiPublicEntry: true,
   },
   {
     date: '2026-06-03',
@@ -177,17 +135,5 @@ const baseAnnouncements: Announcement[] = [
 ];
 
 export function announcements(): Announcement[] {
-  return baseAnnouncements.filter(
-    (announcement) =>
-      (!announcement.requiresDarkMiniXiangqiPublicEntry || darkMiniXiangqiPublicEntryEnabled()) &&
-      (!announcement.requiresJieqi || jieqiEnabled()) &&
-      (!announcement.requiresBanqi || banqiEnabled()) &&
-      (!announcement.requiresDarkXiangqi || darkXiangqiEnabled()) &&
-      (!announcement.requiresDarkCrossroadsChess || darkCrossroadsChessEnabled()) &&
-      (!announcement.requiresDarkShogi || darkShogiEnabled()) &&
-      (!announcement.requiresDarkCrazyhouse || darkCrazyhouseEnabled()) &&
-      (!announcement.requiresRevealChess || revealChessEnabled()) &&
-      (!announcement.requiresKriegspiel || kriegspielEnabled()) &&
-      (!announcement.requiresDropMiniXiangqi || dropMiniXiangqiEnabled()),
-  );
+  return baseAnnouncements;
 }

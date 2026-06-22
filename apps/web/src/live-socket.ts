@@ -142,7 +142,7 @@ function applyStateFrame(generic: TenantSocketFrame): void {
     // filtered server-side for this seat.
     liveState.events = frame.events ?? [];
   }
-  if (liveState.gameSpecId === 'dark-mini-xiangqi') {
+  if (liveState.gameSpecId === 'dark-mini-xiangqi' || liveState.gameSpecId === 'mini-xiangqi') {
     _maybePlayDarkMiniXiangqiSound();
   } else if (liveState.gameSpecId !== 'dark-xiangqi') {
     _maybePlaySnapshotSound(liveState.events, liveState.state);

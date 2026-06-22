@@ -1,5 +1,4 @@
 import assert from 'node:assert/strict';
-import type { IncomingMessage, ServerResponse } from 'node:http';
 import test from 'node:test';
 import {
   applyCrazyhouseMove,
@@ -16,9 +15,7 @@ import type { RecentEveGameRecord } from '../persistence.js';
 import {
   type DarkCrazyhousePostgamePersistence,
   darkCrazyhousePostgameForApi,
-  tryHandle,
 } from './dark-crazyhouse-games.js';
-import type { HttpApiContext } from './lib.js';
 
 const ROOM_ID = 'dczh_postgame';
 const MOVE_COUNT = 4;
@@ -175,36 +172,15 @@ test('Dark Crazyhouse postgame returns null when there is no game or event log',
   assert.equal(await darkCrazyhousePostgameForApi(ROOM_ID, deps(gameRecord(), null)), null);
 });
 
-// Mock just enough of the http req/res for the flag-gate branch.
-function mockResponse(): { response: ServerResponse; status: () => number | null } {
-  let status: number | null = null;
-  const response = {
-    writeHead(code: number) {
-      status = code;
-      return response;
-    },
-    end() {
-      return response;
-    },
-  } as unknown as ServerResponse;
-  return { response, status: () => status };
-}
-
-test('Dark Crazyhouse postgame route returns 404 when the flag is off', async () => {
+test('Dark Crazyhouse postgame does not require launch env flags', async () => {
   const previous = process.env.MISTBOARD_DARK_CRAZYHOUSE_ENABLED;
   delete process.env.MISTBOARD_DARK_CRAZYHOUSE_ENABLED;
   try {
-    const request = { method: 'GET' } as IncomingMessage;
-    const { response, status } = mockResponse();
-    const handled = await tryHandle(
-      {} as HttpApiContext,
-      request,
-      response,
-      `/api/dark-crazyhouse/games/${ROOM_ID}`,
-      new URL(`http://localhost/api/dark-crazyhouse/games/${ROOM_ID}`),
+    const payload = await darkCrazyhousePostgameForApi(
+      ROOM_ID,
+      deps(gameRecord(), finishedGameEvents()),
     );
-    assert.equal(handled, true);
-    assert.equal(status(), 404);
+    assert.ok(payload);
   } finally {
     if (previous === undefined) delete process.env.MISTBOARD_DARK_CRAZYHOUSE_ENABLED;
     else process.env.MISTBOARD_DARK_CRAZYHOUSE_ENABLED = previous;

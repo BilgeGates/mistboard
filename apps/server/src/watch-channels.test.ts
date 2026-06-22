@@ -1,25 +1,22 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import {
-  BANQI_SPEC_ID,
-  CROSSROADS_CHESS_SPEC_ID,
   DARK_CHESS_SPEC_ID,
-  DARK_CRAZYHOUSE_SPEC_ID,
-  DARK_CROSSROADS_CHESS_SPEC_ID,
   DARK_DRAFT960_SPEC_ID,
-  DARK_MINI_XIANGQI_SPEC_ID,
-  DARK_SHOGI_SPEC_ID,
-  DARK_XIANGQI_SPEC_ID,
   DROP_MINI_XIANGQI_SPEC_ID,
-  JIEQI_SPEC_ID,
-  KRIEGSPIEL_SPEC_ID,
-  REVEAL_CHESS_SPEC_ID,
+  MINI_XIANGQI_SPEC_ID,
 } from '@mistboard/game';
 // Watch channels (other than the hardcoded dark-chess default) derive from the
 // variant-tenant registry, so the registrations must be populated for the
 // derived channels to appear. This side-effect import registers every tenant.
 import './variant-tenant/register-tenants.js';
 import { defaultWatchChannel, listWatchChannels, watchChannelForId } from './watch-channels.js';
+
+const BASELINE_WATCH_CHANNELS = [
+  'dark-chess',
+  MINI_XIANGQI_SPEC_ID,
+  DROP_MINI_XIANGQI_SPEC_ID,
+] as const;
 
 test('watch channels expose Dark chess as the default channel', () => {
   const channel = defaultWatchChannel();
@@ -33,172 +30,41 @@ test('watch channel lookup defaults empty input and rejects unknown channels', (
   assert.equal(watchChannelForId(null)?.id, 'dark-chess');
   assert.equal(watchChannelForId(undefined)?.id, 'dark-chess');
   assert.equal(watchChannelForId('dark-chess')?.id, 'dark-chess');
-  assert.equal(watchChannelForId('drop-mini-xiangqi')?.id, 'drop-mini-xiangqi');
-  assert.equal(watchChannelForId('crossroads-chess'), null);
-  assert.equal(watchChannelForId('dark-xiangqi'), null);
-  assert.equal(watchChannelForId('dark-crossroads-chess'), null);
-  assert.equal(watchChannelForId('dark-shogi'), null);
-  assert.equal(watchChannelForId('dark-crazyhouse'), null);
-  assert.equal(watchChannelForId('kriegspiel'), null);
-});
-
-test('watch channels expose Crossroads Chess behind its live-room flag', () => {
-  process.env.MISTBOARD_CROSSROADS_CHESS_ENABLED = 'true';
-  try {
-    const channel = watchChannelForId('crossroads-chess');
-    assert.equal(channel?.id, 'crossroads-chess');
-    assert.equal(channel?.label, 'Crossroads Chess');
-    assert.deepEqual(channel?.gameSpecIds, [CROSSROADS_CHESS_SPEC_ID]);
-    assert.deepEqual(channel?.legacyVariants, ['crossroads-chess', 'dual-chess']);
-    assert.deepEqual(
-      listWatchChannels().map((entry) => entry.id),
-      ['dark-chess', DROP_MINI_XIANGQI_SPEC_ID, 'crossroads-chess'],
-    );
-  } finally {
-    delete process.env.MISTBOARD_CROSSROADS_CHESS_ENABLED;
+  for (const id of BASELINE_WATCH_CHANNELS.slice(1)) {
+    assert.equal(watchChannelForId(id)?.id, id);
   }
+  assert.equal(watchChannelForId('unknown'), null);
 });
 
 test('watch channel list is immutable by convention', () => {
   assert.deepEqual(
     listWatchChannels().map((channel) => channel.id),
-    ['dark-chess', DROP_MINI_XIANGQI_SPEC_ID],
+    BASELINE_WATCH_CHANNELS,
   );
 });
 
-test('Jieqi watch channel is absent while the jieqi flag is off', () => {
-  assert.equal(watchChannelForId('jieqi'), null);
-  assert.equal(
-    listWatchChannels().some((channel) => channel.id === 'jieqi'),
-    false,
+test('watch channels expose every launched baseline variant in canonical order', () => {
+  const channels = listWatchChannels();
+  assert.deepEqual(
+    channels.map((entry) => entry.id),
+    BASELINE_WATCH_CHANNELS,
   );
-});
-
-test('watch channels expose Jieqi behind its live-room flag', () => {
-  process.env.MISTBOARD_JIEQI_ENABLED = 'true';
-  try {
-    const channel = watchChannelForId('jieqi');
-    assert.equal(channel?.id, 'jieqi');
-    assert.equal(channel?.label, 'Jieqi');
-    assert.equal(channel?.family, 'xiangqi');
-    assert.equal(channel?.default, false);
-    assert.deepEqual(channel?.gameSpecIds, [JIEQI_SPEC_ID]);
-    assert.deepEqual(channel?.legacyVariants, ['jieqi']);
-    // Dark chess stays the default and leads the rail; jieqi follows it.
-    const channels = listWatchChannels();
-    assert.equal(channels[0]?.id, 'dark-chess');
-    assert.equal(defaultWatchChannel().id, 'dark-chess');
-    assert.deepEqual(
-      channels.map((entry) => entry.id),
-      ['dark-chess', DROP_MINI_XIANGQI_SPEC_ID, 'jieqi'],
-    );
-  } finally {
-    delete process.env.MISTBOARD_JIEQI_ENABLED;
-  }
-});
-
-test('Dark Xiangqi watch channel is absent while the dark-xiangqi flag is off', () => {
-  assert.equal(watchChannelForId('dark-xiangqi'), null);
-  assert.equal(
-    listWatchChannels().some((channel) => channel.id === 'dark-xiangqi'),
-    false,
-  );
-});
-
-test('watch channels expose Dark Xiangqi behind its live-room flag', () => {
-  process.env.MISTBOARD_DARK_XIANGQI_ENABLED = 'true';
-  try {
-    const channel = watchChannelForId('dark-xiangqi');
-    assert.equal(channel?.id, 'dark-xiangqi');
-    assert.equal(channel?.label, 'Dark Xiangqi');
-    assert.equal(channel?.family, 'xiangqi');
-    assert.equal(channel?.default, false);
-    assert.deepEqual(channel?.gameSpecIds, [DARK_XIANGQI_SPEC_ID]);
-    assert.deepEqual(channel?.legacyVariants, ['dark-xiangqi']);
-    // Dark chess stays the default and leads the rail; dark-xiangqi follows it.
-    const channels = listWatchChannels();
-    assert.equal(channels[0]?.id, 'dark-chess');
-    assert.deepEqual(
-      channels.map((entry) => entry.id),
-      ['dark-chess', DROP_MINI_XIANGQI_SPEC_ID, 'dark-xiangqi'],
-    );
-  } finally {
-    delete process.env.MISTBOARD_DARK_XIANGQI_ENABLED;
-  }
-});
-
-test('watch channels expose every launched variant behind its live-room flag in canonical order', () => {
-  process.env.MISTBOARD_DARK_MINI_XIANGQI_ENABLED = 'true';
-  process.env.MISTBOARD_DARK_XIANGQI_ENABLED = 'true';
-  process.env.MISTBOARD_JIEQI_ENABLED = 'true';
-  process.env.MISTBOARD_BANQI_ENABLED = 'true';
-  process.env.MISTBOARD_REVEAL_CHESS_ENABLED = 'true';
-  process.env.MISTBOARD_CROSSROADS_CHESS_ENABLED = 'true';
-  process.env.MISTBOARD_DARK_CROSSROADS_CHESS_ENABLED = 'true';
-  process.env.MISTBOARD_DARK_SHOGI_ENABLED = 'true';
-  process.env.MISTBOARD_DARK_CRAZYHOUSE_ENABLED = 'true';
-  process.env.MISTBOARD_KRIEGSPIEL_ENABLED = 'true';
-  try {
-    const channels = listWatchChannels();
-    assert.deepEqual(
-      channels.map((entry) => entry.id),
-      [
-        'dark-chess',
-        DARK_MINI_XIANGQI_SPEC_ID,
-        DROP_MINI_XIANGQI_SPEC_ID,
-        DARK_XIANGQI_SPEC_ID,
-        JIEQI_SPEC_ID,
-        BANQI_SPEC_ID,
-        REVEAL_CHESS_SPEC_ID,
-        CROSSROADS_CHESS_SPEC_ID,
-        DARK_CROSSROADS_CHESS_SPEC_ID,
-        DARK_SHOGI_SPEC_ID,
-        DARK_CRAZYHOUSE_SPEC_ID,
-        KRIEGSPIEL_SPEC_ID,
-      ],
-    );
-    assert.deepEqual(watchChannelForId(DARK_CROSSROADS_CHESS_SPEC_ID), {
-      default: false,
-      family: 'crossroads-chess',
-      gameSpecIds: [DARK_CROSSROADS_CHESS_SPEC_ID],
-      id: DARK_CROSSROADS_CHESS_SPEC_ID,
-      label: 'Dark Crossroads Chess',
-      legacyVariants: ['dark-crossroads-chess', 'dark-dual-chess'],
-    });
-    assert.deepEqual(watchChannelForId(DARK_SHOGI_SPEC_ID), {
-      default: false,
-      family: 'shogi',
-      gameSpecIds: [DARK_SHOGI_SPEC_ID],
-      id: DARK_SHOGI_SPEC_ID,
-      label: 'Dark Shogi',
-      legacyVariants: ['dark-shogi'],
-    });
-    assert.deepEqual(watchChannelForId(DARK_CRAZYHOUSE_SPEC_ID), {
-      default: false,
-      family: 'chess',
-      gameSpecIds: [DARK_CRAZYHOUSE_SPEC_ID],
-      id: DARK_CRAZYHOUSE_SPEC_ID,
-      label: 'Dark Crazyhouse',
-      legacyVariants: ['dark-crazyhouse'],
-    });
-    assert.deepEqual(watchChannelForId(KRIEGSPIEL_SPEC_ID), {
-      default: false,
-      family: 'chess',
-      gameSpecIds: [KRIEGSPIEL_SPEC_ID],
-      id: KRIEGSPIEL_SPEC_ID,
-      label: 'Kriegspiel',
-      legacyVariants: ['kriegspiel'],
-    });
-  } finally {
-    delete process.env.MISTBOARD_DARK_MINI_XIANGQI_ENABLED;
-    delete process.env.MISTBOARD_DARK_XIANGQI_ENABLED;
-    delete process.env.MISTBOARD_JIEQI_ENABLED;
-    delete process.env.MISTBOARD_BANQI_ENABLED;
-    delete process.env.MISTBOARD_REVEAL_CHESS_ENABLED;
-    delete process.env.MISTBOARD_CROSSROADS_CHESS_ENABLED;
-    delete process.env.MISTBOARD_DARK_CROSSROADS_CHESS_ENABLED;
-    delete process.env.MISTBOARD_DARK_SHOGI_ENABLED;
-    delete process.env.MISTBOARD_DARK_CRAZYHOUSE_ENABLED;
-    delete process.env.MISTBOARD_KRIEGSPIEL_ENABLED;
-  }
+  assert.equal(channels[0]?.id, 'dark-chess');
+  assert.equal(defaultWatchChannel().id, 'dark-chess');
+  assert.deepEqual(watchChannelForId(MINI_XIANGQI_SPEC_ID), {
+    default: false,
+    family: 'xiangqi',
+    gameSpecIds: [MINI_XIANGQI_SPEC_ID],
+    id: MINI_XIANGQI_SPEC_ID,
+    label: 'Mini Xiangqi',
+    legacyVariants: ['mini-xiangqi'],
+  });
+  assert.deepEqual(watchChannelForId(DROP_MINI_XIANGQI_SPEC_ID), {
+    default: false,
+    family: 'xiangqi',
+    gameSpecIds: [DROP_MINI_XIANGQI_SPEC_ID],
+    id: DROP_MINI_XIANGQI_SPEC_ID,
+    label: 'Drop Mini Xiangqi',
+    legacyVariants: ['drop-mini-xiangqi'],
+  });
 });

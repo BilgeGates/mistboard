@@ -19,21 +19,22 @@ describe('article public listing gates', () => {
     vi.unstubAllEnvs();
   });
 
-  it('keeps Dark Mini Xiangqi off public article surfaces during soft launch', () => {
+  it('lists Mini Xiangqi and Dark Mini Xiangqi on public rules surfaces', () => {
     vi.stubEnv('DEV', false);
-    vi.stubEnv('VITE_DARK_MINI_XIANGQI_ENABLED', 'true');
+    vi.stubEnv('VITE_DARK_MINI_XIANGQI_ENABLED', 'false');
+    vi.stubEnv('VITE_DARK_MINI_XIANGQI_PUBLIC_ENTRY_ENABLED', 'false');
 
     const rules = buildRulesIndex();
-    expect(buildHomeArticleCards(50)?.textContent).not.toContain('Dark Mini Xiangqi');
-    expect(rules.textContent).not.toContain('Dark Mini Xiangqi');
-    expect(rules.querySelector('a[href="/rules/mini-xiangqi"]')).toBeNull();
+    expect(buildHomeArticleCards(50)?.textContent).toContain('Dark Mini Xiangqi');
+    expect(rules.textContent).toContain('Dark Mini Xiangqi');
+    expect(rules.textContent).toContain('Mini Xiangqi');
+    expect(rules.querySelector('a[href="/rules/mini-xiangqi"]')).not.toBeNull();
     expect(buildArticlePage('dark-mini-xiangqi').textContent).toContain('Dark Mini Xiangqi');
     expect(buildArticlePage('mini-xiangqi').textContent).toContain('Mini Xiangqi');
   });
 
-  it('lists Dark Mini Xiangqi rules when the public-entry flag is enabled', () => {
-    vi.stubEnv('VITE_DARK_MINI_XIANGQI_ENABLED', 'true');
-    vi.stubEnv('VITE_DARK_MINI_XIANGQI_PUBLIC_ENTRY_ENABLED', 'true');
+  it('lists Dark Mini Xiangqi rules without public-entry env flags', () => {
+    vi.stubEnv('DEV', false);
 
     expect(buildHomeArticleCards(50)?.textContent).toContain('Dark Mini Xiangqi');
     expect(buildRulesIndex().textContent).toContain('Dark Mini Xiangqi');
@@ -367,24 +368,25 @@ describe('rules variant sidebar', () => {
     expect(sidebar?.querySelector('a[href="/rules/chess"]')).not.toBeNull();
   });
 
-  it('keeps prelaunch variants out of the sidebar unless they are the current page', () => {
+  it('lists Mini Xiangqi and Dark Mini Xiangqi in the rules sidebar', () => {
     vi.stubEnv('DEV', false);
-    vi.stubEnv('VITE_DARK_MINI_XIANGQI_ENABLED', 'true');
+    vi.stubEnv('VITE_DARK_MINI_XIANGQI_ENABLED', 'false');
+    vi.stubEnv('VITE_DARK_MINI_XIANGQI_PUBLIC_ENTRY_ENABLED', 'false');
 
     const darkChess = buildArticlePage('dark-chess');
     expect(
       darkChess.querySelector('.article-variant-sidebar a[href="/rules/mini-xiangqi"]'),
-    ).toBeNull();
+    ).not.toBeNull();
     expect(
       darkChess.querySelector('.article-variant-sidebar a[href="/rules/dark-mini-xiangqi"]'),
-    ).toBeNull();
+    ).not.toBeNull();
 
     const miniXiangqi = buildArticlePage('mini-xiangqi');
     const sidebar = miniXiangqi.querySelector('.article-variant-sidebar');
     expect(
       sidebar?.querySelector('a[aria-current="page"] .article-variant-label')?.textContent,
     ).toBe('Mini Xiangqi');
-    expect(sidebar?.textContent).not.toContain('Dark Mini Xiangqi');
+    expect(sidebar?.textContent).toContain('Dark Mini Xiangqi');
   });
 
   it('omits the variant sidebar on non-rules articles', () => {
@@ -408,10 +410,7 @@ describe('rules variant sidebar', () => {
     expect(navs?.[1]?.querySelector('a[href="/rules/chess"]')).not.toBeNull();
   });
 
-  it('lists Dark Mini Xiangqi as playable once the public-entry flag is on', () => {
-    vi.stubEnv('VITE_DARK_MINI_XIANGQI_ENABLED', 'true');
-    vi.stubEnv('VITE_DARK_MINI_XIANGQI_PUBLIC_ENTRY_ENABLED', 'true');
-
+  it('lists Dark Mini Xiangqi as playable by default', () => {
     const page = buildArticlePage('dark-chess');
     const navs = page.querySelectorAll('.article-variant-sidebar .article-toc-nav');
     expect(navs[0]?.querySelector('a[href="/rules/dark-mini-xiangqi"]')).not.toBeNull();

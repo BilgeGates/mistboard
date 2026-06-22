@@ -15,45 +15,37 @@ import {
 
 const darkMiniXiangqiKey = 'MISTBOARD_DARK_MINI_XIANGQI_ENABLED';
 
-test('Dark Mini Xiangqi runtime is hidden while the flag is off', () => {
+test('Dark Mini Xiangqi runtime is disabled without the launch flag', () => {
   const before = process.env[darkMiniXiangqiKey];
   delete process.env[darkMiniXiangqiKey];
   try {
-    assert.deepEqual(createDarkMiniXiangqiRuntimeRoom('dmxq_disabled'), {
-      ok: false,
-      error: 'dark_mini_xiangqi_disabled',
-    });
+    const result = createDarkMiniXiangqiRuntimeRoom('dmxq_baseline');
+    assert.deepEqual(result, { ok: false, error: 'dark_mini_xiangqi_disabled' });
   } finally {
     restoreEnv(darkMiniXiangqiKey, before);
   }
 });
 
-test('Dark Mini Xiangqi runtime creates a 7x7 initial projection behind the flag', () => {
-  const before = process.env[darkMiniXiangqiKey];
-  process.env[darkMiniXiangqiKey] = 'true';
-  try {
-    const result = createDarkMiniXiangqiRuntimeRoom('dmxq_created', {
-      creatorPreference: 'black',
-      now: 123,
-    });
-    assert.equal(result.ok, true);
-    if (!result.ok) return;
-    assert.equal(result.room.kind, 'dark-mini-xiangqi');
-    assert.equal(result.room.gameSpecId, 'dark-mini-xiangqi');
-    assert.equal(result.room.events.length, 1);
-    assert.deepEqual(result.room.events[0], {
-      type: 'room-created',
-      at: 123,
-      roomId: 'dmxq_created',
-      gameSpecId: 'dark-mini-xiangqi',
-      creatorPreference: 'black',
-    });
-    assert.equal(result.room.projection.creatorPreference, 'black');
-    assert.equal(result.room.projection.state.id, 'dmxq_created');
-    assert.equal(Object.keys(result.room.projection.state.board).length, 24);
-  } finally {
-    restoreEnv(darkMiniXiangqiKey, before);
-  }
+test('Dark Mini Xiangqi runtime creates a 7x7 initial projection', () => {
+  const result = createEnabledDarkMiniXiangqiRuntimeRoom('dmxq_created', {
+    creatorPreference: 'black',
+    now: 123,
+  });
+  assert.equal(result.ok, true);
+  if (!result.ok) return;
+  assert.equal(result.room.kind, 'dark-mini-xiangqi');
+  assert.equal(result.room.gameSpecId, 'dark-mini-xiangqi');
+  assert.equal(result.room.events.length, 1);
+  assert.deepEqual(result.room.events[0], {
+    type: 'room-created',
+    at: 123,
+    roomId: 'dmxq_created',
+    gameSpecId: 'dark-mini-xiangqi',
+    creatorPreference: 'black',
+  });
+  assert.equal(result.room.projection.creatorPreference, 'black');
+  assert.equal(result.room.projection.state.id, 'dmxq_created');
+  assert.equal(Object.keys(result.room.projection.state.board).length, 24);
 });
 
 test('Dark Mini Xiangqi event log validation requires a matching room-created event', () => {
@@ -100,54 +92,48 @@ test('Dark Mini Xiangqi runtime hydrates from an event log', () => {
 });
 
 test('Dark Mini Xiangqi runtime applies seat events and filters snapshots by recipient', () => {
-  const before = process.env[darkMiniXiangqiKey];
-  process.env[darkMiniXiangqiKey] = 'true';
-  try {
-    const result = createDarkMiniXiangqiRuntimeRoom('dmxq_seats');
-    assert.equal(result.ok, true);
-    if (!result.ok) return;
-    const { room } = result;
+  const result = createEnabledDarkMiniXiangqiRuntimeRoom('dmxq_seats');
+  assert.equal(result.ok, true);
+  if (!result.ok) return;
+  const { room } = result;
 
-    appendDarkMiniXiangqiRuntimeEvent(room, {
-      type: 'seat-assigned',
-      at: 101,
-      roomId: room.id,
-      clientId: 'red-client',
-      seat: 'red',
-    });
-    appendDarkMiniXiangqiRuntimeEvent(room, {
-      type: 'seat-assigned',
-      at: 102,
-      roomId: room.id,
-      clientId: 'black-client',
-      seat: 'black',
-    });
+  appendDarkMiniXiangqiRuntimeEvent(room, {
+    type: 'seat-assigned',
+    at: 101,
+    roomId: room.id,
+    clientId: 'red-client',
+    seat: 'red',
+  });
+  appendDarkMiniXiangqiRuntimeEvent(room, {
+    type: 'seat-assigned',
+    at: 102,
+    roomId: room.id,
+    clientId: 'black-client',
+    seat: 'black',
+  });
 
-    assert.deepEqual(room.projection.seats, {
-      red: 'red-client',
-      black: 'black-client',
-    });
+  assert.deepEqual(room.projection.seats, {
+    red: 'red-client',
+    black: 'black-client',
+  });
 
-    const redEvents = darkMiniXiangqiEventsForClient(room, {
-      id: 'red-client',
-      seat: 'red',
-      solo: false,
-    });
-    assert.equal(
-      redEvents.some((event) => event.type === 'seat-assigned' && event.seat === 'black'),
-      false,
-    );
+  const redEvents = darkMiniXiangqiEventsForClient(room, {
+    id: 'red-client',
+    seat: 'red',
+    solo: false,
+  });
+  assert.equal(
+    redEvents.some((event) => event.type === 'seat-assigned' && event.seat === 'black'),
+    false,
+  );
 
-    const spectatorSnapshot = darkMiniXiangqiSnapshotPayload(room, {
-      id: 'spectator',
-      seat: 'spectator',
-      solo: false,
-    });
-    assert.deepEqual(spectatorSnapshot.events, []);
-    assert.deepEqual(spectatorSnapshot.state.board, {});
-  } finally {
-    restoreEnv(darkMiniXiangqiKey, before);
-  }
+  const spectatorSnapshot = darkMiniXiangqiSnapshotPayload(room, {
+    id: 'spectator',
+    seat: 'spectator',
+    solo: false,
+  });
+  assert.deepEqual(spectatorSnapshot.events, []);
+  assert.deepEqual(spectatorSnapshot.state.board, {});
 });
 
 test('Dark Mini Xiangqi snapshots identify PvE rooms by engine-held seats', () => {
@@ -632,6 +618,18 @@ test('Dark Mini Xiangqi snapshots never send a seat the opponent last move', () 
     restoreEnv(darkMiniXiangqiKey, before);
   }
 });
+
+function createEnabledDarkMiniXiangqiRuntimeRoom(
+  ...args: Parameters<typeof createDarkMiniXiangqiRuntimeRoom>
+): ReturnType<typeof createDarkMiniXiangqiRuntimeRoom> {
+  const before = process.env[darkMiniXiangqiKey];
+  process.env[darkMiniXiangqiKey] = 'true';
+  try {
+    return createDarkMiniXiangqiRuntimeRoom(...args);
+  } finally {
+    restoreEnv(darkMiniXiangqiKey, before);
+  }
+}
 
 function restoreEnv(key: string, value: string | undefined): void {
   if (value === undefined) {

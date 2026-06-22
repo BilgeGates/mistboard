@@ -186,6 +186,9 @@ function profileGameHref(game: FeaturedGame): string {
   if (isCrossroadsChessVariant(game)) {
     return `/crossroads-chess/game/${encodeURIComponent(game.roomId)}`;
   }
+  if (game.variant === 'mini-xiangqi') {
+    return `/mini-xiangqi/game/${encodeURIComponent(game.roomId)}`;
+  }
   if (game.variant === 'dark-mini-xiangqi') {
     return `/dark-mini-xiangqi/game/${encodeURIComponent(game.roomId)}`;
   }
@@ -214,6 +217,7 @@ function profileGameHref(game: FeaturedGame): string {
 function isRedBlackVariant(game: FeaturedGame): boolean {
   return (
     game.variant === 'dark-mini-xiangqi' ||
+    game.variant === 'mini-xiangqi' ||
     game.variant === 'drop-mini-xiangqi' ||
     game.variant === 'dark-xiangqi' ||
     game.variant === 'banqi' ||

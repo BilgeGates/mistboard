@@ -98,23 +98,28 @@ describe('appearance family gating', () => {
     document.body.innerHTML = '';
   });
 
-  it('keeps Settings chess-only when no xiangqi variant is enabled', () => {
+  it('surfaces xiangqi and shogi settings by default', () => {
     vi.stubEnv('DEV', false);
     vi.stubEnv('VITE_CROSSROADS_CHESS_ENABLED', 'false');
     vi.stubEnv('VITE_DARK_XIANGQI_ENABLED', 'false');
     vi.stubEnv('VITE_DARK_MINI_XIANGQI_ENABLED', 'false');
+    vi.stubEnv('VITE_DARK_SHOGI_ENABLED', 'false');
 
     rebuildThemePanel();
 
-    expect(document.querySelector('[data-board-family-select]')).toBeNull();
-    expect(document.querySelector('[data-theme-tile="xqboard"]')).toBeNull();
-    expect(document.querySelector('[data-theme-tile="xqpiece"]')).toBeNull();
-    // Chess pickers + the shared fog picker stay.
+    const familyGroup = document.querySelector<HTMLElement>('[data-board-family-select]');
+    expect(
+      [...familyGroup!.querySelectorAll<HTMLButtonElement>('[data-board-family-option]')].map(
+        (option) => option.dataset.boardFamilyOption,
+      ),
+    ).toEqual(['chess', 'xiangqi', 'shogi']);
     expect(document.querySelector('[data-theme-tile="piece"]')).not.toBeNull();
     expect(document.querySelector('[data-theme-tile="fog"]')).not.toBeNull();
+    expect(document.querySelector('[data-theme-tile="xqboard"]')).not.toBeNull();
+    expect(document.querySelector('[data-theme-tile="xqpiece"]')).not.toBeNull();
   });
 
-  it('surfaces xiangqi pickers for Crossroads without adding a Crossroads family', () => {
+  it('keeps Crossroads inside the xiangqi appearance family', () => {
     vi.stubEnv('DEV', false);
     vi.stubEnv('VITE_CROSSROADS_CHESS_ENABLED', 'true');
     vi.stubEnv('VITE_DARK_XIANGQI_ENABLED', 'false');
@@ -127,16 +132,14 @@ describe('appearance family gating', () => {
       [...familyGroup!.querySelectorAll<HTMLButtonElement>('[data-board-family-option]')].map(
         (option) => option.dataset.boardFamilyOption,
       ),
-    ).toEqual(['chess', 'xiangqi']);
+    ).toEqual(['chess', 'xiangqi', 'shogi']);
 
     expect(document.querySelector('[data-theme-tile="piece"]')).not.toBeNull();
     expect(document.querySelector('[data-theme-tile="xqboard"]')).not.toBeNull();
     expect(document.querySelector('[data-theme-tile="xqpiece"]')).not.toBeNull();
   });
 
-  it('surfaces the Game toggle + xiangqi pickers when a xiangqi flag is on', () => {
-    vi.stubEnv('VITE_DARK_MINI_XIANGQI_ENABLED', 'true');
-
+  it('surfaces the Game toggle + xiangqi pickers without xiangqi env flags', () => {
     rebuildThemePanel();
 
     expect(document.querySelector('[data-board-family-select]')).not.toBeNull();

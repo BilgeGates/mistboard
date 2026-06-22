@@ -11,76 +11,82 @@ import {
   replayDarkXiangqiEvents,
 } from './dark-xiangqi-runtime.js';
 
-const darkXiangqiKey = 'MISTBOARD_DARK_XIANGQI_ENABLED';
+const darkXiangqiFlag = 'MISTBOARD_DARK_XIANGQI_ENABLED';
 
-test('Dark Xiangqi direct runtime creation is hidden when the flag is off', () => {
-  const before = process.env[darkXiangqiKey];
-  delete process.env[darkXiangqiKey];
+test('Dark Xiangqi direct runtime creation is disabled without the launch flag', () => {
+  const before = process.env[darkXiangqiFlag];
+  delete process.env[darkXiangqiFlag];
   try {
-    assert.deepEqual(createDarkXiangqiRuntimeRoom('xq-disabled', { now: 1 }), {
-      ok: false,
-      error: 'dark_xiangqi_disabled',
-    });
+    const result = createDarkXiangqiRuntimeRoom('xq-baseline', { now: 1 });
+    assert.deepEqual(result, { ok: false, error: 'dark_xiangqi_disabled' });
   } finally {
-    restoreEnv(darkXiangqiKey, before);
+    restoreFlag(before);
   }
 });
 
-test('Dark Xiangqi direct runtime creation seeds a replay-backed room when flagged on', () => {
-  const before = process.env[darkXiangqiKey];
-  process.env[darkXiangqiKey] = 'true';
-  try {
-    const result = createDarkXiangqiRuntimeRoom('xq-runtime', { now: 123 });
+test('Dark Xiangqi direct runtime creation seeds a replay-backed room', () => {
+  const result = createEnabledDarkXiangqiRuntimeRoom('xq-runtime', { now: 123 });
 
-    assert.equal(result.ok, true);
-    if (!result.ok) return;
-    assert.equal(result.room.kind, 'dark-xiangqi');
-    assert.equal(result.room.gameSpecId, DARK_XIANGQI_SPEC_ID);
-    assert.deepEqual(result.room.events, [
-      {
-        type: 'room-created',
-        at: 123,
-        roomId: 'xq-runtime',
-        gameSpecId: DARK_XIANGQI_SPEC_ID,
-      },
-    ]);
-    assert.equal(result.room.projection.state.id, 'xq-runtime');
-    assert.deepEqual(result.room.projection.state.status, { type: 'playing', turn: 'red' });
-  } finally {
-    restoreEnv(darkXiangqiKey, before);
-  }
+  assert.equal(result.ok, true);
+  if (!result.ok) return;
+  assert.equal(result.room.kind, 'dark-xiangqi');
+  assert.equal(result.room.gameSpecId, DARK_XIANGQI_SPEC_ID);
+  assert.deepEqual(result.room.events, [
+    {
+      type: 'room-created',
+      at: 123,
+      roomId: 'xq-runtime',
+      gameSpecId: DARK_XIANGQI_SPEC_ID,
+    },
+  ]);
+  assert.equal(result.room.projection.state.id, 'xq-runtime');
+  assert.deepEqual(result.room.projection.state.status, { type: 'playing', turn: 'red' });
 });
 
 test('Dark Xiangqi direct runtime creation can seed native red/black clocks', () => {
-  const before = process.env[darkXiangqiKey];
-  process.env[darkXiangqiKey] = 'true';
-  try {
-    const result = createDarkXiangqiRuntimeRoom('xq-clocked', {
-      now: 123,
-      timeControl: { initialMs: 180_000, incrementMs: 2_000 },
-    });
+  const result = createEnabledDarkXiangqiRuntimeRoom('xq-clocked', {
+    now: 123,
+    timeControl: { initialMs: 180_000, incrementMs: 2_000 },
+  });
 
-    assert.equal(result.ok, true);
-    if (!result.ok) return;
-    assert.deepEqual(
-      result.room.events.map((event) => event.type),
-      ['room-created', 'clock-started'],
-    );
-    assert.deepEqual(result.room.projection.timeControl, {
-      initialMs: 180_000,
-      incrementMs: 2_000,
-    });
-    assert.deepEqual(result.room.projection.clock, {
-      activeColor: null,
-      incrementMs: 2_000,
-      initialMs: 180_000,
-      remainingMs: { black: 180_000, red: 180_000 },
-      runningSince: null,
-    });
-  } finally {
-    restoreEnv(darkXiangqiKey, before);
-  }
+  assert.equal(result.ok, true);
+  if (!result.ok) return;
+  assert.deepEqual(
+    result.room.events.map((event) => event.type),
+    ['room-created', 'clock-started'],
+  );
+  assert.deepEqual(result.room.projection.timeControl, {
+    initialMs: 180_000,
+    incrementMs: 2_000,
+  });
+  assert.deepEqual(result.room.projection.clock, {
+    activeColor: null,
+    incrementMs: 2_000,
+    initialMs: 180_000,
+    remainingMs: { black: 180_000, red: 180_000 },
+    runningSince: null,
+  });
 });
+
+function createEnabledDarkXiangqiRuntimeRoom(
+  ...args: Parameters<typeof createDarkXiangqiRuntimeRoom>
+): ReturnType<typeof createDarkXiangqiRuntimeRoom> {
+  const before = process.env[darkXiangqiFlag];
+  process.env[darkXiangqiFlag] = 'true';
+  try {
+    return createDarkXiangqiRuntimeRoom(...args);
+  } finally {
+    restoreFlag(before);
+  }
+}
+
+function restoreFlag(value: string | undefined): void {
+  if (value === undefined) {
+    delete process.env[darkXiangqiFlag];
+    return;
+  }
+  process.env[darkXiangqiFlag] = value;
+}
 
 test('Dark Xiangqi replay applies moves from the event log', () => {
   const events: DarkXiangqiEvent[] = [
@@ -461,12 +467,4 @@ function darkXiangqiRoomFixture({
     engineReservationId: null,
     pveBotId: null,
   };
-}
-
-function restoreEnv(key: string, value: string | undefined): void {
-  if (value === undefined) {
-    delete process.env[key];
-  } else {
-    process.env[key] = value;
-  }
 }

@@ -6,6 +6,7 @@ export * from './engine-protocol.js';
 export * from './events.js';
 export * from './game-specs.js';
 export * from './notation.js';
+export * from './puzzles-mini-xiangqi.js';
 export * from './time-controls.js';
 export * from './types.js';
 export * from './variants.js';

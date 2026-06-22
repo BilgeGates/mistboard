@@ -44,9 +44,7 @@ describe('profile ratings rail', () => {
     expect(root.querySelector('.leaderboard-panel-subtitle')?.textContent).toBe('Blitz rating');
     expect(root.querySelectorAll('.leaderboard-panel')).toHaveLength(2);
     expect(fetchSpy).toHaveBeenCalledWith('/api/leaderboard?variant=drop-mini-xiangqi&limit=10');
-    expect(fetchSpy).not.toHaveBeenCalledWith(
-      '/api/leaderboard?variant=crossroads-chess&limit=10',
-    );
+    expect(fetchSpy).not.toHaveBeenCalledWith('/api/leaderboard?variant=crossroads-chess&limit=10');
   });
 
   it('shows Crossroads rated leaderboard panels behind the play flag', async () => {

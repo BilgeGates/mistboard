@@ -24,7 +24,7 @@ test('Dark Xiangqi room route only claims canonical Dark Xiangqi game spec reque
   assert.equal(requestsDarkXiangqi({ variant: 'dark-chess' }), false);
 });
 
-test('Dark Xiangqi room route hides flagged-off requests', async () => {
+test('Dark Xiangqi room route returns disabled when the launch flag is off', async () => {
   const before = process.env[darkXiangqiFlag];
   delete process.env[darkXiangqiFlag];
   try {

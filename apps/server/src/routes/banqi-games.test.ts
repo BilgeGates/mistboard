@@ -1,11 +1,9 @@
 import assert from 'node:assert/strict';
-import type { IncomingMessage, ServerResponse } from 'node:http';
 import test from 'node:test';
 import { BANQI_SPEC_ID, STANDARD_BANQI_DEAL } from '@mistboard/game';
 import type { BanqiEvent } from '../banqi-runtime.js';
 import type { RecentEveGameRecord } from '../persistence.js';
-import { type BanqiPostgamePersistence, banqiPostgameForApi, tryHandle } from './banqi-games.js';
-import type { HttpApiContext } from './lib.js';
+import { type BanqiPostgamePersistence, banqiPostgameForApi } from './banqi-games.js';
 
 const ROOM_ID = 'bq_postgame';
 
@@ -183,37 +181,12 @@ test('Banqi postgame returns null when there is no game or event log', async () 
   assert.equal(await banqiPostgameForApi(ROOM_ID, deps(gameRecord(), null)), null);
 });
 
-// Mock just enough of the http req/res for the flag-gate branch, which fires
-// before any persistence call.
-function mockResponse(): { response: ServerResponse; status: () => number | null } {
-  let status: number | null = null;
-  const response = {
-    writeHead(code: number) {
-      status = code;
-      return response;
-    },
-    end() {
-      return response;
-    },
-  } as unknown as ServerResponse;
-  return { response, status: () => status };
-}
-
-test('Banqi postgame route returns 404 when the banqi flag is off', async () => {
+test('Banqi postgame does not require launch env flags', async () => {
   const previous = process.env.MISTBOARD_BANQI_ENABLED;
   delete process.env.MISTBOARD_BANQI_ENABLED;
   try {
-    const request = { method: 'GET' } as IncomingMessage;
-    const { response, status } = mockResponse();
-    const handled = await tryHandle(
-      {} as HttpApiContext,
-      request,
-      response,
-      `/api/banqi/games/${ROOM_ID}`,
-      new URL(`http://localhost/api/banqi/games/${ROOM_ID}`),
-    );
-    assert.equal(handled, true);
-    assert.equal(status(), 404);
+    const payload = await banqiPostgameForApi(ROOM_ID, deps(gameRecord(), finishedFlipEvents()));
+    assert.ok(payload);
   } finally {
     if (previous === undefined) delete process.env.MISTBOARD_BANQI_ENABLED;
     else process.env.MISTBOARD_BANQI_ENABLED = previous;

@@ -1,5 +1,11 @@
 import './site-shell.css';
-import { learnNavItems, type NavItem, primaryNavItems, utilityNavItems } from './nav-items.js';
+import {
+  communityNavItems,
+  learnNavItems,
+  type NavItem,
+  primaryNavItems,
+  toolsNavItems,
+} from './nav-items.js';
 
 export const GITHUB_URL = 'https://github.com/brianhliou/mistboard';
 
@@ -38,23 +44,23 @@ export function buildNav(): HTMLElement {
   brandLogo.height = 28;
 
   const brandText = document.createElement('span');
-  brandText.textContent = 'MISTBOARD';
+  brandText.textContent = 'Mistboard';
   brand.append(brandLogo, brandText);
 
   const links = document.createElement('div');
   links.className = 'site-nav-links';
 
-  for (const item of primaryNavItems()) {
-    links.append(navLink(item.label, item.href));
-  }
+  const [play, puzzles, watch] = primaryNavItems();
+  if (play) links.append(navLink(play.label, play.href));
+  if (puzzles) links.append(navLink(puzzles.label, puzzles.href));
   links.append(navMenu('Learn', learnNavItems()));
+  if (watch) links.append(navLink(watch.label, watch.href));
+  links.append(navMenu('Community', communityNavItems()));
+  links.append(navMenu('Tools', toolsNavItems()));
 
   const utilities = document.createElement('div');
   utilities.className = 'site-nav-utilities';
 
-  for (const item of utilityNavItems()) {
-    utilities.append(navLink(item.label, item.href));
-  }
   utilities.append(buildSignedOutAccountLinks());
 
   // Mobile menu toggle. On desktop `.site-nav-collapse` is `display: contents`,
@@ -205,6 +211,7 @@ function closeNavMenu(menu: HTMLElement): void {
 function pathMatchesNavItem(path: string, href: string): boolean {
   return (
     path === href ||
+    (href === '/puzzles' && path.startsWith('/puzzles/')) ||
     (href === '/account' && path.startsWith('/account/')) ||
     (href === '/bots' && path.startsWith('/bot/')) ||
     (href === '/forum' && path.startsWith('/forum/')) ||

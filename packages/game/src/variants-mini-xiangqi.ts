@@ -143,6 +143,15 @@ const ROLE_REPETITION_CODES: Record<MiniXiangqiPieceRole, string> = {
   chariot: 'r',
   soldier: 's',
 };
+const ALL_MINI_XIANGQI_SQUARES: readonly MiniXiangqiSquare[] = (() => {
+  const squares: MiniXiangqiSquare[] = [];
+  for (let rank = 1; rank <= BOARD_SIZE; rank += 1) {
+    for (let file = 0; file < BOARD_SIZE; file += 1) {
+      squares.push(miniXiangqiSquareOf(file, rank));
+    }
+  }
+  return squares;
+})();
 
 export type MiniXiangqiApplyMoveOptions = {
   progressClockLimit?: number;
@@ -212,6 +221,10 @@ export function createInitialMiniXiangqiState(gameId: string): MiniXiangqiGameSt
 
 export function oppositeMiniXiangqiColor(color: MiniXiangqiColor): MiniXiangqiColor {
   return color === 'red' ? 'black' : 'red';
+}
+
+export function allMiniXiangqiSquares(): readonly MiniXiangqiSquare[] {
+  return ALL_MINI_XIANGQI_SQUARES;
 }
 
 export function getMiniXiangqiLegalMoves(state: MiniXiangqiGameState): MiniXiangqiMove[] {
@@ -348,6 +361,132 @@ export function applyMiniXiangqiMove(
     lastMove: move,
     positionCounts: newPositionCounts,
   };
+}
+
+export function getMiniXiangqiOpenLegalMoves(
+  state: MiniXiangqiGameState,
+  color?: MiniXiangqiColor,
+): MiniXiangqiMove[] {
+  if (state.status.type !== 'playing') return [];
+  const turn = color ?? state.status.turn;
+  const pseudoMoves = getMiniXiangqiLegalMoves({
+    ...state,
+    status: { type: 'playing', turn },
+  });
+  return pseudoMoves.filter((move) => isMiniXiangqiOpenBoardMoveLegal(state.board, move, turn));
+}
+
+export function getMiniXiangqiOpenLegalMovesFrom(
+  state: MiniXiangqiGameState,
+  from: MiniXiangqiSquare,
+  color?: MiniXiangqiColor,
+): MiniXiangqiMove[] {
+  if (state.status.type !== 'playing') return [];
+  const turn = color ?? state.status.turn;
+  const pseudoMoves = getMiniXiangqiLegalMovesFrom(
+    { ...state, status: { type: 'playing', turn } },
+    from,
+  );
+  return pseudoMoves.filter((move) => isMiniXiangqiOpenBoardMoveLegal(state.board, move, turn));
+}
+
+export function isMiniXiangqiOpenLegalMove(
+  state: MiniXiangqiGameState,
+  move: MiniXiangqiMove,
+): boolean {
+  if (state.status.type !== 'playing') return false;
+  return getMiniXiangqiOpenLegalMovesFrom(state, move.from, state.status.turn).some(
+    (candidate) => candidate.to === move.to,
+  );
+}
+
+export function applyMiniXiangqiOpenMove(
+  state: MiniXiangqiGameState,
+  move: MiniXiangqiMove,
+  opts: MiniXiangqiApplyMoveOptions = {},
+): MiniXiangqiGameState {
+  if (state.status.type !== 'playing') return state;
+  if (!isMiniXiangqiOpenLegalMove(state, move)) return state;
+
+  const movingColor = state.status.turn;
+  const movingPiece = state.board[move.from];
+  if (!movingPiece) return state;
+  const capturedPiece = state.board[move.to];
+  const nextTurn = oppositeMiniXiangqiColor(movingColor);
+  const board = miniXiangqiBoardAfterMove(state.board, move);
+  const progressClock = capturedPiece ? 0 : state.progressClock + 1;
+  const moveNumber = movingColor === 'black' ? state.moveNumber + 1 : state.moveNumber;
+  const nextStateForKey: MiniXiangqiGameState = {
+    ...state,
+    board,
+    status: { type: 'playing', turn: nextTurn },
+    moveNumber,
+    progressClock,
+    lastMove: move,
+  };
+  const repKey = miniXiangqiPositionRepetitionKey(nextStateForKey);
+  const positionCounts = { ...state.positionCounts };
+  positionCounts[repKey] = (positionCounts[repKey] ?? 0) + 1;
+
+  let status: MiniXiangqiGameStatus = { type: 'playing', turn: nextTurn };
+  if (!hasMiniXiangqiOpenLegalMove(board, nextTurn)) {
+    status = {
+      type: 'finished',
+      winner: movingColor,
+      reason: isMiniXiangqiGeneralInCheckOnBoard(board, nextTurn) ? 'checkmate' : 'stalemate',
+    };
+  } else if ((positionCounts[repKey] ?? 0) >= 3) {
+    status = { type: 'finished', winner: null, reason: 'repetition' };
+  } else if (progressClock >= (opts.progressClockLimit ?? DEFAULT_PROGRESS_CLOCK_LIMIT)) {
+    status = { type: 'finished', winner: null, reason: 'progress-clock' };
+  }
+
+  return {
+    ...state,
+    board,
+    status,
+    moveNumber,
+    progressClock,
+    lastMove: move,
+    positionCounts,
+  };
+}
+
+export function getMiniXiangqiOpenPlayerView(
+  state: MiniXiangqiGameState,
+  color: MiniXiangqiColor,
+): MiniXiangqiPlayerView {
+  return {
+    id: state.id,
+    perspective: color,
+    board: Object.fromEntries(
+      Object.entries(state.board).map(([square, piece]) => [square, { piece, shrouded: false }]),
+    ) as MiniXiangqiPlayerBoard,
+    visibleSquares: [...ALL_MINI_XIANGQI_SQUARES],
+    legalMoves: getMiniXiangqiOpenLegalMoves(state, color),
+    status: state.status,
+    moveNumber: state.moveNumber,
+    lastMove: state.lastMove,
+  };
+}
+
+export function isMiniXiangqiGeneralInCheck(
+  state: MiniXiangqiGameState,
+  color: MiniXiangqiColor,
+): boolean {
+  return isMiniXiangqiGeneralInCheckOnBoard(state.board, color);
+}
+
+export function miniXiangqiBoardAfterMove(
+  board: MiniXiangqiBoard,
+  move: MiniXiangqiMove,
+): MiniXiangqiBoard {
+  const movingPiece = board[move.from];
+  if (!movingPiece) return { ...board };
+  const next: MiniXiangqiBoard = { ...board };
+  delete next[move.from];
+  next[move.to] = movingPiece;
+  return next;
 }
 
 export function miniXiangqiPositionRepetitionKey(state: MiniXiangqiGameState): string {
@@ -524,6 +663,84 @@ function hasMiniXiangqiLegalMove(board: MiniXiangqiBoard, color: MiniXiangqiColo
     positionCounts: {},
   };
   return getMiniXiangqiLegalMoves(state).length > 0;
+}
+
+function hasMiniXiangqiOpenLegalMove(board: MiniXiangqiBoard, color: MiniXiangqiColor): boolean {
+  const state: MiniXiangqiGameState = {
+    id: 'open-move-check',
+    board,
+    status: { type: 'playing', turn: color },
+    moveNumber: 1,
+    progressClock: 0,
+    positionCounts: {},
+  };
+  return getMiniXiangqiOpenLegalMoves(state).length > 0;
+}
+
+function isMiniXiangqiOpenBoardMoveLegal(
+  board: MiniXiangqiBoard,
+  move: MiniXiangqiMove,
+  color: MiniXiangqiColor,
+): boolean {
+  if (board[move.to]?.role === 'general') return false;
+  const next = miniXiangqiBoardAfterMove(board, move);
+  return !isMiniXiangqiGeneralInCheckOnBoard(next, color);
+}
+
+export function isMiniXiangqiGeneralInCheckOnBoard(
+  board: MiniXiangqiBoard,
+  color: MiniXiangqiColor,
+): boolean {
+  const general = findMiniXiangqiGeneral(board, color);
+  if (!general) return true;
+  return isMiniXiangqiSquareAttacked(board, oppositeMiniXiangqiColor(color), general);
+}
+
+function isMiniXiangqiSquareAttacked(
+  board: MiniXiangqiBoard,
+  byColor: MiniXiangqiColor,
+  target: MiniXiangqiSquare,
+): boolean {
+  const attackState: MiniXiangqiGameState = {
+    id: 'mini-attack-check',
+    board,
+    status: { type: 'playing', turn: byColor },
+    moveNumber: 1,
+    progressClock: 0,
+    positionCounts: {},
+  };
+  for (const [square, piece] of Object.entries(board)) {
+    if (!piece || piece.color !== byColor || piece.role === 'general') continue;
+    if (
+      getMiniXiangqiLegalMovesFrom(attackState, square as MiniXiangqiSquare).some(
+        (move) => move.to === target,
+      )
+    ) {
+      return true;
+    }
+  }
+
+  const enemyGeneral = findMiniXiangqiGeneral(board, byColor);
+  if (!enemyGeneral) return false;
+  const attacker = miniXiangqiCoordOf(enemyGeneral);
+  const attacked = miniXiangqiCoordOf(target);
+  if (attacker.file !== attacked.file || attacker.rank === attacked.rank) return false;
+  const lo = Math.min(attacker.rank, attacked.rank);
+  const hi = Math.max(attacker.rank, attacked.rank);
+  for (let rank = lo + 1; rank < hi; rank += 1) {
+    if (board[miniXiangqiSquareOf(attacker.file, rank)]) return false;
+  }
+  return true;
+}
+
+function findMiniXiangqiGeneral(
+  board: MiniXiangqiBoard,
+  color: MiniXiangqiColor,
+): MiniXiangqiSquare | null {
+  for (const [square, piece] of Object.entries(board)) {
+    if (piece?.color === color && piece.role === 'general') return square as MiniXiangqiSquare;
+  }
+  return null;
 }
 
 function miniXiangqiFacingGeneralCaptureTarget(

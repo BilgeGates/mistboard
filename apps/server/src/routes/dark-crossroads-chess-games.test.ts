@@ -1,5 +1,4 @@
 import assert from 'node:assert/strict';
-import type { IncomingMessage, ServerResponse } from 'node:http';
 import test from 'node:test';
 import {
   applyCrossroadsChessMove,
@@ -12,9 +11,7 @@ import type { RecentEveGameRecord } from '../persistence.js';
 import {
   type DarkCrossroadsChessPostgamePersistence,
   darkCrossroadsChessPostgameForApi,
-  tryHandle,
 } from './dark-crossroads-chess-games.js';
-import type { HttpApiContext } from './lib.js';
 
 const ROOM_ID = 'ddchess_postgame';
 const MOVE_COUNT = 4;
@@ -180,37 +177,15 @@ test('Dark Crossroads postgame returns null when there is no game or event log',
   assert.equal(await darkCrossroadsChessPostgameForApi(ROOM_ID, deps(gameRecord(), null)), null);
 });
 
-// Mock just enough of the http req/res for the flag-gate branch, which fires
-// before any persistence call.
-function mockResponse(): { response: ServerResponse; status: () => number | null } {
-  let status: number | null = null;
-  const response = {
-    writeHead(code: number) {
-      status = code;
-      return response;
-    },
-    end() {
-      return response;
-    },
-  } as unknown as ServerResponse;
-  return { response, status: () => status };
-}
-
-test('Dark Crossroads postgame route returns 404 when the flag is off', async () => {
+test('Dark Crossroads postgame does not require launch env flags', async () => {
   const previous = process.env.MISTBOARD_DARK_CROSSROADS_CHESS_ENABLED;
   delete process.env.MISTBOARD_DARK_CROSSROADS_CHESS_ENABLED;
   try {
-    const request = { method: 'GET' } as IncomingMessage;
-    const { response, status } = mockResponse();
-    const handled = await tryHandle(
-      {} as HttpApiContext,
-      request,
-      response,
-      `/api/dark-crossroads-chess/games/${ROOM_ID}`,
-      new URL(`http://localhost/api/dark-crossroads-chess/games/${ROOM_ID}`),
+    const payload = await darkCrossroadsChessPostgameForApi(
+      ROOM_ID,
+      deps(gameRecord(), finishedGameEvents()),
     );
-    assert.equal(handled, true);
-    assert.equal(status(), 404);
+    assert.ok(payload);
   } finally {
     if (previous === undefined) delete process.env.MISTBOARD_DARK_CROSSROADS_CHESS_ENABLED;
     else process.env.MISTBOARD_DARK_CROSSROADS_CHESS_ENABLED = previous;

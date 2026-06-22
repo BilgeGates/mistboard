@@ -340,7 +340,7 @@ export const darkShogiArticle: Article = {
       blocks: [
         {
           kind: 'paragraph',
-          text: 'Dark Shogi is implemented behind development flags for internal playtesting. It is not a public pool yet: rooms are casual PvP only, and postgame review works after a finished live game. Use the persistent dev server when review needs to survive a restart. For the open-information base game, read Shogi Rules. For chess under the same fog model, read Dark Chess.',
+          text: 'Dark Shogi is open for alpha invite games. Rooms are casual PvP only, and postgame review works after a finished live game. For the open-information base game, read Shogi Rules. For chess under the same fog model, read Dark Chess.',
         },
         {
           kind: 'cta',

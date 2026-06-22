@@ -10,6 +10,9 @@ describe('live room bootstrap', () => {
   });
 
   it('routes chess-shell tenant prefixes and leaves self-contained clients alone', () => {
+    // Mini Xiangqi rides the same shell as DMX, but without the fog mask.
+    expect(gameSpecIdForRoomBootstrap('mxq_abc', null)).toBe('mini-xiangqi');
+    expect(gameSpecIdForRoomBootstrap('mxq_abc', 'dark-chess')).toBe('mini-xiangqi');
     // DMX rides the chess live shell, so its prefix resolves here.
     expect(gameSpecIdForRoomBootstrap('dmxq_abc', null)).toBe('dark-mini-xiangqi');
     expect(gameSpecIdForRoomBootstrap('dmxq_abc', 'dark-chess')).toBe('dark-mini-xiangqi');
