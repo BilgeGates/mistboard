@@ -142,7 +142,9 @@ export async function listPublicBots(): Promise<BotDirectoryEntry[]> {
             AND bot_rating_snapshots.game_spec_id = bot_profiles.default_game_spec_id
             AND bot_rating_snapshots.time_class = 'blitz'
             AND bot_rating_snapshots.published = true
-          ORDER BY bot_rating_snapshots.created_at DESC, bot_rating_snapshots.id DESC
+          ORDER BY bot_rating_snapshots.published_at DESC NULLS LAST,
+                   bot_rating_snapshots.created_at DESC,
+                   bot_rating_snapshots.id DESC
           LIMIT 1
        ) rating ON true
       WHERE bot_profiles.visibility = 'public'
@@ -206,7 +208,9 @@ export async function getPublicBotProfile(botId: string): Promise<BotProfilePage
             AND bot_rating_snapshots.game_spec_id = bot_profiles.default_game_spec_id
             AND bot_rating_snapshots.time_class = 'blitz'
             AND bot_rating_snapshots.published = true
-          ORDER BY bot_rating_snapshots.created_at DESC, bot_rating_snapshots.id DESC
+          ORDER BY bot_rating_snapshots.published_at DESC NULLS LAST,
+                   bot_rating_snapshots.created_at DESC,
+                   bot_rating_snapshots.id DESC
           LIMIT 1
        ) rating ON true
       WHERE bot_profiles.id = $1

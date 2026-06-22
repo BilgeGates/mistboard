@@ -118,8 +118,9 @@ export async function insertBotRatingSnapshotDrafts(
       await client.query(
         `INSERT INTO bot_rating_snapshots
            (bot_id, game_spec_id, time_class, rating, rating_deviation, games,
-            source, source_ref, published)
-         VALUES ($1, $2, $3, $4, $5, $6, 'eve-anchor', $7, $8)`,
+            source, source_ref, published, published_at)
+         VALUES ($1, $2, $3, $4, $5, $6, 'eve-anchor', $7, $8,
+                 CASE WHEN $8::boolean THEN now() ELSE NULL::timestamptz END)`,
         [
           draft.botId,
           draft.gameSpecId,

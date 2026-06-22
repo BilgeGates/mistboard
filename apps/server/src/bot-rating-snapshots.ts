@@ -24,7 +24,17 @@ export type BotRatingSnapshotAuditRow = {
   source: BotRatingSource;
   sourceRef: string | null;
   published: boolean;
+  publishedAt: Date | null;
   createdAt: Date;
+};
+
+export type BotRatingSnapshotPromotionOptions = {
+  at?: Date;
+  botId?: string | null;
+  gameSpecId?: string | null;
+  snapshotId?: number | null;
+  sourceRef?: string | null;
+  timeClass?: RatingTimeClass | null;
 };
 
 type Queryable = {
@@ -48,6 +58,7 @@ type BotRatingSnapshotAuditSqlRow = {
   source: BotRatingSource;
   source_ref: string | null;
   time_class: RatingTimeClass;
+  published_at: Date | null;
 };
 
 export async function listBotRatingSnapshots(
@@ -70,19 +81,24 @@ export async function listBotRatingSnapshots(
   const limitParam = `$${values.length}`;
   const whereSql = predicates.join(' AND ');
 
+  const rowOrderSql =
+    visibility === 'published'
+      ? 's.published_at DESC NULLS LAST, s.created_at DESC, s.id DESC'
+      : 's.created_at DESC, s.id DESC';
+
   const sql = options.history
     ? `SELECT ${auditColumns()}
          FROM bot_rating_snapshots s
          JOIN bot_profiles b ON b.id = s.bot_id
         WHERE ${whereSql}
-        ORDER BY s.created_at DESC, s.id DESC
+        ORDER BY ${rowOrderSql}
         LIMIT ${limitParam}`
     : `SELECT *
          FROM (
            SELECT ${auditColumns()},
                   ROW_NUMBER() OVER (
                     PARTITION BY s.bot_id, s.game_spec_id, s.time_class
-                    ORDER BY s.created_at DESC, s.id DESC
+                    ORDER BY ${rowOrderSql}
                   ) AS snapshot_rank
              FROM bot_rating_snapshots s
              JOIN bot_profiles b ON b.id = s.bot_id
@@ -96,13 +112,77 @@ export async function listBotRatingSnapshots(
   return rows.map(snapshotFromRow);
 }
 
+export async function promoteBotRatingSnapshots(
+  db: pg.Pool,
+  options: BotRatingSnapshotPromotionOptions,
+): Promise<BotRatingSnapshotAuditRow[]> {
+  if ((options.snapshotId == null) === (options.sourceRef == null || options.sourceRef === '')) {
+    throw new Error('provide exactly one of snapshotId or sourceRef');
+  }
+
+  const client = await db.connect();
+  try {
+    await client.query('BEGIN');
+    const values: unknown[] = [];
+    const predicates = ['s.published = false'];
+    if (options.snapshotId != null) {
+      values.push(options.snapshotId);
+      predicates.push(`s.id = $${values.length}`);
+    }
+    if (options.sourceRef) {
+      values.push(options.sourceRef);
+      predicates.push(`s.source_ref = $${values.length}`);
+    }
+    if (options.botId) {
+      values.push(options.botId);
+      predicates.push(`s.bot_id = $${values.length}`);
+    }
+    if (options.gameSpecId) {
+      values.push(options.gameSpecId);
+      predicates.push(`s.game_spec_id = $${values.length}`);
+    }
+    if (options.timeClass) {
+      values.push(options.timeClass);
+      predicates.push(`s.time_class = $${values.length}`);
+    }
+    const { rows: selected } = await client.query<{ id: string }>(
+      `SELECT s.id::text AS id
+         FROM bot_rating_snapshots s
+        WHERE ${predicates.join(' AND ')}
+        ORDER BY s.created_at DESC, s.id DESC
+        FOR UPDATE`,
+      values,
+    );
+    const ids = selected.map((row) => Number(row.id));
+    if (ids.length === 0) throw new Error('no draft bot rating snapshots matched promotion');
+
+    const publishedAt = options.at ?? new Date();
+    await client.query(
+      `UPDATE bot_rating_snapshots
+          SET published = true,
+              published_at = $2
+        WHERE id = ANY($1::bigint[])`,
+      [ids, publishedAt],
+    );
+
+    const promoted = await queryBotRatingSnapshotsById(client, ids);
+    await client.query('COMMIT');
+    return promoted;
+  } catch (err) {
+    await client.query('ROLLBACK');
+    throw err;
+  } finally {
+    client.release();
+  }
+}
+
 export function renderBotRatingSnapshotsMarkdown(
   rows: readonly BotRatingSnapshotAuditRow[],
 ): string {
   if (rows.length === 0) return 'No bot rating snapshots.\n';
   const lines = [
-    '| Bot | Engine | Spec | TC | Rating | RD/CI | Games | Status | Source | Created |',
-    '|---|---|---|---|---:|---:|---:|---|---|---|',
+    '| Bot | Engine | Spec | TC | Rating | RD/CI | Games | Status | Source | Created | Published |',
+    '|---|---|---|---|---:|---:|---:|---|---|---|---|',
   ];
   for (const row of rows) {
     lines.push(
@@ -115,7 +195,8 @@ export function renderBotRatingSnapshotsMarkdown(
         `| ${row.games} ` +
         `| ${row.published ? 'published' : 'draft'} ` +
         `| ${escapeCell(sourceLabel(row))} ` +
-        `| ${row.createdAt.toISOString()} |`,
+        `| ${row.createdAt.toISOString()} ` +
+        `| ${row.publishedAt ? row.publishedAt.toISOString() : '-'} |`,
     );
   }
   return `${lines.join('\n')}\n`;
@@ -134,7 +215,23 @@ function auditColumns(): string {
           s.source,
           s.source_ref,
           s.published,
+          s.published_at,
           s.created_at`;
+}
+
+async function queryBotRatingSnapshotsById(
+  db: Queryable,
+  ids: readonly number[],
+): Promise<BotRatingSnapshotAuditRow[]> {
+  const { rows } = await db.query<BotRatingSnapshotAuditSqlRow>(
+    `SELECT ${auditColumns()}
+       FROM bot_rating_snapshots s
+       JOIN bot_profiles b ON b.id = s.bot_id
+      WHERE s.id = ANY($1::bigint[])
+      ORDER BY s.published_at DESC NULLS LAST, s.created_at DESC, s.id DESC`,
+    [ids],
+  );
+  return rows.map(snapshotFromRow);
 }
 
 function snapshotFromRow(row: BotRatingSnapshotAuditSqlRow): BotRatingSnapshotAuditRow {
@@ -151,6 +248,7 @@ function snapshotFromRow(row: BotRatingSnapshotAuditSqlRow): BotRatingSnapshotAu
     source: row.source,
     sourceRef: row.source_ref,
     published: row.published,
+    publishedAt: row.published_at,
     createdAt: row.created_at,
   };
 }

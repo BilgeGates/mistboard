@@ -25,6 +25,7 @@
     "engine:enqueue-smoke": "tsx src/enqueue-engine-smoke.ts",
     "engine:enqueue-tournament": "tsx src/enqueue-engine-tournament.ts",
     "engine:bot-rating-import": "tsx src/bot-rating-import.ts",
+    "engine:bot-rating-promote": "tsx src/bot-rating-promote.ts",
     "engine:bot-rating-snapshots": "tsx src/bot-rating-snapshots.ts",
     "engine:elo-report": "tsx src/engine-elo-report.ts",
     "engine:queue-status": "tsx src/engine-queue-status.ts",

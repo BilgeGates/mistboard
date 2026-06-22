@@ -15,6 +15,7 @@ test('renders bot rating snapshots as an audit table', () => {
       ratingDeviation: 77.4,
       games: 32,
       published: true,
+      publishedAt: new Date('2026-01-02T00:00:00Z'),
       source: 'eve-anchor',
       sourceRef: 'tournament:test-cup',
     }),
@@ -56,6 +57,7 @@ function snapshot(overrides: Partial<BotRatingSnapshotAuditRow> = {}): BotRating
     source: 'import',
     sourceRef: null,
     published: false,
+    publishedAt: null,
     createdAt: new Date('2026-01-01T00:00:00Z'),
     ...overrides,
   };

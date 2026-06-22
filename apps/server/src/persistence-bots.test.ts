@@ -1,5 +1,5 @@
 import type { IncomingMessage, ServerResponse } from 'node:http';
-import { listBotRatingSnapshots } from './bot-rating-snapshots.js';
+import { listBotRatingSnapshots, promoteBotRatingSnapshots } from './bot-rating-snapshots.js';
 import { getPublicBotProfile, listPublicBots, recordGameEnd } from './persistence.js';
 import {
   assert,
@@ -206,6 +206,7 @@ definePersistenceTests('bot profiles', () => {
       assert.equal(latest.length, 1);
       assert.equal(latest[0]?.rating, 1900);
       assert.equal(latest[0]?.published, false);
+      assert.equal(latest[0]?.publishedAt, null);
 
       const published = await listBotRatingSnapshots(client, {
         botId: 'audit-bot',
@@ -214,6 +215,7 @@ definePersistenceTests('bot profiles', () => {
       assert.equal(published.length, 1);
       assert.equal(published[0]?.rating, 1800);
       assert.equal(published[0]?.published, true);
+      assert.equal(published[0]?.publishedAt?.toISOString(), '2026-01-01T00:00:00.000Z');
 
       const history = await listBotRatingSnapshots(client, {
         botId: 'audit-bot',
@@ -226,6 +228,46 @@ definePersistenceTests('bot profiles', () => {
     } finally {
       await client.end();
     }
+  });
+
+  test('bot rating promotion publishes an exact draft snapshot for public bot pages', async () => {
+    await insertBotProfile('promote-bot', 'Promote Bot', 'public');
+    await insertBotRatingSnapshot('promote-bot', {
+      rating: 1700,
+      ratingDeviation: 120,
+      games: 10,
+      source: 'eve-anchor',
+      sourceRef: 'old-report',
+      published: true,
+      createdAt: new Date('2026-01-03T00:00:00Z'),
+    });
+    const draftId = await insertBotRatingSnapshot('promote-bot', {
+      rating: 1850,
+      ratingDeviation: 82,
+      games: 40,
+      source: 'eve-anchor',
+      sourceRef: 'reviewed-report',
+      published: false,
+      createdAt: new Date('2026-01-01T00:00:00Z'),
+    });
+
+    const pool = new pg.Pool({ connectionString: TEST_DATABASE_URL });
+    try {
+      const promoted = await promoteBotRatingSnapshots(pool, {
+        snapshotId: draftId,
+        at: new Date('2026-01-04T00:00:00Z'),
+      });
+      assert.equal(promoted.length, 1);
+      assert.equal(promoted[0]?.snapshotId, draftId);
+      assert.equal(promoted[0]?.published, true);
+      assert.equal(promoted[0]?.publishedAt?.toISOString(), '2026-01-04T00:00:00.000Z');
+    } finally {
+      await pool.end();
+    }
+
+    const bots = await listPublicBots();
+    assert.equal(bots[0]?.id, 'promote-bot');
+    assert.equal(bots[0]?.rating?.rating, 1850);
   });
 });
 
@@ -293,15 +335,17 @@ async function insertBotRatingSnapshot(
     createdAt: Date;
     gameSpecId?: string;
   },
-): Promise<void> {
+): Promise<number> {
   const client = new pg.Client({ connectionString: TEST_DATABASE_URL });
   await client.connect();
   try {
-    await client.query(
+    const { rows } = await client.query<{ id: string }>(
       `INSERT INTO bot_rating_snapshots
          (bot_id, game_spec_id, time_class, rating, rating_deviation, games,
-          source, source_ref, published, created_at)
-       VALUES ($1, $2, 'blitz', $3, $4, $5, $6, $7, $8, $9)`,
+          source, source_ref, published, published_at, created_at)
+       VALUES ($1, $2, 'blitz', $3, $4, $5, $6, $7, $8,
+               CASE WHEN $8::boolean THEN $9::timestamptz ELSE NULL::timestamptz END, $9)
+       RETURNING id::text`,
       [
         botId,
         opts.gameSpecId ?? 'dark-chess',
@@ -314,6 +358,7 @@ async function insertBotRatingSnapshot(
         opts.createdAt,
       ],
     );
+    return Number(rows[0]?.id ?? 0);
   } finally {
     await client.end();
   }
