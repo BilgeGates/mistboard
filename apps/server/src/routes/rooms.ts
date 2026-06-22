@@ -1,6 +1,7 @@
 import { randomBytes } from 'node:crypto';
 import type { IncomingMessage, ServerResponse } from 'node:http';
 import { currentAccountUser } from './../account-session.js';
+import { isBotPlayable, parsePublicBotId } from './../bot-profile-policy.js';
 import { playableLiveEngines } from './../engine-registry.js';
 import { ratedEnabled } from './../feature-flags.js';
 import { gateGameSpecRequest } from './../game-spec-request-gate.js';
@@ -28,7 +29,9 @@ export async function tryHandle(
 ): Promise<boolean> {
   if (pathname === '/api/rooms') {
     if (!requireMethod(request, response, 'POST')) return true;
-    const body = await readJsonBody(request);
+    const rawBody = await readJsonBody(request);
+    const body = await resolveBotRoomRequest(response, rawBody);
+    if (!body) return true;
     // Variant tenants claim their create requests via the registry; each
     // tenant's handler owns its flag/rated/engine gates and error strings.
     // A registry miss falls through to the chess path below.
@@ -230,9 +233,70 @@ export async function tryHandle(
   return false;
 }
 
+export async function resolveBotRoomRequest(
+  response: ServerResponse,
+  body: Record<string, unknown>,
+): Promise<Record<string, unknown> | null> {
+  if (body.botId === undefined) return body;
+  const botId = parsePublicBotId(body.botId);
+  if (!botId) {
+    writeJson(response, 400, { error: 'invalid_bot_id' });
+    return null;
+  }
+  if (!persistence.isInitialized()) {
+    writeJson(response, 503, { error: 'persistence_disabled' });
+    return null;
+  }
+  if (body.mode !== undefined && body.mode !== 'pve') {
+    writeJson(response, 400, { error: 'bot_requires_pve' });
+    return null;
+  }
+  if (body.engineId !== undefined) {
+    writeJson(response, 400, { error: 'bot_engine_conflict' });
+    return null;
+  }
+  const bot = await persistence.getPublicBotForPlay(botId);
+  if (!bot || !isBotPlayable(bot)) {
+    writeJson(response, 404, { error: 'bot_not_found' });
+    return null;
+  }
+  if (body.gameSpecId !== undefined && body.gameSpecId !== bot.play.gameSpecId) {
+    writeJson(response, 400, { error: 'bot_game_spec_conflict' });
+    return null;
+  }
+  if (body.timeControl !== undefined) {
+    const requested = parseRoomTimeControl(body.timeControl);
+    if (!requested || !sameTimeControl(requested, bot.play.timeControl)) {
+      writeJson(response, 400, { error: 'bot_time_control_conflict' });
+      return null;
+    }
+  }
+  return {
+    ...body,
+    botId,
+    mode: 'pve',
+    gameSpecId: bot.play.gameSpecId,
+    engineId: bot.play.engineId,
+    timeControl: bot.play.timeControl,
+    preferredColor: body.preferredColor ?? bot.play.preferredColor,
+    rated: body.rated ?? false,
+    ...(bot.play.gameSpecId === 'dark-chess' ? { variant: 'dark-chess' } : {}),
+    ...(bot.play.gameSpecId === 'dark-draft960'
+      ? { hiddenDraft960: true, variant: 'dark-chess' }
+      : {}),
+  };
+}
+
 function parseRoomMode(body: Record<string, unknown>): 'pvp' | 'pve' | null {
   if (body.mode === 'pvp' || body.mode === 'pve') return body.mode;
   return null;
+}
+
+function sameTimeControl(
+  left: { initialMs: number; incrementMs: number },
+  right: { initialMs: number; incrementMs: number },
+): boolean {
+  return left.initialMs === right.initialMs && left.incrementMs === right.incrementMs;
 }
 
 function parsePlayablePveEngineId(value: unknown): string | null {

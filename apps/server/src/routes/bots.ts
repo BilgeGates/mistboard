@@ -1,9 +1,7 @@
 import type { IncomingMessage, ServerResponse } from 'node:http';
+import { isBotPlayable, parsePublicBotId } from '../bot-profile-policy.js';
 import * as persistence from '../persistence.js';
-import { variantTenantForSpecId } from '../variant-tenant/registry.js';
 import { requireMethod, requirePersistence, writeJson } from './lib.js';
-
-const BOT_ID_PATTERN = /^[a-zA-Z0-9_-]{1,80}$/;
 
 export async function tryHandle(
   _ctx: unknown,
@@ -23,8 +21,8 @@ export async function tryHandle(
   if (profileMatch) {
     if (!requireMethod(request, response, 'GET')) return true;
     if (!requirePersistence(response)) return true;
-    const botId = decodeURIComponent(profileMatch[1] ?? '').trim();
-    if (!BOT_ID_PATTERN.test(botId)) {
+    const botId = parsePublicBotId(decodeURIComponent(profileMatch[1] ?? ''));
+    if (!botId) {
       writeJson(response, 400, { error: 'invalid_bot_id' });
       return true;
     }
@@ -38,11 +36,4 @@ export async function tryHandle(
   }
 
   return false;
-}
-
-function isBotPlayable(bot: Pick<persistence.BotProfile, 'defaultGameSpecId'>): boolean {
-  if (bot.defaultGameSpecId === 'dark-chess' || bot.defaultGameSpecId === 'dark-draft960') {
-    return true;
-  }
-  return variantTenantForSpecId(bot.defaultGameSpecId)?.enabled() === true;
 }

@@ -328,20 +328,12 @@ async function startBotGame(bot: BotProfile, button: HTMLButtonElement): Promise
 }
 
 function roomRequestForBot(bot: BotProfile): Record<string, unknown> {
-  const body: Record<string, unknown> = {
+  return {
     mode: bot.play.mode,
-    gameSpecId: bot.play.gameSpecId,
-    engineId: bot.play.engineId,
-    timeControl: bot.play.timeControl,
+    botId: bot.id,
     preferredColor: bot.play.preferredColor,
     rated: false,
   };
-  if (bot.play.gameSpecId === 'dark-chess') body.variant = 'dark-chess';
-  if (bot.play.gameSpecId === 'dark-draft960') {
-    body.variant = 'dark-chess';
-    body.hiddenDraft960 = true;
-  }
-  return body;
 }
 
 function detailChip(label: string, extraClass?: string): HTMLElement {

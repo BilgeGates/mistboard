@@ -29,12 +29,13 @@ export type {
   BotDirectoryEntry,
   BotModeRecord,
   BotOwnerType,
+  BotPlayProfile,
   BotProfile,
   BotProfilePage,
   BotRatingSnapshot,
   BotRatingSource,
 } from './persistence-bots.js';
-export { getPublicBotProfile, listPublicBots } from './persistence-bots.js';
+export { getPublicBotForPlay, getPublicBotProfile, listPublicBots } from './persistence-bots.js';
 export type {
   CorrespondenceSeekListing,
   CorrespondenceSeekRecord,

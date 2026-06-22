@@ -61,6 +61,11 @@ export type BotProfilePage = BotDirectoryEntry & {
   games: ProfileGameRecord[];
 };
 
+export type BotPlayProfile = Pick<
+  BotProfile,
+  'activeEngineId' | 'defaultGameSpecId' | 'id' | 'play' | 'supportedGameSpecIds' | 'visibility'
+>;
+
 type BotProfileRow = {
   id: string;
   display_name: string;
@@ -93,6 +98,50 @@ type BotDirectoryRow = BotProfileRow & {
 };
 
 const BOT_GAMES_PAGE = 15;
+
+export async function getPublicBotForPlay(botId: string): Promise<BotPlayProfile | null> {
+  const { rows } = await getPool().query<{
+    active_engine_id: string;
+    default_game_spec_id: string;
+    id: string;
+    play_increment_ms: number;
+    play_initial_ms: number;
+    supported_game_spec_ids: string[];
+    visibility: BotProfile['visibility'];
+  }>(
+    `SELECT id,
+            active_engine_id,
+            default_game_spec_id,
+            supported_game_spec_ids,
+            play_initial_ms,
+            play_increment_ms,
+            visibility
+       FROM bot_profiles
+      WHERE id = $1
+        AND visibility = 'public'
+      LIMIT 1`,
+    [botId],
+  );
+  const row = rows[0];
+  if (!row) return null;
+  return {
+    id: row.id,
+    activeEngineId: row.active_engine_id,
+    defaultGameSpecId: row.default_game_spec_id,
+    supportedGameSpecIds: row.supported_game_spec_ids,
+    play: {
+      mode: 'pve',
+      gameSpecId: row.default_game_spec_id,
+      engineId: row.active_engine_id,
+      timeControl: {
+        initialMs: row.play_initial_ms,
+        incrementMs: row.play_increment_ms,
+      },
+      preferredColor: 'random',
+    },
+    visibility: row.visibility,
+  };
+}
 
 export async function listPublicBots(): Promise<BotDirectoryEntry[]> {
   const { rows } = await getPool().query<BotDirectoryRow>(
