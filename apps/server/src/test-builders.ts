@@ -179,6 +179,7 @@ export function roomFixture({
     pendingVacates: {},
     pendingWrites: Promise.resolve(),
     projection: roomProjection,
+    pveBotId: null,
     pveEngineId: null,
     randomEngine: false,
     randomSeating: false,

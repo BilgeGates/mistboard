@@ -56,6 +56,7 @@ export interface HttpApiContext {
       randomSeating?: boolean;
       engineColor?: 'white' | 'black';
       engineReservationId?: string;
+      botId?: string;
       creatorPreference?: 'white' | 'black';
       region?: string;
     },

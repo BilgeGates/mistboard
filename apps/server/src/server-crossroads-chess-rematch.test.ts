@@ -63,6 +63,7 @@ function makeRoom(id: string, status: 'playing' | 'finished'): CrossroadsChessLi
     pendingWrites: Promise.resolve(),
     seatTokens: {},
     rematch: { offers: {} },
+    pveBotId: null,
   };
 }
 

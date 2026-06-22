@@ -13,6 +13,7 @@ import { createTenantLiveRoom } from './variant-tenant/room-factory.js';
 export type BanqiRoomEngineSeat = {
   engineId: string;
   seat: 'red' | 'black';
+  botId?: string;
 };
 
 export type BanqiLiveRoomCreation =

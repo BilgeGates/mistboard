@@ -27,6 +27,7 @@ type RoomCreateArgs = {
     creatorPreference?: 'white' | 'black';
     engineColor?: 'white' | 'black';
     engineReservationId?: string;
+    botId?: string;
     randomSeating?: boolean;
     region?: string;
   };
@@ -46,6 +47,7 @@ definePersistenceTests('room bot play requests', () => {
         return roomFixture({
           id: 'bot-room',
           mode,
+          pveBotId: options?.botId ?? null,
           pveEngineId: engineId,
           randomEngine: mode === 'pve',
           timeControl,
@@ -73,7 +75,7 @@ definePersistenceTests('room bot play requests', () => {
       engineId: 'python-v2-v1.5',
       hiddenDraft960: false,
       mode: 'pve',
-      options: { engineColor: 'black', engineReservationId: 'reservation-1' },
+      options: { engineColor: 'black', engineReservationId: 'reservation-1', botId: 'play-bot' },
       rated: false,
       timeControl: { initialMs: 180_000, incrementMs: 2_000 },
       variant: 'dark-chess',

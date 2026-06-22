@@ -58,6 +58,7 @@ function makeRoom(id: string, status: 'playing' | 'finished'): DarkMiniXiangqiLi
     rematch: { offers: {} },
     engineTimer: null,
     engineReservationId: null,
+    pveBotId: null,
   };
 }
 

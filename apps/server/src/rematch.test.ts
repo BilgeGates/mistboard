@@ -46,6 +46,7 @@ function makeFinishedRoom(id: string): Room {
     randomSeating: false,
     creatorPreference: null,
     pveEngineId: null,
+    pveBotId: null,
     pendingWrites: Promise.resolve(),
     gameEndRecorded: true,
     variant: 'dark-chess',

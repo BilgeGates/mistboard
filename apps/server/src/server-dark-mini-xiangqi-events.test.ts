@@ -204,6 +204,27 @@ test('Dark Mini Xiangqi game summary records PvE engine participants', () => {
   });
 });
 
+test('Dark Mini Xiangqi game summary prefers explicit PvE bot id over engine inference', () => {
+  const room = roomFixture('dmxq_explicit_bot_finished');
+  room.seatTokens.red = seatTokenState('red', 'red-user');
+  room.projection.seats.black = 'python-dmx-v1.0';
+  room.pveBotId = 'misty-dark-chess';
+  room.projection.state = {
+    ...room.projection.state,
+    status: { type: 'finished', winner: 'red', reason: 'general-captured' },
+  };
+
+  const summary = buildDarkMiniXiangqiGameSummary(room);
+
+  assert.deepEqual(summary.participants?.[1], {
+    color: 'black',
+    displayName: 'Misty',
+    subjectType: 'bot',
+    subjectId: 'misty-dark-chess',
+    visibility: 'public',
+  });
+});
+
 test('Dark Mini Xiangqi game summary preserves rated account PvP metadata', () => {
   const created = createDarkMiniXiangqiRuntimeRoomFromEvents([
     {

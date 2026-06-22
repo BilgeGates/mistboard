@@ -194,6 +194,42 @@ test('Dark Mini Xiangqi PvE route seats the engine opposite the human and echoes
   }
 });
 
+test('Dark Mini Xiangqi PvE route carries bot id into engine room creation', async () => {
+  const before = process.env[darkMiniXiangqiFlag];
+  process.env[darkMiniXiangqiFlag] = 'true';
+  try {
+    let requestedEngine: unknown;
+    const response = captureResponse();
+    await handleDarkMiniXiangqiCreate(
+      testContext({
+        reserveLiveEngineSeat: async () => 'reservation-bot',
+        createDarkMiniXiangqiRoom: async (_timeControl, _creatorPreference, engine) => {
+          requestedEngine = engine;
+          return { ok: true, room: darkMiniXiangqiRoom('dmxq_bot_pve') };
+        },
+      }),
+      response,
+      {
+        botId: 'misty-dmx',
+        engineId: 'python-dmx-v1.0',
+        gameSpecId: DARK_MINI_XIANGQI_SPEC_ID,
+        mode: 'pve',
+        preferredColor: 'red',
+      },
+    );
+
+    assert.deepEqual(requestedEngine, {
+      engineId: 'python-dmx-v1.0',
+      seat: 'black',
+      reservationId: 'reservation-bot',
+      botId: 'misty-dmx',
+    });
+    assert.equal(response.status, 201);
+  } finally {
+    restoreFlag(before);
+  }
+});
+
 test('Dark Mini Xiangqi PvE route seats the engine opposite explicit human black', async () => {
   const before = process.env[darkMiniXiangqiFlag];
   process.env[darkMiniXiangqiFlag] = 'true';
@@ -487,6 +523,7 @@ function darkMiniXiangqiRoom(roomId: string): DarkMiniXiangqiRuntimeRoom {
     rematch: { offers: {} },
     engineTimer: null,
     engineReservationId: null,
+    pveBotId: null,
   };
 }
 

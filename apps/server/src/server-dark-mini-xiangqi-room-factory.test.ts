@@ -88,10 +88,21 @@ test('Dark Mini Xiangqi live room factory records public running summaries for P
       }),
       undefined,
       undefined,
-      { engineId: 'python-dmx-v1.0', seat: 'black', reservationId: 'reservation-1' },
+      {
+        engineId: 'python-dmx-v1.0',
+        seat: 'black',
+        reservationId: 'reservation-1',
+        botId: 'misty-dmx',
+      },
     );
 
     assert.equal(result.ok, true);
+    if (!result.ok) return;
+    assert.equal(result.room.pveBotId, 'misty-dmx');
+    const createdEvent = result.room.events[0];
+    assert.equal(createdEvent?.type, 'room-created');
+    assert.equal(createdEvent?.type === 'room-created' ? createdEvent.pveBotId : null, 'misty-dmx');
+    assert.equal(result.room.engineReservationId, 'reservation-1');
     assert.deepEqual(persisted, [
       { roomId: 'dmxq_pve_start', seq: 0, type: 'room-created' },
       { roomId: 'dmxq_pve_start', seq: 1, type: 'seat-assigned' },

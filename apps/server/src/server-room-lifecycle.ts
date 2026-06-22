@@ -39,6 +39,7 @@ type CreateRoomOptions = {
   randomSeating?: boolean;
   engineColor?: 'white' | 'black';
   engineReservationId?: string;
+  botId?: string;
   // PvP only. When set, the first arrival in this room is assigned this seat;
   // the second arrival gets the other side. Mutually exclusive with randomSeating
   // (random preference uses randomSeating). Ignored for PvE.
@@ -254,6 +255,7 @@ export function createRoomLifecycle(config: RoomLifecycleConfig): RoomLifecycle 
       | Extract<GameEvent, { type: 'room-created' }>
       | undefined;
     const region = normalizeRoomRegion(roomCreatedEvent?.region ?? config.defaultRoomRegion);
+    const roomCreatedPveBotId = pveBotIdForRoomCreatedEvent(roomCreatedEvent);
     if (createdNewPersistentRoom) {
       await persistGameStart(
         roomId,
@@ -294,6 +296,7 @@ export function createRoomLifecycle(config: RoomLifecycleConfig): RoomLifecycle 
       randomSeating: false,
       creatorPreference: null,
       pveEngineId: hydratedPveEngineId,
+      pveBotId: roomCreatedPveBotId,
       pendingWrites: Promise.resolve(),
       gameEndRecorded: projection.state.status.type === 'finished',
       variant: projection.variant,
@@ -360,6 +363,7 @@ export function createRoomLifecycle(config: RoomLifecycleConfig): RoomLifecycle 
         gameSpecId,
         region,
         ...roomCreatedDraftOfferFields(roomId, variant, hiddenDraft960),
+        ...(mode === 'pve' && options.botId ? { pveBotId: options.botId } : {}),
         ...(timeControl ? { timeControl } : {}),
         ...(rated ? { rated: true } : {}),
       };
@@ -416,6 +420,7 @@ export function createRoomLifecycle(config: RoomLifecycleConfig): RoomLifecycle 
         creatorPreference:
           mode === 'pvp' && options.creatorPreference ? options.creatorPreference : null,
         pveEngineId: mode === 'pve' ? engineId : null,
+        pveBotId: mode === 'pve' ? (options.botId ?? null) : null,
         pendingWrites: Promise.resolve(),
         gameEndRecorded: false,
         variant,
@@ -662,6 +667,12 @@ export function createRoomLifecycle(config: RoomLifecycleConfig): RoomLifecycle 
     startStalePausedSweep,
     stopSweeps,
   };
+}
+
+function pveBotIdForRoomCreatedEvent(event: unknown): string | null {
+  if (typeof event !== 'object' || event === null) return null;
+  const botId = (event as { pveBotId?: unknown }).pveBotId;
+  return typeof botId === 'string' ? botId : null;
 }
 
 function roomCreatedDraftOfferFields(

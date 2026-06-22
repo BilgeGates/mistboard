@@ -18,7 +18,7 @@ import {
   variantForId,
 } from '@mistboard/game';
 import { engineVersionDisplayName, loadEngine } from './engine-registry.js';
-import { firstPartyBotForEngine } from './first-party-bots.js';
+import { firstPartyBotForEngine, firstPartyBotForId } from './first-party-bots.js';
 import { ABORT_WINDOW_MS, FORFEIT_WINDOW_MS } from './lifecycle-windows.js';
 import { chooseLiveEngineMove, type LiveEngineFallbackEvent } from './live-engine.js';
 import { engineCounters, logger } from './obs.js';
@@ -246,9 +246,20 @@ function inMemoryParticipant(
   mode: persistence.GameMode,
   visibility: persistence.GameVisibility,
   pveBuiltinEngineClientId: string,
+  botId: string | null,
 ): persistence.GameParticipant {
   if (clientId && isServerEngineClient(clientId)) {
     const engineVersionId = clientId === 'random-engine' ? pveBuiltinEngineClientId : clientId;
+    if (botId) {
+      const bot = firstPartyBotForId(botId);
+      return {
+        color,
+        displayName: displayName ?? bot?.displayName ?? engineVersionDisplayName(engineVersionId),
+        subjectType: 'bot',
+        subjectId: botId,
+        visibility,
+      };
+    }
     const bot = firstPartyBotForEngine(engineVersionId);
     if (bot) {
       return {
@@ -291,6 +302,7 @@ function participantForSeatToken(
   token: SeatTokenState | undefined,
   mode: persistence.GameMode,
   pveBuiltinEngineClientId: string,
+  botId: string | null,
 ): persistence.GameParticipant {
   if (token?.userId) {
     return {
@@ -301,7 +313,15 @@ function participantForSeatToken(
       visibility: 'public',
     };
   }
-  return inMemoryParticipant(color, clientId, null, mode, 'public', pveBuiltinEngineClientId);
+  return inMemoryParticipant(
+    color,
+    clientId,
+    null,
+    mode,
+    'public',
+    pveBuiltinEngineClientId,
+    botId,
+  );
 }
 
 export function buildGameSummary(ctx: RoomManagerContext, room: Room): GameSummary {
@@ -328,6 +348,7 @@ export function buildGameSummary(ctx: RoomManagerContext, room: Room): GameSumma
       room.seatTokens.white,
       room.mode,
       ctx.pveBuiltinEngineClientId,
+      room.pveBotId,
     ),
     participantForSeatToken(
       'black',
@@ -335,6 +356,7 @@ export function buildGameSummary(ctx: RoomManagerContext, room: Room): GameSumma
       room.seatTokens.black,
       room.mode,
       ctx.pveBuiltinEngineClientId,
+      room.pveBotId,
     ),
   ];
   // Rated play is human-vs-human between two signed-in accounts. A guest seat or

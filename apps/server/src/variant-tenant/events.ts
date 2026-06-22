@@ -6,7 +6,7 @@
  */
 
 import { clockPolicyKindFor } from '@mistboard/game';
-import { firstPartyBotForEngine } from '../first-party-bots.js';
+import { firstPartyBotForEngine, firstPartyBotForId } from '../first-party-bots.js';
 import { logger } from '../obs.js';
 import * as persistence from '../persistence.js';
 import { releaseLiveEngineReservation } from '../server-live-engine-reservations.js';
@@ -370,6 +370,17 @@ function tenantParticipant<
   const seatedClientId = room.projection.seats[color];
   if (seatedClientId && tenant.engine?.isEngineClientId(seatedClientId)) {
     const engineVersion = tenant.engine.engineVersion?.(seatedClientId) ?? null;
+    if (room.pveBotId) {
+      const bot = firstPartyBotForId(room.pveBotId);
+      return {
+        color: color as persistence.GameParticipantColor,
+        displayName: bot?.displayName ?? tenant.engine.displayName(seatedClientId),
+        subjectType: 'bot',
+        subjectId: room.pveBotId,
+        ...(engineVersion != null ? { engineVersion } : {}),
+        visibility,
+      };
+    }
     const bot = firstPartyBotForEngine(seatedClientId);
     if (bot) {
       return {

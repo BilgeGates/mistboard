@@ -60,6 +60,9 @@ export type GameEvent =
       // after a restart preserves it; the actual rated outcome is still
       // account-gated at game end (see room-manager buildGameSummary).
       rated?: boolean;
+      // Server-owned PvE bot attribution. The engine seat still records the
+      // executable engine id; this preserves which bot profile requested it.
+      pveBotId?: string;
     }
   | {
       type: 'seat-assigned';

@@ -152,6 +152,7 @@ export async function tryHandle(
       return true;
     }
     const selectedEngineId = engineId ?? ctx.pveBuiltinEngineClientId;
+    const selectedBotId = mode === 'pve' && typeof body.botId === 'string' ? body.botId : null;
     let engineReservationId: string | null = null;
     try {
       if (mode === 'pve') {
@@ -167,6 +168,7 @@ export async function tryHandle(
         {
           engineColor,
           ...(engineReservationId ? { engineReservationId } : {}),
+          ...(selectedBotId ? { botId: selectedBotId } : {}),
           ...(pvpRandomSeating ? { randomSeating: true } : {}),
           ...(pvpCreatorPreference ? { creatorPreference: pvpCreatorPreference } : {}),
         },

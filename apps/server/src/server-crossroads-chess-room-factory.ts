@@ -19,6 +19,7 @@ import { createTenantLiveRoom } from './variant-tenant/room-factory.js';
 export type CrossroadsChessRoomEngineSeat = {
   engineId: string;
   seat: 'white' | 'red';
+  botId?: string;
 };
 
 export type CrossroadsChessLiveRoomCreation =

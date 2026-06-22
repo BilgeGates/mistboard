@@ -13,6 +13,7 @@ import { createTenantLiveRoom } from './variant-tenant/room-factory.js';
 export type JieqiRoomEngineSeat = {
   engineId: string;
   seat: 'red' | 'black';
+  botId?: string;
 };
 
 export type JieqiLiveRoomCreation =

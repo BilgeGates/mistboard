@@ -21,7 +21,7 @@ export type DarkMiniXiangqiCreateContext = {
   createDarkMiniXiangqiRoom(
     timeControl?: RoomTimeControl,
     creatorPreference?: 'red' | 'black' | 'random',
-    engine?: { engineId: string; seat: 'red' | 'black'; reservationId: string },
+    engine?: { engineId: string; seat: 'red' | 'black'; reservationId: string; botId?: string },
     rated?: boolean,
   ): Promise<
     | { ok: true; room: { id: string; gameSpecId: string; rated: boolean } }
@@ -88,7 +88,10 @@ export async function handleDarkMiniXiangqiCreate(
     return;
   }
   const rated = wantsRated && mode === 'pvp';
-  let engine: { engineId: string; seat: 'red' | 'black'; reservationId: string } | undefined;
+  const botId = typeof body.botId === 'string' ? body.botId : undefined;
+  let engine:
+    | { engineId: string; seat: 'red' | 'black'; reservationId: string; botId?: string }
+    | undefined;
   if (mode === 'pve') {
     const engineId =
       typeof body.engineId === 'string' && body.engineId.length > 0
@@ -117,7 +120,7 @@ export async function handleDarkMiniXiangqiCreate(
       writeJson(response, 503, { error: 'engine_unavailable' });
       return;
     }
-    engine = { engineId, seat: engineSeat, reservationId };
+    engine = { engineId, seat: engineSeat, reservationId, ...(botId ? { botId } : {}) };
   }
   if (ctx.databaseRequired && !persistence.isInitialized()) {
     writeJson(response, 503, { error: 'persistence_disabled' });

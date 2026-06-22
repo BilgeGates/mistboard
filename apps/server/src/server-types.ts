@@ -111,6 +111,7 @@ export type Room = {
   // Random preference uses randomSeating instead, so this is null in that path.
   creatorPreference: 'white' | 'black' | null;
   pveEngineId: string | null;
+  pveBotId: string | null;
   pendingWrites: Promise<void>;
   gameEndRecorded: boolean;
   variant: VariantId;

@@ -61,6 +61,7 @@ export type TenantRoomEvent<C extends string, M, Spec extends string = string> =
       gameSpecId: Spec;
       creatorPreference?: C | 'random';
       rated?: boolean;
+      pveBotId?: string;
       timeControl?: RoomTimeControl;
       // Server-secret per-game setup (e.g. a jieqi deal). Produced by
       // rules.createSetup at room creation, persisted here as the replay source
@@ -187,6 +188,9 @@ export type TenantRuntimeRoom<
   // creation, sent on every engine turn (the service 409s without it), released
   // on game end. Null for PvP and until reserved.
   engineReservationId: string | null;
+  // PvE: bot profile that requested the engine seat. Hydrated from the initial
+  // room-created event; the engine seat itself remains the executable engine id.
+  pveBotId: string | null;
 };
 
 export type TenantSnapshotClient<C extends string> = {

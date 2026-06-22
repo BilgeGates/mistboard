@@ -15,7 +15,7 @@ export type JieqiCreateContext = {
   createJieqiRoom(
     timeControl?: RoomTimeControl,
     creatorPreference?: 'red' | 'black' | 'random',
-    engine?: { engineId: string; seat: 'red' | 'black' },
+    engine?: { engineId: string; seat: 'red' | 'black'; botId?: string },
   ): Promise<
     | { ok: true; room: { id: string; gameSpecId: string } }
     | { ok: false; error: 'jieqi_disabled' | 'persistence_failure' | 'room_id_collision' }
@@ -67,7 +67,8 @@ export async function handleJieqiCreate(
 
   // PvE: seat a PikaJieQi engine (Tier-B UCI). Red is the first mover; the human
   // takes their preferred color and the engine takes the other seat.
-  let engine: { engineId: string; seat: 'red' | 'black' } | undefined;
+  const botId = typeof body.botId === 'string' ? body.botId : undefined;
+  let engine: { engineId: string; seat: 'red' | 'black'; botId?: string } | undefined;
   if (mode === 'pve') {
     const engineId =
       typeof body.engineId === 'string' && body.engineId.length > 0
@@ -78,7 +79,11 @@ export async function handleJieqiCreate(
       return;
     }
     const humanColor = jieqiPveHumanColor(preferredColor);
-    engine = { engineId, seat: humanColor === 'red' ? 'black' : 'red' };
+    engine = {
+      engineId,
+      seat: humanColor === 'red' ? 'black' : 'red',
+      ...(botId ? { botId } : {}),
+    };
   }
 
   const created = await ctx.createJieqiRoom(timeControl ?? undefined, preferredColor, engine);

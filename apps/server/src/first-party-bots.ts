@@ -49,11 +49,17 @@ export const FIRST_PARTY_BOT_PROFILES: readonly FirstPartyBotProfile[] = [
 ];
 
 const botByEngineId = new Map<string, FirstPartyBotProfile>();
+const botById = new Map<string, FirstPartyBotProfile>();
 for (const bot of FIRST_PARTY_BOT_PROFILES) {
+  botById.set(bot.id, bot);
   botByEngineId.set(bot.activeEngineId, bot);
   for (const engineId of bot.attributionEngineIds ?? []) {
     botByEngineId.set(engineId, bot);
   }
+}
+
+export function firstPartyBotForId(botId: string): FirstPartyBotProfile | null {
+  return botById.get(botId) ?? null;
 }
 
 export function firstPartyBotForEngine(engineId: string): FirstPartyBotProfile | null {

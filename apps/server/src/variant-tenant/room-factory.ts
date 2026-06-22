@@ -24,6 +24,7 @@ export type TenantRoomEngineSeat<C extends string> = {
   engineId: string;
   seat: C;
   reservationId?: string;
+  botId?: string;
 };
 
 export type TenantLiveRoomCreation<
@@ -80,6 +81,7 @@ export async function createTenantLiveRoom<
     }
     const created = createTenantRuntimeRoom(tenant, roomId, {
       creatorPreference,
+      pveBotId: engine?.botId,
       rated,
       timeControl,
     });

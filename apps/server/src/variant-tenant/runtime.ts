@@ -168,6 +168,7 @@ export function createTenantRuntimeRoom<
   options: {
     creatorPreference?: C | 'random';
     now?: number;
+    pveBotId?: string;
     rated?: boolean;
     timeControl?: RoomTimeControl;
   } = {},
@@ -183,6 +184,7 @@ export function createTenantRuntimeRoom<
       roomId,
       gameSpecId: tenant.gameSpecId,
       ...(options.creatorPreference ? { creatorPreference: options.creatorPreference } : {}),
+      ...(options.pveBotId ? { pveBotId: options.pveBotId } : {}),
       ...(options.rated ? { rated: true } : {}),
       ...(options.timeControl ? { timeControl: options.timeControl } : {}),
       ...(setup !== undefined ? { setup } : {}),
@@ -220,6 +222,7 @@ export function createTenantRuntimeRoomFromEvents<
   if (events.length === 0) return { ok: false, error: 'empty_event_log' };
   if (!isTenantEventLog(tenant, events)) return { ok: false, error: 'invalid_event_log' };
   const first = events[0]!;
+  const pveBotId = first.type === 'room-created' ? (first.pveBotId ?? null) : null;
   return {
     ok: true,
     room: {
@@ -243,6 +246,7 @@ export function createTenantRuntimeRoomFromEvents<
       rematch: { offers: {} },
       engineTimer: null,
       engineReservationId: null,
+      pveBotId,
     },
   };
 }
@@ -567,6 +571,7 @@ export function isTenantEvent<
       (event.creatorPreference === undefined ||
         event.creatorPreference === 'random' ||
         tenant.rules.isColor(event.creatorPreference)) &&
+      (event.pveBotId === undefined || typeof event.pveBotId === 'string') &&
       (event.rated === undefined || typeof event.rated === 'boolean') &&
       (event.timeControl === undefined || isRoomTimeControl(event.timeControl))
     );

@@ -610,6 +610,43 @@ test('buildGameSummary: current first-party engine seat records bot profile iden
   });
 });
 
+test('buildGameSummary: explicit PvE bot id wins over engine-id inference', () => {
+  const events: GameEvent[] = [
+    {
+      type: 'room-created',
+      at: 1,
+      roomId: 'room-explicit-bot-pve',
+      variant: 'dark-chess',
+      offer: [],
+    },
+    {
+      type: 'seat-assigned',
+      at: 2,
+      roomId: 'room-explicit-bot-pve',
+      clientId: 'human-c',
+      seat: 'white',
+    },
+    {
+      type: 'seat-assigned',
+      at: 3,
+      roomId: 'room-explicit-bot-pve',
+      clientId: 'python-v2-v1.5',
+      seat: 'black',
+    },
+    { type: 'seat-resigned', at: 4, roomId: 'room-explicit-bot-pve', color: 'white' },
+  ];
+  const room = makeRoom('room-explicit-bot-pve', 'dark-chess', events);
+  room.mode = 'pve';
+  room.pveBotId = 'misty-dmx';
+  const ctx = makeCtx();
+
+  const summary = buildGameSummary(ctx, room);
+
+  assert.equal(summary.participants?.[1]?.subjectType, 'bot');
+  assert.equal(summary.participants?.[1]?.subjectId, 'misty-dmx');
+  assert.equal(summary.participants?.[1]?.displayName, 'Misty DMX');
+});
+
 test('buildGameSummary: historical first-party engine seat records bot profile identity', () => {
   const events: GameEvent[] = [
     {

@@ -18,7 +18,7 @@ export type BanqiCreateContext = {
   createBanqiRoom(
     timeControl?: RoomTimeControl,
     creatorPreference?: 'red' | 'black' | 'random',
-    engine?: { engineId: string; seat: 'red' | 'black' },
+    engine?: { engineId: string; seat: 'red' | 'black'; botId?: string },
   ): Promise<
     | { ok: true; room: { id: string; gameSpecId: string } }
     | { ok: false; error: 'banqi_disabled' | 'persistence_failure' | 'room_id_collision' }
@@ -71,7 +71,8 @@ export async function handleBanqiCreate(
   // PvE: seat a MistyBanqi engine (Tier-B UCI). The human takes their preferred seat;
   // the engine takes the other. 'red' = first mover, so a human on 'black' makes the
   // engine open.
-  let engine: { engineId: string; seat: 'red' | 'black' } | undefined;
+  const botId = typeof body.botId === 'string' ? body.botId : undefined;
+  let engine: { engineId: string; seat: 'red' | 'black'; botId?: string } | undefined;
   if (mode === 'pve') {
     const engineId =
       typeof body.engineId === 'string' && body.engineId.length > 0
@@ -82,7 +83,11 @@ export async function handleBanqiCreate(
       return;
     }
     const humanSeat = banqiPveHumanSeat(preferredSeat);
-    engine = { engineId, seat: humanSeat === 'red' ? 'black' : 'red' };
+    engine = {
+      engineId,
+      seat: humanSeat === 'red' ? 'black' : 'red',
+      ...(botId ? { botId } : {}),
+    };
   }
 
   const created = await ctx.createBanqiRoom(timeControl ?? undefined, preferredSeat, engine);

@@ -22,7 +22,7 @@ export type CrossroadsChessCreateContext = {
   createCrossroadsChessRoom(
     timeControl?: RoomTimeControl,
     creatorPreference?: 'white' | 'red' | 'random',
-    engine?: { engineId: string; seat: 'white' | 'red' },
+    engine?: { engineId: string; seat: 'white' | 'red'; botId?: string },
   ): Promise<
     | { ok: true; room: { id: string; gameSpecId: string } }
     | {
@@ -71,7 +71,8 @@ export async function handleCrossroadsChessCreate(
     return;
   }
 
-  let engine: { engineId: string; seat: 'white' | 'red' } | undefined;
+  const botId = typeof body.botId === 'string' ? body.botId : undefined;
+  let engine: { engineId: string; seat: 'white' | 'red'; botId?: string } | undefined;
   if (mode === 'pve') {
     const engineId =
       typeof body.engineId === 'string' && body.engineId.length > 0
@@ -82,7 +83,11 @@ export async function handleCrossroadsChessCreate(
       return;
     }
     const humanColor = crossroadsChessPveHumanColor(preferredColor);
-    engine = { engineId, seat: humanColor === 'white' ? 'red' : 'white' };
+    engine = {
+      engineId,
+      seat: humanColor === 'white' ? 'red' : 'white',
+      ...(botId ? { botId } : {}),
+    };
   }
 
   const created = await ctx.createCrossroadsChessRoom(
