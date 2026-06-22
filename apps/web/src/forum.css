@@ -373,12 +373,50 @@ a.forum-category-index-main:hover strong,
   text-decoration: none;
 }
 
+.forum-topic-title-line {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: baseline;
+  min-width: 0;
+}
+
+.forum-topic-page-links {
+  display: inline-flex;
+  gap: 4px;
+  align-items: center;
+  font-size: 12px;
+  font-weight: 800;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.forum-topic-page-link {
+  display: inline-flex;
+  min-width: 22px;
+  min-height: 22px;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--site-border-soft);
+  border-radius: var(--site-radius-sm);
+  background: var(--site-panel-soft);
+  color: var(--site-accent-strong);
+  font-variant-numeric: tabular-nums;
+  text-decoration: none;
+}
+
+.forum-topic-page-ellipsis {
+  color: var(--site-muted);
+}
+
 a.forum-topic-title:hover,
 a.forum-topic-title:focus-visible,
 .forum-topic-author:hover,
 .forum-topic-author:focus-visible,
 .forum-topic-latest-link:hover,
-.forum-topic-latest-link:focus-visible {
+.forum-topic-latest-link:focus-visible,
+.forum-topic-page-link:hover,
+.forum-topic-page-link:focus-visible {
   color: var(--site-link);
   text-decoration: underline;
 }

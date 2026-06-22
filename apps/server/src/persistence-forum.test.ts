@@ -30,7 +30,7 @@ definePersistenceTests('forum', () => {
     const categories = await listForumCategories();
     assert.deepEqual(
       categories.map((category) => category.slug),
-      ['announcements', 'rules', 'strategy', 'engines', 'support'],
+      ['announcements', 'rules', 'strategy', 'game-analysis', 'engines', 'support'],
     );
     assert.equal(categories[0]?.topicWritePolicy, 'admin');
 

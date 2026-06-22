@@ -319,6 +319,13 @@ describe('forum pages', () => {
     expect(
       root.querySelector<HTMLAnchorElement>('.forum-topic-latest-link')?.getAttribute('href'),
     ).toBe('/forum/t/topic_strategy/scouting-the-center?page=2#post_post_strategy_reply');
+    const pageLinks = Array.from(
+      root.querySelectorAll<HTMLAnchorElement>('.forum-topic-page-link'),
+    );
+    expect(pageLinks.map((link) => link.textContent)).toEqual(['2']);
+    expect(pageLinks.map((link) => link.getAttribute('href'))).toEqual([
+      '/forum/t/topic_strategy/scouting-the-center?page=2',
+    ]);
   });
 
   it('allows admins to start announcement topics', async () => {

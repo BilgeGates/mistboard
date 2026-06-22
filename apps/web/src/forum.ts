@@ -537,6 +537,11 @@ function topicRow(topic: ForumTopicSummary, options: { showCategory?: boolean } 
   title.className = 'forum-topic-title';
   title.href = topicHref(topic);
   title.textContent = topic.title;
+  const titleLine = document.createElement('div');
+  titleLine.className = 'forum-topic-title-line';
+  titleLine.append(title);
+  const pageLinks = topicInlinePageLinks(topic);
+  if (pageLinks) titleLine.append(pageLinks);
 
   const meta = document.createElement('p');
   meta.className = 'forum-topic-meta';
@@ -546,7 +551,7 @@ function topicRow(topic: ForumTopicSummary, options: { showCategory?: boolean } 
     document.createTextNode(` · ${formatDate(topic.createdAt)}`),
   );
   if (flags.childElementCount > 0) main.append(flags);
-  main.append(title, meta);
+  main.append(titleLine, meta);
 
   const replies = document.createElement('span');
   replies.className = 'forum-topic-row-replies';
@@ -569,6 +574,34 @@ function topicRow(topic: ForumTopicSummary, options: { showCategory?: boolean } 
 
   row.append(main, replies, latestCell);
   return row;
+}
+
+function topicInlinePageLinks(topic: ForumTopicSummary): HTMLElement | null {
+  const pageCount = pageForPostCount(topic.postCount);
+  if (pageCount <= 1) return null;
+  const pages =
+    pageCount <= 4
+      ? Array.from({ length: pageCount - 1 }, (_, index) => index + 2)
+      : [2, 0, pageCount];
+  const nav = document.createElement('span');
+  nav.className = 'forum-topic-page-links';
+  for (const page of pages) {
+    if (page === 0) {
+      const ellipsis = document.createElement('span');
+      ellipsis.className = 'forum-topic-page-ellipsis';
+      ellipsis.setAttribute('aria-hidden', 'true');
+      ellipsis.textContent = '...';
+      nav.append(ellipsis);
+      continue;
+    }
+    const link = document.createElement('a');
+    link.className = 'forum-topic-page-link';
+    link.href = topicPageHref(topic, page);
+    link.setAttribute('aria-label', `${topic.title}, page ${page}`);
+    link.textContent = String(page);
+    nav.append(link);
+  }
+  return nav;
 }
 
 function replyCount(topic: ForumTopicSummary): number {
