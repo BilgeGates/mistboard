@@ -24,6 +24,7 @@
     "engine:enqueue": "npm run engine:enqueue --workspace=@mistboard/server",
     "engine:enqueue-smoke": "npm run engine:enqueue-smoke --workspace=@mistboard/server",
     "engine:enqueue-tournament": "npm run engine:enqueue-tournament --workspace=@mistboard/server",
+    "engine:bot-rating-import": "npm run engine:bot-rating-import --workspace=@mistboard/server",
     "engine:elo-report": "npm run engine:elo-report --workspace=@mistboard/server",
     "engine:queue-status": "npm run engine:queue-status --workspace=@mistboard/server",
     "engine:tournament-status": "npm run engine:tournament-status --workspace=@mistboard/server",
