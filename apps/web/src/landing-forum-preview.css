@@ -118,6 +118,23 @@ a.landing-forum-row-main:hover .landing-forum-row-title,
     grid-area: posts;
   }
 
+  .landing-forum-row-stat {
+    text-align: left;
+  }
+
+  .landing-forum-row-stat::before {
+    color: var(--site-muted);
+    font-weight: 650;
+  }
+
+  .landing-forum-row-stat:nth-child(2)::before {
+    content: "Topics: ";
+  }
+
+  .landing-forum-row-stat:nth-child(3)::before {
+    content: "Posts: ";
+  }
+
   .landing-forum-row-last {
     grid-area: last;
   }
