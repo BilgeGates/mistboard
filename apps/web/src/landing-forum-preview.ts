@@ -1,14 +1,26 @@
-import './landing-forum-preview.css';
 import { buildSiteBox } from './site-box.js';
+import './landing-forum-preview.css';
 
-type ForumTopicSummary = {
-  id: string;
+type ForumAuthor = {
+  handle: string;
+  displayName: string;
+} | null;
+
+type ForumCategorySummary = {
   slug: string;
-  title: string;
-  category: {
-    name: string;
-  };
+  name: string;
+  description: string;
+  topicCount: number;
   postCount: number;
+  latestPost: {
+    topic: {
+      id: string;
+      slug: string;
+      title: string;
+    };
+    author: ForumAuthor;
+    createdAt: string;
+  } | null;
 };
 
 export function buildLandingForumPreview(options: { hydrate?: boolean } = {}): HTMLElement {
@@ -17,7 +29,7 @@ export function buildLandingForumPreview(options: { hydrate?: boolean } = {}): H
     href: '/forum',
     className: 'landing-forum',
   });
-  body.append(plainRow('Loading forum topics.'));
+  body.append(plainRow('Loading forum.'));
   if (options.hydrate !== false) {
     void hydrateForumPreview(body);
   }
@@ -26,30 +38,82 @@ export function buildLandingForumPreview(options: { hydrate?: boolean } = {}): H
 
 async function hydrateForumPreview(body: HTMLElement): Promise<void> {
   try {
-    const topics = await fetchForumTopics();
+    const categories = await fetchForumCategories();
     body.replaceChildren();
-    if (topics.length === 0) {
-      body.append(plainRow('No forum topics yet.'));
+    if (categories.length === 0) {
+      body.append(plainRow('Forum categories are not ready.'));
       return;
     }
-    body.append(...topics.map(topicRow));
+    body.append(categoryHeader(), ...categories.slice(0, 5).map(categoryRow));
   } catch {
     body.replaceChildren(plainRow('Forum unavailable.'));
   }
 }
 
-function topicRow(topic: ForumTopicSummary): HTMLElement {
+function categoryHeader(): HTMLElement {
+  const row = document.createElement('div');
+  row.className = 'landing-forum-row landing-forum-header';
+  row.append(
+    headerCell('Forum'),
+    headerCell('Topics'),
+    headerCell('Posts'),
+    headerCell('Last post'),
+  );
+  return row;
+}
+
+function categoryRow(category: ForumCategorySummary): HTMLElement {
   const row = document.createElement('a');
   row.className = 'site-box-row landing-forum-row';
-  row.href = `/forum/t/${encodeURIComponent(topic.id)}/${encodeURIComponent(topic.slug)}`;
+  row.href = `/forum?category=${encodeURIComponent(category.slug)}`;
+
+  const main = document.createElement('span');
+  main.className = 'landing-forum-row-main';
   const title = document.createElement('span');
   title.className = 'landing-forum-row-title';
-  title.textContent = topic.title;
+  title.textContent = category.name;
+  const desc = document.createElement('span');
+  desc.className = 'landing-forum-row-desc';
+  desc.textContent = category.description;
+  main.append(title, desc);
+
+  row.append(
+    main,
+    statCell(category.topicCount),
+    statCell(category.postCount),
+    latestPostCell(category),
+  );
+  return row;
+}
+
+function headerCell(text: string): HTMLElement {
+  const cell = document.createElement('span');
+  cell.textContent = text;
+  return cell;
+}
+
+function statCell(value: number): HTMLElement {
+  const cell = document.createElement('span');
+  cell.className = 'landing-forum-row-stat';
+  cell.textContent = formatCount(value);
+  return cell;
+}
+
+function latestPostCell(category: ForumCategorySummary): HTMLElement {
+  const cell = document.createElement('span');
+  cell.className = 'landing-forum-row-last';
+  if (!category.latestPost) {
+    cell.textContent = 'No posts yet';
+    return cell;
+  }
+  const title = document.createElement('span');
+  title.className = 'landing-forum-row-last-title';
+  title.textContent = category.latestPost.topic.title;
   const meta = document.createElement('span');
   meta.className = 'landing-forum-row-meta';
-  meta.textContent = `${topic.category.name} · ${topic.postCount}`;
-  row.append(title, meta);
-  return row;
+  meta.textContent = `${authorLabel(category.latestPost.author)} · ${formatDate(category.latestPost.createdAt)}`;
+  cell.append(title, meta);
+  return cell;
 }
 
 function plainRow(text: string): HTMLElement {
@@ -62,11 +126,23 @@ function plainRow(text: string): HTMLElement {
   return row;
 }
 
-async function fetchForumTopics(): Promise<ForumTopicSummary[]> {
-  const resp = await fetch('/api/forum/topics?limit=5', {
+function authorLabel(author: ForumAuthor): string {
+  return author?.displayName ?? 'Deleted account';
+}
+
+function formatCount(value: number): string {
+  return new Intl.NumberFormat('en-US').format(value);
+}
+
+function formatDate(iso: string): string {
+  return new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric' }).format(new Date(iso));
+}
+
+async function fetchForumCategories(): Promise<ForumCategorySummary[]> {
+  const resp = await fetch('/api/forum/categories', {
     headers: { accept: 'application/json' },
   });
   if (!resp.ok) throw new Error(`forum_preview_failed_${resp.status}`);
-  const data = (await resp.json()) as { topics: ForumTopicSummary[] };
-  return data.topics;
+  const data = (await resp.json()) as { categories: ForumCategorySummary[] };
+  return data.categories;
 }

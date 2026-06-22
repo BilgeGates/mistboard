@@ -11,12 +11,24 @@ export type ForumCategory = {
   sortOrder: number;
   topicWritePolicy: ForumTopicWritePolicy;
   topicCount: number;
+  postCount: number;
+  latestPost: ForumCategoryLatestPost | null;
 };
 
 export type ForumAuthor = {
   handle: string;
   displayName: string;
 } | null;
+
+export type ForumCategoryLatestPost = {
+  topic: {
+    id: string;
+    slug: string;
+    title: string;
+  };
+  author: ForumAuthor;
+  createdAt: Date;
+};
 
 export type ForumTopicSummary = {
   id: string;
@@ -68,10 +80,38 @@ export type HideForumPostResult =
 export async function listForumCategories(): Promise<ForumCategory[]> {
   const { rows } = await getPool().query<ForumCategoryRow>(
     `SELECT c.id, c.slug, c.name, c.description, c.sort_order, c.topic_write_policy,
-            COUNT(t.id)::int AS topic_count
+            COUNT(t.id)::int AS topic_count,
+            COALESCE(SUM(t.post_count), 0)::int AS post_count,
+            latest.topic_id AS latest_topic_id,
+            latest.topic_slug AS latest_topic_slug,
+            latest.topic_title AS latest_topic_title,
+            latest.created_at AS latest_post_created_at,
+            latest.author_handle AS latest_post_author_handle,
+            latest.author_display_name AS latest_post_author_display_name
      FROM forum_categories c
      LEFT JOIN forum_topics t ON t.category_id = c.id AND t.hidden_at IS NULL
-     GROUP BY c.id
+     LEFT JOIN LATERAL (
+       SELECT latest_topic.id AS topic_id,
+              latest_topic.slug AS topic_slug,
+              latest_topic.title AS topic_title,
+              latest_topic.last_post_at AS created_at,
+              u.handle AS author_handle,
+              COALESCE(u.display_name, u.handle) AS author_display_name
+       FROM forum_topics latest_topic
+       LEFT JOIN LATERAL (
+         SELECT p.author_account_id
+         FROM forum_posts p
+         WHERE p.topic_id = latest_topic.id AND p.hidden_at IS NULL
+         ORDER BY p.created_at DESC, p.id DESC
+         LIMIT 1
+       ) latest_post ON TRUE
+       LEFT JOIN users u ON u.id = latest_post.author_account_id
+       WHERE latest_topic.category_id = c.id AND latest_topic.hidden_at IS NULL
+       ORDER BY latest_topic.last_post_at DESC, latest_topic.created_at DESC
+       LIMIT 1
+     ) latest ON TRUE
+     GROUP BY c.id, latest.topic_id, latest.topic_slug, latest.topic_title,
+              latest.created_at, latest.author_handle, latest.author_display_name
      ORDER BY c.sort_order ASC, c.name ASC`,
   );
   return rows.map(categoryFromRow);
@@ -352,6 +392,13 @@ type ForumCategoryRow = {
   sort_order: number;
   topic_write_policy: ForumTopicWritePolicy;
   topic_count: number;
+  post_count: number;
+  latest_topic_id: string | null;
+  latest_topic_slug: string | null;
+  latest_topic_title: string | null;
+  latest_post_created_at: Date | null;
+  latest_post_author_handle: string | null;
+  latest_post_author_display_name: string | null;
 };
 
 type ForumTopicRow = {
@@ -388,6 +435,25 @@ function categoryFromRow(row: ForumCategoryRow): ForumCategory {
     sortOrder: row.sort_order,
     topicWritePolicy: row.topic_write_policy,
     topicCount: row.topic_count,
+    postCount: row.post_count,
+    latestPost:
+      row.latest_topic_id &&
+      row.latest_topic_slug &&
+      row.latest_topic_title &&
+      row.latest_post_created_at
+        ? {
+            topic: {
+              id: row.latest_topic_id,
+              slug: row.latest_topic_slug,
+              title: row.latest_topic_title,
+            },
+            author: authorFromRow(
+              row.latest_post_author_handle,
+              row.latest_post_author_display_name,
+            ),
+            createdAt: row.latest_post_created_at,
+          }
+        : null,
   };
 }
 

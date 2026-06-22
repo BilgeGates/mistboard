@@ -35,6 +35,26 @@ type ForumTopicJson = {
   lastPostAt: string;
 };
 
+type ForumCategoryJson = {
+  id: string;
+  slug: string;
+  name: string;
+  description: string;
+  sortOrder: number;
+  topicWritePolicy: persistence.ForumTopicWritePolicy;
+  topicCount: number;
+  postCount: number;
+  latestPost: {
+    topic: {
+      id: string;
+      slug: string;
+      title: string;
+    };
+    author: persistence.ForumAuthor;
+    createdAt: string;
+  } | null;
+};
+
 type ForumPostJson = {
   id: string;
   author: persistence.ForumAuthor;
@@ -54,7 +74,7 @@ export async function tryHandle(
     if (!requireMethod(request, response, 'GET')) return true;
     if (!requirePersistence(response)) return true;
     const categories = await persistence.listForumCategories();
-    writeJson(response, 200, { categories });
+    writeJson(response, 200, { categories: categories.map(serializeCategory) });
     return true;
   }
 
@@ -266,6 +286,26 @@ async function moderatePost(
   }
   writeJson(response, 200, { ok: true, topicHidden: result.topicHidden });
   return true;
+}
+
+function serializeCategory(category: persistence.ForumCategory): ForumCategoryJson {
+  return {
+    id: category.id,
+    slug: category.slug,
+    name: category.name,
+    description: category.description,
+    sortOrder: category.sortOrder,
+    topicWritePolicy: category.topicWritePolicy,
+    topicCount: category.topicCount,
+    postCount: category.postCount,
+    latestPost: category.latestPost
+      ? {
+          topic: category.latestPost.topic,
+          author: category.latestPost.author,
+          createdAt: category.latestPost.createdAt.toISOString(),
+        }
+      : null,
+  };
 }
 
 function serializeTopicDetail(topic: persistence.ForumTopicDetail): ForumTopicJson & {

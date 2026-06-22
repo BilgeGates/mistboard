@@ -9,6 +9,16 @@ type ForumCategory = {
   sortOrder: number;
   topicWritePolicy: 'account' | 'admin';
   topicCount: number;
+  postCount: number;
+  latestPost: {
+    topic: {
+      id: string;
+      slug: string;
+      title: string;
+    };
+    author: ForumAuthor;
+    createdAt: string;
+  } | null;
 };
 
 type ForumAuthor = {
@@ -80,12 +90,18 @@ export async function mountForum(root: HTMLElement): Promise<void> {
 
   const sidebar = document.createElement('aside');
   sidebar.className = 'forum-sidebar';
-  sidebar.append(categoryList(categories));
+  const selectedCategory = categories.find((category) => category.slug === categoryFilter);
+  if (selectedCategory) sidebar.append(categoryList(categories, selectedCategory.slug));
+  sidebar.append(user ? newTopicForm(categories, user) : signInBox('Sign in to start a topic.'));
 
   const main = document.createElement('section');
   main.className = 'forum-main';
+  if (selectedCategory) {
+    main.append(categoryHeaderBox(selectedCategory));
+  } else {
+    main.append(categoryIndex(categories), sectionTitle('Recent topics'));
+  }
   main.append(topicList(topics));
-  main.append(user ? newTopicForm(categories, user) : signInBox('Sign in to start a topic.'));
 
   body.replaceChildren(sidebar, main);
 }
@@ -166,13 +182,28 @@ function topicHeader(topic: ForumTopicDetail): HTMLElement {
   return header;
 }
 
-function categoryList(categories: ForumCategory[]): HTMLElement {
+function categoryList(
+  categories: ForumCategory[],
+  selectedSlug: string | null = null,
+): HTMLElement {
   const wrap = document.createElement('section');
   wrap.className = 'forum-category-list';
+  const all = document.createElement('a');
+  all.className = 'forum-category-card';
+  all.href = '/forum';
+  if (!selectedSlug) all.classList.add('forum-category-card-active');
+  const allTitle = document.createElement('strong');
+  allTitle.textContent = 'All topics';
+  const allCount = document.createElement('p');
+  const totalTopics = categories.reduce((sum, category) => sum + category.topicCount, 0);
+  allCount.textContent = `${totalTopics} ${totalTopics === 1 ? 'topic' : 'topics'}`;
+  all.append(allTitle, allCount);
+  wrap.append(all);
   for (const category of categories) {
     const card = document.createElement('a');
     card.className = 'forum-category-card';
     card.href = `/forum?category=${encodeURIComponent(category.slug)}`;
+    if (category.slug === selectedSlug) card.classList.add('forum-category-card-active');
     const title = document.createElement('strong');
     title.textContent = category.name;
     const desc = document.createElement('p');
@@ -183,6 +214,87 @@ function categoryList(categories: ForumCategory[]): HTMLElement {
     wrap.append(card);
   }
   return wrap;
+}
+
+function categoryIndex(categories: ForumCategory[]): HTMLElement {
+  const wrap = document.createElement('section');
+  wrap.className = 'forum-category-index';
+  const header = document.createElement('div');
+  header.className = 'forum-category-index-row forum-category-index-header';
+  header.append(
+    indexCell('Forum', 'forum-category-index-main'),
+    indexCell('Topics', 'forum-category-index-stat'),
+    indexCell('Posts', 'forum-category-index-stat'),
+    indexCell('Last post', 'forum-category-index-last'),
+  );
+  wrap.append(header);
+  for (const category of categories) wrap.append(categoryIndexRow(category));
+  return wrap;
+}
+
+function categoryIndexRow(category: ForumCategory): HTMLElement {
+  const row = document.createElement('a');
+  row.className = 'forum-category-index-row';
+  row.href = `/forum?category=${encodeURIComponent(category.slug)}`;
+
+  const main = document.createElement('span');
+  main.className = 'forum-category-index-main';
+  const title = document.createElement('strong');
+  title.textContent = category.name;
+  const desc = document.createElement('span');
+  desc.textContent = category.description;
+  main.append(title, desc);
+
+  row.append(
+    main,
+    indexCell(formatCount(category.topicCount), 'forum-category-index-stat'),
+    indexCell(formatCount(category.postCount), 'forum-category-index-stat'),
+    latestPostCell(category),
+  );
+  return row;
+}
+
+function latestPostCell(category: ForumCategory): HTMLElement {
+  const cell = document.createElement('span');
+  cell.className = 'forum-category-index-last';
+  if (!category.latestPost) {
+    cell.textContent = 'No posts yet';
+    return cell;
+  }
+  const title = document.createElement('span');
+  title.className = 'forum-category-latest-title';
+  title.textContent = category.latestPost.topic.title;
+  const meta = document.createElement('span');
+  meta.textContent = `${authorLabel(category.latestPost.author)} · ${formatDate(category.latestPost.createdAt)}`;
+  cell.append(title, meta);
+  return cell;
+}
+
+function indexCell(text: string, className: string): HTMLElement {
+  const cell = document.createElement('span');
+  cell.className = className;
+  cell.textContent = text;
+  return cell;
+}
+
+function categoryHeaderBox(category: ForumCategory): HTMLElement {
+  const box = document.createElement('section');
+  box.className = 'forum-category-header-box';
+  const heading = document.createElement('h2');
+  heading.textContent = category.name;
+  const desc = document.createElement('p');
+  desc.textContent = category.description;
+  const stats = document.createElement('p');
+  stats.textContent = `${category.topicCount} ${category.topicCount === 1 ? 'topic' : 'topics'} · ${category.postCount} ${category.postCount === 1 ? 'post' : 'posts'}`;
+  box.append(heading, desc, stats);
+  return box;
+}
+
+function sectionTitle(text: string): HTMLElement {
+  const heading = document.createElement('h2');
+  heading.className = 'forum-section-title';
+  heading.textContent = text;
+  return heading;
 }
 
 function topicList(topics: ForumTopicSummary[]): HTMLElement {
@@ -465,6 +577,10 @@ function pill(text: string): HTMLElement {
 
 function topicHref(topic: { id: string; slug: string }): string {
   return `/forum/t/${encodeURIComponent(topic.id)}/${encodeURIComponent(topic.slug)}`;
+}
+
+function formatCount(value: number): string {
+  return value.toLocaleString();
 }
 
 function authorLabel(author: ForumAuthor): string {

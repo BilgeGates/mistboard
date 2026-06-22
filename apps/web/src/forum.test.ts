@@ -9,6 +9,8 @@ const categories = [
     sortOrder: 10,
     topicWritePolicy: 'admin',
     topicCount: 0,
+    postCount: 0,
+    latestPost: null,
   },
   {
     id: 'strategy',
@@ -18,6 +20,16 @@ const categories = [
     sortOrder: 30,
     topicWritePolicy: 'account',
     topicCount: 1,
+    postCount: 2,
+    latestPost: {
+      topic: {
+        id: 'topic_strategy',
+        slug: 'scouting-the-center',
+        title: 'Scouting the center',
+      },
+      author: { handle: 'bob', displayName: 'Bob' },
+      createdAt: '2026-06-01T00:05:00.000Z',
+    },
   },
 ];
 
@@ -50,6 +62,7 @@ const adminUser = {
 describe('forum pages', () => {
   afterEach(() => {
     vi.restoreAllMocks();
+    window.history.pushState(null, '', '/');
   });
 
   it('renders the forum index with account-gated topic creation', async () => {
@@ -66,11 +79,36 @@ describe('forum pages', () => {
     await mountForum(root);
 
     expect(root.textContent).toContain('Forum');
+    expect(root.textContent).toContain('Topics');
+    expect(root.textContent).toContain('Posts');
+    expect(root.textContent).toContain('Bob');
     expect(root.textContent).toContain('Scouting the center');
     expect(root.textContent).toContain('Sign in to start a topic.');
     expect(root.querySelector<HTMLAnchorElement>('.forum-topic-card')?.getAttribute('href')).toBe(
       '/forum/t/topic_strategy/scouting-the-center',
     );
+  });
+
+  it('renders a selected category as a focused topic view', async () => {
+    const fetchedUrls: string[] = [];
+    window.history.pushState(null, '', '/forum?category=strategy');
+    vi.spyOn(globalThis, 'fetch').mockImplementation(async (input) => {
+      const url = String(input);
+      fetchedUrls.push(url);
+      if (url.startsWith('/api/forum/categories')) return json({ categories });
+      if (url.startsWith('/api/forum/topics')) return json({ topics: [topic] });
+      if (url.startsWith('/api/auth/me')) return json({ user: null });
+      throw new Error(`unexpected fetch ${url}`);
+    });
+    const root = document.createElement('div');
+    const { mountForum } = await import('./forum.js');
+
+    await mountForum(root);
+
+    expect(fetchedUrls).toContain('/api/forum/topics?category=strategy&limit=25');
+    expect(root.textContent).toContain('Openings and patterns.');
+    expect(root.textContent).toContain('1 topic · 2 posts');
+    expect(root.querySelector('.forum-category-header-box')?.textContent).toContain('Strategy');
   });
 
   it('allows admins to start announcement topics', async () => {
