@@ -23,6 +23,18 @@ type BotRecord = {
   draws: number;
 };
 
+type BotRatingSnapshot = {
+  gameSpecId: string;
+  timeClass: 'bullet' | 'blitz' | 'rapid';
+  rating: number;
+  ratingDeviation: number | null;
+  games: number;
+  source: 'manual' | 'eve-anchor' | 'import';
+  sourceRef: string | null;
+  createdAt: string;
+  provisional: boolean;
+};
+
 type BotProfile = {
   id: string;
   displayName: string;
@@ -33,6 +45,7 @@ type BotProfile = {
   play: BotPlay;
   gamesTotal: number;
   record: BotRecord;
+  rating: BotRatingSnapshot | null;
   games?: FeaturedGame[];
 };
 
@@ -154,6 +167,9 @@ function buildBotCard(bot: BotProfile): HTMLElement {
     detailChip(timeControlLabel(bot.play.timeControl)),
     detailChip(recordLabel(bot.record), 'bot-record-chip'),
   );
+  if (bot.rating) {
+    details.append(detailChip(`Rating ${ratingLabel(bot.rating)}`, 'bot-rating-chip'));
+  }
 
   const variants = document.createElement('div');
   variants.className = 'bot-variant-list';
@@ -195,12 +211,14 @@ function buildBotHeader(bot: BotProfile): HTMLElement {
 function buildBotStats(bot: BotProfile): HTMLElement {
   const stats = document.createElement('div');
   stats.className = 'profile-stats bot-stats';
-  stats.append(
-    statCell(gameSpecLabel(bot.defaultGameSpecId), 'Default'),
+  const cells = [statCell(gameSpecLabel(bot.defaultGameSpecId), 'Default')];
+  if (bot.rating) cells.push(statCell(ratingLabel(bot.rating), 'Rating'));
+  cells.push(
     statCell(recordLabel(bot.record), 'Record'),
     statCell(timeControlLabel(bot.play.timeControl), 'Play clock'),
     statCell(String(supportedGameSpecIds(bot).length), 'Variants'),
   );
+  stats.append(...cells);
   return stats;
 }
 
@@ -369,4 +387,8 @@ function gameCountLabel(games: number): string {
 
 function recordLabel(record: BotRecord): string {
   return `${record.wins}-${record.losses}-${record.draws}`;
+}
+
+function ratingLabel(rating: BotRatingSnapshot): string {
+  return `${new Intl.NumberFormat().format(rating.rating)}${rating.provisional ? '?' : ''}`;
 }

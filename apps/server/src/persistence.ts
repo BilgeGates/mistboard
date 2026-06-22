@@ -31,6 +31,8 @@ export type {
   BotOwnerType,
   BotProfile,
   BotProfilePage,
+  BotRatingSnapshot,
+  BotRatingSource,
 } from './persistence-bots.js';
 export { getPublicBotProfile, listPublicBots } from './persistence-bots.js';
 export type {

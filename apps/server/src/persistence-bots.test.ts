@@ -19,6 +19,24 @@ definePersistenceTests('bot profiles', () => {
   test('lists public bot profiles with public recent games', async () => {
     await insertBotProfile('test-bot', 'Test Bot', 'public');
     await insertBotProfile('private-bot', 'Private Bot', 'private');
+    await insertBotRatingSnapshot('test-bot', {
+      rating: 1812,
+      ratingDeviation: 92,
+      games: 48,
+      source: 'eve-anchor',
+      sourceRef: 'eve-report-2026-01-01',
+      published: true,
+      createdAt: new Date('2026-01-01T00:02:00Z'),
+    });
+    await insertBotRatingSnapshot('test-bot', {
+      rating: 2200,
+      ratingDeviation: 80,
+      games: 64,
+      source: 'manual',
+      sourceRef: 'draft-calibration',
+      published: false,
+      createdAt: new Date('2026-01-01T00:03:00Z'),
+    });
 
     const startedAt = new Date('2026-01-01T00:00:00Z');
     const publicEndedAt = new Date('2026-01-01T00:04:00Z');
@@ -104,6 +122,12 @@ definePersistenceTests('bot profiles', () => {
       losses: 0,
       draws: 0,
     });
+    assert.equal(bots[0]?.rating?.rating, 1812);
+    assert.equal(bots[0]?.rating?.ratingDeviation, 92);
+    assert.equal(bots[0]?.rating?.games, 48);
+    assert.equal(bots[0]?.rating?.source, 'eve-anchor');
+    assert.equal(bots[0]?.rating?.sourceRef, 'eve-report-2026-01-01');
+    assert.equal(bots[0]?.rating?.provisional, false);
     assert.equal(bots[0]?.play.engineId, 'python-v2-v1.4');
 
     const profile = await getPublicBotProfile('test-bot');
@@ -114,6 +138,7 @@ definePersistenceTests('bot profiles', () => {
       losses: 0,
       draws: 0,
     });
+    assert.equal(profile?.rating?.rating, 1812);
     assert.equal(profile?.games.length, 1);
     assert.equal(profile?.games[0]?.roomId, 'test-bot-public-game');
     assert.equal(profile?.games[0]?.playerColor, 'black');
@@ -199,6 +224,44 @@ async function insertBotProfile(
        VALUES ($1, $2, '', 'system', 'python-v2-v1.4', $3,
                ARRAY[$3], 180000, 2000, $4)`,
       [id, displayName, opts.gameSpecId ?? 'dark-chess', visibility],
+    );
+  } finally {
+    await client.end();
+  }
+}
+
+async function insertBotRatingSnapshot(
+  botId: string,
+  opts: {
+    rating: number;
+    ratingDeviation: number | null;
+    games: number;
+    source: 'manual' | 'eve-anchor' | 'import';
+    sourceRef: string | null;
+    published: boolean;
+    createdAt: Date;
+    gameSpecId?: string;
+  },
+): Promise<void> {
+  const client = new pg.Client({ connectionString: TEST_DATABASE_URL });
+  await client.connect();
+  try {
+    await client.query(
+      `INSERT INTO bot_rating_snapshots
+         (bot_id, game_spec_id, time_class, rating, rating_deviation, games,
+          source, source_ref, published, created_at)
+       VALUES ($1, $2, 'blitz', $3, $4, $5, $6, $7, $8, $9)`,
+      [
+        botId,
+        opts.gameSpecId ?? 'dark-chess',
+        opts.rating,
+        opts.ratingDeviation,
+        opts.games,
+        opts.source,
+        opts.sourceRef,
+        opts.published,
+        opts.createdAt,
+      ],
     );
   } finally {
     await client.end();

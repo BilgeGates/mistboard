@@ -94,6 +94,11 @@
   color: var(--site-accent-strong);
 }
 
+.bot-rating-chip {
+  background: color-mix(in srgb, #5a9f73 16%, var(--site-panel));
+  color: color-mix(in srgb, #2f7f4e 88%, var(--site-heading));
+}
+
 .bot-card-actions {
   margin-top: 2px;
 }

@@ -1,9 +1,24 @@
+import { PROVISIONAL_RD } from './glicko.js';
 import { getPool } from './persistence-db.js';
 import type { GameMode, GameTermination, GameVisibility } from './persistence-game-lifecycle.js';
 import type { GameParticipantColor, GameResult, ProfileGameRecord } from './persistence-games.js';
 import { attachGameParticipants } from './persistence-games.js';
+import type { RatingTimeClass } from './rating-buckets.js';
 
 export type BotOwnerType = 'system' | 'user';
+export type BotRatingSource = 'manual' | 'eve-anchor' | 'import';
+
+export type BotRatingSnapshot = {
+  gameSpecId: string;
+  timeClass: RatingTimeClass;
+  rating: number;
+  ratingDeviation: number | null;
+  games: number;
+  source: BotRatingSource;
+  sourceRef: string | null;
+  createdAt: Date;
+  provisional: boolean;
+};
 
 export type BotProfile = {
   id: string;
@@ -24,6 +39,7 @@ export type BotProfile = {
     };
     preferredColor: 'random';
   };
+  rating: BotRatingSnapshot | null;
   visibility: Extract<GameVisibility, 'private' | 'unlisted' | 'public'>;
   createdAt: Date;
   updatedAt: Date;
@@ -59,6 +75,14 @@ type BotProfileRow = {
   visibility: BotProfile['visibility'];
   created_at: Date;
   updated_at: Date;
+  rating_game_spec_id: string | null;
+  rating_time_class: RatingTimeClass | null;
+  rating_value: number | null;
+  rating_deviation: number | null;
+  rating_games: number | null;
+  rating_source: BotRatingSource | null;
+  rating_source_ref: string | null;
+  rating_created_at: Date | null;
 };
 
 type BotDirectoryRow = BotProfileRow & {
@@ -73,6 +97,14 @@ const BOT_GAMES_PAGE = 15;
 export async function listPublicBots(): Promise<BotDirectoryEntry[]> {
   const { rows } = await getPool().query<BotDirectoryRow>(
     `SELECT bot_profiles.*,
+            rating.game_spec_id AS rating_game_spec_id,
+            rating.time_class AS rating_time_class,
+            rating.rating AS rating_value,
+            rating.rating_deviation,
+            rating.games AS rating_games,
+            rating.source AS rating_source,
+            rating.source_ref AS rating_source_ref,
+            rating.created_at AS rating_created_at,
             COUNT(games.room_id)::text AS games_total,
             COUNT(*) FILTER (
               WHERE games.result = 'draw'
@@ -103,8 +135,20 @@ export async function listPublicBots(): Promise<BotDirectoryEntry[]> {
          ON games.room_id = game_participants.game_id
         AND games.status = 'completed'
         AND games.visibility = 'public'
+       LEFT JOIN LATERAL (
+         SELECT game_spec_id, time_class, rating, rating_deviation, games, source, source_ref, created_at
+           FROM bot_rating_snapshots
+          WHERE bot_rating_snapshots.bot_id = bot_profiles.id
+            AND bot_rating_snapshots.game_spec_id = bot_profiles.default_game_spec_id
+            AND bot_rating_snapshots.time_class = 'blitz'
+            AND bot_rating_snapshots.published = true
+          ORDER BY bot_rating_snapshots.created_at DESC, bot_rating_snapshots.id DESC
+          LIMIT 1
+       ) rating ON true
       WHERE bot_profiles.visibility = 'public'
-      GROUP BY bot_profiles.id
+      GROUP BY bot_profiles.id, rating.game_spec_id, rating.time_class, rating.rating,
+               rating.rating_deviation, rating.games, rating.source, rating.source_ref,
+               rating.created_at
       ORDER BY bot_profiles.display_name`,
   );
   return rows.map((row) => ({
@@ -117,6 +161,14 @@ export async function listPublicBots(): Promise<BotDirectoryEntry[]> {
 export async function getPublicBotProfile(botId: string): Promise<BotProfilePage | null> {
   const { rows } = await getPool().query<BotDirectoryRow>(
     `SELECT bot_profiles.*,
+            rating.game_spec_id AS rating_game_spec_id,
+            rating.time_class AS rating_time_class,
+            rating.rating AS rating_value,
+            rating.rating_deviation,
+            rating.games AS rating_games,
+            rating.source AS rating_source,
+            rating.source_ref AS rating_source_ref,
+            rating.created_at AS rating_created_at,
             COUNT(games.room_id)::text AS games_total,
             COUNT(*) FILTER (
               WHERE games.result = 'draw'
@@ -147,9 +199,21 @@ export async function getPublicBotProfile(botId: string): Promise<BotProfilePage
          ON games.room_id = game_participants.game_id
         AND games.status = 'completed'
         AND games.visibility = 'public'
+       LEFT JOIN LATERAL (
+         SELECT game_spec_id, time_class, rating, rating_deviation, games, source, source_ref, created_at
+           FROM bot_rating_snapshots
+          WHERE bot_rating_snapshots.bot_id = bot_profiles.id
+            AND bot_rating_snapshots.game_spec_id = bot_profiles.default_game_spec_id
+            AND bot_rating_snapshots.time_class = 'blitz'
+            AND bot_rating_snapshots.published = true
+          ORDER BY bot_rating_snapshots.created_at DESC, bot_rating_snapshots.id DESC
+          LIMIT 1
+       ) rating ON true
       WHERE bot_profiles.id = $1
         AND bot_profiles.visibility = 'public'
-      GROUP BY bot_profiles.id
+      GROUP BY bot_profiles.id, rating.game_spec_id, rating.time_class, rating.rating,
+               rating.rating_deviation, rating.games, rating.source, rating.source_ref,
+               rating.created_at
       LIMIT 1`,
     [botId],
   );
@@ -254,9 +318,31 @@ function botFromRow(row: BotProfileRow): BotProfile {
       },
       preferredColor: 'random',
     },
+    rating: ratingFromRow(row),
     visibility: row.visibility,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
+  };
+}
+
+function ratingFromRow(row: BotProfileRow): BotRatingSnapshot | null {
+  if (
+    row.rating_value == null ||
+    row.rating_game_spec_id == null ||
+    row.rating_time_class == null
+  ) {
+    return null;
+  }
+  return {
+    gameSpecId: row.rating_game_spec_id,
+    timeClass: row.rating_time_class,
+    rating: row.rating_value,
+    ratingDeviation: row.rating_deviation,
+    games: row.rating_games ?? 0,
+    source: row.rating_source ?? 'import',
+    sourceRef: row.rating_source_ref,
+    createdAt: row.rating_created_at ?? new Date(0),
+    provisional: row.rating_deviation != null ? row.rating_deviation > PROVISIONAL_RD : false,
   };
 }
 
