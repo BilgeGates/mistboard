@@ -532,7 +532,11 @@ function topicRow(topic: ForumTopicSummary): HTMLElement {
 
   const meta = document.createElement('p');
   meta.className = 'forum-topic-meta';
-  meta.textContent = `Started by ${authorLabel(topic.author)} · ${formatDate(topic.createdAt)}`;
+  meta.append(
+    document.createTextNode('Started by '),
+    authorProfileLink(topic.author, 'forum-topic-author'),
+    document.createTextNode(` · ${formatDate(topic.createdAt)}`),
+  );
   main.append(flags, title, meta);
 
   const replies = document.createElement('span');
@@ -665,20 +669,22 @@ function postList(
     wrap.append(statusPanel(emptyText));
     return wrap;
   }
-  for (const post of posts) {
+  for (const [index, post] of posts.entries()) {
+    const postNumber = (page - 1) * postPageSize + index + 1;
     const article = document.createElement('article');
     article.className = 'forum-post';
     article.id = postDomId(post.id);
+    const author = postAuthorRail(post.author);
+    const content = document.createElement('div');
+    content.className = 'forum-post-content';
     const meta = document.createElement('p');
     meta.className = 'forum-post-meta';
     const body = document.createElement('div');
     body.className = 'forum-post-body';
     renderPostBodyInto(body, post.bodyText);
     const edited = postEditedLabel(post);
-    meta.append(
-      document.createTextNode(`${authorLabel(post.author)} · ${formatDate(post.createdAt)} · `),
-      postPermalink(topic, post, page),
-    );
+    meta.append(postPermalink(topic, post, page, `#${postNumber}`));
+    meta.append(document.createTextNode(` · ${formatDate(post.createdAt)}`));
     if (user && !topic.locked) {
       meta.append(document.createTextNode(' · '), postQuoteButton(post));
     }
@@ -686,22 +692,37 @@ function postList(
       meta.append(document.createTextNode(' · '), postEditButton(post, body, edited));
     }
     meta.append(edited);
-    article.append(meta, body);
-    if (user?.accountRole === 'admin') article.append(postModerationBox(post));
+    content.append(meta, body);
+    if (user?.accountRole === 'admin') content.append(postModerationBox(post));
+    article.append(author, content);
     wrap.append(article);
   }
   return wrap;
+}
+
+function postAuthorRail(author: ForumAuthor): HTMLElement {
+  const rail = document.createElement('aside');
+  rail.className = 'forum-post-author';
+  rail.append(authorProfileLink(author, 'forum-post-author-name'));
+  if (author) {
+    const handle = document.createElement('span');
+    handle.className = 'forum-post-author-handle';
+    handle.textContent = `@${author.handle}`;
+    rail.append(handle);
+  }
+  return rail;
 }
 
 function postPermalink(
   topic: { id: string; slug: string },
   post: ForumPost,
   page = 1,
+  text = 'Link',
 ): HTMLAnchorElement {
   const link = document.createElement('a');
   link.className = 'forum-post-permalink';
   link.href = postHref(topic, post.id, page);
-  link.textContent = 'Link';
+  link.textContent = text;
   return link;
 }
 
@@ -1279,6 +1300,20 @@ function formatCount(value: number): string {
 
 function authorLabel(author: ForumAuthor): string {
   return author?.displayName ?? 'Deleted account';
+}
+
+function authorProfileLink(author: ForumAuthor, className: string): HTMLElement {
+  if (!author) {
+    const span = document.createElement('span');
+    span.className = className;
+    span.textContent = authorLabel(author);
+    return span;
+  }
+  const link = document.createElement('a');
+  link.className = className;
+  link.href = `/@/${encodeURIComponent(author.handle)}`;
+  link.textContent = author.displayName;
+  return link;
 }
 
 function formatDate(iso: string): string {

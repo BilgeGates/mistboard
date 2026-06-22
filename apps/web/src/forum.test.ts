@@ -106,6 +106,9 @@ describe('forum pages', () => {
     expect(root.querySelector<HTMLAnchorElement>('.forum-topic-title')?.getAttribute('href')).toBe(
       '/forum/t/topic_strategy/scouting-the-center',
     );
+    expect(root.querySelector<HTMLAnchorElement>('.forum-topic-author')?.getAttribute('href')).toBe(
+      '/@/alice',
+    );
     expect(
       root.querySelector<HTMLAnchorElement>('.forum-topic-latest-link')?.getAttribute('href'),
     ).toBe('/forum/t/topic_strategy/scouting-the-center#post_post_strategy_reply');
@@ -531,6 +534,14 @@ describe('forum pages', () => {
     ]);
     expect(root.querySelector<HTMLInputElement>('input[name="q"]')).not.toBeNull();
     expect(root.querySelector('.forum-category-card-active')?.textContent).toContain('Strategy');
+    expect(root.querySelector<HTMLAnchorElement>('.forum-post-author-name')?.textContent).toBe(
+      'Alice',
+    );
+    expect(
+      root.querySelector<HTMLAnchorElement>('.forum-post-author-name')?.getAttribute('href'),
+    ).toBe('/@/alice');
+    expect(root.querySelector('.forum-post-author-handle')?.textContent).toBe('@alice');
+    expect(root.querySelector('.forum-post-permalink')?.textContent).toBe('#1');
   });
 
   it('quotes a post into the reply form', async () => {
@@ -843,6 +854,10 @@ describe('forum pages', () => {
     expect(
       root.querySelector<HTMLAnchorElement>('.forum-post-permalink')?.getAttribute('href'),
     ).toBe('/forum/t/topic_strategy/scouting-the-center?page=2#post_post_page_0');
+    expect(root.querySelector('.forum-post-permalink')?.textContent).toBe('#26');
+    expect(
+      root.querySelector<HTMLAnchorElement>('.forum-post-author-name')?.getAttribute('href'),
+    ).toBe('/@/alice');
     const pagers = Array.from(root.querySelectorAll<HTMLElement>('.forum-pager'));
     expect(pagers).toHaveLength(2);
     expect(pagers.map((pager) => pager.getAttribute('aria-label'))).toEqual([
