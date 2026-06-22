@@ -72,7 +72,7 @@ type FeaturedGame = {
 type GameParticipant = {
   color: 'white' | 'black';
   displayName: string;
-  subjectType: 'guest' | 'user' | 'engine-version' | 'manual' | 'imported';
+  subjectType: 'guest' | 'user' | 'bot' | 'engine-version' | 'manual' | 'imported';
   subjectId: string | null;
   visibility: 'private' | 'link' | 'unlisted' | 'public';
 };

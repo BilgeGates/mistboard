@@ -1,3 +1,4 @@
+import type { IncomingMessage, ServerResponse } from 'node:http';
 import { getPublicBotProfile, listPublicBots, recordGameEnd } from './persistence.js';
 import {
   assert,
@@ -6,6 +7,13 @@ import {
   TEST_DATABASE_URL,
   test,
 } from './persistence-test-support.js';
+import { tryHandle as tryHandleBotsRoute } from './routes/bots.js';
+
+type ResponseCapture = {
+  body: string;
+  headers: Record<string, string | string[]>;
+  status: number | null;
+};
 
 definePersistenceTests('bot profiles', () => {
   test('lists public bot profiles with public recent games', async () => {
@@ -114,7 +122,60 @@ definePersistenceTests('bot profiles', () => {
 
     assert.equal(await getPublicBotProfile('private-bot'), null);
   });
+
+  test('bot API routes expose public directory and profile payloads', async () => {
+    await insertBotProfile('route-bot', 'Route Bot', 'public');
+
+    const listResponse = await routeGet('/api/bots');
+    assert.equal(listResponse.status, 200);
+    const listPayload = JSON.parse(listResponse.body) as { bots: Array<{ id: string }> };
+    assert.deepEqual(
+      listPayload.bots.map((bot) => bot.id),
+      ['route-bot'],
+    );
+
+    const profileResponse = await routeGet('/api/bots/route-bot');
+    assert.equal(profileResponse.status, 200);
+    const profilePayload = JSON.parse(profileResponse.body) as { bot: { id: string } };
+    assert.equal(profilePayload.bot.id, 'route-bot');
+
+    const invalidResponse = await routeGet('/api/bots/bad%2Fid');
+    assert.equal(invalidResponse.status, 400);
+
+    const missingResponse = await routeGet('/api/bots/missing-bot');
+    assert.equal(missingResponse.status, 404);
+  });
 });
+
+async function routeGet(pathname: string): Promise<ResponseCapture> {
+  const response = captureResponse();
+  const handled = await tryHandleBotsRoute(
+    {},
+    { method: 'GET', headers: {} } as unknown as IncomingMessage,
+    response,
+    pathname,
+  );
+  assert.equal(handled, true);
+  return response;
+}
+
+function captureResponse(): ServerResponse & ResponseCapture {
+  const capture = {
+    body: '',
+    headers: {} as Record<string, string | string[]>,
+    status: null as number | null,
+    writeHead(status: number, headers?: Record<string, string | string[]>) {
+      capture.status = status;
+      capture.headers = headers ?? {};
+      return capture;
+    },
+    end(chunk?: string) {
+      capture.body += chunk ?? '';
+      return capture;
+    },
+  };
+  return capture as unknown as ServerResponse & ResponseCapture;
+}
 
 async function insertBotProfile(
   id: string,
