@@ -135,6 +135,13 @@ export async function tryHandle(
     return moderateTopic(request, response, decodeURIComponent(topicModerationMatch[1]!));
   }
 
+  const postMatch = pathname.match(/^\/api\/forum\/posts\/([^/]+)$/);
+  if (postMatch) {
+    if (!requireMethod(request, response, 'PATCH')) return true;
+    if (!requirePersistence(response)) return true;
+    return updatePost(request, response, decodeURIComponent(postMatch[1]!));
+  }
+
   const postModerationMatch = pathname.match(/^\/api\/forum\/posts\/([^/]+)\/moderation$/);
   if (postModerationMatch) {
     if (!requireMethod(request, response, 'POST')) return true;
@@ -248,6 +255,37 @@ async function createPost(
     return true;
   }
   writeJson(response, 201, { post: serializePost(result.post) });
+  return true;
+}
+
+async function updatePost(
+  request: IncomingMessage,
+  response: ServerResponse,
+  postId: string,
+): Promise<boolean> {
+  const user = await currentAccountUser(request);
+  if (!user) {
+    writeJson(response, 401, { error: 'not_signed_in' });
+    return true;
+  }
+  const body = await readJsonBody(request);
+  const bodyText = normalizeBodyText(typeof body.body === 'string' ? body.body : '');
+  if (!bodyText) {
+    writeJson(response, 400, { error: 'invalid_body' });
+    return true;
+  }
+  const result = await persistence.updateForumPost({
+    postId,
+    editorAccountId: user.id,
+    editorRole: user.accountRole,
+    bodyText,
+    now: new Date(),
+  });
+  if (!result.ok) {
+    writeJson(response, result.error === 'post_not_found' ? 404 : 403, { error: result.error });
+    return true;
+  }
+  writeJson(response, 200, { post: serializePost(result.post) });
   return true;
 }
 

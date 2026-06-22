@@ -11,6 +11,7 @@ import {
   listForumTopics,
   moderateForumTopic,
   searchForumTopics,
+  updateForumPost,
 } from './persistence.js';
 import { getPool } from './persistence-db.js';
 import { assert, definePersistenceTests, test } from './persistence-test-support.js';
@@ -140,6 +141,34 @@ definePersistenceTests('forum', () => {
     const bodyMatches = await searchForumTopics({ query: 'knights', limit: 5 });
     assert.equal(bodyMatches[0]?.id, 'topic_strategy');
 
+    const forbiddenEdit = await updateForumPost({
+      postId: 'post_strategy_reply',
+      editorAccountId: 'forum_user_alice',
+      editorRole: 'player',
+      bodyText: 'Alice should not be able to edit this.',
+      now: new Date('2026-06-01T00:06:00Z'),
+    });
+    assert.deepEqual(forbiddenEdit, { ok: false, error: 'forbidden' });
+
+    const editedReply = await updateForumPost({
+      postId: 'post_strategy_reply',
+      editorAccountId: 'forum_user_bob',
+      editorRole: 'player',
+      bodyText: 'Developing knights and bishops keeps more fog pressure.',
+      now: new Date('2026-06-01T00:07:00Z'),
+    });
+    assert.equal(editedReply.ok, true);
+    assert.equal(
+      editedReply.ok ? editedReply.post.bodyText : '',
+      'Developing knights and bishops keeps more fog pressure.',
+    );
+    const detailAfterEdit = await getForumTopic('topic_strategy');
+    assert.equal(
+      detailAfterEdit?.posts[1]?.bodyText,
+      'Developing knights and bishops keeps more fog pressure.',
+    );
+    assert.equal(detailAfterEdit?.posts[1]?.updatedAt.toISOString(), '2026-06-01T00:07:00.000Z');
+
     const searchResponse = captureResponse();
     const handled = await tryHandleForumRoute(
       {},
@@ -248,6 +277,16 @@ definePersistenceTests('forum', () => {
     assert.equal(locked.ok, true);
     assert.equal(locked.ok ? locked.topic?.lockedAt instanceof Date : false, true);
 
+    const adminEdit = await updateForumPost({
+      postId: 'post_moderated_open',
+      editorAccountId: 'forum_user_moderator',
+      editorRole: 'admin',
+      bodyText: 'Moderator cleanup.',
+      now: new Date('2026-06-01T00:07:30Z'),
+    });
+    assert.equal(adminEdit.ok, true);
+    assert.equal(adminEdit.ok ? adminEdit.post.bodyText : '', 'Moderator cleanup.');
+
     const hiddenPost = await hideForumPost({
       postId: 'post_moderated_reply',
       moderatorAccountId: 'forum_user_moderator',
@@ -290,6 +329,19 @@ definePersistenceTests('forum', () => {
     assert.equal(handled, true);
     assert.equal(response.status, 401);
     assert.deepEqual(JSON.parse(response.body), { error: 'not_signed_in' });
+
+    const editResponse = captureResponse();
+    const editHandled = await tryHandleForumRoute(
+      {},
+      requestWithJson({ body: 'Edited body.' }, 'PATCH'),
+      editResponse,
+      '/api/forum/posts/post_missing',
+      new URL('http://localhost/api/forum/posts/post_missing'),
+    );
+
+    assert.equal(editHandled, true);
+    assert.equal(editResponse.status, 401);
+    assert.deepEqual(JSON.parse(editResponse.body), { error: 'not_signed_in' });
   });
 
   test('forum moderation route rejects unknown actions', async () => {
@@ -308,10 +360,10 @@ definePersistenceTests('forum', () => {
   });
 });
 
-function requestWithJson(body: unknown): IncomingMessage {
+function requestWithJson(body: unknown, method = 'POST'): IncomingMessage {
   const chunks = [Buffer.from(JSON.stringify(body))];
   const request = {
-    method: 'POST',
+    method,
     headers: { 'content-type': 'application/json' },
     async *[Symbol.asyncIterator]() {
       yield* chunks;

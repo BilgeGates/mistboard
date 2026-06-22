@@ -80,6 +80,10 @@ export type AddForumPostResult =
   | { ok: true; post: ForumPost }
   | { ok: false; error: 'topic_not_found' | 'topic_locked' };
 
+export type UpdateForumPostResult =
+  | { ok: true; post: ForumPost }
+  | { ok: false; error: 'post_not_found' | 'forbidden' };
+
 export type ForumTopicModerationAction = 'pin' | 'unpin' | 'lock' | 'unlock' | 'hide';
 
 export type ModerateForumTopicResult =
@@ -294,6 +298,57 @@ export async function addForumPost(input: {
     );
     const post = postFromRow(rows[0]!);
     return { ok: true, post };
+  });
+}
+
+export async function updateForumPost(input: {
+  postId: string;
+  editorAccountId: string;
+  editorRole: AccountRole;
+  bodyText: string;
+  now: Date;
+}): Promise<UpdateForumPostResult> {
+  return withTransaction(async (client) => {
+    const { rows: targets } = await client.query<{
+      author_account_id: string;
+      topic_id: string;
+    }>(
+      `SELECT p.author_account_id, p.topic_id
+       FROM forum_posts p
+       JOIN forum_topics t ON t.id = p.topic_id
+       WHERE p.id = $1
+         AND p.hidden_at IS NULL
+         AND t.hidden_at IS NULL
+       FOR UPDATE OF p`,
+      [input.postId],
+    );
+    const target = targets[0];
+    if (!target) return { ok: false, error: 'post_not_found' };
+    if (target.author_account_id !== input.editorAccountId && input.editorRole !== 'admin') {
+      return { ok: false, error: 'forbidden' };
+    }
+
+    const { rows } = await client.query<ForumPostRow>(
+      `WITH updated AS (
+         UPDATE forum_posts
+         SET body_text = $2,
+             updated_at = $3
+         WHERE id = $1
+         RETURNING id, author_account_id, body_text, created_at, updated_at
+       )
+       SELECT p.id, p.body_text, p.created_at, p.updated_at,
+              u.handle AS author_handle, COALESCE(u.display_name, u.handle) AS author_display_name
+       FROM updated p
+       LEFT JOIN users u ON u.id = p.author_account_id`,
+      [input.postId, input.bodyText, input.now],
+    );
+    await client.query(
+      `UPDATE forum_topics
+       SET updated_at = $2
+       WHERE id = $1`,
+      [target.topic_id, input.now],
+    );
+    return { ok: true, post: postFromRow(rows[0]!) };
   });
 }
 

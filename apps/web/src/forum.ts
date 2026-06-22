@@ -546,6 +546,10 @@ function postList(
     article.id = postDomId(post.id);
     const meta = document.createElement('p');
     meta.className = 'forum-post-meta';
+    const body = document.createElement('p');
+    body.className = 'forum-post-body';
+    body.textContent = post.bodyText;
+    const edited = postEditedLabel(post);
     meta.append(
       document.createTextNode(`${authorLabel(post.author)} · ${formatDate(post.createdAt)} · `),
       postPermalink(topic, post),
@@ -553,9 +557,10 @@ function postList(
     if (user && !topic.locked) {
       meta.append(document.createTextNode(' · '), postQuoteButton(post));
     }
-    const body = document.createElement('p');
-    body.className = 'forum-post-body';
-    body.textContent = post.bodyText;
+    if (canEditPost(post, user) && !topic.locked) {
+      meta.append(document.createTextNode(' · '), postEditButton(post, body, edited));
+    }
+    meta.append(edited);
     article.append(meta, body);
     if (user?.accountRole === 'admin') article.append(postModerationBox(post));
     wrap.append(article);
@@ -583,6 +588,106 @@ function postQuoteButton(post: ForumPost): HTMLButtonElement {
   return button;
 }
 
+function postEditButton(
+  post: ForumPost,
+  body: HTMLElement,
+  edited: HTMLElement,
+): HTMLButtonElement {
+  const button = document.createElement('button');
+  button.type = 'button';
+  button.className = 'forum-post-edit';
+  button.textContent = 'Edit';
+  button.setAttribute('aria-label', `Edit ${authorLabel(post.author)} post`);
+  button.addEventListener('click', () => {
+    showPostEditForm(post, body, edited);
+  });
+  return button;
+}
+
+function showPostEditForm(post: ForumPost, body: HTMLElement, edited: HTMLElement): void {
+  const article = body.closest('.forum-post');
+  if (!article || article.querySelector('.forum-post-edit-form')) return;
+
+  const form = document.createElement('form');
+  form.className = 'forum-post-edit-form';
+  const textarea = document.createElement('textarea');
+  textarea.name = 'body';
+  textarea.maxLength = forumPostBodyMaxLength;
+  textarea.required = true;
+  textarea.value = post.bodyText;
+  const error = errorLine();
+  const actions = document.createElement('div');
+  actions.className = 'forum-post-edit-actions';
+  const save = submitButton('Save');
+  const cancel = document.createElement('button');
+  cancel.type = 'button';
+  cancel.textContent = 'Cancel';
+  actions.append(save, cancel);
+  form.append(textarea, error, actions);
+
+  const close = () => {
+    form.remove();
+    body.hidden = false;
+  };
+  cancel.addEventListener('click', close);
+  form.addEventListener('submit', (event) => {
+    event.preventDefault();
+    void submitPostEdit(post, form, save, error)
+      .then((updated) => {
+        post.bodyText = updated.bodyText;
+        post.updatedAt = updated.updatedAt;
+        body.textContent = updated.bodyText;
+        updatePostEditedLabel(edited, post);
+        close();
+      })
+      .catch(() => undefined);
+  });
+
+  body.hidden = true;
+  body.after(form);
+  textarea.focus();
+  textarea.setSelectionRange(textarea.value.length, textarea.value.length);
+}
+
+async function submitPostEdit(
+  post: ForumPost,
+  form: HTMLFormElement,
+  submit: HTMLButtonElement,
+  error: HTMLElement,
+): Promise<ForumPost> {
+  submit.disabled = true;
+  error.textContent = '';
+  const data = new FormData(form);
+  try {
+    const resp = await fetch(`/api/forum/posts/${encodeURIComponent(post.id)}`, {
+      method: 'PATCH',
+      headers: { 'content-type': 'application/json', accept: 'application/json' },
+      body: JSON.stringify({ body: String(data.get('body') ?? '') }),
+    });
+    if (!resp.ok) throw new Error(errorMessageForPostEditStatus(resp.status));
+    const payload = (await resp.json()) as { post: ForumPost };
+    return payload.post;
+  } catch (err) {
+    error.textContent = err instanceof Error ? err.message : 'Post could not be edited.';
+    throw err;
+  } finally {
+    submit.disabled = false;
+  }
+}
+
+function postEditedLabel(post: ForumPost): HTMLElement {
+  const label = document.createElement('span');
+  label.className = 'forum-post-edited';
+  updatePostEditedLabel(label, post);
+  return label;
+}
+
+function updatePostEditedLabel(label: HTMLElement, post: ForumPost): void {
+  const edited = post.updatedAt !== post.createdAt;
+  label.hidden = !edited;
+  label.textContent = edited ? ` · edited ${formatDate(post.updatedAt)}` : '';
+}
+
 function insertPostQuote(post: ForumPost): void {
   const textarea = document.querySelector<HTMLTextAreaElement>(
     '.forum-reply-form textarea[name="body"]',
@@ -600,6 +705,10 @@ function insertPostQuote(post: ForumPost): void {
 function quoteText(post: ForumPost): string {
   const lines = post.bodyText.split(/\r?\n/).map((line) => `> ${line}`);
   return `> ${authorLabel(post.author)} wrote:\n${lines.join('\n')}\n\n`;
+}
+
+function canEditPost(post: ForumPost, user: AuthUser | null): boolean {
+  return Boolean(user && (user.accountRole === 'admin' || post.author?.handle === user.handle));
 }
 
 function newTopicForm(categories: ForumCategory[], user: AuthUser): HTMLElement {
@@ -927,6 +1036,14 @@ function errorMessageForStatus(status: number): string {
   if (status === 429) return 'You are posting too quickly.';
   if (status >= 500) return 'Forum is unavailable.';
   return 'Check the fields and try again.';
+}
+
+function errorMessageForPostEditStatus(status: number): string {
+  if (status === 401) return 'Sign in to edit.';
+  if (status === 403) return 'This post cannot be edited.';
+  if (status === 404) return 'This post is not available.';
+  if (status >= 500) return 'Forum is unavailable.';
+  return 'Check the post and try again.';
 }
 
 async function submitTopicModeration(

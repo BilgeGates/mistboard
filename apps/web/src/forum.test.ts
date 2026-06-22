@@ -377,6 +377,73 @@ describe('forum pages', () => {
     expect(document.activeElement).toBe(body);
   });
 
+  it('edits an authored post inline', async () => {
+    const aliceUser = {
+      ...adminUser,
+      id: 'forum_user_alice',
+      handle: 'alice',
+      displayName: 'Alice',
+      accountRole: 'player' as const,
+    };
+    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockImplementation(async (input, init) => {
+      const url = String(input);
+      if (url.startsWith('/api/forum/categories')) return json({ categories });
+      if (url === '/api/forum/posts/post_1' && init?.method === 'PATCH') {
+        return json({
+          post: {
+            id: 'post_1',
+            author: { handle: 'alice', displayName: 'Alice' },
+            bodyText: 'Edited opening post.',
+            createdAt: '2026-06-01T00:00:00.000Z',
+            updatedAt: '2026-06-01T00:10:00.000Z',
+          },
+        });
+      }
+      if (url.startsWith('/api/forum/topics/topic_strategy')) {
+        return json({
+          topic: {
+            ...topic,
+            posts: [
+              {
+                id: 'post_1',
+                author: { handle: 'alice', displayName: 'Alice' },
+                bodyText: 'Opening post.',
+                createdAt: '2026-06-01T00:00:00.000Z',
+                updatedAt: '2026-06-01T00:00:00.000Z',
+              },
+            ],
+          },
+        });
+      }
+      if (url.startsWith('/api/auth/me')) return json({ user: aliceUser });
+      throw new Error(`unexpected fetch ${url}`);
+    });
+    const root = document.createElement('div');
+    document.body.append(root);
+    const { mountForumTopic } = await import('./forum.js');
+
+    await mountForumTopic(root, 'topic_strategy');
+    const edit = root.querySelector<HTMLButtonElement>('.forum-post-edit');
+    if (!edit) throw new Error('missing edit button');
+    edit.click();
+    const form = root.querySelector<HTMLFormElement>('.forum-post-edit-form');
+    const body = form?.querySelector<HTMLTextAreaElement>('textarea[name="body"]');
+    if (!form || !body) throw new Error('missing edit form');
+    body.value = 'Edited opening post.';
+
+    form.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
+    await flushPromises();
+    await flushPromises();
+
+    const editCall = fetchSpy.mock.calls.find(
+      ([input, init]) => String(input) === '/api/forum/posts/post_1' && init?.method === 'PATCH',
+    );
+    expect(JSON.parse(String(editCall?.[1]?.body))).toEqual({ body: 'Edited opening post.' });
+    expect(root.querySelector('.forum-post-edit-form')).toBeNull();
+    expect(root.querySelector('.forum-post-body')?.textContent).toBe('Edited opening post.');
+    expect(root.querySelector('.forum-post-edited')?.textContent).toContain('edited');
+  });
+
   it('redirects a new reply to its stable post anchor', async () => {
     window.history.pushState(null, '', '/forum/t/topic_strategy/scouting-the-center');
     const fetchSpy = vi.spyOn(globalThis, 'fetch').mockImplementation(async (input, init) => {
