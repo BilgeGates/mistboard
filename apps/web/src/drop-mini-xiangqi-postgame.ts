@@ -41,6 +41,7 @@ export type DropMiniXiangqiPostgameResponse = {
     visibility: string;
     initialMs: number | null;
     incrementMs: number | null;
+    pveEngineId?: string | null;
   };
   state: {
     status: { type: string; winner?: MiniXiangqiColor | null; reason?: string };
@@ -312,17 +313,19 @@ function renderPostgame(
   sync();
 }
 
-async function createDropMiniXiangqiPlayAgainRoom(
+export async function createDropMiniXiangqiPlayAgainRoom(
   postgame: DropMiniXiangqiPostgameResponse,
 ): Promise<string> {
+  const mode =
+    postgame.game.mode === 'pve' && typeof postgame.game.pveEngineId === 'string' ? 'pve' : 'pvp';
   const response = await fetch('/api/rooms', {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
     body: JSON.stringify({
-      mode: 'pvp',
+      mode,
       gameSpecId: 'drop-mini-xiangqi',
       preferredColor: 'random',
-      rated: false,
+      ...(mode === 'pve' ? { engineId: postgame.game.pveEngineId } : { rated: false }),
       ...(postgameTimeControl(postgame) ? { timeControl: postgameTimeControl(postgame) } : {}),
     }),
   });

@@ -363,6 +363,42 @@ describe('landing play panel', () => {
     expect(window.location.pathname).toBe('/room/dchess_engine');
   });
 
+  it('creates a Drop Mini Xiangqi engine room with the selected built-in tier', async () => {
+    vi.stubEnv('VITE_DROP_MINI_XIANGQI_ENABLED', 'true');
+    const fetchSpy = vi.fn(async (input: RequestInfo | URL, _init?: RequestInit) => {
+      if (String(input) === '/api/live-stats') return jsonResponse({ playing: 0, online: 0 });
+      if (String(input) === '/api/rooms') return jsonResponse({ url: '/room/dmxqd_engine' });
+      return jsonResponse({}, { status: 404 });
+    });
+    vi.stubGlobal('fetch', fetchSpy);
+    const panel = buildLandingPlayPanel([]);
+    document.body.append(panel);
+
+    openPlaySetup(panel, 'Play the engine');
+    selectModalVariant('drop-mini-xiangqi');
+    const engineSelect = document.querySelector<HTMLSelectElement>('select[aria-label="Engine"]');
+    expect(engineSelect).not.toBeNull();
+    expect([...engineSelect!.options].map((option) => [option.value, option.textContent])).toEqual([
+      ['misty-drop-mini-level-1', 'Misty Drop Mini level 1'],
+      ['misty-drop-mini-level-2', 'Misty Drop Mini level 2'],
+      ['misty-drop-mini-level-3', 'Misty Drop Mini level 3'],
+    ]);
+    expect(engineSelect!.value).toBe('misty-drop-mini-level-2');
+    selectModalEngine('misty-drop-mini-level-1');
+    clickModalColor('Black');
+    clickModalButton('Start game');
+    await flushPromises();
+
+    expect(roomPostBody(fetchSpy)).toEqual({
+      mode: 'pve',
+      gameSpecId: 'drop-mini-xiangqi',
+      timeControl: { initialMs: 180_000, incrementMs: 2_000 },
+      preferredColor: 'black',
+      engineId: 'misty-drop-mini-level-1',
+    });
+    expect(window.location.pathname).toBe('/room/dmxqd_engine');
+  });
+
   it('remembers each variant engine pick independently (no cross-variant clobber)', () => {
     vi.stubEnv('VITE_CROSSROADS_CHESS_ENABLED', 'true');
     vi.stubEnv('VITE_JIEQI_ENABLED', 'true');

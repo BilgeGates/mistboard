@@ -17,6 +17,7 @@ import {
   applyTenantEvent,
   isTenantEventLog,
   replayTenantEvents,
+  tenantPveEngineId,
 } from './../variant-tenant/runtime.js';
 import type { TenantRuntimeRoom } from './../variant-tenant/tenant.js';
 import { type HttpApiContext, requireMethod, writeJson } from './lib.js';
@@ -113,6 +114,7 @@ export async function dropMiniXiangqiPostgameForApi(
 
   const projection = replayTenantEvents(dropMiniXiangqiTenant, source.events);
   if (projection.state.status.type !== 'finished') return null;
+  const pveEngineId = tenantPveEngineId(dropMiniXiangqiTenant, { projection } as never);
 
   return {
     game: {
@@ -130,6 +132,7 @@ export async function dropMiniXiangqiPostgameForApi(
       visibility: source.game.visibility,
       initialMs: source.game.initialMs,
       incrementMs: source.game.incrementMs,
+      ...(pveEngineId === null ? {} : { pveEngineId }),
     },
     state: {
       status: projection.state.status,

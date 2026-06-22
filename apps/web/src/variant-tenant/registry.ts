@@ -363,8 +363,8 @@ const WEB_VARIANT_TENANTS: readonly WebVariantTenant[] = [
   {
     // Drop Mini Xiangqi (open 7x7 mini xiangqi with crazyhouse-style reserves).
     // Self-contained live client on the socket-client + chrome stack, using the
-    // mini-xiangqi SVG board and reserve strips. PvP-first; FSF remains a lab
-    // viewer until there is a production engine protocol for this rule set.
+    // mini-xiangqi SVG board and reserve strips. PvE uses in-process heuristic
+    // launch tiers; FSF remains a lab viewer until the variant adapter is real.
     gameSpecId: DROP_MINI_XIANGQI_SPEC_ID,
     roomIdPrefix: 'dmxqd_',
     enabled: dropMiniXiangqiEnabled,
@@ -398,6 +398,27 @@ const WEB_VARIANT_TENANTS: readonly WebVariantTenant[] = [
       timePresetIds: ['1m1', '3m2', '5m5'],
       offerInMenu: dropMiniXiangqiEnabled,
       acceptsDeepLink: dropMiniXiangqiEnabled,
+      engineOptions: [
+        {
+          id: 'misty-drop-mini-level-1',
+          name: 'Misty Drop Mini level 1',
+          familyName: 'Misty Drop Mini',
+          kind: 'built-in',
+        },
+        {
+          id: 'misty-drop-mini-level-2',
+          name: 'Misty Drop Mini level 2',
+          familyName: 'Misty Drop Mini',
+          kind: 'built-in',
+        },
+        {
+          id: 'misty-drop-mini-level-3',
+          name: 'Misty Drop Mini level 3',
+          familyName: 'Misty Drop Mini',
+          kind: 'built-in',
+        },
+      ],
+      defaultEngineId: 'misty-drop-mini-level-2',
     },
   },
   {

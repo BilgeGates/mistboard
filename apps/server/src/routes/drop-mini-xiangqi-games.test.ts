@@ -3,6 +3,7 @@ import test from 'node:test';
 import { DROP_MINI_XIANGQI_SPEC_ID } from '@mistboard/game';
 import { type DropMiniXiangqiEvent, dropMiniXiangqiTenant } from '../drop-mini-xiangqi-tenant.js';
 import type { RecentEveGameRecord } from '../persistence.js';
+import { DROP_MINI_XIANGQI_DEFAULT_ENGINE_ID } from '../server-drop-mini-xiangqi-engine.js';
 import { createTenantRuntimeRoomFromEvents } from '../variant-tenant/runtime.js';
 import {
   type DropMiniXiangqiPostgamePersistence,
@@ -21,6 +22,32 @@ function finishedGameEvents(): DropMiniXiangqiEvent[] {
     },
     { type: 'seat-assigned', at: 2, roomId: ROOM_ID, clientId: 'red-client', seat: 'red' },
     { type: 'seat-assigned', at: 3, roomId: ROOM_ID, clientId: 'black-client', seat: 'black' },
+    { type: 'seat-resigned', at: 4, roomId: ROOM_ID, color: 'red' },
+  ];
+}
+
+function finishedPveGameEvents(): DropMiniXiangqiEvent[] {
+  return [
+    {
+      type: 'room-created',
+      at: 1,
+      roomId: ROOM_ID,
+      gameSpecId: DROP_MINI_XIANGQI_SPEC_ID,
+    },
+    {
+      type: 'seat-assigned',
+      at: 2,
+      roomId: ROOM_ID,
+      clientId: 'human-client',
+      seat: 'red',
+    },
+    {
+      type: 'seat-assigned',
+      at: 3,
+      roomId: ROOM_ID,
+      clientId: DROP_MINI_XIANGQI_DEFAULT_ENGINE_ID,
+      seat: 'black',
+    },
     { type: 'seat-resigned', at: 4, roomId: ROOM_ID, color: 'red' },
   ];
 }
@@ -101,6 +128,17 @@ test('Drop Mini Xiangqi postgame can render a finished live room without persist
   assert.equal(payload.game.variant, DROP_MINI_XIANGQI_SPEC_ID);
   assert.equal(payload.game.visibility, 'private');
   assert.equal(payload.game.termination, 'resignation');
+});
+
+test('Drop Mini Xiangqi postgame carries the PvE engine id for review play-again', async () => {
+  const payload = await dropMiniXiangqiPostgameForApi(
+    ROOM_ID,
+    deps(gameRecord({ mode: 'pve' }), finishedPveGameEvents()),
+  );
+
+  assert.ok(payload);
+  assert.equal(payload.game.mode, 'pve');
+  assert.equal(payload.game.pveEngineId, DROP_MINI_XIANGQI_DEFAULT_ENGINE_ID);
 });
 
 test('Drop Mini Xiangqi postgame returns null for unfinished games', async () => {

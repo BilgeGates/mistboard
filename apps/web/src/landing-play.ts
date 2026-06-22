@@ -1737,18 +1737,18 @@ export function roomCreationRequestBody(
   }
   if (setup.gameSpecId === DROP_MINI_XIANGQI_SPEC_ID) {
     // Drop Mini Xiangqi is open-info red/black mini xiangqi with reserves.
-    // It is PvP/lobby-only for now, but rating-ready behind the global rated gate.
     return {
-      mode: 'pvp',
+      mode,
       gameSpecId,
       timeControl: setup.timeControl,
-      rated: setup.rated,
+      ...(mode === 'pvp' ? { rated: setup.rated } : {}),
       preferredColor:
         setup.preferredColor === 'white'
           ? 'red'
           : setup.preferredColor === 'red' || setup.preferredColor === 'black'
             ? setup.preferredColor
             : 'random',
+      ...(mode === 'pve' && engineId ? { engineId } : {}),
     };
   }
   if (setup.gameSpecId === REVEAL_CHESS_SPEC_ID) {
@@ -1893,6 +1893,9 @@ function roomCreationStatusText(err: unknown, mode: 'pvp' | 'pve'): string {
   }
   if (err instanceof Error && err.name === 'crossroads_chess_unsupported_surface') {
     return 'Crossroads Chess rooms are only available for casual friend games.';
+  }
+  if (err instanceof Error && err.name === 'drop_mini_xiangqi_unsupported_surface') {
+    return 'Drop Mini Xiangqi engine games are casual only.';
   }
   if (err instanceof Error && err.name === 'invalid_time_control') {
     return 'That time control is not available. Try another one.';

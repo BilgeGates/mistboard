@@ -46,6 +46,24 @@ export const FIRST_PARTY_BOT_PROFILES: readonly FirstPartyBotProfile[] = [
     activeEngineId: 'fairy-stockfish-crossroads-strong',
     defaultGameSpecId: 'crossroads-chess',
   },
+  {
+    id: 'misty-drop-mini-level-1',
+    displayName: 'Misty Drop Mini level 1',
+    activeEngineId: 'misty-drop-mini-level-1',
+    defaultGameSpecId: 'drop-mini-xiangqi',
+  },
+  {
+    id: 'misty-drop-mini-level-2',
+    displayName: 'Misty Drop Mini level 2',
+    activeEngineId: 'misty-drop-mini-level-2',
+    defaultGameSpecId: 'drop-mini-xiangqi',
+  },
+  {
+    id: 'misty-drop-mini-level-3',
+    displayName: 'Misty Drop Mini level 3',
+    activeEngineId: 'misty-drop-mini-level-3',
+    defaultGameSpecId: 'drop-mini-xiangqi',
+  },
 ];
 
 const botByEngineId = new Map<string, FirstPartyBotProfile>();

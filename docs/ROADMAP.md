@@ -32,14 +32,14 @@ information, ranked integrity, and a serious engine track.
   and Asia-readiness evidence, not rated ladder or tournament scope.
 - [ ] **Drop Mini Xiangqi launch follow-through.** PvP/lobby launch surfaces are
   live: rules, homepage card, news announcement, watch/review UI, and the
-  current no-enemy-palace drop rule. PvE stays hidden until the server route can
-  create engine seats. Initial three-level shape:
-  - Level 1, Learner: deterministic legal-move bot with capture/drop/check
+  current no-enemy-palace drop rule. Initial three-level PvE shape:
+  - Level 1: deterministic legal-move bot with capture/drop/check
     bias, tuned to finish games without punishing beginners.
-  - Level 2, Tactician: shallow tactical search over legal moves with reserve
+  - Level 2: shallow tactical search over legal moves with reserve
     value, mate threats, and no-enemy-palace drop pressure weighted explicitly.
-  - Level 3, Lab FSF: Fairy-Stockfish-backed or adapter-backed play after rule
-    parity, engine identity, and production scheduling are real.
+  - Level 3: strongest in-process tactical tier until Fairy-Stockfish-backed or
+    adapter-backed play has rule parity, engine identity, and production
+    scheduling.
 
 ## Planned
 

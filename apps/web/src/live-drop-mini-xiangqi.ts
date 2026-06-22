@@ -70,7 +70,8 @@ type DropMiniLiveFrame = {
   connectedSeats?: Record<MiniXiangqiColor, boolean>;
   abortDeadline?: number | null;
   forfeitDeadline?: number | null;
-  roomMode?: 'pvp';
+  roomMode?: 'pvp' | 'pve';
+  pveEngineId?: string | null;
   rated?: boolean;
   timeControl?: { initialMs: number; incrementMs: number } | null;
   clients?: number;
@@ -91,7 +92,8 @@ const state = {
   abortDeadline: null as number | null,
   forfeitDeadline: null as number | null,
   rated: false,
-  roomMode: 'pvp' as 'pvp',
+  roomMode: 'pvp' as 'pvp' | 'pve',
+  pveEngineId: null as string | null,
 };
 
 let client: TenantSocketClient | null = null;
@@ -142,10 +144,11 @@ const chrome = createTenantRoomChrome(dropMiniWebTenant, {
   isReplayLive: () => replay.isLive(),
   orientation: () => orientationFor(state.view),
   playAgainRequestBody: () => ({
-    mode: 'pvp',
+    mode: state.roomMode,
     gameSpecId: DROP_MINI_XIANGQI_SPEC_ID,
     preferredColor: 'random',
-    rated: false,
+    ...(state.roomMode === 'pvp' ? { rated: false } : {}),
+    ...(state.roomMode === 'pve' && state.pveEngineId ? { engineId: state.pveEngineId } : {}),
     ...(state.timeControl ? { timeControl: state.timeControl } : {}),
   }),
   rematchControls: () => null,
@@ -158,6 +161,9 @@ export function bootstrapDropMiniXiangqiLiveRoom(): void {
   const params = new URLSearchParams(window.location.search);
   const room = roomIdFromPath(window.location.pathname) ?? params.get('room') ?? 'dmxqd_dev';
   state.room = room;
+  state.roomMode = 'pvp';
+  state.pveEngineId = null;
+  state.rated = false;
   selectedSquare = null;
   selectedDropRole = null;
   draggingFrom = null;
@@ -224,6 +230,7 @@ function applyFrame(frame: DropMiniLiveFrame): void {
   state.forfeitDeadline = frame.forfeitDeadline ?? null;
   state.rated = frame.rated ?? state.rated;
   state.roomMode = frame.roomMode ?? state.roomMode;
+  state.pveEngineId = frame.pveEngineId ?? (frame.roomMode === 'pve' ? state.pveEngineId : null);
   if (frame.events) state.events = frame.events;
 }
 

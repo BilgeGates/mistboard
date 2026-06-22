@@ -19,6 +19,7 @@ import {
   requestsDropMiniXiangqi,
 } from './routes/drop-mini-xiangqi-rooms.js';
 import { isAllowedTimeControl } from './routes/lib.js';
+import { scheduleDropMiniXiangqiEngineMove } from './server-drop-mini-xiangqi-engine.js';
 import { recordTenantPersistenceError } from './variant-tenant/events.js';
 import { getOrLoadTenantRoom } from './variant-tenant/hydration.js';
 import {
@@ -26,6 +27,7 @@ import {
   type TenantManagedRoom,
   variantTenantRoomIdTaken,
 } from './variant-tenant/registry.js';
+import type { TenantRoomEngineSeat } from './variant-tenant/room-factory.js';
 import { createTenantLiveRoom } from './variant-tenant/room-factory.js';
 import { countActiveTenantGames } from './variant-tenant/runtime.js';
 import type { TenantRuntimeRoom } from './variant-tenant/tenant.js';
@@ -60,12 +62,15 @@ export type DropMiniXiangqiLiveRoomCreation =
 
 export const dropMiniXiangqiRooms = new Map<string, DropMiniXiangqiRuntimeRoom>();
 
-const dropMiniXiangqiWs = createTenantWsRuntime(dropMiniXiangqiTenant);
+const dropMiniXiangqiWs = createTenantWsRuntime(dropMiniXiangqiTenant, {
+  scheduleEngineMove: (ctx, room) => scheduleDropMiniXiangqiEngineMove(ctx, room),
+});
 
 export async function createDropMiniXiangqiRoom(
   timeControl?: RoomTimeControl,
   creatorPreference?: MiniXiangqiColor | 'random',
   rated = false,
+  engine?: TenantRoomEngineSeat<MiniXiangqiColor>,
 ): Promise<DropMiniXiangqiLiveRoomCreation> {
   const created = await createTenantLiveRoom(
     dropMiniXiangqiTenant,
@@ -79,7 +84,7 @@ export async function createDropMiniXiangqiRoom(
       recordPersistenceError: (roomId, seq, eventType, err) =>
         recordTenantPersistenceError(dropMiniXiangqiTenant, roomId, seq, eventType, err),
     },
-    { timeControl, creatorPreference, rated },
+    { timeControl, creatorPreference, rated, engine },
   );
   if (!created.ok) {
     return created.error === 'disabled'

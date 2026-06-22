@@ -23,3 +23,14 @@ test('historical Misty engine releases still attribute to the stable bot profile
     assert.equal(firstPartyBotForEngine(engineId)?.id, 'misty-dark-chess', engineId);
   }
 });
+
+test('Drop Mini Xiangqi levels are separate public bot identities', () => {
+  for (const level of [1, 2, 3]) {
+    const id = `misty-drop-mini-level-${level}`;
+    const bot = FIRST_PARTY_BOT_PROFILES.find((candidate) => candidate.id === id);
+    assert.equal(bot?.displayName, `Misty Drop Mini level ${level}`);
+    assert.equal(bot?.activeEngineId, id);
+    assert.equal(bot?.defaultGameSpecId, 'drop-mini-xiangqi');
+    assert.equal(firstPartyBotForEngine(id)?.id, id);
+  }
+});

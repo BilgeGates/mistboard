@@ -136,6 +136,7 @@ Edit task → find file → open only that file.
 | `routes/drop-mini-xiangqi-rooms.ts` | Drop Mini Xiangqi room-creation branch for `POST /api/rooms` (PvP/lobby only for now; rated/time-control gating via `game-spec-request-gate`) |
 | `routes/drop-mini-xiangqi-games.ts` | Drop Mini Xiangqi postgame/review API branch; exposes the finished open-information board, reserve history, and move timeline |
 | `routes/bots.ts` | Public bot directory/profile API (`/api/bots`, `/api/bots/:id`) filtered to playable enabled variants |
+| `bot-profile-policy.ts` | Shared bot profile policy: public bot id parsing and playable-variant filtering for bot directory/profile surfaces |
 | `account-session.ts` | Account auth: `currentAccountUser`, `ensureUserForEmail`, `hashSecret`, session cookies, email login |
 | `account-identity.ts` | Email normalization, handle generation, display name handling |
 | `build-info.ts` | Build metadata surfaced through status responses |
@@ -212,6 +213,7 @@ Edit task → find file → open only that file.
 | `dark-xiangqi-registration.ts` | Dark Xiangqi (9x10, hidden/dev-only) registry entry: live-room map, room-factory binding, hydration. No rematch/lobby (lobby answers `dark_xiangqi_not_integrated`) |
 | `crossroads-chess-engine.ts` | Fairy-Stockfish move provider for perfect-info Crossroads Chess (loads `crossroads-chess.ini`, one FSF process/request); the open-mode opponent, NOT the fog engine-worker |
 | `server-crossroads-chess-engine.ts` | Server-side FSF PvE loop for Crossroads Chess; injects engine moves through the same append+broadcast path as humans so clocks/persistence/reconnect/review stay event-sourced |
+| `server-drop-mini-xiangqi-engine.ts` | Built-in Drop Mini Xiangqi PvE tiers and engine move scheduler over the tenant append/broadcast path |
 | `server-crossroads-chess-events.ts` | Thin adapter over `variant-tenant/events.ts` for Crossroads Chess |
 | `server-crossroads-chess-lifecycle.ts` | Thin adapter over `variant-tenant/lifecycle.ts` for Crossroads Chess; `crossroadsChessConnectedSeats` filters spectators to the pre-migration seat shape |
 | `server-crossroads-chess-live-room.ts` | Live Crossroads Chess client/room type leaf, shared by the ws handler + rematch module to avoid an import cycle |
