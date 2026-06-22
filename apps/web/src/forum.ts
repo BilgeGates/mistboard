@@ -65,6 +65,8 @@ type ForumTopicDetail = ForumTopicSummary & {
   posts: ForumPost[];
 };
 
+const topicPageSize = 25;
+
 class ForumNotFound extends Error {}
 
 export async function mountForum(root: HTMLElement): Promise<void> {
@@ -83,20 +85,29 @@ export async function mountForum(root: HTMLElement): Promise<void> {
   body.append(statusPanel('Loading forum...'));
   shell.append(body);
 
-  const categoryFilter = new URLSearchParams(window.location.search).get('category');
+  const query = new URLSearchParams(window.location.search);
+  const categoryFilter = query.get('category');
+  const topicPage = pageFromParam(query.get('page'));
+  const topicOffset = (topicPage - 1) * topicPageSize;
   let categories: ForumCategory[];
   let topics: ForumTopicSummary[];
   let user: AuthUser | null;
   try {
     [categories, topics, user] = await Promise.all([
       fetchForumCategories(),
-      fetchForumTopics({ categorySlug: categoryFilter, limit: 25 }),
+      fetchForumTopics({
+        categorySlug: categoryFilter,
+        limit: topicPageSize + 1,
+        offset: topicOffset,
+      }),
       fetchCurrentUser().catch(() => null),
     ]);
   } catch {
     body.replaceChildren(buildNotice('Forum unavailable', 'The forum could not load.'));
     return;
   }
+  const hasNextPage = topics.length > topicPageSize;
+  const visibleTopics = topics.slice(0, topicPageSize);
 
   const sidebar = document.createElement('aside');
   sidebar.className = 'forum-sidebar';
@@ -111,7 +122,19 @@ export async function mountForum(root: HTMLElement): Promise<void> {
   } else {
     main.append(categoryIndex(categories), sectionTitle('Recent topics'));
   }
-  main.append(topicList(topics));
+  main.append(
+    topicList(visibleTopics, topicPage > 1 ? 'No forum topics on this page.' : undefined),
+  );
+  if (topicPage > 1 || hasNextPage) {
+    main.append(
+      topicPager({
+        categorySlug: categoryFilter,
+        page: topicPage,
+        hasNext: hasNextPage,
+        hasPrevious: topicPage > 1,
+      }),
+    );
+  }
 
   body.replaceChildren(sidebar, main);
 }
@@ -310,15 +333,56 @@ function sectionTitle(text: string): HTMLElement {
   return heading;
 }
 
-function topicList(topics: ForumTopicSummary[]): HTMLElement {
+function topicList(topics: ForumTopicSummary[], emptyText = 'No forum topics yet.'): HTMLElement {
   const wrap = document.createElement('section');
   wrap.className = 'forum-topic-list';
   if (topics.length === 0) {
-    wrap.append(statusPanel('No forum topics yet.'));
+    wrap.append(statusPanel(emptyText));
     return wrap;
   }
   for (const topic of topics) wrap.append(topicCard(topic));
   return wrap;
+}
+
+function topicPager(options: {
+  categorySlug: string | null;
+  page: number;
+  hasPrevious: boolean;
+  hasNext: boolean;
+}): HTMLElement {
+  const nav = document.createElement('nav');
+  nav.className = 'forum-pager';
+  nav.setAttribute('aria-label', 'Forum topic pages');
+  nav.append(
+    options.hasPrevious
+      ? pagerLink('Previous', forumHref(options.categorySlug, options.page - 1))
+      : pagerSpacer(),
+  );
+  const current = document.createElement('span');
+  current.className = 'forum-pager-current';
+  current.textContent = `Page ${options.page}`;
+  nav.append(current);
+  nav.append(
+    options.hasNext
+      ? pagerLink('Next', forumHref(options.categorySlug, options.page + 1))
+      : pagerSpacer(),
+  );
+  return nav;
+}
+
+function pagerLink(text: string, href: string): HTMLAnchorElement {
+  const link = document.createElement('a');
+  link.className = 'forum-pager-link';
+  link.href = href;
+  link.textContent = text;
+  return link;
+}
+
+function pagerSpacer(): HTMLElement {
+  const spacer = document.createElement('span');
+  spacer.className = 'forum-pager-spacer';
+  spacer.setAttribute('aria-hidden', 'true');
+  return spacer;
 }
 
 function topicCard(topic: ForumTopicSummary): HTMLElement {
@@ -610,6 +674,14 @@ function categoryHref(category: { slug: string }): string {
   return `/forum?category=${encodeURIComponent(category.slug)}`;
 }
 
+function forumHref(categorySlug: string | null, page: number): string {
+  const params = new URLSearchParams();
+  if (categorySlug) params.set('category', categorySlug);
+  if (page > 1) params.set('page', String(page));
+  const query = params.toString();
+  return `/forum${query ? `?${query}` : ''}`;
+}
+
 function postHref(topic: { id: string; slug: string }, postId: string): string {
   return `${topicHref(topic)}#${postDomId(postId)}`;
 }
@@ -632,6 +704,12 @@ function formatDate(iso: string): string {
     day: 'numeric',
     year: 'numeric',
   });
+}
+
+function pageFromParam(value: string | null): number {
+  const parsed = Number(value ?? '1');
+  if (!Number.isFinite(parsed) || parsed < 1) return 1;
+  return Math.trunc(parsed);
 }
 
 function errorMessageForStatus(status: number): string {
@@ -677,11 +755,12 @@ async function fetchForumCategories(): Promise<ForumCategory[]> {
 }
 
 async function fetchForumTopics(
-  options: { categorySlug?: string | null; limit?: number } = {},
+  options: { categorySlug?: string | null; limit?: number; offset?: number } = {},
 ): Promise<ForumTopicSummary[]> {
   const params = new URLSearchParams();
   if (options.categorySlug) params.set('category', options.categorySlug);
   if (options.limit) params.set('limit', String(options.limit));
+  if (options.offset !== undefined) params.set('offset', String(options.offset));
   const resp = await fetch(`/api/forum/topics${params.size ? `?${params}` : ''}`, {
     headers: { accept: 'application/json' },
   });

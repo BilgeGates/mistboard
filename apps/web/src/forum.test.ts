@@ -124,10 +124,46 @@ describe('forum pages', () => {
 
     await mountForum(root);
 
-    expect(fetchedUrls).toContain('/api/forum/topics?category=strategy&limit=25');
+    expect(fetchedUrls).toContain('/api/forum/topics?category=strategy&limit=26&offset=0');
     expect(root.textContent).toContain('Openings and patterns.');
     expect(root.textContent).toContain('1 topic · 2 posts');
     expect(root.querySelector('.forum-category-header-box')?.textContent).toContain('Strategy');
+  });
+
+  it('paginates forum topic lists with stable page URLs', async () => {
+    const fetchedUrls: string[] = [];
+    window.history.pushState(null, '', '/forum?category=strategy&page=2');
+    vi.spyOn(globalThis, 'fetch').mockImplementation(async (input) => {
+      const url = String(input);
+      fetchedUrls.push(url);
+      if (url.startsWith('/api/forum/categories')) return json({ categories });
+      if (url.startsWith('/api/forum/topics')) {
+        return json({
+          topics: Array.from({ length: 26 }, (_, index) => ({
+            ...topic,
+            id: `topic_strategy_${index}`,
+            title: `Scouting the center ${index}`,
+            slug: `scouting-the-center-${index}`,
+          })),
+        });
+      }
+      if (url.startsWith('/api/auth/me')) return json({ user: null });
+      throw new Error(`unexpected fetch ${url}`);
+    });
+    const root = document.createElement('div');
+    const { mountForum } = await import('./forum.js');
+
+    await mountForum(root);
+
+    expect(fetchedUrls).toContain('/api/forum/topics?category=strategy&limit=26&offset=25');
+    expect(root.querySelectorAll('.forum-topic-card')).toHaveLength(25);
+    expect(root.querySelector('.forum-pager-current')?.textContent).toBe('Page 2');
+    const pageLinks = Array.from(root.querySelectorAll<HTMLAnchorElement>('.forum-pager-link'));
+    expect(pageLinks.map((link) => link.textContent)).toEqual(['Previous', 'Next']);
+    expect(pageLinks.map((link) => link.getAttribute('href'))).toEqual([
+      '/forum?category=strategy',
+      '/forum?category=strategy&page=3',
+    ]);
   });
 
   it('allows admins to start announcement topics', async () => {

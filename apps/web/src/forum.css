@@ -254,6 +254,50 @@ a.forum-topic-title:focus-visible,
   text-decoration: none;
 }
 
+.forum-pager {
+  display: grid;
+  grid-template-columns: minmax(86px, 1fr) auto minmax(86px, 1fr);
+  gap: 10px;
+  align-items: center;
+}
+
+.forum-pager-link,
+.forum-pager-current,
+.forum-pager-spacer {
+  min-height: 36px;
+}
+
+.forum-pager-link,
+.forum-pager-current {
+  display: inline-flex;
+  align-items: center;
+  border: 1px solid var(--site-border-soft);
+  border-radius: var(--site-radius-sm);
+  background: var(--site-panel);
+  color: var(--site-text);
+  font-size: 13px;
+  font-weight: 800;
+  padding: 8px 12px;
+  text-decoration: none;
+}
+
+.forum-pager-link:hover,
+.forum-pager-link:focus-visible {
+  border-color: var(--site-accent);
+  color: var(--site-accent-strong);
+}
+
+.forum-pager-link:last-child,
+.forum-pager-spacer:last-child {
+  justify-self: end;
+}
+
+.forum-pager-current {
+  justify-self: center;
+  color: var(--site-muted);
+  font-variant-numeric: tabular-nums;
+}
+
 .forum-post {
   display: grid;
   gap: 9px;
