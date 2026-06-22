@@ -146,7 +146,7 @@ function formatCount(value: number): string {
 }
 
 function categoryHref(category: { slug: string }): string {
-  return `/forum?category=${encodeURIComponent(category.slug)}`;
+  return `/forum/${encodeURIComponent(category.slug)}`;
 }
 
 const postPageSize = 25;

@@ -47,7 +47,7 @@ describe('landing forum preview', () => {
     const categoryLink = box.querySelector<HTMLAnchorElement>('a.landing-forum-row-main');
     const latestPostLink = box.querySelector<HTMLAnchorElement>('a.landing-forum-row-last');
     expect(header?.textContent).toContain('Forum');
-    expect(categoryLink?.getAttribute('href')).toBe('/forum?category=strategy');
+    expect(categoryLink?.getAttribute('href')).toBe('/forum/strategy');
     expect(latestPostLink?.getAttribute('href')).toBe('/forum/t/topic_1/first-topic#post_post_1');
     expect(categoryRow?.textContent).toContain('First topic');
     expect(categoryRow?.textContent).toContain('Strategy');

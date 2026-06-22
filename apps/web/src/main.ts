@@ -95,8 +95,9 @@ const wantsArticlesIndex =
   path === '/zh-hant/articles' ||
   page === 'articles';
 const wantsNews = path === '/news' || page === 'news';
-const wantsForum = path === '/forum' || page === 'forum';
 const forumTopicId = forumTopicIdFromPath(path);
+const forumCategorySlug = forumCategorySlugFromPath(path);
+const wantsForum = path === '/forum' || forumCategorySlug !== null || page === 'forum';
 const wantsLegacyPlay = path === '/play' || page === 'play';
 const wantsWatch = path === '/watch' || page === 'watch';
 // Behind the correspondence build flag (soft launch). The nav bell + this
@@ -465,6 +466,11 @@ function liveRoomIdFromPath(value: string): string | null {
 
 function profileHandleFromPath(value: string): string | null {
   const match = value.match(/^\/@\/([^/]+)$/);
+  return match ? decodeURIComponent(match[1]!) : null;
+}
+
+function forumCategorySlugFromPath(value: string): string | null {
+  const match = value.match(/^\/forum\/([^/]+)$/);
   return match ? decodeURIComponent(match[1]!) : null;
 }
 

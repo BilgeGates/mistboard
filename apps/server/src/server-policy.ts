@@ -106,6 +106,7 @@ export function isClientRoute(pathname: string): boolean {
     normalized.startsWith('/zh-hans/articles/') ||
     normalized.startsWith('/zh-hant/articles/') ||
     normalized.startsWith('/rules/') ||
+    /^\/forum\/[^/]+$/.test(normalized) ||
     normalized.startsWith('/forum/t/') ||
     normalized.startsWith('/zh-hans/rules/') ||
     normalized.startsWith('/zh-hant/rules/') ||

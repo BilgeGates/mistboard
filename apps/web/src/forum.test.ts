@@ -99,7 +99,7 @@ describe('forum pages', () => {
     expect(root.textContent).toContain('Sign in to start a topic.');
     expect(
       root.querySelector<HTMLAnchorElement>('a.forum-category-index-main')?.getAttribute('href'),
-    ).toBe('/forum?category=announcements');
+    ).toBe('/forum/announcements');
     expect(
       root.querySelector<HTMLAnchorElement>('a.forum-category-index-last')?.getAttribute('href'),
     ).toBe('/forum/t/topic_strategy/scouting-the-center#post_post_strategy_reply');
@@ -116,7 +116,7 @@ describe('forum pages', () => {
 
   it('renders a selected category as a focused topic view', async () => {
     const fetchedUrls: string[] = [];
-    window.history.pushState(null, '', '/forum?category=strategy');
+    window.history.pushState(null, '', '/forum/strategy');
     vi.spyOn(globalThis, 'fetch').mockImplementation(async (input) => {
       const url = String(input);
       fetchedUrls.push(url);
@@ -172,7 +172,7 @@ describe('forum pages', () => {
 
   it('paginates forum topic lists with stable page URLs', async () => {
     const fetchedUrls: string[] = [];
-    window.history.pushState(null, '', '/forum?category=strategy&page=2');
+    window.history.pushState(null, '', '/forum/strategy?page=2');
     vi.spyOn(globalThis, 'fetch').mockImplementation(async (input) => {
       const url = String(input);
       fetchedUrls.push(url);
@@ -217,8 +217,8 @@ describe('forum pages', () => {
     );
     expect(pageLinks.map((link) => link.textContent)).toEqual(['1', '3']);
     expect(pageLinks.map((link) => link.getAttribute('href'))).toEqual([
-      '/forum?category=strategy',
-      '/forum?category=strategy&page=3',
+      '/forum/strategy',
+      '/forum/strategy?page=3',
     ]);
   });
 
@@ -530,7 +530,7 @@ describe('forum pages', () => {
     expect(breadcrumbs.map((link) => link.textContent)).toEqual(['Forum', 'Strategy']);
     expect(breadcrumbs.map((link) => link.getAttribute('href'))).toEqual([
       '/forum',
-      '/forum?category=strategy',
+      '/forum/strategy',
     ]);
     expect(root.querySelector<HTMLInputElement>('input[name="q"]')).not.toBeNull();
     expect(root.querySelector('.forum-category-card-active')?.textContent).toContain('Strategy');

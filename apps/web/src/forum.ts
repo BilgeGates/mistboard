@@ -91,7 +91,7 @@ export async function mountForum(root: HTMLElement): Promise<void> {
   shell.append(body);
 
   const query = new URLSearchParams(window.location.search);
-  const categoryFilter = query.get('category');
+  const categoryFilter = categorySlugFromPath(window.location.pathname) ?? query.get('category');
   const searchQuery = searchQueryFromParam(query.get('q'));
   const topicPage = pageFromParam(query.get('page'));
   const topicOffset = (topicPage - 1) * topicListPageSize;
@@ -303,7 +303,7 @@ function categoryList(
   for (const category of categories) {
     const card = document.createElement('a');
     card.className = 'forum-category-card';
-    card.href = `/forum?category=${encodeURIComponent(category.slug)}`;
+    card.href = categoryHref(category);
     if (category.slug === selectedSlug) card.classList.add('forum-category-card-active');
     const title = document.createElement('strong');
     title.textContent = category.name;
@@ -1267,7 +1267,7 @@ function topicPageHref(topic: { id: string; slug: string }, page: number): strin
 }
 
 function categoryHref(category: { slug: string }): string {
-  return `/forum?category=${encodeURIComponent(category.slug)}`;
+  return `/forum/${encodeURIComponent(category.slug)}`;
 }
 
 function forumHref(
@@ -1276,9 +1276,11 @@ function forumHref(
 ): string {
   const params = new URLSearchParams();
   if (options.searchQuery) params.set('q', options.searchQuery);
-  else if (options.categorySlug) params.set('category', options.categorySlug);
   if (page > 1) params.set('page', String(page));
   const query = params.toString();
+  if (options.categorySlug && !options.searchQuery) {
+    return `${categoryHref({ slug: options.categorySlug })}${query ? `?${query}` : ''}`;
+  }
   return `/forum${query ? `?${query}` : ''}`;
 }
 
@@ -1333,6 +1335,11 @@ function pageFromParam(value: string | null): number {
 function searchQueryFromParam(value: string | null): string | null {
   const query = (value ?? '').trim().replace(/\s+/g, ' ');
   return query.length >= 2 && query.length <= 120 ? query : null;
+}
+
+function categorySlugFromPath(pathname: string): string | null {
+  const match = pathname.replace(/\/+$/, '').match(/^\/forum\/([^/]+)$/);
+  return match ? decodeURIComponent(match[1]!) : null;
 }
 
 function errorMessageForStatus(status: number): string {
