@@ -13,6 +13,9 @@ type ForumCategorySummary = {
   topicCount: number;
   postCount: number;
   latestPost: {
+    post: {
+      id: string;
+    };
     topic: {
       id: string;
       slug: string;
@@ -63,12 +66,12 @@ function categoryHeader(): HTMLElement {
 }
 
 function categoryRow(category: ForumCategorySummary): HTMLElement {
-  const row = document.createElement('a');
+  const row = document.createElement('div');
   row.className = 'site-box-row landing-forum-row';
-  row.href = `/forum?category=${encodeURIComponent(category.slug)}`;
 
-  const main = document.createElement('span');
+  const main = document.createElement('a');
   main.className = 'landing-forum-row-main';
+  main.href = categoryHref(category);
   const title = document.createElement('span');
   title.className = 'landing-forum-row-title';
   title.textContent = category.name;
@@ -100,12 +103,15 @@ function statCell(value: number): HTMLElement {
 }
 
 function latestPostCell(category: ForumCategorySummary): HTMLElement {
-  const cell = document.createElement('span');
-  cell.className = 'landing-forum-row-last';
   if (!category.latestPost) {
+    const cell = document.createElement('span');
+    cell.className = 'landing-forum-row-last';
     cell.textContent = 'No posts yet';
     return cell;
   }
+  const cell = document.createElement('a');
+  cell.className = 'landing-forum-row-last';
+  cell.href = postHref(category.latestPost.topic, category.latestPost.post.id);
   const title = document.createElement('span');
   title.className = 'landing-forum-row-last-title';
   title.textContent = category.latestPost.topic.title;
@@ -132,6 +138,22 @@ function authorLabel(author: ForumAuthor): string {
 
 function formatCount(value: number): string {
   return new Intl.NumberFormat('en-US').format(value);
+}
+
+function categoryHref(category: { slug: string }): string {
+  return `/forum?category=${encodeURIComponent(category.slug)}`;
+}
+
+function topicHref(topic: { id: string; slug: string }): string {
+  return `/forum/t/${encodeURIComponent(topic.id)}/${encodeURIComponent(topic.slug)}`;
+}
+
+function postHref(topic: { id: string; slug: string }, postId: string): string {
+  return `${topicHref(topic)}#${postDomId(postId)}`;
+}
+
+function postDomId(postId: string): string {
+  return `post_${postId}`;
 }
 
 function formatDate(iso: string): string {

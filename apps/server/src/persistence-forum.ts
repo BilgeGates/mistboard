@@ -21,6 +21,9 @@ export type ForumAuthor = {
 } | null;
 
 export type ForumCategoryLatestPost = {
+  post: {
+    id: string;
+  };
   topic: {
     id: string;
     slug: string;
@@ -85,6 +88,7 @@ export async function listForumCategories(): Promise<ForumCategory[]> {
             latest.topic_id AS latest_topic_id,
             latest.topic_slug AS latest_topic_slug,
             latest.topic_title AS latest_topic_title,
+            latest.post_id AS latest_post_id,
             latest.created_at AS latest_post_created_at,
             latest.author_handle AS latest_post_author_handle,
             latest.author_display_name AS latest_post_author_display_name
@@ -94,12 +98,13 @@ export async function listForumCategories(): Promise<ForumCategory[]> {
        SELECT latest_topic.id AS topic_id,
               latest_topic.slug AS topic_slug,
               latest_topic.title AS topic_title,
-              latest_topic.last_post_at AS created_at,
+              latest_post.id AS post_id,
+              latest_post.created_at AS created_at,
               u.handle AS author_handle,
               COALESCE(u.display_name, u.handle) AS author_display_name
        FROM forum_topics latest_topic
        LEFT JOIN LATERAL (
-         SELECT p.author_account_id
+         SELECT p.id, p.author_account_id, p.created_at
          FROM forum_posts p
          WHERE p.topic_id = latest_topic.id AND p.hidden_at IS NULL
          ORDER BY p.created_at DESC, p.id DESC
@@ -107,11 +112,11 @@ export async function listForumCategories(): Promise<ForumCategory[]> {
        ) latest_post ON TRUE
        LEFT JOIN users u ON u.id = latest_post.author_account_id
        WHERE latest_topic.category_id = c.id AND latest_topic.hidden_at IS NULL
-       ORDER BY latest_topic.last_post_at DESC, latest_topic.created_at DESC
+       ORDER BY latest_post.created_at DESC NULLS LAST, latest_topic.created_at DESC
        LIMIT 1
      ) latest ON TRUE
      GROUP BY c.id, latest.topic_id, latest.topic_slug, latest.topic_title,
-              latest.created_at, latest.author_handle, latest.author_display_name
+              latest.post_id, latest.created_at, latest.author_handle, latest.author_display_name
      ORDER BY c.sort_order ASC, c.name ASC`,
   );
   return rows.map(categoryFromRow);
@@ -396,6 +401,7 @@ type ForumCategoryRow = {
   latest_topic_id: string | null;
   latest_topic_slug: string | null;
   latest_topic_title: string | null;
+  latest_post_id: string | null;
   latest_post_created_at: Date | null;
   latest_post_author_handle: string | null;
   latest_post_author_display_name: string | null;
@@ -440,8 +446,12 @@ function categoryFromRow(row: ForumCategoryRow): ForumCategory {
       row.latest_topic_id &&
       row.latest_topic_slug &&
       row.latest_topic_title &&
+      row.latest_post_id &&
       row.latest_post_created_at
         ? {
+            post: {
+              id: row.latest_post_id,
+            },
             topic: {
               id: row.latest_topic_id,
               slug: row.latest_topic_slug,

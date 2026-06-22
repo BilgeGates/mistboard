@@ -5,6 +5,10 @@
   align-items: center;
 }
 
+.landing-forum-row:not(.landing-forum-header):hover {
+  background: var(--site-accent-soft);
+}
+
 .landing-forum-header {
   padding: 7px 14px 6px;
   background: var(--site-panel-soft);
@@ -19,6 +23,24 @@
   display: grid;
   gap: 2px;
   min-width: 0;
+}
+
+a.landing-forum-row-main,
+a.landing-forum-row-last {
+  color: inherit;
+  text-decoration: none;
+}
+
+a.landing-forum-row-main:focus-visible,
+a.landing-forum-row-last:focus-visible {
+  border-radius: var(--site-radius-sm);
+  outline: 2px solid var(--site-accent);
+  outline-offset: 2px;
+}
+
+a.landing-forum-row-main:hover .landing-forum-row-title,
+a.landing-forum-row-last:hover .landing-forum-row-last-title {
+  color: var(--site-link);
 }
 
 .landing-forum-row-title {

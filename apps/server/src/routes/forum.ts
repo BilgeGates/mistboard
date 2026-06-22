@@ -45,6 +45,9 @@ type ForumCategoryJson = {
   topicCount: number;
   postCount: number;
   latestPost: {
+    post: {
+      id: string;
+    };
     topic: {
       id: string;
       slug: string;
@@ -300,6 +303,7 @@ function serializeCategory(category: persistence.ForumCategory): ForumCategoryJs
     postCount: category.postCount,
     latestPost: category.latestPost
       ? {
+          post: category.latestPost.post,
           topic: category.latestPost.topic,
           author: category.latestPost.author,
           createdAt: category.latestPost.createdAt.toISOString(),

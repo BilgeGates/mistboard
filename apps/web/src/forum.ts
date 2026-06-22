@@ -11,6 +11,9 @@ type ForumCategory = {
   topicCount: number;
   postCount: number;
   latestPost: {
+    post: {
+      id: string;
+    };
     topic: {
       id: string;
       slug: string;
@@ -233,12 +236,12 @@ function categoryIndex(categories: ForumCategory[]): HTMLElement {
 }
 
 function categoryIndexRow(category: ForumCategory): HTMLElement {
-  const row = document.createElement('a');
+  const row = document.createElement('div');
   row.className = 'forum-category-index-row';
-  row.href = `/forum?category=${encodeURIComponent(category.slug)}`;
 
-  const main = document.createElement('span');
+  const main = document.createElement('a');
   main.className = 'forum-category-index-main';
+  main.href = categoryHref(category);
   const title = document.createElement('strong');
   title.textContent = category.name;
   const desc = document.createElement('span');
@@ -255,12 +258,15 @@ function categoryIndexRow(category: ForumCategory): HTMLElement {
 }
 
 function latestPostCell(category: ForumCategory): HTMLElement {
-  const cell = document.createElement('span');
-  cell.className = 'forum-category-index-last';
   if (!category.latestPost) {
+    const cell = document.createElement('span');
+    cell.className = 'forum-category-index-last';
     cell.textContent = 'No posts yet';
     return cell;
   }
+  const cell = document.createElement('a');
+  cell.className = 'forum-category-index-last';
+  cell.href = postHref(category.latestPost.topic, category.latestPost.post.id);
   const title = document.createElement('span');
   title.className = 'forum-category-latest-title';
   title.textContent = category.latestPost.topic.title;
@@ -336,6 +342,7 @@ function postList(posts: ForumPost[], user: AuthUser | null): HTMLElement {
   for (const post of posts) {
     const article = document.createElement('article');
     article.className = 'forum-post';
+    article.id = postDomId(post.id);
     const meta = document.createElement('p');
     meta.className = 'forum-post-meta';
     meta.textContent = `${authorLabel(post.author)} · ${formatDate(post.createdAt)}`;
@@ -577,6 +584,18 @@ function pill(text: string): HTMLElement {
 
 function topicHref(topic: { id: string; slug: string }): string {
   return `/forum/t/${encodeURIComponent(topic.id)}/${encodeURIComponent(topic.slug)}`;
+}
+
+function categoryHref(category: { slug: string }): string {
+  return `/forum?category=${encodeURIComponent(category.slug)}`;
+}
+
+function postHref(topic: { id: string; slug: string }, postId: string): string {
+  return `${topicHref(topic)}#${postDomId(postId)}`;
+}
+
+function postDomId(postId: string): string {
+  return `post_${postId}`;
 }
 
 function formatCount(value: number): string {

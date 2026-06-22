@@ -106,6 +106,7 @@ definePersistenceTests('forum', () => {
     assert.equal(strategy?.topicCount, 1);
     assert.equal(strategy?.postCount, 2);
     assert.equal(strategy?.latestPost?.topic.id, 'topic_strategy');
+    assert.equal(strategy?.latestPost?.post.id, 'post_strategy_reply');
     assert.equal(strategy?.latestPost?.author?.handle, 'bob');
 
     const detail = await getForumTopic('topic_strategy');

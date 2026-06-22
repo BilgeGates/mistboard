@@ -143,6 +143,24 @@
   min-width: 0;
 }
 
+a.forum-category-index-main,
+a.forum-category-index-last {
+  color: inherit;
+  text-decoration: none;
+}
+
+a.forum-category-index-main:focus-visible,
+a.forum-category-index-last:focus-visible {
+  border-radius: var(--site-radius-sm);
+  outline: 2px solid var(--site-accent);
+  outline-offset: 2px;
+}
+
+a.forum-category-index-main:hover strong,
+a.forum-category-index-last:hover .forum-category-latest-title {
+  color: var(--site-link);
+}
+
 .forum-category-index-main strong,
 .forum-category-latest-title {
   overflow: hidden;

@@ -22,6 +22,9 @@ const categories = [
     topicCount: 1,
     postCount: 2,
     latestPost: {
+      post: {
+        id: 'post_strategy_reply',
+      },
       topic: {
         id: 'topic_strategy',
         slug: 'scouting-the-center',
@@ -84,6 +87,12 @@ describe('forum pages', () => {
     expect(root.textContent).toContain('Bob');
     expect(root.textContent).toContain('Scouting the center');
     expect(root.textContent).toContain('Sign in to start a topic.');
+    expect(
+      root.querySelector<HTMLAnchorElement>('a.forum-category-index-main')?.getAttribute('href'),
+    ).toBe('/forum?category=announcements');
+    expect(
+      root.querySelector<HTMLAnchorElement>('a.forum-category-index-last')?.getAttribute('href'),
+    ).toBe('/forum/t/topic_strategy/scouting-the-center#post_post_strategy_reply');
     expect(root.querySelector<HTMLAnchorElement>('.forum-topic-card')?.getAttribute('href')).toBe(
       '/forum/t/topic_strategy/scouting-the-center',
     );
@@ -196,6 +205,7 @@ describe('forum pages', () => {
     await mountForumTopic(root, 'topic_strategy');
 
     expect(root.querySelector('script')).toBeNull();
+    expect(root.querySelector<HTMLElement>('.forum-post')?.id).toBe('post_post_1');
     expect(root.querySelector('.forum-post-body')?.textContent).toContain(
       'Hello <script>alert(1)</script>',
     );
