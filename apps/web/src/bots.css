@@ -165,7 +165,8 @@
 
 .bot-card-details,
 .bot-variant-list,
-.bot-card-actions {
+.bot-card-actions,
+.bot-rating-strip {
   display: flex;
   flex-wrap: wrap;
   gap: 7px;
@@ -207,6 +208,42 @@
 .bot-games-chip {
   background: color-mix(in srgb, #5a9f73 16%, var(--site-panel));
   color: color-mix(in srgb, #2f7f4e 88%, var(--site-heading));
+}
+
+.bot-rating-strip {
+  gap: 6px;
+}
+
+.bot-rating-chip {
+  display: inline-grid;
+  grid-template-columns: auto auto;
+  gap: 6px;
+  align-items: baseline;
+  min-height: 26px;
+  padding: 4px 8px;
+  border: 1px solid var(--site-border-soft);
+  border-radius: 3px;
+  background: color-mix(in srgb, var(--site-accent) 10%, var(--site-panel));
+  color: var(--site-muted);
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+
+.bot-rating-chip-value {
+  color: var(--site-heading);
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.bot-rating-chip-label {
+  overflow-wrap: anywhere;
+}
+
+.bot-rating-more-chip {
+  min-height: 26px;
+  background: var(--site-panel-soft);
 }
 
 .bot-card-actions {
@@ -311,25 +348,40 @@
   padding: 14px 16px 16px;
 }
 
-.bot-rating-summary {
+.bot-rating-grid {
   display: grid;
-  gap: 2px;
-  margin: 0;
-  padding: 16px 16px 8px;
+  grid-template-columns: repeat(auto-fit, minmax(132px, 1fr));
+  gap: 1px;
+  border-top: 1px solid var(--site-border-soft);
+  background: var(--site-border-soft);
+}
+
+.bot-rating-cell {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+  padding: 14px 16px;
+  background: var(--site-panel);
   font-variant-numeric: tabular-nums;
 }
 
-.bot-rating-summary-value {
+.bot-rating-cell-value {
   color: var(--site-heading);
-  font-size: 28px;
+  font-size: 24px;
   font-weight: 750;
   line-height: 1;
 }
 
-.bot-rating-summary-label {
+.bot-rating-cell-label,
+.bot-rating-cell-games {
   color: var(--site-muted);
   font-size: 12px;
   font-weight: 700;
+  line-height: 1.2;
+  overflow-wrap: anywhere;
+}
+
+.bot-rating-cell-label {
   text-transform: uppercase;
 }
 
@@ -354,7 +406,8 @@
   .bot-card-header,
   .bot-card-details,
   .bot-card-bio,
-  .bot-variant-list {
+  .bot-variant-list,
+  .bot-rating-strip {
     grid-column: 1;
   }
 

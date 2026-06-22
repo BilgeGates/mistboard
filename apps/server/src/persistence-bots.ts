@@ -40,6 +40,7 @@ export type BotProfile = {
     preferredColor: 'random';
   };
   rating: BotRatingSnapshot | null;
+  ratings: BotRatingSnapshot[];
   visibility: Extract<GameVisibility, 'private' | 'unlisted' | 'public'>;
   createdAt: Date;
   updatedAt: Date;
@@ -98,6 +99,11 @@ type BotDirectoryRow = BotProfileRow & {
 };
 
 const BOT_GAMES_PAGE = 15;
+const RATING_TIME_CLASS_ORDER: Record<RatingTimeClass, number> = {
+  bullet: 0,
+  blitz: 1,
+  rapid: 2,
+};
 
 export async function getPublicBotForPlay(botId: string): Promise<BotPlayProfile | null> {
   const { rows } = await getPool().query<{
@@ -202,11 +208,12 @@ export async function listPublicBots(): Promise<BotDirectoryEntry[]> {
                rating.created_at
       ORDER BY bot_profiles.display_name`,
   );
-  return rows.map((row) => ({
+  const bots = rows.map((row) => ({
     ...botFromRow(row),
     gamesTotal: Number(row.games_total),
     record: recordFromRow(row),
   }));
+  return attachLatestRatings(bots);
 }
 
 export async function getPublicBotProfile(botId: string): Promise<BotProfilePage | null> {
@@ -274,12 +281,92 @@ export async function getPublicBotProfile(botId: string): Promise<BotProfilePage
   if (!row) return null;
 
   const games = await queryBotGames(botId, BOT_GAMES_PAGE);
-  return {
-    ...botFromRow(row),
-    gamesTotal: Number(row.games_total),
-    record: recordFromRow(row),
-    games,
-  };
+  const [profile] = await attachLatestRatings([
+    {
+      ...botFromRow(row),
+      gamesTotal: Number(row.games_total),
+      record: recordFromRow(row),
+      games,
+    },
+  ]);
+  return profile ?? null;
+}
+
+async function attachLatestRatings<T extends BotProfile>(bots: readonly T[]): Promise<T[]> {
+  const ratingsByBotId = await queryLatestPublishedRatings(bots.map((bot) => bot.id));
+  return bots.map((bot) => {
+    const ratings = ratingsByBotId.get(bot.id) ?? [];
+    const primaryRating =
+      ratings.find(
+        (rating) => rating.gameSpecId === bot.defaultGameSpecId && rating.timeClass === 'blitz',
+      ) ??
+      bot.rating ??
+      ratings[0] ??
+      null;
+    return {
+      ...bot,
+      rating: primaryRating,
+      ratings,
+    };
+  });
+}
+
+async function queryLatestPublishedRatings(
+  botIds: readonly string[],
+): Promise<Map<string, BotRatingSnapshot[]>> {
+  const uniqueBotIds = [...new Set(botIds)];
+  if (uniqueBotIds.length === 0) return new Map();
+
+  const { rows } = await getPool().query<{
+    bot_id: string;
+    game_spec_id: string;
+    time_class: RatingTimeClass;
+    rating: number;
+    rating_deviation: number | null;
+    games: number;
+    source: BotRatingSource;
+    source_ref: string | null;
+    created_at: Date;
+  }>(
+    `SELECT bot_id,
+            game_spec_id,
+            time_class,
+            rating,
+            rating_deviation,
+            games,
+            source,
+            source_ref,
+            created_at
+       FROM (
+         SELECT bot_rating_snapshots.*,
+                ROW_NUMBER() OVER (
+                  PARTITION BY bot_id, game_spec_id, time_class
+                  ORDER BY published_at DESC NULLS LAST,
+                           created_at DESC,
+                           id DESC
+                ) AS snapshot_rank
+           FROM bot_rating_snapshots
+          WHERE bot_id = ANY($1::text[])
+            AND published = true
+       ) ranked
+      WHERE snapshot_rank = 1`,
+    [uniqueBotIds],
+  );
+
+  const ratingsByBotId = new Map<string, BotRatingSnapshot[]>();
+  for (const row of rows) {
+    const ratings = ratingsByBotId.get(row.bot_id) ?? [];
+    ratings.push(ratingFromSnapshotRow(row));
+    ratingsByBotId.set(row.bot_id, ratings);
+  }
+  for (const ratings of ratingsByBotId.values()) {
+    ratings.sort(
+      (left, right) =>
+        left.gameSpecId.localeCompare(right.gameSpecId) ||
+        RATING_TIME_CLASS_ORDER[left.timeClass] - RATING_TIME_CLASS_ORDER[right.timeClass],
+    );
+  }
+  return ratingsByBotId;
 }
 
 async function queryBotGames(botId: string, limit: number): Promise<ProfileGameRecord[]> {
@@ -372,9 +459,33 @@ function botFromRow(row: BotProfileRow): BotProfile {
       preferredColor: 'random',
     },
     rating: ratingFromRow(row),
+    ratings: [],
     visibility: row.visibility,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
+  };
+}
+
+function ratingFromSnapshotRow(row: {
+  game_spec_id: string;
+  time_class: RatingTimeClass;
+  rating: number;
+  rating_deviation: number | null;
+  games: number;
+  source: BotRatingSource;
+  source_ref: string | null;
+  created_at: Date;
+}): BotRatingSnapshot {
+  return {
+    gameSpecId: row.game_spec_id,
+    timeClass: row.time_class,
+    rating: row.rating,
+    ratingDeviation: row.rating_deviation,
+    games: row.games,
+    source: row.source,
+    sourceRef: row.source_ref,
+    createdAt: row.created_at,
+    provisional: row.rating_deviation != null ? row.rating_deviation > PROVISIONAL_RD : false,
   };
 }
 

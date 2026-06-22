@@ -1,6 +1,17 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 function bot(overrides: Record<string, unknown> = {}): Record<string, unknown> {
+  const primaryRating = {
+    gameSpecId: 'dark-chess',
+    timeClass: 'blitz',
+    rating: 1812,
+    ratingDeviation: 92,
+    games: 48,
+    source: 'eve-anchor',
+    sourceRef: 'report-1',
+    createdAt: '2026-06-01T00:00:00.000Z',
+    provisional: false,
+  };
   return {
     id: 'misty-dark-chess',
     displayName: 'Misty',
@@ -27,17 +38,21 @@ function bot(overrides: Record<string, unknown> = {}): Record<string, unknown> {
       losses: 3,
       draws: 1,
     },
-    rating: {
-      gameSpecId: 'dark-chess',
-      timeClass: 'blitz',
-      rating: 1812,
-      ratingDeviation: 92,
-      games: 48,
-      source: 'eve-anchor',
-      sourceRef: 'report-1',
-      createdAt: '2026-06-01T00:00:00.000Z',
-      provisional: false,
-    },
+    rating: primaryRating,
+    ratings: [
+      primaryRating,
+      {
+        gameSpecId: 'banqi',
+        timeClass: 'rapid',
+        rating: 1620,
+        ratingDeviation: 110,
+        games: 12,
+        source: 'eve-anchor',
+        sourceRef: 'report-2',
+        createdAt: '2026-06-01T00:00:00.000Z',
+        provisional: false,
+      },
+    ],
     games: [],
     ...overrides,
   };
@@ -75,6 +90,7 @@ describe('bot pages', () => {
     ).toEqual(['Featured bots', 'Community bots']);
     expect(root.textContent).toContain('Searches hidden positions');
     expect(root.querySelector('.bot-card-rating-value')?.textContent).toBe('1,812');
+    expect(root.querySelector('.bot-rating-strip')?.textContent).toContain('Banqi Rapid');
     expect(root.querySelector<HTMLAnchorElement>('.bot-card-title')?.href).toContain(
       '/bot/misty-dark-chess',
     );
@@ -95,6 +111,7 @@ describe('bot pages', () => {
     expect(root.querySelector('.profile-role-owner')?.textContent).toBe('First-party');
     expect(root.querySelector('.bot-profile-rating')?.textContent).toContain('1,812');
     expect(root.querySelector('.bot-profile-rating')?.textContent).toContain('48 rated games');
+    expect(root.querySelector('.bot-profile-rating')?.textContent).toContain('Banqi · Rapid');
     expect(root.querySelector('.bot-profile-variants')?.textContent).toContain('Banqi');
   });
 });

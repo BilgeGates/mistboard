@@ -30,6 +30,17 @@ definePersistenceTests('bot profiles', () => {
       createdAt: new Date('2026-01-01T00:02:00Z'),
     });
     await insertBotRatingSnapshot('test-bot', {
+      rating: 1675,
+      ratingDeviation: 110,
+      games: 16,
+      source: 'eve-anchor',
+      sourceRef: 'banqi-report-2026-01-01',
+      published: true,
+      createdAt: new Date('2026-01-01T00:02:30Z'),
+      gameSpecId: 'banqi',
+      timeClass: 'rapid',
+    });
+    await insertBotRatingSnapshot('test-bot', {
       rating: 2200,
       ratingDeviation: 80,
       games: 64,
@@ -129,6 +140,13 @@ definePersistenceTests('bot profiles', () => {
     assert.equal(bots[0]?.rating?.source, 'eve-anchor');
     assert.equal(bots[0]?.rating?.sourceRef, 'eve-report-2026-01-01');
     assert.equal(bots[0]?.rating?.provisional, false);
+    assert.deepEqual(
+      bots[0]?.ratings.map((rating) => [rating.gameSpecId, rating.timeClass, rating.rating]),
+      [
+        ['banqi', 'rapid', 1675],
+        ['dark-chess', 'blitz', 1812],
+      ],
+    );
     assert.equal(bots[0]?.play.engineId, 'python-v2-v1.5');
 
     const profile = await getPublicBotProfile('test-bot');
@@ -140,6 +158,7 @@ definePersistenceTests('bot profiles', () => {
       draws: 0,
     });
     assert.equal(profile?.rating?.rating, 1812);
+    assert.equal(profile?.ratings.length, 2);
     assert.equal(profile?.games.length, 1);
     assert.equal(profile?.games[0]?.roomId, 'test-bot-public-game');
     assert.equal(profile?.games[0]?.playerColor, 'black');
@@ -334,6 +353,7 @@ async function insertBotRatingSnapshot(
     published: boolean;
     createdAt: Date;
     gameSpecId?: string;
+    timeClass?: 'bullet' | 'blitz' | 'rapid';
   },
 ): Promise<number> {
   const client = new pg.Client({ connectionString: TEST_DATABASE_URL });
@@ -343,12 +363,13 @@ async function insertBotRatingSnapshot(
       `INSERT INTO bot_rating_snapshots
          (bot_id, game_spec_id, time_class, rating, rating_deviation, games,
           source, source_ref, published, published_at, created_at)
-       VALUES ($1, $2, 'blitz', $3, $4, $5, $6, $7, $8,
-               CASE WHEN $8::boolean THEN $9::timestamptz ELSE NULL::timestamptz END, $9)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9,
+               CASE WHEN $9::boolean THEN $10::timestamptz ELSE NULL::timestamptz END, $10)
        RETURNING id::text`,
       [
         botId,
         opts.gameSpecId ?? 'dark-chess',
+        opts.timeClass ?? 'blitz',
         opts.rating,
         opts.ratingDeviation,
         opts.games,

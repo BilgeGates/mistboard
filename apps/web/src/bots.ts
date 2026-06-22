@@ -48,6 +48,7 @@ type BotProfile = {
   gamesTotal: number;
   record: BotRecord;
   rating: BotRatingSnapshot | null;
+  ratings?: BotRatingSnapshot[];
   games?: FeaturedGame[];
 };
 
@@ -229,6 +230,8 @@ function buildBotCard(bot: BotProfile): HTMLElement {
     detailChip(gameCountLabel(bot.gamesTotal), 'bot-games-chip'),
   );
 
+  const ratingStrip = buildBotRatingStrip(bot, 4);
+
   const bio = document.createElement('p');
   bio.className = 'bot-card-bio';
   bio.textContent = bot.bio.trim() || 'Public Mistboard bot profile.';
@@ -249,7 +252,9 @@ function buildBotCard(bot: BotProfile): HTMLElement {
   profile.textContent = 'Profile';
   actions.append(profile);
 
-  card.append(header, details, bio, variants, actions);
+  card.append(header, details);
+  if (ratingStrip) card.append(ratingStrip);
+  card.append(bio, variants, actions);
   return card;
 }
 
@@ -259,11 +264,14 @@ function buildBotCardRating(bot: BotProfile): HTMLElement {
 
   const value = document.createElement('span');
   value.className = 'bot-card-rating-value';
-  value.textContent = bot.rating ? ratingLabel(bot.rating) : '—';
+  const ratingSnapshot = primaryRating(bot);
+  value.textContent = ratingSnapshot ? ratingLabel(ratingSnapshot) : '—';
 
   const label = document.createElement('span');
   label.className = 'bot-card-rating-label';
-  label.textContent = bot.rating ? `${timeClassLabel(bot.rating.timeClass)} rating` : 'Unrated';
+  label.textContent = ratingSnapshot
+    ? `${timeClassLabel(ratingSnapshot.timeClass)} rating`
+    : 'Unrated';
 
   rating.append(value, label);
   return rating;
@@ -294,7 +302,8 @@ function buildBotStats(bot: BotProfile): HTMLElement {
   const stats = document.createElement('div');
   stats.className = 'profile-stats bot-stats';
   const cells = [statCell(gameSpecLabel(bot.defaultGameSpecId), 'Default')];
-  if (bot.rating) cells.push(statCell(ratingLabel(bot.rating), 'Rating'));
+  const ratingSnapshot = primaryRating(bot);
+  if (ratingSnapshot) cells.push(statCell(ratingLabel(ratingSnapshot), 'Rating'));
   cells.push(
     statCell(recordLabel(bot.record), 'Record'),
     statCell(timeControlLabel(bot.play.timeControl), 'Play clock'),
@@ -345,32 +354,15 @@ function buildBotRatingPanel(bot: BotProfile): HTMLElement {
   heading.textContent = 'Rating';
   section.append(heading);
 
-  if (!bot.rating) {
+  const ratings = botRatings(bot);
+  if (ratings.length === 0) {
     const empty = document.createElement('p');
     empty.textContent = 'No published rating yet.';
     section.append(empty);
     return section;
   }
 
-  const summary = document.createElement('div');
-  summary.className = 'bot-rating-summary';
-
-  const value = document.createElement('span');
-  value.className = 'bot-rating-summary-value';
-  value.textContent = ratingLabel(bot.rating);
-
-  const label = document.createElement('span');
-  label.className = 'bot-rating-summary-label';
-  label.textContent = `${gameSpecLabel(bot.rating.gameSpecId)} · ${timeClassLabel(
-    bot.rating.timeClass,
-  )}`;
-
-  summary.append(value, label);
-
-  const games = document.createElement('p');
-  games.textContent = `${bot.rating.games} rated ${bot.rating.games === 1 ? 'game' : 'games'}`;
-
-  section.append(summary, games);
+  section.append(buildBotRatingGrid(ratings));
   return section;
 }
 
@@ -487,8 +479,82 @@ function statusLine(text: string): HTMLElement {
   return p;
 }
 
+function buildBotRatingStrip(bot: BotProfile, limit: number): HTMLElement | null {
+  const ratings = botRatings(bot);
+  if (ratings.length === 0) return null;
+
+  const strip = document.createElement('div');
+  strip.className = 'bot-rating-strip';
+  for (const rating of ratings.slice(0, limit)) {
+    strip.append(buildBotRatingChip(rating));
+  }
+  if (ratings.length > limit) {
+    strip.append(detailChip(`+${ratings.length - limit} more`, 'bot-rating-more-chip'));
+  }
+  return strip;
+}
+
+function buildBotRatingChip(rating: BotRatingSnapshot): HTMLElement {
+  const chip = document.createElement('span');
+  chip.className = 'bot-rating-chip';
+
+  const value = document.createElement('span');
+  value.className = 'bot-rating-chip-value';
+  value.textContent = ratingLabel(rating);
+
+  const label = document.createElement('span');
+  label.className = 'bot-rating-chip-label';
+  label.textContent = `${gameSpecLabel(rating.gameSpecId)} ${timeClassLabel(rating.timeClass)}`;
+
+  chip.append(value, label);
+  return chip;
+}
+
+function buildBotRatingGrid(ratings: readonly BotRatingSnapshot[]): HTMLElement {
+  const grid = document.createElement('div');
+  grid.className = 'bot-rating-grid';
+
+  for (const rating of ratings) {
+    const cell = document.createElement('div');
+    cell.className = 'bot-rating-cell';
+
+    const value = document.createElement('span');
+    value.className = 'bot-rating-cell-value';
+    value.textContent = ratingLabel(rating);
+
+    const label = document.createElement('span');
+    label.className = 'bot-rating-cell-label';
+    label.textContent = `${gameSpecLabel(rating.gameSpecId)} · ${timeClassLabel(rating.timeClass)}`;
+
+    const games = document.createElement('span');
+    games.className = 'bot-rating-cell-games';
+    games.textContent = `${rating.games} rated ${rating.games === 1 ? 'game' : 'games'}`;
+
+    cell.append(value, label, games);
+    grid.append(cell);
+  }
+  return grid;
+}
+
 function supportedGameSpecIds(bot: BotProfile): string[] {
   return bot.supportedGameSpecIds.length > 0 ? bot.supportedGameSpecIds : [bot.defaultGameSpecId];
+}
+
+function botRatings(bot: BotProfile): BotRatingSnapshot[] {
+  if (bot.ratings && bot.ratings.length > 0) return bot.ratings;
+  return bot.rating ? [bot.rating] : [];
+}
+
+function primaryRating(bot: BotProfile): BotRatingSnapshot | null {
+  const ratings = botRatings(bot);
+  return (
+    ratings.find(
+      (rating) => rating.gameSpecId === bot.defaultGameSpecId && rating.timeClass === 'blitz',
+    ) ??
+    bot.rating ??
+    ratings[0] ??
+    null
+  );
 }
 
 function defaultGameSpecLabel(bot: BotProfile): string {
