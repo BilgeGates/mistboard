@@ -212,7 +212,13 @@ export async function mountForumTopic(root: HTMLElement, topicId: string): Promi
   const main = document.createElement('section');
   main.className = 'forum-main';
   main.append(
-    postList(topic, visiblePosts, user, postPage > 1 ? 'No forum posts on this page.' : undefined),
+    postList(
+      topic,
+      visiblePosts,
+      user,
+      postPage > 1 ? 'No forum posts on this page.' : undefined,
+      postPage,
+    ),
   );
   if (postPage > 1 || hasNextPostPage) {
     main.append(
@@ -632,6 +638,7 @@ function postList(
   posts: ForumPost[],
   user: AuthUser | null,
   emptyText = 'No forum posts yet.',
+  page = 1,
 ): HTMLElement {
   const wrap = document.createElement('section');
   wrap.className = 'forum-post-list';
@@ -651,7 +658,7 @@ function postList(
     const edited = postEditedLabel(post);
     meta.append(
       document.createTextNode(`${authorLabel(post.author)} · ${formatDate(post.createdAt)} · `),
-      postPermalink(topic, post),
+      postPermalink(topic, post, page),
     );
     if (user && !topic.locked) {
       meta.append(document.createTextNode(' · '), postQuoteButton(post));
@@ -667,10 +674,14 @@ function postList(
   return wrap;
 }
 
-function postPermalink(topic: { id: string; slug: string }, post: ForumPost): HTMLAnchorElement {
+function postPermalink(
+  topic: { id: string; slug: string },
+  post: ForumPost,
+  page = 1,
+): HTMLAnchorElement {
   const link = document.createElement('a');
   link.className = 'forum-post-permalink';
-  link.href = postHref(topic, post.id);
+  link.href = postHref(topic, post.id, page);
   link.textContent = 'Link';
   return link;
 }

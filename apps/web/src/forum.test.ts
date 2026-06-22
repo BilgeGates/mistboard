@@ -782,6 +782,9 @@ describe('forum pages', () => {
     expect(fetchedUrls).toContain('/api/forum/topics/topic_strategy?limit=26&offset=25');
     expect(root.querySelectorAll('.forum-post')).toHaveLength(25);
     expect(root.querySelector<HTMLElement>('.forum-post')?.id).toBe('post_post_page_0');
+    expect(
+      root.querySelector<HTMLAnchorElement>('.forum-post-permalink')?.getAttribute('href'),
+    ).toBe('/forum/t/topic_strategy/scouting-the-center?page=2#post_post_page_0');
     expect(root.querySelector('.forum-pager-current')?.textContent).toBe('Page 2');
     const pageLinks = Array.from(root.querySelectorAll<HTMLAnchorElement>('.forum-pager-link'));
     expect(pageLinks.map((link) => link.textContent)).toEqual(['Previous', 'Next']);
