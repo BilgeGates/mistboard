@@ -53,7 +53,7 @@ describe('web variant launch registry', () => {
     );
   });
 
-  it('shows public leaderboard buckets for live public variants', async () => {
+  it('shows public leaderboard buckets for default public variants', async () => {
     // Pin prod semantics: dev auto-on would otherwise surface the soft-launch DMX bucket.
     vi.resetModules();
     vi.stubEnv('DEV', false);
@@ -61,7 +61,6 @@ describe('web variant launch registry', () => {
     expect(prod.leaderboardVariants.map((v) => v.gameSpecId)).toEqual([
       DARK_CHESS_SPEC_ID,
       DROP_MINI_XIANGQI_SPEC_ID,
-      CROSSROADS_CHESS_SPEC_ID,
     ]);
     vi.unstubAllEnvs();
     vi.resetModules();
@@ -77,12 +76,10 @@ describe('web variant launch registry', () => {
       DARK_CHESS_SPEC_ID,
       DARK_MINI_XIANGQI_SPEC_ID,
       DROP_MINI_XIANGQI_SPEC_ID,
-      CROSSROADS_CHESS_SPEC_ID,
     ]);
     expect(flagged.leaderboardVariants.map((v) => v.gameSpecId)).toEqual([
       DARK_CHESS_SPEC_ID,
       DROP_MINI_XIANGQI_SPEC_ID,
-      CROSSROADS_CHESS_SPEC_ID,
     ]);
     vi.unstubAllEnvs();
     vi.resetModules();
@@ -99,7 +96,6 @@ describe('web variant launch registry', () => {
       DARK_CHESS_SPEC_ID,
       DARK_MINI_XIANGQI_SPEC_ID,
       DROP_MINI_XIANGQI_SPEC_ID,
-      CROSSROADS_CHESS_SPEC_ID,
     ]);
     expect(flagged.enabledVariants.map((v) => v.gameSpecId)).toContain(DARK_MINI_XIANGQI_SPEC_ID);
     expect(
@@ -164,7 +160,7 @@ describe('web variant launch registry', () => {
     vi.resetModules();
   });
 
-  it('shows the 12 launched variants on local rating surfaces', () => {
+  it('shows local rating surfaces without disabled Crossroads, Reveal, and Kriegspiel variants', () => {
     expect(leaderboardVariants.map((v) => v.gameSpecId)).toEqual([
       DARK_CHESS_SPEC_ID,
       DARK_MINI_XIANGQI_SPEC_ID,
@@ -172,12 +168,8 @@ describe('web variant launch registry', () => {
       DARK_XIANGQI_SPEC_ID,
       JIEQI_SPEC_ID,
       BANQI_SPEC_ID,
-      REVEAL_CHESS_SPEC_ID,
-      CROSSROADS_CHESS_SPEC_ID,
-      DARK_CROSSROADS_CHESS_SPEC_ID,
       DARK_SHOGI_SPEC_ID,
       DARK_CRAZYHOUSE_SPEC_ID,
-      KRIEGSPIEL_SPEC_ID,
     ]);
     expect(profileRatingVariants.map((v) => v.gameSpecId)).toEqual([
       DARK_CHESS_SPEC_ID,
@@ -186,12 +178,8 @@ describe('web variant launch registry', () => {
       DARK_XIANGQI_SPEC_ID,
       JIEQI_SPEC_ID,
       BANQI_SPEC_ID,
-      REVEAL_CHESS_SPEC_ID,
-      CROSSROADS_CHESS_SPEC_ID,
-      DARK_CROSSROADS_CHESS_SPEC_ID,
       DARK_SHOGI_SPEC_ID,
       DARK_CRAZYHOUSE_SPEC_ID,
-      KRIEGSPIEL_SPEC_ID,
     ]);
     expect(enabledVariants.map((v) => v.gameSpecId)).not.toContain(DARK_SHOGI_SPEC_ID);
     expect(variantMiniIdForGameSpec(DARK_SHOGI_SPEC_ID)).toBe('dark-shogi');

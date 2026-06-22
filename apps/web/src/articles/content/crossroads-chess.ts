@@ -15,6 +15,7 @@ export const crossroadsChessArticle: Article = {
     summary:
       'A modern variant that fuses chess and xiangqi on a 6 by 8 river board. The pieces you already know from both games, and two ways to win: checkmate, or race your king across.',
     showSummaryOnPage: false,
+    showInIndex: false,
     status: 'published',
     publishedAt: '2026-06-11',
     audience: 'Mistboard readers who know chess or xiangqi and want the Crossroads Chess rules.',

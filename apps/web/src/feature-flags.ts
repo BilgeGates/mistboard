@@ -1,6 +1,6 @@
-// Client build-time gates for hidden or prelaunch surfaces. Dev defaults are on
-// for local parity with launched variants; production/staging must opt in
-// explicitly at build time.
+// Client build-time gates for hidden or prelaunch surfaces. Most dev defaults
+// stay on for local parity with launched variants; parked surfaces use explicit
+// opt-in only so they do not reappear in active product UI by accident.
 
 export function darkXiangqiEnabled(): boolean {
   return import.meta.env.DEV || import.meta.env.VITE_DARK_XIANGQI_ENABLED === 'true';
@@ -33,10 +33,9 @@ export function banqiEnabled(): boolean {
 }
 
 // Reveal Chess (chess-jieqi, hidden identities on an 8x8 board) play surface.
-// Always on in dev for convenience; hidden in prod/staging unless the build
-// opts in; mirrors the jieqi gate.
+// Explicit build-time opt-in only.
 export function revealChessEnabled(): boolean {
-  return import.meta.env.DEV || import.meta.env.VITE_REVEAL_CHESS_ENABLED === 'true';
+  return import.meta.env.VITE_REVEAL_CHESS_ENABLED === 'true';
 }
 
 export function darkMiniXiangqiPublicEntryEnabled(): boolean {
@@ -55,17 +54,18 @@ export function correspondenceEnabled(): boolean {
   return import.meta.env.DEV || import.meta.env.VITE_CORRESPONDENCE_ENABLED === 'true';
 }
 
-// Perfect-information Crossroads Chess play surface. Always on in dev for
-// convenience; in prod/staging it is hidden unless the build opts in.
+// Perfect-information Crossroads Chess play surface. Explicit build-time opt-in
+// only; keep it disabled by default even in dev so it does not keep reappearing
+// after being removed from the active product surface.
 export function crossroadsChessEnabled(): boolean {
-  return import.meta.env.DEV || import.meta.env.VITE_CROSSROADS_CHESS_ENABLED === 'true';
+  return import.meta.env.VITE_CROSSROADS_CHESS_ENABLED === 'true';
 }
 
 // Dark Crossroads Chess (the fog 6x8 variant) play surface. Server-side opt-in
 // is MISTBOARD_DARK_CROSSROADS_CHESS_ENABLED; this gates the landing picker and
-// deep links. Always on in dev for local parity with production launch flags.
+// deep links. Explicit build-time opt-in only.
 export function darkCrossroadsChessEnabled(): boolean {
-  return import.meta.env.DEV || import.meta.env.VITE_DARK_CROSSROADS_CHESS_ENABLED === 'true';
+  return import.meta.env.VITE_DARK_CROSSROADS_CHESS_ENABLED === 'true';
 }
 
 // Dark Shogi (the fog 9x9 variant) play surface. Server-side opt-in is
@@ -86,5 +86,5 @@ export function darkCrazyhouseEnabled(): boolean {
 // MISTBOARD_KRIEGSPIEL_ENABLED; this gates play entry, watch, profile, and
 // leaderboard surfaces.
 export function kriegspielEnabled(): boolean {
-  return import.meta.env.DEV || import.meta.env.VITE_KRIEGSPIEL_ENABLED === 'true';
+  return import.meta.env.VITE_KRIEGSPIEL_ENABLED === 'true';
 }

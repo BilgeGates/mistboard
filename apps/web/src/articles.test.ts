@@ -69,15 +69,37 @@ describe('article public listing gates', () => {
       '/rules/drop-mini-xiangqi',
       '/rules/dark-shogi',
       '/articles/mistybanqi',
-      '/rules/reveal-chess',
       '/rules/jieqi',
       '/rules/banqi',
-      '/rules/crossroads-chess',
       '/articles/server-enforced-fog',
       '/rules/dark-mini-xiangqi',
       '/rules/dark-xiangqi',
       '/rules/dark-chess',
     ]);
+  });
+
+  it('keeps parked chess variant rules out of the homepage widget and rules rail', () => {
+    vi.stubEnv('DEV', false);
+
+    const home = buildHomeArticleCards(50);
+    const landing = buildRulesIndex();
+    const darkChess = buildArticlePage('dark-chess');
+    const darkCrossroads = buildArticlePage('dark-crossroads-chess');
+    const parkedHrefs = [
+      '/rules/reveal-chess',
+      '/rules/crossroads-chess',
+      '/rules/dark-crossroads-chess',
+    ];
+
+    for (const href of parkedHrefs) {
+      expect(home?.querySelector(`.landing-article-card[href="${href}"]`)).toBeNull();
+      expect(landing.querySelector(`.rules-landing-tile[href="${href}"]`)).toBeNull();
+      expect(darkChess.querySelector(`.article-variant-sidebar a[href="${href}"]`)).toBeNull();
+    }
+    expect(darkCrossroads.textContent).toContain('Dark Crossroads Chess Rules');
+    expect(
+      darkCrossroads.querySelector('.article-variant-sidebar a[aria-current="page"]'),
+    ).toBeNull();
   });
 
   it('keeps still-gated release announcements out of the homepage article widget by default', () => {
@@ -174,7 +196,7 @@ describe('article public listing gates', () => {
     });
   });
 
-  it('publishes Dark Crossroads Chess as a playable invite rules page', () => {
+  it('keeps the Dark Crossroads Chess rules page directly reachable while unlisted', () => {
     vi.stubEnv('DEV', false);
 
     const page = buildArticlePage('dark-crossroads-chess');
@@ -195,19 +217,19 @@ describe('article public listing gates', () => {
       href: '/?play=friend&gameSpecId=dark-crossroads-chess',
       text: 'Create invite',
     });
-    expect(landing.textContent).toContain('Dark Crossroads Chess');
-    expect(grids[0]?.querySelector('a[href="/rules/dark-crossroads-chess"]')).not.toBeNull();
+    expect(landing.textContent).not.toContain('Dark Crossroads Chess');
+    expect(grids[0]?.querySelector('a[href="/rules/dark-crossroads-chess"]')).toBeNull();
     expect(
       grids[0]?.querySelector(
         'a[href="/rules/dark-crossroads-chess"] svg[data-mini-id="dark-crossroads"]',
       ),
-    ).not.toBeNull();
+    ).toBeNull();
     expect(grids[1]?.querySelector('a[href="/rules/dark-crossroads-chess"]')).toBeNull();
     expect(
       page.querySelector(
         '.article-variant-sidebar a[aria-current="page"] svg[data-mini-id="dark-crossroads"]',
       ),
-    ).not.toBeNull();
+    ).toBeNull();
   });
 
   it('publishes Dark Crazyhouse as a playable invite rules page with the variant marker', () => {

@@ -200,9 +200,9 @@ export const VARIANTS: VariantDef[] = [
     onLeaderboard: revealChessOn,
     onProfile: revealChessOn,
   },
-  // Perfect-information Crossroads is intentionally ranked last across the
-  // lobby/leaderboard/profile lineups: it is the platform's one perfect-info
-  // surface (everything else is hidden-info), kept playable but de-emphasized.
+  // Perfect-information Crossroads stays in the registry for old records and
+  // explicit local experiments, but is hidden from active product surfaces
+  // unless the play flag is deliberately enabled.
   {
     id: currentRatingVariantForSpec(CROSSROADS_CHESS_SPEC_ID),
     gameSpecId: crossroadsChessSpec.id,
@@ -210,8 +210,8 @@ export const VARIANTS: VariantDef[] = [
     label: crossroadsChessSpec.publicName,
     miniId: 'crossroads',
     enabled: crossroadsEnabled,
-    onLeaderboard: true,
-    onProfile: true,
+    onLeaderboard: crossroadsEnabled,
+    onProfile: crossroadsEnabled,
   },
   {
     id: currentRatingVariantForSpec(DARK_CROSSROADS_CHESS_SPEC_ID),

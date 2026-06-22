@@ -14,6 +14,7 @@ export const revealChessArticle: Article = {
   summary:
     'Reveal Chess rules: standard chess with a hidden starting arrangement. Every piece but the king starts face-down, moves by the square it sits on, and reveals its true identity the moment it moves.',
   showSummaryOnPage: false,
+  showInIndex: false,
   status: 'published',
   publishedAt: '2026-06-17',
   audience:

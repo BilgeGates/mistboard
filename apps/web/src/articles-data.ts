@@ -54,9 +54,6 @@ export const articles: Article[] = [
   banqiEngineArticle,
   revealChessArticle,
   darkCrossroadsChessArticle,
-  // Perfect-information Crossroads is intentionally last in the rules rail /
-  // article index: the platform's one perfect-info surface, kept listed but
-  // de-emphasized relative to the hidden-info variants.
   crossroadsChessArticle,
 ];
 

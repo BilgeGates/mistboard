@@ -18,11 +18,11 @@ describe('profile ratings rail', () => {
     expect(section.textContent).toContain('Dark Chess');
     expect(section.textContent).toContain('Dark Mini Xiangqi');
     expect(section.textContent).toContain('Drop Mini Xiangqi');
-    expect(section.textContent).toContain('Crossroads Chess');
-    expect(section.querySelectorAll('.profile-rating-row-empty')).toHaveLength(4);
+    expect(section.textContent).not.toContain('Crossroads Chess');
+    expect(section.querySelectorAll('.profile-rating-row-empty')).toHaveLength(3);
   });
 
-  it('shows Crossroads rated leaderboard panels even when play is not enabled', async () => {
+  it('hides Crossroads rated leaderboard panels when play is not enabled', async () => {
     vi.stubEnv('DEV', false);
     vi.stubEnv('VITE_CROSSROADS_CHESS_ENABLED', 'false');
     const fetchSpy = vi.spyOn(globalThis, 'fetch').mockImplementation(
@@ -37,13 +37,36 @@ describe('profile ratings rail', () => {
 
     await mountLeaderboard(root);
 
-    expect(root.textContent).toContain('Crossroads Chess');
+    expect(root.textContent).not.toContain('Crossroads Chess');
     expect(root.textContent).toContain('Drop Mini Xiangqi');
     expect(root.textContent).toContain('Human blitz ladders');
-    expect(root.querySelector('.leaderboard-stat-value')?.textContent).toBe('3');
+    expect(root.querySelector('.leaderboard-stat-value')?.textContent).toBe('2');
     expect(root.querySelector('.leaderboard-panel-subtitle')?.textContent).toBe('Blitz rating');
-    expect(root.querySelectorAll('.leaderboard-panel')).toHaveLength(3);
+    expect(root.querySelectorAll('.leaderboard-panel')).toHaveLength(2);
     expect(fetchSpy).toHaveBeenCalledWith('/api/leaderboard?variant=drop-mini-xiangqi&limit=10');
+    expect(fetchSpy).not.toHaveBeenCalledWith(
+      '/api/leaderboard?variant=crossroads-chess&limit=10',
+    );
+  });
+
+  it('shows Crossroads rated leaderboard panels behind the play flag', async () => {
+    vi.stubEnv('DEV', false);
+    vi.stubEnv('VITE_CROSSROADS_CHESS_ENABLED', 'true');
+    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockImplementation(
+      async () =>
+        new Response(JSON.stringify({ leaderboard: [] }), {
+          headers: { 'content-type': 'application/json' },
+          status: 200,
+        }),
+    );
+    const root = document.createElement('div');
+    const { mountLeaderboard } = await import('./profile.js');
+
+    await mountLeaderboard(root);
+
+    expect(root.textContent).toContain('Crossroads Chess');
+    expect(root.querySelector('.leaderboard-stat-value')?.textContent).toBe('3');
+    expect(root.querySelectorAll('.leaderboard-panel')).toHaveLength(3);
     expect(fetchSpy).toHaveBeenCalledWith('/api/leaderboard?variant=crossroads-chess&limit=10');
   });
 });
