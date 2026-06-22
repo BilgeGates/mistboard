@@ -160,6 +160,7 @@ export async function mountForum(root: HTMLElement): Promise<void> {
         : searchQuery
           ? 'No forum topics matched.'
           : undefined,
+      { showCategory: !selectedCategory },
     ),
   );
   if (needsTopicPager) main.append(topicPager(topicPageOptions));
@@ -373,7 +374,7 @@ function latestPostCell(category: ForumCategory): HTMLElement {
   title.className = 'forum-category-latest-title';
   title.textContent = category.latestPost.topic.title;
   const meta = document.createElement('span');
-  meta.textContent = `${authorLabel(category.latestPost.author)} · ${formatDate(category.latestPost.createdAt)}`;
+  meta.textContent = latestPostMetaText(category.latestPost.author, category.latestPost.createdAt);
   cell.append(title, meta);
   return cell;
 }
@@ -416,7 +417,11 @@ function sectionTitle(text: string): HTMLElement {
   return heading;
 }
 
-function topicList(topics: ForumTopicSummary[], emptyText = 'No forum topics yet.'): HTMLElement {
+function topicList(
+  topics: ForumTopicSummary[],
+  emptyText = 'No forum topics yet.',
+  options: { showCategory?: boolean } = {},
+): HTMLElement {
   const wrap = document.createElement('section');
   wrap.className = 'forum-topic-list';
   if (topics.length === 0) {
@@ -425,7 +430,7 @@ function topicList(topics: ForumTopicSummary[], emptyText = 'No forum topics yet
     return wrap;
   }
   wrap.append(topicListHeader());
-  for (const topic of topics) wrap.append(topicRow(topic));
+  for (const topic of topics) wrap.append(topicRow(topic, { showCategory: options.showCategory }));
   return wrap;
 }
 
@@ -513,7 +518,7 @@ function pagerEllipsis(): HTMLElement {
   return ellipsis;
 }
 
-function topicRow(topic: ForumTopicSummary): HTMLElement {
+function topicRow(topic: ForumTopicSummary, options: { showCategory?: boolean } = {}): HTMLElement {
   const row = document.createElement('article');
   row.className = 'forum-topic-row';
 
@@ -521,7 +526,7 @@ function topicRow(topic: ForumTopicSummary): HTMLElement {
   main.className = 'forum-topic-row-main';
   const flags = document.createElement('div');
   flags.className = 'forum-topic-flags';
-  flags.append(pill(topic.category.name));
+  if (options.showCategory) flags.append(pill(topic.category.name));
   if (topic.pinned) flags.append(pill('Pinned'));
   if (topic.locked) flags.append(pill('Locked'));
 
@@ -537,7 +542,8 @@ function topicRow(topic: ForumTopicSummary): HTMLElement {
     authorProfileLink(topic.author, 'forum-topic-author'),
     document.createTextNode(` · ${formatDate(topic.createdAt)}`),
   );
-  main.append(flags, title, meta);
+  if (flags.childElementCount > 0) main.append(flags);
+  main.append(title, meta);
 
   const replies = document.createElement('span');
   replies.className = 'forum-topic-row-replies';
@@ -549,7 +555,7 @@ function topicRow(topic: ForumTopicSummary): HTMLElement {
     const latest = document.createElement('a');
     latest.className = 'forum-topic-latest-link';
     latest.href = postHref(topic, topic.latestPost.post.id, pageForPostCount(topic.postCount));
-    latest.textContent = `${authorLabel(topic.latestPost.author)} · ${formatDate(topic.latestPost.createdAt)}`;
+    latest.textContent = latestPostMetaText(topic.latestPost.author, topic.latestPost.createdAt);
     latestCell.append(latest);
   } else {
     latestCell.textContent = formatDate(topic.lastPostAt);
@@ -1302,6 +1308,10 @@ function formatCount(value: number): string {
 
 function authorLabel(author: ForumAuthor): string {
   return author?.displayName ?? 'Deleted account';
+}
+
+function latestPostMetaText(author: ForumAuthor, createdAt: string): string {
+  return `by ${authorLabel(author)} · ${formatDate(createdAt)}`;
 }
 
 function authorProfileLink(author: ForumAuthor, className: string): HTMLElement {

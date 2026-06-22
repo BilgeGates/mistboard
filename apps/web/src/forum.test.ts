@@ -95,6 +95,7 @@ describe('forum pages', () => {
     expect(root.textContent).toContain('Topics');
     expect(root.textContent).toContain('Posts');
     expect(root.textContent).toContain('Bob');
+    expect(root.querySelector('a.forum-category-index-last')?.textContent).toContain('by Bob');
     expect(root.textContent).toContain('Scouting the center');
     expect(root.textContent).toContain('Sign in to start a topic.');
     expect(
@@ -112,6 +113,8 @@ describe('forum pages', () => {
     expect(
       root.querySelector<HTMLAnchorElement>('.forum-topic-latest-link')?.getAttribute('href'),
     ).toBe('/forum/t/topic_strategy/scouting-the-center#post_post_strategy_reply');
+    expect(root.querySelector('.forum-topic-latest-link')?.textContent).toContain('by Bob');
+    expect(root.querySelector('.forum-topic-flags')?.textContent).toContain('Strategy');
   });
 
   it('renders a selected category as a focused topic view', async () => {
@@ -134,6 +137,9 @@ describe('forum pages', () => {
     expect(root.textContent).toContain('Openings and patterns.');
     expect(root.textContent).toContain('1 topic · 2 posts');
     expect(root.querySelector('.forum-category-header-box')?.textContent).toContain('Strategy');
+    expect(
+      root.querySelector('.forum-topic-row:not(.forum-topic-list-header) .forum-topic-flags'),
+    ).toBeNull();
   });
 
   it('defaults new topics to the selected category when the user can post there', async () => {
