@@ -133,6 +133,40 @@ describe('forum pages', () => {
     expect(root.querySelector('.forum-category-header-box')?.textContent).toContain('Strategy');
   });
 
+  it('defaults new topics to the selected category when the user can post there', async () => {
+    window.history.pushState(null, '', '/forum?category=strategy');
+    vi.spyOn(globalThis, 'fetch').mockImplementation(async (input) => {
+      const url = String(input);
+      if (url.startsWith('/api/forum/categories')) return json({ categories });
+      if (url.startsWith('/api/forum/topics')) return json({ topics: [topic] });
+      if (url.startsWith('/api/auth/me')) {
+        return json({
+          user: {
+            id: 'alice_1',
+            email: 'alice@example.com',
+            emailVerified: true,
+            handle: 'alice',
+            handleChangedAt: null,
+            displayName: 'Alice',
+            displayNameChangedAt: null,
+            profileVisibility: 'public',
+            accountRole: 'player',
+          },
+        });
+      }
+      throw new Error(`unexpected fetch ${url}`);
+    });
+    const root = document.createElement('div');
+    const { mountForum } = await import('./forum.js');
+
+    await mountForum(root);
+
+    const select = root.querySelector<HTMLSelectElement>('select[name="categorySlug"]');
+    const announcement = root.querySelector<HTMLOptionElement>('option[value="announcements"]');
+    expect(select?.value).toBe('strategy');
+    expect(announcement?.disabled).toBe(true);
+  });
+
   it('paginates forum topic lists with stable page URLs', async () => {
     const fetchedUrls: string[] = [];
     window.history.pushState(null, '', '/forum?category=strategy&page=2');

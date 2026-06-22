@@ -128,7 +128,11 @@ export async function mountForum(root: HTMLElement): Promise<void> {
     ? undefined
     : categories.find((category) => category.slug === categoryFilter);
   if (selectedCategory) sidebar.append(categoryList(categories, selectedCategory.slug));
-  sidebar.append(user ? newTopicForm(categories, user) : signInBox('Sign in to start a topic.'));
+  sidebar.append(
+    user
+      ? newTopicForm(categories, user, selectedCategory?.slug ?? null)
+      : signInBox('Sign in to start a topic.'),
+  );
 
   const main = document.createElement('section');
   main.className = 'forum-main';
@@ -908,14 +912,24 @@ function canEditTopic(topic: ForumTopicDetail, user: AuthUser | null): boolean {
   return Boolean(user && (user.accountRole === 'admin' || topic.author?.handle === user.handle));
 }
 
-function newTopicForm(categories: ForumCategory[], user: AuthUser): HTMLElement {
+function newTopicForm(
+  categories: ForumCategory[],
+  user: AuthUser,
+  selectedCategorySlug: string | null = null,
+): HTMLElement {
   const form = document.createElement('form');
   form.className = 'forum-form';
   const heading = document.createElement('h2');
   heading.textContent = 'Start a topic';
   const category = document.createElement('select');
   category.name = 'categorySlug';
-  let hasSelectedCategory = false;
+  const availableCategories = categories.filter(
+    (optionCategory) => optionCategory.topicWritePolicy !== 'admin' || user.accountRole === 'admin',
+  );
+  const defaultCategory =
+    availableCategories.find((optionCategory) => optionCategory.slug === selectedCategorySlug) ??
+    availableCategories[0] ??
+    null;
   for (const optionCategory of categories) {
     const option = document.createElement('option');
     option.value = optionCategory.slug;
@@ -926,10 +940,7 @@ function newTopicForm(categories: ForumCategory[], user: AuthUser): HTMLElement 
         ? `${optionCategory.name} (admin only)`
         : optionCategory.name;
     option.disabled = disabled;
-    if (!disabled && !hasSelectedCategory) {
-      option.selected = true;
-      hasSelectedCategory = true;
-    }
+    option.selected = optionCategory.slug === defaultCategory?.slug;
     category.append(option);
   }
   const title = document.createElement('input');
