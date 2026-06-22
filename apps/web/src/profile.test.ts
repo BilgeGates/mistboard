@@ -36,6 +36,8 @@ describe('profile ratings rail', () => {
     await mountLeaderboard(root);
 
     expect(root.textContent).toContain('Crossroads Chess');
+    expect(root.textContent).toContain('Human blitz ladders');
+    expect(root.querySelector('.leaderboard-stat-value')?.textContent).toBe('2');
     expect(root.querySelector('.leaderboard-panel-subtitle')?.textContent).toBe('Blitz rating');
     expect(root.querySelectorAll('.leaderboard-panel')).toHaveLength(2);
     expect(fetchSpy).toHaveBeenCalledWith('/api/leaderboard?variant=crossroads-chess&limit=10');

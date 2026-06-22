@@ -39,6 +39,8 @@ type BotProfile = {
   id: string;
   displayName: string;
   bio: string;
+  ownerType: 'system' | 'user';
+  ownerUserId: string | null;
   activeEngineId: string;
   defaultGameSpecId: string;
   supportedGameSpecIds: string[];
@@ -80,7 +82,7 @@ export async function mountBots(root: HTMLElement): Promise<void> {
 
   const sub = document.createElement('p');
   sub.className = 'bots-sub';
-  sub.textContent = 'First-party Mistboard opponents.';
+  sub.textContent = 'Public engine opponents with published profiles and direct play.';
 
   header.append(eyebrow, heading, sub);
 
@@ -104,7 +106,7 @@ export async function mountBots(root: HTMLElement): Promise<void> {
     return;
   }
 
-  body.replaceChildren(...bots.map(buildBotCard));
+  body.replaceChildren(...buildBotDirectorySections(bots));
 }
 
 export async function mountBotProfile(root: HTMLElement, botId: string): Promise<void> {
@@ -129,9 +131,22 @@ export async function mountBotProfile(root: HTMLElement, botId: string): Promise
   }
 
   document.title = `${bot.displayName} · Bot · Mistboard`;
-  shell.append(buildBotHeader(bot), buildBotPlayPanel(bot));
-  if (bot.bio.trim().length > 0) shell.append(buildBotAbout(bot));
-  shell.append(buildRecentGames(bot));
+
+  const main = document.createElement('div');
+  main.className = 'bot-profile-main';
+  main.append(buildBotHeader(bot), buildBotPlayPanel(bot), buildRecentGames(bot));
+
+  const sidebar = document.createElement('aside');
+  sidebar.className = 'bot-profile-sidebar';
+  sidebar.append(buildBotRatingPanel(bot));
+  if (bot.bio.trim().length > 0) sidebar.append(buildBotAbout(bot));
+  sidebar.append(buildBotVariantsPanel(bot));
+
+  const body = document.createElement('div');
+  body.className = 'bot-profile-body';
+  body.append(sidebar, main);
+
+  shell.append(body);
 }
 
 async function fetchBots(): Promise<BotProfile[]> {
@@ -151,14 +166,59 @@ async function fetchBotProfile(botId: string): Promise<BotProfile> {
   return data.bot;
 }
 
+function buildBotDirectorySections(bots: BotProfile[]): HTMLElement[] {
+  const groups: Array<{ title: string; bots: BotProfile[] }> = [
+    { title: 'Featured bots', bots: bots.filter((bot) => bot.ownerType === 'system') },
+    { title: 'Community bots', bots: bots.filter((bot) => bot.ownerType === 'user') },
+  ];
+  return groups.filter((group) => group.bots.length > 0).map(buildBotDirectorySection);
+}
+
+function buildBotDirectorySection(group: { title: string; bots: BotProfile[] }): HTMLElement {
+  const section = document.createElement('section');
+  section.className = 'bot-directory-section';
+
+  const header = document.createElement('div');
+  header.className = 'bot-directory-section-header';
+
+  const title = document.createElement('h2');
+  title.textContent = group.title;
+
+  const count = document.createElement('span');
+  count.className = 'bot-directory-count';
+  count.textContent = `${group.bots.length} ${group.bots.length === 1 ? 'bot' : 'bots'}`;
+
+  header.append(title, count);
+
+  const list = document.createElement('div');
+  list.className = 'bot-directory-list';
+  list.append(...group.bots.map(buildBotCard));
+
+  section.append(header, list);
+  return section;
+}
+
 function buildBotCard(bot: BotProfile): HTMLElement {
   const card = document.createElement('article');
   card.className = 'bot-card';
+
+  const header = document.createElement('div');
+  header.className = 'bot-card-header';
+
+  const identity = document.createElement('div');
+  identity.className = 'bot-card-identity';
+
+  const badge = document.createElement('span');
+  badge.className = 'bot-badge';
+  badge.textContent = 'BOT';
 
   const title = document.createElement('a');
   title.className = 'bot-card-title';
   title.href = `/bot/${encodeURIComponent(bot.id)}`;
   title.textContent = bot.displayName;
+  identity.append(badge, title);
+
+  header.append(identity, buildBotCardRating(bot));
 
   const details = document.createElement('div');
   details.className = 'bot-card-details';
@@ -166,10 +226,12 @@ function buildBotCard(bot: BotProfile): HTMLElement {
     detailChip(defaultGameSpecLabel(bot)),
     detailChip(timeControlLabel(bot.play.timeControl)),
     detailChip(recordLabel(bot.record), 'bot-record-chip'),
+    detailChip(gameCountLabel(bot.gamesTotal), 'bot-games-chip'),
   );
-  if (bot.rating) {
-    details.append(detailChip(`Rating ${ratingLabel(bot.rating)}`, 'bot-rating-chip'));
-  }
+
+  const bio = document.createElement('p');
+  bio.className = 'bot-card-bio';
+  bio.textContent = bot.bio.trim() || 'Public Mistboard bot profile.';
 
   const variants = document.createElement('div');
   variants.className = 'bot-variant-list';
@@ -187,8 +249,24 @@ function buildBotCard(bot: BotProfile): HTMLElement {
   profile.textContent = 'Profile';
   actions.append(profile);
 
-  card.append(title, details, variants, actions);
+  card.append(header, details, bio, variants, actions);
   return card;
+}
+
+function buildBotCardRating(bot: BotProfile): HTMLElement {
+  const rating = document.createElement('div');
+  rating.className = 'bot-card-rating';
+
+  const value = document.createElement('span');
+  value.className = 'bot-card-rating-value';
+  value.textContent = bot.rating ? ratingLabel(bot.rating) : '—';
+
+  const label = document.createElement('span');
+  label.className = 'bot-card-rating-label';
+  label.textContent = bot.rating ? `${timeClassLabel(bot.rating.timeClass)} rating` : 'Unrated';
+
+  rating.append(value, label);
+  return rating;
 }
 
 function buildBotHeader(bot: BotProfile): HTMLElement {
@@ -198,12 +276,16 @@ function buildBotHeader(bot: BotProfile): HTMLElement {
 
   const badge = document.createElement('span');
   badge.className = 'profile-role-badge profile-role-bot';
-  badge.textContent = 'Bot';
+  badge.textContent = 'BOT';
+
+  const owner = document.createElement('span');
+  owner.className = 'profile-role-badge profile-role-owner';
+  owner.textContent = bot.ownerType === 'system' ? 'First-party' : 'Community';
 
   return buildProfileHeaderShell({
     eyebrow: 'Bot profile',
     title: bot.displayName,
-    metaParts: [games, badge],
+    metaParts: [games, badge, owner],
     stats: buildBotStats(bot),
   });
 }
@@ -217,6 +299,7 @@ function buildBotStats(bot: BotProfile): HTMLElement {
     statCell(recordLabel(bot.record), 'Record'),
     statCell(timeControlLabel(bot.play.timeControl), 'Play clock'),
     statCell(String(supportedGameSpecIds(bot).length), 'Variants'),
+    statCell(bot.activeEngineId, 'Engine'),
   );
   stats.append(...cells);
   return stats;
@@ -248,9 +331,46 @@ function buildBotPlayPanel(bot: BotProfile): HTMLElement {
   const meta = document.createElement('p');
   meta.textContent = `${gameSpecLabel(bot.play.gameSpecId)} · ${timeControlLabel(
     bot.play.timeControl,
-  )}`;
+  )} · random color`;
 
   section.append(heading, meta, buildPlayButton(bot));
+  return section;
+}
+
+function buildBotRatingPanel(bot: BotProfile): HTMLElement {
+  const section = document.createElement('section');
+  section.className = 'bot-profile-rating';
+
+  const heading = document.createElement('h2');
+  heading.textContent = 'Rating';
+  section.append(heading);
+
+  if (!bot.rating) {
+    const empty = document.createElement('p');
+    empty.textContent = 'No published rating yet.';
+    section.append(empty);
+    return section;
+  }
+
+  const summary = document.createElement('div');
+  summary.className = 'bot-rating-summary';
+
+  const value = document.createElement('span');
+  value.className = 'bot-rating-summary-value';
+  value.textContent = ratingLabel(bot.rating);
+
+  const label = document.createElement('span');
+  label.className = 'bot-rating-summary-label';
+  label.textContent = `${gameSpecLabel(bot.rating.gameSpecId)} · ${timeClassLabel(
+    bot.rating.timeClass,
+  )}`;
+
+  summary.append(value, label);
+
+  const games = document.createElement('p');
+  games.textContent = `${bot.rating.games} rated ${bot.rating.games === 1 ? 'game' : 'games'}`;
+
+  section.append(summary, games);
   return section;
 }
 
@@ -265,6 +385,23 @@ function buildBotAbout(bot: BotProfile): HTMLElement {
   body.textContent = bot.bio;
 
   section.append(heading, body);
+  return section;
+}
+
+function buildBotVariantsPanel(bot: BotProfile): HTMLElement {
+  const section = document.createElement('section');
+  section.className = 'bot-profile-variants';
+
+  const heading = document.createElement('h2');
+  heading.textContent = 'Variants';
+
+  const list = document.createElement('div');
+  list.className = 'bot-profile-variant-list';
+  for (const gameSpecId of supportedGameSpecIds(bot)) {
+    list.append(detailChip(gameSpecLabel(gameSpecId), 'bot-variant-chip'));
+  }
+
+  section.append(heading, list);
   return section;
 }
 
@@ -383,4 +520,8 @@ function recordLabel(record: BotRecord): string {
 
 function ratingLabel(rating: BotRatingSnapshot): string {
   return `${new Intl.NumberFormat().format(rating.rating)}${rating.provisional ? '?' : ''}`;
+}
+
+function timeClassLabel(timeClass: BotRatingSnapshot['timeClass']): string {
+  return timeClass[0].toUpperCase() + timeClass.slice(1);
 }

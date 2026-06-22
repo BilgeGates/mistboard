@@ -45,6 +45,13 @@ type LeaderboardEntry = {
   provisional: boolean;
 };
 
+type LeaderboardResult = { leaderboard: LeaderboardEntry[] } | null;
+
+type LeaderboardListing = {
+  entry: LeaderboardEntry;
+  variantLabel: string;
+};
+
 const LEADERBOARD_BUCKETS: {
   variantParam: string;
   variantLabel: string;
@@ -113,16 +120,10 @@ export async function mountLeaderboard(root: HTMLElement): Promise<void> {
   shell.className = 'site-section leaderboard-shell';
   root.append(buildNav(), shell);
 
-  const heading = document.createElement('h1');
-  heading.className = 'site-section-heading';
-  heading.textContent = 'Leaderboard';
-
-  const banner = buildLeaderboardBanner();
-
-  const grid = document.createElement('div');
-  grid.className = 'leaderboard-grid';
-
-  shell.append(heading, banner, grid);
+  const loading = document.createElement('p');
+  loading.className = 'leaderboard-loading';
+  loading.textContent = 'Loading ratings...';
+  shell.append(loading);
 
   const results = await Promise.all(
     LEADERBOARD_BUCKETS.map((b) =>
@@ -139,10 +140,18 @@ export async function mountLeaderboard(root: HTMLElement): Promise<void> {
     ),
   );
 
+  const grid = document.createElement('div');
+  grid.className = 'leaderboard-grid';
   for (let i = 0; i < LEADERBOARD_BUCKETS.length; i++) {
     const b = LEADERBOARD_BUCKETS[i];
     grid.append(buildLeaderboardPanel(b.variantLabel, b.miniId, results[i]));
   }
+
+  const body = document.createElement('div');
+  body.className = 'leaderboard-body';
+  body.append(buildLeaderboardOverview(results), grid);
+
+  shell.replaceChildren(buildLeaderboardHeader(results), body);
 }
 
 // Decorative variant mini-board (the same board-crop art as the picker/articles).
@@ -160,30 +169,127 @@ function buildVariantThumb(
   return thumb;
 }
 
-function buildLeaderboardBanner(): HTMLElement {
-  const banner = document.createElement('section');
-  banner.className = 'leaderboard-beta-banner';
-  banner.setAttribute('aria-label', 'Rated beta status');
+function buildLeaderboardHeader(results: LeaderboardResult[]): HTMLElement {
+  const header = document.createElement('section');
+  header.className = 'leaderboard-page-header';
 
-  const title = document.createElement('strong');
-  title.textContent = 'Rated beta is coming.';
+  const text = document.createElement('div');
+  text.className = 'leaderboard-page-title';
+
+  const eyebrow = document.createElement('span');
+  eyebrow.className = 'account-eyebrow';
+  eyebrow.textContent = 'Players';
+
+  const heading = document.createElement('h1');
+  heading.className = 'site-section-heading';
+  heading.textContent = 'Leaderboard';
 
   const body = document.createElement('p');
-  body.textContent =
-    'The first ladder will be account-backed and may be provisional while ratings calibrate on real games.';
+  body.className = 'leaderboard-sub';
+  body.textContent = 'Human blitz ladders across public Mistboard variants.';
 
   const link = document.createElement('a');
-  link.href = '/faq';
-  link.textContent = 'How rated works';
+  link.className = 'leaderboard-bots-link';
+  link.href = '/bots';
+  link.textContent = 'Bots';
 
-  banner.append(title, body, link);
-  return banner;
+  text.append(eyebrow, heading, body);
+  header.append(text, link);
+
+  const listings = flattenedLeaderboardEntries(results);
+  if (listings.length === 0) header.classList.add('leaderboard-page-header-empty');
+  return header;
+}
+
+function buildLeaderboardOverview(results: LeaderboardResult[]): HTMLElement {
+  const overview = document.createElement('section');
+  overview.className = 'leaderboard-overview';
+  overview.append(buildLeaderboardStats(results), buildLeaderboardSpotlight(results));
+  return overview;
+}
+
+function buildLeaderboardStats(results: LeaderboardResult[]): HTMLElement {
+  const listings = flattenedLeaderboardEntries(results);
+  const uniquePlayers = new Set(listings.map((item) => item.entry.handle.toLowerCase()));
+  const topRating = listings.reduce<number | null>(
+    (best, item) => (best == null || item.entry.eloRating > best ? item.entry.eloRating : best),
+    null,
+  );
+  const stats: Array<[string, string]> = [
+    [String(LEADERBOARD_BUCKETS.length), 'Ladders'],
+    [String(uniquePlayers.size), 'Players'],
+    [String(listings.length), 'Ratings'],
+    [topRating == null ? '—' : String(topRating), 'Top rating'],
+  ];
+
+  const strip = document.createElement('div');
+  strip.className = 'leaderboard-stats';
+  for (const [value, label] of stats) {
+    const item = document.createElement('div');
+    item.className = 'leaderboard-stat';
+
+    const valueEl = document.createElement('span');
+    valueEl.className = 'leaderboard-stat-value';
+    valueEl.textContent = value;
+
+    const labelEl = document.createElement('span');
+    labelEl.className = 'leaderboard-stat-label';
+    labelEl.textContent = label;
+
+    item.append(valueEl, labelEl);
+    strip.append(item);
+  }
+  return strip;
+}
+
+function buildLeaderboardSpotlight(results: LeaderboardResult[]): HTMLElement {
+  const section = document.createElement('section');
+  section.className = 'leaderboard-spotlight';
+
+  const heading = document.createElement('h2');
+  heading.textContent = 'Top ratings';
+  section.append(heading);
+
+  const listings = flattenedLeaderboardEntries(results)
+    .sort((a, b) => b.entry.eloRating - a.entry.eloRating)
+    .slice(0, 5);
+
+  if (listings.length === 0) {
+    const empty = document.createElement('p');
+    empty.className = 'leaderboard-spotlight-empty';
+    empty.textContent = 'No rated games yet.';
+    section.append(empty);
+    return section;
+  }
+
+  const list = document.createElement('ol');
+  list.className = 'leaderboard-spotlight-list';
+  for (const item of listings) {
+    const row = document.createElement('li');
+
+    const link = document.createElement('a');
+    link.href = `/@/${encodeURIComponent(item.entry.handle)}`;
+    link.textContent = item.entry.displayName;
+
+    const rating = document.createElement('span');
+    rating.className = 'leaderboard-spotlight-rating';
+    rating.textContent = `${item.entry.eloRating}${item.entry.provisional ? '?' : ''}`;
+
+    const variant = document.createElement('span');
+    variant.className = 'leaderboard-spotlight-variant';
+    variant.textContent = item.variantLabel;
+
+    row.append(link, rating, variant);
+    list.append(row);
+  }
+  section.append(list);
+  return section;
 }
 
 function buildLeaderboardPanel(
   variantLabel: string,
   miniId: VariantMiniId,
-  data: { leaderboard: LeaderboardEntry[] } | null,
+  data: LeaderboardResult,
 ): HTMLElement {
   const panel = document.createElement('div');
   panel.className = 'leaderboard-panel';
@@ -204,7 +310,7 @@ function buildLeaderboardPanel(
 
   heading.append(title, subtitle);
   header.append(
-    buildVariantThumb(miniId, 112, 'leaderboard-panel-thumb', `${variantLabel} board`),
+    buildVariantThumb(miniId, 80, 'leaderboard-panel-thumb', `${variantLabel} board`),
     heading,
   );
   panel.append(header);
@@ -227,6 +333,19 @@ function buildLeaderboardPanel(
 
   panel.append(renderLeaderboardTable(data.leaderboard));
   return panel;
+}
+
+function flattenedLeaderboardEntries(results: LeaderboardResult[]): LeaderboardListing[] {
+  const listings: LeaderboardListing[] = [];
+  for (let i = 0; i < results.length; i++) {
+    const result = results[i];
+    const bucket = LEADERBOARD_BUCKETS[i];
+    if (!result || !bucket) continue;
+    for (const entry of result.leaderboard) {
+      listings.push({ entry, variantLabel: bucket.variantLabel });
+    }
+  }
+  return listings;
 }
 
 function renderLeaderboardTable(entries: LeaderboardEntry[]): HTMLTableElement {
@@ -409,8 +528,8 @@ export function buildProfileRatings(ratings: ProfileBucketRating[]): HTMLElement
   return section;
 }
 
-// One variant row in the ratings rail: the variant's 112px mini-board (matching
-// the leaderboard + rules rail) beside its name, rating, and games count.
+// One variant row in the ratings rail: compact mini-board beside its name,
+// rating, and games count.
 // Never-played / unrated variants dim back so the rail reads as intentional.
 function buildRatingRailRow(
   ratings: ProfileBucketRating[],
@@ -430,7 +549,7 @@ function buildRatingRailRow(
     row.append(
       buildVariantThumb(
         miniId,
-        112,
+        80,
         'profile-rating-thumb',
         `${PROFILE_VARIANT_LABEL[variant]} board`,
       ),

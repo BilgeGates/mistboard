@@ -25,13 +25,49 @@
 
 .bots-directory {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
-  gap: 12px;
+  gap: 18px;
+}
+
+.bot-directory-section {
+  display: grid;
+  gap: 8px;
+}
+
+.bot-directory-section-header {
+  display: flex;
+  gap: 10px;
+  align-items: baseline;
+  justify-content: space-between;
+}
+
+.bot-directory-section h2 {
+  margin: 0;
+  color: var(--site-heading);
+  font-size: 18px;
+  font-weight: 550;
+}
+
+.bot-directory-count {
+  color: var(--site-muted);
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.bot-directory-list {
+  display: grid;
+  overflow: hidden;
+  border: 1px solid var(--site-border);
+  border-radius: 3px;
+  background: var(--site-panel);
+  box-shadow: 0 2px 2px color-mix(in srgb, var(--site-shadow) 20%, transparent);
 }
 
 .bot-card,
 .bot-profile-play,
-.bot-profile-about {
+.bot-profile-about,
+.bot-profile-rating,
+.bot-profile-variants {
   border: 1px solid var(--site-border);
   border-radius: 3px;
   background: var(--site-panel);
@@ -40,17 +76,83 @@
 
 .bot-card {
   display: grid;
-  gap: 12px;
+  gap: 10px;
   align-content: start;
   padding: 16px;
+  border: 0;
+  border-bottom: 1px solid var(--site-border-soft);
+  border-radius: 0;
+  box-shadow: none;
+}
+
+.bot-card:last-child {
+  border-bottom: 0;
+}
+
+.bot-card:hover {
+  background: var(--site-hover);
+}
+
+.bot-card-header {
+  display: flex;
+  gap: 12px;
+  align-items: start;
+  justify-content: space-between;
+  min-width: 0;
+}
+
+.bot-card-identity {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  min-width: 0;
+}
+
+.bot-badge {
+  display: inline-flex;
+  align-items: center;
+  min-height: 20px;
+  padding: 2px 6px;
+  border-radius: 3px;
+  background: color-mix(in srgb, #4f8edb 18%, var(--site-panel));
+  color: #4f8edb;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  line-height: 1;
+}
+
+.bot-card-rating {
+  display: grid;
+  gap: 1px;
+  justify-items: end;
+  flex: 0 0 auto;
+  font-variant-numeric: tabular-nums;
+}
+
+.bot-card-rating-value {
+  color: var(--site-heading);
+  font-size: 20px;
+  font-weight: 750;
+  line-height: 1;
+}
+
+.bot-card-rating-label {
+  color: var(--site-muted);
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
 }
 
 .bot-card-title {
+  min-width: 0;
   color: var(--site-heading);
-  font-size: 20px;
+  font-size: 18px;
   font-weight: 650;
   line-height: 1.2;
   text-decoration: none;
+  overflow-wrap: anywhere;
 }
 
 .bot-card-title:hover,
@@ -68,6 +170,14 @@
   flex-wrap: wrap;
   gap: 7px;
   align-items: center;
+}
+
+.bot-card-bio {
+  margin: 0;
+  max-width: 74ch;
+  color: var(--site-muted);
+  font-size: 13px;
+  line-height: 1.45;
 }
 
 .bot-chip {
@@ -94,13 +204,13 @@
   color: var(--site-accent-strong);
 }
 
-.bot-rating-chip {
+.bot-games-chip {
   background: color-mix(in srgb, #5a9f73 16%, var(--site-panel));
   color: color-mix(in srgb, #2f7f4e 88%, var(--site-heading));
 }
 
 .bot-card-actions {
-  margin-top: 2px;
+  margin-top: 0;
 }
 
 .bot-profile-link {
@@ -125,30 +235,71 @@
   color: #4f8edb;
 }
 
+.profile-role-owner {
+  background: color-mix(in srgb, var(--site-accent) 14%, var(--site-panel));
+  color: var(--site-accent-strong);
+}
+
 .bot-profile-shell {
   display: grid;
   gap: 16px;
 }
 
+.bot-profile-body {
+  display: grid;
+  grid-template-columns: 312px minmax(0, 1fr);
+  gap: 16px;
+  align-items: start;
+}
+
+.bot-profile-main,
+.bot-profile-sidebar {
+  display: grid;
+  gap: 16px;
+  min-width: 0;
+}
+
 .bot-stats .profile-stat-value {
   font-size: 18px;
+  overflow-wrap: anywhere;
 }
 
 .bot-profile-play,
-.bot-profile-about {
+.bot-profile-about,
+.bot-profile-rating,
+.bot-profile-variants {
   padding: 16px;
 }
 
+.bot-profile-about,
+.bot-profile-rating,
+.bot-profile-variants {
+  padding: 0;
+  overflow: hidden;
+}
+
 .bot-profile-play h2,
-.bot-profile-about h2 {
+.bot-profile-about h2,
+.bot-profile-rating h2,
+.bot-profile-variants h2 {
   margin: 0 0 8px;
   color: var(--site-heading);
   font-size: 17px;
   font-weight: 550;
 }
 
+.bot-profile-about h2,
+.bot-profile-rating h2,
+.bot-profile-variants h2 {
+  margin: 0;
+  padding: 13px 16px;
+  border-bottom: 1px solid var(--site-border-soft);
+  font-size: 16px;
+}
+
 .bot-profile-play p,
-.bot-profile-about p {
+.bot-profile-about p,
+.bot-profile-rating p {
   margin: 0 0 12px;
   color: var(--site-muted);
   font-size: 14px;
@@ -156,15 +307,87 @@
 }
 
 .bot-profile-about p {
-  margin-bottom: 0;
+  margin: 0;
+  padding: 14px 16px 16px;
+}
+
+.bot-rating-summary {
+  display: grid;
+  gap: 2px;
+  margin: 0;
+  padding: 16px 16px 8px;
+  font-variant-numeric: tabular-nums;
+}
+
+.bot-rating-summary-value {
+  color: var(--site-heading);
+  font-size: 28px;
+  font-weight: 750;
+  line-height: 1;
+}
+
+.bot-rating-summary-label {
+  color: var(--site-muted);
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.bot-profile-variant-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+  padding: 14px 16px 16px;
+}
+
+.bot-profile-rating p {
+  margin: 0;
+  padding: 0 16px 16px;
+}
+
+@media (min-width: 700px) {
+  .bot-card {
+    grid-template-columns: minmax(0, 1fr) auto;
+    column-gap: 18px;
+  }
+
+  .bot-card-header,
+  .bot-card-details,
+  .bot-card-bio,
+  .bot-variant-list {
+    grid-column: 1;
+  }
+
+  .bot-card-actions {
+    grid-column: 2;
+    grid-row: 1 / span 4;
+    align-self: center;
+    justify-content: flex-end;
+    min-width: 124px;
+  }
 }
 
 @media (max-width: 560px) {
-  .bots-directory {
+  .bot-card {
+    padding: 14px;
+  }
+
+  .bot-card-header {
+    display: grid;
+    gap: 8px;
+  }
+
+  .bot-card-rating {
+    justify-items: start;
+  }
+}
+
+@media (max-width: 820px) {
+  .bot-profile-body {
     grid-template-columns: 1fr;
   }
 
-  .bot-card {
-    padding: 14px;
+  .bot-profile-main {
+    order: -1;
   }
 }
