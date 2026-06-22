@@ -377,11 +377,23 @@ a.forum-topic-title:focus-visible,
 }
 
 .forum-post-body {
-  margin: 0;
+  display: grid;
+  gap: 8px;
   color: var(--site-text);
   font-size: 15px;
   line-height: 1.55;
+}
+
+.forum-post-paragraph,
+.forum-post-quote-block {
+  margin: 0;
   white-space: pre-wrap;
+}
+
+.forum-post-quote-block {
+  border-left: 3px solid var(--site-border);
+  color: var(--site-muted);
+  padding-left: 10px;
 }
 
 .forum-post-permalink {

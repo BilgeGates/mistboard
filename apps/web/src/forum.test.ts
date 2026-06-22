@@ -443,6 +443,42 @@ describe('forum pages', () => {
     expect(document.activeElement).toBe(body);
   });
 
+  it('renders plaintext quote markers as safe blockquotes', async () => {
+    vi.spyOn(globalThis, 'fetch').mockImplementation(async (input) => {
+      const url = String(input);
+      if (url.startsWith('/api/forum/categories')) return json({ categories });
+      if (url.startsWith('/api/forum/topics/topic_strategy')) {
+        return json({
+          topic: {
+            ...topic,
+            posts: [
+              {
+                id: 'post_1',
+                author: { handle: 'alice', displayName: 'Alice' },
+                bodyText:
+                  '> Alice wrote:\n> Opening <script>alert(1)</script>\n\nReply stays plaintext.',
+                createdAt: '2026-06-01T00:00:00.000Z',
+                updatedAt: '2026-06-01T00:00:00.000Z',
+              },
+            ],
+          },
+        });
+      }
+      if (url.startsWith('/api/auth/me')) return json({ user: null });
+      throw new Error(`unexpected fetch ${url}`);
+    });
+    const root = document.createElement('div');
+    const { mountForumTopic } = await import('./forum.js');
+
+    await mountForumTopic(root, 'topic_strategy');
+
+    expect(root.querySelector('script')).toBeNull();
+    expect(root.querySelector('.forum-post-quote-block')?.textContent).toBe(
+      'Alice wrote:\nOpening <script>alert(1)</script>',
+    );
+    expect(root.querySelector('.forum-post-paragraph')?.textContent).toBe('Reply stays plaintext.');
+  });
+
   it('edits an authored post inline', async () => {
     const aliceUser = {
       ...adminUser,

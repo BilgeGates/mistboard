@@ -644,9 +644,9 @@ function postList(
     article.id = postDomId(post.id);
     const meta = document.createElement('p');
     meta.className = 'forum-post-meta';
-    const body = document.createElement('p');
+    const body = document.createElement('div');
     body.className = 'forum-post-body';
-    body.textContent = post.bodyText;
+    renderPostBodyInto(body, post.bodyText);
     const edited = postEditedLabel(post);
     meta.append(
       document.createTextNode(`${authorLabel(post.author)} · ${formatDate(post.createdAt)} · `),
@@ -734,7 +734,7 @@ function showPostEditForm(post: ForumPost, body: HTMLElement, edited: HTMLElemen
       .then((updated) => {
         post.bodyText = updated.bodyText;
         post.updatedAt = updated.updatedAt;
-        body.textContent = updated.bodyText;
+        renderPostBodyInto(body, updated.bodyText);
         updatePostEditedLabel(edited, post);
         close();
       })
@@ -803,6 +803,48 @@ function insertPostQuote(post: ForumPost): void {
 function quoteText(post: ForumPost): string {
   const lines = post.bodyText.split(/\r?\n/).map((line) => `> ${line}`);
   return `> ${authorLabel(post.author)} wrote:\n${lines.join('\n')}\n\n`;
+}
+
+function renderPostBodyInto(body: HTMLElement, text: string): void {
+  body.replaceChildren(...postBodyNodes(text));
+}
+
+function postBodyNodes(text: string): HTMLElement[] {
+  const nodes: HTMLElement[] = [];
+  let paragraphLines: string[] = [];
+  let quoteLines: string[] = [];
+
+  const flushParagraph = () => {
+    if (paragraphLines.length === 0) return;
+    const paragraph = document.createElement('p');
+    paragraph.className = 'forum-post-paragraph';
+    paragraph.textContent = paragraphLines.join('\n');
+    nodes.push(paragraph);
+    paragraphLines = [];
+  };
+  const flushQuote = () => {
+    if (quoteLines.length === 0) return;
+    const quote = document.createElement('blockquote');
+    quote.className = 'forum-post-quote-block';
+    quote.textContent = quoteLines.join('\n');
+    nodes.push(quote);
+    quoteLines = [];
+  };
+
+  for (const line of text.split(/\r?\n/)) {
+    if (line.startsWith('>')) {
+      flushParagraph();
+      quoteLines.push(line.replace(/^>\s?/, ''));
+      continue;
+    }
+    flushQuote();
+    if (line.trim().length === 0 && paragraphLines.length === 0) continue;
+    paragraphLines.push(line);
+  }
+
+  flushQuote();
+  flushParagraph();
+  return nodes;
 }
 
 function canEditPost(post: ForumPost, user: AuthUser | null): boolean {
