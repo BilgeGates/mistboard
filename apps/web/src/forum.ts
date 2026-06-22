@@ -179,7 +179,7 @@ export async function mountForumTopic(root: HTMLElement, topicId: string): Promi
   main.className = 'forum-main';
   main.append(postList(topic, user));
   if (topic.locked) main.append(statusPanel('This topic is locked.'));
-  else main.append(user ? replyForm(topic.id, user) : signInBox('Sign in to reply.'));
+  else main.append(user ? replyForm(topic, user) : signInBox('Sign in to reply.'));
 
   layout.append(sidebar, main);
   shell.append(layout);
@@ -500,7 +500,7 @@ function newTopicForm(categories: ForumCategory[], user: AuthUser): HTMLElement 
   return form;
 }
 
-function replyForm(topicId: string, _user: AuthUser): HTMLElement {
+function replyForm(topic: ForumTopicDetail, _user: AuthUser): HTMLElement {
   const form = document.createElement('form');
   form.className = 'forum-form';
   const heading = document.createElement('h2');
@@ -514,7 +514,7 @@ function replyForm(topicId: string, _user: AuthUser): HTMLElement {
   form.append(heading, labeled('Reply', body), error, submit);
   form.addEventListener('submit', (event) => {
     event.preventDefault();
-    void submitReply(topicId, form, submit, error);
+    void submitReply(topic, form, submit, error);
   });
   return form;
 }
@@ -548,7 +548,7 @@ async function submitTopic(
 }
 
 async function submitReply(
-  topicId: string,
+  topic: ForumTopicDetail,
   form: HTMLFormElement,
   submit: HTMLButtonElement,
   error: HTMLElement,
@@ -557,12 +557,14 @@ async function submitReply(
   error.textContent = '';
   const data = new FormData(form);
   try {
-    const resp = await fetch(`/api/forum/topics/${encodeURIComponent(topicId)}/posts`, {
+    const resp = await fetch(`/api/forum/topics/${encodeURIComponent(topic.id)}/posts`, {
       method: 'POST',
       headers: { 'content-type': 'application/json', accept: 'application/json' },
       body: JSON.stringify({ body: String(data.get('body') ?? '') }),
     });
     if (!resp.ok) throw new Error(errorMessageForStatus(resp.status));
+    const payload = (await resp.json()) as { post: ForumPost };
+    window.location.href = postHref(topic, payload.post.id);
     window.location.reload();
   } catch (err) {
     error.textContent = err instanceof Error ? err.message : 'Reply could not be posted.';

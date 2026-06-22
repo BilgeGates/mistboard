@@ -223,6 +223,60 @@ describe('forum pages', () => {
     expect(buttonLabels).toContain('Hide post');
   });
 
+  it('redirects a new reply to its stable post anchor', async () => {
+    window.history.pushState(null, '', '/forum/t/topic_strategy/scouting-the-center');
+    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockImplementation(async (input, init) => {
+      const url = String(input);
+      if (url.startsWith('/api/forum/topics/topic_strategy') && init?.method !== 'POST') {
+        return json({
+          topic: {
+            ...topic,
+            posts: [
+              {
+                id: 'post_1',
+                author: { handle: 'alice', displayName: 'Alice' },
+                bodyText: 'Opening post.',
+                createdAt: '2026-06-01T00:00:00.000Z',
+                updatedAt: '2026-06-01T00:00:00.000Z',
+              },
+            ],
+          },
+        });
+      }
+      if (url === '/api/forum/topics/topic_strategy/posts') {
+        return json({
+          post: {
+            id: 'post_created',
+            author: { handle: 'bob', displayName: 'Bob' },
+            bodyText: 'A sharper reply.',
+            createdAt: '2026-06-01T00:05:00.000Z',
+            updatedAt: '2026-06-01T00:05:00.000Z',
+          },
+        });
+      }
+      if (url.startsWith('/api/auth/me')) return json({ user: adminUser });
+      throw new Error(`unexpected fetch ${url}`);
+    });
+    const root = document.createElement('div');
+    const { mountForumTopic } = await import('./forum.js');
+
+    await mountForumTopic(root, 'topic_strategy');
+    const body = root.querySelector<HTMLTextAreaElement>('textarea[name="body"]');
+    if (!body) throw new Error('missing reply textarea');
+    body.value = 'A sharper reply.';
+    const form = root.querySelector<HTMLFormElement>('form.forum-form');
+    form?.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
+    await flushPromises();
+
+    const postCall = fetchSpy.mock.calls.find(
+      ([input]) => String(input) === '/api/forum/topics/topic_strategy/posts',
+    );
+    expect(postCall?.[1]?.method).toBe('POST');
+    expect(JSON.parse(String(postCall?.[1]?.body))).toEqual({ body: 'A sharper reply.' });
+    expect(window.location.pathname).toBe('/forum/t/topic_strategy/scouting-the-center');
+    expect(window.location.hash).toBe('#post_post_created');
+  });
+
   it('renders topic posts as escaped plaintext', async () => {
     vi.spyOn(globalThis, 'fetch').mockImplementation(async (input) => {
       const url = String(input);
@@ -266,4 +320,9 @@ function json(body: unknown): Response {
     status: 200,
     headers: { 'content-type': 'application/json' },
   });
+}
+
+async function flushPromises(): Promise<void> {
+  await Promise.resolve();
+  await Promise.resolve();
 }
