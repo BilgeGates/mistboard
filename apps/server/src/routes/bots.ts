@@ -1,5 +1,6 @@
 import type { IncomingMessage, ServerResponse } from 'node:http';
 import * as persistence from '../persistence.js';
+import { variantTenantForSpecId } from '../variant-tenant/registry.js';
 import { requireMethod, requirePersistence, writeJson } from './lib.js';
 
 const BOT_ID_PATTERN = /^[a-zA-Z0-9_-]{1,80}$/;
@@ -13,7 +14,7 @@ export async function tryHandle(
   if (pathname === '/api/bots') {
     if (!requireMethod(request, response, 'GET')) return true;
     if (!requirePersistence(response)) return true;
-    const bots = await persistence.listPublicBots();
+    const bots = (await persistence.listPublicBots()).filter(isBotPlayable);
     writeJson(response, 200, { bots });
     return true;
   }
@@ -28,7 +29,7 @@ export async function tryHandle(
       return true;
     }
     const bot = await persistence.getPublicBotProfile(botId);
-    if (!bot) {
+    if (!bot || !isBotPlayable(bot)) {
       writeJson(response, 404, { error: 'not_found' });
       return true;
     }
@@ -37,4 +38,11 @@ export async function tryHandle(
   }
 
   return false;
+}
+
+function isBotPlayable(bot: Pick<persistence.BotProfile, 'defaultGameSpecId'>): boolean {
+  if (bot.defaultGameSpecId === 'dark-chess' || bot.defaultGameSpecId === 'dark-draft960') {
+    return true;
+  }
+  return variantTenantForSpecId(bot.defaultGameSpecId)?.enabled() === true;
 }

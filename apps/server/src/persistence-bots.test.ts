@@ -125,6 +125,9 @@ definePersistenceTests('bot profiles', () => {
 
   test('bot API routes expose public directory and profile payloads', async () => {
     await insertBotProfile('route-bot', 'Route Bot', 'public');
+    await insertBotProfile('hidden-variant-bot', 'Hidden Variant Bot', 'public', {
+      gameSpecId: 'dark-mini-xiangqi',
+    });
 
     const listResponse = await routeGet('/api/bots');
     assert.equal(listResponse.status, 200);
@@ -144,6 +147,9 @@ definePersistenceTests('bot profiles', () => {
 
     const missingResponse = await routeGet('/api/bots/missing-bot');
     assert.equal(missingResponse.status, 404);
+
+    const hiddenVariantResponse = await routeGet('/api/bots/hidden-variant-bot');
+    assert.equal(hiddenVariantResponse.status, 404);
   });
 });
 
@@ -181,6 +187,7 @@ async function insertBotProfile(
   id: string,
   displayName: string,
   visibility: 'private' | 'unlisted' | 'public',
+  opts: { gameSpecId?: string } = {},
 ): Promise<void> {
   const client = new pg.Client({ connectionString: TEST_DATABASE_URL });
   await client.connect();
@@ -189,9 +196,9 @@ async function insertBotProfile(
       `INSERT INTO bot_profiles
          (id, display_name, bio, owner_type, active_engine_id, default_game_spec_id,
           supported_game_spec_ids, play_initial_ms, play_increment_ms, visibility)
-       VALUES ($1, $2, '', 'system', 'python-v2-v1.4', 'dark-chess',
-               ARRAY['dark-chess'], 180000, 2000, $3)`,
-      [id, displayName, visibility],
+       VALUES ($1, $2, '', 'system', 'python-v2-v1.4', $3,
+               ARRAY[$3], 180000, 2000, $4)`,
+      [id, displayName, opts.gameSpecId ?? 'dark-chess', visibility],
     );
   } finally {
     await client.end();
