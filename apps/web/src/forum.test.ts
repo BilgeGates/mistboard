@@ -193,7 +193,15 @@ describe('forum pages', () => {
     await mountForum(root);
 
     expect(fetchedUrls).toContain('/api/forum/topics?category=strategy&limit=26&offset=25');
-    expect(root.querySelectorAll('.forum-topic-card')).toHaveLength(25);
+    expect(root.querySelector('.forum-topic-list-header')?.textContent).toContain('Replies');
+    expect(root.querySelector('.forum-topic-list-header')?.textContent).toContain('Last post');
+    expect(root.querySelectorAll('.forum-topic-row:not(.forum-topic-list-header)')).toHaveLength(
+      25,
+    );
+    expect(
+      root.querySelector('.forum-topic-row:not(.forum-topic-list-header) .forum-topic-row-replies')
+        ?.textContent,
+    ).toBe('1');
     expect(root.querySelector('.forum-pager-current')?.textContent).toBe('Page 2');
     const pageLinks = Array.from(root.querySelectorAll<HTMLAnchorElement>('.forum-pager-link'));
     expect(pageLinks.map((link) => link.textContent)).toEqual(['Previous', 'Next']);
@@ -232,7 +240,10 @@ describe('forum pages', () => {
     expect(root.textContent).toContain('Search results');
     expect(root.textContent).toContain('"central fog"');
     expect(root.querySelector<HTMLInputElement>('input[name="q"]')?.value).toBe('central fog');
-    expect(root.querySelectorAll('.forum-topic-card')).toHaveLength(25);
+    expect(root.querySelector('.forum-topic-list-header')?.textContent).toContain('Replies');
+    expect(root.querySelectorAll('.forum-topic-row:not(.forum-topic-list-header)')).toHaveLength(
+      25,
+    );
     const pageLinks = Array.from(root.querySelectorAll<HTMLAnchorElement>('.forum-pager-link'));
     expect(pageLinks.map((link) => link.textContent)).toEqual(['Previous', 'Next']);
     expect(pageLinks.map((link) => link.getAttribute('href'))).toEqual([

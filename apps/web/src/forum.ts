@@ -422,11 +422,24 @@ function topicList(topics: ForumTopicSummary[], emptyText = 'No forum topics yet
   const wrap = document.createElement('section');
   wrap.className = 'forum-topic-list';
   if (topics.length === 0) {
+    wrap.className = 'forum-topic-list-empty';
     wrap.append(statusPanel(emptyText));
     return wrap;
   }
-  for (const topic of topics) wrap.append(topicCard(topic));
+  wrap.append(topicListHeader());
+  for (const topic of topics) wrap.append(topicRow(topic));
   return wrap;
+}
+
+function topicListHeader(): HTMLElement {
+  const row = document.createElement('div');
+  row.className = 'forum-topic-row forum-topic-list-header';
+  row.append(
+    indexCell('Topic', 'forum-topic-row-main'),
+    indexCell('Replies', 'forum-topic-row-replies'),
+    indexCell('Last post', 'forum-topic-row-latest'),
+  );
+  return row;
 }
 
 function topicPager(options: {
@@ -509,9 +522,12 @@ function pagerSpacer(): HTMLElement {
   return spacer;
 }
 
-function topicCard(topic: ForumTopicSummary): HTMLElement {
-  const card = document.createElement('article');
-  card.className = 'forum-topic-card';
+function topicRow(topic: ForumTopicSummary): HTMLElement {
+  const row = document.createElement('article');
+  row.className = 'forum-topic-row';
+
+  const main = document.createElement('div');
+  main.className = 'forum-topic-row-main';
   const flags = document.createElement('div');
   flags.className = 'forum-topic-flags';
   flags.append(pill(topic.category.name));
@@ -525,23 +541,31 @@ function topicCard(topic: ForumTopicSummary): HTMLElement {
 
   const meta = document.createElement('p');
   meta.className = 'forum-topic-meta';
-  meta.append(
-    document.createTextNode(
-      `${authorLabel(topic.author)} · ${topic.postCount} ${topic.postCount === 1 ? 'post' : 'posts'} · `,
-    ),
-  );
+  meta.textContent = `Started by ${authorLabel(topic.author)} · ${formatDate(topic.createdAt)}`;
+  main.append(flags, title, meta);
+
+  const replies = document.createElement('span');
+  replies.className = 'forum-topic-row-replies';
+  replies.textContent = formatCount(replyCount(topic));
+
+  const latestCell = document.createElement('span');
+  latestCell.className = 'forum-topic-row-latest';
   if (topic.latestPost) {
     const latest = document.createElement('a');
     latest.className = 'forum-topic-latest-link';
     latest.href = postHref(topic, topic.latestPost.post.id, pageForPostCount(topic.postCount));
-    latest.textContent = `Latest ${authorLabel(topic.latestPost.author)} · ${formatDate(topic.latestPost.createdAt)}`;
-    meta.append(latest);
+    latest.textContent = `${authorLabel(topic.latestPost.author)} · ${formatDate(topic.latestPost.createdAt)}`;
+    latestCell.append(latest);
   } else {
-    meta.append(document.createTextNode(`Last activity ${formatDate(topic.lastPostAt)}`));
+    latestCell.textContent = formatDate(topic.lastPostAt);
   }
 
-  card.append(flags, title, meta);
-  return card;
+  row.append(main, replies, latestCell);
+  return row;
+}
+
+function replyCount(topic: ForumTopicSummary): number {
+  return Math.max(0, topic.postCount - 1);
 }
 
 function topicEditButton(topic: ForumTopicDetail, heading: HTMLElement): HTMLButtonElement {

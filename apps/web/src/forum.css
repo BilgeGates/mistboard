@@ -116,14 +116,12 @@
 }
 
 .forum-category-list,
-.forum-topic-list,
 .forum-post-list {
   display: grid;
   gap: 10px;
 }
 
 .forum-category-card,
-.forum-topic-card,
 .forum-post {
   border: 1px solid var(--site-border-soft);
   border-radius: var(--site-radius);
@@ -137,7 +135,7 @@
 }
 
 .forum-category-card:hover,
-.forum-topic-card:hover {
+.forum-topic-row:hover {
   border-color: var(--site-border);
 }
 
@@ -159,13 +157,6 @@
   color: var(--site-muted);
   font-size: 13px;
   line-height: 1.4;
-}
-
-.forum-topic-card {
-  display: grid;
-  gap: 5px;
-  color: inherit;
-  text-decoration: none;
 }
 
 .forum-category-index {
@@ -286,6 +277,66 @@ a.forum-category-index-last:hover .forum-category-latest-title {
 
 .forum-section-title {
   margin-top: 4px;
+}
+
+.forum-topic-list {
+  overflow: hidden;
+  border: 1px solid var(--site-border-soft);
+  border-radius: var(--site-radius);
+  background: var(--site-panel);
+}
+
+.forum-topic-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(72px, 0.18fr) minmax(160px, 0.36fr);
+  gap: 12px;
+  align-items: center;
+  border-top: 1px solid var(--site-border-soft);
+  padding: 12px 14px;
+}
+
+.forum-topic-row:first-child {
+  border-top: 0;
+}
+
+.forum-topic-row:hover {
+  background: var(--site-panel-soft);
+}
+
+.forum-topic-list-header {
+  background: var(--site-panel-soft);
+  color: var(--site-muted);
+  font-size: 12px;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.forum-topic-list-header:hover {
+  background: var(--site-panel-soft);
+  border-color: var(--site-border-soft);
+}
+
+.forum-topic-row-main {
+  display: grid;
+  gap: 5px;
+  min-width: 0;
+}
+
+.forum-topic-row-replies {
+  color: var(--site-text);
+  font-size: 14px;
+  font-weight: 800;
+  text-align: right;
+  white-space: nowrap;
+}
+
+.forum-topic-row-latest {
+  overflow: hidden;
+  color: var(--site-muted);
+  font-size: 13px;
+  line-height: 1.35;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .forum-topic-flags {
@@ -756,5 +807,32 @@ a.forum-topic-title:focus-visible,
 
   .forum-category-index-row .forum-category-index-stat:nth-child(3)::before {
     content: "Posts: ";
+  }
+
+  .forum-topic-list-header {
+    display: none;
+  }
+
+  .forum-topic-row {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 8px;
+  }
+
+  .forum-topic-row-replies {
+    text-align: left;
+  }
+
+  .forum-topic-row-replies::before,
+  .forum-topic-row-latest::before {
+    color: var(--site-muted);
+    font-weight: 700;
+  }
+
+  .forum-topic-row-replies::before {
+    content: "Replies: ";
+  }
+
+  .forum-topic-row-latest::before {
+    content: "Last post: ";
   }
 }
