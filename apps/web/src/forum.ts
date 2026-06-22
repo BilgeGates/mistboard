@@ -80,9 +80,6 @@ export async function mountForum(root: HTMLElement): Promise<void> {
 
   const shell = document.createElement('main');
   shell.className = 'site-section forum-shell';
-  shell.append(
-    pageHeader('Forum', 'Ask questions, share strategy, and follow Mistboard development.'),
-  );
   root.append(buildNav(), shell);
 
   const body = document.createElement('div');
@@ -107,11 +104,13 @@ export async function mountForum(root: HTMLElement): Promise<void> {
             limit: topicListPageSize + 1,
             offset: topicOffset,
           })
-        : fetchForumTopics({
-            categorySlug: categoryFilter,
-            limit: topicListPageSize + 1,
-            offset: topicOffset,
-          }),
+        : categoryFilter
+          ? fetchForumTopics({
+              categorySlug: categoryFilter,
+              limit: topicListPageSize + 1,
+              offset: topicOffset,
+            })
+          : Promise.resolve([]),
       fetchCurrentUser().catch(() => null),
     ]);
   } catch {
@@ -121,29 +120,30 @@ export async function mountForum(root: HTMLElement): Promise<void> {
   const hasNextPage = topics.length > topicListPageSize;
   const visibleTopics = topics.slice(0, topicListPageSize);
 
-  const sidebar = document.createElement('aside');
-  sidebar.className = 'forum-sidebar';
-  sidebar.append(forumSearchForm(searchQuery));
   const selectedCategory = searchQuery
     ? undefined
     : categories.find((category) => category.slug === categoryFilter);
-  if (selectedCategory) sidebar.append(categoryList(categories, selectedCategory.slug));
-  sidebar.append(
-    user
-      ? newTopicForm(categories, user, selectedCategory?.slug ?? null)
-      : signInBox('Sign in to start a topic.'),
-  );
 
-  const main = document.createElement('section');
-  main.className = 'forum-main';
+  const panel = forumPanel();
   if (searchQuery) {
-    main.append(searchHeaderBox(searchQuery));
+    panel.append(searchPanelHeader(searchQuery));
   } else if (selectedCategory) {
-    main.append(categoryHeaderBox(selectedCategory));
+    const composer = canStartTopicInCategory(selectedCategory, user)
+      ? newTopicForm(categories, user, selectedCategory.slug)
+      : null;
+    if (composer) {
+      composer.classList.add('forum-topic-composer');
+      composer.hidden = true;
+    }
+    panel.append(
+      categoryPanelHeader(selectedCategory, user, composer),
+      ...(composer ? [composer] : []),
+    );
   } else {
-    main.append(categoryIndex(categories), sectionTitle('Recent topics'));
+    panel.append(forumHomeHeader(searchQuery), categoryIndex(categories));
   }
-  const needsTopicPager = topicPage > 1 || hasNextPage;
+  const showsTopics = Boolean(searchQuery || selectedCategory);
+  const needsTopicPager = showsTopics && (topicPage > 1 || hasNextPage);
   const topicPageOptions = {
     categorySlug: searchQuery ? null : categoryFilter,
     searchQuery,
@@ -151,21 +151,23 @@ export async function mountForum(root: HTMLElement): Promise<void> {
     hasNext: hasNextPage,
     hasPrevious: topicPage > 1,
   };
-  if (needsTopicPager) main.append(topicPager(topicPageOptions));
-  main.append(
-    topicList(
-      visibleTopics,
-      topicPage > 1
-        ? 'No forum topics on this page.'
-        : searchQuery
-          ? 'No forum topics matched.'
-          : undefined,
-      { showCategory: !selectedCategory },
-    ),
-  );
-  if (needsTopicPager) main.append(topicPager(topicPageOptions));
+  if (needsTopicPager) panel.append(topicPager(topicPageOptions));
+  if (showsTopics) {
+    panel.append(
+      topicList(
+        visibleTopics,
+        topicPage > 1
+          ? 'No forum topics on this page.'
+          : searchQuery
+            ? 'No forum topics matched.'
+            : undefined,
+        { showCategory: !selectedCategory },
+      ),
+    );
+  }
+  if (needsTopicPager) panel.append(topicPager(topicPageOptions));
 
-  body.replaceChildren(sidebar, main);
+  body.replaceChildren(panel);
 }
 
 export async function mountForumTopic(root: HTMLElement, topicId: string): Promise<void> {
@@ -199,22 +201,12 @@ export async function mountForumTopic(root: HTMLElement, topicId: string): Promi
   }
 
   document.title = `${topic.title} · Forum · Mistboard`;
-  shell.append(topicHeader(topic, user));
   const hasNextPostPage = topic.posts.length > postPageSize;
   const visiblePosts = topic.posts.slice(0, postPageSize);
 
-  const layout = document.createElement('div');
-  layout.className = 'forum-layout';
-
-  const sidebar = document.createElement('aside');
-  sidebar.className = 'forum-sidebar';
-  sidebar.append(forumSearchForm(null));
-  if (categories.length > 0) sidebar.append(categoryList(categories, topic.category.slug));
-  sidebar.append(topicMetaBox(topic));
-  if (user?.accountRole === 'admin') sidebar.append(topicModerationBox(topic, categories));
-
-  const main = document.createElement('section');
-  main.className = 'forum-main';
+  const panel = forumPanel('forum-topic-panel');
+  panel.append(topicHeader(topic, user));
+  if (user?.accountRole === 'admin') panel.append(topicModerationBox(topic, categories));
   const needsPostPager = postPage > 1 || hasNextPostPage;
   const postPageOptions = {
     topic,
@@ -222,8 +214,8 @@ export async function mountForumTopic(root: HTMLElement, topicId: string): Promi
     hasNext: hasNextPostPage,
     hasPrevious: postPage > 1,
   };
-  if (needsPostPager) main.append(postPager(postPageOptions));
-  main.append(
+  if (needsPostPager) panel.append(postPager(postPageOptions));
+  panel.append(
     postList(
       topic,
       visiblePosts,
@@ -232,90 +224,158 @@ export async function mountForumTopic(root: HTMLElement, topicId: string): Promi
       postPage,
     ),
   );
-  if (needsPostPager) main.append(postPager(postPageOptions));
-  if (topic.locked) main.append(statusPanel('This topic is locked.'));
-  else main.append(user ? replyForm(topic, user) : signInBox('Sign in to reply.'));
+  if (needsPostPager) panel.append(postPager(postPageOptions));
+  if (topic.locked) panel.append(statusPanel('This topic is locked.'));
+  else panel.append(user ? replyForm(topic, user) : signInBox('Sign in to reply.'));
 
-  layout.append(sidebar, main);
-  shell.append(layout);
+  shell.append(panel);
 }
 
-function pageHeader(title: string, subtitle: string): HTMLElement {
+function forumPanel(extraClassName = ''): HTMLElement {
+  const panel = document.createElement('section');
+  panel.className = ['forum-panel', extraClassName].filter(Boolean).join(' ');
+  return panel;
+}
+
+function forumHomeHeader(searchQuery: string | null): HTMLElement {
   const header = document.createElement('header');
-  header.className = 'forum-header';
+  header.className = 'forum-panel-header forum-panel-header-home';
+  header.append(
+    forumPanelTitle('Forum', { icon: true }),
+    forumSearchForm(searchQuery, { compact: true }),
+  );
+  return header;
+}
+
+function categoryPanelHeader(
+  category: ForumCategory,
+  user: AuthUser | null,
+  composer: HTMLElement | null,
+): HTMLElement {
+  const header = document.createElement('header');
+  header.className = 'forum-panel-header forum-header forum-panel-header-category';
+  const titleRow = document.createElement('div');
+  titleRow.className = 'forum-panel-title-row';
+  titleRow.append(forumBackLink('/forum', 'Back to forum'), forumPanelTitle(category.name));
+  header.append(titleRow, newTopicPanelAction(category, user, composer));
+  return header;
+}
+
+function searchPanelHeader(query: string): HTMLElement {
+  const header = document.createElement('header');
+  header.className = 'forum-panel-header forum-panel-header-search';
+  const title = forumPanelTitle('Search results');
+  const copy = document.createElement('p');
+  copy.className = 'forum-panel-subtitle';
+  copy.textContent = `"${query}"`;
+  const titleStack = document.createElement('div');
+  titleStack.className = 'forum-panel-title-stack';
+  titleStack.append(title, copy);
+  header.append(
+    forumBackLink('/forum', 'Back to forum'),
+    titleStack,
+    forumSearchForm(query, { compact: true }),
+  );
+  return header;
+}
+
+function forumPanelTitle(title: string, options: { icon?: boolean } = {}): HTMLElement {
+  const wrap = document.createElement('div');
+  wrap.className = 'forum-panel-title';
+  if (options.icon) {
+    wrap.append(forumPanelIcon());
+  }
   const heading = document.createElement('h1');
   heading.className = 'site-section-heading';
   heading.textContent = title;
-  const sub = document.createElement('p');
-  sub.className = 'forum-sub';
-  sub.textContent = subtitle;
-  header.append(heading, sub);
-  return header;
+  wrap.append(heading);
+  return wrap;
+}
+
+function forumPanelIcon(): SVGSVGElement {
+  const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+  svg.classList.add('forum-panel-icon');
+  svg.setAttribute('viewBox', '0 0 64 48');
+  svg.setAttribute('aria-hidden', 'true');
+  svg.setAttribute('focusable', 'false');
+  const back = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+  back.setAttribute(
+    'd',
+    'M24 10h20c6.5 0 11.5 4.4 11.5 10s-5 10-11.5 10h-5.5l-9 7v-7H24c-6.5 0-11.5-4.4-11.5-10S17.5 10 24 10Z',
+  );
+  const front = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+  front.setAttribute(
+    'd',
+    'M18 18h20c6.5 0 11.5 4.4 11.5 10S44.5 38 38 38H27l-10.5 8v-8H18c-6.5 0-11.5-4.4-11.5-10S11.5 18 18 18Z',
+  );
+  svg.append(back, front);
+  return svg;
+}
+
+function forumBackLink(href: string, label: string): HTMLAnchorElement {
+  const link = document.createElement('a');
+  link.className = 'forum-back-link forum-panel-back';
+  link.href = href;
+  link.setAttribute('aria-label', label);
+  link.textContent = '<';
+  return link;
+}
+
+function newTopicPanelAction(
+  category: ForumCategory,
+  user: AuthUser | null,
+  composer: HTMLElement | null,
+): HTMLElement {
+  if (!user) {
+    const link = document.createElement('a');
+    link.className = 'forum-panel-action';
+    link.href = '/account?tab=login';
+    link.textContent = 'Sign in to post';
+    return link;
+  }
+  if (!composer) {
+    const disabled = document.createElement('span');
+    disabled.className = 'forum-panel-action forum-panel-action-disabled';
+    disabled.textContent = `${category.name} is restricted`;
+    return disabled;
+  }
+  const button = document.createElement('button');
+  button.type = 'button';
+  button.className = 'forum-panel-action';
+  button.textContent = 'Create a new topic';
+  button.addEventListener('click', () => {
+    composer.hidden = !composer.hidden;
+    button.setAttribute('aria-expanded', String(!composer.hidden));
+    if (!composer.hidden) {
+      composer.querySelector<HTMLInputElement>('input[name="title"]')?.focus();
+    }
+  });
+  button.setAttribute('aria-expanded', 'false');
+  return button;
+}
+
+function canStartTopicInCategory(category: ForumCategory, user: AuthUser | null): user is AuthUser {
+  return Boolean(user && (category.topicWritePolicy !== 'admin' || user.accountRole === 'admin'));
 }
 
 function topicHeader(topic: ForumTopicDetail, user: AuthUser | null): HTMLElement {
   const header = document.createElement('header');
-  header.className = 'forum-header';
-  const breadcrumbs = document.createElement('nav');
-  breadcrumbs.className = 'forum-breadcrumbs';
-  breadcrumbs.setAttribute('aria-label', 'Forum breadcrumbs');
-  const forum = document.createElement('a');
-  forum.href = '/forum';
-  forum.textContent = 'Forum';
-  const separator = document.createElement('span');
-  separator.className = 'forum-breadcrumb-separator';
-  separator.setAttribute('aria-hidden', 'true');
-  separator.textContent = '/';
-  const category = document.createElement('a');
-  category.href = categoryHref(topic.category);
-  category.textContent = topic.category.name;
-  breadcrumbs.append(forum, separator, category);
+  header.className = 'forum-panel-header forum-header forum-panel-header-topic';
   const heading = document.createElement('h1');
   heading.className = 'site-section-heading';
   heading.textContent = topic.title;
   const titleRow = document.createElement('div');
   titleRow.className = 'forum-topic-title-row';
-  titleRow.append(heading);
+  titleRow.append(
+    forumBackLink(categoryHref(topic.category), `Back to ${topic.category.name}`),
+    heading,
+  );
   if (canEditTopic(topic, user) && !topic.locked) titleRow.append(topicEditButton(topic, heading));
   const meta = document.createElement('p');
   meta.className = 'forum-sub';
   meta.textContent = `${topic.category.name} · ${topic.postCount} ${topic.postCount === 1 ? 'post' : 'posts'} · last activity ${formatDate(topic.lastPostAt)}`;
-  header.append(breadcrumbs, titleRow, meta);
+  header.append(titleRow, meta);
   return header;
-}
-
-function categoryList(
-  categories: ForumCategory[],
-  selectedSlug: string | null = null,
-): HTMLElement {
-  const wrap = document.createElement('section');
-  wrap.className = 'forum-category-list';
-  const all = document.createElement('a');
-  all.className = 'forum-category-card';
-  all.href = '/forum';
-  if (!selectedSlug) all.classList.add('forum-category-card-active');
-  const allTitle = document.createElement('strong');
-  allTitle.textContent = 'All topics';
-  const allCount = document.createElement('p');
-  const totalTopics = categories.reduce((sum, category) => sum + category.topicCount, 0);
-  allCount.textContent = `${totalTopics} ${totalTopics === 1 ? 'topic' : 'topics'}`;
-  all.append(allTitle, allCount);
-  wrap.append(all);
-  for (const category of categories) {
-    const card = document.createElement('a');
-    card.className = 'forum-category-card';
-    card.href = categoryHref(category);
-    if (category.slug === selectedSlug) card.classList.add('forum-category-card-active');
-    const title = document.createElement('strong');
-    title.textContent = category.name;
-    const desc = document.createElement('p');
-    desc.textContent = category.description;
-    const count = document.createElement('p');
-    count.textContent = `${category.topicCount} ${category.topicCount === 1 ? 'topic' : 'topics'}`;
-    card.append(title, desc, count);
-    wrap.append(card);
-  }
-  return wrap;
 }
 
 function categoryIndex(categories: ForumCategory[]): HTMLElement {
@@ -387,37 +447,6 @@ function indexCell(text: string, className: string): HTMLElement {
   cell.className = className;
   cell.textContent = text;
   return cell;
-}
-
-function categoryHeaderBox(category: ForumCategory): HTMLElement {
-  const box = document.createElement('section');
-  box.className = 'forum-category-header-box';
-  const heading = document.createElement('h2');
-  heading.textContent = category.name;
-  const desc = document.createElement('p');
-  desc.textContent = category.description;
-  const stats = document.createElement('p');
-  stats.textContent = `${category.topicCount} ${category.topicCount === 1 ? 'topic' : 'topics'} · ${category.postCount} ${category.postCount === 1 ? 'post' : 'posts'}`;
-  box.append(heading, desc, stats);
-  return box;
-}
-
-function searchHeaderBox(query: string): HTMLElement {
-  const box = document.createElement('section');
-  box.className = 'forum-category-header-box';
-  const heading = document.createElement('h2');
-  heading.textContent = 'Search results';
-  const copy = document.createElement('p');
-  copy.textContent = `"${query}"`;
-  box.append(heading, copy);
-  return box;
-}
-
-function sectionTitle(text: string): HTMLElement {
-  const heading = document.createElement('h2');
-  heading.className = 'forum-section-title';
-  heading.textContent = text;
-  return heading;
 }
 
 function topicList(
@@ -1024,6 +1053,7 @@ function newTopicForm(
     option.selected = optionCategory.slug === defaultCategory?.slug;
     category.append(option);
   }
+  if (defaultCategory) category.value = defaultCategory.slug;
   const title = document.createElement('input');
   title.name = 'title';
   title.maxLength = forumTopicTitleMaxLength;
@@ -1049,9 +1079,10 @@ function newTopicForm(
   return form;
 }
 
-function forumSearchForm(query: string | null): HTMLElement {
+function forumSearchForm(query: string | null, options: { compact?: boolean } = {}): HTMLElement {
   const form = document.createElement('form');
   form.className = 'forum-search-form';
+  if (options.compact) form.classList.add('forum-search-form-compact');
   form.action = '/forum';
   form.method = 'get';
   const input = document.createElement('input');
@@ -1079,14 +1110,63 @@ function replyForm(topic: ForumTopicDetail, _user: AuthUser): HTMLElement {
   const form = document.createElement('form');
   form.className = 'forum-form forum-reply-form';
   const heading = document.createElement('h2');
-  heading.textContent = 'Reply';
+  heading.textContent = 'Reply to this topic';
+  const tabs = document.createElement('div');
+  tabs.className = 'forum-reply-tabs';
+  const writeTab = document.createElement('button');
+  writeTab.type = 'button';
+  writeTab.className = 'forum-reply-tab forum-reply-tab-active';
+  writeTab.textContent = 'Write';
+  const previewTab = document.createElement('button');
+  previewTab.type = 'button';
+  previewTab.className = 'forum-reply-tab';
+  previewTab.textContent = 'Preview';
+  tabs.append(writeTab, previewTab);
   const body = document.createElement('textarea');
   body.name = 'body';
   body.maxLength = forumPostBodyMaxLength;
+  body.placeholder = 'Please be nice in the forum.';
   body.required = true;
+  body.setAttribute('aria-label', 'Reply');
+  const preview = document.createElement('div');
+  preview.className = 'forum-reply-preview forum-post-body';
+  preview.hidden = true;
+  writeTab.addEventListener('click', () => {
+    writeTab.classList.add('forum-reply-tab-active');
+    previewTab.classList.remove('forum-reply-tab-active');
+    body.hidden = false;
+    preview.hidden = true;
+    body.focus();
+  });
+  previewTab.addEventListener('click', () => {
+    previewTab.classList.add('forum-reply-tab-active');
+    writeTab.classList.remove('forum-reply-tab-active');
+    body.hidden = true;
+    preview.hidden = false;
+    if (body.value.trim().length > 0) {
+      renderPostBodyInto(preview, body.value);
+    } else {
+      preview.replaceChildren(statusPanel('Nothing to preview.'));
+    }
+  });
+  const note = document.createElement('p');
+  note.className = 'forum-form-note';
+  const markdown = document.createElement('a');
+  markdown.href = 'https://www.markdownguide.org/basic-syntax/';
+  markdown.target = '_blank';
+  markdown.rel = 'nofollow noopener noreferrer';
+  markdown.textContent = 'Markdown';
+  const etiquette = document.createElement('a');
+  etiquette.href = '/forum/feedback';
+  etiquette.textContent = 'forum etiquette';
+  note.append(markdown, document.createTextNode(' is available for formatting. '), etiquette);
   const error = errorLine();
   const submit = submitButton('Post reply');
-  form.append(heading, labeled('Reply', body), error, submit);
+  submit.textContent = 'Reply';
+  const footer = document.createElement('div');
+  footer.className = 'forum-reply-footer';
+  footer.append(error, submit);
+  form.append(heading, tabs, body, preview, note, footer);
   form.addEventListener('submit', (event) => {
     event.preventDefault();
     void submitReply(topic, form, submit, error);
@@ -1167,20 +1247,6 @@ function submitButton(text: string): HTMLButtonElement {
   button.type = 'submit';
   button.textContent = text;
   return button;
-}
-
-function topicMetaBox(topic: ForumTopicDetail): HTMLElement {
-  const box = document.createElement('section');
-  box.className = 'forum-auth-box';
-  const lines = [
-    topic.category.name,
-    `${topic.postCount} ${topic.postCount === 1 ? 'post' : 'posts'}`,
-    `Started ${formatDate(topic.createdAt)}`,
-    `Last activity ${formatDate(topic.lastPostAt)}`,
-  ];
-  if (topic.locked) lines.push('Locked');
-  box.textContent = lines.join(' · ');
-  return box;
 }
 
 function topicModerationBox(topic: ForumTopicDetail, categories: ForumCategory[]): HTMLElement {

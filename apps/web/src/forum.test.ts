@@ -2,22 +2,11 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 
 const categories = [
   {
-    id: 'announcements',
-    slug: 'announcements',
-    name: 'Announcements',
-    description: 'Official updates.',
-    sortOrder: 10,
-    topicWritePolicy: 'admin',
-    topicCount: 0,
-    postCount: 0,
-    latestPost: null,
-  },
-  {
     id: 'strategy',
-    slug: 'strategy',
-    name: 'Strategy',
-    description: 'Openings and patterns.',
-    sortOrder: 30,
+    slug: 'general-discussion',
+    name: 'General Discussion',
+    description: 'Questions, rules, strategy, and general Mistboard discussion.',
+    sortOrder: 10,
     topicWritePolicy: 'account',
     topicCount: 1,
     postCount: 2,
@@ -35,13 +24,46 @@ const categories = [
       createdAt: '2026-06-01T00:05:00.000Z',
     },
   },
+  {
+    id: 'game-analysis',
+    slug: 'game-analysis',
+    name: 'Game Analysis',
+    description: 'Post Mistboard games and analyze them with the community.',
+    sortOrder: 20,
+    topicWritePolicy: 'account',
+    topicCount: 0,
+    postCount: 0,
+    latestPost: null,
+  },
+  {
+    id: 'engines',
+    slug: 'engines',
+    name: 'Engines',
+    description: 'Misty, bot play, engine matches, and benchmarks.',
+    sortOrder: 30,
+    topicWritePolicy: 'account',
+    topicCount: 0,
+    postCount: 0,
+    latestPost: null,
+  },
+  {
+    id: 'support',
+    slug: 'feedback',
+    name: 'Feedback',
+    description: 'Bug reports, feature requests, and site feedback.',
+    sortOrder: 40,
+    topicWritePolicy: 'account',
+    topicCount: 0,
+    postCount: 0,
+    latestPost: null,
+  },
 ];
 
 const topic = {
   id: 'topic_strategy',
   slug: 'scouting-the-center',
   title: 'Scouting the center',
-  category: { slug: 'strategy', name: 'Strategy' },
+  category: { slug: 'general-discussion', name: 'General Discussion' },
   author: { handle: 'alice', displayName: 'Alice' },
   latestPost: {
     post: {
@@ -78,59 +100,8 @@ describe('forum pages', () => {
     window.history.pushState(null, '', '/');
   });
 
-  it('renders the forum index with account-gated topic creation', async () => {
-    vi.spyOn(globalThis, 'fetch').mockImplementation(async (input) => {
-      const url = String(input);
-      if (url.startsWith('/api/forum/categories')) return json({ categories });
-      if (url.startsWith('/api/forum/topics')) return json({ topics: [topic] });
-      if (url.startsWith('/api/auth/me')) return json({ user: null });
-      throw new Error(`unexpected fetch ${url}`);
-    });
-    const root = document.createElement('div');
-    const { mountForum } = await import('./forum.js');
-
-    await mountForum(root);
-
-    expect(root.textContent).toContain('Forum');
-    expect(root.textContent).toContain('Topics');
-    expect(root.textContent).toContain('Posts');
-    expect(root.textContent).toContain('Bob');
-    expect(root.querySelector('.forum-category-latest-meta')?.textContent).toContain('by Bob');
-    expect(root.textContent).toContain('Scouting the center');
-    expect(root.textContent).toContain('Sign in to start a topic.');
-    expect(
-      root.querySelector<HTMLAnchorElement>('a.forum-category-index-main')?.getAttribute('href'),
-    ).toBe('/forum/announcements');
-    expect(
-      root.querySelector<HTMLAnchorElement>('a.forum-category-latest-title')?.getAttribute('href'),
-    ).toBe('/forum/t/topic_strategy/scouting-the-center#post_post_strategy_reply');
-    expect(
-      root.querySelector<HTMLAnchorElement>('.forum-category-latest-author')?.getAttribute('href'),
-    ).toBe('/@/bob');
-    expect(root.querySelector<HTMLAnchorElement>('.forum-topic-title')?.getAttribute('href')).toBe(
-      '/forum/t/topic_strategy/scouting-the-center',
-    );
-    expect(root.querySelector<HTMLAnchorElement>('.forum-topic-author')?.getAttribute('href')).toBe(
-      '/@/alice',
-    );
-    expect(
-      root.querySelector<HTMLAnchorElement>('.forum-topic-latest-link')?.getAttribute('href'),
-    ).toBe('/forum/t/topic_strategy/scouting-the-center#post_post_strategy_reply');
-    expect(
-      root.querySelector('.forum-topic-row:not(.forum-topic-list-header) .forum-topic-row-latest')
-        ?.textContent,
-    ).toContain('by Bob');
-    expect(
-      root
-        .querySelector<HTMLAnchorElement>('.forum-topic-row-latest .forum-topic-author')
-        ?.getAttribute('href'),
-    ).toBe('/@/bob');
-    expect(root.querySelector('.forum-topic-flags')?.textContent).toContain('Strategy');
-  });
-
-  it('renders a selected category as a focused topic view', async () => {
+  it('renders the forum index as a single panel of categories', async () => {
     const fetchedUrls: string[] = [];
-    window.history.pushState(null, '', '/forum/strategy');
     vi.spyOn(globalThis, 'fetch').mockImplementation(async (input) => {
       const url = String(input);
       fetchedUrls.push(url);
@@ -144,17 +115,62 @@ describe('forum pages', () => {
 
     await mountForum(root);
 
-    expect(fetchedUrls).toContain('/api/forum/topics?category=strategy&limit=26&offset=0');
-    expect(root.textContent).toContain('Openings and patterns.');
-    expect(root.textContent).toContain('1 topic · 2 posts');
-    expect(root.querySelector('.forum-category-header-box')?.textContent).toContain('Strategy');
+    expect(fetchedUrls).not.toContain('/api/forum/topics?limit=26&offset=0');
+    expect(root.textContent).toContain('Forum');
+    expect(root.textContent).toContain('Topics');
+    expect(root.textContent).toContain('Posts');
+    expect(root.textContent).toContain('Bob');
+    expect(root.querySelector('.forum-panel')).not.toBeNull();
+    expect(root.querySelector('.forum-search-form-compact')).not.toBeNull();
+    expect(root.querySelector('.forum-category-latest-meta')?.textContent).toContain('by Bob');
+    expect(root.textContent).toContain('Scouting the center');
+    expect(root.textContent).not.toContain('Sign in to start a topic.');
+    expect(root.querySelector('.forum-form')).toBeNull();
+    expect(
+      root.querySelector<HTMLAnchorElement>('a.forum-category-index-main')?.getAttribute('href'),
+    ).toBe('/forum/general-discussion');
+    expect(
+      root.querySelector<HTMLAnchorElement>('a.forum-category-latest-title')?.getAttribute('href'),
+    ).toBe('/forum/t/topic_strategy/scouting-the-center#post_post_strategy_reply');
+    expect(
+      root.querySelector<HTMLAnchorElement>('.forum-category-latest-author')?.getAttribute('href'),
+    ).toBe('/@/bob');
+    expect(root.querySelector('.forum-topic-title')).toBeNull();
+  });
+
+  it('renders a selected category as a focused topic view', async () => {
+    const fetchedUrls: string[] = [];
+    window.history.pushState(null, '', '/forum/general-discussion');
+    vi.spyOn(globalThis, 'fetch').mockImplementation(async (input) => {
+      const url = String(input);
+      fetchedUrls.push(url);
+      if (url.startsWith('/api/forum/categories')) return json({ categories });
+      if (url.startsWith('/api/forum/topics')) return json({ topics: [topic] });
+      if (url.startsWith('/api/auth/me')) return json({ user: null });
+      throw new Error(`unexpected fetch ${url}`);
+    });
+    const root = document.createElement('div');
+    const { mountForum } = await import('./forum.js');
+
+    await mountForum(root);
+
+    expect(fetchedUrls).toContain(
+      '/api/forum/topics?category=general-discussion&limit=26&offset=0',
+    );
+    expect(root.querySelector('.forum-panel-header-category')?.textContent).toContain(
+      'General Discussion',
+    );
+    expect(root.querySelector<HTMLAnchorElement>('.forum-panel-back')?.getAttribute('href')).toBe(
+      '/forum',
+    );
+    expect(root.querySelector('.forum-panel-action')?.textContent).toBe('Sign in to post');
     expect(
       root.querySelector('.forum-topic-row:not(.forum-topic-list-header) .forum-topic-flags'),
     ).toBeNull();
   });
 
   it('defaults new topics to the selected category when the user can post there', async () => {
-    window.history.pushState(null, '', '/forum?category=strategy');
+    window.history.pushState(null, '', '/forum?category=general-discussion');
     vi.spyOn(globalThis, 'fetch').mockImplementation(async (input) => {
       const url = String(input);
       if (url.startsWith('/api/forum/categories')) return json({ categories });
@@ -181,15 +197,23 @@ describe('forum pages', () => {
 
     await mountForum(root);
 
+    const action = root.querySelector<HTMLButtonElement>('button.forum-panel-action');
+    const composer = root.querySelector<HTMLElement>('.forum-topic-composer');
+    expect(action?.textContent).toBe('Create a new topic');
+    expect(composer?.hidden).toBe(true);
+    action?.click();
+    expect(composer?.hidden).toBe(false);
     const select = root.querySelector<HTMLSelectElement>('select[name="categorySlug"]');
     const announcement = root.querySelector<HTMLOptionElement>('option[value="announcements"]');
-    expect(select?.value).toBe('strategy');
-    expect(announcement?.disabled).toBe(true);
+    const feedback = root.querySelector<HTMLOptionElement>('option[value="feedback"]');
+    expect(select?.value).toBe('general-discussion');
+    expect(announcement).toBeNull();
+    expect(feedback?.disabled).toBe(false);
   });
 
   it('paginates forum topic lists with stable page URLs', async () => {
     const fetchedUrls: string[] = [];
-    window.history.pushState(null, '', '/forum/strategy?page=2');
+    window.history.pushState(null, '', '/forum/general-discussion?page=2');
     vi.spyOn(globalThis, 'fetch').mockImplementation(async (input) => {
       const url = String(input);
       fetchedUrls.push(url);
@@ -212,7 +236,9 @@ describe('forum pages', () => {
 
     await mountForum(root);
 
-    expect(fetchedUrls).toContain('/api/forum/topics?category=strategy&limit=26&offset=25');
+    expect(fetchedUrls).toContain(
+      '/api/forum/topics?category=general-discussion&limit=26&offset=25',
+    );
     expect(root.querySelector('.forum-topic-list-header')?.textContent).toContain('Replies');
     expect(root.querySelector('.forum-topic-list-header')?.textContent).toContain('Last post');
     expect(root.querySelectorAll('.forum-topic-row:not(.forum-topic-list-header)')).toHaveLength(
@@ -234,8 +260,8 @@ describe('forum pages', () => {
     );
     expect(pageLinks.map((link) => link.textContent)).toEqual(['1', '3']);
     expect(pageLinks.map((link) => link.getAttribute('href'))).toEqual([
-      '/forum/strategy',
-      '/forum/strategy?page=3',
+      '/forum/general-discussion',
+      '/forum/general-discussion?page=3',
     ]);
   });
 
@@ -285,10 +311,10 @@ describe('forum pages', () => {
     ]);
   });
 
-  it('links latest posts to their topic page when threads are long', async () => {
+  it('links latest topic rows to their topic page when threads are long', async () => {
     const longTopic = { ...topic, postCount: 26 };
     const longCategories = categories.map((category) =>
-      category.slug === 'strategy' && category.latestPost
+      category.slug === 'general-discussion' && category.latestPost
         ? {
             ...category,
             latestPost: {
@@ -301,6 +327,7 @@ describe('forum pages', () => {
           }
         : category,
     );
+    window.history.pushState(null, '', '/forum/general-discussion');
     vi.spyOn(globalThis, 'fetch').mockImplementation(async (input) => {
       const url = String(input);
       if (url.startsWith('/api/forum/categories')) return json({ categories: longCategories });
@@ -314,9 +341,6 @@ describe('forum pages', () => {
     await mountForum(root);
 
     expect(
-      root.querySelector<HTMLAnchorElement>('a.forum-category-latest-title')?.getAttribute('href'),
-    ).toBe('/forum/t/topic_strategy/scouting-the-center?page=2#post_post_strategy_reply');
-    expect(
       root.querySelector<HTMLAnchorElement>('.forum-topic-latest-link')?.getAttribute('href'),
     ).toBe('/forum/t/topic_strategy/scouting-the-center?page=2#post_post_strategy_reply');
     const pageLinks = Array.from(
@@ -328,7 +352,8 @@ describe('forum pages', () => {
     ]);
   });
 
-  it('allows admins to start announcement topics', async () => {
+  it('allows admins to start feedback topics', async () => {
+    window.history.pushState(null, '', '/forum/feedback');
     vi.spyOn(globalThis, 'fetch').mockImplementation(async (input) => {
       const url = String(input);
       if (url.startsWith('/api/forum/categories')) return json({ categories });
@@ -343,9 +368,13 @@ describe('forum pages', () => {
 
     await mountForum(root);
 
-    const announcement = root.querySelector<HTMLOptionElement>('option[value="announcements"]');
-    expect(announcement?.disabled).toBe(false);
-    expect(announcement?.selected).toBe(true);
+    expect(root.querySelector<HTMLButtonElement>('button.forum-panel-action')?.textContent).toBe(
+      'Create a new topic',
+    );
+    const select = root.querySelector<HTMLSelectElement>('select[name="categorySlug"]');
+    const feedback = root.querySelector<HTMLOptionElement>('option[value="feedback"]');
+    expect(feedback?.disabled).toBe(false);
+    expect(select?.value).toBe('feedback');
   });
 
   it('renders topic moderation controls for admins', async () => {
@@ -466,7 +495,7 @@ describe('forum pages', () => {
         return json({
           topic: {
             ...topic,
-            category: { slug: 'announcements', name: 'Announcements' },
+            category: { slug: 'feedback', name: 'Feedback' },
             posts: [
               {
                 id: 'post_1',
@@ -506,7 +535,7 @@ describe('forum pages', () => {
     const form = root.querySelector<HTMLFormElement>('.forum-topic-move-form');
     const select = form?.querySelector<HTMLSelectElement>('select[name="categorySlug"]');
     if (!form || !select) throw new Error('missing topic move form');
-    select.value = 'announcements';
+    select.value = 'feedback';
 
     form.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
     await flushPromises();
@@ -516,11 +545,11 @@ describe('forum pages', () => {
       ([input, init]) =>
         String(input) === '/api/forum/topics/topic_strategy/category' && init?.method === 'PATCH',
     );
-    expect(JSON.parse(String(moveCall?.[1]?.body))).toEqual({ categorySlug: 'announcements' });
+    expect(JSON.parse(String(moveCall?.[1]?.body))).toEqual({ categorySlug: 'feedback' });
     expect(window.location.pathname).toBe('/forum/t/topic_strategy/scouting-the-center');
   });
 
-  it('renders topic breadcrumbs and category navigation', async () => {
+  it('renders topic back navigation and post author metadata', async () => {
     vi.spyOn(globalThis, 'fetch').mockImplementation(async (input) => {
       const url = String(input);
       if (url.startsWith('/api/forum/categories')) return json({ categories });
@@ -548,16 +577,10 @@ describe('forum pages', () => {
 
     await mountForumTopic(root, 'topic_strategy');
 
-    const breadcrumbs = Array.from(
-      root.querySelectorAll<HTMLAnchorElement>('.forum-breadcrumbs a'),
-    );
-    expect(breadcrumbs.map((link) => link.textContent)).toEqual(['Forum', 'Strategy']);
-    expect(breadcrumbs.map((link) => link.getAttribute('href'))).toEqual([
-      '/forum',
-      '/forum/strategy',
-    ]);
-    expect(root.querySelector<HTMLInputElement>('input[name="q"]')).not.toBeNull();
-    expect(root.querySelector('.forum-category-card-active')?.textContent).toContain('Strategy');
+    const back = root.querySelector<HTMLAnchorElement>('.forum-panel-back');
+    expect(back?.getAttribute('href')).toBe('/forum/general-discussion');
+    expect(back?.getAttribute('aria-label')).toBe('Back to General Discussion');
+    expect(root.querySelector<HTMLInputElement>('input[name="q"]')).toBeNull();
     expect(root.querySelector<HTMLAnchorElement>('.forum-post-author-name')?.textContent).toBe(
       'Alice',
     );

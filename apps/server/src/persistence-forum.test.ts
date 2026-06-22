@@ -26,13 +26,14 @@ type ResponseCapture = {
 };
 
 definePersistenceTests('forum', () => {
-  test('forum categories are seeded and non-admins cannot start announcement topics', async () => {
+  test('forum categories are seeded with a small starter taxonomy', async () => {
     const categories = await listForumCategories();
     assert.deepEqual(
       categories.map((category) => category.slug),
-      ['announcements', 'rules', 'strategy', 'game-analysis', 'engines', 'support'],
+      ['general-discussion', 'game-analysis', 'engines', 'feedback'],
     );
-    assert.equal(categories[0]?.topicWritePolicy, 'admin');
+    assert.equal(categories[0]?.name, 'General Discussion');
+    assert.equal(categories[0]?.topicWritePolicy, 'account');
 
     await createUser({
       id: 'forum_user_regular',
@@ -44,18 +45,18 @@ definePersistenceTests('forum', () => {
     });
 
     const result = await createForumTopic({
-      id: 'topic_announcement_blocked',
-      postId: 'post_announcement_blocked',
-      categorySlug: 'announcements',
+      id: 'topic_general_seeded',
+      postId: 'post_general_seeded',
+      categorySlug: 'general-discussion',
       authorAccountId: 'forum_user_regular',
       authorRole: 'player',
-      title: 'Regular announcement attempt',
-      slug: 'regular-announcement-attempt',
-      bodyText: 'This should not publish.',
+      title: 'General discussion works',
+      slug: 'general-discussion-works',
+      bodyText: 'This should publish.',
       now: new Date('2026-06-01T00:01:00Z'),
     });
 
-    assert.deepEqual(result, { ok: false, error: 'category_admin_only' });
+    assert.equal(result.ok, true);
   });
 
   test('forum topics list newest activity and expose plaintext posts', async () => {
@@ -80,7 +81,7 @@ definePersistenceTests('forum', () => {
     const created = await createForumTopic({
       id: 'topic_strategy',
       postId: 'post_strategy_open',
-      categorySlug: 'strategy',
+      categorySlug: 'general-discussion',
       authorAccountId: 'forum_user_alice',
       authorRole: 'player',
       title: 'How do you scout the center?',
@@ -102,19 +103,19 @@ definePersistenceTests('forum', () => {
     const topics = await listForumTopics({ limit: 5 });
     assert.equal(topics[0]?.id, 'topic_strategy');
     assert.equal(topics[0]?.postCount, 2);
-    assert.equal(topics[0]?.category.slug, 'strategy');
+    assert.equal(topics[0]?.category.slug, 'general-discussion');
     assert.equal(topics[0]?.author?.handle, 'alice');
     assert.equal(topics[0]?.latestPost?.post.id, 'post_strategy_reply');
     assert.equal(topics[0]?.latestPost?.author?.handle, 'bob');
 
     const categories = await listForumCategories();
-    const strategy = categories.find((category) => category.slug === 'strategy');
-    assert.equal(strategy?.topicCount, 1);
-    assert.equal(strategy?.postCount, 2);
-    assert.equal(strategy?.latestPost?.topic.id, 'topic_strategy');
-    assert.equal(strategy?.latestPost?.topic.postCount, 2);
-    assert.equal(strategy?.latestPost?.post.id, 'post_strategy_reply');
-    assert.equal(strategy?.latestPost?.author?.handle, 'bob');
+    const general = categories.find((category) => category.slug === 'general-discussion');
+    assert.equal(general?.topicCount, 1);
+    assert.equal(general?.postCount, 2);
+    assert.equal(general?.latestPost?.topic.id, 'topic_strategy');
+    assert.equal(general?.latestPost?.topic.postCount, 2);
+    assert.equal(general?.latestPost?.post.id, 'post_strategy_reply');
+    assert.equal(general?.latestPost?.author?.handle, 'bob');
 
     const detail = await getForumTopic('topic_strategy');
     assert.equal(detail?.posts.length, 2);
@@ -227,11 +228,11 @@ definePersistenceTests('forum', () => {
     await createForumTopic({
       id: 'topic_locked',
       postId: 'post_locked_open',
-      categorySlug: 'support',
+      categorySlug: 'feedback',
       authorAccountId: 'forum_user_lock',
       authorRole: 'player',
-      title: 'This support topic is locked',
-      slug: 'this-support-topic-is-locked',
+      title: 'This feedback topic is locked',
+      slug: 'this-feedback-topic-is-locked',
       bodyText: 'Initial report.',
       now,
     });
@@ -273,7 +274,7 @@ definePersistenceTests('forum', () => {
     await createForumTopic({
       id: 'topic_moderated',
       postId: 'post_moderated_open',
-      categorySlug: 'strategy',
+      categorySlug: 'general-discussion',
       authorAccountId: 'forum_user_mod_author',
       authorRole: 'player',
       title: 'Moderated topic',
@@ -321,21 +322,21 @@ definePersistenceTests('forum', () => {
 
     const moved = await moveForumTopic({
       topicId: 'topic_moderated',
-      categorySlug: 'support',
+      categorySlug: 'feedback',
       now: new Date('2026-06-01T00:07:45Z'),
     });
     assert.equal(moved.ok, true);
-    assert.equal(moved.ok ? moved.topic.category.slug : '', 'support');
+    assert.equal(moved.ok ? moved.topic.category.slug : '', 'feedback');
     assert.equal(moved.ok ? moved.topic.lastPostAt.toISOString() : '', '2026-06-01T00:05:00.000Z');
     assert.equal(moved.ok ? moved.topic.updatedAt.toISOString() : '', '2026-06-01T00:07:45.000Z');
     assert.equal(
-      (await listForumTopics({ categorySlug: 'support', limit: 10 })).some(
+      (await listForumTopics({ categorySlug: 'feedback', limit: 10 })).some(
         (topic) => topic.id === 'topic_moderated',
       ),
       true,
     );
     assert.equal(
-      (await listForumTopics({ categorySlug: 'strategy', limit: 10 })).some(
+      (await listForumTopics({ categorySlug: 'general-discussion', limit: 10 })).some(
         (topic) => topic.id === 'topic_moderated',
       ),
       false,
