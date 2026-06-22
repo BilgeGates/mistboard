@@ -73,6 +73,7 @@ const adminUser = {
 describe('forum pages', () => {
   afterEach(() => {
     vi.restoreAllMocks();
+    document.body.replaceChildren();
     window.history.pushState(null, '', '/');
   });
 
@@ -336,6 +337,44 @@ describe('forum pages', () => {
     ]);
     expect(root.querySelector<HTMLInputElement>('input[name="q"]')).not.toBeNull();
     expect(root.querySelector('.forum-category-card-active')?.textContent).toContain('Strategy');
+  });
+
+  it('quotes a post into the reply form', async () => {
+    vi.spyOn(globalThis, 'fetch').mockImplementation(async (input) => {
+      const url = String(input);
+      if (url.startsWith('/api/forum/categories')) return json({ categories });
+      if (url.startsWith('/api/forum/topics/topic_strategy')) {
+        return json({
+          topic: {
+            ...topic,
+            posts: [
+              {
+                id: 'post_1',
+                author: { handle: 'alice', displayName: 'Alice' },
+                bodyText: 'Opening post.\nSecond line',
+                createdAt: '2026-06-01T00:00:00.000Z',
+                updatedAt: '2026-06-01T00:00:00.000Z',
+              },
+            ],
+          },
+        });
+      }
+      if (url.startsWith('/api/auth/me')) return json({ user: adminUser });
+      throw new Error(`unexpected fetch ${url}`);
+    });
+    const root = document.createElement('div');
+    document.body.append(root);
+    const { mountForumTopic } = await import('./forum.js');
+
+    await mountForumTopic(root, 'topic_strategy');
+    const quote = root.querySelector<HTMLButtonElement>('.forum-post-quote');
+    const body = root.querySelector<HTMLTextAreaElement>('.forum-reply-form textarea[name="body"]');
+    if (!quote || !body) throw new Error('missing quote controls');
+
+    quote.click();
+
+    expect(body.value).toBe('> Alice wrote:\n> Opening post.\n> Second line\n\n');
+    expect(document.activeElement).toBe(body);
   });
 
   it('redirects a new reply to its stable post anchor', async () => {

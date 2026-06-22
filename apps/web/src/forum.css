@@ -345,6 +345,22 @@ a.forum-topic-title:focus-visible,
   text-decoration: underline;
 }
 
+.forum-post-quote {
+  border: 0;
+  background: transparent;
+  color: var(--site-accent-strong);
+  cursor: pointer;
+  font: inherit;
+  font-weight: 800;
+  padding: 0;
+}
+
+.forum-post-quote:hover,
+.forum-post-quote:focus-visible {
+  color: var(--site-link);
+  text-decoration: underline;
+}
+
 .forum-search-form {
   display: grid;
   gap: 8px;

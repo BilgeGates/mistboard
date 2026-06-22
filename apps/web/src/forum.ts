@@ -68,6 +68,7 @@ type ForumTopicDetail = ForumTopicSummary & {
 
 const topicListPageSize = 25;
 const postPageSize = 25;
+const forumPostBodyMaxLength = 5000;
 
 class ForumNotFound extends Error {}
 
@@ -549,6 +550,9 @@ function postList(
       document.createTextNode(`${authorLabel(post.author)} · ${formatDate(post.createdAt)} · `),
       postPermalink(topic, post),
     );
+    if (user && !topic.locked) {
+      meta.append(document.createTextNode(' · '), postQuoteButton(post));
+    }
     const body = document.createElement('p');
     body.className = 'forum-post-body';
     body.textContent = post.bodyText;
@@ -565,6 +569,37 @@ function postPermalink(topic: { id: string; slug: string }, post: ForumPost): HT
   link.href = postHref(topic, post.id);
   link.textContent = 'Link';
   return link;
+}
+
+function postQuoteButton(post: ForumPost): HTMLButtonElement {
+  const button = document.createElement('button');
+  button.type = 'button';
+  button.className = 'forum-post-quote';
+  button.textContent = 'Quote';
+  button.setAttribute('aria-label', `Quote ${authorLabel(post.author)}`);
+  button.addEventListener('click', () => {
+    insertPostQuote(post);
+  });
+  return button;
+}
+
+function insertPostQuote(post: ForumPost): void {
+  const textarea = document.querySelector<HTMLTextAreaElement>(
+    '.forum-reply-form textarea[name="body"]',
+  );
+  if (!textarea) return;
+  const quote = quoteText(post);
+  const prefix = textarea.value.trim().length > 0 ? `${textarea.value.trimEnd()}\n\n` : '';
+  const nextValue = `${prefix}${quote}`;
+  const maxLength = textarea.maxLength > 0 ? textarea.maxLength : forumPostBodyMaxLength;
+  textarea.value = nextValue.slice(0, maxLength);
+  textarea.focus();
+  textarea.setSelectionRange(textarea.value.length, textarea.value.length);
+}
+
+function quoteText(post: ForumPost): string {
+  const lines = post.bodyText.split(/\r?\n/).map((line) => `> ${line}`);
+  return `> ${authorLabel(post.author)} wrote:\n${lines.join('\n')}\n\n`;
 }
 
 function newTopicForm(categories: ForumCategory[], user: AuthUser): HTMLElement {
@@ -597,7 +632,7 @@ function newTopicForm(categories: ForumCategory[], user: AuthUser): HTMLElement 
   title.required = true;
   const body = document.createElement('textarea');
   body.name = 'body';
-  body.maxLength = 5000;
+  body.maxLength = forumPostBodyMaxLength;
   body.required = true;
   const error = errorLine();
   const submit = submitButton('Post topic');
@@ -644,12 +679,12 @@ function forumSearchForm(query: string | null): HTMLElement {
 
 function replyForm(topic: ForumTopicDetail, _user: AuthUser): HTMLElement {
   const form = document.createElement('form');
-  form.className = 'forum-form';
+  form.className = 'forum-form forum-reply-form';
   const heading = document.createElement('h2');
   heading.textContent = 'Reply';
   const body = document.createElement('textarea');
   body.name = 'body';
-  body.maxLength = 5000;
+  body.maxLength = forumPostBodyMaxLength;
   body.required = true;
   const error = errorLine();
   const submit = submitButton('Post reply');
