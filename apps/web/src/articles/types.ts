@@ -268,6 +268,8 @@ export type Article = {
   title: string;
   summary: string;
   showSummaryOnPage?: boolean;
+  // Non-variant guest pages only. Variant rules listings are controlled in
+  // variant-public-surfaces.ts so one switch covers every public rail/widget.
   showInIndex?: boolean;
   status: 'outline' | 'draft' | 'published';
   audience: string;

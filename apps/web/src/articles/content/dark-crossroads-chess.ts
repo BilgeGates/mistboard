@@ -119,7 +119,6 @@ export const darkCrossroadsChessArticle: Article = {
   summary:
     'Crossroads Chess under Fog of War: each side sees only the squares its pieces reach, there are no check warnings, the king falls by capture, and the race to the far rank becomes a one-move gamble in the dark.',
   showSummaryOnPage: false,
-  showInIndex: false,
   status: 'published',
   publishedAt: '2026-06-20',
   audience:

@@ -1,6 +1,8 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { announcements } from './announcements.js';
 import { buildLandingAnnouncements } from './landing-announcements.js';
+import { buildNewsPage } from './news-page.js';
+import { variantPublicSurfaceEnabled } from './variant-public-surfaces.js';
 import { leaderboardVariants } from './variants.js';
 
 describe('landing announcements', () => {
@@ -45,6 +47,28 @@ describe('landing announcements', () => {
     expect(hrefs).not.toContain('/rules/crossroads-chess');
     expect(hrefs).not.toContain('/rules/dark-crossroads-chess');
     expect(hrefs).not.toContain('/rules/kriegspiel');
+  });
+
+  it('uses the same variant flag for the homepage News rail and /news archive', () => {
+    vi.stubEnv('DEV', false);
+
+    expect(variantPublicSurfaceEnabled('reveal-chess')).toBe(false);
+    expect(variantPublicSurfaceEnabled('crossroads-chess')).toBe(false);
+    expect(variantPublicSurfaceEnabled('dark-crossroads-chess')).toBe(false);
+    expect(variantPublicSurfaceEnabled('kriegspiel')).toBe(false);
+
+    const landing = buildLandingAnnouncements();
+    const news = buildNewsPage();
+
+    for (const hidden of [
+      'Reveal Chess',
+      'Crossroads Chess',
+      'Dark Crossroads Chess',
+      'Kriegspiel',
+    ]) {
+      expect(landing.textContent).not.toContain(hidden);
+      expect(news.textContent).not.toContain(hidden);
+    }
   });
 
   it('shows the Drop Mini Xiangqi launch announcement by default', () => {

@@ -1,6 +1,7 @@
 import './landing-announcements.css';
 import { type Announcement, announcements } from './announcements.js';
 import { buildSiteBox } from './site-box.js';
+import { rulesHrefPublicSurfaceEnabled } from './variant-public-surfaces.js';
 
 // All announcements render as one dated News feed box (lichess lobby__feed
 // grammar); the full history lives at /news.
@@ -16,7 +17,7 @@ export function buildLandingAnnouncements(): HTMLElement {
 
   const news = buildSiteBox({ title: 'News', href: '/news', className: 'landing-news' });
   const ordered = entries
-    .filter((entry) => entry.showInLandingNews !== false)
+    .filter((entry) => rulesHrefPublicSurfaceEnabled(entry.href))
     .sort((a, b) => b.date.localeCompare(a.date));
   for (const entry of ordered.slice(0, MAX_FEED_ROWS)) {
     news.body.append(renderFeedRow(entry));

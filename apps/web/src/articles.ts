@@ -60,6 +60,10 @@ import {
   shogiAppearanceChangedEvent,
   xiangqiAppearanceChangedEvent,
 } from './theme.js';
+import {
+  rulesHrefPublicSurfaceEnabled,
+  rulesSlugPublicSurfaceEnabled,
+} from './variant-public-surfaces.js';
 import { renderVariantMiniBoard, type VariantMiniId } from './variant-mini-boards.js';
 import { DEFAULT_XIANGQI_PIECE_SET, type XiangqiPieceSet } from './xiangqi-piece-sets.js';
 import { mountXiangqiReplay, type XiangqiReplayController } from './xiangqi-replay.js';
@@ -84,6 +88,7 @@ function isArticleVisibleInThisEnv(article: Article): boolean {
 function isArticleListedInThisEnv(article: Article): boolean {
   if (!isArticleVisibleInThisEnv(article)) return false;
   if (article.showInIndex === false) return false;
+  if (article.kind === 'rules' && !rulesSlugPublicSurfaceEnabled(article.slug)) return false;
   return true;
 }
 
@@ -391,6 +396,7 @@ function compareHomeCardItems(a: HomeCardItem, b: HomeCardItem): number {
 function latestVisibleAnnouncement(): Announcement | undefined {
   return [...announcements()]
     .filter((announcement) => announcement.showInHomeArticleWidget === true)
+    .filter((announcement) => rulesHrefPublicSurfaceEnabled(announcement.href))
     .sort((a, b) => b.date.localeCompare(a.date))[0];
 }
 
@@ -717,7 +723,9 @@ function buildVariantSidebar(currentSlug: string | null, lang?: ArticleLang): HT
     (article) =>
       article.kind === 'rules' &&
       (isArticleListedInThisEnv(article) ||
-        (article.slug === currentSlug && article.showInIndex !== false)),
+        (article.slug === currentSlug &&
+          article.showInIndex !== false &&
+          rulesSlugPublicSurfaceEnabled(article.slug))),
   );
   if (entries.length < 2) return null;
 

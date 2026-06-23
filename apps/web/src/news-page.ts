@@ -4,6 +4,7 @@
 import './news-page.css';
 import { announcements } from './announcements.js';
 import { formatAnnouncementDate } from './landing-announcements.js';
+import { rulesHrefPublicSurfaceEnabled } from './variant-public-surfaces.js';
 
 export function buildNewsPage(): HTMLElement {
   const section = document.createElement('section');
@@ -20,7 +21,9 @@ export function buildNewsPage(): HTMLElement {
   section.append(intro);
 
   // Pure reverse-chronological: pinning is a rail concern, not a history one.
-  const entries = [...announcements()].sort((a, b) => b.date.localeCompare(a.date));
+  const entries = [...announcements()]
+    .filter((entry) => rulesHrefPublicSurfaceEnabled(entry.href))
+    .sort((a, b) => b.date.localeCompare(a.date));
   if (entries.length === 0) {
     const empty = document.createElement('p');
     empty.className = 'news-page-empty';

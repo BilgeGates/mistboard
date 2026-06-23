@@ -22,7 +22,6 @@ export const kriegspielArticle: Article = {
     summary:
       'The complete rules of Kriegspiel, the 1899 ancestor of dark chess: you see only your own pieces, an umpire rejects illegal tries and announces captures and checks, and checkmate wins.',
     showSummaryOnPage: false,
-    showInIndex: false,
     status: 'published',
     publishedAt: '2026-06-19',
     audience:

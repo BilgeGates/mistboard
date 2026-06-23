@@ -431,6 +431,7 @@ Run with `MISTBOARD_ALLOW_IN_MEMORY_PERSISTENCE=true npm run test:integration --
 | `captures.ts` | Captured-piece list derivation |
 | `nav-items.ts` | Nav item definitions (shared between top-nav and footer) |
 | `announcements.ts` | Card list for /announcements + landing widget |
+| `variant-public-surfaces.ts` | Single public-surface switchboard per `GameSpecId`: controls variant discoverability in rules rails/tiles, homepage article cards, homepage News, and `/news` without per-content visibility flags |
 | `annotations.ts` | Annotation read/write for the research feedback workflow |
 | `analytics.ts` | PostHog wrapper + time-class inference (client-side) |
 | `site-box.ts` | Shared homepage/rail widget shell (lichess `lobby__box` grammar): header row with optional "More »" link over a content body. Loads `site-box.css` |

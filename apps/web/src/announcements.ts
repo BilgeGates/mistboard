@@ -13,7 +13,6 @@ export type Announcement = {
   body?: string;
   href?: string;
   cta?: string; // inline link label on /news; falls back to "Read more"
-  showInLandingNews?: boolean; // omit or true = show in the homepage News rail
   showInHomeArticleWidget?: boolean;
 };
 
@@ -42,7 +41,6 @@ const baseAnnouncements: Announcement[] = [
     body: 'Crossroads Chess under Fog of War is now live for invite games, with hidden enemy pieces, no check warnings, and the far-rank Try.',
     href: '/rules/dark-crossroads-chess',
     cta: 'Read rules',
-    showInLandingNews: false,
   },
   {
     date: '2026-06-20',
@@ -59,7 +57,6 @@ const baseAnnouncements: Announcement[] = [
     body: 'The original hidden-information chess: see only your own pieces, try moves through the umpire, and challenge a friend to a match.',
     href: '/rules/kriegspiel',
     cta: 'Read rules',
-    showInLandingNews: false,
     showInHomeArticleWidget: false,
   },
   {
@@ -69,7 +66,6 @@ const baseAnnouncements: Announcement[] = [
     body: 'Standard chess with a hidden starting arrangement: every piece but the king begins face-down and reveals its true identity the moment it moves. Challenge a friend to a match.',
     href: '/rules/reveal-chess',
     cta: 'Read rules',
-    showInLandingNews: false,
   },
   {
     date: '2026-06-18',
@@ -103,7 +99,6 @@ const baseAnnouncements: Announcement[] = [
     body: 'A 6 by 8 chess-xiangqi variant with checkmate and king-race wins is now live on Mistboard.',
     href: '/rules/crossroads-chess',
     cta: 'Read rules',
-    showInLandingNews: false,
   },
   {
     date: '2026-05-09',
