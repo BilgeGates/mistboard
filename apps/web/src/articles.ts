@@ -60,11 +60,11 @@ import {
   shogiAppearanceChangedEvent,
   xiangqiAppearanceChangedEvent,
 } from './theme.js';
+import { renderVariantMiniBoard, type VariantMiniId } from './variant-mini-boards.js';
 import {
   rulesHrefPublicSurfaceEnabled,
   rulesSlugPublicSurfaceEnabled,
 } from './variant-public-surfaces.js';
-import { renderVariantMiniBoard, type VariantMiniId } from './variant-mini-boards.js';
 import { DEFAULT_XIANGQI_PIECE_SET, type XiangqiPieceSet } from './xiangqi-piece-sets.js';
 import { mountXiangqiReplay, type XiangqiReplayController } from './xiangqi-replay.js';
 
