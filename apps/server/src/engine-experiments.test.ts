@@ -17,8 +17,9 @@ import {
 import { loadEngine, upsertBuiltinEngineVersions } from './engine-registry.js';
 import { runRandomLegalEngineGame } from './engine-runner.js';
 import { runMigrations } from './migrate.js';
+import { testDatabaseUrlFromEnv } from './test-database-url.js';
 
-const TEST_DATABASE_URL = process.env.TEST_DATABASE_URL ?? process.env.DATABASE_URL;
+const TEST_DATABASE_URL = testDatabaseUrlFromEnv();
 
 let pool: pg.Pool | null = null;
 

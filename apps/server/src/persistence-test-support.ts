@@ -4,8 +4,9 @@ import nodeTest, { after, before, beforeEach } from 'node:test';
 import pg from 'pg';
 import { runMigrations } from './migrate.js';
 import { close, init, isInitialized } from './persistence.js';
+import { testDatabaseUrlFromEnv } from './test-database-url.js';
 
-export const TEST_DATABASE_URL = process.env.TEST_DATABASE_URL ?? process.env.DATABASE_URL ?? '';
+export const TEST_DATABASE_URL = testDatabaseUrlFromEnv();
 
 export const test = nodeTest;
 export { assert, pg };
