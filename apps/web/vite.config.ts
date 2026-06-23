@@ -1,11 +1,13 @@
 import { promises as fs } from 'node:fs';
+import http from 'node:http';
+import https from 'node:https';
 import { dirname, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { defineConfig, type Plugin, type ResolvedConfig } from 'vitest/config';
 import { INCLUDE_DEV_PUBLIC_ARTIFACTS_ENV, shouldCopyPublicAsset } from './src/public-assets';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
-const DEV_API_URL = process.env.MISTBOARD_DEV_API_URL ?? 'http://127.0.0.1:3001';
+const DEV_API_URL = process.env.MISTBOARD_DEV_API_URL ?? 'http://localhost:3001';
 const FEEDBACK_FILE = resolve(
   __dirname,
   '..',
@@ -98,6 +100,46 @@ function annotationsApiPlugin(): Plugin {
   };
 }
 
+function devApiProxyPlugin(): Plugin {
+  return {
+    name: 'mistboard-dev-api-proxy',
+    apply: 'serve',
+    configureServer(server) {
+      server.middlewares.use((req, res, next) => {
+        if (!req.url?.startsWith('/api/')) {
+          next();
+          return;
+        }
+        if (req.url.startsWith('/api/annotations')) {
+          next();
+          return;
+        }
+        const target = new URL(req.url, DEV_API_URL);
+        const transport = target.protocol === 'https:' ? https : http;
+        const proxyReq = transport.request(
+          target,
+          {
+            method: req.method,
+            headers: {
+              ...req.headers,
+              host: target.host,
+            },
+          },
+          (proxyRes) => {
+            res.writeHead(proxyRes.statusCode ?? 502, proxyRes.headers);
+            proxyRes.pipe(res);
+          },
+        );
+        proxyReq.on('error', () => {
+          if (!res.headersSent) res.writeHead(502, { 'content-type': 'application/json' });
+          res.end(JSON.stringify({ error: 'dev_api_proxy_failed' }));
+        });
+        req.pipe(proxyReq);
+      });
+    },
+  };
+}
+
 function copyFilteredPublicDirPlugin(): Plugin {
   let resolvedConfig: ResolvedConfig;
 
@@ -132,7 +174,7 @@ export default defineConfig(({ command }) => {
       : null;
 
   return {
-    plugins: [annotationsApiPlugin(), copyFilteredPublicDirPlugin()],
+    plugins: [annotationsApiPlugin(), devApiProxyPlugin(), copyFilteredPublicDirPlugin()],
     build: {
       copyPublicDir: false,
     },
@@ -146,14 +188,6 @@ export default defineConfig(({ command }) => {
     test: {
       environment: 'happy-dom',
       include: ['src/**/*.test.ts'],
-    },
-    server: {
-      proxy: {
-        '/api': {
-          target: DEV_API_URL,
-          changeOrigin: true,
-        },
-      },
     },
   };
 });

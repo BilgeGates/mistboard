@@ -95,6 +95,7 @@ const wantsArticlesIndex =
   path === '/zh-hant/articles' ||
   page === 'articles';
 const wantsNews = path === '/news' || page === 'news';
+const forumRedirectPostId = forumRedirectPostIdFromPath(path);
 const forumTopicId = forumTopicIdFromPath(path);
 const forumCategorySlug = forumCategorySlugFromPath(path);
 const wantsForum = path === '/forum' || forumCategorySlug !== null || page === 'forum';
@@ -302,6 +303,13 @@ if (replaySample) {
 } else if (wantsNews) {
   setTitle('News');
   void mountOrReport(() => import('./pages-static.js').then(({ mountNews }) => mountNews(appRoot)));
+} else if (forumRedirectPostId) {
+  setTitle('Forum');
+  void mountOrReport(() =>
+    import('./forum.js').then(({ mountForumPostRedirect }) =>
+      mountForumPostRedirect(appRoot, forumRedirectPostId),
+    ),
+  );
 } else if (forumTopicId) {
   setTitle('Forum');
   void mountOrReport(() =>
@@ -487,6 +495,11 @@ function forumCategorySlugFromPath(value: string): string | null {
 
 function forumTopicIdFromPath(value: string): string | null {
   const match = value.match(/^\/forum\/t\/([^/]+)(?:\/[^/]+)?$/);
+  return match ? decodeURIComponent(match[1]!) : null;
+}
+
+function forumRedirectPostIdFromPath(value: string): string | null {
+  const match = value.match(/^\/forum\/redirect\/post\/([^/]+)$/);
   return match ? decodeURIComponent(match[1]!) : null;
 }
 

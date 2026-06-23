@@ -14,6 +14,7 @@ const titleMinLength = 3;
 const titleMaxLength = 120;
 const bodyMaxLength = 5000;
 const moderationReasonMaxLength = 240;
+const postPageSize = 25;
 const topicWindowMs = 10 * 60 * 1000;
 const topicLimitPerWindow = 3;
 const postWindowMs = 10 * 60 * 1000;
@@ -72,6 +73,19 @@ type ForumPostJson = {
   bodyText: string;
   createdAt: string;
   updatedAt: string;
+  hidden: boolean;
+  hiddenAt: string | null;
+};
+
+type ForumPostSearchJson = {
+  post: {
+    id: string;
+    page: number;
+    snippet: string;
+  };
+  topic: persistence.ForumPostSearchResult['topic'];
+  author: persistence.ForumAuthor;
+  createdAt: string;
 };
 
 export async function tryHandle(
@@ -93,14 +107,17 @@ export async function tryHandle(
     if (!requireMethod(request, response, 'GET')) return true;
     if (!requirePersistence(response)) return true;
     const query = normalizeSearchQuery(parsedUrl.searchParams.get('q'));
-    const topics = query
-      ? await persistence.searchForumTopics({
+    const results = query
+      ? await persistence.searchForumPosts({
           query,
           limit: clampInt(parsedUrl.searchParams.get('limit'), 20, 1, 50),
           offset: clampInt(parsedUrl.searchParams.get('offset'), 0, 0, 10_000),
         })
-      : [];
-    writeJson(response, 200, { topics: topics.map(serializeTopicSummary) });
+      : { posts: [], total: 0 };
+    writeJson(response, 200, {
+      posts: results.posts.map(serializePostSearchResult),
+      total: results.total,
+    });
     return true;
   }
 
@@ -147,6 +164,24 @@ export async function tryHandle(
     if (!requireMethod(request, response, 'PATCH')) return true;
     if (!requirePersistence(response)) return true;
     return updatePost(request, response, decodeURIComponent(postMatch[1]!));
+  }
+
+  const postRedirectMatch = pathname.match(/^\/api\/forum\/posts\/([^/]+)\/redirect$/);
+  if (postRedirectMatch) {
+    if (!requireMethod(request, response, 'GET')) return true;
+    if (!requirePersistence(response)) return true;
+    const location = await persistence.getForumPostLocation(
+      decodeURIComponent(postRedirectMatch[1]!),
+      {
+        pageSize: postPageSize,
+      },
+    );
+    if (!location) {
+      writeJson(response, 404, { error: 'not_found' });
+      return true;
+    }
+    writeJson(response, 200, { href: forumPostHref(location) });
+    return true;
   }
 
   const postModerationMatch = pathname.match(/^\/api\/forum\/posts\/([^/]+)\/moderation$/);
@@ -490,6 +525,17 @@ function serializePost(post: persistence.ForumPost): ForumPostJson {
     bodyText: post.bodyText,
     createdAt: post.createdAt.toISOString(),
     updatedAt: post.updatedAt.toISOString(),
+    hidden: post.hiddenAt !== null,
+    hiddenAt: post.hiddenAt?.toISOString() ?? null,
+  };
+}
+
+function serializePostSearchResult(result: persistence.ForumPostSearchResult): ForumPostSearchJson {
+  return {
+    post: result.post,
+    topic: result.topic,
+    author: result.author,
+    createdAt: result.createdAt.toISOString(),
   };
 }
 
@@ -545,6 +591,14 @@ function slugifyTitle(value: string): string {
     .slice(0, 80)
     .replace(/-+$/g, '');
   return slug.length >= 2 ? slug : 'topic';
+}
+
+function forumPostHref(location: persistence.ForumPostLocation): string {
+  const topicHref = `/forum/t/${encodeURIComponent(location.topic.id)}/${encodeURIComponent(
+    location.topic.slug,
+  )}`;
+  const page = location.page > 1 ? `?page=${location.page}` : '';
+  return `${topicHref}${page}#post_${encodeURIComponent(location.postId)}`;
 }
 
 function clampInt(raw: string | null, fallback: number, min: number, max: number): number {

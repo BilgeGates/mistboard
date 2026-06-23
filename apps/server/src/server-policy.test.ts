@@ -345,8 +345,9 @@ test('isClientRoute matches parametric SPA routes', () => {
   assert.equal(isClientRoute('/zh-hant/articles'), true);
   assert.equal(isClientRoute('/rules/dark-chess'), true);
   assert.equal(isClientRoute('/rules/dark-draft960'), true);
-  assert.equal(isClientRoute('/forum/strategy'), true);
+  assert.equal(isClientRoute('/forum/general-discussion'), true);
   assert.equal(isClientRoute('/forum/t/topic_123/example-topic'), true);
+  assert.equal(isClientRoute('/forum/redirect/post/post_123'), true);
   assert.equal(isClientRoute('/zh-hans/rules/dark-chess'), true);
   assert.equal(isClientRoute('/zh-hant/rules/dark-chess'), true);
 });
@@ -360,7 +361,7 @@ test('isClientRoute does not expose standalone Crossroads Chess play routes', ()
 test('isClientRoute rejects unknown paths', () => {
   assert.equal(isClientRoute('/does-not-exist'), false);
   assert.equal(isClientRoute('/api/games/recent'), false);
-  assert.equal(isClientRoute('/forum/strategy/extra'), false);
+  assert.equal(isClientRoute('/forum/general-discussion/extra'), false);
 });
 
 test('isPrivateOrReservedIp flags private, reserved, and unparseable addresses', () => {

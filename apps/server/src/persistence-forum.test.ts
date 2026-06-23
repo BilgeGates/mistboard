@@ -5,12 +5,14 @@ import {
   countRecentForumTopicsByUser,
   createForumTopic,
   createUser,
+  getForumPostLocation,
   getForumTopic,
   hideForumPost,
   listForumCategories,
   listForumTopics,
   moderateForumTopic,
   moveForumTopic,
+  searchForumPosts,
   searchForumTopics,
   updateForumPost,
   updateForumTopic,
@@ -143,6 +145,19 @@ definePersistenceTests('forum', () => {
     assert.equal(titleMatches[0]?.id, 'topic_strategy');
     const bodyMatches = await searchForumTopics({ query: 'knights', limit: 5 });
     assert.equal(bodyMatches[0]?.id, 'topic_strategy');
+    const postMatches = await searchForumPosts({ query: 'knights', limit: 5 });
+    assert.equal(postMatches.total, 1);
+    assert.equal(postMatches.posts[0]?.post.id, 'post_strategy_reply');
+    assert.equal(postMatches.posts[0]?.post.page, 1);
+    assert.equal(postMatches.posts[0]?.topic.id, 'topic_strategy');
+    assert.equal(postMatches.posts[0]?.topic.category.slug, 'general-discussion');
+    assert.match(postMatches.posts[0]?.post.snippet ?? '', /knights/);
+    const emptyPostPage = await searchForumPosts({ query: 'knights', limit: 5, offset: 5 });
+    assert.equal(emptyPostPage.total, 1);
+    assert.equal(emptyPostPage.posts.length, 0);
+    const postLocation = await getForumPostLocation('post_strategy_reply', { pageSize: 1 });
+    assert.equal(postLocation?.page, 2);
+    assert.equal(postLocation?.topic.slug, 'how-do-you-scout-the-center');
 
     const forbiddenTopicEdit = await updateForumTopic({
       topicId: 'topic_strategy',
@@ -212,7 +227,22 @@ definePersistenceTests('forum', () => {
     );
     assert.equal(handled, true);
     assert.equal(searchResponse.status, 200);
-    assert.equal(JSON.parse(searchResponse.body).topics[0]?.id, 'topic_strategy');
+    assert.equal(JSON.parse(searchResponse.body).posts[0]?.post.id, 'post_strategy_reply');
+
+    const redirectResponse = captureResponse();
+    const redirectHandled = await tryHandleForumRoute(
+      {},
+      { method: 'GET', headers: {} } as unknown as IncomingMessage,
+      redirectResponse,
+      '/api/forum/posts/post_strategy_reply/redirect',
+      new URL('http://localhost/api/forum/posts/post_strategy_reply/redirect'),
+    );
+    assert.equal(redirectHandled, true);
+    assert.equal(redirectResponse.status, 200);
+    assert.equal(
+      JSON.parse(redirectResponse.body).href,
+      '/forum/t/topic_strategy/how-should-we-scout-the-center#post_post_strategy_reply',
+    );
   });
 
   test('locked forum topics reject replies', async () => {
@@ -353,8 +383,12 @@ definePersistenceTests('forum', () => {
     assert.equal(detailAfterPostHide?.postCount, 1);
     assert.deepEqual(
       detailAfterPostHide?.posts.map((post) => post.id),
-      ['post_moderated_open'],
+      ['post_moderated_open', 'post_moderated_reply'],
     );
+    assert.equal(detailAfterPostHide?.posts[1]?.hiddenAt instanceof Date, true);
+    assert.equal(detailAfterPostHide?.posts[1]?.bodyText, '');
+    const hiddenSearch = await searchForumPosts({ query: 'Reply to hide', limit: 5 });
+    assert.equal(hiddenSearch.total, 0);
 
     const hiddenTopic = await moderateForumTopic({
       topicId: 'topic_moderated',

@@ -80,6 +80,23 @@ const topic = {
   lastPostAt: '2026-06-01T00:00:00.000Z',
 };
 
+const searchPost = {
+  post: {
+    id: 'post_strategy_reply',
+    page: 1,
+    snippet: 'Developing knights first keeps more fog pressure.',
+  },
+  topic: {
+    id: 'topic_strategy',
+    slug: 'scouting-the-center',
+    title: 'Scouting the center',
+    postCount: 2,
+    category: { slug: 'general-discussion', name: 'General Discussion' },
+  },
+  author: { handle: 'bob', displayName: 'Bob' },
+  createdAt: '2026-06-01T00:05:00.000Z',
+};
+
 const adminUser = {
   id: 'admin_1',
   email: 'admin@example.com',
@@ -209,6 +226,19 @@ describe('forum pages', () => {
     expect(select?.value).toBe('general-discussion');
     expect(announcement).toBeNull();
     expect(feedback?.disabled).toBe(false);
+    const body = composer?.querySelector<HTMLTextAreaElement>('textarea[name="body"]');
+    const previewTab = Array.from(
+      composer?.querySelectorAll<HTMLButtonElement>('.forum-composer-tab') ?? [],
+    ).find((button) => button.textContent === 'Preview');
+    body!.value = '> Alice wrote:\n> Scout the center\n\nThen develop.';
+    previewTab?.click();
+    expect(body?.hidden).toBe(true);
+    expect(composer?.querySelector('.forum-composer-preview')?.textContent).toContain(
+      'Alice wrote:\nScout the center',
+    );
+    expect(composer?.querySelector('.forum-composer-preview')?.textContent).toContain(
+      'Then develop.',
+    );
   });
 
   it('paginates forum topic lists with stable page URLs', async () => {
@@ -274,11 +304,20 @@ describe('forum pages', () => {
       if (url.startsWith('/api/forum/categories')) return json({ categories });
       if (url.startsWith('/api/forum/search')) {
         return json({
-          topics: Array.from({ length: 26 }, (_, index) => ({
-            ...topic,
-            id: `topic_search_${index}`,
-            title: `Search result ${index}`,
-            slug: `search-result-${index}`,
+          total: 42,
+          posts: Array.from({ length: 26 }, (_, index) => ({
+            ...searchPost,
+            post: {
+              id: `post_search_${index}`,
+              page: index === 0 ? 2 : 1,
+              snippet: `Search snippet ${index}`,
+            },
+            topic: {
+              ...searchPost.topic,
+              id: `topic_search_${index}`,
+              title: `Search result ${index}`,
+              slug: `search-result-${index}`,
+            },
           })),
         });
       }
@@ -293,10 +332,13 @@ describe('forum pages', () => {
     expect(fetchedUrls).toContain('/api/forum/search?q=central+fog&limit=26&offset=25');
     expect(root.textContent).toContain('Search results');
     expect(root.textContent).toContain('"central fog"');
+    expect(root.textContent).toContain('42 forum posts');
+    expect(root.textContent).toContain('Search snippet 0');
     expect(root.querySelector<HTMLInputElement>('input[name="q"]')?.value).toBe('central fog');
-    expect(root.querySelector('.forum-topic-list-header')?.textContent).toContain('Replies');
-    expect(root.querySelectorAll('.forum-topic-row:not(.forum-topic-list-header)')).toHaveLength(
-      25,
+    expect(root.querySelector('.forum-topic-list-header')).toBeNull();
+    expect(root.querySelectorAll('.forum-search-row')).toHaveLength(25);
+    expect(root.querySelector<HTMLAnchorElement>('.forum-search-title')?.getAttribute('href')).toBe(
+      '/forum/t/topic_search_0/search-result-0?page=2#post_post_search_0',
     );
     const pagers = Array.from(root.querySelectorAll<HTMLElement>('.forum-pager'));
     expect(pagers).toHaveLength(2);
@@ -1005,6 +1047,52 @@ describe('forum pages', () => {
     expect(root.querySelector('.forum-post-body')?.textContent).toContain(
       'Hello <script>alert(1)</script>',
     );
+  });
+
+  it('keeps hidden posts as deleted tombstones with stable anchors', async () => {
+    vi.spyOn(globalThis, 'fetch').mockImplementation(async (input) => {
+      const url = String(input);
+      if (url.startsWith('/api/forum/topics/topic_strategy')) {
+        return json({
+          topic: {
+            ...topic,
+            posts: [
+              {
+                id: 'post_1',
+                author: { handle: 'alice', displayName: 'Alice' },
+                bodyText: 'Opening post.',
+                createdAt: '2026-06-01T00:00:00.000Z',
+                updatedAt: '2026-06-01T00:00:00.000Z',
+              },
+              {
+                id: 'post_hidden',
+                author: { handle: 'bob', displayName: 'Bob' },
+                bodyText: '',
+                createdAt: '2026-06-01T00:01:00.000Z',
+                updatedAt: '2026-06-01T00:02:00.000Z',
+                hidden: true,
+                hiddenAt: '2026-06-01T00:02:00.000Z',
+              },
+            ],
+          },
+        });
+      }
+      if (url.startsWith('/api/auth/me')) return json({ user: adminUser });
+      throw new Error(`unexpected fetch ${url}`);
+    });
+    const root = document.createElement('div');
+    const { mountForumTopic } = await import('./forum.js');
+
+    await mountForumTopic(root, 'topic_strategy');
+
+    expect(root.querySelectorAll('.forum-post')).toHaveLength(2);
+    const tombstone = root.querySelector<HTMLElement>('.forum-post-erased');
+    expect(tombstone?.id).toBe('post_post_hidden');
+    expect(tombstone?.textContent).toContain('Comment deleted by moderator.');
+    expect(tombstone?.querySelector('.forum-post-permalink')?.textContent).toBe('#2');
+    expect(tombstone?.querySelector('.forum-post-quote')).toBeNull();
+    expect(tombstone?.querySelector('.forum-post-edit')).toBeNull();
+    expect(tombstone?.querySelector('.forum-moderation-actions')).toBeNull();
   });
 });
 

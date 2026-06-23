@@ -66,10 +66,45 @@ export type ForumPost = {
   bodyText: string;
   createdAt: Date;
   updatedAt: Date;
+  hiddenAt: Date | null;
 };
 
 export type ForumTopicDetail = ForumTopicSummary & {
   posts: ForumPost[];
+};
+
+export type ForumPostSearchPage = {
+  posts: ForumPostSearchResult[];
+  total: number;
+};
+
+export type ForumPostSearchResult = {
+  post: {
+    id: string;
+    page: number;
+    snippet: string;
+  };
+  topic: {
+    id: string;
+    slug: string;
+    title: string;
+    postCount: number;
+    category: {
+      slug: string;
+      name: string;
+    };
+  };
+  author: ForumAuthor;
+  createdAt: Date;
+};
+
+export type ForumPostLocation = {
+  postId: string;
+  page: number;
+  topic: {
+    id: string;
+    slug: string;
+  };
 };
 
 export type CreateForumTopicResult =
@@ -196,6 +231,122 @@ export async function searchForumTopics(options: {
   return rows.map(topicFromRow);
 }
 
+export async function searchForumPosts(options: {
+  query: string;
+  limit?: number;
+  offset?: number;
+}): Promise<ForumPostSearchPage> {
+  const query = options.query.trim();
+  if (query.length < 2) return { posts: [], total: 0 };
+  const limit = clampInt(options.limit ?? 20, 1, 50);
+  const offset = clampInt(options.offset ?? 0, 0, 10_000);
+  const pattern = `%${escapeLike(query)}%`;
+  const [matches, count] = await Promise.all([
+    getPool().query<ForumPostSearchRow>(
+      `SELECT p.id AS post_id,
+              p.body_text,
+              p.created_at AS post_created_at,
+              u.handle AS author_handle,
+              COALESCE(u.display_name, u.handle) AS author_display_name,
+              t.id AS topic_id,
+              t.slug AS topic_slug,
+              t.title AS topic_title,
+              t.post_count AS topic_post_count,
+              c.slug AS category_slug,
+              c.name AS category_name,
+              GREATEST(1, (
+                (
+                  SELECT COUNT(*)::int
+                  FROM forum_posts before_post
+                  WHERE before_post.topic_id = p.topic_id
+                    AND (
+                      before_post.created_at < p.created_at
+                      OR (
+                        before_post.created_at = p.created_at
+                        AND before_post.id <= p.id
+                      )
+                    )
+                ) - 1
+              ) / 25 + 1) AS post_page
+       FROM forum_posts p
+       JOIN forum_topics t ON t.id = p.topic_id
+       JOIN forum_categories c ON c.id = t.category_id
+       LEFT JOIN users u ON u.id = p.author_account_id
+       WHERE p.hidden_at IS NULL
+         AND t.hidden_at IS NULL
+         AND (
+           p.body_text ILIKE $1 ESCAPE '\\'
+           OR t.title ILIKE $1 ESCAPE '\\'
+         )
+       ORDER BY p.created_at DESC, p.id DESC
+       LIMIT $2 OFFSET $3`,
+      [pattern, limit, offset],
+    ),
+    getPool().query<{ total_count: number }>(
+      `SELECT COUNT(*)::int AS total_count
+       FROM forum_posts p
+       JOIN forum_topics t ON t.id = p.topic_id
+       WHERE p.hidden_at IS NULL
+         AND t.hidden_at IS NULL
+         AND (
+           p.body_text ILIKE $1 ESCAPE '\\'
+           OR t.title ILIKE $1 ESCAPE '\\'
+         )`,
+      [pattern],
+    ),
+  ]);
+  const rows = matches.rows;
+  return {
+    posts: rows.map((row) => postSearchResultFromRow(row, query)),
+    total: count.rows[0]?.total_count ?? 0,
+  };
+}
+
+export async function getForumPostLocation(
+  postId: string,
+  options: { pageSize?: number } = {},
+): Promise<ForumPostLocation | null> {
+  const pageSize = clampInt(options.pageSize ?? 25, 1, 100);
+  const { rows } = await getPool().query<{
+    post_id: string;
+    topic_id: string;
+    topic_slug: string;
+    post_position: number;
+  }>(
+    `SELECT p.id AS post_id,
+            t.id AS topic_id,
+            t.slug AS topic_slug,
+            (
+              SELECT COUNT(*)::int
+              FROM forum_posts before_post
+              WHERE before_post.topic_id = p.topic_id
+                AND (
+                  before_post.created_at < p.created_at
+                  OR (
+                    before_post.created_at = p.created_at
+                    AND before_post.id <= p.id
+                  )
+                )
+            ) AS post_position
+     FROM forum_posts p
+     JOIN forum_topics t ON t.id = p.topic_id
+     WHERE p.id = $1
+       AND p.hidden_at IS NULL
+       AND t.hidden_at IS NULL`,
+    [postId],
+  );
+  const row = rows[0];
+  if (!row) return null;
+  return {
+    postId: row.post_id,
+    page: Math.max(1, Math.ceil(row.post_position / pageSize)),
+    topic: {
+      id: row.topic_id,
+      slug: row.topic_slug,
+    },
+  };
+}
+
 export async function getForumTopic(
   id: string,
   options: { postLimit?: number; postOffset?: number } = {},
@@ -288,9 +439,9 @@ export async function addForumPost(input: {
          INSERT INTO forum_posts
            (id, topic_id, author_account_id, body_text, created_at, updated_at)
          VALUES ($1, $2, $3, $4, $5, $5)
-         RETURNING id, author_account_id, body_text, created_at, updated_at
+         RETURNING id, author_account_id, body_text, created_at, updated_at, hidden_at
        )
-       SELECT i.id, i.body_text, i.created_at, i.updated_at,
+       SELECT i.id, i.body_text, i.created_at, i.updated_at, i.hidden_at,
               u.handle AS author_handle, COALESCE(u.display_name, u.handle) AS author_display_name
        FROM inserted i
        LEFT JOIN users u ON u.id = i.author_account_id`,
@@ -342,9 +493,9 @@ export async function updateForumPost(input: {
          SET body_text = $2,
              updated_at = $3
          WHERE id = $1
-         RETURNING id, author_account_id, body_text, created_at, updated_at
+         RETURNING id, author_account_id, body_text, created_at, updated_at, hidden_at
        )
-       SELECT p.id, p.body_text, p.created_at, p.updated_at,
+       SELECT p.id, p.body_text, p.created_at, p.updated_at, p.hidden_at,
               u.handle AS author_handle, COALESCE(u.display_name, u.handle) AS author_display_name
        FROM updated p
        LEFT JOIN users u ON u.id = p.author_account_id`,
@@ -543,11 +694,13 @@ async function listForumPosts(
   const limit = options.limit === undefined ? null : clampInt(options.limit, 1, 100);
   const offset = clampInt(options.offset ?? 0, 0, 10_000);
   const { rows } = await getPool().query<ForumPostRow>(
-    `SELECT p.id, p.body_text, p.created_at, p.updated_at,
+    `SELECT p.id,
+            CASE WHEN p.hidden_at IS NULL THEN p.body_text ELSE '' END AS body_text,
+            p.created_at, p.updated_at, p.hidden_at,
             u.handle AS author_handle, COALESCE(u.display_name, u.handle) AS author_display_name
      FROM forum_posts p
      LEFT JOIN users u ON u.id = p.author_account_id
-     WHERE p.topic_id = $1 AND p.hidden_at IS NULL
+     WHERE p.topic_id = $1
      ORDER BY p.created_at ASC, p.id ASC
      LIMIT $2::int OFFSET $3::int`,
     [topicId, limit, offset],
@@ -634,8 +787,25 @@ type ForumPostRow = {
   body_text: string;
   created_at: Date;
   updated_at: Date;
+  hidden_at: Date | null;
   author_handle: string | null;
   author_display_name: string | null;
+};
+
+type ForumPostSearchRow = {
+  post_id: string;
+  post_page: number;
+  body_text: string;
+  post_created_at: Date;
+  author_handle: string | null;
+  author_display_name: string | null;
+  topic_id: string;
+  topic_slug: string;
+  topic_title: string;
+  topic_post_count: number;
+  category_slug: string;
+  category_name: string;
+  total_count: number;
 };
 
 function categoryFromRow(row: ForumCategoryRow): ForumCategory {
@@ -713,6 +883,29 @@ function postFromRow(row: ForumPostRow): ForumPost {
     bodyText: row.body_text,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
+    hiddenAt: row.hidden_at,
+  };
+}
+
+function postSearchResultFromRow(row: ForumPostSearchRow, query: string): ForumPostSearchResult {
+  return {
+    post: {
+      id: row.post_id,
+      page: row.post_page,
+      snippet: forumSearchSnippet(row.body_text, query),
+    },
+    topic: {
+      id: row.topic_id,
+      slug: row.topic_slug,
+      title: row.topic_title,
+      postCount: row.topic_post_count,
+      category: {
+        slug: row.category_slug,
+        name: row.category_name,
+      },
+    },
+    author: authorFromRow(row.author_handle, row.author_display_name),
+    createdAt: row.post_created_at,
   };
 }
 
@@ -728,4 +921,16 @@ function clampInt(value: number, min: number, max: number): number {
 
 function escapeLike(value: string): string {
   return value.replace(/[\\%_]/g, '\\$&');
+}
+
+function forumSearchSnippet(value: string, query: string): string {
+  const text = value.trim().replace(/\s+/g, ' ');
+  if (text.length <= 220) return text;
+  const matchIndex = text.toLowerCase().indexOf(query.toLowerCase());
+  if (matchIndex < 0) return `${text.slice(0, 217).trimEnd()}...`;
+  const start = Math.max(0, matchIndex - 70);
+  const end = Math.min(text.length, matchIndex + query.length + 140);
+  const prefix = start > 0 ? '...' : '';
+  const suffix = end < text.length ? '...' : '';
+  return `${prefix}${text.slice(start, end).trim()}${suffix}`;
 }

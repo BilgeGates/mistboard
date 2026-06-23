@@ -60,10 +60,37 @@ type ForumPost = {
   bodyText: string;
   createdAt: string;
   updatedAt: string;
+  hidden?: boolean;
+  hiddenAt?: string | null;
 };
 
 type ForumTopicDetail = ForumTopicSummary & {
   posts: ForumPost[];
+};
+
+type ForumPostSearchResult = {
+  post: {
+    id: string;
+    page: number;
+    snippet: string;
+  };
+  topic: {
+    id: string;
+    slug: string;
+    title: string;
+    postCount: number;
+    category: {
+      slug: string;
+      name: string;
+    };
+  };
+  author: ForumAuthor;
+  createdAt: string;
+};
+
+type ForumPostSearchPage = {
+  posts: ForumPostSearchResult[];
+  total: number;
 };
 
 const topicListPageSize = 25;
@@ -93,13 +120,13 @@ export async function mountForum(root: HTMLElement): Promise<void> {
   const topicPage = pageFromParam(query.get('page'));
   const topicOffset = (topicPage - 1) * topicListPageSize;
   let categories: ForumCategory[];
-  let topics: ForumTopicSummary[];
+  let forumRows: ForumTopicSummary[] | ForumPostSearchPage;
   let user: AuthUser | null;
   try {
-    [categories, topics, user] = await Promise.all([
+    [categories, forumRows, user] = await Promise.all([
       fetchForumCategories(),
       searchQuery
-        ? searchForumTopics({
+        ? searchForumPosts({
             query: searchQuery,
             limit: topicListPageSize + 1,
             offset: topicOffset,
@@ -117,8 +144,14 @@ export async function mountForum(root: HTMLElement): Promise<void> {
     body.replaceChildren(buildNotice('Forum unavailable', 'The forum could not load.'));
     return;
   }
-  const hasNextPage = topics.length > topicListPageSize;
+  const searchPage = searchQuery ? (forumRows as ForumPostSearchPage) : null;
+  const topics = searchQuery ? [] : (forumRows as ForumTopicSummary[]);
+  const searchPosts = searchPage?.posts ?? [];
+  const hasNextPage = searchQuery
+    ? searchPosts.length > topicListPageSize
+    : topics.length > topicListPageSize;
   const visibleTopics = topics.slice(0, topicListPageSize);
+  const visibleSearchPosts = searchPosts.slice(0, topicListPageSize);
 
   const selectedCategory = searchQuery
     ? undefined
@@ -152,7 +185,15 @@ export async function mountForum(root: HTMLElement): Promise<void> {
     hasPrevious: topicPage > 1,
   };
   if (needsTopicPager) panel.append(topicPager(topicPageOptions));
-  if (showsTopics) {
+  if (searchQuery) {
+    panel.append(
+      postSearchResults(
+        visibleSearchPosts,
+        searchPage?.total ?? 0,
+        topicPage > 1 ? 'No forum posts on this page.' : 'No forum posts matched.',
+      ),
+    );
+  } else if (selectedCategory) {
     panel.append(
       topicList(
         visibleTopics,
@@ -231,6 +272,31 @@ export async function mountForumTopic(root: HTMLElement, topicId: string): Promi
   shell.append(panel);
 }
 
+export async function mountForumPostRedirect(root: HTMLElement, postId: string): Promise<void> {
+  root.replaceChildren();
+  root.classList.add('landing-page', 'forum-route');
+
+  const shell = document.createElement('main');
+  shell.className = 'site-section forum-shell';
+  root.append(buildNav(), shell);
+  shell.append(statusPanel('Opening forum post...'));
+
+  try {
+    const resp = await fetch(`/api/forum/posts/${encodeURIComponent(postId)}/redirect`, {
+      headers: { accept: 'application/json' },
+    });
+    if (resp.status === 404) {
+      shell.replaceChildren(buildNotice('Post not found', 'This forum post is not available.'));
+      return;
+    }
+    if (!resp.ok) throw new Error(`forum_post_redirect_failed_${resp.status}`);
+    const data = (await resp.json()) as { href: string };
+    window.location.replace(data.href);
+  } catch {
+    shell.replaceChildren(buildNotice('Forum unavailable', 'This forum post could not load.'));
+  }
+}
+
 function forumPanel(extraClassName = ''): HTMLElement {
   const panel = document.createElement('section');
   panel.className = ['forum-panel', extraClassName].filter(Boolean).join(' ');
@@ -295,20 +361,15 @@ function forumPanelTitle(title: string, options: { icon?: boolean } = {}): HTMLE
 function forumPanelIcon(): SVGSVGElement {
   const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
   svg.classList.add('forum-panel-icon');
-  svg.setAttribute('viewBox', '0 0 64 48');
+  svg.setAttribute('viewBox', '0 0 24 24');
   svg.setAttribute('aria-hidden', 'true');
   svg.setAttribute('focusable', 'false');
-  const back = document.createElementNS('http://www.w3.org/2000/svg', 'path');
-  back.setAttribute(
+  const bubble = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+  bubble.setAttribute(
     'd',
-    'M24 10h20c6.5 0 11.5 4.4 11.5 10s-5 10-11.5 10h-5.5l-9 7v-7H24c-6.5 0-11.5-4.4-11.5-10S17.5 10 24 10Z',
+    'M21 11.5a8.4 8.4 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.4 8.4 0 0 1-3.8-.9L3 21l1.9-5.7a8.4 8.4 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.4 8.4 0 0 1 3.8-.9h.5a8.5 8.5 0 0 1 8 8v.5Z',
   );
-  const front = document.createElementNS('http://www.w3.org/2000/svg', 'path');
-  front.setAttribute(
-    'd',
-    'M18 18h20c6.5 0 11.5 4.4 11.5 10S44.5 38 38 38H27l-10.5 8v-8H18c-6.5 0-11.5-4.4-11.5-10S11.5 18 18 18Z',
-  );
-  svg.append(back, front);
+  svg.append(bubble);
   return svg;
 }
 
@@ -474,6 +535,55 @@ function topicListHeader(): HTMLElement {
     indexCell('Replies', 'forum-topic-row-replies'),
     indexCell('Last post', 'forum-topic-row-latest'),
   );
+  return row;
+}
+
+function postSearchResults(
+  posts: ForumPostSearchResult[],
+  total: number,
+  emptyText: string,
+): HTMLElement {
+  const wrap = document.createElement('section');
+  wrap.className = 'forum-search-results';
+  if (posts.length === 0) {
+    wrap.classList.add('forum-search-results-empty');
+    wrap.append(statusPanel(emptyText));
+    return wrap;
+  }
+  const count = document.createElement('strong');
+  count.className = 'forum-search-result-count';
+  count.textContent = `${formatCount(total)} forum ${total === 1 ? 'post' : 'posts'}`;
+  wrap.append(count);
+  for (const post of posts) wrap.append(postSearchResultRow(post));
+  return wrap;
+}
+
+function postSearchResultRow(result: ForumPostSearchResult): HTMLElement {
+  const row = document.createElement('article');
+  row.className = 'forum-search-row';
+  const main = document.createElement('div');
+  main.className = 'forum-search-main';
+  const title = document.createElement('a');
+  title.className = 'forum-search-title';
+  title.href = postHref(result.topic, result.post.id, result.post.page);
+  title.textContent = `${result.topic.category.name} - ${result.topic.title}`;
+  const snippet = document.createElement('p');
+  snippet.className = 'forum-search-snippet';
+  snippet.textContent = result.post.snippet;
+  main.append(title, snippet);
+
+  const meta = document.createElement('div');
+  meta.className = 'forum-search-meta';
+  const time = document.createElement('a');
+  time.href = postHref(result.topic, result.post.id, result.post.page);
+  time.textContent = formatDate(result.createdAt);
+  meta.append(time, document.createElement('br'));
+  meta.append(
+    document.createTextNode('by '),
+    authorProfileLink(result.author, 'forum-search-author'),
+  );
+
+  row.append(main, meta);
   return row;
 }
 
@@ -745,6 +855,10 @@ function postList(
   }
   for (const [index, post] of posts.entries()) {
     const postNumber = (page - 1) * postPageSize + index + 1;
+    if (post.hidden) {
+      wrap.append(hiddenPostTombstone(topic, post, page, postNumber));
+      continue;
+    }
     const article = document.createElement('article');
     article.className = 'forum-post';
     article.id = postDomId(post.id);
@@ -772,6 +886,31 @@ function postList(
     wrap.append(article);
   }
   return wrap;
+}
+
+function hiddenPostTombstone(
+  topic: ForumTopicDetail,
+  post: ForumPost,
+  page: number,
+  postNumber: number,
+): HTMLElement {
+  const article = document.createElement('article');
+  article.className = 'forum-post forum-post-erased';
+  article.id = postDomId(post.id);
+  const content = document.createElement('div');
+  content.className = 'forum-post-content';
+  const meta = document.createElement('p');
+  meta.className = 'forum-post-meta';
+  meta.append(postPermalink(topic, post, page, `#${postNumber}`));
+  if (post.hiddenAt) {
+    meta.append(document.createTextNode(` · deleted ${formatDate(post.hiddenAt)}`));
+  }
+  const body = document.createElement('div');
+  body.className = 'forum-post-body forum-post-tombstone';
+  body.textContent = 'Comment deleted by moderator.';
+  content.append(meta, body);
+  article.append(content);
+  return article;
 }
 
 function postAuthorRail(author: ForumAuthor): HTMLElement {
@@ -1058,17 +1197,18 @@ function newTopicForm(
   title.name = 'title';
   title.maxLength = forumTopicTitleMaxLength;
   title.required = true;
-  const body = document.createElement('textarea');
-  body.name = 'body';
-  body.maxLength = forumPostBodyMaxLength;
-  body.required = true;
+  const bodyComposer = forumBodyComposer({
+    ariaLabel: 'Post',
+    placeholder: 'Please be nice in the forum.',
+  });
   const error = errorLine();
   const submit = submitButton('Post topic');
   form.append(
     heading,
     labeled('Category', category),
     labeled('Title', title),
-    labeled('Post', body),
+    fieldGroup('Post', bodyComposer.root),
+    forumMarkdownNote(),
     error,
     submit,
   );
@@ -1111,44 +1251,82 @@ function replyForm(topic: ForumTopicDetail, _user: AuthUser): HTMLElement {
   form.className = 'forum-form forum-reply-form';
   const heading = document.createElement('h2');
   heading.textContent = 'Reply to this topic';
+  const bodyComposer = forumBodyComposer({
+    ariaLabel: 'Reply',
+    placeholder: 'Please be nice in the forum.',
+  });
+  const error = errorLine();
+  const submit = submitButton('Post reply');
+  submit.textContent = 'Reply';
+  const footer = document.createElement('div');
+  footer.className = 'forum-reply-footer';
+  footer.append(error, submit);
+  form.append(heading, bodyComposer.root, forumMarkdownNote(), footer);
+  form.addEventListener('submit', (event) => {
+    event.preventDefault();
+    void submitReply(topic, form, submit, error);
+  });
+  return form;
+}
+
+function forumBodyComposer(options: {
+  ariaLabel: string;
+  placeholder?: string;
+  initialValue?: string;
+}): { root: HTMLElement; textarea: HTMLTextAreaElement } {
+  const root = document.createElement('div');
+  root.className = 'forum-body-composer';
   const tabs = document.createElement('div');
-  tabs.className = 'forum-reply-tabs';
+  tabs.className = 'forum-composer-tabs forum-reply-tabs';
   const writeTab = document.createElement('button');
   writeTab.type = 'button';
-  writeTab.className = 'forum-reply-tab forum-reply-tab-active';
+  writeTab.className =
+    'forum-composer-tab forum-reply-tab forum-composer-tab-active forum-reply-tab-active';
   writeTab.textContent = 'Write';
   const previewTab = document.createElement('button');
   previewTab.type = 'button';
-  previewTab.className = 'forum-reply-tab';
+  previewTab.className = 'forum-composer-tab forum-reply-tab';
   previewTab.textContent = 'Preview';
   tabs.append(writeTab, previewTab);
   const body = document.createElement('textarea');
   body.name = 'body';
   body.maxLength = forumPostBodyMaxLength;
-  body.placeholder = 'Please be nice in the forum.';
+  body.placeholder = options.placeholder ?? '';
   body.required = true;
-  body.setAttribute('aria-label', 'Reply');
+  body.value = options.initialValue ?? '';
+  body.setAttribute('aria-label', options.ariaLabel);
   const preview = document.createElement('div');
-  preview.className = 'forum-reply-preview forum-post-body';
+  preview.className = 'forum-composer-preview forum-reply-preview forum-post-body';
   preview.hidden = true;
-  writeTab.addEventListener('click', () => {
-    writeTab.classList.add('forum-reply-tab-active');
-    previewTab.classList.remove('forum-reply-tab-active');
-    body.hidden = false;
-    preview.hidden = true;
-    body.focus();
-  });
-  previewTab.addEventListener('click', () => {
-    previewTab.classList.add('forum-reply-tab-active');
-    writeTab.classList.remove('forum-reply-tab-active');
-    body.hidden = true;
-    preview.hidden = false;
+  const setActiveTab = (mode: 'write' | 'preview') => {
+    const previewing = mode === 'preview';
+    writeTab.classList.toggle('forum-composer-tab-active', !previewing);
+    writeTab.classList.toggle('forum-reply-tab-active', !previewing);
+    previewTab.classList.toggle('forum-composer-tab-active', previewing);
+    previewTab.classList.toggle('forum-reply-tab-active', previewing);
+    body.hidden = previewing;
+    preview.hidden = !previewing;
+  };
+  const renderPreview = () => {
     if (body.value.trim().length > 0) {
       renderPostBodyInto(preview, body.value);
     } else {
       preview.replaceChildren(statusPanel('Nothing to preview.'));
     }
+  };
+  writeTab.addEventListener('click', () => {
+    setActiveTab('write');
+    body.focus();
   });
+  previewTab.addEventListener('click', () => {
+    renderPreview();
+    setActiveTab('preview');
+  });
+  root.append(tabs, body, preview);
+  return { root, textarea: body };
+}
+
+function forumMarkdownNote(): HTMLElement {
   const note = document.createElement('p');
   note.className = 'forum-form-note';
   const markdown = document.createElement('a');
@@ -1160,18 +1338,7 @@ function replyForm(topic: ForumTopicDetail, _user: AuthUser): HTMLElement {
   etiquette.href = '/forum/feedback';
   etiquette.textContent = 'forum etiquette';
   note.append(markdown, document.createTextNode(' is available for formatting. '), etiquette);
-  const error = errorLine();
-  const submit = submitButton('Post reply');
-  submit.textContent = 'Reply';
-  const footer = document.createElement('div');
-  footer.className = 'forum-reply-footer';
-  footer.append(error, submit);
-  form.append(heading, tabs, body, preview, note, footer);
-  form.addEventListener('submit', (event) => {
-    event.preventDefault();
-    void submitReply(topic, form, submit, error);
-  });
-  return form;
+  return note;
 }
 
 async function submitTopic(
@@ -1234,6 +1401,16 @@ function labeled(text: string, control: HTMLElement): HTMLElement {
   span.textContent = text;
   label.append(span, control);
   return label;
+}
+
+function fieldGroup(text: string, control: HTMLElement): HTMLElement {
+  const group = document.createElement('div');
+  group.className = 'forum-field-group';
+  const label = document.createElement('span');
+  label.className = 'forum-field-label';
+  label.textContent = text;
+  group.append(label, control);
+  return group;
 }
 
 function errorLine(): HTMLElement {
@@ -1399,6 +1576,10 @@ function postHref(topic: { id: string; slug: string }, postId: string, page = 1)
   return `${topicPageHref(topic, page)}#${postDomId(postId)}`;
 }
 
+function postRedirectHref(postId: string): string {
+  return `/forum/redirect/post/${encodeURIComponent(postId)}`;
+}
+
 function postDomId(postId: string): string {
   return `post_${postId}`;
 }
@@ -1556,11 +1737,11 @@ async function fetchForumTopics(
   return data.topics;
 }
 
-async function searchForumTopics(options: {
+async function searchForumPosts(options: {
   query: string;
   limit?: number;
   offset?: number;
-}): Promise<ForumTopicSummary[]> {
+}): Promise<ForumPostSearchPage> {
   const params = new URLSearchParams();
   params.set('q', options.query);
   if (options.limit) params.set('limit', String(options.limit));
@@ -1569,8 +1750,8 @@ async function searchForumTopics(options: {
     headers: { accept: 'application/json' },
   });
   if (!resp.ok) throw new Error(`forum_search_failed_${resp.status}`);
-  const data = (await resp.json()) as { topics: ForumTopicSummary[] };
-  return data.topics;
+  const data = (await resp.json()) as ForumPostSearchPage;
+  return data;
 }
 
 async function fetchForumTopic(
