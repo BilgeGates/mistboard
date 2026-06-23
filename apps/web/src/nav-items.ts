@@ -17,6 +17,7 @@ export function communityNavItems(): NavItem[] {
   return [
     { label: 'Forum', href: '/forum' },
     { label: 'Leaderboard', href: '/leaderboard' },
+    { label: 'Bots', href: '/bots' },
   ];
 }
 
@@ -34,5 +35,5 @@ export function utilityNavItems(): NavItem[] {
 }
 
 export function toolsNavItems(): NavItem[] {
-  return [{ label: 'Bots', href: '/bots' }, ...utilityNavItems()];
+  return utilityNavItems();
 }

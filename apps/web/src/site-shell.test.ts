@@ -18,7 +18,7 @@ describe('site shell nav', () => {
         '.site-nav-links > .site-nav-link, .site-nav-links > .site-nav-menu > .site-nav-menu-toggle',
       ),
     ].map((link) => link.textContent);
-    expect(primaryLabels).toEqual(['Play', 'Puzzles', 'Learn', 'Watch', 'Community', 'Tools']);
+    expect(primaryLabels).toEqual(['Play', 'Puzzles', 'Learn', 'Watch', 'Community']);
 
     const puzzleLink = nav.querySelector<HTMLAnchorElement>('a[href="/puzzles"]');
     expect(puzzleLink?.textContent).toBe('Puzzles');
@@ -26,6 +26,9 @@ describe('site shell nav', () => {
     expect(puzzleLink?.getAttribute('aria-current')).toBe('page');
     expect(nav.querySelector('.site-nav-menu-toggle')?.textContent).toBe('Learn');
     expect(nav.querySelector<HTMLAnchorElement>('a[href="/forum"]')?.textContent).toBe('Forum');
+    expect(nav.querySelector<HTMLAnchorElement>('a[href="/leaderboard"]')?.textContent).toBe(
+      'Leaderboard',
+    );
     expect(nav.querySelector<HTMLAnchorElement>('a[href="/bots"]')?.textContent).toBe('Bots');
   });
 });

@@ -56,7 +56,8 @@ export function buildNav(): HTMLElement {
   links.append(navMenu('Learn', learnNavItems()));
   if (watch) links.append(navLink(watch.label, watch.href));
   links.append(navMenu('Community', communityNavItems()));
-  links.append(navMenu('Tools', toolsNavItems()));
+  const tools = toolsNavItems();
+  if (tools.length > 0) links.append(navMenu('Tools', tools));
 
   const utilities = document.createElement('div');
   utilities.className = 'site-nav-utilities';
