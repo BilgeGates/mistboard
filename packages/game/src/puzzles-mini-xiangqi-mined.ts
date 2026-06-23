@@ -2,9 +2,30 @@
 // Demo filter: later positions, exact solution-label diversity, and drop moves preferred.
 
 import { DROP_MINI_XIANGQI_SPEC_ID } from './game-specs.js';
-import type { DropMiniXiangqiPuzzle } from './puzzles-mini-xiangqi.js';
+import type {
+  DropMiniXiangqiGameState,
+  DropMiniXiangqiMove,
+} from './variants-drop-mini-xiangqi.js';
+import type { MiniXiangqiColor } from './variants-mini-xiangqi.js';
 
-export const MINED_DROP_MINI_XIANGQI_PUZZLES: readonly DropMiniXiangqiPuzzle[] = [
+type MinedDropMiniXiangqiPuzzleTheme =
+  | 'back-rank'
+  | 'checkmate'
+  | 'chariot'
+  | 'drop'
+  | 'palace-net';
+
+type MinedDropMiniXiangqiPuzzle = {
+  id: string;
+  variant: typeof DROP_MINI_XIANGQI_SPEC_ID;
+  title: string;
+  initial: DropMiniXiangqiGameState;
+  solution: DropMiniXiangqiMove[];
+  goal: { type: 'checkmate'; winner?: MiniXiangqiColor };
+  themes: MinedDropMiniXiangqiPuzzleTheme[];
+};
+
+export const MINED_DROP_MINI_XIANGQI_PUZZLES: readonly MinedDropMiniXiangqiPuzzle[] = [
   {
     id: 'drop-mini-xiangqi-mined-001',
     variant: DROP_MINI_XIANGQI_SPEC_ID,
