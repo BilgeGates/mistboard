@@ -21,11 +21,11 @@ import {
   type Move,
   type SquareIndex,
   type XiangqiColor,
-  coordOf as xiangqiCoordOf,
   type XiangqiGameState,
   type XiangqiMove,
   type XiangqiPieceRole,
   type XiangqiSquare,
+  coordOf as xiangqiCoordOf,
 } from '@mistboard/game';
 import type { DarkXiangqiEvent } from '../dark-xiangqi-runtime.js';
 import { buildSessionId, deriveEngineSeed } from './build.js';
@@ -188,7 +188,8 @@ export function buildXiangqiEngineTurnRequest(args: {
     events: args.events,
     perspective: args.engineColor,
   });
-  const legalMoves = getXiangqiPlayerView(args.state, args.engineColor).legalMoves as unknown as Move[];
+  const legalMoves = getXiangqiPlayerView(args.state, args.engineColor)
+    .legalMoves as unknown as Move[];
   const clock: EngineClock = {
     remaining_ms: args.clockRemainingMs,
     increment_ms: args.incrementMs,

@@ -8,7 +8,7 @@
  */
 
 import { getLegalMoves as getXiangqiLegalMoves, type XiangqiColor } from '@mistboard/game';
-import { darkXiangqiClockRemainingMs, type DarkXiangqiEvent } from './dark-xiangqi-runtime.js';
+import { type DarkXiangqiEvent, darkXiangqiClockRemainingMs } from './dark-xiangqi-runtime.js';
 import { buildXiangqiEngineTurnRequest } from './engine-protocol/build-xiangqi.js';
 import { isDarkXiangqiEngineClientId, loadEngine } from './engines/registry.js';
 import { requestInternalEngineTurn } from './internal-engine-client.js';

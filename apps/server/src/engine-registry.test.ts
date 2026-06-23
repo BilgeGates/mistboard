@@ -1,10 +1,10 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import {
-  DARK_XIANGQI_DEFAULT_ENGINE_ID,
   DARK_MINI_XIANGQI_DEFAULT_ENGINE_ID,
-  isDarkXiangqiEngineClientId,
+  DARK_XIANGQI_DEFAULT_ENGINE_ID,
   isDarkMiniXiangqiEngineClientId,
+  isDarkXiangqiEngineClientId,
   isPlayableLiveEngineClientId,
   loadEngine,
 } from './engine-registry.js';

@@ -100,8 +100,10 @@ export async function darkXiangqiPostgameForApi(
   if (game && game.variant !== DARK_XIANGQI_SPEC_ID) return null;
   if (events && !isDarkXiangqiEventLog(events, roomId)) return null;
 
-  let source: { game: persistence.RecentEveGameRecord; events: readonly DarkXiangqiEvent[] } | null =
-    game && events ? { game, events } : null;
+  let source: {
+    game: persistence.RecentEveGameRecord;
+    events: readonly DarkXiangqiEvent[];
+  } | null = game && events ? { game, events } : null;
   if (!source) {
     const room = deps.getLiveRoom?.(roomId) ?? null;
     await room?.pendingWrites.catch(() => undefined);
