@@ -24,7 +24,6 @@ const baseAnnouncements: Announcement[] = [
     body: 'The 7 by 7 reserve fight is live with no enemy-palace drops, a full rules page, and a 114-ply FSF sample game to study.',
     href: '/rules/drop-mini-xiangqi',
     cta: 'Study the rules',
-    showInHomeArticleWidget: true,
   },
   {
     date: '2026-06-20',

@@ -113,7 +113,7 @@ describe('article public listing gates', () => {
     expect(cards?.textContent).not.toContain('Kriegspiel is open for alpha play.');
   });
 
-  it('shows the Drop Mini Xiangqi launch announcement in the homepage article widget by default', () => {
+  it('does not show the Drop Mini Xiangqi launch announcement in the homepage article widget', () => {
     vi.stubEnv('DEV', false);
 
     const cards = buildHomeArticleCards(50);
@@ -121,8 +121,8 @@ describe('article public listing gates', () => {
       '.landing-announcement-card[href="/rules/drop-mini-xiangqi"]',
     );
 
-    expect(announcement).not.toBeNull();
-    expect(announcement?.textContent).toContain('Drop Mini Xiangqi has launched.');
+    expect(announcement).toBeNull();
+    expect(cards?.textContent).not.toContain('Drop Mini Xiangqi has launched.');
   });
 
   it('does not show the Banqi alpha announcement in the homepage article widget', () => {
