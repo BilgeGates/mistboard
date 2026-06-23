@@ -93,13 +93,50 @@ type ForumPostSearchPage = {
   total: number;
 };
 
+type ForumReportStatus = 'open' | 'resolved' | 'dismissed';
+
+type ForumReportStatusFilter = ForumReportStatus | 'all';
+
+type ForumReport = {
+  id: string;
+  status: ForumReportStatus;
+  targetType: 'topic' | 'post';
+  reason: string;
+  resolutionNote: string | null;
+  reporter: ForumAuthor;
+  resolver: ForumAuthor;
+  createdAt: string;
+  updatedAt: string;
+  resolvedAt: string | null;
+  topic: {
+    id: string;
+    slug: string;
+    title: string;
+    category: {
+      slug: string;
+      name: string;
+    };
+    hidden: boolean;
+  };
+  post: {
+    id: string;
+    page: number;
+    snippet: string;
+    author: ForumAuthor;
+    createdAt: string;
+    hidden: boolean;
+  } | null;
+};
+
 const topicListPageSize = 25;
 const postPageSize = 25;
+const forumReportPageSize = 50;
 const forumTopicTitleMaxLength = 120;
 const forumPostBodyMaxLength = 5000;
 const forumModerationReasonMaxLength = 240;
 
 class ForumNotFound extends Error {}
+class ForumForbidden extends Error {}
 
 export async function mountForum(root: HTMLElement): Promise<void> {
   root.replaceChildren();
@@ -173,7 +210,7 @@ export async function mountForum(root: HTMLElement): Promise<void> {
       ...(composer ? [composer] : []),
     );
   } else {
-    panel.append(forumHomeHeader(searchQuery), categoryIndex(categories));
+    panel.append(forumHomeHeader(searchQuery, user), categoryIndex(categories));
   }
   const showsTopics = Boolean(searchQuery || selectedCategory);
   const needsTopicPager = showsTopics && (topicPage > 1 || hasNextPage);
@@ -297,20 +334,85 @@ export async function mountForumPostRedirect(root: HTMLElement, postId: string):
   }
 }
 
+export async function mountForumReports(root: HTMLElement): Promise<void> {
+  root.replaceChildren();
+  root.classList.add('landing-page', 'forum-route');
+
+  const shell = document.createElement('main');
+  shell.className = 'site-section forum-shell';
+  root.append(buildNav(), shell);
+
+  const body = document.createElement('div');
+  body.className = 'forum-layout';
+  body.append(statusPanel('Loading forum reports...'));
+  shell.append(body);
+
+  const query = new URLSearchParams(window.location.search);
+  const status = reportStatusFromParam(query.get('status'));
+  const page = pageFromParam(query.get('page'));
+  const offset = (page - 1) * forumReportPageSize;
+  let reports: ForumReport[];
+  try {
+    reports = await fetchForumReports({
+      status,
+      limit: forumReportPageSize + 1,
+      offset,
+    });
+  } catch (err) {
+    body.replaceChildren(
+      err instanceof ForumForbidden
+        ? buildNotice('Admin access required', 'Forum reports are available to moderators.')
+        : buildNotice('Forum unavailable', 'The report queue could not load.'),
+    );
+    return;
+  }
+
+  const visibleReports = reports.slice(0, forumReportPageSize);
+  const hasNext = reports.length > forumReportPageSize;
+  const panel = forumPanel('forum-reports-panel');
+  panel.append(
+    forumReportsHeader(),
+    forumReportFilters(status),
+    reportList(visibleReports, status),
+  );
+  if (page > 1 || hasNext) {
+    panel.append(
+      reportPager({
+        status,
+        page,
+        hasPrevious: page > 1,
+        hasNext,
+      }),
+    );
+  }
+  body.replaceChildren(panel);
+}
+
 function forumPanel(extraClassName = ''): HTMLElement {
   const panel = document.createElement('section');
   panel.className = ['forum-panel', extraClassName].filter(Boolean).join(' ');
   return panel;
 }
 
-function forumHomeHeader(searchQuery: string | null): HTMLElement {
+function forumHomeHeader(searchQuery: string | null, user: AuthUser | null): HTMLElement {
   const header = document.createElement('header');
   header.className = 'forum-panel-header forum-panel-header-home';
-  header.append(
-    forumPanelTitle('Forum', { icon: true }),
-    forumSearchForm(searchQuery, { compact: true }),
-  );
+  header.append(forumPanelTitle('Forum', { icon: true }), forumHomeActions(searchQuery, user));
   return header;
+}
+
+function forumHomeActions(searchQuery: string | null, user: AuthUser | null): HTMLElement {
+  const actions = document.createElement('div');
+  actions.className = 'forum-panel-actions';
+  actions.append(forumSearchForm(searchQuery, { compact: true }));
+  if (user?.accountRole === 'admin') {
+    const reports = document.createElement('a');
+    reports.className = 'forum-panel-action forum-report-admin-link';
+    reports.href = '/forum/reports';
+    reports.textContent = 'Reports';
+    actions.append(reports);
+  }
+  return actions;
 }
 
 function categoryPanelHeader(
@@ -342,6 +444,16 @@ function searchPanelHeader(query: string): HTMLElement {
     titleStack,
     forumSearchForm(query, { compact: true }),
   );
+  return header;
+}
+
+function forumReportsHeader(): HTMLElement {
+  const header = document.createElement('header');
+  header.className = 'forum-panel-header forum-panel-header-reports';
+  const titleRow = document.createElement('div');
+  titleRow.className = 'forum-panel-title-row';
+  titleRow.append(forumBackLink('/forum', 'Back to forum'), forumPanelTitle('Forum reports'));
+  header.append(titleRow);
   return header;
 }
 
@@ -432,6 +544,7 @@ function topicHeader(topic: ForumTopicDetail, user: AuthUser | null): HTMLElemen
     heading,
   );
   if (canEditTopic(topic, user) && !topic.locked) titleRow.append(topicEditButton(topic, heading));
+  if (canReportForumContent(topic.author, user)) titleRow.append(topicReportButton(topic));
   const meta = document.createElement('p');
   meta.className = 'forum-sub';
   meta.textContent = `${topic.category.name} · ${topic.postCount} ${topic.postCount === 1 ? 'post' : 'posts'} · last activity ${formatDate(topic.lastPostAt)}`;
@@ -759,6 +872,15 @@ function topicEditButton(topic: ForumTopicDetail, heading: HTMLElement): HTMLBut
   return button;
 }
 
+function topicReportButton(topic: ForumTopicDetail): HTMLButtonElement {
+  return forumReportButton({
+    className: 'forum-topic-report',
+    label: 'Report',
+    promptText: 'Reason for reporting this topic',
+    submit: (reason) => submitTopicReport(topic.id, reason),
+  });
+}
+
 function showTopicEditForm(topic: ForumTopicDetail, heading: HTMLElement): void {
   const header = heading.closest('.forum-header');
   if (!header || header.querySelector('.forum-topic-edit-form')) return;
@@ -879,6 +1001,9 @@ function postList(
     if (canEditPost(post, user) && !topic.locked) {
       meta.append(document.createTextNode(' · '), postEditButton(post, body, edited));
     }
+    if (canReportForumContent(post.author, user)) {
+      meta.append(document.createTextNode(' · '), postReportButton(post));
+    }
     meta.append(edited);
     content.append(meta, body);
     if (user?.accountRole === 'admin') content.append(postModerationBox(post));
@@ -949,6 +1074,15 @@ function postQuoteButton(post: ForumPost): HTMLButtonElement {
     insertPostQuote(post);
   });
   return button;
+}
+
+function postReportButton(post: ForumPost): HTMLButtonElement {
+  return forumReportButton({
+    className: 'forum-post-report',
+    label: 'Report',
+    promptText: 'Reason for reporting this post',
+    submit: (reason) => submitPostReport(post.id, reason),
+  });
 }
 
 function postEditButton(
@@ -1159,6 +1293,10 @@ function canEditPost(post: ForumPost, user: AuthUser | null): boolean {
 
 function canEditTopic(topic: ForumTopicDetail, user: AuthUser | null): boolean {
   return Boolean(user && (user.accountRole === 'admin' || topic.author?.handle === user.handle));
+}
+
+function canReportForumContent(author: ForumAuthor, user: AuthUser | null): boolean {
+  return Boolean(user && user.accountRole !== 'admin' && author?.handle !== user.handle);
 }
 
 function newTopicForm(
@@ -1509,15 +1647,233 @@ function moderationButton(
   return button;
 }
 
+function forumReportButton(options: {
+  className: string;
+  label: string;
+  promptText: string;
+  submit: (reason: string) => Promise<void>;
+}): HTMLButtonElement {
+  const button = document.createElement('button');
+  button.type = 'button';
+  button.className = options.className;
+  button.textContent = options.label;
+  button.addEventListener('click', () => {
+    const reason = promptReportReason(options.promptText);
+    if (reason === false) return;
+    button.disabled = true;
+    void options
+      .submit(reason)
+      .then(() => {
+        button.textContent = 'Reported';
+      })
+      .catch((err) => {
+        button.disabled = false;
+        window.alert(err instanceof Error ? err.message : 'Report could not be sent.');
+      });
+  });
+  return button;
+}
+
+function promptReportReason(promptText: string): string | false {
+  const value = window.prompt(promptText, '');
+  if (value === null) return false;
+  const reason = value.trim().replace(/\s+/g, ' ');
+  if (reason.length === 0) {
+    window.alert('A reason is required.');
+    return false;
+  }
+  if (reason.length > forumModerationReasonMaxLength) {
+    window.alert(`Reason must be ${forumModerationReasonMaxLength} characters or less.`);
+    return false;
+  }
+  return reason;
+}
+
 function promptModerationReason(promptText: string): string | null | false {
   const value = window.prompt(promptText, '');
   if (value === null) return false;
+  return normalizePromptReason(value);
+}
+
+function normalizePromptReason(value: string): string | null | false {
   const reason = value.trim();
   if (reason.length > forumModerationReasonMaxLength) {
     window.alert(`Reason must be ${forumModerationReasonMaxLength} characters or less.`);
     return false;
   }
   return reason.length > 0 ? reason : null;
+}
+
+function forumReportFilters(activeStatus: ForumReportStatusFilter): HTMLElement {
+  const nav = document.createElement('nav');
+  nav.className = 'forum-report-filters';
+  nav.setAttribute('aria-label', 'Forum report filters');
+  for (const [status, label] of [
+    ['open', 'Open'],
+    ['resolved', 'Resolved'],
+    ['dismissed', 'Dismissed'],
+    ['all', 'All'],
+  ] as const) {
+    const link = document.createElement('a');
+    link.className = 'forum-report-filter';
+    link.href = forumReportsHref(status, 1);
+    link.textContent = label;
+    if (status === activeStatus) {
+      link.classList.add('forum-report-filter-active');
+      link.setAttribute('aria-current', 'page');
+    }
+    nav.append(link);
+  }
+  return nav;
+}
+
+function reportList(reports: ForumReport[], status: ForumReportStatusFilter): HTMLElement {
+  const wrap = document.createElement('section');
+  wrap.className = 'forum-report-list';
+  if (reports.length === 0) {
+    wrap.append(statusPanel(`No ${status === 'all' ? '' : `${status} `}forum reports.`));
+    return wrap;
+  }
+  for (const report of reports) wrap.append(reportRow(report));
+  return wrap;
+}
+
+function reportRow(report: ForumReport): HTMLElement {
+  const row = document.createElement('article');
+  row.className = 'forum-report-row';
+  const main = document.createElement('div');
+  main.className = 'forum-report-main';
+
+  const target = document.createElement('a');
+  target.className = 'forum-report-title';
+  target.href = reportTargetHref(report);
+  target.textContent = report.topic.title;
+  const meta = document.createElement('p');
+  meta.className = 'forum-report-meta';
+  meta.append(
+    document.createTextNode(`${report.targetType === 'post' ? 'Post' : 'Topic'} report in `),
+    categoryLink(report.topic.category),
+    document.createTextNode(` · ${report.status}`),
+  );
+  const targetHidden = reportTargetHidden(report);
+  if (targetHidden) meta.append(document.createTextNode(' · target hidden'));
+
+  const reason = document.createElement('p');
+  reason.className = 'forum-report-reason';
+  reason.textContent = report.reason;
+  main.append(target, meta, reason);
+  if (report.post?.snippet) {
+    const snippet = document.createElement('blockquote');
+    snippet.className = 'forum-report-snippet';
+    snippet.textContent = report.post.snippet;
+    main.append(snippet);
+  }
+  if (report.resolutionNote) {
+    const note = document.createElement('p');
+    note.className = 'forum-report-resolution';
+    note.textContent = report.resolutionNote;
+    main.append(note);
+  }
+
+  const side = document.createElement('div');
+  side.className = 'forum-report-side';
+  const reportedBy = document.createElement('p');
+  reportedBy.append(
+    document.createTextNode('Reported by '),
+    authorProfileLink(report.reporter, 'forum-report-author'),
+    document.createTextNode(` · ${formatDate(report.createdAt)}`),
+  );
+  side.append(reportedBy);
+  if (report.post) {
+    const postBy = document.createElement('p');
+    postBy.append(
+      document.createTextNode('Post by '),
+      authorProfileLink(report.post.author, 'forum-report-author'),
+      document.createTextNode(` · ${formatDate(report.post.createdAt)}`),
+    );
+    side.append(postBy);
+  }
+  if (report.resolvedAt) {
+    const resolved = document.createElement('p');
+    resolved.append(
+      document.createTextNode(`${report.status} by `),
+      authorProfileLink(report.resolver, 'forum-report-author'),
+      document.createTextNode(` · ${formatDate(report.resolvedAt)}`),
+    );
+    side.append(resolved);
+  }
+
+  const actions = document.createElement('div');
+  actions.className = 'forum-report-actions';
+  const view = document.createElement('a');
+  view.className = 'forum-moderation-button forum-report-view';
+  view.href = reportTargetHref(report);
+  view.textContent = 'View';
+  actions.append(view);
+  if (report.status === 'open') {
+    if (!targetHidden) actions.append(reportTargetHideButton(report));
+    actions.append(
+      reportResolutionButton(report, 'resolved'),
+      reportResolutionButton(report, 'dismissed'),
+    );
+  }
+  side.append(actions);
+  row.append(main, side);
+  return row;
+}
+
+function categoryLink(category: { slug: string; name: string }): HTMLAnchorElement {
+  const link = document.createElement('a');
+  link.className = 'forum-report-category';
+  link.href = categoryHref(category);
+  link.textContent = category.name;
+  return link;
+}
+
+function reportTargetHidden(report: ForumReport): boolean {
+  return report.post?.hidden ?? report.topic.hidden;
+}
+
+function reportTargetHideButton(report: ForumReport): HTMLButtonElement {
+  const button = document.createElement('button');
+  button.type = 'button';
+  button.className = 'forum-moderation-button';
+  button.textContent = report.post ? 'Hide post' : 'Hide topic';
+  button.addEventListener('click', () => {
+    const reason = window.prompt(
+      report.post
+        ? 'Reason for hiding this post (optional)'
+        : 'Reason for hiding this topic (optional)',
+      report.reason,
+    );
+    if (reason === null) return;
+    const normalizedReason = normalizePromptReason(reason);
+    if (normalizedReason === false) return;
+    const resolutionNote = report.post ? 'Hidden reported post.' : 'Hidden reported topic.';
+    button.disabled = true;
+    void submitReportTargetHide(report, normalizedReason, resolutionNote).catch(() => {
+      button.disabled = false;
+      window.alert('Reported content could not be hidden.');
+    });
+  });
+  return button;
+}
+
+function reportResolutionButton(report: ForumReport, status: ForumReportStatus): HTMLButtonElement {
+  const button = document.createElement('button');
+  button.type = 'button';
+  button.className = 'forum-moderation-button';
+  button.textContent = status === 'resolved' ? 'Resolve' : 'Dismiss';
+  button.addEventListener('click', () => {
+    const note = promptModerationReason('Resolution note (optional)');
+    if (note === false) return;
+    button.disabled = true;
+    void submitReportResolution(report.id, status, note).catch(() => {
+      button.disabled = false;
+      window.alert('Report could not be updated.');
+    });
+  });
+  return button;
 }
 
 function signInBox(text: string): HTMLElement {
@@ -1576,8 +1932,17 @@ function postHref(topic: { id: string; slug: string }, postId: string, page = 1)
   return `${topicPageHref(topic, page)}#${postDomId(postId)}`;
 }
 
-function postRedirectHref(postId: string): string {
-  return `/forum/redirect/post/${encodeURIComponent(postId)}`;
+function reportTargetHref(report: ForumReport): string {
+  if (report.post) return postHref(report.topic, report.post.id, report.post.page);
+  return topicHref(report.topic);
+}
+
+function forumReportsHref(status: ForumReportStatusFilter, page: number): string {
+  const params = new URLSearchParams();
+  if (status !== 'open') params.set('status', status);
+  if (page > 1) params.set('page', String(page));
+  const query = params.toString();
+  return `/forum/reports${query ? `?${query}` : ''}`;
 }
 
 function postDomId(postId: string): string {
@@ -1643,6 +2008,10 @@ function searchQueryFromParam(value: string | null): string | null {
   return query.length >= 2 && query.length <= 120 ? query : null;
 }
 
+function reportStatusFromParam(value: string | null): ForumReportStatusFilter {
+  return value === 'resolved' || value === 'dismissed' || value === 'all' ? value : 'open';
+}
+
 function categorySlugFromPath(pathname: string): string | null {
   const match = pathname.replace(/\/+$/, '').match(/^\/forum\/([^/]+)$/);
   return match ? decodeURIComponent(match[1]!) : null;
@@ -1673,7 +2042,42 @@ function errorMessageForTopicEditStatus(status: number): string {
   return 'Check the title and try again.';
 }
 
+function errorMessageForReportStatus(status: number): string {
+  if (status === 401) return 'Sign in to report.';
+  if (status === 404) return 'This forum content is not available.';
+  if (status === 409) return 'You already reported this.';
+  if (status >= 500) return 'Forum is unavailable.';
+  return 'Report could not be sent.';
+}
+
+async function submitTopicReport(topicId: string, reason: string): Promise<void> {
+  return submitForumReport(`/api/forum/topics/${encodeURIComponent(topicId)}/report`, reason);
+}
+
+async function submitPostReport(postId: string, reason: string): Promise<void> {
+  return submitForumReport(`/api/forum/posts/${encodeURIComponent(postId)}/report`, reason);
+}
+
+async function submitForumReport(endpoint: string, reason: string): Promise<void> {
+  const resp = await fetch(endpoint, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json', accept: 'application/json' },
+    body: JSON.stringify({ reason }),
+  });
+  if (!resp.ok) throw new Error(errorMessageForReportStatus(resp.status));
+}
+
 async function submitTopicModeration(
+  topicId: string,
+  action: 'pin' | 'unpin' | 'lock' | 'unlock' | 'hide',
+  reason: string | null = null,
+): Promise<void> {
+  await submitTopicModerationRequest(topicId, action, reason);
+  if (action === 'hide') window.location.href = '/forum';
+  else window.location.reload();
+}
+
+async function submitTopicModerationRequest(
   topicId: string,
   action: 'pin' | 'unpin' | 'lock' | 'unlock' | 'hide',
   reason: string | null = null,
@@ -1686,8 +2090,6 @@ async function submitTopicModeration(
     body: JSON.stringify(body),
   });
   if (!resp.ok) throw new Error(`topic_moderation_failed_${resp.status}`);
-  if (action === 'hide') window.location.href = '/forum';
-  else window.location.reload();
 }
 
 async function submitTopicMove(topic: ForumTopicDetail, categorySlug: string): Promise<void> {
@@ -1702,6 +2104,15 @@ async function submitTopicMove(topic: ForumTopicDetail, categorySlug: string): P
 }
 
 async function submitPostModeration(postId: string, reason: string | null = null): Promise<void> {
+  const payload = await submitPostModerationRequest(postId, reason);
+  if (payload.topicHidden) window.location.href = '/forum';
+  else window.location.reload();
+}
+
+async function submitPostModerationRequest(
+  postId: string,
+  reason: string | null = null,
+): Promise<{ topicHidden?: boolean }> {
   const body: { action: 'hide'; reason?: string } = { action: 'hide' };
   if (reason) body.reason = reason;
   const resp = await fetch(`/api/forum/posts/${encodeURIComponent(postId)}/moderation`, {
@@ -1710,9 +2121,33 @@ async function submitPostModeration(postId: string, reason: string | null = null
     body: JSON.stringify(body),
   });
   if (!resp.ok) throw new Error(`post_moderation_failed_${resp.status}`);
-  const payload = (await resp.json()) as { topicHidden?: boolean };
-  if (payload.topicHidden) window.location.href = '/forum';
-  else window.location.reload();
+  return (await resp.json()) as { topicHidden?: boolean };
+}
+
+async function submitReportTargetHide(
+  report: ForumReport,
+  reason: string | null,
+  resolutionNote: string,
+): Promise<void> {
+  if (report.post) await submitPostModerationRequest(report.post.id, reason);
+  else await submitTopicModerationRequest(report.topic.id, 'hide', reason);
+  await submitReportResolution(report.id, 'resolved', resolutionNote);
+}
+
+async function submitReportResolution(
+  reportId: string,
+  status: ForumReportStatus,
+  resolutionNote: string | null,
+): Promise<void> {
+  const body: { status: ForumReportStatus; resolutionNote?: string } = { status };
+  if (resolutionNote) body.resolutionNote = resolutionNote;
+  const resp = await fetch(`/api/forum/reports/${encodeURIComponent(reportId)}`, {
+    method: 'PATCH',
+    headers: { 'content-type': 'application/json', accept: 'application/json' },
+    body: JSON.stringify(body),
+  });
+  if (!resp.ok) throw new Error(`report_resolution_failed_${resp.status}`);
+  window.location.reload();
 }
 
 async function fetchForumCategories(): Promise<ForumCategory[]> {
@@ -1771,4 +2206,37 @@ async function fetchForumTopic(
   if (!resp.ok) throw new Error(`forum_topic_failed_${resp.status}`);
   const data = (await resp.json()) as { topic: ForumTopicDetail };
   return data.topic;
+}
+
+function reportPager(options: {
+  status: ForumReportStatusFilter;
+  page: number;
+  hasPrevious: boolean;
+  hasNext: boolean;
+}): HTMLElement {
+  return forumPager({
+    ariaLabel: 'Forum report pages',
+    page: options.page,
+    hasPrevious: options.hasPrevious,
+    hasNext: options.hasNext,
+    hrefForPage: (page) => forumReportsHref(options.status, page),
+  });
+}
+
+async function fetchForumReports(options: {
+  status: ForumReportStatusFilter;
+  limit?: number;
+  offset?: number;
+}): Promise<ForumReport[]> {
+  const params = new URLSearchParams();
+  if (options.status !== 'open') params.set('status', options.status);
+  if (options.limit) params.set('limit', String(options.limit));
+  if (options.offset !== undefined) params.set('offset', String(options.offset));
+  const resp = await fetch(`/api/forum/reports${params.size ? `?${params}` : ''}`, {
+    headers: { accept: 'application/json' },
+  });
+  if (resp.status === 401 || resp.status === 403) throw new ForumForbidden();
+  if (!resp.ok) throw new Error(`forum_reports_failed_${resp.status}`);
+  const data = (await resp.json()) as { reports: ForumReport[] };
+  return data.reports;
 }

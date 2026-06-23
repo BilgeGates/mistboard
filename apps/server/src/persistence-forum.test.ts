@@ -3,15 +3,19 @@ import {
   addForumPost,
   countRecentForumPostsByUser,
   countRecentForumTopicsByUser,
+  createForumPostReport,
   createForumTopic,
+  createForumTopicReport,
   createUser,
   getForumPostLocation,
   getForumTopic,
   hideForumPost,
   listForumCategories,
+  listForumReports,
   listForumTopics,
   moderateForumTopic,
   moveForumTopic,
+  resolveForumReport,
   searchForumPosts,
   searchForumTopics,
   updateForumPost,
@@ -405,6 +409,132 @@ definePersistenceTests('forum', () => {
     );
   });
 
+  test('forum reports can be filed, listed, and resolved', async () => {
+    const now = new Date('2026-06-01T00:00:00Z');
+    await createUser({
+      id: 'forum_user_report_author',
+      email: 'report-author@example.com',
+      emailVerifiedAt: now,
+      handle: 'reportauthor',
+      displayName: 'Report Author',
+      now,
+    });
+    await createUser({
+      id: 'forum_user_reporter',
+      email: 'reporter@example.com',
+      emailVerifiedAt: now,
+      handle: 'reporter',
+      displayName: 'Reporter',
+      now,
+    });
+    await createUser({
+      id: 'forum_user_report_moderator',
+      email: 'report-moderator@example.com',
+      emailVerifiedAt: now,
+      handle: 'reportmod',
+      displayName: 'Report Moderator',
+      accountRole: 'admin',
+      now,
+    });
+    await createForumTopic({
+      id: 'topic_reported',
+      postId: 'post_reported_open',
+      categorySlug: 'general-discussion',
+      authorAccountId: 'forum_user_report_author',
+      authorRole: 'player',
+      title: 'Reported topic',
+      slug: 'reported-topic',
+      bodyText: 'Opening post.',
+      now,
+    });
+    await addForumPost({
+      id: 'post_reported_reply',
+      topicId: 'topic_reported',
+      authorAccountId: 'forum_user_report_author',
+      bodyText: 'Reported reply body.',
+      now: new Date('2026-06-01T00:01:00Z'),
+    });
+
+    const topicReport = await createForumTopicReport({
+      id: 'forum_report_topic',
+      topicId: 'topic_reported',
+      reporterAccountId: 'forum_user_reporter',
+      reason: 'Needs moderator review',
+      now: new Date('2026-06-01T00:02:00Z'),
+    });
+    assert.equal(topicReport.ok, true);
+    assert.equal(topicReport.ok ? topicReport.report.targetType : '', 'topic');
+    assert.equal(topicReport.ok ? topicReport.report.topic.title : '', 'Reported topic');
+
+    const postReport = await createForumPostReport({
+      id: 'forum_report_post',
+      postId: 'post_reported_reply',
+      reporterAccountId: 'forum_user_reporter',
+      reason: 'Off topic reply',
+      now: new Date('2026-06-01T00:03:00Z'),
+    });
+    assert.equal(postReport.ok, true);
+    assert.equal(postReport.ok ? postReport.report.targetType : '', 'post');
+    assert.equal(postReport.ok ? postReport.report.post?.snippet : '', 'Reported reply body.');
+    assert.equal(postReport.ok ? postReport.report.post?.page : 0, 1);
+
+    const selfTopicReport = await createForumTopicReport({
+      id: 'forum_report_topic_self',
+      topicId: 'topic_reported',
+      reporterAccountId: 'forum_user_report_author',
+      reason: 'My own topic',
+      now: new Date('2026-06-01T00:03:30Z'),
+    });
+    assert.deepEqual(selfTopicReport, { ok: false, error: 'self_report' });
+
+    const selfPostReport = await createForumPostReport({
+      id: 'forum_report_post_self',
+      postId: 'post_reported_reply',
+      reporterAccountId: 'forum_user_report_author',
+      reason: 'My own post',
+      now: new Date('2026-06-01T00:03:45Z'),
+    });
+    assert.deepEqual(selfPostReport, { ok: false, error: 'self_report' });
+
+    const duplicatePostReport = await createForumPostReport({
+      id: 'forum_report_post_duplicate',
+      postId: 'post_reported_reply',
+      reporterAccountId: 'forum_user_reporter',
+      reason: 'Same report',
+      now: new Date('2026-06-01T00:04:00Z'),
+    });
+    assert.deepEqual(duplicatePostReport, { ok: false, error: 'already_reported' });
+
+    const openReports = await listForumReports({ status: 'open', limit: 10 });
+    assert.deepEqual(
+      openReports.map((report) => report.id),
+      ['forum_report_post', 'forum_report_topic'],
+    );
+
+    const resolved = await resolveForumReport({
+      reportId: 'forum_report_topic',
+      moderatorAccountId: 'forum_user_report_moderator',
+      status: 'resolved',
+      resolutionNote: 'Handled',
+      now: new Date('2026-06-01T00:05:00Z'),
+    });
+    assert.equal(resolved.ok, true);
+    assert.equal(resolved.ok ? resolved.report.status : '', 'resolved');
+    assert.equal(resolved.ok ? resolved.report.resolutionNote : '', 'Handled');
+    assert.equal(resolved.ok ? resolved.report.resolver?.handle : '', 'reportmod');
+
+    const resolvedReports = await listForumReports({ status: 'resolved', limit: 10 });
+    assert.deepEqual(
+      resolvedReports.map((report) => report.id),
+      ['forum_report_topic'],
+    );
+    const remainingOpenReports = await listForumReports({ status: 'open', limit: 10 });
+    assert.deepEqual(
+      remainingOpenReports.map((report) => report.id),
+      ['forum_report_post'],
+    );
+  });
+
   test('forum write routes require an account session', async () => {
     const response = captureResponse();
     const handled = await tryHandleForumRoute(
@@ -444,6 +574,19 @@ definePersistenceTests('forum', () => {
     assert.equal(editHandled, true);
     assert.equal(editResponse.status, 401);
     assert.deepEqual(JSON.parse(editResponse.body), { error: 'not_signed_in' });
+
+    const reportResponse = captureResponse();
+    const reportHandled = await tryHandleForumRoute(
+      {},
+      requestWithJson({ reason: 'spam' }, 'POST'),
+      reportResponse,
+      '/api/forum/topics/topic_missing/report',
+      new URL('http://localhost/api/forum/topics/topic_missing/report'),
+    );
+
+    assert.equal(reportHandled, true);
+    assert.equal(reportResponse.status, 401);
+    assert.deepEqual(JSON.parse(reportResponse.body), { error: 'not_signed_in' });
   });
 
   test('forum moderation route rejects unknown actions', async () => {

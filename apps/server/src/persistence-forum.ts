@@ -107,6 +107,41 @@ export type ForumPostLocation = {
   };
 };
 
+export type ForumReportStatus = 'open' | 'resolved' | 'dismissed';
+
+export type ForumReportResolutionStatus = Exclude<ForumReportStatus, 'open'>;
+
+export type ForumReport = {
+  id: string;
+  status: ForumReportStatus;
+  targetType: 'topic' | 'post';
+  reason: string;
+  resolutionNote: string | null;
+  reporter: ForumAuthor;
+  resolver: ForumAuthor;
+  createdAt: Date;
+  updatedAt: Date;
+  resolvedAt: Date | null;
+  topic: {
+    id: string;
+    slug: string;
+    title: string;
+    category: {
+      slug: string;
+      name: string;
+    };
+    hiddenAt: Date | null;
+  };
+  post: {
+    id: string;
+    page: number;
+    snippet: string;
+    author: ForumAuthor;
+    createdAt: Date;
+    hiddenAt: Date | null;
+  } | null;
+};
+
 export type CreateForumTopicResult =
   | { ok: true; topic: ForumTopicDetail }
   | { ok: false; error: 'category_not_found' | 'category_admin_only' };
@@ -136,6 +171,17 @@ export type ModerateForumTopicResult =
 export type HideForumPostResult =
   | { ok: true; topicHidden: boolean }
   | { ok: false; error: 'post_not_found' };
+
+export type CreateForumReportResult =
+  | { ok: true; report: ForumReport }
+  | {
+      ok: false;
+      error: 'topic_not_found' | 'post_not_found' | 'already_reported' | 'self_report';
+    };
+
+export type ResolveForumReportResult =
+  | { ok: true; report: ForumReport }
+  | { ok: false; error: 'report_not_found' };
 
 export async function listForumCategories(): Promise<ForumCategory[]> {
   const { rows } = await getPool().query<ForumCategoryRow>(
@@ -667,6 +713,142 @@ export async function hideForumPost(input: {
   });
 }
 
+export async function createForumTopicReport(input: {
+  id: string;
+  topicId: string;
+  reporterAccountId: string;
+  reason: string;
+  now: Date;
+}): Promise<CreateForumReportResult> {
+  const result = await withTransaction<
+    { ok: true } | { ok: false; error: 'topic_not_found' | 'already_reported' | 'self_report' }
+  >(async (client) => {
+    const { rows: topics } = await client.query<{ author_account_id: string; id: string }>(
+      `SELECT id, author_account_id
+       FROM forum_topics
+       WHERE id = $1 AND hidden_at IS NULL`,
+      [input.topicId],
+    );
+    const topic = topics[0];
+    if (!topic) return { ok: false, error: 'topic_not_found' };
+    if (topic.author_account_id === input.reporterAccountId) {
+      return { ok: false, error: 'self_report' };
+    }
+
+    const { rows: existingReports } = await client.query<{ id: string }>(
+      `SELECT id
+       FROM forum_reports
+       WHERE reporter_account_id = $1
+         AND topic_id = $2
+         AND status = 'open'
+       LIMIT 1`,
+      [input.reporterAccountId, input.topicId],
+    );
+    if (existingReports[0]) return { ok: false, error: 'already_reported' };
+
+    await client.query(
+      `INSERT INTO forum_reports
+         (id, reporter_account_id, target_type, topic_id, reason, created_at, updated_at)
+       VALUES ($1, $2, 'topic', $3, $4, $5, $5)`,
+      [input.id, input.reporterAccountId, input.topicId, input.reason, input.now],
+    );
+    return { ok: true };
+  });
+  if (!result.ok) return result;
+  const report = await getForumReportById(input.id);
+  if (!report) throw new Error(`forum report ${input.id} missing after insert`);
+  return { ok: true, report };
+}
+
+export async function createForumPostReport(input: {
+  id: string;
+  postId: string;
+  reporterAccountId: string;
+  reason: string;
+  now: Date;
+}): Promise<CreateForumReportResult> {
+  const result = await withTransaction<
+    { ok: true } | { ok: false; error: 'post_not_found' | 'already_reported' | 'self_report' }
+  >(async (client) => {
+    const { rows: posts } = await client.query<{ author_account_id: string; id: string }>(
+      `SELECT p.id, p.author_account_id
+       FROM forum_posts p
+       JOIN forum_topics t ON t.id = p.topic_id
+       WHERE p.id = $1
+         AND p.hidden_at IS NULL
+         AND t.hidden_at IS NULL`,
+      [input.postId],
+    );
+    const post = posts[0];
+    if (!post) return { ok: false, error: 'post_not_found' };
+    if (post.author_account_id === input.reporterAccountId) {
+      return { ok: false, error: 'self_report' };
+    }
+
+    const { rows: existingReports } = await client.query<{ id: string }>(
+      `SELECT id
+       FROM forum_reports
+       WHERE reporter_account_id = $1
+         AND post_id = $2
+         AND status = 'open'
+       LIMIT 1`,
+      [input.reporterAccountId, input.postId],
+    );
+    if (existingReports[0]) return { ok: false, error: 'already_reported' };
+
+    await client.query(
+      `INSERT INTO forum_reports
+         (id, reporter_account_id, target_type, post_id, reason, created_at, updated_at)
+       VALUES ($1, $2, 'post', $3, $4, $5, $5)`,
+      [input.id, input.reporterAccountId, input.postId, input.reason, input.now],
+    );
+    return { ok: true };
+  });
+  if (!result.ok) return result;
+  const report = await getForumReportById(input.id);
+  if (!report) throw new Error(`forum report ${input.id} missing after insert`);
+  return { ok: true, report };
+}
+
+export async function listForumReports(
+  options: { status?: ForumReportStatus | 'all'; limit?: number; offset?: number } = {},
+): Promise<ForumReport[]> {
+  const status = options.status && options.status !== 'all' ? options.status : null;
+  const limit = clampInt(options.limit ?? 50, 1, 100);
+  const offset = clampInt(options.offset ?? 0, 0, 10_000);
+  const { rows } = await getPool().query<ForumReportRow>(
+    `${FORUM_REPORT_SELECT}
+     WHERE ($1::text IS NULL OR r.status = $1)
+     ORDER BY (r.status = 'open') DESC, r.created_at DESC, r.id DESC
+     LIMIT $2 OFFSET $3`,
+    [status, limit, offset],
+  );
+  return rows.map(reportFromRow);
+}
+
+export async function resolveForumReport(input: {
+  reportId: string;
+  moderatorAccountId: string | null;
+  status: ForumReportResolutionStatus;
+  resolutionNote: string | null;
+  now: Date;
+}): Promise<ResolveForumReportResult> {
+  const { rowCount } = await getPool().query(
+    `UPDATE forum_reports
+     SET status = $2,
+         resolution_note = $3,
+         resolved_by_account_id = $4,
+         resolved_at = $5,
+         updated_at = $5
+     WHERE id = $1`,
+    [input.reportId, input.status, input.resolutionNote, input.moderatorAccountId, input.now],
+  );
+  if (rowCount === 0) return { ok: false, error: 'report_not_found' };
+  const report = await getForumReportById(input.reportId);
+  if (!report) throw new Error(`forum report ${input.reportId} missing after resolution`);
+  return { ok: true, report };
+}
+
 export async function countRecentForumTopicsByUser(userId: string, since: Date): Promise<number> {
   const { rows } = await getPool().query<{ count: string }>(
     `SELECT COUNT(*)::text AS count
@@ -726,7 +908,59 @@ const FORUM_TOPIC_SELECT = `SELECT t.id, t.slug, t.title, t.post_count, t.pinned
      ORDER BY p.created_at DESC, p.id DESC
      LIMIT 1
    ) latest_post ON TRUE
-   LEFT JOIN users latest_u ON latest_u.id = latest_post.author_account_id`;
+  LEFT JOIN users latest_u ON latest_u.id = latest_post.author_account_id`;
+
+const FORUM_REPORT_SELECT = `SELECT r.id, r.status, r.target_type, r.reason, r.resolution_note,
+          r.created_at, r.updated_at, r.resolved_at,
+          reporter.handle AS reporter_handle,
+          COALESCE(reporter.display_name, reporter.handle) AS reporter_display_name,
+          resolver.handle AS resolver_handle,
+          COALESCE(resolver.display_name, resolver.handle) AS resolver_display_name,
+          t.id AS topic_id,
+          t.slug AS topic_slug,
+          t.title AS topic_title,
+          t.hidden_at AS topic_hidden_at,
+          c.slug AS category_slug,
+          c.name AS category_name,
+          p.id AS post_id,
+          p.body_text AS post_body_text,
+          p.created_at AS post_created_at,
+          p.hidden_at AS post_hidden_at,
+          post_author.handle AS post_author_handle,
+          COALESCE(post_author.display_name, post_author.handle) AS post_author_display_name,
+          CASE
+            WHEN p.id IS NULL THEN NULL
+            ELSE GREATEST(1, (
+              (
+                SELECT COUNT(*)::int
+                FROM forum_posts before_post
+                WHERE before_post.topic_id = p.topic_id
+                  AND (
+                    before_post.created_at < p.created_at
+                    OR (
+                      before_post.created_at = p.created_at
+                      AND before_post.id <= p.id
+                    )
+                  )
+              ) - 1
+            ) / 25 + 1)
+          END AS post_page
+   FROM forum_reports r
+   LEFT JOIN forum_posts p ON p.id = r.post_id
+   JOIN forum_topics t ON t.id = COALESCE(r.topic_id, p.topic_id)
+   JOIN forum_categories c ON c.id = t.category_id
+   LEFT JOIN users reporter ON reporter.id = r.reporter_account_id
+   LEFT JOIN users resolver ON resolver.id = r.resolved_by_account_id
+   LEFT JOIN users post_author ON post_author.id = p.author_account_id`;
+
+async function getForumReportById(reportId: string): Promise<ForumReport | null> {
+  const { rows } = await getPool().query<ForumReportRow>(
+    `${FORUM_REPORT_SELECT}
+     WHERE r.id = $1`,
+    [reportId],
+  );
+  return rows[0] ? reportFromRow(rows[0]) : null;
+}
 
 function topicModerationPatch(action: ForumTopicModerationAction): string {
   switch (action) {
@@ -806,6 +1040,34 @@ type ForumPostSearchRow = {
   category_slug: string;
   category_name: string;
   total_count: number;
+};
+
+type ForumReportRow = {
+  id: string;
+  status: ForumReportStatus;
+  target_type: 'topic' | 'post';
+  reason: string;
+  resolution_note: string | null;
+  created_at: Date;
+  updated_at: Date;
+  resolved_at: Date | null;
+  reporter_handle: string | null;
+  reporter_display_name: string | null;
+  resolver_handle: string | null;
+  resolver_display_name: string | null;
+  topic_id: string;
+  topic_slug: string;
+  topic_title: string;
+  topic_hidden_at: Date | null;
+  category_slug: string;
+  category_name: string;
+  post_id: string | null;
+  post_body_text: string | null;
+  post_created_at: Date | null;
+  post_hidden_at: Date | null;
+  post_author_handle: string | null;
+  post_author_display_name: string | null;
+  post_page: number | null;
 };
 
 function categoryFromRow(row: ForumCategoryRow): ForumCategory {
@@ -909,6 +1171,41 @@ function postSearchResultFromRow(row: ForumPostSearchRow, query: string): ForumP
   };
 }
 
+function reportFromRow(row: ForumReportRow): ForumReport {
+  return {
+    id: row.id,
+    status: row.status,
+    targetType: row.target_type,
+    reason: row.reason,
+    resolutionNote: row.resolution_note,
+    reporter: authorFromRow(row.reporter_handle, row.reporter_display_name),
+    resolver: authorFromRow(row.resolver_handle, row.resolver_display_name),
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+    resolvedAt: row.resolved_at,
+    topic: {
+      id: row.topic_id,
+      slug: row.topic_slug,
+      title: row.topic_title,
+      category: {
+        slug: row.category_slug,
+        name: row.category_name,
+      },
+      hiddenAt: row.topic_hidden_at,
+    },
+    post: row.post_id
+      ? {
+          id: row.post_id,
+          page: row.post_page ?? 1,
+          snippet: forumReportSnippet(row.post_body_text ?? ''),
+          author: authorFromRow(row.post_author_handle, row.post_author_display_name),
+          createdAt: row.post_created_at ?? row.created_at,
+          hiddenAt: row.post_hidden_at,
+        }
+      : null,
+  };
+}
+
 function authorFromRow(handle: string | null, displayName: string | null): ForumAuthor {
   if (!handle) return null;
   return { handle, displayName: displayName ?? handle };
@@ -933,4 +1230,10 @@ function forumSearchSnippet(value: string, query: string): string {
   const prefix = start > 0 ? '...' : '';
   const suffix = end < text.length ? '...' : '';
   return `${prefix}${text.slice(start, end).trim()}${suffix}`;
+}
+
+function forumReportSnippet(value: string): string {
+  const text = value.trim().replace(/\s+/g, ' ');
+  if (text.length <= 180) return text;
+  return `${text.slice(0, 177).trimEnd()}...`;
 }

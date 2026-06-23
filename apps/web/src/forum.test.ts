@@ -109,6 +109,18 @@ const adminUser = {
   accountRole: 'admin',
 };
 
+const playerUser = {
+  id: 'player_1',
+  email: 'player@example.com',
+  emailVerified: true,
+  handle: 'charlie',
+  handleChangedAt: null,
+  displayName: 'Charlie',
+  displayNameChangedAt: null,
+  profileVisibility: 'public',
+  accountRole: 'player',
+};
+
 describe('forum pages', () => {
   afterEach(() => {
     vi.restoreAllMocks();
@@ -153,6 +165,23 @@ describe('forum pages', () => {
       root.querySelector<HTMLAnchorElement>('.forum-category-latest-author')?.getAttribute('href'),
     ).toBe('/@/bob');
     expect(root.querySelector('.forum-topic-title')).toBeNull();
+  });
+
+  it('links admins to the forum report queue from the forum index', async () => {
+    vi.spyOn(globalThis, 'fetch').mockImplementation(async (input) => {
+      const url = String(input);
+      if (url.startsWith('/api/forum/categories')) return json({ categories });
+      if (url.startsWith('/api/auth/me')) return json({ user: adminUser });
+      throw new Error(`unexpected fetch ${url}`);
+    });
+    const root = document.createElement('div');
+    const { mountForum } = await import('./forum.js');
+
+    await mountForum(root);
+
+    const reports = root.querySelector<HTMLAnchorElement>('.forum-report-admin-link');
+    expect(reports?.textContent).toBe('Reports');
+    expect(reports?.getAttribute('href')).toBe('/forum/reports');
   });
 
   it('renders a selected category as a focused topic view', async () => {
@@ -525,6 +554,220 @@ describe('forum pages', () => {
     expect(JSON.parse(String(postCall?.[1]?.body))).toEqual({
       action: 'hide',
       reason: 'spam post',
+    });
+  });
+
+  it('lets signed-in users report topics and posts with reasons', async () => {
+    window.history.pushState(null, '', '/forum/t/topic_strategy/scouting-the-center');
+    vi.stubGlobal(
+      'prompt',
+      vi.fn().mockReturnValueOnce('bad topic').mockReturnValueOnce('bad post'),
+    );
+    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockImplementation(async (input, init) => {
+      const url = String(input);
+      if (url === '/api/forum/topics/topic_strategy/report' && init?.method === 'POST') {
+        return json({ report: { id: 'forum_report_topic' } });
+      }
+      if (url === '/api/forum/posts/post_1/report' && init?.method === 'POST') {
+        return json({ report: { id: 'forum_report_post' } });
+      }
+      if (url.startsWith('/api/forum/categories')) return json({ categories });
+      if (url.startsWith('/api/forum/topics/topic_strategy')) {
+        return json({
+          topic: {
+            ...topic,
+            posts: [
+              {
+                id: 'post_1',
+                author: { handle: 'alice', displayName: 'Alice' },
+                bodyText: 'Opening post.',
+                createdAt: '2026-06-01T00:00:00.000Z',
+                updatedAt: '2026-06-01T00:00:00.000Z',
+              },
+            ],
+          },
+        });
+      }
+      if (url.startsWith('/api/auth/me')) return json({ user: playerUser });
+      throw new Error(`unexpected fetch ${url}`);
+    });
+    const root = document.createElement('div');
+    const { mountForumTopic } = await import('./forum.js');
+
+    await mountForumTopic(root, 'topic_strategy');
+    const reportTopic = root.querySelector<HTMLButtonElement>('.forum-topic-report');
+    const reportPost = root.querySelector<HTMLButtonElement>('.forum-post-report');
+    if (!reportTopic || !reportPost) throw new Error('missing report buttons');
+
+    reportTopic.click();
+    await flushPromises();
+    reportPost.click();
+    await flushPromises();
+
+    const topicCall = fetchSpy.mock.calls.find(
+      ([input, init]) =>
+        String(input) === '/api/forum/topics/topic_strategy/report' && init?.method === 'POST',
+    );
+    const postCall = fetchSpy.mock.calls.find(
+      ([input, init]) =>
+        String(input) === '/api/forum/posts/post_1/report' && init?.method === 'POST',
+    );
+    expect(JSON.parse(String(topicCall?.[1]?.body))).toEqual({ reason: 'bad topic' });
+    expect(JSON.parse(String(postCall?.[1]?.body))).toEqual({ reason: 'bad post' });
+    expect(reportTopic.textContent).toBe('Reported');
+    expect(reportPost.textContent).toBe('Reported');
+  });
+
+  it('renders an admin forum report queue and resolves reports', async () => {
+    window.history.pushState(null, '', '/forum/reports');
+    vi.stubGlobal('prompt', vi.fn().mockReturnValueOnce('handled'));
+    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockImplementation(async (input, init) => {
+      const url = String(input);
+      if (url === '/api/forum/reports?limit=51&offset=0') {
+        return json({
+          reports: [
+            {
+              id: 'forum_report_post',
+              status: 'open',
+              targetType: 'post',
+              reason: 'bad post',
+              resolutionNote: null,
+              reporter: { handle: 'charlie', displayName: 'Charlie' },
+              resolver: null,
+              createdAt: '2026-06-01T00:10:00.000Z',
+              updatedAt: '2026-06-01T00:10:00.000Z',
+              resolvedAt: null,
+              topic: {
+                id: 'topic_strategy',
+                slug: 'scouting-the-center',
+                title: 'Scouting the center',
+                category: { slug: 'general-discussion', name: 'General Discussion' },
+                hidden: false,
+              },
+              post: {
+                id: 'post_1',
+                page: 1,
+                snippet: 'Opening post.',
+                author: { handle: 'alice', displayName: 'Alice' },
+                createdAt: '2026-06-01T00:00:00.000Z',
+                hidden: false,
+              },
+            },
+          ],
+        });
+      }
+      if (url === '/api/forum/reports/forum_report_post' && init?.method === 'PATCH') {
+        return json({ report: { id: 'forum_report_post', status: 'resolved' } });
+      }
+      throw new Error(`unexpected fetch ${url}`);
+    });
+    const root = document.createElement('div');
+    const { mountForumReports } = await import('./forum.js');
+
+    await mountForumReports(root);
+
+    expect(root.textContent).toContain('Forum reports');
+    expect(root.textContent).toContain('bad post');
+    expect(root.textContent).toContain('Opening post.');
+    expect(root.querySelector<HTMLAnchorElement>('.forum-report-title')?.getAttribute('href')).toBe(
+      '/forum/t/topic_strategy/scouting-the-center#post_post_1',
+    );
+    expect(
+      Array.from(root.querySelectorAll('button'), (button) => button.textContent?.trim()),
+    ).toContain('Hide post');
+    const resolve = Array.from(root.querySelectorAll<HTMLButtonElement>('button')).find(
+      (button) => button.textContent?.trim() === 'Resolve',
+    );
+    if (!resolve) throw new Error('missing resolve button');
+
+    resolve.click();
+    await flushPromises();
+
+    const resolutionCall = fetchSpy.mock.calls.find(
+      ([input, init]) =>
+        String(input) === '/api/forum/reports/forum_report_post' && init?.method === 'PATCH',
+    );
+    expect(JSON.parse(String(resolutionCall?.[1]?.body))).toEqual({
+      status: 'resolved',
+      resolutionNote: 'handled',
+    });
+  });
+
+  it('hides reported posts from the admin report queue', async () => {
+    window.history.pushState(null, '', '/forum/reports');
+    vi.stubGlobal('prompt', vi.fn().mockReturnValueOnce('bad post'));
+    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockImplementation(async (input, init) => {
+      const url = String(input);
+      if (url === '/api/forum/reports?limit=51&offset=0') {
+        return json({
+          reports: [
+            {
+              id: 'forum_report_post',
+              status: 'open',
+              targetType: 'post',
+              reason: 'bad post',
+              resolutionNote: null,
+              reporter: { handle: 'charlie', displayName: 'Charlie' },
+              resolver: null,
+              createdAt: '2026-06-01T00:10:00.000Z',
+              updatedAt: '2026-06-01T00:10:00.000Z',
+              resolvedAt: null,
+              topic: {
+                id: 'topic_strategy',
+                slug: 'scouting-the-center',
+                title: 'Scouting the center',
+                category: { slug: 'general-discussion', name: 'General Discussion' },
+                hidden: false,
+              },
+              post: {
+                id: 'post_1',
+                page: 1,
+                snippet: 'Opening post.',
+                author: { handle: 'alice', displayName: 'Alice' },
+                createdAt: '2026-06-01T00:00:00.000Z',
+                hidden: false,
+              },
+            },
+          ],
+        });
+      }
+      if (url === '/api/forum/posts/post_1/moderation' && init?.method === 'POST') {
+        return json({ ok: true, topicHidden: false });
+      }
+      if (url === '/api/forum/reports/forum_report_post' && init?.method === 'PATCH') {
+        return json({ report: { id: 'forum_report_post', status: 'resolved' } });
+      }
+      throw new Error(`unexpected fetch ${url}`);
+    });
+    const root = document.createElement('div');
+    const { mountForumReports } = await import('./forum.js');
+
+    await mountForumReports(root);
+
+    const hidePost = Array.from(root.querySelectorAll<HTMLButtonElement>('button')).find(
+      (button) => button.textContent?.trim() === 'Hide post',
+    );
+    if (!hidePost) throw new Error('missing hide post button');
+
+    hidePost.click();
+    await flushPromises();
+    await flushPromises();
+
+    const moderationCall = fetchSpy.mock.calls.find(
+      ([input, init]) =>
+        String(input) === '/api/forum/posts/post_1/moderation' && init?.method === 'POST',
+    );
+    const resolutionCall = fetchSpy.mock.calls.find(
+      ([input, init]) =>
+        String(input) === '/api/forum/reports/forum_report_post' && init?.method === 'PATCH',
+    );
+    expect(JSON.parse(String(moderationCall?.[1]?.body))).toEqual({
+      action: 'hide',
+      reason: 'bad post',
+    });
+    expect(JSON.parse(String(resolutionCall?.[1]?.body))).toEqual({
+      status: 'resolved',
+      resolutionNote: 'Hidden reported post.',
     });
   });
 

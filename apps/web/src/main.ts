@@ -97,8 +97,10 @@ const wantsArticlesIndex =
 const wantsNews = path === '/news' || page === 'news';
 const forumRedirectPostId = forumRedirectPostIdFromPath(path);
 const forumTopicId = forumTopicIdFromPath(path);
+const wantsForumReports = path === '/forum/reports';
 const forumCategorySlug = forumCategorySlugFromPath(path);
-const wantsForum = path === '/forum' || forumCategorySlug !== null || page === 'forum';
+const wantsForum =
+  path === '/forum' || (forumCategorySlug !== null && !wantsForumReports) || page === 'forum';
 const wantsLegacyPlay = path === '/play' || page === 'play';
 const wantsWatch = path === '/watch' || page === 'watch';
 const puzzleId = puzzleIdFromPath(path);
@@ -314,6 +316,11 @@ if (replaySample) {
   setTitle('Forum');
   void mountOrReport(() =>
     import('./forum.js').then(({ mountForumTopic }) => mountForumTopic(appRoot, forumTopicId)),
+  );
+} else if (wantsForumReports) {
+  setTitle('Forum reports');
+  void mountOrReport(() =>
+    import('./forum.js').then(({ mountForumReports }) => mountForumReports(appRoot)),
   );
 } else if (wantsForum) {
   setTitle('Forum');

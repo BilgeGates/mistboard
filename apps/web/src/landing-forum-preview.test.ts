@@ -5,26 +5,22 @@ describe('landing forum preview', () => {
     vi.restoreAllMocks();
   });
 
-  it('hydrates the homepage forum box with category activity links', async () => {
-    vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+  it('hydrates the homepage forum box with recent active topics', async () => {
+    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue(
       new Response(
         JSON.stringify({
-          categories: [
+          topics: [
             {
-              slug: 'strategy',
-              name: 'Strategy',
-              description: 'Openings and patterns.',
-              topicCount: 1,
+              id: 'topic_1',
+              slug: 'first-topic',
+              title: 'First topic',
+              category: { slug: 'strategy', name: 'Strategy' },
+              author: { handle: 'bob', displayName: 'Bob' },
               postCount: 2,
+              lastPostAt: '2026-06-01T00:00:00.000Z',
               latestPost: {
                 post: {
                   id: 'post_1',
-                },
-                topic: {
-                  id: 'topic_1',
-                  slug: 'first-topic',
-                  title: 'First topic',
-                  postCount: 2,
                 },
                 author: { handle: 'alice', displayName: 'Alice' },
                 createdAt: '2026-06-01T00:00:00.000Z',
@@ -41,19 +37,23 @@ describe('landing forum preview', () => {
     await new Promise((resolve) => setTimeout(resolve, 0));
 
     const header = box.querySelector<HTMLElement>('.landing-forum-header');
-    const categoryRow = box.querySelector<HTMLElement>(
+    const topicRow = box.querySelector<HTMLElement>(
       '.landing-forum-row:not(.landing-forum-header)',
     );
-    const categoryLink = box.querySelector<HTMLAnchorElement>('a.landing-forum-row-main');
+    const topicLink = box.querySelector<HTMLAnchorElement>('a.landing-forum-row-main');
     const latestPostLink = box.querySelector<HTMLAnchorElement>('a.landing-forum-row-last-title');
     const latestAuthorLink = box.querySelector<HTMLAnchorElement>('a.landing-forum-row-author');
-    expect(header?.textContent).toContain('Forum');
-    expect(categoryLink?.getAttribute('href')).toBe('/forum/strategy');
+    expect(fetchSpy).toHaveBeenCalledWith('/api/forum/topics?limit=5&offset=0', {
+      headers: { accept: 'application/json' },
+    });
+    expect(header?.textContent).toContain('Topic');
+    expect(header?.textContent).toContain('Replies');
+    expect(topicLink?.getAttribute('href')).toBe('/forum/t/topic_1/first-topic');
     expect(latestPostLink?.getAttribute('href')).toBe('/forum/t/topic_1/first-topic#post_post_1');
     expect(latestAuthorLink?.getAttribute('href')).toBe('/@/alice');
-    expect(categoryRow?.textContent).toContain('First topic');
-    expect(categoryRow?.textContent).toContain('by Alice');
-    expect(categoryRow?.textContent).toContain('Strategy');
-    expect(categoryRow?.textContent).toContain('2');
+    expect(topicRow?.textContent).toContain('First topic');
+    expect(topicRow?.textContent).toContain('by Alice');
+    expect(topicRow?.textContent).toContain('Strategy');
+    expect(topicRow?.textContent).toContain('1');
   });
 });

@@ -88,6 +88,37 @@ type ForumPostSearchJson = {
   createdAt: string;
 };
 
+type ForumReportJson = {
+  id: string;
+  status: persistence.ForumReportStatus;
+  targetType: persistence.ForumReport['targetType'];
+  reason: string;
+  resolutionNote: string | null;
+  reporter: persistence.ForumAuthor;
+  resolver: persistence.ForumAuthor;
+  createdAt: string;
+  updatedAt: string;
+  resolvedAt: string | null;
+  topic: {
+    id: string;
+    slug: string;
+    title: string;
+    category: {
+      slug: string;
+      name: string;
+    };
+    hidden: boolean;
+  };
+  post: {
+    id: string;
+    page: number;
+    snippet: string;
+    author: persistence.ForumAuthor;
+    createdAt: string;
+    hidden: boolean;
+  } | null;
+};
+
 export async function tryHandle(
   _ctx: unknown,
   request: IncomingMessage,
@@ -121,6 +152,31 @@ export async function tryHandle(
     return true;
   }
 
+  if (pathname === '/api/forum/reports') {
+    if (!requireMethod(request, response, 'GET')) return true;
+    if (!requirePersistence(response)) return true;
+    if (!(await requireAdminSession(request, response))) return true;
+    const status = normalizeReportStatusFilter(parsedUrl.searchParams.get('status'));
+    if (!status) {
+      writeJson(response, 400, { error: 'invalid_status' });
+      return true;
+    }
+    const reports = await persistence.listForumReports({
+      status,
+      limit: clampInt(parsedUrl.searchParams.get('limit'), 50, 1, 100),
+      offset: clampInt(parsedUrl.searchParams.get('offset'), 0, 0, 10_000),
+    });
+    writeJson(response, 200, { reports: reports.map(serializeReport) });
+    return true;
+  }
+
+  const reportMatch = pathname.match(/^\/api\/forum\/reports\/([^/]+)$/);
+  if (reportMatch) {
+    if (!requireMethod(request, response, 'PATCH')) return true;
+    if (!requirePersistence(response)) return true;
+    return resolveReport(request, response, decodeURIComponent(reportMatch[1]!));
+  }
+
   if (pathname === '/api/forum/topics') {
     if (!requirePersistence(response)) return true;
     const method = request.method ?? 'GET';
@@ -136,6 +192,13 @@ export async function tryHandle(
     if (method === 'POST') return createTopic(request, response);
     writeJson(response, 405, { error: 'method_not_allowed' });
     return true;
+  }
+
+  const topicReportMatch = pathname.match(/^\/api\/forum\/topics\/([^/]+)\/report$/);
+  if (topicReportMatch) {
+    if (!requireMethod(request, response, 'POST')) return true;
+    if (!requirePersistence(response)) return true;
+    return createTopicReport(request, response, decodeURIComponent(topicReportMatch[1]!));
   }
 
   const postsMatch = pathname.match(/^\/api\/forum\/topics\/([^/]+)\/posts$/);
@@ -182,6 +245,13 @@ export async function tryHandle(
     }
     writeJson(response, 200, { href: forumPostHref(location) });
     return true;
+  }
+
+  const postReportMatch = pathname.match(/^\/api\/forum\/posts\/([^/]+)\/report$/);
+  if (postReportMatch) {
+    if (!requireMethod(request, response, 'POST')) return true;
+    if (!requirePersistence(response)) return true;
+    return createPostReport(request, response, decodeURIComponent(postReportMatch[1]!));
   }
 
   const postModerationMatch = pathname.match(/^\/api\/forum\/posts\/([^/]+)\/moderation$/);
@@ -303,6 +373,72 @@ async function createPost(
     return true;
   }
   writeJson(response, 201, { post: serializePost(result.post) });
+  return true;
+}
+
+async function createTopicReport(
+  request: IncomingMessage,
+  response: ServerResponse,
+  topicId: string,
+): Promise<boolean> {
+  const user = await currentAccountUser(request);
+  if (!user) {
+    writeJson(response, 401, { error: 'not_signed_in' });
+    return true;
+  }
+  const body = await readJsonBody(request);
+  const reason = normalizeRequiredReason(typeof body.reason === 'string' ? body.reason : '');
+  if (!reason) {
+    writeJson(response, 400, { error: 'invalid_reason' });
+    return true;
+  }
+  const result = await persistence.createForumTopicReport({
+    id: `forum_report_${randomUUID()}`,
+    topicId,
+    reporterAccountId: user.id,
+    reason,
+    now: new Date(),
+  });
+  if (!result.ok) {
+    const status =
+      result.error === 'topic_not_found' ? 404 : result.error === 'already_reported' ? 409 : 403;
+    writeJson(response, status, { error: result.error });
+    return true;
+  }
+  writeJson(response, 201, { report: serializeReport(result.report) });
+  return true;
+}
+
+async function createPostReport(
+  request: IncomingMessage,
+  response: ServerResponse,
+  postId: string,
+): Promise<boolean> {
+  const user = await currentAccountUser(request);
+  if (!user) {
+    writeJson(response, 401, { error: 'not_signed_in' });
+    return true;
+  }
+  const body = await readJsonBody(request);
+  const reason = normalizeRequiredReason(typeof body.reason === 'string' ? body.reason : '');
+  if (!reason) {
+    writeJson(response, 400, { error: 'invalid_reason' });
+    return true;
+  }
+  const result = await persistence.createForumPostReport({
+    id: `forum_report_${randomUUID()}`,
+    postId,
+    reporterAccountId: user.id,
+    reason,
+    now: new Date(),
+  });
+  if (!result.ok) {
+    const status =
+      result.error === 'post_not_found' ? 404 : result.error === 'already_reported' ? 409 : 403;
+    writeJson(response, status, { error: result.error });
+    return true;
+  }
+  writeJson(response, 201, { report: serializeReport(result.report) });
   return true;
 }
 
@@ -463,6 +599,41 @@ async function moderatePost(
   return true;
 }
 
+async function resolveReport(
+  request: IncomingMessage,
+  response: ServerResponse,
+  reportId: string,
+): Promise<boolean> {
+  if (!(await requireAdminSession(request, response))) return true;
+  const user = await currentAccountUser(request);
+  const body = await readJsonBody(request);
+  const status = normalizeReportResolutionStatus(body.status);
+  if (!status) {
+    writeJson(response, 400, { error: 'invalid_status' });
+    return true;
+  }
+  const resolutionNote = normalizeModerationReason(
+    typeof body.resolutionNote === 'string' ? body.resolutionNote : null,
+  );
+  if (resolutionNote === false) {
+    writeJson(response, 400, { error: 'invalid_resolution_note' });
+    return true;
+  }
+  const result = await persistence.resolveForumReport({
+    reportId,
+    moderatorAccountId: user?.id ?? null,
+    status,
+    resolutionNote,
+    now: new Date(),
+  });
+  if (!result.ok) {
+    writeJson(response, 404, { error: result.error });
+    return true;
+  }
+  writeJson(response, 200, { report: serializeReport(result.report) });
+  return true;
+}
+
 function serializeCategory(category: persistence.ForumCategory): ForumCategoryJson {
   return {
     id: category.id,
@@ -539,6 +710,38 @@ function serializePostSearchResult(result: persistence.ForumPostSearchResult): F
   };
 }
 
+function serializeReport(report: persistence.ForumReport): ForumReportJson {
+  return {
+    id: report.id,
+    status: report.status,
+    targetType: report.targetType,
+    reason: report.reason,
+    resolutionNote: report.resolutionNote,
+    reporter: report.reporter,
+    resolver: report.resolver,
+    createdAt: report.createdAt.toISOString(),
+    updatedAt: report.updatedAt.toISOString(),
+    resolvedAt: report.resolvedAt?.toISOString() ?? null,
+    topic: {
+      id: report.topic.id,
+      slug: report.topic.slug,
+      title: report.topic.title,
+      category: report.topic.category,
+      hidden: report.topic.hiddenAt !== null,
+    },
+    post: report.post
+      ? {
+          id: report.post.id,
+          page: report.post.page,
+          snippet: report.post.snippet,
+          author: report.post.author,
+          createdAt: report.post.createdAt.toISOString(),
+          hidden: report.post.hiddenAt !== null,
+        }
+      : null,
+  };
+}
+
 function normalizeSlug(value: string): string | null {
   const trimmed = value.trim().toLowerCase();
   return /^[a-z0-9][a-z0-9-]{0,62}[a-z0-9]$/.test(trimmed) ? trimmed : null;
@@ -563,9 +766,29 @@ function normalizeModerationReason(value: string | null): string | null | false 
   return reason.length <= moderationReasonMaxLength ? reason : false;
 }
 
+function normalizeRequiredReason(value: string): string | null {
+  const reason = value.trim().replace(/\s+/g, ' ');
+  if (reason.length === 0 || reason.length > moderationReasonMaxLength) return null;
+  return reason;
+}
+
 function normalizeSearchQuery(value: string | null): string | null {
   const query = (value ?? '').trim().replace(/\s+/g, ' ');
   return query.length >= 2 && query.length <= 120 ? query : null;
+}
+
+function normalizeReportStatusFilter(
+  value: string | null,
+): persistence.ForumReportStatus | 'all' | null {
+  if (value === null || value === '' || value === 'open') return 'open';
+  if (value === 'resolved' || value === 'dismissed' || value === 'all') return value;
+  return null;
+}
+
+function normalizeReportResolutionStatus(
+  value: unknown,
+): persistence.ForumReportResolutionStatus | null {
+  return value === 'resolved' || value === 'dismissed' ? value : null;
 }
 
 function normalizeTopicModerationAction(
