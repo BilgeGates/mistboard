@@ -24,11 +24,27 @@ describe('landing announcements', () => {
     expect(hrefs).toEqual([
       '/rules/drop-mini-xiangqi',
       '/rules/dark-crazyhouse',
-      '/rules/dark-crossroads-chess',
       '/rules/dark-shogi',
-      '/rules/kriegspiel',
-      '/rules/reveal-chess',
+      '/rules/dark-xiangqi',
+      '/rules/banqi',
+      '/rules/jieqi',
     ]);
+  });
+
+  it('keeps parked and gated variant launches out of the homepage News rail', () => {
+    vi.stubEnv('DEV', false);
+
+    const panel = buildLandingAnnouncements();
+    const hrefs = new Set(
+      [...panel.querySelectorAll<HTMLAnchorElement>('a.landing-news-row')].map((row) =>
+        row.getAttribute('href'),
+      ),
+    );
+
+    expect(hrefs).not.toContain('/rules/reveal-chess');
+    expect(hrefs).not.toContain('/rules/crossroads-chess');
+    expect(hrefs).not.toContain('/rules/dark-crossroads-chess');
+    expect(hrefs).not.toContain('/rules/kriegspiel');
   });
 
   it('shows the Drop Mini Xiangqi launch announcement by default', () => {

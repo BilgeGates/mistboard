@@ -15,7 +15,9 @@ export function buildLandingAnnouncements(): HTMLElement {
   if (entries.length === 0) return panel;
 
   const news = buildSiteBox({ title: 'News', href: '/news', className: 'landing-news' });
-  const ordered = [...entries].sort((a, b) => b.date.localeCompare(a.date));
+  const ordered = entries
+    .filter((entry) => entry.showInLandingNews !== false)
+    .sort((a, b) => b.date.localeCompare(a.date));
   for (const entry of ordered.slice(0, MAX_FEED_ROWS)) {
     news.body.append(renderFeedRow(entry));
   }
