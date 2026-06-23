@@ -5,6 +5,7 @@ import { DARK_XIANGQI_SPEC_ID } from '@mistboard/game';
 import type { DarkXiangqiRuntimeRoom } from './dark-xiangqi-runtime.js';
 import {
   type DarkXiangqiCreateContext,
+  darkXiangqiPveHumanColor,
   handleDarkXiangqiCreate,
   requestsDarkXiangqi,
 } from './routes/dark-xiangqi-rooms.js';
@@ -63,7 +64,7 @@ test('Dark Xiangqi room route rejects unsupported create surfaces before room cr
   process.env[darkXiangqiFlag] = 'true';
   try {
     for (const body of [
-      { gameSpecId: DARK_XIANGQI_SPEC_ID, mode: 'pve' },
+      { gameSpecId: DARK_XIANGQI_SPEC_ID, mode: 'bogus' },
       { gameSpecId: DARK_XIANGQI_SPEC_ID, mode: 'pvp', rated: true },
       { engineId: 'engine', gameSpecId: DARK_XIANGQI_SPEC_ID, mode: 'pvp' },
     ]) {
@@ -84,6 +85,147 @@ test('Dark Xiangqi room route rejects unsupported create surfaces before room cr
       assert.deepEqual(responseJson(response), { error: 'dark_xiangqi_unsupported_surface' });
       assert.equal(createCalls, 0);
     }
+  } finally {
+    restoreFlag(before);
+  }
+});
+
+test('Dark Xiangqi PvE color selection honors random and explicit black', () => {
+  assert.equal(darkXiangqiPveHumanColor(undefined), 'red');
+  assert.equal(darkXiangqiPveHumanColor('red'), 'red');
+  assert.equal(darkXiangqiPveHumanColor('black'), 'black');
+  assert.equal(darkXiangqiPveHumanColor('random', 0), 'red');
+  assert.equal(darkXiangqiPveHumanColor('random', 255), 'black');
+});
+
+test('Dark Xiangqi PvE route seats the default engine opposite the human', async () => {
+  const before = process.env[darkXiangqiFlag];
+  process.env[darkXiangqiFlag] = 'true';
+  try {
+    let requestedEngine: unknown;
+    let reservedColor: string | undefined;
+    const response = captureResponse();
+    await handleDarkXiangqiCreate(
+      testContext({
+        reserveLiveEngineSeat: async (_engineId, color) => {
+          reservedColor = color;
+          return 'reservation-dxq';
+        },
+        createDarkXiangqiRoom: async (_timeControl, _creatorPreference, engine) => {
+          requestedEngine = engine;
+          return { ok: true, room: darkXiangqiRoom('dxq_pve') };
+        },
+      }),
+      response,
+      { gameSpecId: DARK_XIANGQI_SPEC_ID, mode: 'pve', preferredColor: 'red' },
+    );
+
+    assert.equal(reservedColor, 'black');
+    assert.deepEqual(requestedEngine, {
+      engineId: 'python-fdx-v1.0',
+      seat: 'black',
+      reservationId: 'reservation-dxq',
+    });
+    assert.equal(response.status, 201);
+    assert.deepEqual(responseJson(response), {
+      roomId: 'dxq_pve',
+      url: '/room/dxq_pve',
+      mode: 'pve',
+      gameSpecId: DARK_XIANGQI_SPEC_ID,
+      region: 'global',
+    });
+  } finally {
+    restoreFlag(before);
+  }
+});
+
+test('Dark Xiangqi PvE route carries bot id and seats engine opposite human black', async () => {
+  const before = process.env[darkXiangqiFlag];
+  process.env[darkXiangqiFlag] = 'true';
+  try {
+    let requestedEngine: unknown;
+    let reservedColor: string | undefined;
+    const response = captureResponse();
+    await handleDarkXiangqiCreate(
+      testContext({
+        reserveLiveEngineSeat: async (_engineId, color) => {
+          reservedColor = color;
+          return 'reservation-red';
+        },
+        createDarkXiangqiRoom: async (_timeControl, _creatorPreference, engine) => {
+          requestedEngine = engine;
+          return { ok: true, room: darkXiangqiRoom('dxq_pve_black') };
+        },
+      }),
+      response,
+      {
+        botId: 'misty-dxq',
+        engineId: 'python-fdx-v1.0',
+        gameSpecId: DARK_XIANGQI_SPEC_ID,
+        mode: 'pve',
+        preferredColor: 'black',
+      },
+    );
+
+    assert.equal(reservedColor, 'white');
+    assert.deepEqual(requestedEngine, {
+      engineId: 'python-fdx-v1.0',
+      seat: 'red',
+      reservationId: 'reservation-red',
+      botId: 'misty-dxq',
+    });
+    assert.equal(response.status, 201);
+  } finally {
+    restoreFlag(before);
+  }
+});
+
+test('Dark Xiangqi PvE route returns 503 when no engine seat is available', async () => {
+  const before = process.env[darkXiangqiFlag];
+  process.env[darkXiangqiFlag] = 'true';
+  try {
+    let createCalls = 0;
+    const response = captureResponse();
+    await handleDarkXiangqiCreate(
+      testContext({
+        reserveLiveEngineSeat: async () => null,
+        createDarkXiangqiRoom: async () => {
+          createCalls += 1;
+          return { ok: true, room: darkXiangqiRoom('dxq_unreachable') };
+        },
+      }),
+      response,
+      { gameSpecId: DARK_XIANGQI_SPEC_ID, mode: 'pve' },
+    );
+
+    assert.equal(response.status, 503);
+    assert.deepEqual(responseJson(response), { error: 'engine_unavailable' });
+    assert.equal(createCalls, 0);
+  } finally {
+    restoreFlag(before);
+  }
+});
+
+test('Dark Xiangqi PvE route rejects an unknown engineId before room creation', async () => {
+  const before = process.env[darkXiangqiFlag];
+  process.env[darkXiangqiFlag] = 'true';
+  try {
+    let createCalls = 0;
+    const response = captureResponse();
+    await handleDarkXiangqiCreate(
+      testContext({
+        createDarkXiangqiRoom: async () => {
+          createCalls += 1;
+          return { ok: true, room: darkXiangqiRoom('dxq_unreachable') };
+        },
+      }),
+      response,
+      { gameSpecId: DARK_XIANGQI_SPEC_ID, mode: 'pve', engineId: 'not-dxq' },
+    );
+
+    assert.equal(response.status, 400);
+    assert.deepEqual(responseJson(response), { error: 'invalid_engine' });
+    assert.equal(createCalls, 0);
   } finally {
     restoreFlag(before);
   }
@@ -227,6 +369,7 @@ function testContext(overrides: Partial<DarkXiangqiCreateContext> = {}): DarkXia
     databaseRequired: false,
     drainDeadlineMs: () => null,
     isDraining: () => false,
+    reserveLiveEngineSeat: async () => null,
     ...overrides,
   };
 }

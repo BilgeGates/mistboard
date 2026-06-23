@@ -89,9 +89,16 @@ export function isDarkMiniXiangqiEngineClientId(clientId: string | undefined): b
   return KNOWN_ENGINES[clientId]?.gameSpecId === 'dark-mini-xiangqi';
 }
 
+// True iff `clientId` is a registered engine that plays full Dark Xiangqi.
+export function isDarkXiangqiEngineClientId(clientId: string | undefined): boolean {
+  if (!clientId) return false;
+  return KNOWN_ENGINES[clientId]?.gameSpecId === 'dark-xiangqi';
+}
+
 // The default Dark Mini Xiangqi PvE engine (the single player-facing DMX engine,
 // mirroring Misty for chess).
 export const DARK_MINI_XIANGQI_DEFAULT_ENGINE_ID = 'python-dmx-v1.0';
+export const DARK_XIANGQI_DEFAULT_ENGINE_ID = 'python-fdx-v1.0';
 
 const PYTHON_ENGINES: Record<string, EngineDefinition> = {
   'python-tier1-v0.9.5': {
@@ -449,6 +456,31 @@ const PYTHON_ENGINES: Record<string, EngineDefinition> = {
     notes:
       'Misty DMX 1.0 — Dark Mini Xiangqi engine served through the variant-aware worker adapter. ' +
       'Pinned to engine 3ae331c (guarded recommended profile + bounded mini belief cap + live-build guard fix).',
+  },
+  // Full Dark Xiangqi engine. Local/dev-only: not in the chess PvE picker and
+  // not in PROD_PLAYABLE_ENGINE_IDS. The Dark Xiangqi route defaults to it for
+  // PvE when the variant flag is enabled.
+  'python-fdx-v1.0': {
+    id: 'python-fdx-v1.0',
+    engineId: 'v2',
+    engineName: 'Misty DXQ',
+    name: 'Misty DXQ 1.0',
+    kind: 'container',
+    gameSpecId: 'dark-xiangqi',
+    configHash: 'fdx-v1.0-64x12-20m',
+    playSignature: 'fdx-v1.0-64x12-20m',
+    config: {
+      kind: 'python-subprocess',
+      strategy: 'v2-xiangqi',
+      version: '1.0',
+      config: 'fdx-64x12-20m-pikafish-d1',
+      config_hash: '64x12-20m',
+      engine_pin: 'fdx-v1.0-local',
+    },
+    livePolicy: { timeoutMs: 60_000 },
+    notes:
+      'Misty DXQ 1.0 — Full Dark Xiangqi local/dev engine served through the ' +
+      'variant-aware worker adapter (64x12, 20M cap, Pikafish depth 1).',
   },
   'python-tier1-v0.9.1': {
     id: 'python-tier1-v0.9.1',

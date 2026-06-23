@@ -1,11 +1,12 @@
 /**
  * Thin adapter over the generic tenant room factory
  * (variant-tenant/room-factory.ts) for hidden Dark Xiangqi. No running-game
- * record (recordGameStart omitted) and no PvE/rated options, matching the
- * pre-migration factory.
+ * record (recordGameStart omitted) and no rated options, matching the
+ * pre-migration factory. PvE can pre-seat a local/dev engine through the generic
+ * tenant room factory.
  */
 
-import type { RoomTimeControl } from '@mistboard/game';
+import type { RoomTimeControl, XiangqiColor } from '@mistboard/game';
 import type {
   DarkXiangqiCreatorPreference,
   DarkXiangqiEvent,
@@ -13,7 +14,9 @@ import type {
 } from './dark-xiangqi-runtime.js';
 import { darkXiangqiTenant } from './dark-xiangqi-tenant.js';
 import type { DarkXiangqiLiveRoom } from './server-ws-dark-xiangqi.js';
-import { createTenantLiveRoom } from './variant-tenant/room-factory.js';
+import { createTenantLiveRoom, type TenantRoomEngineSeat } from './variant-tenant/room-factory.js';
+
+export type DarkXiangqiRoomEngineSeat = TenantRoomEngineSeat<XiangqiColor>;
 
 export type DarkXiangqiLiveRoomCreation =
   | { ok: true; room: DarkXiangqiLiveRoom }
@@ -33,6 +36,7 @@ export async function createDarkXiangqiLiveRoom(
   ctx: DarkXiangqiLiveRoomFactoryContext,
   timeControl?: RoomTimeControl,
   creatorPreference?: DarkXiangqiCreatorPreference,
+  engine?: DarkXiangqiRoomEngineSeat,
 ): Promise<DarkXiangqiLiveRoomCreation> {
   const created = await createTenantLiveRoom(
     darkXiangqiTenant,
@@ -47,7 +51,7 @@ export async function createDarkXiangqiLiveRoom(
       isPersistenceEnabled: ctx.isPersistenceEnabled,
       recordPersistenceError: ctx.recordPersistenceError,
     },
-    { timeControl, creatorPreference },
+    { timeControl, creatorPreference, engine },
   );
   if (!created.ok) {
     return created.error === 'disabled'

@@ -1,0 +1,201 @@
+/**
+ * Server-side engine-move loop for full Dark Xiangqi PvE.
+ *
+ * Mirrors the DMX loop: build a redacted 9x10 EngineTurnRequest, ask the
+ * internal engine worker, then append the returned move through the normal
+ * tenant event path so clients, clocks, persistence, and lifecycle timers stay
+ * on the same code path as human moves.
+ */
+
+import { getLegalMoves as getXiangqiLegalMoves, type XiangqiColor } from '@mistboard/game';
+import { darkXiangqiClockRemainingMs, type DarkXiangqiEvent } from './dark-xiangqi-runtime.js';
+import { buildXiangqiEngineTurnRequest } from './engine-protocol/build-xiangqi.js';
+import { isDarkXiangqiEngineClientId, loadEngine } from './engines/registry.js';
+import { requestInternalEngineTurn } from './internal-engine-client.js';
+import { logger } from './obs.js';
+import type { DarkXiangqiLiveRoom } from './server-ws-dark-xiangqi.js';
+
+const ENGINE_SECRET = process.env.MISTBOARD_ENGINE_SECRET ?? 'mistboard-dev-engine-secret';
+const DEFAULT_TIMEOUT_MS = 60_000;
+const BUDGET_SAFETY_MS = 1_500;
+const PROCESS_OVERHEAD_MS = 1_500;
+const CLOCK_GRACE_MS = 2_000;
+const MAX_TIMEOUT_MS = 60_000;
+
+export type DarkXiangqiEngineContext = {
+  appendEvent(room: DarkXiangqiLiveRoom, event: DarkXiangqiEvent): Promise<number>;
+  broadcastEventAppended(room: DarkXiangqiLiveRoom, event: DarkXiangqiEvent, seq: number): void;
+  now?(): number;
+};
+
+export function darkXiangqiEngineSeatFor(room: DarkXiangqiLiveRoom): XiangqiColor | null {
+  for (const seat of ['red', 'black'] as const) {
+    if (isDarkXiangqiEngineClientId(room.projection.seats[seat])) return seat;
+  }
+  return null;
+}
+
+function bothSeatsFilled(room: DarkXiangqiLiveRoom): boolean {
+  return Boolean(room.projection.seats.red && room.projection.seats.black);
+}
+
+function engineToMove(room: DarkXiangqiLiveRoom, seat: XiangqiColor): boolean {
+  const status = room.projection.state.status;
+  return status.type === 'playing' && status.turn === seat && bothSeatsFilled(room);
+}
+
+export function scheduleDarkXiangqiEngineMove(
+  ctx: DarkXiangqiEngineContext,
+  room: DarkXiangqiLiveRoom,
+): void {
+  if (room.engineTimer) return;
+  const seat = darkXiangqiEngineSeatFor(room);
+  if (seat === null || !engineToMove(room, seat)) return;
+  room.engineTimer = setTimeout(() => {
+    room.engineTimer = null;
+    void playDarkXiangqiEngineMoveIfReady(ctx, room).catch((err) => {
+      logger.error(
+        { kind: 'dxq_engine_move_failure', room_id: room.id, error: (err as Error).message },
+        'dxq engine move failure',
+      );
+    });
+  }, 0);
+  room.engineTimer.unref();
+}
+
+function budgetFor(
+  remainingMs: number | null,
+  incrementMs: number,
+  configuredMs: number,
+): { computeBudgetMs: number; watchdogTimeoutMs: number } {
+  if (remainingMs === null) {
+    return { computeBudgetMs: configuredMs, watchdogTimeoutMs: configuredMs };
+  }
+  const usable = Math.max(0, remainingMs - BUDGET_SAFETY_MS);
+  const perMove = Math.min(usable > 0 ? usable : 50, usable * 0.1 + incrementMs * 0.8 + 250);
+  const watchdogTimeoutMs = Math.max(
+    1,
+    Math.min(
+      MAX_TIMEOUT_MS,
+      Math.ceil(perMove + PROCESS_OVERHEAD_MS),
+      Math.ceil(Math.max(0, remainingMs) + CLOCK_GRACE_MS),
+    ),
+  );
+  return {
+    computeBudgetMs: Math.max(1, Math.min(Math.ceil(perMove), watchdogTimeoutMs)),
+    watchdogTimeoutMs,
+  };
+}
+
+export async function playDarkXiangqiEngineMoveIfReady(
+  ctx: DarkXiangqiEngineContext,
+  room: DarkXiangqiLiveRoom,
+): Promise<void> {
+  const seat = darkXiangqiEngineSeatFor(room);
+  if (seat === null || !engineToMove(room, seat)) return;
+  const engineId = room.projection.seats[seat]!;
+  const engine = loadEngine(engineId);
+
+  const now = ctx.now?.() ?? Date.now();
+  const clock = room.projection.clock;
+  const remainingMs = clock ? darkXiangqiClockRemainingMs(clock, seat, now) : null;
+  const incrementMs = clock?.incrementMs ?? 0;
+  if (remainingMs !== null && remainingMs <= 0) return;
+
+  const ply = room.events.reduce((n, e) => (e.type === 'move-played' ? n + 1 : n), 0);
+  const request = buildXiangqiEngineTurnRequest({
+    gameId: room.id,
+    engineId,
+    engineSecret: ENGINE_SECRET,
+    engineColor: seat,
+    state: room.projection.state,
+    events: room.events,
+    ply,
+    clockRemainingMs: remainingMs,
+    incrementMs,
+  });
+  const { computeBudgetMs, watchdogTimeoutMs } = budgetFor(
+    remainingMs,
+    incrementMs,
+    engine.livePolicy?.timeoutMs ?? DEFAULT_TIMEOUT_MS,
+  );
+
+  let response: Awaited<ReturnType<typeof requestInternalEngineTurn>>;
+  try {
+    response = await requestInternalEngineTurn(
+      request,
+      watchdogTimeoutMs,
+      room.engineReservationId ?? undefined,
+      { computeBudgetMs },
+    );
+  } catch (err) {
+    logger.error(
+      {
+        kind: 'dxq_engine_request_failed',
+        room_id: room.id,
+        engine_id: engineId,
+        error: (err as Error).message,
+      },
+      'dxq engine request failed',
+    );
+    await forfeitDarkXiangqiEngine(ctx, room, seat);
+    return;
+  }
+
+  if (!engineToMove(room, seat)) return;
+  const legal = getXiangqiLegalMoves(room.projection.state);
+  let chosen = legal.find((m) => m.from === response.move.from && m.to === response.move.to);
+  if (!chosen) {
+    chosen = legal[0] ?? null;
+    if (!chosen) {
+      logger.error(
+        { kind: 'dxq_engine_no_legal_move', room_id: room.id, move: response.move },
+        'dxq engine returned an illegal move and no legal fallback exists',
+      );
+      await forfeitDarkXiangqiEngine(ctx, room, seat);
+      return;
+    }
+    logger.warn(
+      {
+        kind: 'dxq_engine_illegal_move_fallback',
+        room_id: room.id,
+        requested_move: response.move,
+        replacement_move: chosen,
+      },
+      'dxq engine returned a fog-pseudo-legal move; using a true-legal fallback',
+    );
+  }
+
+  const event: DarkXiangqiEvent = {
+    type: 'move-played',
+    at: Date.now(),
+    roomId: room.id,
+    color: seat,
+    move: chosen,
+  };
+  const seq = await ctx.appendEvent(room, event);
+  ctx.broadcastEventAppended(room, event, seq);
+}
+
+async function forfeitDarkXiangqiEngine(
+  ctx: DarkXiangqiEngineContext,
+  room: DarkXiangqiLiveRoom,
+  seat: XiangqiColor,
+): Promise<void> {
+  if (room.projection.state.status.type !== 'playing') return;
+  const event: DarkXiangqiEvent = {
+    type: 'seat-forfeited',
+    at: Date.now(),
+    roomId: room.id,
+    color: seat,
+  };
+  try {
+    const seq = await ctx.appendEvent(room, event);
+    ctx.broadcastEventAppended(room, event, seq);
+  } catch (err) {
+    logger.error(
+      { kind: 'dxq_engine_forfeit_failed', room_id: room.id, error: (err as Error).message },
+      'dxq engine forfeit failed',
+    );
+  }
+}

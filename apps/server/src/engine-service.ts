@@ -336,7 +336,7 @@ function isMove(value: unknown): value is Move {
 }
 
 function isSquare(value: unknown): value is Square {
-  return typeof value === 'string' && /^[a-h][1-8]$/.test(value);
+  return typeof value === 'string' && /^[a-i](?:[1-9]|10)$/.test(value);
 }
 
 function parseWatchdogTimeout(req: IncomingMessage): number {

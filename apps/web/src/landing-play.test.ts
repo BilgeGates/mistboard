@@ -765,6 +765,33 @@ describe('landing play panel', () => {
     });
   });
 
+  it('creates a Dark Xiangqi engine room with server-defaulted bot and selected color', async () => {
+    vi.stubEnv('VITE_DARK_XIANGQI_ENABLED', 'true');
+    const fetchSpy = vi.fn(async (input: RequestInfo | URL, _init?: RequestInit) => {
+      if (String(input) === '/api/live-stats') return jsonResponse({ playing: 0, online: 0 });
+      if (String(input) === '/api/rooms') return jsonResponse({ url: '/room/dxq_engine' });
+      return jsonResponse({}, { status: 404 });
+    });
+    vi.stubGlobal('fetch', fetchSpy);
+    setRoomNavigator(() => {});
+    const panel = buildLandingPlayPanel([]);
+    document.body.append(panel);
+
+    openPlaySetup(panel, 'Play the engine');
+    selectModalVariant('dark-xiangqi');
+    expect(document.querySelector('.landing-variant-control')?.textContent).toBe('Misty DXQ 1.0');
+    clickModalColor('Black');
+    clickModalButton('Start game');
+    await flushPromises();
+
+    expect(roomPostBody(fetchSpy)).toMatchObject({
+      mode: 'pve',
+      gameSpecId: 'dark-xiangqi',
+      preferredColor: 'black',
+    });
+    expect(roomPostBody(fetchSpy)).not.toHaveProperty('engineId');
+  });
+
   it('keeps the old engine deep-link alias working', () => {
     window.history.replaceState(null, '', '/?play=engine');
 
@@ -881,7 +908,7 @@ describe('landing play panel', () => {
     expect(variantPickerSpecs()).toContain('dark-xiangqi');
   });
 
-  it('greys out Dark Xiangqi (no bot) in the Play-the-engine flow, but not DMX', () => {
+  it('keeps Dark Xiangqi and DMX selectable in the Play-the-engine flow', () => {
     vi.stubEnv('VITE_DARK_MINI_XIANGQI_ENABLED', 'true');
     vi.stubEnv('VITE_DARK_MINI_XIANGQI_PUBLIC_ENTRY_ENABLED', 'true');
     vi.stubEnv('VITE_DARK_XIANGQI_ENABLED', 'true');
@@ -896,11 +923,10 @@ describe('landing play panel', () => {
     const dxq = document.querySelector<HTMLButtonElement>(
       '.landing-variant-card[data-game-spec="dark-xiangqi"]',
     );
-    // No engine yet: disabled + greyed with a Soon badge.
-    expect(dxq?.disabled).toBe(true);
-    expect(dxq?.classList.contains('landing-variant-card-disabled')).toBe(true);
-    expect(dxq?.textContent).toContain('Soon');
-    // DMX defaults its engine server-side, so it stays selectable in the engine flow.
+    expect(dxq?.disabled).toBe(false);
+    expect(dxq?.classList.contains('landing-variant-card-disabled')).toBe(false);
+    expect(dxq?.textContent).not.toContain('Soon');
+    // Xiangqi fog engines default server-side, so both stay selectable.
     const dmx = document.querySelector<HTMLButtonElement>(
       '.landing-variant-card[data-game-spec="dark-mini-xiangqi"]',
     );

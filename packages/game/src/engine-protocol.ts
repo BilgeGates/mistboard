@@ -54,10 +54,11 @@ export type EngineProtocolVersion = '1';
 
 /**
  * Piece type letters across variants. Dark chess uses P/N/B/R/Q/K; Dark Mini
- * Xiangqi uses G/H/C/R/S (general/horse/cannon/chariot/soldier) — `R` is shared
- * (rook ≡ chariot, same letter). Engines disambiguate by `gameSpecId`.
+ * Xiangqi uses G/H/C/R/S (general/horse/cannon/chariot/soldier); full Dark
+ * Xiangqi uses K/A/B/N/R/C/P (general/advisor/elephant/horse/chariot/cannon/
+ * soldier). Shared letters are disambiguated by `gameSpecId`.
  */
-export type PieceLetter = 'P' | 'N' | 'B' | 'R' | 'Q' | 'K' | 'G' | 'H' | 'C' | 'S';
+export type PieceLetter = 'P' | 'N' | 'B' | 'R' | 'Q' | 'K' | 'G' | 'H' | 'C' | 'S' | 'A';
 
 /**
  * Square index 0..63. a1=0, b1=1, ..., h1=7, a2=8, ..., h8=63.
@@ -132,9 +133,9 @@ export type EngineObservation = {
   opp_capture_landing_square: SquareIndex | null;
 
   /**
-   * Variant reveal channel (Dark Mini Xiangqi): squares the engine can infer
-   * are OCCUPIED by a given color WITHOUT seeing the piece type — e.g. a cannon
-   * screen or a horse's blocking leg reveals an occupant but not its identity.
+   * Variant reveal channel (Xiangqi-family fog variants): squares the engine can
+   * infer are OCCUPIED by a given color WITHOUT seeing the piece type — e.g. a
+   * cannon screen or a horse's blocking leg reveals an occupant but not its identity.
    * Square index + owner color, type hidden. Absent (omitted) for dark chess,
    * which has no color-only-occupancy channel.
    */

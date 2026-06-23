@@ -11,6 +11,7 @@ import {
 } from './internal-engine-client.js';
 
 const legalMove: Move = { from: 'e2', to: 'e4' };
+const xiangqiLegalMove = { from: 'i10', to: 'i9' } as unknown as Move;
 
 test('internal engine client posts protocol body with auth and timeout header', async () => {
   const previousUrl = process.env.MISTBOARD_INTERNAL_ENGINE_URL;
@@ -127,6 +128,37 @@ test('internal engine client creates and releases reservations', async () => {
   }
 });
 
+test('internal engine client accepts full Xiangqi response coordinates', async () => {
+  const previousUrl = process.env.MISTBOARD_INTERNAL_ENGINE_URL;
+  const previousToken = process.env.MISTBOARD_INTERNAL_ENGINE_TOKEN;
+
+  const server = createServer((_req, res) => {
+    res.writeHead(200, { 'content-type': 'application/json' });
+    res.end(
+      JSON.stringify({
+        protocolVersion: '1',
+        gameId: sampleXiangqiRequest.gameId,
+        sessionId: sampleXiangqiRequest.sessionId,
+        move: xiangqiLegalMove,
+      }),
+    );
+  });
+  await listen(server);
+
+  try {
+    process.env.MISTBOARD_INTERNAL_ENGINE_URL = `http://127.0.0.1:${serverPort(server)}`;
+    process.env.MISTBOARD_INTERNAL_ENGINE_TOKEN = 'test-token';
+
+    const response = await requestInternalEngineTurn(sampleXiangqiRequest, 1234, 'reservation-1');
+
+    assert.deepEqual(response.move, xiangqiLegalMove);
+  } finally {
+    restoreEnv('MISTBOARD_INTERNAL_ENGINE_URL', previousUrl);
+    restoreEnv('MISTBOARD_INTERNAL_ENGINE_TOKEN', previousToken);
+    await close(server);
+  }
+});
+
 test('internal engine client fails closed when URL or token is missing', async () => {
   const previousUrl = process.env.MISTBOARD_INTERNAL_ENGINE_URL;
   const previousToken = process.env.MISTBOARD_INTERNAL_ENGINE_TOKEN;
@@ -154,6 +186,19 @@ const sampleRequest: EngineTurnRequest = {
   engineSeed: 123,
   clock: { remaining_ms: 180_000, increment_ms: 2_000 },
   legalMoves: [legalMove],
+  observationTranscript: [],
+};
+
+const sampleXiangqiRequest: EngineTurnRequest = {
+  protocolVersion: '1',
+  gameId: 'dxq-game-1',
+  engineId: 'python-fdx-v1.0',
+  sessionId: 'dxq-game-1:python-fdx-v1.0:black',
+  color: 'black',
+  ply: 4,
+  engineSeed: 123,
+  clock: { remaining_ms: 180_000, increment_ms: 2_000 },
+  legalMoves: [xiangqiLegalMove],
   observationTranscript: [],
 };
 

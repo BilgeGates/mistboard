@@ -25,6 +25,7 @@ import {
   type XiangqiPlayerView,
   type XiangqiSquare,
 } from '@mistboard/game';
+import { engineVersionDisplayName, isDarkXiangqiEngineClientId } from './engines/registry.js';
 import { darkXiangqiEnabled } from './feature-flags.js';
 import type * as persistence from './persistence.js';
 import type {
@@ -229,6 +230,11 @@ export const darkXiangqiTenant: DarkXiangqiTenant = {
     clientEventFor: darkXiangqiClientEventFor,
     viewForClient: (state, client, events) =>
       getDarkXiangqiClientView(state, client, latestVisibleXiangqiMoveColor(events, client)),
+  },
+  engine: {
+    isEngineClientId: isDarkXiangqiEngineClientId,
+    displayName: engineVersionDisplayName,
+    reservationReleaseTag: 'dxq',
   },
   wire: {
     acceptsSeatVacated: true,

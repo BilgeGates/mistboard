@@ -4,6 +4,7 @@ import type { EngineTurnRequest, Move } from '@mistboard/game';
 import { startEngineHttpService } from './engine-service.js';
 
 const legalMove: Move = { from: 'e2', to: 'e4' };
+const xiangqiLegalMove = { from: 'i10', to: 'i9' } as unknown as Move;
 
 test('engine HTTP service requires auth and returns protocol response', async () => {
   let observedComputeBudget = 0;
@@ -105,6 +106,46 @@ test('engine HTTP service rejects turns without a matching reservation', async (
   }
 });
 
+test('engine HTTP service accepts full Xiangqi protocol coordinates', async () => {
+  let observedRequest: EngineTurnRequest | null = null;
+  const service = await startEngineHttpService({
+    port: 0,
+    token: 'test-token',
+    handler: async (request) => {
+      observedRequest = request;
+      return {
+        protocolVersion: '1',
+        gameId: request.gameId,
+        sessionId: request.sessionId,
+        move: xiangqiLegalMove,
+      };
+    },
+  });
+
+  try {
+    const reservationId = await reserveSeat(service.port, {
+      color: sampleXiangqiRequest.color,
+      engineId: sampleXiangqiRequest.engineId,
+    });
+    const response = await fetch(engineUrl(service.port), {
+      method: 'POST',
+      headers: {
+        authorization: 'Bearer test-token',
+        'content-type': 'application/json',
+        'x-mistboard-engine-reservation-id': reservationId,
+      },
+      body: JSON.stringify(sampleXiangqiRequest),
+    });
+    assert.equal(response.status, 200);
+    const body = await response.json();
+
+    assert.deepEqual(observedRequest, sampleXiangqiRequest);
+    assert.deepEqual(body.move, xiangqiLegalMove);
+  } finally {
+    await service.close();
+  }
+});
+
 test('engine HTTP service bounds admitted live engine seats', async () => {
   const service = await startEngineHttpService({
     liveEngineSeats: 1,
@@ -200,6 +241,19 @@ const sampleRequest: EngineTurnRequest = {
   engineSeed: 123,
   clock: { remaining_ms: 180_000, increment_ms: 2_000 },
   legalMoves: [legalMove],
+  observationTranscript: [],
+};
+
+const sampleXiangqiRequest: EngineTurnRequest = {
+  protocolVersion: '1',
+  gameId: 'dxq-game-1',
+  engineId: 'python-fdx-v1.0',
+  sessionId: 'dxq-game-1:python-fdx-v1.0:black',
+  color: 'black',
+  ply: 0,
+  engineSeed: 321,
+  clock: { remaining_ms: 180_000, increment_ms: 2_000 },
+  legalMoves: [xiangqiLegalMove],
   observationTranscript: [],
 };
 

@@ -576,13 +576,18 @@ export function maybeOpenPlayDeepLink(engines: PlayableEngine[]): void {
 }
 
 // Whether a variant has a computer opponent in the play menu. Dark chess uses
-// the always-on empty-lobby/fallback engine, and DMX defaults its engine
-// server-side (so neither carries tenant engineOptions); other variants need a
-// tenant PvE engine option. PvP-first variants with no bot yet (Dark Xiangqi,
-// Reveal Chess) return false, so the engine flow greys them out instead of
-// offering a dead "Play the engine" that silently falls back to a PvP room.
+// the always-on empty-lobby/fallback engine, and Xiangqi fog variants default
+// their engines server-side (so neither carries tenant engineOptions); other
+// variants need a tenant PvE engine option. PvP-first variants with no bot yet
+// return false, so the engine flow greys them out instead of offering a dead
+// "Play the engine" that silently falls back to a PvP room.
 function landingVariantSupportsPve(gameSpecId: LandingGameSpecId): boolean {
-  if (gameSpecId === DARK_CHESS_SPEC_ID || gameSpecId === DARK_MINI_XIANGQI_SPEC_ID) return true;
+  if (
+    gameSpecId === DARK_CHESS_SPEC_ID ||
+    gameSpecId === DARK_XIANGQI_SPEC_ID ||
+    gameSpecId === DARK_MINI_XIANGQI_SPEC_ID
+  )
+    return true;
   return Boolean(webVariantTenantForSpecId(gameSpecId)?.landing?.engineOptions);
 }
 
@@ -1835,9 +1840,8 @@ export function roomCreationRequestBody(
   }
   if (setup.gameSpecId === DARK_XIANGQI_SPEC_ID || setup.gameSpecId === DARK_MINI_XIANGQI_SPEC_ID) {
     return {
-      // DMX supports PvE (the engine id is defaulted server-side, so none is
-      // sent); full Dark Xiangqi has no runtime and stays PvP-only.
-      mode: setup.gameSpecId === DARK_MINI_XIANGQI_SPEC_ID ? mode : 'pvp',
+      // Xiangqi fog engines are defaulted server-side, so no engine id is sent.
+      mode,
       gameSpecId,
       timeControl: setup.timeControl,
       ...(mode === 'pvp' ? { rated: setup.rated } : {}),

@@ -1,5 +1,10 @@
+import { randomBytes } from 'node:crypto';
 import type { ServerResponse } from 'node:http';
 import { DARK_XIANGQI_SPEC_ID, type RoomTimeControl } from '@mistboard/game';
+import {
+  DARK_XIANGQI_DEFAULT_ENGINE_ID,
+  isDarkXiangqiEngineClientId,
+} from './../engines/registry.js';
 import { gateGameSpecRequest } from './../game-spec-request-gate.js';
 import * as persistence from './../persistence.js';
 import { parseRoomTimeControl, writeJson } from './lib.js';
@@ -10,9 +15,11 @@ export type DarkXiangqiCreateContext = {
   databaseRequired: boolean;
   isDraining(): boolean;
   drainDeadlineMs(): number | null;
+  reserveLiveEngineSeat(engineId: string, color: 'white' | 'black'): Promise<string | null>;
   createDarkXiangqiRoom(
     timeControl?: RoomTimeControl,
     creatorPreference?: 'red' | 'black' | 'random',
+    engine?: { engineId: string; seat: 'red' | 'black'; reservationId: string; botId?: string },
   ): Promise<
     | { ok: true; room: { id: string; gameSpecId: string } }
     | { ok: false; error: 'dark_xiangqi_disabled' | 'persistence_failure' | 'room_id_collision' }
@@ -52,9 +59,39 @@ export async function handleDarkXiangqiCreate(
     writeJson(response, 400, { error: 'invalid_time_control' });
     return;
   }
-  if (mode !== 'pvp' || body.rated === true || body.engineId !== undefined) {
+  if (mode === null || body.rated === true || (mode === 'pvp' && body.engineId !== undefined)) {
     writeJson(response, 501, { error: 'dark_xiangqi_unsupported_surface' });
     return;
+  }
+  const botId = typeof body.botId === 'string' ? body.botId : undefined;
+  let engine:
+    | { engineId: string; seat: 'red' | 'black'; reservationId: string; botId?: string }
+    | undefined;
+  if (mode === 'pve') {
+    const engineId =
+      typeof body.engineId === 'string' && body.engineId.length > 0
+        ? body.engineId
+        : DARK_XIANGQI_DEFAULT_ENGINE_ID;
+    if (!isDarkXiangqiEngineClientId(engineId)) {
+      writeJson(response, 400, { error: 'invalid_engine' });
+      return;
+    }
+    const humanColor = darkXiangqiPveHumanColor(preferredColor);
+    const engineSeat: 'red' | 'black' = humanColor === 'red' ? 'black' : 'red';
+    let reservationId: string | null = null;
+    try {
+      reservationId = await ctx.reserveLiveEngineSeat(
+        engineId,
+        engineSeat === 'red' ? 'white' : 'black',
+      );
+    } catch {
+      reservationId = null;
+    }
+    if (!reservationId) {
+      writeJson(response, 503, { error: 'engine_unavailable' });
+      return;
+    }
+    engine = { engineId, seat: engineSeat, reservationId, ...(botId ? { botId } : {}) };
   }
   if (ctx.databaseRequired && !persistence.isInitialized()) {
     writeJson(response, 503, { error: 'persistence_disabled' });
@@ -65,7 +102,7 @@ export async function handleDarkXiangqiCreate(
     return;
   }
 
-  const created = await ctx.createDarkXiangqiRoom(timeControl ?? undefined, preferredColor);
+  const created = await ctx.createDarkXiangqiRoom(timeControl ?? undefined, preferredColor, engine);
   if (!created.ok) {
     const status =
       created.error === 'dark_xiangqi_disabled'
@@ -79,7 +116,7 @@ export async function handleDarkXiangqiCreate(
   writeJson(response, 201, {
     roomId: created.room.id,
     url: `/room/${encodeURIComponent(created.room.id)}`,
-    mode: 'pvp',
+    mode,
     gameSpecId: created.room.gameSpecId,
     region: 'global',
     ...(timeControl ? { timeControl } : {}),
@@ -94,4 +131,13 @@ function parseDarkXiangqiRoomMode(body: Record<string, unknown>): 'pvp' | 'pve' 
 function parseDarkXiangqiPreferredColor(value: unknown): 'red' | 'black' | 'random' | undefined {
   if (value === 'red' || value === 'black' || value === 'random') return value;
   return undefined;
+}
+
+export function darkXiangqiPveHumanColor(
+  preferredColor: 'red' | 'black' | 'random' | undefined,
+  randomByte = randomBytes(1)[0]!,
+): 'red' | 'black' {
+  if (preferredColor === 'black') return 'black';
+  if (preferredColor === 'random') return randomByte < 128 ? 'red' : 'black';
+  return 'red';
 }

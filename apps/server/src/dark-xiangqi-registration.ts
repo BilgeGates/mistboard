@@ -18,6 +18,7 @@ import { handleDarkXiangqiCreate, requestsDarkXiangqi } from './routes/dark-xian
 import {
   createDarkXiangqiLiveRoom,
   type DarkXiangqiLiveRoomCreation,
+  type DarkXiangqiRoomEngineSeat,
 } from './server-dark-xiangqi-room-factory.js';
 import {
   clearDarkXiangqiRuntimeTimers,
@@ -38,6 +39,7 @@ export const darkXiangqiRooms = new Map<string, DarkXiangqiLiveRoom>();
 export async function createDarkXiangqiRoom(
   timeControl?: RoomTimeControl,
   creatorPreference?: DarkXiangqiCreatorPreference,
+  engine?: DarkXiangqiRoomEngineSeat,
 ): Promise<DarkXiangqiLiveRoomCreation> {
   return createDarkXiangqiLiveRoom(
     {
@@ -50,6 +52,7 @@ export async function createDarkXiangqiRoom(
     },
     timeControl,
     creatorPreference,
+    engine,
   );
 }
 

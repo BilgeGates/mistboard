@@ -108,6 +108,22 @@ test('Dark Xiangqi lifecycle scheduling arms and clears forfeit timers', () => {
   assert.equal(room.forfeitTimer, null);
 });
 
+test('Dark Xiangqi lifecycle does not forfeit a PvE engine seat without a socket', () => {
+  const room = roomFixture('dxq_engine_no_forfeit');
+  room.projection.state.moveNumber = 2;
+  room.projection.seats.black = 'python-fdx-v1.0';
+  room.clients = new Set([client('red')]);
+  const ctx = lifecycleContext();
+
+  assert.equal(darkXiangqiForfeitingSeat(room), null);
+
+  scheduleDarkXiangqiLifecycleTimers(room, ctx);
+
+  assert.equal(room.forfeitSeat, null);
+  assert.equal(room.forfeitDeadline, null);
+  assert.equal(room.forfeitTimer, null);
+});
+
 test('Dark Xiangqi lifecycle scheduling arms and clears clock timers', () => {
   const room = roomFixture('dxq_schedule_clock');
   room.projection.clock = {

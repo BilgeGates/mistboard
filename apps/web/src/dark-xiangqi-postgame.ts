@@ -6,6 +6,7 @@ import { createDxqPostgameShell, createDxqReplayControls } from './dxq-postgame-
 import { darkXiangqiEnabled } from './feature-flags.js';
 import { type DarkXiangqiWireView, renderDarkXiangqiBoardSvg } from './live-dark-xiangqi.js';
 import { handlePostgameReplayKeyboard } from './postgame-keyboard.js';
+import { buildNav } from './site-shell.js';
 
 export type DarkXiangqiPostgameViewKey = XiangqiColor | 'truth';
 
@@ -54,7 +55,7 @@ type LoadResult =
 
 export function mountDarkXiangqiPostgame(root: HTMLElement, roomId: string): void {
   root.classList.add('landing-page', 'dark-xiangqi-postgame-route');
-  root.replaceChildren(loadingView());
+  root.replaceChildren(buildNav(), loadingView());
   if (!darkXiangqiEnabled()) {
     renderError(root, 'Dark Xiangqi unavailable', 'This route is not enabled in this build.');
     return;
@@ -102,8 +103,8 @@ function renderPostgame(root: HTMLElement, postgame: DarkXiangqiPostgameResponse
   const abortController = new AbortController();
   postgameAbortControllers.set(root, abortController);
 
-  root.replaceChildren();
-  root.append(
+  root.replaceChildren(
+    buildNav(),
     createDxqPostgameShell({
       actions: postgameActions(postgame),
       ariaLabel: 'Dark Xiangqi postgame',
@@ -379,7 +380,6 @@ function loadingView(): HTMLElement {
 }
 
 function renderError(root: HTMLElement, titleText: string, bodyText: string): void {
-  root.replaceChildren();
   const shell = document.createElement('main');
   shell.className = 'dxq-postgame__error';
   const title = document.createElement('h1');
@@ -387,7 +387,7 @@ function renderError(root: HTMLElement, titleText: string, bodyText: string): vo
   const body = document.createElement('p');
   body.textContent = bodyText;
   shell.append(title, body);
-  root.append(shell);
+  root.replaceChildren(buildNav(), shell);
 }
 
 function errorTitle(status: number): string {

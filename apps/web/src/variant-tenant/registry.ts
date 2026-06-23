@@ -163,11 +163,10 @@ const WEB_VARIANT_TENANTS: readonly WebVariantTenant[] = [
           mountDarkXiangqiWatchReplay(root, roomId, options),
         ),
     },
-    // PvP-first launch. The live client (live-dark-xiangqi.ts) runs on the
-    // socket-client + chrome stack, so a menu-created dxq_ room is fully
-    // playable. No PvE: Fairy-
-    // Stockfish is perfect-info and can't play fog xiangqi, so a belief bot is a
-    // separate research track.
+    // Live client runs on the socket-client + chrome stack, so a menu-created
+    // dxq_ room is playable. PvE uses the private belief bot via the
+    // server-defaulted engine id; do not send a public engine id in the create
+    // payload.
     landing: {
       capabilities: {
         ...XIANGQI_CAPABILITIES_BASE,
@@ -175,6 +174,15 @@ const WEB_VARIANT_TENANTS: readonly WebVariantTenant[] = [
         supportsStartFormat: false,
         supportsTimeControl: true,
       },
+      engineOptions: [
+        {
+          id: 'python-fdx-v1.0',
+          name: 'Misty DXQ 1.0',
+          familyName: 'Misty DXQ',
+          kind: 'fog-xiangqi',
+        },
+      ],
+      defaultEngineId: 'python-fdx-v1.0',
       timePresetIds: ['1m1', '3m2', '5m5'],
       offerInMenu: alwaysEnabled,
       acceptsDeepLink: alwaysEnabled,

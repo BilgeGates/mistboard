@@ -5,10 +5,12 @@ import {
   type XiangqiGameState,
   type XiangqiSquare,
 } from '@mistboard/game';
+import { darkXiangqiRooms } from './../dark-xiangqi-registration.js';
 import {
   applyDarkXiangqiEvent,
   type DarkXiangqiEvent,
   type DarkXiangqiProjection,
+  type DarkXiangqiRuntimeRoom,
   type DarkXiangqiWirePlayerView,
   getDarkXiangqiClientView,
   isDarkXiangqiEventLog,
@@ -16,7 +18,8 @@ import {
 } from './../dark-xiangqi-runtime.js';
 import { darkXiangqiEnabled } from './../feature-flags.js';
 import * as persistence from './../persistence.js';
-import { type HttpApiContext, requireMethod, requirePersistence, writeJson } from './lib.js';
+import { buildDarkXiangqiGameSummary } from './../server-dark-xiangqi-events.js';
+import { type HttpApiContext, requireMethod, writeJson } from './lib.js';
 
 type DarkXiangqiPostgameViewKey = XiangqiColor | 'truth';
 
@@ -45,6 +48,20 @@ type DarkXiangqiPostgameTerminal =
   | { type: 'seat-forfeited'; at: number; color: XiangqiColor; winner: XiangqiColor }
   | { type: 'game-aborted'; at: number; reason: string };
 
+export type DarkXiangqiPostgamePersistence = {
+  getLiveRoom?(roomId: string): DarkXiangqiRuntimeRoom | null;
+  getGameSummary(roomId: string): ReturnType<typeof persistence.getGameSummary>;
+  isPersistenceEnabled?(): boolean;
+  loadRoomEvents(roomId: string): Promise<DarkXiangqiEvent[] | null>;
+};
+
+const livePersistence: DarkXiangqiPostgamePersistence = {
+  getLiveRoom: (roomId) => darkXiangqiRooms.get(roomId) ?? null,
+  getGameSummary: (roomId) => persistence.getGameSummary(roomId),
+  isPersistenceEnabled: () => persistence.isInitialized(),
+  loadRoomEvents: (roomId) => persistence.loadRoomEvents<DarkXiangqiEvent>(roomId),
+};
+
 export async function tryHandle(
   _ctx: HttpApiContext,
   request: IncomingMessage,
@@ -60,10 +77,9 @@ export async function tryHandle(
     writeJson(response, 404, { error: 'not_found' });
     return true;
   }
-  if (!requirePersistence(response)) return true;
 
   const roomId = decodeURIComponent(postgameMatch[1]!);
-  const payload = await darkXiangqiPostgameForApi(roomId);
+  const payload = await darkXiangqiPostgameForApi(roomId, livePersistence);
   if (!payload) {
     writeJson(response, 404, { error: 'not_found' });
     return true;
@@ -72,32 +88,45 @@ export async function tryHandle(
   return true;
 }
 
-async function darkXiangqiPostgameForApi(roomId: string) {
+export async function darkXiangqiPostgameForApi(
+  roomId: string,
+  deps: DarkXiangqiPostgamePersistence = livePersistence,
+) {
+  const persistenceEnabled = deps.isPersistenceEnabled?.() ?? true;
   const [game, events] = await Promise.all([
-    persistence.getGameSummary(roomId),
-    persistence.loadRoomEvents<DarkXiangqiEvent>(roomId),
+    persistenceEnabled ? deps.getGameSummary(roomId) : null,
+    persistenceEnabled ? deps.loadRoomEvents(roomId) : null,
   ]);
-  if (!game || game.variant !== DARK_XIANGQI_SPEC_ID) return null;
-  if (!events || !isDarkXiangqiEventLog(events, roomId)) return null;
+  if (game && game.variant !== DARK_XIANGQI_SPEC_ID) return null;
+  if (events && !isDarkXiangqiEventLog(events, roomId)) return null;
 
-  const projection = replayDarkXiangqiEvents(events);
+  let source: { game: persistence.RecentEveGameRecord; events: readonly DarkXiangqiEvent[] } | null =
+    game && events ? { game, events } : null;
+  if (!source) {
+    const room = deps.getLiveRoom?.(roomId) ?? null;
+    await room?.pendingWrites.catch(() => undefined);
+    source = darkXiangqiPostgameFromLiveRoom(roomId, room);
+  }
+  if (!source) return null;
+
+  const projection = replayDarkXiangqiEvents(source.events);
   if (projection.state.status.type !== 'finished') return null;
 
-  const latestMoveColor = latestDarkXiangqiMoveColor(events);
+  const latestMoveColor = latestDarkXiangqiMoveColor(source.events);
   return {
     game: {
-      roomId: game.roomId,
-      variant: game.variant,
-      mode: game.mode,
-      result: game.result,
-      termination: game.termination,
-      plyCount: game.plyCount,
-      startedAt: game.startedAt.toISOString(),
-      endedAt: game.endedAt.toISOString(),
-      rated: game.rated,
-      visibility: game.visibility,
-      initialMs: game.initialMs,
-      incrementMs: game.incrementMs,
+      roomId: source.game.roomId,
+      variant: source.game.variant,
+      mode: source.game.mode,
+      result: source.game.result,
+      termination: source.game.termination,
+      plyCount: source.game.plyCount,
+      startedAt: source.game.startedAt.toISOString(),
+      endedAt: source.game.endedAt.toISOString(),
+      rated: source.game.rated,
+      visibility: source.game.visibility,
+      initialMs: source.game.initialMs,
+      incrementMs: source.game.incrementMs,
     },
     state: {
       status: projection.state.status,
@@ -105,10 +134,53 @@ async function darkXiangqiPostgameForApi(roomId: string) {
       clock: projection.clock,
       timeControl: projection.timeControl,
     },
-    timeline: darkXiangqiPostgameTimeline(events),
+    timeline: darkXiangqiPostgameTimeline(source.events),
     view: darkXiangqiTruthView(projection.state),
     views: darkXiangqiPostgameViews(projection.state, latestMoveColor),
-    history: darkXiangqiPostgameHistory(events),
+    history: darkXiangqiPostgameHistory(source.events),
+  };
+}
+
+function darkXiangqiPostgameFromLiveRoom(
+  roomId: string,
+  room: DarkXiangqiRuntimeRoom | null,
+): { game: persistence.RecentEveGameRecord; events: readonly DarkXiangqiEvent[] } | null {
+  if (!room || room.id !== roomId) return null;
+  if (room.projection.state.status.type !== 'finished') return null;
+  if (!isDarkXiangqiEventLog(room.events, roomId)) return null;
+  const summary = buildDarkXiangqiGameSummary(room);
+  return {
+    game: recentGameRecordFromSummary(room.id, summary),
+    events: room.events,
+  };
+}
+
+function recentGameRecordFromSummary(
+  roomId: string,
+  summary: persistence.GameSummary,
+): persistence.RecentEveGameRecord {
+  return {
+    roomId,
+    variant: summary.variant,
+    mode: summary.mode ?? (summary.corpusId ? 'imported' : 'pvp'),
+    result: summary.result,
+    termination: summary.termination,
+    plyCount: summary.plyCount,
+    startedAt: summary.startedAt,
+    endedAt: summary.endedAt,
+    whiteName: summary.whiteName,
+    blackName: summary.blackName,
+    corpusId: summary.corpusId,
+    rated: summary.rated ?? false,
+    jobId: null,
+    gameIndex: null,
+    whiteEngineId: null,
+    blackEngineId: null,
+    timeControl: null,
+    initialMs: summary.initialMs ?? null,
+    incrementMs: summary.incrementMs ?? null,
+    visibility: summary.visibility ?? 'private',
+    participants: summary.participants ?? [],
   };
 }
 

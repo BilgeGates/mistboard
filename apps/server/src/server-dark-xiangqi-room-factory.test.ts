@@ -87,6 +87,34 @@ test('Dark Xiangqi live room factory persists seeded clock events for time contr
   }
 });
 
+test('Dark Xiangqi live room factory persists engine seat events for PvE', async () => {
+  const before = process.env[darkXiangqiFlag];
+  process.env[darkXiangqiFlag] = 'true';
+  try {
+    const ctx = factoryContext({ ids: ['dxq_pve'], persistenceEnabled: true });
+    const result = await createDarkXiangqiLiveRoom(ctx, undefined, undefined, {
+      engineId: 'python-fdx-v1.0',
+      seat: 'black',
+      reservationId: 'reservation-1',
+      botId: 'misty-dxq',
+    });
+
+    assert.equal(result.ok, true);
+    if (!result.ok) return;
+    assert.equal(result.room.pveBotId, 'misty-dxq');
+    assert.equal(result.room.engineReservationId, 'reservation-1');
+    const createdEvent = result.room.events[0];
+    assert.equal(createdEvent?.type, 'room-created');
+    assert.equal(createdEvent?.type === 'room-created' ? createdEvent.pveBotId : null, 'misty-dxq');
+    assert.deepEqual(ctx.persistedEvents, [
+      { roomId: 'dxq_pve', seq: 0, eventType: 'room-created' },
+      { roomId: 'dxq_pve', seq: 1, eventType: 'seat-assigned' },
+    ]);
+  } finally {
+    restoreFlag(before);
+  }
+});
+
 test('Dark Xiangqi live room factory fails closed on persistence errors', async () => {
   const before = process.env[darkXiangqiFlag];
   process.env[darkXiangqiFlag] = 'true';

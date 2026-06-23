@@ -17,6 +17,7 @@ import type { XiangqiColor } from '@mistboard/game';
 import type { WebSocket } from 'ws';
 import type { DarkXiangqiRuntimeRoom } from './dark-xiangqi-runtime.js';
 import { darkXiangqiTenant } from './dark-xiangqi-tenant.js';
+import { scheduleDarkXiangqiEngineMove } from './server-dark-xiangqi-engine.js';
 import { clearDarkXiangqiRuntimeTimers } from './server-dark-xiangqi-lifecycle.js';
 import { createTenantWsRuntime, type TenantLiveClient } from './variant-tenant/ws.js';
 
@@ -32,7 +33,9 @@ export type DarkXiangqiWebSocketContext = {
   wsMessageWindowMs: number;
 };
 
-export const darkXiangqiWs = createTenantWsRuntime(darkXiangqiTenant);
+export const darkXiangqiWs = createTenantWsRuntime(darkXiangqiTenant, {
+  scheduleEngineMove: (ctx, room) => scheduleDarkXiangqiEngineMove(ctx, room),
+});
 
 export async function handleDarkXiangqiWebSocketConnection(
   ctx: DarkXiangqiWebSocketContext,
