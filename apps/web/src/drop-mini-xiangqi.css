@@ -116,7 +116,8 @@ button.drop-mini-reserve-piece:disabled {
 }
 
 .drop-mini-replay-board {
-  width: 100%;
+  width: min(390px, 100%);
+  margin-inline: auto;
   line-height: 0;
 }
 
