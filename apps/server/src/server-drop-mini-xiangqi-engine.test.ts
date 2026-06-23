@@ -1,12 +1,17 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import type { DropMiniXiangqiMove, MiniXiangqiColor } from '@mistboard/game';
-import { getLegalDropMiniXiangqiMoves } from '@mistboard/game';
+import {
+  applyDropMiniXiangqiMove,
+  createInitialDropMiniXiangqiState,
+  getLegalDropMiniXiangqiMoves,
+} from '@mistboard/game';
 import { dropMiniXiangqiTenant } from './drop-mini-xiangqi-tenant.js';
 import {
   chooseDropMiniXiangqiEngineMove,
   DROP_MINI_XIANGQI_DEFAULT_ENGINE_ID,
   dropMiniXiangqiEngineSeatFor,
+  dropMiniXiangqiEngineTierFor,
   playDropMiniXiangqiEngineMoveIfReady,
   scheduleDropMiniXiangqiEngineMove,
 } from './server-drop-mini-xiangqi-engine.js';
@@ -60,6 +65,28 @@ test('Drop Mini Xiangqi engine picker returns a deterministic legal move', () =>
     ),
     'chosen move must be legal',
   );
+});
+
+test('Drop Mini Xiangqi level 3 avoids lexicographic chariot shuffling', () => {
+  const tier = dropMiniXiangqiEngineTierFor('misty-drop-mini-level-3');
+  assert.ok(tier);
+  let state = createInitialDropMiniXiangqiState('dmxqd_shuffle_regression');
+  for (const move of [
+    { from: 'a2', to: 'a3' },
+    { from: 'b7', to: 'b5' },
+    { from: 'b1', to: 'b3' },
+    { from: 'b5', to: 'd5' },
+    { from: 'b3', to: 'd3' },
+    { from: 'f7', to: 'f4' },
+  ] satisfies DropMiniXiangqiMove[]) {
+    state = applyDropMiniXiangqiMove(state, move);
+  }
+
+  assert.equal(state.status.type === 'playing' && state.status.turn, 'red');
+  assert.deepEqual(chooseDropMiniXiangqiEngineMove(state, tier), {
+    from: 'd3',
+    to: 'd4',
+  } satisfies DropMiniXiangqiMove);
 });
 
 function pveRoom(engineSeat: MiniXiangqiColor): DropMiniEngineRoom {

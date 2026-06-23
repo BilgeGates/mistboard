@@ -196,16 +196,23 @@ export function chooseDropMiniXiangqiEngineMove(
   const candidates = searchMoves
     .map((move) => {
       const after = applyDropMiniXiangqiMove(state, move);
+      const immediateScore = immediateMoveScore(state, after, move, mover);
       return {
         move,
+        immediateScore,
         score:
           tier.lookaheadPlies > 0
             ? minimax(after, tier.lookaheadPlies, mover, -Infinity, Infinity)
-            : immediateMoveScore(state, after, move, mover),
+            : immediateScore,
       };
     })
     .filter((entry) => Number.isFinite(entry.score))
-    .sort((a, b) => b.score - a.score || moveKey(a.move).localeCompare(moveKey(b.move)));
+    .sort(
+      (a, b) =>
+        b.score - a.score ||
+        b.immediateScore - a.immediateScore ||
+        moveKey(a.move).localeCompare(moveKey(b.move)),
+    );
   if (candidates.length === 0) return null;
   if (isWinningMove(state, candidates[0]!.move, mover)) return candidates[0]!.move;
   if (tier.softPickRank <= 0) return candidates[0]!.move;
