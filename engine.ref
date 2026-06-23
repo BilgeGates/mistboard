@@ -1,7 +1,7 @@
-b518e55
+1391b5c
 # ^ The mistboard-engine commit the prod build checks out (railpack build step).
-# Dark Xiangqi engine path (2026-06-23): b518e55 includes the Misty 1.5 chess
-# profile, DMX hardening, and full Dark Xiangqi worker mode for python-fdx-v1.0.
+# Dark Xiangqi engine path (2026-06-23): 1391b5c adds the DXQ royal-flight
+# commit guard on top of the full Dark Xiangqi worker mode for python-fdx-v1.0.
 # Rollback target: 8b4935b (Misty 1.5 + DMX, before full Dark Xiangqi). Single
 # source of truth for the deployed private engine; bump this + railpack cachebust
 # together before deploying. The railpack reads only the first line; this comment
