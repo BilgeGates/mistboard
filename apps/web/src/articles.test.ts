@@ -164,12 +164,21 @@ describe('article public listing gates', () => {
   });
 
   it('describes Kriegspiel as playable with a friend-room CTA', () => {
+    vi.stubEnv('DEV', false);
+
     const page = buildArticlePage('kriegspiel');
+    const landing = buildRulesIndex();
+    const darkChess = buildArticlePage('dark-chess');
     const links = [...page.querySelectorAll<HTMLAnchorElement>('a')].map((link) => ({
       href: link.getAttribute('href'),
       text: link.textContent,
     }));
 
+    expect(landing.querySelector('a[href="/rules/kriegspiel"]')).toBeNull();
+    expect(
+      darkChess.querySelector('.article-variant-sidebar a[href="/rules/kriegspiel"]'),
+    ).toBeNull();
+    expect(page.querySelector('.article-variant-sidebar a[href="/rules/kriegspiel"]')).toBeNull();
     expect(page.textContent).toContain('Kriegspiel is playable on Mistboard');
     expect(page.textContent).not.toContain("Kriegspiel isn't playable");
     expect(links).toContainEqual({
