@@ -1,9 +1,8 @@
-8b4935b
+b518e55
 # ^ The mistboard-engine commit the prod build checks out (railpack build step).
-# v1.5 OPENING-BOOK update (2026-06-21): 8b4935b = 3ae331c (Misty 1.4 castle fix +
-# DMX hardening) + the curated opening book (drop the now-redundant Nc3 forces, add a
-# forced ...dxe4 for the ~6% move-2 c6 commit-slip) + the python-v2-v1.5 profile/worker
-# mapping. The chess engine id maps to Misty 1.5; the DMX id is unchanged.
-# Rollback target: 3ae331c (Misty 1.4 + DMX, prior book). Single source of truth for
-# the deployed engine; bump this + the registry engine_pin to ship. The railpack
-# reads only the first line; this comment is ignored.
+# Dark Xiangqi engine path (2026-06-23): b518e55 includes the Misty 1.5 chess
+# profile, DMX hardening, and full Dark Xiangqi worker mode for python-fdx-v1.0.
+# Rollback target: 8b4935b (Misty 1.5 + DMX, before full Dark Xiangqi). Single
+# source of truth for the deployed private engine; bump this + railpack cachebust
+# together before deploying. The railpack reads only the first line; this comment
+# is ignored.

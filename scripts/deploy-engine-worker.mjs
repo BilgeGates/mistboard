@@ -32,6 +32,7 @@ import { readFileSync, writeFileSync } from 'node:fs';
 const SERVICE = 'engine-worker';
 const ENGINE_REMOTE = 'git@github.com:brianhliou/mistboard-engine.git';
 const ENGINE_REF = process.env.MISTBOARD_ENGINE_REF ?? 'main';
+const ENGINE_REF_FILE = 'engine.ref';
 const RAILPACK = 'railpack.json';
 const HEALTH_TIMEOUT_MS = Number.parseInt(process.env.DEPLOY_HEALTH_TIMEOUT_MS ?? '900000', 10);
 const HEALTH_POLL_MS = 20_000;
@@ -44,35 +45,47 @@ if (opts.help) {
 
 const cachebust = readCachebust();
 const engineSha = engineHeadSha();
-const match =
+const engineRef = readEngineDeployRef();
+const cachebustMatch =
   cachebust.sha !== null &&
   (engineSha.startsWith(cachebust.sha) || cachebust.sha.startsWith(engineSha));
+const engineRefMatch =
+  engineRef === ENGINE_REF || engineSha.startsWith(engineRef) || engineRef.startsWith(engineSha);
+const match = cachebustMatch && engineRefMatch;
 
 console.log('# deploy-engine-worker');
 console.log(`engine ${ENGINE_REF} HEAD: ${engineSha}`);
 console.log(`railpack cachebust:        ${cachebust.raw}`);
+console.log(`engine.ref:                ${engineRef}`);
 console.log(
-  `cachebust matches engine: ${match ? 'yes' : 'NO — engine changed but cachebust not bumped'}`,
+  `cachebust matches engine: ${cachebustMatch ? 'yes' : 'NO — engine changed but cachebust not bumped'}`,
+);
+console.log(
+  `engine.ref matches engine: ${engineRefMatch ? 'yes' : 'NO — build would checkout a different private engine'}`,
 );
 
 if (opts.bump) {
-  if (match) {
-    console.log('bump: skipped (cachebust already at engine HEAD)');
+  if (cachebustMatch && engineRefMatch) {
+    console.log('bump: skipped (cachebust and engine.ref already at engine HEAD)');
   } else {
-    bumpCachebust(engineSha);
-    console.log(`bump: railpack.json cachebust → ${engineSha} (commit + push before deploying)`);
+    if (!cachebustMatch) bumpCachebust(engineSha);
+    if (!engineRefMatch) bumpEngineRef(engineSha);
+    console.log(
+      `bump: railpack.json cachebust + ${ENGINE_REF_FILE} -> ${engineSha} (commit + push before deploying)`,
+    );
   }
   process.exit(0);
 }
 
 if (!match) {
-  const reason =
-    cachebust.sha === null
+  const reason = !engineRefMatch
+    ? `${ENGINE_REF_FILE} points at ${engineRef}, so Railpack would checkout a different private engine than ${ENGINE_REF} HEAD ${engineSha}.`
+    : cachebust.sha === null
       ? 'the cachebust line has no engine SHA, so Railway may reuse an old private-engine clone.'
       : 'the engine changed but the cachebust still points at the old SHA, so the engine-worker would re-deploy the OLD engine.';
   console.error(`\nRefusing: ${reason}`);
   console.error('Run with --bump, then');
-  console.error('commit + push railpack.json, then re-run with --deploy.');
+  console.error(`commit + push railpack.json/${ENGINE_REF_FILE}, then re-run with --deploy.`);
   process.exit(2);
 }
 
@@ -165,6 +178,11 @@ function readCachebust() {
   return { raw: m[1], sha };
 }
 
+function readEngineDeployRef() {
+  const first = readFileSync(ENGINE_REF_FILE, 'utf8').split(/\r?\n/, 1)[0]?.trim();
+  return first || ENGINE_REF;
+}
+
 function bumpCachebust(sha) {
   const text = readFileSync(RAILPACK, 'utf8');
   const date = new Date().toISOString().slice(0, 10);
@@ -173,6 +191,13 @@ function bumpCachebust(sha) {
     `echo cachebust-${date}-engine-${sha.slice(0, 7)}`,
   );
   writeFileSync(RAILPACK, next);
+}
+
+function bumpEngineRef(sha) {
+  const text = readFileSync(ENGINE_REF_FILE, 'utf8');
+  const lines = text.split(/\r?\n/);
+  lines[0] = sha.slice(0, 7);
+  writeFileSync(ENGINE_REF_FILE, lines.join('\n'));
 }
 
 function engineHeadSha() {
