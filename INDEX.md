@@ -134,8 +134,11 @@ Edit task → find file → open only that file.
 | `routes/crossroads-chess.ts` | Crossroads Chess game/postgame API branch (open perfect-info views; keeps non-chess records out of generic chess replay APIs) |
 | `routes/dark-mini-xiangqi-rooms.ts` | DMX room-creation branch for `POST /api/rooms` (rated-flag/time-control gating via `game-spec-request-gate`) |
 | `routes/dark-mini-xiangqi-games.ts` | DMX postgame/review + publication-JSON API branch; keeps non-chess finished games out of generic chess replay APIs |
+| `routes/mini-xiangqi-rooms.ts` | Mini Xiangqi room-creation branch for `POST /api/rooms` (open-information 7x7 PvP, casual launch, time-control parsing) |
+| `routes/mini-xiangqi-games.ts` | Mini Xiangqi postgame/review API branch; exposes finished open-information board history and timeline from persisted or live rooms |
 | `routes/drop-mini-xiangqi-rooms.ts` | Drop Mini Xiangqi room-creation branch for `POST /api/rooms` (PvP/lobby only for now; rated/time-control gating via `game-spec-request-gate`) |
 | `routes/drop-mini-xiangqi-games.ts` | Drop Mini Xiangqi postgame/review API branch; exposes the finished open-information board, reserve history, and move timeline |
+| `routes/puzzles.ts` | Mini Xiangqi puzzle API: list/detail endpoints plus attempt validation for Mini and Drop Mini Xiangqi puzzle lines |
 | `routes/bots.ts` | Public bot directory/profile API (`/api/bots`, `/api/bots/:id`) filtered to playable enabled variants |
 | `bot-profile-policy.ts` | Shared bot profile policy: public bot id parsing and playable-variant filtering for bot directory/profile surfaces |
 | `account-session.ts` | Account auth: `currentAccountUser`, `ensureUserForEmail`, `hashSecret`, session cookies, email login |
@@ -161,6 +164,7 @@ Edit task → find file → open only that file.
 | `persistence-feedback.ts` | Feedback persistence |
 | `persistence-site-stats.ts` | Site statistics query |
 | `persistence-test-support.ts` | Shared Postgres test harness: migration, truncation reset, DB URL gating, and persistence test helpers |
+| `test-database-url.ts` | Persistent-test database URL guard: prefers `TEST_DATABASE_URL`, refuses the local dev DB by default, and allows an explicit destructive-test override |
 | `persistence-*.test.ts` | Postgres-backed persistence regressions split by domain: events, accounts, seat tokens, lifecycle, game end/lists, ratings, and debug artifacts |
 | `payloads.ts` | `snapshotPayload` — builds WebSocket snapshot message; applies fog redaction and seat-scoped view logic |
 | `test-builders.ts` | Shared server test builders for `GameProjection`, `PlayerView`, `SnapshotRoom`, `Room`, clients, and seat tokens |
@@ -210,6 +214,8 @@ Edit task → find file → open only that file.
 | `dark-mini-xiangqi-runtime.ts` | Thin adapter over `variant-tenant/` runtime for DMX (P0 reference; wire parity pinned by `dark-mini-xiangqi-golden-wire.test.ts`) |
 | `dark-mini-xiangqi-registration.ts` | DMX registry entry: live-room map, room-factory binding, hydration, rematch context; registers dispatch closures |
 | `dark-mini-xiangqi-export.ts` | DMX JSON publication export (honest red/black, coordinate UCI moves; no PGN — xiangqi has no SAN standard) |
+| `mini-xiangqi-tenant.ts` | Mini Xiangqi `VariantTenant`: open-information 7x7 mini xiangqi with public events, public board state, and checkmate/stalemate adjudication |
+| `mini-xiangqi-registration.ts` | Mini Xiangqi registry entry: live-room map, room-factory binding, hydration, WebSocket runtime, HTTP create route, lobby route, and watch metadata |
 | `drop-mini-xiangqi-tenant.ts` | Drop Mini Xiangqi `VariantTenant`: open-information 7x7 mini xiangqi with crazyhouse-style reserves, public events, public board state, and board/drop move parsing |
 | `drop-mini-xiangqi-registration.ts` | Drop Mini Xiangqi registry entry: live-room map, room-factory binding, hydration, WebSocket runtime, HTTP create route, lobby route, and watch metadata |
 | `dark-xiangqi-registration.ts` | Dark Xiangqi (9x10, hidden/dev-only) registry entry: live-room map, room-factory binding, hydration. No rematch/lobby (lobby answers `dark_xiangqi_not_integrated`) |
@@ -358,6 +364,7 @@ Run with `MISTBOARD_ALLOW_IN_MEMORY_PERSISTENCE=true npm run test:integration --
 | `landing-forum-preview.ts` | Homepage forum preview widget: hydrates recent forum topics into a shared `site-box` panel and links to `/forum` / topic routes. Loads `landing-forum-preview.css` |
 | `landing-play.ts` | Homepage play panel, setup dialog, open-lobby request card, room creation, lobby queue polling, empty-lobby engine offer, and play deep-link handling |
 | `landing-play.css` | Homepage play/setup/lobby base styles loaded before `landing.css`, so homepage responsive layout overrides stay in the route stylesheet |
+| `puzzles.ts` | `/puzzles` route: Mini and Drop Mini Xiangqi puzzle list/detail UI, drag/click solving, attempt submission, solved-state storage, and auto-next controls |
 | `landing-showcase.ts` | Homepage replay showcase catalog and hero POV selection for the landing replay loop |
 | `watch-route.ts` | `/watch` route mount: watch feed fetch/polling, replay mounting, status/empty state, channel links, and replay queue rendering. Loads `watch-route.css` |
 | `watch-route.css` | `/watch` route styles, including watch replay sizing, status, channel links, empty state, queue, and responsive route layout |
@@ -487,6 +494,8 @@ Run with `MISTBOARD_ALLOW_IN_MEMORY_PERSISTENCE=true npm run test:integration --
 | `live-mini-xiangqi-render.ts` | Bespoke SVG renderer for the 7×7 Dark Mini Xiangqi board: pieces on intersections, Fog of War as an inverse `<mask>` with square cutouts on visible intersections |
 | `live-mini-xiangqi-sound.ts` | Dark Mini Xiangqi sound policy: fog-aware per-event classification over the DMX `PlayerView`, reusing the shared `SoundController` |
 | `dark-mini-xiangqi-postgame.ts` | Dark Mini Xiangqi postgame/review route renderer: red/black/truth views from the postgame API, reuses replay panes/header/move-list + DMX capture split. Behind `darkMiniXiangqiEnabled`. Loads `landing.css` + `game-route.css` |
+| `mini-xiangqi-postgame.ts` | Mini Xiangqi postgame/review route renderer: single truth-board replay, result rail, move list, share/play-again actions, and postgame API loader |
+| `mini-xiangqi-view.ts` | Mini Xiangqi shared view helpers: truth-view key and move-label formatting for postgame/watch surfaces |
 | `mini-xiangqi-captures.ts` | Dark Mini Xiangqi captured-piece derivation (truth-view diff against the initial board) + pane capture-split rendering |
 | `mini-xiangqi-replay.ts` | Mini Xiangqi article replay: one 7×7 board stepped through a move list via the real kernel, rendered on demand (sibling of `xiangqi-replay.ts`) |
 | `drop-mini-xiangqi-view.ts` | Shared Drop Mini Xiangqi view helpers: open board projection, legal board/drop target derivation, move labels, and reserve strip rendering |
@@ -495,6 +504,7 @@ Run with `MISTBOARD_ALLOW_IN_MEMORY_PERSISTENCE=true npm run test:integration --
 | `drop-mini-xiangqi-replay.ts` | Drop Mini Xiangqi rules-article replay: parses board/drop notation, replays through the real kernel, and renders the sample game with reserve strips |
 | `mini-xiangqi-spike.ts` | `/mini-xiangqi-spike` FoW Mini Xiangqi sandbox (DEV): local play across red/black/god perspectives over the bespoke 7×7 renderer |
 | `watch-mini-xiangqi-replay.ts` | Mistboard TV (`/watch`) renderer for Dark Mini Xiangqi: postgame payload + shared replay chrome + control bar/auto-play, rendering server-computed fog views (leak-safe) |
+| `watch-mini-open-xiangqi-replay.ts` | Mistboard TV (`/watch`) renderer for open Mini Xiangqi: loads the Mini postgame payload and mounts the single truth-board tenant replay |
 | `watch-drop-mini-xiangqi-replay.ts` | Mistboard TV (`/watch`) renderer for Drop Mini Xiangqi: open-information replay over the postgame API, with board orientation and reserve strips |
 | `watch-dark-xiangqi-replay.ts` | Mistboard TV (`/watch`) renderer for full Dark Xiangqi (9×10) — thin adapter over `watch-tenant-replay.ts` rendering the red/truth/black fog triptych (per-view fog mask) |
 | `watch-fog-triptych-replay.ts` | Generic Mistboard TV (`/watch`) replay chrome for fog triptych variants: header, three panes, control bar, autoplay, ply navigation, result labels, and optional private/truth reserve strips |
