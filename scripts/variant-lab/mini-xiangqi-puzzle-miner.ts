@@ -6,6 +6,7 @@
 //   node_modules/.bin/tsx scripts/variant-lab/mini-xiangqi-puzzle-miner.ts --states tmp/states.json --json
 //   node_modules/.bin/tsx scripts/variant-lab/mini-xiangqi-puzzle-miner.ts --solver-plies 2 --variant drop-mini-xiangqi
 //   node_modules/.bin/tsx scripts/variant-lab/mini-xiangqi-puzzle-miner.ts --solver-plies 2 --strict-replies
+//   node_modules/.bin/tsx scripts/variant-lab/mini-xiangqi-puzzle-miner.ts --solver-plies 2 --strict-replies --checking-first-moves
 //   node_modules/.bin/tsx scripts/variant-lab/mini-xiangqi-puzzle-miner.ts --solver-plies 3 --strict-replies
 //   node_modules/.bin/tsx scripts/variant-lab/mini-xiangqi-puzzle-miner.ts --curated=false --random-games 200 --variant mini-xiangqi --json
 
@@ -47,6 +48,7 @@ type SolverPlyCount = 1 | 2 | 3;
 
 type CliOptions = {
   allowMultiple: boolean;
+  checkingFirstMoves: boolean;
   curated: boolean;
   events: string[];
   json: boolean;
@@ -58,6 +60,7 @@ type CliOptions = {
   solverPlies: SolverPlyCount;
   states: string[];
   strictReplies: boolean;
+  uniqueSolutions: boolean;
   variant: MiniXiangqiPuzzleVariant | null;
 };
 
@@ -86,6 +89,7 @@ type MinedCandidate = {
 type MinerStats = {
   candidatePositions: number;
   duplicatePositions: number;
+  duplicateSolutions: number;
   emitted: number;
   invalidEventLogs: number;
   invalidMoves: number;
@@ -104,6 +108,7 @@ const { values } = parseArgs({
   allowPositionals: false,
   options: {
     'allow-multiple': { type: 'boolean', default: false },
+    'checking-first-moves': { type: 'boolean', default: false },
     curated: { type: 'string', default: 'true' },
     events: { type: 'string', multiple: true },
     help: { type: 'boolean', default: false, short: 'h' },
@@ -116,6 +121,7 @@ const { values } = parseArgs({
     'solver-plies': { type: 'string', default: '1' },
     states: { type: 'string', multiple: true },
     'strict-replies': { type: 'boolean', default: false },
+    'unique-solutions': { type: 'boolean', default: false },
     variant: { type: 'string' },
   },
 });
@@ -128,6 +134,7 @@ if (values.help) {
 const solverPlies = parseSolverPlies(values['solver-plies']);
 const options: CliOptions = {
   allowMultiple: values['allow-multiple'] === true,
+  checkingFirstMoves: values['checking-first-moves'] === true,
   curated: parseBooleanString(values.curated, true),
   events: values.events ?? [],
   json: values.json === true,
@@ -139,12 +146,14 @@ const options: CliOptions = {
   solverPlies,
   states: values.states ?? [],
   strictReplies: values['strict-replies'] === true,
+  uniqueSolutions: values['unique-solutions'] === true,
   variant: parseVariant(values.variant),
 };
 
 const stats: MinerStats = {
   candidatePositions: 0,
   duplicatePositions: 0,
+  duplicateSolutions: 0,
   emitted: 0,
   invalidEventLogs: 0,
   invalidMoves: 0,
@@ -154,10 +163,11 @@ const stats: MinerStats = {
   skippedFinished: 0,
 };
 const seenPositions = new Set<string>();
+const seenSolutions = new Set<string>();
 const emitted: MinedCandidate[] = [];
 
 for (const position of await loadSourcePositions(options)) {
-  scanPosition(position, options, stats, seenPositions, emitted);
+  scanPosition(position, options, stats, seenPositions, seenSolutions, emitted);
   if (emitted.length >= options.limit) break;
 }
 
@@ -193,6 +203,7 @@ if (options.json) {
       `scanned ${stats.positions} positions`,
       `emitted ${stats.emitted}`,
       `duplicates ${stats.duplicatePositions}`,
+      `duplicate solutions ${stats.duplicateSolutions}`,
       `multi-answer ${stats.multiAnswerPositions}`,
       `search cutoffs ${stats.searchCutoffs}`,
       `invalid logs ${stats.invalidEventLogs}`,
@@ -231,8 +242,8 @@ function generateRandomPositions(options: CliOptions): SourcePosition[] {
     ? [options.variant]
     : ([MINI_XIANGQI_SPEC_ID, DROP_MINI_XIANGQI_SPEC_ID] as const);
   const rng = createRng(options.randomSeed);
-  for (const variant of variants) {
-    for (let game = 1; game <= options.randomGames; game += 1) {
+  for (let game = 1; game <= options.randomGames; game += 1) {
+    for (const variant of variants) {
       let state: MiniXiangqiPuzzleState =
         variant === MINI_XIANGQI_SPEC_ID
           ? createInitialMiniXiangqiState(`random-${variant}-${game}`)
@@ -331,6 +342,7 @@ function scanPosition(
   options: CliOptions,
   stats: MinerStats,
   seen: Set<string>,
+  seenSolutions: Set<string>,
   emitted: MinedCandidate[],
 ): void {
   stats.positions += 1;
@@ -355,6 +367,7 @@ function scanPosition(
     position.state,
     options.solverPlies,
     options.strictReplies,
+    options.checkingFirstMoves,
     budget,
   );
   if (budget.cutOff) {
@@ -372,6 +385,13 @@ function scanPosition(
   const outputLines = options.allowMultiple ? lines : [lines[0]!];
   for (const solution of outputLines) {
     const firstMove = solution[0]!;
+    const solutionLabel = solution.map((move) => miniXiangqiPuzzleMoveLabel(move)).join(' ');
+    const solutionKey = `${position.variant}|${position.state.status.turn}|${solutionLabel}`;
+    if (options.uniqueSolutions && seenSolutions.has(solutionKey)) {
+      stats.duplicateSolutions += 1;
+      continue;
+    }
+    seenSolutions.add(solutionKey);
     emitted.push({
       key,
       source: position.source,
@@ -382,7 +402,7 @@ function scanPosition(
       moveLabel: miniXiangqiPuzzleMoveLabel(firstMove),
       initial: position.state,
       solution,
-      solutionLabel: solution.map((move) => miniXiangqiPuzzleMoveLabel(move)).join(' '),
+      solutionLabel,
       solverPlies: options.solverPlies,
       alternatives: firstMoveCount,
     });
@@ -396,6 +416,7 @@ function findMiniXiangqiMateLines(
   state: MiniXiangqiPuzzleState,
   solverPlies: SolverPlyCount,
   strictReplies: boolean,
+  checkingFirstMoves: boolean,
   budget: SearchBudget,
 ): MiniXiangqiPuzzleMove[][] {
   if (solverPlies === 1) {
@@ -410,11 +431,20 @@ function findMiniXiangqiMateLines(
       state.status.turn,
       2,
       strictReplies,
+      checkingFirstMoves,
       budget,
     );
     if (budget.cutOff || shorterLines.length > 0) return [];
   }
-  return findExactMateLines(variant, state, state.status.turn, solverPlies, strictReplies, budget);
+  return findExactMateLines(
+    variant,
+    state,
+    state.status.turn,
+    solverPlies,
+    strictReplies,
+    checkingFirstMoves,
+    budget,
+  );
 }
 
 type SearchBudget = {
@@ -428,6 +458,7 @@ function findExactMateLines(
   attacker: MiniXiangqiColor,
   solverPlies: SolverPlyCount,
   strictReplies: boolean,
+  checkingFirstMoves: boolean,
   budget: SearchBudget,
 ): MiniXiangqiPuzzleMove[][] {
   budget.remaining -= 1;
@@ -438,11 +469,10 @@ function findExactMateLines(
   if (state.status.type !== 'playing') return [];
   if (state.status.turn !== attacker) return [];
 
-  const immediateMates = findMiniXiangqiMateInOneCandidates(variant, state).filter(
-    (candidate) => candidate.winner === attacker,
-  );
+  const immediateMates = findMateInOneMoves(variant, state, attacker, budget);
+  if (budget.cutOff) return [];
   if (solverPlies === 1) {
-    return immediateMates.map((candidate) => [candidate.move]);
+    return immediateMates.map((move) => [move]);
   }
   if (immediateMates.length > 0) return [];
 
@@ -450,6 +480,9 @@ function findExactMateLines(
   for (const firstMove of legalMoves(variant, state)) {
     const afterFirst = applyMove(variant, state, firstMove);
     if (!afterFirst || afterFirst.status.type !== 'playing') continue;
+    if (checkingFirstMoves && !isDefenderAlreadyInCheck(variant, afterFirst, attacker)) {
+      continue;
+    }
 
     const defenderReplies = legalMoves(variant, afterFirst);
     if (defenderReplies.length === 0) continue;
@@ -471,6 +504,7 @@ function findExactMateLines(
         attacker,
         decrementSolverPlies(solverPlies),
         strictReplies,
+        checkingFirstMoves,
         budget,
       );
       if (budget.cutOff) return [];
@@ -488,6 +522,33 @@ function findExactMateLines(
     }
   }
   return lines;
+}
+
+function findMateInOneMoves(
+  variant: MiniXiangqiPuzzleVariant,
+  state: MiniXiangqiPuzzleState,
+  attacker: MiniXiangqiColor,
+  budget: SearchBudget,
+): MiniXiangqiPuzzleMove[] {
+  if (state.status.type !== 'playing' || state.status.turn !== attacker) return [];
+  if (isDefenderAlreadyInCheck(variant, state, attacker)) return [];
+  const moves: MiniXiangqiPuzzleMove[] = [];
+  for (const move of legalMoves(variant, state)) {
+    budget.remaining -= 1;
+    if (budget.remaining < 0) {
+      budget.cutOff = true;
+      return [];
+    }
+    const next = applyMove(variant, state, move);
+    if (
+      next?.status.type === 'finished' &&
+      next.status.reason === 'checkmate' &&
+      next.status.winner === attacker
+    ) {
+      moves.push(move);
+    }
+  }
+  return moves;
 }
 
 function decrementSolverPlies(solverPlies: SolverPlyCount): SolverPlyCount {
@@ -695,6 +756,8 @@ Options:
   --seed N                Random self-play seed. Default: 20260622.
   --solver-plies N        Solver moves to search: 1, 2, or 3. Default: 1.
   --strict-replies        Require every legal defender reply to allow continuation.
+  --checking-first-moves  For depth > 1, only search first moves that immediately give check.
+  --unique-solutions      Suppress later candidates with the same variant/side/solution line.
   --variant ID            Restrict to mini-xiangqi or drop-mini-xiangqi.
   --limit N               Maximum emitted candidates. Default: ${DEFAULT_LIMIT}.
   --json                  Print structured JSON instead of compact text.`);

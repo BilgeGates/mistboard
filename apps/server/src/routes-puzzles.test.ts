@@ -56,35 +56,44 @@ test('puzzle list returns public Mini and Drop Mini summaries without solutions'
   };
 
   assert.equal(response.status, 200);
-  assert.equal(body.puzzles.length, 30);
+  assert.equal(body.puzzles.length, 36);
   assert.deepEqual(
-    body.puzzles.slice(0, 4).map((puzzle) => puzzle.variant),
-    ['mini-xiangqi', 'mini-xiangqi', 'mini-xiangqi', 'drop-mini-xiangqi'],
+    body.puzzles.slice(0, 6).map((puzzle) => puzzle.variant),
+    [
+      'mini-xiangqi',
+      'mini-xiangqi',
+      'mini-xiangqi',
+      'mini-xiangqi',
+      'mini-xiangqi',
+      'mini-xiangqi',
+    ],
   );
-  assert.equal(body.puzzles.filter((puzzle) => puzzle.variant === 'drop-mini-xiangqi').length, 27);
+  assert.equal(body.puzzles.filter((puzzle) => puzzle.variant === 'drop-mini-xiangqi').length, 30);
   assert.equal(
     body.puzzles.every((puzzle) => puzzle.solution === undefined),
     true,
   );
-  assert.equal(
-    body.puzzles.find((puzzle) => puzzle.id === 'mini-xiangqi-black-two-step-file-net-1')
-      ?.solutionPlyCount,
-    3,
-  );
-  assert.equal(
-    body.puzzles.find((puzzle) => puzzle.id === 'drop-mini-xiangqi-black-soldier-drop-net-1')
-      ?.solutionPlyCount,
-    3,
-  );
+  const mateInTwoIds = [
+    'mini-xiangqi-black-two-step-file-net-1',
+    'drop-mini-xiangqi-black-soldier-drop-net-1',
+  ];
+  const mateInThreeIds = [
+    'mini-xiangqi-red-cannon-switch-mate-1',
+    'mini-xiangqi-red-double-chariot-file-mate-1',
+    'mini-xiangqi-red-horse-return-mate-1',
+    'drop-mini-xiangqi-red-cannon-clearance-mate-1',
+    'drop-mini-xiangqi-red-twin-cannon-mate-1',
+    'drop-mini-xiangqi-black-cannon-ladder-mate-1',
+  ];
+  for (const id of mateInTwoIds) {
+    assert.equal(body.puzzles.find((puzzle) => puzzle.id === id)?.solutionPlyCount, 3, id);
+  }
+  for (const id of mateInThreeIds) {
+    assert.equal(body.puzzles.find((puzzle) => puzzle.id === id)?.solutionPlyCount, 5, id);
+  }
   assert.equal(
     body.puzzles
-      .filter(
-        (puzzle) =>
-          ![
-            'mini-xiangqi-black-two-step-file-net-1',
-            'drop-mini-xiangqi-black-soldier-drop-net-1',
-          ].includes(puzzle.id),
-      )
+      .filter((puzzle) => !mateInTwoIds.includes(puzzle.id) && !mateInThreeIds.includes(puzzle.id))
       .every((puzzle) => puzzle.solutionPlyCount === 1),
     true,
   );
@@ -95,7 +104,7 @@ test('puzzle list filters by supported puzzle variant', async () => {
   const body = JSON.parse(response.body) as { puzzles: Array<{ variant: string }> };
 
   assert.equal(response.status, 200);
-  assert.equal(body.puzzles.length, 27);
+  assert.equal(body.puzzles.length, 30);
   assert.equal(
     body.puzzles.every((puzzle) => puzzle.variant === 'drop-mini-xiangqi'),
     true,

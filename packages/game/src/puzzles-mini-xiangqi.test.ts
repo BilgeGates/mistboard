@@ -22,7 +22,7 @@ import {
 } from './index.js';
 
 test('Mini Xiangqi puzzle registry validates', () => {
-  assert.equal(MINI_XIANGQI_PUZZLES.length, 30);
+  assert.equal(MINI_XIANGQI_PUZZLES.length, 36);
 
   for (const puzzle of MINI_XIANGQI_PUZZLES) {
     const result = validateMiniXiangqiPuzzle(puzzle);
@@ -54,6 +54,9 @@ test('puzzle lookup and variant filtering expose Mini and Drop Mini tracks', () 
       'mini-xiangqi-red-back-rank-net-1',
       'mini-xiangqi-black-back-rank-net-1',
       'mini-xiangqi-black-two-step-file-net-1',
+      'mini-xiangqi-red-cannon-switch-mate-1',
+      'mini-xiangqi-red-double-chariot-file-mate-1',
+      'mini-xiangqi-red-horse-return-mate-1',
     ],
   );
   assert.deepEqual(
@@ -61,6 +64,9 @@ test('puzzle lookup and variant filtering expose Mini and Drop Mini tracks', () 
     [
       'drop-mini-xiangqi-red-chariot-drop-mate-1',
       'drop-mini-xiangqi-black-soldier-drop-net-1',
+      'drop-mini-xiangqi-red-cannon-clearance-mate-1',
+      'drop-mini-xiangqi-red-twin-cannon-mate-1',
+      'drop-mini-xiangqi-black-cannon-ladder-mate-1',
       ...Array.from(
         { length: 24 },
         (_, index) => `drop-mini-xiangqi-mined-${String(index + 1).padStart(3, '0')}`,
@@ -169,6 +175,60 @@ test('Drop Mini puzzle attempts auto-apply opponent replies after a reserve drop
   assert.deepEqual(solved.ok && solved.state.status, {
     type: 'finished',
     winner: 'black',
+    reason: 'checkmate',
+  });
+});
+
+test('mate-in-three puzzles accept solver moves and auto-apply both replies', () => {
+  const open = miniXiangqiPuzzleById(
+    'mini-xiangqi-red-cannon-switch-mate-1',
+  ) as OpenMiniXiangqiPuzzle;
+  const drop = miniXiangqiPuzzleById(
+    'drop-mini-xiangqi-red-cannon-clearance-mate-1',
+  ) as DropMiniXiangqiPuzzle;
+
+  const openSecond = attemptMiniXiangqiPuzzleLine(open, [
+    { from: 'e2', to: 'd2' },
+    { from: 'g1', to: 'e1' },
+  ]);
+  assert.equal(openSecond.ok, true);
+  assert.equal(openSecond.ok && openSecond.complete, false);
+  assert.equal(openSecond.ok && openSecond.ply, 4);
+  assert.deepEqual(openSecond.ok && openSecond.playedMoves, [
+    { from: 'e2', to: 'd2' },
+    { from: 'd6', to: 'e6' },
+    { from: 'g1', to: 'e1' },
+    { from: 'f4', to: 'e4' },
+  ]);
+
+  const openSolved = attemptMiniXiangqiPuzzleLine(open, [
+    { from: 'e2', to: 'd2' },
+    { from: 'g1', to: 'e1' },
+    { from: 'e1', to: 'e4' },
+  ]);
+  assert.equal(openSolved.ok, true);
+  assert.deepEqual(openSolved.ok && openSolved.state.status, {
+    type: 'finished',
+    winner: 'red',
+    reason: 'checkmate',
+  });
+
+  const dropSolved = attemptMiniXiangqiPuzzleLine(drop, [
+    { from: 'f5', to: 'f7' },
+    { drop: 'cannon', to: 'b7' },
+    { from: 'b1', to: 'b7' },
+  ]);
+  assert.equal(dropSolved.ok, true);
+  assert.deepEqual(dropSolved.ok && dropSolved.playedMoves, [
+    { from: 'f5', to: 'f7' },
+    { from: 'g7', to: 'f7' },
+    { drop: 'cannon', to: 'b7' },
+    { from: 'a7', to: 'b7' },
+    { from: 'b1', to: 'b7' },
+  ]);
+  assert.deepEqual(dropSolved.ok && dropSolved.state.status, {
+    type: 'finished',
+    winner: 'red',
     reason: 'checkmate',
   });
 });
