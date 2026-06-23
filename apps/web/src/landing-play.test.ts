@@ -113,6 +113,63 @@ describe('landing play panel', () => {
     ).not.toBeNull();
   });
 
+  it('starts setup on Game group and filters variants by family', () => {
+    vi.stubEnv('DEV', false);
+    vi.stubEnv('VITE_DARK_XIANGQI_ENABLED', 'false');
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => jsonResponse({ playing: 0, online: 0 })),
+    );
+    const panel = buildLandingPlayPanel([]);
+    document.body.append(panel);
+
+    openPlaySetup(panel, 'Challenge a friend');
+
+    expect(activeSetupSection()).toBe('gameGroup');
+    expect(setupSummaryValue('gameGroup')).toBe('Chess');
+    expect(visibleVariantPickerSpecs()).toEqual([
+      'dark-chess',
+      'reveal-chess',
+      'crossroads-chess',
+      'dark-crossroads-chess',
+      'dark-crazyhouse',
+      'kriegspiel',
+    ]);
+
+    clickModalGameGroup('Xiangqi');
+
+    expect(activeSetupSection()).toBe('variant');
+    expect(setupSummaryValue('gameGroup')).toBe('Xiangqi');
+    expect(selectedVariantSpec()).toBe('mini-xiangqi');
+    expect(visibleVariantPickerSpecs()).toEqual([
+      'mini-xiangqi',
+      'dark-mini-xiangqi',
+      'drop-mini-xiangqi',
+      'dark-xiangqi',
+      'jieqi',
+      'banqi',
+    ]);
+
+    selectModalVariant('dark-mini-xiangqi');
+    expect(activeSetupSection()).toBe('time');
+  });
+
+  it('omits engine-mode game groups with no playable engine variants', () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => jsonResponse({ playing: 0, online: 0 })),
+    );
+    const panel = buildLandingPlayPanel([]);
+    document.body.append(panel);
+
+    openPlaySetup(panel, 'Play the engine');
+
+    expect(modalGameGroups()).toContain('Chess');
+    expect(modalGameGroups()).toContain('Xiangqi');
+    expect(modalGameGroups()).not.toContain('Crossroads');
+    expect(modalGameGroups()).not.toContain('Shogi');
+  });
+
   it('creates dark chess rooms with a canonical game spec id behind the Variant UI', async () => {
     const fetchSpy = vi.fn(async (input: RequestInfo | URL, _init?: RequestInit) => {
       if (String(input) === '/api/live-stats') return jsonResponse({ playing: 0, online: 0 });
@@ -1137,6 +1194,18 @@ function clickModalButton(label: string): void {
     ?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
 }
 
+function clickModalGameGroup(label: string): void {
+  [...document.querySelectorAll<HTMLButtonElement>('.landing-game-group-card')]
+    .find((button) => button.querySelector('.landing-game-group-name')?.textContent === label)
+    ?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+}
+
+function modalGameGroups(): string[] {
+  return [...document.querySelectorAll<HTMLElement>('.landing-game-group-name')].map(
+    (el) => el.textContent?.trim() ?? '',
+  );
+}
+
 function clickModalColor(label: string): void {
   [...document.querySelectorAll<HTMLButtonElement>('.landing-color-option')]
     .find((button) => button.querySelector('.landing-color-label')?.textContent === label)
@@ -1164,9 +1233,28 @@ function variantPickerSpecs(): string[] {
   );
 }
 
+function visibleVariantPickerSpecs(): string[] {
+  return [...document.querySelectorAll<HTMLElement>('.landing-variant-card[data-game-spec]')]
+    .filter((el) => !el.hidden)
+    .map((el) => el.dataset.gameSpec ?? '');
+}
+
 function selectedVariantSpec(): string | undefined {
   return document.querySelector<HTMLElement>('.landing-variant-card.selected[data-game-spec]')
     ?.dataset.gameSpec;
+}
+
+function activeSetupSection(): string | undefined {
+  return document.querySelector<HTMLElement>('.landing-setup-accordion-section.active')?.dataset
+    .setupSection;
+}
+
+function setupSummaryValue(sectionId: string): string | undefined {
+  return document
+    .querySelector<HTMLElement>(
+      `.landing-setup-accordion-section[data-setup-section="${sectionId}"] .landing-setup-summary-value`,
+    )
+    ?.textContent?.trim();
 }
 
 function variantPickerPresent(): boolean {

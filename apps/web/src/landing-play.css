@@ -315,6 +315,87 @@
   text-transform: uppercase;
 }
 
+.landing-setup-accordion-section {
+  display: grid;
+  border: 1px solid var(--site-border);
+  border-radius: var(--site-radius-sm);
+  background: var(--site-panel);
+  overflow: hidden;
+}
+
+.landing-setup-accordion-section[hidden] {
+  display: none;
+}
+
+.landing-setup-accordion-section.active {
+  border-color: color-mix(in srgb, var(--site-accent) 42%, var(--site-border));
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--site-accent) 22%, transparent);
+}
+
+.landing-setup-summary {
+  display: grid;
+  grid-template-columns: minmax(92px, auto) minmax(0, 1fr) 18px;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  min-height: 48px;
+  border: 0;
+  background: var(--site-panel);
+  color: var(--site-text);
+  cursor: pointer;
+  font: inherit;
+  padding: 8px 10px;
+  text-align: left;
+}
+
+.landing-setup-summary:hover,
+.landing-setup-summary:focus-visible {
+  background: var(--site-accent-soft);
+  outline: 2px solid var(--site-focus);
+  outline-offset: -2px;
+}
+
+.landing-setup-summary-title {
+  color: var(--site-muted);
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.landing-setup-summary-value {
+  min-width: 0;
+  color: var(--site-text);
+  font-size: 14px;
+  font-weight: 760;
+  line-height: 1.25;
+  overflow-wrap: anywhere;
+  text-align: right;
+}
+
+.landing-setup-summary-chevron {
+  color: var(--site-muted);
+  font-size: 16px;
+  line-height: 1;
+  text-align: center;
+  transform: rotate(-90deg);
+  transition: transform 120ms ease;
+}
+
+.landing-setup-accordion-section.active .landing-setup-summary-chevron {
+  transform: rotate(0deg);
+}
+
+.landing-setup-accordion-panel {
+  display: grid;
+  gap: 10px;
+  padding: 0 10px 10px;
+}
+
+.landing-setup-accordion-panel[hidden] {
+  display: none;
+}
+
 .landing-variant-control {
   min-height: 48px;
   display: flex;
@@ -345,6 +426,53 @@
 .landing-variant-control-name {
   min-width: 0;
   overflow-wrap: anywhere;
+}
+
+.landing-game-group-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(96px, 1fr));
+  gap: 6px;
+}
+
+.landing-game-group-card {
+  display: grid;
+  justify-items: center;
+  gap: 5px;
+  min-height: 76px;
+  padding: 8px;
+  border: 1px solid var(--site-border);
+  border-radius: var(--site-radius-sm);
+  background: var(--site-panel-soft);
+  color: var(--site-text);
+  cursor: pointer;
+  font: inherit;
+}
+
+.landing-game-group-card.selected {
+  border-color: var(--site-accent);
+  background: var(--site-accent);
+  color: var(--site-on-accent);
+}
+
+.landing-game-group-card:hover,
+.landing-game-group-card:focus-visible {
+  border-color: var(--site-accent);
+  outline: 2px solid var(--site-focus);
+}
+
+.landing-game-group-glyph {
+  display: grid;
+  place-items: center;
+  min-height: 34px;
+  font-size: 30px;
+  line-height: 1;
+}
+
+.landing-game-group-name {
+  font-size: 12px;
+  font-weight: 800;
+  line-height: 1.15;
+  text-align: center;
 }
 
 /* Connected segmented control (lichess-style): one bordered, rounded track whose
@@ -586,6 +714,10 @@
   color: var(--site-text);
   cursor: pointer;
   font: inherit;
+}
+
+.landing-variant-card[hidden] {
+  display: none;
 }
 
 .landing-variant-card-thumb {

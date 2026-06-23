@@ -71,6 +71,7 @@ type LandingTimePreset = {
   initialMs: number;
   incrementMs: number;
 };
+type LandingGameGroupId = 'chess' | 'xiangqi' | 'shogi';
 type LandingColorPreference = 'white' | 'red' | 'black' | 'random';
 type LandingPlayerColor = Exclude<LandingColorPreference, 'random'>;
 type LandingGameSpecCapabilities = {
@@ -137,6 +138,15 @@ const LANDING_TIME_PRESETS: LandingTimePreset[] = TIME_CONTROLS.map((tc) => ({
   initialMs: tc.initialMs,
   incrementMs: tc.incrementMs,
 }));
+const LANDING_GAME_GROUPS: {
+  glyph: string;
+  id: LandingGameGroupId;
+  label: string;
+}[] = [
+  { id: 'chess', label: 'Chess', glyph: '♔' },
+  { id: 'xiangqi', label: 'Xiangqi', glyph: '象' },
+  { id: 'shogi', label: 'Shogi', glyph: '☗' },
+];
 
 // Which time-control presets the picker offers, per variant. Dark chess and DMX
 // are scoped to bullet + blitz: 5+5 is hidden because dark/fog games are
@@ -176,6 +186,28 @@ function enabledLandingVariantGameSpecs(
     (a, b) => canonicalVariantOrderIndex(a.gameSpecId) - canonicalVariantOrderIndex(b.gameSpecId),
   );
   return specs;
+}
+
+function gameGroupForSpec(gameSpecId: LandingGameSpecId): LandingGameGroupId {
+  const family = gameSpecForId(gameSpecId).family;
+  if (family === 'xiangqi') return 'xiangqi';
+  if (family === 'shogi') return 'shogi';
+  return 'chess';
+}
+
+function gameGroupMeta(groupId: LandingGameGroupId): {
+  glyph: string;
+  id: LandingGameGroupId;
+  label: string;
+} {
+  return LANDING_GAME_GROUPS.find((group) => group.id === groupId) ?? LANDING_GAME_GROUPS[0];
+}
+
+function gameGroupsForVariantOptions(
+  options: readonly { gameSpecId: LandingGameSpecId }[],
+): LandingGameGroupId[] {
+  const present = new Set(options.map((option) => gameGroupForSpec(option.gameSpecId)));
+  return LANDING_GAME_GROUPS.map((group) => group.id).filter((groupId) => present.has(groupId));
 }
 
 function parseLandingGameSpecId(value: string): LandingGameSpecId {
@@ -650,6 +682,10 @@ function openLandingSetupDialog(choice: LandingPlayChoice): void {
   let syncGameSpecificSections = () => {};
   let syncVariantControls = () => {};
   let syncColorPreferenceControls = () => {};
+  let syncSetupAccordion = () => {};
+  let openSetupSection = (_id: string) => {};
+  let openNextSetupSection = (_id: string) => {};
+  let selectedGameGroupId = gameGroupForSpec(selectedGameSpecId);
 
   const overlay = document.createElement('div');
   overlay.className = 'landing-setup-overlay';
@@ -675,6 +711,80 @@ function openLandingSetupDialog(choice: LandingPlayChoice): void {
   const header = document.createElement('div');
   header.className = 'landing-setup-header';
   header.append(heading, closeButton);
+
+  const groupHasPlayableVariant = (groupId: LandingGameGroupId) =>
+    variantOptions.some(
+      (option) =>
+        gameGroupForSpec(option.gameSpecId) === groupId &&
+        (choice.mode !== 'pve' || landingVariantSupportsPve(option.gameSpecId)),
+    );
+  const gameGroupOptions =
+    gameGroupsForVariantOptions(variantOptions).filter(groupHasPlayableVariant);
+  const gameGroupSelectable = gameGroupOptions.length > 1;
+  if (!gameGroupOptions.includes(selectedGameGroupId)) {
+    selectedGameGroupId = gameGroupOptions[0] ?? selectedGameGroupId;
+  }
+  const gameGroupSection = document.createElement('div');
+  gameGroupSection.className = 'landing-setup-section';
+  let syncGameGroupControls = () => {};
+  const firstPlayableVariantForGameGroup = (
+    groupId: LandingGameGroupId,
+  ): LandingGameSpecId | undefined =>
+    (
+      variantOptions.find(
+        (option) =>
+          gameGroupForSpec(option.gameSpecId) === groupId &&
+          (choice.mode !== 'pve' || landingVariantSupportsPve(option.gameSpecId)),
+      ) ?? variantOptions.find((option) => gameGroupForSpec(option.gameSpecId) === groupId)
+    )?.gameSpecId;
+
+  if (gameGroupSelectable) {
+    const groupGrid = document.createElement('div');
+    groupGrid.className = 'landing-game-group-grid';
+    groupGrid.setAttribute('role', 'radiogroup');
+    groupGrid.setAttribute('aria-label', 'Game group');
+    const groupButtons = new Map<LandingGameGroupId, HTMLButtonElement>();
+    for (const groupId of gameGroupOptions) {
+      const group = gameGroupMeta(groupId);
+      const button = document.createElement('button');
+      button.type = 'button';
+      button.className = 'landing-game-group-card';
+      button.setAttribute('role', 'radio');
+      button.dataset.gameGroup = group.id;
+
+      const glyph = document.createElement('span');
+      glyph.className = 'landing-game-group-glyph';
+      glyph.setAttribute('aria-hidden', 'true');
+      glyph.textContent = group.glyph;
+
+      const name = document.createElement('span');
+      name.className = 'landing-game-group-name';
+      name.textContent = group.label;
+
+      button.append(glyph, name);
+      button.addEventListener('click', () => {
+        selectedGameGroupId = group.id;
+        if (gameGroupForSpec(selectedGameSpecId) !== selectedGameGroupId) {
+          selectedGameSpecId =
+            firstPlayableVariantForGameGroup(selectedGameGroupId) ?? selectedGameSpecId;
+        }
+        syncGameGroupControls();
+        syncGameSpecificSections();
+        openSetupSection('variant');
+      });
+      groupButtons.set(group.id, button);
+      groupGrid.append(button);
+    }
+    syncGameGroupControls = () => {
+      for (const [groupId, button] of groupButtons) {
+        const selected = groupId === selectedGameGroupId;
+        button.classList.toggle('selected', selected);
+        button.setAttribute('aria-checked', selected ? 'true' : 'false');
+      }
+    };
+    syncGameGroupControls();
+    gameGroupSection.append(groupGrid);
+  }
 
   const variantSection = document.createElement('div');
   variantSection.className = 'landing-setup-section';
@@ -727,8 +837,11 @@ function openLandingSetupDialog(choice: LandingPlayChoice): void {
       } else {
         card.addEventListener('click', () => {
           selectedGameSpecId = gameSpecId;
+          selectedGameGroupId = gameGroupForSpec(gameSpecId);
+          syncGameGroupControls();
           syncVariantControls();
           syncGameSpecificSections();
+          openNextSetupSection('variant');
         });
       }
       cards.set(gameSpecId, card);
@@ -737,6 +850,7 @@ function openLandingSetupDialog(choice: LandingPlayChoice): void {
     syncVariantControls = () => {
       for (const [specId, card] of cards) {
         const on = specId === selectedGameSpecId;
+        card.hidden = gameGroupSelectable && gameGroupForSpec(specId) !== selectedGameGroupId;
         card.classList.toggle('selected', on);
         card.setAttribute('aria-checked', on ? 'true' : 'false');
       }
@@ -769,6 +883,8 @@ function openLandingSetupDialog(choice: LandingPlayChoice): void {
           (engineId, gameSpecId) => {
             selectedEngineId = engineId;
             engineByGameSpec.set(gameSpecId, engineId);
+            syncSetupAccordion();
+            openNextSetupSection('engine');
           },
         )
       : null;
@@ -800,11 +916,13 @@ function openLandingSetupDialog(choice: LandingPlayChoice): void {
     standardButton.addEventListener('click', () => {
       startFormat = 'standard';
       syncOptions();
+      syncSetupAccordion();
     });
     if (draft960Selectable) {
       draftButton.addEventListener('click', () => {
         startFormat = 'draft960';
         syncOptions();
+        syncSetupAccordion();
       });
     }
     startGroup.append(standardButton, draftButton);
@@ -854,6 +972,7 @@ function openLandingSetupDialog(choice: LandingPlayChoice): void {
       selectedTimeMode = 'realtime';
       selectedCorrespondenceDays = null;
       syncTimeControls();
+      openNextSetupSection('time');
     });
     presetGroup.append(button);
     return { button, preset };
@@ -870,6 +989,7 @@ function openLandingSetupDialog(choice: LandingPlayChoice): void {
       selectedTimeMode = 'correspondence';
       selectedCorrespondenceDays = option.days;
       syncTimeControls();
+      openNextSetupSection('time');
     });
     correspondenceGroup.append(button);
     return { button, option };
@@ -917,6 +1037,7 @@ function openLandingSetupDialog(choice: LandingPlayChoice): void {
       button.classList.toggle('selected', selected);
       button.setAttribute('aria-checked', selected ? 'true' : 'false');
     }
+    syncSetupAccordion();
   };
   syncTimeControls();
   timeSection.append(timeModeToggle, presetGroup, correspondenceGroup);
@@ -1002,7 +1123,10 @@ function openLandingSetupDialog(choice: LandingPlayChoice): void {
             rated = v;
           },
           choice.ratedDisabled,
-          syncTimeControls,
+          () => {
+            syncTimeControls();
+            openNextSetupSection('gameType');
+          },
         )
       : null;
 
@@ -1014,6 +1138,7 @@ function openLandingSetupDialog(choice: LandingPlayChoice): void {
           () => preferredColor,
           (value) => {
             preferredColor = value;
+            syncSetupAccordion();
           },
           () => selectedGameSpecId,
           (sync) => {
@@ -1056,18 +1181,120 @@ function openLandingSetupDialog(choice: LandingPlayChoice): void {
     }
     timeSection.hidden = !capabilities.supportsTimeControl;
     syncTimeControls(); // re-scope the preset picker to the selected variant
+    syncGameGroupControls();
     syncVariantControls();
     syncColorPreferenceControls();
+    syncSetupAccordion();
   };
   syncGameSpecificSections();
 
-  // Section order mirrors lichess's flow: variant → time control → game type
-  // (casual/rated) → engine strength → side/color → actions.
+  const timeSummary = () => {
+    if (selectedCorrespondenceDays !== null) {
+      return `${selectedCorrespondenceDays} day${selectedCorrespondenceDays === 1 ? '' : 's'}`;
+    }
+    return (
+      LANDING_TIME_PRESETS.find((candidate) => candidate.id === selectedPreset)?.label ?? '3 + 2'
+    );
+  };
+  const gameTypeSummary = () => (rated && !choice.ratedDisabled ? 'Rated' : 'Casual');
+  const variantSummary = () =>
+    selectedGameSpecId === DARK_CHESS_SPEC_ID && startFormat === 'draft960'
+      ? 'Dark Draft960'
+      : gameSpecForId(selectedGameSpecId).publicName;
+  const engineSummary = () => {
+    const availableEngines =
+      webVariantTenantForSpecId(selectedGameSpecId)?.landing?.engineOptions ??
+      (choice.engines && choice.engines.length > 0 ? choice.engines : fallbackPlayableEngines());
+    const engineId = engineByGameSpec.get(selectedGameSpecId) ?? selectedEngineId;
+    return (
+      availableEngines.find((engine) => engine.id === engineId)?.name ??
+      availableEngines[0]?.name ??
+      'Misty'
+    );
+  };
+  const colorSummary = () => {
+    if (preferredColor === 'random') return 'Random';
+    const capabilities = landingGameSpecCapabilities(selectedGameSpecId);
+    if (preferredColor === capabilities.firstColor) return capabilities.firstLabel;
+    if (preferredColor === capabilities.secondColor) return capabilities.secondLabel;
+    return 'Random';
+  };
+  const setupSections = [
+    ...(gameGroupSelectable
+      ? [
+          buildSetupAccordionSection(
+            'gameGroup',
+            'Game group',
+            gameGroupSection,
+            () => gameGroupMeta(selectedGameGroupId).label,
+          ),
+        ]
+      : []),
+    buildSetupAccordionSection('variant', 'Variant', variantSection, variantSummary),
+    buildSetupAccordionSection('time', 'Time control', timeSection, timeSummary),
+    ...(ratingSection
+      ? [buildSetupAccordionSection('gameType', 'Game type', ratingSection, gameTypeSummary)]
+      : []),
+    ...(engineSection
+      ? [buildSetupAccordionSection('engine', 'Engine', engineSection.section, engineSummary)]
+      : []),
+    ...(colorSection
+      ? [buildSetupAccordionSection('side', 'Side', colorSection, colorSummary)]
+      : []),
+  ];
+  let openSetupSectionId = gameGroupSelectable
+    ? 'gameGroup'
+    : variantSelectable
+      ? 'variant'
+      : 'time';
+  syncSetupAccordion = () => {
+    const isSectionHidden = (content: HTMLElement) =>
+      content.hidden || content.style.display === 'none';
+    if (
+      !setupSections.some(
+        (section) => section.id === openSetupSectionId && !isSectionHidden(section.content),
+      )
+    ) {
+      openSetupSectionId =
+        setupSections.find((section) => !isSectionHidden(section.content))?.id ??
+        openSetupSectionId;
+    }
+    for (const section of setupSections) {
+      const hidden = isSectionHidden(section.content);
+      const active = section.id === openSetupSectionId && !hidden;
+      section.wrapper.hidden = hidden;
+      section.wrapper.classList.toggle('active', active);
+      section.button.setAttribute('aria-expanded', active ? 'true' : 'false');
+      section.panel.hidden = !active;
+      section.value.textContent = section.valueText();
+    }
+  };
+  openSetupSection = (id: string) => {
+    openSetupSectionId = id;
+    syncSetupAccordion();
+  };
+  openNextSetupSection = (id: string) => {
+    const isSectionHidden = (content: HTMLElement) =>
+      content.hidden || content.style.display === 'none';
+    const currentIndex = setupSections.findIndex((section) => section.id === id);
+    const next = setupSections
+      .slice(currentIndex + 1)
+      .find((section) => !isSectionHidden(section.content));
+    if (next) {
+      openSetupSection(next.id);
+    } else {
+      syncSetupAccordion();
+    }
+  };
+  for (const section of setupSections) {
+    section.button.addEventListener('click', () => openSetupSection(section.id));
+  }
+  syncSetupAccordion();
+
+  // Section order mirrors PlayStrategy's compact setup: group → variant → time
+  // control → game type → engine strength → side/color → actions.
   actions.append(startButton, backButton);
-  dialog.append(header, variantSection, timeSection);
-  if (ratingSection) dialog.append(ratingSection);
-  if (engineSection) dialog.append(engineSection.section);
-  if (colorSection) dialog.append(colorSection);
+  dialog.append(header, ...setupSections.map((section) => section.wrapper));
   dialog.append(status, actions);
   overlay.append(dialog);
   document.body.append(overlay);
@@ -1585,6 +1812,57 @@ function setupSectionLabel(text: string): HTMLSpanElement {
   label.className = 'landing-setup-label';
   label.textContent = text;
   return label;
+}
+
+function buildSetupAccordionSection(
+  id: string,
+  label: string,
+  content: HTMLElement,
+  valueText: () => string,
+): {
+  button: HTMLButtonElement;
+  content: HTMLElement;
+  id: string;
+  panel: HTMLElement;
+  value: HTMLElement;
+  valueText: () => string;
+  wrapper: HTMLElement;
+} {
+  const leadingLabel = content.firstElementChild;
+  if (leadingLabel?.classList.contains('landing-setup-label')) leadingLabel.remove();
+
+  const wrapper = document.createElement('section');
+  wrapper.className = 'landing-setup-accordion-section';
+  wrapper.dataset.setupSection = id;
+
+  const button = document.createElement('button');
+  button.type = 'button';
+  button.className = 'landing-setup-summary';
+  button.setAttribute('aria-controls', `landing-setup-panel-${id}`);
+  button.setAttribute('aria-expanded', 'false');
+
+  const title = document.createElement('span');
+  title.className = 'landing-setup-summary-title';
+  title.textContent = label;
+
+  const value = document.createElement('span');
+  value.className = 'landing-setup-summary-value';
+
+  const chevron = document.createElement('span');
+  chevron.className = 'landing-setup-summary-chevron';
+  chevron.setAttribute('aria-hidden', 'true');
+  chevron.textContent = '⌄';
+
+  button.append(title, value, chevron);
+
+  const panel = document.createElement('div');
+  panel.id = `landing-setup-panel-${id}`;
+  panel.className = 'landing-setup-accordion-panel';
+  panel.hidden = true;
+  panel.append(content);
+
+  wrapper.append(button, panel);
+  return { button, content, id, panel, value, valueText, wrapper };
 }
 
 function selectedRoomSetup(
