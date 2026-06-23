@@ -51,7 +51,6 @@ import {
   type DropMiniXiangqiReplayController,
   mountDropMiniXiangqiReplay,
 } from './drop-mini-xiangqi-replay.js';
-import { darkMiniXiangqiPublicEntryEnabled } from './feature-flags.js';
 import { type JieqiReplayController, mountJieqiReplay } from './jieqi-replay.js';
 import { type MiniXiangqiReplayController, mountMiniXiangqiReplay } from './mini-xiangqi-replay.js';
 import { mountShogiReplay, type ShogiReplayController } from './shogi-replay.js';
