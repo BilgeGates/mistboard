@@ -146,6 +146,71 @@ describe('puzzles route', () => {
     );
   });
 
+  it('auto-plays opponent replies in multi-ply puzzles', async () => {
+    const multi = MINI_XIANGQI_PUZZLES.find(
+      (puzzle) => puzzle.id === 'mini-xiangqi-black-two-step-file-net-1',
+    )!;
+    const fetchSpy = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input);
+      if (url === '/api/puzzles') return json({ puzzles: [publicSummary(multi)] });
+      if (url === `/api/puzzles/${multi.id}`) return json({ puzzle: publicDetail(multi) });
+      if (url === `/api/puzzles/${multi.id}/attempt`) {
+        expect(init?.method).toBe('POST');
+        const body = JSON.parse(String(init?.body));
+        if (body.moves.length === 1) {
+          expect(body).toEqual({ moves: [{ from: 'c5', to: 'd5' }] });
+          return json({
+            attempt: attemptMiniXiangqiPuzzleLine(multi, [{ from: 'c5', to: 'd5' }]),
+          });
+        }
+        expect(body).toEqual({
+          moves: [
+            { from: 'c5', to: 'd5' },
+            { from: 'f1', to: 'e1' },
+          ],
+        });
+        return json({
+          attempt: attemptMiniXiangqiPuzzleLine(multi, [
+            { from: 'c5', to: 'd5' },
+            { from: 'f1', to: 'e1' },
+          ]),
+        });
+      }
+      return json({ error: 'not_found' }, 404);
+    });
+    vi.stubGlobal('fetch', fetchSpy);
+    const root = document.createElement('div');
+
+    await mountPuzzles(root, multi.id);
+    expect(root.textContent).toContain('Mate in 2');
+
+    root
+      .querySelector<SVGGElement>('[data-square="c5"]')
+      ?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    root
+      .querySelector<SVGGElement>('[data-square="d5"]')
+      ?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+
+    await vi.waitFor(() => expect(root.textContent).toContain('Correct.'));
+    expect(root.textContent).toContain('c5-d5');
+    expect(root.textContent).toContain('e2-e3');
+    expect(root.textContent).not.toContain('f1-e1');
+
+    root
+      .querySelector<SVGGElement>('[data-square="f1"]')
+      ?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    root
+      .querySelector<SVGGElement>('[data-square="e1"]')
+      ?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+
+    await vi.waitFor(() => expect(root.textContent).toContain('Solved.'));
+    expect(root.textContent).toContain('f1-e1');
+    expect(fetchSpy).toHaveBeenCalledWith(
+      `/api/puzzles/${multi.id}/attempt`,
+      expect.objectContaining({ method: 'POST' }),
+    );
+  });
+
   it('marks solved puzzles and navigates to the next puzzle', async () => {
     const redDrop = MINI_XIANGQI_PUZZLES.find(
       (puzzle) => puzzle.id === 'drop-mini-xiangqi-red-chariot-drop-mate-1',

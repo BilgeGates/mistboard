@@ -22,7 +22,7 @@ import {
 } from './index.js';
 
 test('Mini Xiangqi puzzle registry validates', () => {
-  assert.equal(MINI_XIANGQI_PUZZLES.length, 28);
+  assert.equal(MINI_XIANGQI_PUZZLES.length, 30);
 
   for (const puzzle of MINI_XIANGQI_PUZZLES) {
     const result = validateMiniXiangqiPuzzle(puzzle);
@@ -50,12 +50,17 @@ test('puzzle lookup and variant filtering expose Mini and Drop Mini tracks', () 
   );
   assert.deepEqual(
     miniXiangqiPuzzlesForVariant(MINI_XIANGQI_SPEC_ID).map((puzzle) => puzzle.id),
-    ['mini-xiangqi-red-back-rank-net-1', 'mini-xiangqi-black-back-rank-net-1'],
+    [
+      'mini-xiangqi-red-back-rank-net-1',
+      'mini-xiangqi-black-back-rank-net-1',
+      'mini-xiangqi-black-two-step-file-net-1',
+    ],
   );
   assert.deepEqual(
     miniXiangqiPuzzlesForVariant(DROP_MINI_XIANGQI_SPEC_ID).map((puzzle) => puzzle.id),
     [
       'drop-mini-xiangqi-red-chariot-drop-mate-1',
+      'drop-mini-xiangqi-black-soldier-drop-net-1',
       ...Array.from(
         { length: 24 },
         (_, index) => `drop-mini-xiangqi-mined-${String(index + 1).padStart(3, '0')}`,
@@ -96,7 +101,76 @@ test('puzzle attempts advance correct moves to the solved state', () => {
   assert.equal(result.ok, true);
   assert.equal(result.ok && result.complete, true);
   assert.equal(result.ok && result.state.status.type, 'finished');
+  assert.deepEqual(result.ok && result.playedMoves, [{ drop: 'chariot', to: 'd4' }]);
+  assert.deepEqual(result.ok && result.solverMoves, [{ drop: 'chariot', to: 'd4' }]);
   assert.deepEqual(result.ok && result.lastMove, { drop: 'chariot', to: 'd4' });
+});
+
+test('puzzle attempts accept solver moves only and auto-apply opponent replies', () => {
+  const puzzle = miniXiangqiPuzzleById(
+    'mini-xiangqi-black-two-step-file-net-1',
+  ) as OpenMiniXiangqiPuzzle;
+
+  const first = attemptMiniXiangqiPuzzleLine(puzzle, [{ from: 'c5', to: 'd5' }]);
+
+  assert.equal(first.ok, true);
+  assert.equal(first.ok && first.complete, false);
+  assert.equal(first.ok && first.ply, 2);
+  assert.deepEqual(first.ok && first.playedMoves, [
+    { from: 'c5', to: 'd5' },
+    { from: 'e2', to: 'e3' },
+  ]);
+  assert.deepEqual(first.ok && first.solverMoves, [{ from: 'c5', to: 'd5' }]);
+  assert.deepEqual(first.ok && first.state.status, { type: 'playing', turn: 'black' });
+  assert.deepEqual(first.ok && first.lastMove, { from: 'e2', to: 'e3' });
+
+  const solved = attemptMiniXiangqiPuzzleLine(puzzle, [
+    { from: 'c5', to: 'd5' },
+    { from: 'f1', to: 'e1' },
+  ]);
+
+  assert.equal(solved.ok, true);
+  assert.equal(solved.ok && solved.complete, true);
+  assert.equal(solved.ok && solved.ply, 3);
+  assert.deepEqual(solved.ok && solved.playedMoves, [
+    { from: 'c5', to: 'd5' },
+    { from: 'e2', to: 'e3' },
+    { from: 'f1', to: 'e1' },
+  ]);
+  assert.deepEqual(solved.ok && solved.state.status, {
+    type: 'finished',
+    winner: 'black',
+    reason: 'checkmate',
+  });
+});
+
+test('Drop Mini puzzle attempts auto-apply opponent replies after a reserve drop', () => {
+  const puzzle = miniXiangqiPuzzleById(
+    'drop-mini-xiangqi-black-soldier-drop-net-1',
+  ) as DropMiniXiangqiPuzzle;
+
+  const first = attemptMiniXiangqiPuzzleLine(puzzle, [{ drop: 'soldier', to: 'd4' }]);
+
+  assert.equal(first.ok, true);
+  assert.equal(first.ok && first.complete, false);
+  assert.deepEqual(first.ok && first.playedMoves, [
+    { drop: 'soldier', to: 'd4' },
+    { from: 'e3', to: 'd3' },
+  ]);
+  assert.deepEqual(first.ok && first.solverMoves, [{ drop: 'soldier', to: 'd4' }]);
+
+  const solved = attemptMiniXiangqiPuzzleLine(puzzle, [
+    { drop: 'soldier', to: 'd4' },
+    { from: 'g3', to: 'd3' },
+  ]);
+
+  assert.equal(solved.ok, true);
+  assert.equal(solved.ok && solved.complete, true);
+  assert.deepEqual(solved.ok && solved.state.status, {
+    type: 'finished',
+    winner: 'black',
+    reason: 'checkmate',
+  });
 });
 
 test('puzzle attempts reject wrong moves without returning the solution', () => {
@@ -163,6 +237,8 @@ test('empty puzzle attempts return the starting state without leaking the first 
 
   assert.equal(result.ok, true);
   assert.equal(result.ok && result.complete, false);
+  assert.deepEqual(result.ok && result.playedMoves, []);
+  assert.deepEqual(result.ok && result.solverMoves, []);
   assert.equal(result.ok && 'lastMove' in result, false);
   assert.equal(JSON.stringify(result).includes('"to":"d4"'), false);
 });

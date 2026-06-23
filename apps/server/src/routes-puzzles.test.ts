@@ -56,18 +56,36 @@ test('puzzle list returns public Mini and Drop Mini summaries without solutions'
   };
 
   assert.equal(response.status, 200);
-  assert.equal(body.puzzles.length, 28);
+  assert.equal(body.puzzles.length, 30);
   assert.deepEqual(
     body.puzzles.slice(0, 4).map((puzzle) => puzzle.variant),
-    ['mini-xiangqi', 'mini-xiangqi', 'drop-mini-xiangqi', 'drop-mini-xiangqi'],
+    ['mini-xiangqi', 'mini-xiangqi', 'mini-xiangqi', 'drop-mini-xiangqi'],
   );
-  assert.equal(body.puzzles.filter((puzzle) => puzzle.variant === 'drop-mini-xiangqi').length, 26);
+  assert.equal(body.puzzles.filter((puzzle) => puzzle.variant === 'drop-mini-xiangqi').length, 27);
   assert.equal(
     body.puzzles.every((puzzle) => puzzle.solution === undefined),
     true,
   );
   assert.equal(
-    body.puzzles.every((puzzle) => puzzle.solutionPlyCount === 1),
+    body.puzzles.find((puzzle) => puzzle.id === 'mini-xiangqi-black-two-step-file-net-1')
+      ?.solutionPlyCount,
+    3,
+  );
+  assert.equal(
+    body.puzzles.find((puzzle) => puzzle.id === 'drop-mini-xiangqi-black-soldier-drop-net-1')
+      ?.solutionPlyCount,
+    3,
+  );
+  assert.equal(
+    body.puzzles
+      .filter(
+        (puzzle) =>
+          ![
+            'mini-xiangqi-black-two-step-file-net-1',
+            'drop-mini-xiangqi-black-soldier-drop-net-1',
+          ].includes(puzzle.id),
+      )
+      .every((puzzle) => puzzle.solutionPlyCount === 1),
     true,
   );
 });
@@ -77,7 +95,7 @@ test('puzzle list filters by supported puzzle variant', async () => {
   const body = JSON.parse(response.body) as { puzzles: Array<{ variant: string }> };
 
   assert.equal(response.status, 200);
-  assert.equal(body.puzzles.length, 26);
+  assert.equal(body.puzzles.length, 27);
   assert.equal(
     body.puzzles.every((puzzle) => puzzle.variant === 'drop-mini-xiangqi'),
     true,
@@ -140,6 +158,40 @@ test('puzzle attempts advance correct moves without exposing the solution list',
     reason: 'checkmate',
   });
   assert.equal(body.attempt.solution, undefined);
+});
+
+test('puzzle attempts auto-apply opponent replies for multi-ply lines', async () => {
+  const response = await route(
+    '/api/puzzles/mini-xiangqi-black-two-step-file-net-1/attempt',
+    'POST',
+    {
+      moves: [{ from: 'c5', to: 'd5' }],
+    },
+  );
+  const body = JSON.parse(response.body) as {
+    attempt: {
+      ok: boolean;
+      complete: boolean;
+      playedMoves: unknown[];
+      solverMoves: unknown[];
+      state: { board: Record<string, unknown>; status: { type: string; turn?: string } };
+      solution?: unknown;
+    };
+  };
+
+  assert.equal(response.status, 200);
+  assert.equal(body.attempt.ok, true);
+  assert.equal(body.attempt.complete, false);
+  assert.deepEqual(body.attempt.playedMoves, [
+    { from: 'c5', to: 'd5' },
+    { from: 'e2', to: 'e3' },
+  ]);
+  assert.deepEqual(body.attempt.solverMoves, [{ from: 'c5', to: 'd5' }]);
+  assert.deepEqual(body.attempt.state.status, { type: 'playing', turn: 'black' });
+  assert.deepEqual(body.attempt.state.board.d5, { color: 'black', role: 'general' });
+  assert.deepEqual(body.attempt.state.board.e3, { color: 'red', role: 'general' });
+  assert.equal(body.attempt.solution, undefined);
+  assert.equal(response.body.includes('"from":"f1","to":"e1"'), false);
 });
 
 test('puzzle attempts reject wrong moves without returning the right move', async () => {

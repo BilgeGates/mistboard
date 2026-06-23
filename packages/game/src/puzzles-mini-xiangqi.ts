@@ -111,6 +111,8 @@ export type MiniXiangqiPuzzleAttemptResult =
       ok: true;
       puzzleId: string;
       variant: MiniXiangqiPuzzleVariant;
+      playedMoves: MiniXiangqiPuzzleMove[];
+      solverMoves: MiniXiangqiPuzzleMove[];
       complete: boolean;
       ply: number;
       state: MiniXiangqiPuzzleState;
@@ -175,6 +177,28 @@ export const MINI_XIANGQI_PUZZLES: readonly MiniXiangqiPuzzle[] = [
     themes: ['back-rank', 'checkmate', 'chariot', 'palace-net'],
   },
   {
+    id: 'mini-xiangqi-black-two-step-file-net-1',
+    variant: MINI_XIANGQI_SPEC_ID,
+    title: 'Black two-step file net',
+    initial: miniPuzzleState(
+      'mini-xiangqi-black-two-step-file-net-1',
+      {
+        b3: { color: 'black', role: 'soldier' },
+        c5: { color: 'black', role: 'general' },
+        e2: { color: 'red', role: 'general' },
+        f1: { color: 'black', role: 'chariot' },
+      },
+      'black',
+    ),
+    solution: [
+      { from: 'c5', to: 'd5' },
+      { from: 'e2', to: 'e3' },
+      { from: 'f1', to: 'e1' },
+    ],
+    goal: { type: 'checkmate', winner: 'black' },
+    themes: ['back-rank', 'checkmate', 'chariot', 'palace-net'],
+  },
+  {
     id: 'drop-mini-xiangqi-red-chariot-drop-mate-1',
     variant: DROP_MINI_XIANGQI_SPEC_ID,
     title: 'Red chariot drop mate',
@@ -193,6 +217,47 @@ export const MINI_XIANGQI_PUZZLES: readonly MiniXiangqiPuzzle[] = [
     solution: [{ drop: 'chariot', to: 'd4' }],
     goal: { type: 'checkmate', winner: 'red' },
     themes: ['checkmate', 'chariot', 'drop', 'palace-net'],
+  },
+  {
+    id: 'drop-mini-xiangqi-black-soldier-drop-net-1',
+    variant: DROP_MINI_XIANGQI_SPEC_ID,
+    title: 'Black soldier drop net',
+    initial: dropMiniPuzzleState(
+      'drop-mini-xiangqi-black-soldier-drop-net-1',
+      {
+        a4: { color: 'black', role: 'cannon' },
+        b2: { color: 'red', role: 'soldier' },
+        b4: { color: 'black', role: 'soldier' },
+        b7: { color: 'black', role: 'chariot' },
+        c1: { color: 'black', role: 'chariot' },
+        c2: { color: 'red', role: 'soldier' },
+        c6: { color: 'black', role: 'soldier' },
+        c7: { color: 'black', role: 'horse' },
+        d2: { color: 'red', role: 'general' },
+        d5: { color: 'black', role: 'cannon' },
+        d7: { color: 'black', role: 'general' },
+        e1: { color: 'red', role: 'horse' },
+        e2: { color: 'red', role: 'soldier' },
+        e3: { color: 'red', role: 'soldier' },
+        e6: { color: 'red', role: 'cannon' },
+        e7: { color: 'black', role: 'horse' },
+        f4: { color: 'black', role: 'horse' },
+        f6: { color: 'black', role: 'cannon' },
+        g1: { color: 'red', role: 'chariot' },
+        g2: { color: 'red', role: 'soldier' },
+        g3: { color: 'black', role: 'chariot' },
+        g5: { color: 'red', role: 'soldier' },
+      },
+      'black',
+      { red: { soldier: 1 }, black: { soldier: 1 } },
+    ),
+    solution: [
+      { drop: 'soldier', to: 'd4' },
+      { from: 'e3', to: 'd3' },
+      { from: 'g3', to: 'd3' },
+    ],
+    goal: { type: 'checkmate', winner: 'black' },
+    themes: ['checkmate', 'drop', 'palace-net'],
   },
   ...MINED_DROP_MINI_XIANGQI_PUZZLES,
   {
@@ -374,40 +439,59 @@ export function miniXiangqiPuzzleMoveLabel(move: MiniXiangqiPuzzleMove): string 
 
 export function attemptMiniXiangqiPuzzleLine(
   puzzle: MiniXiangqiPuzzle,
-  moves: readonly MiniXiangqiPuzzleMove[],
+  solverMoves: readonly MiniXiangqiPuzzleMove[],
 ): MiniXiangqiPuzzleAttemptResult {
   let state: MiniXiangqiPuzzleState = puzzle.initial;
   let lastMove: MiniXiangqiPuzzleMove | null = null;
-  for (let ply = 0; ply < moves.length; ply += 1) {
-    const move = moves[ply]!;
-    const expected = puzzle.solution[ply] as MiniXiangqiPuzzleMove | undefined;
+  let solutionPly = 0;
+  const playedMoves: MiniXiangqiPuzzleMove[] = [];
+  const acceptedSolverMoves: MiniXiangqiPuzzleMove[] = [];
+  for (const move of solverMoves) {
+    const expected = puzzle.solution[solutionPly] as MiniXiangqiPuzzleMove | undefined;
     if (!expected) {
-      return attemptFailure(puzzle, 'line-too-long', ply, state, move);
+      return attemptFailure(puzzle, 'line-too-long', playedMoves.length, state, move);
     }
     if (!miniXiangqiPuzzleMoveEquals(move, expected)) {
       const code = moveShapeIssueCode(puzzle.variant, move);
       return attemptFailure(
         puzzle,
         code === 'wrong-move-shape' ? 'wrong-move-shape' : 'incorrect-move',
-        ply,
+        playedMoves.length,
         state,
         move,
       );
     }
     const applied = applyPuzzleMove(puzzle.variant, state, move);
     if (!applied) {
-      return attemptFailure(puzzle, 'illegal-move', ply, state, move);
+      return attemptFailure(puzzle, 'illegal-move', playedMoves.length, state, move);
     }
     state = applied;
     lastMove = move;
+    playedMoves.push(move);
+    acceptedSolverMoves.push(move);
+    solutionPly += 1;
+
+    if (state.status.type !== 'playing' || solutionPly >= puzzle.solution.length) continue;
+    const reply = puzzle.solution[solutionPly] as MiniXiangqiPuzzleMove | undefined;
+    if (!reply) continue;
+    const replied = applyPuzzleMove(puzzle.variant, state, reply);
+    if (!replied) {
+      return attemptFailure(puzzle, 'illegal-move', playedMoves.length, state, reply);
+    }
+    state = replied;
+    lastMove = reply;
+    playedMoves.push(reply);
+    solutionPly += 1;
   }
 
-  const ply = moves.length;
+  const ply = playedMoves.length;
   return {
     ok: true,
     puzzleId: puzzle.id,
     variant: puzzle.variant,
-    complete: ply >= puzzle.solution.length && state.status.type === 'finished',
+    playedMoves,
+    solverMoves: acceptedSolverMoves,
+    complete: solutionPly >= puzzle.solution.length && state.status.type === 'finished',
     ply,
     state,
     ...(lastMove ? { lastMove } : {}),

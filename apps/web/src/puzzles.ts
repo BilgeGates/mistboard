@@ -62,6 +62,8 @@ type PuzzleState = MiniXiangqiGameState | DropMiniXiangqiGameState;
 type PuzzleAttempt =
   | {
       ok: true;
+      playedMoves: PuzzleMove[];
+      solverMoves: PuzzleMove[];
       complete: boolean;
       ply: number;
       state: PuzzleState;
@@ -81,6 +83,7 @@ type PuzzleSession = {
   puzzle: PuzzleDetail;
   state: PuzzleState;
   playedMoves: PuzzleMove[];
+  solverMoves: PuzzleMove[];
   selectedSquare: MiniXiangqiSquare | null;
   selectedDrop: DropMiniXiangqiDropRole | null;
   draggingFrom: MiniXiangqiSquare | null;
@@ -266,6 +269,7 @@ function createPuzzleSession(puzzle: PuzzleDetail): PuzzleSession {
     puzzle,
     state: clonePuzzleState(puzzle.initial),
     playedMoves: [],
+    solverMoves: [],
     selectedSquare: null,
     selectedDrop: null,
     draggingFrom: null,
@@ -745,12 +749,14 @@ async function submitMove(
   session.submitting = true;
   session.feedback = { kind: 'pending', text: 'Checking move.' };
   renderSession();
-  const attempt = await submitPuzzleAttempt(session.puzzle.id, [...session.playedMoves, move]);
+  const nextSolverMoves = [...session.solverMoves, move];
+  const attempt = await submitPuzzleAttempt(session.puzzle.id, nextSolverMoves);
   session.submitting = false;
   session.selectedSquare = null;
   session.selectedDrop = null;
   if (attempt.ok) {
-    session.playedMoves = [...session.playedMoves, move];
+    session.solverMoves = attempt.solverMoves;
+    session.playedMoves = attempt.playedMoves;
     session.state = attempt.state;
     if (attempt.complete) onSolved?.(session.puzzle.id);
     session.feedback = attempt.complete
