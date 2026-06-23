@@ -25,8 +25,8 @@ test('Dark Xiangqi room create + websocket loop is flag-gated and redacted', asy
   const server = await startTestServer();
   try {
     const unsupported = await createDarkXiangqiRoom(server, { mode: 'pve', engineId: 'random' });
-    assert.equal(unsupported.status, 501);
-    assert.deepEqual(await unsupported.json(), { error: 'dark_xiangqi_unsupported_surface' });
+    assert.equal(unsupported.status, 400);
+    assert.deepEqual(await unsupported.json(), { error: 'invalid_engine' });
 
     const createdResponse = await createDarkXiangqiRoom(server);
     assert.equal(createdResponse.status, 201);
