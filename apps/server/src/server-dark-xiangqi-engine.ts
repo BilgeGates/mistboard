@@ -13,7 +13,7 @@ import { buildXiangqiEngineTurnRequest } from './engine-protocol/build-xiangqi.j
 import { isDarkXiangqiEngineClientId, loadEngine } from './engines/registry.js';
 import { requestInternalEngineTurn } from './internal-engine-client.js';
 import { logger } from './obs.js';
-import type { DarkXiangqiLiveRoom } from './server-ws-dark-xiangqi.js';
+import type { DarkXiangqiLiveRoom } from './server-dark-xiangqi-types.js';
 
 const ENGINE_SECRET = process.env.MISTBOARD_ENGINE_SECRET ?? 'mistboard-dev-engine-secret';
 const DEFAULT_TIMEOUT_MS = 60_000;

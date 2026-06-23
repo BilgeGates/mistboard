@@ -13,19 +13,14 @@
  */
 
 import type { IncomingMessage } from 'node:http';
-import type { XiangqiColor } from '@mistboard/game';
 import type { WebSocket } from 'ws';
-import type { DarkXiangqiRuntimeRoom } from './dark-xiangqi-runtime.js';
 import { darkXiangqiTenant } from './dark-xiangqi-tenant.js';
 import { scheduleDarkXiangqiEngineMove } from './server-dark-xiangqi-engine.js';
 import { clearDarkXiangqiRuntimeTimers } from './server-dark-xiangqi-lifecycle.js';
-import { createTenantWsRuntime, type TenantLiveClient } from './variant-tenant/ws.js';
+import type { DarkXiangqiLiveRoom } from './server-dark-xiangqi-types.js';
+import { createTenantWsRuntime } from './variant-tenant/ws.js';
 
-export type DarkXiangqiLiveClient = TenantLiveClient<XiangqiColor>;
-
-export type DarkXiangqiLiveRoom = Omit<DarkXiangqiRuntimeRoom, 'clients'> & {
-  clients: Set<DarkXiangqiLiveClient>;
-};
+export type { DarkXiangqiLiveClient, DarkXiangqiLiveRoom } from './server-dark-xiangqi-types.js';
 
 export type DarkXiangqiWebSocketContext = {
   defaultRoomRegion: string;
