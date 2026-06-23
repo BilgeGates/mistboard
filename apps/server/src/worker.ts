@@ -19,7 +19,6 @@ import {
 } from './engine-registry.js';
 import { runRandomLegalEngineGame } from './engine-runner.js';
 import { type EngineHttpService, startEngineHttpService } from './engine-service.js';
-import { darkMiniXiangqiEnabled, darkXiangqiEnabled } from './feature-flags.js';
 import { runMigrations } from './migrate.js';
 import { startObservability } from './obs.js';
 import { disposeAllPythonPools, getPythonPool } from './python-pool.js';
@@ -203,9 +202,10 @@ try {
 }
 
 async function warmupLiveEnginePools(): Promise<void> {
-  // R1-prevent boot check. Eagerly spawns each player-facing python engine's
-  // pool — which forces the worker self-test (one real move: rust + Stockfish +
-  // search) — so a worker that can't serve fails at startup, not on a live game.
+  // R1-prevent boot check. Eagerly spawns each production-routable Python
+  // engine's pool, which forces the worker self-test (one real move: rust +
+  // Stockfish/search/variant adapter) so a worker that can't serve fails at
+  // startup, not on a live game.
   // getPythonPool() throws only when ALL workers in a pool fail to start (the
   // global-misconfig case we want to catch); a partial failure serves degraded
   // and is logged by the pool. Set MISTBOARD_ENGINE_WARMUP_DISABLED=1 to skip.
@@ -213,13 +213,15 @@ async function warmupLiveEnginePools(): Promise<void> {
     log('engine_warmup_disabled', {});
     return;
   }
-  const warmupEngines = [...playableLiveEngines()];
-  if (darkMiniXiangqiEnabled()) {
-    warmupEngines.push(loadEngine(DARK_MINI_XIANGQI_DEFAULT_ENGINE_ID));
-  }
-  if (darkXiangqiEnabled()) {
-    warmupEngines.push(loadEngine(DARK_XIANGQI_DEFAULT_ENGINE_ID));
-  }
+  const warmupEngines = Array.from(
+    new Map(
+      [
+        ...playableLiveEngines(),
+        loadEngine(DARK_MINI_XIANGQI_DEFAULT_ENGINE_ID),
+        loadEngine(DARK_XIANGQI_DEFAULT_ENGINE_ID),
+      ].map((engine) => [engine.id, engine]),
+    ).values(),
+  );
   const pythonEngines = warmupEngines.filter(
     (engine) => engine.config.kind === 'python-subprocess',
   );
