@@ -13,12 +13,13 @@ import {
 } from './engine-experiments.js';
 import {
   DARK_MINI_XIANGQI_DEFAULT_ENGINE_ID,
+  DARK_XIANGQI_DEFAULT_ENGINE_ID,
   loadEngine,
   playableLiveEngines,
 } from './engine-registry.js';
 import { runRandomLegalEngineGame } from './engine-runner.js';
 import { type EngineHttpService, startEngineHttpService } from './engine-service.js';
-import { darkMiniXiangqiEnabled } from './feature-flags.js';
+import { darkMiniXiangqiEnabled, darkXiangqiEnabled } from './feature-flags.js';
 import { runMigrations } from './migrate.js';
 import { startObservability } from './obs.js';
 import { disposeAllPythonPools, getPythonPool } from './python-pool.js';
@@ -216,6 +217,9 @@ async function warmupLiveEnginePools(): Promise<void> {
   if (darkMiniXiangqiEnabled()) {
     warmupEngines.push(loadEngine(DARK_MINI_XIANGQI_DEFAULT_ENGINE_ID));
   }
+  if (darkXiangqiEnabled()) {
+    warmupEngines.push(loadEngine(DARK_XIANGQI_DEFAULT_ENGINE_ID));
+  }
   const pythonEngines = warmupEngines.filter(
     (engine) => engine.config.kind === 'python-subprocess',
   );
@@ -242,6 +246,9 @@ async function warmupLiveEnginePools(): Promise<void> {
       throw new Error(`engine warmup failed for ${engine.id}: ${error}`);
     }
   }
+  log('engine_warmup_complete', {
+    engineIds: pythonEngines.map((engine) => engine.id),
+  });
 }
 
 async function migrate(connectionString: string): Promise<void> {

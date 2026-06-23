@@ -117,9 +117,9 @@ function pollBootHealth() {
       console.error(`  saw failure: ${failed.slice(0, 200)}`);
       return false;
     }
-    const warm = logs.filter((l) => l > startIso && /engine_warmup_ok|selftest ok/.test(l));
-    if (warm.length > 0) {
-      console.log(`  ${warm.length} healthy boot marker(s) since ${startIso}`);
+    const complete = logs.filter((l) => l > startIso && /engine_warmup_complete/.test(l));
+    if (complete.length > 0) {
+      console.log(`  ${complete.length} complete warmup marker(s) since ${startIso}`);
       return true;
     }
     console.log(`  …still booting (${Math.round((deadline - Date.now()) / 1000)}s left)`);
