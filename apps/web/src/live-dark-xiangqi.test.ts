@@ -19,7 +19,7 @@ describe('Dark Xiangqi board svg', () => {
     expect(svg.match(/xq-live-line/g)).toHaveLength(26);
     expect(svg).not.toContain('xq-live-cell');
     expect(svg).toContain('楚 河   漢 界');
-    expect(svg).toContain('xq-live-border');
+    expect(svg).not.toContain('xq-live-border');
   });
 
   it('keeps shrouded pieces role-neutral in the DOM', () => {

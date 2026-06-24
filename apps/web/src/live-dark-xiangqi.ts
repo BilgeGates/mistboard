@@ -102,7 +102,7 @@ const MARGIN = 36;
 const WIDTH = MARGIN * 2 + (FILE_COUNT - 1) * CELL;
 const HEIGHT = MARGIN * 2 + (RANK_COUNT - 1) * CELL;
 // Corner rounding (viewBox units). Kept in sync with the `.xiangqi-live-board`
-// container border-radius so the SVG bg/border and the clipped container agree.
+// container border-radius so the SVG background and the clipped container agree.
 const BOARD_RADIUS = 16;
 const RIVER_TOP = MARGIN + 4 * CELL;
 const RIVER_BOTTOM = MARGIN + 5 * CELL;
@@ -368,7 +368,6 @@ function boardSvg(
       <g class="xq-live-hints">${options.interactive ? '' : hintLayer(view, perspective)}</g>
       <g class="xq-live-pieces">${pieceLayer(view, perspective, draggingFrom)}</g>
       <g class="xq-live-clicks">${options.interactive ? clickLayer(view, perspective) : ''}</g>
-      <rect class="xq-live-border" x="0" y="0" width="${WIDTH}" height="${HEIGHT}" rx="${BOARD_RADIUS}"/>
     </svg>
   `;
 }

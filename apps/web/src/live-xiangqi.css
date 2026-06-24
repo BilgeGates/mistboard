@@ -50,8 +50,6 @@
   width: min(100%, 72vh);
   max-width: 620px;
   min-height: 0;
-  background: #f3d7a1;
-  border: 1px solid rgba(79, 52, 22, 0.28);
   /* Keep in sync with BOARD_RADIUS in live-dark-xiangqi.ts. overflow:hidden
      clips the full-bleed fog cells to the rounded corner. */
   border-radius: 16px;
@@ -153,13 +151,6 @@
 
 .xq-piece--drag-source {
   opacity: 0.34;
-}
-
-.xq-live-border {
-  fill: none;
-  pointer-events: none;
-  stroke: #8b5a24;
-  stroke-width: 1.5;
 }
 
 .xiangqi-move-list .move-row {
