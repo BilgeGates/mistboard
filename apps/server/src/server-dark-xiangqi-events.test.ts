@@ -125,6 +125,7 @@ test('Dark Xiangqi event writer records private terminal summaries once', async 
   const gameEnd = persistence.gameEnds[0];
   assert.ok(gameEnd);
   assert.equal(gameEnd.summary.result, 'black-wins');
+  assert.equal(gameEnd.summary.mode, 'pvp');
   assert.equal(gameEnd.summary.termination, 'resignation');
   assert.equal(gameEnd.summary.visibility, 'private');
   assert.ok(gameEnd.summary.participants);
@@ -135,6 +136,54 @@ test('Dark Xiangqi event writer records private terminal summaries once', async 
     subjectId: 'red-user',
     visibility: 'private',
   });
+});
+
+test('Dark Xiangqi game summary records PvE engine participants', async () => {
+  const room = roomFixture('dxq_pve', [
+    {
+      type: 'seat-assigned',
+      at: 2,
+      roomId: 'dxq_pve',
+      clientId: 'python-fdx-v1.0',
+      seat: 'black',
+    },
+  ]);
+  room.seatTokens.red = seatTokenState('red', 'red-user');
+  const persistence = persistenceFixture();
+  const ctx = writerContext({ persistence });
+
+  await appendDarkXiangqiEvent(
+    room,
+    {
+      type: 'seat-resigned',
+      at: 3,
+      roomId: room.id,
+      color: 'red',
+    },
+    ctx,
+  );
+
+  assert.equal(persistence.gameEnds.length, 1);
+  const summary = persistence.gameEnds[0]?.summary;
+  assert.ok(summary);
+  assert.equal(summary.mode, 'pve');
+  assert.equal(summary.visibility, 'public');
+  assert.deepEqual(summary.participants, [
+    {
+      color: 'red',
+      displayName: 'Red User',
+      subjectType: 'user',
+      subjectId: 'red-user',
+      visibility: 'public',
+    },
+    {
+      color: 'black',
+      displayName: 'Misty DXQ 1.0',
+      subjectType: 'engine-version',
+      subjectId: 'python-fdx-v1.0',
+      visibility: 'public',
+    },
+  ]);
 });
 
 test('Dark Xiangqi event writer marks aborted games terminal without summaries', async () => {
@@ -329,9 +378,13 @@ function persistenceFixture(
   return persistence;
 }
 
-function roomFixture(roomId: string): DarkXiangqiRuntimeRoom {
+function roomFixture(
+  roomId: string,
+  extraEvents: DarkXiangqiEvent[] = [],
+): DarkXiangqiRuntimeRoom {
   const created = createDarkXiangqiRuntimeRoomFromEvents([
     { type: 'room-created', at: 1, roomId, gameSpecId: DARK_XIANGQI_SPEC_ID },
+    ...extraEvents,
   ]);
   if (!created.ok) throw new Error(created.error);
   return created.room;

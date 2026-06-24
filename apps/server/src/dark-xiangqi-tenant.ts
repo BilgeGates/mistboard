@@ -142,8 +142,8 @@ function emptyDarkXiangqiView(
   };
 }
 
-// Legacy persisted-record shape, preserved exactly: no initialMs/incrementMs,
-// guests display as their color name, always private casual PvP.
+// Legacy persisted-record shape, with the DXQ-specific no-clock fields kept,
+// but PvE metadata preserved so finished bot games remain attributable.
 export function buildDarkXiangqiGameSummary(room: DarkXiangqiTenantRoom): persistence.GameSummary {
   const status = room.projection.state.status;
   if (status.type !== 'finished') {
@@ -152,9 +152,12 @@ export function buildDarkXiangqiGameSummary(room: DarkXiangqiTenantRoom): persis
   const moveEvents = room.events.filter((event) => event.type === 'move-played');
   const firstAt = room.events[0]?.at ?? Date.now();
   const lastAt = room.events[room.events.length - 1]?.at ?? Date.now();
+  const engineSeat = darkXiangqiEngineSeat(room);
+  const mode = engineSeat ? 'pve' : 'pvp';
+  const visibility: persistence.GameVisibility = engineSeat ? 'public' : 'private';
   return {
     variant: DARK_XIANGQI_SPEC_ID,
-    mode: 'pvp',
+    mode,
     result: darkXiangqiResult(status.winner),
     termination: status.reason as persistence.GameTermination,
     plyCount: moveEvents.length,
@@ -166,8 +169,11 @@ export function buildDarkXiangqiGameSummary(room: DarkXiangqiTenantRoom): persis
     blackName: null,
     corpusId: null,
     rated: false,
-    visibility: 'private',
-    participants: [darkXiangqiParticipant('red', room), darkXiangqiParticipant('black', room)],
+    visibility,
+    participants: [
+      darkXiangqiParticipant('red', room, visibility),
+      darkXiangqiParticipant('black', room, visibility),
+    ],
   };
 }
 
@@ -180,7 +186,18 @@ function darkXiangqiResult(winner: XiangqiColor | null): persistence.GameResult 
 function darkXiangqiParticipant(
   color: XiangqiColor,
   room: DarkXiangqiTenantRoom,
+  visibility: persistence.GameVisibility,
 ): persistence.GameParticipant {
+  const seatedClientId = room.projection.seats[color];
+  if (seatedClientId && isDarkXiangqiEngineClientId(seatedClientId)) {
+    return {
+      color,
+      displayName: engineVersionDisplayName(seatedClientId),
+      subjectType: 'engine-version',
+      subjectId: seatedClientId,
+      visibility,
+    };
+  }
   const token = room.seatTokens[color];
   if (token?.userId) {
     return {
@@ -188,7 +205,7 @@ function darkXiangqiParticipant(
       displayName: token.userDisplayName ?? token.userHandle ?? 'Player',
       subjectType: 'user',
       subjectId: token.userId,
-      visibility: 'private',
+      visibility,
     };
   }
   return {
@@ -196,8 +213,15 @@ function darkXiangqiParticipant(
     displayName: color === 'red' ? 'Red' : 'Black',
     subjectType: 'guest',
     subjectId: null,
-    visibility: 'private',
+    visibility,
   };
+}
+
+function darkXiangqiEngineSeat(room: DarkXiangqiTenantRoom): XiangqiColor | null {
+  for (const color of ['red', 'black'] as const) {
+    if (isDarkXiangqiEngineClientId(room.projection.seats[color])) return color;
+  }
+  return null;
 }
 
 export const darkXiangqiTenant: DarkXiangqiTenant = {
