@@ -378,10 +378,7 @@ function persistenceFixture(
   return persistence;
 }
 
-function roomFixture(
-  roomId: string,
-  extraEvents: DarkXiangqiEvent[] = [],
-): DarkXiangqiRuntimeRoom {
+function roomFixture(roomId: string, extraEvents: DarkXiangqiEvent[] = []): DarkXiangqiRuntimeRoom {
   const created = createDarkXiangqiRuntimeRoomFromEvents([
     { type: 'room-created', at: 1, roomId, gameSpecId: DARK_XIANGQI_SPEC_ID },
     ...extraEvents,
