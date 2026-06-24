@@ -6,18 +6,18 @@ import { setResolvedSignedIn } from './signed-in-state.js';
 
 const BASELINE_PICKER_SPECS = [
   'dark-chess',
+  'dark-crazyhouse',
+  'kriegspiel',
+  'reveal-chess',
   'mini-xiangqi',
   'dark-mini-xiangqi',
   'drop-mini-xiangqi',
   'dark-xiangqi',
   'jieqi',
   'banqi',
-  'reveal-chess',
+  'dark-shogi',
   'crossroads-chess',
   'dark-crossroads-chess',
-  'dark-shogi',
-  'dark-crazyhouse',
-  'kriegspiel',
 ];
 
 describe('landing play panel', () => {
@@ -129,11 +129,11 @@ describe('landing play panel', () => {
     expect(setupSummaryValue('gameGroup')).toBe('Chess');
     expect(visibleVariantPickerSpecs()).toEqual([
       'dark-chess',
+      'dark-crazyhouse',
+      'kriegspiel',
       'reveal-chess',
       'crossroads-chess',
       'dark-crossroads-chess',
-      'dark-crazyhouse',
-      'kriegspiel',
     ]);
 
     clickModalGameGroup('Xiangqi');

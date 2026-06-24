@@ -16,6 +16,7 @@ import {
   createInitialBanqiState,
   getBanqiPlayerView,
 } from '@mistboard/game';
+import type { ArticleLang } from './article-i18n.js';
 import {
   BANQI_BOARD_H,
   BANQI_BOARD_W,
@@ -24,6 +25,71 @@ import {
   xqSvg,
 } from './articles/diagrams.js';
 import type { BanqiReplaySpec } from './articles/types.js';
+
+type BanqiReplayCopy = {
+  firstRole: string;
+  secondRole: string;
+  firstMove: string;
+  previousMove: string;
+  nextMove: string;
+  lastMove: string;
+  sliderLabel: string;
+  start: string;
+  intro: string;
+  movePrefix: (moveNumber: number) => string;
+  red: string;
+  black: string;
+  flips: string;
+};
+
+const BANQI_REPLAY_COPY: Record<ArticleLang | 'en', BanqiReplayCopy> = {
+  en: {
+    firstRole: ' (first)',
+    secondRole: ' (second)',
+    firstMove: 'First move',
+    previousMove: 'Previous move',
+    nextMove: 'Next move',
+    lastMove: 'Last move',
+    sliderLabel: 'Move',
+    start: 'Start',
+    intro:
+      'Step through the game. Red moves first; a tile flips to its dealt piece the first time it is turned over.',
+    movePrefix: (moveNumber) => `Move ${moveNumber}`,
+    red: 'Red',
+    black: 'Black',
+    flips: 'flips',
+  },
+  'zh-Hans': {
+    firstRole: '（先手）',
+    secondRole: '（后手）',
+    firstMove: '第一步',
+    previousMove: '上一步',
+    nextMove: '下一步',
+    lastMove: '最后一步',
+    sliderLabel: '着法',
+    start: '开始',
+    intro: '逐步回放这盘棋。红方先走；棋子第一次翻开时会显示其发到的身份。',
+    movePrefix: (moveNumber) => `第 ${moveNumber} 回合`,
+    red: '红方',
+    black: '黑方',
+    flips: '翻开',
+  },
+  'zh-Hant': {
+    firstRole: '（先手）',
+    secondRole: '（後手）',
+    firstMove: '第一步',
+    previousMove: '上一步',
+    nextMove: '下一步',
+    lastMove: '最後一步',
+    sliderLabel: '著法',
+    start: '開始',
+    intro: '逐步回放這盤棋。紅方先走；棋子第一次翻開時會顯示其發到的身分。',
+    movePrefix: (moveNumber) => `第 ${moveNumber} 回合`,
+    red: '紅方',
+    black: '黑方',
+    flips: '翻開',
+  },
+};
 
 // Render a banqi position in the rules-page DIAGRAM style — the xq-diagram-bg
 // board, 50px cells, solid-colour glyph pieces, and "back" face-down tiles,
@@ -55,7 +121,12 @@ function tokenToMove(tok: string): BanqiMove | null {
   return { from: m[1] as BanqiSquare, to: m[2] as BanqiSquare };
 }
 
-export function mountBanqiReplay(host: HTMLElement, spec: BanqiReplaySpec): BanqiReplayController {
+export function mountBanqiReplay(
+  host: HTMLElement,
+  spec: BanqiReplaySpec,
+  options: { lang?: ArticleLang } = {},
+): BanqiReplayController {
+  const copy = BANQI_REPLAY_COPY[options.lang ?? 'en'];
   const perspective = spec.perspective ?? 'red';
   const moves = spec.moves
     .trim()
@@ -79,7 +150,7 @@ export function mountBanqiReplay(host: HTMLElement, spec: BanqiReplaySpec): Banq
   // Banqi has no fixed sides — the seats are first/second to move, and the
   // opening flip decides each player's colour. So label the matchup by sequence,
   // not by ink (which the board shows as the game plays out).
-  headerPlayers.textContent = `${spec.red} (first) vs ${spec.black} (second)`;
+  headerPlayers.textContent = `${spec.red}${copy.firstRole} vs ${spec.black}${copy.secondRole}`;
   const headerEvent = document.createElement('div');
   headerEvent.className = 'xq-replay-header-event';
   headerEvent.textContent = spec.event;
@@ -104,14 +175,14 @@ export function mountBanqiReplay(host: HTMLElement, spec: BanqiReplaySpec): Banq
     b.textContent = label;
     return b;
   };
-  const first = mkButton('⏮', 'First move');
-  const prev = mkButton('←', 'Previous move');
+  const first = mkButton('⏮', copy.firstMove);
+  const prev = mkButton('←', copy.previousMove);
   prev.classList.add('stepper-button-prev');
   const counter = document.createElement('span');
   counter.className = 'stepper-counter';
-  const next = mkButton('→', 'Next move');
+  const next = mkButton('→', copy.nextMove);
   next.classList.add('stepper-button-next');
-  const last = mkButton('⏭', 'Last move');
+  const last = mkButton('⏭', copy.lastMove);
   controls.append(first, prev, counter, next, last);
 
   const slider = document.createElement('input');
@@ -120,7 +191,7 @@ export function mountBanqiReplay(host: HTMLElement, spec: BanqiReplaySpec): Banq
   slider.min = '0';
   slider.max = String(total);
   slider.step = '1';
-  slider.setAttribute('aria-label', 'Move');
+  slider.setAttribute('aria-label', copy.sliderLabel);
 
   const narrative = document.createElement('div');
   narrative.className = 'stepper-narrative';
@@ -130,22 +201,21 @@ export function mountBanqiReplay(host: HTMLElement, spec: BanqiReplaySpec): Banq
   let index = 0;
   function render(): void {
     frame.innerHTML = renderBanqiBoardDiagram(getBanqiPlayerView(states[index]!, perspective));
-    counter.textContent = index === 0 ? 'Start' : `${index} / ${total}`;
+    counter.textContent = index === 0 ? copy.start : `${index} / ${total}`;
     first.disabled = index === 0;
     prev.disabled = index === 0;
     next.disabled = index === total;
     last.disabled = index === total;
     slider.value = String(index);
     if (index === 0) {
-      narrative.textContent =
-        'Step through the game. Red moves first; a tile flips to its dealt piece the first time it is turned over.';
+      narrative.textContent = copy.intro;
     } else if (index === total) {
       narrative.textContent = spec.resultText;
     } else {
       const mv = moves[index - 1]!;
-      const mover = index % 2 === 1 ? 'Red' : 'Black';
-      const action = mv.from === mv.to ? `flips ${mv.from}` : `${mv.from}–${mv.to}`;
-      narrative.textContent = `Move ${Math.ceil(index / 2)} · ${mover}: ${action}`;
+      const mover = index % 2 === 1 ? copy.red : copy.black;
+      const action = mv.from === mv.to ? `${copy.flips} ${mv.from}` : `${mv.from}–${mv.to}`;
+      narrative.textContent = `${copy.movePrefix(Math.ceil(index / 2))} · ${mover}: ${action}`;
     }
   }
 

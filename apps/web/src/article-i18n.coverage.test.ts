@@ -20,6 +20,7 @@ const TRANSLATION_LOCKED_SLUGS: string[] = [
   'shogi4',
   'mini-xiangqi',
   'dark-mini-xiangqi',
+  'drop-mini-xiangqi',
   'jieqi',
   'banqi',
   'mistybanqi',

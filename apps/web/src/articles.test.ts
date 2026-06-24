@@ -10,6 +10,7 @@ import {
   buildArticlesIndex,
   buildHomeArticleCards,
   buildRulesIndex,
+  mountPendingWidgets,
 } from './articles.js';
 import { boardAppearanceChangedEvent } from './theme.js';
 
@@ -54,6 +55,19 @@ describe('article public listing gates', () => {
       '/articles/server-enforced-fog',
       '/articles/dark-chess-concepts',
     ]);
+  });
+
+  it('localizes the zh-Hans articles index cards', () => {
+    vi.stubEnv('DEV', false);
+
+    const index = buildArticlesIndex('zh-Hans');
+    const text = index.textContent ?? '';
+
+    expect(index.querySelector('a[href="/zh-hans/articles/misty"]')).not.toBeNull();
+    expect(text).toContain('Misty 是怎么下棋的');
+    expect(text).toContain('用服务器端真实局面实现迷雾国际象棋');
+    expect(text).not.toContain('How Misty Plays');
+    expect(text).not.toContain('Programming Dark Chess with Server-Side Truth');
   });
 
   it('limits the homepage article widget to curated article cards ordered by publish date', () => {
@@ -211,7 +225,6 @@ describe('article public listing gates', () => {
 
     const page = buildArticlePage('dark-crossroads-chess');
     const landing = buildRulesIndex();
-    const grids = landing.querySelectorAll('.rules-landing-grid');
     const links = [...page.querySelectorAll<HTMLAnchorElement>('a')].map((link) => ({
       href: link.getAttribute('href'),
       text: link.textContent,
@@ -228,13 +241,12 @@ describe('article public listing gates', () => {
       text: 'Create invite',
     });
     expect(landing.textContent).not.toContain('Dark Crossroads Chess');
-    expect(grids[0]?.querySelector('a[href="/rules/dark-crossroads-chess"]')).toBeNull();
+    expect(landing.querySelector('a[href="/rules/dark-crossroads-chess"]')).toBeNull();
     expect(
-      grids[0]?.querySelector(
+      landing.querySelector(
         'a[href="/rules/dark-crossroads-chess"] svg[data-mini-id="dark-crossroads"]',
       ),
     ).toBeNull();
-    expect(grids[1]?.querySelector('a[href="/rules/dark-crossroads-chess"]')).toBeNull();
     expect(
       page.querySelector(
         '.article-variant-sidebar a[aria-current="page"] svg[data-mini-id="dark-crossroads"]',
@@ -295,13 +307,13 @@ describe('article public listing gates', () => {
       href: '/?play=lobby&gameSpecId=drop-mini-xiangqi',
       text: 'Find opponent',
     });
-    expect(grids[0]?.querySelector('a[href="/rules/drop-mini-xiangqi"]')).not.toBeNull();
+    expect(grids[0]?.querySelector('a[href="/rules/drop-mini-xiangqi"]')).toBeNull();
+    expect(grids[1]?.querySelector('a[href="/rules/drop-mini-xiangqi"]')).not.toBeNull();
     expect(
-      grids[0]?.querySelector(
+      grids[1]?.querySelector(
         'a[href="/rules/drop-mini-xiangqi"] svg[data-mini-id="drop-mini-xiangqi"]',
       ),
     ).not.toBeNull();
-    expect(grids[1]?.querySelector('a[href="/rules/drop-mini-xiangqi"]')).toBeNull();
     expect(
       page.querySelector(
         '.article-variant-sidebar a[aria-current="page"] svg[data-mini-id="drop-mini-xiangqi"]',
@@ -403,26 +415,29 @@ describe('rules variant sidebar', () => {
     expect(page.querySelector('.article-variant-sidebar')).toBeNull();
   });
 
-  it('groups the rail into playable and not-yet-playable games', () => {
+  it('groups the rail by game family', () => {
     const page = buildArticlePage('dark-chess');
     const sidebar = page.querySelector('.article-variant-sidebar');
     const titles = [...(sidebar?.querySelectorAll('.article-toc-title') ?? [])].map(
       (title) => title.textContent,
     );
-    expect(titles).toEqual(['On Mistboard', 'References']);
+    expect(titles).toEqual(['Chess variants', 'Xiangqi variants', 'Shogi variants']);
 
     const navs = sidebar?.querySelectorAll('.article-toc-nav');
     expect(navs?.[0]?.querySelector('a[href="/rules/dark-chess"]')).not.toBeNull();
-    expect(navs?.[0]?.querySelector('a[href="/rules/chess"]')).toBeNull();
+    expect(navs?.[0]?.querySelector('a[href="/rules/chess"]')).not.toBeNull();
     // Draft960 is a pregame option that has not shipped as a playable mode.
     expect(navs?.[0]?.querySelector('a[href="/rules/dark-draft960"]')).toBeNull();
-    expect(navs?.[1]?.querySelector('a[href="/rules/chess"]')).not.toBeNull();
+    expect(navs?.[1]?.querySelector('a[href="/rules/mini-xiangqi"]')).not.toBeNull();
+    expect(navs?.[1]?.querySelector('a[href="/rules/dark-mini-xiangqi"]')).not.toBeNull();
+    expect(navs?.[2]?.querySelector('a[href="/rules/shogi"]')).not.toBeNull();
+    expect(navs?.[2]?.querySelector('a[href="/rules/dark-shogi"]')).not.toBeNull();
   });
 
-  it('lists Dark Mini Xiangqi as playable by default', () => {
+  it('lists Dark Mini Xiangqi in the xiangqi family by default', () => {
     const page = buildArticlePage('dark-chess');
     const navs = page.querySelectorAll('.article-variant-sidebar .article-toc-nav');
-    expect(navs[0]?.querySelector('a[href="/rules/dark-mini-xiangqi"]')).not.toBeNull();
+    expect(navs[1]?.querySelector('a[href="/rules/dark-mini-xiangqi"]')).not.toBeNull();
     expect(navs[1]?.querySelector('a[href="/rules/mini-xiangqi"]')).not.toBeNull();
   });
 
@@ -464,16 +479,19 @@ describe('rules variant sidebar', () => {
     ).not.toBeNull();
   });
 
-  it('groups the tile grid like the rail: playable first, reference after', () => {
+  it('groups the tile grid like the rail: chess, xiangqi, then shogi', () => {
     const landing = buildRulesIndex();
     const titles = [...landing.querySelectorAll('.rules-landing-group-title')].map(
       (el) => el.textContent,
     );
-    expect(titles).toEqual(['On Mistboard', 'References']);
+    expect(titles).toEqual(['Chess variants', 'Xiangqi variants', 'Shogi variants']);
     const grids = landing.querySelectorAll('.rules-landing-grid');
     expect(grids[0]?.querySelector('a[href="/rules/dark-chess"]')).not.toBeNull();
-    expect(grids[0]?.querySelector('a[href="/rules/chess"]')).toBeNull();
-    expect(grids[1]?.querySelector('a[href="/rules/chess"]')).not.toBeNull();
+    expect(grids[0]?.querySelector('a[href="/rules/chess"]')).not.toBeNull();
+    expect(grids[1]?.querySelector('a[href="/rules/xiangqi"]')).not.toBeNull();
+    expect(grids[1]?.querySelector('a[href="/rules/drop-mini-xiangqi"]')).not.toBeNull();
+    expect(grids[2]?.querySelector('a[href="/rules/shogi"]')).not.toBeNull();
+    expect(grids[2]?.querySelector('a[href="/rules/dark-shogi"]')).not.toBeNull();
   });
 
   it('renders Jieqi visual diagrams instead of placeholder notes', () => {
@@ -547,6 +565,34 @@ describe('rules variant sidebar', () => {
     expect(figureText).toContain('FIRST FLIP ASSIGNS COLOR');
     expect(figureText).toContain('TAIWAN RANK LADDER');
     expect(figureText).toContain('CANNON SCREEN CAPTURE');
+  });
+
+  it('localizes zh-Hans Banqi SVG labels and replay chrome', () => {
+    const page = buildArticlePage('banqi', 'zh-Hans');
+    document.body.append(page);
+
+    const textBeforeMount = page.textContent ?? '';
+    expect(textBeforeMount).toContain('首次翻子决定颜色');
+    expect(textBeforeMount).toContain('台湾等级序列');
+    expect(textBeforeMount).toContain('炮隔子吃');
+    expect(textBeforeMount).toContain('炮进攻时隔一子跳吃，不看等级。');
+    expect(textBeforeMount).not.toContain('FIRST FLIP ASSIGNS COLOR');
+    expect(textBeforeMount).not.toContain('TAIWAN RANK LADDER');
+    expect(textBeforeMount).not.toContain('CANNON SCREEN CAPTURE');
+
+    const controllers = mountPendingWidgets(page);
+    try {
+      const textAfterMount = page.textContent ?? '';
+      expect(textAfterMount).toContain('MistyBanqi · 最强（先手） vs 人类（后手）');
+      expect(textAfterMount).toContain('人类对引擎');
+      expect(textAfterMount).toContain('MistyBanqi（红方）因对手认输获胜 · 49 回合');
+      expect(textAfterMount).toContain('逐步回放这盘棋。红方先走');
+      expect(textAfterMount).not.toContain('Human vs engine');
+      expect(textAfterMount).not.toContain('(first)');
+      expect(textAfterMount).not.toContain('49 moves');
+    } finally {
+      for (const controller of controllers) controller.destroy();
+    }
   });
 
   it('keeps fogged xiangqi blockers as question-mark pieces', () => {

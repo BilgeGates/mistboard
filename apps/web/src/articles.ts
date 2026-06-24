@@ -10,12 +10,18 @@ import {
 import {
   type Color,
   canonicalVariantOrderIndex,
-  type GameSpecId,
+  type GameFamilyId,
+  gameSpecForId,
   type Square,
 } from '@mistboard/game';
 import './articles.css';
 import { type Announcement, announcements } from './announcements.js';
-import { ARTICLE_LANG_PREFIX, type ArticleLang, translateArticle } from './article-i18n.js';
+import {
+  ARTICLE_LANG_PREFIX,
+  type ArticleLang,
+  translateArticle,
+  translateArticleText,
+} from './article-i18n.js';
 import {
   type Article,
   type ArticleBlock,
@@ -62,6 +68,7 @@ import {
 } from './theme.js';
 import { renderVariantMiniBoard, type VariantMiniId } from './variant-mini-boards.js';
 import {
+  isGameSpecId,
   rulesHrefPublicSurfaceEnabled,
   rulesSlugPublicSurfaceEnabled,
 } from './variant-public-surfaces.js';
@@ -92,6 +99,29 @@ function isArticleListedInThisEnv(article: Article): boolean {
   return true;
 }
 
+type RulesArticleGroupId = 'chess' | 'xiangqi' | 'shogi' | 'other';
+
+const RULES_ARTICLE_GROUP_ORDER: readonly RulesArticleGroupId[] = [
+  'chess',
+  'xiangqi',
+  'shogi',
+  'other',
+];
+
+const BASE_RULE_GROUP_BY_SLUG: Record<string, RulesArticleGroupId> = {
+  chess: 'chess',
+  xiangqi: 'xiangqi',
+  shogi: 'shogi',
+  shogi4: 'shogi',
+};
+
+const BASE_RULE_ORDER: Record<string, number> = {
+  chess: -100,
+  xiangqi: -100,
+  shogi: -100,
+  shogi4: 100,
+};
+
 const ARTICLE_INDEX_COPY: Record<
   ArticleLang | 'en',
   {
@@ -100,8 +130,12 @@ const ARTICLE_INDEX_COPY: Record<
     rulesHeading: string;
     rulesIntro: string;
     rulesLandingBody: string[];
-    railPlayable: string;
-    railReference: string;
+    rulesGroupTitles: Record<RulesArticleGroupId, string>;
+    allArticles: string;
+    allRules: string;
+    articleKind: string;
+    rulesKind: string;
+    tocTitle: string;
     published: string;
     updated: string;
     dateLocale: string;
@@ -116,8 +150,17 @@ const ARTICLE_INDEX_COPY: Record<
       'Each page covers the board, how the pieces move, and how games end, with interactive boards you can step through.',
       'The base games anchor the rules. Their dark variants play the same game under fog: each side sees only the squares its pieces reach, there are no check warnings, and you win by capturing the king.',
     ],
-    railPlayable: 'On Mistboard',
-    railReference: 'References',
+    rulesGroupTitles: {
+      chess: 'Chess variants',
+      xiangqi: 'Xiangqi variants',
+      shogi: 'Shogi variants',
+      other: 'Other games',
+    },
+    allArticles: 'All articles',
+    allRules: 'All rules',
+    articleKind: 'Article',
+    rulesKind: 'Rules',
+    tocTitle: 'On this page',
     published: 'Published',
     updated: 'Updated',
     dateLocale: 'en-US',
@@ -131,8 +174,17 @@ const ARTICLE_INDEX_COPY: Record<
       '每个页面介绍棋盘、棋子走法与胜负规则，并配有可逐步演示的互动棋盘。',
       '基础棋类是规则的根基。黑暗变体在迷雾下进行同一种游戏：双方只能看到己方棋子所及的格子，没有将军提示，吃掉对方的王即获胜。',
     ],
-    railPlayable: '可在 Mistboard 对弈',
-    railReference: '参考资料',
+    rulesGroupTitles: {
+      chess: '国际象棋变体',
+      xiangqi: '象棋变体',
+      shogi: '将棋变体',
+      other: '其他游戏',
+    },
+    allArticles: '全部文章',
+    allRules: '全部规则',
+    articleKind: '文章',
+    rulesKind: '规则',
+    tocTitle: '本页内容',
     published: '发布于',
     updated: '更新于',
     dateLocale: 'zh-CN',
@@ -146,12 +198,27 @@ const ARTICLE_INDEX_COPY: Record<
       '每個頁面介紹棋盤、棋子走法與勝負規則，並配有可逐步演示的互動棋盤。',
       '基礎棋類是規則的根基。黑暗變體在迷霧下進行同一種遊戲：雙方只能看到己方棋子所及的格子，沒有將軍提示，吃掉對方的王即獲勝。',
     ],
-    railPlayable: '可在 Mistboard 對弈',
-    railReference: '參考資料',
+    rulesGroupTitles: {
+      chess: '西洋棋變體',
+      xiangqi: '象棋變體',
+      shogi: '將棋變體',
+      other: '其他遊戲',
+    },
+    allArticles: '全部文章',
+    allRules: '全部規則',
+    articleKind: '文章',
+    rulesKind: '規則',
+    tocTitle: '本頁內容',
     published: '發布於',
     updated: '更新於',
     dateLocale: 'zh-TW',
   },
+};
+
+type ArticleIndexCopy = (typeof ARTICLE_INDEX_COPY)[ArticleLang | 'en'];
+type RulesArticleGroup = {
+  title: string;
+  items: Article[];
 };
 
 export function buildArticlesIndex(lang?: ArticleLang): HTMLElement {
@@ -221,29 +288,11 @@ function buildRulesLanding(lang?: ArticleLang): HTMLElement {
     sheet.append(p);
   }
 
-  // Same playable / not-yet grouping as the variant rail, so the narrow-screen
-  // picker and the desktop rail tell one story.
   const entries = articles.filter(
     (article) => article.kind === 'rules' && isArticleListedInThisEnv(article),
   );
-  const tileGroups = [
-    {
-      title: copy.railPlayable,
-      // Playable variant tiles follow the one canonical variant order shared with
-      // the play menu / leaderboard / watch rail. Variant-rules slugs equal their
-      // game-spec id, so sort by that; .filter() already returns a fresh array.
-      items: entries
-        .filter((entry) => entry.playableOnMistboard)
-        .sort(
-          (a, b) =>
-            canonicalVariantOrderIndex(a.slug as GameSpecId) -
-            canonicalVariantOrderIndex(b.slug as GameSpecId),
-        ),
-    },
-    { title: copy.railReference, items: entries.filter((entry) => !entry.playableOnMistboard) },
-  ];
+  const tileGroups = buildRulesArticleGroups(entries, copy);
   for (const group of tileGroups) {
-    if (group.items.length === 0) continue;
     const groupTitle = document.createElement('h2');
     groupTitle.className = 'rules-landing-group-title';
     groupTitle.textContent = group.title;
@@ -587,6 +636,7 @@ export function buildArticlePage(slug: string, lang?: ArticleLang): HTMLElement 
   const main = document.createElement('main');
   main.className = 'site-section article-shell article-page';
   main.dataset.articleSlug = article.slug;
+  if (lang) main.dataset.articleLang = lang;
 
   // The sheet is the page's single anchoring panel; both rails sit beside
   // it directly on the page background (pychess grammar).
@@ -598,7 +648,8 @@ export function buildArticlePage(slug: string, lang?: ArticleLang): HTMLElement 
   const back = document.createElement('a');
   const prefix = lang ? ARTICLE_LANG_PREFIX[lang] : '';
   back.href = article.kind === 'rules' ? `${prefix}/rules` : `${prefix}/articles`;
-  back.textContent = article.kind === 'rules' ? '← All rules' : '← All articles';
+  const copy = ARTICLE_INDEX_COPY[lang ?? 'en'];
+  back.textContent = article.kind === 'rules' ? `← ${copy.allRules}` : `← ${copy.allArticles}`;
   breadcrumb.append(back);
 
   // Centered header block (lichess ublog grammar): fluid regular-weight
@@ -615,7 +666,7 @@ export function buildArticlePage(slug: string, lang?: ArticleLang): HTMLElement 
   metaRow.className = 'article-meta-row';
   const kindChip = document.createElement('span');
   kindChip.className = 'article-chip';
-  kindChip.textContent = article.kind === 'rules' ? 'Rules' : 'Article';
+  kindChip.textContent = article.kind === 'rules' ? copy.rulesKind : copy.articleKind;
   metaRow.append(kindChip);
   const showStatusBadge = article.status === 'outline' || article.status === 'draft';
   if (showStatusBadge) {
@@ -628,7 +679,7 @@ export function buildArticlePage(slug: string, lang?: ArticleLang): HTMLElement 
     const fmt = (iso: string): string => {
       // YYYY-MM-DD → "Month D, YYYY"
       const d = new Date(`${iso}T00:00:00Z`);
-      return d.toLocaleDateString('en-US', {
+      return d.toLocaleDateString(copy.dateLocale, {
         year: 'numeric',
         month: 'long',
         day: 'numeric',
@@ -637,9 +688,9 @@ export function buildArticlePage(slug: string, lang?: ArticleLang): HTMLElement 
     };
     const dates = document.createElement('span');
     dates.className = 'article-meta-dates';
-    dates.textContent = `Published ${fmt(article.publishedAt)}`;
+    dates.textContent = `${copy.published} ${fmt(article.publishedAt)}`;
     if (article.updatedAt && article.updatedAt !== article.publishedAt) {
-      dates.textContent += ` · Updated ${fmt(article.updatedAt)}`;
+      dates.textContent += ` · ${copy.updated} ${fmt(article.updatedAt)}`;
     }
     metaRow.append(dates);
   }
@@ -658,7 +709,7 @@ export function buildArticlePage(slug: string, lang?: ArticleLang): HTMLElement 
   if (article.intro && article.intro.length > 0) {
     const intro = document.createElement('div');
     intro.className = 'article-intro';
-    for (const block of article.intro) intro.append(renderBlock(block));
+    for (const block of article.intro) intro.append(renderBlock(block, lang));
     sheet.append(intro);
   }
 
@@ -690,7 +741,7 @@ export function buildArticlePage(slug: string, lang?: ArticleLang): HTMLElement 
     h2.textContent = section.heading;
     h2.id = uniqueId(section.heading, usedIds, headingIndex++);
     body.append(h2);
-    for (const node of renderSectionBody(section)) {
+    for (const node of renderSectionBody(section, lang)) {
       if (node instanceof HTMLHeadingElement && node.tagName === 'H3') {
         node.id = uniqueId(node.textContent ?? '', usedIds, headingIndex++);
       }
@@ -704,7 +755,7 @@ export function buildArticlePage(slug: string, lang?: ArticleLang): HTMLElement 
   }
   sheet.append(body);
   main.append(sheet);
-  const sidebar = buildTocSidebar(body);
+  const sidebar = buildTocSidebar(body, lang);
   if (sidebar) main.append(sidebar);
 
   return main;
@@ -737,26 +788,9 @@ function buildVariantSidebar(currentSlug: string | null, lang?: ArticleLang): HT
   const box = document.createElement('div');
   box.className = 'article-toc-sticky';
 
-  const groups = [
-    {
-      title: copy.railPlayable,
-      // Playable variant tiles follow the one canonical variant order shared with
-      // the play menu / leaderboard / watch rail. Variant-rules slugs equal their
-      // game-spec id, so sort by that; .filter() already returns a fresh array.
-      items: entries
-        .filter((entry) => entry.playableOnMistboard)
-        .sort(
-          (a, b) =>
-            canonicalVariantOrderIndex(a.slug as GameSpecId) -
-            canonicalVariantOrderIndex(b.slug as GameSpecId),
-        ),
-    },
-    { title: copy.railReference, items: entries.filter((entry) => !entry.playableOnMistboard) },
-  ];
+  const groups = buildRulesArticleGroups(entries, copy);
 
   for (const group of groups) {
-    if (group.items.length === 0) continue;
-
     const title = document.createElement('p');
     title.className = 'article-toc-title';
     title.textContent = group.title;
@@ -797,6 +831,45 @@ function variantNavLabel(title: string): string {
   return title.replace(/\s*Rules$/i, '').replace(/(规则|規則)$/u, '');
 }
 
+function buildRulesArticleGroups(
+  entries: readonly Article[],
+  copy: ArticleIndexCopy,
+): RulesArticleGroup[] {
+  return RULES_ARTICLE_GROUP_ORDER.map((id) => ({
+    title: copy.rulesGroupTitles[id],
+    items: entries
+      .filter((article) => rulesArticleGroup(article) === id)
+      .sort(compareRulesArticles),
+  })).filter((group) => group.items.length > 0);
+}
+
+function compareRulesArticles(a: Article, b: Article): number {
+  const order = rulesArticleSortIndex(a) - rulesArticleSortIndex(b);
+  if (order !== 0) return order;
+  return a.title.localeCompare(b.title);
+}
+
+function rulesArticleGroup(article: Article): RulesArticleGroupId {
+  const baseGroup = BASE_RULE_GROUP_BY_SLUG[article.slug];
+  if (baseGroup) return baseGroup;
+  if (!isGameSpecId(article.slug)) return 'other';
+  return rulesGroupForFamily(gameSpecForId(article.slug).family);
+}
+
+function rulesGroupForFamily(family: GameFamilyId): RulesArticleGroupId {
+  if (family === 'chess') return 'chess';
+  if (family === 'xiangqi') return 'xiangqi';
+  if (family === 'shogi') return 'shogi';
+  return 'other';
+}
+
+function rulesArticleSortIndex(article: Article): number {
+  const baseOrder = BASE_RULE_ORDER[article.slug];
+  if (baseOrder !== undefined) return baseOrder;
+  if (isGameSpecId(article.slug)) return canonicalVariantOrderIndex(article.slug);
+  return Number.MAX_SAFE_INTEGER;
+}
+
 function uniqueId(text: string, used: Set<string>, fallback: number): string {
   let base = text
     .toLowerCase()
@@ -815,7 +888,7 @@ function uniqueId(text: string, used: Set<string>, fallback: number): string {
   return id;
 }
 
-function buildTocSidebar(body: HTMLElement): HTMLElement | null {
+function buildTocSidebar(body: HTMLElement, lang?: ArticleLang): HTMLElement | null {
   const headings = body.querySelectorAll<HTMLHeadingElement>('h2, h3');
   if (headings.length === 0) return null;
 
@@ -825,7 +898,7 @@ function buildTocSidebar(body: HTMLElement): HTMLElement | null {
   sticky.className = 'article-toc-sticky';
   const title = document.createElement('h3');
   title.className = 'article-toc-title';
-  title.textContent = 'On this page';
+  title.textContent = ARTICLE_INDEX_COPY[lang ?? 'en'].tocTitle;
   const nav = document.createElement('nav');
   nav.className = 'article-toc-nav';
   nav.setAttribute('aria-label', 'Table of contents');
@@ -936,9 +1009,9 @@ export function mountArticleEnhancements(root: HTMLElement): () => void {
   };
 }
 
-function renderSectionBody(section: ArticleSection): HTMLElement[] {
+function renderSectionBody(section: ArticleSection, lang?: ArticleLang): HTMLElement[] {
   if (section.blocks && section.blocks.length > 0) {
-    return section.blocks.map(renderBlock);
+    return section.blocks.map((block) => renderBlock(block, lang));
   }
   if (section.paragraphs) {
     return section.paragraphs.map(paragraphNode);
@@ -961,15 +1034,23 @@ type PendingBlock =
   | CrossroadsReplayBlock
   | JieqiReplayBlock
   | BanqiReplayBlock;
-const pendingMounts = new WeakMap<HTMLElement, PendingBlock>();
+type PendingMount = {
+  block: PendingBlock;
+  lang?: ArticleLang;
+};
+const pendingMounts = new WeakMap<HTMLElement, PendingMount>();
 
-function renderBlock(block: ArticleBlock): HTMLElement {
+function rememberPendingMount(figure: HTMLElement, block: PendingBlock, lang?: ArticleLang): void {
+  pendingMounts.set(figure, { block, lang });
+}
+
+function renderBlock(block: ArticleBlock, lang?: ArticleLang): HTMLElement {
   if (block.kind === 'paragraph') return paragraphNode(block.text);
   if (block.kind === 'sub-heading') return subHeadingNode(block);
   if (block.kind === 'static-boards') return renderStaticBoardsBlock(block);
   if (block.kind === 'cta') return renderCtaBlock(block);
-  if (block.kind === 'raw-svg') return renderRawSvgBlock(block);
-  if (block.kind === 'raw-svg-stepper') return renderRawSvgStepperBlock(block);
+  if (block.kind === 'raw-svg') return renderRawSvgBlock(block, lang);
+  if (block.kind === 'raw-svg-stepper') return renderRawSvgStepperBlock(block, lang);
   if (block.kind === 'code') return renderCodeBlock(block);
   if (block.kind === 'live-boards') return renderLiveBoardsBlock(block);
   if (block.kind === 'xq-replay') return renderXiangqiReplayBlock(block);
@@ -979,7 +1060,7 @@ function renderBlock(block: ArticleBlock): HTMLElement {
   if (block.kind === 'chess-replay') return renderChessReplayBlock(block);
   if (block.kind === 'crossroads-replay') return renderCrossroadsReplayBlock(block);
   if (block.kind === 'jieqi-replay') return renderJieqiReplayBlock(block);
-  if (block.kind === 'banqi-replay') return renderBanqiReplayBlock(block);
+  if (block.kind === 'banqi-replay') return renderBanqiReplayBlock(block, lang);
   return renderInteractiveBlock(block);
 }
 
@@ -999,7 +1080,7 @@ function renderChessReplayBlock(block: ChessReplayBlock): HTMLElement {
     figure.append(cap);
   }
 
-  pendingMounts.set(figure, block);
+  rememberPendingMount(figure, block);
   return figure;
 }
 
@@ -1019,7 +1100,7 @@ function renderCrossroadsReplayBlock(block: CrossroadsReplayBlock): HTMLElement 
     figure.append(cap);
   }
 
-  pendingMounts.set(figure, block);
+  rememberPendingMount(figure, block);
   return figure;
 }
 
@@ -1039,11 +1120,11 @@ function renderJieqiReplayBlock(block: JieqiReplayBlock): HTMLElement {
     figure.append(cap);
   }
 
-  pendingMounts.set(figure, block);
+  rememberPendingMount(figure, block);
   return figure;
 }
 
-function renderBanqiReplayBlock(block: BanqiReplayBlock): HTMLElement {
+function renderBanqiReplayBlock(block: BanqiReplayBlock, lang?: ArticleLang): HTMLElement {
   const figure = document.createElement('figure');
   figure.className = 'article-figure article-figure-interactive article-figure-banqi';
   figure.dataset.pendingWidget = 'banqi-replay';
@@ -1059,7 +1140,7 @@ function renderBanqiReplayBlock(block: BanqiReplayBlock): HTMLElement {
     figure.append(cap);
   }
 
-  pendingMounts.set(figure, block);
+  rememberPendingMount(figure, block, lang);
   return figure;
 }
 
@@ -1079,7 +1160,7 @@ function renderXiangqiReplayBlock(block: XiangqiReplayBlock): HTMLElement {
     figure.append(cap);
   }
 
-  pendingMounts.set(figure, block);
+  rememberPendingMount(figure, block);
   return figure;
 }
 
@@ -1099,7 +1180,7 @@ function renderMiniXiangqiReplayBlock(block: MiniXiangqiReplayBlock): HTMLElemen
     figure.append(cap);
   }
 
-  pendingMounts.set(figure, block);
+  rememberPendingMount(figure, block);
   return figure;
 }
 
@@ -1120,7 +1201,7 @@ function renderDropMiniXiangqiReplayBlock(block: DropMiniXiangqiReplayBlock): HT
     figure.append(cap);
   }
 
-  pendingMounts.set(figure, block);
+  rememberPendingMount(figure, block);
   return figure;
 }
 
@@ -1140,7 +1221,7 @@ function renderShogiReplayBlock(block: ShogiReplayBlock): HTMLElement {
     figure.append(cap);
   }
 
-  pendingMounts.set(figure, block);
+  rememberPendingMount(figure, block);
   return figure;
 }
 
@@ -1160,7 +1241,7 @@ function renderLiveBoardsBlock(block: LiveBoardsBlock): HTMLElement {
     figure.append(cap);
   }
 
-  pendingMounts.set(figure, block);
+  rememberPendingMount(figure, block);
   return figure;
 }
 
@@ -1307,27 +1388,50 @@ function trackCrossroadsDiagram(holder: HTMLElement, thunk: () => string): void 
   markNoTranslate(holder);
 }
 
-function renderRawSvgBlock(block: RawSvgBlock): HTMLElement {
+function localizeSvgMarkup(raw: string, lang?: ArticleLang): string {
+  if (!lang) return raw;
+  const template = document.createElement('template');
+  template.innerHTML = raw;
+  localizeInlineSvgText(template.content, lang);
+  return template.innerHTML;
+}
+
+function localizeInlineSvgText(root: ParentNode, lang?: ArticleLang): void {
+  if (!lang) return;
+  root
+    .querySelectorAll<SVGTextElement | SVGTitleElement | SVGDescElement>(
+      'svg text, svg title, svg desc',
+    )
+    .forEach((node) => {
+      const text = node.textContent;
+      if (!text) return;
+      node.textContent = translateArticleText(lang, text.trim());
+    });
+}
+
+function renderRawSvgBlock(block: RawSvgBlock, lang?: ArticleLang): HTMLElement {
   const figure = document.createElement('figure');
   figure.className = 'article-figure article-figure-static';
   if (block.className) figure.classList.add(...block.className.split(/\s+/).filter(Boolean));
   if (typeof block.svg === 'function') {
+    const rawSvg = block.svg;
+    const svgThunk = () => localizeSvgMarkup(rawSvg(), lang);
     // Render once to detect the family (and seed the figure), then track for
     // re-render on that family's appearance event.
-    figure.innerHTML = block.svg();
+    figure.innerHTML = svgThunk();
     if (figure.querySelector('.shogi-board-svg')) {
-      trackShogiDiagram(figure, block.svg);
+      trackShogiDiagram(figure, svgThunk);
     } else if (figure.querySelector('.crossroads-live-svg, .crossroads-article-svg')) {
-      trackCrossroadsDiagram(figure, block.svg);
+      trackCrossroadsDiagram(figure, svgThunk);
     } else {
-      trackXqDiagram(figure, block.svg);
+      trackXqDiagram(figure, svgThunk);
       paintXqDiagram(figure, readStoredXiangqiPieceSet());
       if (figure.querySelector('.xq-article-svg')) {
         figure.classList.add('article-figure-xq');
       }
     }
   } else {
-    figure.innerHTML = block.svg;
+    figure.innerHTML = localizeSvgMarkup(block.svg, lang);
     if (figure.querySelector('.xq-article-svg')) {
       figure.classList.add('article-figure-xq');
       markXqDiagramsNoTranslate(figure);
@@ -1342,7 +1446,7 @@ function renderRawSvgBlock(block: RawSvgBlock): HTMLElement {
   return figure;
 }
 
-function renderRawSvgStepperBlock(block: RawSvgStepperBlock): HTMLElement {
+function renderRawSvgStepperBlock(block: RawSvgStepperBlock, lang?: ArticleLang): HTMLElement {
   const figure = document.createElement('figure');
   figure.className = 'article-figure article-figure-interactive article-figure-raw-svg-stepper';
 
@@ -1403,8 +1507,8 @@ function renderRawSvgStepperBlock(block: RawSvgStepperBlock): HTMLElement {
     if (!step) return;
     frame.innerHTML =
       typeof step.svg === 'function'
-        ? withXiangqiPieceSet(readStoredXiangqiPieceSet(), step.svg)
-        : step.svg;
+        ? localizeSvgMarkup(withXiangqiPieceSet(readStoredXiangqiPieceSet(), step.svg), lang)
+        : localizeSvgMarkup(step.svg, lang);
     const hasXiangqiDiagram = Boolean(frame.querySelector('.xq-article-svg'));
     frame.classList.toggle('raw-svg-stepper-frame-xq', hasXiangqiDiagram);
     figure.classList.toggle('article-figure-xq', hasXiangqiDiagram);
@@ -1463,7 +1567,8 @@ function renderRawSvgStepperBlock(block: RawSvgStepperBlock): HTMLElement {
     trackXqDiagram(frame, () => {
       const step = block.steps[stepIdx];
       if (!step) return '';
-      return typeof step.svg === 'function' ? step.svg() : step.svg;
+      const raw = typeof step.svg === 'function' ? step.svg() : step.svg;
+      return localizeSvgMarkup(raw, lang);
     });
   }
 
@@ -1601,7 +1706,7 @@ function renderInteractiveBlock(block: InteractiveBlock): HTMLElement {
     figure.append(cap);
   }
 
-  pendingMounts.set(figure, block);
+  rememberPendingMount(figure, block);
   return figure;
 }
 
@@ -1633,8 +1738,9 @@ export function mountPendingWidgets(
   > = [];
   const pending = root.querySelectorAll<HTMLElement>('[data-pending-widget]');
   pending.forEach((figure) => {
-    const block = pendingMounts.get(figure);
-    if (!block) return;
+    const pendingMount = pendingMounts.get(figure);
+    if (!pendingMount) return;
+    const { block, lang } = pendingMount;
     const target = figure.querySelector<HTMLElement>('.article-interactive-target');
     if (!target) return;
     if (block.kind === 'interactive' && block.widget === 'stepper') {
@@ -1656,7 +1762,7 @@ export function mountPendingWidgets(
     } else if (block.kind === 'jieqi-replay') {
       controllers.push(mountJieqiReplay(target, block.spec));
     } else if (block.kind === 'banqi-replay') {
-      controllers.push(mountBanqiReplay(target, block.spec));
+      controllers.push(mountBanqiReplay(target, block.spec, { lang }));
     }
     pendingMounts.delete(figure);
     delete figure.dataset.pendingWidget;

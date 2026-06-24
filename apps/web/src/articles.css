@@ -722,6 +722,9 @@
 .xq-article-svg .xq-diagram-title {
   fill: var(--site-heading, var(--xq-diagram-ink, #4b3c2a));
 }
+.xq-article-svg .xq-diagram-outside-text {
+  fill: var(--site-text, var(--xq-diagram-ink, #4b3c2a));
+}
 .xq-article-svg .xq-diagram-fog {
   fill: var(--xq-diagram-fog, rgba(36, 25, 15, 0.55));
 }

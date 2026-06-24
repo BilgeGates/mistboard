@@ -62,6 +62,7 @@ const ZH_HANS: Record<string, string> = {
   'Banqi Rules': '暗棋规则',
   Human: '人类',
   'Human vs engine · mistboard.com': '人类对引擎 · mistboard.com',
+  'Human vs engine': '人类对引擎',
   'Draw by repetition · MistyBanqi up 10 pieces to 2': '重复局面和棋 · MistyBanqi 十子对两子领先',
   'MistyBanqi wins · the opponent is left with no piece to move':
     'MistyBanqi 获胜 · 对手已无子可走',
@@ -69,6 +70,51 @@ const ZH_HANS: Record<string, string> = {
     'MistyBanqi（红方）以十子对两子领先，是一个轻松赢定的局面，但它的评估并不会因为「把优势转化为胜利」而比「守住子力」给更高的分，于是它只来回挪子、不去逼抢，最终因三次重复局面被判和棋。如果你对它子力落后，这就是脱身之道：用长捉缠住一枚大子，它也许就放任和棋发生。',
   'MistyBanqi (the first player) won this one outright, leaving the opponent with nothing to move. Banqi swings hard with the flips: it fell behind on material early here, then calculated its way back and cleared the board. Grinding down a position like this, capture by capture, is the strong half of its game.':
     'MistyBanqi（先手）干净利落地赢下了这盘，让对手无子可走。暗棋的局势随翻子剧烈起伏：这盘里它开局子力落后，随后凭计算一步步扳回，把对手清光。像这样一子一子地碾下去，是它棋力强的那一半。',
+
+  // -- Article index cards --
+  'How Misty Plays': 'Misty 是怎么下棋的',
+  "Misty is the engine you play on Mistboard, built for Fog of War chess. How it thinks, what's hard, and where it stands.":
+    'Misty 是你在 Mistboard 上对弈的迷雾国际象棋引擎：它如何思考、难点在哪里，以及目前水平如何。',
+  'Programming Dark Chess with Server-Side Truth': '用服务器端真实局面实现迷雾国际象棋',
+  'How Mistboard keeps hidden information on the server: canonical state, seat-scoped views, private live rooms, and public postgame review.':
+    'Mistboard 如何把隐藏信息留在服务器端：规范真实局面、按座位投影视野、私密实时房间，以及公开的赛后复盘。',
+
+  // -- Drop Mini Xiangqi (rules) --
+  'Drop Mini Xiangqi Rules': '投放迷你象棋规则',
+  'Mini Xiangqi with reserves: captured pieces enter your hand, then drop back outside the enemy palace.':
+    '带持子的迷你象棋：被吃的棋子进入你的手牌，然后可以打回棋盘，但不能打入对方九宫。',
+  'Drop Mini Xiangqi is [Mini Xiangqi](/rules/mini-xiangqi) with a reserve. The board is still 7 by 7, Red still moves first, and the general is protected by check and checkmate. The new rule is simple: captured pieces become yours, wait in your hand, and can return to the board as drops.':
+    '投放迷你象棋是在[迷你象棋](/rules/mini-xiangqi)里加入持子。棋盘仍是 7×7，红方仍先走，将帅仍受将军与将死规则保护。新规则很简单：你吃掉的棋子会变成你的棋子，进入手牌，并可以通过打入回到棋盘。',
+  'That reserve turns captures into future initiative. A quiet exchange can become a cannon drop, a soldier screen, or a new chariot lane several moves later.':
+    '持子会把吃子变成之后的主动权。一次安静的交换，几步之后可能变成一次炮的打入、一个兵的炮架，或一条新的车路。',
+  'Board and pieces': '棋盘与棋子',
+  'The starting position, board, and movement are Mini Xiangqi. There are no advisors or elephants, no river, and each general remains inside its 3 by 3 palace.':
+    '初始局面、棋盘与走法都沿用迷你象棋。没有士象、没有河界，每一方的将帅仍留在自己的 3×3 九宫内。',
+  'This is open information. Both players see the whole board and both reserves. Unlike Dark Mini Xiangqi, there is no fog and no hidden move record.':
+    '这是信息公开的游戏。双方都能看到整个棋盘和双方持子。不同于迷雾迷你象棋，这里没有迷雾，也没有隐藏的走子记录。',
+  'Captures and reserves': '吃子与持子',
+  'When you capture a non-general piece, it leaves the board, changes to your color, and enters your reserve. Generals are never captured and never enter a reserve: attacks on the general are checks, and a player in check must answer the threat.':
+    '当你吃掉一枚非将帅棋子时，它离开棋盘，改为你的颜色，并进入你的持子。将帅永远不会被吃进持子：攻击将帅是将军，被将军的一方必须应对威胁。',
+  'Instead of moving a board piece, you may drop one piece from your reserve onto an empty point outside the enemy palace. A dropped piece is live immediately: it can give check on the drop turn and moves normally on later turns.':
+    '你可以不移动棋盘上的棋子，而是从持子中选择一枚，打入到对方九宫以外的空交叉点。打入的棋子立即生效：它可以在打入当手将军，之后也按正常走法移动。',
+  'Drop restrictions': '打入限制',
+  "Drops must land on empty points, and they cannot land inside the opponent's 3 by 3 palace. The current Mistboard rules allow chariots, horses, cannons, and soldiers in reserve. Generals never enter reserve.":
+    '打入必须落在空交叉点，且不能落入对方的 3×3 九宫。目前 Mistboard 规则允许车、马、炮、兵进入持子。将帅永不进入持子。',
+  'A dropped soldier follows Mini Xiangqi soldier movement after it lands: one point forward or sideways, never backward. Drops may give check immediately, and a drop is illegal if it leaves your own general in check.':
+    '打入的兵落子后按迷你象棋的兵法移动：向前或横向走一个交叉点，永不后退。打入可以立即将军；如果一次打入会让自己的将帅仍处于被将军状态，则该打入不合法。',
+  'Check and endings': '将军与终局',
+  'Win by checkmate. As in Mini Xiangqi, a player with no legal move loses rather than drawing by stalemate. Games can also end by repetition, the no-capture rule, timeout, resignation, or abandonment.':
+    '以将死获胜。与迷你象棋一样，没有合法着法的一方判负，而不是因困毙作和。对局也可能因重复局面、无吃子规则、超时、认输或弃局而结束。',
+  'Step through this longer engine-lab game. It uses the current no-enemy-palace drop rule, shows both sides using reserves to defend and counterattack, and ends only after Black converts a late chariot attack.':
+    '逐步重演这盘较长的引擎实验对局。它采用当前的不得打入对方九宫规则，展示双方如何用持子防守和反击，最终由黑方在后期车攻中转化胜势。',
+  'FSF Red': 'FSF 红方',
+  'FSF Black': 'FSF 黑方',
+  'Fairy-Stockfish lab, no-enemy-palace drops': 'Fairy-Stockfish 实验局，不得打入对方九宫',
+  "Black checkmates with 57...g1-f1. The final chariot capture beats Red's last defensive drop on f1.":
+    '黑方以 57...g1-f1 将死。最后的车吃子击破了红方在 f1 的最后一次防守打入。',
+  'Drop Mini Xiangqi is open for alpha play on Mistboard. Create an invite for a friend or queue for an open game from the homepage play panel by choosing Drop Mini Xiangqi in the Variant row.':
+    '投放迷你象棋已在 Mistboard 开放 Alpha 对弈。你可以在首页对弈面板的“Variant”一行选择投放迷你象棋，创建好友邀请，或排队寻找公开对手。',
+  'Find opponent': '寻找对手',
   // -- Mini Xiangqi (rules) --
   'Mini Xiangqi rules, the 7×7 primer behind Dark Mini Xiangqi: no advisors or elephants, no river, sideways soldiers, and checkmate to win.':
     '迷你象棋规则，迷雾迷你象棋的 7×7 入门基础：没有士象、没有河界、兵可横走，以将死取胜。',
@@ -608,6 +654,29 @@ const ZH_HANS: Record<string, string> = {
   'Challenge a friend': '挑战好友',
   Jieqi: '揭棋',
   'Dark Chess': '迷雾国际象棋',
+  'MistyBanqi · Strongest': 'MistyBanqi · 最强',
+  'MistyBanqi (Red) wins by resignation · 49 moves': 'MistyBanqi（红方）因对手认输获胜 · 49 回合',
+  'FIRST FLIP ASSIGNS COLOR': '首次翻子决定颜色',
+  'TAIWAN RANK LADDER': '台湾等级序列',
+  'CANNON SCREEN CAPTURE': '炮隔子吃',
+  'FACE-DOWN PIECES SHAPE THE BOARD': '暗子塑造棋盘',
+  'CAPTURED PIECE KNOWLEDGE': '被吃暗子信息',
+  HIGH: '高',
+  LOW: '低',
+  General: '将',
+  Advisor: '士',
+  Elephant: '象',
+  Chariot: '车',
+  Horse: '马',
+  Cannon: '炮',
+  Soldier: '卒',
+  'RED KNOWS': '红方知道',
+  'BLACK KNOWS': '黑方知道',
+  'the captured piece was a horse': '被吃的是马',
+  'one dark piece disappeared': '一枚暗子消失了',
+  'Attacking, the cannon jumps a screen and ignores rank.': '炮进攻时隔一子跳吃，不看等级。',
+  'As a target it ranks here: taken by horse and up, never by a soldier.':
+    '作为目标时，炮排在这里：马以上可吃，卒不可吃。',
 };
 
 const ZH_HANT: Record<string, string> = {
@@ -649,6 +718,7 @@ const ZH_HANT: Record<string, string> = {
   'Banqi Rules': '暗棋規則',
   Human: '人類',
   'Human vs engine · mistboard.com': '人類對引擎 · mistboard.com',
+  'Human vs engine': '人類對引擎',
   'Draw by repetition · MistyBanqi up 10 pieces to 2': '重複局面和棋 · MistyBanqi 十子對兩子領先',
   'MistyBanqi wins · the opponent is left with no piece to move':
     'MistyBanqi 獲勝 · 對手已無子可走',
@@ -656,6 +726,51 @@ const ZH_HANT: Record<string, string> = {
     'MistyBanqi（紅方）以十子對兩子領先，是一個輕鬆贏定的局面，但它的評估並不會因為「把優勢轉化為勝利」而比「守住子力」給更高的分，於是它只來回挪子、不去逼搶，最終因三次重複局面被判和棋。如果你對它子力落後，這就是脫身之道：用長捉纏住一枚大子，它也許就放任和棋發生。',
   'MistyBanqi (the first player) won this one outright, leaving the opponent with nothing to move. Banqi swings hard with the flips: it fell behind on material early here, then calculated its way back and cleared the board. Grinding down a position like this, capture by capture, is the strong half of its game.':
     'MistyBanqi（先手）乾淨俐落地贏下了這盤，讓對手無子可走。暗棋的局勢隨翻子劇烈起伏：這盤裡它開局子力落後，隨後憑計算一步步扳回，把對手清光。像這樣一子一子地輾下去，是它棋力強的那一半。',
+
+  // -- Article index cards --
+  'How Misty Plays': 'Misty 是怎麼下棋的',
+  "Misty is the engine you play on Mistboard, built for Fog of War chess. How it thinks, what's hard, and where it stands.":
+    'Misty 是你在 Mistboard 上對弈的迷霧國際象棋引擎：它如何思考、難點在哪裡，以及目前水平如何。',
+  'Programming Dark Chess with Server-Side Truth': '用伺服器端真實局面實作迷霧國際象棋',
+  'How Mistboard keeps hidden information on the server: canonical state, seat-scoped views, private live rooms, and public postgame review.':
+    'Mistboard 如何把隱藏資訊留在伺服器端：標準真實局面、按座位投影視野、私密即時房間，以及公開的賽後複盤。',
+
+  // -- Drop Mini Xiangqi (rules) --
+  'Drop Mini Xiangqi Rules': '投放迷你象棋規則',
+  'Mini Xiangqi with reserves: captured pieces enter your hand, then drop back outside the enemy palace.':
+    '帶持子的迷你象棋：被吃的棋子進入你的手牌，之後可以打回棋盤，但不能打入對方九宮。',
+  'Drop Mini Xiangqi is [Mini Xiangqi](/rules/mini-xiangqi) with a reserve. The board is still 7 by 7, Red still moves first, and the general is protected by check and checkmate. The new rule is simple: captured pieces become yours, wait in your hand, and can return to the board as drops.':
+    '投放迷你象棋是在[迷你象棋](/rules/mini-xiangqi)裡加入持子。棋盤仍是 7×7，紅方仍先走，將帥仍受將軍與將死規則保護。新規則很簡單：你吃掉的棋子會變成你的棋子，進入手牌，並可以透過打入回到棋盤。',
+  'That reserve turns captures into future initiative. A quiet exchange can become a cannon drop, a soldier screen, or a new chariot lane several moves later.':
+    '持子會把吃子變成之後的主動權。一次安靜的交換，幾步之後可能變成一次炮的打入、一個兵的炮架，或一條新的車路。',
+  'Board and pieces': '棋盤與棋子',
+  'The starting position, board, and movement are Mini Xiangqi. There are no advisors or elephants, no river, and each general remains inside its 3 by 3 palace.':
+    '初始局面、棋盤與走法都沿用迷你象棋。沒有士象、沒有河界，每一方的將帥仍留在自己的 3×3 九宮內。',
+  'This is open information. Both players see the whole board and both reserves. Unlike Dark Mini Xiangqi, there is no fog and no hidden move record.':
+    '這是資訊公開的遊戲。雙方都能看到整個棋盤和雙方持子。不同於迷霧迷你象棋，這裡沒有迷霧，也沒有隱藏的走子紀錄。',
+  'Captures and reserves': '吃子與持子',
+  'When you capture a non-general piece, it leaves the board, changes to your color, and enters your reserve. Generals are never captured and never enter a reserve: attacks on the general are checks, and a player in check must answer the threat.':
+    '當你吃掉一枚非將帥棋子時，它離開棋盤，改為你的顏色，並進入你的持子。將帥永遠不會被吃進持子：攻擊將帥是將軍，被將軍的一方必須應對威脅。',
+  'Instead of moving a board piece, you may drop one piece from your reserve onto an empty point outside the enemy palace. A dropped piece is live immediately: it can give check on the drop turn and moves normally on later turns.':
+    '你可以不移動棋盤上的棋子，而是從持子中選一枚，打入到對方九宮以外的空交叉點。打入的棋子立即生效：它可以在打入當手將軍，之後也按正常走法移動。',
+  'Drop restrictions': '打入限制',
+  "Drops must land on empty points, and they cannot land inside the opponent's 3 by 3 palace. The current Mistboard rules allow chariots, horses, cannons, and soldiers in reserve. Generals never enter reserve.":
+    '打入必須落在空交叉點，且不能落入對方的 3×3 九宮。目前 Mistboard 規則允許車、馬、炮、兵進入持子。將帥永不進入持子。',
+  'A dropped soldier follows Mini Xiangqi soldier movement after it lands: one point forward or sideways, never backward. Drops may give check immediately, and a drop is illegal if it leaves your own general in check.':
+    '打入的兵落子後按迷你象棋的兵法移動：向前或橫向走一個交叉點，永不後退。打入可以立即將軍；如果一次打入會讓自己的將帥仍處於被將軍狀態，則該打入不合法。',
+  'Check and endings': '將軍與終局',
+  'Win by checkmate. As in Mini Xiangqi, a player with no legal move loses rather than drawing by stalemate. Games can also end by repetition, the no-capture rule, timeout, resignation, or abandonment.':
+    '以將死獲勝。與迷你象棋一樣，沒有合法著法的一方判負，而不是因困斃作和。對局也可能因重複局面、無吃子規則、超時、認輸或棄局而結束。',
+  'Step through this longer engine-lab game. It uses the current no-enemy-palace drop rule, shows both sides using reserves to defend and counterattack, and ends only after Black converts a late chariot attack.':
+    '逐步重演這盤較長的引擎實驗對局。它採用目前不得打入對方九宮的規則，展示雙方如何用持子防守和反擊，最終由黑方在後期車攻中轉化勝勢。',
+  'FSF Red': 'FSF 紅方',
+  'FSF Black': 'FSF 黑方',
+  'Fairy-Stockfish lab, no-enemy-palace drops': 'Fairy-Stockfish 實驗局，不得打入對方九宮',
+  "Black checkmates with 57...g1-f1. The final chariot capture beats Red's last defensive drop on f1.":
+    '黑方以 57...g1-f1 將死。最後的車吃子擊破了紅方在 f1 的最後一次防守打入。',
+  'Drop Mini Xiangqi is open for alpha play on Mistboard. Create an invite for a friend or queue for an open game from the homepage play panel by choosing Drop Mini Xiangqi in the Variant row.':
+    '投放迷你象棋已在 Mistboard 開放 Alpha 對弈。你可以在首頁對弈面板的「Variant」一行選擇投放迷你象棋，建立好友邀請，或排隊尋找公開對手。',
+  'Find opponent': '尋找對手',
   // -- Mini Xiangqi (rules) --
   'Mini Xiangqi rules, the 7×7 primer behind Dark Mini Xiangqi: no advisors or elephants, no river, sideways soldiers, and checkmate to win.':
     '迷你象棋規則，迷霧迷你象棋的 7×7 入門基礎：沒有士象、沒有河界、兵可橫走，以將死取勝。',
@@ -1188,6 +1303,29 @@ const ZH_HANT: Record<string, string> = {
   'Challenge a friend': '挑戰好友',
   Jieqi: '揭棋',
   'Dark Chess': '迷霧國際象棋',
+  'MistyBanqi · Strongest': 'MistyBanqi · 最強',
+  'MistyBanqi (Red) wins by resignation · 49 moves': 'MistyBanqi（紅方）因對手認輸獲勝 · 49 回合',
+  'FIRST FLIP ASSIGNS COLOR': '首次翻子決定顏色',
+  'TAIWAN RANK LADDER': '臺灣等級序列',
+  'CANNON SCREEN CAPTURE': '砲隔子吃',
+  'FACE-DOWN PIECES SHAPE THE BOARD': '暗子塑造棋盤',
+  'CAPTURED PIECE KNOWLEDGE': '被吃暗子資訊',
+  HIGH: '高',
+  LOW: '低',
+  General: '將',
+  Advisor: '士',
+  Elephant: '象',
+  Chariot: '車',
+  Horse: '馬',
+  Cannon: '砲',
+  Soldier: '卒',
+  'RED KNOWS': '紅方知道',
+  'BLACK KNOWS': '黑方知道',
+  'the captured piece was a horse': '被吃的是馬',
+  'one dark piece disappeared': '一枚暗子消失了',
+  'Attacking, the cannon jumps a screen and ignores rank.': '砲進攻時隔一子跳吃，不看等級。',
+  'As a target it ranks here: taken by horse and up, never by a soldier.':
+    '作為目標時，砲排在這裡：馬以上可吃，卒不可吃。',
 };
 
 const ARTICLE_DICTS: Record<ArticleLang, Record<string, string>> = {
@@ -1211,6 +1349,10 @@ function deepTranslate<T>(value: T, dict: Record<string, string>): T {
 // translation). Does not mutate the source article.
 export function translateArticle(article: Article, lang: ArticleLang): Article {
   return deepTranslate(article, ARTICLE_DICTS[lang]);
+}
+
+export function translateArticleText(lang: ArticleLang | undefined, text: string): string {
+  return lang ? (ARTICLE_DICTS[lang][text] ?? text) : text;
 }
 
 // True when `text` has an authored translation for `lang`. The translation

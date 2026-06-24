@@ -2742,8 +2742,8 @@ export const BANQI_RANK_LADDER = () => {
       }),
       `<text x="${L + 60}" y="${T + 206}" font-family="system-ui, sans-serif" font-size="12" font-weight="700" class="xq-diagram-ink" text-anchor="middle">HIGH</text>`,
       `<text x="${L + BANQI_BOARD_W - 60}" y="${T + 206}" font-family="system-ui, sans-serif" font-size="12" font-weight="700" class="xq-diagram-ink" text-anchor="middle">LOW</text>`,
-      `<text x="${BANQI_PAIR_W / 2}" y="${T + 252}" font-family="system-ui, sans-serif" font-size="11" class="xq-diagram-ink" text-anchor="middle">Attacking, the cannon jumps a screen and ignores rank.</text>`,
-      `<text x="${BANQI_PAIR_W / 2}" y="${T + 269}" font-family="system-ui, sans-serif" font-size="11" class="xq-diagram-ink" text-anchor="middle">As a target it ranks here: taken by horse and up, never by a soldier.</text>`,
+      `<text x="${BANQI_PAIR_W / 2}" y="${T + 252}" font-family="system-ui, sans-serif" font-size="11" class="xq-diagram-outside-text" text-anchor="middle">Attacking, the cannon jumps a screen and ignores rank.</text>`,
+      `<text x="${BANQI_PAIR_W / 2}" y="${T + 269}" font-family="system-ui, sans-serif" font-size="11" class="xq-diagram-outside-text" text-anchor="middle">As a target it ranks here: taken by horse and up, never by a soldier.</text>`,
     ].join(''),
   );
 };

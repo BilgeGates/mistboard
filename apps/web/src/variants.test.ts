@@ -164,23 +164,23 @@ describe('web variant launch registry', () => {
   it('shows local rating surfaces without disabled Crossroads, Reveal, and Kriegspiel variants', () => {
     expect(leaderboardVariants.map((v) => v.gameSpecId)).toEqual([
       DARK_CHESS_SPEC_ID,
+      DARK_CRAZYHOUSE_SPEC_ID,
       DARK_MINI_XIANGQI_SPEC_ID,
       DROP_MINI_XIANGQI_SPEC_ID,
       DARK_XIANGQI_SPEC_ID,
       JIEQI_SPEC_ID,
       BANQI_SPEC_ID,
       DARK_SHOGI_SPEC_ID,
-      DARK_CRAZYHOUSE_SPEC_ID,
     ]);
     expect(profileRatingVariants.map((v) => v.gameSpecId)).toEqual([
       DARK_CHESS_SPEC_ID,
+      DARK_CRAZYHOUSE_SPEC_ID,
       DARK_MINI_XIANGQI_SPEC_ID,
       DROP_MINI_XIANGQI_SPEC_ID,
       DARK_XIANGQI_SPEC_ID,
       JIEQI_SPEC_ID,
       BANQI_SPEC_ID,
       DARK_SHOGI_SPEC_ID,
-      DARK_CRAZYHOUSE_SPEC_ID,
     ]);
     expect(enabledVariants.map((v) => v.gameSpecId)).not.toContain(DARK_SHOGI_SPEC_ID);
     expect(variantMiniIdForGameSpec(DARK_SHOGI_SPEC_ID)).toBe('dark-shogi');
@@ -205,17 +205,17 @@ describe('web variant launch registry', () => {
     expect(VARIANTS.map((v) => [v.gameSpecId, v.apiParam])).toEqual([
       [DARK_CHESS_SPEC_ID, 'fog'],
       [DARK_DRAFT960_SPEC_ID, 'dark-draft960'],
+      [DARK_CRAZYHOUSE_SPEC_ID, 'dark-crazyhouse'],
+      [KRIEGSPIEL_SPEC_ID, 'kriegspiel'],
+      [REVEAL_CHESS_SPEC_ID, 'reveal-chess'],
       [DARK_MINI_XIANGQI_SPEC_ID, 'dark-mini-xiangqi'],
       [DROP_MINI_XIANGQI_SPEC_ID, 'drop-mini-xiangqi'],
       [DARK_XIANGQI_SPEC_ID, 'dark-xiangqi'],
       [JIEQI_SPEC_ID, 'jieqi'],
       [BANQI_SPEC_ID, 'banqi'],
-      [REVEAL_CHESS_SPEC_ID, 'reveal-chess'],
+      [DARK_SHOGI_SPEC_ID, 'dark-shogi'],
       [CROSSROADS_CHESS_SPEC_ID, 'crossroads-chess'],
       [DARK_CROSSROADS_CHESS_SPEC_ID, 'dark-crossroads-chess'],
-      [DARK_SHOGI_SPEC_ID, 'dark-shogi'],
-      [DARK_CRAZYHOUSE_SPEC_ID, 'dark-crazyhouse'],
-      [KRIEGSPIEL_SPEC_ID, 'kriegspiel'],
     ]);
   });
 
