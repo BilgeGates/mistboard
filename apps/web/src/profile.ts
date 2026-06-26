@@ -3,6 +3,8 @@
 import type { RatingVariant } from '@mistboard/game';
 import './account-profile.css';
 import type { FeaturedGame } from './game-display.js';
+import { type I18nKey, t } from './i18n/catalog.js';
+import { currentLocale, LOCALE_META, type Locale, localizedHref } from './i18n/locale.js';
 import { buildProfileGameRow, buildProfileHeaderShell } from './profile-ui.js';
 import { buildLoadingState, buildNav, buildNotice } from './site-shell.js';
 import { renderVariantMiniBoard, type VariantMiniId } from './variant-mini-boards.js';
@@ -53,29 +55,29 @@ type LeaderboardListing = {
 };
 
 const LEADERBOARD_BUCKETS: {
+  variant: ProfileRatingVariant;
   variantParam: string;
-  variantLabel: string;
   miniId: VariantMiniId;
 }[] = leaderboardVariants.map((v) => ({
+  variant: v.id,
   variantParam: v.apiParam,
-  variantLabel: v.label,
   miniId: v.miniId,
 }));
 
-const PROFILE_VARIANT_LABEL: Record<ProfileRatingVariant, string> = {
-  fog: 'Dark Chess',
-  fog_draft960: 'Dark Draft960',
-  dark_mini_xiangqi: 'Dark Mini Xiangqi',
-  drop_mini_xiangqi: 'Drop Mini Xiangqi',
-  dark_xiangqi: 'Dark Xiangqi',
-  dark_crazyhouse: 'Dark Crazyhouse',
-  dark_shogi: 'Dark Shogi',
-  kriegspiel: 'Kriegspiel',
-  crossroads_chess: 'Dark Crossroads Chess',
-  crossroads_chess_open: 'Crossroads Chess',
-  jieqi: 'Jieqi',
-  banqi: 'Banqi',
-  reveal_chess: 'Reveal Chess',
+const PROFILE_VARIANT_LABEL_KEY: Record<ProfileRatingVariant, I18nKey> = {
+  fog: 'variant.darkChess.name',
+  fog_draft960: 'variant.darkDraft960.name',
+  dark_mini_xiangqi: 'variant.darkMiniXiangqi.name',
+  drop_mini_xiangqi: 'variant.dropMiniXiangqi.name',
+  dark_xiangqi: 'variant.darkXiangqi.name',
+  dark_crazyhouse: 'variant.darkCrazyhouse.name',
+  dark_shogi: 'variant.darkShogi.name',
+  kriegspiel: 'variant.kriegspiel.name',
+  crossroads_chess: 'variant.darkCrossroadsChess.name',
+  crossroads_chess_open: 'variant.crossroadsChess.name',
+  jieqi: 'variant.jieqi.name',
+  banqi: 'variant.banqi.name',
+  reveal_chess: 'variant.revealChess.name',
 };
 
 // Profile rating grid is subject-scoped and follows the baseline rating variant
@@ -83,46 +85,50 @@ const PROFILE_VARIANT_LABEL: Record<ProfileRatingVariant, string> = {
 const PROFILE_VARIANT_ORDER: ProfileRatingVariant[] = profileRatingVariants.map((v) => v.id);
 
 export async function mountProfile(root: HTMLElement, handle: string): Promise<void> {
+  const locale = currentLocale();
   root.replaceChildren();
   root.classList.add('landing-page', 'profile-route');
-  root.append(buildNav(), buildLoadingState('Loading profile'));
+  root.append(buildNav(locale), buildLoadingState(t('profile.loading', {}, locale)));
 
   const shell = document.createElement('main');
   shell.className = 'profile-shell';
-  root.replaceChildren(buildNav(), shell);
+  root.replaceChildren(buildNav(locale), shell);
 
   const profile = await fetchUserProfile(handle).catch((err) => {
     console.warn(err);
     return null;
   });
   if (!profile) {
-    document.title = 'Profile not found · Mistboard';
-    shell.append(buildNotice('Profile not found', 'This profile is private or does not exist.'));
+    document.title = `${t('profile.notFoundTitle', {}, locale)} · Mistboard`;
+    shell.append(
+      buildNotice(t('profile.notFoundTitle', {}, locale), t('profile.notFoundBody', {}, locale)),
+    );
     return;
   }
 
   const main = document.createElement('div');
   main.className = 'profile-main';
-  main.append(buildProfileHeader(profile), buildProfileGames(profile));
+  main.append(buildProfileHeader(profile, locale), buildProfileGames(profile, locale));
 
   const body = document.createElement('div');
   body.className = 'profile-body';
-  body.append(buildProfileRatings(profile.ratings), main);
+  body.append(buildProfileRatings(profile.ratings, locale), main);
 
   shell.append(body);
 }
 
 export async function mountLeaderboard(root: HTMLElement): Promise<void> {
+  const locale = currentLocale();
   root.replaceChildren();
   root.classList.add('landing-page');
 
   const shell = document.createElement('main');
   shell.className = 'site-section leaderboard-shell';
-  root.append(buildNav(), shell);
+  root.append(buildNav(locale), shell);
 
   const loading = document.createElement('p');
   loading.className = 'leaderboard-loading';
-  loading.textContent = 'Loading ratings...';
+  loading.textContent = t('profile.loadingRatings', {}, locale);
   shell.append(loading);
 
   const results = await Promise.all(
@@ -144,14 +150,14 @@ export async function mountLeaderboard(root: HTMLElement): Promise<void> {
   grid.className = 'leaderboard-grid';
   for (let i = 0; i < LEADERBOARD_BUCKETS.length; i++) {
     const b = LEADERBOARD_BUCKETS[i];
-    grid.append(buildLeaderboardPanel(b.variantLabel, b.miniId, results[i]));
+    grid.append(buildLeaderboardPanel(b.variant, b.miniId, results[i], locale));
   }
 
   const body = document.createElement('div');
   body.className = 'leaderboard-body';
-  body.append(buildLeaderboardOverview(results), grid);
+  body.append(buildLeaderboardOverview(results, locale), grid);
 
-  shell.replaceChildren(buildLeaderboardHeader(results), body);
+  shell.replaceChildren(buildLeaderboardHeader(results, locale), body);
 }
 
 // Decorative variant mini-board (the same board-crop art as the picker/articles).
@@ -169,7 +175,10 @@ function buildVariantThumb(
   return thumb;
 }
 
-function buildLeaderboardHeader(results: LeaderboardResult[]): HTMLElement {
+function buildLeaderboardHeader(
+  results: LeaderboardResult[],
+  locale: Locale = currentLocale(),
+): HTMLElement {
   const header = document.createElement('section');
   header.className = 'leaderboard-page-header';
 
@@ -178,48 +187,57 @@ function buildLeaderboardHeader(results: LeaderboardResult[]): HTMLElement {
 
   const eyebrow = document.createElement('span');
   eyebrow.className = 'account-eyebrow';
-  eyebrow.textContent = 'Players';
+  eyebrow.textContent = t('profile.players', {}, locale);
 
   const heading = document.createElement('h1');
   heading.className = 'site-section-heading';
-  heading.textContent = 'Leaderboard';
+  heading.textContent = t('profile.leaderboard', {}, locale);
 
   const body = document.createElement('p');
   body.className = 'leaderboard-sub';
-  body.textContent = 'Human blitz ladders across public Mistboard variants.';
+  body.textContent = t('profile.leaderboardIntro', {}, locale);
 
   const link = document.createElement('a');
   link.className = 'leaderboard-bots-link';
-  link.href = '/bots';
-  link.textContent = 'Bots';
+  link.href = localizedHref('/bots', locale);
+  link.textContent = t('profile.bots', {}, locale);
 
   text.append(eyebrow, heading, body);
   header.append(text, link);
 
-  const listings = flattenedLeaderboardEntries(results);
+  const listings = flattenedLeaderboardEntries(results, locale);
   if (listings.length === 0) header.classList.add('leaderboard-page-header-empty');
   return header;
 }
 
-function buildLeaderboardOverview(results: LeaderboardResult[]): HTMLElement {
+function buildLeaderboardOverview(
+  results: LeaderboardResult[],
+  locale: Locale = currentLocale(),
+): HTMLElement {
   const overview = document.createElement('section');
   overview.className = 'leaderboard-overview';
-  overview.append(buildLeaderboardStats(results), buildLeaderboardSpotlight(results));
+  overview.append(
+    buildLeaderboardStats(results, locale),
+    buildLeaderboardSpotlight(results, locale),
+  );
   return overview;
 }
 
-function buildLeaderboardStats(results: LeaderboardResult[]): HTMLElement {
-  const listings = flattenedLeaderboardEntries(results);
+function buildLeaderboardStats(
+  results: LeaderboardResult[],
+  locale: Locale = currentLocale(),
+): HTMLElement {
+  const listings = flattenedLeaderboardEntries(results, locale);
   const uniquePlayers = new Set(listings.map((item) => item.entry.handle.toLowerCase()));
   const topRating = listings.reduce<number | null>(
     (best, item) => (best == null || item.entry.eloRating > best ? item.entry.eloRating : best),
     null,
   );
   const stats: Array<[string, string]> = [
-    [String(LEADERBOARD_BUCKETS.length), 'Ladders'],
-    [String(uniquePlayers.size), 'Players'],
-    [String(listings.length), 'Ratings'],
-    [topRating == null ? '—' : String(topRating), 'Top rating'],
+    [String(LEADERBOARD_BUCKETS.length), t('profile.ladders', {}, locale)],
+    [String(uniquePlayers.size), t('profile.playersStat', {}, locale)],
+    [String(listings.length), t('profile.ratingsStat', {}, locale)],
+    [topRating == null ? '—' : String(topRating), t('profile.topRating', {}, locale)],
   ];
 
   const strip = document.createElement('div');
@@ -242,22 +260,25 @@ function buildLeaderboardStats(results: LeaderboardResult[]): HTMLElement {
   return strip;
 }
 
-function buildLeaderboardSpotlight(results: LeaderboardResult[]): HTMLElement {
+function buildLeaderboardSpotlight(
+  results: LeaderboardResult[],
+  locale: Locale = currentLocale(),
+): HTMLElement {
   const section = document.createElement('section');
   section.className = 'leaderboard-spotlight';
 
   const heading = document.createElement('h2');
-  heading.textContent = 'Top ratings';
+  heading.textContent = t('profile.topRatings', {}, locale);
   section.append(heading);
 
-  const listings = flattenedLeaderboardEntries(results)
+  const listings = flattenedLeaderboardEntries(results, locale)
     .sort((a, b) => b.entry.eloRating - a.entry.eloRating)
     .slice(0, 5);
 
   if (listings.length === 0) {
     const empty = document.createElement('p');
     empty.className = 'leaderboard-spotlight-empty';
-    empty.textContent = 'No rated games yet.';
+    empty.textContent = t('profile.noRatedGames', {}, locale);
     section.append(empty);
     return section;
   }
@@ -287,12 +308,14 @@ function buildLeaderboardSpotlight(results: LeaderboardResult[]): HTMLElement {
 }
 
 function buildLeaderboardPanel(
-  variantLabel: string,
+  variant: ProfileRatingVariant,
   miniId: VariantMiniId,
   data: LeaderboardResult,
+  locale: Locale = currentLocale(),
 ): HTMLElement {
   const panel = document.createElement('div');
   panel.className = 'leaderboard-panel';
+  const variantLabel = profileVariantLabel(variant, locale);
 
   const header = document.createElement('div');
   header.className = 'leaderboard-panel-header';
@@ -306,11 +329,16 @@ function buildLeaderboardPanel(
 
   const subtitle = document.createElement('span');
   subtitle.className = 'leaderboard-panel-subtitle';
-  subtitle.textContent = 'Blitz rating';
+  subtitle.textContent = t('profile.blitzRating', {}, locale);
 
   heading.append(title, subtitle);
   header.append(
-    buildVariantThumb(miniId, 80, 'leaderboard-panel-thumb', `${variantLabel} board`),
+    buildVariantThumb(
+      miniId,
+      80,
+      'leaderboard-panel-thumb',
+      t('profile.variantBoard', { variant: variantLabel }, locale),
+    ),
     heading,
   );
   panel.append(header);
@@ -318,7 +346,7 @@ function buildLeaderboardPanel(
   if (!data) {
     const msg = document.createElement('p');
     msg.className = 'leaderboard-panel-empty';
-    msg.textContent = 'Could not load ratings.';
+    msg.textContent = t('profile.ratingsLoadFailed', {}, locale);
     panel.append(msg);
     return panel;
   }
@@ -326,7 +354,7 @@ function buildLeaderboardPanel(
   if (data.leaderboard.length === 0) {
     const msg = document.createElement('p');
     msg.className = 'leaderboard-panel-empty';
-    msg.textContent = 'No rated games yet.';
+    msg.textContent = t('profile.noRatedGames', {}, locale);
     panel.append(msg);
     return panel;
   }
@@ -335,14 +363,17 @@ function buildLeaderboardPanel(
   return panel;
 }
 
-function flattenedLeaderboardEntries(results: LeaderboardResult[]): LeaderboardListing[] {
+function flattenedLeaderboardEntries(
+  results: LeaderboardResult[],
+  locale: Locale = currentLocale(),
+): LeaderboardListing[] {
   const listings: LeaderboardListing[] = [];
   for (let i = 0; i < results.length; i++) {
     const result = results[i];
     const bucket = LEADERBOARD_BUCKETS[i];
     if (!result || !bucket) continue;
     for (const entry of result.leaderboard) {
-      listings.push({ entry, variantLabel: bucket.variantLabel });
+      listings.push({ entry, variantLabel: profileVariantLabel(bucket.variant, locale) });
     }
   }
   return listings;
@@ -397,40 +428,47 @@ async function fetchUserProfile(handle: string): Promise<UserProfile | null> {
   return data.profile;
 }
 
-function buildProfileHeader(profile: UserProfile): HTMLElement {
+function buildProfileHeader(profile: UserProfile, locale: Locale = currentLocale()): HTMLElement {
   // Joined + game count moved into the stat strip below; only the role badge
   // (admin) remains on the inline meta line, and only when present.
   const metaParts: HTMLElement[] = [];
-  const roleBadge = buildRoleBadge(profile.user.accountRole);
+  const roleBadge = buildRoleBadge(profile.user.accountRole, locale);
   if (roleBadge) metaParts.push(roleBadge);
 
   return buildProfileHeaderShell({
-    eyebrow: profile.isViewer ? 'Your profile' : 'Player profile',
+    eyebrow: profile.isViewer
+      ? t('profile.yourProfile', {}, locale)
+      : t('profile.playerProfile', {}, locale),
     title: `@${profile.user.handle}`,
     metaParts,
-    stats: buildProfileStats(profile),
+    stats: buildProfileStats(profile, locale),
   });
 }
 
 // Header stat strip: neutral/positive figures only — no win/loss record (which
 // just accumulates losses). Top variant + best rating come from the ratings we
 // already load, so nothing here needs a server aggregate.
-function buildProfileStats(profile: UserProfile): HTMLElement {
+function buildProfileStats(profile: UserProfile, locale: Locale = currentLocale()): HTMLElement {
   const strip = document.createElement('div');
   strip.className = 'profile-stats';
 
   const items: Array<[string, string]> = [
-    [String(profile.gamesTotal), profile.gamesTotal === 1 ? 'Game' : 'Games'],
+    [
+      String(profile.gamesTotal),
+      profile.gamesTotal === 1
+        ? t('profile.gameSingular', {}, locale)
+        : t('profile.gamePlural', {}, locale),
+    ],
   ];
 
-  const top = topVariantLabel(profile.ratings);
-  if (top) items.push([top, 'Top variant']);
+  const top = topVariantLabel(profile.ratings, locale);
+  if (top) items.push([top, t('profile.topVariant', {}, locale)]);
 
   const best = bestRating(profile.ratings);
-  if (best != null) items.push([String(best), 'Best rating']);
+  if (best != null) items.push([String(best), t('profile.bestRating', {}, locale)]);
 
-  const joined = formatJoinedDate(profile.user.createdAt);
-  if (joined) items.push([joined, 'Member since']);
+  const joined = formatJoinedDate(profile.user.createdAt, locale);
+  if (joined) items.push([joined, t('profile.memberSince', {}, locale)]);
 
   for (const [value, label] of items) {
     const item = document.createElement('div');
@@ -448,13 +486,16 @@ function buildProfileStats(profile: UserProfile): HTMLElement {
 }
 
 // Most-played variant (rated or casual) by total completed games.
-function topVariantLabel(ratings: ProfileBucketRating[]): string | null {
+function topVariantLabel(
+  ratings: ProfileBucketRating[],
+  locale: Locale = currentLocale(),
+): string | null {
   let top: ProfileBucketRating | null = null;
   for (const r of ratings) {
     if (r.totalGamesPlayed <= 0) continue;
     if (!top || r.totalGamesPlayed > top.totalGamesPlayed) top = r;
   }
-  return top ? PROFILE_VARIANT_LABEL[top.variant] : null;
+  return top ? profileVariantLabel(top.variant, locale) : null;
 }
 
 // Highest current rating across rated variants, or null if none are rated.
@@ -467,21 +508,30 @@ function bestRating(ratings: ProfileBucketRating[]): number | null {
   return best;
 }
 
-function buildRoleBadge(role: UserProfile['user']['accountRole']): HTMLElement | null {
+function buildRoleBadge(
+  role: UserProfile['user']['accountRole'],
+  locale: Locale = currentLocale(),
+): HTMLElement | null {
   if (role === 'admin') {
     const badge = document.createElement('span');
     badge.className = 'profile-role-badge profile-role-admin';
-    badge.textContent = 'Admin';
+    badge.textContent = t('profile.admin', {}, locale);
     return badge;
   }
   return null;
 }
 
-function formatJoinedDate(value: string | undefined): string | null {
+function formatJoinedDate(
+  value: string | undefined,
+  locale: Locale = currentLocale(),
+): string | null {
   if (!value) return null;
   const date = new Date(value);
   if (!Number.isFinite(date.getTime())) return null;
-  return new Intl.DateTimeFormat(undefined, { month: 'long', year: 'numeric' }).format(date);
+  return new Intl.DateTimeFormat(LOCALE_META[locale].dateLocale, {
+    month: 'long',
+    year: 'numeric',
+  }).format(date);
 }
 
 // Local calendar day used to group activity rows under one header.
@@ -492,19 +542,24 @@ function dayKey(value: string | undefined): string {
   return `${date.getFullYear()}-${date.getMonth()}-${date.getDate()}`;
 }
 
-function dayLabel(value: string | undefined): string {
-  if (!value) return 'Earlier';
+function dayLabel(value: string | undefined, locale: Locale = currentLocale()): string {
+  if (!value) return t('profile.earlier', {}, locale);
   const date = new Date(value);
-  if (!Number.isFinite(date.getTime())) return 'Earlier';
-  return new Intl.DateTimeFormat(undefined, { dateStyle: 'medium' }).format(date);
+  if (!Number.isFinite(date.getTime())) return t('profile.earlier', {}, locale);
+  return new Intl.DateTimeFormat(LOCALE_META[locale].dateLocale, { dateStyle: 'medium' }).format(
+    date,
+  );
 }
 
-export function buildProfileRatings(ratings: ProfileBucketRating[]): HTMLElement {
+export function buildProfileRatings(
+  ratings: ProfileBucketRating[],
+  locale: Locale = currentLocale(),
+): HTMLElement {
   const section = document.createElement('section');
   section.className = 'profile-ratings';
 
   const heading = document.createElement('h2');
-  heading.textContent = 'Ratings';
+  heading.textContent = t('profile.ratings', {}, locale);
   section.append(heading);
 
   const variantsShown = PROFILE_VARIANT_ORDER;
@@ -512,7 +567,7 @@ export function buildProfileRatings(ratings: ProfileBucketRating[]): HTMLElement
   if (variantsShown.length === 0) {
     const empty = document.createElement('p');
     empty.className = 'profile-ratings-empty';
-    empty.textContent = 'No rated games yet.';
+    empty.textContent = t('profile.noRatedGames', {}, locale);
     section.append(empty);
     return section;
   }
@@ -521,7 +576,7 @@ export function buildProfileRatings(ratings: ProfileBucketRating[]): HTMLElement
   rail.className = 'profile-ratings-rail';
 
   for (const variant of variantsShown) {
-    rail.append(buildRatingRailRow(ratings, variant));
+    rail.append(buildRatingRailRow(ratings, variant, locale));
   }
 
   section.append(rail);
@@ -534,6 +589,7 @@ export function buildProfileRatings(ratings: ProfileBucketRating[]): HTMLElement
 function buildRatingRailRow(
   ratings: ProfileBucketRating[],
   variant: ProfileRatingVariant,
+  locale: Locale = currentLocale(),
 ): HTMLElement {
   const row = document.createElement('div');
   row.className = 'profile-rating-row';
@@ -551,7 +607,7 @@ function buildRatingRailRow(
         miniId,
         80,
         'profile-rating-thumb',
-        `${PROFILE_VARIANT_LABEL[variant]} board`,
+        t('profile.variantBoard', { variant: profileVariantLabel(variant, locale) }, locale),
       ),
     );
   }
@@ -561,7 +617,7 @@ function buildRatingRailRow(
 
   const name = document.createElement('span');
   name.className = 'profile-rating-name';
-  name.textContent = PROFILE_VARIANT_LABEL[variant];
+  name.textContent = profileVariantLabel(variant, locale);
   meta.append(name);
 
   const value = document.createElement('span');
@@ -580,10 +636,14 @@ function buildRatingRailRow(
 
     const count = document.createElement('span');
     count.className = 'profile-rating-games';
-    count.textContent = `${bucket.ratedGamesPlayed} rated ${bucket.ratedGamesPlayed === 1 ? 'game' : 'games'}`;
+    count.textContent = t(
+      bucket.ratedGamesPlayed === 1 ? 'profile.ratedGameOne' : 'profile.ratedGameMany',
+      { count: bucket.ratedGamesPlayed },
+      locale,
+    );
     meta.append(count);
   } else if (bucket != null && bucket.totalGamesPlayed > 0) {
-    value.textContent = 'Unrated';
+    value.textContent = t('profile.unrated', {}, locale);
     value.classList.add('profile-rating-value-unrated');
     meta.append(value);
   } else {
@@ -596,18 +656,18 @@ function buildRatingRailRow(
   return row;
 }
 
-function buildProfileGames(profile: UserProfile): HTMLElement {
+function buildProfileGames(profile: UserProfile, locale: Locale = currentLocale()): HTMLElement {
   const section = document.createElement('section');
   section.className = 'profile-games';
 
   const heading = document.createElement('h2');
-  heading.textContent = 'Games';
+  heading.textContent = t('profile.games', {}, locale);
   section.append(heading);
 
   if (profile.gamesTotal === 0) {
     const empty = document.createElement('p');
     empty.className = 'landing-games-empty';
-    empty.textContent = 'No account games yet.';
+    empty.textContent = t('profile.noAccountGames', {}, locale);
     section.append(empty);
     return section;
   }
@@ -625,10 +685,10 @@ function buildProfileGames(profile: UserProfile): HTMLElement {
         lastDay = day;
         const header = document.createElement('li');
         header.className = 'profile-activity-day';
-        header.textContent = dayLabel(game.endedAt);
+        header.textContent = dayLabel(game.endedAt, locale);
         list.append(header);
       }
-      list.append(buildProfileGameRow(game, { timeOnly: true }));
+      list.append(buildProfileGameRow(game, { timeOnly: true, locale }));
     }
   };
 
@@ -645,10 +705,10 @@ function buildProfileGames(profile: UserProfile): HTMLElement {
   const button = document.createElement('button');
   button.type = 'button';
   button.className = 'profile-games-more-btn';
-  button.textContent = 'Load more';
+  button.textContent = t('profile.loadMore', {}, locale);
   button.addEventListener('click', async () => {
     button.disabled = true;
-    button.textContent = 'Loading…';
+    button.textContent = t('profile.loadingMore', {}, locale);
     const page = await fetchUserGamesPage(profile.user.handle, rendered, PROFILE_GAMES_PAGE).catch(
       (err) => {
         console.warn(err);
@@ -657,7 +717,7 @@ function buildProfileGames(profile: UserProfile): HTMLElement {
     );
     if (!page) {
       button.disabled = false;
-      button.textContent = 'Load more';
+      button.textContent = t('profile.loadMore', {}, locale);
       return;
     }
     appendGames(page.games);
@@ -666,12 +726,19 @@ function buildProfileGames(profile: UserProfile): HTMLElement {
       moreWrap.remove();
     } else {
       button.disabled = false;
-      button.textContent = 'Load more';
+      button.textContent = t('profile.loadMore', {}, locale);
     }
   });
   moreWrap.append(button);
   section.append(moreWrap);
   return section;
+}
+
+function profileVariantLabel(
+  variant: ProfileRatingVariant,
+  locale: Locale = currentLocale(),
+): string {
+  return t(PROFILE_VARIANT_LABEL_KEY[variant], {}, locale);
 }
 
 async function fetchUserGamesPage(

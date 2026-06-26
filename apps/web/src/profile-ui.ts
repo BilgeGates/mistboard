@@ -3,8 +3,31 @@
 // shell and the game-row are identical across both subjects; only the middle
 // block (rating buckets vs engine records) differs and stays per-page.
 import { maybeGameSpecForId } from '@mistboard/game';
-import { displayParticipantName, type FeaturedGame, sourceLabel } from './game-display.js';
+import { displayParticipantName, type FeaturedGame } from './game-display.js';
 import { timeControlLabelForGame } from './game-meta.js';
+import { type I18nKey, t } from './i18n/catalog.js';
+import { currentLocale, LOCALE_META, type Locale } from './i18n/locale.js';
+
+const GAME_VARIANT_LABEL_KEY: Record<string, I18nKey> = {
+  fog: 'variant.darkChess.name',
+  'dark-chess': 'variant.darkChess.name',
+  'dark-draft960': 'variant.darkDraft960.name',
+  'fog-draft960': 'variant.darkDraft960.name',
+  draft960: 'variant.darkDraft960.name',
+  'mini-xiangqi': 'variant.miniXiangqi.name',
+  'dark-mini-xiangqi': 'variant.darkMiniXiangqi.name',
+  'drop-mini-xiangqi': 'variant.dropMiniXiangqi.name',
+  'dark-xiangqi': 'variant.darkXiangqi.name',
+  banqi: 'variant.banqi.name',
+  jieqi: 'variant.jieqi.name',
+  'reveal-chess': 'variant.revealChess.name',
+  'crossroads-chess': 'variant.crossroadsChess.name',
+  'dual-chess': 'variant.crossroadsChess.name',
+  'dark-crossroads-chess': 'variant.darkCrossroadsChess.name',
+  'dark-shogi': 'variant.darkShogi.name',
+  'dark-crazyhouse': 'variant.darkCrazyhouse.name',
+  kriegspiel: 'variant.kriegspiel.name',
+};
 
 // Header shell: eyebrow + heading + a dot-separated meta line. Callers build the
 // subject-specific meta spans (handle/joined/role for a user, id/games for an
@@ -47,8 +70,9 @@ export function buildProfileHeaderShell(opts: {
 // subject's seat). Works for a human or an engine seat alike.
 export function buildProfileGameRow(
   game: FeaturedGame,
-  opts: { timeOnly?: boolean } = {},
+  opts: { locale?: Locale; timeOnly?: boolean } = {},
 ): HTMLElement {
+  const locale = opts.locale ?? currentLocale();
   const item = document.createElement('li');
   const link = document.createElement('a');
   link.href = profileGameHref(game);
@@ -58,7 +82,7 @@ export function buildProfileGameRow(
 
   const outcome = document.createElement('span');
   outcome.className = `profile-game-outcome profile-game-outcome-${tone}`;
-  outcome.textContent = profileResultLabel(game);
+  outcome.textContent = profileResultLabel(game, locale);
 
   const body = document.createElement('span');
   body.className = 'profile-game-body';
@@ -68,11 +92,17 @@ export function buildProfileGameRow(
 
   const opponent = document.createElement('span');
   opponent.className = 'profile-game-opponent';
-  opponent.textContent = `vs ${profileOpponentName(game)}`;
+  opponent.textContent = t(
+    'profile.vsOpponent',
+    { opponent: profileOpponentName(game, locale) },
+    locale,
+  );
 
   const date = document.createElement('span');
   date.className = 'profile-game-date';
-  date.textContent = opts.timeOnly ? formatGameTime(game.endedAt) : formatGameDate(game.endedAt);
+  date.textContent = opts.timeOnly
+    ? formatGameTime(game.endedAt, locale)
+    : formatGameDate(game.endedAt, locale);
 
   topLine.append(opponent, date);
 
@@ -84,19 +114,19 @@ export function buildProfileGameRow(
   const details = document.createElement('span');
   details.className = 'profile-game-details';
   details.append(
-    buildGameDetail(profileGameSpecLabel(game), 'profile-game-variant'),
-    buildGameDetail(profileSideLabel(game), 'profile-game-side'),
+    buildGameDetail(profileGameSpecLabel(game, locale), 'profile-game-variant'),
+    buildGameDetail(profileSideLabel(game, locale), 'profile-game-side'),
   );
   // Only rated games get a badge; casual (the default, and every game while
   // rated is gated off) stays untagged so the feed isn't littered with "Casual".
-  if (!isCasual) details.append(buildGameDetail('Rated', 'profile-game-rated'));
+  if (!isCasual) details.append(buildGameDetail(t('play.rated', {}, locale), 'profile-game-rated'));
   // Time control sits with the leading fixed-width pills (see CSS) when present;
   // clockless games (engine self-play) simply omit it.
   const timeControl = timeControlLabelForGame(game);
   if (timeControl) details.append(buildGameDetail(timeControl, 'profile-game-tc'));
   details.append(
-    buildGameDetail(sourceLabel(game.mode)),
-    buildGameDetail(`${game.plyCount} plies`),
+    buildGameDetail(sourceLabelForMode(game.mode, locale)),
+    buildGameDetail(t('watch.plyCount', { count: game.plyCount }, locale)),
   );
 
   body.append(topLine, details);
@@ -112,63 +142,76 @@ function buildGameDetail(label: string, extraClass?: string): HTMLElement {
   return pill;
 }
 
-function profileOpponentName(game: FeaturedGame): string {
+function profileOpponentName(game: FeaturedGame, locale: Locale): string {
   const color = game.playerColor ?? 'white';
-  return displayParticipantName(game, opponentColor(game, color));
+  return localizedSeatName(displayParticipantName(game, opponentColor(game, color)), locale);
 }
 
-function profileSideLabel(game: FeaturedGame): string {
-  if (game.playerColor === 'red') return 'Red';
-  if (game.playerColor === 'black') return 'Black';
-  return 'White';
+function profileSideLabel(game: FeaturedGame, locale: Locale): string {
+  if (game.playerColor === 'red') return t('setup.red', {}, locale);
+  if (game.playerColor === 'black') return t('setup.black', {}, locale);
+  return t('setup.white', {}, locale);
 }
 
-function profileGameSpecLabel(game: FeaturedGame): string {
+function profileGameSpecLabel(game: FeaturedGame, locale: Locale): string {
   // Legacy/alias variant strings the canonical spec map doesn't resolve, plus the
   // 'Dark Chess' casing this pill uses (the dark-chess spec publicName is the
   // lowercase 'Dark chess'). Everything else derives from the canonical spec so a
   // new variant (banqi, jieqi, reveal-chess, ...) is labelled without editing here.
-  if (game.variant === 'fog' || game.variant === 'dark-chess') return 'Dark Chess';
-  if (
-    game.variant === 'dark-draft960' ||
-    game.variant === 'fog-draft960' ||
-    game.variant === 'draft960'
-  )
-    return 'Dark Draft960';
-  if (isCrossroadsChessVariant(game)) return 'Crossroads Chess';
-  return maybeGameSpecForId(game.variant)?.publicName ?? 'Dark Chess';
+  const key = GAME_VARIANT_LABEL_KEY[game.variant];
+  if (key) return t(key, {}, locale);
+  return maybeGameSpecForId(game.variant)?.publicName ?? t('variant.darkChess.name', {}, locale);
 }
 
-function profileResultLabel(game: FeaturedGame): string {
-  if (game.result === 'draw') return 'Draw';
-  if (game.playerColor === 'red') return game.result === 'red-wins' ? 'Win' : 'Loss';
-  if (game.playerColor === 'black') return game.result === 'black-wins' ? 'Win' : 'Loss';
-  return game.result === 'white-wins' ? 'Win' : 'Loss';
+function profileResultLabel(game: FeaturedGame, locale: Locale): string {
+  const tone = profileResultTone(game);
+  if (tone === 'win') return t('result.win', {}, locale);
+  if (tone === 'loss') return t('result.loss', {}, locale);
+  return t('result.draw', {}, locale);
 }
 
 function profileResultTone(game: FeaturedGame): 'win' | 'loss' | 'draw' {
-  const result = profileResultLabel(game);
-  if (result === 'Win') return 'win';
-  if (result === 'Loss') return 'loss';
-  return 'draw';
+  if (game.result === 'draw') return 'draw';
+  if (game.playerColor === 'red') return game.result === 'red-wins' ? 'win' : 'loss';
+  if (game.playerColor === 'black') return game.result === 'black-wins' ? 'win' : 'loss';
+  return game.result === 'white-wins' ? 'win' : 'loss';
 }
 
-function formatGameDate(value: string | undefined): string {
-  if (!value) return 'Finished game';
+function formatGameDate(value: string | undefined, locale: Locale): string {
+  if (!value) return t('profile.finishedGame', {}, locale);
   const date = new Date(value);
-  if (!Number.isFinite(date.getTime())) return 'Finished game';
-  return new Intl.DateTimeFormat(undefined, { dateStyle: 'medium', timeStyle: 'short' }).format(
-    date,
-  );
+  if (!Number.isFinite(date.getTime())) return t('profile.finishedGame', {}, locale);
+  return new Intl.DateTimeFormat(LOCALE_META[locale].dateLocale, {
+    dateStyle: 'medium',
+    timeStyle: 'short',
+  }).format(date);
 }
 
 // Time-only label for the date-grouped activity feed, where the day header
 // already carries the date.
-function formatGameTime(value: string | undefined): string {
+function formatGameTime(value: string | undefined, locale: Locale): string {
   if (!value) return '';
   const date = new Date(value);
   if (!Number.isFinite(date.getTime())) return '';
-  return new Intl.DateTimeFormat(undefined, { timeStyle: 'short' }).format(date);
+  return new Intl.DateTimeFormat(LOCALE_META[locale].dateLocale, { timeStyle: 'short' }).format(
+    date,
+  );
+}
+
+function sourceLabelForMode(mode: FeaturedGame['mode'], locale: Locale): string {
+  if (mode === 'eve') return t('watch.engineVsEngine', {}, locale);
+  if (mode === 'pve') return t('watch.humanVsEngine', {}, locale);
+  if (mode === 'pvp') return t('watch.humanVsHuman', {}, locale);
+  if (mode === 'imported') return t('profile.importedGame', {}, locale);
+  if (mode === 'manual') return t('profile.manualGame', {}, locale);
+  return t('profile.darkChessGame', {}, locale);
+}
+
+function localizedSeatName(name: string, locale: Locale): string {
+  if (name === 'Red') return t('setup.red', {}, locale);
+  if (name === 'White') return t('setup.white', {}, locale);
+  if (name === 'Black') return t('setup.black', {}, locale);
+  return name;
 }
 
 function opponentColor(
