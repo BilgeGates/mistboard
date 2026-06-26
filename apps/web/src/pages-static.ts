@@ -53,15 +53,17 @@ export function mountFaq(root: HTMLElement): void {
 }
 
 export function mountTerms(root: HTMLElement): void {
+  const locale = currentLocale();
   root.replaceChildren();
   root.classList.add('landing-page', 'terms-route');
-  root.append(buildNav(), buildTerms());
+  root.append(buildNav(locale), buildTerms(locale));
 }
 
 export function mountPrivacy(root: HTMLElement): void {
+  const locale = currentLocale();
   root.replaceChildren();
   root.classList.add('landing-page', 'privacy-route');
-  root.append(buildNav(), buildPrivacy());
+  root.append(buildNav(locale), buildPrivacy(locale));
 }
 
 export function mountNotFound(root: HTMLElement): void {
@@ -608,69 +610,58 @@ function buildFaq(locale: Locale = currentLocale()): HTMLElement {
   return section;
 }
 
-function buildTerms(): HTMLElement {
+function buildTerms(locale: Locale = currentLocale()): HTMLElement {
   const section = document.createElement('section');
   section.className = 'site-section terms-section';
 
   const heading = document.createElement('h1');
   heading.className = 'site-section-heading';
-  heading.textContent = 'Terms of Use';
+  heading.textContent = t('terms.heading', {}, locale);
 
-  const intro = aboutParagraph([
-    'Mistboard is a free, open-source hobby project. These are the basic rules for using the hosted site at mistboard.com. They will change as the project grows; this page is always the current version.',
-  ]);
+  const intro = aboutParagraph([t('terms.intro', {}, locale)]);
 
-  const h1 = aboutSubheading('The site is offered as-is');
-  const p1 = aboutParagraph([
-    'No warranty. Games, accounts, ratings, and stored data can be lost, reset, or removed without notice during development. Don’t put anything on Mistboard you can’t afford to lose.',
-  ]);
+  const h1 = aboutSubheading(t('terms.offeredHeading', {}, locale));
+  const p1 = aboutParagraph([t('terms.offeredBody', {}, locale)]);
 
-  const h2 = aboutSubheading('Anonymous play');
-  const p2 = aboutParagraph([
-    'Play is anonymous and link-based by default. Accounts are optional and add a profile and a handle. Don’t use the service for anything that needs an identity you can’t lose.',
-  ]);
+  const h2 = aboutSubheading(t('terms.anonymousHeading', {}, locale));
+  const p2 = aboutParagraph([t('terms.anonymousBody', {}, locale)]);
 
-  const h3 = aboutSubheading('Acceptable use');
-  const p3 = aboutParagraph([
-    'Don’t harass other players, spam, abuse the service, try to break the fog filter, or hammer the site with scrapers. Don’t use external engine help in rated games. Handles, rooms, and accounts may be revoked for abuse.',
-  ]);
+  const h3 = aboutSubheading(t('terms.acceptableHeading', {}, locale));
+  const p3 = aboutParagraph([t('terms.acceptableBody', {}, locale)]);
 
-  const hr1 = aboutSubheading('Rated play needs an account');
-  const pr1 = aboutParagraph([
-    'Casual and link-based games stay anonymous and free. Rated play needs an account, so a rating belongs to a person. One person, one account.',
-  ]);
+  const hr1 = aboutSubheading(t('terms.ratedAccountHeading', {}, locale));
+  const pr1 = aboutParagraph([t('terms.ratedAccountBody', {}, locale)]);
 
-  const hr2 = aboutSubheading('Ratings belong to the system');
-  const pr2 = aboutParagraph([
-    'We decide how ratings are calculated and what they mean. We may set, adjust, recompute, void, or reset any rating or the ladder itself, and change how the system works, at any time. A rating is a measurement we publish, not something you own.',
-  ]);
+  const hr2 = aboutSubheading(t('terms.ratingsHeading', {}, locale));
+  const pr2 = aboutParagraph([t('terms.ratingsBody', {}, locale)]);
 
-  const hr3 = aboutSubheading('Fair play');
-  const pr3 = aboutParagraph([
-    'Rated play only works if results are honest. We don’t tolerate outside assistance, manipulating your own or others’ ratings, or any attempt to game the ladder. We decide what crosses the line, and we may remove ratings or accounts when it does.',
-  ]);
+  const hr3 = aboutSubheading(t('terms.fairPlayHeading', {}, locale));
+  const pr3 = aboutParagraph([t('terms.fairPlayBody', {}, locale)]);
 
-  const hr4 = aboutSubheading('Integrity data');
+  const hr4 = aboutSubheading(t('terms.integrityHeading', {}, locale));
   const pr4 = aboutParagraph([
-    'We collect and analyze game and account data to protect the integrity of rated play. How we investigate, and what we do about it, is our call. See ',
-    aboutLink('Privacy', '/privacy'),
-    ' for what we collect.',
+    t('terms.integrityPrefix', {}, locale),
+    aboutLink(t('terms.privacyLink', {}, locale), '/privacy'),
+    t('terms.integritySuffix', {}, locale),
   ]);
 
-  const h4 = aboutSubheading('Finished games are public by default');
+  const h4 = aboutSubheading(t('terms.finishedGamesHeading', {}, locale));
   const p4 = aboutParagraph([
-    'Completed games are published under ',
-    aboutExternalLink('CC BY 4.0', 'https://creativecommons.org/licenses/by/4.0/'),
-    '. Anyone can share or reuse the game record as long as they credit Mistboard. To take down a specific game, use ',
-    aboutLink('Contact', '/contact'),
-    '.',
+    t('terms.finishedGamesPrefix', {}, locale),
+    aboutExternalLink(
+      t('terms.ccByLink', {}, locale),
+      'https://creativecommons.org/licenses/by/4.0/',
+    ),
+    t('terms.finishedGamesMiddle', {}, locale),
+    aboutLink(t('terms.contactLink', {}, locale), '/contact'),
+    t('terms.finishedGamesSuffix', {}, locale),
   ]);
 
-  const h5 = aboutSubheading('Open source and brand');
+  const h5 = aboutSubheading(t('terms.openSourceHeading', {}, locale));
   const p5 = aboutParagraph([
-    'The source is AGPL-3.0-or-later. The Mistboard name, logo, domain, and hosted service identity are project assets. Forks are welcome but should pick their own name. See ',
-    aboutLink('Source', '/source'),
-    ' for license and credits.',
+    t('terms.openSourcePrefix', {}, locale),
+    aboutLink(t('terms.sourceLink', {}, locale), '/source'),
+    t('terms.openSourceSuffix', {}, locale),
   ]);
 
   section.append(
@@ -698,39 +689,34 @@ function buildTerms(): HTMLElement {
   return section;
 }
 
-function buildPrivacy(): HTMLElement {
+function buildPrivacy(locale: Locale = currentLocale()): HTMLElement {
   const section = document.createElement('section');
   section.className = 'site-section terms-section';
 
   const heading = document.createElement('h1');
   heading.className = 'site-section-heading';
-  heading.textContent = 'Privacy';
+  heading.textContent = t('privacy.heading', {}, locale);
 
-  const intro = aboutParagraph([
-    'Mistboard is a free, open-source hobby project. This page describes what we collect on the hosted site at mistboard.com. It will change as the project grows; this page is always the current version.',
-  ]);
+  const intro = aboutParagraph([t('privacy.intro', {}, locale)]);
 
-  const h1 = aboutSubheading('What we collect');
-  const p1 = aboutParagraph([
-    'Aggregate analytics, the games you play, and, if you make an account, your handle and email. We collect more around rated play to keep it honest.',
-  ]);
+  const h1 = aboutSubheading(t('privacy.collectHeading', {}, locale));
+  const p1 = aboutParagraph([t('privacy.collectBody', {}, locale)]);
 
-  const h2 = aboutSubheading('What we don’t do');
-  const p2 = aboutParagraph([
-    'No ads. We don’t sell your data. No recordings of your screen. We respect Do Not Track. Casual play needs no account.',
-  ]);
+  const h2 = aboutSubheading(t('privacy.noDoHeading', {}, locale));
+  const p2 = aboutParagraph([t('privacy.noDoBody', {}, locale)]);
 
-  const h3 = aboutSubheading('Your games are public');
+  const h3 = aboutSubheading(t('privacy.publicGamesHeading', {}, locale));
   const p3 = aboutParagraph([
-    'Finished games are published under ',
-    aboutExternalLink('CC BY 4.0', 'https://creativecommons.org/licenses/by/4.0/'),
-    '.',
+    t('privacy.publicGamesPrefix', {}, locale),
+    aboutExternalLink(
+      t('privacy.ccByLink', {}, locale),
+      'https://creativecommons.org/licenses/by/4.0/',
+    ),
+    t('privacy.publicGamesSuffix', {}, locale),
   ]);
 
-  const h4 = aboutSubheading('What we promise, and don’t');
-  const p4 = aboutParagraph([
-    'We promise to keep hidden information hidden on the server and to tell you what we collect. We don’t promise your data, account, or rating survives development. It can change or disappear without notice. Don’t put anything on Mistboard you can’t afford to lose.',
-  ]);
+  const h4 = aboutSubheading(t('privacy.promisesHeading', {}, locale));
+  const p4 = aboutParagraph([t('privacy.promisesBody', {}, locale)]);
 
   section.append(heading, intro, h1, p1, h2, p2, h3, p3, h4, p4);
   return section;

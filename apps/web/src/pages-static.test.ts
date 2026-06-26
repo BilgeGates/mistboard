@@ -1,5 +1,12 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { mountAbout, mountFaq, mountNotFound, mountSource } from './pages-static.js';
+import {
+  mountAbout,
+  mountFaq,
+  mountNotFound,
+  mountPrivacy,
+  mountSource,
+  mountTerms,
+} from './pages-static.js';
 
 async function flushPromises(): Promise<void> {
   await Promise.resolve();
@@ -154,6 +161,37 @@ describe('about page platform activity', () => {
     expect(root.textContent).toContain('如何回報 bug 或聯絡？');
     expect(root.textContent).toContain('Mistboard 引擎會看到完整棋盤嗎？');
     expect(root.textContent).toContain('計分對局如何運作？');
+  });
+
+  it('localizes Traditional Chinese terms page chrome', () => {
+    window.history.replaceState(null, '', '/zh-hant/terms');
+
+    const root = document.createElement('main');
+    document.body.append(root);
+    mountTerms(root);
+
+    expect(root.querySelector('h1')?.textContent).toBe('使用條款');
+    expect(root.textContent).toContain('網站按現狀提供');
+    expect(root.textContent).toContain('計分對局需要帳號');
+    expect(root.textContent).toContain('公平性資料');
+    expect(root.textContent).toContain('我們收集什麼見隱私。');
+    expect(root.textContent).toContain('已結束對局預設公開');
+    expect(root.textContent).toContain('授權與鳴謝見原始碼。');
+  });
+
+  it('localizes Traditional Chinese privacy page chrome', () => {
+    window.history.replaceState(null, '', '/zh-hant/privacy');
+
+    const root = document.createElement('main');
+    document.body.append(root);
+    mountPrivacy(root);
+
+    expect(root.querySelector('h1')?.textContent).toBe('隱私');
+    expect(root.textContent).toContain('我們收集什麼');
+    expect(root.textContent).toContain('我們不會做什麼');
+    expect(root.textContent).toContain('你的對局是公開的');
+    expect(root.textContent).toContain('已結束對局按 CC BY 4.0 發布。');
+    expect(root.textContent).toContain('我們承諾什麼，以及不承諾什麼');
   });
 
   it('localizes Traditional Chinese not-found page chrome', () => {

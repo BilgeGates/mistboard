@@ -269,6 +269,60 @@ const EN = {
   'faq.ratedQuestion': 'How does rated play work?',
   'faq.ratedAnswer':
     'Rated dark chess is account-backed human-vs-human play. During beta, the ladder may be provisional while ratings calibrate. Engine games and casual games do not count.',
+  'terms.heading': 'Terms of Use',
+  'terms.intro':
+    'Mistboard is a free, open-source hobby project. These are the basic rules for using the hosted site at mistboard.com. They will change as the project grows; this page is always the current version.',
+  'terms.offeredHeading': 'The site is offered as-is',
+  'terms.offeredBody':
+    "No warranty. Games, accounts, ratings, and stored data can be lost, reset, or removed without notice during development. Don't put anything on Mistboard you can't afford to lose.",
+  'terms.anonymousHeading': 'Anonymous play',
+  'terms.anonymousBody':
+    "Play is anonymous and link-based by default. Accounts are optional and add a profile and a handle. Don't use the service for anything that needs an identity you can't lose.",
+  'terms.acceptableHeading': 'Acceptable use',
+  'terms.acceptableBody':
+    "Don't harass other players, spam, abuse the service, try to break the fog filter, or hammer the site with scrapers. Don't use external engine help in rated games. Handles, rooms, and accounts may be revoked for abuse.",
+  'terms.ratedAccountHeading': 'Rated play needs an account',
+  'terms.ratedAccountBody':
+    'Casual and link-based games stay anonymous and free. Rated play needs an account, so a rating belongs to a person. One person, one account.',
+  'terms.ratingsHeading': 'Ratings belong to the system',
+  'terms.ratingsBody':
+    'We decide how ratings are calculated and what they mean. We may set, adjust, recompute, void, or reset any rating or the ladder itself, and change how the system works, at any time. A rating is a measurement we publish, not something you own.',
+  'terms.fairPlayHeading': 'Fair play',
+  'terms.fairPlayBody':
+    "Rated play only works if results are honest. We don't tolerate outside assistance, manipulating your own or others' ratings, or any attempt to game the ladder. We decide what crosses the line, and we may remove ratings or accounts when it does.",
+  'terms.integrityHeading': 'Integrity data',
+  'terms.integrityPrefix':
+    'We collect and analyze game and account data to protect the integrity of rated play. How we investigate, and what we do about it, is our call. See ',
+  'terms.privacyLink': 'Privacy',
+  'terms.integritySuffix': ' for what we collect.',
+  'terms.finishedGamesHeading': 'Finished games are public by default',
+  'terms.finishedGamesPrefix': 'Completed games are published under ',
+  'terms.ccByLink': 'CC BY 4.0',
+  'terms.finishedGamesMiddle':
+    '. Anyone can share or reuse the game record as long as they credit Mistboard. To take down a specific game, use ',
+  'terms.contactLink': 'Contact',
+  'terms.finishedGamesSuffix': '.',
+  'terms.openSourceHeading': 'Open source and brand',
+  'terms.openSourcePrefix':
+    'The source is AGPL-3.0-or-later. The Mistboard name, logo, domain, and hosted service identity are project assets. Forks are welcome but should pick their own name. See ',
+  'terms.sourceLink': 'Source',
+  'terms.openSourceSuffix': ' for license and credits.',
+  'privacy.heading': 'Privacy',
+  'privacy.intro':
+    'Mistboard is a free, open-source hobby project. This page describes what we collect on the hosted site at mistboard.com. It will change as the project grows; this page is always the current version.',
+  'privacy.collectHeading': 'What we collect',
+  'privacy.collectBody':
+    'Aggregate analytics, the games you play, and, if you make an account, your handle and email. We collect more around rated play to keep it honest.',
+  'privacy.noDoHeading': "What we don't do",
+  'privacy.noDoBody':
+    "No ads. We don't sell your data. No recordings of your screen. We respect Do Not Track. Casual play needs no account.",
+  'privacy.publicGamesHeading': 'Your games are public',
+  'privacy.publicGamesPrefix': 'Finished games are published under ',
+  'privacy.ccByLink': 'CC BY 4.0',
+  'privacy.publicGamesSuffix': '.',
+  'privacy.promisesHeading': "What we promise, and don't",
+  'privacy.promisesBody':
+    "We promise to keep hidden information hidden on the server and to tell you what we collect. We don't promise your data, account, or rating survives development. It can change or disappear without notice. Don't put anything on Mistboard you can't afford to lose.",
   'play.startPlaying': 'Start playing',
   'play.findOpponent': 'Find opponent',
   'play.challengeFriend': 'Challenge a friend',
@@ -659,6 +713,60 @@ const ZH_HANS: Partial<Record<I18nKey, string>> = {
   'faq.ratedQuestion': '计分对局如何运作？',
   'faq.ratedAnswer':
     '计分迷雾国际象棋是需要账号的人类对人类对局。Beta 期间，评分校准时排行榜可能是临时的。引擎对局和休闲对局不计分。',
+  'terms.heading': '使用条款',
+  'terms.intro':
+    'Mistboard 是一个免费的开源爱好项目。这些是使用 mistboard.com 托管网站的基本规则。随着项目成长，这些规则会变化；本页始终是当前版本。',
+  'terms.offeredHeading': '网站按现状提供',
+  'terms.offeredBody':
+    '不提供担保。开发期间，对局、账号、评分和存储数据可能会丢失、重置，或在不另行通知的情况下移除。不要把任何你承受不起丢失的东西放在 Mistboard 上。',
+  'terms.anonymousHeading': '匿名对弈',
+  'terms.anonymousBody':
+    '默认情况下，对弈是匿名且基于链接的。账号是可选的，会增加个人资料和用户名。不要把本服务用于任何需要不可丢失身份的事情。',
+  'terms.acceptableHeading': '可接受使用',
+  'terms.acceptableBody':
+    '不要骚扰其他玩家、发送垃圾内容、滥用服务、试图破坏迷雾过滤器，或用爬虫大量请求本站。计分对局不要使用外部引擎帮助。滥用时，用户名、房间和账号可能会被撤销。',
+  'terms.ratedAccountHeading': '计分对局需要账号',
+  'terms.ratedAccountBody':
+    '休闲和基于链接的对局保持匿名且免费。计分对局需要账号，所以评分归属于一个人。一个人，一个账号。',
+  'terms.ratingsHeading': '评分属于系统',
+  'terms.ratingsBody':
+    '我们决定评分如何计算以及它们代表什么。我们可以随时设置、调整、重新计算、作废或重置任何评分或排行榜本身，也可以改变系统的运作方式。评分是我们发布的一项测量结果，不是你拥有的东西。',
+  'terms.fairPlayHeading': '公平竞赛',
+  'terms.fairPlayBody':
+    '计分对局只有在结果诚实时才有效。我们不容忍外部协助、操纵自己或他人的评分，或任何试图钻排行榜空子的行为。我们决定什么越界，并且可能在越界时移除评分或账号。',
+  'terms.integrityHeading': '公平性数据',
+  'terms.integrityPrefix':
+    '我们会收集并分析对局和账号数据，以保护计分对局的公平性。如何调查，以及采取什么处理，由我们决定。我们收集什么见',
+  'terms.privacyLink': '隐私',
+  'terms.integritySuffix': '。',
+  'terms.finishedGamesHeading': '已结束对局默认公开',
+  'terms.finishedGamesPrefix': '完成的对局按 ',
+  'terms.ccByLink': 'CC BY 4.0',
+  'terms.finishedGamesMiddle':
+    ' 发布。任何人都可以分享或复用对局记录，只要注明 Mistboard。要移除某局具体对局，请使用',
+  'terms.contactLink': '联系',
+  'terms.finishedGamesSuffix': '。',
+  'terms.openSourceHeading': '开源与品牌',
+  'terms.openSourcePrefix':
+    '源代码是 AGPL-3.0-or-later。Mistboard 名称、标志、域名和托管服务身份是项目资产。欢迎 fork，但应该选择自己的名称。许可和鸣谢见',
+  'terms.sourceLink': '源码',
+  'terms.openSourceSuffix': '。',
+  'privacy.heading': '隐私',
+  'privacy.intro':
+    'Mistboard 是一个免费的开源爱好项目。本页说明我们在 mistboard.com 托管网站上收集什么。随着项目成长，本页会变化；本页始终是当前版本。',
+  'privacy.collectHeading': '我们收集什么',
+  'privacy.collectBody':
+    '汇总分析数据、你下过的对局，以及如果你创建账号，你的用户名和邮箱。围绕计分对局，为保持诚实公平，我们会收集更多数据。',
+  'privacy.noDoHeading': '我们不会做什么',
+  'privacy.noDoBody':
+    '没有广告。我们不出售你的数据。不录制你的屏幕。我们尊重 Do Not Track。休闲对局不需要账号。',
+  'privacy.publicGamesHeading': '你的对局是公开的',
+  'privacy.publicGamesPrefix': '已结束对局按 ',
+  'privacy.ccByLink': 'CC BY 4.0',
+  'privacy.publicGamesSuffix': ' 发布。',
+  'privacy.promisesHeading': '我们承诺什么，以及不承诺什么',
+  'privacy.promisesBody':
+    '我们承诺把隐藏信息保留在服务器端，并告诉你我们收集什么。我们不承诺你的数据、账号或评分能在开发期间保留。它们可能会在不另行通知的情况下改变或消失。不要把任何你承受不起丢失的东西放在 Mistboard 上。',
   'play.startPlaying': '开始对弈',
   'play.findOpponent': '寻找对手',
   'play.challengeFriend': '挑战好友',
@@ -1047,6 +1155,60 @@ const ZH_HANT: Partial<Record<I18nKey, string>> = {
   'faq.ratedQuestion': '計分對局如何運作？',
   'faq.ratedAnswer':
     '計分迷霧國際象棋是需要帳號的人類對人類對局。Beta 期間，評分校準時排行榜可能是臨時的。引擎對局和休閒對局不計分。',
+  'terms.heading': '使用條款',
+  'terms.intro':
+    'Mistboard 是一個免費的開源興趣專案。這些是使用 mistboard.com 託管網站的基本規則。隨著專案成長，這些規則會變化；本頁始終是目前版本。',
+  'terms.offeredHeading': '網站按現狀提供',
+  'terms.offeredBody':
+    '不提供擔保。開發期間，對局、帳號、評分和儲存資料可能會遺失、重置，或在不另行通知的情況下移除。不要把任何你承受不起遺失的東西放在 Mistboard 上。',
+  'terms.anonymousHeading': '匿名對弈',
+  'terms.anonymousBody':
+    '預設情況下，對弈是匿名且基於連結的。帳號是選填的，會增加個人資料和使用者名稱。不要把本服務用於任何需要不可遺失身分的事情。',
+  'terms.acceptableHeading': '可接受使用',
+  'terms.acceptableBody':
+    '不要騷擾其他玩家、發送垃圾內容、濫用服務、試圖破壞迷霧過濾器，或用爬蟲大量請求本站。計分對局不要使用外部引擎幫助。濫用時，使用者名稱、房間和帳號可能會被撤銷。',
+  'terms.ratedAccountHeading': '計分對局需要帳號',
+  'terms.ratedAccountBody':
+    '休閒和基於連結的對局保持匿名且免費。計分對局需要帳號，所以評分歸屬於一個人。一個人，一個帳號。',
+  'terms.ratingsHeading': '評分屬於系統',
+  'terms.ratingsBody':
+    '我們決定評分如何計算以及它們代表什麼。我們可以隨時設定、調整、重新計算、作廢或重置任何評分或排行榜本身，也可以改變系統的運作方式。評分是我們發布的一項測量結果，不是你擁有的東西。',
+  'terms.fairPlayHeading': '公平競賽',
+  'terms.fairPlayBody':
+    '計分對局只有在結果誠實時才有效。我們不容忍外部協助、操縱自己或他人的評分，或任何試圖鑽排行榜空子的行為。我們決定什麼越界，並且可能在越界時移除評分或帳號。',
+  'terms.integrityHeading': '公平性資料',
+  'terms.integrityPrefix':
+    '我們會收集並分析對局和帳號資料，以保護計分對局的公平性。如何調查，以及採取什麼處理，由我們決定。我們收集什麼見',
+  'terms.privacyLink': '隱私',
+  'terms.integritySuffix': '。',
+  'terms.finishedGamesHeading': '已結束對局預設公開',
+  'terms.finishedGamesPrefix': '完成的對局按 ',
+  'terms.ccByLink': 'CC BY 4.0',
+  'terms.finishedGamesMiddle':
+    ' 發布。任何人都可以分享或複用對局紀錄，只要註明 Mistboard。要移除某局具體對局，請使用',
+  'terms.contactLink': '聯絡',
+  'terms.finishedGamesSuffix': '。',
+  'terms.openSourceHeading': '開源與品牌',
+  'terms.openSourcePrefix':
+    '原始碼是 AGPL-3.0-or-later。Mistboard 名稱、標誌、網域和託管服務身分是專案資產。歡迎 fork，但應該選擇自己的名稱。授權與鳴謝見',
+  'terms.sourceLink': '原始碼',
+  'terms.openSourceSuffix': '。',
+  'privacy.heading': '隱私',
+  'privacy.intro':
+    'Mistboard 是一個免費的開源興趣專案。本頁說明我們在 mistboard.com 託管網站上收集什麼。隨著專案成長，本頁會變化；本頁始終是目前版本。',
+  'privacy.collectHeading': '我們收集什麼',
+  'privacy.collectBody':
+    '彙總分析資料、你下過的對局，以及如果你建立帳號，你的使用者名稱和信箱。圍繞計分對局，為保持誠實公平，我們會收集更多資料。',
+  'privacy.noDoHeading': '我們不會做什麼',
+  'privacy.noDoBody':
+    '沒有廣告。我們不出售你的資料。不錄製你的螢幕。我們尊重 Do Not Track。休閒對局不需要帳號。',
+  'privacy.publicGamesHeading': '你的對局是公開的',
+  'privacy.publicGamesPrefix': '已結束對局按 ',
+  'privacy.ccByLink': 'CC BY 4.0',
+  'privacy.publicGamesSuffix': ' 發布。',
+  'privacy.promisesHeading': '我們承諾什麼，以及不承諾什麼',
+  'privacy.promisesBody':
+    '我們承諾把隱藏資訊保留在伺服器端，並告訴你我們收集什麼。我們不承諾你的資料、帳號或評分能在開發期間保留。它們可能會在不另行通知的情況下改變或消失。不要把任何你承受不起遺失的東西放在 Mistboard 上。',
   'play.startPlaying': '開始對弈',
   'play.findOpponent': '尋找對手',
   'play.challengeFriend': '挑戰好友',
@@ -1445,6 +1607,60 @@ const JA: Partial<Record<I18nKey, string>> = {
   'faq.ratedQuestion': 'レート対局はどう動きますか？',
   'faq.ratedAnswer':
     'レート付きダークチェスは、アカウントに紐づく人間同士の対局です。ベータ期間中、レーティング調整中のラダーは暫定的なものになる場合があります。エンジン対局とカジュアル対局は対象外です。',
+  'terms.heading': '利用規約',
+  'terms.intro':
+    'Mistboard は無料のオープンソース個人プロジェクトです。これは mistboard.com で提供されるホスト版サイトを利用するための基本ルールです。プロジェクトの成長に応じて変更されます。このページが常に現在の版です。',
+  'terms.offeredHeading': 'サイトは現状有姿で提供されます',
+  'terms.offeredBody':
+    '保証はありません。開発中は、対局、アカウント、レーティング、保存データが予告なく失われたり、リセットされたり、削除されたりする場合があります。失って困るものを Mistboard に置かないでください。',
+  'terms.anonymousHeading': '匿名対局',
+  'terms.anonymousBody':
+    '対局は初期状態では匿名かつリンクベースです。アカウントは任意で、プロフィールとハンドルを追加します。失えない身元が必要な用途には、このサービスを使わないでください。',
+  'terms.acceptableHeading': '許容される利用',
+  'terms.acceptableBody':
+    '他のプレイヤーへの嫌がらせ、スパム、サービスの悪用、霧フィルターを破る試み、大量のスクレイピングはしないでください。レート対局で外部エンジンの助けを使わないでください。悪用があった場合、ハンドル、部屋、アカウントを取り消すことがあります。',
+  'terms.ratedAccountHeading': 'レート対局にはアカウントが必要です',
+  'terms.ratedAccountBody':
+    'カジュアル対局とリンクベースの対局は匿名で無料のままです。レート対局にはアカウントが必要なので、レーティングは個人に紐づきます。1人1アカウントです。',
+  'terms.ratingsHeading': 'レーティングはシステムに属します',
+  'terms.ratingsBody':
+    'レーティングの計算方法と意味は私たちが決めます。任意のレーティングやラダー自体を、いつでも設定、調整、再計算、無効化、リセットでき、システムの仕組みも変更できます。レーティングは私たちが公開する測定値であり、あなたが所有するものではありません。',
+  'terms.fairPlayHeading': 'フェアプレイ',
+  'terms.fairPlayBody':
+    'レート対局は、結果が正直である場合にのみ成り立ちます。外部支援、自分や他人のレーティング操作、ラダーを悪用する試みは認めません。何が一線を越えるかは私たちが判断し、その場合はレーティングやアカウントを削除することがあります。',
+  'terms.integrityHeading': 'インテグリティデータ',
+  'terms.integrityPrefix':
+    'レート対局の公正性を守るため、対局データとアカウントデータを収集、分析します。調査方法と対応は私たちが判断します。収集内容は',
+  'terms.privacyLink': 'プライバシー',
+  'terms.integritySuffix': 'を参照してください。',
+  'terms.finishedGamesHeading': '終了した対局は初期状態で公開されます',
+  'terms.finishedGamesPrefix': '完了した対局は ',
+  'terms.ccByLink': 'CC BY 4.0',
+  'terms.finishedGamesMiddle':
+    ' のもとで公開されます。Mistboard をクレジットすれば、誰でも対局記録を共有または再利用できます。特定の対局の削除を依頼するには、',
+  'terms.contactLink': '問い合わせ',
+  'terms.finishedGamesSuffix': 'を使ってください。',
+  'terms.openSourceHeading': 'オープンソースとブランド',
+  'terms.openSourcePrefix':
+    'ソースは AGPL-3.0-or-later です。Mistboard の名称、ロゴ、ドメイン、ホストサービス識別はプロジェクト資産です。Fork は歓迎しますが、独自の名称を選んでください。ライセンスとクレジットは',
+  'terms.sourceLink': 'ソース',
+  'terms.openSourceSuffix': 'を参照してください。',
+  'privacy.heading': 'プライバシー',
+  'privacy.intro':
+    'Mistboard は無料のオープンソース個人プロジェクトです。このページでは、mistboard.com で提供されるホスト版サイトで何を収集するかを説明します。プロジェクトの成長に応じて変更されます。このページが常に現在の版です。',
+  'privacy.collectHeading': '収集するもの',
+  'privacy.collectBody':
+    '集計分析、あなたがプレイした対局、アカウントを作成した場合はハンドルとメールアドレスを収集します。レート対局を公正に保つため、その周辺ではより多くのデータを収集します。',
+  'privacy.noDoHeading': 'しないこと',
+  'privacy.noDoBody':
+    '広告はありません。データを販売しません。画面録画はしません。Do Not Track を尊重します。カジュアル対局にアカウントは不要です。',
+  'privacy.publicGamesHeading': 'あなたの対局は公開されます',
+  'privacy.publicGamesPrefix': '終了した対局は ',
+  'privacy.ccByLink': 'CC BY 4.0',
+  'privacy.publicGamesSuffix': ' のもとで公開されます。',
+  'privacy.promisesHeading': '約束すること、しないこと',
+  'privacy.promisesBody':
+    '隠れた情報をサーバー側に隠したままにし、何を収集するかを伝えることを約束します。あなたのデータ、アカウント、レーティングが開発中も残ることは約束しません。予告なく変更または消失する場合があります。失って困るものを Mistboard に置かないでください。',
   'play.startPlaying': '対局を始める',
   'play.findOpponent': '相手を探す',
   'play.challengeFriend': '友達に挑戦',
@@ -1818,6 +2034,46 @@ export const CRITICAL_I18N_KEYS = [
   'faq.liveWatchAnswer',
   'faq.ratedQuestion',
   'faq.ratedAnswer',
+  'terms.heading',
+  'terms.intro',
+  'terms.offeredHeading',
+  'terms.offeredBody',
+  'terms.anonymousHeading',
+  'terms.anonymousBody',
+  'terms.acceptableHeading',
+  'terms.acceptableBody',
+  'terms.ratedAccountHeading',
+  'terms.ratedAccountBody',
+  'terms.ratingsHeading',
+  'terms.ratingsBody',
+  'terms.fairPlayHeading',
+  'terms.fairPlayBody',
+  'terms.integrityHeading',
+  'terms.integrityPrefix',
+  'terms.privacyLink',
+  'terms.integritySuffix',
+  'terms.finishedGamesHeading',
+  'terms.finishedGamesPrefix',
+  'terms.ccByLink',
+  'terms.finishedGamesMiddle',
+  'terms.contactLink',
+  'terms.finishedGamesSuffix',
+  'terms.openSourceHeading',
+  'terms.openSourcePrefix',
+  'terms.sourceLink',
+  'terms.openSourceSuffix',
+  'privacy.heading',
+  'privacy.intro',
+  'privacy.collectHeading',
+  'privacy.collectBody',
+  'privacy.noDoHeading',
+  'privacy.noDoBody',
+  'privacy.publicGamesHeading',
+  'privacy.publicGamesPrefix',
+  'privacy.ccByLink',
+  'privacy.publicGamesSuffix',
+  'privacy.promisesHeading',
+  'privacy.promisesBody',
   'play.startPlaying',
   'play.findOpponent',
   'play.challengeFriend',
