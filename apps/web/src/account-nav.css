@@ -153,6 +153,45 @@
   margin: 4px 0;
 }
 
+.account-language-list {
+  display: grid;
+  gap: 2px;
+}
+
+.account-language-option {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 34px;
+  width: 100%;
+  border: 0;
+  border-radius: var(--site-radius-sm);
+  background: transparent;
+  color: var(--site-text);
+  cursor: pointer;
+  font: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  padding: 8px 10px;
+  text-align: left;
+}
+
+.account-language-option:hover,
+.account-language-option:focus-visible {
+  background: var(--site-hover);
+}
+
+.account-language-option.selected::after {
+  content: "";
+  flex: none;
+  width: 7px;
+  height: 12px;
+  margin-left: 12px;
+  border-right: 2px solid var(--site-accent);
+  border-bottom: 2px solid var(--site-accent);
+  transform: rotate(40deg);
+}
+
 /* Connection footer (PING / SERVER + signal bars), lichess profile-menu style. */
 .account-nav-status {
   display: flex;

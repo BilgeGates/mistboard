@@ -46,6 +46,8 @@ describe('account nav', () => {
 
     expect(document.querySelector('.account-nav-trigger')?.textContent).toBe('misty');
     expect(document.querySelector('.site-nav-link-signin')).toBeNull();
+    expect(document.querySelector('.site-nav-language')).toBeNull();
+    expect(document.querySelector('.account-language-menu')).not.toBeNull();
   });
 
   it('can replace a mounted account menu with signed-out links', async () => {
@@ -63,6 +65,7 @@ describe('account nav', () => {
 
     setAccountNavUser(null);
     expect(document.querySelector('.account-nav-trigger')).toBeNull();
+    expect(document.querySelector('.site-nav-language')).not.toBeNull();
     expect(document.querySelector('.site-nav-link-signin')?.textContent).toBe('Sign in');
     expect(document.querySelector('.site-nav-link-register')?.textContent).toBe('Register');
   });
@@ -89,6 +92,20 @@ describe('account nav', () => {
         (item) => item.textContent,
       ),
     ).toEqual(['個人資料', '偏好設定', '登出']);
+    expect(
+      document.querySelector<HTMLButtonElement>('.account-language-menu .appearance-menu-row')
+        ?.textContent,
+    ).toBe('語言');
+    expect(
+      Array.from(document.querySelectorAll<HTMLElement>('.account-language-option')).map(
+        (item) => item.textContent,
+      ),
+    ).toEqual(['English', '简体中文', '繁體中文', '日本語']);
+    expect(
+      document
+        .querySelector<HTMLElement>('.account-language-option.selected')
+        ?.getAttribute('data-locale'),
+    ).toBe('zh-Hant');
   });
 });
 

@@ -3,10 +3,18 @@ import './account-nav.css';
 import { identify, resetIdentity } from './analytics.js';
 import { type ConnectionStatus, createConnectionStatus } from './connection-status.js';
 import { t } from './i18n/catalog.js';
-import { currentLocale, type Locale, localizedHref } from './i18n/locale.js';
+import {
+  APP_LOCALES,
+  currentLocale,
+  LOCALE_META,
+  type Locale,
+  localizedHref,
+  setStoredLocale,
+} from './i18n/locale.js';
 import { clearSeatTokenForRoom, liveState } from './live-state.js';
 import { clearNotificationBells, mountNotificationBell } from './notification-nav.js';
 import { readSignedInHint, setResolvedSignedIn, writeSignedInHint } from './signed-in-state.js';
+import { buildLanguageSelector } from './site-shell.js';
 import { buildAppearanceMenu, initializeThemeSettings, resetAppearanceMenus } from './theme.js';
 
 // Lucide-style outline icons, matching the nav's existing icon weight. The gear
@@ -139,8 +147,10 @@ function revealSignedOutSlots(): void {
 
 function resetMountedAccountControls(): void {
   for (const control of document.querySelectorAll<HTMLElement>('[data-account-nav]')) {
+    const nav = control.closest<HTMLElement>('.site-nav');
     statusByControl.get(control)?.stop();
     control.replaceWith(createSignedOutAccountSlot());
+    if (nav) restoreStandaloneLanguageSelector(nav);
   }
 }
 
@@ -187,6 +197,7 @@ function mountAccountNav(nav: HTMLElement, user: AuthUser): void {
   // menu). Mounted here so it inherits the same signed-in timing + observer;
   // a no-op when no notification sources are registered.
   mountNotificationBell(nav);
+  removeStandaloneLanguageSelector(nav);
 
   const path = window.location.pathname.replace(/\/+$/, '') || '/';
   const wasActive = path === '/account' || path.startsWith('/account/');
@@ -240,6 +251,7 @@ function mountAccountNav(nav: HTMLElement, user: AuthUser): void {
   // Account actions on top, then the appearance drill-in, then the connection
   // footer — the lichess profile-menu order. Appearance folds in here (no
   // standalone gear when signed in); it reuses the menu theme.ts builds.
+  const language = buildLanguageMenu(locale);
   const appearance = buildAppearanceMenu();
   const status = createConnectionStatus();
   statusByControl.set(control, status);
@@ -249,6 +261,7 @@ function mountAccountNav(nav: HTMLElement, user: AuthUser): void {
     settings,
     logout,
     createAccountDivider(),
+    language,
     appearance,
     createAccountDivider(),
     status.element,
@@ -258,6 +271,94 @@ function mountAccountNav(nav: HTMLElement, user: AuthUser): void {
 
   // Drop any standalone gear theme.ts may have mounted before auth resolved.
   for (const el of nav.querySelectorAll('[data-theme-control]')) el.remove();
+}
+
+function removeStandaloneLanguageSelector(nav: HTMLElement): void {
+  for (const el of nav.querySelectorAll<HTMLElement>('[data-language-control]')) el.remove();
+}
+
+function restoreStandaloneLanguageSelector(nav: HTMLElement): void {
+  if (nav.querySelector('[data-language-control]')) return;
+  const utilities = nav.querySelector<HTMLElement>('.site-nav-utilities');
+  if (!utilities) return;
+  const target = utilities.querySelector<HTMLElement>('[data-account-slot], [data-account-nav]');
+  utilities.insertBefore(buildLanguageSelector(currentLocale()), target);
+}
+
+function buildLanguageMenu(locale: Locale = currentLocale()): HTMLElement {
+  const menu = document.createElement('div');
+  menu.className = 'appearance-menu account-language-menu';
+
+  const root = document.createElement('div');
+  root.className = 'appearance-menu-root';
+
+  const row = document.createElement('button');
+  row.type = 'button';
+  row.className = 'appearance-menu-row';
+  row.dataset.languageTarget = 'language';
+  const rowText = document.createElement('span');
+  rowText.textContent = t('nav.language', {}, locale);
+  const chevron = document.createElement('span');
+  chevron.className = 'appearance-menu-chevron';
+  chevron.setAttribute('aria-hidden', 'true');
+  row.append(rowText, chevron);
+
+  const submenu = document.createElement('div');
+  submenu.className = 'appearance-submenu';
+  submenu.dataset.key = 'language';
+
+  const back = document.createElement('button');
+  back.type = 'button';
+  back.className = 'appearance-submenu-back';
+  const arrow = document.createElement('span');
+  arrow.className = 'appearance-submenu-back-arrow';
+  arrow.setAttribute('aria-hidden', 'true');
+  const backText = document.createElement('span');
+  backText.textContent = t('nav.language', {}, locale);
+  back.append(arrow, backText);
+
+  const body = document.createElement('div');
+  body.className = 'appearance-submenu-body';
+
+  const list = document.createElement('div');
+  list.className = 'account-language-list';
+  list.setAttribute('role', 'radiogroup');
+  list.setAttribute('aria-label', t('nav.language', {}, locale));
+  for (const optionLocale of APP_LOCALES) {
+    const option = document.createElement('button');
+    option.type = 'button';
+    option.className = 'account-language-option';
+    option.dataset.locale = optionLocale;
+    option.setAttribute('role', 'radio');
+    option.setAttribute('aria-checked', String(optionLocale === locale));
+    option.textContent = LOCALE_META[optionLocale].displayName;
+    if (optionLocale === locale) option.classList.add('selected');
+    option.addEventListener('click', () => {
+      setStoredLocale(optionLocale);
+      const currentHref = `${window.location.pathname}${window.location.search}${window.location.hash}`;
+      window.location.href = localizedHref(currentHref, optionLocale);
+    });
+    list.append(option);
+  }
+
+  body.append(list);
+  submenu.append(back, body);
+  menu.append(root, submenu);
+  root.append(row);
+
+  row.addEventListener('click', () => showAccountSubmenu(menu, 'language'));
+  back.addEventListener('click', () => showAccountSubmenu(menu, 'root'));
+  showAccountSubmenu(menu, 'root');
+  return menu;
+}
+
+function showAccountSubmenu(menu: HTMLElement, view: string): void {
+  menu.dataset.view = view;
+  const root = menu.querySelector<HTMLElement>('.appearance-menu-root');
+  if (root) root.hidden = view !== 'root';
+  for (const sub of menu.querySelectorAll<HTMLElement>('.appearance-submenu')) {
+    sub.hidden = sub.dataset.key !== view;
+  }
 }
 
 async function handleLogout(

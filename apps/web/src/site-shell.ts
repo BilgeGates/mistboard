@@ -133,9 +133,10 @@ function ensureNavDismiss(): void {
   });
 }
 
-function buildLanguageSelector(locale: Locale): HTMLSelectElement {
+export function buildLanguageSelector(locale: Locale): HTMLSelectElement {
   const select = document.createElement('select');
   select.className = 'site-nav-language';
+  select.dataset.languageControl = '';
   select.setAttribute('aria-label', t('nav.language', {}, locale));
   for (const optionLocale of APP_LOCALES) {
     const option = document.createElement('option');
