@@ -99,6 +99,13 @@ export function jungleEnabled(): boolean {
   return process.env.MISTBOARD_JUNGLE_ENABLED === 'true';
 }
 
+// Flip Jungle (兽棋 / 翻翻棋, 4×4 flip animal chess, symmetric hidden-identity) live
+// rooms. Server-side opt-in, default off — the tenant exists but is not launched.
+// PvP-only at first (the belief bot comes later).
+export function jungleFlipEnabled(): boolean {
+  return process.env.MISTBOARD_JUNGLE_FLIP_ENABLED === 'true';
+}
+
 // Correspondence (days-per-move) dark chess on the variant-tenant stack.
 // Server-side opt-in: gates room creation; existing dchx_ rooms keep routing
 // if the flag flips off. Correspondence is account-gated and invite-link

@@ -44,6 +44,12 @@ export function jungleEnabled(): boolean {
   return import.meta.env.DEV || import.meta.env.VITE_JUNGLE_ENABLED === 'true';
 }
 
+// Flip Jungle (兽棋 / 翻翻棋, 4×4 flip animal chess) play surface. On in dev;
+// build-time opt-in for prod. PvP-only for now (no bot).
+export function jungleFlipEnabled(): boolean {
+  return import.meta.env.DEV || import.meta.env.VITE_JUNGLE_FLIP_ENABLED === 'true';
+}
+
 export function darkMiniXiangqiPublicEntryEnabled(): boolean {
   return (
     darkMiniXiangqiEnabled() &&

@@ -15,7 +15,8 @@ export type BoardGeometryId =
   | 'omega-10x10-plus-corners'
   | 'crossroads-6x8'
   | 'banqi-8x4'
-  | 'jungle-7x9';
+  | 'jungle-7x9'
+  | 'jungle-flip-4x4';
 export type MovementRulesId =
   | 'orthodox-chess'
   | 'mini-xiangqi'
@@ -25,7 +26,8 @@ export type MovementRulesId =
   | 'seirawan'
   | 'crossroads-chess'
   | 'banqi'
-  | 'jungle';
+  | 'jungle'
+  | 'jungle-flip';
 // 'royal-capture-or-race': capture/checkmate the royal OR race it to the enemy
 // home rank (the Crossroads Chess "Try"). Open mode keeps checkmate, dark switches to
 // king-capture; the visibility axis + rules module resolve which.
@@ -55,7 +57,8 @@ export type SetupRulesId =
   | 'jieqi-deal'
   | 'banqi-deal'
   | 'reveal-chess-deal'
-  | 'jungle-standard';
+  | 'jungle-standard'
+  | 'jungle-flip-deal';
 export type ReserveRulesId = 'none' | 'crazyhouse' | 'shogi-hands' | 'seirawan-gating';
 export type DropPolicyId =
   | 'none'
@@ -86,7 +89,8 @@ export type RatingPoolBaseId =
   | 'crossroads_chess'
   | 'crossroads_chess_open'
   | 'reveal_chess'
-  | 'jungle';
+  | 'jungle'
+  | 'jungle_flip';
 
 export type GameSpecId =
   | 'dark-chess'
@@ -108,7 +112,8 @@ export type GameSpecId =
   | 'crossroads-chess'
   | 'dark-crossroads-chess'
   | 'reveal-chess'
-  | 'jungle';
+  | 'jungle'
+  | 'jungle-flip';
 export type GameSpecAliasId = 'fog-draft960' | 'dual-chess' | 'dark-dual-chess';
 export type GameSpecLookupId = GameSpecId | GameSpecAliasId;
 
@@ -154,6 +159,7 @@ export const CROSSROADS_CHESS_SPEC_ID = 'crossroads-chess' satisfies GameSpecId;
 export const REVEAL_CHESS_SPEC_ID = 'reveal-chess' satisfies GameSpecId;
 export const DARK_CROSSROADS_CHESS_SPEC_ID = 'dark-crossroads-chess' satisfies GameSpecId;
 export const JUNGLE_SPEC_ID = 'jungle' satisfies GameSpecId;
+export const JUNGLE_FLIP_SPEC_ID = 'jungle-flip' satisfies GameSpecId;
 // Compatibility aliases for records and links created before the Crossroads
 // rename. New code should use CROSSROADS_CHESS_SPEC_ID.
 export const DUAL_CHESS_SPEC_ID = 'dual-chess' satisfies GameSpecAliasId;
@@ -180,6 +186,7 @@ export const CANONICAL_VARIANT_ORDER: readonly GameSpecId[] = [
   CROSSROADS_CHESS_SPEC_ID,
   DARK_CROSSROADS_CHESS_SPEC_ID,
   JUNGLE_SPEC_ID,
+  JUNGLE_FLIP_SPEC_ID,
 ];
 
 /** Sort index for {@link CANONICAL_VARIANT_ORDER}; unlisted specs sort to the end. */
@@ -439,6 +446,25 @@ export const GAME_SPECS: readonly GameSpec[] = [
     reserves: 'none',
     dropPolicy: 'none',
     ratingPoolBase: 'jungle',
+    publicSurface: 'casual',
+    runtimeStatus: 'live',
+  },
+  {
+    // Flip Jungle (兽棋 / 翻翻棋): the 4x4 flip derivative of Dou Shou Qi. Symmetric
+    // hidden-identity (both seats see the same masked board; only the deal is hidden),
+    // like banqi. Equal-rank = 同归于尽 mutual destruction. Win by leaving the opponent
+    // with no legal move. Rules engine: packages/game/src/variants-jungle-flip.ts.
+    id: JUNGLE_FLIP_SPEC_ID,
+    publicName: 'Flip Jungle',
+    family: 'jungle',
+    board: 'jungle-flip-4x4',
+    movement: 'jungle-flip',
+    objective: 'last-mover',
+    visibility: 'hidden-identity',
+    setup: 'jungle-flip-deal',
+    reserves: 'none',
+    dropPolicy: 'none',
+    ratingPoolBase: 'jungle_flip',
     publicSurface: 'casual',
     runtimeStatus: 'live',
   },

@@ -26,13 +26,14 @@ import {
   DUAL_CHESS_SPEC_ID,
   type GameSpecId,
   JIEQI_SPEC_ID,
+  JUNGLE_FLIP_SPEC_ID,
   JUNGLE_SPEC_ID,
   KRIEGSPIEL_SPEC_ID,
   MINI_XIANGQI_SPEC_ID,
   REVEAL_CHESS_SPEC_ID,
   type TimeControlId,
 } from '@mistboard/game';
-import { correspondenceEnabled, jungleEnabled } from '../feature-flags.js';
+import { correspondenceEnabled, jungleEnabled, jungleFlipEnabled } from '../feature-flags.js';
 import type { GameMeta, ReplayHandle } from '../replay.js';
 
 export type WebTenantEngineOption = {
@@ -368,6 +369,42 @@ const WEB_VARIANT_TENANTS: readonly WebVariantTenant[] = [
         },
       ],
       defaultEngineId: 'misty-jungle-level-2',
+    },
+  },
+  {
+    // Flip Jungle (兽棋 / 翻翻棋). Symmetric hidden-identity 4×4 flip animal chess; a
+    // self-contained live client on the socket-client + chrome stack (no fog; the deal
+    // is hidden from both seats equally). PvP-only at launch (no bot).
+    gameSpecId: JUNGLE_FLIP_SPEC_ID,
+    roomIdPrefix: 'jgf_',
+    enabled: jungleFlipEnabled,
+    pageTitle: 'Flip Jungle',
+    loadLiveRoomClient: () =>
+      import('../live-jungle-flip.js').then(
+        ({ bootstrapJungleFlipLiveRoom }) =>
+          () =>
+            bootstrapJungleFlipLiveRoom(),
+      ),
+    landing: {
+      // Ink binds on the opening flip, so the picker offers move-order (First/Second),
+      // not a colour choice — same as banqi.
+      capabilities: {
+        firstColor: 'red',
+        firstGlyph: '1',
+        firstLabel: 'First',
+        glyphClass: 'banqi-seat',
+        neutralGlyphColor: true,
+        pickerLabel: 'Move order',
+        secondColor: 'black',
+        secondGlyph: '2',
+        secondLabel: 'Second',
+        supportsRated: false,
+        supportsStartFormat: false,
+        supportsTimeControl: true,
+      },
+      timePresetIds: ['1m1', '3m2', '5m5'],
+      offerInMenu: jungleFlipEnabled,
+      acceptsDeepLink: jungleFlipEnabled,
     },
   },
   {
