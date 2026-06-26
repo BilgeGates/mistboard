@@ -183,7 +183,7 @@ function renderPostgame(
         !!entry.color,
     )
     .map((entry) => ({ move: entry.move, ply: entry.ply, color: entry.color }));
-  const maxPly = Math.max(postgame.game.plyCount, ...postgame.history.map((s) => s.ply), 0);
+  const maxPly = junglePostgameMaxPly(postgame);
   let currentPly = initialPly === null ? maxPly : clampPly(initialPly, maxPly);
   let orientation: JungleColor = 'red';
 
@@ -194,7 +194,7 @@ function renderPostgame(
   };
 
   const sync = () => {
-    const view = viewAtPly(postgame, currentPly) ?? postgame.view;
+    const view = junglePostgameViewAtPly(postgame, currentPly) ?? postgame.view;
     pane.boardEl.innerHTML = renderJungleBoardSvg(view.board as JungleBoard, {
       perspective: orientation,
       lastMove: view.lastMove ?? null,
@@ -258,7 +258,12 @@ function renderPostgame(
   sync();
 }
 
-function viewAtPly(postgame: JunglePostgameResponse, ply: number): JunglePlayerView | null {
+// Exported for the Mistboard TV watch adapter (watch-jungle-replay.ts), which
+// reuses the same single per-ply history lookup.
+export function junglePostgameViewAtPly(
+  postgame: JunglePostgameResponse,
+  ply: number,
+): JunglePlayerView | null {
   const history = postgame.history;
   if (!history || history.length === 0) return null;
   let selected = history[0] ?? null;
@@ -267,6 +272,10 @@ function viewAtPly(postgame: JunglePostgameResponse, ply: number): JunglePlayerV
     selected = snapshot;
   }
   return selected?.view ?? null;
+}
+
+export function junglePostgameMaxPly(postgame: JunglePostgameResponse): number {
+  return Math.max(postgame.game.plyCount, ...postgame.history.map((s) => s.ply), 0);
 }
 
 function renderMoveRows(

@@ -61,7 +61,12 @@ registerVariantTenant({
   kind: jungleFlipTenant.kind,
   gameSpecId: jungleFlipTenant.gameSpecId,
   roomIdPrefix: jungleFlipTenant.roomIdPrefix,
-  watch: null,
+  watch: {
+    channelId: 'jungle-flip',
+    family: 'jungle',
+    label: 'Flip Jungle',
+    legacyVariants: ['jungle-flip'],
+  },
   ownsSpecRouting: true,
   errorPrefix: 'jungle_flip',
   enabled: jungleFlipTenant.enabled,

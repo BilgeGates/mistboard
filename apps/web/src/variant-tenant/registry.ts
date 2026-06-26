@@ -336,6 +336,15 @@ const WEB_VARIANT_TENANTS: readonly WebVariantTenant[] = [
           () =>
             bootstrapJungleLiveRoom(),
       ),
+    // Mistboard TV dispatch keys on the channel's spec id, so the 'jungle' family
+    // never collides with the other SVG tenants on the shared grid renderer.
+    watch: {
+      family: 'jungle',
+      mountReplay: (root, roomId, options) =>
+        import('../watch-jungle-replay.js').then(({ mountJungleWatchReplay }) =>
+          mountJungleWatchReplay(root, roomId, options),
+        ),
+    },
     landing: {
       capabilities: {
         firstColor: 'red',
@@ -397,6 +406,13 @@ const WEB_VARIANT_TENANTS: readonly WebVariantTenant[] = [
           () =>
             bootstrapJungleFlipLiveRoom(),
       ),
+    watch: {
+      family: 'jungle',
+      mountReplay: (root, roomId, options) =>
+        import('../watch-jungle-flip-replay.js').then(({ mountJungleFlipWatchReplay }) =>
+          mountJungleFlipWatchReplay(root, roomId, options),
+        ),
+    },
     landing: {
       // Ink binds on the opening flip, so the picker offers move-order (First/Second),
       // not a colour choice — same as banqi.

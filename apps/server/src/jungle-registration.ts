@@ -64,7 +64,12 @@ registerVariantTenant({
   kind: jungleTenant.kind,
   gameSpecId: jungleTenant.gameSpecId,
   roomIdPrefix: jungleTenant.roomIdPrefix,
-  watch: null,
+  watch: {
+    channelId: 'jungle',
+    family: 'jungle',
+    label: 'Jungle',
+    legacyVariants: ['jungle'],
+  },
   ownsSpecRouting: true,
   errorPrefix: 'jungle',
   enabled: jungleTenant.enabled,
