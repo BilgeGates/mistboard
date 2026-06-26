@@ -5,6 +5,8 @@
 // /api/auth/me resolves.
 
 import './contact.css';
+import { t } from './i18n/catalog.js';
+import { currentLocale, type Locale, localizedHref } from './i18n/locale.js';
 
 // Minimal subset of AuthUser — kept in sync with landing.ts. Promote to a
 // shared types module if a third caller appears.
@@ -21,6 +23,7 @@ export interface ContactView {
 export function buildContact(
   initialUser: AuthUser | null,
   initialSignedInHint: boolean,
+  locale: Locale = currentLocale(),
 ): ContactView {
   // Three initial states: confirmed user (cached object → render real banner),
   // hinted signed-in (boolean only → render placeholder banner), or anon.
@@ -31,10 +34,10 @@ export function buildContact(
 
   const heading = document.createElement('h1');
   heading.className = 'site-section-heading';
-  heading.textContent = 'Contact';
+  heading.textContent = t('contact.heading', {}, locale);
 
-  const introAnon = 'Bug, idea, broken game, anything else. Add an email if you want a reply.';
-  const introUser = 'Bug, idea, broken game, anything else.';
+  const introAnon = t('contact.introAnon', {}, locale);
+  const introUser = t('contact.introUser', {}, locale);
 
   const intro = document.createElement('p');
   intro.className = 'contact-intro';
@@ -42,7 +45,7 @@ export function buildContact(
 
   const replyNote = document.createElement('p');
   replyNote.className = 'contact-reply-note';
-  replyNote.textContent = 'Usually a reply within a day or two.';
+  replyNote.textContent = t('contact.replyNote', {}, locale);
 
   const form = document.createElement('form');
   form.className = 'contact-form';
@@ -51,13 +54,13 @@ export function buildContact(
   const messageLabel = document.createElement('label');
   messageLabel.className = 'contact-field';
   const messageLabelText = document.createElement('span');
-  messageLabelText.textContent = 'Message';
+  messageLabelText.textContent = t('contact.message', {}, locale);
   const messageInput = document.createElement('textarea');
   messageInput.name = 'message';
   messageInput.required = true;
   messageInput.rows = 6;
   messageInput.maxLength = 5000;
-  messageInput.placeholder = 'What’s on your mind?';
+  messageInput.placeholder = t('contact.messagePlaceholder', {}, locale);
   messageLabel.append(messageLabelText, messageInput);
 
   // Lane slot: rendered in user-lane shape if we have a synchronous hint that
@@ -70,7 +73,7 @@ export function buildContact(
   const emailLabel = document.createElement('label');
   emailLabel.className = 'contact-field';
   const emailLabelText = document.createElement('span');
-  emailLabelText.textContent = 'Email (optional)';
+  emailLabelText.textContent = t('contact.emailOptional', {}, locale);
   const emailInput = document.createElement('input');
   emailInput.type = 'email';
   emailInput.name = 'email';
@@ -81,9 +84,12 @@ export function buildContact(
   const signinPrompt = document.createElement('p');
   signinPrompt.className = 'contact-signin-prompt';
   const signinLink = document.createElement('a');
-  signinLink.href = '/account';
-  signinLink.textContent = 'Sign in';
-  signinPrompt.append(signinLink, document.createTextNode(' for a faster reply.'));
+  signinLink.href = localizedHref('/account', locale);
+  signinLink.textContent = t('nav.signIn', {}, locale);
+  signinPrompt.append(
+    signinLink,
+    document.createTextNode(t('contact.signInForFasterReply', {}, locale)),
+  );
 
   const buildAnonSlot = (): void => {
     laneSlot.dataset.lane = 'anon';
@@ -96,18 +102,20 @@ export function buildContact(
     hint.className = 'contact-signed-in-hint';
     if (user) {
       hint.append(
-        document.createTextNode('Signed in as '),
+        document.createTextNode(`${t('contact.signedInAs', {}, locale)} `),
         Object.assign(document.createElement('strong'), { textContent: `@${user.handle}` }),
       );
       if (user.email) {
-        hint.append(document.createTextNode(`. We’ll reply to ${user.email}.`));
+        hint.append(
+          document.createTextNode(`. ${t('contact.replyToEmail', { email: user.email }, locale)}`),
+        );
       } else {
         hint.append(document.createTextNode('.'));
       }
     } else {
       // Placeholder used when we only have the localStorage hint and haven't
       // yet resolved the authoritative user.
-      hint.textContent = 'Signed in. We’ll reply to your account email.';
+      hint.textContent = t('contact.replyToAccountEmail', {}, locale);
     }
     laneSlot.replaceChildren(hint);
   };
@@ -131,14 +139,14 @@ export function buildContact(
   honeypotInput.name = 'website';
   honeypotInput.autocomplete = 'off';
   honeypotInput.tabIndex = -1;
-  honeypotLabel.append('Website', honeypotInput);
+  honeypotLabel.append(t('contact.website', {}, locale), honeypotInput);
 
   const submitRow = document.createElement('div');
   submitRow.className = 'contact-submit-row';
   const submit = document.createElement('button');
   submit.type = 'submit';
   submit.className = 'contact-submit';
-  submit.textContent = 'Send';
+  submit.textContent = t('contact.send', {}, locale);
   const status = document.createElement('span');
   status.className = 'contact-status';
   status.setAttribute('role', 'status');
@@ -170,13 +178,13 @@ export function buildContact(
     if (submit.disabled) return;
     const message = messageInput.value.trim();
     if (message.length === 0) {
-      status.textContent = 'Please enter a message.';
+      status.textContent = t('contact.enterMessage', {}, locale);
       status.dataset.state = 'error';
       messageInput.focus();
       return;
     }
     submit.disabled = true;
-    status.textContent = 'Sending…';
+    status.textContent = t('contact.sending', {}, locale);
     status.dataset.state = 'pending';
 
     void (async () => {
@@ -195,19 +203,19 @@ export function buildContact(
         if (response.ok) {
           messageInput.value = '';
           if (!signedIn) emailInput.value = '';
-          status.textContent = 'Thanks, message received.';
+          status.textContent = t('contact.thanks', {}, locale);
           status.dataset.state = 'ok';
         } else if (response.status === 429) {
           status.textContent = signedIn
-            ? 'Too many submissions. Try again in a bit.'
-            : 'Daily limit reached. Sign in for unlimited replies, or try again tomorrow.';
+            ? t('contact.tooManySubmissions', {}, locale)
+            : t('contact.dailyLimit', {}, locale);
           status.dataset.state = 'error';
         } else {
-          status.textContent = 'Couldn’t send. Try again, or email if it keeps failing.';
+          status.textContent = t('contact.sendFailed', {}, locale);
           status.dataset.state = 'error';
         }
       } catch {
-        status.textContent = 'Network error. Try again.';
+        status.textContent = t('contact.networkError', {}, locale);
         status.dataset.state = 'error';
       } finally {
         submit.disabled = false;
