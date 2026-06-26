@@ -23,6 +23,7 @@ const VARIANT_PUBLIC_SURFACE_ENABLED = {
   'crossroads-chess': false,
   'dark-crossroads-chess': false,
   'reveal-chess': false,
+  jungle: false,
 } satisfies Record<GameSpecId, boolean>;
 
 const gameSpecIds = new Set<string>(GAME_SPECS.map((spec) => spec.id));

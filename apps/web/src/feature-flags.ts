@@ -38,6 +38,12 @@ export function revealChessEnabled(): boolean {
   return import.meta.env.VITE_REVEAL_CHESS_ENABLED === 'true';
 }
 
+// Jungle / Dou Shou Qi (perfect-information 7×9 animal-rank game) play surface.
+// On in dev; build-time opt-in for prod. PvP-only for now (no bot).
+export function jungleEnabled(): boolean {
+  return import.meta.env.DEV || import.meta.env.VITE_JUNGLE_ENABLED === 'true';
+}
+
 export function darkMiniXiangqiPublicEntryEnabled(): boolean {
   return (
     darkMiniXiangqiEnabled() &&

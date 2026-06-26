@@ -26,12 +26,13 @@ import {
   DUAL_CHESS_SPEC_ID,
   type GameSpecId,
   JIEQI_SPEC_ID,
+  JUNGLE_SPEC_ID,
   KRIEGSPIEL_SPEC_ID,
   MINI_XIANGQI_SPEC_ID,
   REVEAL_CHESS_SPEC_ID,
   type TimeControlId,
 } from '@mistboard/game';
-import { correspondenceEnabled } from '../feature-flags.js';
+import { correspondenceEnabled, jungleEnabled } from '../feature-flags.js';
 import type { GameMeta, ReplayHandle } from '../replay.js';
 
 export type WebTenantEngineOption = {
@@ -312,6 +313,61 @@ const WEB_VARIANT_TENANTS: readonly WebVariantTenant[] = [
         },
       ],
       defaultEngineId: 'misty-banqi',
+    },
+  },
+  {
+    // Jungle / Dou Shou Qi (斗兽棋). Perfect-information 7×9 animal-rank game; a
+    // self-contained live client on the socket-client + chrome stack (no fog, no
+    // hidden identity). PvP-only at first (no bot wired).
+    gameSpecId: JUNGLE_SPEC_ID,
+    roomIdPrefix: 'jgl_',
+    enabled: jungleEnabled,
+    pageTitle: 'Jungle',
+    loadLiveRoomClient: () =>
+      import('../live-jungle.js').then(
+        ({ bootstrapJungleLiveRoom }) =>
+          () =>
+            bootstrapJungleLiveRoom(),
+      ),
+    landing: {
+      capabilities: {
+        firstColor: 'red',
+        firstGlyph: '象',
+        firstLabel: 'Red',
+        glyphClass: 'xiangqi',
+        secondColor: 'black',
+        secondGlyph: '象',
+        secondLabel: 'Black',
+        supportsRated: false,
+        supportsStartFormat: false,
+        supportsTimeControl: true,
+      },
+      timePresetIds: ['1m1', '3m2', '5m5'],
+      offerInMenu: jungleEnabled,
+      acceptsDeepLink: jungleEnabled,
+      // In-process Misty Jungle alpha-beta engine (server-jungle-engine.ts), three
+      // search-depth tiers. No Python/FSF — Jungle is perfect-information.
+      engineOptions: [
+        {
+          id: 'misty-jungle-level-1',
+          name: 'Misty Jungle level 1',
+          familyName: 'Misty Jungle',
+          kind: 'builtin',
+        },
+        {
+          id: 'misty-jungle-level-2',
+          name: 'Misty Jungle level 2',
+          familyName: 'Misty Jungle',
+          kind: 'builtin',
+        },
+        {
+          id: 'misty-jungle-level-3',
+          name: 'Misty Jungle level 3',
+          familyName: 'Misty Jungle',
+          kind: 'builtin',
+        },
+      ],
+      defaultEngineId: 'misty-jungle-level-2',
     },
   },
   {

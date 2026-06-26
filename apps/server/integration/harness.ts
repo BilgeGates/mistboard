@@ -83,7 +83,7 @@ export interface ConnectOptions {
   url: string;
   room: string;
   variant?: 'dark-chess' | 'draft960';
-  gameSpecId?: 'dark-xiangqi';
+  gameSpecId?: 'dark-xiangqi' | 'jungle';
   hiddenDraft960?: boolean;
   clientId?: string;
   seatToken?: string;

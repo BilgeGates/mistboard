@@ -7,6 +7,7 @@ import {
   DARK_XIANGQI_SPEC_ID,
   DROP_MINI_XIANGQI_SPEC_ID,
   JIEQI_SPEC_ID,
+  JUNGLE_SPEC_ID,
   KRIEGSPIEL_SPEC_ID,
   MINI_XIANGQI_SPEC_ID,
   REVEAL_CHESS_SPEC_ID,
@@ -20,6 +21,7 @@ import {
   darkXiangqiEnabled,
   dropMiniXiangqiEnabled,
   jieqiEnabled,
+  jungleEnabled,
   kriegspielEnabled,
   revealChessEnabled,
 } from './feature-flags.js';
@@ -49,7 +51,9 @@ export type GameSpecGateDecision =
         | 'kriegspiel_disabled'
         | 'kriegspiel_not_integrated'
         | 'dark_crazyhouse_disabled'
-        | 'dark_crazyhouse_not_integrated';
+        | 'dark_crazyhouse_not_integrated'
+        | 'jungle_disabled'
+        | 'jungle_not_integrated';
       httpStatus: 404 | 501;
       wsCloseReason: string;
     };
@@ -66,7 +70,8 @@ type HiddenRuntimeSpec =
   | typeof DARK_CROSSROADS_CHESS_SPEC_ID
   | typeof DARK_SHOGI_SPEC_ID
   | typeof KRIEGSPIEL_SPEC_ID
-  | typeof DARK_CRAZYHOUSE_SPEC_ID;
+  | typeof DARK_CRAZYHOUSE_SPEC_ID
+  | typeof JUNGLE_SPEC_ID;
 
 const HIDDEN_RUNTIME_SPECS: Record<
   HiddenRuntimeSpec,
@@ -122,6 +127,11 @@ const HIDDEN_RUNTIME_SPECS: Record<
     disabledError: 'dark_crazyhouse_disabled',
     notIntegratedError: 'dark_crazyhouse_not_integrated',
   },
+  [JUNGLE_SPEC_ID]: {
+    enabled: jungleEnabled,
+    disabledError: 'jungle_disabled',
+    notIntegratedError: 'jungle_not_integrated',
+  },
 };
 
 export function gateGameSpecRequest(input: {
@@ -173,6 +183,7 @@ function requestedHiddenRuntimeSpec(input: {
     DARK_SHOGI_SPEC_ID,
     KRIEGSPIEL_SPEC_ID,
     DARK_CRAZYHOUSE_SPEC_ID,
+    JUNGLE_SPEC_ID,
   ] as const) {
     if (input.gameSpecId === spec || input.variant === spec) return spec;
   }

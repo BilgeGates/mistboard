@@ -1,0 +1,94 @@
+/**
+ * Jungle registry entry. Owns the tenant's live-room map, the room-factory binding,
+ * and hydration. PvP, live-clock only at this checkpoint (PvE bot + correspondence
+ * come later). No lobby surface yet — the lobby route answers jungle_not_integrated
+ * while the flag is on. Imported for side effects by variant-tenant/register-tenants.ts.
+ */
+
+import type { RoomTimeControl } from '@mistboard/game';
+import type { JungleCreatorPreference, JungleRuntimeRoom } from './jungle-runtime.js';
+import { jungleTenant } from './jungle-tenant.js';
+import * as persistence from './persistence.js';
+import { handleJungleCreate, requestsJungle } from './routes/jungle-rooms.js';
+import {
+  createJungleLiveRoom,
+  type JungleLiveRoomCreation,
+  type JungleRoomEngineSeat,
+} from './server-jungle-room-factory.js';
+import {
+  clearJungleRuntimeTimers,
+  handleJungleWebSocketConnection,
+  type JungleLiveRoom,
+} from './server-ws-jungle.js';
+import { recordTenantPersistenceError } from './variant-tenant/events.js';
+import { getOrLoadTenantRoom } from './variant-tenant/hydration.js';
+import {
+  registerVariantTenant,
+  type TenantManagedRoom,
+  variantTenantRoomIdTaken,
+} from './variant-tenant/registry.js';
+import { countActiveTenantGames } from './variant-tenant/runtime.js';
+
+export const jungleRooms = new Map<string, JungleLiveRoom>();
+
+export async function createJungleRoom(
+  timeControl?: RoomTimeControl,
+  creatorPreference?: JungleCreatorPreference,
+  engine?: JungleRoomEngineSeat,
+): Promise<JungleLiveRoomCreation> {
+  return createJungleLiveRoom(
+    {
+      appendRoomEvent: persistence.appendRoomEvent,
+      jungleRooms,
+      isRoomIdTaken: (roomId) => variantTenantRoomIdTaken(roomId, jungleTenant.kind),
+      isPersistenceEnabled: persistence.isInitialized,
+      recordPersistenceError: (roomId, seq, eventType, err) =>
+        recordTenantPersistenceError(jungleTenant, roomId, seq, eventType, err),
+    },
+    timeControl,
+    creatorPreference,
+    engine,
+  );
+}
+
+export async function getOrLoadJungleRoom(roomId: string): Promise<JungleLiveRoom | null> {
+  const room = await getOrLoadTenantRoom(
+    jungleTenant,
+    jungleRooms as unknown as Map<string, JungleRuntimeRoom>,
+    roomId,
+  );
+  return room as JungleLiveRoom | null;
+}
+
+registerVariantTenant({
+  kind: jungleTenant.kind,
+  gameSpecId: jungleTenant.gameSpecId,
+  roomIdPrefix: jungleTenant.roomIdPrefix,
+  watch: null,
+  ownsSpecRouting: true,
+  errorPrefix: 'jungle',
+  enabled: jungleTenant.enabled,
+  rooms: jungleRooms as unknown as ReadonlyMap<string, TenantManagedRoom>,
+  activeGameCount: () => countActiveTenantGames(jungleRooms.values()),
+  getOrLoadRoom: (roomId) => getOrLoadJungleRoom(roomId) as Promise<TenantManagedRoom | null>,
+  attachWebSocket: (ctx, socket, request, room) =>
+    handleJungleWebSocketConnection(
+      {
+        defaultRoomRegion: ctx.defaultRoomRegion,
+        wsMessageLimit: ctx.wsMessageLimit,
+        wsMessageWindowMs: ctx.wsMessageWindowMs,
+      },
+      socket,
+      request,
+      room as unknown as JungleLiveRoom,
+    ),
+  clearRuntimeTimers: (room) => clearJungleRuntimeTimers(room as unknown as JungleLiveRoom),
+  clearRooms: () => jungleRooms.clear(),
+  http: {
+    matchesCreateRequest: requestsJungle,
+    handleCreate: (ctx, _request, response, body) =>
+      handleJungleCreate({ ...ctx, createJungleRoom }, response, body),
+  },
+  lobby: null,
+  sweepDueDeadline: null,
+});

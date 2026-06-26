@@ -1,6 +1,12 @@
 import type { VariantId } from './types.js';
 
-export type GameFamilyId = 'chess' | 'xiangqi' | 'shogi' | 'omega-chess' | 'crossroads-chess';
+export type GameFamilyId =
+  | 'chess'
+  | 'xiangqi'
+  | 'shogi'
+  | 'omega-chess'
+  | 'crossroads-chess'
+  | 'jungle';
 export type BoardGeometryId =
   | 'chess-8x8'
   | 'xiangqi-7x7'
@@ -8,7 +14,8 @@ export type BoardGeometryId =
   | 'shogi-9x9'
   | 'omega-10x10-plus-corners'
   | 'crossroads-6x8'
-  | 'banqi-8x4';
+  | 'banqi-8x4'
+  | 'jungle-7x9';
 export type MovementRulesId =
   | 'orthodox-chess'
   | 'mini-xiangqi'
@@ -17,7 +24,8 @@ export type MovementRulesId =
   | 'omega'
   | 'seirawan'
   | 'crossroads-chess'
-  | 'banqi';
+  | 'banqi'
+  | 'jungle';
 // 'royal-capture-or-race': capture/checkmate the royal OR race it to the enemy
 // home rank (the Crossroads Chess "Try"). Open mode keeps checkmate, dark switches to
 // king-capture; the visibility axis + rules module resolve which.
@@ -30,7 +38,10 @@ export type ObjectiveRulesId =
   | 'checkmate'
   | 'antichess'
   | 'royal-capture-or-race'
-  | 'last-mover';
+  | 'last-mover'
+  // 'den-or-race': win by moving a piece into the opponent's den OR capturing all
+  // their pieces (Jungle / Dou Shou Qi). No royal piece; perfect information.
+  | 'den-or-race';
 // 'open' = perfect-information (the Crossroads Chess onboarding mode); 'dark' is
 // fog of war (positions hidden); 'hidden-identity' is jieqi/banqi (positions
 // public, piece identities hidden until revealed).
@@ -43,7 +54,8 @@ export type SetupRulesId =
   | 'crossroads-standard'
   | 'jieqi-deal'
   | 'banqi-deal'
-  | 'reveal-chess-deal';
+  | 'reveal-chess-deal'
+  | 'jungle-standard';
 export type ReserveRulesId = 'none' | 'crazyhouse' | 'shogi-hands' | 'seirawan-gating';
 export type DropPolicyId =
   | 'none'
@@ -73,7 +85,8 @@ export type RatingPoolBaseId =
   | 'banqi'
   | 'crossroads_chess'
   | 'crossroads_chess_open'
-  | 'reveal_chess';
+  | 'reveal_chess'
+  | 'jungle';
 
 export type GameSpecId =
   | 'dark-chess'
@@ -94,7 +107,8 @@ export type GameSpecId =
   | 'banqi'
   | 'crossroads-chess'
   | 'dark-crossroads-chess'
-  | 'reveal-chess';
+  | 'reveal-chess'
+  | 'jungle';
 export type GameSpecAliasId = 'fog-draft960' | 'dual-chess' | 'dark-dual-chess';
 export type GameSpecLookupId = GameSpecId | GameSpecAliasId;
 
@@ -139,6 +153,7 @@ export const KRIEGSPIEL_SPEC_ID = 'kriegspiel' satisfies GameSpecId;
 export const CROSSROADS_CHESS_SPEC_ID = 'crossroads-chess' satisfies GameSpecId;
 export const REVEAL_CHESS_SPEC_ID = 'reveal-chess' satisfies GameSpecId;
 export const DARK_CROSSROADS_CHESS_SPEC_ID = 'dark-crossroads-chess' satisfies GameSpecId;
+export const JUNGLE_SPEC_ID = 'jungle' satisfies GameSpecId;
 // Compatibility aliases for records and links created before the Crossroads
 // rename. New code should use CROSSROADS_CHESS_SPEC_ID.
 export const DUAL_CHESS_SPEC_ID = 'dual-chess' satisfies GameSpecAliasId;
@@ -164,6 +179,7 @@ export const CANONICAL_VARIANT_ORDER: readonly GameSpecId[] = [
   DARK_SHOGI_SPEC_ID,
   CROSSROADS_CHESS_SPEC_ID,
   DARK_CROSSROADS_CHESS_SPEC_ID,
+  JUNGLE_SPEC_ID,
 ];
 
 /** Sort index for {@link CANONICAL_VARIANT_ORDER}; unlisted specs sort to the end. */
@@ -404,6 +420,25 @@ export const GAME_SPECS: readonly GameSpec[] = [
     dropPolicy: 'none',
     ratingPoolBase: 'banqi',
     rated: true,
+    publicSurface: 'casual',
+    runtimeStatus: 'live',
+  },
+  {
+    // Jungle / Dou Shou Qi (斗兽棋): perfect-information 7×9 animal-rank game. Eight
+    // ranked animals; win by entering the opponent's den or capturing all pieces.
+    // Casual-only at first (no rated pool until launch). Rules engine:
+    // packages/game/src/variants-jungle.ts.
+    id: JUNGLE_SPEC_ID,
+    publicName: 'Jungle',
+    family: 'jungle',
+    board: 'jungle-7x9',
+    movement: 'jungle',
+    objective: 'den-or-race',
+    visibility: 'open',
+    setup: 'jungle-standard',
+    reserves: 'none',
+    dropPolicy: 'none',
+    ratingPoolBase: 'jungle',
     publicSurface: 'casual',
     runtimeStatus: 'live',
   },

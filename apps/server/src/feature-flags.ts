@@ -92,6 +92,13 @@ export function kriegspielEnabled(): boolean {
   return process.env.MISTBOARD_KRIEGSPIEL_ENABLED === 'true';
 }
 
+// Jungle / Dou Shou Qi (斗兽棋, perfect-information 7×9 animal-rank game) live
+// rooms. Server-side opt-in, default off — the tenant exists but is not launched.
+// PvP-only at first (the in-process α-β bot + rated pool come later).
+export function jungleEnabled(): boolean {
+  return process.env.MISTBOARD_JUNGLE_ENABLED === 'true';
+}
+
 // Correspondence (days-per-move) dark chess on the variant-tenant stack.
 // Server-side opt-in: gates room creation; existing dchx_ rooms keep routing
 // if the flag flips off. Correspondence is account-gated and invite-link
