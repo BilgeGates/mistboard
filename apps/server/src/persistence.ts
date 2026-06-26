@@ -1,4 +1,5 @@
 export type {
+  AccountLocale,
   AccountRole,
   AccountSession,
   EmailLoginChallenge,
@@ -11,6 +12,7 @@ export type {
   UserProfile,
 } from './persistence-accounts.js';
 export {
+  ACCOUNT_LOCALES,
   consumeEmailLoginChallenge,
   createAccountSession,
   createEmailLoginChallenge,
@@ -21,8 +23,10 @@ export {
   getUserByAccountSession,
   getUserGamesPage,
   getUserProfileByHandle,
+  isAccountLocale,
   markUserEmailVerified,
   revokeAccountSession,
+  updateUserLocale,
   updateUserProfile,
 } from './persistence-accounts.js';
 export type {

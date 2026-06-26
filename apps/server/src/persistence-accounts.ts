@@ -10,6 +10,13 @@ import {
 } from './rating-buckets.js';
 
 export type AccountRole = 'player' | 'admin';
+export type AccountLocale = 'en' | 'zh-Hans' | 'zh-Hant' | 'ja';
+
+export const ACCOUNT_LOCALES: readonly AccountLocale[] = ['en', 'zh-Hans', 'zh-Hant', 'ja'];
+
+export function isAccountLocale(value: unknown): value is AccountLocale {
+  return typeof value === 'string' && ACCOUNT_LOCALES.includes(value as AccountLocale);
+}
 
 export type UserAccount = {
   id: string;
@@ -21,6 +28,7 @@ export type UserAccount = {
   displayNameChangedAt: Date | null;
   profileVisibility: 'private' | 'unlisted' | 'public';
   accountRole: AccountRole;
+  locale: AccountLocale | null;
   eloRating: number;
   createdAt: Date;
   updatedAt: Date;
@@ -149,6 +157,7 @@ const USER_COLUMNS = [
   'display_name_changed_at',
   'profile_visibility',
   'account_role',
+  'locale',
   'elo_rating',
   'created_at',
   'updated_at',
@@ -289,6 +298,22 @@ export async function updateUserProfile(
     if (isUniqueViolation(err)) return { ok: false, error: 'handle_taken' };
     throw err;
   }
+}
+
+export async function updateUserLocale(
+  userId: string,
+  locale: AccountLocale | null,
+  at: Date,
+): Promise<UserAccount | null> {
+  const { rows } = await getPool().query<UserRow>(
+    `UPDATE users
+     SET locale = $2,
+         updated_at = $3
+     WHERE id = $1
+     RETURNING ${USER_COLUMNS}`,
+    [userId, locale, at],
+  );
+  return rows[0] ? userFromRow(rows[0]) : null;
 }
 
 export async function createAccountSession(session: AccountSession): Promise<void> {
@@ -609,6 +634,7 @@ type UserRow = {
   display_name_changed_at: Date | null;
   profile_visibility: UserAccount['profileVisibility'];
   account_role: AccountRole;
+  locale: AccountLocale | null;
   elo_rating: number;
   created_at: Date;
   updated_at: Date;
@@ -625,6 +651,7 @@ function userFromRow(row: UserRow): UserAccount {
     displayNameChangedAt: row.display_name_changed_at,
     profileVisibility: row.profile_visibility,
     accountRole: row.account_role,
+    locale: row.locale,
     eloRating: row.elo_rating,
     createdAt: row.created_at,
     updatedAt: row.updated_at,

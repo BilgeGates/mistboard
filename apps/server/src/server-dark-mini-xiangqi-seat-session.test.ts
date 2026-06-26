@@ -194,6 +194,7 @@ function account(id: string): UserAccount {
     displayNameChangedAt: null,
     profileVisibility: 'public',
     accountRole: 'player',
+    locale: null,
     eloRating: 1500,
     createdAt: new Date(0),
     updatedAt: new Date(0),

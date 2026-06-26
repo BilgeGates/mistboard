@@ -547,6 +547,7 @@ function testUser(): UserAccount {
     displayNameChangedAt: null,
     profileVisibility: 'public',
     accountRole: 'player',
+    locale: null,
     eloRating: 1500,
     createdAt: now,
     updatedAt: now,

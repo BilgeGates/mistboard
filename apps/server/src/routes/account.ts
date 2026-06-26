@@ -10,6 +10,29 @@ export async function tryHandle(
   response: ServerResponse,
   pathname: string,
 ): Promise<boolean> {
+  if (pathname === '/api/account/preferences') {
+    if (!requireMethod(request, response, 'PATCH')) return true;
+    if (!requirePersistence(response)) return true;
+    const user = await currentAccountUser(request);
+    if (!user) {
+      writeJson(response, 401, { error: 'not_signed_in' });
+      return true;
+    }
+    const body = await readJsonBody(request);
+    const locale = body.locale;
+    if (locale !== null && !persistence.isAccountLocale(locale)) {
+      writeJson(response, 400, { error: 'invalid_locale' });
+      return true;
+    }
+    const updated = await persistence.updateUserLocale(user.id, locale, new Date());
+    if (!updated) {
+      writeJson(response, 404, { error: 'user_not_found' });
+      return true;
+    }
+    writeJson(response, 200, { user: publicUser(updated) });
+    return true;
+  }
+
   if (pathname !== '/api/account/profile') return false;
   if (!requireMethod(request, response, 'PATCH')) return true;
   if (!requirePersistence(response)) return true;

@@ -106,6 +106,14 @@ export function currentLocale(): Locale {
   return localeFromPath() ?? storedLocale() ?? browserLocale() ?? DEFAULT_LOCALE;
 }
 
+export function applyAccountLocalePreference(locale: Locale | null | undefined): boolean {
+  if (!locale || localeFromPath()) return false;
+  const previous = currentLocale();
+  setStoredLocale(locale);
+  applyDocumentLocale(locale);
+  return previous !== locale;
+}
+
 export function initializeLocaleFromCurrentUrl(): Locale {
   const pathLocale = localeFromPath();
   if (pathLocale) setStoredLocale(pathLocale);

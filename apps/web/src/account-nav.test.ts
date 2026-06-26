@@ -10,6 +10,7 @@ type TestUser = {
   displayNameChangedAt: string | null;
   profileVisibility: 'private' | 'unlisted' | 'public';
   accountRole: 'player' | 'admin';
+  locale: 'en' | 'zh-Hans' | 'zh-Hant' | 'ja' | null;
 };
 
 describe('account nav', () => {
@@ -120,6 +121,7 @@ function testUser(handle: string): TestUser {
     displayNameChangedAt: null,
     profileVisibility: 'public',
     accountRole: 'player',
+    locale: null,
   };
 }
 

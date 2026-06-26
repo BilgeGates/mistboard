@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
+  applyAccountLocalePreference,
   currentLocale,
   initializeLocaleFromCurrentUrl,
   LOCALE_STORAGE_KEY,
@@ -50,6 +51,21 @@ describe('locale helpers', () => {
     setStoredLocale('ja');
 
     expect(currentLocale()).toBe('ja');
+  });
+
+  it('applies account locale preferences on unprefixed URLs', () => {
+    expect(applyAccountLocalePreference('zh-Hant')).toBe(true);
+    expect(window.localStorage.getItem(LOCALE_STORAGE_KEY)).toBe('zh-Hant');
+    expect(document.documentElement.lang).toBe('zh-Hant');
+    expect(currentLocale()).toBe('zh-Hant');
+  });
+
+  it('does not let account locale override explicit URL prefixes', () => {
+    window.history.replaceState(null, '', '/zh-hans/rules/banqi');
+
+    expect(applyAccountLocalePreference('zh-Hant')).toBe(false);
+    expect(window.localStorage.getItem(LOCALE_STORAGE_KEY)).toBeNull();
+    expect(currentLocale()).toBe('zh-Hans');
   });
 
   it('keeps localized article and rules hrefs in supported content locales', () => {

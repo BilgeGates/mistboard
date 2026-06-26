@@ -29,6 +29,7 @@ export type AuthUser = {
   displayNameChangedAt: string | null;
   profileVisibility: 'private' | 'unlisted' | 'public';
   accountRole: 'player' | 'admin';
+  locale: Locale | null;
 };
 
 export async function fetchCurrentUser(): Promise<AuthUser | null> {

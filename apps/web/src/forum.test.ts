@@ -107,6 +107,7 @@ const adminUser = {
   displayNameChangedAt: null,
   profileVisibility: 'public',
   accountRole: 'admin',
+  locale: null,
 };
 
 const playerUser = {
@@ -119,6 +120,7 @@ const playerUser = {
   displayNameChangedAt: null,
   profileVisibility: 'public',
   accountRole: 'player',
+  locale: null,
 };
 
 describe('forum pages', () => {
@@ -233,6 +235,7 @@ describe('forum pages', () => {
             displayNameChangedAt: null,
             profileVisibility: 'public',
             accountRole: 'player',
+            locale: null,
           },
         });
       }

@@ -5,6 +5,7 @@ import { type ConnectionStatus, createConnectionStatus } from './connection-stat
 import { t } from './i18n/catalog.js';
 import {
   APP_LOCALES,
+  applyAccountLocalePreference,
   currentLocale,
   LOCALE_META,
   type Locale,
@@ -38,6 +39,7 @@ type AuthUser = {
   displayNameChangedAt: string | null;
   profileVisibility: 'private' | 'unlisted' | 'public';
   accountRole: 'player' | 'admin';
+  locale: Locale | null;
 };
 
 const CACHED_USER_KEY = 'mb_cached_user';
@@ -61,6 +63,7 @@ async function primeAccountNav(): Promise<void> {
 }
 
 export function setAccountNavUser(user: AuthUser | null): void {
+  applyResolvedAccountLocale(user);
   cachedUser = user;
   userPromise = Promise.resolve(user);
   setResolvedSignedIn(user !== null);
@@ -334,6 +337,7 @@ function buildLanguageMenu(locale: Locale = currentLocale()): HTMLElement {
     option.textContent = LOCALE_META[optionLocale].displayName;
     if (optionLocale === locale) option.classList.add('selected');
     option.addEventListener('click', () => {
+      void saveAccountLocalePreference(optionLocale);
       setStoredLocale(optionLocale);
       const currentHref = `${window.location.pathname}${window.location.search}${window.location.hash}`;
       window.location.href = localizedHref(currentHref, optionLocale);
@@ -457,6 +461,7 @@ async function loadCurrentUser(): Promise<AuthUser | null> {
   if (userPromise) return userPromise;
   userPromise = fetchCurrentUser()
     .then((user) => {
+      applyResolvedAccountLocale(user);
       cachedUser = user;
       setResolvedSignedIn(user !== null);
       // Canonical per-load auth resolution: identify so PostHog persons map to
@@ -495,4 +500,23 @@ function invalidateAccountCache(): void {
   cachedUser = undefined;
   setResolvedSignedIn(undefined);
   userPromise = null;
+}
+
+function applyResolvedAccountLocale(user: AuthUser | null): void {
+  if (applyAccountLocalePreference(user?.locale)) window.location.reload();
+}
+
+async function saveAccountLocalePreference(locale: Locale): Promise<void> {
+  const resp = await fetch('/api/account/preferences', {
+    method: 'PATCH',
+    credentials: 'same-origin',
+    keepalive: true,
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ locale }),
+  }).catch(() => null);
+  if (!resp?.ok) return;
+  const data = (await resp.json().catch(() => null)) as { user?: AuthUser | null } | null;
+  if (!data?.user) return;
+  cachedUser = data.user;
+  writeCachedUser(data.user);
 }

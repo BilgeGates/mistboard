@@ -230,6 +230,7 @@ function userAccount(id: string): UserAccount {
     handle: id,
     handleChangedAt: null,
     id,
+    locale: null,
     profileVisibility: 'private',
     updatedAt: now,
   };

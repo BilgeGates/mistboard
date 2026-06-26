@@ -8,6 +8,7 @@ import {
   getUserByAccountSession,
   markUserEmailVerified,
   revokeAccountSession,
+  updateUserLocale,
   updateUserProfile,
 } from './persistence.js';
 import { assert, definePersistenceTests, sha256, test } from './persistence-test-support.js';
@@ -113,6 +114,36 @@ definePersistenceTests('accounts', () => {
 
     const verified = await markUserEmailVerified('user_alice', new Date(now.getTime() + 1_000));
     assert.ok(verified.emailVerifiedAt);
+  });
+
+  test('user locale preference is nullable and session-readable', async () => {
+    const now = new Date('2026-05-09T12:00:00.000Z');
+    const user = await createUser({
+      id: 'user_locale',
+      email: 'locale@example.com',
+      emailVerifiedAt: now,
+      handle: 'locale-player',
+      displayName: 'Locale Player',
+      now,
+    });
+    assert.equal(user.locale, null);
+
+    const updated = await updateUserLocale(
+      'user_locale',
+      'zh-Hant',
+      new Date(now.getTime() + 1_000),
+    );
+    assert.equal(updated?.locale, 'zh-Hant');
+
+    const tokenHash = sha256('locale-session');
+    await createAccountSession({
+      id: 'locale-session-id',
+      userId: 'user_locale',
+      tokenHash,
+      expiresAt: new Date(now.getTime() + 86_400_000),
+    });
+    const sessionUser = await getUserByAccountSession('locale-session-id', tokenHash, now);
+    assert.equal(sessionUser?.locale, 'zh-Hant');
   });
 
   test('user profile updates handle once immediately then applies cooldown', async () => {

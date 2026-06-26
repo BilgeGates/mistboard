@@ -94,6 +94,7 @@ export function publicUser(user: persistence.UserAccount): Record<string, unknow
     displayNameChangedAt: user.displayNameChangedAt?.toISOString() ?? null,
     profileVisibility: user.profileVisibility,
     accountRole: user.accountRole,
+    locale: user.locale,
   };
 }
 
