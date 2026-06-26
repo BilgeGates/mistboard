@@ -13,6 +13,8 @@ import {
   DUAL_CHESS_SPEC_ID,
   gameSpecForId,
   JIEQI_SPEC_ID,
+  JUNGLE_FLIP_SPEC_ID,
+  JUNGLE_SPEC_ID,
   KRIEGSPIEL_SPEC_ID,
   MINI_XIANGQI_SPEC_ID,
   REVEAL_CHESS_SPEC_ID,
@@ -62,7 +64,9 @@ type LandingGameSpecId =
   | typeof KRIEGSPIEL_SPEC_ID
   | typeof JIEQI_SPEC_ID
   | typeof BANQI_SPEC_ID
-  | typeof REVEAL_CHESS_SPEC_ID;
+  | typeof REVEAL_CHESS_SPEC_ID
+  | typeof JUNGLE_SPEC_ID
+  | typeof JUNGLE_FLIP_SPEC_ID;
 type LandingStartFormat = 'standard' | 'draft960';
 type LandingTimePresetId = TimeControlId;
 type LandingTimePreset = {
@@ -1987,6 +1991,39 @@ export function roomCreationRequestBody(
       ...(mode === 'pve' && engineId ? { engineId } : {}),
     };
   }
+  if (setup.gameSpecId === JUNGLE_SPEC_ID) {
+    // Jungle is perfect-info red/black Dou Shou Qi; PvP + in-process PvE bot,
+    // casual-only. PvE sends the picked Misty Jungle engine id.
+    return {
+      mode,
+      gameSpecId,
+      timeControl: setup.timeControl,
+      rated: false,
+      preferredColor:
+        setup.preferredColor === 'white'
+          ? 'red'
+          : setup.preferredColor === 'red' || setup.preferredColor === 'black'
+            ? setup.preferredColor
+            : 'random',
+      ...(mode === 'pve' && engineId ? { engineId } : {}),
+    };
+  }
+  if (setup.gameSpecId === JUNGLE_FLIP_SPEC_ID) {
+    // Flip Jungle is symmetric hidden-identity 4×4 flip animal chess; PvP-only,
+    // move-order seats (ink binds on the first flip), casual-only.
+    return {
+      mode: 'pvp',
+      gameSpecId,
+      timeControl: setup.timeControl,
+      rated: false,
+      preferredColor:
+        setup.preferredColor === 'white'
+          ? 'red'
+          : setup.preferredColor === 'red' || setup.preferredColor === 'black'
+            ? setup.preferredColor
+            : 'random',
+    };
+  }
   if (setup.gameSpecId === JIEQI_SPEC_ID) {
     // Jieqi PvE sends the picked engine id (unlike DMX, which defaults it
     // server-side); colors are xiangqi red/black, never rated.
@@ -2159,7 +2196,11 @@ export function roomCreationGameSpecId(
   | typeof KRIEGSPIEL_SPEC_ID
   | typeof JIEQI_SPEC_ID
   | typeof BANQI_SPEC_ID
-  | typeof REVEAL_CHESS_SPEC_ID {
+  | typeof REVEAL_CHESS_SPEC_ID
+  | typeof JUNGLE_SPEC_ID
+  | typeof JUNGLE_FLIP_SPEC_ID {
+  if (setup.gameSpecId === JUNGLE_SPEC_ID) return JUNGLE_SPEC_ID;
+  if (setup.gameSpecId === JUNGLE_FLIP_SPEC_ID) return JUNGLE_FLIP_SPEC_ID;
   if (setup.gameSpecId === JIEQI_SPEC_ID) return JIEQI_SPEC_ID;
   if (setup.gameSpecId === BANQI_SPEC_ID) return BANQI_SPEC_ID;
   if (setup.gameSpecId === MINI_XIANGQI_SPEC_ID) return MINI_XIANGQI_SPEC_ID;
