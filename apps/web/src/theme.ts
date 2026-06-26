@@ -1,5 +1,14 @@
 import './theme.css';
 import type { GameFamilyId } from '@mistboard/game';
+import { t } from './i18n/catalog.js';
+import {
+  APP_LOCALES,
+  currentLocale,
+  LOCALE_META,
+  type Locale,
+  localizedHref,
+  setStoredLocale,
+} from './i18n/locale.js';
 import {
   readStoredShogiBoardTheme,
   readStoredShogiPieceSet,
@@ -242,7 +251,7 @@ function mountThemeControl(nav: HTMLElement): void {
   panel.setAttribute('role', 'group');
   panel.setAttribute('aria-label', 'Display and sound settings');
 
-  panel.append(buildAppearanceMenu());
+  panel.append(buildAppearanceMenu({ includeLanguage: true }));
 
   trigger.addEventListener('click', () => {
     const expanded = trigger.getAttribute('aria-expanded') === 'true';
@@ -265,9 +274,14 @@ function mountThemeControl(nav: HTMLElement): void {
 // Game selector sits above the Board/Pieces rows and scopes which family's tiles
 // the sub-panels show (the family-gating CSS hides the inactive family). On a
 // chess-only build there's no selector and the menu mirrors a single-game setup.
-export function buildAppearanceMenu(): HTMLElement {
+type AppearanceMenuOptions = {
+  includeLanguage?: boolean;
+};
+
+export function buildAppearanceMenu(options: AppearanceMenuOptions = {}): HTMLElement {
   const menu = document.createElement('div');
   menu.className = 'appearance-menu';
+  const locale = currentLocale();
 
   const root = document.createElement('div');
   root.className = 'appearance-menu-root';
@@ -278,6 +292,9 @@ export function buildAppearanceMenu(): HTMLElement {
     submenus.push(createAppearanceSubmenu(key, label, body));
   };
 
+  if (options.includeLanguage) {
+    addCategory('language', t('nav.language', {}, locale), [createLanguageField(locale)]);
+  }
   addCategory('theme', 'Appearance', [createSiteThemeField(false)]);
   addCategory('fog', 'Fog', [
     createTileField(
@@ -476,6 +493,32 @@ function createAppearanceDivider(): HTMLDivElement {
   divider.className = 'appearance-menu-divider';
   divider.setAttribute('role', 'separator');
   return divider;
+}
+
+function createLanguageField(locale: Locale = currentLocale()): HTMLDivElement {
+  const list = document.createElement('div');
+  list.className = 'appearance-language-list';
+  list.setAttribute('role', 'radiogroup');
+  list.setAttribute('aria-label', t('nav.language', {}, locale));
+
+  for (const optionLocale of APP_LOCALES) {
+    const option = document.createElement('button');
+    option.type = 'button';
+    option.className = 'appearance-language-option';
+    option.dataset.locale = optionLocale;
+    option.setAttribute('role', 'radio');
+    option.setAttribute('aria-checked', String(optionLocale === locale));
+    option.textContent = LOCALE_META[optionLocale].displayName;
+    if (optionLocale === locale) option.classList.add('selected');
+    option.addEventListener('click', () => {
+      setStoredLocale(optionLocale);
+      const currentHref = `${window.location.pathname}${window.location.search}${window.location.hash}`;
+      window.location.href = localizedHref(currentHref, optionLocale);
+    });
+    list.append(option);
+  }
+
+  return list;
 }
 
 // Drill state lives in the DOM (data-view + hidden), so multiple mounted menus

@@ -46,15 +46,7 @@ describe('site shell nav', () => {
 
     expect(primaryLabels).toEqual(['對弈', '題目', '學習', '觀看', '社群']);
     expect(nav.getAttribute('aria-label')).toBe('主導覽');
-    const language = nav.querySelector<HTMLSelectElement>('.site-nav-language');
-    expect(language?.getAttribute('aria-label')).toBe('語言');
-    expect(language?.value).toBe('zh-Hant');
-    expect([...(language?.options ?? [])].map((option) => option.textContent)).toEqual([
-      'English',
-      '简体中文',
-      '繁體中文',
-      '日本語',
-    ]);
+    expect(nav.querySelector('.site-nav-language')).toBeNull();
     expect(nav.querySelector<HTMLAnchorElement>('a[href="/zh-hant/rules"]')?.textContent).toBe(
       '規則',
     );

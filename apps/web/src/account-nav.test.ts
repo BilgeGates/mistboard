@@ -66,9 +66,40 @@ describe('account nav', () => {
 
     setAccountNavUser(null);
     expect(document.querySelector('.account-nav-trigger')).toBeNull();
-    expect(document.querySelector('.site-nav-language')).not.toBeNull();
+    expect(document.querySelector('.site-nav-language')).toBeNull();
+    expect(
+      document.querySelector<HTMLElement>(
+        '[data-theme-control] [data-appearance-target="language"]',
+      )?.textContent,
+    ).toBe('Language');
     expect(document.querySelector('.site-nav-link-signin')?.textContent).toBe('Sign in');
     expect(document.querySelector('.site-nav-link-register')?.textContent).toBe('Register');
+  });
+
+  it('restores the signed-out gear when a stale auth hint resolves signed out', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => jsonResponse({ user: null })),
+    );
+
+    const { writeSignedInHint } = await import('./signed-in-state.js');
+    const { buildNav } = await import('./site-shell.js');
+    const { initializeThemeSettings } = await import('./theme.js');
+    const { initializeAccountNav } = await import('./account-nav.js');
+
+    writeSignedInHint(true);
+    document.body.append(buildNav());
+    initializeThemeSettings();
+    expect(document.querySelector('[data-theme-control]')).toBeNull();
+
+    initializeAccountNav();
+    await flushDom();
+
+    expect(
+      document.querySelector<HTMLElement>(
+        '[data-theme-control] [data-appearance-target="language"]',
+      )?.textContent,
+    ).toBe('Language');
   });
 
   it('localizes the signed-in account menu labels', async () => {

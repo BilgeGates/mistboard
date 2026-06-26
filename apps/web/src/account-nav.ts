@@ -15,7 +15,6 @@ import {
 import { clearSeatTokenForRoom, liveState } from './live-state.js';
 import { clearNotificationBells, mountNotificationBell } from './notification-nav.js';
 import { readSignedInHint, setResolvedSignedIn, writeSignedInHint } from './signed-in-state.js';
-import { buildLanguageSelector } from './site-shell.js';
 import { buildAppearanceMenu, initializeThemeSettings, resetAppearanceMenus } from './theme.js';
 
 // Lucide-style outline icons, matching the nav's existing icon weight. The gear
@@ -59,7 +58,10 @@ async function primeAccountNav(): Promise<void> {
   writeSignedInHint(user !== null);
   writeCachedUser(user);
   if (user) mountAccountNavs();
-  else revealSignedOutSlots();
+  else {
+    revealSignedOutSlots();
+    initializeThemeSettings();
+  }
 }
 
 export function setAccountNavUser(user: AuthUser | null): void {
@@ -150,10 +152,8 @@ function revealSignedOutSlots(): void {
 
 function resetMountedAccountControls(): void {
   for (const control of document.querySelectorAll<HTMLElement>('[data-account-nav]')) {
-    const nav = control.closest<HTMLElement>('.site-nav');
     statusByControl.get(control)?.stop();
     control.replaceWith(createSignedOutAccountSlot());
-    if (nav) restoreStandaloneLanguageSelector(nav);
   }
 }
 
@@ -200,7 +200,6 @@ function mountAccountNav(nav: HTMLElement, user: AuthUser): void {
   // menu). Mounted here so it inherits the same signed-in timing + observer;
   // a no-op when no notification sources are registered.
   mountNotificationBell(nav);
-  removeStandaloneLanguageSelector(nav);
 
   const path = window.location.pathname.replace(/\/+$/, '') || '/';
   const wasActive = path === '/account' || path.startsWith('/account/');
@@ -274,18 +273,6 @@ function mountAccountNav(nav: HTMLElement, user: AuthUser): void {
 
   // Drop any standalone gear theme.ts may have mounted before auth resolved.
   for (const el of nav.querySelectorAll('[data-theme-control]')) el.remove();
-}
-
-function removeStandaloneLanguageSelector(nav: HTMLElement): void {
-  for (const el of nav.querySelectorAll<HTMLElement>('[data-language-control]')) el.remove();
-}
-
-function restoreStandaloneLanguageSelector(nav: HTMLElement): void {
-  if (nav.querySelector('[data-language-control]')) return;
-  const utilities = nav.querySelector<HTMLElement>('.site-nav-utilities');
-  if (!utilities) return;
-  const target = utilities.querySelector<HTMLElement>('[data-account-slot], [data-account-nav]');
-  utilities.insertBefore(buildLanguageSelector(currentLocale()), target);
 }
 
 function buildLanguageMenu(locale: Locale = currentLocale()): HTMLElement {

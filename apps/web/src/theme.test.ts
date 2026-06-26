@@ -90,12 +90,37 @@ describe('appearance family gating', () => {
     Object.defineProperty(window, 'localStorage', { configurable: true, value: memoryStorage() });
     document.body.innerHTML = '<nav class="site-nav"><div class="site-nav-utilities"></div></nav>';
     document.documentElement.removeAttribute('data-board-family');
+    window.history.replaceState(null, '', '/');
   });
 
   afterEach(() => {
     vi.unstubAllEnvs();
     vi.unstubAllGlobals();
     document.body.innerHTML = '';
+    window.history.replaceState(null, '', '/');
+  });
+
+  it('puts signed-out language choices inside the gear menu', () => {
+    window.history.replaceState(null, '', '/zh-hant/rules/banqi');
+
+    rebuildThemePanel();
+
+    expect(document.querySelector('.site-nav-language')).toBeNull();
+    expect(
+      document.querySelector<HTMLElement>(
+        '[data-theme-control] [data-appearance-target="language"]',
+      )?.textContent,
+    ).toBe('語言');
+    expect(
+      [...document.querySelectorAll<HTMLElement>('.appearance-language-option')].map(
+        (option) => option.textContent,
+      ),
+    ).toEqual(['English', '简体中文', '繁體中文', '日本語']);
+    expect(
+      document
+        .querySelector<HTMLElement>('.appearance-language-option.selected')
+        ?.getAttribute('data-locale'),
+    ).toBe('zh-Hant');
   });
 
   it('surfaces xiangqi and shogi settings by default', () => {
