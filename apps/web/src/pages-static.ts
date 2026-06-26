@@ -2,6 +2,8 @@
 
 import './pages-static.css';
 
+import { t } from './i18n/catalog.js';
+import { currentLocale, LOCALE_META, type Locale } from './i18n/locale.js';
 import { buildNav, GITHUB_URL } from './site-shell.js';
 
 type PublicStatsMode = 'pvp' | 'pve' | 'eve';
@@ -23,18 +25,17 @@ type PublicSiteStats = {
 
 const publicStatsModes: Array<{
   key: PublicStatsMode;
-  label: string;
+  labelKey: 'about.modePve' | 'about.modePvp';
 }> = [
-  { key: 'pvp', label: 'Player vs player' },
-  { key: 'pve', label: 'Player vs engine' },
+  { key: 'pvp', labelKey: 'about.modePvp' },
+  { key: 'pve', labelKey: 'about.modePve' },
 ];
 
-const numberFormat = new Intl.NumberFormat('en-US');
-
 export function mountAbout(root: HTMLElement): void {
+  const locale = currentLocale();
   root.replaceChildren();
   root.classList.add('landing-page', 'about-route');
-  root.append(buildNav(), buildAbout());
+  root.append(buildNav(locale), buildAbout(locale));
 }
 
 export function mountSource(root: HTMLElement): void {
@@ -137,54 +138,42 @@ export async function mountArticle(
   mountArticleThumbnails(articlePage);
 }
 
-function buildAbout(): HTMLElement {
+function buildAbout(locale: Locale = currentLocale()): HTMLElement {
   const section = document.createElement('section');
   section.className = 'site-section about-section';
   section.id = 'about';
 
   const heading = document.createElement('h1');
   heading.className = 'site-section-heading';
-  heading.textContent = 'About Mistboard';
+  heading.textContent = t('about.heading', {}, locale);
 
-  const lede = aboutParagraph([
-    'Mistboard is a free, open-source platform for board games with fog of war, starting with dark chess.',
-  ]);
+  const lede = aboutParagraph([t('about.lede', {}, locale)]);
 
-  const whyHeading = aboutSubheading('Why this site exists');
-  const whyP = aboutParagraph([
-    'Hidden-information games have captured players’ imaginations for generations because the board is never just a board. Every move asks what you can see, what you can infer, what you are willing to risk, and what your opponent may be hiding. Mistboard exists to make that kind of play easy to start, fair to finish, and interesting to study.',
-  ]);
+  const whyHeading = aboutSubheading(t('about.whyHeading', {}, locale));
+  const whyP = aboutParagraph([t('about.whyBody', {}, locale)]);
 
-  const rulesHeading = aboutSubheading('What dark chess is');
-  const rulesP = aboutParagraph([
-    'Dark chess is hidden-information chess. You see your own pieces and the squares they could legally move to. Everything else is dark. The game ends when a king is captured.',
-  ]);
+  const rulesHeading = aboutSubheading(t('about.darkChessHeading', {}, locale));
+  const rulesP = aboutParagraph([t('about.darkChessBody', {}, locale)]);
 
-  const featuresHeading = aboutSubheading('Play and study');
-  const featuresP = aboutParagraph([
-    'Play dark chess over a link, join the lobby, or play an engine. Afterward, review the game from either player’s perspective or with the full board revealed. Rules and articles cover openings and other hidden-information variants beyond dark chess.',
-  ]);
+  const featuresHeading = aboutSubheading(t('about.playStudyHeading', {}, locale));
+  const featuresP = aboutParagraph([t('about.playStudyBody', {}, locale)]);
 
-  const fairnessHeading = aboutSubheading('Trust by design');
-  const fairnessP = aboutParagraph([
-    'Fog of war has to be enforced by software, not trust. The server owns the full game state and sends each browser only what that player is allowed to see. Live games are not spectatable; full-truth review unlocks only after a game has finished.',
-  ]);
+  const fairnessHeading = aboutSubheading(t('about.trustHeading', {}, locale));
+  const fairnessP = aboutParagraph([t('about.trustBody', {}, locale)]);
 
-  const engineHeading = aboutSubheading('Engines for hidden-information games');
-  const engineP = aboutParagraph([
-    'Mistboard hosts and develops engines for hidden-information play. They compete through the same redacted view a human player receives, making engine games useful both as opponents and as research artifacts.',
-  ]);
+  const engineHeading = aboutSubheading(t('about.enginesHeading', {}, locale));
+  const engineP = aboutParagraph([t('about.enginesBody', {}, locale)]);
 
-  const oss1Heading = aboutSubheading('Open source foundation');
+  const oss1Heading = aboutSubheading(t('about.openSourceHeading', {}, locale));
   const oss1P = aboutParagraph([
-    'Mistboard is published under AGPL-3.0-or-later on ',
+    t('about.openSourcePrefix', {}, locale),
     aboutExternalLink('GitHub', GITHUB_URL),
-    '. The rules, visibility boundary, replay model, and public site code are inspectable. Contributions, bug reports, and article drafts are welcome. See ',
-    aboutLink('Source', '/source'),
-    ' for license and third-party credits.',
+    t('about.openSourceMiddle', {}, locale),
+    aboutLink(t('footer.source', {}, locale), '/source'),
+    t('about.openSourceSuffix', {}, locale),
   ]);
 
-  const platformActivity = buildPlatformActivity();
+  const platformActivity = buildPlatformActivity(locale);
   section.append(
     heading,
     lede,
@@ -202,11 +191,11 @@ function buildAbout(): HTMLElement {
     oss1P,
     platformActivity,
   );
-  void hydratePlatformActivity(platformActivity);
+  void hydratePlatformActivity(platformActivity, locale);
   return section;
 }
 
-function buildPlatformActivity(): HTMLElement {
+function buildPlatformActivity(locale: Locale = currentLocale()): HTMLElement {
   const section = document.createElement('section');
   section.className = 'platform-activity';
   section.setAttribute('aria-labelledby', 'platform-activity-heading');
@@ -214,29 +203,30 @@ function buildPlatformActivity(): HTMLElement {
   const heading = document.createElement('h2');
   heading.id = 'platform-activity-heading';
   heading.className = 'about-subheading';
-  heading.textContent = 'Player game activity';
+  heading.textContent = t('about.activityHeading', {}, locale);
 
-  const intro = aboutParagraph([
-    'Mistboard tracks completed games as durable replay records. These totals count player-facing games: player vs player and player vs engine.',
-  ]);
+  const intro = aboutParagraph([t('about.activityIntro', {}, locale)]);
 
   const body = document.createElement('div');
   body.className = 'platform-activity-body';
   body.setAttribute('aria-live', 'polite');
-  renderPlatformActivityLoading(body);
+  renderPlatformActivityLoading(body, locale);
 
   section.append(heading, intro, body);
   return section;
 }
 
-async function hydratePlatformActivity(section: HTMLElement): Promise<void> {
+async function hydratePlatformActivity(
+  section: HTMLElement,
+  locale: Locale = currentLocale(),
+): Promise<void> {
   const body = section.querySelector<HTMLElement>('.platform-activity-body');
   if (!body) return;
   try {
     const stats = await fetchPublicStats();
-    renderPlatformActivityStats(body, stats);
+    renderPlatformActivityStats(body, stats, locale);
   } catch {
-    renderPlatformActivityUnavailable(body);
+    renderPlatformActivityUnavailable(body, locale);
   }
 }
 
@@ -246,51 +236,66 @@ async function fetchPublicStats(): Promise<PublicSiteStats> {
   return (await response.json()) as PublicSiteStats;
 }
 
-function renderPlatformActivityLoading(body: HTMLElement): void {
+function renderPlatformActivityLoading(body: HTMLElement, locale: Locale = currentLocale()): void {
   const loading = document.createElement('p');
   loading.className = 'platform-activity-status';
-  loading.textContent = 'Loading activity totals…';
+  loading.textContent = t('about.activityLoading', {}, locale);
   body.replaceChildren(loading);
 }
 
-function renderPlatformActivityUnavailable(body: HTMLElement): void {
+function renderPlatformActivityUnavailable(
+  body: HTMLElement,
+  locale: Locale = currentLocale(),
+): void {
   const status = document.createElement('p');
   status.className = 'platform-activity-status';
-  status.textContent = 'Activity totals are unavailable while persistent storage is offline.';
+  status.textContent = t('about.activityUnavailable', {}, locale);
   body.replaceChildren(status);
 }
 
-function renderPlatformActivityStats(body: HTMLElement, stats: PublicSiteStats): void {
+function renderPlatformActivityStats(
+  body: HTMLElement,
+  stats: PublicSiteStats,
+  locale: Locale = currentLocale(),
+): void {
   const summary = document.createElement('p');
   summary.className = 'platform-activity-summary';
   summary.append(
     document.createTextNode(
-      `${numberFormat.format(stats.totalCompletedGames)} player-facing completed games tracked`,
+      t(
+        'about.activitySummaryTotal',
+        { total: formatNumber(stats.totalCompletedGames, locale) },
+        locale,
+      ),
     ),
   );
   if (stats.last30dCompletedGames > 0) {
     summary.append(
       document.createTextNode(
-        `, including ${numberFormat.format(stats.last30dCompletedGames)} in the last 30 days`,
+        t(
+          'about.activitySummaryRecent',
+          { count: formatNumber(stats.last30dCompletedGames, locale) },
+          locale,
+        ),
       ),
     );
   }
   summary.append(document.createTextNode('.'));
-  const chart = buildActivityChart(stats.dailyCompletedGames);
-  body.replaceChildren(summary, chart, buildModeSplit(stats.modeTotals));
+  const chart = buildActivityChart(stats.dailyCompletedGames, locale);
+  body.replaceChildren(summary, chart, buildModeSplit(stats.modeTotals, locale));
 }
 
-function buildActivityChart(days: PublicStatsDay[]): HTMLElement {
+function buildActivityChart(days: PublicStatsDay[], locale: Locale = currentLocale()): HTMLElement {
   const panel = document.createElement('div');
   panel.className = 'platform-activity-chart';
 
   const label = document.createElement('h3');
-  label.textContent = 'Cumulative player-facing games';
+  label.textContent = t('about.activityChartHeading', {}, locale);
 
   if (days.length === 0) {
     const empty = document.createElement('p');
     empty.className = 'platform-activity-status';
-    empty.textContent = 'No completed games have been recorded yet.';
+    empty.textContent = t('about.activityNoGames', {}, locale);
     panel.append(label, empty);
     return panel;
   }
@@ -300,7 +305,11 @@ function buildActivityChart(days: PublicStatsDay[]): HTMLElement {
   svg.setAttribute('role', 'img');
   svg.setAttribute(
     'aria-label',
-    `${numberFormat.format(days.at(-1)?.cumulativeGames ?? 0)} completed games over time`,
+    t(
+      'about.activityChartLabel',
+      { count: formatNumber(days.at(-1)?.cumulativeGames ?? 0, locale) },
+      locale,
+    ),
   );
 
   const yScale = yAxisScale(days);
@@ -317,7 +326,7 @@ function buildActivityChart(days: PublicStatsDay[]): HTMLElement {
   line.setAttribute('class', 'platform-activity-line');
   line.setAttribute('points', points);
 
-  svg.append(buildYGrid(yScale), buildXAxisTicks(xTicks), area, line);
+  svg.append(buildYGrid(yScale, locale), buildXAxisTicks(xTicks, locale), area, line);
 
   panel.append(label, svg);
   return panel;
@@ -355,7 +364,7 @@ function chartCoordinates(
   });
 }
 
-function buildYGrid(scale: { max: number; ticks: number[] }): SVGElement {
+function buildYGrid(scale: { max: number; ticks: number[] }, locale: Locale): SVGElement {
   const group = document.createElementNS('http://www.w3.org/2000/svg', 'g');
   group.setAttribute('class', 'platform-activity-y-axis');
   for (const tick of scale.ticks) {
@@ -368,13 +377,16 @@ function buildYGrid(scale: { max: number; ticks: number[] }): SVGElement {
     const label = document.createElementNS('http://www.w3.org/2000/svg', 'text');
     label.setAttribute('x', String(chartBounds.xMin - 10));
     label.setAttribute('y', String(y + 4));
-    label.textContent = numberFormat.format(tick);
+    label.textContent = formatNumber(tick, locale);
     group.append(line, label);
   }
   return group;
 }
 
-function buildXAxisTicks(ticks: Array<{ position: number; date: string }>): SVGElement {
+function buildXAxisTicks(
+  ticks: Array<{ position: number; date: string }>,
+  locale: Locale,
+): SVGElement {
   const group = document.createElementNS('http://www.w3.org/2000/svg', 'g');
   group.setAttribute('class', 'platform-activity-x-axis');
   for (const tick of ticks) {
@@ -387,7 +399,7 @@ function buildXAxisTicks(ticks: Array<{ position: number; date: string }>): SVGE
     const label = document.createElementNS('http://www.w3.org/2000/svg', 'text');
     label.setAttribute('x', x.toFixed(1));
     label.setAttribute('y', String(chartBounds.yMax + 20));
-    label.textContent = formatDateLabel(tick.date);
+    label.textContent = formatDateLabel(tick.date, locale);
     group.append(line, label);
   }
   return group;
@@ -430,19 +442,22 @@ function xAxisTicks(days: PublicStatsDay[]): Array<{ position: number; date: str
   return ticks;
 }
 
-function buildModeSplit(modeTotals: Record<PublicStatsMode, number>): HTMLElement {
+function buildModeSplit(
+  modeTotals: Record<PublicStatsMode, number>,
+  locale: Locale = currentLocale(),
+): HTMLElement {
   const list = document.createElement('ul');
   list.className = 'platform-activity-mode-list';
-  list.setAttribute('aria-label', 'Mode split');
+  list.setAttribute('aria-label', t('about.modeSplit', {}, locale));
   for (const mode of publicStatsModes) {
     const item = document.createElement('li');
     item.className = `platform-activity-mode-item mode-${mode.key}`;
 
     const name = document.createElement('span');
-    name.textContent = `${mode.label} `;
+    name.textContent = `${t(mode.labelKey, {}, locale)} `;
 
     const value = document.createElement('strong');
-    value.textContent = numberFormat.format(modeTotals[mode.key] ?? 0);
+    value.textContent = formatNumber(modeTotals[mode.key] ?? 0, locale);
 
     item.append(name, value);
     list.append(item);
@@ -451,10 +466,18 @@ function buildModeSplit(modeTotals: Record<PublicStatsMode, number>): HTMLElemen
   return list;
 }
 
-function formatDateLabel(value: string | undefined): string {
+function formatDateLabel(value: string | undefined, locale: Locale = currentLocale()): string {
   if (!value) return '';
   const date = new Date(`${value}T00:00:00.000Z`);
-  return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: 'UTC' });
+  return date.toLocaleDateString(LOCALE_META[locale].dateLocale, {
+    month: 'short',
+    day: 'numeric',
+    timeZone: 'UTC',
+  });
+}
+
+function formatNumber(value: number, locale: Locale = currentLocale()): string {
+  return new Intl.NumberFormat(LOCALE_META[locale].dateLocale).format(value);
 }
 
 function aboutSubheading(text: string): HTMLElement {

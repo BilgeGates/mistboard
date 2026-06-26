@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { mountAbout } from './pages-static.js';
 
 async function flushPromises(): Promise<void> {
@@ -7,6 +7,11 @@ async function flushPromises(): Promise<void> {
 }
 
 describe('about page platform activity', () => {
+  beforeEach(() => {
+    window.history.replaceState(null, '', '/about');
+    document.body.innerHTML = '';
+  });
+
   afterEach(() => {
     vi.unstubAllGlobals();
     document.body.innerHTML = '';
@@ -36,7 +41,7 @@ describe('about page platform activity', () => {
     document.body.append(root);
     mountAbout(root);
 
-    expect(root.textContent).toContain('Loading activity totals…');
+    expect(root.textContent).toContain('Loading activity totals...');
     await flushPromises();
 
     expect(fetchMock).toHaveBeenCalledWith('/api/stats/public', { credentials: 'same-origin' });
@@ -78,5 +83,46 @@ describe('about page platform activity', () => {
 
     expect(root.textContent).toContain('Activity totals are unavailable');
     expect(root.textContent).toContain('Trust by design');
+  });
+
+  it('localizes Traditional Chinese about copy and activity stats', async () => {
+    window.history.replaceState(null, '', '/zh-hant/about');
+    const fetchMock = vi.fn(async () => ({
+      ok: true,
+      json: async () => ({
+        generatedAt: '2026-05-29T12:00:00.000Z',
+        totalCompletedGames: 1234,
+        last30dCompletedGames: 56,
+        publicGames: 78,
+        modeTotals: { pvp: 42, pve: 31, eve: 9 },
+        dailyCompletedGames: [
+          { date: '2026-05-11', completedGames: 10, cumulativeGames: 10 },
+          { date: '2026-05-12', completedGames: 0, cumulativeGames: 10 },
+          { date: '2026-05-13', completedGames: 20, cumulativeGames: 30 },
+        ],
+      }),
+    }));
+    vi.stubGlobal('fetch', fetchMock);
+
+    const root = document.createElement('main');
+    document.body.append(root);
+    mountAbout(root);
+
+    expect(root.textContent).toContain('正在載入活動統計...');
+    await flushPromises();
+
+    expect(root.querySelector('h1')?.textContent).toBe('關於 Mistboard');
+    expect(root.textContent).toContain('以設計建立信任');
+    expect(root.textContent).toContain('玩家對局活動');
+    expect(root.textContent).toContain('已記錄 1,234 局面向玩家的完成對局');
+    expect(root.textContent).toContain('過去 30 天有 56 局');
+    expect(root.textContent).toContain('玩家對玩家');
+    expect(root.textContent).toContain('玩家對引擎');
+    expect(root.querySelector('.platform-activity-mode-list')?.getAttribute('aria-label')).toBe(
+      '模式分布',
+    );
+    expect(root.querySelector('.platform-activity-chart svg')?.getAttribute('aria-label')).toBe(
+      '30 局完成對局隨時間變化',
+    );
   });
 });
