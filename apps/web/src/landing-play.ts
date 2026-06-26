@@ -28,6 +28,8 @@ import {
   track,
 } from './analytics.js';
 import { correspondenceEnabled, crossroadsChessEnabled } from './feature-flags.js';
+import { t } from './i18n/catalog.js';
+import { currentLocale, type Locale } from './i18n/locale.js';
 import { isRatedModeEnabled } from './rated-flag.js';
 import { isLikelySignedIn } from './signed-in-state.js';
 import { renderVariantMiniBoard } from './variant-mini-boards.js';
@@ -277,30 +279,34 @@ export function closeActiveLandingDialog(): void {
 
 export function buildLandingPlayPanel(
   engines: PlayableEngine[],
-  options: { showLobbyRequests?: boolean } = {},
+  options: { locale?: Locale; showLobbyRequests?: boolean } = {},
 ): HTMLElement {
+  const locale = options.locale ?? currentLocale();
   const panel = document.createElement('aside');
   panel.className = 'landing-play-panel';
-  panel.setAttribute('aria-label', 'Start playing');
+  panel.setAttribute('aria-label', t('play.startPlaying', {}, locale));
 
   const availableEngines = engines.length > 0 ? engines : fallbackPlayableEngines();
   const defaultEngineId = availableEngines[0]?.id;
-  const lobbyButton = landingPlayAction('Find opponent', 'lobby');
-  const challengeButton = landingPlayAction('Challenge a friend', 'friend');
-  const engineButton = landingPlayAction('Play the engine', 'computer');
+  const lobbyTitle = t('play.findOpponent', {}, locale);
+  const challengeTitle = t('play.challengeFriend', {}, locale);
+  const engineTitle = t('play.playEngine', {}, locale);
+  const lobbyButton = landingPlayAction(lobbyTitle, 'lobby');
+  const challengeButton = landingPlayAction(challengeTitle, 'friend');
+  const engineButton = landingPlayAction(engineTitle, 'computer');
 
   lobbyButton.addEventListener('click', () => {
     openLandingSetupDialog({
       engineId: defaultEngineId,
       mode: 'lobby',
-      title: 'Find opponent',
+      title: lobbyTitle,
       ratedDisabled: !isRatedModeEnabled() || !isLikelySignedIn(),
     });
   });
   challengeButton.addEventListener('click', () => {
     openLandingSetupDialog({
       mode: 'pvp',
-      title: 'Challenge a friend',
+      title: challengeTitle,
       ratedDisabled: true,
     });
   });
@@ -309,7 +315,7 @@ export function buildLandingPlayPanel(
       engineId: defaultEngineId,
       engines: availableEngines,
       mode: 'pve',
-      title: 'Play the engine',
+      title: engineTitle,
     });
   });
 
@@ -332,22 +338,22 @@ export function buildLandingPlayPanel(
 
   const anonNote = document.createElement('p');
   anonNote.className = 'landing-play-anon-note';
-  anonNote.textContent = 'No account needed.';
+  anonNote.textContent = t('play.noAccountNeeded', {}, locale);
   panel.append(anonNote);
 
   const stats = document.createElement('p');
   stats.className = 'landing-play-stats';
   stats.hidden = true;
   panel.append(stats);
-  startLiveStatsPolling(stats);
+  startLiveStatsPolling(stats, locale);
 
   if (options.showLobbyRequests) {
-    panel.append(buildLobbyRequestsWindow());
+    panel.append(buildLobbyRequestsWindow(locale));
   }
   return panel;
 }
 
-function startLiveStatsPolling(stats: HTMLElement): void {
+function startLiveStatsPolling(stats: HTMLElement, locale: Locale): void {
   const render = (data: { playing: number; online: number } | null) => {
     // Display only — this no longer steers the primary (green) CTA. The engine
     // is pinned as primary (see buildLandingPlayPanel); the old swap counted the
@@ -359,8 +365,8 @@ function startLiveStatsPolling(stats: HTMLElement): void {
       return;
     }
     const parts: string[] = [];
-    if (data.playing > 0) parts.push(`${data.playing} playing now`);
-    if (data.online > 0) parts.push(`${data.online} online`);
+    if (data.playing > 0) parts.push(t('play.playingNow', { count: data.playing }, locale));
+    if (data.online > 0) parts.push(t('play.online', { count: data.online }, locale));
     stats.textContent = parts.join(' · ');
     stats.hidden = false;
   };
@@ -421,17 +427,17 @@ function appendLandingActionContent(
   element.append(iconEl, labelEl);
 }
 
-export function buildLobbyRequestsWindow(): HTMLElement {
+export function buildLobbyRequestsWindow(locale: Locale = currentLocale()): HTMLElement {
   const shell = document.createElement('section');
   shell.className = 'landing-lobby-requests';
-  shell.setAttribute('aria-label', 'Open pairing requests');
+  shell.setAttribute('aria-label', t('play.openPairingRequests', {}, locale));
 
   const header = document.createElement('div');
   header.className = 'landing-lobby-requests-header';
   const title = document.createElement('strong');
-  title.textContent = 'Open requests';
+  title.textContent = t('play.openRequests', {}, locale);
   const count = document.createElement('span');
-  count.textContent = 'Checking';
+  count.textContent = t('play.checking', {}, locale);
   header.append(title, count);
 
   const list = document.createElement('div');
@@ -440,17 +446,17 @@ export function buildLobbyRequestsWindow(): HTMLElement {
   shell.append(header, list);
 
   const render = (requests: OpenLobbyRequest[]) => {
-    count.textContent = requests.length === 1 ? '1 waiting' : `${requests.length} waiting`;
+    count.textContent = t('play.waitingCount', { count: requests.length }, locale);
     list.replaceChildren();
     if (requests.length === 0) {
       const empty = document.createElement('p');
       empty.className = 'landing-lobby-requests-empty';
-      empty.textContent = 'No open requests right now.';
+      empty.textContent = t('play.noOpenRequests', {}, locale);
       list.append(empty);
       return;
     }
     for (const request of requests) {
-      list.append(lobbyRequestRow(request));
+      list.append(lobbyRequestRow(request, locale));
     }
   };
 
@@ -460,11 +466,11 @@ export function buildLobbyRequestsWindow(): HTMLElement {
       render(requests);
     } catch (err) {
       console.warn(err);
-      count.textContent = 'Unavailable';
+      count.textContent = t('play.unavailable', {}, locale);
       list.replaceChildren();
       const empty = document.createElement('p');
       empty.className = 'landing-lobby-requests-empty';
-      empty.textContent = 'Open requests could not load.';
+      empty.textContent = t('play.openRequestsLoadFailed', {}, locale);
       list.append(empty);
     }
   };
@@ -481,7 +487,7 @@ export function buildLobbyRequestsWindow(): HTMLElement {
   return shell;
 }
 
-function lobbyRequestRow(request: OpenLobbyRequest): HTMLElement {
+function lobbyRequestRow(request: OpenLobbyRequest, locale: Locale = currentLocale()): HTMLElement {
   const row = document.createElement('div');
   row.className = 'landing-lobby-request-row';
 
@@ -490,29 +496,30 @@ function lobbyRequestRow(request: OpenLobbyRequest): HTMLElement {
 
   const requestSpecId = parseLandingGameSpecId(request.gameSpecId ?? DARK_CHESS_SPEC_ID);
   const primary = document.createElement('span');
-  const ratedLabel = request.rated === false ? 'Casual' : 'Rated';
+  const ratedLabel =
+    request.rated === false ? t('play.casual', {}, locale) : t('play.rated', {}, locale);
   // Chess shows its start format; other variants show the game name (a DMX open
   // request isn't "Standard/Draft960").
   const formatLabel =
     requestSpecId === DARK_CHESS_SPEC_ID
       ? request.hiddenDraft960
         ? 'Dark Draft960'
-        : 'Standard'
+        : t('play.standard', {}, locale)
       : gameSpecForId(requestSpecId).publicName;
   // Time control + game on the bold line; the casual/rated tag drops to the
   // meta line with the wait age so a long variant name (Dark Mini Xiangqi)
   // doesn't orphan "· Casual" onto its own wrapped line.
   primary.textContent = `${formatTimeControl(request.timeControl)} ${formatLabel}`;
   const secondary = document.createElement('small');
-  secondary.textContent = `${ratedLabel} · ${formatWaitAge(request.waitingMs)} waiting`;
+  secondary.textContent = `${ratedLabel} · ${t('play.waitingAge', { age: formatWaitAge(request.waitingMs) }, locale)}`;
   details.append(primary, secondary);
 
   const join = document.createElement('button');
   join.type = 'button';
-  join.textContent = 'Join';
+  join.textContent = t('play.join', {}, locale);
   join.addEventListener('click', () => {
     join.disabled = true;
-    join.textContent = 'Joining';
+    join.textContent = t('play.joining', {}, locale);
     const status = document.createElement('span');
     const setup: LandingRoomSetup = {
       gameSpecId: requestSpecId,
@@ -555,6 +562,7 @@ function formatWaitAge(waitingMs: number): string {
 // visitor straight into "Find opponent". Consumed params are cleared from the
 // URL so a refresh doesn't reopen the modal or trigger the dev live shortcut.
 export function maybeOpenPlayDeepLink(engines: PlayableEngine[]): void {
+  const locale = currentLocale();
   const params = new URLSearchParams(window.location.search);
   const play = params.get('play');
   if (!play) return;
@@ -571,7 +579,7 @@ export function maybeOpenPlayDeepLink(engines: PlayableEngine[]): void {
           'lobby',
         ),
         mode: 'lobby',
-        title: 'Find opponent',
+        title: t('play.findOpponent', {}, locale),
         ratedDisabled: !isRatedModeEnabled() || !isLikelySignedIn(),
       });
       break;
@@ -582,7 +590,7 @@ export function maybeOpenPlayDeepLink(engines: PlayableEngine[]): void {
           'pvp',
         ),
         mode: 'pvp',
-        title: 'Challenge a friend',
+        title: t('play.challengeFriend', {}, locale),
         ratedDisabled: true,
       });
       break;
@@ -596,7 +604,7 @@ export function maybeOpenPlayDeepLink(engines: PlayableEngine[]): void {
           'pve',
         ),
         mode: 'pve',
-        title: 'Play the engine',
+        title: t('play.playEngine', {}, locale),
       });
       break;
     default:

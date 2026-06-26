@@ -5,6 +5,7 @@ import { initializeAccountNav } from './account-nav.js';
 import { setPostHogInstance } from './analytics.js';
 import type { ArticleLang } from './article-i18n.js';
 import { correspondenceEnabled } from './feature-flags.js';
+import { initializeLocaleFromCurrentUrl } from './i18n/locale.js';
 import {
   correspondenceNotificationSource,
   registerNotificationSource,
@@ -18,6 +19,7 @@ import {
   webVariantTenants,
 } from './variant-tenant/registry.js';
 
+initializeLocaleFromCurrentUrl();
 initializeThemeSettings();
 // Register notification sources before the nav mounts — account-nav mounts the
 // bell once signed in, and a bell with no sources is a no-op. Correspondence is

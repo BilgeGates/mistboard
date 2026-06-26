@@ -50,6 +50,17 @@ describe('renderGameControls', () => {
     expect(refs.gameControls.textContent).toBe('Resign');
   });
 
+  it('localizes the resign control', () => {
+    const refs = makeRefs();
+    liveState.roomMode = 'pvp';
+    liveState.seat = 'white';
+
+    renderGameControls(refs, makeView(), vi.fn(), 'zh-Hant');
+
+    expect(refs.gameControlsSection.hidden).toBe(false);
+    expect(refs.gameControls.textContent).toBe('認輸');
+  });
+
   it('shows resign for seated PvE players after the first-move abort window', () => {
     const refs = makeRefs();
     liveState.roomMode = 'pve';
@@ -111,5 +122,19 @@ describe('renderGameControls', () => {
     expect(refs.gameControlsSection.hidden).toBe(false);
     expect(refs.gameControls.querySelector('button')?.textContent).toBe('Abort');
     expect(refs.gameControls.textContent).not.toContain('Resign');
+  });
+
+  it('localizes the abort countdown and control', () => {
+    const refs = makeRefs();
+    liveState.roomMode = 'pve';
+    liveState.seat = 'white';
+    liveState.abortDeadline = Date.now() + 10_000;
+
+    renderGameControls(refs, makeView({ moveNumber: 1 }), vi.fn(), 'zh-Hant');
+
+    expect(refs.gameControls.querySelector('[data-abort-countdown]')?.textContent).toContain(
+      '請走第一步',
+    );
+    expect(refs.gameControls.querySelector('button')?.textContent).toBe('中止');
   });
 });

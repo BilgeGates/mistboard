@@ -1,5 +1,7 @@
 import type { PlayerView } from '@mistboard/game';
 import { openConfirmDialog } from './confirm-dialog.js';
+import { t } from './i18n/catalog.js';
+import { currentLocale, type Locale } from './i18n/locale.js';
 import { type LiveRefs, liveState } from './live-state.js';
 import { currentView } from './live-view.js';
 import { isColor } from './web-utils.js';
@@ -11,6 +13,7 @@ export function renderGameControls(
   refs: GameControlRefs,
   view: PlayerView | null,
   sendSocket: SendSocket,
+  locale: Locale = currentLocale(),
 ): void {
   const isPlayableRoom =
     (liveState.roomMode === 'pvp' ||
@@ -43,7 +46,7 @@ export function renderGameControls(
     const countdown = document.createElement('span');
     countdown.className = 'abort-countdown';
     countdown.dataset.abortCountdown = '';
-    countdown.textContent = abortCountdownText(isSideToMove);
+    countdown.textContent = abortCountdownText(isSideToMove, locale);
     children.push(countdown);
   }
   // Post-move-1: only a present winning player receives forfeitDeadline, so
@@ -52,13 +55,18 @@ export function renderGameControls(
     const banner = document.createElement('span');
     banner.className = 'forfeit-countdown';
     banner.dataset.forfeitCountdown = '';
-    banner.textContent = forfeitCountdownText();
+    banner.textContent = forfeitCountdownText(locale);
     children.push(banner);
   }
   if (preMove) {
-    if (isSideToMove) children.push(makeControlButton('Abort', () => requestAbort(sendSocket)));
+    if (isSideToMove)
+      children.push(
+        makeControlButton(t('live.abort', {}, locale), () => requestAbort(sendSocket, locale)),
+      );
   } else {
-    children.push(makeControlButton('Resign', () => requestResign(sendSocket)));
+    children.push(
+      makeControlButton(t('live.resign', {}, locale), () => requestResign(sendSocket, locale)),
+    );
   }
 
   refs.gameControlsSection.hidden = children.length === 0;
@@ -68,14 +76,15 @@ export function renderGameControls(
 // Driven by the 100ms tick loop so countdowns advance without a full re-render.
 // Only touch existing elements' text; renderGameControls owns creation/teardown.
 export function updateAbortCountdown(refs: GameControlRefs): void {
+  const locale = currentLocale();
   const view = currentView();
   const abortEl = refs.gameControls.querySelector<HTMLElement>('[data-abort-countdown]');
   if (abortEl && view && view.status.type === 'playing' && view.moveNumber < 2) {
-    abortEl.textContent = abortCountdownText(view.status.turn === liveState.seat);
+    abortEl.textContent = abortCountdownText(view.status.turn === liveState.seat, locale);
   }
   const forfeitEl = refs.gameControls.querySelector<HTMLElement>('[data-forfeit-countdown]');
   if (forfeitEl && liveState.forfeitDeadline !== null) {
-    forfeitEl.textContent = forfeitCountdownText();
+    forfeitEl.textContent = forfeitCountdownText(locale);
   }
 }
 
@@ -84,12 +93,12 @@ function abortRemainingMs(): number | null {
   return Math.max(0, liveState.abortDeadline - Date.now());
 }
 
-function abortCountdownText(isSideToMove: boolean): string {
+function abortCountdownText(isSideToMove: boolean, locale: Locale): string {
   const remaining = abortRemainingMs();
   const seconds = remaining === null ? 0 : Math.ceil(remaining / 1000);
   return isSideToMove
-    ? `Make your first move, aborting in ${seconds}s`
-    : `Waiting for first move, aborting in ${seconds}s`;
+    ? t('live.makeFirstMoveAbortingIn', { seconds }, locale)
+    : t('live.waitingFirstMoveAbortingIn', { seconds }, locale);
 }
 
 function forfeitRemainingSeconds(): number {
@@ -97,8 +106,8 @@ function forfeitRemainingSeconds(): number {
   return Math.ceil(Math.max(0, liveState.forfeitDeadline - Date.now()) / 1000);
 }
 
-function forfeitCountdownText(): string {
-  return `Opponent left, you win in ${forfeitRemainingSeconds()}s`;
+function forfeitCountdownText(locale: Locale): string {
+  return t('live.opponentLeftWinIn', { seconds: forfeitRemainingSeconds() }, locale);
 }
 
 function makeControlButton(label: string, onClick: () => void): HTMLButtonElement {
@@ -110,11 +119,11 @@ function makeControlButton(label: string, onClick: () => void): HTMLButtonElemen
   return button;
 }
 
-function requestResign(sendSocket: SendSocket): void {
+function requestResign(sendSocket: SendSocket, locale: Locale = currentLocale()): void {
   openConfirmDialog({
-    title: 'Resign this game?',
-    body: 'Your opponent wins. This cannot be undone.',
-    confirmLabel: 'Resign',
+    title: t('live.resignTitle', {}, locale),
+    body: t('live.resignBody', {}, locale),
+    confirmLabel: t('live.resign', {}, locale),
     confirmTone: 'danger',
     onConfirm: () => {
       sendSocket({ type: 'resign' });
@@ -122,11 +131,11 @@ function requestResign(sendSocket: SendSocket): void {
   });
 }
 
-function requestAbort(sendSocket: SendSocket): void {
+function requestAbort(sendSocket: SendSocket, locale: Locale = currentLocale()): void {
   openConfirmDialog({
-    title: 'Abort this game?',
-    body: 'The game ends with no result. Neither player is affected.',
-    confirmLabel: 'Abort',
+    title: t('live.abortTitle', {}, locale),
+    body: t('live.abortBody', {}, locale),
+    confirmLabel: t('live.abort', {}, locale),
     confirmTone: 'danger',
     onConfirm: () => {
       sendSocket({ type: 'abort' });

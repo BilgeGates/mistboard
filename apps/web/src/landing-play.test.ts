@@ -1,6 +1,11 @@
 import { canonicalVariantOrderIndex, type GameSpecId } from '@mistboard/game';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { buildLandingPlayPanel, maybeOpenPlayDeepLink, setRoomNavigator } from './landing-play.js';
+import {
+  buildLandingPlayPanel,
+  buildLobbyRequestsWindow,
+  maybeOpenPlayDeepLink,
+  setRoomNavigator,
+} from './landing-play.js';
 import { setRatedModeEnabled } from './rated-flag.js';
 import { setResolvedSignedIn } from './signed-in-state.js';
 
@@ -71,6 +76,51 @@ describe('landing play panel', () => {
 
     expect(overlay?.textContent).toContain('Misty');
     expect(overlay?.textContent).not.toContain('Random Legal');
+  });
+
+  it('localizes the first-screen play actions', () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => jsonResponse({ playing: 0, online: 0 })),
+    );
+
+    const panel = buildLandingPlayPanel([], { locale: 'zh-Hant' });
+    document.body.append(panel);
+
+    expect(panel.textContent).toContain('尋找對手');
+    expect(panel.textContent).toContain('挑戰好友');
+    expect(panel.textContent).toContain('對戰引擎');
+    expect(panel.textContent).toContain('不需要帳號。');
+  });
+
+  it('localizes the open lobby requests window', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () =>
+        jsonResponse({
+          requests: [
+            {
+              gameSpecId: 'dark-chess',
+              hiddenDraft960: false,
+              rated: false,
+              timeControl: { initialMs: 180_000, incrementMs: 2_000 },
+              waitingMs: 65_000,
+            },
+          ],
+        }),
+      ),
+    );
+
+    const shell = buildLobbyRequestsWindow('zh-Hant');
+    document.body.append(shell);
+    await flushPromises();
+
+    expect(shell.getAttribute('aria-label')).toBe('公開配對請求');
+    expect(shell.textContent).toContain('公開請求');
+    expect(shell.textContent).toContain('1 個等待中');
+    expect(shell.textContent).toContain('休閒');
+    expect(shell.textContent).toContain('已等待 1m');
+    expect(shell.querySelector('button')?.textContent).toBe('加入');
   });
 
   it('shows mini-board markers for the baseline picker variants', () => {

@@ -31,4 +31,38 @@ describe('site shell nav', () => {
     );
     expect(nav.querySelector<HTMLAnchorElement>('a[href="/bots"]')?.textContent).toBe('Bots');
   });
+
+  it('localizes launch nav labels and translated content links', () => {
+    window.history.replaceState(null, '', '/zh-hant/rules/banqi');
+
+    const nav = buildNav('zh-Hant');
+    document.body.append(nav);
+
+    const primaryLabels = [
+      ...nav.querySelectorAll<HTMLElement>(
+        '.site-nav-links > .site-nav-link, .site-nav-links > .site-nav-menu > .site-nav-menu-toggle',
+      ),
+    ].map((link) => link.textContent);
+
+    expect(primaryLabels).toEqual(['對弈', '題目', '學習', '觀看', '社群']);
+    expect(nav.getAttribute('aria-label')).toBe('主導覽');
+    expect(nav.querySelector<HTMLAnchorElement>('a[href="/zh-hant/rules"]')?.textContent).toBe(
+      '規則',
+    );
+    expect(
+      nav
+        .querySelector<HTMLAnchorElement>('a[href="/zh-hant/rules"]')
+        ?.classList.contains('active'),
+    ).toBe(true);
+    expect(nav.querySelector('.site-nav-menu-toggle')?.classList.contains('active')).toBe(true);
+    expect(nav.querySelector<HTMLAnchorElement>('a[href="/zh-hant/articles"]')?.textContent).toBe(
+      '文章',
+    );
+    expect(nav.querySelector<HTMLAnchorElement>('a[href="/account?tab=login"]')?.textContent).toBe(
+      '登入',
+    );
+    expect(
+      nav.querySelector<HTMLAnchorElement>('a[href="/account?tab=register"]')?.textContent,
+    ).toBe('註冊');
+  });
 });

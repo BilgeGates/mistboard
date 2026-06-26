@@ -2,6 +2,8 @@ import './account-nav.css';
 
 import { identify, resetIdentity } from './analytics.js';
 import { type ConnectionStatus, createConnectionStatus } from './connection-status.js';
+import { t } from './i18n/catalog.js';
+import { currentLocale, localizedHref } from './i18n/locale.js';
 import { clearSeatTokenForRoom, liveState } from './live-state.js';
 import { clearNotificationBells, mountNotificationBell } from './notification-nav.js';
 import { readSignedInHint, setResolvedSignedIn, writeSignedInHint } from './signed-in-state.js';
@@ -143,6 +145,7 @@ function resetMountedAccountControls(): void {
 }
 
 function createSignedOutAccountSlot(): HTMLElement {
+  const locale = currentLocale();
   const slot = document.createElement('div');
   slot.className = 'site-nav-auth';
   slot.dataset.accountSlot = '';
@@ -151,18 +154,18 @@ function createSignedOutAccountSlot(): HTMLElement {
   const tab = new URLSearchParams(window.location.search).get('tab');
 
   const signIn = document.createElement('a');
-  signIn.href = '/account?tab=login';
+  signIn.href = localizedHref('/account?tab=login', locale);
   signIn.className = 'site-nav-link site-nav-link-signin';
-  signIn.textContent = 'Sign in';
+  signIn.textContent = t('nav.signIn', {}, locale);
   if (path === '/account' && tab !== 'register') {
     signIn.classList.add('active');
     signIn.setAttribute('aria-current', 'page');
   }
 
   const register = document.createElement('a');
-  register.href = '/account?tab=register';
+  register.href = localizedHref('/account?tab=register', locale);
   register.className = 'site-nav-link site-nav-link-register';
-  register.textContent = 'Register';
+  register.textContent = t('nav.register', {}, locale);
   if (path === '/account' && tab === 'register') {
     register.classList.add('active');
     register.setAttribute('aria-current', 'page');

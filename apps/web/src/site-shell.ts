@@ -1,4 +1,6 @@
 import './site-shell.css';
+import { t } from './i18n/catalog.js';
+import { currentLocale, type Locale, localizedHref, stripLocalePrefix } from './i18n/locale.js';
 import {
   communityNavItems,
   learnNavItems,
@@ -28,10 +30,10 @@ export async function fetchCurrentUser(): Promise<AuthUser | null> {
   return data.user;
 }
 
-export function buildNav(): HTMLElement {
+export function buildNav(locale: Locale = currentLocale()): HTMLElement {
   const nav = document.createElement('nav');
   nav.className = 'site-nav';
-  nav.setAttribute('aria-label', 'Primary');
+  nav.setAttribute('aria-label', t('nav.primary', {}, locale));
 
   const brand = document.createElement('a');
   brand.className = 'site-nav-brand';
@@ -51,18 +53,18 @@ export function buildNav(): HTMLElement {
   links.className = 'site-nav-links';
 
   const [play, puzzles, watch] = primaryNavItems();
-  if (play) links.append(navLink(play.label, play.href));
-  if (puzzles) links.append(navLink(puzzles.label, puzzles.href));
-  links.append(navMenu('Learn', learnNavItems()));
-  if (watch) links.append(navLink(watch.label, watch.href));
-  links.append(navMenu('Community', communityNavItems()));
+  if (play) links.append(navLink(play, locale));
+  if (puzzles) links.append(navLink(puzzles, locale));
+  links.append(navMenu('nav.learn', learnNavItems(), locale));
+  if (watch) links.append(navLink(watch, locale));
+  links.append(navMenu('nav.community', communityNavItems(), locale));
   const tools = toolsNavItems();
-  if (tools.length > 0) links.append(navMenu('Tools', tools));
+  if (tools.length > 0) links.append(navMenu('nav.tools', tools, locale));
 
   const utilities = document.createElement('div');
   utilities.className = 'site-nav-utilities';
 
-  utilities.append(buildSignedOutAccountLinks());
+  utilities.append(buildSignedOutAccountLinks(locale));
 
   // Mobile menu toggle. On desktop `.site-nav-collapse` is `display: contents`,
   // so links + utilities lay out exactly as before; on mobile the toggle reveals
@@ -72,7 +74,7 @@ export function buildNav(): HTMLElement {
   toggle.type = 'button';
   toggle.className = 'site-nav-toggle';
   toggle.setAttribute('aria-expanded', 'false');
-  toggle.setAttribute('aria-label', 'Menu');
+  toggle.setAttribute('aria-label', t('nav.menu', {}, locale));
   for (let i = 0; i < 3; i++) toggle.append(document.createElement('span'));
   toggle.addEventListener('click', () => {
     const open = nav.classList.toggle('nav-open');
@@ -122,7 +124,7 @@ function ensureNavDismiss(): void {
   });
 }
 
-function buildSignedOutAccountLinks(): HTMLElement {
+function buildSignedOutAccountLinks(locale: Locale = currentLocale()): HTMLElement {
   const wrap = document.createElement('div');
   wrap.className = 'site-nav-auth';
   wrap.dataset.accountSlot = '';
@@ -132,18 +134,18 @@ function buildSignedOutAccountLinks(): HTMLElement {
     new URLSearchParams(window.location.search).get('tab') === 'register' ? 'register' : 'login';
 
   const signIn = document.createElement('a');
-  signIn.href = '/account?tab=login';
+  signIn.href = localizedHref('/account?tab=login', locale);
   signIn.className = 'site-nav-link site-nav-link-signin';
-  signIn.textContent = 'Sign in';
+  signIn.textContent = t('nav.signIn', {}, locale);
   if (path === '/account' && tab === 'login') {
     signIn.classList.add('active');
     signIn.setAttribute('aria-current', 'page');
   }
 
   const register = document.createElement('a');
-  register.href = '/account?tab=register';
+  register.href = localizedHref('/account?tab=register', locale);
   register.className = 'site-nav-link site-nav-link-register';
-  register.textContent = 'Register';
+  register.textContent = t('nav.register', {}, locale);
   if (path === '/account' && tab === 'register') {
     register.classList.add('active');
     register.setAttribute('aria-current', 'page');
@@ -153,20 +155,20 @@ function buildSignedOutAccountLinks(): HTMLElement {
   return wrap;
 }
 
-function navLink(label: string, href: string): HTMLAnchorElement {
+function navLink(item: NavItem, locale: Locale): HTMLAnchorElement {
   const link = document.createElement('a');
-  link.href = href;
-  link.textContent = label;
+  link.href = localizedHref(item.href, locale);
+  link.textContent = t(item.labelKey, {}, locale);
   link.className = 'site-nav-link';
   const path = currentPath();
-  if (pathMatchesNavItem(path, href)) {
+  if (pathMatchesNavItem(path, item.href)) {
     link.classList.add('active');
     link.setAttribute('aria-current', 'page');
   }
   return link;
 }
 
-function navMenu(label: string, items: NavItem[]): HTMLElement {
+function navMenu(labelKey: NavItem['labelKey'], items: NavItem[], locale: Locale): HTMLElement {
   const menu = document.createElement('div');
   menu.className = 'site-nav-menu';
 
@@ -174,7 +176,7 @@ function navMenu(label: string, items: NavItem[]): HTMLElement {
   button.type = 'button';
   button.className = 'site-nav-link site-nav-menu-toggle';
   button.setAttribute('aria-expanded', 'false');
-  button.textContent = label;
+  button.textContent = t(labelKey, {}, locale);
   const caret = document.createElement('span');
   caret.className = 'site-nav-menu-caret';
   caret.setAttribute('aria-hidden', 'true');
@@ -183,7 +185,7 @@ function navMenu(label: string, items: NavItem[]): HTMLElement {
   const panel = document.createElement('div');
   panel.className = 'site-nav-menu-panel';
   for (const item of items) {
-    const link = navLink(item.label, item.href);
+    const link = navLink(item, locale);
     panel.append(link);
   }
 
@@ -210,18 +212,15 @@ function closeNavMenu(menu: HTMLElement): void {
 }
 
 function pathMatchesNavItem(path: string, href: string): boolean {
+  const normalizedPath = stripLocalePrefix(path);
   return (
-    path === href ||
-    (href === '/puzzles' && path.startsWith('/puzzles/')) ||
-    (href === '/account' && path.startsWith('/account/')) ||
-    (href === '/bots' && path.startsWith('/bot/')) ||
-    (href === '/forum' && path.startsWith('/forum/')) ||
-    (href === '/rules' && (path === '/zh-hans/rules' || path === '/zh-hant/rules')) ||
-    (href === '/articles' &&
-      (path === '/zh-hans/articles' ||
-        path === '/zh-hant/articles' ||
-        path.startsWith('/articles/') ||
-        path.includes('/articles/')))
+    normalizedPath === href ||
+    (href === '/puzzles' && normalizedPath.startsWith('/puzzles/')) ||
+    (href === '/account' && normalizedPath.startsWith('/account/')) ||
+    (href === '/bots' && normalizedPath.startsWith('/bot/')) ||
+    (href === '/forum' && normalizedPath.startsWith('/forum/')) ||
+    (href === '/rules' && normalizedPath.startsWith('/rules/')) ||
+    (href === '/articles' && normalizedPath.startsWith('/articles/'))
   );
 }
 

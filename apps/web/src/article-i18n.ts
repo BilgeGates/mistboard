@@ -12,15 +12,16 @@
 // (head term 迷雾国际象棋 / 迷霧國際象棋 validated against the zh chess-variant
 // community; Traditional carries the Taiwan lexical forks, not a glyph conversion).
 import type { Article } from './articles-data.js';
+import { contentLocalePrefix, type Locale } from './i18n/locale.js';
 
-export type ArticleLang = 'zh-Hans' | 'zh-Hant';
+export type ArticleLang = Extract<Locale, 'zh-Hans' | 'zh-Hant'>;
 
 export const ARTICLE_LANGS: ArticleLang[] = ['zh-Hans', 'zh-Hant'];
 
 // URL prefix per language. `/zh-hans/articles/<slug>`, `/zh-hant/articles/<slug>`.
 export const ARTICLE_LANG_PREFIX: Record<ArticleLang, string> = {
-  'zh-Hans': '/zh-hans',
-  'zh-Hant': '/zh-hant',
+  'zh-Hans': contentLocalePrefix('zh-Hans'),
+  'zh-Hant': contentLocalePrefix('zh-Hant'),
 };
 
 const ZH_HANS: Record<string, string> = {
