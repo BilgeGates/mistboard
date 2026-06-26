@@ -39,9 +39,10 @@ export function mountAbout(root: HTMLElement): void {
 }
 
 export function mountSource(root: HTMLElement): void {
+  const locale = currentLocale();
   root.replaceChildren();
   root.classList.add('landing-page', 'source-route');
-  root.append(buildNav(), buildSource());
+  root.append(buildNav(locale), buildSource(locale));
 }
 
 export function mountFaq(root: HTMLElement): void {
@@ -63,9 +64,10 @@ export function mountPrivacy(root: HTMLElement): void {
 }
 
 export function mountNotFound(root: HTMLElement): void {
+  const locale = currentLocale();
   root.replaceChildren();
   root.classList.add('landing-page', 'not-found-route');
-  root.append(buildNav(), buildNotFound());
+  root.append(buildNav(locale), buildNotFound(locale));
 }
 
 export async function mountNews(root: HTMLElement): Promise<void> {
@@ -509,42 +511,33 @@ function aboutExternalLink(label: string, href: string): HTMLAnchorElement {
   return a;
 }
 
-function buildSource(): HTMLElement {
+function buildSource(locale: Locale = currentLocale()): HTMLElement {
   const section = document.createElement('section');
   section.className = 'site-section source-section';
 
   const heading = document.createElement('h1');
   heading.className = 'site-section-heading';
-  heading.textContent = 'Source and Licenses';
+  heading.textContent = t('source.heading', {}, locale);
 
   const intro = document.createElement('p');
-  intro.textContent =
-    'Mistboard is an independent open-source dark chess project. The source code is published under AGPL-3.0-or-later. The hosted service is not affiliated with lichess, chess.com, or any other chess platform.';
+  intro.textContent = t('source.intro', {}, locale);
 
-  const source = sourceBlock('Project source', [
-    linkLine('GitHub repository', GITHUB_URL),
-    textLine('License: AGPL-3.0-or-later'),
-    textLine('No warranty is provided. See the repository license for the full terms.'),
+  const source = sourceBlock(t('source.projectSource', {}, locale), [
+    linkLine(t('source.githubRepository', {}, locale), GITHUB_URL),
+    textLine(t('source.licenseAgpl', {}, locale)),
+    textLine(t('source.noWarranty', {}, locale)),
   ]);
 
-  const thirdParty = sourceBlock('Third-party components', [
-    textLine('chessground: board interaction and piece rendering, GPL-3.0-or-later.'),
-    textLine('chessops: chess rules primitives, GPL-3.0-or-later.'),
-    textLine(
-      'Stockfish: optional engine/runtime dependency for research and engine-worker flows, GPL family.',
-    ),
+  const thirdParty = sourceBlock(t('source.thirdParty', {}, locale), [
+    textLine(t('source.chessground', {}, locale)),
+    textLine(t('source.chessops', {}, locale)),
+    textLine(t('source.stockfish', {}, locale)),
   ]);
 
-  const identity = sourceBlock('Project identity', [
-    textLine(
-      'The Mistboard name, logo, mistboard.com domain, hosted service identity, and official events are controlled project assets.',
-    ),
-    textLine(
-      'Forks are allowed under the AGPL, but should use a distinct name and avoid implying they are the official Mistboard service.',
-    ),
-    textLine(
-      'Forks and derivatives should present their own public brand, domain, and hosted service identity.',
-    ),
+  const identity = sourceBlock(t('source.projectIdentity', {}, locale), [
+    textLine(t('source.identityAssets', {}, locale)),
+    textLine(t('source.identityForksName', {}, locale)),
+    textLine(t('source.identityForksBrand', {}, locale)),
   ]);
 
   section.append(heading, intro, source, thirdParty, identity);
@@ -780,21 +773,21 @@ function linkLine(label: string, href: string): HTMLAnchorElement {
   return link;
 }
 
-function buildNotFound(): HTMLElement {
+function buildNotFound(locale: Locale = currentLocale()): HTMLElement {
   const section = document.createElement('section');
   section.className = 'site-section not-found-section';
 
   const heading = document.createElement('h1');
   heading.className = 'site-section-heading';
-  heading.textContent = 'Page not found';
+  heading.textContent = t('notFound.heading', {}, locale);
 
   const p = document.createElement('p');
   p.append(
-    document.createTextNode('Nothing here. Try the '),
-    aboutLink('home page', '/'),
-    document.createTextNode(', or let me know what you were looking for via '),
-    aboutLink('Contact', '/contact'),
-    document.createTextNode('.'),
+    document.createTextNode(t('notFound.prefix', {}, locale)),
+    aboutLink(t('notFound.homePage', {}, locale), '/'),
+    document.createTextNode(t('notFound.middle', {}, locale)),
+    aboutLink(t('notFound.contact', {}, locale), '/contact'),
+    document.createTextNode(t('notFound.suffix', {}, locale)),
   );
 
   section.append(heading, p);

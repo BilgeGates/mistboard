@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { mountAbout } from './pages-static.js';
+import { mountAbout, mountNotFound, mountSource } from './pages-static.js';
 
 async function flushPromises(): Promise<void> {
   await Promise.resolve();
@@ -124,5 +124,30 @@ describe('about page platform activity', () => {
     expect(root.querySelector('.platform-activity-chart svg')?.getAttribute('aria-label')).toBe(
       '30 局完成對局隨時間變化',
     );
+  });
+
+  it('localizes Traditional Chinese source page chrome', () => {
+    window.history.replaceState(null, '', '/zh-hant/source');
+
+    const root = document.createElement('main');
+    document.body.append(root);
+    mountSource(root);
+
+    expect(root.querySelector('h1')?.textContent).toBe('原始碼和授權');
+    expect(root.textContent).toContain('專案原始碼');
+    expect(root.textContent).toContain('GitHub 儲存庫');
+    expect(root.textContent).toContain('第三方元件');
+    expect(root.textContent).toContain('專案身份');
+  });
+
+  it('localizes Traditional Chinese not-found page chrome', () => {
+    window.history.replaceState(null, '', '/zh-hant/missing');
+
+    const root = document.createElement('main');
+    document.body.append(root);
+    mountNotFound(root);
+
+    expect(root.querySelector('h1')?.textContent).toBe('找不到頁面');
+    expect(root.textContent).toContain('這裡沒有內容。試試首頁，或透過聯絡告訴我你在找什麼。');
   });
 });
