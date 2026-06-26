@@ -10,39 +10,43 @@
 import './account-profile.css';
 import { setAccountNavUser } from './account-nav.js';
 import { identify, resetIdentity, track } from './analytics.js';
+import { t } from './i18n/catalog.js';
+import { currentLocale, LOCALE_META, type Locale, localizedHref } from './i18n/locale.js';
 import { type AuthUser, buildLoadingState, buildNav, fetchCurrentUser } from './site-shell.js';
 
 // ── Page mounts ──────────────────────────────────────────────────────────────
 
 export async function mountAccount(root: HTMLElement): Promise<void> {
+  const locale = currentLocale();
   root.replaceChildren();
   root.classList.add('landing-page', 'account-route');
-  root.append(buildNav(), buildLoadingState('Loading account'));
+  root.append(buildNav(locale), buildLoadingState(t('account.loading', {}, locale)));
 
   const shell = document.createElement('main');
   shell.className = 'account-shell';
-  root.replaceChildren(buildNav(), shell);
+  root.replaceChildren(buildNav(locale), shell);
 
   const current = await fetchCurrentUser().catch((err) => {
     console.warn(err);
     return null;
   });
-  renderAccountShell(shell, current, currentAccountTab());
+  renderAccountShell(shell, current, currentAccountTab(), locale);
 }
 
 export async function mountAccountSettings(root: HTMLElement): Promise<void> {
+  const locale = currentLocale();
   root.replaceChildren();
   root.classList.add('landing-page', 'account-route');
 
   const shell = document.createElement('main');
   shell.className = 'account-shell account-settings-shell';
-  root.replaceChildren(buildNav(), shell);
+  root.replaceChildren(buildNav(locale), shell);
 
   const current = await fetchCurrentUser().catch((err) => {
     console.warn(err);
     return null;
   });
-  renderAccountSettingsShell(shell, current);
+  renderAccountSettingsShell(shell, current, locale);
 }
 
 // ── Shell renderers ──────────────────────────────────────────────────────────
@@ -51,31 +55,48 @@ function renderAccountShell(
   shell: HTMLElement,
   user: AuthUser | null,
   tab: 'login' | 'register' = 'login',
+  locale: Locale = currentLocale(),
 ): void {
   shell.replaceChildren(
     user
-      ? buildSignedInAccount(user, () => renderAccountShell(shell, null, currentAccountTab()))
-      : buildLoginForm(tab, (next) => renderAccountShell(shell, next)),
+      ? buildSignedInAccount(
+          user,
+          () => renderAccountShell(shell, null, currentAccountTab(), locale),
+          locale,
+        )
+      : buildLoginForm(
+          tab,
+          (next) => renderAccountShell(shell, next, currentAccountTab(), locale),
+          locale,
+        ),
   );
 }
 
-function renderAccountSettingsShell(shell: HTMLElement, user: AuthUser | null): void {
+function renderAccountSettingsShell(
+  shell: HTMLElement,
+  user: AuthUser | null,
+  locale: Locale = currentLocale(),
+): void {
   shell.replaceChildren(
     user
-      ? buildAccountSettingsPage(user, shell)
-      : buildLoginForm('login', (next) => renderAccountSettingsShell(shell, next)),
+      ? buildAccountSettingsPage(user, shell, locale)
+      : buildLoginForm('login', (next) => renderAccountSettingsShell(shell, next, locale), locale),
   );
 }
 
 // ── Signed-in account card ───────────────────────────────────────────────────
 
-function buildSignedInAccount(user: AuthUser, onLogout: () => void): HTMLElement {
+function buildSignedInAccount(
+  user: AuthUser,
+  onLogout: () => void,
+  locale: Locale = currentLocale(),
+): HTMLElement {
   const panel = document.createElement('section');
   panel.className = 'account-panel';
 
   const eyebrow = document.createElement('span');
   eyebrow.className = 'account-eyebrow';
-  eyebrow.textContent = 'Signed in';
+  eyebrow.textContent = t('account.signedIn', {}, locale);
 
   const title = document.createElement('h1');
   title.className = 'site-section-heading';
@@ -87,17 +108,17 @@ function buildSignedInAccount(user: AuthUser, onLogout: () => void): HTMLElement
   const profile = document.createElement('a');
   profile.className = 'landing-setup-start';
   profile.href = `/@/${encodeURIComponent(user.handle)}`;
-  profile.textContent = 'View profile';
+  profile.textContent = t('account.viewProfile', {}, locale);
 
   const settings = document.createElement('a');
   settings.className = 'landing-setup-back';
-  settings.href = '/account/settings';
-  settings.textContent = 'Settings';
+  settings.href = localizedHref('/account/settings', locale);
+  settings.textContent = t('account.settings', {}, locale);
 
   const logout = document.createElement('button');
   logout.type = 'button';
   logout.className = 'landing-setup-back';
-  logout.textContent = 'Log out';
+  logout.textContent = t('account.logOut', {}, locale);
   logout.addEventListener('click', async () => {
     logout.disabled = true;
     await fetch('/api/auth/logout', { method: 'POST' });
@@ -113,40 +134,53 @@ function buildSignedInAccount(user: AuthUser, onLogout: () => void): HTMLElement
 
 // ── Account settings form ────────────────────────────────────────────────────
 
-function buildAccountSettingsPage(user: AuthUser, shell: HTMLElement): DocumentFragment {
+function buildAccountSettingsPage(
+  user: AuthUser,
+  shell: HTMLElement,
+  locale: Locale = currentLocale(),
+): DocumentFragment {
   const fragment = document.createDocumentFragment();
-  fragment.append(buildAccountSettings(user, shell));
+  fragment.append(buildAccountSettings(user, shell, locale));
   return fragment;
 }
 
-function buildAccountSettings(user: AuthUser, shell: HTMLElement): HTMLElement {
+function buildAccountSettings(
+  user: AuthUser,
+  shell: HTMLElement,
+  locale: Locale = currentLocale(),
+): HTMLElement {
   const panel = document.createElement('section');
   panel.className = 'account-panel account-settings-panel';
 
   const eyebrow = document.createElement('span');
   eyebrow.className = 'account-eyebrow';
-  eyebrow.textContent = 'Settings';
+  eyebrow.textContent = t('account.settings', {}, locale);
 
   const title = document.createElement('h1');
   title.className = 'site-section-heading';
-  title.textContent = 'Public profile';
+  title.textContent = t('account.publicProfile', {}, locale);
 
   const copy = document.createElement('p');
   copy.className = 'account-copy';
-  copy.textContent = 'Email signs you in. Your username is public.';
+  copy.textContent = t('account.settingsCopy', {}, locale);
 
   const form = document.createElement('form');
   form.className = 'account-settings-form';
 
-  const handle = labeledInput('Username', 'handle', user.handle, 'brianhliou');
+  const handle = labeledInput(
+    t('account.username', {}, locale),
+    'handle',
+    user.handle,
+    'brianhliou',
+  );
   handle.input.maxLength = 24;
   handle.input.pattern = '[a-zA-Z0-9][a-zA-Z0-9_-]{1,22}[a-zA-Z0-9]';
   handle.input.required = true;
-  handle.help.textContent = handleHelpText(user);
+  handle.help.textContent = handleHelpText(user, locale);
 
-  const email = labeledInput('Email', 'email', user.email, '');
+  const email = labeledInput(t('account.email', {}, locale), 'email', user.email, '');
   email.input.disabled = true;
-  email.help.textContent = 'Private login address. Not shown on your public profile.';
+  email.help.textContent = t('account.emailPrivate', {}, locale);
 
   const status = document.createElement('p');
   status.className = 'account-status';
@@ -158,17 +192,17 @@ function buildAccountSettings(user: AuthUser, shell: HTMLElement): HTMLElement {
   const save = document.createElement('button');
   save.type = 'submit';
   save.className = 'landing-setup-start';
-  save.textContent = 'Save';
+  save.textContent = t('account.save', {}, locale);
 
   const account = document.createElement('a');
   account.className = 'landing-setup-back';
-  account.href = '/account';
-  account.textContent = 'Account';
+  account.href = localizedHref('/account', locale);
+  account.textContent = t('account.account', {}, locale);
 
   const profile = document.createElement('a');
   profile.className = 'landing-setup-back';
   profile.href = `/@/${encodeURIComponent(user.handle)}`;
-  profile.textContent = 'View profile';
+  profile.textContent = t('account.viewProfile', {}, locale);
 
   actions.append(save, profile, account);
   form.append(handle.wrap, email.wrap, actions, status);
@@ -186,15 +220,15 @@ function buildAccountSettings(user: AuthUser, shell: HTMLElement): HTMLElement {
       });
       const data = (await resp.json()) as { user?: AuthUser; error?: string; availableAt?: string };
       if (!resp.ok || !data.user) {
-        throw new Error(accountSettingsErrorMessage(data.error, data.availableAt));
+        throw new Error(accountSettingsErrorMessage(data.error, data.availableAt, locale));
       }
       handle.input.value = data.user.handle;
-      handle.help.textContent = handleHelpText(data.user);
+      handle.help.textContent = handleHelpText(data.user, locale);
       email.input.value = data.user.email;
       profile.href = `/@/${encodeURIComponent(data.user.handle)}`;
-      status.textContent = 'Profile saved.';
+      status.textContent = t('account.profileSaved', {}, locale);
     } catch (err) {
-      status.textContent = err instanceof Error ? err.message : 'Could not save profile.';
+      status.textContent = err instanceof Error ? err.message : t('account.saveFailed', {}, locale);
     } finally {
       save.disabled = false;
     }
@@ -229,42 +263,58 @@ function labeledInput(
 function accountSettingsErrorMessage(
   error: string | undefined,
   availableAt: string | undefined,
+  locale: Locale = currentLocale(),
 ): string {
-  if (error === 'invalid_handle') return 'Use 3-24 letters, numbers, underscores, or dashes.';
-  if (error === 'handle_taken') return 'That username is not available.';
+  if (error === 'invalid_handle') return t('account.invalidHandle', {}, locale);
+  if (error === 'handle_taken') return t('account.handleTaken', {}, locale);
   if (error === 'handle_change_cooldown') {
     const date = availableAt ? new Date(availableAt) : null;
     return date && Number.isFinite(date.getTime())
-      ? `Username can be changed again on ${date.toLocaleDateString()}.`
-      : 'Username cannot be changed again yet.';
+      ? t('account.handleCooldownDate', { date: formatAccountDate(date, locale) }, locale)
+      : t('account.handleCooldownUnknown', {}, locale);
   }
-  if (error === 'not_signed_in') return 'Sign in before editing your profile.';
-  return 'Could not save profile.';
+  if (error === 'not_signed_in') return t('account.notSignedInEdit', {}, locale);
+  return t('account.saveFailed', {}, locale);
 }
 
-function handleHelpText(user: AuthUser): string {
+function handleHelpText(user: AuthUser, locale: Locale = currentLocale()): string {
   if (!user.handleChangedAt) {
-    return 'Used in your profile URL. Your first username change is available now.';
+    return t('account.handleHelpFirst', {}, locale);
   }
   const nextChangeAt = new Date(
     new Date(user.handleChangedAt).getTime() + 30 * 24 * 60 * 60 * 1000,
   );
   if (!Number.isFinite(nextChangeAt.getTime())) {
-    return 'Used in your profile URL. Later username changes are limited.';
+    return t('account.handleHelpLater', {}, locale);
   }
-  return `Used in your profile URL. Next username change: ${nextChangeAt.toLocaleDateString()}.`;
+  return t('account.handleHelpNext', { date: formatAccountDate(nextChangeAt, locale) }, locale);
+}
+
+function formatAccountDate(date: Date, locale: Locale): string {
+  return date.toLocaleDateString(LOCALE_META[locale].dateLocale);
 }
 
 // ── Login / register form ────────────────────────────────────────────────────
 
-function buildAccountAuthTabs(active: 'login' | 'register'): HTMLElement {
+function buildAccountAuthTabs(
+  active: 'login' | 'register',
+  locale: Locale = currentLocale(),
+): HTMLElement {
   const tabs = document.createElement('div');
   tabs.className = 'account-auth-tabs';
   tabs.setAttribute('role', 'tablist');
-  tabs.setAttribute('aria-label', 'Account access');
+  tabs.setAttribute('aria-label', t('account.access', {}, locale));
 
-  const signIn = buildAccountAuthTab('Sign in', '/account?tab=login', active === 'login');
-  const register = buildAccountAuthTab('Register', '/account?tab=register', active === 'register');
+  const signIn = buildAccountAuthTab(
+    t('nav.signIn', {}, locale),
+    localizedHref('/account?tab=login', locale),
+    active === 'login',
+  );
+  const register = buildAccountAuthTab(
+    t('nav.register', {}, locale),
+    localizedHref('/account?tab=register', locale),
+    active === 'register',
+  );
 
   tabs.append(signIn, register);
   return tabs;
@@ -283,26 +333,26 @@ function buildAccountAuthTab(label: string, href: string, isActive: boolean): HT
 function buildLoginForm(
   tab: 'login' | 'register' = 'login',
   onAuth: (user: AuthUser) => void = () => undefined,
+  locale: Locale = currentLocale(),
 ): HTMLElement {
   const panel = document.createElement('section');
   panel.className = 'account-panel';
 
-  panel.append(buildAccountAuthTabs(tab));
+  panel.append(buildAccountAuthTabs(tab, locale));
 
   const eyebrow = document.createElement('span');
   eyebrow.className = 'account-eyebrow';
-  eyebrow.textContent = 'Account';
+  eyebrow.textContent = t('account.account', {}, locale);
 
   const title = document.createElement('h1');
   title.className = 'site-section-heading';
-  title.textContent = tab === 'register' ? 'Create your account' : 'Sign in';
+  title.textContent =
+    tab === 'register' ? t('account.createAccountTitle', {}, locale) : t('nav.signIn', {}, locale);
 
   const copy = document.createElement('p');
   copy.className = 'account-copy';
   copy.textContent =
-    tab === 'register'
-      ? 'Enter your email. We’ll send a code—no password needed.'
-      : 'One email code. No password.';
+    tab === 'register' ? t('account.registerCopy', {}, locale) : t('account.loginCopy', {}, locale);
 
   const form = document.createElement('form');
   form.className = 'account-form';
@@ -311,7 +361,7 @@ function buildLoginForm(
   email.type = 'email';
   email.name = 'email';
   email.autocomplete = 'email';
-  email.placeholder = 'Email address';
+  email.placeholder = t('account.emailAddress', {}, locale);
   email.required = true;
 
   const code = document.createElement('input');
@@ -319,13 +369,13 @@ function buildLoginForm(
   code.name = 'code';
   code.inputMode = 'numeric';
   code.autocomplete = 'one-time-code';
-  code.placeholder = 'Login code';
+  code.placeholder = t('account.loginCode', {}, locale);
   code.hidden = true;
 
   const submit = document.createElement('button');
   submit.type = 'submit';
   submit.className = 'landing-setup-start';
-  submit.textContent = 'Send code';
+  submit.textContent = t('account.sendCode', {}, locale);
 
   const status = document.createElement('p');
   status.className = 'account-status';
@@ -352,10 +402,10 @@ function buildLoginForm(
         code.hidden = false;
         code.required = true;
         if (data.devCode) code.value = data.devCode;
-        submit.textContent = 'Confirm';
+        submit.textContent = t('account.confirm', {}, locale);
         status.textContent = data.devCode
-          ? 'Development code filled in.'
-          : 'Check your email for the login code.';
+          ? t('account.devCodeFilled', {}, locale)
+          : t('account.checkEmail', {}, locale);
         code.focus();
       } else {
         const { data, resp } = await fetchAuthJson<{
@@ -380,7 +430,10 @@ function buildLoginForm(
         onAuth(data.user);
       }
     } catch (err) {
-      status.textContent = err instanceof Error ? authErrorMessage(err.message) : 'Sign in failed.';
+      status.textContent =
+        err instanceof Error
+          ? authErrorMessage(err.message, locale)
+          : t('account.signInFailed', {}, locale);
     } finally {
       submit.disabled = false;
     }
@@ -394,12 +447,18 @@ function buildLoginForm(
     const legal = document.createElement('p');
     legal.className = 'account-legal';
     const termsLink = document.createElement('a');
-    termsLink.href = '/terms';
-    termsLink.textContent = 'Terms';
+    termsLink.href = localizedHref('/terms', locale);
+    termsLink.textContent = t('footer.terms', {}, locale);
     const privacyLink = document.createElement('a');
-    privacyLink.href = '/privacy';
-    privacyLink.textContent = 'Privacy';
-    legal.append('By creating an account you agree to our ', termsLink, ' and ', privacyLink, '.');
+    privacyLink.href = localizedHref('/privacy', locale);
+    privacyLink.textContent = t('footer.privacy', {}, locale);
+    legal.append(
+      t('account.legalPrefix', {}, locale),
+      termsLink,
+      t('account.legalAnd', {}, locale),
+      privacyLink,
+      t('account.legalSuffix', {}, locale),
+    );
     form.append(legal);
   }
 
@@ -424,18 +483,16 @@ async function fetchAuthJson<T>(
   }
 }
 
-function authErrorMessage(value: string): string {
-  if (value === 'auth_request_failed')
-    return 'Auth server unavailable. For local login, run npm run db:up, npm run db:migrate, then npm run dev:persistent.';
-  if (value === 'auth_bad_response') return 'Auth server returned an unreadable response.';
-  if (value.startsWith('auth_http_')) return 'Auth server request failed. Try again in a moment.';
-  if (value === 'email_delivery_not_configured')
-    return 'Email login is not configured in this runtime.';
-  if (value === 'email_delivery_failed') return 'Email delivery failed. Try again in a moment.';
-  if (value === 'persistence_disabled') return 'Accounts require the persistent server.';
-  if (value === 'invalid_login_code') return 'The login code was invalid or expired.';
-  if (value === 'invalid_email') return 'Enter a valid email address.';
-  return 'Sign in failed.';
+function authErrorMessage(value: string, locale: Locale = currentLocale()): string {
+  if (value === 'auth_request_failed') return t('account.authRequestFailed', {}, locale);
+  if (value === 'auth_bad_response') return t('account.authBadResponse', {}, locale);
+  if (value.startsWith('auth_http_')) return t('account.authHttpFailed', {}, locale);
+  if (value === 'email_delivery_not_configured') return t('account.emailNotConfigured', {}, locale);
+  if (value === 'email_delivery_failed') return t('account.emailDeliveryFailed', {}, locale);
+  if (value === 'persistence_disabled') return t('account.persistenceDisabled', {}, locale);
+  if (value === 'invalid_login_code') return t('account.invalidLoginCode', {}, locale);
+  if (value === 'invalid_email') return t('account.invalidEmail', {}, locale);
+  return t('account.signInFailed', {}, locale);
 }
 
 // ── Misc ─────────────────────────────────────────────────────────────────────

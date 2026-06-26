@@ -3,7 +3,7 @@ import './account-nav.css';
 import { identify, resetIdentity } from './analytics.js';
 import { type ConnectionStatus, createConnectionStatus } from './connection-status.js';
 import { t } from './i18n/catalog.js';
-import { currentLocale, localizedHref } from './i18n/locale.js';
+import { currentLocale, type Locale, localizedHref } from './i18n/locale.js';
 import { clearSeatTokenForRoom, liveState } from './live-state.js';
 import { clearNotificationBells, mountNotificationBell } from './notification-nav.js';
 import { readSignedInHint, setResolvedSignedIn, writeSignedInHint } from './signed-in-state.js';
@@ -176,6 +176,7 @@ function createSignedOutAccountSlot(): HTMLElement {
 }
 
 function mountAccountNav(nav: HTMLElement, user: AuthUser): void {
+  const locale = currentLocale();
   const utilities = nav.querySelector<HTMLElement>('.site-nav-utilities');
   if (!utilities) return;
   if (utilities.querySelector('[data-account-nav]')) return;
@@ -200,7 +201,7 @@ function mountAccountNav(nav: HTMLElement, user: AuthUser): void {
   trigger.textContent = user.handle;
   trigger.setAttribute('aria-expanded', 'false');
   trigger.setAttribute('aria-haspopup', 'menu');
-  trigger.setAttribute('aria-label', `Account menu for ${user.handle}`);
+  trigger.setAttribute('aria-label', t('account.menuFor', { handle: user.handle }, locale));
   if (wasActive) {
     trigger.classList.add('active');
     trigger.setAttribute('aria-current', 'page');
@@ -209,26 +210,26 @@ function mountAccountNav(nav: HTMLElement, user: AuthUser): void {
   const panel = document.createElement('div');
   panel.className = 'account-nav-panel';
   panel.setAttribute('role', 'menu');
-  panel.setAttribute('aria-label', 'Account');
+  panel.setAttribute('aria-label', t('account.account', {}, locale));
 
   const profile = document.createElement('a');
   profile.className = 'account-nav-item';
   profile.href = `/@/${encodeURIComponent(user.handle)}`;
   profile.setAttribute('role', 'menuitem');
-  profile.append(createOnlineDot(), createItemLabel('Profile'));
+  profile.append(createOnlineDot(), createItemLabel(t('account.profile', {}, locale)));
 
   const settings = document.createElement('a');
   settings.className = 'account-nav-item';
-  settings.href = '/account/settings';
+  settings.href = localizedHref('/account/settings', locale);
   settings.setAttribute('role', 'menuitem');
-  settings.append(createItemIcon(GEAR_ICON), createItemLabel('Preferences'));
+  settings.append(createItemIcon(GEAR_ICON), createItemLabel(t('account.preferences', {}, locale)));
 
   const logout = document.createElement('button');
   logout.type = 'button';
   logout.className = 'account-nav-item account-nav-item-button';
   logout.setAttribute('role', 'menuitem');
-  logout.append(createItemIcon(POWER_ICON), createItemLabel('Sign out'));
-  logout.addEventListener('click', () => void handleLogout(logout));
+  logout.append(createItemIcon(POWER_ICON), createItemLabel(t('account.signOut', {}, locale)));
+  logout.addEventListener('click', () => void handleLogout(logout, locale));
 
   trigger.addEventListener('click', () => {
     const expanded = trigger.getAttribute('aria-expanded') === 'true';
@@ -259,7 +260,10 @@ function mountAccountNav(nav: HTMLElement, user: AuthUser): void {
   for (const el of nav.querySelectorAll('[data-theme-control]')) el.remove();
 }
 
-async function handleLogout(button: HTMLButtonElement): Promise<void> {
+async function handleLogout(
+  button: HTMLButtonElement,
+  locale: Locale = currentLocale(),
+): Promise<void> {
   // Seats are account-bound, so signing out abandons any live game this account
   // is seated in: after sign-out the server treats this client as an
   // unauthorized spectator (can't view or rejoin the room), and the dropped
@@ -268,10 +272,7 @@ async function handleLogout(button: HTMLButtonElement): Promise<void> {
   const inLiveGame =
     liveState.state?.status.type === 'playing' &&
     (liveState.seat === 'white' || liveState.seat === 'black');
-  if (
-    inLiveGame &&
-    !window.confirm('You have a game in progress. Are you sure you want to sign out?')
-  ) {
+  if (inLiveGame && !window.confirm(t('account.signOutGameConfirm', {}, locale))) {
     return;
   }
   button.disabled = true;

@@ -99,6 +99,55 @@ describe('account page auth flow', () => {
       'Auth server unavailable',
     );
   });
+
+  it('localizes the Traditional Chinese register flow', async () => {
+    window.history.replaceState(null, '', '/zh-hant/account?tab=register');
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (input: RequestInfo | URL) => {
+        const url = String(input);
+        if (url === '/api/auth/me') return jsonResponse({ user: null });
+        if (url === '/api/auth/email/start') {
+          return jsonResponse({ loginId: 'login-1' }, 202);
+        }
+        throw new Error(`unexpected fetch: ${url}`);
+      }),
+    );
+
+    const { mountAccount } = await import('./account.js');
+
+    await mountAccount(document.querySelector<HTMLElement>('#app') as HTMLElement);
+    await flushDom();
+
+    expect(document.querySelector('.account-auth-tabs')?.getAttribute('aria-label')).toBe(
+      '帳號存取',
+    );
+    expect(document.querySelector('h1')?.textContent).toBe('建立帳號');
+    expect(document.querySelector('.account-copy')?.textContent).toBe(
+      '輸入信箱。我們會寄送驗證碼，不需要密碼。',
+    );
+    expect(document.querySelector<HTMLInputElement>('input[name="email"]')?.placeholder).toBe(
+      '信箱地址',
+    );
+    expect(document.querySelector<HTMLButtonElement>('button[type="submit"]')?.textContent).toBe(
+      '寄送驗證碼',
+    );
+    expect(document.querySelector('.account-legal')?.textContent).toContain(
+      '建立帳號即表示你同意我們的 條款 與 隱私。',
+    );
+
+    const email = document.querySelector<HTMLInputElement>('input[name="email"]');
+    if (email) email.value = 'misty@example.com';
+    submitAccountForm();
+    await flushDom();
+
+    expect(document.querySelector<HTMLButtonElement>('button[type="submit"]')?.textContent).toBe(
+      '確認',
+    );
+    expect(document.querySelector('.account-status')?.textContent).toBe(
+      '請檢查信箱中的登入驗證碼。',
+    );
+  });
 });
 
 function submitAccountForm(): void {

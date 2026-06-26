@@ -66,6 +66,30 @@ describe('account nav', () => {
     expect(document.querySelector('.site-nav-link-signin')?.textContent).toBe('Sign in');
     expect(document.querySelector('.site-nav-link-register')?.textContent).toBe('Register');
   });
+
+  it('localizes the signed-in account menu labels', async () => {
+    window.history.replaceState(null, '', '/zh-hant');
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => jsonResponse({ user: null })),
+    );
+
+    const { buildNav } = await import('./site-shell.js');
+    const { setAccountNavUser } = await import('./account-nav.js');
+    document.body.append(buildNav());
+
+    setAccountNavUser(testUser('misty'));
+
+    expect(document.querySelector('.account-nav-trigger')?.getAttribute('aria-label')).toBe(
+      'misty 的帳號選單',
+    );
+    expect(document.querySelector('.account-nav-panel')?.getAttribute('aria-label')).toBe('帳號');
+    expect(
+      Array.from(document.querySelectorAll('.account-nav-item-label')).map(
+        (item) => item.textContent,
+      ),
+    ).toEqual(['個人資料', '偏好設定', '登出']);
+  });
 });
 
 function testUser(handle: string): TestUser {
