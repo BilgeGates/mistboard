@@ -16,12 +16,7 @@ import {
 } from '@mistboard/game';
 import './articles.css';
 import { type Announcement, announcements } from './announcements.js';
-import {
-  ARTICLE_LANG_PREFIX,
-  type ArticleLang,
-  translateArticle,
-  translateArticleText,
-} from './article-i18n.js';
+import { type ArticleLang, translateArticle, translateArticleText } from './article-i18n.js';
 import {
   type Article,
   type ArticleBlock,
@@ -57,6 +52,8 @@ import {
   type DropMiniXiangqiReplayController,
   mountDropMiniXiangqiReplay,
 } from './drop-mini-xiangqi-replay.js';
+import { type I18nKey, t } from './i18n/catalog.js';
+import { currentLocale, LOCALE_META, type Locale, localizedHref } from './i18n/locale.js';
 import { type JieqiReplayController, mountJieqiReplay } from './jieqi-replay.js';
 import { type MiniXiangqiReplayController, mountMiniXiangqiReplay } from './mini-xiangqi-replay.js';
 import { mountShogiReplay, type ShogiReplayController } from './shogi-replay.js';
@@ -122,104 +119,30 @@ const BASE_RULE_ORDER: Record<string, number> = {
   shogi4: 100,
 };
 
-const ARTICLE_INDEX_COPY: Record<
-  ArticleLang | 'en',
-  {
-    heading: string;
-    intro: string;
-    rulesHeading: string;
-    rulesIntro: string;
-    rulesLandingBody: string[];
-    rulesGroupTitles: Record<RulesArticleGroupId, string>;
-    allArticles: string;
-    allRules: string;
-    articleKind: string;
-    rulesKind: string;
-    tocTitle: string;
-    published: string;
-    updated: string;
-    dateLocale: string;
-  }
-> = {
-  en: {
-    heading: 'Articles',
-    intro: 'Essays, variants, and engine work for dark chess.',
-    rulesHeading: 'Rules',
-    rulesIntro: 'Reference rules for Mistboard games and Fog of War variants.',
-    rulesLandingBody: [
-      'Each page covers the board, how the pieces move, and how games end, with interactive boards you can step through.',
-      'The base games anchor the rules. Their dark variants play the same game under fog: each side sees only the squares its pieces reach, there are no check warnings, and you win by capturing the king.',
-    ],
-    rulesGroupTitles: {
-      chess: 'Chess variants',
-      xiangqi: 'Xiangqi variants',
-      shogi: 'Shogi variants',
-      other: 'Other games',
-    },
-    allArticles: 'All articles',
-    allRules: 'All rules',
-    articleKind: 'Article',
-    rulesKind: 'Rules',
-    tocTitle: 'On this page',
-    published: 'Published',
-    updated: 'Updated',
-    dateLocale: 'en-US',
-  },
-  'zh-Hans': {
-    heading: '文章',
-    intro: '迷雾国际象棋的变体、策略与引擎工作。',
-    rulesHeading: '规则',
-    rulesIntro: 'Mistboard 游戏与战争迷雾变体的规则参考。',
-    rulesLandingBody: [
-      '每个页面介绍棋盘、棋子走法与胜负规则，并配有可逐步演示的互动棋盘。',
-      '基础棋类是规则的根基。黑暗变体在迷雾下进行同一种游戏：双方只能看到己方棋子所及的格子，没有将军提示，吃掉对方的王即获胜。',
-    ],
-    rulesGroupTitles: {
-      chess: '国际象棋变体',
-      xiangqi: '象棋变体',
-      shogi: '将棋变体',
-      other: '其他游戏',
-    },
-    allArticles: '全部文章',
-    allRules: '全部规则',
-    articleKind: '文章',
-    rulesKind: '规则',
-    tocTitle: '本页内容',
-    published: '发布于',
-    updated: '更新于',
-    dateLocale: 'zh-CN',
-  },
-  'zh-Hant': {
-    heading: '文章',
-    intro: '迷霧國際象棋的變體、策略與引擎工作。',
-    rulesHeading: '規則',
-    rulesIntro: 'Mistboard 遊戲與戰爭迷霧變體的規則參考。',
-    rulesLandingBody: [
-      '每個頁面介紹棋盤、棋子走法與勝負規則，並配有可逐步演示的互動棋盤。',
-      '基礎棋類是規則的根基。黑暗變體在迷霧下進行同一種遊戲：雙方只能看到己方棋子所及的格子，沒有將軍提示，吃掉對方的王即獲勝。',
-    ],
-    rulesGroupTitles: {
-      chess: '西洋棋變體',
-      xiangqi: '象棋變體',
-      shogi: '將棋變體',
-      other: '其他遊戲',
-    },
-    allArticles: '全部文章',
-    allRules: '全部規則',
-    articleKind: '文章',
-    rulesKind: '規則',
-    tocTitle: '本頁內容',
-    published: '發布於',
-    updated: '更新於',
-    dateLocale: 'zh-TW',
-  },
+const RULES_GROUP_TITLE_KEYS: Record<RulesArticleGroupId, I18nKey> = {
+  chess: 'rules.group.chess',
+  xiangqi: 'rules.group.xiangqi',
+  shogi: 'rules.group.shogi',
+  other: 'rules.group.other',
 };
 
-type ArticleIndexCopy = (typeof ARTICLE_INDEX_COPY)[ArticleLang | 'en'];
+const ARTICLE_STATUS_KEYS: Record<'draft' | 'outline', I18nKey> = {
+  draft: 'articles.status.draft',
+  outline: 'articles.status.outline',
+};
+
 type RulesArticleGroup = {
   title: string;
   items: Article[];
 };
+
+function articleLocale(lang?: ArticleLang): Locale {
+  return lang ?? currentLocale();
+}
+
+function isArticleStatusBadge(status: Article['status']): status is 'draft' | 'outline' {
+  return status === 'draft' || status === 'outline';
+}
 
 export function buildArticlesIndex(lang?: ArticleLang): HTMLElement {
   return buildContentIndex('article', lang);
@@ -230,7 +153,7 @@ export function buildRulesIndex(lang?: ArticleLang): HTMLElement {
 }
 
 function buildContentIndex(kind: Article['kind'], lang?: ArticleLang): HTMLElement {
-  const copy = ARTICLE_INDEX_COPY[lang ?? 'en'];
+  const locale = articleLocale(lang);
   const main = document.createElement('main');
   main.className = 'site-section article-shell articles-index';
 
@@ -239,11 +162,11 @@ function buildContentIndex(kind: Article['kind'], lang?: ArticleLang): HTMLEleme
 
   const heading = document.createElement('h1');
   heading.className = 'site-section-heading';
-  heading.textContent = kind === 'rules' ? copy.rulesHeading : copy.heading;
+  heading.textContent = t(kind === 'rules' ? 'rules.heading' : 'articles.heading', {}, locale);
 
   const intro = document.createElement('p');
   intro.className = 'articles-index-intro';
-  intro.textContent = kind === 'rules' ? copy.rulesIntro : copy.intro;
+  intro.textContent = t(kind === 'rules' ? 'rules.intro' : 'articles.intro', {}, locale);
 
   const list = document.createElement('ul');
   list.className = 'articles-index-list';
@@ -264,7 +187,7 @@ function buildContentIndex(kind: Article['kind'], lang?: ArticleLang): HTMLEleme
 // with the variant rail as the selector. Below the rail breakpoint a
 // thumbnail tile grid takes over as the picker.
 function buildRulesLanding(lang?: ArticleLang): HTMLElement {
-  const copy = ARTICLE_INDEX_COPY[lang ?? 'en'];
+  const locale = articleLocale(lang);
   const main = document.createElement('main');
   main.className = 'site-section article-shell articles-index rules-landing';
 
@@ -273,25 +196,25 @@ function buildRulesLanding(lang?: ArticleLang): HTMLElement {
 
   const heading = document.createElement('h1');
   heading.className = 'site-section-heading';
-  heading.textContent = copy.rulesHeading;
+  heading.textContent = t('rules.heading', {}, locale);
 
   const intro = document.createElement('p');
   intro.className = 'articles-index-intro';
-  intro.textContent = copy.rulesIntro;
+  intro.textContent = t('rules.intro', {}, locale);
 
   sheet.append(heading, intro);
 
-  for (const text of copy.rulesLandingBody) {
+  for (const key of ['rules.body1', 'rules.body2'] as const) {
     const p = document.createElement('p');
     p.className = 'rules-landing-paragraph';
-    p.textContent = text;
+    p.textContent = t(key, {}, locale);
     sheet.append(p);
   }
 
   const entries = articles.filter(
     (article) => article.kind === 'rules' && isArticleListedInThisEnv(article),
   );
-  const tileGroups = buildRulesArticleGroups(entries, copy);
+  const tileGroups = buildRulesArticleGroups(entries, locale);
   for (const group of tileGroups) {
     const groupTitle = document.createElement('h2');
     groupTitle.className = 'rules-landing-group-title';
@@ -303,7 +226,7 @@ function buildRulesLanding(lang?: ArticleLang): HTMLElement {
       const li = document.createElement('li');
       const tile = document.createElement('a');
       tile.className = 'rules-landing-tile';
-      tile.href = `${lang ? ARTICLE_LANG_PREFIX[lang] : ''}/rules/${article.slug}`;
+      tile.href = localizedHref(`/rules/${article.slug}`, locale);
       const miniTile = renderVariantMiniThumb(article.slug);
       if (miniTile) tile.append(miniTile);
       else if (article.thumbnail) tile.append(renderArticleThumbnail(article.thumbnail));
@@ -357,7 +280,10 @@ type HomeCardItem =
       article: Article;
     };
 
-export function buildHomeArticleCards(limit = 8): HTMLElement | null {
+export function buildHomeArticleCards(
+  limit = 8,
+  locale: Locale = currentLocale(),
+): HTMLElement | null {
   const eligible = new Map(
     articles.filter(isArticleListedInThisEnv).map((article) => [article.slug, article]),
   );
@@ -382,28 +308,28 @@ export function buildHomeArticleCards(limit = 8): HTMLElement | null {
     .sort(compareHomeCardItems)
     .map((item) =>
       item.kind === 'announcement'
-        ? landingAnnouncementCard(item.announcement)
-        : landingArticleCard(item.article),
+        ? landingAnnouncementCard(item.announcement, locale)
+        : landingArticleCard(item.article, locale),
     )
     .slice(0, limit);
   if (cards.length === 0) return null;
 
   const section = document.createElement('section');
   section.className = 'landing-articles';
-  section.setAttribute('aria-label', 'Articles');
+  section.setAttribute('aria-label', t('articles.heading', {}, locale));
 
   const header = document.createElement('div');
   header.className = 'landing-articles-header';
 
   const heading = document.createElement('h2');
   heading.className = 'landing-articles-heading';
-  heading.textContent = 'Read';
+  heading.textContent = t('articles.read', {}, locale);
 
   const more = document.createElement('a');
   more.className = 'landing-articles-more';
-  more.href = '/articles';
+  more.href = localizedHref('/articles', locale);
   const moreLabel = document.createElement('span');
-  moreLabel.textContent = 'All articles';
+  moreLabel.textContent = t('articles.allArticles', {}, locale);
   const moreArrow = document.createElement('span');
   moreArrow.className = 'landing-articles-more-arrow';
   moreArrow.setAttribute('aria-hidden', 'true');
@@ -418,8 +344,8 @@ export function buildHomeArticleCards(limit = 8): HTMLElement | null {
   track.className = 'landing-carousel-track';
   for (const card of cards) track.append(card);
 
-  const prev = carouselNavButton('prev', '‹');
-  const next = carouselNavButton('next', '›');
+  const prev = carouselNavButton('prev', '‹', locale);
+  const next = carouselNavButton('next', '›', locale);
 
   carousel.append(prev, track, next);
   section.append(header, carousel);
@@ -449,21 +375,24 @@ function latestVisibleAnnouncement(): Announcement | undefined {
     .sort((a, b) => b.date.localeCompare(a.date))[0];
 }
 
-function carouselNavButton(dir: 'prev' | 'next', glyph: string): HTMLButtonElement {
+function carouselNavButton(dir: 'prev' | 'next', glyph: string, locale: Locale): HTMLButtonElement {
   const button = document.createElement('button');
   button.type = 'button';
   button.className = `landing-carousel-nav landing-carousel-nav-${dir}`;
-  button.setAttribute('aria-label', dir === 'prev' ? 'Previous articles' : 'More articles');
+  button.setAttribute(
+    'aria-label',
+    t(dir === 'prev' ? 'articles.previousArticles' : 'articles.moreArticles', {}, locale),
+  );
   button.textContent = glyph;
   return button;
 }
 
-function landingArticleCard(article: Article): HTMLElement {
+function landingArticleCard(article: Article, locale: Locale): HTMLElement {
   const link = document.createElement('a');
   link.className = 'landing-article-card';
   link.dataset.cardKind = 'article';
   const base = article.kind === 'rules' ? 'rules' : 'articles';
-  link.href = `/${base}/${article.slug}`;
+  link.href = localizedHref(`/${base}/${article.slug}`, locale);
 
   const thumb = document.createElement('div');
   thumb.className = 'landing-article-card-thumb';
@@ -483,7 +412,7 @@ function landingArticleCard(article: Article): HTMLElement {
   if (dateIso) {
     const date = document.createElement('span');
     date.className = 'landing-article-card-date';
-    date.textContent = formatCardDate(dateIso);
+    date.textContent = formatCardDate(dateIso, locale);
     thumb.append(date);
   }
 
@@ -495,12 +424,12 @@ function landingArticleCard(article: Article): HTMLElement {
   return link;
 }
 
-function landingAnnouncementCard(announcement: Announcement): HTMLElement {
+function landingAnnouncementCard(announcement: Announcement, locale: Locale): HTMLElement {
   const link = document.createElement('a');
   link.className = 'landing-article-card landing-announcement-card';
   link.dataset.cardKind = 'announcement';
   const href = announcement.href ?? '/news';
-  link.href = href;
+  link.href = /^https?:/.test(href) ? href : localizedHref(href, locale);
   if (/^https?:/.test(href)) {
     link.target = '_blank';
     link.rel = 'noopener noreferrer';
@@ -511,12 +440,12 @@ function landingAnnouncementCard(announcement: Announcement): HTMLElement {
 
   const kicker = document.createElement('span');
   kicker.className = 'landing-article-card-kicker';
-  kicker.textContent = 'News';
+  kicker.textContent = t('articles.news', {}, locale);
   thumb.append(kicker);
 
   const date = document.createElement('span');
   date.className = 'landing-article-card-date';
-  date.textContent = formatCardDate(announcement.date);
+  date.textContent = formatCardDate(announcement.date, locale);
   thumb.append(date);
 
   const title = document.createElement('strong');
@@ -527,13 +456,24 @@ function landingAnnouncementCard(announcement: Announcement): HTMLElement {
   return link;
 }
 
-function formatCardDate(iso: string): string {
+function formatCardDate(iso: string, locale: Locale): string {
   const date = new Date(`${iso}T00:00:00Z`);
   if (!Number.isFinite(date.getTime())) return '';
-  return date.toLocaleDateString('en-US', {
+  return date.toLocaleDateString(LOCALE_META[locale].dateLocale, {
     month: 'short',
     day: 'numeric',
     year: 'numeric',
+    timeZone: 'UTC',
+  });
+}
+
+function formatArticleDate(iso: string, locale: Locale): string {
+  const date = new Date(`${iso}T00:00:00Z`);
+  if (!Number.isFinite(date.getTime())) return '';
+  return date.toLocaleDateString(LOCALE_META[locale].dateLocale, {
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric',
     timeZone: 'UTC',
   });
 }
@@ -628,9 +568,10 @@ export function initLandingCarousel(root: HTMLElement): void {
 }
 
 export function buildArticlePage(slug: string, lang?: ArticleLang): HTMLElement {
+  const locale = articleLocale(lang);
   const base = findArticle(slug);
-  if (!base) return buildArticleNotFound();
-  if (!isArticleVisibleInThisEnv(base)) return buildArticleNotFound();
+  if (!base) return buildArticleNotFound(locale);
+  if (!isArticleVisibleInThisEnv(base)) return buildArticleNotFound(locale);
   const article = lang ? translateArticle(base, lang) : base;
 
   const main = document.createElement('main');
@@ -646,10 +587,11 @@ export function buildArticlePage(slug: string, lang?: ArticleLang): HTMLElement 
   const breadcrumb = document.createElement('p');
   breadcrumb.className = 'article-breadcrumb';
   const back = document.createElement('a');
-  const prefix = lang ? ARTICLE_LANG_PREFIX[lang] : '';
-  back.href = article.kind === 'rules' ? `${prefix}/rules` : `${prefix}/articles`;
-  const copy = ARTICLE_INDEX_COPY[lang ?? 'en'];
-  back.textContent = article.kind === 'rules' ? `← ${copy.allRules}` : `← ${copy.allArticles}`;
+  back.href = localizedHref(article.kind === 'rules' ? '/rules' : '/articles', locale);
+  back.textContent =
+    article.kind === 'rules'
+      ? `← ${t('rules.allRules', {}, locale)}`
+      : `← ${t('articles.allArticles', {}, locale)}`;
   breadcrumb.append(back);
 
   // Centered header block (lichess ublog grammar): fluid regular-weight
@@ -666,31 +608,30 @@ export function buildArticlePage(slug: string, lang?: ArticleLang): HTMLElement 
   metaRow.className = 'article-meta-row';
   const kindChip = document.createElement('span');
   kindChip.className = 'article-chip';
-  kindChip.textContent = article.kind === 'rules' ? copy.rulesKind : copy.articleKind;
+  kindChip.textContent = t(
+    article.kind === 'rules' ? 'rules.kind' : 'articles.articleKind',
+    {},
+    locale,
+  );
   metaRow.append(kindChip);
-  const showStatusBadge = article.status === 'outline' || article.status === 'draft';
-  if (showStatusBadge) {
+  if (isArticleStatusBadge(article.status)) {
     const badge = document.createElement('span');
     badge.className = `article-status-badge article-status-${article.status}`;
-    badge.textContent = article.status.charAt(0).toUpperCase() + article.status.slice(1);
+    badge.textContent = t(ARTICLE_STATUS_KEYS[article.status], {}, locale);
     metaRow.append(badge);
   }
   if (article.publishedAt) {
-    const fmt = (iso: string): string => {
-      // YYYY-MM-DD → "Month D, YYYY"
-      const d = new Date(`${iso}T00:00:00Z`);
-      return d.toLocaleDateString(copy.dateLocale, {
-        year: 'numeric',
-        month: 'long',
-        day: 'numeric',
-        timeZone: 'UTC',
-      });
-    };
     const dates = document.createElement('span');
     dates.className = 'article-meta-dates';
-    dates.textContent = `${copy.published} ${fmt(article.publishedAt)}`;
+    dates.textContent = `${t('articles.published', {}, locale)} ${formatArticleDate(
+      article.publishedAt,
+      locale,
+    )}`;
     if (article.updatedAt && article.updatedAt !== article.publishedAt) {
-      dates.textContent += ` · ${copy.updated} ${fmt(article.updatedAt)}`;
+      dates.textContent += ` · ${t('articles.updated', {}, locale)} ${formatArticleDate(
+        article.updatedAt,
+        locale,
+      )}`;
     }
     metaRow.append(dates);
   }
@@ -718,7 +659,7 @@ export function buildArticlePage(slug: string, lang?: ArticleLang): HTMLElement 
     tldr.className = 'article-tldr';
     const tldrHeading = document.createElement('strong');
     tldrHeading.className = 'article-tldr-heading';
-    tldrHeading.textContent = 'TL;DR';
+    tldrHeading.textContent = t('articles.tldr', {}, locale);
     const tldrList = document.createElement('ul');
     tldrList.className = 'article-tldr-list';
     for (const line of article.tldr) {
@@ -770,6 +711,7 @@ export function buildArticlePage(slug: string, lang?: ArticleLang): HTMLElement 
 // (a guest page like shogi4): those render the rail without self-including, so
 // nothing is highlighted and the page reads as "other games on this site."
 function buildVariantSidebar(currentSlug: string | null, lang?: ArticleLang): HTMLElement | null {
+  const locale = articleLocale(lang);
   const entries = articles.filter(
     (article) =>
       article.kind === 'rules' &&
@@ -780,15 +722,14 @@ function buildVariantSidebar(currentSlug: string | null, lang?: ArticleLang): HT
   );
   if (entries.length < 2) return null;
 
-  const copy = ARTICLE_INDEX_COPY[lang ?? 'en'];
   const aside = document.createElement('aside');
   aside.className = 'article-variant-sidebar';
-  aside.setAttribute('aria-label', 'Rules navigation');
+  aside.setAttribute('aria-label', t('rules.navigation', {}, locale));
 
   const box = document.createElement('div');
   box.className = 'article-toc-sticky';
 
-  const groups = buildRulesArticleGroups(entries, copy);
+  const groups = buildRulesArticleGroups(entries, locale);
 
   for (const group of groups) {
     const title = document.createElement('p');
@@ -802,7 +743,7 @@ function buildVariantSidebar(currentSlug: string | null, lang?: ArticleLang): HT
       const li = document.createElement('li');
       const link = document.createElement('a');
       link.className = 'article-variant-link';
-      link.href = `${lang ? ARTICLE_LANG_PREFIX[lang] : ''}/rules/${entry.slug}`;
+      link.href = localizedHref(`/rules/${entry.slug}`, locale);
       const miniRail = renderVariantMiniThumb(entry.slug);
       if (miniRail) link.append(miniRail);
       else if (entry.thumbnail) link.append(renderArticleThumbnail(entry.thumbnail));
@@ -831,12 +772,9 @@ function variantNavLabel(title: string): string {
   return title.replace(/\s*Rules$/i, '').replace(/(规则|規則)$/u, '');
 }
 
-function buildRulesArticleGroups(
-  entries: readonly Article[],
-  copy: ArticleIndexCopy,
-): RulesArticleGroup[] {
+function buildRulesArticleGroups(entries: readonly Article[], locale: Locale): RulesArticleGroup[] {
   return RULES_ARTICLE_GROUP_ORDER.map((id) => ({
-    title: copy.rulesGroupTitles[id],
+    title: t(RULES_GROUP_TITLE_KEYS[id], {}, locale),
     items: entries
       .filter((article) => rulesArticleGroup(article) === id)
       .sort(compareRulesArticles),
@@ -891,6 +829,7 @@ function uniqueId(text: string, used: Set<string>, fallback: number): string {
 function buildTocSidebar(body: HTMLElement, lang?: ArticleLang): HTMLElement | null {
   const headings = body.querySelectorAll<HTMLHeadingElement>('h2, h3');
   if (headings.length === 0) return null;
+  const locale = articleLocale(lang);
 
   const aside = document.createElement('aside');
   aside.className = 'article-toc-sidebar';
@@ -898,10 +837,10 @@ function buildTocSidebar(body: HTMLElement, lang?: ArticleLang): HTMLElement | n
   sticky.className = 'article-toc-sticky';
   const title = document.createElement('h3');
   title.className = 'article-toc-title';
-  title.textContent = ARTICLE_INDEX_COPY[lang ?? 'en'].tocTitle;
+  title.textContent = t('articles.tocTitle', {}, locale);
   const nav = document.createElement('nav');
   nav.className = 'article-toc-nav';
-  nav.setAttribute('aria-label', 'Table of contents');
+  nav.setAttribute('aria-label', t('articles.tableOfContents', {}, locale));
 
   const rootList = document.createElement('ul');
   let currentH2Li: HTMLLIElement | null = null;
@@ -1809,14 +1748,14 @@ function renderStaticBoardsBlock(block: StaticBoardsBlock): HTMLElement {
 const pendingThumbnails = new WeakMap<HTMLElement, ArticleThumbnail>();
 
 function articleCard(article: Article, lang?: ArticleLang): HTMLLIElement {
-  const copy = ARTICLE_INDEX_COPY[lang ?? 'en'];
+  const locale = articleLocale(lang);
   const item = document.createElement('li');
   item.className = 'articles-index-item';
 
   const link = document.createElement('a');
   link.className = 'articles-index-card';
   const base = article.kind === 'rules' ? 'rules' : 'articles';
-  link.href = `${lang ? ARTICLE_LANG_PREFIX[lang] : ''}/${base}/${article.slug}`;
+  link.href = localizedHref(`/${base}/${article.slug}`, locale);
 
   const mini = renderVariantMiniThumb(article.slug);
   if (mini) {
@@ -1828,12 +1767,12 @@ function articleCard(article: Article, lang?: ArticleLang): HTMLLIElement {
   const body = document.createElement('div');
   body.className = 'articles-index-card-body';
 
-  if (article.status === 'outline' || article.status === 'draft') {
+  if (isArticleStatusBadge(article.status)) {
     const meta = document.createElement('div');
     meta.className = 'articles-index-card-meta';
     const badge = document.createElement('span');
     badge.className = `article-status-badge article-status-${article.status}`;
-    badge.textContent = article.status.charAt(0).toUpperCase() + article.status.slice(1);
+    badge.textContent = t(ARTICLE_STATUS_KEYS[article.status], {}, locale);
     meta.append(badge);
     body.append(meta);
   }
@@ -1851,19 +1790,10 @@ function articleCard(article: Article, lang?: ArticleLang): HTMLLIElement {
   if (article.publishedAt) {
     const dates = document.createElement('p');
     dates.className = 'articles-index-card-dates';
-    const fmt = (iso: string): string => {
-      const d = new Date(`${iso}T00:00:00Z`);
-      return d.toLocaleDateString(copy.dateLocale, {
-        year: 'numeric',
-        month: 'long',
-        day: 'numeric',
-        timeZone: 'UTC',
-      });
-    };
     const showUpdated = article.updatedAt && article.updatedAt !== article.publishedAt;
     dates.textContent = showUpdated
-      ? `${copy.updated} ${fmt(article.updatedAt!)}`
-      : `${copy.published} ${fmt(article.publishedAt)}`;
+      ? `${t('articles.updated', {}, locale)} ${formatArticleDate(article.updatedAt!, locale)}`
+      : `${t('articles.published', {}, locale)} ${formatArticleDate(article.publishedAt, locale)}`;
     body.append(dates);
   }
 
@@ -2046,18 +1976,18 @@ function squareFromVisualPosition(col: number, row: number, orientation: Color):
   return `${String.fromCharCode('a'.charCodeAt(0) + fileIdx)}${rankIdx + 1}` as Square;
 }
 
-function buildArticleNotFound(): HTMLElement {
+function buildArticleNotFound(locale: Locale = currentLocale()): HTMLElement {
   const main = document.createElement('main');
   main.className = 'site-section article-page';
   const heading = document.createElement('h1');
   heading.className = 'site-section-heading';
-  heading.textContent = 'Article not found';
+  heading.textContent = t('articles.notFoundTitle', {}, locale);
   const body = document.createElement('p');
-  body.textContent = 'This article doesn’t exist (yet).';
+  body.textContent = t('articles.notFoundBody', {}, locale);
   const back = document.createElement('p');
   const backLink = document.createElement('a');
-  backLink.href = '/articles';
-  backLink.textContent = '← All articles';
+  backLink.href = localizedHref('/articles', locale);
+  backLink.textContent = `← ${t('articles.allArticles', {}, locale)}`;
   back.append(backLink);
   main.append(heading, body, back);
   return main;

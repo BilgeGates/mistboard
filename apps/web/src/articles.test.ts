@@ -70,6 +70,63 @@ describe('article public listing gates', () => {
     expect(text).not.toContain('Programming Dark Chess with Server-Side Truth');
   });
 
+  it('localizes Traditional Chinese article chrome and content links', () => {
+    vi.stubEnv('DEV', false);
+
+    const home = buildHomeArticleCards(50, 'zh-Hant');
+    const firstArticleCard = home?.querySelector<HTMLAnchorElement>(
+      '.landing-article-card[data-card-kind="article"]',
+    );
+
+    expect(home?.getAttribute('aria-label')).toBe('文章');
+    expect(home?.querySelector('.landing-articles-heading')?.textContent).toBe('閱讀');
+    expect(home?.querySelector('.landing-articles-more')?.getAttribute('href')).toBe(
+      '/zh-hant/articles',
+    );
+    expect(home?.querySelector('.landing-carousel-nav-prev')?.getAttribute('aria-label')).toBe(
+      '上一篇文章',
+    );
+    expect(home?.querySelector('.landing-carousel-nav-next')?.getAttribute('aria-label')).toBe(
+      '更多文章',
+    );
+    expect(firstArticleCard?.getAttribute('href')).toMatch(/^\/zh-hant\/(articles|rules)\//);
+
+    const page = buildArticlePage('banqi', 'zh-Hant');
+    expect(page.querySelector('.article-breadcrumb a')?.textContent).toBe('← 全部規則');
+    expect(page.querySelector('.article-breadcrumb a')?.getAttribute('href')).toBe(
+      '/zh-hant/rules',
+    );
+    expect(page.querySelector('.article-chip')?.textContent).toBe('規則');
+    expect(page.querySelector('.article-meta-dates')?.textContent).toContain('發布於');
+    expect(page.querySelector('.article-variant-sidebar')?.getAttribute('aria-label')).toBe(
+      '規則導覽',
+    );
+    expect(page.querySelector('.article-toc-sidebar .article-toc-title')?.textContent).toBe(
+      '本頁內容',
+    );
+    expect(
+      page.querySelector('.article-toc-sidebar .article-toc-nav')?.getAttribute('aria-label'),
+    ).toBe('目錄');
+    expect(
+      page.querySelector('.article-variant-sidebar a[href="/zh-hant/rules/banqi"]'),
+    ).not.toBeNull();
+  });
+
+  it('localizes Japanese article shell while linking to canonical content pages', () => {
+    vi.stubEnv('DEV', false);
+
+    const home = buildHomeArticleCards(50, 'ja');
+
+    expect(home?.getAttribute('aria-label')).toBe('記事');
+    expect(home?.querySelector('.landing-articles-heading')?.textContent).toBe('読む');
+    expect(home?.querySelector('.landing-articles-more')?.getAttribute('href')).toBe('/articles');
+    expect(
+      home
+        ?.querySelector<HTMLAnchorElement>('.landing-article-card[data-card-kind="article"]')
+        ?.getAttribute('href'),
+    ).toMatch(/^\/(articles|rules)\//);
+  });
+
   it('limits the homepage article widget to curated article cards ordered by publish date', () => {
     vi.stubEnv('VITE_DARK_MINI_XIANGQI_ENABLED', 'true');
     vi.stubEnv('VITE_DARK_MINI_XIANGQI_PUBLIC_ENTRY_ENABLED', 'true');
