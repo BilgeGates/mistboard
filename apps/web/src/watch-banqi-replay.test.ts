@@ -29,7 +29,7 @@ describe('Banqi watch replay', () => {
     expect(root.querySelectorAll('.banqi-board')).toHaveLength(1);
 
     root.querySelector<HTMLButtonElement>('[aria-label="Next move"]')?.click();
-    expect(root.textContent).toContain('Ply 1 / 1 — Red wins');
+    expect(root.textContent).toContain('Ply 1 / 1 - Red wins');
 
     await handle.loadGame('bq_next');
     expect(fetchSpy).toHaveBeenCalledWith('/api/banqi/games/bq_next');
@@ -37,6 +37,27 @@ describe('Banqi watch replay', () => {
 
     handle.destroy();
     expect(root.childElementCount).toBe(0);
+  });
+
+  it('localizes Banqi TV replay chrome', async () => {
+    const fetchSpy = vi.fn(async (input: RequestInfo | URL) => {
+      return jsonResponse(postgameFixture(String(input).split('/').pop() ?? 'bq_watch'));
+    });
+    vi.stubGlobal('fetch', fetchSpy);
+    const root = document.createElement('div');
+
+    await mountBanqiWatchReplay(root, 'bq_watch', { autoplay: false, locale: 'zh-Hant' });
+
+    expect(root.textContent).toContain('人類對引擎');
+    expect(root.textContent).toContain('紅方獲勝');
+    expect(root.textContent).toContain('原因：認輸');
+    expect(root.textContent).toContain('1 手');
+    expect(root.textContent).toContain('休閒');
+    expect(root.textContent).toContain('第 0 / 1 手');
+    expect(root.querySelector<HTMLButtonElement>('[aria-label="下一手"]')).not.toBeNull();
+
+    root.querySelector<HTMLButtonElement>('[aria-label="下一手"]')?.click();
+    expect(root.textContent).toContain('第 1 / 1 手 - 紅方獲勝');
   });
 });
 

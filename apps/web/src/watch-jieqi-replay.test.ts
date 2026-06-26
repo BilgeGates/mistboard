@@ -43,7 +43,7 @@ describe('Jieqi watch replay', () => {
     expect(revealBtn?.textContent).toBe('Reveal');
 
     root.querySelector<HTMLButtonElement>('[aria-label="Next move"]')?.click();
-    expect(root.textContent).toContain('Ply 1 / 1 — Red wins');
+    expect(root.textContent).toContain('Ply 1 / 1 - Red wins');
 
     root.querySelector<HTMLButtonElement>('[aria-label="Flip boards"]')?.click();
     expect(root.querySelectorAll('.jieqi-board')).toHaveLength(1);

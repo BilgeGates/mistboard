@@ -9,6 +9,9 @@
 //
 // Crossroads/dark-chess stay on the chessground path in replay.ts; this generic
 // is for the xiangqi-style SVG tenants only.
+
+import { t } from './i18n/catalog.js';
+import { currentLocale, type Locale } from './i18n/locale.js';
 import type { GameMeta, ReplayHandle } from './replay.js';
 import { createPane, type ReplayPaneHandle } from './replay-board.js';
 import { createGameHeaderStrip } from './replay-meta.js';
@@ -59,6 +62,7 @@ export type TenantWatchAdapter<Postgame extends WatchPostgameMeta, View, ViewKey
 
 export type TenantWatchReplayOptions = {
   autoplay?: boolean;
+  locale?: Locale;
   metadataByRoomId?: Record<string, GameMeta>;
 };
 
@@ -77,10 +81,10 @@ function resultChipKind(result: string): 'white' | 'black' | 'draw' {
   return 'draw';
 }
 
-function resultLabel(result: string): string {
-  if (result === 'red-wins') return 'Red wins';
-  if (result === 'black-wins') return 'Black wins';
-  return 'Draw';
+function resultLabel(result: string, locale: Locale): string {
+  if (result === 'red-wins') return t('watch.redWins', {}, locale);
+  if (result === 'black-wins') return t('watch.blackWins', {}, locale);
+  return t('result.draw', {}, locale);
 }
 
 function labelize(value: string): string {
@@ -88,19 +92,51 @@ function labelize(value: string): string {
   return spaced.charAt(0).toUpperCase() + spaced.slice(1);
 }
 
-function timeControlLabel(postgame: WatchPostgameMeta): string {
+function timeControlLabel(postgame: WatchPostgameMeta, locale: Locale): string {
   const initialMs = postgame.game.initialMs ?? postgame.state.timeControl?.initialMs ?? null;
   const incrementMs = postgame.game.incrementMs ?? postgame.state.timeControl?.incrementMs ?? null;
-  if (initialMs === null && incrementMs === null) return 'Untimed';
+  if (initialMs === null && incrementMs === null) return t('watch.untimed', {}, locale);
   return `${Math.round((initialMs ?? 0) / 60000)}+${Math.round((incrementMs ?? 0) / 1000)}`;
 }
 
 // Title is the matchup (like the dark-chess watch's "Human vs engine"), not the
 // variant name; the channel tab already conveys the variant.
-function matchupLabel(mode: string): string {
-  if (mode === 'pve') return 'Human vs engine';
-  if (mode === 'eve') return 'Engine vs engine';
-  return 'Human vs human';
+function matchupLabel(mode: string, locale: Locale): string {
+  if (mode === 'pve') return t('watch.humanVsEngine', {}, locale);
+  if (mode === 'eve') return t('watch.engineVsEngine', {}, locale);
+  return t('watch.humanVsHuman', {}, locale);
+}
+
+function localizeResultLabel(label: string | undefined, result: string, locale: Locale): string {
+  if (label === 'Red wins' || (!label && result === 'red-wins'))
+    return t('watch.redWins', {}, locale);
+  if (label === 'Black wins' || (!label && result === 'black-wins'))
+    return t('watch.blackWins', {}, locale);
+  if (label === 'Draw' || !label) return resultLabel(result, locale);
+  return label;
+}
+
+function terminationLabel(reason: string, locale: Locale): string {
+  if (locale === 'en') return labelize(reason);
+  switch (reason) {
+    case 'resignation':
+      return t('result.resignation', {}, locale);
+    case 'timeout':
+      return t('result.timeout', {}, locale);
+    case 'abandonment':
+      return t('result.abandonment', {}, locale);
+    case 'checkmate':
+      return t('result.checkmate', {}, locale);
+    default:
+      return labelize(reason);
+  }
+}
+
+function localizePaneLabel(label: string, locale: Locale): string {
+  if (label === 'Truth') return t('watch.truth', {}, locale);
+  if (label === 'Red') return t('replay.red', {}, locale);
+  if (label === 'Black') return t('replay.black', {}, locale);
+  return label;
 }
 
 type SeatCell = { row: HTMLElement; clock: HTMLElement };
@@ -138,6 +174,7 @@ export async function mountTenantWatchReplay<
 ): Promise<ReplayHandle> {
   adapter.installStyles();
   const autoplay = options.autoplay ?? true;
+  const locale = options.locale ?? currentLocale();
 
   let activeId = roomId;
   let destroyed = false;
@@ -200,9 +237,15 @@ export async function mountTenantWatchReplay<
     }
     const result =
       currentPly >= maxPly
-        ? ` — ${adapter.resultLabel?.(activePostgame.game.result, activePostgame) ?? resultLabel(activePostgame.game.result)}`
+        ? localizeResultLabel(
+            adapter.resultLabel?.(activePostgame.game.result, activePostgame),
+            activePostgame.game.result,
+            locale,
+          )
         : '';
-    controls.plyLabel.textContent = `Ply ${currentPly} / ${maxPly}${result}`;
+    controls.plyLabel.textContent = result
+      ? t('watch.plyProgressResult', { current: currentPly, total: maxPly, result }, locale)
+      : t('watch.plyProgress', { current: currentPly, total: maxPly }, locale);
     controls.first.disabled = currentPly <= 0;
     controls.prev.disabled = currentPly <= 0;
     controls.next.disabled = currentPly >= maxPly;
@@ -238,7 +281,10 @@ export async function mountTenantWatchReplay<
 
   const setPaused = (next: boolean): void => {
     paused = next;
-    if (controls) controls.play.textContent = paused ? '▶ Play' : '⏸ Pause';
+    if (controls)
+      controls.play.textContent = paused
+        ? `▶ ${t('watch.play', {}, locale)}`
+        : `⏸ ${t('watch.pause', {}, locale)}`;
     if (paused) clearTimer();
     else scheduleAuto();
   };
@@ -253,7 +299,10 @@ export async function mountTenantWatchReplay<
   const toggleReveal = (): void => {
     if (!adapter.reveal) return;
     revealed = !revealed;
-    if (revealBtn) revealBtn.textContent = revealed ? 'Hide' : 'Reveal';
+    if (revealBtn)
+      revealBtn.textContent = revealed
+        ? t('watch.hide', {}, locale)
+        : t('watch.reveal', {}, locale);
     sync();
   };
 
@@ -267,32 +316,41 @@ export async function mountTenantWatchReplay<
     initialClock = initialMs === null ? null : { red: initialMs, black: initialMs };
 
     const header = createGameHeaderStrip();
-    header.title.textContent = matchupLabel(postgame.game.mode);
+    header.title.textContent = matchupLabel(postgame.game.mode, locale);
     const chip = document.createElement('span');
     chip.className = `replay-game-header-result-chip replay-game-header-result-${resultChipKind(postgame.game.result)}`;
-    chip.textContent =
-      adapter.resultLabel?.(postgame.game.result, postgame) ?? resultLabel(postgame.game.result);
+    chip.textContent = localizeResultLabel(
+      adapter.resultLabel?.(postgame.game.result, postgame),
+      postgame.game.result,
+      locale,
+    );
     const detail = document.createElement('span');
     detail.className = 'replay-game-header-result-detail';
-    detail.textContent = `by ${labelize(postgame.game.termination)}`;
+    detail.textContent = t(
+      'watch.byReason',
+      { reason: terminationLabel(postgame.game.termination, locale) },
+      locale,
+    );
     header.result.append(chip, detail);
     const plies = document.createElement('span');
-    plies.textContent = `${postgame.game.plyCount} plies`;
+    plies.textContent = t('watch.plyCount', { count: postgame.game.plyCount }, locale);
     const sep = document.createElement('span');
     sep.className = 'replay-game-header-sep';
     sep.textContent = '·';
     const clock = document.createElement('span');
-    clock.textContent = timeControlLabel(postgame);
+    clock.textContent = timeControlLabel(postgame, locale);
     const sepRated = document.createElement('span');
     sepRated.className = 'replay-game-header-sep';
     sepRated.textContent = '·';
     const rated = document.createElement('span');
-    rated.textContent = postgame.game.rated ? 'Rated' : 'Casual';
+    rated.textContent = postgame.game.rated
+      ? t('play.rated', {}, locale)
+      : t('play.casual', {}, locale);
     header.meta.append(plies, sep, clock, sepRated, rated);
     // The tenant postgame payloads carry no seat-name fields, so the cells fall
     // back to the color labels (matchup name lives in the header title).
-    const redCell = seatCell('Red');
-    const blackCell = seatCell('Black');
+    const redCell = seatCell(t('replay.red', {}, locale));
+    const blackCell = seatCell(t('replay.black', {}, locale));
     header.whiteCell.append(redCell.row);
     header.blackCell.append(blackCell.row);
     seatCells = { red: redCell, black: blackCell };
@@ -303,7 +361,10 @@ export async function mountTenantWatchReplay<
     for (const entry of adapter.viewEntries(postgame)) {
       // The center board reads "Truth" on watch, matching the dark-chess TV (the
       // postgame review keeps its own "Server truth" label).
-      const label = adapter.paneKind(entry.key) === 'truth' ? 'Truth' : entry.label;
+      const label = localizePaneLabel(
+        adapter.paneKind(entry.key) === 'truth' ? 'Truth' : entry.label,
+        locale,
+      );
       const pane = createPane(label, adapter.paneKind(entry.key), true, 'split');
       boardTargets.push({ pane, key: entry.key });
       layout.append(pane.el);
@@ -312,16 +373,22 @@ export async function mountTenantWatchReplay<
     // Control bar below the boards (matches the dark-chess watch: no move list).
     const bar = document.createElement('div');
     bar.className = 'replay-control-bar';
-    const first = controlButton('|<', 'First move');
-    const prev = controlButton('<', 'Previous move');
-    const play = controlButton(paused ? '▶ Play' : '⏸ Pause', 'Play / pause');
-    const next = controlButton('>', 'Next move');
-    const last = controlButton('>|', 'Last move');
-    const flip = controlButton('↕ Flip', 'Flip boards');
+    const first = controlButton('|<', t('watch.firstMove', {}, locale));
+    const prev = controlButton('<', t('watch.previousMove', {}, locale));
+    const play = controlButton(
+      paused ? `▶ ${t('watch.play', {}, locale)}` : `⏸ ${t('watch.pause', {}, locale)}`,
+      t('watch.playPause', {}, locale),
+    );
+    const next = controlButton('>', t('watch.nextMove', {}, locale));
+    const last = controlButton('>|', t('watch.lastMove', {}, locale));
+    const flip = controlButton('↕', t('watch.flipBoards', {}, locale));
     bar.append(first, prev, play, next, last, flip);
     if (adapter.reveal) {
-      revealBtn = controlButton(revealed ? 'Hide' : 'Reveal', 'Reveal hidden identities');
-      revealBtn.title = 'Reveal hidden identities (h)';
+      revealBtn = controlButton(
+        revealed ? t('watch.hide', {}, locale) : t('watch.reveal', {}, locale),
+        t('watch.revealHiddenIdentities', {}, locale),
+      );
+      revealBtn.title = t('watch.revealHiddenIdentitiesShortcut', {}, locale);
       revealBtn.onclick = toggleReveal;
       bar.append(revealBtn);
     }
@@ -357,7 +424,7 @@ export async function mountTenantWatchReplay<
     if (!result.ok) {
       const notice = document.createElement('p');
       notice.className = 'watch-empty';
-      notice.textContent = 'This game could not be loaded.';
+      notice.textContent = t('watch.gameLoadFailed', {}, locale);
       root.replaceChildren(notice);
       return;
     }

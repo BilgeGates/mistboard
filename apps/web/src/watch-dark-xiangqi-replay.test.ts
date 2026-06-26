@@ -40,7 +40,7 @@ describe('Dark Xiangqi watch replay', () => {
     expect(maskIds.some((id) => id.endsWith('-black'))).toBe(true);
 
     root.querySelector<HTMLButtonElement>('[aria-label="Next move"]')?.click();
-    expect(root.textContent).toContain('Ply 1 / 1 — Red wins');
+    expect(root.textContent).toContain('Ply 1 / 1 - Red wins');
 
     handle.destroy();
     expect(root.childElementCount).toBe(0);
