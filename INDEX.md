@@ -222,9 +222,10 @@ Edit task → find file → open only that file.
 | `dark-xiangqi-registration.ts` | Dark Xiangqi (9x10, hidden/dev-only) registry entry: live-room map, room-factory binding, hydration. No rematch/lobby (lobby answers `dark_xiangqi_not_integrated`) |
 | `crossroads-chess-engine.ts` | Fairy-Stockfish move provider for perfect-info Crossroads Chess (loads `crossroads-chess.ini`, one FSF process/request); the open-mode opponent, NOT the fog engine-worker |
 | `mini-xiangqi-engine.ts` | Fairy-Stockfish move provider for perfect-info Mini Xiangqi PvE: native `minixiangqi` UCI variant, calibrated tiers, per-request process spawn, and small FSF slot queue |
+| `drop-mini-xiangqi-fsf-engine.ts` | Fairy-Stockfish move provider for perfect-info Drop Mini Xiangqi PvE: loads the custom `drop-mini-xiangqi.ini` variant via VariantPath, Skill+node tiers, per-request process spawn, and small FSF slot queue |
 | `server-crossroads-chess-engine.ts` | Server-side FSF PvE loop for Crossroads Chess; injects engine moves through the same append+broadcast path as humans so clocks/persistence/reconnect/review stay event-sourced |
 | `server-mini-xiangqi-engine.ts` | Server-side Mini Xiangqi PvE loop: schedules Fairy-Stockfish moves through the tenant append/broadcast path with clock-aware movetime caps |
-| `server-drop-mini-xiangqi-engine.ts` | Built-in Drop Mini Xiangqi PvE tiers and engine move scheduler over the tenant append/broadcast path |
+| `server-drop-mini-xiangqi-engine.ts` | Server-side Drop Mini Xiangqi PvE loop: schedules Fairy-Stockfish moves (via `drop-mini-xiangqi-fsf-engine.ts`) through the tenant append/broadcast path, with drop-aware UCI translation and clock-aware movetime caps |
 | `server-crossroads-chess-events.ts` | Thin adapter over `variant-tenant/events.ts` for Crossroads Chess |
 | `server-crossroads-chess-lifecycle.ts` | Thin adapter over `variant-tenant/lifecycle.ts` for Crossroads Chess; `crossroadsChessConnectedSeats` filters spectators to the pre-migration seat shape |
 | `server-crossroads-chess-live-room.ts` | Live Crossroads Chess client/room type leaf, shared by the ws handler + rematch module to avoid an import cycle |

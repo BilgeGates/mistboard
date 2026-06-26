@@ -1,10 +1,20 @@
 /**
- * Built-in Drop Mini Xiangqi PvE loop.
+ * Server-side Fairy-Stockfish loop for Drop Mini Xiangqi PvE.
  *
- * Drop Mini is perfect-information, but the no-enemy-palace drop rule is not a
- * production Fairy-Stockfish variant yet. These launch tiers are deterministic
- * TypeScript heuristics that run in-process and inject moves through the same
- * tenant append+broadcast path as human moves.
+ * Drop Mini is perfect-information (7x7 Mini Xiangqi + crazyhouse-style drops),
+ * so it uses FSF directly via a custom variants.ini (drop-mini-xiangqi.ini), the
+ * same way Mini Xiangqi uses the built-in `minixiangqi` variant. This replaces
+ * the previous in-process minimax heuristic; the public engine ids
+ * (misty-drop-mini-level-1/2/3) and bot identities are unchanged.
+ *
+ * Structurally this mirrors the Mini Xiangqi engine loop. The only Drop-Mini
+ * specifics are the UCI translation: a drop move {drop,to} maps to "<L>@<to>"
+ * (L = C/N/R/P for cannon/horse/chariot/soldier) and a board move {from,to} to
+ * "<from><to>", matching FSF's `minixiangqi` coordinates (files a-g, ranks 1-7,
+ * red on rank 1, red to move first).
+ *
+ * Engine moves are injected through the same append+broadcast path as human moves
+ * so clocks, persistence, reconnect, and review stay event-sourced.
  */
 
 import {
@@ -15,18 +25,47 @@ import {
   type DropMiniXiangqiMove,
   getLegalDropMiniXiangqiMoves,
   isDropMiniXiangqiDropMove,
-  isDropMiniXiangqiGeneralInCheck,
   type MiniXiangqiColor,
-  type MiniXiangqiPieceRole,
+  type MiniXiangqiSquare,
 } from '@mistboard/game';
+import {
+  dropMiniXiangqiEngineTierFor,
+  dropMiniXiangqiLiveEngineMove,
+  isDropMiniXiangqiEngineClientId,
+} from './drop-mini-xiangqi-fsf-engine.js';
 import { logger } from './obs.js';
 import type { TenantLifecycleContext } from './variant-tenant/lifecycle.js';
 import { tenantClockRemainingMs } from './variant-tenant/runtime.js';
 import type { TenantRoomEvent } from './variant-tenant/tenant.js';
 import type { TenantLiveRoom } from './variant-tenant/ws.js';
 
-export const DROP_MINI_XIANGQI_ENGINE_VERSION = '0.1.0';
-export const DROP_MINI_XIANGQI_DEFAULT_ENGINE_ID = 'misty-drop-mini-level-2';
+// Re-export the engine metadata so existing importers (tenant, registration,
+// rooms route) keep resolving these from this module after the heuristic swap.
+export {
+  DROP_MINI_XIANGQI_DEFAULT_ENGINE_ID,
+  DROP_MINI_XIANGQI_ENGINE_VERSION,
+  DROP_MINI_XIANGQI_PLAYABLE_ENGINES,
+  type DropMiniXiangqiEngineTier,
+  dropMiniXiangqiEngineDisplayName,
+  dropMiniXiangqiEngineVersion,
+  isDropMiniXiangqiEngineClientId,
+} from './drop-mini-xiangqi-fsf-engine.js';
+
+const CLOCK_SAFETY_MS = 1_000;
+const MIN_MOVETIME_MS = 50;
+
+const DROP_ROLE_TO_FSF_LETTER: Record<DropMiniXiangqiDropRole, string> = {
+  cannon: 'C',
+  horse: 'N',
+  chariot: 'R',
+  soldier: 'P',
+};
+const FSF_LETTER_TO_DROP_ROLE: Record<string, DropMiniXiangqiDropRole> = {
+  C: 'cannon',
+  N: 'horse',
+  R: 'chariot',
+  P: 'soldier',
+};
 
 type DropMiniXiangqiEngineRoom = TenantLiveRoom<
   'drop-mini-xiangqi',
@@ -42,73 +81,6 @@ type DropMiniXiangqiEngineContext = TenantLifecycleContext<
   typeof DROP_MINI_XIANGQI_SPEC_ID,
   DropMiniXiangqiEngineRoom
 >;
-
-export type DropMiniXiangqiEngineTier = {
-  id: string;
-  name: string;
-  version: string;
-  lookaheadPlies: 0 | 1;
-  searchCandidateLimit?: number;
-  softPickRank: number;
-  softPickWindow: number;
-};
-
-export const DROP_MINI_XIANGQI_PLAYABLE_ENGINES: readonly DropMiniXiangqiEngineTier[] = [
-  {
-    id: 'misty-drop-mini-level-1',
-    name: 'Misty Drop Mini level 1',
-    version: DROP_MINI_XIANGQI_ENGINE_VERSION,
-    lookaheadPlies: 0,
-    softPickRank: 2,
-    softPickWindow: 35,
-  },
-  {
-    id: DROP_MINI_XIANGQI_DEFAULT_ENGINE_ID,
-    name: 'Misty Drop Mini level 2',
-    version: DROP_MINI_XIANGQI_ENGINE_VERSION,
-    lookaheadPlies: 0,
-    softPickRank: 0,
-    softPickWindow: 0,
-  },
-  {
-    id: 'misty-drop-mini-level-3',
-    name: 'Misty Drop Mini level 3',
-    version: DROP_MINI_XIANGQI_ENGINE_VERSION,
-    lookaheadPlies: 1,
-    searchCandidateLimit: 24,
-    softPickRank: 0,
-    softPickWindow: 0,
-  },
-];
-
-const ENGINE_BY_ID = new Map(DROP_MINI_XIANGQI_PLAYABLE_ENGINES.map((tier) => [tier.id, tier]));
-
-const PIECE_VALUES: Record<MiniXiangqiPieceRole, number> = {
-  general: 10_000,
-  chariot: 90,
-  cannon: 55,
-  horse: 45,
-  soldier: 14,
-};
-
-export function dropMiniXiangqiEngineTierFor(
-  engineId: string | undefined,
-): DropMiniXiangqiEngineTier | null {
-  if (!engineId) return null;
-  return ENGINE_BY_ID.get(engineId) ?? null;
-}
-
-export function dropMiniXiangqiEngineDisplayName(engineId: string): string {
-  return dropMiniXiangqiEngineTierFor(engineId)?.name ?? engineId;
-}
-
-export function dropMiniXiangqiEngineVersion(engineId: string | undefined): string | null {
-  return isDropMiniXiangqiEngineClientId(engineId) ? DROP_MINI_XIANGQI_ENGINE_VERSION : null;
-}
-
-export function isDropMiniXiangqiEngineClientId(clientId: string | undefined): boolean {
-  return dropMiniXiangqiEngineTierFor(clientId) !== null;
-}
 
 export function dropMiniXiangqiEngineSeatFor(
   room: DropMiniXiangqiEngineRoom,
@@ -157,19 +129,76 @@ export async function playDropMiniXiangqiEngineMoveIfReady(
   const remainingMs = clock ? tenantClockRemainingMs(clock, seat, now) : null;
   if (remainingMs !== null && remainingMs <= 0) return;
 
-  const chosen = chooseDropMiniXiangqiEngineMove(room.projection.state, tier);
+  const history = dropMiniXiangqiUciHistory(room.events);
+  const movetimeMs =
+    remainingMs === null
+      ? tier.movetimeMs
+      : Math.max(MIN_MOVETIME_MS, Math.min(tier.movetimeMs, remainingMs - CLOCK_SAFETY_MS));
+
+  let uci: string | null = null;
+  let fallbackReason: 'request-failed' | 'illegal-move' | 'no-move' | null = null;
+  try {
+    uci = await dropMiniXiangqiLiveEngineMove(engineId, history, { movetimeMs });
+  } catch (err) {
+    logger.error(
+      {
+        kind: 'drop_mini_xiangqi_engine_request_failed',
+        room_id: room.id,
+        engine_id: engineId,
+        error: (err as Error).message,
+      },
+      'Drop Mini Xiangqi engine request failed',
+    );
+    fallbackReason = 'request-failed';
+  }
+
+  if (!engineToMove(room, seat)) return;
+  const legalMoves = getLegalDropMiniXiangqiMoves(room.projection.state);
+  let chosen = uci ? legalMoveForUci(legalMoves, uci) : null;
+  if (!chosen) {
+    fallbackReason ??= uci ? 'illegal-move' : 'no-move';
+    chosen = legalMoves[0] ?? null;
+  }
   if (!chosen) {
     logger.error(
       {
-        kind: 'drop_mini_xiangqi_engine_no_legal_move',
+        kind: 'drop_mini_xiangqi_engine_no_legal_fallback',
         room_id: room.id,
         engine_id: engineId,
+        move: uci,
+        fallback_reason: fallbackReason,
       },
-      'Drop Mini Xiangqi engine had no legal move',
+      'Drop Mini Xiangqi engine could not produce a move',
     );
     return;
   }
-  if (!engineToMove(room, seat)) return;
+  if (fallbackReason) {
+    logger.warn(
+      {
+        kind: 'drop_mini_xiangqi_engine_fallback_move',
+        room_id: room.id,
+        engine_id: engineId,
+        move: uci,
+        fallback_reason: fallbackReason,
+        fallback_move: dropMiniXiangqiMoveToUci(chosen),
+      },
+      'Drop Mini Xiangqi engine used a legal fallback move',
+    );
+  }
+  const guarded = guardDropMiniXiangqiEngineMove(room.projection.state, chosen, legalMoves);
+  if (guarded !== chosen) {
+    logger.warn(
+      {
+        kind: 'drop_mini_xiangqi_engine_immediate_loss_guard',
+        room_id: room.id,
+        engine_id: engineId,
+        move: dropMiniXiangqiMoveToUci(chosen),
+        replacement_move: dropMiniXiangqiMoveToUci(guarded),
+      },
+      'Drop Mini Xiangqi engine immediate-loss guard replaced an avoidable losing move',
+    );
+    chosen = guarded;
+  }
 
   const event: TenantRoomEvent<
     MiniXiangqiColor,
@@ -186,58 +215,6 @@ export async function playDropMiniXiangqiEngineMoveIfReady(
   ctx.broadcastEventAppended(room, event, seq);
 }
 
-export function chooseDropMiniXiangqiEngineMove(
-  state: DropMiniXiangqiGameState,
-  tier: DropMiniXiangqiEngineTier,
-): DropMiniXiangqiMove | null {
-  if (state.status.type !== 'playing') return null;
-  const mover = state.status.turn;
-  const searchMoves = searchMovesForTier(state, tier, mover);
-  const candidates = searchMoves
-    .map((move) => {
-      const after = applyDropMiniXiangqiMove(state, move);
-      const immediateScore = immediateMoveScore(state, after, move, mover);
-      return {
-        move,
-        immediateScore,
-        score:
-          tier.lookaheadPlies > 0
-            ? minimax(after, tier.lookaheadPlies, mover, -Infinity, Infinity)
-            : immediateScore,
-      };
-    })
-    .filter((entry) => Number.isFinite(entry.score))
-    .sort(
-      (a, b) =>
-        b.score - a.score ||
-        b.immediateScore - a.immediateScore ||
-        moveKey(a.move).localeCompare(moveKey(b.move)),
-    );
-  if (candidates.length === 0) return null;
-  if (isWinningMove(state, candidates[0]!.move, mover)) return candidates[0]!.move;
-  if (tier.softPickRank <= 0) return candidates[0]!.move;
-  const bestScore = candidates[0]!.score;
-  const softPool = candidates.filter((entry) => entry.score >= bestScore - tier.softPickWindow);
-  return softPool[Math.min(tier.softPickRank, softPool.length - 1)]?.move ?? candidates[0]!.move;
-}
-
-function searchMovesForTier(
-  state: DropMiniXiangqiGameState,
-  tier: DropMiniXiangqiEngineTier,
-  mover: MiniXiangqiColor,
-): DropMiniXiangqiMove[] {
-  const legal = sortedLegalMoves(state);
-  if (tier.lookaheadPlies <= 0 || !tier.searchCandidateLimit) return legal;
-  return legal
-    .map((move) => {
-      const after = applyDropMiniXiangqiMove(state, move);
-      return { move, score: immediateMoveScore(state, after, move, mover) };
-    })
-    .sort((a, b) => b.score - a.score || moveKey(a.move).localeCompare(moveKey(b.move)))
-    .slice(0, tier.searchCandidateLimit)
-    .map((entry) => entry.move);
-}
-
 function bothSeatsFilled(room: DropMiniXiangqiEngineRoom): boolean {
   return Boolean(room.projection.seats.red && room.projection.seats.black);
 }
@@ -247,127 +224,83 @@ function engineToMove(room: DropMiniXiangqiEngineRoom, seat: MiniXiangqiColor): 
   return status.type === 'playing' && status.turn === seat && bothSeatsFilled(room);
 }
 
-function sortedLegalMoves(state: DropMiniXiangqiGameState): DropMiniXiangqiMove[] {
-  return [...getLegalDropMiniXiangqiMoves(state)].sort((a, b) =>
-    moveKey(a).localeCompare(moveKey(b)),
-  );
+function dropMiniXiangqiUciHistory(
+  events: readonly TenantRoomEvent<
+    MiniXiangqiColor,
+    DropMiniXiangqiMove,
+    typeof DROP_MINI_XIANGQI_SPEC_ID
+  >[],
+): string[] {
+  return events
+    .filter(
+      (
+        event,
+      ): event is Extract<
+        TenantRoomEvent<MiniXiangqiColor, DropMiniXiangqiMove, typeof DROP_MINI_XIANGQI_SPEC_ID>,
+        { type: 'move-played' }
+      > => event.type === 'move-played',
+    )
+    .map((event) => dropMiniXiangqiMoveToUci(event.move));
 }
 
-function minimax(
+export function dropMiniXiangqiMoveToUci(move: DropMiniXiangqiMove): string {
+  if (isDropMiniXiangqiDropMove(move)) {
+    return `${DROP_ROLE_TO_FSF_LETTER[move.drop]}@${move.to}`;
+  }
+  return `${move.from}${move.to}`;
+}
+
+export function legalMoveForUci(
+  legalMoves: readonly DropMiniXiangqiMove[],
+  uci: string,
+): DropMiniXiangqiMove | null {
+  const drop = uci.match(/^([CNRP])@([a-g][1-7])$/);
+  if (drop) {
+    const role = FSF_LETTER_TO_DROP_ROLE[drop[1]!];
+    const to = drop[2] as MiniXiangqiSquare;
+    return (
+      legalMoves.find(
+        (move) => isDropMiniXiangqiDropMove(move) && move.drop === role && move.to === to,
+      ) ?? null
+    );
+  }
+  const board = uci.match(/^([a-g][1-7])([a-g][1-7])$/);
+  if (board) {
+    const from = board[1] as MiniXiangqiSquare;
+    const to = board[2] as MiniXiangqiSquare;
+    return (
+      legalMoves.find(
+        (move) => !isDropMiniXiangqiDropMove(move) && move.from === from && move.to === to,
+      ) ?? null
+    );
+  }
+  return null;
+}
+
+/**
+ * Replace a move that lets the opponent win on the immediate reply with any legal
+ * move that does not — a cheap king-safety backstop matching the Mini Xiangqi loop.
+ */
+function guardDropMiniXiangqiEngineMove(
   state: DropMiniXiangqiGameState,
-  depth: number,
-  root: MiniXiangqiColor,
-  alpha: number,
-  beta: number,
-): number {
-  const terminal = terminalScore(state, root);
-  if (terminal !== null) return terminal;
-  if (depth <= 0 || state.status.type !== 'playing') return evaluateState(state, root, false);
-
-  const maximizing = state.status.turn === root;
-  let best = maximizing ? -Infinity : Infinity;
-  for (const move of sortedLegalMoves(state)) {
-    const score = minimax(applyDropMiniXiangqiMove(state, move), depth - 1, root, alpha, beta);
-    if (maximizing) {
-      best = Math.max(best, score);
-      alpha = Math.max(alpha, best);
-    } else {
-      best = Math.min(best, score);
-      beta = Math.min(beta, best);
-    }
-    if (beta <= alpha) break;
-  }
-  return best;
+  chosen: DropMiniXiangqiMove,
+  legalMoves: readonly DropMiniXiangqiMove[],
+): DropMiniXiangqiMove {
+  if (!allowsImmediateOpponentWin(state, chosen)) return chosen;
+  return legalMoves.find((move) => !allowsImmediateOpponentWin(state, move)) ?? chosen;
 }
 
-function immediateMoveScore(
-  before: DropMiniXiangqiGameState,
-  after: DropMiniXiangqiGameState,
-  move: DropMiniXiangqiMove,
-  mover: MiniXiangqiColor,
-): number {
-  const terminal = terminalScore(after, mover);
-  if (terminal !== null) return terminal;
-  let score = evaluateState(after, mover) - evaluateState(before, mover);
-  if (!isDropMiniXiangqiDropMove(move)) {
-    const captured = before.board[move.to];
-    if (captured) score += PIECE_VALUES[captured.role] * 1.8;
-  } else {
-    score += dropRoleValue(move.drop) * 0.35;
-  }
-  const opponent = mover === 'red' ? 'black' : 'red';
-  if (isDropMiniXiangqiGeneralInCheck(after, opponent)) score += 35;
-  return score;
-}
-
-function evaluateState(
-  state: DropMiniXiangqiGameState,
-  perspective: MiniXiangqiColor,
-  includeMobility = true,
-): number {
-  const terminal = terminalScore(state, perspective);
-  if (terminal !== null) return terminal;
-
-  const opponent = perspective === 'red' ? 'black' : 'red';
-  let score = 0;
-  for (const piece of Object.values(state.board)) {
-    if (!piece) continue;
-    const value = PIECE_VALUES[piece.role];
-    score += piece.color === perspective ? value : -value;
-  }
-  score += handScore(state, perspective) - handScore(state, opponent);
-
-  if (isDropMiniXiangqiGeneralInCheck(state, perspective)) score -= 40;
-  if (isDropMiniXiangqiGeneralInCheck(state, opponent)) score += 35;
-  if (includeMobility && state.status.type === 'playing') {
-    score += legalCountFor(state, perspective) * 0.4;
-    score -= legalCountFor(state, opponent) * 0.35;
-  }
-  return score;
-}
-
-function handScore(state: DropMiniXiangqiGameState, color: MiniXiangqiColor): number {
-  let score = 0;
-  for (const [role, count] of Object.entries(state.hands[color])) {
-    score += dropRoleValue(role as DropMiniXiangqiDropRole) * (count ?? 0) * 0.85;
-  }
-  for (const [role, count] of Object.entries(state.cooldownHands[color])) {
-    score += dropRoleValue(role as DropMiniXiangqiDropRole) * (count ?? 0) * 0.55;
-  }
-  return score;
-}
-
-function legalCountFor(state: DropMiniXiangqiGameState, color: MiniXiangqiColor): number {
-  if (state.status.type !== 'playing') return 0;
-  return getLegalDropMiniXiangqiMoves({ ...state, status: { type: 'playing', turn: color } })
-    .length;
-}
-
-function terminalScore(
-  state: DropMiniXiangqiGameState,
-  perspective: MiniXiangqiColor,
-): number | null {
-  if (state.status.type === 'aborted') return 0;
-  if (state.status.type !== 'finished') return null;
-  if (state.status.winner === perspective) return 100_000;
-  if (state.status.winner === null) return 0;
-  return -100_000;
-}
-
-function isWinningMove(
+function allowsImmediateOpponentWin(
   state: DropMiniXiangqiGameState,
   move: DropMiniXiangqiMove,
-  mover: MiniXiangqiColor,
 ): boolean {
+  if (state.status.type !== 'playing') return false;
+  const mover = state.status.turn;
+  const opponent = mover === 'red' ? 'black' : 'red';
   const after = applyDropMiniXiangqiMove(state, move);
-  return after.status.type === 'finished' && after.status.winner === mover;
-}
-
-function dropRoleValue(role: DropMiniXiangqiDropRole): number {
-  return PIECE_VALUES[role];
-}
-
-function moveKey(move: DropMiniXiangqiMove): string {
-  if (isDropMiniXiangqiDropMove(move)) return `@${move.drop}:${move.to}`;
-  return `${move.from}-${move.to}`;
+  if (after.status.type !== 'playing') return false;
+  return getLegalDropMiniXiangqiMoves(after).some((reply) => {
+    const afterReply = applyDropMiniXiangqiMove(after, reply);
+    return afterReply.status.type === 'finished' && afterReply.status.winner === opponent;
+  });
 }

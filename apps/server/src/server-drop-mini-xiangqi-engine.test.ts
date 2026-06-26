@@ -1,18 +1,20 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import type { DropMiniXiangqiMove, MiniXiangqiColor } from '@mistboard/game';
 import {
   applyDropMiniXiangqiMove,
   createInitialDropMiniXiangqiState,
+  type DropMiniXiangqiMove,
   getLegalDropMiniXiangqiMoves,
+  type MiniXiangqiColor,
 } from '@mistboard/game';
 import { dropMiniXiangqiTenant } from './drop-mini-xiangqi-tenant.js';
 import {
-  chooseDropMiniXiangqiEngineMove,
   DROP_MINI_XIANGQI_DEFAULT_ENGINE_ID,
   dropMiniXiangqiEngineSeatFor,
-  dropMiniXiangqiEngineTierFor,
-  playDropMiniXiangqiEngineMoveIfReady,
+  dropMiniXiangqiMoveToUci,
+  isDropMiniXiangqiEngineClientId,
+  legalMoveForUci,
+  type playDropMiniXiangqiEngineMoveIfReady,
   scheduleDropMiniXiangqiEngineMove,
 } from './server-drop-mini-xiangqi-engine.js';
 import { appendTenantRuntimeEvent, createTenantRuntimeRoom } from './variant-tenant/runtime.js';
@@ -20,21 +22,52 @@ import { appendTenantRuntimeEvent, createTenantRuntimeRoom } from './variant-ten
 type DropMiniEngineRoom = Parameters<typeof playDropMiniXiangqiEngineMoveIfReady>[1];
 type DropMiniEngineContext = Parameters<typeof playDropMiniXiangqiEngineMoveIfReady>[0];
 
-test('Drop Mini Xiangqi engine loop plays a legal built-in tier move', async () => {
-  const room = pveRoom('black');
-  appendHumanMove(room);
-  const ctx = engineCtx(room);
+// The live move source is Fairy-Stockfish (a subprocess), so the unit tests cover
+// the deterministic, FSF-free surface: seat detection, scheduling gating, and the
+// Drop-Mini-specific UCI translation. Live FSF play is covered by the self-play
+// parity harness (scripts/variant-lab/drop-mini-xiangqi-fsf-play.ts).
 
-  await playDropMiniXiangqiEngineMoveIfReady(ctx, room);
+test('every legal start move round-trips through UCI', () => {
+  const state = createInitialDropMiniXiangqiState('fsf-roundtrip');
+  const legal = getLegalDropMiniXiangqiMoves(state);
+  assert.ok(legal.length > 0, 'start position should have legal moves');
+  for (const move of legal) {
+    const uci = dropMiniXiangqiMoveToUci(move);
+    assert.deepEqual(legalMoveForUci(legal, uci), move, `round-trip failed for ${uci}`);
+  }
+});
 
-  const last = room.events.at(-1);
-  assert.equal(last?.type, 'move-played');
-  assert.equal(last?.type === 'move-played' && last.color, 'black');
-  assert.equal(room.projection.state.status.type, 'playing');
-  assert.equal(
-    room.projection.state.status.type === 'playing' && room.projection.state.status.turn,
-    'red',
-  );
+test('drop moves map to FSF letter notation and back', () => {
+  const drops: DropMiniXiangqiMove[] = [
+    { drop: 'cannon', to: 'd4' },
+    { drop: 'horse', to: 'b3' },
+    { drop: 'chariot', to: 'f2' },
+    { drop: 'soldier', to: 'a5' },
+  ];
+  assert.equal(dropMiniXiangqiMoveToUci(drops[0]!), 'C@d4');
+  assert.equal(dropMiniXiangqiMoveToUci(drops[1]!), 'N@b3');
+  assert.equal(dropMiniXiangqiMoveToUci(drops[2]!), 'R@f2');
+  assert.equal(dropMiniXiangqiMoveToUci(drops[3]!), 'P@a5');
+  for (const drop of drops) {
+    assert.deepEqual(legalMoveForUci(drops, dropMiniXiangqiMoveToUci(drop)), drop);
+  }
+});
+
+test('legalMoveForUci rejects moves outside the legal set', () => {
+  const state = createInitialDropMiniXiangqiState('fsf-reject');
+  const legal = getLegalDropMiniXiangqiMoves(state);
+  // No piece is in hand at the start, so no drop is legal.
+  assert.equal(legalMoveForUci(legal, 'C@d4'), null);
+  // Malformed UCI is rejected.
+  assert.equal(legalMoveForUci(legal, 'not-a-move'), null);
+});
+
+test('engine client id recognises the playable tiers', () => {
+  assert.equal(isDropMiniXiangqiEngineClientId(DROP_MINI_XIANGQI_DEFAULT_ENGINE_ID), true);
+  assert.equal(isDropMiniXiangqiEngineClientId('misty-drop-mini-level-1'), true);
+  assert.equal(isDropMiniXiangqiEngineClientId('misty-drop-mini-level-3'), true);
+  assert.equal(isDropMiniXiangqiEngineClientId('human'), false);
+  assert.equal(isDropMiniXiangqiEngineClientId(undefined), false);
 });
 
 test('Drop Mini Xiangqi engine scheduler waits until the engine is on turn', () => {
@@ -44,49 +77,8 @@ test('Drop Mini Xiangqi engine scheduler waits until the engine is on turn', () 
   scheduleDropMiniXiangqiEngineMove(ctx, room);
 
   assert.equal(dropMiniXiangqiEngineSeatFor(room), 'black');
+  // Red (human) is to move first, so the engine scheduler must not arm a timer.
   assert.equal(room.engineTimer, null);
-});
-
-test('Drop Mini Xiangqi engine picker returns a deterministic legal move', () => {
-  const room = pveRoom('red');
-  const move = chooseDropMiniXiangqiEngineMove(room.projection.state, {
-    id: 'misty-drop-mini-test',
-    name: 'Misty Drop Mini Test',
-    version: 'test',
-    lookaheadPlies: 0,
-    softPickRank: 0,
-    softPickWindow: 0,
-  });
-
-  assert.ok(move, 'engine should choose a move from the initial position');
-  assert.ok(
-    getLegalDropMiniXiangqiMoves(room.projection.state).some((candidate) =>
-      sameMove(candidate, move),
-    ),
-    'chosen move must be legal',
-  );
-});
-
-test('Drop Mini Xiangqi level 3 avoids lexicographic chariot shuffling', () => {
-  const tier = dropMiniXiangqiEngineTierFor('misty-drop-mini-level-3');
-  assert.ok(tier);
-  let state = createInitialDropMiniXiangqiState('dmxqd_shuffle_regression');
-  for (const move of [
-    { from: 'a2', to: 'a3' },
-    { from: 'b7', to: 'b5' },
-    { from: 'b1', to: 'b3' },
-    { from: 'b5', to: 'd5' },
-    { from: 'b3', to: 'd3' },
-    { from: 'f7', to: 'f4' },
-  ] satisfies DropMiniXiangqiMove[]) {
-    state = applyDropMiniXiangqiMove(state, move);
-  }
-
-  assert.equal(state.status.type === 'playing' && state.status.turn, 'red');
-  assert.deepEqual(chooseDropMiniXiangqiEngineMove(state, tier), {
-    from: 'd3',
-    to: 'd4',
-  } satisfies DropMiniXiangqiMove);
 });
 
 function pveRoom(engineSeat: MiniXiangqiColor): DropMiniEngineRoom {
@@ -111,20 +103,6 @@ function pveRoom(engineSeat: MiniXiangqiColor): DropMiniEngineRoom {
   return room;
 }
 
-function appendHumanMove(room: DropMiniEngineRoom): void {
-  assert.equal(room.projection.state.status.type, 'playing');
-  const move = getLegalDropMiniXiangqiMoves(room.projection.state)[0];
-  assert.ok(move, 'fixture should have a legal human move');
-  appendTenantRuntimeEvent(dropMiniXiangqiTenant, room, {
-    type: 'move-played',
-    at: 3,
-    roomId: room.id,
-    color:
-      room.projection.state.status.type === 'playing' ? room.projection.state.status.turn : 'red',
-    move,
-  });
-}
-
 function engineCtx(room: DropMiniEngineRoom): DropMiniEngineContext {
   return {
     appendEvent: async (_room, event) =>
@@ -134,8 +112,15 @@ function engineCtx(room: DropMiniEngineRoom): DropMiniEngineContext {
   };
 }
 
-function sameMove(a: DropMiniXiangqiMove, b: DropMiniXiangqiMove): boolean {
-  if ('drop' in a || 'drop' in b)
-    return 'drop' in a && 'drop' in b && a.drop === b.drop && a.to === b.to;
-  return a.from === b.from && a.to === b.to;
-}
+// Keep an applyDropMiniXiangqiMove reference exercised so the import stays honest
+// if the kernel signature changes under us.
+test('kernel apply advances the turn', () => {
+  const state = createInitialDropMiniXiangqiState('fsf-apply');
+  const [first] = getLegalDropMiniXiangqiMoves(state);
+  assert.ok(first);
+  const after = applyDropMiniXiangqiMove(state, first);
+  assert.notEqual(
+    after.status.type === 'playing' && after.status.turn,
+    state.status.type === 'playing' && state.status.turn,
+  );
+});
