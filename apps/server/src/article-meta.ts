@@ -138,6 +138,18 @@ export const ARTICLE_META: Record<
     description:
       'The complete rules of Banqi (暗棋), the half-board xiangqi flip game known as Chinese Dark Chess: flip or move one square each turn, capture by rank, cannons jump, and win by wiping the enemy out.',
   },
+  jungle: {
+    title: 'Jungle (Dou Shou Qi)',
+    kind: 'rules',
+    description:
+      'The complete rules of Jungle (斗兽棋, Dou Shou Qi / Animal Chess): eight ranked animals on a 7×9 board, the rat beats the elephant, only the rat swims, the lion and tiger leap the rivers, and you win by reaching the enemy den or capturing every piece.',
+  },
+  'jungle-flip': {
+    title: 'Flip Jungle (兽棋)',
+    kind: 'rules',
+    description:
+      'The complete rules of Flip Jungle (兽棋 / 翻翻棋), the 4×4 flip version of Dou Shou Qi: animals start face-down, you flip or move each turn, capture by rank, equal ranks destroy each other (同归于尽), and you win by eliminating the opponent.',
+  },
   'reveal-chess': {
     title: 'Reveal Chess Rules',
     kind: 'rules',

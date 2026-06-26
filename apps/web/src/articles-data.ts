@@ -22,6 +22,8 @@ import { darkShogiArticle } from './articles/content/dark-shogi.js';
 import { darkXiangqiArticle } from './articles/content/dark-xiangqi.js';
 import { dropMiniXiangqiArticle } from './articles/content/drop-mini-xiangqi.js';
 import { jieqiArticle } from './articles/content/jieqi.js';
+import { jungleArticle } from './articles/content/jungle.js';
+import { jungleFlipArticle } from './articles/content/jungle-flip.js';
 import { kriegspielArticle } from './articles/content/kriegspiel.js';
 import { miniXiangqiArticle } from './articles/content/mini-xiangqi.js';
 import { mistyArticle } from './articles/content/misty.js';
@@ -50,6 +52,8 @@ export const articles: Article[] = [
   darkCrazyhouseArticle,
   kriegspielArticle,
   jieqiArticle,
+  jungleArticle,
+  jungleFlipArticle,
   banqiArticle,
   banqiEngineArticle,
   revealChessArticle,
