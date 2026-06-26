@@ -359,6 +359,7 @@ function boardSvg(
   return `
     <svg class="xq-live-svg" viewBox="0 0 ${WIDTH} ${HEIGHT}" xmlns="http://www.w3.org/2000/svg">
       <rect class="xq-live-bg" x="0" y="0" width="${WIDTH}" height="${HEIGHT}" rx="${BOARD_RADIUS}"/>
+      <g class="xq-live-palace-bands">${palaceBands(perspective)}</g>
       <g class="xq-live-grid">${gridLayer()}</g>
       <g class="xq-live-palace">${palaceLayer(perspective)}</g>
       <g class="xq-live-river">${riverLayer(perspective)}</g>
@@ -394,6 +395,22 @@ function gridLayer(): string {
     }
   }
   return parts.join('');
+}
+
+function palaceBands(perspective: XiangqiColor): string {
+  return [palaceBand(3, 1, 5, 3, perspective), palaceBand(3, 8, 5, 10, perspective)].join('');
+}
+
+function palaceBand(
+  fileMin: number,
+  rankMin: number,
+  fileMax: number,
+  rankMax: number,
+  perspective: XiangqiColor,
+): string {
+  const a = intersection(fileMin, rankMin, perspective);
+  const b = intersection(fileMax, rankMax, perspective);
+  return `<rect class="xq-live-palace-band" x="${Math.min(a.x, b.x)}" y="${Math.min(a.y, b.y)}" width="${Math.abs(b.x - a.x)}" height="${Math.abs(b.y - a.y)}"/>`;
 }
 
 function palaceLayer(perspective: XiangqiColor): string {

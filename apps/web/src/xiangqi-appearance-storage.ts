@@ -4,21 +4,34 @@ import {
   type XiangqiPieceSet,
 } from './xiangqi-piece-sets.js';
 
-export type XiangqiBoardTheme = 'tournament' | 'blue' | 'mono';
+export type XiangqiBoardTheme = 'tournament' | 'paper-garden' | 'blue' | 'mono';
 
 const xiangqiBoardStorageKey = 'mistboard.xiangqiBoardTheme';
+const xiangqiBoardStorageVersionKey = 'mistboard.xiangqiBoardThemeVersion';
 const xiangqiPieceSetStorageKey = 'mistboard.xiangqiPieceSet';
-const defaultXiangqiBoardTheme: XiangqiBoardTheme = 'tournament';
+const defaultXiangqiBoardTheme: XiangqiBoardTheme = 'paper-garden';
+const xiangqiBoardStorageVersion = '2';
 const defaultXiangqiPieceSet: XiangqiPieceSet = DEFAULT_XIANGQI_PIECE_SET;
 const xiangqiBoardThemes: ReadonlyArray<{ id: XiangqiBoardTheme; label: string }> = [
   { id: 'tournament', label: 'Tournament' },
+  { id: 'paper-garden', label: 'Paper Garden' },
   { id: 'blue', label: 'Blue' },
   { id: 'mono', label: 'Monochrome' },
 ];
 
 export function readStoredXiangqiBoardTheme(): XiangqiBoardTheme {
   try {
-    return normalizeXiangqiBoardTheme(window.localStorage.getItem(xiangqiBoardStorageKey));
+    const stored = window.localStorage.getItem(xiangqiBoardStorageKey);
+    const version = window.localStorage.getItem(xiangqiBoardStorageVersionKey);
+    if (version !== xiangqiBoardStorageVersion && stored === 'tournament') {
+      window.localStorage.setItem(xiangqiBoardStorageVersionKey, xiangqiBoardStorageVersion);
+      window.localStorage.setItem(xiangqiBoardStorageKey, defaultXiangqiBoardTheme);
+      return defaultXiangqiBoardTheme;
+    }
+    if (version !== xiangqiBoardStorageVersion) {
+      window.localStorage.setItem(xiangqiBoardStorageVersionKey, xiangqiBoardStorageVersion);
+    }
+    return normalizeXiangqiBoardTheme(stored);
   } catch {
     return defaultXiangqiBoardTheme;
   }
@@ -27,6 +40,7 @@ export function readStoredXiangqiBoardTheme(): XiangqiBoardTheme {
 export function writeStoredXiangqiBoardTheme(theme: XiangqiBoardTheme): void {
   try {
     window.localStorage.setItem(xiangqiBoardStorageKey, theme);
+    window.localStorage.setItem(xiangqiBoardStorageVersionKey, xiangqiBoardStorageVersion);
   } catch {
     // The data attribute still updates for the current page.
   }
@@ -55,6 +69,7 @@ export function normalizeXiangqiBoardTheme(value: string | null): XiangqiBoardTh
 }
 
 export function normalizeXiangqiPieceSet(value: string | null): XiangqiPieceSet {
+  if (value === 'animal') return 'animal-origami';
   return XIANGQI_PIECE_SETS.some((set) => set.id === value)
     ? (value as XiangqiPieceSet)
     : defaultXiangqiPieceSet;

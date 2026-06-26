@@ -107,12 +107,13 @@ export const miniXiangqiArticle: Article = {
       },
       relatedClosing({
         heading: 'Where to next',
-        lead: 'Mini Xiangqi is the open-information base game. Dark Mini Xiangqi adds Fog of War, where enemy pieces outside your vision disappear and the general falls by capture rather than checkmate.',
+        lead: 'Ready to try the Mistboard version? Play Misty DMX in Dark Mini Xiangqi, the Fog of War variant built on this same 7 by 7 board.',
         links: [
-          { label: 'Read Dark Mini Xiangqi', href: '/rules/dark-mini-xiangqi', emphasis: 'primary' },
-          { label: 'Xiangqi', href: '/rules/xiangqi', emphasis: 'secondary' },
-          { label: 'Dark Xiangqi', href: '/rules/dark-xiangqi', emphasis: 'secondary' },
-          { label: 'All rules', href: '/rules', emphasis: 'secondary' },
+          {
+            label: 'Play Misty DMX',
+            href: '/?play=computer&gameSpecId=dark-mini-xiangqi',
+            emphasis: 'primary',
+          },
         ],
       }),
     ],

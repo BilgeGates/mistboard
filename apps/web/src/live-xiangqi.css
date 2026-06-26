@@ -130,22 +130,26 @@
 }
 
 .xq-live-bg {
-  fill: #f5dca8;
+  fill: var(--xq-live-board-bg, #f5dca8);
 }
 
 .xq-live-line {
-  stroke: #5a3a14;
+  stroke: var(--xq-live-ink, #5a3a14);
   stroke-width: 1.2;
 }
 
+.xq-live-palace-band {
+  fill: var(--xq-live-palace-band, rgba(255, 255, 255, 0));
+}
+
 .xq-live-palace line {
-  stroke: #5a3a14;
+  stroke: var(--xq-live-ink, #5a3a14);
   stroke-width: 1.2;
 }
 
 .xq-live-river text {
   dominant-baseline: central;
-  fill: #5a3a14;
+  fill: var(--xq-live-ink, #5a3a14);
   font-family: ui-serif, Georgia, serif;
   font-size: 22px;
   font-weight: 700;

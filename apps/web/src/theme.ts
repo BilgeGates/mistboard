@@ -35,7 +35,7 @@ import {
 import {
   XIANGQI_PIECE_SETS,
   type XiangqiPieceSet,
-  xiangqiPreviewGlyph,
+  xiangqiPieceTilePreview,
 } from './xiangqi-piece-sets.js';
 
 export { readStoredShogiPieceSet } from './shogi-appearance-storage.js';
@@ -103,6 +103,7 @@ const pieceSets: Array<{ id: PieceSet; label: string }> = [
 ];
 const xiangqiBoardThemes: Array<{ id: XiangqiBoardTheme; label: string }> = [
   { id: 'tournament', label: 'Tournament' },
+  { id: 'paper-garden', label: 'Paper Garden' },
   { id: 'blue', label: 'Blue' },
   { id: 'mono', label: 'Monochrome' },
 ];
@@ -657,10 +658,19 @@ function createTileField<T extends string>(
     const preview = document.createElement('span');
     preview.className = `theme-tile-preview theme-tile-preview-${kind}`;
     preview.dataset.id = option.id;
-    // Xiangqi / shogi piece tiles show a representative glyph; the board tiles use
+    // Xiangqi / shogi piece tiles show a representative mark; the board tiles use
     // a CSS color swatch like the chess board tiles.
     if (kind === 'xqpiece') {
-      preview.textContent = xiangqiPreviewGlyph(option.id as XiangqiPieceSet);
+      const xiangqiPreview = xiangqiPieceTilePreview(option.id as XiangqiPieceSet);
+      if (xiangqiPreview.kind === 'image') {
+        const img = document.createElement('img');
+        img.src = xiangqiPreview.href;
+        img.alt = '';
+        img.loading = 'lazy';
+        preview.append(img);
+      } else {
+        preview.textContent = xiangqiPreview.text;
+      }
     } else if (kind === 'shogipiece') {
       const shogiPreview = shogiPieceTilePreview(option.id as ShogiPieceSet);
       if (shogiPreview.kind === 'image') {

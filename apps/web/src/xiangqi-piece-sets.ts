@@ -2,16 +2,22 @@
 //
 // Covers all seven xiangqi roles (general/advisor/elephant/horse/chariot/cannon/
 // soldier) so the same sets serve both Dark Mini Xiangqi (which uses five of them)
-// and full Dark Xiangqi. Four sets: two Chinese-character scripts (traditional
-// default + simplified) and two "piece diagram" sets (Western Latin initials +
-// stroked line-art symbols). The disc/ring is shared; only the inner mark changes.
+// and full Dark Xiangqi. Six sets: two Chinese-character scripts (traditional
+// default + simplified), two "piece diagram" sets (Western Latin initials +
+// stroked line-art symbols), and two animal image sets.
 // Chinese characters render from baked Noto Sans CJK SC Bold outlines (see
 // cjkGlyphMark) so the live board matches the OG cards and variant mini-boards.
 
 import { XIANGQI_GLYPH_PATHS } from '@mistboard/board-render';
 import type { XiangqiColor, XiangqiPiece, XiangqiPieceRole } from '@mistboard/game';
 
-export type XiangqiPieceSet = 'traditional' | 'simplified' | 'western' | 'symbols';
+export type XiangqiPieceSet =
+  | 'traditional'
+  | 'simplified'
+  | 'western'
+  | 'symbols'
+  | 'animal-seal'
+  | 'animal-origami';
 export type XiangqiShroudedStyle = 'question' | 'back';
 
 export const XIANGQI_PIECE_SETS: ReadonlyArray<{ id: XiangqiPieceSet; label: string }> = [
@@ -19,6 +25,8 @@ export const XIANGQI_PIECE_SETS: ReadonlyArray<{ id: XiangqiPieceSet; label: str
   { id: 'simplified', label: 'Simplified' },
   { id: 'western', label: 'Western' },
   { id: 'symbols', label: 'Symbols' },
+  { id: 'animal-seal', label: 'Animal Seal' },
+  { id: 'animal-origami', label: 'Animal Origami' },
 ];
 
 export const DEFAULT_XIANGQI_PIECE_SET: XiangqiPieceSet = 'traditional';
@@ -79,6 +87,12 @@ const WESTERN: Record<XiangqiPieceRole, string> = {
   soldier: 'S',
 };
 
+type AnimalXiangqiPieceSet = Extract<XiangqiPieceSet, 'animal-seal' | 'animal-origami'>;
+
+export type XiangqiPieceTilePreview =
+  | { kind: 'text'; text: string }
+  | { kind: 'image'; href: string };
+
 export type XiangqiPieceRenderOptions = {
   ariaLabel?: string;
   shrouded?: boolean;
@@ -96,13 +110,22 @@ export function xiangqiGlyph(
 ): string {
   if (set === 'simplified') return SIMPLIFIED[color][role];
   if (set === 'western') return WESTERN[role];
+  if (isAnimalPieceSet(set)) return WESTERN[role];
   return TRADITIONAL[color][role];
 }
 
 // A compact representative mark for the settings-panel tile (the red general).
 export function xiangqiPreviewGlyph(set: XiangqiPieceSet): string {
   if (set === 'symbols') return '★';
+  if (isAnimalPieceSet(set)) return 'G';
   return xiangqiGlyph(set, 'red', 'general');
+}
+
+export function xiangqiPieceTilePreview(set: XiangqiPieceSet): XiangqiPieceTilePreview {
+  if (isAnimalPieceSet(set)) {
+    return { kind: 'image', href: animalPieceHref({ color: 'red', role: 'general' }, set) };
+  }
+  return { kind: 'text', text: xiangqiPreviewGlyph(set) };
 }
 
 export function renderXiangqiPieceGlyphed(
@@ -125,6 +148,13 @@ export function renderXiangqiPieceGlyphed(
     return [
       `<svg${classAttr}${posAttrs} viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg" aria-label="${escapeAttr(ariaLabel)}">`,
       pieceBackMark(piece.color),
+      `</svg>`,
+    ].join('');
+  }
+  if (!opts.shrouded && isAnimalPieceSet(set)) {
+    return [
+      `<svg${classAttr}${posAttrs} viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg" aria-label="${escapeAttr(ariaLabel)}">`,
+      `<image href="${escapeAttr(animalPieceHref(piece, set))}" x="0" y="0" width="100" height="100" preserveAspectRatio="xMidYMid meet"/>`,
       `</svg>`,
     ].join('');
   }
@@ -165,6 +195,14 @@ function pieceBackMark(color: XiangqiColor): string {
   return [
     `<circle class="xq-piece-back-mark" cx="50" cy="50" r="43" fill="${fill}" stroke="${stroke}" stroke-width="3"/>`,
   ].join('');
+}
+
+function isAnimalPieceSet(set: XiangqiPieceSet): set is AnimalXiangqiPieceSet {
+  return set === 'animal-seal' || set === 'animal-origami';
+}
+
+function animalPieceHref(piece: XiangqiPiece, set: AnimalXiangqiPieceSet): string {
+  return `/piece-sets/xiangqi/${set}/${piece.color}-${piece.role}.png`;
 }
 
 // Stroked line-art icons (the "Symbols" diagram set). One consistent visual style:

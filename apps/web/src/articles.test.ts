@@ -277,6 +277,23 @@ describe('article public listing gates', () => {
     });
   });
 
+  it('points the Mini Xiangqi rules CTA directly at the bot', () => {
+    const page = buildArticlePage('mini-xiangqi');
+    const ctaLinks = [...page.querySelectorAll<HTMLAnchorElement>('.article-cta')].map((link) => ({
+      href: link.getAttribute('href'),
+      text: link.textContent,
+    }));
+
+    expect(page.textContent).toContain('Ready to try the Mistboard version?');
+    expect(page.innerHTML).toContain('xq-diagram-palace-band');
+    expect(ctaLinks).toEqual([
+      {
+        href: '/?play=computer&gameSpecId=dark-mini-xiangqi',
+        text: 'Play Misty DMX',
+      },
+    ]);
+  });
+
   it('keeps the Dark Crossroads Chess rules page directly reachable while unlisted', () => {
     vi.stubEnv('DEV', false);
 

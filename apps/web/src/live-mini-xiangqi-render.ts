@@ -125,10 +125,12 @@ function gridLines(): string {
 function palaceBands(perspective: MiniXiangqiColor): string {
   const red = palaceRect(1, 3, perspective);
   const black = palaceRect(5, 7, perspective);
-  return [
-    `<rect class="mini-xq-palace-band" x="${red.x}" y="${red.y}" width="${red.width}" height="${red.height}"/>`,
-    `<rect class="mini-xq-palace-band" x="${black.x}" y="${black.y}" width="${black.width}" height="${black.height}"/>`,
-  ].join('');
+  return [red, black]
+    .map(
+      ({ x, y, width, height }) =>
+        `<rect class="mini-xq-palace-band" x="${x}" y="${y}" width="${width}" height="${height}"/>`,
+    )
+    .join('');
 }
 
 function palaceRect(
@@ -323,6 +325,11 @@ export function installMiniXiangqiBoardStyles(): void {
       --mini-xq-board-bg: #d9bd82;
       --mini-xq-palace-band: rgba(255, 255, 255, 0.17);
       --mini-xq-grid: #4b3c2a;
+    }
+    :root[data-xiangqi-board-theme="paper-garden"] {
+      --mini-xq-board-bg: #f5ecd8;
+      --mini-xq-palace-band: rgba(93, 132, 82, 0.28);
+      --mini-xq-grid: #5f4931;
     }
     :root[data-xiangqi-board-theme="blue"] {
       --mini-xq-board-bg: #cdddea;

@@ -16,6 +16,7 @@ describe('Dark Mini Xiangqi board renderer', () => {
     const svg = renderMiniXiangqiBoardSvg(view, 'red');
 
     expect(svg).toContain('class="mini-xq-board"');
+    expect(svg).toContain('class="mini-xq-palace-band"');
     // The fog mask id is a module-global counter (mini-xq-fog-N), so the exact
     // number is non-deterministic across runs. Assert the <mask> declaration and
     // its url(#...) reference share one id under the expected prefix.

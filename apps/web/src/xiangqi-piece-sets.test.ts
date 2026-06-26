@@ -4,6 +4,7 @@ import { describe, expect, it } from 'vitest';
 import {
   renderXiangqiPieceGlyphed,
   xiangqiGlyph,
+  xiangqiPieceTilePreview,
   xiangqiPreviewGlyph,
 } from './xiangqi-piece-sets.js';
 
@@ -35,6 +36,11 @@ describe('xiangqiGlyph', () => {
     expect(xiangqiGlyph('western', 'red', 'chariot')).toBe('R');
     expect(xiangqiGlyph('western', 'black', 'cannon')).toBe('C');
     expect(xiangqiGlyph('western', 'red', 'soldier')).toBe('S');
+  });
+
+  it('keeps an initial fallback for the animal image sets', () => {
+    expect(xiangqiGlyph('animal-seal', 'red', 'general')).toBe('G');
+    expect(xiangqiGlyph('animal-origami', 'black', 'elephant')).toBe('E');
   });
 });
 
@@ -68,6 +74,46 @@ describe('renderXiangqiPieceGlyphed', () => {
     expect(advisor).not.toBe(elephant);
   });
 
+  it('renders the animal sets from the full seven-role image assets', () => {
+    const sealAdvisor = renderXiangqiPieceGlyphed(
+      { color: 'red', role: 'advisor' },
+      'animal-seal',
+      {},
+    );
+    const origamiElephant = renderXiangqiPieceGlyphed(
+      { color: 'black', role: 'elephant' },
+      'animal-origami',
+      {},
+    );
+    expect(sealAdvisor).toContain('/piece-sets/xiangqi/animal-seal/red-advisor.png');
+    expect(origamiElephant).toContain('/piece-sets/xiangqi/animal-origami/black-elephant.png');
+    expect(sealAdvisor).not.toContain('<text');
+    expect(origamiElephant).not.toContain('<text');
+  });
+
+  it('uses the actual horse artwork for the seal horse slot', () => {
+    const horse = renderXiangqiPieceGlyphed({ color: 'red', role: 'horse' }, 'animal-seal', {});
+    expect(horse).toContain('/piece-sets/xiangqi/animal-seal/red-horse.png');
+    expect(horse).not.toContain('crane');
+  });
+
+  it('uses tortoise advisor and elephant asset slots in the seal set', () => {
+    const advisor = renderXiangqiPieceGlyphed(
+      { color: 'black', role: 'advisor' },
+      'animal-seal',
+      {},
+    );
+    const elephant = renderXiangqiPieceGlyphed(
+      { color: 'red', role: 'elephant' },
+      'animal-seal',
+      {},
+    );
+    expect(advisor).toContain('/piece-sets/xiangqi/animal-seal/black-advisor.png');
+    expect(elephant).toContain('/piece-sets/xiangqi/animal-seal/red-elephant.png');
+    expect(advisor).not.toContain('<text');
+    expect(elephant).not.toContain('<text');
+  });
+
   it('shows a role-neutral mark for a shrouded piece regardless of set', () => {
     const svg = renderXiangqiPieceGlyphed(redGeneral, 'traditional', {
       shrouded: true,
@@ -75,6 +121,16 @@ describe('renderXiangqiPieceGlyphed', () => {
     });
     expect(svg).toContain('?');
     expect(svg).not.toContain(XIANGQI_GLYPH_PATHS.帥);
+    expect(svg).toContain('aria-label="red hidden piece"');
+  });
+
+  it('does not reveal animal identity for a shrouded animal-set piece', () => {
+    const svg = renderXiangqiPieceGlyphed(redGeneral, 'animal-seal', {
+      shrouded: true,
+      ariaLabel: 'red hidden piece',
+    });
+    expect(svg).toContain('?');
+    expect(svg).not.toContain('/piece-sets/xiangqi/animal-seal/red-general.png');
     expect(svg).toContain('aria-label="red hidden piece"');
   });
 });
@@ -85,5 +141,21 @@ describe('xiangqiPreviewGlyph', () => {
     expect(xiangqiPreviewGlyph('simplified')).toBe('帅');
     expect(xiangqiPreviewGlyph('western')).toBe('G');
     expect(xiangqiPreviewGlyph('symbols')).toBe('★');
+    expect(xiangqiPreviewGlyph('animal-seal')).toBe('G');
+    expect(xiangqiPreviewGlyph('animal-origami')).toBe('G');
+  });
+});
+
+describe('xiangqiPieceTilePreview', () => {
+  it('uses text previews for glyph sets and image previews for the animal sets', () => {
+    expect(xiangqiPieceTilePreview('traditional')).toEqual({ kind: 'text', text: '帥' });
+    expect(xiangqiPieceTilePreview('animal-seal')).toEqual({
+      kind: 'image',
+      href: '/piece-sets/xiangqi/animal-seal/red-general.png',
+    });
+    expect(xiangqiPieceTilePreview('animal-origami')).toEqual({
+      kind: 'image',
+      href: '/piece-sets/xiangqi/animal-origami/red-general.png',
+    });
   });
 });

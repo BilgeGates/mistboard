@@ -428,6 +428,15 @@
   --crossroads-river-highlight: rgba(255, 255, 255, 0.4);
 }
 
+:root[data-xiangqi-board-theme="paper-garden"] {
+  --crossroads-frame: #6a5437;
+  --crossroads-frame-inner: #8a6d46;
+  --crossroads-board-edge: #4a3824;
+  --crossroads-coord: rgba(77, 56, 34, 0.56);
+  --crossroads-river: #85ad7a;
+  --crossroads-river-highlight: rgba(255, 252, 236, 0.48);
+}
+
 :root[data-xiangqi-board-theme="blue"] {
   --crossroads-frame: #405f78;
   --crossroads-frame-inner: #55748b;
@@ -450,6 +459,11 @@
 .theme-tile-preview-xqboard[data-id="tournament"] {
   background: #d9bd82;
 }
+.theme-tile-preview-xqboard[data-id="paper-garden"] {
+  background:
+    linear-gradient(90deg, transparent 42%, rgba(93, 132, 82, 0.22) 42% 58%, transparent 58%),
+    #f5ecd8;
+}
 .theme-tile-preview-xqboard[data-id="blue"] {
   background: #cdddea;
 }
@@ -467,6 +481,11 @@
   font-size: 14px;
   font-weight: 700;
   line-height: 1;
+}
+.theme-tile-preview-xqpiece img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
 }
 
 /* Shogi board swatches (solid wood tone per scheme; values track the light cell

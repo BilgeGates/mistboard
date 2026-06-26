@@ -142,6 +142,8 @@ const ZH_HANS: Record<string, string> = {
     '迷你象棋没有著名的人类对局传统，因此若想看全部子力协同作战，可以逐步重演一盘由强大的开源引擎 Fairy-Stockfish 在完全信息下执双方对弈的棋局。注意车和炮开线有多快：在紧凑、无河界的 7×7 棋盘上，将帅遭受火力的时间远比完整象棋来得早。',
   'Mini Xiangqi is the open-information base game. Dark Mini Xiangqi adds Fog of War, where enemy pieces outside your vision disappear and the general falls by capture rather than checkmate.':
     '迷你象棋是信息公开的底层游戏。迷雾迷你象棋为它加上战争迷雾：你视野之外的敌方棋子会消失，且将帅由被吃而非将死而落败。',
+  'Ready to try the Mistboard version? Play Misty DMX in Dark Mini Xiangqi, the Fog of War variant built on this same 7 by 7 board.':
+    '准备试试 Mistboard 版本？在迷雾迷你象棋中对战 Misty DMX，这是建立在同一张 7×7 棋盘上的战争迷雾变体。',
   'Read Dark Mini Xiangqi': '阅读迷雾迷你象棋',
   Xiangqi: '象棋',
 
@@ -798,6 +800,8 @@ const ZH_HANT: Record<string, string> = {
     '迷你象棋沒有著名的人類對局傳統，因此若想看全部子力協同作戰，可以逐步重演一盤由強大的開源引擎 Fairy-Stockfish 在完全資訊下執雙方對弈的棋局。注意車和炮開線有多快：在緊湊、無河界的 7×7 棋盤上，將帥遭受火力的時間遠比完整象棋來得早。',
   'Mini Xiangqi is the open-information base game. Dark Mini Xiangqi adds Fog of War, where enemy pieces outside your vision disappear and the general falls by capture rather than checkmate.':
     '迷你象棋是資訊公開的底層遊戲。迷霧迷你象棋為它加上戰爭迷霧：你視野之外的敵方棋子會消失，且將帥由被吃而非將死而落敗。',
+  'Ready to try the Mistboard version? Play Misty DMX in Dark Mini Xiangqi, the Fog of War variant built on this same 7 by 7 board.':
+    '準備試試 Mistboard 版本？在迷霧迷你象棋中對戰 Misty DMX，這是建立在同一張 7×7 棋盤上的戰爭迷霧變體。',
   'Read Dark Mini Xiangqi': '閱讀迷霧迷你象棋',
   Xiangqi: '象棋',
 

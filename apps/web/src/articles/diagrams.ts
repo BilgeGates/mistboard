@@ -1577,9 +1577,20 @@ export function mxqPoint(file: number, rank: number): { x: number; y: number } {
   };
 }
 
+function mxqPalaceBandLayer(): string {
+  return ([[1, 3], [5, 7]] as const)
+    .map(([loRank, hiRank]) => {
+      const a = mxqPoint(2, hiRank);
+      const b = mxqPoint(4, loRank);
+      return `<rect x="${Math.min(a.x, b.x)}" y="${Math.min(a.y, b.y)}" width="${Math.abs(b.x - a.x)}" height="${Math.abs(b.y - a.y)}" class="xq-diagram-palace-band"/>`;
+    })
+    .join('');
+}
+
 export function mxqGridLayer(): string {
   const parts: string[] = [
     `<rect x="0" y="0" width="${MXQ_BOARD_W}" height="${MXQ_BOARD_H}" rx="${XQ_BOARD_RADIUS}" class="xq-diagram-bg"/>`,
+    mxqPalaceBandLayer(),
   ];
   const left = XQ_MARGIN;
   const right = XQ_MARGIN + (MXQ_FILES - 1) * XQ_CELL;
