@@ -324,6 +324,12 @@ const WEB_VARIANT_TENANTS: readonly WebVariantTenant[] = [
     roomIdPrefix: 'jgl_',
     enabled: jungleEnabled,
     pageTitle: 'Jungle',
+    gameRouteBase: '/jungle/game',
+    mountPostgame: (root, roomId) =>
+      import('../live-jungle-postgame.js').then(({ mountJunglePostgame }) =>
+        mountJunglePostgame(root, roomId),
+      ),
+    reviewRouteBase: '/jungle/game',
     loadLiveRoomClient: () =>
       import('../live-jungle.js').then(
         ({ bootstrapJungleLiveRoom }) =>
@@ -379,6 +385,12 @@ const WEB_VARIANT_TENANTS: readonly WebVariantTenant[] = [
     roomIdPrefix: 'jgf_',
     enabled: jungleFlipEnabled,
     pageTitle: 'Flip Jungle',
+    gameRouteBase: '/jungle-flip/game',
+    mountPostgame: (root, roomId) =>
+      import('../live-jungle-flip-postgame.js').then(({ mountJungleFlipPostgame }) =>
+        mountJungleFlipPostgame(root, roomId),
+      ),
+    reviewRouteBase: '/jungle-flip/game',
     loadLiveRoomClient: () =>
       import('../live-jungle-flip.js').then(
         ({ bootstrapJungleFlipLiveRoom }) =>

@@ -120,6 +120,8 @@ export function isClientRoute(pathname: string): boolean {
     normalized.startsWith('/drop-mini-xiangqi/game/') ||
     normalized.startsWith('/dark-shogi/game/') ||
     normalized.startsWith('/banqi/game/') ||
+    normalized.startsWith('/jungle/game/') ||
+    normalized.startsWith('/jungle-flip/game/') ||
     normalized.startsWith('/jieqi/game/') ||
     normalized.startsWith('/game/') ||
     normalized.startsWith('/engine/') ||

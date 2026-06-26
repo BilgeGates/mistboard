@@ -28,6 +28,8 @@ import * as feedbackRoute from './routes/feedback.js';
 import * as forumRoute from './routes/forum.js';
 import * as gamesRoute from './routes/games.js';
 import * as jieqiGamesRoute from './routes/jieqi-games.js';
+import * as jungleFlipGamesRoute from './routes/jungle-flip-games.js';
+import * as jungleGamesRoute from './routes/jungle-games.js';
 import * as kriegspielGamesRoute from './routes/kriegspiel-games.js';
 import * as leaderboardRoute from './routes/leaderboard.js';
 import type { HttpApiContext } from './routes/lib.js';
@@ -87,6 +89,8 @@ const routes: RouteModule[] = [
   kriegspielGamesRoute,
   darkCrazyhouseGamesRoute,
   jieqiGamesRoute,
+  jungleGamesRoute,
+  jungleFlipGamesRoute,
   banqiGamesRoute,
   revealChessGamesRoute,
   crossroadsChessRoute,
