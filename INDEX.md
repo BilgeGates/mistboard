@@ -311,7 +311,9 @@ Edit task → find file → open only that file.
 | `routes/banqi-rooms.ts` | POST `/api/rooms` banqi branch (time-control gating; `preferredColor` selects the move-order seat) |
 | `routes/banqi-games.ts` | Banqi postgame/review API branch (single public truth surface; keeps non-chess records out of generic chess replay APIs) |
 | `routes/jungle-rooms.ts` | POST `/api/rooms` Jungle branch (PvP + PvE engine-seat assignment opposite the human; `jungleEnabled` flag) |
+| `routes/jungle-games.ts` | Jungle postgame/review API branch; exposes the finished perfect-information board history and move timeline |
 | `routes/jungle-flip-rooms.ts` | POST `/api/rooms` Flip Jungle branch (PvP only at launch; `jungleFlipEnabled` flag) |
+| `routes/jungle-flip-games.ts` | Flip Jungle postgame/review API branch; exposes the as-played masked replay plus revealed spoiler history for symmetric hidden-identity games |
 | `routes/reveal-chess-rooms.ts` | POST `/api/rooms` Reveal Chess branch (`revealChessEnabled` flag) |
 | `routes/reveal-chess-games.ts` | Reveal Chess postgame/review API branch |
 | `routes/correspondence-seeks.ts` | Correspondence open-seek board API (post/join/list days-per-move dark-chess seeks); account-gated, `correspondenceEnabled` flag; backed by `persistence-correspondence-seeks.ts` (per-user cap). Accept pre-seats both players via the live seat-assigned path |
@@ -424,6 +426,8 @@ Run with `MISTBOARD_ALLOW_IN_MEMORY_PERSISTENCE=true npm run test:integration --
 | `articles.css` | Article index, article page, and article interactive widget styles loaded by `articles.ts` |
 | `articles-data.ts` | Article content (large; content not code) |
 | `article-i18n.ts` | Article localization strings and language helpers |
+| `i18n/catalog.ts` | Shared client UI translation catalog and `t()` helper keyed by the current locale |
+| `i18n/locale.ts` | Client locale metadata, path/storage/browser locale detection, and document/account locale preference helpers |
 | `dark-xiangqi-postgame.ts` | Flagged Dark Xiangqi postgame/review route renderer; reuses `renderDarkXiangqiBoardSvg`. Loads `live-xiangqi.css` + `dark-xiangqi-postgame.css` |
 | `dxq-postgame-shell.ts` | Shared postgame review shell + replay controls for the hidden triptych SVG variants; owns the left summary rail / board grid / moves rail scaffold while variant routes keep board-specific rendering |
 | `postgame-keyboard.ts` | Shared postgame review keyboard navigation helper: left/right/home/end ply stepping plus flipped-board toggling, wired into hidden triptych review routes |
@@ -560,7 +564,9 @@ Run with `MISTBOARD_ALLOW_IN_MEMORY_PERSISTENCE=true npm run test:integration --
 | `jieqi-sample-game.ts` | Jieqi rules-article sample game data, replayed by `jieqi-replay.ts` |
 | `watch-jieqi-replay.ts` | Mistboard TV (`/watch`) renderer for Jieqi — thin adapter over the shared `watch-tenant-replay.ts` |
 | `live-jungle.ts` | Live multiplayer room client for Jungle (斗兽棋) — self-contained tenant client on the `socket-client` + `room-chrome` stack; perfect-information (seat == colour, no fog/flip), plain click-to-move. Renders via `jungle-render.ts`; loads `live-xiangqi.css` (board sizing + move list) |
+| `live-jungle-postgame.ts` | Jungle postgame/review route renderer: single perfect-information truth board with replay panes, move list, share/play-again actions, and API loader |
 | `live-jungle-flip.ts` | Live multiplayer room client for Flip Jungle (兽棋/翻翻棋) — self-contained tenant client on the `socket-client` + `room-chrome` stack; symmetric hidden-identity (no fog; deal hidden from both seats). Tap a face-down tile to flip, or select a revealed animal and tap a legal target; ink binds on the first flip. Renders via `jungle-flip-render.ts` |
+| `live-jungle-flip-postgame.ts` | Flip Jungle postgame/review route renderer: one masked replay board plus Reveal toggle for the spoiler history; result labels translate move-order seat to bound ink |
 | `live-banqi.ts` | Live multiplayer room client for Banqi (半棋) — self-contained tenant client on the `socket-client` + `room-chrome` stack; symmetric-information so NO fog (renders the masked `BanqiPlayerView` the server sends; the only hidden state is the deal, hidden from both seats equally). Modeled on the jieqi room. Owns `fillCapturedPool` reused by banqi postgame/watch |
 | `live-banqi-render.ts` | Banqi board SVG renderer (8×4): xiangqi-style discs, face-down tiles as backs; reuses the shared xiangqi piece-sets/appearance |
 | `live-banqi-interaction.ts` | Pure click-to-move decision for the banqi board (FLIP a face-down tile = one-click self-move; otherwise select-then-move). Unit-testable, no DOM |
@@ -570,7 +576,10 @@ Run with `MISTBOARD_ALLOW_IN_MEMORY_PERSISTENCE=true npm run test:integration --
 | `banqi-sample-game.ts` | Banqi rules-article sample game data (a real MistyBanqi-vs-human game), replayed by `banqi-replay.ts` |
 | `banqi-engine-game.ts` | "How MistyBanqi Plays" article sample game data (a real prod game where MistyBanqi draws a won position by repetition), replayed by `banqi-replay.ts` |
 | `banqi-result-label.ts` | Banqi seat→bound-ink result labels (`seatInkLabel`/`banqiResultLabel`): translates the stored move-order seat to the ink that bound on the opening flip. Import-light so result-only surfaces (the watch queue) reuse it without board renderers |
+| `jungle-flip-result-label.ts` | Flip Jungle seat→bound-ink result labels for postgame and watch surfaces; falls back to first/second before the opening flip binds ink |
 | `watch-banqi-replay.ts` | Mistboard TV (`/watch`) renderer for Banqi — thin adapter over `watch-tenant-replay.ts` (single public truth surface, no fog) |
+| `watch-jungle-replay.ts` | Mistboard TV (`/watch`) renderer for Jungle: thin adapter over `watch-tenant-replay.ts` with one perfect-information truth board |
+| `watch-jungle-flip-replay.ts` | Mistboard TV (`/watch`) renderer for Flip Jungle: thin adapter over `watch-tenant-replay.ts` with masked replay plus Reveal/Hide spoiler control |
 | `live-reveal-chess.ts` | Live multiplayer room client for Reveal Chess (chess-jieqi) — self-contained tenant client on the `socket-client` + `room-chrome` stack; identity-hidden 8×8 chess (cburnett pieces). No fog: renders only the server `RevealChessPlayerView`, never infers a hidden identity. Loads `live-reveal-chess.css` |
 | `live-reveal-chess-sound.ts` | Reveal Chess sound policy: a public `flip` on a move-reveal + fog-safe opponent classification (a private capture-reveal stays `captured`); the king is always face-up so king-capture is detectable. Reuses the shared `SoundController` |
 | `reveal-chess-render.ts` | Reveal Chess board renderer: thin adapter over the shared `renderGridBoardSvg` cell-board core (8×8 descriptor, cburnett glyphs for revealed pieces, face-down disc token) |
