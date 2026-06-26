@@ -5,7 +5,8 @@ import { initializeAccountNav } from './account-nav.js';
 import { setPostHogInstance } from './analytics.js';
 import type { ArticleLang } from './article-i18n.js';
 import { correspondenceEnabled } from './feature-flags.js';
-import { initializeLocaleFromCurrentUrl } from './i18n/locale.js';
+import { type I18nKey, t } from './i18n/catalog.js';
+import { currentLocale, initializeLocaleFromCurrentUrl } from './i18n/locale.js';
 import {
   correspondenceNotificationSource,
   registerNotificationSource,
@@ -189,7 +190,7 @@ if (replaySample) {
     import('./landing.js').then(({ mountGame }) => mountGame(appRoot, gameRoomId)),
   );
 } else if (wantsLeaderboard) {
-  setTitle('Leaderboard');
+  setTitleKey('profile.leaderboard');
   void mountOrReport(() =>
     import('./profile.js').then(({ mountLeaderboard }) => mountLeaderboard(appRoot)),
   );
@@ -211,7 +212,7 @@ if (replaySample) {
     ),
   );
 } else if (wantsBots) {
-  setTitle('Bots');
+  setTitleKey('profile.bots');
   void mountOrReport(() => import('./bots.js').then(({ mountBots }) => mountBots(appRoot)));
 } else if (botProfileId) {
   setTitle('Bot');
@@ -224,12 +225,12 @@ if (replaySample) {
     import('./profile.js').then(({ mountProfile }) => mountProfile(appRoot, profileHandle)),
   );
 } else if (wantsAccountSettings) {
-  setTitle('Settings');
+  setTitleKey('account.settings');
   void mountOrReport(() =>
     import('./account.js').then(({ mountAccountSettings }) => mountAccountSettings(appRoot)),
   );
 } else if (wantsAccount) {
-  setTitle('Account');
+  setTitleKey('account.account');
   void mountOrReport(() =>
     import('./account.js').then(({ mountAccount }) => mountAccount(appRoot)),
   );
@@ -239,12 +240,12 @@ if (replaySample) {
     import('./correspondence.js').then(({ mountCorrespondence }) => mountCorrespondence(appRoot)),
   );
 } else if (wantsWatch) {
-  setTitle('Watch');
+  setTitleKey('nav.watch');
   void mountOrReport(() =>
     import('./watch-route.js').then(({ mountWatch }) => mountWatch(appRoot)),
   );
 } else if (wantsPuzzles) {
-  setTitle('Puzzles');
+  setTitleKey('nav.puzzles');
   void mountOrReport(() =>
     import('./puzzles.js').then(({ mountPuzzles }) => mountPuzzles(appRoot, puzzleId)),
   );
@@ -298,14 +299,14 @@ if (replaySample) {
     import('./landing.js').then(({ mountLanding }) => mountLanding(appRoot)),
   );
 } else if (articleSlug) {
-  setTitle('Articles');
+  setTitleKey('articles.heading');
   void mountOrReport(() =>
     import('./pages-static.js').then(({ mountArticle }) =>
       mountArticle(appRoot, articleSlug, articleLang),
     ),
   );
 } else if (wantsNews) {
-  setTitle('News');
+  setTitleKey('news.heading');
   void mountOrReport(() => import('./pages-static.js').then(({ mountNews }) => mountNews(appRoot)));
 } else if (forumRedirectPostId) {
   setTitle('Forum');
@@ -328,47 +329,47 @@ if (replaySample) {
   setTitle('Forum');
   void mountOrReport(() => import('./forum.js').then(({ mountForum }) => mountForum(appRoot)));
 } else if (wantsArticlesIndex) {
-  setTitle(articleLang ? '文章' : 'Articles');
+  setTitleKey('articles.heading');
   void mountOrReport(() =>
     import('./pages-static.js').then(({ mountArticlesIndex }) =>
       mountArticlesIndex(appRoot, articleLang),
     ),
   );
 } else if (wantsRulesIndex) {
-  setTitle(articleLang ? '规则' : 'Rules');
+  setTitleKey('rules.heading');
   void mountOrReport(() =>
     import('./pages-static.js').then(({ mountRulesIndex }) =>
       mountRulesIndex(appRoot, articleLang),
     ),
   );
 } else if (wantsLearn) {
-  setTitle('Learn');
+  setTitleKey('nav.learn');
   void mountOrReport(() => import('./learn.js').then(({ mountLearn }) => mountLearn(appRoot)));
 } else if (wantsAbout) {
-  setTitle('About');
+  setTitleKey('footer.about');
   void mountOrReport(() =>
     import('./pages-static.js').then(({ mountAbout }) => mountAbout(appRoot)),
   );
 } else if (wantsSource) {
-  setTitle('Source');
+  setTitleKey('footer.source');
   void mountOrReport(() =>
     import('./pages-static.js').then(({ mountSource }) => mountSource(appRoot)),
   );
 } else if (wantsContact) {
-  setTitle('Contact');
+  setTitleKey('contact.heading');
   void mountOrReport(() =>
     import('./landing.js').then(({ mountContact }) => mountContact(appRoot)),
   );
 } else if (wantsFaq) {
-  setTitle('FAQ');
+  setTitleKey('faq.heading');
   void mountOrReport(() => import('./pages-static.js').then(({ mountFaq }) => mountFaq(appRoot)));
 } else if (wantsTerms) {
-  setTitle('Terms');
+  setTitleKey('footer.terms');
   void mountOrReport(() =>
     import('./pages-static.js').then(({ mountTerms }) => mountTerms(appRoot)),
   );
 } else if (wantsPrivacy) {
-  setTitle('Privacy');
+  setTitleKey('footer.privacy');
   void mountOrReport(() =>
     import('./pages-static.js').then(({ mountPrivacy }) => mountPrivacy(appRoot)),
   );
@@ -377,7 +378,7 @@ if (replaySample) {
     import('./landing.js').then(({ mountLanding }) => mountLanding(appRoot)),
   );
 } else {
-  setTitle('Not found');
+  setTitleKey('notFound.heading');
   void mountOrReport(() =>
     import('./pages-static.js').then(({ mountNotFound }) => mountNotFound(appRoot)),
   );
@@ -385,6 +386,10 @@ if (replaySample) {
 
 function setTitle(page: string): void {
   document.title = `${page} · Mistboard`;
+}
+
+function setTitleKey(key: I18nKey): void {
+  setTitle(t(key, {}, currentLocale()));
 }
 
 // Code-split routes fetch their chunk lazily, so a transient failure — most
