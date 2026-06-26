@@ -374,6 +374,10 @@ describe('article public listing gates', () => {
     expect(page.textContent).toContain('A sample game');
     expect(page.querySelector('[data-pending-widget="drop-mini-xiangqi-replay"]')).not.toBeNull();
     expect(links).toContainEqual({
+      href: '/?play=computer&gameSpecId=drop-mini-xiangqi',
+      text: 'Play Misty Drop Mini',
+    });
+    expect(links).toContainEqual({
       href: '/?play=friend&gameSpecId=drop-mini-xiangqi',
       text: 'Create invite',
     });

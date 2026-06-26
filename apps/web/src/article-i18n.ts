@@ -113,8 +113,9 @@ const ZH_HANS: Record<string, string> = {
   'Fairy-Stockfish lab, no-enemy-palace drops': 'Fairy-Stockfish 实验局，不得打入对方九宫',
   "Black checkmates with 57...g1-f1. The final chariot capture beats Red's last defensive drop on f1.":
     '黑方以 57...g1-f1 将死。最后的车吃子击破了红方在 f1 的最后一次防守打入。',
-  'Drop Mini Xiangqi is open for alpha play on Mistboard. Create an invite for a friend or queue for an open game from the homepage play panel by choosing Drop Mini Xiangqi in the Variant row.':
-    '投放迷你象棋已在 Mistboard 开放 Alpha 对弈。你可以在首页对弈面板的“Variant”一行选择投放迷你象棋，创建好友邀请，或排队寻找公开对手。',
+  'Drop Mini Xiangqi is open for alpha play on Mistboard. You can play Misty Drop Mini, create an invite for a friend, or find an open game from the homepage play panel by choosing Drop Mini Xiangqi in the Variant row.':
+    '投放迷你象棋已在 Mistboard 开放 Alpha 对弈。你可以在首页对弈面板的“Variant”一行选择投放迷你象棋，对战 Misty Drop Mini、创建好友邀请，或寻找一局公开对局。',
+  'Play Misty Drop Mini': '对战 Misty Drop Mini',
   'Find opponent': '寻找对手',
   // -- Mini Xiangqi (rules) --
   'Mini Xiangqi rules, the 7×7 primer behind Dark Mini Xiangqi: no advisors or elephants, no river, sideways soldiers, and checkmate to win.':
@@ -771,8 +772,9 @@ const ZH_HANT: Record<string, string> = {
   'Fairy-Stockfish lab, no-enemy-palace drops': 'Fairy-Stockfish 實驗局，不得打入對方九宮',
   "Black checkmates with 57...g1-f1. The final chariot capture beats Red's last defensive drop on f1.":
     '黑方以 57...g1-f1 將死。最後的車吃子擊破了紅方在 f1 的最後一次防守打入。',
-  'Drop Mini Xiangqi is open for alpha play on Mistboard. Create an invite for a friend or queue for an open game from the homepage play panel by choosing Drop Mini Xiangqi in the Variant row.':
-    '投放迷你象棋已在 Mistboard 開放 Alpha 對弈。你可以在首頁對弈面板的「Variant」一行選擇投放迷你象棋，建立好友邀請，或排隊尋找公開對手。',
+  'Drop Mini Xiangqi is open for alpha play on Mistboard. You can play Misty Drop Mini, create an invite for a friend, or find an open game from the homepage play panel by choosing Drop Mini Xiangqi in the Variant row.':
+    '投放迷你象棋已在 Mistboard 開放 Alpha 對弈。你可以在首頁對弈面板的「Variant」一行選擇投放迷你象棋，對戰 Misty Drop Mini、建立好友邀請，或尋找一局公開對局。',
+  'Play Misty Drop Mini': '對戰 Misty Drop Mini',
   'Find opponent': '尋找對手',
   // -- Mini Xiangqi (rules) --
   'Mini Xiangqi rules, the 7×7 primer behind Dark Mini Xiangqi: no advisors or elephants, no river, sideways soldiers, and checkmate to win.':
