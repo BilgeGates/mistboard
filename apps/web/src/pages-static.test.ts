@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { mountAbout, mountNotFound, mountSource } from './pages-static.js';
+import { mountAbout, mountFaq, mountNotFound, mountSource } from './pages-static.js';
 
 async function flushPromises(): Promise<void> {
   await Promise.resolve();
@@ -138,6 +138,22 @@ describe('about page platform activity', () => {
     expect(root.textContent).toContain('GitHub 儲存庫');
     expect(root.textContent).toContain('第三方元件');
     expect(root.textContent).toContain('專案身份');
+  });
+
+  it('localizes Traditional Chinese FAQ page chrome', () => {
+    window.history.replaceState(null, '', '/zh-hant/faq');
+
+    const root = document.createElement('main');
+    document.body.append(root);
+    mountFaq(root);
+
+    expect(root.querySelector('h1')?.textContent).toBe('常見問題');
+    expect(root.textContent).toContain('什麼是迷霧國際象棋？');
+    expect(root.textContent).toContain('規則參考有完整規則。');
+    expect(root.textContent).toContain('我需要帳號嗎？');
+    expect(root.textContent).toContain('如何回報 bug 或聯絡？');
+    expect(root.textContent).toContain('Mistboard 引擎會看到完整棋盤嗎？');
+    expect(root.textContent).toContain('計分對局如何運作？');
   });
 
   it('localizes Traditional Chinese not-found page chrome', () => {

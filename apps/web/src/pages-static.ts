@@ -46,9 +46,10 @@ export function mountSource(root: HTMLElement): void {
 }
 
 export function mountFaq(root: HTMLElement): void {
+  const locale = currentLocale();
   root.replaceChildren();
   root.classList.add('landing-page', 'faq-route');
-  root.append(buildNav(), buildFaq());
+  root.append(buildNav(locale), buildFaq(locale));
 }
 
 export function mountTerms(root: HTMLElement): void {
@@ -544,56 +545,48 @@ function buildSource(locale: Locale = currentLocale()): HTMLElement {
   return section;
 }
 
-function buildFaq(): HTMLElement {
+function buildFaq(locale: Locale = currentLocale()): HTMLElement {
   const section = document.createElement('section');
   section.className = 'site-section faq-section';
 
   const heading = document.createElement('h1');
   heading.className = 'site-section-heading';
-  heading.textContent = 'FAQ';
+  heading.textContent = t('faq.heading', {}, locale);
 
-  const q1 = aboutSubheading('What is dark chess?');
+  const q1 = aboutSubheading(t('faq.darkChessQuestion', {}, locale));
   const a1 = aboutParagraph([
-    'Hidden-information chess. You see your own pieces and the squares they could legally move to. Everything else is dark, so an opponent’s pieces and moves stay hidden until your pieces can see them. The game ends when a king is captured. The ',
-    aboutLink('rules reference', '/rules'),
-    ' has the full rules.',
+    t('faq.darkChessPrefix', {}, locale),
+    aboutLink(t('faq.rulesReference', {}, locale), '/rules'),
+    t('faq.darkChessSuffix', {}, locale),
   ]);
 
-  const qAccount = aboutSubheading('Do I need an account?');
-  const aAccount = aboutParagraph([
-    'Not for casual play. Start or join games over a link, play the lobby, or play an engine without signing up. An account adds a handle, a profile, and rated play.',
-  ]);
+  const qAccount = aboutSubheading(t('faq.accountQuestion', {}, locale));
+  const aAccount = aboutParagraph([t('faq.accountAnswer', {}, locale)]);
 
-  const q2 = aboutSubheading('How do I report a bug or get in touch?');
+  const q2 = aboutSubheading(t('faq.contactQuestion', {}, locale));
   const a2 = aboutParagraph([
-    'File an issue on ',
+    t('faq.contactPrefix', {}, locale),
     aboutExternalLink('GitHub', GITHUB_URL),
-    ' or send a note via ',
-    aboutLink('Contact', '/contact'),
-    '. Include the room link if it’s about a specific game.',
+    t('faq.contactMiddle', {}, locale),
+    aboutLink(t('faq.contactLink', {}, locale), '/contact'),
+    t('faq.contactSuffix', {}, locale),
   ]);
 
-  const q3 = aboutSubheading('How does Mistboard prevent cheating?');
+  const q3 = aboutSubheading(t('faq.cheatingQuestion', {}, locale));
   const a3 = aboutParagraph([
-    'Mistboard is built so the hidden board is not sitting in your opponent’s browser waiting to be uncovered. The server owns the full position, computes each player’s legal view, and sends only that redacted view over the wire. The code is ',
-    aboutExternalLink('open source', GITHUB_URL),
-    ', so this trust boundary can be inspected. Outside assistance, account abuse, and attempts to break the fog filter are still fair-play violations.',
+    t('faq.cheatingPrefix', {}, locale),
+    aboutExternalLink(t('faq.openSource', {}, locale), GITHUB_URL),
+    t('faq.cheatingSuffix', {}, locale),
   ]);
 
-  const q4 = aboutSubheading('Do Mistboard engines see the full board?');
-  const a4 = aboutParagraph([
-    'No. Engines get the same fogged view for their side, plus only the game facts that side is allowed to know. They are playing dark chess and hidden-information variants, not cheating by seeing the true board. The true board stays server-side for adjudication.',
-  ]);
+  const q4 = aboutSubheading(t('faq.enginesQuestion', {}, locale));
+  const a4 = aboutParagraph([t('faq.enginesAnswer', {}, locale)]);
 
-  const qWatch = aboutSubheading('Can I watch a live game?');
-  const aWatch = aboutParagraph([
-    'No. Live games are not spectatable, so no one can feed a player the full board mid-game. Once a game finishes, anyone can replay it from either side or with the full board revealed.',
-  ]);
+  const qWatch = aboutSubheading(t('faq.liveWatchQuestion', {}, locale));
+  const aWatch = aboutParagraph([t('faq.liveWatchAnswer', {}, locale)]);
 
-  const q5 = aboutSubheading('How does rated play work?');
-  const a5 = aboutParagraph([
-    'Rated dark chess is account-backed human-vs-human play. During beta, the ladder may be provisional while ratings calibrate. Engine games and casual games do not count.',
-  ]);
+  const q5 = aboutSubheading(t('faq.ratedQuestion', {}, locale));
+  const a5 = aboutParagraph([t('faq.ratedAnswer', {}, locale)]);
 
   section.append(
     heading,
