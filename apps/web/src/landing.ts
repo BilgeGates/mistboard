@@ -7,6 +7,8 @@ import { buildHomeArticleCards, initLandingCarousel, mountArticleThumbnails } fr
 import { buildContact } from './contact.js';
 import type { FeaturedGame } from './game-display.js';
 import { gameMetaForGame } from './game-meta.js';
+import { t } from './i18n/catalog.js';
+import { currentLocale } from './i18n/locale.js';
 import { buildLandingActivity } from './landing-activity.js';
 import { buildLandingAnnouncements } from './landing-announcements.js';
 import { buildLandingForumPreview } from './landing-forum-preview.js';
@@ -450,6 +452,7 @@ function buildLandingStage(
   replayRoot: HTMLElement;
   applyEngines: (engines: PlayableEngine[]) => void;
 } {
+  const locale = currentLocale();
   const stage = document.createElement('main');
   stage.className = 'landing-stage';
 
@@ -464,9 +467,8 @@ function buildLandingStage(
   leftRail.className = 'landing-rail landing-rail-left';
   const about = document.createElement('h1');
   about.className = 'landing-about';
-  about.textContent =
-    'Play original strategy variants, built for serious play, free in your browser.';
-  leftRail.append(buildLandingAnnouncements(), about);
+  about.textContent = t('home.tagline', {}, locale);
+  leftRail.append(buildLandingAnnouncements(locale), about);
   // Activity box arrives async (two API fetches) and may not render at all
   // (no persistence, API down), so it slots in above the about line on
   // success instead of reserving space.
@@ -486,7 +488,7 @@ function buildLandingStage(
 
   boardColumn.append(replayRoot);
   centerColumn.append(boardColumn);
-  const articleCards = buildHomeArticleCards();
+  const articleCards = buildHomeArticleCards(8, locale);
   if (articleCards) centerColumn.append(articleCards);
   centerColumn.append(buildLandingForumPreview({ hydrate: !opts.skipLiveWidgets }));
 
@@ -494,17 +496,17 @@ function buildLandingStage(
   // stacked beneath them. ──
   const rightRail = document.createElement('div');
   rightRail.className = 'landing-rail landing-rail-right';
-  let playPanel = buildLandingPlayPanel(engines, { showLobbyRequests: false });
+  let playPanel = buildLandingPlayPanel(engines, { locale, showLobbyRequests: false });
   rightRail.append(playPanel);
   // The lobby-requests browser fetches + polls on construction, so it is skipped
   // when rendering the static shell at build time (the prerender path).
-  if (!opts.skipLiveWidgets) rightRail.append(buildLobbyRequestsWindow());
+  if (!opts.skipLiveWidgets) rightRail.append(buildLobbyRequestsWindow(locale));
 
   // Swap the play panel in place once the real playable engines arrive (the shell
   // renders first with a built-in fallback). The displaced panel's live-stats
   // poll self-clears on its next tick when it finds itself detached from the DOM.
   const applyEngines = (next: PlayableEngine[]): void => {
-    const replacement = buildLandingPlayPanel(next, { showLobbyRequests: false });
+    const replacement = buildLandingPlayPanel(next, { locale, showLobbyRequests: false });
     playPanel.replaceWith(replacement);
     playPanel = replacement;
   };
@@ -512,7 +514,7 @@ function buildLandingStage(
   section.append(leftRail, centerColumn, rightRail);
   // The footer lives only on the homepage now (stripped from interior routes),
   // blended into the bottom of the stage rather than rendered as a separate bar.
-  stage.append(section, buildHomeFooter());
+  stage.append(section, buildHomeFooter(locale));
   return { el: stage, replayRoot, applyEngines };
 }
 

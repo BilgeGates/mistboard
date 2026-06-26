@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it } from 'vitest';
-import { buildNav } from './site-shell.js';
+import { buildHomeFooter, buildNav } from './site-shell.js';
 
 describe('site shell nav', () => {
   afterEach(() => {
@@ -73,5 +73,19 @@ describe('site shell nav', () => {
     expect(
       nav.querySelector<HTMLAnchorElement>('a[href="/account?tab=register"]')?.textContent,
     ).toBe('註冊');
+  });
+
+  it('localizes homepage footer labels and content links', () => {
+    const footer = buildHomeFooter('zh-Hant');
+
+    expect(footer.querySelector<HTMLAnchorElement>('a[href="/zh-hant/rules"]')?.textContent).toBe(
+      '規則',
+    );
+    expect(
+      footer.querySelector<HTMLAnchorElement>('a[href="/zh-hant/articles"]')?.textContent,
+    ).toBe('文章');
+    expect(footer.querySelector<HTMLAnchorElement>('a[href="/news"]')?.textContent).toBe('新聞');
+    expect(footer.querySelector<HTMLAnchorElement>('a[href="/contact"]')?.textContent).toBe('聯絡');
+    expect(footer.querySelector<HTMLAnchorElement>('a[href="/privacy"]')?.textContent).toBe('隱私');
   });
 });

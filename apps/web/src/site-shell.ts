@@ -1,5 +1,5 @@
 import './site-shell.css';
-import { t } from './i18n/catalog.js';
+import { type I18nKey, t } from './i18n/catalog.js';
 import {
   APP_LOCALES,
   currentLocale,
@@ -292,20 +292,24 @@ export function buildNotice(titleText: string, bodyText: string): HTMLElement {
 // NOT a lichess-style grouped fat footer: with our route count the columns
 // read busier than the site is (Brian, 2026-06-10). The content routes the
 // top nav omits (Rules, Articles, News) lead the row.
-const HOME_FOOTER_LINKS: ReadonlyArray<{ href: string; label: string; external?: boolean }> = [
-  { href: '/rules', label: 'Rules' },
-  { href: '/articles', label: 'Articles' },
-  { href: '/news', label: 'News' },
-  { href: '/about', label: 'About' },
-  { href: '/faq', label: 'FAQ' },
-  { href: '/contact', label: 'Contact' },
-  { href: '/source', label: 'Source' },
-  { href: GITHUB_URL, label: 'GitHub', external: true },
-  { href: '/terms', label: 'Terms' },
-  { href: '/privacy', label: 'Privacy' },
+const HOME_FOOTER_LINKS: ReadonlyArray<{
+  href: string;
+  labelKey: I18nKey;
+  external?: boolean;
+}> = [
+  { href: '/rules', labelKey: 'nav.rules' },
+  { href: '/articles', labelKey: 'nav.articles' },
+  { href: '/news', labelKey: 'news.heading' },
+  { href: '/about', labelKey: 'footer.about' },
+  { href: '/faq', labelKey: 'footer.faq' },
+  { href: '/contact', labelKey: 'footer.contact' },
+  { href: '/source', labelKey: 'footer.source' },
+  { href: GITHUB_URL, labelKey: 'footer.github', external: true },
+  { href: '/terms', labelKey: 'footer.terms' },
+  { href: '/privacy', labelKey: 'footer.privacy' },
 ];
 
-export function buildHomeFooter(): HTMLElement {
+export function buildHomeFooter(locale: Locale = currentLocale()): HTMLElement {
   const footer = document.createElement('footer');
   footer.className = 'landing-footer';
 
@@ -313,8 +317,8 @@ export function buildHomeFooter(): HTMLElement {
   links.className = 'landing-footer-links';
   for (const link of HOME_FOOTER_LINKS) {
     const anchor = document.createElement('a');
-    anchor.href = link.href;
-    anchor.textContent = link.label;
+    anchor.href = link.external ? link.href : localizedHref(link.href, locale);
+    anchor.textContent = t(link.labelKey, {}, locale);
     if (link.external) {
       anchor.target = '_blank';
       anchor.rel = 'noreferrer noopener';

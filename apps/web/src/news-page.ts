@@ -2,22 +2,24 @@
 // News box "More" target. Mirrors lichess's updates-feed page shape: one
 // entry per update with date, headline, and the short body line.
 import './news-page.css';
-import { announcements } from './announcements.js';
+import { type Announcement, announcements } from './announcements.js';
+import { t } from './i18n/catalog.js';
+import { currentLocale, type Locale, localizedHref } from './i18n/locale.js';
 import { formatAnnouncementDate } from './landing-announcements.js';
 import { rulesHrefPublicSurfaceEnabled } from './variant-public-surfaces.js';
 
-export function buildNewsPage(): HTMLElement {
+export function buildNewsPage(locale: Locale = currentLocale()): HTMLElement {
   const section = document.createElement('section');
   section.className = 'site-section news-page';
 
   const heading = document.createElement('h1');
   heading.className = 'site-section-heading';
-  heading.textContent = 'News';
+  heading.textContent = t('news.heading', {}, locale);
   section.append(heading);
 
   const intro = document.createElement('p');
   intro.className = 'news-page-intro';
-  intro.textContent = 'Releases, status updates, and announcements from Mistboard.';
+  intro.textContent = t('news.intro', {}, locale);
   section.append(intro);
 
   // Pure reverse-chronological: pinning is a rail concern, not a history one.
@@ -27,7 +29,7 @@ export function buildNewsPage(): HTMLElement {
   if (entries.length === 0) {
     const empty = document.createElement('p');
     empty.className = 'news-page-empty';
-    empty.textContent = 'Nothing yet.';
+    empty.textContent = t('news.empty', {}, locale);
     section.append(empty);
     return section;
   }
@@ -41,7 +43,7 @@ export function buildNewsPage(): HTMLElement {
     const date = document.createElement('time');
     date.className = 'news-page-date';
     date.dateTime = entry.date;
-    date.textContent = formatAnnouncementDate(entry.date, true);
+    date.textContent = formatAnnouncementDate(entry.date, true, locale);
 
     const body = document.createElement('div');
     body.className = 'news-page-body';
@@ -59,8 +61,8 @@ export function buildNewsPage(): HTMLElement {
         const isExternal = /^https?:/.test(entry.href);
         const link = document.createElement('a');
         link.className = 'news-page-link';
-        link.href = entry.href;
-        link.textContent = entry.cta ?? 'Read more';
+        link.href = isExternal ? entry.href : localizedHref(entry.href, locale);
+        link.textContent = announcementCtaLabel(entry, locale);
         if (isExternal) {
           link.target = '_blank';
           link.rel = 'noopener noreferrer';
@@ -76,4 +78,19 @@ export function buildNewsPage(): HTMLElement {
   section.append(list);
 
   return section;
+}
+
+function announcementCtaLabel(entry: Announcement, locale: Locale): string {
+  switch (entry.cta) {
+    case 'Read rules':
+      return t('news.readRules', {}, locale);
+    case 'Study the rules':
+      return t('news.studyRules', {}, locale);
+    case 'Send feedback':
+      return t('news.sendFeedback', {}, locale);
+    case 'Play the engine':
+      return t('news.playEngine', {}, locale);
+    default:
+      return entry.cta ?? t('news.readMore', {}, locale);
+  }
 }
