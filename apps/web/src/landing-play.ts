@@ -28,7 +28,7 @@ import {
   track,
 } from './analytics.js';
 import { correspondenceEnabled, crossroadsChessEnabled } from './feature-flags.js';
-import { t } from './i18n/catalog.js';
+import { type I18nKey, t } from './i18n/catalog.js';
 import { currentLocale, type Locale } from './i18n/locale.js';
 import { isRatedModeEnabled } from './rated-flag.js';
 import { isLikelySignedIn } from './signed-in-state.js';
@@ -48,6 +48,7 @@ type LandingPlayChoice = {
   engineId?: string;
   engines?: PlayableEngine[];
   initialGameSpecId?: LandingGameSpecId;
+  locale?: Locale;
   mode: LandingPlayMode;
   ratedDisabled?: boolean;
   title: string;
@@ -173,9 +174,10 @@ function allowedTimePresetIds(
 // entry points through their registry landing config.
 function enabledLandingVariantGameSpecs(
   _mode: LandingPlayMode,
+  locale: Locale,
 ): { gameSpecId: LandingGameSpecId; label: string }[] {
   const specs: { gameSpecId: LandingGameSpecId; label: string }[] = [
-    { gameSpecId: DARK_CHESS_SPEC_ID, label: gameSpecForId(DARK_CHESS_SPEC_ID).publicName },
+    { gameSpecId: DARK_CHESS_SPEC_ID, label: variantLabelForGameSpec(DARK_CHESS_SPEC_ID, locale) },
   ];
   // Each tenant's registry entry decides whether it appears in normal play-menu
   // entry points (Dark Xiangqi never does: it has no live room/lobby runtime).
@@ -183,7 +185,7 @@ function enabledLandingVariantGameSpecs(
     if (!tenant.landing?.offerInMenu()) continue;
     specs.push({
       gameSpecId: tenant.gameSpecId as LandingGameSpecId,
-      label: gameSpecForId(tenant.gameSpecId).publicName,
+      label: variantLabelForGameSpec(tenant.gameSpecId as LandingGameSpecId, locale),
     });
   }
   // The tenant registry iterates in import order, not the rail's order; present
@@ -207,6 +209,50 @@ function gameGroupMeta(groupId: LandingGameGroupId): {
   label: string;
 } {
   return LANDING_GAME_GROUPS.find((group) => group.id === groupId) ?? LANDING_GAME_GROUPS[0];
+}
+
+function gameGroupLabel(groupId: LandingGameGroupId, locale: Locale): string {
+  if (groupId === 'xiangqi') return t('setup.xiangqi', {}, locale);
+  if (groupId === 'shogi') return t('setup.shogi', {}, locale);
+  return t('setup.chess', {}, locale);
+}
+
+function variantLabelForGameSpec(gameSpecId: LandingGameSpecId, locale: Locale): string {
+  const key = variantNameKeyForGameSpec(gameSpecId);
+  return key ? t(key, {}, locale) : gameSpecForId(gameSpecId).publicName;
+}
+
+function variantNameKeyForGameSpec(gameSpecId: LandingGameSpecId): I18nKey | null {
+  switch (gameSpecId) {
+    case DARK_CHESS_SPEC_ID:
+      return 'variant.darkChess.name';
+    case DARK_CRAZYHOUSE_SPEC_ID:
+      return 'variant.darkCrazyhouse.name';
+    case KRIEGSPIEL_SPEC_ID:
+      return 'variant.kriegspiel.name';
+    case REVEAL_CHESS_SPEC_ID:
+      return 'variant.revealChess.name';
+    case MINI_XIANGQI_SPEC_ID:
+      return 'variant.miniXiangqi.name';
+    case DARK_MINI_XIANGQI_SPEC_ID:
+      return 'variant.darkMiniXiangqi.name';
+    case DROP_MINI_XIANGQI_SPEC_ID:
+      return 'variant.dropMiniXiangqi.name';
+    case DARK_XIANGQI_SPEC_ID:
+      return 'variant.darkXiangqi.name';
+    case JIEQI_SPEC_ID:
+      return 'variant.jieqi.name';
+    case BANQI_SPEC_ID:
+      return 'variant.banqi.name';
+    case CROSSROADS_CHESS_SPEC_ID:
+      return 'variant.crossroadsChess.name';
+    case DARK_CROSSROADS_CHESS_SPEC_ID:
+      return 'variant.darkCrossroadsChess.name';
+    case DARK_SHOGI_SPEC_ID:
+      return 'variant.darkShogi.name';
+    default:
+      return null;
+  }
 }
 
 function gameGroupsForVariantOptions(
@@ -298,6 +344,7 @@ export function buildLandingPlayPanel(
   lobbyButton.addEventListener('click', () => {
     openLandingSetupDialog({
       engineId: defaultEngineId,
+      locale,
       mode: 'lobby',
       title: lobbyTitle,
       ratedDisabled: !isRatedModeEnabled() || !isLikelySignedIn(),
@@ -305,6 +352,7 @@ export function buildLandingPlayPanel(
   });
   challengeButton.addEventListener('click', () => {
     openLandingSetupDialog({
+      locale,
       mode: 'pvp',
       title: challengeTitle,
       ratedDisabled: true,
@@ -314,6 +362,7 @@ export function buildLandingPlayPanel(
     openLandingSetupDialog({
       engineId: defaultEngineId,
       engines: availableEngines,
+      locale,
       mode: 'pve',
       title: engineTitle,
     });
@@ -503,9 +552,9 @@ function lobbyRequestRow(request: OpenLobbyRequest, locale: Locale = currentLoca
   const formatLabel =
     requestSpecId === DARK_CHESS_SPEC_ID
       ? request.hiddenDraft960
-        ? 'Dark Draft960'
+        ? t('setup.darkDraft960', {}, locale)
         : t('play.standard', {}, locale)
-      : gameSpecForId(requestSpecId).publicName;
+      : variantLabelForGameSpec(requestSpecId, locale);
   // Time control + game on the bold line; the casual/rated tag drops to the
   // meta line with the wait age so a long variant name (Dark Mini Xiangqi)
   // doesn't orphan "· Casual" onto its own wrapped line.
@@ -530,7 +579,7 @@ function lobbyRequestRow(request: OpenLobbyRequest, locale: Locale = currentLoca
     };
     // Joining an open request matches instantly, so no engine offer is involved
     // (unchanged from chess) — the offer only arms while waiting.
-    joinLobbyFromPlay(join, setup, status);
+    joinLobbyFromPlay(join, setup, status, locale);
   });
 
   row.append(details, join);
@@ -578,6 +627,7 @@ export function maybeOpenPlayDeepLink(engines: PlayableEngine[]): void {
           params.get('gameSpecId') ?? params.get('variant'),
           'lobby',
         ),
+        locale,
         mode: 'lobby',
         title: t('play.findOpponent', {}, locale),
         ratedDisabled: !isRatedModeEnabled() || !isLikelySignedIn(),
@@ -589,6 +639,7 @@ export function maybeOpenPlayDeepLink(engines: PlayableEngine[]): void {
           params.get('gameSpecId') ?? params.get('variant'),
           'pvp',
         ),
+        locale,
         mode: 'pvp',
         title: t('play.challengeFriend', {}, locale),
         ratedDisabled: true,
@@ -603,6 +654,7 @@ export function maybeOpenPlayDeepLink(engines: PlayableEngine[]): void {
           params.get('gameSpecId') ?? params.get('variant'),
           'pve',
         ),
+        locale,
         mode: 'pve',
         title: t('play.playEngine', {}, locale),
       });
@@ -636,6 +688,7 @@ function landingVariantSupportsPve(gameSpecId: LandingGameSpecId): boolean {
 }
 
 function openLandingSetupDialog(choice: LandingPlayChoice): void {
+  const locale = choice.locale ?? currentLocale();
   const existing = document.querySelector('.landing-setup-overlay');
   existing?.remove();
 
@@ -645,7 +698,7 @@ function openLandingSetupDialog(choice: LandingPlayChoice): void {
     choice.mode === 'pve' || choice.ratedDisabled ? false : (storedPreference.rated ?? true);
   let selectedGameSpecId: LandingGameSpecId =
     choice.initialGameSpecId ?? storedPreference.gameSpecId ?? DARK_CHESS_SPEC_ID;
-  const publicVariantOptions = enabledLandingVariantGameSpecs(choice.mode);
+  const publicVariantOptions = enabledLandingVariantGameSpecs(choice.mode, locale);
   const softLinkedHiddenVariant =
     choice.initialGameSpecId &&
     !publicVariantOptions.some((option) => option.gameSpecId === choice.initialGameSpecId)
@@ -655,7 +708,7 @@ function openLandingSetupDialog(choice: LandingPlayChoice): void {
     ? [
         {
           gameSpecId: softLinkedHiddenVariant,
-          label: gameSpecForId(softLinkedHiddenVariant).publicName,
+          label: variantLabelForGameSpec(softLinkedHiddenVariant, locale),
         },
       ]
     : publicVariantOptions;
@@ -717,7 +770,7 @@ function openLandingSetupDialog(choice: LandingPlayChoice): void {
   const closeButton = document.createElement('button');
   closeButton.type = 'button';
   closeButton.className = 'landing-setup-close';
-  closeButton.setAttribute('aria-label', 'Close setup');
+  closeButton.setAttribute('aria-label', t('setup.close', {}, locale));
   closeButton.textContent = 'x';
 
   const header = document.createElement('div');
@@ -754,7 +807,7 @@ function openLandingSetupDialog(choice: LandingPlayChoice): void {
     const groupGrid = document.createElement('div');
     groupGrid.className = 'landing-game-group-grid';
     groupGrid.setAttribute('role', 'radiogroup');
-    groupGrid.setAttribute('aria-label', 'Game group');
+    groupGrid.setAttribute('aria-label', t('setup.gameGroup', {}, locale));
     const groupButtons = new Map<LandingGameGroupId, HTMLButtonElement>();
     for (const groupId of gameGroupOptions) {
       const group = gameGroupMeta(groupId);
@@ -771,7 +824,7 @@ function openLandingSetupDialog(choice: LandingPlayChoice): void {
 
       const name = document.createElement('span');
       name.className = 'landing-game-group-name';
-      name.textContent = group.label;
+      name.textContent = gameGroupLabel(group.id, locale);
 
       button.append(glyph, name);
       button.addEventListener('click', () => {
@@ -800,7 +853,7 @@ function openLandingSetupDialog(choice: LandingPlayChoice): void {
 
   const variantSection = document.createElement('div');
   variantSection.className = 'landing-setup-section';
-  variantSection.append(setupSectionLabel('Variant'));
+  variantSection.append(setupSectionLabel(t('setup.variant', {}, locale)));
 
   // The picker appears only when a second variant exists beyond chess. The
   // option set is mode-aware because PvE can show non-engine variants as
@@ -812,7 +865,7 @@ function openLandingSetupDialog(choice: LandingPlayChoice): void {
     const grid = document.createElement('div');
     grid.className = 'landing-variant-grid';
     grid.setAttribute('role', 'radiogroup');
-    grid.setAttribute('aria-label', 'Variant');
+    grid.setAttribute('aria-label', t('setup.variant', {}, locale));
     const cards = new Map<LandingGameSpecId, HTMLButtonElement>();
     for (const { gameSpecId, label } of variantOptions) {
       const card = document.createElement('button');
@@ -828,7 +881,7 @@ function openLandingSetupDialog(choice: LandingPlayChoice): void {
         card.disabled = true;
         card.classList.add('landing-variant-card-disabled');
         card.setAttribute('aria-disabled', 'true');
-        card.title = `${label} has no computer opponent yet`;
+        card.title = t('setup.noComputerOpponentYet', { variant: label }, locale);
       }
       const miniId = variantMiniIdForGameSpec(gameSpecId);
       if (miniId) {
@@ -844,7 +897,7 @@ function openLandingSetupDialog(choice: LandingPlayChoice): void {
       if (pveDisabled) {
         const badge = document.createElement('span');
         badge.className = 'landing-variant-card-badge';
-        badge.textContent = 'Soon';
+        badge.textContent = t('setup.soon', {}, locale);
         card.append(badge);
       } else {
         card.addEventListener('click', () => {
@@ -872,7 +925,7 @@ function openLandingSetupDialog(choice: LandingPlayChoice): void {
   } else {
     const variantControl = document.createElement('div');
     variantControl.className = 'landing-variant-control';
-    const label = gameSpecForId(selectedGameSpecId).publicName;
+    const label = variantLabelForGameSpec(selectedGameSpecId, locale);
     const miniId = variantMiniIdForGameSpec(selectedGameSpecId);
     if (miniId) {
       const thumb = document.createElement('span');
@@ -898,26 +951,29 @@ function openLandingSetupDialog(choice: LandingPlayChoice): void {
             syncSetupAccordion();
             openNextSetupSection('engine');
           },
+          locale,
         )
       : null;
 
   const draft960Enabled = isVariantEnabled('fog_draft960');
   const draft960Selectable = draft960Enabled && choice.mode !== 'lobby';
   let startGroup: HTMLDivElement | null = null;
-  const standardButton = startOptionButton('Standard', true);
+  const standardButton = startOptionButton(t('play.standard', {}, locale), true);
   const draftButton = startOptionButton(
-    draft960Selectable ? 'Dark Draft960' : 'Dark Draft960 (coming soon)',
+    draft960Selectable
+      ? t('setup.darkDraft960', {}, locale)
+      : t('setup.darkDraft960ComingSoon', {}, locale),
     false,
   );
   if (draft960Enabled) {
     startGroup = document.createElement('div');
     startGroup.className = 'landing-start-options';
     startGroup.setAttribute('role', 'radiogroup');
-    startGroup.setAttribute('aria-label', 'Fog start format');
+    startGroup.setAttribute('aria-label', t('setup.variant', {}, locale));
     if (!draft960Selectable) {
       draftButton.disabled = true;
       draftButton.classList.add('disabled');
-      draftButton.title = 'Coming soon';
+      draftButton.title = t('setup.soon', {}, locale);
     }
     const syncOptions = () => {
       standardButton.classList.toggle('selected', startFormat === 'standard');
@@ -943,7 +999,7 @@ function openLandingSetupDialog(choice: LandingPlayChoice): void {
 
   const timeSection = document.createElement('div');
   timeSection.className = 'landing-setup-section';
-  timeSection.append(setupSectionLabel('Time control'));
+  timeSection.append(setupSectionLabel(t('setup.timeControl', {}, locale)));
 
   // Lichess-style segmented toggle: Real time vs Correspondence. It only appears
   // when correspondence is actually offered for the current selection (casual
@@ -954,9 +1010,9 @@ function openLandingSetupDialog(choice: LandingPlayChoice): void {
   const timeModeToggle = document.createElement('div');
   timeModeToggle.className = 'landing-start-options landing-time-mode';
   timeModeToggle.setAttribute('role', 'radiogroup');
-  timeModeToggle.setAttribute('aria-label', 'Time control type');
-  const realtimeModeButton = startOptionButton('Real time', true);
-  const correspondenceModeButton = startOptionButton('Correspondence', false);
+  timeModeToggle.setAttribute('aria-label', t('setup.timeControlType', {}, locale));
+  const realtimeModeButton = startOptionButton(t('setup.realTime', {}, locale), true);
+  const correspondenceModeButton = startOptionButton(t('setup.correspondence', {}, locale), false);
   realtimeModeButton.addEventListener('click', () => {
     selectedTimeMode = 'realtime';
     selectedCorrespondenceDays = null;
@@ -974,7 +1030,7 @@ function openLandingSetupDialog(choice: LandingPlayChoice): void {
   const presetGroup = document.createElement('div');
   presetGroup.className = 'landing-time-presets';
   presetGroup.setAttribute('role', 'radiogroup');
-  presetGroup.setAttribute('aria-label', 'Time control');
+  presetGroup.setAttribute('aria-label', t('setup.timeControl', {}, locale));
 
   const presetButtons = LANDING_TIME_PRESETS.map((preset) => {
     const button = startOptionButton(preset.label, preset.id === selectedPreset);
@@ -993,9 +1049,9 @@ function openLandingSetupDialog(choice: LandingPlayChoice): void {
   const correspondenceGroup = document.createElement('div');
   correspondenceGroup.className = 'landing-time-presets landing-correspondence-presets';
   correspondenceGroup.setAttribute('role', 'radiogroup');
-  correspondenceGroup.setAttribute('aria-label', 'Days per move');
+  correspondenceGroup.setAttribute('aria-label', t('setup.daysPerMove', {}, locale));
   const correspondenceButtons = CORRESPONDENCE_DAY_OPTIONS.map((option) => {
-    const button = startOptionButton(option.label, false);
+    const button = startOptionButton(dayOptionLabel(option.days, locale), false);
     button.addEventListener('click', () => {
       if (button.hidden) return;
       selectedTimeMode = 'correspondence';
@@ -1067,22 +1123,28 @@ function openLandingSetupDialog(choice: LandingPlayChoice): void {
   startButton.className = 'landing-setup-start';
   startButton.textContent =
     choice.mode === 'lobby'
-      ? 'Find opponent'
+      ? t('play.findOpponent', {}, locale)
       : choice.mode === 'pvp'
-        ? 'Create room'
-        : 'Start game';
+        ? t('setup.createRoom', {}, locale)
+        : t('setup.startGame', {}, locale);
   startButton.addEventListener('click', () => {
     if (selectedCorrespondenceDays !== null) {
       // Challenge a friend creates a private invite room; Find opponent posts an
       // open seek to the board (color server-assigned there, like the live pool).
       if (choice.mode === 'lobby') {
-        void postCorrespondenceSeekFromPlay(startButton, status, selectedCorrespondenceDays);
+        void postCorrespondenceSeekFromPlay(
+          startButton,
+          status,
+          selectedCorrespondenceDays,
+          locale,
+        );
       } else {
         void createCorrespondenceFromPlay(
           startButton,
           status,
           selectedCorrespondenceDays,
           preferredColor,
+          locale,
         );
       }
       return;
@@ -1100,16 +1162,16 @@ function openLandingSetupDialog(choice: LandingPlayChoice): void {
       // The empty-lobby "play the engine" offer is chess-only (no engine plays
       // the xiangqi family yet), so DMX seekers wait without it.
       const lobbyEngineId = setup.gameSpecId === DARK_CHESS_SPEC_ID ? selectedEngineId : undefined;
-      cancelLobbyWait = joinLobbyFromPlay(startButton, setup, status, lobbyEngineId);
+      cancelLobbyWait = joinLobbyFromPlay(startButton, setup, status, locale, lobbyEngineId);
       return;
     }
-    void createRoomFromPlay(startButton, choice.mode, selectedEngineId, setup, status);
+    void createRoomFromPlay(startButton, choice.mode, selectedEngineId, setup, status, locale);
   });
 
   const backButton = document.createElement('button');
   backButton.type = 'button';
   backButton.className = 'landing-setup-back';
-  backButton.textContent = 'Cancel';
+  backButton.textContent = t('setup.cancel', {}, locale);
 
   const close = () => {
     cancelLobbyWait?.();
@@ -1139,6 +1201,7 @@ function openLandingSetupDialog(choice: LandingPlayChoice): void {
             syncTimeControls();
             openNextSetupSection('gameType');
           },
+          locale,
         )
       : null;
 
@@ -1156,6 +1219,7 @@ function openLandingSetupDialog(choice: LandingPlayChoice): void {
           (sync) => {
             syncColorPreferenceControls = sync;
           },
+          locale,
         )
       : null;
 
@@ -1202,17 +1266,18 @@ function openLandingSetupDialog(choice: LandingPlayChoice): void {
 
   const timeSummary = () => {
     if (selectedCorrespondenceDays !== null) {
-      return `${selectedCorrespondenceDays} day${selectedCorrespondenceDays === 1 ? '' : 's'}`;
+      return dayOptionLabel(selectedCorrespondenceDays, locale);
     }
     return (
       LANDING_TIME_PRESETS.find((candidate) => candidate.id === selectedPreset)?.label ?? '3 + 2'
     );
   };
-  const gameTypeSummary = () => (rated && !choice.ratedDisabled ? 'Rated' : 'Casual');
+  const gameTypeSummary = () =>
+    rated && !choice.ratedDisabled ? t('play.rated', {}, locale) : t('play.casual', {}, locale);
   const variantSummary = () =>
     selectedGameSpecId === DARK_CHESS_SPEC_ID && startFormat === 'draft960'
-      ? 'Dark Draft960'
-      : gameSpecForId(selectedGameSpecId).publicName;
+      ? t('setup.darkDraft960', {}, locale)
+      : variantLabelForGameSpec(selectedGameSpecId, locale);
   const engineSummary = () => {
     const availableEngines =
       webVariantTenantForSpecId(selectedGameSpecId)?.landing?.engineOptions ??
@@ -1225,33 +1290,66 @@ function openLandingSetupDialog(choice: LandingPlayChoice): void {
     );
   };
   const colorSummary = () => {
-    if (preferredColor === 'random') return 'Random';
+    if (preferredColor === 'random') return t('setup.random', {}, locale);
     const capabilities = landingGameSpecCapabilities(selectedGameSpecId);
-    if (preferredColor === capabilities.firstColor) return capabilities.firstLabel;
-    if (preferredColor === capabilities.secondColor) return capabilities.secondLabel;
-    return 'Random';
+    if (preferredColor === capabilities.firstColor)
+      return localizeSetupLabel(capabilities.firstLabel, locale);
+    if (preferredColor === capabilities.secondColor)
+      return localizeSetupLabel(capabilities.secondLabel, locale);
+    return t('setup.random', {}, locale);
   };
   const setupSections = [
     ...(gameGroupSelectable
       ? [
           buildSetupAccordionSection(
             'gameGroup',
-            'Game group',
+            t('setup.gameGroup', {}, locale),
             gameGroupSection,
-            () => gameGroupMeta(selectedGameGroupId).label,
+            () => gameGroupLabel(selectedGameGroupId, locale),
           ),
         ]
       : []),
-    buildSetupAccordionSection('variant', 'Variant', variantSection, variantSummary),
-    buildSetupAccordionSection('time', 'Time control', timeSection, timeSummary),
+    buildSetupAccordionSection(
+      'variant',
+      t('setup.variant', {}, locale),
+      variantSection,
+      variantSummary,
+    ),
+    buildSetupAccordionSection(
+      'time',
+      t('setup.timeControl', {}, locale),
+      timeSection,
+      timeSummary,
+    ),
     ...(ratingSection
-      ? [buildSetupAccordionSection('gameType', 'Game type', ratingSection, gameTypeSummary)]
+      ? [
+          buildSetupAccordionSection(
+            'gameType',
+            t('setup.gameType', {}, locale),
+            ratingSection,
+            gameTypeSummary,
+          ),
+        ]
       : []),
     ...(engineSection
-      ? [buildSetupAccordionSection('engine', 'Engine', engineSection.section, engineSummary)]
+      ? [
+          buildSetupAccordionSection(
+            'engine',
+            t('setup.engine', {}, locale),
+            engineSection.section,
+            engineSummary,
+          ),
+        ]
       : []),
     ...(colorSection
-      ? [buildSetupAccordionSection('side', 'Side', colorSection, colorSummary)]
+      ? [
+          buildSetupAccordionSection(
+            'side',
+            t('setup.side', {}, locale),
+            colorSection,
+            colorSummary,
+          ),
+        ]
       : []),
   ];
   let openSetupSectionId = gameGroupSelectable
@@ -1321,24 +1419,52 @@ function openLandingSetupDialog(choice: LandingPlayChoice): void {
 // (openLandingSetupDialog). Selecting one routes the submit to the correspondence
 // path — a private room (Challenge a friend) or an open seek (Find opponent) —
 // instead of the real-time create.
-const CORRESPONDENCE_DAY_OPTIONS: { days: number; label: string }[] = [
-  { days: 1, label: '1 day' },
-  { days: 3, label: '3 days' },
-  { days: 7, label: '7 days' },
-];
+const CORRESPONDENCE_DAY_OPTIONS: { days: number }[] = [{ days: 1 }, { days: 3 }, { days: 7 }];
 // Pre-selected day-chip when the player first flips to the Correspondence segment,
 // so the Start button is immediately valid (mirrors lichess defaulting its slider).
 const DEFAULT_CORRESPONDENCE_DAYS = 3;
+
+function dayOptionLabel(days: number, locale: Locale): string {
+  return days === 1 ? t('setup.oneDay', {}, locale) : t('setup.days', { count: days }, locale);
+}
+
+function localizeSetupLabel(label: string, locale: Locale): string {
+  switch (label) {
+    case 'White':
+      return t('setup.white', {}, locale);
+    case 'Black':
+      return t('setup.black', {}, locale);
+    case 'Red':
+      return t('setup.red', {}, locale);
+    case 'Random':
+      return t('setup.random', {}, locale);
+    case 'First':
+      return t('setup.first', {}, locale);
+    case 'Second':
+      return t('setup.second', {}, locale);
+    case 'Sente':
+      return t('setup.sente', {}, locale);
+    case 'Gote':
+      return t('setup.gote', {}, locale);
+    case 'Color':
+      return t('setup.color', {}, locale);
+    case 'Move order':
+      return t('setup.moveOrder', {}, locale);
+    default:
+      return label;
+  }
+}
 
 async function createCorrespondenceFromPlay(
   button: HTMLButtonElement,
   status: HTMLElement,
   daysPerMove: number,
   preferredColor: LandingColorPreference,
+  locale: Locale,
 ): Promise<void> {
   button.disabled = true;
   button.setAttribute('aria-busy', 'true');
-  button.textContent = 'Creating';
+  button.textContent = t('setup.creating', {}, locale);
   try {
     const response = await fetch('/api/rooms', {
       method: 'POST',
@@ -1370,7 +1496,7 @@ async function createCorrespondenceFromPlay(
     } else {
       status.textContent = 'Correspondence is unavailable right now. Try again later.';
     }
-    button.textContent = 'Try again';
+    button.textContent = t('setup.tryAgain', {}, locale);
     button.disabled = false;
     button.removeAttribute('aria-busy');
   } catch (err) {
@@ -1378,7 +1504,7 @@ async function createCorrespondenceFromPlay(
     if (status.isConnected) {
       status.textContent = 'Could not reach the server. Check your connection and try again.';
     }
-    button.textContent = 'Try again';
+    button.textContent = t('setup.tryAgain', {}, locale);
     button.disabled = false;
     button.removeAttribute('aria-busy');
   }
@@ -1393,10 +1519,11 @@ async function postCorrespondenceSeekFromPlay(
   button: HTMLButtonElement,
   status: HTMLElement,
   daysPerMove: number,
+  locale: Locale,
 ): Promise<void> {
   button.disabled = true;
   button.setAttribute('aria-busy', 'true');
-  button.textContent = 'Posting';
+  button.textContent = t('setup.posting', {}, locale);
   try {
     const response = await fetch('/api/correspondence/seeks', {
       method: 'POST',
@@ -1422,7 +1549,7 @@ async function postCorrespondenceSeekFromPlay(
     } else {
       status.textContent = 'Correspondence is unavailable right now. Try again later.';
     }
-    button.textContent = 'Try again';
+    button.textContent = t('setup.tryAgain', {}, locale);
     button.disabled = false;
     button.removeAttribute('aria-busy');
   } catch (err) {
@@ -1430,7 +1557,7 @@ async function postCorrespondenceSeekFromPlay(
     if (status.isConnected) {
       status.textContent = 'Could not reach the server. Check your connection and try again.';
     }
-    button.textContent = 'Try again';
+    button.textContent = t('setup.tryAgain', {}, locale);
     button.disabled = false;
     button.removeAttribute('aria-busy');
   }
@@ -1447,13 +1574,14 @@ function buildEngineSetupSection(
   engines: PlayableEngine[],
   selectedEngineId: string | undefined,
   onSelect: (engineId: string, gameSpecId: LandingGameSpecId) => void,
+  locale: Locale,
 ): {
   section: HTMLElement;
   sync(gameSpecId: LandingGameSpecId, selectedEngineId: string | undefined): void;
 } {
   const section = document.createElement('div');
   section.className = 'landing-setup-section';
-  section.append(setupSectionLabel('Engine'));
+  section.append(setupSectionLabel(t('setup.engine', {}, locale)));
   const body = document.createElement('div');
   section.append(body);
 
@@ -1484,7 +1612,7 @@ function buildEngineSetupSection(
 
     const select = document.createElement('select');
     select.className = 'landing-engine-select';
-    select.setAttribute('aria-label', 'Engine');
+    select.setAttribute('aria-label', t('setup.engine', {}, locale));
     for (const engine of availableEngines) {
       const option = document.createElement('option');
       option.value = engine.id;
@@ -1514,18 +1642,22 @@ function buildRatedToggleSection(
   set: (v: boolean) => void,
   ratedDisabled = false,
   onChange: () => void = () => undefined,
+  locale: Locale = currentLocale(),
 ): HTMLElement {
   const section = document.createElement('div');
   section.className = 'landing-setup-section';
-  section.append(setupSectionLabel('Game type'));
+  section.append(setupSectionLabel(t('setup.gameType', {}, locale)));
 
   const group = document.createElement('div');
   group.className = 'landing-start-options';
   group.setAttribute('role', 'radiogroup');
-  group.setAttribute('aria-label', 'Game type');
+  group.setAttribute('aria-label', t('setup.gameType', {}, locale));
 
-  const ratedButton = startOptionButton(ratedDisabled ? 'Rated (coming soon)' : 'Rated', true);
-  const casualButton = startOptionButton('Casual', false);
+  const ratedButton = startOptionButton(
+    ratedDisabled ? t('setup.ratedComingSoon', {}, locale) : t('play.rated', {}, locale),
+    true,
+  );
+  const casualButton = startOptionButton(t('play.casual', {}, locale), false);
 
   if (ratedDisabled) {
     ratedButton.disabled = true;
@@ -1689,21 +1821,26 @@ function buildColorPreferenceSection(
   set: (value: LandingColorPreference) => void,
   getGameSpecId: () => LandingGameSpecId = () => DARK_CHESS_SPEC_ID,
   onSync?: (sync: () => void) => void,
+  locale: Locale = currentLocale(),
 ): HTMLElement {
   const section = document.createElement('div');
   section.className = 'landing-setup-section';
-  const sectionLabel = setupSectionLabel('Color');
+  const sectionLabel = setupSectionLabel(t('setup.color', {}, locale));
   section.append(sectionLabel);
 
   const group = document.createElement('div');
   group.className = 'landing-start-options three';
   group.setAttribute('role', 'radiogroup');
-  group.setAttribute('aria-label', 'Color');
+  group.setAttribute('aria-label', t('setup.color', {}, locale));
 
   const initial = get();
-  const firstButton = colorOptionButton('white', 'White', initial === 'white');
-  const randomButton = colorOptionButton('random', 'Random', initial === 'random');
-  const blackButton = colorOptionButton('black', 'Black', initial === 'black');
+  const firstButton = colorOptionButton('white', t('setup.white', {}, locale), initial === 'white');
+  const randomButton = colorOptionButton(
+    'random',
+    t('setup.random', {}, locale),
+    initial === 'random',
+  );
+  const blackButton = colorOptionButton('black', t('setup.black', {}, locale), initial === 'black');
 
   const sync = () => {
     const gameSpecId = getGameSpecId();
@@ -1711,12 +1848,22 @@ function buildColorPreferenceSection(
     const firstValue: LandingColorPreference = capabilities.firstColor;
     const secondValue: LandingColorPreference = capabilities.secondColor;
     const current = get();
-    const pickerLabel = capabilities.pickerLabel ?? 'Color';
+    const pickerLabel = localizeSetupLabel(capabilities.pickerLabel ?? 'Color', locale);
     sectionLabel.textContent = pickerLabel;
     group.setAttribute('aria-label', pickerLabel);
-    updateColorOptionButton(firstButton, firstValue, capabilities.firstLabel, gameSpecId);
-    updateColorOptionButton(randomButton, 'random', 'Random', gameSpecId);
-    updateColorOptionButton(blackButton, secondValue, capabilities.secondLabel, gameSpecId);
+    updateColorOptionButton(
+      firstButton,
+      firstValue,
+      localizeSetupLabel(capabilities.firstLabel, locale),
+      gameSpecId,
+    );
+    updateColorOptionButton(randomButton, 'random', t('setup.random', {}, locale), gameSpecId);
+    updateColorOptionButton(
+      blackButton,
+      secondValue,
+      localizeSetupLabel(capabilities.secondLabel, locale),
+      gameSpecId,
+    );
     for (const [button, value] of [
       [firstButton, firstValue],
       [randomButton, 'random'],
@@ -1933,15 +2080,16 @@ async function createRoomFromPlay(
     preferredColor: 'random',
   },
   status?: HTMLElement,
+  locale: Locale = currentLocale(),
 ): Promise<void> {
   const label = button.querySelector<HTMLElement>('.landing-play-action-label');
   const originalText = label?.textContent ?? button.textContent ?? '';
   button.disabled = true;
   button.setAttribute('aria-busy', 'true');
-  setButtonLabel(button, 'Creating');
+  setButtonLabel(button, t('setup.creating', {}, locale));
   if (status) {
     status.hidden = false;
-    status.textContent = mode === 'pve' ? 'Checking engine seats.' : '';
+    status.textContent = mode === 'pve' ? t('setup.checkingEngineSeats', {}, locale) : '';
   }
   try {
     while (true) {
@@ -1960,8 +2108,8 @@ async function createRoomFromPlay(
       }
       const failure = await readRoomCreationFailure(response);
       if (mode === 'pve' && failure.error === 'engine_busy' && status?.isConnected) {
-        status.textContent = 'All engine seats are active. Waiting for the next seat.';
-        setButtonLabel(button, 'Waiting for seat');
+        status.textContent = t('setup.engineSeatsActive', {}, locale);
+        setButtonLabel(button, t('setup.waitingForSeat', {}, locale));
         await sleep(ENGINE_SEAT_RETRY_MS);
         if (status.isConnected) continue;
         return;
@@ -1973,7 +2121,7 @@ async function createRoomFromPlay(
     if (status?.isConnected) {
       status.textContent = roomCreationStatusText(err, mode);
     }
-    setButtonLabel(button, 'Try again');
+    setButtonLabel(button, t('setup.tryAgain', {}, locale));
     button.disabled = false;
     button.removeAttribute('aria-busy');
     window.setTimeout(() => {
@@ -2269,6 +2417,7 @@ function joinLobbyFromPlay(
   button: HTMLButtonElement,
   setup: LandingRoomSetup,
   status: HTMLElement,
+  locale: Locale = currentLocale(),
   engineId?: string,
 ): () => void {
   const controller = new AbortController();
@@ -2324,7 +2473,7 @@ function joinLobbyFromPlay(
     if (!engineId) return;
     track('lobby_engine_offer_accepted', { ...bucketProps, waitMs: Date.now() - queueJoinedAt });
     cancel();
-    void createRoomFromPlay(playButton, 'pve', engineId, setup, status);
+    void createRoomFromPlay(playButton, 'pve', engineId, setup, status, locale);
   };
 
   const dismissEngineOffer = () => {
@@ -2343,7 +2492,7 @@ function joinLobbyFromPlay(
 
     const prompt = document.createElement('p');
     prompt.className = 'landing-engine-offer-prompt';
-    prompt.textContent = 'No opponents right now. Play the engine instead?';
+    prompt.textContent = t('setup.noOpponentsEngineOffer', {}, locale);
 
     const actions = document.createElement('div');
     actions.className = 'landing-engine-offer-actions';
@@ -2351,13 +2500,13 @@ function joinLobbyFromPlay(
     const play = document.createElement('button');
     play.type = 'button';
     play.className = 'landing-setup-start';
-    play.textContent = 'Play the engine';
+    play.textContent = t('play.playEngine', {}, locale);
     play.addEventListener('click', () => acceptEngineOffer(play));
 
     const keep = document.createElement('button');
     keep.type = 'button';
     keep.className = 'landing-setup-back';
-    keep.textContent = 'Keep waiting';
+    keep.textContent = t('setup.keepWaiting', {}, locale);
     keep.addEventListener('click', dismissEngineOffer);
 
     actions.append(play, keep);
@@ -2398,8 +2547,8 @@ function joinLobbyFromPlay(
     removeOffer();
     button.disabled = false;
     button.removeAttribute('aria-busy');
-    setButtonLabel(button, 'Try again');
-    status.textContent = 'Could not join the lobby. Try again.';
+    setButtonLabel(button, t('setup.tryAgain', {}, locale));
+    status.textContent = t('setup.couldNotJoinLobby', {}, locale);
     window.setTimeout(() => {
       if (button.disabled) return;
       setButtonLabel(button, originalText);
@@ -2422,8 +2571,8 @@ function joinLobbyFromPlay(
   const start = async () => {
     button.disabled = true;
     button.setAttribute('aria-busy', 'true');
-    setButtonLabel(button, 'Waiting');
-    status.textContent = 'Waiting for a matching opponent. Keep this tab open.';
+    setButtonLabel(button, t('setup.waiting', {}, locale));
+    status.textContent = t('setup.waitingForOpponent', {}, locale);
     const response = await fetch('/api/lobby', {
       method: 'POST',
       headers: { 'content-type': 'application/json' },

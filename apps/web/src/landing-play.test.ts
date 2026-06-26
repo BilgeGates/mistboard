@@ -93,6 +93,28 @@ describe('landing play panel', () => {
     expect(panel.textContent).toContain('不需要帳號。');
   });
 
+  it('localizes the play setup dialog shell', () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => jsonResponse({ playing: 0, online: 0 })),
+    );
+
+    const panel = buildLandingPlayPanel([], { locale: 'zh-Hant' });
+    document.body.append(panel);
+
+    openPlaySetup(panel, '挑戰好友');
+
+    expect(document.querySelector('.landing-setup-title')?.textContent).toBe('挑戰好友');
+    expect(document.querySelector('[aria-label="遊戲類別"]')).not.toBeNull();
+    expect(document.querySelector('[aria-label="變體"]')).not.toBeNull();
+    expect(document.querySelector('[aria-label="用時"]')).not.toBeNull();
+    expect(document.body.textContent).toContain('西洋棋');
+    expect(document.body.textContent).toContain('象棋');
+    expect(document.body.textContent).toContain('迷霧迷你象棋');
+    expect(document.querySelector('.landing-setup-start')?.textContent).toBe('建立房間');
+    expect(document.querySelector('.landing-setup-back')?.textContent).toBe('取消');
+  });
+
   it('localizes the open lobby requests window', async () => {
     vi.stubGlobal(
       'fetch',

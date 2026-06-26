@@ -1,6 +1,14 @@
 import './site-shell.css';
 import { t } from './i18n/catalog.js';
-import { currentLocale, type Locale, localizedHref, stripLocalePrefix } from './i18n/locale.js';
+import {
+  APP_LOCALES,
+  currentLocale,
+  LOCALE_META,
+  type Locale,
+  localizedHref,
+  setStoredLocale,
+  stripLocalePrefix,
+} from './i18n/locale.js';
 import {
   communityNavItems,
   learnNavItems,
@@ -64,6 +72,7 @@ export function buildNav(locale: Locale = currentLocale()): HTMLElement {
   const utilities = document.createElement('div');
   utilities.className = 'site-nav-utilities';
 
+  utilities.append(buildLanguageSelector(locale));
   utilities.append(buildSignedOutAccountLinks(locale));
 
   // Mobile menu toggle. On desktop `.site-nav-collapse` is `display: contents`,
@@ -122,6 +131,26 @@ function ensureNavDismiss(): void {
       }
     }
   });
+}
+
+function buildLanguageSelector(locale: Locale): HTMLSelectElement {
+  const select = document.createElement('select');
+  select.className = 'site-nav-language';
+  select.setAttribute('aria-label', t('nav.language', {}, locale));
+  for (const optionLocale of APP_LOCALES) {
+    const option = document.createElement('option');
+    option.value = optionLocale;
+    option.textContent = LOCALE_META[optionLocale].displayName;
+    select.append(option);
+  }
+  select.value = locale;
+  select.addEventListener('change', () => {
+    const nextLocale = select.value as Locale;
+    setStoredLocale(nextLocale);
+    const currentHref = `${window.location.pathname}${window.location.search}${window.location.hash}`;
+    window.location.href = localizedHref(currentHref, nextLocale);
+  });
+  return select;
 }
 
 function buildSignedOutAccountLinks(locale: Locale = currentLocale()): HTMLElement {

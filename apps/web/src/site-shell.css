@@ -113,6 +113,26 @@
   box-shadow: none;
 }
 
+.site-nav-language {
+  min-height: 30px;
+  max-width: 120px;
+  margin-right: 6px;
+  padding: 0 24px 0 9px;
+  border: 1px solid var(--site-border);
+  border-radius: var(--site-radius-sm);
+  background: var(--site-panel);
+  color: var(--site-muted);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.site-nav-language:hover,
+.site-nav-language:focus-visible {
+  color: var(--site-text);
+  border-color: var(--site-accent-soft);
+}
+
 .site-nav-menu {
   position: relative;
 }
