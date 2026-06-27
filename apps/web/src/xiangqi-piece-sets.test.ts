@@ -2,11 +2,18 @@ import { XIANGQI_GLYPH_PATHS } from '@mistboard/board-render';
 import type { XiangqiPiece } from '@mistboard/game';
 import { describe, expect, it } from 'vitest';
 import {
+  DEFAULT_XIANGQI_PIECE_SET,
   renderXiangqiPieceGlyphed,
   xiangqiGlyph,
   xiangqiPieceTilePreview,
   xiangqiPreviewGlyph,
 } from './xiangqi-piece-sets.js';
+
+describe('default piece set', () => {
+  it('defaults the xiangqi family to the animal origami art', () => {
+    expect(DEFAULT_XIANGQI_PIECE_SET).toBe('animal-origami');
+  });
+});
 
 describe('xiangqiGlyph', () => {
   it('uses distinct red/black characters for the traditional set', () => {

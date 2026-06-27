@@ -31,10 +31,10 @@ describe('Flip Jungle watch replay', () => {
 
     // At ply 0 the as-played mask paints a face-down back.
     const board = () => root.querySelector('svg.jungle-flip-live-svg') as SVGElement;
-    expect(board().outerHTML).toContain('url(#jungleflip-back)');
+    expect(board().outerHTML).toContain('fill="#2f8f6b"');
     reveal!.click();
     // Revealed overlay: no tile painted with the back fill.
-    expect(board().outerHTML).not.toContain('url(#jungleflip-back)');
+    expect(board().outerHTML).not.toContain('fill="#2f8f6b"');
 
     handle.destroy();
     expect(root.childElementCount).toBe(0);

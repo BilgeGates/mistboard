@@ -11,7 +11,12 @@ import {
 // shell wrapper and that the didactic overlays reach the real renderer's layers.
 describe('Crossroads Chess article diagrams', () => {
   it('renders a single board in the article shell with both piece kinds', () => {
-    const svg = renderCrossroadsChessBoard({ fen: CROSSROADS_CHESS_START_FEN });
+    // Pin the glyph set so the CJK-disk probe below is stable regardless of the
+    // product default (which is animal art).
+    const svg = renderCrossroadsChessBoard({
+      fen: CROSSROADS_CHESS_START_FEN,
+      xiangqiPieceSet: 'traditional',
+    });
     expect(svg).toMatch(/class="crossroads-article-svg"/);
     expect(svg).toMatch(/data-crossroads-layout="single"/);
     expect(svg).toMatch(/--crossroads-svg-width:/);

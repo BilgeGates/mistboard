@@ -401,6 +401,9 @@ describe('article public listing gates', () => {
 
   it('rerenders Dark Crossroads diagrams from the piece settings', () => {
     Object.defineProperty(window, 'localStorage', { configurable: true, value: memoryStorage() });
+    // Pin the glyph set so the baseline CJK-disk assertion is stable; the test
+    // then proves a switch to western re-renders the diagrams.
+    window.localStorage.setItem('mistboard.xiangqiPieceSet', 'traditional');
     const page = buildArticlePage('dark-crossroads-chess');
     document.body.append(page);
 
@@ -499,7 +502,12 @@ describe('rules variant sidebar', () => {
     const titles = [...(sidebar?.querySelectorAll('.article-toc-title') ?? [])].map(
       (title) => title.textContent,
     );
-    expect(titles).toEqual(['Chess variants', 'Xiangqi variants', 'Shogi variants']);
+    expect(titles).toEqual([
+      'Chess variants',
+      'Xiangqi variants',
+      'Shogi variants',
+      'Animal chess',
+    ]);
 
     const navs = sidebar?.querySelectorAll('.article-toc-nav');
     expect(navs?.[0]?.querySelector('a[href="/rules/dark-chess"]')).not.toBeNull();
@@ -510,6 +518,8 @@ describe('rules variant sidebar', () => {
     expect(navs?.[1]?.querySelector('a[href="/rules/dark-mini-xiangqi"]')).not.toBeNull();
     expect(navs?.[2]?.querySelector('a[href="/rules/shogi"]')).not.toBeNull();
     expect(navs?.[2]?.querySelector('a[href="/rules/dark-shogi"]')).not.toBeNull();
+    expect(navs?.[3]?.querySelector('a[href="/rules/jungle"]')).not.toBeNull();
+    expect(navs?.[3]?.querySelector('a[href="/rules/jungle-flip"]')).not.toBeNull();
   });
 
   it('lists Dark Mini Xiangqi in the xiangqi family by default', () => {
@@ -562,7 +572,12 @@ describe('rules variant sidebar', () => {
     const titles = [...landing.querySelectorAll('.rules-landing-group-title')].map(
       (el) => el.textContent,
     );
-    expect(titles).toEqual(['Chess variants', 'Xiangqi variants', 'Shogi variants']);
+    expect(titles).toEqual([
+      'Chess variants',
+      'Xiangqi variants',
+      'Shogi variants',
+      'Animal chess',
+    ]);
     const grids = landing.querySelectorAll('.rules-landing-grid');
     expect(grids[0]?.querySelector('a[href="/rules/dark-chess"]')).not.toBeNull();
     expect(grids[0]?.querySelector('a[href="/rules/chess"]')).not.toBeNull();
@@ -570,6 +585,8 @@ describe('rules variant sidebar', () => {
     expect(grids[1]?.querySelector('a[href="/rules/drop-mini-xiangqi"]')).not.toBeNull();
     expect(grids[2]?.querySelector('a[href="/rules/shogi"]')).not.toBeNull();
     expect(grids[2]?.querySelector('a[href="/rules/dark-shogi"]')).not.toBeNull();
+    expect(grids[3]?.querySelector('a[href="/rules/jungle"]')).not.toBeNull();
+    expect(grids[3]?.querySelector('a[href="/rules/jungle-flip"]')).not.toBeNull();
   });
 
   it('renders Jieqi visual diagrams instead of placeholder notes', () => {

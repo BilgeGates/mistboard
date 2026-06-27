@@ -19,6 +19,7 @@ import type {
   CrossroadsChessSquare,
 } from '@mistboard/game';
 import { renderCrossroadsChessBoardSvg } from './crossroads-chess-render.js';
+import type { XiangqiPieceSet } from './xiangqi-piece-sets.js';
 
 export const CROSSROADS_FILES = 6;
 export const CROSSROADS_RANKS = 8;
@@ -45,6 +46,9 @@ export type CrossroadsDiagramBoardOptions = {
   arrows?: CrossroadsDiagramArrow[];
   crosses?: CrossroadsDiagramSquare[];
   label?: string;
+  // Pin the xiangqi disk art (defaults to the stored/product set). Mainly for
+  // tests that probe a specific glyph; production diagrams follow the default.
+  xiangqiPieceSet?: XiangqiPieceSet;
 };
 
 // FEN piece letter -> role. Uppercase = White, lowercase = Red. This is the same
@@ -101,6 +105,7 @@ function fenToView(fen: string): CrossroadsChessPlayerView {
 function coreBoard(opts: CrossroadsDiagramBoardOptions): string {
   const core = renderCrossroadsChessBoardSvg(fenToView(opts.fen), {
     showFog: false,
+    ...(opts.xiangqiPieceSet ? { xiangqiPieceSet: opts.xiangqiPieceSet } : {}),
     targets: [...(opts.moveDots ?? []), ...(opts.captures ?? [])] as CrossroadsChessSquare[],
     highlights: opts.highlights as CrossroadsChessSquare[] | undefined,
     arrows: opts.arrows as { from: CrossroadsChessSquare; to: CrossroadsChessSquare }[] | undefined,

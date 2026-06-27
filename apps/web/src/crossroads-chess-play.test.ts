@@ -57,6 +57,9 @@ describe('Crossroads Chess hot-seat controller', () => {
   it('rerenders local pieces from the chess and xiangqi appearance settings', () => {
     const root = document.createElement('div');
 
+    // Start from the traditional glyph set so the baseline assertion below is a
+    // known CJK disk; the test then proves a switch to western re-renders it.
+    window.localStorage.setItem('mistboard.xiangqiPieceSet', 'traditional');
     mountCrossroadsChessPlay(root);
 
     expect(root.innerHTML).toContain(XIANGQI_GLYPH_PATHS.車);

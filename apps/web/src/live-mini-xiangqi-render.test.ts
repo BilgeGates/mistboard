@@ -34,7 +34,7 @@ describe('Dark Mini Xiangqi board renderer', () => {
     const state = createInitialMiniXiangqiState('fog-test');
     const redView = getMiniXiangqiPlayerView(state, 'red');
 
-    const svg = renderMiniXiangqiBoardSvg(redView, 'red');
+    const svg = renderMiniXiangqiBoardSvg(redView, 'red', { pieceSet: 'traditional' });
 
     expect(svg).toContain(RED_GENERAL); // Red's own general at d1
     expect(svg).not.toContain(BLACK_GENERAL); // Black's general at d7 is fogged
@@ -42,7 +42,10 @@ describe('Dark Mini Xiangqi board renderer', () => {
 
   it('reveals the whole board and drops the mask for the truth view', () => {
     const state = createInitialMiniXiangqiState('truth-test');
-    const svg = renderMiniXiangqiBoardSvg(miniXiangqiTruthView(state), 'red', { showFog: false });
+    const svg = renderMiniXiangqiBoardSvg(miniXiangqiTruthView(state), 'red', {
+      showFog: false,
+      pieceSet: 'traditional',
+    });
 
     expect(svg).toContain(RED_GENERAL);
     expect(svg).toContain(BLACK_GENERAL);

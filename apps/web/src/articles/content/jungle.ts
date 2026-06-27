@@ -1,3 +1,12 @@
+import {
+  JUNGLE_LION_JUMP,
+  JUNGLE_RANK_LADDER,
+  JUNGLE_RAT_BLOCKS,
+  JUNGLE_RAT_ELEPHANT,
+  JUNGLE_RAT_SWIMS,
+  JUNGLE_START_BOARD,
+  JUNGLE_TRAP,
+} from '../diagrams.js';
 import type { Article, ArticleBlock } from '../types.js';
 
 export const jungleArticle: Article = {
@@ -29,6 +38,10 @@ export const jungleArticle: Article = {
           kind: 'paragraph',
           text: 'Seven files wide, nine ranks deep. Your den sits at the center of your back rank, ringed by three trap squares. Two rivers, each a 2×3 block of water, split the middle of the board, with land lanes down both edges and the center. Every piece moves one square up, down, left, or right. No diagonals.',
         },
+        {
+          kind: 'raw-svg',
+          svg: JUNGLE_START_BOARD,
+        },
       ],
     },
     {
@@ -38,6 +51,14 @@ export const jungleArticle: Article = {
           kind: 'paragraph',
           text: 'Strongest to weakest: elephant, lion, tiger, leopard, wolf, dog, cat, rat. A piece captures any adjacent enemy of equal or lower rank. The exception runs the other way: the rat captures the elephant, and the elephant can never capture the rat.',
         },
+        {
+          kind: 'raw-svg',
+          svg: JUNGLE_RANK_LADDER,
+        },
+        {
+          kind: 'raw-svg',
+          svg: JUNGLE_RAT_ELEPHANT,
+        },
       ],
     },
     {
@@ -46,6 +67,10 @@ export const jungleArticle: Article = {
         {
           kind: 'paragraph',
           text: 'Step a piece onto one of your opponent’s three trap squares and it loses all rank while it stands there. Any defending piece can take it, down to a rat capturing a trapped elephant. Your own traps never weaken your pieces.',
+        },
+        {
+          kind: 'raw-svg',
+          svg: JUNGLE_TRAP,
         },
       ],
     },
@@ -57,8 +82,20 @@ export const jungleArticle: Article = {
           text: "Only the rat enters the water. A rat in the river is safe from every land piece and can be taken only by another rat in the water. It also can't capture from the water onto land, so the rat needs dry ground to take the elephant.",
         },
         {
+          kind: 'raw-svg',
+          svg: JUNGLE_RAT_SWIMS,
+        },
+        {
           kind: 'paragraph',
           text: 'The lion and tiger jump a river in a straight line and land on the far bank, capturing anything they outrank there. The tiger jumps vertically; the lion jumps vertically or horizontally. A rat anywhere in the water, either color, blocks the jump.',
+        },
+        {
+          kind: 'raw-svg',
+          svg: JUNGLE_LION_JUMP,
+        },
+        {
+          kind: 'raw-svg',
+          svg: JUNGLE_RAT_BLOCKS,
         },
       ],
     },
@@ -76,7 +113,7 @@ export const jungleArticle: Article = {
       blocks: [
         {
           kind: 'paragraph',
-          text: 'Games draw on threefold repetition, or after a long run with no capture.',
+          text: 'Games draw on threefold repetition, or when 100 half-moves (50 by each player) pass with no capture.',
         },
       ],
     },

@@ -28,11 +28,13 @@ const RANKS = 4;
 const CELL = 64;
 
 const PALETTE = {
-  lightCell: '#e9cf9b',
-  darkCell: '#e3c78b',
-  frameBg: '#5b4636',
-  frameInner: '#6e5743',
-  boardEdge: '#3a2c20',
+  // Solid (non-alternating) board: one warm tan for every cell.
+  lightCell: '#e7ce96',
+  darkCell: '#e7ce96',
+  // Borderless: no frame band or board edge, matching the vanilla Jungle board.
+  frameBg: 'transparent',
+  frameInner: 'transparent',
+  boardEdge: 'transparent',
   coord: 'rgba(60,45,30,0.55)',
   lastMove: 'rgba(255,205,80,0.5)',
   selected: 'rgba(31,111,91,0.32)',
@@ -42,20 +44,15 @@ const PALETTE = {
   fog: 'rgba(22,18,14,0.66)',
 } as const;
 
-const DISC_FILL = '#fdf3df';
-const INK: Record<JungleFlipColor, string> = { red: '#b5322b', black: '#28323c' };
+// Tile-separating grid lines, banqi-style (matches the vanilla Jungle board).
+const GRID_STROKE = 'rgba(91,74,50,0.55)';
 
-const GLYPH: Record<JungleFlipPieceRole, string> = {
-  rat: '鼠',
-  cat: '猫',
-  dog: '狗',
-  wolf: '狼',
-  leopard: '豹',
-  tiger: '虎',
-  lion: '狮',
-  elephant: '象',
-};
-const CJK_FONT = "'PingFang SC','Noto Sans CJK SC','Hiragino Sans','Microsoft YaHei',sans-serif";
+// Revealed animals render as the origami art set (transparent papercraft PNGs,
+// shared with the vanilla Jungle board under /piece-sets/jungle/origami). A
+// face-down tile carries no identity, so it stays a neutral disc (see pieces()).
+function animalHref(color: JungleFlipColor, role: JungleFlipPieceRole): string {
+  return `/piece-sets/jungle/origami/${color}-${role}.png`;
+}
 
 // A masked board entry (mirrors JungleFlipVisibleBoardEntry on the wire).
 export type JungleFlipRenderEntry =
@@ -68,6 +65,10 @@ const DESCRIPTOR: GridBoardDescriptor = {
   ranks: RANKS,
   cell: CELL,
   palette: PALETTE,
+  framePad: 0,
+  pad: 0,
+  boardRadius: 0,
+  boardEdgeWidth: 0,
   svgClass: 'jungle-flip-live-svg',
 };
 
@@ -86,39 +87,54 @@ function cellRef(square: JungleFlipSquare): GridCellRef {
 
 function defs(gid: string): string {
   return [
-    `<radialGradient id="${gid}-disc" cx="0.5" cy="0.36" r="0.7">`,
-    `<stop offset="0" stop-color="#fffaf0"/><stop offset="1" stop-color="#ead7ad"/>`,
-    `</radialGradient>`,
-    `<radialGradient id="${gid}-back" cx="0.5" cy="0.36" r="0.75">`,
-    `<stop offset="0" stop-color="#caa05a"/><stop offset="1" stop-color="#9c7536"/>`,
-    `</radialGradient>`,
     `<filter id="${gid}-tok" x="-25%" y="-25%" width="150%" height="160%">`,
     `<feDropShadow dx="0" dy="1" stdDeviation="0.9" flood-color="#3a2c20" flood-opacity="0.4"/>`,
     `</filter>`,
   ].join('');
 }
 
+// Grid on every cell boundary (incl. the outer edge); drawn under the pieces.
+function gridLines(geom: GridGeometry): string {
+  const c = geom.cell;
+  const boardW = FILES * c;
+  const boardH = RANKS * c;
+  const parts: string[] = [];
+  for (let i = 0; i <= FILES; i += 1) {
+    const x = i * c;
+    parts.push(
+      `<line x1="${x}" y1="0" x2="${x}" y2="${boardH}" stroke="${GRID_STROKE}" stroke-width="1" stroke-linecap="round"/>`,
+    );
+  }
+  for (let j = 0; j <= RANKS; j += 1) {
+    const y = j * c;
+    parts.push(
+      `<line x1="0" y1="${y}" x2="${boardW}" y2="${y}" stroke="${GRID_STROKE}" stroke-width="1" stroke-linecap="round"/>`,
+    );
+  }
+  return parts.join('');
+}
+
 function pieces(board: JungleFlipRenderBoard, geom: GridGeometry, gid: string): string {
   const parts: string[] = [];
   const r = geom.cell * 0.4;
+  const s = geom.cell * 0.96;
   for (const square of ALL_JUNGLE_FLIP_SQUARES) {
     const entry = board[square];
     if (!entry) continue;
     const { file, rank } = jungleFlipCoordOf(square);
     const { x, y } = geom.center(file, rank);
     if (entry.faceDown) {
-      // Neutral back — carries no ink/identity (symmetric mask).
+      // Face-down back mirrors banqi's: a flat jade disc, single ring, no inner
+      // ring or identity (the deal is hidden from both sides). Same fill/stroke
+      // as live-banqi-render's .banqi-back so the two hidden-identity surfaces read
+      // identically.
       parts.push(
-        `<circle cx="${x}" cy="${y}" r="${r}" fill="url(#${gid}-back)" stroke="#6e5028" stroke-width="2" filter="url(#${gid}-tok)"/>`,
-        `<circle cx="${x}" cy="${y}" r="${r - 5}" fill="none" stroke="rgba(255,245,220,0.45)" stroke-width="1"/>`,
+        `<circle cx="${x}" cy="${y}" r="${r}" fill="#2f8f6b" stroke="#184a38" stroke-width="2" filter="url(#${gid}-tok)"/>`,
       );
       continue;
     }
-    const ink = INK[entry.color];
     parts.push(
-      `<circle cx="${x}" cy="${y}" r="${r}" fill="url(#${gid}-disc)" stroke="${ink}" stroke-width="2" filter="url(#${gid}-tok)"/>`,
-      `<circle cx="${x}" cy="${y}" r="${r - 3}" fill="none" stroke="${ink}" stroke-width="0.75" opacity="0.45"/>`,
-      `<text x="${x}" y="${y}" font-size="${geom.cell * 0.46}" fill="${ink}" text-anchor="middle" dominant-baseline="central" font-family="${CJK_FONT}">${GLYPH[entry.role]}</text>`,
+      `<image href="${animalHref(entry.color, entry.role)}" x="${x - s / 2}" y="${y - s / 2}" width="${s}" height="${s}" preserveAspectRatio="xMidYMid meet"/>`,
     );
   }
   return parts.join('');
@@ -133,7 +149,8 @@ export function renderJungleFlipBoardSvg(
     id: gid,
     flip: false, // the deal has no sides — a fixed orientation is least confusing
     extraDefs: defs(gid),
-    renderPieces: (geom) => pieces(board, geom, gid),
+    coords: false,
+    renderPieces: (geom) => gridLines(geom) + pieces(board, geom, gid),
     lastMove: options.lastMove
       ? [cellRef(options.lastMove.from), cellRef(options.lastMove.to)]
       : null,

@@ -11,7 +11,10 @@ import { renderCrossroadsChessBoardSvg } from './crossroads-chess-render.js';
 describe('Crossroads Chess board renderer', () => {
   it('renders the full board with chess pieces and CJK disks in the open view', () => {
     const view = getCrossroadsChessOpenView(createInitialCrossroadsChessState('r'), 'white');
-    const svg = renderCrossroadsChessBoardSvg(view, { showFog: false });
+    const svg = renderCrossroadsChessBoardSvg(view, {
+      showFog: false,
+      xiangqiPieceSet: 'traditional',
+    });
 
     expect(svg).toContain('<svg');
     expect(svg).toContain(XIANGQI_GLYPH_PATHS.車); // a White chariot disk glyph

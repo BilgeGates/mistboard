@@ -96,12 +96,13 @@ function isArticleListedInThisEnv(article: Article): boolean {
   return true;
 }
 
-type RulesArticleGroupId = 'chess' | 'xiangqi' | 'shogi' | 'other';
+type RulesArticleGroupId = 'chess' | 'xiangqi' | 'shogi' | 'jungle' | 'other';
 
 const RULES_ARTICLE_GROUP_ORDER: readonly RulesArticleGroupId[] = [
   'chess',
   'xiangqi',
   'shogi',
+  'jungle',
   'other',
 ];
 
@@ -123,6 +124,7 @@ const RULES_GROUP_TITLE_KEYS: Record<RulesArticleGroupId, I18nKey> = {
   chess: 'rules.group.chess',
   xiangqi: 'rules.group.xiangqi',
   shogi: 'rules.group.shogi',
+  jungle: 'rules.group.jungle',
   other: 'rules.group.other',
 };
 
@@ -798,6 +800,7 @@ function rulesGroupForFamily(family: GameFamilyId): RulesArticleGroupId {
   if (family === 'chess') return 'chess';
   if (family === 'xiangqi') return 'xiangqi';
   if (family === 'shogi') return 'shogi';
+  if (family === 'jungle') return 'jungle';
   return 'other';
 }
 

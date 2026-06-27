@@ -39,11 +39,14 @@ const CELL = 48;
 // Warm-tan board, near-solid (the two shades give a faint texture, not a chess
 // checker). Water/den/trap furniture carries the Jungle identity.
 const PALETTE = {
-  lightCell: '#e9cf9b',
-  darkCell: '#e3c78b',
-  frameBg: '#5b4636',
-  frameInner: '#6e5743',
-  boardEdge: '#3a2c20',
+  // Solid (non-alternating) board: one warm tan for every cell.
+  lightCell: '#e7ce96',
+  darkCell: '#e7ce96',
+  // Borderless: no frame band or board edge (the rivers/dens/traps carry the
+  // Jungle identity). The water/den/trap furniture provides all the contrast.
+  frameBg: 'transparent',
+  frameInner: 'transparent',
+  boardEdge: 'transparent',
   coord: 'rgba(60,45,30,0.55)',
   lastMove: 'rgba(255,205,80,0.5)',
   selected: 'rgba(31,111,91,0.32)',
@@ -56,23 +59,23 @@ const PALETTE = {
 const DEN_FILL = '#c79a4f';
 const TRAP_STROKE = 'rgba(90,60,30,0.55)';
 const LAKE_STROKE = 'rgba(70,128,168,0.55)';
+// Tile-separating grid lines, banqi-style (matches live-banqi-render's grid ink).
+const GRID_STROKE = 'rgba(91,74,50,0.55)';
 
 // The side colour inks the token ring + glyph (xiangqi-style legibility); the disc
 // face is a warm radial gradient for a tactile, raised look.
 const INK: Record<JungleColor, string> = { red: '#b5322b', black: '#28323c' };
 
-const GLYPH: Record<JunglePieceRole, string> = {
-  rat: '鼠',
-  cat: '猫',
-  dog: '狗',
-  wolf: '狼',
-  leopard: '豹',
-  tiger: '虎',
-  lion: '狮',
-  elephant: '象',
-};
+// Animal pieces render as the origami art set (papercraft animal discs, each a
+// transparent PNG with its own ring + shadow baked in). One image per (color, role);
+// the file naming mirrors the xiangqi piece sets under /piece-sets.
+function animalHref(color: JungleColor, role: JunglePieceRole): string {
+  return `/piece-sets/jungle/origami/${color}-${role}.png`;
+}
+
 // Single-quoted family names: this string is interpolated into a double-quoted
 // XML attribute (font-family="…"), so inner double quotes would break the parse.
+// Still used for the den glyph (穴) in the furniture layer.
 const CJK_FONT = "'PingFang SC','Noto Sans CJK SC','Hiragino Sans','Microsoft YaHei',sans-serif";
 
 // The two lakes, as [file, file] × [rank…] blocks (0-based files: b=1,c=2,e=4,f=5).
@@ -86,6 +89,10 @@ const DESCRIPTOR: GridBoardDescriptor = {
   ranks: RANKS,
   cell: CELL,
   palette: PALETTE,
+  framePad: 0,
+  pad: 0,
+  boardRadius: 0,
+  boardEdgeWidth: 0,
   svgClass: 'jungle-live-svg',
 };
 
@@ -106,15 +113,9 @@ function cellRef(square: JungleSquare): GridCellRef {
 
 function defs(gid: string): string {
   return [
-    `<radialGradient id="${gid}-disc" cx="0.5" cy="0.36" r="0.7">`,
-    `<stop offset="0" stop-color="#fffaf0"/><stop offset="1" stop-color="#ead7ad"/>`,
-    `</radialGradient>`,
     `<linearGradient id="${gid}-water" x1="0" y1="0" x2="0" y2="1">`,
     `<stop offset="0" stop-color="#93c3e4"/><stop offset="1" stop-color="#6ba6cf"/>`,
     `</linearGradient>`,
-    `<filter id="${gid}-tok" x="-25%" y="-25%" width="150%" height="160%">`,
-    `<feDropShadow dx="0" dy="1" stdDeviation="0.9" flood-color="#3a2c20" flood-opacity="0.4"/>`,
-    `</filter>`,
   ].join('');
 }
 
@@ -123,6 +124,23 @@ function defs(gid: string): string {
 function furniture(geom: GridGeometry, gid: string): string {
   const parts: string[] = [];
   const c = geom.cell;
+
+  // Tile-separating grid on every cell boundary (incl. the outer edge), banqi-style.
+  // Drawn first so the lakes/dens paint over it (no lines across the water/dens).
+  const boardW = FILES * c;
+  const boardH = RANKS * c;
+  for (let i = 0; i <= FILES; i += 1) {
+    const x = i * c;
+    parts.push(
+      `<line x1="${x}" y1="0" x2="${x}" y2="${boardH}" stroke="${GRID_STROKE}" stroke-width="1" stroke-linecap="round"/>`,
+    );
+  }
+  for (let j = 0; j <= RANKS; j += 1) {
+    const y = j * c;
+    parts.push(
+      `<line x1="0" y1="${y}" x2="${boardW}" y2="${y}" stroke="${GRID_STROKE}" stroke-width="1" stroke-linecap="round"/>`,
+    );
+  }
 
   // Each lake as ONE rounded rect (its 6-cell bounding box), so there are no
   // internal grid lines across the water. Bounding box is flip-safe.
@@ -171,19 +189,16 @@ function furniture(geom: GridGeometry, gid: string): string {
   return parts.join('');
 }
 
-function pieces(board: JungleBoard, geom: GridGeometry, gid: string): string {
+function pieces(board: JungleBoard, geom: GridGeometry): string {
   const parts: string[] = [];
-  const r = geom.cell * 0.4;
+  const s = geom.cell * 0.96;
   for (const square of ALL_JUNGLE_SQUARES) {
     const piece = board[square];
     if (!piece) continue;
     const { file, rank } = jungleCoordOf(square);
     const { x, y } = geom.center(file, rank);
-    const ink = INK[piece.color];
     parts.push(
-      `<circle cx="${x}" cy="${y}" r="${r}" fill="url(#${gid}-disc)" stroke="${ink}" stroke-width="2" filter="url(#${gid}-tok)"/>`,
-      `<circle cx="${x}" cy="${y}" r="${r - 3}" fill="none" stroke="${ink}" stroke-width="0.75" opacity="0.45"/>`,
-      `<text x="${x}" y="${y}" font-size="${geom.cell * 0.46}" fill="${ink}" text-anchor="middle" dominant-baseline="central" font-family="${CJK_FONT}">${GLYPH[piece.role]}</text>`,
+      `<image href="${animalHref(piece.color, piece.role)}" x="${x - s / 2}" y="${y - s / 2}" width="${s}" height="${s}" preserveAspectRatio="xMidYMid meet"/>`,
     );
   }
   return parts.join('');
@@ -198,7 +213,8 @@ export function renderJungleBoardSvg(
     id: gid,
     flip: options.perspective === 'black',
     extraDefs: defs(gid),
-    renderPieces: (geom) => furniture(geom, gid) + pieces(board, geom, gid),
+    coords: false,
+    renderPieces: (geom) => furniture(geom, gid) + pieces(board, geom),
     lastMove: options.lastMove
       ? [cellRef(options.lastMove.from), cellRef(options.lastMove.to)]
       : null,

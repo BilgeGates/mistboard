@@ -29,7 +29,7 @@ export const XIANGQI_PIECE_SETS: ReadonlyArray<{ id: XiangqiPieceSet; label: str
   { id: 'animal-origami', label: 'Animal Origami' },
 ];
 
-export const DEFAULT_XIANGQI_PIECE_SET: XiangqiPieceSet = 'traditional';
+export const DEFAULT_XIANGQI_PIECE_SET: XiangqiPieceSet = 'animal-origami';
 
 // Traditional sets distinguish red and black with different characters (the
 // two-set convention used on physical Chinese chess sets).

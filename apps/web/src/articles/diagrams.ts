@@ -75,6 +75,18 @@ export {
   SHOGI4_WIN,
 } from '../shogi4-rules-diagrams.js';
 export { SHOGI4_GAME_STEPS, SHOGI4_GAME_TITLE } from '../shogi4-sample-game.js';
+export {
+  JUNGLE_FLIP_MUTUAL,
+  JUNGLE_FLIP_SETUP,
+  JUNGLE_FLIP_TURN,
+  JUNGLE_LION_JUMP,
+  JUNGLE_RAT_BLOCKS,
+  JUNGLE_RANK_LADDER,
+  JUNGLE_RAT_ELEPHANT,
+  JUNGLE_RAT_SWIMS,
+  JUNGLE_START_BOARD,
+  JUNGLE_TRAP,
+} from '../jungle-rules-diagrams.js';
 
 // ── Standardized rules-article closings ───────────────────────────────────
 // Two kinds, picked by whether *this article's* game is playable on Mistboard

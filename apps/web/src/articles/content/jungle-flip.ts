@@ -1,3 +1,9 @@
+import {
+  JUNGLE_FLIP_MUTUAL,
+  JUNGLE_FLIP_SETUP,
+  JUNGLE_FLIP_TURN,
+  JUNGLE_RANK_LADDER,
+} from '../diagrams.js';
 import type { Article, ArticleBlock } from '../types.js';
 
 export const jungleFlipArticle: Article = {
@@ -25,6 +31,14 @@ export const jungleFlipArticle: Article = {
           kind: 'paragraph',
           text: 'All sixteen pieces, one of each animal in two colors, are shuffled and placed face-down on the sixteen squares. Nobody knows which animal or which color sits under a tile until it is flipped. The first tile you flip sets your color for the rest of the game.',
         },
+        {
+          kind: 'raw-svg',
+          svg: JUNGLE_FLIP_SETUP,
+        },
+        {
+          kind: 'raw-svg',
+          svg: JUNGLE_RANK_LADDER,
+        },
       ],
     },
     {
@@ -34,6 +48,10 @@ export const jungleFlipArticle: Article = {
           kind: 'paragraph',
           text: 'On your turn you either flip one face-down tile to reveal it, or move one of your own revealed animals one square up, down, left, or right. Early on, before pieces come up, flipping is all you can do.',
         },
+        {
+          kind: 'raw-svg',
+          svg: JUNGLE_FLIP_TURN,
+        },
       ],
     },
     {
@@ -42,6 +60,10 @@ export const jungleFlipArticle: Article = {
         {
           kind: 'paragraph',
           text: 'Capture an adjacent enemy you outrank, with the same rat-beats-elephant exception as the full game. Equal ranks work differently here. When an animal meets an enemy of its own rank, both leave the board (同归于尽, “they perish together”), and neither side keeps the square. Because identities stay hidden until contact, every attack is a bet, and the mutual-destruction rule raises the price of guessing wrong.',
+        },
+        {
+          kind: 'raw-svg',
+          svg: JUNGLE_FLIP_MUTUAL,
         },
       ],
     },
@@ -59,7 +81,7 @@ export const jungleFlipArticle: Article = {
       blocks: [
         {
           kind: 'paragraph',
-          text: 'Games draw on threefold repetition, or after a long run with no flip and no capture.',
+          text: 'Games draw on threefold repetition, or when 40 half-moves (20 by each player) pass with no flip, capture, or trade.',
         },
       ],
     },
