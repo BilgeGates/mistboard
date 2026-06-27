@@ -4,8 +4,8 @@
  * Drop Mini is perfect-information (7x7 Mini Xiangqi + crazyhouse-style drops),
  * so it uses FSF directly via a custom variants.ini (drop-mini-xiangqi.ini), the
  * same way Mini Xiangqi uses the built-in `minixiangqi` variant. This replaces
- * the previous in-process minimax heuristic; the public engine ids
- * (misty-drop-mini-level-1/2/3) and bot identities are unchanged.
+ * the previous in-process minimax heuristic; engine ids follow the
+ * fairy-stockfish-drop-mini-xiangqi-* naming (matching Mini Xiangqi / Crossroads).
  *
  * Structurally this mirrors the Mini Xiangqi engine loop. The only Drop-Mini
  * specifics are the UCI translation: a drop move {drop,to} maps to "<L>@<to>"

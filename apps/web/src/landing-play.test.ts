@@ -575,12 +575,12 @@ describe('landing play panel', () => {
     const engineSelect = document.querySelector<HTMLSelectElement>('select[aria-label="Engine"]');
     expect(engineSelect).not.toBeNull();
     expect([...engineSelect!.options].map((option) => [option.value, option.textContent])).toEqual([
-      ['misty-drop-mini-level-1', 'Misty Drop Mini level 1'],
-      ['misty-drop-mini-level-2', 'Misty Drop Mini level 2'],
-      ['misty-drop-mini-level-3', 'Misty Drop Mini level 3'],
+      ['fairy-stockfish-drop-mini-xiangqi-very-strong', 'Fairy Stockfish - Strongest'],
+      ['fairy-stockfish-drop-mini-xiangqi-strong', 'Fairy Stockfish - Strong'],
+      ['fairy-stockfish-drop-mini-xiangqi-amateur', 'Fairy Stockfish - Amateur'],
     ]);
-    expect(engineSelect!.value).toBe('misty-drop-mini-level-2');
-    selectModalEngine('misty-drop-mini-level-1');
+    expect(engineSelect!.value).toBe('fairy-stockfish-drop-mini-xiangqi-strong');
+    selectModalEngine('fairy-stockfish-drop-mini-xiangqi-amateur');
     clickModalColor('Black');
     clickModalButton('Start game');
     await flushPromises();
@@ -590,7 +590,7 @@ describe('landing play panel', () => {
       gameSpecId: 'drop-mini-xiangqi',
       timeControl: { initialMs: 180_000, incrementMs: 2_000 },
       preferredColor: 'black',
-      engineId: 'misty-drop-mini-level-1',
+      engineId: 'fairy-stockfish-drop-mini-xiangqi-amateur',
     });
     expect(window.location.pathname).toBe('/room/dmxqd_engine');
   });

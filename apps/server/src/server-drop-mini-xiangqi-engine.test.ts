@@ -64,8 +64,11 @@ test('legalMoveForUci rejects moves outside the legal set', () => {
 
 test('engine client id recognises the playable tiers', () => {
   assert.equal(isDropMiniXiangqiEngineClientId(DROP_MINI_XIANGQI_DEFAULT_ENGINE_ID), true);
-  assert.equal(isDropMiniXiangqiEngineClientId('misty-drop-mini-level-1'), true);
-  assert.equal(isDropMiniXiangqiEngineClientId('misty-drop-mini-level-3'), true);
+  assert.equal(isDropMiniXiangqiEngineClientId('fairy-stockfish-drop-mini-xiangqi-amateur'), true);
+  assert.equal(
+    isDropMiniXiangqiEngineClientId('fairy-stockfish-drop-mini-xiangqi-very-strong'),
+    true,
+  );
   assert.equal(isDropMiniXiangqiEngineClientId('human'), false);
   assert.equal(isDropMiniXiangqiEngineClientId(undefined), false);
 });

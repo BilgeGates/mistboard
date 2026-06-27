@@ -99,13 +99,13 @@ export const dropMiniXiangqiArticle: Article = {
       blocks: [
         {
           kind: 'paragraph',
-          text: 'Drop Mini Xiangqi is open for alpha play on Mistboard. You can play Misty Drop Mini, create an invite for a friend, or find an open game from the homepage play panel by choosing Drop Mini Xiangqi in the Variant row.',
+          text: 'Drop Mini Xiangqi is open for alpha play on Mistboard. You can play the Fairy Stockfish bot, create an invite for a friend, or find an open game from the homepage play panel by choosing Drop Mini Xiangqi in the Variant row.',
         },
         {
           kind: 'cta',
           buttons: [
             {
-              label: 'Play Misty Drop Mini',
+              label: 'Play the bot',
               href: '/?play=computer&gameSpecId=drop-mini-xiangqi',
               emphasis: 'primary',
             },

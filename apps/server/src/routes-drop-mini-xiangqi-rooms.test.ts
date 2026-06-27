@@ -44,13 +44,13 @@ test('Drop Mini Xiangqi PvE route seats the built-in engine opposite the human',
     {
       gameSpecId: DROP_MINI_XIANGQI_SPEC_ID,
       mode: 'pve',
-      engineId: 'misty-drop-mini-level-3',
+      engineId: 'fairy-stockfish-drop-mini-xiangqi-very-strong',
       preferredColor: 'black',
     },
   );
 
   assert.deepEqual(requestedEngine, {
-    engineId: 'misty-drop-mini-level-3',
+    engineId: 'fairy-stockfish-drop-mini-xiangqi-very-strong',
     seat: 'red',
   });
   assert.equal(response.status, 201);
@@ -70,8 +70,8 @@ test('Drop Mini Xiangqi PvE route carries bot id into engine room creation', asy
     }),
     response,
     {
-      botId: 'misty-drop-mini-level-3',
-      engineId: 'misty-drop-mini-level-3',
+      botId: 'fairy-stockfish-drop-mini-xiangqi-strongest',
+      engineId: 'fairy-stockfish-drop-mini-xiangqi-very-strong',
       gameSpecId: DROP_MINI_XIANGQI_SPEC_ID,
       mode: 'pve',
       preferredColor: 'red',
@@ -79,9 +79,9 @@ test('Drop Mini Xiangqi PvE route carries bot id into engine room creation', asy
   );
 
   assert.deepEqual(requestedEngine, {
-    engineId: 'misty-drop-mini-level-3',
+    engineId: 'fairy-stockfish-drop-mini-xiangqi-very-strong',
     seat: 'black',
-    botId: 'misty-drop-mini-level-3',
+    botId: 'fairy-stockfish-drop-mini-xiangqi-strongest',
   });
   assert.equal(response.status, 201);
 });

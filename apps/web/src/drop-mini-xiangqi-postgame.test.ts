@@ -17,7 +17,7 @@ describe('Drop Mini Xiangqi postgame play again', () => {
     vi.stubGlobal('fetch', fetchSpy);
     const fixture = postgameFixture({
       mode: 'pve',
-      pveEngineId: 'misty-drop-mini-level-1',
+      pveEngineId: 'fairy-stockfish-drop-mini-xiangqi-amateur',
     });
 
     await expect(createDropMiniXiangqiPlayAgainRoom(fixture)).resolves.toBe('/room/dmxqd_next');
@@ -29,7 +29,7 @@ describe('Drop Mini Xiangqi postgame play again', () => {
         mode: 'pve',
         gameSpecId: 'drop-mini-xiangqi',
         preferredColor: 'random',
-        engineId: 'misty-drop-mini-level-1',
+        engineId: 'fairy-stockfish-drop-mini-xiangqi-amateur',
         timeControl: { initialMs: 180_000, incrementMs: 2_000 },
       }),
     });

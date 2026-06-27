@@ -9,10 +9,10 @@
 //
 // This mirrors the Mini Xiangqi provider (move-list position, per-request FSF
 // process, node+skill tiers) and the Crossroads provider (custom variant loaded
-// via VariantPath). It replaces the previous in-process minimax heuristic. The
-// public engine ids (misty-drop-mini-level-1/2/3) are unchanged so bot profiles,
-// ratings, and game history survive the implementation swap; the engine VERSION
-// is bumped to record the heuristic -> FSF change per game.
+// via VariantPath). It replaces the previous in-process minimax heuristic. Engine
+// ids follow the Fairy-Stockfish naming (fairy-stockfish-drop-mini-xiangqi-*),
+// matching Mini Xiangqi / Crossroads; public bot identities live in bot_profiles
+// (migration 063, separate from the executable engine id).
 
 import { spawn } from 'node:child_process';
 import { existsSync } from 'node:fs';
@@ -23,7 +23,7 @@ import { fairyStockfishPath } from './crossroads-chess-engine.js';
 const HERE = dirname(fileURLToPath(import.meta.url));
 const VARIANT = 'dropminixiangqi';
 
-export const DROP_MINI_XIANGQI_DEFAULT_ENGINE_ID = 'misty-drop-mini-level-2';
+export const DROP_MINI_XIANGQI_DEFAULT_ENGINE_ID = 'fairy-stockfish-drop-mini-xiangqi-strong';
 // Engine BUILD version recorded per PvE game. Bumped from the 0.1.0 minimax
 // heuristic to mark the switch to Fairy-Stockfish. Bump on any engine/config change.
 export const DROP_MINI_XIANGQI_ENGINE_VERSION = '0.2.0';
@@ -41,22 +41,22 @@ export type DropMiniXiangqiEngineTier = {
 // guards wall-clock. The 7x7 board is tiny, so these node budgets are cheap to serve.
 const DROP_MINI_XIANGQI_ENGINE_TIERS = [
   {
-    id: 'misty-drop-mini-level-1',
-    name: 'Misty Drop Mini level 1',
+    id: 'fairy-stockfish-drop-mini-xiangqi-amateur',
+    name: 'Fairy Stockfish - Amateur',
     skill: 1,
     nodes: 6_000,
     movetimeMs: 300,
   },
   {
     id: DROP_MINI_XIANGQI_DEFAULT_ENGINE_ID,
-    name: 'Misty Drop Mini level 2',
+    name: 'Fairy Stockfish - Strong',
     skill: 8,
     nodes: 60_000,
     movetimeMs: 800,
   },
   {
-    id: 'misty-drop-mini-level-3',
-    name: 'Misty Drop Mini level 3',
+    id: 'fairy-stockfish-drop-mini-xiangqi-very-strong',
+    name: 'Fairy Stockfish - Strongest',
     skill: 20,
     nodes: 800_000,
     movetimeMs: 2_000,
