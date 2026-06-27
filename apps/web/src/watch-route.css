@@ -904,3 +904,73 @@
   justify-content: center;
   overflow: visible;
 }
+
+/* ------------------------------------------------------------------ *
+ * Jungle watch: perfect-info, so a single board (no triptych) carrying its
+ * own material — same triptych-grid problem as jieqi/banqi (lone board left
+ * in column 1, small). Center + size it. The 7x9 board is PORTRAIT (~366x462
+ * viewBox), so size width off the viewport height with headroom for the taller
+ * aspect (height ≈ 1.26x width). The board carries the material, so the empty
+ * capture strips collapse, and the "Truth" pane label is dropped (matching the
+ * other single-board surfaces). Scoped by .jungle-live-svg, unique to Jungle.
+ * ------------------------------------------------------------------ */
+.watch-replay .replay-layout-all:has(.jungle-live-svg) {
+  grid-template-columns: minmax(0, min(100%, 39dvh, 380px));
+  justify-content: center;
+}
+
+.watch-replay .replay-layout-all:has(.jungle-live-svg) .replay-board {
+  width: 100%;
+  max-width: none;
+}
+
+/* The live board sets the svg to height:100% (parent enforces aspect there);
+   in the watch pane there is no fixed-height parent, so let the viewBox aspect
+   drive height instead. */
+.watch-replay .replay-layout-all:has(.jungle-live-svg) .jungle-live-svg {
+  width: 100%;
+  height: auto;
+}
+
+.watch-replay .replay-layout-all:has(.jungle-live-svg) .replay-pane-label {
+  display: none;
+}
+
+/* No captured-pool strips (material lives on the board): collapse them so they
+   don't reserve dead space above/below the board. */
+.watch-replay .replay-layout-all:has(.jungle-live-svg) .captures-strip {
+  height: auto;
+  min-height: 0;
+}
+
+/* ------------------------------------------------------------------ *
+ * Flip Jungle watch: symmetric hidden-identity (banqi pattern), one board
+ * with a Reveal toggle. Same lone-board-in-column-1 problem. The 4x4 board is
+ * SQUARE (~286x286 viewBox), so size it like the (also square) mini xiangqi
+ * board. Material lives on the board, so collapse the empty capture strips; the
+ * "Truth" pane label is dropped (the Reveal control conveys state, matching
+ * banqi). Scoped by .jungle-flip-live-svg, unique to Flip Jungle.
+ * ------------------------------------------------------------------ */
+.watch-replay .replay-layout-all:has(.jungle-flip-live-svg) {
+  grid-template-columns: minmax(0, min(100%, 50dvh, 460px));
+  justify-content: center;
+}
+
+.watch-replay .replay-layout-all:has(.jungle-flip-live-svg) .replay-board {
+  width: 100%;
+  max-width: none;
+}
+
+.watch-replay .replay-layout-all:has(.jungle-flip-live-svg) .jungle-flip-live-svg {
+  width: 100%;
+  height: auto;
+}
+
+.watch-replay .replay-layout-all:has(.jungle-flip-live-svg) .replay-pane-label {
+  display: none;
+}
+
+.watch-replay .replay-layout-all:has(.jungle-flip-live-svg) .captures-strip {
+  height: auto;
+  min-height: 0;
+}
