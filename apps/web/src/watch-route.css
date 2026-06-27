@@ -851,3 +851,56 @@
   justify-content: center;
   overflow: visible;
 }
+
+/* ------------------------------------------------------------------ *
+ * Mini Open Xiangqi + Drop Mini Xiangqi watch: both are perfect-info, so
+ * they ship a single board (no red/truth/black triptych). Like the jieqi /
+ * banqi blocks above, the base 3-column triptych grid left the lone board
+ * small and left-aligned in column 1; this centers it and sizes it up off
+ * the viewport height (the 7x7 viewBox is square, so width drives an equal
+ * height — keep it under the no-scroll budget). The "Truth" pane label is
+ * meaningless without a contrasting fog view, so drop it (matching jieqi /
+ * banqi). Scoped to a single-pane layout via :not(:has(.replay-pane ~
+ * .replay-pane)) so the Dark Mini Xiangqi triptych — which shares the
+ * .mini-xq-board class — keeps its three columns.
+ * ------------------------------------------------------------------ */
+.watch-replay .replay-layout-all:has(.mini-xq-board):not(:has(.replay-pane ~ .replay-pane)) {
+  grid-template-columns: minmax(0, min(100%, 50dvh, 460px));
+  justify-content: center;
+}
+
+/* Let the board fill the (wider) single column instead of its triptych-era cap. */
+.watch-replay .replay-layout-all:has(.mini-xq-board):not(:has(.replay-pane ~ .replay-pane))
+  .replay-board {
+  width: 100%;
+  max-width: none;
+}
+
+.watch-replay
+  .replay-layout-all:has(.mini-xq-board):not(:has(.replay-pane ~ .replay-pane))
+  .replay-pane-label {
+  display: none;
+}
+
+/* Capture / reserve strips: let them grow and pin to the full board width so a
+   wrapping flex row doesn't collapse to min-content and stack pieces vertically.
+   Reserve one row's height even when empty (Drop's reserve fills here) so the
+   board doesn't jump when the first piece lands. */
+.watch-replay .replay-layout-all:has(.mini-xq-board):not(:has(.replay-pane ~ .replay-pane))
+  .captures-strip {
+  height: auto;
+  min-height: 34px;
+  width: 100%;
+  overflow: visible;
+}
+
+.watch-replay
+  .replay-layout-all:has(.mini-xq-board):not(:has(.replay-pane ~ .replay-pane))
+  .captures-row,
+.watch-replay
+  .replay-layout-all:has(.mini-xq-board):not(:has(.replay-pane ~ .replay-pane))
+  .mini-xq-captures-row {
+  width: 100%;
+  justify-content: center;
+  overflow: visible;
+}
