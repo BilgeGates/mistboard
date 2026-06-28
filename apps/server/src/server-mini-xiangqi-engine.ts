@@ -19,13 +19,21 @@
 import {
   applyMiniXiangqiOpenMove,
   getMiniXiangqiOpenLegalMoves,
+  isMiniXiangqiGeneralInCheck,
   type MINI_XIANGQI_SPEC_ID,
   type MiniXiangqiColor,
   type MiniXiangqiGameState,
   type MiniXiangqiMove,
 } from '@mistboard/game';
 import {
+  buildEngineDecisionRecord,
+  reportEngineFallback,
+  reportEngineMoveOk,
+  resolveValidatedEngineMove,
+} from './engine-move-guard.js';
+import {
   isMiniXiangqiEngineClientId,
+  MINI_XIANGQI_ENGINE_VERSION,
   miniXiangqiEngineTierFor,
   miniXiangqiLiveEngineMove,
 } from './mini-xiangqi-engine.js';
@@ -37,6 +45,9 @@ import type { TenantLiveRoom } from './variant-tenant/ws.js';
 
 const CLOCK_SAFETY_MS = 1_000;
 const MIN_MOVETIME_MS = 50;
+
+// Bounded retries before failing closed (see engine-move-guard.ts).
+const ENGINE_MOVE_MAX_ATTEMPTS = 2;
 
 type MiniXiangqiEngineRoom = TenantLiveRoom<
   'mini-xiangqi',
@@ -104,56 +115,75 @@ export async function playMiniXiangqiEngineMoveIfReady(
       ? tier.movetimeMs
       : Math.max(MIN_MOVETIME_MS, Math.min(tier.movetimeMs, remainingMs - CLOCK_SAFETY_MS));
 
-  let uci: string | null = null;
-  let fallbackReason: 'request-failed' | 'illegal-move' | 'no-move' | null = null;
-  try {
-    uci = await miniXiangqiLiveEngineMove(engineId, history, { movetimeMs });
-  } catch (err) {
-    logger.error(
-      {
-        kind: 'mini_xiangqi_engine_request_failed',
-        room_id: room.id,
-        engine_id: engineId,
-        error: (err as Error).message,
-      },
-      'Mini Xiangqi engine request failed',
-    );
-    fallbackReason = 'request-failed';
-  }
+  // Engine-move boundary contract (see engine-move-guard.ts): bounded retries,
+  // validate every output against the kernel, FAIL CLOSED (resign + page) rather
+  // than silently substituting a threat-blind legal move.
+  const {
+    chosen: validated,
+    attempts,
+    aborted,
+  } = await resolveValidatedEngineMove({
+    maxAttempts: ENGINE_MOVE_MAX_ATTEMPTS,
+    engineId,
+    history,
+    movetimeMs,
+    moveProvider: miniXiangqiLiveEngineMove,
+    stillOnTurn: () => engineToMove(room, seat),
+    legalMovesNow: () => getMiniXiangqiOpenLegalMoves(room.projection.state),
+    matchUci: legalMoveForUci,
+    onReject: ({ attempt, maxAttempts, uci, reason, error }) =>
+      logger.warn(
+        {
+          kind: 'mini_xiangqi_engine_move_rejected',
+          room_id: room.id,
+          engine_id: engineId,
+          attempt,
+          max_attempts: maxAttempts,
+          uci,
+          reject_reason: reason,
+          error,
+        },
+        'Mini Xiangqi engine output rejected by kernel; retrying',
+      ),
+  });
+  if (aborted || !engineToMove(room, seat)) return;
 
-  if (!engineToMove(room, seat)) return;
-  const legalMoves = getMiniXiangqiOpenLegalMoves(room.projection.state);
-  let chosen = uci ? legalMoveForUci(legalMoves, uci) : null;
-  if (!chosen) {
-    fallbackReason ??= uci ? 'illegal-move' : 'no-move';
-    chosen = legalMoves[0] ?? null;
-  }
-  if (!chosen) {
-    logger.error(
-      {
-        kind: 'mini_xiangqi_engine_no_legal_fallback',
-        room_id: room.id,
-        engine_id: engineId,
-        move: uci,
-        fallback_reason: fallbackReason,
-      },
-      'Mini Xiangqi engine could not produce a move',
+  if (validated === null) {
+    // FAIL CLOSED: capture a complete replayable record, page, and resign.
+    const record = buildEngineDecisionRecord({
+      variant: 'mini-xiangqi',
+      roomId: room.id,
+      engineId,
+      engineVersion: MINI_XIANGQI_ENGINE_VERSION,
+      movetimeMs,
+      tier,
+      ply: history.length,
+      toMove: seat,
+      inCheck: isMiniXiangqiGeneralInCheck(room.projection.state, seat),
+      history,
+      legalUci: getMiniXiangqiOpenLegalMoves(room.projection.state).map(miniXiangqiMoveToUci),
+      attempts,
+    });
+    reportEngineFallback(
+      record,
+      'mini_xiangqi_engine_failed_closed',
+      'Mini Xiangqi engine failed closed: no kernel-legal move after retries; resigning the engine seat',
     );
+    const resign: TenantRoomEvent<MiniXiangqiColor, MiniXiangqiMove, typeof MINI_XIANGQI_SPEC_ID> =
+      {
+        type: 'seat-resigned',
+        at: Date.now(),
+        roomId: room.id,
+        color: seat,
+      };
+    const seq = await ctx.appendEvent(room, resign);
+    ctx.broadcastEventAppended(room, resign, seq);
     return;
   }
-  if (fallbackReason) {
-    logger.warn(
-      {
-        kind: 'mini_xiangqi_engine_fallback_move',
-        room_id: room.id,
-        engine_id: engineId,
-        move: uci,
-        fallback_reason: fallbackReason,
-        fallback_move: miniXiangqiMoveToUci(chosen),
-      },
-      'Mini Xiangqi engine used a legal fallback move',
-    );
-  }
+
+  reportEngineMoveOk();
+  let chosen: MiniXiangqiMove = validated;
+  const legalMoves = getMiniXiangqiOpenLegalMoves(room.projection.state);
   const guarded = guardMiniXiangqiEngineMove(room.projection.state, chosen, legalMoves);
   if (guarded !== chosen) {
     logger.warn(
