@@ -21,10 +21,11 @@ import {
   type DarkMiniXiangqiEvent,
   darkMiniXiangqiClockRemainingMs,
 } from './dark-mini-xiangqi-runtime.js';
+import { reportEngineMoveOk } from './engine-move-guard.js';
 import { buildMiniXiangqiEngineTurnRequest } from './engine-protocol/build-mini-xiangqi.js';
 import { isDarkMiniXiangqiEngineClientId, loadEngine } from './engines/registry.js';
 import { requestInternalEngineTurn } from './internal-engine-client.js';
-import { logger } from './obs.js';
+import { engineCounters, logger } from './obs.js';
 import type { DarkMiniXiangqiLiveRoom } from './server-dark-mini-xiangqi-live-room.js';
 
 const ENGINE_SECRET = process.env.MISTBOARD_ENGINE_SECRET ?? 'mistboard-dev-engine-secret';
@@ -167,6 +168,7 @@ export async function playDarkMiniXiangqiEngineMoveIfReady(
       },
       'dmx engine request failed',
     );
+    engineCounters.recordMove(true);
     await forfeitDarkMiniXiangqiEngine(ctx, room, seat);
     return;
   }
@@ -177,6 +179,10 @@ export async function playDarkMiniXiangqiEngineMoveIfReady(
   const legal = getMiniXiangqiLegalMoves(room.projection.state);
   const chosen = legal.find((m) => m.from === response.move.from && m.to === response.move.to);
   if (!chosen) {
+    // Already fail-closed (forfeit). Count it so the engine_fallback_rate page
+    // sees dark-mini too — a spike here means the engine stopped producing
+    // playable moves.
+    engineCounters.recordMove(true);
     logger.error(
       { kind: 'dmx_engine_illegal_move', room_id: room.id, move: response.move },
       'dmx engine returned a move illegal in the true position',
@@ -184,6 +190,7 @@ export async function playDarkMiniXiangqiEngineMoveIfReady(
     await forfeitDarkMiniXiangqiEngine(ctx, room, seat);
     return;
   }
+  reportEngineMoveOk();
 
   const event: DarkMiniXiangqiEvent = {
     type: 'move-played',

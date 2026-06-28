@@ -125,8 +125,9 @@ export function reportEngineMoveOk(): void {
 
 /**
  * The engine could not produce an acceptable move. Count it as a fallback, log
- * the full record at error, and page. The caller still performs the terminal
- * action (resign / forfeit / observed fallback).
+ * the full record at error, and page immediately. For perfect-information
+ * engines where a rejected move is unambiguously a bug. The caller still
+ * performs the terminal action (resign / forfeit).
  */
 export function reportEngineFallback(
   record: EngineDecisionRecord,
@@ -136,6 +137,22 @@ export function reportEngineFallback(
   engineCounters.recordMove(true);
   logger.error({ kind: logKind, ...record }, message);
   void sendEngineAlertNotification(engineFailClosedAlert(record)).catch(() => {});
+}
+
+/**
+ * Fog/imperfect-information variant: the engine's move was rejected, but under
+ * fog that can be a legitimate consequence of hidden information (e.g. a slider
+ * blocked by a hidden piece), not necessarily a bug. So count it (a SPIKE still
+ * pages via engine_fallback_rate) and log the full record at warn, but do not
+ * fire a per-event critical page. The caller still performs its fallback.
+ */
+export function reportObservedFallback(
+  record: EngineDecisionRecord,
+  logKind: string,
+  message: string,
+): void {
+  engineCounters.recordMove(true);
+  logger.warn({ kind: logKind, ...record }, message);
 }
 
 /**

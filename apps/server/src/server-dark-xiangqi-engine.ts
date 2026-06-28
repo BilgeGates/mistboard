@@ -9,10 +9,15 @@
 
 import { getLegalMoves as getXiangqiLegalMoves, type XiangqiColor } from '@mistboard/game';
 import { type DarkXiangqiEvent, darkXiangqiClockRemainingMs } from './dark-xiangqi-runtime.js';
+import {
+  buildEngineDecisionRecord,
+  reportEngineMoveOk,
+  reportObservedFallback,
+} from './engine-move-guard.js';
 import { buildXiangqiEngineTurnRequest } from './engine-protocol/build-xiangqi.js';
 import { isDarkXiangqiEngineClientId, loadEngine } from './engines/registry.js';
 import { requestInternalEngineTurn } from './internal-engine-client.js';
-import { logger } from './obs.js';
+import { engineCounters, logger } from './obs.js';
 import type { DarkXiangqiLiveRoom } from './server-dark-xiangqi-types.js';
 
 const ENGINE_SECRET = process.env.MISTBOARD_ENGINE_SECRET ?? 'mistboard-dev-engine-secret';
@@ -138,6 +143,7 @@ export async function playDarkXiangqiEngineMoveIfReady(
       },
       'dxq engine request failed',
     );
+    engineCounters.recordMove(true);
     await forfeitDarkXiangqiEngine(ctx, room, seat);
     return;
   }
@@ -148,6 +154,7 @@ export async function playDarkXiangqiEngineMoveIfReady(
   if (!chosen) {
     chosen = legal[0] ?? null;
     if (!chosen) {
+      engineCounters.recordMove(true);
       logger.error(
         { kind: 'dxq_engine_no_legal_move', room_id: room.id, move: response.move },
         'dxq engine returned an illegal move and no legal fallback exists',
@@ -155,15 +162,36 @@ export async function playDarkXiangqiEngineMoveIfReady(
       await forfeitDarkXiangqiEngine(ctx, room, seat);
       return;
     }
-    logger.warn(
-      {
-        kind: 'dxq_engine_illegal_move_fallback',
-        room_id: room.id,
-        requested_move: response.move,
-        replacement_move: chosen,
-      },
-      'dxq engine returned a fog-pseudo-legal move; using a true-legal fallback',
+    // Fog: a move illegal in the TRUE position can be a legitimate consequence of
+    // hidden information (e.g. a slider blocked by a hidden piece), so we keep the
+    // true-legal fallback rather than resign — but make it observable (counted +
+    // full record) so it is never a silent strength regression.
+    reportObservedFallback(
+      buildEngineDecisionRecord({
+        variant: 'dark-xiangqi',
+        roomId: room.id,
+        engineId,
+        engineVersion: 'internal',
+        movetimeMs: computeBudgetMs,
+        ply,
+        toMove: seat,
+        inCheck: false,
+        history: [],
+        legalUci: legal.map((m) => `${m.from}${m.to}`),
+        attempts: [
+          {
+            attempt: 1,
+            uci: `${response.move.from}${response.move.to}`,
+            error: null,
+            reason: 'illegal-move',
+          },
+        ],
+      }),
+      'dxq_engine_illegal_move_fallback',
+      'dxq engine returned a fog-pseudo-legal move; using a true-legal fallback (observed)',
     );
+  } else {
+    reportEngineMoveOk();
   }
 
   const event: DarkXiangqiEvent = {
