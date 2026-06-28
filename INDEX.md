@@ -180,6 +180,7 @@ Edit task → find file → open only that file.
 | `python-pool.ts` | Persistent Python worker pool for live engines (size=4 in prod) |
 | `engine-service.ts` | Internal HTTP engine service and live engine reservation admission control |
 | `engine-alert-email.ts` | Engine alert email rendering/sending helpers |
+| `engine-move-guard.ts` | Shared engine-move boundary for variant PvE engines: bounded retry + kernel-validate loop, a complete replayable decision record, and fail-closed reporters (fallback counter + alert) so no engine can silently substitute an illegal or threat-blind move |
 | `engine-protocol/build.ts` | Server-side redacted `EngineTurnRequest` builder |
 | `engines/{registry,think-time,types}.ts` | Engine registry/type helpers for engine service code |
 | `engine-registry.ts` | Maps engine client IDs to implementations: `loadEngine`, `playableLiveEngines`, `engineVersionDisplayName` |
@@ -573,6 +574,10 @@ Run with `MISTBOARD_ALLOW_IN_MEMORY_PERSISTENCE=true npm run test:integration --
 | `live-banqi-interaction.ts` | Pure click-to-move decision for the banqi board (FLIP a face-down tile = one-click self-move; otherwise select-then-move). Unit-testable, no DOM |
 | `live-banqi-postgame.ts` | Banqi postgame/review route renderer (single public truth surface; banqi is symmetric-information). Loads `live-xiangqi.css` + `dark-xiangqi-postgame.css` |
 | `live-banqi-sound.ts` | Banqi sound policy: a flip on a face-down reveal (own move + the opponent's public flip), capture/cannon classification, reusing the shared `SoundController` (banqi is symmetric-information, so opponent flips are sounded precisely) |
+| `live-drop-mini-xiangqi-sound.ts` | Drop Mini Xiangqi sound policy: perfect-information (no fog), so every move — including a drop-from-hand — is sounded precisely, reusing the shared `SoundController` |
+| `live-jungle-sound.ts` | Jungle / Dou Shou Qi sound policy: perfect-information (no drops/flips/king), every move sounded precisely, reusing the shared `SoundController` |
+| `live-jungle-flip-sound.ts` | Flip Jungle (兽棋 / 翻翻棋) sound policy: hidden identity not position, so a flip (face-down → revealed) is public and sounded precisely for both seats, reusing the shared `SoundController` |
+| `jungle-rules-diagrams.ts` | Inline board diagrams for the Jungle + Flip Jungle rules articles, built on the live board renderers (`renderJungleBoardSvg` / `renderJungleFlipBoardSvg`) so each diagram matches the in-game furniture |
 | `banqi-replay.ts` | Banqi rules-article replay: replays the deal + move list through the real banqi kernel, rendering each position on demand; face-down tiles flip to their dealt piece on first turn (sibling of `jieqi-replay.ts`) |
 | `banqi-sample-game.ts` | Banqi rules-article sample game data (a real MistyBanqi-vs-human game), replayed by `banqi-replay.ts` |
 | `banqi-engine-game.ts` | "How MistyBanqi Plays" article sample game data (a real prod game where MistyBanqi draws a won position by repetition), replayed by `banqi-replay.ts` |
