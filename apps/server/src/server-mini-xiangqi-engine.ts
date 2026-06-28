@@ -124,13 +124,9 @@ export async function playMiniXiangqiEngineMoveIfReady(
     aborted,
   } = await resolveValidatedEngineMove({
     maxAttempts: ENGINE_MOVE_MAX_ATTEMPTS,
-    engineId,
-    history,
-    movetimeMs,
-    moveProvider: miniXiangqiLiveEngineMove,
+    requestMove: () => miniXiangqiLiveEngineMove(engineId, history, { movetimeMs }),
+    validate: (uci) => legalMoveForUci(getMiniXiangqiOpenLegalMoves(room.projection.state), uci),
     stillOnTurn: () => engineToMove(room, seat),
-    legalMovesNow: () => getMiniXiangqiOpenLegalMoves(room.projection.state),
-    matchUci: legalMoveForUci,
     onReject: ({ attempt, maxAttempts, uci, reason, error }) =>
       logger.warn(
         {

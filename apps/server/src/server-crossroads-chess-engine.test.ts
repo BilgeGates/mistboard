@@ -43,7 +43,7 @@ test('Crossroads engine loop plays a validated FSF move with server-owned tier c
   assert.deepEqual(last?.type === 'move-played' && last.move, { from: 'd7', to: 'd6' });
 });
 
-test('Crossroads engine loop falls back to a legal move on illegal output', async () => {
+test('Crossroads engine fails closed (resigns) on persistently illegal output', async () => {
   const room = pveRoom('red');
   appendCrossroadsChessRuntimeEvent(room, {
     type: 'move-played',
@@ -52,17 +52,18 @@ test('Crossroads engine loop falls back to a legal move on illegal output', asyn
     color: 'white',
     move: { from: 'd2', to: 'd3' },
   });
-  const ctx = engineCtx(room, async () => 'a1a1');
+  const ctx = engineCtx(room, async () => 'a1a1'); // never kernel-legal
 
   await playCrossroadsChessEngineMoveIfReady(ctx, room);
 
+  // Perfect-info: an illegal move is a bug, so resign rather than fabricate one.
   const last = room.events.at(-1);
-  assert.equal(last?.type, 'move-played');
-  assert.equal(last?.type === 'move-played' && last.color, 'red');
-  assert.deepEqual(room.projection.state.status, { type: 'playing', turn: 'white' });
+  assert.equal(last?.type, 'seat-resigned');
+  assert.equal(last?.type === 'seat-resigned' && last.color, 'red');
+  assert.equal(room.events.filter((e) => e.type === 'move-played').length, 1);
 });
 
-test('Crossroads engine loop falls back to a legal move on request failure', async () => {
+test('Crossroads engine fails closed (resigns) on request failure', async () => {
   const room = pveRoom('red');
   appendCrossroadsChessRuntimeEvent(room, {
     type: 'move-played',
@@ -78,9 +79,9 @@ test('Crossroads engine loop falls back to a legal move on request failure', asy
   await playCrossroadsChessEngineMoveIfReady(ctx, room);
 
   const last = room.events.at(-1);
-  assert.equal(last?.type, 'move-played');
-  assert.equal(last?.type === 'move-played' && last.color, 'red');
-  assert.deepEqual(room.projection.state.status, { type: 'playing', turn: 'white' });
+  assert.equal(last?.type, 'seat-resigned');
+  assert.equal(last?.type === 'seat-resigned' && last.color, 'red');
+  assert.equal(room.events.filter((e) => e.type === 'move-played').length, 1);
 });
 
 test('Crossroads engine loop guards avoidable one-ply terminal losses', async () => {

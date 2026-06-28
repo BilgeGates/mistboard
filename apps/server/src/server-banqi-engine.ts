@@ -20,10 +20,21 @@ import {
   getBanqiLegalMoves,
   isBanqiLegalMove,
 } from '@mistboard/game';
-import { banqiEngineTierFor, banqiLiveEngineMove, isBanqiEngineClientId } from './banqi-engine.js';
+import {
+  BANQI_ENGINE_VERSION,
+  banqiEngineTierFor,
+  banqiLiveEngineMove,
+  isBanqiEngineClientId,
+} from './banqi-engine.js';
 import { banqiMoveToEngineUci, banqiStateToEngineFen, engineUciToBanqiMove } from './banqi-fen.js';
 import type { BanqiEvent, BanqiSpecId } from './banqi-runtime.js';
 import { banqiTenant } from './banqi-tenant.js';
+import {
+  buildEngineDecisionRecord,
+  reportEngineFallback,
+  reportEngineMoveOk,
+  resolveValidatedEngineMove,
+} from './engine-move-guard.js';
 import { logger } from './obs.js';
 import type { TenantLifecycleContext } from './variant-tenant/lifecycle.js';
 import { replayTenantEvents, tenantClockRemainingMs } from './variant-tenant/runtime.js';
@@ -32,6 +43,9 @@ import type { TenantLiveRoom } from './variant-tenant/ws.js';
 
 const CLOCK_SAFETY_MS = 1_000;
 const MIN_MOVETIME_MS = 50;
+
+// Bounded retries before failing closed (see engine-move-guard.ts).
+const ENGINE_MOVE_MAX_ATTEMPTS = 2;
 
 type BanqiEngineRoom = TenantLiveRoom<'banqi', BanqiSeat, BanqiMove, BanqiGameState, BanqiSpecId>;
 type BanqiEngineContext = TenantLifecycleContext<
@@ -120,65 +134,81 @@ export async function playBanqiEngineMoveIfReady(
       ? tier.movetimeCapMs
       : Math.max(MIN_MOVETIME_MS, Math.min(tier.movetimeCapMs, remainingMs - CLOCK_SAFETY_MS));
 
-  let uci: string | null = null;
-  let fallbackReason: 'request-failed' | 'illegal-move' | 'no-move' | null = null;
-  try {
-    uci = await banqiLiveEngineMove(engineId, fen, { nodes: tier.nodes, movetimeCapMs, moves });
-  } catch (err) {
-    logger.error(
-      {
-        kind: 'banqi_engine_request_failed',
-        room_id: room.id,
-        engine_id: engineId,
-        error: (err as Error).message,
-      },
-      'Banqi engine request failed',
-    );
-    fallbackReason = 'request-failed';
-  }
+  // Engine-move boundary contract (see engine-move-guard.ts): bounded retries,
+  // validate every output against the kernel, FAIL CLOSED (resign + page) rather
+  // than silently substituting a threat-blind legal move.
+  const {
+    chosen: validated,
+    attempts,
+    aborted,
+  } = await resolveValidatedEngineMove<BanqiMove>({
+    maxAttempts: ENGINE_MOVE_MAX_ATTEMPTS,
+    requestMove: () =>
+      banqiLiveEngineMove(engineId, fen, { nodes: tier.nodes, movetimeCapMs, moves }),
+    validate: (uci) => {
+      const parsed = engineUciToBanqiMove(uci);
+      return parsed && isBanqiLegalMove(room.projection.state, parsed) ? parsed : null;
+    },
+    stillOnTurn: () => engineToMove(room, seat),
+    onReject: ({ attempt, maxAttempts, uci, reason, error }) =>
+      logger.warn(
+        {
+          kind: 'banqi_engine_move_rejected',
+          room_id: room.id,
+          engine_id: engineId,
+          attempt,
+          max_attempts: maxAttempts,
+          uci,
+          reject_reason: reason,
+          error,
+        },
+        'Banqi engine output rejected by kernel; retrying',
+      ),
+  });
+  if (aborted || !engineToMove(room, seat)) return;
 
-  // State may have advanced while the engine was thinking (reconnect, resign).
-  if (!engineToMove(room, seat)) return;
-  const state = room.projection.state;
-  const legalMoves = getBanqiLegalMoves(state);
-  const parsed = uci ? engineUciToBanqiMove(uci) : null;
-  let chosen: BanqiMove | null = parsed && isBanqiLegalMove(state, parsed) ? parsed : null;
-  if (!chosen) {
-    fallbackReason ??= uci ? 'illegal-move' : 'no-move';
-    chosen = legalMoves[0] ?? null;
-  }
-  if (!chosen) {
-    logger.error(
-      {
-        kind: 'banqi_engine_no_legal_fallback',
-        room_id: room.id,
-        engine_id: engineId,
-        move: uci,
-        fallback_reason: fallbackReason,
-      },
-      'Banqi engine could not produce a move',
+  if (validated === null) {
+    // FAIL CLOSED: capture a complete replayable record, page, and resign. Banqi
+    // is perfect-information at decision time (only future flips are hidden), so
+    // a move the kernel rejects is a bug, not fog.
+    const record = buildEngineDecisionRecord({
+      variant: 'banqi',
+      roomId: room.id,
+      engineId,
+      engineVersion: BANQI_ENGINE_VERSION,
+      movetimeMs: movetimeCapMs,
+      tier: { nodes: tier.nodes, movetimeMs: tier.movetimeCapMs },
+      ply: moves.length,
+      toMove: seat,
+      inCheck: false,
+      fen,
+      history: moves,
+      legalUci: getBanqiLegalMoves(room.projection.state).map(banqiMoveToEngineUci),
+      attempts,
+    });
+    reportEngineFallback(
+      record,
+      'banqi_engine_failed_closed',
+      'Banqi engine failed closed: no kernel-legal move after retries; resigning the engine seat',
     );
+    const resign: TenantRoomEvent<BanqiSeat, BanqiMove, BanqiSpecId> = {
+      type: 'seat-resigned',
+      at: Date.now(),
+      roomId: room.id,
+      color: seat,
+    };
+    const seq = await ctx.appendEvent(room, resign);
+    ctx.broadcastEventAppended(room, resign, seq);
     return;
   }
-  if (fallbackReason) {
-    logger.warn(
-      {
-        kind: 'banqi_engine_fallback_move',
-        room_id: room.id,
-        engine_id: engineId,
-        move: uci,
-        fallback_reason: fallbackReason,
-      },
-      'Banqi engine used a legal fallback move',
-    );
-  }
 
+  reportEngineMoveOk();
   const event: TenantRoomEvent<BanqiSeat, BanqiMove, BanqiSpecId> = {
     type: 'move-played',
     at: Date.now(),
     roomId: room.id,
     color: seat,
-    move: chosen,
+    move: validated,
   };
   const seq = await ctx.appendEvent(room, event);
   ctx.broadcastEventAppended(room, event, seq);

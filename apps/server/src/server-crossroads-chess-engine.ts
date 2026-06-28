@@ -16,6 +16,7 @@ import {
   getCrossroadsChessOpenLegalMoves,
 } from '@mistboard/game';
 import {
+  CROSSROADS_CHESS_ENGINE_VERSION,
   crossroadsChessEngineTierFor,
   crossroadsChessLiveEngineMove,
   isCrossroadsChessEngineClientId,
@@ -24,11 +25,20 @@ import {
   type CrossroadsChessEvent,
   crossroadsChessClockRemainingMs,
 } from './crossroads-chess-runtime.js';
+import {
+  buildEngineDecisionRecord,
+  reportEngineFallback,
+  reportEngineMoveOk,
+  resolveValidatedEngineMove,
+} from './engine-move-guard.js';
 import { logger } from './obs.js';
 import type { CrossroadsChessLiveRoom } from './server-crossroads-chess-live-room.js';
 
 const CLOCK_SAFETY_MS = 1_000;
 const MIN_MOVETIME_MS = 50;
+
+// Bounded retries before failing closed (see engine-move-guard.ts).
+const ENGINE_MOVE_MAX_ATTEMPTS = 2;
 
 export type CrossroadsChessEngineContext = {
   appendEvent(room: CrossroadsChessLiveRoom, event: CrossroadsChessEvent): Promise<number>;
@@ -98,58 +108,74 @@ export async function playCrossroadsChessEngineMoveIfReady(
       ? tier.movetimeMs
       : Math.max(MIN_MOVETIME_MS, Math.min(tier.movetimeMs, remainingMs - CLOCK_SAFETY_MS));
 
-  let uci: string | null = null;
-  let fallbackReason: 'request-failed' | 'illegal-move' | 'no-move' | null = null;
-  try {
-    uci = await (ctx.engineMove ?? crossroadsChessLiveEngineMove)(engineId, history, {
-      movetimeMs,
-    });
-  } catch (err) {
-    logger.error(
-      {
-        kind: 'crossroads_chess_engine_request_failed',
-        room_id: room.id,
-        engine_id: engineId,
-        error: (err as Error).message,
-      },
-      'Crossroads Chess engine request failed',
-    );
-    fallbackReason = 'request-failed';
-  }
+  // Engine-move boundary contract (see engine-move-guard.ts): bounded retries,
+  // validate every output against the kernel, FAIL CLOSED (resign + page) rather
+  // than silently substituting a threat-blind legal move.
+  const {
+    chosen: validated,
+    attempts,
+    aborted,
+  } = await resolveValidatedEngineMove<CrossroadsChessMove>({
+    maxAttempts: ENGINE_MOVE_MAX_ATTEMPTS,
+    requestMove: () =>
+      (ctx.engineMove ?? crossroadsChessLiveEngineMove)(engineId, history, { movetimeMs }),
+    validate: (uci) =>
+      legalMoveForUci(getCrossroadsChessOpenLegalMoves(room.projection.state), uci),
+    stillOnTurn: () => engineToMove(room, seat),
+    onReject: ({ attempt, maxAttempts, uci, reason, error }) =>
+      logger.warn(
+        {
+          kind: 'crossroads_chess_engine_move_rejected',
+          room_id: room.id,
+          engine_id: engineId,
+          attempt,
+          max_attempts: maxAttempts,
+          uci,
+          reject_reason: reason,
+          error,
+        },
+        'Crossroads Chess engine output rejected by kernel; retrying',
+      ),
+  });
+  if (aborted || !engineToMove(room, seat)) return;
 
-  if (!engineToMove(room, seat)) return;
-  const legalMoves = getCrossroadsChessOpenLegalMoves(room.projection.state);
-  let chosen = uci ? legalMoveForUci(legalMoves, uci) : null;
-  if (!chosen) {
-    fallbackReason ??= uci ? 'illegal-move' : 'no-move';
-    chosen = legalMoves[0] ?? null;
-  }
-  if (!chosen) {
-    logger.error(
-      {
-        kind: 'crossroads_chess_engine_no_legal_fallback',
-        room_id: room.id,
-        engine_id: engineId,
-        move: uci,
-        fallback_reason: fallbackReason,
-      },
-      'Crossroads Chess engine could not produce a move',
+  if (validated === null) {
+    // FAIL CLOSED: capture a complete replayable record, page, and resign.
+    const record = buildEngineDecisionRecord({
+      variant: 'crossroads-chess',
+      roomId: room.id,
+      engineId,
+      engineVersion: CROSSROADS_CHESS_ENGINE_VERSION,
+      movetimeMs,
+      tier: { movetimeMs: tier.movetimeMs },
+      ply: history.length,
+      toMove: seat,
+      inCheck: false,
+      history,
+      legalUci: getCrossroadsChessOpenLegalMoves(room.projection.state).map(
+        crossroadsChessMoveToUci,
+      ),
+      attempts,
+    });
+    reportEngineFallback(
+      record,
+      'crossroads_chess_engine_failed_closed',
+      'Crossroads Chess engine failed closed: no kernel-legal move after retries; resigning the engine seat',
     );
+    const resign: CrossroadsChessEvent = {
+      type: 'seat-resigned',
+      at: Date.now(),
+      roomId: room.id,
+      color: seat,
+    };
+    const seq = await ctx.appendEvent(room, resign);
+    ctx.broadcastEventAppended(room, resign, seq);
     return;
   }
-  if (fallbackReason) {
-    logger.warn(
-      {
-        kind: 'crossroads_chess_engine_fallback_move',
-        room_id: room.id,
-        engine_id: engineId,
-        move: uci,
-        fallback_reason: fallbackReason,
-        fallback_move: crossroadsChessMoveToUci(chosen),
-      },
-      'Crossroads Chess engine used a legal fallback move',
-    );
-  }
+
+  reportEngineMoveOk();
+  let chosen: CrossroadsChessMove = validated;
+  const legalMoves = getCrossroadsChessOpenLegalMoves(room.projection.state);
   const guarded = guardCrossroadsChessEngineMove(room.projection.state, chosen, legalMoves);
   if (guarded.move !== chosen) {
     logger.warn(

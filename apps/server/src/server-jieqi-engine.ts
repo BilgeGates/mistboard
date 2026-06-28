@@ -22,7 +22,18 @@ import {
   type JieqiGameState,
   type JieqiMove,
 } from '@mistboard/game';
-import { isJieqiEngineClientId, jieqiEngineTierFor, jieqiLiveEngineMove } from './jieqi-engine.js';
+import {
+  buildEngineDecisionRecord,
+  reportEngineFallback,
+  reportEngineMoveOk,
+  resolveValidatedEngineMove,
+} from './engine-move-guard.js';
+import {
+  isJieqiEngineClientId,
+  JIEQI_ENGINE_VERSION,
+  jieqiEngineTierFor,
+  jieqiLiveEngineMove,
+} from './jieqi-engine.js';
 import {
   jieqiMoveToPikafishUci,
   jieqiStateToPikafishFen,
@@ -42,6 +53,9 @@ import type { TenantLiveRoom } from './variant-tenant/ws.js';
 
 const CLOCK_SAFETY_MS = 1_000;
 const MIN_MOVETIME_MS = 50;
+
+// Bounded retries before failing closed (see engine-move-guard.ts).
+const ENGINE_MOVE_MAX_ATTEMPTS = 2;
 
 type JieqiEngineRoom = TenantLiveRoom<'jieqi', JieqiColor, JieqiMove, JieqiGameState, JieqiSpecId>;
 type JieqiEngineContext = TenantLifecycleContext<
@@ -144,65 +158,80 @@ export async function playJieqiEngineMoveIfReady(
       ? tier.movetimeMs
       : Math.max(MIN_MOVETIME_MS, Math.min(tier.movetimeMs, remainingMs - CLOCK_SAFETY_MS));
 
-  let uci: string | null = null;
-  let fallbackReason: 'request-failed' | 'illegal-move' | 'no-move' | null = null;
-  try {
-    uci = await jieqiLiveEngineMove(engineId, fen, { movetimeMs, moves });
-  } catch (err) {
-    logger.error(
-      {
-        kind: 'jieqi_engine_request_failed',
-        room_id: room.id,
-        engine_id: engineId,
-        error: (err as Error).message,
-      },
-      'Jieqi engine request failed',
-    );
-    fallbackReason = 'request-failed';
-  }
+  // Engine-move boundary contract (see engine-move-guard.ts): bounded retries,
+  // validate every output against the kernel, FAIL CLOSED (resign + page) rather
+  // than silently substituting a threat-blind legal move.
+  const {
+    chosen: validated,
+    attempts,
+    aborted,
+  } = await resolveValidatedEngineMove<JieqiMove>({
+    maxAttempts: ENGINE_MOVE_MAX_ATTEMPTS,
+    requestMove: () => jieqiLiveEngineMove(engineId, fen, { movetimeMs, moves }),
+    validate: (uci) => {
+      const parsed = pikafishUciToJieqiMove(uci);
+      return parsed && isJieqiLegalMove(room.projection.state, parsed) ? parsed : null;
+    },
+    stillOnTurn: () => engineToMove(room, seat),
+    onReject: ({ attempt, maxAttempts, uci, reason, error }) =>
+      logger.warn(
+        {
+          kind: 'jieqi_engine_move_rejected',
+          room_id: room.id,
+          engine_id: engineId,
+          attempt,
+          max_attempts: maxAttempts,
+          uci,
+          reject_reason: reason,
+          error,
+        },
+        'Jieqi engine output rejected by kernel; retrying',
+      ),
+  });
+  if (aborted || !engineToMove(room, seat)) return;
 
-  // State may have advanced while the engine was thinking (reconnect, resign).
-  if (!engineToMove(room, seat)) return;
-  const state = room.projection.state;
-  const legalMoves = getJieqiLegalMoves(state);
-  const parsed = uci ? pikafishUciToJieqiMove(uci) : null;
-  let chosen: JieqiMove | null = parsed && isJieqiLegalMove(state, parsed) ? parsed : null;
-  if (!chosen) {
-    fallbackReason ??= uci ? 'illegal-move' : 'no-move';
-    chosen = legalMoves[0] ?? null;
-  }
-  if (!chosen) {
-    logger.error(
-      {
-        kind: 'jieqi_engine_no_legal_fallback',
-        room_id: room.id,
-        engine_id: engineId,
-        move: uci,
-        fallback_reason: fallbackReason,
-      },
-      'Jieqi engine could not produce a move',
+  if (validated === null) {
+    // FAIL CLOSED: capture a complete replayable record, page, and resign. Jieqi
+    // is perfect-information at decision time (only hidden piece identities, which
+    // do not change the current legal-move set), so a rejected move is a bug.
+    const record = buildEngineDecisionRecord({
+      variant: 'jieqi',
+      roomId: room.id,
+      engineId,
+      engineVersion: JIEQI_ENGINE_VERSION,
+      movetimeMs,
+      tier: { movetimeMs: tier.movetimeMs },
+      ply: moves.length,
+      toMove: seat,
+      inCheck: false,
+      fen,
+      history: moves,
+      legalUci: getJieqiLegalMoves(room.projection.state).map(jieqiMoveToPikafishUci),
+      attempts,
+    });
+    reportEngineFallback(
+      record,
+      'jieqi_engine_failed_closed',
+      'Jieqi engine failed closed: no kernel-legal move after retries; resigning the engine seat',
     );
+    const resign: TenantRoomEvent<JieqiColor, JieqiMove, JieqiSpecId> = {
+      type: 'seat-resigned',
+      at: Date.now(),
+      roomId: room.id,
+      color: seat,
+    };
+    const seq = await ctx.appendEvent(room, resign);
+    ctx.broadcastEventAppended(room, resign, seq);
     return;
   }
-  if (fallbackReason) {
-    logger.warn(
-      {
-        kind: 'jieqi_engine_fallback_move',
-        room_id: room.id,
-        engine_id: engineId,
-        move: uci,
-        fallback_reason: fallbackReason,
-      },
-      'Jieqi engine used a legal fallback move',
-    );
-  }
 
+  reportEngineMoveOk();
   const event: TenantRoomEvent<JieqiColor, JieqiMove, JieqiSpecId> = {
     type: 'move-played',
     at: Date.now(),
     roomId: room.id,
     color: seat,
-    move: chosen,
+    move: validated,
   };
   const seq = await ctx.appendEvent(room, event);
   ctx.broadcastEventAppended(room, event, seq);

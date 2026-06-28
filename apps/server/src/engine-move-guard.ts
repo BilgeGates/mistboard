@@ -44,6 +44,9 @@ export type EngineDecisionRecord = {
   ply: number;
   to_move: string;
   in_check: boolean;
+  // FEN of the position, for engines fed a FEN (banqi/jieqi). null for engines
+  // replayed purely from move history (drop-mini, mini-xiangqi).
+  fen: string | null;
   history: string;
   legal_moves: string;
   legal_count: number;
@@ -63,6 +66,7 @@ export function buildEngineDecisionRecord(input: {
   ply: number;
   toMove: string;
   inCheck: boolean;
+  fen?: string | null;
   history: string[];
   legalUci: string[];
   attempts: EngineMoveAttempt[];
@@ -81,6 +85,7 @@ export function buildEngineDecisionRecord(input: {
     ply: input.ply,
     to_move: input.toMove,
     in_check: input.inCheck,
+    fen: input.fen ?? null,
     history: input.history.join(' '),
     legal_moves: input.legalUci.join(' '),
     legal_count: input.legalUci.length,
@@ -134,25 +139,20 @@ export function reportEngineFallback(
 }
 
 /**
- * Bounded-retry + kernel-validate loop for FSF/UCI engines. A fresh FSF process
- * can diverge (FSF is nondeterministic), so a transient bad output often clears
- * on the next attempt. Returns the kernel move (or null after the budget) plus
- * the attempt trail for the decision record. `aborted` means the turn changed
- * under us (clock expiry, opponent move) and the caller should just return.
+ * Bounded-retry + kernel-validate loop for any move-serving engine. A fresh
+ * engine call can diverge (FSF is nondeterministic), so a transient bad output
+ * often clears on the next attempt. The caller supplies `requestMove` (closing
+ * over its own args — uci-history for FSF, FEN+nodes for banqi, etc.) and
+ * `validate` (parse + legality against the kernel). Returns the kernel move (or
+ * null after the budget) plus the attempt trail for the decision record.
+ * `aborted` means the turn changed under us (clock expiry, opponent move) and
+ * the caller should just return.
  */
 export async function resolveValidatedEngineMove<M>(input: {
   maxAttempts: number;
-  engineId: string;
-  history: string[];
-  movetimeMs: number;
-  moveProvider: (
-    engineId: string,
-    moves: string[],
-    opts: { movetimeMs?: number },
-  ) => Promise<string | null>;
+  requestMove: () => Promise<string | null>;
+  validate: (uci: string) => M | null;
   stillOnTurn: () => boolean;
-  legalMovesNow: () => readonly M[];
-  matchUci: (legal: readonly M[], uci: string) => M | null;
   onReject: (info: {
     attempt: number;
     maxAttempts: number;
@@ -167,15 +167,12 @@ export async function resolveValidatedEngineMove<M>(input: {
     let uci: string | null = null;
     let error: string | null = null;
     try {
-      uci = await input.moveProvider(input.engineId, input.history, {
-        movetimeMs: input.movetimeMs,
-      });
+      uci = await input.requestMove();
     } catch (err) {
       error = (err as Error).message;
     }
     if (!input.stillOnTurn()) return { chosen: null, attempts, aborted: true };
-    const legal = input.legalMovesNow();
-    const match = !error && uci ? input.matchUci(legal, uci) : null;
+    const match = !error && uci ? input.validate(uci) : null;
     const reason: EngineMoveRejectReason | null = match
       ? null
       : error

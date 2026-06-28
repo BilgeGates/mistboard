@@ -6,20 +6,18 @@ import {
   resolveValidatedEngineMove,
 } from './engine-move-guard.js';
 
-// matchUci treats the legal list as the source of truth (mirrors every engine).
-const matchUci = (legal: readonly string[], uci: string): string | null =>
-  legal.includes(uci) ? uci : null;
+// validate treats a fixed legal set as the source of truth (mirrors every engine).
+const validateAgainst =
+  (legal: readonly string[]) =>
+  (uci: string): string | null =>
+    legal.includes(uci) ? uci : null;
 
 test('resolveValidatedEngineMove returns the move on first-attempt success', async () => {
   const r = await resolveValidatedEngineMove<string>({
     maxAttempts: 2,
-    engineId: 'e',
-    history: [],
-    movetimeMs: 100,
-    moveProvider: async () => 'a1a2',
+    requestMove: async () => 'a1a2',
+    validate: validateAgainst(['a1a2', 'b1b2']),
     stillOnTurn: () => true,
-    legalMovesNow: () => ['a1a2', 'b1b2'],
-    matchUci,
     onReject: () => {},
   });
   assert.equal(r.chosen, 'a1a2');
@@ -32,13 +30,9 @@ test('resolveValidatedEngineMove retries a rejected output then succeeds', async
   const rejects: string[] = [];
   const r = await resolveValidatedEngineMove<string>({
     maxAttempts: 2,
-    engineId: 'e',
-    history: [],
-    movetimeMs: 100,
-    moveProvider: async () => (call++ === 0 ? 'zz9z' : 'a1a2'), // illegal, then legal
+    requestMove: async () => (call++ === 0 ? 'zz9z' : 'a1a2'), // illegal, then legal
+    validate: validateAgainst(['a1a2']),
     stillOnTurn: () => true,
-    legalMovesNow: () => ['a1a2'],
-    matchUci,
     onReject: ({ reason }) => rejects.push(reason),
   });
   assert.equal(r.chosen, 'a1a2');
@@ -49,13 +43,9 @@ test('resolveValidatedEngineMove retries a rejected output then succeeds', async
 test('resolveValidatedEngineMove returns null after exhausting retries (fail closed)', async () => {
   const r = await resolveValidatedEngineMove<string>({
     maxAttempts: 2,
-    engineId: 'e',
-    history: ['a1a2'],
-    movetimeMs: 100,
-    moveProvider: async () => 'zz9z', // always illegal
+    requestMove: async () => 'zz9z', // always illegal
+    validate: validateAgainst(['a1a2']),
     stillOnTurn: () => true,
-    legalMovesNow: () => ['a1a2'],
-    matchUci,
     onReject: () => {},
   });
   assert.equal(r.chosen, null);
@@ -69,15 +59,11 @@ test('resolveValidatedEngineMove returns null after exhausting retries (fail clo
 test('resolveValidatedEngineMove classifies a thrown provider as request-failed', async () => {
   const r = await resolveValidatedEngineMove<string>({
     maxAttempts: 1,
-    engineId: 'e',
-    history: [],
-    movetimeMs: 100,
-    moveProvider: async () => {
+    requestMove: async () => {
       throw new Error('fsf crashed');
     },
+    validate: validateAgainst(['a1a2']),
     stillOnTurn: () => true,
-    legalMovesNow: () => ['a1a2'],
-    matchUci,
     onReject: () => {},
   });
   assert.equal(r.chosen, null);
@@ -89,16 +75,12 @@ test('resolveValidatedEngineMove aborts without calling the provider when off-tu
   let calls = 0;
   const r = await resolveValidatedEngineMove<string>({
     maxAttempts: 2,
-    engineId: 'e',
-    history: [],
-    movetimeMs: 100,
-    moveProvider: async () => {
+    requestMove: async () => {
       calls += 1;
       return 'a1a2';
     },
+    validate: validateAgainst(['a1a2']),
     stillOnTurn: () => false,
-    legalMovesNow: () => ['a1a2'],
-    matchUci,
     onReject: () => {},
   });
   assert.equal(r.aborted, true);
