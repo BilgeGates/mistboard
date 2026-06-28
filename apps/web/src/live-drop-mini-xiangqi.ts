@@ -17,6 +17,11 @@ import {
   fillDropMiniXiangqiReserve,
 } from './drop-mini-xiangqi-view.js';
 import { dropMiniXiangqiEnabled } from './feature-flags.js';
+import {
+  maybePlayDropMiniXiangqiSnapshotSound,
+  resetDropMiniXiangqiSoundState,
+  soundForOwnDropMiniXiangqiMove,
+} from './live-drop-mini-xiangqi-sound.js';
 import { createLiveLayout, setLiveLayoutGameSpec } from './live-layout.js';
 import {
   installMiniXiangqiBoardStyles,
@@ -24,6 +29,7 @@ import {
   miniXiangqiPieceGhostSvg,
   renderMiniXiangqiBoardSvg,
 } from './live-mini-xiangqi-render.js';
+import { initLiveSound, playSound, resetLiveSoundState } from './live-sound.js';
 import { clearSeatTokenForRoom, type LiveRefs } from './live-state.js';
 import { roomIdFromPath } from './room-url.js';
 import { setBoardFamily } from './theme.js';
@@ -171,6 +177,9 @@ export function bootstrapDropMiniXiangqiLiveRoom(): void {
   lastCapturedPositionKey = null;
   replay.reset();
   chrome.resetState();
+  initLiveSound();
+  resetLiveSoundState();
+  resetDropMiniXiangqiSoundState();
   installMiniXiangqiBoardStyles();
   setBoardFamily('xiangqi');
 
@@ -205,7 +214,10 @@ export function bootstrapDropMiniXiangqiLiveRoom(): void {
   client = createTenantSocketClient({
     room,
     applyHello: (frame) => applyFrame(frame as DropMiniLiveFrame),
-    applySnapshot: (frame) => applyFrame(frame as DropMiniLiveFrame),
+    applySnapshot: (frame) => {
+      applyFrame(frame as DropMiniLiveFrame);
+      maybePlayDropMiniXiangqiSnapshotSound(state.view, state.seat);
+    },
     applyEvent: (frame) => applyEventFrame(frame as DropMiniLiveFrame),
     render: renderAll,
   });
@@ -239,6 +251,7 @@ function applyEventFrame(frame: DropMiniLiveFrame): void {
   applyFrame(frame);
   state.events = events;
   if (frame.event) state.events = [...events, frame.event];
+  maybePlayDropMiniXiangqiSnapshotSound(state.view, state.seat);
 }
 
 function renderAll(): void {
@@ -379,6 +392,7 @@ function handleSquareClick(square: MiniXiangqiSquare): void {
     const targets = dropMiniXiangqiDropTargets(view, selectedDropRole);
     if (targets.includes(square)) {
       send({ type: 'move', drop: selectedDropRole, to: square });
+      playSound('drop');
       selectedDropRole = null;
       selectedSquare = null;
       renderAll();
@@ -403,6 +417,7 @@ function handleSquareClick(square: MiniXiangqiSquare): void {
   if (move) {
     selectedSquare = null;
     send({ type: 'move', from: move.from, to: move.to });
+    playSound(soundForOwnDropMiniXiangqiMove(view, move));
     renderAll();
     return;
   }
@@ -426,6 +441,7 @@ function dropPiece(from: MiniXiangqiSquare, to: MiniXiangqiSquare | null): void 
   if (move) {
     selectedSquare = null;
     send({ type: 'move', from: move.from, to: move.to });
+    playSound(soundForOwnDropMiniXiangqiMove(view, move));
   } else {
     selectedSquare = null;
   }
@@ -450,6 +466,7 @@ function dropReservePiece(role: DropMiniXiangqiDropRole, to: string | null): voi
   const targets = dropMiniXiangqiDropTargets(view, role);
   if (to && isMiniSquare(to) && targets.includes(to)) {
     send({ type: 'move', drop: role, to });
+    playSound('drop');
   }
   selectedDropRole = null;
   renderAll();

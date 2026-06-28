@@ -19,7 +19,13 @@ import type {
 import './live-xiangqi.css';
 import { jungleFlipEnabled } from './feature-flags.js';
 import { type JungleFlipRenderBoard, renderJungleFlipBoardSvg } from './jungle-flip-render.js';
+import {
+  maybePlayJungleFlipSnapshotSound,
+  resetJungleFlipSoundState,
+  soundForOwnJungleFlipMove,
+} from './live-jungle-flip-sound.js';
 import { createLiveLayout, setLiveLayoutGameSpec } from './live-layout.js';
+import { initLiveSound, playSound, resetLiveSoundState } from './live-sound.js';
 import { clearSeatTokenForRoom, type LiveRefs } from './live-state.js';
 import { roomIdFromPath } from './room-url.js';
 import { syncMoveListScroll } from './variant-tenant/chrome-dom.js';
@@ -217,6 +223,9 @@ export function bootstrapJungleFlipLiveRoom(): void {
   lastCapturedKey = null;
   replay.reset();
   chrome.resetState();
+  initLiveSound();
+  resetLiveSoundState();
+  resetJungleFlipSoundState();
 
   if (params.get('reset') === '1') {
     clearSeatTokenForRoom(room);
@@ -248,7 +257,10 @@ export function bootstrapJungleFlipLiveRoom(): void {
   client = createTenantSocketClient({
     room,
     applyHello: (frame) => applyFrame(frame as JungleFlipLiveFrame),
-    applySnapshot: (frame) => applyFrame(frame as JungleFlipLiveFrame),
+    applySnapshot: (frame) => {
+      applyFrame(frame as JungleFlipLiveFrame);
+      maybePlayJungleFlipSnapshotSound(state.view, state.seat);
+    },
     applyEvent: (frame) => applyEventFrame(frame as JungleFlipLiveFrame),
     render: renderAll,
   });
@@ -281,6 +293,7 @@ function applyEventFrame(frame: JungleFlipLiveFrame): void {
   applyFrame(frame);
   state.events = events;
   if (frame.event) state.events = [...events, frame.event];
+  maybePlayJungleFlipSnapshotSound(state.view, state.seat);
 }
 
 function handleReplayKeyboard(event: KeyboardEvent): void {
@@ -358,6 +371,7 @@ function handleSquareClick(view: JungleFlipWireView, square: JungleFlipSquare): 
   if (entry?.faceDown) {
     selectedSquare = null;
     send({ type: 'move', from: square, to: square });
+    playSound('flip');
     return;
   }
   const ink = jungleFlipSeatInk(seat, view);
@@ -374,6 +388,7 @@ function handleSquareClick(view: JungleFlipWireView, square: JungleFlipSquare): 
     if (move) {
       selectedSquare = null;
       send({ type: 'move', from: move.from, to: move.to });
+      playSound(soundForOwnJungleFlipMove(view, move));
       return;
     }
   }

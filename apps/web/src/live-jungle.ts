@@ -20,7 +20,13 @@ import type {
 import './live-xiangqi.css';
 import { jungleEnabled } from './feature-flags.js';
 import { renderJungleBoardSvg } from './jungle-render.js';
+import {
+  maybePlayJungleSnapshotSound,
+  resetJungleSoundState,
+  soundForOwnJungleMove,
+} from './live-jungle-sound.js';
 import { createLiveLayout, setLiveLayoutGameSpec } from './live-layout.js';
+import { initLiveSound, playSound, resetLiveSoundState } from './live-sound.js';
 import { clearSeatTokenForRoom, type LiveRefs } from './live-state.js';
 import { roomIdFromPath } from './room-url.js';
 import { syncMoveListScroll } from './variant-tenant/chrome-dom.js';
@@ -206,6 +212,9 @@ export function bootstrapJungleLiveRoom(): void {
   lastCapturedKey = null;
   replay.reset();
   chrome.resetState();
+  initLiveSound();
+  resetLiveSoundState();
+  resetJungleSoundState();
 
   if (params.get('reset') === '1') {
     clearSeatTokenForRoom(room);
@@ -237,7 +246,10 @@ export function bootstrapJungleLiveRoom(): void {
   client = createTenantSocketClient({
     room,
     applyHello: (frame) => applyFrame(frame as JungleLiveFrame),
-    applySnapshot: (frame) => applyFrame(frame as JungleLiveFrame),
+    applySnapshot: (frame) => {
+      applyFrame(frame as JungleLiveFrame);
+      maybePlayJungleSnapshotSound(state.view, state.seat);
+    },
     applyEvent: (frame) => applyEventFrame(frame as JungleLiveFrame),
     render: renderAll,
   });
@@ -271,6 +283,7 @@ function applyEventFrame(frame: JungleLiveFrame): void {
   applyFrame(frame);
   state.events = events;
   if (frame.event) state.events = [...events, frame.event];
+  maybePlayJungleSnapshotSound(state.view, state.seat);
 }
 
 function handleReplayKeyboard(event: KeyboardEvent): void {
@@ -357,6 +370,7 @@ function handleSquareClick(view: JungleWireView, square: JungleSquare): void {
     if (move) {
       selectedSquare = null;
       send({ type: 'move', from: move.from, to: move.to });
+      playSound(soundForOwnJungleMove(view, move));
       return;
     }
   }
