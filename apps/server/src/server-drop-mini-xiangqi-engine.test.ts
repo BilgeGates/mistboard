@@ -14,7 +14,7 @@ import {
   dropMiniXiangqiMoveToUci,
   isDropMiniXiangqiEngineClientId,
   legalMoveForUci,
-  type playDropMiniXiangqiEngineMoveIfReady,
+  playDropMiniXiangqiEngineMoveIfReady,
   scheduleDropMiniXiangqiEngineMove,
 } from './server-drop-mini-xiangqi-engine.js';
 import { appendTenantRuntimeEvent, createTenantRuntimeRoom } from './variant-tenant/runtime.js';
@@ -82,6 +82,40 @@ test('Drop Mini Xiangqi engine scheduler waits until the engine is on turn', () 
   assert.equal(dropMiniXiangqiEngineSeatFor(room), 'black');
   // Red (human) is to move first, so the engine scheduler must not arm a timer.
   assert.equal(room.engineTimer, null);
+});
+
+test('engine fails closed (resigns) instead of fabricating a move when FSF output is never kernel-legal', async () => {
+  const room = pveRoom('black'); // engine plays black
+  // Human (red) makes one legal move so it becomes the engine's turn.
+  const redMove = getLegalDropMiniXiangqiMoves(room.projection.state)[0]!;
+  appendTenantRuntimeEvent(dropMiniXiangqiTenant, room, {
+    type: 'move-played',
+    at: 3,
+    roomId: room.id,
+    color: 'red',
+    move: redMove,
+  });
+  const movesBefore = room.events.filter((e) => e.type === 'move-played').length;
+
+  const ctx = engineCtx(room);
+  // Provider returns a well-formed but illegal drop (no cannon in hand) every time.
+  let calls = 0;
+  const badProvider = async (): Promise<string> => {
+    calls += 1;
+    return 'C@d4';
+  };
+  await playDropMiniXiangqiEngineMoveIfReady(ctx, room, badProvider);
+
+  assert.ok(calls >= 2, 'should retry before failing closed');
+  const movesAfter = room.events.filter((e) => e.type === 'move-played').length;
+  assert.equal(movesAfter, movesBefore, 'engine must NOT fabricate a move on fail-closed');
+  const resign = room.events.find((e) => e.type === 'seat-resigned');
+  assert.ok(resign, 'engine should resign on fail-closed');
+  assert.equal(
+    resign && 'color' in resign ? resign.color : null,
+    'black',
+    'the engine seat resigns',
+  );
 });
 
 function pveRoom(engineSeat: MiniXiangqiColor): DropMiniEngineRoom {
