@@ -23,6 +23,8 @@ const BASELINE_PICKER_SPECS = [
   'dark-shogi',
   'crossroads-chess',
   'dark-crossroads-chess',
+  'jungle',
+  'jungle-flip',
 ];
 
 describe('landing play panel', () => {
