@@ -20,7 +20,7 @@ import { resolve } from 'node:path';
 
 // Bump on every shipped eval/search change; the binary self-reports "MistyJungleFlip
 // <version>" over UCI, and the engines registry records it (configHash) per game.
-export const JUNGLE_FLIP_ENGINE_VERSION = '0.1.0';
+export const JUNGLE_FLIP_ENGINE_VERSION = '0.2.0';
 export const JUNGLE_FLIP_DEFAULT_ENGINE_ID = 'misty-jungle-flip';
 
 export type JungleFlipEngineTier = {
