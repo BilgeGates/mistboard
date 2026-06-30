@@ -49,7 +49,11 @@
    width by viewport height so the tall board never makes the page scroll, and
    bound its max width so it keeps a sensible footprint next to the side rail. */
 .live-route--jungle .board-shell {
-  width: min(100%, 88vh, 780px);
+  /* 7x9 portrait (viewBox 366x462). Cap tighter than the 640px center column so it
+     never overflows into the right rail, and bound height-wise like jieqi. */
+  width: min(100%, 64vh, 540px);
+  /* Centre the board in its grid track (it is narrower than the column). */
+  justify-self: center;
 }
 
 .live-route--jungle .board-stage,
@@ -63,8 +67,8 @@
 
 .jungle-live-board {
   aspect-ratio: 366 / 462;
-  width: min(100%, 88vh);
-  max-width: 780px;
+  width: min(100%, 64vh);
+  max-width: 540px;
   min-height: 0;
   border-radius: 14px;
   overflow: hidden;
@@ -77,9 +81,16 @@
   height: 100%;
 }
 
+/* The piece being dragged dims to a faint shadow on the board; the ghost follows the cursor. */
+.jungle-drag-source {
+  opacity: 0.34;
+}
+
 /* Flip Jungle is a square 4x4 board (viewBox ~286x286). */
 .live-route--jungle-flip .board-shell {
   width: min(100%, 62vh, 520px);
+  /* Centre the board in its grid track (it is narrower than the column). */
+  justify-self: center;
 }
 
 .live-route--jungle-flip .board-stage,

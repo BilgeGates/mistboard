@@ -17,6 +17,8 @@ export function setLiveLayoutGameSpec(target: HTMLElement, gameSpecId: string | 
   target.classList.toggle('live-route--shogi', gameSpecId === 'dark-shogi');
   target.classList.toggle('live-route--crazyhouse', gameSpecId === 'dark-crazyhouse');
   target.classList.toggle('live-route--kriegspiel', gameSpecId === 'kriegspiel');
+  target.classList.toggle('live-route--jungle', gameSpecId === 'jungle');
+  target.classList.toggle('live-route--jungle-flip', gameSpecId === 'jungle-flip');
 }
 
 // Static room chrome only. Live game decisions stay in live-render.ts.
