@@ -433,7 +433,7 @@ export const GAME_SPECS: readonly GameSpec[] = [
   {
     // Jungle / Dou Shou Qi (斗兽棋): perfect-information 7×9 animal-rank game. Eight
     // ranked animals; win by entering the opponent's den or capturing all pieces.
-    // Casual-only at first (no rated pool until launch). Rules engine:
+    // Rated human PvP (own pool); PvE bot games stay unrated. Rules engine:
     // packages/game/src/variants-jungle.ts.
     id: JUNGLE_SPEC_ID,
     publicName: 'Jungle',
@@ -446,6 +446,7 @@ export const GAME_SPECS: readonly GameSpec[] = [
     reserves: 'none',
     dropPolicy: 'none',
     ratingPoolBase: 'jungle',
+    rated: true,
     publicSurface: 'casual',
     runtimeStatus: 'live',
   },
@@ -453,7 +454,8 @@ export const GAME_SPECS: readonly GameSpec[] = [
     // Flip Jungle (兽棋 / 翻翻棋): the 4x4 flip derivative of Dou Shou Qi. Symmetric
     // hidden-identity (both seats see the same masked board; only the deal is hidden),
     // like banqi. Equal-rank = 同归于尽 mutual destruction. Win by leaving the opponent
-    // with no legal move. Rules engine: packages/game/src/variants-jungle-flip.ts.
+    // with no legal move. Rated human PvP (own pool); PvE bot games stay unrated.
+    // Rules engine: packages/game/src/variants-jungle-flip.ts.
     id: JUNGLE_FLIP_SPEC_ID,
     publicName: 'Flip Jungle',
     family: 'jungle',
@@ -465,6 +467,7 @@ export const GAME_SPECS: readonly GameSpec[] = [
     reserves: 'none',
     dropPolicy: 'none',
     ratingPoolBase: 'jungle_flip',
+    rated: true,
     publicSurface: 'casual',
     runtimeStatus: 'live',
   },
@@ -633,6 +636,8 @@ export type RatingVariant = Extract<
   | 'banqi'
   | 'kriegspiel'
   | 'reveal_chess'
+  | 'jungle'
+  | 'jungle_flip'
 >;
 
 // The active rated-pool set, derived from the `rated` flag. This is the ONE

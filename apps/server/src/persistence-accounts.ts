@@ -517,6 +517,8 @@ export async function getUserProfileByHandle(
          WHEN games.variant = 'dark-shogi' THEN 'dark_shogi'
          WHEN games.variant = 'dark-crazyhouse' THEN 'dark_crazyhouse'
          WHEN games.variant = 'kriegspiel' THEN 'kriegspiel'
+         WHEN games.variant = 'jungle' THEN 'jungle'
+         WHEN games.variant = 'jungle-flip' THEN 'jungle_flip'
          WHEN games.variant IN ('draft960', 'dark-draft960', 'fog-draft960')
               OR COALESCE(games.hidden_draft960, false) THEN 'fog_draft960'
          ELSE 'fog'
@@ -527,7 +529,7 @@ export async function getUserProfileByHandle(
      WHERE game_participants.subject_type = 'user'
        AND game_participants.subject_id = $1
        AND games.status = 'completed'
-       AND games.variant IN ('dark-chess', 'fog', 'draft960', 'dark-draft960', 'fog-draft960', 'dark-mini-xiangqi', 'drop-mini-xiangqi', 'dark-xiangqi', 'jieqi', 'banqi', 'reveal-chess', 'crossroads-chess', 'dual-chess', 'dark-crossroads-chess', 'dark-dual-chess', 'dark-shogi', 'dark-crazyhouse', 'kriegspiel')
+       AND games.variant IN ('dark-chess', 'fog', 'draft960', 'dark-draft960', 'fog-draft960', 'dark-mini-xiangqi', 'drop-mini-xiangqi', 'dark-xiangqi', 'jieqi', 'banqi', 'reveal-chess', 'crossroads-chess', 'dual-chess', 'dark-crossroads-chess', 'dark-dual-chess', 'dark-shogi', 'dark-crazyhouse', 'kriegspiel', 'jungle', 'jungle-flip')
        ${visibilityClause}
      GROUP BY 1`,
     [user.id],
