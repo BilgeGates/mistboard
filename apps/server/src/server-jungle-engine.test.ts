@@ -49,6 +49,36 @@ test('engine plays the winning den entry when one is available', () => {
   assert.deepEqual(move, { from: 'd8', to: 'd9' });
 });
 
+test('engine finishes immediately instead of dawdling toward a slower win', () => {
+  // Reconstructed from a real PvE game (room jgl_c79badbb…): the red lion is already
+  // on d8, one step from Black's empty den (d9), so d8→d9 wins outright. But many
+  // other red moves (e.g. the wandering dog d2→c2) ALSO keep the forced win, just a
+  // few plies later. Without win-distance scoring every such line ties at WIN-1 and
+  // the alphabetical tie-break ("d2-c2" < "d8-d9") makes deeper tiers play d2-c2 and
+  // prolong the game. Every tier must take the den entry now.
+  const state = playing({
+    d8: p('red', 'lion'),
+    d4: p('red', 'leopard'),
+    e3: p('red', 'wolf'),
+    g3: p('red', 'elephant'),
+    d2: p('red', 'dog'),
+    f2: p('red', 'cat'),
+    g1: p('red', 'tiger'),
+    b8: p('black', 'tiger'),
+    c7: p('black', 'cat'),
+    f7: p('black', 'dog'),
+    g7: p('black', 'lion'),
+    e6: p('black', 'rat'),
+  });
+  for (const tier of [LEVEL_1, LEVEL_2, LEVEL_3]) {
+    assert.deepEqual(
+      chooseJungleEngineMove(state, tier),
+      { from: 'd8', to: 'd9' },
+      `tier ${tier.id} should enter the den immediately`,
+    );
+  }
+});
+
 test('engine takes a winning capture (last enemy piece) over a quiet move', () => {
   // Red elephant can capture Black's only piece (the lion) → win by capture.
   const state = playing({ a5: p('red', 'elephant'), a6: p('black', 'lion') });

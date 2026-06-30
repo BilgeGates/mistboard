@@ -192,7 +192,7 @@ export function chooseJungleEngineMove(
       const after = applyJungleMove(state, move);
       return {
         move,
-        score: -negamax(after, tier.depth - 1, -WIN, WIN, oppositeJungleColor(mover), budget),
+        score: -negamax(after, tier.depth - 1, -WIN, WIN, oppositeJungleColor(mover), budget, 1),
       };
     })
     .sort((a, b) => b.score - a.score || moveKey(a.move).localeCompare(moveKey(b.move)));
@@ -204,7 +204,12 @@ export function chooseJungleEngineMove(
   return softPool[Math.min(tier.softPickRank, softPool.length - 1)]?.move ?? candidates[0]!.move;
 }
 
-// Negamax with alpha-beta. Returns the value from `mover`'s perspective.
+// Negamax with alpha-beta. Returns the value from `mover`'s perspective. `ply` is the
+// distance from the root, used for win-distance scoring: a terminal win/loss found
+// sooner (smaller `ply`) scores more extreme. Without it every winning line ties at
+// WIN-1, so the move ordering's alphabetical tie-break could pick a slower forced win
+// over an immediate den entry — the engine would "dawdle" in a won position instead of
+// finishing (observed in real PvE games).
 function negamax(
   state: JungleGameState,
   depth: number,
@@ -212,11 +217,12 @@ function negamax(
   beta: number,
   mover: JungleColor,
   budget: { nodes: number },
+  ply: number,
 ): number {
   if (state.status.type === 'finished') {
-    if (state.status.winner === mover) return WIN - 1;
+    if (state.status.winner === mover) return WIN - ply;
     if (state.status.winner === null) return 0;
-    return -(WIN - 1);
+    return -(WIN - ply);
   }
   if (state.status.type !== 'playing') return 0;
   budget.nodes += 1;
@@ -231,6 +237,7 @@ function negamax(
       -alpha,
       oppositeJungleColor(mover),
       budget,
+      ply + 1,
     );
     if (value > best) best = value;
     if (best > alpha) alpha = best;
