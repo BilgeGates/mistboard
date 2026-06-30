@@ -82,17 +82,47 @@ test('flip jungle create is gated off by default', async () => {
   }
 });
 
-test('flip jungle create rejects unsupported surfaces (PvE/rated)', async () => {
+test('flip jungle create still rejects rated (rated play not yet on)', async () => {
   await withFlag(async () => {
-    for (const body of [
-      { gameSpecId: JUNGLE_FLIP_SPEC_ID, mode: 'pve' },
-      { gameSpecId: JUNGLE_FLIP_SPEC_ID, mode: 'pvp', rated: true },
-    ]) {
-      const response = captureResponse();
-      await handleJungleFlipCreate(createContext(), response, body);
-      assert.equal(response.status, 501);
-      assert.deepEqual(responseJson(response), { error: 'jungle_flip_unsupported_surface' });
-    }
+    const response = captureResponse();
+    await handleJungleFlipCreate(createContext(), response, {
+      gameSpecId: JUNGLE_FLIP_SPEC_ID,
+      mode: 'pvp',
+      rated: true,
+    });
+    assert.equal(response.status, 501);
+    assert.deepEqual(responseJson(response), { error: 'jungle_flip_unsupported_surface' });
+  });
+});
+
+test('flip jungle PvE seats the MistyJungleFlip engine opposite the human', async () => {
+  await withFlag(async () => {
+    const response = captureResponse();
+    // Human takes 'red' (first mover), so the engine takes 'black'.
+    await handleJungleFlipCreate(createContext(), response, {
+      gameSpecId: JUNGLE_FLIP_SPEC_ID,
+      mode: 'pve',
+      preferredColor: 'red',
+    });
+    assert.equal(response.status, 201);
+    const roomId = responseJson(response).roomId as string;
+    const room = await getOrLoadJungleFlipRoom(roomId);
+    assert.ok(room, 'the PvE room is live and hydratable');
+    assert.equal(room.projection.seats.black, 'misty-jungle-flip');
+    assert.notEqual(room.projection.seats.red, 'misty-jungle-flip');
+  });
+});
+
+test('flip jungle PvE rejects an unknown engine id', async () => {
+  await withFlag(async () => {
+    const response = captureResponse();
+    await handleJungleFlipCreate(createContext(), response, {
+      gameSpecId: JUNGLE_FLIP_SPEC_ID,
+      mode: 'pve',
+      engineId: 'not-a-real-engine',
+    });
+    assert.equal(response.status, 400);
+    assert.deepEqual(responseJson(response), { error: 'invalid_engine' });
   });
 });
 

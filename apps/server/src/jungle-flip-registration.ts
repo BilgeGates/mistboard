@@ -1,8 +1,7 @@
 /**
  * Flip Jungle registry entry. Owns the tenant's live-room map, the room-factory
- * binding, and hydration. PvP, live-clock only at launch (no engine, no lobby — the
- * lobby route answers jungle_flip_not_integrated while the flag is on). Imported for
- * side effects by variant-tenant/register-tenants.ts.
+ * binding, and hydration. PvP + PvE (Tier-B MistyJungleFlip UCI engine); no lobby
+ * open-seek. Imported for side effects by variant-tenant/register-tenants.ts.
  */
 
 import type { RoomTimeControl } from '@mistboard/game';
@@ -13,6 +12,7 @@ import { handleJungleFlipCreate, requestsJungleFlip } from './routes/jungle-flip
 import {
   createJungleFlipLiveRoom,
   type JungleFlipLiveRoomCreation,
+  type JungleFlipRoomEngineSeat,
 } from './server-jungle-flip-room-factory.js';
 import {
   clearJungleFlipRuntimeTimers,
@@ -33,6 +33,7 @@ export const jungleFlipRooms = new Map<string, JungleFlipLiveRoom>();
 export async function createJungleFlipRoom(
   timeControl?: RoomTimeControl,
   creatorPreference?: JungleFlipCreatorPreference,
+  engine?: JungleFlipRoomEngineSeat,
 ): Promise<JungleFlipLiveRoomCreation> {
   return createJungleFlipLiveRoom(
     {
@@ -45,6 +46,7 @@ export async function createJungleFlipRoom(
     },
     timeControl,
     creatorPreference,
+    engine,
   );
 }
 
