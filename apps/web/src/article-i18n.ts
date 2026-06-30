@@ -695,15 +695,15 @@ const ZH_HANS: Record<string, string> = {
   'Strongest to weakest: elephant, lion, tiger, leopard, wolf, dog, cat, rat. A piece captures any adjacent enemy of equal or lower rank. The exception runs the other way: the rat captures the elephant, and the elephant can never capture the rat.':
     '由强到弱依次是：象、狮、虎、豹、狼、狗、猫、鼠。一枚棋子可以吃掉相邻的、等级相同或更低的敌方棋子。唯一的例外反其道而行：老鼠能吃大象，而大象永远吃不了老鼠。',
   Traps: '陷阱',
-  'Step a piece onto one of your opponent’s three trap squares and it loses all rank while it stands there. Any defending piece can take it, down to a rat capturing a trapped elephant. Your own traps never weaken your pieces.':
-    '把一枚棋子走进对方三个陷阱格之一，它在停留期间会丧失全部等级。任何防守方棋子都能吃掉它，哪怕是老鼠吃掉落入陷阱的大象。己方的陷阱不会削弱自己的棋子。',
+  'Step a piece onto one of your opponent’s three trap squares and it loses all rank while it stands there, so any defending piece can take it, down to a rat capturing a trapped elephant. Only an enemy’s traps do this: a piece can sit on one of its own traps and keeps its full rank.':
+    '把一枚棋子走进对方三个陷阱格之一，它在停留期间会丧失全部等级，因此任何防守方棋子都能吃掉它，哪怕是老鼠吃掉落入陷阱的大象。只有敌方的陷阱才有此效果：棋子可以停在自己的陷阱上，并保持全部等级。',
   'The rivers': '河流',
   "Only the rat enters the water. A rat in the river is safe from every land piece and can be taken only by another rat in the water. It also can't capture from the water onto land, so the rat needs dry ground to take the elephant.":
     '只有老鼠能进入水中。河里的老鼠不受任何陆地棋子威胁，只能被同在水中的另一只老鼠吃掉。它也无法从水中吃向岸上，所以老鼠要吃大象得站在陆地上。',
   'The lion and tiger jump a river in a straight line and land on the far bank, capturing anything they outrank there. The tiger jumps vertically; the lion jumps vertically or horizontally. A rat anywhere in the water, either color, blocks the jump.':
     '狮和虎能沿直线跳过河、落在对岸，并吃掉那里等级低于自己的棋子。虎只能纵向跳；狮可纵向或横向跳。只要水中任意一格有老鼠（无论哪一方），就会挡住这次跳跃。',
-  'Move any piece into your opponent’s den and you win immediately. You also win by capturing every enemy piece. You can never enter your own den.':
-    '任何一枚棋子走进对方的兽穴，你立刻获胜。吃光对方所有棋子同样获胜。你永远不能进入自己的兽穴。',
+  'Move any piece into your opponent’s den and you win immediately. You also win by capturing every enemy piece. You can never move a piece onto your own den, so the only den you can enter is the enemy’s.':
+    '任何一枚棋子走进对方的兽穴，你立刻获胜。吃光对方所有棋子同样获胜。你永远不能把棋子走进自己的兽穴，所以你能进入的只有对方的兽穴。',
   'Games draw on threefold repetition, or when 100 half-moves (50 by each player) pass with no capture.':
     '若同一局面出现三次，或连续 100 个半回合（每方 50 步）无吃子，则判和。',
   'A full game': '完整对局',
@@ -1410,15 +1410,15 @@ const ZH_HANT: Record<string, string> = {
   'Strongest to weakest: elephant, lion, tiger, leopard, wolf, dog, cat, rat. A piece captures any adjacent enemy of equal or lower rank. The exception runs the other way: the rat captures the elephant, and the elephant can never capture the rat.':
     '由強到弱依次是：象、獅、虎、豹、狼、狗、貓、鼠。一枚棋子可以吃掉相鄰的、等級相同或更低的敵方棋子。唯一的例外反其道而行：老鼠能吃大象，而大象永遠吃不了老鼠。',
   Traps: '陷阱',
-  'Step a piece onto one of your opponent’s three trap squares and it loses all rank while it stands there. Any defending piece can take it, down to a rat capturing a trapped elephant. Your own traps never weaken your pieces.':
-    '把一枚棋子走進對方三個陷阱格之一，它在停留期間會喪失全部等級。任何防守方棋子都能吃掉它，哪怕是老鼠吃掉落入陷阱的大象。己方的陷阱不會削弱自己的棋子。',
+  'Step a piece onto one of your opponent’s three trap squares and it loses all rank while it stands there, so any defending piece can take it, down to a rat capturing a trapped elephant. Only an enemy’s traps do this: a piece can sit on one of its own traps and keeps its full rank.':
+    '把一枚棋子走進對方三個陷阱格之一，它在停留期間會喪失全部等級，因此任何防守方棋子都能吃掉它，哪怕是老鼠吃掉落入陷阱的大象。只有敵方的陷阱才有此效果：棋子可以停在自己的陷阱上，並保持全部等級。',
   'The rivers': '河流',
   "Only the rat enters the water. A rat in the river is safe from every land piece and can be taken only by another rat in the water. It also can't capture from the water onto land, so the rat needs dry ground to take the elephant.":
     '只有老鼠能進入水中。河裡的老鼠不受任何陸地棋子威脅，只能被同在水中的另一隻老鼠吃掉。它也無法從水中吃向岸上，所以老鼠要吃大象得站在陸地上。',
   'The lion and tiger jump a river in a straight line and land on the far bank, capturing anything they outrank there. The tiger jumps vertically; the lion jumps vertically or horizontally. A rat anywhere in the water, either color, blocks the jump.':
     '獅和虎能沿直線跳過河、落在對岸，並吃掉那裡等級低於自己的棋子。虎只能縱向跳；獅可縱向或橫向跳。只要水中任意一格有老鼠（無論哪一方），就會擋住這次跳躍。',
-  'Move any piece into your opponent’s den and you win immediately. You also win by capturing every enemy piece. You can never enter your own den.':
-    '任何一枚棋子走進對方的獸穴，你立刻獲勝。吃光對方所有棋子同樣獲勝。你永遠不能進入自己的獸穴。',
+  'Move any piece into your opponent’s den and you win immediately. You also win by capturing every enemy piece. You can never move a piece onto your own den, so the only den you can enter is the enemy’s.':
+    '任何一枚棋子走進對方的獸穴，你立刻獲勝。吃光對方所有棋子同樣獲勝。你永遠不能把棋子走進自己的獸穴，所以你能進入的只有對方的獸穴。',
   'Games draw on threefold repetition, or when 100 half-moves (50 by each player) pass with no capture.':
     '若同一局面出現三次，或連續 100 個半回合（每方 50 步）無吃子，則判和。',
   'A full game': '完整對局',

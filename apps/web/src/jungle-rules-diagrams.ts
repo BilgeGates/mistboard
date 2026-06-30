@@ -79,7 +79,7 @@ export const JUNGLE_RAT_ELEPHANT = jungleDiagram(
   '-rat-elephant',
   RAT_ELEPHANT_BOARD,
   { selected: 'd4', targets: ['d5'] },
-  360,
+  440,
 );
 
 // A piece on an enemy trap loses all rank, so even a cat takes a lion. d2 is one of
@@ -92,7 +92,7 @@ export const JUNGLE_TRAP = jungleDiagram(
   '-trap',
   TRAP_BOARD,
   { selected: 'd3', targets: ['d2'] },
-  360,
+  440,
 );
 
 // Only the rat enters the water; in the river it is safe from land pieces and swims
@@ -105,7 +105,7 @@ export const JUNGLE_RAT_SWIMS = jungleDiagram(
   '-swim',
   SWIM_BOARD,
   { selected: 'b5', targets: ['b4', 'b6'] },
-  360,
+  440,
 );
 
 // The lion (and tiger) leap a river in a straight line and land on the far bank.
@@ -117,7 +117,7 @@ export const JUNGLE_LION_JUMP = jungleDiagram(
   '-jump',
   JUMP_BOARD,
   { selected: 'b3', targets: ['b7'] },
-  360,
+  440,
 );
 
 // A rat anywhere in the water, either color, blocks the leap: the same lion now has
@@ -126,7 +126,7 @@ const BLOCK_BOARD: JungleBoard = {
   b3: { color: 'red', role: 'lion' },
   b5: { color: 'black', role: 'rat' },
 };
-export const JUNGLE_RAT_BLOCKS = jungleDiagram('-block', BLOCK_BOARD, { selected: 'b3' }, 360);
+export const JUNGLE_RAT_BLOCKS = jungleDiagram('-block', BLOCK_BOARD, { selected: 'b3' }, 440);
 
 // ── Rank ladder (shared by both articles) ────────────────────────────────────
 // The eight animals laid out weakest to strongest, drawn as the same FRAMED
@@ -199,7 +199,7 @@ const FLIP_SETUP_BOARD: JungleFlipRenderBoard = {
   c4: FACE_DOWN,
   d4: FACE_DOWN,
 };
-export const JUNGLE_FLIP_SETUP = flipDiagram('-flip-setup', FLIP_SETUP_BOARD, {}, 340);
+export const JUNGLE_FLIP_SETUP = flipDiagram('-flip-setup', FLIP_SETUP_BOARD, {}, 380);
 
 // Mid-game: a couple of identities revealed, the rest still face-down. The red wolf
 // can flip a neighbour or step to an empty square.
@@ -217,7 +217,7 @@ export const JUNGLE_FLIP_TURN = flipDiagram(
   '-flip-turn',
   FLIP_TURN_BOARD,
   { selected: 'b2', targets: ['b3'] },
-  340,
+  380,
 );
 
 // Equal ranks trade off the board (同归于尽): the red wolf and the black wolf meet,
@@ -232,5 +232,5 @@ export const JUNGLE_FLIP_MUTUAL = flipDiagram(
   '-flip-mutual',
   FLIP_MUTUAL_BOARD,
   { selected: 'b2', targets: ['b3'] },
-  340,
+  380,
 );

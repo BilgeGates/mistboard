@@ -69,7 +69,7 @@ export const jungleArticle: Article = {
       blocks: [
         {
           kind: 'paragraph',
-          text: 'Step a piece onto one of your opponent’s three trap squares and it loses all rank while it stands there. Any defending piece can take it, down to a rat capturing a trapped elephant. Your own traps never weaken your pieces.',
+          text: 'Step a piece onto one of your opponent’s three trap squares and it loses all rank while it stands there, so any defending piece can take it, down to a rat capturing a trapped elephant. Only an enemy’s traps do this: a piece can sit on one of its own traps and keeps its full rank.',
         },
         {
           kind: 'raw-svg',
@@ -107,7 +107,7 @@ export const jungleArticle: Article = {
       blocks: [
         {
           kind: 'paragraph',
-          text: 'Move any piece into your opponent’s den and you win immediately. You also win by capturing every enemy piece. You can never enter your own den.',
+          text: 'Move any piece into your opponent’s den and you win immediately. You also win by capturing every enemy piece. You can never move a piece onto your own den, so the only den you can enter is the enemy’s.',
         },
       ],
     },
