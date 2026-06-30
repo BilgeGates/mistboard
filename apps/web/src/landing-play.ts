@@ -78,7 +78,7 @@ type LandingTimePreset = {
   initialMs: number;
   incrementMs: number;
 };
-type LandingGameGroupId = 'chess' | 'xiangqi' | 'shogi';
+type LandingGameGroupId = 'chess' | 'xiangqi' | 'shogi' | 'jungle';
 type LandingColorPreference = 'white' | 'red' | 'black' | 'random';
 type LandingPlayerColor = Exclude<LandingColorPreference, 'random'>;
 type LandingGameSpecCapabilities = {
@@ -153,6 +153,7 @@ const LANDING_GAME_GROUPS: {
   { id: 'chess', label: 'Chess', glyph: '♔' },
   { id: 'xiangqi', label: 'Xiangqi', glyph: '象' },
   { id: 'shogi', label: 'Shogi', glyph: '☗' },
+  { id: 'jungle', label: 'Jungle', glyph: '虎' },
 ];
 
 // Which time-control presets the picker offers, per variant. Dark chess and DMX
@@ -200,6 +201,7 @@ function gameGroupForSpec(gameSpecId: LandingGameSpecId): LandingGameGroupId {
   const family = gameSpecForId(gameSpecId).family;
   if (family === 'xiangqi') return 'xiangqi';
   if (family === 'shogi') return 'shogi';
+  if (family === 'jungle') return 'jungle';
   return 'chess';
 }
 
@@ -214,6 +216,7 @@ function gameGroupMeta(groupId: LandingGameGroupId): {
 function gameGroupLabel(groupId: LandingGameGroupId, locale: Locale): string {
   if (groupId === 'xiangqi') return t('setup.xiangqi', {}, locale);
   if (groupId === 'shogi') return t('setup.shogi', {}, locale);
+  if (groupId === 'jungle') return t('setup.jungle', {}, locale);
   return t('setup.chess', {}, locale);
 }
 
@@ -250,6 +253,10 @@ function variantNameKeyForGameSpec(gameSpecId: LandingGameSpecId): I18nKey | nul
       return 'variant.darkCrossroadsChess.name';
     case DARK_SHOGI_SPEC_ID:
       return 'variant.darkShogi.name';
+    case JUNGLE_SPEC_ID:
+      return 'variant.jungle.name';
+    case JUNGLE_FLIP_SPEC_ID:
+      return 'variant.jungleFlip.name';
     default:
       return null;
   }

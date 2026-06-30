@@ -433,6 +433,18 @@ const WEB_VARIANT_TENANTS: readonly WebVariantTenant[] = [
       timePresetIds: ['1m1', '3m2', '5m5'],
       offerInMenu: jungleFlipEnabled,
       acceptsDeepLink: jungleFlipEnabled,
+      // Tier-B MistyJungleFlip UCI engine (jungle-flip-engine in mistboard-engine),
+      // served via server-jungle-flip-engine.ts. One versioned full-strength bot, like
+      // banqi — Flip Jungle is a small chance game, not a fog/belief search.
+      engineOptions: [
+        {
+          id: 'misty-jungle-flip',
+          name: 'MistyJungleFlip',
+          familyName: 'MistyJungleFlip',
+          kind: 'container',
+        },
+      ],
+      defaultEngineId: 'misty-jungle-flip',
     },
   },
   {

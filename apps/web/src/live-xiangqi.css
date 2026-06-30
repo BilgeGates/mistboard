@@ -49,7 +49,7 @@
    width by viewport height so the tall board never makes the page scroll, and
    bound its max width so it keeps a sensible footprint next to the side rail. */
 .live-route--jungle .board-shell {
-  width: min(100%, 60vh, 520px);
+  width: min(100%, 88vh, 780px);
 }
 
 .live-route--jungle .board-stage,
@@ -63,8 +63,8 @@
 
 .jungle-live-board {
   aspect-ratio: 366 / 462;
-  width: min(100%, 60vh);
-  max-width: 520px;
+  width: min(100%, 88vh);
+  max-width: 780px;
   min-height: 0;
   border-radius: 14px;
   overflow: hidden;
@@ -79,7 +79,7 @@
 
 /* Flip Jungle is a square 4x4 board (viewBox ~286x286). */
 .live-route--jungle-flip .board-shell {
-  width: min(100%, 56vh, 460px);
+  width: min(100%, 62vh, 520px);
 }
 
 .live-route--jungle-flip .board-stage,
@@ -93,8 +93,8 @@
 
 .jungle-flip-live-board {
   aspect-ratio: 1 / 1;
-  width: min(100%, 56vh);
-  max-width: 460px;
+  width: min(100%, 62vh);
+  max-width: 520px;
   min-height: 0;
   border-radius: 14px;
   overflow: hidden;

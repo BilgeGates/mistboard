@@ -1,7 +1,9 @@
 import './variant-mini-boards.css';
 import { PIECE_SVGS } from '@mistboard/board-render';
 import {
+  ALL_JUNGLE_FLIP_SQUARES,
   createInitialCrossroadsChessState,
+  createInitialJungleState,
   createInitialXiangqiState,
   crossroadsChessSquareOf,
   getCrossroadsChessVisibleSquares,
@@ -11,6 +13,12 @@ import {
   type XiangqiColor,
   type XiangqiPieceRole,
 } from '@mistboard/game';
+import {
+  JUNGLE_FLIP_BOARD_VIEW,
+  type JungleFlipRenderBoard,
+  renderJungleFlipBoardSvg,
+} from './jungle-flip-render.js';
+import { JUNGLE_BOARD_VIEW, renderJungleBoardSvg } from './jungle-render.js';
 import { shogiKomaSvg } from './shogi-render.js';
 import {
   boardAppearanceChangedEvent,
@@ -53,9 +61,11 @@ export type VariantMiniId =
   | 'dark-shogi'
   | 'crazyhouse'
   | 'dark-crazyhouse'
-  | 'dark-crossroads';
+  | 'dark-crossroads'
+  | 'jungle'
+  | 'jungle-flip';
 
-export type VariantMiniFamily = 'chess' | 'xiangqi' | 'shogi';
+export type VariantMiniFamily = 'chess' | 'xiangqi' | 'shogi' | 'jungle';
 
 export interface VariantMiniDef {
   id: VariantMiniId;
@@ -724,6 +734,52 @@ function shogiBody(showFog: boolean): string {
   ].join('');
 }
 
+// ---- jungle (Dou Shou Qi) animal-rank tiles -------------------------------
+
+// Jungle markers crop the REAL starting board (the shared dobutsu/terrain renderer), so
+// the tile always matches the live board exactly. Shadows are off (markers don't need
+// them, and it keeps filter ids out of the shared document); the marker frame's rounded
+// clip-path trims the square crop.
+function stripOuterSvg(svg: string): string {
+  return svg.replace(/^<svg[^>]*>/, '').replace(/<\/svg>\s*$/, '');
+}
+
+// Embed a board SVG cropped to a `span × span` cell region whose bottom-left cell is
+// (fileLo, rankLo) — rank 1 is the bottom row — filling the marker's content box.
+function croppedBoardMarker(
+  boardSvg: string,
+  view: { cell: number; ranks: number },
+  fileLo: number,
+  rankLo: number,
+  span: number,
+): string {
+  const { cell, ranks } = view;
+  const x = fileLo * cell;
+  const y = (ranks - (rankLo - 1) - span) * cell;
+  const size = span * cell;
+  return `<svg x="${OX}" y="${OY}" width="${SIZE}" height="${SIZE}" viewBox="${x} ${y} ${size} ${size}" preserveAspectRatio="xMidYMid slice">${stripOuterSvg(boardSvg)}</svg>`;
+}
+
+function jungleBody(): string {
+  // The bottom-CENTER 3×3 of the real starting board (files c–e): red's den flanked by
+  // its traps, with the leopard and wolf behind — the den makes it read as Jungle at a
+  // glance. No last-move marker.
+  const board = createInitialJungleState('marker').board;
+  const svg = renderJungleBoardSvg(board, { idSuffix: '-mk-jungle', shadow: false });
+  return croppedBoardMarker(svg, JUNGLE_BOARD_VIEW, 2, 1, 3);
+}
+
+function jungleFlipBody(): string {
+  // A 2×2 crop with the two elephants flipped up on opposite corners (the rat-beats-
+  // elephant headline piece) and the other two tiles face-down jade discs. No last move.
+  const board: JungleFlipRenderBoard = {};
+  for (const sq of ALL_JUNGLE_FLIP_SQUARES) board[sq] = { faceDown: true };
+  board.a1 = { faceDown: false, color: 'red', role: 'elephant' };
+  board.b2 = { faceDown: false, color: 'black', role: 'elephant' };
+  const svg = renderJungleFlipBoardSvg(board, { idSuffix: '-mk-flip', shadow: false });
+  return croppedBoardMarker(svg, JUNGLE_FLIP_BOARD_VIEW, 0, 1, 2);
+}
+
 // ---- registry + render entry ----------------------------------------------
 
 const BODIES: Record<VariantMiniId, (ctx: MiniCtx) => string> = {
@@ -745,6 +801,8 @@ const BODIES: Record<VariantMiniId, (ctx: MiniCtx) => string> = {
   crazyhouse: crazyhouseBody,
   'dark-crazyhouse': crazyhouseBody,
   'dark-crossroads': (ctx) => crossroadsBody(ctx, DARK_CROSSROADS_FOG_CELLS),
+  jungle: () => jungleBody(),
+  'jungle-flip': () => jungleFlipBody(),
 };
 
 export const VARIANT_MINIS: readonly VariantMiniDef[] = [
@@ -892,6 +950,22 @@ export const VARIANT_MINIS: readonly VariantMiniDef[] = [
     blurb: 'Crossroads opening vision: pawns see two ranks ahead, soldiers one.',
     family: 'chess',
   },
+  {
+    id: 'jungle',
+    label: 'Jungle',
+    shortLabel: 'JG',
+    accent: '#2e7d4a',
+    blurb: 'Animal ranks across the river board: the rat swims and beats the elephant.',
+    family: 'jungle',
+  },
+  {
+    id: 'jungle-flip',
+    label: 'Flip Jungle',
+    shortLabel: 'FJ',
+    accent: '#1f7a5e',
+    blurb: 'Animals shuffled face-down on a 4x4 grid; flip to reveal, equal ranks trade.',
+    family: 'jungle',
+  },
 ];
 
 export function variantMiniForId(id: VariantMiniId): VariantMiniDef {
@@ -930,7 +1004,9 @@ export function renderVariantMiniBoard(
       ? 'vm-frame-xq'
       : def.family === 'shogi'
         ? 'vm-frame-shogi'
-        : 'vm-frame-chess';
+        : def.family === 'jungle'
+          ? 'vm-frame-jungle'
+          : 'vm-frame-chess';
   const className = opts.className ? `variant-mini ${opts.className}` : 'variant-mini';
   const dataClass = opts.className ? ` data-mini-class="${escapeAttr(opts.className)}"` : '';
   return [

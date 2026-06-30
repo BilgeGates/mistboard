@@ -29,11 +29,11 @@ describe('Flip Jungle watch replay', () => {
     );
     expect(reveal).not.toBeUndefined();
 
-    // At ply 0 the as-played mask paints a face-down back.
+    // At ply 0 the as-played mask paints a face-down back (banqi-style jade disc).
     const board = () => root.querySelector('svg.jungle-flip-live-svg') as SVGElement;
     expect(board().outerHTML).toContain('fill="#2f8f6b"');
     reveal!.click();
-    // Revealed overlay: no tile painted with the back fill.
+    // Revealed overlay: no tile shows the back disc.
     expect(board().outerHTML).not.toContain('fill="#2f8f6b"');
 
     handle.destroy();

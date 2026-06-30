@@ -12,6 +12,8 @@ import {
   DROP_MINI_XIANGQI_SPEC_ID,
   gameSpecForId,
   JIEQI_SPEC_ID,
+  JUNGLE_FLIP_SPEC_ID,
+  JUNGLE_SPEC_ID,
   KRIEGSPIEL_SPEC_ID,
   MINI_XIANGQI_SPEC_ID,
   REVEAL_CHESS_SPEC_ID,
@@ -194,6 +196,11 @@ describe('web variant launch registry', () => {
     expect(variantMiniIdForGameSpec(KRIEGSPIEL_SPEC_ID)).toBe('kriegspiel');
   });
 
+  it('maps the Jungle surfaces to their animal-rank markers', () => {
+    expect(variantMiniIdForGameSpec(JUNGLE_SPEC_ID)).toBe('jungle');
+    expect(variantMiniIdForGameSpec(JUNGLE_FLIP_SPEC_ID)).toBe('jungle-flip');
+  });
+
   it('keeps casual Mini Xiangqi out of rating variant surfaces', () => {
     expect(VARIANTS.map((v) => v.gameSpecId)).not.toContain(MINI_XIANGQI_SPEC_ID);
     expect(leaderboardVariants.map((v) => v.gameSpecId)).not.toContain(MINI_XIANGQI_SPEC_ID);
@@ -216,6 +223,8 @@ describe('web variant launch registry', () => {
       [DARK_SHOGI_SPEC_ID, 'dark-shogi'],
       [CROSSROADS_CHESS_SPEC_ID, 'crossroads-chess'],
       [DARK_CROSSROADS_CHESS_SPEC_ID, 'dark-crossroads-chess'],
+      [JUNGLE_SPEC_ID, 'jungle'],
+      [JUNGLE_FLIP_SPEC_ID, 'jungle-flip'],
     ]);
   });
 

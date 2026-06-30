@@ -58,3 +58,9 @@
 .variant-mini .vm-frame-shogi {
   stroke: #7a5c33;
 }
+/* Jungle: its own game group, so its own frame — a fixed jungle green (the animal
+   board reads distinctly from the xiangqi wood-brown). The marker crops the real
+   dobutsu board, so it needs no marker-specific tile colours. */
+.variant-mini .vm-frame-jungle {
+  stroke: #2e7d4a;
+}
