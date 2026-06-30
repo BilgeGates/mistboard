@@ -305,16 +305,19 @@ Edit task → find file → open only that file.
 | `server-jungle-engine.ts` | In-process Misty Jungle PvE: depth-limited alpha-beta over the rules kernel (3 levels, no Python/FSF — Jungle is perfect-information); injects moves through the shared append+broadcast path. Mirrors `server-drop-mini-xiangqi-engine.ts` |
 | `jungle-flip-tenant.ts` | Flip Jungle (兽棋/翻翻棋, 4×4 flip animal chess) `VariantTenant`: symmetric hidden-identity like banqi — face-down tiles carry no ink/identity; the only hidden state is the DEAL (crypto-RNG secret stripped by `clientEventFor`); masked board from `getJungleFlipPlayerView`. Seat = move order, ink binds on the first flip. Equal-rank = 同归于尽 mutual destruction. Sibling of `banqi-tenant.ts` |
 | `jungle-flip-runtime.ts` | Flip Jungle live-room type aliases over the generic `variant-tenant/` runtime (types-only). `C` = seat, not ink |
-| `jungle-flip-registration.ts` | Flip Jungle registry entry (live-room map, room-factory binding, hydration); PvP-only at launch; side-effect import in `variant-tenant/register-tenants.ts` |
-| `server-jungle-flip-room-factory.ts` | Thin adapter over `variant-tenant/room-factory.ts` for Flip Jungle (PvP only; the per-game deal is minted by the tenant's `createSetup`) |
-| `server-ws-jungle-flip.ts` | Flip Jungle WebSocket handler — thin adapter over `variant-tenant/ws.ts` (symmetric info, no fog, no engine) |
+| `jungle-flip-registration.ts` | Flip Jungle registry entry (live-room map, room-factory binding, hydration); PvP + PvE (Tier-B MistyJungleFlip UCI engine); side-effect import in `variant-tenant/register-tenants.ts` |
+| `server-jungle-flip-room-factory.ts` | Thin adapter over `variant-tenant/room-factory.ts` for Flip Jungle (PvP + Tier-B engine seat; the per-game deal is minted by the tenant's `createSetup`) |
+| `server-ws-jungle-flip.ts` | Flip Jungle WebSocket handler — thin adapter over `variant-tenant/ws.ts` (symmetric info, no fog); the Tier-B MistyJungleFlip scheduler rides the post-connect/post-move hook |
+| `jungle-flip-fen.ts` | Flip Jungle UCI FEN encoder — THE REDACTION BOUNDARY for the MistyJungleFlip engine; a face-down tile encodes as `X` with NO colour (hides ink too, like banqi), pool carries only public per-(ink,role) counts. Sibling of `banqi-fen.ts` with 4 files + the 8 animal ranks |
+| `jungle-flip-engine.ts` | MistyJungleFlip move provider for Flip Jungle PvE: our own `jungle-flip-engine` Rust αβ+Star1+TT UCI subprocess (Tier-B, one process per request, NOT the fog engine-worker); fed a redacted current-position FEN from `jungle-flip-fen.ts`. One versioned bot |
+| `server-jungle-flip-engine.ts` | Server-side MistyJungleFlip PvE loop; injects engine moves through the shared append+broadcast path, fails closed (resign) on a kernel-rejected move. Mirrors `server-banqi-engine.ts` |
 | `routes/jieqi-rooms.ts` | POST `/api/rooms` jieqi branch (time-control gating, engine-id parsing); binds the tenant room factory |
 | `routes/jieqi-games.ts` | Jieqi postgame/review API branch; keeps non-chess finished games out of generic chess replay APIs |
 | `routes/banqi-rooms.ts` | POST `/api/rooms` banqi branch (time-control gating; `preferredColor` selects the move-order seat) |
 | `routes/banqi-games.ts` | Banqi postgame/review API branch (single public truth surface; keeps non-chess records out of generic chess replay APIs) |
 | `routes/jungle-rooms.ts` | POST `/api/rooms` Jungle branch (PvP + PvE engine-seat assignment opposite the human; `jungleEnabled` flag) |
 | `routes/jungle-games.ts` | Jungle postgame/review API branch; exposes the finished perfect-information board history and move timeline |
-| `routes/jungle-flip-rooms.ts` | POST `/api/rooms` Flip Jungle branch (PvP only at launch; `jungleFlipEnabled` flag) |
+| `routes/jungle-flip-rooms.ts` | POST `/api/rooms` Flip Jungle branch (PvP + PvE engine-seat assignment opposite the human; `jungleFlipEnabled` flag) |
 | `routes/jungle-flip-games.ts` | Flip Jungle postgame/review API branch; exposes the as-played masked replay plus revealed spoiler history for symmetric hidden-identity games |
 | `routes/reveal-chess-rooms.ts` | POST `/api/rooms` Reveal Chess branch (`revealChessEnabled` flag) |
 | `routes/reveal-chess-games.ts` | Reveal Chess postgame/review API branch |
