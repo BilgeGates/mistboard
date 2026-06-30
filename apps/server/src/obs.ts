@@ -11,7 +11,7 @@
 
 import { monitorEventLoopDelay } from 'node:perf_hooks';
 import pino, { type Logger } from 'pino';
-import { sendEngineAlertNotification } from './engine-alert-email.js';
+import { type EngineAlertEmailPayload, sendEngineAlertNotification } from './engine-alert-email.js';
 
 const isProd = process.env.NODE_ENV === 'production' || !process.stdout.isTTY;
 const level = process.env.LOG_LEVEL ?? 'info';
@@ -320,6 +320,75 @@ export function engineAlertFields(engine: EngineCounterSnapshot): EngineAlertFie
   return null;
 }
 
+// Infra alert thresholds: process memory (RSS) and event-loop lag — the box-level
+// health the engine-move counters don't cover. The variant PvE engines run in this
+// process (jungle's in-process αβ) or as subprocesses it spawns, so a saturated event
+// loop or runaway RSS is the overload symptom, and nothing else pages on it. Limits are
+// env-tunable; 0 disables a check.
+//
+// RSS is TWO bands, because the web service idles ~0.3 GB on a 24 GB-per-replica box: a
+// single OOM-near-ceiling threshold would let a leak run for hours before paging. So a
+// WARNING fires at an anomaly level well above normal but far below the ceiling (catch the
+// leak early, ~15 GB of runway to react), and a CRITICAL fires near the ceiling (actual
+// OOM risk). NB: process.memoryUsage() is the NODE process only — engine subprocesses have
+// their own RSS — so multi-GB here is genuinely anomalous, not engine fan-out.
+export type InfraGauges = {
+  rssMb: number;
+  loopLagP99Ms: number;
+  loopLagMaxMs: number;
+};
+
+export type InfraAlertLimits = {
+  rssWarnMb: number; // RSS at/above this (but below rssMb) → warning (leak/anomaly). 0 disables.
+  rssMb: number; // RSS at/above this → critical (OOM risk). 0 disables.
+  loopLagP99Ms: number; // loop-lag p99 at/above this → warning (CPU saturation). 0 disables.
+};
+
+export function infraAlertLimits(): InfraAlertLimits {
+  return {
+    // Defaults calibrated to a 24 GB (24576 MiB) ceiling: warn at ~4 GB (≈11× the ~0.37 GB
+    // peak, 17% of ceiling), critical at ~80% of the ceiling. Override per the real box size.
+    rssWarnMb: envInt('MISTBOARD_ALERT_RSS_WARN_MB', 4096),
+    rssMb: envInt('MISTBOARD_ALERT_RSS_MB', 19660),
+    loopLagP99Ms: envInt('MISTBOARD_ALERT_LOOP_LAG_P99_MS', 400),
+  };
+}
+
+export function infraAlertFields(
+  gauges: InfraGauges,
+  limits: InfraAlertLimits = infraAlertLimits(),
+): EngineAlertEmailPayload | null {
+  const fields: EngineAlertEmailPayload = { severity: 'warning', alert_kind: 'infra' };
+  let breached = false;
+  let critical = false;
+  if (limits.rssMb > 0 && gauges.rssMb >= limits.rssMb) {
+    fields.rss_mb = gauges.rssMb;
+    fields.rss_limit_mb = limits.rssMb;
+    breached = true;
+    critical = true; // near the ceiling → OOM risk
+  } else if (limits.rssWarnMb > 0 && gauges.rssMb >= limits.rssWarnMb) {
+    fields.rss_mb = gauges.rssMb;
+    fields.rss_warn_mb = limits.rssWarnMb;
+    breached = true; // anomalously high → likely a leak; warning, lots of runway left
+  }
+  if (limits.loopLagP99Ms > 0 && gauges.loopLagP99Ms >= limits.loopLagP99Ms) {
+    fields.loop_lag_p99_ms = Math.round(gauges.loopLagP99Ms);
+    fields.loop_lag_max_ms = Math.round(gauges.loopLagMaxMs);
+    fields.loop_lag_limit_ms = limits.loopLagP99Ms;
+    breached = true;
+  }
+  if (!breached) return null;
+  if (critical) fields.severity = 'critical';
+  return fields;
+}
+
+function envInt(name: string, fallback: number): number {
+  const raw = process.env[name];
+  if (raw === undefined || raw === '') return fallback;
+  const n = Number(raw);
+  return Number.isFinite(n) && n >= 0 ? Math.floor(n) : fallback;
+}
+
 // Wire-format counters for the snapshot→delta protocol. Watching:
 // - `snapshot_requests`: rate of clients asking for a fresh snapshot.
 //   Should be near-zero in steady state. A sustained nonzero rate
@@ -402,6 +471,43 @@ class WsCounters {
 
 export const wsCounters = new WsCounters();
 
+// Fire-and-forget an alert email, logging the delivery outcome. Shared by the
+// engine-counter alerts and the infra (memory / loop-lag) alerts.
+function dispatchAlertEmail(alert: EngineAlertEmailPayload): void {
+  void sendEngineAlertNotification(alert)
+    .then((result) => {
+      if (result.status === 'sent') {
+        logger.info(
+          { kind: 'engine_alert_email_sent', severity: alert.severity },
+          'alert email sent',
+        );
+      }
+      if (result.status === 'failed') {
+        logger.error(
+          {
+            kind: 'engine_alert_email_failed',
+            provider: 'resend',
+            severity: alert.severity,
+            status: result.statusCode,
+            error: result.error,
+          },
+          'alert email failed',
+        );
+      }
+    })
+    .catch((err) => {
+      logger.error(
+        {
+          kind: 'engine_alert_email_failed',
+          provider: 'resend',
+          severity: alert.severity,
+          error: (err as Error).message,
+        },
+        'alert email failed',
+      );
+    });
+}
+
 export function startObservability(sources: ObsSources, intervalMs = 5_000): () => void {
   const histogram = monitorEventLoopDelay({ resolution: 20 });
   histogram.enable();
@@ -414,63 +520,39 @@ export function startObservability(sources: ObsSources, intervalMs = 5_000): () 
     const mem = process.memoryUsage();
     const engine = engineCounters.snapshot();
     const ws = wsCounters.snapshot();
+    const loopLagP50Ms = nsToMs(histogram.percentile(50));
+    const loopLagP99Ms = nsToMs(histogram.percentile(99));
+    const loopLagMaxMs = nsToMs(histogram.max);
+    const rssMb = Math.round(mem.rss / (1024 * 1024));
+    const heapUsedMb = Math.round(mem.heapUsed / (1024 * 1024));
+
     const engineAlert = engineAlertFields(engine);
     if (engineAlert) {
       const logAlert = engineAlert.severity === 'critical' ? logger.error : logger.warn;
-      logAlert.call(
-        logger,
-        {
-          kind: 'engine_alert',
-          ...engineAlert,
-        },
-        'engine alert',
-      );
-      void sendEngineAlertNotification(engineAlert)
-        .then((result) => {
-          if (result.status === 'sent') {
-            logger.info(
-              {
-                kind: 'engine_alert_email_sent',
-                severity: engineAlert.severity,
-              },
-              'engine alert email sent',
-            );
-          }
-          if (result.status === 'failed') {
-            logger.error(
-              {
-                kind: 'engine_alert_email_failed',
-                provider: 'resend',
-                severity: engineAlert.severity,
-                status: result.statusCode,
-                error: result.error,
-              },
-              'engine alert email failed',
-            );
-          }
-        })
-        .catch((err) => {
-          logger.error(
-            {
-              kind: 'engine_alert_email_failed',
-              provider: 'resend',
-              severity: engineAlert.severity,
-              error: (err as Error).message,
-            },
-            'engine alert email failed',
-          );
-        });
+      logAlert.call(logger, { kind: 'engine_alert', ...engineAlert }, 'engine alert');
+      dispatchAlertEmail(engineAlert);
     }
+
+    // Infra alerts: box-level health (RSS / event-loop lag) the engine-move counters
+    // don't cover. The variant PvE engines run on this process, so a saturated loop or
+    // runaway RSS is the overload symptom — nothing else pages on it.
+    const infraAlert = infraAlertFields({ rssMb, loopLagP99Ms, loopLagMaxMs });
+    if (infraAlert) {
+      const logAlert = infraAlert.severity === 'critical' ? logger.error : logger.warn;
+      logAlert.call(logger, { kind: 'infra_alert', ...infraAlert }, 'infra alert');
+      dispatchAlertEmail(infraAlert);
+    }
+
     logger.info(
       {
         kind: 'metrics',
         rooms: sources.roomCount(),
         ws_clients: sources.wsClientCount(),
-        loop_lag_p50_ms: nsToMs(histogram.percentile(50)),
-        loop_lag_p99_ms: nsToMs(histogram.percentile(99)),
-        loop_lag_max_ms: nsToMs(histogram.max),
-        heap_used_mb: Math.round(mem.heapUsed / (1024 * 1024)),
-        rss_mb: Math.round(mem.rss / (1024 * 1024)),
+        loop_lag_p50_ms: loopLagP50Ms,
+        loop_lag_p99_ms: loopLagP99Ms,
+        loop_lag_max_ms: loopLagMaxMs,
+        heap_used_mb: heapUsedMb,
+        rss_mb: rssMb,
         tick_ms: tickMs,
         engine_moves_total: engine.moves,
         engine_fallbacks_total: engine.fallbacks,

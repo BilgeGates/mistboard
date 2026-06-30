@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { EngineCounters, engineAlertFields } from './obs.js';
+import { EngineCounters, engineAlertFields, infraAlertFields } from './obs.js';
 
 test('engine counters emit deltas and drain latency samples', () => {
   const counters = new EngineCounters();
@@ -118,4 +118,63 @@ test('engine alert fields separate critical failures from capacity pressure', ()
     python_pool_retries_tick: 2,
   });
   assert.equal(engineAlertFields(retryCounters.snapshot()), null);
+});
+
+test('infra alert fields page on memory and loop-lag breaches', () => {
+  // Calibrated to the 24 GB-per-replica box: warn at ~4 GB, critical at ~80% of ceiling.
+  const limits = { rssWarnMb: 4096, rssMb: 19660, loopLagP99Ms: 400 };
+
+  // Healthy box (near current prod peak) → no alert.
+  assert.equal(infraAlertFields({ rssMb: 370, loopLagP99Ms: 12, loopLagMaxMs: 40 }, limits), null);
+
+  // RSS anomalously high (leak) but far from the ceiling → warning, with the runway left.
+  assert.deepEqual(infraAlertFields({ rssMb: 6000, loopLagP99Ms: 12, loopLagMaxMs: 40 }, limits), {
+    severity: 'warning',
+    alert_kind: 'infra',
+    rss_mb: 6000,
+    rss_warn_mb: 4096,
+  });
+
+  // RSS near the ceiling → critical (OOM risk). Only the ceiling field, not the warn band.
+  assert.deepEqual(infraAlertFields({ rssMb: 20000, loopLagP99Ms: 12, loopLagMaxMs: 40 }, limits), {
+    severity: 'critical',
+    alert_kind: 'infra',
+    rss_mb: 20000,
+    rss_limit_mb: 19660,
+  });
+
+  // Event-loop saturation only → warning.
+  assert.deepEqual(
+    infraAlertFields({ rssMb: 370, loopLagP99Ms: 800, loopLagMaxMs: 1500 }, limits),
+    {
+      severity: 'warning',
+      alert_kind: 'infra',
+      loop_lag_p99_ms: 800,
+      loop_lag_max_ms: 1500,
+      loop_lag_limit_ms: 400,
+    },
+  );
+
+  // RSS at the ceiling + loop saturation → critical wins, both field sets present.
+  assert.deepEqual(
+    infraAlertFields({ rssMb: 20000, loopLagP99Ms: 800, loopLagMaxMs: 1500 }, limits),
+    {
+      severity: 'critical',
+      alert_kind: 'infra',
+      rss_mb: 20000,
+      rss_limit_mb: 19660,
+      loop_lag_p99_ms: 800,
+      loop_lag_max_ms: 1500,
+      loop_lag_limit_ms: 400,
+    },
+  );
+
+  // A 0 limit disables that check.
+  assert.equal(
+    infraAlertFields(
+      { rssMb: 50000, loopLagP99Ms: 5000, loopLagMaxMs: 9000 },
+      { rssWarnMb: 0, rssMb: 0, loopLagP99Ms: 0 },
+    ),
+    null,
+  );
 });
