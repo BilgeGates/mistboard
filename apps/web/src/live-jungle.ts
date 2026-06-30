@@ -29,10 +29,10 @@ import { createLiveLayout, setLiveLayoutGameSpec } from './live-layout.js';
 import { initLiveSound, playSound, resetLiveSoundState } from './live-sound.js';
 import { clearSeatTokenForRoom, type LiveRefs } from './live-state.js';
 import { roomIdFromPath } from './room-url.js';
+import { installBoardDrag } from './variant-tenant/board-drag.js';
 import { syncMoveListScroll } from './variant-tenant/chrome-dom.js';
 import { createTenantReplayController } from './variant-tenant/replay-controller.js';
 import { createTenantRoomChrome, type WebVariantTenant } from './variant-tenant/room-chrome.js';
-import { installBoardDrag } from './variant-tenant/board-drag.js';
 import { installSelectionClickAway } from './variant-tenant/selection-click-away.js';
 import {
   createTenantSocketClient,
