@@ -125,6 +125,41 @@ export function jungleFlipStateToEngineFen(state: JungleFlipGameState): string {
   ].join(' ');
 }
 
+/**
+ * Clock-independent repetition signature: two positions repeat when the board, mover,
+ * pool, and ply parity match (the engine's `rep_key` hashes exactly this, ignoring the
+ * no-progress clock). Within a single game `firstColor` is fixed, so board+turn+pool+parity
+ * uniquely identifies a repeatable position. Used to count threefold occurrences.
+ */
+export function jungleFlipRepSignature(state: JungleFlipGameState): string {
+  const ink = jungleFlipMoverInk(state);
+  const turn = ink === null ? '-' : ink === 'red' ? 'r' : 'b';
+  return `${boardField(state.board)}|${turn}|${poolField(state.board)}|${state.moveNumber % 2}`;
+}
+
+/**
+ * Redacted FENs of positions that have already occurred TWICE in `states` (so the engine
+ * re-entering one is the THIRD occurrence = a repetition draw under the kernel's threefold
+ * rule). One representative FEN per such signature; the engine hashes each to the `rep_key`
+ * shared by every occurrence (rep_key ignores the clock), then seeds its repetition table.
+ * Counting by signature is correct across the whole game: a flip or capture resets the pool
+ * or board, so no two no-progress blocks share a signature.
+ */
+export function jungleFlipRepSeedFens(states: readonly JungleFlipGameState[]): string[] {
+  const firstFen = new Map<string, string>();
+  const count = new Map<string, number>();
+  for (const state of states) {
+    const sig = jungleFlipRepSignature(state);
+    count.set(sig, (count.get(sig) ?? 0) + 1);
+    if (!firstFen.has(sig)) firstFen.set(sig, jungleFlipStateToEngineFen(state));
+  }
+  const seed: string[] = [];
+  for (const [sig, n] of count) {
+    if (n >= 2) seed.push(firstFen.get(sig)!);
+  }
+  return seed;
+}
+
 /** Platform square -> engine UCI token: file a..d + rank digit 0..3 (rank-1, 0-indexed). */
 export function jungleFlipSquareToEngineUci(square: JungleFlipSquare): string {
   const { file, rank } = jungleFlipCoordOf(square);

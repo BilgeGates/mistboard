@@ -123,7 +123,25 @@ export function jungleFlipEngineVersion(clientId: string | undefined): string | 
 export type JungleFlipEngineOptions = {
   nodes?: number;
   movetimeCapMs?: number;
+  // Redacted FENs of positions already seen twice this game (see jungleFlipRepSeedFens).
+  // Appended as a trailing `reps` token so the engine's search scores a move that re-enters
+  // one as a threefold draw. Older binaries ignore the trailing token (state_from_fen reads
+  // only the leading FEN fields), so this is backward-compatible.
+  repSeedFens?: readonly string[];
 };
+
+/**
+ * Build the UCI `position` command. A non-empty rep seed is appended as
+ * `... reps <fen1>;<fen2>;...` (FENs contain spaces, so they are ';'-delimited). Kept pure
+ * for unit testing the wire format.
+ */
+export function buildJungleFlipPositionCommand(
+  fen: string,
+  repSeedFens: readonly string[] = [],
+): string {
+  if (repSeedFens.length === 0) return `position fen ${fen}`;
+  return `position fen ${fen} reps ${repSeedFens.join(';')}`;
+}
 
 /**
  * Ask MistyJungleFlip for a move given a redacted FEN (see jungle-flip-fen.ts). Returns
@@ -142,6 +160,7 @@ export async function jungleFlipLiveEngineMove(
     return await jungleFlipEngineMove(fen, {
       nodes: opts.nodes ?? tier.nodes,
       movetimeCapMs: opts.movetimeCapMs ?? tier.movetimeCapMs,
+      repSeedFens: opts.repSeedFens,
     });
   } finally {
     release();
@@ -195,12 +214,13 @@ export function jungleFlipEngineMove(
     });
 
     // Node budget = CPU-independent strength; movetime cap bounds latency (halt at
-    // whichever first). No trailing moves: the binary carries the clock in the FEN.
+    // whichever first). The position carries the clock in the FEN plus an optional
+    // `reps` seed (threefold game history) so the search adjudicates repetition draws.
     const commands = [
       'uci',
       'ucinewgame',
       'isready',
-      `position fen ${fen}`,
+      buildJungleFlipPositionCommand(fen, opts.repSeedFens),
       `go nodes ${nodes} movetime ${movetimeCapMs}`,
     ];
     child.stdin.write(`${commands.join('\n')}\n`);

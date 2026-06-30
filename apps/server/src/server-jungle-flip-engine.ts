@@ -14,8 +14,11 @@
  */
 
 import {
+  applyJungleFlipMove,
+  createInitialJungleFlipState,
   getJungleFlipLegalMoves,
   isJungleFlipLegalMove,
+  type JungleFlipDeal,
   type JungleFlipGameState,
   type JungleFlipMove,
   type JungleFlipSeat,
@@ -35,6 +38,7 @@ import {
 import {
   engineUciToJungleFlipMove,
   jungleFlipMoveToEngineUci,
+  jungleFlipRepSeedFens,
   jungleFlipStateToEngineFen,
 } from './jungle-flip-fen.js';
 import type { JungleFlipSpecId } from './jungle-flip-runtime.js';
@@ -104,6 +108,33 @@ export function scheduleJungleFlipEngineMove(
   room.engineTimer.unref();
 }
 
+/**
+ * Replay the room's event log into the per-ply state sequence and derive the threefold
+ * rep seed (positions already seen twice). Fail-safe: returns [] on any error so a malformed
+ * log never breaks the engine move (the engine just falls back to history-blind search).
+ */
+function repSeedFensForRoom(room: JungleFlipEngineRoom): string[] {
+  try {
+    const created = room.events.find((e) => e.type === 'room-created');
+    const deal = created?.setup as JungleFlipDeal | undefined;
+    if (!deal) return [];
+    let state = createInitialJungleFlipState(room.id, deal);
+    const states: JungleFlipGameState[] = [state];
+    for (const event of room.events) {
+      if (event.type !== 'move-played') continue;
+      state = applyJungleFlipMove(state, event.move);
+      states.push(state);
+    }
+    return jungleFlipRepSeedFens(states);
+  } catch (err) {
+    logger.warn(
+      { kind: 'jungle_flip_rep_seed_failed', room_id: room.id, error: String(err) },
+      'Flip Jungle repetition-seed replay failed; sending no seed',
+    );
+    return [];
+  }
+}
+
 export async function playJungleFlipEngineMoveIfReady(
   ctx: JungleFlipEngineContext,
   room: JungleFlipEngineRoom,
@@ -120,6 +151,11 @@ export async function playJungleFlipEngineMoveIfReady(
   if (remainingMs !== null && remainingMs <= 0) return;
 
   const fen = jungleFlipStateToEngineFen(room.projection.state);
+  // Threefold awareness: replay the game so the engine learns which positions have already
+  // occurred twice (re-entering one is the 3rd = a draw). The deployed binary ignores the
+  // trailing `reps` token, so this is a no-op until the rep-aware binary ships. Fail-safe:
+  // on any replay error we send no seed (current behavior) rather than break the move.
+  const repSeedFens = repSeedFensForRoom(room);
   // Strength = the tier's NODE budget; the movetime CAP bounds latency and is further
   // clamped by the remaining game clock so the engine never overshoots its own time.
   const movetimeCapMs =
@@ -137,7 +173,7 @@ export async function playJungleFlipEngineMoveIfReady(
   } = await resolveValidatedEngineMove<JungleFlipMove>({
     maxAttempts: ENGINE_MOVE_MAX_ATTEMPTS,
     requestMove: () =>
-      jungleFlipLiveEngineMove(engineId, fen, { nodes: tier.nodes, movetimeCapMs }),
+      jungleFlipLiveEngineMove(engineId, fen, { nodes: tier.nodes, movetimeCapMs, repSeedFens }),
     validate: (uci) => {
       const parsed = engineUciToJungleFlipMove(uci);
       return parsed && isJungleFlipLegalMove(room.projection.state, parsed) ? parsed : null;

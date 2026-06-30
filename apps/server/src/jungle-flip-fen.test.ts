@@ -2,12 +2,16 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import {
   createInitialJungleFlipState,
+  type JungleFlipBoard,
   type JungleFlipGameState,
   type JungleFlipMove,
 } from '@mistboard/game';
+import { buildJungleFlipPositionCommand } from './jungle-flip-engine.js';
 import {
   engineUciToJungleFlipMove,
   jungleFlipMoveToEngineUci,
+  jungleFlipRepSeedFens,
+  jungleFlipRepSignature,
   jungleFlipSquareToEngineUci,
   jungleFlipStateToEngineFen,
 } from './jungle-flip-fen.js';
@@ -106,4 +110,61 @@ test('jungle-flip UCI: out-of-board coords reject', () => {
   assert.equal(engineUciToJungleFlipMove('e0a0'), null); // file e is off a 4-wide board
   assert.equal(engineUciToJungleFlipMove('a4a0'), null); // rank digit 4 is off (0..3)
   assert.equal(engineUciToJungleFlipMove('garbage'), null);
+});
+
+// ── Repetition seeding (threefold awareness for the engine) ──────────────────────────
+
+const REP_BASE: Omit<
+  JungleFlipGameState,
+  'board' | 'firstColor' | 'ply' | 'moveNumber' | 'noProgressClock'
+> = { id: 'rep', status: { type: 'playing', turn: 'red' }, repCounts: {}, captures: [] };
+
+function repState(
+  board: JungleFlipBoard,
+  ply: number,
+  moveNumber: number,
+  clock: number,
+): JungleFlipGameState {
+  return { ...REP_BASE, board, firstColor: 'red', ply, moveNumber, noProgressClock: clock };
+}
+
+const lion = (color: 'red' | 'black') => ({ color, role: 'lion', faceDown: false }) as const;
+const BOARD_A: JungleFlipBoard = { a1: lion('red'), c3: lion('black') };
+const BOARD_B: JungleFlipBoard = { a2: lion('red'), c3: lion('black') }; // red lion shifted
+
+test('jungle-flip rep signature ignores the no-progress clock and absolute move number', () => {
+  // Same board + mover + pool, different clock and a different but same-parity move number.
+  const s1 = repState(BOARD_A, 2, 2, 0);
+  const s2 = repState(BOARD_A, 2, 4, 9);
+  assert.equal(jungleFlipRepSignature(s1), jungleFlipRepSignature(s2));
+  // A moved piece is a different position.
+  assert.notEqual(jungleFlipRepSignature(s1), jungleFlipRepSignature(repState(BOARD_B, 2, 2, 0)));
+});
+
+test('jungle-flip rep seed = positions seen twice (3rd visit is the threefold draw)', () => {
+  const states: JungleFlipGameState[] = [
+    repState(BOARD_A, 2, 2, 0), // A #1
+    repState(BOARD_B, 2, 4, 1), // B #1
+    repState(BOARD_A, 2, 6, 2), // A #2
+    repState(BOARD_B, 2, 8, 3), // B #2
+    repState(BOARD_A, 2, 10, 4), // A #3
+    repState({ d4: lion('red') }, 2, 2, 0), // singleton
+  ];
+  const seed = jungleFlipRepSeedFens(states);
+  // A (3x) and B (2x) qualify; the singleton (1x) does not.
+  assert.equal(seed.length, 2);
+  // The representative FEN is the FIRST occurrence of each repeated signature.
+  assert.ok(seed.includes(jungleFlipStateToEngineFen(states[0])), 'A seeded via its first FEN');
+  assert.ok(seed.includes(jungleFlipStateToEngineFen(states[1])), 'B seeded via its first FEN');
+});
+
+test('jungle-flip position command appends a ;-delimited reps seed, omits it when empty', () => {
+  assert.equal(
+    buildJungleFlipPositionCommand('XXXX/XXXX/XXXX/XXXX - - 0 1'),
+    'position fen XXXX/XXXX/XXXX/XXXX - - 0 1',
+  );
+  assert.equal(
+    buildJungleFlipPositionCommand('B r - 0 1', ['A r - 0 1', 'C b - 2 2']),
+    'position fen B r - 0 1 reps A r - 0 1;C b - 2 2',
+  );
 });
