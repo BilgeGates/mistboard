@@ -324,9 +324,14 @@ export function engineAlertFields(engine: EngineCounterSnapshot): EngineAlertFie
 // health the engine-move counters don't cover. The variant PvE engines run in this
 // process (jungle's in-process αβ) or as subprocesses it spawns, so a saturated event
 // loop or runaway RSS is the overload symptom, and nothing else pages on it. Limits are
-// env-tunable; 0 disables a check. Defaults are deliberately loose (prod peak ~370 MB
-// RSS, single-digit-ms lag) so they fire only on real degradation — tighten RSS toward
-// the box's actual memory ceiling and loop-lag toward your realtime budget.
+// env-tunable; 0 disables a check.
+//
+// RSS is TWO bands, because the web service idles ~0.3 GB on a 24 GB-per-replica box: a
+// single OOM-near-ceiling threshold would let a leak run for hours before paging. So a
+// WARNING fires at an anomaly level well above normal but far below the ceiling (catch the
+// leak early, ~15 GB of runway to react), and a CRITICAL fires near the ceiling (actual
+// OOM risk). NB: process.memoryUsage() is the NODE process only — engine subprocesses have
+// their own RSS — so multi-GB here is genuinely anomalous, not engine fan-out.
 export type InfraGauges = {
   rssMb: number;
   loopLagP99Ms: number;
@@ -334,13 +339,17 @@ export type InfraGauges = {
 };
 
 export type InfraAlertLimits = {
+  rssWarnMb: number; // RSS at/above this (but below rssMb) → warning (leak/anomaly). 0 disables.
   rssMb: number; // RSS at/above this → critical (OOM risk). 0 disables.
   loopLagP99Ms: number; // loop-lag p99 at/above this → warning (CPU saturation). 0 disables.
 };
 
 export function infraAlertLimits(): InfraAlertLimits {
   return {
-    rssMb: envInt('MISTBOARD_ALERT_RSS_MB', 1024),
+    // Defaults calibrated to a 24 GB (24576 MiB) ceiling: warn at ~4 GB (≈11× the ~0.37 GB
+    // peak, 17% of ceiling), critical at ~80% of the ceiling. Override per the real box size.
+    rssWarnMb: envInt('MISTBOARD_ALERT_RSS_WARN_MB', 4096),
+    rssMb: envInt('MISTBOARD_ALERT_RSS_MB', 19660),
     loopLagP99Ms: envInt('MISTBOARD_ALERT_LOOP_LAG_P99_MS', 400),
   };
 }
@@ -356,7 +365,11 @@ export function infraAlertFields(
     fields.rss_mb = gauges.rssMb;
     fields.rss_limit_mb = limits.rssMb;
     breached = true;
-    critical = true; // memory pressure → OOM risk
+    critical = true; // near the ceiling → OOM risk
+  } else if (limits.rssWarnMb > 0 && gauges.rssMb >= limits.rssWarnMb) {
+    fields.rss_mb = gauges.rssMb;
+    fields.rss_warn_mb = limits.rssWarnMb;
+    breached = true; // anomalously high → likely a leak; warning, lots of runway left
   }
   if (limits.loopLagP99Ms > 0 && gauges.loopLagP99Ms >= limits.loopLagP99Ms) {
     fields.loop_lag_p99_ms = Math.round(gauges.loopLagP99Ms);

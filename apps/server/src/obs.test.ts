@@ -121,17 +121,26 @@ test('engine alert fields separate critical failures from capacity pressure', ()
 });
 
 test('infra alert fields page on memory and loop-lag breaches', () => {
-  const limits = { rssMb: 1024, loopLagP99Ms: 400 };
+  // Calibrated to the 24 GB-per-replica box: warn at ~4 GB, critical at ~80% of ceiling.
+  const limits = { rssWarnMb: 4096, rssMb: 19660, loopLagP99Ms: 400 };
 
   // Healthy box (near current prod peak) → no alert.
   assert.equal(infraAlertFields({ rssMb: 370, loopLagP99Ms: 12, loopLagMaxMs: 40 }, limits), null);
 
-  // RSS over the ceiling → critical (OOM risk).
-  assert.deepEqual(infraAlertFields({ rssMb: 1100, loopLagP99Ms: 12, loopLagMaxMs: 40 }, limits), {
+  // RSS anomalously high (leak) but far from the ceiling → warning, with the runway left.
+  assert.deepEqual(infraAlertFields({ rssMb: 6000, loopLagP99Ms: 12, loopLagMaxMs: 40 }, limits), {
+    severity: 'warning',
+    alert_kind: 'infra',
+    rss_mb: 6000,
+    rss_warn_mb: 4096,
+  });
+
+  // RSS near the ceiling → critical (OOM risk). Only the ceiling field, not the warn band.
+  assert.deepEqual(infraAlertFields({ rssMb: 20000, loopLagP99Ms: 12, loopLagMaxMs: 40 }, limits), {
     severity: 'critical',
     alert_kind: 'infra',
-    rss_mb: 1100,
-    rss_limit_mb: 1024,
+    rss_mb: 20000,
+    rss_limit_mb: 19660,
   });
 
   // Event-loop saturation only → warning.
@@ -146,14 +155,14 @@ test('infra alert fields page on memory and loop-lag breaches', () => {
     },
   );
 
-  // Both breach → critical wins, both field sets present.
+  // RSS at the ceiling + loop saturation → critical wins, both field sets present.
   assert.deepEqual(
-    infraAlertFields({ rssMb: 1100, loopLagP99Ms: 800, loopLagMaxMs: 1500 }, limits),
+    infraAlertFields({ rssMb: 20000, loopLagP99Ms: 800, loopLagMaxMs: 1500 }, limits),
     {
       severity: 'critical',
       alert_kind: 'infra',
-      rss_mb: 1100,
-      rss_limit_mb: 1024,
+      rss_mb: 20000,
+      rss_limit_mb: 19660,
       loop_lag_p99_ms: 800,
       loop_lag_max_ms: 1500,
       loop_lag_limit_ms: 400,
@@ -163,8 +172,8 @@ test('infra alert fields page on memory and loop-lag breaches', () => {
   // A 0 limit disables that check.
   assert.equal(
     infraAlertFields(
-      { rssMb: 5000, loopLagP99Ms: 5000, loopLagMaxMs: 9000 },
-      { rssMb: 0, loopLagP99Ms: 0 },
+      { rssMb: 50000, loopLagP99Ms: 5000, loopLagMaxMs: 9000 },
+      { rssWarnMb: 0, rssMb: 0, loopLagP99Ms: 0 },
     ),
     null,
   );
