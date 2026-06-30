@@ -32,6 +32,8 @@ import {
   findArticle,
   type InteractiveBlock,
   type JieqiReplayBlock,
+  type JungleFlipReplayBlock,
+  type JungleReplayBlock,
   type LiveBoardsBlock,
   type MiniXiangqiReplayBlock,
   type RawSvgBlock,
@@ -55,6 +57,8 @@ import {
 import { type I18nKey, t } from './i18n/catalog.js';
 import { currentLocale, LOCALE_META, type Locale, localizedHref } from './i18n/locale.js';
 import { type JieqiReplayController, mountJieqiReplay } from './jieqi-replay.js';
+import { type JungleFlipReplayController, mountJungleFlipReplay } from './jungle-flip-replay.js';
+import { type JungleReplayController, mountJungleReplay } from './jungle-replay.js';
 import { type MiniXiangqiReplayController, mountMiniXiangqiReplay } from './mini-xiangqi-replay.js';
 import { mountShogiReplay, type ShogiReplayController } from './shogi-replay.js';
 import {
@@ -975,7 +979,9 @@ type PendingBlock =
   | ShogiReplayBlock
   | CrossroadsReplayBlock
   | JieqiReplayBlock
-  | BanqiReplayBlock;
+  | BanqiReplayBlock
+  | JungleReplayBlock
+  | JungleFlipReplayBlock;
 type PendingMount = {
   block: PendingBlock;
   lang?: ArticleLang;
@@ -1003,6 +1009,8 @@ function renderBlock(block: ArticleBlock, lang?: ArticleLang): HTMLElement {
   if (block.kind === 'crossroads-replay') return renderCrossroadsReplayBlock(block);
   if (block.kind === 'jieqi-replay') return renderJieqiReplayBlock(block);
   if (block.kind === 'banqi-replay') return renderBanqiReplayBlock(block, lang);
+  if (block.kind === 'jungle-replay') return renderJungleReplayBlock(block, lang);
+  if (block.kind === 'jungle-flip-replay') return renderJungleFlipReplayBlock(block, lang);
   return renderInteractiveBlock(block);
 }
 
@@ -1070,6 +1078,49 @@ function renderBanqiReplayBlock(block: BanqiReplayBlock, lang?: ArticleLang): HT
   const figure = document.createElement('figure');
   figure.className = 'article-figure article-figure-interactive article-figure-banqi';
   figure.dataset.pendingWidget = 'banqi-replay';
+
+  const mountTarget = document.createElement('div');
+  mountTarget.className = 'article-interactive-target';
+  figure.append(mountTarget);
+
+  if (block.caption) {
+    const cap = document.createElement('figcaption');
+    cap.className = 'article-figure-caption';
+    cap.textContent = block.caption;
+    figure.append(cap);
+  }
+
+  rememberPendingMount(figure, block, lang);
+  return figure;
+}
+
+function renderJungleReplayBlock(block: JungleReplayBlock, lang?: ArticleLang): HTMLElement {
+  const figure = document.createElement('figure');
+  figure.className = 'article-figure article-figure-interactive article-figure-jungle';
+  figure.dataset.pendingWidget = 'jungle-replay';
+
+  const mountTarget = document.createElement('div');
+  mountTarget.className = 'article-interactive-target';
+  figure.append(mountTarget);
+
+  if (block.caption) {
+    const cap = document.createElement('figcaption');
+    cap.className = 'article-figure-caption';
+    cap.textContent = block.caption;
+    figure.append(cap);
+  }
+
+  rememberPendingMount(figure, block, lang);
+  return figure;
+}
+
+function renderJungleFlipReplayBlock(
+  block: JungleFlipReplayBlock,
+  lang?: ArticleLang,
+): HTMLElement {
+  const figure = document.createElement('figure');
+  figure.className = 'article-figure article-figure-interactive article-figure-jungle-flip';
+  figure.dataset.pendingWidget = 'jungle-flip-replay';
 
   const mountTarget = document.createElement('div');
   mountTarget.className = 'article-interactive-target';
@@ -1665,6 +1716,8 @@ export function mountPendingWidgets(
   | CrossroadsChessReplayController
   | JieqiReplayController
   | BanqiReplayController
+  | JungleReplayController
+  | JungleFlipReplayController
 > {
   const controllers: Array<
     | StepperController
@@ -1677,6 +1730,8 @@ export function mountPendingWidgets(
     | CrossroadsChessReplayController
     | JieqiReplayController
     | BanqiReplayController
+    | JungleReplayController
+    | JungleFlipReplayController
   > = [];
   const pending = root.querySelectorAll<HTMLElement>('[data-pending-widget]');
   pending.forEach((figure) => {
@@ -1705,6 +1760,10 @@ export function mountPendingWidgets(
       controllers.push(mountJieqiReplay(target, block.spec));
     } else if (block.kind === 'banqi-replay') {
       controllers.push(mountBanqiReplay(target, block.spec, { lang }));
+    } else if (block.kind === 'jungle-replay') {
+      controllers.push(mountJungleReplay(target, block.spec, { lang }));
+    } else if (block.kind === 'jungle-flip-replay') {
+      controllers.push(mountJungleFlipReplay(target, block.spec, { lang }));
     }
     pendingMounts.delete(figure);
     delete figure.dataset.pendingWidget;

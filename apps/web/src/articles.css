@@ -1090,6 +1090,18 @@
   margin-inline: auto;
 }
 
+/* Jungle board is a tall 7x9; cap it like the jieqi replay so it isn't oversized. */
+.raw-svg-stepper-frame.raw-svg-stepper-frame-jungle > svg {
+  width: min(360px, 80%);
+  margin-inline: auto;
+}
+
+/* Flip Jungle is a compact 4x4 grid; keep the sample board small. */
+.raw-svg-stepper-frame.raw-svg-stepper-frame-jungle-flip > svg {
+  width: min(300px, 70%);
+  margin-inline: auto;
+}
+
 .stepper-boards {
   display: flex;
   gap: 16px;

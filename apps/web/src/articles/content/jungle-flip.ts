@@ -1,10 +1,12 @@
+import { JUNGLE_FLIP_SAMPLE_GAME } from '../../jungle-flip-sample-game.js';
 import {
   JUNGLE_FLIP_MUTUAL,
   JUNGLE_FLIP_SETUP,
   JUNGLE_FLIP_TURN,
   JUNGLE_RANK_LADDER,
+  playClosing,
 } from '../diagrams.js';
-import type { Article, ArticleBlock } from '../types.js';
+import type { Article } from '../types.js';
 
 export const jungleFlipArticle: Article = {
   slug: 'jungle-flip',
@@ -13,8 +15,9 @@ export const jungleFlipArticle: Article = {
   summary:
     'The 4×4 flip version of Jungle. Every animal starts face-down, you flip to reveal, and equal ranks trade off the board.',
   showSummaryOnPage: false,
-  status: 'draft',
-  playableOnMistboard: false,
+  status: 'published',
+  publishedAt: '2026-06-30',
+  playableOnMistboard: true,
   audience:
     'Jungle players who want the flip variant, and anyone who grew up playing 翻翻棋 on a chalk grid.',
   intro: [
@@ -86,17 +89,36 @@ export const jungleFlipArticle: Article = {
       ],
     },
     {
-      heading: 'Play status',
+      heading: 'A full game',
       blocks: [
         {
           kind: 'paragraph',
-          text: 'Flip Jungle is in development on Mistboard and not yet open for play. No set release date.',
+          text: 'Step through a game our bot played against itself. The two lions meet and both leave the board, an elephant runs through three pieces until it hits the other elephant and they cancel too, and the side left standing wins. Tiles flip to their dealt animal the first time they are turned over.',
         },
         {
-          kind: 'cta',
-          buttons: [{ label: 'Back to all rules', href: '/rules', emphasis: 'secondary' }],
-        } as ArticleBlock,
+          kind: 'jungle-flip-replay',
+          spec: {
+            red: JUNGLE_FLIP_SAMPLE_GAME.red,
+            black: JUNGLE_FLIP_SAMPLE_GAME.black,
+            event: JUNGLE_FLIP_SAMPLE_GAME.event,
+            outcome: JUNGLE_FLIP_SAMPLE_GAME.outcome,
+            resultText: JUNGLE_FLIP_SAMPLE_GAME.result,
+            deal: JUNGLE_FLIP_SAMPLE_GAME.deal,
+            moves: JUNGLE_FLIP_SAMPLE_GAME.moves,
+          },
+        },
       ],
     },
+    playClosing({
+      heading: 'Where to next',
+      lead: 'Flip Jungle is playable on Mistboard: take on MistyJungleFlip, or challenge a friend. Jungle is the full 7×9 game these animals come from.',
+      playLabel: 'Play MistyJungleFlip',
+      playHref: '/?play=computer&gameSpecId=jungle-flip',
+      secondary: [
+        { label: 'Challenge a friend', href: '/?play=friend&gameSpecId=jungle-flip', emphasis: 'secondary' },
+        { label: 'Jungle', href: '/rules/jungle', emphasis: 'secondary' },
+        { label: 'All rules', href: '/rules', emphasis: 'secondary' },
+      ],
+    }),
   ],
 };

@@ -681,6 +681,69 @@ const ZH_HANS: Record<string, string> = {
   'Attacking, the cannon jumps a screen and ignores rank.': '炮进攻时隔一子跳吃，不看等级。',
   'As a target it ranks here: taken by horse and up, never by a soldier.':
     '作为目标时，炮排在这里：马以上可吃，卒不可吃。',
+  // -- Jungle + Flip Jungle (rules articles) --
+  'Jungle (Dou Shou Qi)': '斗兽棋',
+  "The classic Chinese animal-chess game on a 7×9 board. Eight ranked animals, rivers only the rat can cross, and a race to the opponent's den.":
+    '经典的中国动物棋，棋盘 7×9。八种按等级排列的动物，只有老鼠能过的河，以及冲入对方兽穴的竞赛。',
+  'Jungle, also called Dou Shou Qi (斗兽棋) or Animal Chess, is a two-player game played across much of East Asia. Each side commands eight animals of different rank. You win by marching a piece into your opponent’s den, or by capturing all of their pieces.':
+    '斗兽棋（英文称 Jungle 或 Animal Chess）是流行于东亚许多地区的双人游戏。每方指挥八种不同等级的动物。把一枚棋子走进对方的兽穴，或吃光对方所有棋子，即获胜。',
+  'Three rules give the game its character: the rat captures the elephant, only the rat can swim, and the lion and tiger leap the rivers.':
+    '三条规则赋予了这盘棋的特色：老鼠能吃大象，只有老鼠能下水，狮和虎能跳过河。',
+  'Seven files wide, nine ranks deep. Your den sits at the center of your back rank, ringed by three trap squares. Two rivers, each a 2×3 block of water, split the middle of the board, with land lanes down both edges and the center. Every piece moves one square up, down, left, or right. No diagonals.':
+    '棋盘宽七路、纵九行。你的兽穴位于己方底线中央，周围环绕三个陷阱格。两片河流各为 2×3 的水域，分隔棋盘中部，两侧和中路留有陆地通道。每枚棋子只能上下左右走一格，不能斜走。',
+  'The animals': '动物',
+  'Strongest to weakest: elephant, lion, tiger, leopard, wolf, dog, cat, rat. A piece captures any adjacent enemy of equal or lower rank. The exception runs the other way: the rat captures the elephant, and the elephant can never capture the rat.':
+    '由强到弱依次是：象、狮、虎、豹、狼、狗、猫、鼠。一枚棋子可以吃掉相邻的、等级相同或更低的敌方棋子。唯一的例外反其道而行：老鼠能吃大象，而大象永远吃不了老鼠。',
+  Traps: '陷阱',
+  'Step a piece onto one of your opponent’s three trap squares and it loses all rank while it stands there. Any defending piece can take it, down to a rat capturing a trapped elephant. Your own traps never weaken your pieces.':
+    '把一枚棋子走进对方三个陷阱格之一，它在停留期间会丧失全部等级。任何防守方棋子都能吃掉它，哪怕是老鼠吃掉落入陷阱的大象。己方的陷阱不会削弱自己的棋子。',
+  'The rivers': '河流',
+  "Only the rat enters the water. A rat in the river is safe from every land piece and can be taken only by another rat in the water. It also can't capture from the water onto land, so the rat needs dry ground to take the elephant.":
+    '只有老鼠能进入水中。河里的老鼠不受任何陆地棋子威胁，只能被同在水中的另一只老鼠吃掉。它也无法从水中吃向岸上，所以老鼠要吃大象得站在陆地上。',
+  'The lion and tiger jump a river in a straight line and land on the far bank, capturing anything they outrank there. The tiger jumps vertically; the lion jumps vertically or horizontally. A rat anywhere in the water, either color, blocks the jump.':
+    '狮和虎能沿直线跳过河、落在对岸，并吃掉那里等级低于自己的棋子。虎只能纵向跳；狮可纵向或横向跳。只要水中任意一格有老鼠（无论哪一方），就会挡住这次跳跃。',
+  'Move any piece into your opponent’s den and you win immediately. You also win by capturing every enemy piece. You can never enter your own den.':
+    '任何一枚棋子走进对方的兽穴，你立刻获胜。吃光对方所有棋子同样获胜。你永远不能进入自己的兽穴。',
+  'Games draw on threefold repetition, or when 100 half-moves (50 by each player) pass with no capture.':
+    '若同一局面出现三次，或连续 100 个半回合（每方 50 步）无吃子，则判和。',
+  'A full game': '完整对局',
+  'Step through a real game between two strengths of our bot. Watch the lion leap the river, the rat swim up the far lane and take the elephant in the open, and Red march the rest of the way into Black’s den.':
+    '逐步回放我们机器人两个强度之间的真实对局。看狮子跳过河、老鼠沿远侧通道游上去并在空地上吃掉大象，最后红方一路走进黑方的兽穴。',
+  'Jungle is playable on Mistboard: take on Misty Jungle at the strength you pick, or challenge a friend. Flip Jungle is the small face-down cousin on a four-by-four grid.':
+    '斗兽棋可在 Mistboard 上对弈：选择你想要的强度挑战 Misty Jungle，或与好友对战。翻翻棋是它在 4×4 格上、棋子翻面的小型表亲。',
+  'Play Misty Jungle': '对战 Misty Jungle',
+  'Flip Jungle': '翻翻棋',
+  'Flip Jungle (兽棋)': '兽棋（翻翻棋）',
+  'The 4×4 flip version of Jungle. Every animal starts face-down, you flip to reveal, and equal ranks trade off the board.':
+    '斗兽棋的 4×4 翻面版本。所有动物开局均背面朝上，翻开即亮明身份，等级相同的双方同归于尽、一起离场。',
+  'Flip Jungle (兽棋, also 翻翻棋) is the small, fast cousin of [Jungle](/rules/jungle). The same eight animals per side, shuffled face-down on a four-by-four grid, identities hidden until you turn them over. It is a casual favorite played on chalk grids and phone screens across China. No rivers, no dens, no traps, just the animals, the rank ladder, and a gamble on what sits under each tile.':
+    '兽棋（又称翻翻棋）是[斗兽棋](/rules/jungle)小巧而快节奏的表亲。每方同样的八种动物，背面朝上洗匀摆在四乘四的格子上，身份要到翻开才揭晓。它是在中国各地用粉笔画格、在手机屏幕上随手就玩的休闲热门。没有河流、没有兽穴、没有陷阱，只有动物、等级阶梯，以及对每枚棋子底下是什么的一场赌注。',
+  'All sixteen pieces, one of each animal in two colors, are shuffled and placed face-down on the sixteen squares. Nobody knows which animal or which color sits under a tile until it is flipped. The first tile you flip sets your color for the rest of the game.':
+    '全部十六枚棋子（两种颜色各八种动物）洗匀后背面朝上放在十六个格子里。在翻开之前，谁也不知道某个格子下面是哪种动物、哪种颜色。你翻开的第一枚棋子决定你在本局其余时间的颜色。',
+  'A turn': '一个回合',
+  'On your turn you either flip one face-down tile to reveal it, or move one of your own revealed animals one square up, down, left, or right. Early on, before pieces come up, flipping is all you can do.':
+    '轮到你时，你要么翻开一枚背面朝上的棋子使其亮明，要么把己方一枚已翻开的动物上下左右走一格。开局阶段，在棋子尚未翻出之前，你能做的只有翻棋。',
+  Capturing: '吃子',
+  'Capture an adjacent enemy you outrank, with the same rat-beats-elephant exception as the full game. Equal ranks work differently here. When an animal meets an enemy of its own rank, both leave the board (同归于尽, “they perish together”), and neither side keeps the square. Because identities stay hidden until contact, every attack is a bet, and the mutual-destruction rule raises the price of guessing wrong.':
+    '吃掉相邻的、等级低于你的敌方棋子，并保留与完整版相同的「老鼠吃大象」例外。等级相同在这里的处理不同：当一个动物遇到与自己等级相同的敌人时，双方都离开棋盘（同归于尽），任何一方都不占据该格。由于身份直到接触才揭晓，每一次进攻都是一场赌博，而同归于尽的规则抬高了猜错的代价。',
+  'You win when your opponent has nothing left to do: no piece to move and no tile to flip. In practice that means capturing or trading away everything they have.':
+    '当对手无事可做时你获胜：既没有棋子可走，也没有棋子可翻。实际上，这意味着把对方拥有的一切吃掉或换掉。',
+  'Games draw on threefold repetition, or when 40 half-moves (20 by each player) pass with no flip, capture, or trade.':
+    '若同一局面出现三次，或连续 40 个半回合（每方 20 步）没有翻棋、吃子或同归于尽，则判和。',
+  'Step through a game our bot played against itself. The two lions meet and both leave the board, an elephant runs through three pieces until it hits the other elephant and they cancel too, and the side left standing wins. Tiles flip to their dealt animal the first time they are turned over.':
+    '逐步回放我们机器人左右互搏的一盘棋。两只狮子相遇、双双离场；一头大象连吃三子，直到撞上另一头大象、两象也同归于尽；最后还有棋子站着的一方获胜。棋子第一次被翻开时，会显示其发到的动物。',
+  'Flip Jungle is playable on Mistboard: take on MistyJungleFlip, or challenge a friend. Jungle is the full 7×9 game these animals come from.':
+    '翻翻棋可在 Mistboard 上对弈：挑战 MistyJungleFlip，或与好友对战。斗兽棋是这些动物的来源，即完整的 7×9 版本。',
+  'Play MistyJungleFlip': '对战 MistyJungleFlip',
+  Jungle: '斗兽棋',
+  'Engine vs engine': '引擎对引擎',
+  'Red wins by reaching the den · 69 moves': '红方进入兽穴获胜 · 69 步',
+  'Red’s rat has already taken Black’s elephant in the open, and with the strongest piece off the board Red walks a piece straight into Black’s undefended den. Reaching the enemy den ends the game at once, no matter what material is left.':
+    '红方的老鼠已经在空地上吃掉了黑方的大象，最强的棋子离场后，红方径直把一枚棋子走进黑方无人防守的兽穴。进入对方兽穴会立刻结束对局，无论场上还剩多少子力。',
+  'Engine self-play': '引擎自我对弈',
+  'Black wins by elimination · 36 moves': '黑方吃光对手获胜 · 36 步',
+  'Both lions and both elephants have already traded off the board (同归于尽), and the pieces that survived all belong to Black. Red has nothing left that can move, so the game ends: with no piece to move and no tile to flip, Red loses.':
+    '两只狮子和两头大象都已同归于尽离场，存活下来的棋子全部属于黑方。红方再无可走之子，于是对局结束：既没有棋子可走，也没有棋子可翻，红方告负。',
 };
 
 const ZH_HANT: Record<string, string> = {
@@ -1333,6 +1396,69 @@ const ZH_HANT: Record<string, string> = {
   'Attacking, the cannon jumps a screen and ignores rank.': '砲進攻時隔一子跳吃，不看等級。',
   'As a target it ranks here: taken by horse and up, never by a soldier.':
     '作為目標時，砲排在這裡：馬以上可吃，卒不可吃。',
+  // -- Jungle + Flip Jungle (rules articles) --
+  'Jungle (Dou Shou Qi)': '鬥獸棋',
+  "The classic Chinese animal-chess game on a 7×9 board. Eight ranked animals, rivers only the rat can cross, and a race to the opponent's den.":
+    '經典的中國動物棋，棋盤 7×9。八種按等級排列的動物，只有老鼠能過的河，以及衝入對方獸穴的競賽。',
+  'Jungle, also called Dou Shou Qi (斗兽棋) or Animal Chess, is a two-player game played across much of East Asia. Each side commands eight animals of different rank. You win by marching a piece into your opponent’s den, or by capturing all of their pieces.':
+    '鬥獸棋（英文稱 Jungle 或 Animal Chess）是流行於東亞許多地區的雙人遊戲。每方指揮八種不同等級的動物。把一枚棋子走進對方的獸穴，或吃光對方所有棋子，即獲勝。',
+  'Three rules give the game its character: the rat captures the elephant, only the rat can swim, and the lion and tiger leap the rivers.':
+    '三條規則賦予了這盤棋的特色：老鼠能吃大象，只有老鼠能下水，獅和虎能跳過河。',
+  'Seven files wide, nine ranks deep. Your den sits at the center of your back rank, ringed by three trap squares. Two rivers, each a 2×3 block of water, split the middle of the board, with land lanes down both edges and the center. Every piece moves one square up, down, left, or right. No diagonals.':
+    '棋盤寬七路、縱九行。你的獸穴位於己方底線中央，周圍環繞三個陷阱格。兩片河流各為 2×3 的水域，分隔棋盤中部，兩側和中路留有陸地通道。每枚棋子只能上下左右走一格，不能斜走。',
+  'The animals': '動物',
+  'Strongest to weakest: elephant, lion, tiger, leopard, wolf, dog, cat, rat. A piece captures any adjacent enemy of equal or lower rank. The exception runs the other way: the rat captures the elephant, and the elephant can never capture the rat.':
+    '由強到弱依次是：象、獅、虎、豹、狼、狗、貓、鼠。一枚棋子可以吃掉相鄰的、等級相同或更低的敵方棋子。唯一的例外反其道而行：老鼠能吃大象，而大象永遠吃不了老鼠。',
+  Traps: '陷阱',
+  'Step a piece onto one of your opponent’s three trap squares and it loses all rank while it stands there. Any defending piece can take it, down to a rat capturing a trapped elephant. Your own traps never weaken your pieces.':
+    '把一枚棋子走進對方三個陷阱格之一，它在停留期間會喪失全部等級。任何防守方棋子都能吃掉它，哪怕是老鼠吃掉落入陷阱的大象。己方的陷阱不會削弱自己的棋子。',
+  'The rivers': '河流',
+  "Only the rat enters the water. A rat in the river is safe from every land piece and can be taken only by another rat in the water. It also can't capture from the water onto land, so the rat needs dry ground to take the elephant.":
+    '只有老鼠能進入水中。河裡的老鼠不受任何陸地棋子威脅，只能被同在水中的另一隻老鼠吃掉。它也無法從水中吃向岸上，所以老鼠要吃大象得站在陸地上。',
+  'The lion and tiger jump a river in a straight line and land on the far bank, capturing anything they outrank there. The tiger jumps vertically; the lion jumps vertically or horizontally. A rat anywhere in the water, either color, blocks the jump.':
+    '獅和虎能沿直線跳過河、落在對岸，並吃掉那裡等級低於自己的棋子。虎只能縱向跳；獅可縱向或橫向跳。只要水中任意一格有老鼠（無論哪一方），就會擋住這次跳躍。',
+  'Move any piece into your opponent’s den and you win immediately. You also win by capturing every enemy piece. You can never enter your own den.':
+    '任何一枚棋子走進對方的獸穴，你立刻獲勝。吃光對方所有棋子同樣獲勝。你永遠不能進入自己的獸穴。',
+  'Games draw on threefold repetition, or when 100 half-moves (50 by each player) pass with no capture.':
+    '若同一局面出現三次，或連續 100 個半回合（每方 50 步）無吃子，則判和。',
+  'A full game': '完整對局',
+  'Step through a real game between two strengths of our bot. Watch the lion leap the river, the rat swim up the far lane and take the elephant in the open, and Red march the rest of the way into Black’s den.':
+    '逐步回放我們機器人兩個強度之間的真實對局。看獅子跳過河、老鼠沿遠側通道游上去並在空地上吃掉大象，最後紅方一路走進黑方的獸穴。',
+  'Jungle is playable on Mistboard: take on Misty Jungle at the strength you pick, or challenge a friend. Flip Jungle is the small face-down cousin on a four-by-four grid.':
+    '鬥獸棋可在 Mistboard 上對弈：選擇你想要的強度挑戰 Misty Jungle，或與好友對戰。翻翻棋是它在 4×4 格上、棋子翻面的小型表親。',
+  'Play Misty Jungle': '對戰 Misty Jungle',
+  'Flip Jungle': '翻翻棋',
+  'Flip Jungle (兽棋)': '獸棋（翻翻棋）',
+  'The 4×4 flip version of Jungle. Every animal starts face-down, you flip to reveal, and equal ranks trade off the board.':
+    '鬥獸棋的 4×4 翻面版本。所有動物開局均背面朝上，翻開即亮明身分，等級相同的雙方同歸於盡、一起離場。',
+  'Flip Jungle (兽棋, also 翻翻棋) is the small, fast cousin of [Jungle](/rules/jungle). The same eight animals per side, shuffled face-down on a four-by-four grid, identities hidden until you turn them over. It is a casual favorite played on chalk grids and phone screens across China. No rivers, no dens, no traps, just the animals, the rank ladder, and a gamble on what sits under each tile.':
+    '獸棋（又稱翻翻棋）是[鬥獸棋](/rules/jungle)小巧而快節奏的表親。每方同樣的八種動物，背面朝上洗勻擺在四乘四的格子上，身分要到翻開才揭曉。它是在中國各地用粉筆畫格、在手機螢幕上隨手就玩的休閒熱門。沒有河流、沒有獸穴、沒有陷阱，只有動物、等級階梯，以及對每枚棋子底下是什麼的一場賭注。',
+  'All sixteen pieces, one of each animal in two colors, are shuffled and placed face-down on the sixteen squares. Nobody knows which animal or which color sits under a tile until it is flipped. The first tile you flip sets your color for the rest of the game.':
+    '全部十六枚棋子（兩種顏色各八種動物）洗勻後背面朝上放在十六個格子裡。在翻開之前，誰也不知道某個格子下面是哪種動物、哪種顏色。你翻開的第一枚棋子決定你在本局其餘時間的顏色。',
+  'A turn': '一個回合',
+  'On your turn you either flip one face-down tile to reveal it, or move one of your own revealed animals one square up, down, left, or right. Early on, before pieces come up, flipping is all you can do.':
+    '輪到你時，你要麼翻開一枚背面朝上的棋子使其亮明，要麼把己方一枚已翻開的動物上下左右走一格。開局階段，在棋子尚未翻出之前，你能做的只有翻棋。',
+  Capturing: '吃子',
+  'Capture an adjacent enemy you outrank, with the same rat-beats-elephant exception as the full game. Equal ranks work differently here. When an animal meets an enemy of its own rank, both leave the board (同归于尽, “they perish together”), and neither side keeps the square. Because identities stay hidden until contact, every attack is a bet, and the mutual-destruction rule raises the price of guessing wrong.':
+    '吃掉相鄰的、等級低於你的敵方棋子，並保留與完整版相同的「老鼠吃大象」例外。等級相同在這裡的處理不同：當一個動物遇到與自己等級相同的敵人時，雙方都離開棋盤（同歸於盡），任何一方都不佔據該格。由於身分直到接觸才揭曉，每一次進攻都是一場賭博，而同歸於盡的規則抬高了猜錯的代價。',
+  'You win when your opponent has nothing left to do: no piece to move and no tile to flip. In practice that means capturing or trading away everything they have.':
+    '當對手無事可做時你獲勝：既沒有棋子可走，也沒有棋子可翻。實際上，這意味著把對方擁有的一切吃掉或換掉。',
+  'Games draw on threefold repetition, or when 40 half-moves (20 by each player) pass with no flip, capture, or trade.':
+    '若同一局面出現三次，或連續 40 個半回合（每方 20 步）沒有翻棋、吃子或同歸於盡，則判和。',
+  'Step through a game our bot played against itself. The two lions meet and both leave the board, an elephant runs through three pieces until it hits the other elephant and they cancel too, and the side left standing wins. Tiles flip to their dealt animal the first time they are turned over.':
+    '逐步回放我們機器人左右互搏的一盤棋。兩隻獅子相遇、雙雙離場；一頭大象連吃三子，直到撞上另一頭大象、兩象也同歸於盡；最後還有棋子站著的一方獲勝。棋子第一次被翻開時，會顯示其發到的動物。',
+  'Flip Jungle is playable on Mistboard: take on MistyJungleFlip, or challenge a friend. Jungle is the full 7×9 game these animals come from.':
+    '翻翻棋可在 Mistboard 上對弈：挑戰 MistyJungleFlip，或與好友對戰。鬥獸棋是這些動物的來源，即完整的 7×9 版本。',
+  'Play MistyJungleFlip': '對戰 MistyJungleFlip',
+  Jungle: '鬥獸棋',
+  'Engine vs engine': '引擎對引擎',
+  'Red wins by reaching the den · 69 moves': '紅方進入獸穴獲勝 · 69 步',
+  'Red’s rat has already taken Black’s elephant in the open, and with the strongest piece off the board Red walks a piece straight into Black’s undefended den. Reaching the enemy den ends the game at once, no matter what material is left.':
+    '紅方的老鼠已經在空地上吃掉了黑方的大象，最強的棋子離場後，紅方逕直把一枚棋子走進黑方無人防守的獸穴。進入對方獸穴會立刻結束對局，無論場上還剩多少子力。',
+  'Engine self-play': '引擎自我對弈',
+  'Black wins by elimination · 36 moves': '黑方吃光對手獲勝 · 36 步',
+  'Both lions and both elephants have already traded off the board (同归于尽), and the pieces that survived all belong to Black. Red has nothing left that can move, so the game ends: with no piece to move and no tile to flip, Red loses.':
+    '兩隻獅子和兩頭大象都已同歸於盡離場，存活下來的棋子全部屬於黑方。紅方再無可走之子，於是對局結束：既沒有棋子可走，也沒有棋子可翻，紅方告負。',
 };
 
 const ARTICLE_DICTS: Record<ArticleLang, Record<string, string>> = {

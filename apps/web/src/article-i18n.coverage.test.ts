@@ -24,6 +24,8 @@ const TRANSLATION_LOCKED_SLUGS: string[] = [
   'jieqi',
   'banqi',
   'mistybanqi',
+  'jungle',
+  'jungle-flip',
 ];
 
 function truncate(text: string): string {
