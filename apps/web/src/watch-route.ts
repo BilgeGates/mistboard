@@ -472,6 +472,8 @@ const CHANNEL_MINI_BY_ID: Record<string, VariantMiniId> = {
   'dark-crazyhouse': 'dark-crazyhouse',
   kriegspiel: 'kriegspiel',
   'reveal-chess': 'reveal-chess',
+  jungle: 'jungle',
+  'jungle-flip': 'jungle-flip',
 };
 
 export function renderWatchChannelList(root: HTMLElement, feed: WatchFeed | null): void {

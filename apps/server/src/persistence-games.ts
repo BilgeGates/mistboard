@@ -649,7 +649,14 @@ export async function listWatchUnlockedGames(
        AND games.mode IN ('pvp', 'pve', 'eve')
        AND games.ended_at <= $2
        AND (
-         (games.termination IN ('checkmate', 'draw', 'king-captured', 'general-captured') AND last_events.type = 'move-played')
+         -- A move-decided ending always closes on a move-played event, whatever the
+         -- variant calls it (checkmate, draw, king/general-captured, race/den-entered,
+         -- no-legal-moves/pieces-captured, stalemate, progress-clock, repetition, ...).
+         -- Match on the event being the terminal move rather than an explicit
+         -- termination allowlist, which silently hid jungle/banqi/flip endings; the
+         -- clock/resign/forfeit endings still pair with their own event type.
+         (last_events.type = 'move-played'
+            AND games.termination NOT IN ('timeout', 'resignation', 'abandonment'))
          OR (games.termination = 'timeout' AND last_events.type = 'clock-expired')
          OR (games.termination = 'resignation' AND last_events.type = 'seat-resigned')
          OR (games.termination = 'abandonment' AND last_events.type = 'seat-forfeited')

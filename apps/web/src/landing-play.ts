@@ -2172,10 +2172,11 @@ export function roomCreationRequestBody(
     };
   }
   if (setup.gameSpecId === JUNGLE_FLIP_SPEC_ID) {
-    // Flip Jungle is symmetric hidden-identity 4×4 flip animal chess; PvP-only,
-    // move-order seats (ink binds on the first flip), casual-only.
+    // Flip Jungle is symmetric hidden-identity 4×4 flip animal chess; move-order
+    // seats (ink binds on the first flip), casual-only. PvP + in-process-spawned
+    // PvE bot (MistyJungleFlip); PvE sends the picked engine id.
     return {
-      mode: 'pvp',
+      mode,
       gameSpecId,
       timeControl: setup.timeControl,
       rated: false,
@@ -2185,6 +2186,7 @@ export function roomCreationRequestBody(
           : setup.preferredColor === 'red' || setup.preferredColor === 'black'
             ? setup.preferredColor
             : 'random',
+      ...(mode === 'pve' && engineId ? { engineId } : {}),
     };
   }
   if (setup.gameSpecId === JIEQI_SPEC_ID) {
