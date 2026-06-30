@@ -212,7 +212,9 @@ const fsfQueue: Array<{
 
 function maxConcurrentFsfProcesses(): number {
   const raw = Number.parseInt(process.env.MISTBOARD_DROP_MINI_XIANGQI_FSF_MAX_PROCESSES ?? '', 10);
-  return Number.isFinite(raw) && raw > 0 ? raw : DEFAULT_MAX_CONCURRENT_FSF;
+  // Clamp 1–8 (matches banqi/crossroads): an unbounded override would let a
+  // misconfig fan out arbitrarily many FSF subprocesses on the shared web vCPU.
+  return Number.isFinite(raw) && raw > 0 ? Math.min(raw, 8) : DEFAULT_MAX_CONCURRENT_FSF;
 }
 
 function fsfQueueTimeoutMs(): number {
@@ -220,7 +222,9 @@ function fsfQueueTimeoutMs(): number {
     process.env.MISTBOARD_DROP_MINI_XIANGQI_FSF_QUEUE_TIMEOUT_MS ?? '',
     10,
   );
-  return Number.isFinite(raw) && raw > 0 ? raw : DEFAULT_FSF_QUEUE_TIMEOUT_MS;
+  return Number.isFinite(raw) && raw > 0
+    ? Math.min(Math.max(raw, 100), 30_000)
+    : DEFAULT_FSF_QUEUE_TIMEOUT_MS;
 }
 
 function acquireFsfSlot(): Promise<() => void> {
