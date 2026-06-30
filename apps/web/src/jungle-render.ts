@@ -26,6 +26,7 @@ import {
   JUNGLE_DENS,
   type JungleBoard,
   type JungleColor,
+  type JunglePieceRole,
   type JungleSquare,
   jungleCoordOf,
   jungleTrapOwner,
@@ -96,6 +97,8 @@ export type JungleRenderOptions = {
   lastMove?: { from: JungleSquare; to: JungleSquare } | null;
   selected?: JungleSquare | null;
   targets?: readonly JungleSquare[];
+  // The square a piece is being dragged from: its on-board token dims so only the ghost reads.
+  draggingFrom?: JungleSquare | null;
   interactive?: boolean;
   idSuffix?: string;
   // Drop the per-token shadow filter (markers don't need it, and it avoids duplicate
@@ -128,21 +131,6 @@ function furniture(
   // Grass land under everything.
   parts.push(jungleCoverImage(jungleBoardAssetHref('grass'), 0, 0, boardW, boardH));
 
-  // Tile-separating grid on every cell boundary (banqi-style), over the grass but under
-  // the water/den/trap tiles (so no lines cross them).
-  for (let i = 0; i <= FILES; i += 1) {
-    const x = i * c;
-    parts.push(
-      `<line x1="${x}" y1="0" x2="${x}" y2="${boardH}" stroke="${GRID_STROKE}" stroke-width="1" stroke-linecap="round"/>`,
-    );
-  }
-  for (let j = 0; j <= RANKS; j += 1) {
-    const y = j * c;
-    parts.push(
-      `<line x1="0" y1="${y}" x2="${boardW}" y2="${y}" stroke="${GRID_STROKE}" stroke-width="1" stroke-linecap="round"/>`,
-    );
-  }
-
   // Each lake as ONE water image over its 6-cell bounding box (flip-safe).
   for (const lake of LAKES) {
     let minX = Infinity;
@@ -174,6 +162,22 @@ function furniture(
     }
   }
 
+  // Tile-separating grid on every cell boundary (banqi-style), drawn OVER all the terrain
+  // (grass, water, den, trap) so every tile — including the river lakes — reads as a
+  // discrete cell.
+  for (let i = 0; i <= FILES; i += 1) {
+    const x = i * c;
+    parts.push(
+      `<line x1="${x}" y1="0" x2="${x}" y2="${boardH}" stroke="${GRID_STROKE}" stroke-width="1" stroke-linecap="round"/>`,
+    );
+  }
+  for (let j = 0; j <= RANKS; j += 1) {
+    const y = j * c;
+    parts.push(
+      `<line x1="0" y1="${y}" x2="${boardW}" y2="${y}" stroke="${GRID_STROKE}" stroke-width="1" stroke-linecap="round"/>`,
+    );
+  }
+
   // Last-move ring over the terrain (dark edge under a bright core, so it reads on any
   // tile — grass, water, den, or trap — where a flat translucent fill washes out).
   if (lastMove) {
@@ -188,7 +192,13 @@ function furniture(
 
 // Each piece: the shared framed dobutsu token (cream disc + cutout + colour ring + shadow).
 // Sized to sit INSIDE the last-move ring (its inner clear is ~0.83·cell).
-function pieces(board: JungleBoard, geom: GridGeometry, gid: string, shadow: boolean): string {
+function pieces(
+  board: JungleBoard,
+  geom: GridGeometry,
+  gid: string,
+  shadow: boolean,
+  draggingFrom: JungleSquare | null,
+): string {
   const parts: string[] = [];
   const s = geom.cell * 0.84;
   for (const square of ALL_JUNGLE_SQUARES) {
@@ -196,18 +206,31 @@ function pieces(board: JungleBoard, geom: GridGeometry, gid: string, shadow: boo
     if (!piece) continue;
     const { file, rank } = jungleCoordOf(square);
     const { x, y } = geom.center(file, rank);
-    parts.push(
-      framedTokenSvg({
-        cx: x,
-        cy: y,
-        size: s,
-        ink: piece.color,
-        role: piece.role,
-        filterId: shadow ? `${gid}-shadow` : undefined,
-      }),
-    );
+    const token = framedTokenSvg({
+      cx: x,
+      cy: y,
+      size: s,
+      ink: piece.color,
+      role: piece.role,
+      filterId: shadow ? `${gid}-shadow` : undefined,
+    });
+    // While this piece is being dragged, dim its on-board token so only the ghost reads.
+    parts.push(square === draggingFrom ? `<g class="jungle-drag-source">${token}</g>` : token);
   }
   return parts.join('');
+}
+
+// The floating ghost piece shown while dragging (a framed token in a one-cell SVG box),
+// appended to <body> by installBoardDrag.
+export function junglePieceGhostSvg(entry: { color: JungleColor; role: JunglePieceRole }): string {
+  const inner = framedTokenSvg({
+    cx: CELL / 2,
+    cy: CELL / 2,
+    size: CELL * 0.84,
+    ink: entry.color,
+    role: entry.role,
+  });
+  return `<svg viewBox="0 0 ${CELL} ${CELL}" xmlns="http://www.w3.org/2000/svg" width="100%" height="100%">${inner}</svg>`;
 }
 
 export function renderJungleBoardSvg(
@@ -222,7 +245,8 @@ export function renderJungleBoardSvg(
     extraDefs: shadow ? defs(gid) : '',
     coords: false,
     renderPieces: (geom) =>
-      furniture(geom, options.lastMove ?? null) + pieces(board, geom, gid, shadow),
+      furniture(geom, options.lastMove ?? null) +
+      pieces(board, geom, gid, shadow, options.draggingFrom ?? null),
     // Last-move is drawn inside furniture (over the grass terrain); the core's own
     // last-move layer sits under renderPieces and would be hidden by the grass.
     lastMove: null,

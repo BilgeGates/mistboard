@@ -112,14 +112,23 @@ export function jungleFaceDownDiscSvg(
 
 /** Last-move marker: a bold bright-amber ring on a dark backing so it stays obvious on
  *  the grass/water terrain (a faint yellow washed out). */
-export function jungleLastMoveRingSvg(x: number, y: number, cell: number): string {
+export function jungleLastMoveRingSvg(
+  x: number,
+  y: number,
+  cell: number,
+  // Stroke widths ÷ cell. Default is the bold jungle ring; callers (Flip Jungle) can pass
+  // thinner ratios for a lighter indicator.
+  opts: { edgeRatio?: number; ringRatio?: number } = {},
+): string {
   const inset = cell * 0.05;
   const hx = x + inset;
   const hy = y + inset;
   const hs = cell - inset * 2;
+  const edge = cell * (opts.edgeRatio ?? 0.13);
+  const ring = cell * (opts.ringRatio ?? 0.09);
   return (
-    // Dark backing for contrast on any tile, then a thick amber ring + a stronger fill.
-    `<rect x="${hx}" y="${hy}" width="${hs}" height="${hs}" rx="4" fill="rgba(255,170,0,0.34)" stroke="#201503" stroke-width="${cell * 0.13}"/>` +
-    `<rect x="${hx}" y="${hy}" width="${hs}" height="${hs}" rx="4" fill="none" stroke="#ffb000" stroke-width="${cell * 0.09}"/>`
+    // Dark backing for contrast on any tile, then an amber ring + a stronger fill.
+    `<rect x="${hx}" y="${hy}" width="${hs}" height="${hs}" rx="4" fill="rgba(255,170,0,0.34)" stroke="#201503" stroke-width="${edge}"/>` +
+    `<rect x="${hx}" y="${hy}" width="${hs}" height="${hs}" rx="4" fill="none" stroke="#ffb000" stroke-width="${ring}"/>`
   );
 }

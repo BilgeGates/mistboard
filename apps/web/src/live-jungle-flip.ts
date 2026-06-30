@@ -18,7 +18,12 @@ import type {
 } from '@mistboard/game';
 import './live-xiangqi.css';
 import { jungleFlipEnabled } from './feature-flags.js';
-import { type JungleFlipRenderBoard, renderJungleFlipBoardSvg } from './jungle-flip-render.js';
+import {
+  JUNGLE_FLIP_BOARD_VIEW,
+  type JungleFlipRenderBoard,
+  jungleFlipPieceGhostSvg,
+  renderJungleFlipBoardSvg,
+} from './jungle-flip-render.js';
 import {
   maybePlayJungleFlipSnapshotSound,
   resetJungleFlipSoundState,
@@ -31,6 +36,7 @@ import { roomIdFromPath } from './room-url.js';
 import { syncMoveListScroll } from './variant-tenant/chrome-dom.js';
 import { createTenantReplayController } from './variant-tenant/replay-controller.js';
 import { createTenantRoomChrome, type WebVariantTenant } from './variant-tenant/room-chrome.js';
+import { installBoardDrag } from './variant-tenant/board-drag.js';
 import { installSelectionClickAway } from './variant-tenant/selection-click-away.js';
 import {
   createTenantSocketClient,
@@ -106,6 +112,7 @@ const state = {
 let client: TenantSocketClient | null = null;
 let refs: LiveRefs | null = null;
 let selectedSquare: JungleFlipSquare | null = null;
+let draggingFrom: JungleFlipSquare | null = null;
 let lastCapturedView: JungleFlipWireView | null = null;
 let lastCapturedKey: string | null = null;
 
@@ -151,7 +158,7 @@ const jungleFlipWebTenant: WebVariantTenant<JungleFlipSeat> = {
   isColor: isJungleFlipSeat,
   oppositeColor: (color) => (color === 'red' ? 'black' : 'red'),
   enabled: jungleFlipEnabled,
-  reviewUrl: (roomId) => `/room/${encodeURIComponent(roomId)}`,
+  reviewUrl: (roomId) => `/jungle-flip/game/${encodeURIComponent(roomId)}`,
   reasonPhrase: jungleFlipReasonPhrase,
   disabledTitle: 'Flip Jungle disabled',
   disabledBody: 'This client build has the room renderer off.',
@@ -219,6 +226,7 @@ export function bootstrapJungleFlipLiveRoom(): void {
   const room = roomIdFromPath(window.location.pathname) ?? params.get('room') ?? 'jgf_dev';
   state.room = room;
   selectedSquare = null;
+  draggingFrom = null;
   lastCapturedView = null;
   lastCapturedKey = null;
   replay.reset();
@@ -250,6 +258,7 @@ export function bootstrapJungleFlipLiveRoom(): void {
     hasSelection: () => selectedSquare !== null,
     clearSelection: () => {
       selectedSquare = null;
+      draggingFrom = null;
       if (refs) renderBoard(refs, replay.currentView(state.view));
     },
   });
@@ -344,19 +353,72 @@ function renderBoard(liveRefs: LiveRefs, view: JungleFlipWireView | null): void 
     interactive: true,
     selected: selectedSquare,
     targets,
+    draggingFrom,
     lastMove: view.lastMove ?? null,
   });
 }
 
 function installJungleFlipBoardInteraction(liveRefs: LiveRefs): void {
-  liveRefs.board.addEventListener('click', (event) => {
-    const cell = (event.target as HTMLElement).closest('[data-square]');
-    const square = cell?.getAttribute('data-square');
-    const view = state.view;
-    if (!view || !square) return;
-    handleSquareClick(view, square as JungleFlipSquare);
-    renderBoard(liveRefs, view);
+  installBoardDrag({
+    board: liveRefs.board,
+    // The board scales above its SVG units, so size the ghost to the on-screen cell.
+    ghostSizePx: () => {
+      const width = liveRefs.board.getBoundingClientRect().width;
+      return width > 0 ? width / JUNGLE_FLIP_BOARD_VIEW.files : JUNGLE_FLIP_BOARD_VIEW.cell;
+    },
+    onSquareClick: (square) => {
+      const view = state.view;
+      if (!view) return;
+      handleSquareClick(view, square as JungleFlipSquare);
+      renderBoard(liveRefs, view);
+    },
+    canDragFrom: (square) => canDragFlipPiece(square as JungleFlipSquare),
+    ghostHtml: (square) => {
+      const entry = state.view?.board[square as JungleFlipSquare];
+      return entry && !entry.faceDown ? jungleFlipPieceGhostSvg(entry) : null;
+    },
+    onDragStart: (from) => {
+      selectedSquare = from as JungleFlipSquare;
+      draggingFrom = from as JungleFlipSquare;
+      if (state.view) renderBoard(liveRefs, state.view);
+    },
+    onDrop: (from, to) =>
+      dropFlipPiece(liveRefs, from as JungleFlipSquare, to as JungleFlipSquare | null),
   });
+}
+
+// Only a revealed own animal can be lifted (face-down tiles are clicked to flip, not
+// dragged). It snaps back if dropped somewhere it cannot move.
+function canDragFlipPiece(square: JungleFlipSquare): boolean {
+  if (!replay.isLive() || connection() !== 'connected') return false;
+  const seat = state.seat;
+  const view = state.view;
+  if (!view || !isJungleFlipSeat(seat)) return false;
+  if (view.status.type !== 'playing' || view.status.turn !== seat) return false;
+  const entry = view.board[square];
+  const ink = jungleFlipSeatInk(seat, view);
+  return !!entry && !entry.faceDown && !!ink && entry.color === ink;
+}
+
+function dropFlipPiece(
+  liveRefs: LiveRefs,
+  from: JungleFlipSquare,
+  to: JungleFlipSquare | null,
+): void {
+  draggingFrom = null;
+  const view = state.view;
+  const move =
+    to && view
+      ? view.legalMoves.find((m) => m.from === from && m.to === to && m.to !== m.from)
+      : undefined;
+  if (move && view) {
+    selectedSquare = null;
+    send({ type: 'move', from: move.from, to: move.to });
+    playSound(soundForOwnJungleFlipMove(view, move));
+  } else {
+    selectedSquare = null;
+  }
+  if (state.view) renderBoard(liveRefs, state.view);
 }
 
 function handleSquareClick(view: JungleFlipWireView, square: JungleFlipSquare): void {

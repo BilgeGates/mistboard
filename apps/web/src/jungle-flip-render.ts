@@ -84,6 +84,8 @@ export type JungleFlipRenderOptions = {
   lastMove?: { from: JungleFlipSquare; to: JungleFlipSquare } | null;
   selected?: JungleFlipSquare | null;
   targets?: readonly JungleFlipSquare[];
+  // The square a revealed piece is being dragged from: its on-board token dims to a ghost.
+  draggingFrom?: JungleFlipSquare | null;
   interactive?: boolean;
   idSuffix?: string;
   // Drop the per-token shadow filter (markers; avoids duplicate filter ids).
@@ -128,7 +130,8 @@ function terrain(
     for (const sq of [lastMove.from, lastMove.to]) {
       const { file, rank } = jungleFlipCoordOf(sq);
       const { x, y } = geom.topLeft(file, rank);
-      parts.push(jungleLastMoveRingSvg(x, y, c));
+      // Thinner ring than the vanilla Jungle board (smaller board, busier art).
+      parts.push(jungleLastMoveRingSvg(x, y, c, { edgeRatio: 0.07, ringRatio: 0.045 }));
     }
   }
   return parts.join('');
@@ -139,6 +142,7 @@ function pieces(
   geom: GridGeometry,
   gid: string,
   shadow: boolean,
+  draggingFrom: JungleFlipSquare | null,
 ): string {
   const parts: string[] = [];
   // Sized to sit INSIDE the last-move ring (its inner clear is ~0.83·cell).
@@ -156,11 +160,34 @@ function pieces(
       continue;
     }
     // Revealed: the shared framed dobutsu token (matches the vanilla board).
-    parts.push(
-      framedTokenSvg({ cx: x, cy: y, size: s, ink: entry.color, role: entry.role, filterId }),
-    );
+    const token = framedTokenSvg({
+      cx: x,
+      cy: y,
+      size: s,
+      ink: entry.color,
+      role: entry.role,
+      filterId,
+    });
+    // While this piece is being dragged, dim its on-board token so only the ghost reads.
+    parts.push(square === draggingFrom ? `<g class="jungle-drag-source">${token}</g>` : token);
   }
   return parts.join('');
+}
+
+// The floating ghost piece shown while dragging a revealed animal (a framed token in a
+// one-cell SVG box), appended to <body> by installBoardDrag.
+export function jungleFlipPieceGhostSvg(entry: {
+  color: JungleFlipColor;
+  role: JungleFlipPieceRole;
+}): string {
+  const inner = framedTokenSvg({
+    cx: CELL / 2,
+    cy: CELL / 2,
+    size: CELL * 0.8,
+    ink: entry.color,
+    role: entry.role,
+  });
+  return `<svg viewBox="0 0 ${CELL} ${CELL}" xmlns="http://www.w3.org/2000/svg" width="100%" height="100%">${inner}</svg>`;
 }
 
 export function renderJungleFlipBoardSvg(
@@ -175,7 +202,8 @@ export function renderJungleFlipBoardSvg(
     extraDefs: shadow ? defs(gid) : '',
     coords: false,
     renderPieces: (geom) =>
-      terrain(geom, options.lastMove ?? null) + pieces(board, geom, gid, shadow),
+      terrain(geom, options.lastMove ?? null) +
+      pieces(board, geom, gid, shadow, options.draggingFrom ?? null),
     // Last-move is drawn inside terrain (over the bushy board); the core's own last-move
     // layer sits under renderPieces and would be hidden by the board image.
     lastMove: null,
