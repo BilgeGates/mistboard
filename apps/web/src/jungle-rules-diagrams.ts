@@ -136,15 +136,16 @@ export const JUNGLE_RAT_BLOCKS = jungleDiagram('-block', BLOCK_BOARD, { selected
 // `currentColor` so they follow the article's theme-adaptive text colour. Each
 // animal outranks everything to its left; the rat-beats-elephant wrap is left to
 // the prose + the dedicated demo board.
+// Strongest to weakest, matching the prose order in "The animals".
 const RANK_ORDER: JunglePieceRole[] = [
-  'rat',
-  'cat',
-  'dog',
-  'wolf',
-  'leopard',
-  'tiger',
-  'lion',
   'elephant',
+  'lion',
+  'tiger',
+  'leopard',
+  'wolf',
+  'dog',
+  'cat',
+  'rat',
 ];
 const RANK_LABEL: Record<JunglePieceRole, string> = {
   rat: 'Rat',
