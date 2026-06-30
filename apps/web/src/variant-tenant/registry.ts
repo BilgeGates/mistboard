@@ -130,8 +130,7 @@ const XIANGQI_CAPABILITIES_BASE = {
 } as const;
 
 const alwaysEnabled = () => true;
-const darkCrazyhouseLandingEnabled = () =>
-  import.meta.env.VITE_DARK_CRAZYHOUSE_ENABLED === 'true';
+const darkCrazyhouseLandingEnabled = () => import.meta.env.VITE_DARK_CRAZYHOUSE_ENABLED === 'true';
 
 const WEB_VARIANT_TENANTS: readonly WebVariantTenant[] = [
   {
