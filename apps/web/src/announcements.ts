@@ -18,6 +18,22 @@ export type Announcement = {
 
 const baseAnnouncements: Announcement[] = [
   {
+    date: '2026-06-30',
+    kind: 'release',
+    headline: 'Jungle (Dou Shou Qi) has launched.',
+    body: 'Rank-based animal chess on a 7 by 9 board with rivers, dens, and traps is live. Challenge a friend or take on the Misty Jungle engine.',
+    href: '/rules/jungle',
+    cta: 'Read rules',
+  },
+  {
+    date: '2026-06-30',
+    kind: 'release',
+    headline: 'Flip Jungle (兽棋) has launched.',
+    body: 'A 4 by 4 hidden-identity take on Dou Shou Qi: every animal starts face-down and flips as you play. Challenge a friend or take on the MistyJungleFlip engine.',
+    href: '/rules/jungle-flip',
+    cta: 'Read rules',
+  },
+  {
     date: '2026-06-22',
     kind: 'release',
     headline: 'Drop Mini Xiangqi has launched.',

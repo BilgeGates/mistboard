@@ -41,6 +41,8 @@ import {
   darkXiangqiEnabled,
   dropMiniXiangqiEnabled,
   jieqiEnabled,
+  jungleEnabled,
+  jungleFlipEnabled,
   kriegspielEnabled,
   revealChessEnabled,
 } from './feature-flags.js';
@@ -73,6 +75,8 @@ const dropMiniXiangqiOn = dropMiniXiangqiEnabled();
 const crossroadsEnabled = crossroadsChessEnabled();
 const jieqiOn = jieqiEnabled();
 const banqiOn = banqiEnabled();
+const jungleOn = jungleEnabled();
+const jungleFlipOn = jungleFlipEnabled();
 const revealChessOn = revealChessEnabled();
 const darkXiangqiOn = darkXiangqiEnabled();
 const darkCrossroadsChessOn = darkCrossroadsChessEnabled();
@@ -260,9 +264,9 @@ export const VARIANTS: VariantDef[] = [
   },
   // Jungle + Flip Jungle: rated human PvP (own pools), PvE bot games written
   // unrated. The rating pools + profile/persistence wiring are live, but the
-  // public leaderboard/profile DISPLAY is held until launch — same as Draft960
-  // above. At launch (publish the rules article + flip the play flag), flip
-  // these to `jungleOn` / `jungleFlipOn`. Not lobby open-seek, so `enabled: false`.
+  // public leaderboard/profile DISPLAY follows the play flag (`jungleOn` /
+  // `jungleFlipOn`), launched 2026-06-30 (now always-on). Not lobby open-seek (no
+  // public matchmaking in v1), so `enabled: false`.
   {
     id: currentRatingVariantForSpec(JUNGLE_SPEC_ID),
     gameSpecId: jungleSpec.id,
@@ -270,8 +274,8 @@ export const VARIANTS: VariantDef[] = [
     label: jungleSpec.publicName,
     miniId: 'jungle',
     enabled: false,
-    onLeaderboard: false,
-    onProfile: false,
+    onLeaderboard: jungleOn,
+    onProfile: jungleOn,
   },
   {
     id: currentRatingVariantForSpec(JUNGLE_FLIP_SPEC_ID),
@@ -280,8 +284,8 @@ export const VARIANTS: VariantDef[] = [
     label: jungleFlipSpec.publicName,
     miniId: 'jungle-flip',
     enabled: false,
-    onLeaderboard: false,
-    onProfile: false,
+    onLeaderboard: jungleFlipOn,
+    onProfile: jungleFlipOn,
   },
 ];
 

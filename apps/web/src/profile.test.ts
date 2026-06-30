@@ -25,7 +25,8 @@ describe('profile ratings rail', () => {
     expect(section.textContent).toContain('Dark Mini Xiangqi');
     expect(section.textContent).toContain('Drop Mini Xiangqi');
     expect(section.textContent).not.toContain('Crossroads Chess');
-    expect(section.querySelectorAll('.profile-rating-row-empty')).toHaveLength(3);
+    // Jungle + Flip Jungle launched 2026-06-30: always-on profile rows.
+    expect(section.querySelectorAll('.profile-rating-row-empty')).toHaveLength(5);
   });
 
   it('localizes Traditional Chinese profile ratings rows', async () => {
@@ -116,9 +117,10 @@ describe('profile ratings rail', () => {
     expect(root.textContent).not.toContain('Crossroads Chess');
     expect(root.textContent).toContain('Drop Mini Xiangqi');
     expect(root.textContent).toContain('Human blitz ladders');
-    expect(root.querySelector('.leaderboard-stat-value')?.textContent).toBe('2');
+    expect(root.querySelector('.leaderboard-stat-value')?.textContent).toBe('4');
     expect(root.querySelector('.leaderboard-panel-subtitle')?.textContent).toBe('Blitz rating');
-    expect(root.querySelectorAll('.leaderboard-panel')).toHaveLength(2);
+    // +2 always-on launch panels (Jungle, Flip Jungle).
+    expect(root.querySelectorAll('.leaderboard-panel')).toHaveLength(4);
     expect(fetchSpy).toHaveBeenCalledWith('/api/leaderboard?variant=drop-mini-xiangqi&limit=10');
     expect(fetchSpy).not.toHaveBeenCalledWith('/api/leaderboard?variant=crossroads-chess&limit=10');
   });
@@ -176,8 +178,9 @@ describe('profile ratings rail', () => {
     await mountLeaderboard(root);
 
     expect(root.textContent).toContain('Crossroads Chess');
-    expect(root.querySelector('.leaderboard-stat-value')?.textContent).toBe('3');
-    expect(root.querySelectorAll('.leaderboard-panel')).toHaveLength(3);
+    expect(root.querySelector('.leaderboard-stat-value')?.textContent).toBe('5');
+    // +2 always-on launch panels (Jungle, Flip Jungle).
+    expect(root.querySelectorAll('.leaderboard-panel')).toHaveLength(5);
     expect(fetchSpy).toHaveBeenCalledWith('/api/leaderboard?variant=crossroads-chess&limit=10');
   });
 });

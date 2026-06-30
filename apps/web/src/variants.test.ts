@@ -64,6 +64,8 @@ describe('web variant launch registry', () => {
     expect(prod.leaderboardVariants.map((v) => v.gameSpecId)).toEqual([
       DARK_CHESS_SPEC_ID,
       DROP_MINI_XIANGQI_SPEC_ID,
+      JUNGLE_SPEC_ID,
+      JUNGLE_FLIP_SPEC_ID,
     ]);
     vi.unstubAllEnvs();
     vi.resetModules();
@@ -79,10 +81,14 @@ describe('web variant launch registry', () => {
       DARK_CHESS_SPEC_ID,
       DARK_MINI_XIANGQI_SPEC_ID,
       DROP_MINI_XIANGQI_SPEC_ID,
+      JUNGLE_SPEC_ID,
+      JUNGLE_FLIP_SPEC_ID,
     ]);
     expect(flagged.leaderboardVariants.map((v) => v.gameSpecId)).toEqual([
       DARK_CHESS_SPEC_ID,
       DROP_MINI_XIANGQI_SPEC_ID,
+      JUNGLE_SPEC_ID,
+      JUNGLE_FLIP_SPEC_ID,
     ]);
     vi.unstubAllEnvs();
     vi.resetModules();
@@ -99,6 +105,8 @@ describe('web variant launch registry', () => {
       DARK_CHESS_SPEC_ID,
       DARK_MINI_XIANGQI_SPEC_ID,
       DROP_MINI_XIANGQI_SPEC_ID,
+      JUNGLE_SPEC_ID,
+      JUNGLE_FLIP_SPEC_ID,
     ]);
     expect(flagged.enabledVariants.map((v) => v.gameSpecId)).toContain(DARK_MINI_XIANGQI_SPEC_ID);
     expect(
@@ -173,6 +181,8 @@ describe('web variant launch registry', () => {
       JIEQI_SPEC_ID,
       BANQI_SPEC_ID,
       DARK_SHOGI_SPEC_ID,
+      JUNGLE_SPEC_ID,
+      JUNGLE_FLIP_SPEC_ID,
     ]);
     expect(profileRatingVariants.map((v) => v.gameSpecId)).toEqual([
       DARK_CHESS_SPEC_ID,
@@ -183,6 +193,8 @@ describe('web variant launch registry', () => {
       JIEQI_SPEC_ID,
       BANQI_SPEC_ID,
       DARK_SHOGI_SPEC_ID,
+      JUNGLE_SPEC_ID,
+      JUNGLE_FLIP_SPEC_ID,
     ]);
     expect(enabledVariants.map((v) => v.gameSpecId)).not.toContain(DARK_SHOGI_SPEC_ID);
     expect(variantMiniIdForGameSpec(DARK_SHOGI_SPEC_ID)).toBe('dark-shogi');
