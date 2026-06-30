@@ -33,7 +33,15 @@ import {
   REVEAL_CHESS_SPEC_ID,
   type TimeControlId,
 } from '@mistboard/game';
-import { correspondenceEnabled, jungleEnabled, jungleFlipEnabled } from '../feature-flags.js';
+import {
+  correspondenceEnabled,
+  crossroadsChessEnabled,
+  darkCrossroadsChessEnabled,
+  jungleEnabled,
+  jungleFlipEnabled,
+  kriegspielEnabled,
+  revealChessEnabled,
+} from '../feature-flags.js';
 import type { GameMeta, ReplayHandle } from '../replay.js';
 
 export type WebTenantEngineOption = {
@@ -122,6 +130,8 @@ const XIANGQI_CAPABILITIES_BASE = {
 } as const;
 
 const alwaysEnabled = () => true;
+const darkCrazyhouseLandingEnabled = () =>
+  import.meta.env.VITE_DARK_CRAZYHOUSE_ENABLED === 'true';
 
 const WEB_VARIANT_TENANTS: readonly WebVariantTenant[] = [
   {
@@ -631,8 +641,8 @@ const WEB_VARIANT_TENANTS: readonly WebVariantTenant[] = [
         supportsTimeControl: true,
       },
       timePresetIds: ['1m1', '3m2', '5m5'],
-      offerInMenu: alwaysEnabled,
-      acceptsDeepLink: alwaysEnabled,
+      offerInMenu: revealChessEnabled,
+      acceptsDeepLink: revealChessEnabled,
     },
   },
   // Perfect-information Crossroads is intentionally ranked last in the lobby
@@ -678,8 +688,8 @@ const WEB_VARIANT_TENANTS: readonly WebVariantTenant[] = [
         supportsTimeControl: true,
       },
       timePresetIds: ['1m1', '3m2', '5m5'],
-      offerInMenu: alwaysEnabled,
-      acceptsDeepLink: alwaysEnabled,
+      offerInMenu: crossroadsChessEnabled,
+      acceptsDeepLink: crossroadsChessEnabled,
       // Ordered strongest-first so the toughest opponent sits at the top of the picker.
       engineOptions: [
         {
@@ -752,8 +762,8 @@ const WEB_VARIANT_TENANTS: readonly WebVariantTenant[] = [
         supportsTimeControl: true,
       },
       timePresetIds: ['1m1', '3m2', '5m5'],
-      offerInMenu: alwaysEnabled,
-      acceptsDeepLink: alwaysEnabled,
+      offerInMenu: darkCrossroadsChessEnabled,
+      acceptsDeepLink: darkCrossroadsChessEnabled,
     },
   },
   {
@@ -849,8 +859,8 @@ const WEB_VARIANT_TENANTS: readonly WebVariantTenant[] = [
         supportsTimeControl: true,
       },
       timePresetIds: ['1m1', '3m2', '5m5'],
-      offerInMenu: alwaysEnabled,
-      acceptsDeepLink: alwaysEnabled,
+      offerInMenu: darkCrazyhouseLandingEnabled,
+      acceptsDeepLink: darkCrazyhouseLandingEnabled,
     },
   },
   {
@@ -897,8 +907,8 @@ const WEB_VARIANT_TENANTS: readonly WebVariantTenant[] = [
         supportsTimeControl: true,
       },
       timePresetIds: ['1m1', '3m2', '5m5'],
-      offerInMenu: alwaysEnabled,
-      acceptsDeepLink: alwaysEnabled,
+      offerInMenu: kriegspielEnabled,
+      acceptsDeepLink: kriegspielEnabled,
     },
   },
 ];

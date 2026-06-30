@@ -11,9 +11,6 @@ import { setResolvedSignedIn } from './signed-in-state.js';
 
 const BASELINE_PICKER_SPECS = [
   'dark-chess',
-  'dark-crazyhouse',
-  'kriegspiel',
-  'reveal-chess',
   'mini-xiangqi',
   'dark-mini-xiangqi',
   'drop-mini-xiangqi',
@@ -21,8 +18,6 @@ const BASELINE_PICKER_SPECS = [
   'jieqi',
   'banqi',
   'dark-shogi',
-  'crossroads-chess',
-  'dark-crossroads-chess',
 ];
 
 describe('landing play panel', () => {
@@ -44,7 +39,7 @@ describe('landing play panel', () => {
     vi.unstubAllGlobals();
   });
 
-  it('shows integrated variants in production without client launch flags', () => {
+  it('hides parked chess variants in production without client launch flags', () => {
     vi.stubEnv('DEV', false);
     vi.stubEnv('VITE_DARK_XIANGQI_ENABLED', 'false');
     vi.stubGlobal(
@@ -199,14 +194,7 @@ describe('landing play panel', () => {
 
     expect(activeSetupSection()).toBe('gameGroup');
     expect(setupSummaryValue('gameGroup')).toBe('Chess');
-    expect(visibleVariantPickerSpecs()).toEqual([
-      'dark-chess',
-      'dark-crazyhouse',
-      'kriegspiel',
-      'reveal-chess',
-      'crossroads-chess',
-      'dark-crossroads-chess',
-    ]);
+    expect(visibleVariantPickerSpecs()).toEqual(['dark-chess']);
 
     clickModalGameGroup('Xiangqi');
 

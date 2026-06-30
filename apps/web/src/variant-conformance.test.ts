@@ -13,10 +13,10 @@ import { webVariantTenants } from './variant-tenant/registry.js';
 // (the invite-friend regression). This guards every present + future variant
 // that the picker can offer.
 //
-// Every tenant with a `landing` config is selectable in the play dialog, so its
-// spec MUST round-trip through both builders to itself.
+// Every tenant currently offered in normal play-menu entry points must
+// round-trip through both builders to itself.
 
-const pickerTenants = webVariantTenants().filter((tenant) => tenant.landing);
+const pickerTenants = webVariantTenants().filter((tenant) => tenant.landing?.offerInMenu());
 
 function setupFor(gameSpecId: LandingRoomSetup['gameSpecId']): LandingRoomSetup {
   return {
