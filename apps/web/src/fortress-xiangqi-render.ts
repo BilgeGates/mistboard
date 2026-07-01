@@ -79,15 +79,7 @@ export function renderFortressXiangqiPieceInline(
   set: XiangqiPieceSet,
 ): string {
   if (piece.role === 'treasure') {
-    const colorHex = piece.color === 'red' ? '#b91c1c' : '#1f2937';
-    const glyph = set === 'simplified' ? '宝' : set === 'western' ? 'T' : '寶';
-    return [
-      `<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg" aria-label="${piece.color} treasure">`,
-      `<circle cx="50" cy="50" r="46" fill="#f3e6c4" stroke="${colorHex}" stroke-width="2.5"/>`,
-      `<circle cx="50" cy="50" r="38" fill="none" stroke="${colorHex}" stroke-width="1.5"/>`,
-      `<text x="50" y="50" font-family="serif" font-size="46" font-weight="700" fill="${colorHex}" text-anchor="middle" dominant-baseline="central">${glyph}</text>`,
-      `</svg>`,
-    ].join('');
+    return `<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg" aria-label="${piece.color} treasure">${treasureInnerMarks(piece.color, set)}</svg>`;
   }
   return renderXiangqiPieceGlyphed(piece as unknown as XiangqiPiece, set, {
     ariaLabel: `${piece.color} ${piece.role}`,
@@ -192,6 +184,29 @@ function renderFortressXiangqiPiece(
   });
 }
 
+// Treasure disc inner marks (centered in a 100x100 box). On the Dobutsu set it
+// mirrors the animal-disc look (cream fill + colored ring) with the 寶 glyph, so
+// it sits consistently beside the animal pieces — there is no Treasure animal
+// asset yet (a Peacock is the intended art). Other sets use the character disc.
+function treasureInnerMarks(color: FortressXiangqiColor, set: XiangqiPieceSet): string {
+  const glyph = set === 'simplified' ? '宝' : set === 'western' ? 'T' : '寶';
+  if (set === 'animal-dobutsu') {
+    const ring = color === 'red' ? '#c2261e' : '#283a47';
+    const ink = color === 'red' ? '#8a1a14' : '#283a47';
+    return [
+      `<circle cx="50" cy="50" r="48.5" fill="#fff2cf"/>`,
+      `<text x="50" y="50" font-family="serif" font-size="44" font-weight="700" fill="${ink}" text-anchor="middle" dominant-baseline="central">${glyph}</text>`,
+      `<circle cx="50" cy="50" r="45" fill="none" stroke="${ring}" stroke-width="3.2"/>`,
+    ].join('');
+  }
+  const colorHex = color === 'red' ? '#b91c1c' : '#1f2937';
+  return [
+    `<circle cx="50" cy="50" r="46" fill="#f3e6c4" stroke="${colorHex}" stroke-width="2.5"/>`,
+    `<circle cx="50" cy="50" r="38" fill="none" stroke="${colorHex}" stroke-width="1.5"/>`,
+    `<text x="50" y="50" font-family="serif" font-size="46" font-weight="700" fill="${colorHex}" text-anchor="middle" dominant-baseline="central">${glyph}</text>`,
+  ].join('');
+}
+
 function treasureDisc(
   color: FortressXiangqiColor,
   set: XiangqiPieceSet,
@@ -199,15 +214,7 @@ function treasureDisc(
   y: number,
   className: string,
 ): string {
-  const colorHex = color === 'red' ? '#b91c1c' : '#1f2937';
-  const glyph = set === 'simplified' ? '宝' : set === 'western' ? 'T' : '寶';
-  return [
-    `<svg class="${className}" x="${x}" y="${y}" width="${PIECE_SIZE}" height="${PIECE_SIZE}" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg" aria-label="${color} treasure">`,
-    `<circle cx="50" cy="50" r="46" fill="#f3e6c4" stroke="${colorHex}" stroke-width="2.5"/>`,
-    `<circle cx="50" cy="50" r="38" fill="none" stroke="${colorHex}" stroke-width="1.5"/>`,
-    `<text x="50" y="50" font-family="serif" font-size="46" font-weight="700" fill="${colorHex}" text-anchor="middle" dominant-baseline="central">${glyph}</text>`,
-    `</svg>`,
-  ].join('');
+  return `<svg class="${className}" x="${x}" y="${y}" width="${PIECE_SIZE}" height="${PIECE_SIZE}" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg" aria-label="${color} treasure">${treasureInnerMarks(color, set)}</svg>`;
 }
 
 function selectionRing(
@@ -406,6 +413,17 @@ export function installFortressXiangqiBoardStyles(): void {
     }
     .fortress-xiangqi-live-board--disabled {
       background: repeating-linear-gradient(135deg, #ece7dc, #ece7dc 16px, #ddd5c5 16px, #ddd5c5 32px);
+    }
+    /* Postgame review: the 7x8 board is taller than wide, so size it by height
+       to fit the viewport without vertical scroll, and shrink the reserves. */
+    .banqi-postgame-page .fortress-xiangqi-live-board {
+      width: auto;
+      max-width: 100%;
+      height: min(62vh, 82vw);
+      margin-inline: auto;
+    }
+    .banqi-postgame-page .drop-mini-reserve-strip {
+      --drop-mini-hand-piece-size: 30px;
     }
   `;
   document.head.append(style);

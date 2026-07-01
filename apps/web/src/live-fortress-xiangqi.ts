@@ -22,7 +22,7 @@ import {
   fortressXiangqiMoveLabel,
 } from './fortress-xiangqi-view.js';
 import { createLiveLayout, setLiveLayoutGameSpec } from './live-layout.js';
-import { initLiveSound, playSound, resetLiveSoundState } from './live-sound.js';
+import { initLiveSound, playSound, playTerminalPlan, resetLiveSoundState } from './live-sound.js';
 import { clearSeatTokenForRoom, type LiveRefs } from './live-state.js';
 import { roomIdFromPath } from './room-url.js';
 import { setBoardFamily } from './theme.js';
@@ -102,6 +102,7 @@ let selectedDropRole: FortressXiangqiDropRole | null = null;
 let draggingFrom: FortressXiangqiSquare | null = null;
 let lastCapturedView: FortressXiangqiPlayerView | null = null;
 let lastCapturedPositionKey: string | null = null;
+let lastStatusType: string | null = null;
 
 const replay = createTenantReplayController<FortressXiangqiPlayerView>();
 
@@ -168,6 +169,7 @@ export function bootstrapFortressXiangqiLiveRoom(): void {
   draggingFrom = null;
   lastCapturedView = null;
   lastCapturedPositionKey = null;
+  lastStatusType = null;
   replay.reset();
   chrome.resetState();
   initLiveSound();
@@ -246,12 +248,31 @@ function applyEventFrame(frame: FortressLiveFrame): void {
   }
 }
 
+// Play the win/lose/draw sting once, on the live playing -> finished transition
+// (not on a reconnect into an already-finished game).
+function maybePlayFortressTerminalSound(): void {
+  const view = state.view;
+  const nextType = view?.status.type ?? null;
+  if (
+    view &&
+    view.status.type === 'finished' &&
+    lastStatusType === 'playing' &&
+    isFortressColor(state.seat)
+  ) {
+    const result: 'win' | 'lose' | 'draw' =
+      view.status.winner === null ? 'draw' : view.status.winner === state.seat ? 'win' : 'lose';
+    playTerminalPlan(result, view.status.reason ?? null);
+  }
+  lastStatusType = nextType;
+}
+
 function renderAll(): void {
   if (!refs) return;
   chrome.resetHostPanels();
   chrome.renderMeta();
   chrome.renderClocks();
 
+  maybePlayFortressTerminalSound();
   const view = state.view;
   reconcileInteractionState(view);
   captureReplayView(view);
