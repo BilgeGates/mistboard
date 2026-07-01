@@ -27,11 +27,16 @@ import {
 import type { GameMeta, ReplayHandle } from './replay.js';
 import { createPane, type ReplayPaneHandle } from './replay-board.js';
 import { createGameHeaderStrip } from './replay-meta.js';
+import { reconstructMoveDelays } from './showcase-clock.js';
 import { pickCompactViewKey } from './showcase-compact-view.js';
 import { formatClock } from './web-utils.js';
 
 const AUTO_PLAY_PLY_MS = 1100;
 const AUTO_PLAY_LOOP_HOLD_MS = 2600;
+// Compact showcase per-move pacing: play each move at its real recorded duration
+// clamped to this band, and tick the mover's clock across it.
+const SHOWCASE_MIN_MOVE_MS = 700;
+const SHOWCASE_MAX_MOVE_MS = 2500;
 
 export type MiniXiangqiWatchReplayOptions = {
   autoplay?: boolean;
@@ -162,12 +167,15 @@ export async function mountMiniXiangqiWatchReplay(
   let seatCells: { red: SeatCell; black: SeatCell } | null = null;
   let clocks: Array<Record<MiniXiangqiColor, number>> | null = null;
   let incrementMs = 0;
+  // Compact showcase: per-move real-duration playback delays (null = fixed pacing).
+  let moveDelays: number[] | null = null;
   // Continuous-countdown animation for the side to move (see tickClock).
   let clockAnim: {
     side: MiniXiangqiColor;
     startVal: number;
     floorVal: number;
     shownAt: number;
+    windowMs: number;
   } | null = null;
   let clockTickTimer: number | null = null;
   let maxPly = 0;
@@ -255,6 +263,7 @@ export async function mountMiniXiangqiWatchReplay(
         startVal,
         floorVal: nextVal === undefined ? startVal : Math.max(0, nextVal - incrementMs),
         shownAt: Date.now(),
+        windowMs: moveDelays?.[currentPly + 1] ?? AUTO_PLAY_PLY_MS,
       };
     } else {
       clockAnim = null;
@@ -265,13 +274,19 @@ export async function mountMiniXiangqiWatchReplay(
   // a fast drop, compressed into the auto-play window); mirrors the dark-chess
   // watch's clock tick. Settles at the floor when paused.
   const tickClock = (): void => {
-    if (!seatCells || !clockAnim) return;
-    const fraction = Math.min((Date.now() - clockAnim.shownAt) / AUTO_PLAY_PLY_MS, 1);
+    if (!clockAnim) return;
+    const fraction = Math.min((Date.now() - clockAnim.shownAt) / clockAnim.windowMs, 1);
     const displayed = Math.max(
       0,
       clockAnim.startVal - (clockAnim.startVal - clockAnim.floorVal) * fraction,
     );
-    seatCells[clockAnim.side].clock.textContent = formatClock(displayed);
+    if (compactSeats) {
+      const seat =
+        compactSeats.top.color === clockAnim.side ? compactSeats.top : compactSeats.bottom;
+      seat.clockEl.textContent = formatClock(displayed);
+    } else if (seatCells) {
+      seatCells[clockAnim.side].clock.textContent = formatClock(displayed);
+    }
   };
 
   const scheduleAuto = (): void => {
@@ -298,7 +313,7 @@ export async function mountMiniXiangqiWatchReplay(
         sync();
         scheduleAuto();
       },
-      atEnd ? AUTO_PLAY_LOOP_HOLD_MS : AUTO_PLAY_PLY_MS,
+      atEnd ? AUTO_PLAY_LOOP_HOLD_MS : (moveDelays?.[currentPly + 1] ?? AUTO_PLAY_PLY_MS),
     );
   };
 
@@ -348,6 +363,21 @@ export async function mountMiniXiangqiWatchReplay(
       controls = null;
       seatCells = null;
       clocks = clockSeries(postgame);
+      // Play each move at its real recorded duration (clamped); the clock ticks
+      // down across that window via tickClock.
+      const moves = postgame.timeline.flatMap((event) =>
+        typeof event.color === 'string' && typeof event.ply === 'number'
+          ? [{ at: event.at, color: event.color, ply: event.ply }]
+          : [],
+      );
+      moveDelays =
+        moves.length > 0
+          ? reconstructMoveDelays({
+              moves,
+              minMs: SHOWCASE_MIN_MOVE_MS,
+              maxMs: SHOWCASE_MAX_MOVE_MS,
+            })
+          : null;
 
       const names = namesByRoomId?.[activeId];
       const bottomColor = boardOrientation;
@@ -367,6 +397,9 @@ export async function mountMiniXiangqiWatchReplay(
       root.replaceChildren(layout);
       sync();
       scheduleAuto();
+      if (clocks && clockTickTimer === null) {
+        clockTickTimer = window.setInterval(tickClock, 100);
+      }
       return;
     }
 

@@ -18,6 +18,29 @@ export type ShowcaseTimelineMove = {
 
 export type ShowcaseClockPair = { first: number; second: number };
 
+// Per-ply playback delays derived from the same move timestamps, so the showcase
+// replays each move at (a clamped version of) the real time it took rather than a
+// fixed pace. delays[p] = how long to show ply p-1 before revealing ply p (i.e.
+// the think time for move p); the side to move drains its clock across it.
+// Clamped to [minMs, maxMs] so a blitz move is still visible and a long think does
+// not stall the loop. delays[0] is unused.
+export function reconstructMoveDelays(args: {
+  moves: readonly ShowcaseTimelineMove[];
+  minMs: number;
+  maxMs: number;
+}): number[] {
+  const ordered = [...args.moves].sort((a, b) => a.ply - b.ply);
+  const delays: number[] = [0];
+  let prevAt: number | null = null;
+  for (const move of ordered) {
+    // First move's think time is unknown (no game-start timestamp); show it briefly.
+    const raw = prevAt === null ? args.minMs : Math.max(0, move.at - prevAt);
+    delays.push(Math.min(args.maxMs, Math.max(args.minMs, raw)));
+    prevAt = move.at;
+  }
+  return delays;
+}
+
 // series[0] = both sides at the initial time; series[p] = remaining after ply p.
 // `firstColor` is the side that moves first (its remaining maps to `.first`).
 export function reconstructShowcaseClocks(args: {

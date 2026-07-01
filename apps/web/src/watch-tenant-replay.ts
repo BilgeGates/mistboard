@@ -15,12 +15,21 @@ import { currentLocale, type Locale } from './i18n/locale.js';
 import type { GameMeta, ReplayHandle } from './replay.js';
 import { createPane, type ReplayPaneHandle } from './replay-board.js';
 import { createGameHeaderStrip } from './replay-meta.js';
-import { reconstructShowcaseClocks, type ShowcaseClockPair } from './showcase-clock.js';
+import {
+  reconstructMoveDelays,
+  reconstructShowcaseClocks,
+  type ShowcaseClockPair,
+} from './showcase-clock.js';
 import { pickCompactViewKey } from './showcase-compact-view.js';
 import { formatClock } from './web-utils.js';
 
 const AUTO_PLAY_PLY_MS = 1100;
 const AUTO_PLAY_LOOP_HOLD_MS = 2600;
+// Compact showcase per-move pacing: play each move at its real recorded duration
+// clamped to this watchable band, and tick the mover's clock down across it.
+const SHOWCASE_MIN_MOVE_MS = 700;
+const SHOWCASE_MAX_MOVE_MS = 2500;
+const SHOWCASE_CLOCK_TICK_MS = 100;
 
 // The postgame fields the shared TV chrome reads; every tenant postgame response
 // carries these (the adapter's Postgame type extends this).
@@ -237,6 +246,28 @@ export async function mountTenantWatchReplay<
     bottom: { row: HTMLElement; clockEl: HTMLElement; side: 'first' | 'second' };
   } | null = null;
   let compactClocks: ShowcaseClockPair[] | null = null;
+  let moveDelays: number[] | null = null;
+  let compactIncrementMs = 0;
+  // Continuous drain of the mover's clock between ply snapshots (see tickCompactClock).
+  let clockAnim: {
+    side: 'first' | 'second';
+    startVal: number;
+    floorVal: number;
+    shownAt: number;
+    windowMs: number;
+  } | null = null;
+  let clockTickTimer: number | null = null;
+
+  const tickCompactClock = (): void => {
+    if (!compactSeats || !clockAnim) return;
+    const fraction = Math.min((Date.now() - clockAnim.shownAt) / clockAnim.windowMs, 1);
+    const shown = Math.max(
+      0,
+      clockAnim.startVal - (clockAnim.startVal - clockAnim.floorVal) * fraction,
+    );
+    const seat = compactSeats.top.side === clockAnim.side ? compactSeats.top : compactSeats.bottom;
+    seat.clockEl.textContent = formatClock(shown);
+  };
 
   const compactSeatRow = (name: string): { row: HTMLElement; clockEl: HTMLElement } => {
     const row = document.createElement('div');
@@ -301,6 +332,22 @@ export async function mountTenantWatchReplay<
         currentPly >= maxPly ? null : currentPly % 2 === 0 ? 'first' : 'second';
       compactSeats.top.row.classList.toggle('active', toMove === compactSeats.top.side);
       compactSeats.bottom.row.classList.toggle('active', toMove === compactSeats.bottom.side);
+      // Arm the live tick: drain the mover's clock from this ply's value toward the
+      // value just before the increment it earns on completing the move, over the
+      // real move-playback window.
+      if (toMove && compactClocks && moveDelays) {
+        const startVal = compactClocks[currentPly]?.[toMove] ?? 0;
+        const nextVal = compactClocks[currentPly + 1]?.[toMove];
+        clockAnim = {
+          side: toMove,
+          startVal,
+          floorVal: nextVal === undefined ? startVal : Math.max(0, nextVal - compactIncrementMs),
+          shownAt: Date.now(),
+          windowMs: moveDelays[currentPly + 1] ?? SHOWCASE_MIN_MOVE_MS,
+        };
+      } else {
+        clockAnim = null;
+      }
     }
     if (controls) {
       const result =
@@ -357,7 +404,7 @@ export async function mountTenantWatchReplay<
         sync();
         scheduleAuto();
       },
-      atEnd ? AUTO_PLAY_LOOP_HOLD_MS : AUTO_PLAY_PLY_MS,
+      atEnd ? AUTO_PLAY_LOOP_HOLD_MS : (moveDelays?.[currentPly + 1] ?? AUTO_PLAY_PLY_MS),
     );
   };
 
@@ -447,6 +494,17 @@ export async function mountTenantWatchReplay<
               firstColor: 'red',
             })
           : null;
+      compactIncrementMs = clockIncrementMs;
+      // Play each move at its real recorded duration (clamped), and drain the
+      // mover's clock across that window (see sync/tickCompactClock).
+      moveDelays =
+        moves.length > 0
+          ? reconstructMoveDelays({
+              moves,
+              minMs: SHOWCASE_MIN_MOVE_MS,
+              maxMs: SHOWCASE_MAX_MOVE_MS,
+            })
+          : null;
 
       // Bottom seat = the side the board is oriented to; top = the opponent.
       // `first` is the red/first-mover clock slot.
@@ -474,6 +532,9 @@ export async function mountTenantWatchReplay<
       root.replaceChildren(layout);
       sync();
       scheduleAuto();
+      if (compactClocks && clockTickTimer === null) {
+        clockTickTimer = window.setInterval(tickCompactClock, SHOWCASE_CLOCK_TICK_MS);
+      }
       return;
     }
 
@@ -620,6 +681,10 @@ export async function mountTenantWatchReplay<
     destroy: () => {
       destroyed = true;
       clearTimer();
+      if (clockTickTimer !== null) {
+        window.clearInterval(clockTickTimer);
+        clockTickTimer = null;
+      }
       if (adapter.reveal && !compact) window.removeEventListener('keydown', onKeydown);
       root.replaceChildren();
     },

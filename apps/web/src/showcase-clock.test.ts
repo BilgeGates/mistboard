@@ -1,5 +1,33 @@
 import { describe, expect, it } from 'vitest';
-import { reconstructShowcaseClocks } from './showcase-clock';
+import { reconstructMoveDelays, reconstructShowcaseClocks } from './showcase-clock';
+
+describe('reconstructMoveDelays', () => {
+  it('paces each move by its real gap, clamped to the band', () => {
+    const delays = reconstructMoveDelays({
+      minMs: 700,
+      maxMs: 2500,
+      moves: [
+        { ply: 1, color: 'red', at: 0 }, // first move -> minMs
+        { ply: 2, color: 'black', at: 1_200 }, // gap 1200 (in band)
+        { ply: 3, color: 'red', at: 1_500 }, // gap 300 -> floored to 700
+        { ply: 4, color: 'black', at: 60_000 }, // gap huge -> capped to 2500
+      ],
+    });
+    expect(delays).toEqual([0, 700, 1_200, 700, 2_500]);
+  });
+
+  it('sorts by ply before differencing timestamps', () => {
+    const delays = reconstructMoveDelays({
+      minMs: 700,
+      maxMs: 2500,
+      moves: [
+        { ply: 2, color: 'black', at: 2_000 },
+        { ply: 1, color: 'red', at: 0 },
+      ],
+    });
+    expect(delays[2]).toBe(2_000);
+  });
+});
 
 describe('reconstructShowcaseClocks', () => {
   const base = { initialMs: 180_000, incrementMs: 2_000, firstColor: 'red' as const };
