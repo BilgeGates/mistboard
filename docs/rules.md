@@ -12,9 +12,9 @@ Dark Mini Xiangqi, Jungle, Jieqi, Banqi, and others) are published at
 
 | Ruleset | Status | Detail |
 |---|---|---|
-| Fog of War chess | Flagship ruleset | [Fog of War baseline](#fog-of-war-chess), [rulesets.md](fog-of-war/rulesets.md), [rules-edge-cases.md](fog-of-war/rules-edge-cases.md) |
+| Fog of War chess | Flagship ruleset | [Fog of War baseline](#fog-of-war-chess) |
 | Draft960 hidden starts | Fog of War pregame configuration, not a standalone surface | [Draft960 hidden starts](#draft960-hidden-starts) |
-| Dark Mini Xiangqi | Public alpha, casual-only | [dark-mini-xiangqi-rules.md](fog-of-war/dark-mini-xiangqi-rules.md) |
+| Dark Mini Xiangqi | Public alpha, casual-only | [mistboard.com/rules](https://mistboard.com/rules) |
 
 ## Fog Of War Chess
 
@@ -57,8 +57,8 @@ Working rule baseline:
 
 Subtle rule-risk areas such as hidden occupancy inference, en passant
 visibility, castling representation, no-check king semantics, and terminal
-reveal boundaries are tracked in
-[rules-edge-cases.md](fog-of-war/rules-edge-cases.md).
+reveal boundaries are covered by the visibility and replay tests in
+`packages/game`.
 
 ## Draft960 Hidden Starts
 
