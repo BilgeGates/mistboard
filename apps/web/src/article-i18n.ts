@@ -74,8 +74,8 @@ const ZH_HANS: Record<string, string> = {
 
   // -- Article index cards --
   'How Misty Plays': 'Misty 是怎么下棋的',
-  "Misty is the engine you play on Mistboard, built for Fog of War chess. How it thinks, what's hard, and where it stands.":
-    'Misty 是你在 Mistboard 上对弈的迷雾国际象棋引擎：它如何思考、难点在哪里，以及目前水平如何。',
+  "Misty is Mistboard's Fog of War chess engine: how it sees, searches possible boards, avoids hidden catastrophes, and where the current version stands.":
+    'Misty 是 Mistboard 的迷雾国际象棋引擎：它如何观察、搜索可能局面、避开隐藏灾难，以及当前版本处在什么水平。',
   'Programming Dark Chess with Server-Side Truth': '用服务器端真实局面实现迷雾国际象棋',
   'How Mistboard keeps hidden information on the server: canonical state, seat-scoped views, private live rooms, and public postgame review.':
     'Mistboard 如何把隐藏信息留在服务器端：规范真实局面、按座位投影视野、私密实时房间，以及公开的赛后复盘。',
@@ -799,8 +799,8 @@ const ZH_HANT: Record<string, string> = {
 
   // -- Article index cards --
   'How Misty Plays': 'Misty 是怎麼下棋的',
-  "Misty is the engine you play on Mistboard, built for Fog of War chess. How it thinks, what's hard, and where it stands.":
-    'Misty 是你在 Mistboard 上對弈的迷霧國際象棋引擎：它如何思考、難點在哪裡，以及目前水平如何。',
+  "Misty is Mistboard's Fog of War chess engine: how it sees, searches possible boards, avoids hidden catastrophes, and where the current version stands.":
+    'Misty 是 Mistboard 的迷霧國際象棋引擎：它如何觀察、搜尋可能盤面、避開隱藏災難，以及目前版本處在什麼水平。',
   'Programming Dark Chess with Server-Side Truth': '用伺服器端真實局面實作迷霧國際象棋',
   'How Mistboard keeps hidden information on the server: canonical state, seat-scoped views, private live rooms, and public postgame review.':
     'Mistboard 如何把隱藏資訊留在伺服器端：標準真實局面、按座位投影視野、私密即時房間，以及公開的賽後複盤。',

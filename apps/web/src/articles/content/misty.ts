@@ -5,22 +5,23 @@ export const mistyArticle: Article = {
     kind: 'article',
     title: 'How Misty Plays',
     summary:
-      "Misty is the engine you play on Mistboard, built for Fog of War chess. How it thinks, what's hard, and where it stands.",
+      "Misty is Mistboard's Fog of War chess engine: how it sees, searches possible boards, avoids hidden catastrophes, and where the current version stands.",
     thumbnail: {
       kind: 'image',
       src: '/article-thumbs/misty.jpg',
-      alt: 'An ethereal presence rising in mist from a chessboard — the Misty engine.',
+      alt: 'A cute mist avatar hovering above five foreground chess tiles with pawn, knight, blank, pawn, and king.',
     },
     showSummaryOnPage: false,
     status: 'published',
     publishedAt: '2026-06-21',
+    updatedAt: '2026-07-01',
     audience:
       'Dark chess players and chess-engine builders curious about how the Mistboard engine works.',
     intro: [
       {
         kind: 'paragraph',
         text:
-          'Misty is the bot you play on Mistboard, an engine built for Fog of War chess.',
+          'Misty is the bot you play on Mistboard in Fog of War chess. It is not allowed to peek. The server sends it the same kind of limited view a human player gets, then Misty has to choose a move from that uncertainty.',
       },
     ],
     sections: [
@@ -30,7 +31,7 @@ export const mistyArticle: Article = {
           {
             kind: 'paragraph',
             text:
-              'Misty never sees the true board. Each move, it gets only what the side to move can legally observe under Fog of War: its own pieces, the squares they see, the captures in view. Everything else it infers. It plays under the same rules you do, and you can verify that: Mistboard is open source, so anyone can audit the server code that enforces the fog before the engine sees a position.',
+              'Misty never sees the canonical board. Each move, it gets only what the side to move can legally observe under Fog of War: its own pieces, the squares they see, and the captures in view. Everything else is hidden. It plays under the same rules you do, and you can verify that: Mistboard is open source, so anyone can audit the server code that enforces the fog before the engine sees a position.',
           },
         ],
       },
@@ -45,7 +46,12 @@ export const mistyArticle: Article = {
           {
             kind: 'paragraph',
             text:
-              "Under fog there is no single position to search. Misty can't see the opponent's pieces, so the board it has to reason about is really a set of boards: every arrangement consistent with what it has observed. A move that's winning on one board can hang a piece on another. So Misty weighs the whole set at once and looks for a move that holds up across it.",
+              "Under fog there is no single position to search. Misty can't see the opponent's pieces, so the board it has to reason about is a belief set: many legal boards consistent with what it has observed. A move that wins on one board can hang the king on another. Misty samples from that set, searches those worlds, and looks for a move that holds up across them.",
+          },
+          {
+            kind: 'paragraph',
+            text:
+              'That family of approach is called perfect-information Monte Carlo. It is also the family used by Obscuro, the strongest published Fog of War chess engine. The hard part is not just playing chess. It is keeping the hidden-board model honest while the clock is running.',
           },
         ],
       },
@@ -60,23 +66,37 @@ export const mistyArticle: Article = {
           {
             kind: 'paragraph',
             text:
-              'The second is picking a move over that set. Scoring one move means weighing it across thousands or millions of boards at once, and the obvious way to do that, averaging the outcomes, quietly buries disasters. A move that loses the king on 2% of boards barely moves the average, but it costs you 2% of your games outright. Reasoning well over a distribution of boards, rather than a single board, is most of what the engine does.',
+              'The second is picking a move over that set. Scoring one move means weighing it across thousands of possible boards at once, and the obvious way to do that, averaging the outcomes, quietly buries disasters. A move that loses the king on a small slice of boards may barely move the average, but it still loses those games outright. Reasoning well over a distribution of boards, rather than a single board, is most of what the engine does.',
+          },
+        ],
+      },
+      {
+        heading: 'What changed in the current release',
+        blocks: [
+          {
+            kind: 'paragraph',
+            text:
+              'The current production engine is Misty 1.5. Most of the work since the first public release has been hardening, not a new personality: avoid rare king walks into hidden captures, avoid major-piece hangs in fog, stop stale search memory from leaking into a new live position, see fog-castles during search, and steer away from unstable early lines with a small opening book.',
+          },
+          {
+            kind: 'paragraph',
+            text:
+              "That does not make Misty solved or perfectly safe. It means the cheap fog-specific failures that made earlier versions look silly are much rarer, so games against it test your understanding instead of your patience.",
           },
         ],
       },
       {
         heading: 'Where it stands',
         // Strength claim is deliberately rating-free: we gate any number on a
-        // human match we'd stand behind, and don't have one yet. The king-hang
-        // catastrophes that earlier blocked this are fixed in the shipped default
-        // (commit backstop, adaptive prune, carryover + castle-into-check), so the
-        // read below is of the current prod engine. Add a number only after a human
-        // match earns it; imply Obscuro-class play without claiming parity.
+        // human match we'd stand behind, and don't have one yet. The earlier
+        // fog-specific catastrophes have been hardened in the shipped default,
+        // so the read below is of the current prod engine. Add a number only
+        // after a human match earns it.
         blocks: [
           {
             kind: 'paragraph',
             text:
-              "Misty plays the strongest Fog of War chess we've seen. The yardstick that matters is human play, and we won't put a rating on it until a serious human match earns one.",
+              "Misty is the strongest Fog of War chess engine I've seen available to play, but version numbers are not ratings. The yardstick that matters is human play, and I won't put a number on it until a serious human match earns one.",
           },
         ],
       },
@@ -86,7 +106,7 @@ export const mistyArticle: Article = {
           {
             kind: 'paragraph',
             text:
-              "The machinery generalizes past chess. It already plays a second game on Mistboard, Dark Mini Xiangqi, with the full-size board, Dark Xiangqi, next. New hidden-information games are mostly a matter of wiring up the rules.",
+              'Misty itself stays focused on Fog of War chess. The same redacted engine protocol now supports variant-specific siblings, including Misty DMX for Dark Mini Xiangqi and MistyBanqi for Banqi, but those are separate engines with their own rules and evaluation problems.',
           },
         ],
       },
@@ -96,7 +116,7 @@ export const mistyArticle: Article = {
           {
             kind: 'paragraph',
             text:
-              "Misty is live on Mistboard, and every serious game against it sharpens that estimate. Play one, and you're part of the benchmark.",
+              "Misty is live on Mistboard, and every serious game against it sharpens the estimate of where it stands. Play one, and you're part of the benchmark.",
           },
           {
             kind: 'cta',

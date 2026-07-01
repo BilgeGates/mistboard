@@ -100,7 +100,7 @@ export const ARTICLE_META: Record<
     title: 'How Misty Plays',
     kind: 'article',
     description:
-      "Misty is the engine you play on Mistboard, built for Fog of War chess and guided by the Obscuro architecture. How it thinks, what's hard, and where it stands.",
+      "Misty is Mistboard's Fog of War chess engine: how it sees, searches possible boards, avoids hidden catastrophes, and where the current version stands.",
   },
   mistybanqi: {
     title: 'How MistyBanqi Plays',
