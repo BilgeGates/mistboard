@@ -493,6 +493,42 @@
   width: 100%;
 }
 
+/* Homepage showcase: tenant (SVG) variants render a single compact board here via
+   .replay-layout-solo (chess uses .replay-layout-single-*). Center it and cap the
+   footprint so the differing aspect ratios (7x9 jungle, 8x4 banqi, 9x9 shogi) fit
+   the slot without blowing out or jumping the page. Baseline sizing; per-variant
+   visual tuning is a follow-up once non-chess games are seeded locally. */
+.landing-page #landing-replay .replay-layout-solo {
+  display: flex;
+  justify-content: center;
+  width: 100%;
+}
+
+.landing-page #landing-replay .replay-layout-solo .replay-pane {
+  width: 100%;
+  max-width: clamp(280px, 34vw, 420px);
+}
+
+/* Compact showcase boards carry no header/label/clock chrome. */
+.landing-page #landing-replay .replay-layout-solo .replay-pane-label,
+.landing-page #landing-replay .replay-layout-solo .replay-pane-name,
+.landing-page #landing-replay .replay-layout-solo .replay-pane-status,
+.landing-page #landing-replay .replay-layout-solo .replay-pane-clock-slot {
+  display: none;
+}
+
+.landing-page #landing-replay .replay-layout-solo .replay-board {
+  display: flex;
+  justify-content: center;
+}
+
+.landing-page #landing-replay .replay-layout-solo .replay-board svg {
+  width: auto;
+  height: auto;
+  max-width: 100%;
+  max-height: clamp(280px, 40vh, 460px);
+}
+
 .landing-page #landing-replay.replay-compact .replay-layout-single-white .replay-pane-white,
 .landing-page #landing-replay.replay-compact .replay-layout-single-black .replay-pane-black {
   display: grid;
