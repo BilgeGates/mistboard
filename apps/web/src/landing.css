@@ -332,6 +332,9 @@
 }
 
 #landing-replay {
+  /* One fixed widget size shared by chess (chessground) and every tenant SVG
+     board, so the showcase board never resizes on a cross-variant swap. */
+  --showcase-widget-size: clamp(300px, 30vw, 440px);
   width: 100%;
   display: flex;
   flex-direction: column;
@@ -506,7 +509,7 @@
 
 .landing-page #landing-replay .replay-layout-solo .replay-pane {
   width: 100%;
-  max-width: clamp(280px, 34vw, 420px);
+  max-width: var(--showcase-widget-size);
 }
 
 /* Compact showcase boards carry no header/label/clock chrome. */
@@ -517,16 +520,24 @@
   display: none;
 }
 
+/* Fixed square widget: every variant occupies the same box, so the cross-variant
+   swap never jumps the page and chess (a square board) and the tenant boards share
+   one frame. Non-square boards (jungle, the xiangqi family, banqi 8x4) scale to fit
+   INSIDE the box, centered and letterboxed. */
 .landing-page #landing-replay .replay-layout-solo .replay-board {
+  width: var(--showcase-widget-size);
+  height: var(--showcase-widget-size);
   display: flex;
+  align-items: center;
   justify-content: center;
 }
 
+/* Fill the box; the SVG's default preserveAspectRatio (xMidYMid meet) scales the
+   viewBox content to contain within it, centered, without distortion. */
 .landing-page #landing-replay .replay-layout-solo .replay-board svg {
-  width: auto;
-  height: auto;
-  max-width: 100%;
-  max-height: clamp(280px, 40vh, 460px);
+  display: block;
+  width: 100%;
+  height: 100%;
 }
 
 .landing-page #landing-replay.replay-compact .replay-layout-single-white .replay-pane-white,
@@ -572,6 +583,9 @@
   align-self: center;
   justify-self: center;
   width: 100%;
+  /* Cap chess to the shared widget size so it matches the tenant boards (it
+     otherwise fills its grid cell, ~574px, and would jump on the swap). */
+  max-width: var(--showcase-widget-size);
 }
 
 .landing-page #landing-replay.replay-compact .replay-pane-clock-slot {
