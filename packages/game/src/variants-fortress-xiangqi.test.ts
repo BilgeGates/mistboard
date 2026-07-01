@@ -368,3 +368,30 @@ test('an honest (check-free) repetition stays a draw', () => {
   const moves = movesFromUci(['d4c4', 'd6c6', 'c4d4', 'c6d6', 'd4c4', 'd6c6', 'c4d4', 'c6d6']);
   assert.equal(fortressXiangqiPerpetualCheckLoser(moves, start), null);
 });
+
+test('state.moveLog accumulates the history and feeds the adjudicator', () => {
+  const start = stateWith({
+    a1: { color: 'red', role: 'general' },
+    g1: { color: 'red', role: 'chariot' },
+    f7: { color: 'black', role: 'general' },
+  });
+  const moves = movesFromUci([
+    'g1f1',
+    'f7e7',
+    'f1e1',
+    'e7f7',
+    'e1f1',
+    'f7e7',
+    'f1e1',
+    'e7f7',
+    'e1f1',
+  ]);
+  let s = start;
+  for (const move of moves) s = applyFortressXiangqiMove(s, move);
+  // The kernel core stays a draw; the chasing upgrade lives in the tenant.
+  assert.ok(s.status.type === 'finished' && s.status.reason === 'repetition');
+  // moveLog is the exact history, and rerunning the adjudicator over it (as the
+  // tenant does) recovers the perpetual checker.
+  assert.deepEqual([...(s.moveLog ?? [])], moves);
+  assert.equal(fortressXiangqiPerpetualCheckLoser(s.moveLog ?? [], start), 'red');
+});

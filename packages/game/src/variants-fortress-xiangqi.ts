@@ -84,6 +84,10 @@ export type FortressXiangqiGameState = {
   moveNumber: number;
   lastMove?: FortressXiangqiMove;
   positionCounts: Record<string, number>;
+  // Ordered move history from the initial position. Carried so the chasing-rule
+  // adjudicator (fortressXiangqiPerpetualCheckLoser) can inspect the repeating
+  // cycle at a three-fold. Excluded from the repetition key and the player view.
+  moveLog?: readonly FortressXiangqiMove[];
 };
 
 export type FortressXiangqiPlayerView = {
@@ -279,6 +283,7 @@ export function createInitialFortressXiangqiState(gameId: string): FortressXiang
     status: { type: 'playing', turn: 'red' },
     moveNumber: 1,
     positionCounts: {},
+    moveLog: [],
   };
   return {
     ...base,
@@ -683,6 +688,7 @@ function finalize(
     status: { type: 'playing', turn: nextTurn },
     moveNumber,
     lastMove: move,
+    moveLog: [...(previous.moveLog ?? []), move],
   };
 
   const repKey = fortressXiangqiPositionRepetitionKey(provisional);
@@ -697,8 +703,9 @@ function finalize(
       reason: isFortressXiangqiGeneralInCheckOnBoard(board, nextTurn) ? 'checkmate' : 'stalemate',
     };
   } else if ((positionCounts[repKey] ?? 0) >= 3) {
-    // Baseline draw. The server may override this to a `'chasing'` loss for the
-    // aggressor via the Fairy-Stockfish adjudicator before finalizing.
+    // Baseline draw. The Fortress tenant upgrades this to a `'chasing'` loss when
+    // fortressXiangqiPerpetualCheckLoser(moveLog) finds a sole perpetual checker.
+    // (Kept out of the kernel core so the adjudicator's own replay can't recurse.)
     status = { type: 'finished', winner: null, reason: 'repetition' };
   }
 

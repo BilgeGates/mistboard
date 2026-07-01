@@ -19,6 +19,7 @@ import {
   type FortressXiangqiMove,
   type FortressXiangqiPlayerView,
   type FortressXiangqiSquare,
+  fortressXiangqiPerpetualCheckLoser,
   getFortressXiangqiPlayerView,
   isFortressXiangqiLegalMove,
   oppositeFortressXiangqiColor,
@@ -121,7 +122,27 @@ export const fortressXiangqiTenant: FortressXiangqiTenant = {
   oppositeColor: oppositeFortressXiangqiColor,
   rules: {
     createInitialState: createInitialFortressXiangqiState,
-    applyMove: applyFortressXiangqiMove,
+    // Apply the move, then enforce the chasing rule: a three-fold repetition
+    // reached by one side's perpetual check is a LOSS for that side, not a draw.
+    // The move history rides along on state.moveLog, so this needs no shared
+    // runtime change and reruns identically on event replay.
+    applyMove: (state, move) => {
+      const next = applyFortressXiangqiMove(state, move);
+      if (next.status.type === 'finished' && next.status.reason === 'repetition') {
+        const loser = fortressXiangqiPerpetualCheckLoser(next.moveLog ?? []);
+        if (loser) {
+          return {
+            ...next,
+            status: {
+              type: 'finished',
+              winner: oppositeFortressXiangqiColor(loser),
+              reason: 'chasing',
+            },
+          };
+        }
+      }
+      return next;
+    },
     isLegalMove: isFortressXiangqiLegalMove,
     finish: (state, winner, reason) => ({
       ...state,
