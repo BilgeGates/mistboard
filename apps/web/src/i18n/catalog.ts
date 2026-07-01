@@ -20,11 +20,11 @@ const EN = {
   'nav.signIn': 'Sign in',
   'nav.register': 'Register',
   'nav.language': 'Language',
-  'home.tagline': 'Play original strategy variants, built for serious play, free in your browser.',
+  'home.tagline': 'Original strategy games, built for serious play. Free in your browser.',
   'site.more': 'More »',
   'articles.heading': 'Articles',
   'articles.read': 'Read',
-  'articles.intro': 'Essays, variants, and engine work for dark chess.',
+  'articles.intro': 'Essays, rules notes, and engine work for original strategy games.',
   'articles.allArticles': 'All articles',
   'articles.previousArticles': 'Previous articles',
   'articles.moreArticles': 'More articles',
@@ -40,11 +40,11 @@ const EN = {
   'articles.notFoundTitle': 'Article not found',
   'articles.notFoundBody': "This article doesn't exist yet.",
   'rules.heading': 'Rules',
-  'rules.intro': 'Reference rules for Mistboard games and Fog of War variants.',
+  'rules.intro': 'Reference rules for Mistboard games, classic bases, and Fog of War variants.',
   'rules.body1':
     'Each page covers the board, how the pieces move, and how games end, with interactive boards you can step through.',
   'rules.body2':
-    'The base games anchor the rules. Their dark variants play the same game under fog: each side sees only the squares its pieces reach, there are no check warnings, and you win by capturing the king.',
+    'Mistboard spans open-information base games, original designs, and dark variants. Start with a base ruleset when a game builds on chess, xiangqi, shogi, or Jungle; use the variant page for what Mistboard changes.',
   'rules.group.chess': 'Chess variants',
   'rules.group.xiangqi': 'Xiangqi variants',
   'rules.group.shogi': 'Shogi variants',
@@ -181,22 +181,22 @@ const EN = {
   'profile.darkChessGame': 'Dark chess game',
   'about.heading': 'About Mistboard',
   'about.lede':
-    'Mistboard is a free, open-source platform for board games with fog of war, starting with dark chess.',
+    'Mistboard is a free, open-source platform for original strategy games, built for serious play.',
   'about.whyHeading': 'Why this site exists',
   'about.whyBody':
-    "Hidden-information games have captured players' imaginations for generations because the board is never just a board. Every move asks what you can see, what you can infer, what you are willing to risk, and what your opponent may be hiding. Mistboard exists to make that kind of play easy to start, fair to finish, and interesting to study.",
-  'about.darkChessHeading': 'What dark chess is',
+    'Original strategy games ask for more than a playable board. They need precise rules, fair hidden-information boundaries when the game calls for them, durable replays, and tools that help players understand what happened. Mistboard exists to make those games easy to start, fair to finish, and worth studying.',
+  'about.darkChessHeading': 'What Mistboard builds',
   'about.darkChessBody':
-    'Dark chess is hidden-information chess. You see your own pieces and the squares they could legally move to. Everything else is dark. The game ends when a king is captured.',
+    'Mistboard hosts original games and serious variants across chess, xiangqi, shogi, Jungle, and related families. Some games are open-information; others use fog, hidden identities, drops, flipped pieces, compact boards, or new objectives. Each one gets a clear rules page and server-enforced play.',
   'about.playStudyHeading': 'Play and study',
   'about.playStudyBody':
-    "Play dark chess over a link, join the lobby, or play an engine. Afterward, review the game from either player's perspective or with the full board revealed. Rules and articles cover openings and other hidden-information variants beyond dark chess.",
+    "Start a game over a link, join the lobby, or play an engine where one is available. Afterward, review the game from either player's perspective or with the full board revealed when the rules allow it. Rules and articles cover both how to play and why the variants work.",
   'about.trustHeading': 'Trust by design',
   'about.trustBody':
-    'Fog of war has to be enforced by software, not trust. The server owns the full game state and sends each browser only what that player is allowed to see. Live games are not spectatable; full-truth review unlocks only after a game has finished.',
-  'about.enginesHeading': 'Engines for hidden-information games',
+    'Mistboard treats rules enforcement as part of the product. The server owns the full game state and sends each browser only the view that player is allowed to see. Hidden-information live games are not spectatable; full-truth review unlocks only after a game has finished.',
+  'about.enginesHeading': 'Engines and serious play',
   'about.enginesBody':
-    'Mistboard hosts and develops engines for hidden-information play. They compete through the same redacted view a human player receives, making engine games useful both as opponents and as research artifacts.',
+    'Mistboard hosts and develops engines for supported variants. When a game hides information, engines receive the same redacted view a human player receives, making engine games useful both as opponents and as research artifacts.',
   'about.openSourceHeading': 'Open source foundation',
   'about.openSourcePrefix': 'Mistboard is published under AGPL-3.0-or-later on ',
   'about.openSourceMiddle':
@@ -218,7 +218,7 @@ const EN = {
   'about.modePve': 'Player vs engine',
   'source.heading': 'Source and Licenses',
   'source.intro':
-    'Mistboard is an independent open-source dark chess project. The source code is published under AGPL-3.0-or-later. The hosted service is not affiliated with lichess, chess.com, or any other chess platform.',
+    'Mistboard is an independent open-source strategy-game project. The source code is published under AGPL-3.0-or-later. The hosted service is not affiliated with lichess, chess.com, or any other chess platform.',
   'source.projectSource': 'Project source',
   'source.githubRepository': 'GitHub repository',
   'source.licenseAgpl': 'License: AGPL-3.0-or-later',
@@ -242,11 +242,11 @@ const EN = {
   'notFound.contact': 'Contact',
   'notFound.suffix': '.',
   'faq.heading': 'FAQ',
-  'faq.darkChessQuestion': 'What is dark chess?',
+  'faq.darkChessQuestion': 'What games are on Mistboard?',
   'faq.darkChessPrefix':
-    "Hidden-information chess. You see your own pieces and the squares they could legally move to. Everything else is dark, so an opponent's pieces and moves stay hidden until your pieces can see them. The game ends when a king is captured. The ",
+    'Mistboard hosts original strategy games and serious variants across chess, xiangqi, shogi, Jungle, and related families. Some are open-information; some use fog or hidden identities. The ',
   'faq.rulesReference': 'rules reference',
-  'faq.darkChessSuffix': ' has the full rules.',
+  'faq.darkChessSuffix': ' lists the current games.',
   'faq.accountQuestion': 'Do I need an account?',
   'faq.accountAnswer':
     'Not for casual play. Start or join games over a link, play the lobby, or play an engine without signing up. An account adds a handle, a profile, and rated play.',
@@ -263,13 +263,13 @@ const EN = {
     ', so this trust boundary can be inspected. Outside assistance, account abuse, and attempts to break the fog filter are still fair-play violations.',
   'faq.enginesQuestion': 'Do Mistboard engines see the full board?',
   'faq.enginesAnswer':
-    'No. Engines get the same fogged view for their side, plus only the game facts that side is allowed to know. They are playing dark chess and hidden-information variants, not cheating by seeing the true board. The true board stays server-side for adjudication.',
+    'No. Engines only receive the information allowed by the game they are playing. In hidden-information games, that means the same redacted view a human player receives; the true board stays server-side for adjudication.',
   'faq.liveWatchQuestion': 'Can I watch a live game?',
   'faq.liveWatchAnswer':
     'No. Live games are not spectatable, so no one can feed a player the full board mid-game. Once a game finishes, anyone can replay it from either side or with the full board revealed.',
   'faq.ratedQuestion': 'How does rated play work?',
   'faq.ratedAnswer':
-    'Rated dark chess is account-backed human-vs-human play. During beta, the ladder may be provisional while ratings calibrate. Engine games and casual games do not count.',
+    'Rated play is account-backed human-vs-human play in supported ladder variants. During beta, ladders may be provisional while ratings calibrate. Engine games and casual games do not count.',
   'terms.heading': 'Terms of Use',
   'terms.intro':
     'Mistboard is a free, open-source hobby project. These are the basic rules for using the hosted site at mistboard.com. They will change as the project grows; this page is always the current version.',
@@ -475,11 +475,11 @@ const ZH_HANS: Partial<Record<I18nKey, string>> = {
   'nav.signIn': '登录',
   'nav.register': '注册',
   'nav.language': '语言',
-  'home.tagline': '在浏览器中免费游玩为认真对弈打造的原创策略变体。',
+  'home.tagline': '原创策略游戏，为认真对弈而建。可在浏览器中免费游玩。',
   'site.more': '更多 »',
   'articles.heading': '文章',
   'articles.read': '阅读',
-  'articles.intro': '迷雾国际象棋的变体、策略与引擎工作。',
+  'articles.intro': '原创策略游戏的文章、规则说明与引擎工作。',
   'articles.allArticles': '全部文章',
   'articles.previousArticles': '上一篇文章',
   'articles.moreArticles': '更多文章',
@@ -495,10 +495,10 @@ const ZH_HANS: Partial<Record<I18nKey, string>> = {
   'articles.notFoundTitle': '未找到文章',
   'articles.notFoundBody': '这篇文章还不存在。',
   'rules.heading': '规则',
-  'rules.intro': 'Mistboard 游戏与战争迷雾变体的规则参考。',
+  'rules.intro': 'Mistboard 游戏、经典基础规则与战争迷雾变体的规则参考。',
   'rules.body1': '每个页面介绍棋盘、棋子走法与胜负规则，并配有可逐步演示的互动棋盘。',
   'rules.body2':
-    '基础棋类是规则的根基。黑暗变体在迷雾下进行同一种游戏：双方只能看到己方棋子所及的格子，没有将军提示，吃掉对方的王即获胜。',
+    'Mistboard 覆盖公开信息基础游戏、原创设计和黑暗变体。若某个游戏建立在国际象棋、象棋、将棋或斗兽棋之上，先读基础规则；再用变体页面了解 Mistboard 改了什么。',
   'rules.group.chess': '国际象棋变体',
   'rules.group.xiangqi': '象棋变体',
   'rules.group.shogi': '将棋变体',
@@ -632,22 +632,22 @@ const ZH_HANS: Partial<Record<I18nKey, string>> = {
   'profile.manualGame': '手动对局',
   'profile.darkChessGame': '黑暗象棋对局',
   'about.heading': '关于 Mistboard',
-  'about.lede': 'Mistboard 是一个免费的开源平台，从迷雾国际象棋开始，服务于带战争迷雾的棋类游戏。',
+  'about.lede': 'Mistboard 是一个免费的开源平台，服务于为认真对弈打造的原创策略游戏。',
   'about.whyHeading': '为什么做这个网站',
   'about.whyBody':
-    '隐藏信息游戏吸引了几代玩家，因为棋盘从来不只是棋盘。每一步都在问你看见了什么、能推断出什么、愿意冒什么风险，以及对手可能藏着什么。Mistboard 的目标，是让这种对局容易开始、公平结束，并且值得复盘研究。',
-  'about.darkChessHeading': '什么是迷雾国际象棋',
+    '原创策略游戏需要的不只是一个可玩的棋盘。它们需要精确规则；在需要隐藏信息时，需要公平的可见性边界；还需要持久复盘，以及帮助玩家理解发生了什么的工具。Mistboard 的目标，是让这些游戏容易开始、公平结束，并且值得研究。',
+  'about.darkChessHeading': 'Mistboard 在做什么',
   'about.darkChessBody':
-    '迷雾国际象棋是隐藏信息国际象棋。你能看到自己的棋子，以及它们依法能走到的格子。其他地方都是迷雾。吃掉国王即结束对局。',
+    'Mistboard 托管国际象棋、象棋、将棋、斗兽棋及相关棋类中的原创游戏和严肃变体。有些是公开信息游戏；有些使用迷雾、隐藏身份、持子、翻面棋子、小棋盘或新目标。每个游戏都会有清晰的规则页面和服务器执行的对局。',
   'about.playStudyHeading': '对弈与研究',
   'about.playStudyBody':
-    '通过链接下迷雾国际象棋，加入大厅，或对战引擎。对局结束后，可以从任一玩家视角复盘，也可以查看完整棋盘。规则和文章会介绍开局，以及迷雾国际象棋之外的其他隐藏信息变体。',
+    '通过链接开始对局，加入大厅，或在支持的游戏中对战引擎。对局结束后，可以从任一玩家视角复盘，也可以在规则允许时查看完整棋盘。规则和文章会介绍怎么玩，也会解释这些变体为什么成立。',
   'about.trustHeading': '以设计建立信任',
   'about.trustBody':
-    '战争迷雾必须由软件执行，而不是靠信任。服务器拥有完整局面，只把每位玩家允许看到的内容发送给对应浏览器。实时对局不能观战；完整真相复盘只在对局结束后开放。',
-  'about.enginesHeading': '隐藏信息游戏引擎',
+    'Mistboard 把规则执行视为产品的一部分。服务器拥有完整局面，只把每位玩家允许看到的视角发送给对应浏览器。隐藏信息实时对局不能观战；完整真相复盘只在对局结束后开放。',
+  'about.enginesHeading': '引擎与认真对弈',
   'about.enginesBody':
-    'Mistboard 托管并开发隐藏信息游戏引擎。它们通过和人类玩家一样的受限视角参赛，因此引擎对局既能作为对手，也能作为研究材料。',
+    'Mistboard 托管并开发支持变体的引擎。当游戏包含隐藏信息时，引擎会收到和人类玩家一样的受限视角，因此引擎对局既能作为对手，也能作为研究材料。',
   'about.openSourceHeading': '开源基础',
   'about.openSourcePrefix': 'Mistboard 以 AGPL-3.0-or-later 发布在 ',
   'about.openSourceMiddle':
@@ -668,7 +668,7 @@ const ZH_HANS: Partial<Record<I18nKey, string>> = {
   'about.modePve': '玩家对引擎',
   'source.heading': '源码和许可',
   'source.intro':
-    'Mistboard 是一个独立的开源迷雾国际象棋项目。源代码以 AGPL-3.0-or-later 发布。托管服务与 lichess、chess.com 或任何其他国际象棋平台无关联。',
+    'Mistboard 是一个独立的开源策略游戏项目。源代码以 AGPL-3.0-or-later 发布。托管服务与 lichess、chess.com 或任何其他棋类平台无关联。',
   'source.projectSource': '项目源码',
   'source.githubRepository': 'GitHub 仓库',
   'source.licenseAgpl': '许可证：AGPL-3.0-or-later',
@@ -690,11 +690,11 @@ const ZH_HANS: Partial<Record<I18nKey, string>> = {
   'notFound.contact': '联系',
   'notFound.suffix': '告诉我你在找什么。',
   'faq.heading': '常见问题',
-  'faq.darkChessQuestion': '什么是迷雾国际象棋？',
+  'faq.darkChessQuestion': 'Mistboard 上可以玩什么？',
   'faq.darkChessPrefix':
-    '它是隐藏信息国际象棋。你能看到自己的棋子，以及它们依法能走到的格子。其他地方都是迷雾，所以对手的棋子和走法会保持隐藏，直到你的棋子能看到它们。吃掉国王即结束对局。',
+    'Mistboard 托管国际象棋、象棋、将棋、斗兽棋及相关棋类中的原创策略游戏和严肃变体。有些是公开信息游戏；有些使用迷雾或隐藏身份。',
   'faq.rulesReference': '规则参考',
-  'faq.darkChessSuffix': '有完整规则。',
+  'faq.darkChessSuffix': '列出了当前游戏。',
   'faq.accountQuestion': '我需要账号吗？',
   'faq.accountAnswer':
     '休闲对弈不需要。你可以通过链接开始或加入对局，进入大厅，或不注册就对战引擎。账号会增加用户名、个人资料和计分对局。',
@@ -711,13 +711,13 @@ const ZH_HANS: Partial<Record<I18nKey, string>> = {
     '，所以这个信任边界可以被检查。外部协助、账号滥用，以及试图绕过迷雾过滤器仍然违反公平竞赛规则。',
   'faq.enginesQuestion': 'Mistboard 引擎会看到完整棋盘吗？',
   'faq.enginesAnswer':
-    '不会。引擎拿到的是自己一方同样的迷雾视角，外加这一方允许知道的对局事实。它们在下迷雾国际象棋和隐藏信息变体，不是靠看真实棋盘作弊。真实棋盘只留在服务器端用于裁定。',
+    '不会。引擎只会收到所玩游戏允许它知道的信息。在隐藏信息游戏中，这意味着它拿到和人类玩家一样的受限视角；真实棋盘只留在服务器端用于裁定。',
   'faq.liveWatchQuestion': '我可以观看实时对局吗？',
   'faq.liveWatchAnswer':
     '不可以。实时对局不能观战，这样没有人能在对局中把完整棋盘告诉玩家。对局结束后，任何人都可以从任一方视角，或在完整揭示状态下复盘。',
   'faq.ratedQuestion': '计分对局如何运作？',
   'faq.ratedAnswer':
-    '计分迷雾国际象棋是需要账号的人类对人类对局。Beta 期间，评分校准时排行榜可能是临时的。引擎对局和休闲对局不计分。',
+    '计分对局是支持排行榜变体中需要账号的人类对人类对局。Beta 期间，评分校准时排行榜可能是临时的。引擎对局和休闲对局不计分。',
   'terms.heading': '使用条款',
   'terms.intro':
     'Mistboard 是一个免费的开源爱好项目。这些是使用 mistboard.com 托管网站的基本规则。随着项目成长，这些规则会变化；本页始终是当前版本。',
@@ -921,11 +921,11 @@ const ZH_HANT: Partial<Record<I18nKey, string>> = {
   'nav.signIn': '登入',
   'nav.register': '註冊',
   'nav.language': '語言',
-  'home.tagline': '在瀏覽器中免費遊玩為認真對弈打造的原創策略變體。',
+  'home.tagline': '原創策略遊戲，為認真對弈而建。可在瀏覽器中免費遊玩。',
   'site.more': '更多 »',
   'articles.heading': '文章',
   'articles.read': '閱讀',
-  'articles.intro': '迷霧國際象棋的變體、策略與引擎工作。',
+  'articles.intro': '原創策略遊戲的文章、規則說明與引擎工作。',
   'articles.allArticles': '全部文章',
   'articles.previousArticles': '上一篇文章',
   'articles.moreArticles': '更多文章',
@@ -941,10 +941,10 @@ const ZH_HANT: Partial<Record<I18nKey, string>> = {
   'articles.notFoundTitle': '找不到文章',
   'articles.notFoundBody': '這篇文章還不存在。',
   'rules.heading': '規則',
-  'rules.intro': 'Mistboard 遊戲與戰爭迷霧變體的規則參考。',
+  'rules.intro': 'Mistboard 遊戲、經典基礎規則與戰爭迷霧變體的規則參考。',
   'rules.body1': '每個頁面介紹棋盤、棋子走法與勝負規則，並配有可逐步演示的互動棋盤。',
   'rules.body2':
-    '基礎棋類是規則的根基。黑暗變體在迷霧下進行同一種遊戲：雙方只能看到己方棋子所及的格子，沒有將軍提示，吃掉對方的王即獲勝。',
+    'Mistboard 覆蓋公開資訊基礎遊戲、原創設計和黑暗變體。若某個遊戲建立在西洋棋、象棋、將棋或鬥獸棋之上，先讀基礎規則；再用變體頁面了解 Mistboard 改了什麼。',
   'rules.group.chess': '西洋棋變體',
   'rules.group.xiangqi': '象棋變體',
   'rules.group.shogi': '將棋變體',
@@ -1078,22 +1078,22 @@ const ZH_HANT: Partial<Record<I18nKey, string>> = {
   'profile.manualGame': '手動對局',
   'profile.darkChessGame': '黑暗西洋棋對局',
   'about.heading': '關於 Mistboard',
-  'about.lede': 'Mistboard 是一個免費的開源平台，從迷霧國際象棋開始，服務於帶戰爭迷霧的棋類遊戲。',
+  'about.lede': 'Mistboard 是一個免費的開源平台，服務於為認真對弈打造的原創策略遊戲。',
   'about.whyHeading': '為什麼做這個網站',
   'about.whyBody':
-    '隱藏資訊遊戲吸引了好幾代玩家，因為棋盤從來不只是棋盤。每一步都在問你看見了什麼、能推斷出什麼、願意承擔什麼風險，以及對手可能藏著什麼。Mistboard 的目標，是讓這種對局容易開始、公平結束，並且值得復盤研究。',
-  'about.darkChessHeading': '什麼是迷霧國際象棋',
+    '原創策略遊戲需要的不只是一個可玩的棋盤。它們需要精確規則；在需要隱藏資訊時，需要公平的可見性邊界；還需要持久復盤，以及幫助玩家理解發生了什麼的工具。Mistboard 的目標，是讓這些遊戲容易開始、公平結束，並且值得研究。',
+  'about.darkChessHeading': 'Mistboard 在做什麼',
   'about.darkChessBody':
-    '迷霧國際象棋是隱藏資訊國際象棋。你能看到自己的棋子，以及它們依法能走到的格子。其他地方都是迷霧。吃掉國王即結束對局。',
+    'Mistboard 託管西洋棋、象棋、將棋、鬥獸棋及相關棋類中的原創遊戲和嚴肅變體。有些是公開資訊遊戲；有些使用迷霧、隱藏身份、持子、翻面棋子、小棋盤或新目標。每個遊戲都會有清晰的規則頁面和伺服器執行的對局。',
   'about.playStudyHeading': '對弈與研究',
   'about.playStudyBody':
-    '透過連結下迷霧國際象棋，加入大廳，或對戰引擎。對局結束後，可以從任一玩家視角復盤，也可以查看完整棋盤。規則和文章會介紹開局，以及迷霧國際象棋之外的其他隱藏資訊變體。',
+    '透過連結開始對局，加入大廳，或在支援的遊戲中對戰引擎。對局結束後，可以從任一玩家視角復盤，也可以在規則允許時查看完整棋盤。規則和文章會介紹怎麼玩，也會解釋這些變體為什麼成立。',
   'about.trustHeading': '以設計建立信任',
   'about.trustBody':
-    '戰爭迷霧必須由軟體執行，而不是靠信任。伺服器擁有完整局面，只把每位玩家允許看到的內容傳給對應瀏覽器。即時對局不能觀戰；完整真相復盤只在對局結束後開放。',
-  'about.enginesHeading': '隱藏資訊遊戲引擎',
+    'Mistboard 把規則執行視為產品的一部分。伺服器擁有完整局面，只把每位玩家允許看到的視角傳給對應瀏覽器。隱藏資訊即時對局不能觀戰；完整真相復盤只在對局結束後開放。',
+  'about.enginesHeading': '引擎與認真對弈',
   'about.enginesBody':
-    'Mistboard 託管並開發隱藏資訊遊戲引擎。它們透過和人類玩家一樣的受限視角參賽，因此引擎對局既能作為對手，也能作為研究材料。',
+    'Mistboard 託管並開發支援變體的引擎。當遊戲包含隱藏資訊時，引擎會收到和人類玩家一樣的受限視角，因此引擎對局既能作為對手，也能作為研究材料。',
   'about.openSourceHeading': '開源基礎',
   'about.openSourcePrefix': 'Mistboard 以 AGPL-3.0-or-later 發布在 ',
   'about.openSourceMiddle':
@@ -1114,7 +1114,7 @@ const ZH_HANT: Partial<Record<I18nKey, string>> = {
   'about.modePve': '玩家對引擎',
   'source.heading': '原始碼和授權',
   'source.intro':
-    'Mistboard 是一個獨立的開源迷霧國際象棋專案。原始碼以 AGPL-3.0-or-later 發布。託管服務與 lichess、chess.com 或任何其他國際象棋平台無關。',
+    'Mistboard 是一個獨立的開源策略遊戲專案。原始碼以 AGPL-3.0-or-later 發布。託管服務與 lichess、chess.com 或任何其他棋類平台無關。',
   'source.projectSource': '專案原始碼',
   'source.githubRepository': 'GitHub 儲存庫',
   'source.licenseAgpl': '授權：AGPL-3.0-or-later',
@@ -1136,11 +1136,11 @@ const ZH_HANT: Partial<Record<I18nKey, string>> = {
   'notFound.contact': '聯絡',
   'notFound.suffix': '告訴我你在找什麼。',
   'faq.heading': '常見問題',
-  'faq.darkChessQuestion': '什麼是迷霧國際象棋？',
+  'faq.darkChessQuestion': 'Mistboard 上可以玩什麼？',
   'faq.darkChessPrefix':
-    '它是隱藏資訊國際象棋。你能看到自己的棋子，以及它們依法能走到的格子。其他地方都是迷霧，所以對手的棋子和走法會保持隱藏，直到你的棋子能看到它們。吃掉國王即結束對局。',
+    'Mistboard 託管西洋棋、象棋、將棋、鬥獸棋及相關棋類中的原創策略遊戲和嚴肅變體。有些是公開資訊遊戲；有些使用迷霧或隱藏身份。',
   'faq.rulesReference': '規則參考',
-  'faq.darkChessSuffix': '有完整規則。',
+  'faq.darkChessSuffix': '列出了目前遊戲。',
   'faq.accountQuestion': '我需要帳號嗎？',
   'faq.accountAnswer':
     '休閒對弈不需要。你可以透過連結開始或加入對局，進入大廳，或不註冊就對戰引擎。帳號會增加使用者名稱、個人資料和計分對局。',
@@ -1157,13 +1157,13 @@ const ZH_HANT: Partial<Record<I18nKey, string>> = {
     '，所以這個信任邊界可以被檢查。外部協助、帳號濫用，以及試圖繞過迷霧過濾器仍然違反公平競賽規則。',
   'faq.enginesQuestion': 'Mistboard 引擎會看到完整棋盤嗎？',
   'faq.enginesAnswer':
-    '不會。引擎拿到的是自己一方同樣的迷霧視角，外加這一方允許知道的對局事實。它們在下迷霧國際象棋和隱藏資訊變體，不是靠看真實棋盤作弊。真實棋盤只留在伺服器端用於裁定。',
+    '不會。引擎只會收到所玩遊戲允許它知道的資訊。在隱藏資訊遊戲中，這意味著它拿到和人類玩家一樣的受限視角；真實棋盤只留在伺服器端用於裁定。',
   'faq.liveWatchQuestion': '我可以觀看即時對局嗎？',
   'faq.liveWatchAnswer':
     '不可以。即時對局不能觀戰，這樣沒有人能在對局中把完整棋盤告訴玩家。對局結束後，任何人都可以從任一方視角，或在完整揭示狀態下復盤。',
   'faq.ratedQuestion': '計分對局如何運作？',
   'faq.ratedAnswer':
-    '計分迷霧國際象棋是需要帳號的人類對人類對局。Beta 期間，評分校準時排行榜可能是臨時的。引擎對局和休閒對局不計分。',
+    '計分對局是支援排行榜變體中需要帳號的人類對人類對局。Beta 期間，評分校準時排行榜可能是臨時的。引擎對局和休閒對局不計分。',
   'terms.heading': '使用條款',
   'terms.intro':
     'Mistboard 是一個免費的開源興趣專案。這些是使用 mistboard.com 託管網站的基本規則。隨著專案成長，這些規則會變化；本頁始終是目前版本。',
@@ -1367,11 +1367,11 @@ const JA: Partial<Record<I18nKey, string>> = {
   'nav.signIn': 'ログイン',
   'nav.register': '登録',
   'nav.language': '言語',
-  'home.tagline': '本気の対局向けに作られたオリジナル戦略バリアントを、ブラウザで無料で遊べます。',
+  'home.tagline': '本気の対局のために作られたオリジナル戦略ゲーム。ブラウザで無料で遊べます。',
   'site.more': 'もっと見る »',
   'articles.heading': '記事',
   'articles.read': '読む',
-  'articles.intro': 'ダークチェスのバリアント、戦略、エンジン開発。',
+  'articles.intro': 'オリジナル戦略ゲームのエッセイ、ルールノート、エンジン開発。',
   'articles.allArticles': 'すべての記事',
   'articles.previousArticles': '前の記事',
   'articles.moreArticles': 'もっと記事を見る',
@@ -1387,11 +1387,12 @@ const JA: Partial<Record<I18nKey, string>> = {
   'articles.notFoundTitle': '記事が見つかりません',
   'articles.notFoundBody': 'この記事はまだありません。',
   'rules.heading': 'ルール',
-  'rules.intro': 'Mistboard のゲームと Fog of War バリアントのルールリファレンス。',
+  'rules.intro':
+    'Mistboard のゲーム、古典的な基本ルール、Fog of War バリアントのルールリファレンス。',
   'rules.body1':
     '各ページでは盤、駒の動き、終局条件を扱い、手順を進められるインタラクティブな盤を用意しています。',
   'rules.body2':
-    '基本ゲームがルールの土台です。ダーク系のバリアントは同じゲームを霧の中でプレイします。各プレイヤーは自分の駒が届くマスだけを見られ、チェックの警告はなく、キングを取ると勝ちです。',
+    'Mistboard には、公開情報の基本ゲーム、オリジナル設計、ダーク系バリアントがあります。チェス、シャンチー、将棋、ジャングルを土台にするゲームでは、まず基本ルールを読み、次にバリアントページで Mistboard の変更点を確認してください。',
   'rules.group.chess': 'チェスバリアント',
   'rules.group.xiangqi': 'シャンチーバリアント',
   'rules.group.shogi': '将棋バリアント',
@@ -1531,22 +1532,22 @@ const JA: Partial<Record<I18nKey, string>> = {
   'profile.darkChessGame': 'ダークチェス対局',
   'about.heading': 'Mistboardについて',
   'about.lede':
-    'Mistboard は無料のオープンソースプラットフォームです。ダークチェスから始まり、霧の戦場を持つボードゲームのために作られています。',
+    'Mistboard は、本気の対局のために作られたオリジナル戦略ゲームの無料オープンソースプラットフォームです。',
   'about.whyHeading': 'このサイトを作る理由',
   'about.whyBody':
-    '隠れた情報を持つゲームは、何世代にもわたってプレイヤーを惹きつけてきました。盤面はただの盤面ではないからです。すべての手が、何が見えているか、何を推測できるか、どんなリスクを取るか、相手が何を隠しているかを問いかけます。Mistboard は、そのような対局を始めやすく、公平に終えられ、研究しがいのあるものにするためにあります。',
-  'about.darkChessHeading': 'ダークチェスとは',
+    'オリジナル戦略ゲームに必要なのは、遊べる盤面だけではありません。正確なルール、隠れた情報がある場合の公平な可視性境界、永続的なリプレイ、そして何が起きたかを理解するための道具が必要です。Mistboard は、そのようなゲームを始めやすく、公平に終えられ、研究しがいのあるものにするためにあります。',
+  'about.darkChessHeading': 'Mistboard が作るもの',
   'about.darkChessBody':
-    'ダークチェスは隠れた情報を持つチェスです。自分の駒と、その駒が合法的に動けるマスだけが見えます。それ以外は霧の中です。キングが取られると対局が終わります。',
+    'Mistboard はチェス、シャンチー、将棋、ジャングルと関連ファミリーのオリジナルゲームと本格的なバリアントを扱います。公開情報のゲームもあれば、霧、隠れた正体、持ち駒、裏向きの駒、小さな盤、新しい目標を使うゲームもあります。どのゲームにも明確なルールページとサーバー強制の対局があります。',
   'about.playStudyHeading': '対局と研究',
   'about.playStudyBody':
-    'リンクでダークチェスを対局し、ロビーに参加し、エンジンとも対局できます。対局後は、どちらかのプレイヤー視点でも、全盤面を明かした状態でもレビューできます。ルールと記事では、序盤やダークチェス以外の隠れた情報を持つバリアントも扱います。',
+    'リンクで対局を始め、ロビーに参加し、対応しているゲームではエンジンとも対局できます。対局後は、どちらかのプレイヤー視点で、またルールが許す場合は全盤面を明かした状態でレビューできます。ルールと記事では、遊び方だけでなく、バリアントがなぜ機能するのかも扱います。',
   'about.trustHeading': '設計で信頼を作る',
   'about.trustBody':
-    '霧の戦場は信頼ではなくソフトウェアで強制される必要があります。サーバーが完全な局面を持ち、各ブラウザにはそのプレイヤーが見てよい情報だけを送ります。ライブ対局は観戦できません。完全情報のレビューは対局終了後だけ解放されます。',
-  'about.enginesHeading': '隠れた情報ゲームのエンジン',
+    'Mistboard はルール強制をプロダクトの一部として扱います。サーバーが完全な局面を持ち、各ブラウザにはそのプレイヤーに許された視点だけを送ります。隠れた情報のライブ対局は観戦できません。完全情報のレビューは対局終了後だけ解放されます。',
+  'about.enginesHeading': 'エンジンと本気の対局',
   'about.enginesBody':
-    'Mistboard は隠れた情報ゲームのエンジンをホストし、開発しています。エンジンは人間プレイヤーと同じ制限された視点で競うため、対戦相手としても研究資料としても役立ちます。',
+    'Mistboard は対応バリアントのエンジンをホストし、開発しています。隠れた情報を持つゲームでは、エンジンも人間プレイヤーと同じ制限された視点を受け取るため、対戦相手としても研究資料としても役立ちます。',
   'about.openSourceHeading': 'オープンソース基盤',
   'about.openSourcePrefix': 'Mistboard は AGPL-3.0-or-later のもと ',
   'about.openSourceMiddle':
@@ -1568,7 +1569,7 @@ const JA: Partial<Record<I18nKey, string>> = {
   'about.modePve': 'プレイヤー対エンジン',
   'source.heading': 'ソースとライセンス',
   'source.intro':
-    'Mistboard は独立したオープンソースのダークチェスプロジェクトです。ソースコードは AGPL-3.0-or-later で公開されています。ホストされたサービスは lichess、chess.com、その他のチェスプラットフォームとは関係ありません。',
+    'Mistboard は独立したオープンソースの戦略ゲームプロジェクトです。ソースコードは AGPL-3.0-or-later で公開されています。ホストされたサービスは lichess、chess.com、その他のボードゲームプラットフォームとは関係ありません。',
   'source.projectSource': 'プロジェクトソース',
   'source.githubRepository': 'GitHub リポジトリ',
   'source.licenseAgpl': 'ライセンス: AGPL-3.0-or-later',
@@ -1592,11 +1593,11 @@ const JA: Partial<Record<I18nKey, string>> = {
   'notFound.contact': '問い合わせ',
   'notFound.suffix': 'から知らせてください。',
   'faq.heading': 'FAQ',
-  'faq.darkChessQuestion': 'ダークチェスとは何ですか？',
+  'faq.darkChessQuestion': 'Mistboard では何を遊べますか？',
   'faq.darkChessPrefix':
-    '隠れた情報を持つチェスです。自分の駒と、その駒が合法的に動けるマスだけが見えます。それ以外は霧の中なので、相手の駒や手は自分の駒が見つけるまで隠れたままです。キングが取られると対局が終わります。',
+    'Mistboard はチェス、シャンチー、将棋、ジャングルと関連ファミリーのオリジナル戦略ゲームと本格的なバリアントを扱います。公開情報のゲームもあれば、霧や隠れた正体を使うゲームもあります。',
   'faq.rulesReference': 'ルールリファレンス',
-  'faq.darkChessSuffix': 'に完全なルールがあります。',
+  'faq.darkChessSuffix': 'に現在のゲーム一覧があります。',
   'faq.accountQuestion': 'アカウントは必要ですか？',
   'faq.accountAnswer':
     'カジュアル対局には不要です。リンクで対局を始めたり参加したり、ロビーで遊んだり、登録なしでエンジンと対局できます。アカウントを作るとハンドル、プロフィール、レート対局を使えます。',
@@ -1613,13 +1614,13 @@ const JA: Partial<Record<I18nKey, string>> = {
     'なので、この信頼境界を検査できます。外部支援、アカウントの悪用、霧フィルターを破ろうとする試みは、いずれもフェアプレイ違反です。',
   'faq.enginesQuestion': 'Mistboard のエンジンは完全な盤面を見ますか？',
   'faq.enginesAnswer':
-    '見ません。エンジンは自分側と同じ霧のかかった視点と、その側が知ってよい対局情報だけを受け取ります。真の盤面を見て不正をするのではなく、ダークチェスや隠れた情報を持つバリアントを対局しています。真の盤面は裁定のためにサーバー側に残ります。',
+    '見ません。エンジンは、対局しているゲームで許された情報だけを受け取ります。隠れた情報を持つゲームでは、人間プレイヤーと同じ制限された視点を受け取ります。真の盤面は裁定のためにサーバー側に残ります。',
   'faq.liveWatchQuestion': 'ライブ対局を観戦できますか？',
   'faq.liveWatchAnswer':
     'できません。ライブ対局は観戦できないため、対局中に誰かがプレイヤーへ完全な盤面を教えることはできません。対局が終わると、どちらの視点からでも、また完全公開の盤面でもリプレイできます。',
   'faq.ratedQuestion': 'レート対局はどう動きますか？',
   'faq.ratedAnswer':
-    'レート付きダークチェスは、アカウントに紐づく人間同士の対局です。ベータ期間中、レーティング調整中のラダーは暫定的なものになる場合があります。エンジン対局とカジュアル対局は対象外です。',
+    'レート対局は、対応ラダーバリアントでのアカウントに紐づく人間同士の対局です。ベータ期間中、レーティング調整中のラダーは暫定的なものになる場合があります。エンジン対局とカジュアル対局は対象外です。',
   'terms.heading': '利用規約',
   'terms.intro':
     'Mistboard は無料のオープンソース個人プロジェクトです。これは mistboard.com で提供されるホスト版サイトを利用するための基本ルールです。プロジェクトの成長に応じて変更されます。このページが常に現在の版です。',

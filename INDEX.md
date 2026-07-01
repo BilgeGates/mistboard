@@ -469,6 +469,12 @@ Run with `MISTBOARD_ALLOW_IN_MEMORY_PERSISTENCE=true npm run test:integration --
 | `landing-activity.ts` | Homepage activity box: live presence (`/api/live-stats`) + durable totals (`/api/stats/public`) in the shared `site-box` shell; omitted entirely when both fetches fail |
 | `news-page.ts` | `/news` route: full announcement history as a dated reverse-chronological feed; the landing News box "More" target. Loads `news-page.css` |
 | `news-page.css` | `/news` dated-feed styles loaded by `news-page.ts` |
+| `replay-skeleton.ts` | Neutral "Loading game" placeholder for watch/showcase replay slots while renderer kinds swap or mount asynchronously |
+| `showcase-board.ts` | Homepage showcase single-board mount: dispatches between chessground replay and tenant watch renderers, owns compact chess replay options and game-end handoff |
+| `showcase-clock.ts` | Homepage showcase timing helpers: reconstructs per-ply clock series and autoplay delays from tenant postgame move timestamps plus Fischer time controls |
+| `showcase-compact-view.ts` | Shared compact-view picker for homepage showcase tenant renderers: chooses masked, truth, or stable per-room POV panes without being a redaction boundary |
+| `showcase-cycler.ts` | Homepage showcase cycler: rolls through finished games across renderer kinds, reuses handles when possible, remounts across kinds, and shows the replay skeleton during swaps |
+| `showcase-dispatch.ts` | Showcase renderer dispatch shared with watch routing: maps persisted/spec ids to tenant renderer kinds or the chessground fallback and picks the next pool index |
 | `database.ts` | Unlisted admin game browser (`/database`): faceted completed-game query with win-rate/termination/length summary + review links; admin-gated by `/api/admin/games/query` (open in local dev), no nav entry. Loads `database.css` |
 | `database.css` | `/database` admin game-browser styles loaded by `database.ts` |
 | `engines.ts` | Unlisted admin engine tracker (`/engines`): roster of every engine version with EvE win/loss/draw records; admin-gated by `/api/admin/engines` (open in local dev), no nav entry. Loads `engines.css` |

@@ -28,6 +28,6 @@
     </g>
   </g>
   <text x="606" y="252" fill="#1f2521" font-family="Inter, ui-sans-serif, system-ui, sans-serif" font-size="86" font-weight="800" letter-spacing="0">Mistboard</text>
-  <text x="612" y="326" fill="#3f4742" font-family="Inter, ui-sans-serif, system-ui, sans-serif" font-size="34" font-weight="500">Fog of War chess</text>
-  <text x="612" y="386" fill="#5a6960" font-family="Inter, ui-sans-serif, system-ui, sans-serif" font-size="25">Hidden information. Server enforced.</text>
+  <text x="612" y="326" fill="#3f4742" font-family="Inter, ui-sans-serif, system-ui, sans-serif" font-size="34" font-weight="500">Original strategy games</text>
+  <text x="612" y="386" fill="#5a6960" font-family="Inter, ui-sans-serif, system-ui, sans-serif" font-size="25">Built for serious play.</text>
 </svg>

@@ -5,30 +5,32 @@
 
 <img src="apps/web/public/screenshot-bicolor.png" alt="Mistboard screenshot showing the same Fog of War chess position from White and Black perspectives" title="The same game position seen from White (left) and Black (right) under fog of war." />
 
-Mistboard is a free, open-source platform for **dark chess**, also called Fog of
-War chess. It is a hidden-information chess variant where the server enforces
-what each player can see: their own pieces, opponent pieces in view, and legal
-moves from that partial information.
+Mistboard is a free, open-source platform for **original strategy games, built
+for serious play**. It hosts server-enforced board games and variants across
+chess, xiangqi, shogi, Jungle, and related families, including both
+open-information games and hidden-information games such as dark chess.
 
 The project goal is to build the trustworthy open-source place to play, study,
-rank, and build engines for hidden-information games, starting with dark chess.
+rank, and build engines for original strategy games.
 
 Mistboard is independent. It is not affiliated with lichess, chess.com, or any
 other chess platform.
 
 ## Features
 
-- Low-friction [PvP dark chess rooms](https://mistboard.com) with shareable room
-  links and account-optional play.
+- Low-friction [PvP rooms](https://mistboard.com) with shareable room links and
+  account-optional play.
 - Postgame replay from either player's perspective or full truth.
 - Public game links with PGN and JSON export.
+- Rules references and interactive examples for Mistboard games and their base
+  rulesets.
 - A first-party engine track that uses the same redacted
   [`EngineTurnRequest`](docs/engine-protocol.md) boundary available to any
   third-party engine.
 
-Live PvP dark chess is playable at [mistboard.com](https://mistboard.com). The
-current stage and launch gates are tracked in [docs/STATUS.md](docs/STATUS.md)
-and [docs/ROADMAP.md](docs/ROADMAP.md).
+Live games are playable at [mistboard.com](https://mistboard.com). The current
+stage and launch gates are tracked in [docs/STATUS.md](docs/STATUS.md) and
+[docs/ROADMAP.md](docs/ROADMAP.md).
 
 ## Development
 
@@ -88,7 +90,8 @@ state model.
 ## Documentation
 
 - [docs/README.md](docs/README.md) is the public documentation map.
-- [docs/rules.md](docs/rules.md) defines the dark chess rules baseline.
+- [docs/rules.md](docs/rules.md) maps current, public-alpha, candidate, and
+  historical rulesets.
 - [docs/fog-of-war/INDEX.md](docs/fog-of-war/INDEX.md) indexes Fog of War rules,
   engine, variant, and research notes.
 - [docs/engine-protocol.md](docs/engine-protocol.md) documents the redacted
