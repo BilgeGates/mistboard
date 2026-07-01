@@ -20,7 +20,6 @@ import {
   type FortressXiangqiDropRole,
   type FortressXiangqiGameState,
   type FortressXiangqiMove,
-  type FortressXiangqiSquare,
   getFortressXiangqiLegalMoves,
   isFortressXiangqiDropMove,
 } from '@mistboard/game';
@@ -38,10 +37,6 @@ const ROLE_TO_LETTER: Record<FortressXiangqiDropRole, string> = {
   advisor: 'A',
   elephant: 'E',
 };
-const LETTER_TO_ROLE: Record<string, FortressXiangqiDropRole> = Object.fromEntries(
-  Object.entries(ROLE_TO_LETTER).map(([role, letter]) => [letter, role as FortressXiangqiDropRole]),
-);
-
 function moveToUci(move: FortressXiangqiMove): string {
   return isFortressXiangqiDropMove(move)
     ? `${ROLE_TO_LETTER[move.drop]}@${move.to}`
@@ -119,9 +114,7 @@ class FsfSession {
       return line.startsWith('Nodes searched');
     });
     this.send(
-      history.length > 0
-        ? `position startpos moves ${history.join(' ')}`
-        : 'position startpos',
+      history.length > 0 ? `position startpos moves ${history.join(' ')}` : 'position startpos',
     );
     this.send('go perft 1');
     await collect;

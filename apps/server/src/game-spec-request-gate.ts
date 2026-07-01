@@ -6,6 +6,7 @@ import {
   DARK_SHOGI_SPEC_ID,
   DARK_XIANGQI_SPEC_ID,
   DROP_MINI_XIANGQI_SPEC_ID,
+  FORTRESS_XIANGQI_SPEC_ID,
   JIEQI_SPEC_ID,
   JUNGLE_FLIP_SPEC_ID,
   JUNGLE_SPEC_ID,
@@ -21,6 +22,7 @@ import {
   darkShogiEnabled,
   darkXiangqiEnabled,
   dropMiniXiangqiEnabled,
+  fortressXiangqiEnabled,
   jieqiEnabled,
   jungleEnabled,
   jungleFlipEnabled,
@@ -40,6 +42,8 @@ export type GameSpecGateDecision =
         | 'mini_xiangqi_not_integrated'
         | 'drop_mini_xiangqi_disabled'
         | 'drop_mini_xiangqi_not_integrated'
+        | 'fortress_xiangqi_disabled'
+        | 'fortress_xiangqi_not_integrated'
         | 'jieqi_disabled'
         | 'jieqi_not_integrated'
         | 'banqi_disabled'
@@ -68,6 +72,7 @@ type HiddenRuntimeSpec =
   | typeof DARK_XIANGQI_SPEC_ID
   | typeof DARK_MINI_XIANGQI_SPEC_ID
   | typeof DROP_MINI_XIANGQI_SPEC_ID
+  | typeof FORTRESS_XIANGQI_SPEC_ID
   | typeof JIEQI_SPEC_ID
   | typeof BANQI_SPEC_ID
   | typeof REVEAL_CHESS_SPEC_ID
@@ -96,6 +101,11 @@ const HIDDEN_RUNTIME_SPECS: Record<
     enabled: dropMiniXiangqiEnabled,
     disabledError: 'drop_mini_xiangqi_disabled',
     notIntegratedError: 'drop_mini_xiangqi_not_integrated',
+  },
+  [FORTRESS_XIANGQI_SPEC_ID]: {
+    enabled: fortressXiangqiEnabled,
+    disabledError: 'fortress_xiangqi_disabled',
+    notIntegratedError: 'fortress_xiangqi_not_integrated',
   },
   [JIEQI_SPEC_ID]: {
     enabled: jieqiEnabled,
@@ -186,6 +196,7 @@ function requestedHiddenRuntimeSpec(input: {
     DARK_XIANGQI_SPEC_ID,
     DARK_MINI_XIANGQI_SPEC_ID,
     DROP_MINI_XIANGQI_SPEC_ID,
+    FORTRESS_XIANGQI_SPEC_ID,
     JIEQI_SPEC_ID,
     BANQI_SPEC_ID,
     REVEAL_CHESS_SPEC_ID,

@@ -25,6 +25,7 @@ import * as darkXiangqiGamesRoute from './routes/dark-xiangqi-games.js';
 import * as dropMiniXiangqiGamesRoute from './routes/drop-mini-xiangqi-games.js';
 import * as enginesRoute from './routes/engines.js';
 import * as feedbackRoute from './routes/feedback.js';
+import * as fortressXiangqiGamesRoute from './routes/fortress-xiangqi-games.js';
 import * as forumRoute from './routes/forum.js';
 import * as gamesRoute from './routes/games.js';
 import * as jieqiGamesRoute from './routes/jieqi-games.js';
@@ -83,6 +84,7 @@ const routes: RouteModule[] = [
   miniXiangqiGamesRoute,
   darkMiniXiangqiGamesRoute,
   dropMiniXiangqiGamesRoute,
+  fortressXiangqiGamesRoute,
   darkXiangqiGamesRoute,
   darkCrossroadsChessGamesRoute,
   darkShogiGamesRoute,
