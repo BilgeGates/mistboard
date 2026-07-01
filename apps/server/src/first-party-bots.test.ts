@@ -21,8 +21,10 @@ test('first-party Jieqi and Crossroads bot profiles expose three levels', () => 
   );
 
   assert.equal(firstPartyBotForId('pika-jieqi')?.displayName, 'PikaJieQi - Strong');
+  // Fairy-Stockfish bots drop the redundant variant segment from the display name
+  // (the variant is always shown in context); level distinguishes them per variant.
   assert.equal(
     firstPartyBotForId('fairy-stockfish-crossroads')?.displayName,
-    'Fairy Stockfish Crossroads - Strong',
+    'Fairy Stockfish - Strong',
   );
 });

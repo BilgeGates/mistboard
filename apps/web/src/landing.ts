@@ -38,6 +38,22 @@ const SHOWCASE_REFRESH_ACTIVE_MS = 45_000;
 const SHOWCASE_REFRESH_IDLE_MS = 5 * 60_000;
 const SHOWCASE_POOL_CAP = 14;
 
+// Honest relative-time caption for the showcase: these are replays of finished
+// games, not live play. Bundled cold-start demos have no real finish time and read
+// as "Engine demo". No em dashes in user-facing copy; the separator is a middot.
+function showcaseCaptionText(endedAt: string | undefined): string {
+  if (!endedAt) return 'Engine demo';
+  const ended = Date.parse(endedAt);
+  if (Number.isNaN(ended)) return 'Recent game';
+  const mins = Math.max(0, Math.round((Date.now() - ended) / 60_000));
+  if (mins < 1) return 'Recent game · just now';
+  if (mins < 60) return `Recent game · ${mins}m ago`;
+  const hours = Math.round(mins / 60);
+  if (hours < 24) return `Recent game · ${hours}h ago`;
+  const days = Math.round(hours / 24);
+  return `Recent game · ${days}d ago`;
+}
+
 export async function mountLanding(root: HTMLElement): Promise<void> {
   root.replaceChildren();
   root.classList.add('landing-page');
@@ -64,6 +80,9 @@ export async function mountLanding(root: HTMLElement): Promise<void> {
   // white/black slots mangle red/black variants, so derive them straight from the
   // feed's participants; first = red/first-mover side, second = black.
   const namesByRoomId: Record<string, { first: string; second: string }> = {};
+  // When each game finished, for the honest "recent · 2h ago" caption. Undefined
+  // for the bundled cold-start demos (no real finish time) -> caption reads "demo".
+  const endedAtByRoomId: Record<string, string | undefined> = {};
   const toShowcaseEntry = (game: FeaturedGame): ShowcaseEntry => {
     metadataByRoomId[game.roomId] ??= gameMetaForGame(game);
     const pov = povByRoomId[game.roomId] ?? pickHeroPovForGame(game);
@@ -75,6 +94,7 @@ export async function mountLanding(root: HTMLElement): Promise<void> {
       ),
       second: displayParticipantName(game, 'black'),
     };
+    endedAtByRoomId[game.roomId] = game.endedAt;
     return { roomId: game.roomId, specId: specIdForShowcaseVariant(game.variant), pov };
   };
   const params = new URLSearchParams(window.location.search);
@@ -105,6 +125,9 @@ export async function mountLanding(root: HTMLElement): Promise<void> {
     metadataByRoomId,
     namesByRoomId,
     loaderForId: landingEventLoader,
+    onGameChange: (roomId) => {
+      stage.caption.textContent = showcaseCaptionText(endedAtByRoomId[roomId]);
+    },
   });
 
   // Upgrade the play panel + deep-link handling once the real playable engines
@@ -460,6 +483,7 @@ function buildLandingStage(
 ): {
   el: HTMLElement;
   replayRoot: HTMLElement;
+  caption: HTMLElement;
   applyEngines: (engines: PlayableEngine[]) => void;
 } {
   const locale = currentLocale();
@@ -498,6 +522,12 @@ function buildLandingStage(
   // shared with the dev variant sheet's cells.
   replayRoot.classList.add('showcase-widget');
   boardColumn.append(replayRoot);
+  // Honest "recent · 2h ago" caption below the board: these are replays of finished
+  // games, not live play. Lives outside replayRoot (the renderers replaceChildren
+  // there) and is updated per game by the cycler's onGameChange.
+  const caption = document.createElement('div');
+  caption.className = 'showcase-caption';
+  boardColumn.append(caption);
   centerColumn.append(boardColumn);
   const articleCards = buildHomeArticleCards(8, locale);
   if (articleCards) centerColumn.append(articleCards);
@@ -526,7 +556,7 @@ function buildLandingStage(
   // The footer lives only on the homepage now (stripped from interior routes),
   // blended into the bottom of the stage rather than rendered as a separate bar.
   stage.append(section, buildHomeFooter(locale));
-  return { el: stage, replayRoot, applyEngines };
+  return { el: stage, replayRoot, caption, applyEngines };
 }
 
 // Build-time static render of the homepage (nav + stage), baked by the prerender

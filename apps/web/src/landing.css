@@ -67,6 +67,19 @@
   min-width: 0;
 }
 
+/* Honest "recent · 2h ago" caption below the showcase board: labels the replays as
+   recent finished games (not live) without competing with the board. min-height
+   reserves the line so populating it doesn't shift the layout. */
+.showcase-caption {
+  min-height: 1em;
+  margin-top: -2px;
+  font-size: 12px;
+  font-weight: 500;
+  letter-spacing: 0.02em;
+  color: var(--site-muted);
+  text-align: center;
+}
+
 /* Fill mode (center): the centered showcase expands to the full center-column
    width and the board scales to it (square), so there's no side blank. */
 .landing-board-column #landing-replay {

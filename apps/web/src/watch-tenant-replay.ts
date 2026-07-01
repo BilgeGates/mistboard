@@ -676,10 +676,30 @@ export async function mountTenantWatchReplay<
     scheduleAuto();
   };
 
+  // Single-entry prefetch cache: the showcase cycler warms the next same-variant
+  // game's postgame while the current one plays, so advancing is instant. A
+  // mismatched or failed prefetch just falls back to a fresh fetch, so it can never
+  // surface the wrong game (or hidden info — it fetches the exact same postgame the
+  // load would).
+  let prefetched: { roomId: string; promise: ReturnType<typeof adapter.loadPostgame> } | null =
+    null;
+
   const load = async (nextId: string): Promise<void> => {
     clearTimer();
     activeId = nextId;
-    const result = await adapter.loadPostgame(nextId);
+    let result: Awaited<ReturnType<typeof adapter.loadPostgame>>;
+    if (prefetched && prefetched.roomId === nextId) {
+      const cached = prefetched.promise;
+      prefetched = null;
+      try {
+        result = await cached;
+      } catch {
+        result = await adapter.loadPostgame(nextId);
+      }
+    } else {
+      prefetched = null; // discard a stale prefetch (e.g. a jumpNow pool swap)
+      result = await adapter.loadPostgame(nextId);
+    }
     if (destroyed) return;
     if (!result.ok) {
       const notice = document.createElement('p');
@@ -727,6 +747,14 @@ export async function mountTenantWatchReplay<
     },
     loadGame: async (sampleId: string) => {
       await load(sampleId);
+    },
+    prefetchGame: (nextId: string) => {
+      if (destroyed || activeId === nextId || prefetched?.roomId === nextId) return;
+      const promise = adapter.loadPostgame(nextId);
+      // Swallow rejections so an unused/failed prefetch never becomes an unhandled
+      // rejection; load() re-fetches on a cache miss anyway.
+      void promise.catch(() => undefined);
+      prefetched = { roomId: nextId, promise };
     },
     // Watch drives game selection through the queue; no internal auto-advance pool.
     updateLoopPool: () => {},
