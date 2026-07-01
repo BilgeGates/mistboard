@@ -8,7 +8,7 @@ export const mistyArticle: Article = {
       "Misty is Mistboard's Fog of War chess engine: how it sees, searches possible boards, avoids hidden catastrophes, and where the current version stands.",
     thumbnail: {
       kind: 'image',
-      src: '/article-thumbs/misty.jpg',
+      src: '/article-thumbs/misty-20260701.jpg',
       alt: 'A cute mist avatar hovering above five foreground chess tiles with pawn, knight, blank, pawn, and king.',
     },
     showSummaryOnPage: false,
