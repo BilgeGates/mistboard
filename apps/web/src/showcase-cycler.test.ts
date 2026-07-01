@@ -18,7 +18,10 @@ import { mountShowcaseCycler, type ShowcaseEntry } from './showcase-cycler.js';
 const mountMock = vi.mocked(mountShowcaseBoard);
 const skeletonMock = vi.mocked(renderWatchReplaySkeleton);
 
-type FakeHandle = ReplayHandle & { loadGame: ReturnType<typeof vi.fn>; destroy: ReturnType<typeof vi.fn> };
+type FakeHandle = ReplayHandle & {
+  loadGame: ReturnType<typeof vi.fn>;
+  destroy: ReturnType<typeof vi.fn>;
+};
 const mounted: Array<{ roomId: string; specId: string; handle: FakeHandle }> = [];
 let capturedOnGameEnd: (() => void) | null = null;
 
@@ -52,7 +55,7 @@ beforeEach(() => {
   });
 });
 
-const opts = { metadataByRoomId: {}, loaderForId: async () => [] };
+const opts = { metadataByRoomId: {}, namesByRoomId: {}, loaderForId: async () => [] };
 
 describe('mountShowcaseCycler', () => {
   it('mounts the first pooled game on start', async () => {

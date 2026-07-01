@@ -118,6 +118,9 @@ export type WebVariantTenant = {
         // Watch omits both (full TV chrome, loops the single game).
         compact?: boolean;
         onGameEnd?: () => void;
+        // Player names for the compact seats (first = red/first-mover, second =
+        // black), keyed by room id — the tenant postgames carry no names.
+        namesByRoomId?: Record<string, { first: string; second: string }>;
       },
     ): Promise<ReplayHandle>;
   };

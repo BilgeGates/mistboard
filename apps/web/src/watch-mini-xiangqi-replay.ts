@@ -45,6 +45,9 @@ export type MiniXiangqiWatchReplayOptions = {
   /** Called once at the final ply (after the loop hold) instead of restarting the
    *  game, so an outer showcase controller can advance to the next pooled game. */
   onGameEnd?: () => void;
+  /** Player names for the compact seats (first = red, second = black), keyed by
+   *  room id; absent names fall back to the color labels. */
+  namesByRoomId?: Record<string, { first: string; second: string }>;
 };
 
 type ControlRefs = {
@@ -144,6 +147,7 @@ export async function mountMiniXiangqiWatchReplay(
   const autoplay = options.autoplay ?? true;
   const compact = options.compact === true;
   const onGameEnd = options.onGameEnd;
+  const namesByRoomId = options.namesByRoomId;
 
   let activeId = roomId;
   let destroyed = false;
@@ -170,6 +174,23 @@ export async function mountMiniXiangqiWatchReplay(
   let currentPly = 0;
   let boardOrientation: MiniXiangqiColor = 'red';
   let activePostgame: DarkMiniXiangqiPostgameResponse | null = null;
+  // Compact showcase seats (name + native per-ply clock), rebuilt per game.
+  let compactSeats: {
+    top: { row: HTMLElement; clockEl: HTMLElement; color: MiniXiangqiColor };
+    bottom: { row: HTMLElement; clockEl: HTMLElement; color: MiniXiangqiColor };
+  } | null = null;
+
+  const compactSeatRow = (name: string): { row: HTMLElement; clockEl: HTMLElement } => {
+    const row = document.createElement('div');
+    row.className = 'showcase-seat';
+    const nameEl = document.createElement('span');
+    nameEl.className = 'showcase-seat-name';
+    nameEl.textContent = name;
+    const clockEl = document.createElement('span');
+    clockEl.className = 'showcase-seat-clock';
+    row.append(nameEl, clockEl);
+    return { row, clockEl };
+  };
 
   const clearTimer = (): void => {
     if (timer !== null) {
@@ -191,6 +212,16 @@ export async function mountMiniXiangqiWatchReplay(
         });
       }
       renderMiniXiangqiPaneCaptureSplit(target.pane, captures, boardOrientation);
+    }
+    if (compactSeats) {
+      if (clocks) {
+        const at = clocks[Math.min(currentPly, clocks.length - 1)] ?? clocks[0]!;
+        compactSeats.top.clockEl.textContent = formatClock(at[compactSeats.top.color]);
+        compactSeats.bottom.clockEl.textContent = formatClock(at[compactSeats.bottom.color]);
+      }
+      const active = currentPly >= maxPly ? null : currentPly % 2 === 0 ? 'red' : 'black';
+      compactSeats.top.row.classList.toggle('active', active === compactSeats.top.color);
+      compactSeats.bottom.row.classList.toggle('active', active === compactSeats.bottom.color);
     }
     if (controls) {
       const result = currentPly >= maxPly ? ` — ${resultLabel(activePostgame.game.result)}` : '';
@@ -307,7 +338,8 @@ export async function mountMiniXiangqiWatchReplay(
     incrementMs = (postgame.game.timeControl ?? postgame.state.timeControl)?.incrementMs ?? 0;
     endFired = false;
 
-    // Compact showcase: a single fogged board, no header/control-bar/ply-line/clocks.
+    // Compact showcase: a single fogged board framed by a player name + real
+    // clock on each side (DMX carries a native per-ply clock series).
     if (compact) {
       const target = pickCompactTarget(postgame);
       boardOrientation = target.orientation;
@@ -315,10 +347,23 @@ export async function mountMiniXiangqiWatchReplay(
       boardTargets = [{ pane, key: target.key }];
       controls = null;
       seatCells = null;
-      clocks = null;
+      clocks = clockSeries(postgame);
+
+      const names = namesByRoomId?.[activeId];
+      const bottomColor = boardOrientation;
+      const topColor: MiniXiangqiColor = bottomColor === 'red' ? 'black' : 'red';
+      const nameFor = (color: MiniXiangqiColor): string =>
+        names ? (color === 'red' ? names.first : names.second) : color === 'red' ? 'Red' : 'Black';
+      const topSeat = compactSeatRow(nameFor(topColor));
+      const bottomSeat = compactSeatRow(nameFor(bottomColor));
+      compactSeats = {
+        top: { row: topSeat.row, clockEl: topSeat.clockEl, color: topColor },
+        bottom: { row: bottomSeat.row, clockEl: bottomSeat.clockEl, color: bottomColor },
+      };
+
       const layout = document.createElement('div');
       layout.className = 'replay-layout replay-layout-solo';
-      layout.append(pane.el);
+      layout.append(topSeat.row, pane.el, bottomSeat.row);
       root.replaceChildren(layout);
       sync();
       scheduleAuto();

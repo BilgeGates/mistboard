@@ -20,6 +20,8 @@ export type ShowcaseEntry = {
 
 export type ShowcaseCyclerOptions = {
   metadataByRoomId: Record<string, GameMeta>;
+  // Player names for tenant compact seats (first = red, second = black), by room id.
+  namesByRoomId: Record<string, { first: string; second: string }>;
   loaderForId: (roomId: string) => Promise<GameEvent[]>;
 };
 
@@ -84,6 +86,7 @@ export async function mountShowcaseCycler(
     try {
       const next = await mountShowcaseBoard(root, entry.specId, entry.roomId, {
         metadataByRoomId: options.metadataByRoomId,
+        namesByRoomId: options.namesByRoomId,
         onGameEnd,
         pov: entry.pov,
         loaderForId: options.loaderForId,

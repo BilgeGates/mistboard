@@ -503,7 +503,10 @@
    visual tuning is a follow-up once non-chess games are seeded locally. */
 .landing-page #landing-replay .replay-layout-solo {
   display: flex;
+  flex-direction: column;
+  align-items: center;
   justify-content: center;
+  gap: 4px;
   width: 100%;
 }
 
@@ -538,6 +541,38 @@
   display: block;
   width: 100%;
   height: 100%;
+}
+
+/* Player name + real (reconstructed) clock framing the tenant showcase board,
+   one row above and one below, matching the widget width. */
+.landing-page #landing-replay .replay-layout-solo .showcase-seat {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  width: var(--showcase-widget-size);
+  max-width: 100%;
+  padding: 1px 4px;
+}
+
+.landing-page #landing-replay .replay-layout-solo .showcase-seat-name {
+  overflow: hidden;
+  font-weight: 600;
+  font-size: 0.92rem;
+  color: var(--site-text);
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.landing-page #landing-replay .replay-layout-solo .showcase-seat-clock {
+  color: var(--site-muted);
+  font-size: 0.9rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.landing-page #landing-replay .replay-layout-solo .showcase-seat.active .showcase-seat-clock {
+  color: var(--site-accent);
+  font-weight: 700;
 }
 
 .landing-page #landing-replay.replay-compact .replay-layout-single-white .replay-pane-white,

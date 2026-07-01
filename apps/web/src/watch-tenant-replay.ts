@@ -15,6 +15,7 @@ import { currentLocale, type Locale } from './i18n/locale.js';
 import type { GameMeta, ReplayHandle } from './replay.js';
 import { createPane, type ReplayPaneHandle } from './replay-board.js';
 import { createGameHeaderStrip } from './replay-meta.js';
+import { reconstructShowcaseClocks, type ShowcaseClockPair } from './showcase-clock.js';
 import { pickCompactViewKey } from './showcase-compact-view.js';
 import { formatClock } from './web-utils.js';
 
@@ -32,8 +33,14 @@ export type WatchPostgameMeta = {
     rated: boolean;
     initialMs: number | null;
     incrementMs: number | null;
+    startedAt?: number | string | null;
   };
   state: { timeControl?: { initialMs: number; incrementMs: number } | null };
+  // Per-event wall-clock timestamps; present on every tenant postgame (move events
+  // carry color + ply, terminal events may not). The compact showcase reconstructs
+  // the players' real clocks from the move timestamps (the generic tenant postgames
+  // carry no dense clock series).
+  timeline?: ReadonlyArray<{ at: number; color?: string; ply?: number }>;
 };
 
 // The variant-specific surface. The generic owns everything else.
@@ -80,6 +87,13 @@ export type TenantWatchReplayOptions = {
    * controller advance to the next pooled game (possibly a different variant).
    */
   onGameEnd?: () => void;
+  /**
+   * Player names for the compact showcase seats, keyed by room id: `first` is the
+   * red/first-mover side, `second` is black. The tenant postgames carry no names
+   * (they come from the feed's participants), so the caller supplies them here;
+   * absent names fall back to the color labels.
+   */
+  namesByRoomId?: Record<string, { first: string; second: string }>;
 };
 
 type ControlRefs = {
@@ -193,6 +207,7 @@ export async function mountTenantWatchReplay<
   const locale = options.locale ?? currentLocale();
   const compact = options.compact === true;
   const onGameEnd = options.onGameEnd;
+  const namesByRoomId = options.namesByRoomId;
 
   let activeId = roomId;
   let destroyed = false;
@@ -215,6 +230,25 @@ export async function mountTenantWatchReplay<
   // Default to the as-played (hidden) board when the tenant supports reveal.
   let revealed = false;
   let revealBtn: HTMLButtonElement | null = null;
+  // Compact showcase seats (player name + real reconstructed clock), rebuilt per
+  // game; `side` maps each seat to the first(red)/second(black) clock slot.
+  let compactSeats: {
+    top: { row: HTMLElement; clockEl: HTMLElement; side: 'first' | 'second' };
+    bottom: { row: HTMLElement; clockEl: HTMLElement; side: 'first' | 'second' };
+  } | null = null;
+  let compactClocks: ShowcaseClockPair[] | null = null;
+
+  const compactSeatRow = (name: string): { row: HTMLElement; clockEl: HTMLElement } => {
+    const row = document.createElement('div');
+    row.className = 'showcase-seat';
+    const nameEl = document.createElement('span');
+    nameEl.className = 'showcase-seat-name';
+    nameEl.textContent = name;
+    const clockEl = document.createElement('span');
+    clockEl.className = 'showcase-seat-clock';
+    row.append(nameEl, clockEl);
+    return { row, clockEl };
+  };
 
   // Lichess convention: a player's captured material sits next to that player.
   const renderPaneCaptures = (
@@ -254,6 +288,19 @@ export async function mountTenantWatchReplay<
         target.pane.boardEl.innerHTML = adapter.renderBoard(view, boardOrientation, key);
         renderPaneCaptures(target.pane, view, boardOrientation);
       }
+    }
+    if (compactSeats) {
+      if (compactClocks) {
+        const at = compactClocks[Math.min(currentPly, compactClocks.length - 1)]!;
+        compactSeats.top.clockEl.textContent = formatClock(at[compactSeats.top.side]);
+        compactSeats.bottom.clockEl.textContent = formatClock(at[compactSeats.bottom.side]);
+      }
+      // Red moves first, so an even ply leaves Red (first) to move; no active side
+      // once the game has ended.
+      const toMove: 'first' | 'second' | null =
+        currentPly >= maxPly ? null : currentPly % 2 === 0 ? 'first' : 'second';
+      compactSeats.top.row.classList.toggle('active', toMove === compactSeats.top.side);
+      compactSeats.bottom.row.classList.toggle('active', toMove === compactSeats.bottom.side);
     }
     if (controls) {
       const result =
@@ -369,7 +416,8 @@ export async function mountTenantWatchReplay<
     initialClock = initialMs === null ? null : { red: initialMs, black: initialMs };
     endFired = false;
 
-    // Compact showcase: a single board, no header/control-bar/ply-line/clocks.
+    // Compact showcase: a single board framed by a player name + real clock on
+    // each side (no control-bar/ply-line).
     if (compact) {
       const target = pickCompactTarget(postgame);
       boardOrientation = target.orientation;
@@ -377,9 +425,52 @@ export async function mountTenantWatchReplay<
       boardTargets = [{ pane, key: target.key }];
       controls = null;
       seatCells = null;
+
+      // Reconstruct the players' real remaining clocks from the move timestamps
+      // (the generic tenant postgames carry no dense clock series). Null when
+      // untimed or timeline-less: seats then show names only.
+      const clockInitialMs = initialMs ?? postgame.state.timeControl?.initialMs ?? null;
+      const clockIncrementMs =
+        postgame.game.incrementMs ?? postgame.state.timeControl?.incrementMs ?? 0;
+      const moves = (postgame.timeline ?? []).flatMap((event) =>
+        typeof event.color === 'string' && typeof event.ply === 'number'
+          ? [{ at: event.at, color: event.color, ply: event.ply }]
+          : [],
+      );
+      compactClocks =
+        clockInitialMs !== null && moves.length > 0
+          ? reconstructShowcaseClocks({
+              moves,
+              startedAt: null,
+              initialMs: clockInitialMs,
+              incrementMs: clockIncrementMs,
+              firstColor: 'red',
+            })
+          : null;
+
+      // Bottom seat = the side the board is oriented to; top = the opponent.
+      // `first` is the red/first-mover clock slot.
+      const names = namesByRoomId?.[activeId];
+      const bottomSide: 'first' | 'second' = boardOrientation === 'red' ? 'first' : 'second';
+      const topSide: 'first' | 'second' = bottomSide === 'first' ? 'second' : 'first';
+      const nameFor = (side: 'first' | 'second'): string =>
+        names
+          ? side === 'first'
+            ? names.first
+            : names.second
+          : side === 'first'
+            ? t('replay.red', {}, locale)
+            : t('replay.black', {}, locale);
+      const topSeat = compactSeatRow(nameFor(topSide));
+      const bottomSeat = compactSeatRow(nameFor(bottomSide));
+      compactSeats = {
+        top: { row: topSeat.row, clockEl: topSeat.clockEl, side: topSide },
+        bottom: { row: bottomSeat.row, clockEl: bottomSeat.clockEl, side: bottomSide },
+      };
+
       const layout = document.createElement('div');
       layout.className = 'replay-layout replay-layout-solo';
-      layout.append(pane.el);
+      layout.append(topSeat.row, pane.el, bottomSeat.row);
       root.replaceChildren(layout);
       sync();
       scheduleAuto();

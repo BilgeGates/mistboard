@@ -5,7 +5,7 @@ import './game-route.css';
 import { loadCachedCurrentUser, readCachedUser } from './account-nav.js';
 import { buildHomeArticleCards, initLandingCarousel, mountArticleThumbnails } from './articles.js';
 import { buildContact } from './contact.js';
-import type { FeaturedGame } from './game-display.js';
+import { displayParticipantName, type FeaturedGame } from './game-display.js';
 import { gameMetaForGame } from './game-meta.js';
 import { t } from './i18n/catalog.js';
 import { currentLocale } from './i18n/locale.js';
@@ -60,10 +60,21 @@ export async function mountLanding(root: HTMLElement): Promise<void> {
   // fallback pool, then merged with each live-showcase refresh below.
   const metadataByRoomId: Record<string, GameMeta> = {};
   const povByRoomId: Record<string, 'white' | 'black'> = {};
+  // Red/black participant names for the tenant compact seats. GameMeta's
+  // white/black slots mangle red/black variants, so derive them straight from the
+  // feed's participants; first = red/first-mover side, second = black.
+  const namesByRoomId: Record<string, { first: string; second: string }> = {};
   const toShowcaseEntry = (game: FeaturedGame): ShowcaseEntry => {
     metadataByRoomId[game.roomId] ??= gameMetaForGame(game);
     const pov = povByRoomId[game.roomId] ?? pickHeroPovForGame(game);
     povByRoomId[game.roomId] = pov;
+    namesByRoomId[game.roomId] ??= {
+      first: displayParticipantName(
+        game,
+        game.participants?.some((p) => p.color === 'red') ? 'red' : 'white',
+      ),
+      second: displayParticipantName(game, 'black'),
+    };
     return { roomId: game.roomId, specId: specIdForShowcaseVariant(game.variant), pov };
   };
   const initialPool = games.map(toShowcaseEntry);
@@ -87,6 +98,7 @@ export async function mountLanding(root: HTMLElement): Promise<void> {
   // compact board and hands off at its end; the pool refreshes live below.
   const cycler = await mountShowcaseCycler(stage.replayRoot, initialPool, {
     metadataByRoomId,
+    namesByRoomId,
     loaderForId: landingEventLoader,
   });
 

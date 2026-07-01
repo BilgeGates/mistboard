@@ -15,6 +15,9 @@ const SHOWCASE_CHESS_HOLD_MS = 8000;
 
 export type ShowcaseBoardOptions = {
   metadataByRoomId: Record<string, GameMeta>;
+  // Player names for the tenant compact seats (first = red, second = black),
+  // keyed by room id; the chess path reads names from metadataByRoomId instead.
+  namesByRoomId: Record<string, { first: string; second: string }>;
   // Fired once when the mounted game reaches its final ply; the cycler advances.
   onGameEnd: () => void;
   // POV for the chess (chessground) path; tenants pick their own showcase side.
@@ -38,6 +41,7 @@ export async function mountShowcaseBoard(
       metadataByRoomId: options.metadataByRoomId,
       compact: true,
       onGameEnd: options.onGameEnd,
+      namesByRoomId: options.namesByRoomId,
     });
   }
 
