@@ -57,6 +57,7 @@ export const jungleArticle: Article = {
         {
           kind: 'raw-svg',
           svg: JUNGLE_RANK_LADDER,
+          caption: 'Strongest at the left, weakest at the right.',
         },
         {
           kind: 'raw-svg',

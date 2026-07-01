@@ -166,14 +166,17 @@ export const JUNGLE_RANK_LADDER = (() => {
   const width = RANK_ORDER.length * slot;
   const height = labelY + 8;
   const shadowId = 'jungle-rank-shadow';
+  // No leading rank numbers: the left-to-right order already reads strongest to
+  // weakest, and a "1./2." index just fights the "higher number = stronger"
+  // instinct on a wrap-order ladder (the rat, last here, still beats the elephant).
   const cells = RANK_ORDER.map((role, i) => {
     const cx = i * slot + slot / 2;
     return [
       framedTokenSvg({ cx, cy, size: token, ink: 'red', role, filterId: shadowId }),
-      `<text x="${cx}" y="${labelY}" font-size="12" fill="currentColor" text-anchor="middle" font-weight="600">${i + 1}. ${RANK_LABEL[role]}</text>`,
+      `<text x="${cx}" y="${labelY}" font-size="12" fill="currentColor" text-anchor="middle" font-weight="600">${RANK_LABEL[role]}</text>`,
     ].join('');
   }).join('');
-  const svg = `<svg class="jungle-rank-ladder" viewBox="0 0 ${width} ${height}" role="img" xmlns="http://www.w3.org/2000/svg" aria-label="The eight Jungle animals in rank order, weakest to strongest"><defs>${jungleShadowFilterDef(shadowId)}</defs>${cells}</svg>`;
+  const svg = `<svg class="jungle-rank-ladder" viewBox="0 0 ${width} ${height}" role="img" xmlns="http://www.w3.org/2000/svg" aria-label="The eight Jungle animals in rank order, strongest to weakest"><defs>${jungleShadowFilterDef(shadowId)}</defs>${cells}</svg>`;
   return responsive(svg, 680);
 })();
 

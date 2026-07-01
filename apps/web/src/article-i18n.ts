@@ -692,6 +692,7 @@ const ZH_HANS: Record<string, string> = {
   'Seven files wide, nine ranks deep. Your den sits at the center of your back rank, ringed by three trap squares. Two rivers, each a 2×3 block of water, split the middle of the board, with land lanes down both edges and the center. Every piece moves one square up, down, left, or right. No diagonals.':
     '棋盘宽七路、纵九行。你的兽穴位于己方底线中央，周围环绕三个陷阱格。两片河流各为 2×3 的水域，分隔棋盘中部，两侧和中路留有陆地通道。每枚棋子只能上下左右走一格，不能斜走。',
   'The animals': '动物',
+  'Strongest at the left, weakest at the right.': '最强在左，最弱在右。',
   'Strongest to weakest: elephant, lion, tiger, leopard, wolf, dog, cat, rat. A piece captures any adjacent enemy of equal or lower rank. The exception runs the other way: the rat captures the elephant, and the elephant can never capture the rat.':
     '由强到弱依次是：象、狮、虎、豹、狼、狗、猫、鼠。一枚棋子可以吃掉相邻的、等级相同或更低的敌方棋子。唯一的例外反其道而行：老鼠能吃大象，而大象永远吃不了老鼠。',
   Traps: '陷阱',
@@ -1407,6 +1408,7 @@ const ZH_HANT: Record<string, string> = {
   'Seven files wide, nine ranks deep. Your den sits at the center of your back rank, ringed by three trap squares. Two rivers, each a 2×3 block of water, split the middle of the board, with land lanes down both edges and the center. Every piece moves one square up, down, left, or right. No diagonals.':
     '棋盤寬七路、縱九行。你的獸穴位於己方底線中央，周圍環繞三個陷阱格。兩片河流各為 2×3 的水域，分隔棋盤中部，兩側和中路留有陸地通道。每枚棋子只能上下左右走一格，不能斜走。',
   'The animals': '動物',
+  'Strongest at the left, weakest at the right.': '最強在左，最弱在右。',
   'Strongest to weakest: elephant, lion, tiger, leopard, wolf, dog, cat, rat. A piece captures any adjacent enemy of equal or lower rank. The exception runs the other way: the rat captures the elephant, and the elephant can never capture the rat.':
     '由強到弱依次是：象、獅、虎、豹、狼、狗、貓、鼠。一枚棋子可以吃掉相鄰的、等級相同或更低的敵方棋子。唯一的例外反其道而行：老鼠能吃大象，而大象永遠吃不了老鼠。',
   Traps: '陷阱',
