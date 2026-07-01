@@ -20,6 +20,7 @@ const SHEET_VARIANTS: ReadonlyArray<{ label: string; channel: string }> = [
   { label: 'Mini Xiangqi', channel: 'mini-xiangqi' },
   { label: 'Dark Mini Xiangqi', channel: 'dark-mini-xiangqi' },
   { label: 'Drop Mini Xiangqi', channel: 'drop-mini-xiangqi' },
+  { label: 'Fortress Xiangqi', channel: 'fortress-xiangqi' },
 ];
 
 async function firstGameForChannel(channel: string): Promise<FeaturedGame | null> {

@@ -640,6 +640,16 @@ const WEB_VARIANT_TENANTS: readonly WebVariantTenant[] = [
           () =>
             bootstrapFortressXiangqiLiveRoom(),
       ),
+    // Mistboard TV channel. Renders in the 'xiangqi' family; watch-route dispatch
+    // keys on the channel's spec id, not the family, so it never collides with
+    // the other xiangqi tenants on the same renderer.
+    watch: {
+      family: 'xiangqi',
+      mountReplay: (root, roomId, options) =>
+        import('../watch-fortress-xiangqi-replay.js').then(({ mountFortressXiangqiWatchReplay }) =>
+          mountFortressXiangqiWatchReplay(root, roomId, options),
+        ),
+    },
     landing: {
       capabilities: {
         ...XIANGQI_CAPABILITIES_BASE,
