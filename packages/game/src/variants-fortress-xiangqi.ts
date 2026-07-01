@@ -1,0 +1,733 @@
+// Fortress Xiangqi — pure rules kernel (perfect information + crazyhouse drops).
+//
+// "Xiangqi with a pocket." A 7x8 board with two 3x3 palaces in OPPOSITE corners
+// (pinwheel), faithful xiangqi movement, one new piece (the Treasure), and
+// crazyhouse-style drops. The blessed flagship config is both-side attacker
+// drops + the chasing rule (perpetual check/chase = loss for the aggressor).
+//
+// This kernel is intentionally self-contained: unlike mini-xiangqi (shared by
+// Dark Mini Xiangqi, Drop Mini Xiangqi, and puzzles) Fortress has its own
+// geometry and piece set, so it does not extend an existing kernel.
+//
+// CHASING RULE BOUNDARY: this pure kernel adjudicates a three-fold repetition as
+// a DRAW. The faithful "perpetual check/chase = loss for the aggressor" verdict
+// is applied server-side via the Fairy-Stockfish adjudicator (see
+// docs-private/fortress-xiangqi-build-track.md, Phase 2) so that PvP matches the
+// measured PvE game exactly. The `'chasing'` end reason and the winner override
+// live in the tenant, not here; keeping this kernel a pure sync function is what
+// makes it testable.
+
+import type { AbortReason } from './types.js';
+
+export type FortressXiangqiColor = 'red' | 'black';
+
+export type FortressXiangqiPieceRole =
+  | 'general'
+  | 'advisor'
+  | 'elephant'
+  | 'horse'
+  | 'cannon'
+  | 'chariot'
+  | 'soldier'
+  | 'treasure';
+
+export type FortressXiangqiPiece = {
+  color: FortressXiangqiColor;
+  role: FortressXiangqiPieceRole;
+};
+
+export type FortressXiangqiCoord = { file: number; rank: number };
+
+type FortressFileChar = 'a' | 'b' | 'c' | 'd' | 'e' | 'f' | 'g';
+type FortressRankNum = 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8;
+export type FortressXiangqiSquare = `${FortressFileChar}${FortressRankNum}`;
+
+export type FortressXiangqiBoard = Partial<Record<FortressXiangqiSquare, FortressXiangqiPiece>>;
+
+export type FortressXiangqiBoardMove = {
+  from: FortressXiangqiSquare;
+  to: FortressXiangqiSquare;
+};
+
+// Every non-general piece can be captured into hand and dropped back.
+export type FortressXiangqiDropRole = Exclude<FortressXiangqiPieceRole, 'general'>;
+
+export type FortressXiangqiDropMove = {
+  drop: FortressXiangqiDropRole;
+  to: FortressXiangqiSquare;
+};
+
+export type FortressXiangqiMove = FortressXiangqiBoardMove | FortressXiangqiDropMove;
+
+export type FortressXiangqiHand = Partial<Record<FortressXiangqiDropRole, number>>;
+export type FortressXiangqiHands = Record<FortressXiangqiColor, FortressXiangqiHand>;
+
+export type FortressXiangqiGameEndReason =
+  | 'checkmate'
+  | 'stalemate'
+  | 'repetition'
+  | 'chasing'
+  | 'timeout'
+  | 'resignation'
+  | 'abandonment';
+
+export type FortressXiangqiGameStatus =
+  | { type: 'playing'; turn: FortressXiangqiColor }
+  | { type: 'finished'; winner: FortressXiangqiColor | null; reason: FortressXiangqiGameEndReason }
+  | { type: 'aborted'; reason: AbortReason };
+
+export type FortressXiangqiGameState = {
+  id: string;
+  board: FortressXiangqiBoard;
+  hands: FortressXiangqiHands;
+  status: FortressXiangqiGameStatus;
+  moveNumber: number;
+  lastMove?: FortressXiangqiMove;
+  positionCounts: Record<string, number>;
+};
+
+export type FortressXiangqiPlayerView = {
+  id: string;
+  perspective: FortressXiangqiColor;
+  board: FortressXiangqiBoard;
+  hands: FortressXiangqiHands;
+  legalMoves: FortressXiangqiMove[];
+  inCheck: boolean;
+  status: FortressXiangqiGameStatus;
+  moveNumber: number;
+  lastMove?: FortressXiangqiMove;
+};
+
+const FILE_CHARS = ['a', 'b', 'c', 'd', 'e', 'f', 'g'] as const;
+const FILES = 7;
+const RANKS = 8;
+const RIVER_RED_MAX_RANK = 4; // red owns ranks 1-4, black owns ranks 5-8
+
+// Drop classes. Attackers parachute anywhere; defenders stay in their legal
+// standing region (advisor -> own palace, elephant -> own half). Matches the
+// flagship zmini-drop-ck-bs-chase FSF config.
+export const FORTRESS_ATTACKER_DROP_ROLES = [
+  'chariot',
+  'horse',
+  'cannon',
+  'soldier',
+  'treasure',
+] as const satisfies readonly FortressXiangqiDropRole[];
+
+export const FORTRESS_DEFENDER_DROP_ROLES = [
+  'advisor',
+  'elephant',
+] as const satisfies readonly FortressXiangqiDropRole[];
+
+export const FORTRESS_DROP_ROLES = [
+  ...FORTRESS_ATTACKER_DROP_ROLES,
+  ...FORTRESS_DEFENDER_DROP_ROLES,
+] as const satisfies readonly FortressXiangqiDropRole[];
+
+export const FORTRESS_XIANGQI_START_FEN = 'rnceakq/pp1p1pp/7/7/7/7/PP1P1PP/QKAECNR w - - 0 1';
+
+const ROLE_REPETITION_CODES: Record<FortressXiangqiPieceRole, string> = {
+  general: 'k',
+  advisor: 'a',
+  elephant: 'e',
+  horse: 'h',
+  cannon: 'n',
+  chariot: 'r',
+  soldier: 's',
+  treasure: 't',
+};
+
+const ORTHOGONAL_STEPS = [
+  [1, 0],
+  [-1, 0],
+  [0, 1],
+  [0, -1],
+] as const;
+
+const DIAGONAL_STEPS = [
+  [1, 1],
+  [1, -1],
+  [-1, 1],
+  [-1, -1],
+] as const;
+
+const ALL_STEPS = [...ORTHOGONAL_STEPS, ...DIAGONAL_STEPS] as const;
+
+// [df, dr, legDf, legDr] — knight offset plus the orthogonal leg that hobbles it.
+const HORSE_MOVES = [
+  [1, 2, 0, 1],
+  [1, -2, 0, -1],
+  [-1, 2, 0, 1],
+  [-1, -2, 0, -1],
+  [2, 1, 1, 0],
+  [2, -1, 1, 0],
+  [-2, 1, -1, 0],
+  [-2, -1, -1, 0],
+] as const;
+
+const ALL_FORTRESS_XIANGQI_SQUARES: readonly FortressXiangqiSquare[] = (() => {
+  const squares: FortressXiangqiSquare[] = [];
+  for (let rank = 1; rank <= RANKS; rank += 1) {
+    for (let file = 0; file < FILES; file += 1) squares.push(fortressXiangqiSquareOf(file, rank));
+  }
+  return squares;
+})();
+
+// ── Coordinates & regions ───────────────────────────────────────────────────
+
+export function fortressXiangqiSquareOf(file: number, rank: number): FortressXiangqiSquare {
+  if (!fortressXiangqiInBounds(file, rank)) {
+    throw new RangeError(`fortress xiangqi coord out of range: file=${file} rank=${rank}`);
+  }
+  return `${FILE_CHARS[file]}${rank}` as FortressXiangqiSquare;
+}
+
+export function fortressXiangqiCoordOf(square: FortressXiangqiSquare): FortressXiangqiCoord {
+  const file = FILE_CHARS.indexOf(square[0] as FortressFileChar);
+  const rank = Number(square.slice(1));
+  if (file < 0 || !Number.isInteger(rank) || rank < 1 || rank > RANKS) {
+    throw new RangeError(`invalid fortress xiangqi square: ${square}`);
+  }
+  return { file, rank };
+}
+
+export function fortressXiangqiInBounds(file: number, rank: number): boolean {
+  return file >= 0 && file < FILES && rank >= 1 && rank <= RANKS;
+}
+
+// Opposite-corner palaces: Red a1-c3 (files a-c, ranks 1-3), Black e6-g8 (files
+// e-g, ranks 6-8).
+export function fortressXiangqiInPalace(
+  color: FortressXiangqiColor,
+  file: number,
+  rank: number,
+): boolean {
+  return color === 'red'
+    ? file >= 0 && file <= 2 && rank >= 1 && rank <= 3
+    : file >= 4 && file <= 6 && rank >= 6 && rank <= 8;
+}
+
+// The half a color starts on (elephants and defender drops never leave it).
+export function fortressXiangqiInOwnHalf(color: FortressXiangqiColor, rank: number): boolean {
+  return color === 'red' ? rank <= RIVER_RED_MAX_RANK : rank > RIVER_RED_MAX_RANK;
+}
+
+// A soldier that has crossed the river gains its sideways step.
+export function fortressXiangqiCrossedRiver(color: FortressXiangqiColor, rank: number): boolean {
+  return color === 'red' ? rank > RIVER_RED_MAX_RANK : rank <= RIVER_RED_MAX_RANK;
+}
+
+export function oppositeFortressXiangqiColor(color: FortressXiangqiColor): FortressXiangqiColor {
+  return color === 'red' ? 'black' : 'red';
+}
+
+export function allFortressXiangqiSquares(): readonly FortressXiangqiSquare[] {
+  return ALL_FORTRESS_XIANGQI_SQUARES;
+}
+
+export function isFortressXiangqiDropMove(
+  move: FortressXiangqiMove,
+): move is FortressXiangqiDropMove {
+  return 'drop' in move;
+}
+
+// ── Initial position ────────────────────────────────────────────────────────
+
+export function createInitialFortressXiangqiBoard(): FortressXiangqiBoard {
+  const board: FortressXiangqiBoard = {};
+  // Red back rank (a1..g1): Treasure, General, Advisor, Elephant, Cannon, Horse,
+  // Chariot. Black is the 180-degree rotation.
+  const redBackRank: FortressXiangqiPieceRole[] = [
+    'treasure',
+    'general',
+    'advisor',
+    'elephant',
+    'cannon',
+    'horse',
+    'chariot',
+  ];
+  const blackBackRank: FortressXiangqiPieceRole[] = [
+    'chariot',
+    'horse',
+    'cannon',
+    'elephant',
+    'advisor',
+    'general',
+    'treasure',
+  ];
+  for (let f = 0; f < FILES; f += 1) {
+    board[fortressXiangqiSquareOf(f, 1)] = { color: 'red', role: redBackRank[f] };
+    board[fortressXiangqiSquareOf(f, 8)] = { color: 'black', role: blackBackRank[f] };
+  }
+  // Five soldiers a side, gaps at the c- and e-files.
+  for (const f of [0, 1, 3, 5, 6]) {
+    board[fortressXiangqiSquareOf(f, 2)] = { color: 'red', role: 'soldier' };
+    board[fortressXiangqiSquareOf(f, 7)] = { color: 'black', role: 'soldier' };
+  }
+  return board;
+}
+
+function emptyHands(): FortressXiangqiHands {
+  return { red: {}, black: {} };
+}
+
+export function createInitialFortressXiangqiState(gameId: string): FortressXiangqiGameState {
+  const base: FortressXiangqiGameState = {
+    id: gameId,
+    board: createInitialFortressXiangqiBoard(),
+    hands: emptyHands(),
+    status: { type: 'playing', turn: 'red' },
+    moveNumber: 1,
+    positionCounts: {},
+  };
+  return {
+    ...base,
+    positionCounts: { [fortressXiangqiPositionRepetitionKey(base)]: 1 },
+  };
+}
+
+// ── Move generation ─────────────────────────────────────────────────────────
+
+// Pseudo-legal board moves for the piece on `from` (own-color blocking only;
+// does NOT filter self-check or forbid capturing the general — the legal layer
+// does that). Used both for legal-move generation and for attack detection.
+function pseudoBoardMovesFrom(
+  board: FortressXiangqiBoard,
+  from: FortressXiangqiSquare,
+): FortressXiangqiBoardMove[] {
+  const piece = board[from];
+  if (!piece) return [];
+  const { file, rank } = fortressXiangqiCoordOf(from);
+  const moves: FortressXiangqiBoardMove[] = [];
+  const addStep = (f: number, r: number): void => {
+    if (!fortressXiangqiInBounds(f, r)) return;
+    const to = fortressXiangqiSquareOf(f, r);
+    if (board[to]?.color === piece.color) return;
+    moves.push({ from, to });
+  };
+
+  switch (piece.role) {
+    case 'general':
+      for (const [df, dr] of ORTHOGONAL_STEPS) {
+        const f = file + df;
+        const r = rank + dr;
+        if (fortressXiangqiInPalace(piece.color, f, r)) addStep(f, r);
+      }
+      break;
+    case 'advisor':
+      for (const [df, dr] of DIAGONAL_STEPS) {
+        const f = file + df;
+        const r = rank + dr;
+        if (fortressXiangqiInPalace(piece.color, f, r)) addStep(f, r);
+      }
+      break;
+    case 'elephant':
+      for (const [df, dr] of DIAGONAL_STEPS) {
+        const eyeF = file + df;
+        const eyeR = rank + dr;
+        const toF = file + 2 * df;
+        const toR = rank + 2 * dr;
+        if (!fortressXiangqiInBounds(toF, toR)) continue;
+        if (isOccupied(board, eyeF, eyeR)) continue; // blocked eye
+        if (!fortressXiangqiInOwnHalf(piece.color, toR)) continue; // cannot cross river
+        addStep(toF, toR);
+      }
+      break;
+    case 'horse':
+      for (const [df, dr, legDf, legDr] of HORSE_MOVES) {
+        if (isOccupied(board, file + legDf, rank + legDr)) continue; // hobbled leg
+        addStep(file + df, rank + dr);
+      }
+      break;
+    case 'chariot':
+      rayMovesInto(moves, board, from, piece.color, file, rank, false);
+      break;
+    case 'cannon':
+      rayMovesInto(moves, board, from, piece.color, file, rank, true);
+      break;
+    case 'soldier': {
+      const forward = piece.color === 'red' ? 1 : -1;
+      addStep(file, rank + forward);
+      if (fortressXiangqiCrossedRiver(piece.color, rank)) {
+        addStep(file - 1, rank);
+        addStep(file + 1, rank);
+      }
+      break;
+    }
+    case 'treasure':
+      for (const [df, dr] of ALL_STEPS) addStep(file + df, rank + dr);
+      break;
+  }
+  return moves;
+}
+
+function rayMovesInto(
+  moves: FortressXiangqiBoardMove[],
+  board: FortressXiangqiBoard,
+  from: FortressXiangqiSquare,
+  color: FortressXiangqiColor,
+  file: number,
+  rank: number,
+  cannon: boolean,
+): void {
+  for (const [df, dr] of ORTHOGONAL_STEPS) {
+    let f = file + df;
+    let r = rank + dr;
+    if (!cannon) {
+      while (fortressXiangqiInBounds(f, r)) {
+        const to = fortressXiangqiSquareOf(f, r);
+        const target = board[to];
+        if (!target) {
+          moves.push({ from, to });
+        } else {
+          if (target.color !== color) moves.push({ from, to });
+          break;
+        }
+        f += df;
+        r += dr;
+      }
+      continue;
+    }
+    // Cannon: slide freely, then need exactly one screen before a capture.
+    while (fortressXiangqiInBounds(f, r) && !isOccupied(board, f, r)) {
+      moves.push({ from, to: fortressXiangqiSquareOf(f, r) });
+      f += df;
+      r += dr;
+    }
+    if (!fortressXiangqiInBounds(f, r)) continue; // ran off the board with no screen
+    f += df;
+    r += dr;
+    while (fortressXiangqiInBounds(f, r) && !isOccupied(board, f, r)) {
+      f += df;
+      r += dr;
+    }
+    if (!fortressXiangqiInBounds(f, r)) continue;
+    const to = fortressXiangqiSquareOf(f, r);
+    if (board[to]?.color !== color) moves.push({ from, to });
+  }
+}
+
+// ── Legality (self-check filtering) ─────────────────────────────────────────
+
+function isBoardMoveLegal(
+  board: FortressXiangqiBoard,
+  move: FortressXiangqiBoardMove,
+  color: FortressXiangqiColor,
+): boolean {
+  if (board[move.to]?.role === 'general') return false; // general is won by mate, never captured
+  const next = fortressXiangqiBoardAfterMove(board, move);
+  return !isFortressXiangqiGeneralInCheckOnBoard(next, color);
+}
+
+function legalBoardMovesFor(
+  board: FortressXiangqiBoard,
+  color: FortressXiangqiColor,
+): FortressXiangqiBoardMove[] {
+  const moves: FortressXiangqiBoardMove[] = [];
+  for (const [sq, piece] of Object.entries(board)) {
+    if (!piece || piece.color !== color) continue;
+    for (const move of pseudoBoardMovesFrom(board, sq as FortressXiangqiSquare)) {
+      if (isBoardMoveLegal(board, move, color)) moves.push(move);
+    }
+  }
+  return moves;
+}
+
+function isDropRegionLegal(
+  role: FortressXiangqiDropRole,
+  color: FortressXiangqiColor,
+  square: FortressXiangqiSquare,
+): boolean {
+  const { file, rank } = fortressXiangqiCoordOf(square);
+  if (role === 'advisor') return fortressXiangqiInPalace(color, file, rank);
+  if (role === 'elephant') return fortressXiangqiInOwnHalf(color, rank);
+  return true; // attackers drop anywhere
+}
+
+function isDropLegal(
+  board: FortressXiangqiBoard,
+  hands: FortressXiangqiHands,
+  move: FortressXiangqiDropMove,
+  color: FortressXiangqiColor,
+): boolean {
+  if (!FORTRESS_DROP_ROLES.includes(move.drop)) return false;
+  if ((hands[color][move.drop] ?? 0) <= 0) return false;
+  if (board[move.to]) return false; // must land on an empty point
+  if (!isDropRegionLegal(move.drop, color, move.to)) return false;
+  const next: FortressXiangqiBoard = { ...board, [move.to]: { color, role: move.drop } };
+  // Drop-check is allowed, but you may not leave your own general in check.
+  return !isFortressXiangqiGeneralInCheckOnBoard(next, color);
+}
+
+function legalDropsFor(
+  board: FortressXiangqiBoard,
+  hands: FortressXiangqiHands,
+  color: FortressXiangqiColor,
+): FortressXiangqiDropMove[] {
+  const drops: FortressXiangqiDropMove[] = [];
+  for (const role of FORTRESS_DROP_ROLES) {
+    if ((hands[color][role] ?? 0) <= 0) continue;
+    for (const to of ALL_FORTRESS_XIANGQI_SQUARES) {
+      const move: FortressXiangqiDropMove = { drop: role, to };
+      if (isDropLegal(board, hands, move, color)) drops.push(move);
+    }
+  }
+  return drops;
+}
+
+export function getFortressXiangqiLegalMoves(
+  state: FortressXiangqiGameState,
+): FortressXiangqiMove[] {
+  if (state.status.type !== 'playing') return [];
+  const color = state.status.turn;
+  return [
+    ...legalBoardMovesFor(state.board, color),
+    ...legalDropsFor(state.board, state.hands, color),
+  ];
+}
+
+export function isFortressXiangqiLegalMove(
+  state: FortressXiangqiGameState,
+  move: FortressXiangqiMove,
+): boolean {
+  if (state.status.type !== 'playing') return false;
+  const color = state.status.turn;
+  if (isFortressXiangqiDropMove(move)) return isDropLegal(state.board, state.hands, move, color);
+  return legalBoardMovesFor(state.board, color).some(
+    (candidate) => candidate.from === move.from && candidate.to === move.to,
+  );
+}
+
+function hasLegalMove(
+  board: FortressXiangqiBoard,
+  hands: FortressXiangqiHands,
+  color: FortressXiangqiColor,
+): boolean {
+  if (legalBoardMovesFor(board, color).length > 0) return true;
+  return legalDropsFor(board, hands, color).length > 0;
+}
+
+// ── Check detection ─────────────────────────────────────────────────────────
+
+export function isFortressXiangqiGeneralInCheck(
+  state: FortressXiangqiGameState,
+  color: FortressXiangqiColor,
+): boolean {
+  return isFortressXiangqiGeneralInCheckOnBoard(state.board, color);
+}
+
+export function isFortressXiangqiGeneralInCheckOnBoard(
+  board: FortressXiangqiBoard,
+  color: FortressXiangqiColor,
+): boolean {
+  const general = findFortressXiangqiGeneral(board, color);
+  if (!general) return true; // no general = lost; treat as "in check" for legality
+  return isSquareAttacked(board, oppositeFortressXiangqiColor(color), general);
+}
+
+function isSquareAttacked(
+  board: FortressXiangqiBoard,
+  byColor: FortressXiangqiColor,
+  target: FortressXiangqiSquare,
+): boolean {
+  for (const [sq, piece] of Object.entries(board)) {
+    // Generals never attack via a normal step here (opposite-corner palaces are
+    // never adjacent); general-vs-general is the flying-general check below.
+    if (!piece || piece.color !== byColor || piece.role === 'general') continue;
+    if (pseudoBoardMovesFrom(board, sq as FortressXiangqiSquare).some((m) => m.to === target)) {
+      return true;
+    }
+  }
+  return generalsFaceOnOpenFile(board, byColor, target);
+}
+
+// Flying-general: two generals may not stand on the same file with a clear path.
+// (With opposite-corner palaces the files never overlap, so this is dead in
+// normal play, but it is kept for rule fidelity.)
+function generalsFaceOnOpenFile(
+  board: FortressXiangqiBoard,
+  byColor: FortressXiangqiColor,
+  target: FortressXiangqiSquare,
+): boolean {
+  const enemyGeneral = findFortressXiangqiGeneral(board, byColor);
+  if (!enemyGeneral) return false;
+  const attacker = fortressXiangqiCoordOf(enemyGeneral);
+  const attacked = fortressXiangqiCoordOf(target);
+  if (attacker.file !== attacked.file || attacker.rank === attacked.rank) return false;
+  const lo = Math.min(attacker.rank, attacked.rank);
+  const hi = Math.max(attacker.rank, attacked.rank);
+  for (let rank = lo + 1; rank < hi; rank += 1) {
+    if (board[fortressXiangqiSquareOf(attacker.file, rank)]) return false;
+  }
+  return true;
+}
+
+function findFortressXiangqiGeneral(
+  board: FortressXiangqiBoard,
+  color: FortressXiangqiColor,
+): FortressXiangqiSquare | null {
+  for (const [sq, piece] of Object.entries(board)) {
+    if (piece?.color === color && piece.role === 'general') return sq as FortressXiangqiSquare;
+  }
+  return null;
+}
+
+// ── Apply move ──────────────────────────────────────────────────────────────
+
+export function applyFortressXiangqiMove(
+  state: FortressXiangqiGameState,
+  move: FortressXiangqiMove,
+): FortressXiangqiGameState {
+  if (state.status.type !== 'playing') return state;
+  if (!isFortressXiangqiLegalMove(state, move)) return state;
+  return isFortressXiangqiDropMove(move) ? applyDrop(state, move) : applyBoardMove(state, move);
+}
+
+function applyBoardMove(
+  state: FortressXiangqiGameState,
+  move: FortressXiangqiBoardMove,
+): FortressXiangqiGameState {
+  if (state.status.type !== 'playing') return state;
+  const movingColor = state.status.turn;
+  const movingPiece = state.board[move.from];
+  const capturedPiece = state.board[move.to];
+  if (!movingPiece || capturedPiece?.role === 'general') return state;
+
+  const board = fortressXiangqiBoardAfterMove(state.board, move);
+  const hands = cloneHands(state.hands);
+  if (capturedPiece)
+    incrementHand(hands[movingColor], capturedPiece.role as FortressXiangqiDropRole);
+
+  return finalize(state, board, hands, movingColor, move);
+}
+
+function applyDrop(
+  state: FortressXiangqiGameState,
+  move: FortressXiangqiDropMove,
+): FortressXiangqiGameState {
+  if (state.status.type !== 'playing') return state;
+  const movingColor = state.status.turn;
+  const hands = cloneHands(state.hands);
+  decrementHand(hands[movingColor], move.drop);
+  const board: FortressXiangqiBoard = {
+    ...state.board,
+    [move.to]: { color: movingColor, role: move.drop },
+  };
+  return finalize(state, board, hands, movingColor, move);
+}
+
+function finalize(
+  previous: FortressXiangqiGameState,
+  board: FortressXiangqiBoard,
+  hands: FortressXiangqiHands,
+  movingColor: FortressXiangqiColor,
+  move: FortressXiangqiMove,
+): FortressXiangqiGameState {
+  const nextTurn = oppositeFortressXiangqiColor(movingColor);
+  const moveNumber = movingColor === 'black' ? previous.moveNumber + 1 : previous.moveNumber;
+
+  const provisional: FortressXiangqiGameState = {
+    ...previous,
+    board,
+    hands,
+    status: { type: 'playing', turn: nextTurn },
+    moveNumber,
+    lastMove: move,
+  };
+
+  const repKey = fortressXiangqiPositionRepetitionKey(provisional);
+  const positionCounts = { ...previous.positionCounts };
+  positionCounts[repKey] = (positionCounts[repKey] ?? 0) + 1;
+
+  let status: FortressXiangqiGameStatus = { type: 'playing', turn: nextTurn };
+  if (!hasLegalMove(board, hands, nextTurn)) {
+    status = {
+      type: 'finished',
+      winner: movingColor,
+      reason: isFortressXiangqiGeneralInCheckOnBoard(board, nextTurn) ? 'checkmate' : 'stalemate',
+    };
+  } else if ((positionCounts[repKey] ?? 0) >= 3) {
+    // Baseline draw. The server may override this to a `'chasing'` loss for the
+    // aggressor via the Fairy-Stockfish adjudicator before finalizing.
+    status = { type: 'finished', winner: null, reason: 'repetition' };
+  }
+
+  return { ...provisional, status, positionCounts };
+}
+
+// ── Views & helpers ─────────────────────────────────────────────────────────
+
+export function getFortressXiangqiPlayerView(
+  state: FortressXiangqiGameState,
+  color: FortressXiangqiColor,
+): FortressXiangqiPlayerView {
+  return {
+    id: state.id,
+    perspective: color,
+    board: { ...state.board },
+    hands: cloneHands(state.hands),
+    legalMoves:
+      state.status.type === 'playing'
+        ? getFortressXiangqiLegalMoves({ ...state, status: { type: 'playing', turn: color } })
+        : [],
+    inCheck:
+      state.status.type === 'playing'
+        ? isFortressXiangqiGeneralInCheckOnBoard(state.board, color)
+        : false,
+    status: state.status,
+    moveNumber: state.moveNumber,
+    lastMove: state.lastMove,
+  };
+}
+
+export function fortressXiangqiBoardAfterMove(
+  board: FortressXiangqiBoard,
+  move: FortressXiangqiBoardMove,
+): FortressXiangqiBoard {
+  const movingPiece = board[move.from];
+  if (!movingPiece) return { ...board };
+  const next: FortressXiangqiBoard = { ...board };
+  delete next[move.from];
+  next[move.to] = movingPiece;
+  return next;
+}
+
+export function fortressXiangqiPositionRepetitionKey(state: FortressXiangqiGameState): string {
+  const turn = state.status.type === 'playing' ? state.status.turn : '-';
+  const board = Object.entries(state.board)
+    .filter(([, piece]) => piece)
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([sq, p]) => `${sq}${p!.color[0]}${ROLE_REPETITION_CODES[p!.role]}`)
+    .join(',');
+  return `${turn}|${board}|h:${handsKey(state.hands)}`;
+}
+
+function isOccupied(board: FortressXiangqiBoard, file: number, rank: number): boolean {
+  return (
+    fortressXiangqiInBounds(file, rank) && board[fortressXiangqiSquareOf(file, rank)] !== undefined
+  );
+}
+
+function cloneHands(hands: FortressXiangqiHands): FortressXiangqiHands {
+  return { red: { ...hands.red }, black: { ...hands.black } };
+}
+
+function incrementHand(hand: FortressXiangqiHand, role: FortressXiangqiDropRole): void {
+  hand[role] = (hand[role] ?? 0) + 1;
+}
+
+function decrementHand(hand: FortressXiangqiHand, role: FortressXiangqiDropRole): void {
+  const next = (hand[role] ?? 0) - 1;
+  if (next > 0) hand[role] = next;
+  else delete hand[role];
+}
+
+function handsKey(hands: FortressXiangqiHands): string {
+  return `r:${handKey(hands.red)}|b:${handKey(hands.black)}`;
+}
+
+function handKey(hand: FortressXiangqiHand): string {
+  return FORTRESS_DROP_ROLES.map((role) => `${ROLE_REPETITION_CODES[role]}${hand[role] ?? 0}`).join(
+    '',
+  );
+}

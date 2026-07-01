@@ -16,7 +16,8 @@ export type BoardGeometryId =
   | 'crossroads-6x8'
   | 'banqi-8x4'
   | 'jungle-7x9'
-  | 'jungle-flip-4x4';
+  | 'jungle-flip-4x4'
+  | 'xiangqi-7x8';
 export type MovementRulesId =
   | 'orthodox-chess'
   | 'mini-xiangqi'
@@ -27,7 +28,8 @@ export type MovementRulesId =
   | 'crossroads-chess'
   | 'banqi'
   | 'jungle'
-  | 'jungle-flip';
+  | 'jungle-flip'
+  | 'fortress-xiangqi';
 // 'royal-capture-or-race': capture/checkmate the royal OR race it to the enemy
 // home rank (the Crossroads Chess "Try"). Open mode keeps checkmate, dark switches to
 // king-capture; the visibility axis + rules module resolve which.
@@ -58,12 +60,17 @@ export type SetupRulesId =
   | 'banqi-deal'
   | 'reveal-chess-deal'
   | 'jungle-standard'
-  | 'jungle-flip-deal';
+  | 'jungle-flip-deal'
+  | 'fortress-standard';
 export type ReserveRulesId = 'none' | 'crazyhouse' | 'shogi-hands' | 'seirawan-gating';
 export type DropPolicyId =
   | 'none'
   | 'any-legal-square'
   | 'not-enemy-palace'
+  // Fortress Xiangqi flagship: attackers (chariot/horse/cannon/soldier/treasure)
+  // parachute anywhere incl. the enemy half; defenders (advisor/elephant) drop
+  // only where they may legally stand (palace / own half).
+  | 'attacker-anywhere-defender-home'
   | 'seen-squares-only'
   | 'seirawan-gating';
 export type GameSpecSurface = 'hidden' | 'beta' | 'casual' | 'rated';
@@ -90,7 +97,8 @@ export type RatingPoolBaseId =
   | 'crossroads_chess_open'
   | 'reveal_chess'
   | 'jungle'
-  | 'jungle_flip';
+  | 'jungle_flip'
+  | 'fortress_xiangqi';
 
 export type GameSpecId =
   | 'dark-chess'
@@ -113,7 +121,8 @@ export type GameSpecId =
   | 'dark-crossroads-chess'
   | 'reveal-chess'
   | 'jungle'
-  | 'jungle-flip';
+  | 'jungle-flip'
+  | 'fortress-xiangqi';
 export type GameSpecAliasId = 'fog-draft960' | 'dual-chess' | 'dark-dual-chess';
 export type GameSpecLookupId = GameSpecId | GameSpecAliasId;
 
@@ -160,6 +169,7 @@ export const REVEAL_CHESS_SPEC_ID = 'reveal-chess' satisfies GameSpecId;
 export const DARK_CROSSROADS_CHESS_SPEC_ID = 'dark-crossroads-chess' satisfies GameSpecId;
 export const JUNGLE_SPEC_ID = 'jungle' satisfies GameSpecId;
 export const JUNGLE_FLIP_SPEC_ID = 'jungle-flip' satisfies GameSpecId;
+export const FORTRESS_XIANGQI_SPEC_ID = 'fortress-xiangqi' satisfies GameSpecId;
 // Compatibility aliases for records and links created before the Crossroads
 // rename. New code should use CROSSROADS_CHESS_SPEC_ID.
 export const DUAL_CHESS_SPEC_ID = 'dual-chess' satisfies GameSpecAliasId;
@@ -179,6 +189,7 @@ export const CANONICAL_VARIANT_ORDER: readonly GameSpecId[] = [
   MINI_XIANGQI_SPEC_ID,
   DARK_MINI_XIANGQI_SPEC_ID,
   DROP_MINI_XIANGQI_SPEC_ID,
+  FORTRESS_XIANGQI_SPEC_ID,
   DARK_XIANGQI_SPEC_ID,
   JIEQI_SPEC_ID,
   BANQI_SPEC_ID,
@@ -374,6 +385,29 @@ export const GAME_SPECS: readonly GameSpec[] = [
     rated: true,
     publicSurface: 'casual',
     runtimeStatus: 'live',
+  },
+  {
+    // Fortress Xiangqi: "xiangqi with a pocket." 7x8 board, opposite-corner
+    // palaces, faithful xiangqi movement plus the one new Treasure piece, and
+    // crazyhouse drops (both-side attacker drops + the chasing rule). Ships
+    // alongside the 7x7 Drop Mini Xiangqi as a distinct variant + rating pool.
+    // Rules engine: packages/game/src/variants-fortress-xiangqi.ts.
+    // Wiring in progress (server/web) — hidden until launch.
+    id: FORTRESS_XIANGQI_SPEC_ID,
+    publicName: 'Fortress Xiangqi',
+    family: 'xiangqi',
+    board: 'xiangqi-7x8',
+    movement: 'fortress-xiangqi',
+    objective: 'checkmate',
+    visibility: 'open',
+    setup: 'fortress-standard',
+    reserves: 'crazyhouse',
+    dropPolicy: 'attacker-anywhere-defender-home',
+    ratingPoolBase: 'fortress_xiangqi',
+    // Casual while wiring. At launch: flip `rated: true`, add fortress_xiangqi to
+    // the RatingVariant union + the user_ratings CHECK migration (Phase 4).
+    publicSurface: 'hidden',
+    runtimeStatus: 'dev-spike',
   },
   {
     id: DARK_XIANGQI_SPEC_ID,
