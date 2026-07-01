@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   normalizeXiangqiBoardTheme,
   normalizeXiangqiPieceSet,
+  readStoredXiangqiBoardTheme,
   readStoredXiangqiPieceSet,
   writeStoredXiangqiPieceSet,
 } from './xiangqi-appearance-storage.js';
@@ -36,13 +37,19 @@ function installLocalStorage(): Storage {
 }
 
 describe('xiangqi appearance storage normalization', () => {
-  it('accepts the paper garden board theme', () => {
-    expect(normalizeXiangqiBoardTheme('paper-garden')).toBe('paper-garden');
+  it('uses tournament as the default board theme and paper garden migration target', () => {
+    expect(normalizeXiangqiBoardTheme(null)).toBe('tournament');
+    expect(normalizeXiangqiBoardTheme('unknown')).toBe('tournament');
+    expect(normalizeXiangqiBoardTheme('paper-garden')).toBe('tournament');
   });
 
-  it('uses paper garden as the default board theme', () => {
-    expect(normalizeXiangqiBoardTheme(null)).toBe('paper-garden');
-    expect(normalizeXiangqiBoardTheme('unknown')).toBe('paper-garden');
+  it('migrates stored paper garden board theme to tournament', () => {
+    const storage = installLocalStorage();
+    storage.setItem('mistboard.xiangqiBoardTheme', 'paper-garden');
+    storage.setItem('mistboard.xiangqiBoardThemeVersion', '2');
+    expect(readStoredXiangqiBoardTheme()).toBe('tournament');
+    expect(storage.getItem('mistboard.xiangqiBoardTheme')).toBe('tournament');
+    expect(storage.getItem('mistboard.xiangqiBoardThemeVersion')).toBe('3');
   });
 
   it('migrates old animal piece-set values to Dobutsu', () => {
