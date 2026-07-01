@@ -70,8 +70,9 @@ Keep exact private review checklists in ignored private notes, not public docs.
 
 ## Source Of Truth Rules
 
-- `docs/STATUS.md` owns the current public state.
-- `docs/ROADMAP.md` owns milestones, gates, deferred work, and parked work.
+- `docs/STATUS.md` and `docs/ROADMAP.md` hold only high-level, slow-changing
+  pointers. Live status is the running site plus the GitHub issue tracker;
+  detailed milestones and tactical planning stay in private notes.
 - `docs/README.md` owns public navigation.
 - `docs-private/` may keep a local private navigation map, but private
   navigation does not own product direction.

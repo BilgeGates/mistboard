@@ -28,9 +28,9 @@ other chess platform.
   [`EngineTurnRequest`](docs/engine-protocol.md) boundary available to any
   third-party engine.
 
-Live games are playable at [mistboard.com](https://mistboard.com). The current
-stage and launch gates are tracked in [docs/STATUS.md](docs/STATUS.md) and
-[docs/ROADMAP.md](docs/ROADMAP.md).
+Live games are playable at [mistboard.com](https://mistboard.com). For active
+work and known issues, see the
+[GitHub issue tracker](https://github.com/brianhliou/mistboard/issues).
 
 ## Development
 
@@ -90,14 +90,13 @@ state model.
 ## Documentation
 
 - [docs/README.md](docs/README.md) is the public documentation map.
-- [docs/rules.md](docs/rules.md) maps current, public-alpha, candidate, and
-  historical rulesets.
-- [docs/fog-of-war/INDEX.md](docs/fog-of-war/INDEX.md) indexes Fog of War rules,
-  engine, variant, and research notes.
+- [docs/rules.md](docs/rules.md) defines the Fog of War chess and Draft960
+  rules baselines; full player-facing rules for every variant live at
+  [mistboard.com/rules](https://mistboard.com/rules).
+- [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) describes the state model and the
+  hidden-information boundary.
 - [docs/engine-protocol.md](docs/engine-protocol.md) documents the redacted
   engine protocol.
-- [docs/STATUS.md](docs/STATUS.md) and [docs/ROADMAP.md](docs/ROADMAP.md) show
-  the current stage and gates.
 
 Use [GitHub issues](https://github.com/brianhliou/mistboard/issues) for bug
 reports and feature requests.

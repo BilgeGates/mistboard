@@ -16,7 +16,7 @@ Edit task → find file → open only that file.
 | `engine-protocol.ts` | Public redacted engine request/response contract shared by server and external/first-party engines |
 | `bughouse-engine-protocol.ts` | Draft Chess Bughouse partner-bot request/response contract, validators, seat/team mappings, clocks, legal actions, reserve needs, and cross-seat signaling rules |
 | `bughouse-engine-protocol.fixtures.ts` | JSON-stable partner-bot protocol fixtures for engine-side contract tests and Mistboard/server validation |
-| `bughouse.ts` | Pure Chess Bughouse aggregate: two-board match state, capture transfer, drops, clocks, timeouts, event replay, and partner-request projection. Substrate only, not a launched room surface |
+| `bughouse.ts` | Pure Chess Bughouse aggregate: two-board match state, capture transfer, drops, clocks, timeouts, event replay, and partner-request projection |
 | `variants.ts` | Variants (`draft960Variant`, `darkChessVariant`); fog kernel: `fogVisibleSquares`, `fogMovesFrom`, `fogPawnMoves`, `fogSlideMoves`, `fogCastlingMoves`, `applyFogMove` |
 | `variants-xiangqi.ts` | FoW Xiangqi variant (flagged/dev-only live room + `/xiangqi-spike`); cannon vision = field of fire |
 | `xiangqi-vision-kernel.ts` | Geometry-parameterized FoW vision walks shared by the xiangqi-family kernels (full Xiangqi, Dark Mini Xiangqi, Crossroads Chess): the cannon screen-walk, horse blocked-leg walk, and rook/slider ray walk + `VisionAccum`/`emptyVision`, driven by a per-variant `VisionProbe`. Per-piece rules that genuinely differ (general/advisor/elephant/soldier/pawn) stay in each variant kernel |
@@ -101,9 +101,9 @@ Edit task → find file → open only that file.
 | `server-room-lifecycle.ts` | Room lifecycle edge handling: room creation/hydration, Draft960 offer seeding, abandoned-room aborts, seat-vacate timers, stale guest prestart abort sweeps, stale paused-room sweeps, paused-room grace resume, and runtime room reset. Injects canonical maps/callbacks from `index.ts`. |
 | `rematch.ts` | Mutual-confirm rematch state machine + finalize. `offerRematch`, `cancelRematch`, `declineRematch`, `finalizeRematchIfReady`, `maybeReplayRematchRedirect`. |
 | `room-manager.ts` | Core game loop: `playMove`, `appendEvent`, `broadcastSnapshot`, `scheduleClockTimeout`, `expireActiveClock`, `scheduleRandomEngineMove`, `playRandomEngineMoveIfReady`, seat token persistence, bid/draft resolution. Context: `RoomManagerContext`. |
-| `bughouse-runtime.ts` | Private Chess Bughouse server substrate: event-sourced two-board room state, append/replay, deferred clock start, legal action/timeout application, and partner-request projection. No public WebSocket, persistence, lobby, or PvP commitment |
-| `bughouse-seat-session.ts` | Private Chess Bughouse four-seat authority: opponent-first seat order, token/account reclaim, account gates for rated/correspondence, rollback, and duplicate-seat displacement |
-| `bughouse-lifecycle.ts` | Private Chess Bughouse active-clock scheduler: arms the next board deadline, expires due clocks, and clears speculative timers |
+| `bughouse-runtime.ts` | Chess Bughouse server substrate: event-sourced two-board room state, append/replay, deferred clock start, legal action/timeout application, and partner-request projection |
+| `bughouse-seat-session.ts` | Chess Bughouse four-seat authority: opponent-first seat order, token/account reclaim, account gates for rated/correspondence, rollback, and duplicate-seat displacement |
+| `bughouse-lifecycle.ts` | Chess Bughouse active-clock scheduler: arms the next board deadline, expires due clocks, and clears speculative timers |
 | `lifecycle-windows.ts` | Neutral leaf holding the `ABORT_WINDOW_MS` (pregame first-move) and `FORFEIT_WINDOW_MS` (disconnect) constants, shared by both live-room stacks (legacy `room-manager` + generic `variant-tenant/lifecycle`) so the tenant runtime imports no game-lifecycle constant from the legacy stack |
 | `http-api.ts` | Thin HTTP dispatcher (79 LOC). Walks `routes/*` modules in declared order; each `tryHandle()` returns true to claim the request or false to fall through. Re-exports `HttpApiContext`, `parseVariantId`, `parseHiddenDraft960`, `parseRoomTimeControl`, `isPveAllowedTimeControl`, `readJsonBody`, `writeJson`, `requireMethod`, `requirePersistence` from `routes/lib.ts` so external consumers (`index.ts`, loadtest) don't need to know things moved |
 | `routes/lib.ts` | Shared HTTP utilities: `HttpApiContext` interface, `writeJson`, `requireMethod`, `requirePersistence`, `readJsonBody`, the parse helpers, `hashIp`, `isHttpAdminAuthorized`. Imported by every route module |
@@ -166,6 +166,7 @@ Edit task → find file → open only that file.
 | `persistence-forum.ts` | Forum category/topic/post/report persistence: visible lists, search, topic detail, create topic, add reply, edit/move/moderate, report lifecycle, and recent-write counters for API rate limits |
 | `persistence-feedback.ts` | Feedback persistence |
 | `persistence-site-stats.ts` | Site statistics query |
+| `persistence-puzzles.ts` | Daily puzzle selection persistence (`daily_puzzle_selections`): deterministic day-based pick for the homepage slot plus a persisted override, over Mini/Drop Mini Xiangqi puzzle lines |
 | `persistence-test-support.ts` | Shared Postgres test harness: migration, truncation reset, DB URL gating, and persistence test helpers |
 | `test-database-url.ts` | Persistent-test database URL guard: prefers `TEST_DATABASE_URL`, refuses the local dev DB by default, and allows an explicit destructive-test override |
 | `persistence-*.test.ts` | Postgres-backed persistence regressions split by domain: events, accounts, seat tokens, lifecycle, game end/lists, ratings, and debug artifacts |
@@ -398,6 +399,7 @@ Run with `MISTBOARD_ALLOW_IN_MEMORY_PERSISTENCE=true npm run test:integration --
 | `landing-play.ts` | Homepage play panel, setup dialog, open-lobby request card, room creation, lobby queue polling, empty-lobby engine offer, and play deep-link handling |
 | `landing-play.css` | Homepage play/setup/lobby base styles loaded before `landing.css`, so homepage responsive layout overrides stay in the route stylesheet |
 | `puzzles.ts` | `/puzzles` route: Mini and Drop Mini Xiangqi puzzle list/detail UI, drag/click solving, attempt submission, solved-state storage, and auto-next controls |
+| `home-puzzle-widget.ts` | Homepage daily-puzzle widget: renders the server-selected daily Mini/Drop Mini Xiangqi puzzle as a small interactive board on the landing page |
 | `landing-showcase.ts` | Homepage replay showcase catalog and hero POV selection for the landing replay loop |
 | `watch-route.ts` | `/watch` route mount: watch feed fetch/polling, replay mounting, status/empty state, channel links, and replay queue rendering. Loads `watch-route.css` |
 | `watch-route.css` | `/watch` route styles, including watch replay sizing, status, channel links, empty state, queue, and responsive route layout |

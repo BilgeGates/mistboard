@@ -100,38 +100,8 @@ External references:
 - [Sun Tzu Chess](https://www.schemingmind.com/home/knowledgebase.aspx?article_id=137)
 - [Lao Tzu Chess](https://www.schemingmind.com/home/knowledgebase.aspx?article_id=128)
 
-## Variant Track: Dark Shogi
-
-Status: candidate ruleset for research. Not implemented and not a public game
-mode yet.
-
-Dark Shogi applies the same server-owned hidden-information model to shogi, but
-uses king capture instead of checkmate to avoid check-based information leaks.
-The current candidate rule is documented in
-[`dark-shogi-rules.md`](./dark-shogi-rules.md).
-
-Key differences from dark chess:
-
-- Shogi movement, promotion, and hand/drop mechanics replace chess movement.
-- Check constraints and pawn-drop-mate adjudication are removed; king capture is
-  the win condition.
-- Drops use a Lao Tzu-style policy: pieces may be dropped only on visible empty
-  squares.
-- Opponent hand contents are hidden during live play.
-
-## Variant Track: Dark Xiangqi
-
-Status: working ruleset for the development spike. Not a public game mode yet.
-
-Dark Xiangqi applies the same server-owned hidden-information model to xiangqi.
-The current candidate rule is documented in
-[`dark-xiangqi-rules.md`](./dark-xiangqi-rules.md).
-
-Key differences from dark chess:
-
-- Xiangqi movement geometry replaces chess movement geometry.
-- Check constraints are removed; general capture is the win condition.
-- Cannon vision uses the current working rule: screen shrouded as unknown
-  occupancy, target revealed and marked as cannon-capturable.
-- The no-capture draw is 60 plies with no capture. Soldier moves do not reset
-  the counter.
+Fog variants of other traditions (dark xiangqi, dark shogi, and others) apply
+the same server-owned hidden-information model to a different movement geometry,
+with king or general capture replacing checkmate to avoid check-based
+information leaks. Their player-facing rules are published at
+[mistboard.com/rules](https://mistboard.com/rules).

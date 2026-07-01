@@ -2,7 +2,7 @@
 // Narrow drift checks for docs, SQL enum constraints, and live fog payload guards.
 
 import { execFileSync } from 'node:child_process';
-import { existsSync, readFileSync } from 'node:fs';
+import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 
 const options = parseArgs(process.argv.slice(2));
@@ -12,38 +12,65 @@ if (options.help) {
 }
 
 const checks = [
-  ['docs', checkDocs],
-  ['sql-enums', checkSqlEnums],
-  ['payload-redaction', checkPayloadRedaction],
-  ['index', checkIndex],
+  { name: 'docs', run: checkDocs, severity: 'error' },
+  { name: 'sql-enums', run: checkSqlEnums, severity: 'error' },
+  { name: 'payload-redaction', run: checkPayloadRedaction, severity: 'error' },
+  // INDEX coverage is a WARNING, not a push blocker: a missing entry (often a
+  // file from another session) must never block an unrelated push. Run
+  // `npm run index:fix` (or `--fix`) to append stub rows and keep the map honest.
+  { name: 'index', run: checkIndex, severity: 'warn' },
 ];
 
-const selected = options.only ? checks.filter(([name]) => name === options.only) : checks;
+const selected = options.only ? checks.filter((check) => check.name === options.only) : checks;
 if (selected.length === 0) throw new Error(`unknown check: ${options.only}`);
 
-const results = selected.map(([name, check]) => ({ name, issues: check() }));
-const issueCount = results.reduce((sum, result) => sum + result.issues.length, 0);
+if (options.fix) {
+  const added = fixIndex();
+  if (added.length > 0) {
+    console.log(
+      `index:fix appended ${added.length} stub entr${added.length === 1 ? 'y' : 'ies'} to INDEX.md (add real descriptions):`,
+    );
+    for (const file of added) console.log(`  + ${file}`);
+  } else {
+    console.log('index:fix: INDEX.md already covers every source file');
+  }
+}
+
+const results = selected.map((check) => ({
+  name: check.name,
+  severity: check.severity,
+  issues: check.run(),
+}));
+const errorCount = results
+  .filter((result) => result.severity !== 'warn')
+  .reduce((sum, result) => sum + result.issues.length, 0);
 
 if (options.json) {
-  console.log(JSON.stringify({ ok: issueCount === 0, results }, null, 2));
+  console.log(JSON.stringify({ ok: errorCount === 0, results }, null, 2));
 } else {
   for (const result of results) {
     if (result.issues.length === 0) {
       console.log(`${result.name}: ok`);
       continue;
     }
-    console.log(`${result.name}: ${result.issues.length} issue(s)`);
+    const noun = result.severity === 'warn' ? 'warning' : 'issue';
+    const suffix = result.severity === 'warn' ? ' (non-blocking)' : '';
+    console.log(`${result.name}: ${result.issues.length} ${noun}(s)${suffix}`);
     for (const issue of result.issues) console.log(`  - ${issue}`);
+    if (result.name === 'index') {
+      console.log('  → run `npm run index:fix` to append stub entries');
+    }
   }
 }
 
-process.exit(issueCount === 0 ? 0 : 1);
+process.exit(errorCount === 0 ? 0 : 1);
 
 function parseArgs(args) {
-  const parsed = { help: false, json: false, only: null };
+  const parsed = { help: false, json: false, only: null, fix: false };
   for (let index = 0; index < args.length; index += 1) {
     const arg = args[index];
     if (arg === '--json') parsed.json = true;
+    else if (arg === '--fix') parsed.fix = true;
     else if (arg === '--only') parsed.only = requiredValue(args, ++index, arg);
     else if (arg === '--help' || arg === '-h') parsed.help = true;
     else throw new Error(`unknown argument: ${arg}`);
@@ -285,12 +312,13 @@ function checkPayloadRedaction() {
 }
 
 // INDEX.md is the agent-orientation map ("read this before opening any source
-// file"). Manual upkeep loses the race against velocity, so gate it: every
-// non-test source file under apps/{web,server}/src must appear as a backticked
-// entry in INDEX.md, else the map silently drifts (whole launched variant
-// families went missing this way). Match by basename so the existing
-// `dir/{a,b,c}.ts` shorthand still counts.
-function checkIndex() {
+// file"). Every non-test source file under apps/{web,server}/src should appear
+// as a backticked entry, else the map silently drifts (whole launched variant
+// families went missing this way). This is now a WARNING rather than a push
+// blocker, and `index:fix` auto-appends stub rows so the map stays honest
+// without a missing entry ever blocking an unrelated push. Match by basename so
+// the existing `dir/{a,b,c}.ts` shorthand still counts.
+function missingIndexEntries() {
   const index = readFile('INDEX.md');
   const indexedBasenames = new Set();
   for (const match of index.matchAll(/`([^`]+)`/g)) {
@@ -304,18 +332,31 @@ function checkIndex() {
   // in INDEX.md with a glob row, so the exclusion is explicit, not silent drift.
   const ignoredPrefixes = ['apps/web/src/articles/content/', 'apps/server/src/scripts/'];
 
-  const issues = [];
-  const files = gitLines(['ls-files', 'apps/web/src', 'apps/server/src'])
+  return gitLines(['ls-files', 'apps/web/src', 'apps/server/src'])
     .filter((file) => file.endsWith('.ts') && !file.endsWith('.test.ts'))
     .filter((file) => !basename(file).startsWith('_')) // dev scratch (e.g. _harness.ts)
-    .filter((file) => !ignoredPrefixes.some((prefix) => file.startsWith(prefix)));
+    .filter((file) => !ignoredPrefixes.some((prefix) => file.startsWith(prefix)))
+    .filter((file) => !indexedBasenames.has(basename(file)));
+}
 
-  for (const file of files) {
-    if (!indexedBasenames.has(basename(file))) {
-      issues.push(`INDEX.md has no entry for ${file}`);
-    }
-  }
-  return issues;
+function checkIndex() {
+  return missingIndexEntries().map((file) => `INDEX.md has no entry for ${file}`);
+}
+
+// Append a stub row per missing file under a dedicated section, so a human can
+// backfill the description later. Idempotent: files already listed are skipped.
+function fixIndex() {
+  const missing = missingIndexEntries();
+  if (missing.length === 0) return [];
+
+  const marker = '## Unindexed (auto-added by `index:fix`, needs a description)';
+  const rows = missing.map((file) => `| \`${file}\` | _needs a one-line description_ |`).join('\n');
+  const body = readFile('INDEX.md').replace(/\s*$/, '');
+  const next = body.includes(marker)
+    ? `${body}\n${rows}\n`
+    : `${body}\n\n${marker}\n\n| File | Owns |\n|------|------|\n${rows}\n`;
+  writeFileSync('INDEX.md', next);
+  return missing;
 }
 
 function basename(file) {
@@ -346,10 +387,11 @@ function printHelp() {
   npm run check:drift
   npm run check:drift -- --only docs
   npm run check:drift -- --json
+  npm run index:fix              # append stub INDEX.md rows for any missing files
 
 Checks:
-  docs                public Markdown links resolve and do not link to docs-private/
-  sql-enums           selected SQL check constraints match TypeScript unions
-  payload-redaction   live snapshot/event payloads still use PlayerView filters
-  index               every apps/{web,server}/src source file is listed in INDEX.md`);
+  docs                public Markdown links resolve and do not link to docs-private/  [blocks push]
+  sql-enums           selected SQL check constraints match TypeScript unions          [blocks push]
+  payload-redaction   live snapshot/event payloads still use PlayerView filters       [blocks push]
+  index               every apps/{web,server}/src source file is listed in INDEX.md   [warning; use --fix]`);
 }

@@ -1,13 +1,13 @@
 # Contributing
 
-Mistboard is an open-source platform foundation for hidden-information games,
-starting with dark chess. "Fog of War chess" is useful secondary wording for SEO
-and rules explanation. Before opening a pull request, check whether the change
-helps the product rule:
+Mistboard is an open-source platform for original strategy games, built for
+serious play: server-enforced board games and variants across chess, xiangqi,
+shogi, Jungle, and related families, including both open-information games and
+hidden-information games such as dark chess. Before opening a pull request, check
+whether the change helps the product rule:
 
 > Does this make Mistboard a more trustworthy, serious place to play, study,
-> rank, or build engines for dark chess and future hidden-information
-> games?
+> rank, or build engines for its games?
 
 If the answer is no, open an issue or discussion first.
 
@@ -36,7 +36,6 @@ Usually out of scope for v1 unless explicitly gate-cleared:
 - moderation tooling
 - OAuth
 - billing
-- non-Fog variants as primary product surfaces
 - broad general chess-platform features
 
 ## Development
@@ -100,8 +99,9 @@ For manual launch gates, write a public-safe evidence entry:
 npm run gate:evidence -- --gate mobile-gameplay --result pass
 ```
 
-See [`docs/ROADMAP.md`](docs/ROADMAP.md) for what's currently being worked on.
-See [`docs/README.md`](docs/README.md) for the public documentation map.
+See [GitHub issues](https://github.com/brianhliou/mistboard/issues) for what's
+currently being worked on. See [`docs/README.md`](docs/README.md) for the public
+documentation map.
 
 ## Pull Requests
 
