@@ -10,6 +10,11 @@ import {
   miniXiangqiPuzzleById,
   miniXiangqiPuzzleSideToMove,
 } from '@mistboard/game';
+import {
+  currentDailyPuzzleDay,
+  getOrCreateDailyPuzzleSelection,
+  parseDailyPuzzleSlot,
+} from '../persistence-puzzles.js';
 import { type HttpApiContext, readJsonBody, requireMethod, writeJson } from './lib.js';
 
 type PuzzleSummary = {
@@ -44,6 +49,27 @@ export async function tryHandle(
       ? MINI_XIANGQI_PUZZLES.filter((puzzle) => puzzle.variant === variant)
       : MINI_XIANGQI_PUZZLES;
     writeJson(response, 200, { puzzles: puzzles.map(puzzleSummary) });
+    return true;
+  }
+
+  if (pathname === '/api/puzzles/daily') {
+    if (!requireMethod(request, response, 'GET')) return true;
+    const slot = parseDailyPuzzleSlot(parsedUrl.searchParams.get('slot'));
+    if (!slot) {
+      writeJson(response, 400, { error: 'invalid_slot' });
+      return true;
+    }
+    const daily = await getOrCreateDailyPuzzleSelection(currentDailyPuzzleDay(), slot);
+    writeJson(response, 200, {
+      daily: {
+        day: daily.day,
+        persisted: daily.persisted,
+        selectedAt: daily.selectedAt,
+        slot: daily.slot,
+        source: daily.source,
+      },
+      puzzle: puzzleDetail(daily.puzzle),
+    });
     return true;
   }
 

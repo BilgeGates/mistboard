@@ -13,13 +13,13 @@
   display: grid;
   /* Cap the center track at the board width so the board fills it (no centering
      slack), and keep a narrow slit between columns like lichess. */
-  grid-template-columns: minmax(208px, 0.9fr) minmax(0, 600px) minmax(236px, 0.95fr);
+  grid-template-columns: minmax(300px, 320px) minmax(0, 660px) minmax(300px, 320px);
   grid-template-areas: "left center right";
   gap: clamp(8px, 0.7vw, 11px);
   align-items: start;
   justify-content: center;
   width: 100%;
-  max-width: 1180px;
+  max-width: 1320px;
   margin: 0 auto;
 }
 
@@ -44,6 +44,57 @@
   color: var(--site-muted);
 }
 
+.home-puzzle-widget {
+  display: grid;
+  gap: 4px;
+  align-self: stretch;
+  color: var(--site-muted);
+  text-decoration: none;
+}
+
+.home-puzzle-widget:hover,
+.home-puzzle-widget:focus-visible {
+  color: var(--site-text);
+}
+
+.home-puzzle-widget:focus-visible {
+  outline: 2px solid var(--site-accent);
+  outline-offset: 2px;
+}
+
+.home-puzzle-widget-board {
+  width: 100%;
+  overflow: hidden;
+  border-radius: 2px;
+  background: var(--mini-xq-board-bg, #d9bd82);
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.22);
+}
+
+.home-puzzle-widget-board .mini-xq-board {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+.home-puzzle-widget-title {
+  overflow: hidden;
+  color: var(--site-muted);
+  font-size: 15px;
+  font-weight: 400;
+  line-height: 1.2;
+  text-align: center;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.home-puzzle-widget-turn {
+  color: var(--site-muted);
+  font-size: 15px;
+  font-weight: 400;
+  line-height: 1.2;
+  text-align: right;
+}
+
 .landing-center {
   grid-area: center;
   display: flex;
@@ -63,13 +114,13 @@
   align-items: center;
   gap: clamp(8px, 1vw, 14px);
   width: 100%;
-  max-width: 600px;
+  max-width: 660px;
   min-width: 0;
 }
 
 .landing-board-column #landing-replay {
   width: 100%;
-  max-width: 600px;
+  max-width: 660px;
 }
 
 /* Article carousel beneath the hero board (center column) — a single row of
@@ -334,7 +385,7 @@
 #landing-replay {
   /* One fixed widget size shared by chess (chessground) and every tenant SVG
      board, so the showcase board never resizes on a cross-variant swap. */
-  --showcase-widget-size: clamp(300px, 30vw, 440px);
+  --showcase-widget-size: clamp(340px, 32vw, 520px);
   width: 100%;
   display: flex;
   flex-direction: column;
@@ -453,7 +504,7 @@
 
 .landing-page #landing-replay .replay-board.cg-wrap {
   /* Override the base .replay-board cap (380px); .cg-snap reads this. */
-  --cg-w: min(100%, 600px, calc(100dvh - 180px));
+  --cg-w: min(100%, 640px, calc(100dvh - 180px));
   border: none;
   background: transparent;
   box-shadow: 0 12px 26px rgba(43, 49, 45, 0.14);
@@ -734,7 +785,7 @@
   padding-block: 9px;
 }
 
-@media (max-width: 1180px) {
+@media (max-width: 1240px) {
   /* Collapse the 3 columns to one: board + articles (center) first, then the
      pairing CTAs, then the announcements + open-requests rail. */
   .landing-demo {

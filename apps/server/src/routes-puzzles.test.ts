@@ -118,6 +118,43 @@ test('puzzle list rejects unsupported variants', async () => {
   assert.deepEqual(JSON.parse(response.body), { error: 'invalid_variant' });
 });
 
+test('daily puzzle route returns a public persisted-assignment shape without solutions', async () => {
+  const response = await route('/api/puzzles/daily');
+  const body = JSON.parse(response.body) as {
+    daily: {
+      day: string;
+      persisted: boolean;
+      selectedAt: string | null;
+      slot: string;
+      source: string;
+    };
+    puzzle: {
+      id: string;
+      initial: unknown;
+      solution?: unknown;
+      variant: string;
+    };
+  };
+
+  assert.equal(response.status, 200);
+  assert.match(body.daily.day, /^\d{4}-\d{2}-\d{2}$/);
+  assert.equal(body.daily.slot, 'homepage');
+  assert.equal(body.daily.persisted, false);
+  assert.equal(body.daily.source, 'ephemeral');
+  assert.equal(body.daily.selectedAt, null);
+  assert.equal(typeof body.puzzle.id, 'string');
+  assert.equal(['mini-xiangqi', 'drop-mini-xiangqi'].includes(body.puzzle.variant), true);
+  assert.notEqual(body.puzzle.initial, undefined);
+  assert.equal(body.puzzle.solution, undefined);
+});
+
+test('daily puzzle route rejects unsupported slots', async () => {
+  const response = await route('/api/puzzles/daily?slot=fortress-training');
+
+  assert.equal(response.status, 400);
+  assert.deepEqual(JSON.parse(response.body), { error: 'invalid_slot' });
+});
+
 test('puzzle detail returns the starting position but not the solution', async () => {
   const response = await route('/api/puzzles/drop-mini-xiangqi-red-chariot-drop-mate-1');
   const body = JSON.parse(response.body) as {

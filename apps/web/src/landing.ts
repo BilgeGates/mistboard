@@ -5,6 +5,7 @@ import './game-route.css';
 import { buildHomeArticleCards, initLandingCarousel, mountArticleThumbnails } from './articles.js';
 import { displayParticipantName, type FeaturedGame } from './game-display.js';
 import { gameMetaForGame } from './game-meta.js';
+import { buildHomePuzzleWidget } from './home-puzzle-widget.js';
 import { t } from './i18n/catalog.js';
 import { currentLocale } from './i18n/locale.js';
 import { buildLandingActivity } from './landing-activity.js';
@@ -484,7 +485,13 @@ function buildLandingStage(
   rightRail.append(playPanel);
   // The lobby-requests browser fetches + polls on construction, so it is skipped
   // when rendering the static shell at build time (the prerender path).
-  if (!opts.skipLiveWidgets) rightRail.append(buildLobbyRequestsWindow(locale));
+  if (!opts.skipLiveWidgets) {
+    const lobbyRequests = buildLobbyRequestsWindow(locale);
+    rightRail.append(lobbyRequests);
+    void buildHomePuzzleWidget().then((widget) => {
+      if (widget) rightRail.append(widget);
+    });
+  }
 
   // Swap the play panel in place once the real playable engines arrive (the shell
   // renders first with a built-in fallback). The displaced panel's live-stats
