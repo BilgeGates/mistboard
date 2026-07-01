@@ -2,6 +2,8 @@
 
 - `noto-sans-latin-*.woff2` — Noto Sans, Google. Licensed under the
   [SIL Open Font License 1.1](https://openfontlicense.org/).
+- `roboto-latin.20b535fa.woff2` — Roboto, Google. Licensed under the
+  [Apache License 2.0](https://www.apache.org/licenses/LICENSE-2.0).
 - `apps/server/assets/fonts/NotoSans-{Regular,Bold}.ttf` — Noto Sans
   (notofonts.github.io), bundled for server-side share-card text rendering
   (the prod container has no system fonts). Also OFL 1.1.

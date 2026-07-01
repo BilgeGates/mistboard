@@ -27,6 +27,13 @@
   font-display: swap;
   src: url("/fonts/noto-sans-latin-800.woff2") format("woff2");
 }
+@font-face {
+  font-family: "Roboto";
+  font-style: normal;
+  font-weight: 100 900;
+  font-display: swap;
+  src: url("/fonts/roboto-latin.20b535fa.woff2") format("woff2");
+}
 
 /* Site palette. Lightness/saturation ladder mirrors lichess's theme structure
    (page < box < raised, zebra between) with the hue translated to a cool mist
