@@ -108,7 +108,7 @@ describe('landing announcements', () => {
     expect(top?.querySelector('.site-box-title')?.textContent).toBe('新聞');
     expect(top?.querySelector('.site-box-more')?.textContent).toBe('更多 »');
     expect(firstRow?.getAttribute('href')).toBe('/zh-hant/rules/fortress-xiangqi');
-    expect(news.querySelector('.site-section-heading')?.textContent).toBe('新聞');
+    expect(news.querySelector('.site-section-heading')?.textContent).toBe('Mistboard 更新');
     expect(news.querySelector('.news-page-intro')?.textContent).toBe(
       'Mistboard 的發布、狀態更新和公告。',
     );
