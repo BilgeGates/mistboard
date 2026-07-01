@@ -24,9 +24,6 @@ setup, tokens, and internal strategy in the git-ignored `docs-private/`.
 
 ## Rules
 
-| Document | Use it for |
-|---|---|
-| [rules.md](rules.md) | Fog of War chess and Draft960 rules baselines. |
-
-Full player-facing rules for every live variant are at
-[mistboard.com/rules](https://mistboard.com/rules).
+Player-facing rules for every live variant are published at
+[mistboard.com/rules](https://mistboard.com/rules). The canonical rule logic and
+regression tests live in `packages/game`.

@@ -40,5 +40,5 @@ Tests live in `src/*.test.ts`. When adding a new rule or visibility behavior, ad
 
 ## Rules reference
 
-- Fog of War rules baseline: [`docs/rules.md`](../../docs/rules.md)
+- Fog of War rules: [mistboard.com/rules](https://mistboard.com/rules)
 - Edge cases and regression targets: the visibility and replay tests in `src/*.test.ts`

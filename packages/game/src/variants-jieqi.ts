@@ -1,7 +1,7 @@
 // Jieqi (揭棋, "reveal chess") — full-board xiangqi with hidden piece identities.
 //
-// Canonical rules reference: apps/web/src/articles/content/jieqi.ts (and
-// docs/rules.md). The short version this kernel implements:
+// Canonical rules reference: apps/web/src/articles/content/jieqi.ts. The short
+// version this kernel implements:
 //   - Both generals start face-up on their palace points. The other 15 pieces
 //     per side are dealt FACE-DOWN onto the standard non-general starting
 //     squares. Neither player knows any hidden identity, including their own.
