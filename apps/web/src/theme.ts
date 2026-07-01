@@ -103,7 +103,6 @@ const pieceSets: Array<{ id: PieceSet; label: string }> = [
 ];
 const xiangqiBoardThemes: Array<{ id: XiangqiBoardTheme; label: string }> = [
   { id: 'tournament', label: 'Tournament' },
-  { id: 'paper-garden', label: 'Paper Garden' },
   { id: 'blue', label: 'Blue' },
   { id: 'mono', label: 'Monochrome' },
 ];

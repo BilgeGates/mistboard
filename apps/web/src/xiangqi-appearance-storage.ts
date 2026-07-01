@@ -4,19 +4,18 @@ import {
   type XiangqiPieceSet,
 } from './xiangqi-piece-sets.js';
 
-export type XiangqiBoardTheme = 'tournament' | 'paper-garden' | 'blue' | 'mono';
+export type XiangqiBoardTheme = 'tournament' | 'blue' | 'mono';
 
 const xiangqiBoardStorageKey = 'mistboard.xiangqiBoardTheme';
 const xiangqiBoardStorageVersionKey = 'mistboard.xiangqiBoardThemeVersion';
 const xiangqiPieceSetStorageKey = 'mistboard.xiangqiPieceSet';
 const xiangqiPieceSetStorageVersionKey = 'mistboard.xiangqiPieceSetVersion';
-const defaultXiangqiBoardTheme: XiangqiBoardTheme = 'paper-garden';
-const xiangqiBoardStorageVersion = '2';
+const defaultXiangqiBoardTheme: XiangqiBoardTheme = 'tournament';
+const xiangqiBoardStorageVersion = '3';
 const xiangqiPieceSetStorageVersion = '2';
 const defaultXiangqiPieceSet: XiangqiPieceSet = DEFAULT_XIANGQI_PIECE_SET;
 const xiangqiBoardThemes: ReadonlyArray<{ id: XiangqiBoardTheme; label: string }> = [
   { id: 'tournament', label: 'Tournament' },
-  { id: 'paper-garden', label: 'Paper Garden' },
   { id: 'blue', label: 'Blue' },
   { id: 'mono', label: 'Monochrome' },
 ];
@@ -25,7 +24,7 @@ export function readStoredXiangqiBoardTheme(): XiangqiBoardTheme {
   try {
     const stored = window.localStorage.getItem(xiangqiBoardStorageKey);
     const version = window.localStorage.getItem(xiangqiBoardStorageVersionKey);
-    if (version !== xiangqiBoardStorageVersion && stored === 'tournament') {
+    if (stored === 'paper-garden') {
       window.localStorage.setItem(xiangqiBoardStorageVersionKey, xiangqiBoardStorageVersion);
       window.localStorage.setItem(xiangqiBoardStorageKey, defaultXiangqiBoardTheme);
       return defaultXiangqiBoardTheme;
