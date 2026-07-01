@@ -25,11 +25,12 @@ import { homepageShowcaseGames, pickHeroPovForGame } from './landing-showcase.js
 import { type GameMeta, mountReplay } from './replay.js';
 import { enginePanelsForReview, loadGameForReview } from './review.js';
 import { roomIdFromPath } from './room-url.js';
+import { mountShowcaseCycler, type ShowcaseEntry } from './showcase-cycler.js';
+import { specIdForShowcaseVariant } from './showcase-dispatch.js';
 import { isLikelySignedIn } from './signed-in-state.js';
 import { buildHomeFooter, buildNav, buildNotice } from './site-shell.js';
 import { type WebVariantTenant, webVariantTenantForRoomId } from './variant-tenant/registry.js';
 
-const HOMEPAGE_CORPUS_HOLD_MS = 8000;
 // Adaptive hero-pool refresh. Poll faster while games are being played (they
 // unlock on completion, soon), slower when idle. Pool is capped. These three are
 // the only knobs — tune from traffic (mirrors the server's SHOWCASE_POOL_SIZE).
@@ -54,46 +55,39 @@ export async function mountLanding(root: HTMLElement): Promise<void> {
   // [render-jank: render the shell first, fill async — feedback_render_jank_prevention]
   let usingRealGames = false;
   const games = homepageShowcaseGames();
-  const sampleIds = games.map((g) => g.roomId);
 
+  // Shared, by-reference maps the cycler reads: pre-registered here for the static
+  // fallback pool, then merged with each live-showcase refresh below.
+  const metadataByRoomId: Record<string, GameMeta> = {};
+  const povByRoomId: Record<string, 'white' | 'black'> = {};
+  const toShowcaseEntry = (game: FeaturedGame): ShowcaseEntry => {
+    metadataByRoomId[game.roomId] ??= gameMetaForGame(game);
+    const pov = povByRoomId[game.roomId] ?? pickHeroPovForGame(game);
+    povByRoomId[game.roomId] = pov;
+    return { roomId: game.roomId, specId: specIdForShowcaseVariant(game.variant), pov };
+  };
+  const initialPool = games.map(toShowcaseEntry);
+
+  // ?demo=<sampleId> forces a specific bundled game to open first.
   const params = new URLSearchParams(window.location.search);
   const requested = params.get('demo');
-  const forcedSample = requested && sampleIds.includes(requested) ? requested : null;
-  const currentSample = forcedSample ?? sampleIds[0]!;
+  const forcedIdx = requested ? initialPool.findIndex((entry) => entry.roomId === requested) : -1;
+  if (forcedIdx > 0) {
+    const [forced] = initialPool.splice(forcedIdx, 1);
+    initialPool.unshift(forced!);
+  }
+
   const stage = buildLandingStage(fallbackPlayableEngines());
   root.replaceChildren(buildNav(), stage.el);
   mountArticleThumbnails(stage.el);
   initLandingCarousel(stage.el);
 
-  const metadataByRoomId: Record<string, GameMeta> = {};
-  const povByRoomId: Record<string, 'white' | 'black'> = {};
-  for (const g of games) {
-    metadataByRoomId[g.roomId] = gameMetaForGame(g);
-    povByRoomId[g.roomId] = pickHeroPovForGame(g);
-  }
-
-  const replay = await mountReplay(stage.replayRoot, currentSample, {
-    autoplay: true,
-    showControls: false,
-    keyboardNav: false,
-    revealOnFinish: false,
-    orientationForId: (sampleId) => povByRoomId[sampleId] ?? 'white',
-    // Cycle the corpus per-visitor, pacing each game by its real per-move
-    // timing: PvP uses recorded move deltas, EvE uses engine think time.
-    // clampPace bounds the raw think-time path so flat-budget EvE fallback
-    // games don't play as a 5s/move metronome.
-    loopSamples: sampleIds,
-    clampPace: true,
-    betweenGameDelayMs: HOMEPAGE_CORPUS_HOLD_MS,
-    loaderForId: landingEventLoader,
-    metadataMode: 'compact',
+  // The showcase cycler owns cross-game advancement so it can cross renderer kinds
+  // (dark-chess chessground -> jieqi/banqi/jungle SVG). Each game plays as a single
+  // compact board and hands off at its end; the pool refreshes live below.
+  const cycler = await mountShowcaseCycler(stage.replayRoot, initialPool, {
     metadataByRoomId,
-    hideGameIdPill: true,
-    showCaptures: true,
-    captureLayout: 'split',
-    compactClockLayout: 'captures',
-    endStatusMode: 'clock',
-    panes: { resolver: (sampleId) => povByRoomId[sampleId] ?? 'white' },
+    loaderForId: landingEventLoader,
   });
 
   // Upgrade the play panel + deep-link handling once the real playable engines
@@ -140,7 +134,7 @@ export async function mountLanding(root: HTMLElement): Promise<void> {
   // reads by reference, then the loop pool is swapped (the current game finishes
   // first). Polls fast while games are live, slow when idle; self-clears on
   // unmount.
-  const poolIds = new Set(sampleIds);
+  const poolIds = new Set(initialPool.map((entry) => entry.roomId));
   let showcaseTimer: number | null = null;
   const stopShowcaseRefresh = () => {
     if (showcaseTimer !== null) {
@@ -157,21 +151,18 @@ export async function mountLanding(root: HTMLElement): Promise<void> {
       return;
     }
     if (fresh.length < 3) return; // not enough real games yet; keep the pool
-    for (const g of fresh) {
-      metadataByRoomId[g.roomId] ??= gameMetaForGame(g);
-      povByRoomId[g.roomId] ??= pickHeroPovForGame(g);
-    }
-    const nextPool = fresh.slice(0, SHOWCASE_POOL_CAP).map((g) => g.roomId);
-    const changed = nextPool.length !== poolIds.size || nextPool.some((id) => !poolIds.has(id));
+    const nextEntries = fresh.slice(0, SHOWCASE_POOL_CAP).map(toShowcaseEntry);
+    const nextIds = nextEntries.map((entry) => entry.roomId);
+    const changed = nextIds.length !== poolIds.size || nextIds.some((id) => !poolIds.has(id));
     if (!changed) return;
     poolIds.clear();
-    for (const id of nextPool) poolIds.add(id);
+    for (const id of nextIds) poolIds.add(id);
     // First time real games arrive, jump straight to one instead of letting the
-    // static Misty-vs-Misty placeholder play out — it runs ~3 min before the loop
+    // static Misty-vs-Misty placeholder play out — it runs minutes before the loop
     // would rotate, so visitors otherwise only ever see the fallback.
     const leavingStaticFallback = !usingRealGames;
     if (leavingStaticFallback) usingRealGames = true;
-    replay.updateLoopPool(nextPool, { jumpNow: leavingStaticFallback });
+    cycler.updatePool(nextEntries, { jumpNow: leavingStaticFallback });
   };
   const tickShowcaseRefresh = async () => {
     if (!stage.el.isConnected) {
@@ -211,7 +202,7 @@ export async function mountLanding(root: HTMLElement): Promise<void> {
     closeActiveLandingDialog();
     stopShowcaseRefresh();
     document.removeEventListener('visibilitychange', refetchEnginesOnFocus);
-    replay.destroy();
+    cycler.destroy();
   };
   setRoomNavigator((url) => {
     void transitionToRoom(root, url, teardownLanding);

@@ -113,6 +113,11 @@ export type WebVariantTenant = {
       options: {
         autoplay: boolean;
         metadataByRoomId: Record<string, GameMeta>;
+        // Homepage showcase mode: a single compact board that hands off at
+        // game-end so the outer cycler can advance to the next pooled game.
+        // Watch omits both (full TV chrome, loops the single game).
+        compact?: boolean;
+        onGameEnd?: () => void;
       },
     ): Promise<ReplayHandle>;
   };
