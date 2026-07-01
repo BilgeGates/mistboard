@@ -331,11 +331,12 @@
   letter-spacing: 0.01em;
 }
 
-#landing-replay {
-  /* One fixed widget size shared by chess (chessground) and every tenant SVG
-     board, so the showcase board never resizes on a cross-variant swap. */
+/* The showcase widget (compact board + name/clock seats) is keyed on this class,
+   carried by the homepage board slot (#landing-replay) and each dev-sheet cell, so
+   they share one source of truth. One fixed size for every variant's board, so the
+   showcase never resizes on a cross-variant swap. Tweak here -> both update. */
+.showcase-widget {
   --showcase-widget-size: clamp(300px, 30vw, 440px);
-  width: 100%;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -350,9 +351,21 @@
     0 16px 38px rgba(34, 39, 36, 0.12);
 }
 
+#landing-replay {
+  width: 100%;
+}
+
 .landing-page .replay-page {
   padding: 0;
   min-height: 0;
+}
+
+/* replay.ts tags its mount root .replay-page; on the chess showcase that root is
+   also the .showcase-widget panel, so the rule above would strip the panel
+   padding (leaving chess ~18px shorter than the tenant panels, which don't use
+   replay.ts). Restore the shared panel padding. */
+.landing-page .showcase-widget.replay-page {
+  padding: clamp(14px, 1.7vw, 20px);
 }
 
 .landing-page #landing-replay .replay-layout {
@@ -486,22 +499,12 @@
   background: var(--site-accent-soft);
 }
 
-.landing-page #landing-replay.replay-compact {
-  --landing-viewer-capture-piece: clamp(22px, 3vw, 30px);
-  --landing-viewer-capture-h: calc(var(--landing-viewer-capture-piece) + 4px);
-  --landing-viewer-rail-w: clamp(190px, 18vw, 220px);
-}
-
-.landing-page #landing-replay.replay-compact .replay-layout {
-  width: 100%;
-}
-
 /* Homepage showcase: tenant (SVG) variants render a single compact board here via
    .replay-layout-solo (chess uses .replay-layout-single-*). Center it and cap the
    footprint so the differing aspect ratios (7x9 jungle, 8x4 banqi, 9x9 shogi) fit
    the slot without blowing out or jumping the page. Baseline sizing; per-variant
    visual tuning is a follow-up once non-chess games are seeded locally. */
-.landing-page #landing-replay .replay-layout-solo {
+.showcase-widget .replay-layout-solo {
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -510,16 +513,16 @@
   width: 100%;
 }
 
-.landing-page #landing-replay .replay-layout-solo .replay-pane {
+.showcase-widget .replay-layout-solo .replay-pane {
   width: 100%;
   max-width: var(--showcase-widget-size);
 }
 
 /* Compact showcase boards carry no header/label/clock chrome. */
-.landing-page #landing-replay .replay-layout-solo .replay-pane-label,
-.landing-page #landing-replay .replay-layout-solo .replay-pane-name,
-.landing-page #landing-replay .replay-layout-solo .replay-pane-status,
-.landing-page #landing-replay .replay-layout-solo .replay-pane-clock-slot {
+.showcase-widget .replay-layout-solo .replay-pane-label,
+.showcase-widget .replay-layout-solo .replay-pane-name,
+.showcase-widget .replay-layout-solo .replay-pane-status,
+.showcase-widget .replay-layout-solo .replay-pane-clock-slot {
   display: none;
 }
 
@@ -527,7 +530,7 @@
    swap never jumps the page and chess (a square board) and the tenant boards share
    one frame. Non-square boards (jungle, the xiangqi family, banqi 8x4) scale to fit
    INSIDE the box, centered and letterboxed. */
-.landing-page #landing-replay .replay-layout-solo .replay-board {
+.showcase-widget .replay-layout-solo .replay-board {
   width: var(--showcase-widget-size);
   height: var(--showcase-widget-size);
   display: flex;
@@ -537,7 +540,7 @@
 
 /* Fill the box; the SVG's default preserveAspectRatio (xMidYMid meet) scales the
    viewBox content to contain within it, centered, without distortion. */
-.landing-page #landing-replay .replay-layout-solo .replay-board svg {
+.showcase-widget .replay-layout-solo .replay-board svg {
   display: block;
   width: 100%;
   height: 100%;
@@ -545,17 +548,22 @@
 
 /* Player name + real (reconstructed) clock framing the tenant showcase board,
    one row above and one below, matching the widget width. */
-.landing-page #landing-replay .replay-layout-solo .showcase-seat {
+.showcase-widget .replay-layout-solo .showcase-seat {
   display: flex;
   align-items: baseline;
   justify-content: space-between;
-  gap: 12px;
+  gap: 10px;
   width: var(--showcase-widget-size);
   max-width: 100%;
-  padding: 1px 4px;
+  padding: 0 4px;
 }
 
-.landing-page #landing-replay .replay-layout-solo .showcase-seat-name {
+/* Cap the name so a long engine name can't push the clock off-center. */
+.showcase-widget .replay-layout-solo .showcase-seat-name {
+  max-width: calc(var(--showcase-widget-size) - 90px);
+}
+
+.showcase-widget .replay-layout-solo .showcase-seat-name {
   overflow: hidden;
   font-weight: 600;
   font-size: 0.92rem;
@@ -564,166 +572,197 @@
   text-overflow: ellipsis;
 }
 
-.landing-page #landing-replay .replay-layout-solo .showcase-seat-clock {
+.showcase-widget .replay-layout-solo .showcase-seat-clock {
   color: var(--site-muted);
   font-size: 0.9rem;
   font-variant-numeric: tabular-nums;
 }
 
-.landing-page #landing-replay .replay-layout-solo .showcase-seat.active .showcase-seat-clock {
+.showcase-widget .replay-layout-solo .showcase-seat.active .showcase-seat-clock {
   color: var(--site-accent);
   font-weight: 700;
 }
 
-.landing-page #landing-replay.replay-compact .replay-layout-single-white .replay-pane-white,
-.landing-page #landing-replay.replay-compact .replay-layout-single-black .replay-pane-black {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) var(--landing-viewer-rail-w);
-  grid-template-areas:
-    "captures-top rail"
-    "board rail"
-    "captures-bottom rail";
-  column-gap: clamp(10px, 1.2vw, 16px);
-  row-gap: 2px;
-  align-items: stretch;
-  justify-items: stretch;
-  width: 100%;
-}
-
-.landing-page #landing-replay.replay-compact .replay-captures-top {
-  grid-area: captures-top;
-}
-
-.landing-page #landing-replay.replay-compact .replay-captures-bottom {
-  grid-area: captures-bottom;
-}
-
-.landing-page #landing-replay.replay-compact .replay-captures {
-  --capture-piece-size: var(--landing-viewer-capture-piece);
-
-  width: 100%;
-  max-width: none;
-  height: var(--landing-viewer-capture-h);
-  min-height: var(--landing-viewer-capture-h);
-  padding: 0 2px;
-}
-
-.landing-page #landing-replay.replay-compact .replay-captures .captures-row {
+/* Drop/reserve variants: the board flanked by vertical hand strips (each side's
+   droppable reserve). The board keeps its fixed square; the strips add narrow
+   columns on either side. */
+.showcase-widget .replay-layout-solo .showcase-board-row {
+  display: flex;
+  align-items: center;
   justify-content: center;
+  gap: 8px;
+  width: var(--showcase-widget-size);
+  max-width: 100%;
+}
+
+/* Sided: shrink only the board WIDTH so board + two strips + gaps == the widget
+   width, but keep full height so the panel stays the same height as the
+   board-only variants (the board graphic letterboxes inside). */
+.showcase-widget .replay-layout-solo .showcase-board-row .replay-board {
+  width: calc(var(--showcase-widget-size) - 96px);
+  height: var(--showcase-widget-size);
+}
+
+.showcase-widget .replay-layout-solo .showcase-reserve {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 4px;
+  flex: 0 0 auto;
+  width: 40px;
+  align-self: stretch;
+  padding: 6px 2px;
+  border-radius: 8px;
+  background: rgba(0, 0, 0, 0.04);
+}
+
+/* Reserve pieces stack vertically and shrink to fit the narrow strip. */
+.showcase-widget .replay-layout-solo .showcase-reserve svg,
+.showcase-widget .replay-layout-solo .showcase-reserve img {
+  width: 32px;
+  height: 32px;
+}
+
+/* ── Chess showcase unification ──────────────────────────────────────────────
+   Chess is the only variant on the chessground renderer (.replay-layout-single-*).
+   These rules restyle its single visible POV pane to match the tenant showcase
+   boards: a column of a full-size board with tight name-left / clock-right rows
+   above and below (no captures, no side rail). Everything is scoped to the ACTIVE
+   pane (.replay-pane-white in the white layout, .replay-pane-black in the black)
+   so the hidden POV panes stay hidden. The :is(#landing-replay.replay-compact,
+   .showcase-widget) prefix carries id-level specificity, so it overrides the legacy
+   compact chess rules above on the homepage AND matches the dev sheet's
+   .showcase-widget cells. (The legacy compact chess block above is now superseded.) */
+:is(#landing-replay.replay-compact, .showcase-widget)
+  :is(
+    .replay-layout-single-white .replay-pane-white,
+    .replay-layout-single-black .replay-pane-black
+  ) {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
   width: 100%;
 }
 
-.landing-page #landing-replay.replay-compact .replay-board {
-  grid-area: board;
-  align-self: center;
-  justify-self: center;
-  width: 100%;
-  /* Cap chess to the shared widget size so it matches the tenant boards (it
-     otherwise fills its grid cell, ~574px, and would jump on the swap). */
+/* The compact metadata card is redundant now that the name/clock live in the
+   board-edge rows; hide it so its empty box + the widget gap don't add a band
+   below the board (which made chess taller than the tenant panels). */
+:is(#landing-replay.replay-compact, .showcase-widget) > .replay-game-meta-card {
+  display: none;
+}
+
+:is(#landing-replay.replay-compact, .showcase-widget)
+  :is(
+    .replay-layout-single-white .replay-pane-white,
+    .replay-layout-single-black .replay-pane-black
+  )
+  :is(.replay-pane-label, .replay-pane-name, .replay-pane-status) {
+  display: none;
+}
+
+/* Full-size board, matching the tenant boards' shared widget size. */
+:is(#landing-replay.replay-compact, .showcase-widget)
+  :is(
+    .replay-layout-single-white .replay-pane-white,
+    .replay-layout-single-black .replay-pane-black
+  )
+  .replay-board {
+  width: var(--showcase-widget-size);
+  height: var(--showcase-widget-size);
   max-width: var(--showcase-widget-size);
 }
 
-.landing-page #landing-replay.replay-compact .replay-pane-clock-slot {
-  grid-area: rail;
-  align-self: center;
+/* The clock slot is just the bottom row's container in the column. */
+:is(#landing-replay.replay-compact, .showcase-widget)
+  :is(
+    .replay-layout-single-white .replay-pane-white,
+    .replay-layout-single-black .replay-pane-black
+  )
+  .replay-pane-clock-slot {
+  display: block;
+  width: var(--showcase-widget-size);
+  max-width: 100%;
+  margin: 0;
+  padding: 0;
+}
+
+/* Name/clock rows -> the tenant .showcase-seat look (override the legacy grid,
+   72px min-height, hidden name, and oversized centered clock). */
+:is(#landing-replay.replay-compact, .showcase-widget)
+  :is(
+    .replay-layout-single-white .replay-pane-white,
+    .replay-layout-single-black .replay-pane-black
+  )
+  .replay-clock-row {
   display: flex;
-  flex-direction: column;
-  gap: 5px;
-  width: 100%;
-  max-width: none;
-  margin-top: 0;
+  flex-direction: row;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+  width: var(--showcase-widget-size);
+  max-width: 100%;
+  min-height: 0;
+  padding: 0 4px;
+  background: none;
+  border: none;
+  box-shadow: none;
 }
 
-.landing-page #landing-replay.replay-compact .replay-pane-status {
-  grid-area: status;
+:is(#landing-replay.replay-compact, .showcase-widget)
+  :is(
+    .replay-layout-single-white .replay-pane-white,
+    .replay-layout-single-black .replay-pane-black
+  )
+  :is(.replay-clock-to-move, .replay-clock-stack-name) {
   display: none;
 }
 
-.landing-page #landing-replay.replay-compact .replay-pane > .replay-clock-row,
-.landing-page #landing-replay.replay-compact .replay-pane-clock-slot .replay-clock-row {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr);
-  grid-template-rows: auto;
-  align-content: center;
-  justify-items: center;
-  width: 100%;
-  max-width: none;
-  min-height: 72px;
-  padding: 10px 12px;
+/* Un-hide the inline name (the legacy compact rule hides it in favor of a rail
+   stack-name) and give it the seat-name treatment. */
+:is(#landing-replay.replay-compact, .showcase-widget)
+  :is(
+    .replay-layout-single-white .replay-pane-white,
+    .replay-layout-single-black .replay-pane-black
+  )
+  .replay-clock-side {
+  display: block;
+  overflow: hidden;
+  max-width: calc(var(--showcase-widget-size) - 90px);
+  font-weight: 600;
+  font-size: 0.92rem;
+  color: var(--site-text);
+  white-space: nowrap;
+  text-overflow: ellipsis;
 }
 
-.landing-page #landing-replay.replay-compact .replay-clock-stack-name {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 6px;
-  width: 100%;
+:is(#landing-replay.replay-compact, .showcase-widget)
+  :is(
+    .replay-layout-single-white .replay-pane-white,
+    .replay-layout-single-black .replay-pane-black
+  )
+  .replay-clock-time {
+  grid-column: auto;
+  grid-row: auto;
+  text-align: right;
   color: var(--site-muted);
-  font-size: 12px;
-  font-weight: 720;
+  font-size: 0.9rem;
+  font-weight: 500;
   line-height: 1.2;
-  text-align: center;
+  font-variant-numeric: tabular-nums;
 }
 
-.landing-page #landing-replay.replay-compact .replay-clock-stack-result {
-  border-radius: 999px;
-  background: rgba(31, 111, 91, 0.1);
+/* Active side highlight (matches .showcase-seat.active). */
+:is(#landing-replay.replay-compact, .showcase-widget)
+  :is(
+    .replay-layout-single-white .replay-pane-white,
+    .replay-layout-single-black .replay-pane-black
+  )
+  .replay-clock-row[aria-current="true"]
+  .replay-clock-time {
   color: var(--site-accent);
-  font-size: 10px;
-  font-weight: 820;
-  letter-spacing: 0.06em;
-  line-height: 1;
-  padding: 3px 6px;
-  text-transform: uppercase;
-}
-
-.landing-page
-  #landing-replay.replay-compact
-  .replay-clock-stack-name.result-loss
-  .replay-clock-stack-result {
-  background: rgba(90, 98, 93, 0.1);
-  color: var(--site-muted);
-}
-
-.landing-page
-  #landing-replay.replay-compact
-  .replay-clock-stack-name.result-draw
-  .replay-clock-stack-result {
-  background: rgba(90, 98, 93, 0.1);
-  color: var(--site-muted);
-}
-
-.landing-page #landing-replay.replay-compact .replay-clock-side {
-  display: none;
-}
-
-.landing-page #landing-replay.replay-compact .replay-clock-time {
-  grid-column: 1;
-  grid-row: 1;
-  text-align: center;
-  font-size: clamp(26px, 2.8vw, 34px);
-  font-weight: 780;
-  line-height: 0.95;
-}
-
-.landing-page #landing-replay.replay-compact .replay-clock-to-move {
-  display: none;
-}
-
-.landing-page #landing-replay.replay-compact .replay-clock-row.result-win {
-  border-color: #93c5a9;
-  background: var(--site-accent-soft);
-  box-shadow: inset 4px 0 0 var(--site-accent);
-}
-
-.landing-page #landing-replay.replay-compact .replay-clock-row.result-loss {
-  color: var(--site-muted);
-  background: rgba(255, 255, 255, 0.72);
-}
-
-.landing-page #landing-replay.replay-compact .replay-clock-row.result-draw {
-  border-color: var(--site-border-soft);
-  background: var(--site-panel-soft);
+  font-weight: 700;
 }
 
 .landing-demo .landing-games-heading {
@@ -769,37 +808,6 @@
 @media (max-width: 720px) {
   .landing-board-column #landing-replay {
     max-width: 560px;
-  }
-
-  .landing-page #landing-replay.replay-compact .replay-layout-single-white .replay-pane-white,
-  .landing-page #landing-replay.replay-compact .replay-layout-single-black .replay-pane-black {
-    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-    grid-template-areas:
-      "captures-top    clock-top"
-      "board           board"
-      "captures-bottom clock-bottom";
-    column-gap: clamp(6px, 2vw, 12px);
-  }
-
-  .landing-page #landing-replay.replay-compact .replay-pane-clock-slot {
-    gap: 4px;
-    margin-top: 0;
-  }
-
-  .landing-page #landing-replay.replay-compact .replay-pane > .replay-clock-row,
-  .landing-page #landing-replay.replay-compact .replay-pane-clock-slot .replay-clock-row {
-    grid-template-columns: minmax(0, 1fr);
-    grid-template-rows: auto;
-    justify-items: center;
-    min-height: 38px;
-    padding: 6px 9px;
-  }
-
-  .landing-page #landing-replay.replay-compact .replay-clock-time {
-    grid-column: 1;
-    grid-row: 1;
-    text-align: center;
-    font-size: 18px;
   }
 }
 
@@ -870,82 +878,4 @@
   .landing-demo {
     padding: 10px;
   }
-}
-
-/* ── Homepage hero: name + clock beside the captures ─────────────────────────
-   Each captures row is split: captured pieces on the inner half, that player's
-   name + clock on the outer half — a compact per-player strip above and below
-   the board, no separate side rail. Scoped to #landing-replay (homepage-only id);
-   /watch and /game are untouched. The clock rows + names live in per-row cells
-   (compactClockLayout: 'captures'), so the old clock-slot rail stays hidden. */
-.landing-page #landing-replay.replay-compact .replay-pane-clock-slot {
-  display: none;
-}
-
-.landing-page #landing-replay.replay-compact .replay-layout-single-white .replay-pane-white,
-.landing-page #landing-replay.replay-compact .replay-layout-single-black .replay-pane-black {
-  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-  grid-template-areas:
-    "captures-top    clock-top"
-    "board           board"
-    "captures-bottom clock-bottom";
-  column-gap: clamp(10px, 1.4vw, 18px);
-}
-
-.landing-page #landing-replay.replay-compact .replay-clock-cell-top {
-  grid-area: clock-top;
-}
-
-.landing-page #landing-replay.replay-compact .replay-clock-cell-bottom {
-  grid-area: clock-bottom;
-}
-
-.landing-page #landing-replay.replay-compact .replay-clock-cell {
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  gap: 1px;
-  min-width: 0;
-  padding-inline: 2px;
-}
-
-.landing-page #landing-replay.replay-compact .replay-clock-cell .replay-clock-stack-name {
-  justify-content: flex-start;
-  width: 100%;
-  font-size: 12.5px;
-  font-weight: 720;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-/* Reset the big rail clock styling (72px row / 34px time) to a compact line. */
-.landing-page #landing-replay.replay-compact .replay-clock-cell .replay-clock-row {
-  display: flex;
-  align-items: baseline;
-  justify-content: flex-start;
-  width: auto;
-  max-width: none;
-  min-height: 0;
-  padding: 0;
-  border: 0;
-  background: transparent;
-  box-shadow: none;
-}
-
-.landing-page #landing-replay.replay-compact .replay-clock-cell .replay-clock-time {
-  grid-column: auto;
-  grid-row: auto;
-  font-size: clamp(18px, 2vw, 23px);
-  font-weight: 760;
-  line-height: 1.05;
-  text-align: left;
-}
-
-.landing-page
-  #landing-replay.replay-compact
-  .replay-clock-cell
-  .replay-clock-row.active
-  .replay-clock-time {
-  color: var(--site-accent-strong, #185947);
 }

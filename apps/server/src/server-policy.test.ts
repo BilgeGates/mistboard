@@ -306,6 +306,7 @@ const PARKED_CLIENT_ROUTES = new Set<string>([
   '/sound-lab', // DEV-only; gated by import.meta.env.DEV in main.ts
   '/deepdive', // DEV-only; gated by import.meta.env.DEV in main.ts
   '/engine-review', // DEV-only; gated by import.meta.env.DEV in main.ts
+  '/showcase-sheet', // DEV-only; gated by import.meta.env.DEV in main.ts
 ]);
 
 test('isClientRoute covers every literal route declared in main.ts', () => {

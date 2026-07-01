@@ -45,5 +45,8 @@ export function mountDropMiniXiangqiWatchReplay(
     renderBoard: (view, orientation) =>
       renderMiniXiangqiBoardSvg(dropMiniXiangqiBoardView(view), orientation, { showFog: false }),
     fillCaptures: (host, view, owner) => fillDropMiniXiangqiReserve(host, view, owner),
+    // Reserves (droppable hand) are essential to the position: show them as
+    // vertical strips flanking the board in the compact showcase.
+    sidedCaptures: true,
   });
 }

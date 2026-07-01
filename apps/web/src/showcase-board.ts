@@ -19,7 +19,11 @@ export type ShowcaseBoardOptions = {
   // keyed by room id; the chess path reads names from metadataByRoomId instead.
   namesByRoomId: Record<string, { first: string; second: string }>;
   // Fired once when the mounted game reaches its final ply; the cycler advances.
-  onGameEnd: () => void;
+  // Omitted by static callers (e.g. the dev variant sheet) that don't cycle.
+  onGameEnd?: () => void;
+  // Autoplay through the game (default). false = mount paused at the start
+  // position, used by the dev sheet to show each variant's opening.
+  autoplay?: boolean;
   // POV for the chess (chessground) path; tenants pick their own showcase side.
   pov: 'white' | 'black';
   // Chess event loader (static bundled samples vs the games API). Tenants load
@@ -37,7 +41,7 @@ export async function mountShowcaseBoard(
     showcaseRendererKindForSpec(specId) === 'chess' ? null : webVariantTenantForSpecId(specId);
   if (tenant?.watch) {
     return tenant.watch.mountReplay(root, roomId, {
-      autoplay: true,
+      autoplay: options.autoplay ?? true,
       metadataByRoomId: options.metadataByRoomId,
       compact: true,
       onGameEnd: options.onGameEnd,
@@ -46,10 +50,11 @@ export async function mountShowcaseBoard(
   }
 
   // Chess (chessground): a single fogged POV board, no controls, paced for the
-  // homepage. Mirrors the pre-existing landing hero config minus the internal
-  // loop (the cycler owns cross-game advancement via onGameEnd).
+  // homepage. To match the tenant showcase boards, it drops captured-piece rows
+  // and puts the player name + clock in rows above/below the board (board-edges),
+  // which CSS then styles into the shared `.showcase-seat` look.
   return mountReplay(root, roomId, {
-    autoplay: true,
+    autoplay: options.autoplay ?? true,
     showControls: false,
     keyboardNav: false,
     revealOnFinish: false,
@@ -57,9 +62,8 @@ export async function mountShowcaseBoard(
     metadataMode: 'compact',
     metadataByRoomId: options.metadataByRoomId,
     hideGameIdPill: true,
-    showCaptures: true,
-    captureLayout: 'split',
-    compactClockLayout: 'captures',
+    showCaptures: false,
+    compactClockLayout: 'board-edges',
     endStatusMode: 'clock',
     betweenGameDelayMs: SHOWCASE_CHESS_HOLD_MS,
     onGameEnd: options.onGameEnd,

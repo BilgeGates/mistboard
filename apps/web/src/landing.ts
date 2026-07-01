@@ -488,6 +488,9 @@ function buildLandingStage(
 
   const replayRoot = document.createElement('div');
   replayRoot.id = 'landing-replay';
+  // Widget styling (compact board + name/clock seats) is keyed on this class,
+  // shared with the dev variant sheet's cells.
+  replayRoot.classList.add('showcase-widget');
 
   boardColumn.append(replayRoot);
   centerColumn.append(boardColumn);

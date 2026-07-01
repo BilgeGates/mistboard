@@ -219,7 +219,9 @@ export async function mountMiniXiangqiWatchReplay(
           showFog: target.key !== 'truth',
         });
       }
-      renderMiniXiangqiPaneCaptureSplit(target.pane, captures, boardOrientation);
+      if (!compact) {
+        renderMiniXiangqiPaneCaptureSplit(target.pane, captures, boardOrientation);
+      }
     }
     if (compactSeats) {
       if (clocks) {
@@ -358,7 +360,8 @@ export async function mountMiniXiangqiWatchReplay(
     if (compact) {
       const target = pickCompactTarget(postgame);
       boardOrientation = target.orientation;
-      const pane = createPane('', paneKind(target.key), true, 'split');
+      // Compact showcase shows no capture rows (DMX is not a drop/reserve variant).
+      const pane = createPane('', paneKind(target.key), false, 'split');
       boardTargets = [{ pane, key: target.key }];
       controls = null;
       seatCells = null;
