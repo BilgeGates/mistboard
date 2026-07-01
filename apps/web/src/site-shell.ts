@@ -46,8 +46,16 @@ export function buildNav(locale: Locale = currentLocale()): HTMLElement {
   brandLogo.width = 28;
   brandLogo.height = 28;
 
+  // Wordmark styled like lichess's: full name in --site-text, the TLD suffix
+  // dimmed to --site-muted. Nested spans keep the mobile `.site-nav-brand span`
+  // logo-only collapse working (both spans hide together).
   const brandText = document.createElement('span');
-  brandText.textContent = 'Mistboard';
+  brandText.className = 'site-nav-brand-name';
+  brandText.append('mistboard');
+  const brandSuffix = document.createElement('span');
+  brandSuffix.className = 'site-nav-brand-suffix';
+  brandSuffix.textContent = '.com';
+  brandText.append(brandSuffix);
   brand.append(brandLogo, brandText);
 
   const links = document.createElement('div');
