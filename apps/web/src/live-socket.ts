@@ -30,7 +30,7 @@ import {
 
 // Fields shared by every state-bearing frame. hello/snapshot carry the full
 // `events` array; event-appended carries seq + the single appended `event`
-// instead (see docs/specs/incremental-snapshot-protocol.md). The connection
+// instead. The connection
 // machinery (pong, rematch:redirect, restart messages) never reaches this
 // module — the generic client consumes those frames itself.
 type StateFrame = {

@@ -35,7 +35,7 @@ lab-exports/
 # because they are large local artifacts, not because they are disposable.
 # If a run produces annotations, screenshots, hard-fact findings, or build-log
 # evidence, archive/inventory it under docs-private/engine-track before deleting
-# a worktree or reusing the save dir. See docs/fog-of-war/engine-lab-loop.md.
+# a worktree or reusing the save dir.
 apps/web/public/bakeoff-*
 
 # Belief-replay captures (engine-v2 belief-set enumeration) are engine internals.

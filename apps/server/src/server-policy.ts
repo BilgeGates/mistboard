@@ -5,7 +5,6 @@ import { type GameEvent, type GameProjection, replayGameEvents } from '@mistboar
 // Visibility rule: live games are visible only to seated players; finished
 // games are public via replay endpoints. This is enforced at two layers —
 // connection accept (canObserveLiveRoom) and replay HTTP (eventReplayResponse).
-// See docs/fog-of-war/server-side-enforcement.md.
 
 export type GameAccessMode = 'pvp' | 'pve' | 'eve' | 'imported' | 'manual';
 

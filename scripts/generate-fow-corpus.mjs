@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // Random self-play Fog of War games. Emits mistboard-shaped event logs as JSONL
 // plus a manifest with per-game rule-edge coverage flags. Used to feed the
-// python-fow-lab parity test (P1 gate). See docs/fog-of-war/engine-roadmap.md.
+// python-fow-lab parity test (P1 gate).
 
 import { mkdir, writeFile } from 'node:fs/promises';
 import { dirname, join, relative, resolve } from 'node:path';
