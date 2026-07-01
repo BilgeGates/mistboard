@@ -121,7 +121,10 @@ export function xiangqiPreviewGlyph(set: XiangqiPieceSet): string {
 
 export function xiangqiPieceTilePreview(set: XiangqiPieceSet): XiangqiPieceTilePreview {
   if (isAnimalPieceSet(set)) {
-    return { kind: 'svg', markup: renderXiangqiPieceGlyphed({ color: 'red', role: 'general' }, set) };
+    return {
+      kind: 'svg',
+      markup: renderXiangqiPieceGlyphed({ color: 'red', role: 'general' }, set),
+    };
   }
   return { kind: 'text', text: xiangqiPreviewGlyph(set) };
 }
