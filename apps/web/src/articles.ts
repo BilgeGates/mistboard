@@ -258,19 +258,11 @@ function buildRulesLanding(lang?: ArticleLang): HTMLElement {
 // articles, so the caller can omit it. Thumbnails are bound by the caller's
 // mountArticleThumbnails pass; rotation is started by initLandingCarousel once
 // the section is in the document (it needs measured widths).
-const HOME_ARTICLE_SLUGS = [
-  'drop-mini-xiangqi',
-  'dark-shogi',
-  'mistybanqi',
-  'server-enforced-fog',
-  'crossroads-chess',
-  'dark-mini-xiangqi',
-  'dark-xiangqi',
-  'jieqi',
-  'banqi',
-  'reveal-chess',
-  'dark-chess',
-] as const;
+// Editorial articles only. Rules reference pages are surfaced on the /rules
+// index (and each variant's card marker), not in this homepage row, so this
+// list is curated down to blog/concept pieces; the kind guard in
+// buildHomeArticleCards drops any rules slug that slips back in.
+const HOME_ARTICLE_SLUGS = ['mistybanqi', 'server-enforced-fog'] as const;
 
 type HomeCardItem =
   | {
@@ -295,7 +287,8 @@ export function buildHomeArticleCards(
   );
   const articleItems = HOME_ARTICLE_SLUGS.flatMap<HomeCardItem>((slug, index) => {
     const article = eligible.get(slug);
-    return article
+    // Rules reference pages live on /rules, never this editorial row.
+    return article && article.kind !== 'rules'
       ? [{ kind: 'article', date: articleDateKey(article), order: index + 1, article }]
       : [];
   });
