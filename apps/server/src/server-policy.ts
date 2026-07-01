@@ -92,6 +92,7 @@ export function isClientRoute(pathname: string): boolean {
     normalized === '/correspondence' ||
     normalized === '/leaderboard' ||
     normalized === '/news' ||
+    normalized === '/feed' ||
     normalized === '/forum' ||
     normalized === '/forum/reports' ||
     normalized === '/database' ||
