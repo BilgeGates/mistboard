@@ -25,7 +25,8 @@ export type GameTermination =
   | 'repetition'
   | 'progress-clock'
   | 'truncated'
-  | 'race';
+  | 'race'
+  | 'chasing';
 export type GameReviewStatus = 'unreviewed' | 'flagged' | 'reviewed' | 'training' | 'rejected';
 export type GameVisibility = 'private' | 'link' | 'unlisted' | 'public';
 
