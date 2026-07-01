@@ -507,46 +507,89 @@ export async function listRecentPublicGames(limit = 10): Promise<RecentEveGameRe
   return attachGameParticipants(rows.map(recentEveGameRecordFromRow));
 }
 
-// Homepage hero pool, newest-first by tier: PvP (two humans, the strongest
-// "alive" signal) → PvE (a real human vs the engine, which showcases the engine,
-// the product's differentiator) → EvE (synthetic, for volume). At least one PvE
-// is reserved when any exist. The human tiers use a watch-style filter (any real
-// finish except abandon, since people resign/flag far more than king-capture);
-// EvE is decisive-only, one per run. All tiers require >= 30 plies so the hero
-// never opens on a short game.
+// Homepage showcase pool. Within a variant, order by tier: PvP (two humans, the
+// strongest "alive" signal) → PvE (a real human vs the engine, the product's
+// differentiator) → EvE (synthetic, for volume). Then ROUND-ROBIN across variants
+// so the pool shows breadth ("not just dark chess") while volume sets the natural
+// weighting. The human tiers use a watch-style filter (any real finish except
+// abandon, since people resign/flag far more than king-capture); EvE is
+// decisive-only (result <> draw, variant-agnostic), one game per bakeoff run. All
+// tiers require >= 30 plies so a board never opens on a short game.
 const SHOWCASE_MIN_PLY = 30;
-// Pool size + reserved PvE slots. Defaults are anchored on "games take minutes
-// to finish, low liquidity"; tune from traffic (see also the client poller).
+// Pool size. Anchored on "games take minutes to finish, low liquidity"; tune from
+// traffic (see also the client poller).
 const SHOWCASE_POOL_SIZE = 14;
-const SHOWCASE_GUARANTEED_PVE = 1;
+// The homepage viewer defaults to the dark-chess stack (incl. the legacy 'fog'
+// value) when no variant list is supplied; the /api/games/showcase route passes
+// the full set of watchable variants so the pool spans every launched variant.
+const DEFAULT_SHOWCASE_VARIANTS = ['dark-chess', 'fog'] as const;
+
+export type ShowcaseOptions = {
+  variants?: readonly string[];
+  limit?: number;
+};
 
 export async function listShowcaseGames(
-  limit = SHOWCASE_POOL_SIZE,
+  options: ShowcaseOptions = {},
 ): Promise<RecentEveGameRecord[]> {
-  const bounded = Math.max(1, Math.min(limit, 24));
-  const pvp = await queryShowcasePvp(bounded);
-  const pve = await queryShowcasePve(bounded);
-  // Reserve a slot for PvE so the engine always appears, even when PvP alone
-  // could fill the pool. Then fill newest-first by tier: PvP, remaining PvE, EvE.
-  const seededPve = pve.slice(0, Math.min(SHOWCASE_GUARANTEED_PVE, pve.length));
-  let pool = [...pvp.slice(0, bounded - seededPve.length), ...seededPve];
-  if (pool.length < bounded) pool = [...pool, ...pve.slice(seededPve.length)];
-  if (pool.length < bounded) {
-    const eve = await queryShowcaseEngine();
-    pool = [...pool, ...eve];
+  const bounded = Math.max(1, Math.min(options.limit ?? SHOWCASE_POOL_SIZE, 24));
+  const variants =
+    options.variants && options.variants.length > 0 ? options.variants : DEFAULT_SHOWCASE_VARIANTS;
+  // Over-fetch each tier so the cross-variant interleave has material from more
+  // than just the highest-volume variant.
+  const fetchLimit = bounded * 4;
+  const [pvp, pve, eve] = await Promise.all([
+    queryShowcasePvp(fetchLimit, variants),
+    queryShowcasePve(fetchLimit, variants),
+    queryShowcaseEngine(variants),
+  ]);
+  return interleaveByVariant([...pvp, ...pve, ...eve], bounded);
+}
+
+// Round-robin the tier-ordered games across their variants: one per variant per
+// round, in input (tier-then-recency) order within each variant, skipping
+// exhausted variants. Breadth at the front, volume in the tail; never two of the
+// same variant back to back until the others run dry. Variant order = first
+// appearance in the tiered input, so variants with recent human games lead.
+// Exported for the DB-free interleave unit test.
+export function interleaveByVariant(
+  games: RecentEveGameRecord[],
+  poolSize: number,
+): RecentEveGameRecord[] {
+  const queues = new Map<string, RecentEveGameRecord[]>();
+  for (const game of games) {
+    const queue = queues.get(game.variant);
+    if (queue) queue.push(game);
+    else queues.set(game.variant, [game]);
   }
-  return pool.slice(0, bounded);
+  const order = [...queues.values()];
+  const out: RecentEveGameRecord[] = [];
+  let progressed = true;
+  while (out.length < poolSize && progressed) {
+    progressed = false;
+    for (const queue of order) {
+      const next = queue.shift();
+      if (!next) continue;
+      out.push(next);
+      progressed = true;
+      if (out.length >= poolSize) break;
+    }
+  }
+  return out;
 }
 
 // Recent substantial PvP, watch-style: any real finish except a forfeit/abandon.
-async function queryShowcasePvp(limit: number): Promise<RecentEveGameRecord[]> {
+async function queryShowcasePvp(
+  limit: number,
+  variants: readonly string[],
+): Promise<RecentEveGameRecord[]> {
   const { rows } = await getPool().query<RecentEveGameRow>(
     `SELECT ${RECENT_EVE_SELECT_COLUMNS}
      FROM games
      LEFT JOIN eve_games ON eve_games.game_id = games.room_id
      WHERE games.status = 'completed'
        AND games.visibility = 'public'
-       AND games.variant IN ('dark-chess', 'fog')
+       AND games.variant = ANY($3::text[])
        AND games.mode = 'pvp'
        AND games.termination <> 'abandonment'
        AND games.ply_count >= $1
@@ -555,7 +598,7 @@ async function queryShowcasePvp(limit: number): Promise<RecentEveGameRecord[]> {
        )
      ORDER BY games.ended_at DESC, games.room_id DESC
      LIMIT $2`,
-    [SHOWCASE_MIN_PLY, limit],
+    [SHOWCASE_MIN_PLY, limit, variants],
   );
   return attachGameParticipants(rows.map(recentEveGameRecordFromRow));
 }
@@ -563,14 +606,17 @@ async function queryShowcasePvp(limit: number): Promise<RecentEveGameRecord[]> {
 // Recent human-vs-engine games — a real person playing the engine. Same
 // watch-style "any real finish except abandon" filter as PvP; PvE is
 // public-by-default (visibility <> 'private') like the watch unlocked feed.
-async function queryShowcasePve(limit: number): Promise<RecentEveGameRecord[]> {
+async function queryShowcasePve(
+  limit: number,
+  variants: readonly string[],
+): Promise<RecentEveGameRecord[]> {
   const { rows } = await getPool().query<RecentEveGameRow>(
     `SELECT ${RECENT_EVE_SELECT_COLUMNS}
      FROM games
      LEFT JOIN eve_games ON eve_games.game_id = games.room_id
      WHERE games.status = 'completed'
        AND games.visibility <> 'private'
-       AND games.variant IN ('dark-chess', 'fog')
+       AND games.variant = ANY($3::text[])
        AND games.mode = 'pve'
        AND games.termination <> 'abandonment'
        AND games.ply_count >= $1
@@ -579,31 +625,34 @@ async function queryShowcasePve(limit: number): Promise<RecentEveGameRecord[]> {
        )
      ORDER BY games.ended_at DESC, games.room_id DESC
      LIMIT $2`,
-    [SHOWCASE_MIN_PLY, limit],
+    [SHOWCASE_MIN_PLY, limit, variants],
   );
   return attachGameParticipants(rows.map(recentEveGameRecordFromRow));
 }
 
 // Decisive engine-vs-engine games, one per run (the most recent in each),
-// newest run first — so the fallback shows varied matchups, not N games from one
+// newest run first — so the pool shows varied matchups, not N games from one
 // bakeoff. EvE only (PvE human-vs-engine is excluded by design). COALESCE keeps
-// corpus-less games (e.g. live EvE) individually distinct.
-async function queryShowcaseEngine(): Promise<RecentEveGameRecord[]> {
+// corpus-less games (e.g. live EvE) individually distinct. "Decisive" is
+// result-based (not a chess/xiangqi termination allowlist) so every variant's
+// decisive EvE games — jungle den-entry, banqi, etc. — qualify.
+async function queryShowcaseEngine(variants: readonly string[]): Promise<RecentEveGameRecord[]> {
   const { rows } = await getPool().query<RecentEveGameRow>(
     `SELECT DISTINCT ON (COALESCE(games.corpus_id, games.room_id)) ${RECENT_EVE_SELECT_COLUMNS}
      FROM games
      LEFT JOIN eve_games ON eve_games.game_id = games.room_id
      WHERE games.status = 'completed'
        AND games.visibility = 'public'
-       AND games.variant IN ('dark-chess', 'fog')
+       AND games.variant = ANY($2::text[])
        AND games.mode = 'eve'
-       AND games.termination IN ('king-captured', 'checkmate')
+       AND games.termination <> 'abandonment'
+       AND games.result <> 'draw'
        AND games.ply_count >= $1
        AND EXISTS (
          SELECT 1 FROM events WHERE events.room_id = games.room_id LIMIT 1
        )
      ORDER BY COALESCE(games.corpus_id, games.room_id), games.ended_at DESC`,
-    [SHOWCASE_MIN_PLY],
+    [SHOWCASE_MIN_PLY, variants],
   );
   const records = await attachGameParticipants(rows.map(recentEveGameRecordFromRow));
   records.sort((a, b) => b.endedAt.getTime() - a.endedAt.getTime());

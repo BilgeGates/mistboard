@@ -101,7 +101,12 @@ export async function tryHandle(
   // Homepage hero pool — quality-filtered, PvP-first dark-chess games.
   if (pathname === '/api/games/showcase') {
     if (!requirePersistence(response)) return true;
-    const games = await persistence.listShowcaseGames();
+    // Span every watchable variant (the union of the channels' persisted variant
+    // strings) so the homepage viewer cycles the whole catalog, not just chess.
+    const variants = [
+      ...new Set(listWatchChannels().flatMap((channel) => [...channel.legacyVariants])),
+    ];
+    const games = await persistence.listShowcaseGames({ variants });
     response.writeHead(200, { 'content-type': 'application/json' });
     response.end(JSON.stringify({ games }));
     return true;
