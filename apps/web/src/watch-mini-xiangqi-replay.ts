@@ -27,6 +27,7 @@ import {
 import type { GameMeta, ReplayHandle } from './replay.js';
 import { createPane, type ReplayPaneHandle } from './replay-board.js';
 import { createGameHeaderStrip } from './replay-meta.js';
+import { pickCompactViewKey } from './showcase-compact-view.js';
 import { formatClock } from './web-utils.js';
 
 const AUTO_PLAY_PLY_MS = 1100;
@@ -35,6 +36,15 @@ const AUTO_PLAY_LOOP_HOLD_MS = 2600;
 export type MiniXiangqiWatchReplayOptions = {
   autoplay?: boolean;
   metadataByRoomId?: Record<string, GameMeta>;
+  /**
+   * Homepage showcase mode: a single fogged board (no header/control-bar/ply-line/
+   * clocks) showing one random side's own POV — never truth. Pairs with onGameEnd
+   * for cross-variant cycling.
+   */
+  compact?: boolean;
+  /** Called once at the final ply (after the loop hold) instead of restarting the
+   *  game, so an outer showcase controller can advance to the next pooled game. */
+  onGameEnd?: () => void;
 };
 
 type ControlRefs = {
@@ -132,11 +142,15 @@ export async function mountMiniXiangqiWatchReplay(
 ): Promise<ReplayHandle> {
   installMiniXiangqiBoardStyles();
   const autoplay = options.autoplay ?? true;
+  const compact = options.compact === true;
+  const onGameEnd = options.onGameEnd;
 
   let activeId = roomId;
   let destroyed = false;
   let timer: number | null = null;
   let paused = !autoplay;
+  // Guards a single onGameEnd fire per game so the loop hold can't re-enter it.
+  let endFired = false;
 
   // Per-game render state, rebuilt on each loadGame.
   let boardTargets: Array<{ pane: ReplayPaneHandle; key: DarkMiniXiangqiPostgameViewKey }> = [];
@@ -165,7 +179,7 @@ export async function mountMiniXiangqiWatchReplay(
   };
 
   const sync = (): void => {
-    if (!activePostgame || !controls) return;
+    if (!activePostgame) return;
     const captures = miniXiangqiCapturesFromTruthView(
       postgameViewAtPly(activePostgame, 'truth', currentPly),
     );
@@ -178,12 +192,14 @@ export async function mountMiniXiangqiWatchReplay(
       }
       renderMiniXiangqiPaneCaptureSplit(target.pane, captures, boardOrientation);
     }
-    const result = currentPly >= maxPly ? ` — ${resultLabel(activePostgame.game.result)}` : '';
-    controls.plyLabel.textContent = `Ply ${currentPly} / ${maxPly}${result}`;
-    controls.first.disabled = currentPly <= 0;
-    controls.prev.disabled = currentPly <= 0;
-    controls.next.disabled = currentPly >= maxPly;
-    controls.last.disabled = currentPly >= maxPly;
+    if (controls) {
+      const result = currentPly >= maxPly ? ` — ${resultLabel(activePostgame.game.result)}` : '';
+      controls.plyLabel.textContent = `Ply ${currentPly} / ${maxPly}${result}`;
+      controls.first.disabled = currentPly <= 0;
+      controls.prev.disabled = currentPly <= 0;
+      controls.next.disabled = currentPly >= maxPly;
+      controls.last.disabled = currentPly >= maxPly;
+    }
 
     // Red moves first, so after an even ply Red is to move; no active side once
     // the game has ended.
@@ -234,7 +250,20 @@ export async function mountMiniXiangqiWatchReplay(
     timer = window.setTimeout(
       () => {
         if (destroyed) return;
-        currentPly = atEnd ? 0 : currentPly + 1;
+        if (atEnd) {
+          // Showcase mode hands off to the outer controller instead of replaying
+          // the same game. Watch (no onGameEnd) loops the single game as before.
+          if (onGameEnd) {
+            if (!endFired) {
+              endFired = true;
+              onGameEnd();
+            }
+            return;
+          }
+          currentPly = 0;
+        } else {
+          currentPly += 1;
+        }
         sync();
         scheduleAuto();
       },
@@ -256,6 +285,19 @@ export async function mountMiniXiangqiWatchReplay(
     sync();
   };
 
+  // The single fogged board for compact showcase mode: one random side's own POV,
+  // stable per room, oriented to that side. Never the truth board.
+  const pickCompactTarget = (
+    game: DarkMiniXiangqiPostgameResponse,
+  ): { key: DarkMiniXiangqiPostgameViewKey; orientation: MiniXiangqiColor } => {
+    const choice = pickCompactViewKey({
+      roomId: activeId,
+      entries: postgameViewEntries(game),
+      paneKind,
+    });
+    return { key: choice.key, orientation: choice.side === 'second' ? 'black' : 'red' };
+  };
+
   const buildGame = (postgame: DarkMiniXiangqiPostgameResponse): void => {
     activePostgame = postgame;
     maxPly = postgameReplayMaxPly(postgame);
@@ -263,6 +305,25 @@ export async function mountMiniXiangqiWatchReplay(
     paused = !autoplay;
     boardOrientation = 'red';
     incrementMs = (postgame.game.timeControl ?? postgame.state.timeControl)?.incrementMs ?? 0;
+    endFired = false;
+
+    // Compact showcase: a single fogged board, no header/control-bar/ply-line/clocks.
+    if (compact) {
+      const target = pickCompactTarget(postgame);
+      boardOrientation = target.orientation;
+      const pane = createPane('', paneKind(target.key), true, 'split');
+      boardTargets = [{ pane, key: target.key }];
+      controls = null;
+      seatCells = null;
+      clocks = null;
+      const layout = document.createElement('div');
+      layout.className = 'replay-layout replay-layout-solo';
+      layout.append(pane.el);
+      root.replaceChildren(layout);
+      sync();
+      scheduleAuto();
+      return;
+    }
 
     const header = createGameHeaderStrip();
     header.title.textContent = matchupLabel(postgame.game.mode);

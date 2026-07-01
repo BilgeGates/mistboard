@@ -1,6 +1,7 @@
 import type { GameMeta, ReplayHandle } from './replay.js';
 import { createPane, type ReplayPaneHandle } from './replay-board.js';
 import { createGameHeaderStrip } from './replay-meta.js';
+import { pickCompactViewKey } from './showcase-compact-view.js';
 import { formatClock } from './web-utils.js';
 
 const AUTO_PLAY_PLY_MS = 1100;
@@ -22,6 +23,19 @@ export type FogTriptychPostgameMeta = {
 export type FogTriptychWatchOptions = {
   autoplay?: boolean;
   metadataByRoomId?: Record<string, GameMeta>;
+  /**
+   * Homepage showcase mode: render a SINGLE fogged board (no header/control-bar/
+   * ply-line) instead of the first|truth|second triptych. These are all fog
+   * variants, so compact shows one random side's own POV — never the truth board.
+   * Pairs with onGameEnd for cross-variant cycling.
+   */
+  compact?: boolean;
+  /**
+   * Called once when the game reaches its final ply under autoplay (after the
+   * loop hold), instead of restarting the same game. Lets an outer showcase
+   * controller advance to the next pooled game (possibly a different variant).
+   */
+  onGameEnd?: () => void;
 };
 
 type ResultChipKind = 'white' | 'black' | 'red' | 'draw';
@@ -121,11 +135,15 @@ export async function mountFogTriptychWatchReplay<
 ): Promise<ReplayHandle> {
   adapter.installStyles();
   const autoplay = options.autoplay ?? true;
+  const compact = options.compact === true;
+  const onGameEnd = options.onGameEnd;
 
   let activeId = roomId;
   let destroyed = false;
   let timer: number | null = null;
   let paused = !autoplay;
+  // Guards a single onGameEnd fire per game so the loop hold can't re-enter it.
+  let endFired = false;
 
   let boardTargets: Array<{
     pane: ReplayPaneHandle;
@@ -170,19 +188,21 @@ export async function mountFogTriptychWatchReplay<
   };
 
   const sync = (): void => {
-    if (!activePostgame || !controls) return;
+    if (!activePostgame) return;
     for (const target of boardTargets) {
       const view = adapter.viewAtPly(activePostgame, target.key, currentPly) ?? target.fallbackView;
       target.pane.boardEl.innerHTML = adapter.renderBoard(view, boardOrientation, target.key);
       renderPaneCaptures(target.pane, view, target.key, activePostgame);
     }
-    const result =
-      currentPly >= maxPly ? ` - ${adapter.resultLabel(activePostgame.game.result)}` : '';
-    controls.plyLabel.textContent = `Ply ${currentPly} / ${maxPly}${result}`;
-    controls.first.disabled = currentPly <= 0;
-    controls.prev.disabled = currentPly <= 0;
-    controls.next.disabled = currentPly >= maxPly;
-    controls.last.disabled = currentPly >= maxPly;
+    if (controls) {
+      const result =
+        currentPly >= maxPly ? ` - ${adapter.resultLabel(activePostgame.game.result)}` : '';
+      controls.plyLabel.textContent = `Ply ${currentPly} / ${maxPly}${result}`;
+      controls.first.disabled = currentPly <= 0;
+      controls.prev.disabled = currentPly <= 0;
+      controls.next.disabled = currentPly >= maxPly;
+      controls.last.disabled = currentPly >= maxPly;
+    }
 
     const toMove: Color | null =
       currentPly >= maxPly ? null : currentPly % 2 === 0 ? adapter.firstColor : adapter.secondColor;
@@ -203,7 +223,20 @@ export async function mountFogTriptychWatchReplay<
     timer = window.setTimeout(
       () => {
         if (destroyed) return;
-        currentPly = atEnd ? 0 : currentPly + 1;
+        if (atEnd) {
+          // Showcase mode hands off to the outer controller instead of replaying
+          // the same game. Watch (no onGameEnd) loops the single game as before.
+          if (onGameEnd) {
+            if (!endFired) {
+              endFired = true;
+              onGameEnd();
+            }
+            return;
+          }
+          currentPly = 0;
+        } else {
+          currentPly += 1;
+        }
         sync();
         scheduleAuto();
       },
@@ -224,6 +257,16 @@ export async function mountFogTriptychWatchReplay<
     sync();
   };
 
+  // The single fogged board to show in compact showcase mode: one random side's
+  // own POV, stable per room, oriented to that side. Never the truth board.
+  const pickCompactTarget = (game: Postgame): { key: ViewKey; view: View; orientation: Color } => {
+    const entries = adapter.viewEntries(game);
+    const choice = pickCompactViewKey({ roomId: activeId, entries, paneKind: adapter.paneKind });
+    const entry = entries.find((candidate) => candidate.key === choice.key) ?? entries[0]!;
+    const orientation = choice.side === 'second' ? adapter.secondColor : adapter.firstColor;
+    return { key: entry.key, view: entry.view, orientation };
+  };
+
   const buildGame = (postgame: Postgame): void => {
     activePostgame = postgame;
     maxPly = adapter.maxPly(postgame);
@@ -231,6 +274,25 @@ export async function mountFogTriptychWatchReplay<
     paused = !autoplay;
     boardOrientation = adapter.firstColor;
     initialClock = postgame.game.initialMs ?? postgame.state.timeControl?.initialMs ?? null;
+    endFired = false;
+
+    // Compact showcase: a single fogged board, no header/control-bar/ply-line.
+    if (compact) {
+      const target = pickCompactTarget(postgame);
+      boardOrientation = target.orientation;
+      const pane = createPane('', adapter.paneKind(target.key), true, 'split');
+      if (adapter.boardClass) pane.boardEl.classList.add(adapter.boardClass);
+      boardTargets = [{ pane, key: target.key, fallbackView: target.view }];
+      controls = null;
+      seatCells = null;
+      const layout = document.createElement('div');
+      layout.className = `replay-layout replay-layout-solo${adapter.layoutClass ? ` ${adapter.layoutClass}` : ''}`;
+      layout.append(pane.el);
+      root.replaceChildren(layout);
+      sync();
+      scheduleAuto();
+      return;
+    }
 
     const header = createGameHeaderStrip();
     header.title.textContent = matchupLabel(postgame.game.mode);

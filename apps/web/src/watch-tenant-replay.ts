@@ -15,6 +15,7 @@ import { currentLocale, type Locale } from './i18n/locale.js';
 import type { GameMeta, ReplayHandle } from './replay.js';
 import { createPane, type ReplayPaneHandle } from './replay-board.js';
 import { createGameHeaderStrip } from './replay-meta.js';
+import { pickCompactViewKey } from './showcase-compact-view.js';
 import { formatClock } from './web-utils.js';
 
 const AUTO_PLAY_PLY_MS = 1100;
@@ -64,6 +65,21 @@ export type TenantWatchReplayOptions = {
   autoplay?: boolean;
   locale?: Locale;
   metadataByRoomId?: Record<string, GameMeta>;
+  /**
+   * Homepage showcase mode: render a SINGLE board (no header/control-bar/ply-line)
+   * instead of the full TV triptych. The compact view honors hidden info —
+   * perfect-info/symmetric variants show truth; hidden-identity/per-color variants
+   * show the as-played hidden view (a reveal tenant's hiddenKey, or one random
+   * color's POV — never the truth board). Pairs with onGameEnd for cross-variant
+   * cycling.
+   */
+  compact?: boolean;
+  /**
+   * Called once when the game reaches its final ply under autoplay (after the
+   * loop hold), instead of restarting the same game. Lets an outer showcase
+   * controller advance to the next pooled game (possibly a different variant).
+   */
+  onGameEnd?: () => void;
 };
 
 type ControlRefs = {
@@ -175,11 +191,15 @@ export async function mountTenantWatchReplay<
   adapter.installStyles();
   const autoplay = options.autoplay ?? true;
   const locale = options.locale ?? currentLocale();
+  const compact = options.compact === true;
+  const onGameEnd = options.onGameEnd;
 
   let activeId = roomId;
   let destroyed = false;
   let timer: number | null = null;
   let paused = !autoplay;
+  // Guards a single onGameEnd fire per game so the loop hold can't re-enter it.
+  let endFired = false;
 
   // Per-game render state, rebuilt on each loadGame.
   let boardTargets: Array<{ pane: ReplayPaneHandle; key: ViewKey }> = [];
@@ -220,7 +240,7 @@ export async function mountTenantWatchReplay<
   };
 
   const sync = (): void => {
-    if (!activePostgame || !controls) return;
+    if (!activePostgame) return;
     for (const target of boardTargets) {
       const key = adapter.reveal
         ? ((revealed ? adapter.reveal.truthKey : adapter.reveal.hiddenKey) as ViewKey)
@@ -235,21 +255,23 @@ export async function mountTenantWatchReplay<
         renderPaneCaptures(target.pane, view, boardOrientation);
       }
     }
-    const result =
-      currentPly >= maxPly
-        ? localizeResultLabel(
-            adapter.resultLabel?.(activePostgame.game.result, activePostgame),
-            activePostgame.game.result,
-            locale,
-          )
-        : '';
-    controls.plyLabel.textContent = result
-      ? t('watch.plyProgressResult', { current: currentPly, total: maxPly, result }, locale)
-      : t('watch.plyProgress', { current: currentPly, total: maxPly }, locale);
-    controls.first.disabled = currentPly <= 0;
-    controls.prev.disabled = currentPly <= 0;
-    controls.next.disabled = currentPly >= maxPly;
-    controls.last.disabled = currentPly >= maxPly;
+    if (controls) {
+      const result =
+        currentPly >= maxPly
+          ? localizeResultLabel(
+              adapter.resultLabel?.(activePostgame.game.result, activePostgame),
+              activePostgame.game.result,
+              locale,
+            )
+          : '';
+      controls.plyLabel.textContent = result
+        ? t('watch.plyProgressResult', { current: currentPly, total: maxPly, result }, locale)
+        : t('watch.plyProgress', { current: currentPly, total: maxPly }, locale);
+      controls.first.disabled = currentPly <= 0;
+      controls.prev.disabled = currentPly <= 0;
+      controls.next.disabled = currentPly >= maxPly;
+      controls.last.disabled = currentPly >= maxPly;
+    }
 
     // Red moves first, so after an even ply Red is to move; no active side once
     // the game has ended.
@@ -271,7 +293,20 @@ export async function mountTenantWatchReplay<
     timer = window.setTimeout(
       () => {
         if (destroyed) return;
-        currentPly = atEnd ? 0 : currentPly + 1;
+        if (atEnd) {
+          // Showcase mode hands off to the outer controller instead of replaying
+          // the same game. Watch (no onGameEnd) loops the single game as before.
+          if (onGameEnd) {
+            if (!endFired) {
+              endFired = true;
+              onGameEnd();
+            }
+            return;
+          }
+          currentPly = 0;
+        } else {
+          currentPly += 1;
+        }
         sync();
         scheduleAuto();
       },
@@ -306,6 +341,24 @@ export async function mountTenantWatchReplay<
     sync();
   };
 
+  // The single board to show in compact showcase mode. Honors hidden info:
+  //  - reveal tenants (jieqi): the as-played masked board (hiddenKey), never truth;
+  //  - per-color hidden info (dark-xiangqi fog): one random side's own POV, stable
+  //    per room, oriented to that side;
+  //  - perfect-info / symmetric (banqi, jungle, mini-open): the truth board.
+  // The showcase only ever replays FINISHED games (whose truth is already public
+  // via the reveal gate), so this is a product choice — show the fog off — not a
+  // redaction boundary.
+  const pickCompactTarget = (game: Postgame): { key: ViewKey; orientation: 'red' | 'black' } => {
+    const choice = pickCompactViewKey({
+      roomId: activeId,
+      entries: adapter.viewEntries(game),
+      paneKind: adapter.paneKind,
+      reveal: adapter.reveal,
+    });
+    return { key: choice.key, orientation: choice.side === 'second' ? 'black' : 'red' };
+  };
+
   const buildGame = (postgame: Postgame): void => {
     activePostgame = postgame;
     maxPly = adapter.maxPly(postgame);
@@ -314,6 +367,24 @@ export async function mountTenantWatchReplay<
     boardOrientation = 'red';
     const initialMs = postgame.game.initialMs ?? postgame.state.timeControl?.initialMs ?? null;
     initialClock = initialMs === null ? null : { red: initialMs, black: initialMs };
+    endFired = false;
+
+    // Compact showcase: a single board, no header/control-bar/ply-line/clocks.
+    if (compact) {
+      const target = pickCompactTarget(postgame);
+      boardOrientation = target.orientation;
+      const pane = createPane('', adapter.paneKind(target.key), true, 'split');
+      boardTargets = [{ pane, key: target.key }];
+      controls = null;
+      seatCells = null;
+      const layout = document.createElement('div');
+      layout.className = 'replay-layout replay-layout-solo';
+      layout.append(pane.el);
+      root.replaceChildren(layout);
+      sync();
+      scheduleAuto();
+      return;
+    }
 
     const header = createGameHeaderStrip();
     header.title.textContent = matchupLabel(postgame.game.mode, locale);
@@ -449,7 +520,7 @@ export async function mountTenantWatchReplay<
       toggleReveal();
     }
   };
-  if (adapter.reveal) window.addEventListener('keydown', onKeydown);
+  if (adapter.reveal && !compact) window.addEventListener('keydown', onKeydown);
 
   await load(roomId);
 
@@ -458,7 +529,7 @@ export async function mountTenantWatchReplay<
     destroy: () => {
       destroyed = true;
       clearTimer();
-      if (adapter.reveal) window.removeEventListener('keydown', onKeydown);
+      if (adapter.reveal && !compact) window.removeEventListener('keydown', onKeydown);
       root.replaceChildren();
     },
     loadGame: async (sampleId: string) => {
