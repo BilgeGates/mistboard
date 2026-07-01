@@ -71,8 +71,8 @@ export function snapshotPayload(room: SnapshotRoom, client: SnapshotClient) {
 // no corresponding event-log entry (e.g. periodic resync during a long
 // think). NOT emitted today — the client extrapolates clocks from
 // state.clock + serverAt across events. Reserved here per the locked
-// design decision (see docs/specs/incremental-snapshot-protocol.md, "clock
-// ticks: sibling clock-tick message, NOT part of event-appended") so the
+// design decision: clock ticks are a sibling clock-tick message, NOT part of
+// event-appended, so the
 // next emitter has a clean wire path and event-appended doesn't grow an
 // optional non-event branch.
 export function clockTickPayload(room: SnapshotRoom, client: SnapshotClient) {

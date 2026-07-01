@@ -66,6 +66,12 @@ export const ARTICLE_META: Record<
     description:
       'Mini Xiangqi with reserves: captured pieces enter your hand, then drop back outside the enemy palace.',
   },
+  'fortress-xiangqi': {
+    title: 'Fortress Xiangqi Rules',
+    kind: 'rules',
+    description:
+      'Xiangqi with a pocket: faithful piece movement plus crazyhouse-style drops and the new Treasure piece.',
+  },
   'crossroads-chess': {
     title: 'Crossroads Chess Rules',
     kind: 'rules',

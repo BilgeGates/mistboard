@@ -36,6 +36,22 @@ const SHOWCASE_REFRESH_ACTIVE_MS = 45_000;
 const SHOWCASE_REFRESH_IDLE_MS = 5 * 60_000;
 const SHOWCASE_POOL_CAP = 14;
 
+// Honest relative-time caption for the showcase: these are replays of finished
+// games, not live play. Bundled cold-start demos have no real finish time and read
+// as "Engine demo". No em dashes in user-facing copy; the separator is a middot.
+function showcaseCaptionText(endedAt: string | undefined): string {
+  if (!endedAt) return 'Engine demo';
+  const ended = Date.parse(endedAt);
+  if (Number.isNaN(ended)) return 'Recent game';
+  const mins = Math.max(0, Math.round((Date.now() - ended) / 60_000));
+  if (mins < 1) return 'Recent game · just now';
+  if (mins < 60) return `Recent game · ${mins}m ago`;
+  const hours = Math.round(mins / 60);
+  if (hours < 24) return `Recent game · ${hours}h ago`;
+  const days = Math.round(hours / 24);
+  return `Recent game · ${days}d ago`;
+}
+
 export async function mountLanding(root: HTMLElement): Promise<void> {
   root.replaceChildren();
   root.classList.add('landing-page');
@@ -62,6 +78,9 @@ export async function mountLanding(root: HTMLElement): Promise<void> {
   // white/black slots mangle red/black variants, so derive them straight from the
   // feed's participants; first = red/first-mover side, second = black.
   const namesByRoomId: Record<string, { first: string; second: string }> = {};
+  // When each game finished, for the honest "recent · 2h ago" caption. Undefined
+  // for the bundled cold-start demos (no real finish time) -> caption reads "demo".
+  const endedAtByRoomId: Record<string, string | undefined> = {};
   const toShowcaseEntry = (game: FeaturedGame): ShowcaseEntry => {
     metadataByRoomId[game.roomId] ??= gameMetaForGame(game);
     const pov = povByRoomId[game.roomId] ?? pickHeroPovForGame(game);
@@ -73,12 +92,18 @@ export async function mountLanding(root: HTMLElement): Promise<void> {
       ),
       second: displayParticipantName(game, 'black'),
     };
+    endedAtByRoomId[game.roomId] = game.endedAt;
     return { roomId: game.roomId, specId: specIdForShowcaseVariant(game.variant), pov };
   };
-  const initialPool = games.map(toShowcaseEntry);
+  const params = new URLSearchParams(window.location.search);
+  // Dev aid: ?only=<specId> pins the showcase to a single variant (e.g.
+  // ?only=drop-mini-xiangqi) instead of the normal all-variants cycle. No param =
+  // normal behavior; handy for eyeballing one variant's board/hand.
+  const onlySpec = params.get('only');
+  let initialPool = games.map(toShowcaseEntry);
+  if (onlySpec) initialPool = initialPool.filter((entry) => entry.specId === onlySpec);
 
   // ?demo=<sampleId> forces a specific bundled game to open first.
-  const params = new URLSearchParams(window.location.search);
   const requested = params.get('demo');
   const forcedIdx = requested ? initialPool.findIndex((entry) => entry.roomId === requested) : -1;
   if (forcedIdx > 0) {
@@ -98,6 +123,9 @@ export async function mountLanding(root: HTMLElement): Promise<void> {
     metadataByRoomId,
     namesByRoomId,
     loaderForId: landingEventLoader,
+    onGameChange: (roomId) => {
+      stage.caption.textContent = showcaseCaptionText(endedAtByRoomId[roomId]);
+    },
   });
 
   // Upgrade the play panel + deep-link handling once the real playable engines
@@ -161,7 +189,9 @@ export async function mountLanding(root: HTMLElement): Promise<void> {
       return;
     }
     if (fresh.length < 3) return; // not enough real games yet; keep the pool
-    const nextEntries = fresh.slice(0, SHOWCASE_POOL_CAP).map(toShowcaseEntry);
+    let nextEntries = fresh.slice(0, SHOWCASE_POOL_CAP).map(toShowcaseEntry);
+    if (onlySpec) nextEntries = nextEntries.filter((entry) => entry.specId === onlySpec);
+    if (nextEntries.length === 0) return; // filtered pool empty; keep what we have
     const nextIds = nextEntries.map((entry) => entry.roomId);
     const changed = nextIds.length !== poolIds.size || nextIds.some((id) => !poolIds.has(id));
     if (!changed) return;
@@ -435,6 +465,7 @@ function buildLandingStage(
 ): {
   el: HTMLElement;
   replayRoot: HTMLElement;
+  caption: HTMLElement;
   applyEngines: (engines: PlayableEngine[]) => void;
 } {
   const locale = currentLocale();
@@ -461,24 +492,31 @@ function buildLandingStage(
     if (activity) leftRail.insertBefore(activity, about);
   });
 
-  // ── Center (wide): the fog board hero, with article cards stacked beneath. ──
+  // ── Center: the cycling showcase board, with article cards + forum beneath. ──
   const centerColumn = document.createElement('div');
   centerColumn.className = 'landing-center';
 
   const boardColumn = document.createElement('div');
   boardColumn.className = 'landing-board-column';
-
   const replayRoot = document.createElement('div');
   replayRoot.id = 'landing-replay';
-
+  // Widget styling (compact board + name/clock seats) is keyed on this class,
+  // shared with the dev variant sheet's cells.
+  replayRoot.classList.add('showcase-widget');
   boardColumn.append(replayRoot);
+  // Honest "recent · 2h ago" caption below the board: these are replays of finished
+  // games, not live play. Lives outside replayRoot (the renderers replaceChildren
+  // there) and is updated per game by the cycler's onGameChange.
+  const caption = document.createElement('div');
+  caption.className = 'showcase-caption';
+  boardColumn.append(caption);
   centerColumn.append(boardColumn);
   const articleCards = buildHomeArticleCards(8, locale);
   if (articleCards) centerColumn.append(articleCards);
   centerColumn.append(buildLandingForumPreview({ hydrate: !opts.skipLiveWidgets }));
 
-  // ── Right rail: the pairing CTAs, with the open-pairing-requests browser
-  // stacked beneath them. ──
+  // ── Right rail: the pairing CTAs (play ingresses), with the open-pairing-
+  // requests browser stacked beneath them. ──
   const rightRail = document.createElement('div');
   rightRail.className = 'landing-rail landing-rail-right';
   let playPanel = buildLandingPlayPanel(engines, { locale, showLobbyRequests: false });
@@ -506,7 +544,7 @@ function buildLandingStage(
   // The footer lives only on the homepage now (stripped from interior routes),
   // blended into the bottom of the stage rather than rendered as a separate bar.
   stage.append(section, buildHomeFooter(locale));
-  return { el: stage, replayRoot, applyEngines };
+  return { el: stage, replayRoot, caption, applyEngines };
 }
 
 // Build-time static render of the homepage (nav + stage), baked by the prerender

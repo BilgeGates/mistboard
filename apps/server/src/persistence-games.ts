@@ -543,7 +543,21 @@ export async function listShowcaseGames(
     queryShowcasePve(fetchLimit, variants),
     queryShowcaseEngine(variants),
   ]);
-  return interleaveByVariant([...pvp, ...pve, ...eve], bounded);
+  return leadWithMostRecent(interleaveByVariant([...pvp, ...pve, ...eve], bounded));
+}
+
+// Move the single most-recently-finished game to the front so the freshest real
+// activity greets a first-time visitor, while the rest keeps the de-clustered
+// breadth interleave (we deliberately do NOT recency-sort the whole pool — that
+// would re-cluster bakeoff dumps the interleave exists to break up).
+export function leadWithMostRecent(games: RecentEveGameRecord[]): RecentEveGameRecord[] {
+  if (games.length < 2) return games;
+  let leadIdx = 0;
+  for (let i = 1; i < games.length; i += 1) {
+    if (games[i].endedAt.getTime() > games[leadIdx].endedAt.getTime()) leadIdx = i;
+  }
+  if (leadIdx === 0) return games;
+  return [games[leadIdx], ...games.slice(0, leadIdx), ...games.slice(leadIdx + 1)];
 }
 
 // Round-robin the tier-ordered games across their variants: one per variant per

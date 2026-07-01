@@ -23,7 +23,7 @@ type FakeHandle = ReplayHandle & {
   destroy: ReturnType<typeof vi.fn>;
 };
 const mounted: Array<{ roomId: string; specId: string; handle: FakeHandle }> = [];
-let capturedOnGameEnd: (() => void) | null = null;
+let capturedOnGameEnd: (() => void) | null | undefined = null;
 
 function makeHandle(roomId: string): FakeHandle {
   return {

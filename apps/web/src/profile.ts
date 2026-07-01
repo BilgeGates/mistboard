@@ -80,6 +80,7 @@ const PROFILE_VARIANT_LABEL_KEY: Record<ProfileRatingVariant, I18nKey> = {
   reveal_chess: 'variant.revealChess.name',
   jungle: 'variant.jungle.name',
   jungle_flip: 'variant.jungleFlip.name',
+  fortress_xiangqi: 'variant.fortressXiangqi.name',
 };
 
 // Profile rating grid is subject-scoped and follows the baseline rating variant

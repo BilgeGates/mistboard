@@ -11,6 +11,7 @@ import {
   DARK_XIANGQI_SPEC_ID,
   DROP_MINI_XIANGQI_SPEC_ID,
   DUAL_CHESS_SPEC_ID,
+  FORTRESS_XIANGQI_SPEC_ID,
   gameSpecForId,
   JIEQI_SPEC_ID,
   JUNGLE_FLIP_SPEC_ID,
@@ -69,7 +70,8 @@ type LandingGameSpecId =
   | typeof BANQI_SPEC_ID
   | typeof REVEAL_CHESS_SPEC_ID
   | typeof JUNGLE_SPEC_ID
-  | typeof JUNGLE_FLIP_SPEC_ID;
+  | typeof JUNGLE_FLIP_SPEC_ID
+  | typeof FORTRESS_XIANGQI_SPEC_ID;
 type LandingStartFormat = 'standard' | 'draft960';
 type LandingTimePresetId = TimeControlId;
 type LandingTimePreset = {
@@ -257,6 +259,8 @@ function variantNameKeyForGameSpec(gameSpecId: LandingGameSpecId): I18nKey | nul
       return 'variant.jungle.name';
     case JUNGLE_FLIP_SPEC_ID:
       return 'variant.jungleFlip.name';
+    case FORTRESS_XIANGQI_SPEC_ID:
+      return 'variant.fortressXiangqi.name';
     default:
       return null;
   }
@@ -2237,6 +2241,24 @@ export function roomCreationRequestBody(
       ...(mode === 'pve' && engineId ? { engineId } : {}),
     };
   }
+  if (setup.gameSpecId === FORTRESS_XIANGQI_SPEC_ID) {
+    // Fortress Xiangqi is open-info red/black 7x8 xiangqi with reserves + the
+    // Treasure. Rating-ready (rated flag off until launch); PvE sends the picked
+    // Fairy-Stockfish engine id.
+    return {
+      mode,
+      gameSpecId,
+      timeControl: setup.timeControl,
+      ...(mode === 'pvp' ? { rated: setup.rated } : {}),
+      preferredColor:
+        setup.preferredColor === 'white'
+          ? 'red'
+          : setup.preferredColor === 'red' || setup.preferredColor === 'black'
+            ? setup.preferredColor
+            : 'random',
+      ...(mode === 'pve' && engineId ? { engineId } : {}),
+    };
+  }
   if (setup.gameSpecId === MINI_XIANGQI_SPEC_ID) {
     // Mini Xiangqi is open-info red/black mini xiangqi without drops, casual-only
     // for now. PvE plays via Fairy-Stockfish's native minixiangqi variant.
@@ -2363,7 +2385,9 @@ export function roomCreationGameSpecId(
   | typeof BANQI_SPEC_ID
   | typeof REVEAL_CHESS_SPEC_ID
   | typeof JUNGLE_SPEC_ID
-  | typeof JUNGLE_FLIP_SPEC_ID {
+  | typeof JUNGLE_FLIP_SPEC_ID
+  | typeof FORTRESS_XIANGQI_SPEC_ID {
+  if (setup.gameSpecId === FORTRESS_XIANGQI_SPEC_ID) return FORTRESS_XIANGQI_SPEC_ID;
   if (setup.gameSpecId === JUNGLE_SPEC_ID) return JUNGLE_SPEC_ID;
   if (setup.gameSpecId === JUNGLE_FLIP_SPEC_ID) return JUNGLE_FLIP_SPEC_ID;
   if (setup.gameSpecId === JIEQI_SPEC_ID) return JIEQI_SPEC_ID;

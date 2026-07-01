@@ -10,6 +10,7 @@ import {
   DARK_SHOGI_SPEC_ID,
   DARK_XIANGQI_SPEC_ID,
   DROP_MINI_XIANGQI_SPEC_ID,
+  FORTRESS_XIANGQI_SPEC_ID,
   gameSpecForId,
   JIEQI_SPEC_ID,
   JUNGLE_FLIP_SPEC_ID,
@@ -64,6 +65,7 @@ describe('web variant launch registry', () => {
     expect(prod.leaderboardVariants.map((v) => v.gameSpecId)).toEqual([
       DARK_CHESS_SPEC_ID,
       DROP_MINI_XIANGQI_SPEC_ID,
+      FORTRESS_XIANGQI_SPEC_ID,
       JUNGLE_SPEC_ID,
       JUNGLE_FLIP_SPEC_ID,
     ]);
@@ -81,12 +83,14 @@ describe('web variant launch registry', () => {
       DARK_CHESS_SPEC_ID,
       DARK_MINI_XIANGQI_SPEC_ID,
       DROP_MINI_XIANGQI_SPEC_ID,
+      FORTRESS_XIANGQI_SPEC_ID,
       JUNGLE_SPEC_ID,
       JUNGLE_FLIP_SPEC_ID,
     ]);
     expect(flagged.leaderboardVariants.map((v) => v.gameSpecId)).toEqual([
       DARK_CHESS_SPEC_ID,
       DROP_MINI_XIANGQI_SPEC_ID,
+      FORTRESS_XIANGQI_SPEC_ID,
       JUNGLE_SPEC_ID,
       JUNGLE_FLIP_SPEC_ID,
     ]);
@@ -105,6 +109,7 @@ describe('web variant launch registry', () => {
       DARK_CHESS_SPEC_ID,
       DARK_MINI_XIANGQI_SPEC_ID,
       DROP_MINI_XIANGQI_SPEC_ID,
+      FORTRESS_XIANGQI_SPEC_ID,
       JUNGLE_SPEC_ID,
       JUNGLE_FLIP_SPEC_ID,
     ]);
@@ -177,6 +182,7 @@ describe('web variant launch registry', () => {
       DARK_CRAZYHOUSE_SPEC_ID,
       DARK_MINI_XIANGQI_SPEC_ID,
       DROP_MINI_XIANGQI_SPEC_ID,
+      FORTRESS_XIANGQI_SPEC_ID,
       DARK_XIANGQI_SPEC_ID,
       JIEQI_SPEC_ID,
       BANQI_SPEC_ID,
@@ -189,6 +195,7 @@ describe('web variant launch registry', () => {
       DARK_CRAZYHOUSE_SPEC_ID,
       DARK_MINI_XIANGQI_SPEC_ID,
       DROP_MINI_XIANGQI_SPEC_ID,
+      FORTRESS_XIANGQI_SPEC_ID,
       DARK_XIANGQI_SPEC_ID,
       JIEQI_SPEC_ID,
       BANQI_SPEC_ID,
@@ -229,6 +236,7 @@ describe('web variant launch registry', () => {
       [REVEAL_CHESS_SPEC_ID, 'reveal-chess'],
       [DARK_MINI_XIANGQI_SPEC_ID, 'dark-mini-xiangqi'],
       [DROP_MINI_XIANGQI_SPEC_ID, 'drop-mini-xiangqi'],
+      [FORTRESS_XIANGQI_SPEC_ID, 'fortress-xiangqi'],
       [DARK_XIANGQI_SPEC_ID, 'dark-xiangqi'],
       [JIEQI_SPEC_ID, 'jieqi'],
       [BANQI_SPEC_ID, 'banqi'],

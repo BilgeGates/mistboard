@@ -5,7 +5,7 @@
 // Output: a CSV-ish table to stdout (move,white_bytes,black_bytes,
 // white_cumulative,black_cumulative) followed by a summary. Useful for
 // regression-checking the steady-state bandwidth of the event-appended
-// wire format. See docs/specs/incremental-snapshot-protocol.md.
+// wire format (the incremental snapshot delta protocol).
 //
 // Run from repo root:
 //   MOVES=20 node apps/server/scripts/measure-snapshot-bandwidth.mjs

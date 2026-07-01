@@ -59,7 +59,7 @@ async function seed(games: SeedGame[]): Promise<void> {
 }
 
 definePersistenceTests('showcase + browse queries', () => {
-  test('listShowcaseGames leads with substantial PvP (any real finish), excludes short/abandoned', async () => {
+  test('listShowcaseGames recency-leads, includes substantial PvP, excludes short/abandoned', async () => {
     const t = (min: number) => new Date(Date.UTC(2026, 5, 1, 12, min, 0));
     await seed([
       {
@@ -106,9 +106,11 @@ definePersistenceTests('showcase + browse queries', () => {
     ]);
 
     const ids = (await listShowcaseGames({ limit: 8 })).map((g) => g.roomId);
-    // PvP leads (newest first), then the EvE fill.
-    assert.deepEqual(ids.slice(0, 2), ['sc-pvp-kc', 'sc-pvp-timeout']);
-    assert.ok(ids.includes('sc-eve-x'), 'eve game fills after pvp');
+    // Recency-lead: the single most-recent finished game leads regardless of tier
+    // (the EvE game at t20 here) so the showcase reflects the site's latest
+    // activity; the tiered interleave then fills, substantial PvP ahead of the rest.
+    assert.equal(ids[0], 'sc-eve-x');
+    assert.deepEqual(ids.slice(1, 3), ['sc-pvp-kc', 'sc-pvp-timeout']);
     // <30 plies and abandonments are not demo-worthy.
     assert.ok(!ids.includes('sc-pvp-short'));
     assert.ok(!ids.includes('sc-pvp-abandon'));

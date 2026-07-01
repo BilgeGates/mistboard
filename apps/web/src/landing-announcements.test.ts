@@ -24,12 +24,12 @@ describe('landing announcements', () => {
     );
 
     expect(hrefs).toEqual([
+      '/rules/fortress-xiangqi',
       '/rules/jungle',
       '/rules/jungle-flip',
       '/rules/drop-mini-xiangqi',
       '/rules/dark-crazyhouse',
       '/rules/dark-shogi',
-      '/rules/dark-xiangqi',
     ]);
   });
 
@@ -107,15 +107,15 @@ describe('landing announcements', () => {
     expect(landing.getAttribute('aria-label')).toBe('新聞');
     expect(top?.querySelector('.site-box-title')?.textContent).toBe('新聞');
     expect(top?.querySelector('.site-box-more')?.textContent).toBe('更多 »');
-    expect(firstRow?.getAttribute('href')).toBe('/zh-hant/rules/jungle');
-    expect(news.querySelector('.site-section-heading')?.textContent).toBe('Mistboard 更新');
+    expect(firstRow?.getAttribute('href')).toBe('/zh-hant/rules/fortress-xiangqi');
+    expect(news.querySelector('.site-section-heading')?.textContent).toBe('新聞');
     expect(news.querySelector('.news-page-intro')?.textContent).toBe(
       'Mistboard 的發布、狀態更新和公告。',
     );
     expect(news.querySelector<HTMLAnchorElement>('.news-page-link')?.getAttribute('href')).toBe(
-      '/zh-hant/rules/jungle',
+      '/zh-hant/rules/fortress-xiangqi',
     );
-    expect(news.querySelector('.news-page-link')?.textContent).toBe('閱讀規則');
+    expect(news.querySelector('.news-page-link')?.textContent).toBe('研究規則');
   });
 
   it('has a rules announcement for every launched leaderboard variant', () => {

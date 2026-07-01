@@ -19,6 +19,7 @@ import {
   DARK_SHOGI_SPEC_ID,
   DARK_XIANGQI_SPEC_ID,
   DROP_MINI_XIANGQI_SPEC_ID,
+  FORTRESS_XIANGQI_SPEC_ID,
   type GameSpecId,
   gameSpecForId,
   JIEQI_SPEC_ID,
@@ -40,6 +41,7 @@ import {
   darkShogiEnabled,
   darkXiangqiEnabled,
   dropMiniXiangqiEnabled,
+  fortressXiangqiEnabled,
   jieqiEnabled,
   jungleEnabled,
   jungleFlipEnabled,
@@ -72,6 +74,7 @@ const draft960Enabled = import.meta.env.VITE_DRAFT960_ENABLED === 'true';
 const darkMiniEnabled = darkMiniXiangqiEnabled();
 const darkMiniPublicEntryEnabled = darkMiniXiangqiPublicEntryEnabled();
 const dropMiniXiangqiOn = dropMiniXiangqiEnabled();
+const fortressXiangqiOn = fortressXiangqiEnabled();
 const crossroadsEnabled = crossroadsChessEnabled();
 const jieqiOn = jieqiEnabled();
 const banqiOn = banqiEnabled();
@@ -87,6 +90,7 @@ const darkChessSpec = gameSpecForId(DARK_CHESS_SPEC_ID);
 const draft960Spec = gameSpecForId(DARK_DRAFT960_SPEC_ID);
 const darkMiniXiangqiSpec = gameSpecForId(DARK_MINI_XIANGQI_SPEC_ID);
 const dropMiniXiangqiSpec = gameSpecForId(DROP_MINI_XIANGQI_SPEC_ID);
+const fortressXiangqiSpec = gameSpecForId(FORTRESS_XIANGQI_SPEC_ID);
 const darkXiangqiSpec = gameSpecForId(DARK_XIANGQI_SPEC_ID);
 const crossroadsChessSpec = gameSpecForId(CROSSROADS_CHESS_SPEC_ID);
 const darkCrossroadsChessSpec = gameSpecForId(DARK_CROSSROADS_CHESS_SPEC_ID);
@@ -108,6 +112,7 @@ const VARIANT_MINI_BY_GAME_SPEC: Partial<Record<GameSpecId, VariantMiniId>> = {
   [MINI_XIANGQI_SPEC_ID]: 'mini-xiangqi',
   [DARK_MINI_XIANGQI_SPEC_ID]: 'dark-mini-xiangqi',
   [DROP_MINI_XIANGQI_SPEC_ID]: 'drop-mini-xiangqi',
+  [FORTRESS_XIANGQI_SPEC_ID]: 'fortress-xiangqi',
   [DARK_XIANGQI_SPEC_ID]: 'dark-xiangqi',
   [JIEQI_SPEC_ID]: 'jieqi',
   [BANQI_SPEC_ID]: 'banqi',
@@ -194,6 +199,16 @@ export const VARIANTS: VariantDef[] = [
     enabled: false,
     onLeaderboard: dropMiniXiangqiOn,
     onProfile: dropMiniXiangqiOn,
+  },
+  {
+    id: currentRatingVariantForSpec(FORTRESS_XIANGQI_SPEC_ID),
+    gameSpecId: fortressXiangqiSpec.id,
+    apiParam: FORTRESS_XIANGQI_SPEC_ID,
+    label: fortressXiangqiSpec.publicName,
+    miniId: 'fortress-xiangqi',
+    enabled: false,
+    onLeaderboard: fortressXiangqiOn,
+    onProfile: fortressXiangqiOn,
   },
   // Full Dark Xiangqi (9x10 fog): launched PvP-first (no bot, no open-seek
   // lobby), rating-ready like jieqi/banqi.

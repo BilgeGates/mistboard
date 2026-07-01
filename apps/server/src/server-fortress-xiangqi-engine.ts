@@ -1,0 +1,334 @@
+/**
+ * Server-side Fairy-Stockfish loop for Fortress Xiangqi PvE.
+ *
+ * Fortress is perfect-information (7x8 xiangqi + the Treasure + crazyhouse drops
+ * + the chasing rule), so it uses FSF directly via a custom variants.ini
+ * (fortress-xiangqi.ini). Structurally this mirrors the Drop Mini Xiangqi loop;
+ * the only specifics are the UCI translation: a drop {drop,to} maps to
+ * "<L>@<to>" (L = R/N/C/P/Q/A/E for chariot/horse/cannon/soldier/treasure/
+ * advisor/elephant) and a board move {from,to} to "<from><to>", matching the
+ * FSF `fortressxiangqi` coordinates (files a-g, ranks 1-8, red on rank 1).
+ *
+ * Engine moves are injected through the same append+broadcast path as human
+ * moves so clocks, persistence, reconnect, and review stay event-sourced.
+ */
+
+import {
+  applyFortressXiangqiMove,
+  type FORTRESS_XIANGQI_SPEC_ID,
+  type FortressXiangqiColor,
+  type FortressXiangqiDropRole,
+  type FortressXiangqiGameState,
+  type FortressXiangqiMove,
+  type FortressXiangqiSquare,
+  getFortressXiangqiLegalMoves,
+  isFortressXiangqiDropMove,
+  isFortressXiangqiGeneralInCheck,
+  oppositeFortressXiangqiColor,
+} from '@mistboard/game';
+import {
+  buildEngineDecisionRecord,
+  reportEngineFallback,
+  reportEngineMoveOk,
+  resolveValidatedEngineMove,
+} from './engine-move-guard.js';
+import {
+  FORTRESS_XIANGQI_ENGINE_VERSION,
+  fortressXiangqiEngineTierFor,
+  fortressXiangqiLiveEngineMove,
+  isFortressXiangqiEngineClientId,
+} from './fortress-xiangqi-fsf-engine.js';
+import { logger } from './obs.js';
+import type { TenantLifecycleContext } from './variant-tenant/lifecycle.js';
+import { tenantClockRemainingMs } from './variant-tenant/runtime.js';
+import type { TenantRoomEvent } from './variant-tenant/tenant.js';
+import type { TenantLiveRoom } from './variant-tenant/ws.js';
+
+// Re-export the engine metadata so the tenant, registration, and rooms route
+// resolve these from this module (matching the Drop Mini layout).
+export {
+  FORTRESS_XIANGQI_DEFAULT_ENGINE_ID,
+  FORTRESS_XIANGQI_ENGINE_VERSION,
+  FORTRESS_XIANGQI_PLAYABLE_ENGINES,
+  type FortressXiangqiEngineTier,
+  fortressXiangqiEngineDisplayName,
+  fortressXiangqiEngineVersion,
+  isFortressXiangqiEngineClientId,
+} from './fortress-xiangqi-fsf-engine.js';
+
+const CLOCK_SAFETY_MS = 1_000;
+const MIN_MOVETIME_MS = 50;
+const ENGINE_MOVE_MAX_ATTEMPTS = 2;
+
+const DROP_ROLE_TO_FSF_LETTER: Record<FortressXiangqiDropRole, string> = {
+  chariot: 'R',
+  horse: 'N',
+  cannon: 'C',
+  soldier: 'P',
+  treasure: 'Q',
+  advisor: 'A',
+  elephant: 'E',
+};
+const FSF_LETTER_TO_DROP_ROLE: Record<string, FortressXiangqiDropRole> = {
+  R: 'chariot',
+  N: 'horse',
+  C: 'cannon',
+  P: 'soldier',
+  Q: 'treasure',
+  A: 'advisor',
+  E: 'elephant',
+};
+
+type FortressXiangqiEngineRoom = TenantLiveRoom<
+  'fortress-xiangqi',
+  FortressXiangqiColor,
+  FortressXiangqiMove,
+  FortressXiangqiGameState,
+  typeof FORTRESS_XIANGQI_SPEC_ID
+>;
+type FortressXiangqiEngineContext = TenantLifecycleContext<
+  FortressXiangqiColor,
+  FortressXiangqiMove,
+  FortressXiangqiGameState,
+  typeof FORTRESS_XIANGQI_SPEC_ID,
+  FortressXiangqiEngineRoom
+>;
+
+export function fortressXiangqiEngineSeatFor(
+  room: FortressXiangqiEngineRoom,
+): FortressXiangqiColor | null {
+  for (const seat of ['red', 'black'] as const) {
+    if (isFortressXiangqiEngineClientId(room.projection.seats[seat])) return seat;
+  }
+  return null;
+}
+
+export function scheduleFortressXiangqiEngineMove(
+  ctx: FortressXiangqiEngineContext,
+  room: FortressXiangqiEngineRoom,
+): void {
+  if (room.engineTimer) return;
+  const seat = fortressXiangqiEngineSeatFor(room);
+  if (seat === null || !engineToMove(room, seat)) return;
+  room.engineTimer = setTimeout(() => {
+    room.engineTimer = null;
+    void playFortressXiangqiEngineMoveIfReady(ctx, room).catch((err) => {
+      logger.error(
+        {
+          kind: 'fortress_xiangqi_engine_move_failure',
+          room_id: room.id,
+          error: (err as Error).message,
+        },
+        'Fortress Xiangqi engine move failure',
+      );
+    });
+  }, 0);
+  room.engineTimer.unref();
+}
+
+export type FortressXiangqiEngineMoveProvider = (
+  engineId: string,
+  moves: string[],
+  opts: { movetimeMs?: number },
+) => Promise<string | null>;
+
+export async function playFortressXiangqiEngineMoveIfReady(
+  ctx: FortressXiangqiEngineContext,
+  room: FortressXiangqiEngineRoom,
+  moveProvider: FortressXiangqiEngineMoveProvider = fortressXiangqiLiveEngineMove,
+): Promise<void> {
+  const seat = fortressXiangqiEngineSeatFor(room);
+  if (seat === null || !engineToMove(room, seat)) return;
+  const engineId = room.projection.seats[seat]!;
+  const tier = fortressXiangqiEngineTierFor(engineId);
+  if (!tier) return;
+
+  const now = ctx.now?.() ?? Date.now();
+  const clock = room.projection.clock;
+  const remainingMs = clock ? tenantClockRemainingMs(clock, seat, now) : null;
+  if (remainingMs !== null && remainingMs <= 0) return;
+
+  const history = fortressXiangqiUciHistory(room.events);
+  const movetimeMs =
+    remainingMs === null
+      ? tier.movetimeMs
+      : Math.max(MIN_MOVETIME_MS, Math.min(tier.movetimeMs, remainingMs - CLOCK_SAFETY_MS));
+
+  const {
+    chosen: validated,
+    attempts,
+    aborted,
+  } = await resolveValidatedEngineMove({
+    maxAttempts: ENGINE_MOVE_MAX_ATTEMPTS,
+    requestMove: () => moveProvider(engineId, history, { movetimeMs }),
+    validate: (uci) => legalMoveForUci(getFortressXiangqiLegalMoves(room.projection.state), uci),
+    stillOnTurn: () => engineToMove(room, seat),
+    onReject: ({ attempt, maxAttempts, uci, reason, error }) =>
+      logger.warn(
+        {
+          kind: 'fortress_xiangqi_engine_move_rejected',
+          room_id: room.id,
+          engine_id: engineId,
+          attempt,
+          max_attempts: maxAttempts,
+          uci,
+          reject_reason: reason,
+          error,
+        },
+        'Fortress Xiangqi engine output rejected by kernel; retrying',
+      ),
+  });
+  if (aborted || !engineToMove(room, seat)) return;
+
+  if (validated === null) {
+    const record = buildEngineDecisionRecord({
+      variant: 'fortress-xiangqi',
+      roomId: room.id,
+      engineId,
+      engineVersion: FORTRESS_XIANGQI_ENGINE_VERSION,
+      movetimeMs,
+      tier,
+      ply: history.length,
+      toMove: seat,
+      inCheck: isFortressXiangqiGeneralInCheck(room.projection.state, seat),
+      history,
+      legalUci: getFortressXiangqiLegalMoves(room.projection.state).map(fortressXiangqiMoveToUci),
+      attempts,
+    });
+    reportEngineFallback(
+      record,
+      'fortress_xiangqi_engine_failed_closed',
+      'Fortress Xiangqi engine failed closed: no kernel-legal move after retries; resigning the engine seat',
+    );
+    const resign: TenantRoomEvent<
+      FortressXiangqiColor,
+      FortressXiangqiMove,
+      typeof FORTRESS_XIANGQI_SPEC_ID
+    > = { type: 'seat-resigned', at: Date.now(), roomId: room.id, color: seat };
+    const seq = await ctx.appendEvent(room, resign);
+    ctx.broadcastEventAppended(room, resign, seq);
+    return;
+  }
+
+  reportEngineMoveOk();
+  let chosen: FortressXiangqiMove = validated;
+  const legalMoves = getFortressXiangqiLegalMoves(room.projection.state);
+  const guarded = guardFortressXiangqiEngineMove(room.projection.state, chosen, legalMoves);
+  if (guarded !== chosen) {
+    logger.warn(
+      {
+        kind: 'fortress_xiangqi_engine_immediate_loss_guard',
+        room_id: room.id,
+        engine_id: engineId,
+        move: fortressXiangqiMoveToUci(chosen),
+        replacement_move: fortressXiangqiMoveToUci(guarded),
+      },
+      'Fortress Xiangqi engine immediate-loss guard replaced an avoidable losing move',
+    );
+    chosen = guarded;
+  }
+
+  const event: TenantRoomEvent<
+    FortressXiangqiColor,
+    FortressXiangqiMove,
+    typeof FORTRESS_XIANGQI_SPEC_ID
+  > = {
+    type: 'move-played',
+    at: Date.now(),
+    roomId: room.id,
+    color: seat,
+    move: chosen,
+  };
+  const seq = await ctx.appendEvent(room, event);
+  ctx.broadcastEventAppended(room, event, seq);
+}
+
+function bothSeatsFilled(room: FortressXiangqiEngineRoom): boolean {
+  return Boolean(room.projection.seats.red && room.projection.seats.black);
+}
+
+function engineToMove(room: FortressXiangqiEngineRoom, seat: FortressXiangqiColor): boolean {
+  const status = room.projection.state.status;
+  return status.type === 'playing' && status.turn === seat && bothSeatsFilled(room);
+}
+
+function fortressXiangqiUciHistory(
+  events: readonly TenantRoomEvent<
+    FortressXiangqiColor,
+    FortressXiangqiMove,
+    typeof FORTRESS_XIANGQI_SPEC_ID
+  >[],
+): string[] {
+  return events
+    .filter(
+      (
+        event,
+      ): event is Extract<
+        TenantRoomEvent<FortressXiangqiColor, FortressXiangqiMove, typeof FORTRESS_XIANGQI_SPEC_ID>,
+        { type: 'move-played' }
+      > => event.type === 'move-played',
+    )
+    .map((event) => fortressXiangqiMoveToUci(event.move));
+}
+
+export function fortressXiangqiMoveToUci(move: FortressXiangqiMove): string {
+  if (isFortressXiangqiDropMove(move)) {
+    return `${DROP_ROLE_TO_FSF_LETTER[move.drop]}@${move.to}`;
+  }
+  return `${move.from}${move.to}`;
+}
+
+export function legalMoveForUci(
+  legalMoves: readonly FortressXiangqiMove[],
+  uci: string,
+): FortressXiangqiMove | null {
+  const drop = uci.match(/^([RNCPQAE])@([a-g][1-8])$/);
+  if (drop) {
+    const role = FSF_LETTER_TO_DROP_ROLE[drop[1]!];
+    const to = drop[2] as FortressXiangqiSquare;
+    return (
+      legalMoves.find(
+        (move) => isFortressXiangqiDropMove(move) && move.drop === role && move.to === to,
+      ) ?? null
+    );
+  }
+  const board = uci.match(/^([a-g][1-8])([a-g][1-8])$/);
+  if (board) {
+    const from = board[1] as FortressXiangqiSquare;
+    const to = board[2] as FortressXiangqiSquare;
+    return (
+      legalMoves.find(
+        (move) => !isFortressXiangqiDropMove(move) && move.from === from && move.to === to,
+      ) ?? null
+    );
+  }
+  return null;
+}
+
+/**
+ * Replace a move that lets the opponent win on the immediate reply with any legal
+ * move that does not — a cheap king-safety backstop matching the Drop Mini loop.
+ */
+function guardFortressXiangqiEngineMove(
+  state: FortressXiangqiGameState,
+  chosen: FortressXiangqiMove,
+  legalMoves: readonly FortressXiangqiMove[],
+): FortressXiangqiMove {
+  if (!allowsImmediateOpponentWin(state, chosen)) return chosen;
+  return legalMoves.find((move) => !allowsImmediateOpponentWin(state, move)) ?? chosen;
+}
+
+function allowsImmediateOpponentWin(
+  state: FortressXiangqiGameState,
+  move: FortressXiangqiMove,
+): boolean {
+  if (state.status.type !== 'playing') return false;
+  const mover = state.status.turn;
+  const opponent = oppositeFortressXiangqiColor(mover);
+  const after = applyFortressXiangqiMove(state, move);
+  if (after.status.type !== 'playing') return false;
+  return getFortressXiangqiLegalMoves(after).some((reply) => {
+    const afterReply = applyFortressXiangqiMove(after, reply);
+    return afterReply.status.type === 'finished' && afterReply.status.winner === opponent;
+  });
+}

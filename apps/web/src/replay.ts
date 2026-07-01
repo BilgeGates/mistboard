@@ -213,6 +213,10 @@ export type ReplayHandle = {
   activeSampleId: () => string;
   destroy: () => void;
   loadGame: (sampleId: string, options?: ReplayLoadOptions) => Promise<void>;
+  /** Optionally warm the next game's move data while the current one plays, so a
+   *  cross-game advance is instant. Best-effort: a renderer that doesn't implement
+   *  it, or a failed prefetch, just falls back to loadGame's normal fetch. */
+  prefetchGame?: (sampleId: string) => void;
   /** Replace the auto-loop pool (homepage adaptive refresh). By default the
    *  currently playing game finishes and the next loop pick comes from the new
    *  pool. Pass `{ jumpNow: true }` to cut the current game short and load a
@@ -1014,12 +1018,30 @@ export async function mountReplay(
     return sliceToPly(events, currentPly).length;
   }
 
+  // Single-entry prefetch cache: the showcase cycler warms the next game's events
+  // while the current one plays. A miss or failure falls back to a fresh fetch, and
+  // it fetches the exact same (POV-safe) events loadGame would, so it can never show
+  // the wrong game or leak hidden info.
+  let prefetchedEvents: { id: string; promise: Promise<GameEvent[]> } | null = null;
+  const fetchEvents = (id: string): Promise<GameEvent[]> =>
+    loaderForId ? loaderForId(id) : loadEvents(id, urlForId);
+
   async function loadGame(sampleId: string, loadOptions: ReplayLoadOptions = {}): Promise<void> {
     stopPlay();
     clearLoopTimer();
-    const nextEvents = loaderForId
-      ? await loaderForId(sampleId)
-      : await loadEvents(sampleId, urlForId);
+    let nextEvents: GameEvent[];
+    if (prefetchedEvents && prefetchedEvents.id === sampleId) {
+      const cached = prefetchedEvents.promise;
+      prefetchedEvents = null;
+      try {
+        nextEvents = await cached;
+      } catch {
+        nextEvents = await fetchEvents(sampleId);
+      }
+    } else {
+      prefetchedEvents = null; // discard a stale prefetch (e.g. a jumpNow pool swap)
+      nextEvents = await fetchEvents(sampleId);
+    }
     activeSample = sampleId;
     options.onSampleChange?.(sampleId);
     annotationsForGame = [];
@@ -1342,6 +1364,18 @@ export async function mountReplay(
     activeSampleId: () => activeSample,
     destroy: () => abortController.abort(),
     loadGame,
+    prefetchGame: (sampleId: string) => {
+      if (
+        abortController.signal.aborted ||
+        activeSample === sampleId ||
+        prefetchedEvents?.id === sampleId
+      ) {
+        return;
+      }
+      const promise = fetchEvents(sampleId);
+      void promise.catch(() => undefined);
+      prefetchedEvents = { id: sampleId, promise };
+    },
     // Swap the loop pool in place. By default the active game keeps playing and
     // pickNextSample reads loopSamples live, so the next pick comes from the new
     // pool — no reschedule, which would cut the current game short. With

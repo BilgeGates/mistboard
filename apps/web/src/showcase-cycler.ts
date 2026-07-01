@@ -23,6 +23,9 @@ export type ShowcaseCyclerOptions = {
   // Player names for tenant compact seats (first = red, second = black), by room id.
   namesByRoomId: Record<string, { first: string; second: string }>;
   loaderForId: (roomId: string) => Promise<GameEvent[]>;
+  // Fired when the viewer commits to showing a game (before its moves load), so the
+  // caller can update out-of-board chrome (e.g. the "recent · 2h ago" caption).
+  onGameChange?: (roomId: string) => void;
 };
 
 export type ShowcaseCyclerHandle = {
@@ -57,15 +60,29 @@ export async function mountShowcaseCycler(
     void advance(nextEntry());
   };
 
+  // Warm the next pick's move data while the current game plays, so a same-kind
+  // advance is instant. Only possible when the next game shares the mounted
+  // renderer (a cross-kind advance re-mounts a different renderer, so there's
+  // nothing to prefetch into). Best-effort; loadGame re-fetches on a miss.
+  const prefetchNext = (): void => {
+    if (destroyed || !handle?.prefetchGame) return;
+    const next = nextEntry();
+    if (!next || next.roomId === currentRoomId) return;
+    if (showcaseRendererKindForSpec(next.specId) !== handleKind) return;
+    handle.prefetchGame(next.roomId);
+  };
+
   async function advance(entry: ShowcaseEntry | null): Promise<void> {
     if (destroyed || mounting || !entry) return;
     const kind = showcaseRendererKindForSpec(entry.specId);
+    options.onGameChange?.(entry.roomId);
 
     // Same renderer kind: keep the mounted handle, just load the next game.
     if (handle && handleKind === kind) {
       currentRoomId = entry.roomId;
       try {
         await handle.loadGame(entry.roomId);
+        prefetchNext();
       } catch (err) {
         console.warn('[showcase] loadGame failed, skipping', entry.roomId, err);
         onGameEnd();
@@ -98,6 +115,7 @@ export async function mountShowcaseCycler(
       handle = next;
       handleKind = kind;
       currentRoomId = entry.roomId;
+      prefetchNext();
     } catch (err) {
       console.warn('[showcase] mount failed, skipping', entry.roomId, err);
       mounting = false;

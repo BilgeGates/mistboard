@@ -18,6 +18,13 @@ export function dropMiniXiangqiEnabled(): boolean {
   return true;
 }
 
+// Fortress Xiangqi (7x8 xiangqi-with-a-pocket). Launched: always on (the server
+// MISTBOARD_FORTRESS_XIANGQI_ENABLED flag remains the runtime kill-switch for
+// room creation).
+export function fortressXiangqiEnabled(): boolean {
+  return true;
+}
+
 // Identity-hidden jieqi (揭棋) play surface. Always on in dev for convenience
 // (like DMX/Crossroads/correspondence); in prod/staging it is hidden unless the
 // build opts in.

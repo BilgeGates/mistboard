@@ -66,6 +66,10 @@ export type TenantWatchAdapter<Postgame extends WatchPostgameMeta, View, ViewKey
   // pane is a per-color view rather than truth).
   renderBoard(view: View, orientation: 'red' | 'black', key: ViewKey): string;
   fillCaptures(host: HTMLElement, view: View, owner: 'red' | 'black'): void;
+  // Drop/reserve variants (drop-mini-xiangqi, crazyhouse, shogi) where the hand IS
+  // the position: the compact showcase flanks the board with vertical reserve
+  // strips (each side's hand) instead of top/bottom capture rows.
+  sidedCaptures?: boolean;
   // When set, the (single) board defaults to the as-played hidden-identity view
   // (hiddenKey) and a Reveal/Hide control (and the `h` key) swaps it to truth.
   // Tenants without hidden identities omit this and keep their fixed view.
@@ -245,6 +249,9 @@ export async function mountTenantWatchReplay<
     top: { row: HTMLElement; clockEl: HTMLElement; side: 'first' | 'second' };
     bottom: { row: HTMLElement; clockEl: HTMLElement; side: 'first' | 'second' };
   } | null = null;
+  // Vertical reserve strips flanking the board for drop/reserve variants
+  // (adapter.sidedCaptures); null for board-only variants (captures ride the pane).
+  let compactSideStrips: { left: HTMLElement; right: HTMLElement } | null = null;
   let compactClocks: ShowcaseClockPair[] | null = null;
   let moveDelays: number[] | null = null;
   let compactIncrementMs = 0;
@@ -317,7 +324,18 @@ export async function mountTenantWatchReplay<
         adapter.viewAtPly(activePostgame, target.key, currentPly);
       if (view) {
         target.pane.boardEl.innerHTML = adapter.renderBoard(view, boardOrientation, key);
-        renderPaneCaptures(target.pane, view, boardOrientation);
+        if (compactSideStrips) {
+          // Reserve strips: opponent's hand on the left, the oriented side's on
+          // the right (each below its own player).
+          const topColor: 'red' | 'black' = boardOrientation === 'red' ? 'black' : 'red';
+          compactSideStrips.left.replaceChildren();
+          compactSideStrips.right.replaceChildren();
+          adapter.fillCaptures(compactSideStrips.left, view, topColor);
+          adapter.fillCaptures(compactSideStrips.right, view, boardOrientation);
+        } else if (!compact) {
+          // Watch (full TV) keeps captures on the pane; compact non-drop shows none.
+          renderPaneCaptures(target.pane, view, boardOrientation);
+        }
       }
     }
     if (compactSeats) {
@@ -468,7 +486,10 @@ export async function mountTenantWatchReplay<
     if (compact) {
       const target = pickCompactTarget(postgame);
       boardOrientation = target.orientation;
-      const pane = createPane('', adapter.paneKind(target.key), true, 'split');
+      // Compact never uses the pane's top/bottom capture rows: drop/reserve
+      // variants show side strips, and every other variant shows no captures here.
+      const sided = adapter.sidedCaptures === true;
+      const pane = createPane('', adapter.paneKind(target.key), false, 'split');
       boardTargets = [{ pane, key: target.key }];
       controls = null;
       seatCells = null;
@@ -526,9 +547,25 @@ export async function mountTenantWatchReplay<
         bottom: { row: bottomSeat.row, clockEl: bottomSeat.clockEl, side: bottomSide },
       };
 
+      // Flank the board with vertical reserve strips for drop/reserve variants;
+      // otherwise the board pane stands alone (captures ride the pane top/bottom).
+      let boardRow: HTMLElement = pane.el;
+      if (sided) {
+        const left = document.createElement('div');
+        left.className = 'showcase-reserve showcase-reserve-left';
+        const right = document.createElement('div');
+        right.className = 'showcase-reserve showcase-reserve-right';
+        compactSideStrips = { left, right };
+        boardRow = document.createElement('div');
+        boardRow.className = 'showcase-board-row';
+        boardRow.append(left, pane.el, right);
+      } else {
+        compactSideStrips = null;
+      }
+
       const layout = document.createElement('div');
       layout.className = 'replay-layout replay-layout-solo';
-      layout.append(topSeat.row, pane.el, bottomSeat.row);
+      layout.append(topSeat.row, boardRow, bottomSeat.row);
       root.replaceChildren(layout);
       sync();
       scheduleAuto();
@@ -639,10 +676,30 @@ export async function mountTenantWatchReplay<
     scheduleAuto();
   };
 
+  // Single-entry prefetch cache: the showcase cycler warms the next same-variant
+  // game's postgame while the current one plays, so advancing is instant. A
+  // mismatched or failed prefetch just falls back to a fresh fetch, so it can never
+  // surface the wrong game (or hidden info — it fetches the exact same postgame the
+  // load would).
+  let prefetched: { roomId: string; promise: ReturnType<typeof adapter.loadPostgame> } | null =
+    null;
+
   const load = async (nextId: string): Promise<void> => {
     clearTimer();
     activeId = nextId;
-    const result = await adapter.loadPostgame(nextId);
+    let result: Awaited<ReturnType<typeof adapter.loadPostgame>>;
+    if (prefetched && prefetched.roomId === nextId) {
+      const cached = prefetched.promise;
+      prefetched = null;
+      try {
+        result = await cached;
+      } catch {
+        result = await adapter.loadPostgame(nextId);
+      }
+    } else {
+      prefetched = null; // discard a stale prefetch (e.g. a jumpNow pool swap)
+      result = await adapter.loadPostgame(nextId);
+    }
     if (destroyed) return;
     if (!result.ok) {
       const notice = document.createElement('p');
@@ -690,6 +747,14 @@ export async function mountTenantWatchReplay<
     },
     loadGame: async (sampleId: string) => {
       await load(sampleId);
+    },
+    prefetchGame: (nextId: string) => {
+      if (destroyed || activeId === nextId || prefetched?.roomId === nextId) return;
+      const promise = adapter.loadPostgame(nextId);
+      // Swallow rejections so an unused/failed prefetch never becomes an unhandled
+      // rejection; load() re-fetches on a cache miss anyway.
+      void promise.catch(() => undefined);
+      prefetched = { roomId: nextId, promise };
     },
     // Watch drives game selection through the queue; no internal auto-advance pool.
     updateLoopPool: () => {},

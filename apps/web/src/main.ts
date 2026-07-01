@@ -139,6 +139,8 @@ const wantsPixelLab = import.meta.env.DEV && path === '/pixel-lab';
 const wantsVariantMarksLab = import.meta.env.DEV && path === '/variant-marks';
 // Hidden DEV-only audition lab for sound sets. No nav entry.
 const wantsSoundLab = import.meta.env.DEV && path === '/sound-lab';
+// Hidden DEV-only variant sheet: every variant's opening in the showcase widget.
+const wantsShowcaseSheet = import.meta.env.DEV && path === '/showcase-sheet';
 // Hidden DEV-only Fog-of-War game deep-dive reader (replay triptych + prose
 // annotation panel). No nav entry; pilot for the game-analysis article series.
 const wantsDeepDive = import.meta.env.DEV && path === '/deepdive';
@@ -277,6 +279,11 @@ if (replaySample) {
     import('./variant-marks-lab.js').then(({ mountVariantMarksLab }) =>
       mountVariantMarksLab(appRoot),
     ),
+  );
+} else if (wantsShowcaseSheet) {
+  setTitle('Showcase sheet');
+  void mountOrReport(() =>
+    import('./showcase-sheet.js').then(({ mountShowcaseSheet }) => mountShowcaseSheet(appRoot)),
   );
 } else if (wantsSoundLab) {
   setTitle('Sound lab');

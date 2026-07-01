@@ -16,7 +16,7 @@ Edit task → find file → open only that file.
 | `engine-protocol.ts` | Public redacted engine request/response contract shared by server and external/first-party engines |
 | `bughouse-engine-protocol.ts` | Draft Chess Bughouse partner-bot request/response contract, validators, seat/team mappings, clocks, legal actions, reserve needs, and cross-seat signaling rules |
 | `bughouse-engine-protocol.fixtures.ts` | JSON-stable partner-bot protocol fixtures for engine-side contract tests and Mistboard/server validation |
-| `bughouse.ts` | Pure Chess Bughouse aggregate: two-board match state, capture transfer, drops, clocks, timeouts, event replay, and partner-request projection. Substrate only, not a launched room surface |
+| `bughouse.ts` | Pure Chess Bughouse aggregate: two-board match state, capture transfer, drops, clocks, timeouts, event replay, and partner-request projection |
 | `variants.ts` | Variants (`draft960Variant`, `darkChessVariant`); fog kernel: `fogVisibleSquares`, `fogMovesFrom`, `fogPawnMoves`, `fogSlideMoves`, `fogCastlingMoves`, `applyFogMove` |
 | `variants-xiangqi.ts` | FoW Xiangqi variant (flagged/dev-only live room + `/xiangqi-spike`); cannon vision = field of fire |
 | `xiangqi-vision-kernel.ts` | Geometry-parameterized FoW vision walks shared by the xiangqi-family kernels (full Xiangqi, Dark Mini Xiangqi, Crossroads Chess): the cannon screen-walk, horse blocked-leg walk, and rook/slider ray walk + `VisionAccum`/`emptyVision`, driven by a per-variant `VisionProbe`. Per-piece rules that genuinely differ (general/advisor/elephant/soldier/pawn) stay in each variant kernel |
@@ -101,9 +101,9 @@ Edit task → find file → open only that file.
 | `server-room-lifecycle.ts` | Room lifecycle edge handling: room creation/hydration, Draft960 offer seeding, abandoned-room aborts, seat-vacate timers, stale guest prestart abort sweeps, stale paused-room sweeps, paused-room grace resume, and runtime room reset. Injects canonical maps/callbacks from `index.ts`. |
 | `rematch.ts` | Mutual-confirm rematch state machine + finalize. `offerRematch`, `cancelRematch`, `declineRematch`, `finalizeRematchIfReady`, `maybeReplayRematchRedirect`. |
 | `room-manager.ts` | Core game loop: `playMove`, `appendEvent`, `broadcastSnapshot`, `scheduleClockTimeout`, `expireActiveClock`, `scheduleRandomEngineMove`, `playRandomEngineMoveIfReady`, seat token persistence, bid/draft resolution. Context: `RoomManagerContext`. |
-| `bughouse-runtime.ts` | Private Chess Bughouse server substrate: event-sourced two-board room state, append/replay, deferred clock start, legal action/timeout application, and partner-request projection. No public WebSocket, persistence, lobby, or PvP commitment |
-| `bughouse-seat-session.ts` | Private Chess Bughouse four-seat authority: opponent-first seat order, token/account reclaim, account gates for rated/correspondence, rollback, and duplicate-seat displacement |
-| `bughouse-lifecycle.ts` | Private Chess Bughouse active-clock scheduler: arms the next board deadline, expires due clocks, and clears speculative timers |
+| `bughouse-runtime.ts` | Chess Bughouse server substrate: event-sourced two-board room state, append/replay, deferred clock start, legal action/timeout application, and partner-request projection |
+| `bughouse-seat-session.ts` | Chess Bughouse four-seat authority: opponent-first seat order, token/account reclaim, account gates for rated/correspondence, rollback, and duplicate-seat displacement |
+| `bughouse-lifecycle.ts` | Chess Bughouse active-clock scheduler: arms the next board deadline, expires due clocks, and clears speculative timers |
 | `lifecycle-windows.ts` | Neutral leaf holding the `ABORT_WINDOW_MS` (pregame first-move) and `FORFEIT_WINDOW_MS` (disconnect) constants, shared by both live-room stacks (legacy `room-manager` + generic `variant-tenant/lifecycle`) so the tenant runtime imports no game-lifecycle constant from the legacy stack |
 | `http-api.ts` | Thin HTTP dispatcher (79 LOC). Walks `routes/*` modules in declared order; each `tryHandle()` returns true to claim the request or false to fall through. Re-exports `HttpApiContext`, `parseVariantId`, `parseHiddenDraft960`, `parseRoomTimeControl`, `isPveAllowedTimeControl`, `readJsonBody`, `writeJson`, `requireMethod`, `requirePersistence` from `routes/lib.ts` so external consumers (`index.ts`, loadtest) don't need to know things moved |
 | `routes/lib.ts` | Shared HTTP utilities: `HttpApiContext` interface, `writeJson`, `requireMethod`, `requirePersistence`, `readJsonBody`, the parse helpers, `hashIp`, `isHttpAdminAuthorized`. Imported by every route module |
@@ -139,6 +139,8 @@ Edit task → find file → open only that file.
 | `routes/mini-xiangqi-games.ts` | Mini Xiangqi postgame/review API branch; exposes finished open-information board history and timeline from persisted or live rooms |
 | `routes/drop-mini-xiangqi-rooms.ts` | Drop Mini Xiangqi room-creation branch for `POST /api/rooms` (PvP/lobby only for now; rated/time-control gating via `game-spec-request-gate`) |
 | `routes/drop-mini-xiangqi-games.ts` | Drop Mini Xiangqi postgame/review API branch; exposes the finished open-information board, reserve history, and move timeline |
+| `routes/fortress-xiangqi-rooms.ts` | Fortress Xiangqi room-creation branch for `POST /api/rooms` (PvP + Fairy-Stockfish PvE; casual, rated-ready) |
+| `routes/fortress-xiangqi-games.ts` | Fortress Xiangqi postgame/review API branch; finished open-information 7x8 board, reserve history, and move timeline |
 | `routes/puzzles.ts` | Mini Xiangqi puzzle API: list/detail endpoints plus attempt validation for Mini and Drop Mini Xiangqi puzzle lines |
 | `routes/bots.ts` | Public bot directory/profile API (`/api/bots`, `/api/bots/:id`) filtered to playable enabled variants |
 | `bot-profile-policy.ts` | Shared bot profile policy: public bot id parsing and playable-variant filtering for bot directory/profile surfaces |
@@ -164,6 +166,7 @@ Edit task → find file → open only that file.
 | `persistence-forum.ts` | Forum category/topic/post/report persistence: visible lists, search, topic detail, create topic, add reply, edit/move/moderate, report lifecycle, and recent-write counters for API rate limits |
 | `persistence-feedback.ts` | Feedback persistence |
 | `persistence-site-stats.ts` | Site statistics query |
+| `persistence-puzzles.ts` | Daily puzzle selection persistence (`daily_puzzle_selections`): deterministic day-based pick for the homepage slot plus a persisted override, over Mini/Drop Mini Xiangqi puzzle lines |
 | `persistence-test-support.ts` | Shared Postgres test harness: migration, truncation reset, DB URL gating, and persistence test helpers |
 | `test-database-url.ts` | Persistent-test database URL guard: prefers `TEST_DATABASE_URL`, refuses the local dev DB by default, and allows an explicit destructive-test override |
 | `persistence-*.test.ts` | Postgres-backed persistence regressions split by domain: events, accounts, seat tokens, lifecycle, game end/lists, ratings, and debug artifacts |
@@ -220,13 +223,17 @@ Edit task → find file → open only that file.
 | `mini-xiangqi-registration.ts` | Mini Xiangqi registry entry: live-room map, room-factory binding, hydration, WebSocket runtime, HTTP create route, lobby route, and watch metadata |
 | `drop-mini-xiangqi-tenant.ts` | Drop Mini Xiangqi `VariantTenant`: open-information 7x7 mini xiangqi with crazyhouse-style reserves, public events, public board state, and board/drop move parsing |
 | `drop-mini-xiangqi-registration.ts` | Drop Mini Xiangqi registry entry: live-room map, room-factory binding, hydration, WebSocket runtime, HTTP create route, lobby route, and watch metadata |
+| `fortress-xiangqi-tenant.ts` | Fortress Xiangqi `VariantTenant`: open-information 7x8 xiangqi with opposite-corner palaces, crazyhouse reserves, and the Treasure; public events + board state, board/drop move parsing, and a perpetual-check (`chasing`) upgrade wrapper over the kernel move log |
+| `fortress-xiangqi-registration.ts` | Fortress Xiangqi registry entry: live-room map, room-factory binding, hydration, WebSocket runtime, HTTP create route, lobby route, and watch metadata |
 | `dark-xiangqi-registration.ts` | Dark Xiangqi (9x10, hidden/dev-only) registry entry: live-room map, room-factory binding, hydration. No rematch/lobby (lobby answers `dark_xiangqi_not_integrated`) |
 | `crossroads-chess-engine.ts` | Fairy-Stockfish move provider for perfect-info Crossroads Chess (loads `crossroads-chess.ini`, one FSF process/request); the open-mode opponent, NOT the fog engine-worker |
 | `mini-xiangqi-engine.ts` | Fairy-Stockfish move provider for perfect-info Mini Xiangqi PvE: native `minixiangqi` UCI variant, calibrated tiers, per-request process spawn, and small FSF slot queue |
 | `drop-mini-xiangqi-fsf-engine.ts` | Fairy-Stockfish move provider for perfect-info Drop Mini Xiangqi PvE: loads the custom `drop-mini-xiangqi.ini` variant via VariantPath, Skill+node tiers, per-request process spawn, and small FSF slot queue |
+| `fortress-xiangqi-fsf-engine.ts` | Fairy-Stockfish move provider for Fortress Xiangqi PvE: loads the custom `fortress-xiangqi.ini` variant via VariantPath with `chasingRule=axf`, Skill+node tiers, per-request process spawn, and small FSF slot queue |
 | `server-crossroads-chess-engine.ts` | Server-side FSF PvE loop for Crossroads Chess; injects engine moves through the same append+broadcast path as humans so clocks/persistence/reconnect/review stay event-sourced |
 | `server-mini-xiangqi-engine.ts` | Server-side Mini Xiangqi PvE loop: schedules Fairy-Stockfish moves through the tenant append/broadcast path with clock-aware movetime caps |
 | `server-drop-mini-xiangqi-engine.ts` | Server-side Drop Mini Xiangqi PvE loop: schedules Fairy-Stockfish moves (via `drop-mini-xiangqi-fsf-engine.ts`) through the tenant append/broadcast path, with drop-aware UCI translation and clock-aware movetime caps |
+| `server-fortress-xiangqi-engine.ts` | Server-side Fortress Xiangqi PvE loop: schedules Fairy-Stockfish moves (via `fortress-xiangqi-fsf-engine.ts`) through the tenant append/broadcast path, with drop-aware UCI translation and clock-aware movetime caps |
 | `server-crossroads-chess-events.ts` | Thin adapter over `variant-tenant/events.ts` for Crossroads Chess |
 | `server-crossroads-chess-lifecycle.ts` | Thin adapter over `variant-tenant/lifecycle.ts` for Crossroads Chess; `crossroadsChessConnectedSeats` filters spectators to the pre-migration seat shape |
 | `server-crossroads-chess-live-room.ts` | Live Crossroads Chess client/room type leaf, shared by the ws handler + rematch module to avoid an import cycle |
@@ -392,6 +399,7 @@ Run with `MISTBOARD_ALLOW_IN_MEMORY_PERSISTENCE=true npm run test:integration --
 | `landing-play.ts` | Homepage play panel, setup dialog, open-lobby request card, room creation, lobby queue polling, empty-lobby engine offer, and play deep-link handling |
 | `landing-play.css` | Homepage play/setup/lobby base styles loaded before `landing.css`, so homepage responsive layout overrides stay in the route stylesheet |
 | `puzzles.ts` | `/puzzles` route: Mini and Drop Mini Xiangqi puzzle list/detail UI, drag/click solving, attempt submission, solved-state storage, and auto-next controls |
+| `home-puzzle-widget.ts` | Homepage daily-puzzle widget: renders the server-selected daily Mini/Drop Mini Xiangqi puzzle as a small interactive board on the landing page |
 | `landing-showcase.ts` | Homepage replay showcase catalog and hero POV selection for the landing replay loop |
 | `watch-route.ts` | `/watch` route mount: watch feed fetch/polling, replay mounting, status/empty state, channel links, and replay queue rendering. Loads `watch-route.css` |
 | `watch-route.css` | `/watch` route styles, including watch replay sizing, status, channel links, empty state, queue, and responsive route layout |
@@ -471,6 +479,7 @@ Run with `MISTBOARD_ALLOW_IN_MEMORY_PERSISTENCE=true npm run test:integration --
 | `news-page.css` | `/news` dated-feed styles loaded by `news-page.ts` |
 | `replay-skeleton.ts` | Neutral "Loading game" placeholder for watch/showcase replay slots while renderer kinds swap or mount asynchronously |
 | `showcase-board.ts` | Homepage showcase single-board mount: dispatches between chessground replay and tenant watch renderers, owns compact chess replay options and game-end handoff |
+| `showcase-sheet.ts` | Dev-only variant showcase sheet: renders one showcase board per channel (latest finished game) for quick cross-variant visual review |
 | `showcase-clock.ts` | Homepage showcase timing helpers: reconstructs per-ply clock series and autoplay delays from tenant postgame move timestamps plus Fischer time controls |
 | `showcase-compact-view.ts` | Shared compact-view picker for homepage showcase tenant renderers: chooses masked, truth, or stable per-room POV panes without being a redaction boundary |
 | `showcase-cycler.ts` | Homepage showcase cycler: rolls through finished games across renderer kinds, reuses handles when possible, remounts across kinds, and shows the replay skeleton during swaps |
@@ -531,6 +540,7 @@ Run with `MISTBOARD_ALLOW_IN_MEMORY_PERSISTENCE=true npm run test:integration --
 | `watch-crossroads-chess-replay.ts` | Mistboard TV (`/watch`) renderer for Crossroads Chess: drives off the postgame API + SVG renderer (the generic chess replay path only understands chess `GameEvent` logs) |
 | `live-mini-xiangqi-room.ts` | Dark Mini Xiangqi live-room logic riding the shared `live.ts` shell via tenant hooks (render/reconcile/reset/tick/keyboard); board interaction, analytics lifecycle, replay controller wiring. Behind `darkMiniXiangqiEnabled` |
 | `live-mini-xiangqi-render.ts` | Bespoke SVG renderer for the 7×7 Dark Mini Xiangqi board: pieces on intersections, Fog of War as an inverse `<mask>` with square cutouts on visible intersections |
+| `fortress-xiangqi-render.ts` | Bespoke SVG renderer for the 7×8 Fortress Xiangqi board: opposite-corner palaces, river band, pieces on intersections, and the Treasure glyph (Dobutsu-style disc where no piece-set art exists) |
 | `live-mini-xiangqi-sound.ts` | Dark Mini Xiangqi sound policy: fog-aware per-event classification over the DMX `PlayerView`, reusing the shared `SoundController` |
 | `dark-mini-xiangqi-postgame.ts` | Dark Mini Xiangqi postgame/review route renderer: red/black/truth views from the postgame API, reuses replay panes/header/move-list + DMX capture split. Behind `darkMiniXiangqiEnabled`. Loads `landing.css` + `game-route.css` |
 | `mini-xiangqi-postgame.ts` | Mini Xiangqi postgame/review route renderer: single truth-board replay, result rail, move list, share/play-again actions, and postgame API loader |
@@ -538,13 +548,17 @@ Run with `MISTBOARD_ALLOW_IN_MEMORY_PERSISTENCE=true npm run test:integration --
 | `mini-xiangqi-captures.ts` | Dark Mini Xiangqi captured-piece derivation (truth-view diff against the initial board) + pane capture-split rendering |
 | `mini-xiangqi-replay.ts` | Mini Xiangqi article replay: one 7×7 board stepped through a move list via the real kernel, rendered on demand (sibling of `xiangqi-replay.ts`) |
 | `drop-mini-xiangqi-view.ts` | Shared Drop Mini Xiangqi view helpers: open board projection, legal board/drop target derivation, move labels, and reserve strip rendering |
+| `fortress-xiangqi-view.ts` | Shared Fortress Xiangqi view helpers: legal board/drop target derivation, move labels, and reserve strip rendering (reuses the drop-mini reserve styling) |
 | `live-drop-mini-xiangqi.ts` | Drop Mini Xiangqi live room client on the tenant socket/chrome stack: open 7x7 board, board moves, reserve drops, draggable hands, move list, and replay capture |
+| `live-fortress-xiangqi.ts` | Fortress Xiangqi live room client on the tenant socket/chrome stack: open 7x8 board, board moves, reserve drops, draggable hands, move list, and replay capture |
 | `drop-mini-xiangqi-postgame.ts` | Drop Mini Xiangqi postgame/review route renderer: truth-board replay with reserve strips and per-ply history from the postgame API |
+| `fortress-xiangqi-postgame.ts` | Fortress Xiangqi postgame/review route renderer: truth-board replay with reserve strips and per-ply history from the postgame API |
 | `drop-mini-xiangqi-replay.ts` | Drop Mini Xiangqi rules-article replay: parses board/drop notation, replays through the real kernel, and renders the sample game with reserve strips |
 | `mini-xiangqi-spike.ts` | `/mini-xiangqi-spike` FoW Mini Xiangqi sandbox (DEV): local play across red/black/god perspectives over the bespoke 7×7 renderer |
 | `watch-mini-xiangqi-replay.ts` | Mistboard TV (`/watch`) renderer for Dark Mini Xiangqi: postgame payload + shared replay chrome + control bar/auto-play, rendering server-computed fog views (leak-safe) |
 | `watch-mini-open-xiangqi-replay.ts` | Mistboard TV (`/watch`) renderer for open Mini Xiangqi: loads the Mini postgame payload and mounts the single truth-board tenant replay |
 | `watch-drop-mini-xiangqi-replay.ts` | Mistboard TV (`/watch`) renderer for Drop Mini Xiangqi: open-information replay over the postgame API, with board orientation and reserve strips |
+| `watch-fortress-xiangqi-replay.ts` | Mistboard TV (`/watch`) renderer for Fortress Xiangqi: single open-information `truth` pane over the postgame API, with board orientation and sided reserve strips |
 | `watch-dark-xiangqi-replay.ts` | Mistboard TV (`/watch`) renderer for full Dark Xiangqi (9×10) — thin adapter over `watch-tenant-replay.ts` rendering the red/truth/black fog triptych (per-view fog mask) |
 | `watch-fog-triptych-replay.ts` | Generic Mistboard TV (`/watch`) replay chrome for fog triptych variants: header, three panes, control bar, autoplay, ply navigation, result labels, and optional private/truth reserve strips |
 | `watch-dark-crossroads-chess-replay.ts` | Mistboard TV (`/watch`) renderer for Dark Crossroads Chess: adapter over `watch-fog-triptych-replay.ts`, using the Dark Crossroads postgame payload and crossroads SVG renderer |
