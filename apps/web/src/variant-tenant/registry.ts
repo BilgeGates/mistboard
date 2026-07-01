@@ -629,6 +629,11 @@ const WEB_VARIANT_TENANTS: readonly WebVariantTenant[] = [
     enabled: fortressXiangqiEnabled,
     pageTitle: 'Fortress Xiangqi',
     gameRouteBase: '/fortress-xiangqi/game',
+    mountPostgame: (root, roomId) =>
+      import('../fortress-xiangqi-postgame.js').then(({ mountFortressXiangqiPostgame }) =>
+        mountFortressXiangqiPostgame(root, roomId),
+      ),
+    reviewRouteBase: '/fortress-xiangqi/game',
     loadLiveRoomClient: () =>
       import('../live-fortress-xiangqi.js').then(
         ({ bootstrapFortressXiangqiLiveRoom }) =>
