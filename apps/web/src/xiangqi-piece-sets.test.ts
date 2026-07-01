@@ -10,8 +10,8 @@ import {
 } from './xiangqi-piece-sets.js';
 
 describe('default piece set', () => {
-  it('defaults the xiangqi family to the animal origami art', () => {
-    expect(DEFAULT_XIANGQI_PIECE_SET).toBe('animal-origami');
+  it('defaults the xiangqi family to the animal Dobutsu art', () => {
+    expect(DEFAULT_XIANGQI_PIECE_SET).toBe('animal-dobutsu');
   });
 });
 
@@ -46,8 +46,8 @@ describe('xiangqiGlyph', () => {
   });
 
   it('keeps an initial fallback for the animal image sets', () => {
-    expect(xiangqiGlyph('animal-seal', 'red', 'general')).toBe('G');
-    expect(xiangqiGlyph('animal-origami', 'black', 'elephant')).toBe('E');
+    expect(xiangqiGlyph('animal-dobutsu', 'red', 'general')).toBe('G');
+    expect(xiangqiGlyph('animal-dobutsu', 'black', 'elephant')).toBe('E');
   });
 });
 
@@ -81,42 +81,44 @@ describe('renderXiangqiPieceGlyphed', () => {
     expect(advisor).not.toBe(elephant);
   });
 
-  it('renders the animal sets from the full seven-role image assets', () => {
-    const sealAdvisor = renderXiangqiPieceGlyphed(
+  it('renders the Dobutsu animal set from the full seven-role fitted image assets', () => {
+    const advisor = renderXiangqiPieceGlyphed(
       { color: 'red', role: 'advisor' },
-      'animal-seal',
+      'animal-dobutsu',
       {},
     );
-    const origamiElephant = renderXiangqiPieceGlyphed(
+    const elephant = renderXiangqiPieceGlyphed(
       { color: 'black', role: 'elephant' },
-      'animal-origami',
+      'animal-dobutsu',
       {},
     );
-    expect(sealAdvisor).toContain('/piece-sets/xiangqi/animal-seal/red-advisor.png');
-    expect(origamiElephant).toContain('/piece-sets/xiangqi/animal-origami/black-elephant.png');
-    expect(sealAdvisor).not.toContain('<text');
-    expect(origamiElephant).not.toContain('<text');
+    expect(advisor).toContain('/piece-sets/xiangqi/animal-dobutsu/red-advisor.png');
+    expect(elephant).toContain('/piece-sets/xiangqi/animal-dobutsu/black-elephant.png');
+    expect(advisor).toContain('fill="#fff2cf"');
+    expect(elephant).toContain('stroke="#283a47"');
+    expect(advisor).not.toContain('<text');
+    expect(elephant).not.toContain('<text');
   });
 
-  it('uses the actual horse artwork for the seal horse slot', () => {
-    const horse = renderXiangqiPieceGlyphed({ color: 'red', role: 'horse' }, 'animal-seal', {});
-    expect(horse).toContain('/piece-sets/xiangqi/animal-seal/red-horse.png');
+  it('uses the actual horse artwork for the Dobutsu horse slot', () => {
+    const horse = renderXiangqiPieceGlyphed({ color: 'red', role: 'horse' }, 'animal-dobutsu', {});
+    expect(horse).toContain('/piece-sets/xiangqi/animal-dobutsu/red-horse.png');
     expect(horse).not.toContain('crane');
   });
 
-  it('uses tortoise advisor and elephant asset slots in the seal set', () => {
+  it('uses tortoise advisor and elephant asset slots in the Dobutsu set', () => {
     const advisor = renderXiangqiPieceGlyphed(
       { color: 'black', role: 'advisor' },
-      'animal-seal',
+      'animal-dobutsu',
       {},
     );
     const elephant = renderXiangqiPieceGlyphed(
       { color: 'red', role: 'elephant' },
-      'animal-seal',
+      'animal-dobutsu',
       {},
     );
-    expect(advisor).toContain('/piece-sets/xiangqi/animal-seal/black-advisor.png');
-    expect(elephant).toContain('/piece-sets/xiangqi/animal-seal/red-elephant.png');
+    expect(advisor).toContain('/piece-sets/xiangqi/animal-dobutsu/black-advisor.png');
+    expect(elephant).toContain('/piece-sets/xiangqi/animal-dobutsu/red-elephant.png');
     expect(advisor).not.toContain('<text');
     expect(elephant).not.toContain('<text');
   });
@@ -132,12 +134,12 @@ describe('renderXiangqiPieceGlyphed', () => {
   });
 
   it('does not reveal animal identity for a shrouded animal-set piece', () => {
-    const svg = renderXiangqiPieceGlyphed(redGeneral, 'animal-seal', {
+    const svg = renderXiangqiPieceGlyphed(redGeneral, 'animal-dobutsu', {
       shrouded: true,
       ariaLabel: 'red hidden piece',
     });
     expect(svg).toContain('?');
-    expect(svg).not.toContain('/piece-sets/xiangqi/animal-seal/red-general.png');
+    expect(svg).not.toContain('/piece-sets/xiangqi/animal-dobutsu/red-general.png');
     expect(svg).toContain('aria-label="red hidden piece"');
   });
 });
@@ -148,21 +150,18 @@ describe('xiangqiPreviewGlyph', () => {
     expect(xiangqiPreviewGlyph('simplified')).toBe('帅');
     expect(xiangqiPreviewGlyph('western')).toBe('G');
     expect(xiangqiPreviewGlyph('symbols')).toBe('★');
-    expect(xiangqiPreviewGlyph('animal-seal')).toBe('G');
-    expect(xiangqiPreviewGlyph('animal-origami')).toBe('G');
+    expect(xiangqiPreviewGlyph('animal-dobutsu')).toBe('G');
   });
 });
 
 describe('xiangqiPieceTilePreview', () => {
-  it('uses text previews for glyph sets and image previews for the animal sets', () => {
+  it('uses text previews for glyph sets and SVG previews for the Dobutsu animal set', () => {
     expect(xiangqiPieceTilePreview('traditional')).toEqual({ kind: 'text', text: '帥' });
-    expect(xiangqiPieceTilePreview('animal-seal')).toEqual({
-      kind: 'image',
-      href: '/piece-sets/xiangqi/animal-seal/red-general.png',
-    });
-    expect(xiangqiPieceTilePreview('animal-origami')).toEqual({
-      kind: 'image',
-      href: '/piece-sets/xiangqi/animal-origami/red-general.png',
-    });
+    const dobutsu = xiangqiPieceTilePreview('animal-dobutsu');
+    expect(dobutsu.kind).toBe('svg');
+    if (dobutsu.kind === 'svg') {
+      expect(dobutsu.markup).toContain('/piece-sets/xiangqi/animal-dobutsu/red-general.png');
+      expect(dobutsu.markup).toContain('stroke="#c2261e"');
+    }
   });
 });
