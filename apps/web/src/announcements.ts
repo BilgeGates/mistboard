@@ -18,6 +18,14 @@ export type Announcement = {
 
 const baseAnnouncements: Announcement[] = [
   {
+    date: '2026-07-01',
+    kind: 'release',
+    headline: 'Fortress Xiangqi has launched.',
+    body: 'Xiangqi with a pocket: every piece moves as in Chinese chess, plus crazyhouse-style drops and the new Treasure. Play the bot or challenge a friend.',
+    href: '/rules/fortress-xiangqi',
+    cta: 'Study the rules',
+  },
+  {
     date: '2026-06-30',
     kind: 'release',
     headline: 'Jungle (Dou Shou Qi) has launched.',
