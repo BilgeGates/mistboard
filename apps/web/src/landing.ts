@@ -77,10 +77,15 @@ export async function mountLanding(root: HTMLElement): Promise<void> {
     };
     return { roomId: game.roomId, specId: specIdForShowcaseVariant(game.variant), pov };
   };
-  const initialPool = games.map(toShowcaseEntry);
+  const params = new URLSearchParams(window.location.search);
+  // Dev aid: ?only=<specId> pins the showcase to a single variant (e.g.
+  // ?only=drop-mini-xiangqi) instead of the normal all-variants cycle. No param =
+  // normal behavior; handy for eyeballing one variant's board/hand.
+  const onlySpec = params.get('only');
+  let initialPool = games.map(toShowcaseEntry);
+  if (onlySpec) initialPool = initialPool.filter((entry) => entry.specId === onlySpec);
 
   // ?demo=<sampleId> forces a specific bundled game to open first.
-  const params = new URLSearchParams(window.location.search);
   const requested = params.get('demo');
   const forcedIdx = requested ? initialPool.findIndex((entry) => entry.roomId === requested) : -1;
   if (forcedIdx > 0) {
@@ -163,7 +168,9 @@ export async function mountLanding(root: HTMLElement): Promise<void> {
       return;
     }
     if (fresh.length < 3) return; // not enough real games yet; keep the pool
-    const nextEntries = fresh.slice(0, SHOWCASE_POOL_CAP).map(toShowcaseEntry);
+    let nextEntries = fresh.slice(0, SHOWCASE_POOL_CAP).map(toShowcaseEntry);
+    if (onlySpec) nextEntries = nextEntries.filter((entry) => entry.specId === onlySpec);
+    if (nextEntries.length === 0) return; // filtered pool empty; keep what we have
     const nextIds = nextEntries.map((entry) => entry.roomId);
     const changed = nextIds.length !== poolIds.size || nextIds.some((id) => !poolIds.has(id));
     if (!changed) return;
@@ -479,27 +486,25 @@ function buildLandingStage(
     if (activity) leftRail.insertBefore(activity, about);
   });
 
-  // ── Center (wide): the fog board hero, with article cards stacked beneath. ──
+  // ── Center: the cycling showcase board, with article cards + forum beneath. ──
   const centerColumn = document.createElement('div');
   centerColumn.className = 'landing-center';
 
   const boardColumn = document.createElement('div');
   boardColumn.className = 'landing-board-column';
-
   const replayRoot = document.createElement('div');
   replayRoot.id = 'landing-replay';
   // Widget styling (compact board + name/clock seats) is keyed on this class,
   // shared with the dev variant sheet's cells.
   replayRoot.classList.add('showcase-widget');
-
   boardColumn.append(replayRoot);
   centerColumn.append(boardColumn);
   const articleCards = buildHomeArticleCards(8, locale);
   if (articleCards) centerColumn.append(articleCards);
   centerColumn.append(buildLandingForumPreview({ hydrate: !opts.skipLiveWidgets }));
 
-  // ── Right rail: the pairing CTAs, with the open-pairing-requests browser
-  // stacked beneath them. ──
+  // ── Right rail: the pairing CTAs (play ingresses), with the open-pairing-
+  // requests browser stacked beneath them. ──
   const rightRail = document.createElement('div');
   rightRail.className = 'landing-rail landing-rail-right';
   let playPanel = buildLandingPlayPanel(engines, { locale, showLobbyRequests: false });

@@ -67,9 +67,56 @@
   min-width: 0;
 }
 
+/* Fill mode (center): the centered showcase expands to the full center-column
+   width and the board scales to it (square), so there's no side blank. */
 .landing-board-column #landing-replay {
   width: 100%;
-  max-width: 600px;
+  max-width: 100%;
+}
+
+.landing-board-column #landing-replay .replay-layout-solo,
+.landing-board-column #landing-replay .replay-pane,
+.landing-board-column #landing-replay .showcase-seat,
+.landing-board-column #landing-replay .replay-pane-clock-slot,
+.landing-board-column #landing-replay .replay-clock-row {
+  width: 100%;
+  max-width: 100%;
+}
+
+.landing-board-column #landing-replay .replay-board {
+  width: 100%;
+  height: auto;
+  max-width: 100%;
+  aspect-ratio: 1;
+}
+
+/* Drop/reserve variants (sided hand strips): the board-row fills the widget, the
+   two hand strips are fixed-width, and the board pane flexes to fill the space
+   between them (so the board stays square via the .replay-board fill above and
+   never overlaps the strips). align-items: stretch makes the strips full board
+   height, reading as clear columns. */
+.landing-board-column #landing-replay .showcase-board-row {
+  width: 100%;
+  max-width: 100%;
+  align-items: stretch;
+}
+
+.landing-board-column #landing-replay .showcase-board-row .replay-pane {
+  flex: 1 1 0;
+  min-width: 0;
+}
+
+.landing-board-column #landing-replay .showcase-board-row .showcase-reserve {
+  flex: 0 0 40px;
+}
+
+/* Full-width center widget has room in the seat rows, so grow the name + clock
+   into it (no extra padding). */
+.landing-board-column #landing-replay .showcase-seat-name,
+.landing-board-column #landing-replay .showcase-seat-clock,
+.landing-board-column #landing-replay .replay-clock-side,
+.landing-board-column #landing-replay .replay-clock-time {
+  font-size: 1.15rem;
 }
 
 /* Article carousel beneath the hero board (center column) — a single row of
@@ -340,9 +387,14 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 14px;
+  gap: 6px;
   min-width: 0;
-  padding: clamp(14px, 1.7vw, 20px);
+  /* Hug the board: the panel is exactly the board width + padding, never wider,
+     so the seats sit at the board edges and there's no dead horizontal space
+     (whatever container it lands in — sheet cell, homepage center, or a rail). */
+  width: fit-content;
+  max-width: 100%;
+  padding: 8px;
   border: 1px solid var(--site-border-soft);
   border-radius: var(--site-radius);
   background: linear-gradient(180deg, var(--site-panel-soft), var(--site-bg));
@@ -351,8 +403,11 @@
     0 16px 38px rgba(34, 39, 36, 0.12);
 }
 
+/* Homepage board slot: hug the widget (was stretched to the 600px center track,
+   which left the board floating in dead space). */
 #landing-replay {
-  width: 100%;
+  width: fit-content;
+  max-width: 100%;
 }
 
 .landing-page .replay-page {
@@ -361,11 +416,11 @@
 }
 
 /* replay.ts tags its mount root .replay-page; on the chess showcase that root is
-   also the .showcase-widget panel, so the rule above would strip the panel
-   padding (leaving chess ~18px shorter than the tenant panels, which don't use
-   replay.ts). Restore the shared panel padding. */
+   also the .showcase-widget panel, so `.landing-page .replay-page { padding: 0 }`
+   would strip the panel padding. Restore the shared widget padding so chess frames
+   its board exactly like the tenants (keep this in sync with .showcase-widget). */
 .landing-page .showcase-widget.replay-page {
-  padding: clamp(14px, 1.7vw, 20px);
+  padding: 8px;
 }
 
 .landing-page #landing-replay .replay-layout {
@@ -509,8 +564,15 @@
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 4px;
+  gap: 2px;
   width: 100%;
+}
+
+/* The legacy `.landing-page #landing-replay .replay-layout { gap: ...16px }` above
+   also matches the solo (it's a .replay-layout), inflating the seat<->board gap on
+   the homepage. Override it tight so the name/clock sit right against the board. */
+.landing-page #landing-replay .replay-layout-solo {
+  gap: 2px;
 }
 
 .showcase-widget .replay-layout-solo .replay-pane {
@@ -617,11 +679,22 @@
   background: rgba(0, 0, 0, 0.04);
 }
 
-/* Reserve pieces stack vertically and shrink to fit the narrow strip. */
-.showcase-widget .replay-layout-solo .showcase-reserve svg,
-.showcase-widget .replay-layout-solo .showcase-reserve img {
-  width: 32px;
-  height: 32px;
+/* The drop-mini reserve fill applies its live-game band CSS: `.drop-mini-reserve-row`
+   is a HORIZONTAL row and tiles are sized via 100cqw (~58px), inside a fixed-height
+   band. Stuffed into the narrow side strip that overflows sideways over the board.
+   In the showcase, force a compact VERTICAL stack of small fixed-size tiles. */
+.showcase-widget .replay-layout-solo .showcase-reserve.drop-mini-reserve-strip {
+  --drop-mini-hand-piece-size: 26px;
+  height: auto;
+  min-height: 0;
+}
+
+.showcase-widget .replay-layout-solo .showcase-reserve .drop-mini-reserve-row {
+  flex-direction: column;
+  flex-wrap: nowrap;
+  width: auto;
+  min-height: 0;
+  gap: 4px;
 }
 
 /* ── Chess showcase unification ──────────────────────────────────────────────
@@ -642,7 +715,7 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 4px;
+  gap: 2px;
   width: 100%;
 }
 
@@ -753,13 +826,31 @@
   font-variant-numeric: tabular-nums;
 }
 
-/* Active side highlight (matches .showcase-seat.active). */
+/* Active-player highlight standardized to the tenants (.showcase-seat.active):
+   accent the CLOCK TEXT only. Neutralize the base + theme `.replay-clock-row.active`
+   box (border, background, inset accent bar, text-color) that's meant for the full
+   replay/game view — the tenants show no box, just an accent clock. The extra
+   .landing-page + pane classes push this above the dark-theme rule
+   (:root[…] .landing-page #landing-replay .replay-clock-row.active) so no
+   !important is needed. */
+.landing-page :is(#landing-replay.replay-compact, .showcase-widget)
+  :is(
+    .replay-layout-single-white .replay-pane-white,
+    .replay-layout-single-black .replay-pane-black
+  )
+  .replay-clock-row.active {
+  background: none;
+  border-color: transparent;
+  box-shadow: none;
+  color: inherit;
+}
+
 :is(#landing-replay.replay-compact, .showcase-widget)
   :is(
     .replay-layout-single-white .replay-pane-white,
     .replay-layout-single-black .replay-pane-black
   )
-  .replay-clock-row[aria-current="true"]
+  .replay-clock-row.active
   .replay-clock-time {
   color: var(--site-accent);
   font-weight: 700;
