@@ -137,7 +137,11 @@ describe('article public listing gates', () => {
 
     // Rules reference pages are excluded from this row; only editorial
     // (blog/concept) articles appear, newest first.
-    expect(hrefs).toEqual(['/articles/mistybanqi', '/articles/server-enforced-fog']);
+    expect(hrefs).toEqual([
+      '/articles/misty',
+      '/articles/mistybanqi',
+      '/articles/server-enforced-fog',
+    ]);
   });
 
   it('keeps parked chess variant rules out of the homepage widget and rules rail', () => {
