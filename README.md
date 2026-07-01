@@ -90,9 +90,9 @@ state model.
 ## Documentation
 
 - [docs/README.md](docs/README.md) is the public documentation map.
-- [docs/rules.md](docs/rules.md) defines the Fog of War chess and Draft960
-  rules baselines; full player-facing rules for every variant live at
-  [mistboard.com/rules](https://mistboard.com/rules).
+- Player-facing rules for every variant live at
+  [mistboard.com/rules](https://mistboard.com/rules); the canonical rule logic
+  and tests are in `packages/game`.
 - [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) describes the state model and the
   hidden-information boundary.
 - [docs/engine-protocol.md](docs/engine-protocol.md) documents the redacted
