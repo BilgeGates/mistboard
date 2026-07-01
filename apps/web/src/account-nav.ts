@@ -23,6 +23,8 @@ const GEAR_ICON =
   '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></svg>';
 const POWER_ICON =
   '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M12 2v10"/><path d="M18.36 6.64a9 9 0 1 1-12.73 0"/></svg>';
+const PROFILE_CIRCLE_ICON =
+  '<svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true" focusable="false"><circle cx="12" cy="12" r="10.2" fill="none" stroke="currentColor" stroke-width="2.4"/><circle cx="12" cy="8.7" r="3.15" fill="currentColor"/><path d="M6.6 17.9c.82-3.28 2.66-4.92 5.4-4.92s4.58 1.64 5.4 4.92c-1.33 1.2-3.12 1.92-5.4 1.92s-4.07-.72-5.4-1.92z" fill="currentColor"/></svg>';
 
 // Each mounted dropdown owns a connection-status footer; we poll only while its
 // menu is open. Keyed by the control element so multiple navs stay independent.
@@ -211,7 +213,7 @@ function mountAccountNav(nav: HTMLElement, user: AuthUser): void {
   const trigger = document.createElement('button');
   trigger.type = 'button';
   trigger.className = 'account-nav-trigger';
-  trigger.textContent = user.handle;
+  trigger.append(createTriggerHandle(user.handle), createTriggerProfileIcon());
   trigger.setAttribute('aria-expanded', 'false');
   trigger.setAttribute('aria-haspopup', 'menu');
   trigger.setAttribute('aria-label', t('account.menuFor', { handle: user.handle }, locale));
@@ -389,6 +391,21 @@ function createItemIcon(svg: string): HTMLSpanElement {
   span.className = 'account-nav-item-icon';
   span.setAttribute('aria-hidden', 'true');
   span.innerHTML = svg;
+  return span;
+}
+
+function createTriggerHandle(handle: string): HTMLSpanElement {
+  const span = document.createElement('span');
+  span.className = 'account-nav-handle';
+  span.textContent = handle;
+  return span;
+}
+
+function createTriggerProfileIcon(): HTMLSpanElement {
+  const span = document.createElement('span');
+  span.className = 'account-nav-profile-icon';
+  span.setAttribute('aria-hidden', 'true');
+  span.innerHTML = PROFILE_CIRCLE_ICON;
   return span;
 }
 

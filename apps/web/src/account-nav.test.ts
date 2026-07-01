@@ -46,6 +46,9 @@ describe('account nav', () => {
     await flushDom();
 
     expect(document.querySelector('.account-nav-trigger')?.textContent).toBe('misty');
+    expect(
+      document.querySelector('.account-nav-trigger .account-nav-profile-icon svg'),
+    ).not.toBeNull();
     expect(document.querySelector('.site-nav-link-signin')).toBeNull();
     expect(document.querySelector('.site-nav-language')).toBeNull();
     expect(document.querySelector('.account-language-menu')).not.toBeNull();
@@ -66,6 +69,7 @@ describe('account nav', () => {
 
     setAccountNavUser(null);
     expect(document.querySelector('.account-nav-trigger')).toBeNull();
+    expect(document.querySelector('.account-nav-profile-icon')).toBeNull();
     expect(document.querySelector('.site-nav-language')).toBeNull();
     expect(
       document.querySelector<HTMLElement>(

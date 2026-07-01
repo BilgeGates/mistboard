@@ -43,6 +43,9 @@
 }
 
 .account-nav-trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
   border: 0;
   border-radius: var(--site-radius-sm);
   background: transparent;
@@ -67,6 +70,23 @@
 
 .account-nav-trigger.active {
   box-shadow: inset 0 -2px 0 var(--site-accent);
+}
+
+.account-nav-handle {
+  line-height: 1;
+}
+
+.account-nav-profile-icon {
+  flex: none;
+  display: inline-flex;
+  width: 24px;
+  height: 24px;
+  color: currentColor;
+  opacity: 0.9;
+}
+
+.account-nav-profile-icon svg {
+  display: block;
 }
 
 .account-nav-panel {
