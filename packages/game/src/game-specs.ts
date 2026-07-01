@@ -404,8 +404,9 @@ export const GAME_SPECS: readonly GameSpec[] = [
     reserves: 'crazyhouse',
     dropPolicy: 'attacker-anywhere-defender-home',
     ratingPoolBase: 'fortress_xiangqi',
-    // Casual while wiring. At launch: flip `rated: true`, add fortress_xiangqi to
-    // the RatingVariant union + the user_ratings CHECK migration (Phase 4).
+    // Rating-ready like Dark Xiangqi / Banqi / Jieqi: the pool exists so it lights
+    // up the moment the global rated flag flips. Hidden / dev-spike until launch.
+    rated: true,
     publicSurface: 'hidden',
     runtimeStatus: 'dev-spike',
   },
@@ -672,6 +673,7 @@ export type RatingVariant = Extract<
   | 'reveal_chess'
   | 'jungle'
   | 'jungle_flip'
+  | 'fortress_xiangqi'
 >;
 
 // The active rated-pool set, derived from the `rated` flag. This is the ONE

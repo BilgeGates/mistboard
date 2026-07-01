@@ -11,6 +11,7 @@ import {
   DARK_XIANGQI_SPEC_ID,
   DROP_MINI_XIANGQI_SPEC_ID,
   DUAL_CHESS_SPEC_ID,
+  FORTRESS_XIANGQI_SPEC_ID,
   gameSpecForId,
   JIEQI_SPEC_ID,
   JUNGLE_FLIP_SPEC_ID,
@@ -69,7 +70,8 @@ type LandingGameSpecId =
   | typeof BANQI_SPEC_ID
   | typeof REVEAL_CHESS_SPEC_ID
   | typeof JUNGLE_SPEC_ID
-  | typeof JUNGLE_FLIP_SPEC_ID;
+  | typeof JUNGLE_FLIP_SPEC_ID
+  | typeof FORTRESS_XIANGQI_SPEC_ID;
 type LandingStartFormat = 'standard' | 'draft960';
 type LandingTimePresetId = TimeControlId;
 type LandingTimePreset = {
@@ -257,6 +259,8 @@ function variantNameKeyForGameSpec(gameSpecId: LandingGameSpecId): I18nKey | nul
       return 'variant.jungle.name';
     case JUNGLE_FLIP_SPEC_ID:
       return 'variant.jungleFlip.name';
+    case FORTRESS_XIANGQI_SPEC_ID:
+      return 'variant.fortressXiangqi.name';
     default:
       return null;
   }
