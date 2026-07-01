@@ -12,6 +12,7 @@ import {
   fortressXiangqiCrossedRiver,
   fortressXiangqiInOwnHalf,
   fortressXiangqiInPalace,
+  fortressXiangqiPerpetualCheckLoser,
   fortressXiangqiPositionRepetitionKey,
   getFortressXiangqiLegalMoves,
   isFortressXiangqiDropMove,
@@ -305,4 +306,65 @@ test('repetition key distinguishes hands', () => {
   const a = stateWith(board, 'red', { red: {}, black: {} });
   const b = stateWith(board, 'red', { red: { soldier: 1 }, black: {} });
   assert.notEqual(fortressXiangqiPositionRepetitionKey(a), fortressXiangqiPositionRepetitionKey(b));
+});
+
+// ── Perpetual-check adjudication ────────────────────────────────────────────
+
+function movesFromUci(ucis: readonly string[]): FortressXiangqiMove[] {
+  return ucis.map((uci) => ({ from: uci.slice(0, 2), to: uci.slice(2, 4) }) as FortressXiangqiMove);
+}
+
+test('perpetual check by red is a loss for red', () => {
+  const start = stateWith({
+    a1: { color: 'red', role: 'general' },
+    g1: { color: 'red', role: 'chariot' },
+    f7: { color: 'black', role: 'general' },
+  });
+  // Red chariot chases the black general with checks; black shuffles f7<->e7.
+  const moves = movesFromUci([
+    'g1f1',
+    'f7e7',
+    'f1e1',
+    'e7f7',
+    'e1f1',
+    'f7e7',
+    'f1e1',
+    'e7f7',
+    'e1f1',
+  ]);
+  assert.equal(fortressXiangqiPerpetualCheckLoser(moves, start), 'red');
+});
+
+test('perpetual check by black is a loss for black', () => {
+  const start = stateWith(
+    {
+      b2: { color: 'red', role: 'general' },
+      g8: { color: 'black', role: 'general' },
+      a8: { color: 'black', role: 'chariot' },
+    },
+    'black',
+  );
+  const moves = movesFromUci([
+    'a8b8',
+    'b2a2',
+    'b8a8',
+    'a2b2',
+    'a8b8',
+    'b2a2',
+    'b8a8',
+    'a2b2',
+    'a8b8',
+  ]);
+  assert.equal(fortressXiangqiPerpetualCheckLoser(moves, start), 'black');
+});
+
+test('an honest (check-free) repetition stays a draw', () => {
+  const start = stateWith(
+    withGenerals({
+      d4: { color: 'red', role: 'treasure' },
+      d6: { color: 'black', role: 'treasure' },
+    }),
+  );
+  const moves = movesFromUci(['d4c4', 'd6c6', 'c4d4', 'c6d6', 'd4c4', 'd6c6', 'c4d4', 'c6d6']);
+  assert.equal(fortressXiangqiPerpetualCheckLoser(moves, start), null);
 });

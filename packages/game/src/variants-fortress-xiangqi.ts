@@ -498,6 +498,56 @@ export function isFortressXiangqiLegalMove(
   );
 }
 
+// Perpetual-check adjudication — the headline chasing case ("you cannot
+// perpetual-check your way out of a lost game"). Replays the move list; if the
+// three-fold repetition that ended the game was reached by ONE side giving check
+// on every one of its moves in the repeating cycle (and the other side not),
+// that side is the perpetual checker and LOSES. Mutual or check-free repetitions
+// stay draws. Returns the losing color, or null to keep the draw.
+//
+// This is the pure-kernel, deterministic subset of the chasing rule. Perpetual
+// material *chase* (non-check harassment, which needs "is this piece genuinely
+// chased net of protection/trades") is NOT covered here — it is left to the
+// Fairy-Stockfish adjudicator (see docs-private/fortress-xiangqi-build-track.md).
+export function fortressXiangqiPerpetualCheckLoser(
+  moves: readonly FortressXiangqiMove[],
+  initialState: FortressXiangqiGameState = createInitialFortressXiangqiState('adjudicate'),
+): FortressXiangqiColor | null {
+  let state = initialState;
+  const plies: { mover: FortressXiangqiColor; gaveCheck: boolean; key: string }[] = [];
+  for (const move of moves) {
+    if (state.status.type !== 'playing') break;
+    const mover = state.status.turn;
+    if (!isFortressXiangqiLegalMove(state, move)) return null; // desync — do not adjudicate
+    state = applyFortressXiangqiMove(state, move);
+    const opponent = oppositeFortressXiangqiColor(mover);
+    const gaveCheck = isFortressXiangqiGeneralInCheckOnBoard(state.board, opponent);
+    // Key with the opponent to move, so it is comparable regardless of whether
+    // this ply finished the game.
+    const key = fortressXiangqiPositionRepetitionKey({
+      ...state,
+      status: { type: 'playing', turn: opponent },
+    });
+    plies.push({ mover, gaveCheck, key });
+  }
+  if (plies.length === 0) return null;
+  const repeatedKey = plies[plies.length - 1]!.key;
+  const occurrences = plies.flatMap((ply, i) => (ply.key === repeatedKey ? [i] : []));
+  if (occurrences.length < 2) return null;
+  // The cycle that closed the repetition: moves after the 2nd-to-last occurrence
+  // through the last occurrence.
+  const cycle = plies.slice(occurrences[occurrences.length - 2]! + 1, occurrences.at(-1)! + 1);
+  const perpetualBy = (color: FortressXiangqiColor): boolean => {
+    const own = cycle.filter((ply) => ply.mover === color);
+    return own.length > 0 && own.every((ply) => ply.gaveCheck);
+  };
+  const redPerpetual = perpetualBy('red');
+  const blackPerpetual = perpetualBy('black');
+  if (redPerpetual && !blackPerpetual) return 'red';
+  if (blackPerpetual && !redPerpetual) return 'black';
+  return null;
+}
+
 function hasLegalMove(
   board: FortressXiangqiBoard,
   hands: FortressXiangqiHands,
