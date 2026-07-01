@@ -19,7 +19,7 @@ import { renderXiangqiPieceGlyphed, type XiangqiPieceSet } from './xiangqi-piece
 
 const CELL = 72;
 const MARGIN = 42;
-const PIECE_SIZE = 54;
+const DEFAULT_PIECE_SIZE = 54;
 const FILES = 7;
 const RANKS = 7;
 const WIDTH = MARGIN * 2 + (FILES - 1) * CELL;
@@ -36,6 +36,7 @@ export type MiniXiangqiBoardRenderOptions = {
   selectedSquare?: MiniXiangqiSquare | null;
   legalMoves?: readonly MiniXiangqiMove[];
   pieceSet?: XiangqiPieceSet;
+  pieceSize?: number;
   // While a piece is being dragged, render its origin as a dim source shadow.
   draggingFrom?: MiniXiangqiSquare | null;
 };
@@ -47,6 +48,7 @@ export function renderMiniXiangqiBoardSvg(
 ): string {
   const showFog = options.showFog ?? true;
   const pieceSet = options.pieceSet ?? readStoredXiangqiPieceSet();
+  const pieceSize = options.pieceSize ?? DEFAULT_PIECE_SIZE;
   // Globally-unique per render: the postgame triptych mounts three boards in one
   // document, and SVG `url(#id)` resolves the FIRST element with that id document-
   // wide. A shared id (same game id + same render orientation) made the black
@@ -64,7 +66,7 @@ export function renderMiniXiangqiBoardSvg(
       ${lastMoveMarkers(view, perspective)}
       ${selectionRing(options.selectedSquare ?? null, perspective)}
       ${options.interactive ? '' : moveHints(view, legalMoves, perspective)}
-      ${pieceLayer(view, perspective, pieceSet, options.draggingFrom ?? null)}
+      ${pieceLayer(view, perspective, pieceSet, options.draggingFrom ?? null, pieceSize)}
       ${options.interactive ? hitLayer(perspective, view, legalMoves) : ''}
     </svg>
   `;
@@ -72,7 +74,7 @@ export function renderMiniXiangqiBoardSvg(
 
 // On-board piece footprint in px — the drag ghost matches it so the dragged
 // piece tracks the cursor at board scale.
-export const MINI_XIANGQI_PIECE_PX = PIECE_SIZE;
+export const MINI_XIANGQI_PIECE_PX = DEFAULT_PIECE_SIZE;
 
 // A standalone <svg> for one piece, used as the floating drag ghost. Rendered at
 // the same glyph/size as on the board; the caller positions it under the cursor.
@@ -87,9 +89,9 @@ export function miniXiangqiPieceGhostSvg(
     shrouded: false,
     x: 0,
     y: 0,
-    size: PIECE_SIZE,
+    size: DEFAULT_PIECE_SIZE,
   });
-  return `<svg width="${PIECE_SIZE}" height="${PIECE_SIZE}" viewBox="0 0 ${PIECE_SIZE} ${PIECE_SIZE}" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">${inner}</svg>`;
+  return `<svg width="${DEFAULT_PIECE_SIZE}" height="${DEFAULT_PIECE_SIZE}" viewBox="0 0 ${DEFAULT_PIECE_SIZE} ${DEFAULT_PIECE_SIZE}" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">${inner}</svg>`;
 }
 
 // A full-information "truth" view: every piece revealed, every square visible.
@@ -169,6 +171,7 @@ function pieceLayer(
   perspective: MiniXiangqiColor,
   pieceSet: XiangqiPieceSet,
   draggingFrom: MiniXiangqiSquare | null = null,
+  pieceSize = DEFAULT_PIECE_SIZE,
 ): string {
   return Object.entries(view.board)
     .map(([square, entry]) => {
@@ -184,9 +187,9 @@ function pieceLayer(
         ariaLabel: entry.shrouded ? `${entry.color} hidden piece` : `${piece.color} ${piece.role}`,
         className: dragSource ? 'mini-xq-piece mini-xq-piece--drag-source' : 'mini-xq-piece',
         shrouded: entry.shrouded,
-        x: x - PIECE_SIZE / 2,
-        y: y - PIECE_SIZE / 2,
-        size: PIECE_SIZE,
+        x: x - pieceSize / 2,
+        y: y - pieceSize / 2,
+        size: pieceSize,
       });
     })
     .join('');

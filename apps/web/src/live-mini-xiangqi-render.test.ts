@@ -133,4 +133,12 @@ describe('Dark Mini Xiangqi board renderer', () => {
 
     expect(svg).toContain('mini-xq-piece mini-xq-piece--drag-source');
   });
+
+  it('allows non-interactive surfaces to opt into a larger piece footprint', () => {
+    const state = createInitialMiniXiangqiState('piece-size');
+    const view = getMiniXiangqiPlayerView(state, 'red');
+    const svg = renderMiniXiangqiBoardSvg(view, 'red', { pieceSize: 64 });
+
+    expect(svg).toContain('width="64" height="64"');
+  });
 });

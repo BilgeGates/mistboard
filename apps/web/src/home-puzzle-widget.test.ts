@@ -5,10 +5,12 @@ import {
 } from '@mistboard/game';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { buildHomePuzzleWidget, loadHomeDailyPuzzle } from './home-puzzle-widget.js';
+import { xiangqiAppearanceChangedEvent } from './theme.js';
 
 describe('home puzzle widget', () => {
   afterEach(() => {
     vi.unstubAllGlobals();
+    window.localStorage?.clear();
     document.body.innerHTML = '';
     document.head.innerHTML = '';
   });
@@ -33,7 +35,46 @@ describe('home puzzle widget', () => {
     expect(widget?.getAttribute('aria-label')).toBe(`Puzzle of the day: ${puzzle.title}`);
     expect(widget?.textContent).toContain('Red to move');
     expect(widget?.querySelector('.mini-xq-board')).not.toBeNull();
+    expect(widget?.querySelector('.mini-xq-piece')?.getAttribute('width')).toBe('64');
     expect(fetchSpy).toHaveBeenCalledTimes(1);
+  });
+
+  it('renders both public hands for a Drop Mini daily puzzle', async () => {
+    const puzzle = MINI_XIANGQI_PUZZLES.find(
+      (candidate) => candidate.id === 'drop-mini-xiangqi-red-chariot-drop-mate-1',
+    )!;
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => jsonResponse(dailyBody(puzzle))),
+    );
+
+    const widget = await buildHomePuzzleWidget();
+
+    expect(widget?.querySelector('.home-puzzle-widget-drop')).not.toBeNull();
+    expect(widget?.querySelectorAll('.home-puzzle-widget-hand')).toHaveLength(2);
+    expect(widget?.querySelector('[aria-label="Black reserve"]')).not.toBeNull();
+    const redReserve = widget?.querySelector('[aria-label="Red reserve"]');
+    expect(redReserve).not.toBeNull();
+    expect(redReserve?.querySelector('.drop-mini-reserve-piece')).not.toBeNull();
+    expect(widget?.querySelector('.mini-xq-board')).not.toBeNull();
+  });
+
+  it('repaints its inline pieces when the Xiangqi appearance picker changes', async () => {
+    const puzzle = MINI_XIANGQI_PUZZLES[0]!;
+    installMemoryLocalStorage();
+    setStoredXiangqiPieceSet('traditional');
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => jsonResponse(dailyBody(puzzle))),
+    );
+
+    const widget = await buildHomePuzzleWidget();
+    const traditionalMarkup = widget?.innerHTML;
+
+    setStoredXiangqiPieceSet('western');
+    window.dispatchEvent(new Event(xiangqiAppearanceChangedEvent));
+
+    expect(widget?.innerHTML).not.toBe(traditionalMarkup);
   });
 
   it('returns null when the daily puzzle endpoint is unavailable', async () => {
@@ -73,5 +114,31 @@ function jsonResponse(body: unknown, init: ResponseInit = {}): Response {
   return new Response(JSON.stringify(body), {
     headers: { 'content-type': 'application/json' },
     status: init.status ?? 200,
+  });
+}
+
+function setStoredXiangqiPieceSet(pieceSet: string): void {
+  window.localStorage.setItem('mistboard.xiangqiPieceSetVersion', '2');
+  window.localStorage.setItem('mistboard.xiangqiPieceSet', pieceSet);
+}
+
+function installMemoryLocalStorage(): void {
+  const values = new Map<string, string>();
+  Object.defineProperty(window, 'localStorage', {
+    configurable: true,
+    value: {
+      get length() {
+        return values.size;
+      },
+      clear: () => values.clear(),
+      getItem: (key: string) => values.get(key) ?? null,
+      key: (index: number) => Array.from(values.keys())[index] ?? null,
+      removeItem: (key: string) => {
+        values.delete(key);
+      },
+      setItem: (key: string, value: string) => {
+        values.set(key, String(value));
+      },
+    } as Storage,
   });
 }

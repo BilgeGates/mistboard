@@ -76,6 +76,29 @@
   height: auto;
 }
 
+.home-puzzle-widget-drop {
+  display: grid;
+  gap: 2px;
+  width: 100%;
+}
+
+.home-puzzle-widget .home-puzzle-widget-hand {
+  --drop-mini-hand-piece-size: clamp(24px, calc(100cqw * 48 / 516), 36px);
+  --drop-mini-hand-tile-size: calc(var(--drop-mini-hand-piece-size) + 6px);
+  --drop-mini-hand-band-height: calc(var(--drop-mini-hand-piece-size) + 14px);
+
+  padding: 4px 0;
+}
+
+.home-puzzle-widget-hand .drop-mini-reserve-row {
+  gap: 4px;
+}
+
+.home-puzzle-widget-hand .drop-mini-reserve-piece {
+  border-color: color-mix(in srgb, var(--site-border-soft) 64%, transparent);
+  background: color-mix(in srgb, var(--site-panel) 58%, transparent);
+}
+
 .home-puzzle-widget-title {
   overflow: hidden;
   color: var(--site-muted);

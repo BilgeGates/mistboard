@@ -1,17 +1,22 @@
 import {
   DROP_MINI_XIANGQI_SPEC_ID,
   type DropMiniXiangqiGameState,
+  type DropMiniXiangqiPlayerView,
   getDropMiniXiangqiPlayerView,
   getMiniXiangqiOpenPlayerView,
   MINI_XIANGQI_SPEC_ID,
   type MiniXiangqiColor,
   type MiniXiangqiGameState,
 } from '@mistboard/game';
-import { dropMiniXiangqiBoardView } from './drop-mini-xiangqi-view.js';
+import './drop-mini-xiangqi.css';
+import { dropMiniXiangqiBoardView, fillDropMiniXiangqiReserve } from './drop-mini-xiangqi-view.js';
 import {
   installMiniXiangqiBoardStyles,
   renderMiniXiangqiBoardSvg,
 } from './live-mini-xiangqi-render.js';
+import { xiangqiAppearanceChangedEvent } from './theme.js';
+
+const HOME_PUZZLE_PIECE_SIZE = 64;
 
 type HomeDailyPuzzle = {
   daily: {
@@ -59,39 +64,80 @@ export function renderHomePuzzleWidget(daily: HomeDailyPuzzle): HTMLElement {
   link.href = `/puzzles/${encodeURIComponent(puzzle.id)}`;
   link.setAttribute('aria-label', `Puzzle of the day: ${puzzle.title}`);
 
+  const paint = () => link.replaceChildren(...renderHomePuzzleWidgetContent(puzzle));
+  paint();
+  window.addEventListener(xiangqiAppearanceChangedEvent, paint);
+  return link;
+}
+
+function renderHomePuzzleWidgetContent(puzzle: HomeDailyPuzzle['puzzle']): HTMLElement[] {
   const title = document.createElement('span');
   title.className = 'home-puzzle-widget-title';
   title.textContent = `Puzzle of the day - ${variantLabel(puzzle.variant)}`;
-
-  const board = document.createElement('div');
-  board.className = 'home-puzzle-widget-board';
-  board.innerHTML = renderHomePuzzleBoard(puzzle);
 
   const turn = document.createElement('span');
   turn.className = 'home-puzzle-widget-turn';
   turn.textContent = `${colorLabel(puzzle.sideToMove)} to move`;
 
-  link.append(title, board, turn);
-  return link;
+  return [title, renderHomePuzzleBoard(puzzle), turn];
 }
 
-function renderHomePuzzleBoard(puzzle: HomeDailyPuzzle['puzzle']): string {
+function renderHomePuzzleBoard(puzzle: HomeDailyPuzzle['puzzle']): HTMLElement {
   const turn = puzzle.sideToMove ?? 'red';
   if (puzzle.variant === DROP_MINI_XIANGQI_SPEC_ID) {
     const dropView = getDropMiniXiangqiPlayerView(puzzle.initial as DropMiniXiangqiGameState, turn);
-    return renderMiniXiangqiBoardSvg(dropMiniXiangqiBoardView(dropView), turn, {
-      interactive: false,
-      showFog: false,
-    });
+    return renderDropHomePuzzleBoard(dropView, turn);
   }
-  return renderMiniXiangqiBoardSvg(
-    getMiniXiangqiOpenPlayerView(puzzle.initial as MiniXiangqiGameState, turn),
-    turn,
-    {
-      interactive: false,
-      showFog: false,
-    },
+  return homePuzzleBoardSurface(
+    renderMiniXiangqiBoardSvg(
+      getMiniXiangqiOpenPlayerView(puzzle.initial as MiniXiangqiGameState, turn),
+      turn,
+      {
+        interactive: false,
+        pieceSize: HOME_PUZZLE_PIECE_SIZE,
+        showFog: false,
+      },
+    ),
   );
+}
+
+function renderDropHomePuzzleBoard(
+  dropView: DropMiniXiangqiPlayerView,
+  perspective: MiniXiangqiColor,
+): HTMLElement {
+  const shell = document.createElement('div');
+  shell.className = 'home-puzzle-widget-drop drop-mini-reserve-container';
+
+  const topReserve = document.createElement('div');
+  topReserve.className = 'home-puzzle-widget-hand home-puzzle-widget-hand-top';
+  topReserve.setAttribute('aria-label', 'Black reserve');
+
+  const board = homePuzzleBoardSurface(
+    renderMiniXiangqiBoardSvg(dropMiniXiangqiBoardView(dropView), perspective, {
+      interactive: false,
+      pieceSize: HOME_PUZZLE_PIECE_SIZE,
+      showFog: false,
+    }),
+  );
+
+  const bottomReserve = document.createElement('div');
+  bottomReserve.className = 'home-puzzle-widget-hand home-puzzle-widget-hand-bottom';
+  bottomReserve.setAttribute('aria-label', 'Red reserve');
+
+  const bottom = perspective;
+  const top = bottom === 'red' ? 'black' : 'red';
+  fillDropMiniXiangqiReserve(topReserve, dropView, top);
+  fillDropMiniXiangqiReserve(bottomReserve, dropView, bottom);
+
+  shell.append(topReserve, board, bottomReserve);
+  return shell;
+}
+
+function homePuzzleBoardSurface(svg: string): HTMLElement {
+  const board = document.createElement('div');
+  board.className = 'home-puzzle-widget-board';
+  board.innerHTML = svg;
+  return board;
 }
 
 function isHomeDailyPuzzle(value: Partial<HomeDailyPuzzle>): value is HomeDailyPuzzle {
