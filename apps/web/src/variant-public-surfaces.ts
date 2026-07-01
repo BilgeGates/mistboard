@@ -1,7 +1,7 @@
 import { GAME_SPECS, type GameSpecId } from '@mistboard/game';
 
 // One public-surface switch per game spec. This controls discoverable UI:
-// rules rails/tiles, homepage article cards, homepage News, and /news entries.
+// rules rails/tiles, homepage article cards, homepage News, and /feed entries.
 // Direct URLs can stay reachable for review/backcompat; they are not listings.
 const VARIANT_PUBLIC_SURFACE_ENABLED = {
   'dark-chess': true,

@@ -1,4 +1,4 @@
-// Entries for the landing News box and the /news page.
+// Entries for the landing News box and the /feed page.
 //
 // Workflow: when shipping a user-facing change, append a new entry with
 // today's date. Newest first (both surfaces sort by date descending). Skip
@@ -12,7 +12,7 @@ export type Announcement = {
   headline: string;
   body?: string;
   href?: string;
-  cta?: string; // inline link label on /news; falls back to "Read more"
+  cta?: string; // inline link label on /feed; falls back to "Read more"
   showInHomeArticleWidget?: boolean;
 };
 

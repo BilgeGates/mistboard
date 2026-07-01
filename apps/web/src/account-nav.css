@@ -62,13 +62,14 @@
 
 .account-nav-trigger:hover,
 .account-nav-trigger:focus-visible,
-.account-nav-trigger.active,
 .account-nav.open .account-nav-trigger {
   background: var(--site-hover);
   color: var(--site-text);
 }
 
 .account-nav-trigger.active {
+  background: transparent;
+  color: var(--site-text);
   box-shadow: inset 0 -2px 0 var(--site-accent);
 }
 

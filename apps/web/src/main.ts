@@ -97,7 +97,7 @@ const wantsArticlesIndex =
   path === '/zh-hans/articles' ||
   path === '/zh-hant/articles' ||
   page === 'articles';
-const wantsNews = path === '/news' || page === 'news';
+const wantsNews = path === '/feed' || path === '/news' || page === 'feed' || page === 'news';
 const forumRedirectPostId = forumRedirectPostIdFromPath(path);
 const forumTopicId = forumTopicIdFromPath(path);
 const wantsForumReports = path === '/forum/reports';
@@ -306,7 +306,7 @@ if (replaySample) {
     ),
   );
 } else if (wantsNews) {
-  setTitleKey('news.heading');
+  setTitleKey('news.feedHeading');
   void mountOrReport(() => import('./pages-static.js').then(({ mountNews }) => mountNews(appRoot)));
 } else if (forumRedirectPostId) {
   setTitle('Forum');
@@ -358,7 +358,7 @@ if (replaySample) {
 } else if (wantsContact) {
   setTitleKey('contact.heading');
   void mountOrReport(() =>
-    import('./landing.js').then(({ mountContact }) => mountContact(appRoot)),
+    import('./pages-static.js').then(({ mountContact }) => mountContact(appRoot)),
   );
 } else if (wantsFaq) {
   setTitleKey('faq.heading');

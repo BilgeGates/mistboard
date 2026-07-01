@@ -6,7 +6,7 @@ import { buildSiteBox } from './site-box.js';
 import { rulesHrefPublicSurfaceEnabled } from './variant-public-surfaces.js';
 
 // All announcements render as one dated News feed box (lichess lobby__feed
-// grammar); the full history lives at /news.
+// grammar); the full history lives at /feed.
 const MAX_FEED_ROWS = 6;
 
 export function buildLandingAnnouncements(locale: Locale = currentLocale()): HTMLElement {
@@ -19,7 +19,7 @@ export function buildLandingAnnouncements(locale: Locale = currentLocale()): HTM
 
   const news = buildSiteBox({
     title: t('news.heading', {}, locale),
-    href: localizedHref('/news', locale),
+    href: localizedHref('/feed', locale),
     moreLabel: t('site.more', {}, locale),
     className: 'landing-news',
   });

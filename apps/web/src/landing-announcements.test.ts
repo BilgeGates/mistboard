@@ -49,7 +49,7 @@ describe('landing announcements', () => {
     expect(hrefs).not.toContain('/rules/kriegspiel');
   });
 
-  it('uses the same variant flag for the homepage News rail and /news archive', () => {
+  it('uses the same variant flag for the homepage News rail and /feed archive', () => {
     vi.stubEnv('DEV', false);
 
     expect(variantPublicSurfaceEnabled('reveal-chess')).toBe(false);
@@ -91,12 +91,12 @@ describe('landing announcements', () => {
     expect(hrefs).toContain('/?play=computer');
   });
 
-  it('links the News box header to /news', () => {
+  it('links the News box header to /feed', () => {
     const top = buildLandingAnnouncements().querySelector<HTMLAnchorElement>('a.site-box-top');
-    expect(top?.getAttribute('href')).toBe('/news');
+    expect(top?.getAttribute('href')).toBe('/feed');
   });
 
-  it('localizes the News rail and archive chrome', () => {
+  it('localizes the News rail and feed chrome', () => {
     vi.stubEnv('DEV', false);
 
     const landing = buildLandingAnnouncements('zh-Hant');
@@ -108,7 +108,7 @@ describe('landing announcements', () => {
     expect(top?.querySelector('.site-box-title')?.textContent).toBe('新聞');
     expect(top?.querySelector('.site-box-more')?.textContent).toBe('更多 »');
     expect(firstRow?.getAttribute('href')).toBe('/zh-hant/rules/jungle');
-    expect(news.querySelector('.site-section-heading')?.textContent).toBe('新聞');
+    expect(news.querySelector('.site-section-heading')?.textContent).toBe('Mistboard 更新');
     expect(news.querySelector('.news-page-intro')?.textContent).toBe(
       'Mistboard 的發布、狀態更新和公告。',
     );

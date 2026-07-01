@@ -2,8 +2,11 @@
 
 import './pages-static.css';
 
-import { t } from './i18n/catalog.js';
-import { currentLocale, LOCALE_META, type Locale } from './i18n/locale.js';
+import { loadCachedCurrentUser, readCachedUser } from './account-nav.js';
+import { buildContact } from './contact.js';
+import { type I18nKey, t } from './i18n/catalog.js';
+import { currentLocale, LOCALE_META, type Locale, localizedHref } from './i18n/locale.js';
+import { isLikelySignedIn } from './signed-in-state.js';
 import { buildNav, GITHUB_URL } from './site-shell.js';
 
 type PublicStatsMode = 'pvp' | 'pve' | 'eve';
@@ -23,6 +26,30 @@ type PublicSiteStats = {
   dailyCompletedGames: PublicStatsDay[];
 };
 
+type StaticPageKey = 'about' | 'news' | 'faq' | 'contact' | 'terms' | 'privacy' | 'source';
+
+type StaticRailLink = {
+  key?: StaticPageKey;
+  href: string;
+  labelKey: I18nKey;
+  external?: boolean;
+};
+
+const STATIC_RAIL_GROUPS: ReadonlyArray<ReadonlyArray<StaticRailLink>> = [
+  [
+    { key: 'about', href: '/about', labelKey: 'about.heading' },
+    { key: 'news', href: '/feed', labelKey: 'news.feedHeading' },
+    { key: 'faq', href: '/faq', labelKey: 'faq.heading' },
+    { key: 'contact', href: '/contact', labelKey: 'contact.heading' },
+    { key: 'terms', href: '/terms', labelKey: 'terms.heading' },
+    { key: 'privacy', href: '/privacy', labelKey: 'privacy.heading' },
+  ],
+  [
+    { key: 'source', href: '/source', labelKey: 'footer.source' },
+    { href: GITHUB_URL, labelKey: 'footer.github', external: true },
+  ],
+];
+
 const publicStatsModes: Array<{
   key: PublicStatsMode;
   labelKey: 'about.modePve' | 'about.modePvp';
@@ -35,35 +62,35 @@ export function mountAbout(root: HTMLElement): void {
   const locale = currentLocale();
   root.replaceChildren();
   root.classList.add('landing-page', 'about-route');
-  root.append(buildNav(locale), buildAbout(locale));
+  root.append(buildNav(locale), buildStaticPageLayout('about', buildAbout(locale), locale));
 }
 
 export function mountSource(root: HTMLElement): void {
   const locale = currentLocale();
   root.replaceChildren();
   root.classList.add('landing-page', 'source-route');
-  root.append(buildNav(locale), buildSource(locale));
+  root.append(buildNav(locale), buildStaticPageLayout('source', buildSource(locale), locale));
 }
 
 export function mountFaq(root: HTMLElement): void {
   const locale = currentLocale();
   root.replaceChildren();
   root.classList.add('landing-page', 'faq-route');
-  root.append(buildNav(locale), buildFaq(locale));
+  root.append(buildNav(locale), buildStaticPageLayout('faq', buildFaq(locale), locale));
 }
 
 export function mountTerms(root: HTMLElement): void {
   const locale = currentLocale();
   root.replaceChildren();
   root.classList.add('landing-page', 'terms-route');
-  root.append(buildNav(locale), buildTerms(locale));
+  root.append(buildNav(locale), buildStaticPageLayout('terms', buildTerms(locale), locale));
 }
 
 export function mountPrivacy(root: HTMLElement): void {
   const locale = currentLocale();
   root.replaceChildren();
   root.classList.add('landing-page', 'privacy-route');
-  root.append(buildNav(locale), buildPrivacy(locale));
+  root.append(buildNav(locale), buildStaticPageLayout('privacy', buildPrivacy(locale), locale));
 }
 
 export function mountNotFound(root: HTMLElement): void {
@@ -74,10 +101,23 @@ export function mountNotFound(root: HTMLElement): void {
 }
 
 export async function mountNews(root: HTMLElement): Promise<void> {
+  const locale = currentLocale();
   root.replaceChildren();
   root.classList.add('landing-page', 'news-route');
   const { buildNewsPage } = await import('./news-page.js');
-  root.append(buildNav(), buildNewsPage());
+  root.append(buildNav(locale), buildStaticPageLayout('news', buildNewsPage(locale), locale));
+}
+
+export function mountContact(root: HTMLElement): void {
+  const locale = currentLocale();
+  root.replaceChildren();
+  root.classList.add('landing-page', 'contact-route');
+  const cachedUser = readCachedUser();
+  const contact = buildContact(cachedUser, isLikelySignedIn(), locale);
+  root.append(buildNav(locale), buildStaticPageLayout('contact', contact.el, locale));
+  void loadCachedCurrentUser()
+    .then((user) => contact.applyAuth(user))
+    .catch(() => contact.applyAuth(null));
 }
 
 export async function mountArticlesIndex(
@@ -141,6 +181,55 @@ export async function mountArticle(
   mountArticleEnhancements(articlePage);
   // The variant rail carries board-kind thumbnails that mount like index cards.
   mountArticleThumbnails(articlePage);
+}
+
+function buildStaticPageLayout(
+  activeKey: StaticPageKey,
+  content: HTMLElement,
+  locale: Locale = currentLocale(),
+): HTMLElement {
+  const layout = document.createElement('div');
+  layout.className = 'static-page-layout';
+  layout.append(buildStaticPageRail(activeKey, locale), content);
+  return layout;
+}
+
+function buildStaticPageRail(
+  activeKey: StaticPageKey,
+  locale: Locale = currentLocale(),
+): HTMLElement {
+  const aside = document.createElement('aside');
+  aside.className = 'static-page-rail';
+
+  const nav = document.createElement('nav');
+  nav.className = 'static-page-rail-nav';
+  nav.setAttribute('aria-label', t('footer.about', {}, locale));
+
+  for (const group of STATIC_RAIL_GROUPS) {
+    const list = document.createElement('ul');
+    list.className = 'static-page-rail-group';
+    for (const item of group) {
+      const row = document.createElement('li');
+      const link = document.createElement('a');
+      link.className = 'static-page-rail-link';
+      link.href = item.external ? item.href : localizedHref(item.href, locale);
+      link.textContent = t(item.labelKey, {}, locale);
+      if (item.external) {
+        link.target = '_blank';
+        link.rel = 'noreferrer noopener';
+      }
+      if (item.key === activeKey) {
+        link.classList.add('active');
+        link.setAttribute('aria-current', 'page');
+      }
+      row.append(link);
+      list.append(row);
+    }
+    nav.append(list);
+  }
+
+  aside.append(nav);
+  return aside;
 }
 
 function buildAbout(locale: Locale = currentLocale()): HTMLElement {

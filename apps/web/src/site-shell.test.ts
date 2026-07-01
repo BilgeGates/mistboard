@@ -70,13 +70,10 @@ describe('site shell nav', () => {
   it('localizes homepage footer labels and content links', () => {
     const footer = buildHomeFooter('zh-Hant');
 
-    expect(footer.querySelector<HTMLAnchorElement>('a[href="/zh-hant/rules"]')?.textContent).toBe(
-      '規則',
-    );
-    expect(
-      footer.querySelector<HTMLAnchorElement>('a[href="/zh-hant/articles"]')?.textContent,
-    ).toBe('文章');
-    expect(footer.querySelector<HTMLAnchorElement>('a[href="/news"]')?.textContent).toBe('新聞');
+    expect(footer.querySelector<HTMLAnchorElement>('a[href="/zh-hant/rules"]')).toBeNull();
+    expect(footer.querySelector<HTMLAnchorElement>('a[href="/zh-hant/articles"]')).toBeNull();
+    expect(footer.querySelector<HTMLAnchorElement>('a[href="/feed"]')).toBeNull();
+    expect(footer.querySelector<HTMLAnchorElement>('a[href="/about"]')?.textContent).toBe('關於');
     expect(footer.querySelector<HTMLAnchorElement>('a[href="/contact"]')?.textContent).toBe('聯絡');
     expect(footer.querySelector<HTMLAnchorElement>('a[href="/privacy"]')?.textContent).toBe('隱私');
   });

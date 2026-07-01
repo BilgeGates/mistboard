@@ -1,4 +1,4 @@
-// /news: the full announcement history as a dated feed, the landing rail's
+// /feed: the full announcement history as a dated feed, the landing rail's
 // News box "More" target. Mirrors lichess's updates-feed page shape: one
 // entry per update with date, headline, and the short body line.
 import './news-page.css';
@@ -14,7 +14,7 @@ export function buildNewsPage(locale: Locale = currentLocale()): HTMLElement {
 
   const heading = document.createElement('h1');
   heading.className = 'site-section-heading';
-  heading.textContent = t('news.heading', {}, locale);
+  heading.textContent = t('news.feedHeading', {}, locale);
   section.append(heading);
 
   const intro = document.createElement('p');

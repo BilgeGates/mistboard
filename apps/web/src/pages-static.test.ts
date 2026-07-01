@@ -1,7 +1,9 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   mountAbout,
+  mountContact,
   mountFaq,
+  mountNews,
   mountNotFound,
   mountPrivacy,
   mountSource,
@@ -49,6 +51,33 @@ describe('about page platform activity', () => {
     mountAbout(root);
 
     expect(root.textContent).toContain('Loading activity totals...');
+    expect(root.querySelector('.static-page-rail')).not.toBeNull();
+    expect(
+      root.querySelector<HTMLAnchorElement>('.static-page-rail-link.active')?.textContent,
+    ).toBe('About Mistboard');
+    expect(
+      root
+        .querySelector<HTMLAnchorElement>('.static-page-rail-link.active')
+        ?.getAttribute('aria-current'),
+    ).toBe('page');
+    expect(
+      Array.from(root.querySelectorAll<HTMLAnchorElement>('.static-page-rail-link')).map(
+        (link) => link.textContent,
+      ),
+    ).toEqual([
+      'About Mistboard',
+      'Mistboard updates',
+      'FAQ',
+      'Contact',
+      'Terms of Use',
+      'Privacy',
+      'Source',
+      'GitHub',
+    ]);
+    const githubLink = root.querySelector<HTMLAnchorElement>(
+      'a[href="https://github.com/brianhliou/mistboard"]',
+    );
+    expect(githubLink?.target).toBe('_blank');
     await flushPromises();
 
     expect(fetchMock).toHaveBeenCalledWith('/api/stats/public', { credentials: 'same-origin' });
@@ -141,10 +170,44 @@ describe('about page platform activity', () => {
     mountSource(root);
 
     expect(root.querySelector('h1')?.textContent).toBe('原始碼和授權');
+    expect(root.querySelector('.static-page-rail-link.active')?.textContent).toBe('原始碼');
     expect(root.textContent).toContain('專案原始碼');
     expect(root.textContent).toContain('GitHub 儲存庫');
     expect(root.textContent).toContain('第三方元件');
     expect(root.textContent).toContain('專案身份');
+  });
+
+  it('renders feed and contact inside the static rail', async () => {
+    window.history.replaceState(null, '', '/feed');
+
+    const newsRoot = document.createElement('main');
+    document.body.append(newsRoot);
+    await mountNews(newsRoot);
+
+    expect(newsRoot.querySelector('h1')?.textContent).toBe('Mistboard updates');
+    expect(newsRoot.querySelector('.news-page-list')).not.toBeNull();
+    expect(newsRoot.querySelector('.static-page-rail-link.active')?.textContent).toBe(
+      'Mistboard updates',
+    );
+    expect(
+      newsRoot
+        .querySelector<HTMLAnchorElement>('.static-page-rail-link.active')
+        ?.getAttribute('href'),
+    ).toBe('/feed');
+
+    const fetchMock = vi.fn(async () => ({ ok: false }));
+    vi.stubGlobal('fetch', fetchMock);
+    window.history.replaceState(null, '', '/contact');
+
+    const contactRoot = document.createElement('main');
+    document.body.append(contactRoot);
+    mountContact(contactRoot);
+    await flushPromises();
+
+    expect(contactRoot.querySelector('h1')?.textContent).toBe('Contact');
+    expect(contactRoot.querySelector('form.contact-form')).not.toBeNull();
+    expect(contactRoot.querySelector('.static-page-rail-link.active')?.textContent).toBe('Contact');
+    expect(fetchMock).toHaveBeenCalledWith('/api/auth/me', { credentials: 'same-origin' });
   });
 
   it('localizes Traditional Chinese FAQ page chrome', () => {

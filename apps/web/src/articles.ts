@@ -427,7 +427,7 @@ function landingAnnouncementCard(announcement: Announcement, locale: Locale): HT
   const link = document.createElement('a');
   link.className = 'landing-article-card landing-announcement-card';
   link.dataset.cardKind = 'announcement';
-  const href = announcement.href ?? '/news';
+  const href = announcement.href ?? '/feed';
   link.href = /^https?:/.test(href) ? href : localizedHref(href, locale);
   if (/^https?:/.test(href)) {
     link.target = '_blank';

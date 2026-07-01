@@ -2,6 +2,10 @@
   max-width: 600px;
 }
 
+.static-page-layout .contact-section {
+  max-width: 640px;
+}
+
 .contact-section p {
   margin: 0 0 14px;
   color: var(--site-text);

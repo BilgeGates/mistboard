@@ -2,9 +2,7 @@ import type { GameEvent } from '@mistboard/game';
 import './landing-play.css';
 import './landing.css';
 import './game-route.css';
-import { loadCachedCurrentUser, readCachedUser } from './account-nav.js';
 import { buildHomeArticleCards, initLandingCarousel, mountArticleThumbnails } from './articles.js';
-import { buildContact } from './contact.js';
 import { displayParticipantName, type FeaturedGame } from './game-display.js';
 import { gameMetaForGame } from './game-meta.js';
 import { t } from './i18n/catalog.js';
@@ -27,7 +25,6 @@ import { enginePanelsForReview, loadGameForReview } from './review.js';
 import { roomIdFromPath } from './room-url.js';
 import { mountShowcaseCycler, type ShowcaseEntry } from './showcase-cycler.js';
 import { specIdForShowcaseVariant } from './showcase-dispatch.js';
-import { isLikelySignedIn } from './signed-in-state.js';
 import { buildHomeFooter, buildNav, buildNotice } from './site-shell.js';
 import { type WebVariantTenant, webVariantTenantForRoomId } from './variant-tenant/registry.js';
 
@@ -429,22 +426,6 @@ function syncGamePlyUrl(ply: number): void {
     url.searchParams.set('ply', String(ply));
   }
   window.history.replaceState(null, '', `${url.pathname}${url.search}${url.hash}`);
-}
-
-export function mountContact(root: HTMLElement): void {
-  root.replaceChildren();
-  root.classList.add('landing-page', 'contact-route');
-  // Synchronous best-guess from localStorage so the lane shape and text are
-  // right on first paint for returning signed-in users. The full user object
-  // is cached when present (handle, email) so we can render the real banner
-  // immediately; the boolean hint is a fallback for stale-cache cases.
-  // Reconciled below with the authoritative cached /api/auth/me result.
-  const cachedUser = readCachedUser();
-  const contact = buildContact(cachedUser, isLikelySignedIn());
-  root.append(buildNav(), contact.el);
-  void loadCachedCurrentUser()
-    .then((user) => contact.applyAuth(user))
-    .catch(() => contact.applyAuth(null));
 }
 
 function buildLandingStage(
