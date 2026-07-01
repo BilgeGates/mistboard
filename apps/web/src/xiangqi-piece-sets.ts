@@ -213,8 +213,12 @@ function isAnimalPieceSet(set: XiangqiPieceSet): set is AnimalXiangqiPieceSet {
   return set === 'animal-dobutsu';
 }
 
+// ?v bump: the animal art files are swapped in place (stable URLs), so a version
+// query is needed to bust CDN/browser caches when the art changes (e.g. the v2
+// dobutsu-minimal swap). Bump on every animal-art change.
+const ANIMAL_ART_VERSION = 2;
 function animalPieceHref(piece: XiangqiPiece, set: AnimalXiangqiPieceSet): string {
-  return `/piece-sets/xiangqi/${set}/${piece.color}-${piece.role}.png`;
+  return `/piece-sets/xiangqi/${set}/${piece.color}-${piece.role}.png?v=${ANIMAL_ART_VERSION}`;
 }
 
 // Stroked line-art icons (the "Symbols" diagram set). One consistent visual style:
