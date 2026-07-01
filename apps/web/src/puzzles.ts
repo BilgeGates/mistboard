@@ -1,4 +1,6 @@
 import {
+  applyDropMiniXiangqiMove,
+  applyMiniXiangqiOpenMove,
   DROP_MINI_XIANGQI_DROP_ROLES,
   DROP_MINI_XIANGQI_SPEC_ID,
   type DropMiniXiangqiDropRole,
@@ -11,6 +13,7 @@ import {
   type MiniXiangqiGameState,
   type MiniXiangqiMove,
   type MiniXiangqiSquare,
+  oppositeMiniXiangqiColor,
 } from '@mistboard/game';
 import './drop-mini-xiangqi.css';
 import './puzzles.css';
@@ -29,11 +32,12 @@ import {
 } from './live-mini-xiangqi-render.js';
 import { buildNav } from './site-shell.js';
 import { setBoardFamily } from './theme.js';
+import { renderVariantMiniBoard, type VariantMiniId } from './variant-mini-boards.js';
 import { installBoardDrag } from './variant-tenant/board-drag.js';
 import { installHandDrag } from './variant-tenant/hand-drag.js';
 
 type PuzzleVariant = typeof MINI_XIANGQI_SPEC_ID | typeof DROP_MINI_XIANGQI_SPEC_ID;
-type PuzzleVariantFilter = 'all' | PuzzleVariant;
+type PuzzleVariantFilter = PuzzleVariant;
 type PuzzleMove = MiniXiangqiMove | DropMiniXiangqiMove;
 
 type PuzzleSummary = {
@@ -84,6 +88,7 @@ type PuzzleSession = {
   state: PuzzleState;
   playedMoves: PuzzleMove[];
   solverMoves: PuzzleMove[];
+  viewPly: number;
   selectedSquare: MiniXiangqiSquare | null;
   selectedDrop: DropMiniXiangqiDropRole | null;
   draggingFrom: MiniXiangqiSquare | null;
@@ -104,7 +109,6 @@ const SOLVED_PUZZLES_STORAGE_KEY = 'mistboard:puzzles:solved';
 const AUTO_NEXT_STORAGE_KEY = 'mistboard:puzzles:auto-next';
 const AUTO_NEXT_DELAY_MS = 150;
 const PUZZLE_VARIANT_FILTERS: readonly PuzzleVariantFilter[] = [
-  'all',
   MINI_XIANGQI_SPEC_ID,
   DROP_MINI_XIANGQI_SPEC_ID,
 ];
@@ -138,7 +142,7 @@ export async function mountPuzzles(
 
   let summaries: PuzzleSummary[] = [];
   let selectedId = initialPuzzleId;
-  let variantFilter: PuzzleVariantFilter = 'all';
+  let variantFilter: PuzzleVariantFilter = MINI_XIANGQI_SPEC_ID;
   let session: PuzzleSession | null = null;
   const solvedIds = loadSolvedPuzzleIds();
   let autoNext = loadAutoNextEnabled();
@@ -150,7 +154,6 @@ export async function mountPuzzles(
   const renderControls = (): void => {
     renderQueuePanel(
       controls,
-      summaries,
       queueSummaries(),
       selectedId,
       solvedIds,
@@ -245,6 +248,9 @@ export async function mountPuzzles(
   summaries = await fetchPuzzleList();
   const directSummary = selectedId ? summaries.find((puzzle) => puzzle.id === selectedId) : null;
   if (directSummary) variantFilter = directSummary.variant;
+  else if (!summaries.some((puzzle) => puzzle.variant === variantFilter) && summaries[0]) {
+    variantFilter = summaries[0].variant;
+  }
   renderControls();
 
   const queue = queueSummaries();
@@ -270,6 +276,7 @@ function createPuzzleSession(puzzle: PuzzleDetail): PuzzleSession {
     state: clonePuzzleState(puzzle.initial),
     playedMoves: [],
     solverMoves: [],
+    viewPly: 0,
     selectedSquare: null,
     selectedDrop: null,
     draggingFrom: null,
@@ -280,7 +287,6 @@ function createPuzzleSession(puzzle: PuzzleDetail): PuzzleSession {
 
 function renderQueuePanel(
   host: HTMLElement,
-  allPuzzles: readonly PuzzleSummary[],
   queue: readonly PuzzleSummary[],
   selectedId: string | null,
   solvedIds: ReadonlySet<string>,
@@ -290,9 +296,70 @@ function renderQueuePanel(
   onAutoNextChange: (enabled: boolean) => void,
 ): void {
   host.replaceChildren();
-  const title = document.createElement('h2');
-  title.textContent = 'Puzzle set';
 
+  const currentIndex = Math.max(
+    0,
+    queue.findIndex((puzzle) => puzzle.id === selectedId),
+  );
+  const current = queue[currentIndex] ?? null;
+  const solvedCount = queue.filter((puzzle) => solvedIds.has(puzzle.id)).length;
+
+  const infoCard = document.createElement('section');
+  infoCard.className = 'puzzle-left-card puzzle-current-card puzzle-info-card';
+  if (current) {
+    infoCard.append(
+      puzzleInfoRow('target', [
+        puzzleInfoLine(`Puzzle ${puzzleNumberLabel(currentIndex)}`),
+        puzzleInfoLine('Rating: hidden'),
+        puzzleInfoLine(solvedIds.has(current.id) ? 'Solved' : 'Played locally'),
+      ]),
+      puzzleInfoDivider(),
+      puzzleInfoRow(
+        'variant',
+        [
+          puzzleInfoLine(`From set ${variantLabel(current.variant)}`),
+          puzzleInfoLine(`${goalLabel(current)} | ${colorLabel(current.sideToMove)} to move`),
+        ],
+        current.variant,
+      ),
+    );
+  } else {
+    const empty = document.createElement('p');
+    empty.className = 'puzzle-card-empty';
+    empty.textContent = 'No puzzles for this variant.';
+    infoCard.append(empty);
+  }
+
+  const ratingCard = document.createElement('section');
+  ratingCard.className = 'puzzle-left-card puzzle-rating-card';
+  const ratingLabel = document.createElement('p');
+  ratingLabel.textContent = 'Your puzzle rating:';
+  const ratingValue = document.createElement('strong');
+  ratingValue.textContent = 'Unrated';
+  const ratingMeta = document.createElement('span');
+  ratingMeta.textContent = `${solvedCount} solved of ${queue.length}`;
+  ratingCard.append(ratingLabel, ratingValue, ratingMeta);
+
+  const themesCard = document.createElement('section');
+  themesCard.className = 'puzzle-left-card puzzle-theme-card';
+  const themesTitle = document.createElement('h2');
+  themesTitle.textContent = 'Puzzle themes';
+  const themesCopy = document.createElement('p');
+  themesCopy.textContent = 'Forcing lines grouped by mate pattern, piece, and variant.';
+  themesCard.append(themesTitle);
+  if (current) {
+    themesCard.append(themesCopy, tagsPanel(current));
+  } else {
+    const empty = document.createElement('p');
+    empty.className = 'puzzle-card-empty';
+    empty.textContent = 'No themes';
+    themesCard.append(empty);
+  }
+
+  const settingsCard = document.createElement('section');
+  settingsCard.className = 'puzzle-left-card puzzle-settings-card';
+  const settingsTitle = document.createElement('h2');
+  settingsTitle.textContent = 'Settings';
   const form = document.createElement('div');
   form.className = 'puzzle-settings';
   const field = document.createElement('label');
@@ -305,7 +372,7 @@ function renderQueuePanel(
   for (const filter of PUZZLE_VARIANT_FILTERS) {
     const option = document.createElement('option');
     option.value = filter;
-    option.textContent = variantFilterLabel(filter, allPuzzles);
+    option.textContent = variantFilterLabel(filter);
     select.append(option);
   }
   select.value = variantFilter;
@@ -323,38 +390,60 @@ function renderQueuePanel(
   autoNextInput.addEventListener('change', () => {
     onAutoNextChange(autoNextInput.checked);
   });
+  const autoNextSwitch = document.createElement('span');
+  autoNextSwitch.className = 'puzzle-toggle-switch';
+  autoNextSwitch.setAttribute('aria-hidden', 'true');
   const autoNextLabel = document.createElement('span');
+  autoNextLabel.className = 'puzzle-toggle-label';
   autoNextLabel.textContent = 'Jump to next puzzle immediately';
-  autoNextToggle.append(autoNextInput, autoNextLabel);
+  autoNextToggle.append(autoNextInput, autoNextSwitch, autoNextLabel);
   form.append(autoNextToggle);
+  settingsCard.append(settingsTitle, form);
 
-  const currentIndex = Math.max(
-    0,
-    queue.findIndex((puzzle) => puzzle.id === selectedId),
-  );
-  const current = queue[currentIndex] ?? null;
-  const solvedCount = queue.filter((puzzle) => solvedIds.has(puzzle.id)).length;
+  host.append(infoCard, ratingCard, themesCard, settingsCard);
+}
 
-  const progress = document.createElement('div');
-  progress.className = 'puzzle-progress-grid';
-  progress.append(statRow('Solved', `${solvedCount}`));
+function puzzleInfoRow(
+  icon: 'target' | 'variant',
+  lines: readonly HTMLElement[],
+  variant?: PuzzleVariant,
+): HTMLElement {
+  const row = document.createElement('div');
+  row.className = 'puzzle-info-row';
+  const iconEl = document.createElement('span');
+  iconEl.className = `puzzle-info-icon puzzle-info-icon--${icon}`;
+  iconEl.setAttribute('aria-hidden', 'true');
+  iconEl.innerHTML =
+    icon === 'target'
+      ? targetAvatarSvg()
+      : variant
+        ? renderVariantMiniBoard(variantMiniIdForPuzzle(variant), {
+            size: 54,
+            label: `${variantLabel(variant)} marker`,
+            className: 'puzzle-variant-mini',
+          })
+        : '';
+  const copy = document.createElement('div');
+  copy.className = 'puzzle-info-copy';
+  copy.append(...lines);
+  row.append(iconEl, copy);
+  return row;
+}
 
-  const currentCard = document.createElement('div');
-  currentCard.className = 'puzzle-current-card';
-  if (current) {
-    const currentTitle = document.createElement('strong');
-    currentTitle.className = 'puzzle-current-title';
-    currentTitle.textContent = current.title;
-    const meta = document.createElement('div');
-    meta.className = 'puzzle-list-meta';
-    meta.append(metaChip(variantLabel(current.variant)), metaChip(goalLabel(current)));
-    if (solvedIds.has(current.id)) meta.append(metaChip('Solved'));
-    currentCard.append(currentTitle, meta);
-  } else {
-    currentCard.textContent = 'No puzzles for this variant.';
-  }
+function puzzleInfoLine(text: string): HTMLSpanElement {
+  const line = document.createElement('span');
+  line.textContent = text;
+  return line;
+}
 
-  host.append(title, form, progress, currentCard);
+function puzzleInfoDivider(): HTMLHRElement {
+  const divider = document.createElement('hr');
+  divider.className = 'puzzle-info-divider';
+  return divider;
+}
+
+function puzzleNumberLabel(index: number): string {
+  return `#${String(index + 1).padStart(3, '0')}`;
 }
 
 function renderPuzzleDetail(
@@ -366,7 +455,6 @@ function renderPuzzleDetail(
   cancelAutoNext: () => void,
 ): void {
   host.replaceChildren();
-  const puzzle = session.puzzle;
 
   const boardPanel = document.createElement('div');
   boardPanel.className = 'puzzle-board-panel';
@@ -375,7 +463,8 @@ function renderPuzzleDetail(
   const side = document.createElement('aside');
   side.className = 'puzzle-side-panel';
 
-  const { boardView, dropView } = puzzleViews(session);
+  const displayState = puzzleReplayState(session);
+  const { boardView, dropView } = puzzleViews(session, displayState);
   const boardTarget = dropView
     ? renderPuzzleBoardShell(board, session, dropView, renderSession, onSolved)
     : board;
@@ -391,11 +480,12 @@ function renderPuzzleDetail(
     board: boardTarget,
     ghostSizePx: MINI_XIANGQI_PIECE_PX,
     onSquareClick: (square) => {
+      if (!isReplayLive(session)) return;
       void handleBoardClick(session, square as MiniXiangqiSquare, renderSession, onSolved);
     },
     canDragFrom: (square) => canDragBoardPiece(session, square as MiniXiangqiSquare),
     ghostHtml: (square) => {
-      const entry = puzzleViews(session).boardView.board[square as MiniXiangqiSquare];
+      const entry = boardView.board[square as MiniXiangqiSquare];
       if (!entry || entry.shrouded !== false) return null;
       return miniXiangqiPieceGhostSvg(entry.piece);
     },
@@ -418,14 +508,8 @@ function renderPuzzleDetail(
 
   const trainer = document.createElement('div');
   trainer.className = 'puzzle-trainer-panel';
-  trainer.append(
-    headingPanel(puzzle),
-    moveListPanel(session),
-    feedbackPanel(session),
-    actionPanel(session, renderSession, navigation, cancelAutoNext),
-  );
-  side.append(trainer, statsPanel(session));
-  side.append(tagsPanel(puzzle));
+  trainer.append(moveListPanel(session), feedbackPanel(session, navigation));
+  side.append(trainer, actionPanel(session, renderSession, cancelAutoNext));
   boardPanel.append(board, side);
   host.append(boardPanel);
 }
@@ -458,82 +542,111 @@ function renderPuzzleBoardShell(
   return boardSurface;
 }
 
-function headingPanel(puzzle: PuzzleDetail): HTMLElement {
-  const heading = document.createElement('div');
-  heading.className = 'puzzle-detail-heading';
-  const title = document.createElement('h2');
-  title.textContent = puzzle.title;
-  const meta = document.createElement('div');
-  meta.className = 'puzzle-detail-meta';
-  meta.append(
-    metaChip(variantLabel(puzzle.variant)),
-    metaChip(goalLabel(puzzle)),
-    metaChip(`${colorLabel(puzzle.sideToMove)} to move`),
-  );
-  heading.append(title, meta);
-  return heading;
-}
+function feedbackPanel(session: PuzzleSession, navigation: PuzzleNavigation): HTMLElement {
+  if (isSessionSolved(session)) return solvedPanel(navigation);
 
-function feedbackPanel(session: PuzzleSession): HTMLElement {
   const panel = document.createElement('div');
   panel.className = `puzzle-feedback puzzle-feedback--${session.feedback.kind}`;
-  const title = document.createElement('strong');
+  const icon = document.createElement('span');
+  icon.className = 'puzzle-feedback-icon';
+  icon.textContent = '♔';
+  icon.setAttribute('aria-hidden', 'true');
+  const copy = document.createElement('div');
+  copy.className = 'puzzle-feedback-copy';
+  const title = document.createElement('h2');
   title.className = 'puzzle-feedback-title';
-  title.textContent = feedbackTitle(session.feedback.kind);
+  title.textContent = feedbackTitle(session);
   const body = document.createElement('span');
   body.className = 'puzzle-feedback-body';
   body.textContent = session.feedback.text;
-  panel.append(title, body);
+  copy.append(title, body);
+  panel.append(icon, copy);
   return panel;
+}
+
+function solvedPanel(navigation: PuzzleNavigation): HTMLElement {
+  const panel = document.createElement('div');
+  panel.className = 'puzzle-solved-panel';
+  const title = document.createElement('h2');
+  title.textContent = 'Success!';
+  const prompt = document.createElement('p');
+  prompt.textContent = 'Did you like this puzzle? Vote to load the next one!';
+  const votes = document.createElement('div');
+  votes.className = 'puzzle-vote-actions';
+  const up = puzzleVoteButton('up', navigation);
+  const down = puzzleVoteButton('down', navigation);
+  votes.append(up, down);
+  const footer = document.createElement('div');
+  footer.className = 'puzzle-solved-footer';
+  const icon = document.createElement('span');
+  icon.className = 'puzzle-solved-footer-icon';
+  icon.setAttribute('aria-hidden', 'true');
+  icon.innerHTML = targetAvatarSvg();
+  const next = document.createElement('button');
+  next.type = 'button';
+  next.className = 'puzzle-continue-button';
+  next.dataset.puzzleNext = 'true';
+  next.textContent = 'Continue training';
+  next.setAttribute('aria-label', 'Next puzzle');
+  next.disabled = !navigation.hasNext;
+  next.addEventListener('click', navigation.goNext);
+  footer.append(icon, next);
+  panel.append(title, prompt, votes, footer);
+  return panel;
+}
+
+function puzzleVoteButton(kind: 'up' | 'down', navigation: PuzzleNavigation): HTMLButtonElement {
+  const button = document.createElement('button');
+  button.type = 'button';
+  button.className = `puzzle-vote-button puzzle-vote-button--${kind}`;
+  button.setAttribute(
+    'aria-label',
+    kind === 'up' ? 'Puzzle was helpful' : 'Puzzle was not helpful',
+  );
+  button.innerHTML = kind === 'up' ? THUMB_UP_SVG : THUMB_DOWN_SVG;
+  button.disabled = !navigation.hasNext;
+  button.addEventListener('click', navigation.goNext);
+  return button;
 }
 
 function moveListPanel(session: PuzzleSession): HTMLElement {
   const panel = document.createElement('div');
   panel.className = 'puzzle-moves';
-  const title = document.createElement('h3');
-  title.textContent = 'Moves';
   const list = document.createElement('ol');
   list.className = 'puzzle-move-list';
-  if (session.playedMoves.length === 0) {
-    const empty = document.createElement('li');
-    empty.className = 'puzzle-move-empty';
-    empty.textContent = '...';
-    list.append(empty);
-  } else {
-    session.playedMoves.forEach((move, index) => {
-      const item = document.createElement('li');
-      item.className = 'puzzle-move-item';
-      const ply = document.createElement('span');
-      ply.textContent = `${index + 1}.`;
-      const label = document.createElement('strong');
-      label.textContent = puzzleMoveLabel(move);
-      item.append(ply, label);
-      list.append(item);
-    });
+  const rows = puzzleMoveRows(session);
+  for (const row of rows) {
+    list.append(row);
   }
-  panel.append(title, list);
+  panel.append(list);
   return panel;
 }
 
 function actionPanel(
   session: PuzzleSession,
   renderSession: () => void,
-  navigation: PuzzleNavigation,
   cancelAutoNext: () => void,
 ): HTMLElement {
   const panel = document.createElement('div');
   panel.className = 'puzzle-actions';
   const previous = document.createElement('button');
   previous.type = 'button';
-  previous.className = 'puzzle-button puzzle-button--secondary';
-  previous.dataset.puzzlePrevious = 'true';
-  previous.textContent = 'Previous';
-  previous.disabled = !navigation.hasPrevious || session.submitting;
-  previous.addEventListener('click', navigation.goPrevious);
+  previous.className = 'puzzle-button';
+  previous.dataset.puzzleReplayPrevious = 'true';
+  previous.innerHTML = ICON_PREV;
+  previous.setAttribute('aria-label', 'Previous move');
+  previous.title = 'Previous move';
+  previous.disabled = session.viewPly <= 0 || session.submitting;
+  previous.addEventListener('click', () => {
+    session.viewPly = Math.max(0, session.viewPly - 1);
+    renderSession();
+  });
   const reset = document.createElement('button');
   reset.type = 'button';
   reset.className = 'puzzle-button';
-  reset.textContent = 'Reset';
+  reset.textContent = '↺';
+  reset.setAttribute('aria-label', 'Reset puzzle');
+  reset.title = 'Reset puzzle';
   reset.disabled = session.submitting;
   reset.addEventListener('click', () => {
     cancelAutoNext();
@@ -542,30 +655,22 @@ function actionPanel(
   });
   const next = document.createElement('button');
   next.type = 'button';
-  next.className = 'puzzle-button puzzle-button--primary';
-  next.dataset.puzzleNext = 'true';
-  const solved = isSessionSolved(session);
-  next.textContent = solved ? 'Next puzzle' : 'Next';
-  next.disabled = !navigation.hasNext || session.submitting || !solved;
-  next.addEventListener('click', navigation.goNext);
+  next.className = 'puzzle-button';
+  next.dataset.puzzleReplayNext = 'true';
+  next.innerHTML = ICON_NEXT;
+  next.setAttribute('aria-label', 'Next move');
+  next.title = 'Next move';
+  next.disabled = session.viewPly >= session.playedMoves.length || session.submitting;
+  next.addEventListener('click', () => {
+    session.viewPly = Math.min(session.playedMoves.length, session.viewPly + 1);
+    renderSession();
+  });
   panel.append(previous, reset, next);
   return panel;
 }
 
 function isSessionSolved(session: PuzzleSession): boolean {
   return session.state.status.type === 'finished';
-}
-
-function statsPanel(session: PuzzleSession): HTMLElement {
-  const puzzle = session.puzzle;
-  const stats = document.createElement('div');
-  stats.className = 'puzzle-stat-grid';
-  stats.append(
-    statRow('Side', colorLabel(activeTurn(session))),
-    statRow('Goal', goalLabel(puzzle)),
-    statRow('Variant', variantLabel(puzzle.variant)),
-  );
-  return stats;
 }
 
 function fillPuzzleReserveStrip(
@@ -582,16 +687,23 @@ function fillPuzzleReserveStrip(
       isBottom &&
       color === activeTurn(session) &&
       session.state.status.type === 'playing' &&
+      isReplayLive(session) &&
       !session.submitting,
     selectedRole:
       isBottom &&
       color === activeTurn(session) &&
       session.state.status.type === 'playing' &&
+      isReplayLive(session) &&
       !session.submitting
         ? session.selectedDrop
         : null,
     onSelect: (role) => {
-      if (!isBottom || color !== activeTurn(session) || session.state.status.type !== 'playing') {
+      if (
+        !isBottom ||
+        color !== activeTurn(session) ||
+        session.state.status.type !== 'playing' ||
+        !isReplayLive(session)
+      ) {
         return;
       }
       session.selectedDrop = session.selectedDrop === role ? null : role;
@@ -608,11 +720,17 @@ function fillPuzzleReserveStrip(
       isBottom &&
       color === activeTurn(session) &&
       session.state.status.type === 'playing' &&
+      isReplayLive(session) &&
       !session.submitting &&
       (view.hands[color][role] ?? 0) > 0,
     ghostHtml: (role) => miniXiangqiPieceGhostSvg({ color, role }),
     onDragStart: (role) => {
-      if (!isBottom || color !== activeTurn(session) || session.state.status.type !== 'playing') {
+      if (
+        !isBottom ||
+        color !== activeTurn(session) ||
+        session.state.status.type !== 'playing' ||
+        !isReplayLive(session)
+      ) {
         return;
       }
       session.selectedDrop = role;
@@ -633,7 +751,7 @@ function fillPuzzleReserveStrip(
   });
 }
 
-function tagsPanel(puzzle: PuzzleDetail): HTMLElement {
+function tagsPanel(puzzle: Pick<PuzzleSummary, 'themes'>): HTMLElement {
   const tags = document.createElement('div');
   tags.className = 'puzzle-tags';
   for (const theme of puzzle.themes) {
@@ -651,7 +769,9 @@ async function handleBoardClick(
   renderSession: () => void,
   onSolved: (id: string) => void,
 ): Promise<void> {
-  if (session.submitting || session.state.status.type !== 'playing') return;
+  if (session.submitting || session.state.status.type !== 'playing' || !isReplayLive(session)) {
+    return;
+  }
   if (session.selectedDrop) {
     const targets = dropTargetsFor(session, session.selectedDrop);
     if (targets.includes(square)) {
@@ -697,7 +817,12 @@ async function handleBoardDrop(
   onSolved: (id: string) => void,
 ): Promise<void> {
   session.draggingFrom = null;
-  if (session.submitting || session.state.status.type !== 'playing' || !to) {
+  if (
+    session.submitting ||
+    session.state.status.type !== 'playing' ||
+    !to ||
+    !isReplayLive(session)
+  ) {
     session.selectedSquare = null;
     session.selectedDrop = null;
     renderSession();
@@ -726,7 +851,12 @@ async function handleReserveDrop(
   session.draggingFrom = null;
   session.selectedSquare = null;
   session.selectedDrop = null;
-  if (session.submitting || session.state.status.type !== 'playing' || !to) {
+  if (
+    session.submitting ||
+    session.state.status.type !== 'playing' ||
+    !to ||
+    !isReplayLive(session)
+  ) {
     renderSession();
     return;
   }
@@ -758,33 +888,39 @@ async function submitMove(
     session.solverMoves = attempt.solverMoves;
     session.playedMoves = attempt.playedMoves;
     session.state = attempt.state;
+    session.viewPly = session.playedMoves.length;
     if (attempt.complete) onSolved?.(session.puzzle.id);
     session.feedback = attempt.complete
       ? { kind: 'good', text: 'Solved.' }
       : { kind: 'good', text: 'Correct.' };
   } else {
     session.state = attempt.state;
+    session.viewPly = session.playedMoves.length;
     session.feedback = { kind: 'bad', text: 'Try another move.' };
   }
   renderSession();
 }
 
-function puzzleViews(session: PuzzleSession): {
+function puzzleViews(
+  session: PuzzleSession,
+  state: PuzzleState = session.state,
+): {
   boardView: ReturnType<typeof getMiniXiangqiOpenPlayerView>;
   dropView: ReturnType<typeof getDropMiniXiangqiPlayerView> | null;
 } {
-  const turn = activeTurn(session);
+  const turn = session.puzzle.sideToMove ?? activeTurn(session);
   if (session.puzzle.variant === DROP_MINI_XIANGQI_SPEC_ID) {
-    const dropView = getDropMiniXiangqiPlayerView(session.state as DropMiniXiangqiGameState, turn);
+    const dropView = getDropMiniXiangqiPlayerView(state as DropMiniXiangqiGameState, turn);
     return { boardView: dropMiniXiangqiBoardView(dropView), dropView };
   }
   return {
-    boardView: getMiniXiangqiOpenPlayerView(session.state as MiniXiangqiGameState, turn),
+    boardView: getMiniXiangqiOpenPlayerView(state as MiniXiangqiGameState, turn),
     dropView: null,
   };
 }
 
 function highlightedBoardMoves(session: PuzzleSession): MiniXiangqiMove[] {
+  if (!isReplayLive(session)) return [];
   if (session.selectedDrop)
     return dropMiniXiangqiTargetMoves(dropTargetsFor(session, session.selectedDrop));
   if (!session.selectedSquare) return [];
@@ -815,6 +951,7 @@ function canDragBoardPiece(session: PuzzleSession, square: MiniXiangqiSquare): b
   return (
     !session.submitting &&
     session.state.status.type === 'playing' &&
+    isReplayLive(session) &&
     isSelectablePiece(session, square)
   );
 }
@@ -823,17 +960,6 @@ function activeTurn(session: PuzzleSession): MiniXiangqiColor {
   return session.state.status.type === 'playing'
     ? session.state.status.turn
     : (session.puzzle.sideToMove ?? 'red');
-}
-
-function statRow(label: string, value: string): HTMLElement {
-  const row = document.createElement('div');
-  row.className = 'puzzle-stat';
-  const labelEl = document.createElement('span');
-  labelEl.textContent = label;
-  const valueEl = document.createElement('strong');
-  valueEl.textContent = value;
-  row.append(labelEl, valueEl);
-  return row;
 }
 
 function renderStatus(host: HTMLElement, message: string): void {
@@ -847,7 +973,6 @@ function filterPuzzlesByVariant(
   puzzles: readonly PuzzleSummary[],
   variant: PuzzleVariantFilter,
 ): PuzzleSummary[] {
-  if (variant === 'all') return [...puzzles];
   return puzzles.filter((puzzle) => puzzle.variant === variant);
 }
 
@@ -881,27 +1006,11 @@ function navigationFor(
 
 function parseVariantFilter(value: string): PuzzleVariantFilter {
   if (value === MINI_XIANGQI_SPEC_ID || value === DROP_MINI_XIANGQI_SPEC_ID) return value;
-  return 'all';
+  return MINI_XIANGQI_SPEC_ID;
 }
 
-function variantFilterLabel(
-  variant: PuzzleVariantFilter,
-  puzzles: readonly PuzzleSummary[],
-): string {
-  const count = filterPuzzlesByVariant(puzzles, variant).length;
-  const label =
-    variant === 'all'
-      ? 'All puzzles'
-      : variant === DROP_MINI_XIANGQI_SPEC_ID
-        ? 'Drop Mini Xiangqi'
-        : 'Mini Xiangqi';
-  return `${label} (${count})`;
-}
-
-function metaChip(text: string): HTMLSpanElement {
-  const chip = document.createElement('span');
-  chip.textContent = text;
-  return chip;
+function variantFilterLabel(variant: PuzzleVariantFilter): string {
+  return variant === DROP_MINI_XIANGQI_SPEC_ID ? 'Drop Mini Xiangqi' : 'Mini Xiangqi';
 }
 
 async function fetchPuzzleList(): Promise<PuzzleSummary[]> {
@@ -936,6 +1045,31 @@ async function submitPuzzleAttempt(
 
 function clonePuzzleState<State extends PuzzleState>(state: State): State {
   return structuredClone(state);
+}
+
+function puzzleReplayState(session: PuzzleSession): PuzzleState {
+  if (isReplayLive(session)) return session.state;
+  let state: PuzzleState = clonePuzzleState(session.puzzle.initial);
+  const visibleMoves = session.playedMoves.slice(0, Math.max(0, session.viewPly));
+  for (const move of visibleMoves) {
+    state = applyPuzzleMove(session.puzzle.variant, state, move);
+  }
+  return state;
+}
+
+function applyPuzzleMove(
+  variant: PuzzleVariant,
+  state: PuzzleState,
+  move: PuzzleMove,
+): PuzzleState {
+  if (variant === DROP_MINI_XIANGQI_SPEC_ID) {
+    return applyDropMiniXiangqiMove(state as DropMiniXiangqiGameState, move as DropMiniXiangqiMove);
+  }
+  return applyMiniXiangqiOpenMove(state as MiniXiangqiGameState, move as MiniXiangqiMove);
+}
+
+function isReplayLive(session: PuzzleSession): boolean {
+  return session.viewPly >= session.playedMoves.length;
 }
 
 function puzzleIdFromPath(pathname: string): string | null {
@@ -1004,6 +1138,94 @@ function puzzleMoveLabel(move: PuzzleMove): string {
   return `${move.from}-${move.to}`;
 }
 
+function puzzleMoveRows(session: PuzzleSession): HTMLElement[] {
+  if (session.playedMoves.length === 0) return [puzzleMoveContextRow(session)];
+
+  const firstColor = session.puzzle.sideToMove ?? 'red';
+  const rows = new Map<
+    number,
+    { black?: { index: number; move: PuzzleMove }; red?: { index: number; move: PuzzleMove } }
+  >();
+  for (const [index, move] of session.playedMoves.entries()) {
+    const color = moveColorAt(firstColor, index);
+    const number = Math.floor(index / 2) + 1;
+    const row = rows.get(number) ?? {};
+    row[color] = { index, move };
+    rows.set(number, row);
+  }
+
+  return Array.from(rows.entries()).map(([number, row]) => puzzleMoveRow(number, row, session));
+}
+
+function puzzleMoveContextRow(session: PuzzleSession): HTMLElement {
+  const firstColor = session.puzzle.sideToMove ?? 'red';
+  const row = document.createElement('li');
+  row.className = 'puzzle-move-item puzzle-move-context';
+  const number = puzzleMoveCell('puzzle-move-number', '1');
+  const red = puzzleMoveCell('puzzle-move-red', firstColor === 'black' ? '...' : '');
+  const black = puzzleMoveCell('puzzle-move-black', firstColor === 'red' ? '...' : '');
+  row.append(number, red, black);
+  return row;
+}
+
+function puzzleMoveRow(
+  number: number,
+  rowMoves: {
+    black?: { index: number; move: PuzzleMove };
+    red?: { index: number; move: PuzzleMove };
+  },
+  session: PuzzleSession,
+): HTMLElement {
+  const row = document.createElement('li');
+  row.className = 'puzzle-move-item';
+  if (
+    rowMoves.red?.index === session.viewPly - 1 ||
+    rowMoves.black?.index === session.viewPly - 1
+  ) {
+    row.classList.add('puzzle-move-item--active');
+  }
+  const numberCell = puzzleMoveCell('puzzle-move-number', String(number));
+  const redCell = puzzleMoveCell(
+    'puzzle-move-red',
+    rowMoves.red ? puzzleMoveLabel(rowMoves.red.move) : '',
+  );
+  const blackCell = puzzleMoveCell(
+    'puzzle-move-black',
+    rowMoves.black ? puzzleMoveLabel(rowMoves.black.move) : '',
+  );
+  row.append(numberCell, redCell, blackCell);
+  return row;
+}
+
+function puzzleMoveCell(className: string, text: string): HTMLSpanElement {
+  const cell = document.createElement('span');
+  cell.className = className;
+  cell.textContent = text;
+  return cell;
+}
+
+function moveColorAt(firstColor: MiniXiangqiColor, plyIndex: number): MiniXiangqiColor {
+  return plyIndex % 2 === 0 ? firstColor : oppositeMiniXiangqiColor(firstColor);
+}
+
+function targetAvatarSvg(): string {
+  return [
+    '<svg class="puzzle-target-avatar" viewBox="0 0 64 64" width="54" height="54" aria-hidden="true">',
+    '<circle cx="30" cy="34" r="19" fill="none" stroke="currentColor" stroke-width="3.6"/>',
+    '<circle cx="30" cy="34" r="11.5" fill="none" stroke="currentColor" stroke-width="3.1"/>',
+    '<circle cx="30" cy="34" r="4" fill="currentColor"/>',
+    '<path d="M14 50 25 39" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round"/>',
+    '<path d="M31 33 49 15" fill="none" stroke="currentColor" stroke-width="3.6" stroke-linecap="round"/>',
+    '<path d="M48 6v12h12" fill="none" stroke="currentColor" stroke-width="3.6" stroke-linejoin="round"/>',
+    '<path d="M48 18 58 8" fill="none" stroke="currentColor" stroke-width="3.6" stroke-linecap="round"/>',
+    '</svg>',
+  ].join('');
+}
+
+function variantMiniIdForPuzzle(variant: PuzzleVariant): VariantMiniId {
+  return variant === DROP_MINI_XIANGQI_SPEC_ID ? 'drop-mini-xiangqi' : 'mini-xiangqi';
+}
+
 function dropRoleSymbol(role: DropMiniXiangqiDropRole): string {
   switch (role) {
     case 'chariot':
@@ -1017,16 +1239,16 @@ function dropRoleSymbol(role: DropMiniXiangqiDropRole): string {
   }
 }
 
-function feedbackTitle(kind: FeedbackKind): string {
-  switch (kind) {
+function feedbackTitle(session: PuzzleSession): string {
+  switch (session.feedback.kind) {
     case 'good':
-      return 'Solved';
+      return isSessionSolved(session) ? 'Solved' : 'Correct';
     case 'bad':
       return 'Try again';
     case 'pending':
       return 'Checking';
     case 'neutral':
-      return 'Your turn';
+      return session.puzzle.title;
   }
 }
 
@@ -1041,3 +1263,12 @@ function themeLabel(theme: string): string {
     .map((part) => `${part[0]?.toUpperCase() ?? ''}${part.slice(1)}`)
     .join(' ');
 }
+
+const ICON_PREV =
+  '<svg viewBox="0 0 16 16" width="15" height="15" aria-hidden="true"><path d="M11 3.5v9L5 8z" fill="currentColor"/></svg>';
+const ICON_NEXT =
+  '<svg viewBox="0 0 16 16" width="15" height="15" aria-hidden="true"><path d="M5 3.5v9L11 8z" fill="currentColor"/></svg>';
+const THUMB_UP_SVG =
+  '<svg viewBox="0 0 64 64" width="76" height="76" aria-hidden="true"><path d="M23 54h-8a4 4 0 0 1-4-4V30a4 4 0 0 1 4-4h8v28Z" fill="none" stroke="currentColor" stroke-width="4" stroke-linejoin="round"/><path d="M23 29c7-5 9-15 12-18 2-2 6-1 7 3 1 5-3 10-3 12h10c6 0 9 5 7 10l-5 13c-1 4-5 6-9 6H23V29Z" fill="none" stroke="currentColor" stroke-width="4" stroke-linejoin="round"/></svg>';
+const THUMB_DOWN_SVG =
+  '<svg viewBox="0 0 64 64" width="76" height="76" aria-hidden="true"><path d="M41 10h8a4 4 0 0 1 4 4v20a4 4 0 0 1-4 4h-8V10Z" fill="none" stroke="currentColor" stroke-width="4" stroke-linejoin="round"/><path d="M41 35c-7 5-9 15-12 18-2 2-6 1-7-3-1-5 3-10 3-12H15c-6 0-9-5-7-10l5-13c1-4 5-6 9-6h19v26Z" fill="none" stroke="currentColor" stroke-width="4" stroke-linejoin="round"/></svg>';

@@ -62,10 +62,14 @@ describe('puzzles route', () => {
 
     expect(root.querySelector('.site-section-heading')?.textContent).toBe('Puzzles');
     expect(root.querySelectorAll('.puzzle-list-item')).toHaveLength(0);
-    expect(root.querySelector<HTMLSelectElement>('[data-puzzle-variant]')?.value).toBe(
-      DROP_MINI_XIANGQI_SPEC_ID,
-    );
-    expect(root.querySelector('.puzzles-sidebar')?.textContent).toContain('Solved');
+    const variantSelect = root.querySelector<HTMLSelectElement>('[data-puzzle-variant]')!;
+    expect(variantSelect.value).toBe(DROP_MINI_XIANGQI_SPEC_ID);
+    expect(Array.from(variantSelect.options).map((option) => option.textContent)).toEqual([
+      'Mini Xiangqi',
+      'Drop Mini Xiangqi',
+    ]);
+    expect(root.querySelector('.puzzles-sidebar')?.textContent).toContain('0 solved of 1');
+    expect(root.querySelector('.puzzles-sidebar')?.textContent).not.toContain('All puzzles');
     expect(root.querySelector('.puzzles-sidebar')?.textContent).not.toContain(' / ');
     expect(root.querySelector('.puzzle-detail h2')?.textContent).toBe('Red chariot drop mate');
     expect(root.querySelector('.mini-xq-board')).not.toBeNull();
@@ -76,6 +80,8 @@ describe('puzzles route', () => {
     expect(boardShell?.querySelector('[data-drop="chariot"]')).not.toBeNull();
     expect(root.querySelector('.puzzle-reserves')).toBeNull();
     expect(root.textContent).toContain('Mate in 1');
+    expect(root.querySelector('.puzzle-moves h3')).toBeNull();
+    expect(root.querySelector('.puzzle-move-black')?.textContent).toBe('...');
     expect(root.textContent).not.toContain('d4');
   });
 
@@ -137,7 +143,7 @@ describe('puzzles route', () => {
       .querySelector<SVGGElement>('[data-square="d4"]')
       ?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
 
-    await vi.waitFor(() => expect(root.textContent).toContain('Solved.'));
+    await vi.waitFor(() => expect(root.textContent).toContain('Success!'));
     expect(root.querySelector('.puzzle-reserves')).toBeNull();
     expect(root.textContent).not.toContain('d5');
     expect(fetchSpy).toHaveBeenCalledWith(
@@ -203,7 +209,7 @@ describe('puzzles route', () => {
       .querySelector<SVGGElement>('[data-square="e1"]')
       ?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
 
-    await vi.waitFor(() => expect(root.textContent).toContain('Solved.'));
+    await vi.waitFor(() => expect(root.textContent).toContain('Success!'));
     expect(root.textContent).toContain('f1-e1');
     expect(fetchSpy).toHaveBeenCalledWith(
       `/api/puzzles/${multi.id}/attempt`,
@@ -238,21 +244,26 @@ describe('puzzles route', () => {
     const root = document.createElement('div');
 
     await mountPuzzles(root, redDrop.id);
-    expect(root.querySelector<HTMLButtonElement>('[data-puzzle-next]')?.disabled).toBe(true);
+    expect(root.querySelector<HTMLButtonElement>('[data-puzzle-next]')).toBeNull();
+    expect(root.querySelector<HTMLButtonElement>('[data-puzzle-replay-next]')?.disabled).toBe(true);
     root.querySelector<HTMLButtonElement>('[data-drop="chariot"]')?.click();
     root
       .querySelector<SVGGElement>('[data-square="d4"]')
       ?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
 
-    await vi.waitFor(() => expect(root.textContent).toContain('Solved.'));
+    await vi.waitFor(() => expect(root.textContent).toContain('Success!'));
     expect(root.querySelector('.puzzle-current-card')?.textContent).toContain('Solved');
     expect(root.querySelector('.puzzles-sidebar')?.textContent).not.toContain(' / ');
-    expect(root.querySelector<HTMLButtonElement>('[data-puzzle-next]')?.textContent).toBe(
-      'Next puzzle',
+    expect(root.querySelector<HTMLButtonElement>('[data-puzzle-replay-previous]')?.disabled).toBe(
+      false,
     );
-    expect(root.querySelector<HTMLButtonElement>('[data-puzzle-next]')?.disabled).toBe(false);
+    expect(root.querySelector<HTMLButtonElement>('[data-puzzle-replay-next]')?.disabled).toBe(true);
+    const nextButton = root.querySelector<HTMLButtonElement>('[data-puzzle-next]');
+    expect(nextButton?.getAttribute('aria-label')).toBe('Next puzzle');
+    expect(nextButton?.textContent).toBe('Continue training');
+    expect(nextButton?.disabled).toBe(false);
 
-    root.querySelector<HTMLButtonElement>('[data-puzzle-next]')?.click();
+    nextButton?.click();
 
     await vi.waitFor(() =>
       expect(root.querySelector('.puzzle-detail h2')?.textContent).toBe('Black chariot drop mate'),
@@ -365,7 +376,7 @@ describe('puzzles route', () => {
     document.dispatchEvent(pointerEvent('pointermove', 24, 24));
     document.dispatchEvent(pointerEvent('pointerup', 24, 24));
 
-    await vi.waitFor(() => expect(root.textContent).toContain('Solved.'));
+    await vi.waitFor(() => expect(root.textContent).toContain('Success!'));
     expect(fetchSpy).toHaveBeenCalledWith(
       `/api/puzzles/${drop.id}/attempt`,
       expect.objectContaining({ method: 'POST' }),
