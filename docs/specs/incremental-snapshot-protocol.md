@@ -20,7 +20,7 @@ The current design was a deliberate v1 simplification: one wire format to implem
 
 ## The problem
 
-Bandwidth and frame size grow linearly with game length, so cumulative ingress per side grows quadratically. Measured numbers (see "Verification" below; raw CSV at `docs/specs/measurements/snapshot-bandwidth-2026-05-22.csv`):
+Bandwidth and frame size grow linearly with game length, so cumulative ingress per side grows quadratically. Measured numbers (see "Verification" below):
 
 | Game length (plies) | Per-side ingress | Combined ingress | Last-frame size (per side) |
 |---|---|---|---|
@@ -164,7 +164,7 @@ Baseline result captured 2026-05-22 (commit on `main` at the time):
 - Per-ply frame growth: ~150 bytes per ply per side (linear).
 - Last-frame size at ply 60: ~11 KB per side, ~21 KB combined.
 
-**Delta result captured 2026-05-22 after Phase 1** (CSV at `docs/specs/measurements/snapshot-bandwidth-delta-2026-05-22.csv`, run with `DELTA=1 MOVES=60 node apps/server/scripts/measure-snapshot-bandwidth.mjs`):
+**Delta result captured 2026-05-22 after Phase 1** (reproduce with `DELTA=1 MOVES=60 node apps/server/scripts/measure-snapshot-bandwidth.mjs`):
 
 - 60-ply game: 138 KB / 133 KB per side, **271 KB combined** (was 800 KB — 66% reduction).
 - Per-ply frame size: ~2.0 to ~2.7 KB per side, **roughly constant in ply count**. Variation across plies comes from changing `legalMoves.length`, not from cumulative event-log growth.

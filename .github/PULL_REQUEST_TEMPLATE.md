@@ -27,7 +27,7 @@ If this PR is purely a non-payload change (docs, build, CSS), say so and skip th
 
 ## Checklist
 
-- [ ] Followed `docs/documentation-policy.md` for any public/private documentation changes
+- [ ] Kept private planning, provider setup, and secrets out of the public repo (local notes belong in `docs-private/`)
 - [ ] No secrets, production URLs, or seat tokens in the diff
 - [ ] No large generated corpora or local artifacts checked in
 - [ ] DCO sign-off (`Signed-off-by: ...`) on nontrivial commits — see [`CONTRIBUTING.md`](../CONTRIBUTING.md)

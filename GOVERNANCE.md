@@ -52,7 +52,7 @@ The maintainer may consider:
 - security concerns
 - maintenance cost
 - product focus
-- the strategic roadmap in `docs/ROADMAP.md`
+- the strategic roadmap
 
 The default product rule remains:
 

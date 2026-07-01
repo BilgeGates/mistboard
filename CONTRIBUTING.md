@@ -113,8 +113,7 @@ Before opening a PR:
 
 - run the relevant tests
 - update docs when behavior changes
-- follow [`docs/documentation-policy.md`](docs/documentation-policy.md) for
-  public vs private documentation
+- keep private planning, provider setup, and secrets out of the public repo (local notes live in the git-ignored `docs-private/`)
 - avoid committing generated corpora, large tournament logs, or local artifacts unless they are explicitly part of a reviewed benchmark/release artifact
 - do not include secrets, production URLs, API keys, or private credentials
 
@@ -131,6 +130,8 @@ Signed-off-by: Your Name <you@example.com>
 ```
 
 This project does not currently require a separate Contributor License Agreement. If that changes, it will be documented here before being required.
+
+The workspace packages are marked `private` in their `package.json` to prevent accidental npm publishing. That is repository hygiene, not a repository-visibility policy.
 
 ## Governance
 
