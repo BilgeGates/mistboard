@@ -6,7 +6,7 @@
   align-items: center;
   justify-content: flex-start;
   gap: clamp(18px, 2.2vw, 26px);
-  min-height: 53px;
+  min-height: 60px;
   padding: 0 clamp(16px, 2.4vw, 34px);
   background: var(--site-nav-bg);
   border-bottom: 1px solid var(--site-nav-border);
@@ -15,19 +15,25 @@
 .site-nav-brand {
   display: inline-flex;
   align-items: center;
-  gap: 8px;
+  gap: 9px;
   flex: 0 0 auto;
   font-weight: 400;
   letter-spacing: 0;
-  font-size: 25px;
+  font-size: 30px;
   line-height: 1;
   color: var(--site-text);
   text-decoration: none;
 }
 
+/* Dim the TLD suffix so the wordmark reads "mistboard" first, ".com" second
+   (lichess dims ".org" the same way). */
+.site-nav-brand-suffix {
+  color: var(--site-muted);
+}
+
 .site-nav-logo {
-  width: 31px;
-  height: 31px;
+  width: 46px;
+  height: 46px;
   flex: 0 0 auto;
   border-radius: var(--site-radius-sm);
 }
@@ -71,12 +77,15 @@
 
 .site-nav-links > .site-nav-link,
 .site-nav-menu-toggle {
-  min-height: 53px;
+  min-height: 60px;
   padding: 0 11px;
   border-radius: 0;
   color: var(--site-muted);
   font-size: 14px;
-  font-weight: 700;
+  /* Weight 400 to match the wordmark (also 400): uppercase alone separates the
+     links from the brand, so the whole bar reads as one typeface (lichess). A
+     heavier weight next to the 400 wordmark reads as a second font. */
+  font-weight: 400;
   letter-spacing: 0;
   text-transform: uppercase;
 }

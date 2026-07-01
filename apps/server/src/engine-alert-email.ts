@@ -29,7 +29,15 @@ const alertEmailMinIntervalMs = parsePositiveInt(
   process.env.MISTBOARD_ALERT_EMAIL_MIN_INTERVAL_MS,
   10 * 60 * 1000,
 );
-const lastEmailAtBySeverity = new Map<EngineAlertEmailPayload['severity'], number>();
+const lastEmailAtByKey = new Map<string, number>();
+
+// Throttle independently per (alert_kind, severity) so an infra alert (memory /
+// loop-lag) can't be masked by an unrelated engine alert sharing the same severity,
+// and vice versa. Engine alerts carry no alert_kind → bucket "engine".
+function alertThrottleKey(alert: EngineAlertEmailPayload): string {
+  const kind = typeof alert.alert_kind === 'string' ? alert.alert_kind : 'engine';
+  return `${kind}:${alert.severity}`;
+}
 
 export const engineAlertEmailEnabled =
   transactionalEmailConfigured && !!alertEmailFrom && alertEmailTo.length > 0;
@@ -41,9 +49,10 @@ export async function sendEngineAlertNotification(
   if (!engineAlertEmailEnabled) return { status: 'disabled' };
 
   const nowMs = options.nowMs ?? Date.now();
-  const lastEmailAt = lastEmailAtBySeverity.get(alert.severity) ?? 0;
+  const throttleKey = alertThrottleKey(alert);
+  const lastEmailAt = lastEmailAtByKey.get(throttleKey) ?? 0;
   if (nowMs - lastEmailAt < alertEmailMinIntervalMs) return { status: 'throttled' };
-  lastEmailAtBySeverity.set(alert.severity, nowMs);
+  lastEmailAtByKey.set(throttleKey, nowMs);
 
   const at = new Date(nowMs);
   const serviceName = options.serviceName ?? currentServiceName();
@@ -68,7 +77,8 @@ export function engineAlertEmailSubject(
   alert: EngineAlertEmailPayload,
   serviceName = currentServiceName(),
 ): string {
-  return `[Mistboard] ${alert.severity.toUpperCase()} engine alert (${serviceName})`;
+  const kind = typeof alert.alert_kind === 'string' ? alert.alert_kind : 'engine';
+  return `[Mistboard] ${alert.severity.toUpperCase()} ${kind} alert (${serviceName})`;
 }
 
 export function engineAlertEmailText(

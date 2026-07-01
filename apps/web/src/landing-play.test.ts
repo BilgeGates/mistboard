@@ -3,7 +3,9 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   buildLandingPlayPanel,
   buildLobbyRequestsWindow,
+  type LandingRoomSetup,
   maybeOpenPlayDeepLink,
+  roomCreationRequestBody,
   setRoomNavigator,
 } from './landing-play.js';
 import { setRatedModeEnabled } from './rated-flag.js';
@@ -18,6 +20,8 @@ const BASELINE_PICKER_SPECS = [
   'jieqi',
   'banqi',
   'dark-shogi',
+  'jungle',
+  'jungle-flip',
 ];
 
 describe('landing play panel', () => {
@@ -1416,6 +1420,38 @@ async function flushPromises(): Promise<void> {
   await Promise.resolve();
   await new Promise((resolve) => setTimeout(resolve, 0));
 }
+
+describe('roomCreationRequestBody — jungle PvE bots', () => {
+  function setupFor(gameSpecId: LandingRoomSetup['gameSpecId']): LandingRoomSetup {
+    return {
+      gameSpecId,
+      startFormat: 'standard',
+      rated: false,
+      timeControl: { initialMs: 180_000, incrementMs: 2_000 },
+      preferredColor: 'random',
+    };
+  }
+
+  // Regression: the flip body hardcoded `mode: 'pvp'`, so "Play the engine"
+  // created a PvP invite link instead of a bot game.
+  it('sends mode=pve and the picked engine id for Flip Jungle', () => {
+    const body = roomCreationRequestBody('pve', setupFor('jungle-flip'), 'misty-jungle-flip');
+    expect(body.mode).toBe('pve');
+    expect(body.engineId).toBe('misty-jungle-flip');
+  });
+
+  it('omits the engine id for a PvP Flip Jungle room', () => {
+    const body = roomCreationRequestBody('pvp', setupFor('jungle-flip'), 'misty-jungle-flip');
+    expect(body.mode).toBe('pvp');
+    expect(body.engineId).toBeUndefined();
+  });
+
+  it('sends mode=pve and the picked engine id for Jungle', () => {
+    const body = roomCreationRequestBody('pve', setupFor('jungle'), 'misty-jungle-level-2');
+    expect(body.mode).toBe('pve');
+    expect(body.engineId).toBe('misty-jungle-level-2');
+  });
+});
 
 function memoryStorage(): Storage {
   const values = new Map<string, string>();

@@ -26,7 +26,6 @@ describe('article public listing gates', () => {
     vi.stubEnv('VITE_DARK_MINI_XIANGQI_PUBLIC_ENTRY_ENABLED', 'false');
 
     const rules = buildRulesIndex();
-    expect(buildHomeArticleCards(50)?.textContent).toContain('Dark Mini Xiangqi');
     expect(rules.textContent).toContain('Dark Mini Xiangqi');
     expect(rules.textContent).toContain('Mini Xiangqi');
     expect(rules.querySelector('a[href="/rules/mini-xiangqi"]')).not.toBeNull();
@@ -37,7 +36,6 @@ describe('article public listing gates', () => {
   it('lists Dark Mini Xiangqi rules without public-entry env flags', () => {
     vi.stubEnv('DEV', false);
 
-    expect(buildHomeArticleCards(50)?.textContent).toContain('Dark Mini Xiangqi');
     expect(buildRulesIndex().textContent).toContain('Dark Mini Xiangqi');
     expect(buildRulesIndex().textContent).toContain('Mini Xiangqi');
   });
@@ -127,7 +125,7 @@ describe('article public listing gates', () => {
     ).toMatch(/^\/(articles|rules)\//);
   });
 
-  it('limits the homepage article widget to curated article cards ordered by publish date', () => {
+  it('limits the homepage article widget to editorial article cards ordered by publish date', () => {
     vi.stubEnv('VITE_DARK_MINI_XIANGQI_ENABLED', 'true');
     vi.stubEnv('VITE_DARK_MINI_XIANGQI_PUBLIC_ENTRY_ENABLED', 'true');
 
@@ -137,16 +135,12 @@ describe('article public listing gates', () => {
       ) ?? []),
     ].map((link) => link.getAttribute('href'));
 
+    // Rules reference pages are excluded from this row; only editorial
+    // (blog/concept) articles appear, newest first.
     expect(hrefs).toEqual([
-      '/rules/drop-mini-xiangqi',
-      '/rules/dark-shogi',
+      '/articles/misty',
       '/articles/mistybanqi',
-      '/rules/jieqi',
-      '/rules/banqi',
       '/articles/server-enforced-fog',
-      '/rules/dark-mini-xiangqi',
-      '/rules/dark-xiangqi',
-      '/rules/dark-chess',
     ]);
   });
 
@@ -223,10 +217,16 @@ describe('article public listing gates', () => {
     );
     expect(card?.querySelector('svg g[data-banqi-thumbnail-crop="right-half"]')).not.toBeNull();
 
-    const home = buildHomeArticleCards(50);
+    // The Banqi rules page carries the shared variant marker on the /rules
+    // index (it no longer rides the homepage editorial row)...
+    const rulesIndex = buildRulesIndex();
     expect(
-      home?.querySelector('.landing-article-card[href="/rules/banqi"] svg[data-mini-id="banqi"]'),
+      rulesIndex.querySelector('a[href="/rules/banqi"] svg[data-mini-id="banqi"]'),
     ).not.toBeNull();
+
+    // ...while the MistyBanqi editorial card keeps its right-half board crop in
+    // the homepage row.
+    const home = buildHomeArticleCards(50);
     expect(
       home?.querySelector(
         '.landing-article-card[href="/articles/mistybanqi"] svg g[data-banqi-thumbnail-crop="right-half"]',
@@ -402,7 +402,10 @@ describe('article public listing gates', () => {
   it('rerenders Dark Crossroads diagrams from the piece settings', () => {
     Object.defineProperty(window, 'localStorage', { configurable: true, value: memoryStorage() });
     // Pin the glyph set so the baseline CJK-disk assertion is stable; the test
-    // then proves a switch to western re-renders the diagrams.
+    // then proves a switch to western re-renders the diagrams. Stamp the
+    // piece-set rollout version so the one-time Dobutsu reset doesn't override
+    // this explicit choice (simulates a post-rollout user).
+    window.localStorage.setItem('mistboard.xiangqiPieceSetVersion', '2');
     window.localStorage.setItem('mistboard.xiangqiPieceSet', 'traditional');
     const page = buildArticlePage('dark-crossroads-chess');
     document.body.append(page);

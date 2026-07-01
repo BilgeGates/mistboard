@@ -27,6 +27,13 @@
   font-display: swap;
   src: url("/fonts/noto-sans-latin-800.woff2") format("woff2");
 }
+@font-face {
+  font-family: "Roboto";
+  font-style: normal;
+  font-weight: 100 900;
+  font-display: swap;
+  src: url("/fonts/roboto-latin.20b535fa.woff2") format("woff2");
+}
 
 /* Site palette. Lightness/saturation ladder mirrors lichess's theme structure
    (page < box < raised, zebra between) with the hue translated to a cool mist
@@ -372,17 +379,6 @@
   --xq-live-board-bg: #f5dca8;
   --xq-live-ink: #5a3a14;
   --xq-live-palace-band: rgba(255, 255, 255, 0);
-}
-:root[data-xiangqi-board-theme="paper-garden"] {
-  --xq-diagram-bg: #f5ecd8;
-  --xq-diagram-ink: #5f4931;
-  --xq-diagram-palace-band: rgba(93, 132, 82, 0.28);
-  --mini-xq-board-bg: #f5ecd8;
-  --mini-xq-palace-band: rgba(93, 132, 82, 0.28);
-  --mini-xq-grid: #5f4931;
-  --xq-live-board-bg: #f5ecd8;
-  --xq-live-ink: #5f4931;
-  --xq-live-palace-band: rgba(93, 132, 82, 0.13);
 }
 :root[data-xiangqi-board-theme="blue"] {
   --xq-diagram-bg: #cdddea;

@@ -27,14 +27,32 @@ import {
 import type { GameMeta, ReplayHandle } from './replay.js';
 import { createPane, type ReplayPaneHandle } from './replay-board.js';
 import { createGameHeaderStrip } from './replay-meta.js';
+import { reconstructMoveDelays } from './showcase-clock.js';
+import { pickCompactViewKey } from './showcase-compact-view.js';
 import { formatClock } from './web-utils.js';
 
 const AUTO_PLAY_PLY_MS = 1100;
 const AUTO_PLAY_LOOP_HOLD_MS = 2600;
+// Compact showcase per-move pacing: play each move at its real recorded duration
+// clamped to this band, and tick the mover's clock across it.
+const SHOWCASE_MIN_MOVE_MS = 700;
+const SHOWCASE_MAX_MOVE_MS = 2500;
 
 export type MiniXiangqiWatchReplayOptions = {
   autoplay?: boolean;
   metadataByRoomId?: Record<string, GameMeta>;
+  /**
+   * Homepage showcase mode: a single fogged board (no header/control-bar/ply-line/
+   * clocks) showing one random side's own POV — never truth. Pairs with onGameEnd
+   * for cross-variant cycling.
+   */
+  compact?: boolean;
+  /** Called once at the final ply (after the loop hold) instead of restarting the
+   *  game, so an outer showcase controller can advance to the next pooled game. */
+  onGameEnd?: () => void;
+  /** Player names for the compact seats (first = red, second = black), keyed by
+   *  room id; absent names fall back to the color labels. */
+  namesByRoomId?: Record<string, { first: string; second: string }>;
 };
 
 type ControlRefs = {
@@ -132,11 +150,16 @@ export async function mountMiniXiangqiWatchReplay(
 ): Promise<ReplayHandle> {
   installMiniXiangqiBoardStyles();
   const autoplay = options.autoplay ?? true;
+  const compact = options.compact === true;
+  const onGameEnd = options.onGameEnd;
+  const namesByRoomId = options.namesByRoomId;
 
   let activeId = roomId;
   let destroyed = false;
   let timer: number | null = null;
   let paused = !autoplay;
+  // Guards a single onGameEnd fire per game so the loop hold can't re-enter it.
+  let endFired = false;
 
   // Per-game render state, rebuilt on each loadGame.
   let boardTargets: Array<{ pane: ReplayPaneHandle; key: DarkMiniXiangqiPostgameViewKey }> = [];
@@ -144,18 +167,38 @@ export async function mountMiniXiangqiWatchReplay(
   let seatCells: { red: SeatCell; black: SeatCell } | null = null;
   let clocks: Array<Record<MiniXiangqiColor, number>> | null = null;
   let incrementMs = 0;
+  // Compact showcase: per-move real-duration playback delays (null = fixed pacing).
+  let moveDelays: number[] | null = null;
   // Continuous-countdown animation for the side to move (see tickClock).
   let clockAnim: {
     side: MiniXiangqiColor;
     startVal: number;
     floorVal: number;
     shownAt: number;
+    windowMs: number;
   } | null = null;
   let clockTickTimer: number | null = null;
   let maxPly = 0;
   let currentPly = 0;
   let boardOrientation: MiniXiangqiColor = 'red';
   let activePostgame: DarkMiniXiangqiPostgameResponse | null = null;
+  // Compact showcase seats (name + native per-ply clock), rebuilt per game.
+  let compactSeats: {
+    top: { row: HTMLElement; clockEl: HTMLElement; color: MiniXiangqiColor };
+    bottom: { row: HTMLElement; clockEl: HTMLElement; color: MiniXiangqiColor };
+  } | null = null;
+
+  const compactSeatRow = (name: string): { row: HTMLElement; clockEl: HTMLElement } => {
+    const row = document.createElement('div');
+    row.className = 'showcase-seat';
+    const nameEl = document.createElement('span');
+    nameEl.className = 'showcase-seat-name';
+    nameEl.textContent = name;
+    const clockEl = document.createElement('span');
+    clockEl.className = 'showcase-seat-clock';
+    row.append(nameEl, clockEl);
+    return { row, clockEl };
+  };
 
   const clearTimer = (): void => {
     if (timer !== null) {
@@ -165,7 +208,7 @@ export async function mountMiniXiangqiWatchReplay(
   };
 
   const sync = (): void => {
-    if (!activePostgame || !controls) return;
+    if (!activePostgame) return;
     const captures = miniXiangqiCapturesFromTruthView(
       postgameViewAtPly(activePostgame, 'truth', currentPly),
     );
@@ -178,12 +221,24 @@ export async function mountMiniXiangqiWatchReplay(
       }
       renderMiniXiangqiPaneCaptureSplit(target.pane, captures, boardOrientation);
     }
-    const result = currentPly >= maxPly ? ` — ${resultLabel(activePostgame.game.result)}` : '';
-    controls.plyLabel.textContent = `Ply ${currentPly} / ${maxPly}${result}`;
-    controls.first.disabled = currentPly <= 0;
-    controls.prev.disabled = currentPly <= 0;
-    controls.next.disabled = currentPly >= maxPly;
-    controls.last.disabled = currentPly >= maxPly;
+    if (compactSeats) {
+      if (clocks) {
+        const at = clocks[Math.min(currentPly, clocks.length - 1)] ?? clocks[0]!;
+        compactSeats.top.clockEl.textContent = formatClock(at[compactSeats.top.color]);
+        compactSeats.bottom.clockEl.textContent = formatClock(at[compactSeats.bottom.color]);
+      }
+      const active = currentPly >= maxPly ? null : currentPly % 2 === 0 ? 'red' : 'black';
+      compactSeats.top.row.classList.toggle('active', active === compactSeats.top.color);
+      compactSeats.bottom.row.classList.toggle('active', active === compactSeats.bottom.color);
+    }
+    if (controls) {
+      const result = currentPly >= maxPly ? ` — ${resultLabel(activePostgame.game.result)}` : '';
+      controls.plyLabel.textContent = `Ply ${currentPly} / ${maxPly}${result}`;
+      controls.first.disabled = currentPly <= 0;
+      controls.prev.disabled = currentPly <= 0;
+      controls.next.disabled = currentPly >= maxPly;
+      controls.last.disabled = currentPly >= maxPly;
+    }
 
     // Red moves first, so after an even ply Red is to move; no active side once
     // the game has ended.
@@ -208,6 +263,7 @@ export async function mountMiniXiangqiWatchReplay(
         startVal,
         floorVal: nextVal === undefined ? startVal : Math.max(0, nextVal - incrementMs),
         shownAt: Date.now(),
+        windowMs: moveDelays?.[currentPly + 1] ?? AUTO_PLAY_PLY_MS,
       };
     } else {
       clockAnim = null;
@@ -218,13 +274,19 @@ export async function mountMiniXiangqiWatchReplay(
   // a fast drop, compressed into the auto-play window); mirrors the dark-chess
   // watch's clock tick. Settles at the floor when paused.
   const tickClock = (): void => {
-    if (!seatCells || !clockAnim) return;
-    const fraction = Math.min((Date.now() - clockAnim.shownAt) / AUTO_PLAY_PLY_MS, 1);
+    if (!clockAnim) return;
+    const fraction = Math.min((Date.now() - clockAnim.shownAt) / clockAnim.windowMs, 1);
     const displayed = Math.max(
       0,
       clockAnim.startVal - (clockAnim.startVal - clockAnim.floorVal) * fraction,
     );
-    seatCells[clockAnim.side].clock.textContent = formatClock(displayed);
+    if (compactSeats) {
+      const seat =
+        compactSeats.top.color === clockAnim.side ? compactSeats.top : compactSeats.bottom;
+      seat.clockEl.textContent = formatClock(displayed);
+    } else if (seatCells) {
+      seatCells[clockAnim.side].clock.textContent = formatClock(displayed);
+    }
   };
 
   const scheduleAuto = (): void => {
@@ -234,11 +296,24 @@ export async function mountMiniXiangqiWatchReplay(
     timer = window.setTimeout(
       () => {
         if (destroyed) return;
-        currentPly = atEnd ? 0 : currentPly + 1;
+        if (atEnd) {
+          // Showcase mode hands off to the outer controller instead of replaying
+          // the same game. Watch (no onGameEnd) loops the single game as before.
+          if (onGameEnd) {
+            if (!endFired) {
+              endFired = true;
+              onGameEnd();
+            }
+            return;
+          }
+          currentPly = 0;
+        } else {
+          currentPly += 1;
+        }
         sync();
         scheduleAuto();
       },
-      atEnd ? AUTO_PLAY_LOOP_HOLD_MS : AUTO_PLAY_PLY_MS,
+      atEnd ? AUTO_PLAY_LOOP_HOLD_MS : (moveDelays?.[currentPly + 1] ?? AUTO_PLAY_PLY_MS),
     );
   };
 
@@ -256,6 +331,19 @@ export async function mountMiniXiangqiWatchReplay(
     sync();
   };
 
+  // The single fogged board for compact showcase mode: one random side's own POV,
+  // stable per room, oriented to that side. Never the truth board.
+  const pickCompactTarget = (
+    game: DarkMiniXiangqiPostgameResponse,
+  ): { key: DarkMiniXiangqiPostgameViewKey; orientation: MiniXiangqiColor } => {
+    const choice = pickCompactViewKey({
+      roomId: activeId,
+      entries: postgameViewEntries(game),
+      paneKind,
+    });
+    return { key: choice.key, orientation: choice.side === 'second' ? 'black' : 'red' };
+  };
+
   const buildGame = (postgame: DarkMiniXiangqiPostgameResponse): void => {
     activePostgame = postgame;
     maxPly = postgameReplayMaxPly(postgame);
@@ -263,6 +351,57 @@ export async function mountMiniXiangqiWatchReplay(
     paused = !autoplay;
     boardOrientation = 'red';
     incrementMs = (postgame.game.timeControl ?? postgame.state.timeControl)?.incrementMs ?? 0;
+    endFired = false;
+
+    // Compact showcase: a single fogged board framed by a player name + real
+    // clock on each side (DMX carries a native per-ply clock series).
+    if (compact) {
+      const target = pickCompactTarget(postgame);
+      boardOrientation = target.orientation;
+      const pane = createPane('', paneKind(target.key), true, 'split');
+      boardTargets = [{ pane, key: target.key }];
+      controls = null;
+      seatCells = null;
+      clocks = clockSeries(postgame);
+      // Play each move at its real recorded duration (clamped); the clock ticks
+      // down across that window via tickClock.
+      const moves = postgame.timeline.flatMap((event) =>
+        typeof event.color === 'string' && typeof event.ply === 'number'
+          ? [{ at: event.at, color: event.color, ply: event.ply }]
+          : [],
+      );
+      moveDelays =
+        moves.length > 0
+          ? reconstructMoveDelays({
+              moves,
+              minMs: SHOWCASE_MIN_MOVE_MS,
+              maxMs: SHOWCASE_MAX_MOVE_MS,
+            })
+          : null;
+
+      const names = namesByRoomId?.[activeId];
+      const bottomColor = boardOrientation;
+      const topColor: MiniXiangqiColor = bottomColor === 'red' ? 'black' : 'red';
+      const nameFor = (color: MiniXiangqiColor): string =>
+        names ? (color === 'red' ? names.first : names.second) : color === 'red' ? 'Red' : 'Black';
+      const topSeat = compactSeatRow(nameFor(topColor));
+      const bottomSeat = compactSeatRow(nameFor(bottomColor));
+      compactSeats = {
+        top: { row: topSeat.row, clockEl: topSeat.clockEl, color: topColor },
+        bottom: { row: bottomSeat.row, clockEl: bottomSeat.clockEl, color: bottomColor },
+      };
+
+      const layout = document.createElement('div');
+      layout.className = 'replay-layout replay-layout-solo';
+      layout.append(topSeat.row, pane.el, bottomSeat.row);
+      root.replaceChildren(layout);
+      sync();
+      scheduleAuto();
+      if (clocks && clockTickTimer === null) {
+        clockTickTimer = window.setInterval(tickClock, 100);
+      }
+      return;
+    }
 
     const header = createGameHeaderStrip();
     header.title.textContent = matchupLabel(postgame.game.mode);

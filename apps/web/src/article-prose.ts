@@ -47,6 +47,8 @@ const BLOCK_PROSE: {
   'crossroads-replay': caption,
   'jieqi-replay': caption,
   'banqi-replay': caption,
+  'jungle-replay': caption,
+  'jungle-flip-replay': caption,
   code: caption,
 };
 

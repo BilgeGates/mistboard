@@ -4,7 +4,7 @@
 
 import type { BoardSpec, CompositionLayout } from '@mistboard/board-render';
 import type { LiveBoardsOptions, SteppedBoardsOptions } from '@mistboard/board-render/interactive';
-import type { BanqiDeal, BanqiSeat, Square } from '@mistboard/game';
+import type { BanqiDeal, BanqiSeat, JungleColor, JungleFlipDeal, Square } from '@mistboard/game';
 import type { ChessReplaySpec } from '../chess-replay.js';
 import type { CrossroadsReplaySpec } from '../crossroads-chess-replay.js';
 import type { DropMiniXiangqiReplaySpec } from '../drop-mini-xiangqi-replay.js';
@@ -114,6 +114,53 @@ export type BanqiReplayBlock = {
   caption?: string;
 };
 
+// Jungle (Dou Shou Qi) analogue: a 7x9 board stepped through a move list, each
+// position replayed through the real jungle kernel. Perfect-information, so
+// there is no deal — just the moves. The spec lives here (not in jungle-replay.ts)
+// to match the banqi spec placement and keep the article-block union in one file.
+export type JungleReplaySpec = {
+  red: string;
+  black: string;
+  event: string;
+  // Short result line shown under the players (e.g. "Red wins by reaching the den · 69 moves").
+  outcome?: string;
+  // Shown on the final ply; overrides the kernel's plain result text there.
+  resultText: string;
+  // Space-separated from+to tokens (files a-g, ranks 1-9); replayed via applyJungleMove.
+  moves: string;
+  perspective?: JungleColor;
+};
+
+export type JungleReplayBlock = {
+  kind: 'jungle-replay';
+  spec: JungleReplaySpec;
+  caption?: string;
+};
+
+// Flip Jungle (兽棋 / 翻翻棋) analogue of the banqi replay: a 4x4 board stepped
+// through a move list + hidden deal, each position replayed through the real
+// flip-jungle kernel; tiles flip to their dealt animal on first turn-over and
+// equal ranks trade off the board.
+export type JungleFlipReplaySpec = {
+  red: string;
+  black: string;
+  event: string;
+  // Short result line shown under the players (e.g. "Black wins by elimination · 36 moves").
+  outcome?: string;
+  // Shown on the final ply; overrides the kernel's plain result text there.
+  resultText: string;
+  // The 16-tile deal in board-index order — reveals follow it.
+  deal: JungleFlipDeal;
+  // Space-separated from+to tokens (files a-d, ranks 1-4); a flip is from==to.
+  moves: string;
+};
+
+export type JungleFlipReplayBlock = {
+  kind: 'jungle-flip-replay';
+  spec: JungleFlipReplaySpec;
+  caption?: string;
+};
+
 // Mini Xiangqi analogue of XiangqiReplayBlock: a 7x7 board stepped through a
 // move list, each position rendered on demand from the rules kernel.
 export type MiniXiangqiReplayBlock = {
@@ -212,6 +259,8 @@ export type ArticleBlock =
   | CrossroadsReplayBlock
   | JieqiReplayBlock
   | BanqiReplayBlock
+  | JungleReplayBlock
+  | JungleFlipReplayBlock
   | CodeBlock;
 
 // `blocks` is the structured body. `paragraphs` is the legacy outline body

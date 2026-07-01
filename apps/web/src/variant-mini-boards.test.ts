@@ -64,6 +64,32 @@ describe('variant mini-board markers', () => {
     expect(svg).not.toContain('opacity="0.4"');
   });
 
+  it('renders the Jungle marker as the bottom-center 3x3 (den + traps) of the real board', () => {
+    const svg = renderVariantMiniBoard('jungle', { size: 100 });
+    expect(svg).toContain('data-mini-id="jungle"');
+    expect(svg).toContain('vm-frame-jungle');
+    // The real dobutsu board cropped to files c-e: grass + the den + trap tiles + the
+    // leopard (c3) and wolf (e3), in its own frame (not the xiangqi wood-brown).
+    expect(svg).toContain('/piece-sets/jungle/dobutsu/board/grass.png');
+    expect(svg).toContain('/piece-sets/jungle/dobutsu/board/den.png');
+    expect(svg).toContain('/piece-sets/jungle/dobutsu/board/trap.png');
+    expect(svg).toContain('/piece-sets/jungle/dobutsu/red-leopard.png');
+    expect(svg).toContain('/piece-sets/jungle/dobutsu/red-wolf.png');
+    expect(svg).not.toContain('vm-xq-fog');
+  });
+
+  it('renders the Flip Jungle marker as a 2x2 with two flipped elephants on opposite corners', () => {
+    const svg = renderVariantMiniBoard('jungle-flip', { size: 100 });
+    expect(svg).toContain('data-mini-id="jungle-flip"');
+    expect(svg).toContain('vm-frame-jungle');
+    // The real flip board cropped: the bushy board + a face-down jade disc, plus the red
+    // and black elephants flipped up on opposite corners.
+    expect(svg).toContain('/piece-sets/jungle/dobutsu/board/flip-board.png');
+    expect(svg).toContain('fill="#2f8f6b"');
+    expect(svg).toContain('/piece-sets/jungle/dobutsu/red-elephant.png');
+    expect(svg).toContain('/piece-sets/jungle/dobutsu/black-elephant.png');
+  });
+
   it('includes Kriegspiel, Drop Mini, Dark Crossroads, and Dark Crazyhouse on the marker lab sheet', () => {
     const root = document.createElement('div');
 
@@ -73,5 +99,7 @@ describe('variant mini-board markers', () => {
     expect(root.querySelector('svg[data-mini-id="drop-mini-xiangqi"]')).not.toBeNull();
     expect(root.querySelector('svg[data-mini-id="dark-crossroads"]')).not.toBeNull();
     expect(root.querySelector('svg[data-mini-id="dark-crazyhouse"]')).not.toBeNull();
+    expect(root.querySelector('svg[data-mini-id="jungle"]')).not.toBeNull();
+    expect(root.querySelector('svg[data-mini-id="jungle-flip"]')).not.toBeNull();
   });
 });

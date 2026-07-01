@@ -6,6 +6,8 @@ import './watch-route.css';
 import { displayParticipantName, type FeaturedGame, sourceLabel } from './game-display.js';
 import { gameMetaForGame, reviewUrlForGame } from './game-meta.js';
 import type { GameMeta, ReplayHandle } from './replay.js';
+import { renderWatchReplaySkeleton } from './replay-skeleton.js';
+import { showcaseRendererKindForSpec } from './showcase-dispatch.js';
 import { buildLoadingState, buildNav } from './site-shell.js';
 
 // replay.js statically pulls in chessground (~64KB). Importing it dynamically
@@ -84,11 +86,11 @@ export async function mountWatch(root: HTMLElement): Promise<void> {
   const watchRendererKind = (feed: WatchFeed): WatchRendererKind => {
     const channel = feed.channels.find((entry) => entry.id === feed.activeChannel);
     const specId = channel?.gameSpecIds[0] ?? null;
-    const tenant = webVariantTenantForSpecId(specId);
     // Key on the channel's primary spec id (unambiguous per tenant) so two
     // channels in the same render family resolve to distinct renderers; only a
     // tenant that owns a watch renderer counts, else fall back to chessground.
-    return tenant?.watch && specId ? specId : 'chess';
+    // Shared with the homepage showcase cycler so the two dispatchers can't drift.
+    return showcaseRendererKindForSpec(specId);
   };
 
   // Mount the right-kind replay handle, re-mounting when the family changes
@@ -472,6 +474,8 @@ const CHANNEL_MINI_BY_ID: Record<string, VariantMiniId> = {
   'dark-crazyhouse': 'dark-crazyhouse',
   kriegspiel: 'kriegspiel',
   'reveal-chess': 'reveal-chess',
+  jungle: 'jungle',
+  'jungle-flip': 'jungle-flip',
 };
 
 export function renderWatchChannelList(root: HTMLElement, feed: WatchFeed | null): void {
@@ -528,18 +532,9 @@ export function renderWatchChannelList(root: HTMLElement, feed: WatchFeed | null
 // footprint so the swap doesn't shift layout, and every renderer's mount path
 // calls root.replaceChildren(), so the skeleton is wiped the moment real
 // content is ready. aria-hidden: it's a transient loading affordance, not state.
-export function renderWatchReplaySkeleton(root: HTMLElement): void {
-  const skeleton = document.createElement('div');
-  skeleton.className = 'watch-replay-skeleton';
-  skeleton.setAttribute('aria-hidden', 'true');
-  const board = document.createElement('div');
-  board.className = 'watch-replay-skeleton-board';
-  const caption = document.createElement('div');
-  caption.className = 'watch-replay-skeleton-caption';
-  caption.textContent = 'Loading game';
-  skeleton.append(board, caption);
-  root.replaceChildren(skeleton);
-}
+// Re-exported from the leaf so the existing watch-route test keeps importing it
+// from here; the homepage showcase cycler imports it from './replay-skeleton.js'.
+export { renderWatchReplaySkeleton };
 
 function renderWatchEmptyState(root: HTMLElement, feed: WatchFeed | null): void {
   root.replaceChildren();

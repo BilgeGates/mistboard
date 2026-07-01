@@ -21,17 +21,17 @@ const ARTICLES_INDEX_META: Record<
 > = {
   en: {
     title: 'Articles | Mistboard',
-    description: 'Long-form writing on dark chess: variants, strategy, and engine research.',
+    description: 'Long-form writing on original strategy games, rules, and engine research.',
     htmlLang: 'en',
   },
   'zh-hans': {
     title: '文章 | Mistboard',
-    description: '迷雾国际象棋的变体、策略与引擎工作。',
+    description: '原创策略游戏的文章、规则说明与引擎工作。',
     htmlLang: 'zh-Hans',
   },
   'zh-hant': {
     title: '文章 | Mistboard',
-    description: '迷霧國際象棋的變體、策略與引擎工作。',
+    description: '原創策略遊戲的文章、規則說明與引擎工作。',
     htmlLang: 'zh-Hant',
   },
 };
@@ -42,17 +42,17 @@ const RULES_INDEX_META: Record<
 > = {
   en: {
     title: 'Rules | Mistboard',
-    description: 'Reference rules for Mistboard games and Fog of War variants.',
+    description: 'Reference rules for Mistboard games, classic bases, and Fog of War variants.',
     htmlLang: 'en',
   },
   'zh-hans': {
     title: '规则 | Mistboard',
-    description: 'Mistboard 游戏与战争迷雾变体的规则参考。',
+    description: 'Mistboard 游戏、经典基础规则与战争迷雾变体的规则参考。',
     htmlLang: 'zh-Hans',
   },
   'zh-hant': {
     title: '規則 | Mistboard',
-    description: 'Mistboard 遊戲與戰爭迷霧變體的規則參考。',
+    description: 'Mistboard 遊戲、經典基礎規則與戰爭迷霧變體的規則參考。',
     htmlLang: 'zh-Hant',
   },
 };

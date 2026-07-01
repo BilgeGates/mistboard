@@ -1,3 +1,4 @@
+import { JUNGLE_SAMPLE_GAME } from '../../jungle-sample-game.js';
 import {
   JUNGLE_LION_JUMP,
   JUNGLE_RANK_LADDER,
@@ -6,8 +7,9 @@ import {
   JUNGLE_RAT_SWIMS,
   JUNGLE_START_BOARD,
   JUNGLE_TRAP,
+  playClosing,
 } from '../diagrams.js';
-import type { Article, ArticleBlock } from '../types.js';
+import type { Article } from '../types.js';
 
 export const jungleArticle: Article = {
   slug: 'jungle',
@@ -16,8 +18,9 @@ export const jungleArticle: Article = {
   summary:
     "The classic Chinese animal-chess game on a 7×9 board. Eight ranked animals, rivers only the rat can cross, and a race to the opponent's den.",
   showSummaryOnPage: false,
-  status: 'draft',
-  playableOnMistboard: false,
+  status: 'published',
+  publishedAt: '2026-06-30',
+  playableOnMistboard: true,
   audience:
     'Anyone who knows Jungle / Animal Chess and wants the rules clearly, plus chess and xiangqi players meeting it for the first time.',
   intro: [
@@ -54,6 +57,7 @@ export const jungleArticle: Article = {
         {
           kind: 'raw-svg',
           svg: JUNGLE_RANK_LADDER,
+          caption: 'Strongest at the left, weakest at the right.',
         },
         {
           kind: 'raw-svg',
@@ -66,7 +70,7 @@ export const jungleArticle: Article = {
       blocks: [
         {
           kind: 'paragraph',
-          text: 'Step a piece onto one of your opponent’s three trap squares and it loses all rank while it stands there. Any defending piece can take it, down to a rat capturing a trapped elephant. Your own traps never weaken your pieces.',
+          text: 'Step a piece onto one of your opponent’s three trap squares and it loses all rank while it stands there, so any defending piece can take it, down to a rat capturing a trapped elephant. Only an enemy’s traps do this: a piece can sit on one of its own traps and keeps its full rank.',
         },
         {
           kind: 'raw-svg',
@@ -104,7 +108,7 @@ export const jungleArticle: Article = {
       blocks: [
         {
           kind: 'paragraph',
-          text: 'Move any piece into your opponent’s den and you win immediately. You also win by capturing every enemy piece. You can never enter your own den.',
+          text: 'Move any piece into your opponent’s den and you win immediately. You also win by capturing every enemy piece. You can never move a piece onto your own den, so the only den you can enter is the enemy’s.',
         },
       ],
     },
@@ -118,17 +122,35 @@ export const jungleArticle: Article = {
       ],
     },
     {
-      heading: 'Play status',
+      heading: 'A full game',
       blocks: [
         {
           kind: 'paragraph',
-          text: 'Jungle is in development on Mistboard and not yet open for play. No set release date.',
+          text: 'Step through a real game between two strengths of our bot. Watch the lion leap the river, the rat swim up the far lane and take the elephant in the open, and Red march the rest of the way into Black’s den.',
         },
         {
-          kind: 'cta',
-          buttons: [{ label: 'Back to all rules', href: '/rules', emphasis: 'secondary' }],
-        } as ArticleBlock,
+          kind: 'jungle-replay',
+          spec: {
+            red: JUNGLE_SAMPLE_GAME.red,
+            black: JUNGLE_SAMPLE_GAME.black,
+            event: JUNGLE_SAMPLE_GAME.event,
+            outcome: JUNGLE_SAMPLE_GAME.outcome,
+            resultText: JUNGLE_SAMPLE_GAME.result,
+            moves: JUNGLE_SAMPLE_GAME.moves,
+          },
+        },
       ],
     },
+    playClosing({
+      heading: 'Where to next',
+      lead: 'Jungle is playable on Mistboard: take on Misty Jungle at the strength you pick, or challenge a friend. Flip Jungle is the small face-down cousin on a four-by-four grid.',
+      playLabel: 'Play Misty Jungle',
+      playHref: '/?play=computer&gameSpecId=jungle',
+      secondary: [
+        { label: 'Challenge a friend', href: '/?play=friend&gameSpecId=jungle', emphasis: 'secondary' },
+        { label: 'Flip Jungle', href: '/rules/jungle-flip', emphasis: 'secondary' },
+        { label: 'All rules', href: '/rules', emphasis: 'secondary' },
+      ],
+    }),
   ],
 };

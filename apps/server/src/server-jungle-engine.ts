@@ -11,6 +11,7 @@
 import {
   applyJungleMove,
   getJungleLegalMoves,
+  isJungleLegalMove,
   JUNGLE_DENS,
   type JUNGLE_SPEC_ID,
   type JungleColor,
@@ -22,11 +23,34 @@ import {
   jungleTrapOwner,
   oppositeJungleColor,
 } from '@mistboard/game';
+import {
+  buildEngineDecisionRecord,
+  reportEngineFallback,
+  reportEngineMoveOk,
+  resolveValidatedEngineMove,
+} from './engine-move-guard.js';
+import {
+  JUNGLE_RUST_ENGINE_VERSION,
+  jungleEngineBinaryAvailable,
+  jungleLiveEngineMove,
+  jungleRustEngineEnabled,
+  jungleRustTierFor,
+} from './jungle-engine.js';
+import {
+  engineUciToJungleMove,
+  jungleMoveToEngineUci,
+  jungleStateToEngineFen,
+} from './jungle-fen.js';
 import { logger } from './obs.js';
 import type { TenantLifecycleContext } from './variant-tenant/lifecycle.js';
 import { tenantClockRemainingMs } from './variant-tenant/runtime.js';
 import type { TenantRoomEvent } from './variant-tenant/tenant.js';
 import type { TenantLiveRoom } from './variant-tenant/ws.js';
+
+// Engine-move boundary (see engine-move-guard.ts) for the Rust path.
+const CLOCK_SAFETY_MS = 1_000;
+const MIN_MOVETIME_MS = 50;
+const ENGINE_MOVE_MAX_ATTEMPTS = 2;
 
 export const JUNGLE_ENGINE_VERSION = '0.1.0';
 export const JUNGLE_DEFAULT_ENGINE_ID = 'misty-jungle-level-2';
@@ -159,6 +183,15 @@ export async function playJungleEngineMoveIfReady(
   const remainingMs = clock ? tenantClockRemainingMs(clock, seat, now) : null;
   if (remainingMs !== null && remainingMs <= 0) return;
 
+  // Strong path: the Rust `jungle-engine` binary (UCI subprocess), routed through the
+  // shared fail-closed/observability boundary. Gated behind a flag with the in-process
+  // TS engine as fallback when the binary isn't shipped. The Rust engine fixes the TS
+  // dawdle (it takes the fastest win) and gets counters + fail-closed for free.
+  if (jungleRustEngineEnabled() && jungleRustTierFor(engineId) && jungleEngineBinaryAvailable()) {
+    await playJungleRustEngineMove(ctx, room, seat, engineId, remainingMs);
+    return;
+  }
+
   const chosen = chooseJungleEngineMove(room.projection.state, tier);
   if (!chosen) {
     logger.error(
@@ -180,6 +213,101 @@ export async function playJungleEngineMoveIfReady(
   ctx.broadcastEventAppended(room, event, seq);
 }
 
+// Rust-engine move with the engine-move-guard contract: bounded retries, validate
+// every output against the kernel, FAIL CLOSED (resign + page) on an unusable move.
+// Jungle is perfect-information, so a kernel-rejected move is a bug, not fog — resign
+// (mirrors server-banqi-engine.ts).
+async function playJungleRustEngineMove(
+  ctx: JungleEngineContext,
+  room: JungleEngineRoom,
+  seat: JungleColor,
+  engineId: string,
+  remainingMs: number | null,
+): Promise<void> {
+  const rustTier = jungleRustTierFor(engineId);
+  if (!rustTier) return;
+  const state = room.projection.state;
+  const fen = jungleStateToEngineFen(state);
+  const movetimeCapMs =
+    remainingMs === null
+      ? rustTier.movetimeCapMs
+      : Math.max(MIN_MOVETIME_MS, Math.min(rustTier.movetimeCapMs, remainingMs - CLOCK_SAFETY_MS));
+
+  const {
+    chosen: validated,
+    attempts,
+    aborted,
+  } = await resolveValidatedEngineMove<JungleMove>({
+    maxAttempts: ENGINE_MOVE_MAX_ATTEMPTS,
+    requestMove: () =>
+      jungleLiveEngineMove(engineId, fen, { nodes: rustTier.nodes, movetimeCapMs }),
+    validate: (uci) => {
+      const parsed = engineUciToJungleMove(uci);
+      return parsed && isJungleLegalMove(state, parsed) ? parsed : null;
+    },
+    stillOnTurn: () => engineToMove(room, seat),
+    onReject: ({ attempt, maxAttempts, uci, reason, error }) =>
+      logger.warn(
+        {
+          kind: 'jungle_engine_move_rejected',
+          room_id: room.id,
+          engine_id: engineId,
+          attempt,
+          max_attempts: maxAttempts,
+          uci,
+          reject_reason: reason,
+          error,
+        },
+        'Jungle engine output rejected by kernel; retrying',
+      ),
+  });
+  if (aborted || !engineToMove(room, seat)) return;
+
+  if (validated === null) {
+    // FAIL CLOSED: capture a replayable record, page, and resign the engine seat.
+    const record = buildEngineDecisionRecord({
+      variant: 'jungle',
+      roomId: room.id,
+      engineId,
+      engineVersion: JUNGLE_RUST_ENGINE_VERSION,
+      movetimeMs: movetimeCapMs,
+      tier: { nodes: rustTier.nodes, movetimeMs: rustTier.movetimeCapMs },
+      ply: state.moveNumber,
+      toMove: seat,
+      inCheck: false,
+      fen,
+      history: [],
+      legalUci: getJungleLegalMoves(state).map(jungleMoveToEngineUci),
+      attempts,
+    });
+    reportEngineFallback(
+      record,
+      'jungle_engine_failed_closed',
+      'Jungle engine failed closed: no kernel-legal move after retries; resigning the engine seat',
+    );
+    const resign: TenantRoomEvent<JungleColor, JungleMove, typeof JUNGLE_SPEC_ID> = {
+      type: 'seat-resigned',
+      at: Date.now(),
+      roomId: room.id,
+      color: seat,
+    };
+    const seq = await ctx.appendEvent(room, resign);
+    ctx.broadcastEventAppended(room, resign, seq);
+    return;
+  }
+
+  reportEngineMoveOk();
+  const event: TenantRoomEvent<JungleColor, JungleMove, typeof JUNGLE_SPEC_ID> = {
+    type: 'move-played',
+    at: Date.now(),
+    roomId: room.id,
+    color: seat,
+    move: validated,
+  };
+  const seq = await ctx.appendEvent(room, event);
+  ctx.broadcastEventAppended(room, event, seq);
+}
+
 export function chooseJungleEngineMove(
   state: JungleGameState,
   tier: JungleEngineTier,
@@ -192,7 +320,7 @@ export function chooseJungleEngineMove(
       const after = applyJungleMove(state, move);
       return {
         move,
-        score: -negamax(after, tier.depth - 1, -WIN, WIN, oppositeJungleColor(mover), budget),
+        score: -negamax(after, tier.depth - 1, -WIN, WIN, oppositeJungleColor(mover), budget, 1),
       };
     })
     .sort((a, b) => b.score - a.score || moveKey(a.move).localeCompare(moveKey(b.move)));
@@ -204,7 +332,12 @@ export function chooseJungleEngineMove(
   return softPool[Math.min(tier.softPickRank, softPool.length - 1)]?.move ?? candidates[0]!.move;
 }
 
-// Negamax with alpha-beta. Returns the value from `mover`'s perspective.
+// Negamax with alpha-beta. Returns the value from `mover`'s perspective. `ply` is the
+// distance from the root, used for win-distance scoring: a terminal win/loss found
+// sooner (smaller `ply`) scores more extreme. Without it every winning line ties at
+// WIN-1, so the move ordering's alphabetical tie-break could pick a slower forced win
+// over an immediate den entry — the engine would "dawdle" in a won position instead of
+// finishing (observed in real PvE games).
 function negamax(
   state: JungleGameState,
   depth: number,
@@ -212,11 +345,12 @@ function negamax(
   beta: number,
   mover: JungleColor,
   budget: { nodes: number },
+  ply: number,
 ): number {
   if (state.status.type === 'finished') {
-    if (state.status.winner === mover) return WIN - 1;
+    if (state.status.winner === mover) return WIN - ply;
     if (state.status.winner === null) return 0;
-    return -(WIN - 1);
+    return -(WIN - ply);
   }
   if (state.status.type !== 'playing') return 0;
   budget.nodes += 1;
@@ -231,6 +365,7 @@ function negamax(
       -alpha,
       oppositeJungleColor(mover),
       budget,
+      ply + 1,
     );
     if (value > best) best = value;
     if (best > alpha) alpha = best;

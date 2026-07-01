@@ -155,8 +155,8 @@ describe('about page platform activity', () => {
     mountFaq(root);
 
     expect(root.querySelector('h1')?.textContent).toBe('常見問題');
-    expect(root.textContent).toContain('什麼是迷霧國際象棋？');
-    expect(root.textContent).toContain('規則參考有完整規則。');
+    expect(root.textContent).toContain('Mistboard 上可以玩什麼？');
+    expect(root.textContent).toContain('規則參考列出了目前遊戲。');
     expect(root.textContent).toContain('我需要帳號嗎？');
     expect(root.textContent).toContain('如何回報 bug 或聯絡？');
     expect(root.textContent).toContain('Mistboard 引擎會看到完整棋盤嗎？');

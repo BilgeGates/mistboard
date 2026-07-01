@@ -379,7 +379,7 @@ test('ddchess golden wire: snapshot omits engine/rated/rematch keys (ddchess wir
   const last = script.steps.at(-1);
   assert.ok(last);
   for (const seat of SEATS) {
-    const snapshot = last.snapshots[seat]!;
+    const snapshot: SeatRecord = last.snapshots[seat]!;
     for (const key of ['mode', 'pveEngineId', 'rated', 'forfeitDeadline', 'rematch']) {
       assert.ok(!(key in snapshot), `ddchess snapshot must not carry '${key}'`);
     }

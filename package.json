@@ -53,6 +53,8 @@
     "og:preview": "node scripts/og-preview.mjs",
     "gate:evidence": "node scripts/gate-evidence.mjs",
     "check:drift": "node scripts/drift-check.mjs",
+    "check:jungle-art": "node scripts/check-jungle-art.mjs",
+    "publish:jungle-art": "node scripts/publish-jungle-art.mjs",
     "worktree:new": "node scripts/worktree-new.mjs",
     "worktree:prepare": "node scripts/worktree-prepare.mjs",
     "verify": "node scripts/verify.mjs",

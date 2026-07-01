@@ -32,6 +32,8 @@ import {
   findArticle,
   type InteractiveBlock,
   type JieqiReplayBlock,
+  type JungleFlipReplayBlock,
+  type JungleReplayBlock,
   type LiveBoardsBlock,
   type MiniXiangqiReplayBlock,
   type RawSvgBlock,
@@ -55,6 +57,8 @@ import {
 import { type I18nKey, t } from './i18n/catalog.js';
 import { currentLocale, LOCALE_META, type Locale, localizedHref } from './i18n/locale.js';
 import { type JieqiReplayController, mountJieqiReplay } from './jieqi-replay.js';
+import { type JungleFlipReplayController, mountJungleFlipReplay } from './jungle-flip-replay.js';
+import { type JungleReplayController, mountJungleReplay } from './jungle-replay.js';
 import { type MiniXiangqiReplayController, mountMiniXiangqiReplay } from './mini-xiangqi-replay.js';
 import { mountShogiReplay, type ShogiReplayController } from './shogi-replay.js';
 import {
@@ -254,19 +258,11 @@ function buildRulesLanding(lang?: ArticleLang): HTMLElement {
 // articles, so the caller can omit it. Thumbnails are bound by the caller's
 // mountArticleThumbnails pass; rotation is started by initLandingCarousel once
 // the section is in the document (it needs measured widths).
-const HOME_ARTICLE_SLUGS = [
-  'drop-mini-xiangqi',
-  'dark-shogi',
-  'mistybanqi',
-  'server-enforced-fog',
-  'crossroads-chess',
-  'dark-mini-xiangqi',
-  'dark-xiangqi',
-  'jieqi',
-  'banqi',
-  'reveal-chess',
-  'dark-chess',
-] as const;
+// Editorial articles only. Rules reference pages are surfaced on the /rules
+// index (and each variant's card marker), not in this homepage row, so this
+// list is curated down to blog/concept pieces; the kind guard in
+// buildHomeArticleCards drops any rules slug that slips back in.
+const HOME_ARTICLE_SLUGS = ['misty', 'mistybanqi', 'server-enforced-fog'] as const;
 
 type HomeCardItem =
   | {
@@ -291,7 +287,8 @@ export function buildHomeArticleCards(
   );
   const articleItems = HOME_ARTICLE_SLUGS.flatMap<HomeCardItem>((slug, index) => {
     const article = eligible.get(slug);
-    return article
+    // Rules reference pages live on /rules, never this editorial row.
+    return article && article.kind !== 'rules'
       ? [{ kind: 'article', date: articleDateKey(article), order: index + 1, article }]
       : [];
   });
@@ -975,7 +972,9 @@ type PendingBlock =
   | ShogiReplayBlock
   | CrossroadsReplayBlock
   | JieqiReplayBlock
-  | BanqiReplayBlock;
+  | BanqiReplayBlock
+  | JungleReplayBlock
+  | JungleFlipReplayBlock;
 type PendingMount = {
   block: PendingBlock;
   lang?: ArticleLang;
@@ -1003,6 +1002,8 @@ function renderBlock(block: ArticleBlock, lang?: ArticleLang): HTMLElement {
   if (block.kind === 'crossroads-replay') return renderCrossroadsReplayBlock(block);
   if (block.kind === 'jieqi-replay') return renderJieqiReplayBlock(block);
   if (block.kind === 'banqi-replay') return renderBanqiReplayBlock(block, lang);
+  if (block.kind === 'jungle-replay') return renderJungleReplayBlock(block, lang);
+  if (block.kind === 'jungle-flip-replay') return renderJungleFlipReplayBlock(block, lang);
   return renderInteractiveBlock(block);
 }
 
@@ -1070,6 +1071,49 @@ function renderBanqiReplayBlock(block: BanqiReplayBlock, lang?: ArticleLang): HT
   const figure = document.createElement('figure');
   figure.className = 'article-figure article-figure-interactive article-figure-banqi';
   figure.dataset.pendingWidget = 'banqi-replay';
+
+  const mountTarget = document.createElement('div');
+  mountTarget.className = 'article-interactive-target';
+  figure.append(mountTarget);
+
+  if (block.caption) {
+    const cap = document.createElement('figcaption');
+    cap.className = 'article-figure-caption';
+    cap.textContent = block.caption;
+    figure.append(cap);
+  }
+
+  rememberPendingMount(figure, block, lang);
+  return figure;
+}
+
+function renderJungleReplayBlock(block: JungleReplayBlock, lang?: ArticleLang): HTMLElement {
+  const figure = document.createElement('figure');
+  figure.className = 'article-figure article-figure-interactive article-figure-jungle';
+  figure.dataset.pendingWidget = 'jungle-replay';
+
+  const mountTarget = document.createElement('div');
+  mountTarget.className = 'article-interactive-target';
+  figure.append(mountTarget);
+
+  if (block.caption) {
+    const cap = document.createElement('figcaption');
+    cap.className = 'article-figure-caption';
+    cap.textContent = block.caption;
+    figure.append(cap);
+  }
+
+  rememberPendingMount(figure, block, lang);
+  return figure;
+}
+
+function renderJungleFlipReplayBlock(
+  block: JungleFlipReplayBlock,
+  lang?: ArticleLang,
+): HTMLElement {
+  const figure = document.createElement('figure');
+  figure.className = 'article-figure article-figure-interactive article-figure-jungle-flip';
+  figure.dataset.pendingWidget = 'jungle-flip-replay';
 
   const mountTarget = document.createElement('div');
   mountTarget.className = 'article-interactive-target';
@@ -1665,6 +1709,8 @@ export function mountPendingWidgets(
   | CrossroadsChessReplayController
   | JieqiReplayController
   | BanqiReplayController
+  | JungleReplayController
+  | JungleFlipReplayController
 > {
   const controllers: Array<
     | StepperController
@@ -1677,6 +1723,8 @@ export function mountPendingWidgets(
     | CrossroadsChessReplayController
     | JieqiReplayController
     | BanqiReplayController
+    | JungleReplayController
+    | JungleFlipReplayController
   > = [];
   const pending = root.querySelectorAll<HTMLElement>('[data-pending-widget]');
   pending.forEach((figure) => {
@@ -1705,6 +1753,10 @@ export function mountPendingWidgets(
       controllers.push(mountJieqiReplay(target, block.spec));
     } else if (block.kind === 'banqi-replay') {
       controllers.push(mountBanqiReplay(target, block.spec, { lang }));
+    } else if (block.kind === 'jungle-replay') {
+      controllers.push(mountJungleReplay(target, block.spec, { lang }));
+    } else if (block.kind === 'jungle-flip-replay') {
+      controllers.push(mountJungleFlipReplay(target, block.spec, { lang }));
     }
     pendingMounts.delete(figure);
     delete figure.dataset.pendingWidget;
@@ -1892,6 +1944,8 @@ const VARIANT_MINI_BY_SLUG: Record<string, VariantMiniId> = {
   shogi: 'shogi',
   'dark-shogi': 'dark-shogi',
   'dark-crazyhouse': 'dark-crazyhouse',
+  jungle: 'jungle',
+  'jungle-flip': 'jungle-flip',
 };
 
 // A rail/landing thumbnail rendered as the variant's mini-board, or null if the

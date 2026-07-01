@@ -78,7 +78,7 @@ describe('Flip Jungle postgame page', () => {
 
     const board = () => root.querySelector('.jungle-flip-postgame-board') as HTMLElement;
     // Step back to ply 0 (before the flip): the as-played mask paints face-down backs
-    // (a tile drawn with the banqi-aligned jade back fill).
+    // (the banqi-style jade back disc).
     document.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowUp' }));
     expect(board().innerHTML).toContain('fill="#2f8f6b"');
 
@@ -87,7 +87,7 @@ describe('Flip Jungle postgame page', () => {
     );
     expect(reveal).not.toBeUndefined();
     reveal!.click();
-    // Revealed overlay: no tile is painted with the back fill, even at ply 0.
+    // Revealed overlay: no tile shows the back disc, even at ply 0.
     expect(reveal!.textContent).toBe('Hide tiles');
     expect(board().innerHTML).not.toContain('fill="#2f8f6b"');
   });

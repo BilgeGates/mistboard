@@ -12,7 +12,8 @@
  *     viewForClient delegates to it.
  *
  * C is the SEAT ('red' = first mover); the red seat binds its ink on the opening flip.
- * PvP-first (no engine at launch; the flip bot is a separate classical belief search).
+ * PvP + PvE: the MistyJungleFlip bot (a redacted-FEN UCI engine) seats via the
+ * engine config below, same as banqi.
  */
 
 import { randomInt } from 'node:crypto';
@@ -34,7 +35,13 @@ import {
   oppositeJungleFlipSeat,
 } from '@mistboard/game';
 import { jungleFlipEnabled } from './feature-flags.js';
+import {
+  isJungleFlipEngineClientId,
+  jungleFlipEngineDisplayName,
+  jungleFlipEngineVersion,
+} from './jungle-flip-engine.js';
 import type * as persistence from './persistence.js';
+import { tenantPveEngineId } from './variant-tenant/runtime.js';
 import type {
   TenantClientEvent,
   TenantRoomEvent,
@@ -153,6 +160,24 @@ export const jungleFlipTenant: JungleFlipTenant = {
   visibility: {
     clientEventFor: jungleFlipClientEventFor,
     viewForClient: (state, client) => getJungleFlipClientView(state, client),
+  },
+  // Mark the MistyJungleFlip engine seat as always-present so the disconnect-forfeit
+  // logic never forfeits it (a PvE engine has no WS client) and the client stops
+  // showing the "Invite opponent" panel for a seated bot. Without this the flip
+  // PvE room renders as an open PvP invite even though the engine is playing.
+  engine: {
+    isEngineClientId: isJungleFlipEngineClientId,
+    displayName: jungleFlipEngineDisplayName,
+    engineVersion: jungleFlipEngineVersion,
+    reservationReleaseTag: 'jungle-flip',
+  },
+  // Surface the room mode + engine id so the client's "Play again" can re-create a
+  // PvE game vs the same bot (without these it falls back to a PvP invite).
+  wire: {
+    snapshotExtras: (room) => {
+      const pveEngineId = tenantPveEngineId(jungleFlipTenant, room);
+      return pveEngineId === null ? { roomMode: 'pvp' } : { roomMode: 'pve', pveEngineId };
+    },
   },
   persistence: {
     resultForWinner: (winner: JungleFlipSeat | null): persistence.GameResult => {

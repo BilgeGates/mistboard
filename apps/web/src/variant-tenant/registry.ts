@@ -113,6 +113,14 @@ export type WebVariantTenant = {
       options: {
         autoplay: boolean;
         metadataByRoomId: Record<string, GameMeta>;
+        // Homepage showcase mode: a single compact board that hands off at
+        // game-end so the outer cycler can advance to the next pooled game.
+        // Watch omits both (full TV chrome, loops the single game).
+        compact?: boolean;
+        onGameEnd?: () => void;
+        // Player names for the compact seats (first = red/first-mover, second =
+        // black), keyed by room id — the tenant postgames carry no names.
+        namesByRoomId?: Record<string, { first: string; second: string }>;
       },
     ): Promise<ReplayHandle>;
   };
@@ -443,6 +451,18 @@ const WEB_VARIANT_TENANTS: readonly WebVariantTenant[] = [
       timePresetIds: ['1m1', '3m2', '5m5'],
       offerInMenu: jungleFlipEnabled,
       acceptsDeepLink: jungleFlipEnabled,
+      // Tier-B MistyJungleFlip UCI engine (jungle-flip-engine in mistboard-engine),
+      // served via server-jungle-flip-engine.ts. One versioned full-strength bot, like
+      // banqi — Flip Jungle is a small chance game, not a fog/belief search.
+      engineOptions: [
+        {
+          id: 'misty-jungle-flip',
+          name: 'MistyJungleFlip',
+          familyName: 'MistyJungleFlip',
+          kind: 'container',
+        },
+      ],
+      defaultEngineId: 'misty-jungle-flip',
     },
   },
   {

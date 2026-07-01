@@ -18,6 +18,8 @@ import {
   isGameSpecId,
   isRatedPoolBase,
   JIEQI_SPEC_ID,
+  JUNGLE_FLIP_SPEC_ID,
+  JUNGLE_SPEC_ID,
   KRIEGSPIEL_SPEC_ID,
   legacyLiveRoomForGameSpec,
   MINI_XIANGQI_SPEC_ID,
@@ -325,6 +327,8 @@ test('RATED_POOL_BASES derives from the rated flag and matches the RatingVariant
     banqi: true,
     kriegspiel: true,
     reveal_chess: true,
+    jungle: true,
+    jungle_flip: true,
   };
   assert.deepEqual(Object.keys(unionMembers).sort(), [...RATED_POOL_BASES].sort());
 });
@@ -343,7 +347,11 @@ test('ratingPoolForSpec is rated for launched pools and null for casual-only spe
   assert.equal(ratingPoolForSpec(DARK_SHOGI_SPEC_ID), 'dark_shogi');
   assert.equal(ratingPoolForSpec(DARK_CRAZYHOUSE_SPEC_ID), 'dark_crazyhouse');
   assert.equal(ratingPoolForSpec(KRIEGSPIEL_SPEC_ID), 'kriegspiel');
+  assert.equal(ratingPoolForSpec(JUNGLE_SPEC_ID), 'jungle');
+  assert.equal(ratingPoolForSpec(JUNGLE_FLIP_SPEC_ID), 'jungle_flip');
   assert.equal(isRatedPoolBase('jieqi'), true);
+  assert.equal(isRatedPoolBase('jungle'), true);
+  assert.equal(isRatedPoolBase('jungle_flip'), true);
   assert.equal(isRatedPoolBase('mini_xiangqi'), false);
   assert.equal(isRatedPoolBase('drop_mini_xiangqi'), true);
   assert.equal(isRatedPoolBase('dark_xiangqi'), true);

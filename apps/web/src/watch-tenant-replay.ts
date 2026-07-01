@@ -15,10 +15,21 @@ import { currentLocale, type Locale } from './i18n/locale.js';
 import type { GameMeta, ReplayHandle } from './replay.js';
 import { createPane, type ReplayPaneHandle } from './replay-board.js';
 import { createGameHeaderStrip } from './replay-meta.js';
+import {
+  reconstructMoveDelays,
+  reconstructShowcaseClocks,
+  type ShowcaseClockPair,
+} from './showcase-clock.js';
+import { pickCompactViewKey } from './showcase-compact-view.js';
 import { formatClock } from './web-utils.js';
 
 const AUTO_PLAY_PLY_MS = 1100;
 const AUTO_PLAY_LOOP_HOLD_MS = 2600;
+// Compact showcase per-move pacing: play each move at its real recorded duration
+// clamped to this watchable band, and tick the mover's clock down across it.
+const SHOWCASE_MIN_MOVE_MS = 700;
+const SHOWCASE_MAX_MOVE_MS = 2500;
+const SHOWCASE_CLOCK_TICK_MS = 100;
 
 // The postgame fields the shared TV chrome reads; every tenant postgame response
 // carries these (the adapter's Postgame type extends this).
@@ -31,8 +42,14 @@ export type WatchPostgameMeta = {
     rated: boolean;
     initialMs: number | null;
     incrementMs: number | null;
+    startedAt?: number | string | null;
   };
   state: { timeControl?: { initialMs: number; incrementMs: number } | null };
+  // Per-event wall-clock timestamps; present on every tenant postgame (move events
+  // carry color + ply, terminal events may not). The compact showcase reconstructs
+  // the players' real clocks from the move timestamps (the generic tenant postgames
+  // carry no dense clock series).
+  timeline?: ReadonlyArray<{ at: number; color?: string; ply?: number }>;
 };
 
 // The variant-specific surface. The generic owns everything else.
@@ -64,6 +81,28 @@ export type TenantWatchReplayOptions = {
   autoplay?: boolean;
   locale?: Locale;
   metadataByRoomId?: Record<string, GameMeta>;
+  /**
+   * Homepage showcase mode: render a SINGLE board (no header/control-bar/ply-line)
+   * instead of the full TV triptych. The compact view honors hidden info —
+   * perfect-info/symmetric variants show truth; hidden-identity/per-color variants
+   * show the as-played hidden view (a reveal tenant's hiddenKey, or one random
+   * color's POV — never the truth board). Pairs with onGameEnd for cross-variant
+   * cycling.
+   */
+  compact?: boolean;
+  /**
+   * Called once when the game reaches its final ply under autoplay (after the
+   * loop hold), instead of restarting the same game. Lets an outer showcase
+   * controller advance to the next pooled game (possibly a different variant).
+   */
+  onGameEnd?: () => void;
+  /**
+   * Player names for the compact showcase seats, keyed by room id: `first` is the
+   * red/first-mover side, `second` is black. The tenant postgames carry no names
+   * (they come from the feed's participants), so the caller supplies them here;
+   * absent names fall back to the color labels.
+   */
+  namesByRoomId?: Record<string, { first: string; second: string }>;
 };
 
 type ControlRefs = {
@@ -175,11 +214,16 @@ export async function mountTenantWatchReplay<
   adapter.installStyles();
   const autoplay = options.autoplay ?? true;
   const locale = options.locale ?? currentLocale();
+  const compact = options.compact === true;
+  const onGameEnd = options.onGameEnd;
+  const namesByRoomId = options.namesByRoomId;
 
   let activeId = roomId;
   let destroyed = false;
   let timer: number | null = null;
   let paused = !autoplay;
+  // Guards a single onGameEnd fire per game so the loop hold can't re-enter it.
+  let endFired = false;
 
   // Per-game render state, rebuilt on each loadGame.
   let boardTargets: Array<{ pane: ReplayPaneHandle; key: ViewKey }> = [];
@@ -195,6 +239,47 @@ export async function mountTenantWatchReplay<
   // Default to the as-played (hidden) board when the tenant supports reveal.
   let revealed = false;
   let revealBtn: HTMLButtonElement | null = null;
+  // Compact showcase seats (player name + real reconstructed clock), rebuilt per
+  // game; `side` maps each seat to the first(red)/second(black) clock slot.
+  let compactSeats: {
+    top: { row: HTMLElement; clockEl: HTMLElement; side: 'first' | 'second' };
+    bottom: { row: HTMLElement; clockEl: HTMLElement; side: 'first' | 'second' };
+  } | null = null;
+  let compactClocks: ShowcaseClockPair[] | null = null;
+  let moveDelays: number[] | null = null;
+  let compactIncrementMs = 0;
+  // Continuous drain of the mover's clock between ply snapshots (see tickCompactClock).
+  let clockAnim: {
+    side: 'first' | 'second';
+    startVal: number;
+    floorVal: number;
+    shownAt: number;
+    windowMs: number;
+  } | null = null;
+  let clockTickTimer: number | null = null;
+
+  const tickCompactClock = (): void => {
+    if (!compactSeats || !clockAnim) return;
+    const fraction = Math.min((Date.now() - clockAnim.shownAt) / clockAnim.windowMs, 1);
+    const shown = Math.max(
+      0,
+      clockAnim.startVal - (clockAnim.startVal - clockAnim.floorVal) * fraction,
+    );
+    const seat = compactSeats.top.side === clockAnim.side ? compactSeats.top : compactSeats.bottom;
+    seat.clockEl.textContent = formatClock(shown);
+  };
+
+  const compactSeatRow = (name: string): { row: HTMLElement; clockEl: HTMLElement } => {
+    const row = document.createElement('div');
+    row.className = 'showcase-seat';
+    const nameEl = document.createElement('span');
+    nameEl.className = 'showcase-seat-name';
+    nameEl.textContent = name;
+    const clockEl = document.createElement('span');
+    clockEl.className = 'showcase-seat-clock';
+    row.append(nameEl, clockEl);
+    return { row, clockEl };
+  };
 
   // Lichess convention: a player's captured material sits next to that player.
   const renderPaneCaptures = (
@@ -220,7 +305,7 @@ export async function mountTenantWatchReplay<
   };
 
   const sync = (): void => {
-    if (!activePostgame || !controls) return;
+    if (!activePostgame) return;
     for (const target of boardTargets) {
       const key = adapter.reveal
         ? ((revealed ? adapter.reveal.truthKey : adapter.reveal.hiddenKey) as ViewKey)
@@ -235,21 +320,52 @@ export async function mountTenantWatchReplay<
         renderPaneCaptures(target.pane, view, boardOrientation);
       }
     }
-    const result =
-      currentPly >= maxPly
-        ? localizeResultLabel(
-            adapter.resultLabel?.(activePostgame.game.result, activePostgame),
-            activePostgame.game.result,
-            locale,
-          )
-        : '';
-    controls.plyLabel.textContent = result
-      ? t('watch.plyProgressResult', { current: currentPly, total: maxPly, result }, locale)
-      : t('watch.plyProgress', { current: currentPly, total: maxPly }, locale);
-    controls.first.disabled = currentPly <= 0;
-    controls.prev.disabled = currentPly <= 0;
-    controls.next.disabled = currentPly >= maxPly;
-    controls.last.disabled = currentPly >= maxPly;
+    if (compactSeats) {
+      if (compactClocks) {
+        const at = compactClocks[Math.min(currentPly, compactClocks.length - 1)]!;
+        compactSeats.top.clockEl.textContent = formatClock(at[compactSeats.top.side]);
+        compactSeats.bottom.clockEl.textContent = formatClock(at[compactSeats.bottom.side]);
+      }
+      // Red moves first, so an even ply leaves Red (first) to move; no active side
+      // once the game has ended.
+      const toMove: 'first' | 'second' | null =
+        currentPly >= maxPly ? null : currentPly % 2 === 0 ? 'first' : 'second';
+      compactSeats.top.row.classList.toggle('active', toMove === compactSeats.top.side);
+      compactSeats.bottom.row.classList.toggle('active', toMove === compactSeats.bottom.side);
+      // Arm the live tick: drain the mover's clock from this ply's value toward the
+      // value just before the increment it earns on completing the move, over the
+      // real move-playback window.
+      if (toMove && compactClocks && moveDelays) {
+        const startVal = compactClocks[currentPly]?.[toMove] ?? 0;
+        const nextVal = compactClocks[currentPly + 1]?.[toMove];
+        clockAnim = {
+          side: toMove,
+          startVal,
+          floorVal: nextVal === undefined ? startVal : Math.max(0, nextVal - compactIncrementMs),
+          shownAt: Date.now(),
+          windowMs: moveDelays[currentPly + 1] ?? SHOWCASE_MIN_MOVE_MS,
+        };
+      } else {
+        clockAnim = null;
+      }
+    }
+    if (controls) {
+      const result =
+        currentPly >= maxPly
+          ? localizeResultLabel(
+              adapter.resultLabel?.(activePostgame.game.result, activePostgame),
+              activePostgame.game.result,
+              locale,
+            )
+          : '';
+      controls.plyLabel.textContent = result
+        ? t('watch.plyProgressResult', { current: currentPly, total: maxPly, result }, locale)
+        : t('watch.plyProgress', { current: currentPly, total: maxPly }, locale);
+      controls.first.disabled = currentPly <= 0;
+      controls.prev.disabled = currentPly <= 0;
+      controls.next.disabled = currentPly >= maxPly;
+      controls.last.disabled = currentPly >= maxPly;
+    }
 
     // Red moves first, so after an even ply Red is to move; no active side once
     // the game has ended.
@@ -271,11 +387,24 @@ export async function mountTenantWatchReplay<
     timer = window.setTimeout(
       () => {
         if (destroyed) return;
-        currentPly = atEnd ? 0 : currentPly + 1;
+        if (atEnd) {
+          // Showcase mode hands off to the outer controller instead of replaying
+          // the same game. Watch (no onGameEnd) loops the single game as before.
+          if (onGameEnd) {
+            if (!endFired) {
+              endFired = true;
+              onGameEnd();
+            }
+            return;
+          }
+          currentPly = 0;
+        } else {
+          currentPly += 1;
+        }
         sync();
         scheduleAuto();
       },
-      atEnd ? AUTO_PLAY_LOOP_HOLD_MS : AUTO_PLAY_PLY_MS,
+      atEnd ? AUTO_PLAY_LOOP_HOLD_MS : (moveDelays?.[currentPly + 1] ?? AUTO_PLAY_PLY_MS),
     );
   };
 
@@ -306,6 +435,24 @@ export async function mountTenantWatchReplay<
     sync();
   };
 
+  // The single board to show in compact showcase mode. Honors hidden info:
+  //  - reveal tenants (jieqi): the as-played masked board (hiddenKey), never truth;
+  //  - per-color hidden info (dark-xiangqi fog): one random side's own POV, stable
+  //    per room, oriented to that side;
+  //  - perfect-info / symmetric (banqi, jungle, mini-open): the truth board.
+  // The showcase only ever replays FINISHED games (whose truth is already public
+  // via the reveal gate), so this is a product choice — show the fog off — not a
+  // redaction boundary.
+  const pickCompactTarget = (game: Postgame): { key: ViewKey; orientation: 'red' | 'black' } => {
+    const choice = pickCompactViewKey({
+      roomId: activeId,
+      entries: adapter.viewEntries(game),
+      paneKind: adapter.paneKind,
+      reveal: adapter.reveal,
+    });
+    return { key: choice.key, orientation: choice.side === 'second' ? 'black' : 'red' };
+  };
+
   const buildGame = (postgame: Postgame): void => {
     activePostgame = postgame;
     maxPly = adapter.maxPly(postgame);
@@ -314,6 +461,82 @@ export async function mountTenantWatchReplay<
     boardOrientation = 'red';
     const initialMs = postgame.game.initialMs ?? postgame.state.timeControl?.initialMs ?? null;
     initialClock = initialMs === null ? null : { red: initialMs, black: initialMs };
+    endFired = false;
+
+    // Compact showcase: a single board framed by a player name + real clock on
+    // each side (no control-bar/ply-line).
+    if (compact) {
+      const target = pickCompactTarget(postgame);
+      boardOrientation = target.orientation;
+      const pane = createPane('', adapter.paneKind(target.key), true, 'split');
+      boardTargets = [{ pane, key: target.key }];
+      controls = null;
+      seatCells = null;
+
+      // Reconstruct the players' real remaining clocks from the move timestamps
+      // (the generic tenant postgames carry no dense clock series). Null when
+      // untimed or timeline-less: seats then show names only.
+      const clockInitialMs = initialMs ?? postgame.state.timeControl?.initialMs ?? null;
+      const clockIncrementMs =
+        postgame.game.incrementMs ?? postgame.state.timeControl?.incrementMs ?? 0;
+      const moves = (postgame.timeline ?? []).flatMap((event) =>
+        typeof event.color === 'string' && typeof event.ply === 'number'
+          ? [{ at: event.at, color: event.color, ply: event.ply }]
+          : [],
+      );
+      compactClocks =
+        clockInitialMs !== null && moves.length > 0
+          ? reconstructShowcaseClocks({
+              moves,
+              startedAt: null,
+              initialMs: clockInitialMs,
+              incrementMs: clockIncrementMs,
+              firstColor: 'red',
+            })
+          : null;
+      compactIncrementMs = clockIncrementMs;
+      // Play each move at its real recorded duration (clamped), and drain the
+      // mover's clock across that window (see sync/tickCompactClock).
+      moveDelays =
+        moves.length > 0
+          ? reconstructMoveDelays({
+              moves,
+              minMs: SHOWCASE_MIN_MOVE_MS,
+              maxMs: SHOWCASE_MAX_MOVE_MS,
+            })
+          : null;
+
+      // Bottom seat = the side the board is oriented to; top = the opponent.
+      // `first` is the red/first-mover clock slot.
+      const names = namesByRoomId?.[activeId];
+      const bottomSide: 'first' | 'second' = boardOrientation === 'red' ? 'first' : 'second';
+      const topSide: 'first' | 'second' = bottomSide === 'first' ? 'second' : 'first';
+      const nameFor = (side: 'first' | 'second'): string =>
+        names
+          ? side === 'first'
+            ? names.first
+            : names.second
+          : side === 'first'
+            ? t('replay.red', {}, locale)
+            : t('replay.black', {}, locale);
+      const topSeat = compactSeatRow(nameFor(topSide));
+      const bottomSeat = compactSeatRow(nameFor(bottomSide));
+      compactSeats = {
+        top: { row: topSeat.row, clockEl: topSeat.clockEl, side: topSide },
+        bottom: { row: bottomSeat.row, clockEl: bottomSeat.clockEl, side: bottomSide },
+      };
+
+      const layout = document.createElement('div');
+      layout.className = 'replay-layout replay-layout-solo';
+      layout.append(topSeat.row, pane.el, bottomSeat.row);
+      root.replaceChildren(layout);
+      sync();
+      scheduleAuto();
+      if (compactClocks && clockTickTimer === null) {
+        clockTickTimer = window.setInterval(tickCompactClock, SHOWCASE_CLOCK_TICK_MS);
+      }
+      return;
+    }
 
     const header = createGameHeaderStrip();
     header.title.textContent = matchupLabel(postgame.game.mode, locale);
@@ -449,7 +672,7 @@ export async function mountTenantWatchReplay<
       toggleReveal();
     }
   };
-  if (adapter.reveal) window.addEventListener('keydown', onKeydown);
+  if (adapter.reveal && !compact) window.addEventListener('keydown', onKeydown);
 
   await load(roomId);
 
@@ -458,7 +681,11 @@ export async function mountTenantWatchReplay<
     destroy: () => {
       destroyed = true;
       clearTimer();
-      if (adapter.reveal) window.removeEventListener('keydown', onKeydown);
+      if (clockTickTimer !== null) {
+        window.clearInterval(clockTickTimer);
+        clockTickTimer = null;
+      }
+      if (adapter.reveal && !compact) window.removeEventListener('keydown', onKeydown);
       root.replaceChildren();
     },
     loadGame: async (sampleId: string) => {

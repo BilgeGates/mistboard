@@ -39,15 +39,16 @@ export function revealChessEnabled(): boolean {
 }
 
 // Jungle / Dou Shou Qi (perfect-information 7×9 animal-rank game) play surface.
-// On in dev; build-time opt-in for prod. PvP-only for now (no bot).
+// Launched: always on (the server MISTBOARD_JUNGLE_ENABLED flag remains the runtime
+// kill-switch for room creation).
 export function jungleEnabled(): boolean {
-  return import.meta.env.DEV || import.meta.env.VITE_JUNGLE_ENABLED === 'true';
+  return true;
 }
 
-// Flip Jungle (兽棋 / 翻翻棋, 4×4 flip animal chess) play surface. On in dev;
-// build-time opt-in for prod. PvP-only for now (no bot).
+// Flip Jungle (兽棋 / 翻翻棋, 4×4 flip animal chess) play surface. Launched: always on
+// (the server MISTBOARD_JUNGLE_FLIP_ENABLED flag remains the runtime kill-switch).
 export function jungleFlipEnabled(): boolean {
-  return import.meta.env.DEV || import.meta.env.VITE_JUNGLE_FLIP_ENABLED === 'true';
+  return true;
 }
 
 export function darkMiniXiangqiPublicEntryEnabled(): boolean {

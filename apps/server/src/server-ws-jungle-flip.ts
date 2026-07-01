@@ -1,7 +1,8 @@
 /**
  * Flip Jungle WebSocket handler — thin adapter over the generic tenant ws runtime.
  * Symmetric-information (the tenant's clientEventFor/viewForClient do the deal
- * redaction + masking), PvP only, so no fog wiring and no engine scheduler.
+ * redaction + masking), so no fog wiring. PvE seats the Tier-B MistyJungleFlip UCI
+ * engine (server-jungle-flip-engine.ts) via the scheduleEngineMove hook.
  */
 
 import type { IncomingMessage } from 'node:http';
@@ -9,6 +10,7 @@ import type { JungleFlipSeat } from '@mistboard/game';
 import type { WebSocket } from 'ws';
 import type { JungleFlipRuntimeRoom } from './jungle-flip-runtime.js';
 import { jungleFlipTenant } from './jungle-flip-tenant.js';
+import { scheduleJungleFlipEngineMove } from './server-jungle-flip-engine.js';
 import { clearTenantRuntimeTimers } from './variant-tenant/lifecycle.js';
 import { createTenantWsRuntime, type TenantLiveClient } from './variant-tenant/ws.js';
 
@@ -24,7 +26,9 @@ export type JungleFlipWebSocketContext = {
   wsMessageWindowMs: number;
 };
 
-export const jungleFlipWs = createTenantWsRuntime(jungleFlipTenant);
+export const jungleFlipWs = createTenantWsRuntime(jungleFlipTenant, {
+  scheduleEngineMove: (ctx, room) => scheduleJungleFlipEngineMove(ctx, room),
+});
 
 export async function handleJungleFlipWebSocketConnection(
   ctx: JungleFlipWebSocketContext,

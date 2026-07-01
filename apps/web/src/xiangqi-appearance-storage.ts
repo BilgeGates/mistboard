@@ -4,17 +4,18 @@ import {
   type XiangqiPieceSet,
 } from './xiangqi-piece-sets.js';
 
-export type XiangqiBoardTheme = 'tournament' | 'paper-garden' | 'blue' | 'mono';
+export type XiangqiBoardTheme = 'tournament' | 'blue' | 'mono';
 
 const xiangqiBoardStorageKey = 'mistboard.xiangqiBoardTheme';
 const xiangqiBoardStorageVersionKey = 'mistboard.xiangqiBoardThemeVersion';
 const xiangqiPieceSetStorageKey = 'mistboard.xiangqiPieceSet';
-const defaultXiangqiBoardTheme: XiangqiBoardTheme = 'paper-garden';
-const xiangqiBoardStorageVersion = '2';
+const xiangqiPieceSetStorageVersionKey = 'mistboard.xiangqiPieceSetVersion';
+const defaultXiangqiBoardTheme: XiangqiBoardTheme = 'tournament';
+const xiangqiBoardStorageVersion = '3';
+const xiangqiPieceSetStorageVersion = '2';
 const defaultXiangqiPieceSet: XiangqiPieceSet = DEFAULT_XIANGQI_PIECE_SET;
 const xiangqiBoardThemes: ReadonlyArray<{ id: XiangqiBoardTheme; label: string }> = [
   { id: 'tournament', label: 'Tournament' },
-  { id: 'paper-garden', label: 'Paper Garden' },
   { id: 'blue', label: 'Blue' },
   { id: 'mono', label: 'Monochrome' },
 ];
@@ -23,7 +24,7 @@ export function readStoredXiangqiBoardTheme(): XiangqiBoardTheme {
   try {
     const stored = window.localStorage.getItem(xiangqiBoardStorageKey);
     const version = window.localStorage.getItem(xiangqiBoardStorageVersionKey);
-    if (version !== xiangqiBoardStorageVersion && stored === 'tournament') {
+    if (stored === 'paper-garden') {
       window.localStorage.setItem(xiangqiBoardStorageVersionKey, xiangqiBoardStorageVersion);
       window.localStorage.setItem(xiangqiBoardStorageKey, defaultXiangqiBoardTheme);
       return defaultXiangqiBoardTheme;
@@ -48,6 +49,12 @@ export function writeStoredXiangqiBoardTheme(theme: XiangqiBoardTheme): void {
 
 export function readStoredXiangqiPieceSet(): XiangqiPieceSet {
   try {
+    const version = window.localStorage.getItem(xiangqiPieceSetStorageVersionKey);
+    if (version !== xiangqiPieceSetStorageVersion) {
+      window.localStorage.setItem(xiangqiPieceSetStorageVersionKey, xiangqiPieceSetStorageVersion);
+      window.localStorage.setItem(xiangqiPieceSetStorageKey, defaultXiangqiPieceSet);
+      return defaultXiangqiPieceSet;
+    }
     return normalizeXiangqiPieceSet(window.localStorage.getItem(xiangqiPieceSetStorageKey));
   } catch {
     return defaultXiangqiPieceSet;
@@ -57,6 +64,7 @@ export function readStoredXiangqiPieceSet(): XiangqiPieceSet {
 export function writeStoredXiangqiPieceSet(pieceSet: XiangqiPieceSet): void {
   try {
     window.localStorage.setItem(xiangqiPieceSetStorageKey, pieceSet);
+    window.localStorage.setItem(xiangqiPieceSetStorageVersionKey, xiangqiPieceSetStorageVersion);
   } catch {
     // The data attribute still updates for the current page.
   }
@@ -69,7 +77,9 @@ export function normalizeXiangqiBoardTheme(value: string | null): XiangqiBoardTh
 }
 
 export function normalizeXiangqiPieceSet(value: string | null): XiangqiPieceSet {
-  if (value === 'animal') return 'animal-origami';
+  if (value === 'animal' || value === 'animal-seal' || value === 'animal-origami') {
+    return 'animal-dobutsu';
+  }
   return XIANGQI_PIECE_SETS.some((set) => set.id === value)
     ? (value as XiangqiPieceSet)
     : defaultXiangqiPieceSet;

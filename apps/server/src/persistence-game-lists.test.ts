@@ -184,6 +184,8 @@ definePersistenceTests('game lists', () => {
             'human', 'python-dmx-v1.0', NULL, NULL, 'pve', 'completed', 'public'),
            ('watch-dmx-private-pvp', 'dark-mini-xiangqi', 'red-wins', 'general-captured', 40, $1, $1,
             'red', 'black', NULL, NULL, 'pvp', 'completed', 'private'),
+           ('watch-jungle-pve', 'jungle', 'red-wins', 'race', 12, $2, $2,
+            'human', 'misty-jungle-level-2', NULL, NULL, 'pve', 'completed', 'public'),
            ('watch-xiangqi', 'dark-xiangqi', 'white-wins', 'resignation', 40, $1, $1,
             'white', 'black', NULL, NULL, 'pvp', 'completed', 'public'),
            ('watch-eve', 'dark-chess', 'white-wins', 'resignation', 28, $3, $3,
@@ -244,6 +246,7 @@ definePersistenceTests('game lists', () => {
         'watch-pve-link',
         'watch-dmx-pve',
         'watch-dmx-private-pvp',
+        'watch-jungle-pve',
         'watch-xiangqi',
         'watch-eve',
         'watch-old',
@@ -296,7 +299,7 @@ definePersistenceTests('game lists', () => {
           [roomId, event.type, event],
         );
       }
-      for (const roomId of ['watch-dmx-pve', 'watch-dmx-private-pvp']) {
+      for (const roomId of ['watch-dmx-pve', 'watch-dmx-private-pvp', 'watch-jungle-pve']) {
         const event = {
           type: 'move-played',
           at: now.getTime() + 1,
@@ -510,6 +513,18 @@ definePersistenceTests('game lists', () => {
     assert.deepEqual(
       dmxUnlocked.map((game) => game.roomId),
       ['watch-dmx-pve'],
+    );
+    // Regression: jungle wins land on a move-played event but terminate with a
+    // family reason ('race', den-entered) that the old chess-only allowlist
+    // silently excluded from the watch feed.
+    const jungleUnlocked = await listWatchUnlockedGames({
+      limit: 10,
+      now,
+      variants: ['jungle'],
+    });
+    assert.deepEqual(
+      jungleUnlocked.map((game) => game.roomId),
+      ['watch-jungle-pve'],
     );
     assert.equal(
       await countWatchSealedGames({

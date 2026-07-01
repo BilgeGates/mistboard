@@ -397,7 +397,10 @@ function forumPanel(extraClassName = ''): HTMLElement {
 function forumHomeHeader(searchQuery: string | null, user: AuthUser | null): HTMLElement {
   const header = document.createElement('header');
   header.className = 'forum-panel-header forum-panel-header-home';
-  header.append(forumPanelTitle('Forum', { icon: true }), forumHomeActions(searchQuery, user));
+  header.append(
+    forumPanelTitle('Mistboard Forum', { icon: true }),
+    forumHomeActions(searchQuery, user),
+  );
   return header;
 }
 
@@ -476,12 +479,17 @@ function forumPanelIcon(): SVGSVGElement {
   svg.setAttribute('viewBox', '0 0 24 24');
   svg.setAttribute('aria-hidden', 'true');
   svg.setAttribute('focusable', 'false');
-  const bubble = document.createElementNS('http://www.w3.org/2000/svg', 'path');
-  bubble.setAttribute(
+  const backBubble = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+  backBubble.setAttribute(
     'd',
-    'M21 11.5a8.4 8.4 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.4 8.4 0 0 1-3.8-.9L3 21l1.9-5.7a8.4 8.4 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.4 8.4 0 0 1 3.8-.9h.5a8.5 8.5 0 0 1 8 8v.5Z',
+    'M8.6 15.8a7.8 7.8 0 0 1-1.8-.2L2.8 18l1-3.4A5.5 5.5 0 0 1 2 10.5C2 7.3 5.1 4.8 8.9 4.8h3.5c2.4 0 4.5 1 5.7 2.5',
   );
-  svg.append(bubble);
+  const frontBubble = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+  frontBubble.setAttribute(
+    'd',
+    'M15 7.4c3.9 0 7 2.6 7 5.8S18.9 19 15 19a8.5 8.5 0 0 1-2.5-.4L8.1 21l1.2-3.5A5.3 5.3 0 0 1 8 13.2c0-3.2 3.1-5.8 7-5.8Z',
+  );
+  svg.append(backBubble, frontBubble);
   return svg;
 }
 
@@ -558,7 +566,7 @@ function categoryIndex(categories: ForumCategory[]): HTMLElement {
   const header = document.createElement('div');
   header.className = 'forum-category-index-row forum-category-index-header';
   header.append(
-    indexCell('Forum', 'forum-category-index-main'),
+    indexCell('', 'forum-category-index-main'),
     indexCell('Topics', 'forum-category-index-stat'),
     indexCell('Posts', 'forum-category-index-stat'),
     indexCell('Last post', 'forum-category-index-last'),
@@ -1367,7 +1375,7 @@ function forumSearchForm(query: string | null, options: { compact?: boolean } = 
   input.type = 'search';
   input.name = 'q';
   input.maxLength = 120;
-  input.placeholder = 'Search forum';
+  input.placeholder = 'Search';
   input.autocomplete = 'off';
   input.value = query ?? '';
   const submit = document.createElement('button');

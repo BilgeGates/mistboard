@@ -105,7 +105,7 @@ definePersistenceTests('showcase + browse queries', () => {
       },
     ]);
 
-    const ids = (await listShowcaseGames(8)).map((g) => g.roomId);
+    const ids = (await listShowcaseGames({ limit: 8 })).map((g) => g.roomId);
     // PvP leads (newest first), then the EvE fill.
     assert.deepEqual(ids.slice(0, 2), ['sc-pvp-kc', 'sc-pvp-timeout']);
     assert.ok(ids.includes('sc-eve-x'), 'eve game fills after pvp');
@@ -164,7 +164,7 @@ definePersistenceTests('showcase + browse queries', () => {
       },
     ]);
 
-    const games = await listShowcaseGames(8);
+    const games = await listShowcaseGames({ limit: 8 });
     const ids = games.map((g) => g.roomId);
     assert.equal(games.length, 2, 'one game per qualifying run');
     assert.ok(ids.includes('sc-a-new'));

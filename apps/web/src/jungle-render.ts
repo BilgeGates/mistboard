@@ -31,6 +31,13 @@ import {
   jungleCoordOf,
   jungleTrapOwner,
 } from '@mistboard/game';
+import {
+  framedTokenSvg,
+  jungleBoardAssetHref,
+  jungleCoverImage,
+  jungleLastMoveRingSvg,
+  jungleShadowFilterDef,
+} from './jungle-art.js';
 
 const FILES = 7;
 const RANKS = 9;
@@ -56,27 +63,11 @@ const PALETTE = {
   fog: 'rgba(22,18,14,0.66)',
 } as const;
 
-const DEN_FILL = '#c79a4f';
-const TRAP_STROKE = 'rgba(90,60,30,0.55)';
-const LAKE_STROKE = 'rgba(70,128,168,0.55)';
 // Tile-separating grid lines, banqi-style (matches live-banqi-render's grid ink).
 const GRID_STROKE = 'rgba(91,74,50,0.55)';
 
-// The side colour inks the token ring + glyph (xiangqi-style legibility); the disc
-// face is a warm radial gradient for a tactile, raised look.
-const INK: Record<JungleColor, string> = { red: '#b5322b', black: '#28323c' };
-
-// Animal pieces render as the origami art set (papercraft animal discs, each a
-// transparent PNG with its own ring + shadow baked in). One image per (color, role);
-// the file naming mirrors the xiangqi piece sets under /piece-sets.
-function animalHref(color: JungleColor, role: JunglePieceRole): string {
-  return `/piece-sets/jungle/origami/${color}-${role}.png`;
-}
-
-// Single-quoted family names: this string is interpolated into a double-quoted
-// XML attribute (font-family="…"), so inner double quotes would break the parse.
-// Still used for the den glyph (穴) in the furniture layer.
-const CJK_FONT = "'PingFang SC','Noto Sans CJK SC','Hiragino Sans','Microsoft YaHei',sans-serif";
+// Token + terrain art comes from the shared jungle-art.ts recipe (the blog-aligned
+// dobutsu look) so this board, the flip board, and the markers never drift apart.
 
 // The two lakes, as [file, file] × [rank…] blocks (0-based files: b=1,c=2,e=4,f=5).
 const LAKES: ReadonlyArray<{ files: readonly number[]; ranks: readonly number[] }> = [
@@ -96,14 +87,23 @@ const DESCRIPTOR: GridBoardDescriptor = {
   svgClass: 'jungle-live-svg',
 };
 
+// Board geometry, exported so cropped consumers (the variant marker) can compute a
+// sub-region viewBox without re-deriving the cell size.
+export const JUNGLE_BOARD_VIEW = { cell: CELL, files: FILES, ranks: RANKS } as const;
+
 export type JungleRenderOptions = {
   // Black sees the board flipped (its den at the bottom).
   perspective?: JungleColor;
   lastMove?: { from: JungleSquare; to: JungleSquare } | null;
   selected?: JungleSquare | null;
   targets?: readonly JungleSquare[];
+  // The square a piece is being dragged from: its on-board token dims so only the ghost reads.
+  draggingFrom?: JungleSquare | null;
   interactive?: boolean;
   idSuffix?: string;
+  // Drop the per-token shadow filter (markers don't need it, and it avoids duplicate
+  // filter ids when several cropped boards render on one page).
+  shadow?: boolean;
 };
 
 function cellRef(square: JungleSquare): GridCellRef {
@@ -112,38 +112,26 @@ function cellRef(square: JungleSquare): GridCellRef {
 }
 
 function defs(gid: string): string {
-  return [
-    `<linearGradient id="${gid}-water" x1="0" y1="0" x2="0" y2="1">`,
-    `<stop offset="0" stop-color="#93c3e4"/><stop offset="1" stop-color="#6ba6cf"/>`,
-    `</linearGradient>`,
-  ].join('');
+  return jungleShadowFilterDef(`${gid}-shadow`);
 }
 
-// The lakes / dens / traps, painted under the pieces (the renderPieces layer draws
-// over the base grid + last-move, under the interaction targets).
-function furniture(geom: GridGeometry, gid: string): string {
+// The terrain layers (grass land, water lakes, dobutsu den + trap tiles) + the grid,
+// painted under the pieces. Mirrors the blog's terrainSvg: grass → grid → water/den/trap
+// images, then the last-move ring on top of the terrain (the core's last-move layer sits
+// UNDER renderPieces, so the grass would otherwise hide it).
+function furniture(
+  geom: GridGeometry,
+  lastMove: { from: JungleSquare; to: JungleSquare } | null,
+): string {
   const parts: string[] = [];
   const c = geom.cell;
-
-  // Tile-separating grid on every cell boundary (incl. the outer edge), banqi-style.
-  // Drawn first so the lakes/dens paint over it (no lines across the water/dens).
   const boardW = FILES * c;
   const boardH = RANKS * c;
-  for (let i = 0; i <= FILES; i += 1) {
-    const x = i * c;
-    parts.push(
-      `<line x1="${x}" y1="0" x2="${x}" y2="${boardH}" stroke="${GRID_STROKE}" stroke-width="1" stroke-linecap="round"/>`,
-    );
-  }
-  for (let j = 0; j <= RANKS; j += 1) {
-    const y = j * c;
-    parts.push(
-      `<line x1="0" y1="${y}" x2="${boardW}" y2="${y}" stroke="${GRID_STROKE}" stroke-width="1" stroke-linecap="round"/>`,
-    );
-  }
 
-  // Each lake as ONE rounded rect (its 6-cell bounding box), so there are no
-  // internal grid lines across the water. Bounding box is flip-safe.
+  // Grass land under everything.
+  parts.push(jungleCoverImage(jungleBoardAssetHref('grass'), 0, 0, boardW, boardH));
+
+  // Each lake as ONE water image over its 6-cell bounding box (flip-safe).
   for (const lake of LAKES) {
     let minX = Infinity;
     let minY = Infinity;
@@ -159,49 +147,90 @@ function furniture(geom: GridGeometry, gid: string): string {
       }
     }
     parts.push(
-      `<rect x="${minX + 1}" y="${minY + 1}" width="${maxX - minX - 2}" height="${maxY - minY - 2}" rx="7" fill="url(#${gid}-water)" stroke="${LAKE_STROKE}" stroke-width="1"/>`,
+      jungleCoverImage(jungleBoardAssetHref('water'), minX, minY, maxX - minX, maxY - minY),
     );
   }
 
+  // Dobutsu den + trap tiles, one image per cell.
   for (const square of ALL_JUNGLE_SQUARES) {
     const { file, rank } = jungleCoordOf(square);
     const { x, y } = geom.topLeft(file, rank);
-    const denOwner =
-      square === JUNGLE_DENS.red ? 'red' : square === JUNGLE_DENS.black ? 'black' : null;
-    if (denOwner) {
-      const cx = x + c / 2;
-      const cy = y + c / 2;
-      parts.push(
-        `<rect x="${x + 2}" y="${y + 2}" width="${c - 4}" height="${c - 4}" rx="4" fill="${DEN_FILL}"/>`,
-        `<rect x="${x + 2}" y="${y + 2}" width="${c - 4}" height="${c - 4}" rx="4" fill="none" stroke="${INK[denOwner]}" stroke-width="1" opacity="0.5"/>`,
-        `<text x="${cx}" y="${cy}" font-size="${c * 0.5}" fill="${INK[denOwner]}" text-anchor="middle" dominant-baseline="central" font-family="${CJK_FONT}" opacity="0.9">穴</text>`,
-      );
-      continue;
+    if (square === JUNGLE_DENS.red || square === JUNGLE_DENS.black) {
+      parts.push(jungleCoverImage(jungleBoardAssetHref('den'), x, y, c, c));
+    } else if (jungleTrapOwner(square)) {
+      parts.push(jungleCoverImage(jungleBoardAssetHref('trap'), x, y, c, c));
     }
-    if (jungleTrapOwner(square)) {
-      const m = c * 0.26;
-      parts.push(
-        `<line x1="${x + m}" y1="${y + m}" x2="${x + c - m}" y2="${y + c - m}" stroke="${TRAP_STROKE}" stroke-width="1.5"/>`,
-        `<line x1="${x + c - m}" y1="${y + m}" x2="${x + m}" y2="${y + c - m}" stroke="${TRAP_STROKE}" stroke-width="1.5"/>`,
-      );
+  }
+
+  // Tile-separating grid on every cell boundary (banqi-style), drawn OVER all the terrain
+  // (grass, water, den, trap) so every tile — including the river lakes — reads as a
+  // discrete cell.
+  for (let i = 0; i <= FILES; i += 1) {
+    const x = i * c;
+    parts.push(
+      `<line x1="${x}" y1="0" x2="${x}" y2="${boardH}" stroke="${GRID_STROKE}" stroke-width="1" stroke-linecap="round"/>`,
+    );
+  }
+  for (let j = 0; j <= RANKS; j += 1) {
+    const y = j * c;
+    parts.push(
+      `<line x1="0" y1="${y}" x2="${boardW}" y2="${y}" stroke="${GRID_STROKE}" stroke-width="1" stroke-linecap="round"/>`,
+    );
+  }
+
+  // Last-move ring over the terrain (dark edge under a bright core, so it reads on any
+  // tile — grass, water, den, or trap — where a flat translucent fill washes out).
+  if (lastMove) {
+    for (const sq of [lastMove.from, lastMove.to]) {
+      const { file, rank } = jungleCoordOf(sq);
+      const { x, y } = geom.topLeft(file, rank);
+      parts.push(jungleLastMoveRingSvg(x, y, c));
     }
   }
   return parts.join('');
 }
 
-function pieces(board: JungleBoard, geom: GridGeometry): string {
+// Each piece: the shared framed dobutsu token (cream disc + cutout + colour ring + shadow).
+// Sized to sit INSIDE the last-move ring (its inner clear is ~0.83·cell).
+function pieces(
+  board: JungleBoard,
+  geom: GridGeometry,
+  gid: string,
+  shadow: boolean,
+  draggingFrom: JungleSquare | null,
+): string {
   const parts: string[] = [];
-  const s = geom.cell * 0.96;
+  const s = geom.cell * 0.84;
   for (const square of ALL_JUNGLE_SQUARES) {
     const piece = board[square];
     if (!piece) continue;
     const { file, rank } = jungleCoordOf(square);
     const { x, y } = geom.center(file, rank);
-    parts.push(
-      `<image href="${animalHref(piece.color, piece.role)}" x="${x - s / 2}" y="${y - s / 2}" width="${s}" height="${s}" preserveAspectRatio="xMidYMid meet"/>`,
-    );
+    const token = framedTokenSvg({
+      cx: x,
+      cy: y,
+      size: s,
+      ink: piece.color,
+      role: piece.role,
+      filterId: shadow ? `${gid}-shadow` : undefined,
+    });
+    // While this piece is being dragged, dim its on-board token so only the ghost reads.
+    parts.push(square === draggingFrom ? `<g class="jungle-drag-source">${token}</g>` : token);
   }
   return parts.join('');
+}
+
+// The floating ghost piece shown while dragging (a framed token in a one-cell SVG box),
+// appended to <body> by installBoardDrag.
+export function junglePieceGhostSvg(entry: { color: JungleColor; role: JunglePieceRole }): string {
+  const inner = framedTokenSvg({
+    cx: CELL / 2,
+    cy: CELL / 2,
+    size: CELL * 0.84,
+    ink: entry.color,
+    role: entry.role,
+  });
+  return `<svg viewBox="0 0 ${CELL} ${CELL}" xmlns="http://www.w3.org/2000/svg" width="100%" height="100%">${inner}</svg>`;
 }
 
 export function renderJungleBoardSvg(
@@ -209,15 +238,18 @@ export function renderJungleBoardSvg(
   options: JungleRenderOptions = {},
 ): string {
   const gid = `jungle${options.idSuffix ?? ''}`;
+  const shadow = options.shadow ?? true;
   return renderGridBoardSvg(DESCRIPTOR, {
     id: gid,
     flip: options.perspective === 'black',
-    extraDefs: defs(gid),
+    extraDefs: shadow ? defs(gid) : '',
     coords: false,
-    renderPieces: (geom) => furniture(geom, gid) + pieces(board, geom),
-    lastMove: options.lastMove
-      ? [cellRef(options.lastMove.from), cellRef(options.lastMove.to)]
-      : null,
+    renderPieces: (geom) =>
+      furniture(geom, options.lastMove ?? null) +
+      pieces(board, geom, gid, shadow, options.draggingFrom ?? null),
+    // Last-move is drawn inside furniture (over the grass terrain); the core's own
+    // last-move layer sits under renderPieces and would be hidden by the grass.
+    lastMove: null,
     selected: options.selected ? cellRef(options.selected) : null,
     targets: (options.targets ?? []).map((sq) => {
       const ref = cellRef(sq);

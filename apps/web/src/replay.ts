@@ -194,6 +194,14 @@ export type ReplayOptions = {
    * currently showing.
    */
   onSampleChange?: (sampleId: string) => void;
+  /**
+   * Called once after a game reaches its final ply under autoplay (after the
+   * betweenGameDelayMs hold), when NO loopSamples pool is set. Lets an outer
+   * showcase controller drive cross-variant cycling — mount one game, advance
+   * on end. Ignored while loopSamples is set (the internal loop owns
+   * advancement).
+   */
+  onGameEnd?: () => void;
 };
 
 type ReplayLoadOptions = {
@@ -231,6 +239,7 @@ export async function mountReplay(
   let wallClockPosition = wallClockInitial;
   let loopSamples = wallClockLoop ? undefined : options.loopSamples;
   const betweenGameDelayMs = options.betweenGameDelayMs ?? DEFAULT_BETWEEN_GAME_DELAY_MS;
+  const onGameEnd = options.onGameEnd;
   const clampPace = options.clampPace === true;
   const autoplay = !wallClockLoop && (options.autoplay === true || loopSamples !== undefined);
   const urlForId = options.urlForId ?? defaultUrlForId;
@@ -783,18 +792,26 @@ export async function mountReplay(
   }
 
   function scheduleLoopIfNeeded(): void {
-    if (!loopSamples || loopSamples.length === 0) return;
     if (loopTimer !== null) return;
+    // Two end-of-game modes: the internal loop pool (homepage legacy / chess-only
+    // cycling) or a single-game showcase where an outer controller advances via
+    // onGameEnd. With neither, the game just holds on its final frame.
+    if ((!loopSamples || loopSamples.length === 0) && !onGameEnd) return;
     loopTimer = window.setTimeout(() => {
       loopTimer = null;
       // Re-read the pool at fire time so an adaptive updateLoopPool() swap is
       // picked up for the next pick.
       const pool = loopSamples;
-      if (!pool || pool.length === 0) return;
-      const next = pickNextSample(pool, activeSample);
-      loadGame(next).catch((err) =>
-        console.warn('[replay loop] failed to load game, skipping:', next, err),
-      );
+      if (pool && pool.length > 0) {
+        const next = pickNextSample(pool, activeSample);
+        loadGame(next).catch((err) =>
+          console.warn('[replay loop] failed to load game, skipping:', next, err),
+        );
+        return;
+      }
+      // No pool: hand control back to the outer showcase controller so it can
+      // pick the next game (possibly a different variant / renderer kind).
+      onGameEnd?.();
     }, betweenGameDelayMs);
   }
 

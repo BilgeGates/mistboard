@@ -764,6 +764,28 @@ const MINI_XIANGQI_ENGINES: Record<string, EngineDefinition> = {
   },
 };
 
+// Flip Jungle (兽棋 / 翻翻棋, 4x4 hidden-identity flip animal chess) plays via our own
+// `jungle-flip-engine` standalone Rust αβ+Star1+TT UCI engine (banqi pattern; NOT the
+// fog engine-worker). One versioned full-strength bot; strength is a node budget capped
+// by movetime.
+const JUNGLE_FLIP_ENGINES: Record<string, EngineDefinition> = {
+  'misty-jungle-flip': {
+    id: 'misty-jungle-flip',
+    engineId: 'misty-jungle-flip',
+    engineName: 'MistyJungleFlip',
+    name: 'MistyJungleFlip',
+    kind: 'container',
+    gameSpecId: 'jungle-flip',
+    configHash: 'misty-jungle-flip-0.1.0',
+    playSignature: 'misty-jungle-flip-0.1.0',
+    config: { kind: 'jungle-flip-uci', nodes: 512_000, movetime_ms: 2_500 },
+    notes:
+      'MistyJungleFlip 0.1.0 — standalone Rust αβ+Star1+TT UCI engine over the redacted ' +
+      'jungle-flip FEN. Single full-strength bot at 512K nodes; chance-node (flip) search, ' +
+      'not fog/belief.',
+  },
+};
+
 const KNOWN_ENGINES: Record<string, EngineDefinition> = {
   ...BUILTIN_ENGINES,
   ...PYTHON_ENGINES,
@@ -771,6 +793,7 @@ const KNOWN_ENGINES: Record<string, EngineDefinition> = {
   ...JIEQI_ENGINES,
   ...BANQI_ENGINES,
   ...MINI_XIANGQI_ENGINES,
+  ...JUNGLE_FLIP_ENGINES,
 };
 
 export function latestBuiltinEngineIds(): { white: string; black: string } {

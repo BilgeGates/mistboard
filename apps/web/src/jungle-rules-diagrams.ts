@@ -15,6 +15,7 @@ import {
   type JungleFlipSquare,
   type JunglePieceRole,
 } from '@mistboard/game';
+import { framedTokenSvg, jungleShadowFilterDef } from './jungle-art.js';
 import {
   type JungleFlipRenderBoard,
   type JungleFlipRenderEntry,
@@ -65,7 +66,7 @@ export const JUNGLE_START_BOARD = jungleDiagram(
   '-start',
   createInitialJungleBoard(),
   { perspective: 'red' },
-  320,
+  440,
 );
 
 // The one rank exception: a rat captures the elephant. Placed on the central dry
@@ -78,7 +79,7 @@ export const JUNGLE_RAT_ELEPHANT = jungleDiagram(
   '-rat-elephant',
   RAT_ELEPHANT_BOARD,
   { selected: 'd4', targets: ['d5'] },
-  260,
+  440,
 );
 
 // A piece on an enemy trap loses all rank, so even a cat takes a lion. d2 is one of
@@ -91,7 +92,7 @@ export const JUNGLE_TRAP = jungleDiagram(
   '-trap',
   TRAP_BOARD,
   { selected: 'd3', targets: ['d2'] },
-  260,
+  440,
 );
 
 // Only the rat enters the water; in the river it is safe from land pieces and swims
@@ -104,7 +105,7 @@ export const JUNGLE_RAT_SWIMS = jungleDiagram(
   '-swim',
   SWIM_BOARD,
   { selected: 'b5', targets: ['b4', 'b6'] },
-  260,
+  440,
 );
 
 // The lion (and tiger) leap a river in a straight line and land on the far bank.
@@ -116,7 +117,7 @@ export const JUNGLE_LION_JUMP = jungleDiagram(
   '-jump',
   JUMP_BOARD,
   { selected: 'b3', targets: ['b7'] },
-  260,
+  440,
 );
 
 // A rat anywhere in the water, either color, blocks the leap: the same lion now has
@@ -125,21 +126,26 @@ const BLOCK_BOARD: JungleBoard = {
   b3: { color: 'red', role: 'lion' },
   b5: { color: 'black', role: 'rat' },
 };
-export const JUNGLE_RAT_BLOCKS = jungleDiagram('-block', BLOCK_BOARD, { selected: 'b3' }, 260);
+export const JUNGLE_RAT_BLOCKS = jungleDiagram('-block', BLOCK_BOARD, { selected: 'b3' }, 440);
 
 // ── Rank ladder (shared by both articles) ────────────────────────────────────
-// The eight animals laid out weakest to strongest, drawn from the same origami
-// art the boards use. Each outranks everything to its left; the rat-beats-elephant
-// wrap is left to the prose + the dedicated demo board.
+// The eight animals laid out weakest to strongest, drawn as the same FRAMED
+// dobutsu tokens the boards use (cream disc + cutout + ink ring) so the animals
+// read on any page background — the cream disc keeps them legible in dark mode,
+// the same way banqi's ladder sits its pieces on a light panel. Labels use
+// `currentColor` so they follow the article's theme-adaptive text colour. Each
+// animal outranks everything to its left; the rat-beats-elephant wrap is left to
+// the prose + the dedicated demo board.
+// Strongest to weakest, matching the prose order in "The animals".
 const RANK_ORDER: JunglePieceRole[] = [
-  'rat',
-  'cat',
-  'dog',
-  'wolf',
-  'leopard',
-  'tiger',
-  'lion',
   'elephant',
+  'lion',
+  'tiger',
+  'leopard',
+  'wolf',
+  'dog',
+  'cat',
+  'rat',
 ];
 const RANK_LABEL: Record<JunglePieceRole, string> = {
   rat: 'Rat',
@@ -152,21 +158,26 @@ const RANK_LABEL: Record<JunglePieceRole, string> = {
   elephant: 'Elephant',
 };
 export const JUNGLE_RANK_LADDER = (() => {
-  const slot = 70;
-  const disc = 52;
-  const discY = 6;
-  const labelY = discY + disc + 15;
+  const slot = 80;
+  const token = 62;
+  const topPad = 6;
+  const cy = topPad + token / 2;
+  const labelY = topPad + token + 16;
   const width = RANK_ORDER.length * slot;
   const height = labelY + 8;
+  const shadowId = 'jungle-rank-shadow';
+  // No leading rank numbers: the left-to-right order already reads strongest to
+  // weakest, and a "1./2." index just fights the "higher number = stronger"
+  // instinct on a wrap-order ladder (the rat, last here, still beats the elephant).
   const cells = RANK_ORDER.map((role, i) => {
     const cx = i * slot + slot / 2;
     return [
-      `<image href="/piece-sets/jungle/origami/red-${role}.png" x="${cx - disc / 2}" y="${discY}" width="${disc}" height="${disc}" preserveAspectRatio="xMidYMid meet"/>`,
-      `<text x="${cx}" y="${labelY}" font-size="12" fill="#5b4636" text-anchor="middle" font-weight="600">${i + 1}. ${RANK_LABEL[role]}</text>`,
+      framedTokenSvg({ cx, cy, size: token, ink: 'red', role, filterId: shadowId }),
+      `<text x="${cx}" y="${labelY}" font-size="12" fill="currentColor" text-anchor="middle" font-weight="600">${RANK_LABEL[role]}</text>`,
     ].join('');
   }).join('');
-  const svg = `<svg class="jungle-rank-ladder" viewBox="0 0 ${width} ${height}" role="img" xmlns="http://www.w3.org/2000/svg" aria-label="The eight Jungle animals in rank order, weakest to strongest">${cells}</svg>`;
-  return responsive(svg, 560);
+  const svg = `<svg class="jungle-rank-ladder" viewBox="0 0 ${width} ${height}" role="img" xmlns="http://www.w3.org/2000/svg" aria-label="The eight Jungle animals in rank order, strongest to weakest"><defs>${jungleShadowFilterDef(shadowId)}</defs>${cells}</svg>`;
+  return responsive(svg, 680);
 })();
 
 // ── Flip Jungle (4×4) ────────────────────────────────────────────────────────
@@ -191,7 +202,7 @@ const FLIP_SETUP_BOARD: JungleFlipRenderBoard = {
   c4: FACE_DOWN,
   d4: FACE_DOWN,
 };
-export const JUNGLE_FLIP_SETUP = flipDiagram('-flip-setup', FLIP_SETUP_BOARD, {}, 240);
+export const JUNGLE_FLIP_SETUP = flipDiagram('-flip-setup', FLIP_SETUP_BOARD, {}, 380);
 
 // Mid-game: a couple of identities revealed, the rest still face-down. The red wolf
 // can flip a neighbour or step to an empty square.
@@ -209,7 +220,7 @@ export const JUNGLE_FLIP_TURN = flipDiagram(
   '-flip-turn',
   FLIP_TURN_BOARD,
   { selected: 'b2', targets: ['b3'] },
-  240,
+  380,
 );
 
 // Equal ranks trade off the board (同归于尽): the red wolf and the black wolf meet,
@@ -224,5 +235,5 @@ export const JUNGLE_FLIP_MUTUAL = flipDiagram(
   '-flip-mutual',
   FLIP_MUTUAL_BOARD,
   { selected: 'b2', targets: ['b3'] },
-  240,
+  380,
 );

@@ -326,11 +326,6 @@ export function installMiniXiangqiBoardStyles(): void {
       --mini-xq-palace-band: rgba(255, 255, 255, 0.17);
       --mini-xq-grid: #4b3c2a;
     }
-    :root[data-xiangqi-board-theme="paper-garden"] {
-      --mini-xq-board-bg: #f5ecd8;
-      --mini-xq-palace-band: rgba(93, 132, 82, 0.28);
-      --mini-xq-grid: #5f4931;
-    }
     :root[data-xiangqi-board-theme="blue"] {
       --mini-xq-board-bg: #cdddea;
       --mini-xq-palace-band: rgba(255, 255, 255, 0.3);

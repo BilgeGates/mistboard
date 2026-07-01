@@ -19,7 +19,7 @@ import type {
 } from '@mistboard/game';
 import './live-xiangqi.css';
 import { jungleEnabled } from './feature-flags.js';
-import { renderJungleBoardSvg } from './jungle-render.js';
+import { JUNGLE_BOARD_VIEW, junglePieceGhostSvg, renderJungleBoardSvg } from './jungle-render.js';
 import {
   maybePlayJungleSnapshotSound,
   resetJungleSoundState,
@@ -29,6 +29,7 @@ import { createLiveLayout, setLiveLayoutGameSpec } from './live-layout.js';
 import { initLiveSound, playSound, resetLiveSoundState } from './live-sound.js';
 import { clearSeatTokenForRoom, type LiveRefs } from './live-state.js';
 import { roomIdFromPath } from './room-url.js';
+import { installBoardDrag } from './variant-tenant/board-drag.js';
 import { syncMoveListScroll } from './variant-tenant/chrome-dom.js';
 import { createTenantReplayController } from './variant-tenant/replay-controller.js';
 import { createTenantRoomChrome, type WebVariantTenant } from './variant-tenant/room-chrome.js';
@@ -105,6 +106,7 @@ const state = {
 let client: TenantSocketClient | null = null;
 let refs: LiveRefs | null = null;
 let selectedSquare: JungleSquare | null = null;
+let draggingFrom: JungleSquare | null = null;
 let lastCapturedView: JungleWireView | null = null;
 let lastCapturedKey: string | null = null;
 
@@ -139,7 +141,7 @@ const jungleWebTenant: WebVariantTenant<JungleColor> = {
   isColor: isJungleColor,
   oppositeColor,
   enabled: jungleEnabled,
-  reviewUrl: (roomId) => `/room/${encodeURIComponent(roomId)}`,
+  reviewUrl: (roomId) => `/jungle/game/${encodeURIComponent(roomId)}`,
   reasonPhrase: jungleReasonPhrase,
   disabledTitle: 'Jungle disabled',
   disabledBody: 'This client build has the room renderer off.',
@@ -208,6 +210,7 @@ export function bootstrapJungleLiveRoom(): void {
   const room = roomIdFromPath(window.location.pathname) ?? params.get('room') ?? 'jgl_dev';
   state.room = room;
   selectedSquare = null;
+  draggingFrom = null;
   lastCapturedView = null;
   lastCapturedKey = null;
   replay.reset();
@@ -239,6 +242,7 @@ export function bootstrapJungleLiveRoom(): void {
     hasSelection: () => selectedSquare !== null,
     clearSelection: () => {
       selectedSquare = null;
+      draggingFrom = null;
       if (refs) renderBoard(refs, replay.currentView(state.view));
     },
   });
@@ -334,6 +338,7 @@ function renderBoard(liveRefs: LiveRefs, view: JungleWireView | null): void {
     interactive: true,
     selected: selectedSquare,
     targets,
+    draggingFrom,
     lastMove: view.lastMove ?? null,
   });
 }
@@ -341,14 +346,58 @@ function renderBoard(liveRefs: LiveRefs, view: JungleWireView | null): void {
 // Click is delegated to the persistent board container once at mount so it
 // survives every innerHTML re-render (closest [data-square] reads the cell).
 function installJungleBoardInteraction(liveRefs: LiveRefs): void {
-  liveRefs.board.addEventListener('click', (event) => {
-    const cell = (event.target as HTMLElement).closest('[data-square]');
-    const square = cell?.getAttribute('data-square');
-    const view = state.view;
-    if (!view || !square) return;
-    handleSquareClick(view, square as JungleSquare);
-    renderBoard(liveRefs, view);
+  installBoardDrag({
+    board: liveRefs.board,
+    // The board scales well above its SVG units, so size the ghost to the on-screen cell.
+    ghostSizePx: () => {
+      const width = liveRefs.board.getBoundingClientRect().width;
+      return width > 0 ? width / JUNGLE_BOARD_VIEW.files : JUNGLE_BOARD_VIEW.cell;
+    },
+    onSquareClick: (square) => {
+      const view = state.view;
+      if (!view) return;
+      handleSquareClick(view, square as JungleSquare);
+      renderBoard(liveRefs, view);
+    },
+    canDragFrom: (square) => canDragJunglePiece(square as JungleSquare),
+    ghostHtml: (square) => {
+      const piece = state.view?.board[square as JungleSquare];
+      return piece ? junglePieceGhostSvg(piece) : null;
+    },
+    onDragStart: (from) => {
+      selectedSquare = from as JungleSquare;
+      draggingFrom = from as JungleSquare;
+      if (state.view) renderBoard(liveRefs, state.view);
+    },
+    onDrop: (from, to) =>
+      dropJunglePiece(liveRefs, from as JungleSquare, to as JungleSquare | null),
   });
+}
+
+// A piece may be lifted if it's your own animal on your turn (it snaps back if dropped
+// somewhere it cannot move). Mirrors the click-to-move select rule.
+function canDragJunglePiece(square: JungleSquare): boolean {
+  if (!replay.isLive() || connection() !== 'connected') return false;
+  const seat = state.seat;
+  const view = state.view;
+  if (!view || !isJungleColor(seat)) return false;
+  if (view.status.type !== 'playing' || view.status.turn !== seat) return false;
+  const piece = view.board[square];
+  return !!piece && piece.color === seat;
+}
+
+function dropJunglePiece(liveRefs: LiveRefs, from: JungleSquare, to: JungleSquare | null): void {
+  draggingFrom = null;
+  const view = state.view;
+  const move = to && view ? view.legalMoves.find((m) => m.from === from && m.to === to) : undefined;
+  if (move && view) {
+    selectedSquare = null;
+    send({ type: 'move', from: move.from, to: move.to });
+    playSound(soundForOwnJungleMove(view, move));
+  } else {
+    selectedSquare = null;
+  }
+  if (state.view) renderBoard(liveRefs, state.view);
 }
 
 function handleSquareClick(view: JungleWireView, square: JungleSquare): void {

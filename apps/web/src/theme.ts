@@ -103,7 +103,6 @@ const pieceSets: Array<{ id: PieceSet; label: string }> = [
 ];
 const xiangqiBoardThemes: Array<{ id: XiangqiBoardTheme; label: string }> = [
   { id: 'tournament', label: 'Tournament' },
-  { id: 'paper-garden', label: 'Paper Garden' },
   { id: 'blue', label: 'Blue' },
   { id: 'mono', label: 'Monochrome' },
 ];
@@ -662,12 +661,8 @@ function createTileField<T extends string>(
     // a CSS color swatch like the chess board tiles.
     if (kind === 'xqpiece') {
       const xiangqiPreview = xiangqiPieceTilePreview(option.id as XiangqiPieceSet);
-      if (xiangqiPreview.kind === 'image') {
-        const img = document.createElement('img');
-        img.src = xiangqiPreview.href;
-        img.alt = '';
-        img.loading = 'lazy';
-        preview.append(img);
+      if (xiangqiPreview.kind === 'svg') {
+        preview.innerHTML = xiangqiPreview.markup;
       } else {
         preview.textContent = xiangqiPreview.text;
       }

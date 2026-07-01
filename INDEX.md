@@ -303,18 +303,23 @@ Edit task → find file → open only that file.
 | `server-jungle-room-factory.ts` | Thin adapter over `variant-tenant/room-factory.ts` for Jungle (PvP + in-process engine seat; no running-game record) |
 | `server-ws-jungle.ts` | Jungle WebSocket handler — thin adapter over `variant-tenant/ws.ts` (perfect-info, no fog); the in-process Misty Jungle scheduler rides the post-connect/post-move hook |
 | `server-jungle-engine.ts` | In-process Misty Jungle PvE: depth-limited alpha-beta over the rules kernel (3 levels, no Python/FSF — Jungle is perfect-information); injects moves through the shared append+broadcast path. Mirrors `server-drop-mini-xiangqi-engine.ts` |
+| `jungle-engine.ts` | MistyJungle move provider (the Rust engine) for Jungle PvE: drives our own `jungle-engine` UCI binary on a plain full-board FEN (`jungle-fen.ts`, no redaction — Jungle is perfect-information), one process per request. Behind the `misty-jungle-level-*` ids; replaces the in-process TS αβ (`server-jungle-engine.ts`) only when `MISTBOARD_JUNGLE_RUST_ENGINE` is on AND the binary is present. Strength = node budget; wins by fastest win-distance |
+| `jungle-fen.ts` | FEN bridge between canonical Jungle state and the `jungle-engine` Rust binary. NO redaction (perfect-information): full board as `<board> <turn> <progressClock> <moveNumber>`, ranks HIGH→LOW, roles `R C D W P T L E` (P = leoPard) matching `JUNGLE_ROLE_LETTER`. Parity pinned by `jungle-fen.test.ts` |
 | `jungle-flip-tenant.ts` | Flip Jungle (兽棋/翻翻棋, 4×4 flip animal chess) `VariantTenant`: symmetric hidden-identity like banqi — face-down tiles carry no ink/identity; the only hidden state is the DEAL (crypto-RNG secret stripped by `clientEventFor`); masked board from `getJungleFlipPlayerView`. Seat = move order, ink binds on the first flip. Equal-rank = 同归于尽 mutual destruction. Sibling of `banqi-tenant.ts` |
 | `jungle-flip-runtime.ts` | Flip Jungle live-room type aliases over the generic `variant-tenant/` runtime (types-only). `C` = seat, not ink |
-| `jungle-flip-registration.ts` | Flip Jungle registry entry (live-room map, room-factory binding, hydration); PvP-only at launch; side-effect import in `variant-tenant/register-tenants.ts` |
-| `server-jungle-flip-room-factory.ts` | Thin adapter over `variant-tenant/room-factory.ts` for Flip Jungle (PvP only; the per-game deal is minted by the tenant's `createSetup`) |
-| `server-ws-jungle-flip.ts` | Flip Jungle WebSocket handler — thin adapter over `variant-tenant/ws.ts` (symmetric info, no fog, no engine) |
+| `jungle-flip-registration.ts` | Flip Jungle registry entry (live-room map, room-factory binding, hydration); PvP + PvE (Tier-B MistyJungleFlip UCI engine); side-effect import in `variant-tenant/register-tenants.ts` |
+| `server-jungle-flip-room-factory.ts` | Thin adapter over `variant-tenant/room-factory.ts` for Flip Jungle (PvP + Tier-B engine seat; the per-game deal is minted by the tenant's `createSetup`) |
+| `server-ws-jungle-flip.ts` | Flip Jungle WebSocket handler — thin adapter over `variant-tenant/ws.ts` (symmetric info, no fog); the Tier-B MistyJungleFlip scheduler rides the post-connect/post-move hook |
+| `jungle-flip-fen.ts` | Flip Jungle UCI FEN encoder — THE REDACTION BOUNDARY for the MistyJungleFlip engine; a face-down tile encodes as `X` with NO colour (hides ink too, like banqi), pool carries only public per-(ink,role) counts. Sibling of `banqi-fen.ts` with 4 files + the 8 animal ranks |
+| `jungle-flip-engine.ts` | MistyJungleFlip move provider for Flip Jungle PvE: our own `jungle-flip-engine` Rust αβ+Star1+TT UCI subprocess (Tier-B, one process per request, NOT the fog engine-worker); fed a redacted current-position FEN from `jungle-flip-fen.ts`. One versioned bot |
+| `server-jungle-flip-engine.ts` | Server-side MistyJungleFlip PvE loop; injects engine moves through the shared append+broadcast path, fails closed (resign) on a kernel-rejected move. Mirrors `server-banqi-engine.ts` |
 | `routes/jieqi-rooms.ts` | POST `/api/rooms` jieqi branch (time-control gating, engine-id parsing); binds the tenant room factory |
 | `routes/jieqi-games.ts` | Jieqi postgame/review API branch; keeps non-chess finished games out of generic chess replay APIs |
 | `routes/banqi-rooms.ts` | POST `/api/rooms` banqi branch (time-control gating; `preferredColor` selects the move-order seat) |
 | `routes/banqi-games.ts` | Banqi postgame/review API branch (single public truth surface; keeps non-chess records out of generic chess replay APIs) |
 | `routes/jungle-rooms.ts` | POST `/api/rooms` Jungle branch (PvP + PvE engine-seat assignment opposite the human; `jungleEnabled` flag) |
 | `routes/jungle-games.ts` | Jungle postgame/review API branch; exposes the finished perfect-information board history and move timeline |
-| `routes/jungle-flip-rooms.ts` | POST `/api/rooms` Flip Jungle branch (PvP only at launch; `jungleFlipEnabled` flag) |
+| `routes/jungle-flip-rooms.ts` | POST `/api/rooms` Flip Jungle branch (PvP + PvE engine-seat assignment opposite the human; `jungleFlipEnabled` flag) |
 | `routes/jungle-flip-games.ts` | Flip Jungle postgame/review API branch; exposes the as-played masked replay plus revealed spoiler history for symmetric hidden-identity games |
 | `routes/reveal-chess-rooms.ts` | POST `/api/rooms` Reveal Chess branch (`revealChessEnabled` flag) |
 | `routes/reveal-chess-games.ts` | Reveal Chess postgame/review API branch |
@@ -464,6 +469,12 @@ Run with `MISTBOARD_ALLOW_IN_MEMORY_PERSISTENCE=true npm run test:integration --
 | `landing-activity.ts` | Homepage activity box: live presence (`/api/live-stats`) + durable totals (`/api/stats/public`) in the shared `site-box` shell; omitted entirely when both fetches fail |
 | `news-page.ts` | `/news` route: full announcement history as a dated reverse-chronological feed; the landing News box "More" target. Loads `news-page.css` |
 | `news-page.css` | `/news` dated-feed styles loaded by `news-page.ts` |
+| `replay-skeleton.ts` | Neutral "Loading game" placeholder for watch/showcase replay slots while renderer kinds swap or mount asynchronously |
+| `showcase-board.ts` | Homepage showcase single-board mount: dispatches between chessground replay and tenant watch renderers, owns compact chess replay options and game-end handoff |
+| `showcase-clock.ts` | Homepage showcase timing helpers: reconstructs per-ply clock series and autoplay delays from tenant postgame move timestamps plus Fischer time controls |
+| `showcase-compact-view.ts` | Shared compact-view picker for homepage showcase tenant renderers: chooses masked, truth, or stable per-room POV panes without being a redaction boundary |
+| `showcase-cycler.ts` | Homepage showcase cycler: rolls through finished games across renderer kinds, reuses handles when possible, remounts across kinds, and shows the replay skeleton during swaps |
+| `showcase-dispatch.ts` | Showcase renderer dispatch shared with watch routing: maps persisted/spec ids to tenant renderer kinds or the chessground fallback and picks the next pool index |
 | `database.ts` | Unlisted admin game browser (`/database`): faceted completed-game query with win-rate/termination/length summary + review links; admin-gated by `/api/admin/games/query` (open in local dev), no nav entry. Loads `database.css` |
 | `database.css` | `/database` admin game-browser styles loaded by `database.ts` |
 | `engines.ts` | Unlisted admin engine tracker (`/engines`): roster of every engine version with EvE win/loss/draw records; admin-gated by `/api/admin/engines` (open in local dev), no nav entry. Loads `engines.css` |
@@ -510,6 +521,7 @@ Run with `MISTBOARD_ALLOW_IN_MEMORY_PERSISTENCE=true npm run test:integration --
 | `crossroads-chess-play.ts` | `/crossroads-chess` perfect-information play page (no fog): hot-seat or vs Fairy-Stockfish (side + difficulty), bot moves from `POST /api/crossroads-chess/engine-move`. Loads `crossroads-chess-play.css` |
 | `crossroads-chess-play.css` | `/crossroads-chess` play-page styles loaded by `crossroads-chess-play.ts` |
 | `crossroads-chess-render.ts` | Live, fog-aware Crossroads Chess board SVG renderer: thin adapter over the shared `renderGridBoardSvg` cell-board core (6×8+river descriptor, disk/recolour glyphs, red-piece filter) |
+| `jungle-art.ts` | Shared Jungle / Flip Jungle art recipe — single source of truth for the dobutsu framed-token + terrain look (`JUNGLE_ART` spec, `framedTokenSvg`, face-down disc, last-move ring, board/piece hrefs). Consumed by `jungle-render.ts`, `jungle-flip-render.ts`, and the variant markers; the blog widget is a downstream copy kept in sync via `check/publish:jungle-art` |
 | `jungle-render.ts` | Jungle (斗兽棋) board SVG renderer: thin adapter over the shared `renderGridBoardSvg` cell-board core (7×9 descriptor) — draws the two river lakes + dens + traps as a furniture layer and the 8 animals as character discs. Concrete colours so it also renders standalone (rsvg/resvg). Animal-glyph art refined in a parallel session |
 | `jungle-flip-render.ts` | Flip Jungle (兽棋/翻翻棋) board SVG renderer: thin adapter over `renderGridBoardSvg` (4×4 descriptor) — face-down tiles as neutral "back" discs (symmetric mask), revealed tiles as ink-coloured animal discs. Self-contained (own glyph table) so it doesn't couple to the in-flux `jungle-render.ts` |
 | `crossroads-chess-postgame.ts` | Crossroads Chess postgame/review route renderer: per-seat + truth views from the postgame API, reuses replay panes/header/move-list; handles the legacy `dual-chess` spec alias. Loads `landing.css` + `game-route.css` |
@@ -578,6 +590,10 @@ Run with `MISTBOARD_ALLOW_IN_MEMORY_PERSISTENCE=true npm run test:integration --
 | `live-jungle-sound.ts` | Jungle / Dou Shou Qi sound policy: perfect-information (no drops/flips/king), every move sounded precisely, reusing the shared `SoundController` |
 | `live-jungle-flip-sound.ts` | Flip Jungle (兽棋 / 翻翻棋) sound policy: hidden identity not position, so a flip (face-down → revealed) is public and sounded precisely for both seats, reusing the shared `SoundController` |
 | `jungle-rules-diagrams.ts` | Inline board diagrams for the Jungle + Flip Jungle rules articles, built on the live board renderers (`renderJungleBoardSvg` / `renderJungleFlipBoardSvg`) so each diagram matches the in-game furniture |
+| `jungle-replay.ts` | Jungle (斗兽棋) rules-article replay: perfect-information (spec is just a move list, no deal), each position replayed through the real jungle kernel and drawn by `jungle-render.ts` on demand (sibling of `banqi-replay.ts`) |
+| `jungle-sample-game.ts` | Jungle rules-article sample game data — a real Misty Jungle L3 (Red) vs L2 (Black) game (move list only; perfect-information), replayed by `jungle-replay.ts`; verified to replay to the recorded den win |
+| `jungle-flip-replay.ts` | Flip Jungle (兽棋/翻翻棋) rules-article replay: spec carries the deal + move list, each position replayed through the real flip-jungle kernel and drawn from the as-played masked view; face-down tiles flip to their dealt animal on first turn (sibling of `banqi-replay.ts`) |
+| `jungle-flip-sample-game.ts` | Flip Jungle rules-article sample game data — a real MistyJungleFlip self-play game (deal + move list) illustrating 同归于尽 mutual destruction, replayed by `jungle-flip-replay.ts`; verified to replay to the recorded elimination win |
 | `banqi-replay.ts` | Banqi rules-article replay: replays the deal + move list through the real banqi kernel, rendering each position on demand; face-down tiles flip to their dealt piece on first turn (sibling of `jieqi-replay.ts`) |
 | `banqi-sample-game.ts` | Banqi rules-article sample game data (a real MistyBanqi-vs-human game), replayed by `banqi-replay.ts` |
 | `banqi-engine-game.ts` | "How MistyBanqi Plays" article sample game data (a real prod game where MistyBanqi draws a won position by repetition), replayed by `banqi-replay.ts` |

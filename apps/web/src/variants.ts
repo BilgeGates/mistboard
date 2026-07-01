@@ -22,6 +22,8 @@ import {
   type GameSpecId,
   gameSpecForId,
   JIEQI_SPEC_ID,
+  JUNGLE_FLIP_SPEC_ID,
+  JUNGLE_SPEC_ID,
   KRIEGSPIEL_SPEC_ID,
   MINI_XIANGQI_SPEC_ID,
   type RatingVariant,
@@ -39,6 +41,8 @@ import {
   darkXiangqiEnabled,
   dropMiniXiangqiEnabled,
   jieqiEnabled,
+  jungleEnabled,
+  jungleFlipEnabled,
   kriegspielEnabled,
   revealChessEnabled,
 } from './feature-flags.js';
@@ -71,6 +75,8 @@ const dropMiniXiangqiOn = dropMiniXiangqiEnabled();
 const crossroadsEnabled = crossroadsChessEnabled();
 const jieqiOn = jieqiEnabled();
 const banqiOn = banqiEnabled();
+const jungleOn = jungleEnabled();
+const jungleFlipOn = jungleFlipEnabled();
 const revealChessOn = revealChessEnabled();
 const darkXiangqiOn = darkXiangqiEnabled();
 const darkCrossroadsChessOn = darkCrossroadsChessEnabled();
@@ -90,6 +96,8 @@ const kriegspielSpec = gameSpecForId(KRIEGSPIEL_SPEC_ID);
 const jieqiSpec = gameSpecForId(JIEQI_SPEC_ID);
 const banqiSpec = gameSpecForId(BANQI_SPEC_ID);
 const revealChessSpec = gameSpecForId(REVEAL_CHESS_SPEC_ID);
+const jungleSpec = gameSpecForId(JUNGLE_SPEC_ID);
+const jungleFlipSpec = gameSpecForId(JUNGLE_FLIP_SPEC_ID);
 
 // Marker coverage is broader than the rated/current variant registry: the play
 // picker can surface casual tenants, and rules/articles can reference variants
@@ -109,6 +117,8 @@ const VARIANT_MINI_BY_GAME_SPEC: Partial<Record<GameSpecId, VariantMiniId>> = {
   [DARK_SHOGI_SPEC_ID]: 'dark-shogi',
   [DARK_CRAZYHOUSE_SPEC_ID]: 'dark-crazyhouse',
   [KRIEGSPIEL_SPEC_ID]: 'kriegspiel',
+  [JUNGLE_SPEC_ID]: 'jungle',
+  [JUNGLE_FLIP_SPEC_ID]: 'jungle-flip',
 };
 
 export const VARIANTS: VariantDef[] = [
@@ -251,6 +261,31 @@ export const VARIANTS: VariantDef[] = [
     enabled: false,
     onLeaderboard: darkCrossroadsChessOn,
     onProfile: darkCrossroadsChessOn,
+  },
+  // Jungle + Flip Jungle: rated human PvP (own pools), PvE bot games written
+  // unrated. The rating pools + profile/persistence wiring are live, but the
+  // public leaderboard/profile DISPLAY follows the play flag (`jungleOn` /
+  // `jungleFlipOn`), launched 2026-06-30 (now always-on). Not lobby open-seek (no
+  // public matchmaking in v1), so `enabled: false`.
+  {
+    id: currentRatingVariantForSpec(JUNGLE_SPEC_ID),
+    gameSpecId: jungleSpec.id,
+    apiParam: JUNGLE_SPEC_ID,
+    label: jungleSpec.publicName,
+    miniId: 'jungle',
+    enabled: false,
+    onLeaderboard: jungleOn,
+    onProfile: jungleOn,
+  },
+  {
+    id: currentRatingVariantForSpec(JUNGLE_FLIP_SPEC_ID),
+    gameSpecId: jungleFlipSpec.id,
+    apiParam: JUNGLE_FLIP_SPEC_ID,
+    label: jungleFlipSpec.publicName,
+    miniId: 'jungle-flip',
+    enabled: false,
+    onLeaderboard: jungleFlipOn,
+    onProfile: jungleFlipOn,
   },
 ];
 
