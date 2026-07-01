@@ -89,6 +89,24 @@ export const FIRST_PARTY_BOT_PROFILES: readonly FirstPartyBotProfile[] = [
     defaultGameSpecId: 'drop-mini-xiangqi',
   },
   {
+    id: 'fairy-stockfish-fortress-xiangqi-amateur',
+    displayName: 'Fairy Stockfish Fortress Xiangqi - Amateur',
+    activeEngineId: 'fairy-stockfish-fortress-xiangqi-amateur',
+    defaultGameSpecId: 'fortress-xiangqi',
+  },
+  {
+    id: 'fairy-stockfish-fortress-xiangqi',
+    displayName: 'Fairy Stockfish Fortress Xiangqi - Strong',
+    activeEngineId: 'fairy-stockfish-fortress-xiangqi-strong',
+    defaultGameSpecId: 'fortress-xiangqi',
+  },
+  {
+    id: 'fairy-stockfish-fortress-xiangqi-strongest',
+    displayName: 'Fairy Stockfish Fortress Xiangqi - Strongest',
+    activeEngineId: 'fairy-stockfish-fortress-xiangqi-very-strong',
+    defaultGameSpecId: 'fortress-xiangqi',
+  },
+  {
     id: 'fairy-stockfish-mini-xiangqi-amateur',
     displayName: 'Fairy Stockfish Mini Xiangqi - Amateur',
     activeEngineId: 'fairy-stockfish-mini-xiangqi-amateur',
