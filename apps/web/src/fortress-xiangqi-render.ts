@@ -68,8 +68,30 @@ export function fortressXiangqiPieceGhostSvg(
   pieceSet?: XiangqiPieceSet,
 ): string {
   const set = pieceSet ?? readStoredXiangqiPieceSet();
-  const inner = renderFortressXiangqiPiece(piece, set, 0, 0, false);
+  const inner = renderFortressXiangqiPiece(piece, set, PIECE_SIZE / 2, PIECE_SIZE / 2, false);
   return `<svg width="${PIECE_SIZE}" height="${PIECE_SIZE}" viewBox="0 0 ${PIECE_SIZE} ${PIECE_SIZE}" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">${inner}</svg>`;
+}
+
+// A 100x100 piece glyph (no position) for inline use — the reserve/pocket tiles.
+// The six shared roles reuse renderXiangqiPieceGlyphed; the Treasure is inline.
+export function renderFortressXiangqiPieceInline(
+  piece: FortressXiangqiPiece,
+  set: XiangqiPieceSet,
+): string {
+  if (piece.role === 'treasure') {
+    const colorHex = piece.color === 'red' ? '#b91c1c' : '#1f2937';
+    const glyph = set === 'simplified' ? '宝' : set === 'western' ? 'T' : '寶';
+    return [
+      `<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg" aria-label="${piece.color} treasure">`,
+      `<circle cx="50" cy="50" r="46" fill="#f3e6c4" stroke="${colorHex}" stroke-width="2.5"/>`,
+      `<circle cx="50" cy="50" r="38" fill="none" stroke="${colorHex}" stroke-width="1.5"/>`,
+      `<text x="50" y="50" font-family="serif" font-size="46" font-weight="700" fill="${colorHex}" text-anchor="middle" dominant-baseline="central">${glyph}</text>`,
+      `</svg>`,
+    ].join('');
+  }
+  return renderXiangqiPieceGlyphed(piece as unknown as XiangqiPiece, set, {
+    ariaLabel: `${piece.color} ${piece.role}`,
+  });
 }
 
 function gridLines(): string {
@@ -370,6 +392,20 @@ export function installFortressXiangqiBoardStyles(): void {
     .fxq-hit rect {
       fill: transparent;
       cursor: pointer;
+    }
+    .live-route--fortress-xiangqi .board-shell {
+      width: min(100%, 72vh, 520px);
+    }
+    .fortress-xiangqi-live-board {
+      aspect-ratio: 516 / 588;
+      width: min(100%, 66vh);
+      max-width: 520px;
+      min-height: 0;
+      border-radius: 10px;
+      box-shadow: 0 18px 50px rgba(37, 31, 24, 0.16);
+    }
+    .fortress-xiangqi-live-board--disabled {
+      background: repeating-linear-gradient(135deg, #ece7dc, #ece7dc 16px, #ddd5c5 16px, #ddd5c5 32px);
     }
   `;
   document.head.append(style);

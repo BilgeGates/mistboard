@@ -18,6 +18,12 @@ export function dropMiniXiangqiEnabled(): boolean {
   return true;
 }
 
+// Fortress Xiangqi (7x8 xiangqi-with-a-pocket). On in dev for convenience; in
+// prod/staging hidden unless the build opts in. Flip to always-on at launch.
+export function fortressXiangqiEnabled(): boolean {
+  return import.meta.env.DEV || import.meta.env.VITE_FORTRESS_XIANGQI_ENABLED === 'true';
+}
+
 // Identity-hidden jieqi (揭棋) play surface. Always on in dev for convenience
 // (like DMX/Crossroads/correspondence); in prod/staging it is hidden unless the
 // build opts in.

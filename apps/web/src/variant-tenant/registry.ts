@@ -24,6 +24,7 @@ import {
   DARK_XIANGQI_SPEC_ID,
   DROP_MINI_XIANGQI_SPEC_ID,
   DUAL_CHESS_SPEC_ID,
+  FORTRESS_XIANGQI_SPEC_ID,
   type GameSpecId,
   JIEQI_SPEC_ID,
   JUNGLE_FLIP_SPEC_ID,
@@ -37,6 +38,7 @@ import {
   correspondenceEnabled,
   crossroadsChessEnabled,
   darkCrossroadsChessEnabled,
+  fortressXiangqiEnabled,
   jungleEnabled,
   jungleFlipEnabled,
   kriegspielEnabled,
@@ -615,6 +617,55 @@ const WEB_VARIANT_TENANTS: readonly WebVariantTenant[] = [
         },
       ],
       defaultEngineId: 'fairy-stockfish-drop-mini-xiangqi-strong',
+    },
+  },
+  {
+    // Fortress Xiangqi (open 7x8 xiangqi-with-a-pocket): faithful movement + the
+    // Treasure + crazyhouse drops + the chasing rule. Self-contained live client
+    // on the socket-client + chrome stack with the 7x8 corner-palace SVG board.
+    // Postgame/watch surfaces are deferred; hidden until launch.
+    gameSpecId: FORTRESS_XIANGQI_SPEC_ID,
+    roomIdPrefix: 'fxq_',
+    enabled: fortressXiangqiEnabled,
+    pageTitle: 'Fortress Xiangqi',
+    gameRouteBase: '/fortress-xiangqi/game',
+    loadLiveRoomClient: () =>
+      import('../live-fortress-xiangqi.js').then(
+        ({ bootstrapFortressXiangqiLiveRoom }) =>
+          () =>
+            bootstrapFortressXiangqiLiveRoom(),
+      ),
+    landing: {
+      capabilities: {
+        ...XIANGQI_CAPABILITIES_BASE,
+        supportsRated: false,
+        supportsStartFormat: false,
+        supportsTimeControl: true,
+      },
+      timePresetIds: ['3m2', '5m5'],
+      offerInMenu: fortressXiangqiEnabled,
+      acceptsDeepLink: fortressXiangqiEnabled,
+      engineOptions: [
+        {
+          id: 'fairy-stockfish-fortress-xiangqi-very-strong',
+          name: 'Fairy Stockfish - Strongest',
+          familyName: 'Fairy Stockfish',
+          kind: 'container',
+        },
+        {
+          id: 'fairy-stockfish-fortress-xiangqi-strong',
+          name: 'Fairy Stockfish - Strong',
+          familyName: 'Fairy Stockfish',
+          kind: 'container',
+        },
+        {
+          id: 'fairy-stockfish-fortress-xiangqi-amateur',
+          name: 'Fairy Stockfish - Amateur',
+          familyName: 'Fairy Stockfish',
+          kind: 'container',
+        },
+      ],
+      defaultEngineId: 'fairy-stockfish-fortress-xiangqi-strong',
     },
   },
   {
