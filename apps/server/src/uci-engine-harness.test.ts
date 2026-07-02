@@ -1,0 +1,241 @@
+import assert from 'node:assert/strict';
+import { chmodSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import test, { after } from 'node:test';
+import {
+  boundedEnvInt,
+  buildFairyStockfishCommands,
+  parseBestmoveLine,
+  runUciBestmove,
+  UciEnginePool,
+} from './uci-engine-harness.js';
+
+const delay = (ms: number): Promise<void> => new Promise((resolve) => setTimeout(resolve, ms));
+
+// ── boundedEnvInt ─────────────────────────────────────────────────────────────
+
+test('boundedEnvInt returns the fallback when unset or non-numeric', () => {
+  delete process.env.TEST_BOUNDED_ENV;
+  assert.equal(boundedEnvInt('TEST_BOUNDED_ENV', 2, 1, 8), 2);
+  process.env.TEST_BOUNDED_ENV = 'not-a-number';
+  assert.equal(boundedEnvInt('TEST_BOUNDED_ENV', 2, 1, 8), 2);
+  delete process.env.TEST_BOUNDED_ENV;
+});
+
+test('boundedEnvInt clamps to [min, max]', () => {
+  process.env.TEST_BOUNDED_ENV = '100';
+  assert.equal(boundedEnvInt('TEST_BOUNDED_ENV', 2, 1, 8), 8);
+  process.env.TEST_BOUNDED_ENV = '5';
+  assert.equal(boundedEnvInt('TEST_BOUNDED_ENV', 2, 1, 8), 5);
+  process.env.TEST_BOUNDED_ENV = '0';
+  assert.equal(boundedEnvInt('TEST_BOUNDED_ENV', 2, 1, 8), 1);
+  delete process.env.TEST_BOUNDED_ENV;
+});
+
+// ── parseBestmoveLine ─────────────────────────────────────────────────────────
+
+test('parseBestmoveLine returns undefined for non-bestmove lines', () => {
+  assert.equal(parseBestmoveLine('info depth 12 score cp 34'), undefined);
+  assert.equal(parseBestmoveLine('readyok'), undefined);
+  assert.equal(parseBestmoveLine(''), undefined);
+});
+
+test('parseBestmoveLine extracts the move token', () => {
+  assert.equal(parseBestmoveLine('bestmove d2d3'), 'd2d3');
+  assert.equal(parseBestmoveLine('bestmove a7a8q ponder b8c6'), 'a7a8q');
+  assert.equal(parseBestmoveLine('bestmove C@d4'), 'C@d4');
+});
+
+test('parseBestmoveLine maps no-move outputs to null', () => {
+  assert.equal(parseBestmoveLine('bestmove (none)'), null);
+  assert.equal(parseBestmoveLine('bestmove'), null);
+});
+
+// ── buildFairyStockfishCommands ───────────────────────────────────────────────
+
+test('buildFairyStockfishCommands: crossroads shape (ini, skill, movetime only)', () => {
+  const commands = buildFairyStockfishCommands({
+    moves: ['d2d3'],
+    variant: 'dualchess',
+    iniPath: '/tmp/crossroads-chess.ini',
+    skill: 8,
+    movetimeMs: 300,
+  });
+  assert.deepEqual(commands, [
+    'uci',
+    'setoption name VariantPath value /tmp/crossroads-chess.ini',
+    'setoption name UCI_Variant value dualchess',
+    'setoption name Skill Level value 8',
+    'ucinewgame',
+    'isready',
+    'position startpos moves d2d3',
+    'go movetime 300',
+  ]);
+});
+
+test('buildFairyStockfishCommands: mini shape (built-in variant, no ini, node budget)', () => {
+  const commands = buildFairyStockfishCommands({
+    moves: [],
+    variant: 'minixiangqi',
+    skill: 1,
+    nodes: 6_000,
+    movetimeMs: 300,
+  });
+  assert.deepEqual(commands, [
+    'uci',
+    'setoption name UCI_Variant value minixiangqi',
+    'setoption name Skill Level value 1',
+    'ucinewgame',
+    'isready',
+    'position startpos',
+    'go nodes 6000 movetime 300',
+  ]);
+});
+
+test('buildFairyStockfishCommands: drop-mini shape (ini + node budget)', () => {
+  const commands = buildFairyStockfishCommands({
+    moves: ['b1b3', 'C@d4'],
+    variant: 'dropminixiangqi',
+    iniPath: '/tmp/drop-mini-xiangqi.ini',
+    skill: 20,
+    nodes: 800_000,
+    movetimeMs: 2_000,
+  });
+  assert.deepEqual(commands, [
+    'uci',
+    'setoption name VariantPath value /tmp/drop-mini-xiangqi.ini',
+    'setoption name UCI_Variant value dropminixiangqi',
+    'setoption name Skill Level value 20',
+    'ucinewgame',
+    'isready',
+    'position startpos moves b1b3 C@d4',
+    'go nodes 800000 movetime 2000',
+  ]);
+});
+
+test('buildFairyStockfishCommands: omits Skill Level when undefined and clamps to 0..20', () => {
+  const noSkill = buildFairyStockfishCommands({ moves: [], variant: 'x', movetimeMs: 100 });
+  assert.ok(!noSkill.some((c) => c.includes('Skill Level')));
+  const overMax = buildFairyStockfishCommands({
+    moves: [],
+    variant: 'x',
+    skill: 99,
+    movetimeMs: 100,
+  });
+  assert.ok(overMax.includes('setoption name Skill Level value 20'));
+  const underMin = buildFairyStockfishCommands({
+    moves: [],
+    variant: 'x',
+    skill: -5,
+    movetimeMs: 100,
+  });
+  assert.ok(underMin.includes('setoption name Skill Level value 0'));
+});
+
+// ── UciEnginePool ─────────────────────────────────────────────────────────────
+
+test('UciEnginePool serializes acquisitions past the concurrency cap (FIFO)', async () => {
+  process.env.TEST_POOL_MAX = '1';
+  const pool = new UciEnginePool({
+    maxProcessesEnvVar: 'TEST_POOL_MAX',
+    queueTimeoutEnvVar: 'TEST_POOL_TIMEOUT_UNSET',
+    queueTimeoutMessage: 'test queue timed out',
+  });
+  const order: string[] = [];
+  const release1 = await pool.acquire();
+  order.push('a1');
+
+  let release2: (() => void) | undefined;
+  const acquired2 = pool.acquire().then((rel) => {
+    order.push('a2');
+    release2 = rel;
+  });
+
+  // Second acquire must stay queued while the single slot is held.
+  await delay(20);
+  assert.deepEqual(order, ['a1']);
+
+  release1();
+  await acquired2;
+  assert.deepEqual(order, ['a1', 'a2']);
+  release2?.();
+
+  delete process.env.TEST_POOL_MAX;
+});
+
+test('UciEnginePool rejects a queued waiter after the queue timeout', async () => {
+  process.env.TEST_POOL_MAX = '1';
+  process.env.TEST_POOL_TIMEOUT = '100';
+  const pool = new UciEnginePool({
+    maxProcessesEnvVar: 'TEST_POOL_MAX',
+    queueTimeoutEnvVar: 'TEST_POOL_TIMEOUT',
+    queueTimeoutMessage: 'slot wait timed out',
+  });
+  const release1 = await pool.acquire();
+  await assert.rejects(pool.acquire(), /slot wait timed out/);
+  release1();
+  delete process.env.TEST_POOL_MAX;
+  delete process.env.TEST_POOL_TIMEOUT;
+});
+
+// ── runUciBestmove (fake UCI binary; no real engine needed) ──────────────────
+
+const fixtureDir = mkdtempSync(join(tmpdir(), 'uci-harness-'));
+after(() => rmSync(fixtureDir, { recursive: true, force: true }));
+
+function writeFakeEngine(name: string, body: string): string {
+  const path = join(fixtureDir, name);
+  writeFileSync(path, `#!/usr/bin/env node\n${body}\n`);
+  chmodSync(path, 0o755);
+  return path;
+}
+
+// Echoes a bestmove as soon as it sees a `go` command; otherwise stays silent.
+const responderBin = writeFakeEngine(
+  'responder.mjs',
+  `let buf = '';
+process.stdin.on('data', (chunk) => {
+  buf += chunk;
+  let nl;
+  while ((nl = buf.indexOf('\\n')) >= 0) {
+    const line = buf.slice(0, nl).trim();
+    buf = buf.slice(nl + 1);
+    if (line.startsWith('go')) process.stdout.write('info depth 1\\nbestmove d2d3\\n');
+  }
+});`,
+);
+
+test('runUciBestmove spawns, sends commands, and resolves the bestmove', async () => {
+  const move = await runUciBestmove({
+    bin: responderBin,
+    commands: ['uci', 'isready', 'go movetime 50'],
+    timeoutMs: 4_000,
+    timeoutMessage: 'should not time out',
+  });
+  assert.equal(move, 'd2d3');
+});
+
+test('runUciBestmove rejects with the timeout message when no bestmove arrives', async () => {
+  await assert.rejects(
+    runUciBestmove({
+      bin: responderBin,
+      // No `go` line → the fake engine never answers → the hard timeout fires.
+      commands: ['uci', 'isready'],
+      timeoutMs: 150,
+      timeoutMessage: 'engine move timed out',
+    }),
+    /engine move timed out/,
+  );
+});
+
+test('runUciBestmove rejects when the binary cannot be spawned', async () => {
+  await assert.rejects(
+    runUciBestmove({
+      bin: join(fixtureDir, 'does-not-exist'),
+      commands: ['go'],
+      timeoutMs: 1_000,
+      timeoutMessage: 'unused',
+    }),
+  );
+});

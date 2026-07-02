@@ -12,9 +12,9 @@
 // NNUE weights — clean GPL-3 with no net-licensing problem). The strength track swaps in
 // the NNUE `jieqi` branch + our own-trained net via MISTBOARD_PIKAFISH_NET (EvalFile).
 
-import { spawn } from 'node:child_process';
 import { existsSync } from 'node:fs';
 import { resolve } from 'node:path';
+import { runUciBestmove, UciEnginePool } from './uci-engine-harness.js';
 
 export const JIEQI_DEFAULT_ENGINE_ID = 'pikafish-jieqi-strong';
 // Engine BUILD version recorded per PvE game (subject_id encodes only the tier). The shipped
@@ -58,15 +58,12 @@ const JIEQI_ENGINE_BY_ID: ReadonlyMap<string, JieqiEngineTier> = new Map(
   JIEQI_ENGINE_TIERS.map((engine) => [engine.id, engine]),
 );
 
-const DEFAULT_MAX_CONCURRENT = 2;
-const DEFAULT_QUEUE_TIMEOUT_MS = 5_000;
-
-let activeProcesses = 0;
-const queue: Array<{
-  reject(err: Error): void;
-  resolve(): void;
-  timer: ReturnType<typeof setTimeout>;
-}> = [];
+// Small per-process slot pool (Tier-B UCI subprocess; shared harness).
+const enginePool = new UciEnginePool({
+  maxProcessesEnvVar: 'MISTBOARD_PIKAFISH_MAX_PROCESSES',
+  queueTimeoutEnvVar: 'MISTBOARD_PIKAFISH_QUEUE_TIMEOUT_MS',
+  queueTimeoutMessage: 'pikafish-jieqi concurrency queue timed out',
+});
 
 // Resolve the PikaJieQi binary: explicit env override, else the known dev location,
 // else the prod (railpack-compiled) / system locations.
@@ -146,7 +143,7 @@ export async function jieqiLiveEngineMove(
 ): Promise<string | null> {
   const tier = jieqiEngineTierFor(engineId);
   if (!tier) throw new Error(`unknown Jieqi engine: ${engineId}`);
-  const release = await acquireSlot();
+  const release = await enginePool.acquire();
   try {
     return await jieqiEngineMove(fen, {
       depth: tier.depth,
@@ -162,111 +159,26 @@ export function jieqiEngineMove(
   fen: string,
   opts: JieqiEngineOptions = {},
 ): Promise<string | null> {
-  const bin = pikaJieqiPath();
   const movetimeMs = opts.movetimeMs ?? 500;
   const depth = opts.depth !== undefined ? Math.max(1, Math.floor(opts.depth)) : null;
-
-  return new Promise<string | null>((resolveMove, reject) => {
-    const child = spawn(bin, [], { stdio: ['pipe', 'pipe', 'pipe'] });
-    let buf = '';
-    let settled = false;
-
-    const finish = (run: () => void): void => {
-      if (settled) return;
-      settled = true;
-      clearTimeout(timer);
-      try {
-        child.kill('SIGKILL');
-      } catch {
-        /* already gone */
-      }
-      run();
-    };
-
-    const timer = setTimeout(
-      () => finish(() => reject(new Error('pikafish-jieqi move timed out'))),
-      movetimeMs + 4000,
-    );
-
-    child.on('error', (err) => finish(() => reject(err)));
-    child.stdout.on('data', (chunk: Buffer) => {
-      buf += chunk.toString('utf8');
-      let newline = buf.indexOf('\n');
-      while (newline >= 0) {
-        const line = buf.slice(0, newline).trim();
-        buf = buf.slice(newline + 1);
-        if (line.startsWith('bestmove')) {
-          const move = line.split(/\s+/)[1];
-          finish(() => resolveMove(move && move !== '(none)' ? move : null));
-          return;
-        }
-        newline = buf.indexOf('\n');
-      }
-    });
-
-    const position =
-      opts.moves && opts.moves.length > 0
-        ? `position fen ${fen} moves ${opts.moves.join(' ')}`
-        : `position fen ${fen}`;
-    const commands = [
-      'uci',
-      ...netOption(),
-      'ucinewgame',
-      'isready',
-      position,
-      // depth cap (if any) stops the search early for weaker tiers; movetime bounds
-      // latency on the deep tiers. `go depth N movetime T` halts at whichever hits first.
-      depth === null ? `go movetime ${movetimeMs}` : `go depth ${depth} movetime ${movetimeMs}`,
-    ];
-    child.stdin.write(`${commands.join('\n')}\n`);
+  const position =
+    opts.moves && opts.moves.length > 0
+      ? `position fen ${fen} moves ${opts.moves.join(' ')}`
+      : `position fen ${fen}`;
+  const commands = [
+    'uci',
+    ...netOption(),
+    'ucinewgame',
+    'isready',
+    position,
+    // depth cap (if any) stops the search early for weaker tiers; movetime bounds
+    // latency on the deep tiers. `go depth N movetime T` halts at whichever hits first.
+    depth === null ? `go movetime ${movetimeMs}` : `go depth ${depth} movetime ${movetimeMs}`,
+  ];
+  return runUciBestmove({
+    bin: pikaJieqiPath(),
+    commands,
+    timeoutMs: movetimeMs + 4000,
+    timeoutMessage: 'pikafish-jieqi move timed out',
   });
-}
-
-function acquireSlot(): Promise<() => void> {
-  if (activeProcesses < maxConcurrentProcesses()) {
-    activeProcesses += 1;
-    return Promise.resolve(releaseSlot);
-  }
-  return new Promise((resolveSlot, reject) => {
-    const timer = setTimeout(() => {
-      const idx = queue.findIndex((entry) => entry.reject === reject);
-      if (idx >= 0) queue.splice(idx, 1);
-      reject(new Error('pikafish-jieqi concurrency queue timed out'));
-    }, queueTimeoutMs());
-    timer.unref();
-    queue.push({
-      reject,
-      resolve: () => {
-        clearTimeout(timer);
-        activeProcesses += 1;
-        resolveSlot(releaseSlot);
-      },
-      timer,
-    });
-  });
-}
-
-function releaseSlot(): void {
-  activeProcesses = Math.max(0, activeProcesses - 1);
-  const next = queue.shift();
-  if (next) next.resolve();
-}
-
-function maxConcurrentProcesses(): number {
-  return boundedEnvInt('MISTBOARD_PIKAFISH_MAX_PROCESSES', DEFAULT_MAX_CONCURRENT, 1, 8);
-}
-
-function queueTimeoutMs(): number {
-  return boundedEnvInt(
-    'MISTBOARD_PIKAFISH_QUEUE_TIMEOUT_MS',
-    DEFAULT_QUEUE_TIMEOUT_MS,
-    100,
-    30_000,
-  );
-}
-
-function boundedEnvInt(name: string, fallback: number, min: number, max: number): number {
-  const value = Number.parseInt(process.env[name] ?? '', 10);
-  if (!Number.isFinite(value)) return fallback;
-  return Math.max(min, Math.min(max, value));
 }

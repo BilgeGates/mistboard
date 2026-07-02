@@ -15,9 +15,9 @@
 //
 // Strength is a NODE budget (CPU-independent), not a clock; a movetime cap bounds latency.
 
-import { spawn } from 'node:child_process';
 import { existsSync } from 'node:fs';
 import { resolve } from 'node:path';
+import { runUciBestmove, UciEnginePool } from './uci-engine-harness.js';
 
 // The binary self-reports "MistyJungle <version>" over UCI; bump on every shipped
 // eval/search change so the per-game configHash stays meaningful.
@@ -107,7 +107,7 @@ export async function jungleLiveEngineMove(
 ): Promise<string | null> {
   const tier = jungleRustTierFor(engineId);
   if (!tier) throw new Error(`unknown Jungle engine: ${engineId}`);
-  const release = await acquireSlot();
+  const release = await enginePool.acquire();
   try {
     return await jungleEngineMove(fen, {
       nodes: opts.nodes ?? tier.nodes,
@@ -122,112 +122,28 @@ export function jungleEngineMove(
   fen: string,
   opts: { nodes?: number; movetimeCapMs?: number } = {},
 ): Promise<string | null> {
-  const bin = jungleEnginePath();
   const nodes = opts.nodes ?? 1_000_000;
   const movetimeCapMs = opts.movetimeCapMs ?? 5_000;
-
-  return new Promise<string | null>((resolveMove, reject) => {
-    const child = spawn(bin, [], { stdio: ['pipe', 'pipe', 'pipe'] });
-    let buf = '';
-    let settled = false;
-
-    const finish = (run: () => void): void => {
-      if (settled) return;
-      settled = true;
-      clearTimeout(timer);
-      try {
-        child.kill('SIGKILL');
-      } catch {
-        /* already gone */
-      }
-      run();
-    };
-
-    const timer = setTimeout(
-      () => finish(() => reject(new Error('jungle-engine move timed out'))),
-      movetimeCapMs + 4000,
-    );
-
-    child.on('error', (err) => finish(() => reject(err)));
-    child.stdout.on('data', (chunk: Buffer) => {
-      buf += chunk.toString('utf8');
-      let newline = buf.indexOf('\n');
-      while (newline >= 0) {
-        const line = buf.slice(0, newline).trim();
-        buf = buf.slice(newline + 1);
-        if (line.startsWith('bestmove')) {
-          const move = line.split(/\s+/)[1];
-          finish(() => resolveMove(move && move !== '(none)' ? move : null));
-          return;
-        }
-        newline = buf.indexOf('\n');
-      }
-    });
-
-    // Node budget = CPU-independent strength; movetime cap bounds latency (halt at
-    // whichever hits first). Perfect-info: the full board FEN is sent as-is.
-    const commands = [
-      'uci',
-      'ucinewgame',
-      'isready',
-      `position fen ${fen}`,
-      `go nodes ${nodes} movetime ${movetimeCapMs}`,
-    ];
-    child.stdin.write(`${commands.join('\n')}\n`);
+  // Node budget = CPU-independent strength; movetime cap bounds latency (halt at
+  // whichever hits first). Perfect-info: the full board FEN is sent as-is.
+  const commands = [
+    'uci',
+    'ucinewgame',
+    'isready',
+    `position fen ${fen}`,
+    `go nodes ${nodes} movetime ${movetimeCapMs}`,
+  ];
+  return runUciBestmove({
+    bin: jungleEnginePath(),
+    commands,
+    timeoutMs: movetimeCapMs + 4000,
+    timeoutMessage: 'jungle-engine move timed out',
   });
 }
 
-// ── Per-process concurrency cap (mirrors banqi-engine.ts) ─────────────────────
-const DEFAULT_MAX_CONCURRENT = 2;
-const DEFAULT_QUEUE_TIMEOUT_MS = 5_000;
-
-let activeProcesses = 0;
-const queue: Array<{
-  reject(err: Error): void;
-  resolve(): void;
-  timer: ReturnType<typeof setTimeout>;
-}> = [];
-
-function acquireSlot(): Promise<() => void> {
-  if (activeProcesses < maxConcurrentProcesses()) {
-    activeProcesses += 1;
-    return Promise.resolve(releaseSlot);
-  }
-  return new Promise((resolveSlot, reject) => {
-    const timer = setTimeout(() => {
-      const idx = queue.findIndex((entry) => entry.reject === reject);
-      if (idx >= 0) queue.splice(idx, 1);
-      reject(new Error('jungle-engine concurrency queue timed out'));
-    }, queueTimeoutMs());
-    timer.unref();
-    queue.push({
-      reject,
-      resolve: () => {
-        clearTimeout(timer);
-        activeProcesses += 1;
-        resolveSlot(releaseSlot);
-      },
-      timer,
-    });
-  });
-}
-
-function releaseSlot(): void {
-  activeProcesses = Math.max(0, activeProcesses - 1);
-  const next = queue.shift();
-  if (next) next.resolve();
-}
-
-function maxConcurrentProcesses(): number {
-  return boundedEnvInt('MISTBOARD_JUNGLE_MAX_PROCESSES', DEFAULT_MAX_CONCURRENT, 1, 8);
-}
-
-function queueTimeoutMs(): number {
-  return boundedEnvInt('MISTBOARD_JUNGLE_QUEUE_TIMEOUT_MS', DEFAULT_QUEUE_TIMEOUT_MS, 100, 30_000);
-}
-
-function boundedEnvInt(name: string, fallback: number, min: number, max: number): number {
-  const value = Number.parseInt(process.env[name] ?? '', 10);
-  if (!Number.isFinite(value)) return fallback;
-  return Math.max(min, Math.min(max, value));
-}
+// Per-process concurrency cap (mirrors banqi-engine.ts; shared harness).
+const enginePool = new UciEnginePool({
+  maxProcessesEnvVar: 'MISTBOARD_JUNGLE_MAX_PROCESSES',
+  queueTimeoutEnvVar: 'MISTBOARD_JUNGLE_QUEUE_TIMEOUT_MS',
+  queueTimeoutMessage: 'jungle-engine concurrency queue timed out',
+});
