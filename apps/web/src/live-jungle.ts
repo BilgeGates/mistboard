@@ -1,14 +1,9 @@
-// Live multiplayer room client for Jungle / Dou Shou Qi (斗兽棋) — a self-contained
-// tenant client on the socket-client + chrome stack, modeled on live-banqi.ts but
-// PERFECT-INFORMATION and flip-free.
-//
-// Jungle hides nothing: the server sends the full board to both seats, the seat IS
-// the piece colour (red moves first and owns the red animals), and there is no fog
-// mask, no face-down tiles, and no deal. Interaction is plain click-to-move: select
-// one of your animals, then click a highlighted legal target. Board rendering comes
-// from jungle-render.ts; the connection state machine from
-// variant-tenant/socket-client.ts and the room chrome (clocks, status, actions)
-// from variant-tenant/room-chrome.ts.
+// Live multiplayer room client for Jungle / Dou Shou Qi (斗兽棋) — a
+// PERFECT-INFORMATION tenant on the generic live-client core
+// (variant-tenant/live-client.ts owns bootstrap, frames, renderAll, replay
+// capture, and the move list). This module keeps what is genuinely Jungle's:
+// the wire view type, board rendering (jungle-render.ts), click/drag
+// interaction, sounds, and the from-to move notation.
 
 import type {
   JungleColor,
@@ -25,20 +20,17 @@ import {
   resetJungleSoundState,
   soundForOwnJungleMove,
 } from './live-jungle-sound.js';
-import { createLiveLayout, setLiveLayoutGameSpec } from './live-layout.js';
-import { initLiveSound, playSound, resetLiveSoundState } from './live-sound.js';
-import { clearSeatTokenForRoom, type LiveRefs } from './live-state.js';
-import { roomIdFromPath } from './room-url.js';
+import { playSound } from './live-sound.js';
+import type { LiveRefs } from './live-state.js';
 import { installBoardDrag } from './variant-tenant/board-drag.js';
-import { syncMoveListScroll } from './variant-tenant/chrome-dom.js';
-import { createTenantReplayController } from './variant-tenant/replay-controller.js';
-import { createTenantRoomChrome, type WebVariantTenant } from './variant-tenant/room-chrome.js';
-import { installSelectionClickAway } from './variant-tenant/selection-click-away.js';
 import {
-  createTenantSocketClient,
-  type TenantConnectionState,
-  type TenantSocketClient,
-} from './variant-tenant/socket-client.js';
+  createTenantLiveClient,
+  type TenantLiveClientContext,
+  type TenantLiveEvent,
+  type TenantMovePlayed,
+} from './variant-tenant/live-client.js';
+import type { WebVariantTenant } from './variant-tenant/room-chrome.js';
+import { installSelectionClickAway } from './variant-tenant/selection-click-away.js';
 
 // ── Wire shapes (mirror JunglePlayerView; the board is a plain piece map) ─────
 
@@ -55,70 +47,15 @@ export type JungleWireView = {
   lastMove?: JungleMove;
 };
 
-type JungleWireEvent =
-  | { type: 'move-played'; color: JungleColor; move: JungleMove; at: number; ply?: number }
-  | { type: string; [key: string]: unknown };
-type JungleMoveEvent = Extract<JungleWireEvent, { type: 'move-played' }>;
-type JungleVisibleMoveRow = { fullMove: number; red?: string; black?: string };
+type JungleMoveEvent = TenantMovePlayed<JungleColor, JungleMove>;
 
-type JungleLiveClock = {
-  activeColor: JungleColor | null;
-  incrementMs: number;
-  initialMs: number;
-  remainingMs: Record<JungleColor, number>;
-  runningSince: number | null;
-};
+// ── Jungle-owned interaction/render state ────────────────────────────────────
 
-type JungleLiveFrame = {
-  type: 'hello' | 'snapshot' | 'event-appended';
-  clientId?: string;
-  seatToken?: string;
-  seat: JungleColor | 'spectator';
-  seats: Partial<Record<JungleColor, string>>;
-  state: JungleWireView;
-  clock?: JungleLiveClock | null;
-  connectedSeats?: Record<JungleColor, boolean>;
-  abortDeadline?: number | null;
-  roomMode?: 'pve' | 'pvp';
-  pveEngineId?: string | null;
-  timeControl?: { initialMs: number; incrementMs: number } | null;
-  events?: JungleWireEvent[];
-  event?: JungleWireEvent;
-  seq?: number;
-};
-
-// ── Module state ─────────────────────────────────────────────────────────────
-
-const state = {
-  room: '',
-  seat: null as JungleColor | 'spectator' | null,
-  view: null as JungleWireView | null,
-  clock: null as JungleLiveClock | null,
-  timeControl: null as { initialMs: number; incrementMs: number } | null,
-  seats: {} as Partial<Record<JungleColor, string>>,
-  connectedSeats: { red: false, black: false } as Record<JungleColor, boolean>,
-  events: [] as JungleWireEvent[],
-  abortDeadline: null as number | null,
-  roomMode: 'pvp' as 'pve' | 'pvp',
-  pveEngineId: null as string | null,
-};
-
-let client: TenantSocketClient | null = null;
-let refs: LiveRefs | null = null;
+let core: TenantLiveClientContext<JungleColor, JungleWireView> | null = null;
 let selectedSquare: JungleSquare | null = null;
 let draggingFrom: JungleSquare | null = null;
-let lastCapturedView: JungleWireView | null = null;
-let lastCapturedKey: string | null = null;
-
-const replay = createTenantReplayController<JungleWireView>();
-
-function send(payload: unknown): boolean {
-  return client?.send(payload) ?? false;
-}
-
-function connection(): TenantConnectionState {
-  return client?.connection() ?? 'connecting';
-}
+let roomMode: 'pve' | 'pvp' = 'pvp';
+let pveEngineId: string | null = null;
 
 function isJungleColor(value: unknown): value is JungleColor {
   return value === 'red' || value === 'black';
@@ -127,13 +64,6 @@ function isJungleColor(value: unknown): value is JungleColor {
 function oppositeColor(color: JungleColor): JungleColor {
   return color === 'red' ? 'black' : 'red';
 }
-
-function orientationFor(view: JungleWireView | null): JungleColor {
-  if (isJungleColor(state.seat)) return state.seat;
-  return view?.perspective ?? 'red';
-}
-
-// ── Shared tenant room chrome ────────────────────────────────────────────────
 
 const jungleWebTenant: WebVariantTenant<JungleColor> = {
   displayName: 'Jungle',
@@ -151,31 +81,6 @@ const jungleWebTenant: WebVariantTenant<JungleColor> = {
   seatLabel: (seat) => (seat === 'red' ? 'Red' : 'Black'),
   showPregameTurn: true,
 };
-
-const chrome = createTenantRoomChrome(jungleWebTenant, {
-  view: () => state.view,
-  seat: () => state.seat,
-  connectionState: () => connection(),
-  clock: () => state.clock,
-  timeControl: () => state.timeControl,
-  connectedSeats: () => state.connectedSeats,
-  abortDeadline: () => state.abortDeadline,
-  forfeitDeadline: () => null,
-  roomMode: () => state.roomMode,
-  room: () => state.room,
-  debugRequested: () => false,
-  isReplayLive: () => replay.isLive(),
-  orientation: () => orientationFor(state.view),
-  playAgainRequestBody: () => ({
-    mode: state.roomMode,
-    gameSpecId: 'jungle',
-    // Alternate the opener each rematch: request the seat opposite this game's.
-    preferredColor: isJungleColor(state.seat) ? oppositeColor(state.seat) : 'random',
-    ...(state.roomMode === 'pve' && state.pveEngineId ? { engineId: state.pveEngineId } : {}),
-    ...(state.timeControl ? { timeControl: state.timeControl } : {}),
-  }),
-  rematchControls: () => null,
-});
 
 function jungleReasonPhrase(reason: string): string {
   switch (reason) {
@@ -200,128 +105,82 @@ function jungleReasonPhrase(reason: string): string {
   }
 }
 
-// ── Entry point ──────────────────────────────────────────────────────────────
+const client = createTenantLiveClient<JungleColor, JungleWireView, JungleMove>({
+  tenant: jungleWebTenant,
+  gameSpecId: 'jungle',
+  defaultRoomId: 'jgl_dev',
+  boardClass: 'jungle-live-board',
+  chrome: {
+    roomMode: () => roomMode,
+  },
+  playAgainRequestBody: (state) => ({
+    mode: roomMode,
+    gameSpecId: 'jungle',
+    // Alternate the opener each rematch: request the seat opposite this game's.
+    preferredColor: isJungleColor(state.seat) ? oppositeColor(state.seat) : 'random',
+    ...(roomMode === 'pve' && pveEngineId ? { engineId: pveEngineId } : {}),
+    ...(state.timeControl ? { timeControl: state.timeControl } : {}),
+  }),
+  onFrame: (frame) => {
+    if (frame.roomMode === 'pve' || frame.roomMode === 'pvp') roomMode = frame.roomMode;
+    if (typeof frame.pveEngineId === 'string') pveEngineId = frame.pveEngineId;
+  },
+  onSnapshotApplied: () => {
+    if (core) maybePlayJungleSnapshotSound(core.state.view, core.state.seat);
+  },
+  onEventApplied: () => {
+    if (core) maybePlayJungleSnapshotSound(core.state.view, core.state.seat);
+  },
+  resetSounds: resetJungleSoundState,
+  resetState: () => {
+    selectedSquare = null;
+    draggingFrom = null;
+    roomMode = 'pvp';
+    pveEngineId = null;
+  },
+  renderBoard,
+  onDisabled: () => {
+    selectedSquare = null;
+  },
+  setup: (ctx) => {
+    core = ctx;
+    installJungleBoardInteraction(ctx.refs);
+    installSelectionClickAway({
+      roots: () => [core?.refs.board],
+      hasSelection: () => selectedSquare !== null,
+      clearSelection: () => {
+        selectedSquare = null;
+        draggingFrom = null;
+        if (core) renderBoard(core.refs, core.displayedView());
+      },
+    });
+  },
+  moveList: {
+    rowClass: 'move-row xiangqi-move-row',
+    cellPrefix: 'xiangqi-move-row',
+    listClass: 'xiangqi-move-list',
+    masked: false,
+    emptyText: 'No moves yet',
+    notate: (move) => `${move.from}-${move.to}`,
+    isMoveEvent: isJungleMoveEvent,
+  },
+  replayCapture: {
+    positionKey: (view) =>
+      JSON.stringify({
+        board: view.board,
+        lastMove: view.lastMove ?? null,
+        status: view.status,
+      }),
+    // Ply = number of moves played so far; the initial position is ply 0.
+    plyForView: (_view, ctx) => ctx.events.filter(isJungleMoveEvent).length,
+  },
+});
 
 export function bootstrapJungleLiveRoom(): void {
-  const app = document.querySelector<HTMLDivElement>('#app');
-  if (!app) throw new Error('missing #app');
-
-  const params = new URLSearchParams(window.location.search);
-  const room = roomIdFromPath(window.location.pathname) ?? params.get('room') ?? 'jgl_dev';
-  state.room = room;
-  selectedSquare = null;
-  draggingFrom = null;
-  lastCapturedView = null;
-  lastCapturedKey = null;
-  replay.reset();
-  chrome.resetState();
-  initLiveSound();
-  resetLiveSoundState();
-  resetJungleSoundState();
-
-  if (params.get('reset') === '1') {
-    clearSeatTokenForRoom(room);
-    params.delete('reset');
-    const search = params.toString();
-    window.history.replaceState(
-      null,
-      '',
-      `${window.location.pathname}${search ? `?${search}` : ''}`,
-    );
-  }
-
-  refs = createLiveLayout(app, { debugRequested: false });
-  setLiveLayoutGameSpec(app, 'jungle');
-  chrome.setRenderTarget(refs, {
-    sendSocket: send,
-    reconnectNow: () => client?.connect(),
-  });
-  installJungleBoardInteraction(refs);
-  installSelectionClickAway({
-    roots: () => [refs?.board],
-    hasSelection: () => selectedSquare !== null,
-    clearSelection: () => {
-      selectedSquare = null;
-      draggingFrom = null;
-      if (refs) renderBoard(refs, replay.currentView(state.view));
-    },
-  });
-
-  client = createTenantSocketClient({
-    room,
-    applyHello: (frame) => applyFrame(frame as JungleLiveFrame),
-    applySnapshot: (frame) => {
-      applyFrame(frame as JungleLiveFrame);
-      maybePlayJungleSnapshotSound(state.view, state.seat);
-    },
-    applyEvent: (frame) => applyEventFrame(frame as JungleLiveFrame),
-    render: renderAll,
-  });
-  client.connect();
-  client.startPing();
-  window.setInterval(() => {
-    chrome.tickClocks();
-    chrome.tickCountdowns();
-  }, 100);
-  document.addEventListener('keydown', handleReplayKeyboard);
-  renderAll();
-}
-
-// ── Frame application ────────────────────────────────────────────────────────
-
-function applyFrame(frame: JungleLiveFrame): void {
-  state.seat = frame.seat;
-  state.view = frame.state;
-  state.clock = frame.clock ?? null;
-  state.timeControl = frame.timeControl ?? state.timeControl;
-  state.seats = frame.seats ?? state.seats;
-  state.roomMode = frame.roomMode ?? state.roomMode;
-  state.pveEngineId = frame.pveEngineId ?? state.pveEngineId;
-  if (frame.connectedSeats) state.connectedSeats = frame.connectedSeats;
-  state.abortDeadline = frame.abortDeadline ?? null;
-  if (frame.events) state.events = frame.events;
-}
-
-function applyEventFrame(frame: JungleLiveFrame): void {
-  const events = state.events;
-  applyFrame(frame);
-  state.events = events;
-  if (frame.event) state.events = [...events, frame.event];
-  maybePlayJungleSnapshotSound(state.view, state.seat);
-}
-
-function handleReplayKeyboard(event: KeyboardEvent): void {
-  replay.handleKeyboard(event, renderAll);
+  client.bootstrap();
 }
 
 // ── Rendering ────────────────────────────────────────────────────────────────
-
-function renderAll(): void {
-  if (!refs) return;
-  chrome.resetHostPanels();
-  chrome.renderMeta();
-  chrome.renderClocks();
-
-  const view = state.view;
-  captureReplayView(view);
-  const displayedView = replay.currentView(view);
-  refs.moveList.classList.add('xiangqi-move-list');
-  replay.renderShell(refs, renderAll);
-  refs.boardStatus.hidden = view !== null;
-  chrome.renderActionStatus();
-  chrome.renderGameControls();
-  chrome.renderRoomActions();
-
-  if (!jungleEnabled()) {
-    refs.board.className = 'board jungle-live-board jungle-live-board--disabled';
-    refs.board.replaceChildren();
-    selectedSquare = null;
-    return;
-  }
-
-  renderBoard(refs, displayedView);
-  renderVisibleMoveList(refs);
-}
 
 function renderBoard(liveRefs: LiveRefs, view: JungleWireView | null): void {
   liveRefs.board.className = 'board jungle-live-board';
@@ -334,7 +193,7 @@ function renderBoard(liveRefs: LiveRefs, view: JungleWireView | null): void {
     ? view.legalMoves.filter((m) => m.from === selectedSquare).map((m) => m.to)
     : [];
   liveRefs.board.innerHTML = renderJungleBoardSvg(view.board, {
-    perspective: orientationFor(view),
+    perspective: core?.orientation() ?? view.perspective,
     interactive: true,
     selected: selectedSquare,
     targets,
@@ -354,20 +213,20 @@ function installJungleBoardInteraction(liveRefs: LiveRefs): void {
       return width > 0 ? width / JUNGLE_BOARD_VIEW.files : JUNGLE_BOARD_VIEW.cell;
     },
     onSquareClick: (square) => {
-      const view = state.view;
+      const view = core?.state.view;
       if (!view) return;
       handleSquareClick(view, square as JungleSquare);
       renderBoard(liveRefs, view);
     },
     canDragFrom: (square) => canDragJunglePiece(square as JungleSquare),
     ghostHtml: (square) => {
-      const piece = state.view?.board[square as JungleSquare];
+      const piece = core?.state.view?.board[square as JungleSquare];
       return piece ? junglePieceGhostSvg(piece) : null;
     },
     onDragStart: (from) => {
       selectedSquare = from as JungleSquare;
       draggingFrom = from as JungleSquare;
-      if (state.view) renderBoard(liveRefs, state.view);
+      if (core?.state.view) renderBoard(liveRefs, core.state.view);
     },
     onDrop: (from, to) =>
       dropJunglePiece(liveRefs, from as JungleSquare, to as JungleSquare | null),
@@ -377,32 +236,31 @@ function installJungleBoardInteraction(liveRefs: LiveRefs): void {
 // A piece may be lifted if it's your own animal on your turn (it snaps back if dropped
 // somewhere it cannot move). Mirrors the click-to-move select rule.
 function canDragJunglePiece(square: JungleSquare): boolean {
-  if (!replay.isLive() || connection() !== 'connected') return false;
-  const seat = state.seat;
-  const view = state.view;
+  if (!core || !core.canActNow() || core.connection() !== 'connected') return false;
+  const view = core.state.view;
+  const seat = core.state.seat;
   if (!view || !isJungleColor(seat)) return false;
-  if (view.status.type !== 'playing' || view.status.turn !== seat) return false;
   const piece = view.board[square];
   return !!piece && piece.color === seat;
 }
 
 function dropJunglePiece(liveRefs: LiveRefs, from: JungleSquare, to: JungleSquare | null): void {
   draggingFrom = null;
-  const view = state.view;
+  const view = core?.state.view;
   const move = to && view ? view.legalMoves.find((m) => m.from === from && m.to === to) : undefined;
   if (move && view) {
     selectedSquare = null;
-    send({ type: 'move', from: move.from, to: move.to });
+    core?.send({ type: 'move', from: move.from, to: move.to });
     playSound(soundForOwnJungleMove(view, move));
   } else {
     selectedSquare = null;
   }
-  if (state.view) renderBoard(liveRefs, state.view);
+  if (core?.state.view) renderBoard(liveRefs, core.state.view);
 }
 
 function handleSquareClick(view: JungleWireView, square: JungleSquare): void {
-  if (!replay.isLive() || connection() !== 'connected') return;
-  const seat = state.seat;
+  if (!core || !core.replay.isLive() || core.connection() !== 'connected') return;
+  const seat = core.state.seat;
   if (!isJungleColor(seat) || view.status.type !== 'playing' || view.status.turn !== seat) {
     selectedSquare = null;
     return;
@@ -418,7 +276,7 @@ function handleSquareClick(view: JungleWireView, square: JungleSquare): void {
     const move = view.legalMoves.find((m) => m.from === selectedSquare && m.to === square);
     if (move) {
       selectedSquare = null;
-      send({ type: 'move', from: move.from, to: move.to });
+      core.send({ type: 'move', from: move.from, to: move.to });
       playSound(soundForOwnJungleMove(view, move));
       return;
     }
@@ -426,87 +284,7 @@ function handleSquareClick(view: JungleWireView, square: JungleSquare): void {
   selectedSquare = null;
 }
 
-// ── Move list (positions are public, so every move shows) ────────────────────
-
-function renderVisibleMoveList(liveRefs: LiveRefs): void {
-  const moves = state.events.filter((event): event is JungleMoveEvent => isJungleMoveEvent(event));
-  const totalPly = replay.latestPly();
-  liveRefs.moveList.replaceChildren();
-  if (totalPly === 0) {
-    const item = document.createElement('li');
-    item.className = 'move-row';
-    item.textContent = 'No moves yet';
-    liveRefs.moveList.append(item);
-    return;
-  }
-  const activePly = replay.activePly();
-  for (const row of visibleMoveRows(moves, totalPly)) {
-    const item = document.createElement('li');
-    item.className = 'move-row xiangqi-move-row';
-    const number = document.createElement('span');
-    number.className = 'xiangqi-move-row__number';
-    number.textContent = `${row.fullMove}.`;
-    const red = document.createElement('span');
-    red.className = ['xiangqi-move-row__move', activePly === row.fullMove * 2 - 1 ? 'active' : '']
-      .filter(Boolean)
-      .join(' ');
-    red.textContent = row.red ?? '...';
-    const black = document.createElement('span');
-    const blackPly = row.fullMove * 2;
-    black.className = ['xiangqi-move-row__move', activePly === blackPly ? 'active' : '']
-      .filter(Boolean)
-      .join(' ');
-    black.textContent = blackPly <= totalPly ? (row.black ?? '...') : '';
-    item.append(number, red, black);
-    liveRefs.moveList.append(item);
-  }
-  syncMoveListScroll(liveRefs.moveList, { live: replay.isLive(), plyCount: replay.latestPly() });
-}
-
-function visibleMoveRows(
-  moves: readonly JungleMoveEvent[],
-  plyCount: number,
-): JungleVisibleMoveRow[] {
-  const rows = new Map<number, JungleVisibleMoveRow>();
-  for (let fullMove = 1; fullMove <= Math.ceil(plyCount / 2); fullMove += 1) {
-    rows.set(fullMove, { fullMove });
-  }
-  moves.forEach((event, index) => {
-    const ply = eventPly(event, index);
-    if (ply > plyCount) return;
-    const fullMove = Math.floor((ply - 1) / 2) + 1;
-    const row = rows.get(fullMove) ?? { fullMove };
-    row[event.color] = `${event.move.from}-${event.move.to}`;
-    rows.set(fullMove, row);
-  });
-  return [...rows.values()].sort((a, b) => a.fullMove - b.fullMove);
-}
-
-function eventPly(event: JungleMoveEvent, fallbackIndex: number): number {
-  return Number.isInteger(event.ply) && event.ply && event.ply > 0 ? event.ply : fallbackIndex + 1;
-}
-
-// ── Replay capture (perfect info: capture every distinct position) ────────────
-
-function captureReplayView(view: JungleWireView | null): void {
-  if (!view || view === lastCapturedView) return;
-  const key = JSON.stringify({
-    board: view.board,
-    lastMove: view.lastMove ?? null,
-    status: view.status,
-  });
-  if (key === lastCapturedKey) {
-    lastCapturedView = view;
-    return;
-  }
-  // Ply = number of moves played so far; the initial position is ply 0.
-  const ply = state.events.filter(isJungleMoveEvent).length;
-  replay.push({ ply, view });
-  lastCapturedView = view;
-  lastCapturedKey = key;
-}
-
-function isJungleMoveEvent(event: JungleWireEvent): event is JungleMoveEvent {
+function isJungleMoveEvent(event: TenantLiveEvent): event is JungleMoveEvent {
   const move = (event as { move?: unknown }).move;
   return (
     event.type === 'move-played' &&
