@@ -8,19 +8,24 @@ import {
 } from '@mistboard/game';
 import { kriegspielEnabled } from './../feature-flags.js';
 import { kriegspielRooms } from './../kriegspiel-registration.js';
-import {
-  applyKriegspielEvent,
-  getKriegspielClientView,
-  isKriegspielEventLog,
-  type KriegspielEvent,
-  type KriegspielProjection,
-  type KriegspielRuntimeRoom,
-  type KriegspielWirePlayerView,
-  replayKriegspielEvents,
+import type {
+  KriegspielEvent,
+  KriegspielProjection,
+  KriegspielRuntimeRoom,
 } from './../kriegspiel-runtime.js';
-import { type KriegspielWireMove, kriegspielTenant } from './../kriegspiel-tenant.js';
+import {
+  getKriegspielClientView,
+  type KriegspielWireMove,
+  type KriegspielWirePlayerView,
+  kriegspielTenant,
+} from './../kriegspiel-tenant.js';
 import * as persistence from './../persistence.js';
 import { buildTenantGameSummary } from './../variant-tenant/events.js';
+import {
+  applyTenantEvent,
+  isTenantEventLog,
+  replayTenantEvents,
+} from './../variant-tenant/runtime.js';
 import { type HttpApiContext, requireMethod, writeJson } from './lib.js';
 
 type KriegspielPostgameViewKey = Color | 'truth';
@@ -97,7 +102,7 @@ export async function kriegspielPostgameForApi(
     persistenceEnabled ? deps.loadRoomEvents(roomId) : null,
   ]);
   if (game && game.variant !== KRIEGSPIEL_SPEC_ID) return null;
-  if (events && !isKriegspielEventLog(events, roomId)) return null;
+  if (events && !isTenantEventLog(kriegspielTenant, events, roomId)) return null;
 
   let source: { game: persistence.RecentEveGameRecord; events: readonly KriegspielEvent[] } | null =
     game && events ? { game, events } : null;
@@ -108,7 +113,7 @@ export async function kriegspielPostgameForApi(
   }
   if (!source) return null;
 
-  const projection = replayKriegspielEvents(source.events);
+  const projection = replayTenantEvents(kriegspielTenant, source.events);
   // The reveal gate: only a FINISHED game exposes the truth board and the
   // opponent's hidden history. A live or aborted-mid-play room returns 404.
   if (projection.state.status.type !== 'finished') return null;
@@ -148,7 +153,7 @@ function kriegspielPostgameFromLiveRoom(
 ): { game: persistence.RecentEveGameRecord; events: readonly KriegspielEvent[] } | null {
   if (!room || room.id !== roomId) return null;
   if (room.projection.state.status.type !== 'finished') return null;
-  if (!isKriegspielEventLog(room.events, roomId)) return null;
+  if (!isTenantEventLog(kriegspielTenant, room.events, roomId)) return null;
   const summary = buildTenantGameSummary(kriegspielTenant, room);
   return {
     game: recentGameRecordFromSummary(room.id, summary),
@@ -207,13 +212,13 @@ function kriegspielPostgameViews(
 function kriegspielPostgameHistory(events: readonly KriegspielEvent[]): KriegspielPostgameHistory {
   const created = events[0];
   if (!created || created.type !== 'room-created') return {};
-  let projection = replayKriegspielEvents([created]);
+  let projection = replayTenantEvents(kriegspielTenant, [created]);
   let ply = 0;
   let latestMoveColor: Color | undefined;
   const history = postgameHistoryViews(projection, ply, latestMoveColor);
 
   for (const event of events.slice(1)) {
-    projection = applyKriegspielEvent(projection, event);
+    projection = applyTenantEvent(kriegspielTenant, projection, event);
     if (event.type !== 'move-played') continue;
     ply += 1;
     latestMoveColor = event.color;
