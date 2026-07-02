@@ -14,6 +14,9 @@ const __filename = fileURLToPath(import.meta.url);
 const REPO_ROOT = path.resolve(path.dirname(__filename), '..');
 
 const CODE_ROOTS = ['apps', 'packages', 'scripts'];
+// Nested git repos gitignored by the main repo: invisible to plain `git status`,
+// so sessions leave work uncommitted there unless the scan surfaces it.
+const NESTED_REPOS = ['docs-private'];
 const CODE_EXTENSIONS = new Set(['.css', '.js', '.mjs', '.ts', '.tsx']);
 const SKIP_DIRS = new Set(['.git', '.vite', 'coverage', 'dist', 'node_modules', 'tmp']);
 const CONTENT_HEAVY_FILES = new Set([path.join('apps', 'web', 'src', 'articles-data.ts')]);
@@ -26,10 +29,10 @@ const MARKERS = [
   { label: 'as any', pattern: /\bas any\b/ },
 ];
 
-function git(args) {
+function git(args, cwd = REPO_ROOT) {
   try {
     return execFileSync('git', args, {
-      cwd: REPO_ROOT,
+      cwd,
       encoding: 'utf8',
       stdio: ['ignore', 'pipe', 'pipe'],
     }).trimEnd();
@@ -171,6 +174,38 @@ function printStatus() {
   );
 }
 
+function printNestedRepos() {
+  for (const repo of NESTED_REPOS) {
+    const repoDir = path.join(REPO_ROOT, repo);
+    if (!existsSync(path.join(repoDir, '.git'))) continue;
+
+    const status = git(['status', '--short', '--branch'], repoDir);
+    const lines = status.split('\n').filter(Boolean);
+    const branch = lines.find((line) => line.startsWith('##')) ?? '(unknown)';
+    const files = lines.filter((line) => !line.startsWith('##'));
+    const unpushed = /\[ahead \d+/.test(branch);
+
+    console.log(`\n## Nested repo: ${repo}`);
+    console.log(branch);
+    if (files.length === 0 && !unpushed) {
+      console.log('clean and pushed');
+      continue;
+    }
+    if (files.length > 0) {
+      console.log(
+        `${files.length} uncommitted path(s). ${repo} is its OWN repo (gitignored by the main repo, so plain git status never shows this).`,
+      );
+      printList(
+        files.slice(0, 15).map((line) => `  ${line}`),
+        '  none',
+      );
+      if (files.length > 15) console.log(`  ... ${files.length - 15} more`);
+      console.log(`agent note: commit work you did in ${repo} inside that repo before handoff.`);
+    }
+    if (unpushed) console.log(`agent note: ${repo} has commits not pushed to origin.`);
+  }
+}
+
 function printLargeFiles(stats) {
   const codeStats = stats.filter((item) => !CONTENT_HEAVY_FILES.has(item.path));
   const contentStats = stats.filter((item) => CONTENT_HEAVY_FILES.has(item.path));
@@ -226,6 +261,7 @@ function main() {
   console.log('# Mistboard agent scan');
   console.log(`repo: ${REPO_ROOT}`);
   printStatus();
+  printNestedRepos();
   printLargeFiles(stats);
   printMarkers(files);
   printChecks();
