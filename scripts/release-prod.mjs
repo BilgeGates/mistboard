@@ -120,6 +120,7 @@ function parseArgs(args) {
     push: false,
     remote: DEFAULT_REMOTE,
     smoke: DEFAULT_SMOKE,
+    smokeExplicit: false,
     targetBranch: DEFAULT_TARGET_BRANCH,
     timeoutMs: DEFAULT_TIMEOUT_MS,
   };
@@ -142,6 +143,7 @@ function parseArgs(args) {
       parsed.localCi = false;
     } else if (arg === '--smoke') {
       parsed.smoke = requiredValue(args, ++index, arg);
+      parsed.smokeExplicit = true;
       if (!VALID_SMOKE_TIERS.has(parsed.smoke)) {
         throw new Error(`--smoke must be one of: ${Array.from(VALID_SMOKE_TIERS).join(', ')}`);
       }
@@ -362,26 +364,58 @@ function pushCommand(headRevision) {
 }
 
 function runSmoke({ deployRequired, headRevision }) {
-  if (options.smoke === 'none') {
+  const smoke = resolveSmokeTier(headRevision);
+  if (smoke === 'none') {
     console.log('skip: prod smoke (--smoke none)');
     return;
   }
 
-  if (options.smoke === 'lite') {
+  if (smoke === 'lite') {
     runTimed('prod lite smoke', npmCommand('prod:smoke:lite', baseArgs()));
     return;
   }
 
   const revisionArgs = deployRequired ? ['--expect-revision', headRevision] : [];
-  if (options.smoke === 'web' || options.smoke === 'full') {
+  if (smoke === 'web' || smoke === 'full') {
     runTimed('prod web smoke', npmCommand('prod:smoke', [...baseArgs(), ...revisionArgs]));
   }
 
-  if (options.smoke === 'full') {
+  if (smoke === 'full') {
     runTimed('prod engine smoke', npmCommand('prod:smoke:engines', baseArgs()));
     runTimed('prod DMX smoke', npmCommand('prod:smoke:dmx', baseArgs()));
     runTimed('prod DXQ smoke', npmCommand('prod:smoke:dxq', baseArgs()));
   }
+}
+
+// Diff-aware default: the engine/DMX/DXQ smokes exist for server-behavior
+// changes. When the whole prod diff stays inside web-safe prefixes (web app,
+// docs, release tooling), the default 'full' tier drops to 'web'. An explicit
+// --smoke always wins, and any doubt (no prod revision to diff against, files
+// outside the safe set) keeps 'full'.
+const WEB_SAFE_PREFIXES = ['apps/web/', 'docs/', 'scripts/', '.github/'];
+
+function resolveSmokeTier(headRevision) {
+  if (options.smokeExplicit || options.smoke !== 'full') return options.smoke;
+  const base = release.productionRevision;
+  if (!base) return 'full';
+  let changed;
+  try {
+    changed = git(['diff', '--name-only', `${base}..${headRevision}`])
+      .split('\n')
+      .map((line) => line.trim())
+      .filter(Boolean);
+  } catch {
+    return 'full';
+  }
+  if (changed.length === 0) return 'full';
+  const webSafe = changed.every(
+    (file) => file.endsWith('.md') || WEB_SAFE_PREFIXES.some((prefix) => file.startsWith(prefix)),
+  );
+  if (!webSafe) return 'full';
+  console.log(
+    'smoke: full -> web (prod diff stays in web-safe paths; pass --smoke full to override)',
+  );
+  return 'web';
 }
 
 function baseArgs() {
