@@ -49,6 +49,19 @@ test('normalizeProfileHandle rejects unsafe or reserved handles', () => {
   assert.equal(normalizeProfileHandle('brian-'), null);
   assert.equal(normalizeProfileHandle('api'), null);
   assert.equal(normalizeProfileHandle('brian.hliou'), null);
+  // Inbox route literals share the /api/inbox/:handle namespace, so these
+  // words can never become handles (routes/inbox.ts matches them first).
+  assert.equal(normalizeProfileHandle('inbox'), null);
+  assert.equal(normalizeProfileHandle('Reports'), null);
+  assert.equal(normalizeProfileHandle('threads'), null);
+  assert.equal(normalizeProfileHandle('unread-count'), null);
+  assert.equal(normalizeProfileHandle('forum'), null);
+});
+
+test('handleBaseForEmail never mints a reserved stem at signup', () => {
+  assert.match(handleBaseForEmail('reports@example.com'), /^player-[a-z0-9]{5}$/);
+  assert.match(handleBaseForEmail('inbox+tag@example.com'), /^player-[a-z0-9]{5}$/);
+  assert.equal(handleBaseForEmail('brian.hliou@example.com'), 'brian-hliou');
 });
 
 test('normalizeDisplayName trims and bounds public display names', () => {

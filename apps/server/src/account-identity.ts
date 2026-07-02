@@ -14,14 +14,22 @@ const reservedHandles = new Set([
   'auth',
   'engine',
   'engines',
+  'forum',
   'game',
   'games',
+  // Inbox route literals: /api/inbox/:handle shares its namespace with these
+  // fixed segments (see routes/inbox.ts), so a user with one of these handles
+  // could never be messaged by URL.
+  'inbox',
   'learn',
   'login',
   'logout',
   'profile',
+  'reports',
   'room',
   'settings',
+  'threads',
+  'unread-count',
   'watch',
 ]);
 
@@ -52,7 +60,11 @@ export function handleBaseForEmail(email: string): string {
     .replace(/^-+|-+$/g, '')
     .slice(0, maxHandleLength)
     .replace(/-+$/g, '');
-  return normalized.length >= 3 ? normalized : randomFallbackHandle();
+  // The reserved set guards signup generation too: reports@example.com must
+  // not mint the handle `reports` (suffixed collision variants are fine, only
+  // the bare stem shadows a route literal).
+  if (normalized.length < 3 || reservedHandles.has(normalized)) return randomFallbackHandle();
+  return normalized;
 }
 
 // A fully-random `player-xxxxx` handle (36^5 ≈ 60M space). Used both when an
