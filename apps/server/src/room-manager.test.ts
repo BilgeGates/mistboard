@@ -498,6 +498,7 @@ function makeAccount(overrides: Partial<UserAccount> = {}): UserAccount {
     profileVisibility: 'public',
     accountRole: 'player',
     locale: null,
+    dmPolicy: 'always',
     eloRating: 1500,
     createdAt: now,
     updatedAt: now,

@@ -95,6 +95,7 @@ export function publicUser(user: persistence.UserAccount): Record<string, unknow
     profileVisibility: user.profileVisibility,
     accountRole: user.accountRole,
     locale: user.locale,
+    dmPolicy: user.dmPolicy,
   };
 }
 

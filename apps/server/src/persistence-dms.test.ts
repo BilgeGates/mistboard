@@ -7,12 +7,16 @@ import {
   createUser,
   deleteDmThreadForUser,
   dmThreadId,
+  followUser,
   getDmConversation,
   getDmThreadForAdmin,
+  getUserDmPolicy,
+  hasFollow,
   listDmReports,
   listDmThreads,
   resolveDmReport,
   sendDmMessage,
+  updateUserDmPolicy,
 } from './persistence.js';
 import { assert, definePersistenceTests, test } from './persistence-test-support.js';
 import { tryHandle as tryHandleInboxRoute } from './routes/inbox.js';
@@ -235,6 +239,29 @@ definePersistenceTests('dms', () => {
       now,
     });
     assert.equal(again.ok, true);
+  });
+
+  test('dm policy round-trips and hasFollow reads the directed edge', async () => {
+    const now = new Date('2026-07-02T05:00:00Z');
+    await makeUser('dm_user_lena', 'dmlena', now);
+    await makeUser('dm_user_mo', 'dmmo', now);
+
+    // Column default is the current behavior; unknown users read fail-closed.
+    assert.equal(await getUserDmPolicy('dm_user_lena'), 'always');
+    assert.equal(await getUserDmPolicy('dm_user_never_existed'), 'never');
+
+    const updated = await updateUserDmPolicy('dm_user_lena', 'friends', now);
+    assert.equal(updated?.dmPolicy, 'friends');
+    assert.equal(await getUserDmPolicy('dm_user_lena'), 'friends');
+
+    // The friends gate reads the DIRECTED edge: recipient follows sender.
+    assert.equal(await hasFollow('dm_user_lena', 'dm_user_mo'), false);
+    assert.equal(
+      (await followUser({ actorId: 'dm_user_lena', targetHandle: 'dmmo', now })).ok,
+      true,
+    );
+    assert.equal(await hasFollow('dm_user_lena', 'dm_user_mo'), true);
+    assert.equal(await hasFollow('dm_user_mo', 'dm_user_lena'), false);
   });
 
   test('inbox routes require a session and reserve literal segments', async () => {

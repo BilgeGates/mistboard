@@ -135,6 +135,17 @@ export async function hasBlock(blockerId: string, blockedId: string): Promise<bo
   return rows.length > 0;
 }
 
+// The friends-only DM policy gate: does `actorId` follow `targetId`?
+export async function hasFollow(actorId: string, targetId: string): Promise<boolean> {
+  const { rows } = await getPool().query(
+    `SELECT 1 FROM user_relations
+     WHERE actor_id = $1 AND target_id = $2 AND relation = 'follow'
+     LIMIT 1`,
+    [actorId, targetId],
+  );
+  return rows.length > 0;
+}
+
 export async function listRelations(
   actorId: string,
   relation: UserRelationKind,

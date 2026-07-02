@@ -300,6 +300,17 @@ async function sendMessage(
   }
 
   if (!(await persistence.dmThreadExists(user.id, target))) {
+    // DM policy gates thread-CREATING sends only (#93): replies to an existing
+    // thread always deliver, lichess-style. 'friends' = the target follows the
+    // sender. The rejection reuses the same generic error as the block gate so
+    // a bounced send never reveals which rule fired.
+    const policy = await persistence.getUserDmPolicy(target);
+    const friendsAllowed = policy === 'friends' && (await persistence.hasFollow(target, user.id));
+    if (policy === 'never' || (policy === 'friends' && !friendsAllowed)) {
+      writeJson(response, 403, { error: 'message_not_allowed' });
+      return true;
+    }
+
     const budget = isYoungAccount ? newThreadsPerDayYoung : newThreadsPerDay;
     const started = await persistence.countRecentDmThreadsStartedByUser(
       user.id,

@@ -22,6 +22,7 @@ export type AuthUser = {
   profileVisibility: 'private' | 'unlisted' | 'public';
   accountRole: 'player' | 'admin';
   locale: Locale | null;
+  dmPolicy: 'never' | 'friends' | 'always';
 };
 
 export async function fetchCurrentUser(): Promise<AuthUser | null> {

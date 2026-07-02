@@ -18,6 +18,17 @@ export function isAccountLocale(value: unknown): value is AccountLocale {
   return typeof value === 'string' && ACCOUNT_LOCALES.includes(value as AccountLocale);
 }
 
+// Who may START a conversation with this user (#93). Replies to an existing
+// thread are always allowed; the send guard in routes/inbox.ts only consults
+// this for thread-creating sends. 'friends' = players this user follows.
+export type DmPolicy = 'never' | 'friends' | 'always';
+
+export const DM_POLICIES: readonly DmPolicy[] = ['never', 'friends', 'always'];
+
+export function isDmPolicy(value: unknown): value is DmPolicy {
+  return typeof value === 'string' && DM_POLICIES.includes(value as DmPolicy);
+}
+
 export type UserAccount = {
   id: string;
   email: string;
@@ -29,6 +40,7 @@ export type UserAccount = {
   profileVisibility: 'private' | 'unlisted' | 'public';
   accountRole: AccountRole;
   locale: AccountLocale | null;
+  dmPolicy: DmPolicy;
   eloRating: number;
   createdAt: Date;
   updatedAt: Date;
@@ -158,6 +170,7 @@ const USER_COLUMNS = [
   'profile_visibility',
   'account_role',
   'locale',
+  'dm_policy',
   'elo_rating',
   'created_at',
   'updated_at',
@@ -314,6 +327,32 @@ export async function updateUserLocale(
     [userId, locale, at],
   );
   return rows[0] ? userFromRow(rows[0]) : null;
+}
+
+export async function updateUserDmPolicy(
+  userId: string,
+  dmPolicy: DmPolicy,
+  at: Date,
+): Promise<UserAccount | null> {
+  const { rows } = await getPool().query<UserRow>(
+    `UPDATE users
+     SET dm_policy = $2,
+         updated_at = $3
+     WHERE id = $1
+     RETURNING ${USER_COLUMNS}`,
+    [userId, dmPolicy, at],
+  );
+  return rows[0] ? userFromRow(rows[0]) : null;
+}
+
+// The inbox send guard's read: the target's policy by id, defaulting closed
+// to 'never' if the row vanished mid-request.
+export async function getUserDmPolicy(userId: string): Promise<DmPolicy> {
+  const { rows } = await getPool().query<{ dm_policy: DmPolicy }>(
+    `SELECT dm_policy FROM users WHERE id = $1 LIMIT 1`,
+    [userId],
+  );
+  return rows[0]?.dm_policy ?? 'never';
 }
 
 export async function createAccountSession(session: AccountSession): Promise<void> {
@@ -638,6 +677,7 @@ type UserRow = {
   profile_visibility: UserAccount['profileVisibility'];
   account_role: AccountRole;
   locale: AccountLocale | null;
+  dm_policy: DmPolicy;
   elo_rating: number;
   created_at: Date;
   updated_at: Date;
@@ -655,6 +695,7 @@ function userFromRow(row: UserRow): UserAccount {
     profileVisibility: row.profile_visibility,
     accountRole: row.account_role,
     locale: row.locale,
+    dmPolicy: row.dm_policy,
     eloRating: row.elo_rating,
     createdAt: row.created_at,
     updatedAt: row.updated_at,

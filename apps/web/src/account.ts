@@ -301,6 +301,8 @@ function buildAccountSettings(
   email.input.disabled = true;
   email.help.textContent = t('account.emailPrivate', {}, locale);
 
+  const dmPolicy = buildDmPolicyControl(user, locale);
+
   const status = document.createElement('p');
   status.className = 'account-status';
   status.setAttribute('aria-live', 'polite');
@@ -324,7 +326,7 @@ function buildAccountSettings(
   profile.textContent = t('account.viewProfile', {}, locale);
 
   actions.append(save, profile, account);
-  form.append(handle.wrap, email.wrap, actions, status);
+  form.append(handle.wrap, email.wrap, dmPolicy, actions, status);
 
   form.addEventListener('submit', async (event) => {
     event.preventDefault();
@@ -357,6 +359,59 @@ function buildAccountSettings(
 
   panel.append(eyebrow, title, copy, form);
   return panel;
+}
+
+// DM policy select: saves immediately on change via the preferences PATCH
+// (independent of the profile form's save button, like the locale picker).
+// Replies in existing threads always deliver; the policy gates new threads.
+function buildDmPolicyControl(user: AuthUser, locale: Locale): HTMLElement {
+  const wrap = document.createElement('label');
+  wrap.className = 'account-field';
+
+  const label = document.createElement('span');
+  label.textContent = t('account.dmPolicyLabel', {}, locale);
+
+  const select = document.createElement('select');
+  for (const [value, key] of [
+    ['always', 'account.dmPolicyAlways'],
+    ['friends', 'account.dmPolicyFriends'],
+    ['never', 'account.dmPolicyNever'],
+  ] as const) {
+    const option = document.createElement('option');
+    option.value = value;
+    option.textContent = t(key, {}, locale);
+    option.selected = user.dmPolicy === value;
+    select.append(option);
+  }
+
+  const help = document.createElement('span');
+  help.className = 'account-field-help';
+  help.textContent = t('account.dmPolicyHelp', {}, locale);
+
+  select.addEventListener('change', async () => {
+    const previous = user.dmPolicy;
+    select.disabled = true;
+    try {
+      const resp = await fetch('/api/account/preferences', {
+        method: 'PATCH',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ dmPolicy: select.value }),
+      });
+      if (!resp.ok) throw new Error(`dm policy save failed: ${resp.status}`);
+      const data = (await resp.json()) as { user: AuthUser };
+      user.dmPolicy = data.user.dmPolicy;
+      help.textContent = t('account.dmPolicySaved', {}, locale);
+    } catch (err) {
+      console.warn(err);
+      select.value = previous;
+      help.textContent = t('account.saveFailed', {}, locale);
+    } finally {
+      select.disabled = false;
+    }
+  });
+
+  wrap.append(label, select, help);
+  return wrap;
 }
 
 function labeledInput(

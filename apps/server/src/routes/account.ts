@@ -19,6 +19,23 @@ export async function tryHandle(
       return true;
     }
     const body = await readJsonBody(request);
+
+    // DM policy rides the same preferences PATCH as locale; branch on which
+    // key the client sent so the two settings stay independently updatable.
+    if ('dmPolicy' in body) {
+      if (!persistence.isDmPolicy(body.dmPolicy)) {
+        writeJson(response, 400, { error: 'invalid_dm_policy' });
+        return true;
+      }
+      const updated = await persistence.updateUserDmPolicy(user.id, body.dmPolicy, new Date());
+      if (!updated) {
+        writeJson(response, 404, { error: 'user_not_found' });
+        return true;
+      }
+      writeJson(response, 200, { user: publicUser(updated) });
+      return true;
+    }
+
     const locale = body.locale;
     if (locale !== null && !persistence.isAccountLocale(locale)) {
       writeJson(response, 400, { error: 'invalid_locale' });
