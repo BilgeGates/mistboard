@@ -115,10 +115,10 @@ Edit task → find file → open only that file.
 | `routes/correspondence-rooms.ts` | POST `/api/correspondence/rooms` (days-per-move dark-chess seeks/rooms); account-gated, `correspondenceEnabled` flag |
 | `routes/correspondence-games.ts` | GET `/api/correspondence/games` — signed-in player's in-flight correspondence games (your-move-first) + nav-badge count; reads the `room_deadlines` index |
 | `routes/crossroads-chess-rooms.ts` | Crossroads Chess room-creation branch for `POST /api/rooms` (`crossroadsChessEnabled` flag, engine-id parsing) |
-| `routes/dark-crossroads-chess-rooms.ts` | Hidden Dark Crossroads Chess direct room creation branch for `POST /api/rooms`: request claiming, flag/supported-surface gate (PvP-only, no rated/engine), room-factory result mapping |
-| `routes/dark-shogi-rooms.ts` | Hidden Dark Shogi direct room creation branch for `POST /api/rooms`: request claiming, flag/supported-surface gate (PvP-only, no rated/engine), room-factory result mapping |
-| `routes/dark-crazyhouse-rooms.ts` | Hidden Dark Crazyhouse direct room creation branch for `POST /api/rooms`: request claiming, flag/supported-surface gate (PvP-only, no rated/engine), room-factory result mapping |
-| `routes/kriegspiel-rooms.ts` | Kriegspiel direct room creation branch for `POST /api/rooms`: request claiming, flag/supported-surface gate (PvP-only, no rated/engine), room-factory result mapping |
+| `routes/dark-crossroads-chess-rooms.ts` | Hidden Dark Crossroads Chess direct room creation branch for `POST /api/rooms`: request claiming, flag/supported-surface gate (PvP-only, no rated/engine), room-factory result mapping. Factory-bound (`variant-tenant/rooms-route.ts`) |
+| `routes/dark-shogi-rooms.ts` | Hidden Dark Shogi direct room creation branch for `POST /api/rooms`: request claiming, flag/supported-surface gate (PvP-only, no rated/engine), room-factory result mapping. Factory-bound (`variant-tenant/rooms-route.ts`) |
+| `routes/dark-crazyhouse-rooms.ts` | Hidden Dark Crazyhouse direct room creation branch for `POST /api/rooms`: request claiming, flag/supported-surface gate (PvP-only, no rated/engine), room-factory result mapping. Factory-bound (`variant-tenant/rooms-route.ts`) |
+| `routes/kriegspiel-rooms.ts` | Kriegspiel direct room creation branch for `POST /api/rooms`: request claiming, flag/supported-surface gate (PvP-only, no rated/engine), room-factory result mapping. Factory-bound (`variant-tenant/rooms-route.ts`) |
 | `routes/dark-crossroads-chess-games.ts` | Hidden Dark Crossroads Chess postgame/review API branch (`GET /api/dark-crossroads-chess/games/:id`): the reveal gate (only a FINISHED game exposes the truth board + opponent history), per-seat fog views, per-ply history, timeline. Injectable persistence for the reveal-gate unit test |
 | `routes/dark-shogi-games.ts` | Hidden Dark Shogi postgame/review API branch (`GET /api/dark-shogi/games/:id`): the reveal gate (only a FINISHED game exposes the truth board + opponent history + both reserves), per-seat fog views (each carrying its own hand), per-ply history, timeline. Injectable persistence for the reveal-gate unit test |
 | `routes/dark-crazyhouse-games.ts` | Hidden Dark Crazyhouse postgame/review API branch (`GET /api/dark-crazyhouse/games/:id`): the reveal gate (only a FINISHED game exposes the truth board + opponent history + both reserves), per-seat fog views (each carrying its own hand), per-ply history, timeline. Injectable persistence for the reveal-gate unit test |
@@ -126,11 +126,11 @@ Edit task → find file → open only that file.
 | `routes/crossroads-chess.ts` | Crossroads Chess game/postgame API branch (open perfect-info views; keeps non-chess records out of generic chess replay APIs) |
 | `routes/dark-mini-xiangqi-rooms.ts` | DMX room-creation branch for `POST /api/rooms` (rated-flag/time-control gating via `game-spec-request-gate`) |
 | `routes/dark-mini-xiangqi-games.ts` | DMX postgame/review + publication-JSON API branch; keeps non-chess finished games out of generic chess replay APIs |
-| `routes/mini-xiangqi-rooms.ts` | Mini Xiangqi room-creation branch for `POST /api/rooms` (open-information 7x7 PvP, casual launch, time-control parsing) |
+| `routes/mini-xiangqi-rooms.ts` | Mini Xiangqi room-creation branch for `POST /api/rooms` (open-information 7x7 PvP, casual launch, time-control parsing). Factory-bound (`variant-tenant/rooms-route.ts`; casual-only, no launch flag) |
 | `routes/mini-xiangqi-games.ts` | Mini Xiangqi postgame/review API branch; exposes finished open-information board history and timeline from persisted or live rooms |
-| `routes/drop-mini-xiangqi-rooms.ts` | Drop Mini Xiangqi room-creation branch for `POST /api/rooms` (PvP/lobby only for now; rated/time-control gating via `game-spec-request-gate`) |
+| `routes/drop-mini-xiangqi-rooms.ts` | Drop Mini Xiangqi room-creation branch for `POST /api/rooms` (PvP/lobby only for now; rated/time-control gating via `game-spec-request-gate`). Factory-bound (`variant-tenant/rooms-route.ts`; account-gated rated) |
 | `routes/drop-mini-xiangqi-games.ts` | Drop Mini Xiangqi postgame/review API branch; exposes the finished open-information board, reserve history, and move timeline |
-| `routes/fortress-xiangqi-rooms.ts` | Fortress Xiangqi room-creation branch for `POST /api/rooms` (PvP + Fairy-Stockfish PvE; casual, rated-ready) |
+| `routes/fortress-xiangqi-rooms.ts` | Fortress Xiangqi room-creation branch for `POST /api/rooms` (PvP + Fairy-Stockfish PvE; casual, rated-ready). Factory-bound (`variant-tenant/rooms-route.ts`; account-gated rated) |
 | `routes/fortress-xiangqi-games.ts` | Fortress Xiangqi postgame/review API branch; finished open-information 7x8 board, reserve history, and move timeline |
 | `routes/puzzles.ts` | Mini Xiangqi puzzle API: list/detail endpoints plus attempt validation for Mini and Drop Mini Xiangqi puzzle lines |
 | `routes/bots.ts` | Public bot directory/profile API (`/api/bots`, `/api/bots/:id`) filtered to playable enabled variants |
@@ -243,6 +243,7 @@ Edit task → find file → open only that file.
 | `variant-tenant/lifecycle.ts` | Generic tenant lifecycle timers (pregame abort, active-clock expiry, disconnect forfeit); all speculative + `.unref()`'d; correspondence rooms arm NO in-memory timers |
 | `variant-tenant/seat-session.ts` | Generic tenant seat assignment + seat-token lifecycle (mint/hash, reconnect by token-hash or account id, newer-connection displacement) |
 | `variant-tenant/room-factory.ts` | Generic tenant live-room creation: id minting with cross-variant collision retry, optional PvE engine seating (durable in initial event log), persistence-first writes |
+| `variant-tenant/rooms-route.ts` | Generic `POST /api/rooms` create-route factory (`createTenantRoomsRoute`): fail-closed game-spec + launch-flag gate, mode/rated/engine-id surface gate, PvE seat resolution, persistence/drain guards, 201 envelope. Backs 12 `routes/<variant>-rooms.ts` handlers (banqi, jieqi, jungle(-flip), kriegspiel, dark-shogi, dark-crazyhouse, dark-crossroads-chess, reveal-chess, fortress/mini/drop-mini xiangqi). NOT reservation tenants (dark-xiangqi/DMX), crossroads-chess, or correspondence. |
 | `variant-tenant/rematch.ts` | Generic mutual-confirm rematch over tenant rooms: color-swapped new room, pre-issued seat tokens, `pendingRedirects` keyed by old-room seat |
 | `variant-tenant/hydration.ts` | Generic get-or-load for tenant rooms: live-map first, else hydrate persisted event log (validated vs tenant schema) + re-attach seat tokens |
 | `variant-tenant/registry.ts` | `VariantTenant` registry — variant-type-erased routing (kind/gameSpecId/roomIdPrefix/flag + bound closures); the dispatch extension point for `index.ts` sweeps, ws runtime resolver, `/api/rooms` create, `/api/lobby` matcher |
@@ -306,15 +307,15 @@ Edit task → find file → open only that file.
 | `jungle-flip-fen.ts` | Flip Jungle UCI FEN encoder — THE REDACTION BOUNDARY for the MistyJungleFlip engine; a face-down tile encodes as `X` with NO colour (hides ink too, like banqi), pool carries only public per-(ink,role) counts. Sibling of `banqi-fen.ts` with 4 files + the 8 animal ranks |
 | `jungle-flip-engine.ts` | MistyJungleFlip move provider for Flip Jungle PvE: our own `jungle-flip-engine` Rust αβ+Star1+TT UCI subprocess (Tier-B via the shared `uci-engine-harness`, one process per request, NOT the fog engine-worker); fed a redacted current-position FEN from `jungle-flip-fen.ts`. One versioned bot |
 | `server-jungle-flip-engine.ts` | Server-side MistyJungleFlip PvE loop; injects engine moves through the shared append+broadcast path, fails closed (resign) on a kernel-rejected move. Mirrors `server-banqi-engine.ts` |
-| `routes/jieqi-rooms.ts` | POST `/api/rooms` jieqi branch (time-control gating, engine-id parsing); binds the tenant room factory |
+| `routes/jieqi-rooms.ts` | POST `/api/rooms` jieqi branch (time-control gating, engine-id parsing); binds the tenant room factory. Factory-bound (`variant-tenant/rooms-route.ts`) |
 | `routes/jieqi-games.ts` | Jieqi postgame/review API branch; keeps non-chess finished games out of generic chess replay APIs |
-| `routes/banqi-rooms.ts` | POST `/api/rooms` banqi branch (time-control gating; `preferredColor` selects the move-order seat) |
+| `routes/banqi-rooms.ts` | POST `/api/rooms` banqi branch (time-control gating; `preferredColor` selects the move-order seat). Factory-bound (`variant-tenant/rooms-route.ts`) |
 | `routes/banqi-games.ts` | Banqi postgame/review API branch (single public truth surface; keeps non-chess records out of generic chess replay APIs) |
-| `routes/jungle-rooms.ts` | POST `/api/rooms` Jungle branch (PvP + PvE engine-seat assignment opposite the human; `jungleEnabled` flag) |
+| `routes/jungle-rooms.ts` | POST `/api/rooms` Jungle branch (PvP + PvE engine-seat assignment opposite the human; `jungleEnabled` flag). Factory-bound (`variant-tenant/rooms-route.ts`) |
 | `routes/jungle-games.ts` | Jungle postgame/review API branch; exposes the finished perfect-information board history and move timeline |
-| `routes/jungle-flip-rooms.ts` | POST `/api/rooms` Flip Jungle branch (PvP + PvE engine-seat assignment opposite the human; `jungleFlipEnabled` flag) |
+| `routes/jungle-flip-rooms.ts` | POST `/api/rooms` Flip Jungle branch (PvP + PvE engine-seat assignment opposite the human; `jungleFlipEnabled` flag). Factory-bound (`variant-tenant/rooms-route.ts`) |
 | `routes/jungle-flip-games.ts` | Flip Jungle postgame/review API branch; exposes the as-played masked replay plus revealed spoiler history for symmetric hidden-identity games |
-| `routes/reveal-chess-rooms.ts` | POST `/api/rooms` Reveal Chess branch (`revealChessEnabled` flag) |
+| `routes/reveal-chess-rooms.ts` | POST `/api/rooms` Reveal Chess branch (`revealChessEnabled` flag). Factory-bound (`variant-tenant/rooms-route.ts`) |
 | `routes/reveal-chess-games.ts` | Reveal Chess postgame/review API branch |
 | `routes/correspondence-seeks.ts` | Correspondence open-seek board API (post/join/list days-per-move dark-chess seeks); account-gated, `correspondenceEnabled` flag; backed by `persistence-correspondence-seeks.ts` (per-user cap). Accept pre-seats both players via the live seat-assigned path |
 | `engines/builtin/capture-seeker.ts` | Builtin capture-seeking engine: greedy piece-value capture heuristic (EvE smoke + calibration baseline) |

@@ -1,13 +1,12 @@
-import { randomBytes } from 'node:crypto';
-import type { ServerResponse } from 'node:http';
 import { MINI_XIANGQI_SPEC_ID, type RoomTimeControl } from '@mistboard/game';
-import { gateGameSpecRequest } from './../game-spec-request-gate.js';
 import {
   isMiniXiangqiEngineClientId,
   MINI_XIANGQI_DEFAULT_ENGINE_ID,
 } from './../mini-xiangqi-engine.js';
-import * as persistence from './../persistence.js';
-import { parseRoomTimeControl, writeJson } from './lib.js';
+import {
+  createTenantRoomsRoute,
+  resolveFirstMoverHumanSeat,
+} from './../variant-tenant/rooms-route.js';
 
 export type MiniXiangqiCreateContext = {
   databaseRequired: boolean;
@@ -27,111 +26,36 @@ export type MiniXiangqiCreateContext = {
   >;
 };
 
-export function requestsMiniXiangqi(body: Record<string, unknown>): boolean {
-  return body.gameSpecId === MINI_XIANGQI_SPEC_ID;
-}
+const MINI_XIANGQI_SEATS = ['red', 'black'] as const;
 
-export async function handleMiniXiangqiCreate(
-  ctx: MiniXiangqiCreateContext,
-  response: ServerResponse,
-  body: Record<string, unknown>,
-): Promise<void> {
-  const gameSpecGate = gateGameSpecRequest({
-    gameSpecId: body.gameSpecId,
-    variant: body.variant,
-  });
-  if (body.gameSpecId !== MINI_XIANGQI_SPEC_ID) {
-    if (gameSpecGate.type === 'reject') {
-      writeJson(response, gameSpecGate.httpStatus, { error: gameSpecGate.error });
-      return;
-    }
-    writeJson(response, 501, { error: 'mini_xiangqi_not_integrated' });
-    return;
-  }
+// Mini Xiangqi has no launch flag (always integrated) and is casual-only at
+// launch: any rated request is rejected with `rated_unsupported_surface`.
+const miniXiangqiRoute = createTenantRoomsRoute<
+  MiniXiangqiCreateContext,
+  'red' | 'black' | 'random',
+  'red' | 'black'
+>({
+  gameSpecId: MINI_XIANGQI_SPEC_ID,
+  errorPrefix: 'mini_xiangqi',
+  hasDisabledFlag: false,
+  preferredColors: ['red', 'black', 'random'],
+  engine: {
+    kind: 'seated',
+    defaultEngineId: MINI_XIANGQI_DEFAULT_ENGINE_ID,
+    isEngineClientId: isMiniXiangqiEngineClientId,
+    seats: MINI_XIANGQI_SEATS,
+  },
+  rated: { kind: 'reject-as-rated' },
+  createRoom: (ctx, { timeControl, preferredColor, rated, engine }) =>
+    ctx.createMiniXiangqiRoom(timeControl, preferredColor, rated, engine),
+});
 
-  const mode = parseMiniXiangqiRoomMode(body);
-  if (mode === null) {
-    writeJson(response, 501, { error: 'mini_xiangqi_unsupported_surface' });
-    return;
-  }
-  // Mini Xiangqi is casual-only at launch (PvP and PvE both unrated).
-  if (body.rated === true) {
-    writeJson(response, 501, { error: 'rated_unsupported_surface' });
-    return;
-  }
-  const preferredColor = parseMiniXiangqiPreferredColor(body.preferredColor);
-  const timeControl =
-    body.timeControl === undefined ? undefined : parseRoomTimeControl(body.timeControl);
-  if (body.timeControl !== undefined && !timeControl) {
-    writeJson(response, 400, { error: 'invalid_time_control' });
-    return;
-  }
-
-  if (ctx.databaseRequired && !persistence.isInitialized()) {
-    writeJson(response, 503, { error: 'persistence_disabled' });
-    return;
-  }
-  if (ctx.isDraining()) {
-    writeJson(response, 503, { error: 'server_draining', restartAt: ctx.drainDeadlineMs() });
-    return;
-  }
-
-  const botId = typeof body.botId === 'string' ? body.botId : undefined;
-  let engine: { engineId: string; seat: 'red' | 'black'; botId?: string } | undefined;
-  if (mode === 'pve') {
-    const engineId =
-      typeof body.engineId === 'string' && body.engineId.length > 0
-        ? body.engineId
-        : MINI_XIANGQI_DEFAULT_ENGINE_ID;
-    if (!isMiniXiangqiEngineClientId(engineId)) {
-      writeJson(response, 400, { error: 'invalid_engine' });
-      return;
-    }
-    const humanColor = miniXiangqiPveHumanColor(preferredColor);
-    engine = {
-      engineId,
-      seat: humanColor === 'red' ? 'black' : 'red',
-      ...(botId ? { botId } : {}),
-    };
-  }
-
-  const created = await ctx.createMiniXiangqiRoom(
-    timeControl ?? undefined,
-    preferredColor,
-    false,
-    engine,
-  );
-  if (!created.ok) {
-    const status = created.error === 'persistence_failure' ? 503 : 500;
-    writeJson(response, status, { error: created.error });
-    return;
-  }
-  writeJson(response, 201, {
-    roomId: created.room.id,
-    url: `/room/${encodeURIComponent(created.room.id)}`,
-    mode,
-    gameSpecId: created.room.gameSpecId,
-    rated: created.room.rated,
-    region: 'global',
-    ...(timeControl ? { timeControl } : {}),
-  });
-}
-
-function parseMiniXiangqiRoomMode(body: Record<string, unknown>): 'pvp' | 'pve' | null {
-  if (body.mode === 'pvp' || body.mode === 'pve') return body.mode;
-  return null;
-}
-
-function parseMiniXiangqiPreferredColor(value: unknown): 'red' | 'black' | 'random' | undefined {
-  if (value === 'red' || value === 'black' || value === 'random') return value;
-  return undefined;
-}
+export const requestsMiniXiangqi = miniXiangqiRoute.matchesCreateRequest;
+export const handleMiniXiangqiCreate = miniXiangqiRoute.handleCreate;
 
 export function miniXiangqiPveHumanColor(
   preferredColor: 'red' | 'black' | 'random' | undefined,
-  randomByte = randomBytes(1)[0]!,
+  randomByte?: number,
 ): 'red' | 'black' {
-  if (preferredColor === 'black') return 'black';
-  if (preferredColor === 'random') return randomByte < 128 ? 'red' : 'black';
-  return 'red';
+  return resolveFirstMoverHumanSeat(preferredColor, MINI_XIANGQI_SEATS, randomByte);
 }
