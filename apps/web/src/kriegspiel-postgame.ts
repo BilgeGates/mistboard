@@ -1,4 +1,5 @@
 import type { Color, KriegspielPlayerView, Move, Square } from '@mistboard/game';
+import './game-shell.css';
 import './live-kriegspiel.css';
 // Reuse the shared dxq-postgame scaffold (.dxq-postgame__*); the route-scoped
 // theme + board overrides live in our own file.

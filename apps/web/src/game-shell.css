@@ -1,0 +1,1047 @@
+/* game-shell.css — live-room / postgame / replay / watch chrome.
+ *
+ * Carved out of styles.css (T2, 2026-07-01). These rules render only on the
+ * game surfaces (live room shell, postgame review, /replay, /watch), never on
+ * landing / articles / forum / account / learn. Kept OUT of the global entry
+ * sheet (styles.css, imported by main.ts) so non-game routes stop shipping it;
+ * imported instead from the game leaf chunks + the blocker-free shared hubs
+ * (variant-tenant/room-chrome.ts, replay-board.ts, replay-moves-panel.ts).
+ *
+ * Board rendering, piece sets, captures, clocks-adjacent board chrome, and the
+ * replay triptych (.replay-pane/.replay-board/.replay-*-header) STAY in
+ * styles.css: those are shared with article diagrams, the homepage showcase,
+ * puzzles, and learn. Load order: styles.css (entry) first, this sheet after,
+ * so the few same-class base rules here still cascade correctly.
+ */
+.side-panel {
+  display: grid;
+  align-content: start;
+  gap: 14px;
+  min-width: 0;
+}
+
+.meta-panel,
+.moves-panel {
+  align-self: center;
+  max-height: calc(100vh - 122px);
+  overflow: auto;
+  scrollbar-width: thin;
+}
+
+.moves-panel {
+  /* No center↔right divider: it was asymmetric (the left meta-panel has no
+     matching border). Removed for both chess and Dark Mini Xiangqi (parity). */
+  padding-left: clamp(12px, 1.5vw, 18px);
+}
+
+.game-console {
+  gap: 8px;
+}
+
+.replay-console {
+  display: grid;
+  gap: 10px;
+}
+
+.clock-slot {
+  margin-bottom: 0;
+}
+
+.game-info,
+.action-status,
+.selection-list,
+.clocks {
+  display: grid;
+  gap: 6px;
+}
+
+.action-status {
+  min-height: 112px;
+}
+
+.action-notice {
+  display: grid;
+  gap: 4px;
+  align-content: start;
+  min-height: 112px;
+  border: 1px solid var(--site-border-soft);
+  border-radius: var(--site-radius);
+  background: var(--site-panel);
+  color: var(--site-muted);
+  padding: 10px 12px;
+}
+
+.action-notice strong {
+  color: var(--site-heading);
+  font-size: 17px;
+  line-height: 1.2;
+}
+
+.action-notice span {
+  font-size: 13px;
+  line-height: 1.4;
+}
+
+.action-notice a,
+.action-notice button {
+  justify-self: start;
+  margin-top: 4px;
+  border: 0;
+  border-radius: var(--site-radius-sm);
+  background: transparent;
+  color: var(--site-accent);
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 700;
+  padding: 0;
+  text-decoration: none;
+}
+
+.action-notice a:hover,
+.action-notice a:focus-visible,
+.action-notice button:hover,
+.action-notice button:focus-visible {
+  text-decoration: underline;
+}
+
+.action-notice.pending {
+  border-color: var(--site-warning-border);
+  background: var(--site-warning-bg);
+}
+
+.action-notice.success {
+  border-color: #9bbdaf;
+  background: var(--site-accent-soft);
+}
+
+.action-notice.danger {
+  border-color: #c79898;
+  background: #fff1ef;
+}
+
+.game-info div,
+.selection-list div,
+.clocks div {
+  display: grid;
+  grid-template-columns: minmax(72px, 0.8fr) minmax(0, 1fr);
+  gap: 10px;
+  align-items: baseline;
+  min-height: 26px;
+  color: var(--site-muted);
+}
+
+.game-info span,
+.selection-list span,
+.clocks span {
+  font-size: 13px;
+}
+
+.game-info strong,
+.selection-list strong {
+  overflow-wrap: anywhere;
+  color: var(--site-heading);
+  font-size: 14px;
+  font-weight: 650;
+}
+
+/* Spec-sheet treatment: muted uppercase labels, right-aligned values.
+   Scoped to .game-info so .clocks and .selection-list keep their layout. */
+.game-info div {
+  grid-template-columns: auto 1fr;
+  gap: 12px;
+  min-height: 22px;
+}
+
+.game-info span {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  font-weight: 600;
+  color: var(--site-muted);
+}
+
+.game-info strong {
+  text-align: right;
+  font-weight: 600;
+}
+
+.clocks strong {
+  overflow-wrap: anywhere;
+  color: var(--site-heading);
+  font-weight: 650;
+}
+
+.clocks {
+  gap: 8px;
+  margin-bottom: 4px;
+}
+
+.clocks div {
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  min-height: 44px;
+  padding: 7px 12px;
+  border: 1px solid var(--site-border-soft);
+  border-radius: var(--site-radius);
+  background: var(--site-panel);
+}
+
+.clocks div.clock-time-row {
+  grid-template-columns: 1fr;
+  justify-items: end;
+  min-height: 52px;
+  padding: 10px 12px;
+}
+
+.clocks div.pregame {
+  opacity: 0.45;
+}
+
+.clocks-pregame-note {
+  margin: 0;
+  font-size: 11px;
+  color: var(--site-muted);
+  text-align: center;
+  padding: 2px 0;
+}
+
+.clocks div.active {
+  border-color: #b6d6c8;
+  box-shadow: inset 3px 0 0 var(--site-accent);
+  background: var(--site-accent-soft);
+}
+
+/* Correspondence rooms sit in the pregame clock rows before the first move
+   arms the clock, yet one side is already to move. Lift the active row out of
+   the dimmed pregame state and reveal its turn pill so whose-move-it-is reads
+   at a glance (the armed-clock branch reveals the pill via clock-player-line). */
+.clocks div.pregame.active {
+  opacity: 1;
+}
+
+.clocks div.pregame.active .clock-to-move {
+  visibility: visible;
+  opacity: 1;
+}
+
+/* Brief one-shot flash when the active clock flips to the seated player. The
+   100ms timer-only refresh (tickClockTimers) doesn't re-mount the row, so the
+   animation plays once cleanly. */
+.clocks div.just-activated {
+  animation: clock-flip-flash 650ms ease-out 1;
+}
+
+@keyframes clock-flip-flash {
+  0% {
+    background: #d9f0e3;
+    box-shadow:
+      inset 3px 0 0 #1f6f5b,
+      0 0 0 3px rgba(31, 111, 91, 0.3);
+  }
+  60% {
+    background: #e6f5ed;
+    box-shadow:
+      inset 3px 0 0 #1f6f5b,
+      0 0 0 2px rgba(31, 111, 91, 0.15);
+  }
+  100% {
+    background: #eef7f1;
+    box-shadow: inset 3px 0 0 #1f6f5b;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .clocks div.just-activated {
+    animation: none;
+  }
+}
+
+.presence-dot {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  margin-right: 6px;
+  vertical-align: 1px;
+  background: #b9c3bf;
+  flex-shrink: 0;
+}
+
+.presence-dot.is-online {
+  background: #2f9e6e;
+  box-shadow: 0 0 0 3px rgba(47, 158, 110, 0.2);
+}
+
+.presence-dot.is-offline {
+  background: #b9c3bf;
+  animation: presence-pulse 1.8s ease-in-out infinite;
+}
+
+@keyframes presence-pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.4;
+  }
+}
+
+/* ── Draft960 pick overlay ───────────────────────────────────────────────── */
+
+.draft-picker {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  background: rgba(16, 22, 18, 0.93);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.draft-picker[hidden] {
+  display: none;
+}
+
+.draft-picker-inner {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 20px;
+  padding: 24px;
+}
+
+.draft-picker-heading {
+  color: #c8d4cc;
+  font-size: 0.8rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  margin: 0;
+  font-weight: 500;
+}
+
+.draft-picker-boards {
+  display: flex;
+  gap: 14px;
+  align-items: flex-start;
+}
+
+.draft-pick-board {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  background: transparent;
+  border: 2px solid rgba(200, 212, 204, 0.12);
+  border-radius: var(--site-radius-sm);
+  padding: 8px 8px 10px;
+  cursor: pointer;
+  transition:
+    border-color 0.12s,
+    background 0.12s;
+}
+
+.draft-pick-board:hover {
+  border-color: rgba(200, 212, 204, 0.35);
+  background: rgba(200, 212, 204, 0.04);
+}
+
+.draft-pick-board.selected {
+  border-color: #2f9e6e;
+  background: rgba(47, 158, 110, 0.08);
+}
+
+.draft-pick-board svg {
+  display: block;
+  border-radius: 2px;
+}
+
+.draft-pick-label {
+  color: #7a8f83;
+  font-size: 0.72rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  font-weight: 600;
+}
+
+.draft-pick-board.selected .draft-pick-label {
+  color: #2f9e6e;
+}
+
+.draft-picker-waiting {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 20px;
+  padding: 24px;
+}
+
+.draft-picker-waiting-board svg {
+  display: block;
+  border-radius: 2px;
+  opacity: 0.75;
+}
+
+.draft-picker-waiting-label {
+  color: #7a8f83;
+  font-size: 0.85rem;
+  margin: 0;
+}
+
+.game-controls {
+  display: grid;
+  gap: 8px;
+}
+
+.game-controls button {
+  display: block;
+  width: 100%;
+  min-height: 38px;
+  border: 1px solid var(--site-border);
+  border-radius: var(--site-radius-sm);
+  background: linear-gradient(to bottom, var(--site-metal-top), var(--site-metal-bottom));
+  color: var(--site-text);
+  padding: 9px 10px;
+  cursor: pointer;
+  font: inherit;
+  text-align: center;
+}
+
+.game-controls button:hover:not(:disabled),
+.game-controls button:focus-visible {
+  border-color: var(--site-accent);
+  background: linear-gradient(
+    to bottom,
+    var(--site-metal-top-hover),
+    var(--site-metal-bottom-hover)
+  );
+  outline: 3px solid var(--site-focus);
+}
+
+.game-controls button.danger {
+  border-color: #c79898;
+  color: #7a2f2f;
+}
+
+.game-controls button.danger:hover:not(:disabled),
+.game-controls button.danger:focus-visible {
+  border-color: #b94a4a;
+  outline-color: rgba(185, 74, 74, 0.18);
+}
+
+.confirm-dialog {
+  border: 1px solid var(--site-border);
+  border-radius: var(--site-radius);
+  background: var(--site-panel);
+  color: var(--site-text);
+  padding: 22px 22px 18px;
+  max-width: 360px;
+  width: calc(100vw - 32px);
+  box-shadow: 0 18px 48px rgba(15, 30, 24, 0.22);
+  font: inherit;
+}
+
+.confirm-dialog::backdrop {
+  background: rgba(15, 30, 24, 0.42);
+}
+
+.confirm-dialog-title {
+  color: var(--site-heading);
+  font-size: 1.05rem;
+  font-weight: 600;
+  margin: 0 0 8px;
+}
+
+.confirm-dialog-body {
+  font-size: 0.92rem;
+  line-height: 1.45;
+  margin: 0 0 18px;
+  color: var(--site-muted);
+}
+
+.confirm-dialog-actions {
+  display: flex;
+  gap: 10px;
+  justify-content: flex-end;
+}
+
+.confirm-dialog-actions button {
+  min-height: 36px;
+  padding: 6px 14px;
+  border: 1px solid var(--site-border);
+  border-radius: var(--site-radius-sm);
+  background: var(--site-panel);
+  color: var(--site-text);
+  font: inherit;
+  cursor: pointer;
+}
+
+.confirm-dialog-actions button:hover:not(:disabled),
+.confirm-dialog-actions button:focus-visible {
+  border-color: var(--site-accent);
+  outline: 3px solid var(--site-focus);
+}
+
+.confirm-dialog-actions button.danger {
+  border-color: #c79898;
+  color: #7a2f2f;
+}
+
+.confirm-dialog-actions button.danger:hover:not(:disabled),
+.confirm-dialog-actions button.danger:focus-visible {
+  border-color: #b94a4a;
+  outline-color: rgba(185, 74, 74, 0.18);
+}
+
+.clocks strong {
+  font-variant-numeric: tabular-nums;
+  font-size: 30px;
+  line-height: 1;
+  text-align: right;
+  white-space: nowrap;
+}
+
+.clocks .clock-player-line {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  min-width: 0;
+  padding: 0 4px;
+  line-height: 1.1;
+}
+
+.clocks .clock-name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  /* Needs the font's full line box (~1.34); the inherited 1.1 plus overflow
+     hidden clips descenders (the foot of names like "dev-testing"). */
+  line-height: 1.35;
+  color: var(--site-heading);
+  font-size: 16px;
+  font-weight: 700;
+}
+
+.clocks .clock-to-move {
+  display: inline-flex;
+  align-items: center;
+  justify-self: start;
+  flex-shrink: 0;
+  font-size: 9px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--site-accent);
+  background: rgba(31, 111, 91, 0.1);
+  border-radius: 999px;
+  padding: 2px 7px;
+  font-weight: 700;
+  line-height: 1;
+  white-space: nowrap;
+  visibility: hidden;
+  opacity: 0;
+}
+
+.clocks .presence-dot {
+  margin-right: 0;
+}
+
+.clocks .clock-player-line.active .clock-to-move {
+  visibility: visible;
+  opacity: 1;
+}
+
+.starts {
+  display: grid;
+  gap: 10px;
+}
+
+.room-actions {
+  display: grid;
+  gap: 8px;
+}
+
+/* The postgame button row (review / play again / home), built by room-chrome for
+   every tenant. One shared gap so all variants match; previously each route
+   redefined it (or, for crazyhouse/shogi, never did). */
+.room-actions-row {
+  display: grid;
+  gap: 10px;
+}
+
+.share-room {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
+}
+
+.share-room-hint,
+.room-actions-note {
+  margin: 0;
+  color: var(--site-muted);
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.share-room-hint {
+  grid-column: 1 / -1;
+}
+
+.room-actions-note {
+  padding: 0 2px;
+}
+
+/* Rematch controls sit in one slot of the room-action stack (a label line above
+   a button group) so the layout doesn't reshuffle as the offer state changes —
+   Decline/Accept share the row the lone Rematch button held. Shared by chess and
+   Dark Mini Xiangqi; the buttons inherit the .room-actions button styling. */
+.room-rematch {
+  display: grid;
+  gap: 6px;
+}
+
+.room-rematch-note {
+  margin: 0;
+  color: var(--site-muted);
+  font-size: 12px;
+  line-height: 1.4;
+  text-align: center;
+}
+
+.room-rematch-buttons {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: minmax(0, 1fr);
+  gap: 8px;
+}
+
+.share-room input,
+.share-room button {
+  min-height: 38px;
+  border: 1px solid var(--site-border);
+  border-radius: var(--site-radius-sm);
+  background: var(--site-panel);
+  color: var(--site-text);
+}
+
+.share-room input {
+  min-width: 0;
+  padding: 8px 10px;
+  font-size: 13px;
+}
+
+.share-room button {
+  padding: 8px 12px;
+  cursor: pointer;
+}
+
+.share-room input:focus,
+.share-room button:hover,
+.share-room button:focus-visible {
+  border-color: var(--site-accent);
+  outline: 3px solid var(--site-focus);
+}
+
+.room-actions a,
+.room-actions button {
+  display: block;
+  width: 100%;
+  min-height: 38px;
+  border: 1px solid var(--site-border);
+  border-radius: var(--site-radius-sm);
+  background: var(--site-panel);
+  color: var(--site-text);
+  padding: 9px 10px;
+  cursor: pointer;
+  font: inherit;
+  text-align: center;
+  text-decoration: none;
+}
+
+.room-actions a:hover,
+.room-actions a:focus-visible,
+.room-actions button:hover:not(:disabled),
+.room-actions button:focus-visible {
+  border-color: var(--site-accent);
+  outline: 3px solid var(--site-focus);
+}
+
+.room-actions a.primary,
+.room-actions button.primary {
+  border-color: var(--site-accent);
+  background: var(--site-accent);
+  color: var(--site-on-accent);
+}
+
+.room-actions a.primary:hover,
+.room-actions a.primary:focus-visible,
+.room-actions button.primary:hover:not(:disabled),
+.room-actions button.primary:focus-visible {
+  background: var(--site-accent-strong);
+}
+
+.room-actions button:disabled {
+  cursor: default;
+  opacity: 0.65;
+}
+
+.room-actions button.danger {
+  border-color: #c79898;
+  color: #7a2f2f;
+}
+
+.debug-shell {
+  max-width: 1480px;
+}
+
+.debug-page {
+  display: grid;
+  align-self: start;
+  gap: 12px;
+}
+
+.debug-page[hidden] {
+  display: none;
+}
+
+.debug-header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.debug-header h2 {
+  margin: 0;
+  font-size: 16px;
+  line-height: 1.2;
+}
+
+.debug-views {
+  display: grid;
+  gap: 12px;
+}
+
+.dev-views {
+  display: grid;
+  gap: 12px;
+}
+
+.dev-view-card {
+  display: grid;
+  gap: 6px;
+}
+
+.dev-view-card > strong {
+  font-size: 13px;
+  line-height: 1.2;
+}
+
+.dev-view-card > span {
+  color: var(--site-muted);
+  font-size: 12px;
+  line-height: 1.2;
+}
+
+.dev-board {
+  display: grid;
+  grid-template-columns: repeat(8, minmax(0, 1fr));
+  width: min(100%, 178px);
+  border: 1px solid var(--board-frame);
+  background: var(--board-frame);
+}
+
+.dev-square {
+  display: grid;
+  place-items: center;
+  aspect-ratio: 1;
+  min-width: 0;
+  color: var(--site-text);
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 14px;
+  line-height: 1;
+}
+
+.dev-square.light {
+  background: var(--board-light);
+}
+
+.dev-square.dark {
+  background: var(--board-dark);
+  color: color-mix(in srgb, var(--site-text) 88%, white);
+}
+
+.dev-square.hidden {
+  background: var(--board-fog-dark-background);
+  background-size: var(--board-fog-size) var(--board-fog-size);
+  color: #ffffff;
+}
+
+.start-row {
+  display: grid;
+  gap: 8px;
+}
+
+.start-group {
+  display: grid;
+  gap: 8px;
+}
+
+.start-group h3 {
+  margin: 0;
+  color: var(--site-muted);
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1.2;
+  text-transform: uppercase;
+}
+
+.start-card,
+.solo-picks button {
+  display: grid;
+  gap: 4px;
+  width: 100%;
+  border: 1px solid var(--site-border);
+  border-radius: var(--site-radius-sm);
+  background: var(--site-panel);
+  color: var(--site-text);
+  padding: 12px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.start-card {
+  min-height: 72px;
+}
+
+.start-card strong {
+  font-size: 17px;
+  line-height: 1.1;
+}
+
+.solo-picks {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.solo-picks button {
+  justify-items: center;
+  padding: 8px;
+  min-height: 40px;
+}
+
+.starts button:hover:not(:disabled) {
+  border-color: var(--site-accent);
+}
+
+.starts button:disabled {
+  cursor: default;
+  opacity: 0.68;
+}
+
+.starts button.selected {
+  border-color: var(--site-accent);
+  box-shadow: inset 4px 0 0 var(--site-accent);
+}
+
+.starts button.resolved {
+  border-color: #254d7a;
+  box-shadow: inset 4px 0 0 #254d7a;
+}
+
+.starts span {
+  color: var(--site-muted);
+  letter-spacing: 0.08em;
+}
+
+.bid-controls {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
+}
+
+.bid-controls input,
+.bid-controls button {
+  min-height: 38px;
+  border: 1px solid var(--site-border);
+  border-radius: var(--site-radius-sm);
+  background: var(--site-panel);
+  color: var(--site-text);
+}
+
+.bid-controls input {
+  min-width: 0;
+  padding: 8px 10px;
+}
+
+.bid-controls button {
+  padding: 8px 12px;
+  cursor: pointer;
+}
+
+.bid-controls button:hover:not(:disabled) {
+  border-color: var(--site-accent);
+}
+
+.bid-controls button:disabled {
+  cursor: default;
+  opacity: 0.6;
+}
+
+.info-notice {
+  display: block;
+  grid-template-columns: none;
+  min-height: 34px;
+  border: 1px solid var(--site-border-soft);
+  border-radius: var(--site-radius-sm);
+  background: var(--site-panel);
+  color: var(--site-muted);
+  padding: 8px 10px;
+  font-size: 13px;
+  line-height: 1.35;
+}
+
+.info-notice.pending {
+  border-color: var(--site-warning-border);
+  background: var(--site-warning-bg);
+  color: var(--site-warning-text);
+}
+
+.info-notice.success {
+  border-color: #9bbdaf;
+  background: var(--site-accent-soft);
+  color: var(--site-accent-strong);
+}
+
+.info-notice.danger {
+  border-color: #c79898;
+  background: #fff1ef;
+  color: #7a2f2f;
+}
+
+@media (max-width: 980px) {
+  .meta-panel,
+  .moves-panel {
+    align-self: stretch;
+    max-height: none;
+    overflow: visible;
+  }
+
+  .moves-panel {
+    border-left: 0;
+    order: 0;
+    padding-left: 0;
+  }
+
+  .meta-panel {
+    order: 1;
+  }
+
+  .side-panel {
+    gap: 16px;
+  }
+
+  .debug-views {
+    grid-template-columns: 1fr;
+  }
+
+  .dev-board {
+    width: min(100%, 260px);
+  }
+}
+
+@media (min-width: 1180px) {
+  .debug-shell {
+    padding-block: 8px;
+  }
+
+  .debug-shell .topbar {
+    margin-bottom: 6px;
+  }
+
+  .debug-shell .topbar h1 {
+    font-size: 28px;
+  }
+
+  .debug-shell .play-grid {
+    grid-template-columns: minmax(0, 1040px) minmax(176px, 210px);
+    align-items: start;
+    justify-content: center;
+  }
+
+  .debug-shell .board-panel {
+    grid-template-columns: minmax(0, min(60vh, 540px)) minmax(250px, 320px);
+    gap: clamp(14px, 2vw, 24px);
+  }
+
+  .debug-shell .board-shell {
+    max-width: min(100%, 60vh, 540px);
+  }
+
+  .debug-shell .side-panel {
+    gap: 12px;
+  }
+
+  .debug-shell .action-status {
+    min-height: 64px;
+  }
+
+  .debug-shell .panel-section {
+    gap: 8px;
+    padding-top: 10px;
+  }
+
+  .debug-shell .action-notice {
+    min-height: 64px;
+    padding: 8px 10px;
+  }
+
+  .debug-shell .game-info div,
+  .debug-shell .selection-list div,
+  .debug-shell .clocks div {
+    min-height: 22px;
+  }
+
+  .debug-shell .clocks div {
+    min-height: 32px;
+    padding: 6px 8px;
+  }
+
+  .debug-shell .clocks strong {
+    font-size: 18px;
+  }
+
+  .debug-shell .move-list {
+    max-height: 60px;
+  }
+
+  .debug-shell .replay-controls button,
+  .debug-shell .room-actions a,
+  .debug-shell .room-actions button,
+  .debug-shell .share-room input,
+  .debug-shell .share-room button {
+    min-height: 32px;
+  }
+
+  .debug-shell .replay-controls button {
+    height: 32px;
+  }
+
+  .debug-shell .debug-views,
+  .debug-shell .dev-views {
+    gap: 6px;
+  }
+
+  .debug-shell .dev-view-card {
+    gap: 3px;
+  }
+
+  .debug-shell .dev-board {
+    width: min(100%, 150px);
+  }
+
+  .debug-shell .dev-square {
+    font-size: 11px;
+  }
+}

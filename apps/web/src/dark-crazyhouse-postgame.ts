@@ -6,6 +6,7 @@ import type {
   CrazyhousePlayerView,
 } from '@mistboard/game';
 import { isCrazyhouseDrop } from '@mistboard/game';
+import './game-shell.css';
 import './live-dark-crazyhouse.css';
 // Reuse the shared dxq-postgame scaffold (.dxq-postgame__*); the route-scoped
 // theme + board/reserve overrides live in our own file.

@@ -4,6 +4,7 @@ import type {
   CrossroadsChessMove,
   CrossroadsChessPlayerView,
 } from '@mistboard/game';
+import './game-shell.css';
 import './live-crossroads-chess.css';
 // Reuse the shared dxq-postgame scaffold (.dxq-postgame__*); jieqi/banqi reuse it
 // the same way. The route-scoped theme + board overrides live in our own file.

@@ -1,3 +1,4 @@
+import './game-shell.css';
 import { boardFen, hiddenSquareClasses, mountBoard } from '@mistboard/board-render/interactive';
 import type { Color, GameState, Move, Piece, PieceRole, PlayerView, Square } from '@mistboard/game';
 import type { Api } from 'chessground/api';

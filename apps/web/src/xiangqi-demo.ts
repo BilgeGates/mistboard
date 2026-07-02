@@ -1,3 +1,4 @@
+import './game-shell.css';
 import {
   applyMove,
   createInitialXiangqiState,

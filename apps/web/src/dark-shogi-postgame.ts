@@ -7,6 +7,7 @@ import type {
   ShogiPlayerView,
 } from '@mistboard/game';
 import { isShogiDrop } from '@mistboard/game';
+import './game-shell.css';
 import './live-dark-shogi.css';
 // Reuse the shared dxq-postgame scaffold (.dxq-postgame__*); the route-scoped
 // theme + board/reserve overrides live in our own file.

@@ -1,4 +1,5 @@
 import type { XiangqiColor, XiangqiGameStatus, XiangqiMove } from '@mistboard/game';
+import './game-shell.css';
 import './live-xiangqi.css';
 import './dark-xiangqi-postgame.css';
 import { createDarkXiangqiPlayAgainRoom } from './dark-xiangqi-room-actions.js';

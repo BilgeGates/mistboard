@@ -4,6 +4,7 @@ import type {
   RevealChessMove,
   RevealChessPlayerView,
 } from '@mistboard/game';
+import './game-shell.css';
 import './landing.css';
 import './game-route.css';
 import './live-reveal-chess.css';

@@ -13,6 +13,7 @@
  * capture, and sounds stay tenant-owned.
  */
 
+import '../game-shell.css';
 import { openConfirmDialog } from '../confirm-dialog.js';
 import { maybePlayLowTimeSound } from '../live-sound.js';
 import type { LiveRefs } from '../live-state.js';

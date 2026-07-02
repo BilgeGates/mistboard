@@ -5,6 +5,7 @@ import './app-base.css';
 import './board-fog.css';
 import './live-xiangqi.css';
 import './styles.css';
+import './game-shell.css';
 import './site-shell.css';
 import type { GameEvent, PlayerView } from '@mistboard/game';
 import { maybePlayDarkMiniXiangqiSnapshotSound } from './live-mini-xiangqi-sound.js';
