@@ -99,7 +99,9 @@ export async function tryHandle(
     if (!requireMethod(request, response, 'GET')) return true;
     if (!requirePersistence(response)) return true;
     if (!(await requireAdminSession(request, response))) return true;
-    const reports = await persistence.listDmReports({ limit: 100 });
+    const statusParam = parsedUrl.searchParams.get('status');
+    const status = statusParam === 'resolved' || statusParam === 'dismissed' ? statusParam : 'open';
+    const reports = await persistence.listDmReports({ status, limit: 100 });
     writeJson(response, 200, {
       reports: reports.map((report) => ({
         id: report.id,

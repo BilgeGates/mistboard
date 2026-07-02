@@ -92,7 +92,10 @@ const wantsAccount = path === '/account' || page === 'account';
 const wantsAccountSettings = path === '/account/settings' || page === 'account-settings';
 // /inbox (thread list) and /inbox/:handle (open conversation). Signed-in-only
 // surface; the page itself renders a sign-in prompt for anonymous visitors.
-const inboxMatch = path.match(/^\/inbox(?:\/([^/]+))?$/);
+// /inbox/reports is the admin report queue and wins over the :handle pattern
+// (same reserved-literal tradeoff as the API routes).
+const wantsInboxReports = path === '/inbox/reports';
+const inboxMatch = wantsInboxReports ? null : path.match(/^\/inbox(?:\/([^/]+))?$/);
 const wantsInbox = inboxMatch !== null;
 const inboxHandle = inboxMatch?.[1] ? decodeURIComponent(inboxMatch[1]) : null;
 const wantsLearn = path === '/learn' || page === 'learn';
@@ -243,6 +246,11 @@ if (replaySample) {
   setTitleKey('account.account');
   void mountOrReport(() =>
     import('./account.js').then(({ mountAccount }) => mountAccount(appRoot)),
+  );
+} else if (wantsInboxReports) {
+  setTitle('Message reports');
+  void mountOrReport(() =>
+    import('./inbox.js').then(({ mountInboxReports }) => mountInboxReports(appRoot)),
   );
 } else if (wantsInbox) {
   setTitleKey('inbox.title');

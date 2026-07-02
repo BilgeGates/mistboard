@@ -23,6 +23,10 @@ type DmMessage = { id: string; fromMe: boolean; bodyText: string; createdAt: str
 
 const CONVO_POLL_MS = 4000;
 
+// Set once per mount; renderThreads rebuilds the contacts rail on every poll
+// refresh, so the admin queue link has to survive re-renders via module state.
+let viewerIsAdmin = false;
+
 export async function mountInbox(root: HTMLElement, handle: string | null): Promise<void> {
   const locale = currentLocale();
   root.replaceChildren();
@@ -41,6 +45,7 @@ export async function mountInbox(root: HTMLElement, handle: string | null): Prom
     return;
   }
 
+  viewerIsAdmin = user.accountRole === 'admin';
   if (handle) shell.classList.add('inbox-has-convo');
 
   const contacts = document.createElement('section');
@@ -73,6 +78,14 @@ async function renderThreads(
   heading.className = 'inbox-heading';
   heading.textContent = t('inbox.title', {}, locale);
   container.append(heading);
+
+  if (viewerIsAdmin) {
+    const reports = document.createElement('a');
+    reports.className = 'inbox-back-link';
+    reports.href = '/inbox/reports';
+    reports.textContent = 'Reports';
+    container.append(reports);
+  }
 
   if (!resp?.ok) {
     container.append(
@@ -387,4 +400,197 @@ function formatWhen(value: string, locale: Locale): string {
     LOCALE_META[locale].dateLocale,
     sameDay ? { timeStyle: 'short' } : { dateStyle: 'medium', timeStyle: 'short' },
   ).format(date);
+}
+
+// ── /inbox/reports — admin DM report queue ──────────────────────────────────
+// Admin-only surface (English-only, forum-reports precedent): the API 403s
+// non-admins in production, and this page just renders that refusal. Admins
+// see reported threads only; there is no browse-all-DMs surface anywhere.
+
+type DmReport = {
+  id: string;
+  threadId: string;
+  reporterHandle: string | null;
+  reason: string;
+  status: 'open' | 'resolved' | 'dismissed';
+  createdAt: string;
+};
+
+type AdminThread = {
+  threadId: string;
+  participants: { handle: string; displayName: string }[];
+  messages: { senderHandle: string | null; bodyText: string; createdAt: string }[];
+};
+
+const REPORT_STATUSES = ['open', 'resolved', 'dismissed'] as const;
+
+export async function mountInboxReports(root: HTMLElement): Promise<void> {
+  const locale = currentLocale();
+  root.replaceChildren();
+  root.classList.add('landing-page', 'inbox-route');
+
+  const shell = document.createElement('main');
+  shell.className = 'inbox-shell inbox-reports-shell';
+  root.append(buildNav(locale), shell);
+
+  const query = new URLSearchParams(window.location.search);
+  const statusParam = query.get('status');
+  const status = statusParam === 'resolved' || statusParam === 'dismissed' ? statusParam : 'open';
+
+  const resp = await fetch(`/api/inbox/reports?status=${status}`).catch(() => null);
+  if (resp?.status === 403) {
+    shell.append(
+      buildNotice('Admin access required', 'Message reports are available to moderators.'),
+    );
+    return;
+  }
+  if (!resp?.ok) {
+    shell.append(buildNotice('Reports unavailable', 'The report queue could not load.'));
+    return;
+  }
+  const data = (await resp.json()) as { reports: DmReport[] };
+
+  const panel = document.createElement('section');
+  panel.className = 'inbox-reports-panel';
+
+  const header = document.createElement('header');
+  header.className = 'inbox-reports-header';
+  const title = document.createElement('h1');
+  title.className = 'inbox-heading';
+  title.textContent = 'Message reports';
+  const back = document.createElement('a');
+  back.className = 'inbox-back-link';
+  back.href = '/inbox';
+  back.textContent = '← Inbox';
+  header.append(back, title);
+
+  const filters = document.createElement('nav');
+  filters.className = 'inbox-reports-filters';
+  for (const option of REPORT_STATUSES) {
+    const link = document.createElement('a');
+    link.href = `/inbox/reports?status=${option}`;
+    link.textContent = option;
+    link.className =
+      option === status
+        ? 'inbox-reports-filter inbox-reports-filter-active'
+        : 'inbox-reports-filter';
+    filters.append(link);
+  }
+
+  panel.append(header, filters);
+
+  if (data.reports.length === 0) {
+    const empty = document.createElement('p');
+    empty.className = 'account-copy inbox-empty';
+    empty.textContent = `No ${status} reports.`;
+    panel.append(empty);
+  } else {
+    const list = document.createElement('ul');
+    list.className = 'inbox-reports-list';
+    for (const report of data.reports) {
+      list.append(buildReportRow(report, locale));
+    }
+    panel.append(list);
+  }
+
+  shell.replaceChildren(panel);
+}
+
+function buildReportRow(report: DmReport, locale: Locale): HTMLElement {
+  const item = document.createElement('li');
+  item.className = 'inbox-reports-row';
+
+  const summary = document.createElement('div');
+  summary.className = 'inbox-reports-summary';
+  const meta = document.createElement('span');
+  meta.className = 'inbox-reports-meta';
+  meta.textContent = `${report.reporterHandle ? `@${report.reporterHandle}` : 'deleted account'} · ${formatWhen(report.createdAt, locale)}`;
+  const reason = document.createElement('p');
+  reason.className = 'inbox-reports-reason';
+  reason.textContent = report.reason;
+  summary.append(meta, reason);
+
+  const actions = document.createElement('div');
+  actions.className = 'inbox-reports-actions';
+
+  const threadSlot = document.createElement('div');
+  threadSlot.className = 'inbox-reports-thread';
+  threadSlot.hidden = true;
+
+  const view = document.createElement('button');
+  view.type = 'button';
+  view.className = 'inbox-header-action';
+  view.textContent = 'View thread';
+  view.addEventListener('click', async () => {
+    if (!threadSlot.hidden) {
+      threadSlot.hidden = true;
+      return;
+    }
+    if (threadSlot.childElementCount === 0) {
+      view.disabled = true;
+      const loaded = await fetchAdminThread(report.threadId);
+      view.disabled = false;
+      if (!loaded) {
+        threadSlot.textContent = 'Thread could not load.';
+      } else {
+        renderAdminThread(threadSlot, loaded, locale);
+      }
+    }
+    threadSlot.hidden = false;
+  });
+  actions.append(view);
+
+  if (report.status === 'open') {
+    const note = document.createElement('input');
+    note.type = 'text';
+    note.maxLength = 240;
+    note.placeholder = 'Resolution note (optional)';
+    note.className = 'inbox-report-reason';
+
+    for (const [label, status] of [
+      ['Resolve', 'resolved'],
+      ['Dismiss', 'dismissed'],
+    ] as const) {
+      const button = document.createElement('button');
+      button.type = 'button';
+      button.className = 'inbox-header-action';
+      button.textContent = label;
+      button.addEventListener('click', async () => {
+        button.disabled = true;
+        const resp = await fetch(`/api/inbox/reports/${encodeURIComponent(report.id)}`, {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({ status, note: note.value.trim() || undefined }),
+        }).catch(() => null);
+        if (resp?.ok) item.remove();
+        else button.disabled = false;
+      });
+      actions.append(button);
+    }
+    actions.append(note);
+  }
+
+  item.append(summary, actions, threadSlot);
+  return item;
+}
+
+async function fetchAdminThread(threadId: string): Promise<AdminThread | null> {
+  const resp = await fetch(`/api/inbox/threads/${encodeURIComponent(threadId)}`).catch(() => null);
+  if (!resp?.ok) return null;
+  const data = (await resp.json()) as { thread: AdminThread };
+  return data.thread;
+}
+
+function renderAdminThread(slot: HTMLElement, thread: AdminThread, locale: Locale): void {
+  slot.replaceChildren();
+  const who = document.createElement('p');
+  who.className = 'inbox-reports-meta';
+  who.textContent = thread.participants.map((p) => `@${p.handle}`).join(' ↔ ');
+  slot.append(who);
+  for (const message of thread.messages) {
+    const line = document.createElement('p');
+    line.className = 'inbox-reports-line';
+    line.textContent = `${message.senderHandle ? `@${message.senderHandle}` : 'deleted'} · ${formatWhen(message.createdAt, locale)}: ${message.bodyText}`;
+    slot.append(line);
+  }
 }
