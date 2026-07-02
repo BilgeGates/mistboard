@@ -81,7 +81,7 @@ export async function mountBots(root: HTMLElement): Promise<void> {
   root.classList.add('landing-page', 'bots-route');
 
   const shell = document.createElement('main');
-  shell.className = 'site-section bots-shell';
+  shell.className = 'site-section community-shell bots-shell';
 
   const header = document.createElement('section');
   header.className = 'bots-directory-header';

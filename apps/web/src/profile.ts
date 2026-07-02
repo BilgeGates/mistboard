@@ -205,7 +205,7 @@ function buildLeaderboardFrame(locale: Locale): {
   body.append(onlineHeading, heading, sub, onlineBody, grid);
 
   const shell = document.createElement('main');
-  shell.className = 'site-section leaderboard-shell';
+  shell.className = 'site-section community-shell leaderboard-shell';
   shell.append(buildCommunityLayout('/leaderboard', body, locale));
   return { shell, onlineBody, grid, activePanel, ladderPanels };
 }

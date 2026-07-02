@@ -806,15 +806,8 @@
 
 /* ── Leaderboard ──────────────────────────────────────────────────────────── */
 
-.leaderboard-shell {
-  width: min(1520px, calc(100% - 32px));
-  max-width: none;
-  margin: 0 auto;
-  padding: 28px 0 48px;
-}
-
-/* The community rail + layout grid live in community-rail.css (shared with
-   /bots). */
+/* Shell width comes from .community-shell; the rail + layout grid live in
+   community-rail.css (shared with /bots). */
 
 /* Twin headings (Online players | Leaderboard) over an unboxed online column
    and the ladder wall, playstrategy-style. Grid areas keep the two heading
@@ -1090,11 +1083,6 @@
 }
 
 @media (max-width: 480px) {
-  .leaderboard-shell {
-    width: calc(100% - 24px);
-    padding: 20px 0 32px;
-  }
-
   .leaderboard-grid {
     grid-template-columns: 1fr;
   }

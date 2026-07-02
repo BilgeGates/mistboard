@@ -2,6 +2,15 @@
    (/leaderboard, /bots). The rail is the top-nav Community menu one level
    deeper (playstrategy/lichess idiom). */
 
+/* One shell width for every rail page so the rail sits at the same x position
+   across the section; pages cap their own content column inside it. */
+.community-shell {
+  width: min(1520px, calc(100% - 32px));
+  max-width: none;
+  margin: 0 auto;
+  padding: 28px 0 48px;
+}
+
 .community-layout {
   display: grid;
   grid-template-columns: 168px minmax(0, 1fr);
@@ -59,5 +68,12 @@
 
   .community-rail a.community-rail-active {
     background: var(--site-accent-soft);
+  }
+}
+
+@media (max-width: 480px) {
+  .community-shell {
+    width: calc(100% - 24px);
+    padding: 20px 0 32px;
   }
 }

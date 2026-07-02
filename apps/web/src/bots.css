@@ -1,17 +1,16 @@
-/* Wide enough that the directory keeps its ~980px column beside the
-   community rail. */
+/* Shell width comes from .community-shell (community-rail.css), so the rail
+   sits at the same x position as on /leaderboard; the directory column is
+   capped here instead of by the shell. */
 .bots-shell {
   display: grid;
   gap: 14px;
-  width: min(1180px, calc(100% - 24px));
-  margin: 0 auto;
-  padding: 22px 0 38px;
 }
 
 .bots-main {
   display: grid;
   gap: 14px;
   min-width: 0;
+  max-width: 980px;
 }
 
 .bots-directory-header {
