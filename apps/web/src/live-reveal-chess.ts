@@ -1,23 +1,25 @@
-// Live multiplayer room client for Reveal Chess (chess-jieqi) — a self-contained
-// tenant client on the socket-client + chrome stack, modeled on the jieqi room
-// but on an 8x8 CHESS board with cburnett pieces (the Crossroads geometry) and
-// standard white/black colors.
+// Live multiplayer room client for Reveal Chess (chess-jieqi) — an IDENTITY-hidden
+// tenant on the generic live-client core (variant-tenant/live-client.ts owns
+// bootstrap, frame application, the renderAll skeleton, replay capture, and the
+// two-column move list). Modeled on the jieqi/banqi rooms but on an 8x8 CHESS
+// board with cburnett pieces (the Crossroads geometry) and standard white/black
+// colors.
 //
 // Reveal Chess is IDENTITY-hidden, not POSITION-hidden: both players see every
 // square, every piece's color, and every move. The only hidden axis is piece
 // IDENTITY (a face-down piece's role). So this client carries NO fog: no fog
-// mask, no visibleSquares, no opponent-move stripping. The client renders ONLY
-// the server-sent PlayerView and never invents or infers a hidden identity, so
-// the replay capture stores the server's per-seat views directly (a local kernel
-// replay is impossible — the client does not know the hidden identities).
+// mask, no visibleSquares, no opponent-move stripping, and the move list is
+// unmasked. It renders ONLY the server-sent PlayerView and never invents or
+// infers a hidden identity, so the replay capture stores the server's per-seat
+// views directly (a local kernel replay is impossible — the client does not know
+// the hidden identities).
 //
-// Board rendering (face-down disc vs revealed cburnett glyph), selection ring,
-// move hints, last-move, and the hit layer come from reveal-chess-render.ts. The
-// connection state machine lives in variant-tenant/socket-client.ts and the room
-// chrome (clocks, countdowns, action status, room actions) in
-// variant-tenant/room-chrome.ts. This module adds the captured-pool panel
-// (grouped by owner, "?" disc for an identity the viewer cannot see) and the
-// promotion picker (only for a KNOWN pawn reaching its far rank) on top.
+// This module keeps what is genuinely Reveal Chess's: the wire view type, board
+// rendering (face-down disc vs revealed cburnett glyph, reveal-chess-render.ts),
+// select/drag interaction, the captured-pool panel (grouped by owner, "?" disc
+// for an identity the viewer cannot see), the promotion picker (only for a KNOWN
+// pawn reaching its far rank), the uci move notation, and the chess board-family
+// theme.
 
 import { PIECE_SVGS } from '@mistboard/board-render';
 import type {
@@ -30,32 +32,29 @@ import type {
 } from '@mistboard/game';
 import './live-reveal-chess.css';
 import { revealChessEnabled } from './feature-flags.js';
-import { createLiveLayout, setLiveLayoutGameSpec } from './live-layout.js';
 import {
   maybePlayRevealChessSnapshotSound,
   resetRevealChessSoundState,
   soundForOwnRevealChessMove,
 } from './live-reveal-chess-sound.js';
-import { initLiveSound, playSound, resetLiveSoundState } from './live-sound.js';
-import { clearSeatTokenForRoom, type LiveRefs } from './live-state.js';
+import { playSound } from './live-sound.js';
+import type { LiveRefs } from './live-state.js';
 import {
   REVEAL_CHESS_PIECE_PX,
   renderRevealChessBoardSvg,
   revealChessFacedownDisc,
   revealChessPieceGhostSvg,
 } from './reveal-chess-render.js';
-import { roomIdFromPath } from './room-url.js';
 import { boardAppearanceChangedEvent, setBoardFamily } from './theme.js';
 import { installBoardDrag } from './variant-tenant/board-drag.js';
-import { syncMoveListScroll } from './variant-tenant/chrome-dom.js';
-import { createTenantReplayController } from './variant-tenant/replay-controller.js';
-import { createTenantRoomChrome, type WebVariantTenant } from './variant-tenant/room-chrome.js';
-import { installSelectionClickAway } from './variant-tenant/selection-click-away.js';
 import {
-  createTenantSocketClient,
-  type TenantConnectionState,
-  type TenantSocketClient,
-} from './variant-tenant/socket-client.js';
+  createTenantLiveClient,
+  type TenantLiveClientContext,
+  type TenantLiveEvent,
+  type TenantMovePlayed,
+} from './variant-tenant/live-client.js';
+import type { WebVariantTenant } from './variant-tenant/room-chrome.js';
+import { installSelectionClickAway } from './variant-tenant/selection-click-away.js';
 
 // ── Wire shapes (mirror RevealChessPlayerView; entries are faceDown-tagged) ──
 
@@ -77,67 +76,13 @@ export type RevealChessWireView = {
   lastMove?: RevealChessMove;
 };
 
-type RevealChessWireEvent =
-  | {
-      type: 'move-played';
-      color: RevealChessColor;
-      move: RevealChessMove;
-      at: number;
-      ply?: number;
-    }
-  | { type: string; [key: string]: unknown };
-type RevealChessMoveEvent = Extract<RevealChessWireEvent, { type: 'move-played' }>;
+type RevealChessMoveEvent = TenantMovePlayed<RevealChessColor, RevealChessMove>;
 type RevealChessVisibleMoveRow = { fullMove: number; white?: string; black?: string };
-
-type RevealChessLiveClock = {
-  activeColor: RevealChessColor | null;
-  incrementMs: number;
-  initialMs: number;
-  remainingMs: Record<RevealChessColor, number>;
-  runningSince: number | null;
-};
-
 type RevealChessLiveTimeControl = { initialMs: number; incrementMs: number };
 
-type RevealChessLiveFrame = {
-  type: 'hello' | 'snapshot' | 'event-appended';
-  clientId?: string;
-  seatToken?: string;
-  seat: RevealChessColor | 'spectator';
-  seats: Partial<Record<RevealChessColor, string>>;
-  state: RevealChessWireView;
-  clock?: RevealChessLiveClock | null;
-  connectedSeats?: Record<RevealChessColor, boolean>;
-  abortDeadline?: number | null;
-  forfeitDeadline?: number | null;
-  roomMode?: 'pve' | 'pvp';
-  pveEngineId?: string | null;
-  timeControl?: { initialMs: number; incrementMs: number } | null;
-  clients?: number;
-  events?: RevealChessWireEvent[];
-  event?: RevealChessWireEvent;
-  seq?: number;
-};
+// ── Reveal-Chess-owned interaction/render state ──────────────────────────────
 
-// ── Module state ─────────────────────────────────────────────────────────────
-
-const state = {
-  room: '',
-  seat: null as RevealChessColor | 'spectator' | null,
-  view: null as RevealChessWireView | null,
-  clock: null as RevealChessLiveClock | null,
-  timeControl: null as RevealChessLiveTimeControl | null,
-  seats: {} as Partial<Record<RevealChessColor, string>>,
-  connectedSeats: { white: false, black: false } as Record<RevealChessColor, boolean>,
-  events: [] as RevealChessWireEvent[],
-  abortDeadline: null as number | null,
-  forfeitDeadline: null as number | null,
-  roomMode: 'pvp' as 'pve' | 'pvp',
-  pveEngineId: null as string | null,
-};
-
-let client: TenantSocketClient | null = null;
-let refs: LiveRefs | null = null;
+let core: TenantLiveClientContext<RevealChessColor, RevealChessWireView> | null = null;
 let selectedSquare: RevealChessSquare | null = null;
 // The square a piece is being dragged from (its piece is lifted off the board so
 // only the floating ghost shows). Null when not dragging.
@@ -146,20 +91,12 @@ let draggingFrom: RevealChessSquare | null = null;
 // player still has to pick. While set, the board is non-interactive (the picker
 // owns the next input).
 let pendingPromotion: { from: RevealChessSquare; to: RevealChessSquare } | null = null;
+// Snapshot extras that ride the frame (read by the chrome + play-again body).
+let roomMode: 'pve' | 'pvp' = 'pvp';
+let pveEngineId: string | null = null;
+let forfeitDeadline: number | null = null;
 
-const replay = createTenantReplayController<RevealChessWireView>();
-let lastCapturedView: RevealChessWireView | null = null;
-let lastCapturedPositionKey: string | null = null;
-
-function send(payload: unknown): boolean {
-  return client?.send(payload) ?? false;
-}
-
-function connection(): TenantConnectionState {
-  return client?.connection() ?? 'connecting';
-}
-
-// ── Shared tenant room chrome ────────────────────────────────────────────────
+// ── Shared tenant room chrome config ─────────────────────────────────────────
 
 const revealChessWebTenant: WebVariantTenant<RevealChessColor> = {
   displayName: 'Reveal Chess',
@@ -176,29 +113,92 @@ const revealChessWebTenant: WebVariantTenant<RevealChessColor> = {
   selectInstruction: 'Select one of your pieces, then choose a destination.',
 };
 
-const chrome = createTenantRoomChrome(revealChessWebTenant, {
-  view: () => state.view,
-  seat: () => state.seat,
-  connectionState: () => connection(),
-  clock: () => state.clock,
-  timeControl: () => state.timeControl,
-  connectedSeats: () => state.connectedSeats,
-  abortDeadline: () => state.abortDeadline,
-  forfeitDeadline: () => state.forfeitDeadline,
-  roomMode: () => state.roomMode,
-  room: () => state.room,
-  debugRequested: () => false,
-  isReplayLive: () => replay.isLive(),
-  orientation: () => orientationFor(state.view),
-  playAgainRequestBody: () =>
+const client = createTenantLiveClient<RevealChessColor, RevealChessWireView, RevealChessMove>({
+  tenant: revealChessWebTenant,
+  gameSpecId: 'reveal-chess',
+  defaultRoomId: 'rc_dev',
+  boardClass: 'reveal-chess-live-board',
+  chrome: {
+    forfeitDeadline: () => forfeitDeadline,
+    roomMode: () => roomMode,
+    variantDetail: () => revealChessLiveTimeControlLabel(core?.state.timeControl ?? null),
+  },
+  playAgainRequestBody: (state) =>
     revealChessLivePlayAgainRequestBody(state.timeControl, {
-      mode: state.roomMode,
-      pveEngineId: state.pveEngineId,
+      mode: roomMode,
+      pveEngineId,
       seat: state.seat,
     }),
-  rematchControls: () => null,
-  variantDetail: () => revealChessLiveTimeControlLabel(state.timeControl),
+  onFrame: (frame) => {
+    if (frame.roomMode === 'pve' || frame.roomMode === 'pvp') roomMode = frame.roomMode;
+    if (typeof frame.pveEngineId === 'string') pveEngineId = frame.pveEngineId;
+    forfeitDeadline = typeof frame.forfeitDeadline === 'number' ? frame.forfeitDeadline : null;
+  },
+  onSnapshotApplied: () => {
+    if (core) maybePlayRevealChessSnapshotSound(core.state.view, core.state.seat);
+  },
+  onEventApplied: () => {
+    if (core) maybePlayRevealChessSnapshotSound(core.state.view, core.state.seat);
+  },
+  resetSounds: resetRevealChessSoundState,
+  resetState: () => {
+    selectedSquare = null;
+    draggingFrom = null;
+    pendingPromotion = null;
+  },
+  renderBoard,
+  renderExtras: (refs, view) => renderCapturedPools(refs, view),
+  onDisabled: (refs) => {
+    // renderCapturedPools ran before the enabled guard in the original, so it
+    // paints even when the flag is off; then the selection clears.
+    renderCapturedPools(refs, core?.displayedView() ?? null);
+    selectedSquare = null;
+    draggingFrom = null;
+    pendingPromotion = null;
+  },
+  setup: (ctx) => {
+    core = ctx;
+    setBoardFamily('chess');
+    installRevealChessBoardInteraction(ctx.refs);
+    installSelectionClickAway({
+      roots: () => [core?.refs.board],
+      hasSelection: () => pendingPromotion === null && selectedSquare !== null,
+      clearSelection: () => {
+        selectedSquare = null;
+        draggingFrom = null;
+        if (core) renderBoard(core.refs, core.displayedView());
+      },
+    });
+    window.addEventListener(boardAppearanceChangedEvent, ctx.renderAll);
+  },
+  moveList: {
+    rowClass: 'move-row reveal-chess-move-row',
+    cellPrefix: 'reveal-chess-move-row',
+    listClass: 'reveal-chess-move-list',
+    masked: false,
+    emptyText: 'No moves yet',
+    notate: uci,
+    isMoveEvent: isRevealChessMoveEvent,
+  },
+  replayCapture: {
+    positionKey: replayPositionKey,
+    // No fog to redact: capture every distinct server view. Ply from moveNumber +
+    // turn (white moves first); on a finished position, advance by one when the
+    // last move is newly visible.
+    plyForView: (view, ctx) => {
+      if (view.status.type === 'playing') {
+        const completedFullMoves = Math.max(0, view.moveNumber - 1);
+        return completedFullMoves * 2 + (view.status.turn === 'black' ? 1 : 0);
+      }
+      if (ctx.positionChanged && view.lastMove) return ctx.latestPly + 1;
+      return ctx.latestPly;
+    },
+  },
 });
+
+export function bootstrapRevealChessLiveRoom(): void {
+  client.bootstrap();
+}
 
 export function revealChessReasonPhrase(reason: string): string {
   switch (reason) {
@@ -225,137 +225,7 @@ export function revealChessReasonPhrase(reason: string): string {
   }
 }
 
-// ── Entry point ──────────────────────────────────────────────────────────────
-
-export function bootstrapRevealChessLiveRoom(): void {
-  const app = document.querySelector<HTMLDivElement>('#app');
-  if (!app) throw new Error('missing #app');
-
-  const params = new URLSearchParams(window.location.search);
-  const room = roomIdFromPath(window.location.pathname) ?? params.get('room') ?? 'rc_dev';
-  state.room = room;
-  selectedSquare = null;
-  draggingFrom = null;
-  pendingPromotion = null;
-  lastCapturedView = null;
-  lastCapturedPositionKey = null;
-  replay.reset();
-  chrome.resetState();
-  initLiveSound();
-  resetLiveSoundState();
-  resetRevealChessSoundState();
-
-  if (params.get('reset') === '1') {
-    clearSeatTokenForRoom(room);
-    params.delete('reset');
-    const search = params.toString();
-    window.history.replaceState(
-      null,
-      '',
-      `${window.location.pathname}${search ? `?${search}` : ''}`,
-    );
-  }
-
-  refs = createLiveLayout(app, { debugRequested: false });
-  setLiveLayoutGameSpec(app, 'reveal-chess');
-  setBoardFamily('chess');
-  chrome.setRenderTarget(refs, {
-    sendSocket: send,
-    // connect() drops any pending backoff timer and reconnects immediately.
-    reconnectNow: () => client?.connect(),
-  });
-  installRevealChessBoardInteraction(refs);
-  installSelectionClickAway({
-    roots: () => [refs?.board],
-    hasSelection: () => pendingPromotion === null && selectedSquare !== null,
-    clearSelection: () => {
-      selectedSquare = null;
-      draggingFrom = null;
-      if (refs) renderBoard(refs, replay.currentView(state.view));
-    },
-  });
-
-  client = createTenantSocketClient({
-    room,
-    applyHello: (frame) => applyFrame(frame as RevealChessLiveFrame),
-    applySnapshot: (frame) => {
-      applyFrame(frame as RevealChessLiveFrame);
-      maybePlayRevealChessSnapshotSound(state.view, state.seat);
-    },
-    applyEvent: (frame) => applyEventFrame(frame as RevealChessLiveFrame),
-    render: renderAll,
-  });
-  client.connect();
-  client.startPing();
-  window.setInterval(() => {
-    chrome.tickClocks();
-    chrome.tickCountdowns();
-  }, 100);
-  document.addEventListener('keydown', handleReplayKeyboard);
-  window.addEventListener(boardAppearanceChangedEvent, renderAll);
-  renderAll();
-}
-
-// ── Frame application ────────────────────────────────────────────────────────
-
-function applyFrame(frame: RevealChessLiveFrame): void {
-  state.seat = frame.seat;
-  state.view = frame.state;
-  state.clock = frame.clock ?? null;
-  state.timeControl = frame.timeControl ?? state.timeControl;
-  state.seats = frame.seats ?? state.seats;
-  state.roomMode = frame.roomMode ?? state.roomMode;
-  state.pveEngineId = frame.pveEngineId ?? state.pveEngineId;
-  if (frame.connectedSeats) state.connectedSeats = frame.connectedSeats;
-  state.abortDeadline = frame.abortDeadline ?? null;
-  state.forfeitDeadline = frame.forfeitDeadline ?? null;
-  if (frame.events) state.events = frame.events;
-}
-
-function applyEventFrame(frame: RevealChessLiveFrame): void {
-  const events = state.events;
-  applyFrame(frame);
-  state.events = events;
-  if (frame.event) state.events = [...events, frame.event];
-  maybePlayRevealChessSnapshotSound(state.view, state.seat);
-}
-
-function handleReplayKeyboard(event: KeyboardEvent): void {
-  if (pendingPromotion) return;
-  replay.handleKeyboard(event, renderAll);
-}
-
 // ── Rendering ────────────────────────────────────────────────────────────────
-
-function renderAll(): void {
-  if (!refs) return;
-  chrome.resetHostPanels();
-  chrome.renderMeta();
-  chrome.renderClocks();
-
-  const view = state.view;
-  captureReplayView(view);
-  const displayedView = replay.currentView(view);
-  refs.moveList.classList.add('reveal-chess-move-list');
-  replay.renderShell(refs, renderAll);
-  refs.boardStatus.hidden = view !== null;
-  chrome.renderActionStatus();
-  chrome.renderGameControls();
-  chrome.renderRoomActions();
-  renderCapturedPools(refs, displayedView);
-
-  if (!revealChessEnabled()) {
-    refs.board.className = 'board reveal-chess-live-board reveal-chess-live-board--disabled';
-    refs.board.replaceChildren();
-    selectedSquare = null;
-    draggingFrom = null;
-    pendingPromotion = null;
-    return;
-  }
-
-  renderBoard(refs, displayedView);
-  renderVisibleMoveList(refs);
-}
 
 function renderBoard(liveRefs: LiveRefs, view: RevealChessWireView | null): void {
   liveRefs.board.className = 'board reveal-chess-live-board';
@@ -368,7 +238,7 @@ function renderBoard(liveRefs: LiveRefs, view: RevealChessWireView | null): void
   const perspective = orientationFor(view);
   liveRefs.board.innerHTML = renderRevealChessBoardSvg(view, {
     perspective,
-    interactive: replay.isLive() && !pendingPromotion,
+    interactive: (core?.replay.isLive() ?? false) && !pendingPromotion,
     selected: selectedSquare,
     targets: selectedSquare ? legalTargets(view, selectedSquare) : [],
     lastMove: view.lastMove ?? null,
@@ -391,20 +261,20 @@ function installRevealChessBoardInteraction(liveRefs: LiveRefs): void {
     board: liveRefs.board,
     ghostSizePx: REVEAL_CHESS_PIECE_PX,
     onSquareClick: (square) => {
-      const view = state.view;
+      const view = core?.state.view;
       if (!view) return;
       handleSquareClick(view, square as RevealChessSquare);
     },
     canDragFrom: (square) => canDragRevealChessPiece(square as RevealChessSquare),
     ghostHtml: (square) => {
-      const entry = state.view?.board[square as RevealChessSquare];
+      const entry = core?.state.view?.board[square as RevealChessSquare];
       if (!entry) return null;
       return revealChessPieceGhostSvg(entry);
     },
     onDragStart: (from) => {
       selectedSquare = from as RevealChessSquare;
       draggingFrom = from as RevealChessSquare;
-      if (state.view) renderBoard(liveRefs, state.view);
+      if (core?.state.view) renderBoard(liveRefs, core.state.view);
     },
     onDrop: (from, to) =>
       dropRevealChessPiece(liveRefs, from as RevealChessSquare, to as RevealChessSquare | null),
@@ -417,11 +287,12 @@ function installRevealChessBoardInteraction(liveRefs: LiveRefs): void {
 // has-a-legal-move requirement, so a piece with no move still lifts and snaps
 // back.
 function canDragRevealChessPiece(square: RevealChessSquare): boolean {
-  const view = state.view;
-  if (!view || !replay.isLive() || connection() !== 'connected' || pendingPromotion) return false;
+  const view = core?.state.view;
+  if (!core || !view || !core.replay.isLive() || core.connection() !== 'connected') return false;
+  if (pendingPromotion) return false;
   if (!canInteract(view)) return false;
   const entry = view.board[square];
-  return !!entry && entry.color === state.seat;
+  return !!entry && entry.color === core.state.seat;
 }
 
 function dropRevealChessPiece(
@@ -430,7 +301,7 @@ function dropRevealChessPiece(
   to: RevealChessSquare | null,
 ): void {
   draggingFrom = null;
-  const view = state.view;
+  const view = core?.state.view;
   const move = to && view ? view.legalMoves.find((m) => m.from === from && m.to === to) : undefined;
   if (move && view) {
     // Take the exact click-to-move path for from→to, including the promotion
@@ -440,7 +311,7 @@ function dropRevealChessPiece(
     return;
   }
   selectedSquare = null;
-  if (state.view) renderBoard(liveRefs, state.view);
+  if (core?.state.view) renderBoard(liveRefs, core.state.view);
 }
 
 function legalTargets(view: RevealChessWireView, from: RevealChessSquare): RevealChessSquare[] {
@@ -448,20 +319,21 @@ function legalTargets(view: RevealChessWireView, from: RevealChessSquare): Revea
 }
 
 function handleSquareClick(view: RevealChessWireView, square: RevealChessSquare): void {
+  if (!core) return;
   if (pendingPromotion) return;
-  if (!replay.isLive() || connection() !== 'connected') return;
+  if (!core.replay.isLive() || core.connection() !== 'connected') return;
   if (!canInteract(view)) return;
 
   if (selectedSquare === null) {
     if (canSelect(view, square)) {
       selectedSquare = square;
-      renderBoard(refs!, view);
+      renderBoard(core.refs, view);
     }
     return;
   }
   if (selectedSquare === square) {
     selectedSquare = null;
-    renderBoard(refs!, view);
+    renderBoard(core.refs, view);
     return;
   }
   const move = view.legalMoves.find((m) => m.from === selectedSquare && m.to === square);
@@ -471,7 +343,7 @@ function handleSquareClick(view: RevealChessWireView, square: RevealChessSquare)
   }
   // Clicked elsewhere: reselect if the new square is selectable, else clear.
   selectedSquare = canSelect(view, square) ? square : null;
-  renderBoard(refs!, view);
+  renderBoard(core.refs, view);
 }
 
 // A move from a KNOWN pawn onto its far rank needs a promotion choice (queen /
@@ -482,17 +354,18 @@ function submitMove(
   from: RevealChessSquare,
   to: RevealChessSquare,
 ): void {
+  if (!core) return;
   if (isKnownPawnPromotion(view, from, to)) {
     pendingPromotion = { from, to };
     selectedSquare = null;
-    renderBoard(refs!, view);
+    renderBoard(core.refs, view);
     return;
   }
   selectedSquare = null;
-  if (send({ type: 'move', from, to })) {
+  if (core.send({ type: 'move', from, to })) {
     playSound(soundForOwnRevealChessMove(view, { from, to }));
   }
-  renderBoard(refs!, view);
+  renderBoard(core.refs, view);
 }
 
 function isKnownPawnPromotion(
@@ -509,15 +382,15 @@ function isKnownPawnPromotion(
 function canInteract(view: RevealChessWireView): boolean {
   return (
     view.status.type === 'playing' &&
-    isRevealChessColor(state.seat) &&
-    view.status.turn === state.seat
+    isRevealChessColor(core?.state.seat) &&
+    view.status.turn === core?.state.seat
   );
 }
 
 function canSelect(view: RevealChessWireView, square: RevealChessSquare): boolean {
   if (!canInteract(view)) return false;
   const entry = view.board[square];
-  if (!entry || entry.color !== state.seat) return false;
+  if (!entry || entry.color !== core?.state.seat) return false;
   return view.legalMoves.some((move) => move.from === square);
 }
 
@@ -550,10 +423,10 @@ function renderPromotionPicker(
     button.addEventListener('click', () => {
       const move = promotion;
       pendingPromotion = null;
-      if (send({ type: 'move', from: move.from, to: move.to, promotion: role })) {
-        playSound(soundForOwnRevealChessMove(state.view, { from: move.from, to: move.to }));
+      if (core?.send({ type: 'move', from: move.from, to: move.to, promotion: role })) {
+        playSound(soundForOwnRevealChessMove(core.state.view, { from: move.from, to: move.to }));
       }
-      if (state.view) renderBoard(liveRefs, state.view);
+      if (core?.state.view) renderBoard(liveRefs, core.state.view);
     });
     choices.append(button);
   }
@@ -563,7 +436,7 @@ function renderPromotionPicker(
   cancel.textContent = 'Cancel';
   cancel.addEventListener('click', () => {
     pendingPromotion = null;
-    if (state.view) renderBoard(liveRefs, state.view);
+    if (core?.state.view) renderBoard(liveRefs, core.state.view);
   });
   const card = document.createElement('div');
   card.className = 'reveal-chess-promotion__card';
@@ -619,49 +492,8 @@ export function fillCapturedPool(
 }
 
 // ── Move list (positions are public, so every move shows) ────────────────────
-
-function renderVisibleMoveList(liveRefs: LiveRefs): void {
-  const moves = state.events.filter((event): event is RevealChessMoveEvent =>
-    isRevealChessMoveEvent(event),
-  );
-  // Render every move that has been played, always. Stepping back only moves the
-  // active highlight (replay.activePly()); it must never drop rows. The ceiling
-  // is the full game length, not the scrubbed ply.
-  const totalPly = replay.latestPly();
-  liveRefs.moveList.replaceChildren();
-  if (totalPly === 0) {
-    const item = document.createElement('li');
-    item.className = 'move-row';
-    item.textContent = 'No moves yet';
-    liveRefs.moveList.append(item);
-    return;
-  }
-  const activePly = replay.activePly();
-  for (const row of visibleMoveRows(moves, totalPly)) {
-    const item = document.createElement('li');
-    item.className = 'move-row reveal-chess-move-row';
-    const number = document.createElement('span');
-    number.className = 'reveal-chess-move-row__number';
-    number.textContent = `${row.fullMove}.`;
-    const white = document.createElement('span');
-    white.className = [
-      'reveal-chess-move-row__move',
-      activePly === row.fullMove * 2 - 1 ? 'active' : '',
-    ]
-      .filter(Boolean)
-      .join(' ');
-    white.textContent = row.white ?? '...';
-    const black = document.createElement('span');
-    const blackPly = row.fullMove * 2;
-    black.className = ['reveal-chess-move-row__move', activePly === blackPly ? 'active' : '']
-      .filter(Boolean)
-      .join(' ');
-    black.textContent = blackPly <= totalPly ? (row.black ?? '...') : '';
-    item.append(number, white, black);
-    liveRefs.moveList.append(item);
-  }
-  syncMoveListScroll(liveRefs.moveList, { live: replay.isLive(), plyCount: replay.latestPly() });
-}
+// The core renders the live two-column list from state.events + notate; this
+// pure grouping helper stays exported for the unit test's data-path coverage.
 
 export function visibleMoveRows(
   moves: readonly RevealChessMoveEvent[],
@@ -687,29 +519,6 @@ function eventPly(event: RevealChessMoveEvent, fallbackIndex: number): number {
 }
 
 // ── Replay capture (no fog to redact; capture every distinct server view) ─────
-
-function captureReplayView(view: RevealChessWireView | null): void {
-  if (!view) return;
-  if (view === lastCapturedView) return;
-  const positionKey = replayPositionKey(view);
-  const nextPly = replayPlyForView(view, positionKey !== lastCapturedPositionKey);
-  if (positionKey === lastCapturedPositionKey && nextPly <= replay.latestPly()) {
-    lastCapturedView = view;
-    return;
-  }
-  replay.push({ ply: nextPly, view });
-  lastCapturedView = view;
-  lastCapturedPositionKey = positionKey;
-}
-
-function replayPlyForView(view: RevealChessWireView, positionChanged: boolean): number {
-  if (view.status.type === 'playing') {
-    const completedFullMoves = Math.max(0, view.moveNumber - 1);
-    return completedFullMoves * 2 + (view.status.turn === 'black' ? 1 : 0);
-  }
-  if (positionChanged && view.lastMove) return replay.latestPly() + 1;
-  return replay.latestPly();
-}
 
 function replayPositionKey(view: RevealChessWireView): string {
   const board = Object.entries(view.board)
@@ -774,7 +583,8 @@ export function revealChessReviewUrl(roomId: string): string {
 }
 
 function orientationFor(view: RevealChessWireView | null): RevealChessColor {
-  if (isRevealChessColor(state.seat)) return state.seat;
+  const seat = core?.state.seat;
+  if (isRevealChessColor(seat)) return seat;
   return view?.perspective ?? 'white';
 }
 
@@ -786,7 +596,7 @@ function isRevealChessColor(value: unknown): value is RevealChessColor {
   return value === 'white' || value === 'black';
 }
 
-function isRevealChessMoveEvent(event: RevealChessWireEvent): event is RevealChessMoveEvent {
+function isRevealChessMoveEvent(event: TenantLiveEvent): event is RevealChessMoveEvent {
   const move = (event as { move?: unknown }).move;
   return (
     event.type === 'move-played' &&
