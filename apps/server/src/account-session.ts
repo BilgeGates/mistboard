@@ -2,6 +2,7 @@ import { createHash, randomInt, randomUUID } from 'node:crypto';
 import type { IncomingMessage } from 'node:http';
 import { handleBaseForEmail, maxHandleLength, randomFallbackHandle } from './account-identity.js';
 import * as persistence from './persistence.js';
+import { touchPresence } from './presence.js';
 import { sendTransactionalEmail, transactionalEmailConfigured } from './send-email.js';
 import { isProductionLikeRuntime } from './server-policy.js';
 
@@ -29,7 +30,12 @@ export async function currentAccountUser(
       hashSecret(session.token),
       now,
     );
-    if (user) return user;
+    if (user) {
+      // Presence feed: every authed HTTP request and both WS upgrade paths
+      // resolve through here, so this one touch powers /api/players/online.
+      touchPresence(user, now.getTime());
+      return user;
+    }
   }
   return null;
 }

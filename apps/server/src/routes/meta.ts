@@ -2,8 +2,11 @@ import type { IncomingMessage, ServerResponse } from 'node:http';
 import { getBuildInfo } from '../build-info.js';
 import { darkXiangqiEnabled, ratedEnabled } from '../feature-flags.js';
 import * as persistence from '../persistence.js';
+import { onlinePresence, refreshPresence } from '../presence.js';
+import { PUBLIC_RATING_TIME_CLASS } from '../rating-buckets.js';
 import { readEventLoopLagMs } from '../server-event-loop-lag.js';
 import { getProxyTrustWarning } from '../server-policy.js';
+import { registeredVariantTenants } from '../variant-tenant/registry.js';
 import {
   type HttpApiContext,
   isHttpAdminAuthorized,
@@ -94,6 +97,48 @@ export async function tryHandle(
     return true;
   }
 
+  if (pathname === '/api/players/online') {
+    if (!requireMethod(request, response, 'GET')) return true;
+    const now = Date.now();
+    // Presence is fed by session resolution (see account-session.ts), which a
+    // player deep in a long game may not have hit for longer than the TTL. An
+    // open room socket is live presence by definition, so re-touch every
+    // connected account across the legacy room map and all tenant room maps.
+    for (const room of ctx.rooms.values()) {
+      for (const client of room.clients) {
+        if (client.userId) refreshPresence(client.userId, now);
+      }
+    }
+    for (const tenant of registeredVariantTenants()) {
+      for (const room of tenant.rooms.values()) {
+        for (const client of room.clients) {
+          if (client.userId) refreshPresence(client.userId, now);
+        }
+      }
+    }
+    // Same visibility gate as the leaderboard query: private profiles never
+    // appear on public surfaces.
+    const visible = onlinePresence(now)
+      .filter((entry) => entry.profileVisibility !== 'private')
+      .sort((a, b) => a.handle.localeCompare(b.handle));
+    const listed = visible.slice(0, ONLINE_PLAYERS_LIMIT);
+    // One representative rating per player (their best blitz pool). Ratings
+    // are decoration here, so the endpoint stays available without a database.
+    const ratings = persistence.isInitialized()
+      ? await persistence.getBestRatings(
+          listed.map((entry) => entry.userId),
+          PUBLIC_RATING_TIME_CLASS,
+        )
+      : new Map<string, persistence.BestRatingEntry>();
+    const players = listed.map((entry) => ({
+      handle: entry.handle,
+      displayName: entry.displayName,
+      rating: ratings.get(entry.userId) ?? null,
+    }));
+    writeJson(response, 200, { players, count: visible.length }, { 'cache-control': 'no-store' });
+    return true;
+  }
+
   if (pathname === '/api/stats/public') {
     if (!requireMethod(request, response, 'GET')) return true;
     if (!requirePersistence(response)) return true;
@@ -117,6 +162,9 @@ export async function tryHandle(
 
   return false;
 }
+
+// Cap on the online-players listing; `count` still reports the full total.
+const ONLINE_PLAYERS_LIMIT = 50;
 
 function parseLimit(value: string | null): number {
   if (!value) return 100;

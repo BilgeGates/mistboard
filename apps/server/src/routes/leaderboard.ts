@@ -14,6 +14,22 @@ export async function tryHandle(
   pathname: string,
   parsedUrl: URL,
 ): Promise<boolean> {
+  if (pathname === '/api/leaderboard/summary') {
+    if (!requireMethod(request, response, 'GET')) return true;
+    if (!requirePersistence(response)) return true;
+    const limitParam = parseInt(parsedUrl.searchParams.get('limit') ?? '10', 10);
+    const limitPerVariant = Number.isNaN(limitParam) ? 10 : Math.max(1, Math.min(limitParam, 50));
+    const [ladders, activePlayers] = await Promise.all([
+      persistence.getLeaderboardSummary({
+        timeClass: PUBLIC_RATING_TIME_CLASS,
+        limitPerVariant,
+      }),
+      persistence.getMostActivePlayers(limitPerVariant),
+    ]);
+    writeJson(response, 200, { timeClass: PUBLIC_RATING_TIME_CLASS, ladders, activePlayers });
+    return true;
+  }
+
   if (pathname !== '/api/leaderboard') return false;
   if (!requireMethod(request, response, 'GET')) return true;
   if (!requirePersistence(response)) return true;

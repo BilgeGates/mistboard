@@ -24,10 +24,13 @@ import type { WebSocket } from 'ws';
 
 // The structural slice of a live tenant room the dispatch layer touches.
 // Registration closures cast back to their concrete room type internally.
+// `userId` is in the slice so presence surfaces (/api/players/online) can
+// enumerate connected accounts without knowing any tenant's client type.
 export type TenantManagedRoom = {
   id: string;
   clients: Iterable<{
     socket: { close(code?: number, reason?: string): unknown; send(data: string): unknown };
+    userId?: string | null;
   }>;
   pendingWrites: Promise<void>;
 };

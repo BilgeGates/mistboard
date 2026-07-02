@@ -106,11 +106,11 @@ Edit task → find file → open only that file.
 | `routes/dark-xiangqi-games.ts` | Hidden Dark Xiangqi postgame/review API branch; keeps non-chess finished-game records out of generic chess replay APIs |
 | `routes/lobby.ts` | `/api/lobby`, `/api/lobby/:ticketId`, plus `joinLobby` / `cancelLobbyTicket` / `pruneLobbyTickets` / `lobbyTicketResponse` / `lobbyOpenRequests` |
 | `routes/games.ts` | All `/api/games/*` + `/api/eve-games/recent` (8 routes) + game-data helpers (`gameSummaryForApi`, `gameEventsForApi`, `gameReviewForApi`, `gameArtifactsForApi`, engine-color helpers) |
-| `routes/leaderboard.ts` | `/api/leaderboard` |
+| `routes/leaderboard.ts` | `/api/leaderboard` + `/api/leaderboard/summary` (top-N per variant in one query) |
 | `routes/feedback.ts` | `/api/feedback` + honeypot + anon rate-limit + email-and-persist fan-out |
 | `routes/forum.ts` | `/api/forum/*`: category/topic/search reads, account-gated topic/reply/report writes, topic/post edits, admin move/pin/lock/hide moderation, admin report queue, validation, and per-account posting rate limits |
 | `routes/annotations.ts` | `/api/annotations` (admin GET/POST/PUT, JSON-lines file backed) |
-| `routes/meta.ts` | `/api/server-status`, `/api/live-stats` |
+| `routes/meta.ts` | `/api/server-status`, `/api/live-stats`, `/api/players/online` |
 | `routes/engines.ts` | `/api/engines/playable` |
 | `routes/correspondence-rooms.ts` | POST `/api/correspondence/rooms` (days-per-move dark-chess seeks/rooms); account-gated, `correspondenceEnabled` flag |
 | `routes/correspondence-games.ts` | GET `/api/correspondence/games` — signed-in player's in-flight correspondence games (your-move-first) + nav-badge count; reads the `room_deadlines` index |
@@ -136,6 +136,7 @@ Edit task → find file → open only that file.
 | `routes/bots.ts` | Public bot directory/profile API (`/api/bots`, `/api/bots/:id`) filtered to playable enabled variants |
 | `bot-profile-policy.ts` | Shared bot profile policy: public bot id parsing and playable-variant filtering for bot directory/profile surfaces |
 | `account-session.ts` | Account auth: `currentAccountUser`, `ensureUserForEmail`, `hashSecret`, session cookies, email login |
+| `presence.ts` | In-memory online-players tracker (touched by `currentAccountUser`, TTL-pruned) behind `/api/players/online` |
 | `account-identity.ts` | Email normalization, handle generation, display name handling |
 | `build-info.ts` | Build metadata surfaced through status responses |
 | `feature-flags.ts` | Runtime on-switches for rated mode and hidden/prelaunch surfaces |

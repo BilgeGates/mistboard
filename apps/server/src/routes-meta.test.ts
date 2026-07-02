@@ -1,9 +1,14 @@
 import assert from 'node:assert/strict';
 import type { IncomingMessage, ServerResponse } from 'node:http';
 import test from 'node:test';
+import { clearPresence, PRESENCE_TTL_MS, touchPresence } from './presence.js';
 import type { HttpApiContext } from './routes/lib.js';
 import { tryHandle } from './routes/meta.js';
 import type { Client, Room } from './server-types.js';
+import {
+  registerVariantTenant,
+  type VariantTenantRegistration,
+} from './variant-tenant/registry.js';
 
 type ResponseCapture = { body: string; headers: Record<string, string>; status: number | null };
 
@@ -114,4 +119,113 @@ test('live-stats keeps signed-in and anonymous id spaces separate', async () => 
   ]);
   const stats = await liveStats(rooms);
   assert.equal(stats.online, 2);
+});
+
+// ── /api/players/online ─────────────────────────────────────────────────────
+
+type OnlinePlayers = {
+  players: Array<{
+    handle: string;
+    displayName: string;
+    rating: { variant: string; eloRating: number; provisional: boolean } | null;
+  }>;
+  count: number;
+};
+
+async function onlinePlayers(rooms: Map<string, Room> = new Map()): Promise<OnlinePlayers> {
+  const response = captureResponse();
+  const handled = await tryHandle(
+    liveStatsContext(rooms),
+    getRequest(),
+    response,
+    '/api/players/online',
+    new URL('http://localhost/api/players/online'),
+  );
+  assert.equal(handled, true);
+  assert.equal(response.status, 200);
+  return JSON.parse(response.body) as OnlinePlayers;
+}
+
+function presenceUser(
+  id: string,
+  handle: string,
+  profileVisibility: 'public' | 'unlisted' | 'private' = 'public',
+) {
+  return { id, handle, displayName: handle, profileVisibility };
+}
+
+test('players/online lists recently seen users sorted by handle', async () => {
+  clearPresence();
+  touchPresence(presenceUser('u1', 'zoe'));
+  touchPresence(presenceUser('u2', 'amir'));
+  const result = await onlinePlayers();
+  assert.deepEqual(
+    result.players.map((p) => p.handle),
+    ['amir', 'zoe'],
+  );
+  assert.equal(result.count, 2);
+  // Without persistence there is no rating lookup; the field is still present.
+  assert.equal(result.players[0]!.rating, null);
+});
+
+test('players/online drops users past the presence TTL', async () => {
+  clearPresence();
+  touchPresence(presenceUser('u1', 'stale'), Date.now() - PRESENCE_TTL_MS - 1_000);
+  touchPresence(presenceUser('u2', 'fresh'));
+  const result = await onlinePlayers();
+  assert.deepEqual(
+    result.players.map((p) => p.handle),
+    ['fresh'],
+  );
+});
+
+test('players/online hides private profiles but counts them nowhere', async () => {
+  clearPresence();
+  touchPresence(presenceUser('u1', 'hidden', 'private'));
+  touchPresence(presenceUser('u2', 'listed', 'unlisted'));
+  const result = await onlinePlayers();
+  assert.deepEqual(
+    result.players.map((p) => p.handle),
+    ['listed'],
+  );
+  assert.equal(result.count, 1);
+});
+
+test('players/online keeps a silent open-socket player listed past the TTL', async () => {
+  // A player mid-game holds a WebSocket but may make no authed HTTP request
+  // for longer than the TTL. Their live room connection must refresh presence.
+  clearPresence();
+  touchPresence(presenceUser('u1', 'marathoner'), Date.now() - PRESENCE_TTL_MS - 1_000);
+  const rooms = new Map<string, Room>([['a', room('playing', [client('c1', 'u1')])]]);
+  const result = await onlinePlayers(rooms);
+  assert.deepEqual(
+    result.players.map((p) => p.handle),
+    ['marathoner'],
+  );
+});
+
+test('players/online refreshes connections in variant-tenant rooms too', async () => {
+  clearPresence();
+  touchPresence(presenceUser('u1', 'tenant-player'), Date.now() - PRESENCE_TTL_MS - 1_000);
+  // Minimal registration slice: the endpoint only walks `rooms`.
+  registerVariantTenant({
+    kind: 'test-presence-tenant',
+    gameSpecId: 'test-presence-spec',
+    roomIdPrefix: 'tpres_',
+    rooms: new Map([
+      [
+        'tpres_1',
+        {
+          id: 'tpres_1',
+          clients: [{ socket: { close() {}, send() {} }, userId: 'u1' }],
+          pendingWrites: Promise.resolve(),
+        },
+      ],
+    ]),
+  } as unknown as VariantTenantRegistration);
+  const result = await onlinePlayers();
+  assert.deepEqual(
+    result.players.map((p) => p.handle),
+    ['tenant-player'],
+  );
 });
