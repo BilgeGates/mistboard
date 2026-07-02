@@ -21,17 +21,19 @@ import { dirname, join } from 'node:path';
 import test from 'node:test';
 import { fileURLToPath } from 'node:url';
 import { getLegalMoves, type XiangqiMove } from '@mistboard/game';
-import {
-  appendDarkXiangqiRuntimeEvent,
-  createDarkXiangqiRuntimeRoomFromEvents,
-  type DarkXiangqiEvent,
-  type DarkXiangqiRuntimeRoom,
-  type DarkXiangqiSeat,
-  darkXiangqiClientEventFor,
-  darkXiangqiPlyAtEventIndex,
-  darkXiangqiSnapshotPayload,
-  expireDarkXiangqiClock,
+import type {
+  DarkXiangqiEvent,
+  DarkXiangqiRuntimeRoom,
+  DarkXiangqiSeat,
 } from './dark-xiangqi-runtime.js';
+import { darkXiangqiClientEventFor, darkXiangqiTenant } from './dark-xiangqi-tenant.js';
+import {
+  appendTenantRuntimeEvent,
+  createTenantRuntimeRoomFromEvents,
+  expireTenantClock,
+  tenantPlyAtEventIndex,
+  tenantSnapshotPayload,
+} from './variant-tenant/runtime.js';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 // Anchor on the package dir so the fixture resolves whether this file runs
@@ -50,7 +52,7 @@ type GoldenStep = {
 type GoldenScript = { id: string; steps: GoldenStep[] };
 
 function snapshotFor(room: DarkXiangqiRuntimeRoom, seat: DarkXiangqiSeat): SeatRecord {
-  const payload = darkXiangqiSnapshotPayload(room, {
+  const payload = tenantSnapshotPayload(darkXiangqiTenant, room, {
     id: `client-${seat}`,
     seat,
     solo: false,
@@ -66,7 +68,7 @@ function recordStep(
 ): void {
   const step: GoldenStep = { label, snapshots: {} };
   if (appended) {
-    const ply = darkXiangqiPlyAtEventIndex(room.events, appended.seq);
+    const ply = tenantPlyAtEventIndex(room.events, appended.seq);
     step.eventForSeat = {};
     for (const seat of SEATS) {
       step.eventForSeat[seat] = darkXiangqiClientEventFor(appended.event, seat, ply);
@@ -84,12 +86,12 @@ function append(
   label: string,
   event: DarkXiangqiEvent,
 ): void {
-  const seq = appendDarkXiangqiRuntimeEvent(room, event);
+  const seq = appendTenantRuntimeEvent(darkXiangqiTenant, room, event);
   recordStep(script, room, label, { event, seq });
 }
 
 function hydrate(events: DarkXiangqiEvent[]): DarkXiangqiRuntimeRoom {
-  const created = createDarkXiangqiRuntimeRoomFromEvents(events);
+  const created = createTenantRuntimeRoomFromEvents(darkXiangqiTenant, events);
   assert.ok(created.ok, 'golden script event log must hydrate');
   return created.room;
 }
@@ -249,7 +251,7 @@ function runScriptC(): GoldenScript {
   }
 
   const expiredColor = playingTurn(room);
-  const expiredClock = expireDarkXiangqiClock(room.projection.clock, 90_000, expiredColor);
+  const expiredClock = expireTenantClock(room.projection.clock, 90_000, expiredColor);
   assert.ok(expiredClock, 'script C must have an armed clock to expire');
   append(script, room, 'clock-expired', {
     type: 'clock-expired',

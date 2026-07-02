@@ -6,19 +6,24 @@ import {
   type XiangqiSquare,
 } from '@mistboard/game';
 import { darkXiangqiRooms } from './../dark-xiangqi-registration.js';
-import {
-  applyDarkXiangqiEvent,
-  type DarkXiangqiEvent,
-  type DarkXiangqiProjection,
-  type DarkXiangqiRuntimeRoom,
-  type DarkXiangqiWirePlayerView,
-  getDarkXiangqiClientView,
-  isDarkXiangqiEventLog,
-  replayDarkXiangqiEvents,
+import type {
+  DarkXiangqiEvent,
+  DarkXiangqiProjection,
+  DarkXiangqiRuntimeRoom,
 } from './../dark-xiangqi-runtime.js';
+import {
+  buildDarkXiangqiGameSummary,
+  type DarkXiangqiWirePlayerView,
+  darkXiangqiTenant,
+  getDarkXiangqiClientView,
+} from './../dark-xiangqi-tenant.js';
 import { darkXiangqiEnabled } from './../feature-flags.js';
 import * as persistence from './../persistence.js';
-import { buildDarkXiangqiGameSummary } from './../server-dark-xiangqi-events.js';
+import {
+  applyTenantEvent,
+  isTenantEventLog,
+  replayTenantEvents,
+} from './../variant-tenant/runtime.js';
 import { type HttpApiContext, requireMethod, writeJson } from './lib.js';
 
 type DarkXiangqiPostgameViewKey = XiangqiColor | 'truth';
@@ -98,7 +103,7 @@ export async function darkXiangqiPostgameForApi(
     persistenceEnabled ? deps.loadRoomEvents(roomId) : null,
   ]);
   if (game && game.variant !== DARK_XIANGQI_SPEC_ID) return null;
-  if (events && !isDarkXiangqiEventLog(events, roomId)) return null;
+  if (events && !isTenantEventLog(darkXiangqiTenant, events, roomId)) return null;
 
   let source: {
     game: persistence.RecentEveGameRecord;
@@ -111,7 +116,7 @@ export async function darkXiangqiPostgameForApi(
   }
   if (!source) return null;
 
-  const projection = replayDarkXiangqiEvents(source.events);
+  const projection = replayTenantEvents(darkXiangqiTenant, source.events);
   if (projection.state.status.type !== 'finished') return null;
 
   const latestMoveColor = latestDarkXiangqiMoveColor(source.events);
@@ -149,7 +154,7 @@ function darkXiangqiPostgameFromLiveRoom(
 ): { game: persistence.RecentEveGameRecord; events: readonly DarkXiangqiEvent[] } | null {
   if (!room || room.id !== roomId) return null;
   if (room.projection.state.status.type !== 'finished') return null;
-  if (!isDarkXiangqiEventLog(room.events, roomId)) return null;
+  if (!isTenantEventLog(darkXiangqiTenant, room.events, roomId)) return null;
   const summary = buildDarkXiangqiGameSummary(room);
   return {
     game: recentGameRecordFromSummary(room.id, summary),
@@ -210,13 +215,13 @@ function darkXiangqiPostgameHistory(
 ): DarkXiangqiPostgameHistory {
   const created = events[0];
   if (!created || created.type !== 'room-created') return {};
-  let projection = replayDarkXiangqiEvents([created]);
+  let projection = replayTenantEvents(darkXiangqiTenant, [created]);
   let ply = 0;
   let latestMoveColor: XiangqiColor | undefined;
   const history = postgameHistoryViews(projection, ply, latestMoveColor);
 
   for (const event of events.slice(1)) {
-    projection = applyDarkXiangqiEvent(projection, event);
+    projection = applyTenantEvent(darkXiangqiTenant, projection, event);
     if (event.type !== 'move-played') continue;
     ply += 1;
     latestMoveColor = event.color;

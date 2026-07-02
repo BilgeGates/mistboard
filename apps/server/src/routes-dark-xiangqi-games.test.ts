@@ -1,11 +1,10 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { DARK_XIANGQI_SPEC_ID } from '@mistboard/game';
-import {
-  createDarkXiangqiRuntimeRoomFromEvents,
-  type DarkXiangqiEvent,
-} from './dark-xiangqi-runtime.js';
+import type { DarkXiangqiEvent } from './dark-xiangqi-runtime.js';
+import { darkXiangqiTenant } from './dark-xiangqi-tenant.js';
 import { darkXiangqiPostgameForApi } from './routes/dark-xiangqi-games.js';
+import { createTenantRuntimeRoomFromEvents } from './variant-tenant/runtime.js';
 
 test('Dark Xiangqi postgame can render a finished in-memory room without persistence', async () => {
   const roomId = 'dxq_live_postgame';
@@ -13,7 +12,7 @@ test('Dark Xiangqi postgame can render a finished in-memory room without persist
     { type: 'room-created', at: 1_000, roomId, gameSpecId: DARK_XIANGQI_SPEC_ID },
     { type: 'seat-resigned', at: 2_000, roomId, color: 'black' },
   ];
-  const created = createDarkXiangqiRuntimeRoomFromEvents(events);
+  const created = createTenantRuntimeRoomFromEvents(darkXiangqiTenant, events);
   if (!created.ok) throw new Error('fixture event log must hydrate');
   assert.equal(created.room.id, roomId);
 
