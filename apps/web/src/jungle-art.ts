@@ -26,10 +26,9 @@ export const JUNGLE_ART = {
   /** Ring stroke width ÷ token size (1.55px at the blog's CELL=48). */
   ringStrokeRatio: 0.032,
   /** Per-role art trim so silhouettes sit consistently inside the disc; default 1. The
-   *  elephant's wide ears need the most trim so they don't touch the ring. */
-  fit: { rat: 0.94, wolf: 0.94, leopard: 0.92, tiger: 0.97, elephant: 0.86 } as Partial<
-    Record<JunglePieceRole, number>
-  >,
+   *  v2 "Dobutsu Minimal" masters are pre-fitted (per-animal optical sizing baked into
+   *  the PNGs), so no trims — adjust sizing in the masters, not here. */
+  fit: {} as Partial<Record<JunglePieceRole, number>>,
   /** Soft drop-shadow under each token (blog: drop-shadow(0 1.5px 2px rgba(58,44,32,.34))). */
   shadow: { dx: 0, dy: 1.5, std: 1, color: '#3a2c20', opacity: 0.34 },
   /** Flip Jungle face-down tile: a banqi-style flat jade disc (neutral — the deal is
@@ -40,10 +39,13 @@ export const JUNGLE_ART = {
 
 const PIECES_DIR = '/piece-sets/jungle/dobutsu';
 const BOARD_DIR = '/piece-sets/jungle/dobutsu/board';
+/** Cache-buster for the piece PNGs; bump when the art in public/ changes. v2 = the
+ *  "Dobutsu Minimal" edition (2026-07-02). */
+const PIECES_VERSION = 2;
 
-/** Dobutsu animal cutout href (byte-identical to the blog's jungle-dobutsu-pieces). */
+/** Dobutsu animal cutout href (same masters as the blog's jungle-dobutsu-pieces). */
 export function jungleDobutsuPieceHref(color: JungleColor, role: JunglePieceRole): string {
-  return `${PIECES_DIR}/${color}-${role}.png`;
+  return `${PIECES_DIR}/${color}-${role}.png?v=${PIECES_VERSION}`;
 }
 
 /** Board terrain / tile art href: 'grass' | 'water' | 'den' | 'trap' | 'flip-board' | 'flip-back'. */
