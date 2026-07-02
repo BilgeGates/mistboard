@@ -5,6 +5,7 @@ import {
   createUser,
   followUser,
   hasBlock,
+  listFollowingIds,
   listRelations,
   unblockUser,
   unfollowUser,
@@ -126,6 +127,23 @@ definePersistenceTests('relations', () => {
 
     assert.equal((await unfollowUser({ actorId: 'rel_user_gil', targetHandle: 'hana' })).ok, true);
     assert.equal(await countFollowing('rel_user_gil'), 0);
+  });
+
+  test('listFollowingIds returns the follow targets only', async () => {
+    const now = new Date('2026-07-01T00:00:00Z');
+    await makeUser('rel_user_nia', 'nia', now);
+    await makeUser('rel_user_omar', 'omar', now);
+    await makeUser('rel_user_pia', 'pia', now);
+
+    assert.equal(
+      (await followUser({ actorId: 'rel_user_nia', targetHandle: 'omar', now })).ok,
+      true,
+    );
+    assert.equal((await blockUser({ actorId: 'rel_user_nia', targetHandle: 'pia', now })).ok, true);
+
+    const ids = await listFollowingIds('rel_user_nia');
+    assert.deepEqual(ids, ['rel_user_omar']);
+    assert.deepEqual(await listFollowingIds('rel_user_omar'), []);
   });
 
   test('the follow cap refuses new follows', async () => {

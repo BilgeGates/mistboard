@@ -235,6 +235,7 @@ export {
   followUser,
   hasBlock,
   hasFollow,
+  listFollowingIds,
   listRelations,
   unblockUser,
   unfollowUser,

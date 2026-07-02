@@ -12,6 +12,7 @@ import type { IncomingMessage, ServerResponse } from 'node:http';
 import { currentAccountUser } from './../account-session.js';
 import { createAuthRateLimiter } from './../auth-rate-limit.js';
 import * as persistence from './../persistence.js';
+import { onlinePresence } from './../presence.js';
 import { requireMethod, requirePersistence, writeJson } from './lib.js';
 
 const HANDLE_PATTERN = /^[a-zA-Z0-9_-]{1,40}$/;
@@ -79,6 +80,26 @@ export async function tryHandle(
         ? { following: relation.following, blocked: relation.blocked }
         : { following: false, blocked: false },
     });
+    return true;
+  }
+
+  // Online-friends (#94): the viewer's follow set intersected with the
+  // in-memory presence map. Same visibility gate as /api/players/online:
+  // private profiles never appear, even to their followers.
+  if (pathname === '/api/relations/online-following') {
+    if (!requireMethod(request, response, 'GET')) return true;
+    if (!requirePersistence(response)) return true;
+    const user = await currentAccountUser(request);
+    if (!user) {
+      writeJson(response, 401, { error: 'not_signed_in' });
+      return true;
+    }
+    const following = new Set(await persistence.listFollowingIds(user.id));
+    const players = onlinePresence()
+      .filter((entry) => following.has(entry.userId) && entry.profileVisibility !== 'private')
+      .sort((a, b) => a.handle.localeCompare(b.handle))
+      .map((entry) => ({ handle: entry.handle, displayName: entry.displayName }));
+    writeJson(response, 200, { players, count: players.length });
     return true;
   }
 

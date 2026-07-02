@@ -17,11 +17,68 @@
   color: var(--site-text);
 }
 
+.inbox-left {
+  display: grid;
+  gap: 14px;
+  align-content: start;
+}
+
 .inbox-contacts {
   border: 1px solid var(--site-border);
   border-radius: 4px;
   background: var(--site-panel);
   padding: 14px;
+}
+
+/* Online-friends box: absent from the layout until it has players. */
+.inbox-online:empty {
+  display: none;
+}
+
+.inbox-online {
+  border: 1px solid var(--site-border);
+  border-radius: 4px;
+  background: var(--site-panel);
+  padding: 12px 14px;
+}
+
+.inbox-online-heading {
+  margin: 0 0 8px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--site-text);
+}
+
+.inbox-online-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 4px;
+}
+
+.inbox-online-row {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--site-text);
+  text-decoration: none;
+}
+
+.inbox-online-row:hover,
+.inbox-online-row:focus-visible {
+  color: var(--site-accent-strong);
+  outline: none;
+}
+
+.inbox-online-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--site-positive, #3a9d5c);
+  flex-shrink: 0;
 }
 
 .inbox-thread-list {
@@ -377,7 +434,7 @@
     grid-template-columns: 1fr;
   }
 
-  .inbox-has-convo .inbox-contacts {
+  .inbox-has-convo .inbox-left {
     display: none;
   }
 

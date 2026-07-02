@@ -22,6 +22,7 @@ type ThreadSummary = {
 type DmMessage = { id: string; fromMe: boolean; bodyText: string; createdAt: string };
 
 const CONVO_POLL_MS = 4000;
+const ONLINE_POLL_MS = 60_000;
 
 // Set once per mount; renderThreads rebuilds the contacts rail on every poll
 // refresh, so the admin queue link has to survive re-renders via module state.
@@ -48,13 +49,25 @@ export async function mountInbox(root: HTMLElement, handle: string | null): Prom
   viewerIsAdmin = user.accountRole === 'admin';
   if (handle) shell.classList.add('inbox-has-convo');
 
+  // Left column wraps the contacts rail and the online-friends box so the
+  // thread list can re-render on poll without touching its neighbor.
+  const left = document.createElement('div');
+  left.className = 'inbox-left';
   const contacts = document.createElement('section');
   contacts.className = 'inbox-contacts';
+  const online = document.createElement('section');
+  online.className = 'inbox-online';
+  left.append(contacts, online);
   const convo = document.createElement('section');
   convo.className = 'inbox-convo';
-  shell.append(contacts, convo);
+  shell.append(left, convo);
 
   await renderThreads(contacts, handle, locale);
+  void hydrateOnlineFriends(online, locale);
+  window.setInterval(() => {
+    if (document.visibilityState !== 'visible') return;
+    void hydrateOnlineFriends(online, locale);
+  }, ONLINE_POLL_MS);
 
   if (handle) {
     await openConversation(convo, contacts, handle, locale);
@@ -64,6 +77,38 @@ export async function mountInbox(root: HTMLElement, handle: string | null): Prom
     hint.textContent = t('inbox.pickConversation', {}, locale);
     convo.append(hint);
   }
+}
+
+// Online-friends box (#94): players you follow who are online right now.
+// Renders nothing when empty (no dead box), same principle as the chat
+// widget's quiet-collapse.
+async function hydrateOnlineFriends(container: HTMLElement, locale: Locale): Promise<void> {
+  const resp = await fetch('/api/relations/online-following').catch(() => null);
+  if (!resp?.ok) return;
+  const data = (await resp.json()) as { players: { handle: string; displayName: string }[] };
+  if (data.players.length === 0) {
+    container.replaceChildren();
+    return;
+  }
+  const heading = document.createElement('h2');
+  heading.className = 'inbox-online-heading';
+  heading.textContent = t('inbox.onlineNow', {}, locale);
+  const list = document.createElement('ul');
+  list.className = 'inbox-online-list';
+  for (const player of data.players) {
+    const item = document.createElement('li');
+    const link = document.createElement('a');
+    link.className = 'inbox-online-row';
+    link.href = `/@/${encodeURIComponent(player.handle)}`;
+    const dot = document.createElement('span');
+    dot.className = 'inbox-online-dot';
+    const name = document.createElement('span');
+    name.textContent = `@${player.handle}`;
+    link.append(dot, name);
+    item.append(link);
+    list.append(item);
+  }
+  container.replaceChildren(heading, list);
 }
 
 async function renderThreads(

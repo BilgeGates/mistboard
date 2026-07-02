@@ -135,6 +135,18 @@ export async function hasBlock(blockerId: string, blockedId: string): Promise<bo
   return rows.length > 0;
 }
 
+// The online-friends box (#94): the viewer's followed user ids, bounded by
+// the follow cap, for intersecting with the in-memory presence map.
+export async function listFollowingIds(actorId: string): Promise<string[]> {
+  const { rows } = await getPool().query<{ target_id: string }>(
+    `SELECT target_id FROM user_relations
+     WHERE actor_id = $1 AND relation = 'follow'
+     LIMIT ${FOLLOW_CAP}`,
+    [actorId],
+  );
+  return rows.map((row) => row.target_id);
+}
+
 // The friends-only DM policy gate: does `actorId` follow `targetId`?
 export async function hasFollow(actorId: string, targetId: string): Promise<boolean> {
   const { rows } = await getPool().query(
