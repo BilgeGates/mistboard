@@ -1,17 +1,20 @@
 import type pg from 'pg';
 import { BUILTIN_ENGINES } from './builtin/index.js';
-import type { EngineDefinition } from './types.js';
+import type { EngineClientId, EngineDefinition, EngineId } from './types.js';
 
 type Queryable = Pick<pg.Client | pg.Pool | pg.PoolClient, 'query'>;
 
 export type {
+  EngineClientId,
+  EngineConfig,
   EngineDefinition,
+  EngineId,
   EngineMoveContext,
   EngineMoveDecision,
   EngineMoveScore,
 } from './types.js';
 
-export function defaultEngineId(): string {
+export function defaultEngineId(): EngineId {
   return 'builtin-random-legal';
 }
 
@@ -29,7 +32,7 @@ export function playableBuiltinEngines(): EngineDefinition[] {
 // Legacy (v0.9.5) and Random stay in the registry for EvE/testing/historical
 // records, but are NOT offered in the live PvE picker. No random fallback in the
 // PvE serving path — if Misty can't serve it fails loudly (503), by design.
-const PROD_PLAYABLE_ENGINE_IDS = new Set([
+const PROD_PLAYABLE_ENGINE_IDS = new Set<EngineId>([
   // GO-LIVE (2026-06-21): flip the player-facing PvE engine python-v2-v1.4 -> v1.5.
   // Misty 1.5 = v1.4 profile + a curated opening book (drop the now-redundant 2.Nc3
   // forces — v1.2's king guard covers the a5-e1 diagonal on its own; force ...dxe4
@@ -62,7 +65,9 @@ export function playableLiveEngines(): EngineDefinition[] {
   );
 }
 
-export function isPlayableLiveEngineClientId(clientId: string | undefined): boolean {
+export function isPlayableLiveEngineClientId(
+  clientId: string | undefined,
+): clientId is EngineClientId {
   if (!clientId) return false;
   const engineId = clientId === 'random-engine' ? defaultEngineId() : clientId;
   return playableLiveEngines().some((engine) => engine.id === engineId);
@@ -75,7 +80,7 @@ export function isPlayableLiveEngineClientId(clientId: string | undefined): bool
 // two predicates diverged when the picker was streamlined to a single engine
 // (2026-06-02): legacy/random games still exist and must be recognized, even
 // though those engines are no longer offered.
-export function isKnownEngineClientId(clientId: string | undefined): boolean {
+export function isKnownEngineClientId(clientId: string | undefined): clientId is EngineClientId {
   if (!clientId) return false;
   const engineId = clientId === 'random-engine' ? defaultEngineId() : clientId;
   return engineId in KNOWN_ENGINES;
@@ -84,21 +89,23 @@ export function isKnownEngineClientId(clientId: string | undefined): boolean {
 // True iff `clientId` is a registered engine that plays Dark Mini Xiangqi. Used
 // to (a) validate a PvE create request's engineId and (b) identify the engine
 // seat in a DMX room (its seat holds this id, set by a seat-assigned event).
-export function isDarkMiniXiangqiEngineClientId(clientId: string | undefined): boolean {
+export function isDarkMiniXiangqiEngineClientId(
+  clientId: string | undefined,
+): clientId is EngineId {
   if (!clientId) return false;
   return KNOWN_ENGINES[clientId]?.gameSpecId === 'dark-mini-xiangqi';
 }
 
 // True iff `clientId` is a registered engine that plays full Dark Xiangqi.
-export function isDarkXiangqiEngineClientId(clientId: string | undefined): boolean {
+export function isDarkXiangqiEngineClientId(clientId: string | undefined): clientId is EngineId {
   if (!clientId) return false;
   return KNOWN_ENGINES[clientId]?.gameSpecId === 'dark-xiangqi';
 }
 
 // The default Dark Mini Xiangqi PvE engine (the single player-facing DMX engine,
 // mirroring Misty for chess).
-export const DARK_MINI_XIANGQI_DEFAULT_ENGINE_ID = 'python-dmx-v1.0';
-export const DARK_XIANGQI_DEFAULT_ENGINE_ID = 'python-fdx-v1.0';
+export const DARK_MINI_XIANGQI_DEFAULT_ENGINE_ID: EngineId = 'python-dmx-v1.0';
+export const DARK_XIANGQI_DEFAULT_ENGINE_ID: EngineId = 'python-fdx-v1.0';
 
 const PYTHON_ENGINES: Record<string, EngineDefinition> = {
   'python-tier1-v0.9.5': {

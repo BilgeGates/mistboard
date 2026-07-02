@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { type GameEvent, type GameState, initialGameProjection, type Move } from '@mistboard/game';
-import type { EngineDefinition, EngineMoveContext } from './engine-registry.js';
+import type { EngineDefinition, EngineId, EngineMoveContext } from './engine-registry.js';
 import {
   chooseLiveEngineMove,
   type LiveEngineFallbackEvent,
@@ -111,7 +111,7 @@ test('python live engine fails closed when room event context is missing', async
       engine: {
         ...testEngine('python-selected', illegalMove),
         kind: 'container',
-        config: { kind: 'python-subprocess' },
+        config: { kind: 'python-subprocess', strategy: 'test', version: 1 },
         chooseMove: undefined,
       },
       onFallback: (event) => events.push(event),
@@ -136,7 +136,7 @@ test('python live engine fails closed when internal engine service is not config
         engine: {
           ...testEngine('python-selected', illegalMove),
           kind: 'container',
-          config: { kind: 'python-subprocess' },
+          config: { kind: 'python-subprocess', strategy: 'test', version: 1 },
           chooseMove: undefined,
         },
         onFallback: (event) => events.push(event),
@@ -222,14 +222,15 @@ test('python live watchdog stays bounded under clock pressure', () => {
 
 function testEngine(id: string, move: Move): EngineDefinition {
   return {
-    id,
+    // Synthetic fixture: intentionally a non-registry id, hence the assertion.
+    id: id as EngineId,
     engineId: id,
     engineName: id,
     name: id,
     kind: 'builtin',
     configHash: id,
     playSignature: id,
-    config: { kind: 'builtin' },
+    config: { kind: 'builtin', strategy: 'test', version: 1 },
     chooseMove() {
       return {
         move,
