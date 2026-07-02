@@ -1,21 +1,7 @@
-import {
-  BANQI_SPEC_ID,
-  DARK_CRAZYHOUSE_SPEC_ID,
-  DARK_CROSSROADS_CHESS_SPEC_ID,
-  DARK_MINI_XIANGQI_SPEC_ID,
-  DARK_SHOGI_SPEC_ID,
-  DARK_XIANGQI_SPEC_ID,
-  DROP_MINI_XIANGQI_SPEC_ID,
-  FORTRESS_XIANGQI_SPEC_ID,
-  JIEQI_SPEC_ID,
-  JUNGLE_FLIP_SPEC_ID,
-  JUNGLE_SPEC_ID,
-  KRIEGSPIEL_SPEC_ID,
-  MINI_XIANGQI_SPEC_ID,
-  REVEAL_CHESS_SPEC_ID,
-} from '@mistboard/game';
+import { type GameSpecId, MINI_XIANGQI_SPEC_ID, maybeGameSpecForId } from '@mistboard/game';
 import {
   banqiEnabled,
+  crossroadsChessEnabled,
   darkCrazyhouseEnabled,
   darkCrossroadsChessEnabled,
   darkMiniXiangqiEnabled,
@@ -30,134 +16,144 @@ import {
   revealChessEnabled,
 } from './feature-flags.js';
 
-export type GameSpecGateDecision =
-  | { type: 'pass' }
+// The chess stack behind this gate serves exactly these two specs.
+// parseVariantId (routes/lib.ts) is the source of that truth: it collapses
+// draft960 spellings to 'draft960' and every other variant string to
+// 'dark-chess', so anything the gate passes lands on one of the two.
+const CHESS_STACK_SPEC_IDS = [
+  'dark-chess',
+  'dark-draft960',
+] as const satisfies readonly GameSpecId[];
+type ChessStackSpecId = (typeof CHESS_STACK_SPEC_IDS)[number];
+const CHESS_STACK_SPEC_ID_SET: ReadonlySet<GameSpecId> = new Set(CHESS_STACK_SPEC_IDS);
+
+// Every spec the chess stack cannot serve. Deriving the key set from the
+// GameSpecId union makes the gate fail closed at compile time: a new union
+// member refuses to build until it gets an entry in GATED_GAME_SPECS below
+// (or joins CHESS_STACK_SPEC_IDS).
+type GatedGameSpecId = Exclude<GameSpecId, ChessStackSpecId>;
+
+type SnakeCase<S extends string> = S extends `${infer Head}-${infer Tail}`
+  ? `${Head}_${SnakeCase<Tail>}`
+  : S;
+
+// Wire error strings are the spec id in snake_case. The `_disabled` strings
+// are load-bearing: variant-tenant/rooms-route.ts and the bespoke Dark (Mini)
+// Xiangqi handlers match them by equality, so they must not drift.
+type GateSpecEntry<Id extends GatedGameSpecId> =
   | {
-      type: 'reject';
-      error:
-        | 'dark_xiangqi_disabled'
-        | 'dark_xiangqi_not_integrated'
-        | 'dark_mini_xiangqi_disabled'
-        | 'dark_mini_xiangqi_not_integrated'
-        | 'mini_xiangqi_not_integrated'
-        | 'drop_mini_xiangqi_disabled'
-        | 'drop_mini_xiangqi_not_integrated'
-        | 'fortress_xiangqi_disabled'
-        | 'fortress_xiangqi_not_integrated'
-        | 'jieqi_disabled'
-        | 'jieqi_not_integrated'
-        | 'banqi_disabled'
-        | 'banqi_not_integrated'
-        | 'reveal_chess_disabled'
-        | 'reveal_chess_not_integrated'
-        | 'dark_crossroads_chess_disabled'
-        | 'dark_crossroads_chess_not_integrated'
-        | 'dark_shogi_disabled'
-        | 'dark_shogi_not_integrated'
-        | 'kriegspiel_disabled'
-        | 'kriegspiel_not_integrated'
-        | 'dark_crazyhouse_disabled'
-        | 'dark_crazyhouse_not_integrated'
-        | 'jungle_disabled'
-        | 'jungle_not_integrated'
-        | 'jungle_flip_disabled'
-        | 'jungle_flip_not_integrated';
-      httpStatus: 404 | 501;
-      wsCloseReason: string;
-    };
+      // Launch flag from ./feature-flags.js: flag off answers 404 `_disabled`;
+      // flag on but the tenant registry missed answers 501 `_not_integrated`.
+      enabled(): boolean;
+      disabledError: `${SnakeCase<Id>}_disabled`;
+      notIntegratedError: `${SnakeCase<Id>}_not_integrated`;
+    }
+  // No launch flag yet (mini-xiangqi and the runtimeStatus 'future' specs):
+  // every request answers 501 `_not_integrated`.
+  | { notIntegratedError: `${SnakeCase<Id>}_not_integrated` };
 
-type GameSpecGateError = Extract<GameSpecGateDecision, { type: 'reject' }>['error'];
-
-type HiddenRuntimeSpec =
-  | typeof DARK_XIANGQI_SPEC_ID
-  | typeof DARK_MINI_XIANGQI_SPEC_ID
-  | typeof DROP_MINI_XIANGQI_SPEC_ID
-  | typeof FORTRESS_XIANGQI_SPEC_ID
-  | typeof JIEQI_SPEC_ID
-  | typeof BANQI_SPEC_ID
-  | typeof REVEAL_CHESS_SPEC_ID
-  | typeof DARK_CROSSROADS_CHESS_SPEC_ID
-  | typeof DARK_SHOGI_SPEC_ID
-  | typeof KRIEGSPIEL_SPEC_ID
-  | typeof DARK_CRAZYHOUSE_SPEC_ID
-  | typeof JUNGLE_SPEC_ID
-  | typeof JUNGLE_FLIP_SPEC_ID;
-
-const HIDDEN_RUNTIME_SPECS: Record<
-  HiddenRuntimeSpec,
-  { enabled(): boolean; disabledError: GameSpecGateError; notIntegratedError: GameSpecGateError }
-> = {
-  [DARK_XIANGQI_SPEC_ID]: {
-    enabled: darkXiangqiEnabled,
-    disabledError: 'dark_xiangqi_disabled',
-    notIntegratedError: 'dark_xiangqi_not_integrated',
-  },
-  [DARK_MINI_XIANGQI_SPEC_ID]: {
-    enabled: darkMiniXiangqiEnabled,
-    disabledError: 'dark_mini_xiangqi_disabled',
-    notIntegratedError: 'dark_mini_xiangqi_not_integrated',
-  },
-  [DROP_MINI_XIANGQI_SPEC_ID]: {
-    enabled: dropMiniXiangqiEnabled,
-    disabledError: 'drop_mini_xiangqi_disabled',
-    notIntegratedError: 'drop_mini_xiangqi_not_integrated',
-  },
-  [FORTRESS_XIANGQI_SPEC_ID]: {
-    enabled: fortressXiangqiEnabled,
-    disabledError: 'fortress_xiangqi_disabled',
-    notIntegratedError: 'fortress_xiangqi_not_integrated',
-  },
-  [JIEQI_SPEC_ID]: {
-    enabled: jieqiEnabled,
-    disabledError: 'jieqi_disabled',
-    notIntegratedError: 'jieqi_not_integrated',
-  },
-  [BANQI_SPEC_ID]: {
-    enabled: banqiEnabled,
-    disabledError: 'banqi_disabled',
-    notIntegratedError: 'banqi_not_integrated',
-  },
-  [REVEAL_CHESS_SPEC_ID]: {
-    enabled: revealChessEnabled,
-    disabledError: 'reveal_chess_disabled',
-    notIntegratedError: 'reveal_chess_not_integrated',
-  },
-  [DARK_CROSSROADS_CHESS_SPEC_ID]: {
-    enabled: darkCrossroadsChessEnabled,
-    disabledError: 'dark_crossroads_chess_disabled',
-    notIntegratedError: 'dark_crossroads_chess_not_integrated',
-  },
-  [DARK_SHOGI_SPEC_ID]: {
-    enabled: darkShogiEnabled,
-    disabledError: 'dark_shogi_disabled',
-    notIntegratedError: 'dark_shogi_not_integrated',
-  },
-  [KRIEGSPIEL_SPEC_ID]: {
-    enabled: kriegspielEnabled,
-    disabledError: 'kriegspiel_disabled',
-    notIntegratedError: 'kriegspiel_not_integrated',
-  },
-  [DARK_CRAZYHOUSE_SPEC_ID]: {
+// Entries ordered as in the GameSpecId union (packages/game/src/game-specs.ts).
+const GATED_GAME_SPECS = {
+  'dark-crazyhouse': {
     enabled: darkCrazyhouseEnabled,
     disabledError: 'dark_crazyhouse_disabled',
     notIntegratedError: 'dark_crazyhouse_not_integrated',
   },
-  [JUNGLE_SPEC_ID]: {
+  kriegspiel: {
+    enabled: kriegspielEnabled,
+    disabledError: 'kriegspiel_disabled',
+    notIntegratedError: 'kriegspiel_not_integrated',
+  },
+  'dark-antichess': { notIntegratedError: 'dark_antichess_not_integrated' },
+  'sun-tzu': { notIntegratedError: 'sun_tzu_not_integrated' },
+  'lao-tzu': { notIntegratedError: 'lao_tzu_not_integrated' },
+  'dark-seirawan': { notIntegratedError: 'dark_seirawan_not_integrated' },
+  'mini-xiangqi': { notIntegratedError: 'mini_xiangqi_not_integrated' },
+  'dark-mini-xiangqi': {
+    enabled: darkMiniXiangqiEnabled,
+    disabledError: 'dark_mini_xiangqi_disabled',
+    notIntegratedError: 'dark_mini_xiangqi_not_integrated',
+  },
+  'drop-mini-xiangqi': {
+    enabled: dropMiniXiangqiEnabled,
+    disabledError: 'drop_mini_xiangqi_disabled',
+    notIntegratedError: 'drop_mini_xiangqi_not_integrated',
+  },
+  'dark-xiangqi': {
+    enabled: darkXiangqiEnabled,
+    disabledError: 'dark_xiangqi_disabled',
+    notIntegratedError: 'dark_xiangqi_not_integrated',
+  },
+  'dark-shogi': {
+    enabled: darkShogiEnabled,
+    disabledError: 'dark_shogi_disabled',
+    notIntegratedError: 'dark_shogi_not_integrated',
+  },
+  'dark-omega': { notIntegratedError: 'dark_omega_not_integrated' },
+  jieqi: {
+    enabled: jieqiEnabled,
+    disabledError: 'jieqi_disabled',
+    notIntegratedError: 'jieqi_not_integrated',
+  },
+  banqi: {
+    enabled: banqiEnabled,
+    disabledError: 'banqi_disabled',
+    notIntegratedError: 'banqi_not_integrated',
+  },
+  'crossroads-chess': {
+    enabled: crossroadsChessEnabled,
+    disabledError: 'crossroads_chess_disabled',
+    notIntegratedError: 'crossroads_chess_not_integrated',
+  },
+  'dark-crossroads-chess': {
+    enabled: darkCrossroadsChessEnabled,
+    disabledError: 'dark_crossroads_chess_disabled',
+    notIntegratedError: 'dark_crossroads_chess_not_integrated',
+  },
+  'reveal-chess': {
+    enabled: revealChessEnabled,
+    disabledError: 'reveal_chess_disabled',
+    notIntegratedError: 'reveal_chess_not_integrated',
+  },
+  jungle: {
     enabled: jungleEnabled,
     disabledError: 'jungle_disabled',
     notIntegratedError: 'jungle_not_integrated',
   },
-  [JUNGLE_FLIP_SPEC_ID]: {
+  'jungle-flip': {
     enabled: jungleFlipEnabled,
     disabledError: 'jungle_flip_disabled',
     notIntegratedError: 'jungle_flip_not_integrated',
   },
-};
+  'fortress-xiangqi': {
+    enabled: fortressXiangqiEnabled,
+    disabledError: 'fortress_xiangqi_disabled',
+    notIntegratedError: 'fortress_xiangqi_not_integrated',
+  },
+} satisfies { readonly [Id in GatedGameSpecId]: GateSpecEntry<Id> };
+
+type GateEntryUnion = (typeof GATED_GAME_SPECS)[GatedGameSpecId];
+type GameSpecGateError =
+  | Extract<GateEntryUnion, { disabledError: string }>['disabledError']
+  | GateEntryUnion['notIntegratedError']
+  | 'unknown_game_spec';
+
+export type GameSpecGateDecision =
+  | { type: 'pass' }
+  | {
+      type: 'reject';
+      error: GameSpecGateError;
+      httpStatus: 404 | 501;
+      wsCloseReason: string;
+    };
 
 export function gateGameSpecRequest(input: {
   gameSpecId?: unknown;
   variant?: unknown;
 }): GameSpecGateDecision {
+  // Legacy special case, kept first so precedence matches the old gate: a
+  // canonical Mini Xiangqi variant string on the chess path answers
+  // not-integrated regardless of what gameSpecId says.
   if (input.variant === MINI_XIANGQI_SPEC_ID) {
     return {
       type: 'reject',
@@ -166,48 +162,51 @@ export function gateGameSpecRequest(input: {
       wsCloseReason: 'game spec not integrated',
     };
   }
-  const requested = requestedHiddenRuntimeSpec(input);
-  if (!requested) return { type: 'pass' };
-  const spec = HIDDEN_RUNTIME_SPECS[requested];
-  if (!spec.enabled()) {
+  // `gameSpecId` is the canonical selector. Absent (undefined, or null from
+  // URLSearchParams.get on the WS path) passes; anything else must resolve to
+  // a chess-stack spec. maybeGameSpecForId also resolves the registry aliases
+  // ('dual-chess', 'fog-draft960'), mirroring tenant request matching.
+  if (input.gameSpecId !== undefined && input.gameSpecId !== null) {
+    const spec = typeof input.gameSpecId === 'string' ? maybeGameSpecForId(input.gameSpecId) : null;
+    if (!spec) {
+      return {
+        type: 'reject',
+        error: 'unknown_game_spec',
+        httpStatus: 404,
+        wsCloseReason: 'unknown game spec',
+      };
+    }
+    if (!isChessStackSpecId(spec.id)) return rejectGatedSpec(spec.id);
+  }
+  // The legacy `variant` field only rejects when it names a known non-chess
+  // spec (or one of its aliases). Free strings stay with parseVariantId's
+  // collapse: legacy clients send spellings like 'fog-draft960' or arbitrary
+  // values and rely on landing in dark chess.
+  if (typeof input.variant === 'string') {
+    const spec = maybeGameSpecForId(input.variant);
+    if (spec && !isChessStackSpecId(spec.id)) return rejectGatedSpec(spec.id);
+  }
+  return { type: 'pass' };
+}
+
+function isChessStackSpecId(id: GameSpecId): id is ChessStackSpecId {
+  return CHESS_STACK_SPEC_ID_SET.has(id);
+}
+
+function rejectGatedSpec(id: GatedGameSpecId): GameSpecGateDecision {
+  const entry = GATED_GAME_SPECS[id];
+  if ('enabled' in entry && !entry.enabled()) {
     return {
       type: 'reject',
-      error: spec.disabledError,
+      error: entry.disabledError,
       httpStatus: 404,
       wsCloseReason: 'game spec disabled',
     };
   }
   return {
     type: 'reject',
-    error: spec.notIntegratedError,
+    error: entry.notIntegratedError,
     httpStatus: 501,
     wsCloseReason: 'game spec not integrated',
   };
-}
-
-function requestedHiddenRuntimeSpec(input: {
-  gameSpecId?: unknown;
-  variant?: unknown;
-}): HiddenRuntimeSpec | null {
-  // `gameSpecId` is the canonical selector. Keep the legacy `variant` guard only
-  // to fail closed if an older or hand-written client sends non-chess specs
-  // through the chess room path.
-  for (const spec of [
-    DARK_XIANGQI_SPEC_ID,
-    DARK_MINI_XIANGQI_SPEC_ID,
-    DROP_MINI_XIANGQI_SPEC_ID,
-    FORTRESS_XIANGQI_SPEC_ID,
-    JIEQI_SPEC_ID,
-    BANQI_SPEC_ID,
-    REVEAL_CHESS_SPEC_ID,
-    DARK_CROSSROADS_CHESS_SPEC_ID,
-    DARK_SHOGI_SPEC_ID,
-    KRIEGSPIEL_SPEC_ID,
-    DARK_CRAZYHOUSE_SPEC_ID,
-    JUNGLE_SPEC_ID,
-    JUNGLE_FLIP_SPEC_ID,
-  ] as const) {
-    if (input.gameSpecId === spec || input.variant === spec) return spec;
-  }
-  return null;
 }
