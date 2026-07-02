@@ -9,7 +9,7 @@ import type { ShogiColor } from '@mistboard/game';
 import type { WebSocket } from 'ws';
 import type { DarkShogiRuntimeRoom } from './dark-shogi-runtime.js';
 import { darkShogiTenant } from './dark-shogi-tenant.js';
-import { clearDarkShogiRuntimeTimers } from './server-dark-shogi-lifecycle.js';
+import { clearTenantRuntimeTimers } from './variant-tenant/lifecycle.js';
 import { createTenantWsRuntime, type TenantLiveClient } from './variant-tenant/ws.js';
 
 export type DarkShogiLiveClient = TenantLiveClient<ShogiColor>;
@@ -48,4 +48,6 @@ export function scheduleDarkShogiLifecycleTimers(room: DarkShogiLiveRoom): void 
   darkShogiWs.scheduleLifecycleTimers(room);
 }
 
-export { clearDarkShogiRuntimeTimers };
+export function clearDarkShogiRuntimeTimers(room: DarkShogiLiveRoom): void {
+  clearTenantRuntimeTimers(room);
+}
