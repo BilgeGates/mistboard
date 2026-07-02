@@ -2,13 +2,14 @@ import assert from 'node:assert/strict';
 import type { IncomingMessage } from 'node:http';
 import test from 'node:test';
 import type { WebSocket } from 'ws';
-import { createDarkMiniXiangqiRuntimeRoom } from './dark-mini-xiangqi-runtime.js';
+import { darkMiniXiangqiTenant } from './dark-mini-xiangqi-tenant.js';
 import type { DarkMiniXiangqiRematchContext } from './server-dark-mini-xiangqi-rematch.js';
 import {
   clearDarkMiniXiangqiRuntimeTimers,
   type DarkMiniXiangqiLiveRoom,
   handleDarkMiniXiangqiWebSocketConnection,
 } from './server-ws-dark-mini-xiangqi.js';
+import { createTenantRuntimeRoom } from './variant-tenant/runtime.js';
 
 const darkMiniXiangqiFlag = 'MISTBOARD_DARK_MINI_XIANGQI_ENABLED';
 
@@ -421,7 +422,7 @@ function request(roomId: string, clientId: string, seatToken?: unknown): Incomin
 }
 
 function liveRoom(roomId: string): DarkMiniXiangqiLiveRoom {
-  const created = createDarkMiniXiangqiRuntimeRoom(roomId);
+  const created = createTenantRuntimeRoom(darkMiniXiangqiTenant, roomId);
   assert.equal(created.ok, true);
   if (!created.ok) throw new Error('flagged mini room creation failed');
   return created.room as DarkMiniXiangqiLiveRoom;

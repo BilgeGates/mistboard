@@ -12,12 +12,12 @@ import type { WebSocket } from 'ws';
 import type { DarkMiniXiangqiEvent } from './dark-mini-xiangqi-runtime.js';
 import { darkMiniXiangqiTenant } from './dark-mini-xiangqi-tenant.js';
 import { scheduleDarkMiniXiangqiEngineMove } from './server-dark-mini-xiangqi-engine.js';
-import { clearDarkMiniXiangqiRuntimeTimers } from './server-dark-mini-xiangqi-lifecycle.js';
 import type {
   DarkMiniXiangqiLiveClient,
   DarkMiniXiangqiLiveRoom,
 } from './server-dark-mini-xiangqi-live-room.js';
 import type { DarkMiniXiangqiRematchContext } from './server-dark-mini-xiangqi-rematch.js';
+import { clearTenantRuntimeTimers } from './variant-tenant/lifecycle.js';
 import { createTenantWsRuntime } from './variant-tenant/ws.js';
 
 // Re-exported (the definitions live in a leaf module so this handler and the
@@ -58,7 +58,9 @@ export function scheduleDarkMiniXiangqiLifecycleTimers(room: DarkMiniXiangqiLive
   darkMiniXiangqiWs.scheduleLifecycleTimers(room);
 }
 
-export { clearDarkMiniXiangqiRuntimeTimers };
+export function clearDarkMiniXiangqiRuntimeTimers(room: DarkMiniXiangqiLiveRoom): void {
+  clearTenantRuntimeTimers(room);
+}
 
 export function broadcastDarkMiniXiangqiEventAppended(
   room: DarkMiniXiangqiLiveRoom,

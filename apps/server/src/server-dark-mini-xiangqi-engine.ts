@@ -17,16 +17,14 @@
  */
 
 import { getMiniXiangqiLegalMoves, type MiniXiangqiColor } from '@mistboard/game';
-import {
-  type DarkMiniXiangqiEvent,
-  darkMiniXiangqiClockRemainingMs,
-} from './dark-mini-xiangqi-runtime.js';
+import type { DarkMiniXiangqiEvent } from './dark-mini-xiangqi-runtime.js';
 import { reportEngineMoveOk } from './engine-move-guard.js';
 import { buildMiniXiangqiEngineTurnRequest } from './engine-protocol/build-mini-xiangqi.js';
 import { isDarkMiniXiangqiEngineClientId, loadEngine } from './engines/registry.js';
 import { requestInternalEngineTurn } from './internal-engine-client.js';
 import { engineCounters, logger } from './obs.js';
 import type { DarkMiniXiangqiLiveRoom } from './server-dark-mini-xiangqi-live-room.js';
+import { tenantClockRemainingMs } from './variant-tenant/runtime.js';
 
 const ENGINE_SECRET = process.env.MISTBOARD_ENGINE_SECRET ?? 'mistboard-dev-engine-secret';
 const DEFAULT_TIMEOUT_MS = 30_000;
@@ -128,7 +126,7 @@ export async function playDarkMiniXiangqiEngineMoveIfReady(
 
   const now = ctx.now?.() ?? Date.now();
   const clock = room.projection.clock;
-  const remainingMs = clock ? darkMiniXiangqiClockRemainingMs(clock, seat, now) : null;
+  const remainingMs = clock ? tenantClockRemainingMs(clock, seat, now) : null;
   const incrementMs = clock?.incrementMs ?? 0;
   if (remainingMs !== null && remainingMs <= 0) return; // the clock timer handles expiry
 

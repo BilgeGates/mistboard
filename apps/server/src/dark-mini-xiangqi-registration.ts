@@ -18,21 +18,22 @@ import {
   handleDarkMiniXiangqiCreate,
   requestsDarkMiniXiangqi,
 } from './routes/dark-mini-xiangqi-rooms.js';
-import { persistenceRecordForDarkMiniXiangqiSeatToken } from './server-dark-mini-xiangqi-events.js';
 import type { DarkMiniXiangqiRematchContext } from './server-dark-mini-xiangqi-rematch.js';
 import {
   createDarkMiniXiangqiLiveRoom,
   type DarkMiniXiangqiLiveRoomCreation,
   type DarkMiniXiangqiRoomEngineSeat,
 } from './server-dark-mini-xiangqi-room-factory.js';
-import { mintDarkMiniXiangqiSeatToken } from './server-dark-mini-xiangqi-seat-session.js';
 import {
   clearDarkMiniXiangqiRuntimeTimers,
   type DarkMiniXiangqiLiveRoom,
   handleDarkMiniXiangqiWebSocketConnection,
   sendDarkMiniXiangqiPayload,
 } from './server-ws-dark-mini-xiangqi.js';
-import { recordTenantPersistenceError } from './variant-tenant/events.js';
+import {
+  persistenceRecordForTenantSeatToken,
+  recordTenantPersistenceError,
+} from './variant-tenant/events.js';
 import { getOrLoadTenantRoom } from './variant-tenant/hydration.js';
 import {
   registerVariantTenant,
@@ -40,6 +41,7 @@ import {
   variantTenantRoomIdTaken,
 } from './variant-tenant/registry.js';
 import { countActiveTenantGames } from './variant-tenant/runtime.js';
+import { mintTenantSeatToken } from './variant-tenant/seat-session.js';
 
 export const darkMiniXiangqiRooms = new Map<string, DarkMiniXiangqiRuntimeRoom>();
 
@@ -81,11 +83,11 @@ const darkMiniXiangqiRematchCtx: DarkMiniXiangqiRematchContext = {
     createDarkMiniXiangqiRoom(timeControl, undefined, undefined, rated),
   buildRoomUrl: (roomId) => `/room/${encodeURIComponent(roomId)}`,
   issueSeatToken: async (room, seat, identity) => {
-    const minted = mintDarkMiniXiangqiSeatToken(room, seat, identity);
+    const minted = mintTenantSeatToken(room, seat, identity);
     if (persistence.isInitialized()) {
       await persistence.upsertRoomSeatToken(
         room.id,
-        persistenceRecordForDarkMiniXiangqiSeatToken(minted.state),
+        persistenceRecordForTenantSeatToken(minted.state),
       );
     }
     return minted;

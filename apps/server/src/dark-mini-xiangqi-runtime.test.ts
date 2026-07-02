@@ -1,17 +1,70 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import {
-  appendDarkMiniXiangqiRuntimeEvent,
-  createDarkMiniXiangqiRuntimeRoom,
-  createDarkMiniXiangqiRuntimeRoomFromEvents,
-  DARK_MINI_XIANGQI_ROOM_ID_PREFIX,
-  type DarkMiniXiangqiEvent,
-  darkMiniXiangqiEventsForClient,
-  darkMiniXiangqiSnapshotPayload,
-  isDarkMiniXiangqiEventLog,
-  isDarkMiniXiangqiRoomId,
-  replayDarkMiniXiangqiEvents,
+import type { RoomTimeControl } from '@mistboard/game';
+import type {
+  DarkMiniXiangqiCreatorPreference,
+  DarkMiniXiangqiEvent,
+  DarkMiniXiangqiRuntimeRoom,
+  DarkMiniXiangqiSnapshotClient,
 } from './dark-mini-xiangqi-runtime.js';
+import {
+  DARK_MINI_XIANGQI_ROOM_ID_PREFIX,
+  darkMiniXiangqiTenant,
+} from './dark-mini-xiangqi-tenant.js';
+import {
+  appendTenantRuntimeEvent,
+  createTenantRuntimeRoom,
+  createTenantRuntimeRoomFromEvents,
+  isTenantEventLog,
+  isTenantRoomId,
+  replayTenantEvents,
+  tenantEventsForClient,
+  tenantSnapshotPayload,
+} from './variant-tenant/runtime.js';
+
+// The former dark-mini-xiangqi-runtime wrappers, inlined as test-local helpers
+// over the generic tenant* runtime — the production runtime is now types-only.
+// These preserve the DMX fog redaction regression coverage below unchanged.
+function createDarkMiniXiangqiRuntimeRoom(
+  roomId: string,
+  options: {
+    creatorPreference?: DarkMiniXiangqiCreatorPreference;
+    now?: number;
+    timeControl?: RoomTimeControl;
+  } = {},
+) {
+  return createTenantRuntimeRoom(darkMiniXiangqiTenant, roomId, options);
+}
+function createDarkMiniXiangqiRuntimeRoomFromEvents(events: readonly DarkMiniXiangqiEvent[]) {
+  return createTenantRuntimeRoomFromEvents(darkMiniXiangqiTenant, events);
+}
+function appendDarkMiniXiangqiRuntimeEvent(
+  room: DarkMiniXiangqiRuntimeRoom,
+  event: DarkMiniXiangqiEvent,
+) {
+  return appendTenantRuntimeEvent(darkMiniXiangqiTenant, room, event);
+}
+function replayDarkMiniXiangqiEvents(events: readonly DarkMiniXiangqiEvent[]) {
+  return replayTenantEvents(darkMiniXiangqiTenant, events);
+}
+function isDarkMiniXiangqiEventLog(events: readonly unknown[], roomId?: string) {
+  return isTenantEventLog(darkMiniXiangqiTenant, events, roomId);
+}
+function isDarkMiniXiangqiRoomId(roomId: string) {
+  return isTenantRoomId(darkMiniXiangqiTenant, roomId);
+}
+function darkMiniXiangqiSnapshotPayload(
+  room: DarkMiniXiangqiRuntimeRoom,
+  client: DarkMiniXiangqiSnapshotClient,
+) {
+  return tenantSnapshotPayload(darkMiniXiangqiTenant, room, client);
+}
+function darkMiniXiangqiEventsForClient(
+  room: DarkMiniXiangqiRuntimeRoom,
+  client: DarkMiniXiangqiSnapshotClient,
+) {
+  return tenantEventsForClient(darkMiniXiangqiTenant, room, client);
+}
 
 const darkMiniXiangqiKey = 'MISTBOARD_DARK_MINI_XIANGQI_ENABLED';
 
@@ -20,7 +73,7 @@ test('Dark Mini Xiangqi runtime is disabled without the launch flag', () => {
   delete process.env[darkMiniXiangqiKey];
   try {
     const result = createDarkMiniXiangqiRuntimeRoom('dmxq_baseline');
-    assert.deepEqual(result, { ok: false, error: 'dark_mini_xiangqi_disabled' });
+    assert.deepEqual(result, { ok: false, error: 'disabled' });
   } finally {
     restoreEnv(darkMiniXiangqiKey, before);
   }

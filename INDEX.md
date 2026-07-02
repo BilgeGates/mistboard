@@ -88,7 +88,7 @@ Edit task → find file → open only that file.
 | `server-ws-kriegspiel.ts` | Thin adapter over `variant-tenant/ws.ts` for Kriegspiel; PvP-only, no rematch, no PvE. |
 | `crossroads-chess-golden-wire.test.ts` | Golden wire-parity suite pinning Crossroads per-seat transport snapshot/event payloads (fixture in `fixtures/`) plus fixture-independent perfect-info invariants (all-seats event streams, PvE roomMode/engine marking, forfeit-deadline gating, dual-chess alias hydration). Regenerate only for intentional wire changes (`MISTBOARD_GOLDEN_RECORD=1`). |
 | `variant-tenant/` | Generic Layer-3 live-room runtime over a `VariantTenant` (tenant.ts = the contract; runtime/events/seat-session/lifecycle/rematch/ws/room-factory = shared plumbing; registry.ts = prefix-to-tenant routing). The rules module is the type boundary; per-seat redaction is tenant policy. |
-| `dark-mini-xiangqi-tenant.ts` | Dark Mini Xiangqi `VariantTenant` (P0 reference tenant): DMX fog event redaction, spectator empty view, lastMove stripping, colors/rules/engine/persistence config. The `server-dark-mini-xiangqi-*` and `dark-mini-xiangqi-runtime` files are thin name-preserving adapters over `variant-tenant/`. |
+| `dark-mini-xiangqi-tenant.ts` | Dark Mini Xiangqi `VariantTenant` (P0 reference tenant): DMX fog event redaction, spectator empty view, lastMove stripping, colors/rules/engine/persistence config. The `dark-mini-xiangqi-runtime` (types-only) + `server-dark-mini-xiangqi-{engine,room-factory,rematch}` + `server-ws-dark-mini-xiangqi` files bind the generic `variant-tenant/` functions (events/lifecycle/seat-session adapters removed 2026-07-01; rematch kept for its stateful coverage). |
 | `dark-mini-xiangqi-golden-wire.test.ts` | Golden wire-parity suite pinning DMX per-seat snapshot/event payloads (fixture in `fixtures/`) plus fixture-independent hidden-info invariants. Regenerate only for intentional wire changes (`MISTBOARD_GOLDEN_RECORD=1`). |
 | `server-room-lifecycle.ts` | Room lifecycle edge handling: room creation/hydration, Draft960 offer seeding, abandoned-room aborts, seat-vacate timers, stale guest prestart abort sweeps, stale paused-room sweeps, paused-room grace resume, and runtime room reset. Injects canonical maps/callbacks from `index.ts`. |
 | `rematch.ts` | Mutual-confirm rematch state machine + finalize. `offerRematch`, `cancelRematch`, `declineRematch`, `finalizeRematchIfReady`, `maybeReplayRematchRedirect`. |
@@ -205,7 +205,7 @@ Edit task → find file → open only that file.
 | `dark-shogi-registration.ts` | Dark Shogi (9x9, hidden/dev-only) registry entry: live-room map, room-factory binding, hydration. No rematch/lobby/watch yet (lobby answers `dark_shogi_not_integrated`); deep-link PvP only |
 | `dark-crazyhouse-registration.ts` | Dark Crazyhouse (chess+drops, hidden/dev-only) registry entry: live-room map, room-factory binding, hydration. No rematch/lobby/watch yet (lobby answers `dark_crazyhouse_not_integrated`); deep-link PvP only |
 | `kriegspiel-registration.ts` | Kriegspiel registry entry: live-room map, room-factory binding, hydration, and watch channel metadata. No rematch/lobby yet (lobby answers `kriegspiel_not_integrated`); deep-link PvP only |
-| `dark-mini-xiangqi-runtime.ts` | Thin adapter over `variant-tenant/` runtime for DMX (P0 reference; wire parity pinned by `dark-mini-xiangqi-golden-wire.test.ts`) |
+| `dark-mini-xiangqi-runtime.ts` | Dark Mini Xiangqi live-room type aliases over the generic `variant-tenant/` runtime (types-only — no legacy export names; ws/factory/engine/rematch/routes/registration/export/golden-wire call the generic `tenant*` functions directly) |
 | `dark-mini-xiangqi-registration.ts` | DMX registry entry: live-room map, room-factory binding, hydration, rematch context; registers dispatch closures |
 | `dark-mini-xiangqi-export.ts` | DMX JSON publication export (honest red/black, coordinate UCI moves; no PGN — xiangqi has no SAN standard) |
 | `mini-xiangqi-tenant.ts` | Mini Xiangqi `VariantTenant`: open-information 7x7 mini xiangqi with public events, public board state, and checkmate/stalemate adjudication |
@@ -229,12 +229,9 @@ Edit task → find file → open only that file.
 | `server-ws-crossroads-chess.ts` | Thin adapter over `variant-tenant/ws.ts` for Crossroads Chess; binds the in-process FSF scheduler into post-connect/post-move hooks; roomMode/pveEngineId ride `snapshotExtras` (golden-pinned) |
 | `server-dark-mini-xiangqi-engine.ts` | Server-side DMX PvE engine-move loop; builds the redacted request via `engine-protocol/build-mini-xiangqi.ts`, calls the internal-engine HTTP client, injects through `appendDarkMiniXiangqiEvent` |
 | `server-dark-xiangqi-engine.ts` | Full Dark Xiangqi PvE engine-move loop; builds the 9x10 redacted request via `engine-protocol/build-xiangqi.ts`, calls the internal-engine HTTP client, validates/falls back to true legal moves, and injects through the tenant event writer. |
-| `server-dark-mini-xiangqi-events.ts` | Thin adapter over `variant-tenant/events.ts` for DMX |
-| `server-dark-mini-xiangqi-lifecycle.ts` | Thin adapter over `variant-tenant/lifecycle.ts` for DMX |
 | `server-dark-mini-xiangqi-live-room.ts` | Live DMX client/room type leaf shared by the ws handler + rematch module (avoids import cycle) |
-| `server-dark-mini-xiangqi-rematch.ts` | Thin adapter over `variant-tenant/rematch.ts` for DMX |
+| `server-dark-mini-xiangqi-rematch.ts` | Adapter over `variant-tenant/rematch.ts` for DMX (mutual-confirm offers, swapped-color finalize, redirect replay) |
 | `server-dark-mini-xiangqi-room-factory.ts` | Thin adapter over `variant-tenant/room-factory.ts` for DMX (injected cross-variant id-collision check) |
-| `server-dark-mini-xiangqi-seat-session.ts` | Thin adapter over `variant-tenant/seat-session.ts` for DMX |
 | `server-ws-dark-mini-xiangqi.ts` | Thin adapter over `variant-tenant/ws.ts` for DMX; binds the DMX PvE scheduler into post-connect/post-move hooks |
 | `variant-tenant/tenant.ts` | The `VariantTenant` Layer-3 contract: rules = the type boundary, `TenantGameStateLike` the structural state slice; per-seat redaction is tenant policy |
 | `variant-tenant/runtime.ts` | Generic event-sourced live-room runtime over a tenant: event model, projection replay, clock math, event-log validation, per-seat snapshot payload (wire-parity pinned per tenant by golden fixtures) |
