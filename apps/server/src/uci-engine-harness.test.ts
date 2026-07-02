@@ -173,7 +173,16 @@ test('UciEnginePool rejects a queued waiter after the queue timeout', async () =
     queueTimeoutMessage: 'slot wait timed out',
   });
   const release1 = await pool.acquire();
-  await assert.rejects(pool.acquire(), /slot wait timed out/);
+  // The queue-wait timer is .unref()ed (it must never keep prod alive), so it
+  // is this test's ONLY wakeup: hold the event loop open until the rejection
+  // lands, or node:test cancels the file when the loop drains (passed
+  // locally, died in CI as 'cancelledByParent').
+  const keepAlive = setInterval(() => {}, 20);
+  try {
+    await assert.rejects(pool.acquire(), /slot wait timed out/);
+  } finally {
+    clearInterval(keepAlive);
+  }
   release1();
   delete process.env.TEST_POOL_MAX;
   delete process.env.TEST_POOL_TIMEOUT;
