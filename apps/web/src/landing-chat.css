@@ -1,0 +1,111 @@
+/* Homepage lobby-chat widget. Empty mount paints nothing; the box only
+   appears once the API confirms the chat flag is on. */
+
+.landing-chat-mount:empty {
+  display: none;
+}
+
+.landing-chat-feed {
+  max-height: 220px;
+  overflow-y: auto;
+  display: grid;
+  gap: 3px;
+  padding: 4px 0;
+}
+
+.landing-chat-line {
+  display: flex;
+  gap: 6px;
+  align-items: baseline;
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.landing-chat-handle {
+  flex-shrink: 0;
+  font-weight: 600;
+  color: var(--site-accent-strong);
+  text-decoration: none;
+}
+
+.landing-chat-handle:hover,
+.landing-chat-handle:focus-visible {
+  text-decoration: underline;
+  outline: none;
+}
+
+.landing-chat-text {
+  color: var(--site-text);
+  overflow-wrap: anywhere;
+}
+
+.landing-chat-admin {
+  margin-left: auto;
+  display: flex;
+  gap: 3px;
+  opacity: 0.35;
+}
+
+.landing-chat-line:hover .landing-chat-admin {
+  opacity: 1;
+}
+
+.landing-chat-admin-action {
+  border: none;
+  background: transparent;
+  color: var(--site-muted);
+  font-size: 11px;
+  cursor: pointer;
+  padding: 0 3px;
+}
+
+.landing-chat-admin-action:hover {
+  color: var(--site-text);
+}
+
+.landing-chat-composer {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding-top: 6px;
+}
+
+.landing-chat-input {
+  flex: 1;
+  min-width: 0;
+  border: 1px solid var(--site-border);
+  border-radius: 3px;
+  background: var(--site-panel-soft);
+  color: var(--site-text);
+  font: inherit;
+  font-size: 12px;
+  padding: 6px 9px;
+}
+
+.landing-chat-status {
+  width: 100%;
+  font-size: 11px;
+  color: var(--site-danger, #c0392b);
+}
+
+.landing-chat-quiet {
+  margin: 0;
+  padding: 6px 0;
+  font-size: 12px;
+  color: var(--site-muted);
+}
+
+.landing-chat-signin {
+  display: inline-block;
+  padding: 6px 0;
+  font-size: 12px;
+  color: var(--site-muted);
+  text-decoration: none;
+}
+
+.landing-chat-signin:hover,
+.landing-chat-signin:focus-visible {
+  color: var(--site-accent-strong);
+  text-decoration: underline;
+  outline: none;
+}

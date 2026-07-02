@@ -14,6 +14,7 @@ import * as annotationsRoute from './routes/annotations.js';
 import * as authRoute from './routes/auth.js';
 import * as banqiGamesRoute from './routes/banqi-games.js';
 import * as botsRoute from './routes/bots.js';
+import * as chatRoute from './routes/chat.js';
 import * as correspondenceGamesRoute from './routes/correspondence-games.js';
 import * as correspondenceSeeksRoute from './routes/correspondence-seeks.js';
 import * as crossroadsChessRoute from './routes/crossroads-chess.js';
@@ -74,6 +75,7 @@ const routes: RouteModule[] = [
   authRoute,
   accountRoute,
   botsRoute,
+  chatRoute,
   enginesRoute,
   feedbackRoute,
   forumRoute,

@@ -14,6 +14,7 @@ import { t } from './i18n/catalog.js';
 import { currentLocale } from './i18n/locale.js';
 import { buildLandingActivity } from './landing-activity.js';
 import { buildLandingAnnouncements } from './landing-announcements.js';
+import { buildLandingChat } from './landing-chat.js';
 import { buildLandingForumPreview } from './landing-forum-preview.js';
 import {
   buildLandingPlayPanel,
@@ -577,6 +578,10 @@ function buildLandingStage(
   const articleCards = buildHomeArticleCards(8, locale);
   if (articleCards) centerColumn.append(articleCards);
   centerColumn.append(buildLandingForumPreview({ hydrate: !opts.skipLiveWidgets }));
+  // Lobby chat: an empty mount that only paints once the API confirms the
+  // chat flag is on, so a flag-off deploy adds nothing to the page (and no
+  // reserved footprint to jank).
+  centerColumn.append(buildLandingChat({ hydrate: !opts.skipLiveWidgets }));
 
   // ── Right rail: the pairing CTAs (play ingresses), with the open-pairing-
   // requests browser stacked beneath them. ──

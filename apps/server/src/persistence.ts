@@ -45,6 +45,19 @@ export type {
   BotRatingSource,
 } from './persistence-bots.js';
 export { getPublicBotForPlay, getPublicBotProfile, listPublicBots } from './persistence-bots.js';
+export type { ChatLineRecord } from './persistence-chat.js';
+export {
+  activeChatTimeout,
+  addChatLine,
+  CHAT_LINE_MAX,
+  CHAT_LINES_RETAINED,
+  CHAT_ROOM_LOBBY,
+  countRecentChatLinesByUser,
+  createChatTimeout,
+  hideChatLine,
+  listChatLines,
+  pruneChatLines,
+} from './persistence-chat.js';
 export type {
   CorrespondenceSeekListing,
   CorrespondenceSeekRecord,

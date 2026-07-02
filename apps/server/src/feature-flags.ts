@@ -120,3 +120,11 @@ export function jungleFlipEnabled(): boolean {
 export function correspondenceEnabled(): boolean {
   return process.env.MISTBOARD_CORRESPONDENCE_ENABLED === 'true';
 }
+
+// Global lobby chat on the homepage (gate-cleared 2026-07-02, ships OFF).
+// This env flag is also the kill switch: flipping it off in Railway and
+// redeploying disables reads and posts in one move (the widget hides itself
+// when the API reports disabled).
+export function lobbyChatEnabled(): boolean {
+  return process.env.MISTBOARD_LOBBY_CHAT_ENABLED === 'true';
+}
