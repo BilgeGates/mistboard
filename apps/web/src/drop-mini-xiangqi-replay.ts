@@ -21,13 +21,14 @@ import {
   type XiangqiPiece,
 } from '@mistboard/game';
 import './drop-mini-xiangqi.css';
+import { tokenPieceSize } from './board-metrics.js';
 import { dropMiniXiangqiMoveLabel, fillDropMiniXiangqiReserve } from './drop-mini-xiangqi-view.js';
 import { readStoredXiangqiPieceSet, xiangqiAppearanceChangedEvent } from './theme.js';
 import { renderXiangqiPieceGlyphed } from './xiangqi-piece-sets.js';
 
 const CELL = 31;
 const MARGIN = 18;
-const PIECE = 28;
+const PIECE = tokenPieceSize(CELL);
 const PAD = 4;
 const FILES = 7;
 const RANKS = 7;

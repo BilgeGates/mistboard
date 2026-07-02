@@ -42,6 +42,7 @@ const BLOCK_PROSE: {
   'xq-replay': caption,
   'mxq-replay': caption,
   'drop-mini-xiangqi-replay': caption,
+  'fortress-xiangqi-replay': caption,
   'shogi-replay': caption,
   'chess-replay': caption,
   'crossroads-replay': caption,

@@ -8,6 +8,7 @@ import type { BanqiDeal, BanqiSeat, JungleColor, JungleFlipDeal, Square } from '
 import type { ChessReplaySpec } from '../chess-replay.js';
 import type { CrossroadsReplaySpec } from '../crossroads-chess-replay.js';
 import type { DropMiniXiangqiReplaySpec } from '../drop-mini-xiangqi-replay.js';
+import type { FortressXiangqiReplaySpec } from '../fortress-xiangqi-replay.js';
 import type { JieqiReplaySpec } from '../jieqi-replay.js';
 import type { MiniXiangqiReplaySpec } from '../mini-xiangqi-replay.js';
 import type { ShogiReplaySpec } from '../shogi-replay.js';
@@ -177,6 +178,14 @@ export type DropMiniXiangqiReplayBlock = {
   caption?: string;
 };
 
+// Fortress Xiangqi analogue: the 7x8 corner-palace board plus both reserves,
+// stepped through board moves and drops against the real kernel.
+export type FortressXiangqiReplayBlock = {
+  kind: 'fortress-xiangqi-replay';
+  spec: FortressXiangqiReplaySpec;
+  caption?: string;
+};
+
 // Shogi analogue: a 9x9 board plus hands, stepped through a western shogi move
 // list and replayed through the real kernel.
 export type ShogiReplayBlock = {
@@ -255,6 +264,7 @@ export type ArticleBlock =
   | ChessReplayBlock
   | MiniXiangqiReplayBlock
   | DropMiniXiangqiReplayBlock
+  | FortressXiangqiReplayBlock
   | ShogiReplayBlock
   | CrossroadsReplayBlock
   | JieqiReplayBlock

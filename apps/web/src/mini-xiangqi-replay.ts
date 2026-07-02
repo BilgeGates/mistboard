@@ -16,6 +16,7 @@ import {
   miniXiangqiSquareOf,
   type XiangqiPiece,
 } from '@mistboard/game';
+import { tokenPieceSize } from './board-metrics.js';
 import { readStoredXiangqiPieceSet, xiangqiAppearanceChangedEvent } from './theme.js';
 import { renderXiangqiPieceGlyphed } from './xiangqi-piece-sets.js';
 
@@ -24,7 +25,7 @@ import { renderXiangqiPieceGlyphed } from './xiangqi-piece-sets.js';
 // identical to the rules diagrams on the same page.
 const CELL = 31;
 const MARGIN = 18;
-const PIECE = 28;
+const PIECE = tokenPieceSize(CELL);
 const PAD = 4;
 const FILES = 7;
 const RANKS = 7;

@@ -12,6 +12,7 @@ import {
   type XiangqiPiece,
   type XiangqiSquare,
 } from '@mistboard/game';
+import { tokenPieceSize } from './board-metrics.js';
 import { readStoredXiangqiPieceSet, xiangqiAppearanceChangedEvent } from './theme.js';
 import { renderXiangqiPieceGlyphed } from './xiangqi-piece-sets.js';
 
@@ -19,7 +20,7 @@ import { renderXiangqiPieceGlyphed } from './xiangqi-piece-sets.js';
 // the replay board is visually identical to the rules diagrams.
 const CELL = 31;
 const MARGIN = 18;
-const PIECE = 28;
+const PIECE = tokenPieceSize(CELL);
 const PAD = 4;
 const BOARD_W = MARGIN * 2 + 8 * CELL;
 const BOARD_H = MARGIN * 2 + 9 * CELL;

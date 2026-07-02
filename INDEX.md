@@ -542,6 +542,9 @@ Run with `MISTBOARD_ALLOW_IN_MEMORY_PERSISTENCE=true npm run test:integration --
 | `drop-mini-xiangqi-postgame.ts` | Drop Mini Xiangqi postgame/review route renderer: truth-board replay with reserve strips and per-ply history from the postgame API |
 | `fortress-xiangqi-postgame.ts` | Fortress Xiangqi postgame/review route renderer: truth-board replay with reserve strips and per-ply history from the postgame API |
 | `drop-mini-xiangqi-replay.ts` | Drop Mini Xiangqi rules-article replay: parses board/drop notation, replays through the real kernel, and renders the sample game with reserve strips |
+| `fortress-xiangqi-replay.ts` | Fortress Xiangqi rules-article replay: parses board/drop notation (R/N/C/P/T/A/E), replays through the real kernel, and renders the sample game on the live board renderer with reserve strips |
+| `fortress-xiangqi-rules-diagrams.ts` | Inline board diagrams for the Fortress Xiangqi rules article (start position, Treasure moves, defender drop zones), built on the live renderer with kernel-derived targets |
+| `board-metrics.ts` | Canonical piece-to-cell proportion (`TOKEN_PIECE_RATIO`) shared by every disc/token board renderer, intersection- or cell-anchored |
 | `mini-xiangqi-spike.ts` | `/mini-xiangqi-spike` FoW Mini Xiangqi sandbox (DEV): local play across red/black/god perspectives over the bespoke 7×7 renderer |
 | `watch-mini-xiangqi-replay.ts` | Mistboard TV (`/watch`) renderer for Dark Mini Xiangqi: postgame payload + shared replay chrome + control bar/auto-play, rendering server-computed fog views (leak-safe) |
 | `watch-mini-open-xiangqi-replay.ts` | Mistboard TV (`/watch`) renderer for open Mini Xiangqi: loads the Mini postgame payload and mounts the single truth-board tenant replay |
@@ -630,7 +633,7 @@ Run with `MISTBOARD_ALLOW_IN_MEMORY_PERSISTENCE=true npm run test:integration --
 | Build/start | `build.mjs`, `start.mjs`, `safe-deploy.mjs`, `release-prod.mjs` |
 | Agent/dev loop | `agent-scan.mjs`, `ci-browser-smoke-plan.mjs`, `ci-checks.mjs`, `drift-check.mjs`, `gate-evidence.mjs`, `verify.mjs`, `worktree-new.mjs`, `worktree-prepare.mjs`, `mobile-loop.mjs`, `visual-check.mjs` |
 | Engine artifacts | `archive-engine-artifact.mjs`, `engine-artifact-{audit,closeout}.mjs`, `capture-belief-artifacts.mjs`, `generate-fow-corpus.mjs` |
-| Variant labs | `variant-lab/drop-mini-xiangqi-{fsf-play,hotseat,scenarios}.ts` plus `drop-mini-xiangqi-fsf.ini`; Drop Mini Xiangqi policy pressure tests, terminal hotseat, scenario audit, and optional `--html` FSF self-play replay export |
+| Variant labs | `variant-lab/drop-mini-xiangqi-{fsf-play,hotseat,scenarios}.ts` plus `drop-mini-xiangqi-fsf.ini`; Drop Mini Xiangqi policy pressure tests, terminal hotseat, scenario audit, and optional `--html` FSF self-play replay export. `variant-lab/fortress-xiangqi-fsf-play.ts` FSF⟷kernel parity harness; `variant-lab/fortress-xiangqi-sample-game.ts` kernel-validated FSF self-play generator for the rules-article replay |
 | Prod smoke | `prod-smoke-plan.mjs`, `wait-prod-revision.mjs`, `prod-lite-smoke.mjs`, `prod-smoke.mjs`, `prod-engine-smoke.mjs`, `prod-engine-playout.mjs`, `time-command.mjs` |
 | AI asset gen | `pixel-gen.mjs`, `video-gen.mjs`, `loop-video.mjs`, `slice-fog.py` |
 | Other | `key-transparency.py` |

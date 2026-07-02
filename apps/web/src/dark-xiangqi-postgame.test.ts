@@ -50,13 +50,13 @@ describe('Dark Xiangqi postgame page', () => {
     expect(root.innerHTML).toContain('aria-label="black cannon"');
     expect(boardWrap(root, 'Server truth').querySelector('.xq-live-fog-mask')).toBeNull();
     expect(boardWrap(root, 'Server truth').innerHTML).not.toContain('hidden piece');
-    expect(blackCannonY(root)).toBe('190');
+    expect(blackCannonY(root)).toBe('191');
 
     root.querySelector<HTMLButtonElement>('[aria-label="Flip all boards"]')?.click();
-    expect(blackCannonY(root)).toBe('370');
+    expect(blackCannonY(root)).toBe('371');
 
     document.dispatchEvent(new KeyboardEvent('keydown', { key: 'f' }));
-    expect(blackCannonY(root)).toBe('190');
+    expect(blackCannonY(root)).toBe('191');
 
     document.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowLeft' }));
     expect(root.textContent).toContain('Ply 1 of 2');

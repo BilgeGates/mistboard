@@ -6,8 +6,13 @@ import type {
   XiangqiPiece,
 } from '@mistboard/game';
 import { fortressXiangqiCoordOf, fortressXiangqiSquareOf } from '@mistboard/game';
+import { tokenPieceSize } from './board-metrics.js';
 import { readStoredXiangqiPieceSet } from './xiangqi-appearance-storage.js';
-import { renderXiangqiPieceGlyphed, type XiangqiPieceSet } from './xiangqi-piece-sets.js';
+import {
+  animalTreasureHref,
+  renderXiangqiPieceGlyphed,
+  type XiangqiPieceSet,
+} from './xiangqi-piece-sets.js';
 
 // Bespoke SVG renderer for the 7x8 Fortress Xiangqi board. Perfect information
 // (no fog): pieces sit on intersections, the two 3x3 palaces are in OPPOSITE
@@ -17,7 +22,11 @@ import { renderXiangqiPieceGlyphed, type XiangqiPieceSet } from './xiangqi-piece
 
 const CELL = 72;
 const MARGIN = 42;
-const PIECE_SIZE = 54;
+const PIECE_SIZE = tokenPieceSize(CELL);
+// Move/selection markers wrap the disc: radii track the piece radius.
+const RING_SELECTION = PIECE_SIZE / 2 + 6;
+const RING_LAST = PIECE_SIZE / 2 + 4;
+const RING_CAPTURE = PIECE_SIZE / 2 + 1;
 const FILES = 7;
 const RANKS = 8;
 const WIDTH = MARGIN * 2 + (FILES - 1) * CELL;
@@ -34,6 +43,9 @@ export type FortressXiangqiBoardRenderOptions = {
   // Highlighted destination squares — board-move targets for a selected piece,
   // or drop targets for a selected reserve role.
   targets?: readonly FortressXiangqiSquare[];
+  // Rules-diagram annotation: destinations a piece CANNOT take (river-locked,
+  // eye-blocked), drawn as a red cross. Non-interactive renders only.
+  blockedSquares?: readonly FortressXiangqiSquare[];
   pieceSet?: XiangqiPieceSet;
   draggingFrom?: FortressXiangqiSquare | null;
 };
@@ -56,6 +68,7 @@ export function renderFortressXiangqiBoardSvg(
       ${lastMoveMarkers(view, perspective)}
       ${selectionRing(options.selectedSquare ?? null, perspective)}
       ${options.interactive ? '' : moveHints(view, targets, perspective)}
+      ${options.interactive ? '' : blockedMarks(options.blockedSquares ?? [], perspective)}
       ${pieceLayer(view, perspective, pieceSet, options.draggingFrom ?? null)}
       ${options.interactive ? hitLayer(perspective, view, targets) : ''}
     </svg>
@@ -185,17 +198,15 @@ function renderFortressXiangqiPiece(
 }
 
 // Treasure disc inner marks (centered in a 100x100 box). On the Dobutsu set it
-// mirrors the animal-disc look (cream fill + colored ring) with the 寶 glyph, so
-// it sits consistently beside the animal pieces — there is no Treasure animal
-// asset yet (a Peacock is the intended art). Other sets use the character disc.
+// mirrors the animal-disc look (cream fill + image + colored ring) with the
+// peacock art from the v2 minimal set. Other sets use the character disc.
 function treasureInnerMarks(color: FortressXiangqiColor, set: XiangqiPieceSet): string {
   const glyph = set === 'simplified' ? '宝' : set === 'western' ? 'T' : '寶';
   if (set === 'animal-dobutsu') {
     const ring = color === 'red' ? '#c2261e' : '#283a47';
-    const ink = color === 'red' ? '#8a1a14' : '#283a47';
     return [
       `<circle cx="50" cy="50" r="48.5" fill="#fff2cf"/>`,
-      `<text x="50" y="50" font-family="serif" font-size="44" font-weight="700" fill="${ink}" text-anchor="middle" dominant-baseline="central">${glyph}</text>`,
+      `<image href="${animalTreasureHref(color)}" x="0" y="0" width="100" height="100" preserveAspectRatio="xMidYMid meet"/>`,
       `<circle cx="50" cy="50" r="45" fill="none" stroke="${ring}" stroke-width="3.2"/>`,
     ].join('');
   }
@@ -224,7 +235,7 @@ function selectionRing(
   if (!selection) return '';
   const { file, rank } = fortressXiangqiCoordOf(selection);
   const { x, y } = intersection(file, rank, perspective);
-  return `<circle class="fxq-selection" cx="${x}" cy="${y}" r="33"/>`;
+  return `<circle class="fxq-selection" cx="${x}" cy="${y}" r="${RING_SELECTION}"/>`;
 }
 
 function moveHints(
@@ -238,8 +249,29 @@ function moveHints(
       const { x, y } = intersection(file, rank, perspective);
       const capture = view.board[sq] !== undefined;
       return capture
-        ? `<circle class="fxq-hint-capture" cx="${x}" cy="${y}" r="28"/>`
+        ? `<circle class="fxq-hint-capture" cx="${x}" cy="${y}" r="${RING_CAPTURE}"/>`
         : `<circle class="fxq-hint" cx="${x}" cy="${y}" r="10"/>`;
+    })
+    .join('');
+}
+
+// Red cross on a point the piece cannot reach — the rules-diagram idiom for
+// river-locked and eye-blocked destinations (matches the collaborator sheet).
+function blockedMarks(
+  squares: readonly FortressXiangqiSquare[],
+  perspective: FortressXiangqiColor,
+): string {
+  return squares
+    .map((sq) => {
+      const { file, rank } = fortressXiangqiCoordOf(sq);
+      const { x, y } = intersection(file, rank, perspective);
+      return [
+        `<g class="fxq-hint-blocked">`,
+        `<circle cx="${x}" cy="${y}" r="13" fill="rgba(194, 38, 30, 0.08)" stroke="#c2261e" stroke-width="2.6"/>`,
+        `<line x1="${x - 9}" y1="${y - 9}" x2="${x + 9}" y2="${y + 9}" stroke="#c2261e" stroke-width="3.2" stroke-linecap="round"/>`,
+        `<line x1="${x + 9}" y1="${y - 9}" x2="${x - 9}" y2="${y + 9}" stroke="#c2261e" stroke-width="3.2" stroke-linecap="round"/>`,
+        `</g>`,
+      ].join('');
     })
     .join('');
 }
@@ -255,7 +287,7 @@ function lastMoveMarkers(
     .map((sq) => {
       const { file, rank } = fortressXiangqiCoordOf(sq);
       const { x, y } = intersection(file, rank, perspective);
-      return `<circle class="fxq-last" cx="${x}" cy="${y}" r="31"/>`;
+      return `<circle class="fxq-last" cx="${x}" cy="${y}" r="${RING_LAST}"/>`;
     })
     .join('');
 }
@@ -275,10 +307,12 @@ function hitLayer(
       const target = targetSet.get(sq);
       const marker = target
         ? target.capture
-          ? `<circle class="fxq-hint-capture" cx="${x}" cy="${y}" r="28"/>`
+          ? `<circle class="fxq-hint-capture" cx="${x}" cy="${y}" r="${RING_CAPTURE}"/>`
           : `<circle class="fxq-hint" cx="${x}" cy="${y}" r="10"/>`
         : '';
-      const hover = target ? `<circle class="fxq-target-hover" cx="${x}" cy="${y}" r="31"/>` : '';
+      const hover = target
+        ? `<circle class="fxq-target-hover" cx="${x}" cy="${y}" r="${RING_LAST}"/>`
+        : '';
       parts.push(
         `<g data-square="${sq}" class="fxq-hit${target ? ' fxq-hit--target' : ''}">${hover}${marker}<rect x="${x - HIT_HALF}" y="${y - HIT_HALF}" width="${HIT_HALF * 2}" height="${HIT_HALF * 2}"/></g>`,
       );

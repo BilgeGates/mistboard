@@ -221,6 +221,13 @@ function animalPieceHref(piece: XiangqiPiece, set: AnimalXiangqiPieceSet): strin
   return `/piece-sets/xiangqi/${set}/${piece.color}-${piece.role}.png?v=${ANIMAL_ART_VERSION}`;
 }
 
+// The Fortress Xiangqi Treasure is not a XiangqiPieceRole, but its Dobutsu art
+// (the peacock) ships in the same set directory; the fortress renderer builds
+// its href here so the cache-bust version stays in one place.
+export function animalTreasureHref(color: XiangqiColor): string {
+  return `/piece-sets/xiangqi/animal-dobutsu/${color}-treasure.png?v=${ANIMAL_ART_VERSION}`;
+}
+
 // Stroked line-art icons (the "Symbols" diagram set). One consistent visual style:
 // piece-color strokes, no fill, rounded joins. Intentionally simple v1 art.
 function symbolMark(role: XiangqiPieceRole, colorHex: string): string {

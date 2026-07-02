@@ -22,6 +22,7 @@ import {
   type JungleFlipSquare,
   jungleFlipCoordOf,
 } from '@mistboard/game';
+import { TOKEN_PIECE_RATIO } from './board-metrics.js';
 import {
   framedTokenSvg,
   jungleBoardAssetHref,
@@ -34,6 +35,9 @@ import {
 const FILES = 4;
 const RANKS = 4;
 const CELL = 64;
+// Flip tokens back off the canonical ratio so they sit INSIDE the last-move
+// ring (its inner clear is ~0.83·cell).
+const FLIP_TOKEN_RATIO = TOKEN_PIECE_RATIO - 0.03;
 
 const PALETTE = {
   // Solid (non-alternating) board: one warm tan for every cell.
@@ -145,8 +149,7 @@ function pieces(
   draggingFrom: JungleFlipSquare | null,
 ): string {
   const parts: string[] = [];
-  // Sized to sit INSIDE the last-move ring (its inner clear is ~0.83·cell).
-  const s = geom.cell * 0.8;
+  const s = geom.cell * FLIP_TOKEN_RATIO;
   const filterId = shadow ? `${gid}-tok` : undefined;
   for (const square of ALL_JUNGLE_FLIP_SQUARES) {
     const entry = board[square];
@@ -183,7 +186,7 @@ export function jungleFlipPieceGhostSvg(entry: {
   const inner = framedTokenSvg({
     cx: CELL / 2,
     cy: CELL / 2,
-    size: CELL * 0.8,
+    size: CELL * FLIP_TOKEN_RATIO,
     ink: entry.color,
     role: entry.role,
   });

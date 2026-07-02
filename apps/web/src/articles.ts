@@ -29,6 +29,7 @@ import {
   type CrossroadsReplayBlock,
   type CtaBlock,
   type DropMiniXiangqiReplayBlock,
+  type FortressXiangqiReplayBlock,
   findArticle,
   type InteractiveBlock,
   type JieqiReplayBlock,
@@ -54,6 +55,10 @@ import {
   type DropMiniXiangqiReplayController,
   mountDropMiniXiangqiReplay,
 } from './drop-mini-xiangqi-replay.js';
+import {
+  type FortressXiangqiReplayController,
+  mountFortressXiangqiReplay,
+} from './fortress-xiangqi-replay.js';
 import { type I18nKey, t } from './i18n/catalog.js';
 import { currentLocale, LOCALE_META, type Locale, localizedHref } from './i18n/locale.js';
 import { type JieqiReplayController, mountJieqiReplay } from './jieqi-replay.js';
@@ -969,6 +974,7 @@ type PendingBlock =
   | ChessReplayBlock
   | MiniXiangqiReplayBlock
   | DropMiniXiangqiReplayBlock
+  | FortressXiangqiReplayBlock
   | ShogiReplayBlock
   | CrossroadsReplayBlock
   | JieqiReplayBlock
@@ -997,6 +1003,7 @@ function renderBlock(block: ArticleBlock, lang?: ArticleLang): HTMLElement {
   if (block.kind === 'xq-replay') return renderXiangqiReplayBlock(block);
   if (block.kind === 'mxq-replay') return renderMiniXiangqiReplayBlock(block);
   if (block.kind === 'drop-mini-xiangqi-replay') return renderDropMiniXiangqiReplayBlock(block);
+  if (block.kind === 'fortress-xiangqi-replay') return renderFortressXiangqiReplayBlock(block);
   if (block.kind === 'shogi-replay') return renderShogiReplayBlock(block);
   if (block.kind === 'chess-replay') return renderChessReplayBlock(block);
   if (block.kind === 'crossroads-replay') return renderCrossroadsReplayBlock(block);
@@ -1175,6 +1182,27 @@ function renderDropMiniXiangqiReplayBlock(block: DropMiniXiangqiReplayBlock): HT
   figure.className =
     'article-figure article-figure-interactive article-figure-xq article-figure-drop-mini-xiangqi';
   figure.dataset.pendingWidget = 'drop-mini-xiangqi-replay';
+
+  const mountTarget = document.createElement('div');
+  mountTarget.className = 'article-interactive-target';
+  figure.append(mountTarget);
+
+  if (block.caption) {
+    const cap = document.createElement('figcaption');
+    cap.className = 'article-figure-caption';
+    cap.textContent = block.caption;
+    figure.append(cap);
+  }
+
+  rememberPendingMount(figure, block);
+  return figure;
+}
+
+function renderFortressXiangqiReplayBlock(block: FortressXiangqiReplayBlock): HTMLElement {
+  const figure = document.createElement('figure');
+  figure.className =
+    'article-figure article-figure-interactive article-figure-xq article-figure-drop-mini-xiangqi';
+  figure.dataset.pendingWidget = 'fortress-xiangqi-replay';
 
   const mountTarget = document.createElement('div');
   mountTarget.className = 'article-interactive-target';
@@ -1705,6 +1733,7 @@ export function mountPendingWidgets(
   | ChessReplayController
   | MiniXiangqiReplayController
   | DropMiniXiangqiReplayController
+  | FortressXiangqiReplayController
   | ShogiReplayController
   | CrossroadsChessReplayController
   | JieqiReplayController
@@ -1743,6 +1772,8 @@ export function mountPendingWidgets(
       controllers.push(mountMiniXiangqiReplay(target, block.spec));
     } else if (block.kind === 'drop-mini-xiangqi-replay') {
       controllers.push(mountDropMiniXiangqiReplay(target, block.spec));
+    } else if (block.kind === 'fortress-xiangqi-replay') {
+      controllers.push(mountFortressXiangqiReplay(target, block.spec));
     } else if (block.kind === 'shogi-replay') {
       controllers.push(mountShogiReplay(target, block.spec));
     } else if (block.kind === 'chess-replay') {
@@ -1935,6 +1966,7 @@ const VARIANT_MINI_BY_SLUG: Record<string, VariantMiniId> = {
   'mini-xiangqi': 'mini-xiangqi',
   'dark-mini-xiangqi': 'dark-mini-xiangqi',
   'drop-mini-xiangqi': 'drop-mini-xiangqi',
+  'fortress-xiangqi': 'fortress-xiangqi',
   jieqi: 'jieqi',
   banqi: 'banqi',
   'crossroads-chess': 'crossroads',

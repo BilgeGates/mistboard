@@ -24,6 +24,7 @@ import type {
   XiangqiSquare,
 } from '@mistboard/game';
 import './live-xiangqi.css';
+import { tokenPieceSize } from './board-metrics.js';
 import { darkXiangqiEnabled } from './feature-flags.js';
 import {
   maybePlayDarkXiangqiSnapshotSound,
@@ -73,7 +74,7 @@ const HEIGHT = MARGIN * 2 + (RANK_COUNT - 1) * CELL;
 const BOARD_RADIUS = 16;
 const RIVER_TOP = MARGIN + 4 * CELL;
 const RIVER_BOTTOM = MARGIN + 5 * CELL;
-const PIECE_SIZE = 52;
+const PIECE_SIZE = tokenPieceSize(CELL);
 const HIT_HALF = 26;
 const FOG_OVERLAP = 0.5;
 
