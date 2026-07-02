@@ -478,9 +478,15 @@ function renderRelationActions(
 ): void {
   row.replaceChildren();
 
-  // A blocked profile only offers Unblock; hiding Follow avoids the confusing
-  // follow-your-own-block overwrite.
+  // A blocked profile only offers Unblock; hiding Follow and Message avoids
+  // the confusing follow-your-own-block overwrite.
   if (!relation.blocked) {
+    const message = document.createElement('a');
+    message.className = 'landing-setup-start';
+    message.href = `/inbox/${encodeURIComponent(handle)}`;
+    message.textContent = t('profile.message', {}, locale);
+    row.append(message);
+
     const follow = document.createElement('button');
     follow.type = 'button';
     follow.className = relation.following ? 'landing-setup-back' : 'landing-setup-start';

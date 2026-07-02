@@ -90,6 +90,8 @@ export function isClientRoute(pathname: string): boolean {
     normalized === '/privacy' ||
     normalized === '/account' ||
     normalized === '/account/settings' ||
+    normalized === '/inbox' ||
+    normalized.startsWith('/inbox/') ||
     normalized === '/correspondence' ||
     normalized === '/leaderboard' ||
     normalized === '/news' ||

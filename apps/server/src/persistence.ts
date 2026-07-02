@@ -53,6 +53,30 @@ export {
   listOpenCorrespondenceSeeks,
 } from './persistence-correspondence-seeks.js';
 export { close, init, isInitialized, probeDb } from './persistence-db.js';
+export type {
+  DmConversation,
+  DmMessageRecord,
+  DmReportRecord,
+  DmSendResult,
+  DmThreadSummary,
+} from './persistence-dms.js';
+export {
+  countRecentDmMessagesByUser,
+  countRecentDmThreadsStartedByUser,
+  countUnreadDmThreads,
+  createDmReport,
+  DM_BODY_MAX,
+  deleteDmThreadForUser,
+  dmThreadExists,
+  dmThreadId,
+  findUserIdByHandle,
+  getDmConversation,
+  getDmThreadForAdmin,
+  listDmReports,
+  listDmThreads,
+  resolveDmReport,
+  sendDmMessage,
+} from './persistence-dms.js';
 export type { FeedbackSubmissionInput } from './persistence-feedback.js';
 export {
   countAnonFeedbackSubmissionsSince,

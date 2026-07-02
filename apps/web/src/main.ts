@@ -9,6 +9,7 @@ import { type I18nKey, t } from './i18n/catalog.js';
 import { currentLocale, initializeLocaleFromCurrentUrl } from './i18n/locale.js';
 import {
   correspondenceNotificationSource,
+  inboxNotificationSource,
   registerNotificationSource,
 } from './notification-nav.js';
 import { setRatedModeEnabled } from './rated-flag.js';
@@ -23,9 +24,11 @@ import {
 initializeLocaleFromCurrentUrl();
 initializeThemeSettings();
 // Register notification sources before the nav mounts — account-nav mounts the
-// bell once signed in, and a bell with no sources is a no-op. Correspondence is
-// the only source today, behind its build flag.
+// bell once signed in, and a bell with no sources is a no-op. Correspondence
+// rides its build flag; the inbox source is unconditional (its fetch 401s to a
+// zero snapshot for anonymous visitors, and the bell only mounts signed-in).
 if (correspondenceEnabled()) registerNotificationSource(correspondenceNotificationSource);
+registerNotificationSource(inboxNotificationSource);
 initializeAccountNav();
 mountRestartBanner();
 void fetch('/api/server-status')
@@ -87,6 +90,11 @@ const wantsTerms = path === '/terms' || page === 'terms';
 const wantsPrivacy = path === '/privacy' || page === 'privacy';
 const wantsAccount = path === '/account' || page === 'account';
 const wantsAccountSettings = path === '/account/settings' || page === 'account-settings';
+// /inbox (thread list) and /inbox/:handle (open conversation). Signed-in-only
+// surface; the page itself renders a sign-in prompt for anonymous visitors.
+const inboxMatch = path.match(/^\/inbox(?:\/([^/]+))?$/);
+const wantsInbox = inboxMatch !== null;
+const inboxHandle = inboxMatch?.[1] ? decodeURIComponent(inboxMatch[1]) : null;
 const wantsLearn = path === '/learn' || page === 'learn';
 const wantsRulesIndex =
   path === '/rules' || path === '/zh-hans/rules' || path === '/zh-hant/rules' || page === 'rules';
@@ -235,6 +243,11 @@ if (replaySample) {
   setTitleKey('account.account');
   void mountOrReport(() =>
     import('./account.js').then(({ mountAccount }) => mountAccount(appRoot)),
+  );
+} else if (wantsInbox) {
+  setTitleKey('inbox.title');
+  void mountOrReport(() =>
+    import('./inbox.js').then(({ mountInbox }) => mountInbox(appRoot, inboxHandle)),
   );
 } else if (wantsCorrespondence) {
   setTitle('Correspondence');

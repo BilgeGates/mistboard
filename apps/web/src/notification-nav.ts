@@ -38,6 +38,18 @@ export const correspondenceNotificationSource: NotificationSource = async () => 
   return { count, entries: [{ label, href: '/correspondence' }] };
 };
 
+// The inbox source: badge counts unread DM threads; the panel always offers
+// the inbox link so the bell doubles as the /inbox entry point. Anonymous
+// visitors get a 401 → zero snapshot (and the bell never mounts signed-out).
+export const inboxNotificationSource: NotificationSource = async () => {
+  const resp = await fetch('/api/inbox/unread-count').catch(() => null);
+  if (!resp?.ok) return { count: 0, entries: [] };
+  const data = (await resp.json()) as { count?: number };
+  const count = typeof data.count === 'number' ? data.count : 0;
+  const label = count > 0 ? `${count} unread ${count === 1 ? 'message' : 'messages'}` : 'Inbox';
+  return { count, entries: [{ label, href: '/inbox' }] };
+};
+
 export function mountNotificationBell(nav: HTMLElement): void {
   if (sources.length === 0) return;
   const utilities = nav.querySelector<HTMLElement>('.site-nav-utilities');

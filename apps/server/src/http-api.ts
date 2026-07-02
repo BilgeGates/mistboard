@@ -28,6 +28,7 @@ import * as feedbackRoute from './routes/feedback.js';
 import * as fortressXiangqiGamesRoute from './routes/fortress-xiangqi-games.js';
 import * as forumRoute from './routes/forum.js';
 import * as gamesRoute from './routes/games.js';
+import * as inboxRoute from './routes/inbox.js';
 import * as jieqiGamesRoute from './routes/jieqi-games.js';
 import * as jungleFlipGamesRoute from './routes/jungle-flip-games.js';
 import * as jungleGamesRoute from './routes/jungle-games.js';
@@ -76,6 +77,7 @@ const routes: RouteModule[] = [
   enginesRoute,
   feedbackRoute,
   forumRoute,
+  inboxRoute,
   metaRoute,
   puzzlesRoute,
   roomsRoute,
