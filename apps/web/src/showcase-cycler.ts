@@ -93,13 +93,19 @@ export async function mountShowcaseCycler(
     // Different kind: tear down and re-mount. Skeleton fills the gap so the slot
     // doesn't flash blank while the new renderer (and its chunk) loads — but only
     // when replacing an existing board; the initial mount paints into the already
-    // rendered shell without a "Loading game" flash.
+    // rendered shell without a "Loading game" flash. Pin the panel's height across
+    // the swap: the widget is fit-content, so without the pin it collapses to the
+    // skeleton's height and the page jumps twice per cross-variant advance.
     mounting = true;
     const hadHandle = handle !== null;
+    const priorHeight = hadHandle ? root.offsetHeight : 0;
     handle?.destroy();
     handle = null;
     handleKind = null;
-    if (hadHandle) renderWatchReplaySkeleton(root);
+    if (hadHandle) {
+      if (priorHeight > 0) root.style.minHeight = `${priorHeight}px`;
+      renderWatchReplaySkeleton(root);
+    }
     try {
       const next = await mountShowcaseBoard(root, entry.specId, entry.roomId, {
         metadataByRoomId: options.metadataByRoomId,
@@ -118,10 +124,12 @@ export async function mountShowcaseCycler(
       prefetchNext();
     } catch (err) {
       console.warn('[showcase] mount failed, skipping', entry.roomId, err);
+      root.style.minHeight = '';
       mounting = false;
       onGameEnd();
       return;
     }
+    root.style.minHeight = '';
     mounting = false;
   }
 

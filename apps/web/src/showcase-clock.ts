@@ -16,6 +16,16 @@ export type ShowcaseTimelineMove = {
   ply: number;
 };
 
+// End-of-game seat marks: once a showcase game reaches its final ply the clocks
+// flip to the result (1 winner / 0 loser / ½ draw) for the between-game hold, so
+// a viewer catching the end sees who won. `first` = the first-mover (red/white)
+// seat slot.
+export function showcaseResultMarks(result: string): { first: string; second: string } {
+  if (result === 'red-wins' || result === 'white-wins') return { first: '1', second: '0' };
+  if (result === 'black-wins') return { first: '0', second: '1' };
+  return { first: '½', second: '½' };
+}
+
 export type ShowcaseClockPair = { first: number; second: number };
 
 // Per-ply playback delays derived from the same move timestamps, so the showcase

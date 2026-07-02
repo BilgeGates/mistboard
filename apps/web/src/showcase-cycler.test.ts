@@ -85,6 +85,27 @@ describe('mountShowcaseCycler', () => {
     expect(skeletonMock).toHaveBeenCalledTimes(1);
   });
 
+  it('pins the slot min-height across a cross-kind swap, releasing it after mount', async () => {
+    const root = document.createElement('div');
+    Object.defineProperty(root, 'offsetHeight', { value: 700, configurable: true });
+    const pinnedAtMount: string[] = [];
+    mountMock.mockImplementation(async (mountRoot, specId, roomId, o) => {
+      pinnedAtMount.push((mountRoot as HTMLElement).style.minHeight);
+      capturedOnGameEnd = o.onGameEnd;
+      const handle = makeHandle(roomId);
+      mounted.push({ roomId, specId, handle });
+      return handle;
+    });
+    await mountShowcaseCycler(root, POOL, opts);
+    expect(pinnedAtMount[0]).toBe(''); // initial mount: nothing to pin
+    capturedOnGameEnd!(); // g1 -> g2 (loadGame, same kind: no pin)
+    await flush();
+    capturedOnGameEnd!(); // g2 -> j1 (cross-kind: pinned during the swap)
+    await flush();
+    expect(pinnedAtMount[1]).toBe('700px');
+    expect(root.style.minHeight).toBe(''); // released once the new board is up
+  });
+
   it('wraps to the front of the pool after the last game', async () => {
     await mountShowcaseCycler(document.createElement('div'), POOL, opts);
     capturedOnGameEnd!(); // -> g2

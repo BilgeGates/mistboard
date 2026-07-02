@@ -8,10 +8,10 @@ import { type GameMeta, mountReplay, type ReplayHandle } from './replay.js';
 import { showcaseRendererKindForSpec } from './showcase-dispatch.js';
 import { webVariantTenantForSpecId } from './variant-tenant/registry.js';
 
-// Hold on the final (reveal) frame before the chess board hands off via
-// onGameEnd. Matches the legacy homepage hold; the tenant frameworks keep their
-// own AUTO_PLAY_LOOP_HOLD_MS (~2.6s). Unifying the two is a Stage-3 pacing pass.
-const SHOWCASE_CHESS_HOLD_MS = 8000;
+// Hold on the final frame (clocks flipped to 1/0/½ result marks) before the
+// board hands off via onGameEnd. Matches the tenant frameworks'
+// SHOWCASE_END_HOLD_MS so every variant ends on the same beat.
+const SHOWCASE_CHESS_HOLD_MS = 4000;
 
 export type ShowcaseBoardOptions = {
   metadataByRoomId: Record<string, GameMeta>;

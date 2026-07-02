@@ -4,8 +4,13 @@
 // through to the variant's review route. Admin-gated by the
 // /api/admin/games/query endpoint (open in local dev). No nav entry.
 import './database.css';
-import { findTimeControl, maybeGameSpecForId } from '@mistboard/game';
-import { displayParticipantName, type FeaturedGame, sourceLabel } from './game-display.js';
+import { findTimeControl } from '@mistboard/game';
+import {
+  displayParticipantName,
+  type FeaturedGame,
+  sourceLabel,
+  variantDisplayLabel,
+} from './game-display.js';
 
 type GameRow = FeaturedGame & {
   initialMs?: number | null;
@@ -206,7 +211,7 @@ function buildFilterForm(
 
   addSelect('variant', 'Variant', [
     { value: '', label: 'Any variant' },
-    ...facets.variants.map((v) => ({ value: v, label: variantLabel(v) })),
+    ...facets.variants.map((v) => ({ value: v, label: variantDisplayLabel(v) })),
   ]);
   addSelect('mode', 'Mode', [
     { value: '', label: 'Any mode' },
@@ -408,7 +413,7 @@ function buildGameRow(game: GameRow): HTMLElement {
   const meta = document.createElement('div');
   meta.className = 'database-row-meta';
   meta.append(
-    metaPill(variantLabel(game.variant)),
+    metaPill(variantDisplayLabel(game.variant)),
     metaPill(timeControlLabel(game)),
     metaPill(sourceLabel(game.mode)),
     metaPill(game.rated === false ? 'Casual' : 'Rated'),
@@ -556,16 +561,8 @@ function resultLabel(result: string): string {
   return 'Draw';
 }
 
-function variantLabel(variant: string): string {
-  // Legacy/alias strings + 'Dark Chess' casing handled explicitly (the dark-chess
-  // spec publicName is the lowercase 'Dark chess'); everything else derives from
-  // the canonical spec so new variants are labelled without editing here.
-  if (variant === 'fog' || variant === 'dark-chess') return 'Dark Chess';
-  if (variant === 'draft960' || variant === 'fog-draft960' || variant === 'dark-draft960')
-    return 'Dark Draft960';
-  if (isCrossroadsChessVariant(variant)) return 'Crossroads Chess';
-  return maybeGameSpecForId(variant)?.publicName ?? variant;
-}
+// Variant labelling lives in game-display.ts (variantDisplayLabel), shared with
+// the homepage showcase caption.
 
 function isCrossroadsChessVariant(variant: string): boolean {
   return variant === 'crossroads-chess' || variant === 'dual-chess';

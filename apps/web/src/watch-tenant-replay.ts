@@ -19,12 +19,16 @@ import {
   reconstructMoveDelays,
   reconstructShowcaseClocks,
   type ShowcaseClockPair,
+  showcaseResultMarks,
 } from './showcase-clock.js';
 import { pickCompactViewKey } from './showcase-compact-view.js';
 import { formatClock } from './web-utils.js';
 
 const AUTO_PLAY_PLY_MS = 1100;
 const AUTO_PLAY_LOOP_HOLD_MS = 2600;
+// Compact showcase end-of-game hold: long enough to read the 1/0/½ result marks
+// before the cycler advances (the chess path holds the same via showcase-board).
+const SHOWCASE_END_HOLD_MS = 4000;
 // Compact showcase per-move pacing: play each move at its real recorded duration
 // clamped to this watchable band, and tick the mover's clock down across it.
 const SHOWCASE_MIN_MOVE_MS = 700;
@@ -339,10 +343,26 @@ export async function mountTenantWatchReplay<
       }
     }
     if (compactSeats) {
-      if (compactClocks) {
-        const at = compactClocks[Math.min(currentPly, compactClocks.length - 1)]!;
-        compactSeats.top.clockEl.textContent = formatClock(at[compactSeats.top.side]);
-        compactSeats.bottom.clockEl.textContent = formatClock(at[compactSeats.bottom.side]);
+      // At the final ply the clocks give way to the result (1 / 0 / ½) for the
+      // hold; earlier plies show the reconstructed clocks (toggles also clear the
+      // result state when a loop restarts the same game at ply 0).
+      const atGameEnd = maxPly > 0 && currentPly >= maxPly;
+      const marks = atGameEnd ? showcaseResultMarks(activePostgame.game.result) : null;
+      const winner =
+        marks === null || marks.first === marks.second
+          ? null
+          : marks.first === '1'
+            ? 'first'
+            : 'second';
+      for (const seat of [compactSeats.top, compactSeats.bottom]) {
+        if (marks) {
+          seat.clockEl.textContent = marks[seat.side];
+        } else if (compactClocks) {
+          const at = compactClocks[Math.min(currentPly, compactClocks.length - 1)]!;
+          seat.clockEl.textContent = formatClock(at[seat.side]);
+        }
+        seat.clockEl.classList.toggle('showcase-seat-result', marks !== null);
+        seat.row.classList.toggle('result-win', seat.side === winner);
       }
       // Red moves first, so an even ply leaves Red (first) to move; no active side
       // once the game has ended.
@@ -422,7 +442,11 @@ export async function mountTenantWatchReplay<
         sync();
         scheduleAuto();
       },
-      atEnd ? AUTO_PLAY_LOOP_HOLD_MS : (moveDelays?.[currentPly + 1] ?? AUTO_PLAY_PLY_MS),
+      atEnd
+        ? onGameEnd
+          ? SHOWCASE_END_HOLD_MS
+          : AUTO_PLAY_LOOP_HOLD_MS
+        : (moveDelays?.[currentPly + 1] ?? AUTO_PLAY_PLY_MS),
     );
   };
 

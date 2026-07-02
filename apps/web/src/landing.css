@@ -154,56 +154,28 @@
   text-align: center;
 }
 
-/* Fill mode (center): the centered showcase expands to the full center-column
-   width and the board scales to it (square), so there's no side blank. */
+/* Fill mode (center): the widget grows to the center column, but every variant
+   keeps ONE shared square footprint — the column drives --showcase-widget-size
+   (container query) instead of per-variant width/aspect overrides, so the panel
+   height never changes across variants or game swaps. The dvh term keeps a tall
+   widget from blowing past the viewport (it capped the chess board the same way
+   before unification). */
+.landing-board-column {
+  container-type: inline-size;
+}
+
 .landing-board-column #landing-replay {
-  width: 100%;
-  max-width: 100%;
-}
-
-.landing-board-column #landing-replay .replay-layout-solo,
-.landing-board-column #landing-replay .replay-pane,
-.landing-board-column #landing-replay .showcase-seat,
-.landing-board-column #landing-replay .replay-pane-clock-slot,
-.landing-board-column #landing-replay .replay-clock-row {
-  width: 100%;
-  max-width: 100%;
-}
-
-.landing-board-column #landing-replay .replay-board {
-  width: 100%;
-  height: auto;
-  max-width: 100%;
-  aspect-ratio: 1;
-}
-
-/* Drop/reserve variants (sided hand strips): the board-row fills the widget, the
-   two hand strips are fixed-width, and the board pane flexes to fill the space
-   between them (so the board stays square via the .replay-board fill above and
-   never overlaps the strips). align-items: stretch makes the strips full board
-   height, reading as clear columns. */
-.landing-board-column #landing-replay .showcase-board-row {
-  width: 100%;
-  max-width: 100%;
-  align-items: stretch;
-}
-
-.landing-board-column #landing-replay .showcase-board-row .replay-pane {
-  flex: 1 1 0;
-  min-width: 0;
-}
-
-.landing-board-column #landing-replay .showcase-board-row .showcase-reserve {
-  flex: 0 0 40px;
+  --showcase-widget-size: min(100cqw - 26px, calc(100dvh - 240px));
 }
 
 /* Full-width center widget has room in the seat rows, so grow the name + clock
-   into it (no extra padding). */
-.landing-board-column #landing-replay .showcase-seat-name,
-.landing-board-column #landing-replay .showcase-seat-clock,
-.landing-board-column #landing-replay .replay-clock-side,
-.landing-board-column #landing-replay .replay-clock-time {
-  font-size: 1.15rem;
+   into it. Set via the seat-font vars (not direct font-size rules) so the chess
+   clock rows and the tenant seats pick it up at the same specificity — direct
+   rules here lose to the chess-unification block and left the chess rows ~5px
+   shorter per seat (a 10px widget-height jump on chess games). */
+.landing-board-column #landing-replay {
+  --showcase-seat-name-size: 1.15rem;
+  --showcase-seat-clock-size: 1.15rem;
 }
 
 /* Article carousel beneath the hero board (center column) — a single row of
@@ -607,8 +579,9 @@
 }
 
 .landing-page #landing-replay .replay-board.cg-wrap {
-  /* Override the base .replay-board cap (380px); .cg-snap reads this. */
-  --cg-w: min(100%, 640px, calc(100dvh - 180px));
+  /* Override the base .replay-board cap (380px); .cg-snap reads this. Keyed to
+     the shared widget size so chess and the tenant boards agree exactly. */
+  --cg-w: var(--showcase-widget-size);
   border: none;
   background: transparent;
   box-shadow: 0 12px 26px rgba(43, 49, 45, 0.14);
@@ -715,7 +688,7 @@
 .showcase-widget .replay-layout-solo .showcase-seat-name {
   overflow: hidden;
   font-weight: 600;
-  font-size: 0.92rem;
+  font-size: var(--showcase-seat-name-size, 0.92rem);
   color: var(--site-text);
   white-space: nowrap;
   text-overflow: ellipsis;
@@ -723,13 +696,79 @@
 
 .showcase-widget .replay-layout-solo .showcase-seat-clock {
   color: var(--site-muted);
-  font-size: 0.9rem;
+  font-size: var(--showcase-seat-clock-size, 0.9rem);
   font-variant-numeric: tabular-nums;
 }
 
 .showcase-widget .replay-layout-solo .showcase-seat.active .showcase-seat-clock {
   color: var(--site-accent);
   font-weight: 700;
+}
+
+/* End of game: the seat clocks flip to 1 / 0 / ½ result marks for the hold. */
+.showcase-widget .replay-layout-solo .showcase-seat-clock.showcase-seat-result {
+  color: var(--site-heading);
+  font-weight: 700;
+}
+
+.showcase-widget .replay-layout-solo .showcase-seat.result-win .showcase-seat-clock {
+  color: var(--site-accent);
+}
+
+/* Renderer-swap skeleton (replay-skeleton.ts): watch-route.css styles this class
+   on /watch, but that stylesheet never loads on the homepage, so without these
+   rules the widget collapsed to a bare text line between games. Hold the shared
+   board footprint (the cycler also pins the panel's min-height across the swap). */
+.showcase-widget .watch-replay-skeleton {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  width: var(--showcase-widget-size);
+  max-width: 100%;
+}
+
+/* On the homepage the boards carry a seat row above and below; give the initial
+   skeleton the same allowance so the panel doesn't grow when the first board
+   lands (between-game swaps are exact via the cycler's min-height pin). */
+.landing-board-column #landing-replay .watch-replay-skeleton {
+  min-height: calc(var(--showcase-widget-size) + 54px);
+}
+
+.showcase-widget .watch-replay-skeleton-board {
+  width: var(--showcase-widget-size);
+  max-width: 100%;
+  aspect-ratio: 1 / 1;
+  border: 1px solid var(--site-border-soft);
+  border-radius: var(--site-radius);
+  background: var(--site-panel-soft);
+  animation: showcase-skeleton-pulse 1.25s ease-in-out infinite;
+}
+
+.showcase-widget .watch-replay-skeleton-caption {
+  color: var(--site-muted);
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+@keyframes showcase-skeleton-pulse {
+  0%,
+  100% {
+    opacity: 0.4;
+  }
+
+  50% {
+    opacity: 0.75;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .showcase-widget .watch-replay-skeleton-board {
+    animation: none;
+  }
 }
 
 /* Drop/reserve variants: the board flanked by vertical hand strips (each side's
@@ -891,7 +930,7 @@
   overflow: hidden;
   max-width: calc(var(--showcase-widget-size) - 90px);
   font-weight: 600;
-  font-size: 0.92rem;
+  font-size: var(--showcase-seat-name-size, 0.92rem);
   color: var(--site-text);
   white-space: nowrap;
   text-overflow: ellipsis;
@@ -907,7 +946,7 @@
   grid-row: auto;
   text-align: right;
   color: var(--site-muted);
-  font-size: 0.9rem;
+  font-size: var(--showcase-seat-clock-size, 0.9rem);
   font-weight: 500;
   line-height: 1.2;
   font-variant-numeric: tabular-nums;
@@ -941,6 +980,29 @@
   .replay-clock-time {
   color: var(--site-accent);
   font-weight: 700;
+}
+
+/* End of game: the clock times flip to 1 / 0 / ½ result marks for the hold
+   (matches the tenant .showcase-seat-result treatment). */
+:is(#landing-replay.replay-compact, .showcase-widget)
+  :is(
+    .replay-layout-single-white .replay-pane-white,
+    .replay-layout-single-black .replay-pane-black
+  )
+  .replay-clock-row:is(.result-win, .result-loss, .result-draw)
+  .replay-clock-time {
+  color: var(--site-heading);
+  font-weight: 700;
+}
+
+:is(#landing-replay.replay-compact, .showcase-widget)
+  :is(
+    .replay-layout-single-white .replay-pane-white,
+    .replay-layout-single-black .replay-pane-black
+  )
+  .replay-clock-row.result-win
+  .replay-clock-time {
+  color: var(--site-accent);
 }
 
 .landing-demo .landing-games-heading {
@@ -985,7 +1047,7 @@
 
 @media (max-width: 720px) {
   .landing-board-column #landing-replay {
-    max-width: 560px;
+    --showcase-widget-size: min(100cqw - 26px, 534px, calc(100dvh - 240px));
   }
 }
 

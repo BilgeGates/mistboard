@@ -1,5 +1,25 @@
 import { describe, expect, it } from 'vitest';
-import { reconstructMoveDelays, reconstructShowcaseClocks } from './showcase-clock';
+import {
+  reconstructMoveDelays,
+  reconstructShowcaseClocks,
+  showcaseResultMarks,
+} from './showcase-clock';
+
+describe('showcaseResultMarks', () => {
+  it('marks the first-mover seat as the winner for red-wins and white-wins', () => {
+    expect(showcaseResultMarks('red-wins')).toEqual({ first: '1', second: '0' });
+    expect(showcaseResultMarks('white-wins')).toEqual({ first: '1', second: '0' });
+  });
+
+  it('marks the second seat as the winner for black-wins', () => {
+    expect(showcaseResultMarks('black-wins')).toEqual({ first: '0', second: '1' });
+  });
+
+  it('marks a draw (or any unknown result) as half points both sides', () => {
+    expect(showcaseResultMarks('draw')).toEqual({ first: '½', second: '½' });
+    expect(showcaseResultMarks('some-future-result')).toEqual({ first: '½', second: '½' });
+  });
+});
 
 describe('reconstructMoveDelays', () => {
   it('paces each move by its real gap, clamped to the band', () => {

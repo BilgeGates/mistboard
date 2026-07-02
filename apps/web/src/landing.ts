@@ -3,7 +3,7 @@ import './landing-play.css';
 import './landing.css';
 import './game-route.css';
 import { buildHomeArticleCards, initLandingCarousel, mountArticleThumbnails } from './articles.js';
-import { displayParticipantName, type FeaturedGame } from './game-display.js';
+import { displayParticipantName, type FeaturedGame, variantDisplayLabel } from './game-display.js';
 import { gameMetaForGame } from './game-meta.js';
 import { buildHomePuzzleWidget } from './home-puzzle-widget.js';
 import { t } from './i18n/catalog.js';
@@ -22,6 +22,7 @@ import {
 } from './landing-play.js';
 import { homepageShowcaseGames, pickHeroPovForGame } from './landing-showcase.js';
 import { type GameMeta, mountReplay } from './replay.js';
+import { renderWatchReplaySkeleton } from './replay-skeleton.js';
 import { enginePanelsForReview, loadGameForReview } from './review.js';
 import { roomIdFromPath } from './room-url.js';
 import { mountShowcaseCycler, type ShowcaseEntry } from './showcase-cycler.js';
@@ -35,24 +36,39 @@ import { type WebVariantTenant, webVariantTenantForRoomId } from './variant-tena
 const SHOWCASE_REFRESH_ACTIVE_MS = 45_000;
 const SHOWCASE_REFRESH_IDLE_MS = 5 * 60_000;
 const SHOWCASE_POOL_CAP = 14;
+// How long the first paint waits for /api/games/showcase before falling back to
+// the bundled static demo. The fetch starts at mount, so on a healthy connection
+// (~150-250ms observed) the real pool wins and the visitor never sees the demo
+// game get torn down and replaced; a slow or dead API costs at most this delay
+// before the static fallback mounts as before.
+const SHOWCASE_FIRST_PAINT_RACE_MS = 600;
 
-// Honest relative-time caption for the showcase: these are replays of finished
-// games, not live play. Bundled cold-start demos have no real finish time and read
-// as "Engine demo". No em dashes in user-facing copy; the separator is a middot.
-function showcaseCaptionText(endedAt: string | undefined): string {
-  if (!endedAt) return 'Engine demo';
+// Honest caption for the showcase: variant name + relative finish time, marking
+// these as replays of finished games, not live play. Bundled cold-start demos
+// have no real finish time and read as an engine demo. No em dashes in
+// user-facing copy; the separator is a middot.
+function showcaseCaptionText(variant: string | undefined, endedAt: string | undefined): string {
+  const name = variant ? variantDisplayLabel(variant) : 'Recent game';
+  if (!endedAt) return `${name} · engine demo`;
   const ended = Date.parse(endedAt);
-  if (Number.isNaN(ended)) return 'Recent game';
+  if (Number.isNaN(ended)) return `${name} · recent game`;
   const mins = Math.max(0, Math.round((Date.now() - ended) / 60_000));
-  if (mins < 1) return 'Recent game · just now';
-  if (mins < 60) return `Recent game · ${mins}m ago`;
+  if (mins < 1) return `${name} · just now`;
+  if (mins < 60) return `${name} · ${mins}m ago`;
   const hours = Math.round(mins / 60);
-  if (hours < 24) return `Recent game · ${hours}h ago`;
+  if (hours < 24) return `${name} · ${hours}h ago`;
   const days = Math.round(hours / 24);
-  return `Recent game · ${days}d ago`;
+  return `${name} · ${days}d ago`;
 }
 
 export async function mountLanding(root: HTMLElement): Promise<void> {
+  // Kick the showcase fetch off before any DOM work. Measured on prod: waiting
+  // for the first refresh tick serialized it behind a /api/live-stats round-trip
+  // and it didn't start until ~900ms in, so the static demo always painted first
+  // and was visibly torn down ~1s later. Pre-settled to null on failure so the
+  // race below and the first refresh tick can both await it safely.
+  const firstShowcaseLoad: Promise<FeaturedGame[] | null> = fetchShowcaseGames().catch(() => null);
+
   root.replaceChildren();
   root.classList.add('landing-page');
 
@@ -81,6 +97,8 @@ export async function mountLanding(root: HTMLElement): Promise<void> {
   // When each game finished, for the honest "recent · 2h ago" caption. Undefined
   // for the bundled cold-start demos (no real finish time) -> caption reads "demo".
   const endedAtByRoomId: Record<string, string | undefined> = {};
+  // Persisted variant per room, for the caption's variant name.
+  const variantByRoomId: Record<string, string> = {};
   const toShowcaseEntry = (game: FeaturedGame): ShowcaseEntry => {
     metadataByRoomId[game.roomId] ??= gameMetaForGame(game);
     const pov = povByRoomId[game.roomId] ?? pickHeroPovForGame(game);
@@ -93,6 +111,7 @@ export async function mountLanding(root: HTMLElement): Promise<void> {
       second: displayParticipantName(game, 'black'),
     };
     endedAtByRoomId[game.roomId] = game.endedAt;
+    variantByRoomId[game.roomId] = game.variant;
     return { roomId: game.roomId, specId: specIdForShowcaseVariant(game.variant), pov };
   };
   const params = new URLSearchParams(window.location.search);
@@ -116,15 +135,41 @@ export async function mountLanding(root: HTMLElement): Promise<void> {
   mountArticleThumbnails(stage.el);
   initLandingCarousel(stage.el);
 
+  // Give the real pool a short head start before falling back to the bundled
+  // static demo: the shell is already painted (skeleton in the board slot), and
+  // mounting the real game directly beats mounting the demo and visibly swapping
+  // it out a second later. ?demo pins a specific bundled game, so it skips the
+  // race. A race loss falls back to the static pool; the refresh tick below still
+  // swaps real games in when they arrive.
+  renderWatchReplaySkeleton(stage.replayRoot);
+  let cyclePool = initialPool;
+  if (!requested) {
+    const early = await Promise.race([
+      firstShowcaseLoad,
+      delay(SHOWCASE_FIRST_PAINT_RACE_MS).then(() => null),
+    ]);
+    if (early && early.length >= 3) {
+      let realEntries = early.slice(0, SHOWCASE_POOL_CAP).map(toShowcaseEntry);
+      if (onlySpec) realEntries = realEntries.filter((entry) => entry.specId === onlySpec);
+      if (realEntries.length > 0) {
+        cyclePool = realEntries;
+        usingRealGames = true;
+      }
+    }
+  }
+
   // The showcase cycler owns cross-game advancement so it can cross renderer kinds
   // (dark-chess chessground -> jieqi/banqi/jungle SVG). Each game plays as a single
   // compact board and hands off at its end; the pool refreshes live below.
-  const cycler = await mountShowcaseCycler(stage.replayRoot, initialPool, {
+  const cycler = await mountShowcaseCycler(stage.replayRoot, cyclePool, {
     metadataByRoomId,
     namesByRoomId,
     loaderForId: landingEventLoader,
     onGameChange: (roomId) => {
-      stage.caption.textContent = showcaseCaptionText(endedAtByRoomId[roomId]);
+      stage.caption.textContent = showcaseCaptionText(
+        variantByRoomId[roomId],
+        endedAtByRoomId[roomId],
+      );
     },
   });
 
@@ -172,7 +217,7 @@ export async function mountLanding(root: HTMLElement): Promise<void> {
   // reads by reference, then the loop pool is swapped (the current game finishes
   // first). Polls fast while games are live, slow when idle; self-clears on
   // unmount.
-  const poolIds = new Set(initialPool.map((entry) => entry.roomId));
+  const poolIds = new Set(cyclePool.map((entry) => entry.roomId));
   let showcaseTimer: number | null = null;
   const stopShowcaseRefresh = () => {
     if (showcaseTimer !== null) {
@@ -180,13 +225,19 @@ export async function mountLanding(root: HTMLElement): Promise<void> {
       showcaseTimer = null;
     }
   };
-  const refreshShowcasePool = async () => {
+  // `preloaded` lets the first tick reuse the mount-time fetch (it may have lost
+  // the first-paint race but still carry a fresh pool) instead of refetching.
+  const refreshShowcasePool = async (preloaded?: FeaturedGame[] | null) => {
     let fresh: FeaturedGame[];
-    try {
-      fresh = await fetchShowcaseGames();
-    } catch (err) {
-      console.warn('showcase refresh failed', err);
-      return;
+    if (preloaded) {
+      fresh = preloaded;
+    } else {
+      try {
+        fresh = await fetchShowcaseGames();
+      } catch (err) {
+        console.warn('showcase refresh failed', err);
+        return;
+      }
     }
     if (fresh.length < 3) return; // not enough real games yet; keep the pool
     let nextEntries = fresh.slice(0, SHOWCASE_POOL_CAP).map(toShowcaseEntry);
@@ -204,19 +255,23 @@ export async function mountLanding(root: HTMLElement): Promise<void> {
     if (leavingStaticFallback) usingRealGames = true;
     cycler.updatePool(nextEntries, { jumpNow: leavingStaticFallback });
   };
+  let firstRefreshTick = true;
   const tickShowcaseRefresh = async () => {
     if (!stage.el.isConnected) {
       stopShowcaseRefresh();
       return;
     }
-    let playing = 0;
-    try {
-      const resp = await fetch('/api/live-stats');
-      if (resp.ok) playing = ((await resp.json()) as { playing?: number }).playing ?? 0;
-    } catch {
-      // ignore — treat as idle
-    }
-    await refreshShowcasePool();
+    // live-stats only paces the NEXT tick, so it runs in parallel with the pool
+    // refresh instead of serializing a round-trip in front of it.
+    const playingPromise = fetch('/api/live-stats')
+      .then(async (resp) =>
+        resp.ok ? (((await resp.json()) as { playing?: number }).playing ?? 0) : 0,
+      )
+      .catch(() => 0);
+    const preloaded = firstRefreshTick ? await firstShowcaseLoad : null;
+    firstRefreshTick = false;
+    await refreshShowcasePool(preloaded);
+    const playing = await playingPromise;
     if (!stage.el.isConnected) {
       stopShowcaseRefresh();
       return;
@@ -227,8 +282,9 @@ export async function mountLanding(root: HTMLElement): Promise<void> {
     );
   };
   // Kick the first refresh promptly so real games replace the static showcase as
-  // soon as /api/games/showcase responds (the shell rendered with the static set
-  // up front). Subsequent ticks reschedule at the adaptive active/idle cadence.
+  // soon as /api/games/showcase responds when the first-paint race was lost (the
+  // tick reuses that same in-flight fetch). Subsequent ticks reschedule at the
+  // adaptive active/idle cadence.
   showcaseTimer = window.setTimeout(() => void tickShowcaseRefresh(), 0);
 
   // Hand off room navigation to an in-place SPA transition so the starting

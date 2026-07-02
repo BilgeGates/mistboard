@@ -1218,6 +1218,12 @@ export async function mountReplay(
   }
 
   function applyClockEndGameState(winner: Color | null): void {
+    // The clock times give way to the result (1 / 0 / ½) at the final ply, so a
+    // viewer catching the end-of-game hold sees who won. Runs after render()'s
+    // renderClockState, and ticking has stopped by then, so nothing overwrites it;
+    // scrubbing back re-renders the real times and clearClockEndGameState resets.
+    clockPanel.whiteTime.textContent = winner === null ? '½' : winner === 'white' ? '1' : '0';
+    clockPanel.blackTime.textContent = winner === null ? '½' : winner === 'black' ? '1' : '0';
     if (winner === null) {
       clockPanel.whiteRow.classList.add('result-draw');
       clockPanel.blackRow.classList.add('result-draw');

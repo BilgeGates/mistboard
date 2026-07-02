@@ -27,12 +27,15 @@ import {
 import type { GameMeta, ReplayHandle } from './replay.js';
 import { createPane, type ReplayPaneHandle } from './replay-board.js';
 import { createGameHeaderStrip } from './replay-meta.js';
-import { reconstructMoveDelays } from './showcase-clock.js';
+import { reconstructMoveDelays, showcaseResultMarks } from './showcase-clock.js';
 import { pickCompactViewKey } from './showcase-compact-view.js';
 import { formatClock } from './web-utils.js';
 
 const AUTO_PLAY_PLY_MS = 1100;
 const AUTO_PLAY_LOOP_HOLD_MS = 2600;
+// Compact showcase end-of-game hold: long enough to read the 1/0/½ result marks
+// before the cycler advances (matches watch-tenant-replay).
+const SHOWCASE_END_HOLD_MS = 4000;
 // Compact showcase per-move pacing: play each move at its real recorded duration
 // clamped to this band, and tick the mover's clock across it.
 const SHOWCASE_MIN_MOVE_MS = 700;
@@ -224,10 +227,26 @@ export async function mountMiniXiangqiWatchReplay(
       }
     }
     if (compactSeats) {
-      if (clocks) {
-        const at = clocks[Math.min(currentPly, clocks.length - 1)] ?? clocks[0]!;
-        compactSeats.top.clockEl.textContent = formatClock(at[compactSeats.top.color]);
-        compactSeats.bottom.clockEl.textContent = formatClock(at[compactSeats.bottom.color]);
+      // At the final ply the clocks give way to the result (1 / 0 / ½) for the
+      // hold; earlier plies show the native per-ply clocks (toggles also clear the
+      // result state when a loop restarts the same game at ply 0). Red = first mover.
+      const atGameEnd = maxPly > 0 && currentPly >= maxPly;
+      const marks = atGameEnd ? showcaseResultMarks(activePostgame.game.result) : null;
+      const winner =
+        marks === null || marks.first === marks.second
+          ? null
+          : marks.first === '1'
+            ? 'red'
+            : 'black';
+      for (const seat of [compactSeats.top, compactSeats.bottom]) {
+        if (marks) {
+          seat.clockEl.textContent = seat.color === 'red' ? marks.first : marks.second;
+        } else if (clocks) {
+          const at = clocks[Math.min(currentPly, clocks.length - 1)] ?? clocks[0]!;
+          seat.clockEl.textContent = formatClock(at[seat.color]);
+        }
+        seat.clockEl.classList.toggle('showcase-seat-result', marks !== null);
+        seat.row.classList.toggle('result-win', seat.color === winner);
       }
       const active = currentPly >= maxPly ? null : currentPly % 2 === 0 ? 'red' : 'black';
       compactSeats.top.row.classList.toggle('active', active === compactSeats.top.color);
@@ -315,7 +334,11 @@ export async function mountMiniXiangqiWatchReplay(
         sync();
         scheduleAuto();
       },
-      atEnd ? AUTO_PLAY_LOOP_HOLD_MS : (moveDelays?.[currentPly + 1] ?? AUTO_PLAY_PLY_MS),
+      atEnd
+        ? onGameEnd
+          ? SHOWCASE_END_HOLD_MS
+          : AUTO_PLAY_LOOP_HOLD_MS
+        : (moveDelays?.[currentPly + 1] ?? AUTO_PLAY_PLY_MS),
     );
   };
 

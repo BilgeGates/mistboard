@@ -1,3 +1,5 @@
+import { maybeGameSpecForId } from '@mistboard/game';
+
 export const MISTBOARD_ENGINE_SNAPSHOT_ID = 'engine-v2-2026-05-24';
 export const MISTBOARD_ENGINE_SNAPSHOT_NAME = 'Mistboard Engine v2.0';
 export const MISTBOARD_ENGINE_BASELINE_NAME = 'Mistboard Engine v0.9.5';
@@ -94,6 +96,18 @@ function displayParticipant(
   if (detailed) return detailed;
   if (!name) return fallback;
   return name;
+}
+
+// Human label for a persisted games.variant value. Legacy/alias strings + the
+// 'Dark Chess' casing are handled explicitly (the dark-chess spec publicName is
+// the lowercase 'Dark chess'); everything else derives from the canonical spec
+// so new variants are labelled without editing here.
+export function variantDisplayLabel(variant: string): string {
+  if (variant === 'fog' || variant === 'dark-chess') return 'Dark Chess';
+  if (variant === 'draft960' || variant === 'fog-draft960' || variant === 'dark-draft960')
+    return 'Dark Draft960';
+  if (variant === 'crossroads-chess' || variant === 'dual-chess') return 'Crossroads Chess';
+  return maybeGameSpecForId(variant)?.publicName ?? variant;
 }
 
 export function sourceLabel(mode: FeaturedGame['mode']): string {
