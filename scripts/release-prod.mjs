@@ -11,6 +11,11 @@ const DEFAULT_SMOKE = 'full';
 const DEFAULT_TARGET_BRANCH = 'main';
 const DEFAULT_TIMEOUT_MS = 900_000;
 const GITHUB_POLL_MS = 10_000;
+// Prefixes whose changes never need the engine/DMX/DXQ smoke tier. Declared
+// with the other top constants: resolveSmokeTier runs mid-release-flow, so a
+// declaration after the top-level call site sits in the temporal dead zone
+// (function hoisting masks it until the first web-safe release).
+const WEB_SAFE_PREFIXES = ['apps/web/', 'docs/', 'scripts/', '.github/'];
 const CI_TRIGGER_PATTERNS = [
   '.github/workflows/ci.yml',
   'apps/**',
@@ -392,8 +397,6 @@ function runSmoke({ deployRequired, headRevision }) {
 // docs, release tooling), the default 'full' tier drops to 'web'. An explicit
 // --smoke always wins, and any doubt (no prod revision to diff against, files
 // outside the safe set) keeps 'full'.
-const WEB_SAFE_PREFIXES = ['apps/web/', 'docs/', 'scripts/', '.github/'];
-
 function resolveSmokeTier(headRevision) {
   if (options.smokeExplicit || options.smoke !== 'full') return options.smoke;
   const base = release.productionRevision;
