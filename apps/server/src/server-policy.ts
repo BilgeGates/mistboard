@@ -70,7 +70,8 @@ export function canObserveLiveRoom(projection: GameProjection): boolean {
 
 // SPA fallback allowlist. The web client owns these routes (see apps/web/src/main.ts);
 // the server must hand them index.html so direct hits and refreshes don't 404. Keep in
-// sync with main.ts — server-policy.test.ts covers parity.
+// sync with main.ts — server-policy.test.ts covers literal-route parity, and
+// apps/web/src/variant-registry-sync.test.ts covers the per-tenant game/review routes.
 export function isClientRoute(pathname: string): boolean {
   const normalized = pathname.replace(/\/+$/, '') || '/';
   return (
@@ -123,6 +124,11 @@ export function isClientRoute(pathname: string): boolean {
     normalized.startsWith('/jungle/game/') ||
     normalized.startsWith('/jungle-flip/game/') ||
     normalized.startsWith('/jieqi/game/') ||
+    normalized.startsWith('/reveal-chess/game/') ||
+    normalized.startsWith('/dark-crossroads-chess/game/') ||
+    normalized.startsWith('/dark-crazyhouse/game/') ||
+    normalized.startsWith('/kriegspiel/game/') ||
+    normalized.startsWith('/fortress-xiangqi/game/') ||
     normalized.startsWith('/game/') ||
     normalized.startsWith('/engine/') ||
     normalized.startsWith('/bot/') ||
