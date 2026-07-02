@@ -10,16 +10,19 @@ import {
   oppositeCrossroadsChessColor,
 } from '@mistboard/game';
 import { crossroadsChessEngineMove } from '../crossroads-chess-engine.js';
-import {
-  applyCrossroadsChessEvent,
-  type CrossroadsChessEvent,
-  type CrossroadsChessProjection,
-  isCrossroadsChessEventLog,
-  replayCrossroadsChessEvents,
+import type {
+  CrossroadsChessEvent,
+  CrossroadsChessProjection,
 } from '../crossroads-chess-runtime.js';
+import { crossroadsChessTenant } from '../crossroads-chess-tenant.js';
 import { crossroadsChessEnabled } from '../feature-flags.js';
 import { FinishedGameCache } from '../finished-game-cache.js';
 import * as persistence from '../persistence.js';
+import {
+  applyTenantEvent,
+  isTenantEventLog,
+  replayTenantEvents,
+} from '../variant-tenant/runtime.js';
 import { readJsonBody, requireMethod, requirePersistence, writeJson } from './lib.js';
 
 // Strict UCI shape for a 6x8 board (files a-f, ranks 1-8, optional Queen promo).
@@ -197,9 +200,9 @@ async function buildCrossroadsChessPostgame(
     deps.loadRoomEvents(roomId),
   ]);
   if (!game || maybeGameSpecForId(game.variant)?.id !== CROSSROADS_CHESS_SPEC_ID) return null;
-  if (!events || !isCrossroadsChessEventLog(events, roomId)) return null;
+  if (!events || !isTenantEventLog(crossroadsChessTenant, events, roomId)) return null;
 
-  const projection = replayCrossroadsChessEvents(events);
+  const projection = replayTenantEvents(crossroadsChessTenant, events);
   if (projection.state.status.type !== 'finished') return null;
 
   return {
@@ -268,12 +271,12 @@ function crossroadsChessPostgameHistory(
 ): CrossroadsChessPostgameHistory {
   const created = events[0];
   if (!created || created.type !== 'room-created') return {};
-  let projection = replayCrossroadsChessEvents([created]);
+  let projection = replayTenantEvents(crossroadsChessTenant, [created]);
   let ply = 0;
   const history = postgameHistoryViews(projection, ply);
 
   for (const event of events.slice(1)) {
-    projection = applyCrossroadsChessEvent(projection, event);
+    projection = applyTenantEvent(crossroadsChessTenant, projection, event);
     if (event.type !== 'move-played') continue;
     ply += 1;
     appendPostgameHistoryViews(history, projection, ply);
@@ -356,7 +359,7 @@ function crossroadsChessPostgameClocks(
 ): Array<Record<CrossroadsChessColor, number>> {
   const created = events[0];
   if (!created || created.type !== 'room-created') return [];
-  let projection = replayCrossroadsChessEvents([created]);
+  let projection = replayTenantEvents(crossroadsChessTenant, [created]);
   const clocks: Array<Record<CrossroadsChessColor, number>> = [];
   const capture = (ply: number): void => {
     if (projection.clock) clocks[ply] = { ...projection.clock.remainingMs };
@@ -364,7 +367,7 @@ function crossroadsChessPostgameClocks(
   let ply = 0;
   capture(0);
   for (const event of events.slice(1)) {
-    projection = applyCrossroadsChessEvent(projection, event);
+    projection = applyTenantEvent(crossroadsChessTenant, projection, event);
     if (event.type !== 'move-played') continue;
     ply += 1;
     capture(ply);

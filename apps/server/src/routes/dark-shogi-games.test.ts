@@ -8,11 +8,10 @@ import {
   isShogiDrop,
   type ShogiMove,
 } from '@mistboard/game';
-import {
-  createDarkShogiRuntimeRoomFromEvents,
-  type DarkShogiEvent,
-} from '../dark-shogi-runtime.js';
+import type { DarkShogiEvent } from '../dark-shogi-runtime.js';
+import { darkShogiTenant } from '../dark-shogi-tenant.js';
 import type { RecentEveGameRecord } from '../persistence.js';
+import { createTenantRuntimeRoomFromEvents } from '../variant-tenant/runtime.js';
 import { type DarkShogiPostgamePersistence, darkShogiPostgameForApi } from './dark-shogi-games.js';
 
 const ROOM_ID = 'dsg_postgame';
@@ -86,7 +85,7 @@ function deps(
 }
 
 function liveFinishedRoom() {
-  const hydrated = createDarkShogiRuntimeRoomFromEvents(finishedGameEvents());
+  const hydrated = createTenantRuntimeRoomFromEvents(darkShogiTenant, finishedGameEvents());
   assert.ok(hydrated.ok);
   return hydrated.room;
 }

@@ -6,11 +6,10 @@ import {
   KRIEGSPIEL_SPEC_ID,
   type Move,
 } from '@mistboard/game';
-import {
-  createKriegspielRuntimeRoomFromEvents,
-  type KriegspielEvent,
-} from '../kriegspiel-runtime.js';
+import type { KriegspielEvent } from '../kriegspiel-runtime.js';
+import { kriegspielTenant } from '../kriegspiel-tenant.js';
 import type { RecentEveGameRecord } from '../persistence.js';
+import { createTenantRuntimeRoomFromEvents } from '../variant-tenant/runtime.js';
 import {
   type KriegspielPostgamePersistence,
   kriegspielPostgameForApi,
@@ -79,7 +78,7 @@ function deps(
 }
 
 function liveFinishedRoom() {
-  const hydrated = createKriegspielRuntimeRoomFromEvents(finishedGameEvents());
+  const hydrated = createTenantRuntimeRoomFromEvents(kriegspielTenant, finishedGameEvents());
   assert.ok(hydrated.ok);
   return hydrated.room;
 }

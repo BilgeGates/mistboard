@@ -28,17 +28,22 @@ import { dirname, join } from 'node:path';
 import test from 'node:test';
 import { fileURLToPath } from 'node:url';
 import { getMiniXiangqiLegalMoves, type MiniXiangqiMove } from '@mistboard/game';
-import {
-  appendDarkMiniXiangqiRuntimeEvent,
-  createDarkMiniXiangqiRuntimeRoomFromEvents,
-  type DarkMiniXiangqiEvent,
-  type DarkMiniXiangqiRuntimeRoom,
-  type DarkMiniXiangqiSeat,
-  darkMiniXiangqiClientEventFor,
-  darkMiniXiangqiPlyAtEventIndex,
-  darkMiniXiangqiSnapshotPayload,
-  expireDarkMiniXiangqiClock,
+import type {
+  DarkMiniXiangqiEvent,
+  DarkMiniXiangqiRuntimeRoom,
+  DarkMiniXiangqiSeat,
 } from './dark-mini-xiangqi-runtime.js';
+import {
+  darkMiniXiangqiClientEventFor,
+  darkMiniXiangqiTenant,
+} from './dark-mini-xiangqi-tenant.js';
+import {
+  appendTenantRuntimeEvent,
+  createTenantRuntimeRoomFromEvents,
+  expireTenantClock,
+  tenantPlyAtEventIndex,
+  tenantSnapshotPayload,
+} from './variant-tenant/runtime.js';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 // Anchor on the package dir so the fixture resolves whether this file runs
@@ -59,7 +64,7 @@ type GoldenStep = {
 type GoldenScript = { id: string; steps: GoldenStep[] };
 
 function snapshotFor(room: DarkMiniXiangqiRuntimeRoom, seat: DarkMiniXiangqiSeat): SeatRecord {
-  const payload = darkMiniXiangqiSnapshotPayload(room, {
+  const payload = tenantSnapshotPayload(darkMiniXiangqiTenant, room, {
     id: `client-${seat}`,
     seat,
     solo: false,
@@ -76,7 +81,7 @@ function recordStep(
 ): void {
   const step: GoldenStep = { label, snapshots: {} };
   if (appended) {
-    const ply = darkMiniXiangqiPlyAtEventIndex(room.events, appended.seq);
+    const ply = tenantPlyAtEventIndex(room.events, appended.seq);
     step.eventForSeat = {};
     for (const seat of SEATS) {
       step.eventForSeat[seat] = darkMiniXiangqiClientEventFor(appended.event, seat, ply);
@@ -94,12 +99,12 @@ function append(
   label: string,
   event: DarkMiniXiangqiEvent,
 ): void {
-  const seq = appendDarkMiniXiangqiRuntimeEvent(room, event);
+  const seq = appendTenantRuntimeEvent(darkMiniXiangqiTenant, room, event);
   recordStep(script, room, label, { event, seq });
 }
 
 function hydrate(events: DarkMiniXiangqiEvent[]): DarkMiniXiangqiRuntimeRoom {
-  const created = createDarkMiniXiangqiRuntimeRoomFromEvents(events);
+  const created = createTenantRuntimeRoomFromEvents(darkMiniXiangqiTenant, events);
   assert.ok(created.ok, 'golden script event log must hydrate');
   return created.room;
 }
@@ -276,7 +281,7 @@ function runScriptC(): GoldenScript {
   }
 
   const expiredColor = playingTurn(room);
-  const expiredClock = expireDarkMiniXiangqiClock(room.projection.clock, 90_000, expiredColor);
+  const expiredClock = expireTenantClock(room.projection.clock, 90_000, expiredColor);
   assert.ok(expiredClock, 'script C must have an armed clock to expire');
   append(script, room, 'clock-expired', {
     type: 'clock-expired',

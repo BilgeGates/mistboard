@@ -9,7 +9,7 @@ import type { Color } from '@mistboard/game';
 import type { WebSocket } from 'ws';
 import type { DarkCrazyhouseRuntimeRoom } from './dark-crazyhouse-runtime.js';
 import { darkCrazyhouseTenant } from './dark-crazyhouse-tenant.js';
-import { clearDarkCrazyhouseRuntimeTimers } from './server-dark-crazyhouse-lifecycle.js';
+import { clearTenantRuntimeTimers } from './variant-tenant/lifecycle.js';
 import { createTenantWsRuntime, type TenantLiveClient } from './variant-tenant/ws.js';
 
 export type DarkCrazyhouseLiveClient = TenantLiveClient<Color>;
@@ -48,4 +48,6 @@ export function scheduleDarkCrazyhouseLifecycleTimers(room: DarkCrazyhouseLiveRo
   darkCrazyhouseWs.scheduleLifecycleTimers(room);
 }
 
-export { clearDarkCrazyhouseRuntimeTimers };
+export function clearDarkCrazyhouseRuntimeTimers(room: DarkCrazyhouseLiveRoom): void {
+  clearTenantRuntimeTimers(room);
+}

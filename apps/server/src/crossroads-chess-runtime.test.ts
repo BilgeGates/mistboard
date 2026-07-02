@@ -1,12 +1,13 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
+import { crossroadsChessTenant } from './crossroads-chess-tenant.js';
 import {
-  appendCrossroadsChessRuntimeEvent,
-  createCrossroadsChessRuntimeRoom,
-  isCrossroadsChessEventLog,
-  isCrossroadsChessRoomId,
-  replayCrossroadsChessEvents,
-} from './crossroads-chess-runtime.js';
+  appendTenantRuntimeEvent,
+  createTenantRuntimeRoom,
+  isTenantEventLog,
+  isTenantRoomId,
+  replayTenantEvents,
+} from './variant-tenant/runtime.js';
 
 // The flag is read at call time, so setting it here (before any test runs) is
 // enough to let the runtime build a room.
@@ -15,15 +16,18 @@ process.env.MISTBOARD_CROSSROADS_CHESS_ENABLED = 'true';
 const TC = { initialMs: 180_000, incrementMs: 2_000 };
 
 function freshRoom() {
-  const created = createCrossroadsChessRuntimeRoom('dchess_test', { now: 1_000, timeControl: TC });
+  const created = createTenantRuntimeRoom(crossroadsChessTenant, 'dchess_test', {
+    now: 1_000,
+    timeControl: TC,
+  });
   assert.equal(created.ok, true);
   if (!created.ok) throw new Error('unreachable');
   return created.room;
 }
 
 test('room ids carry the crossroads-chess prefix', () => {
-  assert.equal(isCrossroadsChessRoomId('dchess_abc'), true);
-  assert.equal(isCrossroadsChessRoomId('dmxq_abc'), false);
+  assert.equal(isTenantRoomId(crossroadsChessTenant, 'dchess_abc'), true);
+  assert.equal(isTenantRoomId(crossroadsChessTenant, 'dmxq_abc'), false);
 });
 
 test('a fresh room starts with White to move and a seeded clock', () => {
@@ -39,7 +43,7 @@ test('a fresh room starts with White to move and a seeded clock', () => {
 
 test('moves advance the projection and the clock arms after Red’s first move', () => {
   const room = freshRoom();
-  appendCrossroadsChessRuntimeEvent(room, {
+  appendTenantRuntimeEvent(crossroadsChessTenant, room, {
     type: 'move-played',
     at: 2_000,
     roomId: room.id,
@@ -53,7 +57,7 @@ test('moves advance the projection and the clock arms after Red’s first move',
     'red',
   );
 
-  appendCrossroadsChessRuntimeEvent(room, {
+  appendTenantRuntimeEvent(crossroadsChessTenant, room, {
     type: 'move-played',
     at: 3_000,
     roomId: room.id,
@@ -73,7 +77,7 @@ test('replaying the event log reproduces the live projection exactly', () => {
     ['red', 'c7', 'c5'],
     ['white', 'd1', 'c3'],
   ] as const) {
-    appendCrossroadsChessRuntimeEvent(room, {
+    appendTenantRuntimeEvent(crossroadsChessTenant, room, {
       type: 'move-played',
       at: 4_000,
       roomId: room.id,
@@ -81,12 +85,12 @@ test('replaying the event log reproduces the live projection exactly', () => {
       move: { from, to },
     });
   }
-  assert.deepEqual(replayCrossroadsChessEvents(room.events), room.projection);
+  assert.deepEqual(replayTenantEvents(crossroadsChessTenant, room.events), room.projection);
 });
 
 test('a clock expiry finishes the game as a timeout for the other side', () => {
   const room = freshRoom();
-  appendCrossroadsChessRuntimeEvent(room, {
+  appendTenantRuntimeEvent(crossroadsChessTenant, room, {
     type: 'clock-expired',
     at: 9_000,
     roomId: room.id,
@@ -106,7 +110,7 @@ test('a clock expiry finishes the game as a timeout for the other side', () => {
 
 test('resignation finishes the game for the opponent', () => {
   const room = freshRoom();
-  appendCrossroadsChessRuntimeEvent(room, {
+  appendTenantRuntimeEvent(crossroadsChessTenant, room, {
     type: 'seat-resigned',
     at: 5_000,
     roomId: room.id,
@@ -124,10 +128,12 @@ test('resignation finishes the game for the opponent', () => {
 
 test('the event-log validator accepts a real log and rejects junk', () => {
   const room = freshRoom();
-  assert.equal(isCrossroadsChessEventLog(room.events), true);
-  assert.equal(isCrossroadsChessEventLog([]), false);
+  assert.equal(isTenantEventLog(crossroadsChessTenant, room.events), true);
+  assert.equal(isTenantEventLog(crossroadsChessTenant, []), false);
   assert.equal(
-    isCrossroadsChessEventLog([{ type: 'move-played', roomId: 'dchess_test', at: 1 }]),
+    isTenantEventLog(crossroadsChessTenant, [
+      { type: 'move-played', roomId: 'dchess_test', at: 1 },
+    ]),
     false,
   );
 });

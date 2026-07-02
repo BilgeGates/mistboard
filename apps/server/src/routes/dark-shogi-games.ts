@@ -9,20 +9,24 @@ import {
   shogiSquareOf,
 } from '@mistboard/game';
 import { darkShogiRooms } from './../dark-shogi-registration.js';
-import {
-  applyDarkShogiEvent,
-  type DarkShogiEvent,
-  type DarkShogiProjection,
-  type DarkShogiRuntimeRoom,
-  type DarkShogiWirePlayerView,
-  getDarkShogiClientView,
-  isDarkShogiEventLog,
-  replayDarkShogiEvents,
+import type {
+  DarkShogiEvent,
+  DarkShogiProjection,
+  DarkShogiRuntimeRoom,
 } from './../dark-shogi-runtime.js';
-import { darkShogiTenant } from './../dark-shogi-tenant.js';
+import {
+  type DarkShogiWirePlayerView,
+  darkShogiTenant,
+  getDarkShogiClientView,
+} from './../dark-shogi-tenant.js';
 import { darkShogiEnabled } from './../feature-flags.js';
 import * as persistence from './../persistence.js';
 import { buildTenantGameSummary } from './../variant-tenant/events.js';
+import {
+  applyTenantEvent,
+  isTenantEventLog,
+  replayTenantEvents,
+} from './../variant-tenant/runtime.js';
 import { type HttpApiContext, requireMethod, writeJson } from './lib.js';
 
 type DarkShogiPostgameViewKey = ShogiColor | 'truth';
@@ -96,7 +100,7 @@ export async function darkShogiPostgameForApi(roomId: string, deps: DarkShogiPos
     persistenceEnabled ? deps.loadRoomEvents(roomId) : null,
   ]);
   if (game && game.variant !== DARK_SHOGI_SPEC_ID) return null;
-  if (events && !isDarkShogiEventLog(events, roomId)) return null;
+  if (events && !isTenantEventLog(darkShogiTenant, events, roomId)) return null;
 
   let source: { game: persistence.RecentEveGameRecord; events: readonly DarkShogiEvent[] } | null =
     game && events ? { game, events } : null;
@@ -107,7 +111,7 @@ export async function darkShogiPostgameForApi(roomId: string, deps: DarkShogiPos
   }
   if (!source) return null;
 
-  const projection = replayDarkShogiEvents(source.events);
+  const projection = replayTenantEvents(darkShogiTenant, source.events);
   // The reveal gate: only a FINISHED game exposes the truth board and the
   // opponent's hidden history. A live or aborted-mid-play room returns 404.
   if (projection.state.status.type !== 'finished') return null;
@@ -147,7 +151,7 @@ function darkShogiPostgameFromLiveRoom(
 ): { game: persistence.RecentEveGameRecord; events: readonly DarkShogiEvent[] } | null {
   if (!room || room.id !== roomId) return null;
   if (room.projection.state.status.type !== 'finished') return null;
-  if (!isDarkShogiEventLog(room.events, roomId)) return null;
+  if (!isTenantEventLog(darkShogiTenant, room.events, roomId)) return null;
   const summary = buildTenantGameSummary(darkShogiTenant, room);
   return {
     game: recentGameRecordFromSummary(room.id, summary),
@@ -206,13 +210,13 @@ function darkShogiPostgameViews(
 function darkShogiPostgameHistory(events: readonly DarkShogiEvent[]): DarkShogiPostgameHistory {
   const created = events[0];
   if (!created || created.type !== 'room-created') return {};
-  let projection = replayDarkShogiEvents([created]);
+  let projection = replayTenantEvents(darkShogiTenant, [created]);
   let ply = 0;
   let latestMoveColor: ShogiColor | undefined;
   const history = postgameHistoryViews(projection, ply, latestMoveColor);
 
   for (const event of events.slice(1)) {
-    projection = applyDarkShogiEvent(projection, event);
+    projection = applyTenantEvent(darkShogiTenant, projection, event);
     if (event.type !== 'move-played') continue;
     ply += 1;
     latestMoveColor = event.color;

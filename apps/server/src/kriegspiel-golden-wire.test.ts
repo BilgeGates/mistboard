@@ -20,17 +20,22 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import type { Color, Move } from '@mistboard/game';
-import {
-  appendKriegspielRuntimeEvent,
-  createKriegspielRuntimeRoomFromEvents,
-  type KriegspielEvent,
-  type KriegspielRuntimeRoom,
-  type KriegspielSeat,
-  kriegspielClientEventFor,
-  kriegspielPlyAtEventIndex,
-  kriegspielSnapshotPayload,
+import type {
+  KriegspielEvent,
+  KriegspielRuntimeRoom,
+  KriegspielSeat,
 } from './kriegspiel-runtime.js';
-import { type KriegspielWireMove, kriegspielTenant } from './kriegspiel-tenant.js';
+import {
+  type KriegspielWireMove,
+  kriegspielClientEventFor,
+  kriegspielTenant,
+} from './kriegspiel-tenant.js';
+import {
+  appendTenantRuntimeEvent,
+  createTenantRuntimeRoomFromEvents,
+  tenantPlyAtEventIndex,
+  tenantSnapshotPayload,
+} from './variant-tenant/runtime.js';
 
 const ROOM_ID = 'kr_golden-a';
 const SEATS: readonly KriegspielSeat[] = ['black', 'white', 'spectator'];
@@ -51,7 +56,7 @@ type ClientMovePlayed = {
 
 function hydrate(): KriegspielRuntimeRoom {
   const timeControl = { initialMs: 180_000, incrementMs: 2_000 };
-  const created = createKriegspielRuntimeRoomFromEvents([
+  const created = createTenantRuntimeRoomFromEvents(kriegspielTenant, [
     {
       type: 'room-created',
       at: 1_000,
@@ -102,12 +107,16 @@ function play(
     color,
     move: canonical,
   };
-  const seq = appendKriegspielRuntimeEvent(room, event);
+  const seq = appendTenantRuntimeEvent(kriegspielTenant, room, event);
   return { event, seq };
 }
 
 function snapshotState(room: KriegspielRuntimeRoom, seat: KriegspielSeat): WirePlayerView {
-  const payload = kriegspielSnapshotPayload(room, { id: `client-${seat}`, seat, solo: false });
+  const payload = tenantSnapshotPayload(kriegspielTenant, room, {
+    id: `client-${seat}`,
+    seat,
+    solo: false,
+  });
   return JSON.parse(JSON.stringify(payload.state)) as WirePlayerView;
 }
 
@@ -116,7 +125,7 @@ function clientEvent(
   appended: { event: KriegspielEvent; seq: number },
   seat: KriegspielSeat,
 ): ClientMovePlayed | null {
-  const ply = kriegspielPlyAtEventIndex(room.events, appended.seq);
+  const ply = tenantPlyAtEventIndex(room.events, appended.seq);
   const event = kriegspielClientEventFor(appended.event, seat, ply);
   return event ? (JSON.parse(JSON.stringify(event)) as ClientMovePlayed) : null;
 }
@@ -225,7 +234,7 @@ test('kriegspiel wire: the spectator view is empty', () => {
   assert.equal(spectator.lastMove, undefined);
 
   // And no move event ever reaches a spectator snapshot.
-  const payload = kriegspielSnapshotPayload(room, {
+  const payload = tenantSnapshotPayload(kriegspielTenant, room, {
     id: 'client-spectator',
     seat: 'spectator',
     solo: false,
@@ -252,7 +261,11 @@ test('kriegspiel wire: a foreign move in a seat stream is coordinate-redacted', 
   play(room, 20_000, 'white', { from: 'e4', to: 'd5' });
 
   for (const seat of SEATS) {
-    const payload = kriegspielSnapshotPayload(room, { id: `client-${seat}`, seat, solo: false });
+    const payload = tenantSnapshotPayload(kriegspielTenant, room, {
+      id: `client-${seat}`,
+      seat,
+      solo: false,
+    });
     for (const event of payload.events as ClientMovePlayed[]) {
       if (event.type !== 'move-played') continue;
       if (event.color === seat) {

@@ -2,16 +2,14 @@ import assert from 'node:assert/strict';
 import { createServer, type Server } from 'node:http';
 import type { AddressInfo } from 'node:net';
 import test from 'node:test';
-import {
-  appendDarkXiangqiRuntimeEvent,
-  createDarkXiangqiRuntimeRoom,
-  type DarkXiangqiRuntimeRoom,
-} from './dark-xiangqi-runtime.js';
+import type { DarkXiangqiRuntimeRoom } from './dark-xiangqi-runtime.js';
+import { darkXiangqiTenant } from './dark-xiangqi-tenant.js';
 import {
   type DarkXiangqiEngineContext,
   playDarkXiangqiEngineMoveIfReady,
 } from './server-dark-xiangqi-engine.js';
 import type { DarkXiangqiLiveRoom } from './server-ws-dark-xiangqi.js';
+import { appendTenantRuntimeEvent, createTenantRuntimeRoom } from './variant-tenant/runtime.js';
 
 const darkXiangqiFlag = 'MISTBOARD_DARK_XIANGQI_ENABLED';
 
@@ -56,18 +54,18 @@ test('Dark Xiangqi engine loop falls back on fog-pseudo-legal output', async () 
 });
 
 function pveRoom(engineSeat: 'red' | 'black'): DarkXiangqiLiveRoom {
-  const created = createDarkXiangqiRuntimeRoom('dxq_engine_test');
+  const created = createTenantRuntimeRoom(darkXiangqiTenant, 'dxq_engine_test');
   assert.equal(created.ok, true);
   if (!created.ok) throw new Error('room create failed');
   const room = created.room;
-  appendDarkXiangqiRuntimeEvent(room, {
+  appendTenantRuntimeEvent(darkXiangqiTenant, room, {
     type: 'seat-assigned',
     at: 1,
     roomId: room.id,
     clientId: 'python-fdx-v1.0',
     seat: engineSeat,
   });
-  appendDarkXiangqiRuntimeEvent(room, {
+  appendTenantRuntimeEvent(darkXiangqiTenant, room, {
     type: 'seat-assigned',
     at: 2,
     roomId: room.id,
@@ -79,7 +77,7 @@ function pveRoom(engineSeat: 'red' | 'black'): DarkXiangqiLiveRoom {
 
 function engineCtx(room: DarkXiangqiRuntimeRoom): DarkXiangqiEngineContext {
   return {
-    appendEvent: async (_room, event) => appendDarkXiangqiRuntimeEvent(room, event),
+    appendEvent: async (_room, event) => appendTenantRuntimeEvent(darkXiangqiTenant, room, event),
     broadcastEventAppended: () => {},
     now: () => 1_000,
   };

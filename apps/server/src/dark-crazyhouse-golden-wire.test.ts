@@ -15,17 +15,19 @@ import { dirname, join } from 'node:path';
 import test from 'node:test';
 import { fileURLToPath } from 'node:url';
 import { type CrazyhouseMove, getLegalCrazyhouseMoves, isCrazyhouseDrop } from '@mistboard/game';
-import {
-  appendDarkCrazyhouseRuntimeEvent,
-  createDarkCrazyhouseRuntimeRoomFromEvents,
-  type DarkCrazyhouseEvent,
-  type DarkCrazyhouseRuntimeRoom,
-  type DarkCrazyhouseSeat,
-  darkCrazyhouseClientEventFor,
-  darkCrazyhousePlyAtEventIndex,
-  darkCrazyhouseSnapshotPayload,
-  expireDarkCrazyhouseClock,
+import type {
+  DarkCrazyhouseEvent,
+  DarkCrazyhouseRuntimeRoom,
+  DarkCrazyhouseSeat,
 } from './dark-crazyhouse-runtime.js';
+import { darkCrazyhouseClientEventFor, darkCrazyhouseTenant } from './dark-crazyhouse-tenant.js';
+import {
+  appendTenantRuntimeEvent,
+  createTenantRuntimeRoomFromEvents,
+  expireTenantClock,
+  tenantPlyAtEventIndex,
+  tenantSnapshotPayload,
+} from './variant-tenant/runtime.js';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const FIXTURE_PATH = join(HERE, '..', 'src', 'fixtures', 'dark-crazyhouse-wire-golden.json');
@@ -46,7 +48,11 @@ function moveKey(move: CrazyhouseMove): string {
 }
 
 function snapshotFor(room: DarkCrazyhouseRuntimeRoom, seat: DarkCrazyhouseSeat): SeatRecord {
-  const payload = darkCrazyhouseSnapshotPayload(room, { id: `client-${seat}`, seat, solo: false });
+  const payload = tenantSnapshotPayload(darkCrazyhouseTenant, room, {
+    id: `client-${seat}`,
+    seat,
+    solo: false,
+  });
   return { ...payload, serverAt: 0 };
 }
 
@@ -58,7 +64,7 @@ function recordStep(
 ): void {
   const step: GoldenStep = { label, snapshots: {} };
   if (appended) {
-    const ply = darkCrazyhousePlyAtEventIndex(room.events, appended.seq);
+    const ply = tenantPlyAtEventIndex(room.events, appended.seq);
     step.eventForSeat = {};
     for (const seat of SEATS)
       step.eventForSeat[seat] = darkCrazyhouseClientEventFor(appended.event, seat, ply);
@@ -73,12 +79,12 @@ function append(
   label: string,
   event: DarkCrazyhouseEvent,
 ): void {
-  const seq = appendDarkCrazyhouseRuntimeEvent(room, event);
+  const seq = appendTenantRuntimeEvent(darkCrazyhouseTenant, room, event);
   recordStep(script, room, label, { event, seq });
 }
 
 function hydrate(events: DarkCrazyhouseEvent[]): DarkCrazyhouseRuntimeRoom {
-  const created = createDarkCrazyhouseRuntimeRoomFromEvents(events);
+  const created = createTenantRuntimeRoomFromEvents(darkCrazyhouseTenant, events);
   assert.ok(created.ok, 'golden script event log must hydrate');
   return created.room;
 }
@@ -203,7 +209,7 @@ function runScriptC(): GoldenScript {
     });
   }
   const expiredColor = playingTurn(room);
-  const expiredClock = expireDarkCrazyhouseClock(room.projection.clock, 90_000, expiredColor);
+  const expiredClock = expireTenantClock(room.projection.clock, 90_000, expiredColor);
   assert.ok(expiredClock, 'script C must have an armed clock to expire');
   append(script, room, 'clock-expired', {
     type: 'clock-expired',

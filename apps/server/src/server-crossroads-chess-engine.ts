@@ -21,10 +21,7 @@ import {
   crossroadsChessLiveEngineMove,
   isCrossroadsChessEngineClientId,
 } from './crossroads-chess-engine.js';
-import {
-  type CrossroadsChessEvent,
-  crossroadsChessClockRemainingMs,
-} from './crossroads-chess-runtime.js';
+import type { CrossroadsChessEvent } from './crossroads-chess-runtime.js';
 import {
   buildEngineDecisionRecord,
   reportEngineFallback,
@@ -33,6 +30,7 @@ import {
 } from './engine-move-guard.js';
 import { logger } from './obs.js';
 import type { CrossroadsChessLiveRoom } from './server-crossroads-chess-live-room.js';
+import { tenantClockRemainingMs } from './variant-tenant/runtime.js';
 
 const CLOCK_SAFETY_MS = 1_000;
 const MIN_MOVETIME_MS = 50;
@@ -99,7 +97,7 @@ export async function playCrossroadsChessEngineMoveIfReady(
 
   const now = ctx.now?.() ?? Date.now();
   const clock = room.projection.clock;
-  const remainingMs = clock ? crossroadsChessClockRemainingMs(clock, seat, now) : null;
+  const remainingMs = clock ? tenantClockRemainingMs(clock, seat, now) : null;
   if (remainingMs !== null && remainingMs <= 0) return;
 
   const history = crossroadsChessUciHistory(room.events);

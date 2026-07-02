@@ -9,11 +9,7 @@ import {
   getCrossroadsChessOpenLegalMoves,
 } from '@mistboard/game';
 import type { WebSocket } from 'ws';
-import {
-  appendCrossroadsChessRuntimeEvent,
-  createCrossroadsChessRuntimeRoom,
-} from './crossroads-chess-runtime.js';
-import { mintCrossroadsChessSeatToken } from './server-crossroads-chess-seat-session.js';
+import { crossroadsChessTenant } from './crossroads-chess-tenant.js';
 import {
   type CrossroadsChessLiveRoom,
   type CrossroadsChessWebSocketContext,
@@ -21,6 +17,8 @@ import {
   handleCrossroadsChessWebSocketConnection,
   scheduleCrossroadsChessLifecycleTimers,
 } from './server-ws-crossroads-chess.js';
+import { appendTenantRuntimeEvent, createTenantRuntimeRoom } from './variant-tenant/runtime.js';
+import { mintTenantSeatToken } from './variant-tenant/seat-session.js';
 
 const crossroadsChessFlag = 'MISTBOARD_CROSSROADS_CHESS_ENABLED';
 
@@ -371,7 +369,7 @@ test('Crossroads Chess WebSocket handler arms a forfeit timer when a seat discon
 test('Crossroads Chess WebSocket handler treats an engine seat as connected for forfeits', async () => {
   await withFlag(async () => {
     const room = liveRoom('dchess_forfeit_engine');
-    appendCrossroadsChessRuntimeEvent(room, {
+    appendTenantRuntimeEvent(crossroadsChessTenant, room, {
       type: 'seat-assigned',
       at: 1,
       roomId: room.id,
@@ -389,7 +387,7 @@ test('Crossroads Chess WebSocket handler treats an engine seat as connected for 
       (move) => !move.promotion,
     );
     assert.ok(whiteMove, 'expected a white legal move');
-    appendCrossroadsChessRuntimeEvent(room, {
+    appendTenantRuntimeEvent(crossroadsChessTenant, room, {
       type: 'move-played',
       at: 2,
       roomId: room.id,
@@ -400,7 +398,7 @@ test('Crossroads Chess WebSocket handler treats an engine seat as connected for 
       (move) => !move.promotion,
     );
     assert.ok(redMove, 'expected a red legal move');
-    appendCrossroadsChessRuntimeEvent(room, {
+    appendTenantRuntimeEvent(crossroadsChessTenant, room, {
       type: 'move-played',
       at: 3,
       roomId: room.id,
@@ -444,8 +442,7 @@ function context(): CrossroadsChessWebSocketContext {
       send: (client, payload) => client.socket.send(JSON.stringify(payload)),
       buildRoomUrl: (roomId: string) => `/room/${roomId}`,
       createRoom: async () => ({ ok: true as const, room: liveRoom('dchess_rematch_next') }),
-      issueSeatToken: async (room, seat, identity) =>
-        mintCrossroadsChessSeatToken(room, seat, identity),
+      issueSeatToken: async (room, seat, identity) => mintTenantSeatToken(room, seat, identity),
     },
     wsMessageLimit: 20,
     wsMessageWindowMs: 1000,
@@ -507,7 +504,7 @@ function request(roomId: string, clientId: string, seatToken?: string): Incoming
 }
 
 function liveRoom(roomId: string): CrossroadsChessLiveRoom {
-  const created = createCrossroadsChessRuntimeRoom(roomId);
+  const created = createTenantRuntimeRoom(crossroadsChessTenant, roomId);
   assert.equal(created.ok, true);
   if (!created.ok) throw new Error('flagged Crossroads Chess room creation failed');
   return created.room as CrossroadsChessLiveRoom;

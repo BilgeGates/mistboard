@@ -9,7 +9,7 @@ import type { CrossroadsChessColor } from '@mistboard/game';
 import type { WebSocket } from 'ws';
 import type { DarkCrossroadsChessRuntimeRoom } from './dark-crossroads-chess-runtime.js';
 import { darkCrossroadsChessTenant } from './dark-crossroads-chess-tenant.js';
-import { clearDarkCrossroadsChessRuntimeTimers } from './server-dark-crossroads-chess-lifecycle.js';
+import { clearTenantRuntimeTimers } from './variant-tenant/lifecycle.js';
 import { createTenantWsRuntime, type TenantLiveClient } from './variant-tenant/ws.js';
 
 export type DarkCrossroadsChessLiveClient = TenantLiveClient<CrossroadsChessColor>;
@@ -50,4 +50,6 @@ export function scheduleDarkCrossroadsChessLifecycleTimers(
   darkCrossroadsChessWs.scheduleLifecycleTimers(room);
 }
 
-export { clearDarkCrossroadsChessRuntimeTimers };
+export function clearDarkCrossroadsChessRuntimeTimers(room: DarkCrossroadsChessLiveRoom): void {
+  clearTenantRuntimeTimers(room);
+}

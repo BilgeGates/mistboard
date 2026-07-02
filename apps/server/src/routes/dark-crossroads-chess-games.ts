@@ -6,17 +6,22 @@ import {
   DARK_CROSSROADS_CHESS_SPEC_ID,
   oppositeCrossroadsChessColor,
 } from '@mistboard/game';
-import {
-  applyDarkCrossroadsChessEvent,
-  type DarkCrossroadsChessEvent,
-  type DarkCrossroadsChessProjection,
-  type DarkCrossroadsChessWirePlayerView,
-  getDarkCrossroadsChessClientView,
-  isDarkCrossroadsChessEventLog,
-  replayDarkCrossroadsChessEvents,
+import type {
+  DarkCrossroadsChessEvent,
+  DarkCrossroadsChessProjection,
 } from './../dark-crossroads-chess-runtime.js';
+import {
+  type DarkCrossroadsChessWirePlayerView,
+  darkCrossroadsChessTenant,
+  getDarkCrossroadsChessClientView,
+} from './../dark-crossroads-chess-tenant.js';
 import { darkCrossroadsChessEnabled } from './../feature-flags.js';
 import * as persistence from './../persistence.js';
+import {
+  applyTenantEvent,
+  isTenantEventLog,
+  replayTenantEvents,
+} from './../variant-tenant/runtime.js';
 import { type HttpApiContext, requireMethod, requirePersistence, writeJson } from './lib.js';
 
 type DarkCrossroadsChessPostgameViewKey = CrossroadsChessColor | 'truth';
@@ -99,9 +104,9 @@ export async function darkCrossroadsChessPostgameForApi(
     deps.loadRoomEvents(roomId),
   ]);
   if (!game || game.variant !== DARK_CROSSROADS_CHESS_SPEC_ID) return null;
-  if (!events || !isDarkCrossroadsChessEventLog(events, roomId)) return null;
+  if (!events || !isTenantEventLog(darkCrossroadsChessTenant, events, roomId)) return null;
 
-  const projection = replayDarkCrossroadsChessEvents(events);
+  const projection = replayTenantEvents(darkCrossroadsChessTenant, events);
   // The reveal gate: only a FINISHED game exposes the truth board and the
   // opponent's hidden history. A live or aborted-mid-play room returns 404.
   if (projection.state.status.type !== 'finished') return null;
@@ -159,13 +164,13 @@ function darkCrossroadsChessPostgameHistory(
 ): DarkCrossroadsChessPostgameHistory {
   const created = events[0];
   if (!created || created.type !== 'room-created') return {};
-  let projection = replayDarkCrossroadsChessEvents([created]);
+  let projection = replayTenantEvents(darkCrossroadsChessTenant, [created]);
   let ply = 0;
   let latestMoveColor: CrossroadsChessColor | undefined;
   const history = postgameHistoryViews(projection, ply, latestMoveColor);
 
   for (const event of events.slice(1)) {
-    projection = applyDarkCrossroadsChessEvent(projection, event);
+    projection = applyTenantEvent(darkCrossroadsChessTenant, projection, event);
     if (event.type !== 'move-played') continue;
     ply += 1;
     latestMoveColor = event.color;

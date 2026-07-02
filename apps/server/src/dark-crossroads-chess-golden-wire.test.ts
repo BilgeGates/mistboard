@@ -21,17 +21,22 @@ import { dirname, join } from 'node:path';
 import test from 'node:test';
 import { fileURLToPath } from 'node:url';
 import { type CrossroadsChessMove, getCrossroadsChessLegalMoves } from '@mistboard/game';
-import {
-  appendDarkCrossroadsChessRuntimeEvent,
-  createDarkCrossroadsChessRuntimeRoomFromEvents,
-  type DarkCrossroadsChessEvent,
-  type DarkCrossroadsChessRuntimeRoom,
-  type DarkCrossroadsChessSeat,
-  darkCrossroadsChessClientEventFor,
-  darkCrossroadsChessPlyAtEventIndex,
-  darkCrossroadsChessSnapshotPayload,
-  expireDarkCrossroadsChessClock,
+import type {
+  DarkCrossroadsChessEvent,
+  DarkCrossroadsChessRuntimeRoom,
+  DarkCrossroadsChessSeat,
 } from './dark-crossroads-chess-runtime.js';
+import {
+  darkCrossroadsChessClientEventFor,
+  darkCrossroadsChessTenant,
+} from './dark-crossroads-chess-tenant.js';
+import {
+  appendTenantRuntimeEvent,
+  createTenantRuntimeRoomFromEvents,
+  expireTenantClock,
+  tenantPlyAtEventIndex,
+  tenantSnapshotPayload,
+} from './variant-tenant/runtime.js';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 // Anchor on the package dir so the fixture resolves whether this file runs
@@ -53,7 +58,7 @@ function snapshotFor(
   room: DarkCrossroadsChessRuntimeRoom,
   seat: DarkCrossroadsChessSeat,
 ): SeatRecord {
-  const payload = darkCrossroadsChessSnapshotPayload(room, {
+  const payload = tenantSnapshotPayload(darkCrossroadsChessTenant, room, {
     id: `client-${seat}`,
     seat,
     solo: false,
@@ -69,7 +74,7 @@ function recordStep(
 ): void {
   const step: GoldenStep = { label, snapshots: {} };
   if (appended) {
-    const ply = darkCrossroadsChessPlyAtEventIndex(room.events, appended.seq);
+    const ply = tenantPlyAtEventIndex(room.events, appended.seq);
     step.eventForSeat = {};
     for (const seat of SEATS) {
       step.eventForSeat[seat] = darkCrossroadsChessClientEventFor(appended.event, seat, ply);
@@ -87,12 +92,12 @@ function append(
   label: string,
   event: DarkCrossroadsChessEvent,
 ): void {
-  const seq = appendDarkCrossroadsChessRuntimeEvent(room, event);
+  const seq = appendTenantRuntimeEvent(darkCrossroadsChessTenant, room, event);
   recordStep(script, room, label, { event, seq });
 }
 
 function hydrate(events: DarkCrossroadsChessEvent[]): DarkCrossroadsChessRuntimeRoom {
-  const created = createDarkCrossroadsChessRuntimeRoomFromEvents(events);
+  const created = createTenantRuntimeRoomFromEvents(darkCrossroadsChessTenant, events);
   assert.ok(created.ok, 'golden script event log must hydrate');
   return created.room;
 }
@@ -252,7 +257,7 @@ function runScriptC(): GoldenScript {
   }
 
   const expiredColor = playingTurn(room);
-  const expiredClock = expireDarkCrossroadsChessClock(room.projection.clock, 90_000, expiredColor);
+  const expiredClock = expireTenantClock(room.projection.clock, 90_000, expiredColor);
   assert.ok(expiredClock, 'script C must have an armed clock to expire');
   append(script, room, 'clock-expired', {
     type: 'clock-expired',

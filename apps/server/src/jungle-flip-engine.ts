@@ -14,9 +14,9 @@
 // ignores trailing `moves` (the clock is carried in the FEN), so we never send a
 // repetition window — the engine's own search-internal repetition detection applies.
 
-import { spawn } from 'node:child_process';
 import { existsSync } from 'node:fs';
 import { resolve } from 'node:path';
+import { runUciBestmove, UciEnginePool } from './uci-engine-harness.js';
 
 // Bump on every shipped eval/search change; the binary self-reports "MistyJungleFlip
 // <version>" over UCI, and the engines registry records it (configHash) per game.
@@ -53,15 +53,12 @@ const JUNGLE_FLIP_ENGINE_BY_ID: ReadonlyMap<string, JungleFlipEngineTier> = new 
   JungleFlipEngineTier
 >([[MISTY_JUNGLE_FLIP.id, MISTY_JUNGLE_FLIP]]);
 
-const DEFAULT_MAX_CONCURRENT = 2;
-const DEFAULT_QUEUE_TIMEOUT_MS = 5_000;
-
-let activeProcesses = 0;
-const queue: Array<{
-  reject(err: Error): void;
-  resolve(): void;
-  timer: ReturnType<typeof setTimeout>;
-}> = [];
+// Small per-process slot pool (Tier-B UCI subprocess; shared harness).
+const enginePool = new UciEnginePool({
+  maxProcessesEnvVar: 'MISTBOARD_JUNGLE_FLIP_MAX_PROCESSES',
+  queueTimeoutEnvVar: 'MISTBOARD_JUNGLE_FLIP_QUEUE_TIMEOUT_MS',
+  queueTimeoutMessage: 'jungle-flip-engine concurrency queue timed out',
+});
 
 // Resolve the MistyJungleFlip binary: explicit env override, else the dev build
 // location, else the prod (railpack-compiled) / system locations.
@@ -155,7 +152,7 @@ export async function jungleFlipLiveEngineMove(
 ): Promise<string | null> {
   const tier = jungleFlipEngineTierFor(engineId);
   if (!tier) throw new Error(`unknown Flip Jungle engine: ${engineId}`);
-  const release = await acquireSlot();
+  const release = await enginePool.acquire();
   try {
     return await jungleFlipEngineMove(fen, {
       nodes: opts.nodes ?? tier.nodes,
@@ -171,107 +168,22 @@ export function jungleFlipEngineMove(
   fen: string,
   opts: JungleFlipEngineOptions = {},
 ): Promise<string | null> {
-  const bin = jungleFlipEnginePath();
   const nodes = opts.nodes ?? 512_000;
   const movetimeCapMs = opts.movetimeCapMs ?? 2500;
-
-  return new Promise<string | null>((resolveMove, reject) => {
-    const child = spawn(bin, [], { stdio: ['pipe', 'pipe', 'pipe'] });
-    let buf = '';
-    let settled = false;
-
-    const finish = (run: () => void): void => {
-      if (settled) return;
-      settled = true;
-      clearTimeout(timer);
-      try {
-        child.kill('SIGKILL');
-      } catch {
-        /* already gone */
-      }
-      run();
-    };
-
-    const timer = setTimeout(
-      () => finish(() => reject(new Error('jungle-flip-engine move timed out'))),
-      movetimeCapMs + 4000,
-    );
-
-    child.on('error', (err) => finish(() => reject(err)));
-    child.stdout.on('data', (chunk: Buffer) => {
-      buf += chunk.toString('utf8');
-      let newline = buf.indexOf('\n');
-      while (newline >= 0) {
-        const line = buf.slice(0, newline).trim();
-        buf = buf.slice(newline + 1);
-        if (line.startsWith('bestmove')) {
-          const move = line.split(/\s+/)[1];
-          finish(() => resolveMove(move && move !== '(none)' ? move : null));
-          return;
-        }
-        newline = buf.indexOf('\n');
-      }
-    });
-
-    // Node budget = CPU-independent strength; movetime cap bounds latency (halt at
-    // whichever first). The position carries the clock in the FEN plus an optional
-    // `reps` seed (threefold game history) so the search adjudicates repetition draws.
-    const commands = [
-      'uci',
-      'ucinewgame',
-      'isready',
-      buildJungleFlipPositionCommand(fen, opts.repSeedFens),
-      `go nodes ${nodes} movetime ${movetimeCapMs}`,
-    ];
-    child.stdin.write(`${commands.join('\n')}\n`);
+  // Node budget = CPU-independent strength; movetime cap bounds latency (halt at
+  // whichever first). The position carries the clock in the FEN plus an optional
+  // `reps` seed (threefold game history) so the search adjudicates repetition draws.
+  const commands = [
+    'uci',
+    'ucinewgame',
+    'isready',
+    buildJungleFlipPositionCommand(fen, opts.repSeedFens),
+    `go nodes ${nodes} movetime ${movetimeCapMs}`,
+  ];
+  return runUciBestmove({
+    bin: jungleFlipEnginePath(),
+    commands,
+    timeoutMs: movetimeCapMs + 4000,
+    timeoutMessage: 'jungle-flip-engine move timed out',
   });
-}
-
-function acquireSlot(): Promise<() => void> {
-  if (activeProcesses < maxConcurrentProcesses()) {
-    activeProcesses += 1;
-    return Promise.resolve(releaseSlot);
-  }
-  return new Promise((resolveSlot, reject) => {
-    const timer = setTimeout(() => {
-      const idx = queue.findIndex((entry) => entry.reject === reject);
-      if (idx >= 0) queue.splice(idx, 1);
-      reject(new Error('jungle-flip-engine concurrency queue timed out'));
-    }, queueTimeoutMs());
-    timer.unref();
-    queue.push({
-      reject,
-      resolve: () => {
-        clearTimeout(timer);
-        activeProcesses += 1;
-        resolveSlot(releaseSlot);
-      },
-      timer,
-    });
-  });
-}
-
-function releaseSlot(): void {
-  activeProcesses = Math.max(0, activeProcesses - 1);
-  const next = queue.shift();
-  if (next) next.resolve();
-}
-
-function maxConcurrentProcesses(): number {
-  return boundedEnvInt('MISTBOARD_JUNGLE_FLIP_MAX_PROCESSES', DEFAULT_MAX_CONCURRENT, 1, 8);
-}
-
-function queueTimeoutMs(): number {
-  return boundedEnvInt(
-    'MISTBOARD_JUNGLE_FLIP_QUEUE_TIMEOUT_MS',
-    DEFAULT_QUEUE_TIMEOUT_MS,
-    100,
-    30_000,
-  );
-}
-
-function boundedEnvInt(name: string, fallback: number, min: number, max: number): number {
-  const value = Number.parseInt(process.env[name] ?? '', 10);
-  if (!Number.isFinite(value)) return fallback;
-  return Math.max(min, Math.min(max, value));
 }

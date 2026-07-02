@@ -1,15 +1,54 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { DARK_XIANGQI_SPEC_ID, type XiangqiBoard, type XiangqiGameState } from '@mistboard/game';
 import {
-  createDarkXiangqiRuntimeRoom,
-  createDarkXiangqiRuntimeRoomFromEvents,
-  type DarkXiangqiEvent,
-  type DarkXiangqiRuntimeRoom,
-  darkXiangqiSnapshotPayload,
-  isDarkXiangqiEventLog,
-  replayDarkXiangqiEvents,
+  DARK_XIANGQI_SPEC_ID,
+  type RoomTimeControl,
+  type XiangqiBoard,
+  type XiangqiGameState,
+} from '@mistboard/game';
+import type {
+  DarkXiangqiCreatorPreference,
+  DarkXiangqiEvent,
+  DarkXiangqiRuntimeRoom,
+  DarkXiangqiSnapshotClient,
 } from './dark-xiangqi-runtime.js';
+import { darkXiangqiTenant } from './dark-xiangqi-tenant.js';
+import {
+  createTenantRuntimeRoom,
+  createTenantRuntimeRoomFromEvents,
+  isTenantEventLog,
+  replayTenantEvents,
+  tenantSnapshotPayload,
+} from './variant-tenant/runtime.js';
+
+// The former dark-xiangqi-runtime wrappers, inlined as test-local helpers over
+// the generic tenant* runtime — the production runtime is now types-only. These
+// preserve the hidden-info redaction regression coverage below unchanged.
+function createDarkXiangqiRuntimeRoom(
+  roomId: string,
+  options: {
+    creatorPreference?: DarkXiangqiCreatorPreference;
+    now?: number;
+    timeControl?: RoomTimeControl;
+  } = {},
+) {
+  return createTenantRuntimeRoom(darkXiangqiTenant, roomId, options);
+}
+function createDarkXiangqiRuntimeRoomFromEvents(events: readonly DarkXiangqiEvent[]) {
+  return createTenantRuntimeRoomFromEvents(darkXiangqiTenant, events);
+}
+function replayDarkXiangqiEvents(events: readonly DarkXiangqiEvent[]) {
+  return replayTenantEvents(darkXiangqiTenant, events);
+}
+function isDarkXiangqiEventLog(events: readonly unknown[], roomId?: string) {
+  return isTenantEventLog(darkXiangqiTenant, events, roomId);
+}
+function darkXiangqiSnapshotPayload(
+  room: DarkXiangqiRuntimeRoom,
+  client: DarkXiangqiSnapshotClient,
+) {
+  return tenantSnapshotPayload(darkXiangqiTenant, room, client);
+}
 
 const darkXiangqiFlag = 'MISTBOARD_DARK_XIANGQI_ENABLED';
 
@@ -18,7 +57,7 @@ test('Dark Xiangqi direct runtime creation is disabled without the launch flag',
   delete process.env[darkXiangqiFlag];
   try {
     const result = createDarkXiangqiRuntimeRoom('xq-baseline', { now: 1 });
-    assert.deepEqual(result, { ok: false, error: 'dark_xiangqi_disabled' });
+    assert.deepEqual(result, { ok: false, error: 'disabled' });
   } finally {
     restoreFlag(before);
   }

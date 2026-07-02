@@ -8,7 +8,7 @@
  */
 
 import { getLegalMoves as getXiangqiLegalMoves, type XiangqiColor } from '@mistboard/game';
-import { type DarkXiangqiEvent, darkXiangqiClockRemainingMs } from './dark-xiangqi-runtime.js';
+import type { DarkXiangqiEvent } from './dark-xiangqi-runtime.js';
 import {
   buildEngineDecisionRecord,
   reportEngineMoveOk,
@@ -19,6 +19,7 @@ import { isDarkXiangqiEngineClientId, loadEngine } from './engines/registry.js';
 import { requestInternalEngineTurn } from './internal-engine-client.js';
 import { engineCounters, logger } from './obs.js';
 import type { DarkXiangqiLiveRoom } from './server-dark-xiangqi-types.js';
+import { tenantClockRemainingMs } from './variant-tenant/runtime.js';
 
 const ENGINE_SECRET = process.env.MISTBOARD_ENGINE_SECRET ?? 'mistboard-dev-engine-secret';
 const DEFAULT_TIMEOUT_MS = 60_000;
@@ -103,7 +104,7 @@ export async function playDarkXiangqiEngineMoveIfReady(
 
   const now = ctx.now?.() ?? Date.now();
   const clock = room.projection.clock;
-  const remainingMs = clock ? darkXiangqiClockRemainingMs(clock, seat, now) : null;
+  const remainingMs = clock ? tenantClockRemainingMs(clock, seat, now) : null;
   const incrementMs = clock?.incrementMs ?? 0;
   if (remainingMs !== null && remainingMs <= 0) return;
 

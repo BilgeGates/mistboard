@@ -16,8 +16,8 @@ import type { IncomingMessage } from 'node:http';
 import type { WebSocket } from 'ws';
 import { darkXiangqiTenant } from './dark-xiangqi-tenant.js';
 import { scheduleDarkXiangqiEngineMove } from './server-dark-xiangqi-engine.js';
-import { clearDarkXiangqiRuntimeTimers } from './server-dark-xiangqi-lifecycle.js';
 import type { DarkXiangqiLiveRoom } from './server-dark-xiangqi-types.js';
+import { clearTenantRuntimeTimers } from './variant-tenant/lifecycle.js';
 import { createTenantWsRuntime } from './variant-tenant/ws.js';
 
 export type { DarkXiangqiLiveClient, DarkXiangqiLiveRoom } from './server-dark-xiangqi-types.js';
@@ -54,4 +54,6 @@ export function scheduleDarkXiangqiLifecycleTimers(room: DarkXiangqiLiveRoom): v
   darkXiangqiWs.scheduleLifecycleTimers(room);
 }
 
-export { clearDarkXiangqiRuntimeTimers };
+export function clearDarkXiangqiRuntimeTimers(room: DarkXiangqiLiveRoom): void {
+  clearTenantRuntimeTimers(room);
+}

@@ -9,7 +9,7 @@ import type { Color } from '@mistboard/game';
 import type { WebSocket } from 'ws';
 import type { KriegspielRuntimeRoom } from './kriegspiel-runtime.js';
 import { kriegspielTenant } from './kriegspiel-tenant.js';
-import { clearKriegspielRuntimeTimers } from './server-kriegspiel-lifecycle.js';
+import { clearTenantRuntimeTimers } from './variant-tenant/lifecycle.js';
 import { createTenantWsRuntime, type TenantLiveClient } from './variant-tenant/ws.js';
 
 export type KriegspielLiveClient = TenantLiveClient<Color>;
@@ -48,4 +48,6 @@ export function scheduleKriegspielLifecycleTimers(room: KriegspielLiveRoom): voi
   kriegspielWs.scheduleLifecycleTimers(room);
 }
 
-export { clearKriegspielRuntimeTimers };
+export function clearKriegspielRuntimeTimers(room: KriegspielLiveRoom): void {
+  clearTenantRuntimeTimers(room);
+}

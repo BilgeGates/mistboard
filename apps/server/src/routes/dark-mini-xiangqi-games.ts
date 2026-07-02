@@ -8,17 +8,22 @@ import {
   oppositeMiniXiangqiColor,
 } from '@mistboard/game';
 import { buildDarkMiniXiangqiPublicationJson } from './../dark-mini-xiangqi-export.js';
-import {
-  applyDarkMiniXiangqiEvent,
-  type DarkMiniXiangqiEvent,
-  type DarkMiniXiangqiProjection,
-  getDarkMiniXiangqiClientView,
-  isDarkMiniXiangqiEventLog,
-  replayDarkMiniXiangqiEvents,
+import type {
+  DarkMiniXiangqiEvent,
+  DarkMiniXiangqiProjection,
 } from './../dark-mini-xiangqi-runtime.js';
+import {
+  darkMiniXiangqiTenant,
+  getDarkMiniXiangqiClientView,
+} from './../dark-mini-xiangqi-tenant.js';
 import { darkMiniXiangqiEnabled } from './../feature-flags.js';
 import { FinishedGameCache } from './../finished-game-cache.js';
 import * as persistence from './../persistence.js';
+import {
+  applyTenantEvent,
+  isTenantEventLog,
+  replayTenantEvents,
+} from './../variant-tenant/runtime.js';
 import { type HttpApiContext, requireMethod, requirePersistence, writeJson } from './lib.js';
 
 type DarkMiniXiangqiPostgameViewKey = MiniXiangqiColor | 'truth';
@@ -148,9 +153,9 @@ async function buildDarkMiniXiangqiPostgame(
     deps.loadRoomEvents(roomId),
   ]);
   if (!game || game.variant !== DARK_MINI_XIANGQI_SPEC_ID) return null;
-  if (!events || !isDarkMiniXiangqiEventLog(events, roomId)) return null;
+  if (!events || !isTenantEventLog(darkMiniXiangqiTenant, events, roomId)) return null;
 
-  const projection = replayDarkMiniXiangqiEvents(events);
+  const projection = replayTenantEvents(darkMiniXiangqiTenant, events);
   if (projection.state.status.type !== 'finished') return null;
 
   const latestMoveColor = latestDarkMiniXiangqiMoveColor(events);
@@ -217,7 +222,7 @@ function darkMiniXiangqiPostgameClocks(
 ): Array<Record<MiniXiangqiColor, number>> {
   const created = events[0];
   if (!created || created.type !== 'room-created') return [];
-  let projection = replayDarkMiniXiangqiEvents([created]);
+  let projection = replayTenantEvents(darkMiniXiangqiTenant, [created]);
   const clocks: Array<Record<MiniXiangqiColor, number>> = [];
   const capture = (ply: number): void => {
     if (projection.clock) clocks[ply] = { ...projection.clock.remainingMs };
@@ -225,7 +230,7 @@ function darkMiniXiangqiPostgameClocks(
   let ply = 0;
   capture(0);
   for (const event of events.slice(1)) {
-    projection = applyDarkMiniXiangqiEvent(projection, event);
+    projection = applyTenantEvent(darkMiniXiangqiTenant, projection, event);
     if (event.type !== 'move-played') continue;
     ply += 1;
     capture(ply);
@@ -257,13 +262,13 @@ function darkMiniXiangqiPostgameHistory(
 ): DarkMiniXiangqiPostgameHistory {
   const created = events[0];
   if (!created || created.type !== 'room-created') return {};
-  let projection = replayDarkMiniXiangqiEvents([created]);
+  let projection = replayTenantEvents(darkMiniXiangqiTenant, [created]);
   let ply = 0;
   let latestMoveColor: MiniXiangqiColor | undefined;
   const history = postgameHistoryViews(projection, ply, latestMoveColor);
 
   for (const event of events.slice(1)) {
-    projection = applyDarkMiniXiangqiEvent(projection, event);
+    projection = applyTenantEvent(darkMiniXiangqiTenant, projection, event);
     if (event.type !== 'move-played') continue;
     ply += 1;
     latestMoveColor = event.color;

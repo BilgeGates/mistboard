@@ -15,17 +15,15 @@ import { dirname, join } from 'node:path';
 import test from 'node:test';
 import { fileURLToPath } from 'node:url';
 import { getLegalShogiMoves, isShogiDrop, type ShogiMove } from '@mistboard/game';
+import type { DarkShogiEvent, DarkShogiRuntimeRoom, DarkShogiSeat } from './dark-shogi-runtime.js';
+import { darkShogiClientEventFor, darkShogiTenant } from './dark-shogi-tenant.js';
 import {
-  appendDarkShogiRuntimeEvent,
-  createDarkShogiRuntimeRoomFromEvents,
-  type DarkShogiEvent,
-  type DarkShogiRuntimeRoom,
-  type DarkShogiSeat,
-  darkShogiClientEventFor,
-  darkShogiPlyAtEventIndex,
-  darkShogiSnapshotPayload,
-  expireDarkShogiClock,
-} from './dark-shogi-runtime.js';
+  appendTenantRuntimeEvent,
+  createTenantRuntimeRoomFromEvents,
+  expireTenantClock,
+  tenantPlyAtEventIndex,
+  tenantSnapshotPayload,
+} from './variant-tenant/runtime.js';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const FIXTURE_PATH = join(HERE, '..', 'src', 'fixtures', 'dark-shogi-wire-golden.json');
@@ -46,7 +44,11 @@ function moveKey(move: ShogiMove): string {
 }
 
 function snapshotFor(room: DarkShogiRuntimeRoom, seat: DarkShogiSeat): SeatRecord {
-  const payload = darkShogiSnapshotPayload(room, { id: `client-${seat}`, seat, solo: false });
+  const payload = tenantSnapshotPayload(darkShogiTenant, room, {
+    id: `client-${seat}`,
+    seat,
+    solo: false,
+  });
   return { ...payload, serverAt: 0 };
 }
 
@@ -58,7 +60,7 @@ function recordStep(
 ): void {
   const step: GoldenStep = { label, snapshots: {} };
   if (appended) {
-    const ply = darkShogiPlyAtEventIndex(room.events, appended.seq);
+    const ply = tenantPlyAtEventIndex(room.events, appended.seq);
     step.eventForSeat = {};
     for (const seat of SEATS)
       step.eventForSeat[seat] = darkShogiClientEventFor(appended.event, seat, ply);
@@ -73,12 +75,12 @@ function append(
   label: string,
   event: DarkShogiEvent,
 ): void {
-  const seq = appendDarkShogiRuntimeEvent(room, event);
+  const seq = appendTenantRuntimeEvent(darkShogiTenant, room, event);
   recordStep(script, room, label, { event, seq });
 }
 
 function hydrate(events: DarkShogiEvent[]): DarkShogiRuntimeRoom {
-  const created = createDarkShogiRuntimeRoomFromEvents(events);
+  const created = createTenantRuntimeRoomFromEvents(darkShogiTenant, events);
   assert.ok(created.ok, 'golden script event log must hydrate');
   return created.room;
 }
@@ -203,7 +205,7 @@ function runScriptC(): GoldenScript {
     });
   }
   const expiredColor = playingTurn(room);
-  const expiredClock = expireDarkShogiClock(room.projection.clock, 90_000, expiredColor);
+  const expiredClock = expireTenantClock(room.projection.clock, 90_000, expiredColor);
   assert.ok(expiredClock, 'script C must have an armed clock to expire');
   append(script, room, 'clock-expired', {
     type: 'clock-expired',

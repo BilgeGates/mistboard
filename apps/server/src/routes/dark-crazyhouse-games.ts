@@ -6,17 +6,22 @@ import {
   DARK_CRAZYHOUSE_SPEC_ID,
   type Square,
 } from '@mistboard/game';
-import {
-  applyDarkCrazyhouseEvent,
-  type DarkCrazyhouseEvent,
-  type DarkCrazyhouseProjection,
-  type DarkCrazyhouseWirePlayerView,
-  getDarkCrazyhouseClientView,
-  isDarkCrazyhouseEventLog,
-  replayDarkCrazyhouseEvents,
+import type {
+  DarkCrazyhouseEvent,
+  DarkCrazyhouseProjection,
 } from './../dark-crazyhouse-runtime.js';
+import {
+  type DarkCrazyhouseWirePlayerView,
+  darkCrazyhouseTenant,
+  getDarkCrazyhouseClientView,
+} from './../dark-crazyhouse-tenant.js';
 import { darkCrazyhouseEnabled } from './../feature-flags.js';
 import * as persistence from './../persistence.js';
+import {
+  applyTenantEvent,
+  isTenantEventLog,
+  replayTenantEvents,
+} from './../variant-tenant/runtime.js';
 import { type HttpApiContext, requireMethod, requirePersistence, writeJson } from './lib.js';
 
 type DarkCrazyhousePostgameViewKey = Color | 'truth';
@@ -95,9 +100,9 @@ export async function darkCrazyhousePostgameForApi(
     deps.loadRoomEvents(roomId),
   ]);
   if (!game || game.variant !== DARK_CRAZYHOUSE_SPEC_ID) return null;
-  if (!events || !isDarkCrazyhouseEventLog(events, roomId)) return null;
+  if (!events || !isTenantEventLog(darkCrazyhouseTenant, events, roomId)) return null;
 
-  const projection = replayDarkCrazyhouseEvents(events);
+  const projection = replayTenantEvents(darkCrazyhouseTenant, events);
   // The reveal gate: only a FINISHED game exposes the truth board and the
   // opponent's hidden history. A live or aborted-mid-play room returns 404.
   if (projection.state.status.type !== 'finished') return null;
@@ -155,13 +160,13 @@ function darkCrazyhousePostgameHistory(
 ): DarkCrazyhousePostgameHistory {
   const created = events[0];
   if (!created || created.type !== 'room-created') return {};
-  let projection = replayDarkCrazyhouseEvents([created]);
+  let projection = replayTenantEvents(darkCrazyhouseTenant, [created]);
   let ply = 0;
   let latestMoveColor: Color | undefined;
   const history = postgameHistoryViews(projection, ply, latestMoveColor);
 
   for (const event of events.slice(1)) {
-    projection = applyDarkCrazyhouseEvent(projection, event);
+    projection = applyTenantEvent(darkCrazyhouseTenant, projection, event);
     if (event.type !== 'move-played') continue;
     ply += 1;
     latestMoveColor = event.color;
