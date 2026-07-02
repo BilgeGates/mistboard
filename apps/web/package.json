@@ -11,7 +11,11 @@
     "test:dark-xiangqi:persistent": "node scripts/dark-xiangqi-persistent-smoke.mjs",
     "test:unit": "vitest run",
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "i18n:coverage": "node scripts/i18n-coverage.mjs"
+    "i18n:coverage": "node scripts/i18n-coverage.mjs",
+    "predev": "node ../../scripts/ensure-packages-built.mjs",
+    "pretypecheck": "node ../../scripts/ensure-packages-built.mjs",
+    "pretest:unit": "node ../../scripts/ensure-packages-built.mjs",
+    "pretest": "node ../../scripts/ensure-packages-built.mjs"
   },
   "dependencies": {
     "@mistboard/game": "0.0.0",

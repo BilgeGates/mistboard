@@ -38,7 +38,14 @@
     "worker:service": "node dist/worker.js --execute --loop",
     "worker:dev": "tsx src/worker.ts",
     "worker:dev:execute": "tsx src/worker.ts --execute",
-    "worker:dev:service": "tsx src/worker.ts --execute --loop"
+    "worker:dev:service": "tsx src/worker.ts --execute --loop",
+    "predev": "node ../../scripts/ensure-packages-built.mjs",
+    "predev:persistent": "node ../../scripts/ensure-packages-built.mjs",
+    "pretypecheck": "node ../../scripts/ensure-packages-built.mjs",
+    "pretest:unit": "node ../../scripts/ensure-packages-built.mjs",
+    "pretest": "node ../../scripts/ensure-packages-built.mjs",
+    "pretest:persistent": "node ../../scripts/ensure-packages-built.mjs",
+    "pretest:integration": "node ../../scripts/ensure-packages-built.mjs"
   },
   "dependencies": {
     "@mistboard/board-render": "0.0.0",
