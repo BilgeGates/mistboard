@@ -5,7 +5,11 @@ import './game-route.css';
 import { buildHomeArticleCards, initLandingCarousel, mountArticleThumbnails } from './articles.js';
 import { displayParticipantName, type FeaturedGame, variantDisplayLabel } from './game-display.js';
 import { gameMetaForGame } from './game-meta.js';
-import { buildHomePuzzleWidget } from './home-puzzle-widget.js';
+import {
+  cachedHomeDailyPuzzle,
+  loadHomeDailyPuzzle,
+  renderHomePuzzleWidget,
+} from './home-puzzle-widget.js';
 import { t } from './i18n/catalog.js';
 import { currentLocale } from './i18n/locale.js';
 import { buildLandingActivity } from './landing-activity.js';
@@ -540,13 +544,16 @@ function buildLandingStage(
   const about = document.createElement('h1');
   about.className = 'landing-about';
   about.textContent = t('home.tagline', {}, locale);
-  leftRail.append(buildLandingAnnouncements(locale), about);
-  // Activity box arrives async (two API fetches) and may not render at all
-  // (no persistence, API down), so it slots in above the about line on
-  // success instead of reserving space.
-  void buildLandingActivity().then((activity) => {
-    if (activity) leftRail.insertBefore(activity, about);
-  });
+  // Activity renders its frame synchronously (skeleton rows) so the rail
+  // reserves the box's footprint from first paint — popping in after two API
+  // fetches shifted the whole left rail. The prerendered shell carries the same
+  // frame for layout parity; hydration is skipped there like the other live
+  // widgets. It self-removes only if both stat sources fail.
+  leftRail.append(
+    buildLandingAnnouncements(locale),
+    buildLandingActivity({ hydrate: !opts.skipLiveWidgets }),
+    about,
+  );
 
   // ── Center: the cycling showcase board, with article cards + forum beneath. ──
   const centerColumn = document.createElement('div');
@@ -582,8 +589,22 @@ function buildLandingStage(
   if (!opts.skipLiveWidgets) {
     const lobbyRequests = buildLobbyRequestsWindow(locale);
     rightRail.append(lobbyRequests);
-    void buildHomePuzzleWidget().then((widget) => {
-      if (widget) rightRail.append(widget);
+    // Daily puzzle: render instantly from the cached copy (exact real footprint,
+    // no pop-in) and swap in place if the day rolled over; only a first-ever
+    // visit still appends on load.
+    const cachedPuzzle = cachedHomeDailyPuzzle();
+    let puzzleEl: HTMLElement | null = cachedPuzzle ? renderHomePuzzleWidget(cachedPuzzle) : null;
+    if (puzzleEl) rightRail.append(puzzleEl);
+    void loadHomeDailyPuzzle().then((daily) => {
+      if (!daily) return; // API failed: keep the cached render
+      if (cachedPuzzle && daily.puzzle.id === cachedPuzzle.puzzle.id) return; // same day
+      const fresh = renderHomePuzzleWidget(daily);
+      if (puzzleEl) {
+        puzzleEl.replaceWith(fresh);
+      } else {
+        rightRail.append(fresh);
+      }
+      puzzleEl = fresh;
     });
   }
 

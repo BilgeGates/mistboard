@@ -1,33 +1,45 @@
 // Homepage activity box: live presence from /api/live-stats plus durable game
-// totals from /api/stats/public, in the shared site-box shell. Either source
-// can be missing (stats/public needs persistence; live-stats needs the API up):
-// rows render only for data we actually have, and the box stays out of the DOM
-// entirely when both fetches fail.
+// totals from /api/stats/public. The frame renders synchronously with skeleton
+// rows so the left rail reserves the box's footprint from first paint (same
+// pattern as the forum preview); the rows hydrate in place when the data lands.
+// Either source can be missing (stats/public needs persistence; live-stats
+// needs the API up): rows render only for data we actually have, and the box
+// removes itself only in the rare case both fetches fail.
 import { buildSiteBox } from './site-box.js';
 
 type LiveStats = { playing: number; online: number };
 type PublicStats = { totalCompletedGames: number; last30dCompletedGames: number };
 
-export async function buildLandingActivity(): Promise<HTMLElement | null> {
-  const [live, totals] = await Promise.all([fetchLiveStats(), fetchPublicStats()]);
-  if (!live && !totals) return null;
-
+export function buildLandingActivity(options: { hydrate?: boolean } = {}): HTMLElement {
   const { box, body } = buildSiteBox({ title: 'Activity', className: 'landing-activity' });
+  // Four placeholder rows = the usual shape (2 live + 2 totals). Same markup as
+  // the real rows so the reserved height matches to the pixel.
+  body.append(statRow('–', ''), statRow('–', ''), statRow('–', ''), statRow('–', ''));
+  if (options.hydrate !== false) void hydrateLandingActivity(box, body);
+  return box;
+}
 
+async function hydrateLandingActivity(box: HTMLElement, body: HTMLElement): Promise<void> {
+  const [live, totals] = await Promise.all([fetchLiveStats(), fetchPublicStats()]);
+  if (!live && !totals) {
+    box.remove();
+    return;
+  }
+
+  const rows: HTMLElement[] = [];
   if (live) {
-    body.append(
+    rows.push(
       statRow(formatCount(live.playing), live.playing === 1 ? 'game in play' : 'games in play'),
       statRow(formatCount(live.online), live.online === 1 ? 'player online' : 'players online'),
     );
   }
   if (totals) {
-    body.append(
+    rows.push(
       statRow(formatCount(totals.last30dCompletedGames), 'games this month'),
       statRow(formatCount(totals.totalCompletedGames), 'games played'),
     );
   }
-
-  return box;
+  body.replaceChildren(...rows);
 }
 
 function statRow(value: string, label: string): HTMLElement {
@@ -38,7 +50,8 @@ function statRow(value: string, label: string): HTMLElement {
   valueEl.textContent = value;
   const labelEl = document.createElement('span');
   labelEl.className = 'site-box-row-label';
-  labelEl.textContent = label;
+  // Keep empty skeleton labels from collapsing the row's line box.
+  labelEl.textContent = label || ' ';
   row.append(valueEl, labelEl);
   return row;
 }

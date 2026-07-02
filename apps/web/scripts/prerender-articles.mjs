@@ -105,6 +105,46 @@ function injectPageMeta(html, meta) {
   return out;
 }
 
+// --- route-chunk CSS + modulepreload baking -----------------------------------
+// The prerendered pages carry real route markup, but Vite code-splits each
+// route's CSS into its JS chunk, so without these links the markup paints
+// half-styled (a large FOUC/CLS: measured 0.6 layout shift on the homepage)
+// until the chunk loads and injects its stylesheet. Walking the build manifest
+// from the route's source module collects the transitive CSS (linked so first
+// paint is fully styled) and JS files (modulepreloaded so the client takeover
+// happens sooner). Vite's runtime preload helper dedupes by href, so the baked
+// links are not double-loaded.
+function collectRouteAssets(manifest, entryId) {
+  const css = new Set();
+  const js = new Set();
+  const seen = new Set();
+  const walk = (id) => {
+    if (seen.has(id)) return;
+    seen.add(id);
+    const node = manifest[id];
+    if (!node) return;
+    if (node.file) js.add(node.file);
+    for (const file of node.css ?? []) css.add(file);
+    for (const dep of node.imports ?? []) walk(dep);
+  };
+  walk(entryId);
+  return { css: [...css], js: [...js] };
+}
+
+function routeAssetLinks(manifest, entryId, shellHtml) {
+  const { css, js } = collectRouteAssets(manifest, entryId);
+  const links = [];
+  for (const file of css) {
+    if (shellHtml.includes(file)) continue; // already linked by the entry shell
+    links.push(`<link rel="stylesheet" crossorigin href="/${file}">`);
+  }
+  for (const file of js) {
+    if (shellHtml.includes(file)) continue; // the entry script itself
+    links.push(`<link rel="modulepreload" crossorigin href="/${file}">`);
+  }
+  return links.join('');
+}
+
 const server = await createServer({
   server: { middlewareMode: true },
   appType: 'custom',
@@ -129,6 +169,14 @@ try {
   if (!shell.includes('<div id="app"></div>')) {
     throw new Error('shell index.html missing empty <div id="app"></div> mount point');
   }
+
+  // Build manifest for route-chunk CSS/preload baking. Articles mount through
+  // src/pages-static.ts; the homepage through src/landing.ts (main.ts dispatch).
+  const manifest = JSON.parse(
+    await fs.readFile(resolve(distDir, '.vite', 'manifest.json'), 'utf-8'),
+  );
+  const articleAssetLinks = routeAssetLinks(manifest, 'src/pages-static.ts', shell);
+  const landingAssetLinks = routeAssetLinks(manifest, 'src/landing.ts', shell);
 
   const published = articles.filter((a) => a.status === 'published');
   let count = 0;
@@ -180,7 +228,10 @@ try {
       // language relationship; the canonical consolidates query-param, SPA-shell,
       // and trailing-slash variants of THIS url into a single indexed page.
       const canonical = `<link rel="canonical" href="${url}" />`;
-      html = html.replace('</head>', `${canonical}${hreflang}${ldScript}</head>`);
+      html = html.replace(
+        '</head>',
+        `${canonical}${hreflang}${ldScript}${articleAssetLinks}</head>`,
+      );
 
       const dir = resolve(distDir, ...(v.langDir ? [v.langDir, base] : [base]));
       await fs.mkdir(dir, { recursive: true });
@@ -201,7 +252,10 @@ try {
   const { renderLandingShellForPrerender } = await server.ssrLoadModule('/src/landing.ts');
   const landingInner = renderLandingShellForPrerender();
   let homeHtml = shell.replace('<div id="app"></div>', `<div id="app">${landingInner}</div>`);
-  homeHtml = homeHtml.replace('</head>', `<link rel="canonical" href="${host}/" /></head>`);
+  homeHtml = homeHtml.replace(
+    '</head>',
+    `<link rel="canonical" href="${host}/" />${landingAssetLinks}</head>`,
+  );
   await fs.writeFile(resolve(distDir, 'home.html'), homeHtml, 'utf-8');
   console.log('prerendered / (home.html)');
 } catch (err) {

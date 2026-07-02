@@ -4,7 +4,11 @@ import {
   miniXiangqiPuzzleSideToMove,
 } from '@mistboard/game';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { buildHomePuzzleWidget, loadHomeDailyPuzzle } from './home-puzzle-widget.js';
+import {
+  buildHomePuzzleWidget,
+  cachedHomeDailyPuzzle,
+  loadHomeDailyPuzzle,
+} from './home-puzzle-widget.js';
 import { xiangqiAppearanceChangedEvent } from './theme.js';
 
 describe('home puzzle widget', () => {
@@ -85,6 +89,28 @@ describe('home puzzle widget', () => {
 
     expect(await loadHomeDailyPuzzle()).toBeNull();
     expect(await buildHomePuzzleWidget()).toBeNull();
+  });
+
+  it('caches a loaded daily puzzle for synchronous first-paint reuse', async () => {
+    const puzzle = MINI_XIANGQI_PUZZLES[0]!;
+    installMemoryLocalStorage();
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => jsonResponse(dailyBody(puzzle))),
+    );
+
+    expect(cachedHomeDailyPuzzle()).toBeNull();
+    await loadHomeDailyPuzzle();
+    expect(cachedHomeDailyPuzzle()?.puzzle.id).toBe(puzzle.id);
+  });
+
+  it('treats a stale-shaped cached payload as a miss', () => {
+    installMemoryLocalStorage();
+    window.localStorage.setItem(
+      'mistboard:home-daily-puzzle',
+      JSON.stringify({ daily: { day: '2026-07-01' } }),
+    );
+    expect(cachedHomeDailyPuzzle()).toBeNull();
   });
 });
 

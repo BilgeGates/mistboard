@@ -177,6 +177,10 @@ export default defineConfig(({ command }) => {
     plugins: [annotationsApiPlugin(), devApiProxyPlugin(), copyFilteredPublicDirPlugin()],
     build: {
       copyPublicDir: false,
+      // Emitted to dist/.vite/manifest.json; the prerender step reads it to bake
+      // route-chunk CSS + modulepreload links into the prerendered pages, so
+      // their first paint is fully styled (no FOUC before the JS chunks land).
+      manifest: true,
     },
     ...(derivedDevWebSocketUrl
       ? {

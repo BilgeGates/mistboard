@@ -43,6 +43,23 @@ export async function buildHomePuzzleWidget(): Promise<HTMLElement | null> {
   return daily ? renderHomePuzzleWidget(daily) : null;
 }
 
+// Last successfully loaded daily puzzle, cached so repeat visits can render the
+// widget synchronously at first paint (exact real footprint, no pop-in) and
+// swap in place if the day rolled over. Best-effort: storage may be unavailable
+// (private mode) or stale-shaped after a schema change; both read as a miss.
+const HOME_PUZZLE_CACHE_KEY = 'mistboard:home-daily-puzzle';
+
+export function cachedHomeDailyPuzzle(): HomeDailyPuzzle | null {
+  try {
+    const raw = window.localStorage.getItem(HOME_PUZZLE_CACHE_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as Partial<HomeDailyPuzzle>;
+    return isHomeDailyPuzzle(parsed) ? parsed : null;
+  } catch {
+    return null;
+  }
+}
+
 export async function loadHomeDailyPuzzle(): Promise<HomeDailyPuzzle | null> {
   try {
     const response = await fetch('/api/puzzles/daily?slot=homepage', {
@@ -50,7 +67,13 @@ export async function loadHomeDailyPuzzle(): Promise<HomeDailyPuzzle | null> {
     });
     if (!response.ok) return null;
     const body = (await response.json()) as Partial<HomeDailyPuzzle>;
-    return isHomeDailyPuzzle(body) ? body : null;
+    if (!isHomeDailyPuzzle(body)) return null;
+    try {
+      window.localStorage.setItem(HOME_PUZZLE_CACHE_KEY, JSON.stringify(body));
+    } catch {
+      // storage full/unavailable: caching is best-effort
+    }
+    return body;
   } catch {
     return null;
   }
