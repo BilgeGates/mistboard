@@ -137,15 +137,17 @@ function gamePageParticipantName(game: persistence.GameRecord, color: Color): st
   );
 }
 
-// Serves the prerendered homepage (dist/home.html) for `/`, so crawlers, no-JS
-// clients, and first paint get real content instead of the empty SPA shell.
-// Throws when home.html is absent (e.g. an older build) so the caller can fall
-// back to serving index.html (the bare shell).
-export async function serveHomePage(params: {
+// Serves a prerendered page file from dist (home.html for `/`,
+// leaderboard.html for `/leaderboard`), so crawlers, no-JS clients, and first
+// paint get real content instead of the empty SPA shell. Throws when the file
+// is absent (e.g. an older build) so the caller can fall back to serving
+// index.html (the bare shell).
+export async function servePrerenderedPage(params: {
   response: ServerResponse;
   staticDir: string;
+  file: 'home.html' | 'leaderboard.html';
 }): Promise<void> {
-  const html = await fs.readFile(resolve(params.staticDir, 'home.html'), 'utf-8');
+  const html = await fs.readFile(resolve(params.staticDir, params.file), 'utf-8');
   params.response.writeHead(200, { 'content-type': 'text/html; charset=utf-8' });
   params.response.end(html);
 }

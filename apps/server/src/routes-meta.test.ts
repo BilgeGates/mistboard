@@ -1,14 +1,46 @@
 import assert from 'node:assert/strict';
 import type { IncomingMessage, ServerResponse } from 'node:http';
-import test from 'node:test';
+import test, { beforeEach } from 'node:test';
 import { clearPresence, PRESENCE_TTL_MS, touchPresence } from './presence.js';
 import type { HttpApiContext } from './routes/lib.js';
 import { tryHandle } from './routes/meta.js';
 import type { Client, Room } from './server-types.js';
 import {
   registerVariantTenant,
+  type TenantManagedRoom,
   type VariantTenantRegistration,
 } from './variant-tenant/registry.js';
+
+// One shared fake tenant: the registry has no unregister, so tests reuse a
+// single registration and reset its mutable contents between tests.
+const fakeTenantRooms = new Map<string, TenantManagedRoom>();
+let fakeTenantActiveGames = 0;
+registerVariantTenant({
+  kind: 'test-tenant',
+  gameSpecId: 'test-tenant-spec',
+  roomIdPrefix: 'ttest_',
+  rooms: fakeTenantRooms,
+  activeGameCount: () => fakeTenantActiveGames,
+} as unknown as VariantTenantRegistration);
+
+function tenantRoom(
+  id: string,
+  clients: Array<{ id?: string; userId?: string | null; seat?: string }>,
+  status: 'playing' | 'waiting' = 'waiting',
+): TenantManagedRoom {
+  return {
+    id,
+    clients: clients.map((c) => ({ socket: { close() {}, send() {} }, ...c })),
+    projection: { state: { status: { type: status } } },
+    pendingWrites: Promise.resolve(),
+  };
+}
+
+beforeEach(() => {
+  clearPresence();
+  fakeTenantRooms.clear();
+  fakeTenantActiveGames = 0;
+});
 
 type ResponseCapture = { body: string; headers: Record<string, string>; status: number | null };
 
@@ -35,9 +67,9 @@ function getRequest(): IncomingMessage {
 }
 
 // Only the bits the live-stats handler reads: a connection identity (id +
-// optional userId) and the room's playing status.
-function client(id: string, userId: string | null = null): Client {
-  return { id, userId } as unknown as Client;
+// optional userId), a seat, and the room's playing status.
+function client(id: string, userId: string | null = null, seat = 'spectator'): Client {
+  return { id, userId, seat } as unknown as Client;
 }
 
 function room(status: 'playing' | 'waiting', clients: Client[], mode: Room['mode'] = 'pvp'): Room {
@@ -128,8 +160,10 @@ type OnlinePlayers = {
     handle: string;
     displayName: string;
     rating: { variant: string; eloRating: number; provisional: boolean } | null;
+    playing: boolean;
   }>;
   count: number;
+  anonymousOnline: number;
 };
 
 async function onlinePlayers(rooms: Map<string, Room> = new Map()): Promise<OnlinePlayers> {
@@ -205,27 +239,59 @@ test('players/online keeps a silent open-socket player listed past the TTL', asy
 });
 
 test('players/online refreshes connections in variant-tenant rooms too', async () => {
-  clearPresence();
   touchPresence(presenceUser('u1', 'tenant-player'), Date.now() - PRESENCE_TTL_MS - 1_000);
-  // Minimal registration slice: the endpoint only walks `rooms`.
-  registerVariantTenant({
-    kind: 'test-presence-tenant',
-    gameSpecId: 'test-presence-spec',
-    roomIdPrefix: 'tpres_',
-    rooms: new Map([
-      [
-        'tpres_1',
-        {
-          id: 'tpres_1',
-          clients: [{ socket: { close() {}, send() {} }, userId: 'u1' }],
-          pendingWrites: Promise.resolve(),
-        },
-      ],
-    ]),
-  } as unknown as VariantTenantRegistration);
+  fakeTenantRooms.set('ttest_1', tenantRoom('ttest_1', [{ id: 'tc1', userId: 'u1' }]));
   const result = await onlinePlayers();
   assert.deepEqual(
     result.players.map((p) => p.handle),
     ['tenant-player'],
   );
+});
+
+test('live-stats counts tenant rooms in both online and playing', async () => {
+  // Legacy: one playing PvP room with an anonymous client. Tenant: one playing
+  // room (activeGameCount) holding a signed-in player and a second anonymous
+  // spectator. Before the tenant walk, online was 1 and playing was 1.
+  const rooms = new Map<string, Room>([['a', room('playing', [client('anon-legacy')])]]);
+  fakeTenantActiveGames = 1;
+  fakeTenantRooms.set(
+    'ttest_1',
+    tenantRoom(
+      'ttest_1',
+      [
+        { id: 'tc1', userId: 'u5', seat: 'red' },
+        { id: 'tc2', userId: null, seat: 'spectator' },
+      ],
+      'playing',
+    ),
+  );
+  const stats = await liveStats(rooms);
+  assert.equal(stats.online, 3, 'legacy anon + tenant account + tenant anon');
+  assert.equal(stats.playing, 2, 'legacy playing room + tenant active game');
+});
+
+test('players/online reports playing seats and the anonymous count', async () => {
+  touchPresence(presenceUser('u1', 'alpha'));
+  touchPresence(presenceUser('u2', 'beta'));
+  // alpha holds a color seat in a playing legacy room; beta only spectates a
+  // playing tenant room; one anonymous connection sits in each map.
+  const rooms = new Map<string, Room>([
+    ['a', room('playing', [client('c1', 'u1', 'white'), client('g1')])],
+  ]);
+  fakeTenantRooms.set(
+    'ttest_1',
+    tenantRoom(
+      'ttest_1',
+      [
+        { id: 'tc1', userId: 'u2', seat: 'spectator' },
+        { id: 'tc2', userId: null, seat: 'spectator' },
+      ],
+      'playing',
+    ),
+  );
+  const result = await onlinePlayers(rooms);
+  const byHandle = new Map(result.players.map((p) => [p.handle, p]));
+  assert.equal(byHandle.get('alpha')?.playing, true, 'seated in a playing room');
+  assert.equal(byHandle.get('beta')?.playing, false, 'spectating is not playing');
+  assert.equal(result.anonymousOnline, 2, 'one legacy + one tenant anonymous connection');
 });

@@ -2,10 +2,10 @@
 
 import type { RatingVariant } from '@mistboard/game';
 import './account-profile.css';
+import { buildCommunityLayout } from './community-rail.js';
 import type { FeaturedGame } from './game-display.js';
 import { type I18nKey, t } from './i18n/catalog.js';
-import { currentLocale, LOCALE_META, type Locale, localizedHref } from './i18n/locale.js';
-import { communityNavItems } from './nav-items.js';
+import { currentLocale, LOCALE_META, type Locale } from './i18n/locale.js';
 import { buildProfileGameRow, buildProfileHeaderShell } from './profile-ui.js';
 import { buildLoadingState, buildNav, buildNotice } from './site-shell.js';
 import { renderVariantMiniBoard, type VariantMiniId } from './variant-mini-boards.js';
@@ -71,11 +71,13 @@ type OnlinePlayerEntry = {
   handle: string;
   displayName: string;
   rating: { variant: string; eloRating: number; provisional: boolean } | null;
+  playing?: boolean;
 };
 
 type OnlinePlayersResult = {
   players: OnlinePlayerEntry[];
   count: number;
+  anonymousOnline?: number;
 } | null;
 
 // One row of a compact ladder table: the value column is a rating for variant
@@ -152,16 +154,20 @@ export async function mountProfile(root: HTMLElement, handle: string): Promise<v
   shell.append(body);
 }
 
-export async function mountLeaderboard(root: HTMLElement): Promise<void> {
-  const locale = currentLocale();
-  root.replaceChildren();
-  root.classList.add('landing-page');
-
-  // Playstrategy-style players page: community left rail, twin headings
-  // (Online players | Leaderboard), an unboxed online column, and a dense
-  // wall of equal-height top-10 tables. The frame renders immediately from
-  // the build-time variant registry; the two fetches below only fill in rows,
-  // so no layout waits on the network.
+// Static frame of the players page: community rail, twin headings (Online
+// players | Leaderboard), online column, and one loading panel per ladder.
+// Everything derives from the build-time variant registry, so both the client
+// mount and the build-time prerender can render it without data.
+function buildLeaderboardFrame(locale: Locale): {
+  shell: HTMLElement;
+  onlineBody: HTMLElement;
+  grid: HTMLElement;
+  activePanel: { panel: HTMLElement; body: HTMLElement };
+  ladderPanels: {
+    bucket: (typeof LEADERBOARD_BUCKETS)[number];
+    shell: { panel: HTMLElement; body: HTMLElement };
+  }[];
+} {
   const onlineHeading = document.createElement('h2');
   onlineHeading.className = 'site-section-heading leaderboard-online-heading';
   onlineHeading.textContent = t('profile.onlinePlayers', {}, locale);
@@ -198,13 +204,31 @@ export async function mountLeaderboard(root: HTMLElement): Promise<void> {
   body.className = 'leaderboard-body';
   body.append(onlineHeading, heading, sub, onlineBody, grid);
 
-  const layout = document.createElement('div');
-  layout.className = 'leaderboard-layout';
-  layout.append(buildCommunityRail(locale), body);
-
   const shell = document.createElement('main');
   shell.className = 'site-section leaderboard-shell';
-  shell.append(layout);
+  shell.append(buildCommunityLayout('/leaderboard', body, locale));
+  return { shell, onlineBody, grid, activePanel, ladderPanels };
+}
+
+// Build-time static render of the players page frame (nav + rail + headings +
+// loading panels), baked by the prerender so first paint gets the full layout
+// instead of the empty SPA shell. Live data (ladder rows, online list) stays a
+// client fetch. Returns the inner HTML for `#app`.
+export function renderLeaderboardShellForPrerender(): string {
+  const nav = buildNav();
+  const frame = buildLeaderboardFrame(currentLocale());
+  return `${nav.outerHTML}${frame.shell.outerHTML}`;
+}
+
+export async function mountLeaderboard(root: HTMLElement): Promise<void> {
+  const locale = currentLocale();
+  root.replaceChildren();
+  root.classList.add('landing-page');
+
+  // Playstrategy-style players page: the frame renders immediately from the
+  // build-time variant registry; the two fetches below only fill in rows, so
+  // no layout waits on the network.
+  const { shell, onlineBody, grid, activePanel, ladderPanels } = buildLeaderboardFrame(locale);
   root.append(buildNav(locale), shell);
 
   const [summary, onlinePlayers] = await Promise.all([
@@ -294,62 +318,64 @@ async function fetchOnlinePlayers(): Promise<OnlinePlayersResult> {
   }
 }
 
-// Community sub-navigation rail (Forum / Leaderboard / Bots), one level deeper
-// than the top-nav Community menu, in the playstrategy/lichess idiom.
-function buildCommunityRail(locale: Locale): HTMLElement {
-  const rail = document.createElement('nav');
-  rail.className = 'community-rail';
-  rail.setAttribute('aria-label', t('nav.community', {}, locale));
-  for (const item of communityNavItems()) {
-    const link = document.createElement('a');
-    link.href = localizedHref(item.href, locale);
-    link.textContent = t(item.labelKey, {}, locale);
-    if (item.href === '/leaderboard') {
-      link.classList.add('community-rail-active');
-      link.setAttribute('aria-current', 'page');
-    }
-    rail.append(link);
-  }
-  return rail;
-}
-
 function renderOnlinePlayers(body: HTMLElement, result: OnlinePlayersResult, locale: Locale): void {
+  const parts: HTMLElement[] = [];
   // A failed fetch degrades to the empty state: the list is a soft signal,
   // not worth an error banner.
   if (!result || result.players.length === 0) {
     const empty = document.createElement('p');
     empty.className = 'leaderboard-online-empty';
     empty.textContent = t('profile.noPlayersOnline', {}, locale);
-    body.replaceChildren(empty);
-    return;
-  }
-  const list = document.createElement('ul');
-  list.className = 'leaderboard-online-list';
-  for (const player of result.players) {
-    const item = document.createElement('li');
-    const link = document.createElement('a');
-    link.href = `/@/${encodeURIComponent(player.handle)}`;
-    const dot = document.createElement('span');
-    dot.className = 'leaderboard-presence leaderboard-presence-online';
-    dot.setAttribute('aria-hidden', 'true');
-    const name = document.createElement('span');
-    name.className = 'leaderboard-online-name';
-    name.textContent = player.displayName;
-    link.append(dot, name);
-    if (player.rating) {
-      // One representative figure: the player's best blitz pool. The variant
-      // label rides on the title attribute rather than costing row width.
-      const rating = document.createElement('span');
-      rating.className = 'leaderboard-online-rating';
-      rating.textContent = `${player.rating.eloRating}${player.rating.provisional ? '?' : ''}`;
-      const variantLabel = maybeVariantLabel(player.rating.variant, locale);
-      if (variantLabel) rating.title = variantLabel;
-      link.append(rating);
+    parts.push(empty);
+  } else {
+    const list = document.createElement('ul');
+    list.className = 'leaderboard-online-list';
+    for (const player of result.players) {
+      const item = document.createElement('li');
+      const link = document.createElement('a');
+      link.href = `/@/${encodeURIComponent(player.handle)}`;
+      const dot = document.createElement('span');
+      dot.className = 'leaderboard-presence leaderboard-presence-online';
+      dot.setAttribute('aria-hidden', 'true');
+      const name = document.createElement('span');
+      name.className = 'leaderboard-online-name';
+      name.textContent = player.displayName;
+      link.append(dot, name);
+      if (player.playing) {
+        const playingMark = document.createElement('span');
+        playingMark.className = 'leaderboard-online-playing';
+        // Text-presentation crossed swords, so platforms don't swap in emoji.
+        playingMark.textContent = '⚔︎';
+        playingMark.title = t('profile.playingNow', {}, locale);
+        playingMark.setAttribute('aria-label', t('profile.playingNow', {}, locale));
+        link.append(playingMark);
+      }
+      if (player.rating) {
+        // One representative figure: the player's best blitz pool. The variant
+        // label rides on the title attribute rather than costing row width.
+        const rating = document.createElement('span');
+        rating.className = 'leaderboard-online-rating';
+        rating.textContent = `${player.rating.eloRating}${player.rating.provisional ? '?' : ''}`;
+        const variantLabel = maybeVariantLabel(player.rating.variant, locale);
+        if (variantLabel) rating.title = variantLabel;
+        link.append(rating);
+      }
+      item.append(link);
+      list.append(item);
     }
-    item.append(link);
-    list.append(item);
+    parts.push(list);
   }
-  body.replaceChildren(list);
+  if (result && (result.anonymousOnline ?? 0) > 0) {
+    const anon = document.createElement('p');
+    anon.className = 'leaderboard-online-anon';
+    anon.textContent = t(
+      'profile.anonymousOnline',
+      { count: String(result.anonymousOnline) },
+      locale,
+    );
+    parts.push(anon);
+  }
+  body.replaceChildren(...parts);
 }
 
 // Label for a rating-pool name coming off the wire, or null if the client

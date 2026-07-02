@@ -1,6 +1,7 @@
 import { maybeGameSpecForId } from '@mistboard/game';
 import './account-profile.css';
 import './bots.css';
+import { buildCommunityLayout } from './community-rail.js';
 import type { FeaturedGame } from './game-display.js';
 import { buildProfileGameRow, buildProfileHeaderShell } from './profile-ui.js';
 import { buildNav, buildNotice } from './site-shell.js';
@@ -103,7 +104,11 @@ export async function mountBots(root: HTMLElement): Promise<void> {
   body.className = 'bots-directory';
   body.append(statusLine('Loading bots...'));
 
-  shell.append(header, body);
+  const content = document.createElement('div');
+  content.className = 'bots-main';
+  content.append(header, body);
+
+  shell.append(buildCommunityLayout('/bots', content));
   root.append(buildNav(), shell);
 
   let bots: BotProfile[];

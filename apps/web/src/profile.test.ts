@@ -104,14 +104,16 @@ describe('profile ratings rail', () => {
   function stubLeaderboardFetch(options?: {
     ladders?: { variant: string; leaderboard: unknown[] }[];
     activePlayers?: unknown[];
-    players?: { handle: string; displayName: string; rating?: unknown }[];
+    players?: { handle: string; displayName: string; rating?: unknown; playing?: boolean }[];
+    anonymousOnline?: number;
   }) {
     return vi.spyOn(globalThis, 'fetch').mockImplementation(async (input: RequestInfo | URL) => {
       const url = String(input);
       const body = url.includes('/api/players/online')
         ? {
-            players: (options?.players ?? []).map((p) => ({ rating: null, ...p })),
+            players: (options?.players ?? []).map((p) => ({ rating: null, playing: false, ...p })),
             count: options?.players?.length ?? 0,
+            anonymousOnline: options?.anonymousOnline ?? 0,
           }
         : {
             timeClass: 'blitz',
@@ -153,8 +155,10 @@ describe('profile ratings rail', () => {
           handle: 'misty',
           displayName: 'Misty',
           rating: { variant: 'fog', eloRating: 1710, provisional: true },
+          playing: true,
         },
       ],
+      anonymousOnline: 3,
     });
     const root = document.createElement('div');
     const { mountLeaderboard } = await import('./profile.js');
@@ -174,6 +178,10 @@ describe('profile ratings rail', () => {
     const rating = onlineLink?.querySelector('.leaderboard-online-rating');
     expect(rating?.textContent).toBe('1710?');
     expect(rating?.getAttribute('title')).toBe('Dark Chess');
+    expect(onlineLink?.querySelector('.leaderboard-online-playing')?.getAttribute('title')).toBe(
+      'Playing now',
+    );
+    expect(root.querySelector('.leaderboard-online-anon')?.textContent).toBe('+3 anonymous online');
   });
 
   it('shows the empty online state when nobody is online', async () => {

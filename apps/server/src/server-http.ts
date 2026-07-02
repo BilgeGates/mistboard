@@ -11,7 +11,7 @@ import {
   serveArticlePage,
   serveArticlesIndexPage,
   serveGamePage,
-  serveHomePage,
+  servePrerenderedPage,
   serveRulesIndexPage,
   serveSitemap,
 } from './server-static-pages.js';
@@ -249,8 +249,26 @@ export function createHttpRequestHandler(options: ServerHttpHandlerOptions) {
     }
 
     if (pathname === '/') {
-      void serveHomePage({ response, staticDir: options.staticDir }).catch(() => {
+      void servePrerenderedPage({
+        response,
+        staticDir: options.staticDir,
+        file: 'home.html',
+      }).catch(() => {
         // No prerendered home.html (e.g. an older build): fall back to the shell.
+        void serveHandler(request, response, { public: options.staticDir });
+      });
+      return;
+    }
+
+    // Default-locale leaderboard gets its prerendered frame; localized paths
+    // (/zh-hans/leaderboard, ...) stay on the client-rendered shell below.
+    if (pathname === '/leaderboard') {
+      void servePrerenderedPage({
+        response,
+        staticDir: options.staticDir,
+        file: 'leaderboard.html',
+      }).catch(() => {
+        request.url = '/';
         void serveHandler(request, response, { public: options.staticDir });
       });
       return;

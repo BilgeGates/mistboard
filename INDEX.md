@@ -401,8 +401,10 @@ Run with `MISTBOARD_ALLOW_IN_MEMORY_PERSISTENCE=true npm run test:integration --
 | `rated-flag.ts` | Client mirror of `/api/server-status` rated-mode switch |
 | `public-assets.ts` | Public build asset filter used by `vite.config.ts` to keep local bakeoff and pixel-lab artifacts out of ordinary web builds |
 | `account.ts` | `/account` + `/account/settings` mounts. Sign-in/registration form (email + magic code), signed-in account card, settings form (display name / handle / email), auth-tabs. Uses `site-shell.ts` for shared chrome/auth fetch and loads `account-profile.css` |
-| `profile.ts` | `/@/:handle` + `/leaderboard` mounts. `mountProfile`, `mountLeaderboard`, profile header/ratings/games builders, leaderboard panel + table. Uses `site-shell.ts` and `game-display.ts` for shared contracts and loads `account-profile.css` |
+| `profile.ts` | `/@/:handle` + `/leaderboard` mounts. `mountProfile`, `mountLeaderboard`, `renderLeaderboardShellForPrerender` (build-time frame for dist/leaderboard.html), profile header/ratings/games builders, leaderboard panel + table. Uses `site-shell.ts` and `game-display.ts` for shared contracts and loads `account-profile.css` |
 | `account-profile.css` | Account, profile, and leaderboard route styles loaded by `account.ts` and `profile.ts` |
+| `community-rail.ts` | Shared community sub-nav rail + column layout (`buildCommunityRail`, `buildCommunityLayout`) used by `/leaderboard` and `/bots`. Loads `community-rail.css` |
+| `community-rail.css` | Community rail + `.community-layout` grid styles (desktop rail, mobile pill row) loaded by `community-rail.ts` |
 | `pages-static.ts` | `/about` + `/source` + `/faq` + `/terms` + `/articles` (index + slug) + 404 mounts. Builders for about/source/faq/terms/notfound + shared text primitives (`aboutSubheading`/`aboutParagraph`/`aboutLink`/`aboutExternalLink`, `sourceBlock`/`textLine`/`linkLine`). Uses `site-shell.ts` for shared chrome and loads `pages-static.css` |
 | `pages-static.css` | Static about/source page helper styles loaded by `pages-static.ts` |
 | `forum.ts` | `/forum`, category, topic, post redirect, and admin report routes: category/topic/search views, write/preview composers, edit/quote/report controls, admin move/pin/lock/hide/report queue actions. Loads `forum.css` |
