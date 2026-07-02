@@ -40,11 +40,11 @@ import { type WebVariantTenant, webVariantTenantForRoomId } from './variant-tena
 const SHOWCASE_REFRESH_ACTIVE_MS = 45_000;
 const SHOWCASE_REFRESH_IDLE_MS = 5 * 60_000;
 const SHOWCASE_POOL_CAP = 14;
-// How long the first paint waits for /api/games/showcase before falling back to
-// the bundled static demo. The fetch starts at mount, so on a healthy connection
-// (~150-250ms observed) the real pool wins and the visitor never sees the demo
-// game get torn down and replaced; a slow or dead API costs at most this delay
-// before the static fallback mounts as before.
+// How long the first paint waits for /api/games/showcase before giving up on
+// winning the race. The fetch starts at mount, so on a healthy connection
+// (~150-250ms observed) the real pool wins the first paint. On a race loss, dev
+// falls back to the bundled static demo; production keeps the skeleton until the
+// refresh tick lands real games.
 const SHOWCASE_FIRST_PAINT_RACE_MS = 600;
 
 // Honest caption for the showcase: variant name + relative finish time, marking
@@ -76,19 +76,18 @@ export async function mountLanding(root: HTMLElement): Promise<void> {
   root.replaceChildren();
   root.classList.add('landing-page');
 
-  // Render the homepage shell immediately from synchronous fallbacks: the static
-  // engine showcase drives the hero board and a built-in engine seeds the play
-  // panel. First paint never waits on a network round-trip. The two homepage APIs
-  // (playable engines, recent showcase games) then upgrade both in place below.
+  // Render the homepage shell immediately from synchronous fallbacks: a built-in
+  // engine seeds the play panel and the board slot holds a skeleton. First paint
+  // never waits on a network round-trip. The two homepage APIs (playable engines,
+  // recent showcase games) then upgrade both in place below.
   //
   // Previously these two were awaited serially before anything but the nav
   // painted, so a slow /api/games/showcase hung the whole page behind a "Loading
   // games" spinner (much worse over high-latency links). Shell-first also makes a
-  // hanging API non-blocking: the static content just keeps playing until real
-  // data arrives, instead of stalling the page.
+  // hanging API non-blocking: the shell just keeps standing until real data
+  // arrives, instead of stalling the page.
   // [render-jank: render the shell first, fill async — feedback_render_jank_prevention]
   let usingRealGames = false;
-  const games = homepageShowcaseGames();
 
   // Shared, by-reference maps the cycler reads: pre-registered here for the static
   // fallback pool, then merged with each live-showcase refresh below.
@@ -123,11 +122,19 @@ export async function mountLanding(root: HTMLElement): Promise<void> {
   // ?only=drop-mini-xiangqi) instead of the normal all-variants cycle. No param =
   // normal behavior; handy for eyeballing one variant's board/hand.
   const onlySpec = params.get('only');
-  let initialPool = games.map(toShowcaseEntry);
-  if (onlySpec) initialPool = initialPool.filter((entry) => entry.specId === onlySpec);
-
   // ?demo=<sampleId> forces a specific bundled game to open first.
   const requested = params.get('demo');
+  // The bundled Misty self-play demos are a local-testing aid, never a production
+  // surface: an engine demo on the live homepage reads as "nobody plays here". In
+  // prod a race loss or thin pool keeps the skeleton until real games arrive.
+  // ?demo stays as an explicit escape hatch for debugging a prod build.
+  const allowBundledDemos = import.meta.env.DEV || requested !== null;
+  // With demos available they hold the slot until the real pool is worth cycling
+  // (3+); without them any real game beats an empty skeleton.
+  const minShowcasePool = allowBundledDemos ? 3 : 1;
+  let initialPool = allowBundledDemos ? homepageShowcaseGames().map(toShowcaseEntry) : [];
+  if (onlySpec) initialPool = initialPool.filter((entry) => entry.specId === onlySpec);
+
   const forcedIdx = requested ? initialPool.findIndex((entry) => entry.roomId === requested) : -1;
   if (forcedIdx > 0) {
     const [forced] = initialPool.splice(forcedIdx, 1);
@@ -152,7 +159,7 @@ export async function mountLanding(root: HTMLElement): Promise<void> {
       firstShowcaseLoad,
       delay(SHOWCASE_FIRST_PAINT_RACE_MS).then(() => null),
     ]);
-    if (early && early.length >= 3) {
+    if (early && early.length >= minShowcasePool) {
       let realEntries = early.slice(0, SHOWCASE_POOL_CAP).map(toShowcaseEntry);
       if (onlySpec) realEntries = realEntries.filter((entry) => entry.specId === onlySpec);
       if (realEntries.length > 0) {
@@ -243,7 +250,7 @@ export async function mountLanding(root: HTMLElement): Promise<void> {
         return;
       }
     }
-    if (fresh.length < 3) return; // not enough real games yet; keep the pool
+    if (fresh.length < minShowcasePool) return; // not enough real games yet; keep the pool
     let nextEntries = fresh.slice(0, SHOWCASE_POOL_CAP).map(toShowcaseEntry);
     if (onlySpec) nextEntries = nextEntries.filter((entry) => entry.specId === onlySpec);
     if (nextEntries.length === 0) return; // filtered pool empty; keep what we have
@@ -280,9 +287,12 @@ export async function mountLanding(root: HTMLElement): Promise<void> {
       stopShowcaseRefresh();
       return;
     }
+    // An empty pool means the board slot is still a skeleton (prod race loss with
+    // no bundled fallback): retry at the active cadence so the visitor isn't
+    // staring at it for the idle interval.
     showcaseTimer = window.setTimeout(
       () => void tickShowcaseRefresh(),
-      playing > 0 ? SHOWCASE_REFRESH_ACTIVE_MS : SHOWCASE_REFRESH_IDLE_MS,
+      playing > 0 || poolIds.size === 0 ? SHOWCASE_REFRESH_ACTIVE_MS : SHOWCASE_REFRESH_IDLE_MS,
     );
   };
   // Kick the first refresh promptly so real games replace the static showcase as
