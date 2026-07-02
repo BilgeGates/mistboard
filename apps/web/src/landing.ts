@@ -584,11 +584,12 @@ function buildLandingStage(
   rightRail.className = 'landing-rail landing-rail-right';
   let playPanel = buildLandingPlayPanel(engines, { locale, showLobbyRequests: false });
   rightRail.append(playPanel);
-  // The lobby-requests browser fetches + polls on construction, so it is skipped
-  // when rendering the static shell at build time (the prerender path).
+  // The open-requests window frame renders synchronously (placeholder row) so
+  // the right rail reserves its footprint from first paint — it used to be
+  // absent from the prerendered shell entirely and popped in at JS takeover.
+  // Only its fetch + poll are gated on live mode.
+  rightRail.append(buildLobbyRequestsWindow(locale, { hydrate: !opts.skipLiveWidgets }));
   if (!opts.skipLiveWidgets) {
-    const lobbyRequests = buildLobbyRequestsWindow(locale);
-    rightRail.append(lobbyRequests);
     // Daily puzzle: render instantly from the cached copy (exact real footprint,
     // no pop-in) and swap in place if the day rolled over; only a first-ever
     // visit still appends on load.

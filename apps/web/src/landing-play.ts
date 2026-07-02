@@ -487,7 +487,10 @@ function appendLandingActionContent(
   element.append(iconEl, labelEl);
 }
 
-export function buildLobbyRequestsWindow(locale: Locale = currentLocale()): HTMLElement {
+export function buildLobbyRequestsWindow(
+  locale: Locale = currentLocale(),
+  options: { hydrate?: boolean } = {},
+): HTMLElement {
   const shell = document.createElement('section');
   shell.className = 'landing-lobby-requests';
   shell.setAttribute('aria-label', t('play.openPairingRequests', {}, locale));
@@ -502,6 +505,13 @@ export function buildLobbyRequestsWindow(locale: Locale = currentLocale()): HTML
 
   const list = document.createElement('div');
   list.className = 'landing-lobby-requests-list';
+  // Placeholder row with the empty-state's exact markup so the window reserves
+  // its usual one-row footprint from first paint; render() replaces it, so the
+  // common no-requests answer lands without any shift.
+  const placeholder = document.createElement('p');
+  placeholder.className = 'landing-lobby-requests-empty';
+  placeholder.textContent = ' ';
+  list.append(placeholder);
 
   shell.append(header, list);
 
@@ -535,14 +545,18 @@ export function buildLobbyRequestsWindow(locale: Locale = currentLocale()): HTML
     }
   };
 
-  void refresh();
-  const refreshTimer = window.setInterval(() => {
-    if (!document.body.contains(shell)) {
-      window.clearInterval(refreshTimer);
-      return;
-    }
+  // The prerendered shell renders the frame only (hydrate: false): fetching and
+  // polling start when the client builds its live copy.
+  if (options.hydrate !== false) {
     void refresh();
-  }, 3_000);
+    const refreshTimer = window.setInterval(() => {
+      if (!document.body.contains(shell)) {
+        window.clearInterval(refreshTimer);
+        return;
+      }
+      void refresh();
+    }, 3_000);
+  }
 
   return shell;
 }
