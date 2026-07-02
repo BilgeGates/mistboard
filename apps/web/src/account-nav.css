@@ -32,10 +32,6 @@
   color: var(--site-on-accent);
 }
 
-.site-nav-link-primary.active {
-  box-shadow: inset 0 0 0 2px var(--site-accent-strong);
-}
-
 .account-nav {
   position: relative;
   display: inline-flex;
@@ -65,12 +61,6 @@
 .account-nav.open .account-nav-trigger {
   background: var(--site-hover);
   color: var(--site-text);
-}
-
-.account-nav-trigger.active {
-  background: transparent;
-  color: var(--site-text);
-  box-shadow: inset 0 -2px 0 var(--site-accent);
 }
 
 .account-nav-handle {

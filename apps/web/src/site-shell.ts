@@ -186,10 +186,6 @@ function navMenu(labelKey: NavItem['labelKey'], items: NavItem[], locale: Locale
   button.className = 'site-nav-link site-nav-menu-toggle';
   button.setAttribute('aria-expanded', 'false');
   button.textContent = t(labelKey, {}, locale);
-  const caret = document.createElement('span');
-  caret.className = 'site-nav-menu-caret';
-  caret.setAttribute('aria-hidden', 'true');
-  button.append(caret);
 
   const panel = document.createElement('div');
   panel.className = 'site-nav-menu-panel';

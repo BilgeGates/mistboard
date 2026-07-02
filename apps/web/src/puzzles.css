@@ -1,4 +1,6 @@
-body:has(.puzzles-shell) {
+/* Light theme only: lichess-style warm-gray puzzle palette. In dark theme the
+   page falls through to the normal dark site variables from app-base.css. */
+:root:not([data-effective-theme="dark"]) body:has(.puzzles-shell) {
   color-scheme: light;
   --site-bg: hsl(42, 7%, 91%);
   --site-bg-soft: hsl(42, 7%, 88%);
@@ -194,7 +196,7 @@ body:has(.puzzles-shell) {
   place-items: center;
   width: 54px;
   height: 54px;
-  color: hsl(0, 0%, 47%);
+  color: var(--site-muted);
   line-height: 1;
 }
 
@@ -345,7 +347,7 @@ body:has(.puzzles-shell) {
   width: 46px;
   height: 24px;
   border-radius: 999px;
-  background: hsl(0, 0%, 76%);
+  background: var(--site-border);
   box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.16);
   transition:
     background 120ms ease,
@@ -415,7 +417,7 @@ body:has(.puzzles-shell) {
 }
 
 .puzzle-move-context {
-  color: hsl(0, 0%, 72%);
+  color: var(--site-border);
 }
 
 .puzzle-move-red,
@@ -452,7 +454,7 @@ body:has(.puzzles-shell) {
   place-items: center;
   width: 52px;
   height: 52px;
-  color: hsl(0, 0%, 18%);
+  color: var(--site-heading);
   font-size: 48px;
   line-height: 1;
 }
@@ -550,7 +552,7 @@ body:has(.puzzles-shell) {
 }
 
 .puzzle-vote-button:disabled {
-  color: hsl(0, 0%, 72%);
+  color: var(--site-border);
   cursor: default;
 }
 
@@ -565,7 +567,7 @@ body:has(.puzzles-shell) {
 .puzzle-solved-footer-icon {
   display: grid;
   place-items: center;
-  color: hsl(0, 0%, 45%);
+  color: var(--site-muted);
 }
 
 .puzzle-solved-footer-icon .puzzle-target-avatar {
@@ -589,7 +591,7 @@ body:has(.puzzles-shell) {
 }
 
 .puzzle-continue-button:disabled {
-  color: hsl(0, 0%, 72%);
+  color: var(--site-border);
   cursor: default;
 }
 
@@ -641,7 +643,7 @@ body:has(.puzzles-shell) {
 }
 
 .puzzle-button:disabled {
-  color: hsl(0, 0%, 78%);
+  color: var(--site-border);
   cursor: default;
 }
 

@@ -7,7 +7,9 @@
   justify-content: flex-start;
   gap: clamp(18px, 2.2vw, 26px);
   min-height: 60px;
-  padding: 0 clamp(16px, 2.4vw, 34px);
+  /* Wider gutters than the content below, like lichess: the bar breathes at the
+     edges (~4vw) instead of hugging them. */
+  padding: 0 clamp(20px, 4vw, 72px);
   background: var(--site-nav-bg);
   border-bottom: 1px solid var(--site-nav-border);
 }
@@ -17,9 +19,10 @@
   align-items: center;
   gap: 9px;
   flex: 0 0 auto;
+  /* Matches lichess's .site-title: Noto Sans (inherited) 400 at 25px. */
   font-weight: 400;
   letter-spacing: 0;
-  font-size: 30px;
+  font-size: 25px;
   line-height: 1;
   color: var(--site-text);
   text-decoration: none;
@@ -31,9 +34,34 @@
   color: var(--site-muted);
 }
 
+/* Hover lights up the whole brand: wordmark to heading color, ".com" undims,
+   logo brightens (lichess lights its wordmark + logo the same way). */
+.site-nav-brand,
+.site-nav-brand-suffix,
 .site-nav-logo {
-  width: 46px;
-  height: 46px;
+  transition:
+    color 140ms ease,
+    filter 140ms ease;
+}
+
+.site-nav-brand:hover,
+.site-nav-brand:focus-visible {
+  color: var(--site-heading);
+}
+
+.site-nav-brand:hover .site-nav-brand-suffix,
+.site-nav-brand:focus-visible .site-nav-brand-suffix {
+  color: inherit;
+}
+
+.site-nav-brand:hover .site-nav-logo,
+.site-nav-brand:focus-visible .site-nav-logo {
+  filter: brightness(1.2);
+}
+
+.site-nav-logo {
+  width: 36px;
+  height: 36px;
   flex: 0 0 auto;
   border-radius: var(--site-radius-sm);
 }
@@ -90,20 +118,12 @@
   text-transform: uppercase;
 }
 
+/* No current-page indicator in the bar (lichess): links only respond to
+   hover/focus. `.active` still lands on the element for aria-current. */
 .site-nav-link:hover,
-.site-nav-link:focus-visible,
-.site-nav-link.active {
+.site-nav-link:focus-visible {
   color: var(--site-text);
   background: transparent;
-}
-
-.site-nav-link.active {
-  box-shadow: none;
-}
-
-.site-nav-links > .site-nav-link.active,
-.site-nav-menu-toggle.active {
-  box-shadow: inset 0 -3px 0 var(--site-accent);
 }
 
 /* Register = filled accent (green) button, like lichess's filled blue Register. */
@@ -115,11 +135,9 @@
 }
 
 .site-nav-link-register:hover,
-.site-nav-link-register:focus-visible,
-.site-nav-link-register.active {
+.site-nav-link-register:focus-visible {
   background: var(--site-accent-strong);
   color: var(--site-on-accent);
-  box-shadow: none;
 }
 
 .site-nav-menu {
@@ -127,49 +145,77 @@
 }
 
 .site-nav-menu-toggle {
-  gap: 6px;
   cursor: pointer;
 }
 
-.site-nav-menu-caret {
-  width: 0;
-  height: 0;
-  border-left: 4px solid transparent;
-  border-right: 4px solid transparent;
-  border-top: 5px solid currentColor;
-}
-
+/* Dropdown connected flush to the bar (lichess): no gap, square corners, an
+   accent line down the left edge that also runs behind the open toggle so bar
+   and panel read as one surface. */
 .site-nav-menu-panel {
   position: absolute;
-  top: calc(100% + 8px);
+  top: 100%;
   left: 0;
   z-index: 20;
   display: none;
   width: max-content;
-  min-width: 124px;
-  padding: 6px;
+  min-width: 160px;
+  padding: 10px 0 12px;
   background: var(--site-panel);
-  border: 1px solid var(--site-border);
-  border-radius: var(--site-radius);
-  box-shadow: 0 14px 26px rgba(29, 37, 34, 0.14);
+  border: 0;
+  border-left: 2px solid var(--site-accent);
+  border-radius: 0;
+  box-shadow: 2px 5px 6px var(--site-shadow);
 }
 
 .site-nav-menu-open .site-nav-menu-panel {
   display: grid;
-  gap: 2px;
+  gap: 0;
+}
+
+@media (min-width: 601px) {
+  .site-nav-menu-open .site-nav-menu-toggle {
+    color: var(--site-text);
+    background: var(--site-panel);
+    box-shadow: inset 2px 0 0 var(--site-accent);
+  }
+}
+
+/* Hover opens the menu on pointer devices; click/keyboard toggling still works
+   everywhere (mobile collapse keeps click-only). */
+@media (hover: hover) and (min-width: 601px) {
+  .site-nav-menu:hover .site-nav-menu-panel {
+    display: grid;
+    gap: 0;
+  }
+
+  .site-nav-menu:hover .site-nav-menu-toggle {
+    color: var(--site-text);
+    background: var(--site-panel);
+    box-shadow: inset 2px 0 0 var(--site-accent);
+  }
+}
+
+/* Items match lichess's dropdown typography: Noto Sans 400 at 14px (their
+   html base size), antialiased like their whole page renders, so the weight
+   reads light instead of thick on dark backgrounds. */
+.site-nav-menu-panel {
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
 .site-nav-menu-panel .site-nav-link {
   display: block;
   min-height: 0;
-  padding: 7px 10px;
+  padding: 9px 22px 9px 16px;
+  border-radius: 0;
+  font-size: 14px;
+  font-weight: 400;
   text-transform: none;
   white-space: nowrap;
 }
 
 .site-nav-menu-panel .site-nav-link:hover,
-.site-nav-menu-panel .site-nav-link:focus-visible,
-.site-nav-menu-panel .site-nav-link.active {
+.site-nav-menu-panel .site-nav-link:focus-visible {
   background: var(--site-hover);
 }
 

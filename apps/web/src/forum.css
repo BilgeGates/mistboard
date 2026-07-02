@@ -1071,21 +1071,26 @@ a.forum-post-author-name:focus-visible {
   }
 }
 
+/* Light palette (default): lichess's light forum — warm-gray page, white
+   panel, off-white zebra rows. Dark values live in the
+   [data-effective-theme="dark"] override below. */
 .forum-route {
-  --forum-page-bg: hsl(37, 10%, 8%);
-  --forum-page-top: hsl(37, 12%, 16%);
-  --forum-panel-bg: #24231f;
-  --forum-row-bg: #24231f;
-  --forum-row-alt-bg: #302f2b;
-  --forum-header-strip-bg: #38352f;
-  --forum-border: #383631;
-  --forum-border-soft: #2d2b27;
-  --forum-heading: #bebeb9;
-  --forum-text: #b5b5b0;
-  --forum-muted: #979793;
-  --forum-link: #3692e7;
-  --forum-link-hover: #5aa8f2;
-  --forum-shadow: rgba(0, 0, 0, 0.28);
+  --forum-page-bg: hsl(37, 10%, 92%);
+  --forum-page-top: hsl(37, 12%, 84%);
+  --forum-panel-bg: #ffffff;
+  --forum-row-bg: #ffffff;
+  --forum-row-alt-bg: hsl(37, 12%, 96.5%);
+  --forum-header-strip-bg: hsl(37, 10%, 94%);
+  --forum-border: hsl(37, 8%, 82%);
+  --forum-border-soft: hsl(37, 8%, 89%);
+  --forum-heading: hsl(0, 0%, 30%);
+  --forum-text: hsl(0, 0%, 33%);
+  --forum-muted: hsl(0, 0%, 47%);
+  --forum-link: hsl(209, 77%, 46%);
+  --forum-link-hover: hsl(209, 77%, 38%);
+  --forum-shadow: rgba(0, 0, 0, 0.12);
+  --forum-input-bg: hsl(37, 12%, 97%);
+  --forum-input-border: hsl(37, 8%, 82%);
   --site-accent: var(--forum-link);
   --site-accent-strong: var(--forum-link-hover);
   --site-bg: var(--forum-page-bg);
@@ -1116,14 +1121,29 @@ a.forum-post-author-name:focus-visible {
     linear-gradient(180deg, var(--forum-page-top) 0, var(--forum-page-bg) 116px) no-repeat;
 }
 
+:root[data-effective-theme="dark"] .forum-route {
+  --forum-page-bg: hsl(37, 10%, 8%);
+  --forum-page-top: hsl(37, 12%, 16%);
+  --forum-panel-bg: #24231f;
+  --forum-row-bg: #24231f;
+  --forum-row-alt-bg: #302f2b;
+  --forum-header-strip-bg: #38352f;
+  --forum-border: #383631;
+  --forum-border-soft: #2d2b27;
+  --forum-heading: #bebeb9;
+  --forum-text: #b5b5b0;
+  --forum-muted: #979793;
+  --forum-link: #3692e7;
+  --forum-link-hover: #5aa8f2;
+  --forum-shadow: rgba(0, 0, 0, 0.28);
+  --forum-input-bg: #211f1c;
+  --forum-input-border: #45413b;
+  --site-focus: rgba(54, 146, 231, 0.26);
+}
+
 .forum-route .site-nav {
   background: transparent;
   border-bottom-color: transparent;
-}
-
-.forum-route .site-nav-links > .site-nav-link.active,
-.forum-route .site-nav-menu-toggle.active {
-  box-shadow: none;
 }
 
 /* Lichess/playstrategy-aligned forum shell. */
@@ -1276,9 +1296,9 @@ a.forum-post-author-name:focus-visible {
 
 .forum-search-form-compact input {
   min-height: 39px;
-  border-color: #45413b;
+  border-color: var(--forum-input-border);
   border-radius: 7px;
-  background: #211f1c;
+  background: var(--forum-input-bg);
   color: var(--forum-text);
   font-size: 15px;
 }
@@ -1325,8 +1345,10 @@ a.forum-post-author-name:focus-visible {
   background: var(--forum-header-strip-bg);
 }
 
-.forum-category-index-row:hover,
-.forum-topic-row:hover,
+/* Header strips are rows too; exclude them so the Topics/Posts/Last-post bar
+   keeps its own background instead of flipping on hover. */
+.forum-category-index-row:not(.forum-category-index-header):hover,
+.forum-topic-row:not(.forum-topic-list-header):hover,
 .forum-search-row:hover {
   border-color: var(--forum-border-soft);
   background: var(--forum-row-bg);
