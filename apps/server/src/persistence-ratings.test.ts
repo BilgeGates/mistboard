@@ -1,8 +1,11 @@
 import {
   abortRunningGame,
   createUser,
+  getBestRatings,
   getGameSummary,
   getLeaderboard,
+  getLeaderboardSummary,
+  getMostActivePlayers,
   getUserGamesPage,
   getUserProfileByHandle,
   recordGameEnd,
@@ -469,6 +472,173 @@ definePersistenceTests('ratings', () => {
       'displays actual rating (with "?" client-side), not conservative',
     );
     assert.equal(board[0]!.rank, 1);
+  });
+
+  test('leaderboard summary groups top-N per variant and hides private profiles', async () => {
+    const now = new Date();
+    const mk = (id: string, handle: string, visibility?: 'public' | 'private') =>
+      createUser({
+        id,
+        email: `${id}@sum.com`,
+        emailVerifiedAt: now,
+        handle,
+        displayName: handle,
+        ...(visibility ? { profileVisibility: visibility } : {}),
+        now,
+      });
+    await mk('sum_a', 'sum-alpha', 'public');
+    await mk('sum_b', 'sum-beta', 'public');
+    await mk('sum_c', 'sum-gamma', 'public');
+    await mk('sum_p', 'sum-private', 'private');
+
+    const client = new pg.Client({ connectionString: TEST_DATABASE_URL });
+    await client.connect();
+    try {
+      // Jungle: three settled players + a private one that must not appear.
+      // Jungle flip: one player, proving grouping keeps ladders separate.
+      await client.query(
+        `INSERT INTO user_ratings (user_id, variant, time_class, elo_rating, rating_deviation, volatility, games_played)
+         VALUES
+          ('sum_a','jungle','blitz',1700,60,0.06,20),
+          ('sum_b','jungle','blitz',1600,60,0.06,20),
+          ('sum_c','jungle','blitz',1500,60,0.06,20),
+          ('sum_p','jungle','blitz',1900,60,0.06,20),
+          ('sum_a','jungle_flip','blitz',1400,60,0.06,10)`,
+      );
+    } finally {
+      await client.end();
+    }
+
+    // limitPerVariant=2 cuts the jungle ladder after two visible rows.
+    const summary = await getLeaderboardSummary({ timeClass: 'blitz', limitPerVariant: 2 });
+    const jungle = summary.find((ladder) => ladder.variant === 'jungle');
+    assert.ok(jungle, 'jungle ladder present');
+    assert.deepEqual(
+      jungle.leaderboard.map((entry) => entry.handle),
+      ['sum-alpha', 'sum-beta'],
+      'top-2 visible players in conservative-rating order; private profile excluded',
+    );
+    assert.equal(jungle.leaderboard[0]!.rank, 1);
+    assert.equal(jungle.leaderboard[1]!.rank, 2);
+
+    const flip = summary.find((ladder) => ladder.variant === 'jungle_flip');
+    assert.ok(flip, 'jungle_flip ladder present');
+    assert.deepEqual(
+      flip.leaderboard.map((entry) => entry.handle),
+      ['sum-alpha'],
+      'ladders group independently per variant',
+    );
+  });
+
+  test('getBestRatings picks each user best blitz pool', async () => {
+    const now = new Date();
+    await createUser({
+      id: 'best_a',
+      email: 'best_a@e.com',
+      emailVerifiedAt: now,
+      handle: 'best-alpha',
+      displayName: 'best-alpha',
+      now,
+    });
+
+    const client = new pg.Client({ connectionString: TEST_DATABASE_URL });
+    await client.connect();
+    try {
+      // Two pools: jungle (higher elo, provisional RD) must win over fog.
+      // A rapid row with an even higher elo must be ignored (wrong time class).
+      await client.query(
+        `INSERT INTO user_ratings (user_id, variant, time_class, elo_rating, rating_deviation, volatility, games_played)
+         VALUES
+          ('best_a','fog','blitz',1500,60,0.06,10),
+          ('best_a','jungle','blitz',1650,300,0.06,2),
+          ('best_a','fog','rapid',1900,60,0.06,10)`,
+      );
+    } finally {
+      await client.end();
+    }
+
+    const best = await getBestRatings(['best_a', 'best_missing'], 'blitz');
+    assert.equal(best.size, 1, 'unknown ids produce no entries');
+    const entry = best.get('best_a');
+    assert.ok(entry);
+    assert.equal(entry.variant, 'jungle');
+    assert.equal(entry.eloRating, 1650);
+    assert.equal(entry.provisional, true, 'high RD marks the figure provisional');
+  });
+
+  test('getMostActivePlayers counts completed games and hides private profiles', async () => {
+    const now = new Date();
+    const mk = (id: string, handle: string, visibility: 'public' | 'private') =>
+      createUser({
+        id,
+        email: `${id}@act.com`,
+        emailVerifiedAt: now,
+        handle,
+        displayName: handle,
+        profileVisibility: visibility,
+        now,
+      });
+    await mk('act_a', 'act-alpha', 'public');
+    await mk('act_b', 'act-beta', 'public');
+    await mk('act_p', 'act-private', 'private');
+
+    const endGame = (roomId: string, whiteId: string, blackId: string | null) =>
+      recordGameEnd(roomId, {
+        variant: 'jungle',
+        mode: 'pvp',
+        result: 'white-wins',
+        termination: 'resignation',
+        plyCount: 10,
+        startedAt: now,
+        endedAt: now,
+        whiteClient: 'browser',
+        blackClient: 'browser',
+        whiteName: null,
+        blackName: null,
+        corpusId: null,
+        participants: [
+          {
+            color: 'white',
+            displayName: 'W',
+            subjectType: 'user',
+            subjectId: whiteId,
+            visibility: 'public',
+          },
+          blackId
+            ? {
+                color: 'black',
+                displayName: 'B',
+                subjectType: 'user',
+                subjectId: blackId,
+                visibility: 'public',
+              }
+            : {
+                color: 'black',
+                displayName: 'Guest',
+                subjectType: 'guest',
+                subjectId: null,
+                visibility: 'public',
+              },
+        ],
+        visibility: 'public',
+      });
+
+    // act_a: 2 games; act_b: 1 game; act_p: 1 game but private profile.
+    await endGame('act-game-1', 'act_a', 'act_b');
+    await endGame('act-game-2', 'act_a', null);
+    await endGame('act-game-3', 'act_p', null);
+
+    // Wide limit: this suite shares one database, so other tests' users are
+    // also on the board; assert on our fixtures, not absolute positions.
+    const active = await getMostActivePlayers(50);
+    const handles = active.map((entry) => entry.handle);
+    assert.ok(!handles.includes('act-private'), 'private profile excluded');
+    const alpha = active.find((entry) => entry.handle === 'act-alpha');
+    const beta = active.find((entry) => entry.handle === 'act-beta');
+    assert.ok(alpha && beta);
+    assert.equal(alpha.gamesPlayed, 2);
+    assert.equal(beta.gamesPlayed, 1);
+    assert.ok(alpha.rank < beta.rank, 'more games ranks higher');
   });
 
   test('getUserProfileByHandle lists completed account-attributed games', async () => {

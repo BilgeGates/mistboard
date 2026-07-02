@@ -31,6 +31,7 @@ import {
   jungleCoordOf,
   jungleTrapOwner,
 } from '@mistboard/game';
+import { TOKEN_PIECE_RATIO } from './board-metrics.js';
 import {
   framedTokenSvg,
   jungleBoardAssetHref,
@@ -200,7 +201,7 @@ function pieces(
   draggingFrom: JungleSquare | null,
 ): string {
   const parts: string[] = [];
-  const s = geom.cell * 0.84;
+  const s = geom.cell * TOKEN_PIECE_RATIO;
   for (const square of ALL_JUNGLE_SQUARES) {
     const piece = board[square];
     if (!piece) continue;
@@ -226,7 +227,7 @@ export function junglePieceGhostSvg(entry: { color: JungleColor; role: JunglePie
   const inner = framedTokenSvg({
     cx: CELL / 2,
     cy: CELL / 2,
-    size: CELL * 0.84,
+    size: CELL * TOKEN_PIECE_RATIO,
     ink: entry.color,
     role: entry.role,
   });

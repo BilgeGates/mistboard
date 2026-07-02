@@ -8,6 +8,7 @@ import {
   miniXiangqiCoordOf,
   miniXiangqiSquareOf,
 } from '@mistboard/game';
+import { tokenPieceSize } from './board-metrics.js';
 import { readStoredXiangqiPieceSet } from './xiangqi-appearance-storage.js';
 import { xiangqiFogRegion } from './xiangqi-fog.js';
 import { renderXiangqiPieceGlyphed, type XiangqiPieceSet } from './xiangqi-piece-sets.js';
@@ -19,7 +20,11 @@ import { renderXiangqiPieceGlyphed, type XiangqiPieceSet } from './xiangqi-piece
 
 const CELL = 72;
 const MARGIN = 42;
-const DEFAULT_PIECE_SIZE = 54;
+const DEFAULT_PIECE_SIZE = tokenPieceSize(CELL);
+// Move/selection markers wrap the disc: radii track the default piece radius.
+const RING_SELECTION = DEFAULT_PIECE_SIZE / 2 + 6;
+const RING_LAST = DEFAULT_PIECE_SIZE / 2 + 4;
+const RING_CAPTURE = DEFAULT_PIECE_SIZE / 2 + 1;
 const FILES = 7;
 const RANKS = 7;
 const WIDTH = MARGIN * 2 + (FILES - 1) * CELL;
@@ -224,7 +229,7 @@ function selectionRing(selection: MiniXiangqiSquare | null, perspective: MiniXia
   if (!selection) return '';
   const { file, rank } = miniXiangqiCoordOf(selection);
   const { x, y } = intersection(file, rank, perspective);
-  return `<circle class="mini-xq-selection" cx="${x}" cy="${y}" r="33"/>`;
+  return `<circle class="mini-xq-selection" cx="${x}" cy="${y}" r="${RING_SELECTION}"/>`;
 }
 
 function moveHints(
@@ -241,7 +246,7 @@ function moveHints(
       // dot so a hidden piece is never implied.
       const capture = view.board[move.to] !== undefined;
       return capture
-        ? `<circle class="mini-xq-hint-capture" cx="${x}" cy="${y}" r="28"/>`
+        ? `<circle class="mini-xq-hint-capture" cx="${x}" cy="${y}" r="${RING_CAPTURE}"/>`
         : `<circle class="mini-xq-hint" cx="${x}" cy="${y}" r="10"/>`;
     })
     .join('');
@@ -255,7 +260,7 @@ function lastMoveMarkers(view: MiniXiangqiPlayerView, perspective: MiniXiangqiCo
     .map((sq) => {
       const { file, rank } = miniXiangqiCoordOf(sq);
       const { x, y } = intersection(file, rank, perspective);
-      return `<circle class="mini-xq-last" cx="${x}" cy="${y}" r="31"/>`;
+      return `<circle class="mini-xq-last" cx="${x}" cy="${y}" r="${RING_LAST}"/>`;
     })
     .join('');
 }
@@ -275,11 +280,11 @@ function hitLayer(
       const target = targets.get(sq);
       const marker = target
         ? target.capture
-          ? `<circle class="mini-xq-hint-capture" cx="${x}" cy="${y}" r="28"/>`
+          ? `<circle class="mini-xq-hint-capture" cx="${x}" cy="${y}" r="${RING_CAPTURE}"/>`
           : `<circle class="mini-xq-hint" cx="${x}" cy="${y}" r="10"/>`
         : '';
       const hover = target
-        ? `<circle class="mini-xq-target-hover" cx="${x}" cy="${y}" r="31"/>`
+        ? `<circle class="mini-xq-target-hover" cx="${x}" cy="${y}" r="${RING_LAST}"/>`
         : '';
       parts.push(
         `<g data-square="${sq}" class="mini-xq-hit${target ? ' mini-xq-hit--target' : ''}">${hover}${marker}<rect x="${x - HIT_HALF}" y="${y - HIT_HALF}" width="${HIT_HALF * 2}" height="${HIT_HALF * 2}"/></g>`,

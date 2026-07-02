@@ -106,11 +106,11 @@ Edit task → find file → open only that file.
 | `routes/dark-xiangqi-games.ts` | Hidden Dark Xiangqi postgame/review API branch; keeps non-chess finished-game records out of generic chess replay APIs |
 | `routes/lobby.ts` | `/api/lobby`, `/api/lobby/:ticketId`, plus `joinLobby` / `cancelLobbyTicket` / `pruneLobbyTickets` / `lobbyTicketResponse` / `lobbyOpenRequests` |
 | `routes/games.ts` | All `/api/games/*` + `/api/eve-games/recent` (8 routes) + game-data helpers (`gameSummaryForApi`, `gameEventsForApi`, `gameReviewForApi`, `gameArtifactsForApi`, engine-color helpers) |
-| `routes/leaderboard.ts` | `/api/leaderboard` |
+| `routes/leaderboard.ts` | `/api/leaderboard` + `/api/leaderboard/summary` (top-N per variant in one query) |
 | `routes/feedback.ts` | `/api/feedback` + honeypot + anon rate-limit + email-and-persist fan-out |
 | `routes/forum.ts` | `/api/forum/*`: category/topic/search reads, account-gated topic/reply/report writes, topic/post edits, admin move/pin/lock/hide moderation, admin report queue, validation, and per-account posting rate limits |
 | `routes/annotations.ts` | `/api/annotations` (admin GET/POST/PUT, JSON-lines file backed) |
-| `routes/meta.ts` | `/api/server-status`, `/api/live-stats` |
+| `routes/meta.ts` | `/api/server-status`, `/api/live-stats`, `/api/players/online` |
 | `routes/engines.ts` | `/api/engines/playable` |
 | `routes/correspondence-rooms.ts` | POST `/api/correspondence/rooms` (days-per-move dark-chess seeks/rooms); account-gated, `correspondenceEnabled` flag |
 | `routes/correspondence-games.ts` | GET `/api/correspondence/games` — signed-in player's in-flight correspondence games (your-move-first) + nav-badge count; reads the `room_deadlines` index |
@@ -136,6 +136,7 @@ Edit task → find file → open only that file.
 | `routes/bots.ts` | Public bot directory/profile API (`/api/bots`, `/api/bots/:id`) filtered to playable enabled variants |
 | `bot-profile-policy.ts` | Shared bot profile policy: public bot id parsing and playable-variant filtering for bot directory/profile surfaces |
 | `account-session.ts` | Account auth: `currentAccountUser`, `ensureUserForEmail`, `hashSecret`, session cookies, email login |
+| `presence.ts` | In-memory online-players tracker (touched by `currentAccountUser`, TTL-pruned) behind `/api/players/online` |
 | `account-identity.ts` | Email normalization, handle generation, display name handling |
 | `build-info.ts` | Build metadata surfaced through status responses |
 | `feature-flags.ts` | Runtime on-switches for rated mode and hidden/prelaunch surfaces |
@@ -400,8 +401,10 @@ Run with `MISTBOARD_ALLOW_IN_MEMORY_PERSISTENCE=true npm run test:integration --
 | `rated-flag.ts` | Client mirror of `/api/server-status` rated-mode switch |
 | `public-assets.ts` | Public build asset filter used by `vite.config.ts` to keep local bakeoff and pixel-lab artifacts out of ordinary web builds |
 | `account.ts` | `/account` + `/account/settings` mounts. Sign-in/registration form (email + magic code), signed-in account card, settings form (display name / handle / email), auth-tabs. Uses `site-shell.ts` for shared chrome/auth fetch and loads `account-profile.css` |
-| `profile.ts` | `/@/:handle` + `/leaderboard` mounts. `mountProfile`, `mountLeaderboard`, profile header/ratings/games builders, leaderboard panel + table. Uses `site-shell.ts` and `game-display.ts` for shared contracts and loads `account-profile.css` |
+| `profile.ts` | `/@/:handle` + `/leaderboard` mounts. `mountProfile`, `mountLeaderboard`, `renderLeaderboardShellForPrerender` (build-time frame for dist/leaderboard.html), profile header/ratings/games builders, leaderboard panel + table. Uses `site-shell.ts` and `game-display.ts` for shared contracts and loads `account-profile.css` |
 | `account-profile.css` | Account, profile, and leaderboard route styles loaded by `account.ts` and `profile.ts` |
+| `community-rail.ts` | Shared community sub-nav rail + column layout (`buildCommunityRail`, `buildCommunityLayout`) used by `/leaderboard` and `/bots`. Loads `community-rail.css` |
+| `community-rail.css` | Community rail + `.community-layout` grid styles (desktop rail, mobile pill row) loaded by `community-rail.ts` |
 | `pages-static.ts` | `/about` + `/source` + `/faq` + `/terms` + `/articles` (index + slug) + 404 mounts. Builders for about/source/faq/terms/notfound + shared text primitives (`aboutSubheading`/`aboutParagraph`/`aboutLink`/`aboutExternalLink`, `sourceBlock`/`textLine`/`linkLine`). Uses `site-shell.ts` for shared chrome and loads `pages-static.css` |
 | `pages-static.css` | Static about/source page helper styles loaded by `pages-static.ts` |
 | `forum.ts` | `/forum`, category, topic, post redirect, and admin report routes: category/topic/search views, write/preview composers, edit/quote/report controls, admin move/pin/lock/hide/report queue actions. Loads `forum.css` |
@@ -542,6 +545,9 @@ Run with `MISTBOARD_ALLOW_IN_MEMORY_PERSISTENCE=true npm run test:integration --
 | `drop-mini-xiangqi-postgame.ts` | Drop Mini Xiangqi postgame/review route renderer: truth-board replay with reserve strips and per-ply history from the postgame API |
 | `fortress-xiangqi-postgame.ts` | Fortress Xiangqi postgame/review route renderer: truth-board replay with reserve strips and per-ply history from the postgame API |
 | `drop-mini-xiangqi-replay.ts` | Drop Mini Xiangqi rules-article replay: parses board/drop notation, replays through the real kernel, and renders the sample game with reserve strips |
+| `fortress-xiangqi-replay.ts` | Fortress Xiangqi rules-article replay: parses board/drop notation (R/N/C/P/T/A/E), replays through the real kernel, and renders the sample game on the live board renderer with reserve strips |
+| `fortress-xiangqi-rules-diagrams.ts` | Inline board diagrams for the Fortress Xiangqi rules article (start position, Treasure moves, defender drop zones), built on the live renderer with kernel-derived targets |
+| `board-metrics.ts` | Canonical piece-to-cell proportion (`TOKEN_PIECE_RATIO`) shared by every disc/token board renderer, intersection- or cell-anchored |
 | `mini-xiangqi-spike.ts` | `/mini-xiangqi-spike` FoW Mini Xiangqi sandbox (DEV): local play across red/black/god perspectives over the bespoke 7×7 renderer |
 | `watch-mini-xiangqi-replay.ts` | Mistboard TV (`/watch`) renderer for Dark Mini Xiangqi: postgame payload + shared replay chrome + control bar/auto-play, rendering server-computed fog views (leak-safe) |
 | `watch-mini-open-xiangqi-replay.ts` | Mistboard TV (`/watch`) renderer for open Mini Xiangqi: loads the Mini postgame payload and mounts the single truth-board tenant replay |
@@ -630,7 +636,7 @@ Run with `MISTBOARD_ALLOW_IN_MEMORY_PERSISTENCE=true npm run test:integration --
 | Build/start | `build.mjs`, `start.mjs`, `safe-deploy.mjs`, `release-prod.mjs` |
 | Agent/dev loop | `agent-scan.mjs`, `ci-browser-smoke-plan.mjs`, `ci-checks.mjs`, `drift-check.mjs`, `gate-evidence.mjs`, `verify.mjs`, `worktree-new.mjs`, `worktree-prepare.mjs`, `mobile-loop.mjs`, `visual-check.mjs` |
 | Engine artifacts | `archive-engine-artifact.mjs`, `engine-artifact-{audit,closeout}.mjs`, `capture-belief-artifacts.mjs`, `generate-fow-corpus.mjs` |
-| Variant labs | `variant-lab/drop-mini-xiangqi-{fsf-play,hotseat,scenarios}.ts` plus `drop-mini-xiangqi-fsf.ini`; Drop Mini Xiangqi policy pressure tests, terminal hotseat, scenario audit, and optional `--html` FSF self-play replay export |
+| Variant labs | `variant-lab/drop-mini-xiangqi-{fsf-play,hotseat,scenarios}.ts` plus `drop-mini-xiangqi-fsf.ini`; Drop Mini Xiangqi policy pressure tests, terminal hotseat, scenario audit, and optional `--html` FSF self-play replay export. `variant-lab/fortress-xiangqi-fsf-play.ts` FSF⟷kernel parity harness; `variant-lab/fortress-xiangqi-sample-game.ts` kernel-validated FSF self-play generator for the rules-article replay |
 | Prod smoke | `prod-smoke-plan.mjs`, `wait-prod-revision.mjs`, `prod-lite-smoke.mjs`, `prod-smoke.mjs`, `prod-engine-smoke.mjs`, `prod-engine-playout.mjs`, `time-command.mjs` |
 | AI asset gen | `pixel-gen.mjs`, `video-gen.mjs`, `loop-video.mjs`, `slice-fog.py` |
 | Other | `key-transparency.py` |

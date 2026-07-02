@@ -145,10 +145,17 @@ function routeAssetLinks(manifest, entryId, shellHtml) {
   return links.join('');
 }
 
+// Production env for the SSR pass so modules see the same import.meta.env the
+// built client bundle does: NODE_ENV drives DEV/PROD, mode drives .env file
+// selection. Without both, the prerender baked dev-on flag-gated variants into
+// prod HTML (leaking hidden variants and flashing panels that hydration then
+// removes).
+process.env.NODE_ENV = 'production';
 const server = await createServer({
   server: { middlewareMode: true },
   appType: 'custom',
   logLevel: 'error',
+  mode: 'production',
 });
 
 try {
@@ -258,6 +265,29 @@ try {
   );
   await fs.writeFile(resolve(distDir, 'home.html'), homeHtml, 'utf-8');
   console.log('prerendered / (home.html)');
+
+  // Leaderboard: bake the players-page frame (rail, twin headings, loading
+  // panels) with its route CSS so first paint gets the full layout instead of
+  // the empty shell. Live data (ladder rows, online list) stays a client
+  // fetch. The `landing-page` class is baked onto #app because it carries the
+  // page background; the client mount re-adds it idempotently.
+  const { renderLeaderboardShellForPrerender } = await server.ssrLoadModule('/src/profile.ts');
+  const leaderboardAssetLinks = routeAssetLinks(manifest, 'src/profile.ts', shell);
+  const leaderboardInner = renderLeaderboardShellForPrerender();
+  let leaderboardHtml = shell.replace(
+    '<div id="app"></div>',
+    `<div id="app" class="landing-page">${leaderboardInner}</div>`,
+  );
+  leaderboardHtml = leaderboardHtml.replace(
+    /<title>[^<]*<\/title>/,
+    '<title>Leaderboard · Mistboard</title>',
+  );
+  leaderboardHtml = leaderboardHtml.replace(
+    '</head>',
+    `<link rel="canonical" href="${host}/leaderboard" />${leaderboardAssetLinks}</head>`,
+  );
+  await fs.writeFile(resolve(distDir, 'leaderboard.html'), leaderboardHtml, 'utf-8');
+  console.log('prerendered /leaderboard (leaderboard.html)');
 } catch (err) {
   console.error('prerender failed:', err);
   process.exitCode = 1;

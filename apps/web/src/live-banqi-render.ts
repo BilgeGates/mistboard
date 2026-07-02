@@ -8,6 +8,7 @@ import {
   type BanqiSquare,
   banqiCoordOf,
 } from '@mistboard/game';
+import { tokenPieceSize } from './board-metrics.js';
 import { readStoredXiangqiPieceSet } from './xiangqi-appearance-storage.js';
 import { renderXiangqiPieceGlyphed, type XiangqiPieceSet } from './xiangqi-piece-sets.js';
 
@@ -28,7 +29,7 @@ const FILES = 8; // cells across (9 vertical lines / files a..i)
 const RANKS = 4; // cells down (5 horizontal lines / ranks 1..5, river at the top)
 const CELL = 64;
 const MARGIN = 28;
-const PIECE_SIZE = 52;
+const PIECE_SIZE = tokenPieceSize(CELL);
 const WIDTH = MARGIN * 2 + FILES * CELL;
 const HEIGHT = MARGIN * 2 + RANKS * CELL;
 const HIT_HALF = CELL / 2 - 1;

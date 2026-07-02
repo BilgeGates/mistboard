@@ -80,3 +80,7 @@ apps/server/.engine-bakeoff-deploy-nonce
 # out of git unless the distribution track is intentionally opened later.
 distribution-artifacts/
 scripts/distribution/
+
+# Playwright MCP scratch output (page snapshots written by the browser tool
+# during agent sessions). Never part of the repo.
+.playwright-mcp/

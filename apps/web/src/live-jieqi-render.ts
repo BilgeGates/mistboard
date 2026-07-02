@@ -1,4 +1,5 @@
 import type { JieqiColor, JieqiMove, JieqiPlayerView, JieqiSquare } from '@mistboard/game';
+import { tokenPieceSize } from './board-metrics.js';
 import { readStoredXiangqiPieceSet } from './xiangqi-appearance-storage.js';
 import { renderXiangqiPieceGlyphed, type XiangqiPieceSet } from './xiangqi-piece-sets.js';
 
@@ -10,7 +11,11 @@ import { renderXiangqiPieceGlyphed, type XiangqiPieceSet } from './xiangqi-piece
 
 const CELL = 72;
 const MARGIN = 42;
-const PIECE_SIZE = 54;
+const PIECE_SIZE = tokenPieceSize(CELL);
+// Move/selection markers wrap the disc: radii track the piece radius.
+const RING_SELECTION = PIECE_SIZE / 2 + 6;
+const RING_LAST = PIECE_SIZE / 2 + 4;
+const RING_CAPTURE = PIECE_SIZE / 2 + 1;
 const FILES = 9;
 const RANKS = 10;
 const WIDTH = MARGIN * 2 + (FILES - 1) * CELL;
@@ -182,7 +187,7 @@ function selectionRing(selection: JieqiSquare | null, perspective: JieqiColor): 
   if (!selection) return '';
   const { file, rank } = jieqiCoordOf(selection);
   const { x, y } = intersection(file, rank, perspective);
-  return `<circle class="jieqi-selection" cx="${x}" cy="${y}" r="33"/>`;
+  return `<circle class="jieqi-selection" cx="${x}" cy="${y}" r="${RING_SELECTION}"/>`;
 }
 
 function moveHints(
@@ -196,7 +201,7 @@ function moveHints(
       const { x, y } = intersection(file, rank, perspective);
       const capture = view.board[move.to] !== undefined;
       return capture
-        ? `<circle class="jieqi-hint-capture" cx="${x}" cy="${y}" r="28"/>`
+        ? `<circle class="jieqi-hint-capture" cx="${x}" cy="${y}" r="${RING_CAPTURE}"/>`
         : `<circle class="jieqi-hint" cx="${x}" cy="${y}" r="10"/>`;
     })
     .join('');
@@ -208,7 +213,7 @@ function lastMoveMarkers(view: JieqiPlayerView, perspective: JieqiColor): string
     .map((sq) => {
       const { file, rank } = jieqiCoordOf(sq);
       const { x, y } = intersection(file, rank, perspective);
-      return `<circle class="jieqi-last" cx="${x}" cy="${y}" r="31"/>`;
+      return `<circle class="jieqi-last" cx="${x}" cy="${y}" r="${RING_LAST}"/>`;
     })
     .join('');
 }
@@ -228,10 +233,12 @@ function hitLayer(
       const target = targets.get(sq);
       const marker = target
         ? target.capture
-          ? `<circle class="jieqi-hint-capture" cx="${x}" cy="${y}" r="28"/>`
+          ? `<circle class="jieqi-hint-capture" cx="${x}" cy="${y}" r="${RING_CAPTURE}"/>`
           : `<circle class="jieqi-hint" cx="${x}" cy="${y}" r="10"/>`
         : '';
-      const hover = target ? `<circle class="jieqi-target-hover" cx="${x}" cy="${y}" r="31"/>` : '';
+      const hover = target
+        ? `<circle class="jieqi-target-hover" cx="${x}" cy="${y}" r="${RING_LAST}"/>`
+        : '';
       parts.push(
         `<g data-square="${sq}" class="jieqi-hit${target ? ' jieqi-hit--target' : ''}">${hover}${marker}<rect x="${x - HIT_HALF}" y="${y - HIT_HALF}" width="${HIT_HALF * 2}" height="${HIT_HALF * 2}"/></g>`,
       );

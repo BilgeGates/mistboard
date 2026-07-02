@@ -24,11 +24,20 @@ import type { WebSocket } from 'ws';
 
 // The structural slice of a live tenant room the dispatch layer touches.
 // Registration closures cast back to their concrete room type internally.
+// Client identity fields (`id`, `seat`, `userId`) and the projection status
+// are in the slice so presence surfaces (/api/players/online, /api/live-stats)
+// can enumerate connections and playing seats without knowing any tenant's
+// concrete client/state types. All are optional in the slice but present on
+// every TenantLiveClient / TenantRuntimeRoom at runtime.
 export type TenantManagedRoom = {
   id: string;
   clients: Iterable<{
     socket: { close(code?: number, reason?: string): unknown; send(data: string): unknown };
+    id?: string;
+    seat?: string;
+    userId?: string | null;
   }>;
+  projection?: { state: { status: { type: string } } };
   pendingWrites: Promise<void>;
 };
 

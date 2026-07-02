@@ -2,8 +2,11 @@ import type { IncomingMessage, ServerResponse } from 'node:http';
 import { getBuildInfo } from '../build-info.js';
 import { darkXiangqiEnabled, ratedEnabled } from '../feature-flags.js';
 import * as persistence from '../persistence.js';
+import { onlinePresence, refreshPresence } from '../presence.js';
+import { PUBLIC_RATING_TIME_CLASS } from '../rating-buckets.js';
 import { readEventLoopLagMs } from '../server-event-loop-lag.js';
 import { getProxyTrustWarning } from '../server-policy.js';
+import { registeredVariantTenants } from '../variant-tenant/registry.js';
 import {
   type HttpApiContext,
   isHttpAdminAuthorized,
@@ -72,25 +75,48 @@ export async function tryHandle(
 
   if (pathname === '/api/live-stats') {
     if (!requireMethod(request, response, 'GET')) return true;
-    let playing = 0;
-    // "online" counts distinct humans connected, not distinct sockets. A
-    // signed-in user spanning several tabs/rooms/devices shares one userId, so
-    // collapse on that; anonymous connections fall back to the per-room client
-    // id (already shared across tabs of the same room via localStorage). The
-    // u:/c: prefixes keep the two id spaces from colliding. Engines never enter
-    // room.clients, so they don't inflate this.
-    const onlineIdentities = new Set<string>();
-    for (const room of ctx.rooms.values()) {
-      // EvE (engine-vs-engine) games have no human player, so they don't count as
-      // "people playing now". PvP and PvE both involve a human, so they do count.
-      if (room.projection.state.status.type === 'playing' && room.mode !== 'eve') {
-        playing += 1;
-      }
-      for (const client of room.clients) {
-        onlineIdentities.add(client.userId ? `u:${client.userId}` : `c:${client.id}`);
-      }
+    const stats = collectLiveRoomStats(ctx);
+    writeJson(response, 200, { playing: stats.playing, online: stats.onlineIdentities.size });
+    return true;
+  }
+
+  if (pathname === '/api/players/online') {
+    if (!requireMethod(request, response, 'GET')) return true;
+    const now = Date.now();
+    const stats = collectLiveRoomStats(ctx);
+    // Presence is fed by session resolution (see account-session.ts), which a
+    // player deep in a long game may not have hit for longer than the TTL. An
+    // open room socket is live presence by definition, so re-touch every
+    // connected account across the legacy room map and all tenant room maps.
+    for (const identity of stats.onlineIdentities) {
+      if (identity.startsWith('u:')) refreshPresence(identity.slice(2), now);
     }
-    writeJson(response, 200, { playing, online: onlineIdentities.size });
+    // Same visibility gate as the leaderboard query: private profiles never
+    // appear on public surfaces.
+    const visible = onlinePresence(now)
+      .filter((entry) => entry.profileVisibility !== 'private')
+      .sort((a, b) => a.handle.localeCompare(b.handle));
+    const listed = visible.slice(0, ONLINE_PLAYERS_LIMIT);
+    // One representative rating per player (their best blitz pool). Ratings
+    // are decoration here, so the endpoint stays available without a database.
+    const ratings = persistence.isInitialized()
+      ? await persistence.getBestRatings(
+          listed.map((entry) => entry.userId),
+          PUBLIC_RATING_TIME_CLASS,
+        )
+      : new Map<string, persistence.BestRatingEntry>();
+    const players = listed.map((entry) => ({
+      handle: entry.handle,
+      displayName: entry.displayName,
+      rating: ratings.get(entry.userId) ?? null,
+      playing: stats.playingUserIds.has(entry.userId),
+    }));
+    writeJson(
+      response,
+      200,
+      { players, count: visible.length, anonymousOnline: stats.anonymousOnline },
+      { 'cache-control': 'no-store' },
+    );
     return true;
   }
 
@@ -116,6 +142,64 @@ export async function tryHandle(
   }
 
   return false;
+}
+
+// Cap on the online-players listing; `count` still reports the full total.
+const ONLINE_PLAYERS_LIMIT = 50;
+
+// One pass over every live room (legacy dark-chess map + all variant-tenant
+// maps) collecting the connection facts both presence surfaces need.
+//
+// "online" counts distinct humans connected, not distinct sockets. A signed-in
+// user spanning several tabs/rooms/devices shares one userId, so collapse on
+// that; anonymous connections fall back to the per-room client id (already
+// shared across tabs of the same room via localStorage). The u:/c: prefixes
+// keep the two id spaces from colliding. Engines never enter room.clients, so
+// they don't inflate this.
+function collectLiveRoomStats(ctx: HttpApiContext): {
+  playing: number;
+  onlineIdentities: Set<string>;
+  playingUserIds: Set<string>;
+  anonymousOnline: number;
+} {
+  const onlineIdentities = new Set<string>();
+  const playingUserIds = new Set<string>();
+  let playing = 0;
+  for (const room of ctx.rooms.values()) {
+    const roomPlaying = room.projection.state.status.type === 'playing';
+    // EvE (engine-vs-engine) games have no human player, so they don't count as
+    // "people playing now". PvP and PvE both involve a human, so they do count.
+    if (roomPlaying && room.mode !== 'eve') playing += 1;
+    for (const client of room.clients) {
+      onlineIdentities.add(client.userId ? `u:${client.userId}` : `c:${client.id}`);
+      if (roomPlaying && client.userId && client.seat !== 'spectator') {
+        playingUserIds.add(client.userId);
+      }
+    }
+  }
+  for (const tenant of registeredVariantTenants()) {
+    // Tenants have no EvE mode, so every playing tenant game involves a human
+    // and activeGameCount (playing-status rooms) matches the legacy semantics.
+    playing += tenant.activeGameCount();
+    for (const room of tenant.rooms.values()) {
+      const roomPlaying = room.projection?.state.status.type === 'playing';
+      for (const client of room.clients) {
+        if (client.userId) {
+          onlineIdentities.add(`u:${client.userId}`);
+          if (roomPlaying && client.seat && client.seat !== 'spectator') {
+            playingUserIds.add(client.userId);
+          }
+        } else if (client.id) {
+          onlineIdentities.add(`c:${client.id}`);
+        }
+      }
+    }
+  }
+  let anonymousOnline = 0;
+  for (const identity of onlineIdentities) {
+    if (identity.startsWith('c:')) anonymousOnline += 1;
+  }
+  return { playing, onlineIdentities, playingUserIds, anonymousOnline };
 }
 
 function parseLimit(value: string | null): number {

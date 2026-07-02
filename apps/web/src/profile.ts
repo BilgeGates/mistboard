@@ -2,9 +2,10 @@
 
 import type { RatingVariant } from '@mistboard/game';
 import './account-profile.css';
+import { buildCommunityLayout } from './community-rail.js';
 import type { FeaturedGame } from './game-display.js';
 import { type I18nKey, t } from './i18n/catalog.js';
-import { currentLocale, LOCALE_META, type Locale, localizedHref } from './i18n/locale.js';
+import { currentLocale, LOCALE_META, type Locale } from './i18n/locale.js';
 import { buildProfileGameRow, buildProfileHeaderShell } from './profile-ui.js';
 import { buildLoadingState, buildNav, buildNotice } from './site-shell.js';
 import { renderVariantMiniBoard, type VariantMiniId } from './variant-mini-boards.js';
@@ -52,20 +53,48 @@ type LeaderboardEntry = {
   provisional: boolean;
 };
 
-type LeaderboardResult = { leaderboard: LeaderboardEntry[] } | null;
+type LeaderboardSummaryLadder = { variant: string; leaderboard: LeaderboardEntry[] };
 
-type LeaderboardListing = {
-  entry: LeaderboardEntry;
-  variantLabel: string;
+type ActivePlayerEntry = {
+  rank: number;
+  handle: string;
+  displayName: string;
+  gamesPlayed: number;
+};
+
+type LeaderboardSummary = {
+  ladders: LeaderboardSummaryLadder[];
+  activePlayers?: ActivePlayerEntry[];
+} | null;
+
+type OnlinePlayerEntry = {
+  handle: string;
+  displayName: string;
+  rating: { variant: string; eloRating: number; provisional: boolean } | null;
+  playing?: boolean;
+};
+
+type OnlinePlayersResult = {
+  players: OnlinePlayerEntry[];
+  count: number;
+  anonymousOnline?: number;
+} | null;
+
+// One row of a compact ladder table: the value column is a rating for variant
+// ladders and a games count for the active-players ladder.
+type LeaderboardTableRow = {
+  rank: number;
+  handle: string;
+  displayName: string;
+  value: number;
+  provisional: boolean;
 };
 
 const LEADERBOARD_BUCKETS: {
   variant: ProfileRatingVariant;
-  variantParam: string;
   miniId: VariantMiniId;
 }[] = leaderboardVariants.map((v) => ({
   variant: v.id,
-  variantParam: v.apiParam,
   miniId: v.miniId,
 }));
 
@@ -125,47 +154,235 @@ export async function mountProfile(root: HTMLElement, handle: string): Promise<v
   shell.append(body);
 }
 
+// Static frame of the players page: community rail, twin headings (Online
+// players | Leaderboard), online column, and one loading panel per ladder.
+// Everything derives from the build-time variant registry, so both the client
+// mount and the build-time prerender can render it without data.
+function buildLeaderboardFrame(locale: Locale): {
+  shell: HTMLElement;
+  onlineBody: HTMLElement;
+  grid: HTMLElement;
+  activePanel: { panel: HTMLElement; body: HTMLElement };
+  ladderPanels: {
+    bucket: (typeof LEADERBOARD_BUCKETS)[number];
+    shell: { panel: HTMLElement; body: HTMLElement };
+  }[];
+} {
+  const onlineHeading = document.createElement('h2');
+  onlineHeading.className = 'site-section-heading leaderboard-online-heading';
+  onlineHeading.textContent = t('profile.onlinePlayers', {}, locale);
+
+  const heading = document.createElement('h1');
+  heading.className = 'site-section-heading leaderboard-heading';
+  heading.textContent = t('profile.leaderboard', {}, locale);
+
+  const sub = document.createElement('p');
+  sub.className = 'leaderboard-sub';
+  sub.textContent = t('profile.leaderboardIntro', {}, locale);
+
+  const onlineBody = document.createElement('div');
+  onlineBody.className = 'leaderboard-online-body';
+
+  const grid = document.createElement('div');
+  grid.className = 'leaderboard-grid';
+  const activePanel = buildLeaderboardPanelShell(
+    t('profile.activePlayers', {}, locale),
+    null,
+    locale,
+  );
+  const ladderPanels = LEADERBOARD_BUCKETS.map((bucket) => ({
+    bucket,
+    shell: buildLeaderboardPanelShell(
+      profileVariantLabel(bucket.variant, locale),
+      bucket.miniId,
+      locale,
+    ),
+  }));
+  grid.append(activePanel.panel, ...ladderPanels.map((p) => p.shell.panel));
+
+  const body = document.createElement('div');
+  body.className = 'leaderboard-body';
+  body.append(onlineHeading, heading, sub, onlineBody, grid);
+
+  const shell = document.createElement('main');
+  shell.className = 'site-section community-shell leaderboard-shell';
+  shell.append(buildCommunityLayout('/leaderboard', body, locale));
+  return { shell, onlineBody, grid, activePanel, ladderPanels };
+}
+
+// Build-time static render of the players page frame (nav + rail + headings +
+// loading panels), baked by the prerender so first paint gets the full layout
+// instead of the empty SPA shell. Live data (ladder rows, online list) stays a
+// client fetch. Returns the inner HTML for `#app`.
+export function renderLeaderboardShellForPrerender(): string {
+  const nav = buildNav();
+  const frame = buildLeaderboardFrame(currentLocale());
+  return `${nav.outerHTML}${frame.shell.outerHTML}`;
+}
+
 export async function mountLeaderboard(root: HTMLElement): Promise<void> {
   const locale = currentLocale();
   root.replaceChildren();
   root.classList.add('landing-page');
 
-  const shell = document.createElement('main');
-  shell.className = 'site-section leaderboard-shell';
+  // Playstrategy-style players page: the frame renders immediately from the
+  // build-time variant registry; the two fetches below only fill in rows, so
+  // no layout waits on the network.
+  const { shell, onlineBody, grid, activePanel, ladderPanels } = buildLeaderboardFrame(locale);
   root.append(buildNav(locale), shell);
 
-  const loading = document.createElement('p');
-  loading.className = 'leaderboard-loading';
-  loading.textContent = t('profile.loadingRatings', {}, locale);
-  shell.append(loading);
+  const [summary, onlinePlayers] = await Promise.all([
+    fetchLeaderboardSummary(),
+    fetchOnlinePlayers(),
+  ]);
 
-  const results = await Promise.all(
-    LEADERBOARD_BUCKETS.map((b) =>
-      fetch(`/api/leaderboard?variant=${b.variantParam}&limit=10`)
-        .then((r) =>
-          r.ok
-            ? (r.json() as Promise<{ leaderboard: LeaderboardEntry[] }>)
-            : Promise.reject(r.status),
-        )
-        .catch((err) => {
-          console.warn(err);
-          return null;
-        }),
-    ),
+  // Presence circles on every ladder row cross-reference the online set.
+  const onlineHandles = new Set(
+    (onlinePlayers?.players ?? []).map((player) => player.handle.toLowerCase()),
   );
 
-  const grid = document.createElement('div');
-  grid.className = 'leaderboard-grid';
-  for (let i = 0; i < LEADERBOARD_BUCKETS.length; i++) {
-    const b = LEADERBOARD_BUCKETS[i];
-    grid.append(buildLeaderboardPanel(b.variant, b.miniId, results[i], locale));
+  const activeRows: LeaderboardTableRow[] | null = summary
+    ? (summary.activePlayers ?? []).map((entry) => ({
+        rank: entry.rank,
+        handle: entry.handle,
+        displayName: entry.displayName,
+        value: entry.gamesPlayed,
+        provisional: false,
+      }))
+    : null;
+  renderLeaderboardPanelBody(
+    activePanel.body,
+    activeRows,
+    onlineHandles,
+    'profile.noGamesYet',
+    locale,
+  );
+
+  const ladders = new Map(
+    (summary?.ladders ?? []).map((ladder) => [ladder.variant, ladder.leaderboard]),
+  );
+  const panels: { panel: HTMLElement; populated: boolean }[] = [
+    { panel: activePanel.panel, populated: (activeRows?.length ?? 0) > 0 },
+  ];
+  for (const { bucket, shell: panelShell } of ladderPanels) {
+    // A ladder missing from the summary just has no rated games yet; a null
+    // summary means the fetch itself failed.
+    const entries = summary ? (ladders.get(bucket.variant) ?? []) : null;
+    const rows: LeaderboardTableRow[] | null = entries
+      ? entries.map((entry) => ({
+          rank: entry.rank,
+          handle: entry.handle,
+          displayName: entry.displayName,
+          value: entry.eloRating,
+          provisional: entry.provisional,
+        }))
+      : null;
+    renderLeaderboardPanelBody(
+      panelShell.body,
+      rows,
+      onlineHandles,
+      'profile.noRatedGames',
+      locale,
+    );
+    panels.push({ panel: panelShell.panel, populated: (rows?.length ?? 0) > 0 });
   }
 
-  const body = document.createElement('div');
-  body.className = 'leaderboard-body';
-  body.append(buildLeaderboardOverview(results, locale), grid);
+  // Populated-first so empty ladders sink to the last rows instead of punching
+  // holes in the wall. Stable sort preserves registry order within each group.
+  grid.append(
+    ...panels.sort((a, b) => Number(!a.populated) - Number(!b.populated)).map((p) => p.panel),
+  );
 
-  shell.replaceChildren(buildLeaderboardHeader(results, locale), body);
+  renderOnlinePlayers(onlineBody, onlinePlayers, locale);
+}
+
+async function fetchLeaderboardSummary(): Promise<LeaderboardSummary> {
+  try {
+    const resp = await fetch('/api/leaderboard/summary?limit=10');
+    if (!resp.ok) throw new Error(`leaderboard summary failed: ${resp.status}`);
+    return (await resp.json()) as NonNullable<LeaderboardSummary>;
+  } catch (err) {
+    console.warn(err);
+    return null;
+  }
+}
+
+async function fetchOnlinePlayers(): Promise<OnlinePlayersResult> {
+  try {
+    const resp = await fetch('/api/players/online');
+    if (!resp.ok) throw new Error(`online players failed: ${resp.status}`);
+    return (await resp.json()) as NonNullable<OnlinePlayersResult>;
+  } catch (err) {
+    console.warn(err);
+    return null;
+  }
+}
+
+function renderOnlinePlayers(body: HTMLElement, result: OnlinePlayersResult, locale: Locale): void {
+  const parts: HTMLElement[] = [];
+  // A failed fetch degrades to the empty state: the list is a soft signal,
+  // not worth an error banner.
+  if (!result || result.players.length === 0) {
+    const empty = document.createElement('p');
+    empty.className = 'leaderboard-online-empty';
+    empty.textContent = t('profile.noPlayersOnline', {}, locale);
+    parts.push(empty);
+  } else {
+    const list = document.createElement('ul');
+    list.className = 'leaderboard-online-list';
+    for (const player of result.players) {
+      const item = document.createElement('li');
+      const link = document.createElement('a');
+      link.href = `/@/${encodeURIComponent(player.handle)}`;
+      const dot = document.createElement('span');
+      dot.className = 'leaderboard-presence leaderboard-presence-online';
+      dot.setAttribute('aria-hidden', 'true');
+      const name = document.createElement('span');
+      name.className = 'leaderboard-online-name';
+      name.textContent = player.displayName;
+      link.append(dot, name);
+      if (player.playing) {
+        const playingMark = document.createElement('span');
+        playingMark.className = 'leaderboard-online-playing';
+        // Text-presentation crossed swords, so platforms don't swap in emoji.
+        playingMark.textContent = '⚔︎';
+        playingMark.title = t('profile.playingNow', {}, locale);
+        playingMark.setAttribute('aria-label', t('profile.playingNow', {}, locale));
+        link.append(playingMark);
+      }
+      if (player.rating) {
+        // One representative figure: the player's best blitz pool. The variant
+        // label rides on the title attribute rather than costing row width.
+        const rating = document.createElement('span');
+        rating.className = 'leaderboard-online-rating';
+        rating.textContent = `${player.rating.eloRating}${player.rating.provisional ? '?' : ''}`;
+        const variantLabel = maybeVariantLabel(player.rating.variant, locale);
+        if (variantLabel) rating.title = variantLabel;
+        link.append(rating);
+      }
+      item.append(link);
+      list.append(item);
+    }
+    parts.push(list);
+  }
+  if (result && (result.anonymousOnline ?? 0) > 0) {
+    const anon = document.createElement('p');
+    anon.className = 'leaderboard-online-anon';
+    anon.textContent = t(
+      'profile.anonymousOnline',
+      { count: String(result.anonymousOnline) },
+      locale,
+    );
+    parts.push(anon);
+  }
+  body.replaceChildren(...parts);
+}
+
+// Label for a rating-pool name coming off the wire, or null if the client
+// does not know the pool (fail soft: an unknown pool just loses its tooltip).
+function maybeVariantLabel(variant: string, locale: Locale): string | null {
+  if (!(variant in PROFILE_VARIANT_LABEL_KEY)) return null;
+  return profileVariantLabel(variant as ProfileRatingVariant, locale);
 }
 
 // Decorative variant mini-board (the same board-crop art as the picker/articles).
@@ -183,245 +400,111 @@ function buildVariantThumb(
   return thumb;
 }
 
-function buildLeaderboardHeader(
-  results: LeaderboardResult[],
+// Panel shell shared by the active-players ladder (no board thumb) and the
+// per-variant ladders. The body starts in a loading state and is filled by
+// renderLeaderboardPanelBody once the summary lands.
+function buildLeaderboardPanelShell(
+  title: string,
+  miniId: VariantMiniId | null,
   locale: Locale = currentLocale(),
-): HTMLElement {
-  const header = document.createElement('section');
-  header.className = 'leaderboard-page-header';
-
-  const text = document.createElement('div');
-  text.className = 'leaderboard-page-title';
-
-  const eyebrow = document.createElement('span');
-  eyebrow.className = 'account-eyebrow';
-  eyebrow.textContent = t('profile.players', {}, locale);
-
-  const heading = document.createElement('h1');
-  heading.className = 'site-section-heading';
-  heading.textContent = t('profile.leaderboard', {}, locale);
-
-  const body = document.createElement('p');
-  body.className = 'leaderboard-sub';
-  body.textContent = t('profile.leaderboardIntro', {}, locale);
-
-  const link = document.createElement('a');
-  link.className = 'leaderboard-bots-link';
-  link.href = localizedHref('/bots', locale);
-  link.textContent = t('profile.bots', {}, locale);
-
-  text.append(eyebrow, heading, body);
-  header.append(text, link);
-
-  const listings = flattenedLeaderboardEntries(results, locale);
-  if (listings.length === 0) header.classList.add('leaderboard-page-header-empty');
-  return header;
-}
-
-function buildLeaderboardOverview(
-  results: LeaderboardResult[],
-  locale: Locale = currentLocale(),
-): HTMLElement {
-  const overview = document.createElement('section');
-  overview.className = 'leaderboard-overview';
-  overview.append(
-    buildLeaderboardStats(results, locale),
-    buildLeaderboardSpotlight(results, locale),
-  );
-  return overview;
-}
-
-function buildLeaderboardStats(
-  results: LeaderboardResult[],
-  locale: Locale = currentLocale(),
-): HTMLElement {
-  const listings = flattenedLeaderboardEntries(results, locale);
-  const uniquePlayers = new Set(listings.map((item) => item.entry.handle.toLowerCase()));
-  const topRating = listings.reduce<number | null>(
-    (best, item) => (best == null || item.entry.eloRating > best ? item.entry.eloRating : best),
-    null,
-  );
-  const stats: Array<[string, string]> = [
-    [String(LEADERBOARD_BUCKETS.length), t('profile.ladders', {}, locale)],
-    [String(uniquePlayers.size), t('profile.playersStat', {}, locale)],
-    [String(listings.length), t('profile.ratingsStat', {}, locale)],
-    [topRating == null ? '—' : String(topRating), t('profile.topRating', {}, locale)],
-  ];
-
-  const strip = document.createElement('div');
-  strip.className = 'leaderboard-stats';
-  for (const [value, label] of stats) {
-    const item = document.createElement('div');
-    item.className = 'leaderboard-stat';
-
-    const valueEl = document.createElement('span');
-    valueEl.className = 'leaderboard-stat-value';
-    valueEl.textContent = value;
-
-    const labelEl = document.createElement('span');
-    labelEl.className = 'leaderboard-stat-label';
-    labelEl.textContent = label;
-
-    item.append(valueEl, labelEl);
-    strip.append(item);
-  }
-  return strip;
-}
-
-function buildLeaderboardSpotlight(
-  results: LeaderboardResult[],
-  locale: Locale = currentLocale(),
-): HTMLElement {
-  const section = document.createElement('section');
-  section.className = 'leaderboard-spotlight';
-
-  const heading = document.createElement('h2');
-  heading.textContent = t('profile.topRatings', {}, locale);
-  section.append(heading);
-
-  const listings = flattenedLeaderboardEntries(results, locale)
-    .sort((a, b) => b.entry.eloRating - a.entry.eloRating)
-    .slice(0, 5);
-
-  if (listings.length === 0) {
-    const empty = document.createElement('p');
-    empty.className = 'leaderboard-spotlight-empty';
-    empty.textContent = t('profile.noRatedGames', {}, locale);
-    section.append(empty);
-    return section;
-  }
-
-  const list = document.createElement('ol');
-  list.className = 'leaderboard-spotlight-list';
-  for (const item of listings) {
-    const row = document.createElement('li');
-
-    const link = document.createElement('a');
-    link.href = `/@/${encodeURIComponent(item.entry.handle)}`;
-    link.textContent = item.entry.displayName;
-
-    const rating = document.createElement('span');
-    rating.className = 'leaderboard-spotlight-rating';
-    rating.textContent = `${item.entry.eloRating}${item.entry.provisional ? '?' : ''}`;
-
-    const variant = document.createElement('span');
-    variant.className = 'leaderboard-spotlight-variant';
-    variant.textContent = item.variantLabel;
-
-    row.append(link, rating, variant);
-    list.append(row);
-  }
-  section.append(list);
-  return section;
-}
-
-function buildLeaderboardPanel(
-  variant: ProfileRatingVariant,
-  miniId: VariantMiniId,
-  data: LeaderboardResult,
-  locale: Locale = currentLocale(),
-): HTMLElement {
-  const panel = document.createElement('div');
-  panel.className = 'leaderboard-panel';
-  const variantLabel = profileVariantLabel(variant, locale);
-
-  const header = document.createElement('div');
+): { panel: HTMLElement; body: HTMLElement } {
+  const header = document.createElement('header');
   header.className = 'leaderboard-panel-header';
 
-  const heading = document.createElement('div');
-  heading.className = 'leaderboard-panel-heading';
+  const titleEl = document.createElement('h2');
+  titleEl.className = 'leaderboard-panel-title';
+  titleEl.textContent = title;
 
-  const title = document.createElement('h2');
-  title.className = 'leaderboard-panel-title';
-  title.textContent = variantLabel;
-
-  const subtitle = document.createElement('span');
-  subtitle.className = 'leaderboard-panel-subtitle';
-  subtitle.textContent = t('profile.blitzRating', {}, locale);
-
-  heading.append(title, subtitle);
-  header.append(
-    buildVariantThumb(
-      miniId,
-      80,
-      'leaderboard-panel-thumb',
-      t('profile.variantBoard', { variant: variantLabel }, locale),
-    ),
-    heading,
-  );
-  panel.append(header);
-
-  if (!data) {
-    const msg = document.createElement('p');
-    msg.className = 'leaderboard-panel-empty';
-    msg.textContent = t('profile.ratingsLoadFailed', {}, locale);
-    panel.append(msg);
-    return panel;
+  if (miniId) {
+    header.append(
+      buildVariantThumb(
+        miniId,
+        22,
+        'leaderboard-panel-thumb',
+        t('profile.variantBoard', { variant: title }, locale),
+      ),
+    );
   }
+  header.append(titleEl);
 
-  if (data.leaderboard.length === 0) {
-    const msg = document.createElement('p');
-    msg.className = 'leaderboard-panel-empty';
-    msg.textContent = t('profile.noRatedGames', {}, locale);
-    panel.append(msg);
-    return panel;
-  }
+  const body = document.createElement('div');
+  body.className = 'leaderboard-panel-body';
+  const loading = document.createElement('p');
+  loading.className = 'leaderboard-panel-empty';
+  loading.textContent = t('profile.loadingRatings', {}, locale);
+  body.append(loading);
 
-  panel.append(renderLeaderboardTable(data.leaderboard));
-  return panel;
+  const panel = document.createElement('section');
+  panel.className = 'leaderboard-panel';
+  panel.append(header, body);
+  return { panel, body };
 }
 
-function flattenedLeaderboardEntries(
-  results: LeaderboardResult[],
+function renderLeaderboardPanelBody(
+  body: HTMLElement,
+  rows: LeaderboardTableRow[] | null,
+  onlineHandles: Set<string>,
+  emptyKey: 'profile.noRatedGames' | 'profile.noGamesYet',
   locale: Locale = currentLocale(),
-): LeaderboardListing[] {
-  const listings: LeaderboardListing[] = [];
-  for (let i = 0; i < results.length; i++) {
-    const result = results[i];
-    const bucket = LEADERBOARD_BUCKETS[i];
-    if (!result || !bucket) continue;
-    for (const entry of result.leaderboard) {
-      listings.push({ entry, variantLabel: profileVariantLabel(bucket.variant, locale) });
-    }
+): void {
+  if (rows && rows.length > 0) {
+    body.replaceChildren(renderLeaderboardTable(rows, onlineHandles));
+    return;
   }
-  return listings;
+  const msg = document.createElement('p');
+  msg.className = 'leaderboard-panel-empty';
+  msg.textContent = rows ? t(emptyKey, {}, locale) : t('profile.ratingsLoadFailed', {}, locale);
+  body.replaceChildren(msg);
 }
 
-function renderLeaderboardTable(entries: LeaderboardEntry[]): HTMLTableElement {
+function renderLeaderboardTable(
+  rows: LeaderboardTableRow[],
+  onlineHandles: Set<string>,
+): HTMLTableElement {
   // Compact, header-less list in the lichess/playstrategy idiom: rank, player,
-  // rating only — no column headings, no games column. Order carries the rest.
+  // value only — no column headings. Every row carries a presence circle
+  // (filled = online now), so the whole wall doubles as a who's-online surface.
   const table = document.createElement('table');
   table.className = 'leaderboard-table';
 
   const tbody = document.createElement('tbody');
-  for (const entry of entries) {
+  for (const row of rows) {
     const tr = document.createElement('tr');
 
     const rankTd = document.createElement('td');
     rankTd.className = 'leaderboard-rank';
-    rankTd.textContent = String(entry.rank);
+    rankTd.textContent = String(row.rank);
 
     const nameTd = document.createElement('td');
     nameTd.className = 'leaderboard-player';
     const link = document.createElement('a');
-    link.href = `/@/${encodeURIComponent(entry.handle)}`;
-    link.textContent = entry.displayName;
+    link.href = `/@/${encodeURIComponent(row.handle)}`;
+    const presence = document.createElement('span');
+    presence.className = 'leaderboard-presence';
+    if (onlineHandles.has(row.handle.toLowerCase())) {
+      presence.classList.add('leaderboard-presence-online');
+    }
+    presence.setAttribute('aria-hidden', 'true');
+    const name = document.createElement('span');
+    name.className = 'leaderboard-player-name';
+    name.textContent = row.displayName;
+    link.append(presence, name);
     nameTd.append(link);
 
-    const ratingTd = document.createElement('td');
-    ratingTd.className = 'leaderboard-rating';
-    ratingTd.textContent = String(entry.eloRating);
-    if (entry.provisional) {
+    const valueTd = document.createElement('td');
+    valueTd.className = 'leaderboard-rating';
+    valueTd.textContent = String(row.value);
+    if (row.provisional) {
       // "?" marks a provisional rating (RD still high) — shown so the board isn't
       // empty at low liquidity, but flagged as not yet settled.
-      ratingTd.classList.add('leaderboard-rating-provisional');
+      valueTd.classList.add('leaderboard-rating-provisional');
       const q = document.createElement('span');
       q.className = 'leaderboard-rating-q';
       q.textContent = '?';
-      ratingTd.append(q);
+      valueTd.append(q);
     }
 
-    tr.append(rankTd, nameTd, ratingTd);
+    tr.append(rankTd, nameTd, valueTd);
     tbody.append(tr);
   }
   table.append(tbody);

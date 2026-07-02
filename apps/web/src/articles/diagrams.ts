@@ -4,6 +4,7 @@
 // what they reference. Pure relocation — no behavior changes.
 
 import { CONE_QUEEN_BOARD, DISCOVERY_BOARD, fogSquaresFromVisible } from '@mistboard/board-render';
+import { tokenPieceSize } from '../board-metrics.js';
 import {
   applyMove as applyXiangqiMove,
   type BackRankRole,
@@ -1272,7 +1273,7 @@ export const XQ_CELL = 31;
 export const XQ_MARGIN = 18;
 export const XQ_BOARD_W = XQ_MARGIN * 2 + 8 * XQ_CELL;
 export const XQ_BOARD_H = XQ_MARGIN * 2 + 9 * XQ_CELL;
-export const XQ_PIECE_SIZE = 28;
+export const XQ_PIECE_SIZE = tokenPieceSize(XQ_CELL);
 export const XQ_FOG_OVERLAP = 0.5;
 export const XQ_VIEWBOX_PAD = 4;
 export const XQ_BOARD_RADIUS = 8;

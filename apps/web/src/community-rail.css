@@ -1,0 +1,89 @@
+/* Community rail + column layout shared by community surfaces
+   (/leaderboard, /bots). The rail is the top-nav Community menu one level
+   deeper (playstrategy/lichess idiom). */
+
+/* One shell width for every rail page so the rail sits at the same x position
+   across the section; pages cap their own content column inside it. */
+.community-shell {
+  width: min(1520px, calc(100% - 32px));
+  max-width: none;
+  margin: 0 auto;
+  padding: 28px 0 48px;
+}
+
+/* Reserve the vertical-scrollbar gutter even when the page fits, so the
+   centered shell (and the rail with it) sits at the same x whether or not
+   the page scrolls. Without this, a scrolling /leaderboard and a
+   non-scrolling /bots differ by half a scrollbar width wherever scrollbars
+   are visible (e.g. macOS with a mouse attached). No-op for overlay
+   scrollbars. */
+html:has(.community-shell) {
+  scrollbar-gutter: stable;
+}
+
+.community-layout {
+  display: grid;
+  grid-template-columns: 168px minmax(0, 1fr);
+  gap: 8px 28px;
+  align-items: start;
+}
+
+.community-rail {
+  display: grid;
+  align-content: start;
+  padding-top: 30px;
+}
+
+.community-rail a {
+  display: block;
+  padding: 9px 14px;
+  border-left: 3px solid transparent;
+  border-radius: 0 var(--site-radius-sm) var(--site-radius-sm) 0;
+  color: var(--site-text);
+  font-size: 14px;
+  text-decoration: none;
+}
+
+.community-rail a:hover,
+.community-rail a:focus-visible {
+  background: var(--site-hover);
+  color: var(--site-heading);
+}
+
+.community-rail a.community-rail-active {
+  border-left-color: var(--site-accent);
+  background: var(--site-panel);
+  color: var(--site-heading);
+  font-weight: 650;
+}
+
+@media (max-width: 900px) {
+  .community-layout {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+
+  .community-rail {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    padding-top: 0;
+  }
+
+  .community-rail a {
+    border-left: 0;
+    border-radius: var(--site-radius-sm);
+    padding: 7px 12px;
+  }
+
+  .community-rail a.community-rail-active {
+    background: var(--site-accent-soft);
+  }
+}
+
+@media (max-width: 480px) {
+  .community-shell {
+    width: calc(100% - 24px);
+    padding: 20px 0 32px;
+  }
+}
