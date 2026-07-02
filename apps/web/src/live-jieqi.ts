@@ -1,21 +1,19 @@
-// Live multiplayer room client for jieqi (揭棋) — a self-contained tenant client
-// on the socket-client + chrome stack, modeled on the Dark Xiangqi room but
-// IDENTITY-hidden rather than POSITION-hidden.
+// Live multiplayer room client for jieqi (揭棋) — an IDENTITY-hidden tenant on
+// the generic live-client core (variant-tenant/live-client.ts owns bootstrap,
+// frame application, the renderAll skeleton, replay capture, and the two-column
+// move list).
 //
 // Jieqi positions are fully PUBLIC: both players see every square, every piece's
 // color, and every move. The only hidden axis is piece IDENTITY (a face-down
 // piece's role). So this client carries NO fog: no fog mask, no visibleSquares,
-// no opponent-move stripping, and the replay capture is straightforward (the
-// server already redacts identities in the per-seat view, and there is nothing
-// further to redact across replay).
+// no opponent-move stripping, and the move list is unmasked (masked: false) —
+// the server already redacts identities in the per-seat view, and there is
+// nothing further to redact across replay.
 //
-// Board rendering, the face-down vs revealed pieces, selection ring, hints,
-// last-move, and the interactive hit layer all come from live-jieqi-render.ts;
-// click-to-move from live-jieqi-interaction.ts. The connection state machine
-// lives in variant-tenant/socket-client.ts and the room chrome (clocks,
-// countdowns, action status, room actions) in variant-tenant/room-chrome.ts.
-// This module adds the captured-pool panel (grouped by owner, "?" for an
-// identity the viewer cannot see) on top of that shared chrome.
+// This module keeps what is genuinely jieqi's: the wire view type, board
+// rendering (live-jieqi-render.ts), click/drag interaction
+// (live-jieqi-interaction.ts), the captured-pool panel ("?" for an identity the
+// viewer cannot see), sounds, and the from-to move notation.
 
 import type {
   JieqiColor,
@@ -38,20 +36,17 @@ import {
   resetJieqiSoundState,
   soundForOwnJieqiMove,
 } from './live-jieqi-sound.js';
-import { createLiveLayout, setLiveLayoutGameSpec } from './live-layout.js';
-import { initLiveSound, playSound, resetLiveSoundState } from './live-sound.js';
-import { clearSeatTokenForRoom, type LiveRefs } from './live-state.js';
-import { roomIdFromPath } from './room-url.js';
+import { playSound } from './live-sound.js';
+import type { LiveRefs } from './live-state.js';
 import { installBoardDrag } from './variant-tenant/board-drag.js';
-import { syncMoveListScroll } from './variant-tenant/chrome-dom.js';
-import { createTenantReplayController } from './variant-tenant/replay-controller.js';
-import { createTenantRoomChrome, type WebVariantTenant } from './variant-tenant/room-chrome.js';
-import { installSelectionClickAway } from './variant-tenant/selection-click-away.js';
 import {
-  createTenantSocketClient,
-  type TenantConnectionState,
-  type TenantSocketClient,
-} from './variant-tenant/socket-client.js';
+  createTenantLiveClient,
+  type TenantLiveClientContext,
+  type TenantLiveEvent,
+  type TenantMovePlayed,
+} from './variant-tenant/live-client.js';
+import type { WebVariantTenant } from './variant-tenant/room-chrome.js';
+import { installSelectionClickAway } from './variant-tenant/selection-click-away.js';
 import { readStoredXiangqiPieceSet } from './xiangqi-appearance-storage.js';
 import { renderXiangqiPieceGlyphed } from './xiangqi-piece-sets.js';
 
@@ -75,79 +70,18 @@ export type JieqiWireView = {
   lastMove?: JieqiMove;
 };
 
-type JieqiWireEvent =
-  | { type: 'move-played'; color: JieqiColor; move: JieqiMove; at: number; ply?: number }
-  | { type: string; [key: string]: unknown };
-type JieqiMoveEvent = Extract<JieqiWireEvent, { type: 'move-played' }>;
-type JieqiVisibleMoveRow = {
-  fullMove: number;
-  red?: string;
-  black?: string;
-};
+type JieqiMoveEvent = TenantMovePlayed<JieqiColor, JieqiMove>;
 
-type JieqiLiveClock = {
-  activeColor: JieqiColor | null;
-  incrementMs: number;
-  initialMs: number;
-  remainingMs: Record<JieqiColor, number>;
-  runningSince: number | null;
-};
+// ── Jieqi-owned interaction/render state ─────────────────────────────────────
 
-type JieqiLiveFrame = {
-  type: 'hello' | 'snapshot' | 'event-appended';
-  clientId?: string;
-  seatToken?: string;
-  seat: JieqiColor | 'spectator';
-  seats: Partial<Record<JieqiColor, string>>;
-  state: JieqiWireView;
-  clock?: JieqiLiveClock | null;
-  connectedSeats?: Record<JieqiColor, boolean>;
-  abortDeadline?: number | null;
-  roomMode?: 'pve' | 'pvp';
-  pveEngineId?: string | null;
-  timeControl?: { initialMs: number; incrementMs: number } | null;
-  clients?: number;
-  events?: JieqiWireEvent[];
-  event?: JieqiWireEvent;
-  seq?: number;
-};
-
-// ── Module state ─────────────────────────────────────────────────────────────
-
-const state = {
-  room: '',
-  seat: null as JieqiColor | 'spectator' | null,
-  view: null as JieqiWireView | null,
-  clock: null as JieqiLiveClock | null,
-  timeControl: null as { initialMs: number; incrementMs: number } | null,
-  seats: {} as Partial<Record<JieqiColor, string>>,
-  connectedSeats: { red: false, black: false } as Record<JieqiColor, boolean>,
-  events: [] as JieqiWireEvent[],
-  abortDeadline: null as number | null,
-  roomMode: 'pvp' as 'pve' | 'pvp',
-  pveEngineId: null as string | null,
-};
-
-let client: TenantSocketClient | null = null;
-let refs: LiveRefs | null = null;
+let core: TenantLiveClientContext<JieqiColor, JieqiWireView> | null = null;
 let selectedSquare: JieqiSquare | null = null;
 // The square a piece is being dragged from (its piece is lifted off the board so
 // only the floating ghost shows). Null when not dragging.
 let draggingFrom: JieqiSquare | null = null;
-let lastCapturedView: JieqiWireView | null = null;
-let lastCapturedPositionKey: string | null = null;
-
-const replay = createTenantReplayController<JieqiWireView>();
-
-function send(payload: unknown): boolean {
-  return client?.send(payload) ?? false;
-}
-
-function connection(): TenantConnectionState {
-  return client?.connection() ?? 'connecting';
-}
-
-// ── Shared tenant room chrome ────────────────────────────────────────────────
+// Snapshot extras that ride the frame (read by the chrome + play-again body).
+let roomMode: 'pve' | 'pvp' = 'pvp';
+let pveEngineId: string | null = null;
 
 const jieqiWebTenant: WebVariantTenant<JieqiColor> = {
   displayName: 'Jieqi',
@@ -164,30 +98,78 @@ const jieqiWebTenant: WebVariantTenant<JieqiColor> = {
   selectInstruction: 'Select one of your pieces, then choose a destination.',
 };
 
-const chrome = createTenantRoomChrome(jieqiWebTenant, {
-  view: () => state.view,
-  seat: () => state.seat,
-  connectionState: () => connection(),
-  clock: () => state.clock,
-  timeControl: () => state.timeControl,
-  connectedSeats: () => state.connectedSeats,
-  abortDeadline: () => state.abortDeadline,
-  // Not on the Jieqi wire: the forfeit banner and rematch block never arm.
-  forfeitDeadline: () => null,
-  roomMode: () => state.roomMode,
-  room: () => state.room,
-  debugRequested: () => false,
-  isReplayLive: () => replay.isLive(),
-  orientation: () => orientationFor(state.view),
-  playAgainRequestBody: () => ({
-    mode: state.roomMode,
+const client = createTenantLiveClient<JieqiColor, JieqiWireView, JieqiMove>({
+  tenant: jieqiWebTenant,
+  gameSpecId: 'jieqi',
+  defaultRoomId: 'jq_dev',
+  boardClass: 'jieqi-live-board',
+  chrome: {
+    roomMode: () => roomMode,
+  },
+  playAgainRequestBody: (state) => ({
+    mode: roomMode,
     gameSpecId: 'jieqi',
     preferredColor: 'random',
-    ...(state.roomMode === 'pve' && state.pveEngineId ? { engineId: state.pveEngineId } : {}),
+    ...(roomMode === 'pve' && pveEngineId ? { engineId: pveEngineId } : {}),
     ...(state.timeControl ? { timeControl: state.timeControl } : {}),
   }),
-  rematchControls: () => null,
+  onFrame: (frame) => {
+    if (frame.roomMode === 'pve' || frame.roomMode === 'pvp') roomMode = frame.roomMode;
+    if (typeof frame.pveEngineId === 'string') pveEngineId = frame.pveEngineId;
+  },
+  onSnapshotApplied: () => {
+    if (core) maybePlayJieqiSnapshotSound(core.state.view, core.state.seat);
+  },
+  onEventApplied: () => {
+    if (core) maybePlayJieqiSnapshotSound(core.state.view, core.state.seat);
+  },
+  resetSounds: resetJieqiSoundState,
+  resetState: () => {
+    selectedSquare = null;
+    draggingFrom = null;
+    roomMode = 'pvp';
+    pveEngineId = null;
+  },
+  renderBoard,
+  renderExtras: (refs, view) => renderCapturedPools(refs, view),
+  onDisabled: (refs) => {
+    // renderCapturedPools ran before the enabled guard in the original, so it
+    // paints even when the flag is off; then the selection clears.
+    renderCapturedPools(refs, core?.displayedView() ?? null);
+    selectedSquare = null;
+  },
+  setup: (ctx) => {
+    core = ctx;
+    installJieqiBoardStyles();
+    installJieqiBoardInteraction(ctx.refs);
+    installSelectionClickAway({
+      roots: () => [core?.refs.board],
+      hasSelection: () => selectedSquare !== null,
+      clearSelection: () => {
+        selectedSquare = null;
+        draggingFrom = null;
+        if (core) renderBoard(core.refs, core.displayedView());
+      },
+    });
+  },
+  moveList: {
+    rowClass: 'move-row xiangqi-move-row',
+    cellPrefix: 'xiangqi-move-row',
+    listClass: 'xiangqi-move-list',
+    masked: false,
+    emptyText: 'No moves yet',
+    notate: (move) => `${move.from}-${move.to}`,
+    isMoveEvent: isJieqiMoveEvent,
+  },
+  replayCapture: {
+    positionKey: replayPositionKey,
+    plyForView: (view, ctx) => replayPlyForView(view, ctx.positionChanged, ctx.latestPly),
+  },
 });
+
+export function bootstrapJieqiLiveRoom(): void {
+  client.bootstrap();
+}
 
 function jieqiReasonPhrase(reason: string): string {
   switch (reason) {
@@ -208,130 +190,7 @@ function jieqiReasonPhrase(reason: string): string {
   }
 }
 
-// ── Entry point ──────────────────────────────────────────────────────────────
-
-export function bootstrapJieqiLiveRoom(): void {
-  const app = document.querySelector<HTMLDivElement>('#app');
-  if (!app) throw new Error('missing #app');
-
-  const params = new URLSearchParams(window.location.search);
-  const room = roomIdFromPath(window.location.pathname) ?? params.get('room') ?? 'jq_dev';
-  state.room = room;
-  selectedSquare = null;
-  lastCapturedView = null;
-  lastCapturedPositionKey = null;
-  replay.reset();
-  chrome.resetState();
-  installJieqiBoardStyles();
-  initLiveSound();
-  resetLiveSoundState();
-  resetJieqiSoundState();
-
-  if (params.get('reset') === '1') {
-    clearSeatTokenForRoom(room);
-    params.delete('reset');
-    const search = params.toString();
-    window.history.replaceState(
-      null,
-      '',
-      `${window.location.pathname}${search ? `?${search}` : ''}`,
-    );
-  }
-
-  refs = createLiveLayout(app, { debugRequested: false });
-  setLiveLayoutGameSpec(app, 'jieqi');
-  chrome.setRenderTarget(refs, {
-    sendSocket: send,
-    // connect() drops any pending backoff timer and reconnects immediately.
-    reconnectNow: () => client?.connect(),
-  });
-  installJieqiBoardInteraction(refs);
-  installSelectionClickAway({
-    roots: () => [refs?.board],
-    hasSelection: () => selectedSquare !== null,
-    clearSelection: () => {
-      selectedSquare = null;
-      draggingFrom = null;
-      if (refs) renderBoard(refs, replay.currentView(state.view));
-    },
-  });
-
-  client = createTenantSocketClient({
-    room,
-    applyHello: (frame) => applyFrame(frame as JieqiLiveFrame),
-    applySnapshot: (frame) => {
-      applyFrame(frame as JieqiLiveFrame);
-      maybePlayJieqiSnapshotSound(state.view, state.seat);
-    },
-    applyEvent: (frame) => applyEventFrame(frame as JieqiLiveFrame),
-    render: renderAll,
-  });
-  client.connect();
-  client.startPing();
-  window.setInterval(() => {
-    chrome.tickClocks();
-    chrome.tickCountdowns();
-  }, 100);
-  document.addEventListener('keydown', handleReplayKeyboard);
-  renderAll();
-}
-
-// ── Frame application ────────────────────────────────────────────────────────
-
-function applyFrame(frame: JieqiLiveFrame): void {
-  state.seat = frame.seat;
-  state.view = frame.state;
-  state.clock = frame.clock ?? null;
-  state.timeControl = frame.timeControl ?? state.timeControl;
-  state.seats = frame.seats ?? state.seats;
-  state.roomMode = frame.roomMode ?? state.roomMode;
-  state.pveEngineId = frame.pveEngineId ?? state.pveEngineId;
-  if (frame.connectedSeats) state.connectedSeats = frame.connectedSeats;
-  state.abortDeadline = frame.abortDeadline ?? null;
-  if (frame.events) state.events = frame.events;
-}
-
-function applyEventFrame(frame: JieqiLiveFrame): void {
-  const events = state.events;
-  applyFrame(frame);
-  state.events = events;
-  if (frame.event) state.events = [...events, frame.event];
-  maybePlayJieqiSnapshotSound(state.view, state.seat);
-}
-
-function handleReplayKeyboard(event: KeyboardEvent): void {
-  replay.handleKeyboard(event, renderAll);
-}
-
 // ── Rendering ────────────────────────────────────────────────────────────────
-
-function renderAll(): void {
-  if (!refs) return;
-  chrome.resetHostPanels();
-  chrome.renderMeta();
-  chrome.renderClocks();
-
-  const view = state.view;
-  captureReplayView(view);
-  const displayedView = replay.currentView(view);
-  refs.moveList.classList.add('xiangqi-move-list');
-  replay.renderShell(refs, renderAll);
-  refs.boardStatus.hidden = view !== null;
-  chrome.renderActionStatus();
-  chrome.renderGameControls();
-  chrome.renderRoomActions();
-  renderCapturedPools(refs, displayedView);
-
-  if (!jieqiEnabled()) {
-    refs.board.className = 'board jieqi-live-board jieqi-live-board--disabled';
-    refs.board.replaceChildren();
-    selectedSquare = null;
-    return;
-  }
-
-  renderBoard(refs, displayedView);
-  renderVisibleMoveList(refs);
-}
 
 function renderBoard(liveRefs: LiveRefs, view: JieqiWireView | null): void {
   liveRefs.board.className = 'board jieqi-live-board';
@@ -355,8 +214,8 @@ function renderBoard(liveRefs: LiveRefs, view: JieqiWireView | null): void {
 }
 
 function handleSquareClick(view: JieqiWireView, square: JieqiSquare): void {
-  if (!replay.isLive() || connection() !== 'connected') return;
-  const result = jieqiClickResult(view, state.seat, selectedSquare, square);
+  if (!core || !core.replay.isLive() || core.connection() !== 'connected') return;
+  const result = jieqiClickResult(view, core.state.seat, selectedSquare, square);
   if (result.kind === 'noop') return;
   if (result.kind === 'select') {
     selectedSquare = result.square;
@@ -367,7 +226,7 @@ function handleSquareClick(view: JieqiWireView, square: JieqiSquare): void {
     return;
   }
   selectedSquare = null;
-  if (send({ type: 'move', from: result.move.from, to: result.move.to })) {
+  if (core.send({ type: 'move', from: result.move.from, to: result.move.to })) {
     playSound(soundForOwnJieqiMove(view, result.move));
   }
 }
@@ -381,21 +240,21 @@ function installJieqiBoardInteraction(liveRefs: LiveRefs): void {
     board: liveRefs.board,
     ghostSizePx: JIEQI_PIECE_PX,
     onSquareClick: (square) => {
-      const view = state.view;
+      const view = core?.state.view;
       if (!view) return;
       handleSquareClick(view, square as JieqiSquare);
       renderBoard(liveRefs, view);
     },
     canDragFrom: (square) => canDragJieqiPiece(square as JieqiSquare),
     ghostHtml: (square) => {
-      const entry = state.view?.board[square as JieqiSquare];
+      const entry = core?.state.view?.board[square as JieqiSquare];
       if (!entry) return null;
       return jieqiPieceGhostSvg(entry);
     },
     onDragStart: (from) => {
       selectedSquare = from as JieqiSquare;
       draggingFrom = from as JieqiSquare;
-      if (state.view) renderBoard(liveRefs, state.view);
+      if (core?.state.view) renderBoard(liveRefs, core.state.view);
     },
     onDrop: (from, to) => dropJieqiPiece(liveRefs, from as JieqiSquare, to as JieqiSquare | null),
   });
@@ -406,29 +265,29 @@ function installJieqiBoardInteraction(liveRefs: LiveRefs): void {
 // where face-down = click-to-flip). It snaps back if you drop it somewhere it
 // cannot move, so this need not require a legal move right now.
 function canDragJieqiPiece(square: JieqiSquare): boolean {
-  const view = state.view;
-  if (!view || !replay.isLive() || connection() !== 'connected') return false;
-  if (!isJieqiColor(state.seat)) return false;
-  if (view.status.type !== 'playing' || view.status.turn !== state.seat) return false;
+  const view = core?.state.view;
+  if (!view || !core || !core.replay.isLive() || core.connection() !== 'connected') return false;
+  if (!isJieqiColor(core.state.seat)) return false;
+  if (view.status.type !== 'playing' || view.status.turn !== core.state.seat) return false;
   const entry = view.board[square];
   if (!entry) return false;
   // Jieqi seats ARE colors (red/black): a piece is yours if its color is your seat.
-  return entry.color === state.seat;
+  return entry.color === core.state.seat;
 }
 
 function dropJieqiPiece(liveRefs: LiveRefs, from: JieqiSquare, to: JieqiSquare | null): void {
   draggingFrom = null;
-  const view = state.view;
+  const view = core?.state.view;
   const move = to && view ? view.legalMoves.find((m) => m.from === from && m.to === to) : undefined;
-  if (move && view) {
+  if (move && view && core) {
     selectedSquare = null;
-    if (send({ type: 'move', from: move.from, to: move.to })) {
+    if (core.send({ type: 'move', from: move.from, to: move.to })) {
       playSound(soundForOwnJieqiMove(view, move));
     }
   } else {
     selectedSquare = null;
   }
-  if (state.view) renderBoard(liveRefs, state.view);
+  if (core?.state.view) renderBoard(liveRefs, core.state.view);
 }
 
 // ── Captured pool ─────────────────────────────────────────────────────────────
@@ -485,92 +344,19 @@ export function fillCapturedPool(
   host.append(row);
 }
 
-// ── Move list (positions are public, so every move shows) ────────────────────
-
-function renderVisibleMoveList(liveRefs: LiveRefs): void {
-  const moves = state.events.filter((event): event is JieqiMoveEvent => isJieqiMoveEvent(event));
-  // Render every move that has been played, always. Stepping back only moves the
-  // active highlight (replay.activePly()); it must never drop rows. The ceiling
-  // is the full game length, not the scrubbed ply.
-  const totalPly = replay.latestPly();
-  liveRefs.moveList.replaceChildren();
-  if (totalPly === 0) {
-    const item = document.createElement('li');
-    item.className = 'move-row';
-    item.textContent = 'No moves yet';
-    liveRefs.moveList.append(item);
-    return;
-  }
-  const activePly = replay.activePly();
-  for (const row of visibleMoveRows(moves, totalPly)) {
-    const item = document.createElement('li');
-    item.className = 'move-row xiangqi-move-row';
-    const number = document.createElement('span');
-    number.className = 'xiangqi-move-row__number';
-    number.textContent = `${row.fullMove}.`;
-    const red = document.createElement('span');
-    red.className = ['xiangqi-move-row__move', activePly === row.fullMove * 2 - 1 ? 'active' : '']
-      .filter(Boolean)
-      .join(' ');
-    red.textContent = row.red ?? '...';
-    const black = document.createElement('span');
-    const blackPly = row.fullMove * 2;
-    black.className = ['xiangqi-move-row__move', activePly === blackPly ? 'active' : '']
-      .filter(Boolean)
-      .join(' ');
-    black.textContent = blackPly <= totalPly ? (row.black ?? '...') : '';
-    item.append(number, red, black);
-    liveRefs.moveList.append(item);
-  }
-  syncMoveListScroll(liveRefs.moveList, { live: replay.isLive(), plyCount: replay.latestPly() });
-}
-
-function visibleMoveRows(
-  moves: readonly JieqiMoveEvent[],
-  plyCount: number,
-): JieqiVisibleMoveRow[] {
-  const rows = new Map<number, JieqiVisibleMoveRow>();
-  for (let fullMove = 1; fullMove <= Math.ceil(plyCount / 2); fullMove += 1) {
-    rows.set(fullMove, { fullMove });
-  }
-  moves.forEach((event, index) => {
-    const ply = eventPly(event, index);
-    if (ply > plyCount) return;
-    const fullMove = Math.floor((ply - 1) / 2) + 1;
-    const row = rows.get(fullMove) ?? { fullMove };
-    row[event.color] = `${event.move.from}-${event.move.to}`;
-    rows.set(fullMove, row);
-  });
-  return [...rows.values()].sort((a, b) => a.fullMove - b.fullMove);
-}
-
-function eventPly(event: JieqiMoveEvent, fallbackIndex: number): number {
-  return Number.isInteger(event.ply) && event.ply && event.ply > 0 ? event.ply : fallbackIndex + 1;
-}
-
 // ── Replay capture (no fog to redact; capture every distinct position) ────────
 
-function captureReplayView(view: JieqiWireView | null): void {
-  if (!view) return;
-  if (view === lastCapturedView) return;
-  const positionKey = replayPositionKey(view);
-  const nextPly = replayPlyForView(view, positionKey !== lastCapturedPositionKey);
-  if (positionKey === lastCapturedPositionKey && nextPly <= replay.latestPly()) {
-    lastCapturedView = view;
-    return;
-  }
-  replay.push({ ply: nextPly, view });
-  lastCapturedView = view;
-  lastCapturedPositionKey = positionKey;
-}
-
-function replayPlyForView(view: JieqiWireView, positionChanged: boolean): number {
+function replayPlyForView(
+  view: JieqiWireView,
+  positionChanged: boolean,
+  latestPly: number,
+): number {
   if (view.status.type === 'playing') {
     const completedFullMoves = Math.max(0, view.moveNumber - 1);
     return completedFullMoves * 2 + (view.status.turn === 'black' ? 1 : 0);
   }
-  if (positionChanged && view.lastMove) return replay.latestPly() + 1;
-  return replay.latestPly();
+  if (positionChanged && view.lastMove) return latestPly + 1;
+  return latestPly;
 }
 
 function replayPositionKey(view: JieqiWireView): string {
@@ -588,7 +374,9 @@ function replayPositionKey(view: JieqiWireView): string {
   });
 }
 
-function isJieqiMoveEvent(event: JieqiWireEvent): event is JieqiMoveEvent {
+// ── Helpers ──────────────────────────────────────────────────────────────────
+
+function isJieqiMoveEvent(event: TenantLiveEvent): event is JieqiMoveEvent {
   const move = (event as { move?: unknown }).move;
   return (
     event.type === 'move-played' &&
@@ -601,7 +389,8 @@ function isJieqiMoveEvent(event: JieqiWireEvent): event is JieqiMoveEvent {
 }
 
 function orientationFor(view: JieqiWireView | null): JieqiColor {
-  if (isJieqiColor(state.seat)) return state.seat;
+  const seat = core?.state.seat;
+  if (isJieqiColor(seat)) return seat;
   return view?.perspective ?? 'red';
 }
 

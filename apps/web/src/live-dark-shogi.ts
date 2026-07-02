@@ -1,17 +1,16 @@
 // Live multiplayer room client for hidden/dev-only Dark Shogi (9x9) — a FOG
-// tenant on the same stack as Dark Crossroads / Dark Xiangqi:
-//   * the generic socket client + shared room chrome,
-//   * the fog-safe replay CAPTURE controller — replays only the per-seat fog
-//     snapshots the client actually received, never reconstructing hidden state,
-//   * the masked move list — only your own plies are notated; opponent plies are
-//     redacted off the wire and show a dimmed placeholder,
-//   * the bare wire shape — no rematch/roomMode extras.
-//
-// Shogi-specific surface (net-new vs the other fog tenants): a 9x9 koma board
-// (shogi-render.ts), the reserves (hand) strips reusing the capture slots, DROP
-// interaction (select a hand piece, then an empty square), and the PROMOTION
-// choice when a board move can optionally promote. Hands are PRIVATE under fog —
-// the view carries only your own reserve, so the opponent's strip stays hidden.
+// tenant on the generic live-client core (variant-tenant/live-client.ts owns
+// bootstrap, frame application, renderAll skeleton, the fog-safe replay CAPTURE
+// controller, and the masked two-column move list). This module keeps what is
+// genuinely Dark Shogi's:
+//   * the 9x9 koma board (shogi-render.ts) with the fog mask,
+//   * the reserves (hand) strips reusing the capture slots — PRIVATE under fog,
+//     so only your own reserve is ever sent,
+//   * DROP interaction (select a hand piece, then an empty square) and the
+//     PROMOTION choice when a board move can optionally promote,
+//   * the parachute BOUNCE (a drop onto a hidden piece comes back as
+//     'drop-rejected'), surfaced as a move-list banner via onServerMessage,
+//   * shogi move notation and the shogi board-family theme.
 //
 // Wire shape pinned by dark-shogi-golden-wire.test.ts: tenant core snapshot with
 // NO extras, per-seat move-played redaction, own-moves-only lastMove, own-hand
@@ -32,10 +31,8 @@ import {
   resetDarkShogiSoundState,
   soundForOwnDarkShogiMove,
 } from './live-dark-shogi-sound.js';
-import { createLiveLayout, setLiveLayoutGameSpec } from './live-layout.js';
-import { initLiveSound, playSound, resetLiveSoundState } from './live-sound.js';
-import { clearSeatTokenForRoom, type LiveRefs } from './live-state.js';
-import { roomIdFromPath } from './room-url.js';
+import { playSound } from './live-sound.js';
+import type { LiveRefs } from './live-state.js';
 import {
   renderShogiBoardSvg,
   SHOGI_FILES,
@@ -47,94 +44,34 @@ import {
 } from './shogi-render.js';
 import { setBoardFamily, shogiAppearanceChangedEvent } from './theme.js';
 import { installBoardDrag } from './variant-tenant/board-drag.js';
-import { syncMoveListScroll } from './variant-tenant/chrome-dom.js';
 import { installHandDrag } from './variant-tenant/hand-drag.js';
-import { createTenantReplayController } from './variant-tenant/replay-controller.js';
-import { createTenantRoomChrome, type WebVariantTenant } from './variant-tenant/room-chrome.js';
-import { installSelectionClickAway } from './variant-tenant/selection-click-away.js';
 import {
-  createTenantSocketClient,
-  type TenantConnectionState,
-  type TenantSocketClient,
-} from './variant-tenant/socket-client.js';
+  createTenantLiveClient,
+  type TenantLiveClientContext,
+  type TenantLiveEvent,
+  type TenantMovePlayed,
+} from './variant-tenant/live-client.js';
+import type { WebVariantTenant } from './variant-tenant/room-chrome.js';
+import { installSelectionClickAway } from './variant-tenant/selection-click-away.js';
 
 // ── Wire shapes (the subset this client consumes) ───────────────────────────
 
-type DarkShogiLiveClock = {
-  activeColor: ShogiColor | null;
-  incrementMs: number;
-  initialMs: number;
-  remainingMs: Record<ShogiColor, number>;
-  runningSince: number | null;
-};
+type DarkShogiMovePlayed = TenantMovePlayed<ShogiColor, ShogiMove>;
 
-type DarkShogiMovePlayed = {
-  type: 'move-played';
-  color: ShogiColor;
-  move: ShogiMove;
-  at: number;
-  ply?: number;
-};
-type DarkShogiLiveEvent = DarkShogiMovePlayed | { type: string; [key: string]: unknown };
-type DarkShogiVisibleMoveRow = { fullMove: number; black?: string; white?: string };
+// ── Dark-Shogi-owned interaction/render state ────────────────────────────────
 
-type DarkShogiLiveFrame = {
-  type: 'hello' | 'snapshot' | 'event-appended';
-  clientId?: string;
-  seatToken?: string;
-  seat: ShogiColor | 'spectator';
-  seats: Partial<Record<ShogiColor, string>>;
-  state: ShogiPlayerView;
-  clock?: DarkShogiLiveClock | null;
-  connectedSeats?: Record<ShogiColor, boolean>;
-  abortDeadline?: number | null;
-  timeControl?: { initialMs: number; incrementMs: number } | null;
-  clients?: number;
-  events?: DarkShogiLiveEvent[];
-  event?: DarkShogiLiveEvent;
-  seq?: number;
-};
+let core: TenantLiveClientContext<ShogiColor, ShogiPlayerView> | null = null;
+let selected: ShogiSquare | null = null;
+let selectedDrop: ShogiHandRole | null = null;
+// The square a board piece is being dragged from (its koma is lifted off the
+// board so only the floating ghost shows). Null when not dragging.
+let draggingFrom: ShogiSquare | null = null;
+let pendingPromotion: { from: ShogiSquare; to: ShogiSquare } | null = null;
+// The square a parachute drop bounced off (a probe: it is occupied). Cleared on
+// the next action.
+let bounce: ShogiSquare | null = null;
 
-// ── Module state ─────────────────────────────────────────────────────────────
-
-const state = {
-  room: '',
-  seat: null as ShogiColor | 'spectator' | null,
-  view: null as ShogiPlayerView | null,
-  clock: null as DarkShogiLiveClock | null,
-  timeControl: null as { initialMs: number; incrementMs: number } | null,
-  seats: {} as Partial<Record<ShogiColor, string>>,
-  connectedSeats: { black: false, white: false } as Record<ShogiColor, boolean>,
-  events: [] as DarkShogiLiveEvent[],
-  abortDeadline: null as number | null,
-  selected: null as ShogiSquare | null,
-  selectedDrop: null as ShogiHandRole | null,
-  // The square a board piece is being dragged from (its koma is lifted off the
-  // board so only the floating ghost shows). Null when not dragging.
-  draggingFrom: null as ShogiSquare | null,
-  pendingPromotion: null as { from: ShogiSquare; to: ShogiSquare } | null,
-  // The square a parachute drop bounced off (a probe: it is occupied). Cleared
-  // on the next action.
-  bounce: null as ShogiSquare | null,
-};
-
-let client: TenantSocketClient | null = null;
-let refs: LiveRefs | null = null;
-let boardHost: HTMLElement | null = null;
-let lastCapturedView: ShogiPlayerView | null = null;
-let lastCapturedPositionKey: string | null = null;
-
-const replay = createTenantReplayController<ShogiPlayerView>();
-
-function send(payload: unknown): boolean {
-  return client?.send(payload) ?? false;
-}
-
-function connection(): TenantConnectionState {
-  return client?.connection() ?? 'connecting';
-}
-
-// ── Shared tenant room chrome ────────────────────────────────────────────────
+// ── Shared tenant room chrome config ─────────────────────────────────────────
 
 const darkShogiWebTenant: WebVariantTenant<ShogiColor> = {
   displayName: 'Dark Shogi',
@@ -151,31 +88,6 @@ const darkShogiWebTenant: WebVariantTenant<ShogiColor> = {
   selectInstruction:
     'Select one of your visible pieces (or a reserve piece to drop), then choose a destination.',
 };
-
-const chrome = createTenantRoomChrome(darkShogiWebTenant, {
-  view: () => state.view,
-  seat: () => state.seat,
-  connectionState: () => connection(),
-  clock: () => state.clock,
-  timeControl: () => state.timeControl,
-  connectedSeats: () => state.connectedSeats,
-  abortDeadline: () => state.abortDeadline,
-  // Not on the Dark Shogi wire (golden-pinned, no snapshot extras): the forfeit
-  // banner and rematch block never arm.
-  forfeitDeadline: () => null,
-  roomMode: () => 'pvp',
-  room: () => state.room,
-  debugRequested: () => false,
-  isReplayLive: () => replay.isLive(),
-  orientation: () => orientationFor(state.view),
-  playAgainRequestBody: () => ({
-    mode: 'pvp',
-    gameSpecId: 'dark-shogi',
-    preferredColor: 'random',
-    ...(state.timeControl ? { timeControl: state.timeControl } : {}),
-  }),
-  rematchControls: () => null,
-});
 
 function darkShogiEndReasonLabel(reason: string): string {
   switch (reason) {
@@ -194,116 +106,106 @@ function darkShogiEndReasonLabel(reason: string): string {
   }
 }
 
-// ── Entry point ──────────────────────────────────────────────────────────────
+const client = createTenantLiveClient<ShogiColor, ShogiPlayerView, ShogiMove>({
+  tenant: darkShogiWebTenant,
+  gameSpecId: 'dark-shogi',
+  defaultRoomId: 'dsg_dev',
+  boardClass: 'shogi-live-board',
+  // Not on the Dark Shogi wire (golden-pinned, no snapshot extras): the forfeit
+  // banner and rematch block never arm. Chrome defaults (pvp, no forfeit, no
+  // rematch) match the original, so no chrome overrides are needed.
+  playAgainRequestBody: (state) => ({
+    mode: 'pvp',
+    gameSpecId: 'dark-shogi',
+    preferredColor: 'random',
+    ...(state.timeControl ? { timeControl: state.timeControl } : {}),
+  }),
+  onSnapshotApplied: () => {
+    if (core) maybePlayDarkShogiSnapshotSound(core.state.view, core.state.seat);
+  },
+  onEventApplied: () => {
+    if (core) maybePlayDarkShogiSnapshotSound(core.state.view, core.state.seat);
+  },
+  onServerMessage,
+  resetSounds: resetDarkShogiSoundState,
+  resetState: () => {
+    selected = null;
+    selectedDrop = null;
+    draggingFrom = null;
+    pendingPromotion = null;
+    bounce = null;
+  },
+  renderBoard,
+  renderExtras: (liveRefs, view) => {
+    renderHands(liveRefs, view);
+    renderPromotion(liveRefs, view);
+  },
+  onDisabled: (liveRefs) => {
+    liveRefs.capturesTop.replaceChildren();
+    liveRefs.capturesBottom.replaceChildren();
+    clearSelection();
+  },
+  setup: (ctx) => {
+    core = ctx;
+    setBoardFamily('shogi');
+    installBoardInteraction(ctx.refs);
+    installHandInteraction(ctx.refs);
+    ctx.refs.capturesBottom.addEventListener('click', onHandClick);
+    ctx.refs.promotion.addEventListener('click', onPromotionClick);
+    installSelectionClickAway({
+      roots: () => [core?.refs.board, core?.refs.capturesBottom],
+      hasSelection: () => pendingPromotion === null && (selected !== null || selectedDrop !== null),
+      clearSelection: () => {
+        clearSelection();
+        draggingFrom = null;
+        core?.renderAll();
+      },
+    });
+    window.addEventListener(shogiAppearanceChangedEvent, ctx.renderAll);
+  },
+  moveList: {
+    rowClass: 'dsg-move-row',
+    cellPrefix: 'dsg-move-row',
+    masked: true,
+    emptyText: 'No visible moves yet',
+    notate: notateShogiMove,
+    isMoveEvent,
+    banner: () =>
+      bounce
+        ? {
+            className: 'dsg-bounce-banner',
+            text: `Drop bounced: ${bounce} is occupied. Try another square.`,
+          }
+        : null,
+  },
+  replayCapture: {
+    positionKey: replayPositionKey,
+    // Fog: derive the ply from moveNumber + turn (black moves first); redacted
+    // opponent moves never arrive as events. On a finished position, advance by
+    // one when the last own move is newly visible.
+    plyForView: (view, ctx) => {
+      if (view.status.type === 'playing') {
+        const completedFullMoves = Math.max(0, view.moveNumber - 1);
+        return completedFullMoves * 2 + (view.status.turn === 'white' ? 1 : 0);
+      }
+      if (ctx.positionChanged && view.lastMove) return ctx.latestPly + 1;
+      return ctx.latestPly;
+    },
+  },
+});
 
 export function bootstrapDarkShogiLiveRoom(): void {
-  const app = document.querySelector<HTMLDivElement>('#app');
-  if (!app) throw new Error('missing #app');
-
-  const params = new URLSearchParams(window.location.search);
-  const room = roomIdFromPath(window.location.pathname) ?? params.get('room') ?? 'dsg_dev';
-  state.room = room;
-  state.selected = null;
-  state.selectedDrop = null;
-  state.draggingFrom = null;
-  state.pendingPromotion = null;
-  state.bounce = null;
-  lastCapturedView = null;
-  lastCapturedPositionKey = null;
-  replay.reset();
-  chrome.resetState();
-  initLiveSound();
-  resetLiveSoundState();
-  resetDarkShogiSoundState();
-
-  if (params.get('reset') === '1') {
-    clearSeatTokenForRoom(room);
-    params.delete('reset');
-    const search = params.toString();
-    window.history.replaceState(
-      null,
-      '',
-      `${window.location.pathname}${search ? `?${search}` : ''}`,
-    );
-  }
-
-  refs = createLiveLayout(app, { debugRequested: false });
-  setLiveLayoutGameSpec(app, 'dark-shogi');
-  setBoardFamily('shogi');
-  boardHost = refs.board;
-  chrome.setRenderTarget(refs, {
-    sendSocket: send,
-    reconnectNow: () => client?.connect(),
-  });
-
-  installBoardInteraction();
-  installHandInteraction();
-  refs.capturesBottom.addEventListener('click', onHandClick);
-  refs.promotion.addEventListener('click', onPromotionClick);
-  installSelectionClickAway({
-    roots: () => [boardHost, refs?.capturesBottom],
-    hasSelection: () =>
-      state.pendingPromotion === null && (state.selected !== null || state.selectedDrop !== null),
-    clearSelection: () => {
-      clearSelection();
-      state.draggingFrom = null;
-      renderAll();
-    },
-  });
-
-  client = createTenantSocketClient({
-    room,
-    applyHello: (frame) => applyFrame(frame as DarkShogiLiveFrame),
-    applySnapshot: (frame) => {
-      applyFrame(frame as DarkShogiLiveFrame);
-      maybePlayDarkShogiSnapshotSound(state.view, state.seat);
-    },
-    applyEvent: (frame) => applyEventFrame(frame as DarkShogiLiveFrame),
-    onServerMessage,
-    render: renderAll,
-  });
-  client.connect();
-  client.startPing();
-  window.setInterval(() => {
-    chrome.tickClocks();
-    chrome.tickCountdowns();
-  }, 100);
-  document.addEventListener('keydown', handleReplayKeyboard);
-  window.addEventListener(shogiAppearanceChangedEvent, renderAll);
-  renderAll();
+  client.bootstrap();
 }
 
-// ── Frame application ─────────────────────────────────────────────────────────
-
-function applyFrame(frame: DarkShogiLiveFrame): void {
-  state.seat = frame.seat;
-  state.view = frame.state;
-  state.clock = frame.clock ?? null;
-  state.timeControl = frame.timeControl ?? state.timeControl;
-  state.seats = frame.seats ?? state.seats;
-  if (frame.connectedSeats) state.connectedSeats = frame.connectedSeats;
-  state.abortDeadline = frame.abortDeadline ?? null;
-  if (frame.events) state.events = frame.events;
-}
-
-function applyEventFrame(frame: DarkShogiLiveFrame): void {
-  const events = state.events;
-  applyFrame(frame);
-  state.events = events;
-  if (frame.event) state.events = [...events, frame.event];
-  maybePlayDarkShogiSnapshotSound(state.view, state.seat);
-}
-
-function handleReplayKeyboard(event: KeyboardEvent): void {
-  replay.handleKeyboard(event, renderAll);
-}
+// ── Server messages ──────────────────────────────────────────────────────────
 
 function onServerMessage(message: { type: string; [key: string]: unknown }): void {
   // The parachute bounce: a drop landed on a hidden piece. Record the square as a
   // probe (it is occupied) and clear the pending drop so the player can retry.
   if (message.type === 'drop-rejected' && typeof message.to === 'string') {
-    state.bounce = message.to as ShogiSquare;
-    state.selectedDrop = null;
+    bounce = message.to as ShogiSquare;
+    selectedDrop = null;
   }
 }
 
@@ -315,56 +217,56 @@ function onServerMessage(message: { type: string; [key: string]: unknown }): voi
 // routing through the SAME submit path (so an optional promotion still prompts).
 // A tap that never crosses the movement threshold falls through to the click
 // handler. Reserve drops use installHandInteraction below.
-function installBoardInteraction(): void {
-  if (!boardHost) return;
+function installBoardInteraction(liveRefs: LiveRefs): void {
   installBoardDrag({
-    board: boardHost,
+    board: liveRefs.board,
     ghostSizePx: shogiDragPieceSizePx,
     onSquareClick: (square) => {
-      const view = state.view;
+      const view = core?.state.view;
       if (!view) return;
       handleSquareClick(view, square as ShogiSquare);
     },
     canDragFrom: (square) => canDragShogiPiece(square as ShogiSquare),
     ghostHtml: (square) => {
-      const piece = state.view?.board[square as ShogiSquare];
+      const piece = core?.state.view?.board[square as ShogiSquare];
       if (!piece) return null;
       return shogiPieceGhostSvg(piece);
     },
     onDragStart: (from) => {
       // Lift the koma: select it while dragging and hide it from the board so
       // only the ghost shows.
-      state.bounce = null;
-      state.selectedDrop = null;
-      state.selected = from as ShogiSquare;
-      state.draggingFrom = from as ShogiSquare;
-      renderAll();
+      bounce = null;
+      selectedDrop = null;
+      selected = from as ShogiSquare;
+      draggingFrom = from as ShogiSquare;
+      core?.renderAll();
     },
     onDrop: (from, to) => dropShogiPiece(from as ShogiSquare, to as ShogiSquare | null),
   });
 }
 
-function installHandInteraction(): void {
-  if (!refs) return;
+function installHandInteraction(liveRefs: LiveRefs): void {
   installHandDrag({
-    hand: refs.capturesBottom,
+    hand: liveRefs.capturesBottom,
     ghostSizePx: shogiDragPieceSizePx,
     isRole: isHandRole,
     canDragRole: canDragHandRole,
-    ghostHtml: (role) =>
-      isShogiColor(state.seat) ? shogiHandKomaSvg(role, state.seat, true) : null,
+    ghostHtml: (role) => {
+      const seat = core?.state.seat;
+      return isShogiColor(seat) ? shogiHandKomaSvg(role, seat, true) : null;
+    },
     onDragStart: (role) => {
-      state.bounce = null;
-      state.selected = null;
-      state.selectedDrop = role;
-      renderAll();
+      bounce = null;
+      selected = null;
+      selectedDrop = role;
+      core?.renderAll();
     },
     onDrop: (role, to) => dropHandKoma(role, to),
   });
 }
 
 function shogiDragPieceSizePx(): number {
-  const rect = boardHost?.getBoundingClientRect();
+  const rect = core?.refs.board.getBoundingClientRect();
   return rect && rect.width > 0
     ? (rect.width / SHOGI_FILES) * shogiBoardPieceScale()
     : 48 * shogiBoardPieceScale();
@@ -374,11 +276,11 @@ function shogiDragPieceSizePx(): number {
 // connected). Any of your visible pieces can be lifted (it snaps back if dropped
 // where it cannot move), not just ones with a legal move right now.
 function canDragShogiPiece(square: ShogiSquare): boolean {
-  const view = state.view;
+  const view = core?.state.view;
   if (!view || !canActNow(view)) return false;
-  if (state.pendingPromotion) return false;
+  if (pendingPromotion) return false;
   const piece = view.board[square];
-  return !!piece && piece.color === state.seat;
+  return !!piece && piece.color === core?.state.seat;
 }
 
 // A drop ended over `to` (null if off-board or back on `from`). Do EXACTLY what a
@@ -386,11 +288,11 @@ function canDragShogiPiece(square: ShogiSquare): boolean {
 // submitBoardMove, which opens the optional-promotion prompt when needed. A
 // failed drop clears the selection and target dots.
 function dropShogiPiece(from: ShogiSquare, to: ShogiSquare | null): void {
-  state.draggingFrom = null;
-  const view = state.view;
+  draggingFrom = null;
+  const view = core?.state.view;
   if (!view || !canActNow(view)) {
     clearSelection();
-    renderAll();
+    core?.renderAll();
     return;
   }
   const matches = to
@@ -403,76 +305,76 @@ function dropShogiPiece(from: ShogiSquare, to: ShogiSquare | null): void {
     submitBoardMove(from, to as ShogiSquare, matches);
     return;
   }
-  state.selected = null;
-  renderAll();
+  selected = null;
+  core?.renderAll();
 }
 
 function canDragHandRole(role: ShogiHandRole): boolean {
-  const view = state.view;
-  if (!view || !canActNow(view) || state.pendingPromotion) return false;
+  const view = core?.state.view;
+  if (!view || !canActNow(view) || pendingPromotion) return false;
   return (view.hand[role] ?? 0) > 0;
 }
 
 function dropHandKoma(role: ShogiHandRole, to: string | null): void {
-  const view = state.view;
-  if (!view || !canActNow(view) || state.pendingPromotion) {
+  const view = core?.state.view;
+  if (!view || !canActNow(view) || pendingPromotion) {
     clearSelection();
-    renderAll();
+    core?.renderAll();
     return;
   }
-  state.bounce = null;
-  state.selected = null;
-  state.selectedDrop = role;
+  bounce = null;
+  selected = null;
+  selectedDrop = role;
   if (to && isShogiSquare(to) && dropTargets(view, role).includes(to)) {
-    if (send({ type: 'move', from: `*${role}`, to })) {
+    if (core?.send({ type: 'move', from: `*${role}`, to })) {
       playSound('drop');
     }
     clearSelection();
   }
   if (!to || !isShogiSquare(to) || !dropTargets(view, role).includes(to)) clearSelection();
-  renderAll();
+  core?.renderAll();
 }
 
 function handleSquareClick(view: ShogiPlayerView, square: ShogiSquare): void {
   if (!canActNow(view)) return;
-  if (state.pendingPromotion) return; // resolve the promotion choice first
-  state.bounce = null;
+  if (pendingPromotion) return; // resolve the promotion choice first
+  bounce = null;
 
   // Drop mode: the next board click places the selected reserve piece.
-  if (state.selectedDrop) {
-    if (dropTargets(view, state.selectedDrop).includes(square)) {
-      if (send({ type: 'move', from: `*${state.selectedDrop}`, to: square })) {
+  if (selectedDrop) {
+    if (dropTargets(view, selectedDrop).includes(square)) {
+      if (core?.send({ type: 'move', from: `*${selectedDrop}`, to: square })) {
         playSound('drop');
       }
       clearSelection();
-      renderAll();
+      core?.renderAll();
       return;
     }
-    state.selectedDrop = null; // clicked off a drop square: cancel, fall through
+    selectedDrop = null; // clicked off a drop square: cancel, fall through
   }
 
-  if (state.selected === null) {
+  if (selected === null) {
     if (moveTargets(view, square).length === 0) return;
-    state.selected = square;
-    renderAll();
+    selected = square;
+    core?.renderAll();
     return;
   }
-  if (square === state.selected) {
+  if (square === selected) {
     clearSelection();
-    renderAll();
+    core?.renderAll();
     return;
   }
   const matches = view.legalMoves.filter(
     (move): move is Extract<ShogiMove, { from: ShogiSquare }> =>
-      !isShogiDrop(move) && move.from === state.selected && move.to === square,
+      !isShogiDrop(move) && move.from === selected && move.to === square,
   );
   if (matches.length > 0) {
-    submitBoardMove(state.selected, square, matches);
+    submitBoardMove(selected, square, matches);
     return;
   }
   // Clicked elsewhere: reselect if the new square has moves, else clear.
-  state.selected = moveTargets(view, square).length > 0 ? square : null;
-  renderAll();
+  selected = moveTargets(view, square).length > 0 ? square : null;
+  core?.renderAll();
 }
 
 function submitBoardMove(
@@ -484,58 +386,58 @@ function submitBoardMove(
   const canStay = matches.some((move) => !move.promote);
   if (canPromote && canStay) {
     // Optional promotion: ask. Keep the selection until the choice resolves.
-    state.pendingPromotion = { from, to };
-    renderAll();
+    pendingPromotion = { from, to };
+    core?.renderAll();
     return;
   }
-  if (send({ type: 'move', from, to, ...(canPromote ? { promotion: 'promote' } : {}) })) {
-    playSound(soundForOwnDarkShogiMove(state.view, { from, to }));
+  if (core?.send({ type: 'move', from, to, ...(canPromote ? { promotion: 'promote' } : {}) })) {
+    playSound(soundForOwnDarkShogiMove(core.state.view, { from, to }));
   }
   clearSelection();
-  renderAll();
+  core?.renderAll();
 }
 
 function onHandClick(event: MouseEvent): void {
-  const view = state.view;
+  const view = core?.state.view;
   if (!view) return;
   if (!canActNow(view)) return;
-  if (state.pendingPromotion) return;
+  if (pendingPromotion) return;
   const target = (event.target as HTMLElement | null)?.closest('[data-drop]');
   if (!target) return;
   const role = target.getAttribute('data-drop') as ShogiHandRole | null;
   if (!role || (view.hand[role] ?? 0) <= 0) return;
-  state.bounce = null;
-  state.selected = null;
-  state.selectedDrop = state.selectedDrop === role ? null : role;
-  renderAll();
+  bounce = null;
+  selected = null;
+  selectedDrop = selectedDrop === role ? null : role;
+  core?.renderAll();
 }
 
 function onPromotionClick(event: MouseEvent): void {
-  const pending = state.pendingPromotion;
+  const pending = pendingPromotion;
   if (!pending) return;
   const target = (event.target as HTMLElement | null)?.closest('[data-promote]');
   if (!target) return;
   const choice = target.getAttribute('data-promote');
   if (choice !== 'yes' && choice !== 'no') return;
   if (
-    send({
+    core?.send({
       type: 'move',
       from: pending.from,
       to: pending.to,
       ...(choice === 'yes' ? { promotion: 'promote' } : {}),
     })
   ) {
-    playSound(soundForOwnDarkShogiMove(state.view, { from: pending.from, to: pending.to }));
+    playSound(soundForOwnDarkShogiMove(core.state.view, { from: pending.from, to: pending.to }));
   }
   clearSelection();
-  renderAll();
+  core?.renderAll();
 }
 
 function clearSelection(): void {
-  state.selected = null;
-  state.selectedDrop = null;
-  state.draggingFrom = null;
-  state.pendingPromotion = null;
+  selected = null;
+  selectedDrop = null;
+  draggingFrom = null;
+  pendingPromotion = null;
 }
 
 function moveTargets(view: ShogiPlayerView, from: ShogiSquare): ShogiSquare[] {
@@ -555,90 +457,59 @@ function dropTargets(view: ShogiPlayerView, role: ShogiHandRole): ShogiSquare[] 
 }
 
 function canActNow(view: ShogiPlayerView): boolean {
-  return replay.isLive() && iAmPlayer() && isMyTurn(view);
+  return !!core && core.replay.isLive() && iAmPlayer() && isMyTurn(view);
 }
 
 function iAmPlayer(): boolean {
-  return isShogiColor(state.seat);
+  return isShogiColor(core?.state.seat);
 }
 
 function isMyTurn(view: ShogiPlayerView): boolean {
-  return view.status.type === 'playing' && view.status.turn === state.seat;
+  return view.status.type === 'playing' && view.status.turn === core?.state.seat;
 }
 
 // ── Rendering ────────────────────────────────────────────────────────────────
 
-function renderAll(): void {
-  if (!refs) return;
-  chrome.resetHostPanels();
-  chrome.renderMeta();
-  chrome.renderClocks();
-
-  const view = state.view;
-  captureReplayView(view);
-  const displayedView = replay.currentView(view);
-  replay.renderShell(refs, renderAll);
-  refs.boardStatus.hidden = view !== null;
-  chrome.renderActionStatus();
-  chrome.renderGameControls();
-  chrome.renderRoomActions();
-
-  if (!darkShogiEnabled()) {
-    refs.board.className = 'board shogi-live-board shogi-live-board--disabled';
-    refs.board.replaceChildren();
-    refs.capturesTop.replaceChildren();
-    refs.capturesBottom.replaceChildren();
-    clearSelection();
-    return;
-  }
-
-  renderBoard(displayedView);
-  renderHands(displayedView);
-  renderPromotion(displayedView);
-  renderVisibleMoveList(refs);
-}
-
-function renderBoard(view: ShogiPlayerView | null): void {
-  if (!refs) return;
-  refs.board.className = 'board shogi-live-board';
-  refs.board.setAttribute('aria-label', 'Dark Shogi board');
+function renderBoard(liveRefs: LiveRefs, view: ShogiPlayerView | null): void {
+  liveRefs.board.className = 'board shogi-live-board';
+  liveRefs.board.setAttribute('aria-label', 'Dark Shogi board');
   if (!view) {
-    refs.board.replaceChildren();
+    liveRefs.board.replaceChildren();
     return;
   }
-  const perspective = orientationFor(view);
-  const interactive = replay.isLive() && iAmPlayer() && isMyTurn(view) && !state.pendingPromotion;
-  const selected = interactive ? state.selected : null;
+  const perspective = core?.orientation() ?? view.perspective;
+  const interactive =
+    !!core && core.replay.isLive() && iAmPlayer() && isMyTurn(view) && !pendingPromotion;
+  const activeSelected = interactive ? selected : null;
   const targets = interactive ? activeTargets(view) : [];
-  refs.board.innerHTML = renderShogiBoardSvg(view, {
+  liveRefs.board.innerHTML = renderShogiBoardSvg(view, {
     perspective,
     showFog: true,
     showCoords: false,
-    selected,
+    selected: activeSelected,
     targets,
     interactive,
-    draggingFrom: interactive ? state.draggingFrom : null,
+    draggingFrom: interactive ? draggingFrom : null,
   });
 }
 
 function activeTargets(view: ShogiPlayerView): ShogiSquare[] {
-  if (state.selectedDrop) return dropTargets(view, state.selectedDrop);
-  if (state.selected) return moveTargets(view, state.selected);
+  if (selectedDrop) return dropTargets(view, selectedDrop);
+  if (selected) return moveTargets(view, selected);
   return [];
 }
 
 // The reserves strips. Your hand (bottom) is droppable on your turn; the
 // opponent's reserve is PRIVATE under fog, so the top strip is a hidden note.
-function renderHands(view: ShogiPlayerView | null): void {
-  if (!refs) return;
-  const seat = state.seat;
-  refs.capturesTop.replaceChildren();
+function renderHands(liveRefs: LiveRefs, view: ShogiPlayerView | null): void {
+  const seat = core?.state.seat;
+  liveRefs.capturesTop.replaceChildren();
   if (!view || !isShogiColor(seat)) {
-    refs.capturesBottom.replaceChildren();
+    liveRefs.capturesBottom.replaceChildren();
     return;
   }
   const droppable = canActNow(view);
-  refs.capturesBottom.replaceChildren(ownReserveStrip(view, seat, droppable));
+  liveRefs.capturesBottom.replaceChildren(ownReserveStrip(view, seat, droppable));
 }
 
 function ownReserveStrip(view: ShogiPlayerView, seat: ShogiColor, droppable: boolean): HTMLElement {
@@ -666,18 +537,18 @@ function handKoma(
 ): HTMLElement {
   const button = document.createElement('button');
   button.type = 'button';
-  const selected = state.selectedDrop === role;
+  const isSelected = selectedDrop === role;
   button.className = [
     'shogi-hand-koma',
     droppable ? 'shogi-hand-koma--droppable' : '',
-    selected ? 'shogi-hand-koma--selected' : '',
+    isSelected ? 'shogi-hand-koma--selected' : '',
   ]
     .filter(Boolean)
     .join(' ');
   button.dataset.drop = role;
   button.disabled = !droppable;
-  button.setAttribute('aria-grabbed', selected ? 'true' : 'false');
-  button.setAttribute('aria-pressed', selected ? 'true' : 'false');
+  button.setAttribute('aria-grabbed', isSelected ? 'true' : 'false');
+  button.setAttribute('aria-pressed', isSelected ? 'true' : 'false');
   button.innerHTML = shogiHandKomaSvg(role, color);
   const badge = document.createElement('span');
   badge.className = 'shogi-hand-koma__count';
@@ -686,22 +557,21 @@ function handKoma(
   return button;
 }
 
-function renderPromotion(view: ShogiPlayerView | null): void {
-  if (!refs) return;
-  const pending = state.pendingPromotion;
+function renderPromotion(liveRefs: LiveRefs, view: ShogiPlayerView | null): void {
+  const pending = pendingPromotion;
   if (!pending || !view) {
-    refs.promotion.hidden = true;
-    refs.promotion.replaceChildren();
+    liveRefs.promotion.hidden = true;
+    liveRefs.promotion.replaceChildren();
     return;
   }
   const piece = view.board[pending.from];
   if (!piece) {
-    refs.promotion.hidden = true;
+    liveRefs.promotion.hidden = true;
     return;
   }
-  refs.promotion.hidden = false;
-  refs.promotion.className = 'promotion-picker shogi-promotion';
-  refs.promotion.innerHTML = `
+  liveRefs.promotion.hidden = false;
+  liveRefs.promotion.className = 'promotion-picker shogi-promotion';
+  liveRefs.promotion.innerHTML = `
     <div class="shogi-promotion__panel">
       <div class="shogi-promotion__title">Promote?</div>
       <div class="shogi-promotion__choices">
@@ -717,116 +587,16 @@ function renderPromotion(view: ShogiPlayerView | null): void {
     </div>`;
 }
 
-function renderVisibleMoveList(liveRefs: LiveRefs): void {
-  const moves = state.events.filter((event): event is DarkShogiMovePlayed => isMoveEvent(event));
-  const plyCount = replay.visiblePlyCount();
-  liveRefs.moveList.replaceChildren();
-  if (state.bounce) {
-    const banner = document.createElement('li');
-    banner.className = 'dsg-bounce-banner';
-    banner.textContent = `Drop bounced: ${state.bounce} is occupied. Try another square.`;
-    liveRefs.moveList.append(banner);
-  }
-  if (plyCount === 0) {
-    const item = document.createElement('li');
-    item.className = 'dsg-move-row';
-    const empty = document.createElement('span');
-    empty.className = 'dsg-move-row__move masked';
-    empty.textContent = 'No visible moves yet';
-    item.append(empty);
-    liveRefs.moveList.append(item);
-    return;
-  }
-  const activePly = replay.activePly();
-  for (const row of visibleMoveRows(moves, plyCount)) {
-    const item = document.createElement('li');
-    item.className = 'dsg-move-row';
-    const number = document.createElement('span');
-    number.className = 'dsg-move-row__number';
-    number.textContent = `${row.fullMove}.`;
-    item.append(
-      number,
-      moveCell(row.black, row.fullMove * 2 - 1, activePly, plyCount),
-      moveCell(row.white, row.fullMove * 2, activePly, plyCount),
-    );
-    liveRefs.moveList.append(item);
-  }
-  syncMoveListScroll(liveRefs.moveList, { live: replay.isLive(), plyCount: replay.latestPly() });
-}
-
-function moveCell(
-  text: string | undefined,
-  ply: number,
-  activePly: number | null,
-  plyCount: number,
-): HTMLElement {
-  const span = document.createElement('span');
-  // A ply within the played range we have no notation for is a redacted
-  // opponent move: render the masked placeholder, never the move.
-  const masked = !text && ply <= plyCount;
-  span.className = ['dsg-move-row__move', masked ? 'masked' : '', activePly === ply ? 'active' : '']
-    .filter(Boolean)
-    .join(' ');
-  span.textContent = ply > plyCount ? '' : (text ?? '...');
-  return span;
-}
-
-function visibleMoveRows(
-  moves: readonly DarkShogiMovePlayed[],
-  plyCount: number,
-): DarkShogiVisibleMoveRow[] {
-  const rows = new Map<number, DarkShogiVisibleMoveRow>();
-  for (let fullMove = 1; fullMove <= Math.ceil(plyCount / 2); fullMove += 1) {
-    rows.set(fullMove, { fullMove });
-  }
-  moves.forEach((event, index) => {
-    const ply = eventPly(event, index);
-    if (ply > plyCount) return;
-    const fullMove = Math.floor((ply - 1) / 2) + 1;
-    const row = rows.get(fullMove) ?? { fullMove };
-    row[event.color] = notateShogiMove(event.move);
-    rows.set(fullMove, row);
-  });
-  return [...rows.values()].sort((a, b) => a.fullMove - b.fullMove);
-}
+// ── Notation ─────────────────────────────────────────────────────────────────
 
 function notateShogiMove(move: ShogiMove): string {
   if (isShogiDrop(move)) return `${move.drop}*${move.to}`;
   return `${move.from}${move.to}${move.promote ? '+' : ''}`;
 }
 
-function eventPly(event: DarkShogiMovePlayed, fallbackIndex: number): number {
-  return Number.isInteger(event.ply) && event.ply && event.ply > 0 ? event.ply : fallbackIndex + 1;
-}
-
-// ── Fog-safe replay capture ──────────────────────────────────────────────────
-// Each distinct fog snapshot the client receives is pushed to the replay
-// controller keyed by its derived ply. The client only ever holds its OWN fog
-// views, so scrubbing can never surface the opponent's hidden state.
-
-function captureReplayView(view: ShogiPlayerView | null): void {
-  if (!view) return;
-  if (view === lastCapturedView) return;
-  const positionKey = replayPositionKey(view);
-  const nextPly = replayPlyForView(view, positionKey !== lastCapturedPositionKey);
-  if (positionKey === lastCapturedPositionKey && nextPly <= replay.latestPly()) {
-    lastCapturedView = view;
-    return;
-  }
-  replay.push({ ply: nextPly, view });
-  lastCapturedView = view;
-  lastCapturedPositionKey = positionKey;
-}
-
-function replayPlyForView(view: ShogiPlayerView, positionChanged: boolean): number {
-  if (view.status.type === 'playing') {
-    // Black moves first; moveNumber increments after White completes a full move.
-    const completedFullMoves = Math.max(0, view.moveNumber - 1);
-    return completedFullMoves * 2 + (view.status.turn === 'white' ? 1 : 0);
-  }
-  if (positionChanged && view.lastMove) return replay.latestPly() + 1;
-  return replay.latestPly();
-}
+// ── Fog-safe replay capture key ──────────────────────────────────────────────
+// The client only ever holds its OWN fog views, so scrubbing can never surface
+// the opponent's hidden state.
 
 function replayPositionKey(view: ShogiPlayerView): string {
   const board = Object.entries(view.board)
@@ -845,7 +615,7 @@ function replayPositionKey(view: ShogiPlayerView): string {
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
-function isMoveEvent(event: DarkShogiLiveEvent): event is DarkShogiMovePlayed {
+function isMoveEvent(event: TenantLiveEvent): event is DarkShogiMovePlayed {
   const move = (event as { move?: unknown }).move;
   if (event.type !== 'move-played') return false;
   if (!isShogiColor((event as { color?: unknown }).color)) return false;
@@ -861,11 +631,6 @@ function isHandRole(value: string): value is ShogiHandRole {
 
 function isShogiSquare(value: string): value is ShogiSquare {
   return /^[1-9][a-i]$/.test(value);
-}
-
-function orientationFor(view: ShogiPlayerView | null): ShogiColor {
-  if (isShogiColor(state.seat)) return state.seat;
-  return view?.perspective ?? 'black';
 }
 
 function isShogiColor(value: unknown): value is ShogiColor {

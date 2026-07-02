@@ -1,17 +1,20 @@
-// Live multiplayer room client for hidden/dev-only Dark Xiangqi (9x10) — the
-// second self-contained tenant client and the first FOG tenant on the
-// socket-client + chrome stack (the P2 rehearsal: chess and DMX converge on
-// this shape next). The connection state machine lives in
-// variant-tenant/socket-client.ts and the room chrome (clocks, countdowns,
-// action status with confirm dialogs, room actions) in
-// variant-tenant/room-chrome.ts; this module owns what is genuinely Dark
-// Xiangqi: the intersection-board SVG with the fog mask, click-to-move over
-// visible pieces, the fog-safe replay CAPTURE policy, and the masked move
-// list. The postgame module reuses renderDarkXiangqiBoardSvg.
+// Live multiplayer room client for hidden/dev-only Dark Xiangqi (9x10) — a FOG
+// tenant on the generic live-client core (variant-tenant/live-client.ts owns
+// bootstrap, frame application, renderAll skeleton, the fog-safe replay CAPTURE
+// controller, and the two-column move list). This module keeps what is genuinely
+// Dark Xiangqi's: the intersection-board SVG with its fog mask, click/drag over
+// visible pieces, the fog-safe replay CAPTURE key, and the pure click-to-move
+// decision. The postgame module reuses renderDarkXiangqiBoardSvg.
 //
-// Wire shape pinned by dark-xiangqi-golden-wire.test.ts: the tenant core
-// snapshot with NO extras (no mode/pveEngineId/rated/forfeitDeadline/rematch),
-// so the chrome's forfeit banner and rematch block simply never arm.
+// Move-list note: Dark Xiangqi is masked (opponent plies render as a dimmed
+// placeholder) but keeps EVERY row during a scrub (plyWindow: 'all') — stepping
+// back only moves the active highlight, it never drops rows — and its zero-moves
+// row is a bare `<li class="move-row masked">` (emptyRow override), unlike the
+// single-span placeholder the other fog tenants use.
+//
+// Wire shape pinned by dark-xiangqi-golden-wire.test.ts: the tenant core snapshot
+// with NO extras (no mode/pveEngineId/rated/forfeitDeadline/rematch), so the
+// chrome's forfeit banner and rematch block simply never arm.
 
 import type {
   XiangqiColor,
@@ -27,20 +30,17 @@ import {
   resetDarkXiangqiSoundState,
   soundForOwnDarkXiangqiMove,
 } from './live-dark-xiangqi-sound.js';
-import { createLiveLayout, setLiveLayoutGameSpec } from './live-layout.js';
-import { initLiveSound, playSound, resetLiveSoundState } from './live-sound.js';
-import { clearSeatTokenForRoom, type LiveRefs } from './live-state.js';
-import { roomIdFromPath } from './room-url.js';
+import { playSound } from './live-sound.js';
+import type { LiveRefs } from './live-state.js';
 import { installBoardDrag } from './variant-tenant/board-drag.js';
-import { syncMoveListScroll } from './variant-tenant/chrome-dom.js';
-import { createTenantReplayController } from './variant-tenant/replay-controller.js';
-import { createTenantRoomChrome, type WebVariantTenant } from './variant-tenant/room-chrome.js';
-import { installSelectionClickAway } from './variant-tenant/selection-click-away.js';
 import {
-  createTenantSocketClient,
-  type TenantConnectionState,
-  type TenantSocketClient,
-} from './variant-tenant/socket-client.js';
+  createTenantLiveClient,
+  type TenantLiveClientContext,
+  type TenantLiveEvent,
+  type TenantMovePlayed,
+} from './variant-tenant/live-client.js';
+import type { WebVariantTenant } from './variant-tenant/room-chrome.js';
+import { installSelectionClickAway } from './variant-tenant/selection-click-away.js';
 import { xiangqiFogRegion } from './xiangqi-fog.js';
 import { renderXiangqiPiece } from './xiangqi-pieces.js';
 
@@ -59,40 +59,7 @@ export type DarkXiangqiWireView = {
   lastMove?: XiangqiMove;
 };
 
-type DarkXiangqiWireEvent =
-  | { type: 'move-played'; color: XiangqiColor; move: XiangqiMove; at: number; ply?: number }
-  | { type: string; [key: string]: unknown };
-type DarkXiangqiMoveEvent = Extract<DarkXiangqiWireEvent, { type: 'move-played' }>;
-type DarkXiangqiVisibleMoveRow = {
-  fullMove: number;
-  red?: string;
-  black?: string;
-};
-
-type DarkXiangqiLiveClock = {
-  activeColor: XiangqiColor | null;
-  incrementMs: number;
-  initialMs: number;
-  remainingMs: Record<XiangqiColor, number>;
-  runningSince: number | null;
-};
-
-type DarkXiangqiLiveFrame = {
-  type: 'hello' | 'snapshot' | 'event-appended';
-  clientId?: string;
-  seatToken?: string;
-  seat: XiangqiColor | 'spectator';
-  seats: Partial<Record<XiangqiColor, string>>;
-  state: DarkXiangqiWireView;
-  clock?: DarkXiangqiLiveClock | null;
-  connectedSeats?: Record<XiangqiColor, boolean>;
-  abortDeadline?: number | null;
-  timeControl?: { initialMs: number; incrementMs: number } | null;
-  clients?: number;
-  events?: DarkXiangqiWireEvent[];
-  event?: DarkXiangqiWireEvent;
-  seq?: number;
-};
+type DarkXiangqiMoveEvent = TenantMovePlayed<XiangqiColor, XiangqiMove>;
 
 const FILES = 'abcdefghi';
 const FILE_COUNT = 9;
@@ -110,40 +77,15 @@ const PIECE_SIZE = 52;
 const HIT_HALF = 26;
 const FOG_OVERLAP = 0.5;
 
-// ── Module state ─────────────────────────────────────────────────────────────
+// ── Dark-Xiangqi-owned interaction/render state ──────────────────────────────
 
-const state = {
-  room: '',
-  seat: null as XiangqiColor | 'spectator' | null,
-  view: null as DarkXiangqiWireView | null,
-  clock: null as DarkXiangqiLiveClock | null,
-  timeControl: null as { initialMs: number; incrementMs: number } | null,
-  seats: {} as Partial<Record<XiangqiColor, string>>,
-  connectedSeats: { red: false, black: false } as Record<XiangqiColor, boolean>,
-  events: [] as DarkXiangqiWireEvent[],
-  abortDeadline: null as number | null,
-};
-
-let client: TenantSocketClient | null = null;
-let refs: LiveRefs | null = null;
+let core: TenantLiveClientContext<XiangqiColor, DarkXiangqiWireView> | null = null;
 let selectedSquare: XiangqiSquare | null = null;
 // The square a piece is being dragged from. The renderer keeps a dim source
 // shadow while the shared drag layer shows the floating ghost.
 let draggingFrom: XiangqiSquare | null = null;
-let lastCapturedView: DarkXiangqiWireView | null = null;
-let lastCapturedPositionKey: string | null = null;
 
-const replay = createTenantReplayController<DarkXiangqiWireView>();
-
-function send(payload: unknown): boolean {
-  return client?.send(payload) ?? false;
-}
-
-function connection(): TenantConnectionState {
-  return client?.connection() ?? 'connecting';
-}
-
-// ── Shared tenant room chrome ────────────────────────────────────────────────
+// ── Shared tenant room chrome config ─────────────────────────────────────────
 
 const darkXiangqiWebTenant: WebVariantTenant<XiangqiColor> = {
   displayName: 'Dark Xiangqi',
@@ -160,31 +102,6 @@ const darkXiangqiWebTenant: WebVariantTenant<XiangqiColor> = {
   selectInstruction: 'Select one of your visible pieces, then choose a destination.',
 };
 
-const chrome = createTenantRoomChrome(darkXiangqiWebTenant, {
-  view: () => state.view,
-  seat: () => state.seat,
-  connectionState: () => connection(),
-  clock: () => state.clock,
-  timeControl: () => state.timeControl,
-  connectedSeats: () => state.connectedSeats,
-  abortDeadline: () => state.abortDeadline,
-  // Not on the Dark Xiangqi wire (golden-pinned, no snapshot extras): the
-  // forfeit banner and rematch block never arm.
-  forfeitDeadline: () => null,
-  roomMode: () => 'pvp',
-  room: () => state.room,
-  debugRequested: () => false,
-  isReplayLive: () => replay.isLive(),
-  orientation: () => orientationFor(state.view),
-  playAgainRequestBody: () => ({
-    mode: 'pvp',
-    gameSpecId: 'dark-xiangqi',
-    preferredColor: 'random',
-    ...(state.timeControl ? { timeControl: state.timeControl } : {}),
-  }),
-  rematchControls: () => null,
-});
-
 function darkXiangqiReasonPhrase(reason: string): string {
   switch (reason) {
     case 'general-captured':
@@ -200,126 +117,87 @@ function darkXiangqiReasonPhrase(reason: string): string {
   }
 }
 
-// ── Entry point ──────────────────────────────────────────────────────────────
+const client = createTenantLiveClient<XiangqiColor, DarkXiangqiWireView, XiangqiMove>({
+  tenant: darkXiangqiWebTenant,
+  gameSpecId: 'dark-xiangqi',
+  defaultRoomId: 'dxq_dev',
+  boardClass: 'xiangqi-live-board',
+  // Not on the Dark Xiangqi wire (golden-pinned, no snapshot extras): the forfeit
+  // banner and rematch block never arm. Chrome defaults (pvp, no forfeit, no
+  // rematch) match the original, so no chrome overrides are needed.
+  playAgainRequestBody: (state) => ({
+    mode: 'pvp',
+    gameSpecId: 'dark-xiangqi',
+    preferredColor: 'random',
+    ...(state.timeControl ? { timeControl: state.timeControl } : {}),
+  }),
+  onSnapshotApplied: () => {
+    if (core) maybePlayDarkXiangqiSnapshotSound(core.state.view, core.state.seat);
+  },
+  onEventApplied: () => {
+    if (core) maybePlayDarkXiangqiSnapshotSound(core.state.view, core.state.seat);
+  },
+  resetSounds: resetDarkXiangqiSoundState,
+  resetState: () => {
+    selectedSquare = null;
+    draggingFrom = null;
+  },
+  renderBoard,
+  onDisabled: () => {
+    selectedSquare = null;
+  },
+  setup: (ctx) => {
+    core = ctx;
+    installDarkXiangqiBoardInteraction(ctx.refs);
+    installSelectionClickAway({
+      roots: () => [core?.refs.board],
+      hasSelection: () => selectedSquare !== null,
+      clearSelection: () => {
+        selectedSquare = null;
+        draggingFrom = null;
+        if (core) renderBoard(core.refs, core.displayedView());
+      },
+    });
+  },
+  moveList: {
+    rowClass: 'move-row xiangqi-move-row',
+    cellPrefix: 'xiangqi-move-row',
+    listClass: 'xiangqi-move-list',
+    masked: true,
+    // Render every move that has been played, always. Stepping back only moves
+    // the active highlight; it must never drop rows. The ceiling is the full
+    // game length, not the scrubbed ply.
+    plyWindow: 'all',
+    emptyText: 'No visible moves yet',
+    // Dark Xiangqi's zero-moves row is a bare full-width li (not the grid row the
+    // other fog tenants use), so it overrides the default placeholder.
+    emptyRow: () => {
+      const item = document.createElement('li');
+      item.className = 'move-row masked';
+      item.textContent = 'No visible moves yet';
+      return item;
+    },
+    notate: (move) => `${move.from}-${move.to}`,
+    isMoveEvent: isDarkXiangqiMoveEvent,
+  },
+  replayCapture: {
+    positionKey: replayPositionKey,
+    plyForView: (view, ctx) => {
+      if (view.status.type === 'playing') {
+        const completedFullMoves = Math.max(0, view.moveNumber - 1);
+        return completedFullMoves * 2 + (view.status.turn === 'black' ? 1 : 0);
+      }
+      if (ctx.positionChanged && view.lastMove) return ctx.latestPly + 1;
+      return ctx.latestPly;
+    },
+  },
+});
 
 export function bootstrapDarkXiangqiLiveRoom(): void {
-  const app = document.querySelector<HTMLDivElement>('#app');
-  if (!app) throw new Error('missing #app');
-
-  const params = new URLSearchParams(window.location.search);
-  const room = roomIdFromPath(window.location.pathname) ?? params.get('room') ?? 'dxq_dev';
-  state.room = room;
-  selectedSquare = null;
-  lastCapturedView = null;
-  lastCapturedPositionKey = null;
-  replay.reset();
-  chrome.resetState();
-  initLiveSound();
-  resetLiveSoundState();
-  resetDarkXiangqiSoundState();
-
-  if (params.get('reset') === '1') {
-    clearSeatTokenForRoom(room);
-    params.delete('reset');
-    const search = params.toString();
-    window.history.replaceState(
-      null,
-      '',
-      `${window.location.pathname}${search ? `?${search}` : ''}`,
-    );
-  }
-
-  refs = createLiveLayout(app, { debugRequested: false });
-  setLiveLayoutGameSpec(app, 'dark-xiangqi');
-  chrome.setRenderTarget(refs, {
-    sendSocket: send,
-    // connect() drops any pending backoff timer and reconnects immediately.
-    reconnectNow: () => client?.connect(),
-  });
-  installDarkXiangqiBoardInteraction(refs);
-  installSelectionClickAway({
-    roots: () => [refs?.board],
-    hasSelection: () => selectedSquare !== null,
-    clearSelection: () => {
-      selectedSquare = null;
-      draggingFrom = null;
-      if (refs) renderBoard(refs, replay.currentView(state.view));
-    },
-  });
-
-  client = createTenantSocketClient({
-    room,
-    applyHello: (frame) => applyFrame(frame as DarkXiangqiLiveFrame),
-    applySnapshot: (frame) => {
-      applyFrame(frame as DarkXiangqiLiveFrame);
-      maybePlayDarkXiangqiSnapshotSound(state.view, state.seat);
-    },
-    applyEvent: (frame) => applyEventFrame(frame as DarkXiangqiLiveFrame),
-    render: renderAll,
-  });
-  client.connect();
-  client.startPing();
-  window.setInterval(() => {
-    chrome.tickClocks();
-    chrome.tickCountdowns();
-  }, 100);
-  document.addEventListener('keydown', handleReplayKeyboard);
-  renderAll();
-}
-
-// ── Frame application ────────────────────────────────────────────────────────
-
-function applyFrame(frame: DarkXiangqiLiveFrame): void {
-  state.seat = frame.seat;
-  state.view = frame.state;
-  state.clock = frame.clock ?? null;
-  state.timeControl = frame.timeControl ?? state.timeControl;
-  state.seats = frame.seats ?? state.seats;
-  if (frame.connectedSeats) state.connectedSeats = frame.connectedSeats;
-  state.abortDeadline = frame.abortDeadline ?? null;
-  if (frame.events) state.events = frame.events;
-}
-
-function applyEventFrame(frame: DarkXiangqiLiveFrame): void {
-  const events = state.events;
-  applyFrame(frame);
-  state.events = events;
-  if (frame.event) state.events = [...events, frame.event];
-  maybePlayDarkXiangqiSnapshotSound(state.view, state.seat);
-}
-
-function handleReplayKeyboard(event: KeyboardEvent): void {
-  replay.handleKeyboard(event, renderAll);
+  client.bootstrap();
 }
 
 // ── Rendering ────────────────────────────────────────────────────────────────
-
-function renderAll(): void {
-  if (!refs) return;
-  chrome.resetHostPanels();
-  chrome.renderMeta();
-  chrome.renderClocks();
-
-  const view = state.view;
-  captureReplayView(view);
-  const displayedView = replay.currentView(view);
-  refs.moveList.classList.add('xiangqi-move-list');
-  replay.renderShell(refs, renderAll);
-  refs.boardStatus.hidden = view !== null;
-  chrome.renderActionStatus();
-  chrome.renderGameControls();
-  chrome.renderRoomActions();
-
-  if (!darkXiangqiEnabled()) {
-    refs.board.className = 'board xiangqi-live-board xiangqi-live-board--disabled';
-    refs.board.replaceChildren();
-    selectedSquare = null;
-    return;
-  }
-
-  renderBoard(refs, displayedView);
-  renderVisibleMoveList(refs);
-}
 
 export function renderDarkXiangqiBoardSvg(
   view: DarkXiangqiWireView,
@@ -337,7 +215,7 @@ function renderBoard(liveRefs: LiveRefs, view: DarkXiangqiWireView | null): void
     return;
   }
 
-  const perspective = orientationFor(view);
+  const perspective = core?.orientation() ?? view.perspective;
   liveRefs.board.innerHTML = boardSvg(view, perspective, { interactive: true });
   // Click + drag are delegated to the persistent board container once at mount
   // (installDarkXiangqiBoardInteraction), so they survive these innerHTML re-renders.
@@ -550,9 +428,11 @@ function clickLayer(view: DarkXiangqiWireView, perspective: XiangqiColor): strin
   return parts.join('');
 }
 
+// ── Interaction ──────────────────────────────────────────────────────────────
+
 function handleSquareClick(view: DarkXiangqiWireView, square: XiangqiSquare): void {
-  if (!replay.isLive() || connection() !== 'connected') return;
-  const result = darkXiangqiClickResult(view, state.seat, selectedSquare, square);
+  if (!core?.replay.isLive() || core.connection() !== 'connected') return;
+  const result = darkXiangqiClickResult(view, core.state.seat, selectedSquare, square);
   if (result.kind === 'noop') return;
   if (result.kind === 'select') {
     selectedSquare = result.square;
@@ -563,7 +443,7 @@ function handleSquareClick(view: DarkXiangqiWireView, square: XiangqiSquare): vo
     return;
   }
   selectedSquare = null;
-  if (send({ type: 'move', from: result.move.from, to: result.move.to })) {
+  if (core.send({ type: 'move', from: result.move.from, to: result.move.to })) {
     playSound(soundForOwnDarkXiangqiMove(view, result.move));
   }
 }
@@ -588,21 +468,21 @@ function installDarkXiangqiBoardInteraction(liveRefs: LiveRefs): void {
     board: liveRefs.board,
     ghostSizePx: PIECE_SIZE,
     onSquareClick: (square) => {
-      const view = state.view;
+      const view = core?.state.view;
       if (!view) return;
       handleSquareClick(view, square as XiangqiSquare);
       renderBoard(liveRefs, view);
     },
     canDragFrom: (square) => canDragDarkXiangqiPiece(square as XiangqiSquare),
     ghostHtml: (square) => {
-      const entry = state.view?.board[square as XiangqiSquare];
+      const entry = core?.state.view?.board[square as XiangqiSquare];
       if (!entry || entry.shrouded) return null;
       return darkXiangqiPieceGhostSvg(entry.piece);
     },
     onDragStart: (from) => {
       selectedSquare = from as XiangqiSquare;
       draggingFrom = from as XiangqiSquare;
-      if (state.view) renderBoard(liveRefs, state.view);
+      if (core?.state.view) renderBoard(liveRefs, core.state.view);
     },
     onDrop: (from, to) =>
       dropDarkXiangqiPiece(liveRefs, from as XiangqiSquare, to as XiangqiSquare | null),
@@ -614,10 +494,10 @@ function installDarkXiangqiBoardInteraction(liveRefs: LiveRefs): void {
 // shrouded. (It snaps back if dropped somewhere it cannot move, so any of your
 // visible pieces is draggable, not just ones with a legal move right now.)
 function canDragDarkXiangqiPiece(square: XiangqiSquare): boolean {
-  const view = state.view;
-  if (!view || !replay.isLive() || connection() !== 'connected') return false;
-  if (!isXiangqiColor(state.seat)) return false;
-  if (view.status.type !== 'playing' || view.status.turn !== state.seat) return false;
+  const view = core?.state.view;
+  if (!view || !core?.replay.isLive() || core.connection() !== 'connected') return false;
+  if (!isXiangqiColor(core.state.seat)) return false;
+  if (view.status.type !== 'playing' || view.status.turn !== core.state.seat) return false;
   const entry = view.board[square];
   if (!entry || entry.shrouded) return false;
   return entry.piece.color === view.perspective;
@@ -629,17 +509,17 @@ function dropDarkXiangqiPiece(
   to: XiangqiSquare | null,
 ): void {
   draggingFrom = null;
-  const view = state.view;
+  const view = core?.state.view;
   const move = to && view ? view.legalMoves.find((m) => m.from === from && m.to === to) : undefined;
   if (move && view) {
     selectedSquare = null;
-    if (send({ type: 'move', from: move.from, to: move.to })) {
+    if (core?.send({ type: 'move', from: move.from, to: move.to })) {
       playSound(soundForOwnDarkXiangqiMove(view, move));
     }
   } else {
     selectedSquare = null;
   }
-  if (state.view) renderBoard(liveRefs, state.view);
+  if (core?.state.view) renderBoard(liveRefs, core.state.view);
 }
 
 export type DarkXiangqiClickResult =
@@ -680,98 +560,18 @@ function canSelect(view: DarkXiangqiWireView, seat: unknown, square: XiangqiSqua
   return view.legalMoves.some((move) => move.from === square);
 }
 
-function renderVisibleMoveList(liveRefs: LiveRefs): void {
-  const moves = state.events.filter((event): event is DarkXiangqiMoveEvent =>
-    isDarkXiangqiMoveEvent(event),
+// ── Notation + fog-safe replay capture key ───────────────────────────────────
+
+function isDarkXiangqiMoveEvent(event: TenantLiveEvent): event is DarkXiangqiMoveEvent {
+  const move = (event as { move?: unknown }).move;
+  return (
+    event.type === 'move-played' &&
+    isXiangqiColor((event as { color?: unknown }).color) &&
+    typeof move === 'object' &&
+    move !== null &&
+    typeof (move as { from?: unknown }).from === 'string' &&
+    typeof (move as { to?: unknown }).to === 'string'
   );
-  // Render every move that has been played, always. Stepping back only moves the
-  // active highlight (replay.activePly()); it must never drop rows. The ceiling
-  // is the full game length, not the scrubbed ply.
-  const totalPly = replay.latestPly();
-  liveRefs.moveList.replaceChildren();
-  if (totalPly === 0) {
-    const item = document.createElement('li');
-    item.className = 'move-row masked';
-    item.textContent = 'No visible moves yet';
-    liveRefs.moveList.append(item);
-    return;
-  }
-  const activePly = replay.activePly();
-  for (const row of visibleMoveRows(moves, totalPly)) {
-    const item = document.createElement('li');
-    item.className = 'move-row xiangqi-move-row';
-    const number = document.createElement('span');
-    number.className = 'xiangqi-move-row__number';
-    number.textContent = `${row.fullMove}.`;
-    const red = document.createElement('span');
-    red.className = [
-      'xiangqi-move-row__move',
-      row.red ? '' : 'masked',
-      activePly === row.fullMove * 2 - 1 ? 'active' : '',
-    ]
-      .filter(Boolean)
-      .join(' ');
-    red.textContent = row.red ?? '...';
-    const black = document.createElement('span');
-    const blackPly = row.fullMove * 2;
-    black.className = [
-      'xiangqi-move-row__move',
-      row.black ? '' : 'masked',
-      activePly === blackPly ? 'active' : '',
-    ]
-      .filter(Boolean)
-      .join(' ');
-    black.textContent = blackPly <= totalPly ? (row.black ?? '...') : '';
-    item.append(number, red, black);
-    liveRefs.moveList.append(item);
-  }
-  syncMoveListScroll(liveRefs.moveList, { live: replay.isLive(), plyCount: replay.latestPly() });
-}
-
-function visibleMoveRows(
-  moves: readonly DarkXiangqiMoveEvent[],
-  plyCount: number,
-): DarkXiangqiVisibleMoveRow[] {
-  const rows = new Map<number, DarkXiangqiVisibleMoveRow>();
-  for (let fullMove = 1; fullMove <= Math.ceil(plyCount / 2); fullMove += 1) {
-    rows.set(fullMove, { fullMove });
-  }
-  moves.forEach((event, index) => {
-    const ply = eventPly(event, index);
-    if (ply > plyCount) return;
-    const fullMove = Math.floor((ply - 1) / 2) + 1;
-    const row = rows.get(fullMove) ?? { fullMove };
-    row[event.color] = `${event.move.from}-${event.move.to}`;
-    rows.set(fullMove, row);
-  });
-  return [...rows.values()].sort((a, b) => a.fullMove - b.fullMove);
-}
-
-function eventPly(event: DarkXiangqiMoveEvent, fallbackIndex: number): number {
-  return Number.isInteger(event.ply) && event.ply && event.ply > 0 ? event.ply : fallbackIndex + 1;
-}
-
-function captureReplayView(view: DarkXiangqiWireView | null): void {
-  if (!view) return;
-  if (view === lastCapturedView) return;
-  const positionKey = replayPositionKey(view);
-  const nextPly = replayPlyForView(view, positionKey !== lastCapturedPositionKey);
-  if (positionKey === lastCapturedPositionKey && nextPly <= replay.latestPly()) {
-    lastCapturedView = view;
-    return;
-  }
-  replay.push({ ply: nextPly, view });
-  lastCapturedView = view;
-  lastCapturedPositionKey = positionKey;
-}
-
-function replayPlyForView(view: DarkXiangqiWireView, positionChanged: boolean): number {
-  if (view.status.type === 'playing') {
-    const completedFullMoves = Math.max(0, view.moveNumber - 1);
-    return completedFullMoves * 2 + (view.status.turn === 'black' ? 1 : 0);
-  }
-  if (positionChanged && view.lastMove) return replay.latestPly() + 1;
-  return replay.latestPly();
 }
 
 function replayPositionKey(view: DarkXiangqiWireView): string {
@@ -791,22 +591,7 @@ function replayPositionKey(view: DarkXiangqiWireView): string {
   });
 }
 
-function isDarkXiangqiMoveEvent(event: DarkXiangqiWireEvent): event is DarkXiangqiMoveEvent {
-  const move = (event as { move?: unknown }).move;
-  return (
-    event.type === 'move-played' &&
-    isXiangqiColor((event as { color?: unknown }).color) &&
-    typeof move === 'object' &&
-    move !== null &&
-    typeof (move as { from?: unknown }).from === 'string' &&
-    typeof (move as { to?: unknown }).to === 'string'
-  );
-}
-
-function orientationFor(view: DarkXiangqiWireView | null): XiangqiColor {
-  if (isXiangqiColor(state.seat)) return state.seat;
-  return view?.perspective ?? 'red';
-}
+// ── Geometry ─────────────────────────────────────────────────────────────────
 
 function intersection(
   file: number,

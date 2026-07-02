@@ -20,10 +20,7 @@ import { initLiveSound, resetLiveSoundState } from '../live-sound.js';
 import { clearSeatTokenForRoom, type LiveRefs } from '../live-state.js';
 import { roomIdFromPath } from '../room-url.js';
 import { syncMoveListScroll } from './chrome-dom.js';
-import {
-  createTenantReplayController,
-  type TenantReplayController,
-} from './replay-controller.js';
+import { createTenantReplayController, type TenantReplayController } from './replay-controller.js';
 import {
   createTenantRoomChrome,
   type TenantRoomChrome,
@@ -113,6 +110,14 @@ export type TenantMoveListConfig<C extends string, M> = {
   listClass?: string;
   /** Fog tenants mask redacted plies and trim the list to the scrubbed ply. */
   masked: boolean;
+  /**
+   * Row window during a replay scrub: 'visible' trims to the scrubbed ply,
+   * 'all' keeps every row and only moves the active highlight. Defaults to
+   * 'visible' when masked, else 'all'. Dark Xiangqi is masked-but-'all'.
+   */
+  plyWindow?: 'visible' | 'all';
+  /** Override the zero-moves placeholder row (default: masked single-span or plain text). */
+  emptyRow?(): HTMLLIElement;
   emptyText: string;
   notate(move: M): string;
   isMoveEvent(event: TenantLiveEvent): event is TenantMovePlayed<C, M>;
@@ -283,7 +288,8 @@ export function createTenantLiveClient<C extends string, V extends TenantWebView
     if (!app) throw new Error('missing #app');
 
     const params = new URLSearchParams(window.location.search);
-    const room = roomIdFromPath(window.location.pathname) ?? params.get('room') ?? config.defaultRoomId;
+    const room =
+      roomIdFromPath(window.location.pathname) ?? params.get('room') ?? config.defaultRoomId;
     state.room = room;
     lastCapturedView = null;
     lastCapturedKey = null;
@@ -386,8 +392,9 @@ export function createTenantLiveClient<C extends string, V extends TenantWebView
     const moves = state.events.filter(moveList.isMoveEvent);
     // Fog tenants trim to the scrubbed ply (a fog replay only shows what had
     // been received by then); perfect-info tenants keep the full list and rely
-    // on the active-ply highlight.
-    const plyCount = moveList.masked ? replay.visiblePlyCount() : replay.latestPly();
+    // on the active-ply highlight. plyWindow overrides the default coupling.
+    const window = moveList.plyWindow ?? (moveList.masked ? 'visible' : 'all');
+    const plyCount = window === 'visible' ? replay.visiblePlyCount() : replay.latestPly();
     liveRefs.moveList.replaceChildren();
     const banner = moveList.banner?.();
     if (banner) {
@@ -397,6 +404,10 @@ export function createTenantLiveClient<C extends string, V extends TenantWebView
       liveRefs.moveList.append(item);
     }
     if (plyCount === 0) {
+      if (moveList.emptyRow) {
+        liveRefs.moveList.append(moveList.emptyRow());
+        return;
+      }
       const item = document.createElement('li');
       item.className = moveList.rowClass;
       if (moveList.masked) {

@@ -1,19 +1,20 @@
 // Live multiplayer room client for banqi (半棋 / Chinese Dark Chess) — a
-// self-contained tenant client on the socket-client + chrome stack, modeled on
-// the jieqi room but SYMMETRIC-information rather than identity-per-seat-hidden.
+// SYMMETRIC-information tenant on the generic live-client core
+// (variant-tenant/live-client.ts owns bootstrap, frame application, the
+// renderAll skeleton, replay capture, and the two-column move list).
 //
 // Banqi positions are fully PUBLIC and a face-down tile carries NO colour or
 // identity to anyone (the deal is the only hidden state, hidden from both seats
 // equally). So this client carries NO fog: no fog mask, no visibleSquares, no
-// opponent-move stripping. It renders the masked BanqiPlayerView the server
-// sends; there is NO hidden-info logic client-side.
+// opponent-move stripping, and the move list is unmasked. It renders the masked
+// BanqiPlayerView the server sends; there is NO hidden-info logic client-side.
 //
-// Board rendering, the face-down tile-backs vs revealed pieces, selection ring,
-// hints, and last-move come from live-banqi-render.ts; click-to-move from
-// live-banqi-interaction.ts. The connection state machine lives in
-// variant-tenant/socket-client.ts and the room chrome (clocks, countdowns,
-// action status, room actions) in variant-tenant/room-chrome.ts. This module
-// adds the captured-pool panel (grouped by owner) on top of that shared chrome.
+// This module keeps what is genuinely banqi's: the wire view type, board
+// rendering (face-down tile-backs vs revealed pieces), click-to-flip / drag
+// interaction (live-banqi-interaction.ts), the captured-pool panel, sounds, and
+// the flip-aware move notation. Seats are first/second mover and the ink is
+// bound by the opening flip — so player labels come from tenant.seatLabel and
+// the captured pool groups by bound ink, not by seat name.
 
 import type {
   BanqiColor,
@@ -37,20 +38,17 @@ import {
   resetBanqiSoundState,
   soundForOwnBanqiMove,
 } from './live-banqi-sound.js';
-import { createLiveLayout, setLiveLayoutGameSpec } from './live-layout.js';
-import { initLiveSound, playSound, resetLiveSoundState } from './live-sound.js';
-import { clearSeatTokenForRoom, type LiveRefs } from './live-state.js';
-import { roomIdFromPath } from './room-url.js';
+import { playSound } from './live-sound.js';
+import type { LiveRefs } from './live-state.js';
 import { installBoardDrag } from './variant-tenant/board-drag.js';
-import { syncMoveListScroll } from './variant-tenant/chrome-dom.js';
-import { createTenantReplayController } from './variant-tenant/replay-controller.js';
-import { createTenantRoomChrome, type WebVariantTenant } from './variant-tenant/room-chrome.js';
-import { installSelectionClickAway } from './variant-tenant/selection-click-away.js';
 import {
-  createTenantSocketClient,
-  type TenantConnectionState,
-  type TenantSocketClient,
-} from './variant-tenant/socket-client.js';
+  createTenantLiveClient,
+  type TenantLiveClientContext,
+  type TenantLiveEvent,
+  type TenantMovePlayed,
+} from './variant-tenant/live-client.js';
+import type { WebVariantTenant } from './variant-tenant/room-chrome.js';
+import { installSelectionClickAway } from './variant-tenant/selection-click-away.js';
 import { readStoredXiangqiPieceSet } from './xiangqi-appearance-storage.js';
 import { renderXiangqiPieceGlyphed } from './xiangqi-piece-sets.js';
 
@@ -75,79 +73,18 @@ export type BanqiWireView = {
   lastMove?: BanqiMove;
 };
 
-type BanqiWireEvent =
-  | { type: 'move-played'; color: BanqiSeat; move: BanqiMove; at: number; ply?: number }
-  | { type: string; [key: string]: unknown };
-type BanqiMoveEvent = Extract<BanqiWireEvent, { type: 'move-played' }>;
-type BanqiVisibleMoveRow = {
-  fullMove: number;
-  red?: string;
-  black?: string;
-};
+type BanqiMoveEvent = TenantMovePlayed<BanqiSeat, BanqiMove>;
 
-type BanqiLiveClock = {
-  activeColor: BanqiSeat | null;
-  incrementMs: number;
-  initialMs: number;
-  remainingMs: Record<BanqiSeat, number>;
-  runningSince: number | null;
-};
+// ── Banqi-owned interaction/render state ─────────────────────────────────────
 
-type BanqiLiveFrame = {
-  type: 'hello' | 'snapshot' | 'event-appended';
-  clientId?: string;
-  seatToken?: string;
-  seat: BanqiSeat | 'spectator';
-  seats: Partial<Record<BanqiSeat, string>>;
-  state: BanqiWireView;
-  clock?: BanqiLiveClock | null;
-  connectedSeats?: Record<BanqiSeat, boolean>;
-  abortDeadline?: number | null;
-  roomMode?: 'pve' | 'pvp';
-  pveEngineId?: string | null;
-  timeControl?: { initialMs: number; incrementMs: number } | null;
-  clients?: number;
-  events?: BanqiWireEvent[];
-  event?: BanqiWireEvent;
-  seq?: number;
-};
-
-// ── Module state ─────────────────────────────────────────────────────────────
-
-const state = {
-  room: '',
-  seat: null as BanqiSeat | 'spectator' | null,
-  view: null as BanqiWireView | null,
-  clock: null as BanqiLiveClock | null,
-  timeControl: null as { initialMs: number; incrementMs: number } | null,
-  seats: {} as Partial<Record<BanqiSeat, string>>,
-  connectedSeats: { red: false, black: false } as Record<BanqiSeat, boolean>,
-  events: [] as BanqiWireEvent[],
-  abortDeadline: null as number | null,
-  roomMode: 'pvp' as 'pve' | 'pvp',
-  pveEngineId: null as string | null,
-};
-
-let client: TenantSocketClient | null = null;
-let refs: LiveRefs | null = null;
+let core: TenantLiveClientContext<BanqiSeat, BanqiWireView> | null = null;
 let selectedSquare: BanqiSquare | null = null;
 // The square a piece is being dragged from (its piece is lifted off the board so
 // only the floating ghost shows). Null when not dragging.
 let draggingFrom: BanqiSquare | null = null;
-let lastCapturedView: BanqiWireView | null = null;
-let lastCapturedPositionKey: string | null = null;
-
-const replay = createTenantReplayController<BanqiWireView>();
-
-function send(payload: unknown): boolean {
-  return client?.send(payload) ?? false;
-}
-
-function connection(): TenantConnectionState {
-  return client?.connection() ?? 'connecting';
-}
-
-// ── Shared tenant room chrome ────────────────────────────────────────────────
+// Snapshot extras that ride the frame (read by the chrome + play-again body).
+let roomMode: 'pve' | 'pvp' = 'pvp';
+let pveEngineId: string | null = null;
 
 // Banqi seats are first/second mover ('red' seat = first); the actual ink is bound by the
 // opening flip (view.firstColor). The first-mover seat plays firstColor; the second-mover
@@ -161,7 +98,7 @@ export function banqiSeatInk(seat: BanqiSeat, view: BanqiWireView | null): Banqi
 // engine as "Red" even when it flipped black. Label by the bound ink once the flip
 // assigns it, else by move order ("First"/"Second") — colors do not exist pre-flip.
 function banqiSeatLabel(seat: BanqiSeat): string {
-  const ink = banqiSeatInk(seat, state.view);
+  const ink = banqiSeatInk(seat, core?.state.view ?? null);
   if (ink) return ink === 'red' ? 'Red' : 'Black';
   return seat === 'red' ? 'First' : 'Second';
 }
@@ -185,32 +122,83 @@ const banqiWebTenant: WebVariantTenant<BanqiSeat> = {
   showPregameTurn: true,
 };
 
-const chrome = createTenantRoomChrome(banqiWebTenant, {
-  view: () => state.view,
-  seat: () => state.seat,
-  connectionState: () => connection(),
-  clock: () => state.clock,
-  timeControl: () => state.timeControl,
-  connectedSeats: () => state.connectedSeats,
-  abortDeadline: () => state.abortDeadline,
-  // Not on the Banqi wire: the forfeit banner and rematch block never arm.
-  forfeitDeadline: () => null,
-  roomMode: () => state.roomMode,
-  room: () => state.room,
-  debugRequested: () => false,
-  isReplayLive: () => replay.isLive(),
-  orientation: () => orientationFor(state.view),
-  playAgainRequestBody: () => ({
-    mode: state.roomMode,
+const client = createTenantLiveClient<BanqiSeat, BanqiWireView, BanqiMove>({
+  tenant: banqiWebTenant,
+  gameSpecId: 'banqi',
+  defaultRoomId: 'bq_dev',
+  boardClass: 'banqi-live-board',
+  chrome: {
+    roomMode: () => roomMode,
+  },
+  playAgainRequestBody: (state) => ({
+    mode: roomMode,
     gameSpecId: 'banqi',
     // Swap who opens each rematch: the 'red' seat moves first, so request the seat opposite
     // this game's to alternate the opener (you and the engine take turns going first).
     preferredColor: isBanqiSeat(state.seat) ? (state.seat === 'red' ? 'black' : 'red') : 'random',
-    ...(state.roomMode === 'pve' && state.pveEngineId ? { engineId: state.pveEngineId } : {}),
+    ...(roomMode === 'pve' && pveEngineId ? { engineId: pveEngineId } : {}),
     ...(state.timeControl ? { timeControl: state.timeControl } : {}),
   }),
-  rematchControls: () => null,
+  onFrame: (frame) => {
+    if (frame.roomMode === 'pve' || frame.roomMode === 'pvp') roomMode = frame.roomMode;
+    if (typeof frame.pveEngineId === 'string') pveEngineId = frame.pveEngineId;
+  },
+  onSnapshotApplied: () => {
+    if (core) maybePlayBanqiSnapshotSound(core.state.view, core.state.seat);
+  },
+  onEventApplied: () => {
+    if (core) maybePlayBanqiSnapshotSound(core.state.view, core.state.seat);
+  },
+  resetSounds: resetBanqiSoundState,
+  resetState: () => {
+    selectedSquare = null;
+    draggingFrom = null;
+    roomMode = 'pvp';
+    pveEngineId = null;
+  },
+  renderBoard,
+  renderExtras: (refs, view) => renderCapturedPools(refs, view),
+  onDisabled: (refs) => {
+    // renderCapturedPools ran before the enabled guard in the original, so it
+    // paints even when the flag is off; then the selection clears.
+    renderCapturedPools(refs, core?.displayedView() ?? null);
+    selectedSquare = null;
+  },
+  setup: (ctx) => {
+    core = ctx;
+    installBanqiBoardStyles();
+    installBanqiBoardInteraction(ctx.refs);
+    installSelectionClickAway({
+      roots: () => [core?.refs.board],
+      hasSelection: () => selectedSquare !== null,
+      clearSelection: () => {
+        selectedSquare = null;
+        draggingFrom = null;
+        if (core) renderBoard(core.refs, core.displayedView());
+      },
+    });
+  },
+  moveList: {
+    rowClass: 'move-row xiangqi-move-row',
+    cellPrefix: 'xiangqi-move-row',
+    listClass: 'xiangqi-move-list',
+    masked: false,
+    emptyText: 'No moves yet',
+    // A flip (self-move) shows as the flipped square; a board move as from-to.
+    // The notation is per-move (never per-seat), so it rides the standard
+    // two-column move list keyed by seat.
+    notate: banqiMoveLabel,
+    isMoveEvent: isBanqiMoveEvent,
+  },
+  replayCapture: {
+    positionKey: replayPositionKey,
+    plyForView: (view, ctx) => replayPlyForView(view, ctx.positionChanged, ctx.latestPly),
+  },
 });
+
+export function bootstrapBanqiLiveRoom(): void {
+  client.bootstrap();
+}
 
 function banqiReasonPhrase(reason: string): string {
   switch (reason) {
@@ -231,130 +219,7 @@ function banqiReasonPhrase(reason: string): string {
   }
 }
 
-// ── Entry point ──────────────────────────────────────────────────────────────
-
-export function bootstrapBanqiLiveRoom(): void {
-  const app = document.querySelector<HTMLDivElement>('#app');
-  if (!app) throw new Error('missing #app');
-
-  const params = new URLSearchParams(window.location.search);
-  const room = roomIdFromPath(window.location.pathname) ?? params.get('room') ?? 'bq_dev';
-  state.room = room;
-  selectedSquare = null;
-  lastCapturedView = null;
-  lastCapturedPositionKey = null;
-  replay.reset();
-  chrome.resetState();
-  installBanqiBoardStyles();
-  initLiveSound();
-  resetLiveSoundState();
-  resetBanqiSoundState();
-
-  if (params.get('reset') === '1') {
-    clearSeatTokenForRoom(room);
-    params.delete('reset');
-    const search = params.toString();
-    window.history.replaceState(
-      null,
-      '',
-      `${window.location.pathname}${search ? `?${search}` : ''}`,
-    );
-  }
-
-  refs = createLiveLayout(app, { debugRequested: false });
-  setLiveLayoutGameSpec(app, 'banqi');
-  chrome.setRenderTarget(refs, {
-    sendSocket: send,
-    // connect() drops any pending backoff timer and reconnects immediately.
-    reconnectNow: () => client?.connect(),
-  });
-  installBanqiBoardInteraction(refs);
-  installSelectionClickAway({
-    roots: () => [refs?.board],
-    hasSelection: () => selectedSquare !== null,
-    clearSelection: () => {
-      selectedSquare = null;
-      draggingFrom = null;
-      if (refs) renderBoard(refs, replay.currentView(state.view));
-    },
-  });
-
-  client = createTenantSocketClient({
-    room,
-    applyHello: (frame) => applyFrame(frame as BanqiLiveFrame),
-    applySnapshot: (frame) => {
-      applyFrame(frame as BanqiLiveFrame);
-      maybePlayBanqiSnapshotSound(state.view, state.seat);
-    },
-    applyEvent: (frame) => applyEventFrame(frame as BanqiLiveFrame),
-    render: renderAll,
-  });
-  client.connect();
-  client.startPing();
-  window.setInterval(() => {
-    chrome.tickClocks();
-    chrome.tickCountdowns();
-  }, 100);
-  document.addEventListener('keydown', handleReplayKeyboard);
-  renderAll();
-}
-
-// ── Frame application ────────────────────────────────────────────────────────
-
-function applyFrame(frame: BanqiLiveFrame): void {
-  state.seat = frame.seat;
-  state.view = frame.state;
-  state.clock = frame.clock ?? null;
-  state.timeControl = frame.timeControl ?? state.timeControl;
-  state.seats = frame.seats ?? state.seats;
-  state.roomMode = frame.roomMode ?? state.roomMode;
-  state.pveEngineId = frame.pveEngineId ?? state.pveEngineId;
-  if (frame.connectedSeats) state.connectedSeats = frame.connectedSeats;
-  state.abortDeadline = frame.abortDeadline ?? null;
-  if (frame.events) state.events = frame.events;
-}
-
-function applyEventFrame(frame: BanqiLiveFrame): void {
-  const events = state.events;
-  applyFrame(frame);
-  state.events = events;
-  if (frame.event) state.events = [...events, frame.event];
-  maybePlayBanqiSnapshotSound(state.view, state.seat);
-}
-
-function handleReplayKeyboard(event: KeyboardEvent): void {
-  replay.handleKeyboard(event, renderAll);
-}
-
 // ── Rendering ────────────────────────────────────────────────────────────────
-
-function renderAll(): void {
-  if (!refs) return;
-  chrome.resetHostPanels();
-  chrome.renderMeta();
-  chrome.renderClocks();
-
-  const view = state.view;
-  captureReplayView(view);
-  const displayedView = replay.currentView(view);
-  refs.moveList.classList.add('xiangqi-move-list');
-  replay.renderShell(refs, renderAll);
-  refs.boardStatus.hidden = view !== null;
-  chrome.renderActionStatus();
-  chrome.renderGameControls();
-  chrome.renderRoomActions();
-  renderCapturedPools(refs, displayedView);
-
-  if (!banqiEnabled()) {
-    refs.board.className = 'board banqi-live-board banqi-live-board--disabled';
-    refs.board.replaceChildren();
-    selectedSquare = null;
-    return;
-  }
-
-  renderBoard(refs, displayedView);
-  renderVisibleMoveList(refs);
-}
 
 function renderBoard(liveRefs: LiveRefs, view: BanqiWireView | null): void {
   liveRefs.board.className = 'board banqi-live-board';
@@ -380,8 +245,8 @@ function renderBoard(liveRefs: LiveRefs, view: BanqiWireView | null): void {
 }
 
 function handleSquareClick(view: BanqiWireView, square: BanqiSquare): void {
-  if (!replay.isLive() || connection() !== 'connected') return;
-  const result = banqiClickResult(view, state.seat, selectedSquare, square);
+  if (!core || !core.replay.isLive() || core.connection() !== 'connected') return;
+  const result = banqiClickResult(view, core.state.seat, selectedSquare, square);
   if (result.kind === 'noop') return;
   if (result.kind === 'select') {
     selectedSquare = result.square;
@@ -392,7 +257,7 @@ function handleSquareClick(view: BanqiWireView, square: BanqiSquare): void {
     return;
   }
   selectedSquare = null;
-  if (send({ type: 'move', from: result.move.from, to: result.move.to })) {
+  if (core.send({ type: 'move', from: result.move.from, to: result.move.to })) {
     playSound(soundForOwnBanqiMove(view, result.move));
   }
 }
@@ -406,21 +271,21 @@ function installBanqiBoardInteraction(liveRefs: LiveRefs): void {
     board: liveRefs.board,
     ghostSizePx: BANQI_PIECE_PX,
     onSquareClick: (square) => {
-      const view = state.view;
+      const view = core?.state.view;
       if (!view) return;
       handleSquareClick(view, square as BanqiSquare);
       renderBoard(liveRefs, view);
     },
     canDragFrom: (square) => canDragBanqiPiece(square as BanqiSquare),
     ghostHtml: (square) => {
-      const entry = state.view?.board[square as BanqiSquare];
+      const entry = core?.state.view?.board[square as BanqiSquare];
       if (!entry || entry.faceDown) return null;
       return banqiPieceGhostSvg({ color: entry.color, role: entry.role });
     },
     onDragStart: (from) => {
       selectedSquare = from as BanqiSquare;
       draggingFrom = from as BanqiSquare;
-      if (state.view) renderBoard(liveRefs, state.view);
+      if (core?.state.view) renderBoard(liveRefs, core.state.view);
     },
     onDrop: (from, to) => dropBanqiPiece(liveRefs, from as BanqiSquare, to as BanqiSquare | null),
   });
@@ -429,33 +294,33 @@ function installBanqiBoardInteraction(liveRefs: LiveRefs): void {
 // A revealed own piece with a board move can be dragged; face-down tiles stay
 // click-only (a flip is a self-move, not a drag to another square).
 function canDragBanqiPiece(square: BanqiSquare): boolean {
-  const view = state.view;
-  if (!view || !replay.isLive() || connection() !== 'connected') return false;
-  if (!isBanqiSeat(state.seat)) return false;
-  if (view.status.type !== 'playing' || view.status.turn !== state.seat) return false;
+  const view = core?.state.view;
+  if (!view || !core || !core.replay.isLive() || core.connection() !== 'connected') return false;
+  if (!isBanqiSeat(core.state.seat)) return false;
+  if (view.status.type !== 'playing' || view.status.turn !== core.state.seat) return false;
   const entry = view.board[square];
   if (!entry || entry.faceDown) return false;
   // Any of your face-up pieces can be lifted on your turn (it snaps back if you
   // drop it somewhere it cannot move), not just ones with a legal move right now.
-  return entry.color === banqiSeatInk(state.seat, view);
+  return entry.color === banqiSeatInk(core.state.seat, view);
 }
 
 function dropBanqiPiece(liveRefs: LiveRefs, from: BanqiSquare, to: BanqiSquare | null): void {
   draggingFrom = null;
-  const view = state.view;
+  const view = core?.state.view;
   const move =
     to && view
       ? view.legalMoves.find((m) => m.from === from && m.to === to && m.to !== m.from)
       : undefined;
-  if (move && view) {
+  if (move && view && core) {
     selectedSquare = null;
-    if (send({ type: 'move', from: move.from, to: move.to })) {
+    if (core.send({ type: 'move', from: move.from, to: move.to })) {
       playSound(soundForOwnBanqiMove(view, move));
     }
   } else {
     selectedSquare = null;
   }
-  if (state.view) renderBoard(liveRefs, state.view);
+  if (core?.state.view) renderBoard(liveRefs, core.state.view);
 }
 
 // ── Captured pool ─────────────────────────────────────────────────────────────
@@ -531,96 +396,18 @@ export function fillCapturedPool(
   host.append(row);
 }
 
-// ── Move list (positions are public, so every move shows) ────────────────────
-
-function renderVisibleMoveList(liveRefs: LiveRefs): void {
-  const moves = state.events.filter((event): event is BanqiMoveEvent => isBanqiMoveEvent(event));
-  // Render every move that has been played, always. Stepping back only moves the
-  // active highlight (replay.activePly()); it must never drop rows. The ceiling
-  // is the full game length, not the scrubbed ply.
-  const totalPly = replay.latestPly();
-  liveRefs.moveList.replaceChildren();
-  if (totalPly === 0) {
-    const item = document.createElement('li');
-    item.className = 'move-row';
-    item.textContent = 'No moves yet';
-    liveRefs.moveList.append(item);
-    return;
-  }
-  const activePly = replay.activePly();
-  for (const row of visibleMoveRows(moves, totalPly)) {
-    const item = document.createElement('li');
-    item.className = 'move-row xiangqi-move-row';
-    const number = document.createElement('span');
-    number.className = 'xiangqi-move-row__number';
-    number.textContent = `${row.fullMove}.`;
-    const red = document.createElement('span');
-    red.className = ['xiangqi-move-row__move', activePly === row.fullMove * 2 - 1 ? 'active' : '']
-      .filter(Boolean)
-      .join(' ');
-    red.textContent = row.red ?? '...';
-    const black = document.createElement('span');
-    const blackPly = row.fullMove * 2;
-    black.className = ['xiangqi-move-row__move', activePly === blackPly ? 'active' : '']
-      .filter(Boolean)
-      .join(' ');
-    black.textContent = blackPly <= totalPly ? (row.black ?? '...') : '';
-    item.append(number, red, black);
-    liveRefs.moveList.append(item);
-  }
-  syncMoveListScroll(liveRefs.moveList, { live: replay.isLive(), plyCount: replay.latestPly() });
-}
-
-function visibleMoveRows(
-  moves: readonly BanqiMoveEvent[],
-  plyCount: number,
-): BanqiVisibleMoveRow[] {
-  const rows = new Map<number, BanqiVisibleMoveRow>();
-  for (let fullMove = 1; fullMove <= Math.ceil(plyCount / 2); fullMove += 1) {
-    rows.set(fullMove, { fullMove });
-  }
-  moves.forEach((event, index) => {
-    const ply = eventPly(event, index);
-    if (ply > plyCount) return;
-    const fullMove = Math.floor((ply - 1) / 2) + 1;
-    const row = rows.get(fullMove) ?? { fullMove };
-    row[event.color] = banqiMoveLabel(event.move);
-    rows.set(fullMove, row);
-  });
-  return [...rows.values()].sort((a, b) => a.fullMove - b.fullMove);
-}
-
-// A flip (self-move) is shown as the flipped square; a board move as from-to.
-function banqiMoveLabel(move: BanqiMove): string {
-  return move.from === move.to ? `${move.from}↑` : `${move.from}-${move.to}`;
-}
-
-function eventPly(event: BanqiMoveEvent, fallbackIndex: number): number {
-  return Number.isInteger(event.ply) && event.ply && event.ply > 0 ? event.ply : fallbackIndex + 1;
-}
-
 // ── Replay capture (no fog to redact; capture every distinct position) ────────
-
-function captureReplayView(view: BanqiWireView | null): void {
-  if (!view) return;
-  if (view === lastCapturedView) return;
-  const positionKey = replayPositionKey(view);
-  const nextPly = replayPlyForView(view, positionKey !== lastCapturedPositionKey);
-  if (positionKey === lastCapturedPositionKey && nextPly <= replay.latestPly()) {
-    lastCapturedView = view;
-    return;
-  }
-  replay.push({ ply: nextPly, view });
-  lastCapturedView = view;
-  lastCapturedPositionKey = positionKey;
-}
 
 // Banqi's view carries its own ply count, so the live ply is just view.ply while
 // playing; a finished frame appends a final ply only when the position changed.
-function replayPlyForView(view: BanqiWireView, positionChanged: boolean): number {
+function replayPlyForView(
+  view: BanqiWireView,
+  positionChanged: boolean,
+  latestPly: number,
+): number {
   if (view.status.type === 'playing') return view.ply;
-  if (positionChanged && view.lastMove) return replay.latestPly() + 1;
-  return replay.latestPly();
+  if (positionChanged && view.lastMove) return latestPly + 1;
+  return latestPly;
 }
 
 function replayPositionKey(view: BanqiWireView): string {
@@ -639,7 +426,14 @@ function replayPositionKey(view: BanqiWireView): string {
   });
 }
 
-function isBanqiMoveEvent(event: BanqiWireEvent): event is BanqiMoveEvent {
+// ── Helpers ──────────────────────────────────────────────────────────────────
+
+// A flip (self-move) is shown as the flipped square; a board move as from-to.
+function banqiMoveLabel(move: BanqiMove): string {
+  return move.from === move.to ? `${move.from}↑` : `${move.from}-${move.to}`;
+}
+
+function isBanqiMoveEvent(event: TenantLiveEvent): event is BanqiMoveEvent {
   const move = (event as { move?: unknown }).move;
   return (
     event.type === 'move-played' &&
@@ -652,7 +446,8 @@ function isBanqiMoveEvent(event: BanqiWireEvent): event is BanqiMoveEvent {
 }
 
 function orientationFor(view: BanqiWireView | null): BanqiSeat {
-  if (isBanqiSeat(state.seat)) return state.seat;
+  const seat = core?.state.seat;
+  if (isBanqiSeat(seat)) return seat;
   return view?.perspective ?? 'red';
 }
 

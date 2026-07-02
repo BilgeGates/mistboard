@@ -1,3 +1,11 @@
+// Live multiplayer room client for Fortress Xiangqi — an OPEN-INFORMATION
+// tenant with reserves + drops, on the generic live-client core
+// (variant-tenant/live-client.ts owns bootstrap, frame application, the
+// renderAll skeleton, replay capture, and the two-column move list). This
+// module keeps what is genuinely Fortress Xiangqi's: the wire view type, board
+// + reserve rendering, click/drag/drop interaction, the in-check notice,
+// sounds, and the drop-aware move notation.
+
 import {
   FORTRESS_DROP_ROLES,
   FORTRESS_XIANGQI_SPEC_ID,
@@ -21,98 +29,35 @@ import {
   fortressXiangqiDropTargets,
   fortressXiangqiMoveLabel,
 } from './fortress-xiangqi-view.js';
-import { createLiveLayout, setLiveLayoutGameSpec } from './live-layout.js';
-import { initLiveSound, playSound, playTerminalPlan, resetLiveSoundState } from './live-sound.js';
-import { clearSeatTokenForRoom, type LiveRefs } from './live-state.js';
-import { roomIdFromPath } from './room-url.js';
+import { playSound, playTerminalPlan } from './live-sound.js';
+import type { LiveRefs } from './live-state.js';
 import { setBoardFamily } from './theme.js';
 import { installBoardDrag } from './variant-tenant/board-drag.js';
-import { syncMoveListScroll } from './variant-tenant/chrome-dom.js';
 import { installHandDrag } from './variant-tenant/hand-drag.js';
-import { createTenantReplayController } from './variant-tenant/replay-controller.js';
-import { createTenantRoomChrome, type WebVariantTenant } from './variant-tenant/room-chrome.js';
-import { installSelectionClickAway } from './variant-tenant/selection-click-away.js';
 import {
-  createTenantSocketClient,
-  type TenantConnectionState,
-  type TenantSocketClient,
-} from './variant-tenant/socket-client.js';
+  createTenantLiveClient,
+  type TenantLiveClientContext,
+  type TenantLiveEvent,
+  type TenantMovePlayed,
+} from './variant-tenant/live-client.js';
+import type { WebVariantTenant } from './variant-tenant/room-chrome.js';
+import { installSelectionClickAway } from './variant-tenant/selection-click-away.js';
 
-type FortressClock = {
-  activeColor: FortressXiangqiColor | null;
-  incrementMs: number;
-  initialMs: number;
-  remainingMs: Record<FortressXiangqiColor, number>;
-  runningSince: number | null;
-};
+type FortressMoveEvent = TenantMovePlayed<FortressXiangqiColor, FortressXiangqiMove>;
 
-type FortressWireEvent =
-  | {
-      type: 'move-played';
-      color: FortressXiangqiColor;
-      move: FortressXiangqiMove;
-      at: number;
-      ply?: number;
-    }
-  | { type: string; [key: string]: unknown };
-type FortressMoveEvent = Extract<FortressWireEvent, { type: 'move-played' }>;
-type FortressMoveRow = { fullMove: number; red?: string; black?: string };
+// ── Fortress-owned interaction/render state ──────────────────────────────────
 
-type FortressLiveFrame = {
-  type: 'hello' | 'snapshot' | 'event-appended';
-  clientId?: string;
-  seatToken?: string;
-  seat: FortressXiangqiColor | 'spectator';
-  seats: Partial<Record<FortressXiangqiColor, string>>;
-  state: FortressXiangqiPlayerView;
-  clock?: FortressClock | null;
-  connectedSeats?: Record<FortressXiangqiColor, boolean>;
-  abortDeadline?: number | null;
-  forfeitDeadline?: number | null;
-  roomMode?: 'pvp' | 'pve';
-  pveEngineId?: string | null;
-  rated?: boolean;
-  timeControl?: { initialMs: number; incrementMs: number } | null;
-  clients?: number;
-  events?: FortressWireEvent[];
-  event?: FortressWireEvent;
-  seq?: number;
-};
-
-const state = {
-  room: '',
-  seat: null as FortressXiangqiColor | 'spectator' | null,
-  view: null as FortressXiangqiPlayerView | null,
-  clock: null as FortressClock | null,
-  timeControl: null as { initialMs: number; incrementMs: number } | null,
-  seats: {} as Partial<Record<FortressXiangqiColor, string>>,
-  connectedSeats: { red: false, black: false } as Record<FortressXiangqiColor, boolean>,
-  events: [] as FortressWireEvent[],
-  abortDeadline: null as number | null,
-  forfeitDeadline: null as number | null,
-  rated: false,
-  roomMode: 'pvp' as 'pvp' | 'pve',
-  pveEngineId: null as string | null,
-};
-
-let client: TenantSocketClient | null = null;
-let refs: LiveRefs | null = null;
+let core: TenantLiveClientContext<FortressXiangqiColor, FortressXiangqiPlayerView> | null = null;
 let selectedSquare: FortressXiangqiSquare | null = null;
 let selectedDropRole: FortressXiangqiDropRole | null = null;
 let draggingFrom: FortressXiangqiSquare | null = null;
-let lastCapturedView: FortressXiangqiPlayerView | null = null;
-let lastCapturedPositionKey: string | null = null;
+// Snapshot extras that ride the frame (read by the chrome + play-again body).
+let roomMode: 'pvp' | 'pve' = 'pvp';
+let pveEngineId: string | null = null;
+let forfeitDeadline: number | null = null;
+// Last live status type, so the win/lose/draw sting fires once on the live
+// playing -> finished transition (not on a reconnect into a finished game).
 let lastStatusType: string | null = null;
-
-const replay = createTenantReplayController<FortressXiangqiPlayerView>();
-
-function send(payload: unknown): boolean {
-  return client?.send(payload) ?? false;
-}
-
-function connection(): TenantConnectionState {
-  return client?.connection() ?? 'connecting';
-}
 
 const fortressWebTenant: WebVariantTenant<FortressXiangqiColor> = {
   displayName: 'Fortress Xiangqi',
@@ -129,177 +74,139 @@ const fortressWebTenant: WebVariantTenant<FortressXiangqiColor> = {
   selectInstruction: 'Select a piece, or select a reserve and then a drop square.',
 };
 
-const chrome = createTenantRoomChrome(fortressWebTenant, {
-  view: () => state.view,
-  seat: () => state.seat,
-  connectionState: () => connection(),
-  clock: () => state.clock,
-  timeControl: () => state.timeControl,
-  connectedSeats: () => state.connectedSeats,
-  abortDeadline: () => state.abortDeadline,
-  forfeitDeadline: () => state.forfeitDeadline,
-  roomMode: () => state.roomMode,
-  room: () => state.room,
-  debugRequested: () => false,
-  isReplayLive: () => replay.isLive(),
-  orientation: () => orientationFor(state.view),
-  playAgainRequestBody: () => ({
-    mode: state.roomMode,
+const client = createTenantLiveClient<
+  FortressXiangqiColor,
+  FortressXiangqiPlayerView,
+  FortressXiangqiMove
+>({
+  tenant: fortressWebTenant,
+  gameSpecId: FORTRESS_XIANGQI_SPEC_ID,
+  defaultRoomId: 'fxq_dev',
+  boardClass: 'fortress-xiangqi-live-board',
+  chrome: {
+    roomMode: () => roomMode,
+    forfeitDeadline: () => forfeitDeadline,
+  },
+  playAgainRequestBody: (state) => ({
+    mode: roomMode,
     gameSpecId: FORTRESS_XIANGQI_SPEC_ID,
     preferredColor: 'random',
-    ...(state.roomMode === 'pvp' ? { rated: false } : {}),
-    ...(state.roomMode === 'pve' && state.pveEngineId ? { engineId: state.pveEngineId } : {}),
+    ...(roomMode === 'pvp' ? { rated: false } : {}),
+    ...(roomMode === 'pve' && pveEngineId ? { engineId: pveEngineId } : {}),
     ...(state.timeControl ? { timeControl: state.timeControl } : {}),
   }),
-  rematchControls: () => null,
+  onFrame: (frame) => {
+    if (frame.roomMode === 'pve' || frame.roomMode === 'pvp') roomMode = frame.roomMode;
+    if (typeof frame.pveEngineId === 'string') pveEngineId = frame.pveEngineId;
+    else if (frame.roomMode !== 'pve') pveEngineId = null;
+    forfeitDeadline = typeof frame.forfeitDeadline === 'number' ? frame.forfeitDeadline : null;
+    // Opponent's move plays the flat move sound (own moves already played their
+    // sound on send); only event frames carry a singular `event`.
+    const event = frame.event;
+    if (
+      event &&
+      (event as { type?: unknown }).type === 'move-played' &&
+      (event as { color?: unknown }).color !== frame.seat
+    ) {
+      playSound('move');
+    }
+    maybePlayFortressTerminalSound();
+  },
+  resetState: () => {
+    selectedSquare = null;
+    selectedDropRole = null;
+    draggingFrom = null;
+    roomMode = 'pvp';
+    pveEngineId = null;
+    forfeitDeadline = null;
+    lastStatusType = null;
+  },
+  renderBoard: renderBoardReconciled,
+  renderExtras: (refs, view) => {
+    renderReserves(refs, view);
+    renderCheckStatus(refs, view);
+  },
+  onDisabled: (refs) => {
+    // Mirror the pre-guard renderAll steps the original ran even when the flag
+    // was off: reconcile, then paint the reserve strips + check notice, then
+    // clear the selection.
+    reconcileInteractionState(core?.state.view ?? null);
+    const view = core?.displayedView() ?? null;
+    renderReserves(refs, view);
+    renderCheckStatus(refs, view);
+    selectedSquare = null;
+    selectedDropRole = null;
+  },
+  setup: (ctx) => {
+    core = ctx;
+    installFortressXiangqiBoardStyles();
+    setBoardFamily('xiangqi');
+    installBoardInteraction(ctx.refs);
+    installSelectionClickAway({
+      roots: () => [core?.refs.board, core?.refs.capturesBottom],
+      hasSelection: () => selectedSquare !== null || selectedDropRole !== null,
+      clearSelection: () => {
+        selectedSquare = null;
+        selectedDropRole = null;
+        core?.renderAll();
+      },
+    });
+  },
+  moveList: {
+    rowClass: 'move-row xiangqi-move-row',
+    cellPrefix: 'xiangqi-move-row',
+    listClass: 'xiangqi-move-list',
+    masked: false,
+    emptyText: 'No moves yet',
+    notate: fortressXiangqiMoveLabel,
+    isMoveEvent: isFortressMoveEvent,
+  },
+  replayCapture: {
+    positionKey: replayPositionKey,
+    plyForView: (view, ctx) => replayPlyForView(view, ctx.positionChanged, ctx.latestPly),
+  },
 });
 
 export function bootstrapFortressXiangqiLiveRoom(): void {
-  const app = document.querySelector<HTMLDivElement>('#app');
-  if (!app) throw new Error('missing #app');
-
-  const params = new URLSearchParams(window.location.search);
-  const room = roomIdFromPath(window.location.pathname) ?? params.get('room') ?? 'fxq_dev';
-  state.room = room;
-  state.roomMode = 'pvp';
-  state.pveEngineId = null;
-  state.rated = false;
-  selectedSquare = null;
-  selectedDropRole = null;
-  draggingFrom = null;
-  lastCapturedView = null;
-  lastCapturedPositionKey = null;
-  lastStatusType = null;
-  replay.reset();
-  chrome.resetState();
-  initLiveSound();
-  resetLiveSoundState();
-  installFortressXiangqiBoardStyles();
-  setBoardFamily('xiangqi');
-
-  if (params.get('reset') === '1') {
-    clearSeatTokenForRoom(room);
-    params.delete('reset');
-    const search = params.toString();
-    window.history.replaceState(
-      null,
-      '',
-      `${window.location.pathname}${search ? `?${search}` : ''}`,
-    );
-  }
-
-  refs = createLiveLayout(app, { debugRequested: false });
-  setLiveLayoutGameSpec(app, FORTRESS_XIANGQI_SPEC_ID);
-  chrome.setRenderTarget(refs, {
-    sendSocket: send,
-    reconnectNow: () => client?.connect(),
-  });
-  installBoardInteraction(refs);
-  installSelectionClickAway({
-    roots: () => [refs?.board, refs?.capturesBottom],
-    hasSelection: () => selectedSquare !== null || selectedDropRole !== null,
-    clearSelection: () => {
-      selectedSquare = null;
-      selectedDropRole = null;
-      renderAll();
-    },
-  });
-
-  client = createTenantSocketClient({
-    room,
-    applyHello: (frame) => applyFrame(frame as FortressLiveFrame),
-    applySnapshot: (frame) => applyFrame(frame as FortressLiveFrame),
-    applyEvent: (frame) => applyEventFrame(frame as FortressLiveFrame),
-    render: renderAll,
-  });
-  client.connect();
-  client.startPing();
-  window.setInterval(() => {
-    chrome.tickClocks();
-    chrome.tickCountdowns();
-  }, 100);
-  document.addEventListener('keydown', handleReplayKeyboard);
-  renderAll();
+  client.bootstrap();
 }
 
-function applyFrame(frame: FortressLiveFrame): void {
-  state.seat = frame.seat;
-  state.view = frame.state;
-  state.clock = frame.clock ?? null;
-  state.timeControl = frame.timeControl ?? state.timeControl;
-  state.seats = frame.seats ?? state.seats;
-  if (frame.connectedSeats) state.connectedSeats = frame.connectedSeats;
-  state.abortDeadline = frame.abortDeadline ?? null;
-  state.forfeitDeadline = frame.forfeitDeadline ?? null;
-  state.rated = frame.rated ?? state.rated;
-  state.roomMode = frame.roomMode ?? state.roomMode;
-  state.pveEngineId = frame.pveEngineId ?? (frame.roomMode === 'pve' ? state.pveEngineId : null);
-  if (frame.events) state.events = frame.events;
-}
-
-function applyEventFrame(frame: FortressLiveFrame): void {
-  const events = state.events;
-  applyFrame(frame);
-  state.events = events;
-  if (frame.event) state.events = [...events, frame.event];
-  // Sound for the opponent's move (own moves already played their sound on send).
-  if (frame.event?.type === 'move-played' && frame.event.color !== state.seat) {
-    playSound('move');
-  }
-}
+// ── Sounds ───────────────────────────────────────────────────────────────────
 
 // Play the win/lose/draw sting once, on the live playing -> finished transition
-// (not on a reconnect into an already-finished game).
+// (not on a reconnect into an already-finished game). Reads the LIVE view/seat;
+// the core calls onFrame after applying each frame.
 function maybePlayFortressTerminalSound(): void {
-  const view = state.view;
+  const view = core?.state.view ?? null;
   const nextType = view?.status.type ?? null;
+  const seat = core?.state.seat;
   if (
     view &&
     view.status.type === 'finished' &&
     lastStatusType === 'playing' &&
-    isFortressColor(state.seat)
+    isFortressColor(seat)
   ) {
     const result: 'win' | 'lose' | 'draw' =
-      view.status.winner === null ? 'draw' : view.status.winner === state.seat ? 'win' : 'lose';
+      view.status.winner === null ? 'draw' : view.status.winner === seat ? 'win' : 'lose';
     playTerminalPlan(result, view.status.reason ?? null);
   }
   lastStatusType = nextType;
 }
 
-function renderAll(): void {
-  if (!refs) return;
-  chrome.resetHostPanels();
-  chrome.renderMeta();
-  chrome.renderClocks();
+// ── Rendering ────────────────────────────────────────────────────────────────
 
-  maybePlayFortressTerminalSound();
-  const view = state.view;
-  reconcileInteractionState(view);
-  captureReplayView(view);
-  const displayedView = replay.currentView(view);
-  refs.moveList.classList.add('xiangqi-move-list');
-  replay.renderShell(refs, renderAll);
-  refs.boardStatus.hidden = view !== null;
-  chrome.renderActionStatus();
-  renderCheckStatus(refs, displayedView);
-  chrome.renderGameControls();
-  chrome.renderRoomActions();
-
-  renderReserves(refs, displayedView);
-  if (!fortressXiangqiEnabled()) {
-    refs.board.className =
-      'board fortress-xiangqi-live-board fortress-xiangqi-live-board--disabled';
-    refs.board.replaceChildren();
-    selectedSquare = null;
-    selectedDropRole = null;
-    return;
-  }
-  renderBoard(refs, displayedView);
-  renderMoveList(refs);
+// The core calls this exactly once per renderAll, before the reserve strip
+// reads the selection, so reconcile the selection against the LIVE view here.
+// Interaction re-renders call the raw renderBoard directly, so a mid-drag
+// selection is never reconciled away (matching the pre-migration behavior where
+// reconcile ran only inside renderAll).
+function renderBoardReconciled(liveRefs: LiveRefs, view: FortressXiangqiPlayerView | null): void {
+  reconcileInteractionState(core?.state.view ?? null);
+  renderBoard(liveRefs, view);
 }
 
 function renderCheckStatus(liveRefs: LiveRefs, view: FortressXiangqiPlayerView | null): void {
-  if (!view || view.status.type !== 'playing' || !view.inCheck || !replay.isLive()) return;
+  if (!view || view.status.type !== 'playing' || !view.inCheck || !core?.replay.isLive()) return;
   liveRefs.actionSection.hidden = false;
   liveRefs.actionStatus.replaceChildren();
   const notice = document.createElement('div');
@@ -308,7 +215,7 @@ function renderCheckStatus(liveRefs: LiveRefs, view: FortressXiangqiPlayerView |
   title.textContent = 'Check';
   const body = document.createElement('p');
   body.textContent =
-    state.seat === view.perspective
+    core?.state.seat === view.perspective
       ? 'Your general is in check. Answer the threat.'
       : `${capitalize(view.perspective)} general is in check.`;
   notice.append(title, body);
@@ -344,16 +251,18 @@ function renderReserves(liveRefs: LiveRefs, view: FortressXiangqiPlayerView | nu
   const top = bottom === 'red' ? 'black' : 'red';
   fillFortressXiangqiReserve(liveRefs.capturesTop, view, top);
   fillFortressXiangqiReserve(liveRefs.capturesBottom, view, bottom, {
-    interactive: canInteract(view) && state.seat === bottom,
+    interactive: canInteract(view) && core?.state.seat === bottom,
     selectedRole: selectedDropRole,
     onSelect: (role) => {
-      if (!canInteract(view) || state.seat !== bottom) return;
+      if (!canInteract(view) || core?.state.seat !== bottom) return;
       selectedSquare = null;
       selectedDropRole = selectedDropRole === role ? null : role;
-      renderAll();
+      core?.renderAll();
     },
   });
 }
+
+// ── Interaction ──────────────────────────────────────────────────────────────
 
 function installBoardInteraction(liveRefs: LiveRefs): void {
   installBoardDrag({
@@ -362,14 +271,14 @@ function installBoardInteraction(liveRefs: LiveRefs): void {
     onSquareClick: (square) => handleSquareClick(square as FortressXiangqiSquare),
     canDragFrom: (square) => canDragPiece(square as FortressXiangqiSquare),
     ghostHtml: (square) => {
-      const piece = state.view?.board[square as FortressXiangqiSquare];
+      const piece = core?.state.view?.board[square as FortressXiangqiSquare];
       return piece ? fortressXiangqiPieceGhostSvg(piece) : null;
     },
     onDragStart: (from) => {
       selectedDropRole = null;
       selectedSquare = from as FortressXiangqiSquare;
       draggingFrom = from as FortressXiangqiSquare;
-      renderBoard(liveRefs, state.view);
+      renderBoard(liveRefs, core?.state.view ?? null);
     },
     onDrop: (from, to) =>
       dropPiece(from as FortressXiangqiSquare, to as FortressXiangqiSquare | null),
@@ -379,30 +288,30 @@ function installBoardInteraction(liveRefs: LiveRefs): void {
     ghostSizePx: FORTRESS_XIANGQI_PIECE_PX,
     isRole: isDropRole,
     canDragRole: canDragDropRole,
-    ghostHtml: (role) =>
-      isFortressColor(state.seat)
-        ? fortressXiangqiPieceGhostSvg({ color: state.seat, role })
-        : null,
+    ghostHtml: (role) => {
+      const seat = core?.state.seat;
+      return isFortressColor(seat) ? fortressXiangqiPieceGhostSvg({ color: seat, role }) : null;
+    },
     onDragStart: (role) => {
       selectedSquare = null;
       selectedDropRole = role;
-      renderAll();
+      core?.renderAll();
     },
     onDrop: (role, to) => dropReservePiece(role, to),
   });
 }
 
 function handleSquareClick(square: FortressXiangqiSquare): void {
-  const view = state.view;
+  const view = core?.state.view;
   if (!view || !canInteract(view)) return;
   if (selectedDropRole) {
     const targets = fortressXiangqiDropTargets(view, selectedDropRole);
     if (targets.includes(square)) {
-      send({ type: 'move', drop: selectedDropRole, to: square });
+      core?.send({ type: 'move', drop: selectedDropRole, to: square });
       playSound('drop');
       selectedDropRole = null;
       selectedSquare = null;
-      renderAll();
+      core?.renderAll();
       return;
     }
     selectedDropRole = null;
@@ -423,9 +332,9 @@ function handleSquareClick(square: FortressXiangqiSquare): void {
   );
   if (move) {
     selectedSquare = null;
-    send({ type: 'move', from: move.from, to: move.to });
+    core?.send({ type: 'move', from: move.from, to: move.to });
     playSound(view.board[move.to] ? 'capture' : 'move');
-    renderAll();
+    core?.renderAll();
     return;
   }
   selectedSquare = canSelect(view, square) ? square : null;
@@ -433,59 +342,62 @@ function handleSquareClick(square: FortressXiangqiSquare): void {
 }
 
 function canDragPiece(square: FortressXiangqiSquare): boolean {
-  const view = state.view;
+  const view = core?.state.view;
   if (!view || !canInteract(view)) return false;
   const piece = view.board[square];
-  return !!piece && piece.color === state.seat;
+  return !!piece && piece.color === core?.state.seat;
 }
 
 function dropPiece(from: FortressXiangqiSquare, to: FortressXiangqiSquare | null): void {
   draggingFrom = null;
-  const view = state.view;
-  const move = to
-    ? fortressXiangqiBoardMoves(view!, from).find((candidate) => candidate.to === to)
-    : undefined;
-  if (move) {
+  const view = core?.state.view;
+  const move =
+    to && view
+      ? fortressXiangqiBoardMoves(view, from).find((candidate) => candidate.to === to)
+      : undefined;
+  if (move && view) {
     selectedSquare = null;
-    send({ type: 'move', from: move.from, to: move.to });
-    playSound(view!.board[move.to] ? 'capture' : 'move');
+    core?.send({ type: 'move', from: move.from, to: move.to });
+    playSound(view.board[move.to] ? 'capture' : 'move');
   } else {
     selectedSquare = null;
   }
-  renderAll();
+  core?.renderAll();
 }
 
 function canDragDropRole(role: FortressXiangqiDropRole): boolean {
-  const view = state.view;
-  if (!view || !canInteract(view) || !isFortressColor(state.seat)) return false;
-  return (view.hands[state.seat][role] ?? 0) > 0;
+  const view = core?.state.view;
+  const seat = core?.state.seat;
+  if (!view || !canInteract(view) || !isFortressColor(seat)) return false;
+  return (view.hands[seat][role] ?? 0) > 0;
 }
 
 function dropReservePiece(role: FortressXiangqiDropRole, to: string | null): void {
-  const view = state.view;
+  const view = core?.state.view;
   if (!view || !canInteract(view)) {
     selectedDropRole = null;
-    renderAll();
+    core?.renderAll();
     return;
   }
   selectedSquare = null;
   selectedDropRole = role;
   const targets = fortressXiangqiDropTargets(view, role);
   if (to && isFortressSquare(to) && targets.includes(to)) {
-    send({ type: 'move', drop: role, to });
+    core?.send({ type: 'move', drop: role, to });
     playSound('drop');
   }
   selectedDropRole = null;
-  renderAll();
+  core?.renderAll();
 }
 
 function canInteract(view: FortressXiangqiPlayerView): boolean {
   return (
-    replay.isLive() &&
-    connection() === 'connected' &&
+    !!core &&
+    core.replay.isLive() &&
+    core.connection() === 'connected' &&
     view.status.type === 'playing' &&
-    isFortressColor(state.seat) &&
-    view.status.turn === state.seat
+    isFortressColor(core.state.seat) &&
+    view.status.turn === core.state.seat
   );
 }
 
@@ -493,7 +405,9 @@ function canSelect(view: FortressXiangqiPlayerView, square: FortressXiangqiSquar
   if (!canInteract(view)) return false;
   const piece = view.board[square];
   return (
-    !!piece && piece.color === state.seat && fortressXiangqiBoardMoves(view, square).length > 0
+    !!piece &&
+    piece.color === core?.state.seat &&
+    fortressXiangqiBoardMoves(view, square).length > 0
   );
 }
 
@@ -508,94 +422,29 @@ function reconcileInteractionState(view: FortressXiangqiPlayerView | null): void
   }
   if (
     selectedDropRole &&
-    (view.hands[state.seat as FortressXiangqiColor][selectedDropRole] ?? 0) <= 0
+    (view.hands[core?.state.seat as FortressXiangqiColor][selectedDropRole] ?? 0) <= 0
   ) {
     selectedDropRole = null;
   }
 }
 
 function renderBoardIfMounted(): void {
-  if (refs) renderBoard(refs, replay.currentView(state.view));
+  if (core?.refs) renderBoard(core.refs, core.displayedView());
 }
 
-function renderMoveList(liveRefs: LiveRefs): void {
-  const moves = state.events.filter((event): event is FortressMoveEvent =>
-    isFortressMoveEvent(event),
-  );
-  const totalPly = replay.latestPly();
-  liveRefs.moveList.replaceChildren();
-  if (totalPly === 0) {
-    const item = document.createElement('li');
-    item.className = 'move-row';
-    item.textContent = 'No moves yet';
-    liveRefs.moveList.append(item);
-    return;
-  }
-  const activePly = replay.activePly();
-  for (const row of moveRows(moves, totalPly)) {
-    const item = document.createElement('li');
-    item.className = 'move-row xiangqi-move-row';
-    const number = document.createElement('span');
-    number.className = 'xiangqi-move-row__number';
-    number.textContent = `${row.fullMove}.`;
-    const red = document.createElement('span');
-    red.className = ['xiangqi-move-row__move', activePly === row.fullMove * 2 - 1 ? 'active' : '']
-      .filter(Boolean)
-      .join(' ');
-    red.textContent = row.red ?? '...';
-    const black = document.createElement('span');
-    const blackPly = row.fullMove * 2;
-    black.className = ['xiangqi-move-row__move', activePly === blackPly ? 'active' : '']
-      .filter(Boolean)
-      .join(' ');
-    black.textContent = blackPly <= totalPly ? (row.black ?? '...') : '';
-    item.append(number, red, black);
-    liveRefs.moveList.append(item);
-  }
-  syncMoveListScroll(liveRefs.moveList, { live: replay.isLive(), plyCount: replay.latestPly() });
-}
+// ── Replay capture ─────────────────────────────────────────────────────────
 
-function moveRows(moves: readonly FortressMoveEvent[], plyCount: number): FortressMoveRow[] {
-  const rows = new Map<number, FortressMoveRow>();
-  for (let fullMove = 1; fullMove <= Math.ceil(plyCount / 2); fullMove += 1) {
-    rows.set(fullMove, { fullMove });
-  }
-  moves.forEach((event, index) => {
-    const ply = eventPly(event, index);
-    if (ply > plyCount) return;
-    const fullMove = Math.floor((ply - 1) / 2) + 1;
-    const row = rows.get(fullMove) ?? { fullMove };
-    row[event.color] = fortressXiangqiMoveLabel(event.move);
-    rows.set(fullMove, row);
-  });
-  return [...rows.values()].sort((a, b) => a.fullMove - b.fullMove);
-}
-
-function eventPly(event: FortressMoveEvent, fallbackIndex: number): number {
-  return Number.isInteger(event.ply) && event.ply && event.ply > 0 ? event.ply : fallbackIndex + 1;
-}
-
-function captureReplayView(view: FortressXiangqiPlayerView | null): void {
-  if (!view) return;
-  if (view === lastCapturedView) return;
-  const positionKey = replayPositionKey(view);
-  const nextPly = replayPlyForView(view, positionKey !== lastCapturedPositionKey);
-  if (positionKey === lastCapturedPositionKey && nextPly <= replay.latestPly()) {
-    lastCapturedView = view;
-    return;
-  }
-  replay.push({ ply: nextPly, view });
-  lastCapturedView = view;
-  lastCapturedPositionKey = positionKey;
-}
-
-function replayPlyForView(view: FortressXiangqiPlayerView, positionChanged: boolean): number {
+function replayPlyForView(
+  view: FortressXiangqiPlayerView,
+  positionChanged: boolean,
+  latestPly: number,
+): number {
   if (view.status.type === 'playing') {
     const completedFullMoves = Math.max(0, view.moveNumber - 1);
     return completedFullMoves * 2 + (view.status.turn === 'black' ? 1 : 0);
   }
-  if (positionChanged && view.lastMove) return replay.latestPly() + 1;
-  return replay.latestPly();
+  if (positionChanged && view.lastMove) return latestPly + 1;
+  return latestPly;
 }
 
 function replayPositionKey(view: FortressXiangqiPlayerView): string {
@@ -612,11 +461,9 @@ function replayPositionKey(view: FortressXiangqiPlayerView): string {
   });
 }
 
-function handleReplayKeyboard(event: KeyboardEvent): void {
-  replay.handleKeyboard(event, renderAll);
-}
+// ── Helpers ──────────────────────────────────────────────────────────────────
 
-function isFortressMoveEvent(event: FortressWireEvent): event is FortressMoveEvent {
+function isFortressMoveEvent(event: TenantLiveEvent): event is FortressMoveEvent {
   const move = (event as { move?: unknown }).move;
   return (
     event.type === 'move-played' &&
@@ -631,7 +478,8 @@ function isFortressMoveEvent(event: FortressWireEvent): event is FortressMoveEve
 }
 
 function orientationFor(view: FortressXiangqiPlayerView | null): FortressXiangqiColor {
-  if (isFortressColor(state.seat)) return state.seat;
+  const seat = core?.state.seat;
+  if (isFortressColor(seat)) return seat;
   return view?.perspective ?? 'red';
 }
 

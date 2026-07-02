@@ -42,10 +42,7 @@ function newestMtime(dir) {
   newest = Math.max(newest, fileMtime(dir));
   for (const entry of readdirSync(dir, { withFileTypes: true })) {
     const entryPath = path.join(dir, entry.name);
-    newest = Math.max(
-      newest,
-      entry.isDirectory() ? newestMtime(entryPath) : fileMtime(entryPath),
-    );
+    newest = Math.max(newest, entry.isDirectory() ? newestMtime(entryPath) : fileMtime(entryPath));
   }
   return newest;
 }
