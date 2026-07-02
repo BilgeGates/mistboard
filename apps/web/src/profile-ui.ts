@@ -37,6 +37,7 @@ export function buildProfileHeaderShell(opts: {
   title: string;
   metaParts: HTMLElement[];
   stats?: HTMLElement;
+  actions?: HTMLElement;
 }): HTMLElement {
   const header = document.createElement('section');
   header.className = 'profile-header';
@@ -61,6 +62,7 @@ export function buildProfileHeaderShell(opts: {
     header.append(meta);
   }
 
+  if (opts.actions) header.append(opts.actions);
   if (opts.stats) header.append(opts.stats);
 
   return header;

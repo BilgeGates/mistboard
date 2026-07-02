@@ -162,7 +162,8 @@
 
 .account-actions,
 .account-form,
-.account-settings-form {
+.account-settings-form,
+.profile-relation-actions {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
@@ -174,7 +175,9 @@
 .account-actions .landing-setup-back,
 .account-form .landing-setup-start,
 .account-settings-form .landing-setup-start,
-.account-settings-form .landing-setup-back {
+.account-settings-form .landing-setup-back,
+.profile-relation-actions .landing-setup-start,
+.profile-relation-actions .landing-setup-back {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -192,14 +195,16 @@
 
 .account-actions .landing-setup-start,
 .account-form .landing-setup-start,
-.account-settings-form .landing-setup-start {
+.account-settings-form .landing-setup-start,
+.profile-relation-actions .landing-setup-start {
   border-color: color-mix(in srgb, var(--site-accent) 65%, transparent);
   background: var(--site-accent-soft);
   color: var(--site-accent-strong);
 }
 
 .account-actions .landing-setup-back,
-.account-settings-form .landing-setup-back {
+.account-settings-form .landing-setup-back,
+.profile-relation-actions .landing-setup-back {
   border-color: var(--site-border);
 }
 
@@ -218,8 +223,77 @@
 .account-actions .landing-setup-back:hover,
 .account-actions .landing-setup-back:focus-visible,
 .account-settings-form .landing-setup-back:hover,
-.account-settings-form .landing-setup-back:focus-visible {
+.account-settings-form .landing-setup-back:focus-visible,
+.profile-relation-actions .landing-setup-back:hover,
+.profile-relation-actions .landing-setup-back:focus-visible {
   border-color: var(--site-border);
+  background: var(--site-hover);
+  color: var(--site-text);
+  outline: 2px solid var(--site-focus);
+}
+
+/* ── Account following / blocked lists (self-only) ────────────────────── */
+
+.account-relations {
+  display: grid;
+  gap: 18px;
+  margin-top: 26px;
+}
+
+.account-relations-heading {
+  margin: 0 0 8px;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--site-text);
+}
+
+.account-relations-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 4px;
+}
+
+.account-relations-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 6px 8px;
+  border: 1px solid var(--site-border);
+  border-radius: 3px;
+  background: var(--site-panel-soft);
+}
+
+.account-relations-handle {
+  color: var(--site-text);
+  font-size: 13px;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.account-relations-handle:hover,
+.account-relations-handle:focus-visible {
+  color: var(--site-accent-strong);
+  outline: none;
+  text-decoration: underline;
+}
+
+.account-relations-remove {
+  border: 1px solid var(--site-border);
+  border-radius: 3px;
+  background: transparent;
+  color: var(--site-muted);
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1;
+  padding: 5px 9px;
+  cursor: pointer;
+}
+
+.account-relations-remove:hover,
+.account-relations-remove:focus-visible {
   background: var(--site-hover);
   color: var(--site-text);
   outline: 2px solid var(--site-focus);

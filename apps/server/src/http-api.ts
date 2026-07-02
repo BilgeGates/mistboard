@@ -38,6 +38,7 @@ import * as lobbyRoute from './routes/lobby.js';
 import * as metaRoute from './routes/meta.js';
 import * as miniXiangqiGamesRoute from './routes/mini-xiangqi-games.js';
 import * as puzzlesRoute from './routes/puzzles.js';
+import * as relationsRoute from './routes/relations.js';
 import * as revealChessGamesRoute from './routes/reveal-chess-games.js';
 import * as roomsRoute from './routes/rooms.js';
 import * as usersRoute from './routes/users.js';
@@ -97,6 +98,7 @@ const routes: RouteModule[] = [
   revealChessGamesRoute,
   crossroadsChessRoute,
   gamesRoute,
+  relationsRoute,
   usersRoute,
   leaderboardRoute,
 ];

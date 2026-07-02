@@ -30,10 +30,17 @@ export async function tryHandle(
       writeJson(response, 404, { error: 'not_found' });
       return true;
     }
+    const isViewer = viewer?.handle.toLowerCase() === profile.user.handle.toLowerCase();
+    // The viewer's own edge toward this profile (follow/block buttons). Only
+    // for a signed-in non-self viewer; blockedBy stays server-side so the
+    // payload can't reveal who blocked the viewer.
+    const relation =
+      viewer && !isViewer ? await persistence.viewerRelationForHandle(viewer.id, handle) : null;
     writeJson(response, 200, {
       profile: {
         ...profile,
-        isViewer: viewer?.handle.toLowerCase() === profile.user.handle.toLowerCase(),
+        isViewer,
+        relation: relation ? { following: relation.following, blocked: relation.blocked } : null,
       },
     });
     return true;

@@ -128,8 +128,127 @@ function buildSignedInAccount(
   });
 
   actions.append(profile, settings, logout);
-  panel.append(eyebrow, title, actions);
+
+  // Follow/block lists are self-only surfaces; they render here (and nowhere
+  // public) and hydrate after the card paints.
+  const relations = document.createElement('div');
+  relations.className = 'account-relations';
+  void populateRelations(relations, locale);
+
+  panel.append(eyebrow, title, actions, relations);
   return panel;
+}
+
+// ── Following / blocked lists ────────────────────────────────────────────────
+
+type RelationEntry = { handle: string; displayName: string; createdAt: string };
+
+async function populateRelations(container: HTMLElement, locale: Locale): Promise<void> {
+  const [following, blocked] = await Promise.all([
+    fetchRelationEntries('following'),
+    fetchRelationEntries('blocks'),
+  ]);
+  container.replaceChildren();
+  // Load failures leave the card unchanged rather than showing an error row:
+  // the lists are secondary account furniture, not the page's job.
+  if (following === null && blocked === null) return;
+
+  container.append(
+    buildRelationGroup(
+      t('account.following', {}, locale),
+      following ?? [],
+      'follow',
+      t('account.followingEmpty', {}, locale),
+      locale,
+    ),
+  );
+  // An empty blocked list is noise for most players; only render it when
+  // there is something to manage.
+  if (blocked && blocked.length > 0) {
+    container.append(
+      buildRelationGroup(t('account.blocked', {}, locale), blocked, 'block', '', locale),
+    );
+  }
+}
+
+async function fetchRelationEntries(kind: 'following' | 'blocks'): Promise<RelationEntry[] | null> {
+  try {
+    const resp = await fetch(`/api/relations/${kind}`);
+    if (!resp.ok) return null;
+    const data = (await resp.json()) as { entries: RelationEntry[] };
+    return data.entries;
+  } catch (err) {
+    console.warn(err);
+    return null;
+  }
+}
+
+function buildRelationGroup(
+  heading: string,
+  entries: RelationEntry[],
+  kind: 'follow' | 'block',
+  emptyCopy: string,
+  locale: Locale,
+): HTMLElement {
+  const group = document.createElement('section');
+  group.className = 'account-relations-group';
+
+  const title = document.createElement('h2');
+  title.className = 'account-relations-heading';
+  title.textContent = heading;
+  group.append(title);
+
+  if (entries.length === 0) {
+    const empty = document.createElement('p');
+    empty.className = 'account-copy';
+    empty.textContent = emptyCopy;
+    group.append(empty);
+    return group;
+  }
+
+  const list = document.createElement('ul');
+  list.className = 'account-relations-list';
+  for (const entry of entries) {
+    list.append(buildRelationRow(entry, kind, locale));
+  }
+  group.append(list);
+  return group;
+}
+
+function buildRelationRow(
+  entry: RelationEntry,
+  kind: 'follow' | 'block',
+  locale: Locale,
+): HTMLElement {
+  const item = document.createElement('li');
+  item.className = 'account-relations-row';
+
+  const link = document.createElement('a');
+  link.href = `/@/${encodeURIComponent(entry.handle)}`;
+  link.className = 'account-relations-handle';
+  link.textContent = `@${entry.handle}`;
+
+  const remove = document.createElement('button');
+  remove.type = 'button';
+  remove.className = 'account-relations-remove';
+  remove.textContent =
+    kind === 'follow' ? t('profile.unfollow', {}, locale) : t('profile.unblock', {}, locale);
+  remove.addEventListener('click', async () => {
+    remove.disabled = true;
+    try {
+      const resp = await fetch(`/api/users/${encodeURIComponent(entry.handle)}/${kind}`, {
+        method: 'DELETE',
+      });
+      if (!resp.ok) throw new Error(`relation delete failed: ${resp.status}`);
+      item.remove();
+    } catch (err) {
+      console.warn(err);
+      remove.disabled = false;
+    }
+  });
+
+  item.append(link, remove);
+  return item;
 }
 
 // ── Account settings form ────────────────────────────────────────────────────

@@ -21,8 +21,13 @@ type ProfileBucketRating = {
   provisional: boolean;
 };
 
+type ProfileRelation = { following: boolean; blocked: boolean };
+
 type UserProfile = {
   isViewer?: boolean;
+  // The signed-in viewer's edge toward this profile; null/absent for anonymous
+  // viewers and on your own profile (no buttons in either case).
+  relation?: ProfileRelation | null;
   user: {
     handle: string;
     displayName: string;
@@ -444,8 +449,80 @@ function buildProfileHeader(profile: UserProfile, locale: Locale = currentLocale
       : t('profile.playerProfile', {}, locale),
     title: `@${profile.user.handle}`,
     metaParts,
+    actions: profile.relation
+      ? buildRelationActions(profile.user.handle, profile.relation, locale)
+      : undefined,
     stats: buildProfileStats(profile, locale),
   });
+}
+
+// Follow/block controls for a signed-in viewer on someone else's profile.
+// Mutations return the fresh relation, so the row re-renders from the server's
+// answer rather than an optimistic local flip.
+function buildRelationActions(
+  handle: string,
+  relation: ProfileRelation,
+  locale: Locale = currentLocale(),
+): HTMLElement {
+  const row = document.createElement('div');
+  row.className = 'profile-relation-actions';
+  renderRelationActions(row, handle, relation, locale);
+  return row;
+}
+
+function renderRelationActions(
+  row: HTMLElement,
+  handle: string,
+  relation: ProfileRelation,
+  locale: Locale,
+): void {
+  row.replaceChildren();
+
+  // A blocked profile only offers Unblock; hiding Follow avoids the confusing
+  // follow-your-own-block overwrite.
+  if (!relation.blocked) {
+    const follow = document.createElement('button');
+    follow.type = 'button';
+    follow.className = relation.following ? 'landing-setup-back' : 'landing-setup-start';
+    follow.textContent = relation.following
+      ? t('profile.unfollow', {}, locale)
+      : t('profile.follow', {}, locale);
+    follow.addEventListener('click', () =>
+      mutateRelation(row, handle, 'follow', relation.following ? 'DELETE' : 'POST', locale, follow),
+    );
+    row.append(follow);
+  }
+
+  const block = document.createElement('button');
+  block.type = 'button';
+  block.className = 'landing-setup-back profile-relation-block';
+  block.textContent = relation.blocked
+    ? t('profile.unblock', {}, locale)
+    : t('profile.block', {}, locale);
+  block.addEventListener('click', () =>
+    mutateRelation(row, handle, 'block', relation.blocked ? 'DELETE' : 'POST', locale, block),
+  );
+  row.append(block);
+}
+
+async function mutateRelation(
+  row: HTMLElement,
+  handle: string,
+  kind: 'follow' | 'block',
+  method: 'POST' | 'DELETE',
+  locale: Locale,
+  trigger: HTMLButtonElement,
+): Promise<void> {
+  trigger.disabled = true;
+  try {
+    const resp = await fetch(`/api/users/${encodeURIComponent(handle)}/${kind}`, { method });
+    if (!resp.ok) throw new Error(`relation ${kind} failed: ${resp.status}`);
+    const data = (await resp.json()) as { relation: ProfileRelation };
+    renderRelationActions(row, handle, data.relation, locale);
+  } catch (err) {
+    console.warn(err);
+    trigger.disabled = false;
+  }
 }
 
 // Header stat strip: neutral/positive figures only — no win/loss record (which

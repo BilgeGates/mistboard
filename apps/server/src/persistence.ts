@@ -173,6 +173,25 @@ export {
   recordGameEnd,
 } from './persistence-games.js';
 export type {
+  FollowResult,
+  RelationListEntry,
+  RelationListPage,
+  RelationsBetween,
+  RelationWriteResult,
+  UserRelationKind,
+} from './persistence-relations.js';
+export {
+  blockUser,
+  countFollowing,
+  FOLLOW_CAP,
+  followUser,
+  hasBlock,
+  listRelations,
+  unblockUser,
+  unfollowUser,
+  viewerRelationForHandle,
+} from './persistence-relations.js';
+export type {
   CorrespondenceGameSummary,
   DeadlineWarningCandidate,
   DueRoomDeadline,
