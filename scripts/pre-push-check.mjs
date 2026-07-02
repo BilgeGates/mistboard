@@ -3,6 +3,9 @@
 
 import { execFileSync, spawnSync } from 'node:child_process';
 import { rmSync } from 'node:fs';
+import net from 'node:net';
+
+const DEFAULT_TEST_DATABASE_URL = 'postgres://mistboard:mistboard@localhost:5435/mistboard_test';
 
 const ZERO_SHA = /^0{40}$/;
 const DIST_DIRS = [
@@ -24,6 +27,7 @@ if (options.planOnly) process.exit(0);
 
 if (plan.cleanDist) cleanDist();
 for (const command of plan.commands) run(command);
+if (plan.persistenceGate) await runPersistenceGate();
 console.log('pre-push: ok');
 
 function parseArgs(args) {
@@ -75,11 +79,14 @@ function changedFiles(localSha, remoteSha) {
 }
 
 function buildPlan(files, options) {
+  const persistenceGate = files.some(isPersistenceWatchedPath);
+
   if (files.length === 0) {
     return {
       kind: 'empty',
       reason: 'no changed files detected for main push',
       cleanDist: false,
+      persistenceGate: false,
       commands: [],
     };
   }
@@ -89,6 +96,7 @@ function buildPlan(files, options) {
       kind: 'docs',
       reason: 'docs/meta-only push; CI and Railway path filters do not run for this set',
       cleanDist: false,
+      persistenceGate: false,
       commands: [['npm', 'run', 'check:drift']],
     };
   }
@@ -101,6 +109,7 @@ function buildPlan(files, options) {
       kind: 'broad',
       reason: 'repo tooling, package, workflow, deploy, or shared package files changed',
       cleanDist: true,
+      persistenceGate,
       // check:drift is near-instant and guards push-time invariants (INDEX
       // coverage, fog-redaction payload guard, SQL enum parity) that ci:quick
       // does not re-check, so run it as a fast-fail prefix.
@@ -119,9 +128,13 @@ function buildPlan(files, options) {
       kind: 'targeted',
       reason: 'app-level deploy-affecting files changed',
       cleanDist: false,
+      persistenceGate,
       // Fast-fail drift prefix: a new source file missing from INDEX.md (or a
       // dropped redaction guard) lands via this branch, which verify does not catch.
-      commands: [['npm', 'run', 'check:drift'], command],
+      // Whole-repo lint runs here because hosted CI lints the whole repo: latent
+      // format debt in an untouched file fails CI on an app-only push and silently
+      // freezes the Railway auto-deploy (reds of 2026-07-01).
+      commands: [['npm', 'run', 'check:drift'], ['npm', 'run', 'lint'], command],
     };
   }
 
@@ -129,8 +142,17 @@ function buildPlan(files, options) {
     kind: 'unmapped',
     reason: 'no CI/Railway-watched files changed',
     cleanDist: false,
+    persistenceGate,
     commands: [['npm', 'run', 'check:drift']],
   };
+}
+
+function isPersistenceWatchedPath(file) {
+  return (
+    file.startsWith('apps/server/migrations/') ||
+    file === 'apps/server/src/migrate.ts' ||
+    /^apps\/server\/src\/persistence[^/]*\.ts$/.test(file)
+  );
 }
 
 function isDocsOrMetaOnly(file) {
@@ -191,6 +213,55 @@ function printPlan(files, plan) {
     console.log('pre-push: commands:');
     for (const command of plan.commands) console.log(`  $ ${command.join(' ')}`);
   }
+  if (plan.persistenceGate) {
+    console.log(
+      'pre-push: persistence-watched files changed; will run test:persistent if local Postgres is reachable (else warn)',
+    );
+  }
+}
+
+async function runPersistenceGate() {
+  if (process.env.MISTBOARD_SKIP_PREPUSH_DB === '1') {
+    console.log('pre-push: persistence gate skipped via MISTBOARD_SKIP_PREPUSH_DB=1');
+    return;
+  }
+  const databaseUrl = process.env.TEST_DATABASE_URL ?? DEFAULT_TEST_DATABASE_URL;
+  const reachable = await isDatabaseReachable(databaseUrl);
+  if (reachable) {
+    run(['npm', 'run', 'test:persistent']);
+    return;
+  }
+  console.warn(`
+pre-push: ==================== WARNING ====================
+pre-push: persistence/migration files changed, but Postgres-backed tests
+pre-push: (test:persistent) only run in hosted CI. A query/migration bug in
+pre-push: this push can land red on main and silently freeze the Railway
+pre-push: auto-deploy. To check locally before pushing:
+pre-push:   npm run db:up && npm run test:persistent
+pre-push: =================================================
+`);
+}
+
+function isDatabaseReachable(databaseUrl) {
+  let host = 'localhost';
+  let port = 5432;
+  try {
+    const parsed = new URL(databaseUrl);
+    host = parsed.hostname || host;
+    port = Number(parsed.port) || port;
+  } catch {
+    return Promise.resolve(false);
+  }
+  return new Promise((resolve) => {
+    const socket = net.connect({ host, port, timeout: 1000 });
+    const done = (result) => {
+      socket.destroy();
+      resolve(result);
+    };
+    socket.once('connect', () => done(true));
+    socket.once('timeout', () => done(false));
+    socket.once('error', () => done(false));
+  });
 }
 
 function cleanDist() {
