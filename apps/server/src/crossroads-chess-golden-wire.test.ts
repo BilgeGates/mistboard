@@ -30,17 +30,20 @@ import {
   getCrossroadsChessOpenLegalMoves,
 } from '@mistboard/game';
 import { CROSSROADS_CHESS_DEFAULT_ENGINE_ID } from './crossroads-chess-engine.js';
-import {
-  appendCrossroadsChessRuntimeEvent,
-  type CrossroadsChessEvent,
-  type CrossroadsChessRuntimeRoom,
-  type CrossroadsChessSeat,
-  createCrossroadsChessRuntimeRoomFromEvents,
-  crossroadsChessPlyAtEventIndex,
-  expireCrossroadsChessClock,
+import type {
+  CrossroadsChessEvent,
+  CrossroadsChessRuntimeRoom,
+  CrossroadsChessSeat,
 } from './crossroads-chess-runtime.js';
+import { crossroadsChessTenant } from './crossroads-chess-tenant.js';
 import type { CrossroadsChessLiveClient } from './server-crossroads-chess-live-room.js';
 import { crossroadsChessTransportSnapshotPayload } from './server-ws-crossroads-chess.js';
+import {
+  appendTenantRuntimeEvent,
+  createTenantRuntimeRoomFromEvents,
+  expireTenantClock,
+  tenantPlyAtEventIndex,
+} from './variant-tenant/runtime.js';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 // Anchor on the package dir so the fixture resolves whether this file runs
@@ -75,7 +78,7 @@ function snapshotFor(room: CrossroadsChessRuntimeRoom, seat: CrossroadsChessSeat
 // Perfect-info broadcast policy: every seat gets the event, moves numbered.
 function eventForSeat(room: CrossroadsChessRuntimeRoom, event: CrossroadsChessEvent, seq: number) {
   return event.type === 'move-played'
-    ? { ...event, ply: crossroadsChessPlyAtEventIndex(room.events, seq) }
+    ? { ...event, ply: tenantPlyAtEventIndex(room.events, seq) }
     : event;
 }
 
@@ -104,12 +107,12 @@ function append(
   label: string,
   event: CrossroadsChessEvent,
 ): void {
-  const seq = appendCrossroadsChessRuntimeEvent(room, event);
+  const seq = appendTenantRuntimeEvent(crossroadsChessTenant, room, event);
   recordStep(script, room, label, { event, seq });
 }
 
 function hydrate(events: CrossroadsChessEvent[]): CrossroadsChessRuntimeRoom {
-  const created = createCrossroadsChessRuntimeRoomFromEvents(events);
+  const created = createTenantRuntimeRoomFromEvents(crossroadsChessTenant, events);
   assert.ok(created.ok, 'golden script event log must hydrate');
   return created.room;
 }
@@ -271,7 +274,7 @@ function runScriptC(): GoldenScript {
   }
 
   const expiredColor = playingTurn(room);
-  const expiredClock = expireCrossroadsChessClock(room.projection.clock, 90_000, expiredColor);
+  const expiredClock = expireTenantClock(room.projection.clock, 90_000, expiredColor);
   assert.ok(expiredClock, 'script C must have an armed clock to expire');
   append(script, room, 'clock-expired', {
     type: 'clock-expired',
@@ -459,7 +462,7 @@ test('crossroads golden wire: forfeitDeadline only reaches the opposite seat', (
 
 test('crossroads golden wire: legacy dual-chess logs normalize to crossroads-chess', () => {
   const roomId = 'dchess_legacy';
-  const created = createCrossroadsChessRuntimeRoomFromEvents([
+  const created = createTenantRuntimeRoomFromEvents(crossroadsChessTenant, [
     { type: 'room-created', at: 1_000, roomId, gameSpecId: DUAL_CHESS_SPEC_ID },
   ]);
   assert.ok(created.ok, 'legacy dual-chess event log must hydrate');

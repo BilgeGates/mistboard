@@ -14,7 +14,6 @@ import type { WebSocket } from 'ws';
 import type { CrossroadsChessEvent } from './crossroads-chess-runtime.js';
 import { crossroadsChessTenant } from './crossroads-chess-tenant.js';
 import { scheduleCrossroadsChessEngineMove } from './server-crossroads-chess-engine.js';
-import { clearCrossroadsChessRuntimeTimers } from './server-crossroads-chess-lifecycle.js';
 import type {
   CrossroadsChessLiveClient,
   CrossroadsChessLiveRoom,
@@ -23,6 +22,7 @@ import {
   asTenantCrossroadsChessRematchContext,
   type CrossroadsChessRematchContext,
 } from './server-crossroads-chess-rematch.js';
+import { clearTenantRuntimeTimers } from './variant-tenant/lifecycle.js';
 import { createTenantWsRuntime } from './variant-tenant/ws.js';
 
 // Re-exported (the definitions live in a leaf module so this handler and the
@@ -63,7 +63,9 @@ export function scheduleCrossroadsChessLifecycleTimers(room: CrossroadsChessLive
   crossroadsChessWs.scheduleLifecycleTimers(room);
 }
 
-export { clearCrossroadsChessRuntimeTimers };
+export function clearCrossroadsChessRuntimeTimers(room: CrossroadsChessLiveRoom): void {
+  clearTenantRuntimeTimers(room);
+}
 
 export function broadcastCrossroadsChessEventAppended(
   room: CrossroadsChessLiveRoom,

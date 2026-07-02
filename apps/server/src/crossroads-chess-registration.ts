@@ -18,21 +18,22 @@ import {
   requestsCrossroadsChess,
 } from './routes/crossroads-chess-rooms.js';
 import { isAllowedCrossroadsChessTimeControl } from './routes/lib.js';
-import { persistenceRecordForCrossroadsChessSeatToken } from './server-crossroads-chess-events.js';
 import type { CrossroadsChessRematchContext } from './server-crossroads-chess-rematch.js';
 import {
   type CrossroadsChessLiveRoomCreation,
   type CrossroadsChessRoomEngineSeat,
   createCrossroadsChessLiveRoom,
 } from './server-crossroads-chess-room-factory.js';
-import { mintCrossroadsChessSeatToken } from './server-crossroads-chess-seat-session.js';
 import {
   type CrossroadsChessLiveRoom,
   clearCrossroadsChessRuntimeTimers,
   handleCrossroadsChessWebSocketConnection,
   sendCrossroadsChessPayload,
 } from './server-ws-crossroads-chess.js';
-import { recordTenantPersistenceError } from './variant-tenant/events.js';
+import {
+  persistenceRecordForTenantSeatToken,
+  recordTenantPersistenceError,
+} from './variant-tenant/events.js';
 import { getOrLoadTenantRoom } from './variant-tenant/hydration.js';
 import {
   registerVariantTenant,
@@ -40,6 +41,7 @@ import {
   variantTenantRoomIdTaken,
 } from './variant-tenant/registry.js';
 import { countActiveTenantGames } from './variant-tenant/runtime.js';
+import { mintTenantSeatToken } from './variant-tenant/seat-session.js';
 
 export const crossroadsChessRooms = new Map<string, CrossroadsChessRuntimeRoom>();
 
@@ -75,11 +77,11 @@ const crossroadsChessRematchCtx: CrossroadsChessRematchContext = {
   createRoom: (timeControl) => createCrossroadsChessRoom(timeControl),
   buildRoomUrl: (roomId) => `/room/${encodeURIComponent(roomId)}`,
   issueSeatToken: async (room, seat, identity) => {
-    const minted = mintCrossroadsChessSeatToken(room, seat, identity);
+    const minted = mintTenantSeatToken(room, seat, identity);
     if (persistence.isInitialized()) {
       await persistence.upsertRoomSeatToken(
         room.id,
-        persistenceRecordForCrossroadsChessSeatToken(minted.state),
+        persistenceRecordForTenantSeatToken(minted.state),
       );
     }
     return minted;

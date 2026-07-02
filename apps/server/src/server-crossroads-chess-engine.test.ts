@@ -1,11 +1,8 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import type { CrossroadsChessMove } from '@mistboard/game';
-import {
-  appendCrossroadsChessRuntimeEvent,
-  type CrossroadsChessRuntimeRoom,
-  createCrossroadsChessRuntimeRoom,
-} from './crossroads-chess-runtime.js';
+import type { CrossroadsChessRuntimeRoom } from './crossroads-chess-runtime.js';
+import { crossroadsChessTenant } from './crossroads-chess-tenant.js';
 import {
   type CrossroadsChessEngineContext,
   crossroadsChessEngineSeatFor,
@@ -13,12 +10,13 @@ import {
   scheduleCrossroadsChessEngineMove,
 } from './server-crossroads-chess-engine.js';
 import type { CrossroadsChessLiveRoom } from './server-crossroads-chess-live-room.js';
+import { appendTenantRuntimeEvent, createTenantRuntimeRoom } from './variant-tenant/runtime.js';
 
 process.env.MISTBOARD_CROSSROADS_CHESS_ENABLED = 'true';
 
 test('Crossroads engine loop plays a validated FSF move with server-owned tier caps', async () => {
   const room = pveRoom('red');
-  appendCrossroadsChessRuntimeEvent(room, {
+  appendTenantRuntimeEvent(crossroadsChessTenant, room, {
     type: 'move-played',
     at: 3,
     roomId: room.id,
@@ -45,7 +43,7 @@ test('Crossroads engine loop plays a validated FSF move with server-owned tier c
 
 test('Crossroads engine fails closed (resigns) on persistently illegal output', async () => {
   const room = pveRoom('red');
-  appendCrossroadsChessRuntimeEvent(room, {
+  appendTenantRuntimeEvent(crossroadsChessTenant, room, {
     type: 'move-played',
     at: 3,
     roomId: room.id,
@@ -65,7 +63,7 @@ test('Crossroads engine fails closed (resigns) on persistently illegal output', 
 
 test('Crossroads engine fails closed (resigns) on request failure', async () => {
   const room = pveRoom('red');
-  appendCrossroadsChessRuntimeEvent(room, {
+  appendTenantRuntimeEvent(crossroadsChessTenant, room, {
     type: 'move-played',
     at: 3,
     roomId: room.id,
@@ -109,18 +107,18 @@ test('Crossroads engine scheduler is a no-op until the engine is on turn', () =>
 });
 
 function pveRoom(engineSeat: 'white' | 'red'): CrossroadsChessLiveRoom {
-  const created = createCrossroadsChessRuntimeRoom('dchess_engine_test');
+  const created = createTenantRuntimeRoom(crossroadsChessTenant, 'dchess_engine_test');
   assert.equal(created.ok, true);
   if (!created.ok) throw new Error('room create failed');
   const room = created.room;
-  appendCrossroadsChessRuntimeEvent(room, {
+  appendTenantRuntimeEvent(crossroadsChessTenant, room, {
     type: 'seat-assigned',
     at: 1,
     roomId: room.id,
     clientId: 'fairy-stockfish-crossroads-strong',
     seat: engineSeat,
   });
-  appendCrossroadsChessRuntimeEvent(room, {
+  appendTenantRuntimeEvent(crossroadsChessTenant, room, {
     type: 'seat-assigned',
     at: 2,
     roomId: room.id,
@@ -132,7 +130,7 @@ function pveRoom(engineSeat: 'white' | 'red'): CrossroadsChessLiveRoom {
 
 function appendMoves(room: CrossroadsChessRuntimeRoom, moves: readonly string[]): void {
   moves.forEach((uci, idx) => {
-    appendCrossroadsChessRuntimeEvent(room, {
+    appendTenantRuntimeEvent(crossroadsChessTenant, room, {
       type: 'move-played',
       at: 3 + idx,
       roomId: room.id,
@@ -157,7 +155,8 @@ function engineCtx(
   engineMove: CrossroadsChessEngineContext['engineMove'],
 ): CrossroadsChessEngineContext {
   return {
-    appendEvent: async (_room, event) => appendCrossroadsChessRuntimeEvent(room, event),
+    appendEvent: async (_room, event) =>
+      appendTenantRuntimeEvent(crossroadsChessTenant, room, event),
     broadcastEventAppended: () => {},
     engineMove,
     now: () => 1_000,
