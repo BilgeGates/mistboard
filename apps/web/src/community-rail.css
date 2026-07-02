@@ -11,6 +11,16 @@
   padding: 28px 0 48px;
 }
 
+/* Reserve the vertical-scrollbar gutter even when the page fits, so the
+   centered shell (and the rail with it) sits at the same x whether or not
+   the page scrolls. Without this, a scrolling /leaderboard and a
+   non-scrolling /bots differ by half a scrollbar width wherever scrollbars
+   are visible (e.g. macOS with a mouse attached). No-op for overlay
+   scrollbars. */
+html:has(.community-shell) {
+  scrollbar-gutter: stable;
+}
+
 .community-layout {
   display: grid;
   grid-template-columns: 168px minmax(0, 1fr);
