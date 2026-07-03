@@ -163,11 +163,10 @@ type PuzzleAttemptRating = {
 // module singletons the free-function attempt path can reach without threading.
 let puzzleRatedPref = true;
 let onAttemptRating: ((rating: PuzzleAttemptRating) => void) | null = null;
-const PUZZLE_VARIANT_FILTERS: readonly PuzzleVariantFilter[] = [
-  MINI_XIANGQI_SPEC_ID,
-  DROP_MINI_XIANGQI_SPEC_ID,
-  FORTRESS_XIANGQI_SPEC_ID,
-];
+// Only Fortress Xiangqi is surfaced on the puzzle page for now. Mini / Drop Mini
+// puzzles stay in the corpus + API (deep links still resolve server-side) but are
+// hidden from the selector and default view. Re-add them here to unhide.
+const PUZZLE_VARIANT_FILTERS: readonly PuzzleVariantFilter[] = [FORTRESS_XIANGQI_SPEC_ID];
 
 export async function mountPuzzles(
   root: HTMLElement,
@@ -199,7 +198,7 @@ export async function mountPuzzles(
 
   let summaries: PuzzleSummary[] = [];
   let selectedId = initialPuzzleId;
-  let variantFilter: PuzzleVariantFilter = MINI_XIANGQI_SPEC_ID;
+  let variantFilter: PuzzleVariantFilter = PUZZLE_VARIANT_FILTERS[0] ?? FORTRESS_XIANGQI_SPEC_ID;
   let session: PuzzleSession | null = null;
   const solvedIds = loadSolvedPuzzleIds();
   let autoNext = loadAutoNextEnabled();
@@ -341,6 +340,8 @@ export async function mountPuzzles(
   renderStatus(detail, 'Loading');
   summaries = await fetchPuzzleList();
   const directSummary = selectedId ? summaries.find((puzzle) => puzzle.id === selectedId) : null;
+  // A normal visit defaults to the surfaced variant (Fortress); a direct deep
+  // link into any puzzle still resolves so shared/bookmarked URLs keep working.
   if (directSummary) variantFilter = directSummary.variant;
   else if (!summaries.some((puzzle) => puzzle.variant === variantFilter) && summaries[0]) {
     variantFilter = summaries[0].variant;
@@ -520,25 +521,28 @@ function renderQueuePanel(host: HTMLElement, props: QueuePanelProps): void {
   settingsTitle.textContent = 'Settings';
   const form = document.createElement('div');
   form.className = 'puzzle-settings';
-  const field = document.createElement('label');
-  field.className = 'puzzle-field';
-  const fieldLabel = document.createElement('span');
-  fieldLabel.textContent = 'Variant';
-  const select = document.createElement('select');
-  select.className = 'puzzle-select';
-  select.dataset.puzzleVariant = 'true';
-  for (const filter of PUZZLE_VARIANT_FILTERS) {
-    const option = document.createElement('option');
-    option.value = filter;
-    option.textContent = variantFilterLabel(filter);
-    select.append(option);
+  // The variant picker only appears when more than one variant is surfaced.
+  if (PUZZLE_VARIANT_FILTERS.length > 1) {
+    const field = document.createElement('label');
+    field.className = 'puzzle-field';
+    const fieldLabel = document.createElement('span');
+    fieldLabel.textContent = 'Variant';
+    const select = document.createElement('select');
+    select.className = 'puzzle-select';
+    select.dataset.puzzleVariant = 'true';
+    for (const filter of PUZZLE_VARIANT_FILTERS) {
+      const option = document.createElement('option');
+      option.value = filter;
+      option.textContent = variantFilterLabel(filter);
+      select.append(option);
+    }
+    select.value = variantFilter;
+    select.addEventListener('change', () => {
+      void onVariantChange(parseVariantFilter(select.value));
+    });
+    field.append(fieldLabel, select);
+    form.append(field);
   }
-  select.value = variantFilter;
-  select.addEventListener('change', () => {
-    void onVariantChange(parseVariantFilter(select.value));
-  });
-  field.append(fieldLabel, select);
-  form.append(field);
   const autoNextToggle = document.createElement('label');
   autoNextToggle.className = 'puzzle-toggle';
   const autoNextInput = document.createElement('input');

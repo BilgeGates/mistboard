@@ -63,13 +63,9 @@ describe('puzzles route', () => {
 
     expect(root.querySelector('.site-section-heading')?.textContent).toBe('Puzzles');
     expect(root.querySelectorAll('.puzzle-list-item')).toHaveLength(0);
-    const variantSelect = root.querySelector<HTMLSelectElement>('[data-puzzle-variant]')!;
-    expect(variantSelect.value).toBe(DROP_MINI_XIANGQI_SPEC_ID);
-    expect(Array.from(variantSelect.options).map((option) => option.textContent)).toEqual([
-      'Mini Xiangqi',
-      'Drop Mini Xiangqi',
-      'Fortress Xiangqi',
-    ]);
+    // Only Fortress Xiangqi is surfaced, so the variant picker is hidden. A direct
+    // deep link into a Drop Mini puzzle still resolves and renders.
+    expect(root.querySelector('[data-puzzle-variant]')).toBeNull();
     expect(root.querySelector('.puzzles-sidebar')?.textContent).toContain('0 solved of 1');
     expect(root.querySelector('.puzzles-sidebar')?.textContent).not.toContain('All puzzles');
     expect(root.querySelector('.puzzles-sidebar')?.textContent).not.toContain(' / ');
@@ -111,7 +107,9 @@ describe('puzzles route', () => {
     expect(root.querySelector('.mini-xq-piece')).not.toBeNull();
   });
 
-  it('filters the sequential queue with the variant picker', async () => {
+  // Skipped while only Fortress Xiangqi is surfaced (the variant picker is
+  // hidden). Restore when more than one variant is unhidden.
+  it.skip('filters the sequential queue with the variant picker', async () => {
     const mini = MINI_XIANGQI_PUZZLES[0]!;
     const drop = MINI_XIANGQI_PUZZLES.find(
       (puzzle) => puzzle.id === 'drop-mini-xiangqi-red-chariot-drop-mate-1',
