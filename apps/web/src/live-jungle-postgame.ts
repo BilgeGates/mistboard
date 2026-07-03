@@ -16,6 +16,7 @@ import { createPane } from './replay-board.js';
 import { createShareButton } from './replay-meta.js';
 import { capturedByDiff } from './review/captured-diff.js';
 import { fillCapturedPoolWith } from './review/captured-pool.js';
+import { createFlankCaptures } from './review/flank-captures.js';
 import { mountReviewLayout } from './review/review-layout.js';
 import { buildNav } from './site-shell.js';
 
@@ -108,8 +109,15 @@ export function junglePostgameApiUrl(roomId: string): string {
 }
 
 function renderPostgame(root: HTMLElement, postgame: JunglePostgameResponse): void {
-  const pane = createPane('', 'truth', true, 'split');
+  const pane = createPane('', 'truth', false, 'single');
   pane.boardEl.classList.add('jungle-postgame-board', 'jungle-live-board');
+  // Flank layout: capture columns beside the board (opponent top-left, near side
+  // bottom-right) so the board keeps its full height. Reparent the board into the
+  // flank host at its original position.
+  const flankAnchor = pane.boardEl.nextSibling;
+  const flankParent = pane.boardEl.parentElement;
+  const flank = createFlankCaptures(pane.boardEl);
+  flankParent?.insertBefore(flank.host, flankAnchor);
 
   const moves: JungleMoveEntry[] = postgame.timeline
     .filter(
@@ -140,6 +148,7 @@ function renderPostgame(root: HTMLElement, postgame: JunglePostgameResponse): vo
     moves: movesCard,
     boards: [{ key: 'truth', el: pane.el, tier: 'primary' }],
     boardAspect: 366 / 462,
+    boardCols: 7,
     maxPly: junglePostgameMaxPly(postgame),
     renderBoards({ ply, flipped }) {
       const orientation: JungleColor = flipped ? 'black' : 'red';
@@ -153,10 +162,10 @@ function renderPostgame(root: HTMLElement, postgame: JunglePostgameResponse): vo
       );
       const captured = capturedByDiff(JUNGLE_INITIAL_PIECES, current);
       const opponent: JungleColor = orientation === 'red' ? 'black' : 'red';
-      pane.topCapturesEl.replaceChildren();
-      pane.capturesEl.replaceChildren();
-      fillCapturedPoolWith(pane.topCapturesEl, captured, orientation, junglePieceGhostSvg);
-      fillCapturedPoolWith(pane.capturesEl, captured, opponent, junglePieceGhostSvg);
+      flank.leftColumn.replaceChildren();
+      flank.rightColumn.replaceChildren();
+      fillCapturedPoolWith(flank.leftColumn, captured, orientation, junglePieceGhostSvg);
+      fillCapturedPoolWith(flank.rightColumn, captured, opponent, junglePieceGhostSvg);
     },
     renderMoves({ ply }, jump) {
       renderMoveRows(moveList, moves, ply, jump);

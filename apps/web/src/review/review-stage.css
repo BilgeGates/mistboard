@@ -68,6 +68,43 @@
   max-width: 100%;
 }
 
+/* Flank layout: captures in two narrow vertical columns beside the board rather
+   than stacked above/below it (opponent top-left, near side bottom-right). The
+   board flex-fills the row; the columns sit level with it so they add no vertical
+   chrome, letting the board fill more height. */
+.review-flank {
+  display: flex;
+  align-items: stretch;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  min-width: 0;
+}
+.review-flank__board {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+.review-flank__col {
+  flex: 0 0 auto;
+  width: calc(var(--capture-piece-size, 40px) + 6px);
+  max-width: none;
+  height: auto;
+  min-height: 0;
+}
+.review-flank__col--left {
+  justify-content: flex-start;
+}
+.review-flank__col--right {
+  justify-content: flex-end;
+}
+/* Stack the captured tiles vertically inside the narrow column. */
+.review-flank__col .review-captures-row,
+.review-flank__col .captures-row {
+  flex-direction: column;
+  flex-wrap: nowrap;
+  width: 100%;
+}
+
 /* Secondary boards promote to primary on click. */
 .review-stage__slot--promotable {
   cursor: pointer;

@@ -201,14 +201,18 @@ function fitPrimaryToViewport(stageEl: HTMLElement, aspect: number): void {
       [...stageEl.children].reduce((h, child) => h + child.getBoundingClientRect().height, 0) +
       gaps;
     const currentWidth = slot.getBoundingClientRect().width;
+    // Flank layout puts capture columns beside the board, so the board is narrower
+    // than the slot; measure the actual board to get its width (and thus the fixed
+    // side-column budget) instead of assuming board width == slot width.
+    const flankBoard = slot.querySelector<HTMLElement>('.review-flank__board');
+    const boardWidth = flankBoard ? flankBoard.getBoundingClientRect().width : currentWidth;
+    const flankPx = Math.max(0, currentWidth - boardWidth);
     // Everything in the stage except the primary board itself (its own label /
     // strips, plus the secondary row and gaps) stays fixed as the primary scales.
-    const nonBoardChrome = Math.max(0, contentHeight - currentWidth / aspect);
+    const nonBoardChrome = Math.max(0, contentHeight - boardWidth / aspect);
     const widthCap = Math.max(240, window.innerWidth - RAILS_AND_GUTTERS_PX);
-    const targetWidth = Math.max(
-      160,
-      Math.min(widthCap, Math.floor((available - nonBoardChrome - 6) * aspect)),
-    );
+    const targetBoardWidth = Math.floor((available - nonBoardChrome - 6) * aspect);
+    const targetWidth = Math.max(160, Math.min(widthCap, targetBoardWidth + flankPx));
     stageEl.style.setProperty('--review-stage-primary-max', `${targetWidth}px`);
   });
 }
