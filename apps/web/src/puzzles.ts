@@ -1217,15 +1217,16 @@ function moveColorAt(firstColor: MiniXiangqiColor, plyIndex: number): MiniXiangq
 }
 
 function targetAvatarSvg(): string {
+  // Lucide-spec bullseye + arrow (24-grid, 2px round), consistent with the app's
+  // other inlined Lucide icons (see landing-play.ts). The arrowhead reuses
+  // Lucide's arrow-up-right corner so it reads as part of the same icon family
+  // and matches the lichess/PlayStrategy puzzle target.
   return [
-    '<svg class="puzzle-target-avatar" viewBox="0 0 64 64" width="54" height="54" aria-hidden="true">',
-    '<circle cx="30" cy="34" r="19" fill="none" stroke="currentColor" stroke-width="3.6"/>',
-    '<circle cx="30" cy="34" r="11.5" fill="none" stroke="currentColor" stroke-width="3.1"/>',
-    '<circle cx="30" cy="34" r="4" fill="currentColor"/>',
-    '<path d="M14 50 25 39" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round"/>',
-    '<path d="M31 33 49 15" fill="none" stroke="currentColor" stroke-width="3.6" stroke-linecap="round"/>',
-    '<path d="M48 6v12h12" fill="none" stroke="currentColor" stroke-width="3.6" stroke-linejoin="round"/>',
-    '<path d="M48 18 58 8" fill="none" stroke="currentColor" stroke-width="3.6" stroke-linecap="round"/>',
+    '<svg class="puzzle-target-avatar" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">',
+    '<circle cx="9.5" cy="14.5" r="7.5"/>',
+    '<circle cx="9.5" cy="14.5" r="3.7"/>',
+    '<path d="M11 13 21 3"/>',
+    '<path d="M15 3h6v6"/>',
     '</svg>',
   ].join('');
 }
