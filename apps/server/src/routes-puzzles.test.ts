@@ -319,6 +319,31 @@ test('puzzle attempts reject malformed move bodies', async () => {
   assert.deepEqual(JSON.parse(response.body), { error: 'invalid_moves' });
 });
 
+test('puzzle rating route requires a variant', async () => {
+  const response = await route('/api/puzzles/rating');
+
+  assert.equal(response.status, 400);
+  assert.deepEqual(JSON.parse(response.body), { error: 'invalid_variant' });
+});
+
+test('puzzle rating route returns null for an anonymous or unrated user', async () => {
+  const response = await route('/api/puzzles/rating?variant=fortress-xiangqi');
+
+  assert.equal(response.status, 200);
+  assert.deepEqual(JSON.parse(response.body), { rating: null });
+});
+
+test('attempts omit rating info when there is no rated session', async () => {
+  const response = await route('/api/puzzles/fortress-xiangqi-mined-001/attempt', 'POST', {
+    moves: [{ drop: 'cannon', to: 'c8' }],
+  });
+  const body = JSON.parse(response.body) as { attempt: { ok: boolean }; rating?: unknown };
+
+  assert.equal(response.status, 200);
+  assert.equal(body.attempt.ok, true);
+  assert.equal(body.rating, undefined);
+});
+
 test('puzzle routes reject non-GET methods', async () => {
   const response = await route('/api/puzzles', 'POST');
 

@@ -17,11 +17,14 @@ import {
   miniXiangqiPuzzleById,
   miniXiangqiPuzzleSideToMove,
 } from '@mistboard/game';
+import { currentAccountUser } from '../account-session.js';
+import { getUserPuzzleRating, recordPuzzleAttempt } from '../persistence-puzzle-ratings.js';
 import {
   currentDailyPuzzleDay,
   getOrCreateDailyPuzzleSelection,
   parseDailyPuzzleSlot,
 } from '../persistence-puzzles.js';
+import { seedPuzzleRating } from '../puzzle-rating.js';
 import { type HttpApiContext, readJsonBody, requireMethod, writeJson } from './lib.js';
 
 // The public puzzle surface spans the Mini/Drop-Mini registry and the Fortress
@@ -90,6 +93,30 @@ export async function tryHandle(
     return true;
   }
 
+  // The signed-in user's puzzle rating for a variant (null when unrated / anon).
+  // Checked before the `:id` detail route so "rating" is not read as a puzzle id.
+  if (pathname === '/api/puzzles/rating') {
+    if (!requireMethod(request, response, 'GET')) return true;
+    const variant = parsePuzzleVariant(parsedUrl.searchParams.get('variant'));
+    if (variant === 'invalid' || variant === null) {
+      writeJson(response, 400, { error: 'invalid_variant' });
+      return true;
+    }
+    const user = await currentAccountUser(request);
+    const rating = user ? await getUserPuzzleRating(user.id, variant) : null;
+    writeJson(response, 200, {
+      rating: rating
+        ? {
+            rating: rating.rating,
+            provisional: rating.provisional,
+            solved: rating.solved,
+            attempts: rating.attempts,
+          }
+        : null,
+    });
+    return true;
+  }
+
   const attemptMatch = pathname.match(/^\/api\/puzzles\/([^/]+)\/attempt$/);
   if (attemptMatch) {
     if (!requireMethod(request, response, 'POST')) return true;
@@ -104,7 +131,9 @@ export async function tryHandle(
       writeJson(response, 400, { error: 'invalid_moves' });
       return true;
     }
-    writeJson(response, 200, { attempt: attemptPuzzle(puzzle, moves) });
+    const attempt = attemptPuzzle(puzzle, moves);
+    const rating = await recordAttemptRating(request, puzzle, attempt, body.rated !== false);
+    writeJson(response, 200, { attempt, ...(rating ? { rating } : {}) });
     return true;
   }
 
@@ -135,6 +164,53 @@ function attemptPuzzle(puzzle: PublicPuzzle, moves: PublicPuzzleMove[]) {
   return puzzle.variant === FORTRESS_XIANGQI_SPEC_ID
     ? attemptFortressXiangqiPuzzleLine(puzzle, moves as FortressXiangqiMove[])
     : attemptMiniXiangqiPuzzleLine(puzzle, moves as MiniXiangqiPuzzleMove[]);
+}
+
+type PuzzleAttempt = ReturnType<typeof attemptPuzzle>;
+
+type PuzzleAttemptRating = {
+  userRating: number;
+  delta: number;
+  provisional: boolean;
+  ratingChanged: boolean;
+  firstAttempt: boolean;
+};
+
+// true = solved, false = a genuine wrong answer, null = not a terminal outcome
+// (a correct-but-incomplete move on a multi-move puzzle, or a malformed submit).
+function attemptOutcome(attempt: PuzzleAttempt): boolean | null {
+  if (attempt.ok) return attempt.complete ? true : null;
+  return attempt.code === 'incorrect-move' ? false : null;
+}
+
+// Record + rate the outcome for a signed-in user, once per (user, puzzle). Anon
+// users, non-terminal moves, and persistence-off all return null (no rating).
+async function recordAttemptRating(
+  request: IncomingMessage,
+  puzzle: PublicPuzzle,
+  attempt: PuzzleAttempt,
+  rated: boolean,
+): Promise<PuzzleAttemptRating | null> {
+  const outcome = attemptOutcome(attempt);
+  if (outcome === null) return null;
+  const user = await currentAccountUser(request);
+  if (!user) return null;
+  const result = await recordPuzzleAttempt({
+    userId: user.id,
+    puzzleId: puzzle.id,
+    variant: puzzle.variant,
+    solved: outcome,
+    rated,
+    seedRating: seedPuzzleRating(puzzle.solution.length),
+  });
+  if (!result) return null;
+  return {
+    userRating: result.userRating,
+    delta: result.userRatingDelta,
+    provisional: result.provisional,
+    ratingChanged: result.ratingChanged,
+    firstAttempt: result.firstAttempt,
+  };
 }
 
 function parsePuzzleVariant(value: string | null): PublicPuzzleVariant | null | 'invalid' {
