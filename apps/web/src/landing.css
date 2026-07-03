@@ -13,13 +13,13 @@
   display: grid;
   /* Cap the center track at the board width so the board fills it (no centering
      slack), and keep a narrow slit between columns like lichess. */
-  grid-template-columns: minmax(300px, 320px) minmax(0, 660px) minmax(300px, 320px);
+  grid-template-columns: minmax(300px, 340px) minmax(0, 660px) minmax(300px, 340px);
   grid-template-areas: "left center right";
-  gap: clamp(8px, 0.7vw, 11px);
+  gap: clamp(10px, 0.9vw, 15px);
   align-items: start;
   justify-content: center;
   width: 100%;
-  max-width: 1320px;
+  max-width: 1400px;
   margin: 0 auto;
 }
 
