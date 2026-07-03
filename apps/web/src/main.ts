@@ -152,6 +152,8 @@ const wantsVariantMarksLab = import.meta.env.DEV && path === '/variant-marks';
 const wantsSoundLab = import.meta.env.DEV && path === '/sound-lab';
 // Hidden DEV-only variant sheet: every variant's opening in the showcase widget.
 const wantsShowcaseSheet = import.meta.env.DEV && path === '/showcase-sheet';
+// Hidden DEV-only postgame sheet: every native review page with a watch-feed sample.
+const wantsPostgameSheet = import.meta.env.DEV && path === '/postgame-sheet';
 // Hidden DEV-only Fog-of-War game deep-dive reader (replay triptych + prose
 // annotation panel). No nav entry; pilot for the game-analysis article series.
 const wantsDeepDive = import.meta.env.DEV && path === '/deepdive';
@@ -305,6 +307,11 @@ if (replaySample) {
   setTitle('Showcase sheet');
   void mountOrReport(() =>
     import('./showcase-sheet.js').then(({ mountShowcaseSheet }) => mountShowcaseSheet(appRoot)),
+  );
+} else if (wantsPostgameSheet) {
+  setTitle('Postgame sheet');
+  void mountOrReport(() =>
+    import('./postgame-sheet.js').then(({ mountPostgameSheet }) => mountPostgameSheet(appRoot)),
   );
 } else if (wantsSoundLab) {
   setTitle('Sound lab');
