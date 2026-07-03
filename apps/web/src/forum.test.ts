@@ -311,11 +311,8 @@ describe('forum pages', () => {
         ?.textContent,
     ).toBe('1');
     const pagers = Array.from(root.querySelectorAll<HTMLElement>('.forum-pager'));
-    expect(pagers).toHaveLength(2);
-    expect(pagers.map((pager) => pager.getAttribute('aria-label'))).toEqual([
-      'Forum topic pages',
-      'Forum topic pages',
-    ]);
+    expect(pagers).toHaveLength(1);
+    expect(pagers[0]?.getAttribute('aria-label')).toBe('Forum topic pages');
     expect(pagers[0]?.querySelector('.forum-pager-current')?.textContent).toBe('2');
     const pageLinks = Array.from(
       pagers[0]?.querySelectorAll<HTMLAnchorElement>('.forum-pager-link') ?? [],
@@ -325,6 +322,80 @@ describe('forum pages', () => {
       '/forum/general-discussion',
       '/forum/general-discussion?page=3',
     ]);
+    expect(root.querySelector('.forum-topic-autopager')).not.toBeNull();
+  });
+
+  it('auto-loads the next topic page when the list sentinel becomes visible', async () => {
+    const fetchedUrls: string[] = [];
+    window.history.pushState(null, '', '/forum/general-discussion');
+    const observed: Element[] = [];
+    let intersect: (() => void) | undefined;
+    class FakeIntersectionObserver {
+      constructor(callback: (entries: Array<{ isIntersecting: boolean }>) => void) {
+        intersect = () => {
+          callback([{ isIntersecting: true }]);
+        };
+      }
+      observe(target: Element): void {
+        observed.push(target);
+      }
+      unobserve(): void {}
+      disconnect(): void {}
+    }
+    vi.stubGlobal('IntersectionObserver', FakeIntersectionObserver);
+    const topicsForOffset = (offset: number, count: number) =>
+      Array.from({ length: count }, (_, index) => ({
+        ...topic,
+        id: `topic_auto_${offset + index}`,
+        title: `Auto topic ${offset + index}`,
+        slug: `auto-topic-${offset + index}`,
+      }));
+    vi.spyOn(globalThis, 'fetch').mockImplementation(async (input) => {
+      const url = String(input);
+      fetchedUrls.push(url);
+      if (url.startsWith('/api/forum/categories')) return json({ categories });
+      if (url.startsWith('/api/forum/topics')) {
+        const offset = Number(new URL(url, 'http://localhost').searchParams.get('offset') ?? '0');
+        return json({ topics: topicsForOffset(offset, offset === 0 ? 26 : 4) });
+      }
+      if (url.startsWith('/api/auth/me')) return json({ user: null });
+      throw new Error(`unexpected fetch ${url}`);
+    });
+    const root = document.createElement('div');
+    // The auto-pager ignores intersections while detached, so mount for real.
+    document.body.append(root);
+    const { mountForum } = await import('./forum.js');
+
+    await mountForum(root);
+    try {
+      expect(root.querySelectorAll('.forum-topic-row:not(.forum-topic-list-header)')).toHaveLength(
+        25,
+      );
+      expect(root.querySelector('.forum-pager')).toBeNull();
+      const sentinel = root.querySelector('.forum-topic-autopager');
+      expect(sentinel).not.toBeNull();
+      expect(observed).toContain(sentinel);
+
+      intersect?.();
+      await vi.waitFor(() => {
+        expect(fetchedUrls).toContain(
+          '/api/forum/topics?category=general-discussion&limit=26&offset=25',
+        );
+      });
+      await vi.waitFor(() => {
+        expect(
+          root.querySelectorAll('.forum-topic-row:not(.forum-topic-list-header)'),
+        ).toHaveLength(29);
+      });
+      // The short second page ends the list: the sentinel unmounts.
+      expect(root.querySelector('.forum-topic-autopager')).toBeNull();
+      expect(root.querySelector<HTMLAnchorElement>('.forum-topic-title')?.textContent).toBe(
+        'Auto topic 0',
+      );
+    } finally {
+      root.remove();
+      vi.unstubAllGlobals();
+    }
   });
 
   it('renders backend forum search with paginated result URLs', async () => {

@@ -212,8 +212,6 @@ export async function mountForum(root: HTMLElement): Promise<void> {
   } else {
     panel.append(forumHomeHeader(searchQuery, user), categoryIndex(categories));
   }
-  const showsTopics = Boolean(searchQuery || selectedCategory);
-  const needsTopicPager = showsTopics && (topicPage > 1 || hasNextPage);
   const topicPageOptions = {
     categorySlug: searchQuery ? null : categoryFilter,
     searchQuery,
@@ -221,8 +219,9 @@ export async function mountForum(root: HTMLElement): Promise<void> {
     hasNext: hasNextPage,
     hasPrevious: topicPage > 1,
   };
-  if (needsTopicPager) panel.append(topicPager(topicPageOptions));
   if (searchQuery) {
+    const needsPager = topicPage > 1 || hasNextPage;
+    if (needsPager) panel.append(topicPager(topicPageOptions));
     panel.append(
       postSearchResults(
         visibleSearchPosts,
@@ -230,20 +229,33 @@ export async function mountForum(root: HTMLElement): Promise<void> {
         topicPage > 1 ? 'No forum posts on this page.' : 'No forum posts matched.',
       ),
     );
+    if (needsPager) panel.append(topicPager(topicPageOptions));
   } else if (selectedCategory) {
-    panel.append(
-      topicList(
-        visibleTopics,
-        topicPage > 1
-          ? 'No forum topics on this page.'
-          : searchQuery
-            ? 'No forum topics matched.'
-            : undefined,
-        { showCategory: !selectedCategory },
-      ),
+    // Category pages auto-paginate on scroll when the browser supports it;
+    // pager links remain as the fallback and as the way back to earlier pages.
+    const autoPages = typeof IntersectionObserver === 'function';
+    const needsPagerLinks = topicPage > 1 || hasNextPage;
+    if (needsPagerLinks && (!autoPages || topicPage > 1)) {
+      panel.append(topicPager(topicPageOptions));
+    }
+    const list = topicList(
+      visibleTopics,
+      topicPage > 1 ? 'No forum topics on this page.' : undefined,
     );
+    panel.append(list);
+    if (autoPages && hasNextPage) {
+      panel.append(
+        topicAutoPager({
+          list,
+          categorySlug: selectedCategory.slug,
+          page: topicPage,
+          renderedTopicIds: new Set(visibleTopics.map((topic) => topic.id)),
+        }),
+      );
+    } else if (needsPagerLinks && !autoPages) {
+      panel.append(topicPager(topicPageOptions));
+    }
   }
-  if (needsTopicPager) panel.append(topicPager(topicPageOptions));
 
   body.replaceChildren(panel);
 }
@@ -555,7 +567,8 @@ function topicHeader(topic: ForumTopicDetail, user: AuthUser | null): HTMLElemen
   if (canReportForumContent(topic.author, user)) titleRow.append(topicReportButton(topic));
   const meta = document.createElement('p');
   meta.className = 'forum-sub';
-  meta.textContent = `${topic.category.name} · ${topic.postCount} ${topic.postCount === 1 ? 'post' : 'posts'} · last activity ${formatDate(topic.lastPostAt)}`;
+  meta.textContent = `${topic.category.name} · ${topic.postCount} ${topic.postCount === 1 ? 'post' : 'posts'} · last activity ${formatTimeAgo(topic.lastPostAt)}`;
+  meta.title = formatDateTime(topic.lastPostAt);
   header.append(titleRow, meta);
   return header;
 }
@@ -652,7 +665,7 @@ function topicListHeader(): HTMLElement {
   const row = document.createElement('div');
   row.className = 'forum-topic-row forum-topic-list-header';
   row.append(
-    indexCell('Topic', 'forum-topic-row-main'),
+    indexCell('', 'forum-topic-row-main'),
     indexCell('Replies', 'forum-topic-row-replies'),
     indexCell('Last post', 'forum-topic-row-latest'),
   );
@@ -697,7 +710,8 @@ function postSearchResultRow(result: ForumPostSearchResult): HTMLElement {
   meta.className = 'forum-search-meta';
   const time = document.createElement('a');
   time.href = postHref(result.topic, result.post.id, result.post.page);
-  time.textContent = formatDate(result.createdAt);
+  time.textContent = formatTimeAgo(result.createdAt);
+  time.title = formatDateTime(result.createdAt);
   meta.append(time, document.createElement('br'));
   meta.append(
     document.createTextNode('by '),
@@ -723,6 +737,91 @@ function topicPager(options: {
     hrefForPage: (page) =>
       forumHref({ categorySlug: options.categorySlug, searchQuery: options.searchQuery }, page),
   });
+}
+
+function topicAutoPager(options: {
+  list: HTMLElement;
+  categorySlug: string;
+  page: number;
+  renderedTopicIds: Set<string>;
+}): HTMLElement {
+  const wrap = document.createElement('div');
+  wrap.className = 'forum-topic-autopager';
+  const status = document.createElement('div');
+  status.className = 'forum-topic-autopager-status';
+  const spinner = document.createElement('span');
+  spinner.className = 'site-loading-mark forum-autopager-spinner';
+  spinner.setAttribute('role', 'status');
+  spinner.setAttribute('aria-label', 'Loading more topics');
+  status.append(spinner);
+  status.hidden = true;
+  wrap.append(status);
+
+  let nextPage = options.page + 1;
+  let loading = false;
+  const observer = new IntersectionObserver(
+    (entries) => {
+      if (entries.some((entry) => entry.isIntersecting)) void loadNextPage();
+    },
+    { rootMargin: '480px 0px' },
+  );
+  // Scroll fallback: guards against missed observer entries so the list keeps
+  // loading even if the browser never re-fires for a sentinel that stayed in
+  // view. Cheap because loadNextPage no-ops while a fetch is in flight.
+  const onScroll = () => {
+    if (wrap.getBoundingClientRect().top < window.innerHeight + 480) void loadNextPage();
+  };
+  window.addEventListener('scroll', onScroll, { passive: true });
+  const finish = (replacement?: HTMLElement) => {
+    observer.disconnect();
+    window.removeEventListener('scroll', onScroll);
+    if (replacement) wrap.replaceWith(replacement);
+    else wrap.remove();
+  };
+  const loadNextPage = async (): Promise<void> => {
+    if (loading || !wrap.isConnected) return;
+    loading = true;
+    status.hidden = false;
+    try {
+      const rows = await fetchForumTopics({
+        categorySlug: options.categorySlug,
+        limit: topicListPageSize + 1,
+        offset: (nextPage - 1) * topicListPageSize,
+      });
+      for (const topic of rows.slice(0, topicListPageSize)) {
+        if (options.renderedTopicIds.has(topic.id)) continue;
+        options.renderedTopicIds.add(topic.id);
+        const row = topicRow(topic);
+        row.classList.add('forum-topic-row-appended');
+        options.list.append(row);
+      }
+      if (rows.length > topicListPageSize) {
+        nextPage += 1;
+        // Re-observing forces a fresh intersection entry, so a sentinel that
+        // is still inside the viewport keeps loading without a scroll event.
+        observer.unobserve(wrap);
+        observer.observe(wrap);
+      } else {
+        finish();
+      }
+    } catch {
+      // Fall back to pager links so navigation still works.
+      finish(
+        topicPager({
+          categorySlug: options.categorySlug,
+          searchQuery: null,
+          page: nextPage - 1,
+          hasPrevious: nextPage > 2,
+          hasNext: true,
+        }),
+      );
+    } finally {
+      loading = false;
+      status.hidden = true;
+    }
+  };
+  observer.observe(wrap);
+  return wrap;
 }
 
 function postPager(options: {
@@ -803,15 +902,8 @@ function topicRow(topic: ForumTopicSummary, options: { showCategory?: boolean } 
   const pageLinks = topicInlinePageLinks(topic);
   if (pageLinks) titleLine.append(pageLinks);
 
-  const meta = document.createElement('p');
-  meta.className = 'forum-topic-meta';
-  meta.append(
-    document.createTextNode('Started by '),
-    authorProfileLink(topic.author, 'forum-topic-author'),
-    document.createTextNode(` · ${formatDate(topic.createdAt)}`),
-  );
   if (flags.childElementCount > 0) main.append(flags);
-  main.append(titleLine, meta);
+  main.append(titleLine);
 
   const replies = document.createElement('span');
   replies.className = 'forum-topic-row-replies';
@@ -823,13 +915,18 @@ function topicRow(topic: ForumTopicSummary, options: { showCategory?: boolean } 
     const latest = document.createElement('a');
     latest.className = 'forum-topic-latest-link';
     latest.href = postHref(topic, topic.latestPost.post.id, pageForPostCount(topic.postCount));
-    latest.textContent = formatDate(topic.latestPost.createdAt);
-    appendLatestPostMeta(latestCell, topic.latestPost.author, topic.latestPost.createdAt, {
-      authorClassName: 'forum-topic-author',
-      dateNode: latest,
-    });
+    latest.textContent = formatTimeAgo(topic.latestPost.createdAt);
+    latest.title = formatDateTime(topic.latestPost.createdAt);
+    const by = document.createElement('span');
+    by.className = 'forum-topic-latest-by';
+    by.append(
+      document.createTextNode('by '),
+      authorProfileLink(topic.latestPost.author, 'forum-topic-author'),
+    );
+    latestCell.append(latest, by);
   } else {
-    latestCell.textContent = formatDate(topic.lastPostAt);
+    latestCell.textContent = formatTimeAgo(topic.lastPostAt);
+    latestCell.title = formatDateTime(topic.lastPostAt);
   }
 
   row.append(main, replies, latestCell);
@@ -992,30 +1089,36 @@ function postList(
     const article = document.createElement('article');
     article.className = 'forum-post';
     article.id = postDomId(post.id);
-    const author = postAuthorRail(post.author);
     const content = document.createElement('div');
     content.className = 'forum-post-content';
-    const meta = document.createElement('p');
-    meta.className = 'forum-post-meta';
     const body = document.createElement('div');
     body.className = 'forum-post-body';
     renderPostBodyInto(body, post.bodyText);
     const edited = postEditedLabel(post);
-    meta.append(postPermalink(topic, post, page, `#${postNumber}`));
-    meta.append(document.createTextNode(` · ${formatDate(post.createdAt)}`));
-    if (user && !topic.locked) {
-      meta.append(document.createTextNode(' · '), postQuoteButton(post));
-    }
+
+    // Single header line like lichess: author chip, relative time, then
+    // actions that stay invisible until the post is hovered or focused.
+    const header = document.createElement('div');
+    header.className = 'forum-post-header';
+    const time = document.createElement('a');
+    time.className = 'forum-post-time';
+    time.href = postHref(topic, post.id, page);
+    time.textContent = formatTimeAgo(post.createdAt);
+    time.title = formatDateTime(post.createdAt);
+    const actions = document.createElement('span');
+    actions.className = 'forum-post-actions';
+    if (user && !topic.locked) actions.append(postQuoteButton(post));
     if (canEditPost(post, user) && !topic.locked) {
-      meta.append(document.createTextNode(' · '), postEditButton(post, body, edited));
+      actions.append(postEditButton(post, body, edited));
     }
-    if (canReportForumContent(post.author, user)) {
-      meta.append(document.createTextNode(' · '), postReportButton(post));
-    }
-    meta.append(edited);
-    content.append(meta, body);
+    if (canReportForumContent(post.author, user)) actions.append(postReportButton(post));
+    header.append(postAuthorRail(post.author), time, edited);
+    if (actions.childElementCount > 0) header.append(actions);
+    header.append(postPermalink(topic, post, page, `#${postNumber}`));
+
+    content.append(body);
     if (user?.accountRole === 'admin') content.append(postModerationBox(post));
-    article.append(author, content);
+    article.append(header, content);
     wrap.append(article);
   }
   return wrap;
@@ -1190,7 +1293,8 @@ function postEditedLabel(post: ForumPost): HTMLElement {
 function updatePostEditedLabel(label: HTMLElement, post: ForumPost): void {
   const edited = post.updatedAt !== post.createdAt;
   label.hidden = !edited;
-  label.textContent = edited ? ` · edited ${formatDate(post.updatedAt)}` : '';
+  label.textContent = edited ? `edited ${formatTimeAgo(post.updatedAt)}` : '';
+  if (edited) label.title = formatDateTime(post.updatedAt);
 }
 
 function insertPostQuote(post: ForumPost): void {
@@ -1480,11 +1584,30 @@ function forumMarkdownNote(): HTMLElement {
   markdown.target = '_blank';
   markdown.rel = 'nofollow noopener noreferrer';
   markdown.textContent = 'Markdown';
+  const formatting = document.createElement('span');
+  formatting.append(markdown, document.createTextNode(' is available for formatting.'));
   const etiquette = document.createElement('a');
+  etiquette.className = 'forum-form-note-etiquette';
   etiquette.href = '/forum/feedback';
-  etiquette.textContent = 'forum etiquette';
-  note.append(markdown, document.createTextNode(' is available for formatting. '), etiquette);
+  etiquette.append(forumInfoIcon(), document.createTextNode('forum etiquette'));
+  note.append(formatting, etiquette);
   return note;
+}
+
+function forumInfoIcon(): SVGSVGElement {
+  const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+  svg.classList.add('forum-info-icon');
+  svg.setAttribute('viewBox', '0 0 16 16');
+  svg.setAttribute('aria-hidden', 'true');
+  svg.setAttribute('focusable', 'false');
+  const circle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+  circle.setAttribute('cx', '8');
+  circle.setAttribute('cy', '8');
+  circle.setAttribute('r', '7');
+  const dot = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+  dot.setAttribute('d', 'M8 4.2a1 1 0 1 1 0 2 1 1 0 0 1 0-2Zm-1 3.4h2v4.6H7Z');
+  svg.append(circle, dot);
+  return svg;
 }
 
 async function submitTopic(
@@ -1973,13 +2096,16 @@ function appendLatestPostMeta(
   parent: HTMLElement,
   author: ForumAuthor,
   createdAt: string,
-  options: { authorClassName: string; dateNode?: Node },
+  options: { authorClassName: string },
 ): void {
+  const date = document.createElement('span');
+  date.textContent = formatTimeAgo(createdAt);
+  date.title = formatDateTime(createdAt);
   parent.append(
     document.createTextNode('by '),
     authorProfileLink(author, options.authorClassName),
     document.createTextNode(' · '),
-    options.dateNode ?? document.createTextNode(formatDate(createdAt)),
+    date,
   );
 }
 
@@ -2003,6 +2129,31 @@ function formatDate(iso: string): string {
     day: 'numeric',
     year: 'numeric',
   });
+}
+
+function formatDateTime(iso: string): string {
+  const date = new Date(iso);
+  if (!Number.isFinite(date.getTime())) return iso;
+  return date.toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' });
+}
+
+function formatTimeAgo(iso: string): string {
+  const timestamp = new Date(iso).getTime();
+  if (!Number.isFinite(timestamp)) return formatDate(iso);
+  const seconds = Math.max(0, Math.floor((Date.now() - timestamp) / 1000));
+  if (seconds < 60) return 'just now';
+  const minutes = Math.floor(seconds / 60);
+  if (minutes < 60) return timeAgoLabel(minutes, 'minute');
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return timeAgoLabel(hours, 'hour');
+  const days = Math.floor(hours / 24);
+  if (days < 30) return timeAgoLabel(days, 'day');
+  if (days < 365) return timeAgoLabel(Math.floor(days / 30), 'month');
+  return timeAgoLabel(Math.floor(days / 365), 'year');
+}
+
+function timeAgoLabel(value: number, unit: string): string {
+  return `${value} ${unit}${value === 1 ? '' : 's'} ago`;
 }
 
 function pageFromParam(value: string | null): number {

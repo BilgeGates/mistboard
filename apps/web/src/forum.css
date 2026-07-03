@@ -2,6 +2,14 @@
   max-width: 1100px;
 }
 
+/* Author display rules (e.g. .forum-form { display: grid }) beat the UA
+   [hidden] rule, so toggled elements like the topic composer would render
+   expanded without this guard. Keep forum display rules at single-class
+   specificity so this selector stays the winner. */
+.forum-shell [hidden] {
+  display: none;
+}
+
 .forum-header {
   display: grid;
   gap: 8px;
@@ -153,7 +161,6 @@
 }
 
 .forum-category-card p,
-.forum-topic-meta,
 .forum-post-meta,
 .forum-form-note {
   margin: 4px 0 0;
@@ -347,13 +354,33 @@ a.forum-category-index-main:focus-visible strong {
   white-space: nowrap;
 }
 
+.forum-topic-list-header .forum-topic-row-replies,
+.forum-topic-list-header .forum-topic-row-latest {
+  display: block;
+  color: inherit;
+  font-size: inherit;
+  font-weight: inherit;
+}
+
 .forum-topic-row-latest {
+  display: grid;
+  gap: 2px;
+  justify-items: start;
   overflow: hidden;
   color: var(--site-muted);
   font-size: 13px;
   line-height: 1.35;
+}
+
+.forum-topic-row-latest > * {
+  max-width: 100%;
+  overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.forum-topic-latest-by {
+  color: var(--site-muted);
 }
 
 .forum-topic-flags {
@@ -447,6 +474,42 @@ a.forum-topic-title:focus-visible,
   gap: 6px;
   align-items: center;
   justify-content: center;
+}
+
+.forum-topic-autopager {
+  min-height: 1px;
+}
+
+.forum-topic-autopager-status {
+  display: grid;
+  justify-items: center;
+  margin: 0;
+  padding: 16px;
+}
+
+/* Reuses .site-loading-mark for the ring + spin + reduced-motion handling;
+   this only sizes it down for the list footer. */
+.forum-autopager-spinner {
+  width: 22px;
+  height: 22px;
+  border-width: 2px;
+}
+
+.forum-topic-row-appended {
+  animation: forum-row-fade-in 0.3s ease both;
+}
+
+@keyframes forum-row-fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .forum-topic-row-appended {
+    animation: none;
+  }
 }
 
 .forum-pager-link,
@@ -565,6 +628,51 @@ a.forum-post-author-name:focus-visible {
 .forum-post-body a:focus-visible {
   color: var(--site-link);
   text-decoration: underline;
+}
+
+.forum-post-header {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: center;
+  min-width: 0;
+  font-size: 13px;
+}
+
+.forum-post-time {
+  color: var(--site-accent-strong);
+  text-decoration: none;
+}
+
+.forum-post-time:hover,
+.forum-post-time:focus-visible {
+  color: var(--site-link);
+  text-decoration: underline;
+}
+
+/* Quote/Edit/Report stay invisible until the post is hovered or holds
+   keyboard focus (lichess reveals its post actions the same way). */
+.forum-post-actions {
+  display: inline-flex;
+  gap: 12px;
+  align-items: center;
+  opacity: 0;
+  transition: opacity 0.12s ease;
+}
+
+.forum-post:hover .forum-post-actions,
+.forum-post:focus-within .forum-post-actions {
+  opacity: 1;
+}
+
+.forum-post-header .forum-post-permalink {
+  margin-left: auto;
+  color: var(--site-muted);
+  font-weight: 400;
+}
+
+.forum-post-edited {
+  color: var(--site-muted);
 }
 
 .forum-post-permalink {
@@ -809,7 +917,9 @@ a.forum-post-author-name:focus-visible {
   resize: vertical;
 }
 
-.forum-form button {
+/* Submit buttons only: the write/preview composer tabs are also <button>s
+   inside .forum-form and keep their own tab styling. */
+.forum-form button[type="submit"] {
   justify-self: start;
   border: 1px solid var(--site-accent);
   border-radius: var(--site-radius-sm);
@@ -821,13 +931,13 @@ a.forum-post-author-name:focus-visible {
   padding: 9px 14px;
 }
 
-.forum-form button:hover:not(:disabled),
-.forum-form button:focus-visible {
+.forum-form button[type="submit"]:hover:not(:disabled),
+.forum-form button[type="submit"]:focus-visible {
   background: var(--site-accent-strong);
   border-color: var(--site-accent-strong);
 }
 
-.forum-form button:disabled {
+.forum-form button[type="submit"]:disabled {
   cursor: default;
   opacity: 0.65;
 }
@@ -1100,7 +1210,7 @@ a.forum-post-author-name:focus-visible {
   --site-heading: var(--forum-heading);
   --site-link: var(--forum-link);
   --site-muted: var(--forum-muted);
-  --site-nav-bg: transparent;
+  --site-nav-bg: var(--forum-page-top);
   --site-nav-border: transparent;
   --site-panel: var(--forum-panel-bg);
   --site-panel-soft: var(--forum-row-alt-bg);
@@ -1141,8 +1251,11 @@ a.forum-post-author-name:focus-visible {
   --site-focus: rgba(54, 146, 231, 0.26);
 }
 
+/* The nav is sticky: it needs a solid background or content scrolls visibly
+   behind it. The page-top gradient color keeps it seamless at the top of the
+   page. (Future: hide-on-scroll like lichess.) */
 .forum-route .site-nav {
-  background: transparent;
+  background: var(--forum-page-top);
   border-bottom-color: transparent;
 }
 
@@ -1193,6 +1306,23 @@ a.forum-post-author-name:focus-visible {
 .forum-panel-title-row,
 .forum-topic-title-row {
   gap: clamp(18px, 2.4vw, 34px);
+}
+
+/* Keep Edit/Report on the title line; the heading wraps internally instead
+   of pushing the actions onto their own row. */
+.forum-topic-title-row {
+  flex-wrap: nowrap;
+}
+
+.forum-topic-title-row .site-section-heading {
+  flex: 0 1 auto;
+  min-width: 0;
+}
+
+.forum-topic-title-row .forum-topic-edit,
+.forum-topic-title-row .forum-topic-report {
+  flex: none;
+  white-space: nowrap;
 }
 
 .forum-panel-title {
@@ -1398,7 +1528,8 @@ a.forum-post-author-name:focus-visible {
 .forum-category-latest-author,
 .forum-topic-latest-link,
 .forum-topic-author,
-.forum-topic-page-link {
+.forum-topic-page-link,
+.forum-post-time {
   color: var(--forum-link);
 }
 
@@ -1411,7 +1542,9 @@ a.forum-post-author-name:focus-visible {
 .forum-topic-author:hover,
 .forum-topic-author:focus-visible,
 .forum-topic-page-link:hover,
-.forum-topic-page-link:focus-visible {
+.forum-topic-page-link:focus-visible,
+.forum-post-time:hover,
+.forum-post-time:focus-visible {
   color: var(--forum-link-hover);
   text-decoration: underline;
 }
@@ -1517,7 +1650,6 @@ a.forum-post-author-name:focus-visible {
   font-weight: 500;
 }
 
-.forum-topic-meta,
 .forum-topic-row-latest {
   color: var(--forum-muted);
 }
@@ -1527,7 +1659,8 @@ a.forum-post-author-name:focus-visible {
 }
 
 .forum-topic-panel {
-  max-width: 1230px;
+  /* Lichess keeps its thread column near 1000px; wider reads poorly. */
+  max-width: 1000px;
   margin: 0 auto;
 }
 
@@ -1644,8 +1777,9 @@ a.forum-post-author-name:focus-visible {
 
 .forum-composer-tab,
 .forum-reply-tab {
-  min-width: 140px;
-  border: 1px solid var(--site-border);
+  min-width: 130px;
+  margin-bottom: -1px;
+  border: 1px solid transparent;
   border-bottom: 0;
   border-radius: 7px 7px 0 0;
   background: transparent;
@@ -1656,8 +1790,21 @@ a.forum-post-author-name:focus-visible {
   padding: 12px 18px;
 }
 
+.forum-composer-tab:hover,
+.forum-composer-tab:focus-visible,
+.forum-reply-tab:hover,
+.forum-reply-tab:focus-visible {
+  color: var(--site-text);
+}
+
+/* Active tab reads as part of the writing surface: bordered on three sides
+   and overlapping the textarea's top border (lichess styles its Write tab
+   the same way). Inactive tabs are plain muted text. */
 .forum-composer-tab-active,
 .forum-reply-tab-active {
+  position: relative;
+  z-index: 1;
+  border-color: var(--site-border);
   background: var(--site-panel);
   color: var(--site-text);
 }
@@ -1692,6 +1839,18 @@ a.forum-post-author-name:focus-visible {
 .forum-reply-footer button {
   justify-self: end;
   margin-left: auto;
+  font-size: 13px;
+  letter-spacing: 0.04em;
+  padding: 11px 22px;
+  text-transform: uppercase;
+}
+
+.forum-form-note {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: center;
+  justify-content: space-between;
 }
 
 .forum-form-note a {
@@ -1702,6 +1861,25 @@ a.forum-post-author-name:focus-visible {
 .forum-form-note a:hover,
 .forum-form-note a:focus-visible {
   text-decoration: underline;
+}
+
+.forum-form-note-etiquette {
+  display: inline-flex;
+  gap: 6px;
+  align-items: center;
+}
+
+.forum-info-icon {
+  width: 15px;
+  height: 15px;
+}
+
+.forum-info-icon circle {
+  fill: var(--site-link);
+}
+
+.forum-info-icon path {
+  fill: var(--site-panel);
 }
 
 @media (max-width: 900px) {
