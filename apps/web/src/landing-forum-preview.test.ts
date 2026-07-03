@@ -5,26 +5,38 @@ describe('landing forum preview', () => {
     vi.restoreAllMocks();
   });
 
-  it('hydrates the homepage forum box with recent active topics', async () => {
+  it('hydrates the homepage forum box with one link-line per latest post', async () => {
     const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue(
       new Response(
         JSON.stringify({
-          topics: [
+          posts: [
             {
-              id: 'topic_1',
-              slug: 'first-topic',
-              title: 'First topic',
-              category: { slug: 'strategy', name: 'Strategy' },
-              author: { handle: 'bob', displayName: 'Bob' },
-              postCount: 2,
-              lastPostAt: '2026-06-01T00:00:00.000Z',
-              latestPost: {
-                post: {
-                  id: 'post_1',
-                },
-                author: { handle: 'alice', displayName: 'Alice' },
-                createdAt: '2026-06-01T00:00:00.000Z',
+              post: {
+                id: 'post_2',
+                page: 2,
+                snippet: 'Developing knights first keeps more fog pressure.',
               },
+              topic: {
+                id: 'topic_1',
+                slug: 'first-topic',
+                title: 'First topic',
+              },
+              author: { handle: 'alice', displayName: 'Alice' },
+              createdAt: '2026-06-01T00:05:00.000Z',
+            },
+            {
+              post: {
+                id: 'post_1',
+                page: 1,
+                snippet: 'I like opening with central pawns.',
+              },
+              topic: {
+                id: 'topic_1',
+                slug: 'first-topic',
+                title: 'First topic',
+              },
+              author: null,
+              createdAt: '2026-06-01T00:00:00.000Z',
             },
           ],
         }),
@@ -36,24 +48,18 @@ describe('landing forum preview', () => {
     const box = buildLandingForumPreview();
     await new Promise((resolve) => setTimeout(resolve, 0));
 
-    const header = box.querySelector<HTMLElement>('.landing-forum-header');
-    const topicRow = box.querySelector<HTMLElement>(
-      '.landing-forum-row:not(.landing-forum-header)',
-    );
-    const topicLink = box.querySelector<HTMLAnchorElement>('a.landing-forum-row-main');
-    const latestPostLink = box.querySelector<HTMLAnchorElement>('a.landing-forum-row-last-title');
-    const latestAuthorLink = box.querySelector<HTMLAnchorElement>('a.landing-forum-row-author');
-    expect(fetchSpy).toHaveBeenCalledWith('/api/forum/topics?limit=5&offset=0', {
+    expect(fetchSpy).toHaveBeenCalledWith('/api/forum/latest-posts?limit=8', {
       headers: { accept: 'application/json' },
     });
-    expect(header?.textContent).toContain('Topic');
-    expect(header?.textContent).toContain('Replies');
-    expect(topicLink?.getAttribute('href')).toBe('/forum/t/topic_1/first-topic');
-    expect(latestPostLink?.getAttribute('href')).toBe('/forum/t/topic_1/first-topic#post_post_1');
-    expect(latestAuthorLink?.getAttribute('href')).toBe('/@/alice');
-    expect(topicRow?.textContent).toContain('First topic');
-    expect(topicRow?.textContent).toContain('by Alice');
-    expect(topicRow?.textContent).toContain('Strategy');
-    expect(topicRow?.textContent).toContain('1');
+    const rows = box.querySelectorAll<HTMLAnchorElement>('a.landing-forum-post');
+    expect(rows.length).toBe(2);
+    expect(rows[0]?.getAttribute('href')).toBe('/forum/t/topic_1/first-topic?page=2#post_post_2');
+    expect(rows[0]?.textContent).toContain('First topic');
+    expect(rows[0]?.textContent).toContain('Alice');
+    expect(rows[0]?.textContent).toContain('Developing knights first keeps more fog pressure.');
+    // The row itself is the only link: no nested anchors per post.
+    expect(rows[0]?.querySelectorAll('a').length).toBe(0);
+    expect(rows[1]?.getAttribute('href')).toBe('/forum/t/topic_1/first-topic#post_post_1');
+    expect(rows[1]?.textContent).toContain('Deleted account');
   });
 });

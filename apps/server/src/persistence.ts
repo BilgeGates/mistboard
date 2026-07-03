@@ -142,6 +142,7 @@ export {
   listForumCategories,
   listForumReports,
   listForumTopics,
+  listLatestForumPosts,
   moderateForumTopic,
   moveForumTopic,
   resolveForumReport,

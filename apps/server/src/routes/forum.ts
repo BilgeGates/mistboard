@@ -157,6 +157,16 @@ export async function tryHandle(
     return true;
   }
 
+  if (pathname === '/api/forum/latest-posts') {
+    if (!requireMethod(request, response, 'GET')) return true;
+    if (!requirePersistence(response)) return true;
+    const posts = await persistence.listLatestForumPosts({
+      limit: clampInt(parsedUrl.searchParams.get('limit'), 8, 1, 20),
+    });
+    writeJson(response, 200, { posts: posts.map(serializePostSearchResult) });
+    return true;
+  }
+
   if (pathname === '/api/forum/reports') {
     if (!requireMethod(request, response, 'GET')) return true;
     if (!requirePersistence(response)) return true;
