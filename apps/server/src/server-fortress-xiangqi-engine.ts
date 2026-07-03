@@ -32,6 +32,7 @@ import {
   reportEngineMoveOk,
   resolveValidatedEngineMove,
 } from './engine-move-guard.js';
+import { budgetForMove } from './engine-time-budget.js';
 import {
   FORTRESS_XIANGQI_ENGINE_VERSION,
   fortressXiangqiEngineTierFor,
@@ -146,13 +147,23 @@ export async function playFortressXiangqiEngineMoveIfReady(
   const now = ctx.now?.() ?? Date.now();
   const clock = room.projection.clock;
   const remainingMs = clock ? tenantClockRemainingMs(clock, seat, now) : null;
+  const incrementMs = clock?.incrementMs ?? 0;
   if (remainingMs !== null && remainingMs <= 0) return;
 
   const history = fortressXiangqiUciHistory(room.events);
-  const movetimeMs =
-    remainingMs === null
-      ? tier.movetimeMs
-      : Math.max(MIN_MOVETIME_MS, Math.min(tier.movetimeMs, remainingMs - CLOCK_SAFETY_MS));
+  // Clock-aware per-move budget (shared allocator). The tier's NODE budget is the
+  // CPU-independent strength anchor and binds first on a healthy clock; this
+  // movetime is the latency ceiling + time-pressure guard. Replaces the old naive
+  // min(tier.cap, remaining - safety) clamp, which ignored the increment and the
+  // clock bank and (with a 2s cap) could bind before the 800k node budget on the
+  // slow prod vCPU — see the fortress build-track strength section.
+  const { computeBudgetMs: movetimeMs } = budgetForMove({
+    remainingMs,
+    incrementMs,
+    ceilingMs: tier.movetimeMs,
+    reserveMs: CLOCK_SAFETY_MS,
+    floorMs: MIN_MOVETIME_MS,
+  });
 
   const {
     chosen: validated,

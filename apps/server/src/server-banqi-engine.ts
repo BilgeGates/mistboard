@@ -35,6 +35,7 @@ import {
   reportEngineMoveOk,
   resolveValidatedEngineMove,
 } from './engine-move-guard.js';
+import { budgetForMove } from './engine-time-budget.js';
 import { logger } from './obs.js';
 import type { TenantLifecycleContext } from './variant-tenant/lifecycle.js';
 import { replayTenantEvents, tenantClockRemainingMs } from './variant-tenant/runtime.js';
@@ -124,15 +125,21 @@ export async function playBanqiEngineMoveIfReady(
   const now = ctx.now?.() ?? Date.now();
   const clock = room.projection.clock;
   const remainingMs = clock ? tenantClockRemainingMs(clock, seat, now) : null;
+  const incrementMs = clock?.incrementMs ?? 0;
   if (remainingMs !== null && remainingMs <= 0) return;
 
   const { fen, moves } = banqiEngineRepWindow(room);
-  // Strength = the tier's NODE budget; the movetime CAP bounds latency and is further
-  // clamped by the remaining game clock so the engine never overshoots its own time.
-  const movetimeCapMs =
-    remainingMs === null
-      ? tier.movetimeCapMs
-      : Math.max(MIN_MOVETIME_MS, Math.min(tier.movetimeCapMs, remainingMs - CLOCK_SAFETY_MS));
+  // Strength = the tier's NODE budget; this movetime is the latency CEILING + a
+  // clock-aware time-pressure guard (shared allocator). Existing ceiling preserved —
+  // behavior-neutral for untimed play; adds increment awareness + graceful shrink
+  // when timed. Replaces the old naive min(cap, remaining - safety) clamp.
+  const { computeBudgetMs: movetimeCapMs } = budgetForMove({
+    remainingMs,
+    incrementMs,
+    ceilingMs: tier.movetimeCapMs,
+    reserveMs: CLOCK_SAFETY_MS,
+    floorMs: MIN_MOVETIME_MS,
+  });
 
   // Engine-move boundary contract (see engine-move-guard.ts): bounded retries,
   // validate every output against the kernel, FAIL CLOSED (resign + page) rather

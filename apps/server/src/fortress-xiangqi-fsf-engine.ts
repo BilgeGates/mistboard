@@ -30,7 +30,10 @@ const VARIANT_INI = 'fortress-xiangqi.ini';
 export const FORTRESS_XIANGQI_DEFAULT_ENGINE_ID = 'fairy-stockfish-fortress-xiangqi-strong';
 // Engine BUILD version recorded per PvE game. Bump on any engine/config change
 // (including edits to fortress-xiangqi.ini).
-export const FORTRESS_XIANGQI_ENGINE_VERSION = '0.1.0';
+// 0.2.0: clock-aware per-move budgeting (shared budgetForMove allocator) + raise
+//        the Strongest movetime CEILING 2000->6000 so the 800k node budget binds
+//        on the slow prod vCPU (~2.4s) instead of being cut short at 2s.
+export const FORTRESS_XIANGQI_ENGINE_VERSION = '0.2.0';
 
 export type FortressXiangqiEngineTier = {
   id: string;
@@ -40,9 +43,14 @@ export type FortressXiangqiEngineTier = {
   movetimeMs: number;
 };
 
-// Tiers mirror Drop Mini Xiangqi: Skill Level weakens CPU-independently, a node
-// budget pins top-tier strength reproducibly across the slow prod vCPU, and a
-// movetime cap guards wall-clock. The 7x8 board is small; budgets are cheap.
+// Tiers mirror Drop Mini Xiangqi: Skill Level weakens CPU-independently, the NODE
+// budget pins top-tier strength reproducibly across the slow prod vCPU, and the
+// `movetimeMs` is now the CEILING handed to the shared clock-aware allocator
+// (budgetForMove) — NOT a fixed think. It must be generous enough that the node
+// budget binds on prod (measured ~333k nps on the 7x8 board: 800k nodes ≈ 2.4s),
+// so Strongest is 6000ms; the allocator shrinks below it under time pressure.
+// Amateur/Strong caps are left low because their small node budgets (6k/60k) bind
+// in well under those caps regardless.
 const FORTRESS_XIANGQI_ENGINE_TIERS = [
   {
     id: 'fairy-stockfish-fortress-xiangqi-amateur',
@@ -63,7 +71,9 @@ const FORTRESS_XIANGQI_ENGINE_TIERS = [
     name: 'Fairy Stockfish - Strongest',
     skill: 20,
     nodes: 800_000,
-    movetimeMs: 2_000,
+    // Ceiling, not fixed think: gives the 800k node budget room to bind on prod
+    // (~2.4s) instead of the old 2s cap cutting the search short.
+    movetimeMs: 6_000,
   },
 ] as const satisfies readonly FortressXiangqiEngineTier[];
 
