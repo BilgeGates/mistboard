@@ -89,14 +89,12 @@
   align-items: center;
   justify-content: center;
   gap: 3px;
-  min-height: 30px;
+  /* Fixed height whether empty or full: a collapsing empty strip would toggle the
+     board height on every ply a piece enters/leaves hand, jarring the whole UI. */
+  height: 34px;
+  min-height: 34px;
   max-width: none;
   margin-inline: auto;
-}
-
-/* Empty hand: collapse the strip so it doesn't steal board height. */
-.dark-crazyhouse-postgame-route .dczh-postgame__reserve:empty {
-  min-height: 0;
 }
 
 .dark-crazyhouse-postgame-route .dczh-postgame__reserve-piece {

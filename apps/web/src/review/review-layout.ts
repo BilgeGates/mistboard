@@ -163,12 +163,16 @@ export function mountReviewLayout(root: HTMLElement, adapter: ReviewLayoutAdapte
   setTimeout(refit, 60);
   setTimeout(refit, 260);
   window.addEventListener('resize', refit);
+  // A ResizeObserver on the stage catches the frame being shown/resized (e.g. the
+  // dev sheet iframe), but the stage also grows as captures/hands change per ply —
+  // and re-fitting on THAT would resize the board mid-scrub, jarring the UI. So
+  // only re-fit when the viewport height actually changed; per-ply content growth
+  // leaves the board size fixed (it was fit for the fullest ply).
   if (typeof ResizeObserver !== 'undefined') {
-    let lastHeight = 0;
+    let lastViewportHeight = window.innerHeight;
     const observer = new ResizeObserver(() => {
-      const height = stage.el.clientHeight;
-      if (Math.abs(height - lastHeight) < 2) return; // available height unchanged
-      lastHeight = height;
+      if (window.innerHeight === lastViewportHeight) return;
+      lastViewportHeight = window.innerHeight;
       refit();
     });
     observer.observe(stage.el);

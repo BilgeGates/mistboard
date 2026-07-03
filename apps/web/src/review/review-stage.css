@@ -40,10 +40,30 @@
   container-type: inline-size;
 }
 .review-stage .captures-strip {
-  --capture-piece-size: clamp(18px, calc((100cqw - 16px) / 12), 52px);
+  --capture-piece-size: clamp(16px, calc((100cqw - 16px) / 11), 46px);
+  max-width: 100%;
+  overflow: visible;
+  /* Grow to fit wrapped rows (default is a fixed single-row height) so a second
+     row of captures pushes the board instead of overflowing onto it. */
+  height: auto;
+  min-height: calc(var(--capture-piece-size) + 8px);
 }
-.review-stage__slot--secondary .captures-strip {
-  --capture-piece-size: clamp(10px, calc((100cqw - 8px) / 12), 24px);
+/* Secondary boards are small reference views; their captured-material / hand
+   pools are redundant with the primary board's and, on variants with lots of
+   material (reveal chess, shogi), stack taller than the mini board itself —
+   cutting off, overflowing, and squeezing the primary. Show material on the
+   primary only; the secondaries are just boards. */
+.review-stage__slot--secondary .captures-strip,
+.review-stage__slot--secondary .dsg-postgame__reserve,
+.review-stage__slot--secondary .dczh-postgame__reserve {
+  display: none;
+}
+/* Board-sized capture tiles can total wider than the board; wrap them within the
+   board width (multiple rows) instead of overflowing past the panel edge. */
+.review-stage .captures-strip .captures-row {
+  flex-wrap: wrap;
+  justify-content: center;
+  max-width: 100%;
 }
 
 /* Secondary boards promote to primary on click. */
