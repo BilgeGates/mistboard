@@ -1304,10 +1304,12 @@ describe('forum pages', () => {
     await mountForumEtiquette(root);
 
     const panel = root.querySelector('.forum-etiquette-panel');
-    expect(panel?.querySelector('.site-section-heading')?.textContent).toBe('Forum etiquette');
+    expect(panel?.querySelector('.forum-etiquette-title')?.textContent).toBe('Forum etiquette');
     expect(root.querySelector<HTMLAnchorElement>('.forum-panel-back')?.getAttribute('href')).toBe(
       '/forum',
     );
+    // Do/don't example lines render with a marker.
+    expect(root.querySelectorAll('.forum-etiquette-example').length).toBeGreaterThan(0);
     // The cheating-reports section points at the private contact page.
     const contact = Array.from(
       root.querySelectorAll<HTMLAnchorElement>('.forum-etiquette-para a'),

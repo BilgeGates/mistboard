@@ -414,39 +414,52 @@ export async function mountForumEtiquette(root: HTMLElement): Promise<void> {
 
   const panel = forumPanel('forum-etiquette-panel');
   const header = document.createElement('header');
-  header.className = 'forum-panel-header forum-header';
-  const titleRow = document.createElement('div');
-  titleRow.className = 'forum-panel-title-row';
-  titleRow.append(forumBackLink('/forum', 'Back to forum'), forumPanelTitle('Forum etiquette'));
-  header.append(titleRow);
+  header.className = 'forum-etiquette-header';
+  const heading = document.createElement('h1');
+  heading.className = 'forum-etiquette-title';
+  heading.textContent = 'Forum etiquette';
+  header.append(forumBackLink('/forum', 'Back to forum'), heading);
 
   const body = document.createElement('div');
   body.className = 'forum-etiquette-body';
   const intro = document.createElement('p');
   intro.className = 'forum-etiquette-lede';
   intro.textContent =
-    'The Mistboard forum works best when it stays useful and welcoming. A few things to keep in mind before you post.';
+    'The forum is a good place to talk dark chess with other players. Sometimes moderators have to step in and close or hide a thread. To keep your posts up, follow these guidelines.';
   body.append(
     intro,
-    etiquetteSection('Use a descriptive title', [
+    etiquetteSection('A descriptive title', [
       etiquettePara(
-        'A good title says what the thread is about. "Scouting lines in Dark Xiangqi" helps people find and answer it; "Help" or a single word does not.',
+        'A clear title says what the thread is about, so people can find and answer it.',
       ),
+      etiquetteExample('do', '"Scouting lines in Dark Xiangqi: how deep to commit?"'),
+      etiquetteExample('dont', '"Help", "Bug", "play", or a single word'),
     ]),
     etiquetteSection('Post in the right category', [
       etiquettePara(
         'Put each topic in the category that fits it. Rules questions, strategy, and general discussion each have a home. Misplaced threads may be moved or closed by moderators.',
       ),
     ]),
-    etiquetteSection('Be respectful', [
+    etiquetteSection('Advertising and spam', [
       etiquettePara(
-        'Disagree with the argument, not the person. No insults, slurs, or personal attacks, and do not pile on. If a post crosses the line, report it instead of replying in kind.',
+        'Purely promotional posts are not welcome. Keep advertising off Mistboard, including recruiting for a team or event and plugging your channel.',
       ),
+      etiquetteExample(
+        'do',
+        'Report promotional posts with the Report button instead of replying.',
+      ),
+      etiquetteExample(
+        'dont',
+        'Threads like "join my team", "subscribe plz", or "how many likes can this get?"',
+      ),
+      etiquetteExample('dont', 'Replying to spam, which only pushes it higher.'),
     ]),
-    etiquetteSection('No spam or advertising', [
+    etiquetteSection('Respect other players', [
       etiquettePara(
-        'Purely promotional posts (recruiting, link dropping, engagement bait) are not welcome. Use the Report button rather than bumping the thread with a reply.',
+        'Disagree with the argument, not the person. No insults, slurs, or personal attacks, and do not pile on.',
       ),
+      etiquetteExample('do', 'Explain your point calmly, and report a post that crosses the line.'),
+      etiquetteExample('dont', 'Swearing at players or turning a thread into an insult contest.'),
     ]),
     etiquetteSection('Keep cheating reports private', [
       etiquettePara([
@@ -471,9 +484,24 @@ function etiquetteSection(title: string, nodes: HTMLElement[]): HTMLElement {
   const section = document.createElement('section');
   section.className = 'forum-etiquette-section';
   const heading = document.createElement('h2');
+  heading.className = 'forum-etiquette-section-title';
   heading.textContent = title;
   section.append(heading, ...nodes);
   return section;
+}
+
+// Do/don't example line with a leading check or cross, mirroring lichess.
+function etiquetteExample(kind: 'do' | 'dont', text: string): HTMLElement {
+  const line = document.createElement('p');
+  line.className = `forum-etiquette-example forum-etiquette-example-${kind}`;
+  const mark = document.createElement('span');
+  mark.className = 'forum-etiquette-example-mark';
+  mark.textContent = kind === 'do' ? '✅' : '❌';
+  mark.setAttribute('aria-hidden', 'true');
+  const copy = document.createElement('span');
+  copy.textContent = text;
+  line.append(mark, copy);
+  return line;
 }
 
 function etiquettePara(content: string | Array<string | Node>): HTMLElement {

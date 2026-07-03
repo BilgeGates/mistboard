@@ -1200,6 +1200,7 @@ a.forum-post-author-name:focus-visible {
   --forum-link-hover: hsl(209, 77%, 38%);
   --forum-create: hsl(88, 63%, 37%);
   --forum-create-hover: hsl(88, 63%, 30%);
+  --forum-etiquette-rule: hsl(38, 58%, 64%);
   --forum-shadow: rgba(0, 0, 0, 0.12);
   --forum-input-bg: hsl(37, 12%, 97%);
   --forum-input-border: hsl(37, 8%, 82%);
@@ -1249,6 +1250,7 @@ a.forum-post-author-name:focus-visible {
   --forum-link-hover: #5aa8f2;
   --forum-create: hsl(88, 52%, 56%);
   --forum-create-hover: hsl(88, 52%, 66%);
+  --forum-etiquette-rule: hsl(38, 42%, 46%);
   --forum-shadow: rgba(0, 0, 0, 0.28);
   --forum-input-bg: #211f1c;
   --forum-input-border: #45413b;
@@ -1931,42 +1933,70 @@ a.forum-post-author-name:focus-visible {
   stroke-linejoin: round;
 }
 
-/* Dedicated /forum/etiquette page. */
-.forum-etiquette-panel .forum-panel-header {
-  margin-bottom: 0;
+/* Dedicated /forum/etiquette page: lichess-style large light title, section
+   headings underlined by an accent rule, and do/don't example lines. */
+.forum-etiquette-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 44px 54px 12px;
+}
+
+.forum-etiquette-header .forum-panel-back {
+  width: 40px;
+  height: 40px;
+}
+
+.forum-etiquette-header .forum-back-chevron {
+  width: 24px;
+  height: 24px;
+}
+
+.forum-etiquette-title {
+  margin: 0;
+  color: var(--forum-heading);
+  font-family: "Roboto", "Noto Sans", ui-sans-serif, system-ui, sans-serif;
+  font-size: clamp(30px, 4vw, 44px);
+  font-weight: 300;
+  line-height: 1.1;
 }
 
 .forum-etiquette-body {
   display: grid;
-  gap: 22px;
-  max-width: 74ch;
-  padding: 8px 54px 40px;
+  gap: 12px;
+  padding: 8px 54px 52px;
   color: var(--forum-text);
 }
 
 .forum-etiquette-lede {
-  margin: 0;
-  color: var(--forum-heading);
-  font-size: 18px;
-  line-height: 1.55;
+  margin: 0 0 20px;
+  max-width: 82ch;
+  font-size: 17px;
+  line-height: 1.62;
 }
 
 .forum-etiquette-section {
   display: grid;
-  gap: 7px;
+  gap: 14px;
+  margin-top: 26px;
 }
 
-.forum-etiquette-section h2 {
+.forum-etiquette-section-title {
   margin: 0;
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--forum-etiquette-rule);
   color: var(--forum-heading);
-  font-size: 19px;
-  font-weight: 700;
+  font-family: "Roboto", "Noto Sans", ui-sans-serif, system-ui, sans-serif;
+  font-size: clamp(21px, 2.4vw, 27px);
+  font-weight: 300;
 }
 
-.forum-etiquette-para {
+.forum-etiquette-para,
+.forum-etiquette-example {
   margin: 0;
+  max-width: 82ch;
   font-size: 16px;
-  line-height: 1.6;
+  line-height: 1.62;
 }
 
 .forum-etiquette-para a {
@@ -1980,9 +2010,24 @@ a.forum-post-author-name:focus-visible {
   text-decoration: underline;
 }
 
+.forum-etiquette-example {
+  display: flex;
+  gap: 10px;
+  align-items: baseline;
+}
+
+.forum-etiquette-example-mark {
+  flex: 0 0 auto;
+  font-size: 15px;
+}
+
 @media (max-width: 560px) {
+  .forum-etiquette-header {
+    padding: 28px 20px 10px;
+  }
+
   .forum-etiquette-body {
-    padding-inline: 18px;
+    padding: 8px 20px 40px;
   }
 }
 
