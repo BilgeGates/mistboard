@@ -6,6 +6,7 @@ import { loadCachedCurrentUser, readCachedUser } from './account-nav.js';
 import { buildContact } from './contact.js';
 import { type I18nKey, t } from './i18n/catalog.js';
 import { currentLocale, LOCALE_META, type Locale, localizedHref } from './i18n/locale.js';
+import { SHOGI_IMAGE_SET_CREDITS } from './shogi-piece-sets.js';
 import { isLikelySignedIn } from './signed-in-state.js';
 import { buildNav, GITHUB_URL } from './site-shell.js';
 
@@ -632,7 +633,24 @@ function buildSource(locale: Locale = currentLocale()): HTMLElement {
     textLine(t('source.identityForksBrand', {}, locale)),
   ]);
 
-  section.append(heading, intro, source, thirdParty, identity);
+  // CC BY / CC BY-SA attribution for the bundled shogi image piece sets. Lives
+  // here rather than in the appearance picker so the settings dropdown stays clean.
+  const pieceArt = sourceBlock(
+    'Piece art',
+    SHOGI_IMAGE_SET_CREDITS.map((credit) => {
+      const line = document.createElement('span');
+      line.append(
+        document.createTextNode(`Shogi ${credit.sets} by `),
+        linkLine(credit.author, credit.authorUrl),
+        document.createTextNode(' ('),
+        linkLine(credit.license, credit.licenseUrl),
+        document.createTextNode(')'),
+      );
+      return line;
+    }),
+  );
+
+  section.append(heading, intro, source, thirdParty, identity, pieceArt);
   return section;
 }
 

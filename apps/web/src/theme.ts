@@ -17,12 +17,7 @@ import {
   writeStoredShogiBoardTheme,
   writeStoredShogiPieceSet,
 } from './shogi-appearance-storage.js';
-import {
-  SHOGI_IMAGE_SET_CREDITS,
-  SHOGI_PIECE_SETS,
-  type ShogiPieceSet,
-  shogiPieceTilePreview,
-} from './shogi-piece-sets.js';
+import { SHOGI_PIECE_SETS, type ShogiPieceSet, shogiPieceTilePreview } from './shogi-piece-sets.js';
 import { isLikelySignedIn } from './signed-in-state.js';
 import { readStoredSoundSet, SOUND_SETS, type SoundSetId, storeSoundSet } from './sound-sets.js';
 import {
@@ -276,6 +271,9 @@ function mountThemeControl(nav: HTMLElement): void {
 // chess-only build there's no selector and the menu mirrors a single-game setup.
 type AppearanceMenuOptions = {
   includeLanguage?: boolean;
+  // Called with the picked locale before the page navigates to the localized
+  // URL. The signed-in dropdown uses it to persist the choice to the account.
+  onLocaleSelect?: (locale: Locale) => void;
 };
 
 export function buildAppearanceMenu(options: AppearanceMenuOptions = {}): HTMLElement {
@@ -292,37 +290,25 @@ export function buildAppearanceMenu(options: AppearanceMenuOptions = {}): HTMLEl
     submenus.push(createAppearanceSubmenu(key, label, body));
   };
 
+  // Row order mirrors the lichess dasher (Language, Sound, Appearance, Board,
+  // Piece set); Fog is our one addition and sits last. The per-game Board/Piece
+  // pickers carry the Game family selector inside their own sub-panel, so the
+  // root stays a narrow list of rows.
   if (options.includeLanguage) {
-    addCategory('language', t('nav.language', {}, locale), [createLanguageField(locale)]);
+    addCategory('language', t('nav.language', {}, locale), [
+      createLanguageField(locale, options.onLocaleSelect),
+    ]);
   }
-  addCategory('theme', 'Appearance', [createSiteThemeField(false)]);
-  addCategory('fog', 'Fog', [
-    createTileField(
-      'fog',
-      'Fog',
-      'Fog shading style',
-      fogThemes,
-      readStoredFogTheme(),
-      (value) => {
-        applyFogTheme(value);
-        writeStoredFogTheme(value);
-        syncThemeControls();
-        dispatchBoardAppearanceChanged();
-      },
-      undefined,
-      false,
-    ),
-  ]);
   addCategory('sound', 'Sound', [createSoundSetField(), createVolumeField(), createMuteField()]);
+  addCategory('theme', 'Appearance', [createSiteThemeField(false)]);
 
-  // Per-game section. The Game selector only appears when a xiangqi variant is
-  // enabled; otherwise Board/Pieces drill straight into the chess tiles.
-  if (xiangqiAppearanceEnabled()) {
-    root.append(createAppearanceDivider());
-    root.append(createBoardFamilyField());
-  }
-
-  const boardBody: HTMLElement[] = [
+  // The Game selector only appears when a xiangqi variant is enabled; otherwise
+  // Board/Pieces drill straight into the chess tiles. It sits at the top of both
+  // the Board and Pieces sub-panels; all instances share one family via the
+  // documentElement dataset and syncBoardFamilyControls.
+  const boardBody: HTMLElement[] = [];
+  if (xiangqiAppearanceEnabled()) boardBody.push(createBoardFamilyField('stacked'));
+  boardBody.push(
     createTileField(
       'board',
       'Board colors',
@@ -338,7 +324,7 @@ export function buildAppearanceMenu(options: AppearanceMenuOptions = {}): HTMLEl
       'chess',
       false,
     ),
-  ];
+  );
   if (xiangqiAppearanceEnabled()) {
     boardBody.push(
       createTileField(
@@ -379,7 +365,9 @@ export function buildAppearanceMenu(options: AppearanceMenuOptions = {}): HTMLEl
   }
   addCategory('board', 'Board', boardBody);
 
-  const pieceBody: HTMLElement[] = [
+  const pieceBody: HTMLElement[] = [];
+  if (xiangqiAppearanceEnabled()) pieceBody.push(createBoardFamilyField('stacked'));
+  pieceBody.push(
     createTileField(
       'piece',
       'Pieces',
@@ -395,7 +383,7 @@ export function buildAppearanceMenu(options: AppearanceMenuOptions = {}): HTMLEl
       'chess',
       false,
     ),
-  ];
+  );
   if (xiangqiAppearanceEnabled()) {
     pieceBody.push(
       createTileField(
@@ -432,10 +420,29 @@ export function buildAppearanceMenu(options: AppearanceMenuOptions = {}): HTMLEl
         'shogi',
         false,
       ),
-      createShogiArtCredit(),
     );
   }
   addCategory('pieces', 'Pieces', pieceBody);
+
+  // Fog is our one row beyond the lichess set; keep it last so the shared five
+  // stay in lichess order above it.
+  addCategory('fog', 'Fog', [
+    createTileField(
+      'fog',
+      'Fog',
+      'Fog shading style',
+      fogThemes,
+      readStoredFogTheme(),
+      (value) => {
+        applyFogTheme(value);
+        writeStoredFogTheme(value);
+        syncThemeControls();
+        dispatchBoardAppearanceChanged();
+      },
+      undefined,
+      false,
+    ),
+  ]);
 
   menu.append(root, ...submenus);
 
@@ -488,14 +495,10 @@ function createAppearanceSubmenu(key: string, label: string, body: HTMLElement[]
   return sub;
 }
 
-function createAppearanceDivider(): HTMLDivElement {
-  const divider = document.createElement('div');
-  divider.className = 'appearance-menu-divider';
-  divider.setAttribute('role', 'separator');
-  return divider;
-}
-
-function createLanguageField(locale: Locale = currentLocale()): HTMLDivElement {
+function createLanguageField(
+  locale: Locale = currentLocale(),
+  onSelect?: (locale: Locale) => void,
+): HTMLDivElement {
   const list = document.createElement('div');
   list.className = 'appearance-language-list';
   list.setAttribute('role', 'radiogroup');
@@ -511,6 +514,7 @@ function createLanguageField(locale: Locale = currentLocale()): HTMLDivElement {
     option.textContent = LOCALE_META[optionLocale].displayName;
     if (optionLocale === locale) option.classList.add('selected');
     option.addEventListener('click', () => {
+      onSelect?.(optionLocale);
       setStoredLocale(optionLocale);
       const currentHref = `${window.location.pathname}${window.location.search}${window.location.hash}`;
       window.location.href = localizedHref(currentHref, optionLocale);
@@ -576,18 +580,24 @@ export function createSiteThemeButton(theme: SiteTheme, label: string): HTMLButt
   return button;
 }
 
-// Picks which game family's board + piece pickers are shown. The options sit
-// inline as a segmented toggle (no nested dropdown to open). Defaults to the
-// active page's family (set by the route via setBoardFamily); switching it lets
-// you configure another family's appearance.
-function createBoardFamilyField(): HTMLDivElement {
+// Picks which game family's board + piece pickers are shown. The options sit as
+// a segmented toggle (no nested dropdown to open). Defaults to the active page's
+// family (set by the route via setBoardFamily); switching it lets you configure
+// another family's appearance. The 'stacked' layout (label above a full-width
+// 3-up toggle) is used inside the Board/Pieces sub-panels; 'inline' keeps the
+// label and toggle on one row for a compact standalone field.
+function createBoardFamilyField(layout: 'inline' | 'stacked' = 'inline'): HTMLDivElement {
   const field = document.createElement('div');
-  field.className = 'theme-control-field theme-control-field-inline';
+  field.className =
+    layout === 'stacked' ? 'theme-control-field' : 'theme-control-field theme-control-field-inline';
   const text = document.createElement('span');
   text.textContent = 'Game';
 
   const group = document.createElement('div');
-  group.className = 'theme-control-segmented';
+  group.className =
+    layout === 'stacked'
+      ? 'theme-control-segmented theme-control-segmented-block'
+      : 'theme-control-segmented';
   group.dataset.boardFamilySelect = '';
   group.setAttribute('role', 'radiogroup');
   group.setAttribute('aria-label', 'Board and piece game family');
@@ -691,36 +701,6 @@ function createTileField<T extends string>(
   }
   field.append(row);
   return field;
-}
-
-// Visible CC attribution for the bundled image piece sets (required by CC BY /
-// CC BY-SA). Family-tagged so it shows only alongside the shogi piece tiles.
-function createShogiArtCredit(): HTMLDivElement {
-  const note = document.createElement('div');
-  note.className = 'theme-attribution';
-  note.dataset.appearanceFamily = 'shogi';
-  note.append(document.createTextNode('Piece art: '));
-  SHOGI_IMAGE_SET_CREDITS.forEach((credit, index) => {
-    if (index > 0) note.append(document.createTextNode('; '));
-    const author = document.createElement('a');
-    author.href = credit.authorUrl;
-    author.target = '_blank';
-    author.rel = 'noopener';
-    author.textContent = credit.author;
-    const license = document.createElement('a');
-    license.href = credit.licenseUrl;
-    license.target = '_blank';
-    license.rel = 'noopener';
-    license.textContent = credit.license;
-    note.append(
-      document.createTextNode(`${credit.sets} by `),
-      author,
-      document.createTextNode(' ('),
-      license,
-      document.createTextNode(')'),
-    );
-  });
-  return note;
 }
 
 function createVolumeField(): HTMLLabelElement {

@@ -4,13 +4,10 @@ import { identify, resetIdentity } from './analytics.js';
 import { type ConnectionStatus, createConnectionStatus } from './connection-status.js';
 import { t } from './i18n/catalog.js';
 import {
-  APP_LOCALES,
   applyAccountLocalePreference,
   currentLocale,
-  LOCALE_META,
   type Locale,
   localizedHref,
-  setStoredLocale,
 } from './i18n/locale.js';
 import { clearSeatTokenForRoom, liveState } from './live-state.js';
 import { clearNotificationBells, mountNotificationBell } from './notification-nav.js';
@@ -23,6 +20,9 @@ const GEAR_ICON =
   '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></svg>';
 const POWER_ICON =
   '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M12 2v10"/><path d="M18.36 6.64a9 9 0 1 1-12.73 0"/></svg>';
+// Lucide "mail" envelope, marking the Inbox link (lichess parity).
+const ENVELOPE_ICON =
+  '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/></svg>';
 const PROFILE_CIRCLE_ICON =
   '<svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true" focusable="false"><circle cx="12" cy="12" r="10.2" fill="none" stroke="currentColor" stroke-width="2.4"/><circle cx="12" cy="8.7" r="3.15" fill="currentColor"/><path d="M6.6 17.9c.82-3.28 2.66-4.92 5.4-4.92s4.58 1.64 5.4 4.92c-1.33 1.2-3.12 1.92-5.4 1.92s-4.07-.72-5.4-1.92z" fill="currentColor"/></svg>';
 
@@ -233,6 +233,12 @@ function mountAccountNav(nav: HTMLElement, user: AuthUser): void {
   profile.setAttribute('role', 'menuitem');
   profile.append(createOnlineDot(), createItemLabel(t('account.profile', {}, locale)));
 
+  const inbox = document.createElement('a');
+  inbox.className = 'account-nav-item';
+  inbox.href = localizedHref('/inbox', locale);
+  inbox.setAttribute('role', 'menuitem');
+  inbox.append(createItemIcon(ENVELOPE_ICON), createItemLabel(t('account.inbox', {}, locale)));
+
   const settings = document.createElement('a');
   settings.className = 'account-nav-item';
   settings.href = localizedHref('/account/settings', locale);
@@ -254,18 +260,22 @@ function mountAccountNav(nav: HTMLElement, user: AuthUser): void {
 
   // Account actions on top, then the appearance drill-in, then the connection
   // footer — the lichess profile-menu order. Appearance folds in here (no
-  // standalone gear when signed in); it reuses the menu theme.ts builds.
-  const language = buildLanguageMenu(locale);
-  const appearance = buildAppearanceMenu();
+  // standalone gear when signed in); it reuses the menu theme.ts builds, with
+  // Language as its first row so drilling into it hides the sibling rows like
+  // every other category. onLocaleSelect persists the pick to the account.
+  const appearance = buildAppearanceMenu({
+    includeLanguage: true,
+    onLocaleSelect: (next) => void saveAccountLocalePreference(next),
+  });
   const status = createConnectionStatus();
   statusByControl.set(control, status);
 
   panel.append(
     profile,
+    inbox,
     settings,
     logout,
     createAccountDivider(),
-    language,
     appearance,
     createAccountDivider(),
     status.element,
@@ -275,83 +285,6 @@ function mountAccountNav(nav: HTMLElement, user: AuthUser): void {
 
   // Drop any standalone gear theme.ts may have mounted before auth resolved.
   for (const el of nav.querySelectorAll('[data-theme-control]')) el.remove();
-}
-
-function buildLanguageMenu(locale: Locale = currentLocale()): HTMLElement {
-  const menu = document.createElement('div');
-  menu.className = 'appearance-menu account-language-menu';
-
-  const root = document.createElement('div');
-  root.className = 'appearance-menu-root';
-
-  const row = document.createElement('button');
-  row.type = 'button';
-  row.className = 'appearance-menu-row';
-  row.dataset.languageTarget = 'language';
-  const rowText = document.createElement('span');
-  rowText.textContent = t('nav.language', {}, locale);
-  const chevron = document.createElement('span');
-  chevron.className = 'appearance-menu-chevron';
-  chevron.setAttribute('aria-hidden', 'true');
-  row.append(rowText, chevron);
-
-  const submenu = document.createElement('div');
-  submenu.className = 'appearance-submenu';
-  submenu.dataset.key = 'language';
-
-  const back = document.createElement('button');
-  back.type = 'button';
-  back.className = 'appearance-submenu-back';
-  const arrow = document.createElement('span');
-  arrow.className = 'appearance-submenu-back-arrow';
-  arrow.setAttribute('aria-hidden', 'true');
-  const backText = document.createElement('span');
-  backText.textContent = t('nav.language', {}, locale);
-  back.append(arrow, backText);
-
-  const body = document.createElement('div');
-  body.className = 'appearance-submenu-body';
-
-  const list = document.createElement('div');
-  list.className = 'account-language-list';
-  list.setAttribute('role', 'radiogroup');
-  list.setAttribute('aria-label', t('nav.language', {}, locale));
-  for (const optionLocale of APP_LOCALES) {
-    const option = document.createElement('button');
-    option.type = 'button';
-    option.className = 'account-language-option';
-    option.dataset.locale = optionLocale;
-    option.setAttribute('role', 'radio');
-    option.setAttribute('aria-checked', String(optionLocale === locale));
-    option.textContent = LOCALE_META[optionLocale].displayName;
-    if (optionLocale === locale) option.classList.add('selected');
-    option.addEventListener('click', () => {
-      void saveAccountLocalePreference(optionLocale);
-      setStoredLocale(optionLocale);
-      const currentHref = `${window.location.pathname}${window.location.search}${window.location.hash}`;
-      window.location.href = localizedHref(currentHref, optionLocale);
-    });
-    list.append(option);
-  }
-
-  body.append(list);
-  submenu.append(back, body);
-  menu.append(root, submenu);
-  root.append(row);
-
-  row.addEventListener('click', () => showAccountSubmenu(menu, 'language'));
-  back.addEventListener('click', () => showAccountSubmenu(menu, 'root'));
-  showAccountSubmenu(menu, 'root');
-  return menu;
-}
-
-function showAccountSubmenu(menu: HTMLElement, view: string): void {
-  menu.dataset.view = view;
-  const root = menu.querySelector<HTMLElement>('.appearance-menu-root');
-  if (root) root.hidden = view !== 'root';
-  for (const sub of menu.querySelectorAll<HTMLElement>('.appearance-submenu')) {
-    sub.hidden = sub.dataset.key !== view;
-  }
 }
 
 async function handleLogout(

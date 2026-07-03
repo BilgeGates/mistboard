@@ -51,7 +51,10 @@ describe('account nav', () => {
     ).not.toBeNull();
     expect(document.querySelector('.site-nav-link-signin')).toBeNull();
     expect(document.querySelector('.site-nav-language')).toBeNull();
-    expect(document.querySelector('.account-language-menu')).not.toBeNull();
+    // Language is the first row of the unified appearance menu inside the panel.
+    expect(
+      document.querySelector('.account-nav-panel [data-appearance-target="language"]'),
+    ).not.toBeNull();
   });
 
   it('can replace a mounted account menu with signed-out links', async () => {
@@ -127,19 +130,20 @@ describe('account nav', () => {
       Array.from(document.querySelectorAll('.account-nav-item-label')).map(
         (item) => item.textContent,
       ),
-    ).toEqual(['個人資料', '偏好設定', '登出']);
+    ).toEqual(['個人資料', '收件匣', '偏好設定', '登出']);
     expect(
-      document.querySelector<HTMLButtonElement>('.account-language-menu .appearance-menu-row')
-        ?.textContent,
+      document.querySelector<HTMLButtonElement>(
+        '.account-nav-panel [data-appearance-target="language"]',
+      )?.textContent,
     ).toBe('語言');
     expect(
-      Array.from(document.querySelectorAll<HTMLElement>('.account-language-option')).map(
-        (item) => item.textContent,
-      ),
+      Array.from(
+        document.querySelectorAll<HTMLElement>('.account-nav-panel .appearance-language-option'),
+      ).map((item) => item.textContent),
     ).toEqual(['English', '简体中文', '繁體中文', '日本語']);
     expect(
       document
-        .querySelector<HTMLElement>('.account-language-option.selected')
+        .querySelector<HTMLElement>('.account-nav-panel .appearance-language-option.selected')
         ?.getAttribute('data-locale'),
     ).toBe('zh-Hant');
   });

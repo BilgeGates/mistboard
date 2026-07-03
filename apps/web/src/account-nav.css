@@ -42,7 +42,9 @@
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  border: 0;
+  /* Transparent border in the resting state so the open box can color it in
+     without shifting the trigger by a pixel. */
+  border: 1px solid transparent;
   border-radius: var(--site-radius-sm);
   background: transparent;
   color: var(--site-muted);
@@ -57,10 +59,24 @@
 }
 
 .account-nav-trigger:hover,
-.account-nav-trigger:focus-visible,
-.account-nav.open .account-nav-trigger {
+.account-nav-trigger:focus-visible {
   background: var(--site-hover);
   color: var(--site-text);
+}
+
+/* Open: the trigger becomes a boxed tab that connects flush to the panel below
+   (lichess-style). Matching panel background + border + top-only radius, pulled
+   down 1px so it overlaps the panel's top edge and reads as one surface. */
+.account-nav.open .account-nav-trigger {
+  position: relative;
+  z-index: 31;
+  margin-bottom: -1px;
+  background: color-mix(in srgb, var(--site-panel) 96%, transparent);
+  color: var(--site-text);
+  border-color: var(--site-border);
+  border-bottom-color: transparent;
+  border-radius: var(--site-radius) var(--site-radius) 0 0;
+  box-shadow: 0 -6px 18px -8px var(--site-shadow);
 }
 
 .account-nav-handle {
@@ -82,16 +98,21 @@
 
 .account-nav-panel {
   position: absolute;
-  top: calc(100% + 8px);
+  /* Flush with the trigger so the open box and panel read as one connected
+     surface; the top-right corner is squared to meet the trigger's tab. */
+  top: 100%;
   right: 0;
   z-index: 30;
   display: none;
-  width: min(288px, calc(100vw - 32px));
+  width: min(244px, calc(100vw - 32px));
   flex-direction: column;
   border: 1px solid var(--site-border);
   border-radius: var(--site-radius);
+  border-top-right-radius: 0;
   background: color-mix(in srgb, var(--site-panel) 96%, transparent);
-  box-shadow: 0 18px 44px var(--site-shadow);
+  box-shadow:
+    0 12px 30px -8px var(--site-shadow),
+    0 3px 10px -4px var(--site-shadow);
   padding: 6px;
   backdrop-filter: blur(10px);
   max-height: min(72vh, 560px);
@@ -105,15 +126,17 @@
 .account-nav-item {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 12px;
   width: 100%;
   padding: 8px 10px;
   border-radius: var(--site-radius-sm);
   color: var(--site-text);
   text-decoration: none;
   font: inherit;
-  font-size: 14px;
-  font-weight: 600;
+  /* Larger, lighter weight to match the lichess dasher rows (Noto Sans, ~15px,
+     regular) rather than our heavier default nav weight. */
+  font-size: 15px;
+  font-weight: 400;
   background: transparent;
   border: 0;
   text-align: left;
@@ -164,69 +187,30 @@
   margin: 4px 0;
 }
 
-.account-language-list {
-  display: grid;
-  gap: 2px;
-}
-
-.account-language-option {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  min-height: 34px;
-  width: 100%;
-  border: 0;
-  border-radius: var(--site-radius-sm);
-  background: transparent;
-  color: var(--site-text);
-  cursor: pointer;
-  font: inherit;
-  font-size: 14px;
-  font-weight: 600;
-  padding: 8px 10px;
-  text-align: left;
-}
-
-.account-language-option:hover,
-.account-language-option:focus-visible {
-  background: var(--site-hover);
-}
-
-.account-language-option.selected::after {
-  content: "";
-  flex: none;
-  width: 7px;
-  height: 12px;
-  margin-left: 12px;
-  border-right: 2px solid var(--site-accent);
-  border-bottom: 2px solid var(--site-accent);
-  transform: rotate(40deg);
-}
-
 /* Connection footer (PING / SERVER + signal bars), lichess profile-menu style. */
 .account-nav-status {
   display: flex;
-  align-items: flex-end;
+  align-items: center;
   justify-content: space-between;
   gap: 12px;
-  padding: 6px 10px 2px;
+  padding: 10px 12px 8px;
 }
 
 .account-nav-status-rows {
   display: grid;
-  gap: 3px;
+  gap: 5px;
 }
 
 .account-nav-status-row {
   display: flex;
   align-items: baseline;
-  gap: 5px;
+  gap: 6px;
   line-height: 1;
 }
 
 .account-nav-status-label {
   color: var(--site-muted);
-  font-size: 10px;
+  font-size: 12px;
   font-weight: 700;
   letter-spacing: 0.06em;
   text-transform: uppercase;
@@ -234,40 +218,42 @@
 
 .account-nav-status-value {
   color: var(--site-text);
-  font-size: 12px;
+  font-size: 15px;
   font-weight: 700;
 }
 
 .account-nav-status-unit {
   color: var(--site-muted);
-  font-size: 10px;
+  font-size: 12px;
   font-weight: 600;
 }
 
+/* Bigger signal block, anchored to the right. Bars grow left→right into a
+   rectangular envelope; unlit bars stay full-height grey (lichess style). */
 .account-nav-status-bars {
   display: flex;
   align-items: flex-end;
-  gap: 2px;
-  height: 16px;
+  gap: 3px;
+  height: 26px;
 }
 
 .account-nav-status-bar {
-  width: 4px;
+  width: 6px;
   border-radius: 1px;
   background: var(--site-border);
 }
 
 .account-nav-status-bar:nth-child(1) {
-  height: 5px;
-}
-.account-nav-status-bar:nth-child(2) {
   height: 9px;
 }
+.account-nav-status-bar:nth-child(2) {
+  height: 15px;
+}
 .account-nav-status-bar:nth-child(3) {
-  height: 12px;
+  height: 21px;
 }
 .account-nav-status-bar:nth-child(4) {
-  height: 16px;
+  height: 26px;
 }
 
 .account-nav-status-bar.lit {

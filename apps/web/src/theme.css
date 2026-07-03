@@ -105,6 +105,20 @@
   padding: 0 12px;
 }
 
+/* Full-width 3-up variant used inside the Board / Pieces sub-panels, so the
+   Game family selector fits a narrow dropdown without forcing extra width. */
+.theme-control-segmented-block {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 6px;
+  justify-self: stretch;
+}
+
+.theme-control-segmented-block .theme-mode-option {
+  min-width: 0;
+  padding: 0 6px;
+}
+
 .theme-control-trigger {
   display: inline-flex;
   align-items: center;
@@ -145,7 +159,7 @@
   right: 0;
   z-index: 30;
   display: none;
-  width: min(280px, calc(100vw - 28px));
+  width: min(244px, calc(100vw - 28px));
   gap: 12px;
   border: 1px solid var(--site-border);
   border-radius: var(--site-radius);
@@ -175,7 +189,7 @@
 .appearance-menu {
   display: block;
   width: 100%;
-  min-width: 232px;
+  min-width: 208px;
 }
 
 .appearance-menu-root {
@@ -203,8 +217,9 @@
   color: var(--site-text);
   cursor: pointer;
   font: inherit;
-  font-size: 14px;
-  font-weight: 600;
+  /* Match the lichess dasher rows: ~15px, regular weight (Noto Sans). */
+  font-size: 15px;
+  font-weight: 400;
   text-align: left;
   padding: 9px 10px;
   transition: background 140ms ease;
@@ -293,8 +308,8 @@
   color: var(--site-text);
   cursor: pointer;
   font: inherit;
-  font-size: 14px;
-  font-weight: 600;
+  font-size: 15px;
+  font-weight: 400;
   padding: 8px 10px;
   text-align: left;
 }
@@ -503,22 +518,6 @@
   width: 100%;
   height: 100%;
   object-fit: contain;
-}
-
-/* CC attribution line under the shogi image piece sets (required by the
-   licenses). Compact, muted, links inherit the accent. */
-.theme-attribution {
-  font-size: 11px;
-  line-height: 1.4;
-  color: var(--site-muted, #8a929b);
-  padding: 2px 2px 0;
-}
-.theme-attribution a {
-  color: inherit;
-  text-decoration: underline;
-}
-.theme-attribution a:hover {
-  color: var(--site-accent);
 }
 
 /* Board palette previews: diagonal split of light + dark squares. Values
