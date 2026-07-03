@@ -7,6 +7,7 @@ import { displayParticipantName, type FeaturedGame } from './game-display.js';
 import { timeControlLabelForGame } from './game-meta.js';
 import { type I18nKey, t } from './i18n/catalog.js';
 import { currentLocale, LOCALE_META, type Locale } from './i18n/locale.js';
+import { webVariantTenantForRoomId, webVariantTenantForSpecId } from './variant-tenant/registry.js';
 
 const GAME_VARIANT_LABEL_KEY: Record<string, I18nKey> = {
   fog: 'variant.darkChess.name',
@@ -220,56 +221,41 @@ function opponentColor(
   game: FeaturedGame,
   color: FeaturedGame['playerColor'],
 ): 'white' | 'black' | 'red' {
-  if (color === 'red') return isCrossroadsChessVariant(game) ? 'white' : 'black';
-  if (color === 'white' && isCrossroadsChessVariant(game)) return 'red';
-  if (color === 'black' && isRedBlackVariant(game)) return 'red';
-  if (color === 'black') return 'white';
-  return 'black';
+  switch (seatModelForGame(game)) {
+    case 'red-black':
+      return color === 'red' ? 'black' : 'red';
+    case 'white-red':
+      return color === 'white' ? 'red' : 'white';
+    default:
+      return color === 'black' ? 'white' : 'black';
+  }
 }
 
+// Every variant tenant owns its own postgame surface (<gameRouteBase>/:roomId)
+// backed by a per-variant replay endpoint. Routing a non-chess game to the
+// dark-chess /game/:id surface 403s: that loader hits /api/games/:id/events,
+// whose chess-family reducer throws on a non-chess event log. So resolve the
+// tenant from the registry (room-id prefix first, spec id as a fallback for
+// legacy aliases) instead of a hand-maintained switch that silently drifts as
+// variants ship. Tenants without their own postgame (dark-chess correspondence)
+// and plain dark chess carry no gameRouteBase and fall through to /game/:id.
 function profileGameHref(game: FeaturedGame): string {
-  if (isCrossroadsChessVariant(game)) {
-    return `/crossroads-chess/game/${encodeURIComponent(game.roomId)}`;
-  }
-  if (game.variant === 'mini-xiangqi') {
-    return `/mini-xiangqi/game/${encodeURIComponent(game.roomId)}`;
-  }
-  if (game.variant === 'dark-mini-xiangqi') {
-    return `/dark-mini-xiangqi/game/${encodeURIComponent(game.roomId)}`;
-  }
-  if (game.variant === 'drop-mini-xiangqi') {
-    return `/drop-mini-xiangqi/game/${encodeURIComponent(game.roomId)}`;
-  }
-  if (game.variant === 'dark-xiangqi') {
-    return `/dark-xiangqi/game/${encodeURIComponent(game.roomId)}`;
-  }
-  // Variant-tenant postgame surfaces own their own replay endpoint
-  // (/api/banqi|jieqi/games/:id). Routing these to the dark-chess /game/:id
-  // surface 403s: its replay loader hits /api/games/:id/events, whose
-  // chess-family reducer throws on a non-chess event log.
-  if (game.variant === 'banqi') {
-    return `/banqi/game/${encodeURIComponent(game.roomId)}`;
-  }
-  if (game.variant === 'jieqi') {
-    return `/jieqi/game/${encodeURIComponent(game.roomId)}`;
+  const tenant = webVariantTenantForRoomId(game.roomId) ?? webVariantTenantForSpecId(game.variant);
+  if (tenant?.gameRouteBase) {
+    return `${tenant.gameRouteBase}/${encodeURIComponent(game.roomId)}`;
   }
   return `/game/${encodeURIComponent(game.roomId)}`;
 }
 
-// Variants that name sides red/black rather than white/black: the xiangqi family
-// plus banqi and jieqi. Used to resolve the opponent's seat colour — black's
-// opponent is red, not white. Crossroads (white/red) is handled separately.
-function isRedBlackVariant(game: FeaturedGame): boolean {
-  return (
-    game.variant === 'dark-mini-xiangqi' ||
-    game.variant === 'mini-xiangqi' ||
-    game.variant === 'drop-mini-xiangqi' ||
-    game.variant === 'dark-xiangqi' ||
-    game.variant === 'banqi' ||
-    game.variant === 'jieqi'
-  );
-}
+// How a variant names its two seats, derived from the canonical spec family so a
+// new variant resolves without editing here: the xiangqi and jungle families
+// play red vs black, the crossroads-chess family (open + dark) plays white vs
+// red, and everything else is orthodox white vs black.
+type SeatModel = 'white-black' | 'red-black' | 'white-red';
 
-function isCrossroadsChessVariant(game: FeaturedGame): boolean {
-  return game.variant === 'crossroads-chess' || game.variant === 'dual-chess';
+function seatModelForGame(game: FeaturedGame): SeatModel {
+  const family = maybeGameSpecForId(game.variant)?.family;
+  if (family === 'xiangqi' || family === 'jungle') return 'red-black';
+  if (family === 'crossroads-chess') return 'white-red';
+  return 'white-black';
 }

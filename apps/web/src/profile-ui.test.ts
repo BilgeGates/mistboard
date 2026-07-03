@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { FeaturedGame } from './game-display.js';
 import { buildProfileGameRow } from './profile-ui.js';
+import { webVariantTenants } from './variant-tenant/registry.js';
 
 function game(overrides: Partial<FeaturedGame> = {}): FeaturedGame {
   return {
@@ -145,6 +146,46 @@ describe('profile game rows', () => {
     expect(row.textContent).toContain('Black');
   });
 
+  it('renders a Flip Jungle row vs the engine (not "vs White") and routes to the flip-jungle surface', () => {
+    // Regression (prod, 2026-07-03): Flip Jungle names sides red/black, so a
+    // black player's opponent is red. profileGameHref/opponentColor were
+    // hand-maintained switches that never listed jungle-flip, so the row showed
+    // the literal seat "vs White" and the href fell through to /game/:id, whose
+    // chess-family replay reducer 403s on jungle-flip events. Both now resolve
+    // through the variant registry + spec family.
+    const row = buildProfileGameRow(
+      game({
+        roomId: 'jgf_profile',
+        variant: 'jungle-flip',
+        result: 'red-wins',
+        participants: [
+          {
+            color: 'red',
+            displayName: 'MistyJungleFlip',
+            subjectType: 'engine-version',
+            subjectId: 'container-jungle-flip-v1',
+            visibility: 'private',
+          },
+          {
+            color: 'black',
+            displayName: 'dev-testing',
+            subjectType: 'user',
+            subjectId: 'u_dev',
+            visibility: 'private',
+          },
+        ],
+        playerColor: 'black',
+      }),
+    );
+
+    const link = row.querySelector('a');
+    expect(link?.getAttribute('href')).toBe('/jungle-flip/game/jgf_profile');
+    expect(row.textContent).toContain('vs MistyJungleFlip');
+    expect(row.textContent).not.toContain('vs White');
+    expect(row.textContent).toContain('Flip Jungle');
+    expect(row.textContent).toContain('Black');
+  });
+
   it('routes jieqi profile rows to the jieqi surface', () => {
     const row = buildProfileGameRow(
       game({
@@ -180,5 +221,19 @@ describe('profile game rows', () => {
     expect(row.querySelector('a')?.getAttribute('href')).toBe('/game/room_1');
     expect(row.textContent).toContain('Dark Chess');
     expect(row.textContent).toContain('White');
+  });
+
+  // Registry-driven conformance: every variant tenant that owns a postgame
+  // surface must route its profile rows there, never to the dark-chess
+  // /game/:id (whose chess-family replay reducer 403s on a non-chess event
+  // log). This is the lock that a hand-maintained switch lacked, so a newly
+  // launched variant can't silently regress to "vs White" / a 403 postgame.
+  const tenantsWithPostgame = webVariantTenants().filter((tenant) => tenant.gameRouteBase);
+  it.each(
+    tenantsWithPostgame.map((tenant) => [tenant.gameSpecId, tenant] as const),
+  )('routes %s profile rows to its own postgame surface', (_specId, tenant) => {
+    const roomId = `${tenant.roomIdPrefix}conformance`;
+    const row = buildProfileGameRow(game({ roomId, variant: tenant.gameSpecId }));
+    expect(row.querySelector('a')?.getAttribute('href')).toBe(`${tenant.gameRouteBase}/${roomId}`);
   });
 });
