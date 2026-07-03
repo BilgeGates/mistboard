@@ -31,7 +31,7 @@ import {
   renderMiniXiangqiBoardSvg,
 } from './live-mini-xiangqi-render.js';
 import { buildNav } from './site-shell.js';
-import { setBoardFamily } from './theme.js';
+import { setBoardFamily, xiangqiAppearanceChangedEvent } from './theme.js';
 import { renderVariantMiniBoard, type VariantMiniId } from './variant-mini-boards.js';
 import { installBoardDrag } from './variant-tenant/board-drag.js';
 import { installHandDrag } from './variant-tenant/hand-drag.js';
@@ -267,6 +267,14 @@ export async function mountPuzzles(
   window.addEventListener('popstate', () => {
     const id = puzzleIdFromPath(window.location.pathname) ?? queueSummaries()[0]?.id ?? null;
     if (id) void selectPuzzle(id, false);
+  });
+
+  // The mini-xiangqi board renders pieces as inline SVG, so a live piece-set or
+  // board-theme change (from the appearance menu) must re-render to pick up the
+  // new set — matching every other xiangqi surface (replay, postgame, live).
+  window.addEventListener(xiangqiAppearanceChangedEvent, () => {
+    if (session) renderSession();
+    else renderControls();
   });
 }
 

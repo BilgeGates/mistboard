@@ -6,6 +6,7 @@ import {
 } from '@mistboard/game';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { mountPuzzles } from './puzzles.js';
+import { xiangqiAppearanceChangedEvent } from './theme.js';
 
 function publicSummary(puzzle: MiniXiangqiPuzzle) {
   return {
@@ -83,6 +84,30 @@ describe('puzzles route', () => {
     expect(root.querySelector('.puzzle-moves h3')).toBeNull();
     expect(root.querySelector('.puzzle-move-black')?.textContent).toBe('...');
     expect(root.textContent).not.toContain('d4');
+  });
+
+  it('re-renders the board when the xiangqi piece set changes live', async () => {
+    stubWindowLocalStorage(memoryStorage({ 'mistboard.xiangqiPieceSet': 'animal-dobutsu' }));
+    const mini = MINI_XIANGQI_PUZZLES[0]!;
+    const fetchSpy = vi.fn(async (input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url === '/api/puzzles') return json({ puzzles: [publicSummary(mini)] });
+      if (url === `/api/puzzles/${mini.id}`) return json({ puzzle: publicDetail(mini) });
+      return json({ error: 'not_found' }, 404);
+    });
+    vi.stubGlobal('fetch', fetchSpy);
+    const root = document.createElement('div');
+
+    await mountPuzzles(root, mini.id);
+    // Default (animal-dobutsu) renders image-based pieces.
+    expect(root.querySelector('.mini-xq-piece image')).not.toBeNull();
+
+    // Switch to a glyph-based set the way the appearance menu does, then notify.
+    window.localStorage.setItem('mistboard.xiangqiPieceSet', 'traditional');
+    window.dispatchEvent(new Event(xiangqiAppearanceChangedEvent));
+
+    await vi.waitFor(() => expect(root.querySelector('.mini-xq-piece image')).toBeNull());
+    expect(root.querySelector('.mini-xq-piece')).not.toBeNull();
   });
 
   it('filters the sequential queue with the variant picker', async () => {
