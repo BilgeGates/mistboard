@@ -18,9 +18,9 @@
   --site-nav-bg: var(--site-bg);
   --site-nav-border: transparent;
   --site-shadow: rgba(0, 0, 0, 0.16);
-  --mini-xq-board-bg: #f6ecd7;
-  --mini-xq-palace-band: rgba(92, 118, 72, 0.22);
-  --mini-xq-grid: #6c5137;
+  /* The mini-xiangqi board palette (--mini-xq-board-bg/palace-band/grid) is left
+     to the theme-driven vars in app-base.css so the board tracks the user's
+     xiangqi board-theme setting, matching every other xiangqi surface. */
 
   background: var(--site-bg);
 }
