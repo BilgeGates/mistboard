@@ -78,6 +78,11 @@
   margin-inline: auto;
 }
 
+/* Empty hand: collapse the strip so it doesn't steal board height. */
+.dark-shogi-postgame-route .dsg-postgame__reserve:empty {
+  min-height: 0;
+}
+
 .dark-shogi-postgame-route .dsg-postgame__reserve-koma {
   position: relative;
   display: inline-flex;

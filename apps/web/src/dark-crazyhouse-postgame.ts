@@ -159,7 +159,6 @@ function renderPostgame(root: HTMLElement, postgame: DarkCrazyhousePostgameRespo
       tier: target.entry.key === 'truth' ? 'primary' : 'secondary',
     })),
     boardAspect: 1,
-    boardChromePx: 68,
     maxPly: postgameReplayMaxPly(postgame),
     renderBoards({ ply, flipped }) {
       const orientation: Color = flipped ? 'black' : 'white';
@@ -195,13 +194,7 @@ function renderReserve(
   }
   const hand = handForColorAtPly(postgame, color, ply);
   const entries = CRAZYHOUSE_HAND_ORDER.filter((role) => (hand[role] ?? 0) > 0);
-  if (entries.length === 0) {
-    const note = document.createElement('span');
-    note.className = 'dczh-postgame__reserve-empty';
-    note.textContent = '(no pieces in hand)';
-    host.append(note);
-    return;
-  }
+  if (entries.length === 0) return; // empty hand: leave the strip collapsed, no note
   for (const role of entries) {
     host.append(reservePiece(role, color, hand[role] ?? 0));
   }

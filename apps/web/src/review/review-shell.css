@@ -12,13 +12,18 @@
 .review-shell__cluster {
   display: flex;
   justify-content: center;
-  align-items: flex-start;
+  align-items: stretch;
   gap: clamp(8px, 1vw, 14px);
   margin-inline: auto;
+  /* Give the cluster the viewport height below the nav + shell padding so the
+     center column can stretch to it and vertically centre a short (wide) board
+     instead of stranding it at the top with all the slack below. */
+  min-height: calc(100svh - 108px);
 }
 
 .review-shell__rail {
   flex: 0 0 auto;
+  align-self: flex-start;
   width: clamp(216px, 20vw, 288px);
   min-width: 0;
   display: flex;
@@ -26,12 +31,15 @@
   gap: 12px;
 }
 
-/* The center holds the board-stage and shrinks to its content (the board's own
-   max-width), so the rails sit right beside the board rather than being shoved
-   to the page edges by a greedy 1fr center column. */
+/* The center holds the board-stage and shrinks to its content width (the board's
+   own max-width), so the rails sit right beside the board rather than being
+   shoved to the page edges by a greedy 1fr center column. It stretches to the
+   cluster height so the board-stage can centre vertically within it. */
 .review-shell__center {
   flex: 0 1 auto;
+  align-self: stretch;
   min-width: 0;
+  min-height: 0;
   display: flex;
   justify-content: center;
 }

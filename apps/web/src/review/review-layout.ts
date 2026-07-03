@@ -54,10 +54,13 @@ export type ReviewLayoutAdapter = {
 };
 
 const NAV_AND_PADDING_PX = 122; // site nav + shell top/bottom padding
+// Horizontal space the two rails + gaps + shell side padding take, so the board
+// can be capped to the width actually left for the center column.
+const RAILS_AND_GUTTERS_PX = 640;
 const PRIMARY_LABEL_PX = 30;
 const STACK_GAP_PX = 16;
 const SECONDARY_LABEL_PX = 24;
-const SECONDARY_WIDTH_PX = 150;
+const SECONDARY_WIDTH_PX = 118;
 
 export function mountReviewLayout(root: HTMLElement, adapter: ReviewLayoutAdapter): void {
   let ply = adapter.maxPly;
@@ -154,17 +157,31 @@ export function mountReviewLayout(root: HTMLElement, adapter: ReviewLayoutAdapte
   });
 }
 
+// Measure the stage's actual laid-out chrome (labels + capture/hand strips +
+// secondary row) and size the primary board so the whole stack exactly fills the
+// available height — growing into slack (e.g. empty hands) and shrinking out of
+// overflow (full hands / capture pools). Bidirectional and self-measuring, so no
+// per-variant chrome estimate is needed. Capped by the center column width so
+// wide boards don't overflow horizontally.
 function fitPrimaryToViewport(stageEl: HTMLElement, aspect: number): void {
   requestAnimationFrame(() => {
-    const overflow = document.documentElement.scrollHeight - window.innerHeight;
-    if (overflow <= 2) return;
+    const available = stageEl.clientHeight;
     const slot = stageEl.querySelector<HTMLElement>('.board-stage__slot--primary');
-    if (!slot) return;
+    if (available <= 0 || !slot) return;
+    const gaps = Math.max(0, stageEl.children.length - 1) * STACK_GAP_PX;
+    const contentHeight =
+      [...stageEl.children].reduce((h, child) => h + child.getBoundingClientRect().height, 0) +
+      gaps;
     const currentWidth = slot.getBoundingClientRect().width;
-    // Board height ≈ width / aspect, so trimming width by overflow*aspect removes
-    // ~overflow of height (secondaries have a fixed cap and don't move).
-    const nextWidth = Math.max(160, Math.floor(currentWidth - overflow * aspect - 6));
-    stageEl.style.setProperty('--board-stage-primary-max', `${nextWidth}px`);
+    // Everything in the stage except the primary board itself (its own label /
+    // strips, plus the secondary row and gaps) stays fixed as the primary scales.
+    const nonBoardChrome = Math.max(0, contentHeight - currentWidth / aspect);
+    const widthCap = Math.max(240, window.innerWidth - RAILS_AND_GUTTERS_PX);
+    const targetWidth = Math.max(
+      160,
+      Math.min(widthCap, Math.floor((available - nonBoardChrome - 6) * aspect)),
+    );
+    stageEl.style.setProperty('--board-stage-primary-max', `${targetWidth}px`);
   });
 }
 
@@ -179,9 +196,12 @@ function applyBoardSizing(stageEl: HTMLElement, adapter: ReviewLayoutAdapter): v
     ? STACK_GAP_PX + SECONDARY_LABEL_PX + Math.round(SECONDARY_WIDTH_PX / aspect) + extraPerBoard
     : 0;
   const chromePx = NAV_AND_PADDING_PX + PRIMARY_LABEL_PX + extraPerBoard + secondaryStackPx;
+  // The board is the largest that fits BOTH the center column width (≈ viewport
+  // minus the two rails + gaps) and the height left after chrome (projected
+  // through the aspect). Wide boards are width-bound; tall boards height-bound.
   stageEl.style.setProperty(
     '--board-stage-primary-max',
-    `min(88vw, calc((100svh - ${chromePx}px) * ${aspect.toFixed(4)}))`,
+    `min(max(240px, calc(100vw - ${RAILS_AND_GUTTERS_PX}px)), calc((100svh - ${chromePx}px) * ${aspect.toFixed(4)}))`,
   );
   stageEl.style.setProperty('--board-stage-secondary-max', `${SECONDARY_WIDTH_PX}px`);
 }

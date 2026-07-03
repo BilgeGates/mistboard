@@ -141,7 +141,6 @@ function renderPostgame(root: HTMLElement, postgame: RevealChessPostgameResponse
       tier: target.entry.key === 'truth' ? 'primary' : 'secondary',
     })),
     boardAspect: 1,
-    boardChromePx: 88,
     maxPly: postgameReplayMaxPly(postgame),
     renderBoards({ ply, flipped }) {
       const orientation: RevealChessColor = flipped ? 'black' : 'white';

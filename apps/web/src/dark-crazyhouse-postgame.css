@@ -94,6 +94,11 @@
   margin-inline: auto;
 }
 
+/* Empty hand: collapse the strip so it doesn't steal board height. */
+.dark-crazyhouse-postgame-route .dczh-postgame__reserve:empty {
+  min-height: 0;
+}
+
 .dark-crazyhouse-postgame-route .dczh-postgame__reserve-piece {
   position: relative;
   display: inline-flex;

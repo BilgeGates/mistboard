@@ -140,7 +140,6 @@ function renderPostgame(root: HTMLElement, postgame: DarkShogiPostgameResponse):
       tier: target.entry.key === 'truth' ? 'primary' : 'secondary',
     })),
     boardAspect: 1,
-    boardChromePx: 112,
     maxPly: postgameReplayMaxPly(postgame),
     renderBoards({ ply, flipped }) {
       const orientation: ShogiColor = flipped ? 'white' : 'black';
@@ -175,13 +174,7 @@ function renderReserve(
   }
   const hand = handForColorAtPly(postgame, color, ply);
   const entries = SHOGI_HAND_ORDER.filter((role) => (hand[role] ?? 0) > 0);
-  if (entries.length === 0) {
-    const note = document.createElement('span');
-    note.className = 'dsg-postgame__reserve-empty';
-    note.textContent = '(no pieces in hand)';
-    host.append(note);
-    return;
-  }
+  if (entries.length === 0) return; // empty hand: leave the strip collapsed, no note
   for (const role of entries) {
     host.append(reserveKoma(role, color, hand[role] ?? 0, pointsUp));
   }
