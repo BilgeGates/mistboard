@@ -71,9 +71,11 @@
   grid-template-columns: minmax(0, 1fr);
 }
 
+/* The board fills its board-stage slot; the shared review layout sizes the slot
+   (primary vs secondary) from the board aspect. */
 .dark-xiangqi-postgame-route .dxq-postgame__board {
-  max-width: min(100%, 48vh);
   margin-inline: auto;
+  max-width: none;
 }
 
 /* Jieqi and banqi reviews follow the site theme (light + dark), like the

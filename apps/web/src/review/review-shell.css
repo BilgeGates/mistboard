@@ -1,0 +1,134 @@
+/* Shared review shell layout. The cluster centers three columns that hug each
+   other; slack space lands on the outer margins, not between board and rails
+   (the lichess feel). Rails are a bounded width; the center sizes to the
+   board-stage. See review/review-shell.ts. */
+
+.review-shell {
+  width: 100%;
+  padding: clamp(10px, 1.4vw, 18px) clamp(10px, 2vw, 24px) 24px;
+  box-sizing: border-box;
+}
+
+.review-shell__cluster {
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  gap: clamp(8px, 1vw, 14px);
+  margin-inline: auto;
+}
+
+.review-shell__rail {
+  flex: 0 0 auto;
+  width: clamp(216px, 20vw, 288px);
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+/* The center holds the board-stage and shrinks to its content (the board's own
+   max-width), so the rails sit right beside the board rather than being shoved
+   to the page edges by a greedy 1fr center column. */
+.review-shell__center {
+  flex: 0 1 auto;
+  min-width: 0;
+  display: flex;
+  justify-content: center;
+}
+
+/* A vertical group of cards inside a rail (info card + details, or moves +
+   scrubber). */
+.review-rail-group {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-width: 0;
+}
+
+/* Left-rail info card: eyebrow / title / summary / actions. */
+.review-info-card {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 14px;
+  border: 1px solid var(--site-border);
+  border-radius: var(--site-radius, 10px);
+  background: var(--site-panel, var(--site-surface));
+}
+.review-info-card__eyebrow {
+  margin: 0;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--site-muted);
+}
+.review-info-card__title {
+  margin: 0;
+  font-size: clamp(20px, 2.2vw, 28px);
+  line-height: 1.1;
+  color: var(--site-text);
+}
+.review-info-card__summary {
+  margin: 0;
+  font-size: 13px;
+  color: var(--site-muted);
+}
+
+/* Playback scrubber: lichess-style, under the move list in the right rail — a
+   small position label on its own line above a single row of evenly sized nav
+   buttons, all contained within the rail width. */
+.review-scrubber {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  width: 100%;
+  box-sizing: border-box;
+  padding: 8px;
+  border: 1px solid var(--site-border);
+  border-radius: var(--site-radius, 10px);
+  background: var(--site-panel, var(--site-surface));
+}
+.review-scrubber__status {
+  flex: 1 0 100%;
+  order: -1;
+  text-align: center;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--site-text);
+}
+.review-scrubber__button {
+  flex: 1 1 0;
+  min-width: 0;
+  padding: 8px 0;
+  border: 1px solid var(--site-border);
+  border-radius: var(--site-radius-sm, 8px);
+  background: var(--site-bg);
+  color: var(--site-text);
+  font-weight: 700;
+  cursor: pointer;
+}
+.review-scrubber__button:hover:not(:disabled) {
+  background: var(--site-surface);
+}
+.review-scrubber__button:disabled {
+  color: var(--site-muted);
+  cursor: default;
+}
+
+/* Below the cluster breakpoint, stack: board first, then the rails. */
+@media (max-width: 960px) {
+  .review-shell__cluster {
+    flex-direction: column;
+    align-items: center;
+  }
+  .review-shell__center {
+    order: -1;
+    width: 100%;
+  }
+  .review-shell__rail {
+    width: min(100%, 560px);
+  }
+}

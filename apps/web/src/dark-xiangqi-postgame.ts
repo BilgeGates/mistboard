@@ -3,15 +3,12 @@ import './game-shell.css';
 import './live-xiangqi.css';
 import './dark-xiangqi-postgame.css';
 import { createDarkXiangqiPlayAgainRoom } from './dark-xiangqi-room-actions.js';
-import { createDxqPostgameShell, createDxqReplayControls } from './dxq-postgame-shell.js';
 import { darkXiangqiEnabled } from './feature-flags.js';
 import { type DarkXiangqiWireView, renderDarkXiangqiBoardSvg } from './live-dark-xiangqi.js';
-import { handlePostgameReplayKeyboard } from './postgame-keyboard.js';
+import { mountReviewLayout } from './review/review-layout.js';
 import { buildNav } from './site-shell.js';
 
 export type DarkXiangqiPostgameViewKey = XiangqiColor | 'truth';
-
-const postgameAbortControllers = new WeakMap<HTMLElement, AbortController>();
 
 export type DarkXiangqiPostgameResponse = {
   game: {
@@ -99,124 +96,49 @@ export function darkXiangqiPostgameApiUrl(roomId: string): string {
 }
 
 function renderPostgame(root: HTMLElement, postgame: DarkXiangqiPostgameResponse): void {
-  const priorAbort = postgameAbortControllers.get(root);
-  if (priorAbort) priorAbort.abort();
-  const abortController = new AbortController();
-  postgameAbortControllers.set(root, abortController);
-
-  root.replaceChildren(
-    buildNav(),
-    createDxqPostgameShell({
-      actions: postgameActions(postgame),
-      ariaLabel: 'Dark Xiangqi postgame',
-      boardsPanel: boardsPanel(postgame, abortController.signal),
-      detailsPanel: detailsPanel(postgame),
-      summary: `${resultLabel(postgame.game.result)} by ${labelize(postgame.game.termination)} · ${postgame.game.plyCount} plies`,
-      timelinePanel: timelinePanel(postgame),
-      title: 'Dark Xiangqi',
-    }),
-  );
-}
-
-function boardsPanel(postgame: DarkXiangqiPostgameResponse, signal: AbortSignal): HTMLElement {
-  const panel = document.createElement('div');
-  panel.className = 'dxq-postgame__boards';
   const views = postgameViewEntries(postgame);
-  const maxPly = postgameReplayMaxPly(postgame);
-  let currentPly = maxPly;
-  let boardOrientation: XiangqiColor = 'red';
-  const boardTargets: Array<{
-    board: HTMLElement;
-    entry: { key: DarkXiangqiPostgameViewKey; label: string; view: DarkXiangqiWireView };
-  }> = [];
-
-  const controls = createDxqReplayControls();
-  const { first, previous, status, next, last, flip } = controls;
-
-  const syncReplay = () => {
-    for (const { board, entry } of boardTargets) {
-      const view = postgameViewAtPly(postgame, entry.key, currentPly) ?? entry.view;
-      board.innerHTML = renderDarkXiangqiBoardSvg(view, boardOrientation, {
-        showFog: entry.key !== 'truth',
-      });
-    }
-    status.textContent = `Ply ${currentPly} of ${maxPly}`;
-    first.disabled = currentPly <= 0;
-    previous.disabled = currentPly <= 0;
-    next.disabled = currentPly >= maxPly;
-    last.disabled = currentPly >= maxPly;
-  };
-
-  first.addEventListener('click', () => {
-    currentPly = 0;
-    syncReplay();
-  });
-  previous.addEventListener('click', () => {
-    currentPly = Math.max(0, currentPly - 1);
-    syncReplay();
-  });
-  next.addEventListener('click', () => {
-    currentPly = Math.min(maxPly, currentPly + 1);
-    syncReplay();
-  });
-  last.addEventListener('click', () => {
-    currentPly = maxPly;
-    syncReplay();
-  });
-  flip.addEventListener('click', () => {
-    boardOrientation = oppositeXiangqiColor(boardOrientation);
-    syncReplay();
-  });
-  document.addEventListener(
-    'keydown',
-    (event) => {
-      handlePostgameReplayKeyboard(event, {
-        flip: () => {
-          boardOrientation = oppositeXiangqiColor(boardOrientation);
-          syncReplay();
-        },
-        first: () => {
-          currentPly = 0;
-          syncReplay();
-        },
-        previous: () => {
-          currentPly = Math.max(0, currentPly - 1);
-          syncReplay();
-        },
-        next: () => {
-          currentPly = Math.min(maxPly, currentPly + 1);
-          syncReplay();
-        },
-        last: () => {
-          currentPly = maxPly;
-          syncReplay();
-        },
-      });
-    },
-    { signal },
-  );
-
-  panel.append(controls.el);
-
-  for (const entry of views) {
-    const boardWrap = document.createElement('section');
-    boardWrap.className = 'dxq-postgame__board-wrap';
+  // Each board host carries its own label; the review layout arranges them
+  // (truth dominant, per-seat views as click-to-promote secondaries) and owns
+  // the scrubber, keyboard, flip, and viewport-fill sizing.
+  const targets = views.map((entry) => {
+    const el = document.createElement('section');
+    el.className = 'dxq-postgame__board-wrap';
     const heading = document.createElement('h2');
     heading.className = 'dxq-postgame__board-title';
     heading.textContent = entry.label;
     const board = document.createElement('div');
     board.className = 'dxq-postgame__board xiangqi-live-board';
     board.setAttribute('aria-label', `${entry.label} final Dark Xiangqi board`);
-    boardTargets.push({ board, entry });
-    boardWrap.append(heading, board);
-    panel.append(boardWrap);
-  }
-  syncReplay();
-  return panel;
-}
+    el.append(heading, board);
+    return { entry, el, board };
+  });
 
-function oppositeXiangqiColor(color: XiangqiColor): XiangqiColor {
-  return color === 'red' ? 'black' : 'red';
+  root.replaceChildren(buildNav());
+  mountReviewLayout(root, {
+    pageClassName: 'dark-xiangqi-review',
+    ariaLabel: 'Dark Xiangqi postgame',
+    title: 'Dark Xiangqi',
+    summary: `${resultLabel(postgame.game.result)} by ${labelize(postgame.game.termination)} · ${postgame.game.plyCount} plies`,
+    actions: postgameActions(postgame),
+    details: detailsPanel(postgame),
+    moves: timelinePanel(postgame),
+    boards: targets.map((target) => ({
+      key: target.entry.key,
+      el: target.el,
+      tier: target.entry.key === 'truth' ? 'primary' : 'secondary',
+    })),
+    boardAspect: 552 / 612,
+    maxPly: postgameReplayMaxPly(postgame),
+    renderBoards({ ply, flipped }) {
+      const orientation: XiangqiColor = flipped ? 'black' : 'red';
+      for (const { entry, board } of targets) {
+        const view = postgameViewAtPly(postgame, entry.key, ply) ?? entry.view;
+        board.innerHTML = renderDarkXiangqiBoardSvg(view, orientation, {
+          showFog: entry.key !== 'truth',
+        });
+      }
+    },
+  });
 }
 
 export function postgameViewEntries(
