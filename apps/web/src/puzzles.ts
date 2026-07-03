@@ -757,7 +757,10 @@ function renderFortressPuzzleShell(
   onSolved: (id: string) => void,
 ): HTMLElement {
   const shell = document.createElement('div');
-  shell.className = 'puzzle-board-shell board-shell drop-mini-reserve-container';
+  // puzzle-fortress-shell narrows the shell for the taller 7x8 board so both
+  // pockets stay in view (the drop shell is tuned for the square 7x7 board).
+  shell.className =
+    'puzzle-board-shell puzzle-fortress-shell board-shell drop-mini-reserve-container';
   const topReserve = document.createElement('div');
   topReserve.className = 'captures-strip captures-strip-top puzzle-board-reserve';
   topReserve.setAttribute('aria-label', 'Top reserve');

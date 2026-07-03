@@ -327,9 +327,16 @@ function intersection(
   perspective: FortressXiangqiColor,
 ): { x: number; y: number } {
   return {
-    x: MARGIN + file * CELL,
+    x: MARGIN + displayFileFor(file, perspective) * CELL,
     y: MARGIN + displayRankFor(rank, perspective) * CELL,
   };
+}
+
+// Black views the board rotated 180 degrees (BOTH axes flipped), so each side's
+// own palace stays bottom-left on its own screen. Flipping only the rank (a
+// vertical mirror) puts the palaces on the wrong diagonal.
+function displayFileFor(file: number, perspective: FortressXiangqiColor): number {
+  return perspective === 'red' ? file : FILES - 1 - file;
 }
 
 function displayRankFor(rank: number, perspective: FortressXiangqiColor): number {

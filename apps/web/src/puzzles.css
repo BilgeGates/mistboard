@@ -33,6 +33,12 @@
     var(--puzzle-surface-size),
     calc((var(--puzzle-page-height) - 58px) * 82 / 100)
   );
+  /* The Fortress board is 7x8 (~1.14x taller than the square 7x7 drop board), so
+     narrow the shell (82 / 1.14 ≈ 72) so board + both pockets fit the height. */
+  --puzzle-fortress-surface-size: min(
+    var(--puzzle-surface-size),
+    calc((var(--puzzle-page-height) - 58px) * 72 / 100)
+  );
 
   display: grid;
   grid-template-rows: minmax(0, 1fr);
@@ -96,6 +102,11 @@
 .puzzle-board-shell {
   width: min(100%, var(--puzzle-drop-surface-size));
   min-width: 360px;
+}
+
+.puzzle-board-shell.puzzle-fortress-shell {
+  width: min(100%, var(--puzzle-fortress-surface-size));
+  min-width: 320px;
 }
 
 .puzzle-board-shell > .puzzle-board-reserve,
