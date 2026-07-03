@@ -6,15 +6,17 @@ import {
 } from '@mistboard/game';
 import './landing.css';
 import './game-route.css';
-import { fillCapturedPool } from './live-banqi.js';
 import {
   installMiniXiangqiBoardStyles,
+  miniXiangqiPieceGhostSvg,
   renderMiniXiangqiBoardSvg,
 } from './live-mini-xiangqi-render.js';
 import { type MiniXiangqiViewKey, miniXiangqiMoveLabel } from './mini-xiangqi-view.js';
 import { createPane } from './replay-board.js';
 import { createShareButton } from './replay-meta.js';
 import { capturedByDiff } from './review/captured-diff.js';
+import { fillCapturedPoolWith } from './review/captured-pool.js';
+import { createFlankCaptures } from './review/flank-captures.js';
 import { mountReviewLayout } from './review/review-layout.js';
 import { buildNav } from './site-shell.js';
 import { setBoardFamily } from './theme.js';
@@ -129,8 +131,14 @@ export function miniXiangqiPostgameApiUrl(roomId: string): string {
 }
 
 function renderPostgame(root: HTMLElement, postgame: MiniXiangqiPostgameResponse): void {
-  const pane = createPane('', 'truth', true, 'split');
+  const pane = createPane('', 'truth', false, 'single');
   pane.boardEl.classList.add('mini-xiangqi-live-board');
+  // Flank layout: capture columns beside the board (opponent top-left, near side
+  // bottom-right) so the board keeps its full height and grows to fill it.
+  const flankAnchor = pane.boardEl.nextSibling;
+  const flankParent = pane.boardEl.parentElement;
+  const flank = createFlankCaptures(pane.boardEl);
+  flankParent?.insertBefore(flank.host, flankAnchor);
 
   const moves: MiniMoveEntry[] = postgame.timeline
     .filter(
@@ -176,10 +184,10 @@ function renderPostgame(root: HTMLElement, postgame: MiniXiangqiPostgameResponse
       pane.boardEl.innerHTML = renderMiniXiangqiBoardSvg(view, orientation, { showFog: false });
       const captured = miniXiangqiCaptured(view);
       const opponent: MiniXiangqiColor = orientation === 'red' ? 'black' : 'red';
-      pane.topCapturesEl.replaceChildren();
-      pane.capturesEl.replaceChildren();
-      fillCapturedPool(pane.topCapturesEl, captured, orientation);
-      fillCapturedPool(pane.capturesEl, captured, opponent);
+      flank.leftColumn.replaceChildren();
+      flank.rightColumn.replaceChildren();
+      fillCapturedPoolWith(flank.leftColumn, captured, orientation, miniXiangqiPieceGhostSvg);
+      fillCapturedPoolWith(flank.rightColumn, captured, opponent, miniXiangqiPieceGhostSvg);
     },
     renderMoves({ ply }, jump) {
       renderMoveRows(moveList, moves, ply, jump);

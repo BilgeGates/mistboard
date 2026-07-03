@@ -201,7 +201,9 @@ function renderPostgame(root: HTMLElement, postgame: JungleFlipPostgameResponse)
     moves: movesCard,
     boards: [{ key: 'truth', el: pane.el, tier: 'primary' }],
     boardAspect: 64 / 64,
-    boardCols: 5,
+    // Compact capture tiles (board width / 8) so the top/bottom strips stay short
+    // and the board grows to fill the height.
+    boardCols: 8,
     maxPly: replayMaxPly(postgame),
     renderBoards({ ply }) {
       lastPly = ply;

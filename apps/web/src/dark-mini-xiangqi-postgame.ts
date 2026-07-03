@@ -10,14 +10,14 @@ import './game-route.css';
 import { darkMiniXiangqiEnabled } from './feature-flags.js';
 import {
   installMiniXiangqiBoardStyles,
+  miniXiangqiPieceGhostSvg,
   renderMiniXiangqiBoardSvg,
 } from './live-mini-xiangqi-render.js';
-import {
-  miniXiangqiCapturesFromTruthView,
-  renderMiniXiangqiPaneCaptureSplit,
-} from './mini-xiangqi-captures.js';
+import { miniXiangqiCapturesFromTruthView } from './mini-xiangqi-captures.js';
 import { createPane } from './replay-board.js';
 import { createShareButton } from './replay-meta.js';
+import { fillCapturedPoolWith } from './review/captured-pool.js';
+import { createFlankCaptures } from './review/flank-captures.js';
 import { mountReviewLayout } from './review/review-layout.js';
 import { buildNav } from './site-shell.js';
 import { setBoardFamily } from './theme.js';
@@ -126,10 +126,20 @@ function renderPostgame(root: HTMLElement, postgame: DarkMiniXiangqiPostgameResp
   // Each board host is a pane carrying its own label + captured pools; the review
   // layout arranges them (truth dominant, per-seat views as click-to-promote
   // secondaries) and owns the scrubber, keyboard, flip, and viewport-fill sizing.
+  // Captured material shows on the dominant truth board only, in flank columns
+  // beside it (opponent top-left, near side bottom-right) so the board keeps its
+  // full height; the small POV secondaries stay uncluttered boards.
   const targets = entries.map((entry) => {
-    const pane = createPane(entry.label, paneKindFor(entry.key), true, 'split');
+    const pane = createPane(entry.label, paneKindFor(entry.key), false, 'single');
     pane.boardEl.classList.add('mini-xiangqi-live-board');
-    return { entry, pane };
+    if (entry.key === 'truth') {
+      const flankAnchor = pane.boardEl.nextSibling;
+      const flankParent = pane.boardEl.parentElement;
+      const flank = createFlankCaptures(pane.boardEl);
+      flankParent?.insertBefore(flank.host, flankAnchor);
+      return { entry, pane, flank };
+    }
+    return { entry, pane, flank: null };
   });
 
   const moves = postgame.timeline.filter(
@@ -165,19 +175,32 @@ function renderPostgame(root: HTMLElement, postgame: DarkMiniXiangqiPostgameResp
       tier: target.entry.key === 'truth' ? 'primary' : 'secondary',
     })),
     boardAspect: 516 / 516,
-    // Small capture tiles here: the priority is a large primary board, and the
-    // 3-board fog stack has little vertical room to spare.
-    boardCols: 15,
+    // Board-cell capture tiles in the flank columns (board width / 7 columns).
+    boardCols: 7,
     maxPly: postgameReplayMaxPly(postgame),
     renderBoards({ ply, flipped }) {
       const orientation: MiniXiangqiColor = flipped ? 'black' : 'red';
-      const captures = miniXiangqiCapturesFromTruthView(postgameViewAtPly(postgame, 'truth', ply));
-      for (const { entry, pane } of targets) {
+      const opponent: MiniXiangqiColor = orientation === 'red' ? 'black' : 'red';
+      const captureSet = miniXiangqiCapturesFromTruthView(
+        postgameViewAtPly(postgame, 'truth', ply),
+      );
+      // captureSet.red = roles red captured (black's lost pieces) and vice versa;
+      // flatten to owner-tagged entries (owner = color that lost the piece).
+      const captured = [
+        ...captureSet.black.map((role) => ({ owner: 'red' as MiniXiangqiColor, role })),
+        ...captureSet.red.map((role) => ({ owner: 'black' as MiniXiangqiColor, role })),
+      ];
+      for (const { entry, pane, flank } of targets) {
         const view = postgameViewAtPly(postgame, entry.key, ply) ?? entry.view;
         pane.boardEl.innerHTML = renderMiniXiangqiBoardSvg(view, orientation, {
           showFog: entry.key !== 'truth',
         });
-        renderMiniXiangqiPaneCaptureSplit(pane, captures, orientation);
+        if (flank) {
+          flank.leftColumn.replaceChildren();
+          flank.rightColumn.replaceChildren();
+          fillCapturedPoolWith(flank.leftColumn, captured, orientation, miniXiangqiPieceGhostSvg);
+          fillCapturedPoolWith(flank.rightColumn, captured, opponent, miniXiangqiPieceGhostSvg);
+        }
       }
     },
     renderMoves({ ply }, jump) {
