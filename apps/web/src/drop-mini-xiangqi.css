@@ -31,6 +31,18 @@
   height: var(--drop-mini-hand-piece-size);
 }
 
+/* In the postgame review the reserve is a static pool, not a drop control: drop
+   the dark tile frame so each disc sits cleanly like the on-board pieces (the
+   frame read as a "darker" disc), and size the tiles up to the board-cell scale
+   so they match the on-board piece size. */
+.review-stage .drop-mini-reserve-strip {
+  --drop-mini-hand-piece-size: clamp(40px, calc(100cqw / 7.6), 80px);
+}
+.review-stage .drop-mini-reserve-piece {
+  background: transparent;
+  border-color: transparent;
+}
+
 button.drop-mini-reserve-piece {
   cursor: grab;
 }
