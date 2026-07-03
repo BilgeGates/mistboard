@@ -32,14 +32,18 @@
   display: none;
 }
 
-/* Captured-material strips: the default size is tuned for a live board's
-   container width; in the review stack it resolves too large (and enormous on
-   the small secondary boards). Cap it, smaller still on secondaries. */
+/* Captured-material strips: size the tiles RELATIVE TO THE BOARD (so they read
+   like the pieces on the board, not the tuned-for-live-room fallback that
+   resolves off the viewport). The slot is a size-query container whose inline
+   size is the board width, so ~12 tiles fill a row at board scale. */
+.review-stage__slot {
+  container-type: inline-size;
+}
 .review-stage .captures-strip {
-  --capture-piece-size: 20px;
+  --capture-piece-size: clamp(18px, calc((100cqw - 16px) / 12), 52px);
 }
 .review-stage__slot--secondary .captures-strip {
-  --capture-piece-size: 13px;
+  --capture-piece-size: clamp(10px, calc((100cqw - 8px) / 12), 24px);
 }
 
 /* Secondary boards promote to primary on click. */
