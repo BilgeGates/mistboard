@@ -188,6 +188,9 @@ function renderPostgame(root: HTMLElement, postgame: JieqiPostgameResponse): voi
     moves: movesCard,
     boards: [{ key: 'truth', el: pane.el, tier: 'primary' }],
     boardAspect: 660 / 732,
+    // Compact capture tiles (kept above/below): a full xiangqi pool collapses to a
+    // single row instead of two, freeing vertical space for a larger board.
+    boardCols: 16,
     maxPly: postgameReplayMaxPly(postgame),
     renderBoards(ctx) {
       lastCtx = { ply: ctx.ply, flipped: ctx.flipped };
