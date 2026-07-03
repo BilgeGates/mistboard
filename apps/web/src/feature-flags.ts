@@ -12,6 +12,12 @@ export function darkMiniXiangqiEnabled(): boolean {
   return import.meta.env.DEV || import.meta.env.VITE_DARK_MINI_XIANGQI_ENABLED === 'true';
 }
 
+// Global friends-online widget (bottom-corner pill → expandable list, lichess
+// parity). On in dev; in prod/staging it stays hidden until the build opts in.
+export function friendsOnlineEnabled(): boolean {
+  return import.meta.env.DEV || import.meta.env.VITE_FRIENDS_ONLINE_ENABLED === 'true';
+}
+
 // Drop Mini Xiangqi (7x7 mini xiangqi with crazyhouse-style reserves). Public
 // by default; keep this helper so the tenant registry matches gated variants.
 export function dropMiniXiangqiEnabled(): boolean {

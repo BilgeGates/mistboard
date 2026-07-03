@@ -327,6 +327,11 @@ export function variantMiniIdForRating(id: RatingVariantId): VariantMiniId | nul
   return VARIANTS.find((v) => v.id === id)?.miniId ?? null;
 }
 
+/** Display label for a rating-variant id off the wire, or null if unknown. */
+export function ratingVariantLabel(id: string): string | null {
+  return VARIANTS.find((v) => v.id === id)?.label ?? null;
+}
+
 function currentRatingVariantForSpec(id: GameSpecId): RatingVariantId {
   const pool = ratingPoolForSpec(id);
   if (!pool) throw new Error(`game spec ${id} is not a current web rating variant`);

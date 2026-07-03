@@ -11,9 +11,11 @@
 import type { IncomingMessage, ServerResponse } from 'node:http';
 import { currentAccountUser } from './../account-session.js';
 import { createAuthRateLimiter } from './../auth-rate-limit.js';
+import { collectLiveRoomStats } from './../live-room-stats.js';
 import * as persistence from './../persistence.js';
-import { onlinePresence } from './../presence.js';
-import { requireMethod, requirePersistence, writeJson } from './lib.js';
+import { onlinePresence, refreshPresence } from './../presence.js';
+import { PUBLIC_RATING_TIME_CLASS } from './../rating-buckets.js';
+import { type HttpApiContext, requireMethod, requirePersistence, writeJson } from './lib.js';
 
 const HANDLE_PATTERN = /^[a-zA-Z0-9_-]{1,40}$/;
 const LIST_PAGE_MAX = 50;
@@ -23,7 +25,7 @@ const LIST_PAGE_MAX = 50;
 const relationWriteLimiter = createAuthRateLimiter(30, 60 * 60 * 1000);
 
 export async function tryHandle(
-  _ctx: unknown,
+  ctx: HttpApiContext,
   request: IncomingMessage,
   response: ServerResponse,
   pathname: string,
@@ -85,7 +87,8 @@ export async function tryHandle(
 
   // Online-friends (#94): the viewer's follow set intersected with the
   // in-memory presence map. Same visibility gate as /api/players/online:
-  // private profiles never appear, even to their followers.
+  // private profiles never appear, even to their followers. Rows carry the
+  // same decoration as /api/players/online (best rating + playing flag).
   if (pathname === '/api/relations/online-following') {
     if (!requireMethod(request, response, 'GET')) return true;
     if (!requirePersistence(response)) return true;
@@ -94,11 +97,32 @@ export async function tryHandle(
       writeJson(response, 401, { error: 'not_signed_in' });
       return true;
     }
+    const now = Date.now();
+    const stats = collectLiveRoomStats(ctx);
+    // A follower deep in a long game holds an open socket but may not have hit
+    // an authed HTTP request within the TTL, so re-touch every connected
+    // account (legacy room map + all tenant room maps) before reading presence.
+    for (const identity of stats.onlineIdentities) {
+      if (identity.startsWith('u:')) refreshPresence(identity.slice(2), now);
+    }
     const following = new Set(await persistence.listFollowingIds(user.id));
-    const players = onlinePresence()
+    const listed = onlinePresence(now)
       .filter((entry) => following.has(entry.userId) && entry.profileVisibility !== 'private')
-      .sort((a, b) => a.handle.localeCompare(b.handle))
-      .map((entry) => ({ handle: entry.handle, displayName: entry.displayName }));
+      .sort((a, b) => a.handle.localeCompare(b.handle));
+    // One representative rating per player (their best blitz pool); decoration
+    // only, so an empty map (no DB) leaves the field null rather than failing.
+    const ratings = persistence.isInitialized()
+      ? await persistence.getBestRatings(
+          listed.map((entry) => entry.userId),
+          PUBLIC_RATING_TIME_CLASS,
+        )
+      : new Map<string, persistence.BestRatingEntry>();
+    const players = listed.map((entry) => ({
+      handle: entry.handle,
+      displayName: entry.displayName,
+      rating: ratings.get(entry.userId) ?? null,
+      playing: stats.playingUserIds.has(entry.userId),
+    }));
     writeJson(response, 200, { players, count: players.length });
     return true;
   }

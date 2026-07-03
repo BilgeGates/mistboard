@@ -8,6 +8,7 @@ import { type I18nKey, t } from './i18n/catalog.js';
 import { currentLocale, LOCALE_META, type Locale } from './i18n/locale.js';
 import { buildProfileGameRow, buildProfileHeaderShell } from './profile-ui.js';
 import { buildLoadingState, buildNav, buildNotice } from './site-shell.js';
+import { attachUserCard } from './user-card.js';
 import { renderVariantMiniBoard, type VariantMiniId } from './variant-mini-boards.js';
 import { leaderboardVariants, profileRatingVariants, variantMiniIdForRating } from './variants.js';
 
@@ -360,6 +361,9 @@ function renderOnlinePlayers(body: HTMLElement, result: OnlinePlayersResult, loc
         if (variantLabel) rating.title = variantLabel;
         link.append(rating);
       }
+      // Same reusable hover card the friends-online widget uses — the online
+      // list is the second surface it serves.
+      attachUserCard(link, player.handle, { online: true, playing: player.playing });
       item.append(link);
       list.append(item);
     }
