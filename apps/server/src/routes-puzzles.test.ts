@@ -182,7 +182,8 @@ test('daily puzzle route returns a public persisted-assignment shape without sol
   assert.equal(body.daily.source, 'ephemeral');
   assert.equal(body.daily.selectedAt, null);
   assert.equal(typeof body.puzzle.id, 'string');
-  assert.equal(['mini-xiangqi', 'drop-mini-xiangqi'].includes(body.puzzle.variant), true);
+  // Only Fortress Xiangqi is featured as the daily puzzle for now.
+  assert.equal(body.puzzle.variant, 'fortress-xiangqi');
   assert.notEqual(body.puzzle.initial, undefined);
   assert.equal(body.puzzle.solution, undefined);
 });

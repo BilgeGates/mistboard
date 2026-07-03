@@ -2,7 +2,12 @@ import {
   DROP_MINI_XIANGQI_SPEC_ID,
   type DropMiniXiangqiGameState,
   type DropMiniXiangqiPlayerView,
+  FORTRESS_XIANGQI_SPEC_ID,
+  type FortressXiangqiColor,
+  type FortressXiangqiGameState,
+  type FortressXiangqiPlayerView,
   getDropMiniXiangqiPlayerView,
+  getFortressXiangqiPlayerView,
   getMiniXiangqiOpenPlayerView,
   MINI_XIANGQI_SPEC_ID,
   type MiniXiangqiColor,
@@ -10,6 +15,11 @@ import {
 } from '@mistboard/game';
 import './drop-mini-xiangqi.css';
 import { dropMiniXiangqiBoardView, fillDropMiniXiangqiReserve } from './drop-mini-xiangqi-view.js';
+import {
+  installFortressXiangqiBoardStyles,
+  renderFortressXiangqiBoardSvg,
+} from './fortress-xiangqi-render.js';
+import { fillFortressXiangqiReserve } from './fortress-xiangqi-view.js';
 import {
   installMiniXiangqiBoardStyles,
   renderMiniXiangqiBoardSvg,
@@ -29,7 +39,7 @@ type HomeDailyPuzzle = {
   puzzle: {
     goal: { type: 'checkmate'; winner?: MiniXiangqiColor };
     id: string;
-    initial: MiniXiangqiGameState | DropMiniXiangqiGameState;
+    initial: MiniXiangqiGameState | DropMiniXiangqiGameState | FortressXiangqiGameState;
     sideToMove: MiniXiangqiColor | null;
     solutionPlyCount: number;
     themes: string[];
@@ -81,6 +91,7 @@ export async function loadHomeDailyPuzzle(): Promise<HomeDailyPuzzle | null> {
 
 export function renderHomePuzzleWidget(daily: HomeDailyPuzzle): HTMLElement {
   installMiniXiangqiBoardStyles();
+  installFortressXiangqiBoardStyles();
   const { puzzle } = daily;
   const link = document.createElement('a');
   link.className = 'home-puzzle-widget';
@@ -107,6 +118,10 @@ function renderHomePuzzleWidgetContent(puzzle: HomeDailyPuzzle['puzzle']): HTMLE
 
 function renderHomePuzzleBoard(puzzle: HomeDailyPuzzle['puzzle']): HTMLElement {
   const turn = puzzle.sideToMove ?? 'red';
+  if (puzzle.variant === FORTRESS_XIANGQI_SPEC_ID) {
+    const view = getFortressXiangqiPlayerView(puzzle.initial as FortressXiangqiGameState, turn);
+    return renderFortressHomePuzzleBoard(view, turn);
+  }
   if (puzzle.variant === DROP_MINI_XIANGQI_SPEC_ID) {
     const dropView = getDropMiniXiangqiPlayerView(puzzle.initial as DropMiniXiangqiGameState, turn);
     return renderDropHomePuzzleBoard(dropView, turn);
@@ -156,6 +171,34 @@ function renderDropHomePuzzleBoard(
   return shell;
 }
 
+function renderFortressHomePuzzleBoard(
+  view: FortressXiangqiPlayerView,
+  perspective: FortressXiangqiColor,
+): HTMLElement {
+  const shell = document.createElement('div');
+  shell.className = 'home-puzzle-widget-drop drop-mini-reserve-container';
+
+  const topReserve = document.createElement('div');
+  topReserve.className = 'home-puzzle-widget-hand home-puzzle-widget-hand-top';
+  topReserve.setAttribute('aria-label', 'Black reserve');
+
+  const board = homePuzzleBoardSurface(
+    renderFortressXiangqiBoardSvg(view, perspective, { interactive: false }),
+  );
+
+  const bottomReserve = document.createElement('div');
+  bottomReserve.className = 'home-puzzle-widget-hand home-puzzle-widget-hand-bottom';
+  bottomReserve.setAttribute('aria-label', 'Red reserve');
+
+  const bottom = perspective;
+  const top = bottom === 'red' ? 'black' : 'red';
+  fillFortressXiangqiReserve(topReserve, view, top);
+  fillFortressXiangqiReserve(bottomReserve, view, bottom);
+
+  shell.append(topReserve, board, bottomReserve);
+  return shell;
+}
+
 function homePuzzleBoardSurface(svg: string): HTMLElement {
   const board = document.createElement('div');
   board.className = 'home-puzzle-widget-board';
@@ -177,6 +220,7 @@ function isHomeDailyPuzzle(value: Partial<HomeDailyPuzzle>): value is HomeDailyP
 }
 
 function variantLabel(variant: string): string {
+  if (variant === FORTRESS_XIANGQI_SPEC_ID) return 'Fortress Xiangqi';
   if (variant === DROP_MINI_XIANGQI_SPEC_ID) return 'Drop Mini Xiangqi';
   if (variant === MINI_XIANGQI_SPEC_ID) return 'Mini Xiangqi';
   return variant
