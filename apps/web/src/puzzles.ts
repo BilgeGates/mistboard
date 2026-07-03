@@ -384,7 +384,7 @@ function createPuzzleSession(puzzle: PuzzleDetail): PuzzleSession {
     selectedSquare: null,
     selectedDrop: null,
     draggingFrom: null,
-    feedback: { kind: 'neutral', text: 'Find the forcing move.' },
+    feedback: { kind: 'neutral', text: 'Find the best move.' },
     submitting: false,
   };
 }
@@ -440,7 +440,13 @@ function renderQueuePanel(host: HTMLElement, props: QueuePanelProps): void {
         'variant',
         [
           puzzleInfoLine(`From set ${variantLabel(current.variant)}`),
-          puzzleInfoLine(`${goalLabel(current)} | ${colorLabel(current.sideToMove)} to move`),
+          // The goal (e.g. "Mate in 1") is a spoiler while solving; reveal it only
+          // once the puzzle is solved, like the puzzle rating.
+          puzzleInfoLine(
+            solvedIds.has(current.id)
+              ? `${goalLabel(current)} | ${colorLabel(current.sideToMove)} to move`
+              : `${colorLabel(current.sideToMove)} to move`,
+          ),
         ],
         current.variant,
       ),
@@ -506,8 +512,15 @@ function renderQueuePanel(host: HTMLElement, props: QueuePanelProps): void {
   const themesCopy = document.createElement('p');
   themesCopy.textContent = 'Forcing lines grouped by mate pattern, piece, and variant.';
   themesCard.append(themesTitle);
-  if (current) {
+  if (current && solvedIds.has(current.id)) {
+    // Themes name the piece/pattern (e.g. "Drop", "Treasure"), so reveal them
+    // only after the puzzle is solved to avoid giving the move away.
     themesCard.append(themesCopy, tagsPanel(current));
+  } else if (current) {
+    const hidden = document.createElement('p');
+    hidden.className = 'puzzle-card-empty';
+    hidden.textContent = 'Revealed after you solve it.';
+    themesCard.append(hidden);
   } else {
     const empty = document.createElement('p');
     empty.className = 'puzzle-card-empty';
@@ -867,7 +880,7 @@ function feedbackPanel(session: PuzzleSession, navigation: PuzzleNavigation): HT
   panel.className = `puzzle-feedback puzzle-feedback--${session.feedback.kind}`;
   const icon = document.createElement('span');
   icon.className = 'puzzle-feedback-icon';
-  icon.textContent = '♔';
+  icon.innerHTML = puzzleGeneralIconSvg(session.puzzle);
   icon.setAttribute('aria-hidden', 'true');
   const copy = document.createElement('div');
   copy.className = 'puzzle-feedback-copy';
@@ -1138,7 +1151,7 @@ async function handleBoardClick(
   } else {
     session.selectedSquare = null;
     session.selectedDrop = null;
-    session.feedback = { kind: 'neutral', text: 'Find the forcing move.' };
+    session.feedback = { kind: 'neutral', text: 'Find the best move.' };
   }
   renderSession();
 }
@@ -1171,7 +1184,7 @@ async function handleBoardDrop(
 
   session.selectedSquare = null;
   session.selectedDrop = null;
-  session.feedback = { kind: 'neutral', text: 'Find the forcing move.' };
+  session.feedback = { kind: 'neutral', text: 'Find the best move.' };
   renderSession();
 }
 
@@ -1200,7 +1213,7 @@ async function handleReserveDrop(
     return;
   }
 
-  session.feedback = { kind: 'neutral', text: 'Find the forcing move.' };
+  session.feedback = { kind: 'neutral', text: 'Find the best move.' };
   renderSession();
 }
 
@@ -1294,7 +1307,7 @@ async function handleFortressBoardClick(
   } else {
     session.selectedSquare = null;
     session.selectedDrop = null;
-    session.feedback = { kind: 'neutral', text: 'Find the forcing move.' };
+    session.feedback = { kind: 'neutral', text: 'Find the best move.' };
   }
   renderSession();
 }
@@ -1327,7 +1340,7 @@ async function handleFortressBoardDrop(
   }
   session.selectedSquare = null;
   session.selectedDrop = null;
-  session.feedback = { kind: 'neutral', text: 'Find the forcing move.' };
+  session.feedback = { kind: 'neutral', text: 'Find the best move.' };
   renderSession();
 }
 
@@ -1354,7 +1367,7 @@ async function handleFortressReserveDrop(
     await submitMove(session, { drop: role, to }, renderSession, onSolved);
     return;
   }
-  session.feedback = { kind: 'neutral', text: 'Find the forcing move.' };
+  session.feedback = { kind: 'neutral', text: 'Find the best move.' };
   renderSession();
 }
 
@@ -1773,6 +1786,17 @@ function dropRoleSymbol(role: DropMiniXiangqiDropRole): string {
   }
 }
 
+// The general (xiangqi "king") of the side to move, rendered in the user's
+// chosen piece set — replaces the generic chess-king glyph so the icon matches
+// the board's variant + skin.
+function puzzleGeneralIconSvg(puzzle: PuzzleDetail): string {
+  const color = puzzle.sideToMove ?? 'red';
+  if (puzzle.variant === FORTRESS_XIANGQI_SPEC_ID) {
+    return fortressXiangqiPieceGhostSvg({ color, role: 'general' });
+  }
+  return miniXiangqiPieceGhostSvg({ color, role: 'general' });
+}
+
 function feedbackTitle(session: PuzzleSession): string {
   switch (session.feedback.kind) {
     case 'good':
@@ -1782,7 +1806,9 @@ function feedbackTitle(session: PuzzleSession): string {
     case 'pending':
       return 'Checking';
     case 'neutral':
-      return session.puzzle.title;
+      // Deliberately generic: the puzzle title names the piece + mate depth,
+      // which would give the solution away.
+      return `${colorLabel(session.puzzle.sideToMove)} to move`;
   }
 }
 

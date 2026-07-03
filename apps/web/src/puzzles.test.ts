@@ -69,7 +69,8 @@ describe('puzzles route', () => {
     expect(root.querySelector('.puzzles-sidebar')?.textContent).toContain('0 solved of 1');
     expect(root.querySelector('.puzzles-sidebar')?.textContent).not.toContain('All puzzles');
     expect(root.querySelector('.puzzles-sidebar')?.textContent).not.toContain(' / ');
-    expect(root.querySelector('.puzzle-detail h2')?.textContent).toBe('Red chariot drop mate');
+    // The feedback title is deliberately generic (the puzzle title would spoil the piece).
+    expect(root.querySelector('.puzzle-detail h2')?.textContent).toBe('Red to move');
     expect(root.querySelector('.mini-xq-board')).not.toBeNull();
     const boardShell = root.querySelector('.puzzle-board-shell');
     expect(boardShell).not.toBeNull();
@@ -77,7 +78,8 @@ describe('puzzles route', () => {
     expect(boardShell?.querySelector('[aria-label="Bottom reserve"]')).not.toBeNull();
     expect(boardShell?.querySelector('[data-drop="chariot"]')).not.toBeNull();
     expect(root.querySelector('.puzzle-reserves')).toBeNull();
-    expect(root.textContent).toContain('Mate in 1');
+    // The goal (mate depth) is hidden while solving so it doesn't spoil the move.
+    expect(root.textContent).not.toContain('Mate in 1');
     expect(root.querySelector('.puzzle-moves h3')).toBeNull();
     expect(root.querySelector('.puzzle-move-black')?.textContent).toBe('...');
     expect(root.textContent).not.toContain('d4');
@@ -214,7 +216,7 @@ describe('puzzles route', () => {
     const root = document.createElement('div');
 
     await mountPuzzles(root, multi.id);
-    expect(root.textContent).toContain('Mate in 2');
+    expect(root.textContent).not.toContain('Mate in 2');
 
     root
       .querySelector<SVGGElement>('[data-square="c5"]')
@@ -293,7 +295,7 @@ describe('puzzles route', () => {
     nextButton?.click();
 
     await vi.waitFor(() =>
-      expect(root.querySelector('.puzzle-detail h2')?.textContent).toBe('Black chariot drop mate'),
+      expect(root.querySelector('.puzzle-detail h2')?.textContent).toBe('Black to move'),
     );
     expect(fetchSpy).toHaveBeenCalledWith(`/api/puzzles/${blackDrop.id}`);
   });
@@ -340,7 +342,7 @@ describe('puzzles route', () => {
       ?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
 
     await vi.waitFor(() =>
-      expect(root.querySelector('.puzzle-detail h2')?.textContent).toBe('Black chariot drop mate'),
+      expect(root.querySelector('.puzzle-detail h2')?.textContent).toBe('Black to move'),
     );
     expect(window.location.pathname).toBe(`/puzzles/${blackDrop.id}`);
   });
