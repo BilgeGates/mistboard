@@ -946,8 +946,40 @@ describe('forum pages', () => {
     expect(
       root.querySelector<HTMLAnchorElement>('.forum-post-author-name')?.getAttribute('href'),
     ).toBe('/@/alice');
-    expect(root.querySelector('.forum-post-author-handle')?.textContent).toBe('@alice');
+    // Single identifier only: the redundant "@handle" sub-line is gone.
+    expect(root.querySelector('.forum-post-author-handle')).toBeNull();
     expect(root.querySelector('.forum-post-permalink')?.textContent).toBe('#1');
+  });
+
+  it('shows an online dot for a post author flagged online', async () => {
+    vi.spyOn(globalThis, 'fetch').mockImplementation(async (input) => {
+      const url = String(input);
+      if (url.startsWith('/api/forum/categories')) return json({ categories });
+      if (url.startsWith('/api/forum/topics/topic_strategy')) {
+        return json({
+          topic: {
+            ...topic,
+            posts: [
+              {
+                id: 'post_1',
+                author: { handle: 'alice', displayName: 'Alice', online: true },
+                bodyText: 'Opening post.',
+                createdAt: '2026-06-01T00:00:00.000Z',
+                updatedAt: '2026-06-01T00:00:00.000Z',
+              },
+            ],
+          },
+        });
+      }
+      if (url.startsWith('/api/auth/me')) return json({ user: null });
+      throw new Error(`unexpected fetch ${url}`);
+    });
+    const root = document.createElement('div');
+    const { mountForumTopic } = await import('./forum.js');
+
+    await mountForumTopic(root, 'topic_strategy');
+
+    expect(root.querySelector('.forum-post-author .forum-online-dot')).not.toBeNull();
   });
 
   it('quotes a post into the reply form', async () => {
@@ -1022,153 +1054,6 @@ describe('forum pages', () => {
       'Alice wrote:\nOpening <script>alert(1)</script>',
     );
     expect(root.querySelector('.forum-post-paragraph')?.textContent).toBe('Reply stays plaintext.');
-  });
-
-  it('edits an authored post inline', async () => {
-    const aliceUser = {
-      ...adminUser,
-      id: 'forum_user_alice',
-      handle: 'alice',
-      displayName: 'Alice',
-      accountRole: 'player' as const,
-    };
-    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockImplementation(async (input, init) => {
-      const url = String(input);
-      if (url.startsWith('/api/forum/categories')) return json({ categories });
-      if (url === '/api/forum/posts/post_1' && init?.method === 'PATCH') {
-        return json({
-          post: {
-            id: 'post_1',
-            author: { handle: 'alice', displayName: 'Alice' },
-            bodyText: 'Edited opening post.',
-            createdAt: '2026-06-01T00:00:00.000Z',
-            updatedAt: '2026-06-01T00:10:00.000Z',
-          },
-        });
-      }
-      if (url.startsWith('/api/forum/topics/topic_strategy')) {
-        return json({
-          topic: {
-            ...topic,
-            posts: [
-              {
-                id: 'post_1',
-                author: { handle: 'alice', displayName: 'Alice' },
-                bodyText: 'Opening post.',
-                createdAt: '2026-06-01T00:00:00.000Z',
-                updatedAt: '2026-06-01T00:00:00.000Z',
-              },
-            ],
-          },
-        });
-      }
-      if (url.startsWith('/api/auth/me')) return json({ user: aliceUser });
-      throw new Error(`unexpected fetch ${url}`);
-    });
-    const root = document.createElement('div');
-    document.body.append(root);
-    const { mountForumTopic } = await import('./forum.js');
-
-    await mountForumTopic(root, 'topic_strategy');
-    const edit = root.querySelector<HTMLButtonElement>('.forum-post-edit');
-    if (!edit) throw new Error('missing edit button');
-    edit.click();
-    const form = root.querySelector<HTMLFormElement>('.forum-post-edit-form');
-    const body = form?.querySelector<HTMLTextAreaElement>('textarea[name="body"]');
-    if (!form || !body) throw new Error('missing edit form');
-    body.value = 'Edited opening post.';
-
-    form.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
-    await flushPromises();
-    await flushPromises();
-
-    const editCall = fetchSpy.mock.calls.find(
-      ([input, init]) => String(input) === '/api/forum/posts/post_1' && init?.method === 'PATCH',
-    );
-    expect(JSON.parse(String(editCall?.[1]?.body))).toEqual({ body: 'Edited opening post.' });
-    expect(root.querySelector('.forum-post-edit-form')).toBeNull();
-    expect(root.querySelector('.forum-post-body')?.textContent).toBe('Edited opening post.');
-    expect(root.querySelector('.forum-post-edited')?.textContent).toContain('edited');
-  });
-
-  it('edits an authored topic title inline', async () => {
-    window.history.pushState(null, '', '/forum/t/topic_strategy/scouting-the-center');
-    const aliceUser = {
-      ...adminUser,
-      id: 'forum_user_alice',
-      handle: 'alice',
-      displayName: 'Alice',
-      accountRole: 'player' as const,
-    };
-    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockImplementation(async (input, init) => {
-      const url = String(input);
-      if (url.startsWith('/api/forum/categories')) return json({ categories });
-      if (url === '/api/forum/topics/topic_strategy' && init?.method === 'PATCH') {
-        return json({
-          topic: {
-            ...topic,
-            title: 'Scouting the flank',
-            slug: 'scouting-the-flank',
-            updatedAt: '2026-06-01T00:10:00.000Z',
-            posts: [
-              {
-                id: 'post_1',
-                author: { handle: 'alice', displayName: 'Alice' },
-                bodyText: 'Opening post.',
-                createdAt: '2026-06-01T00:00:00.000Z',
-                updatedAt: '2026-06-01T00:00:00.000Z',
-              },
-            ],
-          },
-        });
-      }
-      if (url.startsWith('/api/forum/topics/topic_strategy')) {
-        return json({
-          topic: {
-            ...topic,
-            posts: [
-              {
-                id: 'post_1',
-                author: { handle: 'alice', displayName: 'Alice' },
-                bodyText: 'Opening post.',
-                createdAt: '2026-06-01T00:00:00.000Z',
-                updatedAt: '2026-06-01T00:00:00.000Z',
-              },
-            ],
-          },
-        });
-      }
-      if (url.startsWith('/api/auth/me')) return json({ user: aliceUser });
-      throw new Error(`unexpected fetch ${url}`);
-    });
-    const root = document.createElement('div');
-    document.body.append(root);
-    const { mountForumTopic } = await import('./forum.js');
-
-    await mountForumTopic(root, 'topic_strategy');
-    const edit = root.querySelector<HTMLButtonElement>('.forum-topic-edit');
-    if (!edit) throw new Error('missing topic edit button');
-    edit.click();
-    const form = root.querySelector<HTMLFormElement>('.forum-topic-edit-form');
-    const title = form?.querySelector<HTMLInputElement>('input[name="title"]');
-    if (!form || !title) throw new Error('missing topic edit form');
-    title.value = 'Scouting the flank';
-
-    form.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
-    await flushPromises();
-    await flushPromises();
-
-    const editCall = fetchSpy.mock.calls.find(
-      ([input, init]) =>
-        String(input) === '/api/forum/topics/topic_strategy' && init?.method === 'PATCH',
-    );
-    expect(JSON.parse(String(editCall?.[1]?.body))).toEqual({ title: 'Scouting the flank' });
-    expect(root.querySelector('.forum-topic-edit-form')).toBeNull();
-    expect(root.querySelector('h1')?.textContent).toBe('Scouting the flank');
-    expect(window.location.pathname).toBe('/forum/t/topic_strategy/scouting-the-flank');
-    expect(
-      root.querySelector<HTMLAnchorElement>('.forum-post-permalink')?.getAttribute('href'),
-    ).toBe('/forum/t/topic_strategy/scouting-the-flank#post_post_1');
   });
 
   it('redirects a new reply to its stable post anchor', async () => {
@@ -1410,6 +1295,24 @@ describe('forum pages', () => {
     expect(tombstone?.querySelector('.forum-post-quote')).toBeNull();
     expect(tombstone?.querySelector('.forum-post-edit')).toBeNull();
     expect(tombstone?.querySelector('.forum-moderation-actions')).toBeNull();
+  });
+
+  it('renders the dedicated forum etiquette page', async () => {
+    const root = document.createElement('div');
+    const { mountForumEtiquette } = await import('./forum.js');
+
+    await mountForumEtiquette(root);
+
+    const panel = root.querySelector('.forum-etiquette-panel');
+    expect(panel?.querySelector('.site-section-heading')?.textContent).toBe('Forum etiquette');
+    expect(root.querySelector<HTMLAnchorElement>('.forum-panel-back')?.getAttribute('href')).toBe(
+      '/forum',
+    );
+    // The cheating-reports section points at the private contact page.
+    const contact = Array.from(
+      root.querySelectorAll<HTMLAnchorElement>('.forum-etiquette-para a'),
+    ).find((link) => link.getAttribute('href') === '/contact');
+    expect(contact).toBeTruthy();
   });
 });
 

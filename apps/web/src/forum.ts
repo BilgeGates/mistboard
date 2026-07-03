@@ -28,6 +28,9 @@ type ForumCategory = {
 type ForumAuthor = {
   handle: string;
   displayName: string;
+  // Soft presence signal; only populated on post authors in the topic detail
+  // payload. Undefined everywhere it is not computed (treated as offline).
+  online?: boolean;
 } | null;
 
 type ForumTopicSummary = {
@@ -400,6 +403,95 @@ export async function mountForumReports(root: HTMLElement): Promise<void> {
   body.replaceChildren(panel);
 }
 
+export async function mountForumEtiquette(root: HTMLElement): Promise<void> {
+  root.replaceChildren();
+  root.classList.add('landing-page', 'forum-route');
+  document.title = 'Forum etiquette · Mistboard';
+
+  const shell = document.createElement('main');
+  shell.className = 'site-section forum-shell';
+  root.append(buildNav(), shell);
+
+  const panel = forumPanel('forum-etiquette-panel');
+  const header = document.createElement('header');
+  header.className = 'forum-panel-header forum-header';
+  const titleRow = document.createElement('div');
+  titleRow.className = 'forum-panel-title-row';
+  titleRow.append(forumBackLink('/forum', 'Back to forum'), forumPanelTitle('Forum etiquette'));
+  header.append(titleRow);
+
+  const body = document.createElement('div');
+  body.className = 'forum-etiquette-body';
+  const intro = document.createElement('p');
+  intro.className = 'forum-etiquette-lede';
+  intro.textContent =
+    'The Mistboard forum works best when it stays useful and welcoming. A few things to keep in mind before you post.';
+  body.append(
+    intro,
+    etiquetteSection('Use a descriptive title', [
+      etiquettePara(
+        'A good title says what the thread is about. "Scouting lines in Dark Xiangqi" helps people find and answer it; "Help" or a single word does not.',
+      ),
+    ]),
+    etiquetteSection('Post in the right category', [
+      etiquettePara(
+        'Put each topic in the category that fits it. Rules questions, strategy, and general discussion each have a home. Misplaced threads may be moved or closed by moderators.',
+      ),
+    ]),
+    etiquetteSection('Be respectful', [
+      etiquettePara(
+        'Disagree with the argument, not the person. No insults, slurs, or personal attacks, and do not pile on. If a post crosses the line, report it instead of replying in kind.',
+      ),
+    ]),
+    etiquetteSection('No spam or advertising', [
+      etiquettePara(
+        'Purely promotional posts (recruiting, link dropping, engagement bait) are not welcome. Use the Report button rather than bumping the thread with a reply.',
+      ),
+    ]),
+    etiquetteSection('Keep cheating reports private', [
+      etiquettePara([
+        'Do not accuse other players of cheating in public. Naming and shaming helps no one and is often wrong. Use the ',
+        etiquetteLink('contact page', '/contact'),
+        ' so it can be looked into properly.',
+      ]),
+    ]),
+    etiquetteSection('Moderation', [
+      etiquettePara([
+        'Posts that break these guidelines may be hidden, and repeat offenders may lose forum access. When in doubt, be kind. See the ',
+        etiquetteLink('FAQ', '/faq'),
+        ' if you are unsure how something on Mistboard works.',
+      ]),
+    ]),
+  );
+  panel.append(header, body);
+  shell.append(panel);
+}
+
+function etiquetteSection(title: string, nodes: HTMLElement[]): HTMLElement {
+  const section = document.createElement('section');
+  section.className = 'forum-etiquette-section';
+  const heading = document.createElement('h2');
+  heading.textContent = title;
+  section.append(heading, ...nodes);
+  return section;
+}
+
+function etiquettePara(content: string | Array<string | Node>): HTMLElement {
+  const p = document.createElement('p');
+  p.className = 'forum-etiquette-para';
+  for (const part of Array.isArray(content) ? content : [content]) {
+    p.append(typeof part === 'string' ? document.createTextNode(part) : part);
+  }
+  return p;
+}
+
+function etiquetteLink(label: string, href: string): HTMLAnchorElement {
+  const link = document.createElement('a');
+  link.href = href;
+  link.textContent = label;
+  return link;
+}
+
 function forumPanel(extraClassName = ''): HTMLElement {
   const panel = document.createElement('section');
   panel.className = ['forum-panel', extraClassName].filter(Boolean).join(' ');
@@ -510,8 +602,21 @@ function forumBackLink(href: string, label: string): HTMLAnchorElement {
   link.className = 'forum-back-link forum-panel-back';
   link.href = href;
   link.setAttribute('aria-label', label);
-  link.textContent = '<';
+  link.append(forumBackChevron());
   return link;
+}
+
+// Rounded chevron, softer than a bare "<" glyph (round line caps/joins).
+function forumBackChevron(): SVGSVGElement {
+  const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+  svg.classList.add('forum-back-chevron');
+  svg.setAttribute('viewBox', '0 0 24 24');
+  svg.setAttribute('aria-hidden', 'true');
+  svg.setAttribute('focusable', 'false');
+  const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+  path.setAttribute('d', 'M15 5 L8.5 12 L15 19');
+  svg.append(path);
+  return svg;
 }
 
 function newTopicPanelAction(
@@ -534,8 +639,10 @@ function newTopicPanelAction(
   }
   const button = document.createElement('button');
   button.type = 'button';
-  button.className = 'forum-panel-action';
-  button.textContent = 'Create a new topic';
+  button.className = 'forum-panel-action forum-panel-action-create';
+  const label = document.createElement('span');
+  label.textContent = 'Create a new topic';
+  button.append(forumPencilIcon(), label);
   button.addEventListener('click', () => {
     composer.hidden = !composer.hidden;
     button.setAttribute('aria-expanded', String(!composer.hidden));
@@ -545,6 +652,19 @@ function newTopicPanelAction(
   });
   button.setAttribute('aria-expanded', 'false');
   return button;
+}
+
+// Pencil glyph on the "Create a new topic" action (matches lichess's icon).
+function forumPencilIcon(): SVGSVGElement {
+  const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+  svg.classList.add('forum-pencil-icon');
+  svg.setAttribute('viewBox', '0 0 24 24');
+  svg.setAttribute('aria-hidden', 'true');
+  svg.setAttribute('focusable', 'false');
+  const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+  path.setAttribute('d', 'M4 16.5 L14.5 6 L18 9.5 L7.5 20 L4 20 Z M13 7.5 L16.5 11');
+  svg.append(path);
+  return svg;
 }
 
 function canStartTopicInCategory(category: ForumCategory, user: AuthUser | null): user is AuthUser {
@@ -563,7 +683,6 @@ function topicHeader(topic: ForumTopicDetail, user: AuthUser | null): HTMLElemen
     forumBackLink(categoryHref(topic.category), `Back to ${topic.category.name}`),
     heading,
   );
-  if (canEditTopic(topic, user) && !topic.locked) titleRow.append(topicEditButton(topic, heading));
   if (canReportForumContent(topic.author, user)) titleRow.append(topicReportButton(topic));
   const meta = document.createElement('p');
   meta.className = 'forum-sub';
@@ -965,18 +1084,6 @@ function replyCount(topic: ForumTopicSummary): number {
   return Math.max(0, topic.postCount - 1);
 }
 
-function topicEditButton(topic: ForumTopicDetail, heading: HTMLElement): HTMLButtonElement {
-  const button = document.createElement('button');
-  button.type = 'button';
-  button.className = 'forum-topic-edit';
-  button.textContent = 'Edit title';
-  button.setAttribute('aria-label', `Edit ${topic.title} title`);
-  button.addEventListener('click', () => {
-    showTopicEditForm(topic, heading);
-  });
-  return button;
-}
-
 function topicReportButton(topic: ForumTopicDetail): HTMLButtonElement {
   return forumReportButton({
     className: 'forum-topic-report',
@@ -984,87 +1091,6 @@ function topicReportButton(topic: ForumTopicDetail): HTMLButtonElement {
     promptText: 'Reason for reporting this topic',
     submit: (reason) => submitTopicReport(topic.id, reason),
   });
-}
-
-function showTopicEditForm(topic: ForumTopicDetail, heading: HTMLElement): void {
-  const header = heading.closest('.forum-header');
-  if (!header || header.querySelector('.forum-topic-edit-form')) return;
-
-  const form = document.createElement('form');
-  form.className = 'forum-topic-edit-form';
-  const input = document.createElement('input');
-  input.name = 'title';
-  input.maxLength = forumTopicTitleMaxLength;
-  input.required = true;
-  input.value = topic.title;
-  const error = errorLine();
-  const actions = document.createElement('div');
-  actions.className = 'forum-post-edit-actions';
-  const save = submitButton('Save title');
-  const cancel = document.createElement('button');
-  cancel.type = 'button';
-  cancel.textContent = 'Cancel';
-  actions.append(save, cancel);
-  form.append(labeled('Title', input), error, actions);
-
-  const close = () => {
-    form.remove();
-  };
-  cancel.addEventListener('click', close);
-  form.addEventListener('submit', (event) => {
-    event.preventDefault();
-    void submitTopicEdit(topic, form, save, error)
-      .then((updated) => {
-        topic.title = updated.title;
-        topic.slug = updated.slug;
-        topic.updatedAt = updated.updatedAt;
-        heading.textContent = updated.title;
-        document.title = `${updated.title} · Forum · Mistboard`;
-        refreshTopicLinks(updated);
-        window.history.replaceState(null, '', topicHref(updated));
-        close();
-      })
-      .catch(() => undefined);
-  });
-
-  heading.closest('.forum-topic-title-row')?.after(form);
-  input.focus();
-  input.setSelectionRange(input.value.length, input.value.length);
-}
-
-async function submitTopicEdit(
-  topic: ForumTopicDetail,
-  form: HTMLFormElement,
-  submit: HTMLButtonElement,
-  error: HTMLElement,
-): Promise<ForumTopicDetail> {
-  submit.disabled = true;
-  error.textContent = '';
-  const data = new FormData(form);
-  try {
-    const resp = await fetch(`/api/forum/topics/${encodeURIComponent(topic.id)}`, {
-      method: 'PATCH',
-      headers: { 'content-type': 'application/json', accept: 'application/json' },
-      body: JSON.stringify({ title: String(data.get('title') ?? '') }),
-    });
-    if (!resp.ok) throw new Error(errorMessageForTopicEditStatus(resp.status));
-    const payload = (await resp.json()) as { topic: ForumTopicDetail };
-    return payload.topic;
-  } catch (err) {
-    error.textContent = err instanceof Error ? err.message : 'Topic title could not be edited.';
-    throw err;
-  } finally {
-    submit.disabled = false;
-  }
-}
-
-function refreshTopicLinks(topic: { id: string; slug: string }): void {
-  const prefix = `/forum/t/${encodeURIComponent(topic.id)}/`;
-  const nextBase = topicHref(topic);
-  for (const link of document.querySelectorAll<HTMLAnchorElement>(`a[href^="${prefix}"]`)) {
-    const current = new URL(link.getAttribute('href') ?? '', window.location.origin);
-    link.setAttribute('href', `${nextBase}${current.search}${current.hash}`);
-  }
 }
 
 function postList(
@@ -1108,9 +1134,6 @@ function postList(
     const actions = document.createElement('span');
     actions.className = 'forum-post-actions';
     if (user && !topic.locked) actions.append(postQuoteButton(post));
-    if (canEditPost(post, user) && !topic.locked) {
-      actions.append(postEditButton(post, body, edited));
-    }
     if (canReportForumContent(post.author, user)) actions.append(postReportButton(post));
     header.append(postAuthorRail(post.author), time, edited);
     if (actions.childElementCount > 0) header.append(actions);
@@ -1152,14 +1175,19 @@ function hiddenPostTombstone(
 function postAuthorRail(author: ForumAuthor): HTMLElement {
   const rail = document.createElement('aside');
   rail.className = 'forum-post-author';
+  // Show a single identifier (the handle), not display-name + @handle together.
+  if (author?.online) rail.append(onlineDot());
   rail.append(authorProfileLink(author, 'forum-post-author-name'));
-  if (author) {
-    const handle = document.createElement('span');
-    handle.className = 'forum-post-author-handle';
-    handle.textContent = `@${author.handle}`;
-    rail.append(handle);
-  }
   return rail;
+}
+
+function onlineDot(): HTMLElement {
+  const dot = document.createElement('span');
+  dot.className = 'forum-online-dot';
+  dot.title = 'Online now';
+  dot.setAttribute('aria-label', 'Online now');
+  dot.setAttribute('role', 'img');
+  return dot;
 }
 
 function postPermalink(
@@ -1194,93 +1222,6 @@ function postReportButton(post: ForumPost): HTMLButtonElement {
     promptText: 'Reason for reporting this post',
     submit: (reason) => submitPostReport(post.id, reason),
   });
-}
-
-function postEditButton(
-  post: ForumPost,
-  body: HTMLElement,
-  edited: HTMLElement,
-): HTMLButtonElement {
-  const button = document.createElement('button');
-  button.type = 'button';
-  button.className = 'forum-post-edit';
-  button.textContent = 'Edit';
-  button.setAttribute('aria-label', `Edit ${authorLabel(post.author)} post`);
-  button.addEventListener('click', () => {
-    showPostEditForm(post, body, edited);
-  });
-  return button;
-}
-
-function showPostEditForm(post: ForumPost, body: HTMLElement, edited: HTMLElement): void {
-  const article = body.closest('.forum-post');
-  if (!article || article.querySelector('.forum-post-edit-form')) return;
-
-  const form = document.createElement('form');
-  form.className = 'forum-post-edit-form';
-  const textarea = document.createElement('textarea');
-  textarea.name = 'body';
-  textarea.maxLength = forumPostBodyMaxLength;
-  textarea.required = true;
-  textarea.value = post.bodyText;
-  const error = errorLine();
-  const actions = document.createElement('div');
-  actions.className = 'forum-post-edit-actions';
-  const save = submitButton('Save');
-  const cancel = document.createElement('button');
-  cancel.type = 'button';
-  cancel.textContent = 'Cancel';
-  actions.append(save, cancel);
-  form.append(textarea, error, actions);
-
-  const close = () => {
-    form.remove();
-    body.hidden = false;
-  };
-  cancel.addEventListener('click', close);
-  form.addEventListener('submit', (event) => {
-    event.preventDefault();
-    void submitPostEdit(post, form, save, error)
-      .then((updated) => {
-        post.bodyText = updated.bodyText;
-        post.updatedAt = updated.updatedAt;
-        renderPostBodyInto(body, updated.bodyText);
-        updatePostEditedLabel(edited, post);
-        close();
-      })
-      .catch(() => undefined);
-  });
-
-  body.hidden = true;
-  body.after(form);
-  textarea.focus();
-  textarea.setSelectionRange(textarea.value.length, textarea.value.length);
-}
-
-async function submitPostEdit(
-  post: ForumPost,
-  form: HTMLFormElement,
-  submit: HTMLButtonElement,
-  error: HTMLElement,
-): Promise<ForumPost> {
-  submit.disabled = true;
-  error.textContent = '';
-  const data = new FormData(form);
-  try {
-    const resp = await fetch(`/api/forum/posts/${encodeURIComponent(post.id)}`, {
-      method: 'PATCH',
-      headers: { 'content-type': 'application/json', accept: 'application/json' },
-      body: JSON.stringify({ body: String(data.get('body') ?? '') }),
-    });
-    if (!resp.ok) throw new Error(errorMessageForPostEditStatus(resp.status));
-    const payload = (await resp.json()) as { post: ForumPost };
-    return payload.post;
-  } catch (err) {
-    error.textContent = err instanceof Error ? err.message : 'Post could not be edited.';
-    throw err;
-  } finally {
-    submit.disabled = false;
-  }
 }
 
 function postEditedLabel(post: ForumPost): HTMLElement {
@@ -1399,14 +1340,6 @@ function forumPostLink(urlText: string): HTMLAnchorElement | null {
   }
 }
 
-function canEditPost(post: ForumPost, user: AuthUser | null): boolean {
-  return Boolean(user && (user.accountRole === 'admin' || post.author?.handle === user.handle));
-}
-
-function canEditTopic(topic: ForumTopicDetail, user: AuthUser | null): boolean {
-  return Boolean(user && (user.accountRole === 'admin' || topic.author?.handle === user.handle));
-}
-
 function canReportForumContent(author: ForumAuthor, user: AuthUser | null): boolean {
   return Boolean(user && user.accountRole !== 'admin' && author?.handle !== user.handle);
 }
@@ -1452,21 +1385,68 @@ function newTopicForm(
     placeholder: 'Please be nice in the forum.',
   });
   const error = errorLine();
-  const submit = submitButton('Post topic');
+  const submit = submitButton('Post topic', { check: true });
+  const cancel = forumCancelLink(() => collapseTopicComposer(form));
+  const footer = document.createElement('div');
+  footer.className = 'forum-form-footer';
+  footer.append(cancel, submit);
   form.append(
+    forumImportantNotice(),
     heading,
     labeled('Category', category),
     labeled('Title', title),
     fieldGroup('Post', bodyComposer.root),
     forumMarkdownNote(),
     error,
-    submit,
+    footer,
   );
   form.addEventListener('submit', (event) => {
     event.preventDefault();
     void submitTopic(form, submit, error);
   });
   return form;
+}
+
+// Collapse the toggled new-topic composer (the category page shows it behind a
+// "Create a new topic" button) and restore focus to that toggle.
+function collapseTopicComposer(form: HTMLFormElement): void {
+  const composer = form.closest<HTMLElement>('.forum-topic-composer');
+  if (!composer) return;
+  composer.hidden = true;
+  const toggle = composer
+    .closest('.forum-panel')
+    ?.querySelector<HTMLButtonElement>('.forum-panel-action-create');
+  if (toggle) {
+    toggle.setAttribute('aria-expanded', 'false');
+    toggle.focus();
+  }
+}
+
+// Lichess-style "Important" callout at the head of the composer: points people
+// at the FAQ, the contact form, and the forum etiquette before they post.
+function forumImportantNotice(): HTMLElement {
+  const box = document.createElement('aside');
+  box.className = 'forum-important-notice';
+  const heading = document.createElement('strong');
+  heading.className = 'forum-important-heading';
+  heading.textContent = 'Important';
+  const list = document.createElement('ul');
+  list.className = 'forum-important-list';
+  const items: Array<[string, string, string]> = [
+    ['Your question may already have an answer in the ', 'FAQ', '/faq'],
+    ['To report a player or bad behavior, use the ', 'contact page', '/contact'],
+    ['Make sure to read the ', 'forum etiquette', '/forum/etiquette'],
+  ];
+  for (const [prefix, linkText, href] of items) {
+    const item = document.createElement('li');
+    const link = document.createElement('a');
+    link.href = href;
+    link.textContent = linkText;
+    item.append(document.createTextNode(prefix), link);
+    list.append(item);
+  }
+  box.append(heading, list);
+  return box;
 }
 
 function forumSearchForm(query: string | null, options: { compact?: boolean } = {}): HTMLElement {
@@ -1506,17 +1486,34 @@ function replyForm(topic: ForumTopicDetail, _user: AuthUser): HTMLElement {
     placeholder: 'Please be nice in the forum.',
   });
   const error = errorLine();
-  const submit = submitButton('Post reply');
-  submit.textContent = 'Reply';
+  const submit = submitButton('Reply', { check: true });
+  // Cancel clears the draft and returns to the Write tab (the reply box is
+  // always shown, so there is nothing to collapse — lichess clears the same way).
+  const cancel = forumCancelLink(() => resetBodyComposer(bodyComposer));
   const footer = document.createElement('div');
   footer.className = 'forum-reply-footer';
-  footer.append(error, submit);
+  footer.append(cancel, error, submit);
   form.append(heading, bodyComposer.root, forumMarkdownNote(), footer);
   form.addEventListener('submit', (event) => {
     event.preventDefault();
     void submitReply(topic, form, submit, error);
   });
   return form;
+}
+
+function forumCancelLink(onCancel: () => void): HTMLButtonElement {
+  const cancel = document.createElement('button');
+  cancel.type = 'button';
+  cancel.className = 'forum-cancel-link';
+  cancel.textContent = 'Cancel';
+  cancel.addEventListener('click', onCancel);
+  return cancel;
+}
+
+function resetBodyComposer(composer: { root: HTMLElement; textarea: HTMLTextAreaElement }): void {
+  composer.textarea.value = '';
+  // First composer tab is Write; clicking it also refocuses the textarea.
+  composer.root.querySelector<HTMLButtonElement>('.forum-composer-tab')?.click();
 }
 
 function forumBodyComposer(options: {
@@ -1588,7 +1585,7 @@ function forumMarkdownNote(): HTMLElement {
   formatting.append(markdown, document.createTextNode(' is available for formatting.'));
   const etiquette = document.createElement('a');
   etiquette.className = 'forum-form-note-etiquette';
-  etiquette.href = '/forum/feedback';
+  etiquette.href = '/forum/etiquette';
   etiquette.append(forumInfoIcon(), document.createTextNode('forum etiquette'));
   note.append(formatting, etiquette);
   return note;
@@ -1688,11 +1685,32 @@ function errorLine(): HTMLElement {
   return error;
 }
 
-function submitButton(text: string): HTMLButtonElement {
+function submitButton(text: string, options: { check?: boolean } = {}): HTMLButtonElement {
   const button = document.createElement('button');
   button.type = 'submit';
-  button.textContent = text;
+  if (options.check) {
+    button.classList.add('forum-submit-check');
+    button.append(forumCheckIcon());
+  }
+  const label = document.createElement('span');
+  label.className = 'forum-submit-label';
+  label.textContent = text;
+  button.append(label);
   return button;
+}
+
+// White check mark shown on the primary submit buttons (lichess styles its
+// Reply / Create the topic buttons with the same affirmative check).
+function forumCheckIcon(): SVGSVGElement {
+  const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+  svg.classList.add('forum-check-icon');
+  svg.setAttribute('viewBox', '0 0 24 24');
+  svg.setAttribute('aria-hidden', 'true');
+  svg.setAttribute('focusable', 'false');
+  const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+  path.setAttribute('d', 'M5 12.5 L10 17.5 L19 6.5');
+  svg.append(path);
+  return svg;
 }
 
 function topicModerationBox(topic: ForumTopicDetail, categories: ForumCategory[]): HTMLElement {
@@ -2183,22 +2201,6 @@ function errorMessageForStatus(status: number): string {
   if (status === 429) return 'You are posting too quickly.';
   if (status >= 500) return 'Forum is unavailable.';
   return 'Check the fields and try again.';
-}
-
-function errorMessageForPostEditStatus(status: number): string {
-  if (status === 401) return 'Sign in to edit.';
-  if (status === 403) return 'This post cannot be edited.';
-  if (status === 404) return 'This post is not available.';
-  if (status >= 500) return 'Forum is unavailable.';
-  return 'Check the post and try again.';
-}
-
-function errorMessageForTopicEditStatus(status: number): string {
-  if (status === 401) return 'Sign in to edit.';
-  if (status === 403) return 'This topic title cannot be edited.';
-  if (status === 404) return 'This topic is not available.';
-  if (status >= 500) return 'Forum is unavailable.';
-  return 'Check the title and try again.';
 }
 
 function errorMessageForReportStatus(status: number): string {

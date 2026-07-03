@@ -2,6 +2,7 @@ import { randomUUID } from 'node:crypto';
 import type { IncomingMessage, ServerResponse } from 'node:http';
 import { currentAccountUser } from './../account-session.js';
 import * as persistence from './../persistence.js';
+import { onlinePresence } from './../presence.js';
 import {
   readJsonBody,
   requireAdminSession,
@@ -67,9 +68,13 @@ type ForumCategoryJson = {
   } | null;
 };
 
+// Post authors carry a soft "online now" presence flag (in-memory, TTL-based).
+// Other author surfaces (topic rows, latest-post, search) stay presence-free.
+type ForumAuthorJson = (NonNullable<persistence.ForumAuthor> & { online: boolean }) | null;
+
 type ForumPostJson = {
   id: string;
-  author: persistence.ForumAuthor;
+  author: ForumAuthorJson;
   bodyText: string;
   createdAt: string;
   updatedAt: string;
@@ -658,10 +663,31 @@ function serializeCategory(category: persistence.ForumCategory): ForumCategoryJs
 function serializeTopicDetail(topic: persistence.ForumTopicDetail): ForumTopicJson & {
   posts: ForumPostJson[];
 } {
+  const online = onlineHandleSet();
   return {
     ...serializeTopicSummary(topic),
-    posts: topic.posts.map(serializePost),
+    posts: topic.posts.map((post) => serializePost(post, online)),
   };
+}
+
+// Lowercased handles of accounts seen recently, excluding private profiles
+// (same visibility gate as /api/players/online). Soft signal; a miss just
+// renders the author as offline.
+function onlineHandleSet(): Set<string> {
+  const set = new Set<string>();
+  for (const entry of onlinePresence()) {
+    if (entry.profileVisibility === 'private') continue;
+    set.add(entry.handle.toLowerCase());
+  }
+  return set;
+}
+
+function authorWithPresence(
+  author: persistence.ForumAuthor,
+  online: Set<string> | undefined,
+): ForumAuthorJson {
+  if (!author) return null;
+  return { ...author, online: online?.has(author.handle.toLowerCase()) ?? false };
 }
 
 function serializeTopicSummary(topic: persistence.ForumTopicSummary): ForumTopicJson {
@@ -689,10 +715,10 @@ function serializeTopicSummary(topic: persistence.ForumTopicSummary): ForumTopic
   };
 }
 
-function serializePost(post: persistence.ForumPost): ForumPostJson {
+function serializePost(post: persistence.ForumPost, online?: Set<string>): ForumPostJson {
   return {
     id: post.id,
-    author: post.author,
+    author: authorWithPresence(post.author, online),
     bodyText: post.bodyText,
     createdAt: post.createdAt.toISOString(),
     updatedAt: post.updatedAt.toISOString(),

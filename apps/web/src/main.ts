@@ -112,9 +112,14 @@ const wantsNews = path === '/feed' || path === '/news' || page === 'feed' || pag
 const forumRedirectPostId = forumRedirectPostIdFromPath(path);
 const forumTopicId = forumTopicIdFromPath(path);
 const wantsForumReports = path === '/forum/reports';
+// Reserved literal below the /forum/:category pattern (same tradeoff as
+// /forum/reports): it must win over the category dispatch.
+const wantsForumEtiquette = path === '/forum/etiquette';
 const forumCategorySlug = forumCategorySlugFromPath(path);
 const wantsForum =
-  path === '/forum' || (forumCategorySlug !== null && !wantsForumReports) || page === 'forum';
+  path === '/forum' ||
+  (forumCategorySlug !== null && !wantsForumReports && !wantsForumEtiquette) ||
+  page === 'forum';
 const wantsLegacyPlay = path === '/play' || page === 'play';
 const wantsWatch = path === '/watch' || page === 'watch';
 const puzzleId = puzzleIdFromPath(path);
@@ -359,6 +364,11 @@ if (replaySample) {
   setTitle('Forum reports');
   void mountOrReport(() =>
     import('./forum.js').then(({ mountForumReports }) => mountForumReports(appRoot)),
+  );
+} else if (wantsForumEtiquette) {
+  setTitle('Forum etiquette');
+  void mountOrReport(() =>
+    import('./forum.js').then(({ mountForumEtiquette }) => mountForumEtiquette(appRoot)),
   );
 } else if (wantsForum) {
   setTitle('Forum');

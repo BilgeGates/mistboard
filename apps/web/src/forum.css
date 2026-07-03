@@ -1198,6 +1198,8 @@ a.forum-post-author-name:focus-visible {
   --forum-muted: hsl(0, 0%, 47%);
   --forum-link: hsl(209, 77%, 46%);
   --forum-link-hover: hsl(209, 77%, 38%);
+  --forum-create: hsl(88, 63%, 37%);
+  --forum-create-hover: hsl(88, 63%, 30%);
   --forum-shadow: rgba(0, 0, 0, 0.12);
   --forum-input-bg: hsl(37, 12%, 97%);
   --forum-input-border: hsl(37, 8%, 82%);
@@ -1245,6 +1247,8 @@ a.forum-post-author-name:focus-visible {
   --forum-muted: #979793;
   --forum-link: #3692e7;
   --forum-link-hover: #5aa8f2;
+  --forum-create: hsl(88, 52%, 56%);
+  --forum-create-hover: hsl(88, 52%, 66%);
   --forum-shadow: rgba(0, 0, 0, 0.28);
   --forum-input-bg: #211f1c;
   --forum-input-border: #45413b;
@@ -1370,8 +1374,6 @@ a.forum-post-author-name:focus-visible {
   flex: 0 0 auto;
   place-items: center;
   color: var(--forum-link);
-  font-size: 58px;
-  font-weight: 700;
   line-height: 1;
   text-decoration: none;
 }
@@ -1380,6 +1382,17 @@ a.forum-post-author-name:focus-visible {
 .forum-panel-back:focus-visible {
   color: var(--forum-link-hover);
   text-decoration: none;
+}
+
+/* Soft rounded chevron in place of a bare "<" glyph. */
+.forum-back-chevron {
+  width: 30px;
+  height: 30px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2.4;
+  stroke-linecap: round;
+  stroke-linejoin: round;
 }
 
 .forum-panel-action {
@@ -1405,6 +1418,30 @@ a.forum-post-author-name:focus-visible {
 .forum-panel-action-disabled {
   cursor: default;
   opacity: 0.68;
+}
+
+/* "Create a new topic" toggle: green with a pencil glyph (matches lichess). */
+.forum-panel-action-create {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  color: var(--forum-create);
+}
+
+.forum-panel-action-create:hover,
+.forum-panel-action-create:focus-visible {
+  color: var(--forum-create-hover);
+}
+
+.forum-pencil-icon {
+  width: 17px;
+  height: 17px;
+  flex: 0 0 auto;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
 }
 
 .forum-panel-actions {
@@ -1735,6 +1772,17 @@ a.forum-post-author-name:focus-visible {
   font-size: 13px;
 }
 
+/* Soft "online now" presence dot beside a post author's name. */
+.forum-online-dot {
+  align-self: center;
+  width: 9px;
+  height: 9px;
+  flex: 0 0 auto;
+  border-radius: 50%;
+  background: hsl(128, 52%, 45%);
+  box-shadow: 0 0 0 2px color-mix(in srgb, hsl(128, 52%, 45%) 30%, transparent);
+}
+
 .forum-post-meta {
   margin-top: -4px;
 }
@@ -1828,21 +1876,150 @@ a.forum-post-author-name:focus-visible {
 .forum-reply-footer {
   display: flex;
   align-items: center;
-  justify-content: space-between;
   gap: 16px;
 }
 
 .forum-reply-footer .forum-error {
+  flex: 1;
   margin: 0;
 }
 
-.forum-reply-footer button {
-  justify-self: end;
-  margin-left: auto;
+/* New-topic composer footer: Cancel on the left, submit on the right. */
+.forum-form-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+/* Cancel link (bottom-left, like lichess) reads as a quiet text link, not a
+   button, even though it is a <button> for keyboard/focus semantics. */
+.forum-cancel-link {
+  order: -1;
+  border: 0;
+  background: transparent;
+  color: var(--site-link);
+  cursor: pointer;
+  font: inherit;
+  font-size: 14px;
+  padding: 0;
+}
+
+.forum-cancel-link:hover,
+.forum-cancel-link:focus-visible {
+  text-decoration: underline;
+}
+
+/* Primary submit (Reply / Post topic): affirmative check + label. */
+.forum-form button.forum-submit-check {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
   font-size: 13px;
   letter-spacing: 0.04em;
   padding: 11px 22px;
   text-transform: uppercase;
+}
+
+.forum-check-icon {
+  width: 16px;
+  height: 16px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2.6;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+/* Dedicated /forum/etiquette page. */
+.forum-etiquette-panel .forum-panel-header {
+  margin-bottom: 0;
+}
+
+.forum-etiquette-body {
+  display: grid;
+  gap: 22px;
+  max-width: 74ch;
+  padding: 8px 54px 40px;
+  color: var(--forum-text);
+}
+
+.forum-etiquette-lede {
+  margin: 0;
+  color: var(--forum-heading);
+  font-size: 18px;
+  line-height: 1.55;
+}
+
+.forum-etiquette-section {
+  display: grid;
+  gap: 7px;
+}
+
+.forum-etiquette-section h2 {
+  margin: 0;
+  color: var(--forum-heading);
+  font-size: 19px;
+  font-weight: 700;
+}
+
+.forum-etiquette-para {
+  margin: 0;
+  font-size: 16px;
+  line-height: 1.6;
+}
+
+.forum-etiquette-para a {
+  color: var(--site-link);
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.forum-etiquette-para a:hover,
+.forum-etiquette-para a:focus-visible {
+  text-decoration: underline;
+}
+
+@media (max-width: 560px) {
+  .forum-etiquette-body {
+    padding-inline: 18px;
+  }
+}
+
+/* Lichess-style "Important" callout at the head of the new-topic composer. */
+.forum-important-notice {
+  display: grid;
+  gap: 8px;
+  border: 1px solid var(--site-danger, #c0392b);
+  border-radius: var(--site-radius);
+  background: color-mix(in srgb, var(--site-danger, #c0392b) 6%, transparent);
+  padding: 14px 16px;
+}
+
+.forum-important-heading {
+  color: var(--site-danger, #c0392b);
+  font-weight: 800;
+}
+
+.forum-important-list {
+  display: grid;
+  gap: 5px;
+  margin: 0;
+  padding-left: 18px;
+  color: var(--site-text);
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.forum-important-list a {
+  color: var(--site-link);
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.forum-important-list a:hover,
+.forum-important-list a:focus-visible {
+  text-decoration: underline;
 }
 
 .forum-form-note {
