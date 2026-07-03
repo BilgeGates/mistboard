@@ -493,7 +493,7 @@
 
 .puzzle-solved-panel {
   display: grid;
-  grid-template-rows: auto auto 1fr auto;
+  grid-template-rows: 1fr auto auto;
   align-items: center;
   min-height: 0;
   border-top: 1px solid var(--site-border-soft);
@@ -504,36 +504,102 @@
 
 .puzzle-solved-panel h2 {
   margin: 0;
-  padding: 34px 24px 12px;
+  padding: 30px 24px 22px;
   color: var(--site-heading);
   font-size: 28px;
   font-weight: 400;
   line-height: 1.1;
 }
 
-.puzzle-solved-panel p {
-  margin: 0;
+/* Prominent primary CTA in Mistboard's own accent (lichess-style bar). */
+.puzzle-continue-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  width: 100%;
+  min-height: 58px;
   padding: 0 24px;
+  border: 0;
+  background: var(--site-accent);
+  color: var(--site-on-accent, #fff);
+  cursor: pointer;
+  font: inherit;
+  font-size: 17px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.puzzle-continue-button svg {
+  display: block;
+}
+
+.puzzle-continue-button:hover:not(:disabled) {
+  background: var(--site-accent-strong);
+}
+
+.puzzle-continue-button:disabled {
+  background: var(--site-border);
+  color: var(--site-panel);
+  cursor: default;
+}
+
+/* Feedback row: analysis stub · short prompt · compact thumbs. */
+.puzzle-solved-feedback {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 18px;
+  border-top: 1px solid var(--site-border-soft);
+  text-align: left;
+}
+
+.puzzle-analysis-button {
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  padding: 0;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--site-muted);
+  cursor: pointer;
+}
+
+.puzzle-analysis-button:disabled {
+  cursor: default;
+  opacity: 0.55;
+}
+
+.puzzle-analysis-button .puzzle-target-avatar {
+  width: 22px;
+  height: 22px;
+}
+
+.puzzle-vote-prompt {
+  flex: 1;
+  min-width: 0;
   color: var(--site-text);
-  font-size: 18px;
-  line-height: 1.25;
+  font-size: 15px;
+  line-height: 1.2;
 }
 
 .puzzle-vote-actions {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
+  display: flex;
   align-items: center;
-  gap: 28px;
-  padding: 18px 44px 22px;
+  gap: 8px;
 }
 
 .puzzle-vote-button {
   display: grid;
   place-items: center;
-  min-width: 0;
-  min-height: 86px;
+  width: 34px;
+  height: 34px;
   padding: 0;
   border: 0;
+  border-radius: 4px;
   background: transparent;
   color: currentColor;
   cursor: pointer;
@@ -541,6 +607,8 @@
 
 .puzzle-vote-button svg {
   display: block;
+  width: 22px;
+  height: 22px;
 }
 
 .puzzle-vote-button--up {
@@ -556,45 +624,7 @@
   cursor: default;
 }
 
-.puzzle-solved-footer {
-  display: grid;
-  grid-template-columns: 74px minmax(0, 1fr);
-  align-items: center;
-  min-height: 72px;
-  border-top: 1px solid var(--site-border-soft);
-}
-
-.puzzle-solved-footer-icon {
-  display: grid;
-  place-items: center;
-  color: var(--site-muted);
-}
-
-.puzzle-solved-footer-icon .puzzle-target-avatar {
-  width: 32px;
-  height: 32px;
-}
-
-.puzzle-continue-button {
-  justify-self: stretch;
-  height: 100%;
-  padding: 0 24px;
-  border: 0;
-  background: transparent;
-  color: var(--site-text);
-  cursor: pointer;
-  font: inherit;
-  font-size: 20px;
-  font-weight: 400;
-  letter-spacing: 0;
-  text-align: right;
-}
-
-.puzzle-continue-button:disabled {
-  color: var(--site-border);
-  cursor: default;
-}
-
+.puzzle-analysis-button:focus-visible,
 .puzzle-vote-button:focus-visible,
 .puzzle-continue-button:focus-visible {
   outline: 2px solid var(--site-accent);
@@ -603,10 +633,10 @@
 
 .puzzle-actions {
   display: grid;
-  grid-template-columns: repeat(3, 42px);
+  grid-template-columns: repeat(5, 42px);
   justify-content: center;
   align-items: center;
-  gap: clamp(18px, 3vw, 42px);
+  gap: clamp(8px, 1.6vw, 22px);
   min-height: 46px;
 }
 
@@ -790,12 +820,8 @@
     font-size: 24px;
   }
 
-  .puzzle-solved-panel p,
   .puzzle-continue-button {
-    font-size: 16px;
-  }
-
-  .puzzle-vote-actions {
-    padding-inline: 24px;
+    font-size: 15px;
+    min-height: 52px;
   }
 }

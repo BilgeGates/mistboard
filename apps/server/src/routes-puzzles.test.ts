@@ -56,7 +56,7 @@ test('puzzle list returns public Mini and Drop Mini summaries without solutions'
   };
 
   assert.equal(response.status, 200);
-  assert.equal(body.puzzles.length, 36);
+  assert.equal(body.puzzles.length, 60);
   assert.deepEqual(
     body.puzzles.slice(0, 6).map((puzzle) => puzzle.variant),
     [
@@ -69,6 +69,7 @@ test('puzzle list returns public Mini and Drop Mini summaries without solutions'
     ],
   );
   assert.equal(body.puzzles.filter((puzzle) => puzzle.variant === 'drop-mini-xiangqi').length, 30);
+  assert.equal(body.puzzles.filter((puzzle) => puzzle.variant === 'fortress-xiangqi').length, 24);
   assert.equal(
     body.puzzles.every((puzzle) => puzzle.solution === undefined),
     true,
@@ -111,11 +112,49 @@ test('puzzle list filters by supported puzzle variant', async () => {
   );
 });
 
+test('puzzle list filters to Fortress Xiangqi puzzles', async () => {
+  const response = await route('/api/puzzles?variant=fortress-xiangqi');
+  const body = JSON.parse(response.body) as {
+    puzzles: Array<{ variant: string; solutionPlyCount: number }>;
+  };
+
+  assert.equal(response.status, 200);
+  assert.equal(body.puzzles.length, 24);
+  assert.equal(
+    body.puzzles.every((puzzle) => puzzle.variant === 'fortress-xiangqi'),
+    true,
+  );
+});
+
 test('puzzle list rejects unsupported variants', async () => {
   const response = await route('/api/puzzles?variant=banqi');
 
   assert.equal(response.status, 400);
   assert.deepEqual(JSON.parse(response.body), { error: 'invalid_variant' });
+});
+
+test('Fortress puzzle attempts solve the mined mate and stay solution-hidden', async () => {
+  const response = await route('/api/puzzles/fortress-xiangqi-mined-001/attempt', 'POST', {
+    moves: [{ drop: 'cannon', to: 'c8' }],
+  });
+  const body = JSON.parse(response.body) as {
+    attempt: {
+      ok: boolean;
+      complete: boolean;
+      state: { status: { type: string; winner?: string; reason?: string } };
+      solution?: unknown;
+    };
+  };
+
+  assert.equal(response.status, 200);
+  assert.equal(body.attempt.ok, true);
+  assert.equal(body.attempt.complete, true);
+  assert.deepEqual(body.attempt.state.status, {
+    type: 'finished',
+    winner: 'red',
+    reason: 'checkmate',
+  });
+  assert.equal(body.attempt.solution, undefined);
 });
 
 test('daily puzzle route returns a public persisted-assignment shape without solutions', async () => {

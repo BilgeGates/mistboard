@@ -68,6 +68,7 @@ describe('puzzles route', () => {
     expect(Array.from(variantSelect.options).map((option) => option.textContent)).toEqual([
       'Mini Xiangqi',
       'Drop Mini Xiangqi',
+      'Fortress Xiangqi',
     ]);
     expect(root.querySelector('.puzzles-sidebar')?.textContent).toContain('0 solved of 1');
     expect(root.querySelector('.puzzles-sidebar')?.textContent).not.toContain('All puzzles');
@@ -284,7 +285,7 @@ describe('puzzles route', () => {
     );
     expect(root.querySelector<HTMLButtonElement>('[data-puzzle-replay-next]')?.disabled).toBe(true);
     const nextButton = root.querySelector<HTMLButtonElement>('[data-puzzle-next]');
-    expect(nextButton?.getAttribute('aria-label')).toBe('Next puzzle');
+    expect(nextButton?.getAttribute('aria-label')).toBe('Continue training');
     expect(nextButton?.textContent).toBe('Continue training');
     expect(nextButton?.disabled).toBe(false);
 
