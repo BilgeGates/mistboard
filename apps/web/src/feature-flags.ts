@@ -64,13 +64,6 @@ export function jungleFlipEnabled(): boolean {
   return true;
 }
 
-export function darkMiniXiangqiPublicEntryEnabled(): boolean {
-  return (
-    darkMiniXiangqiEnabled() &&
-    (import.meta.env.DEV || import.meta.env.VITE_DARK_MINI_XIANGQI_PUBLIC_ENTRY_ENABLED === 'true')
-  );
-}
-
 // Dark-chess correspondence (days-per-move) entry points. Always on in dev for
 // convenience (matching Crossroads/DMX); in prod/staging it is hidden unless the
 // build opts in. The server gates the create route independently

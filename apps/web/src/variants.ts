@@ -37,7 +37,6 @@ import {
   darkCrazyhouseEnabled,
   darkCrossroadsChessEnabled,
   darkMiniXiangqiEnabled,
-  darkMiniXiangqiPublicEntryEnabled,
   darkShogiEnabled,
   darkXiangqiEnabled,
   fortressXiangqiEnabled,
@@ -70,8 +69,10 @@ export interface VariantDef {
 }
 
 const draft960Enabled = import.meta.env.VITE_DRAFT960_ENABLED === 'true';
+// Dark Mini Xiangqi retired 2026-07-03 (project_xiangqi_pivot_track): gated by the
+// single VITE_DARK_MINI_XIANGQI_ENABLED flag (now off in prod). The former
+// two-tier public-entry flag was removed as dead complexity.
 const darkMiniEnabled = darkMiniXiangqiEnabled();
-const darkMiniPublicEntryEnabled = darkMiniXiangqiPublicEntryEnabled();
 // Drop Mini Xiangqi retired from public rating grids 2026-07-03 (kept playable by
 // deep link; live client gate untouched). See project_xiangqi_pivot_track.
 const dropMiniXiangqiOn = false;
@@ -294,8 +295,8 @@ export const VARIANTS: VariantDef[] = [
     apiParam: DARK_MINI_XIANGQI_SPEC_ID,
     label: darkMiniXiangqiSpec.publicName,
     miniId: 'dark-mini-xiangqi',
-    enabled: darkMiniPublicEntryEnabled,
-    onLeaderboard: darkMiniPublicEntryEnabled,
+    enabled: darkMiniEnabled,
+    onLeaderboard: darkMiniEnabled,
     onProfile: darkMiniEnabled,
   },
   {

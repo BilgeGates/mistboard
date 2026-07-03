@@ -12,7 +12,6 @@ describe('landing announcements', () => {
 
   it('shows current launch announcements without old variant env flags', () => {
     vi.stubEnv('DEV', false);
-    vi.stubEnv('VITE_DARK_MINI_XIANGQI_PUBLIC_ENTRY_ENABLED', 'false');
     vi.stubEnv('VITE_DARK_SHOGI_ENABLED', 'false');
     vi.stubEnv('VITE_DARK_CROSSROADS_CHESS_ENABLED', 'false');
     vi.stubEnv('VITE_DARK_CRAZYHOUSE_ENABLED', 'false');

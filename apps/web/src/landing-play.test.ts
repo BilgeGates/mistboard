@@ -151,7 +151,6 @@ describe('landing play panel', () => {
   it('shows mini-board markers for the baseline picker variants', () => {
     vi.stubEnv('DEV', false);
     vi.stubEnv('VITE_DARK_MINI_XIANGQI_ENABLED', 'false');
-    vi.stubEnv('VITE_DARK_MINI_XIANGQI_PUBLIC_ENTRY_ENABLED', 'false');
     vi.stubEnv('VITE_DARK_XIANGQI_ENABLED', 'false');
     vi.stubEnv('VITE_JIEQI_ENABLED', 'false');
     vi.stubEnv('VITE_BANQI_ENABLED', 'false');
@@ -326,7 +325,6 @@ describe('landing play panel', () => {
 
   it('creates a timed Dark Mini Xiangqi room from a friend deep link', async () => {
     vi.stubEnv('VITE_DARK_MINI_XIANGQI_ENABLED', 'true');
-    vi.stubEnv('VITE_DARK_MINI_XIANGQI_PUBLIC_ENTRY_ENABLED', 'true');
     const fetchSpy = vi.fn(async (input: RequestInfo | URL, _init?: RequestInit) => {
       if (String(input) === '/api/live-stats') return jsonResponse({ playing: 0, online: 0 });
       if (String(input) === '/api/rooms') return jsonResponse({ url: '/room/dmxq_home' });
@@ -678,7 +676,6 @@ describe('landing play panel', () => {
 
   it('keeps 5+5 hidden for fog variants in the setup modal', () => {
     vi.stubEnv('VITE_DARK_MINI_XIANGQI_ENABLED', 'true');
-    vi.stubEnv('VITE_DARK_MINI_XIANGQI_PUBLIC_ENTRY_ENABLED', 'true');
     vi.stubGlobal(
       'fetch',
       vi.fn(async () => jsonResponse({ playing: 0, online: 0 })),
@@ -701,7 +698,6 @@ describe('landing play panel', () => {
   it('offers correspondence days for casual dark chess in both friend challenge and find opponent', () => {
     vi.stubEnv('VITE_CORRESPONDENCE_ENABLED', 'true');
     vi.stubEnv('VITE_DARK_MINI_XIANGQI_ENABLED', 'true');
-    vi.stubEnv('VITE_DARK_MINI_XIANGQI_PUBLIC_ENTRY_ENABLED', 'true');
     vi.stubGlobal(
       'fetch',
       vi.fn(async () => jsonResponse({ playing: 0, online: 0 })),
@@ -790,7 +786,6 @@ describe('landing play panel', () => {
     // regardless of its enable flags; it stays reachable only by deep link.
     vi.stubEnv('DEV', false);
     vi.stubEnv('VITE_DARK_MINI_XIANGQI_ENABLED', 'true');
-    vi.stubEnv('VITE_DARK_MINI_XIANGQI_PUBLIC_ENTRY_ENABLED', 'true');
     vi.stubGlobal(
       'fetch',
       vi.fn(async () => jsonResponse({ playing: 0, online: 0 })),
@@ -806,7 +801,6 @@ describe('landing play panel', () => {
 
   it('uses gameSpecId, not variant, to deep-link the challenge variant projection', () => {
     vi.stubEnv('VITE_DARK_MINI_XIANGQI_ENABLED', 'true');
-    vi.stubEnv('VITE_DARK_MINI_XIANGQI_PUBLIC_ENTRY_ENABLED', 'true');
     vi.stubGlobal(
       'fetch',
       vi.fn(async () => jsonResponse({ playing: 0, online: 0 })),
@@ -823,7 +817,6 @@ describe('landing play panel', () => {
 
   it('uses gameSpecId to deep-link Dark Mini Xiangqi engine play', async () => {
     vi.stubEnv('VITE_DARK_MINI_XIANGQI_ENABLED', 'true');
-    vi.stubEnv('VITE_DARK_MINI_XIANGQI_PUBLIC_ENTRY_ENABLED', 'true');
     const fetchSpy = vi.fn(async (input: RequestInfo | URL, _init?: RequestInit) => {
       if (String(input) === '/api/live-stats') return jsonResponse({ playing: 0, online: 0 });
       if (String(input) === '/api/rooms') return jsonResponse({ url: '/room/dmxq_engine' });
@@ -854,7 +847,6 @@ describe('landing play panel', () => {
 
   it('sends selected Dark Mini Xiangqi engine colors from the setup modal', async () => {
     vi.stubEnv('VITE_DARK_MINI_XIANGQI_ENABLED', 'true');
-    vi.stubEnv('VITE_DARK_MINI_XIANGQI_PUBLIC_ENTRY_ENABLED', 'true');
     const fetchSpy = vi.fn(async (input: RequestInfo | URL, _init?: RequestInit) => {
       if (String(input) === '/api/live-stats') return jsonResponse({ playing: 0, online: 0 });
       if (String(input) === '/api/rooms') return jsonResponse({ url: '/room/dmxq_color' });
@@ -942,7 +934,6 @@ describe('landing play panel', () => {
   it('selects a Dark Mini Xiangqi deep link from the baseline picker', async () => {
     vi.stubEnv('DEV', false);
     vi.stubEnv('VITE_DARK_MINI_XIANGQI_ENABLED', 'false');
-    vi.stubEnv('VITE_DARK_MINI_XIANGQI_PUBLIC_ENTRY_ENABLED', 'false');
     const fetchSpy = vi.fn(async (input: RequestInfo | URL, _init?: RequestInit) => {
       if (String(input) === '/api/live-stats') return jsonResponse({ playing: 0, online: 0 });
       if (String(input) === '/api/rooms') return jsonResponse({ url: '/room/dmxq_soft' });
@@ -992,7 +983,6 @@ describe('landing play panel', () => {
   it('selects a rated Dark Mini Xiangqi lobby deep link from the baseline picker', async () => {
     vi.stubEnv('DEV', false);
     vi.stubEnv('VITE_DARK_MINI_XIANGQI_ENABLED', 'false');
-    vi.stubEnv('VITE_DARK_MINI_XIANGQI_PUBLIC_ENTRY_ENABLED', 'false');
     setRatedModeEnabled(true);
     setResolvedSignedIn(true);
     const fetchSpy = lobbyFetchSpy();
@@ -1048,7 +1038,6 @@ describe('landing play panel', () => {
 
   it('keeps Dark Xiangqi and DMX selectable in the Play-the-engine flow', () => {
     vi.stubEnv('VITE_DARK_MINI_XIANGQI_ENABLED', 'true');
-    vi.stubEnv('VITE_DARK_MINI_XIANGQI_PUBLIC_ENTRY_ENABLED', 'true');
     vi.stubEnv('VITE_DARK_XIANGQI_ENABLED', 'true');
     vi.stubGlobal(
       'fetch',
@@ -1166,7 +1155,6 @@ describe('landing play panel', () => {
 
   it('orders the variant picker by the shared canonical variant order', () => {
     vi.stubEnv('VITE_DARK_MINI_XIANGQI_ENABLED', 'true');
-    vi.stubEnv('VITE_DARK_MINI_XIANGQI_PUBLIC_ENTRY_ENABLED', 'true');
     vi.stubEnv('VITE_DARK_XIANGQI_ENABLED', 'true');
     vi.stubEnv('VITE_JIEQI_ENABLED', 'true');
     vi.stubGlobal(
@@ -1207,7 +1195,6 @@ describe('landing play panel', () => {
 
   it('sends the Dark Mini Xiangqi game spec id from a lobby deep link', async () => {
     vi.stubEnv('VITE_DARK_MINI_XIANGQI_ENABLED', 'true');
-    vi.stubEnv('VITE_DARK_MINI_XIANGQI_PUBLIC_ENTRY_ENABLED', 'true');
     const fetchSpy = lobbyFetchSpy();
     vi.stubGlobal('fetch', fetchSpy);
     // DMX is hidden from the browse grid post-pivot; reached by a lobby deep link.

@@ -26,7 +26,6 @@ describe('article public listing gates', () => {
     // direct URL — they were de-listed, not deleted.
     vi.stubEnv('DEV', false);
     vi.stubEnv('VITE_DARK_MINI_XIANGQI_ENABLED', 'false');
-    vi.stubEnv('VITE_DARK_MINI_XIANGQI_PUBLIC_ENTRY_ENABLED', 'false');
 
     const rules = buildRulesIndex();
     expect(rules.querySelector('a[href="/rules/mini-xiangqi"]')).toBeNull();
@@ -131,7 +130,6 @@ describe('article public listing gates', () => {
 
   it('limits the homepage article widget to editorial article cards ordered by publish date', () => {
     vi.stubEnv('VITE_DARK_MINI_XIANGQI_ENABLED', 'true');
-    vi.stubEnv('VITE_DARK_MINI_XIANGQI_PUBLIC_ENTRY_ENABLED', 'true');
 
     const hrefs = [
       ...(buildHomeArticleCards(50)?.querySelectorAll<HTMLAnchorElement>(
@@ -480,7 +478,6 @@ describe('rules variant sidebar', () => {
     // pages stay reachable by direct URL (their own sidebar no longer links them).
     vi.stubEnv('DEV', false);
     vi.stubEnv('VITE_DARK_MINI_XIANGQI_ENABLED', 'false');
-    vi.stubEnv('VITE_DARK_MINI_XIANGQI_PUBLIC_ENTRY_ENABLED', 'false');
 
     const darkChess = buildArticlePage('dark-chess');
     expect(

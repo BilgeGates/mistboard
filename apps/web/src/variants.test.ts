@@ -74,47 +74,24 @@ describe('web variant launch registry', () => {
     vi.resetModules();
   });
 
-  it('adds Dark Mini Xiangqi profile buckets behind the DMX render flag', async () => {
+  it('adds Dark Mini Xiangqi to rating surfaces behind VITE_DARK_MINI_XIANGQI_ENABLED', async () => {
     vi.resetModules();
-    // Pin prod semantics so the render flag alone (no public-entry) keeps DMX off the leaderboard.
+    // Retired sub-family: DMX now gates on the single VITE_DARK_MINI_XIANGQI_ENABLED
+    // flag (the two-tier public-entry flag was removed). With it on, DMX rejoins both
+    // profile + leaderboard (last, in canonical order); drop-mini stays off the grids
+    // and chess is deranked to the end of the filtered list.
     vi.stubEnv('DEV', false);
     vi.stubEnv('VITE_DARK_MINI_XIANGQI_ENABLED', 'true');
     const flagged = await import('./variants.js');
-    // Xiangqi pivot: drop-mini off the grids; chess deranked to the end of the
-    // filtered list. DMX shows on profile (render flag) but not the leaderboard.
-    expect(flagged.profileRatingVariants.map((v) => v.gameSpecId)).toEqual([
+    const expected = [
       FORTRESS_XIANGQI_SPEC_ID,
       JUNGLE_SPEC_ID,
       JUNGLE_FLIP_SPEC_ID,
       DARK_CHESS_SPEC_ID,
       DARK_MINI_XIANGQI_SPEC_ID,
-    ]);
-    expect(flagged.leaderboardVariants.map((v) => v.gameSpecId)).toEqual([
-      FORTRESS_XIANGQI_SPEC_ID,
-      JUNGLE_SPEC_ID,
-      JUNGLE_FLIP_SPEC_ID,
-      DARK_CHESS_SPEC_ID,
-    ]);
-    vi.unstubAllEnvs();
-    vi.resetModules();
-  });
-
-  it('adds Dark Mini Xiangqi leaderboard buckets behind the public-entry flag', async () => {
-    vi.resetModules();
-    // Pin prod semantics so dev-on variants (jieqi/banqi) don't pollute the assertion.
-    vi.stubEnv('DEV', false);
-    vi.stubEnv('VITE_DARK_MINI_XIANGQI_ENABLED', 'true');
-    vi.stubEnv('VITE_DARK_MINI_XIANGQI_PUBLIC_ENTRY_ENABLED', 'true');
-    const flagged = await import('./variants.js');
-    // Xiangqi pivot: drop-mini off the grids; chess deranked to the end. With the
-    // public-entry flag on, DMX joins the leaderboard (last, in canonical order).
-    expect(flagged.leaderboardVariants.map((v) => v.gameSpecId)).toEqual([
-      FORTRESS_XIANGQI_SPEC_ID,
-      JUNGLE_SPEC_ID,
-      JUNGLE_FLIP_SPEC_ID,
-      DARK_CHESS_SPEC_ID,
-      DARK_MINI_XIANGQI_SPEC_ID,
-    ]);
+    ];
+    expect(flagged.profileRatingVariants.map((v) => v.gameSpecId)).toEqual(expected);
+    expect(flagged.leaderboardVariants.map((v) => v.gameSpecId)).toEqual(expected);
     expect(flagged.enabledVariants.map((v) => v.gameSpecId)).toContain(DARK_MINI_XIANGQI_SPEC_ID);
     expect(
       flagged.leaderboardVariants.find((v) => v.gameSpecId === DARK_MINI_XIANGQI_SPEC_ID),
