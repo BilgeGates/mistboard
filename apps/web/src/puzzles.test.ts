@@ -153,6 +153,7 @@ describe('puzzles route', () => {
         expect(init?.method).toBe('POST');
         expect(JSON.parse(String(init?.body))).toEqual({
           moves: [{ drop: 'chariot', to: 'd4' }],
+          rated: true,
         });
         return json({
           attempt: attemptMiniXiangqiPuzzleLine(drop, [{ drop: 'chariot', to: 'd4' }]),
@@ -190,7 +191,7 @@ describe('puzzles route', () => {
         expect(init?.method).toBe('POST');
         const body = JSON.parse(String(init?.body));
         if (body.moves.length === 1) {
-          expect(body).toEqual({ moves: [{ from: 'c5', to: 'd5' }] });
+          expect(body).toEqual({ moves: [{ from: 'c5', to: 'd5' }], rated: true });
           return json({
             attempt: attemptMiniXiangqiPuzzleLine(multi, [{ from: 'c5', to: 'd5' }]),
           });
@@ -200,6 +201,7 @@ describe('puzzles route', () => {
             { from: 'c5', to: 'd5' },
             { from: 'f1', to: 'e1' },
           ],
+          rated: true,
         });
         return json({
           attempt: attemptMiniXiangqiPuzzleLine(multi, [
@@ -259,6 +261,7 @@ describe('puzzles route', () => {
       if (url === `/api/puzzles/${redDrop.id}/attempt`) {
         expect(JSON.parse(String(init?.body))).toEqual({
           moves: [{ drop: 'chariot', to: 'd4' }],
+          rated: true,
         });
         return json({
           attempt: attemptMiniXiangqiPuzzleLine(redDrop, [{ drop: 'chariot', to: 'd4' }]),
@@ -315,6 +318,7 @@ describe('puzzles route', () => {
       if (url === `/api/puzzles/${redDrop.id}/attempt`) {
         expect(JSON.parse(String(init?.body))).toEqual({
           moves: [{ drop: 'chariot', to: 'd4' }],
+          rated: true,
         });
         return json({
           attempt: attemptMiniXiangqiPuzzleLine(redDrop, [{ drop: 'chariot', to: 'd4' }]),
@@ -381,6 +385,7 @@ describe('puzzles route', () => {
       if (url === `/api/puzzles/${drop.id}/attempt`) {
         expect(JSON.parse(String(init?.body))).toEqual({
           moves: [{ drop: 'chariot', to: 'd4' }],
+          rated: true,
         });
         return json({
           attempt: attemptMiniXiangqiPuzzleLine(drop, [{ drop: 'chariot', to: 'd4' }]),

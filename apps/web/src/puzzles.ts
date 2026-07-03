@@ -138,7 +138,31 @@ type PuzzleNavigation = {
 
 const SOLVED_PUZZLES_STORAGE_KEY = 'mistboard:puzzles:solved';
 const AUTO_NEXT_STORAGE_KEY = 'mistboard:puzzles:auto-next';
+const RATED_STORAGE_KEY = 'mistboard:puzzles:rated';
 const AUTO_NEXT_DELAY_MS = 150;
+
+// The signed-in user's puzzle rating for the current variant (from
+// /api/puzzles/rating), and the rating change returned by a rated attempt.
+type UserPuzzleRating = {
+  rating: number;
+  provisional: boolean;
+  solved: number;
+  attempts: number;
+};
+
+type PuzzleAttemptRating = {
+  userRating: number;
+  delta: number;
+  provisional: boolean;
+  ratingChanged: boolean;
+  firstAttempt: boolean;
+};
+
+// Rating UI wiring. One puzzle page is mounted at a time, so the rated
+// preference and the "an attempt just changed my rating" callback live as
+// module singletons the free-function attempt path can reach without threading.
+let puzzleRatedPref = true;
+let onAttemptRating: ((rating: PuzzleAttemptRating) => void) | null = null;
 const PUZZLE_VARIANT_FILTERS: readonly PuzzleVariantFilter[] = [
   MINI_XIANGQI_SPEC_ID,
   DROP_MINI_XIANGQI_SPEC_ID,
@@ -179,27 +203,57 @@ export async function mountPuzzles(
   let session: PuzzleSession | null = null;
   const solvedIds = loadSolvedPuzzleIds();
   let autoNext = loadAutoNextEnabled();
+  let ratedEnabled = loadRatedEnabled();
+  let userRating: UserPuzzleRating | null = null;
+  let ratingDelta: number | null = null;
   let autoNextTimer: number | null = null;
   let loadToken = 0;
+  let ratingToken = 0;
+  puzzleRatedPref = ratedEnabled;
 
   const queueSummaries = (): PuzzleSummary[] => filterPuzzlesByVariant(summaries, variantFilter);
 
+  // Refresh the signed-in user's rating for the current variant. Guarded by a
+  // token so a slow response for an old variant can't overwrite a newer one.
+  const refreshUserRating = async (): Promise<void> => {
+    const token = ++ratingToken;
+    const next = await fetchUserPuzzleRating(variantFilter);
+    if (token !== ratingToken) return;
+    userRating = next;
+    renderControls();
+  };
+
+  // A rated attempt just resolved: show the delta and re-sync the authoritative
+  // rating + counts from the server.
+  onAttemptRating = async (rating) => {
+    ratingDelta = rating.ratingChanged ? rating.delta : null;
+    const token = ++ratingToken;
+    const next = await fetchUserPuzzleRating(variantFilter);
+    if (token !== ratingToken) return;
+    userRating = next;
+    renderControls();
+  };
+
   const renderControls = (): void => {
-    renderQueuePanel(
-      controls,
-      queueSummaries(),
+    renderQueuePanel(controls, {
+      queue: queueSummaries(),
       selectedId,
       solvedIds,
       variantFilter,
       autoNext,
-      async (nextFilter) => {
+      ratedEnabled,
+      userRating,
+      ratingDelta,
+      onVariantChange: async (nextFilter) => {
         variantFilter = nextFilter;
+        ratingDelta = null;
         const queue = queueSummaries();
         const nextId =
           selectedId && queue.some((puzzle) => puzzle.id === selectedId)
             ? selectedId
             : (queue[0]?.id ?? null);
         renderControls();
+        void refreshUserRating();
         if (nextId) {
           await selectPuzzle(nextId, true);
         } else {
@@ -208,12 +262,18 @@ export async function mountPuzzles(
           renderStatus(detail, 'No puzzles');
         }
       },
-      (enabled) => {
+      onAutoNextChange: (enabled) => {
         autoNext = enabled;
         saveAutoNextEnabled(enabled);
         renderControls();
       },
-    );
+      onRatedChange: (enabled) => {
+        ratedEnabled = enabled;
+        puzzleRatedPref = enabled;
+        saveRatedEnabled(enabled);
+        renderControls();
+      },
+    });
   };
 
   const clearAutoNextTimer = (): void => {
@@ -252,6 +312,7 @@ export async function mountPuzzles(
 
   const selectPuzzle = async (id: string, pushUrl: boolean): Promise<void> => {
     clearAutoNextTimer();
+    ratingDelta = null;
     const summary = summaries.find((puzzle) => puzzle.id === id);
     if (summary && !queueSummaries().some((puzzle) => puzzle.id === id)) {
       variantFilter = summary.variant;
@@ -285,6 +346,7 @@ export async function mountPuzzles(
     variantFilter = summaries[0].variant;
   }
   renderControls();
+  void refreshUserRating();
 
   const queue = queueSummaries();
   const firstId =
@@ -326,16 +388,34 @@ function createPuzzleSession(puzzle: PuzzleDetail): PuzzleSession {
   };
 }
 
-function renderQueuePanel(
-  host: HTMLElement,
-  queue: readonly PuzzleSummary[],
-  selectedId: string | null,
-  solvedIds: ReadonlySet<string>,
-  variantFilter: PuzzleVariantFilter,
-  autoNext: boolean,
-  onVariantChange: (variant: PuzzleVariantFilter) => Promise<void>,
-  onAutoNextChange: (enabled: boolean) => void,
-): void {
+type QueuePanelProps = {
+  queue: readonly PuzzleSummary[];
+  selectedId: string | null;
+  solvedIds: ReadonlySet<string>;
+  variantFilter: PuzzleVariantFilter;
+  autoNext: boolean;
+  ratedEnabled: boolean;
+  userRating: UserPuzzleRating | null;
+  ratingDelta: number | null;
+  onVariantChange: (variant: PuzzleVariantFilter) => Promise<void>;
+  onAutoNextChange: (enabled: boolean) => void;
+  onRatedChange: (enabled: boolean) => void;
+};
+
+function renderQueuePanel(host: HTMLElement, props: QueuePanelProps): void {
+  const {
+    queue,
+    selectedId,
+    solvedIds,
+    variantFilter,
+    autoNext,
+    ratedEnabled,
+    userRating,
+    ratingDelta,
+    onVariantChange,
+    onAutoNextChange,
+    onRatedChange,
+  } = props;
   host.replaceChildren();
 
   const currentIndex = Math.max(
@@ -376,10 +456,47 @@ function renderQueuePanel(
   const ratingLabel = document.createElement('p');
   ratingLabel.textContent = 'Your puzzle rating:';
   const ratingValue = document.createElement('strong');
-  ratingValue.textContent = 'Unrated';
+  if (userRating) {
+    ratingValue.textContent = `${userRating.rating}${userRating.provisional ? '?' : ''}`;
+    if (ratingDelta) {
+      const delta = document.createElement('span');
+      delta.className = `puzzle-rating-delta puzzle-rating-delta--${ratingDelta > 0 ? 'up' : 'down'}`;
+      delta.textContent = ` ${ratingDelta > 0 ? '+' : ''}${ratingDelta}`;
+      ratingValue.append(delta);
+    }
+  } else {
+    ratingValue.textContent = 'Unrated';
+  }
   const ratingMeta = document.createElement('span');
   ratingMeta.textContent = `${solvedCount} solved of ${queue.length}`;
   ratingCard.append(ratingLabel, ratingValue, ratingMeta);
+
+  // Rated on/off (lichess parity). Off = practice: attempts send rated:false, so
+  // neither the user's nor the puzzle's rating moves.
+  const ratedCard = document.createElement('section');
+  ratedCard.className = 'puzzle-left-card puzzle-rated-card';
+  const ratedToggle = document.createElement('label');
+  ratedToggle.className = 'puzzle-toggle puzzle-rated-toggle';
+  const ratedInput = document.createElement('input');
+  ratedInput.type = 'checkbox';
+  ratedInput.checked = ratedEnabled;
+  ratedInput.dataset.puzzleRated = 'true';
+  ratedInput.addEventListener('change', () => onRatedChange(ratedInput.checked));
+  const ratedSwitch = document.createElement('span');
+  ratedSwitch.className = 'puzzle-toggle-switch';
+  ratedSwitch.setAttribute('aria-hidden', 'true');
+  const ratedName = document.createElement('span');
+  ratedName.className = 'puzzle-toggle-label';
+  ratedName.textContent = 'Rated';
+  ratedToggle.append(ratedInput, ratedSwitch, ratedName);
+  ratedCard.append(ratedToggle);
+  if (!ratedEnabled) {
+    const ratedNote = document.createElement('p');
+    ratedNote.className = 'puzzle-rated-note';
+    ratedNote.textContent =
+      'Your puzzle rating will not change. Puzzles are not a competition: your rating just helps pick puzzles at your level.';
+    ratedCard.append(ratedNote);
+  }
 
   const themesCard = document.createElement('section');
   themesCard.className = 'puzzle-left-card puzzle-theme-card';
@@ -441,7 +558,7 @@ function renderQueuePanel(
   form.append(autoNextToggle);
   settingsCard.append(settingsTitle, form);
 
-  host.append(infoCard, ratingCard, themesCard, settingsCard);
+  host.append(infoCard, ratingCard, ratedCard, themesCard, settingsCard);
 }
 
 function puzzleInfoRow(
@@ -1244,7 +1361,7 @@ async function submitMove(
   session.feedback = { kind: 'pending', text: 'Checking move.' };
   renderSession();
   const nextSolverMoves = [...session.solverMoves, move];
-  const attempt = await submitPuzzleAttempt(session.puzzle.id, nextSolverMoves);
+  const { attempt, rating } = await submitPuzzleAttempt(session.puzzle.id, nextSolverMoves);
   session.submitting = false;
   session.selectedSquare = null;
   session.selectedDrop = null;
@@ -1262,6 +1379,7 @@ async function submitMove(
     session.viewPly = session.playedMoves.length;
     session.feedback = { kind: 'bad', text: 'Try another move.' };
   }
+  if (rating) onAttemptRating?.(rating);
   renderSession();
 }
 
@@ -1403,16 +1521,30 @@ async function fetchPuzzleDetail(id: string): Promise<PuzzleDetail | null> {
 async function submitPuzzleAttempt(
   id: string,
   moves: readonly PuzzleMove[],
-): Promise<PuzzleAttempt> {
+): Promise<{ attempt: PuzzleAttempt; rating: PuzzleAttemptRating | null }> {
   const response = await fetch(`/api/puzzles/${encodeURIComponent(id)}/attempt`, {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
-    body: JSON.stringify({ moves }),
+    body: JSON.stringify({ moves, rated: puzzleRatedPref }),
   });
   if (!response.ok) throw new Error(`Puzzle attempt failed: ${response.status}`);
-  const body = (await response.json()) as { attempt?: PuzzleAttempt };
+  const body = (await response.json()) as {
+    attempt?: PuzzleAttempt;
+    rating?: PuzzleAttemptRating;
+  };
   if (!body.attempt) throw new Error('Puzzle attempt response missing attempt.');
-  return body.attempt;
+  return { attempt: body.attempt, rating: body.rating ?? null };
+}
+
+async function fetchUserPuzzleRating(variant: PuzzleVariant): Promise<UserPuzzleRating | null> {
+  try {
+    const response = await fetch(`/api/puzzles/rating?variant=${encodeURIComponent(variant)}`);
+    if (!response.ok) return null;
+    const body = (await response.json()) as { rating?: UserPuzzleRating | null };
+    return body.rating ?? null;
+  } catch {
+    return null;
+  }
 }
 
 function clonePuzzleState<State extends PuzzleState>(state: State): State {
@@ -1477,6 +1609,23 @@ function loadAutoNextEnabled(): boolean {
     return window.localStorage?.getItem(AUTO_NEXT_STORAGE_KEY) === 'true';
   } catch {
     return false;
+  }
+}
+
+function loadRatedEnabled(): boolean {
+  try {
+    // Rated is the default; only an explicit opt-out is stored.
+    return window.localStorage?.getItem(RATED_STORAGE_KEY) !== 'false';
+  } catch {
+    return true;
+  }
+}
+
+function saveRatedEnabled(enabled: boolean): void {
+  try {
+    window.localStorage?.setItem(RATED_STORAGE_KEY, enabled ? 'true' : 'false');
+  } catch {
+    // Puzzle preferences are best-effort convenience state.
   }
 }
 
