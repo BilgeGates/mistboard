@@ -1217,16 +1217,13 @@ function moveColorAt(firstColor: MiniXiangqiColor, plyIndex: number): MiniXiangq
 }
 
 function targetAvatarSvg(): string {
-  // Lucide-spec bullseye + arrow (24-grid, 2px round), consistent with the app's
-  // other inlined Lucide icons (see landing-play.ts). The arrowhead reuses
-  // Lucide's arrow-up-right corner so it reads as part of the same icon family
-  // and matches the lichess/PlayStrategy puzzle target.
+  // Lucide `target` (24-grid, 2px round), consistent with the app's other inlined
+  // Lucide icons (see landing-play.ts). Plain concentric bullseye, no arrow.
   return [
     '<svg class="puzzle-target-avatar" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">',
-    '<circle cx="9.5" cy="14.5" r="7.5"/>',
-    '<circle cx="9.5" cy="14.5" r="3.7"/>',
-    '<path d="M11 13 21 3"/>',
-    '<path d="M15 3h6v6"/>',
+    '<circle cx="12" cy="12" r="10"/>',
+    '<circle cx="12" cy="12" r="6"/>',
+    '<circle cx="12" cy="12" r="2"/>',
     '</svg>',
   ].join('');
 }
