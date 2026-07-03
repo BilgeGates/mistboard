@@ -132,6 +132,17 @@ const VARIANT_MINI_BY_GAME_SPEC: Partial<Record<GameSpecId, VariantMiniId>> = {
 // the hidden/parked tail. variants.test.ts asserts this array is already sorted
 // by canonicalVariantOrderIndex.
 export const VARIANTS: VariantDef[] = [
+  // Fortress Xiangqi ("Storm the Fortress"): the pivot flagship, heads the cluster.
+  {
+    id: currentRatingVariantForSpec(FORTRESS_XIANGQI_SPEC_ID),
+    gameSpecId: fortressXiangqiSpec.id,
+    apiParam: FORTRESS_XIANGQI_SPEC_ID,
+    label: fortressXiangqiSpec.publicName,
+    miniId: 'fortress-xiangqi',
+    enabled: false,
+    onLeaderboard: fortressXiangqiOn,
+    onProfile: fortressXiangqiOn,
+  },
   // Full Dark Xiangqi (9x10 fog): launched PvP-first (no bot, no open-seek
   // lobby), rating-ready like jieqi/banqi.
   {
@@ -165,16 +176,6 @@ export const VARIANTS: VariantDef[] = [
     enabled: false,
     onLeaderboard: banqiOn,
     onProfile: banqiOn,
-  },
-  {
-    id: currentRatingVariantForSpec(FORTRESS_XIANGQI_SPEC_ID),
-    gameSpecId: fortressXiangqiSpec.id,
-    apiParam: FORTRESS_XIANGQI_SPEC_ID,
-    label: fortressXiangqiSpec.publicName,
-    miniId: 'fortress-xiangqi',
-    enabled: false,
-    onLeaderboard: fortressXiangqiOn,
-    onProfile: fortressXiangqiOn,
   },
   // Jungle + Flip Jungle: rated human PvP (own pools), PvE bot games written
   // unrated. The rating pools + profile/persistence wiring are live, but the

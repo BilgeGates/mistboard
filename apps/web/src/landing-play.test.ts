@@ -16,10 +16,10 @@ import { setResolvedSignedIn } from './signed-in-state.js';
 // (mini/dark-mini/drop-mini) plus dark-crazyhouse are hidden from menus
 // (offerInMenu=false) — they remain reachable only by deep link.
 const BASELINE_PICKER_SPECS = [
+  'fortress-xiangqi',
   'dark-xiangqi',
   'jieqi',
   'banqi',
-  'fortress-xiangqi',
   'jungle',
   'jungle-flip',
   'dark-chess',
@@ -210,14 +210,14 @@ describe('landing play panel', () => {
 
     expect(activeSetupSection()).toBe('variant');
     expect(setupSummaryValue('gameGroup')).toBe('Xiangqi');
-    // Post-pivot: the mini xiangqi trio is hidden from the picker, so the first
-    // visible xiangqi variant in canonical order is Dark Xiangqi.
-    expect(selectedVariantSpec()).toBe('dark-xiangqi');
+    // Post-pivot: the mini xiangqi trio is hidden from the picker and Fortress
+    // Xiangqi is the flagship heading the cluster, so it is the default selection.
+    expect(selectedVariantSpec()).toBe('fortress-xiangqi');
     expect(visibleVariantPickerSpecs()).toEqual([
+      'fortress-xiangqi',
       'dark-xiangqi',
       'jieqi',
       'banqi',
-      'fortress-xiangqi',
     ]);
 
     selectModalVariant('dark-xiangqi');

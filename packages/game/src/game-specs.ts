@@ -182,17 +182,16 @@ export const DARK_DUAL_CHESS_SPEC_ID = 'dark-dual-chess' satisfies GameSpecAlias
 // canonicalVariantOrderIndex (just curate it here).
 // 2026-07-03 xiangqi pivot (project_xiangqi_pivot_track): repositioned as the
 // lichess-of-Chinese-chess. The xiangqi family + jungle lead; chess is deranked
-// below them (above shogi). Fortress is the intended flagship but sits inside the
-// cluster until its server room-creation flag + readiness land (Phase B); when it
-// does, standard Xiangqi anchors the cluster and Fortress becomes the hero card.
-// The Mini Xiangqi sub-family + Dark Crazyhouse are retired to the tail (hidden
-// from menu/rail/grids; deep-link URLs stay alive).
+// below them (above shogi). Fortress Xiangqi ("Storm the Fortress") is the
+// flagship and heads the cluster; standard Xiangqi (Phase C) slots in as a peer
+// right after it. The Mini Xiangqi sub-family + Dark Crazyhouse are retired to the
+// tail (hidden from menu/rail/grids; deep-link URLs stay alive).
 export const CANONICAL_VARIANT_ORDER: readonly GameSpecId[] = [
-  // Chinese-chess family (playable, elevated).
+  // Chinese-chess family (playable, elevated). Fortress leads as the flagship.
+  FORTRESS_XIANGQI_SPEC_ID,
   DARK_XIANGQI_SPEC_ID,
   JIEQI_SPEC_ID,
   BANQI_SPEC_ID,
-  FORTRESS_XIANGQI_SPEC_ID,
   // Jungle family.
   JUNGLE_SPEC_ID,
   JUNGLE_FLIP_SPEC_ID,
@@ -403,7 +402,9 @@ export const GAME_SPECS: readonly GameSpec[] = [
     // crazyhouse drops (both-side attacker drops + the chasing rule). Ships
     // alongside the 7x7 Drop Mini Xiangqi as a distinct variant + rating pool.
     // Rules engine: packages/game/src/variants-fortress-xiangqi.ts.
-    // Wiring in progress (server/web) — hidden until launch.
+    // Flagship of the 2026-07-03 xiangqi pivot (project_xiangqi_pivot_track):
+    // promoted to a live public variant. Runtime kill-switch is the server flag
+    // MISTBOARD_FORTRESS_XIANGQI_ENABLED (flip on to open room creation).
     id: FORTRESS_XIANGQI_SPEC_ID,
     publicName: 'Fortress Xiangqi',
     family: 'xiangqi',
@@ -415,11 +416,11 @@ export const GAME_SPECS: readonly GameSpec[] = [
     reserves: 'crazyhouse',
     dropPolicy: 'attacker-anywhere-defender-home',
     ratingPoolBase: 'fortress_xiangqi',
-    // Rating-ready like Dark Xiangqi / Banqi / Jieqi: the pool exists so it lights
-    // up the moment the global rated flag flips. Hidden / dev-spike until launch.
+    // Rating-ready like Dark Xiangqi / Banqi / Jieqi: the pool lights up the
+    // moment the global rated flag flips.
     rated: true,
-    publicSurface: 'hidden',
-    runtimeStatus: 'dev-spike',
+    publicSurface: 'casual',
+    runtimeStatus: 'live',
   },
   {
     id: DARK_XIANGQI_SPEC_ID,
