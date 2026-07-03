@@ -62,12 +62,13 @@ describe('web variant launch registry', () => {
     vi.resetModules();
     vi.stubEnv('DEV', false);
     const prod = await import('./variants.js');
+    // Xiangqi pivot: drop-mini is off the rating grids now; chess is deranked so
+    // it sorts after the xiangqi + jungle buckets.
     expect(prod.leaderboardVariants.map((v) => v.gameSpecId)).toEqual([
-      DARK_CHESS_SPEC_ID,
-      DROP_MINI_XIANGQI_SPEC_ID,
       FORTRESS_XIANGQI_SPEC_ID,
       JUNGLE_SPEC_ID,
       JUNGLE_FLIP_SPEC_ID,
+      DARK_CHESS_SPEC_ID,
     ]);
     vi.unstubAllEnvs();
     vi.resetModules();
@@ -79,20 +80,20 @@ describe('web variant launch registry', () => {
     vi.stubEnv('DEV', false);
     vi.stubEnv('VITE_DARK_MINI_XIANGQI_ENABLED', 'true');
     const flagged = await import('./variants.js');
+    // Xiangqi pivot: drop-mini off the grids; chess deranked to the end of the
+    // filtered list. DMX shows on profile (render flag) but not the leaderboard.
     expect(flagged.profileRatingVariants.map((v) => v.gameSpecId)).toEqual([
+      FORTRESS_XIANGQI_SPEC_ID,
+      JUNGLE_SPEC_ID,
+      JUNGLE_FLIP_SPEC_ID,
       DARK_CHESS_SPEC_ID,
       DARK_MINI_XIANGQI_SPEC_ID,
-      DROP_MINI_XIANGQI_SPEC_ID,
-      FORTRESS_XIANGQI_SPEC_ID,
-      JUNGLE_SPEC_ID,
-      JUNGLE_FLIP_SPEC_ID,
     ]);
     expect(flagged.leaderboardVariants.map((v) => v.gameSpecId)).toEqual([
-      DARK_CHESS_SPEC_ID,
-      DROP_MINI_XIANGQI_SPEC_ID,
       FORTRESS_XIANGQI_SPEC_ID,
       JUNGLE_SPEC_ID,
       JUNGLE_FLIP_SPEC_ID,
+      DARK_CHESS_SPEC_ID,
     ]);
     vi.unstubAllEnvs();
     vi.resetModules();
@@ -105,13 +106,14 @@ describe('web variant launch registry', () => {
     vi.stubEnv('VITE_DARK_MINI_XIANGQI_ENABLED', 'true');
     vi.stubEnv('VITE_DARK_MINI_XIANGQI_PUBLIC_ENTRY_ENABLED', 'true');
     const flagged = await import('./variants.js');
+    // Xiangqi pivot: drop-mini off the grids; chess deranked to the end. With the
+    // public-entry flag on, DMX joins the leaderboard (last, in canonical order).
     expect(flagged.leaderboardVariants.map((v) => v.gameSpecId)).toEqual([
-      DARK_CHESS_SPEC_ID,
-      DARK_MINI_XIANGQI_SPEC_ID,
-      DROP_MINI_XIANGQI_SPEC_ID,
       FORTRESS_XIANGQI_SPEC_ID,
       JUNGLE_SPEC_ID,
       JUNGLE_FLIP_SPEC_ID,
+      DARK_CHESS_SPEC_ID,
+      DARK_MINI_XIANGQI_SPEC_ID,
     ]);
     expect(flagged.enabledVariants.map((v) => v.gameSpecId)).toContain(DARK_MINI_XIANGQI_SPEC_ID);
     expect(
@@ -177,31 +179,31 @@ describe('web variant launch registry', () => {
   });
 
   it('shows local rating surfaces without disabled Crossroads, Reveal, and Kriegspiel variants', () => {
+    // Xiangqi pivot: canonical order (Chinese-chess family + jungle lead, chess
+    // deranked below them, shogi after), and drop-mini is off the rating grids.
     expect(leaderboardVariants.map((v) => v.gameSpecId)).toEqual([
-      DARK_CHESS_SPEC_ID,
-      DARK_CRAZYHOUSE_SPEC_ID,
-      DARK_MINI_XIANGQI_SPEC_ID,
-      DROP_MINI_XIANGQI_SPEC_ID,
-      FORTRESS_XIANGQI_SPEC_ID,
       DARK_XIANGQI_SPEC_ID,
       JIEQI_SPEC_ID,
       BANQI_SPEC_ID,
-      DARK_SHOGI_SPEC_ID,
+      FORTRESS_XIANGQI_SPEC_ID,
       JUNGLE_SPEC_ID,
       JUNGLE_FLIP_SPEC_ID,
+      DARK_CHESS_SPEC_ID,
+      DARK_SHOGI_SPEC_ID,
+      DARK_CRAZYHOUSE_SPEC_ID,
+      DARK_MINI_XIANGQI_SPEC_ID,
     ]);
     expect(profileRatingVariants.map((v) => v.gameSpecId)).toEqual([
-      DARK_CHESS_SPEC_ID,
-      DARK_CRAZYHOUSE_SPEC_ID,
-      DARK_MINI_XIANGQI_SPEC_ID,
-      DROP_MINI_XIANGQI_SPEC_ID,
-      FORTRESS_XIANGQI_SPEC_ID,
       DARK_XIANGQI_SPEC_ID,
       JIEQI_SPEC_ID,
       BANQI_SPEC_ID,
-      DARK_SHOGI_SPEC_ID,
+      FORTRESS_XIANGQI_SPEC_ID,
       JUNGLE_SPEC_ID,
       JUNGLE_FLIP_SPEC_ID,
+      DARK_CHESS_SPEC_ID,
+      DARK_SHOGI_SPEC_ID,
+      DARK_CRAZYHOUSE_SPEC_ID,
+      DARK_MINI_XIANGQI_SPEC_ID,
     ]);
     expect(enabledVariants.map((v) => v.gameSpecId)).not.toContain(DARK_SHOGI_SPEC_ID);
     expect(variantMiniIdForGameSpec(DARK_SHOGI_SPEC_ID)).toBe('dark-shogi');
@@ -228,23 +230,24 @@ describe('web variant launch registry', () => {
   });
 
   it('uses canonical game-spec API params for current variants', () => {
+    // Xiangqi pivot: VARIANTS follows the new CANONICAL_VARIANT_ORDER.
     expect(VARIANTS.map((v) => [v.gameSpecId, v.apiParam])).toEqual([
-      [DARK_CHESS_SPEC_ID, 'fog'],
-      [DARK_DRAFT960_SPEC_ID, 'dark-draft960'],
-      [DARK_CRAZYHOUSE_SPEC_ID, 'dark-crazyhouse'],
-      [KRIEGSPIEL_SPEC_ID, 'kriegspiel'],
-      [REVEAL_CHESS_SPEC_ID, 'reveal-chess'],
-      [DARK_MINI_XIANGQI_SPEC_ID, 'dark-mini-xiangqi'],
-      [DROP_MINI_XIANGQI_SPEC_ID, 'drop-mini-xiangqi'],
-      [FORTRESS_XIANGQI_SPEC_ID, 'fortress-xiangqi'],
       [DARK_XIANGQI_SPEC_ID, 'dark-xiangqi'],
       [JIEQI_SPEC_ID, 'jieqi'],
       [BANQI_SPEC_ID, 'banqi'],
-      [DARK_SHOGI_SPEC_ID, 'dark-shogi'],
-      [CROSSROADS_CHESS_SPEC_ID, 'crossroads-chess'],
-      [DARK_CROSSROADS_CHESS_SPEC_ID, 'dark-crossroads-chess'],
+      [FORTRESS_XIANGQI_SPEC_ID, 'fortress-xiangqi'],
       [JUNGLE_SPEC_ID, 'jungle'],
       [JUNGLE_FLIP_SPEC_ID, 'jungle-flip'],
+      [DARK_CHESS_SPEC_ID, 'fog'],
+      [DARK_SHOGI_SPEC_ID, 'dark-shogi'],
+      [DARK_CRAZYHOUSE_SPEC_ID, 'dark-crazyhouse'],
+      [KRIEGSPIEL_SPEC_ID, 'kriegspiel'],
+      [REVEAL_CHESS_SPEC_ID, 'reveal-chess'],
+      [DARK_DRAFT960_SPEC_ID, 'dark-draft960'],
+      [CROSSROADS_CHESS_SPEC_ID, 'crossroads-chess'],
+      [DARK_CROSSROADS_CHESS_SPEC_ID, 'dark-crossroads-chess'],
+      [DARK_MINI_XIANGQI_SPEC_ID, 'dark-mini-xiangqi'],
+      [DROP_MINI_XIANGQI_SPEC_ID, 'drop-mini-xiangqi'],
     ]);
   });
 

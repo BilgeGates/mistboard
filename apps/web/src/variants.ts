@@ -40,7 +40,6 @@ import {
   darkMiniXiangqiPublicEntryEnabled,
   darkShogiEnabled,
   darkXiangqiEnabled,
-  dropMiniXiangqiEnabled,
   fortressXiangqiEnabled,
   jieqiEnabled,
   jungleEnabled,
@@ -73,7 +72,9 @@ export interface VariantDef {
 const draft960Enabled = import.meta.env.VITE_DRAFT960_ENABLED === 'true';
 const darkMiniEnabled = darkMiniXiangqiEnabled();
 const darkMiniPublicEntryEnabled = darkMiniXiangqiPublicEntryEnabled();
-const dropMiniXiangqiOn = dropMiniXiangqiEnabled();
+// Drop Mini Xiangqi retired from public rating grids 2026-07-03 (kept playable by
+// deep link; live client gate untouched). See project_xiangqi_pivot_track.
+const dropMiniXiangqiOn = false;
 const fortressXiangqiOn = fortressXiangqiEnabled();
 const crossroadsEnabled = crossroadsChessEnabled();
 const jieqiOn = jieqiEnabled();
@@ -126,90 +127,11 @@ const VARIANT_MINI_BY_GAME_SPEC: Partial<Record<GameSpecId, VariantMiniId>> = {
   [JUNGLE_FLIP_SPEC_ID]: 'jungle-flip',
 };
 
+// Ordered to match the shared CANONICAL_VARIANT_ORDER (packages/game): the
+// Chinese-chess family leads, jungle follows, chess is deranked below them, then
+// the hidden/parked tail. variants.test.ts asserts this array is already sorted
+// by canonicalVariantOrderIndex.
 export const VARIANTS: VariantDef[] = [
-  {
-    id: currentRatingVariantForSpec(DARK_CHESS_SPEC_ID),
-    gameSpecId: darkChessSpec.id,
-    apiParam: 'fog',
-    label: darkChessSpec.publicName,
-    miniId: 'dark-chess',
-    enabled: true,
-    onLeaderboard: true,
-    onProfile: true,
-  },
-  // Draft960: gated behind its flag, and temporarily hidden from the leaderboard
-  // until it launches (sequenced to M4). Flip `onLeaderboard` (and the flag) when
-  // expanding. Kept in the registry so re-enabling is one edit.
-  {
-    id: currentRatingVariantForSpec(DARK_DRAFT960_SPEC_ID),
-    gameSpecId: draft960Spec.id,
-    apiParam: 'dark-draft960',
-    label: draft960Spec.publicName,
-    miniId: 'draft960',
-    enabled: draft960Enabled,
-    onLeaderboard: false,
-    onProfile: false,
-  },
-  {
-    id: currentRatingVariantForSpec(DARK_CRAZYHOUSE_SPEC_ID),
-    gameSpecId: darkCrazyhouseSpec.id,
-    apiParam: DARK_CRAZYHOUSE_SPEC_ID,
-    label: darkCrazyhouseSpec.publicName,
-    miniId: 'dark-crazyhouse',
-    enabled: false,
-    onLeaderboard: darkCrazyhouseOn,
-    onProfile: darkCrazyhouseOn,
-  },
-  {
-    id: currentRatingVariantForSpec(KRIEGSPIEL_SPEC_ID),
-    gameSpecId: kriegspielSpec.id,
-    apiParam: KRIEGSPIEL_SPEC_ID,
-    label: kriegspielSpec.publicName,
-    miniId: 'kriegspiel',
-    enabled: false,
-    onLeaderboard: kriegspielOn,
-    onProfile: kriegspielOn,
-  },
-  {
-    id: currentRatingVariantForSpec(REVEAL_CHESS_SPEC_ID),
-    gameSpecId: revealChessSpec.id,
-    apiParam: REVEAL_CHESS_SPEC_ID,
-    label: revealChessSpec.publicName,
-    miniId: 'reveal-chess',
-    enabled: false,
-    onLeaderboard: revealChessOn,
-    onProfile: revealChessOn,
-  },
-  {
-    id: currentRatingVariantForSpec(DARK_MINI_XIANGQI_SPEC_ID),
-    gameSpecId: darkMiniXiangqiSpec.id,
-    apiParam: DARK_MINI_XIANGQI_SPEC_ID,
-    label: darkMiniXiangqiSpec.publicName,
-    miniId: 'dark-mini-xiangqi',
-    enabled: darkMiniPublicEntryEnabled,
-    onLeaderboard: darkMiniPublicEntryEnabled,
-    onProfile: darkMiniEnabled,
-  },
-  {
-    id: currentRatingVariantForSpec(DROP_MINI_XIANGQI_SPEC_ID),
-    gameSpecId: dropMiniXiangqiSpec.id,
-    apiParam: DROP_MINI_XIANGQI_SPEC_ID,
-    label: dropMiniXiangqiSpec.publicName,
-    miniId: 'drop-mini-xiangqi',
-    enabled: false,
-    onLeaderboard: dropMiniXiangqiOn,
-    onProfile: dropMiniXiangqiOn,
-  },
-  {
-    id: currentRatingVariantForSpec(FORTRESS_XIANGQI_SPEC_ID),
-    gameSpecId: fortressXiangqiSpec.id,
-    apiParam: FORTRESS_XIANGQI_SPEC_ID,
-    label: fortressXiangqiSpec.publicName,
-    miniId: 'fortress-xiangqi',
-    enabled: false,
-    onLeaderboard: fortressXiangqiOn,
-    onProfile: fortressXiangqiOn,
-  },
   // Full Dark Xiangqi (9x10 fog): launched PvP-first (no bot, no open-seek
   // lobby), rating-ready like jieqi/banqi.
   {
@@ -245,37 +167,14 @@ export const VARIANTS: VariantDef[] = [
     onProfile: banqiOn,
   },
   {
-    id: currentRatingVariantForSpec(DARK_SHOGI_SPEC_ID),
-    gameSpecId: darkShogiSpec.id,
-    apiParam: DARK_SHOGI_SPEC_ID,
-    label: darkShogiSpec.publicName,
-    miniId: 'dark-shogi',
+    id: currentRatingVariantForSpec(FORTRESS_XIANGQI_SPEC_ID),
+    gameSpecId: fortressXiangqiSpec.id,
+    apiParam: FORTRESS_XIANGQI_SPEC_ID,
+    label: fortressXiangqiSpec.publicName,
+    miniId: 'fortress-xiangqi',
     enabled: false,
-    onLeaderboard: darkShogiOn,
-    onProfile: darkShogiOn,
-  },
-  // Perfect-information Crossroads stays in the registry for old records and
-  // explicit local experiments, but is hidden from active product surfaces
-  // unless the play flag is deliberately enabled.
-  {
-    id: currentRatingVariantForSpec(CROSSROADS_CHESS_SPEC_ID),
-    gameSpecId: crossroadsChessSpec.id,
-    apiParam: CROSSROADS_CHESS_SPEC_ID,
-    label: crossroadsChessSpec.publicName,
-    miniId: 'crossroads',
-    enabled: crossroadsEnabled,
-    onLeaderboard: crossroadsEnabled,
-    onProfile: crossroadsEnabled,
-  },
-  {
-    id: currentRatingVariantForSpec(DARK_CROSSROADS_CHESS_SPEC_ID),
-    gameSpecId: darkCrossroadsChessSpec.id,
-    apiParam: DARK_CROSSROADS_CHESS_SPEC_ID,
-    label: darkCrossroadsChessSpec.publicName,
-    miniId: 'dark-crossroads',
-    enabled: false,
-    onLeaderboard: darkCrossroadsChessOn,
-    onProfile: darkCrossroadsChessOn,
+    onLeaderboard: fortressXiangqiOn,
+    onProfile: fortressXiangqiOn,
   },
   // Jungle + Flip Jungle: rated human PvP (own pools), PvE bot games written
   // unrated. The rating pools + profile/persistence wiring are live, but the
@@ -301,6 +200,112 @@ export const VARIANTS: VariantDef[] = [
     enabled: false,
     onLeaderboard: jungleFlipOn,
     onProfile: jungleFlipOn,
+  },
+  {
+    id: currentRatingVariantForSpec(DARK_CHESS_SPEC_ID),
+    gameSpecId: darkChessSpec.id,
+    apiParam: 'fog',
+    label: darkChessSpec.publicName,
+    miniId: 'dark-chess',
+    enabled: true,
+    onLeaderboard: true,
+    onProfile: true,
+  },
+  {
+    id: currentRatingVariantForSpec(DARK_SHOGI_SPEC_ID),
+    gameSpecId: darkShogiSpec.id,
+    apiParam: DARK_SHOGI_SPEC_ID,
+    label: darkShogiSpec.publicName,
+    miniId: 'dark-shogi',
+    enabled: false,
+    onLeaderboard: darkShogiOn,
+    onProfile: darkShogiOn,
+  },
+  {
+    id: currentRatingVariantForSpec(DARK_CRAZYHOUSE_SPEC_ID),
+    gameSpecId: darkCrazyhouseSpec.id,
+    apiParam: DARK_CRAZYHOUSE_SPEC_ID,
+    label: darkCrazyhouseSpec.publicName,
+    miniId: 'dark-crazyhouse',
+    enabled: false,
+    onLeaderboard: darkCrazyhouseOn,
+    onProfile: darkCrazyhouseOn,
+  },
+  {
+    id: currentRatingVariantForSpec(KRIEGSPIEL_SPEC_ID),
+    gameSpecId: kriegspielSpec.id,
+    apiParam: KRIEGSPIEL_SPEC_ID,
+    label: kriegspielSpec.publicName,
+    miniId: 'kriegspiel',
+    enabled: false,
+    onLeaderboard: kriegspielOn,
+    onProfile: kriegspielOn,
+  },
+  {
+    id: currentRatingVariantForSpec(REVEAL_CHESS_SPEC_ID),
+    gameSpecId: revealChessSpec.id,
+    apiParam: REVEAL_CHESS_SPEC_ID,
+    label: revealChessSpec.publicName,
+    miniId: 'reveal-chess',
+    enabled: false,
+    onLeaderboard: revealChessOn,
+    onProfile: revealChessOn,
+  },
+  // Draft960: gated behind its flag, and temporarily hidden from the leaderboard
+  // until it launches (sequenced to M4). Flip `onLeaderboard` (and the flag) when
+  // expanding. Kept in the registry so re-enabling is one edit.
+  {
+    id: currentRatingVariantForSpec(DARK_DRAFT960_SPEC_ID),
+    gameSpecId: draft960Spec.id,
+    apiParam: 'dark-draft960',
+    label: draft960Spec.publicName,
+    miniId: 'draft960',
+    enabled: draft960Enabled,
+    onLeaderboard: false,
+    onProfile: false,
+  },
+  // Perfect-information Crossroads stays in the registry for old records and
+  // explicit local experiments, but is hidden from active product surfaces
+  // unless the play flag is deliberately enabled.
+  {
+    id: currentRatingVariantForSpec(CROSSROADS_CHESS_SPEC_ID),
+    gameSpecId: crossroadsChessSpec.id,
+    apiParam: CROSSROADS_CHESS_SPEC_ID,
+    label: crossroadsChessSpec.publicName,
+    miniId: 'crossroads',
+    enabled: crossroadsEnabled,
+    onLeaderboard: crossroadsEnabled,
+    onProfile: crossroadsEnabled,
+  },
+  {
+    id: currentRatingVariantForSpec(DARK_CROSSROADS_CHESS_SPEC_ID),
+    gameSpecId: darkCrossroadsChessSpec.id,
+    apiParam: DARK_CROSSROADS_CHESS_SPEC_ID,
+    label: darkCrossroadsChessSpec.publicName,
+    miniId: 'dark-crossroads',
+    enabled: false,
+    onLeaderboard: darkCrossroadsChessOn,
+    onProfile: darkCrossroadsChessOn,
+  },
+  {
+    id: currentRatingVariantForSpec(DARK_MINI_XIANGQI_SPEC_ID),
+    gameSpecId: darkMiniXiangqiSpec.id,
+    apiParam: DARK_MINI_XIANGQI_SPEC_ID,
+    label: darkMiniXiangqiSpec.publicName,
+    miniId: 'dark-mini-xiangqi',
+    enabled: darkMiniPublicEntryEnabled,
+    onLeaderboard: darkMiniPublicEntryEnabled,
+    onProfile: darkMiniEnabled,
+  },
+  {
+    id: currentRatingVariantForSpec(DROP_MINI_XIANGQI_SPEC_ID),
+    gameSpecId: dropMiniXiangqiSpec.id,
+    apiParam: DROP_MINI_XIANGQI_SPEC_ID,
+    label: dropMiniXiangqiSpec.publicName,
+    miniId: 'drop-mini-xiangqi',
+    enabled: false,
+    onLeaderboard: dropMiniXiangqiOn,
+    onProfile: dropMiniXiangqiOn,
   },
 ];
 

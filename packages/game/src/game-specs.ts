@@ -180,24 +180,35 @@ export const DARK_DUAL_CHESS_SPEC_ID = 'dark-dual-chess' satisfies GameSpecAlias
 // and the /rules rail. Specs not listed here sort to the end in their own order,
 // so a new variant appears without editing callers that already sort by
 // canonicalVariantOrderIndex (just curate it here).
+// 2026-07-03 xiangqi pivot (project_xiangqi_pivot_track): repositioned as the
+// lichess-of-Chinese-chess. The xiangqi family + jungle lead; chess is deranked
+// below them (above shogi). Fortress is the intended flagship but sits inside the
+// cluster until its server room-creation flag + readiness land (Phase B); when it
+// does, standard Xiangqi anchors the cluster and Fortress becomes the hero card.
+// The Mini Xiangqi sub-family + Dark Crazyhouse are retired to the tail (hidden
+// from menu/rail/grids; deep-link URLs stay alive).
 export const CANONICAL_VARIANT_ORDER: readonly GameSpecId[] = [
-  DARK_CHESS_SPEC_ID,
-  DARK_DRAFT960_SPEC_ID,
-  DARK_CRAZYHOUSE_SPEC_ID,
-  KRIEGSPIEL_SPEC_ID,
-  REVEAL_CHESS_SPEC_ID,
-  MINI_XIANGQI_SPEC_ID,
-  DARK_MINI_XIANGQI_SPEC_ID,
-  DROP_MINI_XIANGQI_SPEC_ID,
-  FORTRESS_XIANGQI_SPEC_ID,
+  // Chinese-chess family (playable, elevated).
   DARK_XIANGQI_SPEC_ID,
   JIEQI_SPEC_ID,
   BANQI_SPEC_ID,
-  DARK_SHOGI_SPEC_ID,
-  CROSSROADS_CHESS_SPEC_ID,
-  DARK_CROSSROADS_CHESS_SPEC_ID,
+  FORTRESS_XIANGQI_SPEC_ID,
+  // Jungle family.
   JUNGLE_SPEC_ID,
   JUNGLE_FLIP_SPEC_ID,
+  // Chess, deranked below xiangqi + jungle but above shogi.
+  DARK_CHESS_SPEC_ID,
+  DARK_SHOGI_SPEC_ID,
+  // Hidden / parked / retired — order here only affects hidden surfaces.
+  DARK_CRAZYHOUSE_SPEC_ID,
+  KRIEGSPIEL_SPEC_ID,
+  REVEAL_CHESS_SPEC_ID,
+  DARK_DRAFT960_SPEC_ID,
+  CROSSROADS_CHESS_SPEC_ID,
+  DARK_CROSSROADS_CHESS_SPEC_ID,
+  MINI_XIANGQI_SPEC_ID,
+  DARK_MINI_XIANGQI_SPEC_ID,
+  DROP_MINI_XIANGQI_SPEC_ID,
 ];
 
 /** Sort index for {@link CANONICAL_VARIANT_ORDER}; unlisted specs sort to the end. */

@@ -23,10 +23,12 @@ describe('profile ratings rail', () => {
 
     expect(section.textContent).toContain('Dark Chess');
     expect(section.textContent).toContain('Dark Mini Xiangqi');
-    expect(section.textContent).toContain('Drop Mini Xiangqi');
+    // Xiangqi pivot: Drop Mini is off the rating grids now.
+    expect(section.textContent).not.toContain('Drop Mini Xiangqi');
     expect(section.textContent).not.toContain('Crossroads Chess');
-    // Jungle + Flip Jungle + Fortress launched: always-on profile rows.
-    expect(section.querySelectorAll('.profile-rating-row-empty')).toHaveLength(6);
+    // Fortress + Jungle + Flip Jungle + Dark Chess (always-on) + Dark Mini (render
+    // flag) = 5 profile rows.
+    expect(section.querySelectorAll('.profile-rating-row-empty')).toHaveLength(5);
   });
 
   it('localizes Traditional Chinese profile ratings rows', async () => {
@@ -34,10 +36,12 @@ describe('profile ratings rail', () => {
     vi.stubEnv('VITE_DARK_MINI_XIANGQI_ENABLED', 'true');
     const { buildProfileRatings } = await import('./profile.js');
 
+    // Xiangqi pivot: Drop Mini is off the rating grids; localize an on-grid row
+    // (Fortress Xiangqi) instead.
     const section = buildProfileRatings(
       [
         {
-          variant: 'drop_mini_xiangqi',
+          variant: 'fortress_xiangqi',
           timeClass: 'blitz',
           eloRating: 1520,
           ratedGamesPlayed: 2,
@@ -49,7 +53,7 @@ describe('profile ratings rail', () => {
     );
 
     expect(section.querySelector('h2')?.textContent).toBe('評分');
-    expect(section.textContent).toContain('打入迷你象棋');
+    expect(section.textContent).toContain('堡壘象棋');
     expect(section.textContent).toContain('2 局計分對局');
   });
 
@@ -137,11 +141,13 @@ describe('profile ratings rail', () => {
     await mountLeaderboard(root);
 
     expect(root.textContent).not.toContain('Crossroads Chess');
-    expect(root.textContent).toContain('Drop Mini Xiangqi');
+    // Xiangqi pivot: Drop Mini is off the grids; Fortress is an always-on ladder.
+    expect(root.textContent).not.toContain('Drop Mini Xiangqi');
+    expect(root.textContent).toContain('Fortress Xiangqi');
     expect(root.textContent).toContain('Human blitz ladders');
-    // 5 rated ladders (incl. always-on Jungle, Flip Jungle, Fortress) + the
+    // 4 rated ladders (Dark Chess + always-on Jungle, Flip Jungle, Fortress) + the
     // Active players panel.
-    expect(root.querySelectorAll('.leaderboard-panel')).toHaveLength(6);
+    expect(root.querySelectorAll('.leaderboard-panel')).toHaveLength(5);
     expect(root.textContent).toContain('Active players');
     expect(fetchSpy).toHaveBeenCalledWith('/api/leaderboard/summary?limit=10');
     expect(fetchSpy).toHaveBeenCalledWith('/api/players/online');
@@ -197,10 +203,12 @@ describe('profile ratings rail', () => {
 
   it('fills ladder tables, marks online players, and sinks empty panels last', async () => {
     vi.stubEnv('DEV', false);
+    // Xiangqi pivot: Drop Mini is off the grids, so populate an on-grid ladder
+    // (Fortress Xiangqi) to exercise populated-first ordering.
     stubLeaderboardFetch({
       ladders: [
         {
-          variant: 'drop_mini_xiangqi',
+          variant: 'fortress_xiangqi',
           leaderboard: [
             {
               rank: 1,
@@ -230,12 +238,12 @@ describe('profile ratings rail', () => {
     expect(root.textContent).toContain('No rated games yet.');
 
     // Populated-first ordering: Active players (12 games) leads, the populated
-    // Drop Mini ladder follows, empty ladders sink to the tail.
+    // Fortress Xiangqi ladder follows, empty ladders sink to the tail.
     const titles = [...root.querySelectorAll('.leaderboard-panel-title')].map(
       (el) => el.textContent,
     );
     expect(titles[0]).toBe('Active players');
-    expect(titles[1]).toBe('Drop Mini Xiangqi');
+    expect(titles[1]).toBe('Fortress Xiangqi');
     const panels = [...root.querySelectorAll('.leaderboard-panel')];
     expect(panels[0]?.textContent).toContain('12');
     expect(panels[2]?.textContent).toContain('No rated games yet.');
@@ -245,10 +253,12 @@ describe('profile ratings rail', () => {
     window.history.replaceState(null, '', '/zh-hant/leaderboard');
     vi.stubEnv('DEV', false);
     vi.stubEnv('VITE_CROSSROADS_CHESS_ENABLED', 'false');
+    // Xiangqi pivot: Drop Mini is off the grids; populate an on-grid ladder
+    // (Fortress Xiangqi) instead.
     stubLeaderboardFetch({
       ladders: [
         {
-          variant: 'drop_mini_xiangqi',
+          variant: 'fortress_xiangqi',
           leaderboard: [
             {
               rank: 1,
@@ -269,7 +279,7 @@ describe('profile ratings rail', () => {
 
     expect(root.querySelector('h1')?.textContent).toBe('排行榜');
     expect(root.textContent).toContain('Mistboard 公開變體的人類快棋排行榜。');
-    expect(root.textContent).toContain('打入迷你象棋');
+    expect(root.textContent).toContain('堡壘象棋');
     expect(root.textContent).toContain('還沒有計分對局。');
     expect(root.textContent).toContain('活躍玩家');
     expect(root.querySelector('.leaderboard-online-heading')?.textContent).toBe('線上玩家');
@@ -286,7 +296,8 @@ describe('profile ratings rail', () => {
     await mountLeaderboard(root);
 
     expect(root.textContent).toContain('Crossroads Chess');
-    // 6 rated ladders behind the flag + the Active players panel.
-    expect(root.querySelectorAll('.leaderboard-panel')).toHaveLength(7);
+    // 5 rated ladders (Dark Chess + always-on Fortress, Jungle, Flip Jungle +
+    // Crossroads behind the flag) + the Active players panel.
+    expect(root.querySelectorAll('.leaderboard-panel')).toHaveLength(6);
   });
 });

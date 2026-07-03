@@ -152,10 +152,12 @@ const LANDING_GAME_GROUPS: {
   id: LandingGameGroupId;
   label: string;
 }[] = [
-  { id: 'chess', label: 'Chess', glyph: '♔' },
+  // 2026-07-03 xiangqi pivot (project_xiangqi_pivot_track): xiangqi + jungle lead,
+  // chess is deranked below them (above shogi).
   { id: 'xiangqi', label: 'Xiangqi', glyph: '象' },
-  { id: 'shogi', label: 'Shogi', glyph: '☗' },
   { id: 'jungle', label: 'Jungle', glyph: '虎' },
+  { id: 'chess', label: 'Chess', glyph: '♔' },
+  { id: 'shogi', label: 'Shogi', glyph: '☗' },
 ];
 
 // Which time-control presets the picker offers, per variant. Dark chess and DMX

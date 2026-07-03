@@ -141,6 +141,11 @@ const XIANGQI_CAPABILITIES_BASE = {
 
 const alwaysEnabled = () => true;
 const darkCrazyhouseLandingEnabled = () => import.meta.env.VITE_DARK_CRAZYHOUSE_ENABLED === 'true';
+// Retired/hidden from the play-menu picker (2026-07-03 xiangqi pivot,
+// project_xiangqi_pivot_track). Discoverability only: acceptsDeepLink stays live
+// so existing games + physical/kids deep links keep working, and the live client
+// + postgame gates (their own feature-flag helpers) are untouched.
+const hiddenFromMenu = () => false;
 
 const WEB_VARIANT_TENANTS: readonly WebVariantTenant[] = [
   {
@@ -495,7 +500,7 @@ const WEB_VARIANT_TENANTS: readonly WebVariantTenant[] = [
         supportsTimeControl: true,
       },
       timePresetIds: ['1m1', '3m2', '5m5'],
-      offerInMenu: alwaysEnabled,
+      offerInMenu: hiddenFromMenu,
       acceptsDeepLink: alwaysEnabled,
       engineOptions: [
         {
@@ -545,7 +550,7 @@ const WEB_VARIANT_TENANTS: readonly WebVariantTenant[] = [
         supportsTimeControl: true,
       },
       timePresetIds: ['1m1', '3m2'],
-      offerInMenu: alwaysEnabled,
+      offerInMenu: hiddenFromMenu,
       acceptsDeepLink: alwaysEnabled,
       engineOptions: [
         {
@@ -594,7 +599,7 @@ const WEB_VARIANT_TENANTS: readonly WebVariantTenant[] = [
         supportsTimeControl: true,
       },
       timePresetIds: ['1m1', '3m2', '5m5'],
-      offerInMenu: alwaysEnabled,
+      offerInMenu: hiddenFromMenu,
       acceptsDeepLink: alwaysEnabled,
       engineOptions: [
         {
@@ -944,7 +949,7 @@ const WEB_VARIANT_TENANTS: readonly WebVariantTenant[] = [
         supportsTimeControl: true,
       },
       timePresetIds: ['1m1', '3m2', '5m5'],
-      offerInMenu: darkCrazyhouseLandingEnabled,
+      offerInMenu: hiddenFromMenu,
       acceptsDeepLink: darkCrazyhouseLandingEnabled,
     },
   },

@@ -6,15 +6,17 @@ import { GAME_SPECS, type GameSpecId } from '@mistboard/game';
 const VARIANT_PUBLIC_SURFACE_ENABLED = {
   'dark-chess': true,
   'dark-draft960': false,
-  'dark-crazyhouse': true,
+  // Dark Crazyhouse + the Mini Xiangqi sub-family retired from public surfaces
+  // 2026-07-03 (project_xiangqi_pivot_track). Direct /rules + play URLs stay live.
+  'dark-crazyhouse': false,
   kriegspiel: false,
   'dark-antichess': false,
   'sun-tzu': false,
   'lao-tzu': false,
   'dark-seirawan': false,
-  'mini-xiangqi': true,
-  'dark-mini-xiangqi': true,
-  'drop-mini-xiangqi': true,
+  'mini-xiangqi': false,
+  'dark-mini-xiangqi': false,
+  'drop-mini-xiangqi': false,
   'fortress-xiangqi': true,
   'dark-xiangqi': true,
   'dark-shogi': true,
