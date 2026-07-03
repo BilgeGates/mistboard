@@ -41,18 +41,15 @@ describe('Dark Mini Xiangqi postgame page', () => {
     expect(root.textContent).toContain('Server truth');
     expect(root.textContent).toContain('Black view');
     expect(root.textContent).toContain('Play again');
-    expect(root.textContent).toContain('Guest');
     const download = root.querySelector<HTMLAnchorElement>(
       'a[href="/api/dark-mini-xiangqi/games/dmxq_postgame/export.json"]',
     );
     expect(download?.textContent).toBe('Download JSON');
     expect(download?.getAttribute('download')).toBe('mistboard-dmxq_postgame.json');
-    expect(root.textContent).toContain('Untimed');
-    expect(root.textContent).toContain('Rated');
     expect(root.querySelectorAll('[aria-label="black general"]').length).toBeGreaterThan(0);
     // Moves are grouped two plies per row, dark-chess style: number + red + black.
     expect(root.querySelector('.move-row')?.textContent?.replace(/\s+/g, '')).toBe('1b1-b2b7-b6');
-    expect(root.textContent).toContain('ply 2 of 2');
+    expect(root.textContent).toContain('Ply 2 of 2');
     expect(root.querySelectorAll('.mini-xq-board')).toHaveLength(3);
 
     // Each board's fog <mask> needs a unique id: SVG url(#id) resolves the first
@@ -66,15 +63,17 @@ describe('Dark Mini Xiangqi postgame page', () => {
     expect(boardWrap(root, 'Server truth').querySelector('.mini-xq-fog-mask')).toBeNull();
     expect(boardWrap(root, 'Server truth').innerHTML).not.toContain('hidden piece');
 
-    // Flip re-renders all boards; scrubbing back steps the ply counter.
-    root.querySelector<HTMLButtonElement>('[aria-label="Flip all boards"]')?.click();
+    // Flip re-renders all boards; scrubbing back steps the ply counter. The shared
+    // review layout owns the scrubber (aria-labelled "… ply") and binds the keyboard
+    // on the mount root (Home/End jump to the first/last ply).
+    root.querySelector<HTMLButtonElement>('[aria-label="Flip all boards (f)"]')?.click();
     expect(root.querySelectorAll('.mini-xq-board')).toHaveLength(3);
-    root.querySelector<HTMLButtonElement>('[aria-label="Previous move"]')?.click();
-    expect(root.textContent).toContain('ply 1 of 2');
-    document.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowUp' }));
-    expect(root.textContent).toContain('ply 0 of 2');
-    document.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown' }));
-    expect(root.textContent).toContain('ply 2 of 2');
+    root.querySelector<HTMLButtonElement>('[aria-label="Previous ply"]')?.click();
+    expect(root.textContent).toContain('Ply 1 of 2');
+    document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Home' }));
+    expect(root.textContent).toContain('Ply 0 of 2');
+    document.dispatchEvent(new KeyboardEvent('keydown', { key: 'End' }));
+    expect(root.textContent).toContain('Ply 2 of 2');
   });
 });
 

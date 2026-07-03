@@ -69,8 +69,10 @@
   grid-template-columns: minmax(0, 1fr);
 }
 
+/* The board fills its board-stage slot; the shared review layout sizes the slot
+   (primary vs secondary) from the board aspect. */
 .kriegspiel-postgame-route .dxq-postgame__board {
-  max-width: min(100%, 46vh);
+  max-width: none;
   aspect-ratio: 1 / 1;
   margin-inline: auto;
 }

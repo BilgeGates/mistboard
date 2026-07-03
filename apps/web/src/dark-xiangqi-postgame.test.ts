@@ -71,7 +71,7 @@ describe('Dark Xiangqi postgame page', () => {
     expect(root.textContent).toContain('Ply 2 of 2');
 
     root
-      .querySelector<HTMLButtonElement>('.dxq-postgame__replay-button[aria-label="Previous ply"]')
+      .querySelector<HTMLButtonElement>('.review-scrubber__button[aria-label="Previous ply"]')
       ?.click();
     expect(root.textContent).toContain('Ply 1 of 2');
   });

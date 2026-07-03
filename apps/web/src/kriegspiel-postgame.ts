@@ -8,11 +8,11 @@ import './kriegspiel-postgame.css';
 import { kriegspielEnabled } from './feature-flags.js';
 import { renderKriegspielBoardSvg } from './kriegspiel-render.js';
 import { createKriegspielPlayAgainRoom } from './kriegspiel-room-actions.js';
+import { mountReviewLayout } from './review/review-layout.js';
+import { buildNav } from './site-shell.js';
 import { setBoardFamily } from './theme.js';
 
 export type KriegspielPostgameViewKey = Color | 'truth';
-
-const postgameAbortControllers = new WeakMap<HTMLElement, AbortController>();
 
 // The umpire's announcement rides each move-played event; Kriegspiel moves are
 // plain chess moves (from/to/promotion), never drops.
@@ -73,7 +73,7 @@ type PostgameEntry = {
 export function mountKriegspielPostgame(root: HTMLElement, roomId: string): Promise<unknown> {
   root.classList.add('landing-page', 'kriegspiel-postgame-route');
   setBoardFamily('chess');
-  root.replaceChildren(loadingView());
+  root.replaceChildren(buildNav(), loadingView());
   if (!kriegspielEnabled()) {
     renderError(root, 'Kriegspiel unavailable', 'This route is not enabled in this build.');
     return Promise.resolve();
@@ -110,131 +110,50 @@ export function kriegspielPostgameApiUrl(roomId: string): string {
 }
 
 function renderPostgame(root: HTMLElement, postgame: KriegspielPostgameResponse): void {
-  const priorAbort = postgameAbortControllers.get(root);
-  if (priorAbort) priorAbort.abort();
-  const abortController = new AbortController();
-  postgameAbortControllers.set(root, abortController);
-
-  root.replaceChildren();
-  const page = document.createElement('main');
-  page.className = 'dxq-postgame';
-
-  const header = document.createElement('header');
-  header.className = 'dxq-postgame__header';
-  const titleBlock = document.createElement('div');
-  const eyebrow = document.createElement('p');
-  eyebrow.className = 'dxq-postgame__eyebrow';
-  eyebrow.textContent = 'Game review';
-  const title = document.createElement('h1');
-  title.className = 'dxq-postgame__title';
-  title.textContent = 'Kriegspiel';
-  const summary = document.createElement('p');
-  summary.className = 'dxq-postgame__summary';
-  summary.textContent = `${resultLabel(postgame.game.result)} by ${labelize(postgame.game.termination)} · ${postgame.game.plyCount} plies`;
-  titleBlock.append(eyebrow, title, summary);
-  header.append(titleBlock, postgameActions(postgame));
-
-  const layout = document.createElement('section');
-  layout.className = 'dxq-postgame__layout';
-  layout.setAttribute('aria-label', 'Kriegspiel postgame');
-
-  const side = document.createElement('aside');
-  side.className = 'dxq-postgame__side';
-  side.append(detailsPanel(postgame), timelinePanel(postgame));
-
-  layout.append(boardsPanel(postgame, abortController.signal), side);
-  page.append(header, layout);
-  root.append(page);
-}
-
-function boardsPanel(postgame: KriegspielPostgameResponse, signal: AbortSignal): HTMLElement {
-  const panel = document.createElement('div');
-  panel.className = 'dxq-postgame__boards';
   const views = postgameViewEntries(postgame);
-  const maxPly = postgameReplayMaxPly(postgame);
-  let currentPly = maxPly;
-  let boardOrientation: Color = 'white';
-  const boardTargets: Array<{ board: HTMLElement; entry: PostgameEntry }> = [];
-
-  const controls = document.createElement('div');
-  controls.className = 'dxq-postgame__replay-controls';
-  const first = replayControlButton('|<', 'First ply');
-  const previous = replayControlButton('<', 'Previous ply');
-  const status = document.createElement('span');
-  status.className = 'dxq-postgame__replay-status';
-  status.setAttribute('aria-live', 'polite');
-  const next = replayControlButton('>', 'Next ply');
-  const last = replayControlButton('>|', 'Final ply');
-  const flip = replayControlButton('Flip', 'Flip all boards');
-  flip.title = 'Flip all boards (f)';
-
-  const syncReplay = () => {
-    for (const { board, entry } of boardTargets) {
-      const view = postgameViewAtPly(postgame, entry.key, currentPly) ?? entry.view;
-      board.innerHTML = renderKriegspielBoardSvg(view, {
-        perspective: boardOrientation,
-        showFog: entry.key !== 'truth',
-      });
-    }
-    status.textContent = `Ply ${currentPly} of ${maxPly}`;
-    first.disabled = currentPly <= 0;
-    previous.disabled = currentPly <= 0;
-    next.disabled = currentPly >= maxPly;
-    last.disabled = currentPly >= maxPly;
-  };
-
-  first.addEventListener('click', () => {
-    currentPly = 0;
-    syncReplay();
-  });
-  previous.addEventListener('click', () => {
-    currentPly = Math.max(0, currentPly - 1);
-    syncReplay();
-  });
-  next.addEventListener('click', () => {
-    currentPly = Math.min(maxPly, currentPly + 1);
-    syncReplay();
-  });
-  last.addEventListener('click', () => {
-    currentPly = maxPly;
-    syncReplay();
-  });
-  flip.addEventListener('click', () => {
-    boardOrientation = boardOrientation === 'white' ? 'black' : 'white';
-    syncReplay();
-  });
-  document.addEventListener(
-    'keydown',
-    (event) => {
-      if (event.metaKey || event.ctrlKey || event.altKey) return;
-      const target = event.target as HTMLElement | null;
-      if (target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA')) return;
-      if (event.key !== 'f' && event.key !== 'F') return;
-      event.preventDefault();
-      boardOrientation = boardOrientation === 'white' ? 'black' : 'white';
-      syncReplay();
-    },
-    { signal },
-  );
-
-  controls.append(first, previous, status, next, last, flip);
-  panel.append(controls);
-
-  for (const entry of views) {
-    const boardWrap = document.createElement('section');
-    boardWrap.className = 'dxq-postgame__board-wrap';
+  // Each board host carries its own label; the review layout arranges them
+  // (truth dominant, per-seat views as click-to-promote secondaries) and owns
+  // the scrubber, keyboard, flip, and viewport-fill sizing.
+  const targets = views.map((entry) => {
+    const el = document.createElement('section');
+    el.className = 'dxq-postgame__board-wrap';
     const heading = document.createElement('h2');
     heading.className = 'dxq-postgame__board-title';
     heading.textContent = entry.label;
     const board = document.createElement('div');
     board.className = 'dxq-postgame__board kriegspiel-live-board';
     board.setAttribute('aria-label', `${entry.label} final Kriegspiel board`);
-    boardTargets.push({ board, entry });
-    boardWrap.append(heading, board);
-    panel.append(boardWrap);
-  }
-  syncReplay();
-  return panel;
+    el.append(heading, board);
+    return { entry, el, board };
+  });
+
+  root.replaceChildren(buildNav());
+  mountReviewLayout(root, {
+    pageClassName: 'kriegspiel-review',
+    ariaLabel: 'Kriegspiel postgame',
+    title: 'Kriegspiel',
+    summary: `${resultLabel(postgame.game.result)} by ${labelize(postgame.game.termination)} · ${postgame.game.plyCount} plies`,
+    actions: postgameActions(postgame),
+    details: detailsPanel(postgame),
+    moves: timelinePanel(postgame),
+    boards: targets.map((target) => ({
+      key: target.entry.key,
+      el: target.el,
+      tier: target.entry.key === 'truth' ? 'primary' : 'secondary',
+    })),
+    boardAspect: 1,
+    maxPly: postgameReplayMaxPly(postgame),
+    renderBoards({ ply, flipped }) {
+      const orientation: Color = flipped ? 'black' : 'white';
+      for (const { entry, board } of targets) {
+        const view = postgameViewAtPly(postgame, entry.key, ply) ?? entry.view;
+        board.innerHTML = renderKriegspielBoardSvg(view, {
+          perspective: orientation,
+          showFog: entry.key !== 'truth',
+        });
+      }
+    },
+  });
 }
 
 export function postgameViewEntries(postgame: KriegspielPostgameResponse): PostgameEntry[] {
@@ -247,15 +166,6 @@ export function postgameViewEntries(postgame: KriegspielPostgameResponse): Postg
     ];
   }
   return [{ key: 'truth', label: 'Server truth', view: postgame.view }];
-}
-
-function replayControlButton(text: string, label: string): HTMLButtonElement {
-  const button = document.createElement('button');
-  button.type = 'button';
-  button.className = 'dxq-postgame__replay-button';
-  button.setAttribute('aria-label', label);
-  button.textContent = text;
-  return button;
 }
 
 export function postgameReplayMaxPly(postgame: KriegspielPostgameResponse): number {
@@ -413,7 +323,6 @@ function loadingView(): HTMLElement {
 }
 
 function renderError(root: HTMLElement, titleText: string, bodyText: string): void {
-  root.replaceChildren();
   const shell = document.createElement('main');
   shell.className = 'dxq-postgame__error';
   const title = document.createElement('h1');
@@ -421,7 +330,7 @@ function renderError(root: HTMLElement, titleText: string, bodyText: string): vo
   const body = document.createElement('p');
   body.textContent = bodyText;
   shell.append(title, body);
-  root.append(shell);
+  root.replaceChildren(buildNav(), shell);
 }
 
 function errorTitle(status: number): string {

@@ -65,7 +65,7 @@ describe('Flip Jungle postgame page', () => {
     // The opening action was a flip (self-move): the move list reads it as "a1 flip".
     const whitePly = root.querySelector<HTMLButtonElement>('.move-row .white-ply');
     expect(whitePly?.textContent).toBe('a1 flip');
-    expect(root.textContent).toContain('ply 1 of 1');
+    expect(root.textContent).toContain('Ply 1 of 1');
   });
 
   it('hides unflipped tiles by default and reveals them on toggle', async () => {

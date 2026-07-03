@@ -14,15 +14,12 @@ import {
   readCrossroadsChessAppearance,
   renderCrossroadsChessBoardSvg,
 } from './crossroads-chess-render.js';
-import { createDxqPostgameShell, createDxqReplayControls } from './dxq-postgame-shell.js';
 import { darkCrossroadsChessEnabled } from './feature-flags.js';
-import { handlePostgameReplayKeyboard } from './postgame-keyboard.js';
+import { mountReviewLayout } from './review/review-layout.js';
 import { buildNav } from './site-shell.js';
 import { setBoardFamily } from './theme.js';
 
 export type DarkCrossroadsChessPostgameViewKey = CrossroadsChessColor | 'truth';
-
-const postgameAbortControllers = new WeakMap<HTMLElement, AbortController>();
 
 export type DarkCrossroadsChessPostgameResponse = {
   game: {
@@ -118,131 +115,53 @@ export function darkCrossroadsChessPostgameApiUrl(roomId: string): string {
 }
 
 function renderPostgame(root: HTMLElement, postgame: DarkCrossroadsChessPostgameResponse): void {
-  const priorAbort = postgameAbortControllers.get(root);
-  if (priorAbort) priorAbort.abort();
-  const abortController = new AbortController();
-  postgameAbortControllers.set(root, abortController);
-
-  root.replaceChildren(
-    buildNav(),
-    createDxqPostgameShell({
-      actions: postgameActions(postgame),
-      ariaLabel: 'Dark Crossroads Chess postgame',
-      boardsPanel: boardsPanel(postgame, abortController.signal),
-      detailsPanel: detailsPanel(postgame),
-      summary: `${resultLabel(postgame.game.result)} by ${labelize(postgame.game.termination)} · ${postgame.game.plyCount} plies`,
-      timelinePanel: timelinePanel(postgame),
-      title: 'Dark Crossroads Chess',
-    }),
-  );
-}
-
-function boardsPanel(
-  postgame: DarkCrossroadsChessPostgameResponse,
-  signal: AbortSignal,
-): HTMLElement {
-  const panel = document.createElement('div');
-  panel.className = 'dxq-postgame__boards';
   const views = postgameViewEntries(postgame);
-  const maxPly = postgameReplayMaxPly(postgame);
-  let currentPly = maxPly;
-  let boardOrientation: CrossroadsChessColor = 'white';
   const appearance = readCrossroadsChessAppearance();
-  const boardTargets: Array<{
-    board: HTMLElement;
-    entry: {
-      key: DarkCrossroadsChessPostgameViewKey;
-      label: string;
-      view: CrossroadsChessPlayerView;
-    };
-  }> = [];
-
-  const controls = createDxqReplayControls();
-  const { first, previous, status, next, last, flip } = controls;
-
-  const syncReplay = () => {
-    for (const { board, entry } of boardTargets) {
-      const view = postgameViewAtPly(postgame, entry.key, currentPly) ?? entry.view;
-      board.innerHTML = renderCrossroadsChessBoardSvg(view, {
-        perspective: boardOrientation,
-        showFog: entry.key !== 'truth',
-        coords: false,
-        ...appearance,
-      });
-    }
-    status.textContent = `Ply ${currentPly} of ${maxPly}`;
-    first.disabled = currentPly <= 0;
-    previous.disabled = currentPly <= 0;
-    next.disabled = currentPly >= maxPly;
-    last.disabled = currentPly >= maxPly;
-  };
-
-  first.addEventListener('click', () => {
-    currentPly = 0;
-    syncReplay();
-  });
-  previous.addEventListener('click', () => {
-    currentPly = Math.max(0, currentPly - 1);
-    syncReplay();
-  });
-  next.addEventListener('click', () => {
-    currentPly = Math.min(maxPly, currentPly + 1);
-    syncReplay();
-  });
-  last.addEventListener('click', () => {
-    currentPly = maxPly;
-    syncReplay();
-  });
-  flip.addEventListener('click', () => {
-    boardOrientation = boardOrientation === 'white' ? 'red' : 'white';
-    syncReplay();
-  });
-  document.addEventListener(
-    'keydown',
-    (event) => {
-      handlePostgameReplayKeyboard(event, {
-        flip: () => {
-          boardOrientation = boardOrientation === 'white' ? 'red' : 'white';
-          syncReplay();
-        },
-        first: () => {
-          currentPly = 0;
-          syncReplay();
-        },
-        previous: () => {
-          currentPly = Math.max(0, currentPly - 1);
-          syncReplay();
-        },
-        next: () => {
-          currentPly = Math.min(maxPly, currentPly + 1);
-          syncReplay();
-        },
-        last: () => {
-          currentPly = maxPly;
-          syncReplay();
-        },
-      });
-    },
-    { signal },
-  );
-
-  panel.append(controls.el);
-
-  for (const entry of views) {
-    const boardWrap = document.createElement('section');
-    boardWrap.className = 'dxq-postgame__board-wrap';
+  // Each board host carries its own label; the review layout arranges them
+  // (truth dominant, per-seat views as click-to-promote secondaries) and owns
+  // the scrubber, keyboard, flip, and viewport-fill sizing.
+  const targets = views.map((entry) => {
+    const el = document.createElement('section');
+    el.className = 'dxq-postgame__board-wrap';
     const heading = document.createElement('h2');
     heading.className = 'dxq-postgame__board-title';
     heading.textContent = entry.label;
     const board = document.createElement('div');
     board.className = 'dxq-postgame__board crossroads-live-board';
     board.setAttribute('aria-label', `${entry.label} final Dark Crossroads Chess board`);
-    boardTargets.push({ board, entry });
-    boardWrap.append(heading, board);
-    panel.append(boardWrap);
-  }
-  syncReplay();
-  return panel;
+    el.append(heading, board);
+    return { entry, el, board };
+  });
+
+  root.replaceChildren(buildNav());
+  mountReviewLayout(root, {
+    pageClassName: 'dark-crossroads-chess-review',
+    ariaLabel: 'Dark Crossroads Chess postgame',
+    title: 'Dark Crossroads Chess',
+    summary: `${resultLabel(postgame.game.result)} by ${labelize(postgame.game.termination)} · ${postgame.game.plyCount} plies`,
+    actions: postgameActions(postgame),
+    details: detailsPanel(postgame),
+    moves: timelinePanel(postgame),
+    boards: targets.map((target) => ({
+      key: target.entry.key,
+      el: target.el,
+      tier: target.entry.key === 'truth' ? 'primary' : 'secondary',
+    })),
+    boardAspect: 6 / 8,
+    maxPly: postgameReplayMaxPly(postgame),
+    renderBoards({ ply, flipped }) {
+      const orientation: CrossroadsChessColor = flipped ? 'red' : 'white';
+      for (const { entry, board } of targets) {
+        const view = postgameViewAtPly(postgame, entry.key, ply) ?? entry.view;
+        board.innerHTML = renderCrossroadsChessBoardSvg(view, {
+          perspective: orientation,
+          showFog: entry.key !== 'truth',
+          coords: false,
+          ...appearance,
+        });
+      }
+    },
+  });
 }
 
 export function postgameViewEntries(postgame: DarkCrossroadsChessPostgameResponse): Array<{

@@ -18,15 +18,12 @@ import {
   renderCrazyhouseBoardSvg,
 } from './crazyhouse-render.js';
 import { createDarkCrazyhousePlayAgainRoom } from './dark-crazyhouse-room-actions.js';
-import { createDxqPostgameShell, createDxqReplayControls } from './dxq-postgame-shell.js';
 import { darkCrazyhouseEnabled } from './feature-flags.js';
-import { handlePostgameReplayKeyboard } from './postgame-keyboard.js';
+import { mountReviewLayout } from './review/review-layout.js';
 import { buildNav } from './site-shell.js';
 import { setBoardFamily } from './theme.js';
 
 export type DarkCrazyhousePostgameViewKey = Color | 'truth';
-
-const postgameAbortControllers = new WeakMap<HTMLElement, AbortController>();
 
 const DROP_LETTER: Record<CrazyhouseDropRole, string> = {
   queen: 'Q',
@@ -126,115 +123,13 @@ export function darkCrazyhousePostgameApiUrl(roomId: string): string {
 }
 
 function renderPostgame(root: HTMLElement, postgame: DarkCrazyhousePostgameResponse): void {
-  const priorAbort = postgameAbortControllers.get(root);
-  if (priorAbort) priorAbort.abort();
-  const abortController = new AbortController();
-  postgameAbortControllers.set(root, abortController);
-
-  root.replaceChildren(
-    buildNav(),
-    createDxqPostgameShell({
-      actions: postgameActions(postgame),
-      ariaLabel: 'Dark Crazyhouse postgame',
-      boardsPanel: boardsPanel(postgame, abortController.signal),
-      detailsPanel: detailsPanel(postgame),
-      summary: `${resultLabel(postgame.game.result)} by ${labelize(postgame.game.termination)} · ${postgame.game.plyCount} plies`,
-      timelinePanel: timelinePanel(postgame),
-      title: 'Dark Crazyhouse',
-    }),
-  );
-}
-
-function boardsPanel(postgame: DarkCrazyhousePostgameResponse, signal: AbortSignal): HTMLElement {
-  const panel = document.createElement('div');
-  panel.className = 'dxq-postgame__boards';
   const views = postgameViewEntries(postgame);
-  const maxPly = postgameReplayMaxPly(postgame);
-  let currentPly = maxPly;
-  let boardOrientation: Color = 'white';
-  const boardTargets: Array<{
-    board: HTMLElement;
-    topReserve: HTMLElement;
-    bottomReserve: HTMLElement;
-    entry: PostgameEntry;
-  }> = [];
-
-  const controls = createDxqReplayControls();
-  const { first, previous, status, next, last, flip } = controls;
-
-  const syncReplay = () => {
-    const topColor: Color = boardOrientation === 'white' ? 'black' : 'white';
-    for (const { board, topReserve, bottomReserve, entry } of boardTargets) {
-      const view = postgameViewAtPly(postgame, entry.key, currentPly) ?? entry.view;
-      board.innerHTML = renderCrazyhouseBoardSvg(view, {
-        perspective: boardOrientation,
-        showFog: entry.key !== 'truth',
-      });
-      const revealed: readonly Color[] = entry.key === 'truth' ? ['white', 'black'] : [entry.key];
-      renderReserve(topReserve, topColor, currentPly, postgame, revealed);
-      renderReserve(bottomReserve, boardOrientation, currentPly, postgame, revealed);
-    }
-    status.textContent = `Ply ${currentPly} of ${maxPly}`;
-    first.disabled = currentPly <= 0;
-    previous.disabled = currentPly <= 0;
-    next.disabled = currentPly >= maxPly;
-    last.disabled = currentPly >= maxPly;
-  };
-
-  first.addEventListener('click', () => {
-    currentPly = 0;
-    syncReplay();
-  });
-  previous.addEventListener('click', () => {
-    currentPly = Math.max(0, currentPly - 1);
-    syncReplay();
-  });
-  next.addEventListener('click', () => {
-    currentPly = Math.min(maxPly, currentPly + 1);
-    syncReplay();
-  });
-  last.addEventListener('click', () => {
-    currentPly = maxPly;
-    syncReplay();
-  });
-  flip.addEventListener('click', () => {
-    boardOrientation = boardOrientation === 'white' ? 'black' : 'white';
-    syncReplay();
-  });
-  document.addEventListener(
-    'keydown',
-    (event) => {
-      handlePostgameReplayKeyboard(event, {
-        flip: () => {
-          boardOrientation = boardOrientation === 'white' ? 'black' : 'white';
-          syncReplay();
-        },
-        first: () => {
-          currentPly = 0;
-          syncReplay();
-        },
-        previous: () => {
-          currentPly = Math.max(0, currentPly - 1);
-          syncReplay();
-        },
-        next: () => {
-          currentPly = Math.min(maxPly, currentPly + 1);
-          syncReplay();
-        },
-        last: () => {
-          currentPly = maxPly;
-          syncReplay();
-        },
-      });
-    },
-    { signal },
-  );
-
-  panel.append(controls.el);
-
-  for (const entry of views) {
-    const boardWrap = document.createElement('section');
-    boardWrap.className = 'dxq-postgame__board-wrap';
+  // Each board host carries its own label + reserve strips; the review layout
+  // arranges them (truth dominant, per-seat views as click-to-promote
+  // secondaries) and owns the scrubber, keyboard, flip, and viewport-fill sizing.
+  const targets = views.map((entry) => {
+    const el = document.createElement('section');
+    el.className = 'dxq-postgame__board-wrap';
     const heading = document.createElement('h2');
     heading.className = 'dxq-postgame__board-title';
     heading.textContent = entry.label;
@@ -245,12 +140,42 @@ function boardsPanel(postgame: DarkCrazyhousePostgameResponse, signal: AbortSign
     board.setAttribute('aria-label', `${entry.label} final Dark Crazyhouse board`);
     const bottomReserve = document.createElement('div');
     bottomReserve.className = 'dczh-postgame__reserve dczh-postgame__reserve--bottom';
-    boardTargets.push({ board, topReserve, bottomReserve, entry });
-    boardWrap.append(heading, topReserve, board, bottomReserve);
-    panel.append(boardWrap);
-  }
-  syncReplay();
-  return panel;
+    el.append(heading, topReserve, board, bottomReserve);
+    return { entry, el, board, topReserve, bottomReserve };
+  });
+
+  root.replaceChildren(buildNav());
+  mountReviewLayout(root, {
+    pageClassName: 'dark-crazyhouse-review',
+    ariaLabel: 'Dark Crazyhouse postgame',
+    title: 'Dark Crazyhouse',
+    summary: `${resultLabel(postgame.game.result)} by ${labelize(postgame.game.termination)} · ${postgame.game.plyCount} plies`,
+    actions: postgameActions(postgame),
+    details: detailsPanel(postgame),
+    moves: timelinePanel(postgame),
+    boards: targets.map((target) => ({
+      key: target.entry.key,
+      el: target.el,
+      tier: target.entry.key === 'truth' ? 'primary' : 'secondary',
+    })),
+    boardAspect: 1,
+    boardChromePx: 68,
+    maxPly: postgameReplayMaxPly(postgame),
+    renderBoards({ ply, flipped }) {
+      const orientation: Color = flipped ? 'black' : 'white';
+      const topColor: Color = orientation === 'white' ? 'black' : 'white';
+      for (const { entry, board, topReserve, bottomReserve } of targets) {
+        const view = postgameViewAtPly(postgame, entry.key, ply) ?? entry.view;
+        board.innerHTML = renderCrazyhouseBoardSvg(view, {
+          perspective: orientation,
+          showFog: entry.key !== 'truth',
+        });
+        const revealed: readonly Color[] = entry.key === 'truth' ? ['white', 'black'] : [entry.key];
+        renderReserve(topReserve, topColor, ply, postgame, revealed);
+        renderReserve(bottomReserve, orientation, ply, postgame, revealed);
+      }
+    },
+  });
 }
 
 function renderReserve(

@@ -633,3 +633,39 @@
     align-self: center;
   }
 }
+
+/* ── Migrated review pages (shared review layout) ────────────────────────────
+   These variants' postgame boards moved onto mountReviewLayout (review-layout.ts).
+   Their board hosts are createPane .replay-board elements whose old sizing lived
+   under the now-removed .game-replay wrapper, so give them a fill rule scoped to
+   each review page: the board fills its board-stage slot (the layout sizes the
+   slot from boardAspect) and the SVG child follows the aspect via height:auto. */
+.banqi-review .replay-board,
+.mini-xiangqi-review .replay-board,
+.drop-mini-xiangqi-review .replay-board,
+.fortress-xiangqi-review .replay-board,
+.jieqi-review .replay-board,
+.crossroads-chess-review .replay-board,
+.dark-mini-xiangqi-review .replay-board {
+  width: 100%;
+  max-width: none;
+}
+
+.banqi-review .replay-board > svg,
+.mini-xiangqi-review .replay-board > svg,
+.drop-mini-xiangqi-review .replay-board > svg,
+.fortress-xiangqi-review .replay-board > svg,
+.jieqi-review .replay-board > svg,
+.crossroads-chess-review .replay-board > svg,
+.dark-mini-xiangqi-review .replay-board > svg {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+/* Flip Jungle keeps its board skin (radius/shadow) but drops the live-route width
+   cap so it fills the review slot. */
+.jungle-flip-review .jungle-flip-live-board {
+  width: 100%;
+  max-width: none;
+}

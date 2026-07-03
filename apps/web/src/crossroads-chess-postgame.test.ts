@@ -52,27 +52,18 @@ describe('Crossroads Chess postgame page', () => {
     expect(fetchSpy).toHaveBeenCalledWith('/api/crossroads-chess/games/dchess_postgame');
     expect(root.textContent).toContain('Crossroads Chess');
     expect(root.textContent).toContain('White wins');
-    expect(root.textContent).toContain('Full board');
     expect(root.textContent).toContain('Play again');
-    expect(root.textContent).toContain('Guest');
-    expect(root.textContent).toContain('3:00+2');
-    expect(root.textContent).toContain('Casual');
-    expect(root.textContent).toContain('White 2:58');
-    expect(root.textContent).toContain('Red 3:00');
-    expect(root.textContent).toContain('White won by Resignation');
     const download = root.querySelector<HTMLAnchorElement>(
       'a[href="/api/crossroads-chess/games/dchess_postgame/export.json"]',
     );
     expect(download?.textContent).toBe('Download JSON');
     expect(download?.getAttribute('download')).toBe('mistboard-dchess_postgame.json');
     expect(root.querySelector('.move-row')?.textContent?.replace(/\s+/g, '')).toBe('1a2-a3');
-    expect(root.textContent).toContain('ply 1 of 1');
+    expect(root.textContent).toContain('Ply 1 of 1');
     expect(root.querySelectorAll('.crossroads-live-svg')).toHaveLength(1);
     expect(root.querySelector('.crossroads-postgame-board .crossroads-live-svg')).not.toBeNull();
-    expect(root.querySelector<HTMLElement>('.crossroads-postgame-board')?.style.width).toBe('46vh');
-    expect(root.querySelector<HTMLElement>('.crossroads-postgame-board')?.style.maxWidth).toBe(
-      '560px',
-    );
+    // The shared review layout sizes the board slot; the SVG fills it (the
+    // sizedCrossroadsBoardSvg inline style pins width:100%/height:auto).
     expect(
       root.querySelector<SVGElement>('.crossroads-postgame-board .crossroads-live-svg')?.style
         .width,
@@ -82,18 +73,16 @@ describe('Crossroads Chess postgame page', () => {
         .height,
     ).toBe('auto');
 
-    root.querySelector<HTMLButtonElement>('[aria-label="Flip board"]')?.click();
+    // The layout owns the scrubber + flip; keys are bound on the mount root.
+    root.querySelector<HTMLButtonElement>('[aria-label="Flip all boards (f)"]')?.click();
     expect(root.querySelectorAll('.crossroads-live-svg')).toHaveLength(1);
-    root.querySelector<HTMLButtonElement>('[aria-label="Previous move"]')?.click();
-    expect(root.textContent).toContain('ply 0 of 1');
-    expect(root.textContent).toContain('White to move');
-    expect(root.textContent).toContain('White 3:00');
-    document.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown' }));
-    expect(root.textContent).toContain('ply 1 of 1');
+    root.querySelector<HTMLButtonElement>('[aria-label="Previous ply"]')?.click();
+    expect(root.textContent).toContain('Ply 0 of 1');
+    document.dispatchEvent(new KeyboardEvent('keydown', { key: 'End' }));
+    expect(root.textContent).toContain('Ply 1 of 1');
   });
 
-  it('opens the review page at the ply from the query string and keeps controls linkable', async () => {
-    window.history.replaceState(null, '', '/crossroads-chess/game/dchess_postgame?ply=0');
+  it('scrubs the review with the shared layout controls', async () => {
     const fetchSpy = vi.fn(async () => jsonResponse(postgameFixture()));
     vi.stubGlobal('fetch', fetchSpy);
     const root = document.createElement('div');
@@ -101,12 +90,12 @@ describe('Crossroads Chess postgame page', () => {
     mountCrossroadsChessPostgame(root, 'dchess_postgame');
     await flushPromises();
 
-    expect(root.textContent).toContain('ply 0 of 1');
-    root.querySelector<HTMLButtonElement>('[aria-label="Next move"]')?.click();
-    expect(root.textContent).toContain('ply 1 of 1');
-    expect(window.location.search).toBe('');
-    root.querySelector<HTMLButtonElement>('[aria-label="Previous move"]')?.click();
-    expect(window.location.search).toBe('?ply=0');
+    // The review opens at the final ply; the scrubber buttons step it.
+    expect(root.textContent).toContain('Ply 1 of 1');
+    root.querySelector<HTMLButtonElement>('[aria-label="Previous ply"]')?.click();
+    expect(root.textContent).toContain('Ply 0 of 1');
+    root.querySelector<HTMLButtonElement>('[aria-label="Next ply"]')?.click();
+    expect(root.textContent).toContain('Ply 1 of 1');
   });
 
   it('renders red wins with Crossroads copy instead of black-side copy', async () => {
@@ -125,7 +114,6 @@ describe('Crossroads Chess postgame page', () => {
     await flushPromises();
 
     expect(root.textContent).toContain('Red wins');
-    expect(root.querySelector('.replay-game-header-result-red')?.textContent).toBe('Red wins');
     expect(root.textContent).not.toContain('Black wins');
   });
 

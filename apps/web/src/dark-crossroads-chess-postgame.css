@@ -58,15 +58,10 @@
   color: var(--site-text);
 }
 
-.dark-crossroads-chess-postgame-route .dxq-postgame__boards {
-  gap: clamp(12px, 1.2vw, 18px);
-  justify-items: center;
-}
-
+/* The board fills its board-stage slot; the shared review layout sizes the slot
+   (primary vs secondary) from the 6/8 board aspect. */
 .dark-crossroads-chess-postgame-route .dxq-postgame__board {
-  /* The 6x8 board is taller than wide. Keep the triptych below the square-board
-     routes so the panes breathe and the nav/header do not crowd the first row. */
-  max-width: min(100%, 35vh, 320px);
+  max-width: none;
   margin-inline: auto;
 }
 

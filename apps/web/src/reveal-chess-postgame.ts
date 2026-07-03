@@ -9,16 +9,14 @@ import './landing.css';
 import './game-route.css';
 import './live-reveal-chess.css';
 import './dark-xiangqi-postgame.css';
-import { createDxqPostgameShell, createDxqReplayControls } from './dxq-postgame-shell.js';
 import { revealChessEnabled } from './feature-flags.js';
 import { fillCapturedPool } from './live-reveal-chess.js';
 import { renderRevealChessBoardSvg } from './reveal-chess-render.js';
+import { mountReviewLayout } from './review/review-layout.js';
 import { buildNav } from './site-shell.js';
-import { boardAppearanceChangedEvent, setBoardFamily } from './theme.js';
+import { setBoardFamily } from './theme.js';
 
 export type RevealChessPostgameViewKey = RevealChessColor | 'truth';
-
-const postgameAbortControllers = new WeakMap<HTMLElement, AbortController>();
 
 export type RevealChessPostgameResponse = {
   game: {
@@ -107,107 +105,13 @@ export function revealChessPostgameApiUrl(roomId: string): string {
 }
 
 function renderPostgame(root: HTMLElement, postgame: RevealChessPostgameResponse): void {
-  const priorAbort = postgameAbortControllers.get(root);
-  if (priorAbort) priorAbort.abort();
-  const abortController = new AbortController();
-  postgameAbortControllers.set(root, abortController);
-
-  root.replaceChildren();
-  const page = createDxqPostgameShell({
-    actions: postgameActions(postgame),
-    ariaLabel: 'Reveal Chess postgame',
-    boardsPanel: boardsPanel(postgame, abortController.signal),
-    detailsPanel: detailsPanel(postgame),
-    pageClassName: 'reveal-chess-postgame',
-    summary: `${resultLabel(postgame.game.result)} by ${labelize(postgame.game.termination)} · ${postgame.game.plyCount} plies`,
-    timelinePanel: timelinePanel(postgame),
-    title: 'Reveal Chess',
-  });
-  root.replaceChildren(buildNav(), page);
-}
-
-function boardsPanel(postgame: RevealChessPostgameResponse, signal: AbortSignal): HTMLElement {
-  const panel = document.createElement('div');
-  panel.className = 'dxq-postgame__boards';
   const views = postgameViewEntries(postgame);
-  const maxPly = postgameReplayMaxPly(postgame);
-  let currentPly = maxPly;
-  let boardOrientation: RevealChessColor = 'white';
-  const boardTargets: Array<{
-    board: HTMLElement;
-    capturesTop: HTMLElement;
-    capturesBottom: HTMLElement;
-    entry: { key: RevealChessPostgameViewKey; label: string; view: RevealChessPlayerView };
-  }> = [];
-
-  const controls = createDxqReplayControls();
-  const { first, previous, status, next, last, flip } = controls;
-
-  const syncReplay = () => {
-    for (const { board, capturesTop, capturesBottom, entry } of boardTargets) {
-      const view = postgameViewAtPly(postgame, entry.key, currentPly) ?? entry.view;
-      // Reveal Chess has NO fog: the truth view renders every identity revealed;
-      // the per-color views render the opponent's face-down pieces as discs (the
-      // renderer keys off entry.faceDown), with no showFog option.
-      board.innerHTML = renderRevealChessBoardSvg(view, { perspective: boardOrientation });
-      renderCapturedPools(capturesTop, capturesBottom, view, boardOrientation);
-    }
-    status.textContent = `Ply ${currentPly} of ${maxPly}`;
-    first.disabled = currentPly <= 0;
-    previous.disabled = currentPly <= 0;
-    next.disabled = currentPly >= maxPly;
-    last.disabled = currentPly >= maxPly;
-  };
-
-  first.addEventListener('click', () => {
-    currentPly = 0;
-    syncReplay();
-  });
-  previous.addEventListener('click', () => {
-    currentPly = Math.max(0, currentPly - 1);
-    syncReplay();
-  });
-  next.addEventListener('click', () => {
-    currentPly = Math.min(maxPly, currentPly + 1);
-    syncReplay();
-  });
-  last.addEventListener('click', () => {
-    currentPly = maxPly;
-    syncReplay();
-  });
-  flip.addEventListener('click', () => {
-    boardOrientation = oppositeRevealColor(boardOrientation);
-    syncReplay();
-  });
-  document.addEventListener(
-    'keydown',
-    (event) => {
-      if (event.metaKey || event.ctrlKey || event.altKey) return;
-      const target = event.target as HTMLElement | null;
-      if (target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA')) return;
-      if (event.key === 'f' || event.key === 'F') {
-        event.preventDefault();
-        boardOrientation = oppositeRevealColor(boardOrientation);
-        syncReplay();
-      } else if (event.key === 'ArrowLeft') {
-        event.preventDefault();
-        currentPly = Math.max(0, currentPly - 1);
-        syncReplay();
-      } else if (event.key === 'ArrowRight') {
-        event.preventDefault();
-        currentPly = Math.min(maxPly, currentPly + 1);
-        syncReplay();
-      }
-    },
-    { signal },
-  );
-  window.addEventListener(boardAppearanceChangedEvent, syncReplay, { signal });
-
-  panel.append(controls.el);
-
-  for (const entry of views) {
-    const boardWrap = document.createElement('section');
-    boardWrap.className = 'dxq-postgame__board-wrap';
+  // Each board host carries its own label + captured-material strips; the review
+  // layout arranges them (truth dominant, per-seat views as click-to-promote
+  // secondaries) and owns the scrubber, keyboard, flip, and viewport-fill sizing.
+  const targets = views.map((entry) => {
+    const el = document.createElement('section');
+    el.className = 'dxq-postgame__board-wrap';
     const heading = document.createElement('h2');
     heading.className = 'dxq-postgame__board-title';
     heading.textContent = entry.label;
@@ -218,12 +122,39 @@ function boardsPanel(postgame: RevealChessPostgameResponse, signal: AbortSignal)
     board.setAttribute('aria-label', `${entry.label} final Reveal Chess board`);
     const capturesBottom = document.createElement('div');
     capturesBottom.className = 'captures-strip';
-    boardTargets.push({ board, capturesTop, capturesBottom, entry });
-    boardWrap.append(heading, capturesTop, board, capturesBottom);
-    panel.append(boardWrap);
-  }
-  syncReplay();
-  return panel;
+    el.append(heading, capturesTop, board, capturesBottom);
+    return { entry, el, board, capturesTop, capturesBottom };
+  });
+
+  root.replaceChildren(buildNav());
+  mountReviewLayout(root, {
+    pageClassName: 'reveal-chess-review',
+    ariaLabel: 'Reveal Chess postgame',
+    title: 'Reveal Chess',
+    summary: `${resultLabel(postgame.game.result)} by ${labelize(postgame.game.termination)} · ${postgame.game.plyCount} plies`,
+    actions: postgameActions(postgame),
+    details: detailsPanel(postgame),
+    moves: timelinePanel(postgame),
+    boards: targets.map((target) => ({
+      key: target.entry.key,
+      el: target.el,
+      tier: target.entry.key === 'truth' ? 'primary' : 'secondary',
+    })),
+    boardAspect: 1,
+    boardChromePx: 88,
+    maxPly: postgameReplayMaxPly(postgame),
+    renderBoards({ ply, flipped }) {
+      const orientation: RevealChessColor = flipped ? 'black' : 'white';
+      for (const { entry, board, capturesTop, capturesBottom } of targets) {
+        const view = postgameViewAtPly(postgame, entry.key, ply) ?? entry.view;
+        // Reveal Chess has NO fog: the truth view renders every identity revealed;
+        // the per-color views render the opponent's face-down pieces as discs (the
+        // renderer keys off entry.faceDown), with no showFog option.
+        board.innerHTML = renderRevealChessBoardSvg(view, { perspective: orientation });
+        renderCapturedPools(capturesTop, capturesBottom, view, orientation);
+      }
+    },
+  });
 }
 
 // Lichess convention: a player's captured material sits next to that player. The

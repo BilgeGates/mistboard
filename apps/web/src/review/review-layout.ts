@@ -34,16 +34,23 @@ export type ReviewLayoutAdapter = {
   summary: string;
   /** Play again / home / room actions row. */
   actions: HTMLElement;
-  /** Left-rail details panel (result / clock / date …). */
-  details: HTMLElement;
-  /** Right-rail move list panel. */
+  /** Left-rail details panel (result / clock / date …). Optional. */
+  details?: HTMLElement;
+  /** Right-rail move list container (the layout owns the scrubber below it). */
   moves: HTMLElement;
   boards: ReviewBoardEntry[];
   /** Board width / height, e.g. 552 / 612 for xiangqi. Drives the fill sizing. */
   boardAspect: number;
+  /** Extra vertical px each board host adds beyond the board itself (reserve /
+   *  hand / capture strips). Budgeted into the fill sizing so the page still
+   *  fits without a vertical scroll. Default 0. */
+  boardChromePx?: number;
   maxPly: number;
   /** Re-render every board host for the given ply / flip / primary. */
   renderBoards(ctx: ReviewRenderContext): void;
+  /** Optional: re-render an interactive move list for the ply; `jump` moves to a
+   *  ply when a move row is clicked. Called on every ply change. */
+  renderMoves?(ctx: ReviewRenderContext, jump: (ply: number) => void): void;
 };
 
 const NAV_AND_PADDING_PX = 122; // site nav + shell top/bottom padding
@@ -70,7 +77,9 @@ export function mountReviewLayout(root: HTMLElement, adapter: ReviewLayoutAdapte
   const right = railGroup([adapter.moves, scrubber.el]);
 
   function render(): void {
-    adapter.renderBoards({ ply, flipped, primaryKey: stage.primaryKey() });
+    const ctx = { ply, flipped, primaryKey: stage.primaryKey() };
+    adapter.renderBoards(ctx);
+    adapter.renderMoves?.(ctx, go);
     scrubber.status.textContent = `Ply ${ply} of ${adapter.maxPly}`;
     scrubber.setBounds(ply, adapter.maxPly);
   }
@@ -90,17 +99,31 @@ export function mountReviewLayout(root: HTMLElement, adapter: ReviewLayoutAdapte
   scrubber.last.addEventListener('click', () => go(adapter.maxPly));
   scrubber.flip.addEventListener('click', flip);
 
-  root.addEventListener('keydown', (event) => {
+  // Global playback keys (arrows anywhere on the page, lichess-style), ignoring
+  // typing targets. Left/Right step a ply; Up/Home jump to start, Down/End to end;
+  // `f` flips.
+  document.addEventListener('keydown', (event) => {
+    if (event.metaKey || event.ctrlKey || event.altKey) return;
+    const target = event.target as HTMLElement | null;
+    if (
+      target &&
+      (target.isContentEditable ||
+        target.tagName === 'INPUT' ||
+        target.tagName === 'TEXTAREA' ||
+        target.tagName === 'SELECT')
+    ) {
+      return;
+    }
     if (event.key === 'ArrowLeft') {
       event.preventDefault();
       go(ply - 1);
     } else if (event.key === 'ArrowRight') {
       event.preventDefault();
       go(ply + 1);
-    } else if (event.key === 'Home') {
+    } else if (event.key === 'ArrowUp' || event.key === 'Home') {
       event.preventDefault();
       go(0);
-    } else if (event.key === 'End') {
+    } else if (event.key === 'ArrowDown' || event.key === 'End') {
       event.preventDefault();
       go(adapter.maxPly);
     } else if (event.key === 'f' || event.key === 'F') {
@@ -119,6 +142,30 @@ export function mountReviewLayout(root: HTMLElement, adapter: ReviewLayoutAdapte
     }),
   );
   render();
+
+  // The aspect-based sizing is a close estimate; per-variant board chrome
+  // (reserve / hand / capture strips) varies. As a robust net, measure the laid-
+  // out page and shrink the primary board by exactly any vertical overflow, so
+  // every variant fits the viewport without a scroll regardless of its chrome.
+  fitPrimaryToViewport(stage.el, adapter.boardAspect);
+  window.addEventListener('resize', () => {
+    applyBoardSizing(stage.el, adapter); // reset to the aspect estimate, then re-fit
+    fitPrimaryToViewport(stage.el, adapter.boardAspect);
+  });
+}
+
+function fitPrimaryToViewport(stageEl: HTMLElement, aspect: number): void {
+  requestAnimationFrame(() => {
+    const overflow = document.documentElement.scrollHeight - window.innerHeight;
+    if (overflow <= 2) return;
+    const slot = stageEl.querySelector<HTMLElement>('.board-stage__slot--primary');
+    if (!slot) return;
+    const currentWidth = slot.getBoundingClientRect().width;
+    // Board height ≈ width / aspect, so trimming width by overflow*aspect removes
+    // ~overflow of height (secondaries have a fixed cap and don't move).
+    const nextWidth = Math.max(160, Math.floor(currentWidth - overflow * aspect - 6));
+    stageEl.style.setProperty('--board-stage-primary-max', `${nextWidth}px`);
+  });
 }
 
 // The primary board fills the height left after the nav, the secondary row, and
@@ -126,11 +173,12 @@ export function mountReviewLayout(root: HTMLElement, adapter: ReviewLayoutAdapte
 // viewport instead of a fixed vh fraction.
 function applyBoardSizing(stageEl: HTMLElement, adapter: ReviewLayoutAdapter): void {
   const aspect = adapter.boardAspect;
+  const extraPerBoard = adapter.boardChromePx ?? 0;
   const hasSecondaries = adapter.boards.some((board) => board.tier === 'secondary');
   const secondaryStackPx = hasSecondaries
-    ? STACK_GAP_PX + SECONDARY_LABEL_PX + Math.round(SECONDARY_WIDTH_PX / aspect)
+    ? STACK_GAP_PX + SECONDARY_LABEL_PX + Math.round(SECONDARY_WIDTH_PX / aspect) + extraPerBoard
     : 0;
-  const chromePx = NAV_AND_PADDING_PX + PRIMARY_LABEL_PX + secondaryStackPx;
+  const chromePx = NAV_AND_PADDING_PX + PRIMARY_LABEL_PX + extraPerBoard + secondaryStackPx;
   stageEl.style.setProperty(
     '--board-stage-primary-max',
     `min(88vw, calc((100svh - ${chromePx}px) * ${aspect.toFixed(4)}))`,
@@ -151,7 +199,7 @@ function infoRail(adapter: ReviewLayoutAdapter): HTMLElement {
   summary.className = 'review-info-card__summary';
   summary.textContent = adapter.summary;
   card.append(eyebrow, title, summary, adapter.actions);
-  return railGroup([card, adapter.details]);
+  return railGroup(adapter.details ? [card, adapter.details] : [card]);
 }
 
 function railGroup(children: HTMLElement[]): HTMLElement {
@@ -182,7 +230,8 @@ function createReviewScrubber(): ReviewScrubber {
   const previous = scrubButton('<', 'Previous ply');
   const next = scrubButton('>', 'Next ply');
   const last = scrubButton('>|', 'Final ply');
-  const flip = scrubButton('Flip', 'Flip all boards (f)');
+  const flip = scrubButton('Flip', 'Flip all boards');
+  flip.title = 'Flip all boards (f)';
   el.append(status, first, previous, next, last, flip);
   return {
     el,

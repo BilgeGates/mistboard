@@ -38,7 +38,7 @@ describe('Dark Shogi postgame page', () => {
 
     expect(fetchSpy).toHaveBeenCalledWith('/api/dark-shogi/games/dsg_postgame');
     expect(root.querySelector('.site-nav')).not.toBeNull();
-    expect(root.querySelector('.postgame-review-shell')).not.toBeNull();
+    expect(root.querySelector('.review-shell')).not.toBeNull();
     expect(root.textContent).toContain('Dark Shogi');
     expect(root.textContent).toContain('Black wins');
     expect(root.textContent).toContain('Black view');

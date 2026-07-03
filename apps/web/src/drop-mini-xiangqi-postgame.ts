@@ -19,11 +19,14 @@ import {
 } from './live-mini-xiangqi-render.js';
 import { createPane } from './replay-board.js';
 import { createShareButton } from './replay-meta.js';
-import { createReplayMovesPanel } from './replay-moves-panel.js';
+import { mountReviewLayout } from './review/review-layout.js';
 import { buildNav } from './site-shell.js';
-import { setBoardFamily, xiangqiAppearanceChangedEvent } from './theme.js';
+import { setBoardFamily } from './theme.js';
 
-const postgameAbortControllers = new WeakMap<HTMLElement, AbortController>();
+// Postgame review for Drop Mini Xiangqi. Perfect-information 7x7 board plus per-
+// seat drop RESERVES (rendered as top/bottom strips flanking the board). The
+// shared review layout owns the shell, scrubber, keyboard, flip, and viewport-
+// fill sizing; this module supplies the board host + reserves + move list.
 
 export type DropMiniXiangqiPostgameResponse = {
   game: {
@@ -83,7 +86,7 @@ export function mountDropMiniXiangqiPostgame(root: HTMLElement, roomId: string):
   void loadDropMiniXiangqiPostgame(roomId)
     .then((result) => {
       if (result.ok) {
-        renderPostgame(root, result.postgame, initialPlyFromSearch(window.location.search));
+        renderPostgame(root, result.postgame);
         return;
       }
       renderError(root, errorTitle(result.status), errorBody(result));
@@ -117,88 +120,9 @@ export function dropMiniXiangqiPostgameApiUrl(roomId: string): string {
   return url.pathname;
 }
 
-function renderPostgame(
-  root: HTMLElement,
-  postgame: DropMiniXiangqiPostgameResponse,
-  initialPly: number | null = null,
-): void {
-  const priorAbort = postgameAbortControllers.get(root);
-  if (priorAbort) priorAbort.abort();
-  const abortController = new AbortController();
-  postgameAbortControllers.set(root, abortController);
-  const signal = abortController.signal;
-  window.addEventListener(xiangqiAppearanceChangedEvent, () => renderPostgame(root, postgame), {
-    signal,
-  });
-
-  const shell = document.createElement('main');
-  shell.className = 'game-shell banqi-postgame-shell';
-  const page = document.createElement('div');
-  page.className =
-    'game-replay replay-page replay-meta-header analysis-tools-collapsed banqi-postgame-page';
-
-  const rail = document.createElement('aside');
-  rail.className = 'banqi-review-rail side-panel';
-  const railSection = document.createElement('section');
-  railSection.className = 'panel-section';
-
-  const eyebrow = document.createElement('p');
-  eyebrow.className = 'banqi-review-rail__eyebrow';
-  eyebrow.textContent = 'Game review';
-  const title = document.createElement('h1');
-  title.className = 'banqi-review-rail__title';
-  title.textContent = 'Drop Mini Xiangqi';
-
-  const result = document.createElement('div');
-  result.className = 'banqi-review-rail__result';
-  const chip = document.createElement('span');
-  chip.className = `replay-game-header-result-chip replay-game-header-result-${resultChipKind(
-    postgame.game.result,
-  )}`;
-  chip.textContent = resultLabel(postgame.game.result);
-  const detail = document.createElement('span');
-  detail.className = 'replay-game-header-result-detail';
-  detail.textContent = `by ${labelize(postgame.game.termination)}`;
-  result.append(chip, detail);
-
-  const meta = document.createElement('p');
-  meta.className = 'banqi-review-rail__meta';
-  meta.textContent = [
-    timeControlLabel(postgame),
-    `${postgame.game.plyCount} plies`,
-    postgame.game.rated ? 'Rated' : 'Casual',
-  ].join(' · ');
-
-  const seats = document.createElement('div');
-  seats.className = 'banqi-review-rail__seats';
-  seats.append(seatCell(postgame.game.redName ?? 'Guest', 'Red').el);
-  seats.append(seatCell(postgame.game.blackName ?? 'Guest', 'Black').el);
-
-  const actions = document.createElement('div');
-  actions.className = 'banqi-review-rail__actions';
-  const flipBtn = headerAction('Flip');
-  flipBtn.setAttribute('aria-label', 'Flip board');
-  flipBtn.title = 'Flip board (f)';
-  const playAgain = headerAction('Play again');
-  const share = createShareButton();
-  const home = headerLink('Home', '/');
-  const room = headerLink('Room', `/room/${encodeURIComponent(postgame.game.roomId)}`);
-  actions.append(flipBtn, playAgain, share, home, room);
-
-  railSection.append(eyebrow, title, result, meta, seats, actions);
-  rail.append(railSection);
-
-  const layout = document.createElement('div');
-  layout.className = 'replay-layout replay-layout-crossroads';
+function renderPostgame(root: HTMLElement, postgame: DropMiniXiangqiPostgameResponse): void {
   const pane = createPane('', 'truth', true, 'split');
   pane.boardEl.classList.add('mini-xiangqi-live-board');
-  layout.append(pane.el);
-
-  const movesPanel = createReplayMovesPanel();
-
-  page.append(rail, layout, movesPanel.el);
-  shell.append(page);
-  root.replaceChildren(buildNav(), shell);
 
   const moves: DropMiniMoveEntry[] = postgame.timeline
     .filter(
@@ -215,102 +139,81 @@ function renderPostgame(
         !!entry.color,
     )
     .map((entry) => ({ move: entry.move, ply: entry.ply, color: entry.color }));
-  const maxPly = postgameReplayMaxPly(postgame);
-  let currentPly = initialPly === null ? maxPly : clampPly(initialPly, maxPly);
-  let boardOrientation: MiniXiangqiColor = 'red';
 
-  const jump = (ply: number, options: { replaceUrl?: boolean } = {}) => {
-    currentPly = clampPly(ply, maxPly);
-    if (options.replaceUrl !== false) replaceReviewPlyInUrl(currentPly, maxPly);
-    sync();
-  };
+  const movesCard = document.createElement('section');
+  movesCard.className = 'review-moves-card';
+  const movesHeading = document.createElement('h2');
+  movesHeading.className = 'review-moves-card__title';
+  movesHeading.textContent = 'Moves';
+  const moveList = document.createElement('ol');
+  moveList.className = 'move-list';
+  movesCard.append(movesHeading, moveList);
 
-  const sync = () => {
-    const view =
-      postgameViewAtPly(postgame, 'truth', currentPly) ?? postgame.views?.truth ?? postgame.view;
-    pane.boardEl.innerHTML = renderMiniXiangqiBoardSvg(
-      dropMiniXiangqiBoardView(view),
-      boardOrientation,
-      { showFog: false },
-    );
-    pane.topCapturesEl.replaceChildren();
-    pane.capturesEl.replaceChildren();
-    const top = boardOrientation === 'red' ? 'black' : 'red';
-    fillDropMiniXiangqiReserve(pane.topCapturesEl, view, top);
-    fillDropMiniXiangqiReserve(pane.capturesEl, view, boardOrientation);
-    movesPanel.meta.textContent =
-      moves.length === 0
-        ? 'No moves'
-        : `Move ${Math.ceil(currentPly / 2)} · ply ${currentPly} of ${maxPly}`;
-    movesPanel.controls.first.disabled = currentPly <= 0;
-    movesPanel.controls.prev.disabled = currentPly <= 0;
-    movesPanel.controls.next.disabled = currentPly >= maxPly;
-    movesPanel.controls.last.disabled = currentPly >= maxPly;
-    renderMoveRows(movesPanel.moveList, moves, currentPly, jump);
-  };
+  root.replaceChildren(buildNav());
+  mountReviewLayout(root, {
+    pageClassName: 'drop-mini-xiangqi-review',
+    ariaLabel: 'Drop Mini Xiangqi postgame',
+    title: 'Drop Mini Xiangqi',
+    summary: `${resultLabel(postgame.game.result)} by ${labelize(postgame.game.termination)} · ${postgame.game.plyCount} plies`,
+    actions: dropMiniXiangqiActions(postgame),
+    moves: movesCard,
+    boards: [{ key: 'truth', el: pane.el, tier: 'primary' }],
+    boardAspect: 516 / 516,
+    maxPly: postgameReplayMaxPly(postgame),
+    renderBoards({ ply, flipped }) {
+      const orientation: MiniXiangqiColor = flipped ? 'black' : 'red';
+      const view =
+        postgameViewAtPly(postgame, 'truth', ply) ?? postgame.views?.truth ?? postgame.view;
+      pane.boardEl.innerHTML = renderMiniXiangqiBoardSvg(
+        dropMiniXiangqiBoardView(view),
+        orientation,
+        { showFog: false },
+      );
+      const top = orientation === 'red' ? 'black' : 'red';
+      fillDropMiniXiangqiReserve(pane.topCapturesEl, view, top);
+      fillDropMiniXiangqiReserve(pane.capturesEl, view, orientation);
+    },
+    renderMoves({ ply }, jump) {
+      renderMoveRows(moveList, moves, ply, jump);
+    },
+  });
+}
 
-  movesPanel.controls.first.onclick = () => jump(0);
-  movesPanel.controls.prev.onclick = () => jump(currentPly - 1);
-  movesPanel.controls.next.onclick = () => jump(currentPly + 1);
-  movesPanel.controls.last.onclick = () => jump(maxPly);
-
-  const flip = () => {
-    boardOrientation = boardOrientation === 'red' ? 'black' : 'red';
-    sync();
-  };
-  flipBtn.onclick = flip;
-
-  let playAgainBusy = false;
+function dropMiniXiangqiActions(postgame: DropMiniXiangqiPostgameResponse): HTMLElement {
+  const actions = document.createElement('div');
+  actions.className = 'review-actions';
+  const playAgain = document.createElement('button');
+  playAgain.type = 'button';
+  playAgain.className = 'review-action-link';
+  playAgain.textContent = 'Play again';
+  let busy = false;
   playAgain.onclick = () => {
-    if (playAgainBusy) return;
-    playAgainBusy = true;
+    if (busy) return;
+    busy = true;
     playAgain.disabled = true;
     playAgain.textContent = 'Creating';
     void createDropMiniXiangqiPlayAgainRoom(postgame)
       .then((url) => window.location.assign(url))
       .catch((err) => {
         console.warn(err);
-        playAgainBusy = false;
+        busy = false;
         playAgain.disabled = false;
         playAgain.textContent = 'Try play again';
       });
   };
+  const share = createShareButton();
+  const home = reviewActionLink('Home', '/');
+  const room = reviewActionLink('Room', `/room/${encodeURIComponent(postgame.game.roomId)}`);
+  actions.append(playAgain, share, home, room);
+  return actions;
+}
 
-  document.addEventListener(
-    'keydown',
-    (event) => {
-      if (event.metaKey || event.ctrlKey || event.altKey) return;
-      const target = event.target as HTMLElement | null;
-      if (
-        target &&
-        (target.isContentEditable ||
-          target.tagName === 'INPUT' ||
-          target.tagName === 'TEXTAREA' ||
-          target.tagName === 'SELECT')
-      ) {
-        return;
-      }
-      if (event.key === 'f' || event.key === 'F') {
-        event.preventDefault();
-        flip();
-      } else if (event.key === 'ArrowLeft') {
-        event.preventDefault();
-        jump(currentPly - 1);
-      } else if (event.key === 'ArrowRight') {
-        event.preventDefault();
-        jump(currentPly + 1);
-      } else if (event.key === 'ArrowUp') {
-        event.preventDefault();
-        jump(0);
-      } else if (event.key === 'ArrowDown') {
-        event.preventDefault();
-        jump(maxPly);
-      }
-    },
-    { signal },
-  );
-
-  sync();
+function reviewActionLink(label: string, href: string): HTMLAnchorElement {
+  const link = document.createElement('a');
+  link.className = 'review-action-link';
+  link.href = href;
+  link.textContent = label;
+  return link;
 }
 
 export async function createDropMiniXiangqiPlayAgainRoom(
@@ -429,67 +332,10 @@ function scrollActiveMoveIntoView(list: HTMLOListElement): void {
   });
 }
 
-function resultChipKind(result: string): 'white' | 'black' | 'draw' {
-  if (result === 'red-wins') return 'white';
-  if (result === 'black-wins') return 'black';
-  return 'draw';
-}
-
 function resultLabel(result: string): string {
   if (result === 'red-wins') return 'Red wins';
   if (result === 'black-wins') return 'Black wins';
   return 'Draw';
-}
-
-type SeatCell = { el: HTMLDivElement };
-
-function seatCell(name: string, side: string): SeatCell {
-  const row = document.createElement('div');
-  row.className = 'replay-clock-row';
-  const label = document.createElement('span');
-  label.className = 'replay-clock-side';
-  label.textContent = side;
-  const player = document.createElement('span');
-  player.className = 'replay-clock-time';
-  player.textContent = name;
-  row.append(label, player);
-  return { el: row };
-}
-
-function headerAction(label: string): HTMLButtonElement {
-  const button = document.createElement('button');
-  button.type = 'button';
-  button.className = 'replay-button replay-game-header-action replay-game-header-action-secondary';
-  button.textContent = label;
-  return button;
-}
-
-function headerLink(label: string, href: string): HTMLAnchorElement {
-  const link = document.createElement('a');
-  link.className = 'replay-button replay-game-header-action replay-game-header-action-secondary';
-  link.href = href;
-  link.textContent = label;
-  return link;
-}
-
-function initialPlyFromSearch(search: string): number | null {
-  const raw = new URLSearchParams(search).get('ply');
-  if (raw === null || !/^\d+$/.test(raw)) return null;
-  return Number.parseInt(raw, 10);
-}
-
-function clampPly(ply: number, maxPly: number): number {
-  return Math.max(0, Math.min(maxPly, ply));
-}
-
-function replaceReviewPlyInUrl(ply: number, maxPly: number): void {
-  const url = new URL(window.location.href);
-  if (ply >= maxPly) {
-    url.searchParams.delete('ply');
-  } else {
-    url.searchParams.set('ply', String(ply));
-  }
-  window.history.replaceState(window.history.state, '', `${url.pathname}${url.search}${url.hash}`);
 }
 
 function loadingView(): HTMLElement {
@@ -532,12 +378,6 @@ async function safeJson(response: Response): Promise<{ error?: unknown } | null>
   }
 }
 
-function timeControlLabel(postgame: DropMiniXiangqiPostgameResponse): string {
-  const timeControl = postgameTimeControl(postgame);
-  if (!timeControl) return 'Untimed';
-  return `${clockLabel(timeControl.initialMs)}+${Math.round(timeControl.incrementMs / 1000)}`;
-}
-
 function postgameTimeControl(
   postgame: DropMiniXiangqiPostgameResponse,
 ): { initialMs: number; incrementMs: number } | null {
@@ -545,13 +385,6 @@ function postgameTimeControl(
   const incrementMs = postgame.game.incrementMs ?? postgame.state.timeControl?.incrementMs ?? null;
   if (initialMs === null || incrementMs === null) return null;
   return { initialMs, incrementMs };
-}
-
-function clockLabel(ms: number): string {
-  const totalSeconds = Math.max(0, Math.round(ms / 1000));
-  const minutes = Math.floor(totalSeconds / 60);
-  const seconds = totalSeconds % 60;
-  return `${minutes}:${String(seconds).padStart(2, '0')}`;
 }
 
 function labelize(value: string): string {

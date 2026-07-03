@@ -56,7 +56,7 @@ describe('Jungle postgame page', () => {
     const row = root.querySelector('.move-row');
     expect(row?.querySelector('.move-number')?.textContent).toBe('1');
     expect(row?.querySelector<HTMLButtonElement>('.white-ply')?.textContent).toBe('a3-a4');
-    expect(root.textContent).toContain('ply 1 of 1');
+    expect(root.textContent).toContain('Ply 1 of 1');
   });
 
   it('steps through plies with the arrow keys', async () => {
@@ -67,14 +67,14 @@ describe('Jungle postgame page', () => {
     mountJunglePostgame(root, 'jgl_postgame');
     await flushPromises();
 
-    const meta = () => root.querySelector('.replay-meta')?.textContent ?? '';
-    expect(meta()).toContain('ply 1 of 1');
+    const meta = () => root.querySelector('.review-scrubber__status')?.textContent ?? '';
+    expect(meta()).toContain('Ply 1 of 1');
 
     document.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowLeft' }));
-    expect(meta()).toContain('ply 0 of 1');
+    expect(meta()).toContain('Ply 0 of 1');
 
     document.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight' }));
-    expect(meta()).toContain('ply 1 of 1');
+    expect(meta()).toContain('Ply 1 of 1');
   });
 });
 

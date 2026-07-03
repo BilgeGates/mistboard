@@ -14,10 +14,14 @@ import {
 } from './crossroads-chess-render.js';
 import { crossroadsChessEnabled } from './feature-flags.js';
 import { createPane } from './replay-board.js';
-import { createGameHeaderStrip } from './replay-meta.js';
-import { createReplayMovesPanel } from './replay-moves-panel.js';
+import { mountReviewLayout } from './review/review-layout.js';
 import { buildNav } from './site-shell.js';
-import { boardAppearanceChangedEvent, setBoardFamily } from './theme.js';
+import { setBoardFamily } from './theme.js';
+
+// Postgame review for Crossroads Chess. Perfect-information 6x8 fusion board: one
+// review surface with per-orientation view projection. The shared review layout
+// owns the shell, scrubber, keyboard, flip, and viewport-fill sizing; this module
+// supplies the board host + move list + play-again/download actions.
 
 type CrossroadsChessTimeControl = { initialMs: number; incrementMs: number };
 export type CrossroadsChessPostgameViewKey = CrossroadsChessColor | 'truth';
@@ -65,8 +69,6 @@ type LoadResult =
   | { ok: true; postgame: CrossroadsChessPostgameResponse }
   | { ok: false; status: number; error: string };
 
-const postgameAbortControllers = new WeakMap<HTMLElement, AbortController>();
-
 export function mountCrossroadsChessPostgame(root: HTMLElement, roomId: string): void {
   root.classList.add('landing-page', 'game-route');
   setBoardFamily('chess');
@@ -78,11 +80,7 @@ export function mountCrossroadsChessPostgame(root: HTMLElement, roomId: string):
   void loadCrossroadsChessPostgame(roomId)
     .then((result) => {
       if (result.ok) {
-        renderPostgame(
-          root,
-          result.postgame,
-          crossroadsChessInitialPlyFromSearch(window.location.search),
-        );
+        renderPostgame(root, result.postgame);
         return;
       }
       renderError(root, errorTitle(result.status), errorBody(result));
@@ -116,69 +114,9 @@ export function crossroadsChessPostgameApiUrl(roomId: string): string {
   return url.pathname;
 }
 
-function renderPostgame(
-  root: HTMLElement,
-  postgame: CrossroadsChessPostgameResponse,
-  initialPly: number | null = null,
-): void {
-  const priorAbort = postgameAbortControllers.get(root);
-  if (priorAbort) priorAbort.abort();
-  const abortController = new AbortController();
-  postgameAbortControllers.set(root, abortController);
-  const signal = abortController.signal;
-
-  const shell = document.createElement('main');
-  shell.className = 'game-shell crossroads-postgame-shell';
-  const page = document.createElement('div');
-  page.className =
-    'game-replay replay-page replay-meta-header analysis-tools-collapsed crossroads-postgame-page';
-
-  const header = createGameHeaderStrip();
-  header.title.textContent = 'Crossroads Chess';
-
-  const chip = document.createElement('span');
-  chip.className = `replay-game-header-result-chip replay-game-header-result-${resultChipKind(postgame.game.result)}`;
-  chip.textContent = resultLabel(postgame.game.result);
-  const detail = document.createElement('span');
-  detail.className = 'replay-game-header-result-detail';
-  detail.textContent = `by ${labelize(postgame.game.termination)}`;
-  header.result.append(chip, detail);
-
-  const plies = document.createElement('span');
-  plies.textContent = `${postgame.game.plyCount} plies`;
-  const clock = document.createElement('span');
-  clock.textContent = timeControlLabel(postgame);
-  const rated = document.createElement('span');
-  rated.textContent = postgame.game.rated ? 'Rated' : 'Casual';
-  appendHeaderMeta(header.meta, [plies, clock, rated]);
-
-  const whiteSeat = seatCell(postgame.game.whiteName ?? 'Guest', 'White');
-  const redSeat = seatCell(postgame.game.redName ?? 'Guest', 'Red');
-  header.whiteCell.append(whiteSeat.el);
-  header.blackCell.append(redSeat.el);
-
-  const flipBtn = headerAction('Flip');
-  flipBtn.setAttribute('aria-label', 'Flip board');
-  flipBtn.title = 'Flip board (f)';
-  const playAgain = headerAction('Play again');
-  const download = headerLink('Download JSON', exportJsonUrl(postgame.game.roomId));
-  download.setAttribute('download', `mistboard-${postgame.game.roomId}.json`);
-  const home = headerLink('Home', '/');
-  header.actions.append(flipBtn, playAgain, download, home);
-
-  const layout = document.createElement('div');
-  layout.className = 'replay-layout replay-layout-crossroads';
-  const pane = createPane('Full board', 'truth', false);
+function renderPostgame(root: HTMLElement, postgame: CrossroadsChessPostgameResponse): void {
+  const pane = createPane('', 'truth', false, 'single');
   pane.boardEl.classList.add('crossroads-postgame-board');
-  pane.boardEl.style.width = '46vh';
-  pane.boardEl.style.maxWidth = '560px';
-  layout.append(pane.el);
-
-  const movesPanel = createReplayMovesPanel();
-
-  page.append(header.el, layout, movesPanel.el);
-  shell.append(page);
-  root.replaceChildren(buildNav(), shell);
 
   const moves = postgame.timeline.filter(
     (
@@ -193,161 +131,88 @@ function renderPostgame(
       typeof entry.ply === 'number' &&
       !!entry.color,
   );
-  const maxPly = postgameReplayMaxPly(postgame);
-  let currentPly = initialPly === null ? maxPly : clampPly(initialPly, maxPly);
-  let boardOrientation: CrossroadsChessColor = 'white';
 
-  const jump = (ply: number, options: { replaceUrl?: boolean } = {}) => {
-    currentPly = clampPly(ply, maxPly);
-    if (options.replaceUrl !== false) replaceReviewPlyInUrl(currentPly, maxPly);
-    sync();
-  };
-  const sync = () => {
-    const view = postgameViewAtPly(postgame, boardOrientation, currentPly) ?? postgame.view;
-    const status = currentPly >= maxPly ? postgame.state.status : view.status;
-    pane.boardEl.innerHTML = sizedCrossroadsBoardSvg(
-      renderCrossroadsChessBoardSvg(view, {
-        perspective: boardOrientation,
-        showFog: false,
-        ...readCrossroadsChessAppearance(),
-      }),
-    );
-    pane.nameEl.textContent = `${capitalize(boardOrientation)} orientation`;
-    pane.statusEl.textContent = statusLabel(status);
-    const clockAtPly = postgameClockAtPly(postgame, currentPly);
-    syncSeatClock(whiteSeat, 'white', status, clockAtPly);
-    syncSeatClock(redSeat, 'red', status, clockAtPly);
-    movesPanel.meta.textContent = replayMetaText(moves.length, currentPly, maxPly, clockAtPly);
-    movesPanel.controls.first.disabled = currentPly <= 0;
-    movesPanel.controls.prev.disabled = currentPly <= 0;
-    movesPanel.controls.next.disabled = currentPly >= maxPly;
-    movesPanel.controls.last.disabled = currentPly >= maxPly;
-    renderMoveRows(movesPanel.moveList, moves, currentPly, jump);
-  };
-  window.addEventListener(boardAppearanceChangedEvent, sync, { signal });
+  const movesCard = document.createElement('section');
+  movesCard.className = 'review-moves-card';
+  const movesHeading = document.createElement('h2');
+  movesHeading.className = 'review-moves-card__title';
+  movesHeading.textContent = 'Moves';
+  const moveList = document.createElement('ol');
+  moveList.className = 'move-list';
+  movesCard.append(movesHeading, moveList);
 
-  movesPanel.controls.first.onclick = () => jump(0);
-  movesPanel.controls.prev.onclick = () => jump(currentPly - 1);
-  movesPanel.controls.next.onclick = () => jump(currentPly + 1);
-  movesPanel.controls.last.onclick = () => jump(maxPly);
-  const flip = () => {
-    boardOrientation = boardOrientation === 'white' ? 'red' : 'white';
-    sync();
-  };
-  flipBtn.onclick = flip;
+  root.replaceChildren(buildNav());
+  mountReviewLayout(root, {
+    pageClassName: 'crossroads-chess-review',
+    ariaLabel: 'Crossroads Chess postgame',
+    title: 'Crossroads Chess',
+    summary: `${resultLabel(postgame.game.result)} by ${labelize(postgame.game.termination)} · ${postgame.game.plyCount} plies`,
+    actions: crossroadsActions(postgame),
+    moves: movesCard,
+    boards: [{ key: 'truth', el: pane.el, tier: 'primary' }],
+    boardAspect: 300 / 411,
+    maxPly: postgameReplayMaxPly(postgame),
+    renderBoards({ ply, flipped }) {
+      const orientation: CrossroadsChessColor = flipped ? 'red' : 'white';
+      const view = postgameViewAtPly(postgame, orientation, ply) ?? postgame.view;
+      pane.boardEl.innerHTML = sizedCrossroadsBoardSvg(
+        renderCrossroadsChessBoardSvg(view, {
+          perspective: orientation,
+          showFog: false,
+          ...readCrossroadsChessAppearance(),
+        }),
+      );
+    },
+    renderMoves({ ply }, jump) {
+      renderMoveRows(moveList, moves, ply, jump);
+    },
+  });
+}
 
-  let playAgainBusy = false;
+function crossroadsActions(postgame: CrossroadsChessPostgameResponse): HTMLElement {
+  const actions = document.createElement('div');
+  actions.className = 'review-actions';
+  const playAgain = document.createElement('button');
+  playAgain.type = 'button';
+  playAgain.className = 'review-action-link';
+  playAgain.textContent = 'Play again';
+  let busy = false;
   playAgain.onclick = () => {
-    if (playAgainBusy) return;
-    playAgainBusy = true;
+    if (busy) return;
+    busy = true;
     playAgain.disabled = true;
     playAgain.textContent = 'Creating';
     void createCrossroadsPlayAgainRoom(postgame)
       .then((url) => window.location.assign(url))
       .catch((err) => {
         console.warn(err);
-        playAgainBusy = false;
+        busy = false;
         playAgain.disabled = false;
         playAgain.textContent = 'Try play again';
       });
   };
-
-  document.addEventListener(
-    'keydown',
-    (event) => {
-      if (event.metaKey || event.ctrlKey || event.altKey) return;
-      const target = event.target as HTMLElement | null;
-      if (
-        target &&
-        (target.isContentEditable ||
-          target.tagName === 'INPUT' ||
-          target.tagName === 'TEXTAREA' ||
-          target.tagName === 'SELECT')
-      ) {
-        return;
-      }
-      if (event.key === 'f' || event.key === 'F') {
-        event.preventDefault();
-        flip();
-      } else if (event.key === 'ArrowLeft') {
-        event.preventDefault();
-        jump(currentPly - 1);
-      } else if (event.key === 'ArrowRight') {
-        event.preventDefault();
-        jump(currentPly + 1);
-      } else if (event.key === 'ArrowUp') {
-        event.preventDefault();
-        jump(0);
-      } else if (event.key === 'ArrowDown') {
-        event.preventDefault();
-        jump(maxPly);
-      }
-    },
-    { signal },
-  );
-
-  sync();
+  const download = reviewActionLink('Download JSON', exportJsonUrl(postgame.game.roomId));
+  download.setAttribute('download', `mistboard-${postgame.game.roomId}.json`);
+  const home = reviewActionLink('Home', '/');
+  const room = reviewActionLink('Room', `/room/${encodeURIComponent(postgame.game.roomId)}`);
+  actions.append(playAgain, download, home, room);
+  return actions;
 }
 
-function resultChipKind(result: string): 'white' | 'red' | 'draw' {
-  if (result === 'white-wins') return 'white';
-  if (result === 'red-wins') return 'red';
-  return 'draw';
+function reviewActionLink(label: string, href: string): HTMLAnchorElement {
+  const link = document.createElement('a');
+  link.className = 'review-action-link';
+  link.href = href;
+  link.textContent = label;
+  return link;
 }
 
 function sizedCrossroadsBoardSvg(svg: string): string {
   return svg.replace(/^<svg\b/, '<svg style="display:block;width:100%;height:auto"');
 }
 
-type SeatCell = {
-  el: HTMLDivElement;
-  timeEl: HTMLSpanElement;
-};
-
-function seatCell(name: string, side: string): SeatCell {
-  const row = document.createElement('div');
-  row.className = 'replay-clock-row';
-  const label = document.createElement('span');
-  label.className = 'replay-clock-side';
-  label.textContent = name;
-  label.title = side;
-  const time = document.createElement('span');
-  time.className = 'replay-clock-time';
-  row.append(label, time);
-  return { el: row, timeEl: time };
-}
-
-function headerAction(label: string): HTMLButtonElement {
-  const button = document.createElement('button');
-  button.type = 'button';
-  button.className = 'replay-button replay-game-header-action replay-game-header-action-secondary';
-  button.textContent = label;
-  return button;
-}
-
-function headerLink(label: string, href: string): HTMLAnchorElement {
-  const link = document.createElement('a');
-  link.className = 'replay-button replay-game-header-action replay-game-header-action-secondary';
-  link.href = href;
-  link.textContent = label;
-  return link;
-}
-
 function exportJsonUrl(roomId: string): string {
   return `/api/crossroads-chess/games/${encodeURIComponent(roomId)}/export.json`;
-}
-
-function appendHeaderMeta(container: HTMLElement, items: HTMLElement[]): void {
-  container.replaceChildren();
-  items.forEach((item, index) => {
-    if (index > 0) {
-      const sep = document.createElement('span');
-      sep.className = 'replay-game-header-sep';
-      sep.textContent = '·';
-      container.append(sep);
-    }
-    container.append(item);
-  });
 }
 
 export async function createCrossroadsPlayAgainRoom(
@@ -378,20 +243,6 @@ export function crossroadsChessInitialPlyFromSearch(search: string): number | nu
   const raw = new URLSearchParams(search).get('ply');
   if (raw === null || !/^\d+$/.test(raw)) return null;
   return Number.parseInt(raw, 10);
-}
-
-function clampPly(ply: number, maxPly: number): number {
-  return Math.max(0, Math.min(maxPly, ply));
-}
-
-function replaceReviewPlyInUrl(ply: number, maxPly: number): void {
-  const url = new URL(window.location.href);
-  if (ply >= maxPly) {
-    url.searchParams.delete('ply');
-  } else {
-    url.searchParams.set('ply', String(ply));
-  }
-  window.history.replaceState(window.history.state, '', `${url.pathname}${url.search}${url.hash}`);
 }
 
 export function renderMoveRows(
@@ -483,48 +334,6 @@ export function postgameViewAtPly(
   return selected?.view ?? null;
 }
 
-function replayMetaText(
-  moveCount: number,
-  currentPly: number,
-  maxPly: number,
-  clockAtPly: Record<CrossroadsChessColor, number> | null,
-): string {
-  if (moveCount === 0) return 'No moves';
-  const base = `Move ${Math.ceil(currentPly / 2)} · ply ${currentPly} of ${maxPly}`;
-  if (!clockAtPly) return base;
-  return `${base} · White ${clockLabel(clockAtPly.white)} · Red ${clockLabel(clockAtPly.red)}`;
-}
-
-function postgameClockAtPly(
-  postgame: CrossroadsChessPostgameResponse,
-  ply: number,
-): Record<CrossroadsChessColor, number> | null {
-  const clocks = postgame.clocks;
-  if (!clocks || clocks.length === 0) return null;
-  for (let index = Math.min(ply, clocks.length - 1); index >= 0; index -= 1) {
-    const clock = clocks[index];
-    if (clock) return clock;
-  }
-  return null;
-}
-
-function syncSeatClock(
-  seat: SeatCell,
-  color: CrossroadsChessColor,
-  status: CrossroadsChessGameStatus,
-  clockAtPly: Record<CrossroadsChessColor, number> | null,
-): void {
-  seat.el.classList.toggle('active', status.type === 'playing' && status.turn === color);
-  seat.timeEl.textContent = clockAtPly ? clockLabel(clockAtPly[color]) : '';
-}
-
-function statusLabel(status: CrossroadsChessGameStatus): string {
-  if (status.type === 'playing') return `${capitalize(status.turn)} to move`;
-  if (status.type === 'aborted') return `Aborted by ${labelize(status.reason)}`;
-  if (status.winner === null) return `Draw by ${labelize(status.reason)}`;
-  return `${capitalize(status.winner)} won by ${labelize(status.reason)}`;
-}
-
 function loadingView(): HTMLElement {
   const shell = document.createElement('main');
   shell.className = 'game-shell';
@@ -569,19 +378,6 @@ function resultLabel(result: string): string {
   if (result === 'red-wins') return 'Red wins';
   if (result === 'draw') return 'Draw';
   return labelize(result);
-}
-
-function timeControlLabel(postgame: CrossroadsChessPostgameResponse): string {
-  const timeControl = postgame.game.timeControl ?? postgame.state.timeControl ?? null;
-  if (!timeControl) return 'Untimed';
-  return `${clockLabel(timeControl.initialMs)}+${Math.round(timeControl.incrementMs / 1000)}`;
-}
-
-function clockLabel(ms: number): string {
-  const totalSeconds = Math.max(0, Math.round(ms / 1000));
-  const minutes = Math.floor(totalSeconds / 60);
-  const seconds = totalSeconds % 60;
-  return `${minutes}:${String(seconds).padStart(2, '0')}`;
 }
 
 function moveLabel(move: CrossroadsChessMove): string {

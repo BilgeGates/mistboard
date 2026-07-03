@@ -51,10 +51,10 @@
   color: var(--site-text);
 }
 
+/* The board fills its board-stage slot; the shared review layout sizes the slot
+   (primary vs secondary) from the board aspect. */
 .dark-shogi-postgame-route .dxq-postgame__board {
-  /* The 9x9 board is square — cap by viewport height so three sit in a row
-     without overflowing. */
-  max-width: min(100%, 46vh);
+  max-width: none;
   aspect-ratio: 1 / 1;
   margin-inline: auto;
 }
@@ -74,7 +74,7 @@
   justify-content: center;
   gap: 4px;
   min-height: 42px;
-  max-width: min(100%, 46vh);
+  max-width: none;
   margin-inline: auto;
 }
 

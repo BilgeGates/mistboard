@@ -13,7 +13,7 @@ import { jungleEnabled } from './feature-flags.js';
 import { renderJungleBoardSvg } from './jungle-render.js';
 import { createPane } from './replay-board.js';
 import { createShareButton } from './replay-meta.js';
-import { createReplayMovesPanel } from './replay-moves-panel.js';
+import { mountReviewLayout } from './review/review-layout.js';
 import { buildNav } from './site-shell.js';
 
 // Postgame review for Jungle. Jungle is PERFECT-INFORMATION: the board was always
@@ -63,8 +63,6 @@ type LoadResult =
   | { ok: true; postgame: JunglePostgameResponse }
   | { ok: false; status: number; error: string };
 
-const postgameAbortControllers = new WeakMap<HTMLElement, AbortController>();
-
 export function mountJunglePostgame(root: HTMLElement, roomId: string): void {
   root.classList.add('landing-page', 'game-route');
   root.replaceChildren(buildNav(), loadingView());
@@ -75,7 +73,7 @@ export function mountJunglePostgame(root: HTMLElement, roomId: string): void {
   void loadJunglePostgame(roomId)
     .then((result) => {
       if (result.ok) {
-        renderPostgame(root, result.postgame, initialPlyFromSearch(window.location.search));
+        renderPostgame(root, result.postgame);
         return;
       }
       renderError(root, errorTitle(result.status), errorBody(result));
@@ -100,79 +98,9 @@ export function junglePostgameApiUrl(roomId: string): string {
   return new URL(`/api/jungle/games/${encodeURIComponent(roomId)}`, window.location.href).pathname;
 }
 
-function renderPostgame(
-  root: HTMLElement,
-  postgame: JunglePostgameResponse,
-  initialPly: number | null = null,
-): void {
-  postgameAbortControllers.get(root)?.abort();
-  const abortController = new AbortController();
-  postgameAbortControllers.set(root, abortController);
-  const { signal } = abortController;
-
-  const shell = document.createElement('main');
-  shell.className = 'game-shell jungle-postgame-shell';
-  const page = document.createElement('div');
-  page.className =
-    'game-replay replay-page replay-meta-header analysis-tools-collapsed jungle-postgame-page';
-
-  const rail = document.createElement('aside');
-  rail.className = 'banqi-review-rail side-panel';
-  const railSection = document.createElement('section');
-  railSection.className = 'panel-section';
-
-  const eyebrow = document.createElement('p');
-  eyebrow.className = 'banqi-review-rail__eyebrow';
-  eyebrow.textContent = 'Game review';
-  const title = document.createElement('h1');
-  title.className = 'banqi-review-rail__title';
-  title.textContent = 'Jungle';
-
-  const result = document.createElement('div');
-  result.className = 'banqi-review-rail__result';
-  const chip = document.createElement('span');
-  chip.className = `replay-game-header-result-chip replay-game-header-result-${resultChipKind(postgame.game.result)}`;
-  chip.textContent = resultLabel(postgame.game.result);
-  const detail = document.createElement('span');
-  detail.className = 'replay-game-header-result-detail';
-  detail.textContent = `by ${labelize(postgame.game.termination)}`;
-  result.append(chip, detail);
-
-  const meta = document.createElement('p');
-  meta.className = 'banqi-review-rail__meta';
-  meta.textContent = [
-    timeControlLabel(postgame),
-    `${postgame.game.plyCount} plies`,
-    postgame.game.rated ? 'Rated' : 'Casual',
-  ].join(' · ');
-
-  const seats = document.createElement('div');
-  seats.className = 'banqi-review-rail__seats';
-  seats.append(seatCell('Red').el, seatCell('Black').el);
-
-  const actions = document.createElement('div');
-  actions.className = 'banqi-review-rail__actions';
-  const flipBtn = headerAction('Flip');
-  flipBtn.setAttribute('aria-label', 'Flip board');
-  flipBtn.title = 'Flip board (f)';
-  const share = createShareButton();
-  const home = headerLink('Home', '/');
-  const room = headerLink('Room', `/room/${encodeURIComponent(postgame.game.roomId)}`);
-  actions.append(flipBtn, share, home, room);
-
-  railSection.append(eyebrow, title, result, meta, seats, actions);
-  rail.append(railSection);
-
-  const layout = document.createElement('div');
-  layout.className = 'replay-layout replay-layout-crossroads';
+function renderPostgame(root: HTMLElement, postgame: JunglePostgameResponse): void {
   const pane = createPane('', 'truth', false, 'single');
   pane.boardEl.classList.add('jungle-postgame-board', 'jungle-live-board');
-  layout.append(pane.el);
-
-  const movesPanel = createReplayMovesPanel();
-  page.append(rail, layout, movesPanel.el);
-  shell.append(page);
-  root.replaceChildren(buildNav(), shell);
 
   const moves: JungleMoveEntry[] = postgame.timeline
     .filter(
@@ -183,79 +111,57 @@ function renderPostgame(
         !!entry.color,
     )
     .map((entry) => ({ move: entry.move, ply: entry.ply, color: entry.color }));
-  const maxPly = junglePostgameMaxPly(postgame);
-  let currentPly = initialPly === null ? maxPly : clampPly(initialPly, maxPly);
-  let orientation: JungleColor = 'red';
 
-  const jump = (ply: number, options: { replaceUrl?: boolean } = {}) => {
-    currentPly = clampPly(ply, maxPly);
-    if (options.replaceUrl !== false) replaceReviewPlyInUrl(currentPly, maxPly);
-    sync();
-  };
+  const movesCard = document.createElement('section');
+  movesCard.className = 'review-moves-card';
+  const movesHeading = document.createElement('h2');
+  movesHeading.className = 'review-moves-card__title';
+  movesHeading.textContent = 'Moves';
+  const moveList = document.createElement('ol');
+  moveList.className = 'move-list';
+  movesCard.append(movesHeading, moveList);
 
-  const sync = () => {
-    const view = junglePostgameViewAtPly(postgame, currentPly) ?? postgame.view;
-    pane.boardEl.innerHTML = renderJungleBoardSvg(view.board as JungleBoard, {
-      perspective: orientation,
-      lastMove: view.lastMove ?? null,
-    });
-    movesPanel.meta.textContent =
-      moves.length === 0
-        ? 'No moves'
-        : `Move ${Math.ceil(currentPly / 2)} · ply ${currentPly} of ${maxPly}`;
-    movesPanel.controls.first.disabled = currentPly <= 0;
-    movesPanel.controls.prev.disabled = currentPly <= 0;
-    movesPanel.controls.next.disabled = currentPly >= maxPly;
-    movesPanel.controls.last.disabled = currentPly >= maxPly;
-    renderMoveRows(movesPanel.moveList, moves, currentPly, jump);
-  };
-
-  movesPanel.controls.first.onclick = () => jump(0);
-  movesPanel.controls.prev.onclick = () => jump(currentPly - 1);
-  movesPanel.controls.next.onclick = () => jump(currentPly + 1);
-  movesPanel.controls.last.onclick = () => jump(maxPly);
-
-  const flip = () => {
-    orientation = orientation === 'red' ? 'black' : 'red';
-    sync();
-  };
-  flipBtn.onclick = flip;
-
-  document.addEventListener(
-    'keydown',
-    (event) => {
-      if (event.metaKey || event.ctrlKey || event.altKey) return;
-      const target = event.target as HTMLElement | null;
-      if (
-        target &&
-        (target.isContentEditable ||
-          target.tagName === 'INPUT' ||
-          target.tagName === 'TEXTAREA' ||
-          target.tagName === 'SELECT')
-      ) {
-        return;
-      }
-      if (event.key === 'f' || event.key === 'F') {
-        event.preventDefault();
-        flip();
-      } else if (event.key === 'ArrowLeft') {
-        event.preventDefault();
-        jump(currentPly - 1);
-      } else if (event.key === 'ArrowRight') {
-        event.preventDefault();
-        jump(currentPly + 1);
-      } else if (event.key === 'ArrowUp') {
-        event.preventDefault();
-        jump(0);
-      } else if (event.key === 'ArrowDown') {
-        event.preventDefault();
-        jump(maxPly);
-      }
+  root.replaceChildren(buildNav());
+  mountReviewLayout(root, {
+    pageClassName: 'jungle-review',
+    ariaLabel: 'Jungle postgame',
+    title: 'Jungle',
+    summary: `${resultLabel(postgame.game.result)} by ${labelize(postgame.game.termination)} · ${postgame.game.plyCount} plies`,
+    actions: jungleActions(postgame),
+    moves: movesCard,
+    boards: [{ key: 'truth', el: pane.el, tier: 'primary' }],
+    boardAspect: 366 / 462,
+    maxPly: junglePostgameMaxPly(postgame),
+    renderBoards({ ply, flipped }) {
+      const orientation: JungleColor = flipped ? 'black' : 'red';
+      const view = junglePostgameViewAtPly(postgame, ply) ?? postgame.view;
+      pane.boardEl.innerHTML = renderJungleBoardSvg(view.board as JungleBoard, {
+        perspective: orientation,
+        lastMove: view.lastMove ?? null,
+      });
     },
-    { signal },
-  );
+    renderMoves({ ply }, jump) {
+      renderMoveRows(moveList, moves, ply, jump);
+    },
+  });
+}
 
-  sync();
+function jungleActions(postgame: JunglePostgameResponse): HTMLElement {
+  const actions = document.createElement('div');
+  actions.className = 'review-actions';
+  const share = createShareButton();
+  const home = reviewActionLink('Home', '/');
+  const room = reviewActionLink('Room', `/room/${encodeURIComponent(postgame.game.roomId)}`);
+  actions.append(share, home, room);
+  return actions;
+}
+
+function reviewActionLink(label: string, href: string): HTMLAnchorElement {
+  const link = document.createElement('a');
+  link.className = 'review-action-link';
+  link.href = href;
+  link.textContent = label;
+  return link;
 }
 
 // Exported for the Mistboard TV watch adapter (watch-jungle-replay.ts), which
@@ -351,57 +257,10 @@ function resultLabel(result: string): string {
   return 'Draw';
 }
 
-function resultChipKind(result: string): 'white' | 'black' | 'draw' {
-  if (result === 'red-wins') return 'white';
-  if (result === 'black-wins') return 'black';
-  return 'draw';
-}
-
-type SeatCell = { el: HTMLDivElement };
-
-function seatCell(name: string): SeatCell {
-  const row = document.createElement('div');
-  row.className = 'replay-clock-row';
-  const label = document.createElement('span');
-  label.className = 'replay-clock-side';
-  label.textContent = name;
-  const time = document.createElement('span');
-  time.className = 'replay-clock-time';
-  row.append(label, time);
-  return { el: row };
-}
-
-function headerAction(label: string): HTMLButtonElement {
-  const button = document.createElement('button');
-  button.type = 'button';
-  button.className = 'replay-button replay-game-header-action replay-game-header-action-secondary';
-  button.textContent = label;
-  return button;
-}
-
-function headerLink(label: string, href: string): HTMLAnchorElement {
-  const link = document.createElement('a');
-  link.className = 'replay-button replay-game-header-action replay-game-header-action-secondary';
-  link.href = href;
-  link.textContent = label;
-  return link;
-}
-
 export function initialPlyFromSearch(search: string): number | null {
   const raw = new URLSearchParams(search).get('ply');
   if (raw === null || !/^\d+$/.test(raw)) return null;
   return Number.parseInt(raw, 10);
-}
-
-function clampPly(ply: number, maxPly: number): number {
-  return Math.max(0, Math.min(maxPly, ply));
-}
-
-function replaceReviewPlyInUrl(ply: number, maxPly: number): void {
-  const url = new URL(window.location.href);
-  if (ply >= maxPly) url.searchParams.delete('ply');
-  else url.searchParams.set('ply', String(ply));
-  window.history.replaceState(window.history.state, '', `${url.pathname}${url.search}${url.hash}`);
 }
 
 function loadingView(): HTMLElement {

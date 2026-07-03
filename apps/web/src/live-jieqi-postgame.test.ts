@@ -40,7 +40,7 @@ describe('Jieqi postgame page', () => {
     // Two-column move list (dark-chess style): the cell shows the bare coordinate
     // move, not a "Red"-prefixed line.
     expect(root.textContent).toContain('b3-b10');
-    expect(root.textContent).toContain('ply 1 of 1');
+    expect(root.textContent).toContain('Ply 1 of 1');
 
     // A SINGLE board (no triptych, no perspective picker).
     expect(root.querySelectorAll('.jieqi-board')).toHaveLength(1);
@@ -62,8 +62,9 @@ describe('Jieqi postgame page', () => {
     expect(boardHtml()).not.toContain('hidden piece');
 
     // Arrow keys scrub the replay: ArrowLeft from the final ply steps back to ply 0.
+    // The shared review layout binds the keyboard on the mount root.
     document.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowLeft' }));
-    expect(root.textContent).toContain('ply 0 of 1');
+    expect(root.textContent).toContain('Ply 0 of 1');
   });
 });
 

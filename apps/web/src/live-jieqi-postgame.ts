@@ -7,12 +7,16 @@ import { fillCapturedPool } from './live-jieqi.js';
 import { installJieqiBoardStyles, renderJieqiBoardSvg } from './live-jieqi-render.js';
 import { createPane } from './replay-board.js';
 import { createShareButton } from './replay-meta.js';
-import { createReplayMovesPanel } from './replay-moves-panel.js';
+import { mountReviewLayout } from './review/review-layout.js';
 import { buildNav } from './site-shell.js';
 
-export type JieqiPostgameViewKey = JieqiColor | 'truth';
+// Postgame review for Jieqi ("hidden Xiangqi"). Jieqi hides piece identities
+// symmetrically, so there is a single review board. The shared review layout owns
+// the shell, scrubber, keyboard, flip, and viewport-fill sizing; this module
+// supplies the board host + captured pools + move list, and a Reveal toggle
+// (button / `h`) that swaps the as-played masked view for server truth.
 
-const postgameAbortControllers = new WeakMap<HTMLElement, AbortController>();
+export type JieqiPostgameViewKey = JieqiColor | 'truth';
 
 export type JieqiPostgameResponse = {
   game: {
@@ -66,7 +70,7 @@ export function mountJieqiPostgame(root: HTMLElement, roomId: string): void {
   void loadJieqiPostgame(roomId)
     .then((result) => {
       if (result.ok) {
-        renderPostgame(root, result.postgame, jieqiInitialPlyFromSearch(window.location.search));
+        renderPostgame(root, result.postgame);
         return;
       }
       renderError(root, errorTitle(result.status), errorBody(result));
@@ -97,95 +101,9 @@ export function jieqiPostgameApiUrl(roomId: string): string {
   return url.pathname;
 }
 
-function renderPostgame(
-  root: HTMLElement,
-  postgame: JieqiPostgameResponse,
-  initialPly: number | null = null,
-): void {
-  const priorAbort = postgameAbortControllers.get(root);
-  if (priorAbort) priorAbort.abort();
-  const abortController = new AbortController();
-  postgameAbortControllers.set(root, abortController);
-  const signal = abortController.signal;
-
-  const shell = document.createElement('main');
-  shell.className = 'game-shell jieqi-postgame-shell';
-  const page = document.createElement('div');
-  page.className =
-    'game-replay replay-page replay-meta-header analysis-tools-collapsed jieqi-postgame-page';
-
-  // Info rail on the LEFT (not a full-width top strip) so the board claims the
-  // full column height. The rail carries the title, result, time control, seats,
-  // and the review actions.
-  const rail = document.createElement('aside');
-  rail.className = 'jieqi-review-rail side-panel';
-  const railSection = document.createElement('section');
-  railSection.className = 'panel-section';
-
-  const eyebrow = document.createElement('p');
-  eyebrow.className = 'jieqi-review-rail__eyebrow';
-  eyebrow.textContent = 'Game review';
-  const title = document.createElement('h1');
-  title.className = 'jieqi-review-rail__title';
-  title.textContent = 'Jieqi';
-
-  const result = document.createElement('div');
-  result.className = 'jieqi-review-rail__result';
-  const chip = document.createElement('span');
-  chip.className = `replay-game-header-result-chip replay-game-header-result-${resultChipKind(postgame.game.result)}`;
-  chip.textContent = resultLabel(postgame.game.result);
-  const detail = document.createElement('span');
-  detail.className = 'replay-game-header-result-detail';
-  detail.textContent = `by ${labelize(postgame.game.termination)}`;
-  result.append(chip, detail);
-
-  const meta = document.createElement('p');
-  meta.className = 'jieqi-review-rail__meta';
-  meta.textContent = [
-    timeControlLabel(postgame),
-    `${postgame.game.plyCount} plies`,
-    postgame.game.rated ? 'Rated' : 'Casual',
-  ].join(' · ');
-
-  // Jieqi postgame payloads carry no seat names, so the rows fall back to the
-  // color labels (Red moves first, like White in chess).
-  const seats = document.createElement('div');
-  seats.className = 'jieqi-review-rail__seats';
-  seats.append(seatCell('Red').el, seatCell('Black').el);
-
-  const actions = document.createElement('div');
-  actions.className = 'jieqi-review-rail__actions';
-  const revealBtn = headerAction('Reveal identities');
-  revealBtn.setAttribute('aria-pressed', 'true');
-  revealBtn.title = 'Toggle hidden-piece identities (h)';
-  const flipBtn = headerAction('Flip');
-  flipBtn.setAttribute('aria-label', 'Flip board');
-  flipBtn.title = 'Flip board (f)';
-  const share = createShareButton();
-  const home = headerLink('Home', '/');
-  const room = headerLink('Room', `/room/${encodeURIComponent(postgame.game.roomId)}`);
-  actions.append(revealBtn, flipBtn, share, home, room);
-
-  railSection.append(eyebrow, title, result, meta, seats, actions);
-  rail.append(railSection);
-
-  const layout = document.createElement('div');
-  layout.className = 'replay-layout replay-layout-crossroads';
-  // Empty pane label: no caption strip above the board, so it gets the full height.
+function renderPostgame(root: HTMLElement, postgame: JieqiPostgameResponse): void {
   const pane = createPane('', 'truth', true, 'split');
   pane.boardEl.classList.add('jieqi-postgame-board');
-  // With no top strip, the board can take the freed column height; cap by viewport
-  // height (and a px ceiling) since jieqi's board is ~10% taller than wide.
-  pane.boardEl.style.width = 'min(66vh, 540px)';
-  pane.boardEl.style.maxWidth = '540px';
-  pane.boardEl.style.margin = '0 auto';
-  layout.append(pane.el);
-
-  const movesPanel = createReplayMovesPanel();
-
-  page.append(rail, layout, movesPanel.el);
-  shell.append(page);
-  root.replaceChildren(buildNav(), shell);
 
   const moves: JieqiMoveEntry[] = postgame.timeline
     .filter(
@@ -196,98 +114,107 @@ function renderPostgame(
         !!entry.color,
     )
     .map((entry) => ({ move: entry.move, ply: entry.ply, color: entry.color }));
-  const maxPly = postgameReplayMaxPly(postgame);
-  let currentPly = initialPly === null ? maxPly : clampPly(initialPly, maxPly);
-  let boardOrientation: JieqiColor = 'red';
-  // Default to the as-played board: unmoved pieces show as face-down backs, the way
-  // the position actually looked. The toggle (button / `h`) reveals server truth.
+
+  const movesCard = document.createElement('section');
+  movesCard.className = 'review-moves-card';
+  const movesHeading = document.createElement('h2');
+  movesHeading.className = 'review-moves-card__title';
+  movesHeading.textContent = 'Moves';
+  const moveList = document.createElement('ol');
+  moveList.className = 'move-list';
+  movesCard.append(movesHeading, moveList);
+
+  // Default to the as-played board: unmoved pieces show as face-down backs, the
+  // way the position actually looked. The toggle (button / `h`) reveals truth.
   let revealed = false;
+  let lastCtx: { ply: number; flipped: boolean } | null = null;
 
-  const jump = (ply: number, options: { replaceUrl?: boolean } = {}) => {
-    currentPly = clampPly(ply, maxPly);
-    if (options.replaceUrl !== false) replaceReviewPlyInUrl(currentPly, maxPly);
-    sync();
-  };
+  const revealBtn = document.createElement('button');
+  revealBtn.type = 'button';
+  revealBtn.className = 'review-action-link';
+  revealBtn.textContent = 'Reveal identities';
+  revealBtn.setAttribute('aria-pressed', 'false');
+  revealBtn.title = 'Toggle hidden-piece identities (h)';
 
-  const sync = () => {
+  const paintBoard = (ctx: { ply: number; flipped: boolean }): void => {
+    const orientation: JieqiColor = ctx.flipped ? 'black' : 'red';
     // Reveal on → truth (every identity). Reveal off → the orientation seat's
     // as-played view: identical board to the other seat (jieqi hides identities
     // symmetrically), differing only in captured-tray knowledge.
-    const viewKey: JieqiPostgameViewKey = revealed ? 'truth' : boardOrientation;
+    const viewKey: JieqiPostgameViewKey = revealed ? 'truth' : orientation;
     const fallback = revealed
       ? (postgame.views?.truth ?? postgame.view)
-      : (postgame.views?.[boardOrientation] ?? postgame.view);
-    const view = postgameViewAtPly(postgame, viewKey, currentPly) ?? fallback;
-    pane.boardEl.innerHTML = renderJieqiBoardSvg(view, boardOrientation, {});
-    renderCapturedPools(pane.topCapturesEl, pane.capturesEl, view, boardOrientation);
-    movesPanel.meta.textContent =
-      moves.length === 0
-        ? 'No moves'
-        : `Move ${Math.ceil(currentPly / 2)} · ply ${currentPly} of ${maxPly}`;
-    movesPanel.controls.first.disabled = currentPly <= 0;
-    movesPanel.controls.prev.disabled = currentPly <= 0;
-    movesPanel.controls.next.disabled = currentPly >= maxPly;
-    movesPanel.controls.last.disabled = currentPly >= maxPly;
-    renderMoveRows(movesPanel.moveList, moves, currentPly, jump);
+      : (postgame.views?.[orientation] ?? postgame.view);
+    const view = postgameViewAtPly(postgame, viewKey, ctx.ply) ?? fallback;
+    pane.boardEl.innerHTML = renderJieqiBoardSvg(view, orientation, {});
+    renderCapturedPools(pane.topCapturesEl, pane.capturesEl, view, orientation);
   };
 
-  movesPanel.controls.first.onclick = () => jump(0);
-  movesPanel.controls.prev.onclick = () => jump(currentPly - 1);
-  movesPanel.controls.next.onclick = () => jump(currentPly + 1);
-  movesPanel.controls.last.onclick = () => jump(maxPly);
-
-  const flip = () => {
-    boardOrientation = oppositeJieqiColor(boardOrientation);
-    sync();
-  };
-  flipBtn.onclick = flip;
-
-  const toggleReveal = () => {
+  const toggleReveal = (): void => {
     revealed = !revealed;
     revealBtn.textContent = revealed ? 'Hide identities' : 'Reveal identities';
-    revealBtn.setAttribute('aria-pressed', String(!revealed));
-    sync();
+    revealBtn.setAttribute('aria-pressed', String(revealed));
+    if (lastCtx) paintBoard(lastCtx);
   };
   revealBtn.onclick = toggleReveal;
 
-  document.addEventListener(
-    'keydown',
-    (event) => {
-      if (event.metaKey || event.ctrlKey || event.altKey) return;
-      const target = event.target as HTMLElement | null;
-      if (
-        target &&
-        (target.isContentEditable ||
-          target.tagName === 'INPUT' ||
-          target.tagName === 'TEXTAREA' ||
-          target.tagName === 'SELECT')
-      ) {
-        return;
-      }
-      if (event.key === 'f' || event.key === 'F') {
-        event.preventDefault();
-        flip();
-      } else if (event.key === 'h' || event.key === 'H') {
-        event.preventDefault();
-        toggleReveal();
-      } else if (event.key === 'ArrowLeft') {
-        event.preventDefault();
-        jump(currentPly - 1);
-      } else if (event.key === 'ArrowRight') {
-        event.preventDefault();
-        jump(currentPly + 1);
-      } else if (event.key === 'ArrowUp') {
-        event.preventDefault();
-        jump(0);
-      } else if (event.key === 'ArrowDown') {
-        event.preventDefault();
-        jump(maxPly);
-      }
-    },
-    { signal },
-  );
+  root.replaceChildren(buildNav());
+  // The shared review layout binds its playback keys on `document`; the reveal
+  // toggle joins them there (typing targets are ignored, like the layout does).
+  document.addEventListener('keydown', (event) => {
+    if (event.metaKey || event.ctrlKey || event.altKey) return;
+    const target = event.target as HTMLElement | null;
+    if (
+      target &&
+      (target.isContentEditable ||
+        target.tagName === 'INPUT' ||
+        target.tagName === 'TEXTAREA' ||
+        target.tagName === 'SELECT')
+    ) {
+      return;
+    }
+    if (event.key === 'h' || event.key === 'H') {
+      event.preventDefault();
+      toggleReveal();
+    }
+  });
 
-  sync();
+  mountReviewLayout(root, {
+    pageClassName: 'jieqi-review',
+    ariaLabel: 'Jieqi postgame',
+    title: 'Jieqi',
+    summary: `${resultLabel(postgame.game.result)} by ${labelize(postgame.game.termination)} · ${postgame.game.plyCount} plies`,
+    actions: jieqiActions(postgame, revealBtn),
+    moves: movesCard,
+    boards: [{ key: 'truth', el: pane.el, tier: 'primary' }],
+    boardAspect: 660 / 732,
+    maxPly: postgameReplayMaxPly(postgame),
+    renderBoards(ctx) {
+      lastCtx = { ply: ctx.ply, flipped: ctx.flipped };
+      paintBoard(lastCtx);
+    },
+    renderMoves({ ply }, jump) {
+      renderMoveRows(moveList, moves, ply, jump);
+    },
+  });
+}
+
+function jieqiActions(postgame: JieqiPostgameResponse, revealBtn: HTMLButtonElement): HTMLElement {
+  const actions = document.createElement('div');
+  actions.className = 'review-actions';
+  const share = createShareButton();
+  const home = reviewActionLink('Home', '/');
+  const room = reviewActionLink('Room', `/room/${encodeURIComponent(postgame.game.roomId)}`);
+  actions.append(revealBtn, share, home, room);
+  return actions;
+}
+
+function reviewActionLink(label: string, href: string): HTMLAnchorElement {
+  const link = document.createElement('a');
+  link.className = 'review-action-link';
+  link.href = href;
+  link.textContent = label;
+  return link;
 }
 
 // Lichess convention: a player's captured material sits next to that player. The
@@ -419,62 +346,10 @@ function moveLabel(move: JieqiMove): string {
   return `${move.from}-${move.to}`;
 }
 
-function resultChipKind(result: string): 'white' | 'black' | 'draw' {
-  // Red is the first mover, so it maps to the "white" chip in the shared header
-  // palette (matching the Jieqi watch surface).
-  if (result === 'red-wins') return 'white';
-  if (result === 'black-wins') return 'black';
-  return 'draw';
-}
-
-type SeatCell = { el: HTMLDivElement };
-
-function seatCell(name: string): SeatCell {
-  const row = document.createElement('div');
-  row.className = 'replay-clock-row';
-  const label = document.createElement('span');
-  label.className = 'replay-clock-side';
-  label.textContent = name;
-  const time = document.createElement('span');
-  time.className = 'replay-clock-time';
-  row.append(label, time);
-  return { el: row };
-}
-
-function headerAction(label: string): HTMLButtonElement {
-  const button = document.createElement('button');
-  button.type = 'button';
-  button.className = 'replay-button replay-game-header-action replay-game-header-action-secondary';
-  button.textContent = label;
-  return button;
-}
-
-function headerLink(label: string, href: string): HTMLAnchorElement {
-  const link = document.createElement('a');
-  link.className = 'replay-button replay-game-header-action replay-game-header-action-secondary';
-  link.href = href;
-  link.textContent = label;
-  return link;
-}
-
 export function jieqiInitialPlyFromSearch(search: string): number | null {
   const raw = new URLSearchParams(search).get('ply');
   if (raw === null || !/^\d+$/.test(raw)) return null;
   return Number.parseInt(raw, 10);
-}
-
-function clampPly(ply: number, maxPly: number): number {
-  return Math.max(0, Math.min(maxPly, ply));
-}
-
-function replaceReviewPlyInUrl(ply: number, maxPly: number): void {
-  const url = new URL(window.location.href);
-  if (ply >= maxPly) {
-    url.searchParams.delete('ply');
-  } else {
-    url.searchParams.set('ply', String(ply));
-  }
-  window.history.replaceState(window.history.state, '', `${url.pathname}${url.search}${url.hash}`);
 }
 
 function loadingView(): HTMLElement {
@@ -522,30 +397,6 @@ function resultLabel(result: string): string {
   if (result === 'black-wins') return 'Black wins';
   if (result === 'draw') return 'Draw';
   return labelize(result);
-}
-
-function timeControlLabel(postgame: JieqiPostgameResponse): string {
-  const timeControl = postgameTimeControl(postgame);
-  const initialMs = timeControl?.initialMs ?? null;
-  const incrementMs = timeControl?.incrementMs ?? null;
-  if (initialMs === null && incrementMs === null) return 'Untimed';
-  return `${clockLabel(initialMs ?? 0)}+${Math.round((incrementMs ?? 0) / 1000)}`;
-}
-
-function postgameTimeControl(
-  postgame: JieqiPostgameResponse,
-): { initialMs: number; incrementMs: number } | null {
-  const initialMs = postgame.game.initialMs ?? postgame.state.timeControl?.initialMs ?? null;
-  const incrementMs = postgame.game.incrementMs ?? postgame.state.timeControl?.incrementMs ?? null;
-  if (initialMs === null || incrementMs === null) return null;
-  return { initialMs, incrementMs };
-}
-
-function clockLabel(ms: number): string {
-  const totalSeconds = Math.max(0, Math.round(ms / 1000));
-  const minutes = Math.floor(totalSeconds / 60);
-  const seconds = totalSeconds % 60;
-  return `${minutes}:${String(seconds).padStart(2, '0')}`;
 }
 
 function labelize(value: string): string {

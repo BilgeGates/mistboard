@@ -56,7 +56,7 @@ describe('Banqi postgame page', () => {
     expect(root.textContent).toContain('Game review');
     expect(root.textContent).toContain('Banqi');
     expect(root.textContent).toContain('Red wins');
-    expect(root.querySelector('.banqi-review-rail')).not.toBeNull();
+    expect(root.querySelector('.review-info-card')).not.toBeNull();
     expect(root.textContent).toContain('Home');
     expect(root.textContent).toContain('Room');
     expect(root.textContent).not.toContain('Play again');
@@ -70,7 +70,7 @@ describe('Banqi postgame page', () => {
     expect(row?.querySelector('.move-number')?.textContent).toBe('1');
     const whitePly = row?.querySelector<HTMLButtonElement>('.white-ply');
     expect(whitePly?.textContent).toBe('c2-c3');
-    expect(root.textContent).toContain('ply 1 of 1');
+    expect(root.textContent).toContain('Ply 1 of 1');
   });
 
   it('hides unflipped tiles by default and reveals them on toggle', async () => {
@@ -106,14 +106,15 @@ describe('Banqi postgame page', () => {
     mountBanqiPostgame(root, 'bq_postgame');
     await flushPromises();
 
-    const meta = () => root.querySelector('.replay-meta')?.textContent ?? '';
-    expect(meta()).toContain('ply 1 of 1');
+    const meta = () => root.querySelector('.review-scrubber__status')?.textContent ?? '';
+    expect(meta()).toContain('Ply 1 of 1');
 
+    // The shared review layout binds the keyboard on the mount root.
     document.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowLeft' }));
-    expect(meta()).toContain('ply 0 of 1');
+    expect(meta()).toContain('Ply 0 of 1');
 
     document.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight' }));
-    expect(meta()).toContain('ply 1 of 1');
+    expect(meta()).toContain('Ply 1 of 1');
   });
 });
 

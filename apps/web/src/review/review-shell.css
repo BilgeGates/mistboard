@@ -75,6 +75,53 @@
   color: var(--site-muted);
 }
 
+/* Info-card action row (share / home / room / play again …). */
+.review-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 2px;
+}
+.review-action-link {
+  padding: 7px 12px;
+  border: 1px solid var(--site-border);
+  border-radius: var(--site-radius-sm, 8px);
+  background: var(--site-bg);
+  color: var(--site-text);
+  font-weight: 700;
+  font-size: 13px;
+  text-decoration: none;
+  cursor: pointer;
+}
+.review-action-link:hover {
+  background: var(--site-surface);
+}
+
+/* Right-rail move list card (interactive move rows). */
+.review-moves-card {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-height: 0;
+  padding: 12px;
+  border: 1px solid var(--site-border);
+  border-radius: var(--site-radius, 10px);
+  background: var(--site-panel, var(--site-surface));
+}
+.review-moves-card__title {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 800;
+  color: var(--site-text);
+}
+.review-moves-card .move-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  max-height: min(48vh, 520px);
+  overflow-y: auto;
+}
+
 /* Playback scrubber: lichess-style, under the move list in the right rail — a
    small position label on its own line above a single row of evenly sized nav
    buttons, all contained within the rail width. */
