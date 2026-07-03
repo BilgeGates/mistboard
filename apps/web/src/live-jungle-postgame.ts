@@ -1,20 +1,29 @@
-import type {
-  JungleBoard,
-  JungleColor,
-  JungleGameStatus,
-  JungleMove,
-  JunglePlayerView,
-  JungleSquare,
+import {
+  createInitialJungleBoard,
+  type JungleBoard,
+  type JungleColor,
+  type JungleGameStatus,
+  type JungleMove,
+  type JunglePlayerView,
+  type JungleSquare,
 } from '@mistboard/game';
 import './live-xiangqi.css';
 import './landing.css';
 import './game-route.css';
 import { jungleEnabled } from './feature-flags.js';
-import { renderJungleBoardSvg } from './jungle-render.js';
+import { junglePieceGhostSvg, renderJungleBoardSvg } from './jungle-render.js';
 import { createPane } from './replay-board.js';
 import { createShareButton } from './replay-meta.js';
+import { capturedByDiff } from './review/captured-diff.js';
+import { fillCapturedPoolWith } from './review/captured-pool.js';
 import { mountReviewLayout } from './review/review-layout.js';
 import { buildNav } from './site-shell.js';
+
+// Jungle's perfect-information view carries no captured list, so derive it by
+// diffing the standard opening against the current board.
+const JUNGLE_INITIAL_PIECES = Object.values(createInitialJungleBoard()).filter(
+  (piece): piece is NonNullable<typeof piece> => Boolean(piece),
+);
 
 // Postgame review for Jungle. Jungle is PERFECT-INFORMATION: the board was always
 // fully visible, so there is one review surface and one per-ply history (no
@@ -99,7 +108,7 @@ export function junglePostgameApiUrl(roomId: string): string {
 }
 
 function renderPostgame(root: HTMLElement, postgame: JunglePostgameResponse): void {
-  const pane = createPane('', 'truth', false, 'single');
+  const pane = createPane('', 'truth', true, 'split');
   pane.boardEl.classList.add('jungle-postgame-board', 'jungle-live-board');
 
   const moves: JungleMoveEntry[] = postgame.timeline
@@ -139,6 +148,15 @@ function renderPostgame(root: HTMLElement, postgame: JunglePostgameResponse): vo
         perspective: orientation,
         lastMove: view.lastMove ?? null,
       });
+      const current = Object.values(view.board).filter(
+        (piece): piece is NonNullable<typeof piece> => Boolean(piece),
+      );
+      const captured = capturedByDiff(JUNGLE_INITIAL_PIECES, current);
+      const opponent: JungleColor = orientation === 'red' ? 'black' : 'red';
+      pane.topCapturesEl.replaceChildren();
+      pane.capturesEl.replaceChildren();
+      fillCapturedPoolWith(pane.topCapturesEl, captured, orientation, junglePieceGhostSvg);
+      fillCapturedPoolWith(pane.capturesEl, captured, opponent, junglePieceGhostSvg);
     },
     renderMoves({ ply }, jump) {
       renderMoveRows(moveList, moves, ply, jump);

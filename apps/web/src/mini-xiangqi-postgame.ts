@@ -1,6 +1,12 @@
-import type { MiniXiangqiColor, MiniXiangqiMove, MiniXiangqiPlayerView } from '@mistboard/game';
+import {
+  createInitialMiniXiangqiBoard,
+  type MiniXiangqiColor,
+  type MiniXiangqiMove,
+  type MiniXiangqiPlayerView,
+} from '@mistboard/game';
 import './landing.css';
 import './game-route.css';
+import { fillCapturedPool } from './live-banqi.js';
 import {
   installMiniXiangqiBoardStyles,
   renderMiniXiangqiBoardSvg,
@@ -8,9 +14,27 @@ import {
 import { type MiniXiangqiViewKey, miniXiangqiMoveLabel } from './mini-xiangqi-view.js';
 import { createPane } from './replay-board.js';
 import { createShareButton } from './replay-meta.js';
+import { capturedByDiff } from './review/captured-diff.js';
 import { mountReviewLayout } from './review/review-layout.js';
 import { buildNav } from './site-shell.js';
 import { setBoardFamily } from './theme.js';
+
+// Mini Xiangqi's open view carries no captured list, so derive it by diffing the
+// standard opening against the current board (grouping handled by fillCapturedPool).
+const MINI_XIANGQI_INITIAL_PIECES = Object.values(createInitialMiniXiangqiBoard()).filter(
+  (piece): piece is NonNullable<typeof piece> => Boolean(piece),
+);
+
+function miniXiangqiCaptured(view: MiniXiangqiPlayerView): Array<{
+  owner: MiniXiangqiColor;
+  role: (typeof MINI_XIANGQI_INITIAL_PIECES)[number]['role'];
+}> {
+  const current = Object.values(view.board)
+    .filter((entry): entry is NonNullable<typeof entry> => Boolean(entry))
+    .filter((entry) => !entry.shrouded)
+    .map((entry) => entry.piece);
+  return capturedByDiff(MINI_XIANGQI_INITIAL_PIECES, current);
+}
 
 // Postgame review for Mini Xiangqi. Perfect-information 7x7 board: one review
 // surface, one per-ply history. The shared review layout owns the shell,
@@ -105,7 +129,7 @@ export function miniXiangqiPostgameApiUrl(roomId: string): string {
 }
 
 function renderPostgame(root: HTMLElement, postgame: MiniXiangqiPostgameResponse): void {
-  const pane = createPane('', 'truth', false, 'single');
+  const pane = createPane('', 'truth', true, 'split');
   pane.boardEl.classList.add('mini-xiangqi-live-board');
 
   const moves: MiniMoveEntry[] = postgame.timeline
@@ -149,6 +173,12 @@ function renderPostgame(root: HTMLElement, postgame: MiniXiangqiPostgameResponse
       const view =
         postgameViewAtPly(postgame, 'truth', ply) ?? postgame.views?.truth ?? postgame.view;
       pane.boardEl.innerHTML = renderMiniXiangqiBoardSvg(view, orientation, { showFog: false });
+      const captured = miniXiangqiCaptured(view);
+      const opponent: MiniXiangqiColor = orientation === 'red' ? 'black' : 'red';
+      pane.topCapturesEl.replaceChildren();
+      pane.capturesEl.replaceChildren();
+      fillCapturedPool(pane.topCapturesEl, captured, orientation);
+      fillCapturedPool(pane.capturesEl, captured, opponent);
     },
     renderMoves({ ply }, jump) {
       renderMoveRows(moveList, moves, ply, jump);

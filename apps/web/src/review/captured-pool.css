@@ -1,0 +1,19 @@
+/* Captured tokens rendered by review/captured-pool.ts, sized off the shared
+   --capture-piece-size (the review stage sets it per board). Mirrors the
+   .mini-xq-capture-piece rules so jungle tokens and xiangqi glyphs size alike. */
+.captures-strip .review-capture-piece {
+  display: inline-block;
+  flex: 0 0 var(--capture-piece-size);
+  width: var(--capture-piece-size);
+  height: var(--capture-piece-size);
+}
+
+.captures-strip .review-capture-piece.has-count {
+  position: relative;
+}
+
+.captures-strip .review-capture-piece svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}

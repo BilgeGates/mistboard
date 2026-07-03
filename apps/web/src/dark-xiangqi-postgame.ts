@@ -1,12 +1,42 @@
-import type { XiangqiColor, XiangqiGameStatus, XiangqiMove } from '@mistboard/game';
+import {
+  createInitialXiangqiBoard,
+  type XiangqiColor,
+  type XiangqiGameStatus,
+  type XiangqiMove,
+} from '@mistboard/game';
 import './game-shell.css';
 import './live-xiangqi.css';
 import './dark-xiangqi-postgame.css';
 import { createDarkXiangqiPlayAgainRoom } from './dark-xiangqi-room-actions.js';
 import { darkXiangqiEnabled } from './feature-flags.js';
 import { type DarkXiangqiWireView, renderDarkXiangqiBoardSvg } from './live-dark-xiangqi.js';
+import { capturedByDiff } from './review/captured-diff.js';
+import { fillCapturedPoolWith } from './review/captured-pool.js';
 import { mountReviewLayout } from './review/review-layout.js';
 import { buildNav } from './site-shell.js';
+import { renderXiangqiPiece } from './xiangqi-pieces.js';
+
+// Dark Xiangqi's wire view carries no captured list, so derive it by diffing the
+// standard opening against the (fully revealed) truth board. This is public info —
+// the same final position anyone reviewing sees — so it leaks no hidden state.
+const XIANGQI_INITIAL_PIECES = Object.values(createInitialXiangqiBoard()).filter(
+  (piece): piece is NonNullable<typeof piece> => Boolean(piece),
+);
+
+function darkXiangqiCaptured(view: DarkXiangqiWireView) {
+  const current = Object.values(view.board)
+    .filter((entry): entry is NonNullable<typeof entry> => Boolean(entry))
+    .filter((entry) => !entry.shrouded)
+    .map((entry) => entry.piece);
+  return capturedByDiff(XIANGQI_INITIAL_PIECES, current);
+}
+
+function renderCapturedXiangqiGlyph(piece: {
+  color: XiangqiColor;
+  role: (typeof XIANGQI_INITIAL_PIECES)[number]['role'];
+}): string {
+  return renderXiangqiPiece(piece, { ariaLabel: `${piece.color} ${piece.role}` });
+}
 
 export type DarkXiangqiPostgameViewKey = XiangqiColor | 'truth';
 
@@ -109,8 +139,18 @@ function renderPostgame(root: HTMLElement, postgame: DarkXiangqiPostgameResponse
     const board = document.createElement('div');
     board.className = 'dxq-postgame__board xiangqi-live-board';
     board.setAttribute('aria-label', `${entry.label} final Dark Xiangqi board`);
+    // Captured material is shown on the dominant truth board only (the small POV
+    // secondaries stay uncluttered; the review stage hides their pools anyway).
+    if (entry.key === 'truth') {
+      const topCaptures = document.createElement('div');
+      topCaptures.className = 'captures-strip captures-strip-top';
+      const bottomCaptures = document.createElement('div');
+      bottomCaptures.className = 'captures-strip captures-strip-bottom';
+      el.append(heading, topCaptures, board, bottomCaptures);
+      return { entry, el, board, topCaptures, bottomCaptures };
+    }
     el.append(heading, board);
-    return { entry, el, board };
+    return { entry, el, board, topCaptures: null, bottomCaptures: null };
   });
 
   root.replaceChildren(buildNav());
@@ -131,11 +171,21 @@ function renderPostgame(root: HTMLElement, postgame: DarkXiangqiPostgameResponse
     maxPly: postgameReplayMaxPly(postgame),
     renderBoards({ ply, flipped }) {
       const orientation: XiangqiColor = flipped ? 'black' : 'red';
-      for (const { entry, board } of targets) {
+      const opponent: XiangqiColor = orientation === 'red' ? 'black' : 'red';
+      for (const { entry, board, topCaptures, bottomCaptures } of targets) {
         const view = postgameViewAtPly(postgame, entry.key, ply) ?? entry.view;
         board.innerHTML = renderDarkXiangqiBoardSvg(view, orientation, {
           showFog: entry.key !== 'truth',
         });
+        if (topCaptures && bottomCaptures) {
+          const captured = darkXiangqiCaptured(view);
+          topCaptures.replaceChildren();
+          bottomCaptures.replaceChildren();
+          // Render captured glyphs with the SAME renderer the board uses
+          // (character pieces), so the pool matches the board's look.
+          fillCapturedPoolWith(topCaptures, captured, orientation, renderCapturedXiangqiGlyph);
+          fillCapturedPoolWith(bottomCaptures, captured, opponent, renderCapturedXiangqiGlyph);
+        }
       }
     },
   });

@@ -9,10 +9,15 @@ import './live-xiangqi.css';
 import './landing.css';
 import './game-route.css';
 import { jungleFlipEnabled } from './feature-flags.js';
-import { type JungleFlipRenderBoard, renderJungleFlipBoardSvg } from './jungle-flip-render.js';
+import {
+  type JungleFlipRenderBoard,
+  jungleFlipPieceGhostSvg,
+  renderJungleFlipBoardSvg,
+} from './jungle-flip-render.js';
 import { jungleFlipResultLabel, jungleFlipSeatInkLabel } from './jungle-flip-result-label.js';
 import { createPane } from './replay-board.js';
 import { createShareButton } from './replay-meta.js';
+import { fillCapturedPoolWith } from './review/captured-pool.js';
 import { mountReviewLayout } from './review/review-layout.js';
 import { buildNav } from './site-shell.js';
 
@@ -102,7 +107,7 @@ export function jungleFlipPostgameApiUrl(roomId: string): string {
 }
 
 function renderPostgame(root: HTMLElement, postgame: JungleFlipPostgameResponse): void {
-  const pane = createPane('', 'truth', false, 'single');
+  const pane = createPane('', 'truth', true, 'split');
   pane.boardEl.classList.add('jungle-flip-postgame-board', 'jungle-flip-live-board');
 
   const firstColor = postgame.view.firstColor;
@@ -148,6 +153,14 @@ function renderPostgame(root: HTMLElement, postgame: JungleFlipPostgameResponse)
     pane.boardEl.innerHTML = renderJungleFlipBoardSvg(view.board as JungleFlipRenderBoard, {
       lastMove: view.lastMove ?? null,
     });
+    // Flip Jungle's view carries the captured list directly (no board diff). The
+    // board renders red at the bottom, so red's losses sit on the top strip and
+    // black's on the bottom (each side's captured material near the other player).
+    const captured = view.captured;
+    pane.topCapturesEl.replaceChildren();
+    pane.capturesEl.replaceChildren();
+    fillCapturedPoolWith(pane.topCapturesEl, captured, 'red', jungleFlipPieceGhostSvg);
+    fillCapturedPoolWith(pane.capturesEl, captured, 'black', jungleFlipPieceGhostSvg);
   };
 
   const toggleReveal = (): void => {
