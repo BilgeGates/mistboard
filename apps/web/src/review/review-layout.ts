@@ -1,6 +1,6 @@
 // Unified postgame review layout. Every variant's /game review page composes
 // through this: it owns the shared shell (hugging left/center/right cluster),
-// the board-stage (dominant primary board + click-to-promote secondaries), the
+// the review-stage (dominant primary board + click-to-promote secondaries), the
 // playback scrubber, keyboard nav, flip state, and the viewport-fill board
 // sizing. A variant supplies only a ReviewLayoutAdapter — its title/summary/
 // actions, its details + moves panels, its board hosts + a renderBoards callback,
@@ -8,7 +8,7 @@
 // board size is derived from the aspect so the board fills the viewport height
 // (scaling up on tall windows, down on short) without a vertical scroll.
 
-import { type BoardStageSlot, createBoardStage } from './board-stage.js';
+import { type BoardStageSlot, createBoardStage } from './review-stage.js';
 import './review-shell.css';
 import { createReviewShell } from './review-shell.js';
 
@@ -54,6 +54,9 @@ export type ReviewLayoutAdapter = {
 };
 
 const NAV_AND_PADDING_PX = 122; // site nav + shell top/bottom padding
+// Chrome outside the review-stage region (nav + shell padding). Matches the
+// cluster's `min-height: calc(100svh - 108px)` so the fit targets the same region.
+const VIEWPORT_CHROME_PX = 108;
 // Horizontal space the two rails + gaps + shell side padding take, so the board
 // can be capped to the width actually left for the center column.
 const RAILS_AND_GUTTERS_PX = 640;
@@ -146,15 +149,30 @@ export function mountReviewLayout(root: HTMLElement, adapter: ReviewLayoutAdapte
   );
   render();
 
-  // The aspect-based sizing is a close estimate; per-variant board chrome
-  // (reserve / hand / capture strips) varies. As a robust net, measure the laid-
-  // out page and shrink the primary board by exactly any vertical overflow, so
-  // every variant fits the viewport without a scroll regardless of its chrome.
-  fitPrimaryToViewport(stage.el, adapter.boardAspect);
-  window.addEventListener('resize', () => {
-    applyBoardSizing(stage.el, adapter); // reset to the aspect estimate, then re-fit
+  // Size the primary board to the measured available space. The aspect estimate
+  // (applyBoardSizing) is only a starting point; fitPrimaryToViewport measures the
+  // real laid-out chrome and fills the height. Re-run after layout settles and
+  // whenever the stage's available height changes — a window resize, or the page
+  // being shown / resized inside the dev postgame-sheet iframe (where a single
+  // load-time pass measures a not-yet-sized frame).
+  const refit = (): void => {
+    applyBoardSizing(stage.el, adapter);
     fitPrimaryToViewport(stage.el, adapter.boardAspect);
-  });
+  };
+  refit();
+  setTimeout(refit, 60);
+  setTimeout(refit, 260);
+  window.addEventListener('resize', refit);
+  if (typeof ResizeObserver !== 'undefined') {
+    let lastHeight = 0;
+    const observer = new ResizeObserver(() => {
+      const height = stage.el.clientHeight;
+      if (Math.abs(height - lastHeight) < 2) return; // available height unchanged
+      lastHeight = height;
+      refit();
+    });
+    observer.observe(stage.el);
+  }
 }
 
 // Measure the stage's actual laid-out chrome (labels + capture/hand strips +
@@ -165,8 +183,11 @@ export function mountReviewLayout(root: HTMLElement, adapter: ReviewLayoutAdapte
 // wide boards don't overflow horizontally.
 function fitPrimaryToViewport(stageEl: HTMLElement, aspect: number): void {
   requestAnimationFrame(() => {
-    const available = stageEl.clientHeight;
-    const slot = stageEl.querySelector<HTMLElement>('.board-stage__slot--primary');
+    // Measure against the VIEWPORT, not the stage's own height: the stage stretches
+    // to the board, so reading its height and then resizing the board would feed
+    // back into a runaway ResizeObserver loop. This region height is stable.
+    const available = window.innerHeight - VIEWPORT_CHROME_PX;
+    const slot = stageEl.querySelector<HTMLElement>('.review-stage__slot--primary');
     if (available <= 0 || !slot) return;
     const gaps = Math.max(0, stageEl.children.length - 1) * STACK_GAP_PX;
     const contentHeight =
@@ -181,7 +202,7 @@ function fitPrimaryToViewport(stageEl: HTMLElement, aspect: number): void {
       160,
       Math.min(widthCap, Math.floor((available - nonBoardChrome - 6) * aspect)),
     );
-    stageEl.style.setProperty('--board-stage-primary-max', `${targetWidth}px`);
+    stageEl.style.setProperty('--review-stage-primary-max', `${targetWidth}px`);
   });
 }
 
@@ -200,10 +221,10 @@ function applyBoardSizing(stageEl: HTMLElement, adapter: ReviewLayoutAdapter): v
   // minus the two rails + gaps) and the height left after chrome (projected
   // through the aspect). Wide boards are width-bound; tall boards height-bound.
   stageEl.style.setProperty(
-    '--board-stage-primary-max',
+    '--review-stage-primary-max',
     `min(max(240px, calc(100vw - ${RAILS_AND_GUTTERS_PX}px)), calc((100svh - ${chromePx}px) * ${aspect.toFixed(4)}))`,
   );
-  stageEl.style.setProperty('--board-stage-secondary-max', `${SECONDARY_WIDTH_PX}px`);
+  stageEl.style.setProperty('--review-stage-secondary-max', `${SECONDARY_WIDTH_PX}px`);
 }
 
 function infoRail(adapter: ReviewLayoutAdapter): HTMLElement {

@@ -1,4 +1,4 @@
-// Shared review board-stage: arranges a variant's review boards as ONE dominant
+// Shared review review-stage: arranges a variant's review boards as ONE dominant
 // primary board with any secondary boards in a smaller row beneath it. This is
 // the platform replacement for the fog "3 co-equal boards" triptych AND the
 // single-board case — a 1-board variant passes a single primary slot and renders
@@ -11,10 +11,10 @@
 //
 // Renderer-agnostic: a slot's element is a self-contained board host (label +
 // board element) whose board may be a mounted chessground Api or an SVG
-// innerHTML host. Sizing is pure CSS (board-stage.css) — the primary slot takes
+// innerHTML host. Sizing is pure CSS (review-stage.css) — the primary slot takes
 // the variant's normal single-board footprint, secondaries a fraction of it.
 
-import './board-stage.css';
+import './review-stage.css';
 
 export type BoardStageTier = 'primary' | 'secondary';
 
@@ -45,12 +45,12 @@ export function createBoardStage(
   options: BoardStageOptions = {},
 ): BoardStageHandle {
   const stage = document.createElement('div');
-  stage.className = 'board-stage';
+  stage.className = 'review-stage';
 
   const primaryRow = document.createElement('div');
-  primaryRow.className = 'board-stage__primary';
+  primaryRow.className = 'review-stage__primary';
   const secondaryRow = document.createElement('div');
-  secondaryRow.className = 'board-stage__secondaries';
+  secondaryRow.className = 'review-stage__secondaries';
   stage.append(primaryRow, secondaryRow);
 
   // Preserve the caller's order for a stable secondary row; the primary is
@@ -69,11 +69,11 @@ export function createBoardStage(
       const el = byKey.get(key);
       if (!el) continue;
       const isPrimary = key === currentPrimary;
-      el.classList.toggle('board-stage__slot', true);
-      el.classList.toggle('board-stage__slot--primary', isPrimary);
-      el.classList.toggle('board-stage__slot--secondary', !isPrimary);
+      el.classList.toggle('review-stage__slot', true);
+      el.classList.toggle('review-stage__slot--primary', isPrimary);
+      el.classList.toggle('review-stage__slot--secondary', !isPrimary);
       // Only secondaries are click-to-promote targets.
-      el.classList.toggle('board-stage__slot--promotable', canPromote && !isPrimary);
+      el.classList.toggle('review-stage__slot--promotable', canPromote && !isPrimary);
       (isPrimary ? primaryRow : secondaryRow).append(el);
     }
     secondaryRow.hidden = secondaryRow.childElementCount === 0;

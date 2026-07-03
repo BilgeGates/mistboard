@@ -1,28 +1,25 @@
-/* Shared review board-stage layout: one dominant primary board with an optional
+/* Shared review review-stage layout: one dominant primary board with an optional
    row of smaller secondary boards beneath. Size is CSS-only; consuming surfaces
-   override the caps via --board-stage-primary-max / --board-stage-secondary-max
-   (e.g. per board-family aspect ratio). See review/board-stage.ts. */
+   override the caps via --review-stage-primary-max / --review-stage-secondary-max
+   (e.g. per board-family aspect ratio). See review/review-stage.ts. */
 
-.board-stage {
+.review-stage {
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: center;
   gap: clamp(8px, 1.4vw, 16px);
   width: 100%;
   min-width: 0;
-  height: 100%;
-  min-height: 0;
 }
 
-.board-stage__primary {
+.review-stage__primary {
   display: flex;
   justify-content: center;
   width: 100%;
   min-width: 0;
 }
 
-.board-stage__secondaries {
+.review-stage__secondaries {
   display: flex;
   justify-content: center;
   gap: clamp(8px, 1.4vw, 16px);
@@ -31,29 +28,29 @@
   flex-wrap: wrap;
 }
 
-.board-stage__secondaries[hidden] {
+.review-stage__secondaries[hidden] {
   display: none;
 }
 
 /* Captured-material strips: the default size is tuned for a live board's
    container width; in the review stack it resolves too large (and enormous on
    the small secondary boards). Cap it, smaller still on secondaries. */
-.board-stage .captures-strip {
+.review-stage .captures-strip {
   --capture-piece-size: 20px;
 }
-.board-stage__slot--secondary .captures-strip {
+.review-stage__slot--secondary .captures-strip {
   --capture-piece-size: 13px;
 }
 
 /* Secondary boards promote to primary on click. */
-.board-stage__slot--promotable {
+.review-stage__slot--promotable {
   cursor: pointer;
 }
-.board-stage__slot--promotable:hover {
+.review-stage__slot--promotable:hover {
   opacity: 0.92;
 }
 
-.board-stage__slot {
+.review-stage__slot {
   display: flex;
   flex-direction: column;
   gap: 6px;
@@ -64,14 +61,14 @@
    explicit width (not width:100% + max-width) is required so the slot drives out
    to its intended size rather than collapsing to the secondary row's width — an
    SVG board's max-content can't pull the column wide on its own. */
-.board-stage__slot--primary {
-  width: var(--board-stage-primary-max, min(70vh, 560px));
+.review-stage__slot--primary {
+  width: var(--review-stage-primary-max, min(70vh, 560px));
   max-width: 100%;
 }
 
 /* Secondaries share the row beneath the primary, each a fraction of its size. */
-.board-stage__slot--secondary {
+.review-stage__slot--secondary {
   flex: 1 1 0;
   min-width: 0;
-  max-width: var(--board-stage-secondary-max, 300px);
+  max-width: var(--review-stage-secondary-max, 300px);
 }
