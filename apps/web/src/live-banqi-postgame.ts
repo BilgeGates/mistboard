@@ -197,6 +197,7 @@ function renderPostgame(root: HTMLElement, postgame: BanqiPostgameResponse): voi
     moves: movesCard,
     boards: [{ key: 'truth', el: pane.el, tier: 'primary' }],
     boardAspect: 568 / 312,
+    boardCols: 8,
     maxPly: postgameReplayMaxPly(postgame),
     renderBoards(ctx) {
       lastCtx = { ply: ctx.ply, flipped: ctx.flipped };

@@ -167,6 +167,7 @@ function renderPostgame(root: HTMLElement, postgame: MiniXiangqiPostgameResponse
     moves: movesCard,
     boards: [{ key: 'truth', el: pane.el, tier: 'primary' }],
     boardAspect: 516 / 516,
+    boardCols: 7,
     maxPly: postgameReplayMaxPly(postgame),
     renderBoards({ ply, flipped }) {
       const orientation: MiniXiangqiColor = flipped ? 'black' : 'red';

@@ -201,6 +201,7 @@ function renderPostgame(root: HTMLElement, postgame: JungleFlipPostgameResponse)
     moves: movesCard,
     boards: [{ key: 'truth', el: pane.el, tier: 'primary' }],
     boardAspect: 64 / 64,
+    boardCols: 5,
     maxPly: replayMaxPly(postgame),
     renderBoards({ ply }) {
       lastPly = ply;

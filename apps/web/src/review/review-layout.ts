@@ -41,6 +41,9 @@ export type ReviewLayoutAdapter = {
   boards: ReviewBoardEntry[];
   /** Board width / height, e.g. 552 / 612 for xiangqi. Drives the fill sizing. */
   boardAspect: number;
+  /** Board columns (files). Sizes captured-material tiles to ≈ one board cell so
+   *  they match the on-board pieces. Default 12 (small, generic). */
+  boardCols?: number;
   /** Extra vertical px each board host adds beyond the board itself (reserve /
    *  hand / capture strips). Budgeted into the fill sizing so the page still
    *  fits without a vertical scroll. Default 0. */
@@ -229,6 +232,9 @@ function applyBoardSizing(stageEl: HTMLElement, adapter: ReviewLayoutAdapter): v
     `min(max(240px, calc(100vw - ${RAILS_AND_GUTTERS_PX}px)), calc((100svh - ${chromePx}px) * ${aspect.toFixed(4)}))`,
   );
   stageEl.style.setProperty('--review-stage-secondary-max', `${SECONDARY_WIDTH_PX}px`);
+  // Capture tiles size to ≈ one board cell (board width / columns) so they read
+  // at the same scale as the on-board pieces.
+  stageEl.style.setProperty('--capture-cols', String(adapter.boardCols ?? 12));
 }
 
 function infoRail(adapter: ReviewLayoutAdapter): HTMLElement {

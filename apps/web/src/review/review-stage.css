@@ -40,7 +40,9 @@
   container-type: inline-size;
 }
 .review-stage .captures-strip {
-  --capture-piece-size: clamp(16px, calc((100cqw - 16px) / 11), 46px);
+  /* One board cell wide (board width / columns) so captured tiles read at the
+     same scale as the on-board pieces; --capture-cols is set per variant. */
+  --capture-piece-size: clamp(16px, calc(100cqw / var(--capture-cols, 12)), 96px);
   max-width: 100%;
   overflow: visible;
   /* Grow to fit wrapped rows (default is a fixed single-row height) so a second
