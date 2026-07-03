@@ -37,7 +37,9 @@ type HomeDailyPuzzle = {
     source: string;
   };
   puzzle: {
-    goal: { type: 'checkmate'; winner?: MiniXiangqiColor };
+    goal:
+      | { type: 'checkmate'; winner?: MiniXiangqiColor }
+      | { type: 'winning-advantage'; winner?: MiniXiangqiColor; centipawns?: number };
     id: string;
     initial: MiniXiangqiGameState | DropMiniXiangqiGameState | FortressXiangqiGameState;
     sideToMove: MiniXiangqiColor | null;

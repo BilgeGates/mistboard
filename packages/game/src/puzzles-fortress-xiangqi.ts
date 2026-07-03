@@ -9,8 +9,11 @@
 
 import type { FORTRESS_XIANGQI_SPEC_ID } from './game-specs.js';
 import { MINED_FORTRESS_XIANGQI_PUZZLES } from './puzzles-fortress-xiangqi-mined.js';
+import { TACTIC_SOURCE_GAMES } from './puzzles-fortress-xiangqi-source-games.js';
+import { TACTIC_FORTRESS_XIANGQI_PUZZLES } from './puzzles-fortress-xiangqi-tactics.js';
 import {
   applyFortressXiangqiMove,
+  createInitialFortressXiangqiState,
   type FortressXiangqiColor,
   type FortressXiangqiDropRole,
   type FortressXiangqiGameState,
@@ -31,12 +34,24 @@ export type FortressXiangqiPuzzleTheme =
   | 'drop'
   | 'horse'
   | 'palace-net'
-  | 'treasure';
+  | 'treasure'
+  | 'winning';
 
-export type FortressXiangqiPuzzleGoal = {
-  type: 'checkmate';
-  winner?: FortressXiangqiColor;
-};
+export type FortressXiangqiPuzzleGoal =
+  | {
+      type: 'checkmate';
+      winner?: FortressXiangqiColor;
+    }
+  // A forced material/positional win that does NOT end in mate. The kernel has
+  // no evaluator, so — unlike a checkmate goal — it cannot re-verify that the
+  // final position is "winning"; that judgment is the miner's (Fairy-Stockfish).
+  // Validation only guarantees a fully legal line that ends on the solver's move
+  // (the payoff), and `centipawns` records FSF's eval for reference/seeding.
+  | {
+      type: 'winning-advantage';
+      winner?: FortressXiangqiColor;
+      centipawns?: number;
+    };
 
 export type FortressXiangqiPuzzle = {
   id: string;
@@ -46,6 +61,21 @@ export type FortressXiangqiPuzzle = {
   solution: FortressXiangqiMove[];
   goal: FortressXiangqiPuzzleGoal;
   themes: FortressXiangqiPuzzleTheme[];
+  // Optional pointer to the full game this position came from (FSF self-play for
+  // tactics). Enables a future "from game" analysis link, Lichess-style; the game
+  // itself lives in FORTRESS_XIANGQI_SOURCE_GAMES. `ply` = moves played from the
+  // start before the puzzle position, so replaying the game to `ply` reproduces
+  // `initial` (asserted by the corpus test).
+  sourceGame?: { gameId: string; ply: number };
+};
+
+// A full recorded game a tactic was mined from (kernel-native, from the start
+// position). Kept so the puzzle can link to the game in analysis later; not yet
+// persisted to prod. Emitted by the tactics ingest.
+export type FortressXiangqiSourceGame = {
+  id: string;
+  variant: typeof FORTRESS_XIANGQI_SPEC_ID;
+  moves: FortressXiangqiMove[];
 };
 
 export type FortressXiangqiPuzzleValidationIssueCode =
@@ -55,6 +85,7 @@ export type FortressXiangqiPuzzleValidationIssueCode =
   | 'not-playing'
   | 'solution-continues-after-finish'
   | 'solution-ended-before-goal'
+  | 'solution-must-end-on-solver-move'
   | 'wrong-finish-reason'
   | 'wrong-winner';
 
@@ -70,7 +101,9 @@ export type FortressXiangqiPuzzleValidationResult =
       ok: true;
       puzzleId: string;
       solver: FortressXiangqiColor;
-      finalStatus: Extract<FortressXiangqiGameStatus, { type: 'finished' }>;
+      // 'finished' for checkmate goals; 'playing' for winning-advantage goals
+      // (the line stops at the payoff move, the game continues).
+      finalStatus: FortressXiangqiGameStatus;
       plyCount: number;
     }
   | {
@@ -112,10 +145,36 @@ export type FortressXiangqiMateInOneCandidate = {
 
 export const FORTRESS_XIANGQI_PUZZLES: readonly FortressXiangqiPuzzle[] = [
   ...MINED_FORTRESS_XIANGQI_PUZZLES,
+  ...TACTIC_FORTRESS_XIANGQI_PUZZLES,
 ];
 
 export function fortressXiangqiPuzzleById(id: string): FortressXiangqiPuzzle | null {
   return FORTRESS_XIANGQI_PUZZLES.find((puzzle) => puzzle.id === id) ?? null;
+}
+
+export const FORTRESS_XIANGQI_SOURCE_GAMES: readonly FortressXiangqiSourceGame[] =
+  TACTIC_SOURCE_GAMES;
+
+export function fortressXiangqiSourceGameById(id: string): FortressXiangqiSourceGame | null {
+  return FORTRESS_XIANGQI_SOURCE_GAMES.find((game) => game.id === id) ?? null;
+}
+
+// Replays a recorded source game's first `ply` moves from the start position.
+// Returns null if any move is illegal (a broken recording). Used by the linkage
+// test and the future "from game" analysis surface.
+export function replayFortressXiangqiSourceGameToPly(
+  game: FortressXiangqiSourceGame,
+  ply: number,
+): FortressXiangqiGameState | null {
+  let state = createInitialFortressXiangqiState(game.id);
+  for (let i = 0; i < ply; i += 1) {
+    const move = game.moves[i];
+    if (!move) return null;
+    const next = applyPuzzleMove(state, move);
+    if (!next) return null;
+    state = next;
+  }
+  return state;
 }
 
 // All solver moves that deliver immediate checkmate for the side to move.
@@ -186,6 +245,29 @@ export function validateFortressXiangqiPuzzle(
     state = applied;
   }
 
+  const expectedWinner = puzzle.goal.winner ?? solver;
+
+  if (puzzle.goal.type === 'winning-advantage') {
+    // No checkmate to verify. The line must end on the solver's own move (the
+    // payoff): solver plies are the even indices, so the final index
+    // (length - 1) must be even, i.e. the length must be odd.
+    if (puzzle.solution.length % 2 === 0) {
+      return validationError(
+        puzzle,
+        'solution-must-end-on-solver-move',
+        puzzle.solution.length,
+        'Winning-advantage solution must end on the solver move, so its length must be odd.',
+      );
+    }
+    return {
+      ok: true,
+      puzzleId: puzzle.id,
+      solver,
+      finalStatus: state.status,
+      plyCount: puzzle.solution.length,
+    };
+  }
+
   if (state.status.type !== 'finished') {
     return validationError(
       puzzle,
@@ -194,9 +276,7 @@ export function validateFortressXiangqiPuzzle(
       'Puzzle solution ended before the goal was reached.',
     );
   }
-
-  const expectedWinner = puzzle.goal.winner ?? solver;
-  if (puzzle.goal.type === 'checkmate' && state.status.reason !== 'checkmate') {
+  if (state.status.reason !== 'checkmate') {
     return validationError(
       puzzle,
       'wrong-finish-reason',
@@ -304,12 +384,20 @@ export function attemptFortressXiangqiPuzzleLine(
   }
 
   const ply = playedMoves.length;
+  // A checkmate puzzle is only complete once the board is actually mated; a
+  // winning-advantage puzzle completes when the scripted line is exhausted (the
+  // game is still in progress at the payoff move).
+  const lineExhausted = solutionPly >= puzzle.solution.length;
+  const complete =
+    puzzle.goal.type === 'checkmate'
+      ? lineExhausted && state.status.type === 'finished'
+      : lineExhausted;
   return {
     ok: true,
     puzzleId: puzzle.id,
     playedMoves,
     solverMoves: acceptedSolverMoves,
-    complete: solutionPly >= puzzle.solution.length && state.status.type === 'finished',
+    complete,
     ply,
     state,
     ...(lastMove ? { lastMove } : {}),

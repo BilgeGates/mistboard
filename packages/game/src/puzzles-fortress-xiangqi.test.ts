@@ -1,21 +1,57 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
+import { FORTRESS_XIANGQI_SPEC_ID } from './game-specs.js';
 import {
   attemptFortressXiangqiPuzzleLine,
   FORTRESS_XIANGQI_PUZZLES,
+  type FortressXiangqiPuzzle,
   findFortressXiangqiMateInOneCandidates,
   fortressXiangqiPuzzleById,
   fortressXiangqiPuzzleMoveEquals,
   fortressXiangqiPuzzleMoveLabel,
   fortressXiangqiPuzzleNextMove,
   fortressXiangqiPuzzleSideToMove,
+  fortressXiangqiSourceGameById,
   isFortressXiangqiPuzzleSolverPly,
+  replayFortressXiangqiSourceGameToPly,
   validateFortressXiangqiPuzzle,
 } from './puzzles-fortress-xiangqi.js';
 import {
+  applyFortressXiangqiMove,
   createInitialFortressXiangqiState,
   type FortressXiangqiMove,
+  getFortressXiangqiLegalMoves,
 } from './variants-fortress-xiangqi.js';
+
+// Builds a legal N-ply line from the opening by always taking the first legal
+// move, so winning-advantage tests do not depend on hand-authored coordinates.
+function openingLine(plies: number): {
+  initial: ReturnType<typeof createInitialFortressXiangqiState>;
+  moves: FortressXiangqiMove[];
+} {
+  const initial = createInitialFortressXiangqiState('advantage-fixture');
+  let state = initial;
+  const moves: FortressXiangqiMove[] = [];
+  for (let i = 0; i < plies; i += 1) {
+    const move = getFortressXiangqiLegalMoves(state)[0] as FortressXiangqiMove;
+    moves.push(move);
+    state = applyFortressXiangqiMove(state, move);
+  }
+  return { initial, moves };
+}
+
+function advantagePuzzle(solution: FortressXiangqiMove[]): FortressXiangqiPuzzle {
+  const initial = createInitialFortressXiangqiState('advantage-fixture');
+  return {
+    id: 'advantage-fixture',
+    variant: FORTRESS_XIANGQI_SPEC_ID,
+    title: 'Red wins material',
+    initial,
+    solution,
+    goal: { type: 'winning-advantage', winner: 'red', centipawns: 600 },
+    themes: ['chariot'],
+  };
+}
 
 test('no forced mate-in-one exists from the opening position', () => {
   const state = createInitialFortressXiangqiState('opening');
@@ -73,6 +109,48 @@ test('a wrong first move is rejected for every shipped puzzle', () => {
     const wrong: FortressXiangqiMove = { from: 'a1', to: 'a1' };
     const attempt = attemptFortressXiangqiPuzzleLine(puzzle, [wrong]);
     assert.ok(!attempt.ok, `${puzzle.id} accepted a bogus move`);
+  }
+});
+
+test('a winning-advantage puzzle validates without ending in checkmate', () => {
+  const { moves } = openingLine(1);
+  const result = validateFortressXiangqiPuzzle(advantagePuzzle(moves));
+  assert.ok(
+    result.ok,
+    `winning-advantage puzzle should validate: ${result.ok ? '' : result.issue.message}`,
+  );
+  // The line stops at the payoff move; the game is still in progress.
+  assert.ok(result.ok && result.finalStatus.type === 'playing');
+});
+
+test('the solver line completes a winning-advantage puzzle mid-game', () => {
+  const { moves } = openingLine(1);
+  const attempt = attemptFortressXiangqiPuzzleLine(advantagePuzzle(moves), moves);
+  assert.ok(
+    attempt.ok && attempt.complete,
+    'winning-advantage line should complete when exhausted',
+  );
+  assert.equal(attempt.ok && attempt.state.status.type, 'playing');
+});
+
+test('a winning-advantage solution ending on a defender move is rejected', () => {
+  const { moves } = openingLine(2); // even length -> ends on the defender reply
+  const result = validateFortressXiangqiPuzzle(advantagePuzzle(moves));
+  assert.ok(!result.ok);
+  assert.ok(!result.ok && result.issue.code === 'solution-must-end-on-solver-move');
+});
+
+test('every puzzle sourceGame replays to its initial position', () => {
+  for (const puzzle of FORTRESS_XIANGQI_PUZZLES) {
+    if (!puzzle.sourceGame) continue;
+    const game = fortressXiangqiSourceGameById(puzzle.sourceGame.gameId);
+    assert.ok(game, `${puzzle.id} references missing source game ${puzzle.sourceGame.gameId}`);
+    const replayed = replayFortressXiangqiSourceGameToPly(game, puzzle.sourceGame.ply);
+    assert.ok(replayed, `${puzzle.id} source game does not reach ply ${puzzle.sourceGame.ply}`);
+    // The linkage is only meaningful if the game at that ply IS the puzzle position.
+    assert.deepEqual(replayed.board, puzzle.initial.board, `${puzzle.id} board mismatch`);
+    assert.deepEqual(replayed.hands, puzzle.initial.hands, `${puzzle.id} hands mismatch`);
+    assert.deepEqual(replayed.status, puzzle.initial.status, `${puzzle.id} turn mismatch`);
   }
 });
 

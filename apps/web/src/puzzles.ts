@@ -71,7 +71,9 @@ type PuzzleSummary = {
   variant: PuzzleVariant;
   title: string;
   sideToMove: PuzzleColor | null;
-  goal: { type: 'checkmate'; winner?: PuzzleColor };
+  goal:
+    | { type: 'checkmate'; winner?: PuzzleColor }
+    | { type: 'winning-advantage'; winner?: PuzzleColor; centipawns?: number };
   themes: string[];
   solutionPlyCount: number;
 };
@@ -1666,7 +1668,7 @@ function goalLabel(puzzle: Pick<PuzzleSummary, 'goal' | 'solutionPlyCount'>): st
   if (puzzle.goal.type === 'checkmate') {
     return `Mate in ${Math.ceil(puzzle.solutionPlyCount / 2)}`;
   }
-  return puzzle.goal.type;
+  return 'Winning';
 }
 
 function colorLabel(color: MiniXiangqiColor | null): string {

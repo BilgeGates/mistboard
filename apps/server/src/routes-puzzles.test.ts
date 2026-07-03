@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import type { IncomingMessage, ServerResponse } from 'node:http';
 import test from 'node:test';
+import { FORTRESS_XIANGQI_PUZZLES, MINI_XIANGQI_PUZZLES } from '@mistboard/game';
 import type { HttpApiContext } from './routes/lib.js';
 import { tryHandle } from './routes/puzzles.js';
 
@@ -52,11 +53,17 @@ async function route(path: string, method = 'GET', body?: unknown): Promise<Resp
 test('puzzle list returns public Mini and Drop Mini summaries without solutions', async () => {
   const response = await route('/api/puzzles');
   const body = JSON.parse(response.body) as {
-    puzzles: Array<{ id: string; variant: string; solution?: unknown; solutionPlyCount: number }>;
+    puzzles: Array<{
+      id: string;
+      variant: string;
+      solution?: unknown;
+      solutionPlyCount: number;
+      goal: { type: string };
+    }>;
   };
 
   assert.equal(response.status, 200);
-  assert.equal(body.puzzles.length, 60);
+  assert.equal(body.puzzles.length, MINI_XIANGQI_PUZZLES.length + FORTRESS_XIANGQI_PUZZLES.length);
   assert.deepEqual(
     body.puzzles.slice(0, 6).map((puzzle) => puzzle.variant),
     [
@@ -69,7 +76,10 @@ test('puzzle list returns public Mini and Drop Mini summaries without solutions'
     ],
   );
   assert.equal(body.puzzles.filter((puzzle) => puzzle.variant === 'drop-mini-xiangqi').length, 30);
-  assert.equal(body.puzzles.filter((puzzle) => puzzle.variant === 'fortress-xiangqi').length, 24);
+  assert.equal(
+    body.puzzles.filter((puzzle) => puzzle.variant === 'fortress-xiangqi').length,
+    FORTRESS_XIANGQI_PUZZLES.length,
+  );
   assert.equal(
     body.puzzles.every((puzzle) => puzzle.solution === undefined),
     true,
@@ -94,7 +104,12 @@ test('puzzle list returns public Mini and Drop Mini summaries without solutions'
   }
   assert.equal(
     body.puzzles
-      .filter((puzzle) => !mateInTwoIds.includes(puzzle.id) && !mateInThreeIds.includes(puzzle.id))
+      .filter(
+        (puzzle) =>
+          puzzle.goal.type === 'checkmate' &&
+          !mateInTwoIds.includes(puzzle.id) &&
+          !mateInThreeIds.includes(puzzle.id),
+      )
       .every((puzzle) => puzzle.solutionPlyCount === 1),
     true,
   );
@@ -119,7 +134,7 @@ test('puzzle list filters to Fortress Xiangqi puzzles', async () => {
   };
 
   assert.equal(response.status, 200);
-  assert.equal(body.puzzles.length, 24);
+  assert.equal(body.puzzles.length, FORTRESS_XIANGQI_PUZZLES.length);
   assert.equal(
     body.puzzles.every((puzzle) => puzzle.variant === 'fortress-xiangqi'),
     true,
