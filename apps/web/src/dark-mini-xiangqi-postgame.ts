@@ -165,7 +165,9 @@ function renderPostgame(root: HTMLElement, postgame: DarkMiniXiangqiPostgameResp
       tier: target.entry.key === 'truth' ? 'primary' : 'secondary',
     })),
     boardAspect: 516 / 516,
-    boardCols: 7,
+    // Small capture tiles here: the priority is a large primary board, and the
+    // 3-board fog stack has little vertical room to spare.
+    boardCols: 15,
     maxPly: postgameReplayMaxPly(postgame),
     renderBoards({ ply, flipped }) {
       const orientation: MiniXiangqiColor = flipped ? 'black' : 'red';

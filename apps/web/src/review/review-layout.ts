@@ -66,7 +66,7 @@ const RAILS_AND_GUTTERS_PX = 640;
 const PRIMARY_LABEL_PX = 30;
 const STACK_GAP_PX = 16;
 const SECONDARY_LABEL_PX = 24;
-const SECONDARY_WIDTH_PX = 118;
+const SECONDARY_WIDTH_PX = 92;
 
 export function mountReviewLayout(root: HTMLElement, adapter: ReviewLayoutAdapter): void {
   let ply = adapter.maxPly;
