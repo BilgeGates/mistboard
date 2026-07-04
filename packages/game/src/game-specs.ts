@@ -98,7 +98,8 @@ export type RatingPoolBaseId =
   | 'reveal_chess'
   | 'jungle'
   | 'jungle_flip'
-  | 'fortress_xiangqi';
+  | 'fortress_xiangqi'
+  | 'xiangqi';
 
 export type GameSpecId =
   | 'dark-chess'
@@ -122,7 +123,11 @@ export type GameSpecId =
   | 'reveal-chess'
   | 'jungle'
   | 'jungle-flip'
-  | 'fortress-xiangqi';
+  | 'fortress-xiangqi'
+  // Standard (open-information) Xiangqi — ordinary 9x10 Chinese chess. The
+  // open-info sibling of Dark Xiangqi; check-aware legality + checkmate via the
+  // elephantops CHECKED path (packages/game/src/variants-xiangqi-standard.ts).
+  | 'xiangqi';
 export type GameSpecAliasId = 'fog-draft960' | 'dual-chess' | 'dark-dual-chess';
 export type GameSpecLookupId = GameSpecId | GameSpecAliasId;
 
@@ -170,6 +175,7 @@ export const DARK_CROSSROADS_CHESS_SPEC_ID = 'dark-crossroads-chess' satisfies G
 export const JUNGLE_SPEC_ID = 'jungle' satisfies GameSpecId;
 export const JUNGLE_FLIP_SPEC_ID = 'jungle-flip' satisfies GameSpecId;
 export const FORTRESS_XIANGQI_SPEC_ID = 'fortress-xiangqi' satisfies GameSpecId;
+export const XIANGQI_SPEC_ID = 'xiangqi' satisfies GameSpecId;
 // Compatibility aliases for records and links created before the Crossroads
 // rename. New code should use CROSSROADS_CHESS_SPEC_ID.
 export const DUAL_CHESS_SPEC_ID = 'dual-chess' satisfies GameSpecAliasId;
@@ -187,8 +193,10 @@ export const DARK_DUAL_CHESS_SPEC_ID = 'dark-dual-chess' satisfies GameSpecAlias
 // right after it. The Mini Xiangqi sub-family + Dark Crazyhouse are retired to the
 // tail (hidden from menu/rail/grids; deep-link URLs stay alive).
 export const CANONICAL_VARIANT_ORDER: readonly GameSpecId[] = [
-  // Chinese-chess family (playable, elevated). Fortress leads as the flagship.
+  // Chinese-chess family (playable, elevated). Fortress leads as the flagship;
+  // standard Xiangqi sits right after it as the open-info anchor (teach-me game).
   FORTRESS_XIANGQI_SPEC_ID,
+  XIANGQI_SPEC_ID,
   DARK_XIANGQI_SPEC_ID,
   JIEQI_SPEC_ID,
   BANQI_SPEC_ID,
@@ -418,6 +426,29 @@ export const GAME_SPECS: readonly GameSpec[] = [
     ratingPoolBase: 'fortress_xiangqi',
     // Rating-ready like Dark Xiangqi / Banqi / Jieqi: the pool lights up the
     // moment the global rated flag flips.
+    rated: true,
+    publicSurface: 'casual',
+    runtimeStatus: 'live',
+  },
+  {
+    // Standard (open-information) Xiangqi — ordinary 9x10 Chinese chess. The
+    // open-info sibling of Dark Xiangqi: identical board/movement/setup, but
+    // perfect information and check-aware (checkmate/stalemate terminal, not a
+    // literal general capture). Rules engine:
+    // packages/game/src/variants-xiangqi-standard.ts.
+    id: XIANGQI_SPEC_ID,
+    publicName: 'Xiangqi',
+    family: 'xiangqi',
+    board: 'xiangqi-9x10',
+    movement: 'xiangqi',
+    objective: 'checkmate',
+    visibility: 'open',
+    setup: 'standard',
+    reserves: 'none',
+    dropPolicy: 'none',
+    ratingPoolBase: 'xiangqi',
+    // Rating-ready (like Dark Xiangqi / Jieqi / Banqi): pool lights up when the
+    // global rated flag flips. Ships flag-off, PvP-first, casual until then.
     rated: true,
     publicSurface: 'casual',
     runtimeStatus: 'live',
@@ -686,6 +717,9 @@ export type RatingVariant = Extract<
   | 'jungle'
   | 'jungle_flip'
   | 'fortress_xiangqi'
+  // Standard Xiangqi pool. Owes a user_ratings CHECK migration adding 'xiangqi'
+  // before the global rated flag + MISTBOARD_XIANGQI_ENABLED are both on.
+  | 'xiangqi'
 >;
 
 // The active rated-pool set, derived from the `rated` flag. This is the ONE

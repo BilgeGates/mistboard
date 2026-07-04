@@ -118,6 +118,7 @@ export function isClientRoute(pathname: string): boolean {
     normalized.startsWith('/forum/redirect/post/') ||
     normalized.startsWith('/zh-hans/rules/') ||
     normalized.startsWith('/zh-hant/rules/') ||
+    normalized.startsWith('/xiangqi/game/') ||
     normalized.startsWith('/dark-xiangqi/game/') ||
     normalized.startsWith('/mini-xiangqi/game/') ||
     normalized.startsWith('/dark-mini-xiangqi/game/') ||

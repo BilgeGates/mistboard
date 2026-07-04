@@ -14,6 +14,7 @@ import {
   jungleFlipEnabled,
   kriegspielEnabled,
   revealChessEnabled,
+  xiangqiEnabled,
 } from './feature-flags.js';
 
 // The chess stack behind this gate serves exactly these two specs.
@@ -129,6 +130,11 @@ const GATED_GAME_SPECS = {
     enabled: fortressXiangqiEnabled,
     disabledError: 'fortress_xiangqi_disabled',
     notIntegratedError: 'fortress_xiangqi_not_integrated',
+  },
+  xiangqi: {
+    enabled: xiangqiEnabled,
+    disabledError: 'xiangqi_disabled',
+    notIntegratedError: 'xiangqi_not_integrated',
   },
 } satisfies { readonly [Id in GatedGameSpecId]: GateSpecEntry<Id> };
 

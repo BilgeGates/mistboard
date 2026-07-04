@@ -6,6 +6,14 @@ export function darkXiangqiEnabled(): boolean {
   return import.meta.env.DEV || import.meta.env.VITE_DARK_XIANGQI_ENABLED === 'true';
 }
 
+// Standard (open-information) Xiangqi (9x10) play surface. Always on in dev for
+// local parity; in prod/staging it stays hidden until the build opts in. The
+// server gates room creation independently (MISTBOARD_XIANGQI_ENABLED), so an
+// off web flag never strands a live room.
+export function xiangqiEnabled(): boolean {
+  return import.meta.env.DEV || import.meta.env.VITE_XIANGQI_ENABLED === 'true';
+}
+
 // Dark Mini Xiangqi (7x7) play surface. Always on in dev for convenience (like
 // Crossroads below); in prod/staging it is hidden unless the build opts in.
 export function darkMiniXiangqiEnabled(): boolean {

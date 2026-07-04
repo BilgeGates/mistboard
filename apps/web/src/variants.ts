@@ -30,6 +30,7 @@ import {
   type RatingVariant,
   REVEAL_CHESS_SPEC_ID,
   ratingPoolForSpec,
+  XIANGQI_SPEC_ID,
 } from '@mistboard/game';
 import {
   banqiEnabled,
@@ -93,6 +94,7 @@ const draft960Spec = gameSpecForId(DARK_DRAFT960_SPEC_ID);
 const darkMiniXiangqiSpec = gameSpecForId(DARK_MINI_XIANGQI_SPEC_ID);
 const dropMiniXiangqiSpec = gameSpecForId(DROP_MINI_XIANGQI_SPEC_ID);
 const fortressXiangqiSpec = gameSpecForId(FORTRESS_XIANGQI_SPEC_ID);
+const xiangqiSpec = gameSpecForId(XIANGQI_SPEC_ID);
 const darkXiangqiSpec = gameSpecForId(DARK_XIANGQI_SPEC_ID);
 const crossroadsChessSpec = gameSpecForId(CROSSROADS_CHESS_SPEC_ID);
 const darkCrossroadsChessSpec = gameSpecForId(DARK_CROSSROADS_CHESS_SPEC_ID);
@@ -115,6 +117,7 @@ const VARIANT_MINI_BY_GAME_SPEC: Partial<Record<GameSpecId, VariantMiniId>> = {
   [DARK_MINI_XIANGQI_SPEC_ID]: 'dark-mini-xiangqi',
   [DROP_MINI_XIANGQI_SPEC_ID]: 'drop-mini-xiangqi',
   [FORTRESS_XIANGQI_SPEC_ID]: 'fortress-xiangqi',
+  [XIANGQI_SPEC_ID]: 'xiangqi',
   [DARK_XIANGQI_SPEC_ID]: 'dark-xiangqi',
   [JIEQI_SPEC_ID]: 'jieqi',
   [BANQI_SPEC_ID]: 'banqi',
@@ -143,6 +146,21 @@ export const VARIANTS: VariantDef[] = [
     enabled: false,
     onLeaderboard: fortressXiangqiOn,
     onProfile: fortressXiangqiOn,
+  },
+  // Standard Xiangqi (9x10 open info): the pivot anchor, right after Fortress.
+  // Ships flag-off: playable in dev via the picker (xiangqiEnabled), but held OFF
+  // the rating grids + News rail until launch (no rated games yet, no premature
+  // "has launched" /feed announcement). At launch, flip these to `xiangqiOn` AND
+  // add the /rules/xiangqi announcement together. Rating-ready like jieqi/banqi.
+  {
+    id: currentRatingVariantForSpec(XIANGQI_SPEC_ID),
+    gameSpecId: xiangqiSpec.id,
+    apiParam: XIANGQI_SPEC_ID,
+    label: xiangqiSpec.publicName,
+    miniId: 'xiangqi',
+    enabled: false,
+    onLeaderboard: false,
+    onProfile: false,
   },
   // Full Dark Xiangqi (9x10 fog): launched PvP-first (no bot, no open-seek
   // lobby), rating-ready like jieqi/banqi.

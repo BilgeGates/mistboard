@@ -33,6 +33,7 @@ import {
   MINI_XIANGQI_SPEC_ID,
   REVEAL_CHESS_SPEC_ID,
   type TimeControlId,
+  XIANGQI_SPEC_ID,
 } from '@mistboard/game';
 import {
   correspondenceEnabled,
@@ -43,6 +44,7 @@ import {
   jungleFlipEnabled,
   kriegspielEnabled,
   revealChessEnabled,
+  xiangqiEnabled,
 } from '../feature-flags.js';
 import type { GameMeta, ReplayHandle } from '../replay.js';
 
@@ -161,6 +163,48 @@ const WEB_VARIANT_TENANTS: readonly WebVariantTenant[] = [
     roomIdPrefix: 'dchx_',
     enabled: correspondenceEnabled,
     pageTitle: 'Dark Chess',
+  },
+  {
+    // Standard Xiangqi (9x10, open information). Self-contained live client on
+    // the socket-client + chrome stack, no fog. Ships flag-off: xiangqiEnabled
+    // gates the live client routing, the picker, and deep links together, and
+    // the server gates room creation independently (MISTBOARD_XIANGQI_ENABLED).
+    gameSpecId: XIANGQI_SPEC_ID,
+    roomIdPrefix: 'xq_',
+    enabled: xiangqiEnabled,
+    pageTitle: 'Xiangqi',
+    gameRouteBase: '/xiangqi/game',
+    mountPostgame: (root, roomId) =>
+      import('../xiangqi-postgame.js').then(({ mountXiangqiPostgame }) =>
+        mountXiangqiPostgame(root, roomId),
+      ),
+    reviewRouteBase: '/xiangqi/game',
+    loadLiveRoomClient: () =>
+      import('../live-xiangqi.js').then(
+        ({ bootstrapXiangqiLiveRoom }) =>
+          () =>
+            bootstrapXiangqiLiveRoom(),
+      ),
+    // Mistboard TV channel; renders in the 'xiangqi' family (intersection
+    // board). Watch-route dispatch keys on the channel spec id, not the family.
+    watch: {
+      family: 'xiangqi',
+      mountReplay: (root, roomId, options) =>
+        import('../watch-xiangqi-replay.js').then(({ mountXiangqiWatchReplay }) =>
+          mountXiangqiWatchReplay(root, roomId, options),
+        ),
+    },
+    landing: {
+      capabilities: {
+        ...XIANGQI_CAPABILITIES_BASE,
+        supportsRated: false,
+        supportsStartFormat: false,
+        supportsTimeControl: true,
+      },
+      timePresetIds: ['1m1', '3m2', '5m5'],
+      offerInMenu: xiangqiEnabled,
+      acceptsDeepLink: xiangqiEnabled,
+    },
   },
   {
     gameSpecId: DARK_XIANGQI_SPEC_ID,

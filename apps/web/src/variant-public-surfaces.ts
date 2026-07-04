@@ -18,6 +18,7 @@ const VARIANT_PUBLIC_SURFACE_ENABLED = {
   'dark-mini-xiangqi': false,
   'drop-mini-xiangqi': false,
   'fortress-xiangqi': true,
+  xiangqi: true,
   'dark-xiangqi': true,
   'dark-shogi': true,
   'dark-omega': false,

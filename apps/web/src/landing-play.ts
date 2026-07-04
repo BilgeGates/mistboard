@@ -21,6 +21,7 @@ import {
   REVEAL_CHESS_SPEC_ID,
   TIME_CONTROLS,
   type TimeControlId,
+  XIANGQI_SPEC_ID,
 } from '@mistboard/game';
 import {
   classifyTimeControl,
@@ -71,7 +72,8 @@ type LandingGameSpecId =
   | typeof REVEAL_CHESS_SPEC_ID
   | typeof JUNGLE_SPEC_ID
   | typeof JUNGLE_FLIP_SPEC_ID
-  | typeof FORTRESS_XIANGQI_SPEC_ID;
+  | typeof FORTRESS_XIANGQI_SPEC_ID
+  | typeof XIANGQI_SPEC_ID;
 type LandingStartFormat = 'standard' | 'draft960';
 type LandingTimePresetId = TimeControlId;
 type LandingTimePreset = {
@@ -263,6 +265,8 @@ function variantNameKeyForGameSpec(gameSpecId: LandingGameSpecId): I18nKey | nul
       return 'variant.jungleFlip.name';
     case FORTRESS_XIANGQI_SPEC_ID:
       return 'variant.fortressXiangqi.name';
+    case XIANGQI_SPEC_ID:
+      return 'variant.xiangqi.name';
     default:
       return null;
   }
@@ -2402,7 +2406,9 @@ export function roomCreationGameSpecId(
   | typeof REVEAL_CHESS_SPEC_ID
   | typeof JUNGLE_SPEC_ID
   | typeof JUNGLE_FLIP_SPEC_ID
-  | typeof FORTRESS_XIANGQI_SPEC_ID {
+  | typeof FORTRESS_XIANGQI_SPEC_ID
+  | typeof XIANGQI_SPEC_ID {
+  if (setup.gameSpecId === XIANGQI_SPEC_ID) return XIANGQI_SPEC_ID;
   if (setup.gameSpecId === FORTRESS_XIANGQI_SPEC_ID) return FORTRESS_XIANGQI_SPEC_ID;
   if (setup.gameSpecId === JUNGLE_SPEC_ID) return JUNGLE_SPEC_ID;
   if (setup.gameSpecId === JUNGLE_FLIP_SPEC_ID) return JUNGLE_FLIP_SPEC_ID;

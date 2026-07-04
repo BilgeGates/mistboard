@@ -18,6 +18,7 @@ import {
   KRIEGSPIEL_SPEC_ID,
   MINI_XIANGQI_SPEC_ID,
   REVEAL_CHESS_SPEC_ID,
+  XIANGQI_SPEC_ID,
 } from '@mistboard/game';
 import { describe, expect, it, vi } from 'vitest';
 import {
@@ -210,6 +211,7 @@ describe('web variant launch registry', () => {
     // Xiangqi pivot: VARIANTS follows the new CANONICAL_VARIANT_ORDER.
     expect(VARIANTS.map((v) => [v.gameSpecId, v.apiParam])).toEqual([
       [FORTRESS_XIANGQI_SPEC_ID, 'fortress-xiangqi'],
+      [XIANGQI_SPEC_ID, 'xiangqi'],
       [DARK_XIANGQI_SPEC_ID, 'dark-xiangqi'],
       [JIEQI_SPEC_ID, 'jieqi'],
       [BANQI_SPEC_ID, 'banqi'],
