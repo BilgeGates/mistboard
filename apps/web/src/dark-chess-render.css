@@ -1,0 +1,37 @@
+/* Fog styling for the Dark Chess SVG board (dark-chess-render.ts). Mirrors the
+   Dark Crazyhouse fog block: the shrouded squares read from the shared
+   --board-fog-* tokens and respect the global data-fog-theme switch, so Dark
+   Chess matches its chess-family siblings under every fog appearance. */
+
+.dark-chess-live-svg .dark-chess-board-piece {
+  pointer-events: none;
+}
+
+.dark-chess-live-svg .dark-chess-fog-square {
+  fill: var(--board-fog-light-fill);
+  stroke: var(--board-fog-shadow);
+  stroke-width: 1;
+  vector-effect: non-scaling-stroke;
+}
+
+.dark-chess-live-svg .dark-chess-fog-square--dark {
+  fill: var(--board-fog-dark-fill);
+}
+
+:root[data-fog-theme="solid"] .dark-chess-live-svg .dark-chess-fog-square--light {
+  fill: var(--board-fog-light-background);
+}
+
+:root[data-fog-theme="solid"] .dark-chess-live-svg .dark-chess-fog-square--dark {
+  fill: var(--board-fog-dark-background);
+}
+
+:root[data-fog-theme="void"] .dark-chess-live-svg .dark-chess-fog-square {
+  fill: #000;
+  stroke: #080808;
+}
+
+:root[data-fog-theme="invisible"] .dark-chess-live-svg .dark-chess-fog-square {
+  fill: transparent;
+  stroke: none;
+}

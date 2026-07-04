@@ -48,6 +48,9 @@ export type ReviewLayoutAdapter = {
    *  hand / capture strips). Budgeted into the fill sizing so the page still
    *  fits without a vertical scroll. Default 0. */
   boardChromePx?: number;
+  /** Width (px) of each click-to-promote secondary board. Default 92. Raise for
+   *  variants whose secondaries read too small at the shared default. */
+  secondaryWidthPx?: number;
   maxPly: number;
   /** Re-render every board host for the given ply / flip / primary. */
   renderBoards(ctx: ReviewRenderContext): void;
@@ -223,9 +226,10 @@ function fitPrimaryToViewport(stageEl: HTMLElement, aspect: number): void {
 function applyBoardSizing(stageEl: HTMLElement, adapter: ReviewLayoutAdapter): void {
   const aspect = adapter.boardAspect;
   const extraPerBoard = adapter.boardChromePx ?? 0;
+  const secondaryWidth = adapter.secondaryWidthPx ?? SECONDARY_WIDTH_PX;
   const hasSecondaries = adapter.boards.some((board) => board.tier === 'secondary');
   const secondaryStackPx = hasSecondaries
-    ? STACK_GAP_PX + SECONDARY_LABEL_PX + Math.round(SECONDARY_WIDTH_PX / aspect) + extraPerBoard
+    ? STACK_GAP_PX + SECONDARY_LABEL_PX + Math.round(secondaryWidth / aspect) + extraPerBoard
     : 0;
   const chromePx = NAV_AND_PADDING_PX + PRIMARY_LABEL_PX + extraPerBoard + secondaryStackPx;
   // The board is the largest that fits BOTH the center column width (≈ viewport
@@ -235,7 +239,7 @@ function applyBoardSizing(stageEl: HTMLElement, adapter: ReviewLayoutAdapter): v
     '--review-stage-primary-max',
     `min(max(240px, calc(100vw - ${RAILS_AND_GUTTERS_PX}px)), calc((100svh - ${chromePx}px) * ${aspect.toFixed(4)}))`,
   );
-  stageEl.style.setProperty('--review-stage-secondary-max', `${SECONDARY_WIDTH_PX}px`);
+  stageEl.style.setProperty('--review-stage-secondary-max', `${secondaryWidth}px`);
   // Capture tiles size to ≈ one board cell (board width / columns) so they read
   // at the same scale as the on-board pieces.
   stageEl.style.setProperty('--capture-cols', String(adapter.boardCols ?? 12));

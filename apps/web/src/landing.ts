@@ -411,6 +411,19 @@ export async function mountGame(root: HTMLElement, roomId: string): Promise<void
 
   const { game, events } = loaded;
   document.title = buildGamePageTitle(game);
+
+  // Flagship Dark Chess rides the shared review-layout shell (truth-primary +
+  // POV secondaries), matching every other fog variant. The rich chessground
+  // replay stays only for games that carry engine analysis artifacts (belief /
+  // trace panels), which the standardized shell does not host yet.
+  const hasEngineAnalysis = loaded.beliefRows.length > 0 || loaded.traceRows.length > 0;
+  if (game.variant === 'dark-chess' && !hasEngineAnalysis) {
+    const gameEvents = events ?? (await apiEventLoader(game.roomId));
+    const { mountDarkChessPostgame } = await import('./dark-chess-postgame.js');
+    mountDarkChessPostgame(root, game, gameEvents);
+    return;
+  }
+
   const exportLinks = buildGameExportLinks(game.roomId, game.variant);
   if (exportLinks) shell.append(exportLinks);
   await mountReplay(replayRoot, game.roomId, {
