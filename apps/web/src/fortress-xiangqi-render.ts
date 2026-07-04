@@ -448,17 +448,6 @@ export function installFortressXiangqiBoardStyles(): void {
     .fortress-xiangqi-live-board--disabled {
       background: repeating-linear-gradient(135deg, #ece7dc, #ece7dc 16px, #ddd5c5 16px, #ddd5c5 32px);
     }
-    /* Postgame review: the 7x8 board is taller than wide, so size it by height
-       to fit the viewport without vertical scroll, and shrink the reserves. */
-    .banqi-postgame-page .fortress-xiangqi-live-board {
-      width: auto;
-      max-width: 100%;
-      height: min(62vh, 82vw);
-      margin-inline: auto;
-    }
-    .banqi-postgame-page .drop-mini-reserve-strip {
-      --drop-mini-hand-piece-size: 30px;
-    }
   `;
   document.head.append(style);
 }
