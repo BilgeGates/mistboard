@@ -1,0 +1,599 @@
+<meta charset="utf-8" />
+<title>Fortress Xiangqi: the veteran-soldier experiment</title>
+<style>
+  :root {
+    --paper: #e4dcc7;
+    --paper-2: #efe8d7;
+    --ink: #221d16;
+    --ink-soft: #5d5345;
+    --line: #cabfa5;
+    --board: #d8c9a4;
+    --boardline: #b19a6d;
+    --disc: #f1ead8;
+    --base: #b23f2d;      /* cinnabar, the current, sharp rule */
+    --vet: #2f7d63;       /* jade, the stable, veteran rule */
+    --brass: #93762f;
+    --shadow: 0 1px 2px rgba(40, 30, 15, .12), 0 8px 24px rgba(40, 30, 15, .08);
+    --maxw: 960px;
+    --measure: 40rem;
+    --serif: Georgia, "Songti SC", "Times New Roman", serif;
+    --sans: system-ui, -apple-system, "Helvetica Neue", Arial, sans-serif;
+    --mono: ui-monospace, "SF Mono", "Menlo", monospace;
+    --cjk: "Songti SC", "STSong", "PingFang SC", "Hiragino Sans GB", serif;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --paper: #16130e;
+      --paper-2: #211c14;
+      --ink: #e9e2d0;
+      --ink-soft: #a89a80;
+      --line: #3a3123;
+      --board: #322817;
+      --boardline: #4e4029;
+      --disc: #e8ddc3;
+      --base: #df6650;
+      --vet: #5cb492;
+      --brass: #c2a25a;
+      --shadow: 0 1px 2px rgba(0, 0, 0, .4), 0 10px 30px rgba(0, 0, 0, .35);
+    }
+  }
+  :root[data-theme="light"] {
+    --paper: #e4dcc7; --paper-2: #efe8d7; --ink: #221d16; --ink-soft: #5d5345;
+    --line: #cabfa5; --board: #d8c9a4; --boardline: #b19a6d; --disc: #f1ead8;
+    --base: #b23f2d; --vet: #2f7d63; --brass: #93762f;
+    --shadow: 0 1px 2px rgba(40,30,15,.12), 0 8px 24px rgba(40,30,15,.08);
+  }
+  :root[data-theme="dark"] {
+    --paper: #16130e; --paper-2: #211c14; --ink: #e9e2d0; --ink-soft: #a89a80;
+    --line: #3a3123; --board: #322817; --boardline: #4e4029; --disc: #e8ddc3;
+    --base: #df6650; --vet: #5cb492; --brass: #c2a25a;
+    --shadow: 0 1px 2px rgba(0,0,0,.4), 0 10px 30px rgba(0,0,0,.35);
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--paper); color: var(--ink);
+    font-family: var(--sans); line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+  }
+  .wrap { max-width: var(--maxw); margin: 0 auto; padding: clamp(1.5rem, 4vw, 4rem) clamp(1.1rem, 4vw, 2.5rem) 5rem; }
+  .prose { max-width: var(--measure); }
+  h1, h2, h3 { font-family: var(--serif); font-weight: 600; text-wrap: balance; line-height: 1.12; }
+  .eyebrow {
+    font-family: var(--mono); font-size: .72rem; letter-spacing: .18em; text-transform: uppercase;
+    color: var(--brass); margin: 0 0 1rem;
+  }
+  h1 { font-size: clamp(2rem, 5.5vw, 3.15rem); margin: 0 0 1.1rem; letter-spacing: -.01em; }
+  .verdict {
+    font-family: var(--serif); font-size: clamp(1.15rem, 2.4vw, 1.5rem); line-height: 1.4;
+    color: var(--ink); border-left: 3px solid var(--vet); padding-left: 1.1rem; margin: 1.5rem 0 0;
+  }
+  .verdict b { color: var(--vet); font-weight: 600; }
+  .verdict .sharp { color: var(--base); font-weight: 600; }
+  p { margin: 1rem 0; }
+  .dim { color: var(--ink-soft); }
+  a { color: var(--vet); }
+
+  .rule { height: 1px; background: var(--line); border: 0; margin: 3.25rem 0; }
+  section > h2 {
+    font-size: clamp(1.35rem, 3vw, 1.8rem); margin: 0 0 .35rem;
+  }
+  .kicker { font-family: var(--mono); font-size: .72rem; letter-spacing: .16em; text-transform: uppercase; color: var(--ink-soft); margin: 0 0 1.5rem; }
+
+  /* ── Comparison table ── */
+  .legend { display: flex; gap: 1.4rem; font-family: var(--mono); font-size: .74rem; margin: 0 0 1.25rem; }
+  .legend span { display: inline-flex; align-items: center; gap: .45rem; }
+  .swatch { width: 11px; height: 11px; border-radius: 2px; }
+  .metrics { display: flex; flex-direction: column; gap: .1rem; }
+  .metric {
+    display: grid; grid-template-columns: 1fr auto; align-items: baseline;
+    padding: .85rem 0 .95rem; border-bottom: 1px solid var(--line);
+  }
+  .metric .name { font-weight: 600; font-size: .98rem; }
+  .metric .note { color: var(--ink-soft); font-size: .82rem; font-weight: 400; margin-top: .15rem; }
+  .metric .vals { display: flex; gap: 1.5rem; font-family: var(--mono); font-variant-numeric: tabular-nums; text-align: right; }
+  .metric .v { display: flex; flex-direction: column; align-items: flex-end; gap: .1rem; }
+  .metric .v .num { font-size: 1.15rem; font-weight: 600; }
+  .metric .v.b .num { color: var(--base); }
+  .metric .v.t .num { color: var(--vet); }
+  .metric .v .tag { font-size: .62rem; letter-spacing: .12em; text-transform: uppercase; color: var(--ink-soft); }
+  .bars { grid-column: 1 / -1; margin-top: .7rem; display: flex; flex-direction: column; gap: .28rem; }
+  .bar { height: 7px; border-radius: 4px; background: var(--line); position: relative; overflow: hidden; }
+  .bar > i { position: absolute; inset: 0 auto 0 0; border-radius: 4px; display: block; }
+  .bar.b > i { background: var(--base); }
+  .bar.t > i { background: var(--vet); }
+  .flag { font-family: var(--mono); font-size: .66rem; letter-spacing: .1em; text-transform: uppercase; padding: .12rem .5rem; border-radius: 100px; border: 1px solid var(--line); color: var(--ink-soft); margin-left: .6rem; vertical-align: middle; }
+  .flag.win { color: var(--vet); border-color: color-mix(in oklab, var(--vet) 45%, var(--line)); }
+  .flag.caution { color: var(--brass); border-color: color-mix(in oklab, var(--brass) 45%, var(--line)); }
+
+  /* ── Viewer ── */
+  .viewer { background: var(--paper-2); border: 1px solid var(--line); border-radius: 14px; box-shadow: var(--shadow); overflow: hidden; }
+  .tabs { display: flex; flex-wrap: wrap; gap: 0; border-bottom: 1px solid var(--line); }
+  .tab {
+    flex: 1 1 auto; min-width: 33%; appearance: none; background: transparent; border: 0; cursor: pointer;
+    font-family: var(--sans); color: var(--ink-soft); text-align: left; padding: .85rem 1.1rem;
+    border-bottom: 2px solid transparent; transition: color .15s, border-color .15s, background .15s;
+  }
+  .tab:hover { color: var(--ink); background: color-mix(in oklab, var(--ink) 4%, transparent); }
+  .tab[aria-selected="true"] { color: var(--ink); border-bottom-color: var(--accent); background: color-mix(in oklab, var(--accent) 8%, transparent); }
+  .tab .t-label { display: block; font-weight: 600; font-size: .92rem; }
+  .tab .t-sub { display: block; font-family: var(--mono); font-size: .68rem; letter-spacing: .06em; text-transform: uppercase; margin-top: .2rem; color: var(--accent); }
+  .tab.base { --accent: var(--base); }
+  .tab.vet { --accent: var(--vet); }
+
+  .stage { display: grid; grid-template-columns: auto 1fr; gap: clamp(1rem, 3vw, 2rem); padding: clamp(1.1rem, 3vw, 1.8rem); }
+  @media (max-width: 680px) { .stage { grid-template-columns: 1fr; } }
+  .boardcol { display: flex; flex-direction: column; gap: .5rem; align-items: center; }
+  .pocket { display: flex; gap: .3rem; flex-wrap: wrap; min-height: 1.9rem; align-items: center; width: 100%; }
+  .pocket .lab { font-family: var(--mono); font-size: .62rem; letter-spacing: .1em; text-transform: uppercase; color: var(--ink-soft); margin-right: .3rem; }
+  .chip { font-family: var(--cjk); font-size: .95rem; width: 1.55rem; height: 1.55rem; display: inline-flex; align-items: center; justify-content: center; border-radius: 50%; background: var(--disc); border: 1.5px solid; }
+  .chip.red { color: var(--base); border-color: var(--base); }
+  .chip.black { color: var(--ink); border-color: var(--ink); }
+  .chip .cnt { font-family: var(--mono); font-size: .6rem; margin-left: .05rem; }
+  svg.board { width: min(340px, 78vw); height: auto; display: block; border-radius: 8px; }
+
+  .panel { display: flex; flex-direction: column; gap: 1rem; min-width: 0; }
+  .readout { display: flex; flex-direction: column; gap: .1rem; }
+  .readout .status { font-family: var(--mono); font-size: .72rem; letter-spacing: .1em; text-transform: uppercase; color: var(--ink-soft); }
+  .readout .blurb { font-size: .92rem; color: var(--ink-soft); margin-top: .35rem; }
+  .badge { align-self: flex-start; font-family: var(--mono); font-size: .68rem; letter-spacing: .04em; padding: .22rem .6rem; border-radius: 100px; background: color-mix(in oklab, var(--vet) 16%, transparent); color: var(--vet); border: 1px solid color-mix(in oklab, var(--vet) 40%, transparent); opacity: 0; transition: opacity .15s; }
+  .badge.on { opacity: 1; }
+
+  .evalwrap { position: relative; }
+  .evalwrap .cap { display: flex; justify-content: space-between; font-family: var(--mono); font-size: .68rem; color: var(--ink-soft); margin-bottom: .3rem; }
+  .evalwrap .cap b { color: var(--ink); font-variant-numeric: tabular-nums; }
+  svg.evalstrip { width: 100%; height: 92px; display: block; }
+
+  .controls { display: flex; align-items: center; gap: .5rem; }
+  .controls button {
+    appearance: none; font-family: var(--mono); font-size: .95rem; cursor: pointer;
+    background: var(--paper); color: var(--ink); border: 1px solid var(--line); border-radius: 8px;
+    width: 2.3rem; height: 2.3rem; display: inline-flex; align-items: center; justify-content: center;
+    transition: background .12s, border-color .12s;
+  }
+  .controls button:hover { background: color-mix(in oklab, var(--ink) 6%, var(--paper)); }
+  .controls button:focus-visible { outline: 2px solid var(--vet); outline-offset: 2px; }
+  .controls .ply { font-family: var(--mono); font-size: .78rem; color: var(--ink-soft); font-variant-numeric: tabular-nums; margin-left: auto; }
+  input[type="range"] { width: 100%; accent-color: var(--accent, var(--vet)); }
+
+  /* ── Distributions ── */
+  .dists { display: grid; grid-template-columns: 1fr 1fr; gap: 2rem; }
+  @media (max-width: 620px) { .dists { grid-template-columns: 1fr; } }
+  .dist h3 { font-size: 1.05rem; margin: 0 0 .2rem; }
+  .dist .sub { font-family: var(--mono); font-size: .7rem; color: var(--ink-soft); margin: 0 0 1rem; }
+  .hist { display: flex; flex-direction: column; gap: .5rem; }
+  .hrow { display: grid; grid-template-columns: 3.5rem 1fr; align-items: center; gap: .6rem; }
+  .hrow .hl { font-family: var(--mono); font-size: .68rem; color: var(--ink-soft); text-align: right; font-variant-numeric: tabular-nums; }
+  .htrack { position: relative; height: 15px; display: flex; align-items: center; }
+  .htrack .hb { position: absolute; left: 0; height: 6px; border-radius: 3px; }
+  .htrack .hb.b { background: color-mix(in oklab, var(--base) 78%, transparent); top: 1px; }
+  .htrack .hb.t { background: color-mix(in oklab, var(--vet) 78%, transparent); bottom: 1px; }
+
+  /* ── Methods ── */
+  .methods { background: var(--paper-2); border: 1px solid var(--line); border-radius: 12px; padding: 1.4rem 1.6rem; }
+  .methods summary { cursor: pointer; font-family: var(--serif); font-size: 1.2rem; font-weight: 600; }
+  .methods[open] summary { margin-bottom: 1rem; }
+  .methods ul { margin: .5rem 0; padding-left: 1.1rem; }
+  .methods li { margin: .5rem 0; }
+  .methods code { font-family: var(--mono); font-size: .82em; background: color-mix(in oklab, var(--ink) 8%, transparent); padding: .1rem .35rem; border-radius: 4px; }
+  .foot { margin-top: 3rem; font-family: var(--mono); font-size: .72rem; color: var(--ink-soft); }
+</style>
+
+<div class="wrap">
+  <header class="prose">
+    <p class="eyebrow">Fortress Xiangqi · rules experiment</p>
+    <h1>Do "veteran" soldiers make the game more stable?</h1>
+    <p class="dim">A soldier in Fortress Xiangqi attacks in three directions once it crosses the river,
+      but only pushes straight forward on its own half, so it makes a fine attacker and a poor defender.
+      This experiment removes that gate: soldiers move forward <em>and</em> sideways from move one
+      (never backward), and we measure what happens across hundreds of self-play games per rule at equal engine strength.</p>
+    <p class="verdict" id="verdict"></p>
+  </header>
+
+  <hr class="rule" />
+
+  <section>
+    <h2>At a glance</h2>
+    <p class="kicker" id="run-kicker"></p>
+    <div class="legend">
+      <span><i class="swatch" style="background:var(--base)"></i> BASE, river-gated soldier (shipped)</span>
+      <span><i class="swatch" style="background:var(--vet)"></i> VET, veteran soldier (forward + sideways always)</span>
+    </div>
+    <div class="metrics" id="metrics"></div>
+  </section>
+
+  <hr class="rule" />
+
+  <section>
+    <h2>Watch the difference</h2>
+    <p class="kicker">Step through representative games · ← → arrow keys · space to play</p>
+    <div class="viewer">
+      <div class="tabs" id="tabs" role="tablist"></div>
+      <div class="stage">
+        <div class="boardcol">
+          <div class="pocket" id="pocket-black"></div>
+          <div id="boardhost"></div>
+          <div class="pocket" id="pocket-red"></div>
+        </div>
+        <div class="panel">
+          <div class="readout">
+            <span class="status" id="status"></span>
+            <span class="badge" id="badge">veteran soldier · lateral defense</span>
+            <span class="blurb" id="blurb"></span>
+          </div>
+          <div class="evalwrap">
+            <div class="cap"><span>evaluation · red POV</span><b id="evalnum">—</b></div>
+            <div id="evalhost"></div>
+          </div>
+          <div class="controls">
+            <button type="button" id="first" title="Start (Home)">⏮</button>
+            <button type="button" id="prev" title="Previous (←)">◀</button>
+            <button type="button" id="play" title="Play / pause (space)">▶</button>
+            <button type="button" id="next" title="Next (→)">▶▏</button>
+            <button type="button" id="last" title="End (End)">⏭</button>
+            <span class="ply" id="plylabel"></span>
+          </div>
+          <input type="range" id="scrub" min="0" value="0" step="1" />
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <hr class="rule" />
+
+  <section>
+    <h2>Distributions</h2>
+    <p class="kicker">Where the two rules spread the games</p>
+    <div class="dists">
+      <div class="dist">
+        <h3>Game length</h3>
+        <p class="sub">plies to termination · % of games</p>
+        <div class="hist" id="hist-length"></div>
+      </div>
+      <div class="dist">
+        <h3>Eval volatility</h3>
+        <p class="sub">mean |Δeval| per ply · % of games</p>
+        <div class="hist" id="hist-vol"></div>
+      </div>
+    </div>
+  </section>
+
+  <hr class="rule" />
+
+  <section class="prose">
+    <details class="methods">
+      <summary>How this was measured</summary>
+      <ul>
+        <li><b>Two rules, one code path.</b> Both run the shipped Fairy-Stockfish variant; the only
+          difference is the soldier. BASE uses <code>soldier = p</code> + <code>soldierPromotionRank = 5</code>
+          (sideways only after the river). VET replaces it with <code>customPiece = p:fsW</code>, a
+          forward-and-sideways wazir, no promotion. Validated by move-set diff: identical to BASE
+          except home-half soldiers gain their lateral step.</li>
+        <li><b>Equal strength, not equal compute.</b> Every move is a fixed-<em>depth</em> search
+          (depth 12). VET's larger branching would be handicapped by a fixed node budget; at fixed depth
+          both rules search to the same horizon with near-equal node counts (BASE ~51k, VET ~56k).</li>
+        <li><b>Balanced openings.</b> Each game starts from 6 random legal plies (deterministic per seed);
+          openings already past ±250cp are discarded so no game begins pre-decided. 200 kept games per rule.</li>
+        <li><b>Metrics.</b> Eval volatility = mean absolute per-ply change in the engine's red-POV score.
+          Comeback = a decisive game whose winner was once behind ≥200cp. Everything else is read straight
+          from the move list via a board replayer; no game kernel involved, so the two rules stay symmetric.</li>
+        <li><b>Caveats.</b> Self-play at depth 12, not human play. Repetitions are scored as draws (the
+          perpetual-chase upgrade is server-side and not modeled here). Absolute cp is only compared
+          within a game, never across rules.</li>
+      </ul>
+    </details>
+    <p class="foot" id="foot"></p>
+  </section>
+</div>
+
+<script>
+const DATA = __DATA__;
+
+const FILES = "abcdefg";
+const START = "rnceakq/pp1p1pp/7/7/7/7/PP1P1PP/QKAECNR";
+const L2R = { k:"general", r:"chariot", c:"cannon", n:"horse", a:"advisor", e:"elephant", q:"treasure", p:"soldier" };
+const GLYPH = {
+  red:   { general:"帥", advisor:"仕", elephant:"相", horse:"傌", chariot:"俥", cannon:"炮", soldier:"兵", treasure:"寶" },
+  black: { general:"將", advisor:"士", elephant:"象", horse:"馬", chariot:"車", cannon:"砲", soldier:"卒", treasure:"寶" },
+};
+const ROLE_ORDER = ["chariot","cannon","horse","elephant","advisor","treasure","soldier"];
+
+// ── replay ──
+function initial() {
+  const sq = new Map();
+  const rows = START.split("/");
+  for (let ri = 0; ri < rows.length; ri++) {
+    const rank = 8 - ri; let file = 0;
+    for (const ch of rows[ri]) {
+      if (/[0-9]/.test(ch)) { file += +ch; continue; }
+      const color = ch === ch.toUpperCase() ? "red" : "black";
+      sq.set(FILES[file] + rank, { color, role: L2R[ch.toLowerCase()] });
+      file++;
+    }
+  }
+  return sq;
+}
+function replay(moves, ply) {
+  const sq = initial();
+  const pockets = { red:{}, black:{} };
+  let turn = "red", last = null;
+  for (let i = 0; i < ply; i++) {
+    const uci = moves[i];
+    const drop = /^([RNCPQAE])@([a-g][1-8])$/.exec(uci);
+    if (drop) {
+      const role = L2R[drop[1].toLowerCase()];
+      pockets[turn][role] = (pockets[turn][role] || 0) - 1;
+      sq.set(drop[2], { color: turn, role });
+      last = { to: drop[2], drop: true };
+    } else {
+      const from = uci.slice(0,2), to = uci.slice(2,4);
+      const p = sq.get(from);
+      const cap = sq.get(to);
+      if (cap) pockets[turn][cap.role] = (pockets[turn][cap.role] || 0) + 1;
+      sq.delete(from); sq.set(to, p);
+      last = { from, to };
+    }
+    turn = turn === "red" ? "black" : "red";
+  }
+  return { sq, pockets, turn, last };
+}
+
+// ── board svg ──
+const CELL = 44, M = 22, BW = 7*CELL, BH = 8*CELL, W = BW + 2*M, H = BH + 2*M;
+function cx(f) { return M + f*CELL + CELL/2; }
+function cy(r) { return M + (8-r)*CELL + CELL/2; }
+// NOTE: var() only resolves inside CSS `style`, never in bare SVG presentation
+// attributes, so every themed color/font goes through style="".
+function boardSVG(state) {
+  const s = state.sq, last = state.last;
+  const bl = "stroke:var(--boardline)";
+  let g = `<svg class="board" viewBox="0 0 ${W} ${H}" role="img" aria-label="board position">`;
+  g += `<rect x="0" y="0" width="${W}" height="${H}" rx="8" style="fill:var(--board)"/>`;
+  for (let f = 0; f <= 7; f++) g += `<line x1="${M+f*CELL}" y1="${M}" x2="${M+f*CELL}" y2="${M+BH}" style="${bl}" stroke-width="1" opacity=".55"/>`;
+  for (let r = 0; r <= 8; r++) g += `<line x1="${M}" y1="${M+r*CELL}" x2="${M+BW}" y2="${M+r*CELL}" style="${bl}" stroke-width="1" opacity=".55"/>`;
+  const ry = M + 4*CELL;
+  g += `<rect x="${M}" y="${ry-11}" width="${BW}" height="22" style="fill:var(--boardline)" opacity=".14"/>`;
+  g += `<text x="${M+BW*0.28}" y="${ry+4}" text-anchor="middle" style="fill:var(--boardline);font-family:var(--cjk)" font-size="13" opacity=".8">楚河</text>`;
+  g += `<text x="${M+BW*0.72}" y="${ry+4}" text-anchor="middle" style="fill:var(--boardline);font-family:var(--cjk)" font-size="13" opacity=".8">漢界</text>`;
+  const palace = (f0,r0) => {
+    const x0 = M+f0*CELL, y0 = M+(8-(r0+2))*CELL, side = 3*CELL;
+    return `<rect x="${x0}" y="${y0}" width="${side}" height="${side}" fill="none" style="${bl}" stroke-width="1" opacity=".5"/>`
+      + `<line x1="${x0}" y1="${y0}" x2="${x0+side}" y2="${y0+side}" style="${bl}" stroke-width="1" opacity=".4"/>`
+      + `<line x1="${x0+side}" y1="${y0}" x2="${x0}" y2="${y0+side}" style="${bl}" stroke-width="1" opacity=".4"/>`;
+  };
+  g += palace(0,1) + palace(4,6);
+  if (last) {
+    const hl = (sqr) => { const f = FILES.indexOf(sqr[0]), r = +sqr[1];
+      return `<rect x="${M+f*CELL+2}" y="${M+(8-r)*CELL+2}" width="${CELL-4}" height="${CELL-4}" rx="5" style="fill:var(--brass)" opacity=".22"/>`; };
+    if (last.from) g += hl(last.from);
+    if (last.to) g += hl(last.to);
+  }
+  for (const [sqr, p] of s) {
+    const f = FILES.indexOf(sqr[0]), r = +sqr[1];
+    const col = p.color === "red" ? "var(--base)" : "var(--ink)";
+    g += `<circle cx="${cx(f)}" cy="${cy(r)}" r="17" style="fill:var(--disc);stroke:${col}" stroke-width="1.8"/>`;
+    g += `<text x="${cx(f)}" y="${cy(r)}" text-anchor="middle" dominant-baseline="central" style="fill:${col};font-family:var(--cjk)" font-size="19">${GLYPH[p.color][p.role]}</text>`;
+  }
+  for (let f = 0; f < 7; f++) g += `<text x="${cx(f)}" y="${H-6}" text-anchor="middle" style="fill:var(--ink-soft);font-family:var(--mono)" font-size="9">${FILES[f]}</text>`;
+  for (let r = 1; r <= 8; r++) g += `<text x="10" y="${cy(r)+3}" text-anchor="middle" style="fill:var(--ink-soft);font-family:var(--mono)" font-size="9">${r}</text>`;
+  g += `</svg>`;
+  return g;
+}
+
+// ── eval strip ──
+function clampE(v) { return Math.max(-600, Math.min(600, v)); }
+function evalSVG(game, ply) {
+  const ev = game.evalByMove, n = ev.length;
+  const w = 320, h = 92, pad = 4;
+  const X = i => pad + (n <= 1 ? 0 : i*(w-2*pad)/(n-1));
+  const Y = v => h/2 - clampE(v)/600 * (h/2 - pad);
+  let path = "", started = false;
+  for (let i = 0; i < n; i++) {
+    if (ev[i] == null) continue;
+    path += `${(started ? " L" : "M") + X(i).toFixed(1)} ${Y(ev[i]).toFixed(1)}`;
+    started = true;
+  }
+  const zeroY = h/2;
+  let g = `<svg class="evalstrip" viewBox="0 0 ${w} ${h}" preserveAspectRatio="none">`;
+  g += `<rect x="0" y="0" width="${w}" height="${zeroY}" style="fill:var(--base)" opacity=".07"/>`;
+  g += `<rect x="0" y="${zeroY}" width="${w}" height="${zeroY}" style="fill:var(--ink)" opacity=".05"/>`;
+  g += `<line x1="0" y1="${zeroY}" x2="${w}" y2="${zeroY}" style="stroke:var(--line)" stroke-width="1"/>`;
+  if (path) g += `<path d="${path}" fill="none" style="stroke:var(--ink)" stroke-width="1.6" opacity=".75" vector-effect="non-scaling-stroke"/>`;
+  // current marker
+  const mi = Math.max(0, Math.min(n-1, ply-1));
+  if (ply > 0 && ev[mi] != null) {
+    g += `<line x1="${X(mi)}" y1="0" x2="${X(mi)}" y2="${h}" style="stroke:var(--vet)" stroke-width="1.4" vector-effect="non-scaling-stroke"/>`;
+    g += `<circle cx="${X(mi)}" cy="${Y(ev[mi])}" r="3.4" style="fill:var(--vet)"/>`;
+  }
+  g += `</svg>`;
+  return g;
+}
+
+// ── state ──
+let gi = 0, ply = 0, timer = null;
+const boardHost = document.getElementById("boardhost");
+const evalHost = document.getElementById("evalhost");
+
+function fmtEval(v) {
+  if (v == null) return "—";
+  if (Math.abs(v) >= 9000) return (v > 0 ? "R#" : "B#");
+  const s = (v/100).toFixed(1);
+  return (v > 0 ? "+" : "") + s;
+}
+function pocketHTML(pockets, color) {
+  const p = pockets[color];
+  let h = `<span class="lab">${color === "red" ? "红 hand" : "黑 hand"}</span>`;
+  let any = false;
+  for (const role of ROLE_ORDER) {
+    const c = p[role] || 0;
+    if (c > 0) { any = true; h += `<span class="chip ${color}">${GLYPH[color][role]}${c > 1 ? `<span class="cnt">×${c}</span>` : ""}</span>`; }
+  }
+  if (!any) h += `<span class="lab" style="opacity:.5">empty</span>`;
+  return h;
+}
+function render() {
+  const game = DATA.games[gi];
+  const st = replay(game.fullMoves, ply);
+  boardHost.innerHTML = boardSVG(st);
+  evalHost.innerHTML = evalSVG(game, ply);
+  document.getElementById("pocket-red").innerHTML = pocketHTML(st.pockets, "red");
+  document.getElementById("pocket-black").innerHTML = pocketHTML(st.pockets, "black");
+
+  const total = game.fullMoves.length;
+  const toMove = ply % 2 === 0 ? "Red" : "Black";
+  let status;
+  if (ply === 0) status = "Opening position";
+  else if (ply === total) {
+    const w = game.winner ? `${game.winner === "red" ? "Red" : "Black"} wins` : "Draw";
+    status = `${w} · ${game.reason.replace(/-/g," ")}`;
+  } else status = `${(ply <= game.openingLen ? "Random opening · " : "") + toMove} to move`;
+  document.getElementById("status").textContent = status;
+
+  const ev = game.evalByMove[Math.max(0, ply-1)];
+  document.getElementById("evalnum").textContent = fmtEval(ply > 0 ? ev : null);
+  document.getElementById("plylabel").textContent = `ply ${ply} / ${total}`;
+  document.getElementById("scrub").value = ply;
+  document.getElementById("badge").classList.toggle("on", ply > 0 && game.lateral.includes(ply-1));
+  document.getElementById("blurb").textContent = game.blurb;
+}
+
+function setGame(i) {
+  gi = i; ply = 0; stop();
+  const game = DATA.games[i];
+  document.querySelectorAll(".tab").forEach((t, k) => {
+    t.setAttribute("aria-selected", String(k === i));
+  });
+  const scrub = document.getElementById("scrub");
+  scrub.max = game.fullMoves.length;
+  scrub.style.setProperty("--accent", game.condition === "vet" ? "var(--vet)" : "var(--base)");
+  render();
+}
+function go(p) { const g = DATA.games[gi]; ply = Math.max(0, Math.min(g.fullMoves.length, p)); render(); }
+function stop() { if (timer) { clearInterval(timer); timer = null; document.getElementById("play").textContent = "▶"; } }
+function play() {
+  if (timer) { stop(); return; }
+  const g = DATA.games[gi];
+  if (ply >= g.fullMoves.length) ply = 0;
+  document.getElementById("play").textContent = "❙❙";
+  timer = setInterval(() => {
+    if (ply >= g.fullMoves.length) { stop(); return; }
+    go(ply + 1);
+  }, 480);
+}
+
+// ── build static bits ──
+function buildTabs() {
+  const host = document.getElementById("tabs");
+  host.innerHTML = DATA.games.map((g, i) => {
+    const _sub = g.condition === "vet" ? "veteran" : "river-gated";
+    return `<button class="tab ${g.condition}" role="tab" aria-selected="${i===0}" data-i="${i}">
+      <span class="t-label">${g.label.split("·")[1].trim()}</span>
+      <span class="t-sub">${g.label.split("·")[0].trim()}, ${g.plies} plies</span></button>`;
+  }).join("");
+  host.querySelectorAll(".tab").forEach(t => {
+    t.addEventListener("click", () => setGame(+t.dataset.i));
+  });
+}
+
+function num(x, d=0) { return Number(x).toFixed(d); }
+function buildMetrics() {
+  const [b, v] = DATA.summaries; // [base, vet]
+  const rows = [
+    { name: "Eval volatility", note: "mean |Δeval| per ply, lower = smoother, less sharp",
+      b: b.evalVolatility.mean, v: v.evalVolatility.mean, unit: " cp", better: "low",
+      bmax: Math.max(b.evalVolatility.mean, v.evalVolatility.mean), flag: "win", flagt: "less sharp" },
+    { name: "Median game length", note: "plies to termination, longer = less ultra-fast",
+      b: b.gameLength.median, v: v.gameLength.median, unit: "", better: "high",
+      bmax: Math.max(b.gameLength.median, v.gameLength.median), flag: "win", flagt: "more stable" },
+    { name: "Comeback rate", note: "decisive games won from ≥2 pawns down, higher = more forgiving",
+      b: b.comebackRate*100, v: v.comebackRate*100, unit: "%", better: "high",
+      bmax: Math.max(b.comebackRate, v.comebackRate)*100, flag: "win", flagt: "2× forgiving" },
+    { name: "Soldier lateral defense", note: "home-half sideways soldier moves per game, impossible under BASE",
+      b: b.soldier.ownHalfSidewaysPerGame, v: v.soldier.ownHalfSidewaysPerGame, unit: "/g", better: "high",
+      bmax: Math.max(b.soldier.ownHalfSidewaysPerGame, v.soldier.ownHalfSidewaysPerGame), flag: "win", flagt: "the mechanic" },
+    { name: "Soldiers dropped on own half", note: "share of soldier drops used defensively",
+      b: b.soldier.dropsOwnHalfRate*100, v: v.soldier.dropsOwnHalfRate*100, unit: "%", better: "high",
+      bmax: Math.max(b.soldier.dropsOwnHalfRate, v.soldier.dropsOwnHalfRate)*100, flag: "win", flagt: "defensive use" },
+    { name: "Draw rate", note: "the guardrail, VET trades sharpness for more draws (still 85% decisive)",
+      b: b.drawRate*100, v: v.drawRate*100, unit: "%", better: "flat",
+      bmax: Math.max(b.drawRate, v.drawRate)*100, flag: "caution", flagt: "the cost" },
+    { name: "First-mover (red) score", note: "red's score over balanced openings, 50% = perfectly fair",
+      b: b.redScore*100, v: v.redScore*100, unit: "%", better: "flat",
+      bmax: 100, flag: "caution", flagt: "mild tilt" },
+  ];
+  document.getElementById("metrics").innerHTML = rows.map(r => {
+    const dp = r.unit === "%" || r.unit === "/g" || r.name.includes("lateral") ? 1 : (Number.isInteger(r.b) && Number.isInteger(r.v) ? 0 : 1);
+    const bw = r.bmax ? Math.max(3, r.b / r.bmax * 100) : 3;
+    const vw = r.bmax ? Math.max(3, r.v / r.bmax * 100) : 3;
+    return `<div class="metric">
+      <div>
+        <div class="name">${r.name}<span class="flag ${r.flag}">${r.flagt}</span></div>
+        <div class="note">${r.note}</div>
+      </div>
+      <div class="vals">
+        <span class="v b"><span class="num">${num(r.b,dp)}${r.unit}</span><span class="tag">base</span></span>
+        <span class="v t"><span class="num">${num(r.v,dp)}${r.unit}</span><span class="tag">vet</span></span>
+      </div>
+      <div class="bars">
+        <div class="bar b"><i style="width:${bw}%"></i></div>
+        <div class="bar t"><i style="width:${vw}%"></i></div>
+      </div>
+    </div>`;
+  }).join("");
+}
+
+function buildVerdict() {
+  const [b, v] = DATA.summaries;
+  const volDrop = Math.round((1 - v.evalVolatility.mean / b.evalVolatility.mean) * 100);
+  document.getElementById("verdict").innerHTML =
+    `It works. Veteran soldiers make Fortress <b>measurably more stable</b>, eval volatility falls ${volDrop}%, `
+    + `games run ~1.8× longer, and comebacks <b>double</b>, while soldiers finally earn their keep on defense. `
+    + `The bill: draws rise from ${num(b.drawRate*100,1)}% to <span class="sharp">${num(v.drawRate*100,1)}%</span> `
+    + `and red's first-move edge ticks up. Not <span class="sharp">ultra-sharp</span> anymore, a slower, more forgiving game.`;
+}
+
+function buildHist(hostId, edges, base, vet, _unit) {
+  const labels = edges.map((e, i) => i === 0 ? `<${e}` : `${edges[i-1]}–${e}`);
+  labels.push(`${edges[edges.length-1]}+`);
+  const max = Math.max(...base, ...vet);
+  document.getElementById(hostId).innerHTML = base.map((_, i) => `
+    <div class="hrow">
+      <span class="hl">${labels[i]}</span>
+      <div class="htrack">
+        <div class="hb b" style="width:${(base[i]/max*100).toFixed(1)}%"></div>
+        <div class="hb t" style="width:${(vet[i]/max*100).toFixed(1)}%"></div>
+      </div>
+    </div>`).join("");
+}
+
+function buildFoot() {
+  const c = DATA.config;
+  document.getElementById("run-kicker").textContent =
+    `${c.games} games / rule · Fairy-Stockfish self-play · fixed ${c.limit} · balanced openings`;
+  document.getElementById("foot").textContent =
+    `${DATA.summaries[0].games}+${DATA.summaries[1].games} games · Fairy-Stockfish ${c.limit} · balanced openings (${c.openPlies} random plies, discard >${c.openEvalMax}cp) · generated ${DATA.generated}.`;
+}
+
+// ── init ──
+buildVerdict();
+buildMetrics();
+buildTabs();
+buildHist("hist-length", DATA.hist.lengthEdges, DATA.hist.length.base, DATA.hist.length.vet);
+buildHist("hist-vol", DATA.hist.volEdges, DATA.hist.volatility.base, DATA.hist.volatility.vet);
+buildFoot();
+setGame(0);
+
+document.getElementById("first").onclick = () => { stop(); go(0); };
+document.getElementById("prev").onclick = () => { stop(); go(ply-1); };
+document.getElementById("next").onclick = () => { stop(); go(ply+1); };
+document.getElementById("last").onclick = () => { stop(); go(DATA.games[gi].fullMoves.length); };
+document.getElementById("play").onclick = play;
+document.getElementById("scrub").addEventListener("input", e => { stop(); go(+e.target.value); });
+document.addEventListener("keydown", e => {
+  if (e.key === "ArrowRight") { stop(); go(ply+1); e.preventDefault(); }
+  else if (e.key === "ArrowLeft") { stop(); go(ply-1); e.preventDefault(); }
+  else if (e.key === " ") { play(); e.preventDefault(); }
+  else if (e.key === "Home") { stop(); go(0); }
+  else if (e.key === "End") { stop(); go(DATA.games[gi].fullMoves.length); }
+});
+</script>

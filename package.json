@@ -18,6 +18,7 @@
     "db:seed:profiles": "env DATABASE_URL=postgres://mistboard:mistboard@localhost:5435/mistboard npm run seed:profiles --workspace @mistboard/server",
     "db:seed:watch": "env DATABASE_URL=postgres://mistboard:mistboard@localhost:5435/mistboard npm run seed:watch --workspace @mistboard/server",
     "generate:variant-fixtures": "npm run generate:variant-fixtures --workspace @mistboard/server",
+    "variant:catalog": "tsx scripts/variant-catalog.ts",
     "db:seed:variant-fixtures": "env DATABASE_URL=postgres://mistboard:mistboard@localhost:5435/mistboard npm run seed:variant-fixtures --workspace @mistboard/server",
     "db:test:ensure": "node scripts/ensure-test-database.mjs",
     "test:persistent": "node scripts/run-persistent-tests.mjs",
