@@ -71,7 +71,11 @@ type RouteModule = {
   ): Promise<boolean>;
 };
 
-const routes: RouteModule[] = [
+// Exported for the games-route registration conformance test
+// (games-route-registration.test.ts): a new *-games.ts route file must be added
+// here or it silently 404s in production. This array is the hand-maintained
+// dispatch mirror with no compile-time enforcement; the test is the backstop.
+export const routes: RouteModule[] = [
   annotationsRoute,
   authRoute,
   accountRoute,
