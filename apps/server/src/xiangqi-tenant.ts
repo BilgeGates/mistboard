@@ -26,9 +26,14 @@ import {
   type XiangqiMove,
   type XiangqiSquare,
 } from '@mistboard/game';
-import { engineVersionDisplayName } from './engines/registry.js';
 import { xiangqiEnabled } from './feature-flags.js';
 import type * as persistence from './persistence.js';
+import {
+  isXiangqiEngineClientId,
+  xiangqiEngineDisplayName,
+  xiangqiEngineVersion,
+} from './server-xiangqi-engine.js';
+import { tenantForfeitDeadlineForClient, tenantPveEngineId } from './variant-tenant/runtime.js';
 import type {
   TenantClientEvent,
   TenantRoomEvent,
@@ -127,11 +132,25 @@ export const xiangqiTenant: XiangqiTenant = {
     viewForClient: (state, client) => getXiangqiClientView(state, client),
   },
   engine: {
-    // No xiangqi engine yet (Pikafish arrives in a later increment). Recognize
-    // no engine client ids → every game is PvP.
-    isEngineClientId: () => false,
-    displayName: engineVersionDisplayName,
+    // Mainline Pikafish PvE (server-xiangqi-engine.ts). Open information, so the
+    // engine sees the full truth board and replays from `position startpos moves`.
+    isEngineClientId: isXiangqiEngineClientId,
+    displayName: xiangqiEngineDisplayName,
+    engineVersion: xiangqiEngineVersion,
     reservationReleaseTag: 'xq',
+  },
+  wire: {
+    // PvE display parity with Fortress: surface roomMode + the bot's engine id +
+    // forfeit deadline. Open info, so no board re-encoding is needed.
+    snapshotExtras: (room, client) => {
+      const pveEngineId = tenantPveEngineId(xiangqiTenant, room);
+      return {
+        roomMode: pveEngineId === null ? 'pvp' : 'pve',
+        ...(pveEngineId === null ? {} : { pveEngineId }),
+        rated: room.rated,
+        forfeitDeadline: tenantForfeitDeadlineForClient(xiangqiTenant, room, client),
+      };
+    },
   },
   persistence: {
     resultForWinner: xiangqiResult,

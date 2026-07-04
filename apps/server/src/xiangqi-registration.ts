@@ -17,6 +17,7 @@ import {
 import {
   createXiangqiLiveRoom,
   type XiangqiLiveRoomCreation,
+  type XiangqiRoomEngineSeat,
 } from './server-xiangqi-room-factory.js';
 import { recordTenantPersistenceError } from './variant-tenant/events.js';
 import { getOrLoadTenantRoom } from './variant-tenant/hydration.js';
@@ -34,6 +35,7 @@ export const xiangqiRooms = new Map<string, XiangqiLiveRoom>();
 export async function createXiangqiRoom(
   timeControl?: RoomTimeControl,
   creatorPreference?: XiangqiCreatorPreference,
+  engine?: XiangqiRoomEngineSeat,
 ): Promise<XiangqiLiveRoomCreation> {
   return createXiangqiLiveRoom(
     {
@@ -46,6 +48,7 @@ export async function createXiangqiRoom(
     },
     timeControl,
     creatorPreference,
+    engine,
   );
 }
 

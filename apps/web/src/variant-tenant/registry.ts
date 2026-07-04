@@ -204,6 +204,29 @@ const WEB_VARIANT_TENANTS: readonly WebVariantTenant[] = [
       timePresetIds: ['1m1', '3m2', '5m5'],
       offerInMenu: xiangqiEnabled,
       acceptsDeepLink: xiangqiEnabled,
+      // Mainline Pikafish PvE. Ordered strongest-first so the toughest opponent
+      // sits at the top of the picker.
+      engineOptions: [
+        {
+          id: 'pikafish-xiangqi-strongest',
+          name: 'Pikafish - Strongest',
+          familyName: 'Pikafish',
+          kind: 'container',
+        },
+        {
+          id: 'pikafish-xiangqi-strong',
+          name: 'Pikafish - Strong',
+          familyName: 'Pikafish',
+          kind: 'container',
+        },
+        {
+          id: 'pikafish-xiangqi-amateur',
+          name: 'Pikafish - Amateur',
+          familyName: 'Pikafish',
+          kind: 'container',
+        },
+      ],
+      defaultEngineId: 'pikafish-xiangqi-strong',
     },
   },
   {

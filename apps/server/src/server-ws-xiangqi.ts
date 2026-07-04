@@ -1,12 +1,12 @@
 /**
  * Thin adapter over the generic tenant WebSocket runtime
- * (variant-tenant/ws.ts) for open-information Standard Xiangqi. No engine is
- * wired yet (Pikafish arrives in a later increment), so the runtime is created
- * WITHOUT a scheduleEngineMove hook — PvE never triggers.
+ * (variant-tenant/ws.ts) for open-information Standard Xiangqi. The
+ * scheduleEngineMove hook drives mainline-Pikafish PvE (server-xiangqi-engine.ts).
  */
 
 import type { IncomingMessage } from 'node:http';
 import type { WebSocket } from 'ws';
+import { scheduleXiangqiEngineMove } from './server-xiangqi-engine.js';
 import type { XiangqiLiveRoom } from './server-xiangqi-types.js';
 import { clearTenantRuntimeTimers } from './variant-tenant/lifecycle.js';
 import { createTenantWsRuntime } from './variant-tenant/ws.js';
@@ -20,7 +20,9 @@ export type XiangqiWebSocketContext = {
   wsMessageWindowMs: number;
 };
 
-export const xiangqiWs = createTenantWsRuntime(xiangqiTenant);
+export const xiangqiWs = createTenantWsRuntime(xiangqiTenant, {
+  scheduleEngineMove: (ctx, room) => scheduleXiangqiEngineMove(ctx, room),
+});
 
 export async function handleXiangqiWebSocketConnection(
   ctx: XiangqiWebSocketContext,
