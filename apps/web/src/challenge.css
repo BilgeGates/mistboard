@@ -1,0 +1,81 @@
+/* Challenge landing page (/challenge/:id). Uses the shared site tokens so it
+   tracks the light/dark theme like the rest of the client. */
+
+.challenge-card {
+  max-width: 520px;
+  margin: 32px auto;
+  padding: 24px;
+  border: 1px solid var(--site-border);
+  border-radius: var(--site-radius);
+  background: var(--site-surface);
+}
+
+.challenge-heading {
+  margin: 0 0 4px;
+  color: var(--site-heading);
+  font-size: 22px;
+  font-weight: 600;
+}
+
+.challenge-subhead {
+  margin: 0 0 16px;
+  color: var(--site-muted);
+  font-size: 14px;
+}
+
+.challenge-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+
+.challenge-btn,
+.challenge-btn-secondary {
+  display: inline-flex;
+  align-items: center;
+  padding: 8px 16px;
+  border-radius: var(--site-radius);
+  font-weight: 600;
+  font-size: 14px;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.challenge-btn {
+  border: 0;
+  background: var(--site-accent);
+  color: #fff;
+}
+
+.challenge-btn:hover {
+  filter: brightness(1.05);
+}
+
+.challenge-btn:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.challenge-btn-secondary {
+  border: 1px solid var(--site-border);
+  background: transparent;
+  color: var(--site-heading);
+}
+
+.challenge-share-link {
+  width: 100%;
+  margin: 4px 0 12px;
+  padding: 8px 10px;
+  border: 1px solid var(--site-border-soft);
+  border-radius: var(--site-radius);
+  background: var(--site-surface);
+  color: var(--site-muted);
+  font-size: 13px;
+}
+
+.challenge-status {
+  margin: 12px 0 0;
+  color: #c0392b;
+  font-size: 14px;
+}

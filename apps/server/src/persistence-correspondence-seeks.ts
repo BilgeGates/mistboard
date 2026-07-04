@@ -1,14 +1,25 @@
 /**
- * correspondence_seeks persistence: the open async-seek board (C3). A seek is a
- * standing correspondence request that anyone can accept later — accepting it
- * (the tenant accept flow) creates a room seating both players and deletes the
- * seek, so this table holds only open seeks. The per-user cap is enforced in
- * app code via countOpenSeeksForUser.
+ * correspondence_seeks persistence: the open async-seek board (C3) plus directed
+ * and link-only challenges (migration 076). A seek is a standing correspondence
+ * request; accepting it (the tenant accept flow) creates a room seating both
+ * players and deletes the seek, so this table holds only open seeks. The
+ * per-user cap is enforced in app code via countOpenSeeksForUser.
+ *
+ * Two dimensions layer challenges onto the board:
+ *   - visibility 'public' → the open board (anyone accepts); 'private' → off the
+ *     board, accepted by link (whoever holds the unguessable seek id).
+ *   - targetUserId set → a direct challenge only that account may accept; it
+ *     surfaces in the target's "challenges to me" list, never on the board.
+ * The public board is exactly visibility='public' AND targetUserId IS NULL.
  */
 
 import { getPool } from './persistence-db.js';
 
 export type SeekColorPreference = 'white' | 'black' | 'random';
+
+// 'public' seeks sit on the open board; 'private' seeks are off-board and
+// accepted by link (the shareable "play me" URL is the seek id).
+export type SeekVisibility = 'public' | 'private';
 
 export type CorrespondenceSeekRecord = {
   id: string;
@@ -16,6 +27,12 @@ export type CorrespondenceSeekRecord = {
   gameSpecId: string;
   daysPerMove: number;
   preferredColor: SeekColorPreference;
+  // null → open seek / link challenge; set → direct challenge to that account.
+  targetUserId: string | null;
+  visibility: SeekVisibility;
+  // null → never expires (public board seek); a timestamp → a challenge that is
+  // swept away and refused once past.
+  expiresAt: Date | null;
 };
 
 export type CorrespondenceSeekListing = CorrespondenceSeekRecord & {
@@ -26,12 +43,24 @@ export type CorrespondenceSeekListing = CorrespondenceSeekRecord & {
 export async function createCorrespondenceSeek(seek: CorrespondenceSeekRecord): Promise<void> {
   await getPool().query(
     `INSERT INTO correspondence_seeks
-       (id, creator_user_id, game_spec_id, days_per_move, preferred_color)
-     VALUES ($1, $2, $3, $4, $5)`,
-    [seek.id, seek.creatorUserId, seek.gameSpecId, seek.daysPerMove, seek.preferredColor],
+       (id, creator_user_id, game_spec_id, days_per_move, preferred_color, target_user_id, visibility, expires_at)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
+    [
+      seek.id,
+      seek.creatorUserId,
+      seek.gameSpecId,
+      seek.daysPerMove,
+      seek.preferredColor,
+      seek.targetUserId,
+      seek.visibility,
+      seek.expiresAt,
+    ],
   );
 }
 
+// Counts every open row the user created — public seeks AND private/direct
+// challenges — so the cap bounds total outstanding invitations, not just board
+// spam.
 export async function countOpenSeeksForUser(userId: string): Promise<number> {
   const { rows } = await getPool().query<{ count: string }>(
     'SELECT COUNT(*)::text AS count FROM correspondence_seeks WHERE creator_user_id = $1',
@@ -40,36 +69,99 @@ export async function countOpenSeeksForUser(userId: string): Promise<number> {
   return Number(rows[0]?.count ?? '0');
 }
 
-// All open seeks, newest first, with the creator's display name for the board.
-export async function listOpenCorrespondenceSeeks(
-  limit = 100,
-): Promise<CorrespondenceSeekListing[]> {
-  const { rows } = await getPool().query<{
-    id: string;
-    creator_user_id: string;
-    game_spec_id: string;
-    days_per_move: number;
-    preferred_color: SeekColorPreference;
-    creator_name: string | null;
-    created_at: Date;
-  }>(
-    `SELECT s.id, s.creator_user_id, s.game_spec_id, s.days_per_move, s.preferred_color,
-            COALESCE(u.display_name, u.handle) AS creator_name, s.created_at
-     FROM correspondence_seeks s
-     JOIN users u ON u.id = s.creator_user_id
-     ORDER BY s.created_at DESC
-     LIMIT $1`,
-    [limit],
-  );
-  return rows.map((row) => ({
+const SEEK_COLUMNS = `s.id, s.creator_user_id, s.game_spec_id, s.days_per_move, s.preferred_color,
+            s.target_user_id, s.visibility, s.expires_at,
+            COALESCE(u.display_name, u.handle) AS creator_name, s.created_at`;
+
+type SeekListingRow = {
+  id: string;
+  creator_user_id: string;
+  game_spec_id: string;
+  days_per_move: number;
+  preferred_color: SeekColorPreference;
+  target_user_id: string | null;
+  visibility: SeekVisibility;
+  expires_at: Date | null;
+  creator_name: string | null;
+  created_at: Date;
+};
+
+function toListing(row: SeekListingRow): CorrespondenceSeekListing {
+  return {
     id: row.id,
     creatorUserId: row.creator_user_id,
     gameSpecId: row.game_spec_id,
     daysPerMove: row.days_per_move,
     preferredColor: row.preferred_color,
+    targetUserId: row.target_user_id,
+    visibility: row.visibility,
+    expiresAt: row.expires_at,
     creatorName: row.creator_name,
     createdAt: row.created_at,
-  }));
+  };
+}
+
+// The public board: open seeks only — never directed or link-only challenges.
+export async function listOpenCorrespondenceSeeks(
+  limit = 100,
+): Promise<CorrespondenceSeekListing[]> {
+  const { rows } = await getPool().query<SeekListingRow>(
+    `SELECT ${SEEK_COLUMNS}
+     FROM correspondence_seeks s
+     JOIN users u ON u.id = s.creator_user_id
+     WHERE s.visibility = 'public' AND s.target_user_id IS NULL
+     ORDER BY s.created_at DESC
+     LIMIT $1`,
+    [limit],
+  );
+  return rows.map(toListing);
+}
+
+// "Challenges to me" — the directed challenges awaiting a specific user, newest
+// first, with the challenger's display name.
+export async function listChallengesForUser(
+  targetUserId: string,
+  limit = 100,
+): Promise<CorrespondenceSeekListing[]> {
+  const { rows } = await getPool().query<SeekListingRow>(
+    `SELECT ${SEEK_COLUMNS}
+     FROM correspondence_seeks s
+     JOIN users u ON u.id = s.creator_user_id
+     WHERE s.target_user_id = $1
+       AND (s.expires_at IS NULL OR s.expires_at > now())
+     ORDER BY s.created_at DESC
+     LIMIT $2`,
+    [targetUserId, limit],
+  );
+  return rows.map(toListing);
+}
+
+// Housekeeping: drop challenges whose expiry has passed. Correctness never
+// depends on this running (accept refuses an expired seek and lists filter it
+// out); it just keeps the table from accreting dead links. Returns the count
+// removed. Runs on the deadline sweeper's interval.
+export async function deleteExpiredCorrespondenceSeeks(now: Date = new Date()): Promise<number> {
+  const result = await getPool().query(
+    `DELETE FROM correspondence_seeks WHERE expires_at IS NOT NULL AND expires_at <= $1`,
+    [now],
+  );
+  return result.rowCount ?? 0;
+}
+
+// One seek by id with the creator's display name — the accept/challenge landing
+// page's read. Unlike getCorrespondenceSeek this joins users for the name.
+export async function getCorrespondenceSeekListing(
+  id: string,
+): Promise<CorrespondenceSeekListing | null> {
+  const { rows } = await getPool().query<SeekListingRow>(
+    `SELECT ${SEEK_COLUMNS}
+     FROM correspondence_seeks s
+     JOIN users u ON u.id = s.creator_user_id
+     WHERE s.id = $1`,
+    [id],
+  );
+  const row = rows[0];
+  return row ? toListing(row) : null;
 }
 
 export async function getCorrespondenceSeek(id: string): Promise<CorrespondenceSeekRecord | null> {
@@ -79,8 +171,12 @@ export async function getCorrespondenceSeek(id: string): Promise<CorrespondenceS
     game_spec_id: string;
     days_per_move: number;
     preferred_color: SeekColorPreference;
+    target_user_id: string | null;
+    visibility: SeekVisibility;
+    expires_at: Date | null;
   }>(
-    `SELECT id, creator_user_id, game_spec_id, days_per_move, preferred_color
+    `SELECT id, creator_user_id, game_spec_id, days_per_move, preferred_color,
+            target_user_id, visibility, expires_at
      FROM correspondence_seeks WHERE id = $1`,
     [id],
   );
@@ -92,6 +188,9 @@ export async function getCorrespondenceSeek(id: string): Promise<CorrespondenceS
     gameSpecId: row.game_spec_id,
     daysPerMove: row.days_per_move,
     preferredColor: row.preferred_color,
+    targetUserId: row.target_user_id,
+    visibility: row.visibility,
+    expiresAt: row.expires_at,
   };
 }
 

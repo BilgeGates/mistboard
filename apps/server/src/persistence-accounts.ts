@@ -355,6 +355,16 @@ export async function getUserDmPolicy(userId: string): Promise<DmPolicy> {
   return rows[0]?.dm_policy ?? 'never';
 }
 
+// Cheap existence probe by account id — used to validate a challenge target
+// before writing a directed seek (a clean 404 instead of an FK violation).
+export async function userExists(userId: string): Promise<boolean> {
+  const { rows } = await getPool().query<{ one: number }>(
+    `SELECT 1 AS one FROM users WHERE id = $1 LIMIT 1`,
+    [userId],
+  );
+  return rows.length > 0;
+}
+
 export async function createAccountSession(session: AccountSession): Promise<void> {
   await getPool().query(
     `INSERT INTO account_sessions (id, user_id, token_hash, expires_at)

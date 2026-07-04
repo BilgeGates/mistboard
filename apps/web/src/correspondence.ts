@@ -261,6 +261,48 @@ function buildPostSeekForm(onPosted: () => void): HTMLFormElement {
   error.className = 'correspondence-post-error';
   error.hidden = true;
 
+  // Alongside posting to the public board, mint a private "play me" link and
+  // land on its challenge page (where the share link + copy button live).
+  const linkBtn = document.createElement('button');
+  linkBtn.type = 'button';
+  linkBtn.className = 'correspondence-cta';
+  linkBtn.textContent = 'Create a link to share';
+  linkBtn.addEventListener('click', () => {
+    linkBtn.disabled = true;
+    error.hidden = true;
+    void fetch('/api/correspondence/seeks', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        daysPerMove: Number(days.value),
+        preferredColor: color.value,
+        visibility: 'private',
+      }),
+    })
+      .then(async (res) => {
+        const body = (await res.json().catch(() => null)) as {
+          challengeUrl?: string;
+          error?: string;
+          limit?: number;
+        } | null;
+        if (res.ok && body?.challengeUrl) {
+          location.href = body.challengeUrl;
+          return;
+        }
+        error.textContent =
+          body?.error === 'seek_limit_reached'
+            ? `You can have up to ${body.limit ?? 6} open games at once.`
+            : 'Could not create a link. Try again.';
+        error.hidden = false;
+        linkBtn.disabled = false;
+      })
+      .catch(() => {
+        error.textContent = 'Could not create a link. Try again.';
+        error.hidden = false;
+        linkBtn.disabled = false;
+      });
+  });
+
   form.addEventListener('submit', (event) => {
     event.preventDefault();
     submit.disabled = true;
@@ -293,7 +335,7 @@ function buildPostSeekForm(onPosted: () => void): HTMLFormElement {
       });
   });
 
-  form.append(days, color, submit, error);
+  form.append(days, color, submit, linkBtn, error);
   return form;
 }
 

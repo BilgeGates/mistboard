@@ -24,6 +24,10 @@ export type TenantDeadlineSweeperOptions = {
   // tests can assert it fires without sending real email; defaults to the real
   // correspondence warning sweep.
   warnDeadlines?: (now: Date) => Promise<void>;
+  // Expired-challenge reclaim pass: drops lapsed correspondence challenges
+  // (private seeks past their TTL). Injectable for tests; defaults to the real
+  // delete. Returns the count removed.
+  sweepExpiredSeeks?: (now: Date) => Promise<number>;
 };
 
 export type TenantDeadlineSweeper = {
@@ -41,6 +45,8 @@ export function startTenantDeadlineSweeper(
   const now = options.now ?? Date.now;
   const registrationFor = options.registrationFor ?? variantTenantForRoomId;
   const warnDeadlines = options.warnDeadlines ?? ((at: Date) => sweepDeadlineWarnings(at));
+  const sweepExpiredSeeks =
+    options.sweepExpiredSeeks ?? ((at: Date) => persistence.deleteExpiredCorrespondenceSeeks(at));
 
   async function tick(): Promise<void> {
     if (!isInitialized()) return;
@@ -96,6 +102,16 @@ export function startTenantDeadlineSweeper(
       logger.error(
         { kind: 'deadline_warning_sweep_failure', error: (err as Error).message, at: now() },
         'deadline warning sweep failure',
+      );
+    }
+    // Expired-challenge reclaim: independent of deadline enforcement, guarded so
+    // a failure never affects the passes above.
+    try {
+      await sweepExpiredSeeks(new Date(now()));
+    } catch (err) {
+      logger.error(
+        { kind: 'expired_seek_sweep_failure', error: (err as Error).message, at: now() },
+        'expired seek sweep failure',
       );
     }
   }

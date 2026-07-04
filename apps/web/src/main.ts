@@ -127,6 +127,12 @@ const wantsPuzzles = path === '/puzzles' || page === 'puzzles' || puzzleId !== n
 // Behind the correspondence build flag (soft launch). The nav bell + this
 // dashboard share the gate; the route is invisible until the flag is on.
 const wantsCorrespondence = correspondenceEnabled() && path === '/correspondence';
+// The challenge landing page (/challenge/:id) rides the correspondence flag:
+// challenges are correspondence seeks, so the surface is invisible until it is on.
+const challengeId =
+  correspondenceEnabled() && path.startsWith('/challenge/')
+    ? decodeURIComponent(path.slice('/challenge/'.length))
+    : null;
 const wantsLeaderboard = path === '/leaderboard' || page === 'leaderboard';
 // Unlisted admin game browser. No nav entry; the page itself is admin-gated by
 // the /api/admin/games/query endpoint (open in local dev). Direct-URL only.
@@ -268,6 +274,13 @@ if (replaySample) {
   setTitle('Correspondence');
   void mountOrReport(() =>
     import('./correspondence.js').then(({ mountCorrespondence }) => mountCorrespondence(appRoot)),
+  );
+} else if (challengeId) {
+  setTitle('Challenge');
+  void mountOrReport(() =>
+    import('./challenge-accept.js').then(({ mountChallengeAccept }) =>
+      mountChallengeAccept(appRoot, challengeId),
+    ),
   );
 } else if (wantsWatch) {
   setTitleKey('nav.watch');

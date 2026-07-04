@@ -39,6 +39,7 @@ export {
   updateUserDmPolicy,
   updateUserLocale,
   updateUserProfile,
+  userExists,
 } from './persistence-accounts.js';
 export type {
   BotDirectoryEntry,
@@ -68,12 +69,16 @@ export type {
   CorrespondenceSeekListing,
   CorrespondenceSeekRecord,
   SeekColorPreference,
+  SeekVisibility,
 } from './persistence-correspondence-seeks.js';
 export {
   countOpenSeeksForUser,
   createCorrespondenceSeek,
   deleteCorrespondenceSeek,
+  deleteExpiredCorrespondenceSeeks,
   getCorrespondenceSeek,
+  getCorrespondenceSeekListing,
+  listChallengesForUser,
   listOpenCorrespondenceSeeks,
 } from './persistence-correspondence-seeks.js';
 export { close, init, isInitialized, probeDb } from './persistence-db.js';

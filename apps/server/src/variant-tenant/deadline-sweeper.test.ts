@@ -65,6 +65,54 @@ test('the sweeper routes due rows to their registration and survives failures', 
   assert.deepEqual(swept, ['sweeptest_a', 'sweeptest_b']);
 });
 
+test('the sweeper reaps expired challenges after the warning pass', async () => {
+  const calls: string[] = [];
+  const sweeper = startTenantDeadlineSweeper({
+    intervalMs: 3_600_000,
+    isPersistenceInitialized: () => true,
+    listDue: async () => [],
+    registrationFor: () => null,
+    warnDeadlines: async () => {
+      calls.push('warn');
+    },
+    sweepExpiredSeeks: async () => {
+      calls.push('sweep');
+      return 3;
+    },
+  });
+  try {
+    await sweeper.tick();
+  } finally {
+    sweeper.stop();
+  }
+
+  // Reclaim runs, and only after the deadline-warning pass.
+  assert.deepEqual(calls, ['warn', 'sweep']);
+});
+
+test('a failing expired-seek sweep is swallowed, not propagated', async () => {
+  let warned = false;
+  const sweeper = startTenantDeadlineSweeper({
+    intervalMs: 3_600_000,
+    isPersistenceInitialized: () => true,
+    listDue: async () => [],
+    registrationFor: () => null,
+    warnDeadlines: async () => {
+      warned = true;
+    },
+    sweepExpiredSeeks: async () => {
+      throw new Error('reap boom');
+    },
+  });
+  try {
+    await sweeper.tick(); // must not throw
+  } finally {
+    sweeper.stop();
+  }
+
+  assert.equal(warned, true);
+});
+
 test('the sweeper does nothing while persistence is uninitialized', async () => {
   let listed = 0;
   const sweeper = startTenantDeadlineSweeper({
