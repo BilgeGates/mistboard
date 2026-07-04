@@ -63,12 +63,15 @@ describe('friends-online widget', () => {
     expect(document.querySelector('.friends-online')).toBeNull();
   });
 
-  it('quiet-collapses (stays hidden) when no friends are online', async () => {
+  it('stays visible with an empty-state row when no friends are online', async () => {
     stubFetch({ friends: [] });
     await mount();
     const box = document.querySelector('.friends-online') as HTMLElement;
     expect(box).not.toBeNull();
-    expect(box.hidden).toBe(true);
+    expect(box.hidden).toBe(false);
+    expect(box.querySelector('.friends-online-empty')?.textContent).toBe(
+      'None of your friends are online.',
+    );
   });
 
   it('renders a row per online friend with name and rating', async () => {

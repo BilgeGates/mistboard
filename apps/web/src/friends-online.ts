@@ -82,10 +82,10 @@ export async function mountFriendsOnline(): Promise<void> {
     const friends = await fetchOnlineFriends();
     if (friends === null) return; // transient failure: keep the last render
     latest = friends;
-    // Quiet-collapse when none are online: the corner isn't cluttered by a dead
-    // box (same principle as the inbox online widget). The pill reappears when a
-    // friend comes online. Flip to `false` for lichess's always-visible behavior.
-    root.hidden = friends.length === 0;
+    // Always-visible (lichess parity): the pill stays put even with nobody
+    // online, so the corner is a stable anchor rather than a box that blinks in
+    // and out. The empty case renders "None of your friends are online."
+    root.hidden = false;
     renderList(list, friends, locale);
     renderToggleLabel(toggleLabel, friends.length, expanded, locale);
   };
