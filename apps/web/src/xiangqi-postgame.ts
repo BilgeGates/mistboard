@@ -1,23 +1,22 @@
 // Postgame review for standard Xiangqi — OPEN INFORMATION, so there is a single
-// truth board (no red/truth/black fog triptych). Reuses the shared dxq-postgame
-// shell + replay controls; the board comes from renderXiangqiBoardSvg with no
-// fog mask.
+// truth board (no red/truth/black fog triptych). Rides the shared review layout
+// (mountReviewLayout) like every other variant; the board comes from
+// renderXiangqiBoardSvg with no fog mask.
 
 import type { StandardXiangqiPlayerView, XiangqiColor, XiangqiMove } from '@mistboard/game';
 import './game-shell.css';
 import './live-xiangqi.css';
+// Reuse the shared dxq-postgame scaffold (.dxq-postgame__*) the other variants ride.
+import './dark-xiangqi-postgame.css';
 import './xiangqi-postgame.css';
-import { createDxqPostgameShell, createDxqReplayControls } from './dxq-postgame-shell.js';
 import { xiangqiEnabled } from './feature-flags.js';
 import { renderXiangqiBoardSvg } from './live-xiangqi.js';
-import { handlePostgameReplayKeyboard } from './postgame-keyboard.js';
+import { mountReviewLayout } from './review/review-layout.js';
 import { buildNav } from './site-shell.js';
 import { createXiangqiPlayAgainRoom } from './xiangqi-room-actions.js';
 
 // Open information: the only meaningful board is the shared truth board.
 export type XiangqiPostgameViewKey = 'truth';
-
-const postgameAbortControllers = new WeakMap<HTMLElement, AbortController>();
 
 export type XiangqiPostgameResponse = {
   game: {
@@ -102,122 +101,36 @@ export function xiangqiPostgameApiUrl(roomId: string): string {
 }
 
 function renderPostgame(root: HTMLElement, postgame: XiangqiPostgameResponse): void {
-  const priorAbort = postgameAbortControllers.get(root);
-  if (priorAbort) priorAbort.abort();
-  const abortController = new AbortController();
-  postgameAbortControllers.set(root, abortController);
+  const entry = postgameViewEntries(postgame)[0]!;
+  const boardWrap = document.createElement('section');
+  boardWrap.className = 'dxq-postgame__board-wrap';
+  const heading = document.createElement('h2');
+  heading.className = 'dxq-postgame__board-title';
+  heading.textContent = entry.label;
+  const board = document.createElement('div');
+  board.className = 'dxq-postgame__board xiangqi-live-board';
+  board.setAttribute('aria-label', `${entry.label} final Xiangqi board`);
+  boardWrap.append(heading, board);
 
-  root.replaceChildren(
-    buildNav(),
-    createDxqPostgameShell({
-      actions: postgameActions(postgame),
-      ariaLabel: 'Xiangqi postgame',
-      boardsPanel: boardsPanel(postgame, abortController.signal),
-      detailsPanel: detailsPanel(postgame),
-      summary: `${resultLabel(postgame.game.result)} by ${labelize(postgame.game.termination)} · ${postgame.game.plyCount} plies`,
-      timelinePanel: timelinePanel(postgame),
-      title: 'Xiangqi',
-    }),
-  );
-}
-
-function boardsPanel(postgame: XiangqiPostgameResponse, signal: AbortSignal): HTMLElement {
-  const panel = document.createElement('div');
-  panel.className = 'dxq-postgame__boards';
-  const views = postgameViewEntries(postgame);
-  const maxPly = postgameReplayMaxPly(postgame);
-  let currentPly = maxPly;
-  let boardOrientation: XiangqiColor = 'red';
-  const boardTargets: Array<{
-    board: HTMLElement;
-    entry: { key: XiangqiPostgameViewKey; label: string; view: StandardXiangqiPlayerView };
-  }> = [];
-
-  const controls = createDxqReplayControls();
-  const { first, previous, status, next, last, flip } = controls;
-
-  const syncReplay = () => {
-    for (const { board, entry } of boardTargets) {
-      const view = postgameViewAtPly(postgame, entry.key, currentPly) ?? entry.view;
-      board.innerHTML = renderXiangqiBoardSvg(view, boardOrientation);
-    }
-    status.textContent = `Ply ${currentPly} of ${maxPly}`;
-    first.disabled = currentPly <= 0;
-    previous.disabled = currentPly <= 0;
-    next.disabled = currentPly >= maxPly;
-    last.disabled = currentPly >= maxPly;
-  };
-
-  first.addEventListener('click', () => {
-    currentPly = 0;
-    syncReplay();
-  });
-  previous.addEventListener('click', () => {
-    currentPly = Math.max(0, currentPly - 1);
-    syncReplay();
-  });
-  next.addEventListener('click', () => {
-    currentPly = Math.min(maxPly, currentPly + 1);
-    syncReplay();
-  });
-  last.addEventListener('click', () => {
-    currentPly = maxPly;
-    syncReplay();
-  });
-  flip.addEventListener('click', () => {
-    boardOrientation = oppositeXiangqiColor(boardOrientation);
-    syncReplay();
-  });
-  document.addEventListener(
-    'keydown',
-    (event) => {
-      handlePostgameReplayKeyboard(event, {
-        flip: () => {
-          boardOrientation = oppositeXiangqiColor(boardOrientation);
-          syncReplay();
-        },
-        first: () => {
-          currentPly = 0;
-          syncReplay();
-        },
-        previous: () => {
-          currentPly = Math.max(0, currentPly - 1);
-          syncReplay();
-        },
-        next: () => {
-          currentPly = Math.min(maxPly, currentPly + 1);
-          syncReplay();
-        },
-        last: () => {
-          currentPly = maxPly;
-          syncReplay();
-        },
-      });
+  root.replaceChildren(buildNav());
+  mountReviewLayout(root, {
+    pageClassName: 'xiangqi-review',
+    ariaLabel: 'Xiangqi postgame',
+    title: 'Xiangqi',
+    summary: `${resultLabel(postgame.game.result)} by ${labelize(postgame.game.termination)} · ${postgame.game.plyCount} plies`,
+    actions: postgameActions(postgame),
+    details: detailsPanel(postgame),
+    moves: timelinePanel(postgame),
+    boards: [{ key: 'truth', el: boardWrap, tier: 'primary' }],
+    boardAspect: 552 / 612,
+    boardCols: 9,
+    maxPly: postgameReplayMaxPly(postgame),
+    renderBoards({ ply, flipped }) {
+      const orientation: XiangqiColor = flipped ? 'black' : 'red';
+      const view = postgameViewAtPly(postgame, 'truth', ply) ?? entry.view;
+      board.innerHTML = renderXiangqiBoardSvg(view, orientation);
     },
-    { signal },
-  );
-
-  panel.append(controls.el);
-
-  for (const entry of views) {
-    const boardWrap = document.createElement('section');
-    boardWrap.className = 'dxq-postgame__board-wrap';
-    const heading = document.createElement('h2');
-    heading.className = 'dxq-postgame__board-title';
-    heading.textContent = entry.label;
-    const board = document.createElement('div');
-    board.className = 'dxq-postgame__board xiangqi-live-board';
-    board.setAttribute('aria-label', `${entry.label} final Xiangqi board`);
-    boardTargets.push({ board, entry });
-    boardWrap.append(heading, board);
-    panel.append(boardWrap);
-  }
-  syncReplay();
-  return panel;
-}
-
-function oppositeXiangqiColor(color: XiangqiColor): XiangqiColor {
-  return color === 'red' ? 'black' : 'red';
+  });
 }
 
 export function postgameViewEntries(
