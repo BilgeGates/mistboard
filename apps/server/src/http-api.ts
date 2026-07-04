@@ -44,6 +44,7 @@ import * as relationsRoute from './routes/relations.js';
 import * as revealChessGamesRoute from './routes/reveal-chess-games.js';
 import * as roomsRoute from './routes/rooms.js';
 import * as usersRoute from './routes/users.js';
+import * as xiangqiGamesRoute from './routes/xiangqi-games.js';
 
 // Public re-exports: keep import sites in index.ts and elsewhere stable.
 export {
@@ -86,6 +87,7 @@ const routes: RouteModule[] = [
   correspondenceGamesRoute,
   correspondenceSeeksRoute,
   lobbyRoute,
+  xiangqiGamesRoute,
   miniXiangqiGamesRoute,
   darkMiniXiangqiGamesRoute,
   dropMiniXiangqiGamesRoute,

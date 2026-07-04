@@ -35,6 +35,7 @@ import { appendRoomEvent, close, init, recordGameEnd } from './persistence.js';
 import { revealChessTenant } from './reveal-chess-tenant.js';
 import { buildTenantGameSummary } from './variant-tenant/events.js';
 import { createTenantRuntimeRoomFromEvents } from './variant-tenant/runtime.js';
+import { xiangqiTenant } from './xiangqi-tenant.js';
 
 // biome-ignore lint/suspicious/noExplicitAny: cross-variant harness; tenants carry
 // their own concrete Color/Move/State types and are driven through `any` here.
@@ -54,6 +55,7 @@ const TENANTS: any[] = [
   darkCrazyhouseTenant,
   kriegspielTenant,
   darkXiangqiTenant,
+  xiangqiTenant,
 ];
 
 // biome-ignore lint/suspicious/noExplicitAny: opaque tenant type, keyed by spec id.

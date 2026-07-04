@@ -38,6 +38,7 @@ import {
   getMiniXiangqiLegalMoves,
   getMiniXiangqiOpenLegalMoves,
   getRevealChessLegalMoves,
+  getStandardXiangqiLegalMoves,
   getLegalMoves as getXiangqiLegalMoves,
 } from '@mistboard/game';
 
@@ -57,6 +58,7 @@ import { kriegspielTenant } from './kriegspiel-tenant.js';
 import { miniXiangqiTenant } from './mini-xiangqi-tenant.js';
 import { revealChessTenant } from './reveal-chess-tenant.js';
 import { createTenantRuntimeRoomFromEvents } from './variant-tenant/runtime.js';
+import { xiangqiTenant } from './xiangqi-tenant.js';
 
 // biome-ignore lint/suspicious/noExplicitAny: this is a cross-variant harness; each
 // tenant has its own concrete Color/Move/State types, so it drives them through `any`.
@@ -110,6 +112,7 @@ const VARIANTS: VariantSpec[] = [
     ],
   },
   { tenant: fortressXiangqiTenant, enumerate: (s) => getFortressXiangqiLegalMoves(s) },
+  { tenant: xiangqiTenant, enumerate: (s) => getStandardXiangqiLegalMoves(s) },
   {
     tenant: revealChessTenant,
     enumerate: (s) => getRevealChessLegalMoves(s),
