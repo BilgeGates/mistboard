@@ -181,13 +181,21 @@ test('general steps one orthogonally within the palace', () => {
   assert.deepEqual(boardDestsFrom(s, 'b2'), new Set(['a2', 'c2', 'b1', 'b3']));
 });
 
-test('soldier: forward only until the river, then sideways too, never back', () => {
-  const home = stateWith(withGenerals({ d2: { color: 'red', role: 'soldier' } }));
-  assert.deepEqual(boardDestsFrom(home, 'd2'), new Set(['d3']));
-  const crossed = stateWith(withGenerals({ d5: { color: 'red', role: 'soldier' } }));
-  assert.deepEqual(boardDestsFrom(crossed, 'd5'), new Set(['d6', 'c5', 'e5']));
-  const black = stateWith(withGenerals({ d4: { color: 'black', role: 'soldier' } }), 'black');
-  assert.deepEqual(boardDestsFrom(black, 'd4'), new Set(['d3', 'c4', 'e4']));
+test('soldier (veteran): forward + sideways everywhere, never back', () => {
+  // Veteran soldiers move forward and sideways from move one (no river gate), but
+  // still never step backward. See docs-private/fortress-soldier-study.
+  const redHome = stateWith(withGenerals({ d2: { color: 'red', role: 'soldier' } }));
+  assert.deepEqual(boardDestsFrom(redHome, 'd2'), new Set(['d3', 'c2', 'e2']));
+  const redCrossed = stateWith(withGenerals({ d5: { color: 'red', role: 'soldier' } }));
+  assert.deepEqual(boardDestsFrom(redCrossed, 'd5'), new Set(['d6', 'c5', 'e5']));
+  // Black on its own half now gets the sideways step too (impossible pre-veteran).
+  const blackHome = stateWith(withGenerals({ d7: { color: 'black', role: 'soldier' } }), 'black');
+  assert.deepEqual(boardDestsFrom(blackHome, 'd7'), new Set(['d6', 'c7', 'e7']));
+  const blackCrossed = stateWith(
+    withGenerals({ d4: { color: 'black', role: 'soldier' } }),
+    'black',
+  );
+  assert.deepEqual(boardDestsFrom(blackCrossed, 'd4'), new Set(['d3', 'c4', 'e4']));
 });
 
 test('treasure steps one in any of eight directions', () => {

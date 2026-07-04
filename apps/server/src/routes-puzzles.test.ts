@@ -149,7 +149,7 @@ test('puzzle list rejects unsupported variants', async () => {
 });
 
 test('Fortress puzzle attempts solve the mined mate and stay solution-hidden', async () => {
-  const response = await route('/api/puzzles/fortress-xiangqi-mined-001/attempt', 'POST', {
+  const response = await route('/api/puzzles/fortress-xiangqi-mined-v2-001/attempt', 'POST', {
     moves: [{ drop: 'cannon', to: 'c8' }],
   });
   const body = JSON.parse(response.body) as {
@@ -350,7 +350,7 @@ test('puzzle rating route returns null for an anonymous or unrated user', async 
 });
 
 test('attempts omit rating info when there is no rated session', async () => {
-  const response = await route('/api/puzzles/fortress-xiangqi-mined-001/attempt', 'POST', {
+  const response = await route('/api/puzzles/fortress-xiangqi-mined-v2-001/attempt', 'POST', {
     moves: [{ drop: 'cannon', to: 'c8' }],
   });
   const body = JSON.parse(response.body) as { attempt: { ok: boolean }; rating?: unknown };

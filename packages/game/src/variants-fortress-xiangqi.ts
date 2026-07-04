@@ -353,10 +353,12 @@ function pseudoBoardMovesFrom(
     case 'soldier': {
       const forward = piece.color === 'red' ? 1 : -1;
       addStep(file, rank + forward);
-      if (fortressXiangqiCrossedRiver(piece.color, rank)) {
-        addStep(file - 1, rank);
-        addStep(file + 1, rank);
-      }
+      // VETERAN SOLDIERS (2026-07-03): forward + sideways from the start, no river
+      // gate — soldiers are serious defenders, not just attackers (see the depth-16
+      // study in docs-private/fortress-soldier-study). Revert by wrapping the two
+      // sideways steps back in `if (fortressXiangqiCrossedRiver(piece.color, rank))`.
+      addStep(file - 1, rank);
+      addStep(file + 1, rank);
       break;
     }
     case 'treasure':

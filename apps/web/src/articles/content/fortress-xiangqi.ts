@@ -115,7 +115,7 @@ export const fortressXiangqiArticle: Article = {
         } as ArticleBlock,
         {
           kind: 'paragraph',
-          text: '**Soldier:** moves one point forward, gains a sideways step after crossing the river, and never moves backward.',
+          text: '**Soldier:** moves one point forward or sideways, never backward. It has the sideways step from the opening move, where a xiangqi soldier earns it only by crossing the river. Every Fortress soldier is a veteran: the war is already on.',
         },
         {
           kind: 'raw-svg',
@@ -133,7 +133,7 @@ export const fortressXiangqiArticle: Article = {
         } as ArticleBlock,
         {
           kind: 'paragraph',
-          text: 'There are no promotions. The only past-river effect is the Soldier gaining its sideways step, which is the ordinary xiangqi rule.',
+          text: 'There are no promotions and no past-river changes. Soldiers move the same on both sides of the river; the river only stops the Elephant, which never crosses it.',
         },
       ],
     },
@@ -160,7 +160,7 @@ export const fortressXiangqiArticle: Article = {
         } as ArticleBlock,
         {
           kind: 'paragraph',
-          text: 'A dropped piece is live immediately. A drop may give check or deliver checkmate, and a Soldier dropped past the river has its sideways move at once. The one limit is the usual one: no move, drop included, may leave your own general in check.',
+          text: 'A dropped piece is live immediately. A drop may give check or deliver checkmate, and a dropped Soldier can step sideways wherever it lands. The one limit is the usual one: no move, drop included, may leave your own general in check.',
         },
       ],
     },

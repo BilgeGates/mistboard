@@ -35,11 +35,11 @@ type MinedFortressXiangqiPuzzle = {
 
 export const MINED_FORTRESS_XIANGQI_PUZZLES: readonly MinedFortressXiangqiPuzzle[] = [
   {
-    id: 'fortress-xiangqi-mined-001',
+    id: 'fortress-xiangqi-mined-v2-001',
     variant: 'fortress-xiangqi',
     title: 'Red Cannon drop mate in 1',
     initial: {
-      id: 'fortress-xiangqi-mined-001',
+      id: 'fortress-xiangqi-mined-v2-001',
       board: {
         a1: {
           color: 'red',
@@ -144,11 +144,11 @@ export const MINED_FORTRESS_XIANGQI_PUZZLES: readonly MinedFortressXiangqiPuzzle
     themes: ['checkmate', 'palace-net', 'drop', 'cannon'],
   },
   {
-    id: 'fortress-xiangqi-mined-002',
+    id: 'fortress-xiangqi-mined-v2-002',
     variant: 'fortress-xiangqi',
     title: 'Black Soldier drop mate in 1',
     initial: {
-      id: 'fortress-xiangqi-mined-002',
+      id: 'fortress-xiangqi-mined-v2-002',
       board: {
         a1: {
           color: 'red',
@@ -255,11 +255,11 @@ export const MINED_FORTRESS_XIANGQI_PUZZLES: readonly MinedFortressXiangqiPuzzle
     themes: ['checkmate', 'palace-net', 'drop'],
   },
   {
-    id: 'fortress-xiangqi-mined-003',
+    id: 'fortress-xiangqi-mined-v2-003',
     variant: 'fortress-xiangqi',
     title: 'Red Cannon mate in 1',
     initial: {
-      id: 'fortress-xiangqi-mined-003',
+      id: 'fortress-xiangqi-mined-v2-003',
       board: {
         a1: {
           color: 'red',
@@ -370,11 +370,11 @@ export const MINED_FORTRESS_XIANGQI_PUZZLES: readonly MinedFortressXiangqiPuzzle
     themes: ['checkmate', 'palace-net', 'cannon'],
   },
   {
-    id: 'fortress-xiangqi-mined-004',
+    id: 'fortress-xiangqi-mined-v2-004',
     variant: 'fortress-xiangqi',
     title: 'Black Chariot drop mate in 1',
     initial: {
-      id: 'fortress-xiangqi-mined-004',
+      id: 'fortress-xiangqi-mined-v2-004',
       board: {
         b8: {
           color: 'red',
@@ -478,11 +478,11 @@ export const MINED_FORTRESS_XIANGQI_PUZZLES: readonly MinedFortressXiangqiPuzzle
     themes: ['checkmate', 'palace-net', 'drop', 'chariot'],
   },
   {
-    id: 'fortress-xiangqi-mined-005',
+    id: 'fortress-xiangqi-mined-v2-005',
     variant: 'fortress-xiangqi',
     title: 'Black Treasure drop mate in 1',
     initial: {
-      id: 'fortress-xiangqi-mined-005',
+      id: 'fortress-xiangqi-mined-v2-005',
       board: {
         b8: {
           color: 'red',
@@ -592,11 +592,11 @@ export const MINED_FORTRESS_XIANGQI_PUZZLES: readonly MinedFortressXiangqiPuzzle
     themes: ['checkmate', 'palace-net', 'drop', 'treasure'],
   },
   {
-    id: 'fortress-xiangqi-mined-006',
+    id: 'fortress-xiangqi-mined-v2-006',
     variant: 'fortress-xiangqi',
     title: 'Black Treasure drop mate in 1',
     initial: {
-      id: 'fortress-xiangqi-mined-006',
+      id: 'fortress-xiangqi-mined-v2-006',
       board: {
         g8: {
           color: 'black',
@@ -705,11 +705,11 @@ export const MINED_FORTRESS_XIANGQI_PUZZLES: readonly MinedFortressXiangqiPuzzle
     themes: ['checkmate', 'palace-net', 'drop', 'treasure'],
   },
   {
-    id: 'fortress-xiangqi-mined-007',
+    id: 'fortress-xiangqi-mined-v2-007',
     variant: 'fortress-xiangqi',
     title: 'Red Treasure drop mate in 1',
     initial: {
-      id: 'fortress-xiangqi-mined-007',
+      id: 'fortress-xiangqi-mined-v2-007',
       board: {
         g8: {
           color: 'black',
@@ -809,11 +809,11 @@ export const MINED_FORTRESS_XIANGQI_PUZZLES: readonly MinedFortressXiangqiPuzzle
     themes: ['checkmate', 'palace-net', 'drop', 'treasure'],
   },
   {
-    id: 'fortress-xiangqi-mined-008',
+    id: 'fortress-xiangqi-mined-v2-008',
     variant: 'fortress-xiangqi',
     title: 'Red Cannon mate in 1',
     initial: {
-      id: 'fortress-xiangqi-mined-008',
+      id: 'fortress-xiangqi-mined-v2-008',
       board: {
         a1: {
           color: 'red',
@@ -933,258 +933,11 @@ export const MINED_FORTRESS_XIANGQI_PUZZLES: readonly MinedFortressXiangqiPuzzle
     themes: ['checkmate', 'palace-net', 'cannon'],
   },
   {
-    id: 'fortress-xiangqi-mined-009',
-    variant: 'fortress-xiangqi',
-    title: 'Red Treasure drop mate in 1',
-    initial: {
-      id: 'fortress-xiangqi-mined-009',
-      board: {
-        b8: {
-          color: 'black',
-          role: 'horse',
-        },
-        c1: {
-          color: 'red',
-          role: 'general',
-        },
-        d8: {
-          color: 'black',
-          role: 'elephant',
-        },
-        f1: {
-          color: 'red',
-          role: 'horse',
-        },
-        g1: {
-          color: 'red',
-          role: 'chariot',
-        },
-        a2: {
-          color: 'black',
-          role: 'chariot',
-        },
-        b7: {
-          color: 'black',
-          role: 'soldier',
-        },
-        d6: {
-          color: 'black',
-          role: 'soldier',
-        },
-        f4: {
-          color: 'black',
-          role: 'cannon',
-        },
-        b5: {
-          color: 'red',
-          role: 'soldier',
-        },
-        a6: {
-          color: 'black',
-          role: 'soldier',
-        },
-        f6: {
-          color: 'black',
-          role: 'elephant',
-        },
-        g3: {
-          color: 'red',
-          role: 'soldier',
-        },
-        b4: {
-          color: 'red',
-          role: 'soldier',
-        },
-        f8: {
-          color: 'black',
-          role: 'general',
-        },
-        d4: {
-          color: 'red',
-          role: 'soldier',
-        },
-        a7: {
-          color: 'black',
-          role: 'treasure',
-        },
-        f7: {
-          color: 'black',
-          role: 'soldier',
-        },
-        c8: {
-          color: 'red',
-          role: 'cannon',
-        },
-        e8: {
-          color: 'black',
-          role: 'soldier',
-        },
-      },
-      hands: {
-        red: {
-          soldier: 1,
-          treasure: 1,
-        },
-        black: {
-          advisor: 2,
-        },
-      },
-      status: {
-        type: 'playing',
-        turn: 'red',
-      },
-      moveNumber: 24,
-      positionCounts: {
-        'red|a2br,a6bs,a7bt,b4rs,b5rs,b7bs,b8bh,c1rk,c8rn,d4rs,d6bs,d8be,e8bs,f1rh,f4bn,f6be,f7bs,f8bk,g1rr,g3rs|h:r:r0h0n0s1t1a0e0|b:r0h0n0s0t0a2e0': 1,
-      },
-      moveLog: [],
-    },
-    solution: [
-      {
-        drop: 'treasure',
-        to: 'g7',
-      },
-    ],
-    goal: {
-      type: 'checkmate',
-      winner: 'red',
-    },
-    themes: ['checkmate', 'palace-net', 'drop', 'treasure'],
-  },
-  {
-    id: 'fortress-xiangqi-mined-010',
-    variant: 'fortress-xiangqi',
-    title: 'Black Treasure drop mate in 1',
-    initial: {
-      id: 'fortress-xiangqi-mined-010',
-      board: {
-        a1: {
-          color: 'black',
-          role: 'cannon',
-        },
-        a8: {
-          color: 'black',
-          role: 'chariot',
-        },
-        b1: {
-          color: 'red',
-          role: 'general',
-        },
-        c1: {
-          color: 'red',
-          role: 'advisor',
-        },
-        e8: {
-          color: 'black',
-          role: 'advisor',
-        },
-        f1: {
-          color: 'red',
-          role: 'horse',
-        },
-        f8: {
-          color: 'black',
-          role: 'general',
-        },
-        g1: {
-          color: 'red',
-          role: 'chariot',
-        },
-        g8: {
-          color: 'black',
-          role: 'treasure',
-        },
-        a7: {
-          color: 'black',
-          role: 'soldier',
-        },
-        b2: {
-          color: 'red',
-          role: 'soldier',
-        },
-        b7: {
-          color: 'black',
-          role: 'soldier',
-        },
-        d7: {
-          color: 'black',
-          role: 'horse',
-        },
-        f2: {
-          color: 'red',
-          role: 'soldier',
-        },
-        f7: {
-          color: 'black',
-          role: 'soldier',
-        },
-        g2: {
-          color: 'red',
-          role: 'soldier',
-        },
-        g7: {
-          color: 'black',
-          role: 'soldier',
-        },
-        f3: {
-          color: 'red',
-          role: 'elephant',
-        },
-        f6: {
-          color: 'black',
-          role: 'elephant',
-        },
-        c5: {
-          color: 'black',
-          role: 'cannon',
-        },
-        a3: {
-          color: 'red',
-          role: 'soldier',
-        },
-        d3: {
-          color: 'red',
-          role: 'soldier',
-        },
-        e1: {
-          color: 'red',
-          role: 'soldier',
-        },
-      },
-      hands: {
-        red: {},
-        black: {
-          treasure: 1,
-        },
-      },
-      status: {
-        type: 'playing',
-        turn: 'black',
-      },
-      moveNumber: 6,
-      positionCounts: {
-        'black|a1bn,a3rs,a7bs,a8br,b1rk,b2rs,b7bs,c1ra,c5bn,d3rs,d7bh,e1rs,e8ba,f1rh,f2rs,f3re,f6be,f7bs,f8bk,g1rr,g2rs,g7bs,g8bt|h:r:r0h0n0s0t0a0e0|b:r0h0n0s0t1a0e0': 1,
-      },
-      moveLog: [],
-    },
-    solution: [
-      {
-        drop: 'treasure',
-        to: 'a2',
-      },
-    ],
-    goal: {
-      type: 'checkmate',
-      winner: 'black',
-    },
-    themes: ['checkmate', 'palace-net', 'drop', 'treasure'],
-  },
-  {
-    id: 'fortress-xiangqi-mined-011',
+    id: 'fortress-xiangqi-mined-v2-009',
     variant: 'fortress-xiangqi',
     title: 'Red Cannon drop mate in 1',
     initial: {
-      id: 'fortress-xiangqi-mined-011',
+      id: 'fortress-xiangqi-mined-v2-009',
       board: {
         a8: {
           color: 'red',
@@ -1293,11 +1046,11 @@ export const MINED_FORTRESS_XIANGQI_PUZZLES: readonly MinedFortressXiangqiPuzzle
     themes: ['checkmate', 'palace-net', 'drop', 'cannon'],
   },
   {
-    id: 'fortress-xiangqi-mined-012',
+    id: 'fortress-xiangqi-mined-v2-010',
     variant: 'fortress-xiangqi',
     title: 'Red Chariot drop mate in 1',
     initial: {
-      id: 'fortress-xiangqi-mined-012',
+      id: 'fortress-xiangqi-mined-v2-010',
       board: {
         a8: {
           color: 'red',
@@ -1409,11 +1162,11 @@ export const MINED_FORTRESS_XIANGQI_PUZZLES: readonly MinedFortressXiangqiPuzzle
     themes: ['checkmate', 'palace-net', 'drop', 'chariot'],
   },
   {
-    id: 'fortress-xiangqi-mined-013',
+    id: 'fortress-xiangqi-mined-v2-011',
     variant: 'fortress-xiangqi',
     title: 'Red Soldier drop mate in 1',
     initial: {
-      id: 'fortress-xiangqi-mined-013',
+      id: 'fortress-xiangqi-mined-v2-011',
       board: {
         a8: {
           color: 'red',
@@ -1532,11 +1285,11 @@ export const MINED_FORTRESS_XIANGQI_PUZZLES: readonly MinedFortressXiangqiPuzzle
     themes: ['checkmate', 'palace-net', 'drop'],
   },
   {
-    id: 'fortress-xiangqi-mined-014',
+    id: 'fortress-xiangqi-mined-v2-012',
     variant: 'fortress-xiangqi',
     title: 'Black Chariot drop mate in 1',
     initial: {
-      id: 'fortress-xiangqi-mined-014',
+      id: 'fortress-xiangqi-mined-v2-012',
       board: {
         a8: {
           color: 'red',
@@ -1638,263 +1391,11 @@ export const MINED_FORTRESS_XIANGQI_PUZZLES: readonly MinedFortressXiangqiPuzzle
     themes: ['checkmate', 'palace-net', 'drop', 'chariot'],
   },
   {
-    id: 'fortress-xiangqi-mined-015',
+    id: 'fortress-xiangqi-mined-v2-013',
     variant: 'fortress-xiangqi',
     title: 'Red Treasure drop mate in 1',
     initial: {
-      id: 'fortress-xiangqi-mined-015',
-      board: {
-        a8: {
-          color: 'red',
-          role: 'cannon',
-        },
-        b1: {
-          color: 'red',
-          role: 'general',
-        },
-        b8: {
-          color: 'black',
-          role: 'horse',
-        },
-        c1: {
-          color: 'red',
-          role: 'advisor',
-        },
-        d1: {
-          color: 'red',
-          role: 'elephant',
-        },
-        f1: {
-          color: 'red',
-          role: 'horse',
-        },
-        g1: {
-          color: 'red',
-          role: 'chariot',
-        },
-        b2: {
-          color: 'red',
-          role: 'soldier',
-        },
-        b7: {
-          color: 'black',
-          role: 'soldier',
-        },
-        f2: {
-          color: 'red',
-          role: 'soldier',
-        },
-        g2: {
-          color: 'red',
-          role: 'soldier',
-        },
-        a4: {
-          color: 'red',
-          role: 'soldier',
-        },
-        d3: {
-          color: 'red',
-          role: 'soldier',
-        },
-        a6: {
-          color: 'black',
-          role: 'soldier',
-        },
-        a2: {
-          color: 'red',
-          role: 'treasure',
-        },
-        e3: {
-          color: 'red',
-          role: 'cannon',
-        },
-        c3: {
-          color: 'red',
-          role: 'advisor',
-        },
-        g8: {
-          color: 'red',
-          role: 'chariot',
-        },
-        f4: {
-          color: 'black',
-          role: 'soldier',
-        },
-        e7: {
-          color: 'black',
-          role: 'general',
-        },
-        g6: {
-          color: 'black',
-          role: 'soldier',
-        },
-      },
-      hands: {
-        red: {
-          soldier: 1,
-          elephant: 1,
-          treasure: 1,
-        },
-        black: {},
-      },
-      status: {
-        type: 'playing',
-        turn: 'red',
-      },
-      moveNumber: 15,
-      positionCounts: {
-        'red|a2rt,a4rs,a6bs,a8rn,b1rk,b2rs,b7bs,b8bh,c1ra,c3ra,d1re,d3rs,e3rn,e7bk,f1rh,f2rs,f4bs,g1rr,g2rs,g6bs,g8rr|h:r:r0h0n0s1t1a0e1|b:r0h0n0s0t0a0e0': 1,
-      },
-      moveLog: [],
-    },
-    solution: [
-      {
-        drop: 'treasure',
-        to: 'f6',
-      },
-    ],
-    goal: {
-      type: 'checkmate',
-      winner: 'red',
-    },
-    themes: ['checkmate', 'palace-net', 'drop', 'treasure'],
-  },
-  {
-    id: 'fortress-xiangqi-mined-016',
-    variant: 'fortress-xiangqi',
-    title: 'Black Cannon mate in 1',
-    initial: {
-      id: 'fortress-xiangqi-mined-016',
-      board: {
-        a1: {
-          color: 'red',
-          role: 'treasure',
-        },
-        a8: {
-          color: 'black',
-          role: 'chariot',
-        },
-        b1: {
-          color: 'red',
-          role: 'general',
-        },
-        b8: {
-          color: 'black',
-          role: 'horse',
-        },
-        c1: {
-          color: 'red',
-          role: 'advisor',
-        },
-        d8: {
-          color: 'black',
-          role: 'elephant',
-        },
-        e1: {
-          color: 'red',
-          role: 'cannon',
-        },
-        e8: {
-          color: 'black',
-          role: 'advisor',
-        },
-        f1: {
-          color: 'red',
-          role: 'horse',
-        },
-        f8: {
-          color: 'black',
-          role: 'general',
-        },
-        g1: {
-          color: 'red',
-          role: 'chariot',
-        },
-        g8: {
-          color: 'black',
-          role: 'treasure',
-        },
-        a7: {
-          color: 'black',
-          role: 'soldier',
-        },
-        b2: {
-          color: 'red',
-          role: 'soldier',
-        },
-        b7: {
-          color: 'black',
-          role: 'soldier',
-        },
-        d2: {
-          color: 'red',
-          role: 'soldier',
-        },
-        d7: {
-          color: 'black',
-          role: 'soldier',
-        },
-        f2: {
-          color: 'red',
-          role: 'soldier',
-        },
-        f7: {
-          color: 'black',
-          role: 'soldier',
-        },
-        g2: {
-          color: 'red',
-          role: 'soldier',
-        },
-        g7: {
-          color: 'black',
-          role: 'soldier',
-        },
-        f3: {
-          color: 'red',
-          role: 'elephant',
-        },
-        c6: {
-          color: 'black',
-          role: 'cannon',
-        },
-        a3: {
-          color: 'red',
-          role: 'soldier',
-        },
-      },
-      hands: {
-        red: {},
-        black: {},
-      },
-      status: {
-        type: 'playing',
-        turn: 'black',
-      },
-      moveNumber: 2,
-      positionCounts: {
-        'black|a1rt,a3rs,a7bs,a8br,b1rk,b2rs,b7bs,b8bh,c1ra,c6bn,d2rs,d7bs,d8be,e1rn,e8ba,f1rh,f2rs,f3re,f7bs,f8bk,g1rr,g2rs,g7bs,g8bt|h:r:r0h0n0s0t0a0e0|b:r0h0n0s0t0a0e0': 1,
-      },
-      moveLog: [],
-    },
-    solution: [
-      {
-        from: 'c6',
-        to: 'b6',
-      },
-    ],
-    goal: {
-      type: 'checkmate',
-      winner: 'black',
-    },
-    themes: ['checkmate', 'palace-net', 'cannon'],
-  },
-  {
-    id: 'fortress-xiangqi-mined-017',
-    variant: 'fortress-xiangqi',
-    title: 'Red Treasure drop mate in 1',
-    initial: {
-      id: 'fortress-xiangqi-mined-017',
+      id: 'fortress-xiangqi-mined-v2-013',
       board: {
         f1: {
           color: 'red',
@@ -2010,11 +1511,11 @@ export const MINED_FORTRESS_XIANGQI_PUZZLES: readonly MinedFortressXiangqiPuzzle
     themes: ['checkmate', 'palace-net', 'drop', 'treasure'],
   },
   {
-    id: 'fortress-xiangqi-mined-018',
+    id: 'fortress-xiangqi-mined-v2-014',
     variant: 'fortress-xiangqi',
     title: 'Red Chariot mate in 1',
     initial: {
-      id: 'fortress-xiangqi-mined-018',
+      id: 'fortress-xiangqi-mined-v2-014',
       board: {
         f1: {
           color: 'red',
@@ -2131,11 +1632,11 @@ export const MINED_FORTRESS_XIANGQI_PUZZLES: readonly MinedFortressXiangqiPuzzle
     themes: ['checkmate', 'palace-net', 'chariot'],
   },
   {
-    id: 'fortress-xiangqi-mined-019',
+    id: 'fortress-xiangqi-mined-v2-015',
     variant: 'fortress-xiangqi',
     title: 'Black Soldier drop mate in 1',
     initial: {
-      id: 'fortress-xiangqi-mined-019',
+      id: 'fortress-xiangqi-mined-v2-015',
       board: {
         a1: {
           color: 'red',
@@ -2250,251 +1751,11 @@ export const MINED_FORTRESS_XIANGQI_PUZZLES: readonly MinedFortressXiangqiPuzzle
     themes: ['checkmate', 'palace-net', 'drop'],
   },
   {
-    id: 'fortress-xiangqi-mined-020',
-    variant: 'fortress-xiangqi',
-    title: 'Red Horse drop mate in 1',
-    initial: {
-      id: 'fortress-xiangqi-mined-020',
-      board: {
-        a8: {
-          color: 'black',
-          role: 'chariot',
-        },
-        e8: {
-          color: 'black',
-          role: 'advisor',
-        },
-        f1: {
-          color: 'red',
-          role: 'horse',
-        },
-        a7: {
-          color: 'black',
-          role: 'soldier',
-        },
-        d2: {
-          color: 'red',
-          role: 'soldier',
-        },
-        d1: {
-          color: 'red',
-          role: 'elephant',
-        },
-        a3: {
-          color: 'red',
-          role: 'soldier',
-        },
-        e6: {
-          color: 'black',
-          role: 'advisor',
-        },
-        c3: {
-          color: 'red',
-          role: 'soldier',
-        },
-        f3: {
-          color: 'red',
-          role: 'cannon',
-        },
-        d8: {
-          color: 'black',
-          role: 'treasure',
-        },
-        b1: {
-          color: 'red',
-          role: 'general',
-        },
-        g6: {
-          color: 'black',
-          role: 'soldier',
-        },
-        f2: {
-          color: 'red',
-          role: 'cannon',
-        },
-        g7: {
-          color: 'black',
-          role: 'general',
-        },
-        e2: {
-          color: 'red',
-          role: 'elephant',
-        },
-        g4: {
-          color: 'black',
-          role: 'soldier',
-        },
-        f8: {
-          color: 'red',
-          role: 'soldier',
-        },
-        g3: {
-          color: 'black',
-          role: 'chariot',
-        },
-        d5: {
-          color: 'red',
-          role: 'soldier',
-        },
-        b6: {
-          color: 'black',
-          role: 'soldier',
-        },
-        b3: {
-          color: 'red',
-          role: 'treasure',
-        },
-        e7: {
-          color: 'black',
-          role: 'soldier',
-        },
-      },
-      hands: {
-        red: {
-          horse: 1,
-        },
-        black: {},
-      },
-      status: {
-        type: 'playing',
-        turn: 'red',
-      },
-      moveNumber: 29,
-      positionCounts: {
-        'red|a3rs,a7bs,a8br,b1rk,b3rt,b6bs,c3rs,d1re,d2rs,d5rs,d8bt,e2re,e6ba,e7bs,e8ba,f1rh,f2rn,f3rn,f8rs,g3br,g4bs,g6bs,g7bk|h:r:r0h1n0s0t0a0e0|b:r0h0n0s0t0a0e0': 1,
-      },
-      moveLog: [],
-    },
-    solution: [
-      {
-        drop: 'horse',
-        to: 'f5',
-      },
-    ],
-    goal: {
-      type: 'checkmate',
-      winner: 'red',
-    },
-    themes: ['checkmate', 'palace-net', 'drop', 'horse'],
-  },
-  {
-    id: 'fortress-xiangqi-mined-021',
-    variant: 'fortress-xiangqi',
-    title: 'Black Treasure drop mate in 1',
-    initial: {
-      id: 'fortress-xiangqi-mined-021',
-      board: {
-        a8: {
-          color: 'red',
-          role: 'horse',
-        },
-        f1: {
-          color: 'red',
-          role: 'horse',
-        },
-        a7: {
-          color: 'black',
-          role: 'cannon',
-        },
-        d2: {
-          color: 'red',
-          role: 'soldier',
-        },
-        e6: {
-          color: 'black',
-          role: 'advisor',
-        },
-        g6: {
-          color: 'black',
-          role: 'soldier',
-        },
-        g4: {
-          color: 'black',
-          role: 'soldier',
-        },
-        b6: {
-          color: 'black',
-          role: 'soldier',
-        },
-        b3: {
-          color: 'black',
-          role: 'cannon',
-        },
-        e7: {
-          color: 'black',
-          role: 'soldier',
-        },
-        g5: {
-          color: 'black',
-          role: 'elephant',
-        },
-        f7: {
-          color: 'black',
-          role: 'general',
-        },
-        b1: {
-          color: 'red',
-          role: 'general',
-        },
-        g8: {
-          color: 'red',
-          role: 'soldier',
-        },
-        g1: {
-          color: 'red',
-          role: 'chariot',
-        },
-        c6: {
-          color: 'red',
-          role: 'treasure',
-        },
-        d8: {
-          color: 'red',
-          role: 'chariot',
-        },
-        a4: {
-          color: 'red',
-          role: 'soldier',
-        },
-      },
-      hands: {
-        red: {
-          soldier: 3,
-        },
-        black: {
-          advisor: 1,
-          treasure: 1,
-          elephant: 1,
-        },
-      },
-      status: {
-        type: 'playing',
-        turn: 'black',
-      },
-      moveNumber: 50,
-      positionCounts: {
-        'black|a4rs,a7bn,a8rh,b1rk,b3bn,b6bs,c6rt,d2rs,d8rr,e6ba,e7bs,f1rh,f7bk,g1rr,g4bs,g5be,g6bs,g8rs|h:r:r0h0n0s3t0a0e0|b:r0h0n0s0t1a1e1': 1,
-      },
-      moveLog: [],
-    },
-    solution: [
-      {
-        drop: 'treasure',
-        to: 'c2',
-      },
-    ],
-    goal: {
-      type: 'checkmate',
-      winner: 'black',
-    },
-    themes: ['checkmate', 'palace-net', 'drop', 'treasure'],
-  },
-  {
-    id: 'fortress-xiangqi-mined-022',
+    id: 'fortress-xiangqi-mined-v2-016',
     variant: 'fortress-xiangqi',
     title: 'Red Chariot mate in 1',
     initial: {
-      id: 'fortress-xiangqi-mined-022',
+      id: 'fortress-xiangqi-mined-v2-016',
       board: {
         a8: {
           color: 'red',
@@ -2601,136 +1862,11 @@ export const MINED_FORTRESS_XIANGQI_PUZZLES: readonly MinedFortressXiangqiPuzzle
     themes: ['checkmate', 'palace-net', 'chariot'],
   },
   {
-    id: 'fortress-xiangqi-mined-023',
-    variant: 'fortress-xiangqi',
-    title: 'Red Horse drop mate in 1',
-    initial: {
-      id: 'fortress-xiangqi-mined-023',
-      board: {
-        a1: {
-          color: 'red',
-          role: 'treasure',
-        },
-        a8: {
-          color: 'black',
-          role: 'chariot',
-        },
-        b1: {
-          color: 'red',
-          role: 'general',
-        },
-        b8: {
-          color: 'red',
-          role: 'cannon',
-        },
-        d1: {
-          color: 'red',
-          role: 'elephant',
-        },
-        d8: {
-          color: 'black',
-          role: 'elephant',
-        },
-        e8: {
-          color: 'black',
-          role: 'advisor',
-        },
-        f1: {
-          color: 'red',
-          role: 'horse',
-        },
-        f8: {
-          color: 'black',
-          role: 'general',
-        },
-        g8: {
-          color: 'black',
-          role: 'treasure',
-        },
-        a2: {
-          color: 'red',
-          role: 'soldier',
-        },
-        a7: {
-          color: 'black',
-          role: 'soldier',
-        },
-        b2: {
-          color: 'red',
-          role: 'advisor',
-        },
-        d7: {
-          color: 'black',
-          role: 'soldier',
-        },
-        f2: {
-          color: 'red',
-          role: 'soldier',
-        },
-        f7: {
-          color: 'black',
-          role: 'soldier',
-        },
-        g7: {
-          color: 'red',
-          role: 'cannon',
-        },
-        g3: {
-          color: 'red',
-          role: 'soldier',
-        },
-        d3: {
-          color: 'black',
-          role: 'soldier',
-        },
-        b5: {
-          color: 'black',
-          role: 'soldier',
-        },
-        a4: {
-          color: 'black',
-          role: 'chariot',
-        },
-        c7: {
-          color: 'black',
-          role: 'soldier',
-        },
-      },
-      hands: {
-        red: {
-          soldier: 1,
-          horse: 1,
-        },
-        black: {},
-      },
-      status: {
-        type: 'playing',
-        turn: 'red',
-      },
-      moveNumber: 10,
-      positionCounts: {
-        'red|a1rt,a2rs,a4br,a7bs,a8br,b1rk,b2ra,b5bs,b8rn,c7bs,d1re,d3bs,d7bs,d8be,e8ba,f1rh,f2rs,f7bs,f8bk,g3rs,g7rn,g8bt|h:r:r0h1n0s1t0a0e0|b:r0h0n0s0t0a0e0': 1,
-      },
-      moveLog: [],
-    },
-    solution: [
-      {
-        drop: 'horse',
-        to: 'e6',
-      },
-    ],
-    goal: {
-      type: 'checkmate',
-      winner: 'red',
-    },
-    themes: ['checkmate', 'palace-net', 'drop', 'horse'],
-  },
-  {
-    id: 'fortress-xiangqi-mined-024',
+    id: 'fortress-xiangqi-mined-v2-017',
     variant: 'fortress-xiangqi',
     title: 'Black Treasure mate in 1',
     initial: {
-      id: 'fortress-xiangqi-mined-024',
+      id: 'fortress-xiangqi-mined-v2-017',
       board: {
         a1: {
           color: 'red',
@@ -2844,5 +1980,873 @@ export const MINED_FORTRESS_XIANGQI_PUZZLES: readonly MinedFortressXiangqiPuzzle
       winner: 'black',
     },
     themes: ['checkmate', 'palace-net', 'treasure'],
+  },
+  {
+    id: 'fortress-xiangqi-mined-v2-018',
+    variant: 'fortress-xiangqi',
+    title: 'Black Cannon drop mate in 1',
+    initial: {
+      id: 'fortress-xiangqi-mined-v2-018',
+      board: {
+        a1: {
+          color: 'red',
+          role: 'treasure',
+        },
+        a8: {
+          color: 'black',
+          role: 'chariot',
+        },
+        b1: {
+          color: 'red',
+          role: 'general',
+        },
+        b8: {
+          color: 'black',
+          role: 'horse',
+        },
+        c1: {
+          color: 'red',
+          role: 'advisor',
+        },
+        d1: {
+          color: 'red',
+          role: 'elephant',
+        },
+        d8: {
+          color: 'black',
+          role: 'elephant',
+        },
+        e8: {
+          color: 'black',
+          role: 'general',
+        },
+        f1: {
+          color: 'red',
+          role: 'horse',
+        },
+        g1: {
+          color: 'red',
+          role: 'chariot',
+        },
+        g8: {
+          color: 'black',
+          role: 'treasure',
+        },
+        a2: {
+          color: 'red',
+          role: 'soldier',
+        },
+        a7: {
+          color: 'black',
+          role: 'soldier',
+        },
+        b2: {
+          color: 'red',
+          role: 'soldier',
+        },
+        d7: {
+          color: 'black',
+          role: 'soldier',
+        },
+        f2: {
+          color: 'red',
+          role: 'soldier',
+        },
+        g2: {
+          color: 'red',
+          role: 'soldier',
+        },
+        g7: {
+          color: 'black',
+          role: 'soldier',
+        },
+        c2: {
+          color: 'red',
+          role: 'soldier',
+        },
+        b6: {
+          color: 'black',
+          role: 'soldier',
+        },
+        d4: {
+          color: 'red',
+          role: 'cannon',
+        },
+        e7: {
+          color: 'black',
+          role: 'soldier',
+        },
+        a3: {
+          color: 'red',
+          role: 'advisor',
+        },
+      },
+      hands: {
+        red: {},
+        black: {
+          cannon: 1,
+        },
+      },
+      status: {
+        type: 'playing',
+        turn: 'black',
+      },
+      moveNumber: 5,
+      positionCounts: {
+        'black|a1rt,a2rs,a3ra,a7bs,a8br,b1rk,b2rs,b6bs,b8bh,c1ra,c2rs,d1re,d4rn,d7bs,d8be,e7bs,e8bk,f1rh,f2rs,g1rr,g2rs,g7bs,g8bt|h:r:r0h0n0s0t0a0e0|b:r0h0n1s0t0a0e0': 1,
+      },
+      moveLog: [],
+    },
+    solution: [
+      {
+        drop: 'cannon',
+        to: 'b4',
+      },
+    ],
+    goal: {
+      type: 'checkmate',
+      winner: 'black',
+    },
+    themes: ['checkmate', 'palace-net', 'drop', 'cannon'],
+  },
+  {
+    id: 'fortress-xiangqi-mined-v2-019',
+    variant: 'fortress-xiangqi',
+    title: 'Red Cannon mate in 1',
+    initial: {
+      id: 'fortress-xiangqi-mined-v2-019',
+      board: {
+        a1: {
+          color: 'red',
+          role: 'treasure',
+        },
+        a8: {
+          color: 'black',
+          role: 'chariot',
+        },
+        b8: {
+          color: 'black',
+          role: 'horse',
+        },
+        c1: {
+          color: 'red',
+          role: 'general',
+        },
+        d1: {
+          color: 'red',
+          role: 'elephant',
+        },
+        d8: {
+          color: 'black',
+          role: 'elephant',
+        },
+        e8: {
+          color: 'black',
+          role: 'general',
+        },
+        g1: {
+          color: 'red',
+          role: 'chariot',
+        },
+        g8: {
+          color: 'black',
+          role: 'treasure',
+        },
+        a2: {
+          color: 'red',
+          role: 'soldier',
+        },
+        a7: {
+          color: 'black',
+          role: 'soldier',
+        },
+        b2: {
+          color: 'red',
+          role: 'soldier',
+        },
+        d7: {
+          color: 'black',
+          role: 'soldier',
+        },
+        f2: {
+          color: 'red',
+          role: 'soldier',
+        },
+        g7: {
+          color: 'black',
+          role: 'soldier',
+        },
+        e7: {
+          color: 'black',
+          role: 'soldier',
+        },
+        a3: {
+          color: 'red',
+          role: 'advisor',
+        },
+        g3: {
+          color: 'red',
+          role: 'soldier',
+        },
+        f4: {
+          color: 'red',
+          role: 'cannon',
+        },
+        b5: {
+          color: 'black',
+          role: 'soldier',
+        },
+        g4: {
+          color: 'red',
+          role: 'cannon',
+        },
+        d3: {
+          color: 'black',
+          role: 'horse',
+        },
+        d2: {
+          color: 'red',
+          role: 'soldier',
+        },
+        f8: {
+          color: 'black',
+          role: 'advisor',
+        },
+      },
+      hands: {
+        red: {},
+        black: {},
+      },
+      status: {
+        type: 'playing',
+        turn: 'red',
+      },
+      moveNumber: 11,
+      positionCounts: {
+        'red|a1rt,a2rs,a3ra,a7bs,a8br,b2rs,b5bs,b8bh,c1rk,d1re,d2rs,d3bh,d7bs,d8be,e7bs,e8bk,f2rs,f4rn,f8ba,g1rr,g3rs,g4rn,g7bs,g8bt|h:r:r0h0n0s0t0a0e0|b:r0h0n0s0t0a0e0': 1,
+      },
+      moveLog: [],
+    },
+    solution: [
+      {
+        from: 'g4',
+        to: 'g8',
+      },
+    ],
+    goal: {
+      type: 'checkmate',
+      winner: 'red',
+    },
+    themes: ['checkmate', 'palace-net', 'cannon'],
+  },
+  {
+    id: 'fortress-xiangqi-mined-v2-020',
+    variant: 'fortress-xiangqi',
+    title: 'Red Cannon mate in 1',
+    initial: {
+      id: 'fortress-xiangqi-mined-v2-020',
+      board: {
+        a1: {
+          color: 'red',
+          role: 'treasure',
+        },
+        a8: {
+          color: 'black',
+          role: 'chariot',
+        },
+        b8: {
+          color: 'black',
+          role: 'horse',
+        },
+        c1: {
+          color: 'red',
+          role: 'general',
+        },
+        d1: {
+          color: 'red',
+          role: 'elephant',
+        },
+        d8: {
+          color: 'black',
+          role: 'elephant',
+        },
+        e8: {
+          color: 'black',
+          role: 'general',
+        },
+        g1: {
+          color: 'red',
+          role: 'chariot',
+        },
+        g8: {
+          color: 'black',
+          role: 'treasure',
+        },
+        a2: {
+          color: 'red',
+          role: 'soldier',
+        },
+        a7: {
+          color: 'black',
+          role: 'soldier',
+        },
+        b2: {
+          color: 'red',
+          role: 'soldier',
+        },
+        d7: {
+          color: 'black',
+          role: 'soldier',
+        },
+        f2: {
+          color: 'black',
+          role: 'horse',
+        },
+        g7: {
+          color: 'black',
+          role: 'soldier',
+        },
+        e7: {
+          color: 'black',
+          role: 'soldier',
+        },
+        a3: {
+          color: 'red',
+          role: 'advisor',
+        },
+        g3: {
+          color: 'red',
+          role: 'soldier',
+        },
+        b5: {
+          color: 'black',
+          role: 'soldier',
+        },
+        g4: {
+          color: 'red',
+          role: 'cannon',
+        },
+        d2: {
+          color: 'red',
+          role: 'soldier',
+        },
+        f8: {
+          color: 'black',
+          role: 'advisor',
+        },
+        c4: {
+          color: 'red',
+          role: 'cannon',
+        },
+      },
+      hands: {
+        red: {},
+        black: {
+          soldier: 1,
+        },
+      },
+      status: {
+        type: 'playing',
+        turn: 'red',
+      },
+      moveNumber: 12,
+      positionCounts: {
+        'red|a1rt,a2rs,a3ra,a7bs,a8br,b2rs,b5bs,b8bh,c1rk,c4rn,d1re,d2rs,d7bs,d8be,e7bs,e8bk,f2bh,f8ba,g1rr,g3rs,g4rn,g7bs,g8bt|h:r:r0h0n0s0t0a0e0|b:r0h0n0s1t0a0e0': 1,
+      },
+      moveLog: [],
+    },
+    solution: [
+      {
+        from: 'g4',
+        to: 'g8',
+      },
+    ],
+    goal: {
+      type: 'checkmate',
+      winner: 'red',
+    },
+    themes: ['checkmate', 'palace-net', 'cannon'],
+  },
+  {
+    id: 'fortress-xiangqi-mined-v2-021',
+    variant: 'fortress-xiangqi',
+    title: 'Red Treasure drop mate in 1',
+    initial: {
+      id: 'fortress-xiangqi-mined-v2-021',
+      board: {
+        a1: {
+          color: 'red',
+          role: 'general',
+        },
+        a8: {
+          color: 'black',
+          role: 'chariot',
+        },
+        b8: {
+          color: 'black',
+          role: 'horse',
+        },
+        d8: {
+          color: 'black',
+          role: 'elephant',
+        },
+        f1: {
+          color: 'red',
+          role: 'horse',
+        },
+        g8: {
+          color: 'black',
+          role: 'general',
+        },
+        a7: {
+          color: 'black',
+          role: 'soldier',
+        },
+        b7: {
+          color: 'black',
+          role: 'soldier',
+        },
+        g3: {
+          color: 'red',
+          role: 'soldier',
+        },
+        c3: {
+          color: 'red',
+          role: 'advisor',
+        },
+        f3: {
+          color: 'red',
+          role: 'soldier',
+        },
+        a3: {
+          color: 'red',
+          role: 'soldier',
+        },
+        f6: {
+          color: 'black',
+          role: 'soldier',
+        },
+        b4: {
+          color: 'red',
+          role: 'soldier',
+        },
+        b3: {
+          color: 'red',
+          role: 'soldier',
+        },
+        d6: {
+          color: 'red',
+          role: 'chariot',
+        },
+        b2: {
+          color: 'red',
+          role: 'soldier',
+        },
+        a5: {
+          color: 'black',
+          role: 'elephant',
+        },
+        c7: {
+          color: 'red',
+          role: 'treasure',
+        },
+        g6: {
+          color: 'black',
+          role: 'soldier',
+        },
+      },
+      hands: {
+        red: {
+          cannon: 2,
+          treasure: 1,
+        },
+        black: {
+          advisor: 1,
+        },
+      },
+      status: {
+        type: 'playing',
+        turn: 'red',
+      },
+      moveNumber: 24,
+      positionCounts: {
+        'red|a1rk,a3rs,a5be,a7bs,a8br,b2rs,b3rs,b4rs,b7bs,b8bh,c3ra,c7rt,d6rr,d8be,f1rh,f3rs,f6bs,g3rs,g6bs,g8bk|h:r:r0h0n2s0t1a0e0|b:r0h0n0s0t0a1e0': 1,
+      },
+      moveLog: [],
+    },
+    solution: [
+      {
+        drop: 'treasure',
+        to: 'f7',
+      },
+    ],
+    goal: {
+      type: 'checkmate',
+      winner: 'red',
+    },
+    themes: ['checkmate', 'palace-net', 'drop', 'treasure'],
+  },
+  {
+    id: 'fortress-xiangqi-mined-v2-022',
+    variant: 'fortress-xiangqi',
+    title: 'Red Treasure drop mate in 1',
+    initial: {
+      id: 'fortress-xiangqi-mined-v2-022',
+      board: {
+        a1: {
+          color: 'red',
+          role: 'general',
+        },
+        a8: {
+          color: 'black',
+          role: 'chariot',
+        },
+        b8: {
+          color: 'black',
+          role: 'horse',
+        },
+        d8: {
+          color: 'black',
+          role: 'elephant',
+        },
+        f1: {
+          color: 'red',
+          role: 'horse',
+        },
+        g8: {
+          color: 'black',
+          role: 'general',
+        },
+        a7: {
+          color: 'black',
+          role: 'soldier',
+        },
+        g3: {
+          color: 'red',
+          role: 'soldier',
+        },
+        c3: {
+          color: 'red',
+          role: 'advisor',
+        },
+        f3: {
+          color: 'red',
+          role: 'soldier',
+        },
+        a3: {
+          color: 'red',
+          role: 'soldier',
+        },
+        f6: {
+          color: 'black',
+          role: 'soldier',
+        },
+        b4: {
+          color: 'red',
+          role: 'soldier',
+        },
+        b3: {
+          color: 'red',
+          role: 'soldier',
+        },
+        d6: {
+          color: 'red',
+          role: 'chariot',
+        },
+        b2: {
+          color: 'red',
+          role: 'soldier',
+        },
+        a5: {
+          color: 'black',
+          role: 'elephant',
+        },
+        c7: {
+          color: 'black',
+          role: 'soldier',
+        },
+        g6: {
+          color: 'black',
+          role: 'soldier',
+        },
+        e7: {
+          color: 'red',
+          role: 'cannon',
+        },
+      },
+      hands: {
+        red: {
+          cannon: 1,
+          treasure: 1,
+        },
+        black: {
+          advisor: 1,
+          treasure: 1,
+        },
+      },
+      status: {
+        type: 'playing',
+        turn: 'red',
+      },
+      moveNumber: 25,
+      positionCounts: {
+        'red|a1rk,a3rs,a5be,a7bs,a8br,b2rs,b3rs,b4rs,b8bh,c3ra,c7bs,d6rr,d8be,e7rn,f1rh,f3rs,f6bs,g3rs,g6bs,g8bk|h:r:r0h0n1s0t1a0e0|b:r0h0n0s0t1a1e0': 1,
+      },
+      moveLog: [],
+    },
+    solution: [
+      {
+        drop: 'treasure',
+        to: 'f7',
+      },
+    ],
+    goal: {
+      type: 'checkmate',
+      winner: 'red',
+    },
+    themes: ['checkmate', 'palace-net', 'drop', 'treasure'],
+  },
+  {
+    id: 'fortress-xiangqi-mined-v2-023',
+    variant: 'fortress-xiangqi',
+    title: 'Red Treasure drop mate in 1',
+    initial: {
+      id: 'fortress-xiangqi-mined-v2-023',
+      board: {
+        a1: {
+          color: 'red',
+          role: 'general',
+        },
+        a8: {
+          color: 'black',
+          role: 'chariot',
+        },
+        b8: {
+          color: 'black',
+          role: 'horse',
+        },
+        d8: {
+          color: 'red',
+          role: 'chariot',
+        },
+        f1: {
+          color: 'red',
+          role: 'horse',
+        },
+        g8: {
+          color: 'black',
+          role: 'general',
+        },
+        a7: {
+          color: 'black',
+          role: 'soldier',
+        },
+        g3: {
+          color: 'red',
+          role: 'soldier',
+        },
+        c3: {
+          color: 'red',
+          role: 'advisor',
+        },
+        f3: {
+          color: 'red',
+          role: 'soldier',
+        },
+        a3: {
+          color: 'red',
+          role: 'soldier',
+        },
+        f6: {
+          color: 'black',
+          role: 'soldier',
+        },
+        b4: {
+          color: 'red',
+          role: 'soldier',
+        },
+        b3: {
+          color: 'red',
+          role: 'soldier',
+        },
+        b2: {
+          color: 'red',
+          role: 'soldier',
+        },
+        a5: {
+          color: 'black',
+          role: 'elephant',
+        },
+        c7: {
+          color: 'black',
+          role: 'soldier',
+        },
+        g6: {
+          color: 'black',
+          role: 'soldier',
+        },
+        e7: {
+          color: 'red',
+          role: 'cannon',
+        },
+        f8: {
+          color: 'black',
+          role: 'treasure',
+        },
+      },
+      hands: {
+        red: {
+          cannon: 1,
+          treasure: 1,
+          elephant: 1,
+        },
+        black: {
+          advisor: 1,
+        },
+      },
+      status: {
+        type: 'playing',
+        turn: 'red',
+      },
+      moveNumber: 26,
+      positionCounts: {
+        'red|a1rk,a3rs,a5be,a7bs,a8br,b2rs,b3rs,b4rs,b8bh,c3ra,c7bs,d8rr,e7rn,f1rh,f3rs,f6bs,f8bt,g3rs,g6bs,g8bk|h:r:r0h0n1s0t1a0e1|b:r0h0n0s0t0a1e0': 1,
+      },
+      moveLog: [],
+    },
+    solution: [
+      {
+        drop: 'treasure',
+        to: 'f7',
+      },
+    ],
+    goal: {
+      type: 'checkmate',
+      winner: 'red',
+    },
+    themes: ['checkmate', 'palace-net', 'drop', 'treasure'],
+  },
+  {
+    id: 'fortress-xiangqi-mined-v2-024',
+    variant: 'fortress-xiangqi',
+    title: 'Red Treasure drop mate in 1',
+    initial: {
+      id: 'fortress-xiangqi-mined-v2-024',
+      board: {
+        a1: {
+          color: 'red',
+          role: 'general',
+        },
+        a8: {
+          color: 'black',
+          role: 'chariot',
+        },
+        b8: {
+          color: 'black',
+          role: 'horse',
+        },
+        d8: {
+          color: 'red',
+          role: 'chariot',
+        },
+        f1: {
+          color: 'red',
+          role: 'horse',
+        },
+        g8: {
+          color: 'black',
+          role: 'general',
+        },
+        a7: {
+          color: 'black',
+          role: 'soldier',
+        },
+        g3: {
+          color: 'red',
+          role: 'soldier',
+        },
+        c3: {
+          color: 'red',
+          role: 'advisor',
+        },
+        f3: {
+          color: 'red',
+          role: 'soldier',
+        },
+        a3: {
+          color: 'red',
+          role: 'soldier',
+        },
+        f6: {
+          color: 'black',
+          role: 'soldier',
+        },
+        b4: {
+          color: 'red',
+          role: 'soldier',
+        },
+        b3: {
+          color: 'red',
+          role: 'soldier',
+        },
+        b2: {
+          color: 'red',
+          role: 'soldier',
+        },
+        a5: {
+          color: 'black',
+          role: 'elephant',
+        },
+        g6: {
+          color: 'black',
+          role: 'soldier',
+        },
+        e7: {
+          color: 'red',
+          role: 'cannon',
+        },
+        f8: {
+          color: 'black',
+          role: 'treasure',
+        },
+        e2: {
+          color: 'red',
+          role: 'cannon',
+        },
+        b7: {
+          color: 'black',
+          role: 'soldier',
+        },
+      },
+      hands: {
+        red: {
+          treasure: 1,
+          elephant: 1,
+        },
+        black: {
+          advisor: 1,
+        },
+      },
+      status: {
+        type: 'playing',
+        turn: 'red',
+      },
+      moveNumber: 27,
+      positionCounts: {
+        'red|a1rk,a3rs,a5be,a7bs,a8br,b2rs,b3rs,b4rs,b7bs,b8bh,c3ra,d8rr,e2rn,e7rn,f1rh,f3rs,f6bs,f8bt,g3rs,g6bs,g8bk|h:r:r0h0n0s0t1a0e1|b:r0h0n0s0t0a1e0': 1,
+      },
+      moveLog: [],
+    },
+    solution: [
+      {
+        drop: 'treasure',
+        to: 'f7',
+      },
+    ],
+    goal: {
+      type: 'checkmate',
+      winner: 'red',
+    },
+    themes: ['checkmate', 'palace-net', 'drop', 'treasure'],
   },
 ];

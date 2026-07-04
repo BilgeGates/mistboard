@@ -270,14 +270,17 @@ export const FORTRESS_XIANGQI_GENERAL_DIAGRAM = () => {
 
 // Soldier: one point forward before the river; forward or sideways after.
 export const FORTRESS_XIANGQI_SOLDIER_DIAGRAM = () => {
-  const before = stateWith({ ...GENERALS, d3: { color: 'red', role: 'soldier' } });
-  const after = stateWith({ ...GENERALS, d5: { color: 'red', role: 'soldier' } });
-  return boardRow(
-    [
-      { label: 'BEFORE THE RIVER', svg: movesBoard(before, 'd3') },
-      { label: 'AFTER THE RIVER', svg: movesBoard(after, 'd5') },
-    ],
-    640,
+  // Veteran soldier: forward and sideways from the opening move (no river gate).
+  // The cross behind it marks the one direction it can never take.
+  const state = stateWith({ ...GENERALS, d4: { color: 'red', role: 'soldier' } });
+  return diagram(
+    viewOf(state),
+    {
+      selectedSquare: 'd4',
+      targets: boardTargetsFrom(state, 'd4'),
+      blockedSquares: ['d3'],
+    },
+    380,
   );
 };
 
