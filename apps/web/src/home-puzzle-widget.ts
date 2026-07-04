@@ -148,9 +148,9 @@ function renderDropHomePuzzleBoard(
   const shell = document.createElement('div');
   shell.className = 'home-puzzle-widget-drop drop-mini-reserve-container';
 
-  const topReserve = document.createElement('div');
-  topReserve.className = 'home-puzzle-widget-hand home-puzzle-widget-hand-top';
-  topReserve.setAttribute('aria-label', 'Black reserve');
+  const leftReserve = document.createElement('div');
+  leftReserve.className = 'home-puzzle-widget-hand home-puzzle-widget-hand-left';
+  leftReserve.setAttribute('aria-label', 'Black reserve');
 
   const board = homePuzzleBoardSurface(
     renderMiniXiangqiBoardSvg(dropMiniXiangqiBoardView(dropView), perspective, {
@@ -160,16 +160,16 @@ function renderDropHomePuzzleBoard(
     }),
   );
 
-  const bottomReserve = document.createElement('div');
-  bottomReserve.className = 'home-puzzle-widget-hand home-puzzle-widget-hand-bottom';
-  bottomReserve.setAttribute('aria-label', 'Red reserve');
+  const rightReserve = document.createElement('div');
+  rightReserve.className = 'home-puzzle-widget-hand home-puzzle-widget-hand-right';
+  rightReserve.setAttribute('aria-label', 'Red reserve');
 
-  const bottom = perspective;
-  const top = bottom === 'red' ? 'black' : 'red';
-  fillDropMiniXiangqiReserve(topReserve, dropView, top);
-  fillDropMiniXiangqiReserve(bottomReserve, dropView, bottom);
+  const right = perspective;
+  const left = right === 'red' ? 'black' : 'red';
+  fillDropMiniXiangqiReserve(leftReserve, dropView, left);
+  fillDropMiniXiangqiReserve(rightReserve, dropView, right);
 
-  shell.append(topReserve, board, bottomReserve);
+  shell.append(leftReserve, board, rightReserve);
   return shell;
 }
 
@@ -180,24 +180,24 @@ function renderFortressHomePuzzleBoard(
   const shell = document.createElement('div');
   shell.className = 'home-puzzle-widget-drop drop-mini-reserve-container';
 
-  const topReserve = document.createElement('div');
-  topReserve.className = 'home-puzzle-widget-hand home-puzzle-widget-hand-top';
-  topReserve.setAttribute('aria-label', 'Black reserve');
+  const leftReserve = document.createElement('div');
+  leftReserve.className = 'home-puzzle-widget-hand home-puzzle-widget-hand-left';
+  leftReserve.setAttribute('aria-label', 'Black reserve');
 
   const board = homePuzzleBoardSurface(
     renderFortressXiangqiBoardSvg(view, perspective, { interactive: false }),
   );
 
-  const bottomReserve = document.createElement('div');
-  bottomReserve.className = 'home-puzzle-widget-hand home-puzzle-widget-hand-bottom';
-  bottomReserve.setAttribute('aria-label', 'Red reserve');
+  const rightReserve = document.createElement('div');
+  rightReserve.className = 'home-puzzle-widget-hand home-puzzle-widget-hand-right';
+  rightReserve.setAttribute('aria-label', 'Red reserve');
 
-  const bottom = perspective;
-  const top = bottom === 'red' ? 'black' : 'red';
-  fillFortressXiangqiReserve(topReserve, view, top);
-  fillFortressXiangqiReserve(bottomReserve, view, bottom);
+  const right = perspective;
+  const left = right === 'red' ? 'black' : 'red';
+  fillFortressXiangqiReserve(leftReserve, view, left);
+  fillFortressXiangqiReserve(rightReserve, view, right);
 
-  shell.append(topReserve, board, bottomReserve);
+  shell.append(leftReserve, board, rightReserve);
   return shell;
 }
 

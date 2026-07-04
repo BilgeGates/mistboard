@@ -52,7 +52,7 @@
 
 .home-puzzle-widget {
   display: grid;
-  gap: 4px;
+  gap: 2px;
   align-self: stretch;
   color: var(--site-muted);
   text-decoration: none;
@@ -84,19 +84,30 @@
 
 .home-puzzle-widget-drop {
   display: grid;
-  gap: 2px;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 4px;
   width: 100%;
 }
 
 .home-puzzle-widget .home-puzzle-widget-hand {
-  --drop-mini-hand-piece-size: clamp(24px, calc(100cqw * 48 / 516), 36px);
+  --drop-mini-hand-piece-size: clamp(22px, calc(100cqw * 40 / 516), 32px);
   --drop-mini-hand-tile-size: calc(var(--drop-mini-hand-piece-size) + 6px);
   --drop-mini-hand-band-height: calc(var(--drop-mini-hand-piece-size) + 14px);
 
-  padding: 4px 0;
+  padding: 0;
+}
+
+/* Reserves flank the board: let the strip grow to a vertical column instead
+   of the fixed single-row band height the shared strip style imposes. */
+.home-puzzle-widget .home-puzzle-widget-hand.drop-mini-reserve-strip {
+  height: auto;
+  min-height: 0;
+  padding: 0;
 }
 
 .home-puzzle-widget-hand .drop-mini-reserve-row {
+  flex-direction: column;
   gap: 4px;
 }
 
@@ -121,7 +132,7 @@
   font-size: 15px;
   font-weight: 400;
   line-height: 1.2;
-  text-align: right;
+  text-align: center;
 }
 
 /* Row 2 of the center track: article cards, forum preview, chat, stacked full
