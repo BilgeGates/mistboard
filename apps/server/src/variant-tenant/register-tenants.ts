@@ -21,3 +21,4 @@ import '../jungle-registration.js';
 import '../kriegspiel-registration.js';
 import '../mini-xiangqi-registration.js';
 import '../reveal-chess-registration.js';
+import '../xiangqi-registration.js';

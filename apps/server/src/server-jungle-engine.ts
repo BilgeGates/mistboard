@@ -29,6 +29,7 @@ import {
   reportEngineMoveOk,
   resolveValidatedEngineMove,
 } from './engine-move-guard.js';
+import { budgetForMove } from './engine-time-budget.js';
 import {
   JUNGLE_RUST_ENGINE_VERSION,
   jungleEngineBinaryAvailable,
@@ -181,14 +182,16 @@ export async function playJungleEngineMoveIfReady(
   const now = ctx.now?.() ?? Date.now();
   const clock = room.projection.clock;
   const remainingMs = clock ? tenantClockRemainingMs(clock, seat, now) : null;
+  const incrementMs = clock?.incrementMs ?? 0;
   if (remainingMs !== null && remainingMs <= 0) return;
 
   // Strong path: the Rust `jungle-engine` binary (UCI subprocess), routed through the
   // shared fail-closed/observability boundary. Gated behind a flag with the in-process
   // TS engine as fallback when the binary isn't shipped. The Rust engine fixes the TS
   // dawdle (it takes the fastest win) and gets counters + fail-closed for free.
+  // (The TS fallback below is fixed-depth/synchronous — no wall-clock budget applies.)
   if (jungleRustEngineEnabled() && jungleRustTierFor(engineId) && jungleEngineBinaryAvailable()) {
-    await playJungleRustEngineMove(ctx, room, seat, engineId, remainingMs);
+    await playJungleRustEngineMove(ctx, room, seat, engineId, remainingMs, incrementMs);
     return;
   }
 
@@ -223,15 +226,22 @@ async function playJungleRustEngineMove(
   seat: JungleColor,
   engineId: string,
   remainingMs: number | null,
+  incrementMs: number,
 ): Promise<void> {
   const rustTier = jungleRustTierFor(engineId);
   if (!rustTier) return;
   const state = room.projection.state;
   const fen = jungleStateToEngineFen(state);
-  const movetimeCapMs =
-    remainingMs === null
-      ? rustTier.movetimeCapMs
-      : Math.max(MIN_MOVETIME_MS, Math.min(rustTier.movetimeCapMs, remainingMs - CLOCK_SAFETY_MS));
+  // Clock-aware per-move budget (shared allocator). Strength = the rust tier's NODE
+  // budget; this movetime is the latency ceiling + time-pressure guard. Existing
+  // ceiling preserved — behavior-neutral for untimed play; adds increment awareness.
+  const { computeBudgetMs: movetimeCapMs } = budgetForMove({
+    remainingMs,
+    incrementMs,
+    ceilingMs: rustTier.movetimeCapMs,
+    reserveMs: CLOCK_SAFETY_MS,
+    floorMs: MIN_MOVETIME_MS,
+  });
 
   const {
     chosen: validated,

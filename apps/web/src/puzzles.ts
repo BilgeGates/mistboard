@@ -1,12 +1,22 @@
 import {
   applyDropMiniXiangqiMove,
+  applyFortressXiangqiMove,
   applyMiniXiangqiOpenMove,
   DROP_MINI_XIANGQI_DROP_ROLES,
   DROP_MINI_XIANGQI_SPEC_ID,
   type DropMiniXiangqiDropRole,
   type DropMiniXiangqiGameState,
   type DropMiniXiangqiMove,
+  FORTRESS_DROP_ROLES,
+  FORTRESS_XIANGQI_SPEC_ID,
+  type FortressXiangqiColor,
+  type FortressXiangqiDropRole,
+  type FortressXiangqiGameState,
+  type FortressXiangqiMove,
+  type FortressXiangqiPlayerView,
+  type FortressXiangqiSquare,
   getDropMiniXiangqiPlayerView,
+  getFortressXiangqiPlayerView,
   getMiniXiangqiOpenPlayerView,
   MINI_XIANGQI_SPEC_ID,
   type MiniXiangqiColor,
@@ -25,6 +35,18 @@ import {
   fillDropMiniXiangqiReserve,
 } from './drop-mini-xiangqi-view.js';
 import {
+  FORTRESS_XIANGQI_PIECE_PX,
+  fortressXiangqiPieceGhostSvg,
+  installFortressXiangqiBoardStyles,
+  renderFortressXiangqiBoardSvg,
+} from './fortress-xiangqi-render.js';
+import {
+  fillFortressXiangqiReserve,
+  fortressXiangqiBoardMoves,
+  fortressXiangqiDropTargets,
+  fortressXiangqiMoveLabel,
+} from './fortress-xiangqi-view.js';
+import {
   installMiniXiangqiBoardStyles,
   MINI_XIANGQI_PIECE_PX,
   miniXiangqiPieceGhostSvg,
@@ -36,16 +58,22 @@ import { renderVariantMiniBoard, type VariantMiniId } from './variant-mini-board
 import { installBoardDrag } from './variant-tenant/board-drag.js';
 import { installHandDrag } from './variant-tenant/hand-drag.js';
 
-type PuzzleVariant = typeof MINI_XIANGQI_SPEC_ID | typeof DROP_MINI_XIANGQI_SPEC_ID;
+type PuzzleVariant =
+  | typeof MINI_XIANGQI_SPEC_ID
+  | typeof DROP_MINI_XIANGQI_SPEC_ID
+  | typeof FORTRESS_XIANGQI_SPEC_ID;
 type PuzzleVariantFilter = PuzzleVariant;
-type PuzzleMove = MiniXiangqiMove | DropMiniXiangqiMove;
+type PuzzleMove = MiniXiangqiMove | DropMiniXiangqiMove | FortressXiangqiMove;
+type PuzzleColor = MiniXiangqiColor | FortressXiangqiColor;
 
 type PuzzleSummary = {
   id: string;
   variant: PuzzleVariant;
   title: string;
-  sideToMove: MiniXiangqiColor | null;
-  goal: { type: 'checkmate'; winner?: MiniXiangqiColor };
+  sideToMove: PuzzleColor | null;
+  goal:
+    | { type: 'checkmate'; winner?: PuzzleColor }
+    | { type: 'winning-advantage'; winner?: PuzzleColor; centipawns?: number };
   themes: string[];
   solutionPlyCount: number;
 };
@@ -60,8 +88,13 @@ type DropPuzzleDetail = PuzzleSummary & {
   initial: DropMiniXiangqiGameState;
 };
 
-type PuzzleDetail = MiniPuzzleDetail | DropPuzzleDetail;
-type PuzzleState = MiniXiangqiGameState | DropMiniXiangqiGameState;
+type FortressPuzzleDetail = PuzzleSummary & {
+  variant: typeof FORTRESS_XIANGQI_SPEC_ID;
+  initial: FortressXiangqiGameState;
+};
+
+type PuzzleDetail = MiniPuzzleDetail | DropPuzzleDetail | FortressPuzzleDetail;
+type PuzzleState = MiniXiangqiGameState | DropMiniXiangqiGameState | FortressXiangqiGameState;
 
 type PuzzleAttempt =
   | {
@@ -89,9 +122,9 @@ type PuzzleSession = {
   playedMoves: PuzzleMove[];
   solverMoves: PuzzleMove[];
   viewPly: number;
-  selectedSquare: MiniXiangqiSquare | null;
-  selectedDrop: DropMiniXiangqiDropRole | null;
-  draggingFrom: MiniXiangqiSquare | null;
+  selectedSquare: MiniXiangqiSquare | FortressXiangqiSquare | null;
+  selectedDrop: DropMiniXiangqiDropRole | FortressXiangqiDropRole | null;
+  draggingFrom: MiniXiangqiSquare | FortressXiangqiSquare | null;
   feedback: { kind: FeedbackKind; text: string };
   submitting: boolean;
 };
@@ -107,17 +140,42 @@ type PuzzleNavigation = {
 
 const SOLVED_PUZZLES_STORAGE_KEY = 'mistboard:puzzles:solved';
 const AUTO_NEXT_STORAGE_KEY = 'mistboard:puzzles:auto-next';
+const RATED_STORAGE_KEY = 'mistboard:puzzles:rated';
 const AUTO_NEXT_DELAY_MS = 150;
-const PUZZLE_VARIANT_FILTERS: readonly PuzzleVariantFilter[] = [
-  MINI_XIANGQI_SPEC_ID,
-  DROP_MINI_XIANGQI_SPEC_ID,
-];
+
+// The signed-in user's puzzle rating for the current variant (from
+// /api/puzzles/rating), and the rating change returned by a rated attempt.
+type UserPuzzleRating = {
+  rating: number;
+  provisional: boolean;
+  solved: number;
+  attempts: number;
+};
+
+type PuzzleAttemptRating = {
+  userRating: number;
+  delta: number;
+  provisional: boolean;
+  ratingChanged: boolean;
+  firstAttempt: boolean;
+};
+
+// Rating UI wiring. One puzzle page is mounted at a time, so the rated
+// preference and the "an attempt just changed my rating" callback live as
+// module singletons the free-function attempt path can reach without threading.
+let puzzleRatedPref = true;
+let onAttemptRating: ((rating: PuzzleAttemptRating) => void) | null = null;
+// Only Fortress Xiangqi is surfaced on the puzzle page for now. Mini / Drop Mini
+// puzzles stay in the corpus + API (deep links still resolve server-side) but are
+// hidden from the selector and default view. Re-add them here to unhide.
+const PUZZLE_VARIANT_FILTERS: readonly PuzzleVariantFilter[] = [FORTRESS_XIANGQI_SPEC_ID];
 
 export async function mountPuzzles(
   root: HTMLElement,
   initialPuzzleId: string | null = null,
 ): Promise<void> {
   installMiniXiangqiBoardStyles();
+  installFortressXiangqiBoardStyles();
   setBoardFamily('xiangqi');
   root.classList.add('puzzles-page');
 
@@ -142,31 +200,61 @@ export async function mountPuzzles(
 
   let summaries: PuzzleSummary[] = [];
   let selectedId = initialPuzzleId;
-  let variantFilter: PuzzleVariantFilter = MINI_XIANGQI_SPEC_ID;
+  let variantFilter: PuzzleVariantFilter = PUZZLE_VARIANT_FILTERS[0] ?? FORTRESS_XIANGQI_SPEC_ID;
   let session: PuzzleSession | null = null;
   const solvedIds = loadSolvedPuzzleIds();
   let autoNext = loadAutoNextEnabled();
+  let ratedEnabled = loadRatedEnabled();
+  let userRating: UserPuzzleRating | null = null;
+  let ratingDelta: number | null = null;
   let autoNextTimer: number | null = null;
   let loadToken = 0;
+  let ratingToken = 0;
+  puzzleRatedPref = ratedEnabled;
 
   const queueSummaries = (): PuzzleSummary[] => filterPuzzlesByVariant(summaries, variantFilter);
 
+  // Refresh the signed-in user's rating for the current variant. Guarded by a
+  // token so a slow response for an old variant can't overwrite a newer one.
+  const refreshUserRating = async (): Promise<void> => {
+    const token = ++ratingToken;
+    const next = await fetchUserPuzzleRating(variantFilter);
+    if (token !== ratingToken) return;
+    userRating = next;
+    renderControls();
+  };
+
+  // A rated attempt just resolved: show the delta and re-sync the authoritative
+  // rating + counts from the server.
+  onAttemptRating = async (rating) => {
+    ratingDelta = rating.ratingChanged ? rating.delta : null;
+    const token = ++ratingToken;
+    const next = await fetchUserPuzzleRating(variantFilter);
+    if (token !== ratingToken) return;
+    userRating = next;
+    renderControls();
+  };
+
   const renderControls = (): void => {
-    renderQueuePanel(
-      controls,
-      queueSummaries(),
+    renderQueuePanel(controls, {
+      queue: queueSummaries(),
       selectedId,
       solvedIds,
       variantFilter,
       autoNext,
-      async (nextFilter) => {
+      ratedEnabled,
+      userRating,
+      ratingDelta,
+      onVariantChange: async (nextFilter) => {
         variantFilter = nextFilter;
+        ratingDelta = null;
         const queue = queueSummaries();
         const nextId =
           selectedId && queue.some((puzzle) => puzzle.id === selectedId)
             ? selectedId
             : (queue[0]?.id ?? null);
         renderControls();
+        void refreshUserRating();
         if (nextId) {
           await selectPuzzle(nextId, true);
         } else {
@@ -175,12 +263,18 @@ export async function mountPuzzles(
           renderStatus(detail, 'No puzzles');
         }
       },
-      (enabled) => {
+      onAutoNextChange: (enabled) => {
         autoNext = enabled;
         saveAutoNextEnabled(enabled);
         renderControls();
       },
-    );
+      onRatedChange: (enabled) => {
+        ratedEnabled = enabled;
+        puzzleRatedPref = enabled;
+        saveRatedEnabled(enabled);
+        renderControls();
+      },
+    });
   };
 
   const clearAutoNextTimer = (): void => {
@@ -219,6 +313,7 @@ export async function mountPuzzles(
 
   const selectPuzzle = async (id: string, pushUrl: boolean): Promise<void> => {
     clearAutoNextTimer();
+    ratingDelta = null;
     const summary = summaries.find((puzzle) => puzzle.id === id);
     if (summary && !queueSummaries().some((puzzle) => puzzle.id === id)) {
       variantFilter = summary.variant;
@@ -247,11 +342,14 @@ export async function mountPuzzles(
   renderStatus(detail, 'Loading');
   summaries = await fetchPuzzleList();
   const directSummary = selectedId ? summaries.find((puzzle) => puzzle.id === selectedId) : null;
+  // A normal visit defaults to the surfaced variant (Fortress); a direct deep
+  // link into any puzzle still resolves so shared/bookmarked URLs keep working.
   if (directSummary) variantFilter = directSummary.variant;
   else if (!summaries.some((puzzle) => puzzle.variant === variantFilter) && summaries[0]) {
     variantFilter = summaries[0].variant;
   }
   renderControls();
+  void refreshUserRating();
 
   const queue = queueSummaries();
   const firstId =
@@ -288,21 +386,39 @@ function createPuzzleSession(puzzle: PuzzleDetail): PuzzleSession {
     selectedSquare: null,
     selectedDrop: null,
     draggingFrom: null,
-    feedback: { kind: 'neutral', text: 'Find the forcing move.' },
+    feedback: { kind: 'neutral', text: 'Find the best move.' },
     submitting: false,
   };
 }
 
-function renderQueuePanel(
-  host: HTMLElement,
-  queue: readonly PuzzleSummary[],
-  selectedId: string | null,
-  solvedIds: ReadonlySet<string>,
-  variantFilter: PuzzleVariantFilter,
-  autoNext: boolean,
-  onVariantChange: (variant: PuzzleVariantFilter) => Promise<void>,
-  onAutoNextChange: (enabled: boolean) => void,
-): void {
+type QueuePanelProps = {
+  queue: readonly PuzzleSummary[];
+  selectedId: string | null;
+  solvedIds: ReadonlySet<string>;
+  variantFilter: PuzzleVariantFilter;
+  autoNext: boolean;
+  ratedEnabled: boolean;
+  userRating: UserPuzzleRating | null;
+  ratingDelta: number | null;
+  onVariantChange: (variant: PuzzleVariantFilter) => Promise<void>;
+  onAutoNextChange: (enabled: boolean) => void;
+  onRatedChange: (enabled: boolean) => void;
+};
+
+function renderQueuePanel(host: HTMLElement, props: QueuePanelProps): void {
+  const {
+    queue,
+    selectedId,
+    solvedIds,
+    variantFilter,
+    autoNext,
+    ratedEnabled,
+    userRating,
+    ratingDelta,
+    onVariantChange,
+    onAutoNextChange,
+    onRatedChange,
+  } = props;
   host.replaceChildren();
 
   const currentIndex = Math.max(
@@ -326,7 +442,13 @@ function renderQueuePanel(
         'variant',
         [
           puzzleInfoLine(`From set ${variantLabel(current.variant)}`),
-          puzzleInfoLine(`${goalLabel(current)} | ${colorLabel(current.sideToMove)} to move`),
+          // The goal (e.g. "Mate in 1") is a spoiler while solving; reveal it only
+          // once the puzzle is solved, like the puzzle rating.
+          puzzleInfoLine(
+            solvedIds.has(current.id)
+              ? `${goalLabel(current)} | ${colorLabel(current.sideToMove)} to move`
+              : `${colorLabel(current.sideToMove)} to move`,
+          ),
         ],
         current.variant,
       ),
@@ -343,10 +465,47 @@ function renderQueuePanel(
   const ratingLabel = document.createElement('p');
   ratingLabel.textContent = 'Your puzzle rating:';
   const ratingValue = document.createElement('strong');
-  ratingValue.textContent = 'Unrated';
+  if (userRating) {
+    ratingValue.textContent = `${userRating.rating}${userRating.provisional ? '?' : ''}`;
+    if (ratingDelta) {
+      const delta = document.createElement('span');
+      delta.className = `puzzle-rating-delta puzzle-rating-delta--${ratingDelta > 0 ? 'up' : 'down'}`;
+      delta.textContent = ` ${ratingDelta > 0 ? '+' : ''}${ratingDelta}`;
+      ratingValue.append(delta);
+    }
+  } else {
+    ratingValue.textContent = 'Unrated';
+  }
   const ratingMeta = document.createElement('span');
   ratingMeta.textContent = `${solvedCount} solved of ${queue.length}`;
   ratingCard.append(ratingLabel, ratingValue, ratingMeta);
+
+  // Rated on/off (lichess parity). Off = practice: attempts send rated:false, so
+  // neither the user's nor the puzzle's rating moves.
+  const ratedCard = document.createElement('section');
+  ratedCard.className = 'puzzle-left-card puzzle-rated-card';
+  const ratedToggle = document.createElement('label');
+  ratedToggle.className = 'puzzle-toggle puzzle-rated-toggle';
+  const ratedInput = document.createElement('input');
+  ratedInput.type = 'checkbox';
+  ratedInput.checked = ratedEnabled;
+  ratedInput.dataset.puzzleRated = 'true';
+  ratedInput.addEventListener('change', () => onRatedChange(ratedInput.checked));
+  const ratedSwitch = document.createElement('span');
+  ratedSwitch.className = 'puzzle-toggle-switch';
+  ratedSwitch.setAttribute('aria-hidden', 'true');
+  const ratedName = document.createElement('span');
+  ratedName.className = 'puzzle-toggle-label';
+  ratedName.textContent = 'Rated';
+  ratedToggle.append(ratedInput, ratedSwitch, ratedName);
+  ratedCard.append(ratedToggle);
+  if (!ratedEnabled) {
+    const ratedNote = document.createElement('p');
+    ratedNote.className = 'puzzle-rated-note';
+    ratedNote.textContent =
+      'Your puzzle rating will not change. Puzzles are not a competition: your rating just helps pick puzzles at your level.';
+    ratedCard.append(ratedNote);
+  }
 
   const themesCard = document.createElement('section');
   themesCard.className = 'puzzle-left-card puzzle-theme-card';
@@ -355,8 +514,15 @@ function renderQueuePanel(
   const themesCopy = document.createElement('p');
   themesCopy.textContent = 'Forcing lines grouped by mate pattern, piece, and variant.';
   themesCard.append(themesTitle);
-  if (current) {
+  if (current && solvedIds.has(current.id)) {
+    // Themes name the piece/pattern (e.g. "Drop", "Treasure"), so reveal them
+    // only after the puzzle is solved to avoid giving the move away.
     themesCard.append(themesCopy, tagsPanel(current));
+  } else if (current) {
+    const hidden = document.createElement('p');
+    hidden.className = 'puzzle-card-empty';
+    hidden.textContent = 'Revealed after you solve it.';
+    themesCard.append(hidden);
   } else {
     const empty = document.createElement('p');
     empty.className = 'puzzle-card-empty';
@@ -370,25 +536,28 @@ function renderQueuePanel(
   settingsTitle.textContent = 'Settings';
   const form = document.createElement('div');
   form.className = 'puzzle-settings';
-  const field = document.createElement('label');
-  field.className = 'puzzle-field';
-  const fieldLabel = document.createElement('span');
-  fieldLabel.textContent = 'Variant';
-  const select = document.createElement('select');
-  select.className = 'puzzle-select';
-  select.dataset.puzzleVariant = 'true';
-  for (const filter of PUZZLE_VARIANT_FILTERS) {
-    const option = document.createElement('option');
-    option.value = filter;
-    option.textContent = variantFilterLabel(filter);
-    select.append(option);
+  // The variant picker only appears when more than one variant is surfaced.
+  if (PUZZLE_VARIANT_FILTERS.length > 1) {
+    const field = document.createElement('label');
+    field.className = 'puzzle-field';
+    const fieldLabel = document.createElement('span');
+    fieldLabel.textContent = 'Variant';
+    const select = document.createElement('select');
+    select.className = 'puzzle-select';
+    select.dataset.puzzleVariant = 'true';
+    for (const filter of PUZZLE_VARIANT_FILTERS) {
+      const option = document.createElement('option');
+      option.value = filter;
+      option.textContent = variantFilterLabel(filter);
+      select.append(option);
+    }
+    select.value = variantFilter;
+    select.addEventListener('change', () => {
+      void onVariantChange(parseVariantFilter(select.value));
+    });
+    field.append(fieldLabel, select);
+    form.append(field);
   }
-  select.value = variantFilter;
-  select.addEventListener('change', () => {
-    void onVariantChange(parseVariantFilter(select.value));
-  });
-  field.append(fieldLabel, select);
-  form.append(field);
   const autoNextToggle = document.createElement('label');
   autoNextToggle.className = 'puzzle-toggle';
   const autoNextInput = document.createElement('input');
@@ -408,7 +577,7 @@ function renderQueuePanel(
   form.append(autoNextToggle);
   settingsCard.append(settingsTitle, form);
 
-  host.append(infoCard, ratingCard, themesCard, settingsCard);
+  host.append(infoCard, ratingCard, ratedCard, themesCard, settingsCard);
 }
 
 function puzzleInfoRow(
@@ -471,7 +640,36 @@ function renderPuzzleDetail(
   const side = document.createElement('aside');
   side.className = 'puzzle-side-panel';
 
+  paintPuzzleBoard(board, session, renderSession, onSolved);
+
+  const trainer = document.createElement('div');
+  trainer.className = 'puzzle-trainer-panel';
+  trainer.append(moveListPanel(session), feedbackPanel(session, navigation));
+  side.append(trainer, actionPanel(session, renderSession, cancelAutoNext));
+  boardPanel.append(board, side);
+  host.append(boardPanel);
+}
+
+// Paint the interactive board (+ reserves for drop variants) and wire drag.
+// Fortress Xiangqi renders on its own 7x8 corner-palace board; Mini/Drop Mini
+// share the 7x7 mini renderer (Drop Mini via a mini-shaped board view).
+function paintPuzzleBoard(
+  board: HTMLElement,
+  session: PuzzleSession,
+  renderSession: () => void,
+  onSolved: (id: string) => void,
+): void {
   const displayState = puzzleReplayState(session);
+  if (session.puzzle.variant === FORTRESS_XIANGQI_SPEC_ID) {
+    paintFortressPuzzleBoard(
+      board,
+      session,
+      displayState as FortressXiangqiGameState,
+      renderSession,
+      onSolved,
+    );
+    return;
+  }
   const { boardView, dropView } = puzzleViews(session, displayState);
   const boardTarget = dropView
     ? renderPuzzleBoardShell(board, session, dropView, renderSession, onSolved)
@@ -480,9 +678,9 @@ function renderPuzzleDetail(
   boardTarget.innerHTML = renderMiniXiangqiBoardSvg(boardView, boardView.perspective, {
     interactive: true,
     showFog: false,
-    selectedSquare: session.selectedSquare,
+    selectedSquare: session.selectedSquare as MiniXiangqiSquare | null,
     legalMoves,
-    draggingFrom: session.draggingFrom,
+    draggingFrom: session.draggingFrom as MiniXiangqiSquare | null,
   });
   installBoardDrag({
     board: boardTarget,
@@ -513,13 +711,140 @@ function renderPuzzleDetail(
       );
     },
   });
+}
 
-  const trainer = document.createElement('div');
-  trainer.className = 'puzzle-trainer-panel';
-  trainer.append(moveListPanel(session), feedbackPanel(session, navigation));
-  side.append(trainer, actionPanel(session, renderSession, cancelAutoNext));
-  boardPanel.append(board, side);
-  host.append(boardPanel);
+function paintFortressPuzzleBoard(
+  board: HTMLElement,
+  session: PuzzleSession,
+  state: FortressXiangqiGameState,
+  renderSession: () => void,
+  onSolved: (id: string) => void,
+): void {
+  const perspective = fortressPerspective(session);
+  const view = getFortressXiangqiPlayerView(state, perspective);
+  const boardTarget = renderFortressPuzzleShell(board, session, view, renderSession, onSolved);
+  boardTarget.innerHTML = renderFortressXiangqiBoardSvg(view, perspective, {
+    interactive: true,
+    selectedSquare: session.selectedSquare as FortressXiangqiSquare | null,
+    targets: fortressHighlightTargets(session, view),
+    draggingFrom: session.draggingFrom as FortressXiangqiSquare | null,
+  });
+  installBoardDrag({
+    board: boardTarget,
+    ghostSizePx: FORTRESS_XIANGQI_PIECE_PX,
+    onSquareClick: (square) => {
+      if (!isReplayLive(session)) return;
+      void handleFortressBoardClick(
+        session,
+        square as FortressXiangqiSquare,
+        renderSession,
+        onSolved,
+      );
+    },
+    canDragFrom: (square) => canDragFortressPiece(session, square as FortressXiangqiSquare),
+    ghostHtml: (square) => {
+      const piece = view.board[square as FortressXiangqiSquare];
+      return piece ? fortressXiangqiPieceGhostSvg(piece) : null;
+    },
+    onDragStart: (from) => {
+      session.selectedSquare = from as FortressXiangqiSquare;
+      session.selectedDrop = null;
+      session.draggingFrom = from as FortressXiangqiSquare;
+      renderSession();
+    },
+    onDrop: (from, to) => {
+      void handleFortressBoardDrop(
+        session,
+        from as FortressXiangqiSquare,
+        (to as FortressXiangqiSquare | null) ?? null,
+        renderSession,
+        onSolved,
+      );
+    },
+  });
+}
+
+function renderFortressPuzzleShell(
+  host: HTMLElement,
+  session: PuzzleSession,
+  view: FortressXiangqiPlayerView,
+  renderSession: () => void,
+  onSolved: (id: string) => void,
+): HTMLElement {
+  const shell = document.createElement('div');
+  // puzzle-fortress-shell narrows the shell for the taller 7x8 board so both
+  // pockets stay in view (the drop shell is tuned for the square 7x7 board).
+  shell.className =
+    'puzzle-board-shell puzzle-fortress-shell board-shell drop-mini-reserve-container';
+  const topReserve = document.createElement('div');
+  topReserve.className = 'captures-strip captures-strip-top puzzle-board-reserve';
+  topReserve.setAttribute('aria-label', 'Top reserve');
+  const boardSurface = document.createElement('div');
+  boardSurface.className = 'puzzle-board-surface';
+  const bottomReserve = document.createElement('div');
+  bottomReserve.className = 'captures-strip captures-strip-bottom puzzle-board-reserve';
+  bottomReserve.setAttribute('aria-label', 'Bottom reserve');
+
+  const bottom = view.perspective;
+  const top = bottom === 'red' ? 'black' : 'red';
+  fillFortressPuzzleReserve(topReserve, session, view, top, false, renderSession, onSolved);
+  fillFortressPuzzleReserve(bottomReserve, session, view, bottom, true, renderSession, onSolved);
+
+  shell.append(topReserve, boardSurface, bottomReserve);
+  host.append(shell);
+  return boardSurface;
+}
+
+function fillFortressPuzzleReserve(
+  reserve: HTMLElement,
+  session: PuzzleSession,
+  view: FortressXiangqiPlayerView,
+  color: FortressXiangqiColor,
+  isBottom: boolean,
+  renderSession: () => void,
+  onSolved: (id: string) => void,
+): void {
+  const canPlay =
+    isBottom &&
+    color === activeTurn(session) &&
+    session.state.status.type === 'playing' &&
+    isReplayLive(session) &&
+    !session.submitting;
+  fillFortressXiangqiReserve(reserve, view, color, {
+    interactive: canPlay,
+    selectedRole: canPlay ? (session.selectedDrop as FortressXiangqiDropRole | null) : null,
+    onSelect: (role) => {
+      if (!canPlay) return;
+      session.selectedDrop = session.selectedDrop === role ? null : role;
+      session.selectedSquare = null;
+      session.feedback = { kind: 'neutral', text: `${dropRoleLabel(role)} selected.` };
+      renderSession();
+    },
+  });
+  installHandDrag({
+    hand: reserve,
+    ghostSizePx: FORTRESS_XIANGQI_PIECE_PX,
+    isRole: isFortressDropRole,
+    canDragRole: (role) => canPlay && (view.hands[color][role] ?? 0) > 0,
+    ghostHtml: (role) => fortressXiangqiPieceGhostSvg({ color, role }),
+    onDragStart: (role) => {
+      if (!canPlay) return;
+      session.selectedDrop = role;
+      session.selectedSquare = null;
+      session.draggingFrom = null;
+      session.feedback = { kind: 'neutral', text: `${dropRoleLabel(role)} selected.` };
+      renderSession();
+    },
+    onDrop: (role, to) => {
+      void handleFortressReserveDrop(
+        session,
+        role,
+        (to as FortressXiangqiSquare | null) ?? null,
+        renderSession,
+        onSolved,
+      );
+    },
+  });
 }
 
 function renderPuzzleBoardShell(
@@ -557,7 +882,7 @@ function feedbackPanel(session: PuzzleSession, navigation: PuzzleNavigation): HT
   panel.className = `puzzle-feedback puzzle-feedback--${session.feedback.kind}`;
   const icon = document.createElement('span');
   icon.className = 'puzzle-feedback-icon';
-  icon.textContent = '♔';
+  icon.innerHTML = puzzleGeneralIconSvg(session.puzzle);
   icon.setAttribute('aria-hidden', 'true');
   const copy = document.createElement('div');
   copy.className = 'puzzle-feedback-copy';
@@ -575,31 +900,40 @@ function feedbackPanel(session: PuzzleSession, navigation: PuzzleNavigation): HT
 function solvedPanel(navigation: PuzzleNavigation): HTMLElement {
   const panel = document.createElement('div');
   panel.className = 'puzzle-solved-panel';
+
   const title = document.createElement('h2');
   title.textContent = 'Success!';
-  const prompt = document.createElement('p');
-  prompt.textContent = 'Did you like this puzzle? Vote to load the next one!';
+
+  // Prominent primary CTA (lichess parity), in Mistboard's own accent.
+  const cont = document.createElement('button');
+  cont.type = 'button';
+  cont.className = 'puzzle-continue-button';
+  cont.dataset.puzzleNext = 'true';
+  cont.innerHTML = `${ICON_PLAY}<span>Continue training</span>`;
+  cont.setAttribute('aria-label', 'Continue training');
+  cont.disabled = !navigation.hasNext;
+  cont.addEventListener('click', navigation.goNext);
+
+  const feedbackRow = document.createElement('div');
+  feedbackRow.className = 'puzzle-solved-feedback';
+  // The target opens the analysis board on lichess. We don't have one yet, so
+  // this is a disabled stub for now.
+  const analysis = document.createElement('button');
+  analysis.type = 'button';
+  analysis.className = 'puzzle-analysis-button';
+  analysis.innerHTML = targetAvatarSvg();
+  analysis.title = 'Analysis board (coming soon)';
+  analysis.setAttribute('aria-label', 'Open analysis board (coming soon)');
+  analysis.disabled = true;
+  const prompt = document.createElement('span');
+  prompt.className = 'puzzle-vote-prompt';
+  prompt.textContent = 'Did you like this puzzle?';
   const votes = document.createElement('div');
   votes.className = 'puzzle-vote-actions';
-  const up = puzzleVoteButton('up', navigation);
-  const down = puzzleVoteButton('down', navigation);
-  votes.append(up, down);
-  const footer = document.createElement('div');
-  footer.className = 'puzzle-solved-footer';
-  const icon = document.createElement('span');
-  icon.className = 'puzzle-solved-footer-icon';
-  icon.setAttribute('aria-hidden', 'true');
-  icon.innerHTML = targetAvatarSvg();
-  const next = document.createElement('button');
-  next.type = 'button';
-  next.className = 'puzzle-continue-button';
-  next.dataset.puzzleNext = 'true';
-  next.textContent = 'Continue training';
-  next.setAttribute('aria-label', 'Next puzzle');
-  next.disabled = !navigation.hasNext;
-  next.addEventListener('click', navigation.goNext);
-  footer.append(icon, next);
-  panel.append(title, prompt, votes, footer);
+  votes.append(puzzleVoteButton('up', navigation), puzzleVoteButton('down', navigation));
+  feedbackRow.append(analysis, prompt, votes);
+
+  panel.append(title, cont, feedbackRow);
   return panel;
 }
 
@@ -637,44 +971,53 @@ function actionPanel(
 ): HTMLElement {
   const panel = document.createElement('div');
   panel.className = 'puzzle-actions';
-  const previous = document.createElement('button');
-  previous.type = 'button';
-  previous.className = 'puzzle-button';
-  previous.dataset.puzzleReplayPrevious = 'true';
-  previous.innerHTML = ICON_PREV;
-  previous.setAttribute('aria-label', 'Previous move');
-  previous.title = 'Previous move';
-  previous.disabled = session.viewPly <= 0 || session.submitting;
-  previous.addEventListener('click', () => {
+  const atStart = session.viewPly <= 0 || session.submitting;
+  const atEnd = session.viewPly >= session.playedMoves.length || session.submitting;
+  const lastPly = session.playedMoves.length;
+
+  const first = actionButton('puzzleReplayFirst', ICON_FIRST, 'First move', atStart, () => {
+    session.viewPly = 0;
+    renderSession();
+  });
+  const previous = actionButton('puzzleReplayPrevious', ICON_PREV, 'Previous move', atStart, () => {
     session.viewPly = Math.max(0, session.viewPly - 1);
     renderSession();
   });
-  const reset = document.createElement('button');
-  reset.type = 'button';
-  reset.className = 'puzzle-button';
-  reset.textContent = '↺';
-  reset.setAttribute('aria-label', 'Reset puzzle');
-  reset.title = 'Reset puzzle';
-  reset.disabled = session.submitting;
-  reset.addEventListener('click', () => {
+  const reset = actionButton('puzzleReplayReset', '↺', 'Restart puzzle', session.submitting, () => {
     cancelAutoNext();
     Object.assign(session, createPuzzleSession(session.puzzle));
     renderSession();
   });
-  const next = document.createElement('button');
-  next.type = 'button';
-  next.className = 'puzzle-button';
-  next.dataset.puzzleReplayNext = 'true';
-  next.innerHTML = ICON_NEXT;
-  next.setAttribute('aria-label', 'Next move');
-  next.title = 'Next move';
-  next.disabled = session.viewPly >= session.playedMoves.length || session.submitting;
-  next.addEventListener('click', () => {
-    session.viewPly = Math.min(session.playedMoves.length, session.viewPly + 1);
+  const next = actionButton('puzzleReplayNext', ICON_NEXT, 'Next move', atEnd, () => {
+    session.viewPly = Math.min(lastPly, session.viewPly + 1);
     renderSession();
   });
-  panel.append(previous, reset, next);
+  const last = actionButton('puzzleReplayLast', ICON_LAST, 'Last move', atEnd, () => {
+    session.viewPly = lastPly;
+    renderSession();
+  });
+  panel.append(first, previous, reset, next, last);
   return panel;
+}
+
+function actionButton(
+  dataKey: string,
+  glyph: string,
+  label: string,
+  disabled: boolean,
+  onClick: () => void,
+): HTMLButtonElement {
+  const button = document.createElement('button');
+  button.type = 'button';
+  button.className = 'puzzle-button';
+  button.dataset[dataKey] = 'true';
+  if (glyph.startsWith('<')) button.innerHTML = glyph;
+  else button.textContent = glyph;
+  button.setAttribute('aria-label', label);
+  button.title = label;
+  button.disabled = disabled;
+  button.addEventListener('click', onClick);
+  return button;
 }
 
 function isSessionSolved(session: PuzzleSession): boolean {
@@ -703,7 +1046,7 @@ function fillPuzzleReserveStrip(
       session.state.status.type === 'playing' &&
       isReplayLive(session) &&
       !session.submitting
-        ? session.selectedDrop
+        ? (session.selectedDrop as DropMiniXiangqiDropRole | null)
         : null,
     onSelect: (role) => {
       if (
@@ -781,14 +1124,10 @@ async function handleBoardClick(
     return;
   }
   if (session.selectedDrop) {
-    const targets = dropTargetsFor(session, session.selectedDrop);
+    const drop = session.selectedDrop as DropMiniXiangqiDropRole;
+    const targets = dropTargetsFor(session, drop);
     if (targets.includes(square)) {
-      await submitMove(
-        session,
-        { drop: session.selectedDrop, to: square },
-        renderSession,
-        onSolved,
-      );
+      await submitMove(session, { drop, to: square }, renderSession, onSolved);
       return;
     }
     session.selectedDrop = null;
@@ -798,7 +1137,9 @@ async function handleBoardClick(
   }
 
   if (session.selectedSquare) {
-    const move = boardMovesFor(session, session.selectedSquare).find((m) => m.to === square);
+    const move = boardMovesFor(session, session.selectedSquare as MiniXiangqiSquare).find(
+      (m) => m.to === square,
+    );
     if (move) {
       await submitMove(session, move, renderSession, onSolved);
       return;
@@ -812,7 +1153,7 @@ async function handleBoardClick(
   } else {
     session.selectedSquare = null;
     session.selectedDrop = null;
-    session.feedback = { kind: 'neutral', text: 'Find the forcing move.' };
+    session.feedback = { kind: 'neutral', text: 'Find the best move.' };
   }
   renderSession();
 }
@@ -845,7 +1186,7 @@ async function handleBoardDrop(
 
   session.selectedSquare = null;
   session.selectedDrop = null;
-  session.feedback = { kind: 'neutral', text: 'Find the forcing move.' };
+  session.feedback = { kind: 'neutral', text: 'Find the best move.' };
   renderSession();
 }
 
@@ -874,7 +1215,161 @@ async function handleReserveDrop(
     return;
   }
 
-  session.feedback = { kind: 'neutral', text: 'Find the forcing move.' };
+  session.feedback = { kind: 'neutral', text: 'Find the best move.' };
+  renderSession();
+}
+
+// ── Fortress Xiangqi interaction ─────────────────────────────────────────────
+// Parallels the Mini/Drop-Mini click/drag/drop handlers, but over the Fortress
+// player view. Selection lives on the shared session; moves are submitted
+// through the same variant-agnostic submitMove path.
+
+function fortressPerspective(session: PuzzleSession): FortressXiangqiColor {
+  return session.puzzle.sideToMove ?? 'red';
+}
+
+function fortressLiveView(session: PuzzleSession): FortressXiangqiPlayerView {
+  return getFortressXiangqiPlayerView(
+    session.state as FortressXiangqiGameState,
+    fortressPerspective(session),
+  );
+}
+
+function fortressHighlightTargets(
+  session: PuzzleSession,
+  view: FortressXiangqiPlayerView,
+): FortressXiangqiSquare[] {
+  if (!isReplayLive(session)) return [];
+  if (session.selectedDrop) {
+    return fortressXiangqiDropTargets(view, session.selectedDrop as FortressXiangqiDropRole);
+  }
+  if (!session.selectedSquare) return [];
+  return fortressXiangqiBoardMoves(view, session.selectedSquare as FortressXiangqiSquare).map(
+    (move) => move.to,
+  );
+}
+
+function fortressIsSelectable(
+  session: PuzzleSession,
+  view: FortressXiangqiPlayerView,
+  square: FortressXiangqiSquare,
+): boolean {
+  const piece = view.board[square];
+  return (
+    !!piece &&
+    piece.color === activeTurn(session) &&
+    fortressXiangqiBoardMoves(view, square).length > 0
+  );
+}
+
+function canDragFortressPiece(session: PuzzleSession, square: FortressXiangqiSquare): boolean {
+  if (session.submitting || session.state.status.type !== 'playing' || !isReplayLive(session)) {
+    return false;
+  }
+  return fortressIsSelectable(session, fortressLiveView(session), square);
+}
+
+async function handleFortressBoardClick(
+  session: PuzzleSession,
+  square: FortressXiangqiSquare,
+  renderSession: () => void,
+  onSolved: (id: string) => void,
+): Promise<void> {
+  if (session.submitting || session.state.status.type !== 'playing' || !isReplayLive(session)) {
+    return;
+  }
+  const view = fortressLiveView(session);
+  if (session.selectedDrop) {
+    const role = session.selectedDrop as FortressXiangqiDropRole;
+    if (fortressXiangqiDropTargets(view, role).includes(square)) {
+      await submitMove(session, { drop: role, to: square }, renderSession, onSolved);
+      return;
+    }
+    session.selectedDrop = null;
+    session.feedback = { kind: 'neutral', text: 'Reserve cleared.' };
+    renderSession();
+    return;
+  }
+
+  if (session.selectedSquare) {
+    const move = fortressXiangqiBoardMoves(
+      view,
+      session.selectedSquare as FortressXiangqiSquare,
+    ).find((candidate) => candidate.to === square);
+    if (move) {
+      await submitMove(session, move, renderSession, onSolved);
+      return;
+    }
+  }
+
+  if (fortressIsSelectable(session, view, square)) {
+    session.selectedSquare = square;
+    session.selectedDrop = null;
+    session.feedback = { kind: 'neutral', text: `${square} selected.` };
+  } else {
+    session.selectedSquare = null;
+    session.selectedDrop = null;
+    session.feedback = { kind: 'neutral', text: 'Find the best move.' };
+  }
+  renderSession();
+}
+
+async function handleFortressBoardDrop(
+  session: PuzzleSession,
+  from: FortressXiangqiSquare,
+  to: FortressXiangqiSquare | null,
+  renderSession: () => void,
+  onSolved: (id: string) => void,
+): Promise<void> {
+  session.draggingFrom = null;
+  if (
+    session.submitting ||
+    session.state.status.type !== 'playing' ||
+    !to ||
+    !isReplayLive(session)
+  ) {
+    session.selectedSquare = null;
+    session.selectedDrop = null;
+    renderSession();
+    return;
+  }
+  const move = fortressXiangqiBoardMoves(fortressLiveView(session), from).find(
+    (candidate) => candidate.to === to,
+  );
+  if (move) {
+    await submitMove(session, move, renderSession, onSolved);
+    return;
+  }
+  session.selectedSquare = null;
+  session.selectedDrop = null;
+  session.feedback = { kind: 'neutral', text: 'Find the best move.' };
+  renderSession();
+}
+
+async function handleFortressReserveDrop(
+  session: PuzzleSession,
+  role: FortressXiangqiDropRole,
+  to: FortressXiangqiSquare | null,
+  renderSession: () => void,
+  onSolved: (id: string) => void,
+): Promise<void> {
+  session.draggingFrom = null;
+  session.selectedSquare = null;
+  session.selectedDrop = null;
+  if (
+    session.submitting ||
+    session.state.status.type !== 'playing' ||
+    !to ||
+    !isReplayLive(session)
+  ) {
+    renderSession();
+    return;
+  }
+  if (fortressXiangqiDropTargets(fortressLiveView(session), role).includes(to)) {
+    await submitMove(session, { drop: role, to }, renderSession, onSolved);
+    return;
+  }
+  session.feedback = { kind: 'neutral', text: 'Find the best move.' };
   renderSession();
 }
 
@@ -888,7 +1383,7 @@ async function submitMove(
   session.feedback = { kind: 'pending', text: 'Checking move.' };
   renderSession();
   const nextSolverMoves = [...session.solverMoves, move];
-  const attempt = await submitPuzzleAttempt(session.puzzle.id, nextSolverMoves);
+  const { attempt, rating } = await submitPuzzleAttempt(session.puzzle.id, nextSolverMoves);
   session.submitting = false;
   session.selectedSquare = null;
   session.selectedDrop = null;
@@ -906,6 +1401,7 @@ async function submitMove(
     session.viewPly = session.playedMoves.length;
     session.feedback = { kind: 'bad', text: 'Try another move.' };
   }
+  if (rating) onAttemptRating?.(rating);
   renderSession();
 }
 
@@ -930,9 +1426,11 @@ function puzzleViews(
 function highlightedBoardMoves(session: PuzzleSession): MiniXiangqiMove[] {
   if (!isReplayLive(session)) return [];
   if (session.selectedDrop)
-    return dropMiniXiangqiTargetMoves(dropTargetsFor(session, session.selectedDrop));
+    return dropMiniXiangqiTargetMoves(
+      dropTargetsFor(session, session.selectedDrop as DropMiniXiangqiDropRole),
+    );
   if (!session.selectedSquare) return [];
-  return boardMovesFor(session, session.selectedSquare);
+  return boardMovesFor(session, session.selectedSquare as MiniXiangqiSquare);
 }
 
 function boardMovesFor(session: PuzzleSession, from: MiniXiangqiSquare): MiniXiangqiMove[] {
@@ -1013,12 +1511,18 @@ function navigationFor(
 }
 
 function parseVariantFilter(value: string): PuzzleVariantFilter {
-  if (value === MINI_XIANGQI_SPEC_ID || value === DROP_MINI_XIANGQI_SPEC_ID) return value;
+  if (
+    value === MINI_XIANGQI_SPEC_ID ||
+    value === DROP_MINI_XIANGQI_SPEC_ID ||
+    value === FORTRESS_XIANGQI_SPEC_ID
+  ) {
+    return value;
+  }
   return MINI_XIANGQI_SPEC_ID;
 }
 
 function variantFilterLabel(variant: PuzzleVariantFilter): string {
-  return variant === DROP_MINI_XIANGQI_SPEC_ID ? 'Drop Mini Xiangqi' : 'Mini Xiangqi';
+  return variantLabel(variant);
 }
 
 async function fetchPuzzleList(): Promise<PuzzleSummary[]> {
@@ -1039,16 +1543,30 @@ async function fetchPuzzleDetail(id: string): Promise<PuzzleDetail | null> {
 async function submitPuzzleAttempt(
   id: string,
   moves: readonly PuzzleMove[],
-): Promise<PuzzleAttempt> {
+): Promise<{ attempt: PuzzleAttempt; rating: PuzzleAttemptRating | null }> {
   const response = await fetch(`/api/puzzles/${encodeURIComponent(id)}/attempt`, {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
-    body: JSON.stringify({ moves }),
+    body: JSON.stringify({ moves, rated: puzzleRatedPref }),
   });
   if (!response.ok) throw new Error(`Puzzle attempt failed: ${response.status}`);
-  const body = (await response.json()) as { attempt?: PuzzleAttempt };
+  const body = (await response.json()) as {
+    attempt?: PuzzleAttempt;
+    rating?: PuzzleAttemptRating;
+  };
   if (!body.attempt) throw new Error('Puzzle attempt response missing attempt.');
-  return body.attempt;
+  return { attempt: body.attempt, rating: body.rating ?? null };
+}
+
+async function fetchUserPuzzleRating(variant: PuzzleVariant): Promise<UserPuzzleRating | null> {
+  try {
+    const response = await fetch(`/api/puzzles/rating?variant=${encodeURIComponent(variant)}`);
+    if (!response.ok) return null;
+    const body = (await response.json()) as { rating?: UserPuzzleRating | null };
+    return body.rating ?? null;
+  } catch {
+    return null;
+  }
 }
 
 function clonePuzzleState<State extends PuzzleState>(state: State): State {
@@ -1070,6 +1588,9 @@ function applyPuzzleMove(
   state: PuzzleState,
   move: PuzzleMove,
 ): PuzzleState {
+  if (variant === FORTRESS_XIANGQI_SPEC_ID) {
+    return applyFortressXiangqiMove(state as FortressXiangqiGameState, move as FortressXiangqiMove);
+  }
   if (variant === DROP_MINI_XIANGQI_SPEC_ID) {
     return applyDropMiniXiangqiMove(state as DropMiniXiangqiGameState, move as DropMiniXiangqiMove);
   }
@@ -1113,6 +1634,23 @@ function loadAutoNextEnabled(): boolean {
   }
 }
 
+function loadRatedEnabled(): boolean {
+  try {
+    // Rated is the default; only an explicit opt-out is stored.
+    return window.localStorage?.getItem(RATED_STORAGE_KEY) !== 'false';
+  } catch {
+    return true;
+  }
+}
+
+function saveRatedEnabled(enabled: boolean): void {
+  try {
+    window.localStorage?.setItem(RATED_STORAGE_KEY, enabled ? 'true' : 'false');
+  } catch {
+    // Puzzle preferences are best-effort convenience state.
+  }
+}
+
 function saveAutoNextEnabled(enabled: boolean): void {
   try {
     window.localStorage?.setItem(AUTO_NEXT_STORAGE_KEY, enabled ? 'true' : 'false');
@@ -1122,6 +1660,7 @@ function saveAutoNextEnabled(enabled: boolean): void {
 }
 
 function variantLabel(variant: PuzzleVariant): string {
+  if (variant === FORTRESS_XIANGQI_SPEC_ID) return 'Fortress Xiangqi';
   return variant === DROP_MINI_XIANGQI_SPEC_ID ? 'Drop Mini Xiangqi' : 'Mini Xiangqi';
 }
 
@@ -1129,7 +1668,7 @@ function goalLabel(puzzle: Pick<PuzzleSummary, 'goal' | 'solutionPlyCount'>): st
   if (puzzle.goal.type === 'checkmate') {
     return `Mate in ${Math.ceil(puzzle.solutionPlyCount / 2)}`;
   }
-  return puzzle.goal.type;
+  return 'Winning';
 }
 
 function colorLabel(color: MiniXiangqiColor | null): string {
@@ -1137,12 +1676,15 @@ function colorLabel(color: MiniXiangqiColor | null): string {
   return 'Red';
 }
 
-function dropRoleLabel(role: DropMiniXiangqiDropRole): string {
+function dropRoleLabel(role: string): string {
   return `${role[0]?.toUpperCase() ?? ''}${role.slice(1)}`;
 }
 
-function puzzleMoveLabel(move: PuzzleMove): string {
-  if ('drop' in move) return `${dropRoleSymbol(move.drop)}@${move.to}`;
+function puzzleMoveLabel(move: PuzzleMove, variant: PuzzleVariant): string {
+  if (variant === FORTRESS_XIANGQI_SPEC_ID) {
+    return fortressXiangqiMoveLabel(move as FortressXiangqiMove);
+  }
+  if ('drop' in move) return `${dropRoleSymbol(move.drop as DropMiniXiangqiDropRole)}@${move.to}`;
   return `${move.from}-${move.to}`;
 }
 
@@ -1195,11 +1737,11 @@ function puzzleMoveRow(
   const numberCell = puzzleMoveCell('puzzle-move-number', String(number));
   const redCell = puzzleMoveCell(
     'puzzle-move-red',
-    rowMoves.red ? puzzleMoveLabel(rowMoves.red.move) : '',
+    rowMoves.red ? puzzleMoveLabel(rowMoves.red.move, session.puzzle.variant) : '',
   );
   const blackCell = puzzleMoveCell(
     'puzzle-move-black',
-    rowMoves.black ? puzzleMoveLabel(rowMoves.black.move) : '',
+    rowMoves.black ? puzzleMoveLabel(rowMoves.black.move, session.puzzle.variant) : '',
   );
   row.append(numberCell, redCell, blackCell);
   return row;
@@ -1229,6 +1771,7 @@ function targetAvatarSvg(): string {
 }
 
 function variantMiniIdForPuzzle(variant: PuzzleVariant): VariantMiniId {
+  if (variant === FORTRESS_XIANGQI_SPEC_ID) return 'fortress-xiangqi';
   return variant === DROP_MINI_XIANGQI_SPEC_ID ? 'drop-mini-xiangqi' : 'mini-xiangqi';
 }
 
@@ -1245,6 +1788,17 @@ function dropRoleSymbol(role: DropMiniXiangqiDropRole): string {
   }
 }
 
+// The general (xiangqi "king") of the side to move, rendered in the user's
+// chosen piece set — replaces the generic chess-king glyph so the icon matches
+// the board's variant + skin.
+function puzzleGeneralIconSvg(puzzle: PuzzleDetail): string {
+  const color = puzzle.sideToMove ?? 'red';
+  if (puzzle.variant === FORTRESS_XIANGQI_SPEC_ID) {
+    return fortressXiangqiPieceGhostSvg({ color, role: 'general' });
+  }
+  return miniXiangqiPieceGhostSvg({ color, role: 'general' });
+}
+
 function feedbackTitle(session: PuzzleSession): string {
   switch (session.feedback.kind) {
     case 'good':
@@ -1254,12 +1808,18 @@ function feedbackTitle(session: PuzzleSession): string {
     case 'pending':
       return 'Checking';
     case 'neutral':
-      return session.puzzle.title;
+      // Deliberately generic: the puzzle title names the piece + mate depth,
+      // which would give the solution away.
+      return `${colorLabel(session.puzzle.sideToMove)} to move`;
   }
 }
 
 function isDropRole(value: string): value is DropMiniXiangqiDropRole {
   return (DROP_MINI_XIANGQI_DROP_ROLES as readonly string[]).includes(value);
+}
+
+function isFortressDropRole(value: string): value is FortressXiangqiDropRole {
+  return (FORTRESS_DROP_ROLES as readonly string[]).includes(value);
 }
 
 function themeLabel(theme: string): string {
@@ -1270,6 +1830,12 @@ function themeLabel(theme: string): string {
     .join(' ');
 }
 
+const ICON_FIRST =
+  '<svg viewBox="0 0 16 16" width="15" height="15" aria-hidden="true"><path d="M4 3.5h1.7v9H4zM13 3.5v9L6.5 8z" fill="currentColor"/></svg>';
+const ICON_LAST =
+  '<svg viewBox="0 0 16 16" width="15" height="15" aria-hidden="true"><path d="M10.3 3.5H12v9h-1.7zM3 3.5v9L9.5 8z" fill="currentColor"/></svg>';
+const ICON_PLAY =
+  '<svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true"><path d="M5 3.2v9.6L12.5 8z" fill="currentColor"/></svg>';
 const ICON_PREV =
   '<svg viewBox="0 0 16 16" width="15" height="15" aria-hidden="true"><path d="M11 3.5v9L5 8z" fill="currentColor"/></svg>';
 const ICON_NEXT =

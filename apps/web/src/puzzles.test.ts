@@ -63,16 +63,14 @@ describe('puzzles route', () => {
 
     expect(root.querySelector('.site-section-heading')?.textContent).toBe('Puzzles');
     expect(root.querySelectorAll('.puzzle-list-item')).toHaveLength(0);
-    const variantSelect = root.querySelector<HTMLSelectElement>('[data-puzzle-variant]')!;
-    expect(variantSelect.value).toBe(DROP_MINI_XIANGQI_SPEC_ID);
-    expect(Array.from(variantSelect.options).map((option) => option.textContent)).toEqual([
-      'Mini Xiangqi',
-      'Drop Mini Xiangqi',
-    ]);
+    // Only Fortress Xiangqi is surfaced, so the variant picker is hidden. A direct
+    // deep link into a Drop Mini puzzle still resolves and renders.
+    expect(root.querySelector('[data-puzzle-variant]')).toBeNull();
     expect(root.querySelector('.puzzles-sidebar')?.textContent).toContain('0 solved of 1');
     expect(root.querySelector('.puzzles-sidebar')?.textContent).not.toContain('All puzzles');
     expect(root.querySelector('.puzzles-sidebar')?.textContent).not.toContain(' / ');
-    expect(root.querySelector('.puzzle-detail h2')?.textContent).toBe('Red chariot drop mate');
+    // The feedback title is deliberately generic (the puzzle title would spoil the piece).
+    expect(root.querySelector('.puzzle-detail h2')?.textContent).toBe('Red to move');
     expect(root.querySelector('.mini-xq-board')).not.toBeNull();
     const boardShell = root.querySelector('.puzzle-board-shell');
     expect(boardShell).not.toBeNull();
@@ -80,7 +78,8 @@ describe('puzzles route', () => {
     expect(boardShell?.querySelector('[aria-label="Bottom reserve"]')).not.toBeNull();
     expect(boardShell?.querySelector('[data-drop="chariot"]')).not.toBeNull();
     expect(root.querySelector('.puzzle-reserves')).toBeNull();
-    expect(root.textContent).toContain('Mate in 1');
+    // The goal (mate depth) is hidden while solving so it doesn't spoil the move.
+    expect(root.textContent).not.toContain('Mate in 1');
     expect(root.querySelector('.puzzle-moves h3')).toBeNull();
     expect(root.querySelector('.puzzle-move-black')?.textContent).toBe('...');
     expect(root.textContent).not.toContain('d4');
@@ -110,7 +109,9 @@ describe('puzzles route', () => {
     expect(root.querySelector('.mini-xq-piece')).not.toBeNull();
   });
 
-  it('filters the sequential queue with the variant picker', async () => {
+  // Skipped while only Fortress Xiangqi is surfaced (the variant picker is
+  // hidden). Restore when more than one variant is unhidden.
+  it.skip('filters the sequential queue with the variant picker', async () => {
     const mini = MINI_XIANGQI_PUZZLES[0]!;
     const drop = MINI_XIANGQI_PUZZLES.find(
       (puzzle) => puzzle.id === 'drop-mini-xiangqi-red-chariot-drop-mate-1',
@@ -152,6 +153,7 @@ describe('puzzles route', () => {
         expect(init?.method).toBe('POST');
         expect(JSON.parse(String(init?.body))).toEqual({
           moves: [{ drop: 'chariot', to: 'd4' }],
+          rated: true,
         });
         return json({
           attempt: attemptMiniXiangqiPuzzleLine(drop, [{ drop: 'chariot', to: 'd4' }]),
@@ -189,7 +191,7 @@ describe('puzzles route', () => {
         expect(init?.method).toBe('POST');
         const body = JSON.parse(String(init?.body));
         if (body.moves.length === 1) {
-          expect(body).toEqual({ moves: [{ from: 'c5', to: 'd5' }] });
+          expect(body).toEqual({ moves: [{ from: 'c5', to: 'd5' }], rated: true });
           return json({
             attempt: attemptMiniXiangqiPuzzleLine(multi, [{ from: 'c5', to: 'd5' }]),
           });
@@ -199,6 +201,7 @@ describe('puzzles route', () => {
             { from: 'c5', to: 'd5' },
             { from: 'f1', to: 'e1' },
           ],
+          rated: true,
         });
         return json({
           attempt: attemptMiniXiangqiPuzzleLine(multi, [
@@ -213,7 +216,7 @@ describe('puzzles route', () => {
     const root = document.createElement('div');
 
     await mountPuzzles(root, multi.id);
-    expect(root.textContent).toContain('Mate in 2');
+    expect(root.textContent).not.toContain('Mate in 2');
 
     root
       .querySelector<SVGGElement>('[data-square="c5"]')
@@ -258,6 +261,7 @@ describe('puzzles route', () => {
       if (url === `/api/puzzles/${redDrop.id}/attempt`) {
         expect(JSON.parse(String(init?.body))).toEqual({
           moves: [{ drop: 'chariot', to: 'd4' }],
+          rated: true,
         });
         return json({
           attempt: attemptMiniXiangqiPuzzleLine(redDrop, [{ drop: 'chariot', to: 'd4' }]),
@@ -284,14 +288,14 @@ describe('puzzles route', () => {
     );
     expect(root.querySelector<HTMLButtonElement>('[data-puzzle-replay-next]')?.disabled).toBe(true);
     const nextButton = root.querySelector<HTMLButtonElement>('[data-puzzle-next]');
-    expect(nextButton?.getAttribute('aria-label')).toBe('Next puzzle');
+    expect(nextButton?.getAttribute('aria-label')).toBe('Continue training');
     expect(nextButton?.textContent).toBe('Continue training');
     expect(nextButton?.disabled).toBe(false);
 
     nextButton?.click();
 
     await vi.waitFor(() =>
-      expect(root.querySelector('.puzzle-detail h2')?.textContent).toBe('Black chariot drop mate'),
+      expect(root.querySelector('.puzzle-detail h2')?.textContent).toBe('Black to move'),
     );
     expect(fetchSpy).toHaveBeenCalledWith(`/api/puzzles/${blackDrop.id}`);
   });
@@ -314,6 +318,7 @@ describe('puzzles route', () => {
       if (url === `/api/puzzles/${redDrop.id}/attempt`) {
         expect(JSON.parse(String(init?.body))).toEqual({
           moves: [{ drop: 'chariot', to: 'd4' }],
+          rated: true,
         });
         return json({
           attempt: attemptMiniXiangqiPuzzleLine(redDrop, [{ drop: 'chariot', to: 'd4' }]),
@@ -337,7 +342,7 @@ describe('puzzles route', () => {
       ?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
 
     await vi.waitFor(() =>
-      expect(root.querySelector('.puzzle-detail h2')?.textContent).toBe('Black chariot drop mate'),
+      expect(root.querySelector('.puzzle-detail h2')?.textContent).toBe('Black to move'),
     );
     expect(window.location.pathname).toBe(`/puzzles/${blackDrop.id}`);
   });
@@ -380,6 +385,7 @@ describe('puzzles route', () => {
       if (url === `/api/puzzles/${drop.id}/attempt`) {
         expect(JSON.parse(String(init?.body))).toEqual({
           moves: [{ drop: 'chariot', to: 'd4' }],
+          rated: true,
         });
         return json({
           attempt: attemptMiniXiangqiPuzzleLine(drop, [{ drop: 'chariot', to: 'd4' }]),

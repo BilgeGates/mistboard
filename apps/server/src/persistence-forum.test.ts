@@ -13,6 +13,7 @@ import {
   listForumCategories,
   listForumReports,
   listForumTopics,
+  listLatestForumPosts,
   moderateForumTopic,
   moveForumTopic,
   resolveForumReport,
@@ -159,6 +160,14 @@ definePersistenceTests('forum', () => {
     const emptyPostPage = await searchForumPosts({ query: 'knights', limit: 5, offset: 5 });
     assert.equal(emptyPostPage.total, 1);
     assert.equal(emptyPostPage.posts.length, 0);
+    const latestPosts = await listLatestForumPosts({ limit: 5 });
+    assert.equal(latestPosts[0]?.post.id, 'post_strategy_reply');
+    assert.equal(latestPosts[0]?.post.page, 1);
+    assert.equal(latestPosts[0]?.topic.id, 'topic_strategy');
+    assert.equal(latestPosts[0]?.author?.handle, 'bob');
+    assert.equal(latestPosts[0]?.post.snippet, 'Developing knights first keeps more fog pressure.');
+    assert.equal(latestPosts[1]?.post.id, 'post_strategy_open');
+    assert.equal(latestPosts[1]?.author?.handle, 'alice');
     const postLocation = await getForumPostLocation('post_strategy_reply', { pageSize: 1 });
     assert.equal(postLocation?.page, 2);
     assert.equal(postLocation?.topic.slug, 'how-do-you-scout-the-center');
@@ -247,6 +256,23 @@ definePersistenceTests('forum', () => {
       JSON.parse(redirectResponse.body).href,
       '/forum/t/topic_strategy/how-should-we-scout-the-center#post_post_strategy_reply',
     );
+
+    const latestResponse = captureResponse();
+    const latestHandled = await tryHandleForumRoute(
+      {},
+      { method: 'GET', headers: {} } as unknown as IncomingMessage,
+      latestResponse,
+      '/api/forum/latest-posts',
+      new URL('http://localhost/api/forum/latest-posts?limit=5'),
+    );
+    assert.equal(latestHandled, true);
+    assert.equal(latestResponse.status, 200);
+    const latestBody = JSON.parse(latestResponse.body);
+    assert.equal(latestBody.posts.length, 2);
+    assert.equal(latestBody.posts[0]?.post.id, 'post_strategy_reply');
+    assert.equal(latestBody.posts[0]?.post.page, 1);
+    assert.equal(latestBody.posts[0]?.topic.slug, 'how-should-we-scout-the-center');
+    assert.equal(latestBody.posts[0]?.author?.handle, 'bob');
   });
 
   test('locked forum topics reject replies', async () => {
@@ -393,6 +419,12 @@ definePersistenceTests('forum', () => {
     assert.equal(detailAfterPostHide?.posts[1]?.bodyText, '');
     const hiddenSearch = await searchForumPosts({ query: 'Reply to hide', limit: 5 });
     assert.equal(hiddenSearch.total, 0);
+    assert.equal(
+      (await listLatestForumPosts({ limit: 10 })).some(
+        (entry) => entry.post.id === 'post_moderated_reply',
+      ),
+      false,
+    );
 
     const hiddenTopic = await moderateForumTopic({
       topicId: 'topic_moderated',
@@ -405,6 +437,12 @@ definePersistenceTests('forum', () => {
     assert.equal(await getForumTopic('topic_moderated'), null);
     assert.equal(
       (await listForumTopics({ limit: 10 })).some((topic) => topic.id === 'topic_moderated'),
+      false,
+    );
+    assert.equal(
+      (await listLatestForumPosts({ limit: 10 })).some(
+        (entry) => entry.topic.id === 'topic_moderated',
+      ),
       false,
     );
   });

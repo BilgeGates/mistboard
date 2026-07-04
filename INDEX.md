@@ -111,6 +111,8 @@ Edit task → find file → open only that file.
 | `routes/forum.ts` | `/api/forum/*`: category/topic/search reads, account-gated topic/reply/report writes, topic/post edits, admin move/pin/lock/hide moderation, admin report queue, validation, and per-account posting rate limits |
 | `routes/annotations.ts` | `/api/annotations` (admin GET/POST/PUT, JSON-lines file backed) |
 | `routes/meta.ts` | `/api/server-status`, `/api/live-stats`, `/api/players/online` |
+| `routes/relations.ts` | Follow/block kernel: `POST/DELETE /api/users/:handle/{follow,block}`, `GET /api/relations/{following,blocks,online-following}` (online-following returns rating+playing-enriched rows) |
+| `live-room-stats.ts` | `collectLiveRoomStats(ctx)` — one pass over all live rooms (legacy + tenants) for online/playing counts; shared by `routes/meta.ts` (`/api/players/online`) and `routes/relations.ts` (online-following) |
 | `routes/engines.ts` | `/api/engines/playable` |
 | `routes/correspondence-rooms.ts` | POST `/api/correspondence/rooms` (days-per-move dark-chess seeks/rooms); account-gated, `correspondenceEnabled` flag |
 | `routes/correspondence-games.ts` | GET `/api/correspondence/games` — signed-in player's in-flight correspondence games (your-move-first) + nav-badge count; reads the `room_deadlines` index |
@@ -403,6 +405,10 @@ Run with `MISTBOARD_ALLOW_IN_MEMORY_PERSISTENCE=true npm run test:integration --
 | `account.ts` | `/account` + `/account/settings` mounts. Sign-in/registration form (email + magic code), signed-in account card, settings form (display name / handle / email), auth-tabs. Uses `site-shell.ts` for shared chrome/auth fetch and loads `account-profile.css` |
 | `profile.ts` | `/@/:handle` + `/leaderboard` mounts. `mountProfile`, `mountLeaderboard`, `renderLeaderboardShellForPrerender` (build-time frame for dist/leaderboard.html), profile header/ratings/games builders, leaderboard panel + table. Uses `site-shell.ts` and `game-display.ts` for shared contracts and loads `account-profile.css` |
 | `account-profile.css` | Account, profile, and leaderboard route styles loaded by `account.ts` and `profile.ts` |
+| `user-card.ts` | Reusable hover user-card (`buildUserCard`, `attachUserCard`): compact profile summary (ratings grid + Follow/Message + games/joined) fed by `/api/users/:handle/profile`, shown as a shared singleton popover. Consumed by the friends-online widget + leaderboard online list. Loads `user-card.css` |
+| `user-card.css` | Hover user-card styles (site design tokens; themes light/dark) |
+| `friends-online.ts` | Global bottom-corner friends-online widget (`mountFriendsOnline`, lichess parity): collapsed pill → expandable list of online followed players, each row hovering into `user-card.ts`. Behind `friendsOnlineEnabled()`; polls `/api/relations/online-following` while visible. Loads `friends-online.css` |
+| `friends-online.css` | Friends-online widget styles |
 | `community-rail.ts` | Shared community sub-nav rail + column layout (`buildCommunityRail`, `buildCommunityLayout`) used by `/leaderboard` and `/bots`. Loads `community-rail.css` |
 | `community-rail.css` | Community rail + `.community-layout` grid styles (desktop rail, mobile pill row) loaded by `community-rail.ts` |
 | `pages-static.ts` | `/about` + `/source` + `/faq` + `/terms` + `/articles` (index + slug) + 404 mounts. Builders for about/source/faq/terms/notfound + shared text primitives (`aboutSubheading`/`aboutParagraph`/`aboutLink`/`aboutExternalLink`, `sourceBlock`/`textLine`/`linkLine`). Uses `site-shell.ts` for shared chrome and loads `pages-static.css` |

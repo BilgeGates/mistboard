@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import type { IncomingMessage, ServerResponse } from 'node:http';
 import test from 'node:test';
+import { FORTRESS_XIANGQI_PUZZLES, MINI_XIANGQI_PUZZLES } from '@mistboard/game';
 import type { HttpApiContext } from './routes/lib.js';
 import { tryHandle } from './routes/puzzles.js';
 
@@ -52,11 +53,17 @@ async function route(path: string, method = 'GET', body?: unknown): Promise<Resp
 test('puzzle list returns public Mini and Drop Mini summaries without solutions', async () => {
   const response = await route('/api/puzzles');
   const body = JSON.parse(response.body) as {
-    puzzles: Array<{ id: string; variant: string; solution?: unknown; solutionPlyCount: number }>;
+    puzzles: Array<{
+      id: string;
+      variant: string;
+      solution?: unknown;
+      solutionPlyCount: number;
+      goal: { type: string };
+    }>;
   };
 
   assert.equal(response.status, 200);
-  assert.equal(body.puzzles.length, 36);
+  assert.equal(body.puzzles.length, MINI_XIANGQI_PUZZLES.length + FORTRESS_XIANGQI_PUZZLES.length);
   assert.deepEqual(
     body.puzzles.slice(0, 6).map((puzzle) => puzzle.variant),
     [
@@ -69,6 +76,10 @@ test('puzzle list returns public Mini and Drop Mini summaries without solutions'
     ],
   );
   assert.equal(body.puzzles.filter((puzzle) => puzzle.variant === 'drop-mini-xiangqi').length, 30);
+  assert.equal(
+    body.puzzles.filter((puzzle) => puzzle.variant === 'fortress-xiangqi').length,
+    FORTRESS_XIANGQI_PUZZLES.length,
+  );
   assert.equal(
     body.puzzles.every((puzzle) => puzzle.solution === undefined),
     true,
@@ -93,7 +104,12 @@ test('puzzle list returns public Mini and Drop Mini summaries without solutions'
   }
   assert.equal(
     body.puzzles
-      .filter((puzzle) => !mateInTwoIds.includes(puzzle.id) && !mateInThreeIds.includes(puzzle.id))
+      .filter(
+        (puzzle) =>
+          puzzle.goal.type === 'checkmate' &&
+          !mateInTwoIds.includes(puzzle.id) &&
+          !mateInThreeIds.includes(puzzle.id),
+      )
       .every((puzzle) => puzzle.solutionPlyCount === 1),
     true,
   );
@@ -111,11 +127,49 @@ test('puzzle list filters by supported puzzle variant', async () => {
   );
 });
 
+test('puzzle list filters to Fortress Xiangqi puzzles', async () => {
+  const response = await route('/api/puzzles?variant=fortress-xiangqi');
+  const body = JSON.parse(response.body) as {
+    puzzles: Array<{ variant: string; solutionPlyCount: number }>;
+  };
+
+  assert.equal(response.status, 200);
+  assert.equal(body.puzzles.length, FORTRESS_XIANGQI_PUZZLES.length);
+  assert.equal(
+    body.puzzles.every((puzzle) => puzzle.variant === 'fortress-xiangqi'),
+    true,
+  );
+});
+
 test('puzzle list rejects unsupported variants', async () => {
   const response = await route('/api/puzzles?variant=banqi');
 
   assert.equal(response.status, 400);
   assert.deepEqual(JSON.parse(response.body), { error: 'invalid_variant' });
+});
+
+test('Fortress puzzle attempts solve the mined mate and stay solution-hidden', async () => {
+  const response = await route('/api/puzzles/fortress-xiangqi-mined-001/attempt', 'POST', {
+    moves: [{ drop: 'cannon', to: 'c8' }],
+  });
+  const body = JSON.parse(response.body) as {
+    attempt: {
+      ok: boolean;
+      complete: boolean;
+      state: { status: { type: string; winner?: string; reason?: string } };
+      solution?: unknown;
+    };
+  };
+
+  assert.equal(response.status, 200);
+  assert.equal(body.attempt.ok, true);
+  assert.equal(body.attempt.complete, true);
+  assert.deepEqual(body.attempt.state.status, {
+    type: 'finished',
+    winner: 'red',
+    reason: 'checkmate',
+  });
+  assert.equal(body.attempt.solution, undefined);
 });
 
 test('daily puzzle route returns a public persisted-assignment shape without solutions', async () => {
@@ -143,7 +197,8 @@ test('daily puzzle route returns a public persisted-assignment shape without sol
   assert.equal(body.daily.source, 'ephemeral');
   assert.equal(body.daily.selectedAt, null);
   assert.equal(typeof body.puzzle.id, 'string');
-  assert.equal(['mini-xiangqi', 'drop-mini-xiangqi'].includes(body.puzzle.variant), true);
+  // Only Fortress Xiangqi is featured as the daily puzzle for now.
+  assert.equal(body.puzzle.variant, 'fortress-xiangqi');
   assert.notEqual(body.puzzle.initial, undefined);
   assert.equal(body.puzzle.solution, undefined);
 });
@@ -278,6 +333,31 @@ test('puzzle attempts reject malformed move bodies', async () => {
 
   assert.equal(response.status, 400);
   assert.deepEqual(JSON.parse(response.body), { error: 'invalid_moves' });
+});
+
+test('puzzle rating route requires a variant', async () => {
+  const response = await route('/api/puzzles/rating');
+
+  assert.equal(response.status, 400);
+  assert.deepEqual(JSON.parse(response.body), { error: 'invalid_variant' });
+});
+
+test('puzzle rating route returns null for an anonymous or unrated user', async () => {
+  const response = await route('/api/puzzles/rating?variant=fortress-xiangqi');
+
+  assert.equal(response.status, 200);
+  assert.deepEqual(JSON.parse(response.body), { rating: null });
+});
+
+test('attempts omit rating info when there is no rated session', async () => {
+  const response = await route('/api/puzzles/fortress-xiangqi-mined-001/attempt', 'POST', {
+    moves: [{ drop: 'cannon', to: 'c8' }],
+  });
+  const body = JSON.parse(response.body) as { attempt: { ok: boolean }; rating?: unknown };
+
+  assert.equal(response.status, 200);
+  assert.equal(body.attempt.ok, true);
+  assert.equal(body.rating, undefined);
 });
 
 test('puzzle routes reject non-GET methods', async () => {

@@ -20,24 +20,27 @@ describe('article public listing gates', () => {
     vi.unstubAllEnvs();
   });
 
-  it('lists Mini Xiangqi and Dark Mini Xiangqi on public rules surfaces', () => {
+  it('de-lists the mini xiangqi trio from public rules surfaces but keeps the pages reachable', () => {
+    // Xiangqi pivot: the mini xiangqi trio is hidden from public rules surfaces
+    // (variantPublicSurfaceEnabled=false) but the rules pages stay reachable by
+    // direct URL — they were de-listed, not deleted.
     vi.stubEnv('DEV', false);
     vi.stubEnv('VITE_DARK_MINI_XIANGQI_ENABLED', 'false');
-    vi.stubEnv('VITE_DARK_MINI_XIANGQI_PUBLIC_ENTRY_ENABLED', 'false');
 
     const rules = buildRulesIndex();
-    expect(rules.textContent).toContain('Dark Mini Xiangqi');
-    expect(rules.textContent).toContain('Mini Xiangqi');
-    expect(rules.querySelector('a[href="/rules/mini-xiangqi"]')).not.toBeNull();
+    expect(rules.querySelector('a[href="/rules/mini-xiangqi"]')).toBeNull();
+    expect(rules.querySelector('a[href="/rules/dark-mini-xiangqi"]')).toBeNull();
+    expect(rules.querySelector('a[href="/rules/drop-mini-xiangqi"]')).toBeNull();
     expect(buildArticlePage('dark-mini-xiangqi').textContent).toContain('Dark Mini Xiangqi');
     expect(buildArticlePage('mini-xiangqi').textContent).toContain('Mini Xiangqi');
   });
 
-  it('lists Dark Mini Xiangqi rules without public-entry env flags', () => {
+  it('keeps the mini xiangqi trio de-listed from the rules index regardless of env flags', () => {
     vi.stubEnv('DEV', false);
 
-    expect(buildRulesIndex().textContent).toContain('Dark Mini Xiangqi');
-    expect(buildRulesIndex().textContent).toContain('Mini Xiangqi');
+    const rules = buildRulesIndex();
+    expect(rules.querySelector('a[href="/rules/dark-mini-xiangqi"]')).toBeNull();
+    expect(rules.querySelector('a[href="/rules/mini-xiangqi"]')).toBeNull();
   });
 
   it('orders the articles page by publish date newest first', () => {
@@ -127,7 +130,6 @@ describe('article public listing gates', () => {
 
   it('limits the homepage article widget to editorial article cards ordered by publish date', () => {
     vi.stubEnv('VITE_DARK_MINI_XIANGQI_ENABLED', 'true');
-    vi.stubEnv('VITE_DARK_MINI_XIANGQI_PUBLIC_ENTRY_ENABLED', 'true');
 
     const hrefs = [
       ...(buildHomeArticleCards(50)?.querySelectorAll<HTMLAnchorElement>(
@@ -328,12 +330,14 @@ describe('article public listing gates', () => {
     ).toBeNull();
   });
 
-  it('publishes Dark Crazyhouse as a playable invite rules page with the variant marker', () => {
+  it('keeps the Dark Crazyhouse rules page directly reachable while unlisted', () => {
+    // Xiangqi pivot: Dark Crazyhouse is de-listed from public rules surfaces
+    // (variantPublicSurfaceEnabled=false) but the page stays reachable by direct
+    // URL and still offers invite play — de-listed, not deleted.
     vi.stubEnv('DEV', false);
 
     const page = buildArticlePage('dark-crazyhouse');
     const landing = buildRulesIndex();
-    const grids = landing.querySelectorAll('.rules-landing-grid');
     const links = [...page.querySelectorAll<HTMLAnchorElement>('a')].map((link) => ({
       href: link.getAttribute('href'),
       text: link.textContent,
@@ -346,24 +350,23 @@ describe('article public listing gates', () => {
       href: '/?play=friend&gameSpecId=dark-crazyhouse',
       text: 'Create invite',
     });
-    expect(grids[0]?.querySelector('a[href="/rules/dark-crazyhouse"]')).not.toBeNull();
+    expect(landing.querySelector('a[href="/rules/dark-crazyhouse"]')).toBeNull();
     expect(
-      grids[0]?.querySelector(
-        'a[href="/rules/dark-crazyhouse"] svg[data-mini-id="dark-crazyhouse"]',
-      ),
-    ).not.toBeNull();
-    expect(grids[1]?.querySelector('a[href="/rules/dark-crazyhouse"]')).toBeNull();
+      landing.querySelector('a[href="/rules/dark-crazyhouse"] svg[data-mini-id="dark-crazyhouse"]'),
+    ).toBeNull();
     expect(
       page.querySelector(
         '.article-variant-sidebar a[aria-current="page"] svg[data-mini-id="dark-crazyhouse"]',
       ),
-    ).not.toBeNull();
+    ).toBeNull();
   });
 
-  it('publishes Drop Mini Xiangqi as a playable rules page with the variant marker', () => {
+  it('keeps the Drop Mini Xiangqi rules page directly reachable while unlisted', () => {
+    // Xiangqi pivot: Drop Mini Xiangqi is de-listed from public rules surfaces
+    // (variantPublicSurfaceEnabled=false) but the page stays reachable by direct
+    // URL with its full play CTAs and sample-game widget — de-listed, not deleted.
     const page = buildArticlePage('drop-mini-xiangqi');
     const landing = buildRulesIndex();
-    const grids = landing.querySelectorAll('.rules-landing-grid');
     const links = [...page.querySelectorAll<HTMLAnchorElement>('a')].map((link) => ({
       href: link.getAttribute('href'),
       text: link.textContent,
@@ -385,18 +388,13 @@ describe('article public listing gates', () => {
       href: '/?play=lobby&gameSpecId=drop-mini-xiangqi',
       text: 'Find opponent',
     });
-    expect(grids[0]?.querySelector('a[href="/rules/drop-mini-xiangqi"]')).toBeNull();
-    expect(grids[1]?.querySelector('a[href="/rules/drop-mini-xiangqi"]')).not.toBeNull();
-    expect(
-      grids[1]?.querySelector(
-        'a[href="/rules/drop-mini-xiangqi"] svg[data-mini-id="drop-mini-xiangqi"]',
-      ),
-    ).not.toBeNull();
+    // De-listed from the rules index (no grid or sidebar entry).
+    expect(landing.querySelector('a[href="/rules/drop-mini-xiangqi"]')).toBeNull();
     expect(
       page.querySelector(
         '.article-variant-sidebar a[aria-current="page"] svg[data-mini-id="drop-mini-xiangqi"]',
       ),
-    ).not.toBeNull();
+    ).toBeNull();
   });
 
   it('rerenders Dark Crossroads diagrams from the piece settings', () => {
@@ -470,28 +468,30 @@ describe('rules variant sidebar', () => {
     expect(current?.querySelector('.article-variant-label')?.textContent).toBe(
       'Dark Chess (Fog of War)',
     );
-    expect(sidebar?.querySelector('a[href="/rules/chess"]')).not.toBeNull();
+    // Xiangqi pivot: the chess reference article is de-listed (showInIndex=false),
+    // so the rail no longer links it (still reachable at /rules/chess directly).
+    expect(sidebar?.querySelector('a[href="/rules/chess"]')).toBeNull();
   });
 
-  it('lists Mini Xiangqi and Dark Mini Xiangqi in the rules sidebar', () => {
+  it('de-lists the mini xiangqi trio from the rules sidebar but keeps pages reachable', () => {
+    // Xiangqi pivot: the mini xiangqi trio is de-listed from the rules rail; the
+    // pages stay reachable by direct URL (their own sidebar no longer links them).
     vi.stubEnv('DEV', false);
     vi.stubEnv('VITE_DARK_MINI_XIANGQI_ENABLED', 'false');
-    vi.stubEnv('VITE_DARK_MINI_XIANGQI_PUBLIC_ENTRY_ENABLED', 'false');
 
     const darkChess = buildArticlePage('dark-chess');
     expect(
       darkChess.querySelector('.article-variant-sidebar a[href="/rules/mini-xiangqi"]'),
-    ).not.toBeNull();
+    ).toBeNull();
     expect(
       darkChess.querySelector('.article-variant-sidebar a[href="/rules/dark-mini-xiangqi"]'),
-    ).not.toBeNull();
+    ).toBeNull();
 
     const miniXiangqi = buildArticlePage('mini-xiangqi');
-    const sidebar = miniXiangqi.querySelector('.article-variant-sidebar');
+    expect(miniXiangqi.textContent).toContain('Mini Xiangqi');
     expect(
-      sidebar?.querySelector('a[aria-current="page"] .article-variant-label')?.textContent,
-    ).toBe('Mini Xiangqi');
-    expect(sidebar?.textContent).toContain('Dark Mini Xiangqi');
+      miniXiangqi.querySelector('.article-variant-sidebar a[href="/rules/mini-xiangqi"]'),
+    ).toBeNull();
   });
 
   it('omits the variant sidebar on non-rules articles', () => {
@@ -514,22 +514,30 @@ describe('rules variant sidebar', () => {
 
     const navs = sidebar?.querySelectorAll('.article-toc-nav');
     expect(navs?.[0]?.querySelector('a[href="/rules/dark-chess"]')).not.toBeNull();
-    expect(navs?.[0]?.querySelector('a[href="/rules/chess"]')).not.toBeNull();
+    // Xiangqi pivot: the chess reference article is de-listed from the rail.
+    expect(navs?.[0]?.querySelector('a[href="/rules/chess"]')).toBeNull();
     // Draft960 is a pregame option that has not shipped as a playable mode.
     expect(navs?.[0]?.querySelector('a[href="/rules/dark-draft960"]')).toBeNull();
-    expect(navs?.[1]?.querySelector('a[href="/rules/mini-xiangqi"]')).not.toBeNull();
-    expect(navs?.[1]?.querySelector('a[href="/rules/dark-mini-xiangqi"]')).not.toBeNull();
+    // The mini xiangqi trio is de-listed; the xiangqi rail lists the elevated
+    // Chinese-chess-family variants instead.
+    expect(navs?.[1]?.querySelector('a[href="/rules/mini-xiangqi"]')).toBeNull();
+    expect(navs?.[1]?.querySelector('a[href="/rules/dark-mini-xiangqi"]')).toBeNull();
+    expect(navs?.[1]?.querySelector('a[href="/rules/dark-xiangqi"]')).not.toBeNull();
+    expect(navs?.[1]?.querySelector('a[href="/rules/jieqi"]')).not.toBeNull();
     expect(navs?.[2]?.querySelector('a[href="/rules/shogi"]')).not.toBeNull();
     expect(navs?.[2]?.querySelector('a[href="/rules/dark-shogi"]')).not.toBeNull();
     expect(navs?.[3]?.querySelector('a[href="/rules/jungle"]')).not.toBeNull();
     expect(navs?.[3]?.querySelector('a[href="/rules/jungle-flip"]')).not.toBeNull();
   });
 
-  it('lists Dark Mini Xiangqi in the xiangqi family by default', () => {
+  it('lists the elevated xiangqi variants (not the hidden mini trio) in the xiangqi family by default', () => {
+    // Xiangqi pivot: the mini trio is de-listed; the xiangqi rail leads with the
+    // elevated Chinese-chess-family variants.
     const page = buildArticlePage('dark-chess');
     const navs = page.querySelectorAll('.article-variant-sidebar .article-toc-nav');
-    expect(navs[1]?.querySelector('a[href="/rules/dark-mini-xiangqi"]')).not.toBeNull();
-    expect(navs[1]?.querySelector('a[href="/rules/mini-xiangqi"]')).not.toBeNull();
+    expect(navs[1]?.querySelector('a[href="/rules/dark-mini-xiangqi"]')).toBeNull();
+    expect(navs[1]?.querySelector('a[href="/rules/mini-xiangqi"]')).toBeNull();
+    expect(navs[1]?.querySelector('a[href="/rules/dark-xiangqi"]')).not.toBeNull();
   });
 
   it('renders the rules landing with the rail and a tile grid picker', () => {
@@ -583,9 +591,12 @@ describe('rules variant sidebar', () => {
     ]);
     const grids = landing.querySelectorAll('.rules-landing-grid');
     expect(grids[0]?.querySelector('a[href="/rules/dark-chess"]')).not.toBeNull();
-    expect(grids[0]?.querySelector('a[href="/rules/chess"]')).not.toBeNull();
+    // Xiangqi pivot: the chess reference article and the mini xiangqi trio are
+    // de-listed from the tile grid (still reachable by direct URL).
+    expect(grids[0]?.querySelector('a[href="/rules/chess"]')).toBeNull();
     expect(grids[1]?.querySelector('a[href="/rules/xiangqi"]')).not.toBeNull();
-    expect(grids[1]?.querySelector('a[href="/rules/drop-mini-xiangqi"]')).not.toBeNull();
+    expect(grids[1]?.querySelector('a[href="/rules/drop-mini-xiangqi"]')).toBeNull();
+    expect(grids[1]?.querySelector('a[href="/rules/dark-xiangqi"]')).not.toBeNull();
     expect(grids[2]?.querySelector('a[href="/rules/shogi"]')).not.toBeNull();
     expect(grids[2]?.querySelector('a[href="/rules/dark-shogi"]')).not.toBeNull();
     expect(grids[3]?.querySelector('a[href="/rules/jungle"]')).not.toBeNull();

@@ -107,6 +107,24 @@ export const FIRST_PARTY_BOT_PROFILES: readonly FirstPartyBotProfile[] = [
     defaultGameSpecId: 'fortress-xiangqi',
   },
   {
+    id: 'pikafish-xiangqi-amateur',
+    displayName: 'Pikafish - Amateur',
+    activeEngineId: 'pikafish-xiangqi-amateur',
+    defaultGameSpecId: 'xiangqi',
+  },
+  {
+    id: 'pikafish-xiangqi',
+    displayName: 'Pikafish - Strong',
+    activeEngineId: 'pikafish-xiangqi-strong',
+    defaultGameSpecId: 'xiangqi',
+  },
+  {
+    id: 'pikafish-xiangqi-strongest',
+    displayName: 'Pikafish - Strongest',
+    activeEngineId: 'pikafish-xiangqi-strongest',
+    defaultGameSpecId: 'xiangqi',
+  },
+  {
     id: 'fairy-stockfish-mini-xiangqi-amateur',
     displayName: 'Fairy Stockfish - Amateur',
     activeEngineId: 'fairy-stockfish-mini-xiangqi-amateur',

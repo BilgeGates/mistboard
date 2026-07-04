@@ -1,0 +1,366 @@
+/* Standard Xiangqi postgame review. Open information: a single centered truth
+   board (no fog triptych), following the site theme (light + dark). Self-contained
+   copy of the shared dxq-postgame base classes so the route does not couple to the
+   Dark Xiangqi stylesheet. */
+
+.xiangqi-postgame-route {
+  min-height: 100vh;
+  background: var(--site-bg);
+  color: var(--site-text);
+}
+
+.xiangqi-postgame-route .dxq-postgame__panel,
+.xiangqi-postgame-route .dxq-postgame__replay-controls,
+.xiangqi-postgame-route .dxq-postgame__replay-button,
+.xiangqi-postgame-route .dxq-postgame__replay-status,
+.xiangqi-postgame-route .dxq-postgame__link {
+  background: var(--site-panel);
+  color: var(--site-text);
+  border-color: var(--site-border);
+}
+
+.xiangqi-postgame-route .dxq-postgame__link--primary {
+  border-color: #237960;
+  background: #237960;
+  color: #ffffff;
+}
+
+.xiangqi-postgame-route .dxq-postgame__replay-button:disabled {
+  color: var(--site-muted);
+  background: var(--site-bg);
+}
+
+.xiangqi-postgame-route .dxq-postgame__title,
+.xiangqi-postgame-route .dxq-postgame__board-title,
+.xiangqi-postgame-route .dxq-postgame__panel h2 {
+  color: var(--site-heading);
+}
+
+.xiangqi-postgame-route .dxq-postgame__eyebrow,
+.xiangqi-postgame-route .dxq-postgame__summary,
+.xiangqi-postgame-route .dxq-postgame__details dt,
+.xiangqi-postgame-route .dxq-postgame__move-number {
+  color: var(--site-muted);
+}
+
+.xiangqi-postgame-route .dxq-postgame__details dd {
+  color: var(--site-text);
+}
+
+.xiangqi-postgame-route .dxq-postgame__header {
+  border-bottom-color: var(--site-border);
+}
+
+.xiangqi-postgame-route .dxq-postgame__move {
+  /* Two plies per row (Red | Black), themed chip. */
+  grid-template-columns: 30px minmax(0, 1fr) minmax(0, 1fr);
+  background: var(--site-panel-soft, var(--site-bg));
+  color: var(--site-text);
+}
+
+.xiangqi-postgame-route .dxq-postgame__move-ply--red {
+  color: var(--site-text);
+}
+
+/* Composition: a single centered board on the left, Game + Moves stacked in a
+   right rail, board height-capped so the page fits without vertical scrolling. */
+.xiangqi-postgame-route .dxq-postgame__layout {
+  grid-template-columns: minmax(0, 1fr) minmax(250px, 310px);
+  align-items: start;
+}
+
+.xiangqi-postgame-route .dxq-postgame__side {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.xiangqi-postgame-route .dxq-postgame__boards {
+  /* Open info = one board, so drop the 3-column triptych grid. */
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.xiangqi-postgame-route .dxq-postgame__board {
+  max-width: min(100%, 48vh);
+  margin-inline: auto;
+}
+
+/* ── Shared dxq-postgame base classes ─────────────────────────────────────── */
+
+.dxq-postgame {
+  width: 100%;
+  max-width: 1320px;
+  margin: 0 auto;
+  padding: 18px 16px 28px;
+}
+
+.dxq-postgame__header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 16px;
+  padding-bottom: 14px;
+  border-bottom: 1px solid #c8d0cc;
+}
+
+.dxq-postgame__eyebrow {
+  margin: 0 0 4px;
+  color: #58665b;
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.dxq-postgame__title {
+  margin: 0;
+  color: #1f2521;
+  font-size: clamp(22px, 3vw, 34px);
+  line-height: 1.1;
+}
+
+.dxq-postgame__summary {
+  margin: 6px 0 0;
+  color: #58665b;
+  font-size: 14px;
+}
+
+.dxq-postgame__actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-left: auto;
+}
+
+.dxq-postgame__link {
+  display: inline-flex;
+  box-sizing: border-box;
+  min-height: 34px;
+  align-items: center;
+  justify-content: center;
+  padding: 6px 10px;
+  border: 1px solid #b8c5c0;
+  border-radius: var(--site-radius);
+  background: #fbfcfb;
+  color: #263129;
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+button.dxq-postgame__link {
+  cursor: pointer;
+  font: inherit;
+}
+
+.dxq-postgame__link--primary {
+  border-color: #237960;
+  background: #237960;
+  color: #ffffff;
+}
+
+.dxq-postgame__link:disabled {
+  cursor: default;
+  opacity: 0.72;
+}
+
+.dxq-postgame__layout {
+  display: grid;
+  gap: 14px;
+  align-items: start;
+}
+
+.dxq-postgame__boards {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 12px;
+  align-items: start;
+}
+
+.dxq-postgame__replay-controls {
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: 40px 40px minmax(92px, max-content) 40px 40px minmax(58px, max-content);
+  gap: 8px;
+  align-items: center;
+  justify-content: center;
+  padding: 8px;
+  border: 1px solid #c8d0cc;
+  border-radius: var(--site-radius);
+  background: #fbfcfb;
+}
+
+.dxq-postgame__replay-button {
+  min-width: 40px;
+  min-height: 34px;
+  padding: 0 10px;
+  border: 1px solid #b8c5c0;
+  border-radius: var(--site-radius);
+  background: #ffffff;
+  color: #263129;
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.dxq-postgame__replay-button:disabled {
+  color: #89938d;
+  background: #eef2f0;
+}
+
+.dxq-postgame__replay-status {
+  color: #263129;
+  font-size: 13px;
+  font-weight: 800;
+  text-align: center;
+}
+
+.dxq-postgame__board-wrap {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+}
+
+.dxq-postgame__board-title {
+  margin: 0;
+  color: #1f2521;
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.dxq-postgame__board {
+  width: 100%;
+  max-width: none;
+}
+
+.dxq-postgame__board .xq-live-svg {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+.dxq-postgame__side {
+  display: grid;
+  grid-template-columns: minmax(260px, 320px) minmax(0, 1fr);
+  gap: 12px;
+}
+
+.dxq-postgame__panel {
+  display: grid;
+  gap: 8px;
+  padding: 12px;
+  border: 1px solid #c8d0cc;
+  border-radius: var(--site-radius);
+  background: #fbfcfb;
+}
+
+.dxq-postgame__panel h2 {
+  margin: 0;
+  color: #1f2521;
+  font-size: 14px;
+}
+
+.dxq-postgame__details {
+  display: grid;
+  gap: 6px;
+  margin: 0;
+}
+
+.dxq-postgame__details div {
+  display: grid;
+  grid-template-columns: minmax(72px, 0.7fr) minmax(0, 1fr);
+  gap: 8px;
+  min-width: 0;
+}
+
+.dxq-postgame__details dt {
+  color: #667267;
+  font-size: 12px;
+}
+
+.dxq-postgame__details dd {
+  min-width: 0;
+  margin: 0;
+  color: #222b24;
+  font-size: 13px;
+  font-weight: 700;
+  overflow-wrap: anywhere;
+}
+
+.dxq-postgame__moves {
+  display: grid;
+  gap: 6px;
+  max-height: 46vh;
+  margin: 0;
+  padding: 0;
+  overflow: auto;
+  list-style: none;
+}
+
+.dxq-postgame__move {
+  display: grid;
+  grid-template-columns: 34px minmax(0, 1fr);
+  gap: 8px;
+  align-items: center;
+  min-height: 30px;
+  padding: 6px 8px;
+  border-radius: var(--site-radius);
+  background: #e7ece9;
+  color: #28342c;
+  font-size: 13px;
+}
+
+.dxq-postgame__move-number {
+  color: #667267;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.dxq-postgame__notice,
+.dxq-postgame__error {
+  display: grid;
+  gap: 6px;
+  max-width: 620px;
+  margin: 48px auto;
+  padding: 16px;
+  border: 1px solid #c8d0cc;
+  border-radius: var(--site-radius);
+  background: #fbfcfb;
+}
+
+.dxq-postgame__notice h1,
+.dxq-postgame__error h1 {
+  margin: 0;
+  font-size: 20px;
+}
+
+.dxq-postgame__notice p,
+.dxq-postgame__error p {
+  margin: 0;
+  color: #58665b;
+}
+
+@media (max-width: 860px) {
+  .dxq-postgame__header {
+    align-items: start;
+    flex-direction: column;
+  }
+
+  .dxq-postgame__actions {
+    justify-content: flex-start;
+  }
+
+  .dxq-postgame__layout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .dxq-postgame__boards,
+  .dxq-postgame__side {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .dxq-postgame__moves {
+    max-height: none;
+  }
+}

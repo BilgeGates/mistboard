@@ -1,7 +1,9 @@
 import type { IncomingMessage, ServerResponse } from 'node:http';
 import {
+  type AccountSession,
   blockUser,
   countFollowing,
+  createAccountSession,
   createUser,
   followUser,
   hasBlock,
@@ -11,7 +13,9 @@ import {
   unfollowUser,
   viewerRelationForHandle,
 } from './persistence.js';
-import { assert, definePersistenceTests, test } from './persistence-test-support.js';
+import { assert, definePersistenceTests, sha256, test } from './persistence-test-support.js';
+import { clearPresence, type PresenceVisibility, touchPresence } from './presence.js';
+import type { HttpApiContext } from './routes/lib.js';
 import { tryHandle as tryHandleRelationsRoute } from './routes/relations.js';
 
 type ResponseCapture = {
@@ -168,7 +172,7 @@ definePersistenceTests('relations', () => {
   test('relation routes require an account session', async () => {
     const followResponse = captureResponse();
     const handled = await tryHandleRelationsRoute(
-      {},
+      {} as unknown as HttpApiContext,
       { method: 'POST', headers: {} } as unknown as IncomingMessage,
       followResponse,
       '/api/users/somebody/follow',
@@ -180,7 +184,7 @@ definePersistenceTests('relations', () => {
 
     const listResponse = captureResponse();
     const listHandled = await tryHandleRelationsRoute(
-      {},
+      {} as unknown as HttpApiContext,
       { method: 'GET', headers: {} } as unknown as IncomingMessage,
       listResponse,
       '/api/relations/following',
@@ -191,7 +195,7 @@ definePersistenceTests('relations', () => {
 
     const badMethod = captureResponse();
     const badMethodHandled = await tryHandleRelationsRoute(
-      {},
+      {} as unknown as HttpApiContext,
       { method: 'PUT', headers: {} } as unknown as IncomingMessage,
       badMethod,
       '/api/users/somebody/follow',
@@ -200,7 +204,92 @@ definePersistenceTests('relations', () => {
     assert.equal(badMethodHandled, true);
     assert.equal(badMethod.status, 405);
   });
+
+  test('online-following returns enriched rows and hides private followed profiles', async () => {
+    const now = new Date('2026-07-01T00:00:00Z');
+    await makeUser('rel_user_viewer', 'viewer', now);
+    await makeUser('rel_user_alice', 'alice', now);
+    await makeUser('rel_user_bob', 'bob', now);
+    await makeUser('rel_user_carol', 'carol', now);
+
+    // The viewer follows alice (public, playing) and bob (private). carol is
+    // online and public but unfollowed, so she must not leak in.
+    assert.equal(
+      (await followUser({ actorId: 'rel_user_viewer', targetHandle: 'alice', now })).ok,
+      true,
+    );
+    assert.equal(
+      (await followUser({ actorId: 'rel_user_viewer', targetHandle: 'bob', now })).ok,
+      true,
+    );
+
+    const cookie = await makeSessionCookie('rel_user_viewer');
+    clearPresence();
+    presence('rel_user_alice', 'alice', 'public');
+    presence('rel_user_bob', 'bob', 'private');
+    presence('rel_user_carol', 'carol', 'public');
+
+    // alice holds a color seat in a playing legacy room, so `playing` is true.
+    const ctx = playingRoomContext('rel_user_alice');
+    const response = captureResponse();
+    const handled = await tryHandleRelationsRoute(
+      ctx,
+      { method: 'GET', headers: { cookie } } as unknown as IncomingMessage,
+      response,
+      '/api/relations/online-following',
+      new URL('http://localhost/api/relations/online-following'),
+    );
+    assert.equal(handled, true);
+    assert.equal(response.status, 200);
+    const body = JSON.parse(response.body as string) as {
+      players: Array<{ handle: string; displayName: string; rating: unknown; playing: boolean }>;
+      count: number;
+    };
+    // Only alice: bob is private, carol is unfollowed, the viewer never self-lists.
+    assert.deepEqual(
+      body.players.map((p) => p.handle),
+      ['alice'],
+    );
+    assert.equal(body.count, 1);
+    const alice = body.players[0]!;
+    assert.equal(alice.playing, true, 'seated in a playing room');
+    // Rating is decoration; with no rated games it resolves to null but the
+    // field is always present in the enriched shape.
+    assert.ok('rating' in alice);
+    assert.equal(alice.rating, null);
+  });
 });
+
+async function makeSessionCookie(userId: string): Promise<string> {
+  const sessionId = `sess_${userId}`;
+  const token = `tok_${userId}`;
+  // currentAccountUser validates expiry against the real wall clock, so the
+  // session must outlive `new Date()` regardless of any fixed test date.
+  const session: AccountSession = {
+    id: sessionId,
+    userId,
+    tokenHash: sha256(token),
+    expiresAt: new Date(Date.now() + 60 * 60 * 1000),
+  };
+  await createAccountSession(session);
+  return `mistboard_session=${sessionId}.${token}`;
+}
+
+function presence(id: string, handle: string, profileVisibility: PresenceVisibility): void {
+  touchPresence({ id, handle, displayName: handle, profileVisibility });
+}
+
+// Minimal HttpApiContext with one playing legacy room seating `seatUserId`, so
+// collectLiveRoomStats reports that user as playing. No tenants are registered
+// in this test file, so the tenant walk is a no-op.
+function playingRoomContext(seatUserId: string): HttpApiContext {
+  const room = {
+    mode: 'pvp',
+    projection: { state: { status: { type: 'playing' } } },
+    clients: new Set([{ id: 'client-1', userId: seatUserId, seat: 'white' }]),
+  };
+  return { rooms: new Map([['room-1', room]]) } as unknown as HttpApiContext;
+}
 
 async function makeUser(id: string, handle: string, now: Date): Promise<void> {
   await createUser({

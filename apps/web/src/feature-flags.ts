@@ -6,10 +6,24 @@ export function darkXiangqiEnabled(): boolean {
   return import.meta.env.DEV || import.meta.env.VITE_DARK_XIANGQI_ENABLED === 'true';
 }
 
+// Standard (open-information) Xiangqi (9x10) play surface. Always on in dev for
+// local parity; in prod/staging it stays hidden until the build opts in. The
+// server gates room creation independently (MISTBOARD_XIANGQI_ENABLED), so an
+// off web flag never strands a live room.
+export function xiangqiEnabled(): boolean {
+  return import.meta.env.DEV || import.meta.env.VITE_XIANGQI_ENABLED === 'true';
+}
+
 // Dark Mini Xiangqi (7x7) play surface. Always on in dev for convenience (like
 // Crossroads below); in prod/staging it is hidden unless the build opts in.
 export function darkMiniXiangqiEnabled(): boolean {
   return import.meta.env.DEV || import.meta.env.VITE_DARK_MINI_XIANGQI_ENABLED === 'true';
+}
+
+// Global friends-online widget (bottom-corner pill → expandable list, lichess
+// parity). On in dev; in prod/staging it stays hidden until the build opts in.
+export function friendsOnlineEnabled(): boolean {
+  return import.meta.env.DEV || import.meta.env.VITE_FRIENDS_ONLINE_ENABLED === 'true';
 }
 
 // Drop Mini Xiangqi (7x7 mini xiangqi with crazyhouse-style reserves). Public
@@ -56,13 +70,6 @@ export function jungleEnabled(): boolean {
 // (the server MISTBOARD_JUNGLE_FLIP_ENABLED flag remains the runtime kill-switch).
 export function jungleFlipEnabled(): boolean {
   return true;
-}
-
-export function darkMiniXiangqiPublicEntryEnabled(): boolean {
-  return (
-    darkMiniXiangqiEnabled() &&
-    (import.meta.env.DEV || import.meta.env.VITE_DARK_MINI_XIANGQI_PUBLIC_ENTRY_ENABLED === 'true')
-  );
 }
 
 // Dark-chess correspondence (days-per-move) entry points. Always on in dev for

@@ -12,7 +12,6 @@ describe('landing announcements', () => {
 
   it('shows current launch announcements without old variant env flags', () => {
     vi.stubEnv('DEV', false);
-    vi.stubEnv('VITE_DARK_MINI_XIANGQI_PUBLIC_ENTRY_ENABLED', 'false');
     vi.stubEnv('VITE_DARK_SHOGI_ENABLED', 'false');
     vi.stubEnv('VITE_DARK_CROSSROADS_CHESS_ENABLED', 'false');
     vi.stubEnv('VITE_DARK_CRAZYHOUSE_ENABLED', 'false');
@@ -23,13 +22,17 @@ describe('landing announcements', () => {
       row.getAttribute('href'),
     );
 
+    // Xiangqi pivot: the News rail is gated by variantPublicSurfaceEnabled. The
+    // mini xiangqi trio (incl. drop-mini) and dark-crazyhouse are retired from
+    // public surfaces; the elevated Chinese-chess-family launches (dark-xiangqi,
+    // banqi) now surface.
     expect(hrefs).toEqual([
       '/rules/fortress-xiangqi',
       '/rules/jungle',
       '/rules/jungle-flip',
-      '/rules/drop-mini-xiangqi',
-      '/rules/dark-crazyhouse',
       '/rules/dark-shogi',
+      '/rules/dark-xiangqi',
+      '/rules/banqi',
     ]);
   });
 
@@ -71,7 +74,10 @@ describe('landing announcements', () => {
     }
   });
 
-  it('shows the Drop Mini Xiangqi launch announcement by default', () => {
+  it('retires the Drop Mini Xiangqi launch announcement from the homepage News rail', () => {
+    // Xiangqi pivot: drop-mini's public surface is off (variantPublicSurfaceEnabled
+    // = false), so its launch row no longer shows on the homepage News rail (the
+    // /rules/drop-mini-xiangqi page stays reachable by direct URL).
     vi.stubEnv('DEV', false);
 
     const panel = buildLandingAnnouncements();
@@ -79,8 +85,7 @@ describe('landing announcements', () => {
       r.textContent?.includes('Drop Mini Xiangqi'),
     );
 
-    expect(row).toBeDefined();
-    expect(row?.getAttribute('href')).toBe('/rules/drop-mini-xiangqi');
+    expect(row).toBeUndefined();
   });
 
   it('keeps older launch items in the full announcements history', () => {

@@ -348,6 +348,52 @@ export async function searchForumPosts(options: {
   };
 }
 
+// Newest visible posts across all topics (opening posts and replies alike),
+// for the homepage "latest forum posts" widget. Reuses the search result shape
+// so the route can serialize both with one path.
+export async function listLatestForumPosts(
+  options: { limit?: number } = {},
+): Promise<ForumPostSearchResult[]> {
+  const limit = clampInt(options.limit ?? 8, 1, 20);
+  const { rows } = await getPool().query<ForumPostSearchRow>(
+    `SELECT p.id AS post_id,
+            p.body_text,
+            p.created_at AS post_created_at,
+            u.handle AS author_handle,
+            COALESCE(u.display_name, u.handle) AS author_display_name,
+            t.id AS topic_id,
+            t.slug AS topic_slug,
+            t.title AS topic_title,
+            t.post_count AS topic_post_count,
+            c.slug AS category_slug,
+            c.name AS category_name,
+            GREATEST(1, (
+              (
+                SELECT COUNT(*)::int
+                FROM forum_posts before_post
+                WHERE before_post.topic_id = p.topic_id
+                  AND (
+                    before_post.created_at < p.created_at
+                    OR (
+                      before_post.created_at = p.created_at
+                      AND before_post.id <= p.id
+                    )
+                  )
+              ) - 1
+            ) / 25 + 1) AS post_page
+     FROM forum_posts p
+     JOIN forum_topics t ON t.id = p.topic_id
+     JOIN forum_categories c ON c.id = t.category_id
+     LEFT JOIN users u ON u.id = p.author_account_id
+     WHERE p.hidden_at IS NULL
+       AND t.hidden_at IS NULL
+     ORDER BY p.created_at DESC, p.id DESC
+     LIMIT $1`,
+    [limit],
+  );
+  return rows.map((row) => postSearchResultFromRow(row));
+}
+
 export async function getForumPostLocation(
   postId: string,
   options: { pageSize?: number } = {},
@@ -1149,12 +1195,15 @@ function postFromRow(row: ForumPostRow): ForumPost {
   };
 }
 
-function postSearchResultFromRow(row: ForumPostSearchRow, query: string): ForumPostSearchResult {
+function postSearchResultFromRow(row: ForumPostSearchRow, query?: string): ForumPostSearchResult {
   return {
     post: {
       id: row.post_id,
       page: row.post_page,
-      snippet: forumSearchSnippet(row.body_text, query),
+      snippet:
+        query === undefined
+          ? forumPlainSnippet(row.body_text)
+          : forumSearchSnippet(row.body_text, query),
     },
     topic: {
       id: row.topic_id,
@@ -1197,7 +1246,7 @@ function reportFromRow(row: ForumReportRow): ForumReport {
       ? {
           id: row.post_id,
           page: row.post_page ?? 1,
-          snippet: forumReportSnippet(row.post_body_text ?? ''),
+          snippet: forumPlainSnippet(row.post_body_text ?? ''),
           author: authorFromRow(row.post_author_handle, row.post_author_display_name),
           createdAt: row.post_created_at ?? row.created_at,
           hiddenAt: row.post_hidden_at,
@@ -1232,7 +1281,7 @@ function forumSearchSnippet(value: string, query: string): string {
   return `${prefix}${text.slice(start, end).trim()}${suffix}`;
 }
 
-function forumReportSnippet(value: string): string {
+function forumPlainSnippet(value: string): string {
   const text = value.trim().replace(/\s+/g, ' ');
   if (text.length <= 180) return text;
   return `${text.slice(0, 177).trimEnd()}...`;

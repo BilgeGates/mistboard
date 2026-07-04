@@ -1,135 +1,29 @@
-.landing-forum-row {
-  display: grid;
-  grid-template-columns: minmax(0, 1.35fr) minmax(54px, auto) minmax(0, 0.85fr);
-  gap: 10px;
-  align-items: center;
+/* Playstrategy-style latest-posts widget: each post is one ellipsized line and
+   one link (topic title, author, first words of the text). Overrides the
+   shared .site-box-row flex so the spans flow inline and truncate together. */
+.landing-forum-post {
+  display: block;
+  overflow: hidden;
+  color: var(--site-text);
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
-.landing-forum-row:not(.landing-forum-header):hover {
-  background: var(--site-accent-soft);
-}
-
-.landing-forum-header {
-  padding: 7px 14px 6px;
-  background: var(--site-panel-soft);
-  color: var(--site-muted);
-  font-size: 11px;
-  font-weight: 800;
-  text-transform: uppercase;
-}
-
-.landing-forum-row-main,
-.landing-forum-row-last {
-  display: grid;
-  gap: 2px;
-  min-width: 0;
-}
-
-a.landing-forum-row-main,
-.landing-forum-row-last a {
-  color: inherit;
-  text-decoration: none;
-}
-
-a.landing-forum-row-main:focus-visible,
-.landing-forum-row-last a:focus-visible {
-  border-radius: var(--site-radius-sm);
-  outline: 2px solid var(--site-accent);
-  outline-offset: 2px;
-}
-
-a.landing-forum-row-main:hover .landing-forum-row-title,
-.landing-forum-row-last-title:hover,
-.landing-forum-row-last-title:focus-visible,
-.landing-forum-row-author:hover,
-.landing-forum-row-author:focus-visible {
+.landing-forum-post-topic {
   color: var(--site-link);
+  font-weight: 600;
+}
+
+.landing-forum-post:hover .landing-forum-post-topic,
+.landing-forum-post:focus-visible .landing-forum-post-topic {
   text-decoration: underline;
 }
 
-.landing-forum-row-title {
-  min-width: 0;
-  overflow: hidden;
+.landing-forum-post-author {
   color: var(--site-heading);
   font-weight: 700;
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
 
-.landing-forum-row-desc,
-.landing-forum-row-category,
-.landing-forum-row-last,
-.landing-forum-row-meta {
+.landing-forum-post-text {
   color: var(--site-muted);
-  font-size: 12px;
-  line-height: 1.35;
-}
-
-.landing-forum-row-desc,
-.landing-forum-row-category,
-.landing-forum-row-last-title,
-.landing-forum-row-meta {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.landing-forum-row-stat {
-  color: var(--site-text);
-  font-size: 13px;
-  font-weight: 700;
-  font-variant-numeric: tabular-nums;
-  text-align: right;
-  white-space: nowrap;
-}
-
-.landing-forum-row-last-title {
-  color: var(--site-heading);
-  font-size: 12px;
-  font-weight: 650;
-}
-
-.landing-forum-row-author {
-  color: var(--site-accent-strong);
-  font-weight: 700;
-}
-
-@media (max-width: 560px) {
-  .landing-forum-header {
-    display: none;
-  }
-
-  .landing-forum-row {
-    grid-template-columns: minmax(0, 1fr) auto auto;
-    grid-template-areas:
-      "main replies replies"
-      "last last last";
-    gap: 4px 10px;
-    align-items: baseline;
-  }
-
-  .landing-forum-row-main {
-    grid-area: main;
-  }
-
-  .landing-forum-row-stat:nth-child(2) {
-    grid-area: replies;
-  }
-
-  .landing-forum-row-stat {
-    text-align: left;
-  }
-
-  .landing-forum-row-stat::before {
-    color: var(--site-muted);
-    font-weight: 650;
-  }
-
-  .landing-forum-row-stat:nth-child(2)::before {
-    content: "Replies: ";
-  }
-
-  .landing-forum-row-last {
-    grid-area: last;
-  }
 }

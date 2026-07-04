@@ -4,7 +4,7 @@ import './styles.css';
 import { initializeAccountNav } from './account-nav.js';
 import { setPostHogInstance } from './analytics.js';
 import type { ArticleLang } from './article-i18n.js';
-import { correspondenceEnabled } from './feature-flags.js';
+import { correspondenceEnabled, friendsOnlineEnabled } from './feature-flags.js';
 import { type I18nKey, t } from './i18n/catalog.js';
 import { currentLocale, initializeLocaleFromCurrentUrl } from './i18n/locale.js';
 import {
@@ -427,6 +427,14 @@ if (replaySample) {
   void mountOrReport(() =>
     import('./pages-static.js').then(({ mountNotFound }) => mountNotFound(appRoot)),
   );
+}
+
+// Global friends-online widget (bottom-corner). Route-agnostic and self-gating
+// (it no-ops for anonymous viewers), so it mounts once regardless of the page
+// that rendered above. Lazy-imported so its bundle only loads when the flag is
+// on.
+if (friendsOnlineEnabled()) {
+  void import('./friends-online.js').then(({ mountFriendsOnline }) => mountFriendsOnline());
 }
 
 function setTitle(page: string): void {

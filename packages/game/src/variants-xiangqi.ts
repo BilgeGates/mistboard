@@ -94,6 +94,7 @@ export type XiangqiPlayerView = {
 
 export type XiangqiGameEndReason =
   | 'general-captured'
+  | 'checkmate'
   | 'stalemate'
   | 'timeout'
   | 'resignation'
@@ -245,7 +246,7 @@ export function createInitialXiangqiState(gameId: string): XiangqiGameState {
 // These translate our XiangqiBoard <-> elephantops Board and lift our state
 // into an elephantops Xiangqi position so we can reuse its move generator.
 
-function boardToEoBoard(board: XiangqiBoard): EoBoard {
+export function boardToEoBoard(board: XiangqiBoard): EoBoard {
   const eo = EoBoard.empty();
   for (const [sq, piece] of Object.entries(board)) {
     if (!piece) continue;

@@ -41,6 +41,7 @@ import {
   reportEngineMoveOk,
   resolveValidatedEngineMove,
 } from './engine-move-guard.js';
+import { budgetForMove } from './engine-time-budget.js';
 import { logger } from './obs.js';
 import type { TenantLifecycleContext } from './variant-tenant/lifecycle.js';
 import { tenantClockRemainingMs } from './variant-tenant/runtime.js';
@@ -146,13 +147,21 @@ export async function playDropMiniXiangqiEngineMoveIfReady(
   const now = ctx.now?.() ?? Date.now();
   const clock = room.projection.clock;
   const remainingMs = clock ? tenantClockRemainingMs(clock, seat, now) : null;
+  const incrementMs = clock?.incrementMs ?? 0;
   if (remainingMs !== null && remainingMs <= 0) return;
 
   const history = dropMiniXiangqiUciHistory(room.events);
-  const movetimeMs =
-    remainingMs === null
-      ? tier.movetimeMs
-      : Math.max(MIN_MOVETIME_MS, Math.min(tier.movetimeMs, remainingMs - CLOCK_SAFETY_MS));
+  // Clock-aware per-move budget (shared allocator). The tier's NODE budget is the
+  // strength anchor; this movetime is the latency ceiling + time-pressure guard.
+  // Existing ceiling preserved — behavior-neutral for untimed play; adds increment
+  // awareness + graceful shrink when timed. Replaces the old naive clamp.
+  const { computeBudgetMs: movetimeMs } = budgetForMove({
+    remainingMs,
+    incrementMs,
+    ceilingMs: tier.movetimeMs,
+    reserveMs: CLOCK_SAFETY_MS,
+    floorMs: MIN_MOVETIME_MS,
+  });
 
   // Engine-move boundary contract (see engine-move-guard.ts): bounded retries,
   // validate every output against the kernel, FAIL CLOSED (resign + page) rather

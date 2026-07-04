@@ -20,6 +20,14 @@ export function darkXiangqiEnabled(): boolean {
   return process.env.MISTBOARD_DARK_XIANGQI_ENABLED === 'true';
 }
 
+// Standard (open-information) Xiangqi live rooms. Server-side opt-in, default
+// off — ships flag-off so the tenant exists in prod without opening room
+// creation. Flip to MISTBOARD_XIANGQI_ENABLED=true at launch (alongside the
+// rated flag + user_ratings CHECK migration).
+export function xiangqiEnabled(): boolean {
+  return process.env.MISTBOARD_XIANGQI_ENABLED === 'true';
+}
+
 // Dark Mini Xiangqi is a separate 7x7 rules spike. Keep it independently
 // gateable from full Dark Xiangqi so runtime experiments cannot expose both
 // families at once by accident.

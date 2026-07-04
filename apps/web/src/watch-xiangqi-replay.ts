@@ -1,0 +1,50 @@
+// Mistboard TV renderer for standard Xiangqi (9x10) — a thin adapter over the
+// shared tenant watch renderer (watch-tenant-replay.ts). Standard Xiangqi is
+// OPEN INFORMATION: there is a single truth board (no red/truth/black fog
+// triptych and no fog mask). The board styles ride the same live-xiangqi.css the
+// live room uses; a watch chunk extracted from the live shell must import them
+// itself or the SVG renders black-on-black.
+import './live-xiangqi.css';
+import type { StandardXiangqiPlayerView } from '@mistboard/game';
+import { renderXiangqiBoardSvg } from './live-xiangqi.js';
+import type { ReplayHandle } from './replay.js';
+import { mountTenantWatchReplay, type TenantWatchReplayOptions } from './watch-tenant-replay.js';
+import {
+  loadXiangqiPostgame,
+  postgameReplayMaxPly,
+  postgameViewAtPly,
+  postgameViewEntries,
+  type XiangqiPostgameResponse,
+  type XiangqiPostgameViewKey,
+} from './xiangqi-postgame.js';
+
+export type XiangqiWatchReplayOptions = TenantWatchReplayOptions;
+
+function paneKind(_key: XiangqiPostgameViewKey): 'white' | 'truth' | 'black' {
+  return 'truth';
+}
+
+export function mountXiangqiWatchReplay(
+  root: HTMLElement,
+  roomId: string,
+  options: XiangqiWatchReplayOptions,
+): Promise<ReplayHandle> {
+  return mountTenantWatchReplay<
+    XiangqiPostgameResponse,
+    StandardXiangqiPlayerView,
+    XiangqiPostgameViewKey
+  >(root, roomId, options, {
+    installStyles: () => {},
+    loadPostgame: loadXiangqiPostgame,
+    maxPly: postgameReplayMaxPly,
+    viewEntries: (postgame) =>
+      postgameViewEntries(postgame).map((entry) => ({ key: entry.key, label: entry.label })),
+    viewAtPly: postgameViewAtPly,
+    paneKind,
+    // Open information: one truth board, no fog mask.
+    renderBoard: (view, orientation) => renderXiangqiBoardSvg(view, orientation),
+    // Standard Xiangqi's wire view carries no captured-pool, so there is nothing
+    // to render in the per-pane capture strips.
+    fillCaptures: () => {},
+  });
+}

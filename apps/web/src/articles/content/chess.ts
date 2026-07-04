@@ -27,6 +27,10 @@ import type { Article, ArticleBlock } from '../types.js';
 export const chessArticle: Article = {
     slug: 'chess',
     kind: 'rules',
+    // Hidden from the rules rail/index 2026-07-03 (project_xiangqi_pivot_track):
+    // chess is deranked as Mistboard repositions around the xiangqi family. The
+    // page stays reachable at /rules/chess for SEO + the Dark Chess primer link.
+    showInIndex: false,
     title: 'Chess Rules',
     summary:
       'Standard chess rules, the primer behind Dark Chess: castling, promotion, en passant, the draw rules, and a famous game to play through.',
