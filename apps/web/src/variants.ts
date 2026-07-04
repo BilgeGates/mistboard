@@ -46,6 +46,7 @@ import {
   jungleFlipEnabled,
   kriegspielEnabled,
   revealChessEnabled,
+  xiangqiEnabled,
 } from './feature-flags.js';
 import type { VariantMiniId } from './variant-mini-boards.js';
 
@@ -78,6 +79,7 @@ const darkMiniEnabled = darkMiniXiangqiEnabled();
 // deep link; live client gate untouched). See project_xiangqi_pivot_track.
 const dropMiniXiangqiOn = false;
 const fortressXiangqiOn = fortressXiangqiEnabled();
+const xiangqiOn = xiangqiEnabled();
 const crossroadsEnabled = crossroadsChessEnabled();
 const jieqiOn = jieqiEnabled();
 const banqiOn = banqiEnabled();
@@ -148,10 +150,9 @@ export const VARIANTS: VariantDef[] = [
     onProfile: fortressXiangqiOn,
   },
   // Standard Xiangqi (9x10 open info): the pivot anchor, right after Fortress.
-  // Ships flag-off: playable in dev via the picker (xiangqiEnabled), but held OFF
-  // the rating grids + News rail until launch (no rated games yet, no premature
-  // "has launched" /feed announcement). At launch, flip these to `xiangqiOn` AND
-  // add the /rules/xiangqi announcement together. Rating-ready like jieqi/banqi.
+  // Launched 2026-07-04: on the rating grids + News rail, account-gated rated
+  // like Fortress/jieqi/banqi (rated games activate with the global
+  // MISTBOARD_RATED_ENABLED flip). PvE via Pikafish, PvP via friend links.
   {
     id: currentRatingVariantForSpec(XIANGQI_SPEC_ID),
     gameSpecId: xiangqiSpec.id,
@@ -159,8 +160,8 @@ export const VARIANTS: VariantDef[] = [
     label: xiangqiSpec.publicName,
     miniId: 'xiangqi',
     enabled: false,
-    onLeaderboard: false,
-    onProfile: false,
+    onLeaderboard: xiangqiOn,
+    onProfile: xiangqiOn,
   },
   // Full Dark Xiangqi (9x10 fog): launched PvP-first (no bot, no open-seek
   // lobby), rating-ready like jieqi/banqi.

@@ -1,5 +1,5 @@
 import {
-  relatedClosing,
+  playClosing,
   XQ_PRIMER_ADVISOR_BOARD,
   XQ_PRIMER_CANNON_PAIR,
   XQ_PRIMER_CHARIOT_BOARD,
@@ -17,15 +17,16 @@ export const xiangqiArticle: Article = {
     slug: 'xiangqi',
     boardFamily: 'xiangqi',
     kind: 'rules',
+    playableOnMistboard: true,
     title: 'Xiangqi Rules',
     summary:
-      'Standard xiangqi rules, the primer behind Dark Xiangqi: palaces, the river, cannon screens, facing generals, and a famous game to play through.',
+      'The rules of xiangqi (Chinese chess): palaces, the river, cannon screens, facing generals, and a famous game to play through. Now playable on Mistboard against the Pikafish engine or a friend.',
     showSummaryOnPage: false,
     status: 'published',
     publishedAt: '2026-05-26',
-    updatedAt: '2026-05-30',
+    updatedAt: '2026-07-04',
     audience:
-      'Mistboard readers who know chess or dark chess and want the xiangqi baseline before adding fog.',
+      'Players new to xiangqi, and chess players who want to learn Chinese chess and play it on Mistboard.',
     thumbnail: { kind: 'svg', svg: XQ_RULES_PRIMER_THUMBNAIL },
     intro: [
       {
@@ -181,13 +182,14 @@ export const xiangqiArticle: Article = {
           } as ArticleBlock,
         ],
       },
-      relatedClosing({
-        heading: 'Where to next',
-        lead: 'Xiangqi is the open-information base game. Add Fog of War for dark xiangqi, where enemy pieces outside your vision disappear and the general falls by capture. Or try the compact board.',
-        links: [
-          { label: 'Read Dark Xiangqi', href: '/rules/dark-xiangqi', emphasis: 'primary' },
-          { label: 'Mini Xiangqi', href: '/rules/mini-xiangqi', emphasis: 'secondary' },
-          { label: 'Dark Mini Xiangqi', href: '/rules/dark-mini-xiangqi', emphasis: 'secondary' },
+      playClosing({
+        heading: 'Play it',
+        lead: 'Xiangqi is live on Mistboard. Play the Pikafish engine at three strengths, or challenge a friend. For a twist, add Fog of War for dark xiangqi, where enemy pieces outside your vision disappear and the general falls by capture.',
+        playLabel: 'Play Xiangqi',
+        playHref: '/?play=computer&gameSpecId=xiangqi',
+        secondary: [
+          { label: 'Challenge a friend', href: '/?play=friend&gameSpecId=xiangqi', emphasis: 'secondary' },
+          { label: 'Dark Xiangqi', href: '/rules/dark-xiangqi', emphasis: 'secondary' },
           { label: 'All rules', href: '/rules', emphasis: 'secondary' },
         ],
       }),

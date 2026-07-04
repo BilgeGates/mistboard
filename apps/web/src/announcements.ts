@@ -18,6 +18,14 @@ export type Announcement = {
 
 const baseAnnouncements: Announcement[] = [
   {
+    date: '2026-07-04',
+    kind: 'release',
+    headline: 'Xiangqi has launched.',
+    body: 'Standard Chinese chess on the full 9 by 10 board is now first-class on Mistboard: play the Pikafish engine at three strengths, or challenge a friend.',
+    href: '/rules/xiangqi',
+    cta: 'Study the rules',
+  },
+  {
     date: '2026-07-01',
     kind: 'release',
     headline: 'Fortress Xiangqi has launched.',

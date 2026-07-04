@@ -40,7 +40,7 @@ const xiangqiRoute = createTenantRoomsRoute<
     isEngineClientId: isXiangqiEngineClientId,
     seats: XIANGQI_SEATS,
   },
-  rated: { kind: 'reject-as-surface' },
+  rated: { kind: 'account-gated' },
   createRoom: (ctx, { timeControl, preferredColor, engine }) =>
     ctx.createXiangqiRoom(timeControl, preferredColor, engine),
 });

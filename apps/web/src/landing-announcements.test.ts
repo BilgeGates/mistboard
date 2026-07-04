@@ -27,12 +27,12 @@ describe('landing announcements', () => {
     // public surfaces; the elevated Chinese-chess-family launches (dark-xiangqi,
     // banqi) now surface.
     expect(hrefs).toEqual([
+      '/rules/xiangqi',
       '/rules/fortress-xiangqi',
       '/rules/jungle',
       '/rules/jungle-flip',
       '/rules/dark-shogi',
       '/rules/dark-xiangqi',
-      '/rules/banqi',
     ]);
   });
 
@@ -112,13 +112,13 @@ describe('landing announcements', () => {
     expect(landing.getAttribute('aria-label')).toBe('新聞');
     expect(top?.querySelector('.site-box-title')?.textContent).toBe('新聞');
     expect(top?.querySelector('.site-box-more')?.textContent).toBe('更多 »');
-    expect(firstRow?.getAttribute('href')).toBe('/zh-hant/rules/fortress-xiangqi');
+    expect(firstRow?.getAttribute('href')).toBe('/zh-hant/rules/xiangqi');
     expect(news.querySelector('.site-section-heading')?.textContent).toBe('Mistboard 更新');
     expect(news.querySelector('.news-page-intro')?.textContent).toBe(
       'Mistboard 的發布、狀態更新和公告。',
     );
     expect(news.querySelector<HTMLAnchorElement>('.news-page-link')?.getAttribute('href')).toBe(
-      '/zh-hant/rules/fortress-xiangqi',
+      '/zh-hant/rules/xiangqi',
     );
     expect(news.querySelector('.news-page-link')?.textContent).toBe('研究規則');
   });

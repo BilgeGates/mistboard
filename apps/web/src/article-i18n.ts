@@ -177,6 +177,7 @@ const ZH_HANS: Record<string, string> = {
   'Dark Mini Xiangqi is open for alpha play. You can play Misty DMX, create an invite, or find an opponent from the homepage play panel by choosing Dark Mini Xiangqi in the Variant row.':
     '迷雾迷你象棋现已开放 Alpha 对弈。你可以在首页对弈面板的“Variant”一行选择迷雾迷你象棋，然后对战 Misty DMX、创建邀请，或寻找对手。',
   'Play Misty': '对战 Misty',
+  'Play Xiangqi': '下象棋',
   'Play Misty DMX': '对战 Misty DMX',
   'Create invite': '创建邀请',
 
@@ -247,8 +248,8 @@ const ZH_HANS: Record<string, string> = {
 
   // -- Xiangqi primer (rules) --
   'Xiangqi Rules': '象棋规则',
-  'Standard xiangqi rules, the primer behind Dark Xiangqi: palaces, the river, cannon screens, facing generals, and a famous game to play through.':
-    '标准象棋规则，迷雾象棋的入门基础：九宫、楚河汉界、炮架、将帅对脸，以及一盘可供逐步重演的名局。',
+  'The rules of xiangqi (Chinese chess): palaces, the river, cannon screens, facing generals, and a famous game to play through. Now playable on Mistboard against the Pikafish engine or a friend.':
+    '象棋（中国象棋）规则：九宫、楚河汉界、炮架、将帅对脸，以及一盘可供逐步重演的名局。现在可在 Mistboard 上对战 Pikafish 引擎或好友。',
   '[Xiangqi](https://en.wikipedia.org/wiki/Xiangqi), or Chinese chess, is a two-player strategy game with roots in China going back many centuries. Its modern form, including the cannon, took shape around the Song dynasty (960 to 1279).':
     '[象棋](https://en.wikipedia.org/wiki/Xiangqi)（中国象棋）是一种双人策略游戏，其根源可追溯到中国数百年乃至更久以前。它的现代形式（包括炮在内）大约在宋代（960 至 1279 年）成形。',
   'Red and Black alternate moves, with Red first. Each side begins with 16 pieces: one general, two advisors, two elephants, two horses, two chariots, two cannons, and five soldiers. The goal is to checkmate the opposing general.':
@@ -284,8 +285,8 @@ const ZH_HANS: Record<string, string> = {
     '当任何一方都没有足够的子力将死对方、出现不违反上述规则的重复局面，或长时间无吃子时，对局判和。无吃子的上限取决于所采用的规则：世界象棋联合会的规则采用五十回合规则，而中国象棋协会（CXA）的规则则要求至少 60 个半回合之后才能提出和棋。',
   "To see the pieces work together in a real game, step through this 1990 championship between two of xiangqi's greatest grandmasters. Playing Black, Liu Dahua checkmates Hu Ronghua, the most dominant champion of the era, in 31 moves.":
     '想看棋子在实战中如何协同，可以逐步重演这盘 1990 年、由两位象棋顶尖特级大师对弈的冠军赛。执黑的柳大华用 31 个回合将死了那个时代最具统治力的冠军胡荣华。',
-  'Xiangqi is the open-information base game. Add Fog of War for dark xiangqi, where enemy pieces outside your vision disappear and the general falls by capture. Or try the compact board.':
-    '象棋是信息公开的底层游戏。为它加上战争迷雾，便得到迷雾象棋：你视野之外的敌方棋子会消失，而将帅由被吃而落败。或者也可以试试更紧凑的棋盘。',
+  'Xiangqi is live on Mistboard. Play the Pikafish engine at three strengths, or challenge a friend. For a twist, add Fog of War for dark xiangqi, where enemy pieces outside your vision disappear and the general falls by capture.':
+    '象棋已在 Mistboard 上线。对战三种强度的 Pikafish 引擎，或挑战好友。想换个花样，可以加上战争迷雾玩迷雾象棋：你视野之外的敌方棋子会消失，将帅由被吃而落败。',
   'Mini Xiangqi': '迷你象棋',
   'Dark Mini Xiangqi': '迷雾迷你象棋',
 
@@ -902,6 +903,7 @@ const ZH_HANT: Record<string, string> = {
   'Dark Mini Xiangqi is open for alpha play. You can play Misty DMX, create an invite, or find an opponent from the homepage play panel by choosing Dark Mini Xiangqi in the Variant row.':
     '迷霧迷你象棋現已開放 Alpha 對弈。你可以在首頁對弈面板的「Variant」一行選擇迷霧迷你象棋，然後對戰 Misty DMX、建立邀請，或尋找對手。',
   'Play Misty': '對戰 Misty',
+  'Play Xiangqi': '下象棋',
   'Play Misty DMX': '對戰 Misty DMX',
   'Create invite': '建立邀請',
 
@@ -972,8 +974,8 @@ const ZH_HANT: Record<string, string> = {
 
   // -- Xiangqi primer (rules) --
   'Xiangqi Rules': '象棋規則',
-  'Standard xiangqi rules, the primer behind Dark Xiangqi: palaces, the river, cannon screens, facing generals, and a famous game to play through.':
-    '標準象棋規則，迷霧象棋的入門基礎：九宮、楚河漢界、炮架、將帥對臉，以及一盤可供逐步重演的名局。',
+  'The rules of xiangqi (Chinese chess): palaces, the river, cannon screens, facing generals, and a famous game to play through. Now playable on Mistboard against the Pikafish engine or a friend.':
+    '象棋（中國象棋）規則：九宮、楚河漢界、炮架、將帥對臉，以及一盤可供逐步重演的名局。現在可在 Mistboard 上對戰 Pikafish 引擎或好友。',
   '[Xiangqi](https://en.wikipedia.org/wiki/Xiangqi), or Chinese chess, is a two-player strategy game with roots in China going back many centuries. Its modern form, including the cannon, took shape around the Song dynasty (960 to 1279).':
     '[象棋](https://en.wikipedia.org/wiki/Xiangqi)（中國象棋）是一種雙人策略遊戲，其根源可追溯到中國數百年乃至更久以前。它的現代形式（包括炮在內）大約在宋代（960 至 1279 年）成形。',
   'Red and Black alternate moves, with Red first. Each side begins with 16 pieces: one general, two advisors, two elephants, two horses, two chariots, two cannons, and five soldiers. The goal is to checkmate the opposing general.':
@@ -1009,8 +1011,8 @@ const ZH_HANT: Record<string, string> = {
     '當任何一方都沒有足夠的子力將死對方、出現不違反上述規則的重複局面，或長時間無吃子時，對局判和。無吃子的上限取決於所採用的規則：世界象棋聯合會的規則採用五十回合規則，而中國象棋協會（CXA）的規則則要求至少 60 個半回合之後才能提出和棋。',
   "To see the pieces work together in a real game, step through this 1990 championship between two of xiangqi's greatest grandmasters. Playing Black, Liu Dahua checkmates Hu Ronghua, the most dominant champion of the era, in 31 moves.":
     '想看棋子在實戰中如何協同，可以逐步重演這盤 1990 年、由兩位象棋頂尖特級大師對弈的冠軍賽。執黑的柳大華用 31 個回合將死了那個時代最具統治力的冠軍胡榮華。',
-  'Xiangqi is the open-information base game. Add Fog of War for dark xiangqi, where enemy pieces outside your vision disappear and the general falls by capture. Or try the compact board.':
-    '象棋是資訊公開的底層遊戲。為它加上戰爭迷霧，便得到迷霧象棋：你視野之外的敵方棋子會消失，而將帥由被吃而落敗。或者也可以試試更緊湊的棋盤。',
+  'Xiangqi is live on Mistboard. Play the Pikafish engine at three strengths, or challenge a friend. For a twist, add Fog of War for dark xiangqi, where enemy pieces outside your vision disappear and the general falls by capture.':
+    '象棋已在 Mistboard 上線。對戰三種強度的 Pikafish 引擎，或挑戰好友。想換個花樣，可以加上戰爭迷霧玩迷霧象棋：你視野之外的敵方棋子會消失，將帥由被吃而落敗。',
   'Mini Xiangqi': '迷你象棋',
   'Dark Mini Xiangqi': '迷霧迷你象棋',
 
