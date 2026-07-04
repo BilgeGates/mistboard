@@ -91,7 +91,6 @@ describe('landing play panel', () => {
     expect(panel.textContent).toContain('尋找對手');
     expect(panel.textContent).toContain('挑戰好友');
     expect(panel.textContent).toContain('對戰引擎');
-    expect(panel.textContent).toContain('不需要帳號。');
   });
 
   it('localizes the play setup dialog shell', () => {

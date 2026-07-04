@@ -568,21 +568,11 @@ function buildLandingStage(
   const about = document.createElement('h1');
   about.className = 'landing-about';
   about.textContent = t('home.tagline', {}, locale);
-  // Activity renders its frame synchronously (skeleton rows) so the rail
-  // reserves the box's footprint from first paint — popping in after two API
-  // fetches shifted the whole left rail. The prerendered shell carries the same
-  // frame for layout parity; hydration is skipped there like the other live
-  // widgets. It self-removes only if both stat sources fail.
-  leftRail.append(
-    buildLandingAnnouncements(locale),
-    buildLandingActivity({ hydrate: !opts.skipLiveWidgets }),
-    about,
-  );
+  leftRail.append(buildLandingAnnouncements(locale), about);
 
-  // ── Center: the cycling showcase board, with article cards + forum beneath. ──
-  const centerColumn = document.createElement('div');
-  centerColumn.className = 'landing-center';
-
+  // ── Board (its own grid area): the cycling showcase board is the top row of the
+  // center column so the right rail's lower widgets can line up with the top of
+  // the articles row beneath it (lichess-style). ──
   const boardColumn = document.createElement('div');
   boardColumn.className = 'landing-board-column';
   const replayRoot = document.createElement('div');
@@ -597,30 +587,34 @@ function buildLandingStage(
   const caption = document.createElement('div');
   caption.className = 'showcase-caption';
   boardColumn.append(caption);
-  centerColumn.append(boardColumn);
+
+  // ── Beneath the board (its own grid row): article cards, forum preview, and the
+  // lobby chat. Splitting these off the board lets the grid align this row's top
+  // with the right rail's lower widgets across the gutter. ──
+  const centerBelow = document.createElement('div');
+  centerBelow.className = 'landing-center-below';
   const articleCards = buildHomeArticleCards(8, locale);
-  if (articleCards) centerColumn.append(articleCards);
-  centerColumn.append(buildLandingForumPreview({ hydrate: !opts.skipLiveWidgets }));
+  if (articleCards) centerBelow.append(articleCards);
+  centerBelow.append(buildLandingForumPreview({ hydrate: !opts.skipLiveWidgets }));
   // Lobby chat: an empty mount that only paints once the API confirms the
   // chat flag is on, so a flag-off deploy adds nothing to the page (and no
   // reserved footprint to jank).
-  centerColumn.append(buildLandingChat({ hydrate: !opts.skipLiveWidgets }));
+  centerBelow.append(buildLandingChat({ hydrate: !opts.skipLiveWidgets }));
 
-  // ── Right rail: the pairing CTAs (play ingresses), with the open-pairing-
-  // requests browser stacked beneath them. ──
+  // ── Play CTAs (own grid area, top-right): the three pairing buttons, no card
+  // wrapper, vertically centered against the board like lichess. ──
+  let playPanel = buildLandingPlayPanel(engines, { locale, showLobbyRequests: false });
+
+  // ── Right rail (lower-right grid area, aligned to the articles row): the daily
+  // puzzle leads so its top lines up with the articles row, then the open-pairing-
+  // requests browser, then the activity box (moved off the left rail). ──
   const rightRail = document.createElement('div');
   rightRail.className = 'landing-rail landing-rail-right';
-  let playPanel = buildLandingPlayPanel(engines, { locale, showLobbyRequests: false });
-  rightRail.append(playPanel);
-  // The open-requests window frame renders synchronously (placeholder row) so
-  // the right rail reserves its footprint from first paint — it used to be
-  // absent from the prerendered shell entirely and popped in at JS takeover.
-  // Only its fetch + poll are gated on live mode.
-  rightRail.append(buildLobbyRequestsWindow(locale, { hydrate: !opts.skipLiveWidgets }));
   if (!opts.skipLiveWidgets) {
     // Daily puzzle: render instantly from the cached copy (exact real footprint,
     // no pop-in) and swap in place if the day rolled over; only a first-ever
-    // visit still appends on load.
+    // visit still inserts on load. Kept at the head of the rail so it stays
+    // top-aligned with the articles row.
     const cachedPuzzle = cachedHomeDailyPuzzle();
     let puzzleEl: HTMLElement | null = cachedPuzzle ? renderHomePuzzleWidget(cachedPuzzle) : null;
     if (puzzleEl) rightRail.append(puzzleEl);
@@ -631,22 +625,31 @@ function buildLandingStage(
       if (puzzleEl) {
         puzzleEl.replaceWith(fresh);
       } else {
-        rightRail.append(fresh);
+        rightRail.prepend(fresh); // first-ever visit: lead the rail, don't trail it
       }
       puzzleEl = fresh;
     });
   }
+  // The open-requests window frame renders synchronously (placeholder row) so
+  // the right rail reserves its footprint from first paint — it used to be
+  // absent from the prerendered shell entirely and popped in at JS takeover.
+  // Only its fetch + poll are gated on live mode.
+  rightRail.append(buildLobbyRequestsWindow(locale, { hydrate: !opts.skipLiveWidgets }));
+  // Activity renders its frame synchronously (skeleton rows) so the rail reserves
+  // the box's footprint from first paint. The prerendered shell carries the same
+  // frame for layout parity; hydration is skipped there like the other live
+  // widgets. It self-removes only if both stat sources fail.
+  rightRail.append(buildLandingActivity({ hydrate: !opts.skipLiveWidgets }));
 
   // Swap the play panel in place once the real playable engines arrive (the shell
-  // renders first with a built-in fallback). The displaced panel's live-stats
-  // poll self-clears on its next tick when it finds itself detached from the DOM.
+  // renders first with a built-in fallback).
   const applyEngines = (next: PlayableEngine[]): void => {
     const replacement = buildLandingPlayPanel(next, { locale, showLobbyRequests: false });
     playPanel.replaceWith(replacement);
     playPanel = replacement;
   };
 
-  section.append(leftRail, centerColumn, rightRail);
+  section.append(leftRail, boardColumn, centerBelow, playPanel, rightRail);
   // The footer lives only on the homepage now (stripped from interior routes),
   // blended into the bottom of the stage rather than rendered as a separate bar.
   stage.append(section, buildHomeFooter(locale));

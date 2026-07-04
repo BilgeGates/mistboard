@@ -402,60 +402,14 @@ export function buildLandingPlayPanel(
   // presence, but it no longer steers which action is primary.
   engineButton.classList.add('landing-play-action-primary');
 
-  const anonNote = document.createElement('p');
-  anonNote.className = 'landing-play-anon-note';
-  anonNote.textContent = t('play.noAccountNeeded', {}, locale);
-  panel.append(anonNote);
-
-  const stats = document.createElement('p');
-  stats.className = 'landing-play-stats';
-  stats.hidden = true;
-  panel.append(stats);
-  startLiveStatsPolling(stats, locale);
+  // No card chrome, no "No account needed" line, no live-presence count: the
+  // homepage panel is just the three pairing buttons, vertically centered against
+  // the board (lichess-style). Presence still surfaces in the Activity box.
 
   if (options.showLobbyRequests) {
     panel.append(buildLobbyRequestsWindow(locale));
   }
   return panel;
-}
-
-function startLiveStatsPolling(stats: HTMLElement, locale: Locale): void {
-  const render = (data: { playing: number; online: number } | null) => {
-    // Display only — this no longer steers the primary (green) CTA. The engine
-    // is pinned as primary (see buildLandingPlayPanel); the old swap counted the
-    // viewer's own open game tabs and engine games as "presence", so it flipped
-    // and flickered. We still surface real presence here as informational text.
-    if (!data || (data.playing === 0 && data.online === 0)) {
-      stats.hidden = true;
-      stats.textContent = '';
-      return;
-    }
-    const parts: string[] = [];
-    if (data.playing > 0) parts.push(t('play.playingNow', { count: data.playing }, locale));
-    if (data.online > 0) parts.push(t('play.online', { count: data.online }, locale));
-    stats.textContent = parts.join(' · ');
-    stats.hidden = false;
-  };
-
-  const refresh = async () => {
-    try {
-      const resp = await fetch('/api/live-stats');
-      if (!resp.ok) return;
-      const data = (await resp.json()) as { playing: number; online: number };
-      render(data);
-    } catch (err) {
-      console.warn(err);
-    }
-  };
-
-  void refresh();
-  const timer = window.setInterval(() => {
-    if (!document.body.contains(stats)) {
-      window.clearInterval(timer);
-      return;
-    }
-    void refresh();
-  }, 5_000);
 }
 
 // Lucide icons (ISC), inlined and unified to a single spec: 24-grid, 2px round

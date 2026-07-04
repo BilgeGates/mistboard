@@ -12,10 +12,16 @@
 .landing-demo {
   display: grid;
   /* Cap the center track at the board width so the board fills it (no centering
-     slack), and keep a narrow slit between columns like lichess. */
+     slack), and keep a narrow slit between columns like lichess. Two rows: the
+     board + play CTAs on top, then the articles row + lower-right rail beneath, so
+     the rail's widgets line up with the top of the articles row across the gutter.
+     The left rail spans both rows. */
   grid-template-columns: minmax(300px, 340px) minmax(0, 660px) minmax(300px, 340px);
-  grid-template-areas: "left center right";
-  gap: clamp(10px, 0.9vw, 15px);
+  grid-template-areas:
+    "left board    play"
+    "left articles rail";
+  column-gap: clamp(10px, 0.9vw, 15px);
+  row-gap: clamp(14px, 1.8vw, 24px);
   align-items: start;
   justify-content: center;
   width: 100%;
@@ -118,20 +124,24 @@
   text-align: right;
 }
 
-.landing-center {
-  grid-area: center;
+/* Row 2 of the center track: article cards, forum preview, chat, stacked full
+   width beneath the board. Split from the board so the grid can align this row's
+   top with the lower-right rail. */
+.landing-center-below {
+  grid-area: articles;
   display: flex;
   flex-direction: column;
-  align-items: center;
+  align-items: stretch;
   gap: clamp(14px, 1.8vw, 24px);
   min-width: 0;
 }
 
 .landing-rail-right {
-  grid-area: right;
+  grid-area: rail;
 }
 
 .landing-board-column {
+  grid-area: board;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -1016,18 +1026,20 @@
 }
 
 @media (max-width: 1240px) {
-  /* Collapse the 3 columns to one: board + articles (center) first, then the
-     pairing CTAs, then the announcements + open-requests rail. */
+  /* Collapse to one column: board, its articles/forum row, the pairing CTAs, the
+     lower-right rail (puzzle/requests/activity), then the announcements. */
   .landing-demo {
     grid-template-columns: minmax(0, 1fr);
     grid-template-areas:
-      "center"
-      "right"
+      "board"
+      "articles"
+      "play"
+      "rail"
       "left";
     max-width: 640px;
   }
 
-  .landing-center {
+  .landing-center-below {
     align-items: stretch;
   }
 
@@ -1035,6 +1047,7 @@
     margin-inline: auto;
   }
 
+  .landing-play-panel,
   .landing-rail-right {
     width: 100%;
     max-width: 460px;
