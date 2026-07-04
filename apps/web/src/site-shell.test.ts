@@ -26,10 +26,29 @@ describe('site shell nav', () => {
     expect(puzzleLink?.getAttribute('aria-current')).toBe('page');
     expect(nav.querySelector('.site-nav-menu-toggle')?.textContent).toBe('Learn');
     expect(nav.querySelector<HTMLAnchorElement>('a[href="/forum"]')?.textContent).toBe('Forum');
-    expect(nav.querySelector<HTMLAnchorElement>('a[href="/leaderboard"]')?.textContent).toBe(
-      'Leaderboard',
+    // Community dropdown: Players (the leaderboard), Friends, Forum, Blog. The
+    // title also links to /leaderboard, so scope item lookups to the panel.
+    const communityMenu = [...nav.querySelectorAll<HTMLElement>('.site-nav-menu')].find(
+      (menu) => menu.querySelector('.site-nav-menu-toggle')?.textContent === 'Community',
     );
-    expect(nav.querySelector<HTMLAnchorElement>('a[href="/bots"]')?.textContent).toBe('Bots');
+    const communityPanel = communityMenu?.querySelector<HTMLElement>('.site-nav-menu-panel');
+    expect(
+      communityPanel?.querySelector<HTMLAnchorElement>('a[href="/leaderboard"]')?.textContent,
+    ).toBe('Players');
+    expect(
+      communityPanel?.querySelector<HTMLAnchorElement>('a[href="/account"]')?.textContent,
+    ).toBe('Friends');
+    expect(
+      communityPanel?.querySelector<HTMLAnchorElement>('a[href="/articles"]')?.textContent,
+    ).toBe('Blog');
+    // The Community title is a link to the leaderboard, not just a toggle.
+    const communityToggle = [
+      ...nav.querySelectorAll<HTMLElement>('.site-nav-menu > .site-nav-menu-toggle'),
+    ].find((el) => el.textContent === 'Community');
+    expect(communityToggle?.tagName).toBe('A');
+    expect((communityToggle as HTMLAnchorElement).getAttribute('href')).toBe('/leaderboard');
+    // /bots moved out of the top-nav dropdown into the community rail.
+    expect(nav.querySelector<HTMLAnchorElement>('a[href="/bots"]')).toBeNull();
   });
 
   it('localizes launch nav labels and translated content links', () => {
@@ -56,8 +75,9 @@ describe('site shell nav', () => {
         ?.classList.contains('active'),
     ).toBe(true);
     expect(nav.querySelector('.site-nav-menu-toggle')?.classList.contains('active')).toBe(true);
+    // Articles now surface as "Blog" (網誌) in the Community dropdown.
     expect(nav.querySelector<HTMLAnchorElement>('a[href="/zh-hant/articles"]')?.textContent).toBe(
-      '文章',
+      '網誌',
     );
     expect(nav.querySelector<HTMLAnchorElement>('a[href="/account?tab=login"]')?.textContent).toBe(
       '登入',

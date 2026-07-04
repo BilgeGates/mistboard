@@ -67,7 +67,9 @@ export function buildNav(locale: Locale = currentLocale()): HTMLElement {
   if (puzzles) links.append(navLink(puzzles, locale));
   links.append(navMenu('nav.learn', learnNavItems(), locale));
   if (watch) links.append(navLink(watch, locale));
-  links.append(navMenu('nav.community', communityNavItems(), locale));
+  // Community title itself links to the leaderboard (lichess parity): hovering
+  // opens the dropdown, clicking the word navigates to /leaderboard.
+  links.append(navMenu('nav.community', communityNavItems(), locale, '/leaderboard'));
   const tools = toolsNavItems();
   if (tools.length > 0) links.append(navMenu('nav.tools', tools, locale));
 
@@ -178,15 +180,54 @@ function navLink(item: NavItem, locale: Locale): HTMLAnchorElement {
   return link;
 }
 
-function navMenu(labelKey: NavItem['labelKey'], items: NavItem[], locale: Locale): HTMLElement {
+function navMenu(
+  labelKey: NavItem['labelKey'],
+  items: NavItem[],
+  locale: Locale,
+  titleHref?: string,
+): HTMLElement {
   const menu = document.createElement('div');
   menu.className = 'site-nav-menu';
 
-  const button = document.createElement('button');
-  button.type = 'button';
-  button.className = 'site-nav-link site-nav-menu-toggle';
-  button.setAttribute('aria-expanded', 'false');
-  button.textContent = t(labelKey, {}, locale);
+  // With a titleHref the toggle is a real link (clicking navigates, hovering
+  // opens the panel — lichess split-menu behavior). Without one it's a button
+  // that only toggles the panel.
+  const toggle = document.createElement(titleHref ? 'a' : 'button');
+  toggle.className = 'site-nav-link site-nav-menu-toggle';
+  toggle.textContent = t(labelKey, {}, locale);
+
+  const openMenu = () => {
+    for (const other of document.querySelectorAll<HTMLElement>('.site-nav-menu-open')) {
+      if (other !== menu) closeNavMenu(other);
+    }
+    menu.classList.add('site-nav-menu-open');
+    toggle.setAttribute('aria-expanded', 'true');
+  };
+  const toggleMenu = () => {
+    if (menu.classList.contains('site-nav-menu-open')) {
+      closeNavMenu(menu);
+    } else {
+      openMenu();
+    }
+  };
+
+  if (titleHref && toggle instanceof HTMLAnchorElement) {
+    toggle.href = localizedHref(titleHref, locale);
+    // Pointer devices open the panel on hover (CSS), so let the click navigate.
+    // On touch/no-hover devices there is no hover, so intercept the first tap to
+    // reveal the panel instead of jumping away from the submenu items.
+    toggle.addEventListener('click', (event) => {
+      const canHover =
+        typeof window.matchMedia === 'function' && window.matchMedia('(hover: hover)').matches;
+      if (canHover) return;
+      event.preventDefault();
+      toggleMenu();
+    });
+  } else {
+    (toggle as HTMLButtonElement).type = 'button';
+    toggle.setAttribute('aria-expanded', 'false');
+    toggle.addEventListener('click', toggleMenu);
+  }
 
   const panel = document.createElement('div');
   panel.className = 'site-nav-menu-panel';
@@ -196,19 +237,10 @@ function navMenu(labelKey: NavItem['labelKey'], items: NavItem[], locale: Locale
   }
 
   if (items.some((item) => pathMatchesNavItem(currentPath(), item.href))) {
-    button.classList.add('active');
+    toggle.classList.add('active');
   }
 
-  button.addEventListener('click', () => {
-    const open = !menu.classList.contains('site-nav-menu-open');
-    for (const other of document.querySelectorAll<HTMLElement>('.site-nav-menu-open')) {
-      if (other !== menu) closeNavMenu(other);
-    }
-    menu.classList.toggle('site-nav-menu-open', open);
-    button.setAttribute('aria-expanded', open ? 'true' : 'false');
-  });
-
-  menu.append(button, panel);
+  menu.append(toggle, panel);
   return menu;
 }
 

@@ -1,12 +1,13 @@
-// Community sub-navigation rail (Forum / Leaderboard / Bots): the top-nav
-// Community menu one level deeper, in the playstrategy/lichess idiom. Pages
-// wrap their content with buildCommunityLayout so the rail + column grid stay
-// consistent across community surfaces.
+// Community sub-navigation rail (Leaderboard / Online bots): the leaderboard
+// section's sub-nav, in the playstrategy/lichess idiom. Pages wrap their content
+// with buildCommunityLayout so the rail + column grid stay consistent across
+// community surfaces. Distinct from the top-nav Community dropdown
+// (communityNavItems): the rail is narrower and Forum lives only in the dropdown.
 
 import './community-rail.css';
 import { t } from './i18n/catalog.js';
 import { currentLocale, type Locale, localizedHref } from './i18n/locale.js';
-import { communityNavItems } from './nav-items.js';
+import { communityRailItems } from './nav-items.js';
 
 export function buildCommunityRail(
   activeHref: string,
@@ -15,7 +16,7 @@ export function buildCommunityRail(
   const rail = document.createElement('nav');
   rail.className = 'community-rail';
   rail.setAttribute('aria-label', t('nav.community', {}, locale));
-  for (const item of communityNavItems()) {
+  for (const item of communityRailItems()) {
     const link = document.createElement('a');
     link.href = localizedHref(item.href, locale);
     link.textContent = t(item.labelKey, {}, locale);

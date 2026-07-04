@@ -181,14 +181,18 @@
 }
 
 /* Hover opens the menu on pointer devices; click/keyboard toggling still works
-   everywhere (mobile collapse keeps click-only). */
+   everywhere (mobile collapse keeps click-only). focus-within keeps the panel
+   reachable by keyboard even when the title is a navigating link (Community):
+   focusing the title reveals the panel so Tab can enter its items. */
 @media (hover: hover) and (min-width: 601px) {
-  .site-nav-menu:hover .site-nav-menu-panel {
+  .site-nav-menu:hover .site-nav-menu-panel,
+  .site-nav-menu:focus-within .site-nav-menu-panel {
     display: grid;
     gap: 0;
   }
 
-  .site-nav-menu:hover .site-nav-menu-toggle {
+  .site-nav-menu:hover .site-nav-menu-toggle,
+  .site-nav-menu:focus-within .site-nav-menu-toggle {
     color: var(--site-text);
     background: var(--site-panel);
     box-shadow: inset 2px 0 0 var(--site-accent);
@@ -214,9 +218,12 @@
   white-space: nowrap;
 }
 
+/* Dropdown items fill with the accent (green) on hover, white text — the mirror
+   of lichess's blue-fill dropdown rows. */
 .site-nav-menu-panel .site-nav-link:hover,
 .site-nav-menu-panel .site-nav-link:focus-visible {
-  background: var(--site-hover);
+  background: var(--site-accent);
+  color: var(--site-on-accent);
 }
 
 .site-loading {

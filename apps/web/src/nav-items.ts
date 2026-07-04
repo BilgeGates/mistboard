@@ -16,19 +16,30 @@ export function primaryNavItems(): NavItem[] {
   ];
 }
 
+// Top-nav Community dropdown (lichess-aligned order): Players (the leaderboard),
+// Friends (your following list), Forum, Blog (the articles surface). Teams is
+// deliberately deferred. Kept distinct from communityRailItems(): the dropdown
+// is the wide social entry, the rail is the leaderboard/bots sub-nav.
 export function communityNavItems(): NavItem[] {
   return [
+    { label: 'Players', labelKey: 'nav.players', href: '/leaderboard' },
+    { label: 'Friends', labelKey: 'nav.friends', href: '/account' },
     { label: 'Forum', labelKey: 'nav.forum', href: '/forum' },
+    { label: 'Blog', labelKey: 'nav.blog', href: '/articles' },
+  ];
+}
+
+// Community sub-navigation rail (lichess parity): Leaderboard + Online bots for
+// now. Forum lives in the top-nav dropdown, not the rail.
+export function communityRailItems(): NavItem[] {
+  return [
     { label: 'Leaderboard', labelKey: 'nav.leaderboard', href: '/leaderboard' },
-    { label: 'Bots', labelKey: 'nav.bots', href: '/bots' },
+    { label: 'Online bots', labelKey: 'nav.onlineBots', href: '/bots' },
   ];
 }
 
 export function learnNavItems(): NavItem[] {
-  return [
-    { label: 'Rules', labelKey: 'nav.rules', href: '/rules' },
-    { label: 'Articles', labelKey: 'nav.articles', href: '/articles' },
-  ];
+  return [{ label: 'Rules', labelKey: 'nav.rules', href: '/rules' }];
 }
 
 export function utilityNavItems(): NavItem[] {

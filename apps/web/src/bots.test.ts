@@ -89,8 +89,10 @@ describe('bot pages', () => {
     expect(
       [...root.querySelectorAll('.bot-directory-section h2')].map((el) => el.textContent),
     ).toEqual(['Featured bots', 'Community bots']);
-    // Community rail is shared with /leaderboard; Bots is the active entry.
-    expect(root.querySelector('.community-rail a[aria-current="page"]')?.textContent).toBe('Bots');
+    // Community rail is shared with /leaderboard; Online bots is the active entry.
+    expect(root.querySelector('.community-rail a[aria-current="page"]')?.textContent).toBe(
+      'Online bots',
+    );
     expect(root.textContent).toContain('Searches hidden positions');
     expect(root.querySelector('.bot-card-rating-value')?.textContent).toBe('1,812');
     expect(root.querySelector('.bot-rating-strip')?.textContent).toContain('Banqi Rapid');

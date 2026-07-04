@@ -174,7 +174,7 @@ describe('profile ratings rail', () => {
     const rail = root.querySelector('.community-rail');
     expect(rail).not.toBeNull();
     const links = [...(rail?.querySelectorAll('a') ?? [])];
-    expect(links.map((a) => a.getAttribute('href'))).toEqual(['/forum', '/leaderboard', '/bots']);
+    expect(links.map((a) => a.getAttribute('href'))).toEqual(['/leaderboard', '/bots']);
     expect(rail?.querySelector('a[aria-current="page"]')?.textContent).toBe('Leaderboard');
 
     expect(root.querySelector('.leaderboard-online-heading')?.textContent).toBe('Online players');
