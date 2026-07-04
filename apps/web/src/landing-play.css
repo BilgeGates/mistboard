@@ -69,13 +69,22 @@
   overflow-wrap: anywhere;
 }
 
-/* No outer card: just the three pairing buttons, vertically centered against the
-   board (its grid row is the board's height, so align-self centers the stack). */
-.landing-play-panel {
+/* Play column: the bare pairing buttons with the activity box directly beneath
+   them, the whole group vertically centered against the board (its grid row is
+   the board's height, so align-self centers the stack). */
+.landing-play-stack {
   grid-area: play;
   display: flex;
   flex-direction: column;
   align-self: center;
+  gap: clamp(12px, 1.6vw, 18px);
+  min-width: 0;
+}
+
+/* No outer card: just the three pairing buttons stacked. */
+.landing-play-panel {
+  display: flex;
+  flex-direction: column;
   gap: 10px;
   min-width: 0;
 }

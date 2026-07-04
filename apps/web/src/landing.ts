@@ -601,20 +601,32 @@ function buildLandingStage(
   // reserved footprint to jank).
   centerBelow.append(buildLandingChat({ hydrate: !opts.skipLiveWidgets }));
 
-  // ── Play CTAs (own grid area, top-right): the three pairing buttons, no card
-  // wrapper, vertically centered against the board like lichess. ──
+  // ── Play column (top-right grid area): the three bare pairing buttons with the
+  // activity box directly beneath them, the whole group vertically centered
+  // against the board. Activity lives here (not in the lower rail) so it sits
+  // right under the buttons instead of dropping to the articles-row line. ──
   let playPanel = buildLandingPlayPanel(engines, { locale, showLobbyRequests: false });
+  const playStack = document.createElement('div');
+  playStack.className = 'landing-play-stack';
+  // Buttons, then the open-pairing-requests browser, then the activity box — one
+  // centered group under the board. Both live widgets render their frame
+  // synchronously (placeholder / skeleton rows) so the column reserves their
+  // footprint from first paint; the prerendered shell carries the same frames for
+  // layout parity, with hydration skipped like the other live widgets.
+  playStack.append(
+    playPanel,
+    buildLobbyRequestsWindow(locale, { hydrate: !opts.skipLiveWidgets }),
+    buildLandingActivity({ hydrate: !opts.skipLiveWidgets }),
+  );
 
   // ── Right rail (lower-right grid area, aligned to the articles row): the daily
-  // puzzle leads so its top lines up with the articles row, then the open-pairing-
-  // requests browser, then the activity box (moved off the left rail). ──
+  // puzzle. ──
   const rightRail = document.createElement('div');
   rightRail.className = 'landing-rail landing-rail-right';
   if (!opts.skipLiveWidgets) {
     // Daily puzzle: render instantly from the cached copy (exact real footprint,
-    // no pop-in) and swap in place if the day rolled over; only a first-ever
-    // visit still inserts on load. Kept at the head of the rail so it stays
-    // top-aligned with the articles row.
+    // no pop-in) and swap in place if the day rolled over; only a first-ever visit
+    // still appends on load.
     const cachedPuzzle = cachedHomeDailyPuzzle();
     let puzzleEl: HTMLElement | null = cachedPuzzle ? renderHomePuzzleWidget(cachedPuzzle) : null;
     if (puzzleEl) rightRail.append(puzzleEl);
@@ -625,21 +637,11 @@ function buildLandingStage(
       if (puzzleEl) {
         puzzleEl.replaceWith(fresh);
       } else {
-        rightRail.prepend(fresh); // first-ever visit: lead the rail, don't trail it
+        rightRail.append(fresh);
       }
       puzzleEl = fresh;
     });
   }
-  // The open-requests window frame renders synchronously (placeholder row) so
-  // the right rail reserves its footprint from first paint — it used to be
-  // absent from the prerendered shell entirely and popped in at JS takeover.
-  // Only its fetch + poll are gated on live mode.
-  rightRail.append(buildLobbyRequestsWindow(locale, { hydrate: !opts.skipLiveWidgets }));
-  // Activity renders its frame synchronously (skeleton rows) so the rail reserves
-  // the box's footprint from first paint. The prerendered shell carries the same
-  // frame for layout parity; hydration is skipped there like the other live
-  // widgets. It self-removes only if both stat sources fail.
-  rightRail.append(buildLandingActivity({ hydrate: !opts.skipLiveWidgets }));
 
   // Swap the play panel in place once the real playable engines arrive (the shell
   // renders first with a built-in fallback).
@@ -649,7 +651,7 @@ function buildLandingStage(
     playPanel = replacement;
   };
 
-  section.append(leftRail, boardColumn, centerBelow, playPanel, rightRail);
+  section.append(leftRail, boardColumn, centerBelow, playStack, rightRail);
   // The footer lives only on the homepage now (stripped from interior routes),
   // blended into the bottom of the stage rather than rendered as a separate bar.
   stage.append(section, buildHomeFooter(locale));
