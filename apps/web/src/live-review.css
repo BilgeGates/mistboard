@@ -1,0 +1,24 @@
+/* Reconciliation layer for the live room riding the shared review shell
+   (review-shell.css). The room reuses the review cluster (left meta rail ·
+   center board · right moves rail) so the game page and the postgame page share
+   one skeleton. This file holds only the room-specific overrides the review
+   shell does not cover — the room's board box (board-shell) keeps its own live
+   sizing + interaction, and its rails keep their live content. */
+
+/* Give the center a concrete inline size (the old .board-panel grid column's
+   role) so board-shell's own `min(100%, 66vh, 640px)` + the per-variant
+   live-route--* board rules resolve against it, instead of collapsing in the
+   review center's shrink-to-content flex. board-shell keeps ALL its own sizing,
+   so xiangqi / banqi / jungle aspects are untouched. Top-align so the board
+   doesn't drift on short viewports. */
+.live-review__cluster .review-shell__center {
+  align-items: flex-start;
+  width: min(66vh, 640px, calc(100vw - 500px));
+}
+
+/* The live rails carry their own panel chrome (.side-panel); the review rail
+   only needs to bound their width. Drop any grid-era margins so they hug the
+   board like the postgame rails. */
+.live-review__cluster .side-panel {
+  margin: 0;
+}

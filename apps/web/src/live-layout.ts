@@ -1,4 +1,6 @@
 import type { LiveRefs } from './live-state.js';
+import './review/review-shell.css';
+import './live-review.css';
 import { buildNav } from './site-shell.js';
 
 export function setLiveLayoutGameSpec(target: HTMLElement, gameSpecId: string | null): void {
@@ -42,8 +44,8 @@ export function createLiveLayout(
       }
 
       <section class="play-grid">
-        <section class="board-panel">
-          <aside class="side-panel meta-panel" aria-label="Game controls">
+        <div class="review-shell__cluster live-review__cluster">
+          <aside class="side-panel meta-panel review-shell__rail review-shell__left" aria-label="Game controls">
             <section class="panel-section">
               <h2>About</h2>
               <div data-game-info class="game-info"></div>
@@ -66,6 +68,7 @@ export function createLiveLayout(
               <div data-selections class="selection-list"></div>
             </section>
           </aside>
+          <div class="review-shell__center">
           <div class="board-shell">
             <div data-captures-top class="captures-strip captures-strip-top" aria-label="Pieces captured by the top side"></div>
             <div class="board-stage">
@@ -87,7 +90,8 @@ export function createLiveLayout(
             </div>
             <div data-captures class="captures-strip captures-strip-bottom" aria-label="Pieces captured by the bottom side"></div>
           </div>
-          <aside class="side-panel moves-panel" aria-label="Replay and move list">
+          </div>
+          <aside class="side-panel moves-panel review-shell__rail review-shell__right" aria-label="Replay and move list">
             <section class="panel-section game-console">
               <div data-clock-top class="clocks clock-slot"></div>
               <div class="replay-console">
@@ -105,7 +109,7 @@ export function createLiveLayout(
               <p data-clocks-note class="clocks-pregame-note" hidden></p>
             </section>
           </aside>
-        </section>
+        </div>
         <section data-dev-views-section class="debug-page" hidden>
           <div class="debug-header">
             <h2>Debug Views</h2>
