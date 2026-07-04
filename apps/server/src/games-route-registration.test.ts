@@ -20,8 +20,10 @@ import { routes } from './http-api.js';
 const routesDir = join(dirname(fileURLToPath(import.meta.url)), 'routes');
 
 test('every routes/*-games.ts module is registered in the http-api dispatch', async () => {
+  // Match both the .ts source tree (local tsx runs) and the compiled dist/ tree
+  // (hosted CI runs the built .js). Exclude .test.* and .d.ts/.map siblings.
   const gameRouteFiles = readdirSync(routesDir)
-    .filter((file) => file.endsWith('-games.ts') && !file.endsWith('.test.ts'))
+    .filter((file) => /-games\.[jt]s$/.test(file) && !file.includes('.test.'))
     .sort();
   assert.ok(gameRouteFiles.length > 0, 'expected to discover games-route modules under routes/');
 
@@ -31,7 +33,7 @@ test('every routes/*-games.ts module is registered in the http-api dispatch', as
 
   const unregistered: string[] = [];
   for (const file of gameRouteFiles) {
-    const mod = (await import(join(routesDir, file.replace(/\.ts$/, '.js')))) as {
+    const mod = (await import(join(routesDir, file.replace(/\.[jt]s$/, '.js')))) as {
       tryHandle?: unknown;
     };
     assert.equal(
