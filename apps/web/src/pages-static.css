@@ -61,9 +61,8 @@
 }
 
 .static-page-layout .site-section-heading {
-  font-family: "Roboto", "Noto Sans", ui-sans-serif, system-ui, sans-serif;
+  /* Roboto 300 now comes from the base .site-section-heading rule. */
   font-size: 34px;
-  font-weight: 300;
   line-height: 1.18;
   margin-bottom: 58px;
 }

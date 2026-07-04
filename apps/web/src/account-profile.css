@@ -128,8 +128,9 @@
 .profile-header .site-section-heading {
   margin: 0;
   color: var(--site-heading);
+  /* Roboto 300 now comes from the base .site-section-heading rule; this just
+     tightens the size for the profile/account title (lichess parity). */
   font-size: 28px;
-  font-weight: 500;
   line-height: 1.2;
 }
 

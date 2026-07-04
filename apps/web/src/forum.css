@@ -1339,9 +1339,8 @@ a.forum-post-author-name:focus-visible {
 .forum-panel-header-topic .site-section-heading {
   overflow-wrap: anywhere;
   color: var(--forum-heading);
-  font-family: "Roboto", "Noto Sans", ui-sans-serif, system-ui, sans-serif;
+  /* Roboto 300 now comes from the base .site-section-heading rule. */
   font-size: 39px;
-  font-weight: 300;
   line-height: 1.12;
   margin: 0;
 }

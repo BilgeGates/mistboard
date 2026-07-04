@@ -521,6 +521,12 @@ body {
   margin: 0;
   background: var(--site-bg);
   color: var(--site-text);
+  /* Match lichess's whole-page rendering: grayscale/antialiased smoothing so
+     Noto Sans reads at its true weight instead of the heavier subpixel render
+     macOS defaults to. Set once here so individual surfaces (nav, forum) don't
+     each have to re-patch the "our text looks thicker than lichess" symptom. */
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
 button,
@@ -572,10 +578,16 @@ body:has(
   box-sizing: border-box;
 }
 
-/* Lichess-style page titles: large and regular weight, not bold. */
+/* Lichess-style page titles: Roboto Light, matching their heading role. Lichess
+   splits fonts by role (Roboto for titles, Noto Sans for body); its big section
+   headers render as Roboto 300, which is what keeps them looking lighter than a
+   Noto heading. Roboto is already loaded as a variable font (see @font-face
+   above), so weight 300 costs no new asset. Keep heading markup on this class so
+   the whole site inherits the role instead of re-patching it per surface. */
 .site-section-heading {
+  font-family: Roboto, ui-sans-serif, system-ui, sans-serif;
   font-size: 30px;
-  font-weight: 400;
+  font-weight: 300;
   margin: 0 0 16px;
   color: var(--site-heading);
   letter-spacing: 0;
