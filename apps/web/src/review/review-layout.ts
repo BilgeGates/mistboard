@@ -38,6 +38,19 @@ export type ReviewLayoutAdapter = {
   details?: HTMLElement;
   /** Right-rail move list container (the layout owns the scrubber below it). */
   moves: HTMLElement;
+  /** Optional analysis slots (lichess-shaped), placed by the shell around the move
+   *  list / under the board. Absent on existing variants — they render unchanged;
+   *  the engine phases fill them:
+   *  - `enginePanel` sits at the top of the right rail (engine widget + PV lines in
+   *    perfect-info mode, or a full ranked-move list in fog mode).
+   *  - `analysisSummary` sits at the bottom of the right rail (per-player accuracy /
+   *    metrics). Named to avoid colliding with the `summary` string field above.
+   *  - `underboard` sits under the board in the center (advantage chart in perfect-info
+   *    mode, or the cycleable POV boards in fog mode). The fill sizing subtracts its
+   *    height so the board still fits without a vertical scroll. */
+  enginePanel?: HTMLElement;
+  analysisSummary?: HTMLElement;
+  underboard?: HTMLElement;
   boards: ReviewBoardEntry[];
   /** Board width / height, e.g. 552 / 612 for xiangqi. Drives the fill sizing. */
   boardAspect: number;
@@ -86,7 +99,14 @@ export function mountReviewLayout(root: HTMLElement, adapter: ReviewLayoutAdapte
 
   const scrubber = createReviewScrubber();
   const left = infoRail(adapter);
-  const right = railGroup([adapter.moves, scrubber.el]);
+  // Right rail, lichess order: engine panel · move list · scrubber · summary.
+  const right = railGroup(
+    [adapter.enginePanel, adapter.moves, scrubber.el, adapter.analysisSummary].filter(
+      (el): el is HTMLElement => el != null,
+    ),
+  );
+  // Center: board-stage, plus an optional underboard region stacked beneath it.
+  const center = adapter.underboard ? centerColumn(stage.el, adapter.underboard) : stage.el;
 
   function render(): void {
     const ctx = { ply, flipped, primaryKey: stage.primaryKey() };
@@ -149,7 +169,7 @@ export function mountReviewLayout(root: HTMLElement, adapter: ReviewLayoutAdapte
       ariaLabel: adapter.ariaLabel,
       pageClassName: adapter.pageClassName,
       left,
-      center: stage.el,
+      center,
       right,
     }),
   );
@@ -196,7 +216,17 @@ function fitPrimaryToViewport(stageEl: HTMLElement, aspect: number): void {
     // Measure against the VIEWPORT, not the stage's own height: the stage stretches
     // to the board, so reading its height and then resizing the board would feed
     // back into a runaway ResizeObserver loop. This region height is stable.
-    const available = window.innerHeight - VIEWPORT_CHROME_PX;
+    // An underboard region (advantage chart / POV boards) sits below the stage in
+    // the center column and eats into the height the board can fill — subtract it so
+    // the whole center column, not just the board, fits the viewport (no scroll).
+    const centerCol = stageEl.parentElement;
+    const underboard = centerCol?.classList.contains('review-center-column')
+      ? centerCol.querySelector<HTMLElement>('.review-underboard')
+      : null;
+    const underboardPx = underboard
+      ? underboard.getBoundingClientRect().height + STACK_GAP_PX
+      : 0;
+    const available = window.innerHeight - VIEWPORT_CHROME_PX - underboardPx;
     const slot = stageEl.querySelector<HTMLElement>('.review-stage__slot--primary');
     if (available <= 0 || !slot) return;
     const gaps = Math.max(0, stageEl.children.length - 1) * STACK_GAP_PX;
@@ -266,6 +296,18 @@ function railGroup(children: HTMLElement[]): HTMLElement {
   group.className = 'review-rail-group';
   group.append(...children);
   return group;
+}
+
+// The center column: the board-stage with an underboard region stacked beneath it
+// (advantage chart / cycleable POV boards). The shell still vertically centers the
+// whole column; fitPrimaryToViewport subtracts the underboard height so the board
+// fills only the space above it.
+function centerColumn(stageEl: HTMLElement, underboard: HTMLElement): HTMLElement {
+  const col = document.createElement('div');
+  col.className = 'review-center-column';
+  underboard.classList.add('review-underboard');
+  col.append(stageEl, underboard);
+  return col;
 }
 
 type ReviewScrubber = {

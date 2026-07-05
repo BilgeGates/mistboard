@@ -41,6 +41,24 @@
   justify-content: center;
 }
 
+/* Center column: the board-stage plus an optional underboard region (advantage
+   chart in perfect-info mode, cycleable POV boards in fog mode) stacked beneath
+   it. The shell still vertically centres the whole column; the fill sizing
+   subtracts the underboard height so the board fits above it without a scroll. */
+.review-center-column {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+}
+/* Stretch to the board-stage width so the chart / POV boards line up under the
+   board rather than shrinking to their own content. */
+.review-underboard {
+  align-self: stretch;
+  min-width: 0;
+}
+
 /* A vertical group of cards inside a rail (info card + details, or moves +
    scrubber). */
 .review-rail-group {
@@ -54,15 +72,15 @@
 .review-info-card {
   display: flex;
   flex-direction: column;
-  gap: 8px;
-  padding: 14px;
+  gap: 6px;
+  padding: 12px 14px;
   border: 1px solid var(--site-border);
   border-radius: var(--site-radius, 10px);
   background: var(--site-panel, var(--site-surface));
 }
 .review-info-card__eyebrow {
   margin: 0;
-  font-size: 11px;
+  font-size: 10px;
   font-weight: 800;
   letter-spacing: 0.06em;
   text-transform: uppercase;
@@ -70,8 +88,8 @@
 }
 .review-info-card__title {
   margin: 0;
-  font-size: clamp(20px, 2.2vw, 28px);
-  line-height: 1.1;
+  font-size: clamp(16px, 1.6vw, 20px);
+  line-height: 1.15;
   color: var(--site-text);
 }
 .review-info-card__summary {
