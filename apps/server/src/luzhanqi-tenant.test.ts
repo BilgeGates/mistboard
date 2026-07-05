@@ -15,6 +15,7 @@ import {
   createTenantRuntimeRoomFromEvents,
   replayTenantEvents,
   tenantEventsForClient,
+  tenantSnapshotPayload,
 } from './variant-tenant/runtime.js';
 import type { TenantRoomEvent } from './variant-tenant/tenant.js';
 
@@ -118,4 +119,63 @@ test('Luzhanqi runtime snapshots never include the opponent setup payload', () =
   assert.ok(setupEvent);
   assert.deepEqual(setupEvent.setup, 'submitted');
   assert.equal(JSON.stringify(blackEvents).includes('flag'), false);
+});
+
+test('Luzhanqi combat event streams and reconnect snapshots do not leak hidden ranks', () => {
+  const roomId = 'lzq_combat_wire';
+  const red = luzhanqiFormationForColor('red', {
+    a5: 'lieutenant',
+    a6: 'captain',
+  });
+  const black = luzhanqiFormationForColor('black', {
+    a8: 'major',
+    b10: 'lieutenant',
+  });
+  const move = { from: 'a6', to: 'a8' } as const;
+  const events: TenantRoomEvent<LuzhanqiColor, LuzhanqiMove, typeof LUZHANQI_SPEC_ID>[] = [
+    { type: 'room-created', at: 1, roomId, gameSpecId: LUZHANQI_SPEC_ID },
+    { type: 'seat-assigned', at: 2, roomId, clientId: 'red-client', seat: 'red' },
+    { type: 'seat-assigned', at: 3, roomId, clientId: 'black-client', seat: 'black' },
+    { type: 'setup-submitted', at: 4, roomId, color: 'red', setup: red },
+    { type: 'setup-submitted', at: 5, roomId, color: 'black', setup: black },
+    { type: 'move-played', at: 6, roomId, color: 'red', move },
+  ];
+  const hydrated = createTenantRuntimeRoomFromEvents(luzhanqiTenant, events);
+  if (!hydrated.ok) throw new Error(hydrated.error);
+
+  const blackEvents = tenantEventsForClient(luzhanqiTenant, hydrated.room, {
+    id: 'black-client',
+    seat: 'black',
+    solo: false,
+  });
+  const blackMoveEvent = blackEvents.find((event) => event.type === 'move-played');
+  assert.deepEqual(blackMoveEvent, { type: 'move-played', at: 6, roomId, color: 'red', move, ply: 1 });
+  assert.equal(JSON.stringify(blackMoveEvent).includes('captain'), false);
+
+  const redSnapshot = tenantSnapshotPayload(luzhanqiTenant, hydrated.room, {
+    id: 'red-client',
+    seat: 'red',
+    solo: false,
+  });
+  assert.deepEqual(redSnapshot.state.board.a8, { color: 'black', known: false });
+  assert.deepEqual(
+    redSnapshot.events.find((event) => event.type === 'setup-submitted' && event.color === 'black'),
+    { type: 'setup-submitted', at: 5, roomId, color: 'black', setup: 'submitted' },
+  );
+
+  const blackSnapshot = tenantSnapshotPayload(luzhanqiTenant, hydrated.room, {
+    id: 'black-client',
+    seat: 'black',
+    solo: false,
+  });
+  assert.deepEqual(blackSnapshot.state.board.a8, { color: 'black', role: 'major', known: true });
+  assert.equal(blackSnapshot.state.board.a6, undefined);
+
+  const spectatorSnapshot = tenantSnapshotPayload(luzhanqiTenant, hydrated.room, {
+    id: 'spectator-client',
+    seat: 'spectator',
+    solo: false,
+  });
+  assert.deepEqual(spectatorSnapshot.events, []);
+  assert.deepEqual(spectatorSnapshot.state.board, {});
 });
