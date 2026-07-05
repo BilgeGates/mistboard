@@ -17,7 +17,8 @@
       "!**/*.sql",
       "!**/package-lock.json",
       "!**/articles-data.ts",
-      "!apps/web/src/articles"
+      "!apps/web/src/articles",
+      "!apps/web/public/engine"
     ]
   },
   "formatter": {
