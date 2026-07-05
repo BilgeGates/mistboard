@@ -328,25 +328,10 @@ export function buildHomeArticleCards(
   section.className = 'landing-articles';
   section.setAttribute('aria-label', t('articles.heading', {}, locale));
 
-  const header = document.createElement('div');
-  header.className = 'landing-articles-header';
-
-  const heading = document.createElement('h2');
-  heading.className = 'landing-articles-heading';
-  heading.textContent = t('articles.read', {}, locale);
-
-  const more = document.createElement('a');
-  more.className = 'landing-articles-more';
-  more.href = localizedHref('/articles', locale);
-  const moreLabel = document.createElement('span');
-  moreLabel.textContent = t('articles.allArticles', {}, locale);
-  const moreArrow = document.createElement('span');
-  moreArrow.className = 'landing-articles-more-arrow';
-  moreArrow.setAttribute('aria-hidden', 'true');
-  moreArrow.textContent = '→';
-  more.append(moreLabel, moreArrow);
-  header.append(heading, more);
-
+  // No header row: the label ("Read") and the "All articles →" link are dropped
+  // to match lichess's blog strip (cards only) and to reclaim vertical space for
+  // the taller 8:5 thumbnails. The whole /articles index stays reachable from
+  // the primary nav.
   const carousel = document.createElement('div');
   carousel.className = 'landing-carousel';
 
@@ -358,7 +343,7 @@ export function buildHomeArticleCards(
   const next = carouselNavButton('next', '›', locale);
 
   carousel.append(prev, track, next);
-  section.append(header, carousel);
+  section.append(carousel);
   return section;
 }
 

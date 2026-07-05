@@ -1,8 +1,8 @@
 import { XIANGQI_GLYPH_PATHS } from '@mistboard/board-render';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
+  BANQI_ENGINE_THUMB_W,
   BANQI_ENGINE_THUMBNAIL,
-  BANQI_RIGHT_HALF_W,
   BANQI_RULES_THUMBNAIL,
 } from './articles/diagrams.js';
 import {
@@ -80,10 +80,6 @@ describe('article public listing gates', () => {
     );
 
     expect(home?.getAttribute('aria-label')).toBe('文章');
-    expect(home?.querySelector('.landing-articles-heading')?.textContent).toBe('閱讀');
-    expect(home?.querySelector('.landing-articles-more')?.getAttribute('href')).toBe(
-      '/zh-hant/articles',
-    );
     expect(home?.querySelector('.landing-carousel-nav-prev')?.getAttribute('aria-label')).toBe(
       '上一篇文章',
     );
@@ -119,8 +115,6 @@ describe('article public listing gates', () => {
     const home = buildHomeArticleCards(50, 'ja');
 
     expect(home?.getAttribute('aria-label')).toBe('記事');
-    expect(home?.querySelector('.landing-articles-heading')?.textContent).toBe('読む');
-    expect(home?.querySelector('.landing-articles-more')?.getAttribute('href')).toBe('/articles');
     expect(
       home
         ?.querySelector<HTMLAnchorElement>('.landing-article-card[data-card-kind="article"]')
@@ -202,7 +196,7 @@ describe('article public listing gates', () => {
     expect(cards?.textContent).not.toContain('Banqi (半棋) is open for alpha play.');
   });
 
-  it('keeps Banqi rules surfaces on the variant marker while the MistyBanqi thumbnail crops the right half', () => {
+  it('keeps Banqi rules surfaces on the variant marker while the MistyBanqi thumbnail crops an 8:5 window', () => {
     const rules = buildRulesIndex();
     expect(
       rules.querySelector('.rules-landing-tile[href="/rules/banqi"] svg[data-mini-id="banqi"]'),
@@ -210,14 +204,14 @@ describe('article public listing gates', () => {
     expect(BANQI_RULES_THUMBNAIL()).not.toContain('data-banqi-thumbnail-crop');
 
     const thumbnail = BANQI_ENGINE_THUMBNAIL();
-    expect(thumbnail).toContain('data-banqi-thumbnail-crop="right-half"');
-    expect(thumbnail).toContain(`--xq-svg-width: ${BANQI_RIGHT_HALF_W + 8}px`);
+    expect(thumbnail).toContain('data-banqi-thumbnail-crop="engine-wide"');
+    expect(thumbnail).toContain(`--xq-svg-width: ${BANQI_ENGINE_THUMB_W + 8}px`);
 
     const articles = buildArticlesIndex();
     const card = articles.querySelector<HTMLAnchorElement>(
       '.articles-index-card[href="/articles/mistybanqi"]',
     );
-    expect(card?.querySelector('svg g[data-banqi-thumbnail-crop="right-half"]')).not.toBeNull();
+    expect(card?.querySelector('svg g[data-banqi-thumbnail-crop="engine-wide"]')).not.toBeNull();
 
     // The Banqi rules page carries the shared variant marker on the /rules
     // index (it no longer rides the homepage editorial row)...
@@ -226,12 +220,12 @@ describe('article public listing gates', () => {
       rulesIndex.querySelector('a[href="/rules/banqi"] svg[data-mini-id="banqi"]'),
     ).not.toBeNull();
 
-    // ...while the MistyBanqi editorial card keeps its right-half board crop in
-    // the homepage row.
+    // ...while the MistyBanqi editorial card keeps its 8:5 board crop in the
+    // homepage row.
     const home = buildHomeArticleCards(50);
     expect(
       home?.querySelector(
-        '.landing-article-card[href="/articles/mistybanqi"] svg g[data-banqi-thumbnail-crop="right-half"]',
+        '.landing-article-card[href="/articles/mistybanqi"] svg g[data-banqi-thumbnail-crop="engine-wide"]',
       ),
     ).not.toBeNull();
   });

@@ -431,44 +431,6 @@
   gap: clamp(8px, 1vw, 12px);
 }
 
-.landing-articles-header {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 12px;
-}
-
-.landing-articles-heading {
-  margin: 0;
-  font-size: 12px;
-  font-weight: 800;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: var(--site-muted);
-}
-
-.landing-articles-more {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  font-size: 13px;
-  font-weight: 600;
-  color: var(--site-accent-strong);
-  text-decoration: none;
-}
-
-.landing-articles-more:hover {
-  text-decoration: underline;
-}
-
-.landing-articles-more-arrow {
-  transition: transform 120ms ease;
-}
-
-.landing-articles-more:hover .landing-articles-more-arrow {
-  transform: translateX(2px);
-}
-
 .landing-carousel {
   position: relative;
   overflow: hidden;
@@ -483,7 +445,11 @@
 }
 
 .landing-article-card {
-  flex: 0 0 clamp(150px, 28%, 184px);
+  /* Two cards split the center feed column evenly (~350px each at the 1400px
+     page cap = lichess's blog-card width). min-width:0 lets them shrink with
+     the fluid column instead of overflowing the fixed 8:5 thumbnails. */
+  flex: 1 1 0;
+  min-width: 0;
   /* Block flow, not a flex column. A direct flex child gets its display
      blockified (display:-webkit-box rewritten to flow-root), which breaks the
      title's -webkit-line-clamp in Safari/older Chrome. Block flow keeps the
@@ -511,13 +477,13 @@
 .landing-article-card-thumb {
   position: relative;
   width: 100%;
-  aspect-ratio: 1 / 1;
+  aspect-ratio: 8 / 5;
   background: var(--site-panel-soft);
   overflow: hidden;
 }
 
-/* The board/diagram thumbnails are designed square, so they fill the square
-   frame cleanly with no cropping. */
+/* Thumbnails fill the 8:5 frame (lichess blog-card ratio). Board/SVG diagrams
+   are rendered at 8:5 so they fill cleanly; raster art is object-fit cover. */
 .landing-article-card-thumb .articles-index-card-thumb {
   /* Own stacking context so chessground's internal piece z-indices
      (piece = 2, piece.anim = 8) stay contained below the date pill. Without it,
