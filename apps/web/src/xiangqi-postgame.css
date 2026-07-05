@@ -85,6 +85,28 @@
   margin-inline: auto;
 }
 
+/* Request-computer-analysis button (fills the underboard slot until analysis runs). */
+.xiangqi-review__analyse {
+  appearance: none;
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid var(--site-border);
+  border-radius: var(--site-radius, 10px);
+  background: var(--site-panel, var(--site-surface));
+  color: var(--site-text);
+  font: inherit;
+  font-weight: 700;
+  font-size: 13px;
+  cursor: pointer;
+}
+.xiangqi-review__analyse:hover:not(:disabled) {
+  background: var(--site-surface);
+}
+.xiangqi-review__analyse:disabled {
+  cursor: default;
+  opacity: 0.72;
+}
+
 /* ── Shared dxq-postgame base classes ─────────────────────────────────────── */
 
 .dxq-postgame {

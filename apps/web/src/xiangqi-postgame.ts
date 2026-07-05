@@ -18,11 +18,14 @@ import './dark-xiangqi-postgame.css';
 import './xiangqi-postgame.css';
 import { xiangqiEnabled } from './feature-flags.js';
 import { renderXiangqiBoardSvg } from './live-xiangqi.js';
+import { type AdvantageChart, createAdvantageChart } from './review/advantage-chart.js';
+import { createAnalysisSummary } from './review/analysis-summary.js';
 import { capturedByDiff } from './review/captured-diff.js';
 import { fillCapturedPoolWith } from './review/captured-pool.js';
 import { createEnginePanel } from './review/engine/engine-panel.js';
 import { createEvalBar } from './review/engine/eval-bar.js';
 import { createFlankCaptures } from './review/flank-captures.js';
+import { requestGameAnalysis } from './review/game-analysis.js';
 import { createMoveList, type MoveListEntry } from './review/move-list.js';
 import { mountReviewLayout } from './review/review-layout.js';
 import { buildNav } from './site-shell.js';
@@ -201,6 +204,41 @@ function renderPostgame(root: HTMLElement, postgame: XiangqiPostgameResponse): v
   });
   let lastEnginePly = -1;
 
+  // Computer analysis (P3): whole-game eval → advantage chart (underboard) +
+  // accuracy summary (right rail), behind a request button. Slots start empty;
+  // the button + results fill them on demand.
+  const underboardEl = document.createElement('div');
+  const analysisSummaryEl = document.createElement('div');
+  let chart: AdvantageChart | null = null;
+  let currentPly = 0;
+  let jumpTo: ((ply: number) => void) | null = null;
+  renderAnalysisRequest();
+
+  function renderAnalysisRequest(): void {
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.className = 'xiangqi-review__analyse';
+    button.textContent = 'Request computer analysis';
+    button.addEventListener('click', () => {
+      button.disabled = true;
+      button.textContent = 'Analysing the whole game…';
+      requestGameAnalysis(postgame.game.roomId)
+        .then((analysis) => {
+          chart = createAdvantageChart(analysis.evals, { onJump: (ply) => jumpTo?.(ply) });
+          chart.setPly(currentPly);
+          underboardEl.replaceChildren(chart.el);
+          analysisSummaryEl.replaceChildren(createAnalysisSummary(analysis));
+          // The underboard grew; re-fit the board so it still fills without scroll.
+          window.dispatchEvent(new Event('resize'));
+        })
+        .catch(() => {
+          button.disabled = false;
+          button.textContent = 'Analysis failed — retry';
+        });
+    });
+    underboardEl.replaceChildren(button);
+  }
+
   root.replaceChildren(buildNav());
   mountReviewLayout(root, {
     pageClassName: 'xiangqi-review',
@@ -211,16 +249,20 @@ function renderPostgame(root: HTMLElement, postgame: XiangqiPostgameResponse): v
     details: detailsPanel(postgame),
     moves: moveList.el,
     enginePanel: enginePanel.el,
+    underboard: underboardEl,
+    analysisSummary: analysisSummaryEl,
     boards: [{ key: 'truth', el: boardWrap, tier: 'primary' }],
     boardAspect: 552 / 612,
     boardCols: 9,
     maxPly: postgameReplayMaxPly(postgame),
     renderBoards({ ply, flipped }) {
+      currentPly = ply;
       const orientation: XiangqiColor = flipped ? 'black' : 'red';
       const opponent: XiangqiColor = orientation === 'red' ? 'black' : 'red';
       const view = postgameViewAtPly(postgame, 'truth', ply) ?? entry.view;
       board.innerHTML = renderXiangqiBoardSvg(view, orientation);
       evalBar.setFlipped(flipped);
+      chart?.setPly(ply);
       // Captured pools: left (top) = near side's losses, right (bottom) = opponent's.
       const captured = xiangqiCaptured(view);
       flank.leftColumn.replaceChildren();
@@ -234,6 +276,7 @@ function renderPostgame(root: HTMLElement, postgame: XiangqiPostgameResponse): v
       }
     },
     renderMoves({ ply }, jump) {
+      jumpTo = jump;
       moveList.update(ply, jump);
     },
   });

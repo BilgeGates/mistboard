@@ -1,0 +1,56 @@
+/* Per-player accuracy summary. See review/analysis-summary.ts. */
+.analysis-summary {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px;
+  border: 1px solid var(--site-border);
+  border-radius: var(--site-radius, 10px);
+  background: var(--site-panel, var(--site-surface));
+}
+.analysis-summary__title {
+  margin: 0;
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--site-muted);
+}
+.analysis-summary__player {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.analysis-summary__head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.analysis-summary__dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  flex: 0 0 auto;
+}
+.analysis-summary__dot--red {
+  background: #c0563f;
+}
+.analysis-summary__dot--black {
+  background: #34302e;
+}
+.analysis-summary__name {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--site-text);
+}
+.analysis-summary__accuracy {
+  margin-left: auto;
+  font-size: 15px;
+  font-variant-numeric: tabular-nums;
+  color: var(--site-text);
+}
+.analysis-summary__detail {
+  font-size: 12px;
+  color: var(--site-muted);
+  margin-left: 15px;
+}

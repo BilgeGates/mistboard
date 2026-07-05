@@ -1,0 +1,52 @@
+/* Advantage chart in the underboard slot. See review/advantage-chart.ts. */
+.advantage-chart {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 10px 12px;
+  border: 1px solid var(--site-border);
+  border-radius: var(--site-radius, 10px);
+  background: var(--site-panel, var(--site-surface));
+}
+.advantage-chart__title {
+  margin: 0;
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--site-muted);
+}
+.advantage-chart__svg {
+  width: 100%;
+  height: 76px;
+  cursor: pointer;
+  border-radius: 6px;
+  overflow: hidden;
+  display: block;
+}
+/* Red is favoured in the top half, Black in the bottom. */
+.advantage-chart__zone--red {
+  fill: color-mix(in srgb, #c7a06a 16%, transparent);
+}
+.advantage-chart__zone--black {
+  fill: color-mix(in srgb, #34302e 14%, transparent);
+}
+.advantage-chart__mid {
+  stroke: color-mix(in srgb, var(--site-muted) 45%, transparent);
+  stroke-width: 0.5;
+}
+.advantage-chart__area {
+  fill: color-mix(in srgb, var(--site-accent, #5b9a4a) 24%, transparent);
+}
+.advantage-chart__line {
+  fill: none;
+  stroke: var(--site-accent, #5b9a4a);
+  stroke-width: 1.3;
+  vector-effect: non-scaling-stroke;
+}
+.advantage-chart__cursor {
+  stroke: var(--site-text);
+  stroke-width: 1;
+  vector-effect: non-scaling-stroke;
+  opacity: 0.55;
+}

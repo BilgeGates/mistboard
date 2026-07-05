@@ -271,6 +271,12 @@ export async function evaluateXiangqiPosition(
     // Red moves first, so Black is to move after an odd number of plies; flip the
     // side-to-move score to Red's POV.
     const sign = moves.length % 2 === 0 ? 1 : -1;
+    // `mate 0` = the side to move is already checkmated (a loss for them). 0 can't
+    // carry the POV sign, so encode it as a decisive cp instead — otherwise the
+    // winner's mating move looks like it dropped to a loss.
+    if (evaluation.mate === 0) {
+      return { cp: sign * -30000, mate: null, best: evaluation.best, depth: evaluation.depth };
+    }
     return {
       cp: evaluation.cp == null ? null : evaluation.cp * sign,
       mate: evaluation.mate == null ? null : evaluation.mate * sign,
