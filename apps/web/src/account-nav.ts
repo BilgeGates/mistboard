@@ -41,7 +41,13 @@ type AuthUser = {
   profileVisibility: 'private' | 'unlisted' | 'public';
   accountRole: 'player' | 'admin';
   locale: Locale | null;
+  // Patron program: server-derived, present on /api/auth/me. Optional so older
+  // cached payloads (pre-078) still parse.
+  isPatron?: boolean;
+  patronSince?: string | null;
 };
+
+export type { AuthUser };
 
 const CACHED_USER_KEY = 'mb_cached_user';
 

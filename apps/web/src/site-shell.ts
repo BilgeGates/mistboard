@@ -307,6 +307,7 @@ const HOME_FOOTER_LINKS: ReadonlyArray<{
 }> = [
   { href: '/about', labelKey: 'footer.about' },
   { href: '/faq', labelKey: 'footer.faq' },
+  { href: '/patron', labelKey: 'footer.patron' },
   { href: '/contact', labelKey: 'footer.contact' },
   { href: '/source', labelKey: 'footer.source' },
   { href: GITHUB_URL, labelKey: 'footer.github', external: true },

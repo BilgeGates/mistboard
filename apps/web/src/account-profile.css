@@ -387,6 +387,29 @@
   color: #d4645d;
 }
 
+/* Patron badge: a warm cosmetic thank-you with a paw glyph, links to /patron. */
+.profile-role-patron {
+  gap: 4px;
+  background: color-mix(in srgb, #e0a94b 20%, var(--site-panel));
+  color: #b9832f;
+  text-decoration: none;
+}
+
+.profile-patron-paw {
+  display: inline-flex;
+  width: 12px;
+  height: 12px;
+}
+
+.profile-patron-paw svg {
+  width: 100%;
+  height: 100%;
+}
+
+.profile-role-patron:hover {
+  background: color-mix(in srgb, #e0a94b 30%, var(--site-panel));
+}
+
 /* Header stat strip: value-over-label cells, no win/loss record. */
 .profile-stats {
   display: flex;

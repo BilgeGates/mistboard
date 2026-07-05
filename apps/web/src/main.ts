@@ -85,6 +85,7 @@ const liveRoomId = liveRoomIdFromPath(path);
 const wantsAbout = path === '/about' || page === 'about';
 const wantsSource = path === '/source' || page === 'source';
 const wantsContact = path === '/contact' || page === 'contact';
+const wantsPatron = path === '/patron' || page === 'patron';
 const wantsFaq = path === '/faq' || page === 'faq';
 const wantsTerms = path === '/terms' || page === 'terms';
 const wantsPrivacy = path === '/privacy' || page === 'privacy';
@@ -417,6 +418,11 @@ if (replaySample) {
   setTitleKey('contact.heading');
   void mountOrReport(() =>
     import('./pages-static.js').then(({ mountContact }) => mountContact(appRoot)),
+  );
+} else if (wantsPatron) {
+  setTitleKey('patron.heading');
+  void mountOrReport(() =>
+    import('./pages-static.js').then(({ mountPatron }) => mountPatron(appRoot)),
   );
 } else if (wantsFaq) {
   setTitleKey('faq.heading');

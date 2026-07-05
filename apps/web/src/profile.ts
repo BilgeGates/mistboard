@@ -42,6 +42,9 @@ type UserProfile = {
     displayName: string;
     profileVisibility: 'private' | 'unlisted' | 'public';
     accountRole: 'player' | 'admin';
+    // Set while a donation is active; drives the cosmetic Patron badge. Absent
+    // /null = not a patron. Server-derived (see routes/patron.ts).
+    patronSince?: string | null;
     createdAt: string;
   };
   ratings: ProfileBucketRating[];
@@ -546,6 +549,8 @@ function buildProfileHeader(profile: UserProfile, locale: Locale = currentLocale
   const metaParts: HTMLElement[] = [];
   const roleBadge = buildRoleBadge(profile.user.accountRole, locale);
   if (roleBadge) metaParts.push(roleBadge);
+  const patronBadge = buildPatronBadge(profile.user.patronSince, locale);
+  if (patronBadge) metaParts.push(patronBadge);
 
   return buildProfileHeaderShell({
     eyebrow: profile.isViewer
@@ -735,6 +740,36 @@ function buildRoleBadge(
   }
   return null;
 }
+
+// Cosmetic Patron badge ("wings"): shown when the account has an active
+// donation. Purely a thank-you; carries no gameplay meaning. Links to /patron.
+function buildPatronBadge(
+  patronSince: string | null | undefined,
+  locale: Locale = currentLocale(),
+): HTMLElement | null {
+  if (!patronSince) return null;
+  const badge = document.createElement('a');
+  badge.className = 'profile-role-badge profile-role-patron';
+  badge.href = '/patron';
+  badge.title = t('profile.patronTitle', {}, locale);
+  // A small paw glyph (animal theme) + the label. innerHTML is the established
+  // inline-icon idiom in this codebase; the string is a static constant.
+  const paw = document.createElement('span');
+  paw.className = 'profile-patron-paw';
+  paw.setAttribute('aria-hidden', 'true');
+  paw.innerHTML = PATRON_PAW_SVG;
+  badge.append(paw, document.createTextNode(t('profile.patron', {}, locale)));
+  return badge;
+}
+
+// A minimal paw print (main pad + four toes), currentColor so the badge tints it.
+const PATRON_PAW_SVG = `<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+  <ellipse cx="12" cy="16" rx="5" ry="4"/>
+  <circle cx="6" cy="10" r="2"/>
+  <circle cx="10" cy="7" r="2"/>
+  <circle cx="14" cy="7" r="2"/>
+  <circle cx="18" cy="10" r="2"/>
+</svg>`;
 
 function formatJoinedDate(
   value: string | undefined,

@@ -173,6 +173,7 @@ export async function serveSitemap(params: {
     '/forum',
     '/source',
     '/faq',
+    '/patron',
   ];
   // Each article is listed once per pre-rendered language variant (dist/articles,
   // dist/zh-hans/articles, dist/zh-hant/articles), so the published+translated set
