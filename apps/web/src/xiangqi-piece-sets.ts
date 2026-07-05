@@ -180,7 +180,7 @@ export function renderXiangqiPieceGlyphed(
 // surface renders one identical glyph and never depends on the viewer's system
 // serif. Falls back to <text> for any character with no baked path (Western
 // Latin initials, the '?' shroud mark) — those are font-agnostic anyway.
-function cjkGlyphMark(glyph: string, colorHex: string): string {
+export function cjkGlyphMark(glyph: string, colorHex: string): string {
   const path = XIANGQI_GLYPH_PATHS[glyph];
   if (!path) return glyphMark(glyph, colorHex);
   // The path is pre-positioned for the 100-unit piece box (font-size 46,
@@ -228,6 +228,18 @@ export function animalTreasureHref(color: XiangqiColor): string {
   return `/piece-sets/xiangqi/animal-dobutsu/${color}-treasure.png?v=${ANIMAL_ART_VERSION}`;
 }
 
+// The Treasure's Dobutsu disc (cream fill + peacock art + colored ring), authored
+// in the 100-unit piece box like every other animal disc so the full board and
+// the mini-boards render it identically. Treasure is not a XiangqiPieceRole, so
+// it can't go through renderXiangqiPieceGlyphed; this is the shared source.
+export function animalTreasureMarks(color: XiangqiColor): string {
+  return [
+    animalDiscMark(),
+    `<image href="${animalTreasureHref(color)}" x="0" y="0" width="100" height="100" preserveAspectRatio="xMidYMid meet"/>`,
+    animalRingMark(color),
+  ].join('');
+}
+
 // Stroked line-art icons (the "Symbols" diagram set). One consistent visual style:
 // piece-color strokes, no fill, rounded joins. Intentionally simple v1 art.
 function symbolMark(role: XiangqiPieceRole, colorHex: string): string {
@@ -260,6 +272,18 @@ function symbolMark(role: XiangqiPieceRole, colorHex: string): string {
       // Double advancing chevron.
       return `<path d="M36 60 L50 44 L64 60" ${stroke}/><path d="M36 70 L50 54 L64 70" ${stroke}/>`;
   }
+}
+
+// Faceted gem for the Fortress Xiangqi Treasure in the Symbols set (the Treasure
+// is the objective piece). Same stroked-line-art style as symbolMark above,
+// distinct from the advisor's plain diamond. Treasure is not a XiangqiPieceRole,
+// so it gets its own mark rather than a symbolMark case.
+export function treasureSymbolMark(colorHex: string): string {
+  const stroke = `fill="none" stroke="${colorHex}" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"`;
+  return [
+    `<path d="M38 38 L62 38 L72 48 L50 72 L28 48 Z" ${stroke}/>`,
+    `<path d="M28 48 L72 48 M38 38 L46 48 M62 38 L54 48 M46 48 L50 72 M54 48 L50 72" ${stroke}/>`,
+  ].join('');
 }
 
 function escapeAttr(value: string): string {

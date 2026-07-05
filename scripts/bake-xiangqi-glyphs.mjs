@@ -18,8 +18,9 @@ import { fileURLToPath } from 'node:url';
 import opentype from 'opentype.js';
 
 // Union of the traditional + simplified piece tables in
-// apps/web/src/xiangqi-piece-sets.ts (crossroads-chess uses a subset).
-const CHARS = [...new Set('帥仕相傌俥炮兵將士象馬車砲卒帅马车将')];
+// apps/web/src/xiangqi-piece-sets.ts (crossroads-chess uses a subset), plus the
+// Fortress Xiangqi Treasure (寶 traditional / 宝 simplified).
+const CHARS = [...new Set('帥仕相傌俥炮兵將士象馬車砲卒帅马车将寶宝')];
 
 // Match the geometry of glyphMark() in xiangqi-piece-sets.ts: the character
 // drawn at font-size 46, centered on (50, 50) of the 100-unit piece box.

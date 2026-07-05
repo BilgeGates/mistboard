@@ -9,8 +9,10 @@ import { fortressXiangqiCoordOf, fortressXiangqiSquareOf } from '@mistboard/game
 import { tokenPieceSize } from './board-metrics.js';
 import { readStoredXiangqiPieceSet } from './xiangqi-appearance-storage.js';
 import {
-  animalTreasureHref,
+  animalTreasureMarks,
+  cjkGlyphMark,
   renderXiangqiPieceGlyphed,
+  treasureSymbolMark,
   type XiangqiPieceSet,
 } from './xiangqi-piece-sets.js';
 
@@ -201,20 +203,22 @@ function renderFortressXiangqiPiece(
 // mirrors the animal-disc look (cream fill + image + colored ring) with the
 // peacock art from the v2 minimal set. Other sets use the character disc.
 function treasureInnerMarks(color: FortressXiangqiColor, set: XiangqiPieceSet): string {
-  const glyph = set === 'simplified' ? '宝' : set === 'western' ? 'T' : '寶';
   if (set === 'animal-dobutsu') {
-    const ring = color === 'red' ? '#c2261e' : '#283a47';
-    return [
-      `<circle cx="50" cy="50" r="48.5" fill="#fff2cf"/>`,
-      `<image href="${animalTreasureHref(color)}" x="0" y="0" width="100" height="100" preserveAspectRatio="xMidYMid meet"/>`,
-      `<circle cx="50" cy="50" r="45" fill="none" stroke="${ring}" stroke-width="3.2"/>`,
-    ].join('');
+    return animalTreasureMarks(color);
   }
   const colorHex = color === 'red' ? '#b91c1c' : '#1f2937';
+  // Hanzi draws from the same baked Noto Sans CJK SC Bold outline every other
+  // xiangqi piece uses (never the viewer's system serif), so the Treasure's
+  // stroke weight matches its neighbors. The Symbols set gets a faceted gem so
+  // it stays glyph-free like the rest of that set.
+  const mark =
+    set === 'symbols'
+      ? treasureSymbolMark(colorHex)
+      : cjkGlyphMark(set === 'simplified' ? '宝' : set === 'western' ? 'T' : '寶', colorHex);
   return [
     `<circle cx="50" cy="50" r="46" fill="#f3e6c4" stroke="${colorHex}" stroke-width="2.5"/>`,
     `<circle cx="50" cy="50" r="38" fill="none" stroke="${colorHex}" stroke-width="1.5"/>`,
-    `<text x="50" y="50" font-family="serif" font-size="46" font-weight="700" fill="${colorHex}" text-anchor="middle" dominant-baseline="central">${glyph}</text>`,
+    mark,
   ].join('');
 }
 

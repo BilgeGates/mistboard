@@ -27,7 +27,13 @@ import {
   xiangqiAppearanceChangedEvent,
 } from './theme.js';
 import { readStoredXiangqiPieceSet } from './xiangqi-appearance-storage.js';
-import { renderXiangqiPieceGlyphed, type XiangqiPieceSet } from './xiangqi-piece-sets.js';
+import {
+  animalTreasureMarks,
+  cjkGlyphMark,
+  renderXiangqiPieceGlyphed,
+  treasureSymbolMark,
+  type XiangqiPieceSet,
+} from './xiangqi-piece-sets.js';
 
 // Small "mini board" tiles that represent each variant by a recognizable cropped
 // board fragment. Reuses the real cburnett chess art and xiangqi character
@@ -464,65 +470,78 @@ function dropMiniXiangqiBody(ctx: MiniCtx): string {
   ].join('');
 }
 
-function fortressTreasureDisc(cx: number, cy: number, size: number, color: XiangqiColor): string {
+function fortressTreasureDisc(
+  cx: number,
+  cy: number,
+  size: number,
+  color: XiangqiColor,
+  set: XiangqiPieceSet,
+): string {
   const r = size / 2;
+  // Every mark is authored in a 100-unit box (like the baked glyphs, symbols,
+  // and animal discs), so scale it onto this disc.
+  const place = (inner: string) =>
+    `<g transform="translate(${cx - r} ${cy - r}) scale(${size / 100})">${inner}</g>`;
+  // Animal set: the peacock disc, identical to the full board and the other
+  // animal pieces (no hanzi disc base — it brings its own cream fill + ring).
+  if (set === 'animal-dobutsu') {
+    return place(animalTreasureMarks(color));
+  }
   const ring = color === 'red' ? '#c2261e' : '#283a47';
   const ink = color === 'red' ? '#8a1a14' : '#283a47';
+  // Using cjkGlyphMark keeps the Treasure hanzi on the same Noto Sans CJK SC
+  // Bold outline as its neighbors instead of the viewer's system serif (matching
+  // stroke weight); the Symbols set gets the faceted gem.
+  const mark =
+    set === 'symbols'
+      ? treasureSymbolMark(ink)
+      : cjkGlyphMark(set === 'simplified' ? '宝' : set === 'western' ? 'T' : '寶', ink);
   return [
     `<circle cx="${cx}" cy="${cy}" r="${r}" fill="#f3e6c4" stroke="${ring}" stroke-width="1"/>`,
-    `<text x="${cx}" y="${cy}" font-family="serif" font-size="${size * 0.62}" font-weight="700" fill="${ink}" text-anchor="middle" dominant-baseline="central">寶</text>`,
+    place(mark),
   ].join('');
 }
 
 function fortressXiangqiBody(ctx: MiniCtx): string {
-  // Xiangqi with a pocket: two palaces in OPPOSITE corners (the pinwheel), a
-  // reserve tray for the drop axis, and the new Treasure piece (寶).
-  const boardH = 72;
-  const trayY = OY + boardH;
-  const trayH = SIZE - boardH;
-  const marginX = 12;
-  const marginY = 9;
-  const left = OX + marginX;
-  const top = OY + marginY;
-  const cols = 3;
-  const rows = 3;
-  const gx = (SIZE - 2 * marginX) / cols;
-  const gy = (boardH - 2 * marginY) / rows;
-  const px = (c: number) => left + c * gx;
-  const py = (r: number) => top + r * gy;
-  const disc = Math.min(gx, gy) * 0.84;
+  // Faithful crop of the RED fortress at the opening: the bottom-left 4x4 of the
+  // real board (files a-d x ranks 1-4) straight from FORTRESS_XIANGQI_START_FEN
+  // (...PP1P1PP/QKAECNR). The red palace (a1-c3) sits in the corner with its X,
+  // and the Treasure — the piece unique to this variant — starts at a1, right in
+  // the corner of the crop.
+  const N = 4;
+  const margin = 13;
+  const cell = (SIZE - 2 * margin) / (N - 1);
+  const left = OX + margin;
+  const top = OY + margin;
+  // Files a..d = 0..3 (left to right); ranks 1..4 with rank 1 at the bottom.
+  const px = (file: number) => left + file * cell;
+  const py = (rank: number) => top + (N - rank) * cell;
+  const disc = cell * 0.9;
   const lines: string[] = [];
-  for (let r = 0; r <= rows; r += 1) {
-    lines.push(`<line x1="${px(0)}" y1="${py(r)}" x2="${px(cols)}" y2="${py(r)}"/>`);
+  for (let rank = 1; rank <= N; rank += 1) {
+    lines.push(`<line x1="${px(0)}" y1="${py(rank)}" x2="${px(N - 1)}" y2="${py(rank)}"/>`);
   }
-  for (let c = 0; c <= cols; c += 1) {
-    lines.push(`<line x1="${px(c)}" y1="${py(0)}" x2="${px(c)}" y2="${py(rows)}"/>`);
+  for (let file = 0; file < N; file += 1) {
+    lines.push(`<line x1="${px(file)}" y1="${py(1)}" x2="${px(file)}" y2="${py(N)}"/>`);
   }
-  // Palace crosses in opposite corners: red bottom-left, black top-right.
-  lines.push(`<line x1="${px(0)}" y1="${py(2)}" x2="${px(1)}" y2="${py(3)}"/>`);
-  lines.push(`<line x1="${px(1)}" y1="${py(2)}" x2="${px(0)}" y2="${py(3)}"/>`);
-  lines.push(`<line x1="${px(2)}" y1="${py(0)}" x2="${px(3)}" y2="${py(1)}"/>`);
-  lines.push(`<line x1="${px(3)}" y1="${py(0)}" x2="${px(2)}" y2="${py(1)}"/>`);
+  // Red palace X (files a-c, ranks 1-3): the two corner diagonals.
+  lines.push(`<line x1="${px(0)}" y1="${py(1)}" x2="${px(2)}" y2="${py(3)}"/>`);
+  lines.push(`<line x1="${px(0)}" y1="${py(3)}" x2="${px(2)}" y2="${py(1)}"/>`);
+  // Rank 1 back rank: Treasure, General, Advisor, Elephant (a1-d1). Rank 2
+  // soldiers on a, b, d (c2 empty) — exactly PP1P1PP cropped to files a-d.
   const boardPieces = [
-    xiangqiDisc(px(0.5), py(2.5), disc, 'red', 'general', ctx.xqSet),
-    fortressTreasureDisc(px(1.5), py(2.5), disc, 'red'),
-    xiangqiDisc(px(1.5), py(1.5), disc, 'red', 'cannon', ctx.xqSet),
-    xiangqiDisc(px(1.5), py(0.5), disc, 'black', 'soldier', ctx.xqSet),
-    xiangqiDisc(px(2.5), py(0.5), disc, 'black', 'general', ctx.xqSet),
-  ];
-  const handDisc = trayH * 0.78;
-  const hand = [
-    xiangqiDisc(OX + SIZE * 0.28, trayY + trayH / 2, handDisc, 'red', 'chariot', ctx.xqSet),
-    fortressTreasureDisc(OX + SIZE * 0.52, trayY + trayH / 2, handDisc, 'red'),
-    xiangqiDisc(OX + SIZE * 0.76, trayY + trayH / 2, handDisc, 'red', 'horse', ctx.xqSet),
+    fortressTreasureDisc(px(0), py(1), disc, 'red', ctx.xqSet),
+    xiangqiDisc(px(1), py(1), disc, 'red', 'general', ctx.xqSet),
+    xiangqiDisc(px(2), py(1), disc, 'red', 'advisor', ctx.xqSet),
+    xiangqiDisc(px(3), py(1), disc, 'red', 'elephant', ctx.xqSet),
+    xiangqiDisc(px(0), py(2), disc, 'red', 'soldier', ctx.xqSet),
+    xiangqiDisc(px(1), py(2), disc, 'red', 'soldier', ctx.xqSet),
+    xiangqiDisc(px(3), py(2), disc, 'red', 'soldier', ctx.xqSet),
   ];
   return [
-    `<rect class="vm-xq-bg" x="${OX}" y="${OY}" width="${SIZE}" height="${boardH}"/>`,
-    `<g class="vm-xq-line" stroke-width="1" stroke-linecap="round">${lines.join('')}</g>`,
+    `<rect class="vm-xq-bg" x="${OX}" y="${OY}" width="${SIZE}" height="${SIZE}"/>`,
+    `<g class="vm-xq-line" stroke-width="1.5" stroke-linecap="round">${lines.join('')}</g>`,
     ...boardPieces,
-    `<rect class="vm-hand-tray" x="${OX}" y="${trayY}" width="${SIZE}" height="${trayH}"/>`,
-    `<line class="vm-hand-tray-edge" x1="${OX}" y1="${trayY}" x2="${OX + SIZE}" y2="${trayY}" stroke-width="1"/>`,
-    ...hand,
   ].join('');
 }
 
