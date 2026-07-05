@@ -116,7 +116,7 @@ export function mountLuzhanqiPreview(root: HTMLElement): void {
   root.classList.remove('landing-page');
   root.classList.add('luzhanqi-preview-root');
 
-  let playout = randomPlayout();
+  let playout = randomPlayout(seedFromUrl() ?? randomSeed());
   let plyIndex = 0;
   let mode: ViewMode = 'red';
   let autoplay: number | null = null;
@@ -204,11 +204,43 @@ export function mountLuzhanqiPreview(root: HTMLElement): void {
   newButton.addEventListener('click', () => {
     if (autoplay !== null) window.clearInterval(autoplay);
     autoplay = null;
-    playout = randomPlayout();
+    playout = randomPlayout(randomSeed());
     plyIndex = 0;
+    updateUrlSeed(playout.seed);
     render();
   });
   playback.append(previousButton, previousBattleButton, playButton, nextButton, nextBattleButton, newButton);
+
+  const seedForm = document.createElement('form');
+  seedForm.className = 'luzhanqi-preview__seed';
+  const seedLabel = document.createElement('label');
+  seedLabel.textContent = 'Seed';
+  const seedInput = document.createElement('input');
+  seedInput.name = 'seed';
+  seedInput.inputMode = 'numeric';
+  seedInput.pattern = '[0-9]+';
+  seedInput.value = String(playout.seed);
+  seedLabel.append(seedInput);
+  const seedButton = document.createElement('button');
+  seedButton.type = 'submit';
+  seedButton.textContent = 'Replay';
+  seedForm.append(seedLabel, seedButton);
+  seedForm.addEventListener('submit', (event) => {
+    event.preventDefault();
+    const seed = parseSeed(seedInput.value);
+    if (seed === null) {
+      seedInput.setCustomValidity('Use a whole number from 0 to 4294967295.');
+      seedInput.reportValidity();
+      return;
+    }
+    seedInput.setCustomValidity('');
+    if (autoplay !== null) window.clearInterval(autoplay);
+    autoplay = null;
+    playout = randomPlayout(seed);
+    plyIndex = 0;
+    updateUrlSeed(seed);
+    render();
+  });
 
   const layout = document.createElement('div');
   layout.className = 'luzhanqi-preview__layout';
@@ -218,11 +250,12 @@ export function mountLuzhanqiPreview(root: HTMLElement): void {
   const side = document.createElement('aside');
   side.className = 'luzhanqi-preview__side';
   layout.append(boardSlot, side);
-  shell.append(header, toolbar, playback, layout);
+  shell.append(header, toolbar, playback, seedForm, layout);
   root.replaceChildren(shell);
 
   function render(): void {
     const state = playout.states[plyIndex];
+    seedInput.value = String(playout.seed);
     status.textContent = statusText(state, plyIndex, playout.states.length - 1);
     for (const [buttonMode, button] of buttons) {
       button.classList.toggle('is-active', buttonMode === mode);
@@ -260,8 +293,7 @@ function previewState(): LuzhanqiGameState {
   return state;
 }
 
-function randomPlayout(maxPlies = 120): LuzhanqiPlayout {
-  const seed = Math.floor(Math.random() * 0xffffffff);
+function randomPlayout(seed: number, maxPlies = 120): LuzhanqiPlayout {
   const random = seededRandom(seed);
   const states: LuzhanqiGameState[] = [previewState()];
   for (let i = 0; i < maxPlies; i += 1) {
@@ -273,6 +305,27 @@ function randomPlayout(maxPlies = 120): LuzhanqiPlayout {
     states.push(applyLuzhanqiMove(state, move));
   }
   return { seed, states };
+}
+
+function seedFromUrl(): number | null {
+  return parseSeed(new URLSearchParams(window.location.search).get('seed'));
+}
+
+function parseSeed(raw: string | null): number | null {
+  const trimmed = raw?.trim() ?? '';
+  if (!/^\d+$/.test(trimmed)) return null;
+  const seed = Number(trimmed);
+  return Number.isSafeInteger(seed) && seed >= 0 && seed <= 0xffffffff ? seed : null;
+}
+
+function randomSeed(): number {
+  return Math.floor(Math.random() * 0x100000000);
+}
+
+function updateUrlSeed(seed: number): void {
+  const url = new URL(window.location.href);
+  url.searchParams.set('seed', String(seed));
+  window.history.replaceState(null, '', `${url.pathname}${url.search}${url.hash}`);
 }
 
 function previousBattleIndex(playout: LuzhanqiPlayout, plyIndex: number): number | null {

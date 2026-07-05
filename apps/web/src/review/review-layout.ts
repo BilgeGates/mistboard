@@ -215,6 +215,7 @@ export function mountReviewLayout(root: HTMLElement, adapter: ReviewLayoutAdapte
 // wide boards don't overflow horizontally.
 function fitPrimaryToViewport(stageEl: HTMLElement, aspect: number): void {
   scheduleAnimationFrame(() => {
+    if (typeof window === 'undefined') return;
     // Measure against the VIEWPORT, not the stage's own height: the stage stretches
     // to the board, so reading its height and then resizing the board would feed
     // back into a runaway ResizeObserver loop. This region height is stable.
@@ -259,11 +260,11 @@ function fitPrimaryToViewport(stageEl: HTMLElement, aspect: number): void {
 }
 
 function scheduleAnimationFrame(callback: () => void): void {
-  if (typeof window.requestAnimationFrame === 'function') {
+  if (typeof window !== 'undefined' && typeof window.requestAnimationFrame === 'function') {
     window.requestAnimationFrame(callback);
     return;
   }
-  window.setTimeout(callback, 0);
+  setTimeout(callback, 0);
 }
 
 // The primary board fills the height left after the nav, the secondary row, and

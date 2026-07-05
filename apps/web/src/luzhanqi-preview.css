@@ -106,6 +106,58 @@
   cursor: default;
 }
 
+.luzhanqi-preview__seed {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin: 0 0 16px 10px;
+  border: 1px solid rgba(23, 33, 26, 0.16);
+  border-radius: 8px;
+  padding: 4px;
+  background: rgba(255, 255, 255, 0.72);
+}
+
+.luzhanqi-preview__seed label {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding-left: 8px;
+  color: #344137;
+  font-size: 0.82rem;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.luzhanqi-preview__seed input {
+  width: 11ch;
+  min-height: 34px;
+  border: 1px solid rgba(23, 33, 26, 0.16);
+  border-radius: 6px;
+  padding: 0 8px;
+  background: rgba(255, 255, 255, 0.76);
+  color: #17211a;
+  font: inherit;
+  font-size: 0.9rem;
+  font-weight: 700;
+}
+
+.luzhanqi-preview__seed button {
+  min-height: 34px;
+  border: 0;
+  border-radius: 6px;
+  padding: 0 12px;
+  background: transparent;
+  color: #344137;
+  font: inherit;
+  font-size: 0.9rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.luzhanqi-preview__seed button:hover {
+  background: rgba(63, 97, 73, 0.1);
+}
+
 .luzhanqi-preview__layout {
   display: grid;
   grid-template-columns: minmax(360px, 1fr) 300px;
