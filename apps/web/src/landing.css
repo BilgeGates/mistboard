@@ -1358,8 +1358,21 @@
 
   .landing-play-stack {
     width: 100%;
-    max-width: 460px;
+    max-width: 680px;
     margin-inline: auto;
+  }
+
+  .landing-play-action {
+    grid-template-columns: 42px minmax(0, 1fr);
+    gap: 22px;
+    min-height: 72px;
+    padding: 13px 22px;
+    font-size: clamp(19px, 3.2vw, 22px);
+  }
+
+  .landing-play-icon {
+    width: 40px;
+    height: 40px;
   }
 
   .landing-viewer-column,
@@ -1391,14 +1404,16 @@
   }
 
   .landing-play-action {
-    grid-template-columns: 30px minmax(0, 1fr);
-    min-height: 50px;
-    padding: 9px 12px;
+    grid-template-columns: 36px minmax(0, 1fr);
+    gap: 18px;
+    min-height: 66px;
+    padding: 12px 18px;
+    font-size: clamp(18px, 5.2vw, 21px);
   }
 
   .landing-play-icon {
-    width: 26px;
-    height: 26px;
+    width: 36px;
+    height: 36px;
   }
 
   .landing-setup-dialog {
@@ -1430,7 +1445,7 @@
   }
 
   .landing-play-action:hover:not(:disabled) {
-    transform: none;
+    filter: none;
   }
 }
 

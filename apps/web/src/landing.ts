@@ -686,8 +686,8 @@ function buildLandingStage(
   lowerStrip.append(buildLandingForumPreview({ hydrate: !opts.skipLiveWidgets }));
   lowerStrip.append(buildLandingChat({ hydrate: !opts.skipLiveWidgets }));
 
-  // ── Play column (grid-area: play, row 1 right): the untouched pairing CTAs + the
-  // activity box, vertically centered against the tall open-challenges panel. ──
+  // ── Play column (grid-area: play, row 1 right): the pairing CTAs + activity box,
+  // vertically centered against the tall open-challenges panel. ──
   let playPanel = buildLandingPlayPanel(engines, { locale, showLobbyRequests: false });
   const playStack = document.createElement('div');
   playStack.className = 'landing-play-stack';
