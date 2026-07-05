@@ -10,8 +10,14 @@ const baseUrl = normalizeBaseUrl(
 const timeoutMs = options.timeoutMs ?? DEFAULT_TIMEOUT_MS;
 
 const created = await createRoom(baseUrl, timeoutMs);
-const result = await smokeRoom(baseUrl, created, timeoutMs);
-console.log(JSON.stringify(result));
+if (created.skipped) {
+  console.log(
+    JSON.stringify({ ok: true, skipped: true, reason: created.reason, baseUrl: baseUrl.href }),
+  );
+} else {
+  const result = await smokeRoom(baseUrl, created, timeoutMs);
+  console.log(JSON.stringify(result));
+}
 
 async function createRoom(baseUrl, timeoutMs) {
   const response = await fetchWithTimeout(new URL('/api/rooms', baseUrl), timeoutMs, {
@@ -27,6 +33,13 @@ async function createRoom(baseUrl, timeoutMs) {
     }),
   });
   const body = await parseJsonResponse(response);
+  // The variant is feature-flagged per environment. When the flag is off, the
+  // request gate answers 404 `<spec>_disabled` — a clean, deterministic signal,
+  // not a deploy regression. Skip (exit 0) so the release smoke doesn't red on a
+  // deliberately-disabled variant; the check turns real the moment the flag flips.
+  if (response.status === 404 && /_disabled$/.test(body?.error ?? '')) {
+    return { skipped: true, reason: body.error };
+  }
   if (response.status !== 201 || typeof body?.roomId !== 'string') {
     throw new Error(`room creation failed: ${response.status} ${JSON.stringify(body)}`);
   }
