@@ -538,9 +538,9 @@ export function buildLobbyPanel(
   // Quick pairing leads (lila defaults to the pools view, which is always full)
   // so the panel isn't an empty hooks table on arrival.
   const tabDefs: { id: string; label: string }[] = [
-    { id: 'quick', label: 'Quick pairing' },
-    { id: 'lobby', label: 'Lobby' },
-    { id: 'correspondence', label: 'Correspondence' },
+    { id: 'quick', label: t('lobby.tabQuick', {}, locale) },
+    { id: 'lobby', label: t('lobby.tabLobby', {}, locale) },
+    { id: 'correspondence', label: t('lobby.tabCorrespondence', {}, locale) },
   ];
   const tabBar = document.createElement('div');
   tabBar.className = 'landing-lobby-tabs';
@@ -575,7 +575,12 @@ export function buildLobbyPanel(
   lobbyPanelEl.setAttribute('role', 'tabpanel');
   const lobbyHead = document.createElement('div');
   lobbyHead.className = 'landing-lobby-thead';
-  for (const label of ['Game', 'Time', 'Mode', '']) {
+  for (const label of [
+    t('lobby.colGame', {}, locale),
+    t('lobby.colTime', {}, locale),
+    t('lobby.colMode', {}, locale),
+    '',
+  ]) {
     const cell = document.createElement('span');
     cell.textContent = label;
     lobbyHead.append(cell);
@@ -747,17 +752,17 @@ function corrSeekRow(seek: LobbyCorrespondenceSeek, locale: Locale): HTMLElement
   row.className = 'landing-lobby-trow';
   const who = document.createElement('span');
   who.className = 'landing-lobby-td landing-lobby-td-game';
-  who.textContent = seek.creatorName ?? 'Anonymous';
+  who.textContent = seek.creatorName ?? t('lobby.anonymous', {}, locale);
   const game = document.createElement('span');
   game.className = 'landing-lobby-td';
   game.textContent = variantLabelForGameSpec(parseLandingGameSpecId(seek.gameSpecId), locale);
   const time = document.createElement('span');
   time.className = 'landing-lobby-td';
-  time.textContent = `${seek.daysPerMove}d/move`;
+  time.textContent = t('lobby.daysPerMove', { days: seek.daysPerMove }, locale);
   if (seek.isMine) {
     const mine = document.createElement('span');
     mine.className = 'landing-lobby-join is-mine';
-    mine.textContent = 'Yours';
+    mine.textContent = t('lobby.yours', {}, locale);
     row.append(who, game, time, mine);
   } else {
     const join = document.createElement('a');
