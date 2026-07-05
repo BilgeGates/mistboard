@@ -387,6 +387,7 @@ function runSmoke({ deployRequired, headRevision }) {
 
   if (smoke === 'full') {
     runTimed('prod engine smoke', npmCommand('prod:smoke:engines', baseArgs()));
+    runTimed('prod Fortress smoke', npmCommand('prod:smoke:fortress', baseArgs()));
     runTimed('prod DMX smoke', npmCommand('prod:smoke:dmx', baseArgs()));
     runTimed('prod DXQ smoke', npmCommand('prod:smoke:dxq', baseArgs()));
   }
