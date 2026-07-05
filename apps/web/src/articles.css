@@ -599,6 +599,25 @@
   margin-inline: auto;
 }
 
+/* Xiangqi rules page: a single piece diagram (one board on its row) renders at
+   the same on-screen board size as one board of a paired diagram. A pair SVG is
+   604 units wide for two 292-unit boards and fills the column, so one board is
+   ~48.5% of the column; upscale the single board to match instead of capping at
+   its 292px natural width. */
+[data-article-slug="xiangqi"]
+  .article-figure-xq
+  > .xq-article-svg[data-xq-layout="single"]:not(.xq-article-svg--hero) {
+  width: min(48.5%, 100%);
+}
+
+/* The starting-position board is the section hero: render it large so the
+   anatomy of the board reads at a glance. Shared by Xiangqi and Jieqi so their
+   start boards match. */
+[data-article-slug="xiangqi"] .article-figure-xq > .xq-article-svg.xq-article-svg--hero,
+[data-article-slug="jieqi"] .article-figure-xq > .xq-article-svg.xq-article-svg--hero {
+  width: min(480px, 100%);
+}
+
 /* Dark Mini Xiangqi: shrink its two-board fog examples so each board renders at
    the same scale as the three-board triptych above them (which fills the
    column). The pair SVG is ~474px wide, the triptych ~718px, so 474/718 ≈ 66%
@@ -772,6 +791,16 @@
 .xq-replay .raw-svg-stepper-frame-xq > .xq-article-svg[data-xq-layout="single"] {
   width: min(var(--xq-svg-width, 292px), 100%);
   margin-inline: auto;
+}
+
+/* Xiangqi rules page: the famous-game replay is a showcase, so render it large
+   (matching the starting-position hero) rather than at the compact 292px other
+   xq replays use. */
+[data-article-slug="xiangqi"]
+  .xq-replay
+  .raw-svg-stepper-frame-xq
+  > .xq-article-svg[data-xq-layout="single"] {
+  width: min(480px, 100%);
 }
 
 .xq-replay-slider {
@@ -1076,17 +1105,17 @@
   height: auto;
 }
 
-/* Jieqi board is a tall 9x10; cap it so the replay isn't oversized. */
+/* Jieqi sample game: sized to match the Xiangqi famous-game replay. */
 .raw-svg-stepper-frame.raw-svg-stepper-frame-jieqi > svg {
-  width: min(340px, 80%);
+  width: min(480px, 100%);
   margin-inline: auto;
 }
 
 /* Banqi sample-game board: rendered with the diagram primitives (xq-diagram-bg,
-   50px cells) so it matches the other banqi figures; size it so the board reads
-   at the same width as those inline board diagrams (~500px). */
+   50px cells) so it matches the other banqi figures. Fills the article column,
+   like the static banqi board diagrams above it. */
 .raw-svg-stepper-frame.raw-svg-stepper-frame-banqi > svg {
-  width: min(510px, 100%);
+  width: 100%;
   margin-inline: auto;
 }
 

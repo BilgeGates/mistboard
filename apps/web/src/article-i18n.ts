@@ -283,8 +283,8 @@ const ZH_HANS: Record<string, string> = {
     '象棋还限制无止境的逼着循环。长将与长捉是不允许的：一方若不断重复同样的进攻，将被判负，而不能借此逼和。比赛规则对何时算作「长」给出了详细的重复判定程序。',
   'A game is drawn when neither side has enough material to checkmate, by a repetition that breaks none of those rules, or when a long run of moves passes with no capture. The no-capture limit depends on the rule set: the World Xiangqi Federation rules use a fifty-move rule, while the Chinese (CXA) rules require at least sixty plies before a draw can be claimed.':
     '当任何一方都没有足够的子力将死对方、出现不违反上述规则的重复局面，或长时间无吃子时，对局判和。无吃子的上限取决于所采用的规则：世界象棋联合会的规则采用五十回合规则，而中国象棋协会（CXA）的规则则要求至少 60 个半回合之后才能提出和棋。',
-  "To see the pieces work together in a real game, step through this 1990 championship between two of xiangqi's greatest grandmasters. Playing Black, Liu Dahua checkmates Hu Ronghua, the most dominant champion of the era, in 31 moves.":
-    '想看棋子在实战中如何协同，可以逐步重演这盘 1990 年、由两位象棋顶尖特级大师对弈的冠军赛。执黑的柳大华用 31 个回合将死了那个时代最具统治力的冠军胡荣华。',
+  "To see the pieces work together, step through the most famous trap in xiangqi. It comes from Juzhongmi (橘中秘), a manual printed in 1632. Red gives up a horse; when Black grabs it, Red's chariots and cannons pour through the gap and checkmate on the thirteenth move.":
+    '想看棋子如何协同作战，可以逐步重演象棋中最著名的陷阱：弃马十三着。它出自 1632 年刊印的棋谱《橘中秘》。红方故意送出一匹马，黑方一旦贪吃，红方的车炮便乘虚而入，在第十三着将死对手。',
   'Xiangqi is live on Mistboard. Play the Pikafish engine at three strengths, or challenge a friend. For a twist, add Fog of War for dark xiangqi, where enemy pieces outside your vision disappear and the general falls by capture.':
     '象棋已在 Mistboard 上线。对战三种强度的 Pikafish 引擎，或挑战好友。想换个花样，可以加上战争迷雾玩迷雾象棋：你视野之外的敌方棋子会消失，将帅由被吃而落败。',
   'Mini Xiangqi': '迷你象棋',
@@ -1009,8 +1009,8 @@ const ZH_HANT: Record<string, string> = {
     '象棋還限制無止境的逼著循環。長將與長捉是不允許的：一方若不斷重複同樣的進攻，將被判負，而不能藉此逼和。比賽規則對何時算作「長」給出了詳細的重複判定程序。',
   'A game is drawn when neither side has enough material to checkmate, by a repetition that breaks none of those rules, or when a long run of moves passes with no capture. The no-capture limit depends on the rule set: the World Xiangqi Federation rules use a fifty-move rule, while the Chinese (CXA) rules require at least sixty plies before a draw can be claimed.':
     '當任何一方都沒有足夠的子力將死對方、出現不違反上述規則的重複局面，或長時間無吃子時，對局判和。無吃子的上限取決於所採用的規則：世界象棋聯合會的規則採用五十回合規則，而中國象棋協會（CXA）的規則則要求至少 60 個半回合之後才能提出和棋。',
-  "To see the pieces work together in a real game, step through this 1990 championship between two of xiangqi's greatest grandmasters. Playing Black, Liu Dahua checkmates Hu Ronghua, the most dominant champion of the era, in 31 moves.":
-    '想看棋子在實戰中如何協同，可以逐步重演這盤 1990 年、由兩位象棋頂尖特級大師對弈的冠軍賽。執黑的柳大華用 31 個回合將死了那個時代最具統治力的冠軍胡榮華。',
+  "To see the pieces work together, step through the most famous trap in xiangqi. It comes from Juzhongmi (橘中秘), a manual printed in 1632. Red gives up a horse; when Black grabs it, Red's chariots and cannons pour through the gap and checkmate on the thirteenth move.":
+    '想看棋子如何協同作戰，可以逐步重演象棋中最著名的陷阱：棄馬十三著。它出自 1632 年刊印的棋譜《橘中祕》。紅方故意送出一匹馬，黑方一旦貪吃，紅方的車炮便乘虛而入，在第十三著將死對手。',
   'Xiangqi is live on Mistboard. Play the Pikafish engine at three strengths, or challenge a friend. For a twist, add Fog of War for dark xiangqi, where enemy pieces outside your vision disappear and the general falls by capture.':
     '象棋已在 Mistboard 上線。對戰三種強度的 Pikafish 引擎，或挑戰好友。想換個花樣，可以加上戰爭迷霧玩迷霧象棋：你視野之外的敵方棋子會消失，將帥由被吃而落敗。',
   'Mini Xiangqi': '迷你象棋',

@@ -1545,11 +1545,12 @@ export function xqBoardSvg(opts: {
   ].join('');
 }
 
-export function xqSvg(width: number, height: number, body: string): string {
+export function xqSvg(width: number, height: number, body: string, extraClass = ''): string {
   const paddedWidth = width + XQ_VIEWBOX_PAD * 2;
   const paddedHeight = height + XQ_VIEWBOX_PAD * 2;
   const layout = width <= XQ_BOARD_W ? 'single' : width <= XQ_BOARD_W * 2 + 28 ? 'pair' : 'wide';
-  return `<svg class="xq-article-svg" data-xq-layout="${layout}" style="--xq-svg-width: ${paddedWidth}px" viewBox="0 0 ${paddedWidth} ${paddedHeight}" role="img" xmlns="http://www.w3.org/2000/svg"><g transform="translate(${XQ_VIEWBOX_PAD} ${XQ_VIEWBOX_PAD})">${body}</g></svg>`;
+  const cls = extraClass ? `xq-article-svg ${extraClass}` : 'xq-article-svg';
+  return `<svg class="${cls}" data-xq-layout="${layout}" style="--xq-svg-width: ${paddedWidth}px" viewBox="0 0 ${paddedWidth} ${paddedHeight}" role="img" xmlns="http://www.w3.org/2000/svg"><g transform="translate(${XQ_VIEWBOX_PAD} ${XQ_VIEWBOX_PAD})">${body}</g></svg>`;
 }
 
 export const XQ_ALL_SQUARES: XiangqiSquare[] = Array.from({ length: 9 * 10 }, (_, i) =>
@@ -1901,7 +1902,8 @@ export const XQ_START_TRIPTYCH = () => xqSvg(
 export const XQ_RULES_PRIMER_START_BOARD = () => xqSvg(
   XQ_BOARD_W,
   XQ_BOARD_H + 52,
-  xqBoardSvg({ state: XQ_START, x: 0, y: 0, label: 'STARTING POSITION', perspective: 'red', zones: true }),
+  xqBoardSvg({ state: XQ_START, x: 0, y: 0, label: 'STARTING POSITION', perspective: 'red' }),
+  'xq-article-svg--hero',
 );
 export const XQ_RULES_PRIMER_THUMBNAIL = () => xqSvg(
   XQ_BOARD_W,
@@ -2362,17 +2364,19 @@ export const JIEQI_START_VIEW_BOARD = Object.fromEntries(
 ) as XiangqiPlayerView['board'];
 export const JIEQI_START_VIEW = xqStaticView('jieqi-start-view', JIEQI_START_VIEW_BOARD);
 export const JIEQI_START_BOARD = () => xqSvg(
-  JIEQI_PAIR_W,
+  XQ_BOARD_W,
   XQ_BOARD_H + 52,
   xqBoardSvg({
     state: XQ_START,
     view: JIEQI_START_VIEW,
-    x: JIEQI_PAIR_CENTER_X,
+    x: 0,
     y: 0,
     label: 'SHUFFLED START',
     perspective: 'red',
     shroudedStyle: 'back',
   }),
+  // Section hero, matching the Xiangqi starting-position board.
+  'xq-article-svg--hero',
 );
 export const JIEQI_RULES_THUMBNAIL = () => xqSvg(
   XQ_BOARD_W,
@@ -2527,8 +2531,12 @@ export const BANQI_MARGIN = 16;
 export const BANQI_BOARD_W = BANQI_MARGIN * 2 + BANQI_COLS * BANQI_CELL;
 export const BANQI_BOARD_H = BANQI_MARGIN * 2 + BANQI_ROWS * BANQI_CELL;
 export const BANQI_PIECE_SIZE = 42;
-export const BANQI_PAIR_W = JIEQI_PAIR_W;
-export const BANQI_CENTER_X = (BANQI_PAIR_W - BANQI_BOARD_W) / 2;
+// Banqi diagrams fill the article column: the board canvas is exactly the board
+// width (no pair-width letterboxing), so every banqi figure renders edge-to-edge
+// instead of centered inside a wider xq-pair frame. Kept as named constants so
+// the diagram bodies (title centering, board offset) need no per-call edits.
+export const BANQI_PAIR_W = BANQI_BOARD_W;
+export const BANQI_CENTER_X = 0;
 export const BANQI_RIGHT_HALF_W = BANQI_MARGIN * 2 + (BANQI_COLS / 2) * BANQI_CELL;
 export const BANQI_RIGHT_HALF_X0 = -(BANQI_COLS / 2) * BANQI_CELL;
 

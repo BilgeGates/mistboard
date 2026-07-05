@@ -408,7 +408,7 @@ export function installFortressXiangqiBoardStyles(): void {
       fill: var(--fxq-board-bg, #d9bd82);
     }
     .fxq-river {
-      fill: #b8d4e8;
+      fill: #cbd9e1;
     }
     .fxq-palace-band {
       fill: var(--fxq-palace-band, rgba(255, 255, 255, 0.17));
