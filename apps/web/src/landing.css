@@ -26,7 +26,8 @@
   grid-template-columns: minmax(280px, 340px) minmax(0, 1fr) minmax(280px, 340px);
   grid-template-areas:
     "news   panel play"
-    "viewer feed  puzzle";
+    "viewer feed  puzzle"
+    "lower  lower  lower";
   column-gap: clamp(10px, 0.9vw, 15px);
   row-gap: clamp(14px, 1.8vw, 24px);
   align-items: start;
@@ -153,8 +154,107 @@
   display: flex;
   flex-direction: column;
   align-items: stretch;
+  gap: clamp(8px, 1vw, 12px);
+  min-width: 0;
+}
+
+/* Support (donate) + Store (coming soon) — lichess's two-up call-to-action,
+   directly beneath the article cards. Cards + this row are the feed block the
+   side boards align to, top and bottom. */
+.landing-support-row {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: clamp(10px, 1.4vw, 16px);
+}
+
+.landing-support-card {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: 18px;
+  min-height: 92px;
+  padding: 16px 22px;
+  border: 1px solid rgba(29, 37, 34, 0.1);
+  border-radius: var(--site-radius);
+  background: var(--site-panel);
+  color: inherit;
+  text-decoration: none;
+  transition:
+    border-color 120ms ease,
+    background 120ms ease;
+}
+
+.landing-support-card:not(.is-disabled):hover {
+  border-color: rgba(29, 37, 34, 0.18);
+  background: var(--site-panel-soft);
+}
+
+.landing-support-card.is-disabled {
+  cursor: default;
+}
+
+.landing-support-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  color: var(--site-accent);
+}
+
+.landing-support-card.is-disabled .landing-support-icon {
+  color: var(--site-muted);
+}
+
+.landing-support-icon svg {
+  width: 100%;
+  height: 100%;
+}
+
+.landing-support-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.landing-support-title {
+  font-size: 18px;
+  font-weight: 600;
+  line-height: 1.2;
+  color: var(--site-text);
+}
+
+.landing-support-card.is-disabled .landing-support-title {
+  color: var(--site-muted);
+}
+
+.landing-support-subtitle {
+  overflow: hidden;
+  font-size: 13px;
+  line-height: 1.3;
+  color: var(--site-muted);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Lower strip: forum preview + lobby chat, full width beneath the three-column
+   band (moved out of the feed so the feed stays a tight, board-height block). */
+.landing-lower-strip {
+  grid-area: lower;
+  display: flex;
+  flex-direction: column;
   gap: clamp(14px, 1.8vw, 24px);
   min-width: 0;
+  max-width: 900px;
+}
+
+/* Stack the support/store cards on narrow screens: two-up gets too tight and
+   the subtitle truncates below ~520px. */
+@media (max-width: 560px) {
+  .landing-support-row {
+    grid-template-columns: 1fr;
+  }
 }
 
 .landing-rail-right {
@@ -1237,6 +1337,7 @@
       "viewer"
       "feed"
       "puzzle"
+      "lower"
       "news";
     max-width: 640px;
   }
