@@ -602,10 +602,10 @@ function buildLandingStage(
   // chat, stacked beneath the lobby panel and aligned with the viewer's top. ──
   const centerBelow = document.createElement('div');
   centerBelow.className = 'landing-center-below';
-  // Two cards, sized to fill the center column at ~lichess card width (~350px)
-  // with 8:5 thumbnails; the friendlier low-density framing for the kids
-  // direction. Newest two by date (an announcement can take a slot).
-  const articleCards = buildHomeArticleCards(2, locale);
+  // Two cards visible at a time (each a half-column-wide 8:5 card ~ lichess's
+  // blog-card width), with the rest overflowing so the carousel auto-rotates
+  // through them. Newest first (an announcement can take a slot).
+  const articleCards = buildHomeArticleCards(8, locale);
   if (articleCards) centerBelow.append(articleCards);
   centerBelow.append(buildLandingForumPreview({ hydrate: !opts.skipLiveWidgets }));
   // Lobby chat: an empty mount that only paints once the API confirms the

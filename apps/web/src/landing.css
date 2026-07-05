@@ -23,7 +23,7 @@
      34%/1fr grid). Center takes the free space (1fr) while the news + CTA rails
      hold a tight 280-320px, so the panel reads as the focal block, not a co-equal
      third column. */
-  grid-template-columns: minmax(280px, 320px) minmax(0, 1fr) minmax(280px, 320px);
+  grid-template-columns: minmax(280px, 340px) minmax(0, 1fr) minmax(280px, 340px);
   grid-template-areas:
     "news   panel play"
     "viewer feed  puzzle";
@@ -32,7 +32,10 @@
   align-items: start;
   justify-content: center;
   width: 100%;
-  max-width: 1400px;
+  /* Tighter overall width + wider rails pull the center column in toward
+     lichess's proportions (the center was reading noticeably wider than lila's
+     central lobby). */
+  max-width: 1360px;
   margin: 0 auto;
 }
 
@@ -209,9 +212,9 @@
   width: 100%;
   display: flex;
   flex-direction: column;
-  /* Taller than lila's 600px per the current direction; filled via the default
-     pools view so the extra height doesn't read as a void. */
-  min-height: clamp(560px, 74vh, 800px);
+  /* Shorter than before: the previous clamp(560px, 74vh, 800px) ran tall enough
+     that the default pools view read as an empty void below the fold. */
+  min-height: clamp(440px, 56vh, 620px);
   border: 1px solid var(--site-border-soft);
   border-radius: var(--site-radius);
   background: var(--site-panel);
@@ -438,17 +441,18 @@
 }
 
 .landing-carousel-track {
+  --landing-carousel-gap: clamp(10px, 1.4vw, 16px);
   display: flex;
-  gap: clamp(10px, 1.4vw, 16px);
+  gap: var(--landing-carousel-gap);
   transition: transform 420ms cubic-bezier(0.22, 0.61, 0.36, 1);
   will-change: transform;
 }
 
 .landing-article-card {
-  /* Two cards split the center feed column evenly (~350px each at the 1400px
-     page cap = lichess's blog-card width). min-width:0 lets them shrink with
-     the fluid column instead of overflowing the fixed 8:5 thumbnails. */
-  flex: 1 1 0;
+  /* Each card is exactly half the center column (two visible at ~lichess's
+     blog-card width); any further cards overflow so the carousel auto-rotates
+     through them one card at a time. */
+  flex: 0 0 calc((100% - var(--landing-carousel-gap)) / 2);
   min-width: 0;
   /* Block flow, not a flex column. A direct flex child gets its display
      blockified (display:-webkit-box rewritten to flow-root), which breaks the
@@ -464,14 +468,14 @@
   color: inherit;
   transition:
     border-color 120ms ease,
-    box-shadow 120ms ease,
-    transform 120ms ease;
+    background 120ms ease;
 }
 
+/* No lift/scale on hover; only the white title strip under the thumbnail warms
+   to the soft grey panel tone so the whole card reads as active. */
 .landing-article-card:hover {
-  border-color: rgba(29, 37, 34, 0.24);
-  box-shadow: 0 8px 20px rgba(29, 37, 34, 0.1);
-  transform: translateY(-2px);
+  border-color: rgba(29, 37, 34, 0.18);
+  background: var(--site-panel-soft);
 }
 
 .landing-article-card-thumb {
