@@ -46,6 +46,24 @@ export type GameAnalysis = {
   black: PlayerAnalysis;
 };
 
+/** Lichess-style move glyph for a judgment: ?! inaccuracy, ? mistake, ?? blunder.
+ *  Returns null for a fine move (no glyph). `suffixClass` matches the
+ *  .review-move--<class> colour hooks in move-list.css. */
+export function judgmentGlyph(
+  judgment: MoveJudgment,
+): { suffix: string; suffixClass: string } | null {
+  switch (judgment) {
+    case 'blunder':
+      return { suffix: '??', suffixClass: 'blunder' };
+    case 'mistake':
+      return { suffix: '?', suffixClass: 'mistake' };
+    case 'inaccuracy':
+      return { suffix: '?!', suffixClass: 'inaccuracy' };
+    default:
+      return null;
+  }
+}
+
 const ACPL_CAP = 1000;
 
 /** Centipawns from a side's POV, capped so a decisive eval / mate can't blow up ACPL. */

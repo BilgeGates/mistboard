@@ -25,8 +25,8 @@ import { fillCapturedPoolWith } from './review/captured-pool.js';
 import { createEnginePanel } from './review/engine/engine-panel.js';
 import { createEvalBar } from './review/engine/eval-bar.js';
 import { createFlankCaptures } from './review/flank-captures.js';
-import { requestGameAnalysis } from './review/game-analysis.js';
-import { createMoveList, type MoveListEntry } from './review/move-list.js';
+import { judgmentGlyph, requestGameAnalysis } from './review/game-analysis.js';
+import { createMoveList, type MoveAnnotation, type MoveListEntry } from './review/move-list.js';
 import { mountReviewLayout } from './review/review-layout.js';
 import { buildNav } from './site-shell.js';
 import { renderXiangqiPiece } from './xiangqi-pieces.js';
@@ -228,6 +228,13 @@ function renderPostgame(root: HTMLElement, postgame: XiangqiPostgameResponse): v
           chart.setPly(currentPly);
           underboardEl.replaceChildren(chart.el);
           analysisSummaryEl.replaceChildren(createAnalysisSummary(analysis));
+          // Glyph the mistakes/blunders on the move list (?!/?/??).
+          const glyphs = new Map<number, MoveAnnotation>();
+          for (const move of analysis.moves) {
+            const glyph = judgmentGlyph(move.judgment);
+            if (glyph) glyphs.set(move.ply, glyph);
+          }
+          moveList.annotate(glyphs);
           // The underboard grew; re-fit the board so it still fills without scroll.
           window.dispatchEvent(new Event('resize'));
         })

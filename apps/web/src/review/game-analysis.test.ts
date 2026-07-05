@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { computeGameAnalysis } from './game-analysis.js';
+import { computeGameAnalysis, judgmentGlyph } from './game-analysis.js';
 
 const evals = (cps: (number | null)[]) => ({
   engineId: 'pikafish',
@@ -37,5 +37,17 @@ describe('computeGameAnalysis', () => {
     expect(a.red.acpl).toBeGreaterThanOrEqual(0);
     expect(a.red.accuracy).toBeGreaterThanOrEqual(0);
     expect(a.red.accuracy).toBeLessThanOrEqual(100);
+  });
+});
+
+describe('judgmentGlyph', () => {
+  it('maps each judgment to its lichess glyph + colour class', () => {
+    expect(judgmentGlyph('blunder')).toEqual({ suffix: '??', suffixClass: 'blunder' });
+    expect(judgmentGlyph('mistake')).toEqual({ suffix: '?', suffixClass: 'mistake' });
+    expect(judgmentGlyph('inaccuracy')).toEqual({ suffix: '?!', suffixClass: 'inaccuracy' });
+  });
+
+  it('returns null for a fine move (no glyph)', () => {
+    expect(judgmentGlyph(null)).toBeNull();
   });
 });

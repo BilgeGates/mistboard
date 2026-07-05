@@ -26,11 +26,23 @@ export type MoveListEntry = {
   suffixClass?: string;
 };
 
+/** Post-hoc per-move annotation (glyph + colour class), keyed by the move's ply.
+ *  Filled once whole-game analysis returns; see MoveList.annotate. */
+export type MoveAnnotation = {
+  /** Short glyph shown after the move, e.g. '?!', '?', '??'. */
+  suffix: string;
+  /** Colour hook, e.g. 'blunder' → .review-move--blunder. */
+  suffixClass?: string;
+};
+
 export type MoveList = {
   el: HTMLElement;
   /** Highlight the move at `currentPly` (scroll into view) and bind `jump` to the
    *  move buttons. Call from the layout's renderMoves on every ply change. */
   update(currentPly: number, jump: (ply: number) => void): void;
+  /** Apply/replace per-ply glyphs after analysis lands. Idempotent: plies absent
+   *  from the map have any prior glyph cleared. */
+  annotate(byPly: Map<number, MoveAnnotation>): void;
 };
 
 export type MoveListOptions = {
@@ -109,5 +121,18 @@ export function createMoveList(entries: MoveListEntry[], opts: MoveListOptions =
     current?.scrollIntoView({ block: 'nearest' });
   }
 
-  return { el: panel, update };
+  function annotate(byPly: Map<number, MoveAnnotation>): void {
+    for (const [ply, cell] of cellsByPly) {
+      cell.querySelector('.review-move-list__suffix')?.remove();
+      const ann = byPly.get(ply);
+      if (!ann) continue;
+      const suffix = document.createElement('span');
+      suffix.className = 'review-move-list__suffix';
+      if (ann.suffixClass) suffix.classList.add(`review-move--${ann.suffixClass}`);
+      suffix.textContent = ` ${ann.suffix}`;
+      cell.append(suffix);
+    }
+  }
+
+  return { el: panel, update, annotate };
 }

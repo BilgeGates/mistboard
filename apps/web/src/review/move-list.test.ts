@@ -54,4 +54,38 @@ describe('createMoveList', () => {
     expect(suffix?.textContent).toContain('+2.1');
     expect(suffix?.classList.contains('review-move--blunder')).toBe(true);
   });
+
+  it('annotate adds per-ply glyphs after construction', () => {
+    const ml = createMoveList([
+      { ply: 1, label: 'a-b' },
+      { ply: 2, label: 'c-d' },
+      { ply: 3, label: 'e-f' },
+    ]);
+    ml.annotate(
+      new Map([
+        [2, { suffix: '??', suffixClass: 'blunder' }],
+        [3, { suffix: '?!', suffixClass: 'inaccuracy' }],
+      ]),
+    );
+    const moves = ml.el.querySelectorAll('.review-move-list__move');
+    expect(moves[0]!.querySelector('.review-move-list__suffix')).toBeNull();
+    const second = moves[1]!.querySelector('.review-move-list__suffix');
+    expect(second?.textContent).toContain('??');
+    expect(second?.classList.contains('review-move--blunder')).toBe(true);
+    expect(moves[2]!.querySelector('.review-move-list__suffix')?.textContent).toContain('?!');
+  });
+
+  it('annotate is idempotent: re-annotating clears plies no longer present', () => {
+    const ml = createMoveList([
+      { ply: 1, label: 'a-b' },
+      { ply: 2, label: 'c-d' },
+    ]);
+    ml.annotate(new Map([[1, { suffix: '??', suffixClass: 'blunder' }]]));
+    expect(ml.el.querySelectorAll('.review-move-list__suffix').length).toBe(1);
+    ml.annotate(new Map([[2, { suffix: '?', suffixClass: 'mistake' }]]));
+    const suffixes = ml.el.querySelectorAll('.review-move-list__suffix');
+    expect(suffixes.length).toBe(1);
+    expect(ml.el.querySelectorAll('.review-move-list__move')[0]!.querySelector('.review-move-list__suffix')).toBeNull();
+    expect(suffixes[0]!.textContent).toContain('?');
+  });
 });
