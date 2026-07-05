@@ -332,6 +332,10 @@ export function createTenantWsRuntime<
       if (ctx.rematch) declineTenantRematch(tenant, ctx.rematch, room, client);
       return;
     }
+    if (message.type === 'setup:submit') {
+      await handleSetupSubmit(room, client, message);
+      return;
+    }
     if (message.type !== 'move') return;
     const move = tenant.rules.moveFromMessage(message);
     if (move === null) return;
@@ -390,6 +394,34 @@ export function createTenantWsRuntime<
     }
     broadcastEventAppended(room, event, seq);
     // PvE: it may now be the engine's turn (no-op for PvP / engine not to move).
+    scheduleEngineMove(room);
+  }
+
+  async function handleSetupSubmit(
+    room: LiveRoom,
+    client: LiveClient,
+    message: { setup?: unknown },
+  ): Promise<void> {
+    if (!tenant.setupSubmission) return;
+    if (room.projection.state.status.type !== 'setup') return;
+    const setup = tenant.setupSubmission.setupFromMessage(message);
+    if (setup === null) return;
+    const event: TenantRoomEvent<C, M, Spec> = {
+      type: 'setup-submitted',
+      at: Date.now(),
+      roomId: room.id,
+      color: client.seat,
+      setup,
+    };
+    let seq: number;
+    try {
+      seq = await appendTenantEvent(tenant, room, event, eventWriterCtx);
+    } catch (err) {
+      recordTenantPersistenceError(tenant, room.id, room.events.length, event.type, err as Error);
+      client.socket.close(1011, 'persistence failure');
+      return;
+    }
+    broadcastEventAppended(room, event, seq);
     scheduleEngineMove(room);
   }
 

@@ -22,6 +22,7 @@ import {
   JUNGLE_SPEC_ID,
   KRIEGSPIEL_SPEC_ID,
   legacyLiveRoomForGameSpec,
+  LUZHANQI_SPEC_ID,
   MINI_XIANGQI_SPEC_ID,
   maybeGameSpecForId,
   RATED_POOL_BASES,
@@ -200,6 +201,25 @@ test('Banqi is an xiangqi-family hidden-identity spec on the 8x4 board', () => {
   assert.equal(spec.legacyLiveRoom, undefined);
 });
 
+test('Luzhanqi is a hidden computer-refereed hidden-identity military-chess spec', () => {
+  const spec = gameSpecForId(LUZHANQI_SPEC_ID);
+
+  assert.equal(spec.publicName, 'Luzhanqi');
+  assert.equal(spec.family, 'military-chess');
+  assert.equal(spec.board, 'luzhanqi-65-graph');
+  assert.equal(spec.movement, 'luzhanqi');
+  assert.equal(spec.objective, 'flag-capture');
+  assert.equal(spec.visibility, 'hidden-identity');
+  assert.equal(spec.setup, 'luzhanqi-formation');
+  assert.equal(spec.reserves, 'none');
+  assert.equal(spec.dropPolicy, 'none');
+  assert.equal(spec.ratingPoolBase, 'luzhanqi');
+  assert.equal(spec.rated, undefined);
+  assert.equal(spec.publicSurface, 'hidden');
+  assert.equal(spec.runtimeStatus, 'live');
+  assert.equal(spec.legacyLiveRoom, undefined);
+});
+
 test('composite specs are composed from rule modules', () => {
   const sunTzu = gameSpecForId('sun-tzu');
   const laoTzu = gameSpecForId('lao-tzu');
@@ -343,6 +363,7 @@ test('ratingPoolForSpec is rated for launched pools and null for casual-only spe
   assert.equal(ratingPoolForSpec(CROSSROADS_CHESS_SPEC_ID), 'crossroads_chess_open');
   assert.equal(ratingPoolForSpec(JIEQI_SPEC_ID), 'jieqi');
   assert.equal(ratingPoolForSpec(BANQI_SPEC_ID), 'banqi');
+  assert.equal(ratingPoolForSpec(LUZHANQI_SPEC_ID), null);
   assert.equal(ratingPoolForSpec(REVEAL_CHESS_SPEC_ID), 'reveal_chess');
   assert.equal(ratingPoolForSpec(DARK_XIANGQI_SPEC_ID), 'dark_xiangqi');
   assert.equal(ratingPoolForSpec(DARK_CROSSROADS_CHESS_SPEC_ID), 'crossroads_chess');

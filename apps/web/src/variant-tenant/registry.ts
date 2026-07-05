@@ -30,6 +30,7 @@ import {
   JUNGLE_FLIP_SPEC_ID,
   JUNGLE_SPEC_ID,
   KRIEGSPIEL_SPEC_ID,
+  LUZHANQI_SPEC_ID,
   MINI_XIANGQI_SPEC_ID,
   REVEAL_CHESS_SPEC_ID,
   type TimeControlId,
@@ -43,6 +44,7 @@ import {
   jungleEnabled,
   jungleFlipEnabled,
   kriegspielEnabled,
+  luzhanqiEnabled,
   revealChessEnabled,
   xiangqiEnabled,
 } from '../feature-flags.js';
@@ -406,6 +408,21 @@ const WEB_VARIANT_TENANTS: readonly WebVariantTenant[] = [
       ],
       defaultEngineId: 'misty-banqi',
     },
+  },
+  {
+    // Luzhanqi / Junqi. Hidden from normal play menus while rules/UI are still
+    // being researched, but direct lzq_ rooms use the self-contained tenant
+    // client and the preview page can create local research rooms.
+    gameSpecId: LUZHANQI_SPEC_ID,
+    roomIdPrefix: 'lzq_',
+    enabled: luzhanqiEnabled,
+    pageTitle: 'Luzhanqi',
+    loadLiveRoomClient: () =>
+      import('../live-luzhanqi.js').then(
+        ({ bootstrapLuzhanqiLiveRoom }) =>
+          () =>
+            bootstrapLuzhanqiLiveRoom(),
+      ),
   },
   {
     // Jungle / Dou Shou Qi (斗兽棋). Perfect-information 7×9 animal-rank game; a

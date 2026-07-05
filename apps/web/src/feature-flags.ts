@@ -53,6 +53,12 @@ export function banqiEnabled(): boolean {
   return import.meta.env.DEV || import.meta.env.VITE_BANQI_ENABLED === 'true';
 }
 
+// Luzhanqi / Junqi. Dev-on so local research rooms are easy to create; production
+// requires an explicit build flag and the server runtime flag independently.
+export function luzhanqiEnabled(): boolean {
+  return import.meta.env.DEV || import.meta.env.VITE_LUZHANQI_ENABLED === 'true';
+}
+
 // Reveal Chess (chess-jieqi, hidden identities on an 8x8 board) play surface.
 // Explicit build-time opt-in only.
 export function revealChessEnabled(): boolean {

@@ -6,7 +6,8 @@ export type GameFamilyId =
   | 'shogi'
   | 'omega-chess'
   | 'crossroads-chess'
-  | 'jungle';
+  | 'jungle'
+  | 'military-chess';
 export type BoardGeometryId =
   | 'chess-8x8'
   | 'xiangqi-7x7'
@@ -17,7 +18,8 @@ export type BoardGeometryId =
   | 'banqi-8x4'
   | 'jungle-7x9'
   | 'jungle-flip-4x4'
-  | 'xiangqi-7x8';
+  | 'xiangqi-7x8'
+  | 'luzhanqi-65-graph';
 export type MovementRulesId =
   | 'orthodox-chess'
   | 'mini-xiangqi'
@@ -29,7 +31,8 @@ export type MovementRulesId =
   | 'banqi'
   | 'jungle'
   | 'jungle-flip'
-  | 'fortress-xiangqi';
+  | 'fortress-xiangqi'
+  | 'luzhanqi';
 // 'royal-capture-or-race': capture/checkmate the royal OR race it to the enemy
 // home rank (the Crossroads Chess "Try"). Open mode keeps checkmate, dark switches to
 // king-capture; the visibility axis + rules module resolve which.
@@ -43,6 +46,7 @@ export type ObjectiveRulesId =
   | 'antichess'
   | 'royal-capture-or-race'
   | 'last-mover'
+  | 'flag-capture'
   // 'den-or-race': win by moving a piece into the opponent's den OR capturing all
   // their pieces (Jungle / Dou Shou Qi). No royal piece; perfect information.
   | 'den-or-race';
@@ -61,7 +65,8 @@ export type SetupRulesId =
   | 'reveal-chess-deal'
   | 'jungle-standard'
   | 'jungle-flip-deal'
-  | 'fortress-standard';
+  | 'fortress-standard'
+  | 'luzhanqi-formation';
 export type ReserveRulesId = 'none' | 'crazyhouse' | 'shogi-hands' | 'seirawan-gating';
 export type DropPolicyId =
   | 'none'
@@ -99,6 +104,7 @@ export type RatingPoolBaseId =
   | 'jungle'
   | 'jungle_flip'
   | 'fortress_xiangqi'
+  | 'luzhanqi'
   | 'xiangqi';
 
 export type GameSpecId =
@@ -124,6 +130,7 @@ export type GameSpecId =
   | 'jungle'
   | 'jungle-flip'
   | 'fortress-xiangqi'
+  | 'luzhanqi'
   // Standard (open-information) Xiangqi — ordinary 9x10 Chinese chess. The
   // open-info sibling of Dark Xiangqi; check-aware legality + checkmate via the
   // elephantops CHECKED path (packages/game/src/variants-xiangqi-standard.ts).
@@ -175,6 +182,7 @@ export const DARK_CROSSROADS_CHESS_SPEC_ID = 'dark-crossroads-chess' satisfies G
 export const JUNGLE_SPEC_ID = 'jungle' satisfies GameSpecId;
 export const JUNGLE_FLIP_SPEC_ID = 'jungle-flip' satisfies GameSpecId;
 export const FORTRESS_XIANGQI_SPEC_ID = 'fortress-xiangqi' satisfies GameSpecId;
+export const LUZHANQI_SPEC_ID = 'luzhanqi' satisfies GameSpecId;
 export const XIANGQI_SPEC_ID = 'xiangqi' satisfies GameSpecId;
 // Compatibility aliases for records and links created before the Crossroads
 // rename. New code should use CROSSROADS_CHESS_SPEC_ID.
@@ -200,6 +208,7 @@ export const CANONICAL_VARIANT_ORDER: readonly GameSpecId[] = [
   DARK_XIANGQI_SPEC_ID,
   JIEQI_SPEC_ID,
   BANQI_SPEC_ID,
+  LUZHANQI_SPEC_ID,
   // Jungle family.
   JUNGLE_SPEC_ID,
   JUNGLE_FLIP_SPEC_ID,
@@ -506,6 +515,27 @@ export const GAME_SPECS: readonly GameSpec[] = [
     ratingPoolBase: 'banqi',
     rated: true,
     publicSurface: 'casual',
+    runtimeStatus: 'live',
+  },
+  {
+    // Luzhanqi / Junqi: computer-refereed two-player dark military chess on the
+    // 65-point road/rail graph. Players submit private formations; the server
+    // adjudicates battles without revealing enemy ranks until the postgame truth
+    // view. Live but hidden/flag-gated until the formation editor and review
+    // surfaces land.
+    // Rules engine: packages/game/src/variants-luzhanqi.ts.
+    id: LUZHANQI_SPEC_ID,
+    publicName: 'Luzhanqi',
+    family: 'military-chess',
+    board: 'luzhanqi-65-graph',
+    movement: 'luzhanqi',
+    objective: 'flag-capture',
+    visibility: 'hidden-identity',
+    setup: 'luzhanqi-formation',
+    reserves: 'none',
+    dropPolicy: 'none',
+    ratingPoolBase: 'luzhanqi',
+    publicSurface: 'hidden',
     runtimeStatus: 'live',
   },
   {

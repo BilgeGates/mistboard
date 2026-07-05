@@ -24,6 +24,7 @@ const VARIANT_PUBLIC_SURFACE_ENABLED = {
   'dark-omega': false,
   jieqi: true,
   banqi: true,
+  luzhanqi: false,
   'crossroads-chess': false,
   'dark-crossroads-chess': false,
   'reveal-chess': false,
