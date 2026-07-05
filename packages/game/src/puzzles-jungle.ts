@@ -12,17 +12,17 @@
 // line; solver plies are the even indices (0, 2, 4, ...), defender replies the
 // odd ones. The generator lives in scripts/variant-lab/jungle-puzzle-miner.ts.
 
-import { JUNGLE_SPEC_ID } from './game-specs.js';
+import type { JUNGLE_SPEC_ID } from './game-specs.js';
 import { MATERIAL_JUNGLE_PUZZLES } from './puzzles-jungle-material.js';
 import { MINED_JUNGLE_PUZZLES } from './puzzles-jungle-mined.js';
 import { TACTIC_SOURCE_GAMES } from './puzzles-jungle-source-games.js';
 import { TACTIC_JUNGLE_PUZZLES } from './puzzles-jungle-tactics.js';
 import {
   applyJungleMove,
-  type JungleBoard,
   createInitialJungleState,
   getJungleLegalMoves,
   isJungleLegalMove,
+  type JungleBoard,
   type JungleColor,
   type JungleGameState,
   type JungleGameStatus,
@@ -356,7 +356,13 @@ function rootMaterialScores(
     const score =
       terminal !== null
         ? terminal
-        : -jungleMaterialSearch(child, depth - 1, -JUNGLE_MATERIAL_MATE, JUNGLE_MATERIAL_MATE, budget);
+        : -jungleMaterialSearch(
+            child,
+            depth - 1,
+            -JUNGLE_MATERIAL_MATE,
+            JUNGLE_MATERIAL_MATE,
+            budget,
+          );
     if (budget.cutOff) return [];
     scored.push({ move, score });
   }
@@ -436,7 +442,8 @@ function jungleMaterialQuiesce(
     if (!state.board[move.to]) continue; // captures only
     const child = applyJungleMove(state, move);
     const terminal = materialTerminalValue(child, mover);
-    const score = terminal !== null ? terminal : -jungleMaterialQuiesce(child, -beta, -alpha, budget);
+    const score =
+      terminal !== null ? terminal : -jungleMaterialQuiesce(child, -beta, -alpha, budget);
     if (budget.cutOff) return 0;
     if (score >= beta) return beta;
     if (score > alpha) alpha = score;
@@ -632,9 +639,7 @@ export function attemptJunglePuzzleLine(
   // game is still in progress at the payoff move).
   const lineExhausted = solutionPly >= puzzle.solution.length;
   const complete =
-    puzzle.goal.type === 'win'
-      ? lineExhausted && state.status.type === 'finished'
-      : lineExhausted;
+    puzzle.goal.type === 'win' ? lineExhausted && state.status.type === 'finished' : lineExhausted;
   return {
     ok: true,
     puzzleId: puzzle.id,

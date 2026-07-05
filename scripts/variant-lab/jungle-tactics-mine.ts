@@ -24,11 +24,12 @@
 //   node_modules/.bin/tsx scripts/variant-lab/jungle-tactics-mine.ts --games 120 --emit-dir scratchpad/jungle-tactics
 //   node_modules/.bin/tsx scripts/variant-lab/jungle-tactics-mine.ts --games 40 --json
 
-import { spawn, type ChildProcessWithoutNullStreams } from 'node:child_process';
+import { type ChildProcessWithoutNullStreams, spawn } from 'node:child_process';
 import { existsSync, mkdirSync, writeFileSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { resolve } from 'node:path';
 import { parseArgs } from 'node:util';
+import { engineUciToJungleMove, jungleStateToEngineFen } from '../../apps/server/src/jungle-fen.ts';
 import {
   applyJungleMove,
   createInitialJungleState,
@@ -38,9 +39,6 @@ import {
   isJungleLegalMove,
   JUNGLE_DENS,
   JUNGLE_SPEC_ID,
-  jungleCoordOf,
-  junglePositionRepetitionKey,
-  jungleTrapOwner,
   type JungleColor,
   type JungleGameState,
   type JungleMove,
@@ -48,9 +46,11 @@ import {
   type JunglePuzzle,
   type JunglePuzzleTheme,
   type JungleSourceGame,
+  jungleCoordOf,
+  junglePositionRepetitionKey,
+  jungleTrapOwner,
   validateJunglePuzzle,
 } from '../../packages/game/src/index.ts';
-import { engineUciToJungleMove, jungleStateToEngineFen } from '../../apps/server/src/jungle-fen.ts';
 
 // Mirrors jungle_rust::engine constants (WIN = 1e6, MAX_DEPTH = 24). A best score at
 // or above WIN - MAX_DEPTH is a forced mate the search proved, not a winning-advantage.
@@ -152,81 +152,80 @@ type MinedTactic = {
 const rng = createRng(options.seed);
 
 async function main(): Promise<void> {
-const engine = new UciEngine(options.binary);
-await engine.init();
+  const engine = new UciEngine(options.binary);
+  await engine.init();
 
-const games: MinedGame[] = [];
-for (let g = 1; g <= options.games; g += 1) {
-  games.push(await playGame(engine, `jungle-sp-${String(g).padStart(4, '0')}`, options));
-}
-
-const tactics: MinedTactic[] = [];
-const usedGames = new Set<string>();
-const seenPositions = new Set<string>();
-
-if (!options.gamesOnly) {
-  for (const game of games) {
-    if (tactics.length >= options.limit) break;
-    await extractTactics(engine, game, options, tactics, usedGames, seenPositions);
+  const games: MinedGame[] = [];
+  for (let g = 1; g <= options.games; g += 1) {
+    games.push(await playGame(engine, `jungle-sp-${String(g).padStart(4, '0')}`, options));
   }
-}
 
-engine.quit();
+  const tactics: MinedTactic[] = [];
+  const usedGames = new Set<string>();
+  const seenPositions = new Set<string>();
 
-const sourceGames: JungleSourceGame[] = games
-  .filter((game) => usedGames.has(game.id))
-  .map((game) => ({ id: game.id, variant: JUNGLE_SPEC_ID, moves: game.moves }));
+  if (!options.gamesOnly) {
+    for (const game of games) {
+      if (tactics.length >= options.limit) break;
+      await extractTactics(engine, game, options, tactics, usedGames, seenPositions);
+    }
+  }
 
-if (options.emitDir) {
-  const dir = resolve(options.emitDir);
-  mkdirSync(dir, { recursive: true });
-  writeFileSync(resolve(dir, 'puzzles-jungle-tactics.ts'), renderTacticsModule(tactics));
-  writeFileSync(resolve(dir, 'puzzles-jungle-source-games.ts'), renderSourceGamesModule(sourceGames));
-  console.error(
-    `wrote ${tactics.length} tactics + ${sourceGames.length} source games to ${dir}\n` +
-      `review, then copy into packages/game/src/ and re-run the game tests.`,
-  );
-} else if (options.json) {
-  console.log(
-    JSON.stringify(
-      {
-        games: games.length,
-        tactics: tactics.map((t) => ({
-          id: t.puzzle.id,
-          side: t.puzzle.goal.winner,
-          solution: t.puzzle.solution,
-          score: t.score,
-          gap: t.gap,
-          themes: t.puzzle.themes,
-          sourceGame: t.puzzle.sourceGame,
-        })),
-        sourceGames: sourceGames.length,
-      },
-      null,
-      2,
-    ),
-  );
-} else {
-  for (const t of tactics) {
+  engine.quit();
+
+  const sourceGames: JungleSourceGame[] = games
+    .filter((game) => usedGames.has(game.id))
+    .map((game) => ({ id: game.id, variant: JUNGLE_SPEC_ID, moves: game.moves }));
+
+  if (options.emitDir) {
+    const dir = resolve(options.emitDir);
+    mkdirSync(dir, { recursive: true });
+    writeFileSync(resolve(dir, 'puzzles-jungle-tactics.ts'), renderTacticsModule(tactics));
+    writeFileSync(
+      resolve(dir, 'puzzles-jungle-source-games.ts'),
+      renderSourceGamesModule(sourceGames),
+    );
+    console.error(
+      `wrote ${tactics.length} tactics + ${sourceGames.length} source games to ${dir}\n` +
+        `review, then copy into packages/game/src/ and re-run the game tests.`,
+    );
+  } else if (options.json) {
     console.log(
-      `${t.puzzle.id}  ${t.puzzle.goal.winner} to move  ${t.puzzle.solution
-        .map((m) => `${m.from}-${m.to}`)
-        .join(' ')}  score=${t.score} gap=${t.gap}  [${t.puzzle.themes.join(',')}]`,
+      JSON.stringify(
+        {
+          games: games.length,
+          tactics: tactics.map((t) => ({
+            id: t.puzzle.id,
+            side: t.puzzle.goal.winner,
+            solution: t.puzzle.solution,
+            score: t.score,
+            gap: t.gap,
+            themes: t.puzzle.themes,
+            sourceGame: t.puzzle.sourceGame,
+          })),
+          sourceGames: sourceGames.length,
+        },
+        null,
+        2,
+      ),
+    );
+  } else {
+    for (const t of tactics) {
+      console.log(
+        `${t.puzzle.id}  ${t.puzzle.goal.winner} to move  ${t.puzzle.solution
+          .map((m) => `${m.from}-${m.to}`)
+          .join(' ')}  score=${t.score} gap=${t.gap}  [${t.puzzle.themes.join(',')}]`,
+      );
+    }
+    console.log(
+      `\nplayed ${games.length} games, emitted ${tactics.length} tactics from ${sourceGames.length} games`,
     );
   }
-  console.log(
-    `\nplayed ${games.length} games, emitted ${tactics.length} tactics from ${sourceGames.length} games`,
-  );
-}
 }
 
 // ── Self-play + tactic extraction ────────────────────────────────────────────
 
-async function playGame(
-  engine: UciEngine,
-  id: string,
-  options: CliOptions,
-): Promise<MinedGame> {
+async function playGame(engine: UciEngine, id: string, options: CliOptions): Promise<MinedGame> {
   let state = createInitialJungleState(id);
   const moves: JungleMove[] = [];
   for (let ply = 0; ply < options.maxPlies && state.status.type === 'playing'; ply += 1) {
@@ -537,8 +536,11 @@ export const TACTIC_SOURCE_GAMES: readonly SourceJungleGame[] = `;
 class UciEngine {
   #proc: ChildProcessWithoutNullStreams;
   #buf = '';
-  #waiter: { pred: (line: string) => boolean; resolve: (lines: string[]) => void; lines: string[] } | null =
-    null;
+  #waiter: {
+    pred: (line: string) => boolean;
+    resolve: (lines: string[]) => void;
+    lines: string[];
+  } | null = null;
   #multipv = 1;
 
   constructor(binary: string) {

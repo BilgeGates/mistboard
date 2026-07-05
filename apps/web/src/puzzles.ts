@@ -1,6 +1,7 @@
 import {
   applyDropMiniXiangqiMove,
   applyFortressXiangqiMove,
+  applyJungleMove,
   applyMiniXiangqiOpenMove,
   DROP_MINI_XIANGQI_DROP_ROLES,
   DROP_MINI_XIANGQI_SPEC_ID,
@@ -15,7 +16,6 @@ import {
   type FortressXiangqiMove,
   type FortressXiangqiPlayerView,
   type FortressXiangqiSquare,
-  applyJungleMove,
   getDropMiniXiangqiPlayerView,
   getFortressXiangqiPlayerView,
   getJunglePlayerView,
@@ -54,18 +54,14 @@ import {
   fortressXiangqiDropTargets,
   fortressXiangqiMoveLabel,
 } from './fortress-xiangqi-view.js';
-import {
-  JUNGLE_BOARD_VIEW,
-  junglePieceGhostSvg,
-  renderJungleBoardSvg,
-} from './jungle-render.js';
-import { initLiveSound, playSound } from './live-sound.js';
+import { JUNGLE_BOARD_VIEW, junglePieceGhostSvg, renderJungleBoardSvg } from './jungle-render.js';
 import {
   installMiniXiangqiBoardStyles,
   MINI_XIANGQI_PIECE_PX,
   miniXiangqiPieceGhostSvg,
   renderMiniXiangqiBoardSvg,
 } from './live-mini-xiangqi-render.js';
+import { initLiveSound, playSound } from './live-sound.js';
 import { buildNav } from './site-shell.js';
 import { setBoardFamily, xiangqiAppearanceChangedEvent } from './theme.js';
 import { renderVariantMiniBoard, type VariantMiniId } from './variant-mini-boards.js';
@@ -114,11 +110,7 @@ type JunglePuzzleDetail = PuzzleSummary & {
   initial: JungleGameState;
 };
 
-type PuzzleDetail =
-  | MiniPuzzleDetail
-  | DropPuzzleDetail
-  | FortressPuzzleDetail
-  | JunglePuzzleDetail;
+type PuzzleDetail = MiniPuzzleDetail | DropPuzzleDetail | FortressPuzzleDetail | JunglePuzzleDetail;
 type PuzzleState =
   | MiniXiangqiGameState
   | DropMiniXiangqiGameState
@@ -705,7 +697,13 @@ function paintPuzzleBoard(
     return;
   }
   if (session.puzzle.variant === JUNGLE_SPEC_ID) {
-    paintJunglePuzzleBoard(board, session, displayState as JungleGameState, renderSession, onSolved);
+    paintJunglePuzzleBoard(
+      board,
+      session,
+      displayState as JungleGameState,
+      renderSession,
+      onSolved,
+    );
     return;
   }
   const { boardView, dropView } = puzzleViews(session, displayState);

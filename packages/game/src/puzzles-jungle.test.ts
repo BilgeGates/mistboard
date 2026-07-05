@@ -8,9 +8,9 @@ import {
   findJungleMaterialTactic,
   findJungleWinInOneCandidates,
   isJunglePuzzleSolverPly,
-  jungleMaterialBalance,
   JUNGLE_PUZZLES,
   type JunglePuzzle,
+  jungleMaterialBalance,
   junglePuzzleById,
   junglePuzzleMoveEquals,
   junglePuzzleMoveLabel,
@@ -200,7 +200,10 @@ test('a winning-advantage puzzle validates without ending the game', () => {
 test('the solver line completes a winning-advantage puzzle mid-game', () => {
   const { moves } = openingLine(1);
   const attempt = attemptJunglePuzzleLine(advantagePuzzle(moves), moves);
-  assert.ok(attempt.ok && attempt.complete, 'winning-advantage line should complete when exhausted');
+  assert.ok(
+    attempt.ok && attempt.complete,
+    'winning-advantage line should complete when exhausted',
+  );
   assert.equal(attempt.ok && attempt.state.status.type, 'playing');
 });
 

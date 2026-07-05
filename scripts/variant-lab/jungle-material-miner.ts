@@ -21,16 +21,16 @@ import {
   getJungleLegalMoves,
   JUNGLE_DENS,
   JUNGLE_SPEC_ID,
-  jungleCoordOf,
-  junglePositionRepetitionKey,
-  junglePuzzleMoveLabel,
-  jungleTrapOwner,
   type JungleColor,
   type JungleGameState,
   type JungleMove,
   type JunglePieceRole,
   type JunglePuzzle,
   type JunglePuzzleTheme,
+  jungleCoordOf,
+  junglePositionRepetitionKey,
+  junglePuzzleMoveLabel,
+  jungleTrapOwner,
   validateJunglePuzzle,
 } from '../../packages/game/src/index.ts';
 
@@ -89,7 +89,7 @@ const seenPositions = new Set<string>();
 const seenSolutions = new Set<string>();
 const emitted: MinedMaterial[] = [];
 let scanned = 0;
-let multiAnswer = 0;
+const multiAnswer = 0;
 
 outer: for (let game = 1; game <= randomGames; game += 1) {
   let state = createInitialJungleState(`material-${game}`);
@@ -261,7 +261,8 @@ function chooseRandomMove(
   moves: JungleMove[],
   rng: () => number,
 ): JungleMove {
-  const enemyDen = JUNGLE_DENS[state.status.type === 'playing' && state.status.turn === 'red' ? 'black' : 'red'];
+  const enemyDen =
+    JUNGLE_DENS[state.status.type === 'playing' && state.status.turn === 'red' ? 'black' : 'red'];
   const captures = moves.filter((move) => state.board[move.to] !== undefined);
   const denApproaches = moves.filter((move) => near(move.to, enemyDen));
   const pool =

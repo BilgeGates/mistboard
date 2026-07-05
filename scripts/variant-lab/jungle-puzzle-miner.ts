@@ -26,11 +26,6 @@ import {
   JUNGLE_DENS,
   JUNGLE_PUZZLES,
   JUNGLE_SPEC_ID,
-  jungleCoordOf,
-  jungleIsWater,
-  junglePositionRepetitionKey,
-  junglePuzzleMoveLabel,
-  jungleTrapOwner,
   type JungleColor,
   type JungleGameState,
   type JungleMove,
@@ -38,6 +33,10 @@ import {
   type JunglePuzzle,
   type JunglePuzzleTheme,
   type JungleSquare,
+  jungleCoordOf,
+  junglePositionRepetitionKey,
+  junglePuzzleMoveLabel,
+  jungleTrapOwner,
   validateJunglePuzzle,
 } from '../../packages/game/src/index.ts';
 
@@ -552,7 +551,8 @@ function chooseRandomMove(
   moves: JungleMove[],
   rng: () => number,
 ): JungleMove {
-  const enemyDen = JUNGLE_DENS[oppositeColor(state.status.type === 'playing' ? state.status.turn : 'red')];
+  const enemyDen =
+    JUNGLE_DENS[oppositeColor(state.status.type === 'playing' ? state.status.turn : 'red')];
   const denApproaches = moves.filter((move) => isNearSquare(move.to, enemyDen));
   const captures = moves.filter((move) => state.board[move.to] !== undefined);
   const pool =
