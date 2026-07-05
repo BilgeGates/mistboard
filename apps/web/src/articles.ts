@@ -107,11 +107,14 @@ function isArticleListedInThisEnv(article: Article): boolean {
 
 type RulesArticleGroupId = 'chess' | 'xiangqi' | 'shogi' | 'jungle' | 'other';
 
+// Group order mirrors CANONICAL_VARIANT_ORDER (game-specs.ts) by each family's
+// first appearance there: the Chinese-chess family leads (Fortress/Xiangqi),
+// then Jungle, then the deranked chess family, then Shogi.
 const RULES_ARTICLE_GROUP_ORDER: readonly RulesArticleGroupId[] = [
-  'chess',
   'xiangqi',
-  'shogi',
   'jungle',
+  'chess',
+  'shogi',
   'other',
 ];
 
@@ -122,9 +125,12 @@ const BASE_RULE_GROUP_BY_SLUG: Record<string, RulesArticleGroupId> = {
   shogi4: 'shogi',
 };
 
+// Floats a family's base-rules article to the top of its group. Only for base
+// games NOT in CANONICAL_VARIANT_ORDER (chess, shogi) — they'd otherwise sort to
+// the bottom. Xiangqi IS in the canonical order (right after Fortress), so it is
+// left unpinned and takes its canonical slot: Fortress leads the xiangqi group.
 const BASE_RULE_ORDER: Record<string, number> = {
   chess: -100,
-  xiangqi: -100,
   shogi: -100,
   shogi4: 100,
 };

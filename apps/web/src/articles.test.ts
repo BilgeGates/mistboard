@@ -505,39 +505,41 @@ describe('rules variant sidebar', () => {
     const titles = [...(sidebar?.querySelectorAll('.article-toc-title') ?? [])].map(
       (title) => title.textContent,
     );
+    // Canonical order (CANONICAL_VARIANT_ORDER): the Chinese-chess family leads,
+    // then Animal chess (jungle), then the deranked chess family, then Shogi.
     expect(titles).toEqual([
-      'Chess variants',
       'Xiangqi variants',
-      'Shogi variants',
       'Animal chess',
+      'Chess variants',
+      'Shogi variants',
     ]);
 
     const navs = sidebar?.querySelectorAll('.article-toc-nav');
-    expect(navs?.[0]?.querySelector('a[href="/rules/dark-chess"]')).not.toBeNull();
-    // Xiangqi pivot: the chess reference article is de-listed from the rail.
-    expect(navs?.[0]?.querySelector('a[href="/rules/chess"]')).toBeNull();
-    // Draft960 is a pregame option that has not shipped as a playable mode.
-    expect(navs?.[0]?.querySelector('a[href="/rules/dark-draft960"]')).toBeNull();
     // The mini xiangqi trio is de-listed; the xiangqi rail lists the elevated
     // Chinese-chess-family variants instead.
-    expect(navs?.[1]?.querySelector('a[href="/rules/mini-xiangqi"]')).toBeNull();
-    expect(navs?.[1]?.querySelector('a[href="/rules/dark-mini-xiangqi"]')).toBeNull();
-    expect(navs?.[1]?.querySelector('a[href="/rules/dark-xiangqi"]')).not.toBeNull();
-    expect(navs?.[1]?.querySelector('a[href="/rules/jieqi"]')).not.toBeNull();
-    expect(navs?.[2]?.querySelector('a[href="/rules/shogi"]')).not.toBeNull();
-    expect(navs?.[2]?.querySelector('a[href="/rules/dark-shogi"]')).not.toBeNull();
-    expect(navs?.[3]?.querySelector('a[href="/rules/jungle"]')).not.toBeNull();
-    expect(navs?.[3]?.querySelector('a[href="/rules/jungle-flip"]')).not.toBeNull();
+    expect(navs?.[0]?.querySelector('a[href="/rules/mini-xiangqi"]')).toBeNull();
+    expect(navs?.[0]?.querySelector('a[href="/rules/dark-mini-xiangqi"]')).toBeNull();
+    expect(navs?.[0]?.querySelector('a[href="/rules/dark-xiangqi"]')).not.toBeNull();
+    expect(navs?.[0]?.querySelector('a[href="/rules/jieqi"]')).not.toBeNull();
+    expect(navs?.[1]?.querySelector('a[href="/rules/jungle"]')).not.toBeNull();
+    expect(navs?.[1]?.querySelector('a[href="/rules/jungle-flip"]')).not.toBeNull();
+    expect(navs?.[2]?.querySelector('a[href="/rules/dark-chess"]')).not.toBeNull();
+    // Xiangqi pivot: the chess reference article is de-listed from the rail.
+    expect(navs?.[2]?.querySelector('a[href="/rules/chess"]')).toBeNull();
+    // Draft960 is a pregame option that has not shipped as a playable mode.
+    expect(navs?.[2]?.querySelector('a[href="/rules/dark-draft960"]')).toBeNull();
+    expect(navs?.[3]?.querySelector('a[href="/rules/shogi"]')).not.toBeNull();
+    expect(navs?.[3]?.querySelector('a[href="/rules/dark-shogi"]')).not.toBeNull();
   });
 
   it('lists the elevated xiangqi variants (not the hidden mini trio) in the xiangqi family by default', () => {
-    // Xiangqi pivot: the mini trio is de-listed; the xiangqi rail leads with the
-    // elevated Chinese-chess-family variants.
+    // Xiangqi pivot: the mini trio is de-listed; the xiangqi rail (now the first
+    // group) leads with the elevated Chinese-chess-family variants.
     const page = buildArticlePage('dark-chess');
     const navs = page.querySelectorAll('.article-variant-sidebar .article-toc-nav');
-    expect(navs[1]?.querySelector('a[href="/rules/dark-mini-xiangqi"]')).toBeNull();
-    expect(navs[1]?.querySelector('a[href="/rules/mini-xiangqi"]')).toBeNull();
-    expect(navs[1]?.querySelector('a[href="/rules/dark-xiangqi"]')).not.toBeNull();
+    expect(navs[0]?.querySelector('a[href="/rules/dark-mini-xiangqi"]')).toBeNull();
+    expect(navs[0]?.querySelector('a[href="/rules/mini-xiangqi"]')).toBeNull();
+    expect(navs[0]?.querySelector('a[href="/rules/dark-xiangqi"]')).not.toBeNull();
   });
 
   it('renders the rules landing with the rail and a tile grid picker', () => {
@@ -578,29 +580,30 @@ describe('rules variant sidebar', () => {
     ).not.toBeNull();
   });
 
-  it('groups the tile grid like the rail: chess, xiangqi, then shogi', () => {
+  it('groups the tile grid like the rail: xiangqi, jungle, chess, then shogi', () => {
     const landing = buildRulesIndex();
     const titles = [...landing.querySelectorAll('.rules-landing-group-title')].map(
       (el) => el.textContent,
     );
     expect(titles).toEqual([
-      'Chess variants',
       'Xiangqi variants',
-      'Shogi variants',
       'Animal chess',
+      'Chess variants',
+      'Shogi variants',
     ]);
     const grids = landing.querySelectorAll('.rules-landing-grid');
-    expect(grids[0]?.querySelector('a[href="/rules/dark-chess"]')).not.toBeNull();
-    // Xiangqi pivot: the chess reference article and the mini xiangqi trio are
-    // de-listed from the tile grid (still reachable by direct URL).
-    expect(grids[0]?.querySelector('a[href="/rules/chess"]')).toBeNull();
-    expect(grids[1]?.querySelector('a[href="/rules/xiangqi"]')).not.toBeNull();
-    expect(grids[1]?.querySelector('a[href="/rules/drop-mini-xiangqi"]')).toBeNull();
-    expect(grids[1]?.querySelector('a[href="/rules/dark-xiangqi"]')).not.toBeNull();
-    expect(grids[2]?.querySelector('a[href="/rules/shogi"]')).not.toBeNull();
-    expect(grids[2]?.querySelector('a[href="/rules/dark-shogi"]')).not.toBeNull();
-    expect(grids[3]?.querySelector('a[href="/rules/jungle"]')).not.toBeNull();
-    expect(grids[3]?.querySelector('a[href="/rules/jungle-flip"]')).not.toBeNull();
+    expect(grids[0]?.querySelector('a[href="/rules/xiangqi"]')).not.toBeNull();
+    // Xiangqi pivot: the mini xiangqi trio is de-listed from the tile grid
+    // (still reachable by direct URL).
+    expect(grids[0]?.querySelector('a[href="/rules/drop-mini-xiangqi"]')).toBeNull();
+    expect(grids[0]?.querySelector('a[href="/rules/dark-xiangqi"]')).not.toBeNull();
+    expect(grids[1]?.querySelector('a[href="/rules/jungle"]')).not.toBeNull();
+    expect(grids[1]?.querySelector('a[href="/rules/jungle-flip"]')).not.toBeNull();
+    expect(grids[2]?.querySelector('a[href="/rules/dark-chess"]')).not.toBeNull();
+    // The chess reference article is de-listed from the tile grid.
+    expect(grids[2]?.querySelector('a[href="/rules/chess"]')).toBeNull();
+    expect(grids[3]?.querySelector('a[href="/rules/shogi"]')).not.toBeNull();
+    expect(grids[3]?.querySelector('a[href="/rules/dark-shogi"]')).not.toBeNull();
   });
 
   it('renders Jieqi visual diagrams instead of placeholder notes', () => {
