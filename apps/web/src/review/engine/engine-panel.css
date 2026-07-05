@@ -78,9 +78,26 @@
   line-height: 1.4;
 }
 .engine-panel__line-eval {
-  flex: 0 0 3.2em;
+  flex: 0 0 auto;
+  min-width: 3em;
+  padding: 1px 5px;
+  border-radius: 4px;
+  text-align: center;
   font-variant-numeric: tabular-nums;
   font-weight: 700;
+  color: var(--site-text);
+}
+/* Chip palette mirrors the on-board eval bar: light = Red ahead, dark = Black. */
+.engine-panel__line-eval.is-red {
+  background: #f2ede3;
+  color: #2b2724;
+}
+.engine-panel__line-eval.is-black {
+  background: #34302e;
+  color: #f2ede3;
+}
+.engine-panel__line-eval.is-even {
+  background: color-mix(in srgb, var(--site-muted) 20%, transparent);
   color: var(--site-text);
 }
 .engine-panel__line-pv {

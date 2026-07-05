@@ -185,13 +185,22 @@ function renderLine(line: CevalLine, side: Side, formatMove: (uci: string) => st
   li.className = 'engine-panel__line';
   const { cp, mate } = redPov(line, side);
   const score = document.createElement('span');
-  score.className = 'engine-panel__line-eval';
+  score.className = `engine-panel__line-eval ${evalTone(cp, mate)}`;
   score.textContent = formatEval(cp, mate);
   const pv = document.createElement('span');
   pv.className = 'engine-panel__line-pv';
   pv.textContent = line.pvUci.slice(0, 8).map(formatMove).join(' ');
   li.append(score, pv);
   return li;
+}
+
+// Chip tone by who's ahead (Red POV), matching the on-board eval bar's palette:
+// Red-ahead reads light, Black-ahead dark, near-even neutral.
+function evalTone(cp: number | null, mate: number | null): string {
+  const value = mate != null ? (mate > 0 ? 1 : -1) : (cp ?? 0) / 100;
+  if (value > 0.15) return 'is-red';
+  if (value < -0.15) return 'is-black';
+  return 'is-even';
 }
 
 function redPov(line: CevalLine, side: Side): { cp: number | null; mate: number | null } {
