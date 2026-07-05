@@ -214,7 +214,7 @@ export function mountReviewLayout(root: HTMLElement, adapter: ReviewLayoutAdapte
 // per-variant chrome estimate is needed. Capped by the center column width so
 // wide boards don't overflow horizontally.
 function fitPrimaryToViewport(stageEl: HTMLElement, aspect: number): void {
-  requestAnimationFrame(() => {
+  scheduleAnimationFrame(() => {
     // Measure against the VIEWPORT, not the stage's own height: the stage stretches
     // to the board, so reading its height and then resizing the board would feed
     // back into a runaway ResizeObserver loop. This region height is stable.
@@ -256,6 +256,14 @@ function fitPrimaryToViewport(stageEl: HTMLElement, aspect: number): void {
     const targetWidth = Math.max(160, Math.min(widthCap, targetBoardWidth + flankPx));
     stageEl.style.setProperty('--review-stage-primary-max', `${targetWidth}px`);
   });
+}
+
+function scheduleAnimationFrame(callback: () => void): void {
+  if (typeof window.requestAnimationFrame === 'function') {
+    window.requestAnimationFrame(callback);
+    return;
+  }
+  window.setTimeout(callback, 0);
 }
 
 // The primary board fills the height left after the nav, the secondary row, and
