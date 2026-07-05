@@ -404,11 +404,20 @@
 }
 
 .profile-stat-value {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
   color: var(--site-heading);
   font-size: 20px;
   font-weight: 700;
   font-variant-numeric: tabular-nums;
   line-height: 1.1;
+}
+
+.profile-stat-thumb {
+  flex: 0 0 auto;
+  display: block;
+  line-height: 0;
 }
 
 .profile-stat-label {
@@ -707,6 +716,19 @@
   line-height: 1.2;
 }
 
+/* The variant pill leads with a small board marker, so it needs a touch less
+   left padding and a gap between the marker and the variant name. */
+.profile-game-detail.profile-game-variant {
+  gap: 5px;
+  padding-left: 4px;
+}
+
+.profile-game-variant-thumb {
+  flex: 0 0 auto;
+  display: block;
+  line-height: 0;
+}
+
 /* The two leading pills carry a small fixed set of labels (White/Black,
    Rated/Casual). Giving each a constant width with centered text keeps the
    source + ply pills that follow vertically aligned across every row,
@@ -885,10 +907,19 @@
 }
 
 .leaderboard-online-rating {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
   color: var(--site-heading);
   font-variant-numeric: tabular-nums;
   font-weight: 700;
   font-size: 13px;
+}
+
+.leaderboard-online-rating-thumb {
+  flex: 0 0 auto;
+  display: block;
+  line-height: 0;
 }
 
 .leaderboard-online-playing {

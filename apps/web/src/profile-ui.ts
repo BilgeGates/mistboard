@@ -7,7 +7,9 @@ import { displayParticipantName, type FeaturedGame } from './game-display.js';
 import { timeControlLabelForGame } from './game-meta.js';
 import { type I18nKey, t } from './i18n/catalog.js';
 import { currentLocale, LOCALE_META, type Locale } from './i18n/locale.js';
+import { renderVariantMiniBoard } from './variant-mini-boards.js';
 import { webVariantTenantForRoomId, webVariantTenantForSpecId } from './variant-tenant/registry.js';
+import { variantMiniIdForRawVariant } from './variants.js';
 
 const GAME_VARIANT_LABEL_KEY: Record<string, I18nKey> = {
   fog: 'variant.darkChess.name',
@@ -116,10 +118,18 @@ export function buildProfileGameRow(
   const isCasual = game.mode !== 'pvp' || game.rated === false;
   const details = document.createElement('span');
   details.className = 'profile-game-details';
-  details.append(
-    buildGameDetail(profileGameSpecLabel(game, locale), 'profile-game-variant'),
-    buildGameDetail(profileSideLabel(game, locale), 'profile-game-side'),
-  );
+  // The variant pill leads with the shared board marker (aria-hidden; the pill
+  // still carries the variant name in text right after it).
+  const variantPill = buildGameDetail(profileGameSpecLabel(game, locale), 'profile-game-variant');
+  const variantMiniId = variantMiniIdForRawVariant(game.variant);
+  if (variantMiniId) {
+    const thumb = document.createElement('span');
+    thumb.className = 'profile-game-variant-thumb';
+    thumb.setAttribute('aria-hidden', 'true');
+    thumb.innerHTML = renderVariantMiniBoard(variantMiniId, { size: 18 });
+    variantPill.prepend(thumb);
+  }
+  details.append(variantPill, buildGameDetail(profileSideLabel(game, locale), 'profile-game-side'));
   // Only rated games get a badge; casual (the default, and every game while
   // rated is gated off) stays untagged so the feed isn't littered with "Casual".
   if (!isCasual) details.append(buildGameDetail(t('play.rated', {}, locale), 'profile-game-rated'));

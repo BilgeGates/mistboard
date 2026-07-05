@@ -27,6 +27,7 @@ import {
   JUNGLE_SPEC_ID,
   KRIEGSPIEL_SPEC_ID,
   MINI_XIANGQI_SPEC_ID,
+  maybeGameSpecForId,
   type RatingVariant,
   REVEAL_CHESS_SPEC_ID,
   ratingPoolForSpec,
@@ -351,6 +352,16 @@ export function variantMiniIdForGameSpec(id: GameSpecId): VariantMiniId | null {
 /** Mini-board id for a rating variant (leaderboard/profile), or null if none. */
 export function variantMiniIdForRating(id: RatingVariantId): VariantMiniId | null {
   return VARIANTS.find((v) => v.id === id)?.miniId ?? null;
+}
+
+/**
+ * Mini-board id for a raw persisted variant string (e.g. a FeaturedGame.variant
+ * off the wire), normalizing legacy aliases (fog, draft960, dual-chess) through
+ * their canonical game spec first. Null if the string maps to no marker.
+ */
+export function variantMiniIdForRawVariant(variant: string): VariantMiniId | null {
+  const spec = maybeGameSpecForId(variant);
+  return spec ? variantMiniIdForGameSpec(spec.id) : null;
 }
 
 /** Display label for a rating-variant id off the wire, or null if unknown. */

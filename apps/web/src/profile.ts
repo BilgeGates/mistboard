@@ -10,7 +10,12 @@ import { buildProfileGameRow, buildProfileHeaderShell } from './profile-ui.js';
 import { buildLoadingState, buildNav, buildNotice } from './site-shell.js';
 import { attachUserCard } from './user-card.js';
 import { renderVariantMiniBoard, type VariantMiniId } from './variant-mini-boards.js';
-import { leaderboardVariants, profileRatingVariants, variantMiniIdForRating } from './variants.js';
+import {
+  leaderboardVariants,
+  profileRatingVariants,
+  type RatingVariantId,
+  variantMiniIdForRating,
+} from './variants.js';
 
 type ProfileRatingVariant = RatingVariant;
 type ProfileRatingTimeClass = 'bullet' | 'blitz' | 'rapid';
@@ -353,12 +358,21 @@ function renderOnlinePlayers(body: HTMLElement, result: OnlinePlayersResult, loc
         link.append(playingMark);
       }
       if (player.rating) {
-        // One representative figure: the player's best blitz pool. The variant
-        // label rides on the title attribute rather than costing row width.
+        // One representative figure: the player's best blitz pool. A small board
+        // marker leads it (the variant name still rides on the title attribute).
         const rating = document.createElement('span');
         rating.className = 'leaderboard-online-rating';
-        rating.textContent = `${player.rating.eloRating}${player.rating.provisional ? '?' : ''}`;
         const variantLabel = maybeVariantLabel(player.rating.variant, locale);
+        const miniId = variantMiniIdForRating(player.rating.variant as RatingVariantId);
+        if (miniId) {
+          rating.append(
+            buildVariantThumb(miniId, 16, 'leaderboard-online-rating-thumb', variantLabel ?? ''),
+          );
+        }
+        const value = document.createElement('span');
+        value.className = 'leaderboard-online-rating-value';
+        value.textContent = `${player.rating.eloRating}${player.rating.provisional ? '?' : ''}`;
+        rating.append(value);
         if (variantLabel) rating.title = variantLabel;
         link.append(rating);
       }
@@ -626,30 +640,39 @@ function buildProfileStats(profile: UserProfile, locale: Locale = currentLocale(
   const strip = document.createElement('div');
   strip.className = 'profile-stats';
 
-  const items: Array<[string, string]> = [
-    [
-      String(profile.gamesTotal),
-      profile.gamesTotal === 1
-        ? t('profile.gameSingular', {}, locale)
-        : t('profile.gamePlural', {}, locale),
-    ],
+  const items: Array<{ value: string; label: string; miniId?: VariantMiniId }> = [
+    {
+      value: String(profile.gamesTotal),
+      label:
+        profile.gamesTotal === 1
+          ? t('profile.gameSingular', {}, locale)
+          : t('profile.gamePlural', {}, locale),
+    },
   ];
 
-  const top = topVariantLabel(profile.ratings, locale);
-  if (top) items.push([top, t('profile.topVariant', {}, locale)]);
+  const top = topVariantStat(profile.ratings, locale);
+  if (top) {
+    items.push({
+      value: top.label,
+      label: t('profile.topVariant', {}, locale),
+      miniId: top.miniId ?? undefined,
+    });
+  }
 
   const best = bestRating(profile.ratings);
-  if (best != null) items.push([String(best), t('profile.bestRating', {}, locale)]);
+  if (best != null) items.push({ value: String(best), label: t('profile.bestRating', {}, locale) });
 
   const joined = formatJoinedDate(profile.user.createdAt, locale);
-  if (joined) items.push([joined, t('profile.memberSince', {}, locale)]);
+  if (joined) items.push({ value: joined, label: t('profile.memberSince', {}, locale) });
 
-  for (const [value, label] of items) {
+  for (const { value, label, miniId } of items) {
     const item = document.createElement('div');
     item.className = 'profile-stat';
     const valueEl = document.createElement('span');
     valueEl.className = 'profile-stat-value';
-    valueEl.textContent = value;
+    // The top-variant stat leads its value with the shared board marker.
+    if (miniId) valueEl.append(buildVariantThumb(miniId, 20, 'profile-stat-thumb', value));
+    valueEl.append(document.createTextNode(value));
     const labelEl = document.createElement('span');
     labelEl.className = 'profile-stat-label';
     labelEl.textContent = label;
@@ -659,17 +682,22 @@ function buildProfileStats(profile: UserProfile, locale: Locale = currentLocale(
   return strip;
 }
 
-// Most-played variant (rated or casual) by total completed games.
-function topVariantLabel(
+// Most-played variant (rated or casual) by total completed games, with its
+// board marker for the stat tile.
+function topVariantStat(
   ratings: ProfileBucketRating[],
   locale: Locale = currentLocale(),
-): string | null {
+): { label: string; miniId: VariantMiniId | null } | null {
   let top: ProfileBucketRating | null = null;
   for (const r of ratings) {
     if (r.totalGamesPlayed <= 0) continue;
     if (!top || r.totalGamesPlayed > top.totalGamesPlayed) top = r;
   }
-  return top ? profileVariantLabel(top.variant, locale) : null;
+  if (!top) return null;
+  return {
+    label: profileVariantLabel(top.variant, locale),
+    miniId: variantMiniIdForRating(top.variant),
+  };
 }
 
 // Highest current rating across rated variants, or null if none are rated.

@@ -2,6 +2,7 @@ import type { GameEvent } from '@mistboard/game';
 import { banqiResultLabel } from './banqi-result-label.js';
 import { renderVariantMiniBoard, type VariantMiniId } from './variant-mini-boards.js';
 import { webVariantTenantForSpecId } from './variant-tenant/registry.js';
+import { variantMiniIdForRawVariant } from './variants.js';
 import './watch-route.css';
 import { displayParticipantName, type FeaturedGame, sourceLabel } from './game-display.js';
 import { gameMetaForGame, reviewUrlForGame } from './game-meta.js';
@@ -631,6 +632,17 @@ function renderWatchQueue(
       row.classList.add('active');
     }
 
+    // Variant marker leads each card (the channel names the variant too, but the
+    // marker lets you scan the queue by variant at a glance).
+    const miniId = variantMiniIdForRawVariant(game.variant);
+    let thumb: HTMLElement | null = null;
+    if (miniId) {
+      thumb = document.createElement('span');
+      thumb.className = 'watch-queue-thumb';
+      thumb.setAttribute('aria-hidden', 'true');
+      thumb.innerHTML = renderVariantMiniBoard(miniId, { size: 30 });
+    }
+
     const matchup = document.createElement('span');
     matchup.className = 'watch-queue-matchup';
     const matchupLabel = watchQueueMatchupLabel(game);
@@ -658,7 +670,11 @@ function renderWatchQueue(
     }
     meta.append(result, detail);
 
-    row.append(matchup, meta);
+    const text = document.createElement('span');
+    text.className = 'watch-queue-text';
+    text.append(matchup, meta);
+    if (thumb) row.append(thumb, text);
+    else row.append(text);
     const reviewUrl = reviewUrlForGame(game);
     if (reviewUrl) {
       const review = document.createElement('a');
