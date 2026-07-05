@@ -425,6 +425,17 @@ async function loadProfileUser(handle: string): Promise<UserAccount | null> {
   return rows[0] ? userFromRow(rows[0]) : null;
 }
 
+// Resolve a user's id by handle (case-insensitive), or null. Directed challenges
+// address the target by handle like the rest of the social API; this maps it to
+// the id the directed-seek path expects without exposing ids to the client.
+export async function userIdForHandle(handle: string): Promise<string | null> {
+  const { rows } = await getPool().query<{ id: string }>(
+    `SELECT id FROM users WHERE lower(handle) = lower($1) LIMIT 1`,
+    [handle],
+  );
+  return rows[0]?.id ?? null;
+}
+
 // Build the visibility filter for a profile's game queries. A viewer sees their
 // own private games; everyone else is restricted to non-private rows.
 function profileVisibilityClause(isViewer: boolean): string {

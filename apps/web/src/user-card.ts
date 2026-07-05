@@ -13,6 +13,8 @@
 
 import './user-card.css';
 import type { RatingVariant } from '@mistboard/game';
+import { openChallengeDialog } from './challenge-dialog.js';
+import { correspondenceEnabled } from './feature-flags.js';
 import { t } from './i18n/catalog.js';
 import { currentLocale, LOCALE_META, type Locale } from './i18n/locale.js';
 import { renderVariantMiniBoard } from './variant-mini-boards.js';
@@ -179,6 +181,15 @@ function renderActions(
   message.href = `/inbox/${encodeURIComponent(handle)}`;
   message.textContent = t('profile.message', {}, locale);
   row.append(message);
+
+  if (correspondenceEnabled()) {
+    const challenge = document.createElement('button');
+    challenge.type = 'button';
+    challenge.className = 'user-card-action';
+    challenge.textContent = t('challenge.button', {}, locale);
+    challenge.addEventListener('click', () => openChallengeDialog({ handle, locale }));
+    row.append(challenge);
+  }
 
   const follow = document.createElement('button');
   follow.type = 'button';

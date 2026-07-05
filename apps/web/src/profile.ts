@@ -2,7 +2,9 @@
 
 import type { RatingVariant } from '@mistboard/game';
 import './account-profile.css';
+import { openChallengeDialog } from './challenge-dialog.js';
 import { buildCommunityLayout } from './community-rail.js';
+import { correspondenceEnabled } from './feature-flags.js';
 import type { FeaturedGame } from './game-display.js';
 import { type I18nKey, t } from './i18n/catalog.js';
 import { currentLocale, LOCALE_META, type Locale } from './i18n/locale.js';
@@ -588,6 +590,17 @@ function renderRelationActions(
     message.href = `/inbox/${encodeURIComponent(handle)}`;
     message.textContent = t('profile.message', {}, locale);
     row.append(message);
+
+    // Directed correspondence challenge (async-loop). Gated on the correspondence
+    // flag so it only appears where the challenge system is live.
+    if (correspondenceEnabled()) {
+      const challenge = document.createElement('button');
+      challenge.type = 'button';
+      challenge.className = 'landing-setup-start';
+      challenge.textContent = t('challenge.button', {}, locale);
+      challenge.addEventListener('click', () => openChallengeDialog({ handle, locale }));
+      row.append(challenge);
+    }
 
     const follow = document.createElement('button');
     follow.type = 'button';

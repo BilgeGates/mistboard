@@ -40,6 +40,7 @@ export {
   updateUserLocale,
   updateUserProfile,
   userExists,
+  userIdForHandle,
 } from './persistence-accounts.js';
 export type {
   BotDirectoryEntry,

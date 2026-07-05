@@ -1,0 +1,91 @@
+/* Self-contained styling for the directed-challenge modal. It opens from the profile
+   and hover user-card, neither of which loads game-shell.css (where .confirm-dialog
+   lives), so this sheet styles everything the dialog needs, scoped under
+   .challenge-dialog, mirroring the confirm-dialog look via the shared --site-* tokens. */
+.challenge-dialog {
+  border: 1px solid var(--site-border);
+  border-radius: var(--site-radius);
+  background: var(--site-panel);
+  color: var(--site-text);
+  padding: 22px 22px 18px;
+  max-width: 340px;
+  width: calc(100vw - 32px);
+  box-shadow: 0 18px 48px rgba(15, 30, 24, 0.22);
+  font: inherit;
+}
+
+.challenge-dialog::backdrop {
+  background: rgba(15, 30, 24, 0.42);
+}
+
+.challenge-dialog .confirm-dialog-title {
+  color: var(--site-heading);
+  font-size: 1.05rem;
+  font-weight: 600;
+  margin: 0 0 14px;
+}
+
+.challenge-dialog-fields {
+  display: grid;
+  gap: 10px;
+  margin: 0 0 14px;
+}
+
+.challenge-dialog-field {
+  width: 100%;
+  min-height: 38px;
+  padding: 8px 10px;
+  border: 1px solid var(--site-border);
+  border-radius: var(--site-radius-sm);
+  background: var(--site-panel);
+  color: var(--site-text);
+  font: inherit;
+  cursor: pointer;
+}
+
+.challenge-dialog-field:focus-visible {
+  border-color: var(--site-accent);
+  outline: 3px solid var(--site-focus);
+}
+
+.challenge-dialog-error {
+  margin: 0 0 12px;
+  color: #b4504f;
+  font-size: 0.86rem;
+  line-height: 1.4;
+}
+
+.challenge-dialog .confirm-dialog-actions {
+  display: flex;
+  gap: 10px;
+  justify-content: flex-end;
+}
+
+.challenge-dialog .confirm-dialog-actions button {
+  min-height: 36px;
+  padding: 6px 16px;
+  border: 1px solid var(--site-border);
+  border-radius: var(--site-radius-sm);
+  background: var(--site-panel);
+  color: var(--site-text);
+  font: inherit;
+  cursor: pointer;
+}
+
+/* Scoped through .confirm-dialog-actions so this beats the general
+   ".confirm-dialog-actions button" rule (2 classes + element) above. */
+.challenge-dialog .confirm-dialog-actions .confirm-dialog-confirm {
+  border-color: var(--site-accent);
+  background: var(--site-accent);
+  color: #fff;
+}
+
+.challenge-dialog .confirm-dialog-actions button:hover:not(:disabled),
+.challenge-dialog .confirm-dialog-actions button:focus-visible {
+  outline: 3px solid var(--site-focus);
+}
+
+.challenge-dialog .confirm-dialog-actions button:disabled {
+  opacity: 0.6;
+  cursor: default;
+}

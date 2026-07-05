@@ -212,7 +212,20 @@ async function createSeek(
 
   // Challenge dimensions. A target forces a private, directed seek; otherwise
   // visibility defaults to the public board.
-  const targetUserId = typeof body.targetUserId === 'string' ? body.targetUserId : null;
+  let targetUserId = typeof body.targetUserId === 'string' ? body.targetUserId : null;
+  // Directed challenges from the social surfaces (profile / user-card) address the
+  // target by handle — the rest of the user API is handle-based and we don't expose
+  // ids to the client. Resolve it into the id the directed-seek path expects.
+  if (!targetUserId) {
+    const targetHandle = typeof body.targetHandle === 'string' ? body.targetHandle.trim() : '';
+    if (targetHandle) {
+      targetUserId = await persistence.userIdForHandle(targetHandle);
+      if (!targetUserId) {
+        writeJson(response, 404, { error: 'target_not_found' });
+        return true;
+      }
+    }
+  }
   const requestedVisibility = parseSeekVisibility(body.visibility);
   const visibility: SeekVisibility = targetUserId ? 'private' : (requestedVisibility ?? 'public');
 
