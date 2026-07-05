@@ -15,6 +15,7 @@ import {
   isDatabaseRequired,
   isDrainToken,
   isPrivateOrReservedIp,
+  isReviewShellRoute,
   proxyTrustWarningFor,
   type RuntimeEnv,
   recordMessageTimestamp,
@@ -355,6 +356,28 @@ test('isClientRoute matches parametric SPA routes', () => {
   assert.equal(isClientRoute('/forum/redirect/post/post_123'), true);
   assert.equal(isClientRoute('/zh-hans/rules/dark-chess'), true);
   assert.equal(isClientRoute('/zh-hant/rules/dark-chess'), true);
+});
+
+test('isReviewShellRoute matches postgame review documents (COOP/COEP scope)', () => {
+  // Bare dark-chess review + every /<variant>/game/:id review tenant.
+  assert.equal(isReviewShellRoute('/game/abc123'), true);
+  assert.equal(isReviewShellRoute('/xiangqi/game/xq_abc123'), true);
+  assert.equal(isReviewShellRoute('/dark-xiangqi/game/dxq_abc123'), true);
+  assert.equal(isReviewShellRoute('/fortress-xiangqi/game/fxq_abc123'), true);
+  assert.equal(isReviewShellRoute('/jungle-flip/game/jgf_abc123'), true);
+  assert.equal(isReviewShellRoute('/game/abc123?ply=4'.split('?', 1)[0]!), true);
+});
+
+test('isReviewShellRoute excludes non-review surfaces (keeps them non-isolated)', () => {
+  // Live rooms are postgame-engine-free; the rest of the site must stay
+  // non-isolated so cross-origin flows (e.g. patron's Stripe redirect) are unaffected.
+  assert.equal(isReviewShellRoute('/room/abc123'), false);
+  assert.equal(isReviewShellRoute('/'), false);
+  assert.equal(isReviewShellRoute('/patron'), false);
+  assert.equal(isReviewShellRoute('/play'), false);
+  assert.equal(isReviewShellRoute('/xiangqi/game/'), false); // no game id
+  assert.equal(isReviewShellRoute('/articles/dark-chess-concepts'), false);
+  assert.equal(isReviewShellRoute('/a/b/game/c'), false); // too many segments
 });
 
 test('isClientRoute does not expose standalone Crossroads Chess play routes', () => {

@@ -5,7 +5,7 @@ import { type HttpApiContext, handleApiRequest } from './http-api.js';
 import { serveArticleOgImage, serveGameOgImage } from './og-image.js';
 import * as persistence from './persistence.js';
 import type { DrainController } from './server-drain.js';
-import { isClientRoute } from './server-policy.js';
+import { isClientRoute, isReviewShellRoute } from './server-policy.js';
 import {
   ARTICLE_META,
   serveArticlePage,
@@ -66,6 +66,19 @@ export function createHttpRequestHandler(options: ServerHttpHandlerOptions) {
   return function handleHttpRequest(request: IncomingMessage, response: ServerResponse): void {
     const url = request.url ?? '/';
     const pathname = url.split('?', 1)[0] ?? '/';
+
+    // The postgame review shell mounts an in-browser analysis engine that runs
+    // WASM threads, which need SharedArrayBuffer and therefore cross-origin
+    // isolation. Send COOP/COEP on exactly the review document routes (set here,
+    // before the various index.html handlers below, which only writeHead a
+    // content-type and so preserve these). credentialless keeps our same-origin
+    // bundle/engine assets working without forcing CORP on every subresource,
+    // and leaves the rest of the site (patron's Stripe redirect, etc.)
+    // non-isolated. See docs-private/analysis-board-track.md.
+    if (isReviewShellRoute(pathname)) {
+      response.setHeader('Cross-Origin-Opener-Policy', 'same-origin');
+      response.setHeader('Cross-Origin-Embedder-Policy', 'credentialless');
+    }
 
     if (url === '/health') {
       void handleHealthRequest(options, response);

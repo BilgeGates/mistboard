@@ -143,6 +143,19 @@ export function isClientRoute(pathname: string): boolean {
   );
 }
 
+// Review-shell document routes: the postgame board at /game/:id and each
+// /<variant>/game/:id. These serve the review SPA shell, which can mount the
+// in-browser analysis engine (WASM threads → SharedArrayBuffer → requires
+// cross-origin isolation). server-http sends COOP/COEP on exactly these
+// responses so the isolation stays scoped to the review surface. Live /room/
+// routes are deliberately excluded: the engine is postgame-only, and isolation
+// there would buy nothing. Keep the single optional variant segment in sync
+// with the /<variant>/game/ tenants in isClientRoute above.
+export function isReviewShellRoute(pathname: string): boolean {
+  const normalized = pathname.replace(/\/+$/, '') || '/';
+  return /^(?:\/[a-z0-9-]+)?\/game\/[^/]+$/.test(normalized);
+}
+
 export function adminDebugTokenFromProtocolHeader(
   value: string | string[] | undefined,
 ): string | undefined {
