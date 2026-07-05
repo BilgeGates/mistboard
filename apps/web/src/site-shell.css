@@ -10,8 +10,37 @@
   /* Wider gutters than the content below, like lichess: the bar breathes at the
      edges (~4vw) instead of hugging them. */
   padding: 0 clamp(20px, 4vw, 72px);
-  background: var(--site-nav-bg);
+  /* Fade down from the same warm top stop as the page, with the SAME 220px
+     endpoint as the body gradient (app-base.css :root) so the two are one
+     continuous gradient and there is no seam under the bar. Per-page overrides
+     of --site-nav-bg still set the bottom stop. */
+  background-color: var(--site-nav-bg);
+  background-image: linear-gradient(to bottom, var(--site-page-top), var(--site-nav-bg) 220px);
   border-bottom: 1px solid var(--site-nav-border);
+  /* Auto-hide on scroll (see ensureNavAutoHide in site-shell.ts). Transition
+     transform + border so the bar slides up/down smoothly and gains a hairline
+     once it floats over scrolled content. */
+  transition:
+    transform 260ms ease-in-out,
+    border-color 260ms ease-in-out;
+}
+
+/* Scrolled away from the top: the bar now floats over content, so give it a
+   faint bottom hairline to separate it (lichess adds a border here too). */
+.site-nav.scrolled {
+  border-bottom-color: var(--site-border-soft);
+}
+
+/* Hidden: slid up out of view by its own height. Sticky keeps it pinned to the
+   top, so translateY(-100%) tucks it just above the viewport. */
+.site-nav.hide {
+  transform: translateY(-100%);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .site-nav {
+    transition: none;
+  }
 }
 
 .site-nav-brand {

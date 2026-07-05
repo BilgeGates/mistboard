@@ -36,6 +36,10 @@ export type XiangqiReplaySpec = {
   red: string;
   black: string;
   event: string;
+  // Optional standalone title, used when the record is a named study or manual
+  // line rather than a game between two players. When set, the header reads
+  // "<title> · <event>" instead of "<red> (Red) vs <black> (Black) · <event>".
+  title?: string;
   perspective?: XiangqiColor;
   // Shown on the final ply (the records stop at the mating move, so the rules
   // kernel still reports "playing"; the result is supplied explicitly).
@@ -178,7 +182,9 @@ export function mountXiangqiReplay(
 
   const header = document.createElement('div');
   header.className = 'xq-replay-header';
-  header.textContent = `${spec.red} (Red) vs ${spec.black} (Black) · ${spec.event}`;
+  header.textContent = spec.title
+    ? `${spec.title} · ${spec.event}`
+    : `${spec.red} (Red) vs ${spec.black} (Black) · ${spec.event}`;
 
   const frame = document.createElement('div');
   frame.className = 'raw-svg-stepper-frame raw-svg-stepper-frame-xq';

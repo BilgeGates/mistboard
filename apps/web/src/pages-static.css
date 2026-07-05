@@ -303,3 +303,209 @@
     min-height: 150px;
   }
 }
+
+/* ── Patron donate page (078), lichess-aligned with mistboard's own motif ──── */
+.patron-page {
+  max-width: 960px;
+  margin: 0 auto;
+  padding: 0 16px 48px;
+}
+
+/* Hero banner: brand-green band (like lichess's brand-colored hero), centered
+   value prop, Jungle animal tokens flanking instead of wings. */
+.patron-hero {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: clamp(16px, 4vw, 40px);
+  margin: 18px 0 32px;
+  padding: 36px 28px;
+  border-radius: 12px;
+  color: var(--site-on-accent);
+  background: linear-gradient(135deg, var(--site-accent) 0%, var(--site-accent-strong) 100%);
+  text-align: center;
+}
+
+.patron-hero-text {
+  max-width: 520px;
+}
+
+.patron-hero-title {
+  margin: 0 0 8px;
+  font-size: clamp(24px, 4vw, 34px);
+  font-weight: 300;
+  line-height: 1.15;
+}
+
+.patron-hero-subtitle {
+  margin: 0;
+  font-size: clamp(14px, 2vw, 16px);
+  opacity: 0.92;
+}
+
+/* Framed Jungle token disc: cream fill + colored ink ring, matching the pieces. */
+.patron-mascot {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: clamp(54px, 11vw, 92px);
+  aspect-ratio: 1;
+  border-radius: 50%;
+  background: #fff2cf;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.18);
+}
+
+.patron-mascot-red {
+  border: 3px solid #b5322b;
+}
+
+.patron-mascot-black {
+  border: 3px solid #28323c;
+}
+
+.patron-mascot img {
+  width: 82%;
+  height: 82%;
+  object-fit: contain;
+}
+
+/* Face the two discs inward toward the heading. */
+.patron-mascot-red img {
+  transform: scaleX(-1);
+}
+
+@media (max-width: 560px) {
+  .patron-mascot {
+    display: none;
+  }
+}
+
+/* Body: intro prose left, donation card right. */
+.patron-body {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 40px;
+  align-items: flex-start;
+}
+
+.patron-intro-col {
+  flex: 1 1 340px;
+  min-width: 0;
+}
+
+.patron-intro-col > p {
+  line-height: 1.6;
+}
+
+.patron-donate-col {
+  flex: 0 0 320px;
+  max-width: 100%;
+}
+
+.patron-card {
+  position: sticky;
+  top: 16px;
+  padding: 22px 20px;
+  border: 1px solid var(--site-border-soft);
+  border-radius: 12px;
+  background: var(--site-panel);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+}
+
+.patron-support-line {
+  margin: 12px 4px 0;
+  font-size: 13px;
+  font-style: italic;
+  color: var(--site-text-soft, #888);
+  text-align: center;
+}
+
+.patron-form {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+/* Segmented toggles (frequency + amount): a connected pill row. */
+.patron-segment {
+  display: flex;
+  gap: 0;
+  border: 1px solid var(--site-border-soft);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.patron-segment-btn {
+  flex: 1 1 0;
+  padding: 10px 8px;
+  border: none;
+  border-right: 1px solid var(--site-border-soft);
+  background: var(--site-panel);
+  color: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition:
+    background 0.12s ease,
+    color 0.12s ease;
+}
+
+.patron-segment-btn:last-child {
+  border-right: none;
+}
+
+.patron-segment-btn:hover:not(.is-selected) {
+  background: var(--site-accent-soft);
+}
+
+/* Selected = brand green (mirrors lichess's green selected states). */
+.patron-segment-btn.is-selected {
+  background: var(--site-accent);
+  color: var(--site-on-accent);
+}
+
+/* Prominent donate CTA: gold, to pop against the green hero (as lichess's CTA
+   contrasts its hero). Gold is the reserved "patron" accent. */
+.patron-donate-btn {
+  padding: 13px 16px;
+  border: none;
+  border-radius: 8px;
+  background: #e0a94b;
+  color: #3a2708;
+  font-size: 16px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  cursor: pointer;
+  transition: background 0.12s ease;
+}
+
+.patron-donate-btn:hover:not(:disabled) {
+  background: #d49a37;
+}
+
+.patron-donate-btn:disabled {
+  opacity: 0.6;
+  cursor: progress;
+}
+
+.patron-note {
+  margin: 2px 0 0;
+  font-size: 13px;
+  color: var(--site-text-soft, #888);
+  text-align: center;
+}
+
+.patron-thankyou {
+  margin: 0 0 12px;
+  font-size: 15px;
+  font-weight: 600;
+  text-align: center;
+}
+
+.patron-error {
+  margin: 0;
+  font-size: 13px;
+  color: #d4645d;
+  text-align: center;
+}

@@ -168,16 +168,17 @@ export const xiangqiArticle: Article = {
           {
             kind: 'paragraph',
             text:
-              'To see the pieces work together in a real game, step through this 1990 championship between two of xiangqi\'s greatest grandmasters. Playing Black, Liu Dahua checkmates Hu Ronghua, the most dominant champion of the era, in 31 moves.',
+              'To see the pieces work together, step through the most famous trap in xiangqi. It comes from Juzhongmi (橘中秘), a manual printed in 1632. Red gives up a horse; when Black grabs it, Red\'s chariots and cannons pour through the gap and checkmate on the thirteenth move.',
           },
           {
             kind: 'xq-replay',
             spec: {
-              iccs: 'h2e2 h9g7 h0g2 i9h9 c3c4 g6g5 b0c2 c9e7 i0i1 b9c7 i1f1 h7i7 f1f4 d9e8 b2a2 a9b9 a0b0 h9h3 e2d2 h3g3 c0e2 g5g4 f4g4 g3g4 e2g4 b7b5 g4e2 g7f5 b0b4 c6c5 c4c5 e7c5 a3a4 c5e7 d0e1 b9d9 a2a0 i7f7 a0d0 d9b9 g2f4 b5c5 b4b9 c7b9 f4d5 b9c7 c2b4 c7d5 b4d5 c5c1 d2a2 c1a1 e2c4 f7g7 d0d1 g7g5 d5b6 g5g8 a2e2 f5g7 i3i4 g8g0',
-              red: 'Hu Ronghua',
-              black: 'Liu Dahua',
-              event: '5 Ram Cup, 1990',
-              resultText: 'Checkmate. Liu Dahua (Black) defeats Hu Ronghua.',
+              iccs: 'h2e2 h7e7 h0g2 h9g7 i0i1 i9h9 i1d1 h9h3 d1d8 b9a7 a0a1 b7b0 b2b7 g7h9 e2e6 f9e8 a1d1 e9f9 d8d9 e8d9 d1f1 e7f7 f1f7 f9e9 b7e7',
+              red: 'Red',
+              black: 'Black',
+              title: 'Sacrifice the Horse in 13 (弃马十三着)',
+              event: 'Juzhongmi, 1632',
+              resultText: 'Checkmate on move 13. Red\'s paired cannons pin the general on the open central file.',
             },
           } as ArticleBlock,
         ],

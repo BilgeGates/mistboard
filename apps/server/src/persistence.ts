@@ -227,6 +227,15 @@ export {
   queryGames,
   recordGameEnd,
 } from './persistence-games.js';
+export type { PatronSubscriptionInput } from './persistence-patron.js';
+export {
+  applyPatronSubscription,
+  claimStripeEvent,
+  findAccountIdByStripeCustomerId,
+  getStripeCustomerId,
+  PATRON_ACTIVE_STATUSES,
+  setStripeCustomerId,
+} from './persistence-patron.js';
 export type {
   FollowResult,
   RelationListEntry,

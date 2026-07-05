@@ -85,6 +85,7 @@ export function isClientRoute(pathname: string): boolean {
     normalized === '/puzzles' ||
     normalized === '/source' ||
     normalized === '/contact' ||
+    normalized === '/patron' ||
     normalized === '/faq' ||
     normalized === '/terms' ||
     normalized === '/privacy' ||

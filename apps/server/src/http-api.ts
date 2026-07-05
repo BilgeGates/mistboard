@@ -39,6 +39,7 @@ import type { HttpApiContext } from './routes/lib.js';
 import * as lobbyRoute from './routes/lobby.js';
 import * as metaRoute from './routes/meta.js';
 import * as miniXiangqiGamesRoute from './routes/mini-xiangqi-games.js';
+import * as patronRoute from './routes/patron.js';
 import * as puzzlesRoute from './routes/puzzles.js';
 import * as relationsRoute from './routes/relations.js';
 import * as revealChessGamesRoute from './routes/reveal-chess-games.js';
@@ -82,6 +83,7 @@ export const routes: RouteModule[] = [
   botsRoute,
   chatRoute,
   enginesRoute,
+  patronRoute,
   feedbackRoute,
   forumRoute,
   inboxRoute,

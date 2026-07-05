@@ -42,6 +42,12 @@ export type UserAccount = {
   locale: AccountLocale | null;
   dmPolicy: DmPolicy;
   eloRating: number;
+  // Patron program (078). patronSince is set while a donation is active (drives
+  // the cosmetic badge); NULL = not a patron. stripeCustomerId is the stable
+  // account->Stripe-customer map for reusing a customer and opening the billing
+  // portal; NULL until the first checkout.
+  patronSince: Date | null;
+  stripeCustomerId: string | null;
   createdAt: Date;
   updatedAt: Date;
 };
@@ -87,6 +93,9 @@ export type PublicProfileUser = {
   displayName: string;
   profileVisibility: UserAccount['profileVisibility'];
   accountRole: AccountRole;
+  // Set while a donation is active; drives the cosmetic Patron badge on the
+  // public profile. NULL = not a patron.
+  patronSince: Date | null;
   createdAt: Date;
 };
 
@@ -172,6 +181,8 @@ const USER_COLUMNS = [
   'locale',
   'dm_policy',
   'elo_rating',
+  'patron_since',
+  'stripe_customer_id',
   'created_at',
   'updated_at',
 ].join(', ');
@@ -625,6 +636,7 @@ export async function getUserProfileByHandle(
       displayName: user.displayName,
       profileVisibility: user.profileVisibility,
       accountRole: user.accountRole,
+      patronSince: user.patronSince,
       createdAt: user.createdAt,
     },
     ratings,
@@ -840,6 +852,8 @@ type UserRow = {
   locale: AccountLocale | null;
   dm_policy: DmPolicy;
   elo_rating: number;
+  patron_since: Date | null;
+  stripe_customer_id: string | null;
   created_at: Date;
   updated_at: Date;
 };
@@ -858,6 +872,8 @@ function userFromRow(row: UserRow): UserAccount {
     locale: row.locale,
     dmPolicy: row.dm_policy,
     eloRating: row.elo_rating,
+    patronSince: row.patron_since,
+    stripeCustomerId: row.stripe_customer_id,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };

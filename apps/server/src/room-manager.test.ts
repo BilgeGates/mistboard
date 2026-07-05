@@ -500,6 +500,8 @@ function makeAccount(overrides: Partial<UserAccount> = {}): UserAccount {
     locale: null,
     dmPolicy: 'always',
     eloRating: 1500,
+    patronSince: null,
+    stripeCustomerId: null,
     createdAt: now,
     updatedAt: now,
     ...overrides,

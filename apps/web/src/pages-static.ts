@@ -27,7 +27,15 @@ type PublicSiteStats = {
   dailyCompletedGames: PublicStatsDay[];
 };
 
-type StaticPageKey = 'about' | 'news' | 'faq' | 'contact' | 'terms' | 'privacy' | 'source';
+type StaticPageKey =
+  | 'about'
+  | 'news'
+  | 'faq'
+  | 'contact'
+  | 'patron'
+  | 'terms'
+  | 'privacy'
+  | 'source';
 
 type StaticRailLink = {
   key?: StaticPageKey;
@@ -42,6 +50,7 @@ const STATIC_RAIL_GROUPS: ReadonlyArray<ReadonlyArray<StaticRailLink>> = [
     { key: 'news', href: '/feed', labelKey: 'news.feedHeading' },
     { key: 'faq', href: '/faq', labelKey: 'faq.heading' },
     { key: 'contact', href: '/contact', labelKey: 'contact.heading' },
+    { key: 'patron', href: '/patron', labelKey: 'patron.heading' },
     { key: 'terms', href: '/terms', labelKey: 'terms.heading' },
     { key: 'privacy', href: '/privacy', labelKey: 'privacy.heading' },
   ],
@@ -107,6 +116,17 @@ export async function mountNews(root: HTMLElement): Promise<void> {
   root.classList.add('landing-page', 'news-route');
   const { buildNewsPage } = await import('./news-page.js');
   root.append(buildNav(locale), buildStaticPageLayout('news', buildNewsPage(locale), locale));
+}
+
+export async function mountPatron(root: HTMLElement): Promise<void> {
+  const locale = currentLocale();
+  root.replaceChildren();
+  root.classList.add('landing-page', 'patron-route');
+  document.title = `${t('patron.heading', {}, locale)} · Mistboard`;
+  const { buildPatronPage } = await import('./patron-page.js');
+  // Focused, hero-led layout (no static side rail) to match the donate page
+  // shape; the footer + other pages' rails still link here.
+  root.append(buildNav(locale), buildPatronPage(locale));
 }
 
 export function mountContact(root: HTMLElement): void {

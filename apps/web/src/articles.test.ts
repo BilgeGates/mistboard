@@ -616,7 +616,16 @@ describe('rules variant sidebar', () => {
     expect(pageText).toContain('Repetition follows xiangqi long-beat rules');
     const jieqiSvgs = [...page.querySelectorAll('.article-figure .xq-article-svg')];
     expect(jieqiSvgs.length).toBeGreaterThanOrEqual(4);
-    expect(jieqiSvgs.every((svg) => svg.getAttribute('data-xq-layout') === 'pair')).toBe(true);
+    // The shuffled-start board is the section hero (a single enlarged board,
+    // matching the Xiangqi page); the movement diagrams are paired boards.
+    const jieqiHero = jieqiSvgs.filter((svg) => svg.classList.contains('xq-article-svg--hero'));
+    expect(jieqiHero).toHaveLength(1);
+    expect(jieqiHero[0]!.getAttribute('data-xq-layout')).toBe('single');
+    expect(
+      jieqiSvgs
+        .filter((svg) => !svg.classList.contains('xq-article-svg--hero'))
+        .every((svg) => svg.getAttribute('data-xq-layout') === 'pair'),
+    ).toBe(true);
     const figureText = [...page.querySelectorAll('.article-figure')]
       .map((figure) => figure.textContent)
       .join('');

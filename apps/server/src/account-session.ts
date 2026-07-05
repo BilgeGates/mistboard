@@ -102,6 +102,11 @@ export function publicUser(user: persistence.UserAccount): Record<string, unknow
     accountRole: user.accountRole,
     locale: user.locale,
     dmPolicy: user.dmPolicy,
+    // Patron program: entitlement is server-derived (patron_since is only set by
+    // the Stripe webhook). isPatron drives the cosmetic badge; the client never
+    // asserts it. stripe_customer_id is intentionally NOT exposed.
+    isPatron: user.patronSince !== null,
+    patronSince: user.patronSince?.toISOString() ?? null,
   };
 }
 
