@@ -62,7 +62,7 @@ export function renderFortressXiangqiBoardSvg(
   const pieceSet = options.pieceSet ?? readStoredXiangqiPieceSet();
   const targets = options.targets ?? [];
   return `
-    <svg class="fxq-board" viewBox="0 0 ${WIDTH} ${HEIGHT}" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Fortress Xiangqi board">
+    <svg class="fxq-board" viewBox="0 0 ${WIDTH} ${HEIGHT}" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Storm the Fortress board">
       <rect class="fxq-board-bg" x="0" y="0" width="${WIDTH}" height="${HEIGHT}" rx="10"/>
       ${riverBand(perspective)}
       ${palaceBands(perspective)}
@@ -103,13 +103,30 @@ export function renderFortressXiangqiPieceInline(
 
 function gridLines(): string {
   const parts: string[] = [];
+  const left = MARGIN;
+  const right = MARGIN + (FILES - 1) * CELL;
+  const top = MARGIN;
+  const bottom = MARGIN + (RANKS - 1) * CELL;
+  // Horizontal lines span the full width, including the two banks that bound
+  // the river (grid rows 3 and 4 on an 8-rank board).
   for (let r = 0; r < RANKS; r += 1) {
     const y = MARGIN + r * CELL;
-    parts.push(`<line x1="${MARGIN}" y1="${y}" x2="${MARGIN + (FILES - 1) * CELL}" y2="${y}"/>`);
+    parts.push(`<line x1="${left}" y1="${y}" x2="${right}" y2="${y}"/>`);
   }
+  // The river band occupies the cell-row between grid rows 3 and 4 (the middle
+  // of the board, perspective-independent). Interior vertical lines break at
+  // the river as on a real xiangqi board; only the two outer files run
+  // edge-to-edge, forming the continuous board frame.
+  const riverTop = MARGIN + 3 * CELL;
+  const riverBottom = MARGIN + 4 * CELL;
   for (let f = 0; f < FILES; f += 1) {
     const x = MARGIN + f * CELL;
-    parts.push(`<line x1="${x}" y1="${MARGIN}" x2="${x}" y2="${MARGIN + (RANKS - 1) * CELL}"/>`);
+    if (f === 0 || f === FILES - 1) {
+      parts.push(`<line x1="${x}" y1="${top}" x2="${x}" y2="${bottom}"/>`);
+    } else {
+      parts.push(`<line x1="${x}" y1="${top}" x2="${x}" y2="${riverTop}"/>`);
+      parts.push(`<line x1="${x}" y1="${riverBottom}" x2="${x}" y2="${bottom}"/>`);
+    }
   }
   return parts.join('');
 }
@@ -391,7 +408,7 @@ export function installFortressXiangqiBoardStyles(): void {
       fill: var(--fxq-board-bg, #d9bd82);
     }
     .fxq-river {
-      fill: rgba(90, 160, 214, 0.16);
+      fill: #b8d4e8;
     }
     .fxq-palace-band {
       fill: var(--fxq-palace-band, rgba(255, 255, 255, 0.17));

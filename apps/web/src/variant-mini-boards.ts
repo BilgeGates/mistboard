@@ -955,8 +955,8 @@ export const VARIANT_MINIS: readonly VariantMiniDef[] = [
   },
   {
     id: 'fortress-xiangqi',
-    label: 'Fortress Xiangqi',
-    shortLabel: 'FTX',
+    label: 'Storm the Fortress',
+    shortLabel: 'STF',
     accent: '#b45309',
     blurb: 'Xiangqi with a pocket: opposite-corner palaces, crazyhouse drops, and the Treasure.',
     family: 'xiangqi',

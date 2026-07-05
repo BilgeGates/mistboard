@@ -80,7 +80,7 @@ function boardRow(items: Array<{ label: string; svg: string }>, maxWidth: number
     return label + positioned;
   });
   return responsive(
-    `<svg viewBox="0 0 ${totalW} ${totalH}" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Fortress Xiangqi movement diagram">${parts.join('')}</svg>`,
+    `<svg viewBox="0 0 ${totalW} ${totalH}" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Storm the Fortress movement diagram">${parts.join('')}</svg>`,
     maxWidth,
   );
 }

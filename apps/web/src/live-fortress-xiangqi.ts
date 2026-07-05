@@ -60,16 +60,16 @@ let forfeitDeadline: number | null = null;
 let lastStatusType: string | null = null;
 
 const fortressWebTenant: WebVariantTenant<FortressXiangqiColor> = {
-  displayName: 'Fortress Xiangqi',
+  displayName: 'Storm the Fortress',
   colors: ['red', 'black'],
   isColor: isFortressColor,
   oppositeColor: (color) => (color === 'red' ? 'black' : 'red'),
   enabled: fortressXiangqiEnabled,
   reviewUrl: (roomId) => `/fortress-xiangqi/game/${encodeURIComponent(roomId)}`,
   reasonPhrase: fortressReasonPhrase,
-  disabledTitle: 'Fortress Xiangqi disabled',
+  disabledTitle: 'Storm the Fortress disabled',
   disabledBody: 'This client build has the room renderer off.',
-  rejectedBody: 'This Fortress Xiangqi room is not active. Create a new invite to start a game.',
+  rejectedBody: 'This Storm the Fortress room is not active. Create a new invite to start a game.',
   spectatorBody: 'Watching the full board.',
   selectInstruction: 'Select a piece, or select a reserve and then a drop square.',
 };
@@ -224,7 +224,7 @@ function renderCheckStatus(liveRefs: LiveRefs, view: FortressXiangqiPlayerView |
 
 function renderBoard(liveRefs: LiveRefs, view: FortressXiangqiPlayerView | null): void {
   liveRefs.board.className = 'board fortress-xiangqi-live-board';
-  liveRefs.board.setAttribute('aria-label', 'Fortress Xiangqi board');
+  liveRefs.board.setAttribute('aria-label', 'Storm the Fortress board');
   if (!view) {
     liveRefs.board.replaceChildren();
     return;

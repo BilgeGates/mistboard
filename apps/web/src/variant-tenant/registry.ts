@@ -699,7 +699,7 @@ const WEB_VARIANT_TENANTS: readonly WebVariantTenant[] = [
     gameSpecId: FORTRESS_XIANGQI_SPEC_ID,
     roomIdPrefix: 'fxq_',
     enabled: fortressXiangqiEnabled,
-    pageTitle: 'Fortress Xiangqi',
+    pageTitle: 'Storm the Fortress',
     gameRouteBase: '/fortress-xiangqi/game',
     mountPostgame: (root, roomId) =>
       import('../fortress-xiangqi-postgame.js').then(({ mountFortressXiangqiPostgame }) =>

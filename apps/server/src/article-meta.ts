@@ -67,7 +67,7 @@ export const ARTICLE_META: Record<
       'Mini Xiangqi with reserves: captured pieces enter your hand, then drop back outside the enemy palace.',
   },
   'fortress-xiangqi': {
-    title: 'Fortress Xiangqi Rules',
+    title: 'Storm the Fortress Rules',
     kind: 'rules',
     description:
       'Xiangqi with a pocket: faithful piece movement plus crazyhouse-style drops and the new Treasure piece.',

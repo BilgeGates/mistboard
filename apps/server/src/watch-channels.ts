@@ -38,9 +38,9 @@ const DARK_CHESS_CHANNEL: WatchChannel = {
 // matches the play menu / leaderboard / rules rail. Every watch channel id equals
 // its spec id, so the spec order IS the channel order (dark-draft960 has no
 // channel and is simply never matched). The registry's Map iteration order tracks
-// tenant import order, not the rail's order, so derived channels are sorted by
-// this list; dark-chess always leads as the hardcoded default, and ids absent
-// here sort to the end.
+// tenant import order, not the rail's order, so channels are sorted by this list;
+// dark-chess sorts to its canonical position like any other id (ids absent here
+// sort to the end), and remains the default landing channel via its `default`.
 const WATCH_CHANNEL_ORDER: readonly string[] = CANONICAL_VARIANT_ORDER;
 
 function channelOrderIndex(channelId: string): number {
@@ -65,7 +65,6 @@ function channelsDerivedFromRegistry(): WatchChannel[] {
       legacyVariants: watch.legacyVariants,
     });
   }
-  channels.sort((a, b) => channelOrderIndex(a.id) - channelOrderIndex(b.id));
   return channels;
 }
 
@@ -83,7 +82,13 @@ function channelEnabled(channel: WatchChannel): boolean {
 }
 
 export function listWatchChannels(): readonly WatchChannel[] {
-  return [DARK_CHESS_CHANNEL, ...channelsDerivedFromRegistry()].filter(channelEnabled);
+  // Dark chess sorts into its canonical rail position alongside the derived
+  // channels rather than always leading — the xiangqi pivot deranks chess, so
+  // the watch rail must match the play menu / rules rail order. It stays the
+  // default landing channel (see defaultWatchChannel) regardless of position.
+  const all = [DARK_CHESS_CHANNEL, ...channelsDerivedFromRegistry()];
+  all.sort((a, b) => channelOrderIndex(a.id) - channelOrderIndex(b.id));
+  return all.filter(channelEnabled);
 }
 
 export function defaultWatchChannel(): WatchChannel {

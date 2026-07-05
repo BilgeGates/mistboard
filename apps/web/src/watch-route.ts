@@ -463,6 +463,7 @@ function renderWatchStatus(root: HTMLElement, feed: WatchFeed | null): void {
 // rows stay grid-aligned.
 const CHANNEL_MINI_BY_ID: Record<string, VariantMiniId> = {
   'dark-chess': 'dark-chess',
+  xiangqi: 'xiangqi',
   'dark-xiangqi': 'dark-xiangqi',
   'mini-xiangqi': 'mini-xiangqi',
   'dark-mini-xiangqi': 'dark-mini-xiangqi',

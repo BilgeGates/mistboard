@@ -414,7 +414,7 @@ export const GAME_SPECS: readonly GameSpec[] = [
     // promoted to a live public variant. Runtime kill-switch is the server flag
     // MISTBOARD_FORTRESS_XIANGQI_ENABLED (flip on to open room creation).
     id: FORTRESS_XIANGQI_SPEC_ID,
-    publicName: 'Fortress Xiangqi',
+    publicName: 'Storm the Fortress',
     family: 'xiangqi',
     board: 'xiangqi-7x8',
     movement: 'fortress-xiangqi',

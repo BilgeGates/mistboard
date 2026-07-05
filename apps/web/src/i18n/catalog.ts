@@ -480,7 +480,7 @@ const EN = {
   'variant.darkMiniXiangqi.name': 'Dark Mini Xiangqi',
   'variant.xiangqi.name': 'Xiangqi',
   'variant.darkXiangqi.name': 'Dark Xiangqi',
-  'variant.fortressXiangqi.name': 'Fortress Xiangqi',
+  'variant.fortressXiangqi.name': 'Storm the Fortress',
   'variant.darkChess.name': 'Dark Chess',
   'variant.darkDraft960.name': 'Dark Draft960',
   'variant.darkCrazyhouse.name': 'Dark Crazyhouse',

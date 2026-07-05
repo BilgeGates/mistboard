@@ -143,7 +143,7 @@ describe('profile ratings rail', () => {
     expect(root.textContent).not.toContain('Crossroads Chess');
     // Xiangqi pivot: Drop Mini is off the grids; Fortress is an always-on ladder.
     expect(root.textContent).not.toContain('Drop Mini Xiangqi');
-    expect(root.textContent).toContain('Fortress Xiangqi');
+    expect(root.textContent).toContain('Storm the Fortress');
     expect(root.textContent).toContain('Human blitz ladders');
     // 4 rated ladders (Dark Chess + always-on Jungle, Flip Jungle, Fortress) + the
     // Active players panel.
@@ -243,7 +243,7 @@ describe('profile ratings rail', () => {
       (el) => el.textContent,
     );
     expect(titles[0]).toBe('Active players');
-    expect(titles[1]).toBe('Fortress Xiangqi');
+    expect(titles[1]).toBe('Storm the Fortress');
     const panels = [...root.querySelectorAll('.leaderboard-panel')];
     expect(panels[0]?.textContent).toContain('12');
     expect(panels[2]?.textContent).toContain('No rated games yet.');

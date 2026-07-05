@@ -5,7 +5,10 @@
 // proportion. Out of scope: chess-family sprite boards (inset is baked into
 // the sprite assets and chessground CSS) and shogi koma (traditional near-fill
 // at 90%).
-export const TOKEN_PIECE_RATIO = 0.83;
+// 2026-07-04: bumped 0.83 -> 0.90. The discs read too small with too much dead
+// space between them on the xiangqi + jungle boards; 0.90 tightens the gaps
+// while keeping a hair of breathing room around each token.
+export const TOKEN_PIECE_RATIO = 0.9;
 
 export function tokenPieceSize(cell: number): number {
   return Math.round(cell * TOKEN_PIECE_RATIO);
