@@ -14,6 +14,8 @@ import {
   preloadEngine,
 } from './ceval.js';
 import './engine-panel.css';
+import type { EvalBar } from './eval-bar.js';
+import { formatEval, winProbRed } from './eval-format.js';
 
 export interface EnginePanel {
   el: HTMLElement;
@@ -28,6 +30,8 @@ export interface EnginePanelOptions {
   maxDepth?: number;
   /** Prettify a PV move for display; defaults to the raw engine UCI. */
   formatPvMove?: (uci: string) => string;
+  /** Optional on-board eval bar to drive in lockstep with the panel. */
+  evalBar?: EvalBar;
 }
 
 type Side = 'red' | 'black';
@@ -93,6 +97,7 @@ export function createEnginePanel(opts: EnginePanelOptions): EnginePanel {
     meta.textContent = '';
     lines.replaceChildren();
     setGauge(null, null);
+    opts.evalBar?.reset();
   }
 
   function render(update: CevalUpdate, side: Side): void {
@@ -101,6 +106,7 @@ export function createEnginePanel(opts: EnginePanelOptions): EnginePanel {
       const { cp, mate } = redPov(best, side);
       evalLabel.textContent = formatEval(cp, mate);
       setGauge(cp, mate);
+      opts.evalBar?.setEval(cp, mate);
     }
     meta.textContent = update.depth
       ? `${CEVAL_ENGINE_NAME} · depth ${update.depth}${update.nps ? ` · ${formatKnps(update.nps)}` : ''}`
@@ -113,6 +119,7 @@ export function createEnginePanel(opts: EnginePanelOptions): EnginePanel {
     const moves = currentMoves;
     const side = sideToMove(moves);
     meta.textContent = `${CEVAL_ENGINE_NAME} · loading…`;
+    opts.evalBar?.setLoading();
     void handle!
       .evaluate({
         movesUci: moves,
@@ -193,21 +200,6 @@ function redPov(line: CevalLine, side: Side): { cp: number | null; mate: number 
     cp: line.scoreCp == null ? null : line.scoreCp * sign,
     mate: line.mate == null ? null : line.mate * sign,
   };
-}
-
-function formatEval(cp: number | null, mate: number | null): string {
-  if (mate != null) return `${mate > 0 ? '#' : '-#'}${Math.abs(mate)}`;
-  if (cp == null) return '–';
-  const v = cp / 100;
-  return `${v > 0 ? '+' : ''}${v.toFixed(1)}`;
-}
-
-// Rough logistic map from centipawns to Red win probability for the gauge. The
-// scale constant is a display heuristic, not a calibrated model.
-function winProbRed(cp: number | null, mate: number | null): number {
-  if (mate != null) return mate > 0 ? 1 : 0;
-  if (cp == null) return 0.5;
-  return 1 / (1 + Math.exp(-cp / 320));
 }
 
 function formatKnps(nps: number): string {

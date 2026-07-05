@@ -1,0 +1,79 @@
+/* On-board eval bar. See review/engine/eval-bar.ts. Absolutely positioned inside
+   the board host (.review-board-host, position: relative); its top/left/height are
+   set by alignTo() to hug the board's measured rect, so it can't drift when the
+   board is narrower than its stage slot. */
+.review-board-host {
+  position: relative;
+}
+.review-eval-bar {
+  position: absolute;
+  width: 20px;
+  border-radius: 4px;
+  overflow: hidden;
+  /* Dark track = Black's share of the bar. */
+  background: #34302e;
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.15);
+}
+/* Equality midline. */
+.review-eval-bar::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 50%;
+  height: 1px;
+  background: rgba(0, 0, 0, 0.35);
+  z-index: 2;
+}
+/* Light fill = Red's share, growing from the bottom (Red's default end). */
+.review-eval-bar__fill {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 50%;
+  background: #f2ede3;
+  transition: height 0.18s ease;
+}
+/* Flipped board → Red sits at the top, so the fill grows from the top. */
+.review-eval-bar--flipped .review-eval-bar__fill {
+  bottom: auto;
+  top: 0;
+}
+.review-eval-bar__label {
+  position: absolute;
+  left: 0;
+  right: 0;
+  z-index: 3;
+  padding: 2px 0;
+  text-align: center;
+  font-size: 9px;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.02em;
+  line-height: 1;
+  /* The label rides the LEADING side's fill so it's always over a contrasting
+     block. Default (Black ahead, upright): dark track dominates the top → label
+     at top, light text. */
+  top: 0;
+  bottom: auto;
+  color: #f2ede3;
+}
+/* Red ahead (upright): light fill dominates the bottom → label at bottom, dark text. */
+.review-eval-bar--red-ahead .review-eval-bar__label {
+  top: auto;
+  bottom: 0;
+  color: #2b2724;
+}
+/* Flipped board swaps which end each side's fill occupies. */
+.review-eval-bar--flipped .review-eval-bar__label {
+  top: auto;
+  bottom: 0;
+}
+.review-eval-bar--flipped.review-eval-bar--red-ahead .review-eval-bar__label {
+  top: 0;
+  bottom: auto;
+}
+.review-eval-bar--loading .review-eval-bar__fill {
+  opacity: 0.6;
+}

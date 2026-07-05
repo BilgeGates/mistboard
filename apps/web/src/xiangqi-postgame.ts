@@ -18,6 +18,7 @@ import './xiangqi-postgame.css';
 import { xiangqiEnabled } from './feature-flags.js';
 import { renderXiangqiBoardSvg } from './live-xiangqi.js';
 import { createEnginePanel } from './review/engine/engine-panel.js';
+import { createEvalBar } from './review/engine/eval-bar.js';
 import { createMoveList, type MoveListEntry } from './review/move-list.js';
 import { mountReviewLayout } from './review/review-layout.js';
 import { buildNav } from './site-shell.js';
@@ -111,14 +112,16 @@ export function xiangqiPostgameApiUrl(roomId: string): string {
 function renderPostgame(root: HTMLElement, postgame: XiangqiPostgameResponse): void {
   const entry = postgameViewEntries(postgame)[0]!;
   const boardWrap = document.createElement('section');
-  boardWrap.className = 'dxq-postgame__board-wrap';
-  const heading = document.createElement('h2');
-  heading.className = 'dxq-postgame__board-title';
-  heading.textContent = entry.label;
+  // review-board-host makes the wrap the positioning context for the on-board eval
+  // bar (aligned to the board's rect via observe()). No board title (lichess has
+  // none); the board carries its own aria-label.
+  boardWrap.className = 'dxq-postgame__board-wrap review-board-host';
   const board = document.createElement('div');
   board.className = 'dxq-postgame__board xiangqi-live-board';
-  board.setAttribute('aria-label', `${entry.label} final Xiangqi board`);
-  boardWrap.append(heading, board);
+  board.setAttribute('aria-label', 'Xiangqi board');
+  const evalBar = createEvalBar();
+  boardWrap.append(board, evalBar.el);
+  evalBar.observe(board);
 
   const moveList = createMoveList(xiangqiMoveEntries(postgame), { title: 'Moves' });
 
@@ -130,6 +133,7 @@ function renderPostgame(root: HTMLElement, postgame: XiangqiPostgameResponse): v
   const enginePanel = createEnginePanel({
     variant: 'xiangqi',
     formatPvMove: formatXiangqiEngineMove,
+    evalBar,
   });
   let lastEnginePly = -1;
 
@@ -151,6 +155,7 @@ function renderPostgame(root: HTMLElement, postgame: XiangqiPostgameResponse): v
       const orientation: XiangqiColor = flipped ? 'black' : 'red';
       const view = postgameViewAtPly(postgame, 'truth', ply) ?? entry.view;
       board.innerHTML = renderXiangqiBoardSvg(view, orientation);
+      evalBar.setFlipped(flipped);
       // Re-evaluate on ply change only (not on flip, which keeps the position).
       if (ply !== lastEnginePly) {
         lastEnginePly = ply;
