@@ -11,6 +11,7 @@ import './dark-xiangqi-postgame.css';
 import './xiangqi-postgame.css';
 import { xiangqiEnabled } from './feature-flags.js';
 import { renderXiangqiBoardSvg } from './live-xiangqi.js';
+import { createMoveList, type MoveListEntry } from './review/move-list.js';
 import { mountReviewLayout } from './review/review-layout.js';
 import { buildNav } from './site-shell.js';
 import { createXiangqiPlayAgainRoom } from './xiangqi-room-actions.js';
@@ -112,6 +113,7 @@ function renderPostgame(root: HTMLElement, postgame: XiangqiPostgameResponse): v
   board.setAttribute('aria-label', `${entry.label} final Xiangqi board`);
   boardWrap.append(heading, board);
 
+  const moveList = createMoveList(xiangqiMoveEntries(postgame), { title: 'Moves' });
   root.replaceChildren(buildNav());
   mountReviewLayout(root, {
     pageClassName: 'xiangqi-review',
@@ -120,7 +122,7 @@ function renderPostgame(root: HTMLElement, postgame: XiangqiPostgameResponse): v
     summary: `${resultLabel(postgame.game.result)} by ${labelize(postgame.game.termination)} · ${postgame.game.plyCount} plies`,
     actions: postgameActions(postgame),
     details: detailsPanel(postgame),
-    moves: timelinePanel(postgame),
+    moves: moveList.el,
     boards: [{ key: 'truth', el: boardWrap, tier: 'primary' }],
     boardAspect: 552 / 612,
     boardCols: 9,
@@ -129,6 +131,9 @@ function renderPostgame(root: HTMLElement, postgame: XiangqiPostgameResponse): v
       const orientation: XiangqiColor = flipped ? 'black' : 'red';
       const view = postgameViewAtPly(postgame, 'truth', ply) ?? entry.view;
       board.innerHTML = renderXiangqiBoardSvg(view, orientation);
+    },
+    renderMoves({ ply }, jump) {
+      moveList.update(ply, jump);
     },
   });
 }
@@ -220,52 +225,16 @@ function detailsPanel(postgame: XiangqiPostgameResponse): HTMLElement {
   return panel;
 }
 
-function timelinePanel(postgame: XiangqiPostgameResponse): HTMLElement {
-  const panel = document.createElement('section');
-  panel.className = 'dxq-postgame__panel';
-  const heading = document.createElement('h2');
-  heading.textContent = 'Moves';
-  const list = document.createElement('ol');
-  list.className = 'dxq-postgame__moves';
-  const moves = postgame.timeline.filter((entry) => entry.type === 'move-played' && entry.move);
-  if (moves.length === 0) {
-    const empty = document.createElement('li');
-    empty.className = 'dxq-postgame__move';
-    empty.textContent = 'No moves';
-    list.append(empty);
-  } else {
-    // Group plies into move rows: one numbered row per Red+Black pair (Red moves
-    // first in xiangqi). Fall back to array index / ply parity when the wire
-    // entry omits ply or color, so the pairing stays robust.
-    const rows = new Map<number, { red?: string; black?: string }>();
-    moves.forEach((entry, index) => {
-      const ply = entry.ply ?? index + 1;
-      const color = entry.color ?? (ply % 2 === 1 ? 'red' : 'black');
-      const moveNumber = Math.max(1, Math.ceil(ply / 2));
-      const row = rows.get(moveNumber) ?? {};
-      const text = `${entry.move!.from}-${entry.move!.to}`;
-      if (color === 'black') row.black = text;
-      else row.red = text;
-      rows.set(moveNumber, row);
-    });
-    for (const [moveNumber, row] of [...rows.entries()].sort((a, b) => a[0] - b[0])) {
-      const item = document.createElement('li');
-      item.className = 'dxq-postgame__move';
-      const number = document.createElement('span');
-      number.className = 'dxq-postgame__move-number';
-      number.textContent = String(moveNumber);
-      const red = document.createElement('span');
-      red.className = 'dxq-postgame__move-ply dxq-postgame__move-ply--red';
-      red.textContent = row.red ?? '';
-      const black = document.createElement('span');
-      black.className = 'dxq-postgame__move-ply dxq-postgame__move-ply--black';
-      black.textContent = row.black ?? '';
-      item.append(number, red, black);
-      list.append(item);
-    }
-  }
-  panel.append(heading, list);
-  return panel;
+// Flatten the timeline into the shared move-list entries (Red moves first in
+// xiangqi; the ply is the position you land on by clicking the move). Falls back
+// to array index when the wire entry omits ply, so the numbering stays robust.
+function xiangqiMoveEntries(postgame: XiangqiPostgameResponse): MoveListEntry[] {
+  return postgame.timeline
+    .filter((entry) => entry.type === 'move-played' && entry.move)
+    .map((entry, index) => ({
+      ply: entry.ply ?? index + 1,
+      label: `${entry.move!.from}-${entry.move!.to}`,
+    }));
 }
 
 function detailRow(label: string, value: string): HTMLElement {

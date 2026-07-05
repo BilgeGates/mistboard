@@ -1,0 +1,96 @@
+/* Shared clickable review move list. See review/move-list.ts. */
+.review-move-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-height: 0;
+  padding: 12px;
+  border: 1px solid var(--site-border);
+  border-radius: var(--site-radius, 10px);
+  background: var(--site-panel, var(--site-surface));
+}
+.review-move-list__title {
+  margin: 0;
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--site-muted);
+}
+.review-move-list__rows {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  /* Bounded so a long game scrolls WITHIN the list, keeping the scrubber and
+     summary below it on-screen rather than pushed off the fold. */
+  max-height: min(52vh, 560px);
+  overflow-y: auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+.review-move-list__row {
+  display: grid;
+  grid-template-columns: 2.2em 1fr 1fr;
+  align-items: stretch;
+  border-radius: 4px;
+}
+.review-move-list__row:nth-child(odd) {
+  background: color-mix(in srgb, var(--site-muted) 6%, transparent);
+}
+.review-move-list__number {
+  display: flex;
+  align-items: center;
+  padding-left: 4px;
+  font-size: 12px;
+  color: var(--site-muted);
+}
+.review-move-list__empty {
+  font-size: 13px;
+  color: var(--site-muted);
+  padding: 4px;
+}
+.review-move-list__move {
+  appearance: none;
+  border: 0;
+  background: transparent;
+  text-align: left;
+  padding: 4px 6px;
+  border-radius: 4px;
+  font: inherit;
+  font-size: 13px;
+  color: var(--site-text);
+  cursor: pointer;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.review-move-list__move:hover {
+  background: var(--site-surface);
+}
+.review-move-list__move--current {
+  background: var(--site-accent, #3b73c4);
+  color: #fff;
+  font-weight: 700;
+}
+.review-move-list__move--current:hover {
+  background: var(--site-accent, #3b73c4);
+}
+.review-move-list__suffix {
+  color: var(--site-muted);
+}
+.review-move-list__move--current .review-move-list__suffix {
+  color: inherit;
+}
+/* Engine-judgment colour hooks (filled by the analysis phases). */
+.review-move--blunder {
+  color: #c0392b;
+  font-weight: 700;
+}
+.review-move--mistake {
+  color: #d68910;
+  font-weight: 700;
+}
+.review-move--inaccuracy {
+  color: #b7950b;
+}
