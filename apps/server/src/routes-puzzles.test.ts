@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import type { IncomingMessage, ServerResponse } from 'node:http';
 import test from 'node:test';
-import { FORTRESS_XIANGQI_PUZZLES, MINI_XIANGQI_PUZZLES } from '@mistboard/game';
+import { FORTRESS_XIANGQI_PUZZLES, JUNGLE_PUZZLES, MINI_XIANGQI_PUZZLES } from '@mistboard/game';
 import type { HttpApiContext } from './routes/lib.js';
 import { tryHandle } from './routes/puzzles.js';
 
@@ -63,7 +63,10 @@ test('puzzle list returns public Mini and Drop Mini summaries without solutions'
   };
 
   assert.equal(response.status, 200);
-  assert.equal(body.puzzles.length, MINI_XIANGQI_PUZZLES.length + FORTRESS_XIANGQI_PUZZLES.length);
+  assert.equal(
+    body.puzzles.length,
+    MINI_XIANGQI_PUZZLES.length + FORTRESS_XIANGQI_PUZZLES.length + JUNGLE_PUZZLES.length,
+  );
   assert.deepEqual(
     body.puzzles.slice(0, 6).map((puzzle) => puzzle.variant),
     [
@@ -141,6 +144,24 @@ test('puzzle list filters to Fortress Xiangqi puzzles', async () => {
   );
 });
 
+test('puzzle list filters to Jungle puzzles', async () => {
+  const response = await route('/api/puzzles?variant=jungle');
+  const body = JSON.parse(response.body) as {
+    puzzles: Array<{ variant: string; solution?: unknown }>;
+  };
+
+  assert.equal(response.status, 200);
+  assert.equal(body.puzzles.length, JUNGLE_PUZZLES.length);
+  assert.equal(
+    body.puzzles.every((puzzle) => puzzle.variant === 'jungle'),
+    true,
+  );
+  assert.equal(
+    body.puzzles.every((puzzle) => puzzle.solution === undefined),
+    true,
+  );
+});
+
 test('puzzle list rejects unsupported variants', async () => {
   const response = await route('/api/puzzles?variant=banqi');
 
@@ -169,6 +190,32 @@ test('Fortress puzzle attempts solve the mined mate and stay solution-hidden', a
     winner: 'red',
     reason: 'checkmate',
   });
+  assert.equal(body.attempt.solution, undefined);
+});
+
+test('Jungle puzzle attempts solve the mined forced win and stay solution-hidden', async () => {
+  // Derive from the corpus so the test tracks regeneration. Submit only the solver
+  // moves (even indices); the server auto-applies the scripted defender replies.
+  const puzzle = JUNGLE_PUZZLES.find((p) => p.goal.type === 'win');
+  assert.ok(puzzle, 'expected at least one forced-win Jungle puzzle');
+  const solverMoves = puzzle.solution.filter((_, index) => index % 2 === 0);
+  const response = await route(`/api/puzzles/${puzzle.id}/attempt`, 'POST', {
+    moves: solverMoves,
+  });
+  const body = JSON.parse(response.body) as {
+    attempt: {
+      ok: boolean;
+      complete: boolean;
+      state: { status: { type: string; winner?: string; reason?: string } };
+      solution?: unknown;
+    };
+  };
+
+  assert.equal(response.status, 200);
+  assert.equal(body.attempt.ok, true);
+  assert.equal(body.attempt.complete, true);
+  assert.equal(body.attempt.state.status.type, 'finished');
+  assert.equal(body.attempt.state.status.winner, puzzle.goal.winner);
   assert.equal(body.attempt.solution, undefined);
 });
 

@@ -63,9 +63,9 @@ describe('puzzles route', () => {
 
     expect(root.querySelector('.site-section-heading')?.textContent).toBe('Puzzles');
     expect(root.querySelectorAll('.puzzle-list-item')).toHaveLength(0);
-    // Only Fortress Xiangqi is surfaced, so the variant picker is hidden. A direct
-    // deep link into a Drop Mini puzzle still resolves and renders.
-    expect(root.querySelector('[data-puzzle-variant]')).toBeNull();
+    // The variant picker now surfaces Fortress + Jungle, so it is shown. A direct
+    // deep link into a Drop Mini puzzle (not in the picker) still resolves + renders.
+    expect(root.querySelector('[data-puzzle-variant]')).not.toBeNull();
     expect(root.querySelector('.puzzles-sidebar')?.textContent).toContain('0 solved of 1');
     expect(root.querySelector('.puzzles-sidebar')?.textContent).not.toContain('All puzzles');
     expect(root.querySelector('.puzzles-sidebar')?.textContent).not.toContain(' / ');

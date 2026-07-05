@@ -15,9 +15,17 @@ import {
   type FortressXiangqiMove,
   type FortressXiangqiPlayerView,
   type FortressXiangqiSquare,
+  applyJungleMove,
   getDropMiniXiangqiPlayerView,
   getFortressXiangqiPlayerView,
+  getJunglePlayerView,
   getMiniXiangqiOpenPlayerView,
+  JUNGLE_SPEC_ID,
+  type JungleColor,
+  type JungleGameState,
+  type JungleMove,
+  type JunglePlayerView,
+  type JungleSquare,
   MINI_XIANGQI_SPEC_ID,
   type MiniXiangqiColor,
   type MiniXiangqiGameState,
@@ -47,6 +55,12 @@ import {
   fortressXiangqiMoveLabel,
 } from './fortress-xiangqi-view.js';
 import {
+  JUNGLE_BOARD_VIEW,
+  junglePieceGhostSvg,
+  renderJungleBoardSvg,
+} from './jungle-render.js';
+import { initLiveSound, playSound } from './live-sound.js';
+import {
   installMiniXiangqiBoardStyles,
   MINI_XIANGQI_PIECE_PX,
   miniXiangqiPieceGhostSvg,
@@ -61,10 +75,11 @@ import { installHandDrag } from './variant-tenant/hand-drag.js';
 type PuzzleVariant =
   | typeof MINI_XIANGQI_SPEC_ID
   | typeof DROP_MINI_XIANGQI_SPEC_ID
-  | typeof FORTRESS_XIANGQI_SPEC_ID;
+  | typeof FORTRESS_XIANGQI_SPEC_ID
+  | typeof JUNGLE_SPEC_ID;
 type PuzzleVariantFilter = PuzzleVariant;
-type PuzzleMove = MiniXiangqiMove | DropMiniXiangqiMove | FortressXiangqiMove;
-type PuzzleColor = MiniXiangqiColor | FortressXiangqiColor;
+type PuzzleMove = MiniXiangqiMove | DropMiniXiangqiMove | FortressXiangqiMove | JungleMove;
+type PuzzleColor = MiniXiangqiColor | FortressXiangqiColor | JungleColor;
 
 type PuzzleSummary = {
   id: string;
@@ -73,6 +88,7 @@ type PuzzleSummary = {
   sideToMove: PuzzleColor | null;
   goal:
     | { type: 'checkmate'; winner?: PuzzleColor }
+    | { type: 'win'; winner?: PuzzleColor }
     | { type: 'winning-advantage'; winner?: PuzzleColor; centipawns?: number };
   themes: string[];
   solutionPlyCount: number;
@@ -93,8 +109,21 @@ type FortressPuzzleDetail = PuzzleSummary & {
   initial: FortressXiangqiGameState;
 };
 
-type PuzzleDetail = MiniPuzzleDetail | DropPuzzleDetail | FortressPuzzleDetail;
-type PuzzleState = MiniXiangqiGameState | DropMiniXiangqiGameState | FortressXiangqiGameState;
+type JunglePuzzleDetail = PuzzleSummary & {
+  variant: typeof JUNGLE_SPEC_ID;
+  initial: JungleGameState;
+};
+
+type PuzzleDetail =
+  | MiniPuzzleDetail
+  | DropPuzzleDetail
+  | FortressPuzzleDetail
+  | JunglePuzzleDetail;
+type PuzzleState =
+  | MiniXiangqiGameState
+  | DropMiniXiangqiGameState
+  | FortressXiangqiGameState
+  | JungleGameState;
 
 type PuzzleAttempt =
   | {
@@ -122,9 +151,9 @@ type PuzzleSession = {
   playedMoves: PuzzleMove[];
   solverMoves: PuzzleMove[];
   viewPly: number;
-  selectedSquare: MiniXiangqiSquare | FortressXiangqiSquare | null;
+  selectedSquare: MiniXiangqiSquare | FortressXiangqiSquare | JungleSquare | null;
   selectedDrop: DropMiniXiangqiDropRole | FortressXiangqiDropRole | null;
-  draggingFrom: MiniXiangqiSquare | FortressXiangqiSquare | null;
+  draggingFrom: MiniXiangqiSquare | FortressXiangqiSquare | JungleSquare | null;
   feedback: { kind: FeedbackKind; text: string };
   submitting: boolean;
 };
@@ -165,10 +194,14 @@ type PuzzleAttemptRating = {
 // module singletons the free-function attempt path can reach without threading.
 let puzzleRatedPref = true;
 let onAttemptRating: ((rating: PuzzleAttemptRating) => void) | null = null;
-// Only Fortress Xiangqi is surfaced on the puzzle page for now. Mini / Drop Mini
-// puzzles stay in the corpus + API (deep links still resolve server-side) but are
-// hidden from the selector and default view. Re-add them here to unhide.
-const PUZZLE_VARIANT_FILTERS: readonly PuzzleVariantFilter[] = [FORTRESS_XIANGQI_SPEC_ID];
+// Variants surfaced in the Settings variant picker (order = display order; the
+// first is the default view). Fortress Xiangqi is the flagship; Jungle is offered
+// alongside it. Mini / Drop Mini stay in the corpus + API (deep links still resolve
+// server-side) but are hidden from the selector. Add a spec id here to unhide it.
+const PUZZLE_VARIANT_FILTERS: readonly PuzzleVariantFilter[] = [
+  FORTRESS_XIANGQI_SPEC_ID,
+  JUNGLE_SPEC_ID,
+];
 
 export async function mountPuzzles(
   root: HTMLElement,
@@ -176,6 +209,7 @@ export async function mountPuzzles(
 ): Promise<void> {
   installMiniXiangqiBoardStyles();
   installFortressXiangqiBoardStyles();
+  initLiveSound();
   setBoardFamily('xiangqi');
   root.classList.add('puzzles-page');
 
@@ -670,6 +704,10 @@ function paintPuzzleBoard(
     );
     return;
   }
+  if (session.puzzle.variant === JUNGLE_SPEC_ID) {
+    paintJunglePuzzleBoard(board, session, displayState as JungleGameState, renderSession, onSolved);
+    return;
+  }
   const { boardView, dropView } = puzzleViews(session, displayState);
   const boardTarget = dropView
     ? renderPuzzleBoardShell(board, session, dropView, renderSession, onSolved)
@@ -762,6 +800,160 @@ function paintFortressPuzzleBoard(
       );
     },
   });
+}
+
+// Jungle (Dou Shou Qi) renders on its own 7x9 board with no reserve/hand (no
+// drops), so it paints straight onto the board host — simpler than the fortress
+// path. Mirrors the live-jungle drag wiring.
+function paintJunglePuzzleBoard(
+  board: HTMLElement,
+  session: PuzzleSession,
+  state: JungleGameState,
+  renderSession: () => void,
+  onSolved: (id: string) => void,
+): void {
+  const perspective = junglePerspective(session);
+  const view = getJunglePlayerView(state, perspective);
+  board.innerHTML = renderJungleBoardSvg(view.board, {
+    perspective,
+    interactive: true,
+    selected: session.selectedSquare as JungleSquare | null,
+    targets: jungleHighlightTargets(session, view),
+    draggingFrom: session.draggingFrom as JungleSquare | null,
+    lastMove: view.lastMove ?? null,
+  });
+  installBoardDrag({
+    board,
+    // The board scales above its SVG units, so size the ghost to the on-screen cell.
+    ghostSizePx: () => {
+      const width = board.getBoundingClientRect().width;
+      return width > 0 ? width / JUNGLE_BOARD_VIEW.files : JUNGLE_BOARD_VIEW.cell;
+    },
+    onSquareClick: (square) => {
+      if (!isReplayLive(session)) return;
+      void handleJungleBoardClick(session, square as JungleSquare, renderSession, onSolved);
+    },
+    canDragFrom: (square) => canDragJunglePiece(session, square as JungleSquare),
+    ghostHtml: (square) => {
+      const piece = view.board[square as JungleSquare];
+      return piece ? junglePieceGhostSvg(piece) : null;
+    },
+    onDragStart: (from) => {
+      session.selectedSquare = from as JungleSquare;
+      session.selectedDrop = null;
+      session.draggingFrom = from as JungleSquare;
+      renderSession();
+    },
+    onDrop: (from, to) => {
+      void handleJungleBoardDrop(
+        session,
+        from as JungleSquare,
+        (to as JungleSquare | null) ?? null,
+        renderSession,
+        onSolved,
+      );
+    },
+  });
+}
+
+function junglePerspective(session: PuzzleSession): JungleColor {
+  return (session.puzzle.sideToMove as JungleColor | null) ?? 'red';
+}
+
+function jungleLiveView(session: PuzzleSession): JunglePlayerView {
+  return getJunglePlayerView(session.state as JungleGameState, junglePerspective(session));
+}
+
+function jungleMovesFrom(view: JunglePlayerView, from: JungleSquare): JungleMove[] {
+  return view.legalMoves.filter((move) => move.from === from);
+}
+
+function jungleHighlightTargets(session: PuzzleSession, view: JunglePlayerView): JungleSquare[] {
+  if (!isReplayLive(session) || !session.selectedSquare) return [];
+  return jungleMovesFrom(view, session.selectedSquare as JungleSquare).map((move) => move.to);
+}
+
+function jungleIsSelectable(
+  session: PuzzleSession,
+  view: JunglePlayerView,
+  square: JungleSquare,
+): boolean {
+  const piece = view.board[square];
+  return (
+    !!piece &&
+    piece.color === (activeTurn(session) as JungleColor) &&
+    jungleMovesFrom(view, square).length > 0
+  );
+}
+
+function canDragJunglePiece(session: PuzzleSession, square: JungleSquare): boolean {
+  if (session.submitting || session.state.status.type !== 'playing' || !isReplayLive(session)) {
+    return false;
+  }
+  return jungleIsSelectable(session, jungleLiveView(session), square);
+}
+
+async function handleJungleBoardClick(
+  session: PuzzleSession,
+  square: JungleSquare,
+  renderSession: () => void,
+  onSolved: (id: string) => void,
+): Promise<void> {
+  if (session.submitting || session.state.status.type !== 'playing' || !isReplayLive(session)) {
+    return;
+  }
+  const view = jungleLiveView(session);
+  if (session.selectedSquare) {
+    const move = jungleMovesFrom(view, session.selectedSquare as JungleSquare).find(
+      (candidate) => candidate.to === square,
+    );
+    if (move) {
+      await submitMove(session, move, renderSession, onSolved);
+      return;
+    }
+  }
+  if (jungleIsSelectable(session, view, square)) {
+    session.selectedSquare = square;
+    session.selectedDrop = null;
+    session.feedback = { kind: 'neutral', text: `${square} selected.` };
+  } else {
+    session.selectedSquare = null;
+    session.selectedDrop = null;
+    session.feedback = { kind: 'neutral', text: 'Find the best move.' };
+  }
+  renderSession();
+}
+
+async function handleJungleBoardDrop(
+  session: PuzzleSession,
+  from: JungleSquare,
+  to: JungleSquare | null,
+  renderSession: () => void,
+  onSolved: (id: string) => void,
+): Promise<void> {
+  session.draggingFrom = null;
+  if (
+    session.submitting ||
+    session.state.status.type !== 'playing' ||
+    !to ||
+    !isReplayLive(session)
+  ) {
+    session.selectedSquare = null;
+    session.selectedDrop = null;
+    renderSession();
+    return;
+  }
+  const move = jungleMovesFrom(jungleLiveView(session), from).find(
+    (candidate) => candidate.to === to,
+  );
+  if (move) {
+    await submitMove(session, move, renderSession, onSolved);
+    return;
+  }
+  session.selectedSquare = null;
+  session.selectedDrop = null;
+  session.feedback = { kind: 'neutral', text: 'Find the best move.' };
+  renderSession();
 }
 
 function renderFortressPuzzleShell(
@@ -1382,6 +1574,7 @@ async function submitMove(
   session.submitting = true;
   session.feedback = { kind: 'pending', text: 'Checking move.' };
   renderSession();
+  const beforeCount = puzzlePieceCount(session.state);
   const nextSolverMoves = [...session.solverMoves, move];
   const { attempt, rating } = await submitPuzzleAttempt(session.puzzle.id, nextSolverMoves);
   session.submitting = false;
@@ -1396,13 +1589,25 @@ async function submitMove(
     session.feedback = attempt.complete
       ? { kind: 'good', text: 'Solved.' }
       : { kind: 'good', text: 'Correct.' };
+    // Solved = victory fanfare; a correct-but-incomplete move sounds like the
+    // move it was (capture if the played line reduced piece count, else a step).
+    playSound(
+      attempt.complete ? 'win' : puzzlePieceCount(session.state) < beforeCount ? 'capture' : 'move',
+    );
   } else {
     session.state = attempt.state;
     session.viewPly = session.playedMoves.length;
     session.feedback = { kind: 'bad', text: 'Try another move.' };
+    playSound('lose');
   }
   if (rating) onAttemptRating?.(rating);
   renderSession();
+}
+
+// Occupied-square count across any puzzle variant's board (all PuzzleState shapes
+// carry a `board` square→piece map). Used only to pick a capture vs move sound.
+function puzzlePieceCount(state: PuzzleState): number {
+  return Object.keys(state.board).length;
 }
 
 function puzzleViews(
@@ -1514,11 +1719,12 @@ function parseVariantFilter(value: string): PuzzleVariantFilter {
   if (
     value === MINI_XIANGQI_SPEC_ID ||
     value === DROP_MINI_XIANGQI_SPEC_ID ||
-    value === FORTRESS_XIANGQI_SPEC_ID
+    value === FORTRESS_XIANGQI_SPEC_ID ||
+    value === JUNGLE_SPEC_ID
   ) {
     return value;
   }
-  return MINI_XIANGQI_SPEC_ID;
+  return FORTRESS_XIANGQI_SPEC_ID;
 }
 
 function variantFilterLabel(variant: PuzzleVariantFilter): string {
@@ -1591,6 +1797,9 @@ function applyPuzzleMove(
   if (variant === FORTRESS_XIANGQI_SPEC_ID) {
     return applyFortressXiangqiMove(state as FortressXiangqiGameState, move as FortressXiangqiMove);
   }
+  if (variant === JUNGLE_SPEC_ID) {
+    return applyJungleMove(state as JungleGameState, move as JungleMove);
+  }
   if (variant === DROP_MINI_XIANGQI_SPEC_ID) {
     return applyDropMiniXiangqiMove(state as DropMiniXiangqiGameState, move as DropMiniXiangqiMove);
   }
@@ -1661,12 +1870,16 @@ function saveAutoNextEnabled(enabled: boolean): void {
 
 function variantLabel(variant: PuzzleVariant): string {
   if (variant === FORTRESS_XIANGQI_SPEC_ID) return 'Fortress Xiangqi';
+  if (variant === JUNGLE_SPEC_ID) return 'Jungle';
   return variant === DROP_MINI_XIANGQI_SPEC_ID ? 'Drop Mini Xiangqi' : 'Mini Xiangqi';
 }
 
 function goalLabel(puzzle: Pick<PuzzleSummary, 'goal' | 'solutionPlyCount'>): string {
   if (puzzle.goal.type === 'checkmate') {
     return `Mate in ${Math.ceil(puzzle.solutionPlyCount / 2)}`;
+  }
+  if (puzzle.goal.type === 'win') {
+    return `Win in ${Math.ceil(puzzle.solutionPlyCount / 2)}`;
   }
   return 'Winning';
 }
@@ -1772,6 +1985,7 @@ function targetAvatarSvg(): string {
 
 function variantMiniIdForPuzzle(variant: PuzzleVariant): VariantMiniId {
   if (variant === FORTRESS_XIANGQI_SPEC_ID) return 'fortress-xiangqi';
+  if (variant === JUNGLE_SPEC_ID) return 'jungle';
   return variant === DROP_MINI_XIANGQI_SPEC_ID ? 'drop-mini-xiangqi' : 'mini-xiangqi';
 }
 
@@ -1795,6 +2009,10 @@ function puzzleGeneralIconSvg(puzzle: PuzzleDetail): string {
   const color = puzzle.sideToMove ?? 'red';
   if (puzzle.variant === FORTRESS_XIANGQI_SPEC_ID) {
     return fortressXiangqiPieceGhostSvg({ color, role: 'general' });
+  }
+  if (puzzle.variant === JUNGLE_SPEC_ID) {
+    // Jungle has no general; the elephant (top rank) stands in as the side icon.
+    return junglePieceGhostSvg({ color: color as JungleColor, role: 'elephant' });
   }
   return miniXiangqiPieceGhostSvg({ color, role: 'general' });
 }
@@ -1831,15 +2049,15 @@ function themeLabel(theme: string): string {
 }
 
 const ICON_FIRST =
-  '<svg viewBox="0 0 16 16" width="15" height="15" aria-hidden="true"><path d="M4 3.5h1.7v9H4zM13 3.5v9L6.5 8z" fill="currentColor"/></svg>';
+  '<svg viewBox="0 0 16 16" width="20" height="20" aria-hidden="true"><path d="M4 3.5h1.7v9H4zM13 3.5v9L6.5 8z" fill="currentColor"/></svg>';
 const ICON_LAST =
-  '<svg viewBox="0 0 16 16" width="15" height="15" aria-hidden="true"><path d="M10.3 3.5H12v9h-1.7zM3 3.5v9L9.5 8z" fill="currentColor"/></svg>';
+  '<svg viewBox="0 0 16 16" width="20" height="20" aria-hidden="true"><path d="M10.3 3.5H12v9h-1.7zM3 3.5v9L9.5 8z" fill="currentColor"/></svg>';
 const ICON_PLAY =
   '<svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true"><path d="M5 3.2v9.6L12.5 8z" fill="currentColor"/></svg>';
 const ICON_PREV =
-  '<svg viewBox="0 0 16 16" width="15" height="15" aria-hidden="true"><path d="M11 3.5v9L5 8z" fill="currentColor"/></svg>';
+  '<svg viewBox="0 0 16 16" width="20" height="20" aria-hidden="true"><path d="M11 3.5v9L5 8z" fill="currentColor"/></svg>';
 const ICON_NEXT =
-  '<svg viewBox="0 0 16 16" width="15" height="15" aria-hidden="true"><path d="M5 3.5v9L11 8z" fill="currentColor"/></svg>';
+  '<svg viewBox="0 0 16 16" width="20" height="20" aria-hidden="true"><path d="M5 3.5v9L11 8z" fill="currentColor"/></svg>';
 const THUMB_UP_SVG =
   '<svg viewBox="0 0 64 64" width="76" height="76" aria-hidden="true"><path d="M23 54h-8a4 4 0 0 1-4-4V30a4 4 0 0 1 4-4h8v28Z" fill="none" stroke="currentColor" stroke-width="4" stroke-linejoin="round"/><path d="M23 29c7-5 9-15 12-18 2-2 6-1 7 3 1 5-3 10-3 12h10c6 0 9 5 7 10l-5 13c-1 4-5 6-9 6H23V29Z" fill="none" stroke="currentColor" stroke-width="4" stroke-linejoin="round"/></svg>';
 const THUMB_DOWN_SVG =

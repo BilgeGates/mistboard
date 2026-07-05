@@ -99,6 +99,18 @@
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.18);
 }
 
+/* Jungle's 7x9 board is taller than wide, so bind it by HEIGHT — width-binding
+   (like the square xiangqi boards) would overflow the page vertically. The SVG
+   carries its own aspect ratio, so we just cap the height and let width follow. */
+.puzzle-board .jungle-live-svg {
+  width: auto;
+  height: auto;
+  max-width: 100%;
+  max-height: var(--puzzle-surface-size);
+  border-radius: 2px;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.18);
+}
+
 .puzzle-board-shell {
   width: min(100%, var(--puzzle-drop-surface-size));
   min-width: 360px;
@@ -676,18 +688,18 @@
 
 .puzzle-actions {
   display: grid;
-  grid-template-columns: repeat(5, 42px);
+  grid-template-columns: repeat(5, 48px);
   justify-content: center;
   align-items: center;
-  gap: clamp(8px, 1.6vw, 22px);
-  min-height: 46px;
+  gap: clamp(10px, 1.8vw, 24px);
+  min-height: 52px;
 }
 
 .puzzle-button {
   display: grid;
   place-items: center;
-  width: 42px;
-  height: 38px;
+  width: 48px;
+  height: 44px;
   padding: 0;
   border: 0;
   border-radius: 2px;
@@ -695,7 +707,7 @@
   color: var(--site-muted);
   cursor: pointer;
   font: inherit;
-  font-size: 22px;
+  font-size: 26px;
   font-weight: 600;
   letter-spacing: 0;
   line-height: 1;
