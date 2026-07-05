@@ -98,12 +98,11 @@ registerVariantTenant({
   kind: darkMiniXiangqiTenant.kind,
   gameSpecId: darkMiniXiangqiTenant.gameSpecId,
   roomIdPrefix: darkMiniXiangqiTenant.roomIdPrefix,
-  watch: {
-    channelId: 'dark-mini-xiangqi',
-    family: 'xiangqi',
-    label: 'Dark Mini Xiangqi',
-    legacyVariants: ['dark-mini-xiangqi'],
-  },
+  // Retired 2026-07-05 (xiangqi pivot): no Mistboard TV channel, so it also
+  // drops out of the homepage showcase. Its enabled() env gate already hid the
+  // channel by default; null makes the retirement unconditional. Existing games
+  // stay reviewable + deep-link playable.
+  watch: null,
   ownsSpecRouting: true,
   errorPrefix: 'dark_mini_xiangqi',
   enabled: darkMiniXiangqiTenant.enabled,
