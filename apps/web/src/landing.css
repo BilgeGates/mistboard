@@ -23,16 +23,20 @@
      34%/1fr grid). Center takes the free space (1fr) while the news + CTA rails
      hold a tight 280-320px, so the panel reads as the focal block, not a co-equal
      third column. */
-  grid-template-columns: minmax(280px, 320px) minmax(0, 1fr) minmax(280px, 320px);
+  grid-template-columns: minmax(280px, 340px) minmax(0, 1fr) minmax(280px, 340px);
   grid-template-areas:
     "news   panel play"
-    "viewer feed  puzzle";
+    "viewer feed  puzzle"
+    "lower  lower  lower";
   column-gap: clamp(10px, 0.9vw, 15px);
   row-gap: clamp(14px, 1.8vw, 24px);
   align-items: start;
   justify-content: center;
   width: 100%;
-  max-width: 1400px;
+  /* Tighter overall width + wider rails pull the center column in toward
+     lichess's proportions (the center was reading noticeably wider than lila's
+     central lobby). */
+  max-width: 1360px;
   margin: 0 auto;
 }
 
@@ -150,8 +154,107 @@
   display: flex;
   flex-direction: column;
   align-items: stretch;
+  gap: clamp(8px, 1vw, 12px);
+  min-width: 0;
+}
+
+/* Support (donate) + Store (coming soon) — lichess's two-up call-to-action,
+   directly beneath the article cards. Cards + this row are the feed block the
+   side boards align to, top and bottom. */
+.landing-support-row {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: clamp(10px, 1.4vw, 16px);
+}
+
+.landing-support-card {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: 18px;
+  min-height: 92px;
+  padding: 16px 22px;
+  border: 1px solid rgba(29, 37, 34, 0.1);
+  border-radius: var(--site-radius);
+  background: var(--site-panel);
+  color: inherit;
+  text-decoration: none;
+  transition:
+    border-color 120ms ease,
+    background 120ms ease;
+}
+
+.landing-support-card:not(.is-disabled):hover {
+  border-color: rgba(29, 37, 34, 0.18);
+  background: var(--site-panel-soft);
+}
+
+.landing-support-card.is-disabled {
+  cursor: default;
+}
+
+.landing-support-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  color: var(--site-accent);
+}
+
+.landing-support-card.is-disabled .landing-support-icon {
+  color: var(--site-muted);
+}
+
+.landing-support-icon svg {
+  width: 100%;
+  height: 100%;
+}
+
+.landing-support-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.landing-support-title {
+  font-size: 18px;
+  font-weight: 600;
+  line-height: 1.2;
+  color: var(--site-text);
+}
+
+.landing-support-card.is-disabled .landing-support-title {
+  color: var(--site-muted);
+}
+
+.landing-support-subtitle {
+  overflow: hidden;
+  font-size: 13px;
+  line-height: 1.3;
+  color: var(--site-muted);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Lower strip: forum preview + lobby chat, full width beneath the three-column
+   band (moved out of the feed so the feed stays a tight, board-height block). */
+.landing-lower-strip {
+  grid-area: lower;
+  display: flex;
+  flex-direction: column;
   gap: clamp(14px, 1.8vw, 24px);
   min-width: 0;
+  max-width: 900px;
+}
+
+/* Stack the support/store cards on narrow screens: two-up gets too tight and
+   the subtitle truncates below ~520px. */
+@media (max-width: 560px) {
+  .landing-support-row {
+    grid-template-columns: 1fr;
+  }
 }
 
 .landing-rail-right {
@@ -209,9 +312,9 @@
   width: 100%;
   display: flex;
   flex-direction: column;
-  /* Taller than lila's 600px per the current direction; filled via the default
-     pools view so the extra height doesn't read as a void. */
-  min-height: clamp(560px, 74vh, 800px);
+  /* Shorter than before: the previous clamp(560px, 74vh, 800px) ran tall enough
+     that the default pools view read as an empty void below the fold. */
+  min-height: clamp(440px, 56vh, 620px);
   border: 1px solid var(--site-border-soft);
   border-radius: var(--site-radius);
   background: var(--site-panel);
@@ -431,44 +534,6 @@
   gap: clamp(8px, 1vw, 12px);
 }
 
-.landing-articles-header {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 12px;
-}
-
-.landing-articles-heading {
-  margin: 0;
-  font-size: 12px;
-  font-weight: 800;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: var(--site-muted);
-}
-
-.landing-articles-more {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  font-size: 13px;
-  font-weight: 600;
-  color: var(--site-accent-strong);
-  text-decoration: none;
-}
-
-.landing-articles-more:hover {
-  text-decoration: underline;
-}
-
-.landing-articles-more-arrow {
-  transition: transform 120ms ease;
-}
-
-.landing-articles-more:hover .landing-articles-more-arrow {
-  transform: translateX(2px);
-}
-
 .landing-carousel {
   position: relative;
   overflow: hidden;
@@ -476,14 +541,19 @@
 }
 
 .landing-carousel-track {
+  --landing-carousel-gap: clamp(10px, 1.4vw, 16px);
   display: flex;
-  gap: clamp(10px, 1.4vw, 16px);
+  gap: var(--landing-carousel-gap);
   transition: transform 420ms cubic-bezier(0.22, 0.61, 0.36, 1);
   will-change: transform;
 }
 
 .landing-article-card {
-  flex: 0 0 clamp(150px, 28%, 184px);
+  /* Each card is exactly half the center column (two visible at ~lichess's
+     blog-card width); any further cards overflow so the carousel auto-rotates
+     through them one card at a time. */
+  flex: 0 0 calc((100% - var(--landing-carousel-gap)) / 2);
+  min-width: 0;
   /* Block flow, not a flex column. A direct flex child gets its display
      blockified (display:-webkit-box rewritten to flow-root), which breaks the
      title's -webkit-line-clamp in Safari/older Chrome. Block flow keeps the
@@ -498,26 +568,26 @@
   color: inherit;
   transition:
     border-color 120ms ease,
-    box-shadow 120ms ease,
-    transform 120ms ease;
+    background 120ms ease;
 }
 
+/* No lift/scale on hover; only the white title strip under the thumbnail warms
+   to the soft grey panel tone so the whole card reads as active. */
 .landing-article-card:hover {
-  border-color: rgba(29, 37, 34, 0.24);
-  box-shadow: 0 8px 20px rgba(29, 37, 34, 0.1);
-  transform: translateY(-2px);
+  border-color: rgba(29, 37, 34, 0.18);
+  background: var(--site-panel-soft);
 }
 
 .landing-article-card-thumb {
   position: relative;
   width: 100%;
-  aspect-ratio: 1 / 1;
+  aspect-ratio: 8 / 5;
   background: var(--site-panel-soft);
   overflow: hidden;
 }
 
-/* The board/diagram thumbnails are designed square, so they fill the square
-   frame cleanly with no cropping. */
+/* Thumbnails fill the 8:5 frame (lichess blog-card ratio). Board/SVG diagrams
+   are rendered at 8:5 so they fill cleanly; raster art is object-fit cover. */
 .landing-article-card-thumb .articles-index-card-thumb {
   /* Own stacking context so chessground's internal piece z-indices
      (piece = 2, piece.anim = 8) stay contained below the date pill. Without it,
@@ -1267,6 +1337,7 @@
       "viewer"
       "feed"
       "puzzle"
+      "lower"
       "news";
     max-width: 640px;
   }
@@ -1287,8 +1358,21 @@
 
   .landing-play-stack {
     width: 100%;
-    max-width: 460px;
+    max-width: 680px;
     margin-inline: auto;
+  }
+
+  .landing-play-action {
+    grid-template-columns: 42px minmax(0, 1fr);
+    gap: 22px;
+    min-height: 72px;
+    padding: 13px 22px;
+    font-size: clamp(19px, 3.2vw, 22px);
+  }
+
+  .landing-play-icon {
+    width: 40px;
+    height: 40px;
   }
 
   .landing-viewer-column,
@@ -1320,14 +1404,16 @@
   }
 
   .landing-play-action {
-    grid-template-columns: 30px minmax(0, 1fr);
-    min-height: 50px;
-    padding: 9px 12px;
+    grid-template-columns: 36px minmax(0, 1fr);
+    gap: 18px;
+    min-height: 66px;
+    padding: 12px 18px;
+    font-size: clamp(18px, 5.2vw, 21px);
   }
 
   .landing-play-icon {
-    width: 26px;
-    height: 26px;
+    width: 36px;
+    height: 36px;
   }
 
   .landing-setup-dialog {
@@ -1359,7 +1445,7 @@
   }
 
   .landing-play-action:hover:not(:disabled) {
-    transform: none;
+    filter: none;
   }
 }
 

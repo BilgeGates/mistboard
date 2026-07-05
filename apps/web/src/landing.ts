@@ -11,7 +11,7 @@ import {
   renderHomePuzzleWidget,
 } from './home-puzzle-widget.js';
 import { t } from './i18n/catalog.js';
-import { currentLocale } from './i18n/locale.js';
+import { currentLocale, type Locale } from './i18n/locale.js';
 import { buildLandingActivity } from './landing-activity.js';
 import { buildLandingAnnouncements } from './landing-announcements.js';
 import { buildLandingChat } from './landing-chat.js';
@@ -543,6 +543,69 @@ function syncGamePlyUrl(ply: number): void {
   window.history.replaceState(null, '', `${url.pathname}${url.search}${url.hash}`);
 }
 
+// Support/store call-to-action icons (lichess uses a wing for donate + a shirt
+// for swag). Heart = support, bag = store. Inline so they inherit currentColor.
+const HOME_SUPPORT_ICON_SVG: Record<'support' | 'store', string> = {
+  support: `<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path fill="currentColor" d="M12 21s-7.4-4.6-10-9.3C.6 8.9 1.8 5.4 5 4.3c2-.7 4.1.1 5.3 1.8L12 8l1.7-1.9c1.2-1.7 3.3-2.5 5.3-1.8 3.2 1.1 4.4 4.6 3 7.4C19.4 16.4 12 21 12 21Z"/></svg>`,
+  store: `<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path fill="currentColor" d="M6 2h12l2 5H4l2-5Zm-3 6h18v2a3 3 0 0 1-3 3 3 3 0 0 1-3-1.5A3 3 0 0 1 12 13a3 3 0 0 1-3-1.5A3 3 0 0 1 6 13a3 3 0 0 1-3-3V8Zm2 6.9A5 5 0 0 0 6 15a5 5 0 0 0 2-.4V20h8v-5.4a5 5 0 0 0 2 .4 5 5 0 0 0 1-.1V21a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1v-6.1Z"/></svg>`,
+};
+
+// A single lichess-style support/store card: icon on the left, a title + subtitle
+// stacked to its right. Support links to /patron; store is a disabled placeholder
+// ("coming soon") rendered as a non-interactive span.
+function buildHomeSupportCard(opts: {
+  variant: 'support' | 'store';
+  title: string;
+  subtitle: string;
+  href?: string;
+}): HTMLElement {
+  const el = document.createElement(opts.href ? 'a' : 'span');
+  el.className = `landing-support-card landing-support-card-${opts.variant}`;
+  if (opts.href) {
+    (el as HTMLAnchorElement).href = opts.href;
+  } else {
+    el.classList.add('is-disabled');
+    el.setAttribute('aria-disabled', 'true');
+  }
+  const icon = document.createElement('span');
+  icon.className = 'landing-support-icon';
+  icon.setAttribute('aria-hidden', 'true');
+  icon.innerHTML = HOME_SUPPORT_ICON_SVG[opts.variant];
+  const text = document.createElement('span');
+  text.className = 'landing-support-text';
+  const title = document.createElement('span');
+  title.className = 'landing-support-title';
+  title.textContent = opts.title;
+  const subtitle = document.createElement('span');
+  subtitle.className = 'landing-support-subtitle';
+  subtitle.textContent = opts.subtitle;
+  text.append(title, subtitle);
+  el.append(icon, text);
+  return el;
+}
+
+// The two-up support/store row that sits directly beneath the article cards
+// (lichess's Donate + Swag Store pairing). Support routes to the patron page;
+// store is a coming-soon placeholder until the shop exists.
+function buildHomeSupportRow(locale: Locale): HTMLElement {
+  const row = document.createElement('div');
+  row.className = 'landing-support-row';
+  row.append(
+    buildHomeSupportCard({
+      variant: 'support',
+      title: t('home.supportTitle', {}, locale),
+      subtitle: t('home.supportSubtitle', {}, locale),
+      href: '/patron',
+    }),
+    buildHomeSupportCard({
+      variant: 'store',
+      title: t('home.storeTitle', {}, locale),
+      subtitle: t('home.storeSubtitle', {}, locale),
+    }),
+  );
+  return row;
+}
+
 function buildLandingStage(
   engines: PlayableEngine[],
   opts: { skipLiveWidgets?: boolean } = {},
@@ -598,20 +661,33 @@ function buildLandingStage(
   lobbyPanel.className = 'landing-lobby-panel';
   lobbyPanel.append(buildLobbyPanel(locale, { hydrate: !opts.skipLiveWidgets }));
 
-  // ── Center feed (grid-area: feed): article cards, forum preview, and the lobby
-  // chat, stacked beneath the lobby panel and aligned with the viewer's top. ──
+  // ── Center feed (grid-area: feed): article cards + the support/store row,
+  // stacked beneath the lobby panel and aligned with the viewer's top. Together
+  // these two blocks define the height the side boards align to (top and bottom);
+  // the forum + chat moved down to the full-width lower strip so the feed stays a
+  // tight, board-height block. ──
   const centerBelow = document.createElement('div');
   centerBelow.className = 'landing-center-below';
+  // Two cards visible at a time (each a half-column-wide 8:5 card ~ lichess's
+  // blog-card width), with the rest overflowing so the carousel auto-rotates
+  // through them. Newest first (an announcement can take a slot).
   const articleCards = buildHomeArticleCards(8, locale);
   if (articleCards) centerBelow.append(articleCards);
-  centerBelow.append(buildLandingForumPreview({ hydrate: !opts.skipLiveWidgets }));
-  // Lobby chat: an empty mount that only paints once the API confirms the
-  // chat flag is on, so a flag-off deploy adds nothing to the page (and no
-  // reserved footprint to jank).
-  centerBelow.append(buildLandingChat({ hydrate: !opts.skipLiveWidgets }));
+  // Support (donate) + Store (coming soon), lichess-style, directly under the
+  // cards — the second half of the feed block the boards bottom-align to.
+  centerBelow.append(buildHomeSupportRow(locale));
 
-  // ── Play column (grid-area: play, row 1 right): the untouched pairing CTAs + the
-  // activity box, vertically centered against the tall open-challenges panel. ──
+  // ── Lower strip (grid-area: lower): the forum preview + lobby chat, full width
+  // below the three-column band. Moved out of the feed so the feed reads as a
+  // clean articles + support block. Chat is an empty mount that only paints once
+  // the API confirms the chat flag is on (a flag-off deploy adds no footprint). ──
+  const lowerStrip = document.createElement('div');
+  lowerStrip.className = 'landing-lower-strip';
+  lowerStrip.append(buildLandingForumPreview({ hydrate: !opts.skipLiveWidgets }));
+  lowerStrip.append(buildLandingChat({ hydrate: !opts.skipLiveWidgets }));
+
+  // ── Play column (grid-area: play, row 1 right): the pairing CTAs + activity box,
+  // vertically centered against the tall open-challenges panel. ──
   let playPanel = buildLandingPlayPanel(engines, { locale, showLobbyRequests: false });
   const playStack = document.createElement('div');
   playStack.className = 'landing-play-stack';
@@ -659,7 +735,15 @@ function buildLandingStage(
   // row 2 = [viewer · article feed · puzzle]. The tall lobby panel drives row 1, the
   // CTAs center against it, and the viewer + puzzle top-align with the article feed.
   // Append order is irrelevant (grid-area governs).
-  section.append(newsColumn, viewerColumn, lobbyPanel, centerBelow, playColumn, puzzleColumn);
+  section.append(
+    newsColumn,
+    viewerColumn,
+    lobbyPanel,
+    centerBelow,
+    playColumn,
+    puzzleColumn,
+    lowerStrip,
+  );
   // The footer lives only on the homepage now (stripped from interior routes),
   // blended into the bottom of the stage rather than rendered as a separate bar.
   stage.append(section, buildHomeFooter(locale));

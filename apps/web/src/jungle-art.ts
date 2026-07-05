@@ -42,6 +42,8 @@ const BOARD_DIR = '/piece-sets/jungle/dobutsu/board';
 /** Cache-buster for the piece PNGs; bump when the art in public/ changes. v2 = the
  *  "Dobutsu Minimal" edition (2026-07-02). */
 const PIECES_VERSION = 2;
+/** Cache-buster for board terrain PNGs; bump when board art in public/ changes. */
+const BOARD_VERSION = 2;
 
 /** Dobutsu animal cutout href (same masters as the blog's jungle-dobutsu-pieces). */
 export function jungleDobutsuPieceHref(color: JungleColor, role: JunglePieceRole): string {
@@ -50,7 +52,7 @@ export function jungleDobutsuPieceHref(color: JungleColor, role: JunglePieceRole
 
 /** Board terrain / tile art href: 'grass' | 'water' | 'den' | 'trap' | 'flip-board' | 'flip-back'. */
 export function jungleBoardAssetHref(name: string): string {
-  return `${BOARD_DIR}/${name}.png`;
+  return `${BOARD_DIR}/${name}.png?v=${BOARD_VERSION}`;
 }
 
 /** A `<defs>` drop-shadow filter (not CSS, so it also renders in the rsvg/resvg OG pipeline). */

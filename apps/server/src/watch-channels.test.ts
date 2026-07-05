@@ -12,10 +12,17 @@ import {
 import './variant-tenant/register-tenants.js';
 import { defaultWatchChannel, listWatchChannels, watchChannelForId } from './watch-channels.js';
 
-const BASELINE_WATCH_CHANNELS = [
-  'dark-chess',
+// The Mini Xiangqi sub-family (open, dark, drop) was retired from Mistboard TV
+// on 2026-07-05 (xiangqi pivot): their registrations carry `watch: null`, so no
+// channel derives for them and their `?channel=` ids resolve to null. Dark chess
+// is the only baseline channel in a launched-flags-off environment.
+const BASELINE_WATCH_CHANNELS = ['dark-chess'] as const;
+
+// Retired sub-family ids that must NOT resolve to a watch channel.
+const RETIRED_WATCH_CHANNEL_IDS = [
   MINI_XIANGQI_SPEC_ID,
   DROP_MINI_XIANGQI_SPEC_ID,
+  'dark-mini-xiangqi',
 ] as const;
 
 test('watch channels expose Dark chess as the default channel', () => {
@@ -30,9 +37,6 @@ test('watch channel lookup defaults empty input and rejects unknown channels', (
   assert.equal(watchChannelForId(null)?.id, 'dark-chess');
   assert.equal(watchChannelForId(undefined)?.id, 'dark-chess');
   assert.equal(watchChannelForId('dark-chess')?.id, 'dark-chess');
-  for (const id of BASELINE_WATCH_CHANNELS.slice(1)) {
-    assert.equal(watchChannelForId(id)?.id, id);
-  }
   assert.equal(watchChannelForId('unknown'), null);
 });
 
@@ -51,20 +55,12 @@ test('watch channels expose every launched baseline variant in canonical order',
   );
   assert.equal(channels[0]?.id, 'dark-chess');
   assert.equal(defaultWatchChannel().id, 'dark-chess');
-  assert.deepEqual(watchChannelForId(MINI_XIANGQI_SPEC_ID), {
-    default: false,
-    family: 'xiangqi',
-    gameSpecIds: [MINI_XIANGQI_SPEC_ID],
-    id: MINI_XIANGQI_SPEC_ID,
-    label: 'Mini Xiangqi',
-    legacyVariants: ['mini-xiangqi'],
-  });
-  assert.deepEqual(watchChannelForId(DROP_MINI_XIANGQI_SPEC_ID), {
-    default: false,
-    family: 'xiangqi',
-    gameSpecIds: [DROP_MINI_XIANGQI_SPEC_ID],
-    id: DROP_MINI_XIANGQI_SPEC_ID,
-    label: 'Drop Mini Xiangqi',
-    legacyVariants: ['drop-mini-xiangqi'],
-  });
+});
+
+test('retired Mini Xiangqi sub-family has no watch channel', () => {
+  const ids = listWatchChannels().map((channel) => channel.id);
+  for (const id of RETIRED_WATCH_CHANNEL_IDS) {
+    assert.equal(ids.includes(id), false, `${id} must not appear in the watch rail`);
+    assert.equal(watchChannelForId(id), null, `${id} must not resolve by deep link`);
+  }
 });

@@ -2,61 +2,55 @@
 
 .landing-play-action {
   display: grid;
-  grid-template-columns: 26px minmax(0, 1fr);
+  grid-template-columns: 34px minmax(0, 1fr);
   align-items: center;
-  gap: 10px;
+  gap: 16px;
   width: 100%;
-  min-height: 46px;
-  border: 1.5px solid var(--site-accent);
-  border-radius: var(--site-radius);
-  /* Lichess-style "metal" rest state; theme-flipping tokens cover dark mode. */
-  background: linear-gradient(to bottom, var(--site-metal-top), var(--site-metal-bottom));
-  color: var(--site-text);
-  box-shadow: 0 1px 2px rgba(27, 31, 27, 0.06);
+  min-height: 62px;
+  border: 1px solid color-mix(in srgb, var(--site-border) 72%, transparent);
+  border-radius: 8px;
+  background: linear-gradient(to bottom, var(--site-metal-top-hover), var(--site-metal-bottom));
+  color: color-mix(in srgb, var(--site-text) 88%, black);
+  box-shadow:
+    0 2px 8px rgba(27, 31, 27, 0.12),
+    inset 0 1px 0 rgba(255, 255, 255, 0.72);
   cursor: pointer;
-  font: inherit;
-  font-size: 14px;
-  font-weight: 700;
+  font-family:
+    "Noto Sans", ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  font-size: clamp(16px, 1.05vw, 18px);
+  font-weight: 600;
   line-height: 1.1;
-  padding: 9px 12px;
+  padding: 10px 16px;
   text-align: left;
   text-decoration: none;
   transition:
     background 120ms ease,
     border-color 120ms ease,
+    color 120ms ease,
     box-shadow 120ms ease,
-    transform 120ms ease;
+    filter 120ms ease;
 }
 
 .landing-play-action:hover:not(:disabled),
 .landing-play-action:focus-visible {
-  border-color: var(--site-accent-strong);
-  background: var(--site-accent-soft);
+  border-color: color-mix(in srgb, var(--site-border) 54%, transparent);
+  background: linear-gradient(to bottom, #ffffff, var(--site-metal-top));
   box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.9),
-    0 10px 22px rgba(27, 31, 27, 0.11);
-  transform: translateY(-1px);
+    0 3px 10px rgba(27, 31, 27, 0.14),
+    inset 0 1px 0 rgba(255, 255, 255, 0.86);
+  filter: brightness(1.01);
 }
 
-/* Green-fill emphasis for the recommended homepage CTA. */
-.landing-play-action-primary {
-  background: var(--site-accent);
-  border-color: var(--site-accent);
-  color: var(--site-on-accent);
-  box-shadow: 0 1px 3px rgba(27, 31, 27, 0.12);
+.landing-play-action:hover:not(:disabled) .landing-play-icon,
+.landing-play-action:focus-visible .landing-play-icon {
+  color: #d65f2e;
 }
 
-.landing-play-action-primary .landing-play-icon {
-  color: var(--site-on-accent);
-}
-
+/* The engine action remains first, but the Lichess-like tile treatment is neutral. */
+.landing-play-action-primary,
 .landing-play-action-primary:hover:not(:disabled),
 .landing-play-action-primary:focus-visible {
-  background: var(--site-accent-strong);
-  border-color: var(--site-accent-strong);
-  box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.22),
-    0 12px 26px rgba(27, 31, 27, 0.18);
+  color: color-mix(in srgb, var(--site-text) 88%, black);
 }
 
 .landing-play-action:disabled {
@@ -69,8 +63,38 @@
   overflow-wrap: anywhere;
 }
 
-/* Pairing CTAs stack — the untouched buttons + activity box, at the top of the
-   right column (aligned with the lobby panel). Full column width. */
+:root[data-effective-theme="dark"] .landing-play-action {
+  background: linear-gradient(to bottom, var(--site-metal-top-hover), var(--site-metal-bottom));
+  color: var(--site-heading);
+  box-shadow:
+    0 2px 8px rgba(0, 0, 0, 0.34),
+    inset 0 1px 0 rgba(255, 255, 255, 0.06);
+}
+
+:root[data-effective-theme="dark"] .landing-play-action:hover:not(:disabled),
+:root[data-effective-theme="dark"] .landing-play-action:focus-visible {
+  background: linear-gradient(to bottom, var(--site-metal-top-hover), var(--site-metal-top));
+  box-shadow:
+    0 3px 10px rgba(0, 0, 0, 0.4),
+    inset 0 1px 0 rgba(255, 255, 255, 0.08);
+}
+
+:root[data-effective-theme="dark"] .landing-play-action-primary,
+:root[data-effective-theme="dark"] .landing-play-action-primary:hover:not(:disabled),
+:root[data-effective-theme="dark"] .landing-play-action-primary:focus-visible {
+  color: var(--site-heading);
+}
+
+:root[data-effective-theme="dark"] .landing-play-panel {
+  gap: 10px;
+  background: transparent;
+}
+
+:root[data-effective-theme="dark"] .landing-play-panel .landing-play-action {
+  border-radius: 8px;
+}
+
+/* Pairing CTAs stack: play tiles + activity box, aligned with the lobby panel. */
 .landing-play-stack {
   display: flex;
   flex-direction: column;
@@ -886,9 +910,10 @@
 .landing-play-icon {
   position: relative;
   display: block;
-  width: 24px;
-  height: 24px;
-  color: var(--site-accent);
+  width: 34px;
+  height: 34px;
+  color: #b6b6b6;
+  transition: color 120ms ease;
 }
 
 .landing-play-icon svg {

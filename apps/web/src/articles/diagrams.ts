@@ -2539,6 +2539,14 @@ export const BANQI_PAIR_W = BANQI_BOARD_W;
 export const BANQI_CENTER_X = 0;
 export const BANQI_RIGHT_HALF_W = BANQI_MARGIN * 2 + (BANQI_COLS / 2) * BANQI_CELL;
 export const BANQI_RIGHT_HALF_X0 = -(BANQI_COLS / 2) * BANQI_CELL;
+// The homepage engine-article thumbnail is an 8:5 landscape (lichess blog-card
+// ratio). xqSvg pads the viewBox by XQ_VIEWBOX_PAD*2 (=8), so a padded 8:5 frame
+// wants inner width = (BANQI_BOARD_H + 8) * 8 / 5 - 8 = 376. x0 = -56 slides the
+// full board so it fills the frame edge-to-edge (only ~1 col cropped); the red
+// cluster reads right-of-centre, the emptied left is the space black was pushed
+// out of.
+export const BANQI_ENGINE_THUMB_W = 376;
+export const BANQI_ENGINE_THUMB_X0 = -56;
 
 export type BanqiPieceSpec = {
   color?: XiangqiColor;
@@ -2697,21 +2705,21 @@ export const BANQI_RULES_THUMBNAIL = () => xqSvg(
 // (MistyBanqi up ten pieces to two, a position it has won and then drew).
 export const BANQI_ENGINE_THUMBNAIL = () =>
   xqSvg(
-    BANQI_RIGHT_HALF_W,
+    BANQI_ENGINE_THUMB_W,
     BANQI_BOARD_H,
     [
-      `<g data-banqi-thumbnail-crop="right-half">`,
-      banqiBoardGrid(BANQI_RIGHT_HALF_X0, 0),
-      banqiPiece({ shrouded: true }, 4, 0, BANQI_RIGHT_HALF_X0, 0),
-      banqiPiece({ color: 'red', role: 'advisor' }, 5, 0, BANQI_RIGHT_HALF_X0, 0),
-      banqiPiece({ shrouded: true }, 7, 0, BANQI_RIGHT_HALF_X0, 0),
-      banqiPiece({ color: 'black', role: 'advisor' }, 4, 1, BANQI_RIGHT_HALF_X0, 0),
-      banqiPiece({ color: 'red', role: 'horse' }, 5, 1, BANQI_RIGHT_HALF_X0, 0),
-      banqiPiece({ color: 'red', role: 'general' }, 6, 1, BANQI_RIGHT_HALF_X0, 0),
-      banqiPiece({ color: 'red', role: 'soldier' }, 7, 1, BANQI_RIGHT_HALF_X0, 0),
-      banqiPiece({ color: 'black', role: 'elephant' }, 5, 2, BANQI_RIGHT_HALF_X0, 0),
-      banqiPiece({ color: 'red', role: 'cannon' }, 6, 2, BANQI_RIGHT_HALF_X0, 0),
-      banqiPiece({ color: 'red', role: 'soldier' }, 7, 3, BANQI_RIGHT_HALF_X0, 0),
+      `<g data-banqi-thumbnail-crop="engine-wide">`,
+      banqiBoardGrid(BANQI_ENGINE_THUMB_X0, 0),
+      banqiPiece({ shrouded: true }, 4, 0, BANQI_ENGINE_THUMB_X0, 0),
+      banqiPiece({ color: 'red', role: 'advisor' }, 5, 0, BANQI_ENGINE_THUMB_X0, 0),
+      banqiPiece({ shrouded: true }, 7, 0, BANQI_ENGINE_THUMB_X0, 0),
+      banqiPiece({ color: 'black', role: 'advisor' }, 4, 1, BANQI_ENGINE_THUMB_X0, 0),
+      banqiPiece({ color: 'red', role: 'horse' }, 5, 1, BANQI_ENGINE_THUMB_X0, 0),
+      banqiPiece({ color: 'red', role: 'general' }, 6, 1, BANQI_ENGINE_THUMB_X0, 0),
+      banqiPiece({ color: 'red', role: 'soldier' }, 7, 1, BANQI_ENGINE_THUMB_X0, 0),
+      banqiPiece({ color: 'black', role: 'elephant' }, 5, 2, BANQI_ENGINE_THUMB_X0, 0),
+      banqiPiece({ color: 'red', role: 'cannon' }, 6, 2, BANQI_ENGINE_THUMB_X0, 0),
+      banqiPiece({ color: 'red', role: 'soldier' }, 7, 3, BANQI_ENGINE_THUMB_X0, 0),
       `</g>`,
     ].join(''),
   );

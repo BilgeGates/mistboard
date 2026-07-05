@@ -99,12 +99,11 @@ registerVariantTenant({
   kind: miniXiangqiTenant.kind,
   gameSpecId: miniXiangqiTenant.gameSpecId,
   roomIdPrefix: miniXiangqiTenant.roomIdPrefix,
-  watch: {
-    channelId: 'mini-xiangqi',
-    family: 'xiangqi',
-    label: 'Mini Xiangqi',
-    legacyVariants: ['mini-xiangqi'],
-  },
+  // Retired 2026-07-05 (xiangqi pivot): no Mistboard TV channel, so it also
+  // drops out of the homepage showcase. Existing games stay reviewable via the
+  // /mini-xiangqi/game postgame route and playable by deep link (enabled() and
+  // acceptsDeepLink are untouched) — only the watch surface is removed.
+  watch: null,
   ownsSpecRouting: true,
   errorPrefix: 'mini_xiangqi',
   enabled: miniXiangqiTenant.enabled,

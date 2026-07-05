@@ -1,7 +1,11 @@
 import WebSocket from 'ws';
 
 const DEFAULT_BASE_URL = 'https://mistboard.com';
-const DEFAULT_TIMEOUT_MS = 20_000;
+const DEFAULT_TIMEOUT_MS = 40_000;
+// Prod assigns the Fairy-Stockfish Fortress Xiangqi engine to the red seat for a
+// PvE room. The smoke asserts this exact seat so a silent engine-routing change
+// (wrong engine, or none) reds the release rather than passing on a stub.
+const FORTRESS_ENGINE_SEAT = 'fairy-stockfish-fortress-xiangqi-strong';
 
 const options = parseArgs(process.argv.slice(2));
 const baseUrl = normalizeBaseUrl(
@@ -24,10 +28,10 @@ async function createRoom(baseUrl, timeoutMs) {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
     body: JSON.stringify({
-      gameSpecId: 'dark-mini-xiangqi',
+      gameSpecId: 'fortress-xiangqi',
       mode: 'pve',
-      // Human black makes the DMX engine red, so the smoke proves an engine
-      // opening move and can still clean up with a pregame abort.
+      // Human black makes the Fortress engine red, so the smoke proves the
+      // opening engine move and can still clean up with a pregame abort.
       preferredColor: 'black',
       timeControl: { initialMs: 180_000, incrementMs: 2_000 },
     }),
@@ -51,7 +55,7 @@ async function smokeRoom(baseUrl, created, timeoutMs) {
   const wsUrl = new URL(baseUrl);
   wsUrl.protocol = wsUrl.protocol === 'https:' ? 'wss:' : 'ws:';
   wsUrl.searchParams.set('room', created.roomId);
-  wsUrl.searchParams.set('client', `prod-dmx-smoke-${Date.now()}`);
+  wsUrl.searchParams.set('client', `prod-fortress-smoke-${Date.now()}`);
 
   const socket = new WebSocket(wsUrl, {
     headers: { origin: baseUrl.origin },
@@ -64,7 +68,7 @@ async function smokeRoom(baseUrl, created, timeoutMs) {
 
   return await new Promise((resolve, reject) => {
     const timer = setTimeout(() => {
-      fail(new Error('timed out waiting for DMX engine opening move'));
+      fail(new Error('timed out waiting for Fortress engine opening move'));
     }, timeoutMs);
 
     function finish(value) {
@@ -107,7 +111,7 @@ async function smokeRoom(baseUrl, created, timeoutMs) {
         state.status?.type === 'playing' &&
         state.status.turn === 'black' &&
         state.moveNumber === 1 &&
-        message.seats?.red === 'python-dmx-v1.0'
+        message.seats?.red === FORTRESS_ENGINE_SEAT
       ) {
         engineReplyState = {
           moveNumber: state.moveNumber,
@@ -133,12 +137,24 @@ async function smokeRoom(baseUrl, created, timeoutMs) {
           finalStatus: state.status,
         });
       }
+
+      if (state.status?.type === 'finished') {
+        fail(
+          new Error(
+            `Fortress game ${created.roomId} finished before smoke completed: ${JSON.stringify(
+              state.status,
+            )}`,
+          ),
+        );
+      }
     });
 
     socket.on('error', fail);
     socket.on('close', (code, reason) => {
       if (!settled) {
-        fail(new Error(`socket closed before DMX smoke finished: ${code} ${reason.toString()}`));
+        fail(
+          new Error(`socket closed before Fortress smoke finished: ${code} ${reason.toString()}`),
+        );
       }
     });
   });
@@ -212,7 +228,7 @@ function normalizeBaseUrl(value) {
 }
 
 function printHelp() {
-  console.log(`Usage: npm run prod:smoke:dmx -- [options]
+  console.log(`Usage: npm run prod:smoke:fortress -- [options]
 
 Options:
   --base <url>       Base URL to smoke, default ${DEFAULT_BASE_URL}
