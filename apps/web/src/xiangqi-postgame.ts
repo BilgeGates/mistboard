@@ -3,7 +3,13 @@
 // (mountReviewLayout) like every other variant; the board comes from
 // renderXiangqiBoardSvg with no fog mask.
 
-import type { StandardXiangqiPlayerView, XiangqiColor, XiangqiMove } from '@mistboard/game';
+import {
+  fsfUciToXiangqiSquares,
+  type StandardXiangqiPlayerView,
+  type XiangqiColor,
+  type XiangqiMove,
+  xiangqiMoveToFsfUci,
+} from '@mistboard/game';
 import './game-shell.css';
 import './live-xiangqi.css';
 // Reuse the shared dxq-postgame scaffold (.dxq-postgame__*) the other variants ride.
@@ -11,6 +17,7 @@ import './dark-xiangqi-postgame.css';
 import './xiangqi-postgame.css';
 import { xiangqiEnabled } from './feature-flags.js';
 import { renderXiangqiBoardSvg } from './live-xiangqi.js';
+import { createEnginePanel } from './review/engine/engine-panel.js';
 import { createMoveList, type MoveListEntry } from './review/move-list.js';
 import { mountReviewLayout } from './review/review-layout.js';
 import { buildNav } from './site-shell.js';
@@ -114,6 +121,18 @@ function renderPostgame(root: HTMLElement, postgame: XiangqiPostgameResponse): v
   boardWrap.append(heading, board);
 
   const moveList = createMoveList(xiangqiMoveEntries(postgame), { title: 'Moves' });
+
+  // Local engine: the full game as Fairy-Stockfish xiangqi UCI (1-indexed, = our
+  // square notation), sliced to the current ply. Standard xiangqi is an FSF built-in.
+  const engineMovesUci = postgame.timeline
+    .filter((entry) => entry.type === 'move-played' && entry.move)
+    .map((entry) => xiangqiMoveToFsfUci(entry.move as XiangqiMove));
+  const enginePanel = createEnginePanel({
+    variant: 'xiangqi',
+    formatPvMove: formatXiangqiEngineMove,
+  });
+  let lastEnginePly = -1;
+
   root.replaceChildren(buildNav());
   mountReviewLayout(root, {
     pageClassName: 'xiangqi-review',
@@ -123,6 +142,7 @@ function renderPostgame(root: HTMLElement, postgame: XiangqiPostgameResponse): v
     actions: postgameActions(postgame),
     details: detailsPanel(postgame),
     moves: moveList.el,
+    enginePanel: enginePanel.el,
     boards: [{ key: 'truth', el: boardWrap, tier: 'primary' }],
     boardAspect: 552 / 612,
     boardCols: 9,
@@ -131,6 +151,11 @@ function renderPostgame(root: HTMLElement, postgame: XiangqiPostgameResponse): v
       const orientation: XiangqiColor = flipped ? 'black' : 'red';
       const view = postgameViewAtPly(postgame, 'truth', ply) ?? entry.view;
       board.innerHTML = renderXiangqiBoardSvg(view, orientation);
+      // Re-evaluate on ply change only (not on flip, which keeps the position).
+      if (ply !== lastEnginePly) {
+        lastEnginePly = ply;
+        enginePanel.setPosition(engineMovesUci.slice(0, ply));
+      }
     },
     renderMoves({ ply }, jump) {
       moveList.update(ply, jump);
@@ -235,6 +260,13 @@ function xiangqiMoveEntries(postgame: XiangqiPostgameResponse): MoveListEntry[] 
       ply: entry.ply ?? index + 1,
       label: `${entry.move!.from}-${entry.move!.to}`,
     }));
+}
+
+// Fairy-Stockfish xiangqi UCI back to our `from-to` notation for readable PV lines.
+// FSF is 1-indexed like us, so this is a plain square split with a dash inserted.
+function formatXiangqiEngineMove(uci: string): string {
+  const squares = fsfUciToXiangqiSquares(uci);
+  return squares ? `${squares.from}-${squares.to}` : uci;
 }
 
 function detailRow(label: string, value: string): HTMLElement {

@@ -1,0 +1,96 @@
+/* Local-engine widget for the review board. See review/engine/engine-panel.ts. */
+.engine-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px;
+  border: 1px solid var(--site-border);
+  border-radius: var(--site-radius, 10px);
+  background: var(--site-panel, var(--site-surface));
+}
+.engine-panel__head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.engine-panel__toggle {
+  appearance: none;
+  flex: 0 0 auto;
+  padding: 5px 10px;
+  border: 1px solid var(--site-border);
+  border-radius: 8px;
+  background: var(--site-bg);
+  color: var(--site-text);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+}
+.engine-panel__toggle--on {
+  background: var(--site-accent, #5b9a4a);
+  border-color: transparent;
+  color: #fff;
+}
+.engine-panel__toggle:disabled {
+  cursor: default;
+  opacity: 0.55;
+}
+.engine-panel__gauge {
+  position: relative;
+  flex: 1 1 auto;
+  height: 8px;
+  border-radius: 5px;
+  overflow: hidden;
+  background: color-mix(in srgb, var(--site-muted) 22%, transparent);
+}
+.engine-panel__gauge-fill {
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 50%;
+  background: var(--site-accent, #5b9a4a);
+  transition: width 0.18s ease;
+}
+.engine-panel__eval {
+  flex: 0 0 auto;
+  min-width: 3.2em;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  font-size: 15px;
+  color: var(--site-text);
+}
+.engine-panel__meta {
+  font-size: 12px;
+  color: var(--site-muted);
+  min-height: 1em;
+}
+.engine-panel__lines {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.engine-panel__line {
+  display: flex;
+  gap: 8px;
+  font-size: 12px;
+  line-height: 1.4;
+}
+.engine-panel__line-eval {
+  flex: 0 0 3.2em;
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+  color: var(--site-text);
+}
+.engine-panel__line-pv {
+  flex: 1 1 auto;
+  color: var(--site-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+/* Only reveal the PV lines when the engine is actually on. */
+.engine-panel:not(.engine-panel--on) .engine-panel__lines {
+  display: none;
+}

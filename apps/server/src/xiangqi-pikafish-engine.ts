@@ -20,10 +20,15 @@
 
 import { existsSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
-import { coordOf, type XiangqiMove, type XiangqiSquare } from '@mistboard/game';
 import { runUciBestmove, UciEnginePool } from './uci-engine-harness.js';
 
-const FILE_CHARS = 'abcdefghi';
+// Xiangqi -> engine UCI now lives in @mistboard/game so the browser FSF-wasm
+// analysis engine and this server Pikafish path share one converter. Re-exported
+// under the historical names so existing importers are untouched.
+export {
+  xiangqiMoveToPikafishUci,
+  xiangqiSquareToPikafishUci as xiangqiSquareToPikafish,
+} from '@mistboard/game';
 
 export const XIANGQI_DEFAULT_ENGINE_ID = 'pikafish-xiangqi-strong';
 // Engine BUILD version recorded per PvE game (subject_id encodes only the tier).
@@ -159,16 +164,6 @@ export function isXiangqiEngineClientId(clientId: string | undefined): boolean {
 
 export function xiangqiEngineVersion(clientId: string | undefined): string | null {
   return isXiangqiEngineClientId(clientId) ? XIANGQI_ENGINE_VERSION : null;
-}
-
-// Our 'e1'..'i10' (rank 1-10) -> Pikafish 'e0'..'i9' (rank 0-9): rank-1 shift.
-export function xiangqiSquareToPikafish(sq: XiangqiSquare): string {
-  const { file, rank } = coordOf(sq);
-  return `${FILE_CHARS[file]}${rank - 1}`;
-}
-
-export function xiangqiMoveToPikafishUci(move: XiangqiMove): string {
-  return `${xiangqiSquareToPikafish(move.from)}${xiangqiSquareToPikafish(move.to)}`;
 }
 
 export type XiangqiEngineOptions = { movetimeMs?: number };

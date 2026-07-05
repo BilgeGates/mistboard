@@ -175,6 +175,16 @@ export default defineConfig(({ command }) => {
 
   return {
     plugins: [annotationsApiPlugin(), devApiProxyPlugin(), copyFilteredPublicDirPlugin()],
+    // Cross-origin isolate the dev server so the review board's local engine
+    // (Fairy-Stockfish WASM) can allocate a SharedArrayBuffer. `credentialless`
+    // keeps cross-origin subresources loading without needing CORP. In prod the
+    // server scopes the same headers to the analysis routes (see server-http.ts).
+    server: {
+      headers: {
+        'Cross-Origin-Opener-Policy': 'same-origin',
+        'Cross-Origin-Embedder-Policy': 'credentialless',
+      },
+    },
     build: {
       copyPublicDir: false,
       // Emitted to dist/.vite/manifest.json; the prerender step reads it to bake

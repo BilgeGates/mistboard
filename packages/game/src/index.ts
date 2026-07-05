@@ -26,3 +26,4 @@ export * from './variants-reveal-chess.js';
 export * from './variants-shogi.js';
 export * from './variants-xiangqi.js';
 export * from './variants-xiangqi-standard.js';
+export * from './xiangqi-uci.js';
