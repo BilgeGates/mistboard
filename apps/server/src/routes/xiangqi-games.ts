@@ -5,9 +5,12 @@ import {
   XIANGQI_SPEC_ID,
   type XiangqiColor,
   type XiangqiMove,
+  xiangqiMoveToPikafishUci,
 } from '@mistboard/game';
 import { xiangqiEnabled } from './../feature-flags.js';
 import * as persistence from './../persistence.js';
+import { analyzeXiangqiGame, type PlyEval } from './../xiangqi-analysis.js';
+import { XIANGQI_DEFAULT_ENGINE_ID } from './../xiangqi-pikafish-engine.js';
 import { buildTenantGameSummary } from './../variant-tenant/events.js';
 import {
   applyTenantEvent,
@@ -59,6 +62,25 @@ export async function tryHandle(
   pathname: string,
   _parsedUrl: URL,
 ): Promise<boolean> {
+  // Computer analysis: eval every ply with Pikafish (P3). Reuses the postgame
+  // loader (finished-games-only) to get the moves, then runs the whole-game job.
+  const analysisMatch = pathname.match(/^\/api\/xiangqi\/games\/([^/]+)\/analysis$/);
+  if (analysisMatch) {
+    if (!requireMethod(request, response, 'POST')) return true;
+    if (!xiangqiEnabled()) {
+      writeJson(response, 404, { error: 'not_found' });
+      return true;
+    }
+    const roomId = decodeURIComponent(analysisMatch[1]!);
+    const payload = await xiangqiPostgameForApi(roomId, livePersistence);
+    if (!payload) {
+      writeJson(response, 404, { error: 'not_found' });
+      return true;
+    }
+    writeJson(response, 200, await analyzeXiangqiPostgame(payload));
+    return true;
+  }
+
   const postgameMatch = pathname.match(/^\/api\/xiangqi\/games\/([^/]+)$/);
   if (!postgameMatch) return false;
 
@@ -76,6 +98,35 @@ export async function tryHandle(
   }
   writeJson(response, 200, payload);
   return true;
+}
+
+// Depth for a synchronous request-analysis pass — lower than the deep-study
+// XIANGQI_ANALYSIS_DEPTH so ~30 plies return in ~10s over one HTTP call. Prod
+// should move to async + poll (and cache) for a deeper pass.
+export const XIANGQI_ANALYSIS_REQUEST_DEPTH = 12;
+
+export type XiangqiGameAnalysis = {
+  engineId: string;
+  depth: number;
+  plies: PlyEval[];
+};
+
+/**
+ * Build the eval series for a finished game from its postgame payload. `analyze`
+ * is injectable for tests; it defaults to the real Pikafish whole-game job.
+ */
+export async function analyzeXiangqiPostgame(
+  payload: { timeline: ReadonlyArray<{ type: string; move?: XiangqiMove }> },
+  analyze: (movesUci: string[]) => Promise<PlyEval[]> = (movesUci) =>
+    analyzeXiangqiGame(movesUci, { depth: XIANGQI_ANALYSIS_REQUEST_DEPTH }),
+): Promise<XiangqiGameAnalysis> {
+  const movesUci = payload.timeline
+    .filter((entry): entry is { type: 'move-played'; move: XiangqiMove } =>
+      Boolean(entry.type === 'move-played' && entry.move),
+    )
+    .map((entry) => xiangqiMoveToPikafishUci(entry.move));
+  const plies = await analyze(movesUci);
+  return { engineId: XIANGQI_DEFAULT_ENGINE_ID, depth: XIANGQI_ANALYSIS_REQUEST_DEPTH, plies };
 }
 
 export async function xiangqiPostgameForApi(
