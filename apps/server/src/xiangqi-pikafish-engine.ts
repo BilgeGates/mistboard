@@ -20,7 +20,7 @@
 
 import { existsSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
-import { runUciBestmove, UciEnginePool } from './uci-engine-harness.js';
+import { runUciBestmove, runUciEval, UciEnginePool } from './uci-engine-harness.js';
 
 // Xiangqi -> engine UCI now lives in @mistboard/game so the browser FSF-wasm
 // analysis engine and this server Pikafish path share one converter. Re-exported
@@ -221,4 +221,63 @@ export function xiangqiEngineMove(
     timeoutMs: movetimeMs + 4000,
     timeoutMessage: 'pikafish-xiangqi move timed out',
   });
+}
+
+/** Fixed analysis depth: comparable evals across every ply of a game (P3). */
+export const XIANGQI_ANALYSIS_DEPTH = 18;
+
+export type XiangqiPositionEval = {
+  /** Centipawns from RED's POV (positive = Red better); null when mate is set. */
+  cp: number | null;
+  /** Signed moves-to-mate from RED's POV; null otherwise. */
+  mate: number | null;
+  /** Engine best move (engine UCI) at this position. */
+  best: string | null;
+  depth: number;
+};
+
+/**
+ * Full-strength eval of a xiangqi position for postgame analysis (P3). Unlike the
+ * bot move (tuned Skill/nodes), this runs uncapped to a FIXED DEPTH so a whole-game
+ * series is comparable, and normalises the side-to-move UCI score to RED's POV so
+ * the advantage chart and accuracy are coherent across the game. Concurrency is
+ * gated by the shared engine pool.
+ */
+export async function evaluateXiangqiPosition(
+  moves: string[],
+  opts: { depth?: number } = {},
+): Promise<XiangqiPositionEval> {
+  const bin = pikafishXiangqiPath();
+  const net = pikafishXiangqiNetPath(bin);
+  const depth = Math.max(1, Math.floor(opts.depth ?? XIANGQI_ANALYSIS_DEPTH));
+  const position =
+    moves.length > 0 ? `position startpos moves ${moves.join(' ')}` : 'position startpos';
+  const commands = [
+    'uci',
+    `setoption name EvalFile value ${net}`,
+    'ucinewgame',
+    'isready',
+    position,
+    `go depth ${depth}`,
+  ];
+  const release = await enginePool.acquire();
+  try {
+    const evaluation = await runUciEval({
+      bin,
+      commands,
+      timeoutMs: 20_000,
+      timeoutMessage: 'pikafish-xiangqi eval timed out',
+    });
+    // Red moves first, so Black is to move after an odd number of plies; flip the
+    // side-to-move score to Red's POV.
+    const sign = moves.length % 2 === 0 ? 1 : -1;
+    return {
+      cp: evaluation.cp == null ? null : evaluation.cp * sign,
+      mate: evaluation.mate == null ? null : evaluation.mate * sign,
+      best: evaluation.best,
+      depth: evaluation.depth,
+    };
+  } finally {
+    release();
+  }
 }

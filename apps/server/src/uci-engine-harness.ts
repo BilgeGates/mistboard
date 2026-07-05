@@ -181,6 +181,96 @@ export function runUciBestmove(args: RunUciBestmoveArgs): Promise<string | null>
   });
 }
 
+/**
+ * Parse a UCI `info … score …` line into the fields postgame analysis needs.
+ * Returns undefined for non-info or score-less lines (e.g. `info string …`). The
+ * score is from the side-to-move POV, exactly as the engine reports it.
+ */
+export function parseInfoScore(
+  line: string,
+): { depth: number; cp: number | null; mate: number | null } | undefined {
+  if (!line.startsWith('info ') || !line.includes(' score ')) return undefined;
+  const tokens = line.split(/\s+/);
+  let depth = 0;
+  let cp: number | null = null;
+  let mate: number | null = null;
+  for (let i = 1; i < tokens.length; i += 1) {
+    if (tokens[i] === 'depth') depth = Number(tokens[i + 1]);
+    else if (tokens[i] === 'score') {
+      if (tokens[i + 1] === 'cp') cp = Number(tokens[i + 2]);
+      else if (tokens[i + 1] === 'mate') mate = Number(tokens[i + 2]);
+    }
+  }
+  return { depth, cp, mate };
+}
+
+export type UciEval = {
+  /** Best move in engine UCI, or null when the engine reports none. */
+  best: string | null;
+  /** Centipawns (side-to-move POV); null when a mate score is present. */
+  cp: number | null;
+  /** Signed moves-to-mate (side-to-move POV); null otherwise. */
+  mate: number | null;
+  /** Depth of the last scored line seen before bestmove. */
+  depth: number;
+};
+
+/**
+ * Like runUciBestmove, but also keeps the last `info … score` line so the caller
+ * gets the position's evaluation (for postgame analysis), not just the move. Same
+ * spawn / hard-timeout / SIGKILL-cleanup contract.
+ */
+export function runUciEval(args: RunUciBestmoveArgs): Promise<UciEval> {
+  const { bin, commands, timeoutMs, timeoutMessage } = args;
+  return new Promise<UciEval>((resolveEval, reject) => {
+    const child = spawn(bin, [], { stdio: ['pipe', 'pipe', 'pipe'] });
+    let buf = '';
+    let settled = false;
+    let latest: { depth: number; cp: number | null; mate: number | null } | null = null;
+
+    const finish = (run: () => void): void => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timer);
+      try {
+        child.kill('SIGKILL');
+      } catch {
+        /* already gone */
+      }
+      run();
+    };
+
+    const timer = setTimeout(() => finish(() => reject(new Error(timeoutMessage))), timeoutMs);
+
+    child.on('error', (err) => finish(() => reject(err)));
+    child.stdout.on('data', (chunk: Buffer) => {
+      buf += chunk.toString('utf8');
+      let newline = buf.indexOf('\n');
+      while (newline >= 0) {
+        const line = buf.slice(0, newline).trim();
+        buf = buf.slice(newline + 1);
+        const score = parseInfoScore(line);
+        if (score) latest = score;
+        const move = parseBestmoveLine(line);
+        if (move !== undefined) {
+          finish(() =>
+            resolveEval({
+              best: move,
+              cp: latest?.cp ?? null,
+              mate: latest?.mate ?? null,
+              depth: latest?.depth ?? 0,
+            }),
+          );
+          return;
+        }
+        newline = buf.indexOf('\n');
+      }
+    });
+
+    child.stdin.write(`${commands.join('\n')}\n`);
+  });
+}
+
 // ── Fairy-Stockfish layer (the perfect-info xiangqi + crossroads providers) ───
 
 // Resolve the FSF binary: explicit env override, else the known dev location, else
