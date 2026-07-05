@@ -83,6 +83,8 @@ const PRIMARY_LABEL_PX = 30;
 const STACK_GAP_PX = 16;
 const SECONDARY_LABEL_PX = 24;
 const SECONDARY_WIDTH_PX = 92;
+// Gap between a flank capture column and the board (mirrors `.review-flank { gap }`).
+const FLANK_GAP_PX = 8;
 
 export function mountReviewLayout(root: HTMLElement, adapter: ReviewLayoutAdapter): void {
   let ply = adapter.maxPly;
@@ -223,9 +225,7 @@ function fitPrimaryToViewport(stageEl: HTMLElement, aspect: number): void {
     const underboard = centerCol?.classList.contains('review-center-column')
       ? centerCol.querySelector<HTMLElement>('.review-underboard')
       : null;
-    const underboardPx = underboard
-      ? underboard.getBoundingClientRect().height + STACK_GAP_PX
-      : 0;
+    const underboardPx = underboard ? underboard.getBoundingClientRect().height + STACK_GAP_PX : 0;
     const available = window.innerHeight - VIEWPORT_CHROME_PX - underboardPx;
     const slot = stageEl.querySelector<HTMLElement>('.review-stage__slot--primary');
     if (available <= 0 || !slot) return;
@@ -235,11 +235,19 @@ function fitPrimaryToViewport(stageEl: HTMLElement, aspect: number): void {
       gaps;
     const currentWidth = slot.getBoundingClientRect().width;
     // Flank layout puts capture columns beside the board, so the board is narrower
-    // than the slot; measure the actual board to get its width (and thus the fixed
-    // side-column budget) instead of assuming board width == slot width.
+    // than the slot. The fixed side budget is the columns' OWN width (+ their gaps),
+    // NOT slot-minus-board: a portrait board that doesn't fill its slot leaves slack
+    // that slot-minus-board would count as flank width and run the slot away each
+    // pass (board 462 in a 1268 slot → flankPx 806 → wider slot → …).
     const flankBoard = slot.querySelector<HTMLElement>('.review-flank__board');
     const boardWidth = flankBoard ? flankBoard.getBoundingClientRect().width : currentWidth;
-    const flankPx = Math.max(0, currentWidth - boardWidth);
+    const flankCols = flankBoard
+      ? [...slot.querySelectorAll<HTMLElement>('.review-flank__col')]
+      : [];
+    const flankPx = flankCols.reduce(
+      (width, col) => width + col.getBoundingClientRect().width + FLANK_GAP_PX,
+      0,
+    );
     // Everything in the stage except the primary board itself (its own label /
     // strips, plus the secondary row and gaps) stays fixed as the primary scales.
     const nonBoardChrome = Math.max(0, contentHeight - boardWidth / aspect);

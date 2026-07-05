@@ -23,9 +23,10 @@ export interface EvalBar {
   reset(): void;
   /** Match board orientation: when flipped, Red sits at the top. */
   setFlipped(flipped: boolean): void;
-  /** Position the bar flush to the board's left edge, matching its height. Keeps
-   *  the bar aligned as the board rescales (call once, then let the observer run). */
-  observe(boardEl: HTMLElement): void;
+  /** Align the bar to the left of `leftAnchorEl` (default the board), matching the
+   *  board's height, and keep it aligned as the board rescales. Pass the flank host
+   *  as the anchor when capture columns sit beside the board, so the bar clears them. */
+  observe(boardEl: HTMLElement, leftAnchorEl?: HTMLElement): void;
 }
 
 export function createEvalBar(): EvalBar {
@@ -64,19 +65,22 @@ export function createEvalBar(): EvalBar {
     el.classList.toggle('review-eval-bar--flipped', flipped);
   }
 
-  function alignTo(boardEl: HTMLElement): void {
+  function alignTo(boardEl: HTMLElement, leftAnchorEl: HTMLElement): void {
     const host = el.parentElement;
     if (!host) return;
     const board = boardEl.getBoundingClientRect();
-    const anchor = host.getBoundingClientRect();
     if (board.height === 0) return;
+    const leftRect = leftAnchorEl.getBoundingClientRect();
+    const anchor = host.getBoundingClientRect();
+    // Vertical extent follows the board; horizontally the bar sits just left of the
+    // anchor (the board, or the flank host when capture columns are beside it).
     el.style.top = `${board.top - anchor.top}px`;
     el.style.height = `${board.height}px`;
-    el.style.left = `${board.left - anchor.left - BAR_WIDTH_PX - BAR_GAP_PX}px`;
+    el.style.left = `${leftRect.left - anchor.left - BAR_WIDTH_PX - BAR_GAP_PX}px`;
   }
 
-  function observe(boardEl: HTMLElement): void {
-    const run = () => alignTo(boardEl);
+  function observe(boardEl: HTMLElement, leftAnchorEl: HTMLElement = boardEl): void {
+    const run = () => alignTo(boardEl, leftAnchorEl);
     run();
     requestAnimationFrame(run);
     // The review layout sizes the board via a viewport fit at rAF + 60ms + 260ms;

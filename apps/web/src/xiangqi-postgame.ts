@@ -4,6 +4,7 @@
 // renderXiangqiBoardSvg with no fog mask.
 
 import {
+  createInitialXiangqiBoard,
   fsfUciToXiangqiSquares,
   type StandardXiangqiPlayerView,
   type XiangqiColor,
@@ -17,12 +18,65 @@ import './dark-xiangqi-postgame.css';
 import './xiangqi-postgame.css';
 import { xiangqiEnabled } from './feature-flags.js';
 import { renderXiangqiBoardSvg } from './live-xiangqi.js';
+import { capturedByDiff } from './review/captured-diff.js';
+import { fillCapturedPoolWith } from './review/captured-pool.js';
 import { createEnginePanel } from './review/engine/engine-panel.js';
 import { createEvalBar } from './review/engine/eval-bar.js';
+import { createFlankCaptures } from './review/flank-captures.js';
 import { createMoveList, type MoveListEntry } from './review/move-list.js';
 import { mountReviewLayout } from './review/review-layout.js';
 import { buildNav } from './site-shell.js';
+import { renderXiangqiPiece } from './xiangqi-pieces.js';
 import { createXiangqiPlayAgainRoom } from './xiangqi-room-actions.js';
+
+// Standard Xiangqi's view carries no captured list, so derive it by diffing the
+// opening against the current (fully open) board — public info, no hidden state.
+const XIANGQI_INITIAL_PIECES = Object.values(createInitialXiangqiBoard()).filter(
+  (piece): piece is NonNullable<typeof piece> => Boolean(piece),
+);
+
+function xiangqiCaptured(view: StandardXiangqiPlayerView) {
+  const current = Object.values(view.board).filter((piece): piece is NonNullable<typeof piece> =>
+    Boolean(piece),
+  );
+  return capturedByDiff(XIANGQI_INITIAL_PIECES, current);
+}
+
+function renderCapturedXiangqiGlyph(piece: {
+  color: XiangqiColor;
+  role: (typeof XIANGQI_INITIAL_PIECES)[number]['role'];
+}): string {
+  return renderXiangqiPiece(piece, { ariaLabel: `${piece.color} ${piece.role}` });
+}
+
+// Size capture tiles to the board (≈ one board cell) AND cap the flank row to
+// board + a fixed column budget, both keyed off the board's measured width. The
+// cap stops the board's flex-grow from leaving slack that would push the capture
+// columns away from the board. Re-run on the layout's fit cadence + a ResizeObserver.
+function sizeCapturesToBoard(
+  boardEl: HTMLElement,
+  cols: number,
+  flank: { host: HTMLElement; leftColumn: HTMLElement; rightColumn: HTMLElement },
+): void {
+  const apply = () => {
+    const width = boardEl.getBoundingClientRect().width;
+    if (width <= 0) return;
+    const tile = Math.round(width / cols);
+    const size = `${tile}px`;
+    flank.leftColumn.style.setProperty('--capture-piece-size', size);
+    flank.rightColumn.style.setProperty('--capture-piece-size', size);
+    // Two columns (tile + horizontal padding) + the two flank gaps.
+    const columnBudget = 2 * (tile + 16) + 2 * 8;
+    flank.host.style.maxWidth = `${Math.round(width) + columnBudget}px`;
+    flank.host.style.marginInline = 'auto';
+  };
+  apply();
+  requestAnimationFrame(apply);
+  setTimeout(apply, 80);
+  setTimeout(apply, 300);
+  if (typeof ResizeObserver !== 'undefined') new ResizeObserver(apply).observe(boardEl);
+  window.addEventListener('resize', apply);
+}
 
 // Open information: the only meaningful board is the shared truth board.
 export type XiangqiPostgameViewKey = 'truth';
@@ -119,9 +173,19 @@ function renderPostgame(root: HTMLElement, postgame: XiangqiPostgameResponse): v
   const board = document.createElement('div');
   board.className = 'dxq-postgame__board xiangqi-live-board';
   board.setAttribute('aria-label', 'Xiangqi board');
+  // Captured material in columns beside the board (opponent top-left, near side
+  // bottom-right) — same flank layout as Dark Xiangqi, no vertical chrome added.
+  const flank = createFlankCaptures(board);
   const evalBar = createEvalBar();
-  boardWrap.append(board, evalBar.el);
-  evalBar.observe(board);
+  boardWrap.append(flank.host, evalBar.el);
+  // The eval bar sits just left of the left capture column (bar · captures · board
+  // · captures). Anchor to the column, not the full-width flank host, since the
+  // content is centered in a wider slot.
+  evalBar.observe(board, flank.leftColumn);
+  // The stage's container-query capture sizing assumes slot width ≈ board width,
+  // but a single portrait board leaves the slot much wider, so size the tiles off
+  // the board's measured width (≈ one board cell) to match the on-board pieces.
+  sizeCapturesToBoard(board, 9, flank);
 
   const moveList = createMoveList(xiangqiMoveEntries(postgame), { title: 'Moves' });
 
@@ -153,9 +217,16 @@ function renderPostgame(root: HTMLElement, postgame: XiangqiPostgameResponse): v
     maxPly: postgameReplayMaxPly(postgame),
     renderBoards({ ply, flipped }) {
       const orientation: XiangqiColor = flipped ? 'black' : 'red';
+      const opponent: XiangqiColor = orientation === 'red' ? 'black' : 'red';
       const view = postgameViewAtPly(postgame, 'truth', ply) ?? entry.view;
       board.innerHTML = renderXiangqiBoardSvg(view, orientation);
       evalBar.setFlipped(flipped);
+      // Captured pools: left (top) = near side's losses, right (bottom) = opponent's.
+      const captured = xiangqiCaptured(view);
+      flank.leftColumn.replaceChildren();
+      flank.rightColumn.replaceChildren();
+      fillCapturedPoolWith(flank.leftColumn, captured, orientation, renderCapturedXiangqiGlyph);
+      fillCapturedPoolWith(flank.rightColumn, captured, opponent, renderCapturedXiangqiGlyph);
       // Re-evaluate on ply change only (not on flip, which keeps the position).
       if (ply !== lastEnginePly) {
         lastEnginePly = ply;
