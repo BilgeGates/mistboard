@@ -76,7 +76,8 @@ const EN = {
   'footer.patron': 'Patron',
   'patron.heading': 'Support Mistboard',
   'patron.heroTitle': 'The games are free. Forever.',
-  'patron.heroSubtitle': 'No ads, no pay-to-win. Just an independent project you can help keep alive.',
+  'patron.heroSubtitle':
+    'No ads, no pay-to-win. Just an independent project you can help keep alive.',
   'patron.frequencyMonthly': 'Monthly',
   'patron.frequencyLifetime': 'Lifetime',
   'patron.intro':
