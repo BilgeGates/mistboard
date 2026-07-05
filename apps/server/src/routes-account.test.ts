@@ -80,6 +80,85 @@ definePersistenceTests('account routes', () => {
     assert.equal(response.status, 400);
     assert.deepEqual(JSON.parse(response.body), { error: 'invalid_locale' });
   });
+
+  test('account preferences route updates profile visibility', async () => {
+    const now = new Date('2026-07-05T12:00:00.000Z');
+    const sessionToken = 'visibility-route-token';
+    await createUser({
+      id: 'user_visibility_route',
+      email: 'visibility-route@example.com',
+      emailVerifiedAt: now,
+      handle: 'visibility-route',
+      displayName: 'Visibility Route',
+      now,
+    });
+    const expiresAt = new Date(Date.now() + 86_400_000);
+    await createAccountSession({
+      id: 'visibility-route-session',
+      userId: 'user_visibility_route',
+      tokenHash: hashSecret(sessionToken),
+      expiresAt,
+    });
+
+    const response = captureResponse();
+    const handled = await tryHandle(
+      {},
+      jsonRequest(
+        { profileVisibility: 'unlisted' },
+        accountSessionCookie('visibility-route-session', sessionToken, expiresAt).split(';')[0],
+      ),
+      response,
+      '/api/account/preferences',
+    );
+
+    assert.equal(handled, true);
+    assert.equal(response.status, 200);
+    assert.equal(
+      (JSON.parse(response.body) as { user: { profileVisibility: string } }).user.profileVisibility,
+      'unlisted',
+    );
+    assert.equal(
+      (await findUserByEmail('visibility-route@example.com'))?.profileVisibility,
+      'unlisted',
+    );
+  });
+
+  test('account preferences route rejects unknown profile visibility', async () => {
+    const now = new Date('2026-07-05T12:00:00.000Z');
+    const sessionToken = 'invalid-visibility-route-token';
+    await createUser({
+      id: 'user_invalid_visibility_route',
+      email: 'invalid-visibility@example.com',
+      emailVerifiedAt: now,
+      handle: 'invalid-visibility',
+      displayName: 'Invalid Visibility',
+      now,
+    });
+    const expiresAt = new Date(Date.now() + 86_400_000);
+    await createAccountSession({
+      id: 'invalid-visibility-route-session',
+      userId: 'user_invalid_visibility_route',
+      tokenHash: hashSecret(sessionToken),
+      expiresAt,
+    });
+
+    const response = captureResponse();
+    const handled = await tryHandle(
+      {},
+      jsonRequest(
+        { profileVisibility: 'discoverable' },
+        accountSessionCookie('invalid-visibility-route-session', sessionToken, expiresAt).split(
+          ';',
+        )[0],
+      ),
+      response,
+      '/api/account/preferences',
+    );
+
+    assert.equal(handled, true);
+    assert.equal(response.status, 400);
+    assert.deepEqual(JSON.parse(response.body), { error: 'invalid_profile_visibility' });
+  });
 });
 
 function jsonRequest(body: unknown, cookie?: string): IncomingMessage {

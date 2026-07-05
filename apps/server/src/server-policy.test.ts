@@ -345,6 +345,7 @@ test('isClientRoute matches parametric SPA routes', () => {
   assert.equal(isClientRoute('/room/abc123'), true);
   assert.equal(isClientRoute('/challenge/seek_abc123'), true);
   assert.equal(isClientRoute('/puzzles/mini-xiangqi-red-back-rank-net-1'), true);
+  assert.equal(isClientRoute('/account/settings/privacy'), true);
   assert.equal(isClientRoute('/@/brianhliou'), true);
   assert.equal(isClientRoute('/articles/dark-chess-concepts'), true);
   assert.equal(isClientRoute('/zh-hans/articles'), true);

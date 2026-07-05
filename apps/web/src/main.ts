@@ -90,7 +90,10 @@ const wantsFaq = path === '/faq' || page === 'faq';
 const wantsTerms = path === '/terms' || page === 'terms';
 const wantsPrivacy = path === '/privacy' || page === 'privacy';
 const wantsAccount = path === '/account' || page === 'account';
-const wantsAccountSettings = path === '/account/settings' || page === 'account-settings';
+const wantsAccountSettings =
+  path === '/account/settings' ||
+  path.startsWith('/account/settings/') ||
+  page === 'account-settings';
 // /inbox (thread list) and /inbox/:handle (open conversation). Signed-in-only
 // surface; the page itself renders a sign-in prompt for anonymous visitors.
 // /inbox/reports is the admin report queue and wins over the :handle pattern

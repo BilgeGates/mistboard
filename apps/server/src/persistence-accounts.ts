@@ -11,11 +11,17 @@ import {
 
 export type AccountRole = 'player' | 'admin';
 export type AccountLocale = 'en' | 'zh-Hans' | 'zh-Hant' | 'ja';
+export type ProfileVisibility = 'private' | 'unlisted' | 'public';
 
 export const ACCOUNT_LOCALES: readonly AccountLocale[] = ['en', 'zh-Hans', 'zh-Hant', 'ja'];
+export const PROFILE_VISIBILITIES: readonly ProfileVisibility[] = ['private', 'unlisted', 'public'];
 
 export function isAccountLocale(value: unknown): value is AccountLocale {
   return typeof value === 'string' && ACCOUNT_LOCALES.includes(value as AccountLocale);
+}
+
+export function isProfileVisibility(value: unknown): value is ProfileVisibility {
+  return typeof value === 'string' && PROFILE_VISIBILITIES.includes(value as ProfileVisibility);
 }
 
 // Who may START a conversation with this user (#93). Replies to an existing
@@ -37,7 +43,7 @@ export type UserAccount = {
   handleChangedAt: Date | null;
   displayName: string;
   displayNameChangedAt: Date | null;
-  profileVisibility: 'private' | 'unlisted' | 'public';
+  profileVisibility: ProfileVisibility;
   accountRole: AccountRole;
   locale: AccountLocale | null;
   dmPolicy: DmPolicy;
@@ -336,6 +342,22 @@ export async function updateUserLocale(
      WHERE id = $1
      RETURNING ${USER_COLUMNS}`,
     [userId, locale, at],
+  );
+  return rows[0] ? userFromRow(rows[0]) : null;
+}
+
+export async function updateUserProfileVisibility(
+  userId: string,
+  profileVisibility: ProfileVisibility,
+  at: Date,
+): Promise<UserAccount | null> {
+  const { rows } = await getPool().query<UserRow>(
+    `UPDATE users
+     SET profile_visibility = $2,
+         updated_at = $3
+     WHERE id = $1
+     RETURNING ${USER_COLUMNS}`,
+    [userId, profileVisibility, at],
   );
   return rows[0] ? userFromRow(rows[0]) : null;
 }
