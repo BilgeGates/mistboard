@@ -98,8 +98,53 @@ export function buildNav(locale: Locale = currentLocale()): HTMLElement {
   collapse.append(links, utilities);
 
   ensureNavDismiss();
+  ensureNavAutoHide();
   nav.append(brand, toggle, collapse);
   return nav;
+}
+
+// Lichess-style sticky-nav auto-hide: hide the bar when scrolling down, reveal
+// it when scrolling back up (topBar.ts in lila). One listener set, bound once,
+// that finds the current `.site-nav` so SPA route swaps that rebuild the nav
+// don't accumulate listeners. Asymmetric thresholds (10px down / 20px up) plus
+// skipping `lastY` updates on sub-threshold moves give hysteresis so a jittery
+// scroll doesn't flicker the bar.
+//
+// The page scroller varies by route: on landing routes `body` gets
+// `overflow-y: auto` (via the `overflow-x: hidden` rule) so IT scrolls; other
+// routes scroll the window/documentElement. A capture-phase `scroll` listener
+// on `document` catches the event from whichever element scrolls (scroll does
+// not bubble, but capture reaches it), and we read the page offset as the max
+// across the candidates so we don't care which one holds it.
+let navAutoHideBound = false;
+function ensureNavAutoHide(): void {
+  if (navAutoHideBound || typeof document === 'undefined') return;
+  navAutoHideBound = true;
+  const clamp = (v: number, min: number, max: number) => Math.min(Math.max(v, min), max);
+  const scrollY = () =>
+    Math.max(
+      window.scrollY || 0,
+      document.documentElement.scrollTop || 0,
+      document.body.scrollTop || 0,
+    );
+  const maxScroll = () =>
+    Math.max(
+      0,
+      document.documentElement.scrollHeight - window.innerHeight,
+      document.body.scrollHeight - document.body.clientHeight,
+    );
+  let lastY = scrollY();
+  const onScroll = () => {
+    const nav = document.querySelector<HTMLElement>('.site-nav');
+    if (!nav) return;
+    const y = scrollY();
+    nav.classList.toggle('scrolled', y > 0);
+    if (y > lastY + 10) nav.classList.add('hide');
+    else if (y <= clamp(lastY - 20, 0, maxScroll())) nav.classList.remove('hide');
+    else return;
+    lastY = Math.max(0, y);
+  };
+  document.addEventListener('scroll', onScroll, { capture: true, passive: true });
 }
 
 let navDismissBound = false;

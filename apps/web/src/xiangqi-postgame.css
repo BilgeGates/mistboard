@@ -5,7 +5,9 @@
 
 .xiangqi-postgame-route {
   min-height: 100vh;
-  background: var(--site-bg);
+  /* Warm page gradient (same as body/#app), anchored at the top so the review
+     field is continuous with the nav — no seam. */
+  background: var(--site-page-gradient);
   color: var(--site-text);
 }
 

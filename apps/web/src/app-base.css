@@ -36,43 +36,57 @@
 }
 
 /* Site palette. Lightness/saturation ladder mirrors lichess's theme structure
-   (page < box < raised, zebra between) with the hue translated to a cool mist
-   grey-green instead of their warm hue-37. Boards stay classic. */
+   (page < box < raised, zebra between). The neutral field is a warm greige
+   (hue ~40, close to lichess's hue-37) so the whole background carries warmth,
+   not just the header; the green lives in the accent + boards, not the chrome. */
 :root {
   color-scheme: light;
   /* Lichess-derived shape scale: 7px boxes/cards, 5px controls. Theme-invariant. */
   --site-radius: 7px;
   --site-radius-sm: 5px;
-  --site-bg: hsl(168, 10%, 93%);
-  --site-bg-soft: hsl(168, 10%, 89%);
-  --site-text: hsl(168, 3%, 30%);
-  --site-heading: hsl(168, 8%, 19%);
-  --site-muted: hsl(168, 2%, 47%);
+  --site-bg: hsl(40, 24%, 91%);
+  --site-bg-soft: hsl(40, 22%, 87%);
+  /* Lichess's header trick: the page (and the nav) fade down FROM a warm amber
+     top stop (hue ~40, like lichess's hue-37) that is slightly DARKER than the
+     cool-green body, so a warm glow settles under the bar and lifts as you
+     scroll. Warm-into-cool over a long fade keeps the mist identity below. */
+  --site-page-top: hsl(40, 30%, 84%);
+  /* One canonical page gradient: warm-darker top settling into the warm body.
+     Applied to every element that paints the page field (body, #app) AND the
+     nav, all anchored at the top with the SAME stops, so they read as one
+     continuous warm background with no seam under the bar. */
+  --site-page-gradient: linear-gradient(to bottom, var(--site-page-top), var(--site-bg) 220px);
+  --site-text: hsl(40, 3%, 30%);
+  --site-heading: hsl(40, 8%, 19%);
+  --site-muted: hsl(40, 2%, 47%);
   --site-panel: #ffffff;
-  --site-panel-soft: hsl(168, 12%, 96.5%);
-  --site-border: hsl(168, 5%, 84%);
-  --site-border-soft: hsl(168, 5%, 89%);
-  --site-accent: #1f6f5b;
-  --site-accent-strong: #185947;
-  --site-accent-soft: #eef8f2;
+  --site-panel-soft: hsl(40, 12%, 96.5%);
+  --site-border: hsl(40, 5%, 84%);
+  --site-border-soft: hsl(40, 5%, 89%);
+  /* Green accent ramp, hue-locked to 165 (pine) across all three steps so the
+     family reads as one deliberate color: base for actions, -strong deeper for
+     hover/active, -soft a tinted wash (not a near-white) for chips and fills. */
+  --site-accent: hsl(165, 56%, 28%);
+  --site-accent-strong: hsl(165, 60%, 21%);
+  --site-accent-soft: hsl(165, 44%, 95%);
   --site-on-accent: #ffffff;
   --site-link: hsl(209, 77%, 46%);
   --site-metal-top: hsl(0, 0%, 96%);
   --site-metal-bottom: hsl(0, 0%, 93%);
   --site-metal-top-hover: hsl(0, 0%, 98%);
   --site-metal-bottom-hover: hsl(0, 0%, 95%);
-  --site-zebra: hsl(168, 12%, 96.5%);
-  --site-zebra2: hsl(168, 12%, 92%);
-  --site-focus: rgba(31, 111, 91, 0.22);
+  --site-zebra: hsl(40, 12%, 96.5%);
+  --site-zebra2: hsl(40, 12%, 92%);
+  --site-focus: hsla(165, 56%, 28%, 0.22);
   --site-shadow: rgba(29, 37, 34, 0.15);
-  --site-hover: hsl(168, 6%, 88%);
+  --site-hover: hsl(40, 6%, 88%);
   --site-nav-bg: var(--site-bg);
   --site-nav-border: transparent;
   --site-stage-bg: linear-gradient(
     180deg,
-    hsl(168, 10%, 93%) 0,
-    hsl(168, 10%, 93%) 460px,
-    hsl(168, 12%, 96.5%) 100%
+    hsl(40, 24%, 91%) 0,
+    hsl(40, 24%, 91%) 460px,
+    hsl(40, 18%, 95%) 100%
   );
   --site-warning-bg: #fff4d6;
   --site-warning-border: #e6c870;
@@ -110,7 +124,9 @@
   --belief-opp-rgb: 194 73 67;
   --belief-own-rgb: 73 139 176;
   color: var(--site-text);
-  background: var(--site-bg);
+  background-color: var(--site-bg);
+  background-image: linear-gradient(to bottom, var(--site-page-top), var(--site-bg) 220px);
+  background-repeat: no-repeat;
   font-family:
     "Noto Sans", ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
 }
@@ -250,36 +266,39 @@
 
 :root[data-effective-theme="dark"] {
   color-scheme: dark;
-  --site-bg: hsl(168, 10%, 8%);
-  --site-bg-soft: hsl(168, 11%, 13%);
+  --site-bg: hsl(40, 10%, 8%);
+  --site-bg-soft: hsl(40, 11%, 13%);
   --site-text: hsl(0, 0%, 73%);
   --site-heading: hsl(0, 0%, 82%);
   --site-muted: hsl(0, 0%, 58%);
-  --site-panel: hsl(168, 7%, 14%);
-  --site-panel-soft: hsl(168, 5%, 19%);
-  --site-border: hsl(168, 4%, 25%);
-  --site-border-soft: hsl(168, 4%, 21%);
-  --site-accent: hsl(160, 45%, 42%);
-  --site-accent-strong: hsl(158, 42%, 60%);
-  --site-accent-soft: hsl(165, 22%, 15%);
+  --site-panel: hsl(40, 7%, 14%);
+  --site-panel-soft: hsl(40, 5%, 19%);
+  --site-border: hsl(40, 4%, 25%);
+  --site-border-soft: hsl(40, 4%, 21%);
+  --site-page-top: hsl(41, 16%, 14%);
+  /* Same hue-165 ramp as light, lifted for legibility on the dark field:
+     base brighter, -strong lighter still for hover, -soft a dim tinted panel. */
+  --site-accent: hsl(165, 44%, 45%);
+  --site-accent-strong: hsl(165, 46%, 62%);
+  --site-accent-soft: hsl(165, 24%, 15%);
   --site-on-accent: #ffffff;
   --site-link: hsl(209, 79%, 56%);
-  --site-metal-top: hsl(168, 7%, 22%);
-  --site-metal-bottom: hsl(168, 5%, 19%);
-  --site-metal-top-hover: hsl(168, 7%, 25%);
-  --site-metal-bottom-hover: hsl(168, 5%, 22%);
-  --site-zebra: hsl(168, 5%, 19%);
-  --site-zebra2: hsl(168, 5%, 24%);
-  --site-focus: hsla(160, 45%, 50%, 0.28);
+  --site-metal-top: hsl(40, 7%, 22%);
+  --site-metal-bottom: hsl(40, 5%, 19%);
+  --site-metal-top-hover: hsl(40, 7%, 25%);
+  --site-metal-bottom-hover: hsl(40, 5%, 22%);
+  --site-zebra: hsl(40, 5%, 19%);
+  --site-zebra2: hsl(40, 5%, 24%);
+  --site-focus: hsla(165, 45%, 50%, 0.28);
   --site-shadow: rgba(0, 0, 0, 0.42);
-  --site-hover: hsl(168, 6%, 22%);
+  --site-hover: hsl(40, 6%, 22%);
   --site-nav-bg: var(--site-bg);
   --site-nav-border: transparent;
   --site-stage-bg: linear-gradient(
     180deg,
-    hsl(168, 10%, 8%) 0,
-    hsl(168, 11%, 13%) 460px,
-    hsl(168, 10%, 8%) 100%
+    hsl(40, 10%, 8%) 0,
+    hsl(40, 11%, 13%) 460px,
+    hsl(40, 10%, 8%) 100%
   );
   --site-warning-bg: hsl(37, 45%, 13%);
   --site-warning-border: hsl(37, 55%, 30%);
@@ -519,7 +538,7 @@
 
 body {
   margin: 0;
-  background: var(--site-bg);
+  background: var(--site-page-gradient);
   color: var(--site-text);
   /* Match lichess's whole-page rendering: grayscale/antialiased smoothing so
      Noto Sans reads at its true weight instead of the heavier subpixel render
@@ -554,7 +573,7 @@ button:focus-visible {
   .account-route
 ):not(.profile-route):not(.source-route) {
   min-height: 100dvh;
-  background: var(--site-bg);
+  background: var(--site-page-gradient);
 }
 
 body:has(
@@ -567,7 +586,7 @@ body:has(
 
 .landing-page.account-route,
 .landing-page.profile-route {
-  background: var(--site-bg);
+  background: var(--site-page-gradient);
 }
 
 .site-section {
