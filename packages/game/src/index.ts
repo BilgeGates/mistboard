@@ -1,3 +1,4 @@
+export * from './analysis.js';
 export * from './bughouse.js';
 export * from './bughouse-engine-protocol.js';
 export * from './chess960.js';
@@ -27,4 +28,3 @@ export * from './variants-shogi.js';
 export * from './variants-xiangqi.js';
 export * from './variants-xiangqi-standard.js';
 export * from './xiangqi-uci.js';
-export * from './analysis.js';

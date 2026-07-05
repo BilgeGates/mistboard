@@ -85,7 +85,11 @@ describe('createMoveList', () => {
     ml.annotate(new Map([[2, { suffix: '?', suffixClass: 'mistake' }]]));
     const suffixes = ml.el.querySelectorAll('.review-move-list__suffix');
     expect(suffixes.length).toBe(1);
-    expect(ml.el.querySelectorAll('.review-move-list__move')[0]!.querySelector('.review-move-list__suffix')).toBeNull();
+    expect(
+      ml.el
+        .querySelectorAll('.review-move-list__move')[0]!
+        .querySelector('.review-move-list__suffix'),
+    ).toBeNull();
     expect(suffixes[0]!.textContent).toContain('?');
   });
 });
