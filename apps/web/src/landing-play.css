@@ -69,14 +69,11 @@
   overflow-wrap: anywhere;
 }
 
-/* Play column: the bare pairing buttons with the activity box directly beneath
-   them, the whole group vertically centered against the board (its grid row is
-   the board's height, so align-self centers the stack). */
+/* Pairing CTAs stack — the untouched buttons + activity box, at the top of the
+   right column (aligned with the lobby panel). Full column width. */
 .landing-play-stack {
-  grid-area: play;
   display: flex;
   flex-direction: column;
-  align-self: center;
   gap: clamp(12px, 1.6vw, 18px);
   min-width: 0;
 }

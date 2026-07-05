@@ -1,4 +1,4 @@
-/* Homepage route — board-centered 3-column scrolling portal. */
+/* Homepage route — play-centered 3-column scrolling portal (viewer in the side rail). */
 
 .landing-stage {
   display: grid;
@@ -11,15 +11,18 @@
 
 .landing-demo {
   display: grid;
-  /* Cap the center track at the board width so the board fills it (no centering
-     slack), and keep a narrow slit between columns like lichess. Two rows: the
-     board + play CTAs on top, then the articles row + lower-right rail beneath, so
-     the rail's widgets line up with the top of the articles row across the gutter.
-     The left rail spans both rows. */
-  grid-template-columns: minmax(300px, 340px) minmax(0, 660px) minmax(300px, 340px);
+  /* lichess-shaped portal. Row 1: news (left), the tall Open-challenges lobby panel
+     (center, the focal element), the pairing CTAs + activity (right, centered against
+     the panel). Row 2: the game viewer (left) and the daily puzzle (right), both
+     top-aligned with the article/forum feed (center). */
+  /* lila proportions: the lobby is the dominant element (lila's app is 66% of a
+     34%/1fr grid). Center takes the free space (1fr) while the news + CTA rails
+     hold a tight 280-320px, so the panel reads as the focal block, not a co-equal
+     third column. */
+  grid-template-columns: minmax(280px, 320px) minmax(0, 1fr) minmax(280px, 320px);
   grid-template-areas:
-    "left board    play"
-    "left articles rail";
+    "news   panel play"
+    "viewer feed  puzzle";
   column-gap: clamp(10px, 0.9vw, 15px);
   row-gap: clamp(14px, 1.8vw, 24px);
   align-items: start;
@@ -139,7 +142,7 @@
    width beneath the board. Split from the board so the grid can align this row's
    top with the lower-right rail. */
 .landing-center-below {
-  grid-area: articles;
+  grid-area: feed;
   display: flex;
   flex-direction: column;
   align-items: stretch;
@@ -149,6 +152,219 @@
 
 .landing-rail-right {
   grid-area: rail;
+}
+
+/* News column (row 1, top-left): the announcements feed + h1 tagline. */
+.landing-news-column {
+  grid-area: news;
+  display: flex;
+  flex-direction: column;
+  gap: clamp(12px, 1.6vw, 18px);
+  min-width: 0;
+}
+
+/* Left viewer column (row 2): the showcase board, top-aligned with the article row. */
+.landing-viewer-column {
+  grid-area: viewer;
+  display: flex;
+  flex-direction: column;
+  gap: clamp(12px, 1.6vw, 18px);
+  min-width: 0;
+}
+
+/* Play column (row 1, right): the pairing CTAs + activity, vertically centered
+   against the tall lobby panel. align-self: stretch overrides the grid's
+   align-items:start so the column fills row 1 and can center its content. */
+.landing-play-column {
+  grid-area: play;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-self: stretch;
+  gap: clamp(12px, 1.6vw, 18px);
+  min-width: 0;
+}
+
+/* Puzzle column (row 2, right): the daily puzzle, top-aligned with the article row. */
+.landing-puzzle-column {
+  grid-area: puzzle;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+/* Center lobby panel (row 1): the tabbed Open-challenges board — the focal element,
+   so it runs tall (lichess / PlayStrategy-shaped). */
+.landing-lobby-panel {
+  grid-area: panel;
+  display: flex;
+  min-width: 0;
+}
+
+.landing-lobby-board {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  /* Taller than lila's 600px per the current direction; filled via the default
+     pools view so the extra height doesn't read as a void. */
+  min-height: clamp(560px, 74vh, 800px);
+  border: 1px solid var(--site-border-soft);
+  border-radius: var(--site-radius);
+  background: var(--site-panel);
+  overflow: hidden;
+}
+
+.landing-lobby-tabs {
+  display: flex;
+  border-bottom: 1px solid var(--site-border-soft);
+}
+
+.landing-lobby-tab {
+  flex: 1;
+  padding: 12px 10px;
+  border: 0;
+  border-right: 1px solid var(--site-border-soft);
+  background: var(--site-stage-bg);
+  color: var(--site-muted);
+  font: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.landing-lobby-tab:last-child {
+  border-right: 0;
+}
+
+.landing-lobby-tab:hover {
+  color: var(--site-text);
+}
+
+.landing-lobby-tab.is-active {
+  background: var(--site-panel);
+  color: var(--site-text);
+}
+
+.landing-lobby-body {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+}
+
+.landing-lobby-tabpanel {
+  display: flex;
+  flex: 1;
+  min-width: 0;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px 14px;
+}
+
+.landing-lobby-tabpanel[hidden] {
+  display: none;
+}
+
+.landing-lobby-thead,
+.landing-lobby-trow {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto auto;
+  align-items: center;
+  gap: 10px;
+}
+
+.landing-lobby-thead {
+  padding: 0 4px 8px;
+  border-bottom: 1px solid var(--site-border-soft);
+  color: var(--site-muted);
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.landing-lobby-tbody {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  overflow: auto;
+}
+
+.landing-lobby-trow {
+  padding: 8px 4px;
+  border-radius: var(--site-radius-sm, 6px);
+}
+
+.landing-lobby-trow:hover {
+  background: var(--site-stage-bg);
+}
+
+.landing-lobby-td {
+  min-width: 0;
+  color: var(--site-text);
+  font-size: 13px;
+  overflow-wrap: anywhere;
+}
+
+.landing-lobby-td-game {
+  font-weight: 700;
+}
+
+.landing-lobby-join {
+  padding: 5px 14px;
+  border: 1px solid var(--site-border-soft);
+  border-radius: var(--site-radius-sm, 6px);
+  background: var(--site-panel);
+  color: var(--site-text);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  text-decoration: none;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.landing-lobby-join:hover {
+  border-color: var(--site-accent-strong);
+  color: var(--site-accent-strong);
+}
+
+.landing-lobby-join.is-mine {
+  opacity: 0.55;
+  cursor: default;
+}
+
+.landing-lobby-empty {
+  margin: 12px 4px;
+  color: var(--site-muted);
+  font-size: 13px;
+}
+
+.landing-lobby-quickpair {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  align-content: start;
+}
+
+.landing-lobby-pool {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 88px;
+  padding: 18px 12px;
+  border: 1px solid var(--site-border-soft);
+  border-radius: var(--site-radius);
+  background: var(--site-panel);
+  color: var(--site-text);
+  font: inherit;
+  font-size: 18px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.landing-lobby-pool:hover {
+  border-color: var(--site-accent-strong);
+  color: var(--site-accent-strong);
 }
 
 .landing-board-column {
@@ -191,14 +407,14 @@
   --showcase-widget-size: min(100cqw - 26px, calc(100dvh - 240px));
 }
 
-/* Full-width center widget has room in the seat rows, so grow the name + clock
-   into it. Set via the seat-font vars (not direct font-size rules) so the chess
-   clock rows and the tenant seats pick it up at the same specificity — direct
-   rules here lose to the chess-unification block and left the chess rows ~5px
-   shorter per seat (a 10px widget-height jump on chess games). */
+/* The viewer now lives in a narrow side rail, so keep the seat name + clock
+   compact (the earlier 1.15rem bump was for the full-width center). Set via the
+   seat-font vars (not direct font-size rules) so the chess clock rows and the
+   tenant seats pick it up at the same specificity — direct rules here lose to the
+   chess-unification block and desync the chess vs tenant seat heights. */
 .landing-board-column #landing-replay {
-  --showcase-seat-name-size: 1.15rem;
-  --showcase-seat-clock-size: 1.15rem;
+  --showcase-seat-name-size: 0.85rem;
+  --showcase-seat-clock-size: 0.85rem;
 }
 
 /* Article carousel beneath the hero board (center column) — a single row of
@@ -1037,17 +1253,24 @@
 }
 
 @media (max-width: 1240px) {
-  /* Collapse to one column: board, its articles/forum row, the pairing CTAs, the
-     lower-right rail (puzzle/requests/activity), then the announcements. */
+  /* Collapse to one column: pairing CTAs + activity, the open-challenges panel, the
+     viewer, the article/forum feed, the puzzle, then news. */
   .landing-demo {
     grid-template-columns: minmax(0, 1fr);
     grid-template-areas:
-      "board"
-      "articles"
       "play"
-      "rail"
-      "left";
+      "panel"
+      "viewer"
+      "feed"
+      "puzzle"
+      "news";
     max-width: 640px;
+  }
+
+  /* The centering that stacks the CTAs against the tall panel is a desktop-only
+     concern; on mobile the column is content-height, so drop it. */
+  .landing-play-column {
+    justify-content: flex-start;
   }
 
   .landing-center-below {
@@ -1058,14 +1281,15 @@
     margin-inline: auto;
   }
 
-  .landing-play-stack,
-  .landing-rail-right {
+  .landing-play-stack {
     width: 100%;
     max-width: 460px;
     margin-inline: auto;
   }
 
-  .landing-rail-left {
+  .landing-viewer-column,
+  .landing-lobby-panel,
+  .landing-news-column {
     width: 100%;
     margin-inline: auto;
   }

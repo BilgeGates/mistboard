@@ -18,7 +18,7 @@ import { buildLandingChat } from './landing-chat.js';
 import { buildLandingForumPreview } from './landing-forum-preview.js';
 import {
   buildLandingPlayPanel,
-  buildLobbyRequestsWindow,
+  buildLobbyPanel,
   closeActiveLandingDialog,
   fallbackPlayableEngines,
   maybeOpenPlayDeepLink,
@@ -559,20 +559,22 @@ function buildLandingStage(
   const section = document.createElement('section');
   section.className = 'landing-demo';
 
-  // ── Left rail: announcements, then a small one-line "about" heading. It is the
-  // page's single h1, kept small (body-text sized) to fit the board-centered
-  // design, so the homepage still has a real heading for search + screen readers
-  // without a marketing hero. ──
-  const leftRail = document.createElement('div');
-  leftRail.className = 'landing-rail landing-rail-left';
+  // ── News column (grid-area: news, top-left): the announcements feed plus the page's
+  // single (small) h1 tagline. The h1 stays body-sized so the homepage keeps a real
+  // heading for search + screen readers without a marketing hero. ──
+  const newsColumn = document.createElement('div');
+  newsColumn.className = 'landing-news-column';
   const about = document.createElement('h1');
   about.className = 'landing-about';
   about.textContent = t('home.tagline', {}, locale);
-  leftRail.append(buildLandingAnnouncements(locale), about);
+  newsColumn.append(buildLandingAnnouncements(locale), about);
 
-  // ── Board (its own grid area): the cycling showcase board is the top row of the
-  // center column so the right rail's lower widgets can line up with the top of
-  // the articles row beneath it (lichess-style). ──
+  // ── Left viewer column (grid-area: viewer, row 2): the cycling showcase board,
+  // top-aligned with the article row across the gutter (beneath the news column). The
+  // board stays in `.landing-board-column` (container-query sized) so it shrinks to
+  // the side track. ──
+  const viewerColumn = document.createElement('div');
+  viewerColumn.className = 'landing-viewer-column';
   const boardColumn = document.createElement('div');
   boardColumn.className = 'landing-board-column';
   const replayRoot = document.createElement('div');
@@ -587,10 +589,17 @@ function buildLandingStage(
   const caption = document.createElement('div');
   caption.className = 'showcase-caption';
   boardColumn.append(caption);
+  viewerColumn.append(boardColumn);
 
-  // ── Beneath the board (its own grid row): article cards, forum preview, and the
-  // lobby chat. Splitting these off the board lets the grid align this row's top
-  // with the right rail's lower widgets across the gutter. ──
+  // ── Center panel (grid-area: panel): the new Open challenges lobby table — browse
+  // and join open seeks (lichess's central lobby). The "start a game" CTAs stay on
+  // the right; this is the complementary "join a game" surface. ──
+  const lobbyPanel = document.createElement('section');
+  lobbyPanel.className = 'landing-lobby-panel';
+  lobbyPanel.append(buildLobbyPanel(locale, { hydrate: !opts.skipLiveWidgets }));
+
+  // ── Center feed (grid-area: feed): article cards, forum preview, and the lobby
+  // chat, stacked beneath the lobby panel and aligned with the viewer's top. ──
   const centerBelow = document.createElement('div');
   centerBelow.className = 'landing-center-below';
   const articleCards = buildHomeArticleCards(8, locale);
@@ -601,35 +610,30 @@ function buildLandingStage(
   // reserved footprint to jank).
   centerBelow.append(buildLandingChat({ hydrate: !opts.skipLiveWidgets }));
 
-  // ── Play column (top-right grid area): the three bare pairing buttons with the
-  // activity box directly beneath them, the whole group vertically centered
-  // against the board. Activity lives here (not in the lower rail) so it sits
-  // right under the buttons instead of dropping to the articles-row line. ──
+  // ── Play column (grid-area: play, row 1 right): the untouched pairing CTAs + the
+  // activity box, vertically centered against the tall open-challenges panel. ──
   let playPanel = buildLandingPlayPanel(engines, { locale, showLobbyRequests: false });
   const playStack = document.createElement('div');
   playStack.className = 'landing-play-stack';
-  // Buttons, then the open-pairing-requests browser, then the activity box — one
-  // centered group under the board. Both live widgets render their frame
-  // synchronously (placeholder / skeleton rows) so the column reserves their
-  // footprint from first paint; the prerendered shell carries the same frames for
-  // layout parity, with hydration skipped like the other live widgets.
-  playStack.append(
-    playPanel,
-    buildLobbyRequestsWindow(locale, { hydrate: !opts.skipLiveWidgets }),
-    buildLandingActivity({ hydrate: !opts.skipLiveWidgets }),
-  );
+  // Buttons then the activity box render their frame synchronously (placeholder /
+  // skeleton rows) so the column reserves its footprint from first paint; the
+  // prerendered shell carries the same frames, hydration skipped.
+  playStack.append(playPanel, buildLandingActivity({ hydrate: !opts.skipLiveWidgets }));
+  const playColumn = document.createElement('div');
+  playColumn.className = 'landing-play-column';
+  playColumn.append(playStack);
 
-  // ── Right rail (lower-right grid area, aligned to the articles row): the daily
-  // puzzle. ──
-  const rightRail = document.createElement('div');
-  rightRail.className = 'landing-rail landing-rail-right';
+  // ── Puzzle column (grid-area: puzzle, row 2 right): the daily puzzle, top-aligned
+  // with the article row across the gutter. ──
+  const puzzleColumn = document.createElement('div');
+  puzzleColumn.className = 'landing-puzzle-column';
   if (!opts.skipLiveWidgets) {
     // Daily puzzle: render instantly from the cached copy (exact real footprint,
     // no pop-in) and swap in place if the day rolled over; only a first-ever visit
     // still appends on load.
     const cachedPuzzle = cachedHomeDailyPuzzle();
     let puzzleEl: HTMLElement | null = cachedPuzzle ? renderHomePuzzleWidget(cachedPuzzle) : null;
-    if (puzzleEl) rightRail.append(puzzleEl);
+    if (puzzleEl) puzzleColumn.append(puzzleEl);
     void loadHomeDailyPuzzle().then((daily) => {
       if (!daily) return; // API failed: keep the cached render
       if (cachedPuzzle && daily.puzzle.id === cachedPuzzle.puzzle.id) return; // same day
@@ -637,7 +641,7 @@ function buildLandingStage(
       if (puzzleEl) {
         puzzleEl.replaceWith(fresh);
       } else {
-        rightRail.append(fresh);
+        puzzleColumn.append(fresh);
       }
       puzzleEl = fresh;
     });
@@ -651,7 +655,11 @@ function buildLandingStage(
     playPanel = replacement;
   };
 
-  section.append(leftRail, boardColumn, centerBelow, playStack, rightRail);
+  // Grid placement (see landing.css): row 1 = [news · lobby panel · play+activity],
+  // row 2 = [viewer · article feed · puzzle]. The tall lobby panel drives row 1, the
+  // CTAs center against it, and the viewer + puzzle top-align with the article feed.
+  // Append order is irrelevant (grid-area governs).
+  section.append(newsColumn, viewerColumn, lobbyPanel, centerBelow, playColumn, puzzleColumn);
   // The footer lives only on the homepage now (stripped from interior routes),
   // blended into the bottom of the stage rather than rendered as a separate bar.
   stage.append(section, buildHomeFooter(locale));

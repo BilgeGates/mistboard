@@ -521,6 +521,254 @@ export function buildLobbyRequestsWindow(
   return shell;
 }
 
+// The homepage lobby board (lichess / PlayStrategy-shaped): three tabs over a
+// framed panel — Lobby (open real-time seeks as a Game/Time/Mode table), Quick
+// pairing (the time-control pool grid), and Correspondence (open days-per-move
+// seeks). The "start a game" CTAs stay in the right column; this is the
+// browse-and-join surface. Reuses the existing lobby fetch/join, setup dialog,
+// and presets. English tab/column labels for now (i18n keys are a follow-up).
+export function buildLobbyPanel(
+  locale: Locale = currentLocale(),
+  options: { hydrate?: boolean } = {},
+): HTMLElement {
+  const board = document.createElement('section');
+  board.className = 'landing-lobby-board';
+  board.setAttribute('aria-label', t('play.openPairingRequests', {}, locale));
+
+  // Quick pairing leads (lila defaults to the pools view, which is always full)
+  // so the panel isn't an empty hooks table on arrival.
+  const tabDefs: { id: string; label: string }[] = [
+    { id: 'quick', label: 'Quick pairing' },
+    { id: 'lobby', label: 'Lobby' },
+    { id: 'correspondence', label: 'Correspondence' },
+  ];
+  const tabBar = document.createElement('div');
+  tabBar.className = 'landing-lobby-tabs';
+  tabBar.setAttribute('role', 'tablist');
+  const tabButtons = new Map<string, HTMLButtonElement>();
+  const panels = new Map<string, HTMLElement>();
+
+  const selectTab = (id: string): void => {
+    for (const def of tabDefs) {
+      const active = def.id === id;
+      tabButtons.get(def.id)?.classList.toggle('is-active', active);
+      tabButtons.get(def.id)?.setAttribute('aria-selected', active ? 'true' : 'false');
+      const panel = panels.get(def.id);
+      if (panel) panel.hidden = !active;
+    }
+  };
+  for (const def of tabDefs) {
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.className = 'landing-lobby-tab';
+    button.setAttribute('role', 'tab');
+    button.textContent = def.label;
+    button.addEventListener('click', () => selectTab(def.id));
+    tabButtons.set(def.id, button);
+    tabBar.append(button);
+  }
+
+  // Lobby tab: our open seeks are anonymous on the wire (no player/rating), so the
+  // columns adapt to Game / Time / Mode rather than lichess's Player / Rating.
+  const lobbyPanelEl = document.createElement('div');
+  lobbyPanelEl.className = 'landing-lobby-tabpanel';
+  lobbyPanelEl.setAttribute('role', 'tabpanel');
+  const lobbyHead = document.createElement('div');
+  lobbyHead.className = 'landing-lobby-thead';
+  for (const label of ['Game', 'Time', 'Mode', '']) {
+    const cell = document.createElement('span');
+    cell.textContent = label;
+    lobbyHead.append(cell);
+  }
+  const lobbyRows = document.createElement('div');
+  lobbyRows.className = 'landing-lobby-tbody';
+  const lobbyPlaceholder = document.createElement('p');
+  lobbyPlaceholder.className = 'landing-lobby-empty';
+  lobbyPlaceholder.textContent = ' ';
+  lobbyRows.append(lobbyPlaceholder);
+  lobbyPanelEl.append(lobbyHead, lobbyRows);
+  const renderLobby = (requests: OpenLobbyRequest[]): void => {
+    lobbyRows.replaceChildren();
+    if (requests.length === 0) {
+      const empty = document.createElement('p');
+      empty.className = 'landing-lobby-empty';
+      empty.textContent = 'No open games right now. Start one from the panel on the right.';
+      lobbyRows.append(empty);
+      return;
+    }
+    for (const request of requests) lobbyRows.append(lobbyTableRow(request, locale));
+  };
+
+  // Quick pairing tab: the time-control pool grid. For v1 a tile opens the standard
+  // Find-opponent setup dialog (variant + rated chosen there); per-pool direct
+  // pairing at the tile's time control is a follow-up.
+  const quickPanelEl = document.createElement('div');
+  quickPanelEl.className = 'landing-lobby-tabpanel landing-lobby-quickpair';
+  quickPanelEl.setAttribute('role', 'tabpanel');
+  quickPanelEl.hidden = true;
+  for (const preset of LANDING_TIME_PRESETS) {
+    const tile = document.createElement('button');
+    tile.type = 'button';
+    tile.className = 'landing-lobby-pool';
+    tile.textContent = preset.label;
+    tile.addEventListener('click', () => {
+      openLandingSetupDialog({
+        locale,
+        mode: 'lobby',
+        title: t('play.findOpponent', {}, locale),
+        ratedDisabled: !isRatedModeEnabled() || !isLikelySignedIn(),
+      });
+    });
+    quickPanelEl.append(tile);
+  }
+
+  // Correspondence tab: open days-per-move seeks (they carry a creator name). A row
+  // links to the challenge/accept page.
+  const corrPanelEl = document.createElement('div');
+  corrPanelEl.className = 'landing-lobby-tabpanel';
+  corrPanelEl.setAttribute('role', 'tabpanel');
+  corrPanelEl.hidden = true;
+  const corrRows = document.createElement('div');
+  corrRows.className = 'landing-lobby-tbody';
+  const corrPlaceholder = document.createElement('p');
+  corrPlaceholder.className = 'landing-lobby-empty';
+  corrPlaceholder.textContent = correspondenceEnabled()
+    ? ' '
+    : 'Correspondence play is coming soon.';
+  corrRows.append(corrPlaceholder);
+  corrPanelEl.append(corrRows);
+  const renderCorrespondence = (seeks: LobbyCorrespondenceSeek[]): void => {
+    corrRows.replaceChildren();
+    if (seeks.length === 0) {
+      const empty = document.createElement('p');
+      empty.className = 'landing-lobby-empty';
+      empty.textContent = 'No open correspondence challenges right now.';
+      corrRows.append(empty);
+      return;
+    }
+    for (const seek of seeks) corrRows.append(corrSeekRow(seek, locale));
+  };
+
+  panels.set('lobby', lobbyPanelEl);
+  panels.set('quick', quickPanelEl);
+  panels.set('correspondence', corrPanelEl);
+  const bodyWrap = document.createElement('div');
+  bodyWrap.className = 'landing-lobby-body';
+  bodyWrap.append(lobbyPanelEl, quickPanelEl, corrPanelEl);
+  board.append(tabBar, bodyWrap);
+  selectTab('quick');
+
+  if (options.hydrate !== false) {
+    const refreshLobby = async (): Promise<void> => {
+      try {
+        renderLobby(await fetchOpenLobbyRequests());
+      } catch (err) {
+        console.warn(err);
+      }
+    };
+    void refreshLobby();
+    const timer = window.setInterval(() => {
+      if (!document.body.contains(board)) {
+        window.clearInterval(timer);
+        return;
+      }
+      void refreshLobby();
+    }, 3_000);
+    if (correspondenceEnabled()) {
+      void fetchCorrespondenceSeeks()
+        .then(renderCorrespondence)
+        .catch(() => {
+          /* leave the placeholder */
+        });
+    }
+  }
+
+  return board;
+}
+
+function lobbyTableRow(request: OpenLobbyRequest, locale: Locale): HTMLElement {
+  const row = document.createElement('div');
+  row.className = 'landing-lobby-trow';
+  const specId = parseLandingGameSpecId(request.gameSpecId ?? DARK_CHESS_SPEC_ID);
+  const gameLabel =
+    specId === DARK_CHESS_SPEC_ID
+      ? request.hiddenDraft960
+        ? t('setup.darkDraft960', {}, locale)
+        : t('play.standard', {}, locale)
+      : variantLabelForGameSpec(specId, locale);
+  const game = document.createElement('span');
+  game.className = 'landing-lobby-td landing-lobby-td-game';
+  game.textContent = gameLabel;
+  const time = document.createElement('span');
+  time.className = 'landing-lobby-td';
+  time.textContent = formatTimeControl(request.timeControl);
+  const mode = document.createElement('span');
+  mode.className = 'landing-lobby-td';
+  mode.textContent =
+    request.rated === false ? t('play.casual', {}, locale) : t('play.rated', {}, locale);
+  const join = document.createElement('button');
+  join.type = 'button';
+  join.className = 'landing-lobby-join';
+  join.textContent = t('play.join', {}, locale);
+  join.addEventListener('click', () => {
+    join.disabled = true;
+    join.textContent = t('play.joining', {}, locale);
+    const status = document.createElement('span');
+    const setup: LandingRoomSetup = {
+      gameSpecId: specId,
+      startFormat: request.hiddenDraft960 ? 'draft960' : 'standard',
+      rated: request.rated ?? true,
+      timeControl: request.timeControl,
+      preferredColor: 'random',
+    };
+    joinLobbyFromPlay(join, setup, status, locale);
+  });
+  row.append(game, time, mode, join);
+  return row;
+}
+
+type LobbyCorrespondenceSeek = {
+  id: string;
+  gameSpecId: string;
+  daysPerMove: number;
+  creatorName: string | null;
+  isMine: boolean;
+};
+
+async function fetchCorrespondenceSeeks(): Promise<LobbyCorrespondenceSeek[]> {
+  const response = await fetch('/api/correspondence/seeks').catch(() => null);
+  if (!response?.ok) return [];
+  const data = (await response.json()) as { seeks?: LobbyCorrespondenceSeek[] };
+  return Array.isArray(data.seeks) ? data.seeks : [];
+}
+
+function corrSeekRow(seek: LobbyCorrespondenceSeek, locale: Locale): HTMLElement {
+  const row = document.createElement('div');
+  row.className = 'landing-lobby-trow';
+  const who = document.createElement('span');
+  who.className = 'landing-lobby-td landing-lobby-td-game';
+  who.textContent = seek.creatorName ?? 'Anonymous';
+  const game = document.createElement('span');
+  game.className = 'landing-lobby-td';
+  game.textContent = variantLabelForGameSpec(parseLandingGameSpecId(seek.gameSpecId), locale);
+  const time = document.createElement('span');
+  time.className = 'landing-lobby-td';
+  time.textContent = `${seek.daysPerMove}d/move`;
+  if (seek.isMine) {
+    const mine = document.createElement('span');
+    mine.className = 'landing-lobby-join is-mine';
+    mine.textContent = 'Yours';
+    row.append(who, game, time, mine);
+  } else {
+    const join = document.createElement('a');
+    join.className = 'landing-lobby-join';
+    join.href = `/challenge/${encodeURIComponent(seek.id)}`;
+    join.textContent = t('play.join', {}, locale);
+    row.append(who, game, time, join);
+  }
+  return row;
+}
+
 function lobbyRequestRow(request: OpenLobbyRequest, locale: Locale = currentLocale()): HTMLElement {
   const row = document.createElement('div');
   row.className = 'landing-lobby-request-row';
