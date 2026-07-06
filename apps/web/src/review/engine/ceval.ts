@@ -18,7 +18,13 @@ const ENGINE_BASE = '/engine/fairy-stockfish/';
 // pthreads die. The worker loads its deps from a URL/blob the main thread posts to
 // it (not from its own location), so a query on its URL is safe. Bump on any
 // vendored-asset change (this CF config keys on the query string).
-const ENGINE_ASSET_VERSION = '1.1.11';
+//
+// The `-coepN` suffix is a cache-bust generation: a plain `1.1.11` had already
+// been cached at the edge WITHOUT the COEP header (from a pre-fix request), so
+// that key was poisoned. Bump the suffix to mint a fresh, never-cached key that
+// fills from origin (which now always sends COEP) whenever the required response
+// headers change.
+const ENGINE_ASSET_VERSION = '1.1.11-coep1';
 const engineAsset = (file: string): string => `${ENGINE_BASE}${file}?v=${ENGINE_ASSET_VERSION}`;
 
 /** Human label for the engine, shown in the analysis panel. */
