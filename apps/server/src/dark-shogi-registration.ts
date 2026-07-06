@@ -65,7 +65,7 @@ registerVariantTenant({
   roomIdPrefix: darkShogiTenant.roomIdPrefix,
   watch: {
     channelId: darkShogiTenant.gameSpecId,
-    label: 'Dark Shogi',
+    label: 'Fog Shogi',
     family: 'shogi',
     legacyVariants: ['dark-shogi'],
   },

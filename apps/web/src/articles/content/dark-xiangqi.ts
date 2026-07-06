@@ -15,26 +15,26 @@ export const darkXiangqiArticle: Article = {
     slug: 'dark-xiangqi',
     boardFamily: 'xiangqi',
     kind: 'rules',
-    title: 'Dark Xiangqi',
+    title: 'Dark Chinese Chess Rules',
     summary:
-      'Xiangqi under Fog of War: each side sees only the points its pieces reach, hidden blockers matter, and the general falls by capture.',
+      'Chinese Chess under Fog of War: each side sees only the points its pieces reach, hidden blockers matter, and the general falls by capture.',
     showSummaryOnPage: false,
     status: 'published',
     playableOnMistboard: true,
     publishedAt: '2026-05-26',
     updatedAt: '2026-05-30',
     audience:
-      'Xiangqi players, dark chess players, and anyone who wants a clean first explanation of xiangqi under fog.',
+      'Chinese Chess players, Fog Chess players, and anyone who wants a clean first explanation of xiangqi under fog.',
     thumbnail: { kind: 'svg', svg: XQ_DARK_XIANGQI_THUMBNAIL },
     intro: [
       {
         kind: 'paragraph',
-        text: 'Dark Xiangqi is the modern Fog of War version of [xiangqi](/rules/xiangqi): pieces keep their xiangqi movement, but unseen enemy pieces stay hidden and danger is not announced. Capture the general to win.',
+        text: 'Dark Chinese Chess is Mistboard\'s public name for dark xiangqi: [Chinese Chess](/rules/xiangqi), traditionally xiangqi (象棋), played under Fog of War. Pieces keep their xiangqi movement, but unseen enemy pieces stay hidden and danger is not announced. Capture the general to win.',
       },
       {
         kind: 'paragraph',
         text:
-          'If xiangqi is new to you, start with [Xiangqi Rules](/rules/xiangqi). If you already play xiangqi, the sections below explain only what fog changes.',
+          'If Chinese Chess is new to you, start with [Chinese Chess Rules](/rules/xiangqi). If you already play xiangqi, the sections below explain only what fog changes.',
       },
     ],
     sections: [
@@ -127,7 +127,7 @@ export const darkXiangqiArticle: Article = {
           { kind: 'sub-heading', text: 'Facing generals' },
           {
             kind: 'paragraph',
-            text: 'Orthodox xiangqi forbids facing generals. Dark Xiangqi allows the position; if one general sees the other on a clear file, it can capture across that file.',
+            text: 'Orthodox xiangqi forbids facing generals. Dark Chinese Chess allows the position; if one general sees the other on a clear file, it can capture across that file.',
           },
           {
             kind: 'raw-svg-stepper',
@@ -140,7 +140,7 @@ export const darkXiangqiArticle: Article = {
         blocks: [
           {
             kind: 'paragraph',
-            text: 'Dark Xiangqi is a future variant, not playable yet. There is no set release date.',
+            text: 'Dark Chinese Chess is playable on Mistboard. Create an invite for a friend or play the engine from the homepage play panel.',
           },
           {
             kind: 'cta',

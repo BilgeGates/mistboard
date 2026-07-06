@@ -142,7 +142,7 @@ function renderPostgame(root: HTMLElement, postgame: JunglePostgameResponse): vo
   mountReviewLayout(root, {
     pageClassName: 'jungle-review',
     ariaLabel: 'Jungle postgame',
-    title: 'Jungle',
+    title: 'Jungle Chess',
     summary: `${resultLabel(postgame.game.result)} by ${labelize(postgame.game.termination)} · ${postgame.game.plyCount} plies`,
     actions: jungleActions(postgame),
     moves: movesCard,

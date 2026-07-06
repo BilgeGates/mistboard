@@ -17,7 +17,7 @@ import type { Article, ArticleBlock } from '../types.js';
 export const serverEnforcedFogArticle: Article = {
     slug: 'server-enforced-fog',
     kind: 'article',
-    title: 'Programming Dark Chess with Server-Side Truth',
+    title: 'Programming Fog Chess with Server-Side Truth',
     summary:
       'How Mistboard keeps hidden information on the server: canonical state, seat-scoped views, private live rooms, and public postgame review.',
     status: 'published',
@@ -33,7 +33,7 @@ export const serverEnforcedFogArticle: Article = {
       {
         heading: 'Truth stays server-side',
         blocks: [
-          { kind: 'paragraph', text: 'Dark chess adds one hidden-information rule to chess: each side sees only the squares its own pieces reach. The implementation question is where that rule runs. On Mistboard, it runs on the server, so the browser receives a `PlayerView`, not a full board with fog painted over it.' },
+          { kind: 'paragraph', text: 'Fog Chess adds one hidden-information rule to chess: each side sees only the squares its own pieces reach. The implementation question is where that rule runs. On Mistboard, it runs on the server, so the browser receives a `PlayerView`, not a full board with fog painted over it.' },
           {
             kind: 'live-boards',
             spec: {
@@ -110,10 +110,10 @@ export const serverEnforcedFogArticle: Article = {
       },
       relatedClosing({
         heading: 'Where to next',
-        lead: 'Play Misty in dark chess, or read the rules article for the player-facing version of the same visibility model.',
+        lead: 'Play Misty in Fog Chess, or read the rules article for the player-facing version of the same visibility model.',
         links: [
           { label: 'Play Misty', href: '/?play=computer', emphasis: 'primary' },
-          { label: 'Read Dark Chess Rules', href: '/rules/dark-chess', emphasis: 'secondary' },
+          { label: 'Read Fog Chess Rules', href: '/rules/dark-chess', emphasis: 'secondary' },
           { label: 'All articles', href: '/articles', emphasis: 'secondary' },
         ],
       }),

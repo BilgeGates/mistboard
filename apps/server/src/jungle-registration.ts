@@ -67,7 +67,7 @@ registerVariantTenant({
   watch: {
     channelId: 'jungle',
     family: 'jungle',
-    label: 'Jungle',
+    label: 'Jungle Chess',
     legacyVariants: ['jungle'],
   },
   ownsSpecRouting: true,

@@ -67,10 +67,10 @@ type BotProfile = {
 class BotNotFound extends Error {}
 
 const GAME_SPEC_LABELS: Record<string, string> = {
-  'dark-chess': 'Dark Chess',
+  'dark-chess': 'Fog Chess',
   'dark-mini-xiangqi': 'Dark Mini Xiangqi',
-  jieqi: 'Jieqi',
-  banqi: 'Banqi',
+  jieqi: 'Flip Chinese Chess',
+  banqi: 'Half Flip Chess',
   'crossroads-chess': 'Crossroads Chess',
 };
 

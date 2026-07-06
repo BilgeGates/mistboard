@@ -156,8 +156,8 @@ const LANDING_GAME_GROUPS: {
 }[] = [
   // 2026-07-03 xiangqi pivot (project_xiangqi_pivot_track): xiangqi + jungle lead,
   // chess is deranked below them (above shogi).
-  { id: 'xiangqi', label: 'Xiangqi', glyph: '象' },
-  { id: 'jungle', label: 'Jungle', glyph: '虎' },
+  { id: 'xiangqi', label: 'Chinese Chess', glyph: '象' },
+  { id: 'jungle', label: 'Jungle Chess', glyph: '虎' },
   { id: 'chess', label: 'Chess', glyph: '♔' },
   { id: 'shogi', label: 'Shogi', glyph: '☗' },
 ];

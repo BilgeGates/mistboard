@@ -236,7 +236,7 @@ export function renderBanqiBoardSvg(
     ? (options.legalMoves ?? []).filter((m) => m.from === options.selectedSquare)
     : [];
   return `
-    <svg class="banqi-board" viewBox="0 0 ${WIDTH} ${HEIGHT}" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Banqi board">
+    <svg class="banqi-board" viewBox="0 0 ${WIDTH} ${HEIGHT}" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Half Flip Chess board">
       <rect class="banqi-board-bg" x="0" y="0" width="${WIDTH}" height="${HEIGHT}" rx="6"/>
       <g class="banqi-grid">${gridLines()}${palaceDiagonals()}</g>
       ${startMarks()}

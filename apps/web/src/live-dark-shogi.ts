@@ -74,7 +74,7 @@ let bounce: ShogiSquare | null = null;
 // ── Shared tenant room chrome config ─────────────────────────────────────────
 
 const darkShogiWebTenant: WebVariantTenant<ShogiColor> = {
-  displayName: 'Dark Shogi',
+  displayName: 'Fog Shogi',
   colors: ['black', 'white'],
   isColor: isShogiColor,
   oppositeColor: (color) => (color === 'black' ? 'white' : 'black'),

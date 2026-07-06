@@ -34,7 +34,7 @@ import {
 test('current dark chess maps to the flagship chess spec', () => {
   const spec = gameSpecForId(DARK_CHESS_SPEC_ID);
 
-  assert.equal(spec.publicName, 'Dark chess');
+  assert.equal(spec.publicName, 'Fog Chess');
   assert.equal(spec.family, 'chess');
   assert.equal(spec.board, 'chess-8x8');
   assert.equal(spec.movement, 'orthodox-chess');
@@ -70,7 +70,7 @@ test('Draft960 is modeled as a dark chess setup module, not a family', () => {
 test('Dark Xiangqi is a live separate family without live-room mapping', () => {
   const spec = gameSpecForId(DARK_XIANGQI_SPEC_ID);
 
-  assert.equal(spec.publicName, 'Dark Xiangqi');
+  assert.equal(spec.publicName, 'Dark Chinese Chess');
   assert.equal(spec.family, 'xiangqi');
   assert.equal(spec.board, 'xiangqi-9x10');
   assert.equal(spec.movement, 'xiangqi');
@@ -145,7 +145,7 @@ test('Drop Mini Xiangqi is a live open-info xiangqi reserve spec', () => {
 test('Dark Shogi is a live shogi family spec', () => {
   const spec = gameSpecForId(DARK_SHOGI_SPEC_ID);
 
-  assert.equal(spec.publicName, 'Dark Shogi');
+  assert.equal(spec.publicName, 'Fog Shogi');
   assert.equal(spec.family, 'shogi');
   assert.equal(spec.board, 'shogi-9x9');
   assert.equal(spec.movement, 'shogi');
@@ -164,7 +164,7 @@ test('Dark Shogi is a live shogi family spec', () => {
 test('Jieqi is an xiangqi-family spec on its own hidden-identity axis', () => {
   const spec = gameSpecForId(JIEQI_SPEC_ID);
 
-  assert.equal(spec.publicName, 'Jieqi');
+  assert.equal(spec.publicName, 'Flip Chinese Chess');
   assert.equal(spec.family, 'xiangqi');
   assert.equal(spec.board, 'xiangqi-9x10');
   assert.equal(spec.movement, 'xiangqi');
@@ -184,7 +184,7 @@ test('Jieqi is an xiangqi-family spec on its own hidden-identity axis', () => {
 test('Banqi is an xiangqi-family hidden-identity spec on the 8x4 board', () => {
   const spec = gameSpecForId(BANQI_SPEC_ID);
 
-  assert.equal(spec.publicName, 'Banqi');
+  assert.equal(spec.publicName, 'Half Flip Chess');
   assert.equal(spec.family, 'xiangqi');
   assert.equal(spec.board, 'banqi-8x4');
   assert.equal(spec.movement, 'banqi');

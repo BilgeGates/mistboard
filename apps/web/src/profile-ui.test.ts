@@ -142,7 +142,7 @@ describe('profile game rows', () => {
     expect(row.textContent).toContain('Win');
     expect(row.textContent).toContain('vs MistyBanqi - Strongest');
     expect(row.textContent).not.toContain('vs White');
-    expect(row.textContent).toContain('Banqi');
+    expect(row.textContent).toContain('Half Flip Chess');
     expect(row.textContent).toContain('Black');
   });
 
@@ -219,7 +219,7 @@ describe('profile game rows', () => {
   it('keeps chess profile rows on the chess game route', () => {
     const row = buildProfileGameRow(game());
     expect(row.querySelector('a')?.getAttribute('href')).toBe('/game/room_1');
-    expect(row.textContent).toContain('Dark Chess');
+    expect(row.textContent).toContain('Fog Chess');
     expect(row.textContent).toContain('White');
   });
 

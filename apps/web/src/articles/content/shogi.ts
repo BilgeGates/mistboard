@@ -98,12 +98,12 @@ export const shogiArticle: Article = {
   kind: 'rules',
   title: 'Shogi Rules',
   summary:
-    'Standard shogi rules, the open-information primer behind Dark Shogi: setup, piece movement, promotion, drops, and how games end.',
+    'Standard shogi rules, the open-information primer behind Fog Shogi: setup, piece movement, promotion, drops, and how games end.',
   showSummaryOnPage: false,
   status: 'draft',
   publishedAt: '2026-06-18',
   boardFamily: 'shogi',
-  audience: 'Mistboard visitors who want the regular shogi baseline before reading Dark Shogi.',
+  audience: 'Mistboard visitors who want the regular shogi baseline before reading Fog Shogi.',
   thumbnail: { kind: 'svg', svg: START_BOARD_SVG },
   intro: [
     {
@@ -274,9 +274,9 @@ export const shogiArticle: Article = {
     },
     relatedClosing({
       heading: 'Where to next',
-      lead: 'Shogi is the open-information base game. Dark Shogi keeps the same movement and drops, then adds fog: enemy pieces outside your vision disappear, hands are private, and the king falls by capture.',
+      lead: 'Shogi is the open-information base game. Fog Shogi keeps the same movement and drops, then adds fog: enemy pieces outside your vision disappear, hands are private, and the king falls by capture.',
       links: [
-        { label: 'Read Dark Shogi', href: '/rules/dark-shogi', emphasis: 'primary' },
+        { label: 'Read Fog Shogi', href: '/rules/dark-shogi', emphasis: 'primary' },
         { label: 'All rules', href: '/rules', emphasis: 'secondary' },
       ],
     }),

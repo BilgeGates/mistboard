@@ -163,7 +163,7 @@ export const kriegspielArticle: Article = {
         playLabel: 'Challenge a friend',
         playHref: '/?play=friend&gameSpecId=kriegspiel',
         secondary: [
-          { label: 'Read Dark Chess', href: '/rules/dark-chess', emphasis: 'secondary' },
+          { label: 'Read Fog Chess', href: '/rules/dark-chess', emphasis: 'secondary' },
           { label: 'Chess Rules', href: '/rules/chess', emphasis: 'secondary' },
           { label: 'All rules', href: '/rules', emphasis: 'secondary' },
         ],

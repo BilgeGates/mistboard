@@ -16,13 +16,13 @@ export const ARTICLE_META: Record<
     title: 'Chess Rules',
     kind: 'rules',
     description:
-      'Standard chess rules, the primer behind Dark Chess: castling, promotion, en passant, the draw rules, and a famous game to play through.',
+      'Standard chess rules, the primer behind Fog Chess: castling, promotion, en passant, the draw rules, and a famous game to play through.',
   },
   'dark-chess': {
-    title: 'Dark Chess (Fog of War) Rules',
+    title: 'Fog Chess Rules',
     kind: 'rules',
     description:
-      'Chess under Fog of War: each side sees only the squares its pieces reach, there are no check warnings, and the king falls by capture.',
+      'Fog Chess rules: chess under Fog of War, where each side sees only the squares its pieces reach, there are no check warnings, and the king falls by capture.',
   },
   'dark-chess-concepts': {
     title: 'Dark Chess Concepts',
@@ -34,19 +34,19 @@ export const ARTICLE_META: Record<
     title: 'Dark Draft960',
     kind: 'rules',
     description:
-      "Dark Chess with a sealed opening draft: each player picks one of three Chess960 back ranks and never sees the other's.",
+      "Fog Chess with a sealed opening draft: each player picks one of three Chess960 back ranks and never sees the other's.",
   },
   xiangqi: {
-    title: 'Xiangqi Rules',
+    title: 'Chinese Chess Rules',
     kind: 'rules',
     description:
-      'Standard xiangqi rules, the primer behind Dark Xiangqi: palaces, the river, cannon screens, facing generals, and a famous game to play through.',
+      'Standard xiangqi rules, the primer behind Dark Chinese Chess: palaces, the river, cannon screens, facing generals, and a famous game to play through.',
   },
   'dark-xiangqi': {
-    title: 'Dark Xiangqi',
+    title: 'Dark Chinese Chess Rules',
     kind: 'rules',
     description:
-      'Xiangqi under Fog of War: each side sees only the points its pieces reach, hidden blockers matter, and the general falls by capture.',
+      'Chinese Chess under Fog of War: each side sees only the points its pieces reach, hidden blockers matter, and the general falls by capture.',
   },
   'mini-xiangqi': {
     title: 'Mini Xiangqi',
@@ -67,7 +67,7 @@ export const ARTICLE_META: Record<
       'Mini Xiangqi with reserves: captured pieces enter your hand, then drop back outside the enemy palace.',
   },
   'fortress-xiangqi': {
-    title: 'Storm the Fortress Rules',
+    title: 'Fortress Animals Rules',
     kind: 'rules',
     description:
       'Xiangqi with a pocket: faithful piece movement plus crazyhouse-style drops and the new Treasure piece.',
@@ -82,13 +82,13 @@ export const ARTICLE_META: Record<
     title: 'Shogi Rules',
     kind: 'rules',
     description:
-      'Standard shogi rules, the primer behind Dark Shogi: how the eight pieces move, promotion in the far ranks, the drop rule that puts captured pieces back in play, and how a game is won.',
+      'Standard shogi rules, the primer behind Fog Shogi: how the eight pieces move, promotion in the far ranks, the drop rule that puts captured pieces back in play, and how a game is won.',
   },
   'dark-shogi': {
-    title: 'Dark Shogi Rules',
+    title: 'Fog Shogi Rules',
     kind: 'rules',
     description:
-      'Shogi under Fog of War: the Shogi rules supply the board, pieces, promotion, and drop mechanic; this page covers vision, private hands, drop bounces, and king capture.',
+      'Fog Shogi rules: shogi under Fog of War, with private hands, drop bounces, and king capture.',
   },
   shogi4: {
     title: 'Shogi4 (4×4 Shogi) Rules',
@@ -100,7 +100,7 @@ export const ARTICLE_META: Record<
     title: 'How Misty Plays',
     kind: 'article',
     description:
-      "Misty is Mistboard's Fog of War chess engine: how it sees, searches possible boards, avoids hidden catastrophes, and where the current version stands.",
+      "Misty is Mistboard's Fog Chess engine: how it sees, searches possible boards, avoids hidden catastrophes, and where the current version stands.",
   },
   mistybanqi: {
     title: 'How MistyBanqi Plays',
@@ -109,7 +109,7 @@ export const ARTICLE_META: Record<
       'MistyBanqi is the engine you play in Banqi on Mistboard: a classical search engine with a hand-written evaluation. How it thinks, and the blind spot worth knowing: it can draw a game it has already won.',
   },
   'server-enforced-fog': {
-    title: 'Programming Dark Chess with Server-Side Truth',
+    title: 'Programming Fog Chess with Server-Side Truth',
     kind: 'article',
     description:
       'How Mistboard keeps hidden information on the server: canonical state, seat-scoped views, private live rooms, and public postgame review.',
@@ -118,7 +118,7 @@ export const ARTICLE_META: Record<
     title: 'Kriegspiel Rules',
     kind: 'rules',
     description:
-      'The complete rules of Kriegspiel, the 1899 ancestor of dark chess: you see only your own pieces, an umpire rejects illegal tries and announces captures, checks, and pawn tries, and checkmate wins.',
+      'The complete rules of Kriegspiel, the 1899 ancestor of Fog Chess: you see only your own pieces, an umpire rejects illegal tries and announces captures, checks, and pawn tries, and checkmate wins.',
   },
   'dark-crazyhouse': {
     title: 'Dark Crazyhouse Rules',
@@ -133,25 +133,25 @@ export const ARTICLE_META: Record<
       'Crossroads Chess under Fog of War: each side sees only the squares its pieces reach, there are no check warnings, the king falls by capture, and the race to the far rank becomes a one-move gamble in the dark.',
   },
   jieqi: {
-    title: 'Jieqi (揭棋) Rules',
+    title: 'Flip Chinese Chess Rules',
     kind: 'rules',
     description:
-      'The complete rules of Jieqi (揭棋), xiangqi with shuffled identities: every piece except the generals starts face-down, makes its first move as the point it stands on, and reveals itself after moving. Checkmate the general to win.',
+      'The complete rules of Flip Chinese Chess, traditionally jieqi (揭棋): every piece except the generals starts face-down, makes its first move as the point it stands on, and reveals itself after moving. Checkmate the general to win.',
   },
   banqi: {
-    title: 'Banqi (Chinese Dark Chess) Rules',
+    title: 'Half Flip Chess Rules',
     kind: 'rules',
     description:
-      'The complete rules of Banqi (暗棋), the half-board xiangqi flip game known as Chinese Dark Chess: flip or move one square each turn, capture by rank, cannons jump, and win by wiping the enemy out.',
+      'The complete rules of Half Flip Chess, traditionally banqi (暗棋): flip or move one square each turn, capture by rank, cannons jump, and win by wiping the enemy out.',
   },
   jungle: {
-    title: 'Jungle (Dou Shou Qi)',
+    title: 'Jungle Chess Rules',
     kind: 'rules',
     description:
-      'The complete rules of Jungle (斗兽棋, Dou Shou Qi / Animal Chess): eight ranked animals on a 7×9 board, the rat beats the elephant, only the rat swims, the lion and tiger leap the rivers, and you win by reaching the enemy den or capturing every piece.',
+      'The complete rules of Jungle Chess, traditionally Dou Shou Qi (斗兽棋): eight ranked animals on a 7×9 board, the rat beats the elephant, only the rat swims, the lion and tiger leap the rivers, and you win by reaching the enemy den or capturing every piece.',
   },
   'jungle-flip': {
-    title: 'Flip Jungle (兽棋)',
+    title: 'Flip Jungle Rules',
     kind: 'rules',
     description:
       'The complete rules of Flip Jungle (兽棋 / 翻翻棋), the 4×4 flip version of Dou Shou Qi: animals start face-down, you flip or move each turn, capture by rank, equal ranks destroy each other (同归于尽), and you win by eliminating the opponent.',

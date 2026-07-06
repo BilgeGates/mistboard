@@ -89,13 +89,13 @@ describe('bot pages', () => {
     expect(
       [...root.querySelectorAll('.bot-directory-section h2')].map((el) => el.textContent),
     ).toEqual(['Featured bots', 'Community bots']);
-    // Community rail is shared with /leaderboard; Online bots is the active entry.
+    // Community rail is shared with /player; Online bots is the active entry.
     expect(root.querySelector('.community-rail a[aria-current="page"]')?.textContent).toBe(
       'Online bots',
     );
     expect(root.textContent).toContain('Searches hidden positions');
     expect(root.querySelector('.bot-card-rating-value')?.textContent).toBe('1,812');
-    expect(root.querySelector('.bot-rating-strip')?.textContent).toContain('Banqi Rapid');
+    expect(root.querySelector('.bot-rating-strip')?.textContent).toContain('Half Flip Chess Rapid');
     expect(root.textContent).not.toContain('Draft960');
     expect(root.querySelector<HTMLAnchorElement>('.bot-card-title')?.href).toContain(
       '/bot/misty-dark-chess',
@@ -117,8 +117,8 @@ describe('bot pages', () => {
     expect(root.querySelector('.profile-role-owner')?.textContent).toBe('First-party');
     expect(root.querySelector('.bot-profile-rating')?.textContent).toContain('1,812');
     expect(root.querySelector('.bot-profile-rating')?.textContent).toContain('48 rated games');
-    expect(root.querySelector('.bot-profile-rating')?.textContent).toContain('Banqi · Rapid');
-    expect(root.querySelector('.bot-profile-variants')?.textContent).toContain('Banqi');
+    expect(root.querySelector('.bot-profile-rating')?.textContent).toContain('Half Flip Chess · Rapid');
+    expect(root.querySelector('.bot-profile-variants')?.textContent).toContain('Half Flip Chess');
   });
 
   it('opens a setup dialog before creating a bot game', async () => {

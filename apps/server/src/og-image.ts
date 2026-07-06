@@ -144,7 +144,7 @@ function renderGameOgSvg(game: persistence.GameRecord, position: OgPosition): st
     `<text x="${OG_WIDTH / 2}" y="125" text-anchor="middle" fill="#f4f6ef" font-family="${FONT}" font-size="52" font-weight="900" letter-spacing="8">MISTBOARD</text>`,
   );
   parts.push(
-    `<text x="${OG_WIDTH / 2}" y="164" text-anchor="middle" fill="#9ba39a" font-family="${FONT}" font-size="22" font-weight="700">Dark Chess replay</text>`,
+    `<text x="${OG_WIDTH / 2}" y="164" text-anchor="middle" fill="#9ba39a" font-family="${FONT}" font-size="22" font-weight="700">Fog Chess replay</text>`,
   );
   parts.push(
     renderBoardComposition({
@@ -606,7 +606,7 @@ function renderStubSvg(game: persistence.GameRecord): string {
   <rect width="${OG_WIDTH}" height="${OG_HEIGHT}" fill="#0f1115"/>
   <rect x="84" y="64" width="1032" height="534" fill="none" stroke="#253023"/>
   <text x="600" y="170" text-anchor="middle" fill="#f4f6ef" font-family="${FONT}" font-size="56" font-weight="900" letter-spacing="8">MISTBOARD</text>
-  <text x="600" y="214" text-anchor="middle" fill="#9ba39a" font-family="${FONT}" font-size="24" font-weight="700">Dark Chess replay</text>
+  <text x="600" y="214" text-anchor="middle" fill="#9ba39a" font-family="${FONT}" font-size="24" font-weight="700">Fog Chess replay</text>
   <text x="600" y="316" text-anchor="middle" fill="#e1e6da" font-family="${FONT}" font-size="40" font-weight="800">${white} vs ${black}</text>
 </svg>`;
 }

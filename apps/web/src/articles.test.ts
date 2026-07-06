@@ -460,7 +460,7 @@ describe('rules variant sidebar', () => {
     const current = sidebar?.querySelector('a[aria-current="page"]');
     expect(current?.getAttribute('href')).toBe('/rules/dark-chess');
     expect(current?.querySelector('.article-variant-label')?.textContent).toBe(
-      'Dark Chess (Fog of War)',
+      'Fog Chess',
     );
     // Xiangqi pivot: the chess reference article is de-listed (showInIndex=false),
     // so the rail no longer links it (still reachable at /rules/chess directly).
@@ -554,7 +554,7 @@ describe('rules variant sidebar', () => {
       '.rules-landing-tile[href="/rules/dark-chess"]',
     );
     expect(tile?.querySelector('.rules-landing-tile-label')?.textContent).toBe(
-      'Dark Chess (Fog of War)',
+      'Fog Chess',
     );
   });
 

@@ -21,7 +21,7 @@ describe('profile ratings rail', () => {
 
     const section = buildProfileRatings([]);
 
-    expect(section.textContent).toContain('Dark Chess');
+    expect(section.textContent).toContain('Fog Chess');
     expect(section.textContent).toContain('Dark Mini Xiangqi');
     // Xiangqi pivot: Drop Mini is off the rating grids now.
     expect(section.textContent).not.toContain('Drop Mini Xiangqi');
@@ -327,7 +327,7 @@ describe('profile ratings rail', () => {
     expect(root.textContent).not.toContain('Crossroads Chess');
     // Xiangqi pivot: Drop Mini is off the grids; Fortress is an always-on ladder.
     expect(root.textContent).not.toContain('Drop Mini Xiangqi');
-    expect(root.textContent).toContain('Storm the Fortress');
+    expect(root.textContent).toContain('Fortress Animals');
     expect(root.textContent).toContain('Human blitz ladders');
     // 4 rated ladders (Dark Chess + always-on Jungle, Flip Jungle, Fortress).
     expect(root.querySelectorAll('.leaderboard-panel')).toHaveLength(4);
@@ -370,7 +370,7 @@ describe('profile ratings rail', () => {
     expect(onlineLink?.textContent).toContain('Misty');
     const rating = onlineLink?.querySelector('.leaderboard-online-rating');
     expect(rating?.textContent).toBe('1710?');
-    expect(rating?.getAttribute('title')).toBe('Dark Chess');
+    expect(rating?.getAttribute('title')).toBe('Fog Chess');
     expect(onlineLink?.querySelector('.leaderboard-online-playing')?.getAttribute('title')).toBe(
       'Playing now',
     );
@@ -429,7 +429,7 @@ describe('profile ratings rail', () => {
     const titles = [...root.querySelectorAll('.leaderboard-panel-title')].map(
       (el) => el.textContent,
     );
-    expect(titles[0]).toBe('Storm the Fortress');
+    expect(titles[0]).toBe('Fortress Animals');
     const panels = [...root.querySelectorAll('.leaderboard-panel')];
     expect(panels[0]?.textContent).toContain('1520');
     expect(panels[1]?.textContent).toContain('No rated games yet.');
@@ -528,7 +528,7 @@ describe('profile ratings rail', () => {
     );
     expect(root.querySelector<HTMLSelectElement>('.rating-stats-select')?.value).toBe('fog');
     expect(root.querySelector('.rating-stats-summary')?.textContent).toBe(
-      '2 rated Dark Chess players. Average rating is 1500.',
+      '2 rated Fog Chess players. Average rating is 1500.',
     );
     expect(root.querySelectorAll('.rating-stats-bar').length).toBeGreaterThan(0);
     expect(fetchSpy).toHaveBeenCalledWith('/api/leaderboard?variant=fog&limit=500');

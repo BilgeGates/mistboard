@@ -13,9 +13,9 @@ export const banqiArticle: Article = {
     boardFamily: 'xiangqi',
     kind: 'rules',
     playableOnMistboard: true,
-    title: 'Banqi (Chinese Dark Chess) Rules',
+    title: 'Half Flip Chess Rules',
     summary:
-      'Banqi rules: the 4x8 half-board xiangqi flip game, with face-down pieces, rank captures, screen-jumping cannons, and no royal general.',
+      'Half Flip Chess rules, traditionally banqi (暗棋): the 4x8 half-board xiangqi flip game, with face-down pieces, rank captures, screen-jumping cannons, and no royal general.',
     showSummaryOnPage: false,
     status: 'published',
     publishedAt: '2026-06-15',
@@ -26,12 +26,12 @@ export const banqiArticle: Article = {
       {
         kind: 'paragraph',
         text:
-          "Banqi (暗棋, 'dark chess', also called half chess or flip chess) is played on half a xiangqi board with all thirty-two pieces shuffled face-down. Each turn, flip an unknown piece or move one of your revealed pieces one square. Captures follow rank, except for the cannon. You win by leaving the opponent with no legal move.",
+          "Half Flip Chess is Mistboard's public name for banqi (暗棋, 'dark chess', also called half chess or flip chess). It is played on half a xiangqi board with all thirty-two pieces shuffled face-down. Each turn, flip an unknown piece or move one of your revealed pieces one square. Captures follow rank, except for the cannon. You win by leaving the opponent with no legal move.",
       },
       {
         kind: 'paragraph',
         text:
-          'It is the casual sibling of [xiangqi](/rules/xiangqi): a short game that needs only an ordinary xiangqi set and half the board. It shares names with [dark chess](/rules/dark-chess), the fog-of-war chess variant played on Mistboard, but it is a different game. This page follows Taiwanese rules, the version with screen-jumping cannons.',
+          'It is the casual sibling of [Chinese Chess](/rules/xiangqi): a short game that needs only an ordinary xiangqi set and half the board. It shares names with [Fog Chess](/rules/dark-chess), the fog-of-war chess variant played on Mistboard, but it is a different game. This page follows Taiwanese rules, the version with screen-jumping cannons.',
       },
     ],
     sections: [
@@ -148,7 +148,7 @@ export const banqiArticle: Article = {
           {
             kind: 'paragraph',
             text:
-              "暗棋 is Mandarin ànqí, 'dark chess'. The same game is also called 半棋 (half chess), the source of the English name banqi, and 翻棋 (flip chess). Computer-game literature often calls it Chinese Dark Chess. None of these are [jieqi](/rules/jieqi), the full-board xiangqi variant where shuffled pieces reveal as they move, and none are the fog-of-war [dark chess](/rules/dark-chess) played here.",
+              "暗棋 is Mandarin ànqí, 'dark chess'. The same game is also called 半棋 (half chess), the source of the English name banqi, and 翻棋 (flip chess). Computer-game literature often calls it Chinese Dark Chess. None of these are [Flip Chinese Chess](/rules/jieqi), the full-board xiangqi variant where shuffled pieces reveal as they move, and none are the fog-of-war [Fog Chess](/rules/dark-chess) played here.",
           },
         ],
       },
@@ -158,7 +158,7 @@ export const banqiArticle: Article = {
           {
             kind: 'paragraph',
             text:
-              'Step through a real game below: MistyBanqi (Strongest) moving first, a human second. The opening flip leaves MistyBanqi playing Red and the human Black. Black wins the opening material (the first eight captures are all Black’s), but Red keeps its elephant, the highest piece left, and grinds out the win. A clean illustration that in Banqi, rank beats raw material. Tiles flip to their dealt piece the first time they are turned over.',
+              'Step through a real game below: MistyBanqi (Strongest) moving first, a human second. The opening flip leaves MistyBanqi playing Red and the human Black. Black wins the opening material (the first eight captures are all Black’s), but Red keeps its elephant, the highest piece left, and grinds out the win. A clean illustration that in Half Flip Chess, rank beats raw material. Tiles flip to their dealt piece the first time they are turned over.',
           },
           {
             kind: 'banqi-replay',
@@ -176,14 +176,14 @@ export const banqiArticle: Article = {
       },
       playClosing({
         heading: 'Where to next',
-        lead: 'Banqi is playable on Mistboard: take on MistyBanqi at the strength you pick, or challenge a friend. Xiangqi is the parent game, and jieqi is the other hidden-identity cousin.',
+        lead: 'Half Flip Chess is playable on Mistboard: take on MistyBanqi at the strength you pick, or challenge a friend. Chinese Chess is the parent game, and Flip Chinese Chess is the other hidden-identity cousin.',
         playLabel: 'Play MistyBanqi',
         playHref: '/?play=computer&gameSpecId=banqi',
         secondary: [
           { label: 'Challenge a friend', href: '/?play=friend&gameSpecId=banqi', emphasis: 'secondary' },
-          { label: 'Xiangqi Rules', href: '/rules/xiangqi', emphasis: 'secondary' },
-          { label: 'Jieqi', href: '/rules/jieqi', emphasis: 'secondary' },
-          { label: 'Dark Chess', href: '/rules/dark-chess', emphasis: 'secondary' },
+          { label: 'Chinese Chess Rules', href: '/rules/xiangqi', emphasis: 'secondary' },
+          { label: 'Flip Chinese Chess', href: '/rules/jieqi', emphasis: 'secondary' },
+          { label: 'Fog Chess', href: '/rules/dark-chess', emphasis: 'secondary' },
           { label: 'All rules', href: '/rules', emphasis: 'secondary' },
         ],
       }),

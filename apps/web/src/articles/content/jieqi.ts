@@ -14,25 +14,25 @@ export const jieqiArticle: Article = {
     boardFamily: 'xiangqi',
     kind: 'rules',
     playableOnMistboard: true,
-    title: 'Jieqi (揭棋) Rules',
+    title: 'Flip Chinese Chess Rules',
     summary:
-      'Jieqi (揭棋) rules: xiangqi with hidden non-general pieces that first move by starting point, then reveal and play by identity.',
+      'Flip Chinese Chess rules, traditionally jieqi (揭棋): xiangqi with hidden non-general pieces that first move by starting point, then reveal and play by identity.',
     showSummaryOnPage: false,
     status: 'published',
     publishedAt: '2026-06-15',
     audience:
-      'Xiangqi players and hidden-information fans who want a clean English rules reference for jieqi.',
+      'Chinese Chess players and hidden-information fans who want a clean English rules reference for jieqi.',
     thumbnail: { kind: 'svg', svg: JIEQI_RULES_THUMBNAIL },
     intro: [
       {
         kind: 'paragraph',
         text:
-          "Jieqi (揭棋, 'reveal chess') keeps xiangqi's board and checkmate goal, but hides every non-general piece. A dark piece first moves, attacks, and captures by the starting point it occupies. After that move, it reveals and plays by identity.",
+          "Flip Chinese Chess is Mistboard's public name for jieqi (揭棋, 'reveal chess'). It keeps xiangqi's board and checkmate goal, but hides every non-general piece. A dark piece first moves, attacks, and captures by the starting point it occupies. After that move, it reveals and plays by identity.",
       },
       {
         kind: 'paragraph',
         text:
-          'Use [Xiangqi Rules](/rules/xiangqi) for the base game. This page covers what changes.',
+          'Use [Chinese Chess Rules](/rules/xiangqi) for the base game. This page covers what changes.',
       },
     ],
     sections: [
@@ -160,24 +160,24 @@ export const jieqiArticle: Article = {
           {
             kind: 'paragraph',
             text:
-              'English names overlap. Dark Chinese chess may refer to jieqi, but it can also mean [banqi](/rules/banqi), a different half-board flip game. Jieqi keeps the full xiangqi board and checkmate goal; banqi uses a 4x8 board, rank captures, and elimination.',
+              'English names overlap. Dark Chinese Chess is now Mistboard\'s name for fog xiangqi, not jieqi. Jieqi also differs from [Half Flip Chess](/rules/banqi), the half-board flip game. Jieqi keeps the full xiangqi board and checkmate goal; banqi uses a 4x8 board, rank captures, and elimination.',
           },
           {
             kind: 'paragraph',
             text:
-              'Mistboard also uses [Dark Xiangqi](/rules/dark-xiangqi) and Dark Mini Xiangqi for our Fog of War xiangqi variants. Those are not jieqi: identities stay known, but unseen points are hidden. We have not found an earlier public playable platform for Fog of War xiangqi.',
+              'Mistboard also uses [Dark Chinese Chess](/rules/dark-xiangqi) and Dark Mini Xiangqi for our Fog of War xiangqi variants. Those are not jieqi: identities stay known, but unseen points are hidden. We have not found an earlier public playable platform for Fog of War xiangqi.',
           },
         ],
       },
       playClosing({
         heading: 'Where to next',
-        lead: 'Jieqi is playable on Mistboard. Take on PikaJieQi, our jieqi engine, at the strength you pick. For the base game, read xiangqi; for the other face-down xiangqi cousin, compare banqi.',
+        lead: 'Flip Chinese Chess is playable on Mistboard. Take on PikaJieQi, our jieqi engine, at the strength you pick. For the base game, read Chinese Chess; for the other face-down xiangqi cousin, compare Half Flip Chess.',
         playLabel: 'Play vs PikaJieQi',
         playHref: '/?play=engine&gameSpecId=jieqi',
         secondary: [
-          { label: 'Xiangqi Rules', href: '/rules/xiangqi', emphasis: 'secondary' },
-          { label: 'Banqi', href: '/rules/banqi', emphasis: 'secondary' },
-          { label: 'Dark Xiangqi', href: '/rules/dark-xiangqi', emphasis: 'secondary' },
+          { label: 'Chinese Chess Rules', href: '/rules/xiangqi', emphasis: 'secondary' },
+          { label: 'Half Flip Chess', href: '/rules/banqi', emphasis: 'secondary' },
+          { label: 'Dark Chinese Chess', href: '/rules/dark-xiangqi', emphasis: 'secondary' },
           { label: 'All rules', href: '/rules', emphasis: 'secondary' },
         ],
       }),

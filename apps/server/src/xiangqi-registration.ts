@@ -70,7 +70,7 @@ registerVariantTenant({
   watch: {
     channelId: 'xiangqi',
     family: 'xiangqi',
-    label: 'Xiangqi',
+    label: 'Chinese Chess',
     legacyVariants: ['xiangqi'],
   },
   ownsSpecRouting: true,

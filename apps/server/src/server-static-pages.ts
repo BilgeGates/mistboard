@@ -118,8 +118,8 @@ export async function serveGamePage(params: {
   if (game) {
     const white = gamePageParticipantName(game, 'white');
     const black = gamePageParticipantName(game, 'black');
-    const title = `${white} vs ${black} · Dark Chess replay | Mistboard`;
-    const description = 'Replay this Dark Chess game from both player views on Mistboard.';
+    const title = `${white} vs ${black} · Fog Chess replay | Mistboard`;
+    const description = 'Replay this Fog Chess game from both player views on Mistboard.';
     const url = `${params.publicHost}/game/${encodeURIComponent(params.roomId)}`;
     const imageUrl = `${params.publicHost}/og/game/${encodeURIComponent(params.roomId)}.png?v=${GAME_OG_IMAGE_VERSION}`;
     html = injectPageMeta(html, { title, description, url, imageUrl });

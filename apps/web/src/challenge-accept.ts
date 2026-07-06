@@ -19,7 +19,7 @@ type ChallengeView = {
   expired: boolean;
 };
 
-const SPEC_LABEL: Record<string, string> = { 'dark-chess': 'Dark Chess' };
+const SPEC_LABEL: Record<string, string> = { 'dark-chess': 'Fog Chess' };
 
 function specLabel(gameSpecId: string): string {
   return SPEC_LABEL[gameSpecId] ?? gameSpecId;

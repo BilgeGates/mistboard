@@ -44,20 +44,20 @@ export const darkChessArticle: Article = {
     slug: 'dark-chess',
     kind: 'rules',
     playableOnMistboard: true,
-    title: 'Dark Chess (Fog of War) Rules',
+    title: 'Fog Chess Rules',
     summary:
-      'Chess under Fog of War: each side sees only the squares its pieces reach, there are no check warnings, and the king falls by capture.',
+      'Fog Chess rules: chess under Fog of War, where each side sees only the squares its pieces reach, there are no check warnings, and the king falls by capture.',
     status: 'published',
     publishedAt: '2026-05-22',
     updatedAt: '2026-06-04',
     audience:
-      'Any chess player who has heard of dark chess (or Fog of War) and wants to understand it from scratch.',
+      'Any chess player who has heard of fog chess, dark chess, or Fog of War and wants to understand it from scratch.',
     thumbnail: ARTICLE_OG_POSITIONS['dark-chess'],
     intro: [
       {
         kind: 'paragraph',
         text:
-          "[Dark chess](https://en.wikipedia.org/wiki/Dark_chess) (also called Fog of War) was invented by Jens Bæk Nielsen and Torben Osted in 1989. It is the implicit-fog version of the idea: no umpire, no scan action. Each side's visibility is derived from where its pieces can legally move.",
+          "[Fog Chess](https://en.wikipedia.org/wiki/Dark_chess) is Mistboard's public name for dark chess, also called Fog of War chess. Jens Bæk Nielsen and Torben Osted invented it in 1989. It is the implicit-fog version of the idea: no umpire, no scan action. Each side's visibility is derived from where its pieces can legally move.",
       },
     ],
     sections: [
@@ -266,12 +266,12 @@ export const darkChessArticle: Article = {
         ],
       },
       {
-        heading: 'Is dark chess the same as fog of war chess?',
+        heading: 'Names',
         blocks: [
           {
             kind: 'paragraph',
             text:
-              'Yes. "Dark chess" and "fog of war chess" are two names for this same variant: hidden-information chess where you see only the squares your pieces reach. It is sometimes confused with [banqi](/rules/banqi), the Chinese game also nicknamed "dark chess," which plays with xiangqi pieces turned face-down. That is a different game.',
+              'Fog Chess, dark chess, and Fog of War chess refer to this same chess variant: hidden-information chess where you see only the squares your pieces reach. It is sometimes confused with [Half Flip Chess](/rules/banqi), the Chinese game also nicknamed "dark chess," which plays with xiangqi pieces turned face-down. That is a different game.',
           },
         ],
       },

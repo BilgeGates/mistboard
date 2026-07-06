@@ -20,7 +20,7 @@ export const darkDraft960Article: Article = {
     kind: 'rules',
     title: 'Dark Draft960',
     summary:
-      "Dark Chess with a sealed opening draft: each player picks one of three Chess960 back ranks and never sees the other's.",
+      "Fog Chess with a sealed opening draft: each player picks one of three Chess960 back ranks and never sees the other's.",
     status: 'published',
     publishedAt: '2026-05-31',
     audience:
