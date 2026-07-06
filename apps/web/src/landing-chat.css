@@ -116,11 +116,15 @@
   margin-left: auto;
   display: flex;
   gap: 3px;
-  opacity: 0.35;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 120ms ease;
 }
 
-.landing-chat-line:hover .landing-chat-admin {
+.landing-chat-line:hover .landing-chat-admin,
+.landing-chat-line:focus-within .landing-chat-admin {
   opacity: 1;
+  pointer-events: auto;
 }
 
 .landing-chat-admin-action {
@@ -134,6 +138,23 @@
 
 .landing-chat-admin-action:hover {
   color: var(--site-text);
+}
+
+.landing-chat-admin-action:focus-visible {
+  color: var(--site-text);
+  outline: 1px solid currentColor;
+  outline-offset: 1px;
+}
+
+.landing-chat-admin-action:disabled {
+  cursor: default;
+  opacity: 0.75;
+}
+
+.landing-chat-report-action.is-reported {
+  min-width: 42px;
+  color: var(--site-success, #4f8a10);
+  text-align: right;
 }
 
 .landing-chat-composer {

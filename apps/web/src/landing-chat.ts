@@ -15,6 +15,7 @@ type ChatState = {
   lines: ChatLine[];
   canPost: boolean;
   canReport: boolean;
+  viewerHandle: string | null;
   timeoutUntil?: string;
   isAdmin: boolean;
 };
@@ -156,7 +157,7 @@ function appendLines(
   feed: HTMLElement,
   lines: ChatLine[],
   known: Set<string>,
-  state: Pick<ChatState, 'canReport' | 'isAdmin'>,
+  state: Pick<ChatState, 'canReport' | 'isAdmin' | 'viewerHandle'>,
   locale: Locale,
   mode: LandingChatMode,
 ): void {
@@ -174,12 +175,19 @@ function appendLines(
     row.append(who, text);
     if (state.isAdmin && line.handle) {
       row.append(buildAdminControls(line, row));
-    } else if (state.canReport && line.handle) {
-      row.append(buildReportControl(line, mode));
+    } else if (canReportLine(state, line)) {
+      row.append(buildReportControl(line, locale, mode));
     }
     feed.append(row);
   }
   feed.scrollTop = feed.scrollHeight;
+}
+
+function canReportLine(
+  state: Pick<ChatState, 'canReport' | 'viewerHandle'>,
+  line: ChatLine,
+): boolean {
+  return !!state.canReport && !!line.handle && line.handle !== state.viewerHandle;
 }
 
 // Admin-only inline moderation: hide the line, or 15-min timeout its author
@@ -221,16 +229,17 @@ function buildAdminControls(line: ChatLine, row: HTMLElement): HTMLElement {
   return wrap;
 }
 
-function buildReportControl(line: ChatLine, mode: LandingChatMode): HTMLElement {
+function buildReportControl(line: ChatLine, locale: Locale, mode: LandingChatMode): HTMLElement {
   const button = document.createElement('button');
   button.type = 'button';
-  button.className = 'landing-chat-admin-action';
-  button.title = 'Report line';
+  button.className = 'landing-chat-admin-action landing-chat-report-action';
+  button.title = t('chat.report', {}, locale);
   button.textContent = '!';
   button.addEventListener('click', async () => {
     button.disabled = true;
+    button.setAttribute('aria-busy', 'true');
     if (mode === 'mock') {
-      button.textContent = 'reported';
+      markReportDone(button, locale);
       return;
     }
     const resp = await fetch('/api/chat/lobby/report', {
@@ -239,12 +248,22 @@ function buildReportControl(line: ChatLine, mode: LandingChatMode): HTMLElement 
       body: JSON.stringify({ lineId: line.id, reason: 'Chat message report' }),
     }).catch(() => null);
     if (resp?.ok || resp?.status === 409) {
-      button.textContent = 'reported';
+      markReportDone(button, locale);
       return;
     }
+    button.removeAttribute('aria-busy');
+    button.textContent = '!';
+    button.title = t('chat.reportFailed', {}, locale);
     button.disabled = false;
   });
   return button;
+}
+
+function markReportDone(button: HTMLButtonElement, locale: Locale): void {
+  button.removeAttribute('aria-busy');
+  button.textContent = t('chat.reportedShort', {}, locale);
+  button.title = t('chat.reported', {}, locale);
+  button.classList.add('is-reported');
 }
 
 function buildComposer(
@@ -370,6 +389,7 @@ function mockChatState(): ChatState {
   return {
     canPost: true,
     canReport: true,
+    viewerHandle: 'you',
     isAdmin: false,
     lines: [
       {

@@ -196,6 +196,7 @@ export async function tryHandle(
       })),
       canPost: !!viewer && !timeoutUntil,
       canReport: !!viewer,
+      viewerHandle: viewer?.handle ?? null,
       ...(timeoutUntil ? { timeoutUntil: timeoutUntil.toISOString() } : {}),
       isAdmin: viewer?.accountRole === 'admin',
     });

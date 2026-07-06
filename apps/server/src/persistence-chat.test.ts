@@ -259,6 +259,7 @@ definePersistenceTests('chat', () => {
       const payload = JSON.parse(read.body);
       assert.equal(Array.isArray(payload.lines), true);
       assert.equal(payload.canPost, false);
+      assert.equal(payload.viewerHandle, null);
 
       const post = captureResponse();
       await tryHandleChatRoute(
