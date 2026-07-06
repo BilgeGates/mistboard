@@ -1,22 +1,22 @@
-// Entry page for the standalone /analysis/xiangqi route. Reads a coordinate move
-// list from the ?moves= query (so an analysis is shareable + reloadable) or
-// offers a paste box, then hands off to mountXiangqiAnalysis. Coordinate import
-// only for now (our square notation, = Fairy-Stockfish xiangqi UCI); WXF /
-// Chinese notation import is the planned follow-on.
+// Entry page for the standalone /analysis/xiangqi route. Reads a move list from
+// the ?moves= query (so an analysis is shareable + reloadable) or offers a paste
+// box, then hands off to mountXiangqiAnalysis. The importer auto-detects the
+// notation (coordinate, 0-indexed UCI/ICCS/UCCI, WXF, Chinese) and normalizes to
+// canonical moves; shared links are always re-encoded as canonical coordinate.
 
 import './dark-xiangqi-postgame.css';
 import './xiangqi-analysis.css';
-import { parseXiangqiCoordinateMoves } from './review/xiangqi-review-model.js';
+import { importXiangqiGame } from './review/xiangqi-import.js';
 import { buildNav } from './site-shell.js';
 import { mountXiangqiAnalysis } from './xiangqi-analysis.js';
 
-const SAMPLE = 'b3e3 h8e8 b1c3';
+const SAMPLE = '炮二平五 炮8平5 马二进三';
 
 export function mountXiangqiAnalysisPage(root: HTMLElement): void {
   root.classList.add('landing-page');
   const raw = new URLSearchParams(window.location.search).get('moves');
   if (raw) {
-    const { moves, error } = parseXiangqiCoordinateMoves(raw);
+    const { moves, error } = importXiangqiGame(raw);
     if (!error && moves.length > 0) {
       mountXiangqiAnalysis(root, moves, { title: 'Xiangqi analysis' });
       return;
@@ -38,7 +38,7 @@ function renderForm(root: HTMLElement, initial: string, error: string | null): v
   heading.textContent = 'Xiangqi analysis';
   const blurb = document.createElement('p');
   blurb.textContent =
-    'Paste a game as coordinate moves (e.g. b3e3 h8e8 b1c3), separated by spaces or commas. The board opens in the analysis shell with the engine available.';
+    'Paste a game in Chinese (炮二平五), WXF (C2.5 H2+3), or coordinate/UCI (b3e3) notation. The format is detected automatically and the board opens in the analysis shell with the engine available.';
 
   const textarea = document.createElement('textarea');
   textarea.className = 'xiangqi-analysis-form__input';
@@ -58,7 +58,7 @@ function renderForm(root: HTMLElement, initial: string, error: string | null): v
   analyse.textContent = 'Analyse';
 
   const submit = () => {
-    const { moves, error: parseError } = parseXiangqiCoordinateMoves(textarea.value);
+    const { moves, error: parseError } = importXiangqiGame(textarea.value);
     if (parseError || moves.length === 0) {
       errorEl.textContent = parseError ?? 'Enter at least one move.';
       return;
