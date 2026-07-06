@@ -76,7 +76,9 @@ function activityPrimary(metrics: HTMLElement[]): HTMLElement {
 
 function activityMetric(value: string, label: string, href?: string): HTMLElement {
   const row = href ? document.createElement('a') : document.createElement('div');
-  row.className = href ? 'landing-activity-metric landing-activity-link' : 'landing-activity-metric';
+  row.className = href
+    ? 'landing-activity-metric landing-activity-link'
+    : 'landing-activity-metric';
   if (href) row.setAttribute('href', href);
   const valueEl = document.createElement('strong');
   valueEl.className = 'landing-activity-value';

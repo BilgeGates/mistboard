@@ -459,9 +459,7 @@ describe('rules variant sidebar', () => {
 
     const current = sidebar?.querySelector('a[aria-current="page"]');
     expect(current?.getAttribute('href')).toBe('/rules/dark-chess');
-    expect(current?.querySelector('.article-variant-label')?.textContent).toBe(
-      'Fog Chess',
-    );
+    expect(current?.querySelector('.article-variant-label')?.textContent).toBe('Fog Chess');
     // Xiangqi pivot: the chess reference article is de-listed (showInIndex=false),
     // so the rail no longer links it (still reachable at /rules/chess directly).
     expect(sidebar?.querySelector('a[href="/rules/chess"]')).toBeNull();
@@ -551,9 +549,7 @@ describe('rules variant sidebar', () => {
     const tile = landing.querySelector<HTMLAnchorElement>(
       '.rules-landing-tile[href="/rules/dark-chess"]',
     );
-    expect(tile?.querySelector('.rules-landing-tile-label')?.textContent).toBe(
-      'Fog Chess',
-    );
+    expect(tile?.querySelector('.rules-landing-tile-label')?.textContent).toBe('Fog Chess');
   });
 
   it('uses shared Shogi mini markers on rule article surfaces', () => {
