@@ -1,4 +1,5 @@
 import './notification-nav.css';
+import { buildDobutsuUiIcon } from './dobutsu-ui-icons.js';
 
 // A reusable nav notification button: a bell + count badge that aggregates every
 // registered source. Built to grow — correspondence "your move" is the first
@@ -66,7 +67,7 @@ export function mountNotificationBell(nav: HTMLElement): void {
   trigger.setAttribute('aria-label', 'Notifications');
   trigger.setAttribute('aria-expanded', 'false');
   trigger.setAttribute('aria-haspopup', 'menu');
-  trigger.innerHTML = BELL_ICON;
+  trigger.append(buildDobutsuUiIcon('notification', 'notif-nav-dobutsu-icon'));
 
   const badge = document.createElement('span');
   badge.className = 'notif-nav-badge';
@@ -167,5 +168,3 @@ function ensureDismiss(): void {
       closeBell(control);
   });
 }
-
-const BELL_ICON = `<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>`;

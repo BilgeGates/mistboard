@@ -3,6 +3,7 @@ import './landing-play.css';
 import './landing.css';
 import './game-route.css';
 import { buildHomeArticleCards, initLandingCarousel, mountArticleThumbnails } from './articles.js';
+import { buildDobutsuUiIcon } from './dobutsu-ui-icons.js';
 import { displayParticipantName, type FeaturedGame, variantDisplayLabel } from './game-display.js';
 import { gameMetaForGame } from './game-meta.js';
 import {
@@ -543,13 +544,6 @@ function syncGamePlyUrl(ply: number): void {
   window.history.replaceState(null, '', `${url.pathname}${url.search}${url.hash}`);
 }
 
-// Support/store call-to-action icons (lichess uses a wing for donate + a shirt
-// for swag). Heart = support, bag = store. Inline so they inherit currentColor.
-const HOME_SUPPORT_ICON_SVG: Record<'support' | 'store', string> = {
-  support: `<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path fill="currentColor" d="M12 21s-7.4-4.6-10-9.3C.6 8.9 1.8 5.4 5 4.3c2-.7 4.1.1 5.3 1.8L12 8l1.7-1.9c1.2-1.7 3.3-2.5 5.3-1.8 3.2 1.1 4.4 4.6 3 7.4C19.4 16.4 12 21 12 21Z"/></svg>`,
-  store: `<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path fill="currentColor" d="M6 2h12l2 5H4l2-5Zm-3 6h18v2a3 3 0 0 1-3 3 3 3 0 0 1-3-1.5A3 3 0 0 1 12 13a3 3 0 0 1-3-1.5A3 3 0 0 1 6 13a3 3 0 0 1-3-3V8Zm2 6.9A5 5 0 0 0 6 15a5 5 0 0 0 2-.4V20h8v-5.4a5 5 0 0 0 2 .4 5 5 0 0 0 1-.1V21a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1v-6.1Z"/></svg>`,
-};
-
 // A single lichess-style support/store card: icon on the left, a title + subtitle
 // stacked to its right. Support links to /patron; store is a disabled placeholder
 // ("coming soon") rendered as a non-interactive span.
@@ -568,9 +562,9 @@ function buildHomeSupportCard(opts: {
     el.setAttribute('aria-disabled', 'true');
   }
   const icon = document.createElement('span');
-  icon.className = 'landing-support-icon';
+  icon.className = 'landing-support-icon landing-support-icon-dobutsu';
   icon.setAttribute('aria-hidden', 'true');
-  icon.innerHTML = HOME_SUPPORT_ICON_SVG[opts.variant];
+  icon.append(buildDobutsuUiIcon(opts.variant));
   const text = document.createElement('span');
   text.className = 'landing-support-text';
   const title = document.createElement('span');

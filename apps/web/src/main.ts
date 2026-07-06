@@ -169,6 +169,8 @@ const wantsPixelLab = import.meta.env.DEV && path === '/pixel-lab';
 const wantsVariantMarksLab = import.meta.env.DEV && path === '/variant-marks';
 // Hidden DEV-only board lab for mapping Dobutsu animal art onto chess pieces.
 const wantsDobutsuChessPreview = import.meta.env.DEV && path === '/dobutsu-chess-preview';
+// Hidden DEV-only UI lab for generated Dobutsu web icon candidates. No nav entry.
+const wantsDobutsuUiPreview = import.meta.env.DEV && path === '/dobutsu-ui-preview';
 // Hidden DEV-only audition lab for sound sets. No nav entry.
 const wantsSoundLab = import.meta.env.DEV && path === '/sound-lab';
 // Hidden DEV-only variant sheet: every variant's opening in the showcase widget.
@@ -346,6 +348,13 @@ if (replaySample) {
   void mountOrReport(() =>
     import('./dobutsu-chess-preview.js').then(({ mountDobutsuChessPreview }) =>
       mountDobutsuChessPreview(appRoot),
+    ),
+  );
+} else if (wantsDobutsuUiPreview) {
+  setTitle('Dobutsu UI preview');
+  void mountOrReport(() =>
+    import('./dobutsu-ui-preview.js').then(({ mountDobutsuUiPreview }) =>
+      mountDobutsuUiPreview(appRoot),
     ),
   );
 } else if (wantsShowcaseSheet) {

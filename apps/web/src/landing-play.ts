@@ -29,6 +29,7 @@ import {
   gameSpecAnalyticsPropsForId,
   track,
 } from './analytics.js';
+import { buildDobutsuUiIcon, type DobutsuUiIconId } from './dobutsu-ui-icons.js';
 import { correspondenceEnabled, crossroadsChessEnabled } from './feature-flags.js';
 import { type I18nKey, t } from './i18n/catalog.js';
 import { currentLocale, type Locale } from './i18n/locale.js';
@@ -412,20 +413,17 @@ export function buildLandingPlayPanel(
   return panel;
 }
 
-// Bootstrap Icons (MIT), inlined so the first-screen actions keep a simple,
-// recognizable icon-font feel at Lichess-like sizes.
-type LandingPlayIcon = 'computer' | 'correspondence' | 'friend' | 'lobby';
-const LANDING_PLAY_ICON_SVG: Record<LandingPlayIcon, string> = {
-  correspondence: `<svg viewBox="0 0 16 16" fill="currentColor" aria-hidden="true" focusable="false"><path d="M2 1.5a.5.5 0 0 1 .5-.5h11a.5.5 0 0 1 0 1H13v2.57a2 2 0 0 1-.59 1.42L9.41 9l3 3.01A2 2 0 0 1 13 13.43V15h.5a.5.5 0 0 1 0 1h-11a.5.5 0 0 1 0-1H3v-1.57a2 2 0 0 1 .59-1.42L6.59 9l-3-3.01A2 2 0 0 1 3 4.57V2h-.5a.5.5 0 0 1-.5-.5Z"/></svg>`,
-  lobby: `<svg viewBox="0 0 16 16" fill="currentColor" aria-hidden="true" focusable="false"><path d="M7 14s-1 0-1-1 1-4 5-4 5 3 5 4-1 1-1 1H7Z"/><path d="M11 8a3 3 0 1 0 0-6 3 3 0 0 0 0 6Z"/><path fill-rule="evenodd" d="M5.22 14A2.24 2.24 0 0 1 5 13c0-1.36.68-2.75 1.94-3.72A6.33 6.33 0 0 0 5 9c-4 0-5 3-5 4s1 1 1 1h4.22Z" clip-rule="evenodd"/><path d="M4.5 8a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5Z"/></svg>`,
-  friend: `<svg viewBox="0 0 16 16" fill="currentColor" aria-hidden="true" focusable="false"><path d="M3 14s-1 0-1-1 1-4 6-4 6 3 6 4-1 1-1 1H3Z"/><path d="M8 8a3 3 0 1 0 0-6 3 3 0 0 0 0 6Z"/></svg>`,
-  computer: `<svg viewBox="0 0 16 16" fill="currentColor" aria-hidden="true" focusable="false"><path d="M6.5 6a.5.5 0 0 0-.5.5v3a.5.5 0 0 0 .5.5h3a.5.5 0 0 0 .5-.5v-3a.5.5 0 0 0-.5-.5h-3Z"/><path d="M5.5.5a.5.5 0 0 0-1 0V2A2.5 2.5 0 0 0 2 4.5H.5a.5.5 0 0 0 0 1H2v2H.5a.5.5 0 0 0 0 1H2v2H.5a.5.5 0 0 0 0 1H2A2.5 2.5 0 0 0 4.5 14v1.5a.5.5 0 0 0 1 0V14h2v1.5a.5.5 0 0 0 1 0V14h2v1.5a.5.5 0 0 0 1 0V14a2.5 2.5 0 0 0 2.5-2.5h1.5a.5.5 0 0 0 0-1H14v-2h1.5a.5.5 0 0 0 0-1H14v-2h1.5a.5.5 0 0 0 0-1H14A2.5 2.5 0 0 0 11.5 2V.5a.5.5 0 0 0-1 0V2h-2V.5a.5.5 0 0 0-1 0V2h-2V.5Zm-.5 3h6A1.5 1.5 0 0 1 12.5 5v6a1.5 1.5 0 0 1-1.5 1.5H5A1.5 1.5 0 0 1 3.5 11V5A1.5 1.5 0 0 1 5 3.5Z"/></svg>`,
+type LandingPlayIcon = 'computer' | 'friend' | 'lobby';
+const LANDING_PLAY_ICON_ID: Record<LandingPlayIcon, DobutsuUiIconId> = {
+  computer: 'play-engine',
+  friend: 'challenge-friend',
+  lobby: 'find-opponent',
 };
 
 function landingPlayAction(label: string, icon: LandingPlayIcon): HTMLButtonElement {
   const button = document.createElement('button');
   button.type = 'button';
-  button.className = `landing-play-action landing-play-action-${icon}`;
+  button.className = `landing-play-action landing-play-action-${icon} landing-play-action-dobutsu`;
   appendLandingActionContent(button, label, icon);
   return button;
 }
@@ -436,9 +434,9 @@ function appendLandingActionContent(
   icon: LandingPlayIcon,
 ): void {
   const iconEl = document.createElement('span');
-  iconEl.className = 'landing-play-icon';
+  iconEl.className = 'landing-play-icon landing-play-icon-dobutsu';
   iconEl.setAttribute('aria-hidden', 'true');
-  iconEl.innerHTML = LANDING_PLAY_ICON_SVG[icon];
+  iconEl.append(buildDobutsuUiIcon(LANDING_PLAY_ICON_ID[icon]));
   const labelEl = document.createElement('span');
   labelEl.className = 'landing-play-action-label';
   labelEl.textContent = label;

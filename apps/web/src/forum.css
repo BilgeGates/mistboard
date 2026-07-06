@@ -1346,14 +1346,17 @@ a.forum-post-author-name:focus-visible {
 }
 
 .forum-panel-icon {
-  width: 50px;
-  height: 50px;
+  width: 70px;
+  height: 70px;
   flex: 0 0 auto;
-  fill: none;
-  stroke: var(--forum-muted);
-  stroke-linecap: round;
-  stroke-linejoin: round;
-  stroke-width: 1.8;
+}
+
+.forum-panel-icon-dobutsu {
+  margin-inline: -10px -4px;
+}
+
+.forum-panel-icon-dobutsu.dobutsu-ui-icon {
+  filter: none;
 }
 
 .forum-panel-title-stack {
@@ -1425,7 +1428,8 @@ a.forum-post-author-name:focus-visible {
 .forum-panel-action-create {
   display: inline-flex;
   align-items: center;
-  gap: 7px;
+  gap: 9px;
+  min-height: 44px;
   color: var(--forum-create);
 }
 
@@ -1443,6 +1447,15 @@ a.forum-post-author-name:focus-visible {
   stroke-width: 1.8;
   stroke-linecap: round;
   stroke-linejoin: round;
+}
+
+.forum-create-topic-icon {
+  width: 48px;
+  height: 48px;
+  flex: 0 0 auto;
+  margin-block: -14px;
+  transform: translateY(1px);
+  filter: none;
 }
 
 .forum-panel-actions {
@@ -2190,9 +2203,12 @@ a.forum-post-author-name:focus-visible {
   }
 
   .forum-panel-icon {
-    width: 44px;
-    height: 44px;
-    stroke-width: 1.9;
+    width: 58px;
+    height: 58px;
+  }
+
+  .forum-panel-icon-dobutsu {
+    margin-inline: -8px -2px;
   }
 
   .forum-composer-tabs,

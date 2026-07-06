@@ -24,21 +24,24 @@
   text-align: left;
   text-decoration: none;
   transition:
-    background 120ms ease,
-    border-color 120ms ease,
-    color 120ms ease,
-    box-shadow 120ms ease,
-    filter 120ms ease;
+    background 75ms ease,
+    border-color 75ms ease,
+    color 75ms ease,
+    box-shadow 75ms ease;
 }
 
 .landing-play-action:hover:not(:disabled),
 .landing-play-action:focus-visible {
-  border-color: color-mix(in srgb, var(--site-border) 54%, transparent);
-  background: linear-gradient(to bottom, #ffffff, var(--site-metal-top));
+  border-color: color-mix(in srgb, var(--site-border) 80%, #ffffff 20%);
+  background: linear-gradient(
+    to bottom,
+    #ffffff,
+    color-mix(in srgb, var(--site-metal-top) 86%, #ffffff 14%)
+  );
   box-shadow:
     0 3px 10px rgba(27, 31, 27, 0.14),
     inset 0 1px 0 rgba(255, 255, 255, 0.86);
-  filter: brightness(1.01);
+  outline: none;
 }
 
 .landing-play-action:hover:not(:disabled) .landing-play-icon,
@@ -63,6 +66,34 @@
   overflow-wrap: anywhere;
 }
 
+.landing-play-action.landing-play-action-dobutsu {
+  grid-template-columns: 82px minmax(0, 1fr);
+  min-height: 78px;
+  gap: 20px;
+  font-size: clamp(17px, 1.08vw, 18px);
+  font-weight: 580;
+  padding-inline: 24px 18px;
+}
+
+.landing-play-icon.landing-play-icon-dobutsu {
+  width: 68px;
+  height: 68px;
+  overflow: visible;
+}
+
+.landing-play-icon-dobutsu .dobutsu-ui-icon {
+  filter: none;
+}
+
+.landing-play-icon-dobutsu .dobutsu-ui-icon-play-engine {
+  transform: scale(1.04);
+}
+
+.landing-play-icon-dobutsu .dobutsu-ui-icon-challenge-friend,
+.landing-play-icon-dobutsu .dobutsu-ui-icon-find-opponent {
+  transform: scale(1.42);
+}
+
 :root[data-effective-theme="dark"] .landing-play-action {
   background: linear-gradient(to bottom, var(--site-metal-top-hover), var(--site-metal-bottom));
   color: var(--site-heading);
@@ -73,7 +104,12 @@
 
 :root[data-effective-theme="dark"] .landing-play-action:hover:not(:disabled),
 :root[data-effective-theme="dark"] .landing-play-action:focus-visible {
-  background: linear-gradient(to bottom, var(--site-metal-top-hover), var(--site-metal-top));
+  border-color: color-mix(in srgb, var(--site-border) 58%, #ffffff 42%);
+  background: linear-gradient(
+    to bottom,
+    color-mix(in srgb, var(--site-metal-top-hover) 82%, #ffffff 18%),
+    color-mix(in srgb, var(--site-metal-top) 86%, #ffffff 14%)
+  );
   box-shadow:
     0 3px 10px rgba(0, 0, 0, 0.4),
     inset 0 1px 0 rgba(255, 255, 255, 0.08);

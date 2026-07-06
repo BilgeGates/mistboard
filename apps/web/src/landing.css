@@ -179,25 +179,38 @@
 }
 
 .landing-support-card {
+  --landing-support-gold: #c98716;
+
   display: grid;
   grid-template-columns: auto minmax(0, 1fr);
   align-items: center;
-  gap: 18px;
-  min-height: 92px;
-  padding: 16px 22px;
+  gap: 22px;
+  min-height: 124px;
+  padding: 22px 28px;
   border: 1px solid rgba(29, 37, 34, 0.1);
   border-radius: var(--site-radius);
   background: var(--site-panel);
   color: inherit;
+  box-shadow: 0 2px 8px rgba(27, 31, 27, 0.1);
   text-decoration: none;
   transition:
     border-color 120ms ease,
-    background 120ms ease;
+    background 120ms ease,
+    box-shadow 120ms ease,
+    color 120ms ease,
+    filter 120ms ease;
 }
 
-.landing-support-card:not(.is-disabled):hover {
-  border-color: rgba(29, 37, 34, 0.18);
-  background: var(--site-panel-soft);
+.landing-support-card:hover,
+.landing-support-card:focus-visible {
+  border-color: color-mix(in srgb, var(--landing-support-gold) 74%, transparent);
+  background: var(--landing-support-gold);
+  box-shadow:
+    0 8px 22px rgba(105, 64, 11, 0.22),
+    inset 0 1px 0 rgba(255, 255, 255, 0.28);
+  color: #fff;
+  filter: saturate(1.04);
+  outline: none;
 }
 
 .landing-support-card.is-disabled {
@@ -213,8 +226,18 @@
   color: var(--site-accent);
 }
 
+.landing-support-icon-dobutsu {
+  width: 92px;
+  height: 92px;
+  margin-inline: -10px -1px;
+}
+
+.landing-support-icon-dobutsu .dobutsu-ui-icon {
+  filter: none;
+}
+
 .landing-support-card.is-disabled .landing-support-icon {
-  color: var(--site-muted);
+  color: var(--site-accent);
 }
 
 .landing-support-icon svg {
@@ -230,23 +253,37 @@
 }
 
 .landing-support-title {
-  font-size: 18px;
+  font-size: 21px;
   font-weight: 600;
   line-height: 1.2;
-  color: var(--site-text);
+  color: var(--landing-support-gold);
 }
 
 .landing-support-card.is-disabled .landing-support-title {
-  color: var(--site-muted);
+  color: var(--landing-support-gold);
 }
 
 .landing-support-subtitle {
   overflow: hidden;
-  font-size: 13px;
+  font-size: 15px;
   line-height: 1.3;
-  color: var(--site-muted);
+  color: var(--landing-support-gold);
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.landing-support-card:hover .landing-support-title,
+.landing-support-card:hover .landing-support-subtitle,
+.landing-support-card:focus-visible .landing-support-title,
+.landing-support-card:focus-visible .landing-support-subtitle,
+.landing-support-card.is-disabled:hover .landing-support-title,
+.landing-support-card.is-disabled:hover .landing-support-subtitle {
+  color: #fff;
+}
+
+:root[data-effective-theme="dark"] .landing-support-card {
+  border-color: rgba(255, 255, 255, 0.1);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.34);
 }
 
 /* Lower strip: lila-style News + Forum pair, full width beneath the
@@ -1384,7 +1421,7 @@
     flex-direction: column;
     min-height: 0;
     width: 100%;
-    max-width: 680px;
+    max-width: 560px;
     margin-inline: auto;
   }
 
