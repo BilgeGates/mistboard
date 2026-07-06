@@ -149,4 +149,29 @@ describe('importXiangqiGame', () => {
       expect(importXiangqiGame('774').format).toBeNull();
     });
   });
+
+  describe('cross-format equivalence', () => {
+    // The same opening (h3e3, h8e8, h1g3) written five ways must normalize to
+    // identical canonical moves — one property that catches any codec drift.
+    const CANONICAL = [
+      { from: 'h3', to: 'e3' },
+      { from: 'h8', to: 'e8' },
+      { from: 'h1', to: 'g3' },
+    ];
+    const SAME_GAME: Record<string, string> = {
+      coordinate: 'h3e3 h8e8 h1g3',
+      'uci-0indexed': 'h2e2 h7e7 h0g2',
+      wxf: 'C2.5 C8.5 H2+3',
+      chinese: '炮二平五 炮8平5 马二进三',
+      dhtmlxq: '774772427967',
+    };
+
+    for (const [format, input] of Object.entries(SAME_GAME)) {
+      it(`decodes ${format} to the same canonical moves`, () => {
+        const result = importXiangqiGame(input);
+        expect(result.format).toBe(format);
+        expect(result.moves).toEqual(CANONICAL);
+      });
+    }
+  });
 });

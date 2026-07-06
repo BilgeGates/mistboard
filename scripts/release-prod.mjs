@@ -383,6 +383,10 @@ function runSmoke({ deployRequired, headRevision }) {
   const revisionArgs = deployRequired ? ['--expect-revision', headRevision] : [];
   if (smoke === 'web' || smoke === 'full') {
     runTimed('prod web smoke', npmCommand('prod:smoke', [...baseArgs(), ...revisionArgs]));
+    // Headless check that the in-browser analysis engine actually loads + returns
+    // a search on /analysis/xiangqi — the class of failure the fetch-based smokes
+    // cannot see (they verify serving/isolation, not a real run).
+    runTimed('prod ceval smoke', npmCommand('prod:smoke:ceval', baseArgs()));
   }
 
   if (smoke === 'full') {
