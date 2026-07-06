@@ -10,11 +10,16 @@
 
 const ENGINE_BASE = '/engine/fairy-stockfish/';
 // The vendored FSF assets live in public/ and are NOT content-hashed like the Vite
-// bundle, so the CDN caches them by bare path for hours (max-age=14400). Bump this
-// whenever the vendored stockfish.js changes to force a fresh edge fetch (this CF
-// config keys on the query string). Only the script URL is versioned; the wasm +
-// worker are resolved by the engine's own locateFile and load fine unversioned.
-const ENGINE_SCRIPT_VERSION = '1.1.11';
+// bundle, so the CDN caches them by bare path for hours (max-age=14400) and a copy
+// cached before a header/route change keeps serving stale. Every engine asset
+// (script, wasm, AND the pthread worker) is versioned to force a fresh edge fetch
+// on any change — critically the worker, which must carry its own COEP header to
+// become cross-origin isolated; a stale header-less copy leaves it un-isolated and
+// pthreads die. The worker loads its deps from a URL/blob the main thread posts to
+// it (not from its own location), so a query on its URL is safe. Bump on any
+// vendored-asset change (this CF config keys on the query string).
+const ENGINE_ASSET_VERSION = '1.1.11';
+const engineAsset = (file: string): string => `${ENGINE_BASE}${file}?v=${ENGINE_ASSET_VERSION}`;
 
 /** Human label for the engine, shown in the analysis panel. */
 export const CEVAL_ENGINE_NAME = 'Fairy-Stockfish';
@@ -145,12 +150,12 @@ async function loadEngineCore(): Promise<EngineCore> {
   if (!cevalSupported()) {
     throw new Error('ceval_unsupported: page is not cross-origin isolated');
   }
-  await injectEngineScript(`${ENGINE_BASE}stockfish.js?v=${ENGINE_SCRIPT_VERSION}`);
+  await injectEngineScript(engineAsset('stockfish.js'));
   const factory = globalThis.Stockfish;
   if (typeof factory !== 'function') {
     throw new Error('ceval: engine global missing after script load');
   }
-  const raw = await factory({ locateFile: (f) => ENGINE_BASE + f });
+  const raw = await factory({ locateFile: (f) => engineAsset(f) });
   const core = new EngineCore(raw);
 
   core.send('uci');
