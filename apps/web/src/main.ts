@@ -163,6 +163,8 @@ const wantsXiangqiDemo = import.meta.env.DEV && path === '/xiangqi-demo';
 const wantsPixelLab = import.meta.env.DEV && path === '/pixel-lab';
 // Hidden DEV-only identity lab for candidate variant marks. No nav entry.
 const wantsVariantMarksLab = import.meta.env.DEV && path === '/variant-marks';
+// Hidden DEV-only board lab for mapping Dobutsu animal art onto chess pieces.
+const wantsDobutsuChessPreview = import.meta.env.DEV && path === '/dobutsu-chess-preview';
 // Hidden DEV-only audition lab for sound sets. No nav entry.
 const wantsSoundLab = import.meta.env.DEV && path === '/sound-lab';
 // Hidden DEV-only variant sheet: every variant's opening in the showcase widget.
@@ -326,6 +328,13 @@ if (replaySample) {
   void mountOrReport(() =>
     import('./variant-marks-lab.js').then(({ mountVariantMarksLab }) =>
       mountVariantMarksLab(appRoot),
+    ),
+  );
+} else if (wantsDobutsuChessPreview) {
+  setTitle('Dobutsu chess preview');
+  void mountOrReport(() =>
+    import('./dobutsu-chess-preview.js').then(({ mountDobutsuChessPreview }) =>
+      mountDobutsuChessPreview(appRoot),
     ),
   );
 } else if (wantsShowcaseSheet) {
