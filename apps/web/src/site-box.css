@@ -81,39 +81,77 @@ a.site-box-row:focus-visible {
 /* Homepage activity stats: number-led rows, matching lichess's unboxed sidebar
    stats rather than the framed widget shell used by News/Activity elsewhere. */
 .landing-activity {
-  align-self: end;
+  align-self: stretch;
   width: 100%;
-  padding: 0 6px 1px;
+  padding: 0 0 2px;
   color: var(--site-muted);
 }
 
 .landing-activity-body {
-  display: grid;
-  gap: 1px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
 }
 
-.landing-activity-row {
-  display: grid;
-  grid-template-columns: minmax(44px, auto) minmax(0, 1fr);
+.landing-activity-primary {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+}
+
+.landing-activity-metric {
+  display: inline-flex;
   align-items: baseline;
-  gap: 9px;
-  min-height: 19px;
-  color: var(--site-muted);
-  font-size: 13px;
-  line-height: 1.22;
+  gap: 8px;
+  min-height: 27px;
+  color: var(--site-heading);
+  line-height: 1.35;
+  text-decoration: none;
+}
+
+.landing-activity-link:hover,
+.landing-activity-link:focus-visible,
+.landing-activity-live a:hover,
+.landing-activity-live a:focus-visible {
+  color: var(--site-link);
+  text-decoration: underline;
+  text-underline-offset: 3px;
 }
 
 .landing-activity-value {
-  min-width: 44px;
   color: var(--site-heading);
+  font-size: 18px;
   font-weight: 700;
   font-variant-numeric: tabular-nums;
-  text-align: right;
 }
 
 .landing-activity-label {
   min-width: 0;
+  color: var(--site-muted);
+  font-size: 18px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.landing-activity-live {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 3px 10px;
+  color: var(--site-muted);
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.landing-activity-live a {
+  color: inherit;
+  text-decoration: none;
+}
+
+.landing-activity-inline-stat strong {
+  color: var(--site-heading);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
 }

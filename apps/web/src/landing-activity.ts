@@ -1,7 +1,6 @@
-// Homepage activity stats: live presence from /api/live-stats plus durable game
-// totals from /api/stats/public. Four skeleton rows render synchronously so the
-// right rail reserves the stat block's footprint from first paint; the rows
-// hydrate in place when the data lands.
+// Homepage activity stats: durable game totals from /api/stats/public are the
+// primary read because early live counts can legitimately sit at zero. Live
+// presence still hydrates as a smaller now-line below the archive links.
 // Either source can be missing (stats/public needs persistence; live-stats
 // needs the API up): rows render only for data we actually have, and the block
 // removes itself only in the rare case both fetches fail.
@@ -15,9 +14,16 @@ export function buildLandingActivity(options: { hydrate?: boolean } = {}): HTMLE
   box.setAttribute('aria-label', 'Activity');
   const body = document.createElement('div');
   body.className = 'landing-activity-body';
-  // Four placeholder rows = the usual shape (2 live + 2 totals). Same markup as
-  // the real rows so the reserved height matches to the pixel.
-  body.append(statRow('–', ''), statRow('–', ''), statRow('–', ''), statRow('–', ''));
+  body.append(
+    activityPrimary([
+      activityMetric('–', 'games played', '/watch'),
+      activityMetric('–', 'games this month', '/about#platform-activity'),
+    ]),
+    activityLiveLine([
+      activityInlineStat('–', 'games in play'),
+      activityInlineStat('–', 'players online'),
+    ]),
+  );
   box.append(body);
   if (options.hydrate !== false) void hydrateLandingActivity(box, body);
   return box;
@@ -30,34 +36,73 @@ async function hydrateLandingActivity(box: HTMLElement, body: HTMLElement): Prom
     return;
   }
 
-  const rows: HTMLElement[] = [];
-  if (live) {
-    rows.push(
-      statRow(formatCount(live.playing), live.playing === 1 ? 'game in play' : 'games in play'),
-      statRow(formatCount(live.online), live.online === 1 ? 'player online' : 'players online'),
-    );
-  }
+  const parts: HTMLElement[] = [];
   if (totals) {
-    rows.push(
-      statRow(formatCount(totals.last30dCompletedGames), 'games this month'),
-      statRow(formatCount(totals.totalCompletedGames), 'games played'),
+    parts.push(
+      activityPrimary([
+        activityMetric(formatCount(totals.totalCompletedGames), 'games played', '/watch'),
+        activityMetric(
+          formatCount(totals.last30dCompletedGames),
+          'games this month',
+          '/about#platform-activity',
+        ),
+      ]),
     );
   }
-  body.replaceChildren(...rows);
+  if (live) {
+    parts.push(
+      activityLiveLine([
+        activityInlineStat(
+          formatCount(live.playing),
+          live.playing === 1 ? 'game in play' : 'games in play',
+        ),
+        activityInlineStat(
+          formatCount(live.online),
+          live.online === 1 ? 'player online' : 'players online',
+          '/leaderboard',
+        ),
+      ]),
+    );
+  }
+  body.replaceChildren(...parts);
 }
 
-function statRow(value: string, label: string): HTMLElement {
-  const row = document.createElement('div');
-  row.className = 'landing-activity-row';
+function activityPrimary(metrics: HTMLElement[]): HTMLElement {
+  const primary = document.createElement('div');
+  primary.className = 'landing-activity-primary';
+  primary.append(...metrics);
+  return primary;
+}
+
+function activityMetric(value: string, label: string, href?: string): HTMLElement {
+  const row = href ? document.createElement('a') : document.createElement('div');
+  row.className = href ? 'landing-activity-metric landing-activity-link' : 'landing-activity-metric';
+  if (href) row.setAttribute('href', href);
   const valueEl = document.createElement('strong');
   valueEl.className = 'landing-activity-value';
   valueEl.textContent = value;
   const labelEl = document.createElement('span');
   labelEl.className = 'landing-activity-label';
-  // Keep empty skeleton labels from collapsing the row's line box.
-  labelEl.textContent = label || '\u00a0';
+  labelEl.textContent = label;
   row.append(valueEl, labelEl);
   return row;
+}
+
+function activityLiveLine(stats: HTMLElement[]): HTMLElement {
+  const line = document.createElement('div');
+  line.className = 'landing-activity-live';
+  line.append(...stats);
+  return line;
+}
+
+function activityInlineStat(value: string, label: string, href?: string): HTMLElement {
+  const stat = href ? document.createElement('a') : document.createElement('span');
+  stat.className = 'landing-activity-inline-stat';
+  if (href) stat.setAttribute('href', href);
+  const valueEl = document.createElement('strong');
+  valueEl.textContent = value;
+  stat.append(valueEl, ` ${label}`);
+  return stat;
 }
 
 function formatCount(n: number): string {
