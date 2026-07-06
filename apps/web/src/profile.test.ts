@@ -329,10 +329,9 @@ describe('profile ratings rail', () => {
     expect(root.textContent).not.toContain('Drop Mini Xiangqi');
     expect(root.textContent).toContain('Storm the Fortress');
     expect(root.textContent).toContain('Human blitz ladders');
-    // 4 rated ladders (Dark Chess + always-on Jungle, Flip Jungle, Fortress) + the
-    // Active players panel.
-    expect(root.querySelectorAll('.leaderboard-panel')).toHaveLength(5);
-    expect(root.textContent).toContain('Active players');
+    // 4 rated ladders (Dark Chess + always-on Jungle, Flip Jungle, Fortress).
+    expect(root.querySelectorAll('.leaderboard-panel')).toHaveLength(4);
+    expect(root.textContent).not.toContain('Active players');
     expect(fetchSpy).toHaveBeenCalledWith('/api/leaderboard/summary?limit=10');
     expect(fetchSpy).toHaveBeenCalledWith('/api/players/online');
   });
@@ -358,7 +357,11 @@ describe('profile ratings rail', () => {
     const rail = root.querySelector('.community-rail');
     expect(rail).not.toBeNull();
     const links = [...(rail?.querySelectorAll('a') ?? [])];
-    expect(links.map((a) => a.getAttribute('href'))).toEqual(['/leaderboard', '/bots']);
+    expect(links.map((a) => a.getAttribute('href'))).toEqual([
+      '/player',
+      '/player/rating-stats',
+      '/bots',
+    ]);
     expect(rail?.querySelector('a[aria-current="page"]')?.textContent).toBe('Leaderboard');
 
     expect(root.querySelector('.leaderboard-online-heading')?.textContent).toBe('Online players');
@@ -421,20 +424,19 @@ describe('profile ratings rail', () => {
     // Ladders absent from the summary render the no-rated-games state.
     expect(root.textContent).toContain('No rated games yet.');
 
-    // Populated-first ordering: Active players (12 games) leads, the populated
-    // Fortress Xiangqi ladder follows, empty ladders sink to the tail.
+    // Populated-first ordering: the populated Fortress Xiangqi ladder leads,
+    // empty ladders sink to the tail.
     const titles = [...root.querySelectorAll('.leaderboard-panel-title')].map(
       (el) => el.textContent,
     );
-    expect(titles[0]).toBe('Active players');
-    expect(titles[1]).toBe('Storm the Fortress');
+    expect(titles[0]).toBe('Storm the Fortress');
     const panels = [...root.querySelectorAll('.leaderboard-panel')];
-    expect(panels[0]?.textContent).toContain('12');
-    expect(panels[2]?.textContent).toContain('No rated games yet.');
+    expect(panels[0]?.textContent).toContain('1520');
+    expect(panels[1]?.textContent).toContain('No rated games yet.');
   });
 
   it('localizes Traditional Chinese leaderboard chrome', async () => {
-    window.history.replaceState(null, '', '/zh-hant/leaderboard');
+    window.history.replaceState(null, '', '/zh-hant/player');
     vi.stubEnv('DEV', false);
     vi.stubEnv('VITE_CROSSROADS_CHESS_ENABLED', 'false');
     // Xiangqi pivot: Drop Mini is off the grids; populate an on-grid ladder
@@ -465,7 +467,7 @@ describe('profile ratings rail', () => {
     expect(root.textContent).toContain('Mistboard 公開變體的人類快棋排行榜。');
     expect(root.textContent).toContain('堡壘象棋');
     expect(root.textContent).toContain('還沒有計分對局。');
-    expect(root.textContent).toContain('活躍玩家');
+    expect(root.textContent).not.toContain('活躍玩家');
     expect(root.querySelector('.leaderboard-online-heading')?.textContent).toBe('線上玩家');
     expect(root.textContent).toContain('目前沒有玩家在線上。');
   });
@@ -481,7 +483,54 @@ describe('profile ratings rail', () => {
 
     expect(root.textContent).toContain('Crossroads Chess');
     // 5 rated ladders (Dark Chess + always-on Fortress, Jungle, Flip Jungle +
-    // Crossroads behind the flag) + the Active players panel.
-    expect(root.querySelectorAll('.leaderboard-panel')).toHaveLength(6);
+    // Crossroads behind the flag).
+    expect(root.querySelectorAll('.leaderboard-panel')).toHaveLength(5);
+  });
+
+  it('renders rating stats from leaderboard data', async () => {
+    vi.stubEnv('DEV', false);
+    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          bucket: { variant: 'fog', timeClass: 'blitz' },
+          leaderboard: [
+            {
+              rank: 1,
+              handle: 'misty',
+              displayName: 'Misty',
+              eloRating: 1540,
+              gamesPlayed: 12,
+              provisional: false,
+            },
+            {
+              rank: 2,
+              handle: 'foggy',
+              displayName: 'Foggy',
+              eloRating: 1460,
+              gamesPlayed: 9,
+              provisional: false,
+            },
+          ],
+        }),
+        { headers: { 'content-type': 'application/json' }, status: 200 },
+      ),
+    );
+    const root = document.createElement('div');
+    const { mountRatingStats } = await import('./profile.js');
+
+    await mountRatingStats(root);
+
+    const rail = root.querySelector('.community-rail');
+    expect(rail?.querySelector('a[aria-current="page"]')?.textContent).toBe('Rating stats');
+    expect(root.querySelector('.rating-stats-heading')?.textContent).toContain('Weekly');
+    expect(root.querySelector('.rating-stats-heading')?.textContent).toContain(
+      'rating distribution',
+    );
+    expect(root.querySelector<HTMLSelectElement>('.rating-stats-select')?.value).toBe('fog');
+    expect(root.querySelector('.rating-stats-summary')?.textContent).toBe(
+      '2 rated Dark Chess players. Average rating is 1500.',
+    );
+    expect(root.querySelectorAll('.rating-stats-bar').length).toBeGreaterThan(0);
+    expect(fetchSpy).toHaveBeenCalledWith('/api/leaderboard?variant=fog&limit=500');
   });
 });

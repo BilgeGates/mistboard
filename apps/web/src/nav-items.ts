@@ -22,7 +22,7 @@ export function primaryNavItems(): NavItem[] {
 // is the wide social entry, the rail is the leaderboard/bots sub-nav.
 export function communityNavItems(): NavItem[] {
   return [
-    { label: 'Players', labelKey: 'nav.players', href: '/leaderboard' },
+    { label: 'Players', labelKey: 'nav.players', href: '/player' },
     { label: 'Friends', labelKey: 'nav.friends', href: '/account' },
     { label: 'Forum', labelKey: 'nav.forum', href: '/forum' },
     { label: 'Blog', labelKey: 'nav.blog', href: '/articles' },
@@ -33,7 +33,8 @@ export function communityNavItems(): NavItem[] {
 // now. Forum lives in the top-nav dropdown, not the rail.
 export function communityRailItems(): NavItem[] {
   return [
-    { label: 'Leaderboard', labelKey: 'nav.leaderboard', href: '/leaderboard' },
+    { label: 'Leaderboard', labelKey: 'nav.leaderboard', href: '/player' },
+    { label: 'Rating stats', labelKey: 'nav.ratingStats', href: '/player/rating-stats' },
     { label: 'Online bots', labelKey: 'nav.onlineBots', href: '/bots' },
   ];
 }

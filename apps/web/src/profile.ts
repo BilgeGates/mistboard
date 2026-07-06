@@ -96,6 +96,11 @@ type LeaderboardSummary = {
   activePlayers?: ActivePlayerEntry[];
 } | null;
 
+type LeaderboardResult = {
+  leaderboard: LeaderboardEntry[];
+  bucket: { variant: string; timeClass: string };
+} | null;
+
 type OnlinePlayerEntry = {
   handle: string;
   displayName: string;
@@ -118,6 +123,8 @@ type LeaderboardTableRow = {
   value: number;
   provisional: boolean;
 };
+
+type RatingHistogramBin = { min: number; max: number; count: number };
 
 const LEADERBOARD_BUCKETS: {
   variant: ProfileRatingVariant;
@@ -219,7 +226,6 @@ function buildLeaderboardFrame(locale: Locale): {
   shell: HTMLElement;
   onlineBody: HTMLElement;
   grid: HTMLElement;
-  activePanel: { panel: HTMLElement; body: HTMLElement };
   ladderPanels: {
     bucket: (typeof LEADERBOARD_BUCKETS)[number];
     shell: { panel: HTMLElement; body: HTMLElement };
@@ -242,11 +248,6 @@ function buildLeaderboardFrame(locale: Locale): {
 
   const grid = document.createElement('div');
   grid.className = 'leaderboard-grid';
-  const activePanel = buildLeaderboardPanelShell(
-    t('profile.activePlayers', {}, locale),
-    null,
-    locale,
-  );
   const ladderPanels = LEADERBOARD_BUCKETS.map((bucket) => ({
     bucket,
     shell: buildLeaderboardPanelShell(
@@ -255,7 +256,7 @@ function buildLeaderboardFrame(locale: Locale): {
       locale,
     ),
   }));
-  grid.append(activePanel.panel, ...ladderPanels.map((p) => p.shell.panel));
+  grid.append(...ladderPanels.map((p) => p.shell.panel));
 
   const body = document.createElement('div');
   body.className = 'leaderboard-body';
@@ -263,8 +264,8 @@ function buildLeaderboardFrame(locale: Locale): {
 
   const shell = document.createElement('main');
   shell.className = 'site-section community-shell leaderboard-shell';
-  shell.append(buildCommunityLayout('/leaderboard', body, locale));
-  return { shell, onlineBody, grid, activePanel, ladderPanels };
+  shell.append(buildCommunityLayout('/player', body, locale));
+  return { shell, onlineBody, grid, ladderPanels };
 }
 
 // Build-time static render of the players page frame (nav + rail + headings +
@@ -285,7 +286,7 @@ export async function mountLeaderboard(root: HTMLElement): Promise<void> {
   // Playstrategy-style players page: the frame renders immediately from the
   // build-time variant registry; the two fetches below only fill in rows, so
   // no layout waits on the network.
-  const { shell, onlineBody, grid, activePanel, ladderPanels } = buildLeaderboardFrame(locale);
+  const { shell, onlineBody, grid, ladderPanels } = buildLeaderboardFrame(locale);
   root.append(buildNav(locale), shell);
 
   const [summary, onlinePlayers] = await Promise.all([
@@ -298,29 +299,10 @@ export async function mountLeaderboard(root: HTMLElement): Promise<void> {
     (onlinePlayers?.players ?? []).map((player) => player.handle.toLowerCase()),
   );
 
-  const activeRows: LeaderboardTableRow[] | null = summary
-    ? (summary.activePlayers ?? []).map((entry) => ({
-        rank: entry.rank,
-        handle: entry.handle,
-        displayName: entry.displayName,
-        value: entry.gamesPlayed,
-        provisional: false,
-      }))
-    : null;
-  renderLeaderboardPanelBody(
-    activePanel.body,
-    activeRows,
-    onlineHandles,
-    'profile.noGamesYet',
-    locale,
-  );
-
   const ladders = new Map(
     (summary?.ladders ?? []).map((ladder) => [ladder.variant, ladder.leaderboard]),
   );
-  const panels: { panel: HTMLElement; populated: boolean }[] = [
-    { panel: activePanel.panel, populated: (activeRows?.length ?? 0) > 0 },
-  ];
+  const panels: { panel: HTMLElement; populated: boolean }[] = [];
   for (const { bucket, shell: panelShell } of ladderPanels) {
     // A ladder missing from the summary just has no rated games yet; a null
     // summary means the fetch itself failed.
@@ -353,6 +335,56 @@ export async function mountLeaderboard(root: HTMLElement): Promise<void> {
   renderOnlinePlayers(onlineBody, onlinePlayers, locale);
 }
 
+export async function mountRatingStats(root: HTMLElement): Promise<void> {
+  const locale = currentLocale();
+  root.replaceChildren();
+  root.classList.add('landing-page');
+
+  const body = document.createElement('div');
+  body.className = 'rating-stats-body';
+
+  const title = document.createElement('h1');
+  title.className = 'site-section-heading rating-stats-heading';
+  title.append(t('profile.ratingStatsPeriod', {}, locale), ' ');
+
+  const select = document.createElement('select');
+  select.className = 'rating-stats-select';
+  select.setAttribute('aria-label', t('profile.ratingStatsVariant', {}, locale));
+  for (const bucket of LEADERBOARD_BUCKETS) {
+    const option = document.createElement('option');
+    option.value = bucket.variant;
+    option.textContent = profileVariantLabel(bucket.variant, locale);
+    select.append(option);
+  }
+  if (LEADERBOARD_BUCKETS.some((bucket) => bucket.variant === 'fog')) {
+    select.value = 'fog';
+  }
+  title.append(select, ` ${t('profile.ratingStatsSuffix', {}, locale)}`);
+
+  const chartShell = document.createElement('section');
+  chartShell.className = 'rating-stats-chart-shell';
+  chartShell.setAttribute('aria-live', 'polite');
+
+  body.append(title, chartShell);
+
+  const shell = document.createElement('main');
+  shell.className = 'site-section community-shell leaderboard-shell';
+  shell.append(buildCommunityLayout('/player/rating-stats', body, locale));
+  root.append(buildNav(locale), shell);
+
+  const renderSelected = async () => {
+    const variant = select.value as ProfileRatingVariant;
+    chartShell.replaceChildren(buildRatingStatsLoading(locale));
+    const result = await fetchLeaderboard(variant);
+    renderRatingStatsChart(chartShell, result, variant, locale);
+  };
+
+  select.addEventListener('change', () => {
+    void renderSelected();
+  });
+  await renderSelected();
+}
+
 async function fetchLeaderboardSummary(): Promise<LeaderboardSummary> {
   try {
     const resp = await fetch('/api/leaderboard/summary?limit=10');
@@ -362,6 +394,96 @@ async function fetchLeaderboardSummary(): Promise<LeaderboardSummary> {
     console.warn(err);
     return null;
   }
+}
+
+async function fetchLeaderboard(variant: ProfileRatingVariant): Promise<LeaderboardResult> {
+  try {
+    const resp = await fetch(`/api/leaderboard?variant=${encodeURIComponent(variant)}&limit=500`);
+    if (!resp.ok) throw new Error(`leaderboard failed: ${resp.status}`);
+    return (await resp.json()) as NonNullable<LeaderboardResult>;
+  } catch (err) {
+    console.warn(err);
+    return null;
+  }
+}
+
+function buildRatingStatsLoading(locale: Locale): HTMLElement {
+  const loading = document.createElement('p');
+  loading.className = 'rating-stats-empty';
+  loading.textContent = t('profile.loadingRatings', {}, locale);
+  return loading;
+}
+
+function renderRatingStatsChart(
+  shell: HTMLElement,
+  result: LeaderboardResult,
+  variant: ProfileRatingVariant,
+  locale: Locale,
+): void {
+  if (!result) {
+    const msg = document.createElement('p');
+    msg.className = 'rating-stats-empty';
+    msg.textContent = t('profile.ratingsLoadFailed', {}, locale);
+    shell.replaceChildren(msg);
+    return;
+  }
+
+  const ratings = result.leaderboard.map((entry) => entry.eloRating).filter(Number.isFinite);
+  if (ratings.length === 0) {
+    const msg = document.createElement('p');
+    msg.className = 'rating-stats-empty';
+    msg.textContent = t('profile.noRatedGames', {}, locale);
+    shell.replaceChildren(msg);
+    return;
+  }
+
+  const bins = ratingHistogram(ratings);
+  const maxCount = Math.max(...bins.map((bin) => bin.count), 1);
+  const chart = document.createElement('div');
+  chart.className = 'rating-stats-chart';
+  chart.setAttribute('role', 'img');
+  chart.setAttribute(
+    'aria-label',
+    t('profile.ratingStatsChartLabel', { variant: profileVariantLabel(variant, locale) }, locale),
+  );
+
+  const average = Math.round(ratings.reduce((sum, rating) => sum + rating, 0) / ratings.length);
+  const intro = document.createElement('p');
+  intro.className = 'rating-stats-summary';
+  intro.textContent = t(
+    'profile.ratingStatsSummary',
+    { count: String(ratings.length), variant: profileVariantLabel(variant, locale), average },
+    locale,
+  );
+
+  for (const bin of bins) {
+    const bar = document.createElement('div');
+    bar.className = 'rating-stats-bar';
+    bar.style.height = `${Math.max(4, (bin.count / maxCount) * 100)}%`;
+    bar.title = `${bin.min}-${bin.max}: ${bin.count}`;
+    const label = document.createElement('span');
+    label.className = 'rating-stats-bar-label';
+    label.textContent = String(bin.min);
+    bar.append(label);
+    chart.append(bar);
+  }
+
+  shell.replaceChildren(intro, chart);
+}
+
+function ratingHistogram(ratings: number[]): RatingHistogramBin[] {
+  const step = 100;
+  const min = Math.floor(Math.min(...ratings) / step) * step;
+  const max = Math.ceil(Math.max(...ratings) / step) * step;
+  const bins: RatingHistogramBin[] = [];
+  for (let start = min; start <= max; start += step) {
+    bins.push({ min: start, max: start + step - 1, count: 0 });
+  }
+  for (const rating of ratings) {
+    const index = Math.min(Math.floor((rating - min) / step), bins.length - 1);
+    bins[index]!.count += 1;
+  }
+  return bins;
 }
 
 async function fetchOnlinePlayers(): Promise<OnlinePlayersResult> {

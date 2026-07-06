@@ -273,17 +273,23 @@ export function createHttpRequestHandler(options: ServerHttpHandlerOptions) {
       return;
     }
 
-    // Default-locale leaderboard gets its prerendered frame; localized paths
-    // (/zh-hans/leaderboard, ...) stay on the client-rendered shell below.
-    if (pathname === '/leaderboard') {
+    // Default-locale player page gets its prerendered frame; localized paths
+    // stay on the client-rendered shell below.
+    if (pathname === '/player') {
       void servePrerenderedPage({
         response,
         staticDir: options.staticDir,
-        file: 'leaderboard.html',
+        file: 'player.html',
       }).catch(() => {
         request.url = '/';
         void serveHandler(request, response, { public: options.staticDir });
       });
+      return;
+    }
+
+    if (pathname === '/leaderboard') {
+      response.writeHead(308, { location: '/player' });
+      response.end();
       return;
     }
 
