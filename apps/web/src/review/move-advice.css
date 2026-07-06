@@ -1,0 +1,25 @@
+/* Best-move advice line under the move list. See review/move-advice.ts. */
+.review-advice {
+  padding: 8px 12px;
+  border: 1px solid var(--site-border);
+  border-radius: var(--site-radius, 10px);
+  background: var(--site-panel, var(--site-surface));
+  font-size: 13px;
+  line-height: 1.35;
+  color: var(--site-text);
+}
+.review-advice[hidden] {
+  display: none;
+}
+.review-advice__label {
+  font-weight: 700;
+}
+.review-advice--inaccuracy .review-advice__label {
+  color: #b7950b;
+}
+.review-advice--mistake .review-advice__label {
+  color: #d68910;
+}
+.review-advice--blunder .review-advice__label {
+  color: #c0392b;
+}

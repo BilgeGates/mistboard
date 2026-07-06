@@ -134,13 +134,22 @@ function mean(values: number[]): number {
   return values.reduce((sum, v) => sum + v, 0) / values.length;
 }
 
+function analysisUrl(roomId: string): string {
+  return new URL(`/api/xiangqi/games/${encodeURIComponent(roomId)}/analysis`, window.location.href)
+    .pathname;
+}
+
 /** POST the analysis request for a finished game and compute the derived view. */
 export async function requestGameAnalysis(roomId: string): Promise<GameAnalysis> {
-  const url = new URL(
-    `/api/xiangqi/games/${encodeURIComponent(roomId)}/analysis`,
-    window.location.href,
-  ).pathname;
-  const response = await fetch(url, { method: 'POST' });
+  const response = await fetch(analysisUrl(roomId), { method: 'POST' });
   if (!response.ok) throw new Error(`analysis_request_failed_${response.status}`);
+  return computeGameAnalysis((await response.json()) as XiangqiGameAnalysisResponse);
+}
+
+/** GET the already-cached analysis, or null if it hasn't been computed yet (204).
+ *  Never triggers an engine pass, so the postgame can auto-load on open. */
+export async function fetchCachedGameAnalysis(roomId: string): Promise<GameAnalysis | null> {
+  const response = await fetch(analysisUrl(roomId), { method: 'GET' });
+  if (response.status === 204 || !response.ok) return null;
   return computeGameAnalysis((await response.json()) as XiangqiGameAnalysisResponse);
 }

@@ -92,4 +92,23 @@ describe('createMoveList', () => {
     ).toBeNull();
     expect(suffixes[0]!.textContent).toContain('?');
   });
+
+  it('annotate fills a per-move eval and pairs it with the glyph', () => {
+    const ml = createMoveList([
+      { ply: 1, label: 'a-b' },
+      { ply: 2, label: 'c-d' },
+    ]);
+    ml.annotate(
+      new Map([
+        [1, { eval: '+0.3' }],
+        [2, { suffix: '??', suffixClass: 'blunder', eval: '-2.1' }],
+      ]),
+    );
+    const moves = ml.el.querySelectorAll('.review-move-list__move');
+    expect(moves[0]!.querySelector('.review-move-list__eval')?.textContent).toBe('+0.3');
+    expect(moves[0]!.querySelector('.review-move-list__suffix')).toBeNull();
+    const second = moves[1]!;
+    expect(second.querySelector('.review-move-list__eval')?.textContent).toBe('-2.1');
+    expect(second.querySelector('.review-move-list__suffix')?.textContent).toContain('??');
+  });
 });

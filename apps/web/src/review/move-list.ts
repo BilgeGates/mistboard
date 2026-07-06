@@ -26,13 +26,16 @@ export type MoveListEntry = {
   suffixClass?: string;
 };
 
-/** Post-hoc per-move annotation (glyph + colour class), keyed by the move's ply.
- *  Filled once whole-game analysis returns; see MoveList.annotate. */
+/** Post-hoc per-move annotation, keyed by the move's ply. Filled once whole-game
+ *  analysis returns; see MoveList.annotate. */
 export type MoveAnnotation = {
-  /** Short glyph shown after the move, e.g. '?!', '?', '??'. */
-  suffix: string;
+  /** Short judgment glyph shown after the move, e.g. '?!', '?', '??'. Absent = none. */
+  suffix?: string;
   /** Colour hook, e.g. 'blunder' → .review-move--blunder. */
   suffixClass?: string;
+  /** Formatted position eval after this move (Red POV), e.g. '+2.1', '#3'. Shown
+   *  right-aligned in the cell, lichess tree-view style. */
+  eval?: string;
 };
 
 export type MoveList = {
@@ -97,17 +100,25 @@ export function createMoveList(entries: MoveListEntry[], opts: MoveListOptions =
     const button = document.createElement('button');
     button.type = 'button';
     button.className = 'review-move-list__move';
-    button.append(document.createTextNode(entry.label));
-    if (entry.suffix) {
-      const suffix = document.createElement('span');
-      suffix.className = 'review-move-list__suffix';
-      if (entry.suffixClass) suffix.classList.add(`review-move--${entry.suffixClass}`);
-      suffix.textContent = ` ${entry.suffix}`;
-      button.append(suffix);
-    }
+    // san holds the move text (+ any glyph); eval sits right-aligned (tree-view style).
+    const san = document.createElement('span');
+    san.className = 'review-move-list__san';
+    san.textContent = entry.label;
+    const evalEl = document.createElement('span');
+    evalEl.className = 'review-move-list__eval';
+    button.append(san, evalEl);
+    if (entry.suffix) appendGlyph(san, entry.suffix, entry.suffixClass);
     button.addEventListener('click', () => onJump?.(entry.ply));
     cellsByPly.set(entry.ply, button);
     return button;
+  }
+
+  function appendGlyph(san: HTMLElement, suffix: string, suffixClass?: string): void {
+    const glyph = document.createElement('span');
+    glyph.className = 'review-move-list__suffix';
+    if (suffixClass) glyph.classList.add(`review-move--${suffixClass}`);
+    glyph.textContent = ` ${suffix}`;
+    san.append(glyph);
   }
 
   function update(currentPly: number, jump: (ply: number) => void): void {
@@ -123,14 +134,12 @@ export function createMoveList(entries: MoveListEntry[], opts: MoveListOptions =
 
   function annotate(byPly: Map<number, MoveAnnotation>): void {
     for (const [ply, cell] of cellsByPly) {
+      const san = cell.querySelector<HTMLElement>('.review-move-list__san');
+      const evalEl = cell.querySelector<HTMLElement>('.review-move-list__eval');
       cell.querySelector('.review-move-list__suffix')?.remove();
       const ann = byPly.get(ply);
-      if (!ann) continue;
-      const suffix = document.createElement('span');
-      suffix.className = 'review-move-list__suffix';
-      if (ann.suffixClass) suffix.classList.add(`review-move--${ann.suffixClass}`);
-      suffix.textContent = ` ${ann.suffix}`;
-      cell.append(suffix);
+      if (ann?.suffix && san) appendGlyph(san, ann.suffix, ann.suffixClass);
+      if (evalEl) evalEl.textContent = ann?.eval ?? '';
     }
   }
 

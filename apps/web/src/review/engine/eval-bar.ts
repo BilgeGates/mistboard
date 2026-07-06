@@ -23,10 +23,11 @@ export interface EvalBar {
   reset(): void;
   /** Match board orientation: when flipped, Red sits at the top. */
   setFlipped(flipped: boolean): void;
-  /** Align the bar to the left of `leftAnchorEl` (default the board), matching the
-   *  board's height, and keep it aligned as the board rescales. Pass the flank host
-   *  as the anchor when capture columns sit beside the board, so the bar clears them. */
-  observe(boardEl: HTMLElement, leftAnchorEl?: HTMLElement): void;
+  /** Align the bar to `anchorEl` (default the board), matching the board's height,
+   *  and keep it aligned as the board rescales. `side` places the bar just outside
+   *  that anchor: 'left' (default) or 'right'. Pass the flank host as the anchor when
+   *  capture columns sit beside the board, so the bar clears them. */
+  observe(boardEl: HTMLElement, anchorEl?: HTMLElement, side?: 'left' | 'right'): void;
 }
 
 export function createEvalBar(): EvalBar {
@@ -65,22 +66,30 @@ export function createEvalBar(): EvalBar {
     el.classList.toggle('review-eval-bar--flipped', flipped);
   }
 
-  function alignTo(boardEl: HTMLElement, leftAnchorEl: HTMLElement): void {
+  function alignTo(boardEl: HTMLElement, anchorEl: HTMLElement, side: 'left' | 'right'): void {
     const host = el.parentElement;
     if (!host) return;
     const board = boardEl.getBoundingClientRect();
     if (board.height === 0) return;
-    const leftRect = leftAnchorEl.getBoundingClientRect();
-    const anchor = host.getBoundingClientRect();
-    // Vertical extent follows the board; horizontally the bar sits just left of the
-    // anchor (the board, or the flank host when capture columns are beside it).
-    el.style.top = `${board.top - anchor.top}px`;
+    const anchorRect = anchorEl.getBoundingClientRect();
+    const hostRect = host.getBoundingClientRect();
+    // Vertical extent follows the board; horizontally the bar sits just outside the
+    // anchor (the board, or the flank host when capture columns are beside it) on the
+    // requested side — 'right' hugs the board area toward the move list.
+    el.style.top = `${board.top - hostRect.top}px`;
     el.style.height = `${board.height}px`;
-    el.style.left = `${leftRect.left - anchor.left - BAR_WIDTH_PX - BAR_GAP_PX}px`;
+    el.style.left =
+      side === 'right'
+        ? `${anchorRect.right - hostRect.left + BAR_GAP_PX}px`
+        : `${anchorRect.left - hostRect.left - BAR_WIDTH_PX - BAR_GAP_PX}px`;
   }
 
-  function observe(boardEl: HTMLElement, leftAnchorEl: HTMLElement = boardEl): void {
-    const run = () => alignTo(boardEl, leftAnchorEl);
+  function observe(
+    boardEl: HTMLElement,
+    anchorEl: HTMLElement = boardEl,
+    side: 'left' | 'right' = 'left',
+  ): void {
+    const run = () => alignTo(boardEl, anchorEl, side);
     run();
     requestAnimationFrame(run);
     // The review layout sizes the board via a viewport fit at rAF + 60ms + 260ms;

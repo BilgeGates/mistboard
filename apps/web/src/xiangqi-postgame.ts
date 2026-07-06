@@ -24,8 +24,15 @@ import { capturedByDiff } from './review/captured-diff.js';
 import { fillCapturedPoolWith } from './review/captured-pool.js';
 import { createEnginePanel } from './review/engine/engine-panel.js';
 import { createEvalBar } from './review/engine/eval-bar.js';
+import { formatEval } from './review/engine/eval-format.js';
 import { createFlankCaptures } from './review/flank-captures.js';
-import { judgmentGlyph, requestGameAnalysis } from './review/game-analysis.js';
+import {
+  fetchCachedGameAnalysis,
+  type GameAnalysis,
+  judgmentGlyph,
+  requestGameAnalysis,
+} from './review/game-analysis.js';
+import { createMoveAdvice } from './review/move-advice.js';
 import { createMoveList, type MoveAnnotation, type MoveListEntry } from './review/move-list.js';
 import { mountReviewLayout } from './review/review-layout.js';
 import { buildNav } from './site-shell.js';
@@ -181,10 +188,10 @@ function renderPostgame(root: HTMLElement, postgame: XiangqiPostgameResponse): v
   const flank = createFlankCaptures(board);
   const evalBar = createEvalBar();
   boardWrap.append(flank.host, evalBar.el);
-  // The eval bar sits just left of the left capture column (bar · captures · board
-  // · captures). Anchor to the column, not the full-width flank host, since the
-  // content is centered in a wider slot.
-  evalBar.observe(board, flank.leftColumn);
+  // The eval bar sits on the RIGHT of the board area, past the capture columns
+  // (captures · board · captures · bar), so it reads toward the move list rather
+  // than floating off the far-left edge.
+  evalBar.observe(board, flank.host, 'right');
   // The stage's container-query capture sizing assumes slot width ≈ board width,
   // but a single portrait board leaves the slot much wider, so size the tiles off
   // the board's measured width (≈ one board cell) to match the on-board pieces.
@@ -205,14 +212,44 @@ function renderPostgame(root: HTMLElement, postgame: XiangqiPostgameResponse): v
   let lastEnginePly = -1;
 
   // Computer analysis (P3): whole-game eval → advantage chart (underboard) +
-  // accuracy summary (right rail), behind a request button. Slots start empty;
-  // the button + results fill them on demand.
+  // accuracy summary (right rail) + move-list glyphs. If the game was already
+  // analysed it loads straight from cache on open (a GET that never computes);
+  // otherwise a request button triggers the engine pass.
   const underboardEl = document.createElement('div');
   const analysisSummaryEl = document.createElement('div');
   let chart: AdvantageChart | null = null;
   let currentPly = 0;
   let jumpTo: ((ply: number) => void) | null = null;
-  renderAnalysisRequest();
+  let gameAnalysis: GameAnalysis | null = null;
+  const moveAdvice = createMoveAdvice();
+  void fetchCachedGameAnalysis(postgame.game.roomId)
+    .then((cached) => (cached ? applyAnalysis(cached) : renderAnalysisRequest()))
+    .catch(() => renderAnalysisRequest());
+
+  function applyAnalysis(analysis: GameAnalysis): void {
+    gameAnalysis = analysis;
+    chart = createAdvantageChart(analysis.evals, { onJump: (ply) => jumpTo?.(ply) });
+    chart.setPly(currentPly);
+    underboardEl.replaceChildren(chart.el);
+    analysisSummaryEl.replaceChildren(createAnalysisSummary(analysis));
+    // Annotate the move list lichess tree-view style: the position eval after every
+    // move (Red POV) + a judgment glyph (?!/?/??) on the mistakes.
+    const evalByPly = new Map(analysis.evals.map((e) => [e.ply, e]));
+    const annotations = new Map<number, MoveAnnotation>();
+    for (const move of analysis.moves) {
+      const glyph = judgmentGlyph(move.judgment);
+      const e = evalByPly.get(move.ply);
+      annotations.set(move.ply, {
+        suffix: glyph?.suffix,
+        suffixClass: glyph?.suffixClass,
+        eval: e ? formatEval(e.cp, e.mate) : undefined,
+      });
+    }
+    moveList.annotate(annotations);
+    moveAdvice.update(currentPly, gameAnalysis);
+    // The underboard grew; re-fit the board so it still fills without scroll.
+    window.dispatchEvent(new Event('resize'));
+  }
 
   function renderAnalysisRequest(): void {
     const button = document.createElement('button');
@@ -223,21 +260,7 @@ function renderPostgame(root: HTMLElement, postgame: XiangqiPostgameResponse): v
       button.disabled = true;
       button.textContent = 'Analysing the whole game…';
       requestGameAnalysis(postgame.game.roomId)
-        .then((analysis) => {
-          chart = createAdvantageChart(analysis.evals, { onJump: (ply) => jumpTo?.(ply) });
-          chart.setPly(currentPly);
-          underboardEl.replaceChildren(chart.el);
-          analysisSummaryEl.replaceChildren(createAnalysisSummary(analysis));
-          // Glyph the mistakes/blunders on the move list (?!/?/??).
-          const glyphs = new Map<number, MoveAnnotation>();
-          for (const move of analysis.moves) {
-            const glyph = judgmentGlyph(move.judgment);
-            if (glyph) glyphs.set(move.ply, glyph);
-          }
-          moveList.annotate(glyphs);
-          // The underboard grew; re-fit the board so it still fills without scroll.
-          window.dispatchEvent(new Event('resize'));
-        })
+        .then(applyAnalysis)
         .catch(() => {
           button.disabled = false;
           button.textContent = 'Analysis failed — retry';
@@ -256,6 +279,7 @@ function renderPostgame(root: HTMLElement, postgame: XiangqiPostgameResponse): v
     details: detailsPanel(postgame),
     moves: moveList.el,
     enginePanel: enginePanel.el,
+    moveComment: moveAdvice.el,
     underboard: underboardEl,
     analysisSummary: analysisSummaryEl,
     boards: [{ key: 'truth', el: boardWrap, tier: 'primary' }],
@@ -270,6 +294,7 @@ function renderPostgame(root: HTMLElement, postgame: XiangqiPostgameResponse): v
       board.innerHTML = renderXiangqiBoardSvg(view, orientation);
       evalBar.setFlipped(flipped);
       chart?.setPly(ply);
+      moveAdvice.update(ply, gameAnalysis);
       // Captured pools: left (top) = near side's losses, right (bottom) = opponent's.
       const captured = xiangqiCaptured(view);
       flank.leftColumn.replaceChildren();

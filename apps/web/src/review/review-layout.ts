@@ -51,6 +51,8 @@ export type ReviewLayoutAdapter = {
   enginePanel?: HTMLElement;
   analysisSummary?: HTMLElement;
   underboard?: HTMLElement;
+  /** Optional line right below the move list (lichess "Mistake. X was best."). */
+  moveComment?: HTMLElement;
   boards: ReviewBoardEntry[];
   /** Board width / height, e.g. 552 / 612 for xiangqi. Drives the fill sizing. */
   boardAspect: number;
@@ -101,11 +103,15 @@ export function mountReviewLayout(root: HTMLElement, adapter: ReviewLayoutAdapte
 
   const scrubber = createReviewScrubber();
   const left = infoRail(adapter);
-  // Right rail, lichess order: engine panel · move list · scrubber · summary.
+  // Right rail, lichess order: engine panel · move list · advice · scrubber · summary.
   const right = railGroup(
-    [adapter.enginePanel, adapter.moves, scrubber.el, adapter.analysisSummary].filter(
-      (el): el is HTMLElement => el != null,
-    ),
+    [
+      adapter.enginePanel,
+      adapter.moves,
+      adapter.moveComment,
+      scrubber.el,
+      adapter.analysisSummary,
+    ].filter((el): el is HTMLElement => el != null),
   );
   // Center: board-stage, plus an optional underboard region stacked beneath it.
   const center = adapter.underboard ? centerColumn(stage.el, adapter.underboard) : stage.el;
