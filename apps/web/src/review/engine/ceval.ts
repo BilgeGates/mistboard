@@ -9,6 +9,12 @@
 // evaluate()/preloadEngine() is called.
 
 const ENGINE_BASE = '/engine/fairy-stockfish/';
+// The vendored FSF assets live in public/ and are NOT content-hashed like the Vite
+// bundle, so the CDN caches them by bare path for hours (max-age=14400). Bump this
+// whenever the vendored stockfish.js changes to force a fresh edge fetch (this CF
+// config keys on the query string). Only the script URL is versioned; the wasm +
+// worker are resolved by the engine's own locateFile and load fine unversioned.
+const ENGINE_SCRIPT_VERSION = '1.1.11';
 
 /** Human label for the engine, shown in the analysis panel. */
 export const CEVAL_ENGINE_NAME = 'Fairy-Stockfish';
@@ -139,7 +145,7 @@ async function loadEngineCore(): Promise<EngineCore> {
   if (!cevalSupported()) {
     throw new Error('ceval_unsupported: page is not cross-origin isolated');
   }
-  await injectEngineScript(`${ENGINE_BASE}stockfish.js`);
+  await injectEngineScript(`${ENGINE_BASE}stockfish.js?v=${ENGINE_SCRIPT_VERSION}`);
   const factory = globalThis.Stockfish;
   if (typeof factory !== 'function') {
     throw new Error('ceval: engine global missing after script load');
