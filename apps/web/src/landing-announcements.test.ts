@@ -28,9 +28,9 @@ describe('landing announcements', () => {
     // banqi) now surface.
     expect(hrefs).toEqual([
       '/rules/xiangqi',
+      '/forum',
       '/rules/fortress-xiangqi',
       '/rules/jungle',
-      '/rules/jungle-flip',
     ]);
   });
 
@@ -89,6 +89,7 @@ describe('landing announcements', () => {
   it('keeps older launch items in the full announcements history', () => {
     const hrefs = new Set(announcements().map((entry) => entry.href));
 
+    expect(hrefs).toContain('/forum');
     expect(hrefs).toContain('/rules/banqi');
     expect(hrefs).toContain('/rules/dark-mini-xiangqi');
     expect(hrefs).toContain('/?play=computer');

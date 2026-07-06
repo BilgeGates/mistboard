@@ -26,6 +26,14 @@ const baseAnnouncements: Announcement[] = [
     cta: 'Study the rules',
   },
   {
+    date: '2026-07-03',
+    kind: 'release',
+    headline: 'Forum and global chat have launched.',
+    body: 'The forum is open for game analysis, engine talk, and site feedback, with the homepage global chat available for quick table-talk during live sessions.',
+    href: '/forum',
+    cta: 'Join the forum',
+  },
+  {
     date: '2026-07-01',
     kind: 'release',
     headline: 'Storm the Fortress has launched.',
