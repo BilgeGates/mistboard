@@ -10,10 +10,17 @@
 import './account-profile.css';
 import { setAccountNavUser } from './account-nav.js';
 import { identify, resetIdentity, track } from './analytics.js';
+import {
+  DISPLAY_PREFERENCE_DEFINITIONS,
+  isBooleanDisplayPreference,
+  readDisplayPreferences,
+  type DisplayPreferenceId,
+  type DisplayPreferenceValue,
+  writeDisplayPreference,
+} from './display-preferences.js';
 import { t } from './i18n/catalog.js';
 import { currentLocale, LOCALE_META, type Locale, localizedHref } from './i18n/locale.js';
 import { type AuthUser, buildLoadingState, buildNav, fetchCurrentUser } from './site-shell.js';
-import { buildAppearanceMenu } from './theme.js';
 
 type AccountSettingsSection =
   | 'profile'
@@ -105,6 +112,9 @@ function renderAccountSettingsShell(
   section: AccountSettingsSection,
   locale: Locale = currentLocale(),
 ): void {
+  document
+    .querySelector('.account-route')
+    ?.classList.toggle('account-settings-auth-route', user === null);
   shell.classList.toggle('account-settings-shell', user !== null);
   shell.replaceChildren(
     user
@@ -447,13 +457,96 @@ function buildDisplaySettings(locale: Locale = currentLocale()): HTMLElement {
     t('account.settingsDisplay', {}, locale),
     t('account.settingsDisplayCopy', {}, locale),
   );
-  const appearance = buildAppearanceMenu({
-    includeLanguage: true,
-    onLocaleSelect: (next) => void saveAccountLocalePreference(next),
-  });
-  appearance.classList.add('account-settings-appearance');
-  panel.append(appearance);
+  const preferences = readDisplayPreferences();
+  const list = document.createElement('div');
+  list.className = 'account-display-settings';
+  for (const definition of DISPLAY_PREFERENCE_DEFINITIONS) {
+    if (isBooleanDisplayPreference(definition)) {
+      list.append(buildBooleanDisplayPreference(definition.id, preferences[definition.id], locale));
+      continue;
+    }
+    list.append(
+      buildSelectDisplayPreference(
+        definition.id,
+        definition.options,
+        preferences[definition.id],
+        locale,
+      ),
+    );
+  }
+  panel.append(list);
   return panel;
+}
+
+function buildBooleanDisplayPreference(
+  id: DisplayPreferenceId,
+  value: boolean,
+  locale: Locale,
+): HTMLElement {
+  const row = displayPreferenceRow(id, locale);
+  const label = document.createElement('label');
+  label.className = 'account-preference-switch';
+
+  const input = document.createElement('input');
+  input.type = 'checkbox';
+  input.name = id;
+  input.checked = value;
+  input.addEventListener('change', () => {
+    writeDisplayPreference(id, input.checked as DisplayPreferenceValue<typeof id>);
+  });
+
+  const trackEl = document.createElement('span');
+  trackEl.className = 'account-preference-switch-track';
+  label.append(input, trackEl);
+  row.append(label);
+  return row;
+}
+
+function buildSelectDisplayPreference(
+  id: DisplayPreferenceId,
+  options: readonly string[],
+  value: string,
+  locale: Locale,
+): HTMLElement {
+  const row = displayPreferenceRow(id, locale);
+  const select = document.createElement('select');
+  select.name = id;
+  select.className = 'account-preference-select';
+  for (const optionValue of options) {
+    const option = document.createElement('option');
+    option.value = optionValue;
+    option.textContent = displayPreferenceOptionLabel(id, optionValue, locale);
+    option.selected = optionValue === value;
+    select.append(option);
+  }
+  select.addEventListener('change', () => {
+    writeDisplayPreference(id, select.value as DisplayPreferenceValue<typeof id>);
+  });
+  row.append(select);
+  return row;
+}
+
+function displayPreferenceRow(id: DisplayPreferenceId, locale: Locale): HTMLElement {
+  const row = document.createElement('div');
+  row.className = 'account-preference-row';
+  const copy = document.createElement('div');
+  copy.className = 'account-preference-copy';
+
+  const title = document.createElement('span');
+  title.className = 'account-preference-title';
+  title.textContent = displayPreferenceLabel(id, locale);
+  copy.append(title);
+
+  const helpText = displayPreferenceHelp(id, locale);
+  if (helpText) {
+    const help = document.createElement('span');
+    help.className = 'account-preference-help';
+    help.textContent = helpText;
+    copy.append(help);
+  }
+
+  row.append(copy);
+  return row;
 }
 
 function buildPrivacySettings(user: AuthUser, locale: Locale = currentLocale()): HTMLElement {
@@ -625,18 +718,6 @@ function summaryRow(labelText: string, valueText: string): HTMLElement {
   return row;
 }
 
-async function saveAccountLocalePreference(locale: Locale): Promise<void> {
-  try {
-    await fetch('/api/account/preferences', {
-      method: 'PATCH',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ locale }),
-    });
-  } catch (err) {
-    console.warn(err);
-  }
-}
-
 function accountSettingsSectionFromPath(
   pathname = window.location.pathname,
 ): AccountSettingsSection {
@@ -676,6 +757,58 @@ function accountSettingsSectionLabel(
     'close-account': 'account.settingsCloseAccount',
   } as const;
   return t(keyBySection[section], {}, locale);
+}
+
+function displayPreferenceLabel(id: DisplayPreferenceId, locale: Locale): string {
+  const keyByPreference = {
+    pieceAnimation: 'account.displayPieceAnimation',
+    materialDifference: 'account.displayMaterialDifference',
+    boardHighlights: 'account.displayBoardHighlights',
+    pieceDestinations: 'account.displayPieceDestinations',
+    boardCoordinates: 'account.displayBoardCoordinates',
+    moveListWhilePlaying: 'account.displayMoveListWhilePlaying',
+    moveNotation: 'account.displayMoveNotation',
+    zenMode: 'account.displayZenMode',
+    boardResizeHandle: 'account.displayBoardResizeHandle',
+    playerRatings: 'account.displayPlayerRatings',
+    playerFlairs: 'account.displayPlayerFlairs',
+  } as const;
+  return t(keyByPreference[id], {}, locale);
+}
+
+function displayPreferenceHelp(id: DisplayPreferenceId, locale: Locale): string {
+  if (id === 'playerRatings') return t('account.displayPlayerRatingsHelp', {}, locale);
+  return '';
+}
+
+function displayPreferenceOptionLabel(
+  id: DisplayPreferenceId,
+  value: string,
+  locale: Locale,
+): string {
+  const keys = {
+    pieceAnimation: {
+      none: 'account.displayOption.pieceAnimation.none',
+      fast: 'account.displayOption.pieceAnimation.fast',
+      normal: 'account.displayOption.pieceAnimation.normal',
+      slow: 'account.displayOption.pieceAnimation.slow',
+    },
+    boardCoordinates: {
+      inside: 'account.displayOption.boardCoordinates.inside',
+      outside: 'account.displayOption.boardCoordinates.outside',
+      none: 'account.displayOption.boardCoordinates.none',
+    },
+    moveNotation: {
+      symbols: 'account.displayOption.moveNotation.symbols',
+      letters: 'account.displayOption.moveNotation.letters',
+      coordinates: 'account.displayOption.moveNotation.coordinates',
+    },
+  } as const;
+  if (id !== 'pieceAnimation' && id !== 'boardCoordinates' && id !== 'moveNotation') {
+    return value;
+  }
+  const key = keys[id][value as keyof (typeof keys)[typeof id]];
+  return key ? t(key, {}, locale) : value;
 }
 
 function profileVisibilityOptionLabel(

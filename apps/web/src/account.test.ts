@@ -173,6 +173,53 @@ describe('account page auth flow', () => {
     expect(document.querySelector('h1')?.textContent).toBe('Sign in');
   });
 
+  it('renders display preferences separately from the appearance menu', async () => {
+    window.history.replaceState(null, '', '/account/settings/display');
+    const user = testUser('misty');
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (input: RequestInfo | URL) => {
+        const url = String(input);
+        if (url === '/api/auth/me') return jsonResponse({ user });
+        throw new Error(`unexpected fetch: ${url}`);
+      }),
+    );
+
+    const { displayPreferenceStorageKey } = await import('./display-preferences.js');
+    const { mountAccountSettings } = await import('./account.js');
+
+    await mountAccountSettings(document.querySelector<HTMLElement>('#app') as HTMLElement);
+    await flushDom();
+
+    expect(document.querySelector('.account-settings-rail-link.active')?.textContent).toBe(
+      'Display',
+    );
+    expect(document.querySelector('h1')?.textContent).toBe('Display');
+    expect(document.querySelector('.account-settings-panel .appearance-menu')).toBeNull();
+    expect(document.querySelector('[name="pieceAnimation"]')).not.toBeNull();
+    expect(document.querySelector('[name="playerRatings"]')).not.toBeNull();
+
+    const animation = document.querySelector<HTMLSelectElement>('select[name="pieceAnimation"]');
+    if (!animation) throw new Error('missing piece animation select');
+    animation.value = 'fast';
+    animation.dispatchEvent(new Event('change', { bubbles: true }));
+
+    const ratings = document.querySelector<HTMLInputElement>('input[name="playerRatings"]');
+    if (!ratings) throw new Error('missing player ratings switch');
+    ratings.checked = false;
+    ratings.dispatchEvent(new Event('change', { bubbles: true }));
+
+    const stored = JSON.parse(window.localStorage.getItem(displayPreferenceStorageKey) ?? '{}') as {
+      pieceAnimation?: string;
+      playerRatings?: boolean;
+    };
+    expect(stored.pieceAnimation).toBe('fast');
+    expect(stored.playerRatings).toBe(false);
+    expect(document.querySelector('.account-preference-help')?.textContent).toContain(
+      'Hides all ratings from Mistboard',
+    );
+  });
+
   it('renders the settings rail and saves profile visibility from privacy settings', async () => {
     window.history.replaceState(null, '', '/account/settings/privacy');
     const user = testUser('misty');
