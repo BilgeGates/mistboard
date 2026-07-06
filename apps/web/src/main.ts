@@ -153,6 +153,10 @@ const botProfileId = path.startsWith('/bot/')
   ? decodeURIComponent(path.slice('/bot/'.length))
   : null;
 const profileHandle = profileHandleFromPath(path);
+// Standalone analysis board fed by a pasted / ?moves= coordinate list (no room).
+// No nav entry yet; direct-URL only, a shareable soft-launch primitive that lets
+// a game be reviewed off its moves alone. Ships live. See xiangqi-analysis-page.ts.
+const wantsXiangqiAnalysis = path === '/analysis/xiangqi';
 // Hidden DEV-only spike: FoW Xiangqi Phase A. No nav entry, no landing link.
 const wantsXiangqiSpike = import.meta.env.DEV && path === '/xiangqi-spike';
 // Hidden DEV-only spike for the candidate 7x7 Dark Mini Xiangqi ruleset.
@@ -228,6 +232,13 @@ if (replaySample) {
   setTitleKey('profile.leaderboard');
   void mountOrReport(() =>
     import('./profile.js').then(({ mountLeaderboard }) => mountLeaderboard(appRoot)),
+  );
+} else if (wantsXiangqiAnalysis) {
+  setTitle('Xiangqi analysis');
+  void mountOrReport(() =>
+    import('./xiangqi-analysis-page.js').then(({ mountXiangqiAnalysisPage }) => {
+      mountXiangqiAnalysisPage(appRoot);
+    }),
   );
 } else if (wantsDatabase) {
   setTitle('Game database');

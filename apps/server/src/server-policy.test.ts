@@ -310,6 +310,7 @@ const PARKED_CLIENT_ROUTES = new Set<string>([
   '/showcase-sheet', // DEV-only; gated by import.meta.env.DEV in main.ts
   '/postgame-sheet', // DEV-only; gated by import.meta.env.DEV in main.ts
   '/luzhanqi-preview', // DEV-only; gated by import.meta.env.DEV in main.ts
+  '/dobutsu-chess-preview', // DEV-only; gated by import.meta.env.DEV in main.ts
 ]);
 
 test('isClientRoute covers every literal route declared in main.ts', () => {
@@ -359,6 +360,7 @@ test('isClientRoute matches parametric SPA routes', () => {
   assert.equal(isClientRoute('/zh-hans/rules/dark-chess'), true);
   assert.equal(isClientRoute('/zh-hant/rules/dark-chess'), true);
   assert.equal(isClientRoute('/engine/random-engine'), true); // admin engine-profile page
+  assert.equal(isClientRoute('/analysis/xiangqi'), true); // standalone analysis board
 });
 
 test('isClientRoute lets vendored ceval engine assets fall through to static', () => {
@@ -381,6 +383,9 @@ test('isReviewShellRoute matches postgame review documents (COOP/COEP scope)', (
   assert.equal(isReviewShellRoute('/fortress-xiangqi/game/fxq_abc123'), true);
   assert.equal(isReviewShellRoute('/jungle-flip/game/jgf_abc123'), true);
   assert.equal(isReviewShellRoute('/game/abc123?ply=4'.split('?', 1)[0]!), true);
+  // The standalone analysis board mounts the same ceval engine, so it needs the
+  // COOP/COEP isolation headers too (else SharedArrayBuffer is unavailable).
+  assert.equal(isReviewShellRoute('/analysis/xiangqi'), true);
 });
 
 test('isReviewShellRoute excludes non-review surfaces (keeps them non-isolated)', () => {
