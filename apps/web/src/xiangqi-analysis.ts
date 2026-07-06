@@ -5,10 +5,12 @@
 // and the whole-game engine runs locally (ceval) — no server round-trip, so it
 // works for a game that was never played on the platform.
 //
-// Increment 1 wires the board + captures + on-board eval bar + local engine
-// toggle + move list. Whole-game analysis (advantage chart + accuracy + move
-// glyphs) is a client-ceval follow-up; the DRY-extract that unifies the shared
-// board glue with xiangqi-postgame.ts is the other planned follow-up.
+// Wires the board + captures + on-board eval bar + local engine toggle + move
+// list, plus an on-demand whole-game analysis: since there is no server room to
+// analyze, a client-side ceval sweep evaluates every ply in the browser and
+// feeds the SAME advantage chart / accuracy summary / move glyphs the /game
+// postgame uses (computeGameAnalysis). The DRY-extract that unifies the shared
+// board glue with xiangqi-postgame.ts is a planned follow-up.
 
 import {
   createInitialXiangqiBoard,
@@ -24,12 +26,22 @@ import './live-xiangqi.css';
 import './dark-xiangqi-postgame.css';
 import './xiangqi-postgame.css';
 import { renderXiangqiBoardSvg } from './live-xiangqi.js';
+import { type AdvantageChart, createAdvantageChart } from './review/advantage-chart.js';
+import { createAnalysisSummary } from './review/analysis-summary.js';
 import { capturedByDiff } from './review/captured-diff.js';
 import { fillCapturedPoolWith } from './review/captured-pool.js';
+import { createCeval } from './review/engine/ceval.js';
 import { createEnginePanel } from './review/engine/engine-panel.js';
 import { createEvalBar } from './review/engine/eval-bar.js';
+import { formatEval } from './review/engine/eval-format.js';
 import { createFlankCaptures } from './review/flank-captures.js';
-import { createMoveList, type MoveListEntry } from './review/move-list.js';
+import {
+  computeGameAnalysis,
+  type GameAnalysis,
+  judgmentGlyph,
+  type PlyEval,
+} from './review/game-analysis.js';
+import { createMoveList, type MoveAnnotation, type MoveListEntry } from './review/move-list.js';
 import { mountReviewLayout } from './review/review-layout.js';
 import {
   buildXiangqiReplayFromMoves,
@@ -37,6 +49,11 @@ import {
   xiangqiReplayViewAtPly,
 } from './review/xiangqi-review-model.js';
 import { renderXiangqiPiece } from './xiangqi-pieces.js';
+
+// Depth for the whole-game sweep. Shallower than the live panel's interactive
+// search so N+1 sequential evaluations stay tolerable on a client (the server
+// Pikafish path goes deeper; this is the roomless fallback).
+const ANALYSIS_SWEEP_DEPTH = 12;
 
 const XIANGQI_INITIAL_PIECES = Object.values(createInitialXiangqiBoard()).filter(
   (piece): piece is NonNullable<typeof piece> => Boolean(piece),
@@ -135,6 +152,94 @@ export function mountXiangqiAnalysis(
   });
   let lastEnginePly = -1;
 
+  // Whole-game analysis (client ceval sweep) → underboard advantage chart +
+  // right-rail accuracy summary + move-list glyphs. Runs on demand.
+  const underboardEl = document.createElement('div');
+  const analysisSummaryEl = document.createElement('div');
+  let chart: AdvantageChart | null = null;
+  let currentPly = replay.maxPly;
+  let jumpTo: ((ply: number) => void) | null = null;
+
+  function applyAnalysis(analysis: GameAnalysis): void {
+    chart = createAdvantageChart(analysis.evals, { onJump: (ply) => jumpTo?.(ply) });
+    chart.setPly(currentPly);
+    underboardEl.replaceChildren(chart.el);
+    analysisSummaryEl.replaceChildren(createAnalysisSummary(analysis));
+    const evalByPly = new Map(analysis.evals.map((entry) => [entry.ply, entry]));
+    const annotations = new Map<number, MoveAnnotation>();
+    for (const move of analysis.moves) {
+      const glyph = judgmentGlyph(move.judgment);
+      const entry = evalByPly.get(move.ply);
+      annotations.set(move.ply, {
+        suffix: glyph?.suffix,
+        suffixClass: glyph?.suffixClass,
+        eval: entry ? formatEval(entry.cp, entry.mate) : undefined,
+      });
+    }
+    moveList.annotate(annotations);
+    // The underboard grew; re-fit the board so it still fits without a scroll.
+    window.dispatchEvent(new Event('resize'));
+  }
+
+  // Evaluate every ply cursor (0..N) in the browser and build the Red-POV eval
+  // series computeGameAnalysis expects. ceval scores are side-to-move POV, so
+  // they flip on black-to-move plies (ply 0 = start = red to move).
+  async function runClientAnalysis(
+    onProgress: (done: number, total: number) => void,
+  ): Promise<GameAnalysis> {
+    const handle = createCeval('xiangqi');
+    const plies: PlyEval[] = [];
+    try {
+      for (let ply = 0; ply <= replay.maxPly; ply += 1) {
+        const update = await handle.evaluate({
+          movesUci: engineMovesUci.slice(0, ply),
+          multiPv: 1,
+          maxDepth: ANALYSIS_SWEEP_DEPTH,
+        });
+        const best = update.lines[0];
+        const redToMove = ply % 2 === 0;
+        const cp = best?.scoreCp ?? null;
+        const mate = best?.mate ?? null;
+        plies.push({
+          ply,
+          cp: cp === null ? null : redToMove ? cp : -cp,
+          mate: mate === null ? null : redToMove ? mate : -mate,
+          best: best?.pvUci[0] ?? null,
+        });
+        onProgress(ply, replay.maxPly);
+      }
+    } finally {
+      handle.dispose();
+    }
+    return computeGameAnalysis({
+      engineId: 'fairy-stockfish',
+      depth: ANALYSIS_SWEEP_DEPTH,
+      plies,
+    });
+  }
+
+  function renderAnalysisRequest(): void {
+    if (replay.maxPly < 1) return; // nothing to analyse
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.className = 'xiangqi-review__analyse';
+    button.textContent = 'Analyse the whole game';
+    button.addEventListener('click', () => {
+      button.disabled = true;
+      button.textContent = `Analysing… 0/${replay.maxPly}`;
+      void runClientAnalysis((done, total) => {
+        button.textContent = `Analysing… ${done}/${total}`;
+      })
+        .then(applyAnalysis)
+        .catch(() => {
+          button.disabled = false;
+          button.textContent = 'Analysis failed — retry';
+        });
+    });
+    underboardEl.replaceChildren(button);
+  }
+  renderAnalysisRequest();
+
   const finalStatus = xiangqiReplayViewAtPly(replay, replay.maxPly).status;
 
   root.replaceChildren();
@@ -147,16 +252,20 @@ export function mountXiangqiAnalysis(
     details: replay.illegalAt ? illegalNotice(replay) : undefined,
     moves: moveList.el,
     enginePanel: enginePanel.el,
+    underboard: underboardEl,
+    analysisSummary: analysisSummaryEl,
     boards: [{ key: 'truth', el: boardWrap, tier: 'primary' }],
     boardAspect: 552 / 612,
     boardCols: 9,
     maxPly: replay.maxPly,
     renderBoards({ ply, flipped }) {
+      currentPly = ply;
       const orientation: XiangqiColor = flipped ? 'black' : 'red';
       const opponent: XiangqiColor = orientation === 'red' ? 'black' : 'red';
       const view = xiangqiReplayViewAtPly(replay, ply);
       board.innerHTML = renderXiangqiBoardSvg(view, orientation);
       evalBar.setFlipped(flipped);
+      chart?.setPly(ply);
       const captured = xiangqiCaptured(view);
       flank.leftColumn.replaceChildren();
       flank.rightColumn.replaceChildren();
@@ -168,6 +277,7 @@ export function mountXiangqiAnalysis(
       }
     },
     renderMoves({ ply }, jump) {
+      jumpTo = jump;
       moveList.update(ply, jump);
     },
   });

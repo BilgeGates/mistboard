@@ -28,6 +28,9 @@ describe('mountXiangqiAnalysis', () => {
     expect(text).toContain('h3-e3');
     expect(text).toContain('h1-g3');
     expect(root.querySelector('.review-scrubber__status')?.textContent).toContain('3 of 3');
+    // whole-game analysis entry point (the client ceval sweep is click-gated, so
+    // no engine loads here — only the request button renders)
+    expect(root.textContent).toContain('Analyse the whole game');
     root.remove();
   });
 
