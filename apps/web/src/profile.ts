@@ -35,6 +35,19 @@ type ProfileBucketRating = {
   provisional: boolean;
 };
 
+type ProfileRatingHistoryPoint = {
+  roomId: string;
+  endedAt: string;
+  ratingBefore: number;
+  ratingAfter: number;
+};
+
+type ProfileRatingHistory = {
+  variant: ProfileRatingVariant;
+  timeClass: ProfileRatingTimeClass;
+  points: ProfileRatingHistoryPoint[];
+};
+
 type ProfileRelation = { following: boolean; blocked: boolean };
 
 type UserProfile = {
@@ -174,6 +187,7 @@ export async function mountProfile(root: HTMLElement, handle: string): Promise<v
 
   const selectedVariant = defaultSelectedProfileVariant(profile.ratings);
   let spotlight = buildProfileRatingSpotlight(profile.ratings, selectedVariant, locale);
+  void hydrateProfileRatingSpotlight(spotlight, profile.user.handle, selectedVariant, locale);
 
   const center = document.createElement('div');
   center.className = 'profile-center';
@@ -185,6 +199,7 @@ export async function mountProfile(root: HTMLElement, handle: string): Promise<v
       const next = buildProfileRatingSpotlight(profile.ratings, variant, locale);
       spotlight.replaceWith(next);
       spotlight = next;
+      void hydrateProfileRatingSpotlight(spotlight, profile.user.handle, variant, locale);
       syncSelectedRating(ratings, variant);
     },
   });
@@ -573,6 +588,19 @@ async function fetchUserProfile(handle: string): Promise<UserProfile> {
   return data.profile;
 }
 
+async function fetchUserRatingHistory(
+  handle: string,
+  variant: ProfileRatingVariant,
+): Promise<ProfileRatingHistory | null> {
+  const resp = await fetch(
+    `/api/users/${encodeURIComponent(handle)}/rating-history?variant=${encodeURIComponent(variant)}`,
+  );
+  if (resp.status === 404) return null;
+  if (!resp.ok) throw new Error(`rating history failed: ${resp.status}`);
+  const data = (await resp.json()) as { history: ProfileRatingHistory };
+  return data.history;
+}
+
 function buildProfileHeader(profile: UserProfile, locale: Locale = currentLocale()): HTMLElement {
   // Joined + game count moved into the stat strip below; only the role badge
   // (admin) remains on the inline meta line, and only when present.
@@ -803,10 +831,36 @@ function buildProfileRatingSpotlight(
   return section;
 }
 
+async function hydrateProfileRatingSpotlight(
+  section: HTMLElement,
+  handle: string,
+  variant: ProfileRatingVariant,
+  locale: Locale,
+): Promise<void> {
+  const chart = section.querySelector<HTMLElement>('.profile-rating-chart');
+  if (!chart) return;
+  try {
+    const history = await fetchUserRatingHistory(handle, variant);
+    renderRatingChartFrame(chart, history?.points ?? [], locale);
+  } catch (err) {
+    console.warn(err);
+    renderRatingChartFrame(chart, [], locale);
+  }
+}
+
 function buildRatingChartFrame(locale: Locale = currentLocale()): HTMLElement {
   const frame = document.createElement('div');
   frame.className = 'profile-rating-chart';
 
+  renderRatingChartFrame(frame, [], locale);
+  return frame;
+}
+
+function renderRatingChartFrame(
+  frame: HTMLElement,
+  points: ProfileRatingHistoryPoint[],
+  locale: Locale = currentLocale(),
+): void {
   const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
   svg.setAttribute('viewBox', '0 0 420 150');
   svg.setAttribute('role', 'img');
@@ -822,12 +876,66 @@ function buildRatingChartFrame(locale: Locale = currentLocale()): HTMLElement {
     svg.append(line);
   }
 
+  if (points.length > 0) {
+    const samples = [
+      { rating: points[0]!.ratingBefore },
+      ...points.map((point) => ({ rating: point.ratingAfter })),
+    ];
+    const ratings = samples.map((sample) => sample.rating);
+    const minRating = Math.min(...ratings);
+    const maxRating = Math.max(...ratings);
+    const padding = Math.max(20, Math.round((maxRating - minRating) * 0.15));
+    const yMin = minRating - padding;
+    const yMax = maxRating + padding;
+    const xStart = 36;
+    const xEnd = 384;
+    const yTop = 24;
+    const yBottom = 120;
+    const denominator = Math.max(1, samples.length - 1);
+    const yRange = Math.max(1, yMax - yMin);
+    const coords = samples.map((sample, index) => {
+      const x = xStart + ((xEnd - xStart) * index) / denominator;
+      const y = yBottom - ((sample.rating - yMin) / yRange) * (yBottom - yTop);
+      return { x, y };
+    });
+
+    const ratingLine = document.createElementNS('http://www.w3.org/2000/svg', 'polyline');
+    ratingLine.setAttribute('class', 'profile-rating-chart-line');
+    ratingLine.setAttribute(
+      'points',
+      coords.map((coord) => `${coord.x.toFixed(1)},${coord.y.toFixed(1)}`).join(' '),
+    );
+    svg.append(ratingLine);
+
+    for (const coord of coords) {
+      const dot = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+      dot.setAttribute('class', 'profile-rating-chart-dot');
+      dot.setAttribute('cx', coord.x.toFixed(1));
+      dot.setAttribute('cy', coord.y.toFixed(1));
+      dot.setAttribute('r', '4');
+      svg.append(dot);
+    }
+
+    for (const [label, y] of [
+      [String(yMax), 30],
+      [String(Math.round((yMax + yMin) / 2)), 70],
+      [String(yMin), 110],
+    ] as const) {
+      const tick = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+      tick.setAttribute('class', 'profile-rating-chart-label');
+      tick.setAttribute('x', '396');
+      tick.setAttribute('y', String(y + 4));
+      tick.setAttribute('text-anchor', 'end');
+      tick.textContent = label;
+      svg.append(tick);
+    }
+  }
+
   const empty = document.createElement('span');
   empty.className = 'profile-rating-chart-empty';
   empty.textContent = t('profile.noRatingHistory', {}, locale);
 
-  frame.append(svg, empty);
-  return frame;
+  frame.replaceChildren(svg, ...(points.length === 0 ? [empty] : []));
 }
 
 function buildProfileTabs(profile: UserProfile, locale: Locale = currentLocale()): HTMLElement {

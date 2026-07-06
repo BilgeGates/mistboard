@@ -106,7 +106,33 @@ describe('profile ratings rail', () => {
   it('mounts the profile dashboard with activity and games tabs', async () => {
     vi.stubEnv('DEV', false);
     vi.stubEnv('VITE_DARK_MINI_XIANGQI_ENABLED', 'true');
-    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockImplementation(async () => {
+    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockImplementation(async (input) => {
+      const url = String(input);
+      if (url.includes('/rating-history')) {
+        return new Response(
+          JSON.stringify({
+            history: {
+              variant: 'jungle_flip',
+              timeClass: 'blitz',
+              points: [
+                {
+                  roomId: 'jgf-profile-1',
+                  endedAt: '2026-07-05T07:17:00.000Z',
+                  ratingBefore: 1648,
+                  ratingAfter: 1662,
+                },
+                {
+                  roomId: 'jgf-profile-2',
+                  endedAt: '2026-07-05T07:18:00.000Z',
+                  ratingBefore: 1662,
+                  ratingAfter: 1655,
+                },
+              ],
+            },
+          }),
+          { headers: { 'content-type': 'application/json' }, status: 200 },
+        );
+      }
       return new Response(
         JSON.stringify({
           profile: {
@@ -204,6 +230,13 @@ describe('profile ratings rail', () => {
     await mountProfile(root, 'dev-testing');
 
     expect(fetchSpy).toHaveBeenCalledWith('/api/users/dev-testing/profile');
+    expect(fetchSpy).toHaveBeenCalledWith(
+      '/api/users/dev-testing/rating-history?variant=jungle_flip',
+    );
+    await vi.waitFor(() => {
+      expect(root.querySelector('.profile-rating-chart-line')).not.toBeNull();
+    });
+    expect(root.querySelector('.profile-rating-chart-empty')).toBeNull();
     expect(root.querySelector('.profile-rating-spotlight')?.textContent).toContain('1662');
     expect(root.querySelector('.profile-header')?.textContent).toContain('@dev-testing');
     expect(root.querySelector('.profile-info-card')).toBeNull();

@@ -4,6 +4,7 @@ import type { GameMode, GameTermination, GameVisibility } from './persistence-ga
 import type { GameParticipantColor, GameResult, ProfileGameRecord } from './persistence-games.js';
 import { attachGameParticipants } from './persistence-games.js';
 import {
+  bucketForGame,
   PUBLIC_RATING_TIME_CLASS,
   type RatingTimeClass,
   type RatingVariant,
@@ -129,6 +130,19 @@ export type UserProfile = {
   // Total completed games visible to the viewer, so the client can show an
   // accurate count and decide whether to offer "Load more".
   gamesTotal: number;
+};
+
+export type ProfileRatingHistoryPoint = {
+  roomId: string;
+  endedAt: Date;
+  ratingBefore: number;
+  ratingAfter: number;
+};
+
+export type ProfileRatingHistory = {
+  variant: RatingVariant;
+  timeClass: RatingTimeClass;
+  points: ProfileRatingHistoryPoint[];
 };
 
 export async function createEmailLoginChallenge(challenge: EmailLoginChallenge): Promise<void> {
@@ -683,6 +697,65 @@ export async function getUserGamesPage(
   const boundedLimit = Math.max(1, Math.min(limit, 50));
   const boundedOffset = Math.max(0, offset);
   return queryUserGames(user.id, isViewer, boundedOffset, boundedLimit);
+}
+
+export async function getUserRatingHistory(
+  handle: string,
+  viewerUserId: string | null,
+  variant: RatingVariant,
+): Promise<ProfileRatingHistory | null> {
+  const user = await loadProfileUser(handle);
+  if (!user) return null;
+  const isViewer = viewerUserId === user.id;
+  if (user.profileVisibility === 'private' && !isViewer) return null;
+
+  const { rows } = await getPool().query<{
+    room_id: string;
+    variant: string;
+    hidden_draft960: boolean | null;
+    initial_ms: number | null;
+    increment_ms: number | null;
+    ended_at: Date;
+    elo_before: number;
+    elo_after: number;
+  }>(
+    `SELECT games.room_id, games.variant, games.hidden_draft960,
+            games.initial_ms, games.increment_ms, games.ended_at,
+            game_participants.elo_before, game_participants.elo_after
+     FROM game_participants
+     JOIN games ON games.room_id = game_participants.game_id
+     WHERE game_participants.subject_type = 'user'
+       AND game_participants.subject_id = $1
+       AND games.status = 'completed'
+       AND games.mode = 'pvp'
+       AND COALESCE(games.rated, false) = true
+       AND game_participants.elo_before IS NOT NULL
+       AND game_participants.elo_after IS NOT NULL
+       ${profileVisibilityClause(isViewer)}
+     ORDER BY games.ended_at ASC, games.room_id ASC`,
+    [user.id],
+  );
+
+  const points = rows
+    .filter((row) => {
+      const bucket = bucketForGame({
+        variant: row.variant,
+        initialMs: row.initial_ms,
+        incrementMs: row.increment_ms,
+        hiddenDraft960: row.hidden_draft960,
+      });
+      return bucket?.variant === variant && bucket.timeClass === PUBLIC_RATING_TIME_CLASS;
+    })
+    .map(
+      (row): ProfileRatingHistoryPoint => ({
+        roomId: row.room_id,
+        endedAt: row.ended_at,
+        ratingBefore: row.elo_before,
+        ratingAfter: row.elo_after,
+      }),
+    );
+
+  return { variant, timeClass: PUBLIC_RATING_TIME_CLASS, points };
 }
 
 export async function getLeaderboard(query: LeaderboardQuery): Promise<LeaderboardEntry[]> {

@@ -8,6 +8,7 @@ import {
   getMostActivePlayers,
   getUserGamesPage,
   getUserProfileByHandle,
+  getUserRatingHistory,
   recordGameEnd,
   recordGameStart,
 } from './persistence.js';
@@ -734,6 +735,121 @@ definePersistenceTests('ratings', () => {
     assert.equal(fogRating?.eloRating, null);
     assert.equal(fogRating?.ratedGamesPlayed, 0);
     assert.equal(fogRating?.totalGamesPlayed, 1);
+  });
+
+  test('getUserRatingHistory returns visible rated blitz points for one bucket', async () => {
+    const now = new Date('2026-05-08T10:30:00.000Z');
+    await createUser({
+      id: 'user_history_player',
+      email: 'history-player@example.com',
+      emailVerifiedAt: now,
+      handle: 'history-player',
+      displayName: 'History Player',
+      profileVisibility: 'public',
+      now,
+    });
+    await createUser({
+      id: 'user_history_opponent',
+      email: 'history-opponent@example.com',
+      emailVerifiedAt: now,
+      handle: 'history-opponent',
+      displayName: 'History Opponent',
+      profileVisibility: 'public',
+      now,
+    });
+
+    for (const [roomId, endedAt, visibility] of [
+      ['history-public', new Date(now.getTime() + 60_000), 'public'],
+      ['history-private', new Date(now.getTime() + 120_000), 'private'],
+    ] as const) {
+      await recordGameEnd(roomId, {
+        variant: 'dark-chess',
+        mode: 'pvp',
+        rated: true,
+        result: 'white-wins',
+        termination: 'king-captured',
+        plyCount: 30,
+        startedAt: now,
+        endedAt,
+        initialMs: 180_000,
+        incrementMs: 2_000,
+        whiteClient: 'browser',
+        blackClient: 'browser',
+        whiteName: 'History Player',
+        blackName: 'History Opponent',
+        corpusId: null,
+        visibility,
+        participants: [
+          {
+            color: 'white',
+            displayName: 'History Player',
+            subjectType: 'user',
+            subjectId: 'user_history_player',
+            visibility,
+          },
+          {
+            color: 'black',
+            displayName: 'History Opponent',
+            subjectType: 'user',
+            subjectId: 'user_history_opponent',
+            visibility,
+          },
+        ],
+      });
+    }
+
+    await recordGameEnd('history-bullet-ignored', {
+      variant: 'dark-chess',
+      mode: 'pvp',
+      rated: true,
+      result: 'white-wins',
+      termination: 'king-captured',
+      plyCount: 18,
+      startedAt: now,
+      endedAt: new Date(now.getTime() + 180_000),
+      initialMs: 60_000,
+      incrementMs: 1_000,
+      whiteClient: 'browser',
+      blackClient: 'browser',
+      whiteName: 'History Player',
+      blackName: 'History Opponent',
+      corpusId: null,
+      visibility: 'public',
+      participants: [
+        {
+          color: 'white',
+          displayName: 'History Player',
+          subjectType: 'user',
+          subjectId: 'user_history_player',
+          visibility: 'public',
+        },
+        {
+          color: 'black',
+          displayName: 'History Opponent',
+          subjectType: 'user',
+          subjectId: 'user_history_opponent',
+          visibility: 'public',
+        },
+      ],
+    });
+
+    const publicHistory = await getUserRatingHistory('history-player', null, 'fog');
+    assert.equal(publicHistory?.timeClass, 'blitz');
+    assert.equal(publicHistory?.points.length, 1);
+    assert.equal(publicHistory?.points[0]?.roomId, 'history-public');
+    assert.equal(publicHistory?.points[0]?.ratingBefore, 1500);
+    assert.ok((publicHistory?.points[0]?.ratingAfter ?? 0) > 1500);
+
+    const ownerHistory = await getUserRatingHistory('history-player', 'user_history_player', 'fog');
+    assert.deepEqual(
+      ownerHistory?.points.map((point) => point.roomId),
+      ['history-public', 'history-private'],
+      'owner sees private history points, but bullet stays outside the public bucket',
+    );
+
+    const emptyBucket = await getUserRatingHistory('history-player', null, 'dark_mini_xiangqi');
+    assert.deepEqual(emptyBucket?.points, []);
+    assert.equal(await getUserRatingHistory('missing-history-player', null, 'fog'), null);
   });
 
   test('getUserProfileByHandle shows viewer-owned private Crossroads Chess activity bucket', async () => {

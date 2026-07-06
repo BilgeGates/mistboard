@@ -1,6 +1,7 @@
 import type { IncomingMessage, ServerResponse } from 'node:http';
 import { currentAccountUser } from './../account-session.js';
 import * as persistence from './../persistence.js';
+import { parseRatingVariant } from './../rating-buckets.js';
 import { requireMethod, requirePersistence, writeJson } from './lib.js';
 
 const HANDLE_PATTERN = /^[a-zA-Z0-9_-]{1,40}$/;
@@ -64,6 +65,30 @@ export async function tryHandle(
       return true;
     }
     writeJson(response, 200, { games: page.games, total: page.total });
+    return true;
+  }
+
+  const ratingHistoryMatch = pathname.match(/^\/api\/users\/([^/]+)\/rating-history$/);
+  if (ratingHistoryMatch) {
+    if (!requireMethod(request, response, 'GET')) return true;
+    if (!requirePersistence(response)) return true;
+    const handle = decodeURIComponent(ratingHistoryMatch[1] ?? '').trim();
+    if (!HANDLE_PATTERN.test(handle)) {
+      writeJson(response, 400, { error: 'invalid_handle' });
+      return true;
+    }
+    const variant = parseRatingVariant(parsedUrl.searchParams.get('variant'));
+    if (!variant) {
+      writeJson(response, 400, { error: 'invalid_rating_variant' });
+      return true;
+    }
+    const viewer = await currentAccountUser(request);
+    const history = await persistence.getUserRatingHistory(handle, viewer?.id ?? null, variant);
+    if (!history) {
+      writeJson(response, 404, { error: 'not_found' });
+      return true;
+    }
+    writeJson(response, 200, { history });
     return true;
   }
 

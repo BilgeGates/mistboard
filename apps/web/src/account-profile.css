@@ -11,6 +11,23 @@
   width: min(460px, calc(100% - 24px));
 }
 
+.account-settings-auth-route {
+  display: grid;
+  grid-template-rows: auto 1fr;
+  justify-items: center;
+}
+
+.account-settings-auth-route .site-nav {
+  justify-self: stretch;
+  width: 100%;
+}
+
+.account-settings-auth-route .account-shell {
+  justify-self: center;
+  width: min(460px, calc(100% - 24px));
+  margin-inline: 0;
+}
+
 .profile-shell {
   width: min(1000px, calc(100% - 24px));
 }
@@ -362,16 +379,6 @@
   display: grid;
 }
 
-.account-settings-appearance {
-  margin-top: 18px;
-  max-width: 420px;
-}
-
-.account-settings-appearance .appearance-menu-row,
-.account-settings-appearance .appearance-submenu-back {
-  border-radius: 3px;
-}
-
 .account-settings-summary {
   display: grid;
   gap: 0;
@@ -403,6 +410,109 @@
   margin: 18px 0 0;
   color: var(--site-muted);
   font-size: 13px;
+}
+
+.account-display-settings {
+  display: grid;
+  margin-top: 22px;
+  border-top: 1px solid var(--site-border-soft);
+}
+
+.account-preference-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(88px, max-content);
+  align-items: center;
+  gap: 24px;
+  border-bottom: 1px solid var(--site-border-soft);
+  padding: 16px 0;
+}
+
+.account-preference-copy {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+}
+
+.account-preference-title {
+  color: var(--site-text);
+  font-size: 15px;
+  font-weight: 650;
+}
+
+.account-preference-help {
+  max-width: 620px;
+  color: var(--site-muted);
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.account-preference-select {
+  min-width: 138px;
+  min-height: 36px;
+  border: 1px solid var(--site-border);
+  border-radius: 3px;
+  background: var(--site-panel);
+  color: var(--site-text);
+  font: inherit;
+  padding: 7px 30px 7px 10px;
+}
+
+.account-preference-select:focus,
+.account-preference-switch input:focus-visible + .account-preference-switch-track {
+  border-color: var(--site-accent);
+  outline: 2px solid var(--site-focus);
+}
+
+.account-preference-switch {
+  display: inline-grid;
+  cursor: pointer;
+}
+
+.account-preference-switch input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.account-preference-switch-track {
+  position: relative;
+  display: block;
+  width: 46px;
+  height: 24px;
+  border: 1px solid var(--site-border);
+  border-radius: 999px;
+  background: var(--site-panel-soft);
+  transition:
+    background 140ms ease,
+    border-color 140ms ease;
+}
+
+.account-preference-switch-track::after {
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 16px;
+  height: 16px;
+  border-radius: 999px;
+  background: var(--site-muted);
+  content: "";
+  transition:
+    background 140ms ease,
+    transform 140ms ease;
+}
+
+.account-preference-switch input:checked + .account-preference-switch-track {
+  border-color: color-mix(in srgb, var(--site-accent) 58%, var(--site-border));
+  background: color-mix(in srgb, var(--site-accent) 22%, var(--site-panel-soft));
+}
+
+.account-preference-switch input:checked + .account-preference-switch-track::after {
+  background: var(--site-accent);
+  transform: translateX(22px);
 }
 
 .account-field {
@@ -598,6 +708,18 @@
   stroke-linecap: round;
   stroke-linejoin: round;
   stroke-width: 3;
+}
+
+.profile-rating-chart-dot {
+  fill: var(--site-accent);
+  stroke: var(--site-panel);
+  stroke-width: 2;
+}
+
+.profile-rating-chart-label {
+  fill: var(--site-muted);
+  font-size: 11px;
+  font-weight: 700;
 }
 
 .profile-rating-chart-empty {
@@ -1481,6 +1603,15 @@
   .account-settings-summary-row {
     grid-template-columns: 1fr;
     gap: 3px;
+  }
+
+  .account-preference-row {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 10px;
+  }
+
+  .account-preference-select {
+    width: 100%;
   }
 }
 
