@@ -456,11 +456,6 @@
   opacity: 1;
 }
 
-/* Breathing room between the playable and not-yet rail groups. */
-.article-variant-sidebar .article-toc-nav + .article-toc-title {
-  margin-top: 24px;
-}
-
 /* Rules landing: intro prose plus, below the rail breakpoint, a thumbnail
    tile grid as the variant picker (the rail covers it on desktop). */
 .rules-landing-paragraph {

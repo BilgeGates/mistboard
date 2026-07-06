@@ -64,11 +64,11 @@ describe('web variant launch registry', () => {
     vi.stubEnv('DEV', false);
     const prod = await import('./variants.js');
     // Xiangqi pivot: drop-mini is off the rating grids now; chess is deranked so
-    // it sorts after the xiangqi + jungle buckets.
+    // it sorts after the xiangqi + animal-rank buckets.
     expect(prod.leaderboardVariants.map((v) => v.gameSpecId)).toEqual([
       FORTRESS_XIANGQI_SPEC_ID,
-      JUNGLE_SPEC_ID,
       JUNGLE_FLIP_SPEC_ID,
+      JUNGLE_SPEC_ID,
       DARK_CHESS_SPEC_ID,
     ]);
     vi.unstubAllEnvs();
@@ -86,8 +86,8 @@ describe('web variant launch registry', () => {
     const flagged = await import('./variants.js');
     const expected = [
       FORTRESS_XIANGQI_SPEC_ID,
-      JUNGLE_SPEC_ID,
       JUNGLE_FLIP_SPEC_ID,
+      JUNGLE_SPEC_ID,
       DARK_CHESS_SPEC_ID,
       DARK_MINI_XIANGQI_SPEC_ID,
     ];
@@ -157,29 +157,29 @@ describe('web variant launch registry', () => {
   });
 
   it('shows local rating surfaces without disabled Crossroads, Reveal, and Kriegspiel variants', () => {
-    // Xiangqi pivot: canonical order (Chinese-chess family + jungle lead, chess
-    // deranked below them, shogi after), and drop-mini is off the rating grids.
+    // Xiangqi pivot: canonical order (xiangqi lead, then the animal-rank cluster,
+    // chess deranked below them, shogi after), and drop-mini is off the rating grids.
     expect(leaderboardVariants.map((v) => v.gameSpecId)).toEqual([
-      FORTRESS_XIANGQI_SPEC_ID,
       XIANGQI_SPEC_ID,
+      FORTRESS_XIANGQI_SPEC_ID,
       DARK_XIANGQI_SPEC_ID,
       JIEQI_SPEC_ID,
+      JUNGLE_FLIP_SPEC_ID,
       BANQI_SPEC_ID,
       JUNGLE_SPEC_ID,
-      JUNGLE_FLIP_SPEC_ID,
       DARK_CHESS_SPEC_ID,
       DARK_SHOGI_SPEC_ID,
       DARK_CRAZYHOUSE_SPEC_ID,
       DARK_MINI_XIANGQI_SPEC_ID,
     ]);
     expect(profileRatingVariants.map((v) => v.gameSpecId)).toEqual([
-      FORTRESS_XIANGQI_SPEC_ID,
       XIANGQI_SPEC_ID,
+      FORTRESS_XIANGQI_SPEC_ID,
       DARK_XIANGQI_SPEC_ID,
       JIEQI_SPEC_ID,
+      JUNGLE_FLIP_SPEC_ID,
       BANQI_SPEC_ID,
       JUNGLE_SPEC_ID,
-      JUNGLE_FLIP_SPEC_ID,
       DARK_CHESS_SPEC_ID,
       DARK_SHOGI_SPEC_ID,
       DARK_CRAZYHOUSE_SPEC_ID,
@@ -212,13 +212,13 @@ describe('web variant launch registry', () => {
   it('uses canonical game-spec API params for current variants', () => {
     // Xiangqi pivot: VARIANTS follows the new CANONICAL_VARIANT_ORDER.
     expect(VARIANTS.map((v) => [v.gameSpecId, v.apiParam])).toEqual([
-      [FORTRESS_XIANGQI_SPEC_ID, 'fortress-xiangqi'],
       [XIANGQI_SPEC_ID, 'xiangqi'],
+      [FORTRESS_XIANGQI_SPEC_ID, 'fortress-xiangqi'],
       [DARK_XIANGQI_SPEC_ID, 'dark-xiangqi'],
       [JIEQI_SPEC_ID, 'jieqi'],
+      [JUNGLE_FLIP_SPEC_ID, 'jungle-flip'],
       [BANQI_SPEC_ID, 'banqi'],
       [JUNGLE_SPEC_ID, 'jungle'],
-      [JUNGLE_FLIP_SPEC_ID, 'jungle-flip'],
       [DARK_CHESS_SPEC_ID, 'fog'],
       [DARK_SHOGI_SPEC_ID, 'dark-shogi'],
       [DARK_CRAZYHOUSE_SPEC_ID, 'dark-crazyhouse'],
