@@ -622,11 +622,18 @@ function buildLandingStage(
   const section = document.createElement('section');
   section.className = 'landing-demo';
 
-  // ── News column (grid-area: news, top-left): the page's single (small) h1
-  // tagline, linked to the about page. The full announcement feed sits in the
-  // lower lila-style paired band with Forum. ──
+  // ── News column (grid-area: news, top-left): chat sits at the top of the left
+  // rail when enabled. The page's single (small) h1 tagline stays below it.
+  // During local dev, mock chat data paints here so the widget can be reviewed
+  // without flipping the server flag or seeding a database. ──
   const newsColumn = document.createElement('div');
   newsColumn.className = 'landing-news-column';
+  newsColumn.append(
+    buildLandingChat({
+      hydrate: !opts.skipLiveWidgets,
+      mode: import.meta.env.DEV ? 'mock' : 'live',
+    }),
+  );
   const about = document.createElement('h1');
   about.className = 'landing-about';
   const aboutLink = document.createElement('a');
@@ -681,14 +688,11 @@ function buildLandingStage(
   centerBelow.append(buildHomeSupportRow(locale));
 
   // ── Lower strip (grid-area: lower): lila-style paired columns, News feed on the
-  // left and active Forum topics in the tournament-widget slot on the right. Chat
-  // remains an empty mount below them and only paints once the API confirms the
-  // chat flag is on (a flag-off deploy adds no footprint). ──
+  // left and active Forum topics in the tournament-widget slot on the right. ──
   const lowerStrip = document.createElement('div');
   lowerStrip.className = 'landing-lower-strip';
   lowerStrip.append(buildLandingAnnouncements(locale));
   lowerStrip.append(buildLandingForumPreview({ hydrate: !opts.skipLiveWidgets }));
-  lowerStrip.append(buildLandingChat({ hydrate: !opts.skipLiveWidgets }));
 
   // ── Play column (grid-area: play, row 1 right): the pairing CTAs + activity box,
   // vertically centered against the tall open-challenges panel. ──

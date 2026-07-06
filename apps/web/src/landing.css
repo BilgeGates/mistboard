@@ -157,7 +157,7 @@
   text-align: center;
 }
 
-/* Row 2 of the center track: article cards, forum preview, chat, stacked full
+/* Row 2 of the center track: article cards and support/store row, stacked full
    width beneath the board. Split from the board so the grid can align this row's
    top with the lower-right rail. */
 .landing-center-below {
@@ -250,7 +250,7 @@
 }
 
 /* Lower strip: lila-style News + Forum pair, full width beneath the
-   three-column band. Chat spans this pair only when it actually renders. */
+   three-column band. */
 .landing-lower-strip {
   --landing-lower-widget-height: 25em;
 
@@ -261,11 +261,6 @@
   gap: clamp(10px, 1.4vw, 16px);
   width: 100%;
   min-width: 0;
-}
-
-.landing-lower-strip .landing-chat-mount:not(:empty) {
-  grid-column: 1 / -1;
-  max-width: 900px;
 }
 
 /* Stack the support/store cards on narrow screens: two-up gets too tight and
@@ -287,6 +282,10 @@
   flex-direction: column;
   gap: clamp(12px, 1.6vw, 18px);
   min-width: 0;
+}
+
+.landing-news-column .landing-chat-mount:not(:empty) {
+  width: 100%;
 }
 
 /* Left viewer column (row 2): the showcase board, top-aligned with the article row. */
