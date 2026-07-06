@@ -13,6 +13,7 @@ import {
   jungleEnabled,
   jungleFlipEnabled,
   kriegspielEnabled,
+  luzhanqiEnabled,
   revealChessEnabled,
   xiangqiEnabled,
 } from './feature-flags.js';
@@ -130,6 +131,11 @@ const GATED_GAME_SPECS = {
     enabled: fortressXiangqiEnabled,
     disabledError: 'fortress_xiangqi_disabled',
     notIntegratedError: 'fortress_xiangqi_not_integrated',
+  },
+  luzhanqi: {
+    enabled: luzhanqiEnabled,
+    disabledError: 'luzhanqi_disabled',
+    notIntegratedError: 'luzhanqi_not_integrated',
   },
   xiangqi: {
     enabled: xiangqiEnabled,

@@ -6,6 +6,7 @@ export type ClientMessage = {
   from?: string;
   to?: string;
   promotion?: string;
+  setup?: unknown;
   token?: string;
   at?: number;
   rttMs?: number;
@@ -21,6 +22,7 @@ const knownClientMessageTypes = new Set([
   'admin-debug-auth',
   'snapshot:request',
   'select-start',
+  'setup:submit',
   'move',
   'resign',
   'abort',

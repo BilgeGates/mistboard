@@ -11,6 +11,7 @@ type TestUser = {
   profileVisibility: 'private' | 'unlisted' | 'public';
   accountRole: 'player' | 'admin';
   locale: 'en' | 'zh-Hans' | 'zh-Hant' | 'ja' | null;
+  dmPolicy: 'never' | 'friends' | 'always';
 };
 
 describe('account page auth flow', () => {
@@ -149,6 +150,117 @@ describe('account page auth flow', () => {
       '請檢查信箱中的登入驗證碼。',
     );
   });
+
+  it('uses the centered auth flow for signed-out settings deep links', async () => {
+    window.history.replaceState(null, '', '/account/settings/privacy');
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (input: RequestInfo | URL) => {
+        const url = String(input);
+        if (url === '/api/auth/me') return jsonResponse({ user: null });
+        throw new Error(`unexpected fetch: ${url}`);
+      }),
+    );
+
+    const { mountAccountSettings } = await import('./account.js');
+
+    await mountAccountSettings(document.querySelector<HTMLElement>('#app') as HTMLElement);
+    await flushDom();
+
+    const shell = document.querySelector<HTMLElement>('main.account-shell');
+    expect(shell?.classList.contains('account-settings-shell')).toBe(false);
+    expect(document.querySelector('.account-settings-rail')).toBeNull();
+    expect(document.querySelector('h1')?.textContent).toBe('Sign in');
+  });
+
+  it('renders display preferences separately from the appearance menu', async () => {
+    window.history.replaceState(null, '', '/account/settings/display');
+    const user = testUser('misty');
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (input: RequestInfo | URL) => {
+        const url = String(input);
+        if (url === '/api/auth/me') return jsonResponse({ user });
+        throw new Error(`unexpected fetch: ${url}`);
+      }),
+    );
+
+    const { displayPreferenceStorageKey } = await import('./display-preferences.js');
+    const { mountAccountSettings } = await import('./account.js');
+
+    await mountAccountSettings(document.querySelector<HTMLElement>('#app') as HTMLElement);
+    await flushDom();
+
+    expect(document.querySelector('.account-settings-rail-link.active')?.textContent).toBe(
+      'Display',
+    );
+    expect(document.querySelector('h1')?.textContent).toBe('Display');
+    expect(document.querySelector('.account-settings-panel .appearance-menu')).toBeNull();
+    expect(document.querySelector('[name="pieceAnimation"]')).not.toBeNull();
+    expect(document.querySelector('[name="playerRatings"]')).not.toBeNull();
+
+    const animation = document.querySelector<HTMLSelectElement>('select[name="pieceAnimation"]');
+    if (!animation) throw new Error('missing piece animation select');
+    animation.value = 'fast';
+    animation.dispatchEvent(new Event('change', { bubbles: true }));
+
+    const ratings = document.querySelector<HTMLInputElement>('input[name="playerRatings"]');
+    if (!ratings) throw new Error('missing player ratings switch');
+    ratings.checked = false;
+    ratings.dispatchEvent(new Event('change', { bubbles: true }));
+
+    const stored = JSON.parse(window.localStorage.getItem(displayPreferenceStorageKey) ?? '{}') as {
+      pieceAnimation?: string;
+      playerRatings?: boolean;
+    };
+    expect(stored.pieceAnimation).toBe('fast');
+    expect(stored.playerRatings).toBe(false);
+    expect(document.querySelector('.account-preference-help')?.textContent).toContain(
+      'Hides all ratings from Mistboard',
+    );
+  });
+
+  it('renders the settings rail and saves profile visibility from privacy settings', async () => {
+    window.history.replaceState(null, '', '/account/settings/privacy');
+    const user = testUser('misty');
+    const requests: Array<{ body: unknown; url: string }> = [];
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+        const url = String(input);
+        if (url === '/api/auth/me') return jsonResponse({ user });
+        if (url === '/api/account/preferences') {
+          requests.push({ url, body: JSON.parse(String(init?.body)) as unknown });
+          return jsonResponse({ user: { ...user, profileVisibility: 'unlisted' } });
+        }
+        throw new Error(`unexpected fetch: ${url}`);
+      }),
+    );
+
+    const { mountAccountSettings } = await import('./account.js');
+
+    await mountAccountSettings(document.querySelector<HTMLElement>('#app') as HTMLElement);
+    await flushDom();
+
+    expect(document.querySelector('.account-settings-rail-link.active')?.textContent).toBe(
+      'Privacy',
+    );
+    expect(document.querySelector('h1')?.textContent).toBe('Privacy');
+
+    const select = document.querySelector<HTMLSelectElement>('select[name="profileVisibility"]');
+    expect(select?.value).toBe('public');
+    if (!select) throw new Error('missing profile visibility select');
+    select.value = 'unlisted';
+    select.dispatchEvent(new Event('change', { bubbles: true }));
+    await flushDom();
+
+    expect(requests).toEqual([
+      { url: '/api/account/preferences', body: { profileVisibility: 'unlisted' } },
+    ]);
+    expect(document.querySelector('.account-field-help')?.textContent).toBe(
+      'Privacy preference saved.',
+    );
+  });
 });
 
 function submitAccountForm(): void {
@@ -169,6 +281,7 @@ function testUser(handle: string): TestUser {
     profileVisibility: 'public',
     accountRole: 'player',
     locale: null,
+    dmPolicy: 'always',
   };
 }
 

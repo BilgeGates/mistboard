@@ -2,11 +2,11 @@
 
 .landing-play-action {
   display: grid;
-  grid-template-columns: 34px minmax(0, 1fr);
+  grid-template-columns: 30px minmax(0, 1fr);
   align-items: center;
-  gap: 16px;
+  gap: 14px;
   width: 100%;
-  min-height: 62px;
+  min-height: 58px;
   border: 1px solid color-mix(in srgb, var(--site-border) 72%, transparent);
   border-radius: 8px;
   background: linear-gradient(to bottom, var(--site-metal-top-hover), var(--site-metal-bottom));
@@ -17,10 +17,10 @@
   cursor: pointer;
   font-family:
     "Noto Sans", ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-  font-size: clamp(16px, 1.05vw, 18px);
-  font-weight: 600;
+  font-size: clamp(15px, 0.98vw, 16px);
+  font-weight: 500;
   line-height: 1.1;
-  padding: 10px 16px;
+  padding: 9px 14px;
   text-align: left;
   text-decoration: none;
   transition:
@@ -96,15 +96,18 @@
 
 /* Pairing CTAs stack: play tiles + activity box, aligned with the lobby panel. */
 .landing-play-stack {
-  display: flex;
-  flex-direction: column;
+  display: grid;
+  flex: 1 1 auto;
+  grid-template-rows: minmax(0, 1fr) auto;
   gap: clamp(12px, 1.6vw, 18px);
+  min-height: 100%;
   min-width: 0;
 }
 
 /* No outer card: just the three pairing buttons stacked. */
 .landing-play-panel {
   display: flex;
+  align-self: center;
   flex-direction: column;
   gap: 10px;
   min-width: 0;
@@ -910,8 +913,8 @@
 .landing-play-icon {
   position: relative;
   display: block;
-  width: 34px;
-  height: 34px;
+  width: 30px;
+  height: 30px;
   color: #b6b6b6;
   transition: color 120ms ease;
 }

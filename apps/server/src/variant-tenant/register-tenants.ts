@@ -19,6 +19,7 @@ import '../jieqi-registration.js';
 import '../jungle-flip-registration.js';
 import '../jungle-registration.js';
 import '../kriegspiel-registration.js';
+import '../luzhanqi-registration.js';
 import '../mini-xiangqi-registration.js';
 import '../reveal-chess-registration.js';
 import '../xiangqi-registration.js';

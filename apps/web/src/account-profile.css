@@ -11,21 +11,36 @@
   width: min(460px, calc(100% - 24px));
 }
 
+.account-settings-auth-route {
+  display: grid;
+  grid-template-rows: auto 1fr;
+  justify-items: center;
+}
+
+.account-settings-auth-route .site-nav {
+  justify-self: stretch;
+  width: 100%;
+}
+
+.account-settings-auth-route .account-shell {
+  justify-self: center;
+  width: min(460px, calc(100% - 24px));
+  margin-inline: 0;
+}
+
 .profile-shell {
   width: min(1000px, calc(100% - 24px));
 }
 
-/* Two-column profile body: a full-height ratings rail beside the main column
-   (header stacked over games/activity), so the header is left-aligned to the
-   games panel instead of spanning the full width and the rail runs the top. */
+/* Profile dashboard: rating selector beside the primary activity column. */
 .profile-body {
   display: grid;
-  grid-template-columns: 312px minmax(0, 1fr);
+  grid-template-columns: 270px minmax(0, 1fr);
   gap: 16px;
   align-items: start;
 }
 
-.profile-main {
+.profile-center {
   display: grid;
   gap: 16px;
   align-content: start;
@@ -34,14 +49,50 @@
 
 .account-settings-shell {
   display: grid;
+  grid-template-columns: 240px minmax(0, 1fr);
   gap: 12px;
-  width: min(520px, calc(100% - 24px));
+  align-items: start;
+  width: min(1120px, calc(100% - 24px));
+}
+
+.account-settings-rail {
+  display: grid;
+  gap: 6px;
+}
+
+.account-settings-rail-link {
+  display: block;
+  border-radius: 4px;
+  color: var(--site-muted);
+  font-size: 15px;
+  line-height: 1.2;
+  padding: 11px 14px;
+  text-decoration: none;
+  transition:
+    background 140ms ease,
+    color 140ms ease;
+}
+
+.account-settings-rail-link:hover,
+.account-settings-rail-link:focus-visible {
+  background: var(--site-hover);
+  color: var(--site-text);
+  outline: none;
+}
+
+.account-settings-rail-link.active {
+  background: var(--site-panel);
+  color: var(--site-text);
+  box-shadow: 0 1px 2px color-mix(in srgb, var(--site-shadow) 14%, transparent);
 }
 
 .account-panel,
 .profile-header,
 .profile-ratings,
-.profile-games {
+.profile-games,
+.profile-rating-spotlight,
+.profile-tabs,
+.profile-activity-panel {
   border: 1px solid var(--site-border);
   border-radius: 3px;
   background: var(--site-panel);
@@ -305,7 +356,8 @@
 }
 
 .account-form input,
-.account-field input {
+.account-field input,
+.account-field select {
   min-width: 100%;
   min-height: 40px;
   border: 1px solid var(--site-border);
@@ -317,13 +369,150 @@
 }
 
 .account-form input:focus,
-.account-field input:focus {
+.account-field input:focus,
+.account-field select:focus {
   border-color: var(--site-accent);
   outline: 2px solid var(--site-focus);
 }
 
 .account-settings-form {
   display: grid;
+}
+
+.account-settings-summary {
+  display: grid;
+  gap: 0;
+  margin: 18px 0 0;
+}
+
+.account-settings-summary-row {
+  display: grid;
+  grid-template-columns: 150px minmax(0, 1fr);
+  gap: 12px;
+  border-top: 1px solid var(--site-border-soft);
+  padding: 10px 0;
+}
+
+.account-settings-summary-row dt {
+  color: var(--site-muted);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.account-settings-summary-row dd {
+  margin: 0;
+  color: var(--site-text);
+  font-size: 14px;
+  word-break: break-word;
+}
+
+.account-settings-deferred {
+  margin: 18px 0 0;
+  color: var(--site-muted);
+  font-size: 13px;
+}
+
+.account-display-settings {
+  display: grid;
+  margin-top: 22px;
+  border-top: 1px solid var(--site-border-soft);
+}
+
+.account-preference-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(88px, max-content);
+  align-items: center;
+  gap: 24px;
+  border-bottom: 1px solid var(--site-border-soft);
+  padding: 16px 0;
+}
+
+.account-preference-copy {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+}
+
+.account-preference-title {
+  color: var(--site-text);
+  font-size: 15px;
+  font-weight: 650;
+}
+
+.account-preference-help {
+  max-width: 620px;
+  color: var(--site-muted);
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.account-preference-select {
+  min-width: 138px;
+  min-height: 36px;
+  border: 1px solid var(--site-border);
+  border-radius: 3px;
+  background: var(--site-panel);
+  color: var(--site-text);
+  font: inherit;
+  padding: 7px 30px 7px 10px;
+}
+
+.account-preference-select:focus,
+.account-preference-switch input:focus-visible + .account-preference-switch-track {
+  border-color: var(--site-accent);
+  outline: 2px solid var(--site-focus);
+}
+
+.account-preference-switch {
+  display: inline-grid;
+  cursor: pointer;
+}
+
+.account-preference-switch input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.account-preference-switch-track {
+  position: relative;
+  display: block;
+  width: 46px;
+  height: 24px;
+  border: 1px solid var(--site-border);
+  border-radius: 999px;
+  background: var(--site-panel-soft);
+  transition:
+    background 140ms ease,
+    border-color 140ms ease;
+}
+
+.account-preference-switch-track::after {
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 16px;
+  height: 16px;
+  border-radius: 999px;
+  background: var(--site-muted);
+  content: "";
+  transition:
+    background 140ms ease,
+    transform 140ms ease;
+}
+
+.account-preference-switch input:checked + .account-preference-switch-track {
+  border-color: color-mix(in srgb, var(--site-accent) 58%, var(--site-border));
+  background: color-mix(in srgb, var(--site-accent) 22%, var(--site-panel-soft));
+}
+
+.account-preference-switch input:checked + .account-preference-switch-track::after {
+  background: var(--site-accent);
+  transform: translateX(22px);
 }
 
 .account-field {
@@ -335,7 +524,8 @@
   font-weight: 600;
 }
 
-.account-field input:disabled {
+.account-field input:disabled,
+.account-field select:disabled {
   background: var(--site-panel-soft);
   color: var(--site-muted);
   cursor: not-allowed;
@@ -451,6 +641,96 @@
   text-transform: uppercase;
 }
 
+.profile-rating-spotlight {
+  overflow: hidden;
+}
+
+.profile-rating-spotlight-header {
+  padding: 18px 20px 8px;
+}
+
+.profile-rating-spotlight h2 {
+  margin: 0;
+  color: var(--site-heading);
+  font-size: 21px;
+  font-weight: 650;
+}
+
+.profile-rating-current {
+  display: flex;
+  align-items: end;
+  gap: 12px;
+  padding: 0 20px 12px;
+}
+
+.profile-rating-current-value {
+  color: var(--site-heading);
+  font-size: 34px;
+  font-weight: 750;
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+}
+
+.profile-rating-current-detail {
+  padding-bottom: 4px;
+  color: var(--site-muted);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.profile-rating-chart {
+  position: relative;
+  min-height: 152px;
+  border-top: 1px solid var(--site-border-soft);
+  background:
+    linear-gradient(
+      180deg,
+      color-mix(in srgb, var(--site-panel-soft) 58%, transparent),
+      transparent
+    ),
+    var(--site-panel);
+}
+
+.profile-rating-chart svg {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+.profile-rating-chart-grid {
+  stroke: var(--site-border-soft);
+  stroke-width: 1;
+}
+
+.profile-rating-chart-line {
+  fill: none;
+  stroke: var(--site-accent);
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 3;
+}
+
+.profile-rating-chart-dot {
+  fill: var(--site-accent);
+  stroke: var(--site-panel);
+  stroke-width: 2;
+}
+
+.profile-rating-chart-label {
+  fill: var(--site-muted);
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.profile-rating-chart-empty {
+  position: absolute;
+  right: 18px;
+  bottom: 14px;
+  color: var(--site-muted);
+  font-size: 12px;
+  font-weight: 600;
+}
+
 .profile-ratings {
   margin-top: 0;
   padding: 0;
@@ -484,8 +764,14 @@
   display: flex;
   align-items: center;
   gap: 10px;
+  width: 100%;
   padding: 10px 16px;
+  border: 0;
   border-bottom: 1px solid var(--site-border-soft);
+  background: transparent;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
 }
 
 .profile-rating-row:last-child {
@@ -494,6 +780,16 @@
 
 .profile-rating-row:hover {
   background: var(--site-zebra);
+}
+
+.profile-rating-row:focus-visible {
+  outline: 2px solid var(--site-focus);
+  outline-offset: -2px;
+}
+
+.profile-rating-row-selected {
+  background: color-mix(in srgb, var(--site-accent-soft) 58%, var(--site-panel));
+  box-shadow: inset 4px 0 0 var(--site-accent);
 }
 
 /* Never-played / unrated variants sit back so the rail reads intentional. */
@@ -568,16 +864,156 @@
     grid-template-columns: 1fr;
   }
 
-  /* Header + games above the ratings rail when stacked. */
-  .profile-main {
+  .profile-center {
     order: -1;
   }
+}
+
+.profile-tabs {
+  overflow: hidden;
+}
+
+.profile-tab-list {
+  display: flex;
+  gap: 0;
+  border-bottom: 1px solid var(--site-border-soft);
+}
+
+.profile-tab {
+  flex: 0 0 auto;
+  min-height: 42px;
+  padding: 0 18px;
+  border: 0;
+  border-right: 1px solid var(--site-border-soft);
+  background: var(--site-panel-soft);
+  color: var(--site-muted);
+  font-size: 14px;
+  font-weight: 650;
+  cursor: pointer;
+}
+
+.profile-tab:hover,
+.profile-tab:focus-visible {
+  background: var(--site-hover);
+  color: var(--site-heading);
+}
+
+.profile-tab:focus-visible {
+  outline: 2px solid var(--site-focus);
+  outline-offset: -2px;
+}
+
+.profile-tab[aria-selected="true"] {
+  background: var(--site-panel);
+  color: var(--site-heading);
+  box-shadow: inset 0 -3px 0 var(--site-accent);
+}
+
+.profile-tabs > section {
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+}
+
+.profile-tabs > section[hidden] {
+  display: none;
 }
 
 .profile-games {
   margin-top: 0;
   padding: 0;
   overflow: hidden;
+}
+
+.profile-activity-panel h2 {
+  margin: 0;
+  padding: 13px 16px;
+  border-bottom: 1px solid var(--site-border-soft);
+  color: var(--site-heading);
+  font-size: 17px;
+  font-weight: 500;
+}
+
+.profile-activity-summary-list {
+  display: grid;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.profile-activity-summary-row {
+  display: grid;
+  grid-template-columns: 28px minmax(0, 1fr) auto;
+  gap: 12px;
+  align-items: center;
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--site-border-soft);
+}
+
+.profile-activity-summary-row:last-child {
+  border-bottom: 0;
+}
+
+.profile-activity-summary-marker {
+  width: 28px;
+  height: 28px;
+  border-radius: 999px;
+  background:
+    radial-gradient(circle at 50% 50%, var(--site-accent) 0 4px, transparent 5px),
+    color-mix(in srgb, var(--site-accent-soft) 72%, var(--site-panel));
+}
+
+.profile-activity-summary-body {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+
+.profile-activity-summary-day {
+  color: var(--site-muted);
+  font-size: 11px;
+  font-weight: 750;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.profile-activity-summary-title {
+  color: var(--site-heading);
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.profile-activity-record {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 6px;
+}
+
+.profile-record-pill {
+  display: inline-flex;
+  align-items: center;
+  min-height: 22px;
+  padding: 2px 7px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.profile-record-pill-win {
+  background: color-mix(in srgb, var(--site-accent) 18%, var(--site-panel));
+  color: color-mix(in srgb, var(--site-accent) 78%, var(--site-heading));
+}
+
+.profile-record-pill-draw {
+  background: color-mix(in srgb, #4f8edb 16%, var(--site-panel));
+  color: #4f79a8;
+}
+
+.profile-record-pill-loss {
+  background: color-mix(in srgb, #c45b52 15%, var(--site-panel));
+  color: #b24d46;
 }
 
 .profile-games h2 {
@@ -847,6 +1283,15 @@
 
   .profile-game-date {
     max-width: none;
+  }
+
+  .profile-activity-summary-row {
+    grid-template-columns: 24px minmax(0, 1fr);
+  }
+
+  .profile-activity-record {
+    grid-column: 2;
+    justify-content: flex-start;
   }
 }
 
@@ -1134,6 +1579,39 @@
   .leaderboard-online-list {
     max-height: 240px;
     overflow-y: auto;
+  }
+}
+
+@media (max-width: 760px) {
+  .account-settings-shell {
+    grid-template-columns: 1fr;
+  }
+
+  .account-settings-rail {
+    display: flex;
+    gap: 4px;
+    overflow-x: auto;
+    padding-bottom: 2px;
+    scrollbar-width: thin;
+  }
+
+  .account-settings-rail-link {
+    flex: 0 0 auto;
+    white-space: nowrap;
+  }
+
+  .account-settings-summary-row {
+    grid-template-columns: 1fr;
+    gap: 3px;
+  }
+
+  .account-preference-row {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 10px;
+  }
+
+  .account-preference-select {
+    width: 100%;
   }
 }
 

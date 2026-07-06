@@ -22,6 +22,7 @@ export * from './variants-jieqi.js';
 export * from './variants-jungle.js';
 export * from './variants-jungle-flip.js';
 export * from './variants-kriegspiel.js';
+export * from './variants-luzhanqi.js';
 export * from './variants-mini-xiangqi.js';
 export * from './variants-reveal-chess.js';
 export * from './variants-shogi.js';

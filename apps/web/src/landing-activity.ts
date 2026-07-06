@@ -1,20 +1,24 @@
-// Homepage activity box: live presence from /api/live-stats plus durable game
-// totals from /api/stats/public. The frame renders synchronously with skeleton
-// rows so the left rail reserves the box's footprint from first paint (same
-// pattern as the forum preview); the rows hydrate in place when the data lands.
+// Homepage activity stats: live presence from /api/live-stats plus durable game
+// totals from /api/stats/public. Four skeleton rows render synchronously so the
+// right rail reserves the stat block's footprint from first paint; the rows
+// hydrate in place when the data lands.
 // Either source can be missing (stats/public needs persistence; live-stats
-// needs the API up): rows render only for data we actually have, and the box
+// needs the API up): rows render only for data we actually have, and the block
 // removes itself only in the rare case both fetches fail.
-import { buildSiteBox } from './site-box.js';
 
 type LiveStats = { playing: number; online: number };
 type PublicStats = { totalCompletedGames: number; last30dCompletedGames: number };
 
 export function buildLandingActivity(options: { hydrate?: boolean } = {}): HTMLElement {
-  const { box, body } = buildSiteBox({ title: 'Activity', className: 'landing-activity' });
+  const box = document.createElement('section');
+  box.className = 'landing-activity';
+  box.setAttribute('aria-label', 'Activity');
+  const body = document.createElement('div');
+  body.className = 'landing-activity-body';
   // Four placeholder rows = the usual shape (2 live + 2 totals). Same markup as
   // the real rows so the reserved height matches to the pixel.
   body.append(statRow('–', ''), statRow('–', ''), statRow('–', ''), statRow('–', ''));
+  box.append(body);
   if (options.hydrate !== false) void hydrateLandingActivity(box, body);
   return box;
 }
@@ -44,14 +48,14 @@ async function hydrateLandingActivity(box: HTMLElement, body: HTMLElement): Prom
 
 function statRow(value: string, label: string): HTMLElement {
   const row = document.createElement('div');
-  row.className = 'site-box-row landing-activity-row';
+  row.className = 'landing-activity-row';
   const valueEl = document.createElement('strong');
   valueEl.className = 'landing-activity-value';
   valueEl.textContent = value;
   const labelEl = document.createElement('span');
-  labelEl.className = 'site-box-row-label';
+  labelEl.className = 'landing-activity-label';
   // Keep empty skeleton labels from collapsing the row's line box.
-  labelEl.textContent = label || ' ';
+  labelEl.textContent = label || '\u00a0';
   row.append(valueEl, labelEl);
   return row;
 }

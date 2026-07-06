@@ -20,9 +20,25 @@ type ThreadSummary = {
 };
 
 type DmMessage = { id: string; fromMe: boolean; bodyText: string; createdAt: string };
+type OnlinePlayer = { handle: string; displayName: string; playing?: boolean };
+type InboxRenderState = {
+  threads: ThreadSummary[];
+  threadsLoadFailed: boolean;
+  query: string;
+  onlineHandles: Set<string>;
+};
 
 const CONVO_POLL_MS = 4000;
 const ONLINE_POLL_MS = 60_000;
+const HANDLE_PATTERN = /^[a-zA-Z0-9_-]{1,40}$/;
+const SEND_ICON =
+  '<svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor" aria-hidden="true" focusable="false"><path d="M5 3.8 20.4 12 5 20.2v-6.1L13.2 12 5 9.9z"/></svg>';
+const TRASH_ICON =
+  '<svg viewBox="0 0 24 24" width="21" height="21" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M3 6h18"/><path d="M8 6V4h8v2"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v5"/><path d="M14 11v5"/></svg>';
+const REPORT_ICON =
+  '<svg viewBox="0 0 24 24" width="21" height="21" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M10.3 3.9 2.8 18a2 2 0 0 0 1.8 3h14.8a2 2 0 0 0 1.8-3L13.7 3.9a2 2 0 0 0-3.4 0Z"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg>';
+const BACK_ICON =
+  '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="m15 18-6-6 6-6"/></svg>';
 
 // Set once per mount; renderThreads rebuilds the contacts rail on every poll
 // refresh, so the admin queue link has to survive re-renders via module state.
@@ -49,80 +65,92 @@ export async function mountInbox(root: HTMLElement, handle: string | null): Prom
   viewerIsAdmin = user.accountRole === 'admin';
   if (handle) shell.classList.add('inbox-has-convo');
 
-  // Left column wraps the contacts rail and the online-friends box so the
-  // thread list can re-render on poll without touching its neighbor.
-  const left = document.createElement('div');
-  left.className = 'inbox-left';
-  const contacts = document.createElement('section');
-  contacts.className = 'inbox-contacts';
-  const online = document.createElement('section');
-  online.className = 'inbox-online';
-  left.append(contacts, online);
+  const state: InboxRenderState = {
+    threads: [],
+    threadsLoadFailed: false,
+    query: '',
+    onlineHandles: new Set(),
+  };
+
+  const side = document.createElement('section');
+  side.className = 'inbox-side';
+  side.setAttribute('aria-label', t('inbox.title', {}, locale));
+  const threadContent = document.createElement('div');
+  threadContent.className = 'inbox-side-content';
+  const search = buildThreadSearch((query) => {
+    state.query = query;
+    renderThreadContent(threadContent, handle, locale, state);
+  });
+  side.append(search, threadContent);
+
   const convo = document.createElement('section');
   convo.className = 'inbox-convo';
-  shell.append(left, convo);
+  shell.append(side, convo);
 
-  await renderThreads(contacts, handle, locale);
-  void hydrateOnlineFriends(online, locale);
+  await Promise.all([loadThreads(state), refreshOnlinePresence(state)]);
+  renderThreadContent(threadContent, handle, locale, state);
   window.setInterval(() => {
     if (document.visibilityState !== 'visible') return;
-    void hydrateOnlineFriends(online, locale);
+    void refreshOnlinePresence(state).then(() => {
+      renderThreadContent(threadContent, handle, locale, state);
+    });
   }, ONLINE_POLL_MS);
 
   if (handle) {
-    await openConversation(convo, contacts, handle, locale);
-  } else {
-    const hint = document.createElement('p');
-    hint.className = 'inbox-hint account-copy';
-    hint.textContent = t('inbox.pickConversation', {}, locale);
-    convo.append(hint);
+    await openConversation(convo, threadContent, state, handle, locale);
   }
 }
 
-// Online-friends box (#94): players you follow who are online right now.
-// Renders nothing when empty (no dead box), same principle as the chat
-// widget's quiet-collapse.
-async function hydrateOnlineFriends(container: HTMLElement, locale: Locale): Promise<void> {
-  const resp = await fetch('/api/relations/online-following').catch(() => null);
-  if (!resp?.ok) return;
-  const data = (await resp.json()) as { players: { handle: string; displayName: string }[] };
-  if (data.players.length === 0) {
-    container.replaceChildren();
+function buildThreadSearch(onInput: (query: string) => void): HTMLElement {
+  const form = document.createElement('form');
+  form.className = 'inbox-search';
+  form.role = 'search';
+
+  const input = document.createElement('input');
+  input.className = 'inbox-search-input';
+  input.type = 'search';
+  input.autocomplete = 'off';
+  input.spellcheck = false;
+  input.placeholder = 'Search or start new conversation';
+  input.setAttribute('aria-label', input.placeholder);
+
+  input.addEventListener('input', () => onInput(input.value));
+  form.addEventListener('submit', (event) => {
+    event.preventDefault();
+    const handle = input.value.trim();
+    if (HANDLE_PATTERN.test(handle)) window.location.href = `/inbox/${encodeURIComponent(handle)}`;
+  });
+
+  form.append(input);
+  return form;
+}
+
+async function loadThreads(state: InboxRenderState): Promise<void> {
+  const resp = await fetch('/api/inbox').catch(() => null);
+  if (!resp?.ok) {
+    state.threads = [];
+    state.threadsLoadFailed = true;
     return;
   }
-  const heading = document.createElement('h2');
-  heading.className = 'inbox-online-heading';
-  heading.textContent = t('inbox.onlineNow', {}, locale);
-  const list = document.createElement('ul');
-  list.className = 'inbox-online-list';
-  for (const player of data.players) {
-    const item = document.createElement('li');
-    const link = document.createElement('a');
-    link.className = 'inbox-online-row';
-    link.href = `/@/${encodeURIComponent(player.handle)}`;
-    const dot = document.createElement('span');
-    dot.className = 'inbox-online-dot';
-    const name = document.createElement('span');
-    name.textContent = `@${player.handle}`;
-    link.append(dot, name);
-    item.append(link);
-    list.append(item);
-  }
-  container.replaceChildren(heading, list);
+  const data = (await resp.json()) as { threads: ThreadSummary[] };
+  state.threads = data.threads;
+  state.threadsLoadFailed = false;
 }
 
-async function renderThreads(
+async function refreshOnlinePresence(state: InboxRenderState): Promise<void> {
+  const resp = await fetch('/api/players/online').catch(() => null);
+  if (!resp?.ok) return;
+  const data = (await resp.json()) as { players: OnlinePlayer[] };
+  state.onlineHandles = new Set(data.players.map((player) => player.handle.toLowerCase()));
+}
+
+function renderThreadContent(
   container: HTMLElement,
   activeHandle: string | null,
   locale: Locale,
-): Promise<void> {
-  const resp = await fetch('/api/inbox').catch(() => null);
+  state: InboxRenderState,
+): void {
   container.replaceChildren();
-
-  const heading = document.createElement('h1');
-  heading.className = 'inbox-heading';
-  heading.textContent = t('inbox.title', {}, locale);
-  container.append(heading);
 
   if (viewerIsAdmin) {
     const reports = document.createElement('a');
@@ -132,14 +160,24 @@ async function renderThreads(
     container.append(reports);
   }
 
-  if (!resp?.ok) {
+  if (state.threadsLoadFailed) {
     container.append(
       buildNotice(t('inbox.loadFailedTitle', {}, locale), t('inbox.loadFailedBody', {}, locale)),
     );
     return;
   }
-  const data = (await resp.json()) as { threads: ThreadSummary[] };
-  if (data.threads.length === 0) {
+
+  const query = state.query.trim();
+  const normalizedQuery = query.toLowerCase();
+  const visibleThreads = normalizedQuery
+    ? state.threads.filter((thread) => threadMatchesQuery(thread, normalizedQuery))
+    : state.threads;
+  const exactThread = normalizedQuery
+    ? state.threads.some((thread) => thread.other.handle.toLowerCase() === normalizedQuery)
+    : false;
+  const canStart = query.length > 0 && HANDLE_PATTERN.test(query) && !exactThread;
+
+  if (state.threads.length === 0 && !canStart) {
     const empty = document.createElement('p');
     empty.className = 'account-copy inbox-empty';
     empty.textContent = t('inbox.empty', {}, locale);
@@ -147,9 +185,20 @@ async function renderThreads(
     return;
   }
 
+  if (canStart) container.append(buildStartConversationRow(query));
+  if (visibleThreads.length === 0) {
+    if (query.length > 0 && !canStart) {
+      const empty = document.createElement('p');
+      empty.className = 'account-copy inbox-empty';
+      empty.textContent = 'No conversations match.';
+      container.append(empty);
+    }
+    return;
+  }
+
   const list = document.createElement('ul');
   list.className = 'inbox-thread-list';
-  for (const thread of data.threads) {
+  for (const thread of visibleThreads) {
     const item = document.createElement('li');
     const link = document.createElement('a');
     link.href = `/inbox/${encodeURIComponent(thread.other.handle)}`;
@@ -159,14 +208,18 @@ async function renderThreads(
       link.classList.add('inbox-thread-active');
     }
 
+    const avatar = buildPresenceAvatar(thread.other.handle, state.onlineHandles);
+
+    const body = document.createElement('span');
+    body.className = 'inbox-thread-body';
     const top = document.createElement('span');
     top.className = 'inbox-thread-top';
     const who = document.createElement('span');
     who.className = 'inbox-thread-handle';
-    who.textContent = `@${thread.other.handle}`;
+    who.textContent = thread.other.displayName || thread.other.handle;
     const when = document.createElement('span');
     when.className = 'inbox-thread-date';
-    when.textContent = formatWhen(thread.lastAt, locale);
+    when.textContent = formatRelativeWhen(thread.lastAt, locale);
     top.append(who, when);
 
     const preview = document.createElement('span');
@@ -175,16 +228,54 @@ async function renderThreads(
       ? `${t('inbox.you', {}, locale)} ${thread.lastText}`
       : thread.lastText;
 
-    link.append(top, preview);
+    body.append(top, preview);
+    link.append(avatar, body);
     item.append(link);
     list.append(item);
   }
   container.append(list);
 }
 
+function buildStartConversationRow(handle: string): HTMLElement {
+  const link = document.createElement('a');
+  link.className = 'inbox-thread inbox-thread-new';
+  link.href = `/inbox/${encodeURIComponent(handle)}`;
+  const avatar = buildPresenceAvatar(handle, new Set());
+  const body = document.createElement('span');
+  body.className = 'inbox-thread-body';
+  const title = document.createElement('span');
+  title.className = 'inbox-thread-handle';
+  title.textContent = handle;
+  const preview = document.createElement('span');
+  preview.className = 'inbox-thread-preview';
+  preview.textContent = 'Start a new conversation';
+  body.append(title, preview);
+  link.append(avatar, body);
+  return link;
+}
+
+function buildPresenceAvatar(handle: string, onlineHandles: Set<string>): HTMLElement {
+  const avatar = document.createElement('span');
+  avatar.className = 'inbox-presence-avatar';
+  const online = onlineHandles.has(handle.toLowerCase());
+  if (online) avatar.classList.add('inbox-presence-online');
+  avatar.title = online ? 'Online' : 'Offline';
+  avatar.setAttribute('aria-label', online ? 'Online' : 'Offline');
+  return avatar;
+}
+
+function threadMatchesQuery(thread: ThreadSummary, query: string): boolean {
+  return (
+    thread.other.handle.toLowerCase().includes(query) ||
+    thread.other.displayName.toLowerCase().includes(query) ||
+    thread.lastText.toLowerCase().includes(query)
+  );
+}
+
 async function openConversation(
   convo: HTMLElement,
-  contacts: HTMLElement,
+  threadContent: HTMLElement,
+  state: InboxRenderState,
   handle: string,
   locale: Locale,
 ): Promise<void> {
@@ -209,25 +300,31 @@ async function openConversation(
   };
   void refreshNotifications();
 
-  // Header: back link (mobile), profile link, delete + report controls.
   const header = document.createElement('header');
   header.className = 'inbox-convo-header';
 
   const back = document.createElement('a');
   back.className = 'inbox-back';
   back.href = '/inbox';
-  back.textContent = `← ${t('inbox.backToList', {}, locale)}`;
+  back.innerHTML = BACK_ICON;
+  back.setAttribute('aria-label', t('inbox.backToList', {}, locale));
+
+  const headerLeft = document.createElement('div');
+  headerLeft.className = 'inbox-convo-head-left';
+  const avatar = buildPresenceAvatar(data.other.handle, state.onlineHandles);
+  avatar.classList.add('inbox-convo-avatar');
 
   const who = document.createElement('a');
   who.className = 'inbox-convo-handle';
   who.href = `/@/${encodeURIComponent(data.other.handle)}`;
-  who.textContent = `@${data.other.handle}`;
+  who.textContent = data.other.displayName || data.other.handle;
+  headerLeft.append(back, avatar, who);
 
   const controls = document.createElement('div');
   controls.className = 'inbox-convo-controls';
   controls.append(buildReportControl(handle, locale), buildDeleteControl(handle, locale));
 
-  header.append(back, who, controls);
+  header.append(headerLeft, controls);
 
   const feed = document.createElement('div');
   feed.className = 'inbox-messages';
@@ -237,7 +334,7 @@ async function openConversation(
   // (incoming), so neither path can append a message the other already drew.
   const knownIds = new Set(data.messages.map((message) => message.id));
 
-  const composer = buildComposer(handle, feed, contacts, knownIds, locale);
+  const composer = buildComposer(handle, feed, threadContent, state, knownIds, locale);
 
   convo.append(header, feed, composer);
   feed.scrollTop = feed.scrollHeight;
@@ -254,7 +351,7 @@ async function openConversation(
     for (const message of incoming) knownIds.add(message.id);
     appendMessages(feed, incoming, locale);
     void refreshNotifications();
-    void renderThreads(contacts, handle, locale);
+    void loadThreads(state).then(() => renderThreadContent(threadContent, handle, locale, state));
   }, CONVO_POLL_MS);
 }
 
@@ -272,25 +369,39 @@ function renderMessages(feed: HTMLElement, messages: DmMessage[], locale: Locale
 
 function appendMessages(feed: HTMLElement, messages: DmMessage[], locale: Locale): void {
   feed.querySelector('.inbox-empty')?.remove();
+  let lastDay = feed.dataset.lastDay ?? '';
   for (const message of messages) {
+    const day = dayKey(message.createdAt);
+    if (day !== lastDay) {
+      const divider = document.createElement('div');
+      divider.className = 'inbox-day';
+      divider.textContent = formatDay(message.createdAt, locale);
+      feed.append(divider);
+      lastDay = day;
+    }
     const row = document.createElement('div');
     row.className = message.fromMe ? 'inbox-message inbox-message-mine' : 'inbox-message';
     const bubble = document.createElement('p');
     bubble.className = 'inbox-bubble';
-    bubble.textContent = message.bodyText;
+    const body = document.createElement('span');
+    body.className = 'inbox-bubble-text';
+    body.textContent = message.bodyText;
     const stamp = document.createElement('span');
     stamp.className = 'inbox-stamp';
-    stamp.textContent = formatWhen(message.createdAt, locale);
-    row.append(bubble, stamp);
+    stamp.textContent = formatMessageTime(message.createdAt, locale);
+    bubble.append(body, stamp);
+    row.append(bubble);
     feed.append(row);
   }
+  feed.dataset.lastDay = lastDay;
   feed.scrollTop = feed.scrollHeight;
 }
 
 function buildComposer(
   handle: string,
   feed: HTMLElement,
-  contacts: HTMLElement,
+  threadContent: HTMLElement,
+  state: InboxRenderState,
   knownIds: Set<string>,
   locale: Locale,
 ): HTMLElement {
@@ -305,8 +416,10 @@ function buildComposer(
 
   const send = document.createElement('button');
   send.type = 'submit';
-  send.className = 'landing-setup-start inbox-send';
-  send.textContent = t('inbox.send', {}, locale);
+  send.className = 'inbox-send';
+  send.innerHTML = SEND_ICON;
+  send.setAttribute('aria-label', t('inbox.send', {}, locale));
+  send.title = t('inbox.send', {}, locale);
 
   const status = document.createElement('p');
   status.className = 'inbox-status';
@@ -342,7 +455,7 @@ function buildComposer(
       knownIds.add(data.message.id);
       appendMessages(feed, [data.message], locale);
       input.value = '';
-      void renderThreads(contacts, handle, locale);
+      void loadThreads(state).then(() => renderThreadContent(threadContent, handle, locale, state));
     } catch {
       status.textContent = t('inbox.sendFailed', {}, locale);
       status.hidden = false;
@@ -357,10 +470,7 @@ function buildComposer(
 }
 
 function buildDeleteControl(handle: string, locale: Locale): HTMLElement {
-  const button = document.createElement('button');
-  button.type = 'button';
-  button.className = 'inbox-header-action';
-  button.textContent = t('inbox.delete', {}, locale);
+  const button = buildHeaderIconButton(t('inbox.delete', {}, locale), TRASH_ICON);
   button.addEventListener('click', () => {
     openConfirmDialog({
       title: t('inbox.deleteConfirmTitle', {}, locale),
@@ -383,10 +493,7 @@ function buildReportControl(handle: string, locale: Locale): HTMLElement {
   const wrap = document.createElement('div');
   wrap.className = 'inbox-report';
 
-  const button = document.createElement('button');
-  button.type = 'button';
-  button.className = 'inbox-header-action';
-  button.textContent = t('inbox.report', {}, locale);
+  const button = buildHeaderIconButton(t('inbox.report', {}, locale), REPORT_ICON);
 
   const form = document.createElement('form');
   form.className = 'inbox-report-form';
@@ -398,7 +505,7 @@ function buildReportControl(handle: string, locale: Locale): HTMLElement {
   reason.className = 'inbox-report-reason';
   const submit = document.createElement('button');
   submit.type = 'submit';
-  submit.className = 'inbox-header-action';
+  submit.className = 'inbox-report-submit';
   submit.textContent = t('inbox.report', {}, locale);
   form.append(reason, submit);
 
@@ -430,11 +537,59 @@ function buildReportControl(handle: string, locale: Locale): HTMLElement {
   return wrap;
 }
 
+function buildHeaderIconButton(label: string, icon: string): HTMLButtonElement {
+  const button = document.createElement('button');
+  button.type = 'button';
+  button.className = 'inbox-header-action';
+  button.innerHTML = icon;
+  button.setAttribute('aria-label', label);
+  button.title = label;
+  return button;
+}
+
 function sendErrorCopy(error: string | undefined, locale: Locale): string {
   if (error === 'rate_limited') return t('inbox.rateLimited', {}, locale);
   if (error === 'message_not_allowed') return t('inbox.notAllowed', {}, locale);
   if (error === 'links_not_allowed') return t('inbox.linksNotAllowed', {}, locale);
   return t('inbox.sendFailed', {}, locale);
+}
+
+function formatRelativeWhen(value: string, locale: Locale): string {
+  const date = new Date(value);
+  if (!Number.isFinite(date.getTime())) return '';
+  const diffSeconds = Math.round((date.getTime() - Date.now()) / 1000);
+  const absSeconds = Math.abs(diffSeconds);
+  const divisions: [Intl.RelativeTimeFormatUnit, number][] = [
+    ['year', 31_536_000],
+    ['month', 2_592_000],
+    ['week', 604_800],
+    ['day', 86_400],
+    ['hour', 3_600],
+    ['minute', 60],
+  ];
+  const rtf = new Intl.RelativeTimeFormat(LOCALE_META[locale].dateLocale, { numeric: 'auto' });
+  for (const [unit, seconds] of divisions) {
+    if (absSeconds >= seconds) return rtf.format(Math.round(diffSeconds / seconds), unit);
+  }
+  return rtf.format(0, 'minute');
+}
+
+function formatMessageTime(value: string, locale: Locale): string {
+  const date = new Date(value);
+  if (!Number.isFinite(date.getTime())) return '';
+  return new Intl.DateTimeFormat(LOCALE_META[locale].dateLocale, { timeStyle: 'short' }).format(
+    date,
+  );
+}
+
+function formatDay(value: string, locale: Locale): string {
+  const date = new Date(value);
+  if (!Number.isFinite(date.getTime())) return '';
+  const sameDay = new Date().toDateString() === date.toDateString();
+  return new Intl.DateTimeFormat(
+    LOCALE_META[locale].dateLocale,
+    sameDay ? { month: 'numeric', day: 'numeric', year: 'numeric' } : { dateStyle: 'medium' },
+  ).format(date);
 }
 
 function formatWhen(value: string, locale: Locale): string {
@@ -445,6 +600,12 @@ function formatWhen(value: string, locale: Locale): string {
     LOCALE_META[locale].dateLocale,
     sameDay ? { timeStyle: 'short' } : { dateStyle: 'medium', timeStyle: 'short' },
   ).format(date);
+}
+
+function dayKey(value: string): string {
+  const date = new Date(value);
+  if (!Number.isFinite(date.getTime())) return '';
+  return `${date.getFullYear()}-${date.getMonth()}-${date.getDate()}`;
 }
 
 // ── /inbox/reports — admin DM report queue ──────────────────────────────────

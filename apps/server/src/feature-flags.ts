@@ -62,6 +62,12 @@ export function banqiEnabled(): boolean {
   return process.env.MISTBOARD_BANQI_ENABLED === 'true';
 }
 
+// Luzhanqi / Junqi live rooms. Server-side opt-in, default off. PvP-only while
+// the formation editor and postgame reveal surfaces land.
+export function luzhanqiEnabled(): boolean {
+  return process.env.MISTBOARD_LUZHANQI_ENABLED === 'true';
+}
+
 // Reveal Chess (standard 8x8 chess with hidden piece identities) live rooms.
 // Server-side opt-in, default off — the tenant exists but is not launched.
 // PvP-only (no engine/bot at first).

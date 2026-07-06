@@ -11,7 +11,7 @@ import {
   renderHomePuzzleWidget,
 } from './home-puzzle-widget.js';
 import { t } from './i18n/catalog.js';
-import { currentLocale, type Locale } from './i18n/locale.js';
+import { currentLocale, type Locale, localizedHref } from './i18n/locale.js';
 import { buildLandingActivity } from './landing-activity.js';
 import { buildLandingAnnouncements } from './landing-announcements.js';
 import { buildLandingChat } from './landing-chat.js';
@@ -622,15 +622,18 @@ function buildLandingStage(
   const section = document.createElement('section');
   section.className = 'landing-demo';
 
-  // ── News column (grid-area: news, top-left): the announcements feed plus the page's
-  // single (small) h1 tagline. The h1 stays body-sized so the homepage keeps a real
-  // heading for search + screen readers without a marketing hero. ──
+  // ── News column (grid-area: news, top-left): the page's single (small) h1
+  // tagline, linked to the about page. The full announcement feed sits in the
+  // lower lila-style paired band with Forum. ──
   const newsColumn = document.createElement('div');
   newsColumn.className = 'landing-news-column';
   const about = document.createElement('h1');
   about.className = 'landing-about';
-  about.textContent = t('home.tagline', {}, locale);
-  newsColumn.append(buildLandingAnnouncements(locale), about);
+  const aboutLink = document.createElement('a');
+  aboutLink.href = localizedHref('/about', locale);
+  aboutLink.textContent = t('home.tagline', {}, locale);
+  about.append(aboutLink);
+  newsColumn.append(about);
 
   // ── Left viewer column (grid-area: viewer, row 2): the cycling showcase board,
   // top-aligned with the article row across the gutter (beneath the news column). The
@@ -677,12 +680,13 @@ function buildLandingStage(
   // cards — the second half of the feed block the boards bottom-align to.
   centerBelow.append(buildHomeSupportRow(locale));
 
-  // ── Lower strip (grid-area: lower): the forum preview + lobby chat, full width
-  // below the three-column band. Moved out of the feed so the feed reads as a
-  // clean articles + support block. Chat is an empty mount that only paints once
-  // the API confirms the chat flag is on (a flag-off deploy adds no footprint). ──
+  // ── Lower strip (grid-area: lower): lila-style paired columns, News feed on the
+  // left and active Forum topics in the tournament-widget slot on the right. Chat
+  // remains an empty mount below them and only paints once the API confirms the
+  // chat flag is on (a flag-off deploy adds no footprint). ──
   const lowerStrip = document.createElement('div');
   lowerStrip.className = 'landing-lower-strip';
+  lowerStrip.append(buildLandingAnnouncements(locale));
   lowerStrip.append(buildLandingForumPreview({ hydrate: !opts.skipLiveWidgets }));
   lowerStrip.append(buildLandingChat({ hydrate: !opts.skipLiveWidgets }));
 

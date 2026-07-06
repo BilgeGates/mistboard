@@ -166,7 +166,7 @@ function profileSideLabel(game: FeaturedGame, locale: Locale): string {
   return t('setup.white', {}, locale);
 }
 
-function profileGameSpecLabel(game: FeaturedGame, locale: Locale): string {
+export function profileGameSpecLabel(game: FeaturedGame, locale: Locale): string {
   // Legacy/alias variant strings the canonical spec map doesn't resolve, plus the
   // 'Dark Chess' casing this pill uses (the dark-chess spec publicName is the
   // lowercase 'Dark chess'). Everything else derives from the canonical spec so a
@@ -183,7 +183,7 @@ function profileResultLabel(game: FeaturedGame, locale: Locale): string {
   return t('result.draw', {}, locale);
 }
 
-function profileResultTone(game: FeaturedGame): 'win' | 'loss' | 'draw' {
+export function profileResultTone(game: FeaturedGame): 'win' | 'loss' | 'draw' {
   if (game.result === 'draw') return 'draw';
   if (game.playerColor === 'red') return game.result === 'red-wins' ? 'win' : 'loss';
   if (game.playerColor === 'black') return game.result === 'black-wins' ? 'win' : 'loss';

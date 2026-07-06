@@ -4,6 +4,7 @@ import type { GameMode, GameTermination, GameVisibility } from './persistence-ga
 import type { GameParticipantColor, GameResult, ProfileGameRecord } from './persistence-games.js';
 import { attachGameParticipants } from './persistence-games.js';
 import {
+  bucketForGame,
   PUBLIC_RATING_TIME_CLASS,
   type RatingTimeClass,
   type RatingVariant,
@@ -11,11 +12,17 @@ import {
 
 export type AccountRole = 'player' | 'admin';
 export type AccountLocale = 'en' | 'zh-Hans' | 'zh-Hant' | 'ja';
+export type ProfileVisibility = 'private' | 'unlisted' | 'public';
 
 export const ACCOUNT_LOCALES: readonly AccountLocale[] = ['en', 'zh-Hans', 'zh-Hant', 'ja'];
+export const PROFILE_VISIBILITIES: readonly ProfileVisibility[] = ['private', 'unlisted', 'public'];
 
 export function isAccountLocale(value: unknown): value is AccountLocale {
   return typeof value === 'string' && ACCOUNT_LOCALES.includes(value as AccountLocale);
+}
+
+export function isProfileVisibility(value: unknown): value is ProfileVisibility {
+  return typeof value === 'string' && PROFILE_VISIBILITIES.includes(value as ProfileVisibility);
 }
 
 // Who may START a conversation with this user (#93). Replies to an existing
@@ -37,7 +44,7 @@ export type UserAccount = {
   handleChangedAt: Date | null;
   displayName: string;
   displayNameChangedAt: Date | null;
-  profileVisibility: 'private' | 'unlisted' | 'public';
+  profileVisibility: ProfileVisibility;
   accountRole: AccountRole;
   locale: AccountLocale | null;
   dmPolicy: DmPolicy;
@@ -123,6 +130,19 @@ export type UserProfile = {
   // Total completed games visible to the viewer, so the client can show an
   // accurate count and decide whether to offer "Load more".
   gamesTotal: number;
+};
+
+export type ProfileRatingHistoryPoint = {
+  roomId: string;
+  endedAt: Date;
+  ratingBefore: number;
+  ratingAfter: number;
+};
+
+export type ProfileRatingHistory = {
+  variant: RatingVariant;
+  timeClass: RatingTimeClass;
+  points: ProfileRatingHistoryPoint[];
 };
 
 export async function createEmailLoginChallenge(challenge: EmailLoginChallenge): Promise<void> {
@@ -336,6 +356,22 @@ export async function updateUserLocale(
      WHERE id = $1
      RETURNING ${USER_COLUMNS}`,
     [userId, locale, at],
+  );
+  return rows[0] ? userFromRow(rows[0]) : null;
+}
+
+export async function updateUserProfileVisibility(
+  userId: string,
+  profileVisibility: ProfileVisibility,
+  at: Date,
+): Promise<UserAccount | null> {
+  const { rows } = await getPool().query<UserRow>(
+    `UPDATE users
+     SET profile_visibility = $2,
+         updated_at = $3
+     WHERE id = $1
+     RETURNING ${USER_COLUMNS}`,
+    [userId, profileVisibility, at],
   );
   return rows[0] ? userFromRow(rows[0]) : null;
 }
@@ -661,6 +697,65 @@ export async function getUserGamesPage(
   const boundedLimit = Math.max(1, Math.min(limit, 50));
   const boundedOffset = Math.max(0, offset);
   return queryUserGames(user.id, isViewer, boundedOffset, boundedLimit);
+}
+
+export async function getUserRatingHistory(
+  handle: string,
+  viewerUserId: string | null,
+  variant: RatingVariant,
+): Promise<ProfileRatingHistory | null> {
+  const user = await loadProfileUser(handle);
+  if (!user) return null;
+  const isViewer = viewerUserId === user.id;
+  if (user.profileVisibility === 'private' && !isViewer) return null;
+
+  const { rows } = await getPool().query<{
+    room_id: string;
+    variant: string;
+    hidden_draft960: boolean | null;
+    initial_ms: number | null;
+    increment_ms: number | null;
+    ended_at: Date;
+    elo_before: number;
+    elo_after: number;
+  }>(
+    `SELECT games.room_id, games.variant, games.hidden_draft960,
+            games.initial_ms, games.increment_ms, games.ended_at,
+            game_participants.elo_before, game_participants.elo_after
+     FROM game_participants
+     JOIN games ON games.room_id = game_participants.game_id
+     WHERE game_participants.subject_type = 'user'
+       AND game_participants.subject_id = $1
+       AND games.status = 'completed'
+       AND games.mode = 'pvp'
+       AND COALESCE(games.rated, false) = true
+       AND game_participants.elo_before IS NOT NULL
+       AND game_participants.elo_after IS NOT NULL
+       ${profileVisibilityClause(isViewer)}
+     ORDER BY games.ended_at ASC, games.room_id ASC`,
+    [user.id],
+  );
+
+  const points = rows
+    .filter((row) => {
+      const bucket = bucketForGame({
+        variant: row.variant,
+        initialMs: row.initial_ms,
+        incrementMs: row.increment_ms,
+        hiddenDraft960: row.hidden_draft960,
+      });
+      return bucket?.variant === variant && bucket.timeClass === PUBLIC_RATING_TIME_CLASS;
+    })
+    .map(
+      (row): ProfileRatingHistoryPoint => ({
+        roomId: row.room_id,
+        endedAt: row.ended_at,
+        ratingBefore: row.elo_before,
+        ratingAfter: row.elo_after,
+      }),
+    );
+
+  return { variant, timeClass: PUBLIC_RATING_TIME_CLASS, points };
 }
 
 export async function getLeaderboard(query: LeaderboardQuery): Promise<LeaderboardEntry[]> {

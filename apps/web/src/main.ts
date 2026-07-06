@@ -90,7 +90,10 @@ const wantsFaq = path === '/faq' || page === 'faq';
 const wantsTerms = path === '/terms' || page === 'terms';
 const wantsPrivacy = path === '/privacy' || page === 'privacy';
 const wantsAccount = path === '/account' || page === 'account';
-const wantsAccountSettings = path === '/account/settings' || page === 'account-settings';
+const wantsAccountSettings =
+  path === '/account/settings' ||
+  path.startsWith('/account/settings/') ||
+  page === 'account-settings';
 // /inbox (thread list) and /inbox/:handle (open conversation). Signed-in-only
 // surface; the page itself renders a sign-in prompt for anonymous visitors.
 // /inbox/reports is the admin report queue and wins over the :handle pattern
@@ -164,6 +167,9 @@ const wantsVariantMarksLab = import.meta.env.DEV && path === '/variant-marks';
 const wantsSoundLab = import.meta.env.DEV && path === '/sound-lab';
 // Hidden DEV-only variant sheet: every variant's opening in the showcase widget.
 const wantsShowcaseSheet = import.meta.env.DEV && path === '/showcase-sheet';
+// Hidden DEV-only Luzhanqi board preview. No nav entry while the live client is
+// still under construction.
+const wantsLuzhanqiPreview = import.meta.env.DEV && path === '/luzhanqi-preview';
 // Hidden DEV-only postgame sheet: every native review page with a watch-feed sample.
 const wantsPostgameSheet = import.meta.env.DEV && path === '/postgame-sheet';
 // Hidden DEV-only Fog-of-War game deep-dive reader (replay triptych + prose
@@ -326,6 +332,13 @@ if (replaySample) {
   setTitle('Showcase sheet');
   void mountOrReport(() =>
     import('./showcase-sheet.js').then(({ mountShowcaseSheet }) => mountShowcaseSheet(appRoot)),
+  );
+} else if (wantsLuzhanqiPreview) {
+  setTitle('Luzhanqi preview');
+  void mountOrReport(() =>
+    import('./luzhanqi-preview.js').then(({ mountLuzhanqiPreview }) =>
+      mountLuzhanqiPreview(appRoot),
+    ),
   );
 } else if (wantsPostgameSheet) {
   setTitle('Postgame sheet');

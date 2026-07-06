@@ -103,6 +103,190 @@ describe('profile ratings rail', () => {
     expect(row.textContent).toContain('12 手');
   });
 
+  it('mounts the profile dashboard with activity and games tabs', async () => {
+    vi.stubEnv('DEV', false);
+    vi.stubEnv('VITE_DARK_MINI_XIANGQI_ENABLED', 'true');
+    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockImplementation(async (input) => {
+      const url = String(input);
+      if (url.includes('/rating-history')) {
+        return new Response(
+          JSON.stringify({
+            history: {
+              variant: 'jungle_flip',
+              timeClass: 'blitz',
+              points: [
+                {
+                  roomId: 'jgf-profile-1',
+                  endedAt: '2026-07-05T07:17:00.000Z',
+                  ratingBefore: 1648,
+                  ratingAfter: 1662,
+                },
+                {
+                  roomId: 'jgf-profile-2',
+                  endedAt: '2026-07-05T07:18:00.000Z',
+                  ratingBefore: 1662,
+                  ratingAfter: 1655,
+                },
+              ],
+            },
+          }),
+          { headers: { 'content-type': 'application/json' }, status: 200 },
+        );
+      }
+      return new Response(
+        JSON.stringify({
+          profile: {
+            isViewer: true,
+            relation: null,
+            user: {
+              handle: 'dev-testing',
+              displayName: 'dev-testing',
+              profileVisibility: 'public',
+              accountRole: 'player',
+              patronSince: null,
+              createdAt: '2026-05-01T00:00:00.000Z',
+            },
+            ratings: [
+              {
+                variant: 'jungle_flip',
+                timeClass: 'blitz',
+                eloRating: 1662,
+                ratedGamesPlayed: 4,
+                totalGamesPlayed: 7,
+                provisional: false,
+              },
+            ],
+            games: [
+              {
+                roomId: 'jgf-profile-1',
+                variant: 'jungle-flip',
+                mode: 'pve',
+                rated: false,
+                result: 'draw',
+                termination: 'agreement',
+                plyCount: 21,
+                whiteName: null,
+                blackName: null,
+                corpusId: null,
+                endedAt: '2026-07-05T07:17:00.000Z',
+                participants: [
+                  {
+                    color: 'red',
+                    displayName: 'MistyJungleFlip',
+                    subjectType: 'engine-version',
+                    subjectId: 'container-jungle-flip-v1',
+                    visibility: 'public',
+                  },
+                  {
+                    color: 'black',
+                    displayName: 'dev-testing',
+                    subjectType: 'user',
+                    subjectId: 'u_dev',
+                    visibility: 'public',
+                  },
+                ],
+                playerColor: 'black',
+              },
+              {
+                roomId: 'jgf-profile-2',
+                variant: 'jungle-flip',
+                mode: 'pve',
+                rated: false,
+                result: 'red-wins',
+                termination: 'resignation',
+                plyCount: 32,
+                whiteName: null,
+                blackName: null,
+                corpusId: null,
+                endedAt: '2026-07-05T07:16:00.000Z',
+                participants: [
+                  {
+                    color: 'red',
+                    displayName: 'MistyJungleFlip',
+                    subjectType: 'engine-version',
+                    subjectId: 'container-jungle-flip-v1',
+                    visibility: 'public',
+                  },
+                  {
+                    color: 'black',
+                    displayName: 'dev-testing',
+                    subjectType: 'user',
+                    subjectId: 'u_dev',
+                    visibility: 'public',
+                  },
+                ],
+                playerColor: 'black',
+              },
+            ],
+            gamesTotal: 2,
+          },
+        }),
+        { headers: { 'content-type': 'application/json' }, status: 200 },
+      );
+    });
+    const root = document.createElement('div');
+    const { mountProfile } = await import('./profile.js');
+
+    await mountProfile(root, 'dev-testing');
+
+    expect(fetchSpy).toHaveBeenCalledWith('/api/users/dev-testing/profile');
+    expect(fetchSpy).toHaveBeenCalledWith(
+      '/api/users/dev-testing/rating-history?variant=jungle_flip',
+    );
+    await vi.waitFor(() => {
+      expect(root.querySelector('.profile-rating-chart-line')).not.toBeNull();
+    });
+    expect(root.querySelector('.profile-rating-chart-empty')).toBeNull();
+    expect(root.querySelector('.profile-rating-spotlight')?.textContent).toContain('1662');
+    expect(root.querySelector('.profile-header')?.textContent).toContain('@dev-testing');
+    expect(root.querySelector('.profile-info-card')).toBeNull();
+    expect(root.querySelector('.profile-rating-row-selected')?.textContent).toContain(
+      'Flip Jungle',
+    );
+    expect(root.querySelector('.profile-activity-summary-row')?.textContent).toContain(
+      'Played 2 Flip Jungle games',
+    );
+    expect(root.querySelector('.profile-activity-summary-row')?.textContent).toContain('1 draw');
+    expect(root.querySelector('.profile-activity-summary-row')?.textContent).toContain('1 loss');
+
+    const tabs = [...root.querySelectorAll<HTMLButtonElement>('.profile-tab')];
+    expect(tabs.map((tab) => tab.textContent)).toEqual(['Activity', 'Games']);
+    expect(tabs[0]?.getAttribute('aria-selected')).toBe('true');
+    tabs[1]?.click();
+    expect(tabs[1]?.getAttribute('aria-selected')).toBe('true');
+    expect(root.querySelector<HTMLElement>('.profile-activity-panel')?.hidden).toBe(true);
+    expect(root.querySelector<HTMLElement>('.profile-games')?.hidden).toBe(false);
+  });
+
+  it('distinguishes unavailable profile data from a missing profile', async () => {
+    vi.stubEnv('DEV', false);
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      new Response(JSON.stringify({ error: 'persistence_disabled' }), { status: 503 }),
+    );
+    const root = document.createElement('div');
+    const { mountProfile } = await import('./profile.js');
+
+    await mountProfile(root, 'dev-testing');
+
+    expect(root.textContent).toContain('Profile unavailable');
+    expect(root.textContent).toContain('This profile could not be loaded right now.');
+    expect(root.textContent).not.toContain('Profile not found');
+  });
+
+  it('keeps the not-found state for private or missing profiles', async () => {
+    vi.stubEnv('DEV', false);
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      new Response(JSON.stringify({ error: 'not_found' }), { status: 404 }),
+    );
+    const root = document.createElement('div');
+    const { mountProfile } = await import('./profile.js');
+
+    await mountProfile(root, 'missing');
+
+    expect(root.textContent).toContain('Profile not found');
+    expect(root.textContent).toContain('This profile is private or does not exist.');
+  });
+
   // Summary + online-players fetch stub for the leaderboard page. Ladders are
   // keyed by rating-pool name (the summary endpoint's vocabulary).
   function stubLeaderboardFetch(options?: {

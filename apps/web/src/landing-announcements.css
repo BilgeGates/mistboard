@@ -1,17 +1,141 @@
-/* The rail's News box lives in the shared site-box shell; this wrapper only
-   places it in the landing grid. */
+/* Lila-style lower News feed: a boxed vertical timeline with compact narrative
+   entries. */
 .landing-announcements {
-  grid-area: announcements;
-  display: flex;
-  flex-direction: column;
-  align-self: stretch;
-  gap: 12px;
+  --landing-feed-accent: #d69b3a;
+  --landing-feed-content-x: 86px;
+  --landing-feed-line-half: 1px;
+  --landing-feed-line-width: 2px;
+  --landing-feed-marker-half: 17px;
+  --landing-feed-marker-size: 34px;
+  --landing-feed-rail-x: 44px;
+
+  box-sizing: border-box;
+  height: var(--landing-lower-widget-height, 20em);
+  padding: 18px 22px 18px 0;
+  border: 1px solid var(--site-border-soft);
+  border-radius: var(--site-radius);
+  background: var(--site-panel);
+  overflow: hidden auto;
+  min-width: 0;
+  scrollbar-color: transparent transparent;
+  scrollbar-width: thin;
+}
+
+.landing-announcements:hover {
+  scrollbar-color: color-mix(in srgb, var(--site-muted) 46%, transparent) transparent;
+}
+
+.landing-announcements::-webkit-scrollbar {
+  width: 10px;
+}
+
+.landing-announcements::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.landing-announcements::-webkit-scrollbar-thumb {
+  border: 3px solid transparent;
+  border-radius: 999px;
+  background-clip: content-box;
+  background-color: transparent;
+}
+
+.landing-announcements:hover::-webkit-scrollbar-thumb {
+  background-color: color-mix(in srgb, var(--site-muted) 46%, transparent);
+}
+
+.landing-news-updates {
+  position: relative;
+  margin-inline-start: 0;
+}
+
+.landing-news-updates::before {
+  position: absolute;
+  top: var(--landing-feed-marker-half);
+  bottom: 0;
+  left: calc(var(--landing-feed-rail-x) - var(--landing-feed-line-half));
+  width: var(--landing-feed-line-width);
+  background: var(--landing-feed-accent);
+  content: "";
+}
+
+.landing-news-update {
+  display: grid;
+  grid-template-columns: var(--landing-feed-content-x) minmax(0, 1fr);
+  column-gap: 0;
+  padding-inline-start: 0;
+  margin-top: 24px;
+}
+
+.landing-news-update:first-child {
+  margin-top: 0;
+}
+
+.landing-news-marker {
+  position: relative;
+  z-index: 1;
+  box-sizing: border-box;
+  grid-column: 1;
+  justify-self: start;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--landing-feed-marker-size);
+  height: var(--landing-feed-marker-size);
+  margin-top: -3px;
+  margin-inline-start: calc(var(--landing-feed-rail-x) - var(--landing-feed-marker-half));
+  border: 3px solid var(--landing-feed-accent);
+  border-radius: 50%;
+  background: var(--site-panel);
+  color: var(--landing-feed-accent);
+  font-size: 13px;
+  font-weight: 800;
+  line-height: 1;
+}
+
+.landing-news-marker-empty {
+  border: 3px solid var(--landing-feed-accent);
+  background: var(--site-panel);
+  color: transparent;
+}
+
+.landing-news-content {
+  grid-column: 2;
   min-width: 0;
 }
 
-.landing-news-row {
-  display: grid;
-  grid-template-columns: 48px minmax(0, 1fr);
-  column-gap: 10px;
-  align-items: baseline;
+.landing-news-date {
+  display: inline;
+  color: var(--landing-feed-accent);
+  font-size: 14px;
+  font-weight: 800;
+  line-height: 1.25;
+  text-decoration: none;
+}
+
+.landing-news-body {
+  margin: 7px 0 0;
+  color: var(--site-text);
+  font-size: 14px;
+  line-height: 1.45;
+}
+
+.landing-news-link {
+  display: inline;
+  margin-top: 0;
+  color: var(--site-link);
+  font-size: inherit;
+  text-decoration: none;
+}
+
+.landing-news-link:hover,
+.landing-news-link:focus-visible,
+.landing-news-all-link:hover,
+.landing-news-all-link:focus-visible {
+  text-decoration: underline;
+  outline: none;
+}
+
+.landing-news-update-all {
+  margin-top: 18px;
 }

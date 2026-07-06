@@ -51,14 +51,25 @@
   grid-area: left;
 }
 
-/* The homepage's single h1, styled as a quiet one-line "about" caption below
-   the announcements rather than a marketing hero (small, body-weight, muted). */
+/* The homepage's single h1, styled as a quiet one-line about link rather than a
+   marketing hero (small, body-weight, muted). */
 .landing-about {
-  margin: 14px 0 0;
+  margin: 0;
   font-size: 13px;
   font-weight: 400;
   line-height: 1.4;
+}
+
+.landing-about a {
   color: var(--site-muted);
+  text-decoration: none;
+}
+
+.landing-about a:hover,
+.landing-about a:focus-visible {
+  color: var(--site-link);
+  text-decoration: underline;
+  outline: none;
 }
 
 .home-puzzle-widget {
@@ -238,14 +249,22 @@
   white-space: nowrap;
 }
 
-/* Lower strip: forum preview + lobby chat, full width beneath the three-column
-   band (moved out of the feed so the feed stays a tight, board-height block). */
+/* Lower strip: lila-style News + Forum pair, full width beneath the
+   three-column band. Chat spans this pair only when it actually renders. */
 .landing-lower-strip {
+  --landing-lower-widget-height: 25em;
+
   grid-area: lower;
-  display: flex;
-  flex-direction: column;
-  gap: clamp(14px, 1.8vw, 24px);
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  align-items: stretch;
+  gap: clamp(10px, 1.4vw, 16px);
+  width: 100%;
   min-width: 0;
+}
+
+.landing-lower-strip .landing-chat-mount:not(:empty) {
+  grid-column: 1 / -1;
   max-width: 900px;
 }
 
@@ -286,7 +305,7 @@
   grid-area: play;
   display: flex;
   flex-direction: column;
-  justify-content: center;
+  justify-content: stretch;
   align-self: stretch;
   gap: clamp(12px, 1.6vw, 18px);
   min-width: 0;
@@ -1352,27 +1371,40 @@
     align-items: stretch;
   }
 
+  .landing-lower-strip {
+    grid-template-columns: 1fr;
+  }
+
   .landing-board-column {
     margin-inline: auto;
   }
 
   .landing-play-stack {
+    display: flex;
+    flex: 0 1 auto;
+    flex-direction: column;
+    min-height: 0;
     width: 100%;
     max-width: 680px;
     margin-inline: auto;
   }
 
   .landing-play-action {
-    grid-template-columns: 42px minmax(0, 1fr);
-    gap: 22px;
-    min-height: 72px;
-    padding: 13px 22px;
-    font-size: clamp(19px, 3.2vw, 22px);
+    grid-template-columns: 34px minmax(0, 1fr);
+    gap: 18px;
+    min-height: 66px;
+    padding: 12px 18px;
+    font-size: clamp(17px, 3vw, 20px);
+  }
+
+  .landing-play-panel,
+  .landing-activity {
+    align-self: stretch;
   }
 
   .landing-play-icon {
-    width: 40px;
-    height: 40px;
+    width: 34px;
+    height: 34px;
   }
 
   .landing-viewer-column,
@@ -1404,16 +1436,16 @@
   }
 
   .landing-play-action {
-    grid-template-columns: 36px minmax(0, 1fr);
-    gap: 18px;
-    min-height: 66px;
-    padding: 12px 18px;
-    font-size: clamp(18px, 5.2vw, 21px);
+    grid-template-columns: 32px minmax(0, 1fr);
+    gap: 16px;
+    min-height: 62px;
+    padding: 11px 16px;
+    font-size: clamp(16px, 5vw, 19px);
   }
 
   .landing-play-icon {
-    width: 36px;
-    height: 36px;
+    width: 32px;
+    height: 32px;
   }
 
   .landing-setup-dialog {

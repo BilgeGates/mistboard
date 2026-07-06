@@ -36,6 +36,24 @@ export async function tryHandle(
       return true;
     }
 
+    if ('profileVisibility' in body) {
+      if (!persistence.isProfileVisibility(body.profileVisibility)) {
+        writeJson(response, 400, { error: 'invalid_profile_visibility' });
+        return true;
+      }
+      const updated = await persistence.updateUserProfileVisibility(
+        user.id,
+        body.profileVisibility,
+        new Date(),
+      );
+      if (!updated) {
+        writeJson(response, 404, { error: 'user_not_found' });
+        return true;
+      }
+      writeJson(response, 200, { user: publicUser(updated) });
+      return true;
+    }
+
     const locale = body.locale;
     if (locale !== null && !persistence.isAccountLocale(locale)) {
       writeJson(response, 400, { error: 'invalid_locale' });

@@ -240,7 +240,8 @@ export function createTenantRuntimeRoomFromEvents<
       forfeitTimer: null,
       forfeitDeadline: null,
       forfeitSeat: null,
-      gameEndRecorded: projection.state.status.type !== 'playing',
+      gameEndRecorded:
+        projection.state.status.type === 'finished' || projection.state.status.type === 'aborted',
       pendingWrites: Promise.resolve(),
       seatTokens: {},
       rematch: { offers: {} },
@@ -325,8 +326,17 @@ export function applyTenantEvent<
     delete seats[event.seat];
     return { ...projection, seats };
   }
+  if (event.type === 'setup-submitted') {
+    if (status.type !== 'setup' || !tenant.setupSubmission) return projection;
+    if (!tenant.setupSubmission.isSetup(event.setup)) return projection;
+    return {
+      ...projection,
+      state: tenant.setupSubmission.applySetup(projection.state, event.color, event.setup),
+    };
+  }
   if (event.type === 'clock-started') {
-    if (status.type !== 'playing' || projection.clock) return projection;
+    if (status.type === 'finished' || status.type === 'aborted' || projection.clock)
+      return projection;
     return { ...projection, clock: event.clock };
   }
   if (event.type === 'move-played') {
@@ -584,6 +594,13 @@ export function isTenantEvent<
       tenant.wire?.acceptsSeatVacated === true &&
       typeof event.clientId === 'string' &&
       tenant.rules.isColor(event.seat)
+    );
+  }
+  if (event.type === 'setup-submitted') {
+    return (
+      tenant.setupSubmission !== undefined &&
+      tenant.rules.isColor(event.color) &&
+      tenant.setupSubmission.isSetup(event.setup)
     );
   }
   if (event.type === 'clock-started') {
