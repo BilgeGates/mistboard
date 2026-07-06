@@ -25,9 +25,10 @@
   <rect x="534" y="534" width="374" height="374" rx="46" fill="url(#dark-square)"/>
 
   <g clip-path="url(#fog-square)">
-    <circle cx="636" cy="902" r="96" fill="#fffdfa"/>
-    <circle cx="736" cy="820" r="96" fill="#fffdfa"/>
-    <circle cx="858" cy="774" r="134" fill="#fffdfa"/>
-    <rect x="550" y="852" width="370" height="110" fill="#fffdfa"/>
+    <rect x="534" y="778" width="374" height="130" fill="#fffdfa"/>
+    <circle cx="590" cy="784" r="62" fill="#fffdfa"/>
+    <circle cx="680" cy="752" r="80" fill="#fffdfa"/>
+    <circle cx="776" cy="766" r="70" fill="#fffdfa"/>
+    <circle cx="858" cy="786" r="56" fill="#fffdfa"/>
   </g>
 </svg>
