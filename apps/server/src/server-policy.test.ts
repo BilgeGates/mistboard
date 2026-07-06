@@ -358,6 +358,19 @@ test('isClientRoute matches parametric SPA routes', () => {
   assert.equal(isClientRoute('/forum/redirect/post/post_123'), true);
   assert.equal(isClientRoute('/zh-hans/rules/dark-chess'), true);
   assert.equal(isClientRoute('/zh-hant/rules/dark-chess'), true);
+  assert.equal(isClientRoute('/engine/random-engine'), true); // admin engine-profile page
+});
+
+test('isClientRoute lets vendored ceval engine assets fall through to static', () => {
+  // /engine/:id is the admin engine-profile SPA page, but /engine/fairy-stockfish/*
+  // are real vendored files. They MUST NOT be rewritten to index.html, or the local
+  // analysis engine (ceval) loads HTML as a script and dies with "engine global
+  // missing after script load" (prod regression 2026-07-05: `startsWith('/engine/')`
+  // swallowed the asset subtree).
+  assert.equal(isClientRoute('/engine/fairy-stockfish/stockfish.js'), false);
+  assert.equal(isClientRoute('/engine/fairy-stockfish/stockfish.wasm'), false);
+  assert.equal(isClientRoute('/engine/fairy-stockfish/stockfish.worker.js'), false);
+  assert.equal(isClientRoute('/engine/fairy-stockfish/fortress-xiangqi.ini'), false);
 });
 
 test('isReviewShellRoute matches postgame review documents (COOP/COEP scope)', () => {

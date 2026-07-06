@@ -137,7 +137,10 @@ export function isClientRoute(pathname: string): boolean {
     normalized.startsWith('/kriegspiel/game/') ||
     normalized.startsWith('/fortress-xiangqi/game/') ||
     normalized.startsWith('/game/') ||
-    normalized.startsWith('/engine/') ||
+    // /engine/:id is the admin engine-profile SPA page (single segment). Deeper
+    // paths like /engine/fairy-stockfish/stockfish.js are vendored ceval assets
+    // and MUST fall through to the static handler, not the index.html rewrite.
+    /^\/engine\/[^/]+$/.test(normalized) ||
     normalized.startsWith('/bot/') ||
     normalized.startsWith('/@/') ||
     normalized.startsWith('/room/')
