@@ -18,7 +18,7 @@ describe('landing announcements', () => {
     vi.stubEnv('VITE_KRIEGSPIEL_ENABLED', 'false');
 
     const panel = buildLandingAnnouncements();
-    const hrefs = [...panel.querySelectorAll<HTMLAnchorElement>('a.landing-news-row')].map((row) =>
+    const hrefs = [...panel.querySelectorAll<HTMLAnchorElement>('a.landing-news-link')].map((row) =>
       row.getAttribute('href'),
     );
 
@@ -31,8 +31,6 @@ describe('landing announcements', () => {
       '/rules/fortress-xiangqi',
       '/rules/jungle',
       '/rules/jungle-flip',
-      '/rules/dark-shogi',
-      '/rules/dark-xiangqi',
     ]);
   });
 
@@ -41,7 +39,7 @@ describe('landing announcements', () => {
 
     const panel = buildLandingAnnouncements();
     const hrefs = new Set(
-      [...panel.querySelectorAll<HTMLAnchorElement>('a.landing-news-row')].map((row) =>
+      [...panel.querySelectorAll<HTMLAnchorElement>('a.landing-news-link')].map((row) =>
         row.getAttribute('href'),
       ),
     );
@@ -81,7 +79,7 @@ describe('landing announcements', () => {
     vi.stubEnv('DEV', false);
 
     const panel = buildLandingAnnouncements();
-    const row = [...panel.querySelectorAll<HTMLAnchorElement>('a.landing-news-row')].find((r) =>
+    const row = [...panel.querySelectorAll<HTMLAnchorElement>('a.landing-news-link')].find((r) =>
       r.textContent?.includes('Drop Mini Xiangqi'),
     );
 
@@ -96,23 +94,23 @@ describe('landing announcements', () => {
     expect(hrefs).toContain('/?play=computer');
   });
 
-  it('links the News box header to /feed', () => {
-    const top = buildLandingAnnouncements().querySelector<HTMLAnchorElement>('a.site-box-top');
-    expect(top?.getAttribute('href')).toBe('/feed');
+  it('links the feed tail to /feed', () => {
+    const more =
+      buildLandingAnnouncements().querySelector<HTMLAnchorElement>('a.landing-news-all-link');
+    expect(more?.getAttribute('href')).toBe('/feed');
   });
 
   it('localizes the News rail and feed chrome', () => {
     vi.stubEnv('DEV', false);
 
     const landing = buildLandingAnnouncements('zh-Hant');
-    const top = landing.querySelector<HTMLAnchorElement>('a.site-box-top');
-    const firstRow = landing.querySelector<HTMLAnchorElement>('a.landing-news-row');
+    const firstRow = landing.querySelector<HTMLAnchorElement>('a.landing-news-link');
+    const more = landing.querySelector<HTMLAnchorElement>('a.landing-news-all-link');
     const news = buildNewsPage('zh-Hant');
 
     expect(landing.getAttribute('aria-label')).toBe('新聞');
-    expect(top?.querySelector('.site-box-title')?.textContent).toBe('新聞');
-    expect(top?.querySelector('.site-box-more')?.textContent).toBe('更多 »');
     expect(firstRow?.getAttribute('href')).toBe('/zh-hant/rules/xiangqi');
+    expect(more?.textContent).toBe('更多 »');
     expect(news.querySelector('.site-section-heading')?.textContent).toBe('Mistboard 更新');
     expect(news.querySelector('.news-page-intro')?.textContent).toBe(
       'Mistboard 的發布、狀態更新和公告。',

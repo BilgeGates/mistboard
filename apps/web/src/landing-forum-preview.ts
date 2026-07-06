@@ -6,24 +6,33 @@ type ForumAuthor = {
   displayName: string;
 } | null;
 
-type ForumLatestPost = {
-  post: {
-    id: string;
-    page: number;
-    snippet: string;
-  };
-  topic: {
-    id: string;
+type ForumTopicSummary = {
+  id: string;
+  slug: string;
+  title: string;
+  category: {
     slug: string;
-    title: string;
+    name: string;
   };
-  author: ForumAuthor;
-  createdAt: string;
+  latestPost: {
+    post: {
+      id: string;
+    };
+    author: ForumAuthor;
+    createdAt: string;
+  } | null;
+  postCount: number;
+  pinned: boolean;
+  locked: boolean;
+  lastPostAt: string;
 };
+
+const postPageSize = 25;
+const maxLandingForumTopics = 7;
 
 export function buildLandingForumPreview(options: { hydrate?: boolean } = {}): HTMLElement {
   const { box, body } = buildSiteBox({
-    title: 'Latest forum posts',
+    title: 'Active forum topics',
     href: '/forum',
     className: 'landing-forum',
   });
@@ -36,32 +45,46 @@ export function buildLandingForumPreview(options: { hydrate?: boolean } = {}): H
 
 async function hydrateForumPreview(body: HTMLElement): Promise<void> {
   try {
-    const posts = await fetchLatestPosts();
+    const topics = await fetchActiveTopics();
     body.replaceChildren();
-    if (posts.length === 0) {
-      body.append(plainRow('No forum posts yet.'));
+    if (topics.length === 0) {
+      body.append(plainRow('No forum topics yet.'));
       return;
     }
-    body.append(...posts.map(postRow));
+    body.append(...topics.map(topicRow));
   } catch {
     body.replaceChildren(plainRow('Forum unavailable.'));
   }
 }
 
-// One line per post (opening posts and replies alike), playstrategy-style: the
-// whole row is a single link to the post, showing topic, author, and the first
-// words of the text on one ellipsized line.
-function postRow(entry: ForumLatestPost): HTMLElement {
+function topicRow(topic: ForumTopicSummary): HTMLElement {
   const row = document.createElement('a');
-  row.className = 'site-box-row landing-forum-post';
-  row.href = postHref(entry);
-  row.append(
-    span('landing-forum-post-topic', entry.topic.title),
-    ' ',
-    span('landing-forum-post-author', entry.author?.displayName ?? 'Deleted account'),
-    ' ',
-    span('landing-forum-post-text', entry.post.snippet),
+  row.className = 'site-box-row landing-forum-topic';
+  row.href = topicActivityHref(topic);
+  if (topic.pinned) row.classList.add('is-pinned');
+  if (topic.locked) row.classList.add('is-locked');
+
+  const main = document.createElement('span');
+  main.className = 'landing-forum-topic-main';
+  main.append(
+    span('landing-forum-topic-title', topic.title),
+    span(
+      'landing-forum-topic-meta',
+      `${topic.category.name} · ${latestAuthorLabel(topic.latestPost?.author ?? null)}`,
+    ),
   );
+
+  const createdAt = topic.latestPost?.createdAt ?? topic.lastPostAt;
+  const activity = document.createElement('span');
+  activity.className = 'landing-forum-topic-activity';
+  activity.textContent = formatTimeAgo(createdAt);
+  activity.title = formatDateTime(createdAt);
+
+  const replies = Math.max(0, topic.postCount - 1);
+  const count = span('landing-forum-topic-count', String(replies));
+  count.title = `${replies} ${replies === 1 ? 'reply' : 'replies'}`;
+
+  row.append(main, activity, count);
   return row;
 }
 
@@ -82,19 +105,48 @@ function plainRow(text: string): HTMLElement {
   return row;
 }
 
-function postHref(entry: ForumLatestPost): string {
-  const topicHref = `/forum/t/${encodeURIComponent(entry.topic.id)}/${encodeURIComponent(
-    entry.topic.slug,
-  )}`;
-  const page = entry.post.page > 1 ? `?page=${entry.post.page}` : '';
-  return `${topicHref}${page}#post_${entry.post.id}`;
+function topicActivityHref(topic: ForumTopicSummary): string {
+  const topicHref = `/forum/t/${encodeURIComponent(topic.id)}/${encodeURIComponent(topic.slug)}`;
+  if (!topic.latestPost) return topicHref;
+  const page = pageForPostCount(topic.postCount);
+  return `${topicHref}${page > 1 ? `?page=${page}` : ''}#post_${topic.latestPost.post.id}`;
 }
 
-async function fetchLatestPosts(): Promise<ForumLatestPost[]> {
-  const resp = await fetch('/api/forum/latest-posts?limit=8', {
+function pageForPostCount(postCount: number): number {
+  return Math.max(1, Math.ceil(postCount / postPageSize));
+}
+
+function latestAuthorLabel(author: ForumAuthor): string {
+  return author?.displayName ? `by ${author.displayName}` : 'latest activity';
+}
+
+function formatTimeAgo(iso: string): string {
+  const ms = Date.now() - new Date(iso).getTime();
+  if (!Number.isFinite(ms)) return '';
+  const minutes = Math.max(0, Math.round(ms / 60_000));
+  if (minutes < 1) return 'now';
+  if (minutes < 60) return `${minutes}m`;
+  const hours = Math.round(minutes / 60);
+  if (hours < 24) return `${hours}h`;
+  const days = Math.round(hours / 24);
+  if (days < 30) return `${days}d`;
+  return new Date(iso).toLocaleDateString();
+}
+
+function formatDateTime(iso: string): string {
+  const date = new Date(iso);
+  if (Number.isNaN(date.getTime())) return iso;
+  return date.toLocaleString(undefined, {
+    dateStyle: 'medium',
+    timeStyle: 'short',
+  });
+}
+
+async function fetchActiveTopics(): Promise<ForumTopicSummary[]> {
+  const resp = await fetch(`/api/forum/topics?limit=${maxLandingForumTopics}`, {
     headers: { accept: 'application/json' },
   });
   if (!resp.ok) throw new Error(`forum_preview_failed_${resp.status}`);
-  const data = (await resp.json()) as { posts: ForumLatestPost[] };
-  return data.posts;
+  const data = (await resp.json()) as { topics: ForumTopicSummary[] };
+  return data.topics;
 }

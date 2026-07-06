@@ -51,14 +51,25 @@
   grid-area: left;
 }
 
-/* The homepage's single h1, styled as a quiet one-line "about" caption below
-   the announcements rather than a marketing hero (small, body-weight, muted). */
+/* The homepage's single h1, styled as a quiet one-line about link rather than a
+   marketing hero (small, body-weight, muted). */
 .landing-about {
-  margin: 14px 0 0;
+  margin: 0;
   font-size: 13px;
   font-weight: 400;
   line-height: 1.4;
+}
+
+.landing-about a {
   color: var(--site-muted);
+  text-decoration: none;
+}
+
+.landing-about a:hover,
+.landing-about a:focus-visible {
+  color: var(--site-link);
+  text-decoration: underline;
+  outline: none;
 }
 
 .home-puzzle-widget {
@@ -238,14 +249,22 @@
   white-space: nowrap;
 }
 
-/* Lower strip: forum preview + lobby chat, full width beneath the three-column
-   band (moved out of the feed so the feed stays a tight, board-height block). */
+/* Lower strip: lila-style News + Forum pair, full width beneath the
+   three-column band. Chat spans this pair only when it actually renders. */
 .landing-lower-strip {
+  --landing-lower-widget-height: 25em;
+
   grid-area: lower;
-  display: flex;
-  flex-direction: column;
-  gap: clamp(14px, 1.8vw, 24px);
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  align-items: stretch;
+  gap: clamp(10px, 1.4vw, 16px);
+  width: 100%;
   min-width: 0;
+}
+
+.landing-lower-strip .landing-chat-mount:not(:empty) {
+  grid-column: 1 / -1;
   max-width: 900px;
 }
 
@@ -1350,6 +1369,10 @@
 
   .landing-center-below {
     align-items: stretch;
+  }
+
+  .landing-lower-strip {
+    grid-template-columns: 1fr;
   }
 
   .landing-board-column {

@@ -1,29 +1,81 @@
-/* Playstrategy-style latest-posts widget: each post is one ellipsized line and
-   one link (topic title, author, first words of the text). Overrides the
-   shared .site-box-row flex so the spans flow inline and truncate together. */
-.landing-forum-post {
-  display: block;
+/* Tournament-slot forum widget: dense active-topic rows sized to sit beside the
+   lower News feed. */
+
+.landing-forum {
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  height: var(--landing-lower-widget-height, 20em);
+  min-height: 0;
+}
+
+.landing-forum .site-box-body {
+  flex: 1 1 auto;
+  min-height: 0;
   overflow: hidden;
-  color: var(--site-text);
+}
+
+.landing-forum-topic {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(72px, 0.32fr) 42px;
+  align-items: center;
+  gap: 12px;
+  min-height: 38px;
+  padding-block: 6px;
+  border-bottom: 1px solid var(--site-border-soft);
+}
+
+.landing-forum-topic:last-child {
+  border-bottom: 0;
+}
+
+.landing-forum-topic-main {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.landing-forum-topic-title,
+.landing-forum-topic-meta,
+.landing-forum-topic-activity,
+.landing-forum-topic-count {
+  overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.landing-forum-post-topic {
+.landing-forum-topic-title {
   color: var(--site-link);
+  font-size: 14px;
   font-weight: 600;
 }
 
-.landing-forum-post:hover .landing-forum-post-topic,
-.landing-forum-post:focus-visible .landing-forum-post-topic {
+.landing-forum-topic:hover .landing-forum-topic-title,
+.landing-forum-topic:focus-visible .landing-forum-topic-title {
   text-decoration: underline;
 }
 
-.landing-forum-post-author {
-  color: var(--site-heading);
-  font-weight: 700;
+.landing-forum-topic-meta {
+  color: var(--site-muted);
+  font-size: 12px;
 }
 
-.landing-forum-post-text {
+.landing-forum-topic-activity {
   color: var(--site-muted);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
+.landing-forum-topic-count {
+  color: var(--site-muted);
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
+.landing-forum-topic-count::before {
+  content: "#";
+  color: color-mix(in srgb, var(--site-muted) 70%, transparent);
+  padding-right: 2px;
 }
