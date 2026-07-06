@@ -313,6 +313,7 @@ function buildAbout(locale: Locale = currentLocale()): HTMLElement {
 function buildPlatformActivity(locale: Locale = currentLocale()): HTMLElement {
   const section = document.createElement('section');
   section.className = 'platform-activity';
+  section.id = 'platform-activity';
   section.setAttribute('aria-labelledby', 'platform-activity-heading');
 
   const heading = document.createElement('h2');
