@@ -12,10 +12,10 @@ import { setAccountNavUser } from './account-nav.js';
 import { identify, resetIdentity, track } from './analytics.js';
 import {
   DISPLAY_PREFERENCE_DEFINITIONS,
-  isBooleanDisplayPreference,
-  readDisplayPreferences,
   type DisplayPreferenceId,
   type DisplayPreferenceValue,
+  isBooleanDisplayPreference,
+  readDisplayPreferences,
   writeDisplayPreference,
 } from './display-preferences.js';
 import { t } from './i18n/catalog.js';
