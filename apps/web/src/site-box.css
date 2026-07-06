@@ -78,12 +78,42 @@ a.site-box-row:focus-visible {
   white-space: nowrap;
 }
 
-/* Activity box: number-led stat rows. */
+/* Homepage activity stats: number-led rows, matching lichess's unboxed sidebar
+   stats rather than the framed widget shell used by News/Activity elsewhere. */
+.landing-activity {
+  align-self: end;
+  width: 100%;
+  padding: 0 6px 1px;
+  color: var(--site-muted);
+}
+
+.landing-activity-body {
+  display: grid;
+  gap: 1px;
+}
+
+.landing-activity-row {
+  display: grid;
+  grid-template-columns: minmax(44px, auto) minmax(0, 1fr);
+  align-items: baseline;
+  gap: 9px;
+  min-height: 19px;
+  color: var(--site-muted);
+  font-size: 13px;
+  line-height: 1.22;
+}
+
 .landing-activity-value {
-  flex: 0 0 auto;
   min-width: 44px;
   color: var(--site-heading);
-  font-weight: 600;
+  font-weight: 700;
   font-variant-numeric: tabular-nums;
   text-align: right;
+}
+
+.landing-activity-label {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }

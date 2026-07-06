@@ -286,7 +286,7 @@
   grid-area: play;
   display: flex;
   flex-direction: column;
-  justify-content: center;
+  justify-content: stretch;
   align-self: stretch;
   gap: clamp(12px, 1.6vw, 18px);
   min-width: 0;
@@ -1357,22 +1357,31 @@
   }
 
   .landing-play-stack {
+    display: flex;
+    flex: 0 1 auto;
+    flex-direction: column;
+    min-height: 0;
     width: 100%;
     max-width: 680px;
     margin-inline: auto;
   }
 
   .landing-play-action {
-    grid-template-columns: 42px minmax(0, 1fr);
-    gap: 22px;
-    min-height: 72px;
-    padding: 13px 22px;
-    font-size: clamp(19px, 3.2vw, 22px);
+    grid-template-columns: 34px minmax(0, 1fr);
+    gap: 18px;
+    min-height: 66px;
+    padding: 12px 18px;
+    font-size: clamp(17px, 3vw, 20px);
+  }
+
+  .landing-play-panel,
+  .landing-activity {
+    align-self: stretch;
   }
 
   .landing-play-icon {
-    width: 40px;
-    height: 40px;
+    width: 34px;
+    height: 34px;
   }
 
   .landing-viewer-column,
@@ -1404,16 +1413,16 @@
   }
 
   .landing-play-action {
-    grid-template-columns: 36px minmax(0, 1fr);
-    gap: 18px;
-    min-height: 66px;
-    padding: 12px 18px;
-    font-size: clamp(18px, 5.2vw, 21px);
+    grid-template-columns: 32px minmax(0, 1fr);
+    gap: 16px;
+    min-height: 62px;
+    padding: 11px 16px;
+    font-size: clamp(16px, 5vw, 19px);
   }
 
   .landing-play-icon {
-    width: 36px;
-    height: 36px;
+    width: 32px;
+    height: 32px;
   }
 
   .landing-setup-dialog {
