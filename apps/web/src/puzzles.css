@@ -22,7 +22,7 @@
      to the theme-driven vars in app-base.css so the board tracks the user's
      xiangqi board-theme setting, matching every other xiangqi surface. */
 
-  background: var(--site-bg);
+  background: var(--site-page-gradient);
 }
 
 .puzzles-shell {

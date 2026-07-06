@@ -1213,15 +1213,20 @@ a.forum-post-author-name:focus-visible {
   --site-heading: var(--forum-heading);
   --site-link: var(--forum-link);
   --site-muted: var(--forum-muted);
-  --site-nav-bg: var(--forum-page-top);
+  --site-nav-bg: var(--forum-page-bg);
   --site-nav-border: transparent;
+  --site-page-gradient: linear-gradient(
+    to bottom,
+    var(--forum-page-top),
+    var(--forum-page-bg) 220px
+  );
+  --site-page-top: var(--forum-page-top);
   --site-panel: var(--forum-panel-bg);
   --site-panel-soft: var(--forum-row-alt-bg);
   --site-text: var(--forum-text);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  background: var(--forum-page-bg)
-    linear-gradient(180deg, var(--forum-page-top) 0, var(--forum-page-bg) 116px) no-repeat;
+  background: var(--site-page-gradient);
   font-family:
     "Noto Sans", ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   font-weight: 400;
@@ -1230,8 +1235,7 @@ a.forum-post-author-name:focus-visible {
 }
 
 #app.forum-route {
-  background: var(--forum-page-bg)
-    linear-gradient(180deg, var(--forum-page-top) 0, var(--forum-page-bg) 116px) no-repeat;
+  background: var(--site-page-gradient);
 }
 
 :root[data-effective-theme="dark"] .forum-route {
@@ -1257,11 +1261,7 @@ a.forum-post-author-name:focus-visible {
   --site-focus: rgba(54, 146, 231, 0.26);
 }
 
-/* The nav is sticky: it needs a solid background or content scrolls visibly
-   behind it. The page-top gradient color keeps it seamless at the top of the
-   page. (Future: hide-on-scroll like lichess.) */
 .forum-route .site-nav {
-  background: var(--forum-page-top);
   border-bottom-color: transparent;
 }
 
