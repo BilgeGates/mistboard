@@ -266,7 +266,7 @@ try {
   await fs.writeFile(resolve(distDir, 'home.html'), homeHtml, 'utf-8');
   console.log('prerendered / (home.html)');
 
-  // Leaderboard: bake the players-page frame (rail, twin headings, loading
+  // Player: bake the players-page frame (rail, twin headings, loading
   // panels) with its route CSS so first paint gets the full layout instead of
   // the empty shell. Live data (ladder rows, online list) stays a client
   // fetch. The `landing-page` class is baked onto #app because it carries the
@@ -280,14 +280,15 @@ try {
   );
   leaderboardHtml = leaderboardHtml.replace(
     /<title>[^<]*<\/title>/,
-    '<title>Leaderboard · Mistboard</title>',
+    '<title>Players · Mistboard</title>',
   );
   leaderboardHtml = leaderboardHtml.replace(
     '</head>',
-    `<link rel="canonical" href="${host}/leaderboard" />${leaderboardAssetLinks}</head>`,
+    `<link rel="canonical" href="${host}/player" />${leaderboardAssetLinks}</head>`,
   );
+  await fs.writeFile(resolve(distDir, 'player.html'), leaderboardHtml, 'utf-8');
   await fs.writeFile(resolve(distDir, 'leaderboard.html'), leaderboardHtml, 'utf-8');
-  console.log('prerendered /leaderboard (leaderboard.html)');
+  console.log('prerendered /player (player.html)');
 } catch (err) {
   console.error('prerender failed:', err);
   process.exitCode = 1;

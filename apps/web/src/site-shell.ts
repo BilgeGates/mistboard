@@ -67,9 +67,9 @@ export function buildNav(locale: Locale = currentLocale()): HTMLElement {
   if (puzzles) links.append(navLink(puzzles, locale));
   links.append(navMenu('nav.learn', learnNavItems(), locale));
   if (watch) links.append(navLink(watch, locale));
-  // Community title itself links to the leaderboard (lichess parity): hovering
-  // opens the dropdown, clicking the word navigates to /leaderboard.
-  links.append(navMenu('nav.community', communityNavItems(), locale, '/leaderboard'));
+  // Community title itself links to the player page (lichess parity): hovering
+  // opens the dropdown, clicking the word navigates to /player.
+  links.append(navMenu('nav.community', communityNavItems(), locale, '/player'));
   const tools = toolsNavItems();
   if (tools.length > 0) links.append(navMenu('nav.tools', tools, locale));
 
@@ -299,6 +299,7 @@ function pathMatchesNavItem(path: string, href: string): boolean {
   return (
     normalizedPath === href ||
     (href === '/puzzles' && normalizedPath.startsWith('/puzzles/')) ||
+    (href === '/player' && normalizedPath.startsWith('/player/')) ||
     (href === '/account' && normalizedPath.startsWith('/account/')) ||
     (href === '/bots' && normalizedPath.startsWith('/bot/')) ||
     (href === '/forum' && normalizedPath.startsWith('/forum/')) ||

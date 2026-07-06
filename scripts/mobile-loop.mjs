@@ -47,7 +47,7 @@ const scenes = [
   { name: 'articles-index', path: '/articles', fullPage: true },
   { name: 'article-fog-rules', path: '/articles/fog-of-war-rules', fullPage: true },
   { name: 'article-draft960', path: '/articles/draft960', fullPage: true },
-  { name: 'leaderboard', path: '/leaderboard', fullPage: true },
+  { name: 'player', path: '/player', fullPage: true },
   { name: 'account', path: '/account' },
   { name: 'contact', path: '/contact' },
   { name: 'learn', path: '/learn' },

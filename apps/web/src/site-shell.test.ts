@@ -27,13 +27,13 @@ describe('site shell nav', () => {
     expect(nav.querySelector('.site-nav-menu-toggle')?.textContent).toBe('Learn');
     expect(nav.querySelector<HTMLAnchorElement>('a[href="/forum"]')?.textContent).toBe('Forum');
     // Community dropdown: Players (the leaderboard), Friends, Forum, Blog. The
-    // title also links to /leaderboard, so scope item lookups to the panel.
+    // title also links to /player, so scope item lookups to the panel.
     const communityMenu = [...nav.querySelectorAll<HTMLElement>('.site-nav-menu')].find(
       (menu) => menu.querySelector('.site-nav-menu-toggle')?.textContent === 'Community',
     );
     const communityPanel = communityMenu?.querySelector<HTMLElement>('.site-nav-menu-panel');
     expect(
-      communityPanel?.querySelector<HTMLAnchorElement>('a[href="/leaderboard"]')?.textContent,
+      communityPanel?.querySelector<HTMLAnchorElement>('a[href="/player"]')?.textContent,
     ).toBe('Players');
     expect(
       communityPanel?.querySelector<HTMLAnchorElement>('a[href="/account"]')?.textContent,
@@ -41,12 +41,12 @@ describe('site shell nav', () => {
     expect(
       communityPanel?.querySelector<HTMLAnchorElement>('a[href="/articles"]')?.textContent,
     ).toBe('Blog');
-    // The Community title is a link to the leaderboard, not just a toggle.
+    // The Community title is a link to the player page, not just a toggle.
     const communityToggle = [
       ...nav.querySelectorAll<HTMLElement>('.site-nav-menu > .site-nav-menu-toggle'),
     ].find((el) => el.textContent === 'Community');
     expect(communityToggle?.tagName).toBe('A');
-    expect((communityToggle as HTMLAnchorElement).getAttribute('href')).toBe('/leaderboard');
+    expect((communityToggle as HTMLAnchorElement).getAttribute('href')).toBe('/player');
     // /bots moved out of the top-nav dropdown into the community rail.
     expect(nav.querySelector<HTMLAnchorElement>('a[href="/bots"]')).toBeNull();
   });

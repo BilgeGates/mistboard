@@ -137,7 +137,8 @@ const challengeId =
   correspondenceEnabled() && path.startsWith('/challenge/')
     ? decodeURIComponent(path.slice('/challenge/'.length))
     : null;
-const wantsLeaderboard = path === '/leaderboard' || page === 'leaderboard';
+const wantsLeaderboard = path === '/player' || path === '/leaderboard' || page === 'leaderboard';
+const wantsRatingStats = path === '/player/rating-stats';
 // Unlisted admin game browser. No nav entry; the page itself is admin-gated by
 // the /api/admin/games/query endpoint (open in local dev). Direct-URL only.
 const wantsDatabase = path === '/database';
@@ -234,6 +235,11 @@ if (replaySample) {
   setTitleKey('profile.leaderboard');
   void mountOrReport(() =>
     import('./profile.js').then(({ mountLeaderboard }) => mountLeaderboard(appRoot)),
+  );
+} else if (wantsRatingStats) {
+  setTitleKey('profile.ratingStats');
+  void mountOrReport(() =>
+    import('./profile.js').then(({ mountRatingStats }) => mountRatingStats(appRoot)),
   );
 } else if (wantsXiangqiAnalysis) {
   setTitle('Xiangqi analysis');

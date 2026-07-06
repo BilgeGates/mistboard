@@ -1299,25 +1299,36 @@
 
 /* Shell width comes from .community-shell; the rail + layout grid live in
    community-rail.css (shared with /bots). */
+.leaderboard-shell {
+  --player-gold: #bf811d;
+}
 
 /* Twin headings (Online players | Leaderboard) over an unboxed online column
    and the ladder wall, playstrategy-style. Grid areas keep the two heading
    baselines on one row even though the right cell also carries the intro. */
 .leaderboard-body {
   display: grid;
-  grid-template-columns: 224px minmax(0, 1fr);
+  grid-template-columns: 300px minmax(0, 1fr);
   grid-template-areas:
     "online-heading heading"
     ". sub"
     "online grid";
-  gap: 4px 24px;
+  gap: 4px 28px;
   align-items: start;
 }
 
+.rating-stats-body {
+  display: grid;
+  gap: 26px;
+}
+
 .leaderboard-online-heading,
-.leaderboard-heading {
+.leaderboard-heading,
+.rating-stats-heading {
   margin: 0;
   color: var(--site-heading);
+  font-weight: 300;
+  letter-spacing: 0;
   align-self: end;
 }
 
@@ -1327,6 +1338,32 @@
 
 .leaderboard-heading {
   grid-area: heading;
+}
+
+.rating-stats-heading {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+  font-size: clamp(28px, 3vw, 38px);
+  line-height: 1.2;
+}
+
+.rating-stats-select {
+  min-width: 184px;
+  border: 1px solid var(--site-border);
+  border-radius: 5px;
+  background: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--site-panel) 96%, #000 4%),
+    color-mix(in srgb, var(--site-panel) 86%, #000 14%)
+  );
+  color: var(--site-heading);
+  font-family: inherit;
+  font-size: 20px;
+  font-weight: 300;
+  line-height: 1.25;
+  padding: 5px 34px 5px 12px;
 }
 
 .leaderboard-sub {
@@ -1353,11 +1390,11 @@
   display: flex;
   align-items: center;
   gap: 9px;
-  padding: 5px 8px;
+  padding: 4px 4px;
   border-radius: var(--site-radius-sm);
   color: var(--site-text);
-  font-size: 14px;
-  font-weight: 600;
+  font-size: 15px;
+  font-weight: 400;
   text-decoration: none;
 }
 
@@ -1422,8 +1459,8 @@
 }
 
 .leaderboard-presence-online {
-  background: var(--site-accent);
-  border-color: var(--site-accent);
+  background: var(--player-gold, var(--site-accent));
+  border-color: var(--player-gold, var(--site-accent));
 }
 
 .leaderboard-table {
@@ -1468,7 +1505,7 @@
   display: flex;
   align-items: center;
   gap: 7px;
-  color: var(--site-accent);
+  color: color-mix(in srgb, var(--player-gold) 82%, var(--site-heading));
   font-weight: 600;
   line-height: 1.25;
   text-decoration: none;
@@ -1504,14 +1541,14 @@
 .leaderboard-grid {
   grid-area: grid;
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-  gap: 5px;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 0;
   padding-top: 12px;
 }
 
 .leaderboard-panel {
   border: 1px solid var(--site-border);
-  border-radius: 3px;
+  border-radius: 0;
   overflow: hidden;
   background: var(--site-panel);
 }
@@ -1522,7 +1559,7 @@
   align-items: center;
   gap: 8px;
   padding: 7px 10px;
-  background: var(--site-accent);
+  background: var(--player-gold);
 }
 
 .leaderboard-panel-thumb {
@@ -1560,6 +1597,75 @@
   margin: 0;
 }
 
+.rating-stats-chart-shell {
+  min-height: 420px;
+  border-radius: 7px;
+  background: var(--site-panel);
+  padding: 34px 38px 42px;
+}
+
+.rating-stats-summary {
+  margin: 0 0 20px;
+  color: var(--site-muted);
+  font-size: 14px;
+  line-height: 1.45;
+}
+
+.rating-stats-chart {
+  display: flex;
+  align-items: end;
+  gap: 3px;
+  height: 330px;
+  border-left: 1px solid var(--site-border);
+  border-bottom: 1px solid var(--site-border);
+  background:
+    repeating-linear-gradient(
+      to top,
+      transparent 0 65px,
+      color-mix(in srgb, var(--site-border) 70%, transparent) 65px 66px
+    ),
+    repeating-linear-gradient(
+      to right,
+      transparent 0 70px,
+      color-mix(in srgb, var(--site-border) 54%, transparent) 70px 71px
+    );
+  padding: 0 10px;
+}
+
+.rating-stats-bar {
+  position: relative;
+  flex: 1 1 0;
+  min-width: 8px;
+  border-radius: 3px 3px 0 0;
+  background: linear-gradient(
+    180deg,
+    color-mix(in srgb, #7ea5cd 92%, var(--site-panel)),
+    color-mix(in srgb, #557797 86%, transparent)
+  );
+}
+
+.rating-stats-bar-label {
+  position: absolute;
+  bottom: -23px;
+  left: 50%;
+  color: var(--site-muted);
+  font-size: 11px;
+  line-height: 1;
+  transform: translateX(-50%);
+}
+
+.rating-stats-empty {
+  margin: 0;
+  color: var(--site-muted);
+  font-size: 14px;
+}
+
+@media (max-width: 1320px) {
+  .leaderboard-grid {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+
 @media (max-width: 1080px) {
   .leaderboard-body {
     grid-template-columns: 1fr;
@@ -1579,6 +1685,10 @@
   .leaderboard-online-list {
     max-height: 240px;
     overflow-y: auto;
+  }
+
+  .leaderboard-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
 
@@ -1622,5 +1732,19 @@
 
   .leaderboard-table td {
     padding: 5px 8px;
+  }
+
+  .rating-stats-chart-shell {
+    min-height: 300px;
+    padding: 22px 16px 34px;
+  }
+
+  .rating-stats-chart {
+    height: 240px;
+    overflow-x: auto;
+  }
+
+  .rating-stats-bar {
+    flex-basis: 18px;
   }
 }
