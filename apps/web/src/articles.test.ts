@@ -538,9 +538,7 @@ describe('rules variant sidebar', () => {
     expect(
       page.querySelector('.article-variant-sidebar a[href="/rules/dark-mini-xiangqi"]'),
     ).toBeNull();
-    expect(
-      page.querySelector('.article-variant-sidebar a[href="/rules/mini-xiangqi"]'),
-    ).toBeNull();
+    expect(page.querySelector('.article-variant-sidebar a[href="/rules/mini-xiangqi"]')).toBeNull();
     expect(
       page.querySelector('.article-variant-sidebar a[href="/rules/dark-xiangqi"]'),
     ).not.toBeNull();
