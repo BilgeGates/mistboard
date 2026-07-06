@@ -7,20 +7,20 @@ import {
   createPendingLuzhanqiState,
   getLuzhanqiLegalMovesFrom,
   getLuzhanqiPlayerView,
-  isLuzhanqiFormation,
   isLuzhanqiCamp,
+  isLuzhanqiFormation,
   isLuzhanqiHeadquarters,
-  luzhanqiTruthView,
-  submitLuzhanqiFormation,
+  LUZHANQI_CAMPS,
+  LUZHANQI_HEADQUARTERS,
+  LUZHANQI_SETUP_SQUARES,
   type LuzhanqiBoard,
   type LuzhanqiColor,
   type LuzhanqiGameState,
   type LuzhanqiPiece,
   type LuzhanqiPieceRole,
   luzhanqiFormationForColor,
-  LUZHANQI_CAMPS,
-  LUZHANQI_HEADQUARTERS,
-  LUZHANQI_SETUP_SQUARES,
+  luzhanqiTruthView,
+  submitLuzhanqiFormation,
   validateLuzhanqiFormation,
 } from './variants-luzhanqi.js';
 
@@ -160,10 +160,13 @@ test('rank combat removes the lower piece and equal ranks remove both', () => {
   });
   assert.deepEqual(win.board.a8, p('red', 'general'));
 
-  const mutual = applyLuzhanqiMove(playing({ a6: p('red', 'captain'), a8: p('black', 'captain') }), {
-    from: 'a6',
-    to: 'a8',
-  });
+  const mutual = applyLuzhanqiMove(
+    playing({ a6: p('red', 'captain'), a8: p('black', 'captain') }),
+    {
+      from: 'a6',
+      to: 'a8',
+    },
+  );
   assert.equal(mutual.board.a6, undefined);
   assert.equal(mutual.board.a8, undefined);
 });
@@ -177,12 +180,18 @@ test('capturing the flag wins immediately', () => {
 });
 
 test('entering a non-flag headquarters locks the surviving attacker in place', () => {
-  const next = applyLuzhanqiMove(playing({ b12: p('red', 'general'), b13: p('black', 'captain') }), {
-    from: 'b12',
-    to: 'b13',
-  });
+  const next = applyLuzhanqiMove(
+    playing({ b12: p('red', 'general'), b13: p('black', 'captain') }),
+    {
+      from: 'b12',
+      to: 'b13',
+    },
+  );
   assert.deepEqual(next.board.b13, p('red', 'general', true));
-  assert.deepEqual(getLuzhanqiLegalMovesFrom({ ...next, status: { type: 'playing', turn: 'red' } }, 'b13'), []);
+  assert.deepEqual(
+    getLuzhanqiLegalMovesFrom({ ...next, status: { type: 'playing', turn: 'red' } }, 'b13'),
+    [],
+  );
 });
 
 test('marshal loss reveals only that side flag location, not the rest of the formation', () => {
@@ -203,7 +212,11 @@ test('marshal loss reveals only that side flag location, not the rest of the for
 });
 
 test('player views do not reveal enemy rank after referee-adjudicated combat', () => {
-  const before = playing({ a6: p('red', 'captain'), a8: p('black', 'major'), e13: p('black', 'flag') });
+  const before = playing({
+    a6: p('red', 'captain'),
+    a8: p('black', 'major'),
+    e13: p('black', 'flag'),
+  });
   assert.deepEqual(getLuzhanqiPlayerView(before, 'red').board.a8, { color: 'black', known: false });
   const after = applyLuzhanqiMove(before, { from: 'a6', to: 'a8' });
   assert.deepEqual(after.lastMove?.outcome, {
@@ -215,7 +228,11 @@ test('player views do not reveal enemy rank after referee-adjudicated combat', (
 });
 
 test('truth view reveals every remaining identity for postgame review', () => {
-  const state = playing({ a6: p('red', 'captain'), a8: p('black', 'major'), e13: p('black', 'flag') });
+  const state = playing({
+    a6: p('red', 'captain'),
+    a8: p('black', 'major'),
+    e13: p('black', 'flag'),
+  });
   assert.deepEqual(getLuzhanqiPlayerView(state, 'red').board.a8, { color: 'black', known: false });
   assert.deepEqual(luzhanqiTruthView(state).board.a8, {
     color: 'black',

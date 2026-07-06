@@ -30,7 +30,10 @@ export function roleDisplayName(role: LuzhanqiPieceRole): string {
 
 export function renderLuzhanqiSkinMark(skin: LuzhanqiSkinToken | null): SVGElement {
   const group = document.createElementNS('http://www.w3.org/2000/svg', 'g');
-  group.setAttribute('class', `luzhanqi-piece__mark${skin ? ` luzhanqi-piece__mark--${skin.kind}` : ''}`);
+  group.setAttribute(
+    'class',
+    `luzhanqi-piece__mark${skin ? ` luzhanqi-piece__mark--${skin.kind}` : ''}`,
+  );
   if (!skin) {
     const back = document.createElementNS('http://www.w3.org/2000/svg', 'path');
     back.setAttribute('d', 'M -8 -6 Q 0 -14 8 -6 Q 4 3 0 10 Q -4 3 -8 -6 Z');

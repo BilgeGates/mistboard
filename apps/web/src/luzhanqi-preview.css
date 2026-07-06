@@ -1,8 +1,7 @@
 .luzhanqi-preview-root {
   min-height: 100vh;
   background:
-    linear-gradient(180deg, rgba(245, 247, 243, 0.98), rgba(232, 238, 230, 0.96)),
-    #eef2ea;
+    linear-gradient(180deg, rgba(245, 247, 243, 0.98), rgba(232, 238, 230, 0.96)), #eef2ea;
   color: #17211a;
 }
 
@@ -171,8 +170,7 @@
   border-radius: 8px;
   padding: 20px;
   background:
-    radial-gradient(circle at 50% 50%, rgba(243, 247, 237, 0.9), rgba(215, 226, 208, 0.92)),
-    #dbe5d6;
+    radial-gradient(circle at 50% 50%, rgba(243, 247, 237, 0.9), rgba(215, 226, 208, 0.92)), #dbe5d6;
   box-shadow: 0 18px 48px rgba(25, 38, 29, 0.13);
 }
 

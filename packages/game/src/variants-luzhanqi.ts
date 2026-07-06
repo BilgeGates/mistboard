@@ -160,11 +160,13 @@ const RANK: Partial<Record<LuzhanqiPieceRole, number>> = {
   engineer: 1,
 };
 
-export const LUZHANQI_HEADQUARTERS: Record<LuzhanqiColor, readonly [LuzhanqiSquare, LuzhanqiSquare]> =
-  {
-    red: ['b1', 'd1'],
-    black: ['b13', 'd13'],
-  };
+export const LUZHANQI_HEADQUARTERS: Record<
+  LuzhanqiColor,
+  readonly [LuzhanqiSquare, LuzhanqiSquare]
+> = {
+  red: ['b1', 'd1'],
+  black: ['b13', 'd13'],
+};
 
 export const LUZHANQI_CAMPS: Record<LuzhanqiColor, readonly LuzhanqiSquare[]> = {
   red: ['b3', 'd3', 'c4', 'b5', 'd5'],
@@ -299,7 +301,9 @@ export function validateLuzhanqiFormation(
   const errors: Array<{ type: LuzhanqiSetupError; square?: LuzhanqiSquare }> = [];
   const setupSquares = new Set(LUZHANQI_SETUP_SQUARES[color]);
   const counts = emptyRoleCounts();
-  for (const [square, role] of Object.entries(formation) as Array<[LuzhanqiSquare, LuzhanqiPieceRole]>) {
+  for (const [square, role] of Object.entries(formation) as Array<
+    [LuzhanqiSquare, LuzhanqiPieceRole]
+  >) {
     if (!setupSquares.has(square)) {
       errors.push({ type: 'wrong-square', square });
       continue;
@@ -354,16 +358,21 @@ export function createInitialLuzhanqiState(
   blackFormation: LuzhanqiFormation,
 ): LuzhanqiGameState {
   const redValidation = validateLuzhanqiFormation('red', redFormation);
-  if (!redValidation.ok) throw new Error(`invalid red luzhanqi formation: ${redValidation.errors[0].type}`);
+  if (!redValidation.ok)
+    throw new Error(`invalid red luzhanqi formation: ${redValidation.errors[0].type}`);
   const blackValidation = validateLuzhanqiFormation('black', blackFormation);
   if (!blackValidation.ok) {
     throw new Error(`invalid black luzhanqi formation: ${blackValidation.errors[0].type}`);
   }
   const board: LuzhanqiBoard = {};
-  for (const [square, role] of Object.entries(redFormation) as Array<[LuzhanqiSquare, LuzhanqiPieceRole]>) {
+  for (const [square, role] of Object.entries(redFormation) as Array<
+    [LuzhanqiSquare, LuzhanqiPieceRole]
+  >) {
     board[square] = { color: 'red', role };
   }
-  for (const [square, role] of Object.entries(blackFormation) as Array<[LuzhanqiSquare, LuzhanqiPieceRole]>) {
+  for (const [square, role] of Object.entries(blackFormation) as Array<
+    [LuzhanqiSquare, LuzhanqiPieceRole]
+  >) {
     board[square] = { color: 'black', role };
   }
   return {
@@ -393,7 +402,10 @@ export function submitLuzhanqiFormation(
   return { ...state, board, formations };
 }
 
-export function getLuzhanqiLegalMoves(state: LuzhanqiGameState, color: LuzhanqiColor): LuzhanqiMove[] {
+export function getLuzhanqiLegalMoves(
+  state: LuzhanqiGameState,
+  color: LuzhanqiColor,
+): LuzhanqiMove[] {
   if (state.status.type !== 'playing' || state.status.turn !== color) return [];
   const moves: LuzhanqiMove[] = [];
   for (const square of ALL_LUZHANQI_SQUARES) {
@@ -422,7 +434,8 @@ export function isLuzhanqiLegalMove(state: LuzhanqiGameState, move: LuzhanqiMove
 }
 
 export function applyLuzhanqiMove(state: LuzhanqiGameState, move: LuzhanqiMove): LuzhanqiGameState {
-  if (!isLuzhanqiLegalMove(state, move)) throw new Error(`illegal luzhanqi move: ${move.from}-${move.to}`);
+  if (!isLuzhanqiLegalMove(state, move))
+    throw new Error(`illegal luzhanqi move: ${move.from}-${move.to}`);
   if (state.status.type !== 'playing') return state;
   const attacker = state.board[move.from];
   if (!attacker) throw new Error(`missing attacker on ${move.from}`);
@@ -485,7 +498,12 @@ export function getLuzhanqiPlayerView(
     const revealedFlag = piece.role === 'flag' && state.revealedFlags[piece.color] === square;
     board[square] =
       ownPiece || revealedFlag
-        ? { color: piece.color, role: piece.role, known: true, ...(piece.immobile ? { immobile: true } : {}) }
+        ? {
+            color: piece.color,
+            role: piece.role,
+            known: true,
+            ...(piece.immobile ? { immobile: true } : {}),
+          }
         : { color: piece.color, known: false, ...(piece.immobile ? { immobile: true } : {}) };
   }
   return {
@@ -650,7 +668,10 @@ function railDestinations(
   return [...out];
 }
 
-function engineerRailDestinations(state: LuzhanqiGameState, from: LuzhanqiSquare): LuzhanqiSquare[] {
+function engineerRailDestinations(
+  state: LuzhanqiGameState,
+  from: LuzhanqiSquare,
+): LuzhanqiSquare[] {
   const out = new Set<LuzhanqiSquare>();
   const queue: LuzhanqiSquare[] = [from];
   const seen = new Set<LuzhanqiSquare>([from]);
