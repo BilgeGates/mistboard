@@ -51,9 +51,16 @@ const START_FEN = 'rnceakq/pp1p1pp/7/7/7/7/PP1P1PP/QKAECNR';
 const RIVER_RED_MAX_RANK = 4; // red owns ranks 1-4, black 5-8
 
 const CONDITIONS = {
+  // NOTE: as of the 2026-07-04 veteran ship, apps/server/src/fortress-xiangqi.ini
+  // IS the veteran soldier, so `base` and `vet` are now the SAME rule. Use `river`
+  // (the reconstructed pre-ship river-gated soldier) vs `vet` for a real A/B.
   base: {
     ini: resolve(REPO, 'apps', 'server', 'src', 'fortress-xiangqi.ini'),
     variant: 'fortressxiangqi',
+  },
+  river: {
+    ini: resolve(REPO, 'scripts', 'variant-lab', 'fortress-xiangqi-river.ini'),
+    variant: 'fortressxiangqiriver',
   },
   vet: {
     ini: resolve(REPO, 'scripts', 'variant-lab', 'fortress-xiangqi-vet.ini'),
@@ -338,7 +345,11 @@ type PerPly = {
   role: Role;
   captureRole: Role | null;
   soldierOwnHalfSideways: boolean;
+  soldierForward: boolean; // soldier board move that advanced a rank (toward enemy)
+  soldierSideways: boolean; // soldier board move that changed file (own OR enemy half)
+  soldierRiverCross: boolean; // soldier board move that crossed into the enemy half
   soldierDropOwnHalf: boolean | null; // only for soldier drops
+  soldierDropEnemyHalf: boolean | null; // only for soldier drops (attacking parachute)
   piecesOnBoard: number;
 };
 
@@ -353,6 +364,12 @@ type GameResult = {
   decisive: boolean;
   evalRedSeries: number[];
   perPly: PerPly[];
+  // Terminal soldier geography (from the final board): are soldiers parked at
+  // home or pushed up the board? advance = mover-relative ranks gained from the
+  // start rank (red starts rank 2, black rank 7); enemyHalf = across the river.
+  terminalSoldierCount: number;
+  terminalSoldierAdvanceMean: number;
+  terminalSoldiersEnemyHalf: number;
 };
 
 function foldEval(res: SearchResult, mover: Color): number {
@@ -435,7 +452,16 @@ async function playGame(
       captureRole: cls.captureRole,
       soldierOwnHalfSideways:
         cls.role === 'soldier' && !cls.isDrop && cls.sideways && cls.ownHalfBefore,
+      soldierForward: cls.role === 'soldier' && !cls.isDrop && cls.forward,
+      soldierSideways: cls.role === 'soldier' && !cls.isDrop && cls.sideways,
+      soldierRiverCross:
+        cls.role === 'soldier' &&
+        !cls.isDrop &&
+        cls.forward &&
+        cls.ownHalfBefore &&
+        !Board.ownHalf(cls.mover, cls.toRank),
       soldierDropOwnHalf: cls.isDrop && cls.role === 'soldier' ? cls.ownHalfBefore : null,
+      soldierDropEnemyHalf: cls.isDrop && cls.role === 'soldier' ? !cls.ownHalfBefore : null,
       piecesOnBoard: board.squares.size,
     });
 
@@ -467,6 +493,16 @@ async function playGame(
     }
   }
 
+  // Terminal soldier geography from the final board.
+  const soldierAdvances: number[] = [];
+  let soldiersEnemyHalf = 0;
+  for (const [sq, p] of board.squares) {
+    if (p.role !== 'soldier') continue;
+    const rank = Number(sq[1]);
+    soldierAdvances.push(p.color === 'red' ? rank - 2 : 7 - rank);
+    if (!Board.ownHalf(p.color, rank)) soldiersEnemyHalf += 1;
+  }
+
   return {
     condition: cond,
     seed,
@@ -478,6 +514,9 @@ async function playGame(
     decisive,
     evalRedSeries,
     perPly,
+    terminalSoldierCount: soldierAdvances.length,
+    terminalSoldierAdvanceMean: soldierAdvances.length ? mean(soldierAdvances) : 0,
+    terminalSoldiersEnemyHalf: soldiersEnemyHalf,
   };
 }
 
@@ -592,6 +631,9 @@ function summarize(cond: ConditionName, games: GameResult[]): Record<string, unk
   let soldierDropsOwnHalf = 0;
   let ownHalfSidewaysMoves = 0;
   let soldierMoves = 0;
+  let soldierForwardMoves = 0;
+  let soldierSidewaysMoves = 0;
+  let soldierRiverCrossings = 0;
   for (const g of games)
     for (const p of g.perPly) {
       if (p.isDrop && p.role === 'soldier') {
@@ -600,6 +642,9 @@ function summarize(cond: ConditionName, games: GameResult[]): Record<string, unk
       }
       if (!p.isDrop && p.role === 'soldier') soldierMoves += 1;
       if (p.soldierOwnHalfSideways) ownHalfSidewaysMoves += 1;
+      if (p.soldierForward) soldierForwardMoves += 1;
+      if (p.soldierSideways) soldierSidewaysMoves += 1;
+      if (p.soldierRiverCross) soldierRiverCrossings += 1;
     }
 
   const redScore = (redWins + 0.5 * draws) / n;
@@ -639,6 +684,18 @@ function summarize(cond: ConditionName, games: GameResult[]): Record<string, unk
       boardMoves: soldierMoves,
       ownHalfSidewaysMoves,
       ownHalfSidewaysPerGame: Number((ownHalfSidewaysMoves / n).toFixed(2)),
+      // Advancement: does the soldier push up the board, or shuffle sideways at home?
+      forwardMoves: soldierForwardMoves,
+      sidewaysMoves: soldierSidewaysMoves,
+      forwardShareOfMoves: soldierMoves
+        ? Number((soldierForwardMoves / soldierMoves).toFixed(3))
+        : 0,
+      forwardPerGame: Number((soldierForwardMoves / n).toFixed(2)),
+      riverCrossingsPerGame: Number((soldierRiverCrossings / n).toFixed(2)),
+      terminalAdvanceMean: Number(mean(games.map((g) => g.terminalSoldierAdvanceMean)).toFixed(2)),
+      terminalSoldiersEnemyHalfPerGame: Number(
+        mean(games.map((g) => g.terminalSoldiersEnemyHalf)).toFixed(2),
+      ),
     },
     meanSearchDepth: Number(meanDepth.toFixed(1)),
     meanSearchNodes: Math.round(meanNodes),
