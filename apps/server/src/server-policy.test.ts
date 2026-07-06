@@ -311,6 +311,7 @@ const PARKED_CLIENT_ROUTES = new Set<string>([
   '/postgame-sheet', // DEV-only; gated by import.meta.env.DEV in main.ts
   '/luzhanqi-preview', // DEV-only; gated by import.meta.env.DEV in main.ts
   '/dobutsu-chess-preview', // DEV-only; gated by import.meta.env.DEV in main.ts
+  '/dobutsu-ui-preview', // DEV-only; gated by import.meta.env.DEV in main.ts
 ]);
 
 test('isClientRoute covers every literal route declared in main.ts', () => {
