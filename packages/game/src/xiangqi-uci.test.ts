@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import {
   fsfUciToXiangqiSquares,
+  pikafishUciToXiangqiSquares,
   xiangqiMoveToFsfUci,
   xiangqiMoveToPikafishUci,
   xiangqiSquareToPikafishUci,
@@ -26,6 +27,21 @@ test('xiangqiMoveToFsfUci is a plain square concatenation (Fairy-Stockfish is 1-
   assert.equal(xiangqiMoveToFsfUci({ from: 'h3', to: 'e3' }), 'h3e3'); // cannon to center
   assert.equal(xiangqiMoveToFsfUci({ from: 'b1', to: 'c3' }), 'b1c3'); // horse
   assert.equal(xiangqiMoveToFsfUci({ from: 'h10', to: 'g8' }), 'h10g8'); // black horse
+});
+
+test('pikafishUciToXiangqiSquares inverts xiangqiMoveToPikafishUci (rank +1)', () => {
+  assert.deepEqual(pikafishUciToXiangqiSquares('h2e2'), { from: 'h3', to: 'e3' }); // cannon to center
+  assert.deepEqual(pikafishUciToXiangqiSquares('b0c2'), { from: 'b1', to: 'c3' }); // horse
+  assert.deepEqual(pikafishUciToXiangqiSquares('h9g7'), { from: 'h10', to: 'g8' }); // black horse
+  assert.equal(pikafishUciToXiangqiSquares('h2e'), null); // malformed
+  // Round-trips with the forward converter for every move it produces.
+  for (const move of [
+    { from: 'e1', to: 'e2' },
+    { from: 'a10', to: 'a1' },
+    { from: 'i9', to: 'i10' },
+  ] as const) {
+    assert.deepEqual(pikafishUciToXiangqiSquares(xiangqiMoveToPikafishUci(move)), move);
+  }
 });
 
 test('fsfUciToXiangqiSquares splits ranks 1 and 10 unambiguously', () => {

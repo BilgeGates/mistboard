@@ -63,17 +63,37 @@ test('resolveXiangqiAnalysis serves a cache hit without touching the engine', as
     return onePly(moves);
   });
   assert.equal(analyzed, false, 'cache hit must not run the engine');
+  assert.ok(seeded && result);
   assert.deepEqual(result.plies, seeded.plies);
 });
 
 test('resolveXiangqiAnalysis computes + persists on a cache miss', async () => {
   const cache = memoryCache();
   const result = await resolveXiangqiAnalysis('room-miss', oneMovePayload, cache, onePly);
+  assert.ok(result);
   assert.equal(result.plies.length, 1);
   assert.equal(cache.saved, 1, 'a miss persists exactly once');
   // Second call is now a hit: no new save.
   await resolveXiangqiAnalysis('room-miss', oneMovePayload, cache, onePly);
   assert.equal(cache.saved, 1, 'the second call is a cache hit');
+});
+
+test('resolveXiangqiAnalysis with computeIfMissing=false is a pure cache read', async () => {
+  const cache = memoryCache();
+  let analyzed = false;
+  const spy = async (moves: string[]) => {
+    analyzed = true;
+    return onePly(moves);
+  };
+  // Miss + no-compute → null, engine untouched.
+  const miss = await resolveXiangqiAnalysis('room-ro', oneMovePayload, cache, spy, false);
+  assert.equal(miss, null, 'cache-only read returns null on a miss');
+  assert.equal(analyzed, false, 'cache-only read never runs the engine');
+  // Populate, then the cache-only read returns it.
+  await resolveXiangqiAnalysis('room-ro', oneMovePayload, cache, onePly);
+  const hit = await resolveXiangqiAnalysis('room-ro', oneMovePayload, cache, spy, false);
+  assert.ok(hit);
+  assert.equal(hit.plies.length, 1);
 });
 
 test('resolveXiangqiAnalysis coalesces concurrent misses into one compute', async () => {
@@ -94,5 +114,6 @@ test('resolveXiangqiAnalysis coalesces concurrent misses into one compute', asyn
   const [ra, rb] = await Promise.all([a, b]);
   assert.equal(computes, 1, 'concurrent callers share one engine pass');
   assert.equal(cache.saved, 1, 'and one save');
+  assert.ok(ra && rb);
   assert.deepEqual(ra.plies, rb.plies);
 });

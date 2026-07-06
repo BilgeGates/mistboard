@@ -24,6 +24,23 @@ export function xiangqiMoveToPikafishUci(move: XiangqiMove): string {
   return `${xiangqiSquareToPikafishUci(move.from)}${xiangqiSquareToPikafishUci(move.to)}`;
 }
 
+/** Inverse of xiangqiSquareToPikafishUci: 'h2' (file a-i, rank 0-9) -> our 'h3'. */
+export function pikafishUciSquareToXiangqi(sq: string): XiangqiSquare | null {
+  const match = /^([a-i])([0-9])$/.exec(sq);
+  if (!match) return null;
+  return `${match[1]}${Number(match[2]) + 1}` as XiangqiSquare;
+}
+
+/** Inverse of xiangqiMoveToPikafishUci: a Pikafish 4-char move -> our squares. Use
+ *  this to bring a Pikafish `bestmove` back into our notation (e.g. for display). */
+export function pikafishUciToXiangqiSquares(
+  uci: string,
+): { from: XiangqiSquare; to: XiangqiSquare } | null {
+  const from = pikafishUciSquareToXiangqi(uci.slice(0, 2));
+  const to = pikafishUciSquareToXiangqi(uci.slice(2, 4));
+  return from && to ? { from, to } : null;
+}
+
 /** Our square notation already matches Fairy-Stockfish xiangqi UCI, so a move is
  *  just its from/to squares concatenated. */
 export function xiangqiMoveToFsfUci(move: XiangqiMove): string {
