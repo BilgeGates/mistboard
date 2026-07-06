@@ -11,17 +11,17 @@ import {
 import { setRatedModeEnabled } from './rated-flag.js';
 import { setResolvedSignedIn } from './signed-in-state.js';
 
-// Xiangqi pivot (2026-07-03): the Chinese-chess family leads the canonical order,
-// chess is deranked below xiangqi + jungle, and the mini xiangqi trio
+// Xiangqi pivot (2026-07): xiangqi leads the canonical order, chess is deranked
+// below xiangqi + animal-rank games, and the mini xiangqi trio
 // (mini/dark-mini/drop-mini) plus dark-crazyhouse are hidden from menus
 // (offerInMenu=false) — they remain reachable only by deep link.
 const BASELINE_PICKER_SPECS = [
   'fortress-xiangqi',
   'dark-xiangqi',
   'jieqi',
+  'jungle-flip',
   'banqi',
   'jungle',
-  'jungle-flip',
   'dark-chess',
   'dark-shogi',
 ];

@@ -26,7 +26,7 @@ describe('profile ratings rail', () => {
     // Xiangqi pivot: Drop Mini is off the rating grids now.
     expect(section.textContent).not.toContain('Drop Mini Xiangqi');
     expect(section.textContent).not.toContain('Crossroads Chess');
-    // Fortress + Jungle + Flip Jungle + Dark Chess (always-on) + Dark Mini (render
+    // Fortress + Flip Jungle + Jungle + Dark Chess (always-on) + Dark Mini (render
     // flag) = 5 profile rows.
     expect(section.querySelectorAll('.profile-rating-row-empty')).toHaveLength(5);
   });

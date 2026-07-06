@@ -194,27 +194,27 @@ export const DARK_DUAL_CHESS_SPEC_ID = 'dark-dual-chess' satisfies GameSpecAlias
 // and the /rules rail. Specs not listed here sort to the end in their own order,
 // so a new variant appears without editing callers that already sort by
 // canonicalVariantOrderIndex (just curate it here).
-// 2026-07-03 xiangqi pivot (project_xiangqi_pivot_track): repositioned as the
-// lichess-of-Chinese-chess. The xiangqi family + jungle lead; chess is deranked
-// below them (above shogi). Fortress Xiangqi ("Storm the Fortress") is the
-// flagship and heads the cluster; standard Xiangqi (Phase C) slots in as a peer
-// right after it. The Mini Xiangqi sub-family + Dark Crazyhouse are retired to the
-// tail (hidden from menu/rail/grids; deep-link URLs stay alive).
+// 2026-07 xiangqi pivot (project_xiangqi_pivot_track): repositioned as the
+// lichess-of-Chinese-chess. Xiangqi variants lead, then the animal-rank cluster
+// (Flip Jungle, Banqi, Jungle), then dark chess and dark shogi. The Mini Xiangqi
+// sub-family + Dark Crazyhouse are retired to the tail (hidden from menu/rail/grids;
+// deep-link URLs stay alive).
 export const CANONICAL_VARIANT_ORDER: readonly GameSpecId[] = [
-  // Chinese-chess family (playable, elevated). Fortress leads as the flagship;
-  // standard Xiangqi sits right after it as the open-info anchor (teach-me game).
-  FORTRESS_XIANGQI_SPEC_ID,
+  // Chinese-chess family (playable, elevated). Standard Xiangqi is the open-info
+  // anchor, followed by Fortress as the authored product variant.
   XIANGQI_SPEC_ID,
+  FORTRESS_XIANGQI_SPEC_ID,
   DARK_XIANGQI_SPEC_ID,
   JIEQI_SPEC_ID,
-  BANQI_SPEC_ID,
-  LUZHANQI_SPEC_ID,
-  // Jungle family.
-  JUNGLE_SPEC_ID,
+  // Animal-rank cluster. Banqi sits with Flip Jungle/Jungle for its planned
+  // animal-themed presentation even though the rules kernel is xiangqi-family.
   JUNGLE_FLIP_SPEC_ID,
-  // Chess, deranked below xiangqi + jungle but above shogi.
+  BANQI_SPEC_ID,
+  JUNGLE_SPEC_ID,
+  // Chess, deranked below xiangqi + animal-rank games but above shogi.
   DARK_CHESS_SPEC_ID,
   DARK_SHOGI_SPEC_ID,
+  LUZHANQI_SPEC_ID,
   // Hidden / parked / retired — order here only affects hidden surfaces.
   DARK_CRAZYHOUSE_SPEC_ID,
   KRIEGSPIEL_SPEC_ID,

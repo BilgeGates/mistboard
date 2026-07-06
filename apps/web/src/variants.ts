@@ -134,26 +134,15 @@ const VARIANT_MINI_BY_GAME_SPEC: Partial<Record<GameSpecId, VariantMiniId>> = {
   [JUNGLE_FLIP_SPEC_ID]: 'jungle-flip',
 };
 
-// Ordered to match the shared CANONICAL_VARIANT_ORDER (packages/game): the
-// Chinese-chess family leads, jungle follows, chess is deranked below them, then
-// the hidden/parked tail. variants.test.ts asserts this array is already sorted
-// by canonicalVariantOrderIndex.
+// Ordered to match the shared CANONICAL_VARIANT_ORDER (packages/game): xiangqi
+// variants lead, the animal-rank cluster follows, chess is deranked below them,
+// then the hidden/parked tail. variants.test.ts asserts this array is already
+// sorted by canonicalVariantOrderIndex.
 export const VARIANTS: VariantDef[] = [
-  // Fortress Xiangqi ("Storm the Fortress"): the pivot flagship, heads the cluster.
-  {
-    id: currentRatingVariantForSpec(FORTRESS_XIANGQI_SPEC_ID),
-    gameSpecId: fortressXiangqiSpec.id,
-    apiParam: FORTRESS_XIANGQI_SPEC_ID,
-    label: fortressXiangqiSpec.publicName,
-    miniId: 'fortress-xiangqi',
-    enabled: false,
-    onLeaderboard: fortressXiangqiOn,
-    onProfile: fortressXiangqiOn,
-  },
-  // Standard Xiangqi (9x10 open info): the pivot anchor, right after Fortress.
-  // Launched 2026-07-04: on the rating grids + News rail, account-gated rated
-  // like Fortress/jieqi/banqi (rated games activate with the global
-  // MISTBOARD_RATED_ENABLED flip). PvE via Pikafish, PvP via friend links.
+  // Standard Xiangqi (9x10 open info): the pivot anchor. Launched 2026-07-04:
+  // on the rating grids + News rail, account-gated rated like Fortress/jieqi/banqi
+  // (rated games activate with the global MISTBOARD_RATED_ENABLED flip). PvE via
+  // Pikafish, PvP via friend links.
   {
     id: currentRatingVariantForSpec(XIANGQI_SPEC_ID),
     gameSpecId: xiangqiSpec.id,
@@ -163,6 +152,17 @@ export const VARIANTS: VariantDef[] = [
     enabled: false,
     onLeaderboard: xiangqiOn,
     onProfile: xiangqiOn,
+  },
+  // Fortress Xiangqi ("Storm the Fortress"): authored xiangqi product variant.
+  {
+    id: currentRatingVariantForSpec(FORTRESS_XIANGQI_SPEC_ID),
+    gameSpecId: fortressXiangqiSpec.id,
+    apiParam: FORTRESS_XIANGQI_SPEC_ID,
+    label: fortressXiangqiSpec.publicName,
+    miniId: 'fortress-xiangqi',
+    enabled: false,
+    onLeaderboard: fortressXiangqiOn,
+    onProfile: fortressXiangqiOn,
   },
   // Full Dark Xiangqi (9x10 fog): launched PvP-first (no bot, no open-seek
   // lobby), rating-ready like jieqi/banqi.
@@ -176,7 +176,7 @@ export const VARIANTS: VariantDef[] = [
     onLeaderboard: darkXiangqiOn,
     onProfile: darkXiangqiOn,
   },
-  // Jieqi + Banqi launched casual and are rating-ready (gated globally by
+  // Jieqi launched casual and is rating-ready (gated globally by
   // MISTBOARD_RATED_ENABLED). Not lobby-selectable (no open-seek matchmaking).
   {
     id: currentRatingVariantForSpec(JIEQI_SPEC_ID),
@@ -188,6 +188,23 @@ export const VARIANTS: VariantDef[] = [
     onLeaderboard: jieqiOn,
     onProfile: jieqiOn,
   },
+  // Jungle + Flip Jungle: rated human PvP (own pools), PvE bot games written
+  // unrated. The rating pools + profile/persistence wiring are live, but the
+  // public leaderboard/profile DISPLAY follows the play flag (`jungleOn` /
+  // `jungleFlipOn`), launched 2026-06-30 (now always-on). Not lobby open-seek (no
+  // public matchmaking in v1), so `enabled: false`.
+  {
+    id: currentRatingVariantForSpec(JUNGLE_FLIP_SPEC_ID),
+    gameSpecId: jungleFlipSpec.id,
+    apiParam: JUNGLE_FLIP_SPEC_ID,
+    label: jungleFlipSpec.publicName,
+    miniId: 'jungle-flip',
+    enabled: false,
+    onLeaderboard: jungleFlipOn,
+    onProfile: jungleFlipOn,
+  },
+  // Banqi stays a xiangqi-family rules kernel, but sits with the animal-rank
+  // games for the planned animal-themed presentation.
   {
     id: currentRatingVariantForSpec(BANQI_SPEC_ID),
     gameSpecId: banqiSpec.id,
@@ -198,11 +215,6 @@ export const VARIANTS: VariantDef[] = [
     onLeaderboard: banqiOn,
     onProfile: banqiOn,
   },
-  // Jungle + Flip Jungle: rated human PvP (own pools), PvE bot games written
-  // unrated. The rating pools + profile/persistence wiring are live, but the
-  // public leaderboard/profile DISPLAY follows the play flag (`jungleOn` /
-  // `jungleFlipOn`), launched 2026-06-30 (now always-on). Not lobby open-seek (no
-  // public matchmaking in v1), so `enabled: false`.
   {
     id: currentRatingVariantForSpec(JUNGLE_SPEC_ID),
     gameSpecId: jungleSpec.id,
@@ -212,16 +224,6 @@ export const VARIANTS: VariantDef[] = [
     enabled: false,
     onLeaderboard: jungleOn,
     onProfile: jungleOn,
-  },
-  {
-    id: currentRatingVariantForSpec(JUNGLE_FLIP_SPEC_ID),
-    gameSpecId: jungleFlipSpec.id,
-    apiParam: JUNGLE_FLIP_SPEC_ID,
-    label: jungleFlipSpec.publicName,
-    miniId: 'jungle-flip',
-    enabled: false,
-    onLeaderboard: jungleFlipOn,
-    onProfile: jungleFlipOn,
   },
   {
     id: currentRatingVariantForSpec(DARK_CHESS_SPEC_ID),

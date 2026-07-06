@@ -10,6 +10,7 @@ import {
 import {
   type Color,
   canonicalVariantOrderIndex,
+  DARK_SHOGI_SPEC_ID,
   type GameFamilyId,
   gameSpecForId,
   type Square,
@@ -108,8 +109,8 @@ function isArticleListedInThisEnv(article: Article): boolean {
 type RulesArticleGroupId = 'chess' | 'xiangqi' | 'shogi' | 'jungle' | 'other';
 
 // Group order mirrors CANONICAL_VARIANT_ORDER (game-specs.ts) by each family's
-// first appearance there: the Chinese-chess family leads (Fortress/Xiangqi),
-// then Jungle, then the deranked chess family, then Shogi.
+// first appearance there: xiangqi leads, then Jungle, then the deranked chess
+// family, then Shogi. The rules rail itself is globally sorted, not grouped.
 const RULES_ARTICLE_GROUP_ORDER: readonly RulesArticleGroupId[] = [
   'xiangqi',
   'jungle',
@@ -127,8 +128,8 @@ const BASE_RULE_GROUP_BY_SLUG: Record<string, RulesArticleGroupId> = {
 
 // Floats a family's base-rules article to the top of its group. Only for base
 // games NOT in CANONICAL_VARIANT_ORDER (chess, shogi) — they'd otherwise sort to
-// the bottom. Xiangqi IS in the canonical order (right after Fortress), so it is
-// left unpinned and takes its canonical slot: Fortress leads the xiangqi group.
+// the bottom. Xiangqi IS in the canonical order, so it is left unpinned and takes
+// its canonical slot.
 const BASE_RULE_ORDER: Record<string, number> = {
   chess: -100,
   shogi: -100,
@@ -699,8 +700,8 @@ export function buildArticlePage(slug: string, lang?: ArticleLang): HTMLElement 
 
 // Left rail on rules surfaces (pychess variant-page grammar): every listed
 // rules article with the current one highlighted. Pass null for the rules
-// index, which shares the shell without a current page. Reuses the TOC nav
-// grammar so the two rails read as one system.
+// index, which shares the shell without a current page. The order follows the
+// global canonical variant order so the rail scans as one list.
 // The current page is force-included so a dev-only draft still shows itself
 // highlighted — but NOT when it opted out of listings via showInIndex:false
 // (a guest page like shogi4): those render the rail without self-including, so
@@ -724,39 +725,31 @@ function buildVariantSidebar(currentSlug: string | null, lang?: ArticleLang): HT
   const box = document.createElement('div');
   box.className = 'article-toc-sticky';
 
-  const groups = buildRulesArticleGroups(entries, locale);
-
-  for (const group of groups) {
-    const title = document.createElement('p');
-    title.className = 'article-toc-title';
-    title.textContent = group.title;
-
-    const nav = document.createElement('nav');
-    nav.className = 'article-toc-nav';
-    const list = document.createElement('ul');
-    for (const entry of group.items) {
-      const li = document.createElement('li');
-      const link = document.createElement('a');
-      link.className = 'article-variant-link';
-      link.href = localizedHref(`/rules/${entry.slug}`, locale);
-      const miniRail = renderVariantMiniThumb(entry.slug);
-      if (miniRail) link.append(miniRail);
-      else if (entry.thumbnail) link.append(renderArticleThumbnail(entry.thumbnail));
-      const localized = lang ? translateArticle(entry, lang) : entry;
-      const label = document.createElement('span');
-      label.className = 'article-variant-label';
-      label.textContent = variantNavLabel(localized.title);
-      link.append(label);
-      if (entry.slug === currentSlug) {
-        link.classList.add('active');
-        link.setAttribute('aria-current', 'page');
-      }
-      li.append(link);
-      list.append(li);
+  const nav = document.createElement('nav');
+  nav.className = 'article-toc-nav';
+  const list = document.createElement('ul');
+  for (const entry of buildRulesArticleRailEntries(entries)) {
+    const li = document.createElement('li');
+    const link = document.createElement('a');
+    link.className = 'article-variant-link';
+    link.href = localizedHref(`/rules/${entry.slug}`, locale);
+    const miniRail = renderVariantMiniThumb(entry.slug);
+    if (miniRail) link.append(miniRail);
+    else if (entry.thumbnail) link.append(renderArticleThumbnail(entry.thumbnail));
+    const localized = lang ? translateArticle(entry, lang) : entry;
+    const label = document.createElement('span');
+    label.className = 'article-variant-label';
+    label.textContent = variantNavLabel(localized.title);
+    link.append(label);
+    if (entry.slug === currentSlug) {
+      link.classList.add('active');
+      link.setAttribute('aria-current', 'page');
     }
-    nav.append(list);
-    box.append(title, nav);
+    li.append(link);
+    list.append(li);
   }
+  nav.append(list);
+  box.append(nav);
 
   aside.append(box);
   return aside;
@@ -776,8 +769,18 @@ function buildRulesArticleGroups(entries: readonly Article[], locale: Locale): R
   })).filter((group) => group.items.length > 0);
 }
 
+function buildRulesArticleRailEntries(entries: readonly Article[]): Article[] {
+  return [...entries].sort(compareRulesArticleRailEntries);
+}
+
 function compareRulesArticles(a: Article, b: Article): number {
   const order = rulesArticleSortIndex(a) - rulesArticleSortIndex(b);
+  if (order !== 0) return order;
+  return a.title.localeCompare(b.title);
+}
+
+function compareRulesArticleRailEntries(a: Article, b: Article): number {
+  const order = rulesArticleRailSortIndex(a) - rulesArticleRailSortIndex(b);
   if (order !== 0) return order;
   return a.title.localeCompare(b.title);
 }
@@ -800,6 +803,13 @@ function rulesGroupForFamily(family: GameFamilyId): RulesArticleGroupId {
 function rulesArticleSortIndex(article: Article): number {
   const baseOrder = BASE_RULE_ORDER[article.slug];
   if (baseOrder !== undefined) return baseOrder;
+  if (isGameSpecId(article.slug)) return canonicalVariantOrderIndex(article.slug);
+  return Number.MAX_SAFE_INTEGER;
+}
+
+function rulesArticleRailSortIndex(article: Article): number {
+  if (article.slug === 'shogi') return canonicalVariantOrderIndex(DARK_SHOGI_SPEC_ID) - 0.5;
+  if (article.slug === 'shogi4') return canonicalVariantOrderIndex(DARK_SHOGI_SPEC_ID) + 0.5;
   if (isGameSpecId(article.slug)) return canonicalVariantOrderIndex(article.slug);
   return Number.MAX_SAFE_INTEGER;
 }
