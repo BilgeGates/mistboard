@@ -20,11 +20,7 @@ export type LuzhanqiCreatorPreference = LuzhanqiColor | 'random';
 export type LuzhanqiClockState = TenantClockState<LuzhanqiColor>;
 export type LuzhanqiEvent = TenantRoomEvent<LuzhanqiColor, LuzhanqiMove, LuzhanqiSpecId>;
 export type LuzhanqiClientEvent = TenantClientEvent<LuzhanqiColor, LuzhanqiMove, LuzhanqiSpecId>;
-export type LuzhanqiProjection = TenantProjection<
-  LuzhanqiColor,
-  LuzhanqiGameState,
-  LuzhanqiSpecId
->;
+export type LuzhanqiProjection = TenantProjection<LuzhanqiColor, LuzhanqiGameState, LuzhanqiSpecId>;
 export type LuzhanqiRuntimeRoom = TenantRuntimeRoom<
   'luzhanqi',
   LuzhanqiColor,

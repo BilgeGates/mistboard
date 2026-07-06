@@ -1,6 +1,6 @@
 import type { RoomTimeControl } from '@mistboard/game';
-import { luzhanqiTenant } from './luzhanqi-tenant.js';
 import type { LuzhanqiCreatorPreference, LuzhanqiRuntimeRoom } from './luzhanqi-runtime.js';
+import { luzhanqiTenant } from './luzhanqi-tenant.js';
 import * as persistence from './persistence.js';
 import { handleLuzhanqiCreate, requestsLuzhanqi } from './routes/luzhanqi-rooms.js';
 import {
@@ -60,8 +60,7 @@ registerVariantTenant({
   enabled: luzhanqiTenant.enabled,
   rooms: luzhanqiRooms as unknown as ReadonlyMap<string, TenantManagedRoom>,
   activeGameCount: () => countActiveTenantGames(luzhanqiRooms.values()),
-  getOrLoadRoom: (roomId) =>
-    getOrLoadLuzhanqiRoom(roomId) as Promise<TenantManagedRoom | null>,
+  getOrLoadRoom: (roomId) => getOrLoadLuzhanqiRoom(roomId) as Promise<TenantManagedRoom | null>,
   attachWebSocket: (ctx, socket, request, room) =>
     handleLuzhanqiWebSocketConnection(
       {

@@ -10,12 +10,12 @@ import type {
 } from '@mistboard/game';
 import {
   ALL_LUZHANQI_SQUARES,
+  isLuzhanqiCamp,
+  isLuzhanqiHeadquarters,
   LUZHANQI_FRONTLINE_POINTS,
   LUZHANQI_MOUNTAINS,
   LUZHANQI_SETUP_SQUARES,
   LUZHANQI_SPEC_ID,
-  isLuzhanqiCamp,
-  isLuzhanqiHeadquarters,
   luzhanqiFormationForColor,
 } from '@mistboard/game';
 import './luzhanqi-preview.css';
@@ -150,7 +150,9 @@ const client = createTenantLiveClient<LuzhanqiColor, LuzhanqiWireView, LuzhanqiM
         status: view.status,
       }),
     plyForView: (view, ctx) =>
-      view.status.type === 'setup' ? 0 : Math.max(view.ply, ctx.events.filter(isLuzhanqiMoveEvent).length),
+      view.status.type === 'setup'
+        ? 0
+        : Math.max(view.ply, ctx.events.filter(isLuzhanqiMoveEvent).length),
   },
 });
 
@@ -184,7 +186,8 @@ function renderBoard(liveRefs: LiveRefs, view: LuzhanqiWireView | null): void {
   }
   clearSetupStateIfPlaying(view);
   const seat = localSeat(view);
-  const setupEditable = view.status.type === 'setup' && isLuzhanqiColor(seat) && !hasOwnSetup(view, seat);
+  const setupEditable =
+    view.status.type === 'setup' && isLuzhanqiColor(seat) && !hasOwnSetup(view, seat);
   const displayView = setupEditable ? stagedSetupView(view, seat) : view;
   const targetKinds = new Map<LuzhanqiSquare, LuzhanqiTargetKind>();
   const setupSquares = new Set<LuzhanqiSquare>();
@@ -193,13 +196,20 @@ function renderBoard(liveRefs: LiveRefs, view: LuzhanqiWireView | null): void {
     for (const square of LUZHANQI_SETUP_SQUARES[seat]) setupSquares.add(square);
     if (setupSelectedSquare) {
       for (const square of LUZHANQI_SETUP_SQUARES[seat]) {
-        if (square !== setupSelectedSquare && setupPieceAt(seat, square)) targetKinds.set(square, 'swap');
+        if (square !== setupSelectedSquare && setupPieceAt(seat, square))
+          targetKinds.set(square, 'swap');
       }
     }
-  } else if (isLuzhanqiColor(seat) && displayView.status.type === 'playing' && displayView.status.turn === seat) {
+  } else if (
+    isLuzhanqiColor(seat) &&
+    displayView.status.type === 'playing' &&
+    displayView.status.turn === seat
+  ) {
     for (const move of displayView.legalMoves) movableSquares.add(move.from);
     if (selectedSquare) {
-      for (const move of displayView.legalMoves.filter((candidate) => candidate.from === selectedSquare)) {
+      for (const move of displayView.legalMoves.filter(
+        (candidate) => candidate.from === selectedSquare,
+      )) {
         targetKinds.set(move.to, targetKindForMove(displayView, move, seat));
       }
     }
@@ -221,7 +231,9 @@ function stagedSetupView(view: LuzhanqiWireView, seat: LuzhanqiColor): LuzhanqiW
   const formation = editableSetupFormation(seat);
   const board: LuzhanqiWireView['board'] = { ...view.board };
   for (const square of LUZHANQI_SETUP_SQUARES[seat]) delete board[square];
-  for (const [square, role] of Object.entries(formation) as Array<[LuzhanqiSquare, LuzhanqiPieceRole]>) {
+  for (const [square, role] of Object.entries(formation) as Array<
+    [LuzhanqiSquare, LuzhanqiPieceRole]
+  >) {
     board[square] = { color: seat, role, known: true };
   }
   return { ...view, board };
@@ -256,7 +268,11 @@ function canEditSetup(view: LuzhanqiWireView, seat: LuzhanqiColor): boolean {
   return view.status.type === 'setup' && !hasOwnSetup(view, seat);
 }
 
-function handleSetupSquareClick(view: LuzhanqiWireView, square: LuzhanqiSquare, seat: LuzhanqiColor): void {
+function handleSetupSquareClick(
+  view: LuzhanqiWireView,
+  square: LuzhanqiSquare,
+  seat: LuzhanqiColor,
+): void {
   selectedSquare = null;
   if (!canEditSetup(view, seat) || !isSetupSquareForSeat(seat, square)) {
     setupSelectedSquare = null;
@@ -286,7 +302,8 @@ function swapSetupSquares(
   seat: LuzhanqiColor,
 ): boolean {
   if (!canEditSetup(view, seat)) return false;
-  if (from === to || !isSetupSquareForSeat(seat, from) || !isSetupSquareForSeat(seat, to)) return false;
+  if (from === to || !isSetupSquareForSeat(seat, from) || !isSetupSquareForSeat(seat, to))
+    return false;
   const formation = editableSetupFormation(seat);
   const first = formation[from];
   const second = formation[to];
@@ -319,7 +336,11 @@ function renderExtras(liveRefs: LiveRefs, view: LuzhanqiWireView | null): void {
   if (!view) return;
   const seat = localSeat(view);
   if (!isLuzhanqiColor(seat)) {
-    if (view.status.type === 'playing' || view.status.type === 'finished' || view.status.type === 'aborted') {
+    if (
+      view.status.type === 'playing' ||
+      view.status.type === 'finished' ||
+      view.status.type === 'aborted'
+    ) {
       showLuzhanqiExtrasSection(liveRefs, 'Status');
       liveRefs.starts.hidden = false;
       renderStatePanel(liveRefs, view, null);
@@ -340,9 +361,7 @@ function renderExtras(liveRefs: LiveRefs, view: LuzhanqiWireView | null): void {
   const title = document.createElement('strong');
   title.textContent = submitted ? 'Formation locked' : 'Formation ready';
   const body = document.createElement('span');
-  body.textContent = submitted
-    ? 'Waiting for opponent setup.'
-    : setupSelectionText(seat);
+  body.textContent = submitted ? 'Waiting for opponent setup.' : setupSelectionText(seat);
   const actions = document.createElement('div');
   actions.className = 'luzhanqi-setup-actions';
 
@@ -407,7 +426,7 @@ function renderStatePanel(
       ? selectedMoveText(view, selectedSquare)
       : ownTurn
         ? 'Movable pieces are marked on the board.'
-        : lastMoveText(view) ?? 'Waiting for opponent.';
+        : (lastMoveText(view) ?? 'Waiting for opponent.');
   } else if (view.status.type === 'finished') {
     title.textContent = view.status.winner ? `${seatLabel(view.status.winner)} wins` : 'Game drawn';
     body.textContent = luzhanqiReasonPhrase(view.status.reason);
@@ -429,7 +448,8 @@ function renderStatePanel(
 function selectedMoveText(view: LuzhanqiWireView, square: LuzhanqiSquare): string {
   const piece = view.board[square];
   const moves = view.legalMoves.filter((move) => move.from === square);
-  if (!piece?.known) return `${square}: ${moves.length} legal move${moves.length === 1 ? '' : 's'}.`;
+  if (!piece?.known)
+    return `${square}: ${moves.length} legal move${moves.length === 1 ? '' : 's'}.`;
   const railMoves = moves.filter((move) => isRailMove(move)).length;
   const captures = moves.filter((move) => {
     const target = view.board[move.to];
@@ -469,7 +489,9 @@ function lastMoveOutcomeText(move: LuzhanqiLastMove): string {
   return 'Defender held.';
 }
 
-function lastMoveResultItems(move: LuzhanqiLastMove): Array<{ text: string; tone: 'capture' | 'move' | 'reveal' }> {
+function lastMoveResultItems(
+  move: LuzhanqiLastMove,
+): Array<{ text: string; tone: 'capture' | 'move' | 'reveal' }> {
   if (move.outcome.type === 'move') {
     return [{ text: `${move.from}-${move.to}`, tone: 'move' }];
   }
@@ -539,7 +561,9 @@ function installLuzhanqiBoardInteraction(liveRefs: LiveRefs): void {
     setupDragPointer = null;
     if (!start || !pointer || pointer.id !== event.pointerId) return;
     const moved = Math.hypot(event.clientX - pointer.x, event.clientY - pointer.y) > 6;
-    const target = document.elementFromPoint(event.clientX, event.clientY)?.closest('[data-square]');
+    const target = document
+      .elementFromPoint(event.clientX, event.clientY)
+      ?.closest('[data-square]');
     const square = target?.getAttribute('data-square');
     const view = core?.state.view;
     const seat = core?.state.seat;
@@ -593,7 +617,9 @@ function handleSquareClick(view: LuzhanqiWireView, square: LuzhanqiSquare): void
     return;
   }
   if (selectedSquare) {
-    const move = view.legalMoves.find((candidate) => candidate.from === selectedSquare && candidate.to === square);
+    const move = view.legalMoves.find(
+      (candidate) => candidate.from === selectedSquare && candidate.to === square,
+    );
     if (move) {
       selectedSquare = null;
       core.send({ type: 'move', from: move.from, to: move.to });
@@ -855,7 +881,10 @@ function renderFrontierPoint(point: LuzhanqiPoint, orientation: LuzhanqiColor): 
   group.setAttribute('transform', `translate(${x} ${y})`);
   const marker = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
   marker.setAttribute('r', LUZHANQI_MOUNTAINS.includes(point as never) ? '10' : '7');
-  group.classList.toggle('luzhanqi-frontier--mountain', LUZHANQI_MOUNTAINS.includes(point as never));
+  group.classList.toggle(
+    'luzhanqi-frontier--mountain',
+    LUZHANQI_MOUNTAINS.includes(point as never),
+  );
   group.append(marker);
   return group;
 }

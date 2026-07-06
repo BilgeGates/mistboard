@@ -1,8 +1,8 @@
 import type { IncomingMessage } from 'node:http';
 import type { LuzhanqiColor } from '@mistboard/game';
 import type { WebSocket } from 'ws';
-import { luzhanqiTenant } from './luzhanqi-tenant.js';
 import type { LuzhanqiRuntimeRoom } from './luzhanqi-runtime.js';
+import { luzhanqiTenant } from './luzhanqi-tenant.js';
 import { clearTenantRuntimeTimers } from './variant-tenant/lifecycle.js';
 import { createTenantWsRuntime, type TenantLiveClient } from './variant-tenant/ws.js';
 

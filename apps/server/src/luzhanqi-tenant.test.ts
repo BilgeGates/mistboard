@@ -1,10 +1,10 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import {
-  luzhanqiFormationForColor,
   LUZHANQI_SPEC_ID,
   type LuzhanqiColor,
   type LuzhanqiMove,
+  luzhanqiFormationForColor,
 } from '@mistboard/game';
 import {
   getLuzhanqiClientView,
@@ -149,7 +149,14 @@ test('Luzhanqi combat event streams and reconnect snapshots do not leak hidden r
     solo: false,
   });
   const blackMoveEvent = blackEvents.find((event) => event.type === 'move-played');
-  assert.deepEqual(blackMoveEvent, { type: 'move-played', at: 6, roomId, color: 'red', move, ply: 1 });
+  assert.deepEqual(blackMoveEvent, {
+    type: 'move-played',
+    at: 6,
+    roomId,
+    color: 'red',
+    move,
+    ply: 1,
+  });
   assert.equal(JSON.stringify(blackMoveEvent).includes('captain'), false);
 
   const redSnapshot = tenantSnapshotPayload(luzhanqiTenant, hydrated.room, {

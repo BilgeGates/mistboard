@@ -335,7 +335,8 @@ export function applyTenantEvent<
     };
   }
   if (event.type === 'clock-started') {
-    if (status.type === 'finished' || status.type === 'aborted' || projection.clock) return projection;
+    if (status.type === 'finished' || status.type === 'aborted' || projection.clock)
+      return projection;
     return { ...projection, clock: event.clock };
   }
   if (event.type === 'move-played') {

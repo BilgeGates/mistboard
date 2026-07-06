@@ -1,7 +1,6 @@
 import './luzhanqi-preview.css';
 import {
   ALL_LUZHANQI_SQUARES,
-  LUZHANQI_SPEC_ID,
   applyLuzhanqiMove,
   createPendingLuzhanqiState,
   getLuzhanqiLegalMoves,
@@ -12,9 +11,7 @@ import {
   LUZHANQI_FRONTLINE_POINTS,
   LUZHANQI_HEADQUARTERS,
   LUZHANQI_MOUNTAINS,
-  luzhanqiFormationForColor,
-  luzhanqiTruthView,
-  submitLuzhanqiFormation,
+  LUZHANQI_SPEC_ID,
   type LuzhanqiColor,
   type LuzhanqiFile,
   type LuzhanqiGameState,
@@ -22,6 +19,9 @@ import {
   type LuzhanqiPoint,
   type LuzhanqiSquare,
   type LuzhanqiVisiblePiece,
+  luzhanqiFormationForColor,
+  luzhanqiTruthView,
+  submitLuzhanqiFormation,
 } from '@mistboard/game';
 import { ROLE_SKIN, renderLuzhanqiSkinMark, roleDisplayName } from './luzhanqi-skin.js';
 
@@ -209,7 +209,14 @@ export function mountLuzhanqiPreview(root: HTMLElement): void {
     updateUrlSeed(playout.seed);
     render();
   });
-  playback.append(previousButton, previousBattleButton, playButton, nextButton, nextBattleButton, newButton);
+  playback.append(
+    previousButton,
+    previousBattleButton,
+    playButton,
+    nextButton,
+    nextBattleButton,
+    newButton,
+  );
 
   const seedForm = document.createElement('form');
   seedForm.className = 'luzhanqi-preview__seed';
@@ -367,7 +374,8 @@ function seededRandom(seed: number): () => number {
 }
 
 function statusText(state: LuzhanqiGameState, ply: number, maxPly: number): string {
-  if (state.status.type === 'playing') return `${capitalize(state.status.turn)} to move · ${ply}/${maxPly}`;
+  if (state.status.type === 'playing')
+    return `${capitalize(state.status.turn)} to move · ${ply}/${maxPly}`;
   if (state.status.type === 'finished') {
     return `${state.status.winner ? capitalize(state.status.winner) : 'No one'} wins · ${state.status.reason}`;
   }
@@ -427,7 +435,11 @@ function renderSide(
 
   const stats = document.createElement('dl');
   stats.className = 'luzhanqi-preview__stats';
-  addStat(stats, 'Status', view.status.type === 'playing' ? 'Playing' : capitalize(view.status.type));
+  addStat(
+    stats,
+    'Status',
+    view.status.type === 'playing' ? 'Playing' : capitalize(view.status.type),
+  );
   addStat(stats, 'Turn', view.status.type === 'playing' ? capitalize(view.status.turn) : 'None');
   addStat(stats, 'Ply', String(view.ply));
   addStat(stats, 'Playback', `${plyIndex} / ${playout.states.length - 1}`);
@@ -435,7 +447,11 @@ function renderSide(
   addStat(stats, 'Battles', String(battles.length));
   addStat(stats, 'Legal moves', String(view.legalMoves.length));
   addStat(stats, 'Camps', String(LUZHANQI_CAMPS.red.length + LUZHANQI_CAMPS.black.length));
-  addStat(stats, 'HQs', String(LUZHANQI_HEADQUARTERS.red.length + LUZHANQI_HEADQUARTERS.black.length));
+  addStat(
+    stats,
+    'HQs',
+    String(LUZHANQI_HEADQUARTERS.red.length + LUZHANQI_HEADQUARTERS.black.length),
+  );
   fragment.append(stats);
 
   if (view.lastMove) {
@@ -588,13 +604,18 @@ function lastMoveBadgeLabel(move: NonNullable<LuzhanqiPlayerView['lastMove']>): 
   return 'bounce';
 }
 
-function lastMoveBadgeTone(move: NonNullable<LuzhanqiPlayerView['lastMove']>): 'capture' | 'move' | 'reveal' {
+function lastMoveBadgeTone(
+  move: NonNullable<LuzhanqiPlayerView['lastMove']>,
+): 'capture' | 'move' | 'reveal' {
   if (move.outcome.type === 'move') return 'move';
   if (move.outcome.revealedFlag && !move.outcome.flagCaptured) return 'reveal';
   return 'capture';
 }
 
-function renderSquareMarker(square: LuzhanqiSquare, lastMove: LuzhanqiPlayerView['lastMove']): SVGElement {
+function renderSquareMarker(
+  square: LuzhanqiSquare,
+  lastMove: LuzhanqiPlayerView['lastMove'],
+): SVGElement {
   const [x, y] = pointPosition(square);
   const group = svgGroup('luzhanqi-square');
   group.setAttribute('transform', `translate(${x} ${y})`);
@@ -632,7 +653,10 @@ function renderFrontierPoint(point: PreviewPoint): SVGElement {
   const group = svgGroup('luzhanqi-frontier');
   group.setAttribute('transform', `translate(${x} ${y})`);
   const marker = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
-  marker.setAttribute('r', LUZHANQI_MOUNTAINS.includes(point as (typeof LUZHANQI_MOUNTAINS)[number]) ? '10' : '7');
+  marker.setAttribute(
+    'r',
+    LUZHANQI_MOUNTAINS.includes(point as (typeof LUZHANQI_MOUNTAINS)[number]) ? '10' : '7',
+  );
   group.classList.toggle(
     'luzhanqi-frontier--mountain',
     LUZHANQI_MOUNTAINS.includes(point as (typeof LUZHANQI_MOUNTAINS)[number]),
@@ -653,7 +677,9 @@ function lineBetween(from: PreviewPoint, to: PreviewPoint, rail: boolean): SVGEl
   return line;
 }
 
-function isRailMove(move: Pick<NonNullable<LuzhanqiPlayerView['lastMove']>, 'from' | 'to'>): boolean {
+function isRailMove(
+  move: Pick<NonNullable<LuzhanqiPlayerView['lastMove']>, 'from' | 'to'>,
+): boolean {
   const edge = edgeKey(move.from, move.to);
   return RAIL_EDGES.has(edge) || !ROAD_EDGES.has(edge);
 }

@@ -1,10 +1,10 @@
 import type { RoomTimeControl } from '@mistboard/game';
-import { luzhanqiTenant } from './luzhanqi-tenant.js';
 import type {
   LuzhanqiCreatorPreference,
   LuzhanqiEvent,
   LuzhanqiRuntimeRoom,
 } from './luzhanqi-runtime.js';
+import { luzhanqiTenant } from './luzhanqi-tenant.js';
 import type { LuzhanqiLiveRoom } from './server-ws-luzhanqi.js';
 import { createTenantLiveRoom } from './variant-tenant/room-factory.js';
 
