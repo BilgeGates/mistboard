@@ -117,7 +117,9 @@ describe('bot pages', () => {
     expect(root.querySelector('.profile-role-owner')?.textContent).toBe('First-party');
     expect(root.querySelector('.bot-profile-rating')?.textContent).toContain('1,812');
     expect(root.querySelector('.bot-profile-rating')?.textContent).toContain('48 rated games');
-    expect(root.querySelector('.bot-profile-rating')?.textContent).toContain('Half Flip Chess · Rapid');
+    expect(root.querySelector('.bot-profile-rating')?.textContent).toContain(
+      'Half Flip Chess · Rapid',
+    );
     expect(root.querySelector('.bot-profile-variants')?.textContent).toContain('Half Flip Chess');
   });
 

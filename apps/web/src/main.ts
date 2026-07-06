@@ -154,6 +154,10 @@ const botProfileId = path.startsWith('/bot/')
   ? decodeURIComponent(path.slice('/bot/'.length))
   : null;
 const profileHandle = profileHandleFromPath(path);
+// Standalone analysis board fed by a pasted / ?moves= coordinate list (no room).
+// No nav entry yet; direct-URL only, a shareable soft-launch primitive that lets
+// a game be reviewed off its moves alone. Ships live. See xiangqi-analysis-page.ts.
+const wantsXiangqiAnalysis = path === '/analysis/xiangqi';
 // Hidden DEV-only spike: FoW Xiangqi Phase A. No nav entry, no landing link.
 const wantsXiangqiSpike = import.meta.env.DEV && path === '/xiangqi-spike';
 // Hidden DEV-only spike for the candidate 7x7 Dark Mini Xiangqi ruleset.
@@ -164,6 +168,10 @@ const wantsXiangqiDemo = import.meta.env.DEV && path === '/xiangqi-demo';
 const wantsPixelLab = import.meta.env.DEV && path === '/pixel-lab';
 // Hidden DEV-only identity lab for candidate variant marks. No nav entry.
 const wantsVariantMarksLab = import.meta.env.DEV && path === '/variant-marks';
+// Hidden DEV-only board lab for mapping Dobutsu animal art onto chess pieces.
+const wantsDobutsuChessPreview = import.meta.env.DEV && path === '/dobutsu-chess-preview';
+// Hidden DEV-only UI lab for generated Dobutsu web icon candidates. No nav entry.
+const wantsDobutsuUiPreview = import.meta.env.DEV && path === '/dobutsu-ui-preview';
 // Hidden DEV-only audition lab for sound sets. No nav entry.
 const wantsSoundLab = import.meta.env.DEV && path === '/sound-lab';
 // Hidden DEV-only variant sheet: every variant's opening in the showcase widget.
@@ -232,6 +240,13 @@ if (replaySample) {
   setTitleKey('profile.ratingStats');
   void mountOrReport(() =>
     import('./profile.js').then(({ mountRatingStats }) => mountRatingStats(appRoot)),
+  );
+} else if (wantsXiangqiAnalysis) {
+  setTitle('Xiangqi analysis');
+  void mountOrReport(() =>
+    import('./xiangqi-analysis-page.js').then(({ mountXiangqiAnalysisPage }) => {
+      mountXiangqiAnalysisPage(appRoot);
+    }),
   );
 } else if (wantsDatabase) {
   setTitle('Game database');
@@ -332,6 +347,20 @@ if (replaySample) {
   void mountOrReport(() =>
     import('./variant-marks-lab.js').then(({ mountVariantMarksLab }) =>
       mountVariantMarksLab(appRoot),
+    ),
+  );
+} else if (wantsDobutsuChessPreview) {
+  setTitle('Dobutsu chess preview');
+  void mountOrReport(() =>
+    import('./dobutsu-chess-preview.js').then(({ mountDobutsuChessPreview }) =>
+      mountDobutsuChessPreview(appRoot),
+    ),
+  );
+} else if (wantsDobutsuUiPreview) {
+  setTitle('Dobutsu UI preview');
+  void mountOrReport(() =>
+    import('./dobutsu-ui-preview.js').then(({ mountDobutsuUiPreview }) =>
+      mountDobutsuUiPreview(appRoot),
     ),
   );
 } else if (wantsShowcaseSheet) {

@@ -53,6 +53,7 @@
     "@mistboard/board-render": "0.0.0",
     "@mistboard/game": "0.0.0",
     "@resvg/resvg-js": "^2.6.2",
+    "obscenity": "^0.4.6",
     "pg": "^8.20.0",
     "pino": "^10.3.1",
     "pino-pretty": "^13.1.3",

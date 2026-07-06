@@ -32,9 +32,9 @@ describe('site shell nav', () => {
       (menu) => menu.querySelector('.site-nav-menu-toggle')?.textContent === 'Community',
     );
     const communityPanel = communityMenu?.querySelector<HTMLElement>('.site-nav-menu-panel');
-    expect(
-      communityPanel?.querySelector<HTMLAnchorElement>('a[href="/player"]')?.textContent,
-    ).toBe('Players');
+    expect(communityPanel?.querySelector<HTMLAnchorElement>('a[href="/player"]')?.textContent).toBe(
+      'Players',
+    );
     expect(
       communityPanel?.querySelector<HTMLAnchorElement>('a[href="/account"]')?.textContent,
     ).toBe('Friends');

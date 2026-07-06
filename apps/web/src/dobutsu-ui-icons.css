@@ -1,0 +1,12 @@
+.dobutsu-ui-icon {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  transform-origin: center;
+  filter: drop-shadow(0 3px 5px rgba(31, 24, 15, 0.16));
+}
+
+:root[data-effective-theme="dark"] .dobutsu-ui-icon {
+  filter: drop-shadow(0 1px 0 rgba(255, 255, 255, 0.18)) drop-shadow(0 5px 12px rgba(0, 0, 0, 0.5));
+}

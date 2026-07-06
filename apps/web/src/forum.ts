@@ -1,4 +1,5 @@
 import './forum.css';
+import { buildDobutsuUiIcon } from './dobutsu-ui-icons.js';
 import { type AuthUser, buildNav, buildNotice, fetchCurrentUser } from './site-shell.js';
 
 type ForumCategory = {
@@ -605,24 +606,8 @@ function forumPanelTitle(title: string, options: { icon?: boolean } = {}): HTMLE
   return wrap;
 }
 
-function forumPanelIcon(): SVGSVGElement {
-  const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
-  svg.classList.add('forum-panel-icon');
-  svg.setAttribute('viewBox', '0 0 24 24');
-  svg.setAttribute('aria-hidden', 'true');
-  svg.setAttribute('focusable', 'false');
-  const backBubble = document.createElementNS('http://www.w3.org/2000/svg', 'path');
-  backBubble.setAttribute(
-    'd',
-    'M8.6 15.8a7.8 7.8 0 0 1-1.8-.2L2.8 18l1-3.4A5.5 5.5 0 0 1 2 10.5C2 7.3 5.1 4.8 8.9 4.8h3.5c2.4 0 4.5 1 5.7 2.5',
-  );
-  const frontBubble = document.createElementNS('http://www.w3.org/2000/svg', 'path');
-  frontBubble.setAttribute(
-    'd',
-    'M15 7.4c3.9 0 7 2.6 7 5.8S18.9 19 15 19a8.5 8.5 0 0 1-2.5-.4L8.1 21l1.2-3.5A5.3 5.3 0 0 1 8 13.2c0-3.2 3.1-5.8 7-5.8Z',
-  );
-  svg.append(backBubble, frontBubble);
-  return svg;
+function forumPanelIcon(): HTMLElement {
+  return buildDobutsuUiIcon('forum-topic', 'forum-panel-icon forum-panel-icon-dobutsu');
 }
 
 function forumBackLink(href: string, label: string): HTMLAnchorElement {
@@ -670,7 +655,7 @@ function newTopicPanelAction(
   button.className = 'forum-panel-action forum-panel-action-create';
   const label = document.createElement('span');
   label.textContent = 'Create a new topic';
-  button.append(forumPencilIcon(), label);
+  button.append(buildDobutsuUiIcon('create-topic', 'forum-create-topic-icon'), label);
   button.addEventListener('click', () => {
     composer.hidden = !composer.hidden;
     button.setAttribute('aria-expanded', String(!composer.hidden));
@@ -680,19 +665,6 @@ function newTopicPanelAction(
   });
   button.setAttribute('aria-expanded', 'false');
   return button;
-}
-
-// Pencil glyph on the "Create a new topic" action (matches lichess's icon).
-function forumPencilIcon(): SVGSVGElement {
-  const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
-  svg.classList.add('forum-pencil-icon');
-  svg.setAttribute('viewBox', '0 0 24 24');
-  svg.setAttribute('aria-hidden', 'true');
-  svg.setAttribute('focusable', 'false');
-  const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
-  path.setAttribute('d', 'M4 16.5 L14.5 6 L18 9.5 L7.5 20 L4 20 Z M13 7.5 L16.5 11');
-  svg.append(path);
-  return svg;
 }
 
 function canStartTopicInCategory(category: ForumCategory, user: AuthUser | null): user is AuthUser {

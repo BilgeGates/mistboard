@@ -1,0 +1,27 @@
+.xiangqi-analysis-form__card {
+  max-width: 640px;
+  margin: 0 auto;
+  text-align: left;
+}
+
+.xiangqi-analysis-form__input {
+  width: 100%;
+  box-sizing: border-box;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.95rem;
+  line-height: 1.5;
+  padding: 0.6rem 0.7rem;
+  border-radius: 8px;
+  border: 1px solid rgba(128, 128, 128, 0.45);
+  background: transparent;
+  color: inherit;
+  resize: vertical;
+  margin: 0.75rem 0 0.5rem;
+}
+
+.xiangqi-analysis-form__error {
+  min-height: 1.2em;
+  margin: 0 0 0.75rem;
+  color: #c0392b;
+  font-size: 0.9rem;
+}

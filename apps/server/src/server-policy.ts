@@ -139,7 +139,14 @@ export function isClientRoute(pathname: string): boolean {
     normalized.startsWith('/kriegspiel/game/') ||
     normalized.startsWith('/fortress-xiangqi/game/') ||
     normalized.startsWith('/game/') ||
-    normalized.startsWith('/engine/') ||
+    // Standalone analysis board (/analysis/:variant), fed by a move list rather
+    // than a room. Serves the review SPA shell and mounts the ceval engine, so it
+    // must also be a review-shell route (COOP/COEP) below.
+    /^\/analysis\/[a-z0-9-]+$/.test(normalized) ||
+    // /engine/:id is the admin engine-profile SPA page (single segment). Deeper
+    // paths like /engine/fairy-stockfish/stockfish.js are vendored ceval assets
+    // and MUST fall through to the static handler, not the index.html rewrite.
+    /^\/engine\/[^/]+$/.test(normalized) ||
     normalized.startsWith('/bot/') ||
     normalized.startsWith('/@/') ||
     normalized.startsWith('/room/')
@@ -147,16 +154,20 @@ export function isClientRoute(pathname: string): boolean {
 }
 
 // Review-shell document routes: the postgame board at /game/:id and each
-// /<variant>/game/:id. These serve the review SPA shell, which can mount the
-// in-browser analysis engine (WASM threads → SharedArrayBuffer → requires
-// cross-origin isolation). server-http sends COOP/COEP on exactly these
-// responses so the isolation stays scoped to the review surface. Live /room/
-// routes are deliberately excluded: the engine is postgame-only, and isolation
-// there would buy nothing. Keep the single optional variant segment in sync
-// with the /<variant>/game/ tenants in isClientRoute above.
+// /<variant>/game/:id, plus the standalone analysis board /analysis/:variant.
+// These serve the review SPA shell, which can mount the in-browser analysis
+// engine (WASM threads → SharedArrayBuffer → requires cross-origin isolation).
+// server-http sends COOP/COEP on exactly these responses so the isolation stays
+// scoped to the review surface. Live /room/ routes are deliberately excluded:
+// the engine is postgame-only, and isolation there would buy nothing. Keep the
+// single optional variant segment in sync with the /<variant>/game/ tenants in
+// isClientRoute above.
 export function isReviewShellRoute(pathname: string): boolean {
   const normalized = pathname.replace(/\/+$/, '') || '/';
-  return /^(?:\/[a-z0-9-]+)?\/game\/[^/]+$/.test(normalized);
+  return (
+    /^(?:\/[a-z0-9-]+)?\/game\/[^/]+$/.test(normalized) ||
+    /^\/analysis\/[a-z0-9-]+$/.test(normalized)
+  );
 }
 
 export function adminDebugTokenFromProtocolHeader(

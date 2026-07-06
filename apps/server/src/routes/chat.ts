@@ -2,6 +2,9 @@
 //
 //   GET  /api/chat/lobby          last lines + viewer posting state (anon read)
 //   POST /api/chat/lobby          post a line { text } (signed-in)
+//   GET  /api/chat/lobby/reports  admin: open chat report queue
+//   POST /api/chat/lobby/reports/:id admin: resolve/dismiss a report
+//   POST /api/chat/lobby/report   signed-in: report a line { lineId, reason? }
 //   POST /api/chat/lobby/timeout  admin: { handle, reason? } 15-min timeout,
 //                                 hides the user's visible lines
 //   POST /api/chat/lobby/hide     admin: { lineId, reason? } hide one line
@@ -18,6 +21,7 @@
 import { randomUUID } from 'node:crypto';
 import type { IncomingMessage, ServerResponse } from 'node:http';
 import { currentAccountUser } from './../account-session.js';
+import { CHAT_POLICY, evaluateChatText } from './../chat-policy.js';
 import { lobbyChatEnabled } from './../feature-flags.js';
 import * as persistence from './../persistence.js';
 import {
@@ -28,11 +32,6 @@ import {
   writeJson,
 } from './lib.js';
 
-const LINES_SERVED = 100;
-const TIMEOUT_MS = 15 * 60 * 1000;
-const floodWindowMs = 60 * 1000;
-const floodLimitPerWindow = 10;
-const youngAccountMs = 7 * 24 * 60 * 60 * 1000;
 const LINK_PATTERN = /https?:\/\/|www\./i;
 
 export async function tryHandle(
@@ -40,6 +39,7 @@ export async function tryHandle(
   request: IncomingMessage,
   response: ServerResponse,
   pathname: string,
+  parsedUrl: URL,
 ): Promise<boolean> {
   if (!pathname.startsWith('/api/chat/lobby')) return false;
   if (!lobbyChatEnabled()) {
@@ -47,6 +47,79 @@ export async function tryHandle(
     return true;
   }
   if (!requirePersistence(response)) return true;
+
+  if (pathname === '/api/chat/lobby/reports') {
+    if (!requireMethod(request, response, 'GET')) return true;
+    if (!(await requireAdminSession(request, response))) return true;
+    const statusParam = parsedUrl.searchParams.get('status');
+    const status = statusParam === 'resolved' || statusParam === 'dismissed' ? statusParam : 'open';
+    const reports = await persistence.listChatReports({ status, limit: 100 });
+    writeJson(response, 200, { reports: reports.map(serializeChatReport) });
+    return true;
+  }
+
+  const reportResolveMatch = pathname.match(/^\/api\/chat\/lobby\/reports\/([^/]+)$/);
+  if (reportResolveMatch) {
+    if (!requireMethod(request, response, 'POST')) return true;
+    if (!(await requireAdminSession(request, response))) return true;
+    const admin = await currentAccountUser(request);
+    if (!admin) {
+      writeJson(response, 401, { error: 'not_signed_in' });
+      return true;
+    }
+    const body = await readJsonBody(request);
+    const status = body.status === 'dismissed' ? 'dismissed' : 'resolved';
+    const note =
+      typeof body.note === 'string' ? body.note.slice(0, CHAT_POLICY.reportReasonMax) : undefined;
+    const updated = await persistence.resolveChatReport({
+      reportId: decodeURIComponent(reportResolveMatch[1] ?? ''),
+      status,
+      resolvedById: admin.id,
+      note,
+    });
+    if (!updated) {
+      writeJson(response, 404, { error: 'not_found' });
+      return true;
+    }
+    writeJson(response, 200, { ok: true });
+    return true;
+  }
+
+  if (pathname === '/api/chat/lobby/report') {
+    if (!requireMethod(request, response, 'POST')) return true;
+    const user = await currentAccountUser(request);
+    if (!user) {
+      writeJson(response, 401, { error: 'not_signed_in' });
+      return true;
+    }
+    const body = await readJsonBody(request);
+    const lineId = typeof body.lineId === 'string' ? body.lineId.trim() : '';
+    const reason =
+      typeof body.reason === 'string' && body.reason.trim()
+        ? body.reason.trim().slice(0, CHAT_POLICY.reportReasonMax)
+        : 'Chat message report';
+    if (!lineId) {
+      writeJson(response, 400, { error: 'invalid_line' });
+      return true;
+    }
+    const result = await persistence.createChatReport({
+      id: `chrpt_${randomUUID()}`,
+      lineId,
+      reporterId: user.id,
+      reason,
+    });
+    if (!result.ok) {
+      const status =
+        result.error === 'line_not_found' ? 404 : result.error === 'already_reported' ? 409 : 403;
+      writeJson(response, status, { error: result.error });
+      return true;
+    }
+    writeJson(response, 201, {
+      report: serializeChatReport(result.report),
+      openReportsForLine: result.openReportsForLine,
+    });
+    return true;
+  }
 
   if (pathname === '/api/chat/lobby/timeout') {
     if (!requireMethod(request, response, 'POST')) return true;
@@ -67,7 +140,7 @@ export async function tryHandle(
       id: `chto_${randomUUID()}`,
       room: persistence.CHAT_ROOM_LOBBY,
       targetHandle: handle,
-      durationMs: TIMEOUT_MS,
+      durationMs: CHAT_POLICY.timeoutMs,
       reason,
       createdById: admin.id,
     });
@@ -106,7 +179,10 @@ export async function tryHandle(
   if (pathname !== '/api/chat/lobby') return false;
 
   if (request.method === 'GET') {
-    const lines = await persistence.listChatLines(persistence.CHAT_ROOM_LOBBY, LINES_SERVED);
+    const lines = await persistence.listChatLines(
+      persistence.CHAT_ROOM_LOBBY,
+      CHAT_POLICY.servedLines,
+    );
     const viewer = await currentAccountUser(request);
     const timeoutUntil = viewer
       ? await persistence.activeChatTimeout(persistence.CHAT_ROOM_LOBBY, viewer.id)
@@ -119,6 +195,8 @@ export async function tryHandle(
         createdAt: line.createdAt.toISOString(),
       })),
       canPost: !!viewer && !timeoutUntil,
+      canReport: !!viewer,
+      viewerHandle: viewer?.handle ?? null,
       ...(timeoutUntil ? { timeoutUntil: timeoutUntil.toISOString() } : {}),
       isAdmin: viewer?.accountRole === 'admin',
     });
@@ -143,21 +221,39 @@ export async function tryHandle(
     }
     const body = await readJsonBody(request);
     const text = typeof body.text === 'string' ? body.text.trim() : '';
-    if (text.length === 0 || text.length > persistence.CHAT_LINE_MAX) {
+    if (text.length === 0 || text.length > CHAT_POLICY.maxLineChars) {
       writeJson(response, 400, { error: 'invalid_message' });
       return true;
     }
-    if (now.getTime() - user.createdAt.getTime() < youngAccountMs && LINK_PATTERN.test(text)) {
+    const policy = evaluateChatText(text);
+    if (policy.action === 'reject') {
+      writeJson(response, 403, { error: 'message_rejected', reason: policy.reason });
+      return true;
+    }
+    if (
+      now.getTime() - user.createdAt.getTime() < CHAT_POLICY.youngAccountMs &&
+      LINK_PATTERN.test(text)
+    ) {
       writeJson(response, 403, { error: 'links_not_allowed' });
       return true;
     }
     if (
       (await persistence.countRecentChatLinesByUser(
         user.id,
-        new Date(now.getTime() - floodWindowMs),
-      )) >= floodLimitPerWindow
+        new Date(now.getTime() - CHAT_POLICY.floodWindowMs),
+      )) >= CHAT_POLICY.floodLimitPerWindow
     ) {
       writeJson(response, 429, { error: 'rate_limited' });
+      return true;
+    }
+    if (
+      (await persistence.countRecentMatchingChatLinesByUser({
+        userId: user.id,
+        bodyText: text,
+        since: new Date(now.getTime() - CHAT_POLICY.repeatedWindowMs),
+      })) >= CHAT_POLICY.repeatedLimitPerWindow
+    ) {
+      writeJson(response, 429, { error: 'repeated_message' });
       return true;
     }
     const id = `chln_${randomUUID()}`;
@@ -166,9 +262,11 @@ export async function tryHandle(
       room: persistence.CHAT_ROOM_LOBBY,
       authorId: user.id,
       bodyText: text,
+      moderationStatus: policy.status,
+      moderationReason: policy.reason,
       now,
     });
-    await persistence.pruneChatLines(persistence.CHAT_ROOM_LOBBY, persistence.CHAT_LINES_RETAINED);
+    await persistence.pruneChatLines(persistence.CHAT_ROOM_LOBBY, CHAT_POLICY.retainedLines);
     writeJson(response, 201, {
       line: { id, handle: user.handle, text, createdAt: now.toISOString() },
     });
@@ -177,4 +275,19 @@ export async function tryHandle(
 
   writeJson(response, 405, { error: 'method_not_allowed' });
   return true;
+}
+
+function serializeChatReport(report: persistence.ChatReportRecord): Record<string, unknown> {
+  return {
+    id: report.id,
+    lineId: report.lineId,
+    reporterHandle: report.reporterHandle,
+    lineAuthorHandle: report.lineAuthorHandle,
+    lineText: report.lineText,
+    reason: report.reason,
+    status: report.status,
+    moderationStatus: report.moderationStatus,
+    moderationReason: report.moderationReason,
+    createdAt: report.createdAt.toISOString(),
+  };
 }

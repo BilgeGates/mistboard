@@ -14,6 +14,8 @@ type ChatLine = { id: string; handle: string | null; text: string; createdAt: st
 type ChatState = {
   lines: ChatLine[];
   canPost: boolean;
+  canReport: boolean;
+  viewerHandle: string | null;
   timeoutUntil?: string;
   isAdmin: boolean;
 };
@@ -22,35 +24,63 @@ const POLL_MS = 7000;
 const QUIET_AFTER_MS = 24 * 60 * 60 * 1000;
 const VISIBLE_LINES = 30;
 
-export function buildLandingChat(options: { hydrate?: boolean } = {}): HTMLElement {
+type LandingChatMode = 'live' | 'mock';
+
+export function buildLandingChat(
+  options: { hydrate?: boolean; mode?: LandingChatMode } = {},
+): HTMLElement {
   // A plain placeholder mount, not a site-box: nothing paints unless the API
   // says the room exists. The prerendered shell carries this empty div, so
   // there is no reserved footprint to jank when chat is disabled.
   const mount = document.createElement('div');
   mount.className = 'landing-chat-mount';
-  if (options.hydrate !== false) void hydrateChat(mount);
+  if (options.hydrate !== false) void hydrateChat(mount, options.mode ?? 'live');
   return mount;
 }
 
-async function hydrateChat(mount: HTMLElement): Promise<void> {
+async function hydrateChat(mount: HTMLElement, mode: LandingChatMode): Promise<void> {
   const locale = currentLocale();
-  const state = await fetchChat();
+  const state = mode === 'mock' ? mockChatState() : await fetchChat();
   if (!state) return; // disabled or unreachable: render nothing
 
   const { box, body } = buildSiteBox({
-    title: t('chat.title', {}, locale),
+    title: mode === 'mock' ? 'Chat room' : t('chat.title', {}, locale),
     className: 'landing-chat',
   });
+  const top = box.querySelector('.site-box-top');
+  top?.append(buildChatToggle(box, body, mount, mode, locale));
 
   const latest = state.lines[state.lines.length - 1];
   const quiet = !latest || Date.now() - new Date(latest.createdAt).getTime() > QUIET_AFTER_MS;
 
   if (quiet) {
-    renderQuiet(body, state, locale, mount);
+    renderQuiet(body, state, locale, mount, mode);
   } else {
-    renderRoom(body, state, locale);
+    renderRoom(body, state, locale, mode);
   }
   mount.replaceChildren(box);
+}
+
+function buildChatToggle(
+  box: HTMLElement,
+  body: HTMLElement,
+  mount: HTMLElement,
+  mode: LandingChatMode,
+  locale: Locale,
+): HTMLButtonElement {
+  const toggle = document.createElement('button');
+  toggle.type = 'button';
+  toggle.className = 'landing-chat-toggle';
+  toggle.title = mode === 'mock' ? 'Toggle chat preview' : t('chat.title', {}, locale);
+  toggle.addEventListener('click', () => {
+    if (box.classList.contains('is-chat-muted')) {
+      void hydrateChat(mount, mode);
+      return;
+    }
+    box.classList.add('is-chat-muted');
+    body.replaceChildren();
+  });
+  return toggle;
 }
 
 // Quiet mode: one inviting line and, for signed-in users, the composer right
@@ -60,6 +90,7 @@ function renderQuiet(
   state: ChatState,
   locale: Locale,
   mount: HTMLElement,
+  mode: LandingChatMode,
 ): void {
   body.replaceChildren();
   const row = document.createElement('p');
@@ -70,7 +101,7 @@ function renderQuiet(
     body.append(
       buildComposer(locale, () => {
         // First message: swap to the live room so the sender sees it land.
-        void hydrateChat(mount);
+        void hydrateChat(mount, mode);
       }),
     );
   } else {
@@ -78,20 +109,29 @@ function renderQuiet(
   }
 }
 
-function renderRoom(body: HTMLElement, state: ChatState, locale: Locale): void {
+function renderRoom(
+  body: HTMLElement,
+  state: ChatState,
+  locale: Locale,
+  mode: LandingChatMode,
+): void {
   body.replaceChildren();
 
   const feed = document.createElement('div');
   feed.className = 'landing-chat-feed';
   const known = new Set<string>();
-  appendLines(feed, state.lines.slice(-VISIBLE_LINES), known, state.isAdmin, locale);
+  appendLines(feed, state.lines.slice(-VISIBLE_LINES), known, state, locale, mode);
   body.append(feed);
 
   if (state.canPost) {
     body.append(
-      buildComposer(locale, (line) => {
-        if (line) appendLines(feed, [line], known, state.isAdmin, locale);
-      }),
+      buildComposer(
+        locale,
+        (line) => {
+          if (line) appendLines(feed, [line], known, state, locale, mode);
+        },
+        mode === 'mock' ? postMockLine : undefined,
+      ),
     );
   } else if (state.timeoutUntil) {
     const note = document.createElement('p');
@@ -103,12 +143,13 @@ function renderRoom(body: HTMLElement, state: ChatState, locale: Locale): void {
   }
 
   // Poll while the tab is visible; page-scoped interval (full-page navs).
+  if (mode === 'mock') return;
   window.setInterval(async () => {
     if (document.visibilityState !== 'visible') return;
     const fresh = await fetchChat();
     if (!fresh) return;
     const incoming = fresh.lines.filter((line) => !known.has(line.id));
-    if (incoming.length > 0) appendLines(feed, incoming, known, state.isAdmin, locale);
+    if (incoming.length > 0) appendLines(feed, incoming, known, fresh, locale, mode);
   }, POLL_MS);
 }
 
@@ -116,8 +157,9 @@ function appendLines(
   feed: HTMLElement,
   lines: ChatLine[],
   known: Set<string>,
-  isAdmin: boolean,
+  state: Pick<ChatState, 'canReport' | 'isAdmin' | 'viewerHandle'>,
   locale: Locale,
+  mode: LandingChatMode,
 ): void {
   for (const line of lines) {
     known.add(line.id);
@@ -129,12 +171,23 @@ function appendLines(
     who.textContent = line.handle ?? t('chat.deletedAccount', {}, locale);
     const text = document.createElement('span');
     text.className = 'landing-chat-text';
-    text.textContent = line.text;
+    appendChatText(text, line.text);
     row.append(who, text);
-    if (isAdmin && line.handle) row.append(buildAdminControls(line, row));
+    if (state.isAdmin && line.handle) {
+      row.append(buildAdminControls(line, row));
+    } else if (canReportLine(state, line)) {
+      row.append(buildReportControl(line, locale, mode));
+    }
     feed.append(row);
   }
   feed.scrollTop = feed.scrollHeight;
+}
+
+function canReportLine(
+  state: Pick<ChatState, 'canReport' | 'viewerHandle'>,
+  line: ChatLine,
+): boolean {
+  return !!state.canReport && !!line.handle && line.handle !== state.viewerHandle;
 }
 
 // Admin-only inline moderation: hide the line, or 15-min timeout its author
@@ -176,7 +229,48 @@ function buildAdminControls(line: ChatLine, row: HTMLElement): HTMLElement {
   return wrap;
 }
 
-function buildComposer(locale: Locale, onSent: (line: ChatLine | null) => void): HTMLElement {
+function buildReportControl(line: ChatLine, locale: Locale, mode: LandingChatMode): HTMLElement {
+  const button = document.createElement('button');
+  button.type = 'button';
+  button.className = 'landing-chat-admin-action landing-chat-report-action';
+  button.title = t('chat.report', {}, locale);
+  button.textContent = '!';
+  button.addEventListener('click', async () => {
+    button.disabled = true;
+    button.setAttribute('aria-busy', 'true');
+    if (mode === 'mock') {
+      markReportDone(button, locale);
+      return;
+    }
+    const resp = await fetch('/api/chat/lobby/report', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ lineId: line.id, reason: 'Chat message report' }),
+    }).catch(() => null);
+    if (resp?.ok || resp?.status === 409) {
+      markReportDone(button, locale);
+      return;
+    }
+    button.removeAttribute('aria-busy');
+    button.textContent = '!';
+    button.title = t('chat.reportFailed', {}, locale);
+    button.disabled = false;
+  });
+  return button;
+}
+
+function markReportDone(button: HTMLButtonElement, locale: Locale): void {
+  button.removeAttribute('aria-busy');
+  button.textContent = t('chat.reportedShort', {}, locale);
+  button.title = t('chat.reported', {}, locale);
+  button.classList.add('is-reported');
+}
+
+function buildComposer(
+  locale: Locale,
+  onSent: (line: ChatLine | null) => void,
+  postLine: (text: string) => Promise<ChatLine> = postLiveLine,
+): HTMLElement {
   const form = document.createElement('form');
   form.className = 'landing-chat-composer';
 
@@ -197,23 +291,12 @@ function buildComposer(locale: Locale, onSent: (line: ChatLine | null) => void):
     input.disabled = true;
     status.hidden = true;
     try {
-      const resp = await fetch('/api/chat/lobby', {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ text }),
-      });
-      if (!resp.ok) {
-        const data = (await resp.json().catch(() => ({}))) as { error?: string };
-        status.textContent = postErrorCopy(data.error, locale);
-        status.hidden = false;
-        onSent(null);
-        return;
-      }
-      const data = (await resp.json()) as { line: ChatLine };
+      const line = await postLine(text);
       input.value = '';
-      onSent(data.line);
-    } catch {
-      status.textContent = t('chat.sendFailed', {}, locale);
+      onSent(line);
+    } catch (error) {
+      const code = error instanceof ChatPostError ? error.code : undefined;
+      status.textContent = postErrorCopy(code, locale);
       status.hidden = false;
       onSent(null);
     } finally {
@@ -246,6 +329,22 @@ function postErrorCopy(error: string | undefined, locale: Locale): string {
   return t(key, {}, locale);
 }
 
+const TOKEN_PATTERN = /(@[a-z0-9_-]+|(?:https?:\/\/)?(?:[a-z0-9-]+\.)+[a-z]{2,}(?:\/\S*)?)/gi;
+
+function appendChatText(container: HTMLElement, text: string): void {
+  let cursor = 0;
+  for (const match of text.matchAll(TOKEN_PATTERN)) {
+    const index = match.index ?? cursor;
+    if (index > cursor) container.append(document.createTextNode(text.slice(cursor, index)));
+    const token = document.createElement('span');
+    token.className = 'landing-chat-token';
+    token.textContent = match[0];
+    container.append(token);
+    cursor = index + match[0].length;
+  }
+  if (cursor < text.length) container.append(document.createTextNode(text.slice(cursor)));
+}
+
 async function fetchChat(): Promise<ChatState | null> {
   try {
     const resp = await fetch('/api/chat/lobby');
@@ -254,4 +353,63 @@ async function fetchChat(): Promise<ChatState | null> {
   } catch {
     return null;
   }
+}
+
+class ChatPostError extends Error {
+  constructor(readonly code: string | undefined) {
+    super(code ?? 'chat_post_failed');
+  }
+}
+
+async function postLiveLine(text: string): Promise<ChatLine> {
+  const resp = await fetch('/api/chat/lobby', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ text }),
+  });
+  if (!resp.ok) {
+    const data = (await resp.json().catch(() => ({}))) as { error?: string };
+    throw new ChatPostError(data.error);
+  }
+  const data = (await resp.json()) as { line: ChatLine };
+  return data.line;
+}
+
+async function postMockLine(text: string): Promise<ChatLine> {
+  return {
+    id: `mock_${Date.now().toString(36)}`,
+    handle: 'you',
+    text,
+    createdAt: new Date().toISOString(),
+  };
+}
+
+function mockChatState(): ChatState {
+  const now = Date.now();
+  return {
+    canPost: true,
+    canReport: true,
+    viewerHandle: 'you',
+    isAdmin: false,
+    lines: [
+      {
+        id: 'mock_chat_1',
+        handle: 'mbappe29',
+        text: '@vci20.playstrategy.org/challenge/IqLAiNqe',
+        createdAt: new Date(now - 15 * 60 * 1000).toISOString(),
+      },
+      {
+        id: 'mock_chat_2',
+        handle: 'hoangbaophong3',
+        text: 'hello',
+        createdAt: new Date(now - 8 * 60 * 1000).toISOString(),
+      },
+      {
+        id: 'mock_chat_3',
+        handle: 'Top2Always',
+        text: 'Good Afternoon Everyone And Good Afternoon @sdrf_tajik',
+        createdAt: new Date(now - 2 * 60 * 1000).toISOString(),
+      },
+    ],
+  };
 }

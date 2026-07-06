@@ -4,11 +4,15 @@ import {
   addChatLine,
   CHAT_ROOM_LOBBY,
   countRecentChatLinesByUser,
+  countRecentMatchingChatLinesByUser,
+  createChatReport,
   createChatTimeout,
   createUser,
   hideChatLine,
   listChatLines,
+  listChatReports,
   pruneChatLines,
+  resolveChatReport,
 } from './persistence.js';
 import { assert, definePersistenceTests, test } from './persistence-test-support.js';
 import { tryHandle as tryHandleChatRoute } from './routes/chat.js';
@@ -126,6 +130,106 @@ definePersistenceTests('chat', () => {
     );
   });
 
+  test('reports deduplicate per reporter and can be resolved by admins', async () => {
+    const now = new Date('2026-07-02T09:00:00Z');
+    await makeUser('chat_user_reported', 'chatreported', now);
+    await makeUser('chat_user_reporter', 'chatreporter', now);
+    await makeUser('chat_user_report_admin', 'chatreportadmin', now);
+
+    await addChatLine({
+      id: 'chln_report_1',
+      room: CHAT_ROOM_LOBBY,
+      authorId: 'chat_user_reported',
+      bodyText: 'borderline',
+      moderationStatus: 'flagged',
+      moderationReason: 'profanity',
+      now,
+    });
+
+    const self = await createChatReport({
+      id: 'chrpt_self',
+      lineId: 'chln_report_1',
+      reporterId: 'chat_user_reported',
+      reason: 'self',
+      now,
+    });
+    assert.deepEqual(self, { ok: false, error: 'self_report' });
+
+    const created = await createChatReport({
+      id: 'chrpt_1',
+      lineId: 'chln_report_1',
+      reporterId: 'chat_user_reporter',
+      reason: 'spam',
+      now,
+    });
+    assert.equal(created.ok, true);
+    if (!created.ok) throw new Error('expected report creation');
+    assert.equal(created.openReportsForLine, 1);
+    assert.equal(created.report.lineAuthorHandle, 'chatreported');
+    assert.equal(created.report.reporterHandle, 'chatreporter');
+    assert.equal(created.report.moderationStatus, 'flagged');
+
+    const duplicate = await createChatReport({
+      id: 'chrpt_2',
+      lineId: 'chln_report_1',
+      reporterId: 'chat_user_reporter',
+      reason: 'again',
+      now,
+    });
+    assert.deepEqual(duplicate, { ok: false, error: 'already_reported' });
+
+    const open = await listChatReports({ status: 'open', limit: 10 });
+    assert.equal(
+      open.some((report) => report.id === 'chrpt_1'),
+      true,
+    );
+
+    assert.equal(
+      await resolveChatReport({
+        reportId: 'chrpt_1',
+        status: 'resolved',
+        resolvedById: 'chat_user_report_admin',
+        note: 'handled',
+        now,
+      }),
+      true,
+    );
+    assert.equal(
+      (await listChatReports({ status: 'open', limit: 10 })).some(
+        (report) => report.id === 'chrpt_1',
+      ),
+      false,
+    );
+  });
+
+  test('recent matching line counter supports duplicate-message throttling', async () => {
+    const now = new Date('2026-07-02T10:00:00Z');
+    await makeUser('chat_user_echo', 'chatecho', now);
+    await addChatLine({
+      id: 'chln_echo_1',
+      room: CHAT_ROOM_LOBBY,
+      authorId: 'chat_user_echo',
+      bodyText: 'Same line',
+      now,
+    });
+    await addChatLine({
+      id: 'chln_echo_2',
+      room: CHAT_ROOM_LOBBY,
+      authorId: 'chat_user_echo',
+      bodyText: 'same line',
+      now: new Date(now.getTime() + 1000),
+    });
+
+    assert.equal(
+      await countRecentMatchingChatLinesByUser({
+        userId: 'chat_user_echo',
+        bodyText: ' same line ',
+        since: new Date(now.getTime() - 1000),
+      }),
+      2,
+    );
+  });
+
   test('chat routes: flag off answers chat_disabled, flag on gates posting', async () => {
     // Flag off (default in the test env): every chat path is a 404.
     const disabled = captureResponse();
@@ -134,6 +238,7 @@ definePersistenceTests('chat', () => {
       { method: 'GET', headers: {} } as unknown as IncomingMessage,
       disabled,
       '/api/chat/lobby',
+      new URL('http://test.local/api/chat/lobby'),
     );
     assert.equal(handled, true);
     assert.equal(disabled.status, 404);
@@ -148,11 +253,13 @@ definePersistenceTests('chat', () => {
         { method: 'GET', headers: {} } as unknown as IncomingMessage,
         read,
         '/api/chat/lobby',
+        new URL('http://test.local/api/chat/lobby'),
       );
       assert.equal(read.status, 200);
       const payload = JSON.parse(read.body);
       assert.equal(Array.isArray(payload.lines), true);
       assert.equal(payload.canPost, false);
+      assert.equal(payload.viewerHandle, null);
 
       const post = captureResponse();
       await tryHandleChatRoute(
@@ -160,6 +267,7 @@ definePersistenceTests('chat', () => {
         { method: 'POST', headers: {} } as unknown as IncomingMessage,
         post,
         '/api/chat/lobby',
+        new URL('http://test.local/api/chat/lobby'),
       );
       assert.equal(post.status, 401);
     } finally {
