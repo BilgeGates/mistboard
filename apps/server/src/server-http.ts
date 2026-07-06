@@ -80,6 +80,20 @@ export function createHttpRequestHandler(options: ServerHttpHandlerOptions) {
       response.setHeader('Cross-Origin-Embedder-Policy', 'credentialless');
     }
 
+    // The ceval engine runs Fairy-Stockfish as an emscripten pthread worker. A
+    // dedicated worker only becomes cross-origin isolated (and can accept the
+    // SharedArrayBuffer memory the main thread hands it) when its OWN script
+    // response carries COEP; the document's credentialless header does not extend
+    // to it, so the worker spawns un-isolated and pthreads die with an opaque
+    // "pthread sent an error". Serve the vendored engine assets with their own
+    // COEP + CORP so the worker isolates. (Vite sets these on every dev response,
+    // which is why this only ever broke in prod.) setHeader survives the static
+    // serve-handler's writeHead merge, same as the review-document headers above.
+    if (pathname.startsWith('/engine/fairy-stockfish/')) {
+      response.setHeader('Cross-Origin-Embedder-Policy', 'require-corp');
+      response.setHeader('Cross-Origin-Resource-Policy', 'same-origin');
+    }
+
     if (url === '/health') {
       void handleHealthRequest(options, response);
       return;
