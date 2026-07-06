@@ -73,7 +73,7 @@ export function mountBanqiPostgame(root: HTMLElement, roomId: string): void {
   installBanqiBoardStyles();
   root.replaceChildren(buildNav(), loadingView());
   if (!banqiEnabled()) {
-    renderError(root, 'Banqi unavailable', 'This route is not enabled in this build.');
+    renderError(root, 'Half Flip Chess unavailable', 'This route is not enabled in this build.');
     return;
   }
   void loadBanqiPostgame(roomId)
@@ -190,8 +190,8 @@ function renderPostgame(root: HTMLElement, postgame: BanqiPostgameResponse): voi
 
   mountReviewLayout(root, {
     pageClassName: 'banqi-review',
-    ariaLabel: 'Banqi postgame',
-    title: 'Banqi',
+    ariaLabel: 'Half Flip Chess postgame',
+    title: 'Half Flip Chess',
     summary: `${banqiResultLabel(postgame.game.result, postgame.view.firstColor)} by ${labelize(postgame.game.termination)} · ${postgame.game.plyCount} plies`,
     actions: banqiActions(postgame, revealBtn),
     moves: movesCard,
@@ -395,7 +395,7 @@ function errorTitle(status: number): string {
 }
 
 function errorBody(result: Extract<LoadResult, { ok: false }>): string {
-  if (result.status === 404) return 'This Banqi game is not available.';
+  if (result.status === 404) return 'This Half Flip Chess game is not available.';
   if (result.status === 503) return 'The postgame service is not available.';
   return result.error;
 }

@@ -164,7 +164,7 @@ const WEB_VARIANT_TENANTS: readonly WebVariantTenant[] = [
     gameSpecId: DARK_CHESS_SPEC_ID,
     roomIdPrefix: 'dchx_',
     enabled: correspondenceEnabled,
-    pageTitle: 'Dark Chess',
+    pageTitle: 'Fog Chess',
   },
   {
     // Standard Xiangqi (9x10, open information). Self-contained live client on
@@ -174,7 +174,7 @@ const WEB_VARIANT_TENANTS: readonly WebVariantTenant[] = [
     gameSpecId: XIANGQI_SPEC_ID,
     roomIdPrefix: 'xq_',
     enabled: xiangqiEnabled,
-    pageTitle: 'Xiangqi',
+    pageTitle: 'Chinese Chess',
     gameRouteBase: '/xiangqi/game',
     mountPostgame: (root, roomId) =>
       import('../xiangqi-postgame.js').then(({ mountXiangqiPostgame }) =>
@@ -235,7 +235,7 @@ const WEB_VARIANT_TENANTS: readonly WebVariantTenant[] = [
     gameSpecId: DARK_XIANGQI_SPEC_ID,
     roomIdPrefix: 'dxq_',
     enabled: alwaysEnabled,
-    pageTitle: 'Dark Xiangqi',
+    pageTitle: 'Dark Chinese Chess',
     gameRouteBase: '/dark-xiangqi/game',
     mountPostgame: (root, roomId) =>
       import('../dark-xiangqi-postgame.js').then(({ mountDarkXiangqiPostgame }) =>
@@ -290,7 +290,7 @@ const WEB_VARIANT_TENANTS: readonly WebVariantTenant[] = [
     gameSpecId: JIEQI_SPEC_ID,
     roomIdPrefix: 'jq_',
     enabled: alwaysEnabled,
-    pageTitle: 'Jieqi',
+    pageTitle: 'Flip Chinese Chess',
     gameRouteBase: '/jieqi/game',
     mountPostgame: (root, roomId) =>
       import('../live-jieqi-postgame.js').then(({ mountJieqiPostgame }) =>
@@ -355,7 +355,7 @@ const WEB_VARIANT_TENANTS: readonly WebVariantTenant[] = [
     gameSpecId: BANQI_SPEC_ID,
     roomIdPrefix: 'bq_',
     enabled: alwaysEnabled,
-    pageTitle: 'Banqi',
+    pageTitle: 'Half Flip Chess',
     gameRouteBase: '/banqi/game',
     mountPostgame: (root, roomId) =>
       import('../live-banqi-postgame.js').then(({ mountBanqiPostgame }) =>
@@ -431,7 +431,7 @@ const WEB_VARIANT_TENANTS: readonly WebVariantTenant[] = [
     gameSpecId: JUNGLE_SPEC_ID,
     roomIdPrefix: 'jgl_',
     enabled: jungleEnabled,
-    pageTitle: 'Jungle',
+    pageTitle: 'Jungle Chess',
     gameRouteBase: '/jungle/game',
     mountPostgame: (root, roomId) =>
       import('../live-jungle-postgame.js').then(({ mountJunglePostgame }) =>
@@ -716,7 +716,7 @@ const WEB_VARIANT_TENANTS: readonly WebVariantTenant[] = [
     gameSpecId: FORTRESS_XIANGQI_SPEC_ID,
     roomIdPrefix: 'fxq_',
     enabled: fortressXiangqiEnabled,
-    pageTitle: 'Storm the Fortress',
+    pageTitle: 'Fortress Animals',
     gameRouteBase: '/fortress-xiangqi/game',
     mountPostgame: (root, roomId) =>
       import('../fortress-xiangqi-postgame.js').then(({ mountFortressXiangqiPostgame }) =>
@@ -952,7 +952,7 @@ const WEB_VARIANT_TENANTS: readonly WebVariantTenant[] = [
     gameSpecId: DARK_SHOGI_SPEC_ID,
     roomIdPrefix: 'dsg_',
     enabled: alwaysEnabled,
-    pageTitle: 'Dark Shogi',
+    pageTitle: 'Fog Shogi',
     gameRouteBase: '/dark-shogi/game',
     mountPostgame: (root, roomId) =>
       import('../dark-shogi-postgame.js').then(({ mountDarkShogiPostgame }) =>

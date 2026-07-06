@@ -748,6 +748,92 @@ const ZH_HANS: Record<string, string> = {
   'Black wins by elimination · 36 moves': '黑方吃光对手获胜 · 36 步',
   'Both lions and both elephants have already traded off the board (同归于尽), and the pieces that survived all belong to Black. Red has nothing left that can move, so the game ends: with no piece to move and no tile to flip, Red loses.':
     '两只狮子和两头大象都已同归于尽离场，存活下来的棋子全部属于黑方。红方再无可走之子，于是对局结束：既没有棋子可走，也没有棋子可翻，红方告负。',
+
+  // -- Branded rules names --
+  'Fog Chess Rules': '迷雾国际象棋规则',
+  'Fog Chess rules: chess under Fog of War, where each side sees only the squares its pieces reach, there are no check warnings, and the king falls by capture.':
+    '迷雾国际象棋规则：战争迷雾下的国际象棋。每一方只能看到己方棋子可及的格子，没有将军提示，王被吃掉即负。',
+  "[Fog Chess](https://en.wikipedia.org/wiki/Dark_chess) is Mistboard's public name for dark chess, also called Fog of War chess. Jens Bæk Nielsen and Torben Osted invented it in 1989. It is the implicit-fog version of the idea: no umpire, no scan action. Each side's visibility is derived from where its pieces can legally move.":
+    '[迷雾国际象棋](https://en.wikipedia.org/wiki/Dark_chess)是 Mistboard 对 dark chess / Fog of War chess 的公开名称。Jens Bæk Nielsen 与 Torben Osted 于 1989 年发明了它。它属于隐式迷雾：没有裁判，也没有侦察动作。每一方的视野完全由己方棋子的合法走法范围推导而来。',
+  'Fog Chess, dark chess, and Fog of War chess refer to this same chess variant: hidden-information chess where you see only the squares your pieces reach. It is sometimes confused with [Half Flip Chess](/rules/banqi), the Chinese game also nicknamed "dark chess," which plays with xiangqi pieces turned face-down. That is a different game.':
+    '迷雾国际象棋、dark chess 和 Fog of War chess 指的是同一个国际象棋变体：你只能看到己方棋子可及格子的隐藏信息国际象棋。它有时会和[暗棋](/rules/banqi)混淆，后者也被称作 dark chess，但使用翻面的象棋棋子，是另一种游戏。',
+  'Chinese Chess Rules': '象棋规则',
+  'The rules of Chinese Chess, traditionally xiangqi (象棋): palaces, the river, cannon screens, facing generals, and a famous game to play through. Now playable on Mistboard against the Pikafish engine or a friend.':
+    '象棋规则：九宫、楚河汉界、炮架、将帅照面，以及一盘可逐步回放的名局。现在可在 Mistboard 上与 Pikafish 引擎或好友对弈。',
+  "Chinese Chess is Mistboard's public name for [xiangqi](https://en.wikipedia.org/wiki/Xiangqi) (象棋), the two-player strategy game with roots in China going back many centuries. Its modern form, including the cannon, took shape around the Song dynasty (960 to 1279).":
+    '象棋是 Mistboard 对 [xiangqi](https://en.wikipedia.org/wiki/Xiangqi)（象棋）的公开英文名称。这是一种源自中国、历史悠久的双人策略游戏。包括炮在内的现代形态，大致在宋代（960 至 1279 年）成型。',
+  'Chinese Chess is live on Mistboard. Play the Pikafish engine at three strengths, or challenge a friend. For a twist, add Fog of War in Dark Chinese Chess, where enemy pieces outside your vision disappear and the general falls by capture.':
+    '象棋已在 Mistboard 上线。你可以挑战三个强度的 Pikafish 引擎，或邀请好友对局。想换个玩法，可以试试迷雾象棋：视野之外的敌方棋子会消失，将帅由被吃而落败。',
+  'Play Chinese Chess': '下象棋',
+  'Dark Chinese Chess': '迷雾象棋',
+  'Dark Chinese Chess Rules': '迷雾象棋规则',
+  'Chinese Chess under Fog of War: each side sees only the points its pieces reach, hidden blockers matter, and the general falls by capture.':
+    '战争迷雾下的象棋：每一方只能看到己方棋子可及的点位，隐藏阻挡会影响视野，擒获将帅即获胜。',
+  "Dark Chinese Chess is Mistboard's public name for dark xiangqi: [Chinese Chess](/rules/xiangqi), traditionally xiangqi (象棋), played under Fog of War. Pieces keep their xiangqi movement, but unseen enemy pieces stay hidden and danger is not announced. Capture the general to win.":
+    '迷雾象棋是 Mistboard 对 dark xiangqi 的公开英文名称：也就是在战争迷雾下对弈的[象棋](/rules/xiangqi)。棋子保留象棋走法，但看不见的敌方棋子会被隐藏，危险不会被提示。擒获将帅即获胜。',
+  'If Chinese Chess is new to you, start with [Chinese Chess Rules](/rules/xiangqi). If you already play xiangqi, the sections below explain only what fog changes.':
+    '如果你还不熟悉象棋，请先阅读[象棋规则](/rules/xiangqi)。如果你已经会下象棋，下面只解释迷雾改变了什么。',
+  'Orthodox xiangqi forbids facing generals. Dark Chinese Chess allows the position; if one general sees the other on a clear file, it can capture across that file.':
+    '正统象棋禁止将帅照面。迷雾象棋允许这个局面；如果一方将帅在无阻挡的直线上看见对方，就可以沿这条线直接擒获。',
+  'Dark Chinese Chess is playable on Mistboard. Create an invite for a friend or play the engine from the homepage play panel.':
+    '迷雾象棋可在 Mistboard 上对弈。你可以为好友创建邀请，也可以从首页对弈面板挑战引擎。',
+  'Flip Chinese Chess Rules': '揭棋规则',
+  'Flip Chinese Chess rules, traditionally jieqi (揭棋): xiangqi with hidden non-general pieces that first move by starting point, then reveal and play by identity.':
+    '揭棋规则：除将帅外的象棋棋子隐藏身份，第一次按所在起始点走子，随后翻开并按真实身份行棋。',
+  "Flip Chinese Chess is Mistboard's public name for jieqi (揭棋, 'reveal chess'). It keeps xiangqi's board and checkmate goal, but hides every non-general piece. A dark piece first moves, attacks, and captures by the starting point it occupies. After that move, it reveals and plays by identity.":
+    '揭棋是 Mistboard 对 jieqi（揭棋，意为「reveal chess」）采用的公开英文名称。它保留象棋棋盘和将死目标，但隐藏每一枚非将帅棋子。暗子第一次按所在起始点的身份移动、攻击和吃子；走完后翻开，并按真实身份行棋。',
+  'Use [Chinese Chess Rules](/rules/xiangqi) for the base game. This page covers what changes.':
+    '基础规则请参考[象棋规则](/rules/xiangqi)。本页只说明变化之处。',
+  "English names overlap. Dark Chinese Chess is now Mistboard's name for fog xiangqi, not jieqi. Jieqi also differs from [Half Flip Chess](/rules/banqi), the half-board flip game. Jieqi keeps the full xiangqi board and checkmate goal; banqi uses a 4x8 board, rank captures, and elimination.":
+    '英文名称容易重叠。Dark Chinese Chess 现在是 Mistboard 对迷雾象棋的名称，不指揭棋。揭棋也不同于[暗棋](/rules/banqi)，后者是半盘翻棋。揭棋保留完整象棋棋盘和将死目标；暗棋使用 4x8 棋盘，按等级吃子，并以消灭或困住对手为目标。',
+  'Mistboard also uses [Dark Chinese Chess](/rules/dark-xiangqi) and Dark Mini Xiangqi for our Fog of War xiangqi variants. Those are not jieqi: identities stay known, but unseen points are hidden. We have not found an earlier public playable platform for Fog of War xiangqi.':
+    'Mistboard 还把我们的战争迷雾象棋变体称为[迷雾象棋](/rules/dark-xiangqi)和迷雾迷你象棋。它们不是揭棋：棋子身份始终已知，但看不见的点位会被隐藏。我们尚未发现更早公开可玩的战争迷雾象棋平台。',
+  'Flip Chinese Chess is playable on Mistboard. Take on PikaJieQi, our jieqi engine, at the strength you pick. For the base game, read Chinese Chess; for the other face-down xiangqi cousin, compare Half Flip Chess.':
+    '揭棋可在 Mistboard 上对弈。选择强度挑战我们的揭棋引擎 PikaJieQi。基础游戏请读象棋；另一个翻面象棋近亲可比较暗棋。',
+  'Half Flip Chess': '暗棋',
+  'Flip Chinese Chess': '揭棋',
+  'Half Flip Chess Rules': '暗棋规则',
+  'Half Flip Chess rules, traditionally banqi (暗棋): the 4x8 half-board xiangqi flip game, with face-down pieces, rank captures, screen-jumping cannons, and no royal general.':
+    '暗棋规则：4x8 的半盘象棋翻棋，棋子背面朝下，按等级吃子，炮隔子跳吃，将帅不是王棋。',
+  "Half Flip Chess is Mistboard's public name for banqi (暗棋, 'dark chess', also called half chess or flip chess). It is played on half a xiangqi board with all thirty-two pieces shuffled face-down. Each turn, flip an unknown piece or move one of your revealed pieces one square. Captures follow rank, except for the cannon. You win by leaving the opponent with no legal move.":
+    '暗棋是 Mistboard 对 banqi（暗棋，意为「dark chess」，也称半棋或翻棋）采用的公开英文名称。它在半张象棋棋盘上进行，三十二枚棋子全部洗匀背面朝下。每回合翻开一枚未知棋子，或移动己方一枚已翻开的棋子一格。除炮以外，吃子按等级进行。让对手无合法走法即获胜。',
+  'It is the casual sibling of [Chinese Chess](/rules/xiangqi): a short game that needs only an ordinary xiangqi set and half the board. It shares names with [Fog Chess](/rules/dark-chess), the fog-of-war chess variant played on Mistboard, but it is a different game. This page follows Taiwanese rules, the version with screen-jumping cannons.':
+    '它是[象棋](/rules/xiangqi)的休闲近亲：只需要一副普通象棋和半张棋盘即可进行。它在英文里会和 Mistboard 上的战争迷雾[迷雾国际象棋](/rules/dark-chess)共用一些名称，但两者是不同游戏。本页采用台湾规则，也就是炮隔子跳吃的版本。',
+  "暗棋 is Mandarin ànqí, 'dark chess'. The same game is also called 半棋 (half chess), the source of the English name banqi, and 翻棋 (flip chess). Computer-game literature often calls it Chinese Dark Chess. None of these are [Flip Chinese Chess](/rules/jieqi), the full-board xiangqi variant where shuffled pieces reveal as they move, and none are the fog-of-war [Fog Chess](/rules/dark-chess) played here.":
+    '「暗棋」的普通话读音是 ànqí，意为「dark chess」。同一个游戏也叫「半棋」（英文名 banqi 即由此而来）和「翻棋」。计算机博弈文献常称它为 Chinese Dark Chess。这些都不是[揭棋](/rules/jieqi)，即在整张象棋棋盘上、棋子洗匀后随走随翻的变体，也都不是这里所玩的战争迷雾[迷雾国际象棋](/rules/dark-chess)。',
+  'Step through a real game below: MistyBanqi (Strongest) moving first, a human second. The opening flip leaves MistyBanqi playing Red and the human Black. Black wins the opening material (the first eight captures are all Black’s), but Red keeps its elephant, the highest piece left, and grinds out the win. A clean illustration that in Half Flip Chess, rank beats raw material. Tiles flip to their dealt piece the first time they are turned over.':
+    '在下方逐步回放一盘真实对局：MistyBanqi（最强）先手，人类后手。开局的第一次翻子让 MistyBanqi 执红、人类执黑。黑方在开局赢得子力，前八次吃子都是黑方，但红方留住了象，也就是盘面上等级最高的棋子，最终碾压获胜。这清楚地说明：在暗棋中，等级胜过单纯的子力。每枚棋子第一次被翻开时，会翻出它所发到的身份。',
+  'Half Flip Chess is playable on Mistboard: take on MistyBanqi at the strength you pick, or challenge a friend. Chinese Chess is the parent game, and Flip Chinese Chess is the other hidden-identity cousin.':
+    '暗棋可在 Mistboard 上对弈：挑选难度与 MistyBanqi 对战，或邀请好友对局。象棋是它的母游戏，揭棋则是另一种隐藏身份的近亲。',
+  'Fog Chess': '迷雾国际象棋',
+  'Standard chess rules, the primer behind Fog Chess: castling, promotion, en passant, the draw rules, and a famous game to play through.':
+    '普通国际象棋规则，也就是迷雾国际象棋背后的基础：王车易位、升变、吃过路兵、和棋规则，以及一盘可逐步回放的名局。',
+  'Chess is the open-information base game. Add Fog of War for Fog Chess, where enemy pieces outside your vision disappear and the king falls by capture.':
+    '国际象棋是信息公开的底层游戏。为它加上战争迷雾，便得到迷雾国际象棋：你视野之外的敌方棋子会消失，而王由被吃而落败。',
+  'Read Fog Chess': '阅读迷雾国际象棋',
+  "Fog Chess with a sealed opening draft: each player picks one of three Chess960 back ranks and never sees the other's.":
+    '带密封开局选择的迷雾国际象棋：每位玩家从三个 Chess960 底线阵型中选择一个，且永远看不到对手选择了哪个。',
+  'Programming Fog Chess with Server-Side Truth': '用服务器端真实局面实现迷雾国际象棋',
+  'Fog Chess adds one hidden-information rule to chess: each side sees only the squares its own pieces reach. The implementation question is where that rule runs. On Mistboard, it runs on the server, so the browser receives a `PlayerView`, not a full board with fog painted over it.':
+    '迷雾国际象棋给国际象棋增加了一条隐藏信息规则：每一方只能看到己方棋子可及的格子。实现问题在于这条规则在哪里运行。在 Mistboard 上，它运行在服务器端，所以浏览器收到的是一个 `PlayerView`，而不是盖着迷雾图层的完整棋盘。',
+  'Play Misty in Fog Chess, or read the rules article for the player-facing version of the same visibility model.':
+    '来玩 Misty 的迷雾国际象棋，或阅读面向玩家的规则文章，了解同一套视野模型。',
+  'Read Fog Chess Rules': '阅读迷雾国际象棋规则',
+  'Jungle Chess Rules': '斗兽棋规则',
+  "The classic Chinese animal-chess game, traditionally Dou Shou Qi (斗兽棋), on a 7×9 board. Eight ranked animals, rivers only the rat can cross, and a race to the opponent's den.":
+    '经典中国动物棋斗兽棋，棋盘 7×9。八种按等级排列的动物，只有老鼠能过的河，以及冲入对方兽穴的竞赛。',
+  "Jungle Chess is Mistboard's public name for Dou Shou Qi (斗兽棋), also called Animal Chess. It is a two-player game played across much of East Asia. Each side commands eight animals of different rank. You win by marching a piece into your opponent’s den, or by capturing all of their pieces.":
+    '斗兽棋是 Mistboard 对 Dou Shou Qi（斗兽棋，也称 Animal Chess）采用的公开英文名称。这是流行于东亚许多地区的双人游戏。每方指挥八种不同等级的动物。把一枚棋子走进对方的兽穴，或吃光对方所有棋子，即获胜。',
+  'Jungle Chess is playable on Mistboard: take on Misty Jungle at the strength you pick, or challenge a friend. Flip Jungle is the small face-down cousin on a four-by-four grid.':
+    '斗兽棋可在 Mistboard 上对弈：选择你想要的强度挑战 Misty Jungle，或与好友对战。翻翻棋是它在 4x4 格上、棋子翻面的小型近亲。',
+  'Flip Jungle Rules': '翻翻棋规则',
+  'The 4×4 flip version of Jungle Chess. Every animal starts face-down, you flip to reveal, and equal ranks trade off the board.':
+    '斗兽棋的 4×4 翻面版本。所有动物开局均背面朝上，翻开即亮明身份，等级相同的双方同归于尽、一起离场。',
+  "Flip Jungle is Mistboard's public name for the small, fast cousin of [Jungle Chess](/rules/jungle), commonly called 翻翻棋 or 兽棋. The same eight animals per side are shuffled face-down on a four-by-four grid, identities hidden until you turn them over. It is a casual favorite played on chalk grids and phone screens across China. No rivers, no dens, no traps, just the animals, the rank ladder, and a gamble on what sits under each tile.":
+    '翻翻棋是 Mistboard 对[斗兽棋](/rules/jungle)小巧快节奏近亲采用的公开英文名称，也常叫兽棋。每方同样八种动物，背面朝上洗匀摆在四乘四的格子上，身份要到翻开才揭晓。它是在中国各地用粉笔画格、在手机屏幕上随手就玩的休闲热门。没有河流、没有兽穴、没有陷阱，只有动物、等级阶梯，以及对每枚棋子底下是什么的一场赌注。',
+  'Flip Jungle is playable on Mistboard: take on MistyJungleFlip, or challenge a friend. Jungle Chess is the full 7×9 game these animals come from.':
+    '翻翻棋可在 Mistboard 上对弈：挑战 MistyJungleFlip，或与好友对战。斗兽棋是这些动物的来源，即完整的 7×9 版本。',
+  'Jungle Chess': '斗兽棋',
 };
 
 const ZH_HANT: Record<string, string> = {
@@ -1467,6 +1553,92 @@ const ZH_HANT: Record<string, string> = {
   'Black wins by elimination · 36 moves': '黑方吃光對手獲勝 · 36 步',
   'Both lions and both elephants have already traded off the board (同归于尽), and the pieces that survived all belong to Black. Red has nothing left that can move, so the game ends: with no piece to move and no tile to flip, Red loses.':
     '兩隻獅子和兩頭大象都已同歸於盡離場，存活下來的棋子全部屬於黑方。紅方再無可走之子，於是對局結束：既沒有棋子可走，也沒有棋子可翻，紅方告負。',
+
+  // -- Branded rules names --
+  'Fog Chess Rules': '迷霧國際象棋規則',
+  'Fog Chess rules: chess under Fog of War, where each side sees only the squares its pieces reach, there are no check warnings, and the king falls by capture.':
+    '迷霧國際象棋規則：戰爭迷霧下的國際象棋。每一方只能看到己方棋子可及的格子，沒有將軍提示，王被吃掉即負。',
+  "[Fog Chess](https://en.wikipedia.org/wiki/Dark_chess) is Mistboard's public name for dark chess, also called Fog of War chess. Jens Bæk Nielsen and Torben Osted invented it in 1989. It is the implicit-fog version of the idea: no umpire, no scan action. Each side's visibility is derived from where its pieces can legally move.":
+    '[迷霧國際象棋](https://en.wikipedia.org/wiki/Dark_chess)是 Mistboard 對 dark chess / Fog of War chess 的公開名稱。Jens Bæk Nielsen 與 Torben Osted 於 1989 年發明了它。它屬於隱式迷霧：沒有裁判，也沒有偵察動作。每一方的視野完全由己方棋子的合法走法範圍推導而來。',
+  'Fog Chess, dark chess, and Fog of War chess refer to this same chess variant: hidden-information chess where you see only the squares your pieces reach. It is sometimes confused with [Half Flip Chess](/rules/banqi), the Chinese game also nicknamed "dark chess," which plays with xiangqi pieces turned face-down. That is a different game.':
+    '迷霧國際象棋、dark chess 和 Fog of War chess 指的是同一個國際象棋變體：你只能看到己方棋子可及格子的隱藏資訊國際象棋。它有時會和[暗棋](/rules/banqi)混淆，後者也被稱作 dark chess，但使用翻面的象棋棋子，是另一種遊戲。',
+  'Chinese Chess Rules': '象棋規則',
+  'The rules of Chinese Chess, traditionally xiangqi (象棋): palaces, the river, cannon screens, facing generals, and a famous game to play through. Now playable on Mistboard against the Pikafish engine or a friend.':
+    '象棋規則：九宮、楚河漢界、砲架、將帥照面，以及一盤可逐步回放的名局。現在可在 Mistboard 上與 Pikafish 引擎或好友對弈。',
+  "Chinese Chess is Mistboard's public name for [xiangqi](https://en.wikipedia.org/wiki/Xiangqi) (象棋), the two-player strategy game with roots in China going back many centuries. Its modern form, including the cannon, took shape around the Song dynasty (960 to 1279).":
+    '象棋是 Mistboard 對 [xiangqi](https://en.wikipedia.org/wiki/Xiangqi)（象棋）的公開英文名稱。這是一種源自中國、歷史悠久的雙人策略遊戲。包括砲在內的現代形態，大致在宋代（960 至 1279 年）成型。',
+  'Chinese Chess is live on Mistboard. Play the Pikafish engine at three strengths, or challenge a friend. For a twist, add Fog of War in Dark Chinese Chess, where enemy pieces outside your vision disappear and the general falls by capture.':
+    '象棋已在 Mistboard 上線。你可以挑戰三個強度的 Pikafish 引擎，或邀請好友對局。想換個玩法，可以試試迷霧象棋：視野之外的敵方棋子會消失，將帥由被吃而落敗。',
+  'Play Chinese Chess': '下象棋',
+  'Dark Chinese Chess': '迷霧象棋',
+  'Dark Chinese Chess Rules': '迷霧象棋規則',
+  'Chinese Chess under Fog of War: each side sees only the points its pieces reach, hidden blockers matter, and the general falls by capture.':
+    '戰爭迷霧下的象棋：每一方只能看到己方棋子可及的點位，隱藏阻擋會影響視野，擒獲將帥即獲勝。',
+  "Dark Chinese Chess is Mistboard's public name for dark xiangqi: [Chinese Chess](/rules/xiangqi), traditionally xiangqi (象棋), played under Fog of War. Pieces keep their xiangqi movement, but unseen enemy pieces stay hidden and danger is not announced. Capture the general to win.":
+    '迷霧象棋是 Mistboard 對 dark xiangqi 的公開英文名稱：也就是在戰爭迷霧下對弈的[象棋](/rules/xiangqi)。棋子保留象棋走法，但看不見的敵方棋子會被隱藏，危險不會被提示。擒獲將帥即獲勝。',
+  'If Chinese Chess is new to you, start with [Chinese Chess Rules](/rules/xiangqi). If you already play xiangqi, the sections below explain only what fog changes.':
+    '如果你還不熟悉象棋，請先閱讀[象棋規則](/rules/xiangqi)。如果你已經會下象棋，下面只解釋迷霧改變了什麼。',
+  'Orthodox xiangqi forbids facing generals. Dark Chinese Chess allows the position; if one general sees the other on a clear file, it can capture across that file.':
+    '正統象棋禁止將帥照面。迷霧象棋允許這個局面；如果一方將帥在無阻擋的直線上看見對方，就可以沿這條線直接擒獲。',
+  'Dark Chinese Chess is playable on Mistboard. Create an invite for a friend or play the engine from the homepage play panel.':
+    '迷霧象棋可在 Mistboard 上對弈。你可以為好友建立邀請，也可以從首頁對弈面板挑戰引擎。',
+  'Flip Chinese Chess Rules': '揭棋規則',
+  'Flip Chinese Chess rules, traditionally jieqi (揭棋): xiangqi with hidden non-general pieces that first move by starting point, then reveal and play by identity.':
+    '揭棋規則：除將帥外的象棋棋子隱藏身分，第一次按所在起始點走子，隨後翻開並按真實身分行棋。',
+  "Flip Chinese Chess is Mistboard's public name for jieqi (揭棋, 'reveal chess'). It keeps xiangqi's board and checkmate goal, but hides every non-general piece. A dark piece first moves, attacks, and captures by the starting point it occupies. After that move, it reveals and plays by identity.":
+    '揭棋是 Mistboard 對 jieqi（揭棋，意為「reveal chess」）採用的公開英文名稱。它保留象棋棋盤和將死目標，但隱藏每一枚非將帥棋子。暗子第一次按所在起始點的身分移動、攻擊和吃子；走完後翻開，並按真實身分行棋。',
+  'Use [Chinese Chess Rules](/rules/xiangqi) for the base game. This page covers what changes.':
+    '基礎規則請參考[象棋規則](/rules/xiangqi)。本頁只說明變化之處。',
+  "English names overlap. Dark Chinese Chess is now Mistboard's name for fog xiangqi, not jieqi. Jieqi also differs from [Half Flip Chess](/rules/banqi), the half-board flip game. Jieqi keeps the full xiangqi board and checkmate goal; banqi uses a 4x8 board, rank captures, and elimination.":
+    '英文名稱容易重疊。Dark Chinese Chess 現在是 Mistboard 對迷霧象棋的名稱，不指揭棋。揭棋也不同於[暗棋](/rules/banqi)，後者是半盤翻棋。揭棋保留完整象棋棋盤和將死目標；暗棋使用 4x8 棋盤，按等級吃子，並以消滅或困住對手為目標。',
+  'Mistboard also uses [Dark Chinese Chess](/rules/dark-xiangqi) and Dark Mini Xiangqi for our Fog of War xiangqi variants. Those are not jieqi: identities stay known, but unseen points are hidden. We have not found an earlier public playable platform for Fog of War xiangqi.':
+    'Mistboard 還把我們的戰爭迷霧象棋變體稱為[迷霧象棋](/rules/dark-xiangqi)和迷霧迷你象棋。它們不是揭棋：棋子身分始終已知，但看不見的點位會被隱藏。我們尚未發現更早公開可玩的戰爭迷霧象棋平台。',
+  'Flip Chinese Chess is playable on Mistboard. Take on PikaJieQi, our jieqi engine, at the strength you pick. For the base game, read Chinese Chess; for the other face-down xiangqi cousin, compare Half Flip Chess.':
+    '揭棋可在 Mistboard 上對弈。選擇強度挑戰我們的揭棋引擎 PikaJieQi。基礎遊戲請讀象棋；另一個翻面象棋近親可比較暗棋。',
+  'Half Flip Chess': '暗棋',
+  'Flip Chinese Chess': '揭棋',
+  'Half Flip Chess Rules': '暗棋規則',
+  'Half Flip Chess rules, traditionally banqi (暗棋): the 4x8 half-board xiangqi flip game, with face-down pieces, rank captures, screen-jumping cannons, and no royal general.':
+    '暗棋規則：4x8 的半盤象棋翻棋，棋子背面朝下，按等級吃子，砲隔子跳吃，將帥不是王棋。',
+  "Half Flip Chess is Mistboard's public name for banqi (暗棋, 'dark chess', also called half chess or flip chess). It is played on half a xiangqi board with all thirty-two pieces shuffled face-down. Each turn, flip an unknown piece or move one of your revealed pieces one square. Captures follow rank, except for the cannon. You win by leaving the opponent with no legal move.":
+    '暗棋是 Mistboard 對 banqi（暗棋，意為「dark chess」，也稱半棋或翻棋）採用的公開英文名稱。它在半張象棋棋盤上進行，三十二枚棋子全部洗勻背面朝下。每回合翻開一枚未知棋子，或移動己方一枚已翻開的棋子一格。除砲以外，吃子按等級進行。讓對手無合法走法即獲勝。',
+  'It is the casual sibling of [Chinese Chess](/rules/xiangqi): a short game that needs only an ordinary xiangqi set and half the board. It shares names with [Fog Chess](/rules/dark-chess), the fog-of-war chess variant played on Mistboard, but it is a different game. This page follows Taiwanese rules, the version with screen-jumping cannons.':
+    '它是[象棋](/rules/xiangqi)的休閒近親：只需要一副普通象棋和半張棋盤即可進行。它在英文裡會和 Mistboard 上的戰爭迷霧[迷霧國際象棋](/rules/dark-chess)共用一些名稱，但兩者是不同遊戲。本頁採用臺灣規則，也就是砲隔子跳吃的版本。',
+  "暗棋 is Mandarin ànqí, 'dark chess'. The same game is also called 半棋 (half chess), the source of the English name banqi, and 翻棋 (flip chess). Computer-game literature often calls it Chinese Dark Chess. None of these are [Flip Chinese Chess](/rules/jieqi), the full-board xiangqi variant where shuffled pieces reveal as they move, and none are the fog-of-war [Fog Chess](/rules/dark-chess) played here.":
+    '「暗棋」的普通話讀音是 ànqí，意為「dark chess」。同一個遊戲也叫「半棋」（英文名 banqi 即由此而來）和「翻棋」。電腦博弈文獻常稱它為 Chinese Dark Chess。這些都不是[揭棋](/rules/jieqi)，即在整張象棋棋盤上、棋子洗勻後隨走隨翻的變體，也都不是這裡所玩的戰爭迷霧[迷霧國際象棋](/rules/dark-chess)。',
+  'Step through a real game below: MistyBanqi (Strongest) moving first, a human second. The opening flip leaves MistyBanqi playing Red and the human Black. Black wins the opening material (the first eight captures are all Black’s), but Red keeps its elephant, the highest piece left, and grinds out the win. A clean illustration that in Half Flip Chess, rank beats raw material. Tiles flip to their dealt piece the first time they are turned over.':
+    '在下方逐步回放一盤真實對局：MistyBanqi（最強）先手，人類後手。開局的第一次翻子讓 MistyBanqi 執紅、人類執黑。黑方在開局贏得子力，前八次吃子都是黑方，但紅方留住了象，也就是盤面上等級最高的棋子，最終碾壓獲勝。這清楚地說明：在暗棋中，等級勝過單純的子力。每枚棋子第一次被翻開時，會翻出它所發到的身分。',
+  'Half Flip Chess is playable on Mistboard: take on MistyBanqi at the strength you pick, or challenge a friend. Chinese Chess is the parent game, and Flip Chinese Chess is the other hidden-identity cousin.':
+    '暗棋可在 Mistboard 上對弈：挑選難度與 MistyBanqi 對戰，或邀請好友對局。象棋是它的母遊戲，揭棋則是另一種隱藏身分的近親。',
+  'Fog Chess': '迷霧國際象棋',
+  'Standard chess rules, the primer behind Fog Chess: castling, promotion, en passant, the draw rules, and a famous game to play through.':
+    '普通國際象棋規則，也就是迷霧國際象棋背後的基礎：王車易位、升變、吃過路兵、和棋規則，以及一盤可逐步回放的名局。',
+  'Chess is the open-information base game. Add Fog of War for Fog Chess, where enemy pieces outside your vision disappear and the king falls by capture.':
+    '國際象棋是資訊公開的底層遊戲。為它加上戰爭迷霧，便得到迷霧國際象棋：你視野之外的敵方棋子會消失，而王由被吃而落敗。',
+  'Read Fog Chess': '閱讀迷霧國際象棋',
+  "Fog Chess with a sealed opening draft: each player picks one of three Chess960 back ranks and never sees the other's.":
+    '帶密封開局選擇的迷霧國際象棋：每位玩家從三個 Chess960 底線陣型中選擇一個，且永遠看不到對手選擇了哪個。',
+  'Programming Fog Chess with Server-Side Truth': '用伺服器端真實局面實現迷霧國際象棋',
+  'Fog Chess adds one hidden-information rule to chess: each side sees only the squares its own pieces reach. The implementation question is where that rule runs. On Mistboard, it runs on the server, so the browser receives a `PlayerView`, not a full board with fog painted over it.':
+    '迷霧國際象棋給國際象棋增加了一條隱藏資訊規則：每一方只能看到己方棋子可及的格子。實作問題在於這條規則在哪裡執行。在 Mistboard 上，它執行在伺服器端，所以瀏覽器收到的是一個 `PlayerView`，而不是蓋著迷霧圖層的完整棋盤。',
+  'Play Misty in Fog Chess, or read the rules article for the player-facing version of the same visibility model.':
+    '來玩 Misty 的迷霧國際象棋，或閱讀面向玩家的規則文章，了解同一套視野模型。',
+  'Read Fog Chess Rules': '閱讀迷霧國際象棋規則',
+  'Jungle Chess Rules': '鬥獸棋規則',
+  "The classic Chinese animal-chess game, traditionally Dou Shou Qi (斗兽棋), on a 7×9 board. Eight ranked animals, rivers only the rat can cross, and a race to the opponent's den.":
+    '經典中國動物棋鬥獸棋，棋盤 7×9。八種按等級排列的動物，只有老鼠能過的河，以及衝入對方獸穴的競賽。',
+  "Jungle Chess is Mistboard's public name for Dou Shou Qi (斗兽棋), also called Animal Chess. It is a two-player game played across much of East Asia. Each side commands eight animals of different rank. You win by marching a piece into your opponent’s den, or by capturing all of their pieces.":
+    '鬥獸棋是 Mistboard 對 Dou Shou Qi（鬥獸棋，也稱 Animal Chess）採用的公開英文名稱。這是流行於東亞許多地區的雙人遊戲。每方指揮八種不同等級的動物。把一枚棋子走進對方的獸穴，或吃光對方所有棋子，即獲勝。',
+  'Jungle Chess is playable on Mistboard: take on Misty Jungle at the strength you pick, or challenge a friend. Flip Jungle is the small face-down cousin on a four-by-four grid.':
+    '鬥獸棋可在 Mistboard 上對弈：選擇你想要的強度挑戰 Misty Jungle，或與好友對戰。翻翻棋是它在 4x4 格上、棋子翻面的小型近親。',
+  'Flip Jungle Rules': '翻翻棋規則',
+  'The 4×4 flip version of Jungle Chess. Every animal starts face-down, you flip to reveal, and equal ranks trade off the board.':
+    '鬥獸棋的 4×4 翻面版本。所有動物開局均背面朝上，翻開即亮明身分，等級相同的雙方同歸於盡、一起離場。',
+  "Flip Jungle is Mistboard's public name for the small, fast cousin of [Jungle Chess](/rules/jungle), commonly called 翻翻棋 or 兽棋. The same eight animals per side are shuffled face-down on a four-by-four grid, identities hidden until you turn them over. It is a casual favorite played on chalk grids and phone screens across China. No rivers, no dens, no traps, just the animals, the rank ladder, and a gamble on what sits under each tile.":
+    '翻翻棋是 Mistboard 對[鬥獸棋](/rules/jungle)小巧快節奏近親採用的公開英文名稱，也常叫獸棋。每方同樣八種動物，背面朝上洗勻擺在四乘四的格子上，身分要到翻開才揭曉。它是在中國各地用粉筆畫格、在手機螢幕上隨手就玩的休閒熱門。沒有河流、沒有獸穴、沒有陷阱，只有動物、等級階梯，以及對每枚棋子底下是什麼的一場賭注。',
+  'Flip Jungle is playable on Mistboard: take on MistyJungleFlip, or challenge a friend. Jungle Chess is the full 7×9 game these animals come from.':
+    '翻翻棋可在 Mistboard 上對弈：挑戰 MistyJungleFlip，或與好友對戰。鬥獸棋是這些動物的來源，即完整的 7×9 版本。',
+  'Jungle Chess': '鬥獸棋',
 };
 
 const ARTICLE_DICTS: Record<ArticleLang, Record<string, string>> = {

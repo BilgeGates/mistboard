@@ -236,7 +236,7 @@ export function canonicalVariantOrderIndex(id: GameSpecId): number {
 export const GAME_SPECS: readonly GameSpec[] = [
   {
     id: DARK_CHESS_SPEC_ID,
-    publicName: 'Dark chess',
+    publicName: 'Fog Chess',
     family: 'chess',
     board: 'chess-8x8',
     movement: 'orthodox-chess',
@@ -423,7 +423,7 @@ export const GAME_SPECS: readonly GameSpec[] = [
     // promoted to a live public variant. Runtime kill-switch is the server flag
     // MISTBOARD_FORTRESS_XIANGQI_ENABLED (flip on to open room creation).
     id: FORTRESS_XIANGQI_SPEC_ID,
-    publicName: 'Storm the Fortress',
+    publicName: 'Fortress Animals',
     family: 'xiangqi',
     board: 'xiangqi-7x8',
     movement: 'fortress-xiangqi',
@@ -446,7 +446,7 @@ export const GAME_SPECS: readonly GameSpec[] = [
     // literal general capture). Rules engine:
     // packages/game/src/variants-xiangqi-standard.ts.
     id: XIANGQI_SPEC_ID,
-    publicName: 'Xiangqi',
+    publicName: 'Chinese Chess',
     family: 'xiangqi',
     board: 'xiangqi-9x10',
     movement: 'xiangqi',
@@ -464,7 +464,7 @@ export const GAME_SPECS: readonly GameSpec[] = [
   },
   {
     id: DARK_XIANGQI_SPEC_ID,
-    publicName: 'Dark Xiangqi',
+    publicName: 'Dark Chinese Chess',
     family: 'xiangqi',
     board: 'xiangqi-9x10',
     movement: 'xiangqi',
@@ -482,7 +482,7 @@ export const GAME_SPECS: readonly GameSpec[] = [
   },
   {
     id: JIEQI_SPEC_ID,
-    publicName: 'Jieqi',
+    publicName: 'Flip Chinese Chess',
     family: 'xiangqi',
     board: 'xiangqi-9x10',
     movement: 'xiangqi',
@@ -503,7 +503,7 @@ export const GAME_SPECS: readonly GameSpec[] = [
     // the opponent with no legal move — the general is not royal. Rules engine:
     // packages/game/src/variants-banqi.ts.
     id: BANQI_SPEC_ID,
-    publicName: 'Banqi',
+    publicName: 'Half Flip Chess',
     family: 'xiangqi',
     board: 'banqi-8x4',
     movement: 'banqi',
@@ -544,7 +544,7 @@ export const GAME_SPECS: readonly GameSpec[] = [
     // Rated human PvP (own pool); PvE bot games stay unrated. Rules engine:
     // packages/game/src/variants-jungle.ts.
     id: JUNGLE_SPEC_ID,
-    publicName: 'Jungle',
+    publicName: 'Jungle Chess',
     family: 'jungle',
     board: 'jungle-7x9',
     movement: 'jungle',
@@ -581,7 +581,7 @@ export const GAME_SPECS: readonly GameSpec[] = [
   },
   {
     id: DARK_SHOGI_SPEC_ID,
-    publicName: 'Dark Shogi',
+    publicName: 'Fog Shogi',
     family: 'shogi',
     board: 'shogi-9x9',
     movement: 'shogi',

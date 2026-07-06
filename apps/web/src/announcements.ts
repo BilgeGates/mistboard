@@ -36,7 +36,7 @@ const baseAnnouncements: Announcement[] = [
   {
     date: '2026-07-01',
     kind: 'release',
-    headline: 'Storm the Fortress has launched.',
+    headline: 'Fortress Animals has launched.',
     body: 'Xiangqi with a pocket: every piece moves as in Chinese chess, plus crazyhouse-style drops and the new Treasure. Play the bot or challenge a friend.',
     href: '/rules/fortress-xiangqi',
     cta: 'Study the rules',
@@ -44,7 +44,7 @@ const baseAnnouncements: Announcement[] = [
   {
     date: '2026-06-30',
     kind: 'release',
-    headline: 'Jungle (Dou Shou Qi) has launched.',
+    headline: 'Jungle Chess has launched.',
     body: 'Rank-based animal chess on a 7 by 9 board with rivers, dens, and traps is live. Challenge a friend or take on the Misty Jungle engine.',
     href: '/rules/jungle',
     cta: 'Read rules',
@@ -52,7 +52,7 @@ const baseAnnouncements: Announcement[] = [
   {
     date: '2026-06-30',
     kind: 'release',
-    headline: 'Flip Jungle (兽棋) has launched.',
+    headline: 'Flip Jungle has launched.',
     body: 'A 4 by 4 hidden-identity take on Dou Shou Qi: every animal starts face-down and flips as you play. Challenge a friend or take on the MistyJungleFlip engine.',
     href: '/rules/jungle-flip',
     cta: 'Read rules',
@@ -84,7 +84,7 @@ const baseAnnouncements: Announcement[] = [
   {
     date: '2026-06-20',
     kind: 'release',
-    headline: 'Dark Shogi has launched.',
+    headline: 'Fog Shogi has launched.',
     body: 'Shogi under Fog of War is now live for invite games, with private hands, drops into the fog, and king capture wins.',
     href: '/rules/dark-shogi',
     cta: 'Read rules',
@@ -109,7 +109,7 @@ const baseAnnouncements: Announcement[] = [
   {
     date: '2026-06-18',
     kind: 'release',
-    headline: 'Dark Xiangqi is open for alpha play.',
+    headline: 'Dark Chinese Chess is open for alpha play.',
     body: 'Fog of War on the full 9 by 10 xiangqi board: each side sees only the points its pieces reach. Challenge a friend to a match.',
     href: '/rules/dark-xiangqi',
     cta: 'Read rules',
@@ -117,8 +117,8 @@ const baseAnnouncements: Announcement[] = [
   {
     date: '2026-06-17',
     kind: 'release',
-    headline: 'Banqi (半棋) is open for alpha play.',
-    body: 'Chinese Dark Chess on an 8 by 4 board: all 32 pieces start face-down and flip as you play. Challenge a friend to a match.',
+    headline: 'Half Flip Chess is open for alpha play.',
+    body: 'Half Flip Chess on an 8 by 4 board: all 32 pieces start face-down and flip as you play. Challenge a friend to a match.',
     href: '/rules/banqi',
     cta: 'Read rules',
     showInHomeArticleWidget: false,
@@ -126,7 +126,7 @@ const baseAnnouncements: Announcement[] = [
   {
     date: '2026-06-15',
     kind: 'release',
-    headline: 'Jieqi (揭棋) is open for alpha play.',
+    headline: 'Flip Chinese Chess is open for alpha play.',
     body: 'Hidden-identity xiangqi: every non-general piece starts face-down and reveals as it moves. Take on PikaJieQi, our jieqi engine.',
     href: '/rules/jieqi',
     cta: 'Read rules',
@@ -142,7 +142,7 @@ const baseAnnouncements: Announcement[] = [
   {
     date: '2026-05-09',
     kind: 'release',
-    headline: 'Dark Chess is open for alpha play.',
+    headline: 'Fog Chess is open for alpha play.',
     body: 'Fog of War chess is live on Mistboard, with private vision, no check warnings, and king capture wins.',
     href: '/rules/dark-chess',
     cta: 'Read rules',

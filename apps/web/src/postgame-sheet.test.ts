@@ -10,10 +10,10 @@ describe('postgame sheet', () => {
   it('includes the legacy dark-chess page and tenant-native postgame pages', () => {
     const variants = postgameSheetVariants();
 
-    expect(variants.some((variant) => variant.label === 'Dark Chess')).toBe(true);
+    expect(variants.some((variant) => variant.label === 'Fog Chess')).toBe(true);
     expect(
       variants.some(
-        (variant) => variant.label === 'Jungle' && variant.routeBase === '/jungle/game',
+        (variant) => variant.label === 'Jungle Chess' && variant.routeBase === '/jungle/game',
       ),
     ).toBe(true);
     expect(variants.every((variant) => variant.channel.length > 0)).toBe(true);

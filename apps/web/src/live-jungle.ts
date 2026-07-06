@@ -66,7 +66,7 @@ function oppositeColor(color: JungleColor): JungleColor {
 }
 
 const jungleWebTenant: WebVariantTenant<JungleColor> = {
-  displayName: 'Jungle',
+  displayName: 'Jungle Chess',
   colors: ['red', 'black'],
   isColor: isJungleColor,
   oppositeColor,
@@ -184,7 +184,7 @@ export function bootstrapJungleLiveRoom(): void {
 
 function renderBoard(liveRefs: LiveRefs, view: JungleWireView | null): void {
   liveRefs.board.className = 'board jungle-live-board';
-  liveRefs.board.setAttribute('aria-label', 'Jungle board');
+  liveRefs.board.setAttribute('aria-label', 'Jungle Chess board');
   if (!view) {
     liveRefs.board.replaceChildren();
     return;

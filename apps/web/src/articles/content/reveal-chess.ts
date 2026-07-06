@@ -130,11 +130,11 @@ export const revealChessArticle: Article = {
       blocks: [
         {
           kind: 'paragraph',
-          text: 'Reveal Chess is an invented variant. It borrows the hidden-then-revealed mechanic from [Jieqi](/rules/jieqi), the Chinese game where xiangqi pieces start face-down and reveal as they move, and applies it to standard chess. The pitch is short: Fischer Random, but the arrangement is hidden and revealed piece by piece.',
+          text: 'Reveal Chess is an invented variant. It borrows the hidden-then-revealed mechanic from [Flip Chinese Chess](/rules/jieqi), the Chinese game where xiangqi pieces start face-down and reveal as they move, and applies it to standard chess. The pitch is short: Fischer Random, but the arrangement is hidden and revealed piece by piece.',
         },
         {
           kind: 'paragraph',
-          text: 'It is not Fog of War. In [Dark Chess](/rules/dark-chess), positions are hidden but identities are known; here it is the reverse, the positions are fully public and the identities are hidden. Two different things are being concealed.',
+          text: 'It is not Fog of War. In [Fog Chess](/rules/dark-chess), positions are hidden but identities are known; here it is the reverse, the positions are fully public and the identities are hidden. Two different things are being concealed.',
         },
       ],
     },
@@ -145,8 +145,8 @@ export const revealChessArticle: Article = {
       playHref: '/?play=friend&gameSpecId=reveal-chess',
       secondary: [
         { label: 'Chess Rules', href: '/rules/chess', emphasis: 'secondary' },
-        { label: 'Jieqi', href: '/rules/jieqi', emphasis: 'secondary' },
-        { label: 'Dark Chess', href: '/rules/dark-chess', emphasis: 'secondary' },
+        { label: 'Flip Chinese Chess', href: '/rules/jieqi', emphasis: 'secondary' },
+        { label: 'Fog Chess', href: '/rules/dark-chess', emphasis: 'secondary' },
         { label: 'All rules', href: '/rules', emphasis: 'secondary' },
       ],
     }),

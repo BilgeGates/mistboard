@@ -69,7 +69,7 @@ export function mountDarkShogiPostgame(root: HTMLElement, roomId: string): void 
   setBoardFamily('shogi');
   root.replaceChildren(buildNav(), loadingView());
   if (!darkShogiEnabled()) {
-    renderError(root, 'Dark Shogi unavailable', 'This route is not enabled in this build.');
+    renderError(root, 'Fog Shogi unavailable', 'This route is not enabled in this build.');
     return;
   }
   void loadDarkShogiPostgame(roomId)
@@ -118,7 +118,7 @@ function renderPostgame(root: HTMLElement, postgame: DarkShogiPostgameResponse):
     topReserve.className = 'dsg-postgame__reserve dsg-postgame__reserve--top';
     const board = document.createElement('div');
     board.className = 'dxq-postgame__board shogi-live-board';
-    board.setAttribute('aria-label', `${entry.label} final Dark Shogi board`);
+    board.setAttribute('aria-label', `${entry.label} final Fog Shogi board`);
     const bottomReserve = document.createElement('div');
     bottomReserve.className = 'dsg-postgame__reserve dsg-postgame__reserve--bottom';
     el.append(heading, topReserve, board, bottomReserve);
@@ -128,8 +128,8 @@ function renderPostgame(root: HTMLElement, postgame: DarkShogiPostgameResponse):
   root.replaceChildren(buildNav());
   mountReviewLayout(root, {
     pageClassName: 'dark-shogi-review',
-    ariaLabel: 'Dark Shogi postgame',
-    title: 'Dark Shogi',
+    ariaLabel: 'Fog Shogi postgame',
+    title: 'Fog Shogi',
     summary: `${resultLabel(postgame.game.result)} by ${labelize(postgame.game.termination)} · ${postgame.game.plyCount} plies`,
     actions: postgameActions(postgame),
     details: detailsPanel(postgame),
@@ -369,7 +369,7 @@ function errorTitle(status: number): string {
 }
 
 function errorBody(result: Extract<LoadResult, { ok: false }>): string {
-  if (result.status === 404) return 'This Dark Shogi game is not available.';
+  if (result.status === 404) return 'This Fog Shogi game is not available.';
   if (result.status === 503) return 'The postgame service is not available.';
   return result.error;
 }

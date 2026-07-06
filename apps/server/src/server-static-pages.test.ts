@@ -104,7 +104,7 @@ test('serveArticlePage falls back to index shell with rules metadata', async () 
   });
 
   assert.equal(response.status, 200);
-  assert.match(response.body, /<title>Dark Chess \(Fog of War\) Rules \| Mistboard<\/title>/);
+  assert.match(response.body, /<title>Fog Chess Rules \| Mistboard<\/title>/);
   assert.match(
     response.body,
     /<meta property="og:url" content="https:\/\/mistboard.test\/rules\/dark-chess">/,

@@ -915,7 +915,7 @@ export const VARIANT_MINIS: readonly VariantMiniDef[] = [
   },
   {
     id: 'xiangqi',
-    label: 'Xiangqi',
+    label: 'Chinese Chess',
     shortLabel: 'XQ',
     accent: '#8b5a24',
     blurb: "Red's court and cannon across the river board, nothing hidden.",
@@ -923,7 +923,7 @@ export const VARIANT_MINIS: readonly VariantMiniDef[] = [
   },
   {
     id: 'dark-xiangqi',
-    label: 'Dark Xiangqi',
+    label: 'Dark Chinese Chess',
     shortLabel: 'DX',
     accent: '#9f342d',
     blurb: "Red's court and cannon; fog marks the squares no red piece can reach.",
@@ -955,7 +955,7 @@ export const VARIANT_MINIS: readonly VariantMiniDef[] = [
   },
   {
     id: 'fortress-xiangqi',
-    label: 'Storm the Fortress',
+    label: 'Fortress Animals',
     shortLabel: 'STF',
     accent: '#b45309',
     blurb: 'Xiangqi with a pocket: opposite-corner palaces, crazyhouse drops, and the Treasure.',
@@ -963,7 +963,7 @@ export const VARIANT_MINIS: readonly VariantMiniDef[] = [
   },
   {
     id: 'jieqi',
-    label: 'Jieqi',
+    label: 'Flip Chinese Chess',
     shortLabel: 'JQ',
     accent: '#6d4aa0',
     blurb: 'The xiangqi opening with every piece flipped face-down but the general.',
@@ -971,7 +971,7 @@ export const VARIANT_MINIS: readonly VariantMiniDef[] = [
   },
   {
     id: 'banqi',
-    label: 'Banqi',
+    label: 'Half Flip Chess',
     shortLabel: 'BQ',
     accent: '#2563a6',
     blurb: 'Face-down pieces in cells; both generals flipped up.',
@@ -1011,7 +1011,7 @@ export const VARIANT_MINIS: readonly VariantMiniDef[] = [
   },
   {
     id: 'dark-shogi',
-    label: 'Dark Shogi',
+    label: 'Fog Shogi',
     shortLabel: 'DS',
     accent: '#7d5320',
     blurb: 'Shogi played blind: your own koma and their reach, the rest in fog.',
@@ -1043,7 +1043,7 @@ export const VARIANT_MINIS: readonly VariantMiniDef[] = [
   },
   {
     id: 'jungle',
-    label: 'Jungle',
+    label: 'Jungle Chess',
     shortLabel: 'JG',
     accent: '#2e7d4a',
     blurb: 'Animal ranks across the river board: the rat swims and beats the elephant.',

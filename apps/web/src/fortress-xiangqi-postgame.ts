@@ -77,7 +77,7 @@ export function mountFortressXiangqiPostgame(root: HTMLElement, roomId: string):
   installFortressXiangqiBoardStyles();
   root.replaceChildren(buildNav(), loadingView());
   if (!fortressXiangqiEnabled()) {
-    renderError(root, 'Storm the Fortress unavailable', 'This route is not enabled in this build.');
+    renderError(root, 'Fortress Animals unavailable', 'This route is not enabled in this build.');
     return;
   }
   void loadFortressXiangqiPostgame(roomId)
@@ -146,8 +146,8 @@ function renderPostgame(root: HTMLElement, postgame: FortressXiangqiPostgameResp
   root.replaceChildren(buildNav());
   mountReviewLayout(root, {
     pageClassName: 'fortress-xiangqi-review',
-    ariaLabel: 'Storm the Fortress postgame',
-    title: 'Storm the Fortress',
+    ariaLabel: 'Fortress Animals postgame',
+    title: 'Fortress Animals',
     summary: `${resultLabel(postgame.game.result)} by ${labelize(postgame.game.termination)} · ${postgame.game.plyCount} plies`,
     actions: fortressXiangqiActions(postgame),
     moves: movesCard,
@@ -348,7 +348,7 @@ function errorTitle(status: number): string {
 }
 
 function errorBody(result: Extract<LoadResult, { ok: false }>): string {
-  if (result.status === 404) return 'This Storm the Fortress game is not available.';
+  if (result.status === 404) return 'This Fortress Animals game is not available.';
   if (result.status === 503) return 'The postgame service is not available.';
   return result.error;
 }

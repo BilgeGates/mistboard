@@ -66,16 +66,16 @@ let draggingFrom: XiangqiSquare | null = null;
 // ── Shared tenant room chrome config ─────────────────────────────────────────
 
 const xiangqiWebTenant: WebVariantTenant<XiangqiColor> = {
-  displayName: 'Xiangqi',
+  displayName: 'Chinese Chess',
   colors: ['red', 'black'],
   isColor: isXiangqiColor,
   oppositeColor: (color) => (color === 'red' ? 'black' : 'red'),
   enabled: xiangqiEnabled,
   reviewUrl: (roomId) => `/xiangqi/game/${encodeURIComponent(roomId)}`,
   reasonPhrase: xiangqiReasonPhrase,
-  disabledTitle: 'Xiangqi disabled',
+  disabledTitle: 'Chinese Chess disabled',
   disabledBody: 'This client build has the room renderer off.',
-  rejectedBody: 'This Xiangqi room is not active. Create a new invite to start a game.',
+  rejectedBody: 'This Chinese Chess room is not active. Create a new invite to start a game.',
   spectatorBody: 'Watching the full board.',
   selectInstruction: 'Select one of your pieces, then choose a destination.',
 };
@@ -177,7 +177,7 @@ export function renderXiangqiBoardSvg(
 
 function renderBoard(liveRefs: LiveRefs, view: StandardXiangqiPlayerView | null): void {
   liveRefs.board.className = 'board xiangqi-live-board';
-  liveRefs.board.setAttribute('aria-label', 'Xiangqi board');
+  liveRefs.board.setAttribute('aria-label', 'Chinese Chess board');
   if (!view) {
     liveRefs.board.replaceChildren();
     return;

@@ -139,7 +139,7 @@ function renderPostgame(root: HTMLElement, postgame: DarkXiangqiPostgameResponse
     heading.textContent = entry.label;
     const board = document.createElement('div');
     board.className = 'dxq-postgame__board xiangqi-live-board';
-    board.setAttribute('aria-label', `${entry.label} final Dark Xiangqi board`);
+    board.setAttribute('aria-label', `${entry.label} final Dark Chinese Chess board`);
     // Captured material is shown on the dominant truth board only (the small POV
     // secondaries stay uncluttered; the review stage hides their pools anyway).
     // Flank layout: columns beside the board (opponent top-left, near bottom-right)
@@ -157,7 +157,7 @@ function renderPostgame(root: HTMLElement, postgame: DarkXiangqiPostgameResponse
   mountReviewLayout(root, {
     pageClassName: 'dark-xiangqi-review',
     ariaLabel: 'Dark Xiangqi postgame',
-    title: 'Dark Xiangqi',
+    title: 'Dark Chinese Chess',
     summary: `${resultLabel(postgame.game.result)} by ${labelize(postgame.game.termination)} · ${postgame.game.plyCount} plies`,
     actions: postgameActions(postgame),
     details: detailsPanel(postgame),

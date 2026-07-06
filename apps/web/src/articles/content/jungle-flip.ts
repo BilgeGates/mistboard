@@ -11,9 +11,9 @@ import type { Article } from '../types.js';
 export const jungleFlipArticle: Article = {
   slug: 'jungle-flip',
   kind: 'rules',
-  title: 'Flip Jungle (兽棋)',
+  title: 'Flip Jungle Rules',
   summary:
-    'The 4×4 flip version of Jungle. Every animal starts face-down, you flip to reveal, and equal ranks trade off the board.',
+    'The 4×4 flip version of Jungle Chess. Every animal starts face-down, you flip to reveal, and equal ranks trade off the board.',
   showSummaryOnPage: false,
   status: 'published',
   publishedAt: '2026-06-30',
@@ -23,7 +23,7 @@ export const jungleFlipArticle: Article = {
   intro: [
     {
       kind: 'paragraph',
-      text: 'Flip Jungle (兽棋, also 翻翻棋) is the small, fast cousin of [Jungle](/rules/jungle). The same eight animals per side, shuffled face-down on a four-by-four grid, identities hidden until you turn them over. It is a casual favorite played on chalk grids and phone screens across China. No rivers, no dens, no traps, just the animals, the rank ladder, and a gamble on what sits under each tile.',
+      text: 'Flip Jungle is Mistboard\'s public name for the small, fast cousin of [Jungle Chess](/rules/jungle), commonly called 翻翻棋 or 兽棋. The same eight animals per side are shuffled face-down on a four-by-four grid, identities hidden until you turn them over. It is a casual favorite played on chalk grids and phone screens across China. No rivers, no dens, no traps, just the animals, the rank ladder, and a gamble on what sits under each tile.',
     },
   ],
   sections: [
@@ -116,12 +116,12 @@ export const jungleFlipArticle: Article = {
     },
     playClosing({
       heading: 'Where to next',
-      lead: 'Flip Jungle is playable on Mistboard: take on MistyJungleFlip, or challenge a friend. Jungle is the full 7×9 game these animals come from.',
+      lead: 'Flip Jungle is playable on Mistboard: take on MistyJungleFlip, or challenge a friend. Jungle Chess is the full 7×9 game these animals come from.',
       playLabel: 'Play MistyJungleFlip',
       playHref: '/?play=computer&gameSpecId=jungle-flip',
       secondary: [
         { label: 'Challenge a friend', href: '/?play=friend&gameSpecId=jungle-flip', emphasis: 'secondary' },
-        { label: 'Jungle', href: '/rules/jungle', emphasis: 'secondary' },
+        { label: 'Jungle Chess', href: '/rules/jungle', emphasis: 'secondary' },
         { label: 'All rules', href: '/rules', emphasis: 'secondary' },
       ],
     }),

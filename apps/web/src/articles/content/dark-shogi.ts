@@ -251,20 +251,20 @@ export const darkShogiArticle: Article = {
   slug: 'dark-shogi',
   kind: 'rules',
   playableOnMistboard: true,
-  title: 'Dark Shogi Rules',
+  title: 'Fog Shogi Rules',
   summary:
-    'Shogi under Fog of War: the Shogi rules supply the board, pieces, promotion, and drop mechanic; this page covers vision, private hands, drop bounces, and king capture.',
+    'Fog Shogi rules: Shogi under Fog of War, with private hands, drop bounces, and king capture.',
   showSummaryOnPage: false,
   status: 'published',
   publishedAt: '2026-06-20',
   boardFamily: 'shogi',
   audience:
-    'Shogi players, dark chess players, and anyone who wants a clean first explanation of shogi under fog.',
+    'Shogi players, Fog Chess players, and anyone who wants a clean first explanation of shogi under fog.',
   thumbnail: { kind: 'svg', svg: START_FOG_SVG },
   intro: [
     {
       kind: 'paragraph',
-      text: 'Dark Shogi is [Shogi](/rules/shogi) played under Mistboard\'s Fog of War model. The board, pieces, setup, promotion, captures, and drop mechanic come from Shogi; this page covers only the hidden-information changes.',
+      text: 'Fog Shogi is Mistboard\'s public name for dark shogi: [Shogi](/rules/shogi) played under Fog of War. The board, pieces, setup, promotion, captures, and drop mechanic come from Shogi; this page covers only the hidden-information changes.',
     },
     {
       kind: 'paragraph',
@@ -310,7 +310,7 @@ export const darkShogiArticle: Article = {
         privateHandsDiagram(),
         {
           kind: 'paragraph',
-          text: 'Drops keep Shogi\'s placement restrictions: no second unpromoted pawn on a file, no pawn or lance on the last rank, and no knight on the last two ranks. Because Dark Shogi has no checkmate, the standard Shogi ban on drop-pawn mate does not apply.',
+          text: 'Drops keep Shogi\'s placement restrictions: no second unpromoted pawn on a file, no pawn or lance on the last rank, and no knight on the last two ranks. Because Fog Shogi has no checkmate, the standard Shogi ban on drop-pawn mate does not apply.',
         },
         {
           kind: 'paragraph',
@@ -340,13 +340,13 @@ export const darkShogiArticle: Article = {
       blocks: [
         {
           kind: 'paragraph',
-          text: 'Dark Shogi is open for alpha invite games. Rooms are casual PvP only, and postgame review works after a finished live game. For the open-information base game, read Shogi Rules. For chess under the same fog model, read Dark Chess.',
+          text: 'Fog Shogi is open for alpha invite games. Rooms are casual PvP only, and postgame review works after a finished live game. For the open-information base game, read Shogi Rules. For chess under the same fog model, read Fog Chess.',
         },
         {
           kind: 'cta',
           buttons: [
             { label: 'Shogi Rules', href: '/rules/shogi', emphasis: 'secondary' },
-            { label: 'Dark Chess', href: '/rules/dark-chess', emphasis: 'secondary' },
+            { label: 'Fog Chess', href: '/rules/dark-chess', emphasis: 'secondary' },
             { label: 'All rules', href: '/rules', emphasis: 'secondary' },
           ],
         } as ArticleBlock,

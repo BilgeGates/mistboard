@@ -29,15 +29,15 @@ export const chessArticle: Article = {
     kind: 'rules',
     // Hidden from the rules rail/index 2026-07-03 (project_xiangqi_pivot_track):
     // chess is deranked as Mistboard repositions around the xiangqi family. The
-    // page stays reachable at /rules/chess for SEO + the Dark Chess primer link.
+    // page stays reachable at /rules/chess for SEO + the Fog Chess primer link.
     showInIndex: false,
     title: 'Chess Rules',
     summary:
-      'Standard chess rules, the primer behind Dark Chess: castling, promotion, en passant, the draw rules, and a famous game to play through.',
+      'Standard chess rules, the primer behind Fog Chess: castling, promotion, en passant, the draw rules, and a famous game to play through.',
     showSummaryOnPage: false,
     status: 'published',
     publishedAt: '2026-05-30',
-    audience: 'Mistboard visitors who want the regular chess baseline before reading Fog of War rules.',
+    audience: 'Mistboard visitors who want the regular chess baseline before reading Fog Chess rules.',
     thumbnail: {
       pieces: boardToPieces(DARK_CHESS_START_STATE.board),
       orientation: 'white',
@@ -359,9 +359,9 @@ export const chessArticle: Article = {
       },
       relatedClosing({
         heading: 'Where to next',
-        lead: 'Chess is the open-information base game. Add Fog of War for dark chess, where enemy pieces outside your vision disappear and the king falls by capture.',
+        lead: 'Chess is the open-information base game. Add Fog of War for Fog Chess, where enemy pieces outside your vision disappear and the king falls by capture.',
         links: [
-          { label: 'Read Dark Chess', href: '/rules/dark-chess', emphasis: 'primary' },
+          { label: 'Read Fog Chess', href: '/rules/dark-chess', emphasis: 'primary' },
           { label: 'All rules', href: '/rules', emphasis: 'secondary' },
         ],
       }),

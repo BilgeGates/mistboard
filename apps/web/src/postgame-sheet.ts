@@ -21,7 +21,7 @@ type WatchFeed = {
 
 export function postgameSheetVariants(): PostgameSheetVariant[] {
   return [
-    { label: 'Dark Chess', channel: 'dark-chess', routeBase: '/game', enabled: true },
+    { label: 'Fog Chess', channel: 'dark-chess', routeBase: '/game', enabled: true },
     ...webVariantTenants()
       .filter((tenant) => tenant.watch && tenant.gameRouteBase)
       .map((tenant) => ({

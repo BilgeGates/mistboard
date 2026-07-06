@@ -12,15 +12,15 @@ import { specIdForShowcaseVariant } from './showcase-dispatch.js';
 import { buildNav } from './site-shell.js';
 
 const SHEET_VARIANTS: ReadonlyArray<{ label: string; channel: string }> = [
-  { label: 'Dark Chess', channel: 'dark-chess' },
-  { label: 'Jungle', channel: 'jungle' },
+  { label: 'Fog Chess', channel: 'dark-chess' },
+  { label: 'Jungle Chess', channel: 'jungle' },
   { label: 'Flip Jungle', channel: 'jungle-flip' },
-  { label: 'Banqi', channel: 'banqi' },
-  { label: 'Jieqi', channel: 'jieqi' },
+  { label: 'Half Flip Chess', channel: 'banqi' },
+  { label: 'Flip Chinese Chess', channel: 'jieqi' },
   { label: 'Mini Xiangqi', channel: 'mini-xiangqi' },
   { label: 'Dark Mini Xiangqi', channel: 'dark-mini-xiangqi' },
   { label: 'Drop Mini Xiangqi', channel: 'drop-mini-xiangqi' },
-  { label: 'Storm the Fortress', channel: 'fortress-xiangqi' },
+  { label: 'Fortress Animals', channel: 'fortress-xiangqi' },
 ];
 
 async function firstGameForChannel(channel: string): Promise<FeaturedGame | null> {

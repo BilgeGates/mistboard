@@ -222,7 +222,7 @@ function isHomeDailyPuzzle(value: Partial<HomeDailyPuzzle>): value is HomeDailyP
 }
 
 function variantLabel(variant: string): string {
-  if (variant === FORTRESS_XIANGQI_SPEC_ID) return 'Storm the Fortress';
+  if (variant === FORTRESS_XIANGQI_SPEC_ID) return 'Fortress Animals';
   if (variant === DROP_MINI_XIANGQI_SPEC_ID) return 'Drop Mini Xiangqi';
   if (variant === MINI_XIANGQI_SPEC_ID) return 'Mini Xiangqi';
   return variant
