@@ -1,0 +1,279 @@
+import {
+  replayXiangqiBroadcastBoard,
+  squareOf,
+  XIANGQI_BROADCAST_SCHEMA,
+  type XiangqiBroadcastBoard,
+  type XiangqiBroadcastResult,
+  type XiangqiBroadcastRound,
+  type XiangqiBroadcastTour,
+  type XiangqiMove,
+  type XiangqiSquare,
+} from '@mistboard/game';
+
+export type WxfDhtmlXqIssueKind =
+  | 'no_dhtmlxq_frames'
+  | 'missing_required_tag'
+  | 'unsupported_initial_position'
+  | 'malformed_movelist'
+  | 'illegal_movelist';
+
+export type WxfDhtmlXqIssue = {
+  kind: WxfDhtmlXqIssueKind;
+  message: string;
+  sourceBoardId?: string;
+};
+
+export type WxfDhtmlXqSnapshot = {
+  tour: XiangqiBroadcastTour;
+  rounds: XiangqiBroadcastRound[];
+  boards: XiangqiBroadcastBoard[];
+};
+
+export type WxfDhtmlXqConversionResult =
+  | { ok: true; snapshot: WxfDhtmlXqSnapshot; issues: WxfDhtmlXqIssue[] }
+  | { ok: false; issues: WxfDhtmlXqIssue[] };
+
+export type WxfDhtmlXqConversionOptions = {
+  tourSlug?: string;
+  tourName?: string;
+  roundId?: string;
+  roundName?: string;
+  sourceUrl?: string;
+};
+
+const STANDARD_DHTMLXQ_BINIT = '0919293949596979891777062646668600102030405060708012720323436383';
+
+function decodeHtmlText(value: string): string {
+  return value
+    .replaceAll('&amp;', '&')
+    .replaceAll('&quot;', '"')
+    .replaceAll('&#39;', "'")
+    .replaceAll('&lt;', '<')
+    .replaceAll('&gt;', '>')
+    .replace(/&#(\d+);/g, (_match, code: string) => String.fromCodePoint(Number(code)));
+}
+
+function cleanTagValue(value: string | undefined): string | undefined {
+  const cleaned = decodeHtmlText(value ?? '')
+    .replace(/\s+/g, ' ')
+    .trim();
+  return cleaned.length > 0 ? cleaned : undefined;
+}
+
+function slugPart(value: string): string {
+  return value
+    .normalize('NFKD')
+    .toLowerCase()
+    .replace(/['"]/g, '')
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .slice(0, 80);
+}
+
+function extractArticleTitle(html: string): string | undefined {
+  const match = html.match(/<title[^>]*>([\s\S]*?)<\/title>/i);
+  return cleanTagValue(match?.[1]?.replace(/ - World Xiangqi Federation[\s\S]*$/i, ''));
+}
+
+function extractFrameBodies(html: string): string[] {
+  return [...html.matchAll(/\[DhtmlXQiFrame\]([\s\S]*?)\[\/DhtmlXQiFrame\]/g)].map(
+    (match) => match[1] ?? '',
+  );
+}
+
+function parseFrameTags(frame: string): Map<string, string> {
+  const tags = new Map<string, string>();
+  for (const match of frame.matchAll(/\[DhtmlXQ_([a-z0-9]+)\]([\s\S]*?)\[\/DhtmlXQ_\1\]/gi)) {
+    const key = match[1]?.toLowerCase();
+    const value = cleanTagValue(match[2]);
+    if (key && value !== undefined) tags.set(key, value);
+  }
+  return tags;
+}
+
+function requireTag(
+  tags: Map<string, string>,
+  key: string,
+  fallbackSourceBoardId: string | undefined,
+): { ok: true; value: string } | { ok: false; issue: WxfDhtmlXqIssue } {
+  const value = tags.get(key);
+  if (value) return { ok: true, value };
+  return {
+    ok: false,
+    issue: {
+      kind: 'missing_required_tag',
+      message: `DhtmlXQ frame is missing ${key}`,
+      ...(fallbackSourceBoardId ? { sourceBoardId: fallbackSourceBoardId } : {}),
+    },
+  };
+}
+
+function sourceBoardIdFromTitle(title: string | undefined, index: number): string {
+  const token = title?.match(/^([a-z0-9]+(?:t\d+)?)/i)?.[1];
+  return slugPart(token ?? `board-${index + 1}`) || `board-${index + 1}`;
+}
+
+function boardNumberFromSourceId(sourceBoardId: string, index: number): number {
+  const table = sourceBoardId.match(/t0*(\d+)$/i)?.[1];
+  const parsed = Number(table);
+  return Number.isInteger(parsed) && parsed > 0 ? parsed : index + 1;
+}
+
+function cleanPlayerName(name: string): string {
+  return name.replace(/\*+$/g, '').trim();
+}
+
+function resultFromWxf(value: string | undefined): {
+  result: XiangqiBroadcastResult;
+  status: XiangqiBroadcastBoard['status'];
+} {
+  if (!value || /未知|\*/.test(value)) return { result: '*', status: 'live' };
+  if (/红胜|red win|red wins|1-0/i.test(value)) return { result: '1-0', status: 'complete' };
+  if (/黑胜|black win|black wins|0-1/i.test(value)) return { result: '0-1', status: 'complete' };
+  if (/和|draw|1\/2/i.test(value)) return { result: '1/2-1/2', status: 'complete' };
+  return { result: '*', status: 'live' };
+}
+
+function dhtmlCoordToSquare(coord: string): XiangqiSquare | null {
+  if (!/^[0-8][0-9]$/.test(coord)) return null;
+  const file = Number(coord[0]);
+  const dhtmlRank = Number(coord[1]);
+  return squareOf(file, 10 - dhtmlRank);
+}
+
+function movesFromDhtmlMovelist(
+  sourceBoardId: string,
+  movelist: string,
+): { ok: true; moves: XiangqiMove[] } | { ok: false; issue: WxfDhtmlXqIssue } {
+  const compact = movelist.replace(/\s+/g, '');
+  if (!/^\d*$/.test(compact) || compact.length === 0 || compact.length % 4 !== 0) {
+    return {
+      ok: false,
+      issue: {
+        kind: 'malformed_movelist',
+        message: 'DhtmlXQ movelist must be non-empty digits grouped as four digits per ply',
+        sourceBoardId,
+      },
+    };
+  }
+  const moves: XiangqiMove[] = [];
+  for (let i = 0; i < compact.length; i += 4) {
+    const from = dhtmlCoordToSquare(compact.slice(i, i + 2));
+    const to = dhtmlCoordToSquare(compact.slice(i + 2, i + 4));
+    if (!from || !to) {
+      return {
+        ok: false,
+        issue: {
+          kind: 'malformed_movelist',
+          message: `DhtmlXQ movelist has an out-of-range coordinate at ply ${i / 4 + 1}`,
+          sourceBoardId,
+        },
+      };
+    }
+    moves.push({ from, to });
+  }
+  return { ok: true, moves };
+}
+
+function issueForReplayFailure(board: XiangqiBroadcastBoard): WxfDhtmlXqIssue | null {
+  const replay = replayXiangqiBroadcastBoard(board);
+  if (replay.ok) return null;
+  return {
+    kind: 'illegal_movelist',
+    message: replay.reason,
+    sourceBoardId: board.sourceBoardId,
+  };
+}
+
+export function convertWxfDhtmlXqPageToSnapshot(
+  html: string,
+  options: WxfDhtmlXqConversionOptions = {},
+): WxfDhtmlXqConversionResult {
+  const articleTitle = extractArticleTitle(html);
+  const tourSlug = options.tourSlug ?? slugPart(articleTitle ?? 'wxf-xiangqi-broadcast');
+  const roundId = options.roundId ?? `${tourSlug}-round`;
+  const tour: XiangqiBroadcastTour = {
+    schema: XIANGQI_BROADCAST_SCHEMA,
+    slug: tourSlug,
+    name: options.tourName ?? articleTitle ?? 'WXF Xiangqi Broadcast',
+    ...(options.sourceUrl ? { sourceUrl: options.sourceUrl } : {}),
+  };
+  const round: XiangqiBroadcastRound = {
+    schema: XIANGQI_BROADCAST_SCHEMA,
+    id: roundId,
+    tourSlug,
+    name: options.roundName ?? articleTitle ?? 'WXF Round',
+    ...(options.sourceUrl ? { sourceUrl: options.sourceUrl } : {}),
+  };
+
+  const frames = extractFrameBodies(html);
+  if (frames.length === 0) {
+    return {
+      ok: false,
+      issues: [{ kind: 'no_dhtmlxq_frames', message: 'no DhtmlXQ iframe payloads found' }],
+    };
+  }
+
+  const issues: WxfDhtmlXqIssue[] = [];
+  const boards: XiangqiBroadcastBoard[] = [];
+
+  frames.forEach((frame, index) => {
+    const tags = parseFrameTags(frame);
+    const title = cleanTagValue(tags.get('title'));
+    const sourceBoardId = sourceBoardIdFromTitle(title, index);
+    const binit = requireTag(tags, 'binit', sourceBoardId);
+    if (!binit.ok) {
+      issues.push(binit.issue);
+      return;
+    }
+    if (binit.value !== STANDARD_DHTMLXQ_BINIT) {
+      issues.push({
+        kind: 'unsupported_initial_position',
+        message: 'only the standard DhtmlXQ xiangqi initial position is supported',
+        sourceBoardId,
+      });
+      return;
+    }
+
+    const red = requireTag(tags, 'red', sourceBoardId);
+    const black = requireTag(tags, 'black', sourceBoardId);
+    const movelist = requireTag(tags, 'movelist', sourceBoardId);
+    if (!red.ok || !black.ok || !movelist.ok) {
+      if (!red.ok) issues.push(red.issue);
+      if (!black.ok) issues.push(black.issue);
+      if (!movelist.ok) issues.push(movelist.issue);
+      return;
+    }
+
+    const moves = movesFromDhtmlMovelist(sourceBoardId, movelist.value);
+    if (!moves.ok) {
+      issues.push(moves.issue);
+      return;
+    }
+
+    const { result, status } = resultFromWxf(tags.get('result'));
+    const board: XiangqiBroadcastBoard = {
+      schema: XIANGQI_BROADCAST_SCHEMA,
+      id: `${tourSlug}-${roundId}-b${String(boardNumberFromSourceId(sourceBoardId, index)).padStart(2, '0')}`,
+      tourSlug,
+      roundId,
+      sourceBoardId,
+      boardNumber: boardNumberFromSourceId(sourceBoardId, index),
+      red: { name: cleanPlayerName(red.value) },
+      black: { name: cleanPlayerName(black.value) },
+      status,
+      result,
+      moves: moves.moves,
+      ...(options.sourceUrl ? { sourceUrl: options.sourceUrl } : {}),
+    };
+    const replayIssue = issueForReplayFailure(board);
+    if (replayIssue) {
+      issues.push(replayIssue);
+      return;
+    }
+    boards.push(board);
+  });
+
+  if (boards.length === 0) return { ok: false, issues };
+  return { ok: true, snapshot: { tour, rounds: [round], boards }, issues };
+}
