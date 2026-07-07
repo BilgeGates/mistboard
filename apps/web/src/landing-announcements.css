@@ -93,6 +93,10 @@
   line-height: 1;
 }
 
+.landing-news-marker-release {
+  font-size: 12px;
+}
+
 .landing-news-marker-empty {
   border: 3px solid var(--landing-feed-accent);
   background: var(--site-panel);

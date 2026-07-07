@@ -3,6 +3,7 @@ import {
   fetchPlayableEnginesOnce,
   landingRoomClientKindForUrl,
   loadPlayableEnginesWithRetry,
+  renderLandingShellForPrerender,
 } from './landing.js';
 
 const ROSTER = [
@@ -87,6 +88,24 @@ describe('playable engines loading', () => {
     expect(landingRoomClientKindForUrl('/room/dchess_created')).toBe('tenant');
     expect(landingRoomClientKindForUrl('/room/mxq_created')).toBe('standard');
     expect(landingRoomClientKindForUrl('/room/dark_created')).toBe('standard');
+  });
+});
+
+describe('landing shell', () => {
+  it('links only the About Mistboard tagline tail', () => {
+    const wrap = document.createElement('div');
+    wrap.innerHTML = renderLandingShellForPrerender();
+
+    const about = wrap.querySelector('.landing-about');
+    const link = about?.querySelector<HTMLAnchorElement>('a[href="/about"]');
+
+    expect(about?.textContent).toBe(
+      'Original strategy games. Free in your browser. About Mistboard...',
+    );
+    expect(link?.textContent).toBe('About Mistboard...');
+    expect(about?.childNodes[0]?.textContent).toBe(
+      'Original strategy games. Free in your browser. ',
+    );
   });
 });
 

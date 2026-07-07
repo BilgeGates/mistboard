@@ -7,6 +7,31 @@ import { rulesHrefPublicSurfaceEnabled } from './variant-public-surfaces.js';
 // All announcements render as one dated News feed box (lichess lobby__feed
 // grammar); the full history lives at /feed.
 const MAX_FEED_ROWS = 4;
+const ANNOUNCEMENT_KIND_META: Record<
+  Announcement['kind'],
+  { label: string; marker: string; futureDobutsuSlot: 'announcement-a' | 'announcement-b' | null }
+> = {
+  release: {
+    label: 'Release',
+    marker: 'R',
+    futureDobutsuSlot: 'announcement-a',
+  },
+  status: {
+    label: 'Status',
+    marker: '!',
+    futureDobutsuSlot: 'announcement-b',
+  },
+  article: {
+    label: 'Article',
+    marker: 'A',
+    futureDobutsuSlot: 'announcement-b',
+  },
+  update: {
+    label: 'Update',
+    marker: '+',
+    futureDobutsuSlot: 'announcement-a',
+  },
+};
 
 export function buildLandingAnnouncements(locale: Locale = currentLocale()): HTMLElement {
   const panel = document.createElement('aside');
@@ -31,13 +56,18 @@ export function buildLandingAnnouncements(locale: Locale = currentLocale()): HTM
 }
 
 function renderFeedEntry(entry: Announcement, locale: Locale): HTMLElement {
+  const kindMeta = ANNOUNCEMENT_KIND_META[entry.kind];
   const row = document.createElement('article');
-  row.className = 'landing-news-update';
+  row.className = `landing-news-update landing-news-update-${entry.kind}`;
+  row.dataset.announcementKind = entry.kind;
 
   const marker = document.createElement('span');
-  marker.className = 'landing-news-marker';
+  marker.className = `landing-news-marker landing-news-marker-${entry.kind}`;
+  marker.dataset.announcementKind = entry.kind;
+  marker.dataset.futureDobutsuSlot = kindMeta.futureDobutsuSlot ?? '';
+  marker.title = kindMeta.label;
   marker.setAttribute('aria-hidden', 'true');
-  marker.textContent = markerForKind(entry.kind);
+  marker.textContent = kindMeta.marker;
 
   const content = document.createElement('div');
   content.className = 'landing-news-content';
@@ -83,19 +113,6 @@ function renderAllUpdates(locale: Locale): HTMLElement {
   link.textContent = `${t('site.more', {}, locale)}`;
   row.append(marker, link);
   return row;
-}
-
-function markerForKind(kind: Announcement['kind']): string {
-  switch (kind) {
-    case 'article':
-      return 'A';
-    case 'release':
-      return '*';
-    case 'status':
-      return '!';
-    case 'update':
-      return '+';
-  }
 }
 
 function ctaLabel(entry: Announcement, locale: Locale): string {

@@ -96,6 +96,16 @@ describe('landing announcements', () => {
     expect(more?.getAttribute('href')).toBe('/feed');
   });
 
+  it('marks feed rows by supported post type for future icon replacement', () => {
+    const firstRow = buildLandingAnnouncements().querySelector<HTMLElement>('.landing-news-update');
+    const marker = firstRow?.querySelector<HTMLElement>('.landing-news-marker');
+
+    expect(firstRow?.dataset.announcementKind).toBe('release');
+    expect(marker?.textContent).toBe('R');
+    expect(marker?.dataset.announcementKind).toBe('release');
+    expect(marker?.dataset.futureDobutsuSlot).toBe('announcement-a');
+  });
+
   it('localizes the News rail and feed chrome', () => {
     vi.stubEnv('DEV', false);
 

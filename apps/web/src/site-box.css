@@ -91,23 +91,24 @@ a.site-box-row:focus-visible {
   display: flex;
   flex-direction: column;
   align-items: flex-start;
-  gap: 6px;
+  gap: 0;
 }
 
 .landing-activity-primary {
   display: flex;
   flex-direction: column;
   align-items: flex-start;
-  gap: 2px;
+  gap: 0;
 }
 
 .landing-activity-metric {
   display: inline-flex;
   align-items: baseline;
-  gap: 8px;
-  min-height: 27px;
-  color: var(--site-heading);
-  line-height: 1.35;
+  gap: 4px;
+  min-height: 0;
+  color: var(--site-muted);
+  font-size: 13px;
+  line-height: 1.45;
   text-decoration: none;
 }
 
@@ -122,7 +123,7 @@ a.site-box-row:focus-visible {
 
 .landing-activity-value {
   color: var(--site-heading);
-  font-size: 18px;
+  font-size: inherit;
   font-weight: 700;
   font-variant-numeric: tabular-nums;
 }
@@ -130,7 +131,7 @@ a.site-box-row:focus-visible {
 .landing-activity-label {
   min-width: 0;
   color: var(--site-muted);
-  font-size: 18px;
+  font-size: inherit;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -138,8 +139,9 @@ a.site-box-row:focus-visible {
 
 .landing-activity-live {
   display: flex;
-  flex-wrap: wrap;
-  gap: 3px 10px;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0;
   color: var(--site-muted);
   font-size: 13px;
   line-height: 1.45;

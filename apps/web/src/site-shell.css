@@ -14,8 +14,7 @@
      endpoint as the body gradient (app-base.css :root) so the two are one
      continuous gradient and there is no seam under the bar. Per-page overrides
      of --site-nav-bg still set the bottom stop. */
-  background-color: var(--site-nav-bg);
-  background-image: linear-gradient(to bottom, var(--site-page-top), var(--site-nav-bg) 220px);
+  background: transparent;
   border-bottom: 1px solid var(--site-nav-border);
   /* Auto-hide on scroll (see ensureNavAutoHide in site-shell.ts). Transition
      transform + border so the bar slides up/down smoothly and gains a hairline
@@ -28,6 +27,8 @@
 /* Scrolled away from the top: the bar now floats over content, so give it a
    faint bottom hairline to separate it (lichess adds a border here too). */
 .site-nav.scrolled {
+  background-color: var(--site-nav-bg);
+  background-image: var(--site-page-gradient);
   border-bottom-color: var(--site-border-soft);
 }
 
@@ -132,6 +133,11 @@
     color 140ms ease;
 }
 
+:root:not([data-effective-theme="dark"]) .site-nav-links > .site-nav-link,
+:root:not([data-effective-theme="dark"]) .site-nav-menu-toggle {
+  text-shadow: 0 1px 0 rgba(255, 255, 255, 0.8);
+}
+
 .site-nav-links > .site-nav-link,
 .site-nav-menu-toggle {
   min-height: 60px;
@@ -188,7 +194,7 @@
   display: none;
   width: max-content;
   min-width: 160px;
-  padding: 10px 0 12px;
+  padding: 0;
   background: var(--site-panel);
   border: 0;
   border-left: 2px solid var(--site-accent);
@@ -243,6 +249,7 @@
   border-radius: 0;
   font-size: 14px;
   font-weight: 400;
+  line-height: 1.25;
   text-transform: none;
   white-space: nowrap;
 }

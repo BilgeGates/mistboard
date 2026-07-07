@@ -630,10 +630,7 @@ function buildLandingStage(
   );
   const about = document.createElement('h1');
   about.className = 'landing-about';
-  const aboutLink = document.createElement('a');
-  aboutLink.href = localizedHref('/about', locale);
-  aboutLink.textContent = t('home.tagline', {}, locale);
-  about.append(aboutLink);
+  appendLinkedTagline(about, t('home.tagline', {}, locale), localizedHref('/about', locale));
   newsColumn.append(about);
 
   // ── Left viewer column (grid-area: viewer, row 2): the cycling showcase board,
@@ -761,6 +758,30 @@ export function renderLandingShellForPrerender(): string {
   const nav = buildNav();
   const stage = buildLandingStage(fallbackPlayableEngines(), { skipLiveWidgets: true });
   return `${nav.outerHTML}${stage.el.outerHTML}`;
+}
+
+function appendLinkedTagline(target: HTMLElement, tagline: string, href: string): void {
+  const mistboardIndex = tagline.indexOf('Mistboard');
+  const dotBoundary = mistboardIndex >= 0 ? tagline.lastIndexOf('. ', mistboardIndex) : -1;
+  const fullStopBoundary = mistboardIndex >= 0 ? tagline.lastIndexOf('。', mistboardIndex) : -1;
+  const useDot = dotBoundary > fullStopBoundary;
+  const boundary = useDot ? dotBoundary : fullStopBoundary;
+  if (boundary < 0) {
+    const fallback = document.createElement('a');
+    fallback.href = href;
+    fallback.textContent = tagline;
+    target.append(fallback);
+    return;
+  }
+
+  const linkStart = boundary + (useDot ? 2 : 1);
+  const lead = tagline.slice(0, linkStart);
+  const linkedText = tagline.slice(linkStart);
+  target.append(document.createTextNode(useDot ? lead : `${lead} `));
+  const link = document.createElement('a');
+  link.href = href;
+  link.textContent = linkedText;
+  target.append(link);
 }
 
 function buildGameExportLinks(roomId: string, variant: string | undefined): HTMLElement | null {
