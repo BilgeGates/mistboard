@@ -504,7 +504,7 @@ describe('rules variant sidebar', () => {
     const nav = navs?.[0];
     const hrefs = [...(nav?.querySelectorAll('a') ?? [])].map((link) => link.getAttribute('href'));
     // The mini xiangqi trio is de-listed; the rail uses the global canonical
-    // order, including the animal-rank cluster: Flip Jungle, Banqi, Jungle.
+    // order, including the animal-rank cluster followed by the fog trio.
     expect(nav?.querySelector('a[href="/rules/mini-xiangqi"]')).toBeNull();
     expect(nav?.querySelector('a[href="/rules/dark-mini-xiangqi"]')).toBeNull();
     expect(nav?.querySelector('a[href="/rules/dark-xiangqi"]')).not.toBeNull();
@@ -523,7 +523,8 @@ describe('rules variant sidebar', () => {
     expect(hrefs.indexOf('/rules/jieqi')).toBeLessThan(hrefs.indexOf('/rules/jungle-flip'));
     expect(hrefs.indexOf('/rules/jungle-flip')).toBeLessThan(hrefs.indexOf('/rules/banqi'));
     expect(hrefs.indexOf('/rules/banqi')).toBeLessThan(hrefs.indexOf('/rules/jungle'));
-    expect(hrefs.indexOf('/rules/jungle')).toBeLessThan(hrefs.indexOf('/rules/dark-chess'));
+    expect(hrefs.indexOf('/rules/jungle')).toBeLessThan(hrefs.indexOf('/rules/dark-xiangqi'));
+    expect(hrefs.indexOf('/rules/dark-xiangqi')).toBeLessThan(hrefs.indexOf('/rules/dark-chess'));
     expect(hrefs.indexOf('/rules/dark-chess')).toBeLessThan(hrefs.indexOf('/rules/shogi'));
   });
 

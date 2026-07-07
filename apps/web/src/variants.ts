@@ -134,10 +134,10 @@ const VARIANT_MINI_BY_GAME_SPEC: Partial<Record<GameSpecId, VariantMiniId>> = {
   [JUNGLE_FLIP_SPEC_ID]: 'jungle-flip',
 };
 
-// Ordered to match the shared CANONICAL_VARIANT_ORDER (packages/game): xiangqi
-// variants lead, the animal-rank cluster follows, chess is deranked below them,
-// then the hidden/parked tail. variants.test.ts asserts this array is already
-// sorted by canonicalVariantOrderIndex.
+// Ordered to match the shared CANONICAL_VARIANT_ORDER (packages/game): open /
+// flip xiangqi variants lead, the animal-rank cluster follows, then the fog
+// trio. variants.test.ts asserts this array is already sorted by
+// canonicalVariantOrderIndex.
 export const VARIANTS: VariantDef[] = [
   // Standard Xiangqi (9x10 open info): the pivot anchor. Launched 2026-07-04:
   // on the rating grids + News rail, account-gated rated like Fortress/jieqi/banqi
@@ -163,18 +163,6 @@ export const VARIANTS: VariantDef[] = [
     enabled: false,
     onLeaderboard: fortressXiangqiOn,
     onProfile: fortressXiangqiOn,
-  },
-  // Full Dark Xiangqi (9x10 fog): launched PvP-first (no bot, no open-seek
-  // lobby), rating-ready like jieqi/banqi.
-  {
-    id: currentRatingVariantForSpec(DARK_XIANGQI_SPEC_ID),
-    gameSpecId: darkXiangqiSpec.id,
-    apiParam: DARK_XIANGQI_SPEC_ID,
-    label: darkXiangqiSpec.publicName,
-    miniId: 'dark-xiangqi',
-    enabled: false,
-    onLeaderboard: darkXiangqiOn,
-    onProfile: darkXiangqiOn,
   },
   // Jieqi launched casual and is rating-ready (gated globally by
   // MISTBOARD_RATED_ENABLED). Not lobby-selectable (no open-seek matchmaking).
@@ -224,6 +212,19 @@ export const VARIANTS: VariantDef[] = [
     enabled: false,
     onLeaderboard: jungleOn,
     onProfile: jungleOn,
+  },
+  // Full Dark Xiangqi (9x10 fog): launched PvP-first (no bot, no open-seek
+  // lobby), rating-ready like jieqi/banqi. It starts the fog trio in the shared
+  // canonical order.
+  {
+    id: currentRatingVariantForSpec(DARK_XIANGQI_SPEC_ID),
+    gameSpecId: darkXiangqiSpec.id,
+    apiParam: DARK_XIANGQI_SPEC_ID,
+    label: darkXiangqiSpec.publicName,
+    miniId: 'dark-xiangqi',
+    enabled: false,
+    onLeaderboard: darkXiangqiOn,
+    onProfile: darkXiangqiOn,
   },
   {
     id: currentRatingVariantForSpec(DARK_CHESS_SPEC_ID),

@@ -11,17 +11,17 @@ import {
 import { setRatedModeEnabled } from './rated-flag.js';
 import { setResolvedSignedIn } from './signed-in-state.js';
 
-// Xiangqi pivot (2026-07): xiangqi leads the canonical order, chess is deranked
-// below xiangqi + animal-rank games, and the mini xiangqi trio
+// Xiangqi pivot (2026-07): open / flip xiangqi variants lead, the animal-rank
+// cluster follows, then the fog trio. The mini xiangqi trio
 // (mini/dark-mini/drop-mini) plus dark-crazyhouse are hidden from menus
 // (offerInMenu=false) — they remain reachable only by deep link.
 const BASELINE_PICKER_SPECS = [
   'fortress-xiangqi',
-  'dark-xiangqi',
   'jieqi',
   'jungle-flip',
   'banqi',
   'jungle',
+  'dark-xiangqi',
   'dark-chess',
   'dark-shogi',
 ];
@@ -213,9 +213,9 @@ describe('landing play panel', () => {
     expect(selectedVariantSpec()).toBe('fortress-xiangqi');
     expect(visibleVariantPickerSpecs()).toEqual([
       'fortress-xiangqi',
-      'dark-xiangqi',
       'jieqi',
       'banqi',
+      'dark-xiangqi',
     ]);
 
     selectModalVariant('dark-xiangqi');
@@ -1171,10 +1171,10 @@ describe('landing play panel', () => {
     );
     expect(specs).toEqual(canonical);
     // Xiangqi pivot: the mini xiangqi trio is hidden from the picker, so the
-    // ordering that remains observable is the Chinese-chess family leading, with
-    // Dark Xiangqi ahead of the deranked Dark Chess.
+    // ordering that remains observable clusters the three fog variants together.
     expect(specs).toContain('dark-xiangqi');
     expect(specs).not.toContain('mini-xiangqi');
+    expect(specs.indexOf('jungle')).toBeLessThan(specs.indexOf('dark-xiangqi'));
     expect(specs.indexOf('dark-xiangqi')).toBeLessThan(specs.indexOf('dark-chess'));
   });
 
