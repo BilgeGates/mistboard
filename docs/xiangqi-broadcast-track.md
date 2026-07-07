@@ -111,6 +111,17 @@ the sync log.
 Broadcast development must not depend on a real live event. The first milestone
 must include deterministic local sources.
 
+One-command local smoke:
+
+```bash
+npm run smoke:xiangqi-broadcast
+```
+
+The smoke prepares local Postgres, runs migrations, imports the canonical
+completed fixture, applies the deterministic tape simulation, polls a fake live
+source, polls the checked-in WXF/DhtmlXQ HTML fixture through the real-source
+adapter, and prints browser URLs for `npm run dev:persistent`.
+
 ### Fixtures
 
 Store small public-safe fixture packs:

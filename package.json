@@ -26,6 +26,7 @@
     "source:xiangqi-broadcast": "npm run source:xiangqi-broadcast --workspace @mistboard/server --",
     "db:test:ensure": "node scripts/ensure-test-database.mjs",
     "test:persistent": "node scripts/run-persistent-tests.mjs",
+    "smoke:xiangqi-broadcast": "node scripts/xiangqi-broadcast-local-smoke.mjs",
     "build": "node scripts/build.mjs",
     "build:all": "npm run build --workspaces",
     "start": "node scripts/start.mjs",
