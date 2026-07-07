@@ -327,7 +327,7 @@ describe('profile ratings rail', () => {
     expect(root.textContent).not.toContain('Crossroads Chess');
     // Xiangqi pivot: Drop Mini is off the grids; Fortress is an always-on ladder.
     expect(root.textContent).not.toContain('Drop Mini Xiangqi');
-    expect(root.textContent).toContain('Fortress Animals');
+    expect(root.textContent).toContain('Fortress');
     expect(root.textContent).toContain('Human blitz ladders');
     // 4 rated ladders (Dark Chess + always-on Jungle, Flip Jungle, Fortress).
     expect(root.querySelectorAll('.leaderboard-panel')).toHaveLength(4);
@@ -429,7 +429,7 @@ describe('profile ratings rail', () => {
     const titles = [...root.querySelectorAll('.leaderboard-panel-title')].map(
       (el) => el.textContent,
     );
-    expect(titles[0]).toBe('Fortress Animals');
+    expect(titles[0]).toBe('Fortress');
     const panels = [...root.querySelectorAll('.leaderboard-panel')];
     expect(panels[0]?.textContent).toContain('1520');
     expect(panels[1]?.textContent).toContain('No rated games yet.');

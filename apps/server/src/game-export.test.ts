@@ -133,7 +133,7 @@ test('PGN includes full STR plus extensions and numbered moves', () => {
   assert.ok(pgn.includes('[White "alice"]'));
   assert.ok(pgn.includes('[Black "bob"]'));
   assert.ok(pgn.includes('[Result "1-0"]'));
-  assert.ok(pgn.includes('[Variant "Dark chess"]'));
+  assert.ok(pgn.includes('[Variant "Fog Chess"]'));
   assert.ok(pgn.includes('[MistboardVariant "dark-chess"]'));
   assert.ok(pgn.includes('[TimeControl "60+1"]'));
   // Standard PGN termination value

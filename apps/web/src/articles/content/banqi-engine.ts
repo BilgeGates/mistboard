@@ -140,7 +140,7 @@ export const banqiEngineArticle: Article = {
           emphasis: 'secondary',
           external: true,
         },
-        { label: 'Half Flip Chess Rules', href: '/rules/banqi', emphasis: 'secondary' },
+        { label: 'Half-Flip Chess Rules', href: '/rules/banqi', emphasis: 'secondary' },
       ],
     }),
   ],

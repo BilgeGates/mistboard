@@ -433,7 +433,7 @@ export async function mountForumEtiquette(root: HTMLElement): Promise<void> {
       etiquettePara(
         'A clear title says what the thread is about, so people can find and answer it.',
       ),
-      etiquetteExample('do', '"Scouting lines in Dark Xiangqi: how deep to commit?"'),
+      etiquetteExample('do', '"Scouting lines in Fog Elephant Chess: how deep to commit?"'),
       etiquetteExample('dont', '"Help", "Bug", "play", or a single word'),
     ]),
     etiquetteSection('Post in the right category', [

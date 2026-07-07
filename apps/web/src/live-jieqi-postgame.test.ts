@@ -31,7 +31,7 @@ describe('Jieqi postgame page', () => {
     await flushPromises();
 
     expect(fetchSpy).toHaveBeenCalledWith('/api/jieqi/games/jq_postgame');
-    expect(root.textContent).toContain('Flip Chinese Chess');
+    expect(root.textContent).toContain('Flip Elephant Chess');
     expect(root.textContent).toContain('Red wins');
     // No jieqi play-again action in v1; the review keeps Home + Room links.
     expect(root.textContent).toContain('Home');

@@ -570,7 +570,7 @@ function formatLabel(view: PlayerView | null): string {
   if (variant === 'draft960' || variant === 'fog-draft960' || variant === 'dark-draft960') {
     return 'Dark Draft960';
   }
-  const base = variant === 'dark-chess' ? 'Dark chess' : capitalize(variant ?? 'dark chess');
+  const base = variant === 'dark-chess' ? 'Fog Chess' : capitalize(variant ?? 'dark chess');
   const isDraft960 =
     liveState.variantRequested === 'fog-draft960' ||
     liveState.variantRequested === 'dark-draft960' ||

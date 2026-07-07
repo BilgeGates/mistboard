@@ -21,7 +21,7 @@ export type WatchChannel = {
   legacyVariants: readonly string[];
 };
 
-// Dark chess is the one channel that cannot be derived from the registry: it is
+// Fog Chess is the one channel that cannot be derived from the registry: it is
 // a registry MISS (the legacy chess stack is deliberately unregistered), so it
 // stays a hardcoded constant and is always enabled + the default. Every other
 // channel derives from a registered tenant's `watch` field.
@@ -30,7 +30,7 @@ const DARK_CHESS_CHANNEL: WatchChannel = {
   family: 'chess',
   gameSpecIds: [DARK_CHESS_SPEC_ID, DARK_DRAFT960_SPEC_ID],
   id: 'dark-chess',
-  label: 'Dark chess',
+  label: 'Fog Chess',
   legacyVariants: ['dark-chess', 'draft960'],
 };
 
@@ -82,7 +82,7 @@ function channelEnabled(channel: WatchChannel): boolean {
 }
 
 export function listWatchChannels(): readonly WatchChannel[] {
-  // Dark chess sorts into its canonical rail position alongside the derived
+  // Fog Chess sorts into its canonical rail position alongside the derived
   // channels rather than always leading — the xiangqi pivot deranks chess, so
   // the watch rail must match the play menu / rules rail order. It stays the
   // default landing channel (see defaultWatchChannel) regardless of position.

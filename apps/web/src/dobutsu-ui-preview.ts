@@ -868,7 +868,7 @@ export function mountDobutsuUiPreview(root: HTMLElement): void {
   news.className = 'dobutsu-news-box landing-news-feed';
   news.append(
     newsRow('announcement-a', '2 days ago', 'Xiangqi has launched. Study the rules.'),
-    newsRow('announcement-b', '5 days ago', 'Fortress Animals has launched.'),
+    newsRow('announcement-b', '5 days ago', 'Fortress has launched.'),
     newsRow('announcement-c', 'Notification', 'Bell direction for nav notifications.'),
   );
 

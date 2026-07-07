@@ -104,7 +104,7 @@ function banqiSeatLabel(seat: BanqiSeat): string {
 }
 
 const banqiWebTenant: WebVariantTenant<BanqiSeat> = {
-  displayName: 'Half Flip Chess',
+  displayName: 'Half-Flip Chess',
   colors: ['red', 'black'],
   isColor: isBanqiSeat,
   oppositeColor: (color) => (color === 'red' ? 'black' : 'red'),
@@ -223,7 +223,7 @@ function banqiReasonPhrase(reason: string): string {
 
 function renderBoard(liveRefs: LiveRefs, view: BanqiWireView | null): void {
   liveRefs.board.className = 'board banqi-live-board';
-  liveRefs.board.setAttribute('aria-label', 'Half Flip Chess board');
+  liveRefs.board.setAttribute('aria-label', 'Half-Flip Chess board');
   if (!view) {
     liveRefs.board.replaceChildren();
     return;

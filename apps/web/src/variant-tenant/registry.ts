@@ -174,7 +174,7 @@ const WEB_VARIANT_TENANTS: readonly WebVariantTenant[] = [
     gameSpecId: XIANGQI_SPEC_ID,
     roomIdPrefix: 'xq_',
     enabled: xiangqiEnabled,
-    pageTitle: 'Chinese Chess',
+    pageTitle: 'Elephant Chess',
     gameRouteBase: '/xiangqi/game',
     mountPostgame: (root, roomId) =>
       import('../xiangqi-postgame.js').then(({ mountXiangqiPostgame }) =>
@@ -235,7 +235,7 @@ const WEB_VARIANT_TENANTS: readonly WebVariantTenant[] = [
     gameSpecId: DARK_XIANGQI_SPEC_ID,
     roomIdPrefix: 'dxq_',
     enabled: alwaysEnabled,
-    pageTitle: 'Dark Chinese Chess',
+    pageTitle: 'Fog Elephant Chess',
     gameRouteBase: '/dark-xiangqi/game',
     mountPostgame: (root, roomId) =>
       import('../dark-xiangqi-postgame.js').then(({ mountDarkXiangqiPostgame }) =>
@@ -290,7 +290,7 @@ const WEB_VARIANT_TENANTS: readonly WebVariantTenant[] = [
     gameSpecId: JIEQI_SPEC_ID,
     roomIdPrefix: 'jq_',
     enabled: alwaysEnabled,
-    pageTitle: 'Flip Chinese Chess',
+    pageTitle: 'Flip Elephant Chess',
     gameRouteBase: '/jieqi/game',
     mountPostgame: (root, roomId) =>
       import('../live-jieqi-postgame.js').then(({ mountJieqiPostgame }) =>
@@ -355,7 +355,7 @@ const WEB_VARIANT_TENANTS: readonly WebVariantTenant[] = [
     gameSpecId: BANQI_SPEC_ID,
     roomIdPrefix: 'bq_',
     enabled: alwaysEnabled,
-    pageTitle: 'Half Flip Chess',
+    pageTitle: 'Half-Flip Chess',
     gameRouteBase: '/banqi/game',
     mountPostgame: (root, roomId) =>
       import('../live-banqi-postgame.js').then(({ mountBanqiPostgame }) =>
@@ -716,7 +716,7 @@ const WEB_VARIANT_TENANTS: readonly WebVariantTenant[] = [
     gameSpecId: FORTRESS_XIANGQI_SPEC_ID,
     roomIdPrefix: 'fxq_',
     enabled: fortressXiangqiEnabled,
-    pageTitle: 'Fortress Animals',
+    pageTitle: 'Fortress',
     gameRouteBase: '/fortress-xiangqi/game',
     mountPostgame: (root, roomId) =>
       import('../fortress-xiangqi-postgame.js').then(({ mountFortressXiangqiPostgame }) =>

@@ -151,6 +151,8 @@ const ZH_HANS: Record<string, string> = {
   // -- Dark Mini Xiangqi (rules) --
   'Mini Xiangqi under Fog of War: each side sees only the points its pieces reach on the 7×7 board, and the general falls by capture.':
     '战争迷雾下的迷你象棋：在 7×7 棋盘上，每一方只能看到己方棋子可及的交叉点，将帅由被吃而落败。',
+  'Fog Elephant Chess readers who want the smaller experimental ruleset Mistboard is testing first.':
+    '想了解 Mistboard 正在先行测试的小型实验规则的迷雾象棋读者。',
   '[Mini Xiangqi](/rules/mini-xiangqi) played with Fog of War: each player sees only their own pieces and the enemy pieces their army can reach. The board is 7 by 7, and the game ends by capturing the opposing general. If you know Mini Xiangqi, the sections below explain only what fog changes.':
     '在战争迷雾下进行的[迷你象棋](/rules/mini-xiangqi)：每位玩家只能看到己方棋子，以及己方子力可及的敌方棋子。棋盘为 7×7，以吃掉对方将帅结束对局。如果你已经会下迷你象棋，下面各节只讲解迷雾改变了什么。',
   'Board and fog': '棋盘与迷雾',
@@ -528,8 +530,6 @@ const ZH_HANS: Record<string, string> = {
   // intro
   'Dark Xiangqi is the modern Fog of War version of [xiangqi](/rules/xiangqi): pieces keep their xiangqi movement, but unseen enemy pieces stay hidden and danger is not announced. Capture the general to win.':
     '迷雾象棋是[象棋](/rules/xiangqi)的现代「战争迷雾」版本：棋子保留象棋的走法，而看不见的敌方棋子保持隐藏、危险也不会被告知。擒获将帅即获胜。',
-  'If xiangqi is new to you, start with [Xiangqi Rules](/rules/xiangqi). If you already play xiangqi, the sections below explain only what fog changes.':
-    '如果你刚接触象棋，请先从[象棋规则](/rules/xiangqi)开始。如果你已经会下象棋，下面各节只讲解迷雾改变了什么。',
   // section headings
   'Win condition: general capture': '胜负条件：擒获将帅',
   'Play status': '对弈状态',
@@ -555,17 +555,7 @@ const ZH_HANS: Record<string, string> = {
     '只有当相邻的马腿位置空着时，马才能走动。如果有一枚隐藏的棋子蹩住了那条马腿，落点就会从你的可见集合中消失，而马腿位置则显示为一个「?」标记。',
   'An elephant moves two points diagonally and cannot cross the river. If a hidden piece sits on the midpoint eye, the diagonal destination disappears and the eye square appears as a ? marker.':
     '象（相）沿斜线走两个交叉点，且不能过河。如果有一枚隐藏的棋子塞在中点的象眼上，斜线落点就会消失，而象眼位置则显示为一个「?」标记。',
-  'Playable Dark Xiangqi games are not public yet. These rules are published first so players can review the variant before live play opens.':
-    '可对弈的迷雾象棋目前尚未公开。这些规则先行发布，好让玩家在实战开放之前先了解这一变体。',
-
   // -- Jieqi (rules) --
-  'Jieqi (揭棋) Rules': '揭棋规则',
-  'Jieqi (揭棋) rules: xiangqi with hidden non-general pieces that first move by starting point, then reveal and play by identity.':
-    '揭棋规则：在象棋基础上将除将帅以外的棋子全部暗置，暗子先按所在起始位置的兵种行棋，走子后翻明并按真实身份行棋。',
-  "Jieqi (揭棋, 'reveal chess') keeps xiangqi's board and checkmate goal, but hides every non-general piece. A dark piece first moves, attacks, and captures by the starting point it occupies. After that move, it reveals and plays by identity.":
-    '揭棋（意为“翻开的棋”）沿用象棋的棋盘和将死取胜的目标，但把除将帅以外的每一枚棋子都暗置。暗子最初的走子、攻击和吃子都按它所在的起始位置对应的兵种进行。走出那一步之后，它便翻明，并按真实身份行棋。',
-  'Use [Xiangqi Rules](/rules/xiangqi) for the base game. This page covers what changes.':
-    '底层游戏请参阅[象棋规则](/rules/xiangqi)。本页只讲解揭棋改变了什么。',
   Setup: '布局',
   "Set each general face-up on its normal palace point. Shuffle each side's other fifteen pieces and deal them face-down onto the remaining starting points. Neither player knows any hidden identities, including their own.":
     '将双方的将帅各自正面朝上摆在九宫内通常的位置。把每一方其余十五枚棋子洗混，背面朝下地发到剩余的起始位置上。任何一方都不知道任何暗子的身份，包括自己的暗子。',
@@ -591,21 +581,20 @@ const ZH_HANS: Record<string, string> = {
     '将死对方将帅，或让对方无合法走法可走，即可获胜。将帅对脸的规则依然有效，暗子也和其他棋子一样会挡住纵线。',
   'Repetition follows xiangqi long-beat rules, not a generic threefold or fourfold result. Perpetual check and direct perpetual chase are forbidden, so the forcing side must change course or lose; mutual forcing and ordinary repeated positions are judged by the xiangqi cycle, not by board equality alone. The automatic draw convention in this reference is the Guangdong/Tencent no-capture clock: 60 full moves, meaning 120 plies, without a capture.':
     '重复局面依照象棋的长打规则裁定，而不是笼统地按三次或四次重复出结果。长将和直接的长捉都被禁止，因此发动逼着的一方必须改变着法，否则判负；互打以及普通的重复局面则依据象棋的循环判例裁定，而不能只看局面是否相同。本规则参考采用的自动判和约定是广东/腾讯的无吃子回合数：连续 60 个完整回合（即 120 个半回合）无吃子即判和。',
+  Name: '名称',
   Names: '名称',
   '揭棋 is Mandarin jiēqí, meaning reveal chess. Luo Jinsheng of Guangzhou invented it in the 1980s. Vietnamese play commonly calls this family cờ úp.':
     '揭棋的普通话读音为 jiēqí，意为“翻开的棋”。它由广州的罗锦生于 20 世纪 80 年代发明。越南的玩法通常把这一类游戏称为 cờ úp。',
-  'English names overlap. Dark Chinese chess may refer to jieqi, but it can also mean [banqi](/rules/banqi), a different half-board flip game. Jieqi keeps the full xiangqi board and checkmate goal; banqi uses a 4x8 board, rank captures, and elimination.':
-    '英文名称常有重叠。“Dark Chinese chess”可能指揭棋，但也可能指[暗棋](/rules/banqi)（banqi），那是另一种半盘翻子游戏。揭棋保留完整的象棋棋盘和将死取胜的目标；暗棋则使用 4×8 的棋盘，按子力等级吃子，以吃光对方取胜。',
-  'Mistboard also uses [Dark Xiangqi](/rules/dark-xiangqi) and Dark Mini Xiangqi for our Fog of War xiangqi variants. Those are not jieqi: identities stay known, but unseen points are hidden. We have not found an earlier public playable platform for Fog of War xiangqi.':
-    'Mistboard 还以[迷雾象棋](/rules/dark-xiangqi)和迷雾迷你象棋作为我们的战争迷雾象棋变体。它们并不是揭棋：棋子的身份始终是已知的，只是看不到的交叉点被隐藏起来。我们尚未发现更早的、可公开对弈的战争迷雾象棋平台。',
-  'Jieqi is playable on Mistboard. Take on PikaJieQi, our jieqi engine, at the strength you pick. For the base game, read xiangqi; for the other face-down xiangqi cousin, compare banqi.':
-    '揭棋现在已可在 Mistboard 上对弈。来挑战我们的揭棋引擎 PikaJieQi，强度由你选择。底层游戏请阅读象棋；另一种翻面的象棋近亲，可对照暗棋。',
+  'English names overlap. Fog Elephant Chess is Mistboard’s name for fog xiangqi, not jieqi. Jieqi also differs from [Half-Flip Chess](/rules/banqi), the half-board flip game.':
+    '英文名称常有重叠。Fog Elephant Chess 是 Mistboard 对迷雾象棋的英文名称，不指揭棋。揭棋也不同于[暗棋](/rules/banqi)，后者是半盘翻棋。',
+  'Jieqi is playable on Mistboard. Take on PikaJieQi, our jieqi engine, at the strength you pick.':
+    '揭棋现在已可在 Mistboard 上对弈。来挑战我们的揭棋引擎 PikaJieQi，强度由你选择。',
   'Play vs PikaJieQi': '对战 PikaJieQi',
   'Step through a full self-play game below. Dark pieces show as colored backs and flip to their dealt identity the first time they move, so a corner that plays like a chariot can reveal a soldier. Red wins by checkmate.':
     '在下方逐步查看一整盘自我对弈的棋局。暗子以彩色背面显示，第一次走动时翻开，显示其发到的身份，因此一个像车一样走子的角落棋子，翻开后可能是一个兵。红方以将死获胜。',
   Banqi: '暗棋',
   // -- Banqi (rules) --
-  'Banqi (Chinese Dark Chess) Rules': '暗棋规则',
+  'Banqi (暗棋) Rules': '暗棋规则',
   'Step through a real game below: MistyBanqi (Strongest) moving first, a human second. The opening flip leaves MistyBanqi playing Red and the human Black. Black wins the opening material (the first eight captures are all Black’s), but Red keeps its elephant, the highest piece left, and grinds out the win. A clean illustration that in Banqi, rank beats raw material. Tiles flip to their dealt piece the first time they are turned over.':
     '在下方逐步回放一盘真实对局——MistyBanqi（最强）先手，人类后手。开局的第一次翻子让 MistyBanqi 执红、人类执黑。黑方在开局赢得子力——前八次吃子都是黑方——但红方留住了象，也就是盘面上等级最高的棋子，最终碾压获胜。这清楚地说明：在暗棋中，等级胜过单纯的子力。每枚棋子第一次被翻开时，会翻出它所发到的身份。',
   'Banqi rules: the 4x8 half-board xiangqi flip game, with face-down pieces, rank captures, screen-jumping cannons, and no royal general.':
@@ -755,55 +744,53 @@ const ZH_HANS: Record<string, string> = {
     '迷雾国际象棋规则：战争迷雾下的国际象棋。每一方只能看到己方棋子可及的格子，没有将军提示，王被吃掉即负。',
   "[Fog Chess](https://en.wikipedia.org/wiki/Dark_chess) is Mistboard's public name for dark chess, also called Fog of War chess. Jens Bæk Nielsen and Torben Osted invented it in 1989. It is the implicit-fog version of the idea: no umpire, no scan action. Each side's visibility is derived from where its pieces can legally move.":
     '[迷雾国际象棋](https://en.wikipedia.org/wiki/Dark_chess)是 Mistboard 对 dark chess / Fog of War chess 的公开名称。Jens Bæk Nielsen 与 Torben Osted 于 1989 年发明了它。它属于隐式迷雾：没有裁判，也没有侦察动作。每一方的视野完全由己方棋子的合法走法范围推导而来。',
-  'Fog Chess, dark chess, and Fog of War chess refer to this same chess variant: hidden-information chess where you see only the squares your pieces reach. It is sometimes confused with [Half Flip Chess](/rules/banqi), the Chinese game also nicknamed "dark chess," which plays with xiangqi pieces turned face-down. That is a different game.':
+  'Fog Chess, dark chess, and Fog of War chess refer to this same chess variant: hidden-information chess where you see only the squares your pieces reach. It is sometimes confused with [Half-Flip Chess](/rules/banqi), the Chinese game also nicknamed "dark chess," which plays with xiangqi pieces turned face-down. That is a different game.':
     '迷雾国际象棋、dark chess 和 Fog of War chess 指的是同一个国际象棋变体：你只能看到己方棋子可及格子的隐藏信息国际象棋。它有时会和[暗棋](/rules/banqi)混淆，后者也被称作 dark chess，但使用翻面的象棋棋子，是另一种游戏。',
-  'Chinese Chess Rules': '象棋规则',
-  'The rules of Chinese Chess, traditionally xiangqi (象棋): palaces, the river, cannon screens, facing generals, and a famous game to play through. Now playable on Mistboard against the Pikafish engine or a friend.':
+  'Elephant Chess Rules': '象棋规则',
+  'The rules of Elephant Chess (xiangqi, 象棋): palaces, the river, cannon screens, facing generals, and a famous game to play through. Now playable on Mistboard against the Pikafish engine or a friend.':
     '象棋规则：九宫、楚河汉界、炮架、将帅照面，以及一盘可逐步回放的名局。现在可在 Mistboard 上与 Pikafish 引擎或好友对弈。',
-  "Chinese Chess is Mistboard's public name for [xiangqi](https://en.wikipedia.org/wiki/Xiangqi) (象棋), the two-player strategy game with roots in China going back many centuries. Its modern form, including the cannon, took shape around the Song dynasty (960 to 1279).":
-    '象棋是 Mistboard 对 [xiangqi](https://en.wikipedia.org/wiki/Xiangqi)（象棋）的公开英文名称。这是一种源自中国、历史悠久的双人策略游戏。包括炮在内的现代形态，大致在宋代（960 至 1279 年）成型。',
-  'Chinese Chess is live on Mistboard. Play the Pikafish engine at three strengths, or challenge a friend. For a twist, add Fog of War in Dark Chinese Chess, where enemy pieces outside your vision disappear and the general falls by capture.':
+  'Elephant Chess is xiangqi (象棋), the two-player strategy game with roots in China going back many centuries. Its modern form, including the cannon, took shape around the Song dynasty (960 to 1279).':
+    '象棋是一种源自中国、历史悠久的双人策略游戏。包括炮在内的现代形态，大致在宋代（960 至 1279 年）成型。',
+  'Elephant Chess is live on Mistboard. Play the Pikafish engine at three strengths, or challenge a friend. For a twist, add Fog of War in Fog Elephant Chess, where enemy pieces outside your vision disappear and the general falls by capture.':
     '象棋已在 Mistboard 上线。你可以挑战三个强度的 Pikafish 引擎，或邀请好友对局。想换个玩法，可以试试迷雾象棋：视野之外的敌方棋子会消失，将帅由被吃而落败。',
-  'Play Chinese Chess': '下象棋',
-  'Dark Chinese Chess': '迷雾象棋',
-  'Dark Chinese Chess Rules': '迷雾象棋规则',
-  'Chinese Chess under Fog of War: each side sees only the points its pieces reach, hidden blockers matter, and the general falls by capture.':
+  'Play Elephant Chess': '下象棋',
+  'Fog Elephant Chess': '迷雾象棋',
+  'Fog Elephant Chess Rules': '迷雾象棋规则',
+  'Fog Elephant Chess rules: xiangqi under Fog of War, where each side sees only the points its pieces reach, hidden blockers matter, and the general falls by capture.':
     '战争迷雾下的象棋：每一方只能看到己方棋子可及的点位，隐藏阻挡会影响视野，擒获将帅即获胜。',
-  "Dark Chinese Chess is Mistboard's public name for dark xiangqi: [Chinese Chess](/rules/xiangqi), traditionally xiangqi (象棋), played under Fog of War. Pieces keep their xiangqi movement, but unseen enemy pieces stay hidden and danger is not announced. Capture the general to win.":
-    '迷雾象棋是 Mistboard 对 dark xiangqi 的公开英文名称：也就是在战争迷雾下对弈的[象棋](/rules/xiangqi)。棋子保留象棋走法，但看不见的敌方棋子会被隐藏，危险不会被提示。擒获将帅即获胜。',
-  'If Chinese Chess is new to you, start with [Chinese Chess Rules](/rules/xiangqi). If you already play xiangqi, the sections below explain only what fog changes.':
+  'Fog Elephant Chess is xiangqi (象棋) under Fog of War. Pieces keep their normal movement, but unseen enemy pieces stay hidden and danger is not announced. Capture the general to win.':
+    '迷雾象棋是在战争迷雾下对弈的象棋。棋子保留正常走法，但看不见的敌方棋子会被隐藏，危险不会被提示。擒获将帅即获胜。',
+  'If Elephant Chess is new to you, start with [Elephant Chess Rules](/rules/xiangqi). If you already play xiangqi, the sections below explain only what fog changes.':
     '如果你还不熟悉象棋，请先阅读[象棋规则](/rules/xiangqi)。如果你已经会下象棋，下面只解释迷雾改变了什么。',
-  'Orthodox xiangqi forbids facing generals. Dark Chinese Chess allows the position; if one general sees the other on a clear file, it can capture across that file.':
+  'Orthodox xiangqi forbids facing generals. Fog Elephant Chess allows the position; if one general sees the other on a clear file, it can capture across that file.':
     '正统象棋禁止将帅照面。迷雾象棋允许这个局面；如果一方将帅在无阻挡的直线上看见对方，就可以沿这条线直接擒获。',
-  'Dark Chinese Chess is playable on Mistboard. Create an invite for a friend or play the engine from the homepage play panel.':
+  'Fog Elephant Chess is playable on Mistboard. Create an invite for a friend or play the engine from the homepage play panel.':
     '迷雾象棋可在 Mistboard 上对弈。你可以为好友创建邀请，也可以从首页对弈面板挑战引擎。',
-  'Flip Chinese Chess Rules': '揭棋规则',
-  'Flip Chinese Chess rules, traditionally jieqi (揭棋): xiangqi with hidden non-general pieces that first move by starting point, then reveal and play by identity.':
+  'Flip Elephant Chess Rules': '揭棋规则',
+  'Flip Elephant Chess rules: jieqi (揭棋), xiangqi with hidden non-general pieces that first move by starting point, then reveal and play by identity.':
     '揭棋规则：除将帅外的象棋棋子隐藏身份，第一次按所在起始点走子，随后翻开并按真实身份行棋。',
-  "Flip Chinese Chess is Mistboard's public name for jieqi (揭棋, 'reveal chess'). It keeps xiangqi's board and checkmate goal, but hides every non-general piece. A dark piece first moves, attacks, and captures by the starting point it occupies. After that move, it reveals and plays by identity.":
-    '揭棋是 Mistboard 对 jieqi（揭棋，意为「reveal chess」）采用的公开英文名称。它保留象棋棋盘和将死目标，但隐藏每一枚非将帅棋子。暗子第一次按所在起始点的身份移动、攻击和吃子；走完后翻开，并按真实身份行棋。',
-  'Use [Chinese Chess Rules](/rules/xiangqi) for the base game. This page covers what changes.':
+  "Flip Elephant Chess is jieqi (揭棋, 'reveal chess'). It keeps xiangqi's board and checkmate goal, but hides every non-general piece. A dark piece first moves, attacks, and captures by the starting point it occupies. After that move, it reveals and plays by identity.":
+    '揭棋保留象棋棋盘和将死目标，但隐藏每一枚非将帅棋子。暗子第一次按所在起始点的身份移动、攻击和吃子；走完后翻开，并按真实身份行棋。',
+  'Use [Elephant Chess Rules](/rules/xiangqi) for the base game. This page covers what changes.':
     '基础规则请参考[象棋规则](/rules/xiangqi)。本页只说明变化之处。',
-  "English names overlap. Dark Chinese Chess is now Mistboard's name for fog xiangqi, not jieqi. Jieqi also differs from [Half Flip Chess](/rules/banqi), the half-board flip game. Jieqi keeps the full xiangqi board and checkmate goal; banqi uses a 4x8 board, rank captures, and elimination.":
-    '英文名称容易重叠。Dark Chinese Chess 现在是 Mistboard 对迷雾象棋的名称，不指揭棋。揭棋也不同于[暗棋](/rules/banqi)，后者是半盘翻棋。揭棋保留完整象棋棋盘和将死目标；暗棋使用 4x8 棋盘，按等级吃子，并以消灭或困住对手为目标。',
-  'Mistboard also uses [Dark Chinese Chess](/rules/dark-xiangqi) and Dark Mini Xiangqi for our Fog of War xiangqi variants. Those are not jieqi: identities stay known, but unseen points are hidden. We have not found an earlier public playable platform for Fog of War xiangqi.':
-    'Mistboard 还把我们的战争迷雾象棋变体称为[迷雾象棋](/rules/dark-xiangqi)和迷雾迷你象棋。它们不是揭棋：棋子身份始终已知，但看不见的点位会被隐藏。我们尚未发现更早公开可玩的战争迷雾象棋平台。',
-  'Flip Chinese Chess is playable on Mistboard. Take on PikaJieQi, our jieqi engine, at the strength you pick. For the base game, read Chinese Chess; for the other face-down xiangqi cousin, compare Half Flip Chess.':
+  '揭棋 is Mandarin jiēqí, meaning reveal chess. Luo Jinsheng of Guangzhou invented it in the 1980s, and Vietnamese play commonly calls this family cờ úp. On Mistboard, Flip Elephant Chess means jieqi; [Fog Elephant Chess](/rules/dark-xiangqi) is the Fog of War variant, and [Half-Flip Chess](/rules/banqi) is the half-board flip game.':
+    '揭棋的普通话读音是 jiēqí，意为「reveal chess」。广州的罗锦生在 1980 年代发明了它，越南玩法通常称这一类为 cờ úp。在 Mistboard 上，Flip Elephant Chess 指揭棋；[迷雾象棋](/rules/dark-xiangqi)是战争迷雾变体，[暗棋](/rules/banqi)是半盘翻棋。',
+  'Flip Elephant Chess is playable on Mistboard. Take on PikaJieQi, our jieqi engine, at the strength you pick. For the base game, read Elephant Chess; for the other face-down xiangqi cousin, compare Half-Flip Chess.':
     '揭棋可在 Mistboard 上对弈。选择强度挑战我们的揭棋引擎 PikaJieQi。基础游戏请读象棋；另一个翻面象棋近亲可比较暗棋。',
-  'Half Flip Chess': '暗棋',
-  'Flip Chinese Chess': '揭棋',
-  'Half Flip Chess Rules': '暗棋规则',
-  'Half Flip Chess rules, traditionally banqi (暗棋): the 4x8 half-board xiangqi flip game, with face-down pieces, rank captures, screen-jumping cannons, and no royal general.':
+  'Half-Flip Chess': '暗棋',
+  'Flip Elephant Chess': '揭棋',
+  'Half-Flip Chess Rules': '暗棋规则',
+  'Half-Flip Chess rules, traditionally banqi (暗棋): the 4x8 half-board xiangqi flip game, with face-down pieces, rank captures, screen-jumping cannons, and no royal general.':
     '暗棋规则：4x8 的半盘象棋翻棋，棋子背面朝下，按等级吃子，炮隔子跳吃，将帅不是王棋。',
-  "Half Flip Chess is Mistboard's public name for banqi (暗棋, 'dark chess', also called half chess or flip chess). It is played on half a xiangqi board with all thirty-two pieces shuffled face-down. Each turn, flip an unknown piece or move one of your revealed pieces one square. Captures follow rank, except for the cannon. You win by leaving the opponent with no legal move.":
+  "Half-Flip Chess is Mistboard's public name for banqi (暗棋, 'dark chess', also called half chess or flip chess). It is played on half a xiangqi board with all thirty-two pieces shuffled face-down. Each turn, flip an unknown piece or move one of your revealed pieces one square. Captures follow rank, except for the cannon. You win by leaving the opponent with no legal move.":
     '暗棋是 Mistboard 对 banqi（暗棋，意为「dark chess」，也称半棋或翻棋）采用的公开英文名称。它在半张象棋棋盘上进行，三十二枚棋子全部洗匀背面朝下。每回合翻开一枚未知棋子，或移动己方一枚已翻开的棋子一格。除炮以外，吃子按等级进行。让对手无合法走法即获胜。',
-  'It is the casual sibling of [Chinese Chess](/rules/xiangqi): a short game that needs only an ordinary xiangqi set and half the board. It shares names with [Fog Chess](/rules/dark-chess), the fog-of-war chess variant played on Mistboard, but it is a different game. This page follows Taiwanese rules, the version with screen-jumping cannons.':
+  'It is the casual sibling of [Elephant Chess](/rules/xiangqi): a short game that needs only an ordinary xiangqi set and half the board. It shares names with [Fog Chess](/rules/dark-chess), the fog-of-war chess variant played on Mistboard, but it is a different game. This page follows Taiwanese rules, the version with screen-jumping cannons.':
     '它是[象棋](/rules/xiangqi)的休闲近亲：只需要一副普通象棋和半张棋盘即可进行。它在英文里会和 Mistboard 上的战争迷雾[迷雾国际象棋](/rules/dark-chess)共用一些名称，但两者是不同游戏。本页采用台湾规则，也就是炮隔子跳吃的版本。',
-  "暗棋 is Mandarin ànqí, 'dark chess'. The same game is also called 半棋 (half chess), the source of the English name banqi, and 翻棋 (flip chess). Computer-game literature often calls it Chinese Dark Chess. None of these are [Flip Chinese Chess](/rules/jieqi), the full-board xiangqi variant where shuffled pieces reveal as they move, and none are the fog-of-war [Fog Chess](/rules/dark-chess) played here.":
+  "暗棋 is Mandarin ànqí, 'dark chess'. The same game is also called 半棋 (half chess), the source of the English name banqi, and 翻棋 (flip chess). Computer-game literature often calls it Chinese Dark Chess. None of these are [Flip Elephant Chess](/rules/jieqi), the full-board xiangqi variant where shuffled pieces reveal as they move, and none are the fog-of-war [Fog Chess](/rules/dark-chess) played here.":
     '「暗棋」的普通话读音是 ànqí，意为「dark chess」。同一个游戏也叫「半棋」（英文名 banqi 即由此而来）和「翻棋」。计算机博弈文献常称它为 Chinese Dark Chess。这些都不是[揭棋](/rules/jieqi)，即在整张象棋棋盘上、棋子洗匀后随走随翻的变体，也都不是这里所玩的战争迷雾[迷雾国际象棋](/rules/dark-chess)。',
-  'Step through a real game below: MistyBanqi (Strongest) moving first, a human second. The opening flip leaves MistyBanqi playing Red and the human Black. Black wins the opening material (the first eight captures are all Black’s), but Red keeps its elephant, the highest piece left, and grinds out the win. A clean illustration that in Half Flip Chess, rank beats raw material. Tiles flip to their dealt piece the first time they are turned over.':
+  'Step through a real game below: MistyBanqi (Strongest) moving first, a human second. The opening flip leaves MistyBanqi playing Red and the human Black. Black wins the opening material (the first eight captures are all Black’s), but Red keeps its elephant, the highest piece left, and grinds out the win. A clean illustration that in Half-Flip Chess, rank beats raw material. Tiles flip to their dealt piece the first time they are turned over.':
     '在下方逐步回放一盘真实对局：MistyBanqi（最强）先手，人类后手。开局的第一次翻子让 MistyBanqi 执红、人类执黑。黑方在开局赢得子力，前八次吃子都是黑方，但红方留住了象，也就是盘面上等级最高的棋子，最终碾压获胜。这清楚地说明：在暗棋中，等级胜过单纯的子力。每枚棋子第一次被翻开时，会翻出它所发到的身份。',
-  'Half Flip Chess is playable on Mistboard: take on MistyBanqi at the strength you pick, or challenge a friend. Chinese Chess is the parent game, and Flip Chinese Chess is the other hidden-identity cousin.':
+  'Half-Flip Chess is playable on Mistboard: take on MistyBanqi at the strength you pick, or challenge a friend. Elephant Chess is the parent game, and Flip Elephant Chess is the other hidden-identity cousin.':
     '暗棋可在 Mistboard 上对弈：挑选难度与 MistyBanqi 对战，或邀请好友对局。象棋是它的母游戏，揭棋则是另一种隐藏身份的近亲。',
   'Fog Chess': '迷雾国际象棋',
   'Standard chess rules, the primer behind Fog Chess: castling, promotion, en passant, the draw rules, and a famous game to play through.':
@@ -963,6 +950,8 @@ const ZH_HANT: Record<string, string> = {
   // -- Dark Mini Xiangqi (rules) --
   'Mini Xiangqi under Fog of War: each side sees only the points its pieces reach on the 7×7 board, and the general falls by capture.':
     '戰爭迷霧下的迷你象棋：在 7×7 棋盤上，每一方只能看到己方棋子可及的交叉點，將帥由被吃而落敗。',
+  'Fog Elephant Chess readers who want the smaller experimental ruleset Mistboard is testing first.':
+    '想了解 Mistboard 正在先行測試的小型實驗規則的迷霧象棋讀者。',
   '[Mini Xiangqi](/rules/mini-xiangqi) played with Fog of War: each player sees only their own pieces and the enemy pieces their army can reach. The board is 7 by 7, and the game ends by capturing the opposing general. If you know Mini Xiangqi, the sections below explain only what fog changes.':
     '在戰爭迷霧下進行的[迷你象棋](/rules/mini-xiangqi)：每位玩家只能看到己方棋子，以及己方子力可及的敵方棋子。棋盤為 7×7，以吃掉對方將帥結束對局。如果你已經會下迷你象棋，下面各節只講解迷霧改變了什麼。',
   'Board and fog': '棋盤與迷霧',
@@ -1333,8 +1322,6 @@ const ZH_HANT: Record<string, string> = {
   // intro
   'Dark Xiangqi is the modern Fog of War version of [xiangqi](/rules/xiangqi): pieces keep their xiangqi movement, but unseen enemy pieces stay hidden and danger is not announced. Capture the general to win.':
     '迷霧象棋是[象棋](/rules/xiangqi)的現代「戰爭迷霧」版本：棋子保留象棋的走法，而看不見的敵方棋子保持隱藏、危險也不會被告知。擒獲將帥即獲勝。',
-  'If xiangqi is new to you, start with [Xiangqi Rules](/rules/xiangqi). If you already play xiangqi, the sections below explain only what fog changes.':
-    '如果你剛接觸象棋，請先從[象棋規則](/rules/xiangqi)開始。如果你已經會下象棋，下面各節只講解迷霧改變了什麼。',
   // section headings
   'Win condition: general capture': '勝負條件：擒獲將帥',
   'Play status': '對弈狀態',
@@ -1360,17 +1347,7 @@ const ZH_HANT: Record<string, string> = {
     '只有當相鄰的馬腿位置空著時，馬才能走動。如果有一枚隱藏的棋子蹩住了那條馬腿，落點就會從你的可見集合中消失，而馬腿位置則顯示為一個「?」標記。',
   'An elephant moves two points diagonally and cannot cross the river. If a hidden piece sits on the midpoint eye, the diagonal destination disappears and the eye square appears as a ? marker.':
     '象（相）沿斜線走兩個交叉點，且不能過河。如果有一枚隱藏的棋子塞在中點的象眼上，斜線落點就會消失，而象眼位置則顯示為一個「?」標記。',
-  'Playable Dark Xiangqi games are not public yet. These rules are published first so players can review the variant before live play opens.':
-    '可對弈的迷霧象棋目前尚未公開。這些規則先行發布，好讓玩家在實戰開放之前先了解這一變體。',
-
   // -- Jieqi (rules) --
-  'Jieqi (揭棋) Rules': '揭棋規則',
-  'Jieqi (揭棋) rules: xiangqi with hidden non-general pieces that first move by starting point, then reveal and play by identity.':
-    '揭棋規則：在象棋基礎上將除將帥以外的棋子全部暗置，暗子先按所在起始位置的兵種行棋，走子後翻明並按真實身份行棋。',
-  "Jieqi (揭棋, 'reveal chess') keeps xiangqi's board and checkmate goal, but hides every non-general piece. A dark piece first moves, attacks, and captures by the starting point it occupies. After that move, it reveals and plays by identity.":
-    '揭棋（意為「翻開的棋」）沿用象棋的棋盤和將死取勝的目標，但把除將帥以外的每一枚棋子都暗置。暗子最初的走子、攻擊和吃子都按牠所在的起始位置對應的兵種進行。走出那一步之後，牠便翻明，並按真實身份行棋。',
-  'Use [Xiangqi Rules](/rules/xiangqi) for the base game. This page covers what changes.':
-    '底層遊戲請參閱[象棋規則](/rules/xiangqi)。本頁只講解揭棋改變了什麼。',
   Setup: '佈局',
   "Set each general face-up on its normal palace point. Shuffle each side's other fifteen pieces and deal them face-down onto the remaining starting points. Neither player knows any hidden identities, including their own.":
     '將雙方的將帥各自正面朝上擺在九宮內通常的位置。把每一方其餘十五枚棋子洗混，背面朝下地發到剩餘的起始位置上。任何一方都不知道任何暗子的身份，包括自己的暗子。',
@@ -1396,21 +1373,20 @@ const ZH_HANT: Record<string, string> = {
     '將死對方將帥，或讓對方無合法走法可走，即可獲勝。將帥對臉的規則依然有效，暗子也和其他棋子一樣會擋住縱線。',
   'Repetition follows xiangqi long-beat rules, not a generic threefold or fourfold result. Perpetual check and direct perpetual chase are forbidden, so the forcing side must change course or lose; mutual forcing and ordinary repeated positions are judged by the xiangqi cycle, not by board equality alone. The automatic draw convention in this reference is the Guangdong/Tencent no-capture clock: 60 full moves, meaning 120 plies, without a capture.':
     '重複局面依照象棋的長打規則裁定，而不是籠統地按三次或四次重複出結果。長將和直接的長捉都被禁止，因此發動逼著的一方必須改變著法，否則判負；互打以及普通的重複局面則依據象棋的循環判例裁定，而不能只看局面是否相同。本規則參考採用的自動判和約定是廣東／騰訊的無吃子回合數：連續 60 個完整回合（即 120 個半回合）無吃子即判和。',
+  Name: '名稱',
   Names: '名稱',
   '揭棋 is Mandarin jiēqí, meaning reveal chess. Luo Jinsheng of Guangzhou invented it in the 1980s. Vietnamese play commonly calls this family cờ úp.':
     '揭棋的官話讀音為 jiēqí，意為「翻開的棋」。它由廣州的羅錦生於 20 世紀 80 年代發明。越南的玩法通常把這一類遊戲稱為 cờ úp。',
-  'English names overlap. Dark Chinese chess may refer to jieqi, but it can also mean [banqi](/rules/banqi), a different half-board flip game. Jieqi keeps the full xiangqi board and checkmate goal; banqi uses a 4x8 board, rank captures, and elimination.':
-    '英文名稱常有重疊。「Dark Chinese chess」可能指揭棋，但也可能指[暗棋](/rules/banqi)（banqi），那是另一種半盤翻子遊戲。揭棋保留完整的象棋棋盤和將死取勝的目標；暗棋則使用 4×8 的棋盤，按子力等級吃子，以吃光對方取勝。',
-  'Mistboard also uses [Dark Xiangqi](/rules/dark-xiangqi) and Dark Mini Xiangqi for our Fog of War xiangqi variants. Those are not jieqi: identities stay known, but unseen points are hidden. We have not found an earlier public playable platform for Fog of War xiangqi.':
-    'Mistboard 還以[迷霧象棋](/rules/dark-xiangqi)和迷霧迷你象棋作為我們的戰爭迷霧象棋變體。它們並不是揭棋：棋子的身份始終是已知的，只是看不到的交叉點被隱藏起來。我們尚未發現更早的、可公開對弈的戰爭迷霧象棋平台。',
-  'Jieqi is playable on Mistboard. Take on PikaJieQi, our jieqi engine, at the strength you pick. For the base game, read xiangqi; for the other face-down xiangqi cousin, compare banqi.':
-    '揭棋現在已可在 Mistboard 上對弈。來挑戰我們的揭棋引擎 PikaJieQi，強度由你選擇。底層遊戲請閱讀象棋；另一種翻面的象棋近親，可對照暗棋。',
+  'English names overlap. Fog Elephant Chess is Mistboard’s name for fog xiangqi, not jieqi. Jieqi also differs from [Half-Flip Chess](/rules/banqi), the half-board flip game.':
+    '英文名稱常有重疊。Fog Elephant Chess 是 Mistboard 對迷霧象棋的英文名稱，不指揭棋。揭棋也不同於[暗棋](/rules/banqi)，後者是半盤翻棋。',
+  'Jieqi is playable on Mistboard. Take on PikaJieQi, our jieqi engine, at the strength you pick.':
+    '揭棋現在已可在 Mistboard 上對弈。來挑戰我們的揭棋引擎 PikaJieQi，強度由你選擇。',
   'Play vs PikaJieQi': '對戰 PikaJieQi',
   'Step through a full self-play game below. Dark pieces show as colored backs and flip to their dealt identity the first time they move, so a corner that plays like a chariot can reveal a soldier. Red wins by checkmate.':
     '在下方逐步查看一整盤自我對弈的棋局。暗子以彩色背面顯示，第一次走動時翻開，顯示其發到的身份，因此一個像車一樣走子的角落棋子，翻開後可能是一個兵。紅方以將死獲勝。',
   Banqi: '暗棋',
   // -- Banqi (rules) --
-  'Banqi (Chinese Dark Chess) Rules': '暗棋規則',
+  'Banqi (暗棋) Rules': '暗棋規則',
   'Step through a real game below: MistyBanqi (Strongest) moving first, a human second. The opening flip leaves MistyBanqi playing Red and the human Black. Black wins the opening material (the first eight captures are all Black’s), but Red keeps its elephant, the highest piece left, and grinds out the win. A clean illustration that in Banqi, rank beats raw material. Tiles flip to their dealt piece the first time they are turned over.':
     '在下方逐步回放一盤真實對局——MistyBanqi（最強）先手，人類後手。開局的第一次翻子讓 MistyBanqi 執紅、人類執黑。黑方在開局贏得子力——前八次吃子都是黑方——但紅方留住了象，也就是盤面上等級最高的棋子，最終碾壓獲勝。這清楚地說明：在暗棋中，等級勝過單純的子力。每枚棋子第一次被翻開時，會翻出它所發到的身份。',
   'Banqi rules: the 4x8 half-board xiangqi flip game, with face-down pieces, rank captures, screen-jumping cannons, and no royal general.':
@@ -1560,55 +1536,53 @@ const ZH_HANT: Record<string, string> = {
     '迷霧國際象棋規則：戰爭迷霧下的國際象棋。每一方只能看到己方棋子可及的格子，沒有將軍提示，王被吃掉即負。',
   "[Fog Chess](https://en.wikipedia.org/wiki/Dark_chess) is Mistboard's public name for dark chess, also called Fog of War chess. Jens Bæk Nielsen and Torben Osted invented it in 1989. It is the implicit-fog version of the idea: no umpire, no scan action. Each side's visibility is derived from where its pieces can legally move.":
     '[迷霧國際象棋](https://en.wikipedia.org/wiki/Dark_chess)是 Mistboard 對 dark chess / Fog of War chess 的公開名稱。Jens Bæk Nielsen 與 Torben Osted 於 1989 年發明了它。它屬於隱式迷霧：沒有裁判，也沒有偵察動作。每一方的視野完全由己方棋子的合法走法範圍推導而來。',
-  'Fog Chess, dark chess, and Fog of War chess refer to this same chess variant: hidden-information chess where you see only the squares your pieces reach. It is sometimes confused with [Half Flip Chess](/rules/banqi), the Chinese game also nicknamed "dark chess," which plays with xiangqi pieces turned face-down. That is a different game.':
+  'Fog Chess, dark chess, and Fog of War chess refer to this same chess variant: hidden-information chess where you see only the squares your pieces reach. It is sometimes confused with [Half-Flip Chess](/rules/banqi), the Chinese game also nicknamed "dark chess," which plays with xiangqi pieces turned face-down. That is a different game.':
     '迷霧國際象棋、dark chess 和 Fog of War chess 指的是同一個國際象棋變體：你只能看到己方棋子可及格子的隱藏資訊國際象棋。它有時會和[暗棋](/rules/banqi)混淆，後者也被稱作 dark chess，但使用翻面的象棋棋子，是另一種遊戲。',
-  'Chinese Chess Rules': '象棋規則',
-  'The rules of Chinese Chess, traditionally xiangqi (象棋): palaces, the river, cannon screens, facing generals, and a famous game to play through. Now playable on Mistboard against the Pikafish engine or a friend.':
+  'Elephant Chess Rules': '象棋規則',
+  'The rules of Elephant Chess (xiangqi, 象棋): palaces, the river, cannon screens, facing generals, and a famous game to play through. Now playable on Mistboard against the Pikafish engine or a friend.':
     '象棋規則：九宮、楚河漢界、砲架、將帥照面，以及一盤可逐步回放的名局。現在可在 Mistboard 上與 Pikafish 引擎或好友對弈。',
-  "Chinese Chess is Mistboard's public name for [xiangqi](https://en.wikipedia.org/wiki/Xiangqi) (象棋), the two-player strategy game with roots in China going back many centuries. Its modern form, including the cannon, took shape around the Song dynasty (960 to 1279).":
-    '象棋是 Mistboard 對 [xiangqi](https://en.wikipedia.org/wiki/Xiangqi)（象棋）的公開英文名稱。這是一種源自中國、歷史悠久的雙人策略遊戲。包括砲在內的現代形態，大致在宋代（960 至 1279 年）成型。',
-  'Chinese Chess is live on Mistboard. Play the Pikafish engine at three strengths, or challenge a friend. For a twist, add Fog of War in Dark Chinese Chess, where enemy pieces outside your vision disappear and the general falls by capture.':
+  'Elephant Chess is xiangqi (象棋), the two-player strategy game with roots in China going back many centuries. Its modern form, including the cannon, took shape around the Song dynasty (960 to 1279).':
+    '象棋是一種源自中國、歷史悠久的雙人策略遊戲。包括砲在內的現代形態，大致在宋代（960 至 1279 年）成型。',
+  'Elephant Chess is live on Mistboard. Play the Pikafish engine at three strengths, or challenge a friend. For a twist, add Fog of War in Fog Elephant Chess, where enemy pieces outside your vision disappear and the general falls by capture.':
     '象棋已在 Mistboard 上線。你可以挑戰三個強度的 Pikafish 引擎，或邀請好友對局。想換個玩法，可以試試迷霧象棋：視野之外的敵方棋子會消失，將帥由被吃而落敗。',
-  'Play Chinese Chess': '下象棋',
-  'Dark Chinese Chess': '迷霧象棋',
-  'Dark Chinese Chess Rules': '迷霧象棋規則',
-  'Chinese Chess under Fog of War: each side sees only the points its pieces reach, hidden blockers matter, and the general falls by capture.':
+  'Play Elephant Chess': '下象棋',
+  'Fog Elephant Chess': '迷霧象棋',
+  'Fog Elephant Chess Rules': '迷霧象棋規則',
+  'Fog Elephant Chess rules: xiangqi under Fog of War, where each side sees only the points its pieces reach, hidden blockers matter, and the general falls by capture.':
     '戰爭迷霧下的象棋：每一方只能看到己方棋子可及的點位，隱藏阻擋會影響視野，擒獲將帥即獲勝。',
-  "Dark Chinese Chess is Mistboard's public name for dark xiangqi: [Chinese Chess](/rules/xiangqi), traditionally xiangqi (象棋), played under Fog of War. Pieces keep their xiangqi movement, but unseen enemy pieces stay hidden and danger is not announced. Capture the general to win.":
-    '迷霧象棋是 Mistboard 對 dark xiangqi 的公開英文名稱：也就是在戰爭迷霧下對弈的[象棋](/rules/xiangqi)。棋子保留象棋走法，但看不見的敵方棋子會被隱藏，危險不會被提示。擒獲將帥即獲勝。',
-  'If Chinese Chess is new to you, start with [Chinese Chess Rules](/rules/xiangqi). If you already play xiangqi, the sections below explain only what fog changes.':
+  'Fog Elephant Chess is xiangqi (象棋) under Fog of War. Pieces keep their normal movement, but unseen enemy pieces stay hidden and danger is not announced. Capture the general to win.':
+    '迷霧象棋是在戰爭迷霧下對弈的象棋。棋子保留正常走法，但看不見的敵方棋子會被隱藏，危險不會被提示。擒獲將帥即獲勝。',
+  'If Elephant Chess is new to you, start with [Elephant Chess Rules](/rules/xiangqi). If you already play xiangqi, the sections below explain only what fog changes.':
     '如果你還不熟悉象棋，請先閱讀[象棋規則](/rules/xiangqi)。如果你已經會下象棋，下面只解釋迷霧改變了什麼。',
-  'Orthodox xiangqi forbids facing generals. Dark Chinese Chess allows the position; if one general sees the other on a clear file, it can capture across that file.':
+  'Orthodox xiangqi forbids facing generals. Fog Elephant Chess allows the position; if one general sees the other on a clear file, it can capture across that file.':
     '正統象棋禁止將帥照面。迷霧象棋允許這個局面；如果一方將帥在無阻擋的直線上看見對方，就可以沿這條線直接擒獲。',
-  'Dark Chinese Chess is playable on Mistboard. Create an invite for a friend or play the engine from the homepage play panel.':
+  'Fog Elephant Chess is playable on Mistboard. Create an invite for a friend or play the engine from the homepage play panel.':
     '迷霧象棋可在 Mistboard 上對弈。你可以為好友建立邀請，也可以從首頁對弈面板挑戰引擎。',
-  'Flip Chinese Chess Rules': '揭棋規則',
-  'Flip Chinese Chess rules, traditionally jieqi (揭棋): xiangqi with hidden non-general pieces that first move by starting point, then reveal and play by identity.':
+  'Flip Elephant Chess Rules': '揭棋規則',
+  'Flip Elephant Chess rules: jieqi (揭棋), xiangqi with hidden non-general pieces that first move by starting point, then reveal and play by identity.':
     '揭棋規則：除將帥外的象棋棋子隱藏身分，第一次按所在起始點走子，隨後翻開並按真實身分行棋。',
-  "Flip Chinese Chess is Mistboard's public name for jieqi (揭棋, 'reveal chess'). It keeps xiangqi's board and checkmate goal, but hides every non-general piece. A dark piece first moves, attacks, and captures by the starting point it occupies. After that move, it reveals and plays by identity.":
-    '揭棋是 Mistboard 對 jieqi（揭棋，意為「reveal chess」）採用的公開英文名稱。它保留象棋棋盤和將死目標，但隱藏每一枚非將帥棋子。暗子第一次按所在起始點的身分移動、攻擊和吃子；走完後翻開，並按真實身分行棋。',
-  'Use [Chinese Chess Rules](/rules/xiangqi) for the base game. This page covers what changes.':
+  "Flip Elephant Chess is jieqi (揭棋, 'reveal chess'). It keeps xiangqi's board and checkmate goal, but hides every non-general piece. A dark piece first moves, attacks, and captures by the starting point it occupies. After that move, it reveals and plays by identity.":
+    '揭棋保留象棋棋盤和將死目標，但隱藏每一枚非將帥棋子。暗子第一次按所在起始點的身分移動、攻擊和吃子；走完後翻開，並按真實身分行棋。',
+  'Use [Elephant Chess Rules](/rules/xiangqi) for the base game. This page covers what changes.':
     '基礎規則請參考[象棋規則](/rules/xiangqi)。本頁只說明變化之處。',
-  "English names overlap. Dark Chinese Chess is now Mistboard's name for fog xiangqi, not jieqi. Jieqi also differs from [Half Flip Chess](/rules/banqi), the half-board flip game. Jieqi keeps the full xiangqi board and checkmate goal; banqi uses a 4x8 board, rank captures, and elimination.":
-    '英文名稱容易重疊。Dark Chinese Chess 現在是 Mistboard 對迷霧象棋的名稱，不指揭棋。揭棋也不同於[暗棋](/rules/banqi)，後者是半盤翻棋。揭棋保留完整象棋棋盤和將死目標；暗棋使用 4x8 棋盤，按等級吃子，並以消滅或困住對手為目標。',
-  'Mistboard also uses [Dark Chinese Chess](/rules/dark-xiangqi) and Dark Mini Xiangqi for our Fog of War xiangqi variants. Those are not jieqi: identities stay known, but unseen points are hidden. We have not found an earlier public playable platform for Fog of War xiangqi.':
-    'Mistboard 還把我們的戰爭迷霧象棋變體稱為[迷霧象棋](/rules/dark-xiangqi)和迷霧迷你象棋。它們不是揭棋：棋子身分始終已知，但看不見的點位會被隱藏。我們尚未發現更早公開可玩的戰爭迷霧象棋平台。',
-  'Flip Chinese Chess is playable on Mistboard. Take on PikaJieQi, our jieqi engine, at the strength you pick. For the base game, read Chinese Chess; for the other face-down xiangqi cousin, compare Half Flip Chess.':
+  '揭棋 is Mandarin jiēqí, meaning reveal chess. Luo Jinsheng of Guangzhou invented it in the 1980s, and Vietnamese play commonly calls this family cờ úp. On Mistboard, Flip Elephant Chess means jieqi; [Fog Elephant Chess](/rules/dark-xiangqi) is the Fog of War variant, and [Half-Flip Chess](/rules/banqi) is the half-board flip game.':
+    '揭棋的普通話讀音是 jiēqí，意為「reveal chess」。廣州的羅錦生在 1980 年代發明了它，越南玩法通常稱這一類為 cờ úp。在 Mistboard 上，Flip Elephant Chess 指揭棋；[迷霧象棋](/rules/dark-xiangqi)是戰爭迷霧變體，[暗棋](/rules/banqi)是半盤翻棋。',
+  'Flip Elephant Chess is playable on Mistboard. Take on PikaJieQi, our jieqi engine, at the strength you pick. For the base game, read Elephant Chess; for the other face-down xiangqi cousin, compare Half-Flip Chess.':
     '揭棋可在 Mistboard 上對弈。選擇強度挑戰我們的揭棋引擎 PikaJieQi。基礎遊戲請讀象棋；另一個翻面象棋近親可比較暗棋。',
-  'Half Flip Chess': '暗棋',
-  'Flip Chinese Chess': '揭棋',
-  'Half Flip Chess Rules': '暗棋規則',
-  'Half Flip Chess rules, traditionally banqi (暗棋): the 4x8 half-board xiangqi flip game, with face-down pieces, rank captures, screen-jumping cannons, and no royal general.':
+  'Half-Flip Chess': '暗棋',
+  'Flip Elephant Chess': '揭棋',
+  'Half-Flip Chess Rules': '暗棋規則',
+  'Half-Flip Chess rules, traditionally banqi (暗棋): the 4x8 half-board xiangqi flip game, with face-down pieces, rank captures, screen-jumping cannons, and no royal general.':
     '暗棋規則：4x8 的半盤象棋翻棋，棋子背面朝下，按等級吃子，砲隔子跳吃，將帥不是王棋。',
-  "Half Flip Chess is Mistboard's public name for banqi (暗棋, 'dark chess', also called half chess or flip chess). It is played on half a xiangqi board with all thirty-two pieces shuffled face-down. Each turn, flip an unknown piece or move one of your revealed pieces one square. Captures follow rank, except for the cannon. You win by leaving the opponent with no legal move.":
+  "Half-Flip Chess is Mistboard's public name for banqi (暗棋, 'dark chess', also called half chess or flip chess). It is played on half a xiangqi board with all thirty-two pieces shuffled face-down. Each turn, flip an unknown piece or move one of your revealed pieces one square. Captures follow rank, except for the cannon. You win by leaving the opponent with no legal move.":
     '暗棋是 Mistboard 對 banqi（暗棋，意為「dark chess」，也稱半棋或翻棋）採用的公開英文名稱。它在半張象棋棋盤上進行，三十二枚棋子全部洗勻背面朝下。每回合翻開一枚未知棋子，或移動己方一枚已翻開的棋子一格。除砲以外，吃子按等級進行。讓對手無合法走法即獲勝。',
-  'It is the casual sibling of [Chinese Chess](/rules/xiangqi): a short game that needs only an ordinary xiangqi set and half the board. It shares names with [Fog Chess](/rules/dark-chess), the fog-of-war chess variant played on Mistboard, but it is a different game. This page follows Taiwanese rules, the version with screen-jumping cannons.':
+  'It is the casual sibling of [Elephant Chess](/rules/xiangqi): a short game that needs only an ordinary xiangqi set and half the board. It shares names with [Fog Chess](/rules/dark-chess), the fog-of-war chess variant played on Mistboard, but it is a different game. This page follows Taiwanese rules, the version with screen-jumping cannons.':
     '它是[象棋](/rules/xiangqi)的休閒近親：只需要一副普通象棋和半張棋盤即可進行。它在英文裡會和 Mistboard 上的戰爭迷霧[迷霧國際象棋](/rules/dark-chess)共用一些名稱，但兩者是不同遊戲。本頁採用臺灣規則，也就是砲隔子跳吃的版本。',
-  "暗棋 is Mandarin ànqí, 'dark chess'. The same game is also called 半棋 (half chess), the source of the English name banqi, and 翻棋 (flip chess). Computer-game literature often calls it Chinese Dark Chess. None of these are [Flip Chinese Chess](/rules/jieqi), the full-board xiangqi variant where shuffled pieces reveal as they move, and none are the fog-of-war [Fog Chess](/rules/dark-chess) played here.":
+  "暗棋 is Mandarin ànqí, 'dark chess'. The same game is also called 半棋 (half chess), the source of the English name banqi, and 翻棋 (flip chess). Computer-game literature often calls it Chinese Dark Chess. None of these are [Flip Elephant Chess](/rules/jieqi), the full-board xiangqi variant where shuffled pieces reveal as they move, and none are the fog-of-war [Fog Chess](/rules/dark-chess) played here.":
     '「暗棋」的普通話讀音是 ànqí，意為「dark chess」。同一個遊戲也叫「半棋」（英文名 banqi 即由此而來）和「翻棋」。電腦博弈文獻常稱它為 Chinese Dark Chess。這些都不是[揭棋](/rules/jieqi)，即在整張象棋棋盤上、棋子洗勻後隨走隨翻的變體，也都不是這裡所玩的戰爭迷霧[迷霧國際象棋](/rules/dark-chess)。',
-  'Step through a real game below: MistyBanqi (Strongest) moving first, a human second. The opening flip leaves MistyBanqi playing Red and the human Black. Black wins the opening material (the first eight captures are all Black’s), but Red keeps its elephant, the highest piece left, and grinds out the win. A clean illustration that in Half Flip Chess, rank beats raw material. Tiles flip to their dealt piece the first time they are turned over.':
+  'Step through a real game below: MistyBanqi (Strongest) moving first, a human second. The opening flip leaves MistyBanqi playing Red and the human Black. Black wins the opening material (the first eight captures are all Black’s), but Red keeps its elephant, the highest piece left, and grinds out the win. A clean illustration that in Half-Flip Chess, rank beats raw material. Tiles flip to their dealt piece the first time they are turned over.':
     '在下方逐步回放一盤真實對局：MistyBanqi（最強）先手，人類後手。開局的第一次翻子讓 MistyBanqi 執紅、人類執黑。黑方在開局贏得子力，前八次吃子都是黑方，但紅方留住了象，也就是盤面上等級最高的棋子，最終碾壓獲勝。這清楚地說明：在暗棋中，等級勝過單純的子力。每枚棋子第一次被翻開時，會翻出它所發到的身分。',
-  'Half Flip Chess is playable on Mistboard: take on MistyBanqi at the strength you pick, or challenge a friend. Chinese Chess is the parent game, and Flip Chinese Chess is the other hidden-identity cousin.':
+  'Half-Flip Chess is playable on Mistboard: take on MistyBanqi at the strength you pick, or challenge a friend. Elephant Chess is the parent game, and Flip Elephant Chess is the other hidden-identity cousin.':
     '暗棋可在 Mistboard 上對弈：挑選難度與 MistyBanqi 對戰，或邀請好友對局。象棋是它的母遊戲，揭棋則是另一種隱藏身分的近親。',
   'Fog Chess': '迷霧國際象棋',
   'Standard chess rules, the primer behind Fog Chess: castling, promotion, en passant, the draw rules, and a famous game to play through.':

@@ -204,10 +204,10 @@ describe('landing play panel', () => {
     expect(setupSummaryValue('gameGroup')).toBe('Chess');
     expect(visibleVariantPickerSpecs()).toEqual(['dark-chess']);
 
-    clickModalGameGroup('Chinese Chess');
+    clickModalGameGroup('Elephant Chess');
 
     expect(activeSetupSection()).toBe('variant');
-    expect(setupSummaryValue('gameGroup')).toBe('Chinese Chess');
+    expect(setupSummaryValue('gameGroup')).toBe('Elephant Chess');
     // Post-pivot: the mini xiangqi trio is hidden from the picker and Fortress
     // Xiangqi is the flagship heading the cluster, so it is the default selection.
     expect(selectedVariantSpec()).toBe('fortress-xiangqi');
@@ -233,7 +233,7 @@ describe('landing play panel', () => {
     openPlaySetup(panel, 'Play the engine');
 
     expect(modalGameGroups()).toContain('Chess');
-    expect(modalGameGroups()).toContain('Chinese Chess');
+    expect(modalGameGroups()).toContain('Elephant Chess');
     expect(modalGameGroups()).not.toContain('Crossroads');
     expect(modalGameGroups()).not.toContain('Shogi');
   });

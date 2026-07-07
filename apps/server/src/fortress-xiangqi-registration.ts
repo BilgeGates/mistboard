@@ -107,7 +107,7 @@ registerVariantTenant({
   watch: {
     channelId: 'fortress-xiangqi',
     family: 'xiangqi',
-    label: 'Fortress Animals',
+    label: 'Fortress',
     legacyVariants: ['fortress-xiangqi'],
   },
   ownsSpecRouting: true,

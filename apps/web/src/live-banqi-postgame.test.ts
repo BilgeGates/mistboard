@@ -54,7 +54,7 @@ describe('Banqi postgame page', () => {
     expect(fetchSpy).toHaveBeenCalledWith('/api/banqi/games/bq_postgame');
     // Single clean left rail (title, result, meta, actions) — not the old triptych.
     expect(root.textContent).toContain('Game review');
-    expect(root.textContent).toContain('Half Flip Chess');
+    expect(root.textContent).toContain('Half-Flip Chess');
     expect(root.textContent).toContain('Red wins');
     expect(root.querySelector('.review-info-card')).not.toBeNull();
     expect(root.textContent).toContain('Home');

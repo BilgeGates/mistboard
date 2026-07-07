@@ -14,7 +14,7 @@ import { defaultWatchChannel, listWatchChannels, watchChannelForId } from './wat
 
 // The Mini Xiangqi sub-family (open, dark, drop) was retired from Mistboard TV
 // on 2026-07-05 (xiangqi pivot): their registrations carry `watch: null`, so no
-// channel derives for them and their `?channel=` ids resolve to null. Dark chess
+// channel derives for them and their `?channel=` ids resolve to null. Fog Chess
 // is the only baseline channel in a launched-flags-off environment.
 const BASELINE_WATCH_CHANNELS = ['dark-chess'] as const;
 
@@ -25,10 +25,10 @@ const RETIRED_WATCH_CHANNEL_IDS = [
   'dark-mini-xiangqi',
 ] as const;
 
-test('watch channels expose Dark chess as the default channel', () => {
+test('watch channels expose Fog Chess as the default channel', () => {
   const channel = defaultWatchChannel();
   assert.equal(channel.id, 'dark-chess');
-  assert.equal(channel.label, 'Dark chess');
+  assert.equal(channel.label, 'Fog Chess');
   assert.deepEqual(channel.gameSpecIds, [DARK_CHESS_SPEC_ID, DARK_DRAFT960_SPEC_ID]);
   assert.deepEqual(channel.legacyVariants, ['dark-chess', 'draft960']);
 });

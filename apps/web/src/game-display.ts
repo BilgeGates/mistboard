@@ -100,7 +100,7 @@ function displayParticipant(
 
 // Human label for a persisted games.variant value. Legacy/alias strings + the
 // 'Dark Chess' casing are handled explicitly (the dark-chess spec publicName is
-// the lowercase 'Dark chess'); everything else derives from the canonical spec
+// the lowercase 'Fog Chess'); everything else derives from the canonical spec
 // so new variants are labelled without editing here.
 export function variantDisplayLabel(variant: string): string {
   if (variant === 'fog' || variant === 'dark-chess') return 'Dark Chess';
@@ -116,7 +116,7 @@ export function sourceLabel(mode: FeaturedGame['mode']): string {
   if (mode === 'pvp') return 'Human vs human';
   if (mode === 'imported') return 'Imported game';
   if (mode === 'manual') return 'Manual game';
-  return 'Dark chess game';
+  return 'Fog Chess game';
 }
 
 function engineDisplayName(name: string | null | undefined): string | null {

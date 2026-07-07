@@ -271,7 +271,7 @@ export const darkChessArticle: Article = {
           {
             kind: 'paragraph',
             text:
-              'Fog Chess, dark chess, and Fog of War chess refer to this same chess variant: hidden-information chess where you see only the squares your pieces reach. It is sometimes confused with [Half Flip Chess](/rules/banqi), the Chinese game also nicknamed "dark chess," which plays with xiangqi pieces turned face-down. That is a different game.',
+              'Fog Chess, dark chess, and Fog of War chess refer to this same chess variant: hidden-information chess where you see only the squares your pieces reach. It is sometimes confused with [Half-Flip Chess](/rules/banqi), the Chinese game also nicknamed "dark chess," which plays with xiangqi pieces turned face-down. That is a different game.',
           },
         ],
       },

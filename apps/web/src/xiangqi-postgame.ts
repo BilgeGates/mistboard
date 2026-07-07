@@ -182,7 +182,7 @@ function renderPostgame(root: HTMLElement, postgame: XiangqiPostgameResponse): v
   boardWrap.className = 'dxq-postgame__board-wrap review-board-host';
   const board = document.createElement('div');
   board.className = 'dxq-postgame__board xiangqi-live-board';
-  board.setAttribute('aria-label', 'Chinese Chess board');
+  board.setAttribute('aria-label', 'Elephant Chess board');
   // Captured material in columns beside the board (opponent top-left, near side
   // bottom-right) — same flank layout as Dark Xiangqi, no vertical chrome added.
   const flank = createFlankCaptures(board);
@@ -273,7 +273,7 @@ function renderPostgame(root: HTMLElement, postgame: XiangqiPostgameResponse): v
   mountReviewLayout(root, {
     pageClassName: 'xiangqi-review',
     ariaLabel: 'Xiangqi postgame',
-    title: 'Chinese Chess',
+    title: 'Elephant Chess',
     summary: `${resultLabel(postgame.game.result)} by ${labelize(postgame.game.termination)} · ${postgame.game.plyCount} plies`,
     actions: postgameActions(postgame),
     details: detailsPanel(postgame),

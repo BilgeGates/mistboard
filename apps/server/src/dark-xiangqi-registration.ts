@@ -76,7 +76,7 @@ registerVariantTenant({
   watch: {
     channelId: 'dark-xiangqi',
     family: 'xiangqi',
-    label: 'Dark Chinese Chess',
+    label: 'Fog Elephant Chess',
     legacyVariants: ['dark-xiangqi'],
   },
   ownsSpecRouting: true,

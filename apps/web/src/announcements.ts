@@ -36,7 +36,7 @@ const baseAnnouncements: Announcement[] = [
   {
     date: '2026-07-01',
     kind: 'release',
-    headline: 'Fortress Animals has launched.',
+    headline: 'Fortress has launched.',
     body: 'Xiangqi with a pocket: every piece moves as in Chinese chess, plus crazyhouse-style drops and the new Treasure. Play the bot or challenge a friend.',
     href: '/rules/fortress-xiangqi',
     cta: 'Study the rules',
@@ -109,7 +109,7 @@ const baseAnnouncements: Announcement[] = [
   {
     date: '2026-06-18',
     kind: 'release',
-    headline: 'Dark Chinese Chess is open for alpha play.',
+    headline: 'Fog Elephant Chess is open for alpha play.',
     body: 'Fog of War on the full 9 by 10 xiangqi board: each side sees only the points its pieces reach. Challenge a friend to a match.',
     href: '/rules/dark-xiangqi',
     cta: 'Read rules',
@@ -117,8 +117,8 @@ const baseAnnouncements: Announcement[] = [
   {
     date: '2026-06-17',
     kind: 'release',
-    headline: 'Half Flip Chess is open for alpha play.',
-    body: 'Half Flip Chess on an 8 by 4 board: all 32 pieces start face-down and flip as you play. Challenge a friend to a match.',
+    headline: 'Half-Flip Chess is open for alpha play.',
+    body: 'Half-Flip Chess on an 8 by 4 board: all 32 pieces start face-down and flip as you play. Challenge a friend to a match.',
     href: '/rules/banqi',
     cta: 'Read rules',
     showInHomeArticleWidget: false,
@@ -126,7 +126,7 @@ const baseAnnouncements: Announcement[] = [
   {
     date: '2026-06-15',
     kind: 'release',
-    headline: 'Flip Chinese Chess is open for alpha play.',
+    headline: 'Flip Elephant Chess is open for alpha play.',
     body: 'Hidden-identity xiangqi: every non-general piece starts face-down and reveals as it moves. Take on PikaJieQi, our jieqi engine.',
     href: '/rules/jieqi',
     cta: 'Read rules',

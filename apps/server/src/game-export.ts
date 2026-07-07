@@ -160,8 +160,8 @@ function normalizeJsonResult(result: string): string {
 }
 
 function pgnVariantName(variant: string): string {
-  if (variant === 'dark-chess') return 'Dark chess';
-  if (variant === 'draft960') return 'Draft960 (Dark chess + Chess960)';
+  if (variant === 'dark-chess') return 'Fog Chess';
+  if (variant === 'draft960') return 'Draft960 (Fog Chess + Chess960)';
   return variant;
 }
 

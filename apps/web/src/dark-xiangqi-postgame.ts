@@ -86,7 +86,7 @@ export function mountDarkXiangqiPostgame(root: HTMLElement, roomId: string): voi
   root.classList.add('landing-page', 'dark-xiangqi-postgame-route');
   root.replaceChildren(buildNav(), loadingView());
   if (!darkXiangqiEnabled()) {
-    renderError(root, 'Dark Xiangqi unavailable', 'This route is not enabled in this build.');
+    renderError(root, 'Fog Elephant Chess unavailable', 'This route is not enabled in this build.');
     return;
   }
   void loadDarkXiangqiPostgame(roomId)
@@ -139,7 +139,7 @@ function renderPostgame(root: HTMLElement, postgame: DarkXiangqiPostgameResponse
     heading.textContent = entry.label;
     const board = document.createElement('div');
     board.className = 'dxq-postgame__board xiangqi-live-board';
-    board.setAttribute('aria-label', `${entry.label} final Dark Chinese Chess board`);
+    board.setAttribute('aria-label', `${entry.label} final Fog Elephant Chess board`);
     // Captured material is shown on the dominant truth board only (the small POV
     // secondaries stay uncluttered; the review stage hides their pools anyway).
     // Flank layout: columns beside the board (opponent top-left, near bottom-right)
@@ -156,8 +156,8 @@ function renderPostgame(root: HTMLElement, postgame: DarkXiangqiPostgameResponse
   root.replaceChildren(buildNav());
   mountReviewLayout(root, {
     pageClassName: 'dark-xiangqi-review',
-    ariaLabel: 'Dark Xiangqi postgame',
-    title: 'Dark Chinese Chess',
+    ariaLabel: 'Fog Elephant Chess postgame',
+    title: 'Fog Elephant Chess',
     summary: `${resultLabel(postgame.game.result)} by ${labelize(postgame.game.termination)} · ${postgame.game.plyCount} plies`,
     actions: postgameActions(postgame),
     details: detailsPanel(postgame),
@@ -372,7 +372,7 @@ function errorTitle(status: number): string {
 }
 
 function errorBody(result: Extract<LoadResult, { ok: false }>): string {
-  if (result.status === 404) return 'This Dark Xiangqi game is not available.';
+  if (result.status === 404) return 'This Fog Elephant Chess game is not available.';
   if (result.status === 503) return 'The postgame service is not available.';
   return result.error;
 }

@@ -423,7 +423,7 @@ export const GAME_SPECS: readonly GameSpec[] = [
     // promoted to a live public variant. Runtime kill-switch is the server flag
     // MISTBOARD_FORTRESS_XIANGQI_ENABLED (flip on to open room creation).
     id: FORTRESS_XIANGQI_SPEC_ID,
-    publicName: 'Fortress Animals',
+    publicName: 'Fortress',
     family: 'xiangqi',
     board: 'xiangqi-7x8',
     movement: 'fortress-xiangqi',
@@ -446,7 +446,7 @@ export const GAME_SPECS: readonly GameSpec[] = [
     // literal general capture). Rules engine:
     // packages/game/src/variants-xiangqi-standard.ts.
     id: XIANGQI_SPEC_ID,
-    publicName: 'Chinese Chess',
+    publicName: 'Elephant Chess',
     family: 'xiangqi',
     board: 'xiangqi-9x10',
     movement: 'xiangqi',
@@ -464,7 +464,7 @@ export const GAME_SPECS: readonly GameSpec[] = [
   },
   {
     id: DARK_XIANGQI_SPEC_ID,
-    publicName: 'Dark Chinese Chess',
+    publicName: 'Fog Elephant Chess',
     family: 'xiangqi',
     board: 'xiangqi-9x10',
     movement: 'xiangqi',
@@ -482,7 +482,7 @@ export const GAME_SPECS: readonly GameSpec[] = [
   },
   {
     id: JIEQI_SPEC_ID,
-    publicName: 'Flip Chinese Chess',
+    publicName: 'Flip Elephant Chess',
     family: 'xiangqi',
     board: 'xiangqi-9x10',
     movement: 'xiangqi',
@@ -503,7 +503,7 @@ export const GAME_SPECS: readonly GameSpec[] = [
     // the opponent with no legal move — the general is not royal. Rules engine:
     // packages/game/src/variants-banqi.ts.
     id: BANQI_SPEC_ID,
-    publicName: 'Half Flip Chess',
+    publicName: 'Half-Flip Chess',
     family: 'xiangqi',
     board: 'banqi-8x4',
     movement: 'banqi',

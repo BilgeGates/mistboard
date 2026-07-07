@@ -19,9 +19,9 @@ export const fortressXiangqiArticle: Article = {
   boardFamily: 'xiangqi',
   kind: 'rules',
   playableOnMistboard: true,
-  title: 'Fortress Animals Rules',
+  title: 'Fortress Rules',
   summary:
-    'Xiangqi with a pocket: every piece moves as in Chinese chess, plus crazyhouse-style drops and one new piece, the Treasure.',
+    'Elephant Chess with a pocket: every familiar piece moves as in xiangqi, plus crazyhouse-style drops and one new piece, the Treasure.',
   showSummaryOnPage: false,
   status: 'published',
   publishedAt: '2026-07-01',
@@ -31,7 +31,7 @@ export const fortressXiangqiArticle: Article = {
   intro: [
     {
       kind: 'paragraph',
-      text: 'Fortress Animals is Mistboard\'s public name for Fortress Xiangqi, a [Chinese Chess](/rules/xiangqi) variant with a reserve, designed by Brian H. Liou in 2026 as a Mistboard original. Every familiar piece moves exactly as it does in xiangqi, and one new piece, the Treasure, joins the back rank. The new rule is the [crazyhouse](https://en.wikipedia.org/wiki/Crazyhouse) loop: capture a piece, hold it in hand, and drop it back into the fight.',
+      text: 'Fortress is Fortress Xiangqi, an [Elephant Chess](/rules/xiangqi) variant with a reserve, designed by Brian H. Liou in 2026 as a Mistboard original. Every familiar piece moves exactly as it does in xiangqi, and one new piece, the Treasure, joins the back rank. The new rule is the [crazyhouse](https://en.wikipedia.org/wiki/Crazyhouse) loop: capture a piece, hold it in hand, and drop it back into the fight.',
     },
     {
       kind: 'paragraph',
@@ -217,7 +217,7 @@ export const fortressXiangqiArticle: Article = {
     },
     playClosing({
       heading: 'Play it',
-      lead: 'Fortress Animals is live on Mistboard. Play the Fairy-Stockfish bot at three strengths, create an invite for a friend, or find an open game from the homepage play panel.',
+      lead: 'Fortress is live on Mistboard. Play the Fairy-Stockfish bot at three strengths, create an invite for a friend, or find an open game from the homepage play panel.',
       playLabel: 'Play the bot',
       playHref: '/?play=computer&gameSpecId=fortress-xiangqi',
       secondary: [

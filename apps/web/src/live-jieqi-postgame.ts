@@ -182,7 +182,7 @@ function renderPostgame(root: HTMLElement, postgame: JieqiPostgameResponse): voi
   mountReviewLayout(root, {
     pageClassName: 'jieqi-review',
     ariaLabel: 'Jieqi postgame',
-    title: 'Flip Chinese Chess',
+    title: 'Flip Elephant Chess',
     summary: `${resultLabel(postgame.game.result)} by ${labelize(postgame.game.termination)} · ${postgame.game.plyCount} plies`,
     actions: jieqiActions(postgame, revealBtn),
     moves: movesCard,

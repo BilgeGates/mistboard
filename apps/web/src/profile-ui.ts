@@ -169,7 +169,7 @@ function profileSideLabel(game: FeaturedGame, locale: Locale): string {
 export function profileGameSpecLabel(game: FeaturedGame, locale: Locale): string {
   // Legacy/alias variant strings the canonical spec map doesn't resolve, plus the
   // 'Dark Chess' casing this pill uses (the dark-chess spec publicName is the
-  // lowercase 'Dark chess'). Everything else derives from the canonical spec so a
+  // lowercase 'Fog Chess'). Everything else derives from the canonical spec so a
   // new variant (banqi, jieqi, reveal-chess, ...) is labelled without editing here.
   const key = GAME_VARIANT_LABEL_KEY[game.variant];
   if (key) return t(key, {}, locale);
