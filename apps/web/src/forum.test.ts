@@ -4,8 +4,8 @@ const categories = [
   {
     id: 'strategy',
     slug: 'general-discussion',
-    name: 'General Discussion',
-    description: 'Questions, rules, strategy, and general Mistboard discussion.',
+    name: 'General Chess Discussion',
+    description: 'The place to discuss general chess topics.',
     sortOrder: 10,
     topicWritePolicy: 'account',
     topicCount: 1,
@@ -25,10 +25,10 @@ const categories = [
     },
   },
   {
-    id: 'game-analysis',
-    slug: 'game-analysis',
-    name: 'Game Analysis',
-    description: 'Post Mistboard games and analyze them with the community.',
+    id: 'support',
+    slug: 'feedback',
+    name: 'Mistboard Feedback',
+    description: 'Bug reports, feature requests, suggestions.',
     sortOrder: 20,
     topicWritePolicy: 'account',
     topicCount: 0,
@@ -36,10 +36,10 @@ const categories = [
     latestPost: null,
   },
   {
-    id: 'engines',
-    slug: 'engines',
-    name: 'Engines',
-    description: 'Misty, bot play, engine matches, and benchmarks.',
+    id: 'game-analysis',
+    slug: 'game-analysis',
+    name: 'Game analysis',
+    description: 'Show your game and analyse it with the community.',
     sortOrder: 30,
     topicWritePolicy: 'account',
     topicCount: 0,
@@ -47,10 +47,10 @@ const categories = [
     latestPost: null,
   },
   {
-    id: 'support',
-    slug: 'feedback',
-    name: 'Feedback',
-    description: 'Bug reports, feature requests, and site feedback.',
+    id: 'off-topic-discussion',
+    slug: 'off-topic-discussion',
+    name: 'Off-Topic Discussion',
+    description: 'Everything that is not related to chess.',
     sortOrder: 40,
     topicWritePolicy: 'account',
     topicCount: 0,
@@ -63,7 +63,7 @@ const topic = {
   id: 'topic_strategy',
   slug: 'scouting-the-center',
   title: 'Scouting the center',
-  category: { slug: 'general-discussion', name: 'General Discussion' },
+  category: { slug: 'general-discussion', name: 'General Chess Discussion' },
   author: { handle: 'alice', displayName: 'Alice' },
   latestPost: {
     post: {
@@ -91,7 +91,7 @@ const searchPost = {
     slug: 'scouting-the-center',
     title: 'Scouting the center',
     postCount: 2,
-    category: { slug: 'general-discussion', name: 'General Discussion' },
+    category: { slug: 'general-discussion', name: 'General Chess Discussion' },
   },
   author: { handle: 'bob', displayName: 'Bob' },
   createdAt: '2026-06-01T00:05:00.000Z',
@@ -206,7 +206,7 @@ describe('forum pages', () => {
       '/api/forum/topics?category=general-discussion&limit=26&offset=0',
     );
     expect(root.querySelector('.forum-panel-header-category')?.textContent).toContain(
-      'General Discussion',
+      'General Chess Discussion',
     );
     expect(root.querySelector<HTMLAnchorElement>('.forum-panel-back')?.getAttribute('href')).toBe(
       '/forum',
@@ -715,7 +715,7 @@ describe('forum pages', () => {
                 id: 'topic_strategy',
                 slug: 'scouting-the-center',
                 title: 'Scouting the center',
-                category: { slug: 'general-discussion', name: 'General Discussion' },
+                category: { slug: 'general-discussion', name: 'General Chess Discussion' },
                 hidden: false,
               },
               post: {
@@ -790,7 +790,7 @@ describe('forum pages', () => {
                 id: 'topic_strategy',
                 slug: 'scouting-the-center',
                 title: 'Scouting the center',
-                category: { slug: 'general-discussion', name: 'General Discussion' },
+                category: { slug: 'general-discussion', name: 'General Chess Discussion' },
                 hidden: false,
               },
               post: {
@@ -854,7 +854,7 @@ describe('forum pages', () => {
         return json({
           topic: {
             ...topic,
-            category: { slug: 'feedback', name: 'Feedback' },
+            category: { slug: 'feedback', name: 'Mistboard Feedback' },
             posts: [
               {
                 id: 'post_1',
@@ -938,7 +938,7 @@ describe('forum pages', () => {
 
     const back = root.querySelector<HTMLAnchorElement>('.forum-panel-back');
     expect(back?.getAttribute('href')).toBe('/forum/general-discussion');
-    expect(back?.getAttribute('aria-label')).toBe('Back to General Discussion');
+    expect(back?.getAttribute('aria-label')).toBe('Back to General Chess Discussion');
     expect(root.querySelector<HTMLInputElement>('input[name="q"]')).toBeNull();
     expect(root.querySelector<HTMLAnchorElement>('.forum-post-author-name')?.textContent).toBe(
       'Alice',
