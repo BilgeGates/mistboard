@@ -69,6 +69,17 @@ function isAbortError(error: unknown): boolean {
   return error instanceof Error && error.name === 'AbortError';
 }
 
+function sourcePayloadSummary(value: unknown): Record<string, unknown> {
+  if (Array.isArray(value)) return { type: 'array', length: value.length };
+  if (!isRecord(value)) return { type: value === null ? 'null' : typeof value };
+  const keys = Object.keys(value).sort();
+  return {
+    type: 'object',
+    keys: keys.slice(0, 12),
+    keyCount: keys.length,
+  };
+}
+
 async function recordSourceError(input: {
   sourceUrl: string;
   kind: XiangqiBroadcastPollErrorKind;
@@ -157,7 +168,7 @@ export async function pollXiangqiBroadcastSourceOnce(input: {
       sourceUrl: input.sourceUrl,
       kind: 'source_malformed',
       message: parsed.message,
-      payload: { body: fetched.value },
+      payload: { bodySummary: sourcePayloadSummary(fetched.value) },
     });
     return {
       ok: false,

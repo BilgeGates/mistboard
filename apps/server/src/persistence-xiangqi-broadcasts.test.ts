@@ -353,5 +353,12 @@ definePersistenceTests('xiangqi broadcasts', () => {
       'source_malformed',
       'source_timeout',
     ]);
+    const malformedLog = logs.find((log) => log.kind === 'source_malformed');
+    assert.deepEqual(malformedLog?.payload.bodySummary, {
+      type: 'object',
+      keys: ['boards', 'malformed'],
+      keyCount: 2,
+    });
+    assert.equal(Object.hasOwn(malformedLog?.payload ?? {}, 'body'), false);
   });
 });
