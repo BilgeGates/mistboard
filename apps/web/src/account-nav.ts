@@ -1,6 +1,7 @@
 import './account-nav.css';
 
 import { identify, resetIdentity } from './analytics.js';
+import { loginHrefForCurrentPage } from './auth-redirect.js';
 import { type ConnectionStatus, createConnectionStatus } from './connection-status.js';
 import { t } from './i18n/catalog.js';
 import {
@@ -322,7 +323,16 @@ async function handleLogout(
   resetIdentity();
   writeSignedInHint(false);
   writeCachedUser(null);
+  if (isInboxRoute()) {
+    window.location.href = loginHrefForCurrentPage(locale);
+    return;
+  }
   window.location.reload();
+}
+
+function isInboxRoute(): boolean {
+  const path = window.location.pathname.replace(/\/+$/, '') || '/';
+  return path === '/inbox' || path.startsWith('/inbox/');
 }
 
 function createItemIcon(svg: string): HTMLSpanElement {

@@ -10,6 +10,7 @@
 import './account-profile.css';
 import { setAccountNavUser } from './account-nav.js';
 import { identify, resetIdentity, track } from './analytics.js';
+import { requestedAuthReferrer } from './auth-redirect.js';
 import {
   DISPLAY_PREFERENCE_DEFINITIONS,
   type DisplayPreferenceId,
@@ -922,7 +923,7 @@ function buildLoginForm(
   locale: Locale = currentLocale(),
 ): HTMLElement {
   const panel = document.createElement('section');
-  panel.className = 'account-panel';
+  panel.className = 'account-panel account-auth-panel';
 
   panel.append(buildAccountAuthTabs(tab, locale));
 
@@ -1013,6 +1014,11 @@ function buildLoginForm(
         });
         if (data.isNewUser) track('signup_completed');
         setAccountNavUser(data.user);
+        const referrer = requestedAuthReferrer();
+        if (referrer) {
+          window.location.href = referrer;
+          return;
+        }
         onAuth(data.user);
       }
     } catch (err) {

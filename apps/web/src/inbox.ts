@@ -5,6 +5,7 @@
 // side effect of loading it, so the nav bell drains by itself.
 
 import './inbox.css';
+import { loginHrefForCurrentPage } from './auth-redirect.js';
 import { openConfirmDialog } from './confirm-dialog.js';
 import { t } from './i18n/catalog.js';
 import { currentLocale, LOCALE_META, type Locale } from './i18n/locale.js';
@@ -56,9 +57,7 @@ export async function mountInbox(root: HTMLElement, handle: string | null): Prom
   root.replaceChildren(buildNav(locale), shell);
 
   if (!user) {
-    shell.append(
-      buildNotice(t('inbox.signInTitle', {}, locale), t('inbox.signInBody', {}, locale)),
-    );
+    window.location.href = loginHrefForCurrentPage(locale);
     return;
   }
 
