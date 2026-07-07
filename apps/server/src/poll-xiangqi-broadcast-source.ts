@@ -13,6 +13,8 @@ import {
 type Args = {
   source: string;
   intervalMs: number;
+  maxIntervalMs: number;
+  backoffMultiplier: number;
   timeoutMs: number;
   allowCorrection: boolean;
   once: boolean;
@@ -24,6 +26,8 @@ function parseCliArgs(argv: string[]): Args {
     options: {
       source: { type: 'string' },
       'interval-ms': { type: 'string', default: '1000' },
+      'max-interval-ms': { type: 'string', default: '30000' },
+      'backoff-multiplier': { type: 'string', default: '2' },
       'timeout-ms': { type: 'string', default: '5000' },
       'allow-correction': { type: 'boolean', default: false },
       once: { type: 'boolean', default: false },
@@ -31,13 +35,23 @@ function parseCliArgs(argv: string[]): Args {
   });
   if (!values.source) {
     console.error(
-      'usage: poll-xiangqi-broadcast-source --source <url> [--once] [--interval-ms 1000] [--timeout-ms 5000] [--allow-correction]',
+      'usage: poll-xiangqi-broadcast-source --source <url> [--once] [--interval-ms 1000] [--max-interval-ms 30000] [--backoff-multiplier 2] [--timeout-ms 5000] [--allow-correction]',
     );
     process.exit(1);
   }
   const intervalMs = Number(values['interval-ms']);
   if (!Number.isInteger(intervalMs) || intervalMs <= 0) {
     console.error('--interval-ms must be a positive integer');
+    process.exit(1);
+  }
+  const maxIntervalMs = Number(values['max-interval-ms']);
+  if (!Number.isInteger(maxIntervalMs) || maxIntervalMs < intervalMs) {
+    console.error('--max-interval-ms must be an integer greater than or equal to --interval-ms');
+    process.exit(1);
+  }
+  const backoffMultiplier = Number(values['backoff-multiplier']);
+  if (!Number.isFinite(backoffMultiplier) || backoffMultiplier < 1) {
+    console.error('--backoff-multiplier must be a number greater than or equal to 1');
     process.exit(1);
   }
   const timeoutMs = Number(values['timeout-ms']);
@@ -48,6 +62,8 @@ function parseCliArgs(argv: string[]): Args {
   return {
     source: values.source,
     intervalMs,
+    maxIntervalMs,
+    backoffMultiplier,
     timeoutMs,
     allowCorrection: Boolean(values['allow-correction']),
     once: Boolean(values.once),
@@ -106,6 +122,8 @@ async function main(): Promise<void> {
     await pollXiangqiBroadcastSourceLoop({
       sourceUrl: args.source,
       intervalMs: args.intervalMs,
+      maxIntervalMs: args.maxIntervalMs,
+      backoffMultiplier: args.backoffMultiplier,
       timeoutMs: args.timeoutMs,
       allowCorrection: args.allowCorrection,
       signal: controller.signal,

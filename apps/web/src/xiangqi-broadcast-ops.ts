@@ -13,6 +13,23 @@ type SyncLog = {
   createdAt: string;
 };
 
+type SourceHealth = {
+  state: 'ok' | 'warning' | 'error' | 'unknown' | 'missing_source';
+  label: string;
+  lastKind: string | null;
+  lastMessage: string | null;
+  checkedAt: string | null;
+  buckets: {
+    successfulPolls: number;
+    fetchFailures: number;
+    parseFailures: number;
+    dataFailures: number;
+    configFailures: number;
+    operatorFailures: number;
+    corrections: number;
+  };
+};
+
 type OpsTour = {
   tour: {
     slug: string;
@@ -29,6 +46,7 @@ type OpsTour = {
   scheduledBoardCount: number;
   totalPlies: number;
   updatedAt: string | null;
+  sourceHealth: SourceHealth;
   syncLogs: SyncLog[];
 };
 
@@ -161,6 +179,8 @@ function tourPanel(entry: OpsTour, body: HTMLElement): HTMLElement {
   source.className = entry.sourceUrl ? 'xqb-ops-source' : 'xqb-ops-source xqb-ops-source-missing';
   source.textContent = entry.sourceUrl ? `Source: ${entry.sourceUrl}` : 'Source: not configured';
 
+  const health = sourceHealthPanel(entry.sourceHealth);
+
   const logs = document.createElement('div');
   logs.className = 'xqb-ops-logs';
   const logsTitle = document.createElement('h3');
@@ -178,7 +198,7 @@ function tourPanel(entry: OpsTour, body: HTMLElement): HTMLElement {
     void runPoll(entry, correction.checked, poll, result, body);
   };
 
-  section.append(top, stats, source, logs);
+  section.append(top, stats, source, health, logs);
   return section;
 }
 
@@ -241,6 +261,53 @@ function logRow(log: SyncLog): HTMLElement {
   const message = document.createElement('p');
   message.textContent = log.message;
   item.append(top, message);
+  return item;
+}
+
+function sourceHealthPanel(health: SourceHealth): HTMLElement {
+  const panel = document.createElement('div');
+  panel.className = `xqb-ops-health xqb-ops-health-${health.state}`;
+
+  const summary = document.createElement('div');
+  summary.className = 'xqb-ops-health-summary';
+  const badge = document.createElement('span');
+  badge.textContent = health.state.replace('_', ' ');
+  const label = document.createElement('strong');
+  label.textContent = health.label;
+  const checked = document.createElement('time');
+  if (health.checkedAt) checked.dateTime = health.checkedAt;
+  checked.textContent = `Checked ${formatDateTime(health.checkedAt)}`;
+  summary.append(badge, label, checked);
+
+  const detail = document.createElement('p');
+  detail.textContent =
+    health.lastKind && health.lastMessage ? `${health.lastKind}: ${health.lastMessage}` : '';
+
+  const buckets = document.createElement('dl');
+  buckets.className = 'xqb-ops-health-buckets';
+  buckets.append(
+    bucket('OK', health.buckets.successfulPolls),
+    bucket('Fetch', health.buckets.fetchFailures),
+    bucket('Parse', health.buckets.parseFailures),
+    bucket('Data', health.buckets.dataFailures),
+    bucket('Config', health.buckets.configFailures),
+    bucket('Operator', health.buckets.operatorFailures),
+    bucket('Corrections', health.buckets.corrections),
+  );
+
+  panel.append(summary);
+  if (detail.textContent) panel.append(detail);
+  panel.append(buckets);
+  return panel;
+}
+
+function bucket(label: string, value: number): HTMLElement {
+  const item = document.createElement('div');
+  const dt = document.createElement('dt');
+  dt.textContent = label;
+  const dd = document.createElement('dd');
+  dd.textContent = String(value);
+  item.append(dt, dd);
   return item;
 }
 

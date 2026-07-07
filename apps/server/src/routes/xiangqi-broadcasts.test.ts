@@ -111,10 +111,123 @@ test('broadcast ops API exposes source and operator sync log detail', async () =
   assert.equal(entry.tour.slug, tour.slug);
   assert.equal(entry.sourceUrl, tour.sourceUrl ?? null);
   assert.equal(entry.boardCount, 1);
+  assert.equal(entry.sourceHealth.state, 'ok');
+  assert.equal(entry.sourceHealth.lastKind, 'poll_ok');
+  assert.equal(entry.sourceHealth.buckets.successfulPolls, 1);
   assert.equal(entry.syncLogs.length, 1);
   assert.equal(entry.syncLogs[0]?.kind, 'poll_ok');
   assert.equal(entry.syncLogs[0]?.message, 'source snapshot imported');
   assert.equal(Object.hasOwn(entry.syncLogs[0] ?? {}, 'payload'), false);
+});
+
+test('broadcast ops API derives source health buckets from sync logs', async () => {
+  const payload = await xiangqiBroadcastOpsIndexForApi(
+    deps({
+      listXiangqiBroadcastSyncLogs: async () => [
+        {
+          id: 7,
+          tourSlug: tour.slug,
+          roundId: null,
+          boardId: null,
+          sourceBoardId: null,
+          severity: 'error',
+          kind: 'source_timeout',
+          message: 'source timed out after 1000ms',
+          payload: { sourceUrl: tour.sourceUrl },
+          createdAt: new Date(7_000),
+        },
+        {
+          id: 6,
+          tourSlug: tour.slug,
+          roundId: null,
+          boardId: null,
+          sourceBoardId: null,
+          severity: 'error',
+          kind: 'source_malformed',
+          message: 'source.boards must be an array',
+          payload: {},
+          createdAt: new Date(6_000),
+        },
+        {
+          id: 5,
+          tourSlug: tour.slug,
+          roundId: null,
+          boardId: board.id,
+          sourceBoardId: board.sourceBoardId ?? null,
+          severity: 'error',
+          kind: 'illegal_move',
+          message: 'illegal move in source board',
+          payload: {},
+          createdAt: new Date(5_000),
+        },
+        {
+          id: 4,
+          tourSlug: tour.slug,
+          roundId: null,
+          boardId: null,
+          sourceBoardId: null,
+          severity: 'error',
+          kind: 'source_disallowed',
+          message: 'source URL host is not allowed',
+          payload: {},
+          createdAt: new Date(4_000),
+        },
+        {
+          id: 3,
+          tourSlug: tour.slug,
+          roundId: null,
+          boardId: null,
+          sourceBoardId: null,
+          severity: 'error',
+          kind: 'manual_poll_failed',
+          message: 'source answered HTTP 500',
+          payload: {},
+          createdAt: new Date(3_000),
+        },
+        {
+          id: 2,
+          tourSlug: tour.slug,
+          roundId: null,
+          boardId: board.id,
+          sourceBoardId: board.sourceBoardId ?? null,
+          severity: 'info',
+          kind: 'corrected',
+          message: 'source correction applied',
+          payload: {},
+          createdAt: new Date(2_000),
+        },
+        {
+          id: 1,
+          tourSlug: tour.slug,
+          roundId: null,
+          boardId: null,
+          sourceBoardId: null,
+          severity: 'info',
+          kind: 'manual_poll_ok',
+          message: 'manual source poll completed',
+          payload: {},
+          createdAt: new Date(1_000),
+        },
+      ],
+    }),
+  );
+
+  const health = payload.tours[0]?.sourceHealth;
+  assert.equal(health?.state, 'error');
+  assert.equal(health?.label, 'Source needs attention');
+  assert.equal(health?.lastKind, 'source_timeout');
+  assert.equal(health?.lastMessage, 'source timed out after 1000ms');
+  assert.deepEqual(health?.checkedAt, new Date(7_000));
+  assert.deepEqual(health?.buckets, {
+    successfulPolls: 1,
+    fetchFailures: 1,
+    parseFailures: 1,
+    dataFailures: 1,
+    configFailures: 1,
+    operatorFailures: 1,
+    corrections: 1,
+  });
+  assert.equal(Object.hasOwn(payload.tours[0]?.syncLogs[0] ?? {}, 'payload'), false);
 });
 
 test('manual broadcast poll uses configured tour source and records operator result', async () => {

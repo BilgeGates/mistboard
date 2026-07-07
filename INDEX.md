@@ -197,7 +197,7 @@ Edit task → find file → open only that file.
 | `enqueue-engine-smoke.ts` | CLI: enqueue engine smoke |
 | `enqueue-engine-tournament.ts` | CLI: enqueue engine tournament |
 | `import-xiangqi-broadcast.ts` | CLI/helper for importing xiangqi broadcast fixture packs into Postgres, with optional `games/*.json` negative fixtures |
-| `poll-xiangqi-broadcast-source.ts` | CLI: poll a xiangqi broadcast source snapshot into local Postgres, once or continuously |
+| `poll-xiangqi-broadcast-source.ts` | CLI: poll a xiangqi broadcast source snapshot into local Postgres, once or continuously with bounded failure backoff |
 | `simulate-xiangqi-broadcast.ts` | CLI: replay a xiangqi broadcast `tape.json` into local Postgres via the broadcast update boundary |
 | `serve-xiangqi-broadcast-source.ts` | CLI: serve a local xiangqi broadcast fixture source with clean/stale/malformed/error/timeout modes, including WXF DhtmlXQ HTML conversion via `--wxf-html` |
 | `xiangqi-broadcast-poller.ts` | Local xiangqi broadcast source poller: fetch source snapshots, import tour/round metadata, apply board updates, and log source failures |

@@ -166,6 +166,98 @@
   color: var(--site-danger, #b3261e);
 }
 
+.xqb-ops-health {
+  border: 1px solid var(--site-border-soft);
+  border-radius: var(--site-radius-sm);
+  background: var(--site-bg);
+  padding: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.xqb-ops-health-summary {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.xqb-ops-health-summary span {
+  border-radius: 999px;
+  background: var(--site-panel-soft);
+  color: var(--site-muted);
+  padding: 3px 7px;
+  font-size: 10px;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.xqb-ops-health-summary strong {
+  color: var(--site-heading);
+  font-size: 13px;
+}
+
+.xqb-ops-health-summary time {
+  margin-left: auto;
+  color: var(--site-muted);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.xqb-ops-health p {
+  margin: 0;
+  color: var(--site-text);
+  font-size: 13px;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+
+.xqb-ops-health-buckets {
+  margin: 0;
+  display: grid;
+  grid-template-columns: repeat(7, minmax(70px, 1fr));
+  gap: 6px;
+}
+
+.xqb-ops-health-buckets div {
+  border: 1px solid var(--site-border-soft);
+  border-radius: var(--site-radius-sm);
+  background: var(--site-panel-soft);
+  padding: 7px 8px;
+}
+
+.xqb-ops-health-buckets dt {
+  color: var(--site-muted);
+  font-size: 10px;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.xqb-ops-health-buckets dd {
+  margin: 2px 0 0;
+  color: var(--site-heading);
+  font-size: 16px;
+  font-weight: 900;
+  line-height: 1;
+}
+
+.xqb-ops-health-ok .xqb-ops-health-summary span {
+  background: #e5f7ed;
+  color: #126b36;
+}
+
+.xqb-ops-health-warning .xqb-ops-health-summary span {
+  background: #fff4d6;
+  color: #7a4d00;
+}
+
+.xqb-ops-health-error .xqb-ops-health-summary span,
+.xqb-ops-health-missing_source .xqb-ops-health-summary span {
+  background: #ffe6e2;
+  color: #9b1c0e;
+}
+
 .xqb-ops-logs {
   display: flex;
   flex-direction: column;
@@ -257,5 +349,13 @@
 
   .xqb-ops-log time {
     margin-left: 0;
+  }
+
+  .xqb-ops-health-summary time {
+    margin-left: 0;
+  }
+
+  .xqb-ops-health-buckets {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }

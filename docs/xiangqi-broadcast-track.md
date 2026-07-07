@@ -269,8 +269,11 @@ npm run db:poll:xiangqi-broadcast -- \
 
 Drop `--once` to keep polling. The poller imports tour/round metadata from the
 source snapshot, applies each board through the same persisted board-update
-boundary as the tape runner, and records HTTP, malformed, fetch, and timeout
-failures in sync logs.
+boundary as the tape runner, and records HTTP, malformed, fetch, timeout, and
+source-policy failures in sync logs. Continuous polling uses bounded failure
+backoff: `--interval-ms` sets the healthy cadence, `--max-interval-ms` caps
+failure delay growth, and `--backoff-multiplier` controls how quickly
+consecutive failures slow the loop.
 
 ### M3: Public Viewer
 

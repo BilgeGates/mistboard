@@ -75,6 +75,25 @@ type ManualPollOptions = {
   timeoutMs: number;
 };
 
+type SourceHealthState = 'ok' | 'warning' | 'error' | 'unknown' | 'missing_source';
+
+type SourceHealth = {
+  state: SourceHealthState;
+  label: string;
+  lastKind: string | null;
+  lastMessage: string | null;
+  checkedAt: Date | null;
+  buckets: {
+    successfulPolls: number;
+    fetchFailures: number;
+    parseFailures: number;
+    dataFailures: number;
+    configFailures: number;
+    operatorFailures: number;
+    corrections: number;
+  };
+};
+
 export async function xiangqiBroadcastIndexForApi(
   deps: XiangqiBroadcastApiPersistence = livePersistence,
 ) {
@@ -143,6 +162,7 @@ export async function xiangqiBroadcastOpsIndexForApi(
           ...rounds.map((round) => round.updatedAt),
           ...boards.map((board) => board.updatedAt),
         ]),
+        sourceHealth: sourceHealthFromLogs(tour.sourceUrl ?? null, syncLogs),
         syncLogs: syncLogs.slice(0, 8).map((log) => ({
           id: log.id,
           tourSlug: log.tourSlug,
@@ -365,6 +385,78 @@ function latestDate(values: Date[]): Date | null {
     if (!latest || value.getTime() > latest.getTime()) latest = value;
   }
   return latest;
+}
+
+function sourceHealthFromLogs(
+  sourceUrl: string | null,
+  logs: Awaited<ReturnType<typeof persistence.listXiangqiBroadcastSyncLogs>>,
+): SourceHealth {
+  const buckets = {
+    successfulPolls: 0,
+    fetchFailures: 0,
+    parseFailures: 0,
+    dataFailures: 0,
+    configFailures: 0,
+    operatorFailures: 0,
+    corrections: 0,
+  };
+
+  for (const log of logs) {
+    if (log.kind === 'manual_poll_ok' || log.kind === 'poll_ok') buckets.successfulPolls += 1;
+    if (
+      log.kind === 'source_http_error' ||
+      log.kind === 'source_fetch_error' ||
+      log.kind === 'source_timeout'
+    ) {
+      buckets.fetchFailures += 1;
+    }
+    if (log.kind === 'source_malformed') buckets.parseFailures += 1;
+    if (log.kind === 'illegal_move' || log.kind === 'incompatible_update') {
+      buckets.dataFailures += 1;
+    }
+    if (log.kind === 'source_disallowed') buckets.configFailures += 1;
+    if (log.kind === 'manual_poll_failed') buckets.operatorFailures += 1;
+    if (log.kind === 'corrected') buckets.corrections += 1;
+  }
+
+  if (!sourceUrl) {
+    return {
+      state: 'missing_source',
+      label: 'No source configured',
+      lastKind: null,
+      lastMessage: null,
+      checkedAt: null,
+      buckets,
+    };
+  }
+
+  const latest = logs[0] ?? null;
+  if (!latest) {
+    return {
+      state: 'unknown',
+      label: 'No source checks yet',
+      lastKind: null,
+      lastMessage: null,
+      checkedAt: null,
+      buckets,
+    };
+  }
+
+  const state: SourceHealthState =
+    latest.severity === 'error' ? 'error' : latest.severity === 'warning' ? 'warning' : 'ok';
+  return {
+    state,
+    label:
+      state === 'error'
+        ? 'Source needs attention'
+        : state === 'warning'
+          ? 'Source has warnings'
+          : 'Source healthy',
+    lastKind: latest.kind,
+    lastMessage: latest.message,
+    checkedAt: latest.createdAt,
+    buckets,
+  };
 }
 
 function versionKey(values: Array<Date | string | number | null | undefined>): string {

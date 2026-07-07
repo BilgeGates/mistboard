@@ -45,6 +45,12 @@ export type XiangqiBroadcastPollResult =
       message: string;
     };
 
+export type XiangqiBroadcastPollSchedule = {
+  intervalMs: number;
+  maxIntervalMs: number;
+  backoffMultiplier: number;
+};
+
 type SnapshotValidationResult =
   | { ok: true; snapshot: XiangqiBroadcastSourceSnapshot }
   | { ok: false; message: string };
@@ -84,6 +90,41 @@ function sourcePayloadSummary(value: unknown): Record<string, unknown> {
     keys: keys.slice(0, 12),
     keyCount: keys.length,
   };
+}
+
+export function xiangqiBroadcastPollSchedule(input: {
+  intervalMs: number;
+  maxIntervalMs?: number;
+  backoffMultiplier?: number;
+}): XiangqiBroadcastPollSchedule {
+  const intervalMs = boundedInteger(input.intervalMs, 250, 60_000, 1_000);
+  const maxIntervalMs = Math.max(
+    intervalMs,
+    boundedInteger(input.maxIntervalMs ?? 30_000, intervalMs, 300_000, 30_000),
+  );
+  const backoffMultiplier =
+    typeof input.backoffMultiplier === 'number' && Number.isFinite(input.backoffMultiplier)
+      ? Math.min(Math.max(input.backoffMultiplier, 1), 10)
+      : 2;
+  return { intervalMs, maxIntervalMs, backoffMultiplier };
+}
+
+export function nextXiangqiBroadcastPollDelayMs(input: {
+  result: XiangqiBroadcastPollResult;
+  previousDelayMs: number;
+  schedule: XiangqiBroadcastPollSchedule;
+}): number {
+  if (input.result.ok) return input.schedule.intervalMs;
+  const previous = Math.max(input.previousDelayMs, input.schedule.intervalMs);
+  return Math.min(
+    input.schedule.maxIntervalMs,
+    Math.max(input.schedule.intervalMs, Math.ceil(previous * input.schedule.backoffMultiplier)),
+  );
+}
+
+function boundedInteger(value: number, min: number, max: number, fallback: number): number {
+  if (!Number.isInteger(value)) return fallback;
+  return Math.min(Math.max(value, min), max);
 }
 
 async function recordSourceError(input: {
@@ -249,6 +290,8 @@ export async function pollXiangqiBroadcastSourceOnce(input: {
 export async function pollXiangqiBroadcastSourceLoop(input: {
   sourceUrl: string;
   intervalMs: number;
+  maxIntervalMs?: number;
+  backoffMultiplier?: number;
   timeoutMs?: number;
   allowCorrection?: boolean;
   sourcePolicy?: XiangqiBroadcastSourceUrlPolicy;
@@ -257,6 +300,12 @@ export async function pollXiangqiBroadcastSourceLoop(input: {
   onResult?: (result: XiangqiBroadcastPollResult) => void;
 }): Promise<void> {
   const wait = input.wait ?? ((ms) => new Promise<void>((resolve) => setTimeout(resolve, ms)));
+  const schedule = xiangqiBroadcastPollSchedule({
+    intervalMs: input.intervalMs,
+    maxIntervalMs: input.maxIntervalMs,
+    backoffMultiplier: input.backoffMultiplier,
+  });
+  let nextDelayMs = schedule.intervalMs;
   while (!input.signal?.aborted) {
     const result = await pollXiangqiBroadcastSourceOnce({
       sourceUrl: input.sourceUrl,
@@ -265,7 +314,12 @@ export async function pollXiangqiBroadcastSourceLoop(input: {
       sourcePolicy: input.sourcePolicy,
     });
     input.onResult?.(result);
+    nextDelayMs = nextXiangqiBroadcastPollDelayMs({
+      result,
+      previousDelayMs: nextDelayMs,
+      schedule,
+    });
     if (input.signal?.aborted) break;
-    await wait(input.intervalMs);
+    await wait(nextDelayMs);
   }
 }
