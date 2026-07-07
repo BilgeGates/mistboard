@@ -15,6 +15,7 @@ import {
   gameSpecForId,
   type Square,
 } from '@mistboard/game';
+import './community-rail.css';
 import './articles.css';
 import { type Announcement, announcements } from './announcements.js';
 import { type ArticleLang, translateArticle, translateArticleText } from './article-i18n.js';
@@ -173,18 +174,31 @@ export function buildRulesIndex(lang?: ArticleLang): HTMLElement {
 function buildContentIndex(kind: Article['kind'], lang?: ArticleLang): HTMLElement {
   const locale = articleLocale(lang);
   const main = document.createElement('main');
-  main.className = 'site-section article-shell articles-index';
+  main.className =
+    kind === 'article'
+      ? 'community-shell articles-community-shell articles-index'
+      : 'site-section article-shell articles-index';
+
+  const layout = document.createElement('div');
+  if (kind === 'article') {
+    layout.className = 'community-layout articles-community-layout';
+    layout.append(buildArticleCommunityRail(locale));
+  }
 
   const sheet = document.createElement('div');
   sheet.className = 'article-sheet';
 
+  const headingBlock = document.createElement('div');
+  headingBlock.className = 'articles-index-heading';
+
   const heading = document.createElement('h1');
   heading.className = 'site-section-heading';
-  heading.textContent = t(kind === 'rules' ? 'rules.heading' : 'articles.heading', {}, locale);
+  heading.textContent = kind === 'article' ? 'Recent posts' : t('rules.heading', {}, locale);
+  headingBlock.append(heading);
 
-  const intro = document.createElement('p');
-  intro.className = 'articles-index-intro';
-  intro.textContent = t(kind === 'rules' ? 'rules.intro' : 'articles.intro', {}, locale);
+  if (kind === 'article') {
+    headingBlock.append(buildArticleIndexControls());
+  }
 
   const list = document.createElement('ul');
   list.className = 'articles-index-list';
@@ -196,9 +210,83 @@ function buildContentIndex(kind: Article['kind'], lang?: ArticleLang): HTMLEleme
     list.append(articleCard(lang ? translateArticle(article, lang) : article, lang));
   }
 
-  sheet.append(heading, intro, list);
-  main.append(sheet);
+  sheet.append(headingBlock);
+  if (kind !== 'article') {
+    const intro = document.createElement('p');
+    intro.className = 'articles-index-intro';
+    intro.textContent = t('rules.intro', {}, locale);
+    sheet.append(intro);
+  }
+  sheet.append(list);
+  if (kind === 'article') {
+    layout.append(sheet);
+    main.append(layout);
+  } else {
+    main.append(sheet);
+  }
   return main;
+}
+
+function buildArticleCommunityRail(locale: Locale): HTMLElement {
+  const rail = document.createElement('aside');
+  rail.className = 'community-rail articles-community-rail';
+  rail.setAttribute('aria-label', 'Blog navigation');
+
+  const links = [
+    { label: 'Community', href: localizedHref('/articles', locale), active: true },
+    { label: 'By month', href: localizedHref('/articles', locale), active: false },
+    { label: 'By topic', href: localizedHref('/articles', locale), active: false },
+    { label: 'By Mistboard', href: localizedHref('/articles', locale), active: false },
+    { label: 'My likes', href: localizedHref('/articles', locale), active: false },
+    { label: 'My friends', href: localizedHref('/articles', locale), active: false },
+    { label: 'My blog', href: localizedHref('/articles', locale), active: false },
+  ];
+
+  for (const item of links) {
+    const link = document.createElement('a');
+    link.href = item.href;
+    link.textContent = item.label;
+    if (item.active) {
+      link.className = 'community-rail-active';
+      link.setAttribute('aria-current', 'page');
+    }
+    rail.append(link);
+  }
+
+  return rail;
+}
+
+function buildArticleIndexControls(): HTMLElement {
+  const controls = document.createElement('div');
+  controls.className = 'articles-index-controls';
+
+  const show = document.createElement('span');
+  show.className = 'articles-index-control-label';
+  show.textContent = 'Show';
+
+  const toggle = document.createElement('span');
+  toggle.className = 'articles-index-toggle';
+  toggle.setAttribute('aria-label', 'Post filter');
+  for (const [label, active] of [
+    ['best', true],
+    ['all', false],
+  ] as const) {
+    const item = document.createElement('span');
+    item.className = active ? 'articles-index-toggle-item active' : 'articles-index-toggle-item';
+    item.textContent = label;
+    toggle.append(item);
+  }
+
+  const language = document.createElement('span');
+  language.className = 'articles-index-language';
+  language.textContent = 'All languages';
+
+  const feed = document.createElement('span');
+  feed.className = 'articles-index-feed';
+  feed.setAttribute('aria-hidden', 'true');
+
+  controls.append(show, toggle, language, feed);
+  return controls;
 }
 
 // /rules is a landing page in the pychess shape: a short intro in the sheet
@@ -1844,25 +1932,39 @@ function articleCard(article: Article, lang?: ArticleLang): HTMLLIElement {
   const base = article.kind === 'rules' ? 'rules' : 'articles';
   link.href = localizedHref(`/${base}/${article.slug}`, locale);
 
+  const thumb = document.createElement('div');
+  thumb.className = 'articles-index-card-media';
   const mini = renderVariantMiniThumb(article.slug);
   if (mini) {
-    link.append(mini);
+    thumb.append(mini);
   } else if (article.thumbnail) {
-    link.append(renderArticleThumbnail(article.thumbnail));
+    thumb.append(renderArticleThumbnail(article.thumbnail));
+  } else {
+    thumb.classList.add('is-empty');
+  }
+
+  const dateIso = article.publishedAt ?? article.updatedAt;
+  if (dateIso) {
+    const date = document.createElement('span');
+    date.className = 'articles-index-card-over-image articles-index-card-date';
+    date.textContent = formatCardDate(dateIso, locale);
+    thumb.append(date);
+  }
+
+  const author = document.createElement('span');
+  author.className = 'articles-index-card-over-image articles-index-card-author';
+  author.textContent = 'Mistboard';
+  thumb.append(author);
+
+  if (isArticleStatusBadge(article.status)) {
+    const badge = document.createElement('span');
+    badge.className = `article-status-badge article-status-${article.status} articles-index-card-status`;
+    badge.textContent = t(ARTICLE_STATUS_KEYS[article.status], {}, locale);
+    thumb.append(badge);
   }
 
   const body = document.createElement('div');
   body.className = 'articles-index-card-body';
-
-  if (isArticleStatusBadge(article.status)) {
-    const meta = document.createElement('div');
-    meta.className = 'articles-index-card-meta';
-    const badge = document.createElement('span');
-    badge.className = `article-status-badge article-status-${article.status}`;
-    badge.textContent = t(ARTICLE_STATUS_KEYS[article.status], {}, locale);
-    meta.append(badge);
-    body.append(meta);
-  }
 
   const title = document.createElement('strong');
   title.className = 'articles-index-card-title';
@@ -1874,22 +1976,7 @@ function articleCard(article: Article, lang?: ArticleLang): HTMLLIElement {
 
   body.append(title, summary);
 
-  if (article.publishedAt) {
-    const dates = document.createElement('p');
-    dates.className = 'articles-index-card-dates';
-    const showUpdated = article.updatedAt && article.updatedAt !== article.publishedAt;
-    dates.textContent = showUpdated
-      ? `${t('articles.updated', {}, locale)} ${formatArticleDate(article.updatedAt!, locale)}`
-      : `${t('articles.published', {}, locale)} ${formatArticleDate(article.publishedAt, locale)}`;
-    body.append(dates);
-  }
-
-  const arrow = document.createElement('span');
-  arrow.className = 'articles-index-card-arrow';
-  arrow.setAttribute('aria-hidden', 'true');
-  arrow.textContent = '→';
-
-  link.append(body, arrow);
+  link.append(thumb, body);
   item.append(link);
   return item;
 }
