@@ -260,35 +260,40 @@
 }
 
 .puzzle-rating-card {
-  grid-template-columns: auto 1fr;
-  align-items: center;
-  row-gap: 6px;
-  min-height: 104px;
+  align-content: start;
+  gap: 14px;
+  min-height: 122px;
 }
 
-.puzzle-rating-card p,
-.puzzle-rating-card span {
-  margin: 0;
-  color: var(--site-muted);
-  font-size: 14px;
-  line-height: 1.2;
+.puzzle-rating-card--practice {
+  min-height: 118px;
 }
 
 .puzzle-rating-card p {
-  grid-column: 1 / -1;
+  margin: 0;
+  color: var(--site-muted);
+  font-size: 14px;
+  line-height: 1.35;
+}
+
+.puzzle-rating-summary {
+  display: grid;
+  justify-items: center;
+  gap: 4px;
+  text-align: center;
 }
 
 .puzzle-rating-card strong {
   color: var(--site-heading);
-  font-size: clamp(34px, 4vw, 48px);
+  font-size: clamp(44px, 5vw, 62px);
   font-weight: 400;
-  line-height: 0.95;
+  line-height: 1;
 }
 
-.puzzle-rating-card span {
-  align-self: end;
-  justify-self: end;
-  padding-bottom: 3px;
+.puzzle-rating-meta {
+  color: var(--site-muted);
+  font-size: 14px;
+  line-height: 1.2;
 }
 
 .puzzle-rating-delta {
@@ -306,13 +311,7 @@
   color: hsl(359, 58%, 57%);
 }
 
-.puzzle-rated-card {
-  display: grid;
-  row-gap: 10px;
-}
-
 .puzzle-rated-note {
-  margin: 0;
   color: var(--site-muted);
   font-size: 13px;
   line-height: 1.35;
@@ -772,7 +771,7 @@
   }
 
   .puzzle-rating-card strong {
-    font-size: 34px;
+    font-size: 50px;
   }
 }
 

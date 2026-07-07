@@ -85,6 +85,30 @@ describe('puzzles route', () => {
     expect(root.textContent).not.toContain('d4');
   });
 
+  it('merges the practice note into the puzzle rating card', async () => {
+    stubWindowLocalStorage(memoryStorage({ 'mistboard:puzzles:rated': 'false' }));
+    const mini = MINI_XIANGQI_PUZZLES[0]!;
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (input: RequestInfo | URL) => {
+        const url = String(input);
+        if (url === '/api/puzzles') return json({ puzzles: [publicSummary(mini)] });
+        if (url === `/api/puzzles/${mini.id}`) return json({ puzzle: publicDetail(mini) });
+        return json({ error: 'not_found' }, 404);
+      }),
+    );
+    const root = document.createElement('div');
+
+    await mountPuzzles(root, mini.id);
+
+    const ratingCard = root.querySelector('.puzzle-rating-card');
+    expect(root.querySelector('.puzzle-rated-card')).toBeNull();
+    expect(ratingCard?.querySelector<HTMLInputElement>('[data-puzzle-rated]')?.checked).toBe(false);
+    expect(ratingCard?.textContent).toContain('Rated');
+    expect(ratingCard?.textContent).toContain('Your puzzle rating will not change.');
+    expect(ratingCard?.textContent).not.toContain('0 solved of 1');
+  });
+
   it('re-renders the board when the xiangqi piece set changes live', async () => {
     stubWindowLocalStorage(memoryStorage({ 'mistboard.xiangqiPieceSet': 'animal-dobutsu' }));
     const mini = MINI_XIANGQI_PUZZLES[0]!;

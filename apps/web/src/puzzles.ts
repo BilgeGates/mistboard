@@ -486,30 +486,12 @@ function renderQueuePanel(host: HTMLElement, props: QueuePanelProps): void {
     infoCard.append(empty);
   }
 
-  const ratingCard = document.createElement('section');
-  ratingCard.className = 'puzzle-left-card puzzle-rating-card';
-  const ratingLabel = document.createElement('p');
-  ratingLabel.textContent = 'Your puzzle rating:';
-  const ratingValue = document.createElement('strong');
-  if (userRating) {
-    ratingValue.textContent = `${userRating.rating}${userRating.provisional ? '?' : ''}`;
-    if (ratingDelta) {
-      const delta = document.createElement('span');
-      delta.className = `puzzle-rating-delta puzzle-rating-delta--${ratingDelta > 0 ? 'up' : 'down'}`;
-      delta.textContent = ` ${ratingDelta > 0 ? '+' : ''}${ratingDelta}`;
-      ratingValue.append(delta);
-    }
-  } else {
-    ratingValue.textContent = 'Unrated';
-  }
-  const ratingMeta = document.createElement('span');
-  ratingMeta.textContent = `${solvedCount} solved of ${queue.length}`;
-  ratingCard.append(ratingLabel, ratingValue, ratingMeta);
-
   // Rated on/off (lichess parity). Off = practice: attempts send rated:false, so
   // neither the user's nor the puzzle's rating moves.
-  const ratedCard = document.createElement('section');
-  ratedCard.className = 'puzzle-left-card puzzle-rated-card';
+  const ratingCard = document.createElement('section');
+  ratingCard.className = `puzzle-left-card puzzle-rating-card${
+    ratedEnabled ? ' puzzle-rating-card--enabled' : ' puzzle-rating-card--practice'
+  }`;
   const ratedToggle = document.createElement('label');
   ratedToggle.className = 'puzzle-toggle puzzle-rated-toggle';
   const ratedInput = document.createElement('input');
@@ -524,13 +506,34 @@ function renderQueuePanel(host: HTMLElement, props: QueuePanelProps): void {
   ratedName.className = 'puzzle-toggle-label';
   ratedName.textContent = 'Rated';
   ratedToggle.append(ratedInput, ratedSwitch, ratedName);
-  ratedCard.append(ratedToggle);
+  ratingCard.append(ratedToggle);
+  if (ratedEnabled) {
+    const ratingSummary = document.createElement('div');
+    ratingSummary.className = 'puzzle-rating-summary';
+    const ratingValue = document.createElement('strong');
+    if (userRating) {
+      ratingValue.textContent = `${userRating.rating}${userRating.provisional ? '?' : ''}`;
+      if (ratingDelta) {
+        const delta = document.createElement('span');
+        delta.className = `puzzle-rating-delta puzzle-rating-delta--${ratingDelta > 0 ? 'up' : 'down'}`;
+        delta.textContent = ` ${ratingDelta > 0 ? '+' : ''}${ratingDelta}`;
+        ratingValue.append(delta);
+      }
+    } else {
+      ratingValue.textContent = 'Unrated';
+    }
+    const ratingMeta = document.createElement('span');
+    ratingMeta.className = 'puzzle-rating-meta';
+    ratingMeta.textContent = `${solvedCount} solved of ${queue.length}`;
+    ratingSummary.append(ratingValue, ratingMeta);
+    ratingCard.append(ratingSummary);
+  }
   if (!ratedEnabled) {
     const ratedNote = document.createElement('p');
     ratedNote.className = 'puzzle-rated-note';
     ratedNote.textContent =
-      'Your puzzle rating will not change. Puzzles are not a competition: your rating just helps pick puzzles at your level.';
-    ratedCard.append(ratedNote);
+      'Your puzzle rating will not change. Note that puzzles are not a competition. Your rating helps select the most appropriate puzzles for your skill level.';
+    ratingCard.append(ratedNote);
   }
 
   const themesCard = document.createElement('section');
@@ -603,7 +606,7 @@ function renderQueuePanel(host: HTMLElement, props: QueuePanelProps): void {
   form.append(autoNextToggle);
   settingsCard.append(settingsTitle, form);
 
-  host.append(infoCard, ratingCard, ratedCard, themesCard, settingsCard);
+  host.append(infoCard, ratingCard, themesCard, settingsCard);
 }
 
 function puzzleInfoRow(
