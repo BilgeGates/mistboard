@@ -10,6 +10,40 @@ live room.
 The broadcast system is publishing and study infrastructure. It is not
 matchmaking, ratings, chat, or a general tournament server.
 
+## Current Checkpoint
+
+As of July 7, 2026, the core xiangqi broadcast loop is on `main` and locally
+testable with one command:
+
+```bash
+npm run smoke:xiangqi-broadcast
+```
+
+Landed:
+
+- canonical coordinate fixtures and legal replay validation;
+- Postgres persistence for tours, rounds, boards, board updates, and sync logs;
+- offline fixture import, canonical export, and public read APIs;
+- deterministic event tapes, local fake source server, and local source poller;
+- public broadcast index, tour, round, and board replay pages;
+- persistence-backed SSE updates for round and board viewers;
+- admin-only ops console with manual poll, correction mode, recent sync logs,
+  source health buckets, and bounded poll backoff;
+- WXF/DhtmlXQ real-source proof using a checked-in official-page fixture;
+- source URL safety policy that keeps production source polling fail-closed.
+
+Still intentionally open:
+
+- WXF multi-page or tour-manifest workflow;
+- dry-run/import preview before destructive corrections;
+- visual polish for top-tier event watching, including theater-mode treatment,
+  multi-board scanning, live-move affordances, and mobile QA;
+- scheduled production polling for an approved event.
+
+Study/game-analysis UI is not a blocker for this broadcast track. Broadcasts
+can publish and replay top games first; analysis can attach later to completed
+broadcast games.
+
 ## Product Bar
 
 The first public version should make elite xiangqi enjoyable to watch:
@@ -157,28 +191,48 @@ full round can be tested locally in minutes.
 
 ### Fake Source Server
 
-Add a local source simulator before live polling:
+Serve a local fake source before live polling:
 
 ```bash
-npm run broadcast:fixture -- 2025-wxc-sample
-npm run broadcast:sim -- 2025-wxc-sample --speed 20
-npm run broadcast:source -- 2025-wxc-sample --mode clean
-npm run broadcast:source -- 2025-wxc-sample --mode flaky
+npm run source:xiangqi-broadcast -- \
+  --dir packages/game/fixtures/xiangqi-broadcast/2025-wxc-sample \
+  --mode clean \
+  --port 3127
 ```
 
-Simulator modes should cover:
+Poll it into local Postgres:
+
+```bash
+npm run db:poll:xiangqi-broadcast -- \
+  --source http://localhost:3127/source.json \
+  --once \
+  --timeout-ms 1000
+```
+
+Simulator modes cover:
 
 - clean incremental updates;
 - stale responses;
 - repeated payloads;
-- out-of-order updates;
-- corrected move lists;
-- missing boards;
 - malformed records;
-- illegal moves;
 - source 500s and timeouts.
 
 ## Milestones
+
+Current status:
+
+| Milestone | Status |
+|-----------|--------|
+| M0 fixture schema and validation | Landed |
+| M1 offline import and read APIs | Landed |
+| M2 local live simulation | Landed |
+| M3 public viewer | Landed |
+| M4 live updates | Landed |
+| M5 organizer console | Landed |
+| M6 real-source adapter proof | Landed for WXF/DhtmlXQ |
+| Source production hardening | In progress in issue #118 |
+| Viewer polish for top-tier events | Not started |
+| Scheduled production polling | Not started |
 
 ### M0: Broadcast Brief And Fixture Schema
 
