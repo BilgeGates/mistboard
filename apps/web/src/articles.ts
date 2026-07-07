@@ -232,25 +232,38 @@ function buildArticleCommunityRail(locale: Locale): HTMLElement {
   rail.className = 'community-rail articles-community-rail';
   rail.setAttribute('aria-label', 'Blog navigation');
 
-  const links = [
-    { label: 'Community', href: localizedHref('/articles', locale), active: true },
-    { label: 'By month', href: localizedHref('/articles', locale), active: false },
-    { label: 'By topic', href: localizedHref('/articles', locale), active: false },
-    { label: 'By Mistboard', href: localizedHref('/articles', locale), active: false },
-    { label: 'My likes', href: localizedHref('/articles', locale), active: false },
-    { label: 'My friends', href: localizedHref('/articles', locale), active: false },
-    { label: 'My blog', href: localizedHref('/articles', locale), active: false },
+  type RailItem =
+    | { label: string; href: string; active: boolean; enabled: true }
+    | { label: string; enabled: false };
+
+  const links: RailItem[] = [
+    { label: 'Community', href: localizedHref('/articles', locale), active: true, enabled: true },
+    { label: 'By month', enabled: false },
+    { label: 'By topic', enabled: false },
+    { label: 'By Mistboard', enabled: false },
+    { label: 'My likes', enabled: false },
+    { label: 'My friends', enabled: false },
+    { label: 'My blog', enabled: false },
   ];
 
   for (const item of links) {
-    const link = document.createElement('a');
-    link.href = item.href;
-    link.textContent = item.label;
-    if (item.active) {
-      link.className = 'community-rail-active';
-      link.setAttribute('aria-current', 'page');
+    if (item.enabled) {
+      const link = document.createElement('a');
+      link.href = item.href;
+      link.textContent = item.label;
+      if (item.active) {
+        link.className = 'community-rail-active';
+        link.setAttribute('aria-current', 'page');
+      }
+      rail.append(link);
+    } else {
+      const disabled = document.createElement('span');
+      disabled.className = 'community-rail-disabled';
+      disabled.setAttribute('aria-disabled', 'true');
+      disabled.title = 'Community blogs are not available yet.';
+      disabled.textContent = item.label;
+      rail.append(disabled);
     }
-    rail.append(link);
   }
 
   return rail;
@@ -271,22 +284,56 @@ function buildArticleIndexControls(): HTMLElement {
     ['best', true],
     ['all', false],
   ] as const) {
-    const item = document.createElement('span');
+    const item = document.createElement('button');
+    item.type = 'button';
+    item.disabled = true;
     item.className = active ? 'articles-index-toggle-item active' : 'articles-index-toggle-item';
     item.textContent = label;
+    item.title = 'Post sorting will unlock when community blogs launch.';
     toggle.append(item);
   }
 
-  const language = document.createElement('span');
+  const language = document.createElement('button');
+  language.type = 'button';
+  language.disabled = true;
   language.className = 'articles-index-language';
   language.textContent = 'All languages';
+  language.title = 'Language filtering will unlock when community blogs launch.';
 
   const feed = document.createElement('span');
   feed.className = 'articles-index-feed';
   feed.setAttribute('aria-hidden', 'true');
+  feed.append(renderRssIcon());
 
   controls.append(show, toggle, language, feed);
   return controls;
+}
+
+function renderRssIcon(): SVGSVGElement {
+  const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+  svg.setAttribute('viewBox', '0 0 24 24');
+  svg.setAttribute('fill', 'none');
+  svg.setAttribute('stroke', 'currentColor');
+  svg.setAttribute('stroke-width', '2.5');
+  svg.setAttribute('stroke-linecap', 'round');
+  svg.setAttribute('stroke-linejoin', 'round');
+  svg.setAttribute('focusable', 'false');
+
+  for (const d of ['M4 11a9 9 0 0 1 9 9', 'M4 4a16 16 0 0 1 16 16']) {
+    const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+    path.setAttribute('d', d);
+    svg.append(path);
+  }
+
+  const circle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+  circle.setAttribute('cx', '5');
+  circle.setAttribute('cy', '19');
+  circle.setAttribute('r', '1');
+  circle.setAttribute('fill', 'currentColor');
+  circle.setAttribute('stroke', 'currentColor');
+  svg.append(circle);
+
+  return svg;
 }
 
 // /rules is a landing page in the pychess shape: a short intro in the sheet

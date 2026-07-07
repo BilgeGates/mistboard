@@ -30,11 +30,15 @@
   padding-top: 0;
 }
 
-.articles-community-rail a {
+.articles-community-rail a,
+.articles-community-rail span {
+  display: block;
   padding: 10px 13px;
   border-left: 0;
   color: var(--site-muted);
   font-size: 16px;
+  line-height: 1.25;
+  text-decoration: none;
 }
 
 .articles-community-rail a.community-rail-active {
@@ -42,6 +46,10 @@
   color: var(--site-heading);
   font-weight: 500;
   box-shadow: 0 1px 5px rgba(29, 37, 34, 0.07);
+}
+
+.articles-community-rail .community-rail-disabled {
+  cursor: default;
 }
 
 .articles-index .article-sheet {
@@ -82,8 +90,12 @@
 }
 
 .articles-index-toggle-item {
+  appearance: none;
+  border: 0;
+  background: transparent;
   padding: 10px 16px;
   color: var(--site-text);
+  font: inherit;
   line-height: 1;
 }
 
@@ -93,10 +105,19 @@
   font-weight: 700;
 }
 
+.articles-index-toggle-item:disabled,
+.articles-index-language:disabled {
+  cursor: default;
+  opacity: 1;
+}
+
 .articles-index-language {
+  appearance: none;
+  border: 1px solid var(--site-border-soft);
   padding: 10px 48px 10px 18px;
   position: relative;
   color: var(--site-text);
+  font: inherit;
 }
 
 .articles-index-language::after {
@@ -112,37 +133,17 @@
 
 .articles-index-feed {
   position: relative;
-  display: inline-block;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   width: 44px;
   height: 44px;
   color: color-mix(in srgb, var(--site-muted) 76%, transparent);
 }
 
-.articles-index-feed::before,
-.articles-index-feed::after {
-  content: "";
-  position: absolute;
-  border-top: 7px solid currentColor;
-  border-right: 7px solid currentColor;
-  border-radius: 0 100% 0 0;
-}
-
-.articles-index-feed::before {
-  right: 4px;
-  bottom: 4px;
-  width: 32px;
-  height: 32px;
-}
-
-.articles-index-feed::after {
-  right: 4px;
-  bottom: 4px;
-  width: 18px;
-  height: 18px;
-}
-
-.articles-index-feed {
-  background: radial-gradient(circle at 9px 35px, currentColor 0 5px, transparent 6px);
+.articles-index-feed svg {
+  width: 39px;
+  height: 39px;
 }
 
 .articles-index-list {

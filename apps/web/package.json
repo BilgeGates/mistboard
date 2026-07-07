@@ -5,7 +5,8 @@
   "license": "AGPL-3.0-or-later",
   "type": "module",
   "scripts": {
-    "dev": "vite --host 0.0.0.0 --port 3000",
+    "dev": "vite --host 0.0.0.0 --port ${PORT:-3000} --strictPort",
+    "dev:agent": "vite --host 0.0.0.0 --port ${PORT:-3099} --strictPort",
     "build": "tsc -p tsconfig.json && vite build && node scripts/prerender-articles.mjs",
     "test": "node scripts/learn-interface-smoke.mjs",
     "test:dark-xiangqi:persistent": "node scripts/dark-xiangqi-persistent-smoke.mjs",

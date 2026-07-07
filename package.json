@@ -11,6 +11,7 @@
   "scripts": {
     "dev": "concurrently --kill-others-on-fail --names server,web --prefix-colors blue,green 'npm run dev --workspace @mistboard/server' 'npm run dev --workspace @mistboard/web'",
     "dev:persistent": "concurrently --kill-others-on-fail --names server,web --prefix-colors blue,green 'npm run dev:persistent --workspace @mistboard/server' 'npm run dev --workspace @mistboard/web'",
+    "dev:web:agent": "npm run dev:agent --workspace @mistboard/web",
     "dev:dark-crossroads": "npm run db:up && npm run dev:persistent",
     "dev:dark-shogi": "npm run db:up && npm run dev:persistent",
     "db:up": "docker compose up -d postgres",
