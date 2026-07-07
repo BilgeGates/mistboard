@@ -27,13 +27,6 @@
   background: var(--site-surface);
 }
 
-.notif-nav-dobutsu-icon {
-  width: 28px;
-  height: 28px;
-  transform: scale(1.08);
-  filter: none;
-}
-
 .notif-nav-badge {
   position: absolute;
   top: 2px;
