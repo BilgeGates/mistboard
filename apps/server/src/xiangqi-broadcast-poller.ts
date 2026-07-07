@@ -1,5 +1,10 @@
 import type { XiangqiBroadcastBoard } from '@mistboard/game';
 import * as persistence from './persistence.js';
+import {
+  validateXiangqiBroadcastSourceUrl,
+  type XiangqiBroadcastSourceUrlPolicy,
+  xiangqiBroadcastSourceUrlPolicyFromEnv,
+} from './xiangqi-broadcast-source-policy.js';
 
 export type XiangqiBroadcastSourceSnapshot = {
   tour: unknown;
@@ -17,6 +22,7 @@ export type XiangqiBroadcastSourceFetch = (
 }>;
 
 export type XiangqiBroadcastPollErrorKind =
+  | 'source_disallowed'
   | 'source_http_error'
   | 'source_fetch_error'
   | 'source_timeout'
@@ -136,6 +142,7 @@ export async function pollXiangqiBroadcastSourceOnce(input: {
   allowCorrection?: boolean;
   timeoutMs?: number;
   fetchImpl?: XiangqiBroadcastSourceFetch;
+  sourcePolicy?: XiangqiBroadcastSourceUrlPolicy;
 }): Promise<XiangqiBroadcastPollResult> {
   const timeoutMs = input.timeoutMs ?? 5_000;
   const fetchImpl =
@@ -146,6 +153,23 @@ export async function pollXiangqiBroadcastSourceOnce(input: {
         status: number;
         json(): Promise<unknown>;
       }>);
+
+  const sourcePolicy = input.sourcePolicy ?? xiangqiBroadcastSourceUrlPolicyFromEnv();
+  const sourceDecision = validateXiangqiBroadcastSourceUrl(input.sourceUrl, sourcePolicy);
+  if (!sourceDecision.ok) {
+    await recordSourceError({
+      sourceUrl: input.sourceUrl,
+      kind: 'source_disallowed',
+      message: sourceDecision.message,
+      payload: { reason: sourceDecision.reason },
+    });
+    return {
+      ok: false,
+      sourceUrl: input.sourceUrl,
+      kind: 'source_disallowed',
+      message: sourceDecision.message,
+    };
+  }
 
   const fetched = await fetchSourceJson({
     sourceUrl: input.sourceUrl,
@@ -227,6 +251,7 @@ export async function pollXiangqiBroadcastSourceLoop(input: {
   intervalMs: number;
   timeoutMs?: number;
   allowCorrection?: boolean;
+  sourcePolicy?: XiangqiBroadcastSourceUrlPolicy;
   signal?: AbortSignal;
   wait?: (ms: number) => Promise<void>;
   onResult?: (result: XiangqiBroadcastPollResult) => void;
@@ -237,6 +262,7 @@ export async function pollXiangqiBroadcastSourceLoop(input: {
       sourceUrl: input.sourceUrl,
       timeoutMs: input.timeoutMs,
       allowCorrection: input.allowCorrection,
+      sourcePolicy: input.sourcePolicy,
     });
     input.onResult?.(result);
     if (input.signal?.aborted) break;

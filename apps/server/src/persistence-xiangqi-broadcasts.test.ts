@@ -28,6 +28,7 @@ import {
 const FIXTURE_DIR = fileURLToPath(
   new URL('../../../packages/game/fixtures/xiangqi-broadcast/2025-wxc-sample', import.meta.url),
 );
+const FIXTURE_SOURCE_POLICY = { allowedHosts: ['fixture.invalid'], allowLocal: false } as const;
 
 async function fixturePack(includeGameFiles = false) {
   return await readXiangqiBroadcastFixturePack(FIXTURE_DIR, includeGameFiles);
@@ -262,6 +263,7 @@ definePersistenceTests('xiangqi broadcasts', () => {
     };
     const result = await pollXiangqiBroadcastSourceOnce({
       sourceUrl: 'https://fixture.invalid/source.json',
+      sourcePolicy: FIXTURE_SOURCE_POLICY,
       fetchImpl: sourceFetch(updatedBody),
     });
 
@@ -302,6 +304,7 @@ definePersistenceTests('xiangqi broadcasts', () => {
 
     const result = await pollXiangqiBroadcastSourceOnce({
       sourceUrl: 'https://fixture.invalid/source.json',
+      sourcePolicy: FIXTURE_SOURCE_POLICY,
       fetchImpl: sourceFetch(source.body),
     });
 
@@ -327,6 +330,7 @@ definePersistenceTests('xiangqi broadcasts', () => {
   test('source poller logs malformed HTTP and timeout failures', async () => {
     const httpError = await pollXiangqiBroadcastSourceOnce({
       sourceUrl: 'https://fixture.invalid/source.json',
+      sourcePolicy: FIXTURE_SOURCE_POLICY,
       fetchImpl: sourceFetch({ error: 'fixture_source_error' }, 500),
     });
     assert.equal(httpError.ok, false);
@@ -334,6 +338,7 @@ definePersistenceTests('xiangqi broadcasts', () => {
 
     const malformed = await pollXiangqiBroadcastSourceOnce({
       sourceUrl: 'https://fixture.invalid/source.json',
+      sourcePolicy: FIXTURE_SOURCE_POLICY,
       fetchImpl: sourceFetch({ malformed: true, boards: { bad: true } }),
     });
     assert.equal(malformed.ok, false);
@@ -341,6 +346,7 @@ definePersistenceTests('xiangqi broadcasts', () => {
 
     const timedOut = await pollXiangqiBroadcastSourceOnce({
       sourceUrl: 'https://fixture.invalid/source.json',
+      sourcePolicy: FIXTURE_SOURCE_POLICY,
       timeoutMs: 1,
       fetchImpl: timeoutFetch(),
     });
@@ -360,5 +366,24 @@ definePersistenceTests('xiangqi broadcasts', () => {
       keyCount: 2,
     });
     assert.equal(Object.hasOwn(malformedLog?.payload ?? {}, 'body'), false);
+  });
+
+  test('source poller rejects disallowed URLs before fetch', async () => {
+    const result = await pollXiangqiBroadcastSourceOnce({
+      sourceUrl: 'https://unapproved.example/source.json',
+      sourcePolicy: { allowedHosts: [], allowLocal: false },
+      fetchImpl: async () => {
+        throw new Error('fetch should not run');
+      },
+    });
+
+    assert.equal(result.ok, false);
+    assert.equal(result.ok ? '' : result.kind, 'source_disallowed');
+
+    const logs = await listXiangqiBroadcastSyncLogs({});
+    assert.equal(logs.length, 1);
+    assert.equal(logs[0]?.kind, 'source_disallowed');
+    assert.equal(logs[0]?.payload.reason, 'host_not_allowed');
+    assert.equal(logs[0]?.payload.sourceUrl, 'https://unapproved.example/source.json');
   });
 });

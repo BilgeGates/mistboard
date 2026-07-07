@@ -209,6 +209,42 @@ test('manual broadcast poll records tour-scoped source failures', async () => {
   ]);
 });
 
+test('manual broadcast poll reports disallowed source as a configuration error', async () => {
+  const recorded: unknown[] = [];
+  const result = await manualXiangqiBroadcastPollForApi(
+    tour.slug,
+    { allowCorrection: false, timeoutMs: 1_000 },
+    deps({
+      recordXiangqiBroadcastSyncLog: async (input) => {
+        recorded.push(input);
+      },
+    }),
+    async (input) => ({
+      ok: false,
+      sourceUrl: input.sourceUrl,
+      kind: 'source_disallowed',
+      message: 'source URL host is not allowed',
+    }),
+  );
+
+  assert.equal(result.ok, false);
+  assert.equal(result.ok ? '' : result.status, 400);
+  assert.equal(result.ok ? '' : result.error, 'source_disallowed');
+  assert.deepEqual(recorded, [
+    {
+      tourSlug: tour.slug,
+      severity: 'error',
+      kind: 'manual_poll_failed',
+      message: 'source URL host is not allowed',
+      payload: {
+        sourceUrl: tour.sourceUrl,
+        errorKind: 'source_disallowed',
+        allowCorrection: false,
+      },
+    },
+  ]);
+});
+
 test('broadcast tour API returns tour detail with rounds', async () => {
   const payload = await xiangqiBroadcastTourForApi(tour.slug, deps());
 

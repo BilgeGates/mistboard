@@ -201,6 +201,7 @@ Edit task → find file → open only that file.
 | `simulate-xiangqi-broadcast.ts` | CLI: replay a xiangqi broadcast `tape.json` into local Postgres via the broadcast update boundary |
 | `serve-xiangqi-broadcast-source.ts` | CLI: serve a local xiangqi broadcast fixture source with clean/stale/malformed/error/timeout modes, including WXF DhtmlXQ HTML conversion via `--wxf-html` |
 | `xiangqi-broadcast-poller.ts` | Local xiangqi broadcast source poller: fetch source snapshots, import tour/round metadata, apply board updates, and log source failures |
+| `xiangqi-broadcast-source-policy.ts` | Xiangqi broadcast source URL safety policy: local-dev allowance, production allowed-host checks, credential/protocol rejection, and private-address guards |
 | `xiangqi-broadcast-sim.ts` | Local xiangqi broadcast simulator core: tape frames, fake-source snapshots, and DB tape runner |
 | `xiangqi-broadcast-wxf-dhtmlxq.ts` | WXF/DhtmlXQ real-source adapter: parses WXF tournament HTML iframe payloads, decodes DhtmlXQ coordinate move lists, validates replay, and emits canonical xiangqi broadcast snapshots |
 | `import-corpus.ts` | CLI: import FoW game corpus |

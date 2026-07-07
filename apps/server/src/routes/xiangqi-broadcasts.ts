@@ -190,7 +190,12 @@ export async function manualXiangqiBroadcastPollForApi(
         allowCorrection: options.allowCorrection,
       },
     });
-    return { ok: false, status: 502, error: result.kind, result };
+    return {
+      ok: false,
+      status: result.kind === 'source_disallowed' ? 400 : 502,
+      error: result.kind,
+      result,
+    };
   }
 
   await deps.recordXiangqiBroadcastSyncLog({
