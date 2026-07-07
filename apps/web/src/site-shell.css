@@ -175,6 +175,11 @@
   color: var(--site-on-accent);
 }
 
+.site-nav-link-signin {
+  color: var(--site-link);
+  text-transform: none;
+}
+
 .site-nav-menu {
   position: relative;
 }
@@ -354,6 +359,27 @@
 
   .landing-footer {
     padding: 18px 16px;
+  }
+
+  .site-nav-auth {
+    gap: 18px;
+  }
+
+  .site-nav-auth .site-nav-link {
+    min-height: 42px;
+    padding: 0 10px;
+    font-size: 22px;
+    font-weight: 700;
+    text-transform: uppercase;
+  }
+
+  .site-nav-auth .site-nav-link-register {
+    min-height: 54px;
+    border-radius: 7px;
+    padding: 0 22px;
+    box-shadow:
+      inset 0 1px 0 color-mix(in srgb, white 22%, transparent),
+      0 2px 4px color-mix(in srgb, var(--site-shadow) 34%, transparent);
   }
 }
 

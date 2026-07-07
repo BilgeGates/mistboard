@@ -64,6 +64,10 @@ export async function mountAccount(root: HTMLElement): Promise<void> {
     console.warn(err);
     return null;
   });
+  if (current) {
+    window.location.replace(localizedHref('/account/settings', locale));
+    return;
+  }
   renderAccountShell(shell, current, currentAccountTab(), locale);
 }
 
@@ -103,6 +107,7 @@ function renderAccountShell(
           tab,
           (next) => renderAccountShell(shell, next, currentAccountTab(), locale),
           locale,
+          { redirectOnSuccess: true },
         ),
   );
 }
@@ -124,6 +129,7 @@ function renderAccountSettingsShell(
           'login',
           (next) => renderAccountSettingsShell(shell, next, section, locale),
           locale,
+          { redirectOnSuccess: false },
         ),
   );
 }
@@ -921,6 +927,7 @@ function buildLoginForm(
   tab: 'login' | 'register' = 'login',
   onAuth: (user: AuthUser) => void = () => undefined,
   locale: Locale = currentLocale(),
+  options: { redirectOnSuccess: boolean } = { redirectOnSuccess: true },
 ): HTMLElement {
   const panel = document.createElement('section');
   panel.className = 'account-panel account-auth-panel';
@@ -1014,9 +1021,8 @@ function buildLoginForm(
         });
         if (data.isNewUser) track('signup_completed');
         setAccountNavUser(data.user);
-        const referrer = requestedAuthReferrer();
-        if (referrer) {
-          window.location.href = referrer;
+        if (options.redirectOnSuccess) {
+          window.location.href = requestedAuthReferrer() ?? localizedHref('/', locale);
           return;
         }
         onAuth(data.user);

@@ -71,7 +71,8 @@ describe('account page auth flow', () => {
 
     expect(document.querySelector('.account-nav-trigger')?.textContent).toBe('misty');
     expect(document.querySelector('.site-nav-link-signin')).toBeNull();
-    expect(document.querySelector('h1')?.textContent).toBe('@misty');
+    expect(window.location.pathname).toBe('/');
+    expect(document.querySelector('h1')?.textContent).toBe('Sign in');
   });
 
   it('shows local setup guidance when the auth API is unavailable', async () => {
