@@ -11,11 +11,14 @@ import { randomBytes, randomUUID } from 'node:crypto';
 import { clockPolicyKindFor } from '@mistboard/game';
 import type { UserAccount } from '../persistence.js';
 import { hashSeatToken } from '../server-seat-session.js';
-import type { TenantSeatTokenState } from './tenant.js';
+import type { TenantSeat, TenantSeatTokenState } from './tenant.js';
 
 export type TenantSeatClient<C extends string> = {
   displaced: boolean;
-  seat: C;
+  // A live client's seat may be 'spectator' (debug-authorized read-only viewer);
+  // displacement only ever matches on a real color, so a spectator never
+  // displaces or is displaced. See TenantLiveClient in ws.ts.
+  seat: TenantSeat<C>;
   socket: { close(code?: number, reason?: string): unknown };
 };
 

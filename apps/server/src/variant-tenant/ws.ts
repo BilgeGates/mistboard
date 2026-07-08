@@ -19,7 +19,13 @@ import type { IncomingMessage } from 'node:http';
 import type { WebSocket } from 'ws';
 import { currentAccountUser } from '../account-session.js';
 import { logger, wsCounters } from '../obs.js';
-import { recordMessageTimestamp, seatTokenFromProtocolHeader } from '../server-policy.js';
+import {
+  adminDebugTokenFromProtocolHeader,
+  isAdminDebugToken,
+  isProductionLikeRuntime,
+  recordMessageTimestamp,
+  seatTokenFromProtocolHeader,
+} from '../server-policy.js';
 import { isKnownClientMessageType, parseClientMessage } from '../server-ws-messages.js';
 import {
   appendTenantEvent,
@@ -56,6 +62,7 @@ import type {
   TenantGameStateLike,
   TenantRoomEvent,
   TenantRuntimeRoom,
+  TenantSeat,
   VariantTenant,
 } from './tenant.js';
 
@@ -65,7 +72,9 @@ export type TenantLiveClient<C extends string> = {
   id: string;
   messageTimestamps: number[];
   roomId: string;
-  seat: C;
+  // A debug-authorized spectator (dev / admin token) joins full rooms with seat
+  // 'spectator'; handleMessage keeps them read-only. Normal players hold a color.
+  seat: TenantSeat<C>;
   seatTokenHash?: string;
   socket: WebSocket;
   solo: false;
@@ -178,6 +187,16 @@ export function createTenantWsRuntime<
     const seatToken = seatTokenFromProtocolHeader(request.headers['sec-websocket-protocol']);
     const assignment = assignTenantSeat(tenant, room, clientId, seatToken, accountUser);
     if (!assignment.ok) {
+      // Debug-authorized spectator fallback: a full private room (both seats
+      // taken) admits a read-only spectator when the runtime is non-production
+      // or the request carries an admin debug token. Same rule as
+      // isDebugViewAuthorized in server-ws-connection.ts. Every other rejection
+      // reason (rated/correspondence account gates) still closes fail-closed,
+      // and production without the token stays fail-closed for 'private room'.
+      if (assignment.reason === 'private room' && isDebugViewAuthorized(request)) {
+        joinAsSpectator(ctx, socket, room, clientId, accountUser?.id ?? null);
+        return;
+      }
       socket.close(1008, assignment.reason);
       return;
     }
@@ -266,6 +285,62 @@ export function createTenantWsRuntime<
     });
   }
 
+  // Read-only spectator admission for a debug-authorized viewer on a full room.
+  // Deliberately skips everything a seated join does that mutates room state or
+  // asserts a seat identity: no seat-assigned event (no token persisted), no
+  // displacement (spectators don't own a seat, so they never displace each
+  // other or a player), no engine scheduling, no rematch redirect replay. The
+  // hello carries no seatToken. handleMessage enforces the read-only contract.
+  function joinAsSpectator(
+    ctx: TenantWebSocketContext<Kind, C, M, State, Spec>,
+    socket: WebSocket,
+    room: LiveRoom,
+    clientId: string,
+    userId: string | null,
+  ): void {
+    const client: LiveClient = {
+      debugRequested: false,
+      displaced: false,
+      id: clientId,
+      messageTimestamps: [],
+      roomId: room.id,
+      seat: 'spectator',
+      socket,
+      solo: false,
+      userId,
+    };
+    room.clients.add(client);
+
+    sendPayload(client, {
+      ...transportSnapshotPayload(room, client),
+      type: 'hello',
+      clientId: client.id,
+    });
+    // A spectator arriving doesn't change canonical state, but the connected-
+    // client count did; keep observers' snapshots consistent.
+    broadcastSnapshot(room);
+
+    socket.on('message', (raw) => {
+      if (
+        !recordMessageTimestamp(
+          client.messageTimestamps,
+          Date.now(),
+          ctx.wsMessageLimit,
+          ctx.wsMessageWindowMs,
+        )
+      ) {
+        socket.close(1008, 'rate limit');
+        return;
+      }
+      void handleMessage(ctx, room, client, raw.toString());
+    });
+
+    socket.on('close', () => {
+      room.clients.delete(client);
+      broadcastSnapshot(room);
+    });
+  }
+
   async function handleMessage(
     ctx: TenantWebSocketContext<Kind, C, M, State, Spec>,
     room: LiveRoom,
@@ -310,12 +385,21 @@ export function createTenantWsRuntime<
       sendPayload(client, transportSnapshotPayload(room, client));
       return;
     }
+    // Read-only guard for debug spectators. Everything above (ping /
+    // latency-sample / snapshot:request) is read-only; everything below appends
+    // events or asserts a seat identity, so a spectator (no seat) stops here.
+    // This is a correctness invariant, not polish: handleResign / handleSetupSubmit
+    // stamp `color: seat` with no seat validation, so a spectator resign would
+    // otherwise append `color:'spectator'` and corrupt the event log. After this
+    // guard client.seat narrows to a real color; `seat` threads it downstream.
+    if (client.seat === 'spectator') return;
+    const seat: C = client.seat;
     if (message.type === 'resign') {
-      await handleResign(room, client);
+      await handleResign(room, client, seat);
       return;
     }
     if (message.type === 'abort') {
-      await handleAbort(room, client);
+      await handleAbort(room, client, seat);
       return;
     }
     if (message.type === 'rematch:offer') {
@@ -333,7 +417,7 @@ export function createTenantWsRuntime<
       return;
     }
     if (message.type === 'setup:submit') {
-      await handleSetupSubmit(room, client, message);
+      await handleSetupSubmit(room, client, seat, message);
       return;
     }
     if (message.type !== 'move') return;
@@ -346,7 +430,7 @@ export function createTenantWsRuntime<
     for (const color of tenant.colors) {
       if (!room.projection.seats[color]) return;
     }
-    if (status.turn !== client.seat) return;
+    if (status.turn !== seat) return;
     // A move that arrives after the mover's flag fell but before the clock
     // timer fired ends the game by expiry instead of landing the move (the
     // chess-stack rule; closes the timer race for every tenant). The guard is
@@ -373,7 +457,7 @@ export function createTenantWsRuntime<
     if (canonical === null) {
       // A tenant may turn a rejection into a per-mover signal (the Crazyhouse
       // parachute bounce). Sent only to this client, so it never leaks to others.
-      const rejection = tenant.wire?.rejectionFor?.(room.projection.state, move, client.seat);
+      const rejection = tenant.wire?.rejectionFor?.(room.projection.state, move, seat);
       if (rejection) sendPayload(client, rejection);
       return;
     }
@@ -381,7 +465,7 @@ export function createTenantWsRuntime<
       type: 'move-played',
       at: Date.now(),
       roomId: room.id,
-      color: client.seat,
+      color: seat,
       move: canonical,
     };
     let seq: number;
@@ -397,9 +481,12 @@ export function createTenantWsRuntime<
     scheduleEngineMove(room);
   }
 
+  // `seat` is the caller's read-only-guarded color (never 'spectator'); see the
+  // spectator guard in handleMessage before the resign/setup/move dispatch.
   async function handleSetupSubmit(
     room: LiveRoom,
     client: LiveClient,
+    seat: C,
     message: { setup?: unknown },
   ): Promise<void> {
     if (!tenant.setupSubmission) return;
@@ -410,7 +497,7 @@ export function createTenantWsRuntime<
       type: 'setup-submitted',
       at: Date.now(),
       roomId: room.id,
-      color: client.seat,
+      color: seat,
       setup,
     };
     let seq: number;
@@ -452,14 +539,15 @@ export function createTenantWsRuntime<
     broadcastEventAppended(room, event, seq);
   }
 
-  async function handleResign(room: LiveRoom, client: LiveClient): Promise<void> {
+  // `seat` is the caller's read-only-guarded color (never 'spectator').
+  async function handleResign(room: LiveRoom, client: LiveClient, seat: C): Promise<void> {
     if (room.projection.state.status.type !== 'playing') return;
     if (room.projection.state.moveNumber < 2) return;
     const event: TenantRoomEvent<C, M, Spec> = {
       type: 'seat-resigned',
       at: Date.now(),
       roomId: room.id,
-      color: client.seat,
+      color: seat,
     };
     let seq: number;
     try {
@@ -472,11 +560,12 @@ export function createTenantWsRuntime<
     broadcastEventAppended(room, event, seq);
   }
 
-  async function handleAbort(room: LiveRoom, client: LiveClient): Promise<void> {
+  // `seat` is the caller's read-only-guarded color (never 'spectator').
+  async function handleAbort(room: LiveRoom, client: LiveClient, seat: C): Promise<void> {
     const status = room.projection.state.status;
     if (status.type !== 'playing') return;
     if (room.projection.state.moveNumber >= 2) return;
-    if (status.turn !== client.seat) return;
+    if (status.turn !== seat) return;
     const event: TenantRoomEvent<C, M, Spec> = {
       type: 'game-aborted',
       at: Date.now(),
@@ -564,4 +653,15 @@ export { clearTenantRuntimeTimers };
 function parseClientId(value: string | null): string | null {
   if (!value) return null;
   return /^[a-zA-Z0-9:_-]{8,80}$/.test(value) ? value : null;
+}
+
+// Mirrors isDebugViewAuthorized in server-ws-connection.ts: non-production
+// runtimes always allow (dev /game-sheet spectates seeded corpus rooms);
+// production requires a valid admin debug token in the WS subprotocol header.
+// Gates the spectator fallback so production stays fail-closed for real users.
+function isDebugViewAuthorized(request: IncomingMessage): boolean {
+  if (!isProductionLikeRuntime()) return true;
+  return isAdminDebugToken(
+    adminDebugTokenFromProtocolHeader(request.headers['sec-websocket-protocol']),
+  );
 }

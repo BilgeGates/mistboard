@@ -45,14 +45,19 @@ test('Crossroads Chess WebSocket handler assigns white and red seats with hello 
   });
 });
 
-test('Crossroads Chess WebSocket handler rejects a third live client', async () => {
+test('Crossroads Chess WebSocket handler rejects a third live client (production)', async () => {
   await withFlag(async () => {
     const room = liveRoom('dchess_full');
     await connect(room, new FakeSocket(), 'white-client');
     await connect(room, new FakeSocket(), 'red-client');
     const third = new FakeSocket();
 
-    await connect(room, third, 'third-client');
+    // The debug-authorized spectator fallback (variant-tenant/ws.ts) admits a
+    // tokenless visitor to a full room ONLY in a non-production runtime (or with
+    // an admin debug token). Pin the production fail-closed path here: a real
+    // third user still gets closed 1008. Dev spectator admission is covered by
+    // variant-tenant/ws-spectator.test.ts.
+    await withProductionRuntime(() => connect(room, third, 'third-client'));
 
     assert.equal(third.closedCode, 1008);
     assert.equal(third.closedReason, 'private room');
@@ -536,6 +541,20 @@ async function withFlag(fn: () => Promise<void>): Promise<void> {
   } finally {
     if (before === undefined) delete process.env[crossroadsChessFlag];
     else process.env[crossroadsChessFlag] = before;
+  }
+}
+
+// Force a production-like runtime so the tenant spectator fallback is denied and
+// the private-room rejection is fail-closed (isProductionLikeRuntime keys off
+// NODE_ENV). Restores the prior value so later tests keep the dev runtime.
+async function withProductionRuntime(fn: () => Promise<void>): Promise<void> {
+  const before = process.env.NODE_ENV;
+  process.env.NODE_ENV = 'production';
+  try {
+    await fn();
+  } finally {
+    if (before === undefined) delete process.env.NODE_ENV;
+    else process.env.NODE_ENV = before;
   }
 }
 

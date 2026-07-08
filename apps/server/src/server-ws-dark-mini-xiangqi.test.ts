@@ -48,7 +48,7 @@ test('Dark Mini Xiangqi WebSocket handler assigns red and black seats with hello
   });
 });
 
-test('Dark Mini Xiangqi WebSocket handler rejects a third live client', async () => {
+test('Dark Mini Xiangqi WebSocket handler rejects a third live client (production)', async () => {
   await withFlag(async () => {
     const room = liveRoom('dmxq_full');
     await handleDarkMiniXiangqiWebSocketConnection(
@@ -65,11 +65,18 @@ test('Dark Mini Xiangqi WebSocket handler rejects a third live client', async ()
     );
     const third = new FakeSocket();
 
-    await handleDarkMiniXiangqiWebSocketConnection(
-      testContext(),
-      third.socket,
-      request('dmxq_full', 'third-client'),
-      room,
+    // The tenant spectator fallback (variant-tenant/ws.ts) admits a tokenless
+    // visitor to a full room only in a non-production runtime (or with an admin
+    // debug token). Pin the production fail-closed path: a real third user is
+    // still closed 1008. Dev spectator admission is covered by
+    // variant-tenant/ws-spectator.test.ts.
+    await withProductionRuntime(() =>
+      handleDarkMiniXiangqiWebSocketConnection(
+        testContext(),
+        third.socket,
+        request('dmxq_full', 'third-client'),
+        room,
+      ),
     );
 
     assert.equal(third.closedCode, 1008);
@@ -436,6 +443,20 @@ async function withFlag(fn: () => Promise<void>): Promise<void> {
   } finally {
     if (before === undefined) delete process.env[darkMiniXiangqiFlag];
     else process.env[darkMiniXiangqiFlag] = before;
+  }
+}
+
+// Force a production-like runtime so the tenant spectator fallback is denied and
+// the private-room rejection is fail-closed (isProductionLikeRuntime keys off
+// NODE_ENV). Restores the prior value so later tests keep the dev runtime.
+async function withProductionRuntime(fn: () => Promise<void>): Promise<void> {
+  const before = process.env.NODE_ENV;
+  process.env.NODE_ENV = 'production';
+  try {
+    await fn();
+  } finally {
+    if (before === undefined) delete process.env.NODE_ENV;
+    else process.env.NODE_ENV = before;
   }
 }
 

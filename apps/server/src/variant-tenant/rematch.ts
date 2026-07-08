@@ -11,10 +11,18 @@
  */
 
 import type { RoomTimeControl } from '@mistboard/game';
-import type { TenantGameStateLike, TenantRuntimeRoom, TenantSeatTokenState } from './tenant.js';
+import type {
+  TenantGameStateLike,
+  TenantRuntimeRoom,
+  TenantSeat,
+  TenantSeatTokenState,
+} from './tenant.js';
 
 export type TenantRematchClient<C extends string> = {
-  seat: C;
+  // 'spectator' clients never own a seat token, so every rematch operation
+  // returns early for them (see the spectator guards below); only real colors
+  // index seatTokens / pendingRedirects.
+  seat: TenantSeat<C>;
   seatTokenHash?: string;
 };
 
@@ -63,6 +71,7 @@ function activeSeatTokenForClient<
   room: TenantRematchRoom<Kind, C, M, State, Spec, Client>,
   client: Client,
 ): TenantSeatTokenState<C> | null {
+  if (client.seat === 'spectator') return null;
   const token = room.seatTokens[client.seat];
   if (!token) return null;
   if (token.tokenHash !== client.seatTokenHash) return null;
@@ -269,6 +278,7 @@ export function maybeReplayTenantRematchRedirect<
   room: TenantRematchRoom<Kind, C, M, State, Spec, Client>,
   client: Client,
 ): void {
+  if (client.seat === 'spectator') return;
   const pending = room.rematch.pendingRedirects?.[client.seat];
   if (!pending) return;
   ctx.send(client, {

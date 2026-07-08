@@ -25,6 +25,7 @@ import type {
   TenantProjection,
   TenantRoomEvent,
   TenantRuntimeRoom,
+  TenantSeat,
 } from './tenant.js';
 
 // The projection+log slice the abort/deadline derivations read. Satisfied by
@@ -43,7 +44,9 @@ export type TenantProjectedRoom<
 
 export type TenantLifecycleClient<C extends string> = {
   displaced: boolean;
-  seat: C;
+  // May be 'spectator' (debug-authorized read-only viewer); spectators hold no
+  // color seat, so seat-occupancy computations skip them.
+  seat: TenantSeat<C>;
 };
 
 export type TenantLifecycleRoom<
@@ -282,6 +285,7 @@ export function tenantConnectedSeats<C extends string>(
   for (const color of tenant.colors) connected[color] = false;
   for (const client of clients) {
     if (client.displaced) continue;
+    if (client.seat === 'spectator') continue;
     connected[client.seat] = true;
   }
   return connected;
