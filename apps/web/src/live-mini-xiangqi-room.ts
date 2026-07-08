@@ -82,6 +82,7 @@ const darkMiniXiangqiWebTenant: WebVariantTenant<MiniXiangqiColor> = {
   get displayName() {
     return isOpenMiniXiangqiLiveRoom() ? 'Mini Xiangqi' : 'Dark Mini Xiangqi';
   },
+  metaGlyph: '象',
   colors: ['red', 'black'],
   isColor: isMiniColor,
   oppositeColor: (color) => (color === 'red' ? 'black' : 'red'),

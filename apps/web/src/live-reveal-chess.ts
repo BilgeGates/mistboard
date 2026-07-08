@@ -100,6 +100,7 @@ let forfeitDeadline: number | null = null;
 
 const revealChessWebTenant: WebVariantTenant<RevealChessColor> = {
   displayName: 'Reveal Chess',
+  metaGlyph: '♔',
   colors: ['white', 'black'],
   isColor: isRevealChessColor,
   oppositeColor: (color) => (color === 'white' ? 'black' : 'white'),

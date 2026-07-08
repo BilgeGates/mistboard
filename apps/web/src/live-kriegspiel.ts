@@ -92,6 +92,7 @@ let lastSoundedMoveCount = 0;
 
 const kriegspielWebTenant: WebVariantTenant<Color> = {
   displayName: 'Kriegspiel',
+  metaGlyph: '♔',
   colors: ['white', 'black'],
   isColor,
   oppositeColor: (color) => (color === 'white' ? 'black' : 'white'),

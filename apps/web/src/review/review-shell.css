@@ -152,6 +152,10 @@
     align-self: center;
     /* Match the board's height: column width projected through the aspect. */
     height: calc(var(--uni-board-width) / var(--uni-board-aspect, 1));
+    /* The center column centers board+underboard as one block, so the board
+       tops out half the underboard height above center; counter-shift to keep
+       the gauge flush with the board (token published by fitPrimaryToViewport). */
+    transform: translateY(calc(var(--uni-underboard-h, 0px) / -2));
   }
 }
 

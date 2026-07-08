@@ -143,6 +143,7 @@ export function createEnginePanel(opts: EnginePanelOptions): EnginePanel {
     if (!handle) handle = createCeval(opts.variant);
     on = true;
     syncToggle();
+    opts.evalBar?.setIdle(false);
     meta.textContent = `${CEVAL_ENGINE_NAME} · loading…`;
     void preloadEngine()
       .then(() => {
@@ -158,6 +159,7 @@ export function createEnginePanel(opts: EnginePanelOptions): EnginePanel {
     syncToggle();
     handle?.stop();
     clearOutput();
+    opts.evalBar?.setIdle(true);
   }
 
   if (!supported) {
@@ -169,6 +171,8 @@ export function createEnginePanel(opts: EnginePanelOptions): EnginePanel {
   }
   syncToggle();
   clearOutput();
+  // The panel starts engine-off; the gauge reads inactive until turnOn.
+  opts.evalBar?.setIdle(true);
 
   return {
     el,

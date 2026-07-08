@@ -65,6 +65,7 @@ let forfeitDeadline: number | null = null;
 
 const dropMiniWebTenant: WebVariantTenant<MiniXiangqiColor> = {
   displayName: 'Drop Mini Xiangqi',
+  metaGlyph: '象',
   colors: ['red', 'black'],
   isColor: isMiniColor,
   oppositeColor: (color) => (color === 'red' ? 'black' : 'red'),

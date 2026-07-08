@@ -61,6 +61,7 @@ let lastStatusType: string | null = null;
 
 const fortressWebTenant: WebVariantTenant<FortressXiangqiColor> = {
   displayName: 'Fortress',
+  metaGlyph: '象',
   colors: ['red', 'black'],
   isColor: isFortressColor,
   oppositeColor: (color) => (color === 'red' ? 'black' : 'red'),

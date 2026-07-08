@@ -75,6 +75,7 @@ let bounce: ShogiSquare | null = null;
 
 const darkShogiWebTenant: WebVariantTenant<ShogiColor> = {
   displayName: 'Fog Shogi',
+  metaGlyph: '☗',
   colors: ['black', 'white'],
   isColor: isShogiColor,
   oppositeColor: (color) => (color === 'black' ? 'white' : 'black'),

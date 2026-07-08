@@ -21,6 +21,8 @@ export interface EvalBar {
   setLoading(): void;
   /** Back to the empty even state. */
   reset(): void;
+  /** Engine off: dim the bar so it reads as inactive rather than "0.0". */
+  setIdle(idle: boolean): void;
   /** Match board orientation: when flipped, Red sits at the top. */
   setFlipped(flipped: boolean): void;
   /** Align the bar to `anchorEl` (default the board), matching the board's height,
@@ -60,6 +62,10 @@ export function createEvalBar(): EvalBar {
     el.classList.remove('review-eval-bar--loading');
     applyProb(0.5);
     label.textContent = '';
+  }
+
+  function setIdle(idle: boolean): void {
+    el.classList.toggle('review-eval-bar--idle', idle);
   }
 
   function setFlipped(flipped: boolean): void {
@@ -104,5 +110,5 @@ export function createEvalBar(): EvalBar {
   }
 
   reset();
-  return { el, setEval, setLoading, reset, setFlipped, observe };
+  return { el, setEval, setLoading, reset, setIdle, setFlipped, observe };
 }

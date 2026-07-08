@@ -81,7 +81,9 @@
 }
 
 .xiangqi-postgame-route .dxq-postgame__board {
-  max-width: min(100%, 48vh);
+  /* No vh self-cap: the uniboard fit (review-layout.ts) owns the height
+     budget; an inner cap here fights it and strands the board undersized. */
+  max-width: 100%;
   margin-inline: auto;
 }
 

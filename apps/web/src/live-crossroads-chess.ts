@@ -153,6 +153,7 @@ function connection(): TenantConnectionState {
 
 const crossroadsChessWebTenant: WebVariantTenant<CrossroadsChessColor> = {
   displayName: 'Crossroads Chess',
+  metaGlyph: '♔',
   colors: ['white', 'red'],
   isColor: isCrossroadsChessColor,
   oppositeColor: (color) => (color === 'white' ? 'red' : 'white'),

@@ -90,6 +90,7 @@ let draggingFrom: XiangqiSquare | null = null;
 
 const darkXiangqiWebTenant: WebVariantTenant<XiangqiColor> = {
   displayName: 'Fog Elephant Chess',
+  metaGlyph: '象',
   colors: ['red', 'black'],
   isColor: isXiangqiColor,
   oppositeColor: (color) => (color === 'red' ? 'black' : 'red'),

@@ -85,6 +85,7 @@ let pveEngineId: string | null = null;
 
 const jieqiWebTenant: WebVariantTenant<JieqiColor> = {
   displayName: 'Flip Elephant Chess',
+  metaGlyph: '象',
   colors: ['red', 'black'],
   isColor: isJieqiColor,
   oppositeColor: (color) => (color === 'red' ? 'black' : 'red'),

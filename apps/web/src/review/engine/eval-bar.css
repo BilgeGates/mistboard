@@ -23,6 +23,12 @@
   width: 100%;
   height: 100%;
 }
+/* Engine off: the bar stays in the layout (no board reflow) but dims to read
+   as inactive rather than as a live "0.0" evaluation. */
+.review-eval-bar--idle {
+  opacity: 0.25;
+}
+
 /* Equality midline. */
 .review-eval-bar::after {
   content: "";

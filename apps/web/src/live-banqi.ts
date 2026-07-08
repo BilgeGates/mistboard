@@ -105,6 +105,7 @@ function banqiSeatLabel(seat: BanqiSeat): string {
 
 const banqiWebTenant: WebVariantTenant<BanqiSeat> = {
   displayName: 'Half-Flip Chess',
+  metaGlyph: '象',
   colors: ['red', 'black'],
   isColor: isBanqiSeat,
   oppositeColor: (color) => (color === 'red' ? 'black' : 'red'),

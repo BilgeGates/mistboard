@@ -330,6 +330,11 @@ function fitPrimaryToViewport(stageEl: HTMLElement, aspect: number, maxPx?: numb
         '--uni-board-chrome-h',
         `${baseChrome + Math.round(underboardPx)}px`,
       );
+      // The gauge centers in the full-height grid area while the center column
+      // centers board+underboard as one block, so the board sits half the
+      // underboard height above center. Publish that height for the gauge's
+      // counter-shift (see .review-shell__gauge).
+      cluster.style.setProperty('--uni-underboard-h', `${Math.round(underboardPx)}px`);
     }
     const available = window.innerHeight - VIEWPORT_CHROME_PX - underboardPx;
     const slot = stageEl.querySelector<HTMLElement>('.review-stage__slot--primary');
@@ -430,6 +435,7 @@ function applyBoardSizing(
     // measured column cap would ratchet: each fit reads the column the last
     // fit narrowed and could never grow back on a larger viewport.
     cluster.style.removeProperty('--uni-board-fit-w');
+    cluster.style.removeProperty('--uni-underboard-h');
   }
   // The board is the largest that fits BOTH the center column width (≈ viewport
   // minus the two rails + gaps) and the height left after chrome (projected

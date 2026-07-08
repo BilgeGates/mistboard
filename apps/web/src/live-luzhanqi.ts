@@ -74,6 +74,7 @@ function oppositeColor(color: LuzhanqiColor): LuzhanqiColor {
 
 const luzhanqiWebTenant: WebVariantTenant<LuzhanqiColor> = {
   displayName: 'Luzhanqi',
+  metaGlyph: '军',
   colors: ['red', 'black'],
   isColor: isLuzhanqiColor,
   oppositeColor,

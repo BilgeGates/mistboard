@@ -45,6 +45,9 @@ export type TenantWebClock<C extends string> = {
 
 export type WebVariantTenant<C extends string> = {
   displayName: string;
+  // Meta-card icon glyph, family-canonical (象 xiangqi, 虎 jungle, ☗ shogi,
+  // ♔ chess) to match the landing play groups. Omitting renders no icon box.
+  metaGlyph?: string;
   // Move order: [first mover, second mover]; also the board's default
   // top-to-bottom reading for a colors[0] viewer.
   colors: readonly [C, C];
@@ -327,6 +330,7 @@ export function createTenantRoomChrome<C extends string>(
     }
 
     const card = createGameMetaCard({
+      glyph: tenant.metaGlyph,
       headline: [tcLabel, 'Casual'],
       variantName: detail ? `${tenant.displayName} · ${detail}` : tenant.displayName,
       subline,
