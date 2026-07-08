@@ -625,7 +625,11 @@
 
 .landing-carousel {
   position: relative;
-  overflow: hidden;
+  /* overflow-x: clip, not hidden: hidden forces the used overflow-y to auto,
+     which clips the cards' box-shadow at the flush top/bottom edges. The track
+     slides with transforms, never scrollLeft, so clip is safe and keeps
+     overflow-y visible for the shadows. */
+  overflow-x: clip;
   width: 100%;
 }
 
