@@ -766,26 +766,27 @@ function buildLandingStage(
     bandBoxObserver.observe(viewerColumn);
   }
 
-  // Hug tenant (SVG) showcase boards to the inner (right) edge so a non-square
-  // board pillarboxes toward the OUTER edge, matching the puzzle. The tenant
-  // frameworks re-render the board SVG every ply, so a one-shot attribute set
-  // (like the puzzle's static render) wouldn't stick; re-apply on each mutation.
-  // Chess is on chessground (no viewBox <svg>), so it never matches — no-op there.
+  // Center tenant (SVG) showcase boards within the square box so a non-square
+  // (portrait xiangqi) board pillarboxes symmetrically rather than jamming against
+  // the center column. The tenant frameworks re-render the board SVG every ply, so
+  // a one-shot attribute set (like the puzzle's static render) wouldn't stick;
+  // re-apply on each mutation. Chess is on chessground (no viewBox <svg>), so it
+  // never matches — no-op there.
   if (!opts.skipLiveWidgets && typeof MutationObserver !== 'undefined') {
-    const hugTenantBoards = (): void => {
+    const centerTenantBoards = (): void => {
       for (const svg of replayRoot.querySelectorAll<SVGElement>(
         '.replay-layout-solo .replay-board svg',
       )) {
-        if (svg.getAttribute('preserveAspectRatio') !== 'xMaxYMid meet') {
-          svg.setAttribute('preserveAspectRatio', 'xMaxYMid meet');
+        if (svg.getAttribute('preserveAspectRatio') !== 'xMidYMid meet') {
+          svg.setAttribute('preserveAspectRatio', 'xMidYMid meet');
         }
       }
     };
-    new MutationObserver(hugTenantBoards).observe(replayRoot, {
+    new MutationObserver(centerTenantBoards).observe(replayRoot, {
       childList: true,
       subtree: true,
     });
-    hugTenantBoards();
+    centerTenantBoards();
   }
 
   // The footer lives only on the homepage now (stripped from interior routes),

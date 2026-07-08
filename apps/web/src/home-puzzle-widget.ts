@@ -202,9 +202,9 @@ function homePuzzleBoardSurface(svg: string): HTMLElement {
   const board = document.createElement('div');
   board.className = 'home-puzzle-widget-board';
   board.innerHTML = svg;
-  // Hug the board to the inner (center-facing) edge so the reserve + pillarbox slack
-  // fall to the outer edge and the gutter to the center column stays uniform.
-  board.querySelector('svg')?.setAttribute('preserveAspectRatio', 'xMinYMid meet');
+  // Center the board within the square box so a non-square (portrait xiangqi) board
+  // pillarboxes symmetrically rather than jamming against the center column.
+  board.querySelector('svg')?.setAttribute('preserveAspectRatio', 'xMidYMid meet');
   return board;
 }
 

@@ -226,14 +226,25 @@
 }
 
 /* Rounded board corners on every chessground surface (live game, replay/viewer,
-   watch, learn stepper, article thumbs), matching the SVG grid + xiangqi boards
-   that already round themselves. The board is tiled with <square> elements, so
-   overflow:hidden is needed to clip them to the rounded corners. */
+   watch, learn stepper, article thumbs), matching the SVG grid boards (rounded
+   just above via [data-board="grid"]) and the xiangqi boards (self-rounded, rx).
+   The board is tiled with <square> elements, so overflow:hidden is needed to clip
+   them to the rounded corners. */
 .board.cg-wrap,
 .replay-board.cg-wrap,
 .stepper-board.cg-wrap,
 .live-boards-board.cg-wrap,
 .articles-thumb-board.cg-wrap {
+  border-radius: var(--board-corner-radius);
+  overflow: hidden;
+}
+
+/* The SVG grid boards (jungle, flip jungle, dark chess / crazyhouse / crossroads /
+   kriegspiel / shogi static renders) carry square corners at the renderer base
+   (frameRadius/boardRadius 0), so round them here on the same token as chessground
+   and the cards. overflow:hidden clips the tiled cells to the rounded box. Cropped
+   variant markers strip this outer <svg>, so they stay square (correct on a crop). */
+[data-board="grid"] {
   border-radius: var(--board-corner-radius);
   overflow: hidden;
 }
