@@ -53,9 +53,11 @@ describe('Jungle postgame page', () => {
       [...root.querySelectorAll('button')].some((el) => el.textContent === 'Reveal tiles'),
     ).toBe(false);
 
-    const row = root.querySelector('.move-row');
-    expect(row?.querySelector('.move-number')?.textContent).toBe('1');
-    expect(row?.querySelector<HTMLButtonElement>('.white-ply')?.textContent).toBe('a3-a4');
+    const row = root.querySelector('.review-move-list__row');
+    expect(row?.querySelector('.review-move-list__number')?.textContent).toBe('1');
+    expect(row?.querySelector<HTMLButtonElement>('.review-move-list__move')?.textContent).toBe(
+      'a3-a4',
+    );
     expect(root.textContent).toContain('Ply 1 of 1');
   });
 

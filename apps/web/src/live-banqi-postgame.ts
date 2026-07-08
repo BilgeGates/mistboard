@@ -8,12 +8,13 @@ import type {
 import './live-xiangqi.css';
 import './landing.css';
 import './game-route.css';
-import { banqiResultLabel, seatInkLabel } from './banqi-result-label.js';
+import { banqiResultLabel } from './banqi-result-label.js';
 import { banqiEnabled } from './feature-flags.js';
 import { fillCapturedPool } from './live-banqi.js';
 import { installBanqiBoardStyles, renderBanqiBoardSvg } from './live-banqi-render.js';
 import { createPane } from './replay-board.js';
 import { createShareButton } from './replay-meta.js';
+import { createMoveList } from './review/move-list.js';
 import { mountReviewLayout } from './review/review-layout.js';
 import { buildNav } from './site-shell.js';
 
@@ -124,14 +125,14 @@ function renderPostgame(root: HTMLElement, postgame: BanqiPostgameResponse): voi
     )
     .map((entry) => ({ move: entry.move, ply: entry.ply, color: entry.color }));
 
-  const movesCard = document.createElement('section');
-  movesCard.className = 'review-moves-card';
-  const movesHeading = document.createElement('h2');
-  movesHeading.className = 'review-moves-card__title';
-  movesHeading.textContent = 'Moves';
-  const moveList = document.createElement('ol');
-  moveList.className = 'move-list';
-  movesCard.append(movesHeading, moveList);
+  // Two ply per row (one full move): ply 1 (the first mover) takes the left cell,
+  // ply 2 the right, keyed by ply parity. That is `createMoveList`'s default
+  // (`firstMover: 'a'`), so the first mover's move lands in the left column exactly
+  // as the old hand-rolled list placed it.
+  const moveList = createMoveList(
+    moves.map((entry) => ({ ply: entry.ply, label: moveLabel(entry.move) })),
+    { title: 'Moves' },
+  );
 
   // Default to the as-played board: unflipped tiles show as face-down backs, the
   // way the position actually looked. The toggle (button / `h`) reveals the deal.
@@ -194,7 +195,7 @@ function renderPostgame(root: HTMLElement, postgame: BanqiPostgameResponse): voi
     title: 'Half-Flip Chess',
     summary: `${banqiResultLabel(postgame.game.result, postgame.view.firstColor)} by ${labelize(postgame.game.termination)} · ${postgame.game.plyCount} plies`,
     actions: banqiActions(postgame, revealBtn),
-    moves: movesCard,
+    moves: moveList.el,
     boards: [{ key: 'truth', el: pane.el, tier: 'primary' }],
     boardAspect: 568 / 312,
     // Banqi discs sit inset within their cell, so size capture tiles a touch under
@@ -206,7 +207,7 @@ function renderPostgame(root: HTMLElement, postgame: BanqiPostgameResponse): voi
       paintBoard(lastCtx);
     },
     renderMoves({ ply }, jump) {
-      renderMoveRows(moveList, moves, ply, postgame.view.firstColor, jump);
+      moveList.update(ply, jump);
     },
   });
 }
@@ -277,84 +278,6 @@ export function postgameViewAtPly(
     selected = snapshot;
   }
   return selected?.view ?? null;
-}
-
-// Two ply per row (one full move): the first-mover seat takes the left cell, the
-// second-mover seat the right, keyed by ply parity (ply 1 is the first mover).
-function renderMoveRows(
-  list: HTMLOListElement,
-  moves: BanqiMoveEntry[],
-  activePly: number,
-  firstColor: BanqiColor | null,
-  onJump: (ply: number) => void,
-): void {
-  list.replaceChildren();
-  if (moves.length === 0) {
-    const empty = document.createElement('li');
-    empty.className = 'move-row move-empty';
-    empty.textContent = 'No moves';
-    list.append(empty);
-    return;
-  }
-  const byPly = new Map<number, BanqiMoveEntry>();
-  for (const move of moves) byPly.set(move.ply, move);
-  const maxPly = Math.max(...moves.map((move) => move.ply));
-  const fullMoves = Math.ceil(maxPly / 2);
-  for (let moveNumber = 1; moveNumber <= fullMoves; moveNumber += 1) {
-    const row = document.createElement('li');
-    row.className = 'move-row';
-    const number = document.createElement('span');
-    number.className = 'move-number';
-    number.textContent = String(moveNumber);
-    row.append(
-      number,
-      moveCell(
-        byPly.get(moveNumber * 2 - 1),
-        'white',
-        moveNumber * 2 - 1,
-        activePly,
-        firstColor,
-        onJump,
-      ),
-      moveCell(byPly.get(moveNumber * 2), 'black', moveNumber * 2, activePly, firstColor, onJump),
-    );
-    list.append(row);
-  }
-  scrollActiveMoveIntoView(list);
-}
-
-function moveCell(
-  entry: BanqiMoveEntry | undefined,
-  cell: 'white' | 'black',
-  ply: number,
-  activePly: number,
-  firstColor: BanqiColor | null,
-  onJump: (ply: number) => void,
-): HTMLElement {
-  if (!entry) {
-    const empty = document.createElement('span');
-    empty.className = `${cell}-ply move-empty`;
-    return empty;
-  }
-  const button = document.createElement('button');
-  button.type = 'button';
-  button.className = `${cell}-ply${activePly === ply ? ' active' : ''}`;
-  button.textContent = moveLabel(entry.move);
-  button.title = `${seatInkLabel(entry.color, firstColor)} ply ${ply}: ${moveLabel(entry.move)}`;
-  button.onclick = () => onJump(ply);
-  return button;
-}
-
-function scrollActiveMoveIntoView(list: HTMLOListElement): void {
-  window.requestAnimationFrame(() => {
-    const active = list.querySelector<HTMLButtonElement>('button.active');
-    if (!active) return;
-    const listRect = list.getBoundingClientRect();
-    const activeRect = active.getBoundingClientRect();
-    const centeredDelta =
-      activeRect.top - listRect.top - (list.clientHeight - activeRect.height) / 2;
-    list.scrollTo({ top: Math.max(0, list.scrollTop + centeredDelta), behavior: 'auto' });
-  });
 }
 
 // A flip (self-move) reads as the flipped square; a board move as from-to.

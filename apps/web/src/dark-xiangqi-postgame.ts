@@ -13,6 +13,7 @@ import { type DarkXiangqiWireView, renderDarkXiangqiBoardSvg } from './live-dark
 import { capturedByDiff } from './review/captured-diff.js';
 import { fillCapturedPoolWith } from './review/captured-pool.js';
 import { createFlankCaptures } from './review/flank-captures.js';
+import { createMoveList, type MoveListEntry } from './review/move-list.js';
 import { mountReviewLayout } from './review/review-layout.js';
 import { buildNav } from './site-shell.js';
 import { renderXiangqiPiece } from './xiangqi-pieces.js';
@@ -153,6 +154,12 @@ function renderPostgame(root: HTMLElement, postgame: DarkXiangqiPostgameResponse
     return { entry, el, board, leftCaptures: null, rightCaptures: null };
   });
 
+  // Clickable move list (jump-to-ply + current-ply highlight), matching the
+  // other postgame pages. Red moves first, so the default 'a' pairing lands the
+  // first ply in the left column. Full truth moves are correct here — /game
+  // postgame pages reveal by design.
+  const moveList = createMoveList(moveEntries(postgame), { title: 'Moves' });
+
   root.replaceChildren(buildNav());
   mountReviewLayout(root, {
     pageClassName: 'dark-xiangqi-review',
@@ -161,7 +168,7 @@ function renderPostgame(root: HTMLElement, postgame: DarkXiangqiPostgameResponse
     summary: `${resultLabel(postgame.game.result)} by ${labelize(postgame.game.termination)} · ${postgame.game.plyCount} plies`,
     actions: postgameActions(postgame),
     details: detailsPanel(postgame),
-    moves: timelinePanel(postgame),
+    moves: moveList.el,
     boards: targets.map((target) => ({
       key: target.entry.key,
       el: target.el,
@@ -189,6 +196,11 @@ function renderPostgame(root: HTMLElement, postgame: DarkXiangqiPostgameResponse
           fillCapturedPoolWith(rightCaptures, captured, opponent, renderCapturedXiangqiGlyph);
         }
       }
+    },
+    // Jump-to-ply routes through the layout's own `go`, the same path the
+    // scrubber and keyboard use, so every triptych board stays consistent.
+    renderMoves({ ply }, jump) {
+      moveList.update(ply, jump);
     },
   });
 }
@@ -287,52 +299,17 @@ function detailsPanel(postgame: DarkXiangqiPostgameResponse): HTMLElement {
   return panel;
 }
 
-function timelinePanel(postgame: DarkXiangqiPostgameResponse): HTMLElement {
-  const panel = document.createElement('section');
-  panel.className = 'dxq-postgame__panel';
-  const heading = document.createElement('h2');
-  heading.textContent = 'Moves';
-  const list = document.createElement('ol');
-  list.className = 'dxq-postgame__moves';
+// Flat move entries for the shared clickable list: one per played ply, keeping
+// the coordinate `from-to` notation the static timeline showed. `ply` is the
+// cursor a click lands on (the scrubber's 1..maxPly), so the pairing/highlight
+// track the layout's ply state. Fall back to array index when the wire entry
+// omits ply.
+function moveEntries(postgame: DarkXiangqiPostgameResponse): MoveListEntry[] {
   const moves = postgame.timeline.filter((entry) => entry.type === 'move-played' && entry.move);
-  if (moves.length === 0) {
-    const empty = document.createElement('li');
-    empty.className = 'dxq-postgame__move';
-    empty.textContent = 'No moves';
-    list.append(empty);
-  } else {
-    // Group plies into move rows: one numbered row per Red+Black pair (Red moves
-    // first in xiangqi). Fall back to array index / ply parity when the wire
-    // entry omits ply or color, so the pairing stays robust.
-    const rows = new Map<number, { red?: string; black?: string }>();
-    moves.forEach((entry, index) => {
-      const ply = entry.ply ?? index + 1;
-      const color = entry.color ?? (ply % 2 === 1 ? 'red' : 'black');
-      const moveNumber = Math.max(1, Math.ceil(ply / 2));
-      const row = rows.get(moveNumber) ?? {};
-      const text = `${entry.move!.from}-${entry.move!.to}`;
-      if (color === 'black') row.black = text;
-      else row.red = text;
-      rows.set(moveNumber, row);
-    });
-    for (const [moveNumber, row] of [...rows.entries()].sort((a, b) => a[0] - b[0])) {
-      const item = document.createElement('li');
-      item.className = 'dxq-postgame__move';
-      const number = document.createElement('span');
-      number.className = 'dxq-postgame__move-number';
-      number.textContent = String(moveNumber);
-      const red = document.createElement('span');
-      red.className = 'dxq-postgame__move-ply dxq-postgame__move-ply--red';
-      red.textContent = row.red ?? '';
-      const black = document.createElement('span');
-      black.className = 'dxq-postgame__move-ply dxq-postgame__move-ply--black';
-      black.textContent = row.black ?? '';
-      item.append(number, red, black);
-      list.append(item);
-    }
-  }
-  panel.append(heading, list);
-  return panel;
+  return moves.map((entry, index) => ({
+    ply: entry.ply ?? index + 1,
+    label: `${entry.move!.from}-${entry.move!.to}`,
+  }));
 }
 
 function detailRow(label: string, value: string): HTMLElement {

@@ -7,6 +7,7 @@ import { fillCapturedPool } from './live-jieqi.js';
 import { installJieqiBoardStyles, renderJieqiBoardSvg } from './live-jieqi-render.js';
 import { createPane } from './replay-board.js';
 import { createShareButton } from './replay-meta.js';
+import { createMoveList } from './review/move-list.js';
 import { mountReviewLayout } from './review/review-layout.js';
 import { buildNav } from './site-shell.js';
 
@@ -115,14 +116,10 @@ function renderPostgame(root: HTMLElement, postgame: JieqiPostgameResponse): voi
     )
     .map((entry) => ({ move: entry.move, ply: entry.ply, color: entry.color }));
 
-  const movesCard = document.createElement('section');
-  movesCard.className = 'review-moves-card';
-  const movesHeading = document.createElement('h2');
-  movesHeading.className = 'review-moves-card__title';
-  movesHeading.textContent = 'Moves';
-  const moveList = document.createElement('ol');
-  moveList.className = 'move-list';
-  movesCard.append(movesHeading, moveList);
+  const moveList = createMoveList(
+    moves.map((entry) => ({ ply: entry.ply, label: moveLabel(entry.move) })),
+    { title: 'Moves' },
+  );
 
   // Default to the as-played board: unmoved pieces show as face-down backs, the
   // way the position actually looked. The toggle (button / `h`) reveals truth.
@@ -185,7 +182,7 @@ function renderPostgame(root: HTMLElement, postgame: JieqiPostgameResponse): voi
     title: 'Flip Elephant Chess',
     summary: `${resultLabel(postgame.game.result)} by ${labelize(postgame.game.termination)} · ${postgame.game.plyCount} plies`,
     actions: jieqiActions(postgame, revealBtn),
-    moves: movesCard,
+    moves: moveList.el,
     boards: [{ key: 'truth', el: pane.el, tier: 'primary' }],
     boardAspect: 660 / 732,
     // Compact capture tiles (kept above/below): a full xiangqi pool collapses to a
@@ -197,7 +194,7 @@ function renderPostgame(root: HTMLElement, postgame: JieqiPostgameResponse): voi
       paintBoard(lastCtx);
     },
     renderMoves({ ply }, jump) {
-      renderMoveRows(moveList, moves, ply, jump);
+      moveList.update(ply, jump);
     },
   });
 }
@@ -275,74 +272,6 @@ export function postgameViewAtPly(
     selected = snapshot;
   }
   return selected?.view ?? null;
-}
-
-export function renderMoveRows(
-  list: HTMLOListElement,
-  moves: JieqiMoveEntry[],
-  activePly: number,
-  onJump: (ply: number) => void,
-): void {
-  list.replaceChildren();
-  if (moves.length === 0) {
-    const empty = document.createElement('li');
-    empty.className = 'move-row move-empty';
-    empty.textContent = 'No moves';
-    list.append(empty);
-    return;
-  }
-  const byPly = new Map<number, JieqiMoveEntry>();
-  for (const move of moves) byPly.set(move.ply, move);
-  const maxPly = Math.max(...moves.map((move) => move.ply));
-  const fullMoves = Math.ceil(maxPly / 2);
-  for (let moveNumber = 1; moveNumber <= fullMoves; moveNumber += 1) {
-    const row = document.createElement('li');
-    row.className = 'move-row';
-    const number = document.createElement('span');
-    number.className = 'move-number';
-    number.textContent = String(moveNumber);
-    // Red is the first mover, so it takes the left ("white") cell; Black the right.
-    row.append(
-      number,
-      moveCell(byPly.get(moveNumber * 2 - 1), 'white', moveNumber * 2 - 1, activePly, onJump),
-      moveCell(byPly.get(moveNumber * 2), 'black', moveNumber * 2, activePly, onJump),
-    );
-    list.append(row);
-  }
-  scrollActiveMoveIntoView(list);
-}
-
-function moveCell(
-  entry: JieqiMoveEntry | undefined,
-  cell: 'white' | 'black',
-  ply: number,
-  activePly: number,
-  onJump: (ply: number) => void,
-): HTMLElement {
-  if (!entry) {
-    const empty = document.createElement('span');
-    empty.className = `${cell}-ply move-empty`;
-    return empty;
-  }
-  const button = document.createElement('button');
-  button.type = 'button';
-  button.className = `${cell}-ply${activePly === ply ? ' active' : ''}`;
-  button.textContent = moveLabel(entry.move);
-  button.title = `${capitalize(entry.color)} ply ${ply}: ${moveLabel(entry.move)}`;
-  button.onclick = () => onJump(ply);
-  return button;
-}
-
-function scrollActiveMoveIntoView(list: HTMLOListElement): void {
-  window.requestAnimationFrame(() => {
-    const active = list.querySelector<HTMLButtonElement>('button.active');
-    if (!active) return;
-    const listRect = list.getBoundingClientRect();
-    const activeRect = active.getBoundingClientRect();
-    const centeredDelta =
-      activeRect.top - listRect.top - (list.clientHeight - activeRect.height) / 2;
-    list.scrollTo({ top: Math.max(0, list.scrollTop + centeredDelta), behavior: 'auto' });
-  });
 }
 
 function moveLabel(move: JieqiMove): string {

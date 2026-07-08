@@ -63,13 +63,13 @@ describe('Banqi postgame page', () => {
     // Exactly one board (banqi is symmetric — no per-seat split).
     expect(root.querySelectorAll('.banqi-board')).toHaveLength(1);
 
-    // The move list shows two plies per row: a numbered row whose left ("white")
-    // cell holds the first mover's move.
-    const row = root.querySelector('.move-row');
+    // The shared move list shows two plies per row: a numbered row whose left cell
+    // (the first ply, `firstMover: 'a'`) holds the first mover's move.
+    const row = root.querySelector('.review-move-list__row');
     expect(row).not.toBeNull();
-    expect(row?.querySelector('.move-number')?.textContent).toBe('1');
-    const whitePly = row?.querySelector<HTMLButtonElement>('.white-ply');
-    expect(whitePly?.textContent).toBe('c2-c3');
+    expect(row?.querySelector('.review-move-list__number')?.textContent).toBe('1');
+    const firstMove = row?.querySelector<HTMLButtonElement>('.review-move-list__move');
+    expect(firstMove?.querySelector('.review-move-list__san')?.textContent).toBe('c2-c3');
     expect(root.textContent).toContain('Ply 1 of 1');
   });
 

@@ -62,9 +62,12 @@ describe('Flip Jungle postgame page', () => {
     expect(root.textContent).toContain('Red wins');
     expect(root.querySelectorAll('.jungle-flip-postgame-board')).toHaveLength(1);
 
-    // The opening action was a flip (self-move): the move list reads it as "a1 flip".
-    const whitePly = root.querySelector<HTMLButtonElement>('.move-row .white-ply');
-    expect(whitePly?.textContent).toBe('a1 flip');
+    // The opening action was a flip (self-move): the move list reads it as "a1 flip"
+    // in the left cell (the first ply, `firstMover: 'a'`).
+    const firstMove = root.querySelector<HTMLButtonElement>(
+      '.review-move-list__row .review-move-list__move',
+    );
+    expect(firstMove?.querySelector('.review-move-list__san')?.textContent).toBe('a1 flip');
     expect(root.textContent).toContain('Ply 1 of 1');
   });
 

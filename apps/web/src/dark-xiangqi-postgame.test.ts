@@ -39,10 +39,19 @@ describe('Dark Xiangqi postgame page', () => {
     expect(root.textContent).toContain('Black view');
     expect(root.textContent).toContain('Play again');
     expect(root.textContent).toContain('Back home');
-    // Moves are grouped two plies per numbered row (Red move, then Black move).
-    const firstMoveRow = root.querySelector('.dxq-postgame__move');
+    // Moves render in the shared clickable list, paired two per numbered row
+    // (Red move, then Black move), each a jump-to-ply button.
+    const firstMoveRow = root.querySelector('.review-move-list__row');
     expect(firstMoveRow?.textContent).toContain('b3-b4');
     expect(firstMoveRow?.textContent).toContain('b8-b7');
+    const moveButtons = root.querySelectorAll<HTMLButtonElement>('.review-move-list__move');
+    expect(moveButtons).toHaveLength(2);
+    // Clicking a move jumps the whole triptych to that ply, through the same
+    // ply state the scrubber drives. Jump back to the final ply so the rest of
+    // the replay walk starts where it did before.
+    moveButtons[0]?.click();
+    expect(root.textContent).toContain('Ply 1 of 2');
+    moveButtons[1]?.click();
     expect(root.textContent).toContain('Ply 2 of 2');
     expect(root.querySelectorAll('.xq-live-svg')).toHaveLength(3);
     expect(root.innerHTML).toContain('aria-label="black hidden piece"');

@@ -51,6 +51,17 @@ describe('Dark Shogi postgame page', () => {
     expect(root.querySelectorAll('.dxq-postgame__board-wrap')).toHaveLength(3);
     expect(root.textContent).toContain('Ply 2 of 2');
 
+    // Moves render in the shared clickable list with the shogi notation, each a
+    // jump-to-ply button that drives the same ply state the scrubber uses.
+    const moveButtons = root.querySelectorAll<HTMLButtonElement>('.review-move-list__move');
+    expect(moveButtons).toHaveLength(2);
+    expect(moveButtons[0]?.textContent).toContain('7g7f');
+    expect(moveButtons[1]?.textContent).toContain('3c3d');
+    moveButtons[0]?.click();
+    expect(root.textContent).toContain('Ply 1 of 2');
+    moveButtons[1]?.click();
+    expect(root.textContent).toContain('Ply 2 of 2');
+
     document.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowLeft' }));
     expect(root.textContent).toContain('Ply 1 of 2');
 

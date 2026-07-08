@@ -20,6 +20,7 @@ import { chessPieceGlyphSvg, renderDarkChessBoardSvg } from './dark-chess-render
 import { revealKingCaptureForLoser } from './replay-board.js';
 import { fillCapturedPoolWith } from './review/captured-pool.js';
 import { createFlankCaptures } from './review/flank-captures.js';
+import { createMoveList, type MoveListEntry } from './review/move-list.js';
 import { mountReviewLayout } from './review/review-layout.js';
 import { buildNav } from './site-shell.js';
 import { setBoardFamily } from './theme.js';
@@ -99,9 +100,7 @@ export function mountDarkChessPostgame(
     return { ...entry, el, board, leftCaptures: null, rightCaptures: null };
   });
 
-  const moveList = document.createElement('ol');
-  moveList.className = 'move-list';
-  const moves = buildMoveEntries(events);
+  const moveList = createMoveList(buildMoveEntries(events), { title: 'Moves' });
 
   root.replaceChildren(buildNav());
   mountReviewLayout(root, {
@@ -111,7 +110,7 @@ export function mountDarkChessPostgame(
     summary: `${resultLabel(game.result)} by ${labelize(game.termination)} · ${game.plyCount} plies`,
     actions: postgameActions(game),
     details: detailsPanel(game),
-    moves: movesCard(moveList),
+    moves: moveList.el,
     boards: targets.map((target) => ({
       key: target.key,
       el: target.el,
@@ -156,7 +155,7 @@ export function mountDarkChessPostgame(
       }
     },
     renderMoves({ ply }, jump) {
-      renderMoveRows(moveList, moves, ply, jump);
+      moveList.update(ply, jump);
     },
   });
 }
@@ -220,97 +219,17 @@ function sliceToPly(events: GameEvent[], ply: number): GameEvent[] {
   return result;
 }
 
-type MoveEntry = { ply: number; color: Color; label: string };
-
-function buildMoveEntries(events: GameEvent[]): MoveEntry[] {
+function buildMoveEntries(events: GameEvent[]): MoveListEntry[] {
   const labels = algebraicMoveLabels(events, events[0]?.roomId ?? 'replay');
-  const entries: MoveEntry[] = [];
+  const entries: MoveListEntry[] = [];
   for (const [index, event] of events.entries()) {
     if (event.type !== 'move-played') continue;
     entries.push({
       ply: entries.length + 1,
-      color: event.color,
       label: labels.get(index + 1) ?? coordinateMoveLabel(event.move),
     });
   }
   return entries;
-}
-
-function movesCard(moveList: HTMLOListElement): HTMLElement {
-  const card = document.createElement('section');
-  card.className = 'review-moves-card';
-  const heading = document.createElement('h2');
-  heading.className = 'review-moves-card__title';
-  heading.textContent = 'Moves';
-  card.append(heading, moveList);
-  return card;
-}
-
-function renderMoveRows(
-  list: HTMLOListElement,
-  moves: MoveEntry[],
-  activePly: number,
-  onJump: (ply: number) => void,
-): void {
-  list.replaceChildren();
-  if (moves.length === 0) {
-    const empty = document.createElement('li');
-    empty.className = 'move-row move-empty';
-    empty.textContent = 'No moves';
-    list.append(empty);
-    return;
-  }
-  const byPly = new Map<number, MoveEntry>();
-  for (const move of moves) byPly.set(move.ply, move);
-  const maxPly = Math.max(...moves.map((move) => move.ply));
-  const fullMoves = Math.ceil(maxPly / 2);
-  for (let moveNumber = 1; moveNumber <= fullMoves; moveNumber += 1) {
-    const row = document.createElement('li');
-    row.className = 'move-row';
-    const number = document.createElement('span');
-    number.className = 'move-number';
-    number.textContent = String(moveNumber);
-    row.append(
-      number,
-      moveCell(byPly.get(moveNumber * 2 - 1), 'white', moveNumber * 2 - 1, activePly, onJump),
-      moveCell(byPly.get(moveNumber * 2), 'black', moveNumber * 2, activePly, onJump),
-    );
-    list.append(row);
-  }
-  scrollActiveMoveIntoView(list);
-}
-
-function moveCell(
-  entry: MoveEntry | undefined,
-  cell: 'white' | 'black',
-  ply: number,
-  activePly: number,
-  onJump: (ply: number) => void,
-): HTMLElement {
-  if (!entry) {
-    const empty = document.createElement('span');
-    empty.className = `${cell}-ply move-empty`;
-    return empty;
-  }
-  const button = document.createElement('button');
-  button.type = 'button';
-  button.className = `${cell}-ply${activePly === ply ? ' active' : ''}`;
-  button.textContent = entry.label;
-  button.title = `${capitalize(cell)} ply ${ply}: ${entry.label}`;
-  button.onclick = () => onJump(ply);
-  return button;
-}
-
-function scrollActiveMoveIntoView(list: HTMLOListElement): void {
-  window.requestAnimationFrame(() => {
-    const active = list.querySelector<HTMLButtonElement>('button.active');
-    if (!active) return;
-    const listRect = list.getBoundingClientRect();
-    const activeRect = active.getBoundingClientRect();
-    const centeredDelta =
-      activeRect.top - listRect.top - (list.clientHeight - activeRect.height) / 2;
-    list.scrollTo({ top: Math.max(0, list.scrollTop + centeredDelta), behavior: 'auto' });
-  });
 }
 
 function postgameActions(game: FeaturedGame): HTMLElement {
