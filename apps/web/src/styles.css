@@ -5,9 +5,9 @@
 }
 
 .shell:not(.debug-shell) {
-  /* Offset tracks the sticky .site-nav height (currently 58px) so the room fits
-     in one viewport. An undercount leaves a few px of page scroll. */
-  min-height: calc(100svh - 58px);
+  /* Offset tracks the sticky .site-nav's rendered height (61px incl. border) so
+     the room fits in one viewport. An undercount leaves page scroll. */
+  min-height: calc(100svh - 62px);
   display: grid;
   align-content: center;
 }

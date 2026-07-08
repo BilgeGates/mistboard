@@ -20,8 +20,13 @@
 .live-review__cluster .board-shell {
   width: min(
     100%,
-    calc(var(--uni-board-h-budget) * var(--uni-board-aspect, 1)),
-    var(--uni-board-max, 10000px)
+    calc(
+      min(
+        calc(var(--uni-board-h-budget) * var(--uni-board-aspect, 1)),
+        var(--uni-board-max, 10000px)
+      ) *
+      var(--uni-board-scale, 1)
+    )
   );
 }
 

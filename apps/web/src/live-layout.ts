@@ -1,3 +1,4 @@
+import { attachBoardResizeGrip, restoreBoardScale } from './board-resize.js';
 import type { LiveRefs } from './live-state.js';
 import './review/review-shell.css';
 import './live-review.css';
@@ -136,6 +137,12 @@ export function createLiveLayout(
   // other page. Previously this was a hand-rolled static string that drifted
   // (no Learn menu, no mobile toggle) — converging keeps one nav source.
   target.prepend(buildNav());
+
+  // Board zoom: restore the user's persisted scale and hang the drag grip off
+  // the board-stage corner (board-stage width == board width in the room).
+  restoreBoardScale();
+  const boardStage = target.querySelector<HTMLElement>('.board-stage');
+  if (boardStage) attachBoardResizeGrip(boardStage, boardStage);
 
   const roomMeta = target.querySelector<HTMLParagraphElement>('[data-room-meta]');
   const gameInfo = target.querySelector<HTMLDivElement>('[data-game-info]');

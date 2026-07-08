@@ -8,6 +8,7 @@
 // board size is derived from the aspect so the board fills the viewport height
 // (scaling up on tall windows, down on short) without a vertical scroll.
 
+import { attachBoardResizeGrip, currentBoardScale, restoreBoardScale } from '../board-resize.js';
 import { type BoardStageSlot, createBoardStage } from './review-stage.js';
 import './review-shell.css';
 import { createReviewShell } from './review-shell.js';
@@ -185,6 +186,24 @@ export function mountReviewLayout(root: HTMLElement, adapter: ReviewLayoutAdapte
   );
   render();
 
+  // Board zoom: restore the persisted scale and glue the drag grip to the
+  // primary slot's bottom-right corner (re-anchored after every refit — the
+  // slot is centered inside the full-width stage, so the offset varies).
+  restoreBoardScale();
+  const grip = attachBoardResizeGrip(stage.el, () =>
+    stage.el.querySelector<HTMLElement>('.review-stage__slot--primary'),
+  );
+  const positionGrip = (): void => {
+    const slot = stage.el.querySelector<HTMLElement>('.review-stage__slot--primary');
+    if (!slot) return;
+    const slotRect = slot.getBoundingClientRect();
+    const stageRect = stage.el.getBoundingClientRect();
+    if (slotRect.width === 0 || stageRect.width === 0) return;
+    grip.style.right = `${Math.max(0, stageRect.right - slotRect.right) - 8}px`;
+    grip.style.bottom = 'auto';
+    grip.style.top = `${slotRect.bottom - stageRect.top - 10}px`;
+  };
+
   // Size the primary board to the measured available space. The aspect estimate
   // (applyBoardSizing) is only a starting point; fitPrimaryToViewport measures the
   // real laid-out chrome and fills the height. Re-run after layout settles and
@@ -194,6 +213,8 @@ export function mountReviewLayout(root: HTMLElement, adapter: ReviewLayoutAdapte
   const refit = (): void => {
     applyBoardSizing(stage.el, adapter);
     fitPrimaryToViewport(stage.el, adapter.boardAspect);
+    // Re-anchor the grip after the fit's rAF pass has applied the new size.
+    setTimeout(positionGrip, 60);
   };
   refit();
   setTimeout(refit, 60);
@@ -270,7 +291,11 @@ function fitPrimaryToViewport(stageEl: HTMLElement, aspect: number): void {
     const measuredCap = centerEl ? centerEl.getBoundingClientRect().width - gaugePx : 0;
     const widthCap =
       measuredCap > 0 ? measuredCap : Math.max(240, window.innerWidth - RAILS_AND_GUTTERS_PX);
-    const targetBoardWidth = Math.floor((available - nonBoardChrome - 6) * aspect);
+    // The user zoom scales the height-fit target the same way the grid column
+    // scales its width budget (widthCap is already scaled via the column).
+    const targetBoardWidth = Math.floor(
+      (available - nonBoardChrome - 6) * aspect * currentBoardScale(),
+    );
     const targetWidth = Math.max(160, Math.min(widthCap, targetBoardWidth + flankPx));
     stageEl.style.setProperty('--review-stage-primary-max', `${targetWidth}px`);
   });
@@ -314,7 +339,7 @@ function applyBoardSizing(stageEl: HTMLElement, adapter: ReviewLayoutAdapter): v
   // through the aspect). Wide boards are width-bound; tall boards height-bound.
   stageEl.style.setProperty(
     '--review-stage-primary-max',
-    `min(max(240px, calc(100vw - ${RAILS_AND_GUTTERS_PX}px)), calc((100svh - ${chromePx}px) * ${aspect.toFixed(4)}))`,
+    `calc(min(max(240px, calc(100vw - ${RAILS_AND_GUTTERS_PX}px)), calc((100svh - ${chromePx}px) * ${aspect.toFixed(4)})) * var(--uni-board-scale, 1))`,
   );
   stageEl.style.setProperty('--review-stage-secondary-max', `${secondaryWidth}px`);
   // Capture tiles size to ≈ one board cell (board width / columns) so they read

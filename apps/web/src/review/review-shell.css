@@ -26,9 +26,10 @@
   --uni-table-min: 240px;
   --uni-table-max: 400px;
   /* Sticky .site-nav height + page paddings above/below the cluster. Together
-     these are the 108px of vertical chrome the board can never occupy. */
+     these are the 114px of vertical chrome the board can never occupy (measured:
+     111px on the room shell; keep ~3px slack so pages never scroll). */
   --uni-nav-h: 58px;
-  --uni-page-chrome: 50px;
+  --uni-page-chrome: 56px;
   /* Side paddings + scrollbar reserve subtracted from the width budget. */
   --uni-page-reserve: 72px;
   /* Both shells cap the page at the same width so columns match exactly. */
@@ -78,10 +79,15 @@
       var(--uni-gap) -
       var(--uni-page-reserve)
     );
-    --uni-board-width: min(
-      var(--uni-board-w-budget),
-      calc(var(--uni-board-h-budget) * var(--uni-board-aspect, 1)),
-      var(--uni-board-max, 10000px)
+    /* User zoom: --uni-board-scale (persisted, set by the drag grip) scales the
+       fitted board down from its max-fit size; columns re-center around it. */
+    --uni-board-width: calc(
+      min(
+        var(--uni-board-w-budget),
+        calc(var(--uni-board-h-budget) * var(--uni-board-aspect, 1)),
+        var(--uni-board-max, 10000px)
+      ) *
+      var(--uni-board-scale, 1)
     );
     grid-template-columns: var(--uni-board-width) minmax(var(--uni-table-min), var(--uni-table-max));
     grid-template-areas:
@@ -322,4 +328,44 @@
   .review-shell__rail {
     width: min(100%, 560px);
   }
+}
+
+/* Board resize grip (lichess-style corner handle): drag to scale the board via
+   --uni-board-scale; the grid re-centers the columns around it. */
+.board-resize-grip {
+  position: absolute;
+  right: -8px;
+  bottom: -8px;
+  z-index: 3;
+  width: 18px;
+  height: 18px;
+  padding: 0;
+  border: none;
+  background: transparent;
+  cursor: nwse-resize;
+  opacity: 0.45;
+  touch-action: none;
+}
+.board-resize-grip::before {
+  content: "";
+  position: absolute;
+  inset: 4px;
+  border-right: 3px solid var(--site-muted, #8a8578);
+  border-bottom: 3px solid var(--site-muted, #8a8578);
+  border-radius: 0 0 4px 0;
+}
+.board-resize-grip:hover {
+  opacity: 0.95;
+}
+.board-resizing,
+.board-resizing * {
+  /* biome-ignore lint/complexity/noImportantStyles: mid-drag the resize cursor
+     must beat every element's own cursor (board cells, buttons, chessground). */
+  cursor: nwse-resize !important;
+  user-select: none;
+}
+
+/* The review stage hosts the grip absolutely, glued to the primary slot. */
+.review-stage {
+  position: relative;
 }
