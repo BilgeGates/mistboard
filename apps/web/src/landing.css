@@ -594,7 +594,11 @@
 }
 
 .landing-board-column #landing-replay {
-  --showcase-widget-size: min(100cqw - 26px, calc(100dvh - 240px));
+  /* Track the shared band box (feed height, capped at the rail; set by the
+     ResizeObserver in landing.ts) so the viewer board is the SAME square as the
+     daily-puzzle box and both align flush with the center column top-and-bottom.
+     Fallback keeps the prerender / no-JS render sane. */
+  --showcase-widget-size: var(--home-puzzle-box-size, min(100cqw - 26px, calc(100dvh - 240px)));
 }
 
 /* The viewer now lives in a narrow side rail, so keep the seat name + clock
@@ -1423,6 +1427,193 @@
   color: var(--site-accent);
 }
 
+@media (min-width: 1241px) {
+  /* ── Homepage viewer: flush box model (Stage 2) ──────────────────────────────
+   Gated to the desktop band (min-width 1241px, where .landing-demo is a 3-column
+   grid). Below that the band stacks and the viewer reverts to its in-flow,
+   framed, seats-inside layout.
+   Align the BOARD (not the whole widget) top-and-bottom with the center column,
+   mirroring the daily-puzzle box on the right rail. The board is a square that
+   tracks the feed height (--home-puzzle-box-size, shared with the puzzle) and
+   hugs the inner (right) edge; the two name/clock seats sit OUTSIDE the box
+   (absolute, above and below) like the puzzle captions, so the board itself is
+   what lands flush. Scoped to .landing-board-column so the dev variant sheet
+   (bare .showcase-widget) keeps its in-flow seats-inside layout. Covers both
+   renderers: the chessground single pane and the tenant .replay-layout-solo. */
+
+  /* Frameless viewer: drop the .showcase-widget panel chrome on the homepage so the
+   board reads as a bare box matching the puzzle (the dev sheet keeps its frame). */
+  .landing-page .landing-board-column #landing-replay {
+    border: none;
+    background: none;
+    box-shadow: none;
+    border-radius: 0;
+  }
+
+  /* Zero the panel padding on desktop (this selector matches the high-specificity
+   home-viewer padding rule above so it actually wins). */
+  .landing-page:not(.watch-route):not(.game-route):not(.about-route):not(.learn-route):not(
+    .account-route
+  ):not(.profile-route):not(.source-route)
+  #landing-replay {
+    padding: 0;
+    gap: 0;
+  }
+
+  /* Hug the box to the inner (center-facing = right) edge of the left rail, so the
+   gutter to the center column is uniform and any pillarbox slack falls to the
+   outer edge (mirror of the puzzle box hugging left on the right rail). */
+  .landing-page .landing-board-column {
+    align-items: flex-end;
+  }
+
+  /* Chess (chessground single visible pane) */
+  .landing-page .landing-board-column
+    #landing-replay
+    :is(.replay-layout-single-white, .replay-layout-single-black) {
+    align-items: flex-end; /* hug the pane to the inner (right) edge */
+    width: 100%;
+  }
+
+  .landing-page
+    .landing-board-column
+    #landing-replay
+    :is(
+      .replay-layout-single-white .replay-pane-white,
+      .replay-layout-single-black .replay-pane-black
+    ) {
+    position: relative;
+    width: var(--showcase-widget-size);
+    margin-left: auto;
+    gap: 0;
+  }
+
+  /* Top seat (opponent) above the box; bottom seat (POV) below it. */
+  .landing-page .landing-board-column
+    #landing-replay
+    :is(
+      .replay-layout-single-white .replay-pane-white,
+      .replay-layout-single-black .replay-pane-black
+    )
+    .replay-clock-row-top {
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: calc(100% + 2px);
+  }
+
+  .landing-page
+    .landing-board-column
+    #landing-replay
+    :is(
+      .replay-layout-single-white .replay-pane-white,
+      .replay-layout-single-black .replay-pane-black
+    )
+    .replay-pane-clock-slot {
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: calc(100% + 2px);
+  }
+
+  /* Tenant (SVG .replay-layout-solo) */
+  .landing-page .landing-board-column #landing-replay .replay-layout-solo {
+    position: relative;
+    width: var(--showcase-widget-size);
+    margin-left: auto;
+    gap: 0;
+    align-items: flex-end;
+  }
+
+  /* The middle child (board pane, or the reserve-flanked board row) fills the box;
+   the seats are pulled out of flow so it alone defines the flush height. */
+  .landing-page .landing-board-column
+    #landing-replay
+    .replay-layout-solo
+    > :is(.replay-pane, .showcase-board-row) {
+    width: var(--showcase-widget-size);
+  }
+
+  .landing-page
+    .landing-board-column
+    #landing-replay
+    .replay-layout-solo
+    .showcase-seat:first-child {
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: calc(100% + 2px);
+  }
+
+  .landing-page
+    .landing-board-column
+    #landing-replay
+    .replay-layout-solo
+    .showcase-seat:last-child {
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: calc(100% + 2px);
+  }
+
+  /* Drop/fortress reserves: stack BOTH hand strips in one column on the outer (left)
+   edge with the board spanning the inner (right) column, mirroring the puzzle's
+   single reserve column. A 4-row grid centers the two strips vertically (1fr
+   spacers top and bottom) while the board spans the full height. */
+  .landing-page .landing-board-column #landing-replay .replay-layout-solo .showcase-board-row {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    grid-template-rows: 1fr auto auto 1fr;
+    gap: 0 8px;
+    width: var(--showcase-widget-size);
+    height: var(--showcase-widget-size);
+  }
+
+  .landing-page
+    .landing-board-column
+    #landing-replay
+    .replay-layout-solo
+    .showcase-board-row
+    .showcase-reserve-left {
+    grid-column: 1;
+    grid-row: 2;
+    align-self: end;
+  }
+
+  .landing-page
+    .landing-board-column
+    #landing-replay
+    .replay-layout-solo
+    .showcase-board-row
+    .showcase-reserve-right {
+    grid-column: 1;
+    grid-row: 3;
+    align-self: start;
+  }
+
+  .landing-page
+    .landing-board-column
+    #landing-replay
+    .replay-layout-solo
+    .showcase-board-row
+    .replay-pane {
+    grid-column: 2;
+    grid-row: 1 / 5;
+    width: 100%;
+    height: 100%;
+  }
+
+  /* Board fills the inner column (override the two-strip -96px width rule). */
+  .landing-page .landing-board-column
+    #landing-replay
+    .replay-layout-solo
+    .showcase-board-row
+    .replay-board {
+    width: 100%;
+    height: 100%;
+  }
+} /* end @media (min-width: 1241px) — homepage viewer flush box model */
+
 .landing-demo .landing-games-heading {
   padding: 8px 12px;
 }
@@ -1501,7 +1692,9 @@
   }
 }
 
-@media (max-width: 720px) {
+/* Below the desktop band the viewer stacks, so the board no longer tracks the
+   feed height — fall back to the container/viewport-capped size. */
+@media (max-width: 1240px) {
   .landing-board-column #landing-replay {
     --showcase-widget-size: min(100cqw - 26px, 534px, calc(100dvh - 240px));
   }

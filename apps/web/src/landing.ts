@@ -743,26 +743,49 @@ function buildLandingStage(
     lowerStrip,
   );
 
-  // Keep the daily-puzzle board box the same height as the center block (articles +
-  // support/store) so it stays flush top AND bottom at every width: the feed height
-  // shrinks with the viewport but the rail width does not, and pure CSS can't tie
-  // the box to the feed while the (taller) viewer drives the shared row height.
-  // Capped at the rail width so the square never overflows the column. A future
-  // grid-line-sharing pass (once the viewer is on the same box model) removes this.
+  // Both side board boxes (viewer left, daily puzzle right) track the center block
+  // height (articles + support/store) so they stay flush top AND bottom at every
+  // width: the feed height shrinks with the viewport but the rail width does not,
+  // and pure CSS can't tie a box to the feed height across the grid gutters.
+  // One shared square = min(feed height, narrower rail) keeps the two rails
+  // symmetric and never overflows either column. A future grid-line-sharing pass
+  // could remove this JS.
   if (!opts.skipLiveWidgets && typeof ResizeObserver !== 'undefined') {
-    const syncPuzzleBoxSize = (): void => {
+    const syncBandBoxSize = (): void => {
       const feedHeight = centerBelow.getBoundingClientRect().height;
-      const railWidth = puzzleColumn.getBoundingClientRect().width;
-      if (feedHeight > 0 && railWidth > 0) {
-        section.style.setProperty(
-          '--home-puzzle-box-size',
-          `${Math.min(feedHeight, railWidth)}px`,
-        );
+      const puzzleRail = puzzleColumn.getBoundingClientRect().width;
+      const viewerRail = viewerColumn.getBoundingClientRect().width;
+      const rail = Math.min(puzzleRail || Infinity, viewerRail || Infinity);
+      if (feedHeight > 0 && Number.isFinite(rail) && rail > 0) {
+        section.style.setProperty('--home-puzzle-box-size', `${Math.min(feedHeight, rail)}px`);
       }
     };
-    const puzzleBoxObserver = new ResizeObserver(syncPuzzleBoxSize);
-    puzzleBoxObserver.observe(centerBelow);
-    puzzleBoxObserver.observe(puzzleColumn);
+    const bandBoxObserver = new ResizeObserver(syncBandBoxSize);
+    bandBoxObserver.observe(centerBelow);
+    bandBoxObserver.observe(puzzleColumn);
+    bandBoxObserver.observe(viewerColumn);
+  }
+
+  // Hug tenant (SVG) showcase boards to the inner (right) edge so a non-square
+  // board pillarboxes toward the OUTER edge, matching the puzzle. The tenant
+  // frameworks re-render the board SVG every ply, so a one-shot attribute set
+  // (like the puzzle's static render) wouldn't stick; re-apply on each mutation.
+  // Chess is on chessground (no viewBox <svg>), so it never matches — no-op there.
+  if (!opts.skipLiveWidgets && typeof MutationObserver !== 'undefined') {
+    const hugTenantBoards = (): void => {
+      for (const svg of replayRoot.querySelectorAll<SVGElement>(
+        '.replay-layout-solo .replay-board svg',
+      )) {
+        if (svg.getAttribute('preserveAspectRatio') !== 'xMaxYMid meet') {
+          svg.setAttribute('preserveAspectRatio', 'xMaxYMid meet');
+        }
+      }
+    };
+    new MutationObserver(hugTenantBoards).observe(replayRoot, {
+      childList: true,
+      subtree: true,
+    });
+    hugTenantBoards();
   }
 
   // The footer lives only on the homepage now (stripped from interior routes),
