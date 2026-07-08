@@ -71,6 +71,23 @@ function slugPart(value: string): string {
     .slice(0, 80);
 }
 
+// FNV-1a over the raw value -> stable base36 token. Used as a slug fallback so a
+// CJK-only title (e.g. a Chinese event name with no Latin chars, which slugPart
+// reduces to '') still yields a deterministic, non-empty tour slug that stays
+// identical across re-polls of the same source.
+function hashToken(value: string): string {
+  let hash = 2166136261;
+  for (let index = 0; index < value.length; index += 1) {
+    hash ^= value.charCodeAt(index);
+    hash = Math.imul(hash, 16777619);
+  }
+  return (hash >>> 0).toString(36);
+}
+
+function stableTourSlug(value: string): string {
+  return slugPart(value) || `tour-${hashToken(value)}`;
+}
+
 function extractArticleTitle(html: string): string | undefined {
   const match = html.match(/<title[^>]*>([\s\S]*?)<\/title>/i);
   return cleanTagValue(match?.[1]?.replace(/ - World Xiangqi Federation[\s\S]*$/i, ''));
@@ -191,7 +208,7 @@ export function convertWxfDhtmlXqPageToSnapshot(
   options: WxfDhtmlXqConversionOptions = {},
 ): WxfDhtmlXqConversionResult {
   const articleTitle = extractArticleTitle(html);
-  const tourSlug = options.tourSlug ?? slugPart(articleTitle ?? 'wxf-xiangqi-broadcast');
+  const tourSlug = options.tourSlug ?? stableTourSlug(articleTitle ?? 'wxf-xiangqi-broadcast');
   const roundId = options.roundId ?? `${tourSlug}-round`;
   const tour: XiangqiBroadcastTour = {
     schema: XIANGQI_BROADCAST_SCHEMA,

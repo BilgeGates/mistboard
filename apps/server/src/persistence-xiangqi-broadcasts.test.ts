@@ -40,6 +40,27 @@ const WXF_FIXTURE_HTML_PAGE_B = readFileSync(
   'utf-8',
 );
 
+// Legal 89-ply movelist of a real dpxq game; slicing a prefix stays legal
+// because a prefix of a legal game is legal.
+const DPXQ_FULL_MOVELIST =
+  '77477062796780708979727666651242192710222625001009191016273576663554707967792241191863645442204265644264186816176866171479670304665641335655644255356254474330413555546243631464677564666947664655516270517146767583768683628666636533253948254462746676656776776766403071704456485777577073563749483745663657777333304074534553335377765333232429077646333460823433';
+
+// A dpxq live-room per-board feed (view.asp): [DhtmlXQ_*] tags inline, no
+// [DhtmlXQiFrame] wrapper, empty binit = standard start, empty result = live.
+function dpxqLiveBoardPage(input: { plies: number; result?: string }): string {
+  return [
+    '<html><head><title>象棋直播室</title></head><body>',
+    '[DhtmlXQ_event]赛事测试杯[/DhtmlXQ_event]<br>',
+    '[DhtmlXQ_round]第01轮[/DhtmlXQ_round]<br>',
+    '[DhtmlXQ_binit][/DhtmlXQ_binit]<br>',
+    `[DhtmlXQ_result]${input.result ?? ''}[/DhtmlXQ_result]<br>`,
+    '[DhtmlXQ_red]王天一[/DhtmlXQ_red]<br>',
+    '[DhtmlXQ_black]郑惟桐[/DhtmlXQ_black]<br>',
+    `[DhtmlXQ_movelist]${DPXQ_FULL_MOVELIST.slice(0, input.plies * 4)}[/DhtmlXQ_movelist]<br>`,
+    '</body></html>',
+  ].join('');
+}
+
 async function fixturePack(includeGameFiles = false) {
   return await readXiangqiBroadcastFixturePack(FIXTURE_DIR, includeGameFiles);
 }
@@ -499,6 +520,42 @@ definePersistenceTests('xiangqi broadcasts', () => {
     const rounds = await listXiangqiBroadcastRounds(tour.slug);
     assert.equal(rounds.length, 1);
     assert.equal((await listXiangqiBroadcastBoards(rounds[0]!.id)).length, 2);
+  });
+
+  test('source poller broadcasts a growing dpxq live board: created then extended to complete', async () => {
+    const sourceUrl = 'https://fixture.invalid/view.asp?owner=u&id=1';
+    const poll = (page: string) =>
+      pollXiangqiBroadcastSourceOnce({
+        sourceUrl,
+        sourcePolicy: FIXTURE_SOURCE_POLICY,
+        fetchImpl: sourceFetch(page),
+      });
+
+    const first = await poll(dpxqLiveBoardPage({ plies: 4 }));
+    assert.equal(first.ok, true);
+    assert.deepEqual(first.ok ? first.updates.map((u) => (u.ok ? u.status : u.kind)) : [], [
+      'created',
+    ]);
+
+    const second = await poll(dpxqLiveBoardPage({ plies: 12 }));
+    assert.deepEqual(second.ok ? second.updates.map((u) => (u.ok ? u.status : u.kind)) : [], [
+      'extended',
+    ]);
+
+    const third = await poll(dpxqLiveBoardPage({ plies: 30, result: '和' }));
+    assert.deepEqual(third.ok ? third.updates.map((u) => (u.ok ? u.status : u.kind)) : [], [
+      'extended',
+    ]);
+
+    // The persisted board reflects the final live state: full ply count, drawn,
+    // complete. This is the live-broadcast loop end to end through the DB path.
+    const tourSlug = third.ok ? third.tourSlug : '';
+    const rounds = await listXiangqiBroadcastRounds(tourSlug);
+    const boards = await listXiangqiBroadcastBoards(rounds[0]!.id);
+    assert.equal(boards.length, 1);
+    assert.equal(boards[0]?.moves.length, 30);
+    assert.equal(boards[0]?.status, 'complete');
+    assert.equal(boards[0]?.result, '1/2-1/2');
   });
 
   test('source poller walks a manifest of multiple pages through one policy gate', async () => {
