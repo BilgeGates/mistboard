@@ -10,7 +10,7 @@ import { convertWxfDhtmlXqPageToSnapshot } from './xiangqi-broadcast-wxf-dhtmlxq
 // transcoded gb2312 -> utf-8. The movelist lives inside a JS var, players/result
 // only in the <title>.
 const ARCHIVE_HTML = readFileSync(
-  fileURLToPath(new URL('./fixtures/dpxq/view_m_11637-archive.html', import.meta.url)),
+  fileURLToPath(new URL('../fixtures/dpxq/view_m_11637-archive.html', import.meta.url)),
   'utf-8',
 );
 
