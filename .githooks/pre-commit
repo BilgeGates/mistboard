@@ -21,10 +21,14 @@ print_paths() {
 if [ -n "$unstaged_paths" ] || [ -n "$untracked_paths" ]; then
   if [ "${MISTBOARD_PRECOMMIT_STASH:-}" != "1" ]; then
     echo "pre-commit: unstaged or untracked files are present." >&2
-    echo "pre-commit: refusing to auto-stash them because shared agent sessions can clobber work." >&2
+    echo "pre-commit: refusing to auto-stash. A repo-wide stash can clobber a concurrent session, and has lost newly-ignored files on .gitignore-flip commits." >&2
     print_paths "unstaged" "$unstaged_paths"
     print_paths "untracked" "$untracked_paths"
-    echo "Commit from a clean worktree, or set MISTBOARD_PRECOMMIT_STASH=1 for one local commit." >&2
+    echo "Get to a clean tree instead:" >&2
+    echo "  - stage what belongs in THIS commit (git add <paths>), or" >&2
+    echo "  - let the other session commit first, then commit yours, or" >&2
+    echo "  - run long work in a per-session worktree (npm run worktree:new)." >&2
+    echo "MISTBOARD_PRECOMMIT_STASH=1 forces one stash+commit: solo, clean-ish trees only, never a .gitignore-flip. Not the default fix." >&2
     exit 1
   fi
 
@@ -40,7 +44,10 @@ if [ -n "$unstaged_paths" ] || [ -n "$untracked_paths" ]; then
   }
   trap restore_stash EXIT INT TERM
 
-  git stash push --quiet --keep-index --include-untracked \
+  # No --include-untracked: sweeping untracked files repo-wide is what clobbers
+  # concurrent sessions and loses newly-ignored files on .gitignore-flip commits.
+  # Only unstaged TRACKED changes are set aside; --keep-index preserves staged.
+  git stash push --quiet --keep-index \
     -m "pre-commit unstaged backup"
   stash_created=1
 fi
