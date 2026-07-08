@@ -37,6 +37,10 @@ export type ReviewLayoutAdapter = {
   actions: HTMLElement;
   /** Left-rail details panel (result / clock / date …). Optional. */
   details?: HTMLElement;
+  /** Lichess-style game meta card (glyph / time control / players / result).
+   *  When present it REPLACES the eyebrow/title/summary info card; the actions
+   *  row renders beneath it. Build with review/game-meta-card.ts. */
+  metaCard?: HTMLElement;
   /** Right-rail move list container (the layout owns the scrubber below it). */
   moves: HTMLElement;
   /** Optional analysis slots (lichess-shaped), placed by the shell around the move
@@ -384,6 +388,16 @@ function applyBoardSizing(stageEl: HTMLElement, adapter: ReviewLayoutAdapter): v
 }
 
 function infoRail(adapter: ReviewLayoutAdapter): HTMLElement {
+  if (adapter.metaCard) {
+    const actionsCard = document.createElement('div');
+    actionsCard.className = 'review-actions review-actions--rail';
+    actionsCard.append(adapter.actions);
+    return railGroup(
+      adapter.details
+        ? [adapter.metaCard, actionsCard, adapter.details]
+        : [adapter.metaCard, actionsCard],
+    );
+  }
   const card = document.createElement('section');
   card.className = 'review-info-card';
   const eyebrow = document.createElement('p');

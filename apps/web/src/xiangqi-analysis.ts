@@ -18,6 +18,7 @@ import './dark-xiangqi-postgame.css';
 import './xiangqi-postgame.css';
 import { createCeval } from './review/engine/ceval.js';
 import { computeGameAnalysis, type GameAnalysis, type PlyEval } from './review/game-analysis.js';
+import { createGameMetaCard } from './review/game-meta-card.js';
 import { mountXiangqiReview } from './review/xiangqi-review.js';
 import {
   buildXiangqiReplayFromMoves,
@@ -94,6 +95,22 @@ export function mountXiangqiAnalysis(
   }
 
   const finalStatus = xiangqiReplayViewAtPly(replay, replay.maxPly).status;
+  const metaCard = createGameMetaCard({
+    glyph: '象',
+    headline: ['Analysis board'],
+    variantName: 'Elephant Chess',
+    subline: `${replay.maxPly} ${replay.maxPly === 1 ? 'ply' : 'plies'}`,
+    status:
+      finalStatus.type === 'finished'
+        ? `${
+            finalStatus.winner === 'red'
+              ? 'Red wins'
+              : finalStatus.winner === 'black'
+                ? 'Black wins'
+                : 'Draw'
+          } by ${finalStatus.reason}`
+        : null,
+  });
 
   root.replaceChildren();
   mountXiangqiReview(root, {
@@ -103,6 +120,7 @@ export function mountXiangqiAnalysis(
     summary: statusSummary(finalStatus, replay.maxPly),
     boardAriaLabel: 'Xiangqi board',
     actions: analysisActions(),
+    metaCard: metaCard.el,
     details: replay.illegalAt ? illegalNotice(replay) : undefined,
     moves: replay.moves,
     maxPly: replay.maxPly,

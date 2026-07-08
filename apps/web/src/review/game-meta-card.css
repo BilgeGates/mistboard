@@ -1,0 +1,121 @@
+/* Shared game meta card (see game-meta-card.ts): variant glyph + time control /
+   mode headline, relative time, player rows with color discs, and a divided
+   status/result line. Rendered in the left rail of both the live room and the
+   review pages. */
+
+.game-meta-card {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 14px;
+  border: 1px solid var(--site-border);
+  border-radius: var(--site-radius, 10px);
+  background: var(--site-panel, var(--site-surface));
+}
+
+.game-meta-card__head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.game-meta-card__icon {
+  flex: 0 0 auto;
+  width: 44px;
+  height: 44px;
+  display: grid;
+  place-items: center;
+  font-size: 30px;
+  line-height: 1;
+  color: var(--site-muted);
+}
+
+.game-meta-card__head-text {
+  min-width: 0;
+}
+
+.game-meta-card__headline {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--site-text);
+}
+
+.game-meta-card__variant {
+  color: var(--site-accent, #237960);
+  text-transform: none;
+}
+
+.game-meta-card__subline {
+  margin: 2px 0 0;
+  font-size: 12px;
+  color: var(--site-muted);
+}
+
+.game-meta-card__subline[hidden],
+.game-meta-card__players[hidden],
+.game-meta-card__status[hidden] {
+  display: none;
+}
+
+.game-meta-card__players {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.game-meta-card__player {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  font-size: 13px;
+  color: var(--site-text);
+}
+
+.game-meta-card__disc {
+  flex: 0 0 auto;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  border: 2px solid var(--site-text);
+  box-sizing: border-box;
+}
+
+.game-meta-card__disc--dark {
+  background: var(--site-text);
+}
+
+.game-meta-card__disc--light {
+  background: transparent;
+}
+
+.game-meta-card__bot {
+  flex: 0 0 auto;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  color: #8b5cf6;
+}
+
+.game-meta-card__name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 600;
+}
+
+.game-meta-card__rating {
+  flex: 0 0 auto;
+  color: var(--site-muted);
+}
+
+.game-meta-card__status {
+  margin: 0;
+  padding-top: 10px;
+  border-top: 1px solid var(--site-border);
+  text-align: center;
+  font-size: 13px;
+  color: var(--site-text);
+}

@@ -58,8 +58,7 @@ export function createLiveLayout(
         <div class="review-shell__cluster live-review__cluster">
           <aside class="side-panel meta-panel review-shell__rail review-shell__left" aria-label="Game info">
             <section class="panel-section">
-              <h2>About</h2>
-              <div data-game-info class="game-info"></div>
+              <div data-game-info></div>
             </section>
             <section data-offer-section class="panel-section">
               <h2>Dark Draft960 Offer</h2>

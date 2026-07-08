@@ -58,6 +58,8 @@ export type XiangqiReviewConfig = {
   actions: HTMLElement;
   /** Left-rail details panel. Optional. */
   details?: HTMLElement;
+  /** Lichess-style game meta card; replaces the plain title/summary card. */
+  metaCard?: HTMLElement;
   /** Canonical moves of the (legal prefix of the) game, in order. */
   moves: XiangqiMove[];
   maxPly: number;
@@ -174,6 +176,7 @@ export function mountXiangqiReview(root: HTMLElement, config: XiangqiReviewConfi
     summary: config.summary,
     actions: config.actions,
     details: config.details,
+    metaCard: config.metaCard,
     moves: moveList.el,
     enginePanel: enginePanel.el,
     moveComment: moveAdvice.el,

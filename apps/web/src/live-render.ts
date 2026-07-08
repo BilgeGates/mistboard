@@ -61,6 +61,7 @@ import {
   seatLabel,
 } from './live-status.js';
 import { currentCaptures, currentProjection, currentView } from './live-view.js';
+import { createGameMetaCard } from './review/game-meta-card.js';
 import { activeLiveShellTenant, liveShellTenants } from './variant-tenant/live-shell.js';
 import { installSelectionClickAway } from './variant-tenant/selection-click-away.js';
 import { escapeHtml, isColor } from './web-utils.js';
@@ -544,25 +545,57 @@ function renderActionStatus(view: PlayerView | null): void {
   refs.actionStatus.append(notice);
 }
 
+// Lichess-style meta card (mirrors the tenant room-chrome renderMeta): time
+// control + mode headline, variant name, seats as player rows, stateful
+// bottom line. Degraded-connection detail moves to a small trailing row.
 function renderGameInfo(view: PlayerView | null): void {
-  const items: HTMLDivElement[] = [];
   const fmt = formatLabel(view);
   const timeLabel = timeControlLabel(view);
-  items.push(infoItem('Variant', timeLabel ? `${fmt} · ${timeLabel}` : fmt));
   const modeEntry = modeDetailEntry();
-  if (modeEntry) {
-    const [modeKey, modeVal] = modeEntry;
-    items.push(infoItem(modeKey, modeVal));
+  const status = view?.status ?? null;
+
+  let subline: string | null = null;
+  let statusLine: string | null = null;
+  if (status?.type === 'finished') {
+    const reason = status.reason.replace(/-/g, ' ');
+    statusLine = status.winner
+      ? `${reason.charAt(0).toUpperCase()}${reason.slice(1)} • ${status.winner === 'white' ? 'White' : 'Black'} is victorious`
+      : `Draw • ${reason}`;
+  } else if (status?.type === 'aborted') {
+    statusLine = 'Game aborted';
+  } else if (status?.type === 'playing') {
+    subline = 'Playing right now';
   }
-  // Which color you're playing — shown alongside variant + mode so the meta
-  // panel matches the Dark Mini Xiangqi room.
-  items.push(infoItem('Seat', seatLabel(liveState.seat)));
+
+  const card = createGameMetaCard({
+    glyph: '♔',
+    headline: [timeLabel, modeEntry ? modeEntry[1] : 'Casual'],
+    variantName: fmt,
+    subline,
+    players: (['white', 'black'] as const).map((color) => ({
+      color,
+      name:
+        liveState.seat === color
+          ? `You (${color === 'white' ? 'White' : 'Black'})`
+          : color === 'white'
+            ? 'White'
+            : 'Black',
+    })),
+    status: statusLine,
+  });
+  refs.gameInfo.replaceChildren(card.el);
   // Connection only surfaces when degraded — green-path "Connected · 1ms" is noise.
+  // The wrapper carries the .game-info styling the row expects (the region
+  // itself no longer has it, so it can't mangle the meta card).
   if (liveState.connectionState !== 'connected') {
     const connLabel = connectionDetailLabel();
-    if (connLabel) items.push(infoItem('Connection', connLabel));
+    if (connLabel) {
+      const wrap = document.createElement('div');
+      wrap.className = 'game-info';
+      wrap.append(infoItem('Connection', connLabel));
+      refs.gameInfo.append(wrap);
+    }
   }
-  refs.gameInfo.replaceChildren(...items);
 }
 
 function formatLabel(view: PlayerView | null): string {

@@ -11,6 +11,7 @@ import './dark-xiangqi-postgame.css';
 import './xiangqi-postgame.css';
 import { xiangqiEnabled } from './feature-flags.js';
 import { fetchCachedGameAnalysis, requestGameAnalysis } from './review/game-analysis.js';
+import { createGameMetaCard, timeAgoLabel } from './review/game-meta-card.js';
 import { mountXiangqiReview } from './review/xiangqi-review.js';
 import { buildNav } from './site-shell.js';
 import { createXiangqiPlayAgainRoom } from './xiangqi-room-actions.js';
@@ -32,6 +33,13 @@ export type XiangqiPostgameResponse = {
     visibility: string;
     initialMs: number | null;
     incrementMs: number | null;
+    /** Persisted participants (server includes them for persisted games). */
+    players?: Array<{
+      color: string;
+      name: string;
+      rating: number | null;
+      kind: 'account' | 'guest' | 'engine';
+    }>;
   };
   state: {
     status: StandardXiangqiPlayerView['status'];
@@ -106,6 +114,20 @@ function renderPostgame(root: HTMLElement, postgame: XiangqiPostgameResponse): v
     .filter((item) => item.type === 'move-played' && item.move)
     .map((item) => item.move as XiangqiMove);
 
+  const metaCard = createGameMetaCard({
+    glyph: '象',
+    headline: [timeControlLabel(postgame), postgame.game.rated ? 'Rated' : 'Casual'],
+    variantName: 'Elephant Chess',
+    subline: timeAgoLabel(postgame.game.endedAt),
+    players: (postgame.game.players ?? []).map((player) => ({
+      color: player.color,
+      name: player.name,
+      rating: player.rating,
+      isEngine: player.kind === 'engine',
+    })),
+    status: `${resultLabel(postgame.game.result)} by ${labelize(postgame.game.termination)}`,
+  });
+
   root.replaceChildren(buildNav());
   mountXiangqiReview(root, {
     pageClassName: 'xiangqi-review',
@@ -113,7 +135,7 @@ function renderPostgame(root: HTMLElement, postgame: XiangqiPostgameResponse): v
     title: 'Elephant Chess',
     summary: `${resultLabel(postgame.game.result)} by ${labelize(postgame.game.termination)} · ${postgame.game.plyCount} plies`,
     actions: postgameActions(postgame),
-    details: detailsPanel(postgame),
+    metaCard: metaCard.el,
     moves,
     maxPly: postgameReplayMaxPly(postgame),
     viewAtPly: (ply) => postgameViewAtPly(postgame, 'truth', ply) ?? entry.view,
@@ -197,33 +219,6 @@ function postgameActions(postgame: XiangqiPostgameResponse): HTMLElement {
   return actions;
 }
 
-function detailsPanel(postgame: XiangqiPostgameResponse): HTMLElement {
-  const panel = document.createElement('section');
-  panel.className = 'dxq-postgame__panel';
-  const heading = document.createElement('h2');
-  heading.textContent = 'Game';
-  const details = document.createElement('dl');
-  details.className = 'dxq-postgame__details';
-  details.append(
-    detailRow('Result', resultLabel(postgame.game.result)),
-    detailRow('Ending', labelize(postgame.game.termination)),
-    detailRow('Clock', timeControlLabel(postgame)),
-    detailRow('Ended', dateLabel(postgame.game.endedAt)),
-  );
-  panel.append(heading, details);
-  return panel;
-}
-
-function detailRow(label: string, value: string): HTMLElement {
-  const row = document.createElement('div');
-  const dt = document.createElement('dt');
-  dt.textContent = label;
-  const dd = document.createElement('dd');
-  dd.textContent = value;
-  row.append(dt, dd);
-  return row;
-}
-
 function loadingView(): HTMLElement {
   const shell = document.createElement('main');
   shell.className = 'dxq-postgame__notice';
@@ -293,18 +288,6 @@ function clockLabel(ms: number): string {
   const minutes = Math.floor(totalSeconds / 60);
   const seconds = totalSeconds % 60;
   return `${minutes}:${String(seconds).padStart(2, '0')}`;
-}
-
-function dateLabel(value: string): string {
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return value;
-  return date.toLocaleString(undefined, {
-    day: 'numeric',
-    hour: 'numeric',
-    minute: '2-digit',
-    month: 'short',
-    year: 'numeric',
-  });
 }
 
 function labelize(value: string): string {

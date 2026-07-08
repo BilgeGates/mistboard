@@ -17,15 +17,9 @@ import '../game-shell.css';
 import { openConfirmDialog } from '../confirm-dialog.js';
 import { maybePlayLowTimeSound } from '../live-sound.js';
 import type { LiveRefs } from '../live-state.js';
+import { createGameMetaCard } from '../review/game-meta-card.js';
 import { formatClock } from '../web-utils.js';
-import {
-  capitalize,
-  infoItem,
-  noticeBody,
-  noticeTitle,
-  presenceDot,
-  roomLink,
-} from './chrome-dom.js';
+import { capitalize, noticeBody, noticeTitle, presenceDot, roomLink } from './chrome-dom.js';
 
 // Structural slice of a variant PlayerView the chrome reads (same status shape
 // as the server-side TenantGameStatus).
@@ -306,15 +300,43 @@ export function createTenantRoomChrome<C extends string>(
     }
   }
 
+  // Lichess-style meta card: time control + mode headline, variant name, the
+  // two seats as player rows (the viewer reads as "You"), and a stateful
+  // bottom line (waiting / playing / result).
   function renderMeta(): void {
     if (!refs) return;
     const seat = seatColor();
     const detail = ctx.variantDetail?.() ?? null;
-    refs.gameInfo.replaceChildren(
-      infoItem('Variant', detail ? `${tenant.displayName} · ${detail}` : tenant.displayName),
-      infoItem('Mode', 'Casual'),
-      infoItem('Seat', seat ? seatName(seat) : 'Spectator'),
-    );
+    const view = ctx.view();
+    const status = view?.status ?? null;
+    const tc = ctx.timeControl();
+    const tcLabel = tc
+      ? `${Math.max(1, Math.round(tc.initialMs / 60_000))}+${Math.round(tc.incrementMs / 1_000)}`
+      : null;
+
+    let subline: string | null = null;
+    let statusLine: string | null = null;
+    if (status?.type === 'finished') {
+      statusLine = status.winner
+        ? `${tenant.reasonPhrase(status.reason)} • ${seatName(status.winner)} is victorious`
+        : `Draw • ${tenant.reasonPhrase(status.reason)}`;
+    } else if (status?.type === 'aborted') {
+      statusLine = 'Game aborted';
+    } else if (status?.type === 'playing') {
+      subline = waitingForOpponent() ? 'Waiting for opponent' : 'Playing right now';
+    }
+
+    const card = createGameMetaCard({
+      headline: [tcLabel, 'Casual'],
+      variantName: detail ? `${tenant.displayName} · ${detail}` : tenant.displayName,
+      subline,
+      players: tenant.colors.map((color) => ({
+        color,
+        name: color === seat ? `You (${seatName(color)})` : seatName(color),
+      })),
+      status: statusLine,
+    });
+    refs.gameInfo.replaceChildren(card.el);
     if (ctx.debugRequested()) {
       refs.roomMeta.textContent = `${tenant.displayName}${seat ? ` · Playing as ${seatName(seat)}` : ''}`;
     }
