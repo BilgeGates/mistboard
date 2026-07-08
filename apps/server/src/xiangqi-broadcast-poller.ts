@@ -3,6 +3,7 @@ import type pg from 'pg';
 import * as persistence from './persistence.js';
 import { withRollbackTransaction } from './persistence-db.js';
 import { looksLikeDpxqPage, normalizeDpxqPageToFrameHtml } from './xiangqi-broadcast-dpxq.js';
+import { defaultXiangqiBroadcastFetch } from './xiangqi-broadcast-fetch.js';
 import {
   validateXiangqiBroadcastSourceUrl,
   type XiangqiBroadcastSourceUrlPolicy,
@@ -613,14 +614,7 @@ export async function pollXiangqiBroadcastSourceOnce(input: {
     timeoutMs: input.timeoutMs ?? 5_000,
     allowCorrection: input.allowCorrection ?? false,
     dryRun: input.dryRun ?? false,
-    fetchImpl:
-      input.fetchImpl ??
-      ((url, init) =>
-        fetch(url, init) as Promise<{
-          ok: boolean;
-          status: number;
-          text(): Promise<string>;
-        }>),
+    fetchImpl: input.fetchImpl ?? defaultXiangqiBroadcastFetch,
     sourcePolicy: input.sourcePolicy ?? xiangqiBroadcastSourceUrlPolicyFromEnv(),
   };
 
