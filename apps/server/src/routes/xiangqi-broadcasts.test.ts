@@ -234,7 +234,7 @@ test('manual broadcast poll uses configured tour source and records operator res
   const recorded: unknown[] = [];
   const result = await manualXiangqiBroadcastPollForApi(
     tour.slug,
-    { allowCorrection: true, timeoutMs: 750 },
+    { allowCorrection: true, dryRun: false, timeoutMs: 750 },
     deps({
       recordXiangqiBroadcastSyncLog: async (input) => {
         recorded.push(input);
@@ -243,11 +243,15 @@ test('manual broadcast poll uses configured tour source and records operator res
     async (input) => ({
       ok: true,
       sourceUrl: input.sourceUrl,
+      dryRun: false,
       tourSlug: tour.slug,
       roundsImported: 1,
       boardsSeen: 3,
       boardsFailed: 1,
+      sourcesSeen: 1,
+      sourcesFailed: 0,
       updates: [],
+      sources: [],
     }),
   );
 
@@ -264,15 +268,76 @@ test('manual broadcast poll uses configured tour source and records operator res
       roundsImported: 1,
       boardsSeen: 3,
       boardsFailed: 1,
+      sourcesSeen: 1,
+      sourcesFailed: 0,
       allowCorrection: true,
     },
   });
 });
 
+test('manual broadcast poll dry run previews without recording sync logs', async () => {
+  const recorded: unknown[] = [];
+  const pollInputs: Array<{ dryRun?: boolean }> = [];
+  const result = await manualXiangqiBroadcastPollForApi(
+    tour.slug,
+    { allowCorrection: false, dryRun: true, timeoutMs: 750 },
+    deps({
+      recordXiangqiBroadcastSyncLog: async (input) => {
+        recorded.push(input);
+      },
+    }),
+    async (input) => {
+      pollInputs.push({ dryRun: input.dryRun });
+      return {
+        ok: true,
+        sourceUrl: input.sourceUrl,
+        dryRun: true,
+        tourSlug: tour.slug,
+        roundsImported: 1,
+        boardsSeen: 3,
+        boardsFailed: 0,
+        sourcesSeen: 1,
+        sourcesFailed: 0,
+        updates: [],
+        sources: [],
+      };
+    },
+  );
+
+  assert.equal(result.ok, true);
+  assert.equal(result.ok ? result.result.dryRun : false, true);
+  assert.deepEqual(pollInputs, [{ dryRun: true }]);
+  assert.deepEqual(recorded, []);
+});
+
+test('manual broadcast poll dry run failure skips the operator failure log', async () => {
+  const recorded: unknown[] = [];
+  const result = await manualXiangqiBroadcastPollForApi(
+    tour.slug,
+    { allowCorrection: false, dryRun: true, timeoutMs: 750 },
+    deps({
+      recordXiangqiBroadcastSyncLog: async (input) => {
+        recorded.push(input);
+      },
+    }),
+    async (input) => ({
+      ok: false,
+      sourceUrl: input.sourceUrl,
+      dryRun: true,
+      kind: 'source_http_error',
+      message: 'source answered HTTP 500',
+    }),
+  );
+
+  assert.equal(result.ok, false);
+  assert.equal(result.ok ? 0 : result.status, 502);
+  assert.deepEqual(recorded, []);
+});
+
 test('manual broadcast poll reports missing source before polling', async () => {
   const result = await manualXiangqiBroadcastPollForApi(
     tour.slug,
-    { allowCorrection: false, timeoutMs: 5_000 },
+    { allowCorrection: false, dryRun: false, timeoutMs: 5_000 },
     deps({
       getXiangqiBroadcastTour: async (slug) =>
         slug === tour.slug
@@ -291,7 +356,7 @@ test('manual broadcast poll records tour-scoped source failures', async () => {
   const recorded: unknown[] = [];
   const result = await manualXiangqiBroadcastPollForApi(
     tour.slug,
-    { allowCorrection: false, timeoutMs: 1_000 },
+    { allowCorrection: false, dryRun: false, timeoutMs: 1_000 },
     deps({
       recordXiangqiBroadcastSyncLog: async (input) => {
         recorded.push(input);
@@ -300,6 +365,7 @@ test('manual broadcast poll records tour-scoped source failures', async () => {
     async (input) => ({
       ok: false,
       sourceUrl: input.sourceUrl,
+      dryRun: false,
       kind: 'source_http_error',
       message: 'source answered HTTP 500',
     }),
@@ -326,7 +392,7 @@ test('manual broadcast poll reports disallowed source as a configuration error',
   const recorded: unknown[] = [];
   const result = await manualXiangqiBroadcastPollForApi(
     tour.slug,
-    { allowCorrection: false, timeoutMs: 1_000 },
+    { allowCorrection: false, dryRun: false, timeoutMs: 1_000 },
     deps({
       recordXiangqiBroadcastSyncLog: async (input) => {
         recorded.push(input);
@@ -335,6 +401,7 @@ test('manual broadcast poll reports disallowed source as a configuration error',
     async (input) => ({
       ok: false,
       sourceUrl: input.sourceUrl,
+      dryRun: false,
       kind: 'source_disallowed',
       message: 'source URL host is not allowed',
     }),

@@ -27,15 +27,19 @@ Landed:
 - deterministic event tapes, local fake source server, and local source poller;
 - public broadcast index, tour, round, and board replay pages;
 - persistence-backed SSE updates for round and board viewers;
-- admin-only ops console with manual poll, correction mode, recent sync logs,
-  source health buckets, and bounded poll backoff;
-- WXF/DhtmlXQ real-source proof using a checked-in official-page fixture;
+- admin-only ops console with manual poll, correction mode, dry-run preview,
+  recent sync logs, source health buckets, and bounded poll backoff;
+- WXF/DhtmlXQ pages poll directly through the production poller (the adapter
+  runs in the poll path, not only in the local fake source);
+- tour-manifest workflow: one manifest URL fans out to many round/page sources,
+  each gated by the same fail-closed source URL policy;
+- dry-run/import preview at every level (poller `--dry-run`, ops API `dryRun`,
+  ops console Preview button) running the real write path inside an
+  always-rollback transaction;
 - source URL safety policy that keeps production source polling fail-closed.
 
 Still intentionally open:
 
-- WXF multi-page or tour-manifest workflow;
-- dry-run/import preview before destructive corrections;
 - visual polish for top-tier event watching, including theater-mode treatment,
   multi-board scanning, live-move affordances, and mobile QA;
 - scheduled production polling for an approved event.
@@ -122,6 +126,26 @@ Adapters may ingest WXF pages, DhtmlXQ files, UCCI strings, elephantops PGN-like
 records, CSV pairings, or manual input, but all of them must normalize to the
 same coordinate move list before persistence.
 
+The poller accepts three source body shapes and detects them per fetch:
+
+1. canonical JSON snapshot (`tour` + `rounds` + `boards`);
+2. a WXF-style HTML page carrying `[DhtmlXQiFrame]` payloads, converted through
+   the DhtmlXQ adapter in the poll path;
+3. a source manifest (`mistboard.xiangqi.broadcast.manifest.v1`) that lists up
+   to 32 page sources with optional per-entry `tourSlug`/`tourName`/`roundId`/
+   `roundName` overrides. Every entry URL is validated by the same fail-closed
+   source policy; nested manifests are rejected.
+
+```json
+{
+  "schema": "mistboard.xiangqi.broadcast.manifest.v1",
+  "sources": [
+    { "url": "https://example.org/men-r1a.html", "tourSlug": "2025-wxc", "roundId": "2025-wxc-r1a", "roundName": "Men Round 1 Page A" },
+    { "url": "https://example.org/men-r1b.html", "tourSlug": "2025-wxc", "roundId": "2025-wxc-r1b", "roundName": "Men Round 1 Page B" }
+  ]
+}
+```
+
 Every imported or pushed move must validate through the standard xiangqi rules
 engine before it becomes public board state.
 
@@ -154,7 +178,10 @@ npm run smoke:xiangqi-broadcast
 The smoke prepares local Postgres, runs migrations, imports the canonical
 completed fixture, applies the deterministic tape simulation, polls a fake live
 source, polls the checked-in WXF/DhtmlXQ HTML fixture through the real-source
-adapter, and prints browser URLs for `npm run dev:persistent`.
+adapter, dry-run previews then polls a multi-page WXF manifest fixture
+(`--manifest-dir`), and prints browser URLs for `npm run dev:persistent`.
+The dry-run step proves no writes happen: the real manifest poll immediately
+after still reports every board as `created`.
 
 ### Fixtures
 
@@ -230,7 +257,7 @@ Current status:
 | M4 live updates | Landed |
 | M5 organizer console | Landed |
 | M6 real-source adapter proof | Landed for WXF/DhtmlXQ |
-| Source production hardening | In progress in issue #118 |
+| Source production hardening (#118) | Landed: source policy, backoff, health buckets, manifest workflow, dry-run preview |
 | Viewer polish for top-tier events | Not started |
 | Scheduled production polling | Not started |
 
@@ -321,13 +348,27 @@ npm run db:poll:xiangqi-broadcast -- \
   --timeout-ms 1000
 ```
 
-Drop `--once` to keep polling. The poller imports tour/round metadata from the
+Drop `--once` to keep polling. Add `--dry-run` (with `--once`) to preview what
+a poll would change: the poller runs the exact import/update path inside an
+always-rollback transaction and reports per-board statuses without writing
+board rows or sync logs. The poller imports tour/round metadata from the
 source snapshot, applies each board through the same persisted board-update
 boundary as the tape runner, and records HTTP, malformed, fetch, timeout, and
 source-policy failures in sync logs. Continuous polling uses bounded failure
 backoff: `--interval-ms` sets the healthy cadence, `--max-interval-ms` caps
 failure delay growth, and `--backoff-multiplier` controls how quickly
 consecutive failures slow the loop.
+
+Multi-page manifest fixture (serves `/manifest.json` plus `/pages/...`):
+
+```bash
+npm run source:xiangqi-broadcast -- \
+  --manifest-dir apps/server/fixtures/wxf-dhtmlxq/2019-wxc-men-manifest \
+  --port 3128
+npm run db:poll:xiangqi-broadcast -- \
+  --source http://localhost:3128/manifest.json \
+  --once --dry-run
+```
 
 ### M3: Public Viewer
 

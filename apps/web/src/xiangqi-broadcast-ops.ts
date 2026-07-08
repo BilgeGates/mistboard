@@ -58,10 +58,14 @@ type PollResponse = {
   result?: {
     ok: boolean;
     sourceUrl: string;
+    dryRun?: boolean;
     tourSlug?: string;
     roundsImported?: number;
     boardsSeen?: number;
     boardsFailed?: number;
+    sourcesSeen?: number;
+    sourcesFailed?: number;
+    updates?: Array<{ ok: boolean; status?: string; kind?: string }>;
     kind?: string;
     message?: string;
   };
@@ -154,6 +158,12 @@ function tourPanel(entry: OpsTour, body: HTMLElement): HTMLElement {
   const correctionText = document.createElement('span');
   correctionText.textContent = 'Allow corrections';
   correctionLabel.append(correction, correctionText);
+  const preview = document.createElement('button');
+  preview.type = 'button';
+  preview.textContent = 'Preview';
+  preview.className = 'xqb-ops-button xqb-ops-button-secondary';
+  preview.disabled = !entry.sourceUrl;
+  preview.title = 'Dry run: shows what this poll would change without writing anything';
   const poll = document.createElement('button');
   poll.type = 'button';
   poll.textContent = 'Poll';
@@ -161,7 +171,7 @@ function tourPanel(entry: OpsTour, body: HTMLElement): HTMLElement {
   poll.disabled = !entry.sourceUrl;
   const result = document.createElement('span');
   result.className = 'xqb-ops-poll-result';
-  actions.append(view, correctionLabel, poll, result);
+  actions.append(view, correctionLabel, preview, poll, result);
   top.append(copy, actions);
 
   const stats = document.createElement('dl');
@@ -195,29 +205,55 @@ function tourPanel(entry: OpsTour, body: HTMLElement): HTMLElement {
   }
 
   poll.onclick = () => {
-    void runPoll(entry, correction.checked, poll, result, body);
+    void runPoll(entry, { allowCorrection: correction.checked, dryRun: false }, poll, result, body);
+  };
+  preview.onclick = () => {
+    void runPoll(
+      entry,
+      { allowCorrection: correction.checked, dryRun: true },
+      preview,
+      result,
+      body,
+    );
   };
 
   section.append(top, stats, source, health, logs);
   return section;
 }
 
+function pollSummary(result: NonNullable<PollResponse['result']>): string {
+  const counts = new Map<string, number>();
+  for (const update of result.updates ?? []) {
+    const key = update.ok ? (update.status ?? 'ok') : (update.kind ?? 'failed');
+    counts.set(key, (counts.get(key) ?? 0) + 1);
+  }
+  const statusSummary = [...counts.entries()].map(([key, count]) => `${key}=${count}`).join(' ');
+  const sourceSummary =
+    (result.sourcesSeen ?? 1) > 1 || (result.sourcesFailed ?? 0) > 0
+      ? `, ${result.sourcesFailed ?? 0}/${result.sourcesSeen ?? 1} sources failed`
+      : '';
+  const prefix = result.dryRun ? 'Preview (no writes): ' : '';
+  return `${prefix}${result.boardsSeen ?? 0} boards, ${result.boardsFailed ?? 0} failed${sourceSummary}${
+    statusSummary ? ` (${statusSummary})` : ''
+  }`;
+}
+
 async function runPoll(
   entry: OpsTour,
-  allowCorrection: boolean,
+  options: { allowCorrection: boolean; dryRun: boolean },
   button: HTMLButtonElement,
   result: HTMLElement,
   body: HTMLElement,
 ): Promise<void> {
   button.disabled = true;
-  result.textContent = 'Polling...';
+  result.textContent = options.dryRun ? 'Previewing...' : 'Polling...';
   try {
     const response = await fetch(
       `/api/admin/xiangqi/broadcasts/${encodeURIComponent(entry.tour.slug)}/poll`,
       {
         method: 'POST',
         headers: { accept: 'application/json', 'content-type': 'application/json' },
-        body: JSON.stringify({ allowCorrection }),
+        body: JSON.stringify(options),
       },
     );
     const payload = (await response.json()) as PollResponse;
@@ -225,12 +261,10 @@ async function runPoll(
       result.textContent = payload.result?.message ?? payload.error ?? 'Poll failed';
       return;
     }
-    result.textContent = `${payload.result.boardsSeen ?? 0} boards, ${
-      payload.result.boardsFailed ?? 0
-    } failed`;
-    await refresh(body);
+    result.textContent = pollSummary(payload.result);
+    if (!options.dryRun) await refresh(body);
   } catch {
-    result.textContent = 'Poll failed';
+    result.textContent = options.dryRun ? 'Preview failed' : 'Poll failed';
   } finally {
     button.disabled = !entry.sourceUrl;
   }

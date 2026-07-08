@@ -1,0 +1,19 @@
+{
+  "schema": "mistboard.xiangqi.broadcast.manifest.v1",
+  "sources": [
+    {
+      "path": "r1a.html",
+      "tourSlug": "2019-wxc-men-manifest",
+      "tourName": "2019 World Xiangqi Championship Men (Manifest)",
+      "roundId": "2019-wxc-men-manifest-r01a",
+      "roundName": "Men Round 1 Page A"
+    },
+    {
+      "path": "r1b.html",
+      "tourSlug": "2019-wxc-men-manifest",
+      "tourName": "2019 World Xiangqi Championship Men (Manifest)",
+      "roundId": "2019-wxc-men-manifest-r01b",
+      "roundName": "Men Round 1 Page B"
+    }
+  ]
+}

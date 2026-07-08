@@ -1,15 +1,37 @@
 import type { XiangqiBroadcastBoard } from '@mistboard/game';
+import type pg from 'pg';
 import * as persistence from './persistence.js';
+import { withRollbackTransaction } from './persistence-db.js';
 import {
   validateXiangqiBroadcastSourceUrl,
   type XiangqiBroadcastSourceUrlPolicy,
   xiangqiBroadcastSourceUrlPolicyFromEnv,
 } from './xiangqi-broadcast-source-policy.js';
+import {
+  convertWxfDhtmlXqPageToSnapshot,
+  type WxfDhtmlXqIssue,
+} from './xiangqi-broadcast-wxf-dhtmlxq.js';
 
 export type XiangqiBroadcastSourceSnapshot = {
   tour: unknown;
   rounds: unknown[];
   boards: unknown[];
+};
+
+export const XIANGQI_BROADCAST_MANIFEST_SCHEMA = 'mistboard.xiangqi.broadcast.manifest.v1';
+export const XIANGQI_BROADCAST_MANIFEST_MAX_SOURCES = 32;
+
+export type XiangqiBroadcastManifestSource = {
+  url: string;
+  tourSlug?: string;
+  tourName?: string;
+  roundId?: string;
+  roundName?: string;
+};
+
+export type XiangqiBroadcastSourceManifest = {
+  schema: typeof XIANGQI_BROADCAST_MANIFEST_SCHEMA;
+  sources: XiangqiBroadcastManifestSource[];
 };
 
 export type XiangqiBroadcastSourceFetch = (
@@ -18,7 +40,7 @@ export type XiangqiBroadcastSourceFetch = (
 ) => Promise<{
   ok: boolean;
   status: number;
-  json(): Promise<unknown>;
+  text(): Promise<string>;
 }>;
 
 export type XiangqiBroadcastPollErrorKind =
@@ -28,7 +50,7 @@ export type XiangqiBroadcastPollErrorKind =
   | 'source_timeout'
   | 'source_malformed';
 
-export type XiangqiBroadcastPollResult =
+export type XiangqiBroadcastPollSourceOutcome =
   | {
       ok: true;
       sourceUrl: string;
@@ -45,15 +67,52 @@ export type XiangqiBroadcastPollResult =
       message: string;
     };
 
+export type XiangqiBroadcastPollResult =
+  | {
+      ok: true;
+      sourceUrl: string;
+      dryRun: boolean;
+      tourSlug: string;
+      roundsImported: number;
+      boardsSeen: number;
+      boardsFailed: number;
+      sourcesSeen: number;
+      sourcesFailed: number;
+      updates: persistence.XiangqiBroadcastBoardUpdateResult[];
+      sources: XiangqiBroadcastPollSourceOutcome[];
+    }
+  | {
+      ok: false;
+      sourceUrl: string;
+      dryRun: boolean;
+      kind: XiangqiBroadcastPollErrorKind;
+      message: string;
+    };
+
 export type XiangqiBroadcastPollSchedule = {
   intervalMs: number;
   maxIntervalMs: number;
   backoffMultiplier: number;
 };
 
+export type XiangqiBroadcastSourceBody =
+  | { kind: 'snapshot'; snapshot: XiangqiBroadcastSourceSnapshot }
+  | { kind: 'manifest'; manifest: XiangqiBroadcastSourceManifest }
+  | { kind: 'wxf-dhtmlxq'; html: string }
+  | { kind: 'malformed'; message: string; parsedJson?: unknown };
+
 type SnapshotValidationResult =
   | { ok: true; snapshot: XiangqiBroadcastSourceSnapshot }
   | { ok: false; message: string };
+
+type ManifestValidationResult =
+  | { ok: true; manifest: XiangqiBroadcastSourceManifest }
+  | { ok: false; message: string };
+
+type SourceUnit = {
+  sourceUrl: string;
+  snapshot: XiangqiBroadcastSourceSnapshot;
+};
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
@@ -71,6 +130,65 @@ function validateSourceSnapshot(value: unknown): SnapshotValidationResult {
       boards: value.boards,
     },
   };
+}
+
+const MANIFEST_SOURCE_STRING_OPTIONS = ['tourSlug', 'tourName', 'roundId', 'roundName'] as const;
+
+function validateSourceManifest(value: Record<string, unknown>): ManifestValidationResult {
+  if (!Array.isArray(value.sources)) {
+    return { ok: false, message: 'manifest.sources must be an array' };
+  }
+  if (value.sources.length === 0) {
+    return { ok: false, message: 'manifest.sources must not be empty' };
+  }
+  if (value.sources.length > XIANGQI_BROADCAST_MANIFEST_MAX_SOURCES) {
+    return {
+      ok: false,
+      message: `manifest.sources must list at most ${XIANGQI_BROADCAST_MANIFEST_MAX_SOURCES} sources`,
+    };
+  }
+  const sources: XiangqiBroadcastManifestSource[] = [];
+  for (const [index, rawSource] of value.sources.entries()) {
+    if (!isRecord(rawSource) || typeof rawSource.url !== 'string' || rawSource.url.length === 0) {
+      return { ok: false, message: `manifest source ${index + 1} must have a url` };
+    }
+    const source: XiangqiBroadcastManifestSource = { url: rawSource.url };
+    for (const key of MANIFEST_SOURCE_STRING_OPTIONS) {
+      const optionValue = rawSource[key];
+      if (optionValue === undefined) continue;
+      if (typeof optionValue !== 'string') {
+        return { ok: false, message: `manifest source ${index + 1} ${key} must be a string` };
+      }
+      source[key] = optionValue;
+    }
+    sources.push(source);
+  }
+  return { ok: true, manifest: { schema: XIANGQI_BROADCAST_MANIFEST_SCHEMA, sources } };
+}
+
+// Classify a fetched source body without trusting any of it: canonical JSON
+// snapshot, source manifest, or a WXF-style page carrying DhtmlXQ frames.
+// Everything else is malformed. All three shapes still validate through the
+// rules engine before any board becomes persisted state.
+export function interpretXiangqiBroadcastSourceBody(text: string): XiangqiBroadcastSourceBody {
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(text);
+  } catch {
+    if (text.includes('[DhtmlXQiFrame]')) return { kind: 'wxf-dhtmlxq', html: text };
+    return {
+      kind: 'malformed',
+      message: 'source body is neither JSON nor a DhtmlXQ page',
+    };
+  }
+  if (isRecord(parsed) && parsed.schema === XIANGQI_BROADCAST_MANIFEST_SCHEMA) {
+    const manifest = validateSourceManifest(parsed);
+    if (!manifest.ok) return { kind: 'malformed', message: manifest.message, parsedJson: parsed };
+    return { kind: 'manifest', manifest: manifest.manifest };
+  }
+  const snapshot = validateSourceSnapshot(parsed);
+  if (!snapshot.ok) return { kind: 'malformed', message: snapshot.message, parsedJson: parsed };
+  return { kind: 'snapshot', snapshot: snapshot.snapshot };
 }
 
 function errorMessage(error: unknown): string {
@@ -127,12 +245,24 @@ function boundedInteger(value: number, min: number, max: number, fallback: numbe
   return Math.min(Math.max(value, min), max);
 }
 
-async function recordSourceError(input: {
-  sourceUrl: string;
-  kind: XiangqiBroadcastPollErrorKind;
-  message: string;
-  payload?: Record<string, unknown>;
-}): Promise<void> {
+type PollContext = {
+  timeoutMs: number;
+  allowCorrection: boolean;
+  dryRun: boolean;
+  fetchImpl: XiangqiBroadcastSourceFetch;
+  sourcePolicy: XiangqiBroadcastSourceUrlPolicy;
+};
+
+async function recordSourceError(
+  context: Pick<PollContext, 'dryRun'>,
+  input: {
+    sourceUrl: string;
+    kind: XiangqiBroadcastPollErrorKind;
+    message: string;
+    payload?: Record<string, unknown>;
+  },
+): Promise<void> {
+  if (context.dryRun) return;
   await persistence.recordXiangqiBroadcastSyncLog({
     severity: 'error',
     kind: input.kind,
@@ -144,12 +274,33 @@ async function recordSourceError(input: {
   });
 }
 
-async function fetchSourceJson(input: {
+async function recordSkippedFrames(
+  context: Pick<PollContext, 'dryRun'>,
+  sourceUrl: string,
+  issues: WxfDhtmlXqIssue[],
+): Promise<void> {
+  if (context.dryRun || issues.length === 0) return;
+  await persistence.recordXiangqiBroadcastSyncLog({
+    severity: 'warning',
+    kind: 'source_frames_skipped',
+    message: `skipped ${issues.length} unusable DhtmlXQ frame(s) from source page`,
+    payload: {
+      sourceUrl,
+      issues: issues.map((issue) => ({
+        kind: issue.kind,
+        message: issue.message,
+        ...(issue.sourceBoardId ? { sourceBoardId: issue.sourceBoardId } : {}),
+      })),
+    },
+  });
+}
+
+async function fetchSourceText(input: {
   sourceUrl: string;
   timeoutMs: number;
   fetchImpl: XiangqiBroadcastSourceFetch;
 }): Promise<
-  { ok: true; value: unknown } | { ok: false; kind: XiangqiBroadcastPollErrorKind; message: string }
+  { ok: true; value: string } | { ok: false; kind: XiangqiBroadcastPollErrorKind; message: string }
 > {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), input.timeoutMs);
@@ -164,7 +315,7 @@ async function fetchSourceJson(input: {
         message: `source answered HTTP ${response.status}`,
       };
     }
-    return { ok: true, value: await response.json() };
+    return { ok: true, value: await response.text() };
   } catch (error) {
     return {
       ok: false,
@@ -178,112 +329,318 @@ async function fetchSourceJson(input: {
   }
 }
 
-export async function pollXiangqiBroadcastSourceOnce(input: {
-  sourceUrl: string;
-  allowCorrection?: boolean;
-  timeoutMs?: number;
-  fetchImpl?: XiangqiBroadcastSourceFetch;
-  sourcePolicy?: XiangqiBroadcastSourceUrlPolicy;
-}): Promise<XiangqiBroadcastPollResult> {
-  const timeoutMs = input.timeoutMs ?? 5_000;
-  const fetchImpl =
-    input.fetchImpl ??
-    ((url, init) =>
-      fetch(url, init) as Promise<{
-        ok: boolean;
-        status: number;
-        json(): Promise<unknown>;
-      }>);
+type SourceResolution =
+  | { ok: true; unit: SourceUnit }
+  | { ok: false; kind: XiangqiBroadcastPollErrorKind; message: string };
 
-  const sourcePolicy = input.sourcePolicy ?? xiangqiBroadcastSourceUrlPolicyFromEnv();
-  const sourceDecision = validateXiangqiBroadcastSourceUrl(input.sourceUrl, sourcePolicy);
-  if (!sourceDecision.ok) {
-    await recordSourceError({
-      sourceUrl: input.sourceUrl,
+async function resolveLeafSource(
+  context: PollContext,
+  sourceUrl: string,
+  options: Omit<XiangqiBroadcastManifestSource, 'url'>,
+  errorPayload: Record<string, unknown>,
+): Promise<SourceResolution> {
+  const decision = validateXiangqiBroadcastSourceUrl(sourceUrl, context.sourcePolicy);
+  if (!decision.ok) {
+    await recordSourceError(context, {
+      sourceUrl,
       kind: 'source_disallowed',
-      message: sourceDecision.message,
-      payload: { reason: sourceDecision.reason },
+      message: decision.message,
+      payload: { reason: decision.reason, ...errorPayload },
     });
-    return {
-      ok: false,
-      sourceUrl: input.sourceUrl,
-      kind: 'source_disallowed',
-      message: sourceDecision.message,
-    };
+    return { ok: false, kind: 'source_disallowed', message: decision.message };
   }
 
-  const fetched = await fetchSourceJson({
-    sourceUrl: input.sourceUrl,
-    timeoutMs,
-    fetchImpl,
+  const fetched = await fetchSourceText({
+    sourceUrl,
+    timeoutMs: context.timeoutMs,
+    fetchImpl: context.fetchImpl,
   });
   if (!fetched.ok) {
-    await recordSourceError({
-      sourceUrl: input.sourceUrl,
+    await recordSourceError(context, {
+      sourceUrl,
       kind: fetched.kind,
       message: fetched.message,
-      payload: { timeoutMs },
+      payload: { timeoutMs: context.timeoutMs, ...errorPayload },
     });
-    return { ok: false, sourceUrl: input.sourceUrl, kind: fetched.kind, message: fetched.message };
+    return { ok: false, kind: fetched.kind, message: fetched.message };
   }
 
-  const parsed = validateSourceSnapshot(fetched.value);
-  if (!parsed.ok) {
-    await recordSourceError({
-      sourceUrl: input.sourceUrl,
+  const body = interpretXiangqiBroadcastSourceBody(fetched.value);
+  if (body.kind === 'malformed') {
+    await recordSourceError(context, {
+      sourceUrl,
       kind: 'source_malformed',
-      message: parsed.message,
-      payload: { bodySummary: sourcePayloadSummary(fetched.value) },
+      message: body.message,
+      payload: {
+        bodySummary:
+          body.parsedJson !== undefined
+            ? sourcePayloadSummary(body.parsedJson)
+            : { type: 'text', length: fetched.value.length },
+        ...errorPayload,
+      },
     });
-    return {
-      ok: false,
-      sourceUrl: input.sourceUrl,
-      kind: 'source_malformed',
-      message: parsed.message,
-    };
+    return { ok: false, kind: 'source_malformed', message: body.message };
   }
+  if (body.kind === 'manifest') {
+    const message = 'nested source manifests are not allowed';
+    await recordSourceError(context, {
+      sourceUrl,
+      kind: 'source_malformed',
+      message,
+      payload: errorPayload,
+    });
+    return { ok: false, kind: 'source_malformed', message };
+  }
+  if (body.kind === 'wxf-dhtmlxq') {
+    return await convertWxfSourceUnit(context, sourceUrl, body.html, options, errorPayload);
+  }
+  return { ok: true, unit: { sourceUrl, snapshot: body.snapshot } };
+}
 
+async function convertWxfSourceUnit(
+  context: PollContext,
+  sourceUrl: string,
+  html: string,
+  options: Omit<XiangqiBroadcastManifestSource, 'url'>,
+  errorPayload: Record<string, unknown>,
+): Promise<SourceResolution> {
+  const converted = convertWxfDhtmlXqPageToSnapshot(html, {
+    ...options,
+    sourceUrl,
+  });
+  if (!converted.ok) {
+    const message =
+      converted.issues[0]?.message ?? 'DhtmlXQ page produced no usable broadcast boards';
+    await recordSourceError(context, {
+      sourceUrl,
+      kind: 'source_malformed',
+      message,
+      payload: {
+        issues: converted.issues.map((issue) => issue.kind),
+        ...errorPayload,
+      },
+    });
+    return { ok: false, kind: 'source_malformed', message };
+  }
+  await recordSkippedFrames(context, sourceUrl, converted.issues);
+  return {
+    ok: true,
+    unit: {
+      sourceUrl,
+      snapshot: {
+        tour: converted.snapshot.tour,
+        rounds: converted.snapshot.rounds,
+        boards: converted.snapshot.boards,
+      },
+    },
+  };
+}
+
+async function applySourceUnit(
+  context: PollContext,
+  unit: SourceUnit,
+  client: pg.PoolClient | null,
+): Promise<XiangqiBroadcastPollSourceOutcome> {
   let imported: persistence.XiangqiBroadcastImportResult;
+  const pack = { tour: unit.snapshot.tour, rounds: unit.snapshot.rounds, boards: [] };
   try {
-    imported = await persistence.importXiangqiBroadcastPack({
-      tour: parsed.snapshot.tour,
-      rounds: parsed.snapshot.rounds,
-      boards: [],
-    });
+    imported = client
+      ? await persistence.importXiangqiBroadcastPackOn(client, pack)
+      : await persistence.importXiangqiBroadcastPack(pack);
   } catch (error) {
     const message = errorMessage(error);
-    await recordSourceError({
-      sourceUrl: input.sourceUrl,
+    await recordSourceError(context, {
+      sourceUrl: unit.sourceUrl,
       kind: 'source_malformed',
       message,
       payload: { phase: 'tour_round_import' },
     });
-    return {
-      ok: false,
-      sourceUrl: input.sourceUrl,
-      kind: 'source_malformed',
-      message,
-    };
+    return { ok: false, sourceUrl: unit.sourceUrl, kind: 'source_malformed', message };
   }
 
   const updates: persistence.XiangqiBroadcastBoardUpdateResult[] = [];
-  for (const board of parsed.snapshot.boards as XiangqiBroadcastBoard[]) {
+  for (const board of unit.snapshot.boards as XiangqiBroadcastBoard[]) {
+    const updateOptions = {
+      allowCorrection: context.allowCorrection,
+      source: unit.sourceUrl,
+    };
     updates.push(
-      await persistence.applyXiangqiBroadcastBoardUpdate(board, {
-        allowCorrection: input.allowCorrection,
-        source: input.sourceUrl,
-      }),
+      client
+        ? await persistence.applyXiangqiBroadcastBoardUpdateOn(client, board, updateOptions)
+        : await persistence.applyXiangqiBroadcastBoardUpdate(board, updateOptions),
     );
   }
 
   return {
     ok: true,
-    sourceUrl: input.sourceUrl,
+    sourceUrl: unit.sourceUrl,
     tourSlug: imported.tourSlug,
     roundsImported: imported.roundsImported,
-    boardsSeen: parsed.snapshot.boards.length,
+    boardsSeen: unit.snapshot.boards.length,
     boardsFailed: updates.filter((update) => !update.ok).length,
     updates,
+  };
+}
+
+async function pollSourceOutcomes(
+  context: PollContext,
+  sourceUrl: string,
+): Promise<
+  | { ok: true; outcomes: XiangqiBroadcastPollSourceOutcome[] }
+  | { ok: false; kind: XiangqiBroadcastPollErrorKind; message: string }
+> {
+  const decision = validateXiangqiBroadcastSourceUrl(sourceUrl, context.sourcePolicy);
+  if (!decision.ok) {
+    await recordSourceError(context, {
+      sourceUrl,
+      kind: 'source_disallowed',
+      message: decision.message,
+      payload: { reason: decision.reason },
+    });
+    return { ok: false, kind: 'source_disallowed', message: decision.message };
+  }
+
+  const fetched = await fetchSourceText({
+    sourceUrl,
+    timeoutMs: context.timeoutMs,
+    fetchImpl: context.fetchImpl,
+  });
+  if (!fetched.ok) {
+    await recordSourceError(context, {
+      sourceUrl,
+      kind: fetched.kind,
+      message: fetched.message,
+      payload: { timeoutMs: context.timeoutMs },
+    });
+    return { ok: false, kind: fetched.kind, message: fetched.message };
+  }
+
+  const body = interpretXiangqiBroadcastSourceBody(fetched.value);
+  if (body.kind === 'malformed') {
+    await recordSourceError(context, {
+      sourceUrl,
+      kind: 'source_malformed',
+      message: body.message,
+      payload: {
+        bodySummary:
+          body.parsedJson !== undefined
+            ? sourcePayloadSummary(body.parsedJson)
+            : { type: 'text', length: fetched.value.length },
+      },
+    });
+    return { ok: false, kind: 'source_malformed', message: body.message };
+  }
+
+  // Resolve every leaf source first, then apply. Dry runs wrap the whole
+  // apply phase in one always-rollback transaction so the preview exercises
+  // the exact production write path without committing any of it.
+  const resolutions: Array<
+    { sourceUrl: string } & (
+      | { ok: true; unit: SourceUnit }
+      | { ok: false; kind: XiangqiBroadcastPollErrorKind; message: string }
+    )
+  > = [];
+  if (body.kind === 'manifest') {
+    for (const entry of body.manifest.sources) {
+      const { url, ...entryOptions } = entry;
+      resolutions.push({
+        sourceUrl: url,
+        ...(await resolveLeafSource(context, url, entryOptions, { manifestUrl: sourceUrl })),
+      });
+    }
+  } else if (body.kind === 'wxf-dhtmlxq') {
+    const converted = await convertWxfSourceUnit(context, sourceUrl, body.html, {}, {});
+    if (!converted.ok) return converted;
+    resolutions.push({ sourceUrl, ...converted });
+  } else {
+    resolutions.push({ sourceUrl, ok: true, unit: { sourceUrl, snapshot: body.snapshot } });
+  }
+
+  const applyAll = async (client: pg.PoolClient | null) => {
+    const outcomes: XiangqiBroadcastPollSourceOutcome[] = [];
+    for (const resolution of resolutions) {
+      outcomes.push(
+        resolution.ok
+          ? await applySourceUnit(context, resolution.unit, client)
+          : {
+              ok: false,
+              sourceUrl: resolution.sourceUrl,
+              kind: resolution.kind,
+              message: resolution.message,
+            },
+      );
+    }
+    return outcomes;
+  };
+
+  const outcomes = context.dryRun
+    ? await withRollbackTransaction((client) => applyAll(client))
+    : await applyAll(null);
+  return { ok: true, outcomes };
+}
+
+export async function pollXiangqiBroadcastSourceOnce(input: {
+  sourceUrl: string;
+  allowCorrection?: boolean;
+  dryRun?: boolean;
+  timeoutMs?: number;
+  fetchImpl?: XiangqiBroadcastSourceFetch;
+  sourcePolicy?: XiangqiBroadcastSourceUrlPolicy;
+}): Promise<XiangqiBroadcastPollResult> {
+  const context: PollContext = {
+    timeoutMs: input.timeoutMs ?? 5_000,
+    allowCorrection: input.allowCorrection ?? false,
+    dryRun: input.dryRun ?? false,
+    fetchImpl:
+      input.fetchImpl ??
+      ((url, init) =>
+        fetch(url, init) as Promise<{
+          ok: boolean;
+          status: number;
+          text(): Promise<string>;
+        }>),
+    sourcePolicy: input.sourcePolicy ?? xiangqiBroadcastSourceUrlPolicyFromEnv(),
+  };
+
+  const polled = await pollSourceOutcomes(context, input.sourceUrl);
+  if (!polled.ok) {
+    return {
+      ok: false,
+      sourceUrl: input.sourceUrl,
+      dryRun: context.dryRun,
+      kind: polled.kind,
+      message: polled.message,
+    };
+  }
+
+  const succeeded = polled.outcomes.filter((outcome) => outcome.ok);
+  const failed = polled.outcomes.filter((outcome) => !outcome.ok);
+  if (succeeded.length === 0) {
+    const firstFailure = failed[0];
+    return {
+      ok: false,
+      sourceUrl: input.sourceUrl,
+      dryRun: context.dryRun,
+      kind: firstFailure?.kind ?? 'source_malformed',
+      message:
+        failed.length > 1
+          ? `all ${failed.length} manifest sources failed: ${firstFailure?.message ?? 'unknown failure'}`
+          : (firstFailure?.message ?? 'source produced no importable boards'),
+    };
+  }
+
+  return {
+    ok: true,
+    sourceUrl: input.sourceUrl,
+    dryRun: context.dryRun,
+    tourSlug: succeeded[0]!.tourSlug,
+    roundsImported: succeeded.reduce((sum, outcome) => sum + outcome.roundsImported, 0),
+    boardsSeen: succeeded.reduce((sum, outcome) => sum + outcome.boardsSeen, 0),
+    boardsFailed: succeeded.reduce((sum, outcome) => sum + outcome.boardsFailed, 0),
+    sourcesSeen: polled.outcomes.length,
+    sourcesFailed: failed.length,
+    updates: succeeded.flatMap((outcome) => outcome.updates),
+    sources: polled.outcomes,
   };
 }
 

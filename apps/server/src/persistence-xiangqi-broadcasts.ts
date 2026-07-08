@@ -421,7 +421,17 @@ export async function applyXiangqiBroadcastBoardUpdate(
   rawBoard: unknown,
   options: { allowCorrection?: boolean; source?: string } = {},
 ): Promise<XiangqiBroadcastBoardUpdateResult> {
-  return await withTransaction(async (client) => {
+  return await withTransaction((client) =>
+    applyXiangqiBroadcastBoardUpdateOn(client, rawBoard, options),
+  );
+}
+
+export async function applyXiangqiBroadcastBoardUpdateOn(
+  client: Queryable,
+  rawBoard: unknown,
+  options: { allowCorrection?: boolean; source?: string } = {},
+): Promise<XiangqiBroadcastBoardUpdateResult> {
+  {
     const boardResult = validateXiangqiBroadcastBoard(rawBoard);
     if (!boardResult.ok) {
       return rejectedBoardUpdate(
@@ -511,7 +521,7 @@ export async function applyXiangqiBroadcastBoardUpdate(
         },
       ),
     );
-  });
+  }
 }
 
 export async function importXiangqiBroadcastPack(input: {
@@ -519,6 +529,17 @@ export async function importXiangqiBroadcastPack(input: {
   rounds: unknown[];
   boards: unknown[];
 }): Promise<XiangqiBroadcastImportResult> {
+  return await withTransaction((client) => importXiangqiBroadcastPackOn(client, input));
+}
+
+export async function importXiangqiBroadcastPackOn(
+  client: Queryable,
+  input: {
+    tour: unknown;
+    rounds: unknown[];
+    boards: unknown[];
+  },
+): Promise<XiangqiBroadcastImportResult> {
   const tourResult = validateXiangqiBroadcastTour(input.tour);
   if (!tourResult.ok) throw new Error(`invalid broadcast tour: ${tourResult.errors.join('; ')}`);
 
@@ -535,7 +556,7 @@ export async function importXiangqiBroadcastPack(input: {
   }
   const roundIds = new Set(rounds.map((round) => round.id));
 
-  return await withTransaction(async (client) => {
+  {
     await upsertTour(client, tourResult.value);
     for (const round of rounds) await upsertRound(client, round);
 
@@ -594,7 +615,7 @@ export async function importXiangqiBroadcastPack(input: {
       boardsSkipped,
       errors,
     };
-  });
+  }
 }
 
 export async function getXiangqiBroadcastTour(

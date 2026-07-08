@@ -312,9 +312,11 @@ export type {
 } from './persistence-xiangqi-broadcasts.js';
 export {
   applyXiangqiBroadcastBoardUpdate,
+  applyXiangqiBroadcastBoardUpdateOn,
   getXiangqiBroadcastBoard,
   getXiangqiBroadcastTour,
   importXiangqiBroadcastPack,
+  importXiangqiBroadcastPackOn,
   listXiangqiBroadcastBoards,
   listXiangqiBroadcastRounds,
   listXiangqiBroadcastSyncLogs,

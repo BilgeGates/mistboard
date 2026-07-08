@@ -6,6 +6,7 @@ import net from 'node:net';
 const DATABASE_URL = 'postgres://mistboard:mistboard@localhost:5435/mistboard';
 const FIXTURE_DIR = 'packages/game/fixtures/xiangqi-broadcast/2025-wxc-sample';
 const WXF_HTML = 'apps/server/fixtures/wxf-dhtmlxq/2019-wxc-men-r1a-mini.html';
+const WXF_MANIFEST_DIR = 'apps/server/fixtures/wxf-dhtmlxq/2019-wxc-men-manifest';
 const TSX = 'node_modules/.bin/tsx';
 const DEV_BASE_URL = 'http://localhost:5173';
 
@@ -217,6 +218,48 @@ async function main() {
     );
     assertPollOk(wxfPoll, 'WXF fixture source');
 
+    const manifestPort = await freePort();
+    log(`starting WXF manifest fixture source on localhost:${manifestPort}`);
+    await startSource(['--manifest-dir', WXF_MANIFEST_DIR, '--port', String(manifestPort)]);
+    const manifestPreview = runNpm(
+      [
+        'run',
+        'poll:xiangqi-broadcast',
+        '--workspace',
+        '@mistboard/server',
+        '--',
+        '--source',
+        `http://localhost:${manifestPort}/manifest.json`,
+        '--once',
+        '--dry-run',
+        '--timeout-ms',
+        '1000',
+      ],
+      { capture: true },
+    );
+    if (!manifestPreview.includes('poll dry-run ok') || !manifestPreview.includes('failed=0')) {
+      throw new Error('WXF manifest dry-run poll did not report a clean preview');
+    }
+    const manifestPoll = runNpm(
+      [
+        'run',
+        'poll:xiangqi-broadcast',
+        '--workspace',
+        '@mistboard/server',
+        '--',
+        '--source',
+        `http://localhost:${manifestPort}/manifest.json`,
+        '--once',
+        '--timeout-ms',
+        '1000',
+      ],
+      { capture: true },
+    );
+    assertPollOk(manifestPoll, 'WXF manifest source');
+    if (!manifestPoll.includes('created=4') && !manifestPoll.includes('unchanged=4')) {
+      throw new Error('WXF manifest poll did not import all four fixture boards');
+    }
+
     const elapsed = ((Date.now() - started) / 1000).toFixed(1);
     log(`ok in ${elapsed}s`);
     console.log('\nNext visual check:');
@@ -226,6 +269,7 @@ async function main() {
     console.log(`  ${DEV_BASE_URL}/broadcast/xiangqi/2025-wxc-sample/round/men-r1`);
     console.log(`  ${DEV_BASE_URL}/broadcast/xiangqi/board/2025-wxc-sample-men-r1-b01`);
     console.log(`  ${DEV_BASE_URL}/broadcast/xiangqi/2019-wxc-men-local-smoke`);
+    console.log(`  ${DEV_BASE_URL}/broadcast/xiangqi/2019-wxc-men-manifest`);
   } catch (error) {
     fail(error instanceof Error ? error.message : String(error));
   } finally {

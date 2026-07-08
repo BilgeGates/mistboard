@@ -2,7 +2,7 @@
 
 import { readFile } from 'node:fs/promises';
 import { createServer } from 'node:http';
-import { join } from 'node:path';
+import { basename, join } from 'node:path';
 import { parseArgs } from 'node:util';
 import {
   readXiangqiBroadcastFixturePack,
@@ -26,6 +26,7 @@ type Args = {
   wxfRoundId?: string;
   wxfRoundName?: string;
   wxfSourceUrl?: string;
+  manifestDir?: string;
   tape: string;
   mode: XiangqiBroadcastSourceMode;
   port: number;
@@ -59,16 +60,18 @@ function parseCliArgs(argv: string[]): Args {
       'wxf-round-id': { type: 'string' },
       'wxf-round-name': { type: 'string' },
       'wxf-source-url': { type: 'string' },
+      'manifest-dir': { type: 'string' },
     },
   });
-  if (!values.dir && !values['wxf-html']) {
+  const sourceFlags = [values.dir, values['wxf-html'], values['manifest-dir']].filter(Boolean);
+  if (sourceFlags.length !== 1) {
     console.error(
-      'usage: serve-xiangqi-broadcast-source (--dir <fixture-pack> | --wxf-html <html-file>) [--tape tape.json] [--mode clean|stale|malformed|error|timeout] [--port 3127] [--timeout-delay-ms 30000]',
+      'usage: serve-xiangqi-broadcast-source (--dir <fixture-pack> | --wxf-html <html-file> | --manifest-dir <manifest-fixture>) [--tape tape.json] [--mode clean|stale|malformed|error|timeout] [--port 3127] [--timeout-delay-ms 30000]',
     );
     process.exit(1);
   }
-  if (values.dir && values['wxf-html']) {
-    console.error('choose only one source: --dir or --wxf-html');
+  if (values['manifest-dir'] && values.mode !== 'clean') {
+    console.error('--manifest-dir only supports --mode clean');
     process.exit(1);
   }
   if (!MODES.includes(values.mode as XiangqiBroadcastSourceMode)) {
@@ -93,6 +96,7 @@ function parseCliArgs(argv: string[]): Args {
     ...(values['wxf-round-id'] ? { wxfRoundId: values['wxf-round-id'] } : {}),
     ...(values['wxf-round-name'] ? { wxfRoundName: values['wxf-round-name'] } : {}),
     ...(values['wxf-source-url'] ? { wxfSourceUrl: values['wxf-source-url'] } : {}),
+    ...(values['manifest-dir'] ? { manifestDir: values['manifest-dir'] } : {}),
     tape: values.tape,
     mode: values.mode as XiangqiBroadcastSourceMode,
     port,
@@ -115,6 +119,46 @@ function staticSnapshotSourceResponse(
       boards: snapshot.boards,
     },
   };
+}
+
+type ManifestFixture = {
+  pages: Map<string, { content: string; contentType: string }>;
+  entries: Array<Record<string, string> & { name: string }>;
+};
+
+// A manifest fixture directory contains manifest.json with `sources` entries
+// that reference sibling files by `path`. The server rewrites each path into
+// an absolute /pages/... URL so the poller exercises the same manifest walk it
+// would run against a real multi-page event.
+async function readManifestFixture(dirArg: string): Promise<ManifestFixture> {
+  const dir = resolveXiangqiBroadcastInputPath(dirArg);
+  const manifest = (await readJsonFile(join(dir, 'manifest.json'))) as {
+    sources?: Array<Record<string, unknown>>;
+  };
+  if (!Array.isArray(manifest?.sources) || manifest.sources.length === 0) {
+    throw new Error('manifest.json must contain a non-empty sources array');
+  }
+  const pages = new Map<string, { content: string; contentType: string }>();
+  const entries: ManifestFixture['entries'] = [];
+  for (const rawSource of manifest.sources) {
+    if (typeof rawSource?.path !== 'string') {
+      throw new Error('each manifest.json source must have a path');
+    }
+    const name = basename(rawSource.path);
+    const contentType = name.endsWith('.html')
+      ? 'text/html; charset=utf-8'
+      : name.endsWith('.json')
+        ? 'application/json'
+        : 'text/plain; charset=utf-8';
+    pages.set(name, { content: await readFile(join(dir, rawSource.path), 'utf-8'), contentType });
+    const entry: ManifestFixture['entries'][number] = { name };
+    for (const key of ['tourSlug', 'tourName', 'roundId', 'roundName'] as const) {
+      const value = rawSource[key];
+      if (typeof value === 'string') entry[key] = value;
+    }
+    entries.push(entry);
+  }
+  return { pages, entries };
 }
 
 async function readSourceResponse(args: Args): Promise<{
@@ -162,6 +206,10 @@ async function readSourceResponse(args: Args): Promise<{
 
 async function main(): Promise<void> {
   const args = parseCliArgs(process.argv.slice(2));
+  if (args.manifestDir) {
+    await serveManifestFixture(args, await readManifestFixture(args.manifestDir));
+    return;
+  }
   const source = await readSourceResponse(args);
   const startedAt = Date.now();
 
@@ -211,6 +259,45 @@ async function main(): Promise<void> {
     }
 
     writeSourceResponse();
+  });
+
+  await new Promise<void>((resolve) => server.listen(args.port, resolve));
+  console.log(`xiangqi broadcast fixture source listening on http://localhost:${args.port}`);
+}
+
+async function serveManifestFixture(args: Args, fixture: ManifestFixture): Promise<void> {
+  const server = createServer((request, response) => {
+    const url = new URL(request.url ?? '/', 'http://localhost');
+
+    if (url.pathname === '/health') {
+      response.setHeader('content-type', 'application/json');
+      response
+        .writeHead(200)
+        .end(JSON.stringify({ ok: true, mode: args.mode, source: 'manifest' }));
+      return;
+    }
+    if (url.pathname === '/manifest.json') {
+      response.setHeader('content-type', 'application/json');
+      response.writeHead(200).end(
+        JSON.stringify({
+          schema: 'mistboard.xiangqi.broadcast.manifest.v1',
+          sources: fixture.entries.map(({ name, ...rest }) => ({
+            url: `http://localhost:${args.port}/pages/${name}`,
+            ...rest,
+          })),
+        }),
+      );
+      return;
+    }
+    const pageMatch = url.pathname.match(/^\/pages\/([^/]+)$/);
+    const page = pageMatch ? fixture.pages.get(pageMatch[1]!) : undefined;
+    if (page) {
+      response.setHeader('content-type', page.contentType);
+      response.writeHead(200).end(page.content);
+      return;
+    }
+    response.setHeader('content-type', 'application/json');
+    response.writeHead(404).end(JSON.stringify({ error: 'not_found' }));
   });
 
   await new Promise<void>((resolve) => server.listen(args.port, resolve));

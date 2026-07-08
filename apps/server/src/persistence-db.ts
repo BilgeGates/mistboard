@@ -56,3 +56,20 @@ export async function withTransaction<T>(fn: (client: pg.PoolClient) => Promise<
     client.release();
   }
 }
+
+// Run `fn` inside a transaction that ALWAYS rolls back, whether `fn` resolves
+// or throws. This is the dry-run boundary: callers exercise the exact same
+// write path (inserts, upserts, sync logs) and observe its results, but none
+// of it commits.
+export async function withRollbackTransaction<T>(
+  fn: (client: pg.PoolClient) => Promise<T>,
+): Promise<T> {
+  const client = await getPool().connect();
+  try {
+    await client.query('BEGIN');
+    return await fn(client);
+  } finally {
+    await client.query('ROLLBACK').catch(() => undefined);
+    client.release();
+  }
+}

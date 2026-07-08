@@ -72,6 +72,7 @@ type XiangqiBroadcastPollSource = typeof pollXiangqiBroadcastSourceOnce;
 
 type ManualPollOptions = {
   allowCorrection: boolean;
+  dryRun: boolean;
   timeoutMs: number;
 };
 
@@ -196,20 +197,23 @@ export async function manualXiangqiBroadcastPollForApi(
   const result = await pollSource({
     sourceUrl: tour.sourceUrl,
     allowCorrection: options.allowCorrection,
+    dryRun: options.dryRun,
     timeoutMs: options.timeoutMs,
   });
   if (!result.ok) {
-    await deps.recordXiangqiBroadcastSyncLog({
-      tourSlug: tour.slug,
-      severity: 'error',
-      kind: 'manual_poll_failed',
-      message: result.message,
-      payload: {
-        sourceUrl: result.sourceUrl,
-        errorKind: result.kind,
-        allowCorrection: options.allowCorrection,
-      },
-    });
+    if (!options.dryRun) {
+      await deps.recordXiangqiBroadcastSyncLog({
+        tourSlug: tour.slug,
+        severity: 'error',
+        kind: 'manual_poll_failed',
+        message: result.message,
+        payload: {
+          sourceUrl: result.sourceUrl,
+          errorKind: result.kind,
+          allowCorrection: options.allowCorrection,
+        },
+      });
+    }
     return {
       ok: false,
       status: result.kind === 'source_disallowed' ? 400 : 502,
@@ -218,19 +222,23 @@ export async function manualXiangqiBroadcastPollForApi(
     };
   }
 
-  await deps.recordXiangqiBroadcastSyncLog({
-    tourSlug: result.tourSlug,
-    severity: result.boardsFailed > 0 ? 'warning' : 'info',
-    kind: 'manual_poll_ok',
-    message: 'manual source poll completed',
-    payload: {
-      sourceUrl: result.sourceUrl,
-      roundsImported: result.roundsImported,
-      boardsSeen: result.boardsSeen,
-      boardsFailed: result.boardsFailed,
-      allowCorrection: options.allowCorrection,
-    },
-  });
+  if (!options.dryRun) {
+    await deps.recordXiangqiBroadcastSyncLog({
+      tourSlug: result.tourSlug,
+      severity: result.boardsFailed > 0 || result.sourcesFailed > 0 ? 'warning' : 'info',
+      kind: 'manual_poll_ok',
+      message: 'manual source poll completed',
+      payload: {
+        sourceUrl: result.sourceUrl,
+        roundsImported: result.roundsImported,
+        boardsSeen: result.boardsSeen,
+        boardsFailed: result.boardsFailed,
+        sourcesSeen: result.sourcesSeen,
+        sourcesFailed: result.sourcesFailed,
+        allowCorrection: options.allowCorrection,
+      },
+    });
+  }
   return { ok: true, result };
 }
 
@@ -410,7 +418,9 @@ function sourceHealthFromLogs(
     ) {
       buckets.fetchFailures += 1;
     }
-    if (log.kind === 'source_malformed') buckets.parseFailures += 1;
+    if (log.kind === 'source_malformed' || log.kind === 'source_frames_skipped') {
+      buckets.parseFailures += 1;
+    }
     if (log.kind === 'illegal_move' || log.kind === 'incompatible_update') {
       buckets.dataFailures += 1;
     }
@@ -484,6 +494,7 @@ function parseManualPollOptions(body: Record<string, unknown>): ManualPollOption
       : 5_000;
   return {
     allowCorrection: body.allowCorrection === true,
+    dryRun: body.dryRun === true,
     timeoutMs,
   };
 }

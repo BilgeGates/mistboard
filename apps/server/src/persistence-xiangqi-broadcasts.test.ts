@@ -29,6 +29,14 @@ const FIXTURE_DIR = fileURLToPath(
   new URL('../../../packages/game/fixtures/xiangqi-broadcast/2025-wxc-sample', import.meta.url),
 );
 const FIXTURE_SOURCE_POLICY = { allowedHosts: ['fixture.invalid'], allowLocal: false } as const;
+const WXF_FIXTURE_HTML = readFileSync(
+  fileURLToPath(new URL('../fixtures/wxf-dhtmlxq/2019-wxc-men-r1a-mini.html', import.meta.url)),
+  'utf-8',
+);
+const WXF_FIXTURE_HTML_PAGE_B = readFileSync(
+  fileURLToPath(new URL('../fixtures/wxf-dhtmlxq/2019-wxc-men-manifest/r1b.html', import.meta.url)),
+  'utf-8',
+);
 
 async function fixturePack(includeGameFiles = false) {
   return await readXiangqiBroadcastFixturePack(FIXTURE_DIR, includeGameFiles);
@@ -38,14 +46,31 @@ function fixtureTape(): unknown {
   return JSON.parse(readFileSync(`${FIXTURE_DIR}/tape.json`, 'utf-8')) as unknown;
 }
 
+function sourceBodyText(body: unknown): string {
+  return typeof body === 'string' ? body : JSON.stringify(body);
+}
+
 function sourceFetch(body: unknown, status = 200): XiangqiBroadcastSourceFetch {
   return async () => ({
     ok: status >= 200 && status < 300,
     status,
-    async json() {
-      return body;
+    async text() {
+      return sourceBodyText(body);
     },
   });
+}
+
+function multiSourceFetch(bodies: Record<string, unknown>): XiangqiBroadcastSourceFetch {
+  return async (url) => {
+    const body = bodies[url];
+    return {
+      ok: body !== undefined,
+      status: body === undefined ? 404 : 200,
+      async text() {
+        return sourceBodyText(body ?? { error: 'not_found' });
+      },
+    };
+  };
 }
 
 function timeoutFetch(): XiangqiBroadcastSourceFetch {
@@ -385,5 +410,170 @@ definePersistenceTests('xiangqi broadcasts', () => {
     assert.equal(logs[0]?.kind, 'source_disallowed');
     assert.equal(logs[0]?.payload.reason, 'host_not_allowed');
     assert.equal(logs[0]?.payload.sourceUrl, 'https://unapproved.example/source.json');
+  });
+
+  test('dry-run poll previews board updates without persisting anything', async () => {
+    const pack = await fixturePack();
+    const source = xiangqiBroadcastSourceResponse(pack, fixtureTape(), 16000, 'clean');
+    assert.equal(source.status, 200);
+    assert.ok(!('malformed' in source.body));
+    if ('malformed' in source.body) return;
+
+    const result = await pollXiangqiBroadcastSourceOnce({
+      sourceUrl: 'https://fixture.invalid/source.json',
+      sourcePolicy: FIXTURE_SOURCE_POLICY,
+      fetchImpl: sourceFetch(source.body),
+      dryRun: true,
+    });
+
+    assert.equal(result.ok, true);
+    assert.equal(result.dryRun, true);
+    assert.deepEqual(
+      result.ok ? result.updates.map((update) => (update.ok ? update.status : update.kind)) : [],
+      ['created', 'created'],
+    );
+
+    assert.equal(await getXiangqiBroadcastTour('2025-wxc-sample'), null);
+    assert.equal((await listXiangqiBroadcastRounds('2025-wxc-sample')).length, 0);
+    assert.equal((await listXiangqiBroadcastSyncLogs({})).length, 0);
+  });
+
+  test('dry-run poll previews corrections against existing persisted state', async () => {
+    const pack = await fixturePack();
+    await importXiangqiBroadcastPack(pack);
+
+    const board = (pack.boards as XiangqiBroadcastBoard[])[0]!;
+    const divergent: XiangqiBroadcastBoard = {
+      ...board,
+      status: 'live',
+      result: '*',
+      moves: [{ from: 'a4', to: 'a5' }],
+    };
+    const result = await pollXiangqiBroadcastSourceOnce({
+      sourceUrl: 'https://fixture.invalid/source.json',
+      sourcePolicy: FIXTURE_SOURCE_POLICY,
+      fetchImpl: sourceFetch({ tour: pack.tour, rounds: pack.rounds, boards: [divergent] }),
+      dryRun: true,
+      allowCorrection: true,
+    });
+
+    assert.equal(result.ok, true);
+    assert.deepEqual(
+      result.ok ? result.updates.map((update) => (update.ok ? update.status : update.kind)) : [],
+      ['corrected'],
+    );
+
+    const persisted = await getXiangqiBroadcastBoard(board.id);
+    assert.deepEqual(persisted?.moves, board.moves);
+    assert.equal((await listXiangqiBroadcastSyncLogs({})).length, 0);
+  });
+
+  test('dry-run poll failures record no sync logs', async () => {
+    const result = await pollXiangqiBroadcastSourceOnce({
+      sourceUrl: 'https://fixture.invalid/source.json',
+      sourcePolicy: FIXTURE_SOURCE_POLICY,
+      fetchImpl: sourceFetch({ error: 'fixture_source_error' }, 500),
+      dryRun: true,
+    });
+
+    assert.equal(result.ok, false);
+    assert.equal(result.ok ? '' : result.kind, 'source_http_error');
+    assert.equal((await listXiangqiBroadcastSyncLogs({})).length, 0);
+  });
+
+  test('source poller converts a WXF DhtmlXQ page directly', async () => {
+    const result = await pollXiangqiBroadcastSourceOnce({
+      sourceUrl: 'https://fixture.invalid/r1a.html',
+      sourcePolicy: FIXTURE_SOURCE_POLICY,
+      fetchImpl: sourceFetch(WXF_FIXTURE_HTML),
+    });
+
+    assert.equal(result.ok, true);
+    assert.equal(result.ok ? result.boardsSeen : 0, 2);
+    assert.equal(result.ok ? result.boardsFailed : 1, 0);
+
+    const tour = await getXiangqiBroadcastTour(result.ok ? result.tourSlug : '');
+    assert.ok(tour);
+    const rounds = await listXiangqiBroadcastRounds(tour.slug);
+    assert.equal(rounds.length, 1);
+    assert.equal((await listXiangqiBroadcastBoards(rounds[0]!.id)).length, 2);
+  });
+
+  test('source poller walks a manifest of multiple pages through one policy gate', async () => {
+    const manifest = {
+      schema: 'mistboard.xiangqi.broadcast.manifest.v1',
+      sources: [
+        {
+          url: 'https://fixture.invalid/r1a.html',
+          tourSlug: 'wxc-manifest',
+          tourName: 'WXC Manifest',
+          roundId: 'wxc-manifest-r1a',
+          roundName: 'Round 1 Page A',
+        },
+        {
+          url: 'https://fixture.invalid/r1b.html',
+          tourSlug: 'wxc-manifest',
+          tourName: 'WXC Manifest',
+          roundId: 'wxc-manifest-r1b',
+          roundName: 'Round 1 Page B',
+        },
+        {
+          url: 'https://unapproved.example/r1c.html',
+          tourSlug: 'wxc-manifest',
+          roundId: 'wxc-manifest-r1c',
+        },
+      ],
+    };
+    const result = await pollXiangqiBroadcastSourceOnce({
+      sourceUrl: 'https://fixture.invalid/manifest.json',
+      sourcePolicy: FIXTURE_SOURCE_POLICY,
+      fetchImpl: multiSourceFetch({
+        'https://fixture.invalid/manifest.json': manifest,
+        'https://fixture.invalid/r1a.html': WXF_FIXTURE_HTML,
+        'https://fixture.invalid/r1b.html': WXF_FIXTURE_HTML_PAGE_B,
+      }),
+    });
+
+    assert.equal(result.ok, true);
+    assert.equal(result.ok ? result.tourSlug : '', 'wxc-manifest');
+    assert.equal(result.ok ? result.sourcesSeen : 0, 3);
+    assert.equal(result.ok ? result.sourcesFailed : 0, 1);
+    assert.equal(result.ok ? result.roundsImported : 0, 2);
+    assert.equal(result.ok ? result.boardsSeen : 0, 4);
+    assert.equal(result.ok ? result.boardsFailed : 1, 0);
+
+    const rounds = await listXiangqiBroadcastRounds('wxc-manifest');
+    assert.deepEqual(
+      rounds.map((round) => round.id),
+      ['wxc-manifest-r1a', 'wxc-manifest-r1b'],
+    );
+    assert.equal((await listXiangqiBroadcastBoards('wxc-manifest-r1a')).length, 2);
+    assert.equal((await listXiangqiBroadcastBoards('wxc-manifest-r1b')).length, 2);
+
+    const logs = await listXiangqiBroadcastSyncLogs({});
+    assert.equal(logs.length, 1);
+    assert.equal(logs[0]?.kind, 'source_disallowed');
+    assert.equal(logs[0]?.payload.manifestUrl, 'https://fixture.invalid/manifest.json');
+  });
+
+  test('nested manifests are rejected as malformed manifest entries', async () => {
+    const nested = {
+      schema: 'mistboard.xiangqi.broadcast.manifest.v1',
+      sources: [{ url: 'https://fixture.invalid/inner.json' }],
+    };
+    const result = await pollXiangqiBroadcastSourceOnce({
+      sourceUrl: 'https://fixture.invalid/manifest.json',
+      sourcePolicy: FIXTURE_SOURCE_POLICY,
+      fetchImpl: multiSourceFetch({
+        'https://fixture.invalid/manifest.json': nested,
+        'https://fixture.invalid/inner.json': nested,
+      }),
+    });
+
+    assert.equal(result.ok, false);
+    assert.equal(result.ok ? '' : result.kind, 'source_malformed');
+    const logs = await listXiangqiBroadcastSyncLogs({});
+    assert.equal(logs.length, 1);
+    assert.equal(logs[0]?.kind, 'source_malformed');
   });
 });

@@ -17,6 +17,7 @@ type Args = {
   backoffMultiplier: number;
   timeoutMs: number;
   allowCorrection: boolean;
+  dryRun: boolean;
   once: boolean;
 };
 
@@ -30,13 +31,18 @@ function parseCliArgs(argv: string[]): Args {
       'backoff-multiplier': { type: 'string', default: '2' },
       'timeout-ms': { type: 'string', default: '5000' },
       'allow-correction': { type: 'boolean', default: false },
+      'dry-run': { type: 'boolean', default: false },
       once: { type: 'boolean', default: false },
     },
   });
   if (!values.source) {
     console.error(
-      'usage: poll-xiangqi-broadcast-source --source <url> [--once] [--interval-ms 1000] [--max-interval-ms 30000] [--backoff-multiplier 2] [--timeout-ms 5000] [--allow-correction]',
+      'usage: poll-xiangqi-broadcast-source --source <url> [--once] [--dry-run] [--interval-ms 1000] [--max-interval-ms 30000] [--backoff-multiplier 2] [--timeout-ms 5000] [--allow-correction]',
     );
+    process.exit(1);
+  }
+  if (values['dry-run'] && !values.once) {
+    console.error('--dry-run requires --once (a dry run previews a single poll)');
     process.exit(1);
   }
   const intervalMs = Number(values['interval-ms']);
@@ -66,13 +72,15 @@ function parseCliArgs(argv: string[]): Args {
     backoffMultiplier,
     timeoutMs,
     allowCorrection: Boolean(values['allow-correction']),
+    dryRun: Boolean(values['dry-run']),
     once: Boolean(values.once),
   };
 }
 
 function printResult(result: XiangqiBroadcastPollResult): void {
+  const label = result.dryRun ? 'poll dry-run' : 'poll';
   if (!result.ok) {
-    console.log(`poll failed kind=${result.kind} message=${result.message}`);
+    console.log(`${label} failed kind=${result.kind} message=${result.message}`);
     return;
   }
   const counts = new Map<string, number>();
@@ -81,8 +89,12 @@ function printResult(result: XiangqiBroadcastPollResult): void {
     counts.set(key, (counts.get(key) ?? 0) + 1);
   }
   const updateSummary = [...counts.entries()].map(([key, count]) => `${key}=${count}`).join(' ');
+  const sourceSummary =
+    result.sourcesSeen > 1 || result.sourcesFailed > 0
+      ? ` sources=${result.sourcesSeen} sourcesFailed=${result.sourcesFailed}`
+      : '';
   console.log(
-    `poll ok tour=${result.tourSlug} rounds=${result.roundsImported} boards=${result.boardsSeen} failed=${result.boardsFailed}${updateSummary ? ` ${updateSummary}` : ''}`,
+    `${label} ok tour=${result.tourSlug} rounds=${result.roundsImported} boards=${result.boardsSeen} failed=${result.boardsFailed}${sourceSummary}${updateSummary ? ` ${updateSummary}` : ''}`,
   );
 }
 
@@ -111,6 +123,7 @@ async function main(): Promise<void> {
           sourceUrl: args.source,
           timeoutMs: args.timeoutMs,
           allowCorrection: args.allowCorrection,
+          dryRun: args.dryRun,
         }),
       );
       return;
