@@ -217,6 +217,17 @@
   max-width: 100%;
 }
 
+/* Pane capture strips adopted into the rail (review-layout.ts): drop their
+   board-era container-query sizing and fixed height for the rail's compact
+   fixed tile size; empty strips collapse. */
+.review-material-row.captures-strip {
+  --capture-piece-size: 26px;
+  height: auto;
+  min-height: 0;
+  padding: 0;
+  overflow: visible;
+}
+
 .review-shell__left {
   grid-area: side;
 }

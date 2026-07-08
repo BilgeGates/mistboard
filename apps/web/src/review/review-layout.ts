@@ -78,6 +78,9 @@ export type ReviewLayoutAdapter = {
   /** Width (px) of each click-to-promote secondary board. Default 92. Raise for
    *  variants whose secondaries read too small at the shared default. */
   secondaryWidthPx?: number;
+  /** Absolute primary-board width cap (px). For small-dimension boards (4x4
+   *  flip jungle) whose cells would grow absurd at the full viewport fit. */
+  boardMaxPx?: number;
   maxPly: number;
   /** Re-render every board host for the given ply / flip / primary. */
   renderBoards(ctx: ReviewRenderContext): void;
@@ -122,23 +125,47 @@ export function mountReviewLayout(root: HTMLElement, adapter: ReviewLayoutAdapte
       onStageChanged?.();
     },
   });
-  applyBoardSizing(stage.el, adapter);
+
+  // Single-board pages: ADOPT the pane's own capture strips (replay-board.ts
+  // createPane puts them above/below the board) into the rail material rows,
+  // so the board column stays board-only and the board wins back their height.
+  // The elements MOVE with their identity intact — the variants' per-ply fill
+  // code keeps its references and needs no change. Fog triptychs (multi-slot)
+  // keep their own arrangement.
+  let adoptedMaterialTop: HTMLElement | undefined;
+  let adoptedMaterialBottom: HTMLElement | undefined;
+  const stripsAdopted = !adapter.materialTop && !adapter.materialBottom && slots.length === 1;
+  if (stripsAdopted && slots[0]) {
+    const strips = [...slots[0].el.querySelectorAll<HTMLElement>(':scope > .captures-strip')];
+    const top = strips.find(
+      (strip) =>
+        strip.classList.contains('replay-captures-top') ||
+        strip.classList.contains('captures-strip-top'),
+    );
+    const bottom = strips.find((strip) => strip !== top);
+    adoptedMaterialTop = top;
+    adoptedMaterialBottom = bottom;
+  }
+  const materialTop = adapter.materialTop ?? adoptedMaterialTop;
+  const materialBottom = adapter.materialBottom ?? adoptedMaterialBottom;
+
+  applyBoardSizing(stage.el, adapter, stripsAdopted);
 
   const scrubber = createReviewScrubber();
   const left = infoRail(adapter);
   // Right rail, lichess order: material-top · engine panel · move list ·
   // advice · scrubber · summary · material-bottom.
-  adapter.materialTop?.classList.add('review-material-row');
-  adapter.materialBottom?.classList.add('review-material-row');
+  materialTop?.classList.add('review-material-row');
+  materialBottom?.classList.add('review-material-row');
   const right = railGroup(
     [
-      adapter.materialTop,
+      materialTop,
       adapter.enginePanel,
       adapter.moves,
       adapter.moveComment,
       scrubber.el,
       adapter.analysisSummary,
-      adapter.materialBottom,
+      materialBottom,
     ].filter((el): el is HTMLElement => el != null),
   );
   // Center: board-stage, plus an optional underboard region stacked beneath it.
@@ -245,8 +272,8 @@ export function mountReviewLayout(root: HTMLElement, adapter: ReviewLayoutAdapte
   // being shown / resized inside the dev postgame-sheet iframe (where a single
   // load-time pass measures a not-yet-sized frame).
   const refit = (): void => {
-    applyBoardSizing(stage.el, adapter);
-    fitPrimaryToViewport(stage.el, adapter.boardAspect);
+    applyBoardSizing(stage.el, adapter, stripsAdopted);
+    fitPrimaryToViewport(stage.el, adapter.boardAspect, adapter.boardMaxPx);
     // Re-anchor the grip after the fit's rAF pass has applied the new size.
     setTimeout(positionGrip, 60);
   };
@@ -277,7 +304,7 @@ export function mountReviewLayout(root: HTMLElement, adapter: ReviewLayoutAdapte
 // overflow (full hands / capture pools). Bidirectional and self-measuring, so no
 // per-variant chrome estimate is needed. Capped by the center column width so
 // wide boards don't overflow horizontally.
-function fitPrimaryToViewport(stageEl: HTMLElement, aspect: number): void {
+function fitPrimaryToViewport(stageEl: HTMLElement, aspect: number, maxPx?: number): void {
   scheduleAnimationFrame(() => {
     if (typeof window === 'undefined') return;
     // Measure against the VIEWPORT, not the stage's own height: the stage stretches
@@ -344,7 +371,10 @@ function fitPrimaryToViewport(stageEl: HTMLElement, aspect: number): void {
     const targetBoardWidth = Math.floor(
       (available - nonBoardChrome - 6) * aspect * currentBoardScale(),
     );
-    const targetWidth = Math.max(160, Math.min(widthCap, targetBoardWidth + flankPx));
+    const targetWidth = Math.max(
+      160,
+      Math.min(widthCap, maxPx ?? Number.POSITIVE_INFINITY, targetBoardWidth + flankPx),
+    );
     stageEl.style.setProperty('--review-stage-primary-max', `${targetWidth}px`);
     // Publish the fitted width so the grid's board column HUGS the fitted board
     // instead of holding the chrome-free formula width — variants whose hosts
@@ -368,9 +398,15 @@ function scheduleAnimationFrame(callback: () => void): void {
 // The primary board fills the height left after the nav, the secondary row, and
 // the labels — projected through the board aspect — so it scales with the
 // viewport instead of a fixed vh fraction.
-function applyBoardSizing(stageEl: HTMLElement, adapter: ReviewLayoutAdapter): void {
+function applyBoardSizing(
+  stageEl: HTMLElement,
+  adapter: ReviewLayoutAdapter,
+  stripsAdopted = false,
+): void {
   const aspect = adapter.boardAspect;
-  const extraPerBoard = adapter.boardChromePx ?? 0;
+  // Adopted capture strips live in the rail, so the variant's declared strip
+  // chrome no longer applies to the board column.
+  const extraPerBoard = stripsAdopted ? 0 : (adapter.boardChromePx ?? 0);
   const secondaryWidth = adapter.secondaryWidthPx ?? SECONDARY_WIDTH_PX;
   const hasSecondaries = adapter.boards.some((board) => board.tier === 'secondary');
   const secondaryStackPx = hasSecondaries
