@@ -44,6 +44,11 @@
   /* Lichess-derived shape scale: 7px boxes/cards, 5px controls. Theme-invariant. */
   --site-radius: 7px;
   --site-radius-sm: 5px;
+  /* Board corner radius, shared by every board renderer so all surfaces match.
+     A percentage keeps it proportional to board size (the SVG grid + xiangqi
+     boards already round themselves at ~2% of board width); ~1.9% lands near the
+     7px card radius at the homepage board size and scales for larger boards. */
+  --board-corner-radius: 1.9%;
   --site-bg: hsl(40, 24%, 91%);
   --site-bg-soft: hsl(40, 22%, 87%);
   /* Lichess's header trick: the page (and the nav) fade down FROM a warm amber

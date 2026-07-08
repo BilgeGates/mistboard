@@ -225,6 +225,19 @@
   --board-fog-dark-background: #000;
 }
 
+/* Rounded board corners on every chessground surface (live game, replay/viewer,
+   watch, learn stepper, article thumbs), matching the SVG grid + xiangqi boards
+   that already round themselves. The board is tiled with <square> elements, so
+   overflow:hidden is needed to clip them to the rounded corners. */
+.board.cg-wrap,
+.replay-board.cg-wrap,
+.stepper-board.cg-wrap,
+.live-boards-board.cg-wrap,
+.articles-thumb-board.cg-wrap {
+  border-radius: var(--board-corner-radius);
+  overflow: hidden;
+}
+
 :root[data-fog-theme="invisible"] .board.cg-wrap,
 :root[data-fog-theme="invisible"] .replay-board.cg-wrap,
 :root[data-fog-theme="invisible"] .stepper-board.cg-wrap,

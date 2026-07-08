@@ -113,7 +113,9 @@
   flex: 1 1 auto;
   min-width: 0;
   position: relative;
-  border-radius: 2px;
+  /* The board SVG rounds its own corners (renderer-level, shared token); the
+     container just needs to clip anything riding to the edge. */
+  border-radius: var(--board-corner-radius);
   overflow: hidden;
 }
 
