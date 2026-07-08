@@ -53,6 +53,7 @@ import {
   type CrossroadsChessReplayController,
   mountCrossroadsChessReplay,
 } from './crossroads-chess-replay.js';
+import { buildDobutsuUiIcon, dobutsuIconForAnnouncementKind } from './dobutsu-ui-icons.js';
 import {
   type DropMiniXiangqiReplayController,
   mountDropMiniXiangqiReplay,
@@ -546,6 +547,7 @@ function landingArticleCard(article: Article, locale: Locale): HTMLElement {
     date.textContent = formatCardDate(dateIso, locale);
     thumb.append(date);
   }
+  thumb.append(articleCardStarBadge('landing-article-card-star'));
 
   const title = document.createElement('strong');
   title.className = 'landing-article-card-title';
@@ -553,6 +555,14 @@ function landingArticleCard(article: Article, locale: Locale): HTMLElement {
 
   link.append(thumb, title);
   return link;
+}
+
+function articleCardStarBadge(className: string): HTMLSpanElement {
+  const star = document.createElement('span');
+  star.className = className;
+  star.setAttribute('aria-hidden', 'true');
+  star.textContent = '★';
+  return star;
 }
 
 function landingAnnouncementCard(announcement: Announcement, locale: Locale): HTMLElement {
@@ -569,10 +579,11 @@ function landingAnnouncementCard(announcement: Announcement, locale: Locale): HT
   const thumb = document.createElement('div');
   thumb.className = 'landing-article-card-thumb landing-announcement-thumb';
 
-  const kicker = document.createElement('span');
-  kicker.className = 'landing-article-card-kicker';
-  kicker.textContent = t('articles.news', {}, locale);
-  thumb.append(kicker);
+  const icon = document.createElement('span');
+  icon.className = 'landing-announcement-thumb-icon';
+  icon.setAttribute('aria-hidden', 'true');
+  icon.append(buildDobutsuUiIcon(dobutsuIconForAnnouncementKind(announcement.kind)));
+  thumb.append(icon);
 
   const date = document.createElement('span');
   date.className = 'landing-article-card-date';
@@ -1998,10 +2009,7 @@ function articleCard(article: Article, lang?: ArticleLang): HTMLLIElement {
     thumb.append(date);
   }
 
-  const author = document.createElement('span');
-  author.className = 'articles-index-card-over-image articles-index-card-author';
-  author.textContent = 'Mistboard';
-  thumb.append(author);
+  thumb.append(articleCardStarBadge('articles-index-card-over-image articles-index-card-author'));
 
   if (isArticleStatusBadge(article.status)) {
     const badge = document.createElement('span');

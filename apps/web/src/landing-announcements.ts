@@ -1,5 +1,6 @@
 import './landing-announcements.css';
 import { type Announcement, announcements } from './announcements.js';
+import { buildDobutsuUiIcon, dobutsuIconForAnnouncementKind } from './dobutsu-ui-icons.js';
 import { t } from './i18n/catalog.js';
 import { currentLocale, LOCALE_META, type Locale, localizedHref } from './i18n/locale.js';
 import { rulesHrefPublicSurfaceEnabled } from './variant-public-surfaces.js';
@@ -9,26 +10,22 @@ import { rulesHrefPublicSurfaceEnabled } from './variant-public-surfaces.js';
 const MAX_FEED_ROWS = 4;
 const ANNOUNCEMENT_KIND_META: Record<
   Announcement['kind'],
-  { label: string; marker: string; futureDobutsuSlot: 'announcement-a' | 'announcement-b' | null }
+  { label: string; futureDobutsuSlot: 'announcement-a' | 'announcement-b' | null }
 > = {
   release: {
     label: 'Release',
-    marker: 'R',
     futureDobutsuSlot: 'announcement-a',
   },
   status: {
     label: 'Status',
-    marker: '!',
     futureDobutsuSlot: 'announcement-b',
   },
   article: {
     label: 'Article',
-    marker: 'A',
     futureDobutsuSlot: 'announcement-b',
   },
   update: {
     label: 'Update',
-    marker: '+',
     futureDobutsuSlot: 'announcement-a',
   },
 };
@@ -62,12 +59,14 @@ function renderFeedEntry(entry: Announcement, locale: Locale): HTMLElement {
   row.dataset.announcementKind = entry.kind;
 
   const marker = document.createElement('span');
-  marker.className = `landing-news-marker landing-news-marker-${entry.kind}`;
+  marker.className = `landing-news-marker landing-news-marker-${entry.kind} landing-news-marker-dobutsu`;
   marker.dataset.announcementKind = entry.kind;
   marker.dataset.futureDobutsuSlot = kindMeta.futureDobutsuSlot ?? '';
   marker.title = kindMeta.label;
   marker.setAttribute('aria-hidden', 'true');
-  marker.textContent = kindMeta.marker;
+  marker.append(
+    buildDobutsuUiIcon(dobutsuIconForAnnouncementKind(entry.kind), 'landing-news-marker-icon'),
+  );
 
   const content = document.createElement('div');
   content.className = 'landing-news-content';
@@ -105,12 +104,13 @@ function renderAllUpdates(locale: Locale): HTMLElement {
   const row = document.createElement('article');
   row.className = 'landing-news-update landing-news-update-all';
   const marker = document.createElement('span');
-  marker.className = 'landing-news-marker landing-news-marker-empty';
+  marker.className = 'landing-news-marker landing-news-marker-all';
   marker.setAttribute('aria-hidden', 'true');
+  marker.textContent = '☆';
   const link = document.createElement('a');
   link.className = 'landing-news-date landing-news-all-link';
   link.href = localizedHref('/feed', locale);
-  link.textContent = `${t('site.more', {}, locale)}`;
+  link.textContent = t('news.allUpdates', {}, locale);
   row.append(marker, link);
   return row;
 }

@@ -1,7 +1,7 @@
 import { XIANGQI_GLYPH_PATHS } from '@mistboard/board-render';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
-  BANQI_ENGINE_THUMB_W,
+  BANQI_BOARD_W,
   BANQI_ENGINE_THUMBNAIL,
   BANQI_RULES_THUMBNAIL,
 } from './articles/diagrams.js';
@@ -196,7 +196,7 @@ describe('article public listing gates', () => {
     expect(cards?.textContent).not.toContain('Banqi (半棋) is open for alpha play.');
   });
 
-  it('keeps Banqi rules surfaces on the variant marker while the MistyBanqi thumbnail crops an 8:5 window', () => {
+  it('keeps Banqi rules surfaces on the variant marker while the MistyBanqi thumbnail renders a full-board card', () => {
     const rules = buildRulesIndex();
     expect(
       rules.querySelector('.rules-landing-tile[href="/rules/banqi"] svg[data-mini-id="banqi"]'),
@@ -204,14 +204,16 @@ describe('article public listing gates', () => {
     expect(BANQI_RULES_THUMBNAIL()).not.toContain('data-banqi-thumbnail-crop');
 
     const thumbnail = BANQI_ENGINE_THUMBNAIL();
-    expect(thumbnail).toContain('data-banqi-thumbnail-crop="engine-wide"');
-    expect(thumbnail).toContain(`--xq-svg-width: ${BANQI_ENGINE_THUMB_W + 8}px`);
+    expect(thumbnail).toContain('data-banqi-thumbnail-layout="engine-full-board"');
+    expect(thumbnail).toContain(`--xq-svg-width: ${BANQI_BOARD_W + 8}px`);
 
     const articles = buildArticlesIndex();
     const card = articles.querySelector<HTMLAnchorElement>(
       '.articles-index-card[href="/articles/mistybanqi"]',
     );
-    expect(card?.querySelector('svg g[data-banqi-thumbnail-crop="engine-wide"]')).not.toBeNull();
+    expect(
+      card?.querySelector('svg g[data-banqi-thumbnail-layout="engine-full-board"]'),
+    ).not.toBeNull();
 
     // The Banqi rules page carries the shared variant marker on the /rules
     // index (it no longer rides the homepage editorial row)...
@@ -220,12 +222,51 @@ describe('article public listing gates', () => {
       rulesIndex.querySelector('a[href="/rules/banqi"] svg[data-mini-id="banqi"]'),
     ).not.toBeNull();
 
-    // ...while the MistyBanqi editorial card keeps its 8:5 board crop in the
-    // homepage row.
+    // ...while the MistyBanqi editorial card keeps the full-board thumbnail in
+    // the homepage row.
     const home = buildHomeArticleCards(50);
     expect(
       home?.querySelector(
-        '.landing-article-card[href="/articles/mistybanqi"] svg g[data-banqi-thumbnail-crop="engine-wide"]',
+        '.landing-article-card[href="/articles/mistybanqi"] svg g[data-banqi-thumbnail-layout="engine-full-board"]',
+      ),
+    ).not.toBeNull();
+  });
+
+  it('renders Misty with the generated thumbnail and uses star blog badges', () => {
+    const articles = buildArticlesIndex();
+    const card = articles.querySelector<HTMLAnchorElement>(
+      '.articles-index-card[href="/articles/misty"]',
+    );
+    expect(card?.querySelector('img')?.getAttribute('src')).toBe(
+      '/article-thumbs/misty-engine-belief-20260708.jpg',
+    );
+    expect(card?.querySelector('.articles-index-card-author')?.textContent).toBe('★');
+
+    const home = buildHomeArticleCards(50);
+    expect(
+      home?.querySelector('.landing-article-card[href="/articles/misty"] img')?.getAttribute('src'),
+    ).toBe('/article-thumbs/misty-engine-belief-20260708.jpg');
+    expect(
+      home?.querySelector(
+        '.landing-article-card[href="/articles/misty"] .landing-article-card-star',
+      )?.textContent,
+    ).toBe('★');
+  });
+
+  it('renders the server-side truth article with the generated truth-core thumbnail', () => {
+    const articles = buildArticlesIndex();
+    expect(
+      articles
+        .querySelector(
+          '.articles-index-card[href="/articles/server-enforced-fog"] img[src="/article-thumbs/server-fog-cutaway-truth-20260708.jpg"]',
+        )
+        ?.getAttribute('alt'),
+    ).toBe('A foggy visible board layer floating above a hidden golden truth layer.');
+
+    const home = buildHomeArticleCards(50);
+    expect(
+      home?.querySelector(
+        '.landing-article-card[href="/articles/server-enforced-fog"] img[src="/article-thumbs/server-fog-cutaway-truth-20260708.jpg"]',
       ),
     ).not.toBeNull();
   });

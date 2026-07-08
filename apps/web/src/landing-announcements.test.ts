@@ -93,15 +93,20 @@ describe('landing announcements', () => {
   it('links the feed tail to /feed', () => {
     const more =
       buildLandingAnnouncements().querySelector<HTMLAnchorElement>('a.landing-news-all-link');
+    const marker = buildLandingAnnouncements().querySelector<HTMLElement>(
+      '.landing-news-marker-all',
+    );
     expect(more?.getAttribute('href')).toBe('/feed');
+    expect(more?.textContent).toBe('All updates »');
+    expect(marker?.textContent).toBe('☆');
   });
 
-  it('marks feed rows by supported post type for future icon replacement', () => {
+  it('marks feed rows by supported post type and renders Dobutsu markers', () => {
     const firstRow = buildLandingAnnouncements().querySelector<HTMLElement>('.landing-news-update');
     const marker = firstRow?.querySelector<HTMLElement>('.landing-news-marker');
 
     expect(firstRow?.dataset.announcementKind).toBe('release');
-    expect(marker?.textContent).toBe('R');
+    expect(marker?.querySelector('img.dobutsu-ui-icon-announcement-a')).not.toBeNull();
     expect(marker?.dataset.announcementKind).toBe('release');
     expect(marker?.dataset.futureDobutsuSlot).toBe('announcement-a');
   });
@@ -116,7 +121,7 @@ describe('landing announcements', () => {
 
     expect(landing.getAttribute('aria-label')).toBe('新聞');
     expect(firstRow?.getAttribute('href')).toBe('/zh-hant/rules/xiangqi');
-    expect(more?.textContent).toBe('更多 »');
+    expect(more?.textContent).toBe('全部更新 »');
     expect(news.querySelector('.site-section-heading')?.textContent).toBe('Mistboard 更新');
     expect(news.querySelector('.news-page-intro')?.textContent).toBe(
       'Mistboard 的發布、狀態更新和公告。',

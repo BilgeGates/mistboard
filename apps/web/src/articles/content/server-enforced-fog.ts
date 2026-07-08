@@ -1,5 +1,4 @@
 import {
-  boardToPieces,
   relatedClosing,
   SERVER_FOG_ACCESS_POLICY,
   SERVER_FOG_DELTA_PAYLOAD,
@@ -25,9 +24,9 @@ export const serverEnforcedFogArticle: Article = {
     audience:
       'Players and engineers who want a practical reference for building live hidden-information games without sending the true board to the browser.',
     thumbnail: {
-      pieces: boardToPieces(SERVER_FOG_TRUTH_STATE.board),
-      splitFogSquares: { left: SERVER_FOG_FOG_W, right: SERVER_FOG_FOG_B },
-      orientation: 'white',
+      kind: 'image',
+      src: '/article-thumbs/server-fog-cutaway-truth-20260708.jpg',
+      alt: 'A foggy visible board layer floating above a hidden golden truth layer.',
     },
     sections: [
       {

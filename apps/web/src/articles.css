@@ -162,13 +162,14 @@
 .articles-index-card {
   display: block;
   min-height: 100%;
-  border: 1px solid var(--site-border-soft);
+  border: 2px solid #d4932c;
   border-radius: var(--site-radius);
   background: color-mix(in srgb, var(--site-panel-soft) 65%, var(--site-panel));
   color: inherit;
   direction: ltr;
   text-decoration: none;
   overflow: hidden;
+  box-shadow: 0 2px 7px rgba(29, 37, 34, 0.18);
   transition:
     box-shadow 0.15s,
     transform 0.15s;
@@ -176,6 +177,7 @@
 
 .articles-index-card:hover {
   box-shadow:
+    0 2px 8px rgba(29, 37, 34, 0.2),
     0 0 5px color-mix(in srgb, var(--site-accent) 55%, transparent),
     0 0 20px color-mix(in srgb, var(--site-accent) 28%, transparent);
   transform: translateY(-1px);
@@ -218,24 +220,35 @@
 
 .articles-index-card-over-image {
   position: absolute;
-  top: 0;
+  top: -1px;
   z-index: 1;
-  padding: 5px 10px 6px;
-  background: color-mix(in srgb, var(--site-panel) 72%, transparent);
+  padding: 3px 7px 4px;
+  background: color-mix(in srgb, var(--site-panel) 86%, transparent);
   color: var(--site-text);
-  font-size: 14px;
-  line-height: 1;
+  font-size: 11px;
+  font-weight: 400;
+  line-height: 1.1;
   backdrop-filter: blur(6px);
 }
 
 .articles-index-card-date {
-  left: 0;
-  border-radius: var(--site-radius) 0 var(--site-radius) 0;
+  left: -1px;
+  border-radius: var(--site-radius) 0 7px 0;
 }
 
 .articles-index-card-author {
-  right: 0;
-  border-radius: 0 var(--site-radius) 0 var(--site-radius);
+  right: -1px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 19px;
+  padding: 0;
+  border-radius: 0 var(--site-radius) 0 7px;
+  color: #d4932c;
+  font-size: 15px;
+  font-weight: 700;
+  line-height: 1;
 }
 
 .articles-index-card-status {
@@ -314,7 +327,7 @@
 
 .articles-index-card-body {
   display: block;
-  padding: 16px 22px 19px;
+  padding: 17px 21px 20px;
   max-height: 150px;
 }
 
@@ -328,12 +341,13 @@
 .articles-index-card-title {
   display: -webkit-box;
   overflow: hidden;
-  font-size: 21px;
-  font-weight: 400;
+  font-family: Roboto, ui-sans-serif, system-ui, sans-serif;
+  font-size: 19px;
+  font-weight: 300;
   color: var(--site-heading);
   margin: 0;
   letter-spacing: 0;
-  line-height: 1.15;
+  line-height: 1.28;
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 2;
 }
@@ -341,10 +355,11 @@
 .articles-index-card-summary {
   display: -webkit-box;
   overflow: hidden;
-  margin: 8px 0 0;
-  color: var(--site-text);
-  line-height: 1.3;
-  font-size: 15px;
+  margin: 7px 0 0;
+  color: var(--site-muted);
+  line-height: 1.35;
+  font-size: 14px;
+  font-weight: 400;
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 2;
 }

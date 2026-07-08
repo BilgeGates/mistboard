@@ -3,13 +3,23 @@
 // the per-article content modules and the articles-data.ts barrel can import
 // what they reference. Pure relocation — no behavior changes.
 
-import { CONE_QUEEN_BOARD, DISCOVERY_BOARD, fogSquaresFromVisible } from '@mistboard/board-render';
+import {
+  CONE_QUEEN_BOARD,
+  DISCOVERY_BOARD,
+  fogSquaresFromVisible,
+} from '@mistboard/board-render';
 import { tokenPieceSize } from '../board-metrics.js';
 import {
+  applyBanqiMove,
   applyMove as applyXiangqiMove,
+  type BanqiDeal,
+  type BanqiMove,
+  type BanqiPlayerView,
+  type BanqiSquare,
   type BackRankRole,
   type Board,
   type Chess960Start,
+  createInitialBanqiState,
   createChess960CastlingRightsForSides,
   createChess960InitialBoardForSides,
   createInitialMiniXiangqiBoard,
@@ -17,6 +27,7 @@ import {
   createInitialXiangqiState,
   darkChessVariant,
   type GameState,
+  getBanqiPlayerView,
   getMiniXiangqiPlayerView,
   getPlayerView as getXiangqiPlayerView,
   type MiniXiangqiBoard,
@@ -35,6 +46,7 @@ import {
   type XiangqiSquare,
   squareOf as xiangqiSquareOf,
 } from '@mistboard/game';
+import { BANQI_CONVERSION_GAME } from '../banqi-engine-game.js';
 import articleSnapshotFog from '../article-snapshot-fog.json' with { type: 'json' };
 import articleSnapshotFogBlack from '../article-snapshot-fog-black.json' with { type: 'json' };
 import {
@@ -2539,14 +2551,12 @@ export const BANQI_PAIR_W = BANQI_BOARD_W;
 export const BANQI_CENTER_X = 0;
 export const BANQI_RIGHT_HALF_W = BANQI_MARGIN * 2 + (BANQI_COLS / 2) * BANQI_CELL;
 export const BANQI_RIGHT_HALF_X0 = -(BANQI_COLS / 2) * BANQI_CELL;
-// The homepage engine-article thumbnail is an 8:5 landscape (lichess blog-card
-// ratio). xqSvg pads the viewBox by XQ_VIEWBOX_PAD*2 (=8), so a padded 8:5 frame
-// wants inner width = (BANQI_BOARD_H + 8) * 8 / 5 - 8 = 376. x0 = -56 slides the
-// full board so it fills the frame edge-to-edge (only ~1 col cropped); the red
-// cluster reads right-of-centre, the emptied left is the space black was pushed
-// out of.
-export const BANQI_ENGINE_THUMB_W = 376;
-export const BANQI_ENGINE_THUMB_X0 = -56;
+// The engine-article thumbnail uses the full 8x4 board inside a card canvas
+// close to 16:10. Keep a little extra space above the board so the full board
+// sits slightly low in the image, matching the card's visual weight.
+export const BANQI_ENGINE_THUMB_H = 270;
+export const BANQI_ENGINE_THUMB_Y = 30;
+const BANQI_ENGINE_THUMB_PLY = 30;
 
 export type BanqiPieceSpec = {
   color?: XiangqiColor;
@@ -2648,6 +2658,36 @@ export function banqiBackPieces(
   return parts.join('');
 }
 
+const BANQI_MOVE_TOKEN = /^([a-h][1-4])([a-h][1-4])$/;
+
+function banqiMoveFromToken(token: string): BanqiMove | null {
+  const match = BANQI_MOVE_TOKEN.exec(token);
+  if (!match) return null;
+  return { from: match[1] as BanqiSquare, to: match[2] as BanqiSquare };
+}
+
+function banqiReplayViewAt(deal: BanqiDeal, moves: string, ply: number): BanqiPlayerView {
+  let state = createInitialBanqiState('banqi-engine-thumbnail', deal);
+  const parsedMoves = moves.trim().split(/\s+/).map(banqiMoveFromToken);
+  for (const move of parsedMoves.slice(0, ply)) {
+    if (move) state = applyBanqiMove(state, move);
+  }
+  return getBanqiPlayerView(state, 'red');
+}
+
+function banqiPiecesFromView(view: BanqiPlayerView, x0: number, y0: number): string {
+  return Object.entries(view.board)
+    .map(([square, entry]) => {
+      if (!entry) return '';
+      const col = square.charCodeAt(0) - 97;
+      const row = 4 - Number(square[1]);
+      return entry.faceDown
+        ? banqiPiece({ shrouded: true }, col, row, x0, y0)
+        : banqiPiece({ color: entry.color, role: entry.role }, col, row, x0, y0);
+    })
+    .join('');
+}
+
 export function banqiArrow(
   from: { col: number; row: number },
   to: { col: number; row: number },
@@ -2700,29 +2740,29 @@ export const BANQI_RULES_THUMBNAIL = () => xqSvg(
   ].join(''),
 );
 
-// Distinct thumbnail for the "How MistyBanqi Plays" engine article: the right
-// half of a real finished position from the article's conversion game
-// (MistyBanqi up ten pieces to two, a position it has won and then drew).
-export const BANQI_ENGINE_THUMBNAIL = () =>
+// Distinct thumbnail for the "How MistyBanqi Plays" engine article: a full real
+// position from the article's conversion game, after enough flips that the card
+// reads as Banqi instead of a wall of backs. Full-board rendering keeps the card
+// honest: no generated or cropped board geometry.
+export const BANQI_ENGINE_THUMBNAIL = () => {
+  const view = banqiReplayViewAt(
+    BANQI_CONVERSION_GAME.deal,
+    BANQI_CONVERSION_GAME.moves,
+    BANQI_ENGINE_THUMB_PLY,
+  );
+  return (
   xqSvg(
-    BANQI_ENGINE_THUMB_W,
-    BANQI_BOARD_H,
+    BANQI_BOARD_W,
+    BANQI_ENGINE_THUMB_H,
     [
-      `<g data-banqi-thumbnail-crop="engine-wide">`,
-      banqiBoardGrid(BANQI_ENGINE_THUMB_X0, 0),
-      banqiPiece({ shrouded: true }, 4, 0, BANQI_ENGINE_THUMB_X0, 0),
-      banqiPiece({ color: 'red', role: 'advisor' }, 5, 0, BANQI_ENGINE_THUMB_X0, 0),
-      banqiPiece({ shrouded: true }, 7, 0, BANQI_ENGINE_THUMB_X0, 0),
-      banqiPiece({ color: 'black', role: 'advisor' }, 4, 1, BANQI_ENGINE_THUMB_X0, 0),
-      banqiPiece({ color: 'red', role: 'horse' }, 5, 1, BANQI_ENGINE_THUMB_X0, 0),
-      banqiPiece({ color: 'red', role: 'general' }, 6, 1, BANQI_ENGINE_THUMB_X0, 0),
-      banqiPiece({ color: 'red', role: 'soldier' }, 7, 1, BANQI_ENGINE_THUMB_X0, 0),
-      banqiPiece({ color: 'black', role: 'elephant' }, 5, 2, BANQI_ENGINE_THUMB_X0, 0),
-      banqiPiece({ color: 'red', role: 'cannon' }, 6, 2, BANQI_ENGINE_THUMB_X0, 0),
-      banqiPiece({ color: 'red', role: 'soldier' }, 7, 3, BANQI_ENGINE_THUMB_X0, 0),
+      `<g data-banqi-thumbnail-layout="engine-full-board">`,
+      banqiBoardGrid(0, BANQI_ENGINE_THUMB_Y),
+      banqiPiecesFromView(view, 0, BANQI_ENGINE_THUMB_Y),
       `</g>`,
     ].join(''),
+  )
   );
+};
 
 export const BANQI_RANK_ORDER: Array<{ role: XiangqiPiece['role']; label: string }> = [
   { role: 'general', label: 'General' },

@@ -1,4 +1,5 @@
 import './dobutsu-ui-icons.css';
+import type { AnnouncementKind } from './announcements.js';
 
 export type DobutsuUiIconId =
   | 'announcement-a'
@@ -34,4 +35,15 @@ export function buildDobutsuUiIcon(id: DobutsuUiIconId, className = ''): HTMLIma
   img.width = 96;
   img.height = 96;
   return img;
+}
+
+export function dobutsuIconForAnnouncementKind(kind: AnnouncementKind): DobutsuUiIconId {
+  switch (kind) {
+    case 'release':
+    case 'update':
+      return 'announcement-a';
+    case 'article':
+    case 'status':
+      return 'announcement-b';
+  }
 }

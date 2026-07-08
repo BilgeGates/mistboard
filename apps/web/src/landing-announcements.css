@@ -5,8 +5,8 @@
   --landing-feed-content-x: 86px;
   --landing-feed-line-half: 1px;
   --landing-feed-line-width: 2px;
-  --landing-feed-marker-half: 17px;
-  --landing-feed-marker-size: 34px;
+  --landing-feed-marker-half: 24px;
+  --landing-feed-marker-size: 48px;
   --landing-feed-rail-x: 44px;
 
   box-sizing: border-box;
@@ -51,7 +51,7 @@
 
 .landing-news-updates::before {
   position: absolute;
-  top: var(--landing-feed-marker-half);
+  top: calc(var(--landing-feed-marker-half) - 2px);
   bottom: 0;
   left: calc(var(--landing-feed-rail-x) - var(--landing-feed-line-half));
   width: var(--landing-feed-line-width);
@@ -97,10 +97,26 @@
   font-size: 12px;
 }
 
-.landing-news-marker-empty {
+.landing-news-marker-dobutsu {
+  overflow: hidden;
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.82);
+  color: inherit;
+}
+
+.landing-news-marker-dobutsu .dobutsu-ui-icon {
+  width: 36px;
+  height: 36px;
+  filter: none;
+}
+
+.landing-news-marker-all {
   border: 3px solid var(--landing-feed-accent);
-  background: var(--site-panel);
-  color: transparent;
+  background: var(--landing-feed-accent);
+  color: #ffffff;
+  font-size: 27px;
+  font-weight: 500;
+  line-height: 1;
+  text-shadow: 0 1px 0 rgba(105, 64, 11, 0.12);
 }
 
 .landing-news-content {
@@ -142,4 +158,5 @@
 
 .landing-news-update-all {
   margin-top: 18px;
+  align-items: center;
 }
