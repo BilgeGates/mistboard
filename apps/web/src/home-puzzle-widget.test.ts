@@ -37,7 +37,7 @@ describe('home puzzle widget', () => {
       'Puzzle of the day - Mini Xiangqi',
     );
     expect(widget?.getAttribute('aria-label')).toBe(`Puzzle of the day: ${puzzle.title}`);
-    expect(widget?.textContent).toContain('Red to move');
+    expect(widget?.textContent).toContain('Red to play');
     expect(widget?.querySelector('.mini-xq-board')).not.toBeNull();
     expect(widget?.querySelector('.mini-xq-piece')?.getAttribute('width')).toBe('64');
     expect(fetchSpy).toHaveBeenCalledTimes(1);
@@ -54,10 +54,10 @@ describe('home puzzle widget', () => {
 
     const widget = await buildHomePuzzleWidget();
 
-    expect(widget?.querySelector('.home-puzzle-widget-drop')).not.toBeNull();
-    expect(widget?.querySelectorAll('.home-puzzle-widget-hand')).toHaveLength(2);
-    expect(widget?.querySelector('[aria-label="Black reserve"]')).not.toBeNull();
-    const redReserve = widget?.querySelector('[aria-label="Red reserve"]');
+    expect(widget?.querySelector('.home-puzzle-reserve')).not.toBeNull();
+    expect(widget?.querySelectorAll('.home-puzzle-hand')).toHaveLength(2);
+    expect(widget?.querySelector('[aria-label="black reserve"]')).not.toBeNull();
+    const redReserve = widget?.querySelector('[aria-label="red reserve"]');
     expect(redReserve).not.toBeNull();
     expect(redReserve?.querySelector('.drop-mini-reserve-piece')).not.toBeNull();
     expect(widget?.querySelector('.mini-xq-board')).not.toBeNull();
