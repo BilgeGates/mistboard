@@ -1,13 +1,6 @@
-.live-route--reveal-chess .board-panel {
-  grid-template-columns: minmax(220px, 300px) minmax(0, min(64vh, 560px)) minmax(220px, 300px);
-}
-
-.live-route--reveal-chess .board-shell {
-  width: min(100%, 64vh, 560px);
-}
-
-.live-route--reveal-chess .board-stage {
-  aspect-ratio: 1 / 1;
+.live-route--reveal-chess {
+  --uni-board-aspect: 1;
+  --uni-board-chrome-h: 88px;
 }
 
 .reveal-chess-live-board {

@@ -3,12 +3,10 @@
    strips that reuse the capture-strip slots, the drop/promotion affordances, the
    parachute-bounce banner, and the fog-masked move list. */
 
-.live-route--crazyhouse .board-shell {
-  width: min(100%, 64vh, 560px);
-}
-
-.live-route--crazyhouse .board-stage {
-  aspect-ratio: 1 / 1;
+.live-route--crazyhouse {
+  --uni-board-aspect: 1;
+  /* Hand strips above/below the board eat into the height budget. */
+  --uni-board-chrome-h: 112px;
 }
 
 .crazyhouse-live-board {

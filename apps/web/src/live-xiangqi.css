@@ -1,44 +1,32 @@
-.live-route--xiangqi .board-shell {
-  width: min(100%, 72vh, 620px);
-}
-
-.live-route--xiangqi .board-stage,
-.live-route--xiangqi .board-status {
-  aspect-ratio: 552 / 612;
+/* Board geometry tokens only; sizing rules live in the shared uniboard system
+   (review/review-shell.css + live-review.css). */
+.live-route--xiangqi {
+  --uni-board-aspect: calc(552 / 612);
+  --uni-board-chrome-h: 88px;
 }
 
 .live-route--xiangqi .board-status {
   width: 100%;
 }
 
-/* Jieqi reuses this stylesheet but is its own route. The board is the full 9x10
-   grid (viewBox 660x732), so cap it by viewport height a touch tighter than the
-   xiangqi board to keep the page from scrolling, and bound its width so it never
-   bleeds into the move panel. */
-.live-route--jieqi .board-shell {
-  width: min(100%, 64vh, 560px);
-}
-
-.live-route--jieqi .board-stage,
-.live-route--jieqi .board-status {
-  aspect-ratio: 660 / 732;
+/* Jieqi reuses this stylesheet but is its own route: the full 9x10 grid
+   (viewBox 660x732). */
+.live-route--jieqi {
+  --uni-board-aspect: calc(660 / 732);
+  --uni-board-chrome-h: 88px;
 }
 
 .live-route--jieqi .board-status {
   width: 100%;
 }
 
-/* Banqi is half a xiangqi board, HORIZONTAL (8 files wide x 4 ranks tall). Match
-   the room-page boards' width footprint so it has the same visual weight as the
-   other variants, and centre the short board vertically against the side rail. */
-.live-route--banqi .board-shell {
-  width: min(100%, 640px);
-  align-self: center;
-}
-
-.live-route--banqi .board-stage,
-.live-route--banqi .board-status {
-  aspect-ratio: 568 / 312;
+/* Banqi is half a xiangqi board, HORIZONTAL (8 files wide x 4 ranks tall). Cap
+   the width so the short board keeps the other variants' visual weight instead
+   of growing to the full width budget. */
+.live-route--banqi {
+  --uni-board-aspect: calc(568 / 312);
+  --uni-board-max: 720px;
+  --uni-board-chrome-h: 88px;
 }
 
 .live-route--banqi .board-status {
@@ -46,19 +34,11 @@
 }
 
 /* Jungle is PORTRAIT (7 files wide x 9 ranks tall, viewBox 366x462). Cap the
-   width by viewport height so the tall board never makes the page scroll, and
-   bound its max width so it keeps a sensible footprint next to the side rail. */
-.live-route--jungle .board-shell {
-  /* 7x9 portrait (viewBox 366x462). Cap tighter than the 640px center column so it
-     never overflows into the right rail, and bound height-wise like jieqi. */
-  width: min(100%, 64vh, 540px);
-  /* Centre the board in its grid track (it is narrower than the column). */
-  justify-self: center;
-}
-
-.live-route--jungle .board-stage,
-.live-route--jungle .board-status {
-  aspect-ratio: 366 / 462;
+   width so its cells keep a sensible size when height would allow more. */
+.live-route--jungle {
+  --uni-board-aspect: calc(366 / 462);
+  --uni-board-max: 600px;
+  --uni-board-chrome-h: 88px;
 }
 
 .live-route--jungle .board-status {
@@ -67,8 +47,9 @@
 
 .jungle-live-board {
   aspect-ratio: 366 / 462;
-  width: min(100%, 64vh);
-  max-width: 540px;
+  /* Fills its host (board-stage in the room, review-stage slot in postgame);
+     the host owns sizing via the uniboard tokens. */
+  width: 100%;
   min-height: 0;
   border-radius: 0;
   overflow: visible;
@@ -86,16 +67,12 @@
   opacity: 0.34;
 }
 
-/* Flip Jungle is a square 4x4 board (viewBox ~286x286). */
-.live-route--jungle-flip .board-shell {
-  width: min(100%, 62vh, 520px);
-  /* Centre the board in its grid track (it is narrower than the column). */
-  justify-self: center;
-}
-
-.live-route--jungle-flip .board-stage,
-.live-route--jungle-flip .board-status {
-  aspect-ratio: 1 / 1;
+/* Flip Jungle is a square 4x4 board (viewBox ~286x286); cap the width so four
+   cells never balloon to the full height budget. */
+.live-route--jungle-flip {
+  --uni-board-aspect: 1;
+  --uni-board-max: 520px;
+  --uni-board-chrome-h: 88px;
 }
 
 .live-route--jungle-flip .board-status {
@@ -104,8 +81,7 @@
 
 .jungle-flip-live-board {
   aspect-ratio: 1 / 1;
-  width: min(100%, 62vh);
-  max-width: 520px;
+  width: 100%;
   min-height: 0;
   border-radius: 14px;
   overflow: hidden;
@@ -120,8 +96,7 @@
 
 .xiangqi-live-board {
   aspect-ratio: 552 / 612;
-  width: min(100%, 72vh);
-  max-width: 620px;
+  width: 100%;
   min-height: 0;
   /* Keep in sync with BOARD_RADIUS in live-dark-xiangqi.ts. overflow:hidden
      clips the full-bleed fog cells to the rounded corner. */

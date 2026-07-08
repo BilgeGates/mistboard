@@ -4,12 +4,10 @@
    fog-masked move list (opponent plies render as a dimmed placeholder, the same
    convention as Dark Xiangqi / Dark Crossroads). */
 
-.live-route--shogi .board-shell {
-  width: min(100%, 64vh, 560px);
-}
-
-.live-route--shogi .board-stage {
-  aspect-ratio: 1 / 1;
+.live-route--shogi {
+  --uni-board-aspect: 1;
+  /* Hand strips above/below the board eat into the height budget. */
+  --uni-board-chrome-h: 112px;
 }
 
 .shogi-live-board {

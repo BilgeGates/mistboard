@@ -4,7 +4,17 @@ import './live-review.css';
 import { buildNav } from './site-shell.js';
 
 export function setLiveLayoutGameSpec(target: HTMLElement, gameSpecId: string | null): void {
-  target.classList.toggle('live-route--xiangqi', gameSpecId === 'dark-xiangqi');
+  // The chess stack (fog chess / Draft960) has no tenant route class; give it
+  // one so it can carry uniboard tokens (aspect / capture-strip chrome) like
+  // every other variant.
+  target.classList.toggle(
+    'live-route--chess',
+    gameSpecId === null || gameSpecId === 'dark-chess' || gameSpecId === 'dark-draft960',
+  );
+  target.classList.toggle(
+    'live-route--xiangqi',
+    gameSpecId === 'dark-xiangqi' || gameSpecId === 'xiangqi',
+  );
   target.classList.toggle(
     'live-route--mini-xiangqi',
     gameSpecId === 'mini-xiangqi' ||

@@ -1,24 +1,73 @@
-/* Reconciliation layer for the live room riding the shared review shell
-   (review-shell.css). The room reuses the review cluster (left meta rail ·
-   center board · right moves rail) so the game page and the postgame page share
-   one skeleton. This file holds only the room-specific overrides the review
-   shell does not cover — the room's board box (board-shell) keeps its own live
-   sizing + interaction, and its rails keep their live content. */
+/* Reconciliation layer for the live room riding the shared uniboard layout
+   (review/review-shell.css). The room reuses the review cluster (left meta rail
+   · center board · right moves rail) so the game page and the postgame page
+   share one skeleton and one sizing system. This file adapts the room's own
+   chrome (board-shell, side-panel consoles) to the shared tokens; per-variant
+   files contribute only --uni-board-aspect / --uni-board-chrome-h /
+   --uni-board-max on their live-route--<variant> class. */
 
-/* Give the center a concrete inline size (the old .board-panel grid column's
-   role) so board-shell's own `min(100%, 66vh, 640px)` + the per-variant
-   live-route--* board rules resolve against it, instead of collapsing in the
-   review center's shrink-to-content flex. board-shell keeps ALL its own sizing,
-   so xiangqi / banqi / jungle aspects are untouched. Top-align so the board
-   doesn't drift on short viewports. */
-.live-review__cluster .review-shell__center {
-  align-items: flex-start;
-  width: min(66vh, 640px, calc(100vw - 500px));
+/* Fog chess / Draft960: square board plus the two always-present capture
+   strips above/below it. */
+.live-route--chess {
+  --uni-board-aspect: 1;
+  --uni-board-chrome-h: 88px;
 }
 
-/* The live rails carry their own panel chrome (.side-panel); the review rail
-   only needs to bound their width. Drop any grid-era margins so they hug the
-   board like the postgame rails. */
-.live-review__cluster .side-panel {
+/* The board fills the grid's board column, capped by the height budget (col1
+   has no column cap, so the same rule bounds it there too). The base
+   .board-shell width in styles.css keeps serving non-room surfaces (puzzles,
+   previews); inside the cluster the tokens win. */
+.live-review__cluster .board-shell {
+  width: min(
+    100%,
+    calc(var(--uni-board-h-budget) * var(--uni-board-aspect, 1)),
+    var(--uni-board-max, 10000px)
+  );
+}
+
+/* One aspect rule for every variant (was: a per-variant aspect-ratio block). */
+.live-review__cluster .board-stage,
+.live-review__cluster .board-status {
+  aspect-ratio: var(--uni-board-aspect, 1);
+}
+
+/* The live rails carry their own panel chrome (.side-panel). Inside the cluster
+   they stretch to the board-driven row instead of self-centering against the
+   viewport (game-shell.css's standalone behavior). */
+.live-review__cluster .meta-panel,
+.live-review__cluster .moves-panel {
+  align-self: stretch;
+  max-height: none;
+  overflow: visible;
   margin: 0;
+}
+
+/* Right rail: lichess round anatomy — clock top, move list filling the middle
+   with its own scroll, clock bottom. The console flex-fills the rail height
+   (the rail is height-0/min-height-100% so the board drives the row). */
+@media (min-width: 800px) {
+  .live-review__cluster .moves-panel {
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+  }
+  .live-review__cluster .game-console {
+    flex: 1 1 auto;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .live-review__cluster .replay-console {
+    flex: 1 1 0;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+  .live-review__cluster .replay-console .move-list {
+    flex: 1 1 0;
+    min-height: 96px;
+    height: auto;
+  }
 }

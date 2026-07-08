@@ -1,13 +1,7 @@
-.live-route--crossroads-chess .board-panel {
-  grid-template-columns: minmax(220px, 300px) minmax(0, min(58vh, 520px)) minmax(220px, 300px);
-}
-
-.live-route--crossroads-chess .board-shell {
-  width: min(100%, 58vh, 520px);
-}
-
-.live-route--crossroads-chess .board-stage {
-  aspect-ratio: 6 / 8;
+.live-route--crossroads-chess {
+  --uni-board-aspect: calc(6 / 8);
+  --uni-board-max: 560px;
+  --uni-board-chrome-h: 88px;
 }
 
 .crossroads-live-board {

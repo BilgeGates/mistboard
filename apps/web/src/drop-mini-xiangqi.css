@@ -1,3 +1,8 @@
+/* Reserve rows above/below the board eat into the uniboard height budget. */
+.live-route--drop-mini-xiangqi {
+  --uni-board-chrome-h: 96px;
+}
+
 .drop-mini-reserve-row {
   display: flex;
   align-items: center;

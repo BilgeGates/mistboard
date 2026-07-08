@@ -1,41 +1,170 @@
-/* Shared review shell layout. The cluster centers three columns that hug each
-   other; slack space lands on the outer margins, not between board and rails
-   (the lichess feel). Rails are a bounded width; the center sizes to the
-   board-stage. See review/review-shell.ts. */
+/* Shared "uniboard" layout system (ported from lichess), consumed by BOTH the
+   live room (live-layout.ts) and the postgame/analysis review shell
+   (review-shell.ts) so the two pages render pixel-identical columns.
+
+   The vocabulary is column-count driven:
+   - col1 (<800px): single stacked column (board first).
+   - col2 (≥800px): board | table (right rail); the side rail drops below.
+   - col3 (≥1260px): side | board | table.
+
+   The board column width is min(width-budget, height-budget × aspect): the
+   board fills the viewport height below the nav unless the viewport is too
+   narrow, in which case it fills the width left after the rails. A variant
+   contributes ONLY tokens — no per-variant width rules:
+   - --uni-board-aspect    board width/height ratio (e.g. calc(552 / 612))
+   - --uni-board-chrome-h  vertical px of chrome stacked with the board
+                           (capture strips / hands) inside the board column
+   - --uni-board-max       optional absolute width cap for small-dimension
+                           boards whose cells would grow absurd at full height
+   Tokens are inherited, so variants set them on any ancestor (e.g. the
+   live-route--<variant> root class or the cluster itself). */
+
+:root {
+  --uni-gap: 10px;
+  --uni-side-min: 230px;
+  --uni-side-max: 300px;
+  --uni-table-min: 240px;
+  --uni-table-max: 400px;
+  /* Sticky .site-nav height + page paddings above/below the cluster. Together
+     these are the 108px of vertical chrome the board can never occupy. */
+  --uni-nav-h: 58px;
+  --uni-page-chrome: 50px;
+  /* Side paddings + scrollbar reserve subtracted from the width budget. */
+  --uni-page-reserve: 72px;
+  /* Both shells cap the page at the same width so columns match exactly. */
+  --uni-main-max: 1440px;
+}
+
+@media (min-width: 800px) {
+  :root {
+    --uni-gap: 15px;
+  }
+}
 
 .review-shell {
   width: 100%;
+  max-width: var(--uni-main-max);
+  margin-inline: auto;
   padding: clamp(10px, 1.4vw, 18px) clamp(10px, 2vw, 24px) 24px;
   box-sizing: border-box;
 }
 
+/* col1: one stacked column, board first. */
 .review-shell__cluster {
-  display: flex;
+  --uni-board-h-budget: calc(
+    100svh -
+    var(--uni-nav-h) -
+    var(--uni-page-chrome) -
+    var(--uni-board-chrome-h, 0px)
+  );
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-areas:
+    "board"
+    "table"
+    "side";
+  gap: var(--uni-gap);
   justify-content: center;
-  align-items: flex-start;
-  gap: clamp(8px, 1vw, 14px);
+  justify-items: center;
   margin-inline: auto;
 }
 
+/* col2: board + right table; side rail drops below, spanning both. */
+@media (min-width: 800px) {
+  .review-shell__cluster {
+    --uni-board-w-budget: calc(
+      min(100vw, var(--uni-main-max)) -
+      var(--uni-table-min) -
+      var(--uni-gap) -
+      var(--uni-page-reserve)
+    );
+    --uni-board-width: min(
+      var(--uni-board-w-budget),
+      calc(var(--uni-board-h-budget) * var(--uni-board-aspect, 1)),
+      var(--uni-board-max, 10000px)
+    );
+    grid-template-columns: var(--uni-board-width) minmax(var(--uni-table-min), var(--uni-table-max));
+    grid-template-areas:
+      "board table"
+      "side  side";
+    justify-items: stretch;
+    align-content: start;
+    min-height: calc(100svh - var(--uni-nav-h) - var(--uni-page-chrome));
+    grid-template-rows: 1fr auto;
+  }
+}
+
+/* col3: the side rail returns to its own left column; one viewport-fill row. */
+@media (min-width: 1260px) {
+  .review-shell__cluster {
+    --uni-board-w-budget: calc(
+      min(100vw, var(--uni-main-max)) -
+      var(--uni-side-min) -
+      var(--uni-table-min) -
+      2 *
+      var(--uni-gap) -
+      var(--uni-page-reserve)
+    );
+    grid-template-columns:
+      minmax(var(--uni-side-min), var(--uni-side-max))
+      var(--uni-board-width)
+      minmax(var(--uni-table-min), var(--uni-table-max));
+    grid-template-areas: "side board table";
+    grid-template-rows: 1fr;
+  }
+}
+
+.review-shell__left {
+  grid-area: side;
+}
+
+.review-shell__right {
+  grid-area: table;
+}
+
 .review-shell__rail {
-  flex: 0 0 auto;
-  width: clamp(216px, 20vw, 288px);
   min-width: 0;
   display: flex;
   flex-direction: column;
   gap: 12px;
 }
 
-/* The center holds the board-stage and shrinks to its content width (the board's
-   own max-width), so the rails sit right beside the board. It reserves the
-   viewport height below the nav and vertically centres the (natural-height)
-   board-stage within it — so a short WIDE board sits balanced in the middle
-   rather than stranded at the top. The height is a fixed reservation (not tied
-   to the board), which avoids any resize feedback loop. */
+/* Above col1 the rails must not drive the row height (the board does): height 0
+   removes their content from track sizing, min-height 100% then stretches them
+   to the board-driven row. Their scroll regions (move list) flex-fill inside. */
+@media (min-width: 800px) {
+  .review-shell__right {
+    height: 0;
+    min-height: 100%;
+  }
+  .review-shell__right .review-rail-group {
+    flex: 1 1 auto;
+    min-height: 0;
+  }
+  .review-shell__right .review-moves-card {
+    flex: 1 1 0;
+    min-height: 0;
+  }
+  .review-shell__right .review-moves-card .move-list {
+    flex: 1 1 0;
+    min-height: 0;
+    max-height: none;
+  }
+}
+@media (min-width: 1260px) {
+  .review-shell__left {
+    height: 0;
+    min-height: 100%;
+  }
+}
+
+/* The center holds the board-stage, centered in the board-driven row. Width
+   comes from the grid column (col2+); on col1 it spans the container and the
+   board caps itself against the height budget. */
 .review-shell__center {
-  flex: 0 1 auto;
+  grid-area: board;
   min-width: 0;
-  min-height: calc(100svh - 108px);
+  width: 100%;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -188,16 +317,8 @@
   cursor: default;
 }
 
-/* Below the cluster breakpoint, stack: board first, then the rails. */
-@media (max-width: 960px) {
-  .review-shell__cluster {
-    flex-direction: column;
-    align-items: center;
-  }
-  .review-shell__center {
-    order: -1;
-    width: 100%;
-  }
+/* col1: bound the stacked rails to a readable width under the board. */
+@media (max-width: 799px) {
   .review-shell__rail {
     width: min(100%, 560px);
   }

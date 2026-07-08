@@ -87,6 +87,8 @@ const SECONDARY_LABEL_PX = 24;
 const SECONDARY_WIDTH_PX = 92;
 // Gap between a flank capture column and the board (mirrors `.review-flank { gap }`).
 const FLANK_GAP_PX = 8;
+// Eval gauge footprint beside the board: bar width 20 + gap 8 (eval-bar.ts).
+const EVAL_GAUGE_PX = 28;
 
 export function mountReviewLayout(root: HTMLElement, adapter: ReviewLayoutAdapter): void {
   let ply = adapter.maxPly;
@@ -258,7 +260,16 @@ function fitPrimaryToViewport(stageEl: HTMLElement, aspect: number): void {
     // Everything in the stage except the primary board itself (its own label /
     // strips, plus the secondary row and gaps) stays fixed as the primary scales.
     const nonBoardChrome = Math.max(0, contentHeight - boardWidth / aspect);
-    const widthCap = Math.max(240, window.innerWidth - RAILS_AND_GUTTERS_PX);
+    // Cap to the grid's board column when mounted in the shared cluster (its
+    // width is formula-driven, not content-driven, so measuring is loop-safe);
+    // fall back to the legacy viewport estimate outside it. An eval gauge hangs
+    // off the slot's right edge (absolutely positioned), so reserve its footprint
+    // inside the column or it overlaps the right rail.
+    const centerEl = stageEl.closest<HTMLElement>('.review-shell__center');
+    const gaugePx = stageEl.querySelector('.review-eval-bar') ? EVAL_GAUGE_PX : 0;
+    const measuredCap = centerEl ? centerEl.getBoundingClientRect().width - gaugePx : 0;
+    const widthCap =
+      measuredCap > 0 ? measuredCap : Math.max(240, window.innerWidth - RAILS_AND_GUTTERS_PX);
     const targetBoardWidth = Math.floor((available - nonBoardChrome - 6) * aspect);
     const targetWidth = Math.max(160, Math.min(widthCap, targetBoardWidth + flankPx));
     stageEl.style.setProperty('--review-stage-primary-max', `${targetWidth}px`);
@@ -285,6 +296,19 @@ function applyBoardSizing(stageEl: HTMLElement, adapter: ReviewLayoutAdapter): v
     ? STACK_GAP_PX + SECONDARY_LABEL_PX + Math.round(secondaryWidth / aspect) + extraPerBoard
     : 0;
   const chromePx = NAV_AND_PADDING_PX + PRIMARY_LABEL_PX + extraPerBoard + secondaryStackPx;
+  // Publish the uniboard tokens on the shared cluster so the grid's board
+  // column (review-shell.css) is sized with the same aspect + chrome budget the
+  // stage uses — the room and review pages then resolve identical columns.
+  // VIEWPORT_CHROME_PX (nav + page paddings) is already in the cluster's
+  // formula, so only the chrome beyond it goes into --uni-board-chrome-h.
+  const cluster = stageEl.closest<HTMLElement>('.review-shell__cluster');
+  if (cluster) {
+    cluster.style.setProperty('--uni-board-aspect', aspect.toFixed(4));
+    cluster.style.setProperty(
+      '--uni-board-chrome-h',
+      `${Math.max(0, chromePx - VIEWPORT_CHROME_PX)}px`,
+    );
+  }
   // The board is the largest that fits BOTH the center column width (≈ viewport
   // minus the two rails + gaps) and the height left after chrome (projected
   // through the aspect). Wide boards are width-bound; tall boards height-bound.

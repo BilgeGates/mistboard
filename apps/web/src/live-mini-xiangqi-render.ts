@@ -423,20 +423,17 @@ export function installMiniXiangqiBoardStyles(): void {
       fill: transparent;
       cursor: pointer;
     }
-    .live-route--mini-xiangqi .board-shell {
-      width: min(100%, 72vh, 560px);
-    }
-    .live-route--mini-xiangqi .board-stage,
-    .live-route--mini-xiangqi .board-status {
-      aspect-ratio: 1 / 1;
+    .live-route--mini-xiangqi {
+      --uni-board-aspect: 1;
+      --uni-board-max: 560px;
+      --uni-board-chrome-h: 88px;
     }
     .live-route--mini-xiangqi .board-status {
       width: 100%;
     }
     .mini-xiangqi-live-board {
       aspect-ratio: 1 / 1;
-      width: min(100%, 72vh);
-      max-width: 560px;
+      width: 100%;
       min-height: 0;
       border-radius: 10px;
       box-shadow: 0 18px 50px rgba(37, 31, 24, 0.16);

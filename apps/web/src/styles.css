@@ -44,14 +44,6 @@
   gap: clamp(18px, 3vw, 32px);
 }
 
-.board-panel {
-  display: grid;
-  grid-template-columns: minmax(220px, 300px) minmax(0, min(66vh, 640px)) minmax(220px, 300px);
-  gap: clamp(14px, 2vw, 24px);
-  align-items: start;
-  justify-content: center;
-}
-
 .board-shell {
   container-type: inline-size;
   display: grid;
@@ -976,7 +968,6 @@
     padding-top: 16px;
   }
 
-  .board-panel,
   .topbar {
     grid-template-columns: 1fr;
     display: grid;

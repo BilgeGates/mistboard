@@ -3,12 +3,10 @@
    two-column umpire-log move list (own plies full, opponent plies as the
    announcement alone). */
 
-.live-route--kriegspiel .board-shell {
-  width: min(100%, 64vh, 560px);
-}
-
-.live-route--kriegspiel .board-stage {
-  aspect-ratio: 1 / 1;
+.live-route--kriegspiel {
+  --uni-board-aspect: 1;
+  /* Capture strips above/below the board eat into the height budget. */
+  --uni-board-chrome-h: 112px;
 }
 
 .kriegspiel-live-board {
