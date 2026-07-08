@@ -18,7 +18,8 @@
       "!**/package-lock.json",
       "!**/articles-data.ts",
       "!apps/web/src/articles",
-      "!apps/web/public/engine"
+      "!apps/web/public/engine",
+      "!apps/server/src/fixtures/dpxq"
     ]
   },
   "formatter": {
