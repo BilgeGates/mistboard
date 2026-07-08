@@ -3,7 +3,11 @@ import type pg from 'pg';
 import * as persistence from './persistence.js';
 import { withRollbackTransaction } from './persistence-db.js';
 import { looksLikeDpxqPage, normalizeDpxqPageToFrameHtml } from './xiangqi-broadcast-dpxq.js';
+import type { XiangqiBroadcastSourceFetch } from './xiangqi-broadcast-fetch.js';
 import { defaultXiangqiBroadcastFetch } from './xiangqi-broadcast-fetch.js';
+
+export type { XiangqiBroadcastSourceFetch } from './xiangqi-broadcast-fetch.js';
+
 import {
   validateXiangqiBroadcastSourceUrl,
   type XiangqiBroadcastSourceUrlPolicy,
@@ -35,15 +39,6 @@ export type XiangqiBroadcastSourceManifest = {
   schema: typeof XIANGQI_BROADCAST_MANIFEST_SCHEMA;
   sources: XiangqiBroadcastManifestSource[];
 };
-
-export type XiangqiBroadcastSourceFetch = (
-  url: string,
-  init: { signal?: AbortSignal },
-) => Promise<{
-  ok: boolean;
-  status: number;
-  text(): Promise<string>;
-}>;
 
 export type XiangqiBroadcastPollErrorKind =
   | 'source_disallowed'

@@ -5,7 +5,17 @@
 // (from the Content-Type header, else a <meta charset> sniff), falling back to
 // UTF-8 for unknown labels.
 
-import type { XiangqiBroadcastSourceFetch } from './xiangqi-broadcast-poller.js';
+// The poller's injectable fetch seam. Defined here (the implementation's
+// module) so the poller depends on this file one-directionally; the poller
+// re-exports the name for its existing importers.
+export type XiangqiBroadcastSourceFetch = (
+  url: string,
+  init: { signal?: AbortSignal },
+) => Promise<{
+  ok: boolean;
+  status: number;
+  text(): Promise<string>;
+}>;
 
 function charsetFromContentType(contentType: string | null): string | undefined {
   const match = contentType?.match(/charset=["']?([\w-]+)/i);
