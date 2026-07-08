@@ -36,13 +36,20 @@ Landed:
 - dry-run/import preview at every level (poller `--dry-run`, ops API `dryRun`,
   ops console Preview button) running the real write path inside an
   always-rollback transaction;
+- ops console can create a broadcast from a pasted source URL (preview first,
+  then import), so an operator never needs shell access;
+- in-server scheduled polling: per-tour auto-poll toggle and interval in the
+  ops console, a tick scheduler that reuses the poller's policy/backoff/sync
+  logs, and quiet logging (only polls that changed something are recorded);
+- a poll always re-anchors `tour.sourceUrl` to the URL the operator polls, so
+  manifest tours keep re-polling the manifest rather than the last page;
 - source URL safety policy that keeps production source polling fail-closed.
 
 Still intentionally open:
 
 - visual polish for top-tier event watching, including theater-mode treatment,
   multi-board scanning, live-move affordances, and mobile QA;
-- scheduled production polling for an approved event.
+- running the first real approved event through the scheduled-polling stack.
 
 Study/game-analysis UI is not a blocker for this broadcast track. Broadcasts
 can publish and replay top games first; analysis can attach later to completed
@@ -258,8 +265,9 @@ Current status:
 | M5 organizer console | Landed |
 | M6 real-source adapter proof | Landed for WXF/DhtmlXQ |
 | Source production hardening (#118) | Landed: source policy, backoff, health buckets, manifest workflow, dry-run preview |
+| Operator source import (ops console) | Landed |
+| Scheduled polling (in-server) | Landed; awaiting first real approved event |
 | Viewer polish for top-tier events | Not started |
-| Scheduled production polling | Not started |
 
 ### M0: Broadcast Brief And Fixture Schema
 

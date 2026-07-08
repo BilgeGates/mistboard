@@ -10,7 +10,9 @@ import {
   importXiangqiBroadcastPack,
   listXiangqiBroadcastBoards,
   listXiangqiBroadcastRounds,
+  listXiangqiBroadcastScheduledTours,
   listXiangqiBroadcastSyncLogs,
+  setXiangqiBroadcastTourSchedule,
 } from './persistence-xiangqi-broadcasts.js';
 import {
   xiangqiBroadcastBoardStreamForApi,
@@ -536,6 +538,10 @@ definePersistenceTests('xiangqi broadcasts', () => {
 
     assert.equal(result.ok, true);
     assert.equal(result.ok ? result.tourSlug : '', 'wxc-manifest');
+    assert.equal(
+      (await getXiangqiBroadcastTour('wxc-manifest'))?.sourceUrl,
+      'https://fixture.invalid/manifest.json',
+    );
     assert.equal(result.ok ? result.sourcesSeen : 0, 3);
     assert.equal(result.ok ? result.sourcesFailed : 0, 1);
     assert.equal(result.ok ? result.roundsImported : 0, 2);
@@ -554,6 +560,44 @@ definePersistenceTests('xiangqi broadcasts', () => {
     assert.equal(logs.length, 1);
     assert.equal(logs[0]?.kind, 'source_disallowed');
     assert.equal(logs[0]?.payload.manifestUrl, 'https://fixture.invalid/manifest.json');
+  });
+
+  test('tour poll schedules persist and list only enabled tours', async () => {
+    const pack = await fixturePack();
+    await importXiangqiBroadcastPack({ tour: pack.tour, rounds: pack.rounds, boards: [] });
+
+    assert.deepEqual(await listXiangqiBroadcastScheduledTours(), []);
+
+    const updated = await setXiangqiBroadcastTourSchedule('2025-wxc-sample', {
+      pollEnabled: true,
+      pollIntervalMs: 15_000,
+    });
+    assert.deepEqual(updated, {
+      slug: '2025-wxc-sample',
+      sourceUrl: 'https://www.wxf-xiangqi.org/',
+      pollEnabled: true,
+      pollIntervalMs: 15_000,
+    });
+
+    const scheduled = await listXiangqiBroadcastScheduledTours();
+    assert.equal(scheduled.length, 1);
+    assert.equal(scheduled[0]?.slug, '2025-wxc-sample');
+
+    const tour = await getXiangqiBroadcastTour('2025-wxc-sample');
+    assert.equal(tour?.pollEnabled, true);
+    assert.equal(tour?.pollIntervalMs, 15_000);
+
+    // Re-importing the pack must not clobber the operator's schedule.
+    await importXiangqiBroadcastPack({ tour: pack.tour, rounds: pack.rounds, boards: [] });
+    assert.equal((await getXiangqiBroadcastTour('2025-wxc-sample'))?.pollEnabled, true);
+
+    assert.equal(
+      await setXiangqiBroadcastTourSchedule('missing-tour', {
+        pollEnabled: true,
+        pollIntervalMs: 15_000,
+      }),
+      null,
+    );
   });
 
   test('nested manifests are rejected as malformed manifest entries', async () => {

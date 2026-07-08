@@ -17,8 +17,17 @@ import type pg from 'pg';
 import { getPool, withTransaction } from './persistence-db.js';
 
 export type StoredXiangqiBroadcastTour = XiangqiBroadcastTour & {
+  pollEnabled: boolean;
+  pollIntervalMs: number;
   createdAt: Date;
   updatedAt: Date;
+};
+
+export type XiangqiBroadcastTourSchedule = {
+  slug: string;
+  sourceUrl: string | null;
+  pollEnabled: boolean;
+  pollIntervalMs: number;
 };
 
 export type StoredXiangqiBroadcastRound = XiangqiBroadcastRound & {
@@ -94,6 +103,8 @@ type TourRow = {
   source_url: string | null;
   starts_at: Date | null;
   ends_at: Date | null;
+  poll_enabled: boolean;
+  poll_interval_ms: number;
   payload: XiangqiBroadcastTour;
   created_at: Date;
   updated_at: Date;
@@ -153,6 +164,8 @@ function optionalString(value: string | undefined): string | null {
 function tourFromRow(row: TourRow): StoredXiangqiBroadcastTour {
   return {
     ...row.payload,
+    pollEnabled: row.poll_enabled,
+    pollIntervalMs: row.poll_interval_ms,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };
@@ -667,6 +680,41 @@ export async function getXiangqiBroadcastBoard(
     [boardId],
   );
   return rows[0] ? boardFromRow(rows[0]) : null;
+}
+
+export async function setXiangqiBroadcastTourSchedule(
+  slug: string,
+  schedule: { pollEnabled: boolean; pollIntervalMs: number },
+): Promise<XiangqiBroadcastTourSchedule | null> {
+  const { rows } = await getPool().query<TourRow>(
+    `UPDATE xiangqi_broadcast_tours
+        SET poll_enabled = $2, poll_interval_ms = $3, updated_at = now()
+      WHERE slug = $1
+      RETURNING *`,
+    [slug, schedule.pollEnabled, schedule.pollIntervalMs],
+  );
+  const row = rows[0];
+  if (!row) return null;
+  return {
+    slug: row.slug,
+    sourceUrl: row.source_url,
+    pollEnabled: row.poll_enabled,
+    pollIntervalMs: row.poll_interval_ms,
+  };
+}
+
+export async function listXiangqiBroadcastScheduledTours(): Promise<
+  XiangqiBroadcastTourSchedule[]
+> {
+  const { rows } = await getPool().query<TourRow>(
+    `SELECT * FROM xiangqi_broadcast_tours WHERE poll_enabled ORDER BY slug`,
+  );
+  return rows.map((row) => ({
+    slug: row.slug,
+    sourceUrl: row.source_url,
+    pollEnabled: row.poll_enabled,
+    pollIntervalMs: row.poll_interval_ms,
+  }));
 }
 
 export async function listXiangqiBroadcastSyncLogs(input: {

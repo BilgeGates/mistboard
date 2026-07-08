@@ -309,6 +309,7 @@ export type {
   XiangqiBroadcastImportResult,
   XiangqiBroadcastSyncLog,
   XiangqiBroadcastSyncLogSeverity,
+  XiangqiBroadcastTourSchedule,
 } from './persistence-xiangqi-broadcasts.js';
 export {
   applyXiangqiBroadcastBoardUpdate,
@@ -319,7 +320,9 @@ export {
   importXiangqiBroadcastPackOn,
   listXiangqiBroadcastBoards,
   listXiangqiBroadcastRounds,
+  listXiangqiBroadcastScheduledTours,
   listXiangqiBroadcastSyncLogs,
   listXiangqiBroadcastTours,
   recordXiangqiBroadcastSyncLog,
+  setXiangqiBroadcastTourSchedule,
 } from './persistence-xiangqi-broadcasts.js';

@@ -256,8 +256,14 @@ async function main() {
       { capture: true },
     );
     assertPollOk(manifestPoll, 'WXF manifest source');
-    if (!manifestPoll.includes('created=4') && !manifestPoll.includes('unchanged=4')) {
+    if (!manifestPoll.includes('boards=4')) {
       throw new Error('WXF manifest poll did not import all four fixture boards');
+    }
+    // The fixture source runs on a fresh port every smoke, so the real poll
+    // after the dry run must land writes (created or updated). unchanged=4
+    // would mean the dry run committed instead of rolling back.
+    if (manifestPoll.includes('unchanged=4')) {
+      throw new Error('WXF manifest dry-run appears to have persisted writes');
     }
 
     const elapsed = ((Date.now() - started) / 1000).toFixed(1);

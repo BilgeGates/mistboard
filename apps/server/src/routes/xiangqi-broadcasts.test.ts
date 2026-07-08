@@ -12,6 +12,7 @@ import {
 import type { StoredXiangqiBroadcastBoard } from '../persistence.js';
 import {
   manualXiangqiBroadcastPollForApi,
+  manualXiangqiBroadcastSourceImportForApi,
   tryHandle,
   type XiangqiBroadcastApiPersistence,
   xiangqiBroadcastBoardExportForApi,
@@ -21,6 +22,7 @@ import {
   xiangqiBroadcastOpsIndexForApi,
   xiangqiBroadcastRoundForApi,
   xiangqiBroadcastRoundStreamForApi,
+  xiangqiBroadcastScheduleUpdateForApi,
   xiangqiBroadcastTourForApi,
 } from './xiangqi-broadcasts.js';
 
@@ -48,15 +50,20 @@ const storedBoard: StoredXiangqiBroadcastBoard = {
   updatedAt: new Date(0),
 };
 
+const storedTour = {
+  ...tour,
+  pollEnabled: false,
+  pollIntervalMs: 30_000,
+  createdAt: new Date(0),
+  updatedAt: new Date(1_000),
+};
+
 function deps(
   overrides: Partial<XiangqiBroadcastApiPersistence> = {},
 ): XiangqiBroadcastApiPersistence {
   return {
-    listXiangqiBroadcastTours: async () => [
-      { ...tour, createdAt: new Date(0), updatedAt: new Date(1_000) },
-    ],
-    getXiangqiBroadcastTour: async (slug) =>
-      slug === tour.slug ? { ...tour, createdAt: new Date(0), updatedAt: new Date(1_000) } : null,
+    listXiangqiBroadcastTours: async () => [storedTour],
+    getXiangqiBroadcastTour: async (slug) => (slug === tour.slug ? storedTour : null),
     listXiangqiBroadcastRounds: async (tourSlug) =>
       tourSlug === tour.slug
         ? rounds.map((round) => ({ ...round, createdAt: new Date(0), updatedAt: new Date(2_000) }))
@@ -81,6 +88,15 @@ function deps(
           ]
         : [],
     recordXiangqiBroadcastSyncLog: async () => {},
+    setXiangqiBroadcastTourSchedule: async (slug, schedule) =>
+      slug === tour.slug
+        ? {
+            slug,
+            sourceUrl: tour.sourceUrl ?? null,
+            pollEnabled: schedule.pollEnabled,
+            pollIntervalMs: schedule.pollIntervalMs,
+          }
+        : null,
     ...overrides,
   };
 }
@@ -340,9 +356,7 @@ test('manual broadcast poll reports missing source before polling', async () => 
     { allowCorrection: false, dryRun: false, timeoutMs: 5_000 },
     deps({
       getXiangqiBroadcastTour: async (slug) =>
-        slug === tour.slug
-          ? { ...tour, sourceUrl: undefined, createdAt: new Date(0), updatedAt: new Date(0) }
-          : null,
+        slug === tour.slug ? { ...storedTour, sourceUrl: undefined } : null,
     }),
     async () => {
       throw new Error('poller should not run');
@@ -423,6 +437,138 @@ test('manual broadcast poll reports disallowed source as a configuration error',
       },
     },
   ]);
+});
+
+test('manual source import polls an arbitrary URL and records the result', async () => {
+  const recorded: unknown[] = [];
+  const result = await manualXiangqiBroadcastSourceImportForApi(
+    'https://fixture.invalid/new-event.html',
+    { allowCorrection: false, dryRun: false, timeoutMs: 5_000 },
+    deps({
+      recordXiangqiBroadcastSyncLog: async (input) => {
+        recorded.push(input);
+      },
+    }),
+    async (input) => ({
+      ok: true,
+      sourceUrl: input.sourceUrl,
+      dryRun: false,
+      tourSlug: 'new-event',
+      roundsImported: 2,
+      boardsSeen: 4,
+      boardsFailed: 0,
+      sourcesSeen: 2,
+      sourcesFailed: 0,
+      updates: [],
+      sources: [],
+    }),
+  );
+
+  assert.equal(result.ok, true);
+  assert.equal(result.ok ? result.result.tourSlug : '', 'new-event');
+  assert.equal(recorded.length, 1);
+  assert.equal((recorded[0] as { kind: string }).kind, 'manual_poll_ok');
+  assert.equal((recorded[0] as { tourSlug: string }).tourSlug, 'new-event');
+});
+
+test('manual source import dry run records nothing and rejects bad URLs', async () => {
+  const recorded: unknown[] = [];
+  const dry = await manualXiangqiBroadcastSourceImportForApi(
+    'https://fixture.invalid/new-event.html',
+    { allowCorrection: false, dryRun: true, timeoutMs: 5_000 },
+    deps({
+      recordXiangqiBroadcastSyncLog: async (input) => {
+        recorded.push(input);
+      },
+    }),
+    async (input) => ({
+      ok: true,
+      sourceUrl: input.sourceUrl,
+      dryRun: true,
+      tourSlug: 'new-event',
+      roundsImported: 1,
+      boardsSeen: 2,
+      boardsFailed: 0,
+      sourcesSeen: 1,
+      sourcesFailed: 0,
+      updates: [],
+      sources: [],
+    }),
+  );
+  assert.equal(dry.ok, true);
+  assert.deepEqual(recorded, []);
+
+  const missing = await manualXiangqiBroadcastSourceImportForApi(
+    undefined,
+    { allowCorrection: false, dryRun: false, timeoutMs: 5_000 },
+    deps(),
+    async () => {
+      throw new Error('poller should not run');
+    },
+  );
+  assert.deepEqual(missing, { ok: false, status: 400, error: 'invalid_source_url' });
+
+  const oversized = await manualXiangqiBroadcastSourceImportForApi(
+    `https://fixture.invalid/${'x'.repeat(2048)}`,
+    { allowCorrection: false, dryRun: false, timeoutMs: 5_000 },
+    deps(),
+    async () => {
+      throw new Error('poller should not run');
+    },
+  );
+  assert.deepEqual(oversized, { ok: false, status: 400, error: 'invalid_source_url' });
+});
+
+test('schedule update validates input and persists the clamped schedule', async () => {
+  const saved: unknown[] = [];
+  const result = await xiangqiBroadcastScheduleUpdateForApi(
+    tour.slug,
+    { enabled: true, intervalMs: 1_000 },
+    deps({
+      setXiangqiBroadcastTourSchedule: async (slug, schedule) => {
+        saved.push({ slug, ...schedule });
+        return {
+          slug,
+          sourceUrl: tour.sourceUrl ?? null,
+          pollEnabled: schedule.pollEnabled,
+          pollIntervalMs: schedule.pollIntervalMs,
+        };
+      },
+    }),
+  );
+
+  assert.deepEqual(result, {
+    ok: true,
+    schedule: { pollEnabled: true, pollIntervalMs: 5_000 },
+  });
+  assert.deepEqual(saved, [{ slug: tour.slug, pollEnabled: true, pollIntervalMs: 5_000 }]);
+
+  const badBody = await xiangqiBroadcastScheduleUpdateForApi(tour.slug, { enabled: 'yes' }, deps());
+  assert.deepEqual(badBody, { ok: false, status: 400, error: 'invalid_schedule' });
+
+  const badInterval = await xiangqiBroadcastScheduleUpdateForApi(
+    tour.slug,
+    { enabled: true, intervalMs: 'fast' },
+    deps(),
+  );
+  assert.deepEqual(badInterval, { ok: false, status: 400, error: 'invalid_schedule' });
+
+  const unknownTour = await xiangqiBroadcastScheduleUpdateForApi(
+    'missing-tour',
+    { enabled: false },
+    deps(),
+  );
+  assert.deepEqual(unknownTour, { ok: false, status: 404, error: 'broadcast_not_found' });
+
+  const noSource = await xiangqiBroadcastScheduleUpdateForApi(
+    tour.slug,
+    { enabled: true },
+    deps({
+      getXiangqiBroadcastTour: async (slug) =>
+        slug === tour.slug ? { ...storedTour, sourceUrl: undefined } : null,
+    }),
+  );
+  assert.deepEqual(noSource, { ok: false, status: 400, error: 'missing_source_url' });
 });
 
 test('broadcast tour API returns tour detail with rounds', async () => {

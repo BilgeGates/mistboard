@@ -55,6 +55,10 @@ import {
   registeredVariantTenants,
   setVariantTenantFallbackRoomLookup,
 } from './variant-tenant/registry.js';
+import {
+  startXiangqiBroadcastScheduler,
+  type XiangqiBroadcastScheduler,
+} from './xiangqi-broadcast-scheduler.js';
 
 // Navigation index — grep for section name to jump to the right block
 // Account/auth           → ./account-session.ts  (currentAccountUser, hashSecret, session cookies)
@@ -207,6 +211,7 @@ const wsConnectionCtx: WebSocketConnectionContext = {
 let server: ReturnType<typeof createServer> | null = null;
 let wss: WebSocketServer | null = null;
 let deadlineSweeper: TenantDeadlineSweeper | null = null;
+let broadcastScheduler: XiangqiBroadcastScheduler | null = null;
 let shuttingDown = false;
 let seatVacateGraceMsOverride: number | null = null;
 
@@ -235,6 +240,9 @@ export async function startServer(options: StartServerOptions = {}): Promise<Sta
   roomLifecycle.startAbortPolicySweep();
   roomLifecycle.startStalePausedSweep();
   deadlineSweeper = startTenantDeadlineSweeper();
+  if (persistence.isInitialized()) {
+    broadcastScheduler = startXiangqiBroadcastScheduler();
+  }
 
   const httpServer = createServer(
     createHttpRequestHandler({
@@ -328,6 +336,8 @@ export async function stopServer(): Promise<void> {
   roomLifecycle.stopSweeps();
   deadlineSweeper?.stop();
   deadlineSweeper = null;
+  broadcastScheduler?.stop();
+  broadcastScheduler = null;
   closeRoomClients(rooms.values());
   for (const registration of registeredVariantTenants()) {
     closeRoomClients(registration.rooms.values());
@@ -562,6 +572,8 @@ async function shutdown(signal: 'SIGINT' | 'SIGTERM'): Promise<void> {
   roomLifecycle.stopSweeps();
   deadlineSweeper?.stop();
   deadlineSweeper = null;
+  broadcastScheduler?.stop();
+  broadcastScheduler = null;
   closeRoomClients(rooms.values());
   for (const registration of registeredVariantTenants()) {
     closeRoomClients(registration.rooms.values());

@@ -39,6 +39,10 @@ type OpsTour = {
     endsAt?: string;
   };
   sourceUrl: string | null;
+  schedule: {
+    pollEnabled: boolean;
+    pollIntervalMs: number;
+  };
   roundCount: number;
   boardCount: number;
   liveBoardCount: number;
@@ -91,10 +95,77 @@ export async function mountXiangqiBroadcastOps(root: HTMLElement): Promise<void>
   body.className = 'xqb-ops-body';
   body.append(statusLine('Loading...'));
 
-  shell.append(heading, sub, body);
+  shell.append(heading, sub, importPanel(body), body);
   root.append(buildNav(), shell);
 
   await refresh(body);
+}
+
+function importPanel(body: HTMLElement): HTMLElement {
+  const panel = document.createElement('article');
+  panel.className = 'xqb-ops-panel xqb-ops-import';
+
+  const title = document.createElement('h2');
+  title.textContent = 'Add broadcast from source';
+  const hint = document.createElement('p');
+  hint.className = 'xqb-ops-sub';
+  hint.textContent =
+    'Paste a canonical JSON, WXF/DhtmlXQ page, or manifest URL. Preview shows what would import without writing; Import creates or updates the broadcast.';
+
+  const row = document.createElement('div');
+  row.className = 'xqb-ops-import-row';
+  const input = document.createElement('input');
+  input.type = 'url';
+  input.placeholder = 'https://example.org/event-page.html';
+  input.className = 'xqb-ops-import-url';
+  const preview = document.createElement('button');
+  preview.type = 'button';
+  preview.textContent = 'Preview';
+  preview.className = 'xqb-ops-button xqb-ops-button-secondary';
+  const importButton = document.createElement('button');
+  importButton.type = 'button';
+  importButton.textContent = 'Import';
+  importButton.className = 'xqb-ops-button';
+  const result = document.createElement('span');
+  result.className = 'xqb-ops-poll-result';
+  row.append(input, preview, importButton, result);
+
+  const run = async (dryRun: boolean, button: HTMLButtonElement) => {
+    const sourceUrl = input.value.trim();
+    if (!sourceUrl) {
+      result.textContent = 'Enter a source URL first.';
+      return;
+    }
+    button.disabled = true;
+    result.textContent = dryRun ? 'Previewing...' : 'Importing...';
+    try {
+      const response = await fetch('/api/admin/xiangqi/broadcasts/import', {
+        method: 'POST',
+        headers: { accept: 'application/json', 'content-type': 'application/json' },
+        body: JSON.stringify({ sourceUrl, dryRun, allowCorrection: false }),
+      });
+      const payload = (await response.json()) as PollResponse;
+      if (!response.ok || !payload.result?.ok) {
+        result.textContent = payload.result?.message ?? payload.error ?? 'Import failed';
+        return;
+      }
+      result.textContent = `${pollSummary(payload.result)} (tour: ${payload.result.tourSlug ?? '?'})`;
+      if (!dryRun) await refresh(body);
+    } catch {
+      result.textContent = dryRun ? 'Preview failed' : 'Import failed';
+    } finally {
+      button.disabled = false;
+    }
+  };
+  preview.onclick = () => {
+    void run(true, preview);
+  };
+  importButton.onclick = () => {
+    void run(false, importButton);
+  };
+
+  panel.append(title, hint, row);
+  return panel;
 }
 
 async function refresh(body: HTMLElement): Promise<void> {
@@ -189,6 +260,8 @@ function tourPanel(entry: OpsTour, body: HTMLElement): HTMLElement {
   source.className = entry.sourceUrl ? 'xqb-ops-source' : 'xqb-ops-source xqb-ops-source-missing';
   source.textContent = entry.sourceUrl ? `Source: ${entry.sourceUrl}` : 'Source: not configured';
 
+  const schedule = schedulePanel(entry);
+
   const health = sourceHealthPanel(entry.sourceHealth);
 
   const logs = document.createElement('div');
@@ -217,8 +290,86 @@ function tourPanel(entry: OpsTour, body: HTMLElement): HTMLElement {
     );
   };
 
-  section.append(top, stats, source, health, logs);
+  section.append(top, stats, source, schedule, health, logs);
   return section;
+}
+
+function schedulePanel(entry: OpsTour): HTMLElement {
+  const panel = document.createElement('div');
+  panel.className = 'xqb-ops-schedule';
+
+  const toggleLabel = document.createElement('label');
+  toggleLabel.className = 'xqb-ops-correction';
+  const toggle = document.createElement('input');
+  toggle.type = 'checkbox';
+  toggle.checked = entry.schedule.pollEnabled;
+  toggle.disabled = !entry.sourceUrl;
+  const toggleText = document.createElement('span');
+  toggleText.textContent = 'Auto-poll';
+  toggleLabel.append(toggle, toggleText);
+
+  const intervalLabel = document.createElement('label');
+  intervalLabel.className = 'xqb-ops-schedule-interval';
+  const interval = document.createElement('input');
+  interval.type = 'number';
+  interval.min = '5';
+  interval.max = '300';
+  interval.step = '5';
+  interval.value = String(Math.round(entry.schedule.pollIntervalMs / 1000));
+  interval.disabled = !entry.sourceUrl;
+  const intervalText = document.createElement('span');
+  intervalText.textContent = 'seconds';
+  intervalLabel.append(interval, intervalText);
+
+  const save = document.createElement('button');
+  save.type = 'button';
+  save.textContent = 'Save schedule';
+  save.className = 'xqb-ops-button xqb-ops-button-secondary';
+  save.disabled = !entry.sourceUrl;
+
+  const status = document.createElement('span');
+  status.className = 'xqb-ops-poll-result';
+  status.textContent = entry.schedule.pollEnabled
+    ? `Auto-polling every ${Math.round(entry.schedule.pollIntervalMs / 1000)}s`
+    : 'Auto-poll off';
+
+  save.onclick = async () => {
+    const seconds = Number(interval.value);
+    if (!Number.isFinite(seconds) || seconds < 5 || seconds > 300) {
+      status.textContent = 'Interval must be 5-300 seconds.';
+      return;
+    }
+    save.disabled = true;
+    status.textContent = 'Saving...';
+    try {
+      const response = await fetch(
+        `/api/admin/xiangqi/broadcasts/${encodeURIComponent(entry.tour.slug)}/schedule`,
+        {
+          method: 'POST',
+          headers: { accept: 'application/json', 'content-type': 'application/json' },
+          body: JSON.stringify({ enabled: toggle.checked, intervalMs: seconds * 1000 }),
+        },
+      );
+      const payload = (await response.json()) as {
+        schedule?: { pollEnabled: boolean; pollIntervalMs: number };
+        error?: string;
+      };
+      if (!response.ok || !payload.schedule) {
+        status.textContent = payload.error ?? 'Save failed';
+        return;
+      }
+      status.textContent = payload.schedule.pollEnabled
+        ? `Auto-polling every ${Math.round(payload.schedule.pollIntervalMs / 1000)}s`
+        : 'Auto-poll off';
+    } catch {
+      status.textContent = 'Save failed';
+    } finally {
+      save.disabled = !entry.sourceUrl;
+    }
+  };
+
+  panel.append(toggleLabel, intervalLabel, save, status);
+  return panel;
 }
 
 function pollSummary(result: NonNullable<PollResponse['result']>): string {

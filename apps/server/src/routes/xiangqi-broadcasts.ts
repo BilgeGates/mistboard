@@ -12,6 +12,7 @@ import {
   pollXiangqiBroadcastSourceOnce,
   type XiangqiBroadcastPollResult,
 } from './../xiangqi-broadcast-poller.js';
+import { clampXiangqiBroadcastScheduleIntervalMs } from './../xiangqi-broadcast-scheduler.js';
 import {
   type HttpApiContext,
   readJsonBody,
@@ -56,6 +57,10 @@ export type XiangqiBroadcastApiPersistence = {
   recordXiangqiBroadcastSyncLog(
     input: Parameters<typeof persistence.recordXiangqiBroadcastSyncLog>[0],
   ): ReturnType<typeof persistence.recordXiangqiBroadcastSyncLog>;
+  setXiangqiBroadcastTourSchedule(
+    slug: string,
+    schedule: Parameters<typeof persistence.setXiangqiBroadcastTourSchedule>[1],
+  ): ReturnType<typeof persistence.setXiangqiBroadcastTourSchedule>;
 };
 
 const livePersistence: XiangqiBroadcastApiPersistence = {
@@ -66,6 +71,8 @@ const livePersistence: XiangqiBroadcastApiPersistence = {
   getXiangqiBroadcastBoard: (boardId) => persistence.getXiangqiBroadcastBoard(boardId),
   listXiangqiBroadcastSyncLogs: (input) => persistence.listXiangqiBroadcastSyncLogs(input),
   recordXiangqiBroadcastSyncLog: (input) => persistence.recordXiangqiBroadcastSyncLog(input),
+  setXiangqiBroadcastTourSchedule: (slug, schedule) =>
+    persistence.setXiangqiBroadcastTourSchedule(slug, schedule),
 };
 
 type XiangqiBroadcastPollSource = typeof pollXiangqiBroadcastSourceOnce;
@@ -152,6 +159,10 @@ export async function xiangqiBroadcastOpsIndexForApi(
       return {
         tour,
         sourceUrl: tour.sourceUrl ?? null,
+        schedule: {
+          pollEnabled: tour.pollEnabled,
+          pollIntervalMs: tour.pollIntervalMs,
+        },
         roundCount: rounds.length,
         boardCount: boards.length,
         liveBoardCount: boards.filter((board) => board.status === 'live').length,
@@ -240,6 +251,101 @@ export async function manualXiangqiBroadcastPollForApi(
     });
   }
   return { ok: true, result };
+}
+
+export async function manualXiangqiBroadcastSourceImportForApi(
+  sourceUrl: unknown,
+  options: ManualPollOptions,
+  deps: XiangqiBroadcastApiPersistence = livePersistence,
+  pollSource: XiangqiBroadcastPollSource = pollXiangqiBroadcastSourceOnce,
+): Promise<
+  | { ok: true; result: Extract<XiangqiBroadcastPollResult, { ok: true }> }
+  | { ok: false; status: 400 | 502; error: string; result?: XiangqiBroadcastPollResult }
+> {
+  if (typeof sourceUrl !== 'string' || sourceUrl.length === 0 || sourceUrl.length > 2048) {
+    return { ok: false, status: 400, error: 'invalid_source_url' };
+  }
+
+  const result = await pollSource({
+    sourceUrl,
+    allowCorrection: options.allowCorrection,
+    dryRun: options.dryRun,
+    timeoutMs: options.timeoutMs,
+  });
+  if (!result.ok) {
+    if (!options.dryRun) {
+      await deps.recordXiangqiBroadcastSyncLog({
+        severity: 'error',
+        kind: 'manual_poll_failed',
+        message: result.message,
+        payload: {
+          sourceUrl: result.sourceUrl,
+          errorKind: result.kind,
+          allowCorrection: options.allowCorrection,
+          via: 'source_import',
+        },
+      });
+    }
+    return {
+      ok: false,
+      status: result.kind === 'source_disallowed' ? 400 : 502,
+      error: result.kind,
+      result,
+    };
+  }
+
+  if (!options.dryRun) {
+    await deps.recordXiangqiBroadcastSyncLog({
+      tourSlug: result.tourSlug,
+      severity: result.boardsFailed > 0 || result.sourcesFailed > 0 ? 'warning' : 'info',
+      kind: 'manual_poll_ok',
+      message: 'manual source import completed',
+      payload: {
+        sourceUrl: result.sourceUrl,
+        roundsImported: result.roundsImported,
+        boardsSeen: result.boardsSeen,
+        boardsFailed: result.boardsFailed,
+        sourcesSeen: result.sourcesSeen,
+        sourcesFailed: result.sourcesFailed,
+        allowCorrection: options.allowCorrection,
+        via: 'source_import',
+      },
+    });
+  }
+  return { ok: true, result };
+}
+
+export async function xiangqiBroadcastScheduleUpdateForApi(
+  tourSlug: string,
+  body: Record<string, unknown>,
+  deps: XiangqiBroadcastApiPersistence = livePersistence,
+): Promise<
+  | { ok: true; schedule: { pollEnabled: boolean; pollIntervalMs: number } }
+  | { ok: false; status: 400 | 404; error: string }
+> {
+  if (typeof body.enabled !== 'boolean') {
+    return { ok: false, status: 400, error: 'invalid_schedule' };
+  }
+  if (body.intervalMs !== undefined && !Number.isInteger(body.intervalMs)) {
+    return { ok: false, status: 400, error: 'invalid_schedule' };
+  }
+  const tour = await deps.getXiangqiBroadcastTour(tourSlug);
+  if (!tour) return { ok: false, status: 404, error: 'broadcast_not_found' };
+  if (body.enabled && !tour.sourceUrl) {
+    return { ok: false, status: 400, error: 'missing_source_url' };
+  }
+
+  const updated = await deps.setXiangqiBroadcastTourSchedule(tourSlug, {
+    pollEnabled: body.enabled,
+    pollIntervalMs: clampXiangqiBroadcastScheduleIntervalMs(
+      body.intervalMs !== undefined ? body.intervalMs : tour.pollIntervalMs,
+    ),
+  });
+  if (!updated) return { ok: false, status: 404, error: 'broadcast_not_found' };
+  return {
+    ok: true,
+    schedule: { pollEnabled: updated.pollEnabled, pollIntervalMs: updated.pollIntervalMs },
+  };
 }
 
 export async function xiangqiBroadcastTourForApi(
@@ -574,6 +680,46 @@ export async function tryHandle(
     if (!(await requireAdminSession(request, response))) return true;
     if (!requirePersistence(response)) return true;
     writeJson(response, 200, await xiangqiBroadcastOpsIndexForApi());
+    return true;
+  }
+
+  if (pathname === '/api/admin/xiangqi/broadcasts/import') {
+    if (!requireMethod(request, response, 'POST')) return true;
+    if (!(await requireAdminSession(request, response))) return true;
+    if (!requirePersistence(response)) return true;
+    const body = await readJsonBody(request);
+    const result = await manualXiangqiBroadcastSourceImportForApi(
+      body.sourceUrl,
+      parseManualPollOptions(body),
+    );
+    if (!result.ok) {
+      writeJson(response, result.status, {
+        error: result.error,
+        ...(result.result ? { result: result.result } : {}),
+      });
+      return true;
+    }
+    writeJson(response, 200, { result: result.result });
+    return true;
+  }
+
+  const adminScheduleMatch = pathname.match(
+    /^\/api\/admin\/xiangqi\/broadcasts\/([^/]+)\/schedule$/,
+  );
+  if (adminScheduleMatch) {
+    if (!requireMethod(request, response, 'POST')) return true;
+    if (!(await requireAdminSession(request, response))) return true;
+    if (!requirePersistence(response)) return true;
+    const body = await readJsonBody(request);
+    const result = await xiangqiBroadcastScheduleUpdateForApi(
+      decodeURIComponent(adminScheduleMatch[1]!),
+      body,
+    );
+    if (!result.ok) {
+      writeJson(response, result.status, { error: result.error });
+      return true;
+    }
+    writeJson(response, 200, { schedule: result.schedule });
     return true;
   }
 

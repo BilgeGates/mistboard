@@ -556,6 +556,17 @@ async function pollSourceOutcomes(
     resolutions.push({ sourceUrl, ok: true, unit: { sourceUrl, snapshot: body.snapshot } });
   }
 
+  // The tour's source is the URL the operator polls, not whatever a page or
+  // payload claims. Without this a manifest poll would stamp the last page
+  // URL onto the tour and the ops re-poll loop would only refresh that page.
+  for (const resolution of resolutions) {
+    if (!resolution.ok) continue;
+    const tour = resolution.unit.snapshot.tour;
+    if (isRecord(tour)) {
+      resolution.unit.snapshot.tour = { ...tour, sourceUrl };
+    }
+  }
+
   const applyAll = async (client: pg.PoolClient | null) => {
     const outcomes: XiangqiBroadcastPollSourceOutcome[] = [];
     for (const resolution of resolutions) {
