@@ -309,7 +309,10 @@ export function renderGridBoardSvg(
   ].join('');
 
   return [
-    `<svg${descriptor.svgClass ? ` class="${descriptor.svgClass}"` : ''} viewBox="0 0 ${frameW + pad * 2} ${frameH + pad * 2}" role="img" xmlns="http://www.w3.org/2000/svg">`,
+    // data-board="grid" (kept at the tag's end so callers that regex on the
+    // leading `class="…" viewBox="…"` — e.g. crossroads-chess-diagram — still
+    // match) lets one CSS rule round every grid board to the shared corner token.
+    `<svg${descriptor.svgClass ? ` class="${descriptor.svgClass}"` : ''} viewBox="0 0 ${frameW + pad * 2} ${frameH + pad * 2}" role="img" xmlns="http://www.w3.org/2000/svg" data-board="grid">`,
     `<defs>${clipDef}${arrowMarkerDef}${layers.extraDefs ?? ''}</defs>`,
     `<g transform="translate(${pad} ${pad})">`,
     `<rect x="0" y="0" width="${frameW}" height="${frameH}" rx="${frameRadius}" fill="${palette.frameBg}"/>`,
