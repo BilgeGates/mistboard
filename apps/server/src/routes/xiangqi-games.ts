@@ -21,7 +21,7 @@ import { XIANGQI_DEFAULT_ENGINE_ID } from './../xiangqi-pikafish-engine.js';
 import { xiangqiRooms } from './../xiangqi-registration.js';
 import type { XiangqiEvent, XiangqiRuntimeRoom } from './../xiangqi-runtime.js';
 import { xiangqiTenant } from './../xiangqi-tenant.js';
-import { type HttpApiContext, requireMethod, writeJson } from './lib.js';
+import { type HttpApiContext, requireMethod, writeJson, postgameGameSummary } from './lib.js';
 
 type XiangqiPostgameSnapshot = {
   ply: number;
@@ -246,20 +246,7 @@ export async function xiangqiPostgameForApi(
   if (projection.state.status.type !== 'finished') return null;
 
   return {
-    game: {
-      roomId: source.game.roomId,
-      variant: source.game.variant,
-      mode: source.game.mode,
-      result: source.game.result,
-      termination: source.game.termination,
-      plyCount: source.game.plyCount,
-      startedAt: source.game.startedAt.toISOString(),
-      endedAt: source.game.endedAt.toISOString(),
-      rated: source.game.rated,
-      visibility: source.game.visibility,
-      initialMs: source.game.initialMs,
-      incrementMs: source.game.incrementMs,
-    },
+    game: postgameGameSummary(source.game),
     state: {
       status: projection.state.status,
       moveNumber: projection.state.moveNumber,

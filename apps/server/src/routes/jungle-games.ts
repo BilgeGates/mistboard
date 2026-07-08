@@ -15,7 +15,7 @@ import {
   isTenantEventLog,
   replayTenantEvents,
 } from './../variant-tenant/runtime.js';
-import { type HttpApiContext, requireMethod, requirePersistence, writeJson } from './lib.js';
+import { type HttpApiContext, requireMethod, requirePersistence, writeJson, postgameGameSummary } from './lib.js';
 
 // Jungle postgame review. Jungle is PERFECT-INFORMATION: the board was fully
 // visible to both players the whole game, so there is a single review surface and
@@ -94,20 +94,7 @@ export async function junglePostgameForApi(
   if (projection.state.status.type !== 'finished') return null;
 
   return {
-    game: {
-      roomId: game.roomId,
-      variant: game.variant,
-      mode: game.mode,
-      result: game.result,
-      termination: game.termination,
-      plyCount: game.plyCount,
-      startedAt: game.startedAt.toISOString(),
-      endedAt: game.endedAt.toISOString(),
-      rated: game.rated,
-      visibility: game.visibility,
-      initialMs: game.initialMs,
-      incrementMs: game.incrementMs,
-    },
+    game: postgameGameSummary(game),
     state: {
       status: projection.state.status,
       moveNumber: projection.state.moveNumber,

@@ -26,7 +26,7 @@ import {
   isTenantEventLog,
   replayTenantEvents,
 } from './../variant-tenant/runtime.js';
-import { type HttpApiContext, requireMethod, writeJson } from './lib.js';
+import { type HttpApiContext, requireMethod, writeJson, postgameGameSummary } from './lib.js';
 
 type KriegspielPostgameViewKey = Color | 'truth';
 
@@ -120,20 +120,7 @@ export async function kriegspielPostgameForApi(
 
   const latestMoveColor = latestKriegspielMoveColor(source.events);
   return {
-    game: {
-      roomId: source.game.roomId,
-      variant: source.game.variant,
-      mode: source.game.mode,
-      result: source.game.result,
-      termination: source.game.termination,
-      plyCount: source.game.plyCount,
-      startedAt: source.game.startedAt.toISOString(),
-      endedAt: source.game.endedAt.toISOString(),
-      rated: source.game.rated,
-      visibility: source.game.visibility,
-      initialMs: source.game.initialMs,
-      incrementMs: source.game.incrementMs,
-    },
+    game: postgameGameSummary(source.game),
     state: {
       status: projection.state.status,
       moveNumber: projection.state.moveNumber,

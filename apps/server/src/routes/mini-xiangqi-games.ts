@@ -16,7 +16,7 @@ import {
   isTenantEventLog,
   replayTenantEvents,
 } from './../variant-tenant/runtime.js';
-import { type HttpApiContext, requireMethod, writeJson } from './lib.js';
+import { type HttpApiContext, requireMethod, writeJson, postgamePlayers } from './lib.js';
 
 type MiniXiangqiPostgameSnapshot = {
   ply: number;
@@ -115,6 +115,7 @@ export async function miniXiangqiPostgameForApi(
       visibility: source.game.visibility,
       initialMs: source.game.initialMs,
       incrementMs: source.game.incrementMs,
+      players: postgamePlayers(source.game.participants ?? []),
     },
     state: {
       status: projection.state.status,

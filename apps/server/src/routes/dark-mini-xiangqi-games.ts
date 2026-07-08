@@ -24,7 +24,13 @@ import {
   isTenantEventLog,
   replayTenantEvents,
 } from './../variant-tenant/runtime.js';
-import { type HttpApiContext, requireMethod, requirePersistence, writeJson } from './lib.js';
+import {
+  type HttpApiContext,
+  postgamePlayers,
+  requireMethod,
+  requirePersistence,
+  writeJson,
+} from './lib.js';
 
 type DarkMiniXiangqiPostgameViewKey = MiniXiangqiColor | 'truth';
 
@@ -174,6 +180,7 @@ async function buildDarkMiniXiangqiPostgame(
       endedAt: game.endedAt.toISOString(),
       rated: game.rated,
       visibility: game.visibility,
+      players: postgamePlayers(game.participants ?? []),
       ...(projection.timeControl ? { timeControl: projection.timeControl } : {}),
     },
     state: {

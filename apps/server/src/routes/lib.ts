@@ -86,6 +86,99 @@ export function writeJson(
   response.end(JSON.stringify(body));
 }
 
+// ── Finished-game (postgame/review) serialization ──────────────────────────
+// Every per-variant finished-game endpoint (GET /api/<variant>/games/:id)
+// returns the same `game` envelope. This is the single source for that shape so
+// the 15 variant routes don't drift. `players` exposes seat identity sourced
+// from the persisted game participants (display name, rating, subject kind).
+
+export type PostgamePlayer = {
+  color: string;
+  name: string;
+  rating: number | null;
+  kind: 'account' | 'guest' | 'engine';
+};
+
+export type PostgameGameSummary = {
+  roomId: string;
+  variant: string;
+  mode: persistence.GameMode;
+  result: string;
+  termination: string;
+  plyCount: number;
+  startedAt: string;
+  endedAt: string;
+  rated: boolean;
+  visibility: persistence.GameVisibility;
+  initialMs: number | null;
+  incrementMs: number | null;
+  players: PostgamePlayer[];
+};
+
+// Coarse subject-kind for the client: humans (accounts + bots, which have
+// profiles) vs. unregistered players (guests, and imported/manual corpus seats
+// with no profile to link to) vs. raw engine-version subjects.
+function postgameParticipantKind(
+  subjectType: persistence.GameParticipantSubjectType,
+): PostgamePlayer['kind'] {
+  if (subjectType === 'engine-version') return 'engine';
+  if (subjectType === 'user' || subjectType === 'bot') return 'account';
+  return 'guest';
+}
+
+// Map persisted participants to public player rows. A participant marked
+// `private` (the default for casual PvP seats) is name-redacted to 'Anonymous';
+// public/corpus seats surface their display name. Rating is whatever the
+// participant load already joined (elo before/after for rated games), else null.
+// Corpus imports (famous games) carry their historical names on the game record
+// (white_name/black_name — already public via the watch feed); those override a
+// guest seat's placeholder so the review card shows the real players.
+export function postgamePlayers(
+  participants: readonly persistence.GameParticipant[],
+  corpusNames?: { whiteName: string | null; blackName: string | null },
+): PostgamePlayer[] {
+  return participants.map((participant) => {
+    const kind = postgameParticipantKind(participant.subjectType);
+    const secondSide = participant.color === 'black';
+    const corpusName =
+      kind === 'guest'
+        ? ((secondSide ? corpusNames?.blackName : corpusNames?.whiteName) ?? null)
+        : null;
+    return {
+      color: participant.color,
+      name:
+        corpusName ??
+        (participant.visibility === 'private' ? 'Anonymous' : participant.displayName),
+      rating: participant.ratingAfter ?? participant.ratingBefore ?? null,
+      kind,
+    };
+  });
+}
+
+// Build the shared finished-game `game` envelope (including `players`) from a
+// persisted game record. In-memory games with no recorded participants yield an
+// empty `players` array rather than crashing.
+export function postgameGameSummary(game: persistence.RecentEveGameRecord): PostgameGameSummary {
+  return {
+    roomId: game.roomId,
+    variant: game.variant,
+    mode: game.mode,
+    result: game.result,
+    termination: game.termination,
+    plyCount: game.plyCount,
+    startedAt: game.startedAt.toISOString(),
+    endedAt: game.endedAt.toISOString(),
+    rated: game.rated,
+    visibility: game.visibility,
+    initialMs: game.initialMs,
+    incrementMs: game.incrementMs,
+    players: postgamePlayers(game.participants ?? [], {
+      whiteName: game.whiteName,
+      blackName: game.blackName,
+    }),
+  };
+}
+
 // Guard helpers: collapse the ~25-site `if (method !== 'X') { writeJson(...) }`
 // + `if (!persistence.isInitialized()) { writeJson(...) }` boilerplate.
 // Returns false when the guard fails (caller `return`s); true to continue.

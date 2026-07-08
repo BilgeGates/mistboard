@@ -126,6 +126,69 @@ test('Jieqi postgame per-color views MASK the opponent dark pieces and captures'
   }
 });
 
+test('Jieqi postgame exposes players sourced from persisted participants', async () => {
+  const record = gameRecord({
+    participants: [
+      {
+        color: 'red',
+        displayName: '周孟芳',
+        subjectType: 'user',
+        subjectId: 'acct-1',
+        visibility: 'public',
+        ratingAfter: 2412,
+        ratingBefore: 2400,
+      },
+      {
+        color: 'black',
+        displayName: 'Misty',
+        subjectType: 'engine-version',
+        subjectId: 'python-v2-v1.0',
+        visibility: 'public',
+      },
+    ],
+  });
+  const payload = await jieqiPostgameForApi(ROOM_ID, deps(record, finishedCaptureEvents()));
+  assert.ok(payload);
+  assert.deepEqual(payload.game.players, [
+    { color: 'red', name: '周孟芳', rating: 2412, kind: 'account' },
+    { color: 'black', name: 'Misty', rating: null, kind: 'engine' },
+  ]);
+});
+
+test('Jieqi postgame redacts a private participant to Anonymous but keeps kind', async () => {
+  const record = gameRecord({
+    participants: [
+      {
+        color: 'red',
+        displayName: 'Alice',
+        subjectType: 'user',
+        subjectId: 'acct-9',
+        visibility: 'private',
+        ratingBefore: 1500,
+      },
+      {
+        color: 'black',
+        displayName: 'guest-xyz',
+        subjectType: 'guest',
+        subjectId: null,
+        visibility: 'public',
+      },
+    ],
+  });
+  const payload = await jieqiPostgameForApi(ROOM_ID, deps(record, finishedCaptureEvents()));
+  assert.ok(payload);
+  assert.deepEqual(payload.game.players, [
+    { color: 'red', name: 'Anonymous', rating: 1500, kind: 'account' },
+    { color: 'black', name: 'guest-xyz', rating: null, kind: 'guest' },
+  ]);
+});
+
+test('Jieqi postgame returns an empty players array when no participants are recorded', async () => {
+  const payload = await jieqiPostgameForApi(ROOM_ID, deps(gameRecord(), finishedCaptureEvents()));
+  assert.ok(payload);
+  assert.deepEqual(payload.game.players, []);
+});
+
 test('Jieqi postgame history snapshots every perspective per ply', async () => {
   const payload = await jieqiPostgameForApi(ROOM_ID, deps(gameRecord(), finishedCaptureEvents()));
   assert.ok(payload);

@@ -20,7 +20,7 @@ import {
   tenantPveEngineId,
 } from './../variant-tenant/runtime.js';
 import type { TenantRuntimeRoom } from './../variant-tenant/tenant.js';
-import { type HttpApiContext, requireMethod, writeJson } from './lib.js';
+import { type HttpApiContext, postgamePlayers, requireMethod, writeJson } from './lib.js';
 
 type DropMiniXiangqiPostgameSnapshot = {
   ply: number;
@@ -133,6 +133,7 @@ export async function dropMiniXiangqiPostgameForApi(
       initialMs: source.game.initialMs,
       incrementMs: source.game.incrementMs,
       ...(pveEngineId === null ? {} : { pveEngineId }),
+      players: postgamePlayers(source.game.participants ?? []),
     },
     state: {
       status: projection.state.status,
