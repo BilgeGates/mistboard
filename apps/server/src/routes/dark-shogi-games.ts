@@ -27,7 +27,7 @@ import {
   isTenantEventLog,
   replayTenantEvents,
 } from './../variant-tenant/runtime.js';
-import { type HttpApiContext, requireMethod, writeJson, postgameGameSummary } from './lib.js';
+import { type HttpApiContext, postgameGameSummary, requireMethod, writeJson } from './lib.js';
 
 type DarkShogiPostgameViewKey = ShogiColor | 'truth';
 

@@ -16,7 +16,7 @@ import {
   isTenantEventLog,
   replayTenantEvents,
 } from './../variant-tenant/runtime.js';
-import { type HttpApiContext, requireMethod, writeJson, postgamePlayers } from './lib.js';
+import { type HttpApiContext, postgamePlayers, requireMethod, writeJson } from './lib.js';
 
 type MiniXiangqiPostgameSnapshot = {
   ply: number;

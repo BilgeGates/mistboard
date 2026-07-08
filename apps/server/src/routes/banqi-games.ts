@@ -16,7 +16,13 @@ import {
   isTenantEventLog,
   replayTenantEvents,
 } from './../variant-tenant/runtime.js';
-import { type HttpApiContext, requireMethod, requirePersistence, writeJson, postgameGameSummary } from './lib.js';
+import {
+  type HttpApiContext,
+  postgameGameSummary,
+  requireMethod,
+  requirePersistence,
+  writeJson,
+} from './lib.js';
 
 // Banqi postgame review. Banqi is SYMMETRIC-information: a face-down tile is
 // hidden from BOTH seats equally, and every capture is of an already-revealed

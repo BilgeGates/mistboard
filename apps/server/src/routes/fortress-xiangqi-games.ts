@@ -20,7 +20,7 @@ import {
   tenantPveEngineId,
 } from './../variant-tenant/runtime.js';
 import type { TenantRuntimeRoom } from './../variant-tenant/tenant.js';
-import { type HttpApiContext, requireMethod, writeJson, postgamePlayers } from './lib.js';
+import { type HttpApiContext, postgamePlayers, requireMethod, writeJson } from './lib.js';
 
 type FortressXiangqiPostgameSnapshot = {
   ply: number;

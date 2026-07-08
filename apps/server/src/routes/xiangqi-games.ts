@@ -21,7 +21,7 @@ import { XIANGQI_DEFAULT_ENGINE_ID } from './../xiangqi-pikafish-engine.js';
 import { xiangqiRooms } from './../xiangqi-registration.js';
 import type { XiangqiEvent, XiangqiRuntimeRoom } from './../xiangqi-runtime.js';
 import { xiangqiTenant } from './../xiangqi-tenant.js';
-import { type HttpApiContext, requireMethod, writeJson, postgameGameSummary } from './lib.js';
+import { type HttpApiContext, postgameGameSummary, requireMethod, writeJson } from './lib.js';
 
 type XiangqiPostgameSnapshot = {
   ply: number;

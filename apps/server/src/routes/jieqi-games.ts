@@ -17,7 +17,13 @@ import {
   isTenantEventLog,
   replayTenantEvents,
 } from './../variant-tenant/runtime.js';
-import { type HttpApiContext, requireMethod, requirePersistence, writeJson, postgameGameSummary } from './lib.js';
+import {
+  type HttpApiContext,
+  postgameGameSummary,
+  requireMethod,
+  requirePersistence,
+  writeJson,
+} from './lib.js';
 
 type JieqiPostgameViewKey = JieqiColor | 'truth';
 
