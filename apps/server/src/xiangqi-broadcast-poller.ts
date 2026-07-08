@@ -2,6 +2,7 @@ import type { XiangqiBroadcastBoard } from '@mistboard/game';
 import type pg from 'pg';
 import * as persistence from './persistence.js';
 import { withRollbackTransaction } from './persistence-db.js';
+import { looksLikeDpxqPage, normalizeDpxqPageToFrameHtml } from './xiangqi-broadcast-dpxq.js';
 import {
   validateXiangqiBroadcastSourceUrl,
   type XiangqiBroadcastSourceUrlPolicy,
@@ -176,6 +177,16 @@ export function interpretXiangqiBroadcastSourceBody(text: string): XiangqiBroadc
     parsed = JSON.parse(text);
   } catch {
     if (text.includes('[DhtmlXQiFrame]')) return { kind: 'wxf-dhtmlxq', html: text };
+    // Raw dpxq.com pages carry DhtmlXQ move data without the frame wrapper;
+    // normalize them into the same shape before the converter sees them.
+    if (looksLikeDpxqPage(text)) {
+      const normalized = normalizeDpxqPageToFrameHtml(text);
+      if (normalized.ok) return { kind: 'wxf-dhtmlxq', html: normalized.html };
+      return {
+        kind: 'malformed',
+        message: `dpxq page could not be normalized: ${normalized.reason}`,
+      };
+    }
     return {
       kind: 'malformed',
       message: 'source body is neither JSON nor a DhtmlXQ page',
