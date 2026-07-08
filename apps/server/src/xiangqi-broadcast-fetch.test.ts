@@ -8,7 +8,9 @@ import { convertWxfDhtmlXqPageToSnapshot } from './xiangqi-broadcast-wxf-dhtmlxq
 
 // Real dpxq.com archive page kept in its native gb2312 bytes (not transcoded).
 const GB2312_BYTES = new Uint8Array(
-  readFileSync(fileURLToPath(new URL('../fixtures/dpxq/view_m_11637-gb2312.html', import.meta.url))),
+  readFileSync(
+    fileURLToPath(new URL('../fixtures/dpxq/view_m_11637-gb2312.html', import.meta.url)),
+  ),
 );
 
 test('detectSourceCharset reads the Content-Type header first', () => {
