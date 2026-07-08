@@ -41,7 +41,8 @@ export type WxfDhtmlXqConversionOptions = {
   sourceUrl?: string;
 };
 
-const STANDARD_DHTMLXQ_BINIT = '0919293949596979891777062646668600102030405060708012720323436383';
+export const STANDARD_DHTMLXQ_BINIT =
+  '0919293949596979891777062646668600102030405060708012720323436383';
 
 function decodeHtmlText(value: string): string {
   return value
