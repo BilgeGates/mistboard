@@ -103,17 +103,21 @@
   top: 100%;
   right: 0;
   z-index: 30;
+  --menu-top-left-radius: var(--site-radius);
+  --menu-top-right-radius: 0;
+  --menu-bottom-right-radius: 0;
+  --menu-bottom-left-radius: var(--site-radius);
   display: none;
-  width: min(244px, calc(100vw - 32px));
+  width: min(225px, calc(100vw - 32px));
   flex-direction: column;
   border: 1px solid var(--site-border);
-  border-radius: var(--site-radius);
+  border-radius: var(--site-radius) 0 0 var(--site-radius);
   border-top-right-radius: 0;
   background: color-mix(in srgb, var(--site-panel) 96%, transparent);
   box-shadow:
     0 12px 30px -8px var(--site-shadow),
     0 3px 10px -4px var(--site-shadow);
-  padding: 6px;
+  padding: 0;
   backdrop-filter: blur(10px);
   max-height: min(72vh, 560px);
   overflow-y: auto;
@@ -123,20 +127,30 @@
   display: flex;
 }
 
+.account-nav-links {
+  padding: 5px 0;
+}
+
+.account-nav[data-account-nav-view="submenu"] .account-nav-links,
+.account-nav[data-account-nav-view="submenu"] .account-nav-divider,
+.account-nav[data-account-nav-view="submenu"] .account-nav-status {
+  display: none;
+}
+
 .account-nav-item {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 10px;
   width: 100%;
-  padding: 8px 10px;
-  border-radius: var(--site-radius-sm);
+  padding: 8px 16px;
+  border-radius: 0;
   color: var(--site-text);
   text-decoration: none;
   font: inherit;
-  /* Larger, lighter weight to match the lichess dasher rows (Noto Sans, ~15px,
-     regular) rather than our heavier default nav weight. */
-  font-size: 15px;
+  /* Lichess dasher rows are compact regular-weight nav text. */
+  font-size: 14px;
   font-weight: 400;
+  line-height: 1.2;
   background: transparent;
   border: 0;
   text-align: left;
@@ -145,8 +159,14 @@
 
 .account-nav-item:hover,
 .account-nav-item:focus-visible {
-  background: var(--site-hover);
-  color: var(--site-text);
+  background: var(--site-accent);
+  color: var(--site-on-accent);
+}
+
+.account-nav-item-danger:hover,
+.account-nav-item-danger:focus-visible {
+  background: #d32f2f;
+  color: #fff;
 }
 
 .account-nav-item-icon {
@@ -165,7 +185,11 @@
 
 .account-nav-item:hover .account-nav-item-icon,
 .account-nav-item:focus-visible .account-nav-item-icon {
-  color: var(--site-text);
+  color: currentColor;
+}
+
+.account-nav-links .account-nav-item:first-child {
+  border-radius: var(--menu-top-left-radius) var(--menu-top-right-radius) 0 0;
 }
 
 /* Filled accent dot marking the signed-in (online) account, like lichess. */
@@ -184,7 +208,7 @@
 .account-nav-divider {
   height: 1px;
   background: var(--site-border);
-  margin: 4px 0;
+  margin: 0;
 }
 
 /* Connection footer (PING / SERVER + signal bars), lichess profile-menu style. */
@@ -193,7 +217,7 @@
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  padding: 10px 12px 8px;
+  padding: 9px 16px 10px;
 }
 
 .account-nav-status-rows {
@@ -210,22 +234,22 @@
 
 .account-nav-status-label {
   color: var(--site-muted);
-  font-size: 12px;
-  font-weight: 700;
-  letter-spacing: 0.06em;
+  font-size: 14px;
+  font-weight: 400;
+  letter-spacing: 0.04em;
   text-transform: uppercase;
 }
 
 .account-nav-status-value {
   color: var(--site-text);
-  font-size: 15px;
-  font-weight: 700;
+  font-size: 18px;
+  font-weight: 500;
 }
 
 .account-nav-status-unit {
   color: var(--site-muted);
-  font-size: 12px;
-  font-weight: 600;
+  font-size: 14px;
+  font-weight: 400;
 }
 
 /* Bigger signal block, anchored to the right. Bars grow left→right into a

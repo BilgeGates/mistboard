@@ -147,6 +147,39 @@ describe('account nav', () => {
         ?.getAttribute('data-locale'),
     ).toBe('zh-Hant');
   });
+
+  it('switches the signed-in dropdown into a full-panel appearance submenu', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => jsonResponse({ user: null })),
+    );
+
+    const { buildNav } = await import('./site-shell.js');
+    const { setAccountNavUser } = await import('./account-nav.js');
+    document.body.append(buildNav());
+
+    setAccountNavUser(testUser('misty'));
+
+    const trigger = document.querySelector<HTMLButtonElement>('.account-nav-trigger');
+    trigger?.click();
+
+    const control = document.querySelector<HTMLElement>('.account-nav');
+    const language = document.querySelector<HTMLButtonElement>(
+      '.account-nav-panel [data-appearance-target="language"]',
+    );
+    language?.click();
+
+    expect(control?.dataset.accountNavView).toBe('submenu');
+    expect(document.querySelector<HTMLElement>('.appearance-menu-root')?.hidden).toBe(true);
+    expect(
+      document.querySelector<HTMLElement>('.appearance-submenu[data-key="language"]')?.hidden,
+    ).toBe(false);
+
+    document.querySelector<HTMLButtonElement>('.appearance-submenu-back')?.click();
+
+    expect(control?.dataset.accountNavView).toBe('root');
+    expect(document.querySelector<HTMLElement>('.appearance-menu-root')?.hidden).toBe(false);
+  });
 });
 
 function testUser(handle: string): TestUser {

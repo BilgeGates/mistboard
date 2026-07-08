@@ -188,7 +188,7 @@
   cursor: pointer;
 }
 
-/* Dropdown connected flush to the bar (lichess): no gap, square corners, an
+/* Dropdown connected flush to the bar (lichess): no gap, connected top-left,
    accent line down the left edge that also runs behind the open toggle so bar
    and panel read as one surface. */
 .site-nav-menu-panel {
@@ -196,6 +196,10 @@
   top: 100%;
   left: 0;
   z-index: 20;
+  --menu-top-left-radius: 0;
+  --menu-top-right-radius: var(--site-radius-sm);
+  --menu-bottom-right-radius: var(--site-radius-sm);
+  --menu-bottom-left-radius: var(--site-radius-sm);
   display: none;
   width: max-content;
   min-width: 160px;
@@ -203,7 +207,7 @@
   background: var(--site-panel);
   border: 0;
   border-left: 2px solid var(--site-accent);
-  border-radius: 0;
+  border-radius: 0 var(--site-radius-sm) var(--site-radius-sm) var(--site-radius-sm);
   box-shadow: 2px 5px 6px var(--site-shadow);
 }
 
@@ -257,6 +261,19 @@
   line-height: 1.25;
   text-transform: none;
   white-space: nowrap;
+}
+
+.site-nav-menu-panel .site-nav-link:first-child {
+  border-radius: var(--menu-top-left-radius) var(--menu-top-right-radius) 0 0;
+}
+
+.site-nav-menu-panel .site-nav-link:last-child {
+  border-radius: 0 0 var(--menu-bottom-right-radius) var(--menu-bottom-left-radius);
+}
+
+.site-nav-menu-panel .site-nav-link:only-child {
+  border-radius: var(--menu-top-left-radius) var(--menu-top-right-radius)
+    var(--menu-bottom-right-radius) var(--menu-bottom-left-radius);
 }
 
 /* Dropdown items fill with the accent (green) on hover, white text — the mirror

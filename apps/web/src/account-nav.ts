@@ -216,6 +216,7 @@ function mountAccountNav(nav: HTMLElement, user: AuthUser): void {
   const control = document.createElement('div');
   control.className = 'account-nav';
   control.dataset.accountNav = '';
+  control.dataset.accountNavView = 'root';
 
   const trigger = document.createElement('button');
   trigger.type = 'button';
@@ -254,7 +255,7 @@ function mountAccountNav(nav: HTMLElement, user: AuthUser): void {
 
   const logout = document.createElement('button');
   logout.type = 'button';
-  logout.className = 'account-nav-item account-nav-item-button';
+  logout.className = 'account-nav-item account-nav-item-button account-nav-item-danger';
   logout.setAttribute('role', 'menuitem');
   logout.append(createItemIcon(POWER_ICON), createItemLabel(t('account.signOut', {}, locale)));
   logout.addEventListener('click', () => void handleLogout(logout, locale));
@@ -273,15 +274,19 @@ function mountAccountNav(nav: HTMLElement, user: AuthUser): void {
   const appearance = buildAppearanceMenu({
     includeLanguage: true,
     onLocaleSelect: (next) => void saveAccountLocalePreference(next),
+    onViewChange: (view) => {
+      control.dataset.accountNavView = view === 'root' ? 'root' : 'submenu';
+    },
   });
   const status = createConnectionStatus();
   statusByControl.set(control, status);
 
+  const accountLinks = document.createElement('div');
+  accountLinks.className = 'account-nav-links';
+  accountLinks.append(profile, inbox, settings, logout);
+
   panel.append(
-    profile,
-    inbox,
-    settings,
-    logout,
+    accountLinks,
     createAccountDivider(),
     appearance,
     createAccountDivider(),
@@ -381,6 +386,7 @@ function createAccountDivider(): HTMLDivElement {
 
 function openAccountMenu(control: HTMLElement): void {
   resetAppearanceMenus(control);
+  control.dataset.accountNavView = 'root';
   control.classList.add('open');
   control
     .querySelector<HTMLButtonElement>('.account-nav-trigger')

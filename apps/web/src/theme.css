@@ -158,14 +158,18 @@
   top: calc(100% + 8px);
   right: 0;
   z-index: 30;
+  --menu-top-left-radius: var(--site-radius);
+  --menu-top-right-radius: var(--site-radius);
+  --menu-bottom-right-radius: var(--site-radius);
+  --menu-bottom-left-radius: var(--site-radius);
   display: none;
-  width: min(244px, calc(100vw - 28px));
-  gap: 12px;
+  width: min(225px, calc(100vw - 28px));
+  gap: 0;
   border: 1px solid var(--site-border);
   border-radius: var(--site-radius);
   background: color-mix(in srgb, var(--site-panel) 96%, transparent);
   box-shadow: 0 18px 44px var(--site-shadow);
-  padding: 12px;
+  padding: 0;
   backdrop-filter: blur(10px);
 }
 
@@ -189,12 +193,13 @@
 .appearance-menu {
   display: block;
   width: 100%;
-  min-width: 208px;
+  min-width: 0;
 }
 
 .appearance-menu-root {
   display: grid;
-  gap: 2px;
+  gap: 0;
+  padding: 5px 0;
 }
 
 /* `hidden` is toggled in JS to swap root list ↔ sub-panel. The author `display`
@@ -212,22 +217,41 @@
   gap: 12px;
   width: 100%;
   border: 0;
-  border-radius: var(--site-radius-sm);
+  border-radius: 0;
   background: transparent;
   color: var(--site-text);
   cursor: pointer;
   font: inherit;
-  /* Match the lichess dasher rows: ~15px, regular weight (Noto Sans). */
-  font-size: 15px;
+  /* Match the lichess dasher rows: compact regular-weight nav text. */
+  font-size: 14px;
   font-weight: 400;
+  line-height: 1.2;
   text-align: left;
-  padding: 9px 10px;
+  padding: 8px 16px;
   transition: background 140ms ease;
 }
 
 .appearance-menu-row:hover,
 .appearance-menu-row:focus-visible {
-  background: var(--site-hover);
+  background: var(--site-accent);
+  color: var(--site-on-accent);
+}
+
+.appearance-menu-root .appearance-menu-row:first-child {
+  border-radius: var(--menu-top-left-radius) var(--menu-top-right-radius) 0 0;
+}
+
+.appearance-menu-root .appearance-menu-row:last-child {
+  border-radius: 0 0 var(--menu-bottom-right-radius) var(--menu-bottom-left-radius);
+}
+
+.appearance-menu-root .appearance-menu-row:only-child {
+  border-radius: var(--menu-top-left-radius) var(--menu-top-right-radius)
+    var(--menu-bottom-right-radius) var(--menu-bottom-left-radius);
+}
+
+.account-nav[data-account-nav-view="root"] .appearance-menu-root .appearance-menu-row {
+  border-radius: 0;
 }
 
 /* Right-pointing chevron in the accent color, mirroring the lichess rows. */
@@ -238,6 +262,11 @@
   border-right: 2px solid var(--site-accent);
   border-top: 2px solid var(--site-accent);
   transform: rotate(45deg);
+}
+
+.appearance-menu-row:hover .appearance-menu-chevron,
+.appearance-menu-row:focus-visible .appearance-menu-chevron {
+  border-color: currentColor;
 }
 
 .appearance-menu-divider {
@@ -253,47 +282,57 @@
 
 .appearance-submenu {
   display: grid;
-  gap: 12px;
+  gap: 0;
 }
 
 .appearance-submenu-back {
-  display: inline-flex;
+  display: flex;
   align-items: center;
-  gap: 8px;
-  align-self: start;
+  gap: 12px;
+  width: 100%;
   border: 0;
+  border-bottom: 1px solid var(--site-border);
   background: transparent;
-  color: var(--site-muted);
+  color: var(--site-text);
   cursor: pointer;
   font: inherit;
-  font-size: 11px;
-  font-weight: 700;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-  padding: 2px;
+  font-size: 14px;
+  font-weight: 400;
+  line-height: 1.2;
+  text-transform: none;
+  padding: 12px 16px;
 }
 
 .appearance-submenu-back:hover,
 .appearance-submenu-back:focus-visible {
-  color: var(--site-text);
+  color: var(--site-accent);
+}
+
+.appearance-submenu-back:first-child {
+  border-radius: var(--menu-top-left-radius) var(--menu-top-right-radius) 0 0;
 }
 
 .appearance-submenu-back-arrow {
-  width: 7px;
-  height: 7px;
-  border-left: 2px solid currentColor;
-  border-bottom: 2px solid currentColor;
+  width: 10px;
+  height: 10px;
+  border-left: 4px solid var(--site-accent);
+  border-bottom: 4px solid var(--site-accent);
   transform: rotate(45deg);
 }
 
 .appearance-submenu-body {
   display: grid;
   gap: 12px;
+  padding: 12px;
+}
+
+.appearance-submenu .appearance-language-list {
+  margin: -12px;
 }
 
 .appearance-language-list {
   display: grid;
-  gap: 2px;
+  gap: 0;
 }
 
 .appearance-language-option {
@@ -303,31 +342,40 @@
   min-height: 34px;
   width: 100%;
   border: 0;
-  border-radius: var(--site-radius-sm);
+  border-radius: 0;
   background: transparent;
   color: var(--site-text);
   cursor: pointer;
   font: inherit;
-  font-size: 15px;
+  font-size: 14px;
   font-weight: 400;
-  padding: 8px 10px;
+  line-height: 1.2;
+  padding: 9px 16px;
   text-align: left;
 }
 
 .appearance-language-option:hover,
 .appearance-language-option:focus-visible {
-  background: var(--site-hover);
+  background: var(--site-accent);
+  color: var(--site-on-accent);
+}
+
+.appearance-language-option.selected {
+  background: var(--site-accent);
+  color: var(--site-on-accent);
+}
+
+.appearance-language-option:last-child {
+  border-radius: 0 0 var(--menu-bottom-right-radius) var(--menu-bottom-left-radius);
+}
+
+.appearance-language-option:only-child {
+  border-radius: var(--menu-top-left-radius) var(--menu-top-right-radius)
+    var(--menu-bottom-right-radius) var(--menu-bottom-left-radius);
 }
 
 .appearance-language-option.selected::after {
-  content: "";
-  flex: none;
-  width: 7px;
-  height: 12px;
-  margin-left: 12px;
-  border-right: 2px solid var(--site-accent);
-  border-bottom: 2px solid var(--site-accent);
-  transform: rotate(40deg);
+  content: none;
 }
 
 .theme-control-panel select {
@@ -375,8 +423,8 @@
 
 .theme-mode-option.selected {
   border-color: var(--site-accent);
-  background: var(--site-accent-soft);
-  color: var(--site-accent-strong);
+  background: var(--site-accent);
+  color: var(--site-on-accent);
 }
 
 .theme-tile-row {

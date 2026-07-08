@@ -274,6 +274,9 @@ type AppearanceMenuOptions = {
   // Called with the picked locale before the page navigates to the localized
   // URL. The signed-in dropdown uses it to persist the choice to the account.
   onLocaleSelect?: (locale: Locale) => void;
+  // Lets an embedding menu, such as the signed-in account dropdown, replace its
+  // whole surface when the appearance menu drills into a sub-panel.
+  onViewChange?: (view: string) => void;
 };
 
 export function buildAppearanceMenu(options: AppearanceMenuOptions = {}): HTMLElement {
@@ -448,13 +451,13 @@ export function buildAppearanceMenu(options: AppearanceMenuOptions = {}): HTMLEl
 
   for (const button of root.querySelectorAll<HTMLButtonElement>('[data-appearance-target]')) {
     button.addEventListener('click', () =>
-      showAppearanceView(menu, button.dataset.appearanceTarget ?? 'root'),
+      showAppearanceView(menu, button.dataset.appearanceTarget ?? 'root', options.onViewChange),
     );
   }
   for (const back of menu.querySelectorAll<HTMLButtonElement>('.appearance-submenu-back')) {
-    back.addEventListener('click', () => showAppearanceView(menu, 'root'));
+    back.addEventListener('click', () => showAppearanceView(menu, 'root', options.onViewChange));
   }
-  showAppearanceView(menu, 'root');
+  showAppearanceView(menu, 'root', options.onViewChange);
   return menu;
 }
 
@@ -527,13 +530,18 @@ function createLanguageField(
 
 // Drill state lives in the DOM (data-view + hidden), so multiple mounted menus
 // (mobile + desktop nav, gear + dropdown) stay independent.
-function showAppearanceView(menu: HTMLElement, view: string): void {
+function showAppearanceView(
+  menu: HTMLElement,
+  view: string,
+  onViewChange?: (view: string) => void,
+): void {
   menu.dataset.view = view;
   const root = menu.querySelector<HTMLElement>('.appearance-menu-root');
   if (root) root.hidden = view !== 'root';
   for (const sub of menu.querySelectorAll<HTMLElement>('.appearance-submenu')) {
     sub.hidden = sub.dataset.key !== view;
   }
+  onViewChange?.(view);
 }
 
 // Return every mounted appearance menu to its root list. Called when a parent
