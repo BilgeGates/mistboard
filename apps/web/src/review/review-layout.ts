@@ -346,6 +346,14 @@ function fitPrimaryToViewport(stageEl: HTMLElement, aspect: number): void {
     );
     const targetWidth = Math.max(160, Math.min(widthCap, targetBoardWidth + flankPx));
     stageEl.style.setProperty('--review-stage-primary-max', `${targetWidth}px`);
+    // Publish the fitted width so the grid's board column HUGS the fitted board
+    // instead of holding the chrome-free formula width — variants whose hosts
+    // carry their own capture/reserve rows (or self-capped boards) otherwise
+    // leave a wide blank band around the board (review-shell.css min()s this
+    // into --uni-board-width).
+    stageEl
+      .closest<HTMLElement>('.review-shell__cluster')
+      ?.style.setProperty('--uni-board-fit-w', `${targetWidth}px`);
   });
 }
 
@@ -382,6 +390,10 @@ function applyBoardSizing(stageEl: HTMLElement, adapter: ReviewLayoutAdapter): v
     // (fitPrimaryToViewport) so the grid column tracks the fitted board.
     cluster.dataset.uniBaseChrome = String(baseChrome);
     cluster.style.setProperty('--uni-board-chrome-h', `${baseChrome}px`);
+    // Clear the previous fit's published width before re-measuring, or the
+    // measured column cap would ratchet: each fit reads the column the last
+    // fit narrowed and could never grow back on a larger viewport.
+    cluster.style.removeProperty('--uni-board-fit-w');
   }
   // The board is the largest that fits BOTH the center column width (≈ viewport
   // minus the two rails + gaps) and the height left after chrome (projected

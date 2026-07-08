@@ -81,14 +81,20 @@
       var(--uni-page-reserve)
     );
     /* User zoom: --uni-board-scale (persisted, set by the drag grip) scales the
-       fitted board down from its max-fit size; columns re-center around it. */
-    --uni-board-width: calc(
-      min(
-        var(--uni-board-w-budget),
-        calc(var(--uni-board-h-budget) * var(--uni-board-aspect, 1)),
-        var(--uni-board-max, 10000px)
-      ) *
-      var(--uni-board-scale, 1)
+       fitted board down from its max-fit size; columns re-center around it.
+       --uni-board-fit-w is the review fit's MEASURED board width (already
+       scaled): when the fit shrinks the board below the formula (in-host
+       chrome, self-capped boards) the column follows it. */
+    --uni-board-width: min(
+      calc(
+        min(
+          var(--uni-board-w-budget),
+          calc(var(--uni-board-h-budget) * var(--uni-board-aspect, 1)),
+          var(--uni-board-max, 10000px)
+        ) *
+        var(--uni-board-scale, 1)
+      ),
+      var(--uni-board-fit-w, 10000px)
     );
     grid-template-columns: var(--uni-board-width) minmax(var(--uni-table-min), var(--uni-table-max));
     grid-template-areas:
