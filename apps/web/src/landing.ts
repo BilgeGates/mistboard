@@ -647,12 +647,11 @@ function buildLandingStage(
   // shared with the dev variant sheet's cells.
   replayRoot.classList.add('showcase-widget');
   boardColumn.append(replayRoot);
-  // Honest "recent · 2h ago" caption below the board: these are replays of finished
-  // games, not live play. Lives outside replayRoot (the renderers replaceChildren
-  // there) and is updated per game by the cycler's onGameChange.
+  // Honest "recent · 2h ago" caption: kept wired (the cycler's onGameChange still
+  // updates it) but NOT mounted for now — the viewer shows only players/clock/result
+  // and the board, no variant/time metadata. Re-append to restore.
   const caption = document.createElement('div');
   caption.className = 'showcase-caption';
-  boardColumn.append(caption);
   viewerColumn.append(boardColumn);
 
   // ── Center panel (grid-area: panel): the new Open challenges lobby table — browse
@@ -743,6 +742,29 @@ function buildLandingStage(
     puzzleColumn,
     lowerStrip,
   );
+
+  // Keep the daily-puzzle board box the same height as the center block (articles +
+  // support/store) so it stays flush top AND bottom at every width: the feed height
+  // shrinks with the viewport but the rail width does not, and pure CSS can't tie
+  // the box to the feed while the (taller) viewer drives the shared row height.
+  // Capped at the rail width so the square never overflows the column. A future
+  // grid-line-sharing pass (once the viewer is on the same box model) removes this.
+  if (!opts.skipLiveWidgets && typeof ResizeObserver !== 'undefined') {
+    const syncPuzzleBoxSize = (): void => {
+      const feedHeight = centerBelow.getBoundingClientRect().height;
+      const railWidth = puzzleColumn.getBoundingClientRect().width;
+      if (feedHeight > 0 && railWidth > 0) {
+        section.style.setProperty(
+          '--home-puzzle-box-size',
+          `${Math.min(feedHeight, railWidth)}px`,
+        );
+      }
+    };
+    const puzzleBoxObserver = new ResizeObserver(syncPuzzleBoxSize);
+    puzzleBoxObserver.observe(centerBelow);
+    puzzleBoxObserver.observe(puzzleColumn);
+  }
+
   // The footer lives only on the homepage now (stripped from interior routes),
   // blended into the bottom of the stage rather than rendered as a separate bar.
   stage.append(section, buildHomeFooter(locale));

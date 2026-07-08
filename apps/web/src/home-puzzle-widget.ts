@@ -113,98 +113,98 @@ function renderHomePuzzleWidgetContent(puzzle: HomeDailyPuzzle['puzzle']): HTMLE
 
   const turn = document.createElement('span');
   turn.className = 'home-puzzle-widget-turn';
-  turn.textContent = `${colorLabel(puzzle.sideToMove)} to move`;
+  turn.textContent = `${colorLabel(puzzle.sideToMove)} to play`;
 
-  return [title, renderHomePuzzleBoard(puzzle), turn];
+  return [title, renderHomePuzzleBox(puzzle), turn];
 }
 
-function renderHomePuzzleBoard(puzzle: HomeDailyPuzzle['puzzle']): HTMLElement {
+// The flush board box: a square filling the rail, with the board hugging the inner
+// (center-facing) edge and any drop reserve stacked as a single column on the outer
+// edge. Title/turn captions sit outside the box (see landing.css).
+function renderHomePuzzleBox(puzzle: HomeDailyPuzzle['puzzle']): HTMLElement {
+  const box = document.createElement('div');
+  box.className = 'home-puzzle-box';
   const turn = puzzle.sideToMove ?? 'red';
+
   if (puzzle.variant === FORTRESS_XIANGQI_SPEC_ID) {
     const view = getFortressXiangqiPlayerView(puzzle.initial as FortressXiangqiGameState, turn);
-    return renderFortressHomePuzzleBoard(view, turn);
+    box.append(
+      homePuzzleBoardSurface(renderFortressXiangqiBoardSvg(view, turn, { interactive: false })),
+      fortressReserveColumn(view, turn),
+    );
+    return box;
   }
+
   if (puzzle.variant === DROP_MINI_XIANGQI_SPEC_ID) {
     const dropView = getDropMiniXiangqiPlayerView(puzzle.initial as DropMiniXiangqiGameState, turn);
-    return renderDropHomePuzzleBoard(dropView, turn);
+    box.append(
+      homePuzzleBoardSurface(
+        renderMiniXiangqiBoardSvg(dropMiniXiangqiBoardView(dropView), turn, {
+          interactive: false,
+          pieceSize: HOME_PUZZLE_PIECE_SIZE,
+          showFog: false,
+        }),
+      ),
+      dropReserveColumn(dropView, turn),
+    );
+    return box;
   }
-  return homePuzzleBoardSurface(
-    renderMiniXiangqiBoardSvg(
-      getMiniXiangqiOpenPlayerView(puzzle.initial as MiniXiangqiGameState, turn),
-      turn,
-      {
-        interactive: false,
-        pieceSize: HOME_PUZZLE_PIECE_SIZE,
-        showFog: false,
-      },
+
+  box.append(
+    homePuzzleBoardSurface(
+      renderMiniXiangqiBoardSvg(
+        getMiniXiangqiOpenPlayerView(puzzle.initial as MiniXiangqiGameState, turn),
+        turn,
+        { interactive: false, pieceSize: HOME_PUZZLE_PIECE_SIZE, showFog: false },
+      ),
     ),
   );
+  return box;
 }
 
-function renderDropHomePuzzleBoard(
-  dropView: DropMiniXiangqiPlayerView,
-  perspective: MiniXiangqiColor,
-): HTMLElement {
-  const shell = document.createElement('div');
-  shell.className = 'home-puzzle-widget-drop drop-mini-reserve-container';
-
-  const leftReserve = document.createElement('div');
-  leftReserve.className = 'home-puzzle-widget-hand home-puzzle-widget-hand-left';
-  leftReserve.setAttribute('aria-label', 'Black reserve');
-
-  const board = homePuzzleBoardSurface(
-    renderMiniXiangqiBoardSvg(dropMiniXiangqiBoardView(dropView), perspective, {
-      interactive: false,
-      pieceSize: HOME_PUZZLE_PIECE_SIZE,
-      showFog: false,
-    }),
-  );
-
-  const rightReserve = document.createElement('div');
-  rightReserve.className = 'home-puzzle-widget-hand home-puzzle-widget-hand-right';
-  rightReserve.setAttribute('aria-label', 'Red reserve');
-
-  const right = perspective;
-  const left = right === 'red' ? 'black' : 'red';
-  fillDropMiniXiangqiReserve(leftReserve, dropView, left);
-  fillDropMiniXiangqiReserve(rightReserve, dropView, right);
-
-  shell.append(leftReserve, board, rightReserve);
-  return shell;
-}
-
-function renderFortressHomePuzzleBoard(
+// Both hands stacked in one column on the outer edge (opponent above, side-to-play
+// below). Each fill already collapses identical pieces to a chip + count badge.
+function fortressReserveColumn(
   view: FortressXiangqiPlayerView,
   perspective: FortressXiangqiColor,
 ): HTMLElement {
-  const shell = document.createElement('div');
-  shell.className = 'home-puzzle-widget-drop drop-mini-reserve-container';
+  const col = document.createElement('div');
+  col.className = 'home-puzzle-reserve';
+  const opponent: FortressXiangqiColor = perspective === 'red' ? 'black' : 'red';
+  for (const owner of [opponent, perspective] as const) {
+    const hand = document.createElement('div');
+    hand.className = 'home-puzzle-hand';
+    hand.setAttribute('aria-label', `${owner} reserve`);
+    fillFortressXiangqiReserve(hand, view, owner);
+    col.append(hand);
+  }
+  return col;
+}
 
-  const leftReserve = document.createElement('div');
-  leftReserve.className = 'home-puzzle-widget-hand home-puzzle-widget-hand-left';
-  leftReserve.setAttribute('aria-label', 'Black reserve');
-
-  const board = homePuzzleBoardSurface(
-    renderFortressXiangqiBoardSvg(view, perspective, { interactive: false }),
-  );
-
-  const rightReserve = document.createElement('div');
-  rightReserve.className = 'home-puzzle-widget-hand home-puzzle-widget-hand-right';
-  rightReserve.setAttribute('aria-label', 'Red reserve');
-
-  const right = perspective;
-  const left = right === 'red' ? 'black' : 'red';
-  fillFortressXiangqiReserve(leftReserve, view, left);
-  fillFortressXiangqiReserve(rightReserve, view, right);
-
-  shell.append(leftReserve, board, rightReserve);
-  return shell;
+function dropReserveColumn(
+  dropView: DropMiniXiangqiPlayerView,
+  perspective: MiniXiangqiColor,
+): HTMLElement {
+  const col = document.createElement('div');
+  col.className = 'home-puzzle-reserve';
+  const opponent: MiniXiangqiColor = perspective === 'red' ? 'black' : 'red';
+  for (const owner of [opponent, perspective] as const) {
+    const hand = document.createElement('div');
+    hand.className = 'home-puzzle-hand';
+    hand.setAttribute('aria-label', `${owner} reserve`);
+    fillDropMiniXiangqiReserve(hand, dropView, owner);
+    col.append(hand);
+  }
+  return col;
 }
 
 function homePuzzleBoardSurface(svg: string): HTMLElement {
   const board = document.createElement('div');
   board.className = 'home-puzzle-widget-board';
   board.innerHTML = svg;
+  // Hug the board to the inner (center-facing) edge so the reserve + pillarbox slack
+  // fall to the outer edge and the gutter to the center column stays uniform.
+  board.querySelector('svg')?.setAttribute('preserveAspectRatio', 'xMinYMid meet');
   return board;
 }
 

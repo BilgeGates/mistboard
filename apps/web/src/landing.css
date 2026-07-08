@@ -72,10 +72,13 @@
   outline: none;
 }
 
+/* Puzzle-of-the-day widget: a flush square board box (fills the rail, top-aligned
+   to the article-row top; feed height is tuned to ~the rail so the box bottom rides
+   the support-row bottom). The board hugs the inner/center-facing edge and the drop
+   reserve stacks on the outer edge. Title/turn captions sit just outside the box. */
 .home-puzzle-widget {
-  display: grid;
-  gap: 2px;
-  align-self: stretch;
+  position: relative;
+  display: block;
   color: var(--site-muted);
   text-decoration: none;
 }
@@ -90,71 +93,96 @@
   outline-offset: 2px;
 }
 
-.home-puzzle-widget-board {
-  width: 100%;
-  overflow: hidden;
-  border-radius: 2px;
-  background: var(--mini-xq-board-bg, #d9bd82);
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.22);
+.home-puzzle-box {
+  /* Square sized to the center block's height (set by landing.ts) so the box is
+     flush top and bottom at every width. Falls back to the full rail width for
+     first paint / prerender before the observer runs. */
+  width: var(--home-puzzle-box-size, 100%);
+  aspect-ratio: 1 / 1;
+  display: flex;
+  align-items: stretch;
+  justify-content: flex-start;
+  gap: 6px;
+  position: relative;
 }
 
-.home-puzzle-widget-board .mini-xq-board {
+/* Board fills the box HEIGHT (width follows aspect, hugged to the inner edge via
+   preserveAspectRatio set in JS). Absolute fill so height:100% resolves reliably
+   through the flex chain; the SVG carries its own board background. */
+.home-puzzle-widget-board {
+  flex: 1 1 auto;
+  min-width: 0;
+  position: relative;
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.home-puzzle-widget-board svg {
+  position: absolute;
+  inset: 0;
   display: block;
   width: 100%;
-  height: auto;
+  height: 100%;
 }
 
-.home-puzzle-widget-drop {
-  display: grid;
-  grid-template-columns: auto minmax(0, 1fr) auto;
-  align-items: center;
-  gap: 4px;
-  width: 100%;
+/* Drop reserve: one narrow column on the outer edge, both hands stacked. */
+.home-puzzle-reserve {
+  flex: 0 0 auto;
+  align-self: center;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
 }
 
-.home-puzzle-widget .home-puzzle-widget-hand {
-  --drop-mini-hand-piece-size: clamp(22px, calc(100cqw * 40 / 516), 32px);
+.home-puzzle-widget .home-puzzle-hand {
+  --drop-mini-hand-piece-size: 26px;
   --drop-mini-hand-tile-size: calc(var(--drop-mini-hand-piece-size) + 6px);
   --drop-mini-hand-band-height: calc(var(--drop-mini-hand-piece-size) + 14px);
-
-  padding: 0;
-}
-
-/* Reserves flank the board: let the strip grow to a vertical column instead
-   of the fixed single-row band height the shared strip style imposes. */
-.home-puzzle-widget .home-puzzle-widget-hand.drop-mini-reserve-strip {
   height: auto;
   min-height: 0;
   padding: 0;
 }
 
-.home-puzzle-widget-hand .drop-mini-reserve-row {
+.home-puzzle-hand .drop-mini-reserve-row {
   flex-direction: column;
-  gap: 4px;
+  flex-wrap: nowrap;
+  width: auto;
+  min-height: 0;
+  gap: 5px;
 }
 
-.home-puzzle-widget-hand .drop-mini-reserve-piece {
+.home-puzzle-hand .drop-mini-reserve-piece {
   border-color: color-mix(in srgb, var(--site-border-soft) 64%, transparent);
   background: color-mix(in srgb, var(--site-panel) 58%, transparent);
 }
 
-.home-puzzle-widget-title {
-  overflow: hidden;
+/* Captions outside the box, right-aligned, thin + embossed (nav style), tight. */
+.home-puzzle-widget-title,
+.home-puzzle-widget-turn {
+  position: absolute;
+  left: 0;
+  right: 0;
   color: var(--site-muted);
-  font-size: 15px;
+  font-size: 13px;
   font-weight: 400;
-  line-height: 1.2;
-  text-align: center;
+  line-height: 1.25;
+  text-align: right;
+}
+
+.home-puzzle-widget-title {
+  bottom: calc(100% + 2px);
+  overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
 .home-puzzle-widget-turn {
-  color: var(--site-muted);
-  font-size: 15px;
-  font-weight: 400;
-  line-height: 1.2;
-  text-align: center;
+  top: calc(100% + 2px);
+}
+
+:root:not([data-effective-theme="dark"]) .home-puzzle-widget-title,
+:root:not([data-effective-theme="dark"]) .home-puzzle-widget-turn {
+  text-shadow: 0 1px 0 rgba(255, 255, 255, 0.8);
 }
 
 /* Row 2 of the center track: article cards and support/store row, stacked full
@@ -184,9 +212,9 @@
   display: grid;
   grid-template-columns: auto minmax(0, 1fr);
   align-items: center;
-  gap: 22px;
-  min-height: 124px;
-  padding: 22px 28px;
+  gap: 16px;
+  min-height: 60px;
+  padding: 7px 24px;
   border: 1px solid rgba(29, 37, 34, 0.1);
   border-radius: var(--site-radius);
   background: var(--site-panel);
@@ -227,9 +255,9 @@
 }
 
 .landing-support-icon-dobutsu {
-  width: 92px;
-  height: 92px;
-  margin-inline: -10px -1px;
+  width: 48px;
+  height: 48px;
+  margin-inline: -4px 0;
 }
 
 .landing-support-icon-dobutsu .dobutsu-ui-icon {
