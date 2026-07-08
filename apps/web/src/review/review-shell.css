@@ -77,6 +77,7 @@
       min(100vw, var(--uni-main-max)) -
       var(--uni-table-min) -
       var(--uni-gap) -
+      var(--uni-gauge-w, 0px) -
       var(--uni-page-reserve)
     );
     /* User zoom: --uni-board-scale (persisted, set by the drag grip) scales the
@@ -109,6 +110,7 @@
       var(--uni-table-min) -
       2 *
       var(--uni-gap) -
+      var(--uni-gauge-w, 0px) -
       var(--uni-page-reserve)
     );
     grid-template-columns:
@@ -118,6 +120,76 @@
     grid-template-areas: "side board table";
     grid-template-rows: 1fr;
   }
+}
+
+/* Eval gauge column (lichess's thin vertical bar between board and tools).
+   Pages with an engine gauge add --gauge on the cluster; the gauge gets its own
+   narrow column so it never overlaps board or rail. Hidden on col1. */
+.review-shell__gauge {
+  grid-area: gauge;
+  display: none;
+}
+
+@media (min-width: 800px) {
+  .review-shell__cluster--gauge {
+    --uni-gauge-w: 22px;
+    grid-template-columns:
+      var(--uni-board-width)
+      var(--uni-gauge-w)
+      minmax(var(--uni-table-min), var(--uni-table-max));
+    grid-template-areas:
+      "board gauge table"
+      "side  side  side";
+  }
+  .review-shell__cluster--gauge .review-shell__gauge {
+    display: block;
+    align-self: center;
+    /* Match the board's height: column width projected through the aspect. */
+    height: calc(var(--uni-board-width) / var(--uni-board-aspect, 1));
+  }
+}
+
+@media (min-width: 1260px) {
+  .review-shell__cluster--gauge {
+    grid-template-columns:
+      minmax(var(--uni-side-min), var(--uni-side-max))
+      var(--uni-board-width)
+      var(--uni-gauge-w)
+      minmax(var(--uni-table-min), var(--uni-table-max));
+    grid-template-areas: "side board gauge table";
+  }
+}
+
+/* Underboard panel: boxed region under the board with a lichess-style tab
+   header (Computer analysis today; move times / crosstable later). */
+.review-underboard-panel {
+  border: 1px solid var(--site-border);
+  border-radius: var(--site-radius, 10px);
+  background: var(--site-panel, var(--site-surface));
+  overflow: hidden;
+}
+.review-underboard-tabs {
+  display: flex;
+  gap: 2px;
+  border-bottom: 1px solid var(--site-border);
+  background: var(--site-bg);
+}
+.review-underboard-tab {
+  padding: 7px 14px;
+  border: none;
+  background: transparent;
+  color: var(--site-muted);
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+}
+.review-underboard-tab--active {
+  color: var(--site-text);
+  background: var(--site-panel, var(--site-surface));
+  box-shadow: inset 0 -2px 0 var(--site-accent, #237960);
+}
+.review-underboard-panel__body {
+  padding: 10px;
 }
 
 .review-shell__left {

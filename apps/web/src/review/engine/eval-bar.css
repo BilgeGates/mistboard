@@ -14,6 +14,15 @@
   background: #34302e;
   box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.15);
 }
+
+/* Gauge mode: the bar is a normal flow child of the shell's gauge column
+   (its own grid track beside the board) instead of an absolutely positioned
+   overlay in the board host — no alignTo()/observe() needed. */
+.review-shell__gauge .review-eval-bar {
+  position: relative;
+  width: 100%;
+  height: 100%;
+}
 /* Equality midline. */
 .review-eval-bar::after {
   content: "";

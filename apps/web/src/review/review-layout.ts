@@ -52,6 +52,9 @@ export type ReviewLayoutAdapter = {
   enginePanel?: HTMLElement;
   analysisSummary?: HTMLElement;
   underboard?: HTMLElement;
+  /** Eval gauge (thin vertical bar) — gets its own grid column between the
+   *  board and the tools rail (lichess's gauge area). Hidden on col1. */
+  gauge?: HTMLElement;
   /** Optional line right below the move list (lichess "Mistake. X was best."). */
   moveComment?: HTMLElement;
   boards: ReviewBoardEntry[];
@@ -175,15 +178,24 @@ export function mountReviewLayout(root: HTMLElement, adapter: ReviewLayoutAdapte
     }
   });
 
-  root.append(
-    createReviewShell({
-      ariaLabel: adapter.ariaLabel,
-      pageClassName: adapter.pageClassName,
-      left,
-      center,
-      right,
-    }),
-  );
+  const shell = createReviewShell({
+    ariaLabel: adapter.ariaLabel,
+    pageClassName: adapter.pageClassName,
+    left,
+    center,
+    right,
+  });
+  if (adapter.gauge) {
+    const cluster = shell.querySelector<HTMLElement>('.review-shell__cluster');
+    if (cluster) {
+      cluster.classList.add('review-shell__cluster--gauge');
+      const gaugeCol = document.createElement('div');
+      gaugeCol.className = 'review-shell__gauge';
+      gaugeCol.append(adapter.gauge);
+      cluster.append(gaugeCol);
+    }
+  }
+  root.append(shell);
   render();
 
   // Board zoom: restore the persisted scale and glue the drag grip to the
@@ -256,6 +268,19 @@ function fitPrimaryToViewport(stageEl: HTMLElement, aspect: number): void {
       ? centerCol.querySelector<HTMLElement>('.review-underboard')
       : null;
     const underboardPx = underboard ? underboard.getBoundingClientRect().height + STACK_GAP_PX : 0;
+    // Fold the measured underboard into the cluster's chrome token so the grid
+    // column narrows to the same height budget the fit uses — the gauge and
+    // rails then hug the fitted board instead of the chrome-free estimate.
+    // (The underboard's height does not depend on the column width, so this
+    // does not feed back.)
+    const cluster = stageEl.closest<HTMLElement>('.review-shell__cluster');
+    if (cluster) {
+      const baseChrome = Number(cluster.dataset.uniBaseChrome ?? '0') || 0;
+      cluster.style.setProperty(
+        '--uni-board-chrome-h',
+        `${baseChrome + Math.round(underboardPx)}px`,
+      );
+    }
     const available = window.innerHeight - VIEWPORT_CHROME_PX - underboardPx;
     const slot = stageEl.querySelector<HTMLElement>('.review-stage__slot--primary');
     if (available <= 0 || !slot) return;
@@ -329,10 +354,11 @@ function applyBoardSizing(stageEl: HTMLElement, adapter: ReviewLayoutAdapter): v
   const cluster = stageEl.closest<HTMLElement>('.review-shell__cluster');
   if (cluster) {
     cluster.style.setProperty('--uni-board-aspect', aspect.toFixed(4));
-    cluster.style.setProperty(
-      '--uni-board-chrome-h',
-      `${Math.max(0, chromePx - VIEWPORT_CHROME_PX)}px`,
-    );
+    const baseChrome = Math.max(0, chromePx - VIEWPORT_CHROME_PX);
+    // The viewport fit adds the measured underboard height on top of this base
+    // (fitPrimaryToViewport) so the grid column tracks the fitted board.
+    cluster.dataset.uniBaseChrome = String(baseChrome);
+    cluster.style.setProperty('--uni-board-chrome-h', `${baseChrome}px`);
   }
   // The board is the largest that fits BOTH the center column width (≈ viewport
   // minus the two rails + gaps) and the height left after chrome (projected
