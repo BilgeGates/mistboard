@@ -4,6 +4,11 @@
 // iframe so the page renders at its true desktop layout (a shrunk grid of frames
 // trips the pages' responsive breakpoints and misrepresents them). Click a tab
 // or use the arrow keys to page through variants; "Open" pops the real page.
+//
+// Tuning-sweep extras: a Review/Room mode toggle (the same finished game as its
+// postgame page or its finished-room page — both ride the shared uniboard
+// layout), and width presets that DELIBERATELY narrow the iframe to the
+// uniboard breakpoints (col3 / col2) to eyeball each tier.
 
 import type { FeaturedGame } from './game-display.js';
 import { webVariantTenants } from './variant-tenant/registry.js';
@@ -75,13 +80,63 @@ export async function mountPostgameSheet(root: HTMLElement): Promise<void> {
   const spacer = document.createElement('span');
   spacer.className = 'postgame-sheet-bar-spacer';
 
+  // Review/Room mode + breakpoint width presets for the tuning sweep.
+  let mode: 'review' | 'room' = 'review';
+  const modeGroup = document.createElement('div');
+  modeGroup.className = 'postgame-sheet-seg';
+  const modeButtons = (['review', 'room'] as const).map((value) => {
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.className = 'postgame-sheet-seg-btn';
+    button.textContent = value === 'review' ? 'Review' : 'Room';
+    button.addEventListener('click', () => {
+      mode = value;
+      syncSegs();
+      select(current);
+    });
+    modeGroup.append(button);
+    return { value, button };
+  });
+
+  let frameWidth: number | null = null; // null = full
+  const widthGroup = document.createElement('div');
+  widthGroup.className = 'postgame-sheet-seg';
+  const widthButtons = (
+    [
+      { label: 'Full', value: null },
+      { label: 'col3·1300', value: 1300 },
+      { label: 'col2·1000', value: 1000 },
+    ] as const
+  ).map(({ label, value }) => {
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.className = 'postgame-sheet-seg-btn';
+    button.textContent = label;
+    button.addEventListener('click', () => {
+      frameWidth = value;
+      syncSegs();
+      applyFrameWidth();
+    });
+    widthGroup.append(button);
+    return { value, button };
+  });
+
+  function syncSegs(): void {
+    for (const { value, button } of modeButtons) {
+      button.classList.toggle('is-active', value === mode);
+    }
+    for (const { value, button } of widthButtons) {
+      button.classList.toggle('is-active', value === frameWidth);
+    }
+  }
+
   const openLink = document.createElement('a');
   openLink.className = 'postgame-sheet-open';
   openLink.target = '_blank';
   openLink.rel = 'noreferrer';
   openLink.textContent = 'Open ↗';
 
-  bar.append(brand, tabs, spacer, openLink);
+  bar.append(brand, tabs, spacer, modeGroup, widthGroup, openLink);
 
   const stage = document.createElement('div');
   stage.className = 'postgame-sheet-stage';
@@ -91,6 +146,18 @@ export async function mountPostgameSheet(root: HTMLElement): Promise<void> {
   const empty = document.createElement('div');
   empty.className = 'postgame-sheet-empty';
   stage.append(frame, empty);
+
+  function applyFrameWidth(): void {
+    if (frameWidth === null) {
+      frame.style.width = '100%';
+      frame.style.marginInline = '0';
+      frame.style.borderInline = 'none';
+    } else {
+      frame.style.width = `${frameWidth}px`;
+      frame.style.marginInline = 'auto';
+      frame.style.borderInline = '1px dashed var(--site-border, #4a453d)';
+    }
+  }
 
   shell.append(bar, stage);
   root.append(shell);
@@ -134,11 +201,14 @@ export async function mountPostgameSheet(root: HTMLElement): Promise<void> {
       openLink.style.visibility = 'hidden';
       return;
     }
-    const href = postgameReviewUrl(variant.routeBase, game.roomId);
+    const href =
+      mode === 'room'
+        ? `/room/${encodeURIComponent(game.roomId)}`
+        : postgameReviewUrl(variant.routeBase, game.roomId);
     empty.style.display = 'none';
     frame.style.display = 'block';
     if (frame.getAttribute('src') !== href) frame.src = href;
-    frame.title = `${variant.label} postgame review`;
+    frame.title = `${variant.label} ${mode === 'room' ? 'finished room' : 'postgame review'}`;
     openLink.href = href;
     openLink.style.visibility = 'visible';
     openLink.textContent = `Open ↗ · ${game.plyCount} plies`;
@@ -165,6 +235,8 @@ export async function mountPostgameSheet(root: HTMLElement): Promise<void> {
     }
   });
 
+  syncSegs();
+  applyFrameWidth();
   const firstWithGame = games.findIndex(Boolean);
   select(firstWithGame >= 0 ? firstWithGame : 0);
 }
@@ -235,6 +307,29 @@ function installStyles(): void {
     .postgame-sheet-tab.is-empty .postgame-sheet-dot { background: var(--site-border, #4a453d); opacity: 0.5; }
     .postgame-sheet-tab.is-empty { color: var(--site-muted, #9a9086); }
     .postgame-sheet-tab.is-disabled { opacity: 0.5; }
+    .postgame-sheet-seg {
+      display: inline-flex;
+      gap: 2px;
+      padding: 2px;
+      border: 1px solid var(--site-border, #2c2822);
+      border-radius: 8px;
+      flex: 0 0 auto;
+    }
+    .postgame-sheet-seg-btn {
+      padding: 3px 9px;
+      border: none;
+      border-radius: 6px;
+      background: transparent;
+      color: var(--site-muted, #9a9086);
+      font-size: 0.76rem;
+      font-weight: 700;
+      white-space: nowrap;
+      cursor: pointer;
+    }
+    .postgame-sheet-seg-btn.is-active {
+      background: color-mix(in srgb, var(--site-accent, #4f9d7f) 22%, transparent);
+      color: var(--site-fg, #e8e2d8);
+    }
     .postgame-sheet-open {
       font-size: 0.78rem;
       color: var(--site-muted, #9a9086);
