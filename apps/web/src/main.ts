@@ -184,8 +184,10 @@ const wantsShowcaseSheet = import.meta.env.DEV && path === '/showcase-sheet';
 // Hidden DEV-only Luzhanqi board preview. No nav entry while the live client is
 // still under construction.
 const wantsLuzhanqiPreview = import.meta.env.DEV && path === '/luzhanqi-preview';
-// Hidden DEV-only postgame sheet: every native review page with a watch-feed sample.
-const wantsPostgameSheet = import.meta.env.DEV && path === '/postgame-sheet';
+// Hidden DEV-only game sheet: every live variant's room + review page with a
+// watch-feed sample (tuning sweep).
+const wantsGameSheet =
+  import.meta.env.DEV && (path === '/game-sheet' || path === '/postgame-sheet');
 // Hidden DEV-only Fog-of-War game deep-dive reader (replay triptych + prose
 // annotation panel). No nav entry; pilot for the game-analysis article series.
 const wantsDeepDive = import.meta.env.DEV && path === '/deepdive';
@@ -419,10 +421,10 @@ if (replaySample) {
       mountLuzhanqiPreview(appRoot),
     ),
   );
-} else if (wantsPostgameSheet) {
-  setTitle('Postgame sheet');
+} else if (wantsGameSheet) {
+  setTitle('Game sheet');
   void mountOrReport(() =>
-    import('./postgame-sheet.js').then(({ mountPostgameSheet }) => mountPostgameSheet(appRoot)),
+    import('./game-sheet.js').then(({ mountGameSheet }) => mountGameSheet(appRoot)),
   );
 } else if (wantsSoundLab) {
   setTitle('Sound lab');

@@ -1,44 +1,73 @@
-// DEV-ONLY postgame sheet (/postgame-sheet): a tabbed viewer over every
-// watchable variant's NATIVE review page, seeded from each watch channel's
-// latest finished game. One variant is shown at a time in a full-viewport-width
-// iframe so the page renders at its true desktop layout (a shrunk grid of frames
-// trips the pages' responsive breakpoints and misrepresents them). Click a tab
-// or use the arrow keys to page through variants; "Open" pops the real page.
+// DEV-ONLY game sheet (/game-sheet): a tabbed viewer over every LIVE variant's
+// NATIVE game surfaces, seeded from each watch channel's latest finished game.
+// One variant is shown at a time in a full-viewport-width iframe so the page
+// renders at its true desktop layout (a shrunk grid of frames trips the pages'
+// responsive breakpoints and misrepresents them). Click a tab or use the arrow
+// keys to page through variants; "Open" pops the real page.
 //
-// Tuning-sweep extras: a Review/Room mode toggle (the same finished game as its
-// postgame page or its finished-room page — both ride the shared uniboard
+// Tuning-sweep controls: a Review/Room mode toggle (the same finished game as
+// its postgame page or its finished-room page — both ride the shared uniboard
 // layout), and width presets that DELIBERATELY narrow the iframe to the
-// uniboard breakpoints (col3 / col2) to eyeball each tier.
+// uniboard breakpoints (col3 / col2) to eyeball each tier. Tabs follow the
+// canonical variant order and hide disabled variants entirely.
 
+import { canonicalVariantOrderIndex, type GameSpecId } from '@mistboard/game';
 import type { FeaturedGame } from './game-display.js';
 import { webVariantTenants } from './variant-tenant/registry.js';
 
-type PostgameSheetVariant = {
+type GameSheetVariant = {
   label: string;
   channel: string;
   routeBase: string;
-  enabled: boolean;
+  gameSpecId: GameSpecId;
 };
 
 type WatchFeed = {
   unlocked?: FeaturedGame[];
 };
 
-export function postgameSheetVariants(): PostgameSheetVariant[] {
-  return [
-    { label: 'Fog Chess', channel: 'dark-chess', routeBase: '/game', enabled: true },
+// The prod-live variant set. Client dev builds force every tenant's enabled()
+// to true, so the sheet pins the list explicitly — the canonical liveness gate
+// is the server env flags, which the client cannot read. Update when a variant
+// launches or retires.
+const SHEET_LIVE_SPECS: ReadonlySet<string> = new Set([
+  'dark-chess',
+  'xiangqi',
+  'fortress-xiangqi',
+  'jieqi',
+  'banqi',
+  'jungle',
+  'jungle-flip',
+  'dark-xiangqi',
+  'dark-shogi',
+]);
+
+export function gameSheetVariants(): GameSheetVariant[] {
+  const variants: GameSheetVariant[] = [
+    {
+      label: 'Fog Chess',
+      channel: 'dark-chess',
+      routeBase: '/game',
+      gameSpecId: 'dark-chess' as GameSpecId,
+    },
     ...webVariantTenants()
-      .filter((tenant) => tenant.watch && tenant.gameRouteBase)
+      .filter(
+        (tenant) =>
+          tenant.watch && tenant.gameRouteBase && SHEET_LIVE_SPECS.has(tenant.gameSpecId),
+      )
       .map((tenant) => ({
         label: tenant.pageTitle,
         channel: tenant.gameSpecId,
         routeBase: tenant.gameRouteBase!,
-        enabled: tenant.enabled(),
+        gameSpecId: tenant.gameSpecId as GameSpecId,
       })),
   ];
+  return variants.sort(
+    (a, b) => canonicalVariantOrderIndex(a.gameSpecId) - canonicalVariantOrderIndex(b.gameSpecId),
+  );
 }
 
-export function postgameReviewUrl(routeBase: string, roomId: string): string {
+export function sheetReviewUrl(routeBase: string, roomId: string): string {
   return `${routeBase}/${encodeURIComponent(roomId)}`;
 }
 
@@ -54,12 +83,12 @@ async function firstGameForChannel(channel: string): Promise<FeaturedGame | null
   }
 }
 
-export async function mountPostgameSheet(root: HTMLElement): Promise<void> {
+export async function mountGameSheet(root: HTMLElement): Promise<void> {
   root.replaceChildren();
   root.classList.add('postgame-sheet-route');
   installStyles();
 
-  const variants = postgameSheetVariants();
+  const variants = gameSheetVariants();
   // Resolve every channel's latest game up front so the tab dots reflect
   // availability and switching tabs is instant (no per-click fetch).
   const games = await Promise.all(variants.map((v) => firstGameForChannel(v.channel)));
@@ -72,7 +101,7 @@ export async function mountPostgameSheet(root: HTMLElement): Promise<void> {
 
   const brand = document.createElement('span');
   brand.className = 'postgame-sheet-brand';
-  brand.textContent = 'Postgame sheet';
+  brand.textContent = 'Game sheet';
 
   const tabs = document.createElement('div');
   tabs.className = 'postgame-sheet-tabs';
@@ -167,7 +196,6 @@ export async function mountPostgameSheet(root: HTMLElement): Promise<void> {
     const button = document.createElement('button');
     button.type = 'button';
     button.className = 'postgame-sheet-tab';
-    if (!variant.enabled) button.classList.add('is-disabled');
     if (!game) button.classList.add('is-empty');
     const dot = document.createElement('span');
     dot.className = 'postgame-sheet-dot';
@@ -195,16 +223,14 @@ export async function mountPostgameSheet(root: HTMLElement): Promise<void> {
       frame.style.display = 'none';
       frame.removeAttribute('src');
       empty.style.display = 'grid';
-      empty.textContent = variant.enabled
-        ? `No finished games in the "${variant.channel}" channel — seed one with npm run db:seed:variant-fixtures.`
-        : `${variant.label} is disabled (flag off).`;
+      empty.textContent = `No finished games in the "${variant.channel}" channel — seed one with npm run db:seed:variant-fixtures.`;
       openLink.style.visibility = 'hidden';
       return;
     }
     const href =
       mode === 'room'
         ? `/room/${encodeURIComponent(game.roomId)}`
-        : postgameReviewUrl(variant.routeBase, game.roomId);
+        : sheetReviewUrl(variant.routeBase, game.roomId);
     empty.style.display = 'none';
     frame.style.display = 'block';
     if (frame.getAttribute('src') !== href) frame.src = href;
