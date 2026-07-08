@@ -104,7 +104,16 @@ export function mountReviewLayout(root: HTMLElement, adapter: ReviewLayoutAdapte
     tier: board.tier,
   }));
 
-  const stage = createBoardStage(slots, { onPromote: () => render() });
+  // Promoting a secondary swaps which element occupies the primary slot; re-fit
+  // afterwards so the sizing and the resize grip track the new board (refit is
+  // defined after mount — late-bound on purpose).
+  let onStageChanged: (() => void) | null = null;
+  const stage = createBoardStage(slots, {
+    onPromote: () => {
+      render();
+      onStageChanged?.();
+    },
+  });
   applyBoardSizing(stage.el, adapter);
 
   const scrubber = createReviewScrubber();
@@ -228,6 +237,7 @@ export function mountReviewLayout(root: HTMLElement, adapter: ReviewLayoutAdapte
     // Re-anchor the grip after the fit's rAF pass has applied the new size.
     setTimeout(positionGrip, 60);
   };
+  onStageChanged = refit;
   refit();
   setTimeout(refit, 60);
   setTimeout(refit, 260);
