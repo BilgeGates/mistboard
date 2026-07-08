@@ -123,6 +123,45 @@ describe('appearance family gating', () => {
     ).toBe('zh-Hant');
   });
 
+  it('renders signed-out sound, appearance, and connection controls in the gear menu', () => {
+    rebuildThemePanel();
+
+    expect(document.querySelector('[data-theme-control] .account-nav-status')).not.toBeNull();
+
+    document.querySelector<HTMLButtonElement>('[data-appearance-target="sound"]')?.click();
+    expect(
+      document.querySelector<HTMLElement>('[data-theme-control]')?.dataset.themeControlView,
+    ).toBe('submenu');
+    expect(
+      [...document.querySelectorAll<HTMLButtonElement>('button[data-sound-option]')].map(
+        (option) => option.textContent,
+      ),
+    ).toEqual(['Silent', 'Standard', 'Piano', 'NES', 'SFX', 'Futuristic']);
+
+    document.querySelector<HTMLButtonElement>('button[data-sound-option="silent"]')?.click();
+    expect(window.localStorage.getItem('mistboard.soundMuted')).toBe('true');
+    expect(
+      document
+        .querySelector<HTMLButtonElement>('button[data-sound-option="silent"]')
+        ?.getAttribute('aria-checked'),
+    ).toBe('true');
+
+    document.querySelector<HTMLButtonElement>('button[data-sound-option="mist"]')?.click();
+    expect(window.localStorage.getItem('mistboard.soundMuted')).toBe('false');
+    expect(window.localStorage.getItem('mistboard.soundSet')).toBe('mist');
+
+    document.querySelector<HTMLButtonElement>('.appearance-submenu-back')?.click();
+    expect(
+      document.querySelector<HTMLElement>('[data-theme-control]')?.dataset.themeControlView,
+    ).toBe('root');
+    document.querySelector<HTMLButtonElement>('[data-appearance-target="theme"]')?.click();
+    expect(
+      [...document.querySelectorAll<HTMLButtonElement>('button[data-site-theme-option]')].map(
+        (option) => option.textContent,
+      ),
+    ).toEqual(['Device theme', 'Light', 'Dark']);
+  });
+
   it('surfaces xiangqi and shogi settings by default', () => {
     vi.stubEnv('DEV', false);
     vi.stubEnv('VITE_CROSSROADS_CHESS_ENABLED', 'false');

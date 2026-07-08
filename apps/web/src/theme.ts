@@ -1,5 +1,6 @@
 import './theme.css';
 import type { GameFamilyId } from '@mistboard/game';
+import { type ConnectionStatus, createConnectionStatus } from './connection-status.js';
 import { t } from './i18n/catalog.js';
 import {
   APP_LOCALES,
@@ -128,6 +129,7 @@ function enabledAppearanceFamilies(): Array<{ id: BoardFamily; label: string }> 
 }
 let navObserver: MutationObserver | null = null;
 let systemThemeWatcherBound = false;
+const statusByThemeControl = new WeakMap<HTMLElement, ConnectionStatus>();
 
 export function initializeThemeSettings(): void {
   applySiteTheme(readStoredSiteTheme());
@@ -227,6 +229,7 @@ function mountThemeControl(nav: HTMLElement): void {
   const control = document.createElement('div');
   control.className = 'theme-control';
   control.dataset.themeControl = '';
+  control.dataset.themeControlView = 'root';
   control.setAttribute('aria-label', 'Display and sound settings');
 
   const trigger = document.createElement('button');
@@ -244,7 +247,19 @@ function mountThemeControl(nav: HTMLElement): void {
   panel.setAttribute('role', 'group');
   panel.setAttribute('aria-label', 'Display and sound settings');
 
-  panel.append(buildAppearanceMenu({ includeLanguage: true }));
+  const status = createConnectionStatus();
+  statusByThemeControl.set(control, status);
+
+  panel.append(
+    buildAppearanceMenu({
+      includeLanguage: true,
+      onViewChange: (view) => {
+        control.dataset.themeControlView = view === 'root' ? 'root' : 'submenu';
+      },
+    }),
+    createThemeDivider(),
+    status.element,
+  );
 
   trigger.addEventListener('click', () => {
     const expanded = trigger.getAttribute('aria-expanded') === 'true';
@@ -300,8 +315,8 @@ export function buildAppearanceMenu(options: AppearanceMenuOptions = {}): HTMLEl
       createLanguageField(locale, options.onLocaleSelect),
     ]);
   }
-  addCategory('sound', 'Sound', [createSoundSetField(), createVolumeField(), createMuteField()]);
-  addCategory('theme', 'Appearance', [createSiteThemeField(false)]);
+  addCategory('sound', 'Sound', [createSoundPanel()]);
+  addCategory('theme', 'Appearance', [createSiteThemeList()]);
 
   // The Game selector only appears when a xiangqi variant is enabled; otherwise
   // Board/Pieces drill straight into the chess tiles. It sits at the top of both
@@ -526,6 +541,13 @@ function createLanguageField(
   return list;
 }
 
+function createThemeDivider(): HTMLDivElement {
+  const divider = document.createElement('div');
+  divider.className = 'account-nav-divider theme-control-divider';
+  divider.setAttribute('role', 'separator');
+  return divider;
+}
+
 // Drill state lives in the DOM (data-view + hidden), so multiple mounted menus
 // (mobile + desktop nav, gear + dropdown) stay independent.
 function showAppearanceView(
@@ -550,33 +572,23 @@ export function resetAppearanceMenus(root: ParentNode = document): void {
   }
 }
 
-function createSiteThemeField(showLabel = true): HTMLDivElement {
-  const field = document.createElement('div');
-  field.className = 'theme-control-field';
-
-  const row = document.createElement('div');
-  row.className = 'theme-mode-row';
-  row.setAttribute('role', 'radiogroup');
-  row.setAttribute('aria-label', 'Site appearance');
+function createSiteThemeList(): HTMLDivElement {
+  const list = document.createElement('div');
+  list.className = 'appearance-choice-list appearance-theme-list';
+  list.setAttribute('role', 'radiogroup');
+  list.setAttribute('aria-label', 'Site appearance');
 
   for (const option of siteThemeOptions) {
-    const button = createSiteThemeButton(option.id, option.label);
-    row.append(button);
+    list.append(createSiteThemeButton(option.id, siteThemeMenuLabel(option.id)));
   }
 
-  if (showLabel) {
-    const text = document.createElement('span');
-    text.textContent = 'Appearance';
-    field.append(text);
-  }
-  field.append(row);
-  return field;
+  return list;
 }
 
-export function createSiteThemeButton(theme: SiteTheme, label: string): HTMLButtonElement {
+function createSiteThemeButton(theme: SiteTheme, label: string): HTMLButtonElement {
   const button = document.createElement('button');
   button.type = 'button';
-  button.className = 'theme-mode-option';
+  button.className = 'appearance-choice-option';
   button.dataset.siteThemeOption = theme;
   button.setAttribute('role', 'radio');
   button.setAttribute('aria-checked', String(readStoredSiteTheme() === theme));
@@ -584,6 +596,11 @@ export function createSiteThemeButton(theme: SiteTheme, label: string): HTMLButt
   if (readStoredSiteTheme() === theme) button.classList.add('selected');
   button.addEventListener('click', () => setSiteThemePreference(theme));
   return button;
+}
+
+function siteThemeMenuLabel(theme: SiteTheme): string {
+  if (theme === 'system') return 'Device theme';
+  return siteThemeOptions.find((option) => option.id === theme)?.label ?? theme;
 }
 
 // Picks which game family's board + piece pickers are shown. The options sit as
@@ -596,6 +613,7 @@ function createBoardFamilyField(layout: 'inline' | 'stacked' = 'inline'): HTMLDi
   const field = document.createElement('div');
   field.className =
     layout === 'stacked' ? 'theme-control-field' : 'theme-control-field theme-control-field-inline';
+  field.classList.add('theme-control-family-field');
   const text = document.createElement('span');
   text.textContent = 'Game';
 
@@ -709,6 +727,27 @@ function createTileField<T extends string>(
   return field;
 }
 
+function createSoundPanel(): HTMLDivElement {
+  const panel = document.createElement('div');
+  panel.className = 'appearance-sound-panel';
+
+  const volume = createVolumeField();
+  volume.classList.add('appearance-sound-volume');
+
+  const list = document.createElement('div');
+  list.className = 'appearance-choice-list appearance-sound-list';
+  list.setAttribute('role', 'radiogroup');
+  list.setAttribute('aria-label', 'Sound set');
+
+  list.append(createSoundOption('silent', 'Silent'));
+  for (const set of sortedSoundSetsForMenu()) {
+    list.append(createSoundOption(set.id, soundSetMenuLabel(set.id)));
+  }
+
+  panel.append(volume, list);
+  return panel;
+}
+
 function createVolumeField(): HTMLLabelElement {
   const field = document.createElement('label');
   field.className = 'theme-control-field theme-control-volume-field';
@@ -745,55 +784,42 @@ function createVolumeField(): HTMLLabelElement {
   return field;
 }
 
-// Which sound set plays in live games: Mist (the synthesized default) or one
-// of the adopted file sets. Writing the preference notifies the live sound
-// controller, which preloads the set's files; kinds a set does not cover
-// fall back to the Mist tones.
-function createSoundSetField(): HTMLDivElement {
-  const field = document.createElement('div');
-  field.className = 'theme-control-field theme-control-field-inline';
-  const text = document.createElement('span');
-  text.textContent = 'Sound set';
-
-  const select = document.createElement('select');
-  select.className = 'theme-control-select';
-  select.dataset.soundSetSelect = '';
-  select.setAttribute('aria-label', 'Sound set');
-  for (const set of SOUND_SETS) {
-    const option = document.createElement('option');
-    option.value = set.id;
-    option.textContent = set.label;
-    select.append(option);
-  }
-  select.value = readStoredSoundSet();
-  select.addEventListener('change', () => {
-    storeSoundSet(select.value as SoundSetId);
+function createSoundOption(id: SoundSetId | 'silent', label: string): HTMLButtonElement {
+  const button = document.createElement('button');
+  button.type = 'button';
+  button.className = 'appearance-choice-option';
+  button.dataset.soundOption = id;
+  button.setAttribute('role', 'radio');
+  const selected = readStoredSoundMuted() ? id === 'silent' : id === readStoredSoundSet();
+  button.setAttribute('aria-checked', String(selected));
+  button.textContent = label;
+  if (selected) button.classList.add('selected');
+  button.addEventListener('click', () => {
+    if (id === 'silent') {
+      writeStoredSoundMuted(true);
+      dispatchSoundSettingsChanged();
+    } else {
+      storeSoundSet(id);
+      if (readStoredSoundMuted()) {
+        writeStoredSoundMuted(false);
+        dispatchSoundSettingsChanged();
+      }
+    }
     syncThemeControls();
   });
-
-  field.append(text, select);
-  return field;
+  return button;
 }
 
-function createMuteField(): HTMLLabelElement {
-  const field = document.createElement('label');
-  field.className = 'theme-control-check-field';
+function sortedSoundSetsForMenu(): ReadonlyArray<{ id: SoundSetId; label: string }> {
+  const order: SoundSetId[] = ['mist', 'piano', 'nes', 'sfx', 'futuristic'];
+  return order
+    .map((id) => SOUND_SETS.find((set) => set.id === id))
+    .filter((set): set is { id: SoundSetId; label: string } => set !== undefined);
+}
 
-  const input = document.createElement('input');
-  input.type = 'checkbox';
-  input.dataset.soundMuted = '';
-  input.checked = readStoredSoundMuted();
-  input.addEventListener('change', () => {
-    writeStoredSoundMuted(input.checked);
-    dispatchSoundSettingsChanged();
-    syncThemeControls();
-  });
-
-  const text = document.createElement('span');
-  text.textContent = 'Mute sounds';
-
-  field.append(input, text);
-  return field;
+function soundSetMenuLabel(id: SoundSetId): string {
+  if (id === 'mist') return 'Standard';
+  return SOUND_SETS.find((set) => set.id === id)?.label ?? id;
 }
 
 function openThemeMenu(control: HTMLElement): void {
@@ -802,6 +828,7 @@ function openThemeMenu(control: HTMLElement): void {
   control
     .querySelector<HTMLButtonElement>('.theme-control-trigger')
     ?.setAttribute('aria-expanded', 'true');
+  statusByThemeControl.get(control)?.start();
 }
 
 function closeThemeMenus(): void {
@@ -810,6 +837,7 @@ function closeThemeMenus(): void {
     control
       .querySelector<HTMLButtonElement>('.theme-control-trigger')
       ?.setAttribute('aria-expanded', 'false');
+    statusByThemeControl.get(control)?.stop();
   });
 }
 
@@ -843,19 +871,17 @@ function syncThemeControls(): void {
   document.querySelectorAll<HTMLInputElement>('input[data-sound-volume]').forEach((input) => {
     input.value = String(Math.round(effectiveVolume * 100));
   });
-  document
-    .querySelectorAll<HTMLSelectElement>('select[data-sound-set-select]')
-    .forEach((select) => {
-      select.value = readStoredSoundSet();
-    });
+  document.querySelectorAll<HTMLButtonElement>('button[data-sound-option]').forEach((button) => {
+    const id = button.dataset.soundOption;
+    const isActive = soundMuted ? id === 'silent' : id === readStoredSoundSet();
+    button.setAttribute('aria-checked', String(isActive));
+    button.classList.toggle('selected', isActive);
+  });
   document
     .querySelectorAll<HTMLOutputElement>('output[data-sound-volume-value]')
     .forEach((output) => {
       output.textContent = soundMuted ? 'Muted' : formatVolume(effectiveVolume);
     });
-  document.querySelectorAll<HTMLInputElement>('input[data-sound-muted]').forEach((input) => {
-    input.checked = soundMuted;
-  });
   document.querySelectorAll<HTMLElement>('.theme-control-volume-field').forEach((field) => {
     field.classList.toggle('muted', soundMuted);
   });
