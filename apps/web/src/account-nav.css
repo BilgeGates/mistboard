@@ -1,7 +1,7 @@
 .site-nav-auth {
   display: inline-flex;
   align-items: center;
-  gap: 8px;
+  gap: 12px;
 }
 
 .account-nav-pending {
@@ -28,7 +28,7 @@
 
 .site-nav-link-primary:hover,
 .site-nav-link-primary:focus-visible {
-  background: var(--site-accent-strong);
+  background: color-mix(in srgb, var(--site-accent) 82%, white);
   color: var(--site-on-accent);
 }
 

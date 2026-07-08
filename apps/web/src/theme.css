@@ -137,6 +137,19 @@
     color 140ms ease;
 }
 
+.theme-control-trigger-icon {
+  justify-content: center;
+  width: 36px;
+  min-height: 36px;
+  padding: 0;
+}
+
+.theme-control-trigger-icon svg {
+  display: block;
+  width: 22px;
+  height: 22px;
+}
+
 /* Down caret matching the nav menu dropdowns (e.g. Learn). */
 .theme-control-caret {
   width: 0;

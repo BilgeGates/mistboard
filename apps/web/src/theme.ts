@@ -235,11 +235,9 @@ function mountThemeControl(nav: HTMLElement): void {
   trigger.setAttribute('aria-expanded', 'false');
   trigger.setAttribute('aria-label', 'Settings');
   trigger.title = 'Settings';
-  // Gear icon (Lucide "settings"), matching the nav's outline-icon style. A
-  // standalone "Settings" text item read as a prominent nav link; a discreet
-  // gear matches the lichess/pychess preferences pattern.
+  // Filled gear, matching lichess's signed-out settings affordance.
   trigger.innerHTML =
-    '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></svg>';
+    '<svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor" fill-rule="evenodd" aria-hidden="true" focusable="false"><path d="M13.6 2h-3.2l-.7 2.4c-.4.1-.8.3-1.1.5L6.4 3.7 3.9 6.2l1.2 2.2c-.2.4-.4.7-.5 1.1L2 10.3v3.4l2.6.8c.1.4.3.8.5 1.1l-1.2 2.2 2.5 2.5 2.2-1.2c.4.2.7.4 1.1.5l.7 2.4h3.2l.7-2.4c.4-.1.8-.3 1.1-.5l2.2 1.2 2.5-2.5-1.2-2.2c.2-.4.4-.7.5-1.1l2.6-.8v-3.4l-2.6-.8c-.1-.4-.3-.8-.5-1.1l1.2-2.2-2.5-2.5-2.2 1.2c-.4-.2-.7-.4-1.1-.5L13.6 2zM12 8.6a3.4 3.4 0 1 0 0 6.8 3.4 3.4 0 0 0 0-6.8z"/></svg>';
 
   const panel = document.createElement('div');
   panel.className = 'theme-control-panel';
