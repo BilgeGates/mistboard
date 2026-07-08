@@ -164,6 +164,22 @@ describe('article public listing gates', () => {
     ).toBeNull();
   });
 
+  it('keeps the base Shogi rules article out of the rules rail while leaving it reachable', () => {
+    vi.stubEnv('DEV', true);
+
+    const landing = buildRulesIndex();
+    const darkShogi = buildArticlePage('dark-shogi');
+    const shogi = buildArticlePage('shogi');
+
+    expect(landing.querySelector('a[href="/rules/shogi"]')).not.toBeNull();
+    expect(darkShogi.querySelector('.article-variant-sidebar a[href="/rules/shogi"]')).toBeNull();
+    expect(
+      darkShogi.querySelector('.article-variant-sidebar a[href="/rules/dark-shogi"]'),
+    ).not.toBeNull();
+    expect(shogi.textContent).toContain('Shogi Rules');
+    expect(shogi.querySelector('.article-variant-sidebar a[href="/rules/shogi"]')).toBeNull();
+  });
+
   it('keeps still-gated release announcements out of the homepage article widget by default', () => {
     vi.stubEnv('DEV', false);
     vi.stubEnv('VITE_KRIEGSPIEL_ENABLED', 'true');
@@ -558,7 +574,7 @@ describe('rules variant sidebar', () => {
     expect(nav?.querySelector('a[href="/rules/chess"]')).toBeNull();
     // Draft960 is a pregame option that has not shipped as a playable mode.
     expect(nav?.querySelector('a[href="/rules/dark-draft960"]')).toBeNull();
-    expect(nav?.querySelector('a[href="/rules/shogi"]')).not.toBeNull();
+    expect(nav?.querySelector('a[href="/rules/shogi"]')).toBeNull();
     expect(nav?.querySelector('a[href="/rules/dark-shogi"]')).not.toBeNull();
     expect(hrefs.indexOf('/rules/xiangqi')).toBeLessThan(hrefs.indexOf('/rules/fortress-xiangqi'));
     expect(hrefs.indexOf('/rules/jieqi')).toBeLessThan(hrefs.indexOf('/rules/jungle-flip'));
@@ -566,7 +582,7 @@ describe('rules variant sidebar', () => {
     expect(hrefs.indexOf('/rules/banqi')).toBeLessThan(hrefs.indexOf('/rules/jungle'));
     expect(hrefs.indexOf('/rules/jungle')).toBeLessThan(hrefs.indexOf('/rules/dark-xiangqi'));
     expect(hrefs.indexOf('/rules/dark-xiangqi')).toBeLessThan(hrefs.indexOf('/rules/dark-chess'));
-    expect(hrefs.indexOf('/rules/dark-chess')).toBeLessThan(hrefs.indexOf('/rules/shogi'));
+    expect(hrefs.indexOf('/rules/dark-chess')).toBeLessThan(hrefs.indexOf('/rules/dark-shogi'));
   });
 
   it('lists the elevated xiangqi variants (not the hidden mini trio) by default', () => {
@@ -594,7 +610,7 @@ describe('rules variant sidebar', () => {
     expect(tile?.querySelector('.rules-landing-tile-label')?.textContent).toBe('Fog Chess');
   });
 
-  it('uses shared Shogi mini markers on rule article surfaces', () => {
+  it('uses shared Shogi mini markers on listed rule article surfaces', () => {
     const landing = buildRulesIndex();
     expect(
       landing.querySelector('.rules-landing-tile[href="/rules/shogi"] svg[data-mini-id="shogi"]'),
@@ -608,9 +624,9 @@ describe('rules variant sidebar', () => {
     const shogi = buildArticlePage('shogi');
     expect(
       shogi.querySelector(
-        '.article-variant-sidebar a[aria-current="page"] svg[data-mini-id="shogi"]',
+        '.article-variant-sidebar a[href="/rules/shogi"] svg[data-mini-id="shogi"]',
       ),
-    ).not.toBeNull();
+    ).toBeNull();
 
     const darkShogi = buildArticlePage('dark-shogi');
     expect(

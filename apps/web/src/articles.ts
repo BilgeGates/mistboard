@@ -138,6 +138,8 @@ const BASE_RULE_ORDER: Record<string, number> = {
   shogi4: 100,
 };
 
+const RULES_ARTICLE_RAIL_HIDDEN_SLUGS = new Set(['shogi']);
+
 const RULES_GROUP_TITLE_KEYS: Record<RulesArticleGroupId, I18nKey> = {
   chess: 'rules.group.chess',
   xiangqi: 'rules.group.xiangqi',
@@ -857,6 +859,7 @@ function buildVariantSidebar(currentSlug: string | null, lang?: ArticleLang): HT
   const entries = articles.filter(
     (article) =>
       article.kind === 'rules' &&
+      !RULES_ARTICLE_RAIL_HIDDEN_SLUGS.has(article.slug) &&
       (isArticleListedInThisEnv(article) ||
         (article.slug === currentSlug &&
           article.showInIndex !== false &&
