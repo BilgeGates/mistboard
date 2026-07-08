@@ -135,13 +135,16 @@
   gap: 12px;
 }
 
-/* Above col1 the rails must not drive the row height (the board does): height 0
-   removes their content from track sizing, min-height 100% then stretches them
-   to the board-driven row. Their scroll regions (move list) flex-fill inside. */
+/* Above col1 the rails must not drive the row height (the board does): a
+   non-visible overflow zeroes a grid item's automatic minimum size, so the
+   track sizes from the board column and the rail stretches to match. (A
+   height-0/min-height-100% hack does NOT work here: the % resolves against a
+   min-height-driven row as 0.) Scroll regions (move list) flex-fill inside. */
 @media (min-width: 800px) {
   .review-shell__right {
-    height: 0;
-    min-height: 100%;
+    align-self: stretch;
+    min-height: 0;
+    overflow: hidden;
   }
   .review-shell__right .review-rail-group {
     flex: 1 1 auto;
@@ -159,8 +162,9 @@
 }
 @media (min-width: 1260px) {
   .review-shell__left {
-    height: 0;
-    min-height: 100%;
+    align-self: stretch;
+    min-height: 0;
+    overflow: hidden;
   }
 }
 

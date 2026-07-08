@@ -47,9 +47,16 @@
   margin: 0;
 }
 
-/* Right rail: lichess round anatomy — clock top, move list filling the middle
-   with its own scroll, clock bottom. The console flex-fills the rail height
-   (the rail is height-0/min-height-100% so the board drives the row). */
+/* The divider-era rail indent reads as a misaligned gap next to the boxed
+   table; the box carries its own edge now. */
+.live-review__cluster .moves-panel {
+  padding-left: 0;
+}
+
+/* Right rail: lichess round anatomy — clock top, the boxed table (move list
+   filling the middle with its own scroll, then status / actions / controls
+   rows), clock bottom. The console flex-fills the rail height (the rail is
+   height-0/min-height-100% so the board drives the row). */
 @media (min-width: 800px) {
   .live-review__cluster .moves-panel {
     display: flex;
@@ -63,12 +70,16 @@
     flex-direction: column;
     gap: 8px;
   }
+  .live-review__cluster .round-table__box {
+    flex: 1 1 0;
+    min-height: 0;
+  }
   .live-review__cluster .replay-console {
     flex: 1 1 0;
     min-height: 0;
     display: flex;
     flex-direction: column;
-    gap: 10px;
+    gap: 8px;
   }
   .live-review__cluster .replay-console .move-list {
     flex: 1 1 0;

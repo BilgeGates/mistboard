@@ -56,19 +56,10 @@ export function createLiveLayout(
 
       <section class="play-grid">
         <div class="review-shell__cluster live-review__cluster">
-          <aside class="side-panel meta-panel review-shell__rail review-shell__left" aria-label="Game controls">
+          <aside class="side-panel meta-panel review-shell__rail review-shell__left" aria-label="Game info">
             <section class="panel-section">
               <h2>About</h2>
               <div data-game-info class="game-info"></div>
-            </section>
-            <section class="panel-section">
-              <div data-room-actions class="room-actions"></div>
-            </section>
-            <section data-action-section class="panel-section" hidden>
-              <div data-action-status class="action-status"></div>
-            </section>
-            <section data-game-controls-section class="panel-section" hidden>
-              <div data-game-controls class="game-controls"></div>
             </section>
             <section data-offer-section class="panel-section">
               <h2>Dark Draft960 Offer</h2>
@@ -102,19 +93,29 @@ export function createLiveLayout(
             <div data-captures class="captures-strip captures-strip-bottom" aria-label="Pieces captured by the bottom side"></div>
           </div>
           </div>
-          <aside class="side-panel moves-panel review-shell__rail review-shell__right" aria-label="Replay and move list">
+          <aside class="side-panel moves-panel review-shell__rail review-shell__right" aria-label="Game table">
             <section class="panel-section game-console">
               <div data-clock-top class="clocks clock-slot"></div>
-              <div class="replay-console">
-                <h2>Replay</h2>
-                <div class="replay-controls">
-                  <button type="button" data-replay="first" title="First position">|&lt;</button>
-                  <button type="button" data-replay="prev" title="Previous event">&lt;</button>
-                  <button type="button" data-replay="next" title="Next event">&gt;</button>
-                  <button type="button" data-replay="latest" title="Latest position">&gt;|</button>
+              <div class="round-table__box">
+                <div class="replay-console">
+                  <ol data-move-list class="move-list"></ol>
+                  <p data-replay-meta class="replay-meta">Live</p>
+                  <div class="replay-controls">
+                    <button type="button" data-replay="first" title="First position">|&lt;</button>
+                    <button type="button" data-replay="prev" title="Previous event">&lt;</button>
+                    <button type="button" data-replay="next" title="Next event">&gt;</button>
+                    <button type="button" data-replay="latest" title="Latest position">&gt;|</button>
+                  </div>
                 </div>
-                <p data-replay-meta class="replay-meta">Live</p>
-                <ol data-move-list class="move-list"></ol>
+                <div data-action-section class="round-table__row" hidden>
+                  <div data-action-status class="action-status"></div>
+                </div>
+                <div class="round-table__row">
+                  <div data-room-actions class="room-actions"></div>
+                </div>
+                <div data-game-controls-section class="round-table__row" hidden>
+                  <div data-game-controls class="game-controls"></div>
+                </div>
               </div>
               <div data-clock-bottom class="clocks clock-slot"></div>
               <p data-clocks-note class="clocks-pregame-note" hidden></p>
