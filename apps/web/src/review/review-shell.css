@@ -192,6 +192,25 @@
   padding: 10px;
 }
 
+/* Right-rail captured-material rows (lichess round: mat-top / mat-bot). Fixed
+   compact tile size (not board-relative — the rail width is stable). Empty
+   rows collapse to nothing. */
+.review-material-row {
+  --capture-piece-size: 26px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px;
+  min-height: 0;
+}
+.review-material-row:empty {
+  display: none;
+}
+.review-material-row .captures-row {
+  flex-wrap: wrap;
+  row-gap: 2px;
+  max-width: 100%;
+}
+
 .review-shell__left {
   grid-area: side;
 }

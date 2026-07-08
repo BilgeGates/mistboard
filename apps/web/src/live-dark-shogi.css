@@ -6,8 +6,6 @@
 
 .live-route--shogi {
   --uni-board-aspect: 1;
-  /* Hand strips above/below the board eat into the height budget. */
-  --uni-board-chrome-h: 112px;
 }
 
 .shogi-live-board {

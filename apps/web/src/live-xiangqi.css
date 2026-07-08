@@ -2,7 +2,6 @@
    (review/review-shell.css + live-review.css). */
 .live-route--xiangqi {
   --uni-board-aspect: calc(552 / 612);
-  --uni-board-chrome-h: 88px;
 }
 
 .live-route--xiangqi .board-status {
@@ -13,7 +12,6 @@
    (viewBox 660x732). */
 .live-route--jieqi {
   --uni-board-aspect: calc(660 / 732);
-  --uni-board-chrome-h: 88px;
 }
 
 .live-route--jieqi .board-status {
@@ -26,7 +24,6 @@
 .live-route--banqi {
   --uni-board-aspect: calc(568 / 312);
   --uni-board-max: 720px;
-  --uni-board-chrome-h: 88px;
 }
 
 .live-route--banqi .board-status {
@@ -38,7 +35,6 @@
 .live-route--jungle {
   --uni-board-aspect: calc(366 / 462);
   --uni-board-max: 600px;
-  --uni-board-chrome-h: 88px;
 }
 
 .live-route--jungle .board-status {
@@ -72,7 +68,6 @@
 .live-route--jungle-flip {
   --uni-board-aspect: 1;
   --uni-board-max: 520px;
-  --uni-board-chrome-h: 88px;
 }
 
 .live-route--jungle-flip .board-status {

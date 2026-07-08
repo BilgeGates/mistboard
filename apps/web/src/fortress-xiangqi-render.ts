@@ -465,8 +465,6 @@ export function installFortressXiangqiBoardStyles(): void {
     .live-route--fortress-xiangqi {
       --uni-board-aspect: calc(516 / 588);
       --uni-board-max: 560px;
-      /* Drop reserve rows above/below the board eat into the height budget. */
-      --uni-board-chrome-h: 96px;
     }
     .fortress-xiangqi-live-board {
       aspect-ratio: 516 / 588;

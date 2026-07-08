@@ -71,7 +71,6 @@ export function createLiveLayout(
           </aside>
           <div class="review-shell__center">
           <div class="board-shell">
-            <div data-captures-top class="captures-strip captures-strip-top" aria-label="Pieces captured by the top side"></div>
             <div class="board-stage">
               <div data-board-status class="board-status">
                 <div class="board-status__inner">
@@ -89,11 +88,11 @@ export function createLiveLayout(
               <div data-draft-picker class="draft-picker" hidden></div>
               <div data-promotion class="promotion-picker" hidden></div>
             </div>
-            <div data-captures class="captures-strip captures-strip-bottom" aria-label="Pieces captured by the bottom side"></div>
           </div>
           </div>
           <aside class="side-panel moves-panel review-shell__rail review-shell__right" aria-label="Game table">
             <section class="panel-section game-console">
+              <div data-captures-top class="captures-strip captures-strip-top rail-material" aria-label="Pieces captured by the top side"></div>
               <div data-clock-top class="clocks clock-slot"></div>
               <div class="round-table__box">
                 <div class="replay-console">
@@ -117,6 +116,7 @@ export function createLiveLayout(
                 </div>
               </div>
               <div data-clock-bottom class="clocks clock-slot"></div>
+              <div data-captures class="captures-strip captures-strip-bottom rail-material" aria-label="Pieces captured by the bottom side"></div>
               <p data-clocks-note class="clocks-pregame-note" hidden></p>
             </section>
           </aside>

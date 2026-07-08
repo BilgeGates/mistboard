@@ -52,8 +52,7 @@ export function gameSheetVariants(): GameSheetVariant[] {
     },
     ...webVariantTenants()
       .filter(
-        (tenant) =>
-          tenant.watch && tenant.gameRouteBase && SHEET_LIVE_SPECS.has(tenant.gameSpecId),
+        (tenant) => tenant.watch && tenant.gameRouteBase && SHEET_LIVE_SPECS.has(tenant.gameSpecId),
       )
       .map((tenant) => ({
         label: tenant.pageTitle,

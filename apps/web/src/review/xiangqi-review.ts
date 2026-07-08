@@ -27,7 +27,6 @@ import { fillCapturedPoolWith } from './captured-pool.js';
 import { createEnginePanel } from './engine/engine-panel.js';
 import { createEvalBar } from './engine/eval-bar.js';
 import { formatEval } from './engine/eval-format.js';
-import { createFlankCaptures } from './flank-captures.js';
 import { type GameAnalysis, judgmentGlyph } from './game-analysis.js';
 import { createMoveAdvice } from './move-advice.js';
 import { createMoveList, type MoveAnnotation, type MoveListEntry } from './move-list.js';
@@ -75,11 +74,13 @@ export function mountXiangqiReview(root: HTMLElement, config: XiangqiReviewConfi
   const board = document.createElement('div');
   board.className = 'dxq-postgame__board xiangqi-live-board';
   board.setAttribute('aria-label', config.boardAriaLabel ?? 'Elephant Chess board');
-  // Captured material in columns beside the board (opponent top-left, near side
-  // bottom-right) — the flank layout adds no vertical chrome.
-  const flank = createFlankCaptures(board);
-  boardWrap.append(flank.host);
-  sizeCapturesToBoard(board, 9, flank);
+  boardWrap.append(board);
+
+  // Captured material lives in the right rail (lichess round anatomy: the top
+  // row is the near side's losses, the bottom row the opponent's), keeping the
+  // board column board-only.
+  const materialTop = document.createElement('div');
+  const materialBottom = document.createElement('div');
 
   // Eval gauge: a first-class shell column beside the board (lichess's gauge
   // area) rather than an absolutely positioned overlay.
@@ -180,6 +181,8 @@ export function mountXiangqiReview(root: HTMLElement, config: XiangqiReviewConfi
     moves: moveList.el,
     enginePanel: enginePanel.el,
     moveComment: moveAdvice.el,
+    materialTop,
+    materialBottom,
     underboard: analysisSource ? underboardEl : undefined,
     analysisSummary: analysisSummaryEl,
     gauge: evalBar.el,
@@ -196,12 +199,12 @@ export function mountXiangqiReview(root: HTMLElement, config: XiangqiReviewConfi
       evalBar.setFlipped(flipped);
       chart?.setPly(ply);
       moveAdvice.update(ply, gameAnalysis);
-      // Captured pools: left (top) = near side's losses, right (bottom) = opponent's.
+      // Captured pools in the rail: top = near side's losses, bottom = opponent's.
       const captured = xiangqiCaptured(view);
-      flank.leftColumn.replaceChildren();
-      flank.rightColumn.replaceChildren();
-      fillCapturedPoolWith(flank.leftColumn, captured, orientation, renderCapturedXiangqiGlyph);
-      fillCapturedPoolWith(flank.rightColumn, captured, opponent, renderCapturedXiangqiGlyph);
+      materialTop.replaceChildren();
+      materialBottom.replaceChildren();
+      fillCapturedPoolWith(materialTop, captured, orientation, renderCapturedXiangqiGlyph);
+      fillCapturedPoolWith(materialBottom, captured, opponent, renderCapturedXiangqiGlyph);
       // Re-evaluate on ply change only (not on flip, which keeps the position).
       if (ply !== lastEnginePly) {
         lastEnginePly = ply;
@@ -241,35 +244,6 @@ function renderCapturedXiangqiGlyph(piece: {
   role: (typeof XIANGQI_INITIAL_PIECES)[number]['role'];
 }): string {
   return renderXiangqiPiece(piece, { ariaLabel: `${piece.color} ${piece.role}` });
-}
-
-// Size capture tiles to ≈ one board cell and cap the flank row to the board
-// width plus the column budget, keyed off the board's measured width. The cap
-// stops the board's flex-grow from leaving slack that would push the capture
-// columns away from the board. Re-runs on the layout's fit cadence + resize.
-function sizeCapturesToBoard(
-  boardEl: HTMLElement,
-  cols: number,
-  flank: { host: HTMLElement; leftColumn: HTMLElement; rightColumn: HTMLElement },
-): void {
-  const apply = () => {
-    const width = boardEl.getBoundingClientRect().width;
-    if (width <= 0) return;
-    const tile = Math.round(width / cols);
-    const size = `${tile}px`;
-    flank.leftColumn.style.setProperty('--capture-piece-size', size);
-    flank.rightColumn.style.setProperty('--capture-piece-size', size);
-    // Two columns (tile + horizontal padding) + the two flank gaps.
-    const columnBudget = 2 * (tile + 16) + 2 * 8;
-    flank.host.style.maxWidth = `${Math.round(width) + columnBudget}px`;
-    flank.host.style.marginInline = 'auto';
-  };
-  apply();
-  requestAnimationFrame(apply);
-  setTimeout(apply, 80);
-  setTimeout(apply, 300);
-  if (typeof ResizeObserver !== 'undefined') new ResizeObserver(apply).observe(boardEl);
-  window.addEventListener('resize', apply);
 }
 
 function moveEntries(moves: XiangqiMove[]): MoveListEntry[] {

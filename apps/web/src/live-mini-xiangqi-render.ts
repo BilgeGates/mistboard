@@ -426,7 +426,6 @@ export function installMiniXiangqiBoardStyles(): void {
     .live-route--mini-xiangqi {
       --uni-board-aspect: 1;
       --uni-board-max: 560px;
-      --uni-board-chrome-h: 88px;
     }
     .live-route--mini-xiangqi .board-status {
       width: 100%;

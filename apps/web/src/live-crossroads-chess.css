@@ -1,7 +1,6 @@
 .live-route--crossroads-chess {
   --uni-board-aspect: calc(6 / 8);
   --uni-board-max: 560px;
-  --uni-board-chrome-h: 88px;
 }
 
 .crossroads-live-board {

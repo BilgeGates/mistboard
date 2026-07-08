@@ -5,8 +5,6 @@
 
 .live-route--kriegspiel {
   --uni-board-aspect: 1;
-  /* Capture strips above/below the board eat into the height budget. */
-  --uni-board-chrome-h: 112px;
 }
 
 .kriegspiel-live-board {
