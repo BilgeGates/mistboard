@@ -20,6 +20,7 @@ import {
   MINI_XIANGQI_SPEC_ID,
   REVEAL_CHESS_SPEC_ID,
   TIME_CONTROLS,
+  type TimeClass,
   type TimeControlId,
   XIANGQI_SPEC_ID,
 } from '@mistboard/game';
@@ -82,6 +83,7 @@ type LandingTimePreset = {
   label: string;
   initialMs: number;
   incrementMs: number;
+  timeClass: TimeClass;
 };
 type LandingGameGroupId = 'chess' | 'xiangqi' | 'shogi' | 'jungle';
 type LandingColorPreference = 'white' | 'red' | 'black' | 'random';
@@ -149,7 +151,16 @@ const LANDING_TIME_PRESETS: LandingTimePreset[] = TIME_CONTROLS.map((tc) => ({
   label: tc.label,
   initialMs: tc.initialMs,
   incrementMs: tc.incrementMs,
+  timeClass: tc.timeClass,
 }));
+
+// Lichess pairs every quick-pairing pool with its speed category (Bullet / Blitz /
+// Rapid) under the clock. English-for-now, matching the rest of the lobby board.
+const TIME_CLASS_LABEL: Record<TimeClass, string> = {
+  bullet: 'Bullet',
+  blitz: 'Blitz',
+  rapid: 'Rapid',
+};
 const LANDING_GAME_GROUPS: {
   glyph: string;
   id: LandingGameGroupId;
@@ -611,7 +622,13 @@ export function buildLobbyPanel(
     const tile = document.createElement('button');
     tile.type = 'button';
     tile.className = 'landing-lobby-pool';
-    tile.textContent = preset.label;
+    const clock = document.createElement('span');
+    clock.className = 'landing-lobby-pool-clock';
+    clock.textContent = preset.label;
+    const speed = document.createElement('span');
+    speed.className = 'landing-lobby-pool-speed';
+    speed.textContent = TIME_CLASS_LABEL[preset.timeClass];
+    tile.append(clock, speed);
     tile.addEventListener('click', () => {
       openLandingSetupDialog({
         locale,
@@ -631,20 +648,23 @@ export function buildLobbyPanel(
   corrPanelEl.hidden = true;
   const corrRows = document.createElement('div');
   corrRows.className = 'landing-lobby-tbody';
-  const corrPlaceholder = document.createElement('p');
-  corrPlaceholder.className = 'landing-lobby-empty';
-  corrPlaceholder.textContent = correspondenceEnabled()
-    ? ' '
-    : 'Correspondence play is coming soon.';
-  corrRows.append(corrPlaceholder);
+  // When correspondence is live, seed the empty state with a centered "Create a
+  // game" CTA (lichess-style) from first paint, so a loading/empty list is a call
+  // to action rather than a blank panel. It survives the fetch when no seeks come
+  // back; only a non-empty list replaces it with rows.
+  if (correspondenceEnabled()) {
+    corrRows.append(correspondenceEmptyState(locale));
+  } else {
+    const soon = document.createElement('p');
+    soon.className = 'landing-lobby-empty';
+    soon.textContent = 'Correspondence play is coming soon.';
+    corrRows.append(soon);
+  }
   corrPanelEl.append(corrRows);
   const renderCorrespondence = (seeks: LobbyCorrespondenceSeek[]): void => {
     corrRows.replaceChildren();
     if (seeks.length === 0) {
-      const empty = document.createElement('p');
-      empty.className = 'landing-lobby-empty';
-      empty.textContent = 'No open correspondence challenges right now.';
-      corrRows.append(empty);
+      corrRows.append(correspondenceEmptyState(locale));
       return;
     }
     for (const seek of seeks) corrRows.append(corrSeekRow(seek, locale));
@@ -687,6 +707,54 @@ export function buildLobbyPanel(
   return board;
 }
 
+// Monochrome speed glyphs for the hooks table, tinted muted grey via CSS (they
+// distinguish bullet/blitz/rapid at a glance without pulling color into the
+// restrained palette). Official lobby pools only ever produce the first three;
+// `classical` covers the classifier's unofficial-TC fallback and reuses the
+// stopwatch so no time class ever renders iconless.
+const SPEED_ICON_SVG: Record<'bullet' | 'blitz' | 'rapid' | 'classical', string> = {
+  bullet: '<svg viewBox="0 0 16 16" fill="currentColor"><circle cx="8" cy="8" r="3.4"/></svg>',
+  blitz:
+    '<svg viewBox="0 0 16 16" fill="currentColor"><path d="M9.2 1.4 3.7 8.8h3.4l-1 5.8 5.5-7.7H8.2z"/></svg>',
+  rapid:
+    '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="9.2" r="4.8"/><path d="M8 9.2V6.4"/><path d="M6.6 2h2.8"/><path d="M8 2v2.3"/></svg>',
+  classical:
+    '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="9.2" r="4.8"/><path d="M8 9.2V6.4"/><path d="M6.6 2h2.8"/><path d="M8 2v2.3"/></svg>',
+};
+
+function buildSpeedIcon(timeClass: 'bullet' | 'blitz' | 'rapid' | 'classical'): HTMLElement {
+  const icon = document.createElement('span');
+  icon.className = `landing-speed-icon landing-speed-${timeClass}`;
+  icon.setAttribute('aria-hidden', 'true');
+  icon.innerHTML = SPEED_ICON_SVG[timeClass];
+  return icon;
+}
+
+// Centered empty state for the correspondence tab: the "no open games" line plus
+// a primary CTA that opens the Find-opponent setup dialog (posting an open seek
+// there is what populates this very tab).
+function correspondenceEmptyState(locale: Locale): HTMLElement {
+  const wrap = document.createElement('div');
+  wrap.className = 'landing-lobby-empty-cta';
+  const message = document.createElement('p');
+  message.className = 'landing-lobby-empty';
+  message.textContent = 'No open correspondence challenges right now.';
+  const create = document.createElement('button');
+  create.type = 'button';
+  create.className = 'landing-lobby-create';
+  create.textContent = 'Create a game';
+  create.addEventListener('click', () => {
+    openLandingSetupDialog({
+      locale,
+      mode: 'lobby',
+      title: t('play.findOpponent', {}, locale),
+      ratedDisabled: !isRatedModeEnabled() || !isLikelySignedIn(),
+    });
+  });
+  wrap.append(message, create);
+  return wrap;
+}
+
 function lobbyTableRow(request: OpenLobbyRequest, locale: Locale): HTMLElement {
   const row = document.createElement('div');
   row.className = 'landing-lobby-trow';
@@ -701,8 +769,15 @@ function lobbyTableRow(request: OpenLobbyRequest, locale: Locale): HTMLElement {
   game.className = 'landing-lobby-td landing-lobby-td-game';
   game.textContent = gameLabel;
   const time = document.createElement('span');
-  time.className = 'landing-lobby-td';
-  time.textContent = formatTimeControl(request.timeControl);
+  time.className = 'landing-lobby-td landing-lobby-td-time';
+  const timeClass = classifyTimeControl(
+    request.timeControl.initialMs,
+    request.timeControl.incrementMs,
+  );
+  time.append(
+    buildSpeedIcon(timeClass),
+    document.createTextNode(formatTimeControl(request.timeControl)),
+  );
   const mode = document.createElement('span');
   mode.className = 'landing-lobby-td';
   mode.textContent =

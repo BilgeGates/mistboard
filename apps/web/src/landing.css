@@ -406,6 +406,8 @@
   overflow: hidden;
 }
 
+/* Lichess-style underline tabs: no segmented backgrounds or vertical dividers —
+   just muted labels with an accent underline bar under the active tab. */
 .landing-lobby-tabs {
   display: flex;
   border-bottom: 1px solid var(--site-border-soft);
@@ -413,19 +415,18 @@
 
 .landing-lobby-tab {
   flex: 1;
-  padding: 12px 10px;
+  padding: 14px 10px 12px;
   border: 0;
-  border-right: 1px solid var(--site-border-soft);
-  background: var(--site-stage-bg);
+  /* Overlap the tab strip's bottom border so the active underline sits on it. */
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+  background: none;
   color: var(--site-muted);
   font: inherit;
   font-size: 14px;
   font-weight: 600;
   cursor: pointer;
-}
-
-.landing-lobby-tab:last-child {
-  border-right: 0;
+  transition: color 0.15s ease;
 }
 
 .landing-lobby-tab:hover {
@@ -433,8 +434,8 @@
 }
 
 .landing-lobby-tab.is-active {
-  background: var(--site-panel);
-  color: var(--site-text);
+  color: var(--site-accent-strong);
+  border-bottom-color: var(--site-accent-strong);
 }
 
 .landing-lobby-body {
@@ -476,6 +477,7 @@
 
 .landing-lobby-tbody {
   display: flex;
+  flex: 1;
   flex-direction: column;
   gap: 2px;
   overflow: auto;
@@ -484,6 +486,12 @@
 .landing-lobby-trow {
   padding: 8px 4px;
   border-radius: var(--site-radius-sm, 6px);
+}
+
+/* Zebra striping so a populated hooks table is easy to scan row-to-row; hover
+   (defined after) still wins over the stripe. */
+.landing-lobby-trow:nth-of-type(even) {
+  background: var(--site-zebra);
 }
 
 .landing-lobby-trow:hover {
@@ -495,6 +503,25 @@
   color: var(--site-text);
   font-size: 13px;
   overflow-wrap: anywhere;
+}
+
+.landing-lobby-td-time {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+}
+
+.landing-speed-icon {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  color: var(--site-muted);
+}
+
+.landing-speed-icon svg {
+  width: 15px;
+  height: 15px;
 }
 
 .landing-lobby-td-game {
@@ -531,31 +558,86 @@
   font-size: 13px;
 }
 
+/* Centered "Create a game" state for the correspondence tab. margin:auto 0
+   vertically centers it in the flex-column body. */
+.landing-lobby-empty-cta {
+  margin: auto 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+  padding: 24px 12px;
+  text-align: center;
+}
+
+.landing-lobby-empty-cta .landing-lobby-empty {
+  margin: 0;
+}
+
+.landing-lobby-create {
+  padding: 10px 22px;
+  border: 0;
+  border-radius: var(--site-radius-sm, 6px);
+  background: var(--site-accent);
+  color: var(--site-on-accent);
+  font: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.landing-lobby-create:hover {
+  background: var(--site-accent-strong);
+}
+
 .landing-lobby-quickpair {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 8px;
-  align-content: start;
+  gap: 10px;
+  /* Only three pools, so center the single row in the tall panel instead of
+     pinning it to the top over an empty void (lichess fills the grid with 12). */
+  align-content: center;
 }
 
 .landing-lobby-pool {
   display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
-  min-height: 88px;
-  padding: 18px 12px;
-  border: 1px solid var(--site-border-soft);
+  gap: 4px;
+  min-height: 120px;
+  padding: 20px 12px;
+  border: 1px solid transparent;
   border-radius: var(--site-radius);
-  background: var(--site-panel);
+  background: var(--site-panel-soft);
   color: var(--site-text);
   font: inherit;
-  font-size: 18px;
-  font-weight: 700;
   cursor: pointer;
+  transition:
+    background 0.15s ease,
+    border-color 0.15s ease;
 }
 
 .landing-lobby-pool:hover {
-  border-color: var(--site-accent-strong);
+  background: var(--site-accent-soft);
+  border-color: var(--site-accent);
+}
+
+.landing-lobby-pool-clock {
+  font-size: 27px;
+  font-weight: 600;
+  line-height: 1.1;
+  color: var(--site-heading);
+}
+
+.landing-lobby-pool-speed {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--site-muted);
+}
+
+.landing-lobby-pool:hover .landing-lobby-pool-clock {
   color: var(--site-accent-strong);
 }
 
