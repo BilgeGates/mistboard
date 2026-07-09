@@ -84,8 +84,27 @@ function hashToken(value: string): string {
   return (hash >>> 0).toString(36);
 }
 
+// slugPart keeps only [a-z0-9], so a CJK title collapses to whatever Latin/digit
+// fragment it happens to contain (e.g. "2004年将军杯...甲级联赛" -> "2004").
+// Distinct events in the same year then collide on one slug. Detect that the
+// slug dropped meaningful characters: after NFKD (which folds accents like é->e,
+// so those are NOT lost) and stripping combining marks and ASCII alphanumerics,
+// any remaining Unicode letter/number is content slugPart threw away.
+function slugLosesInformation(value: string): boolean {
+  const residue = value
+    .normalize('NFKD')
+    .replace(/\p{M}/gu, '')
+    .replace(/[a-z0-9]/gi, '');
+  return /[\p{L}\p{N}]/u.test(residue);
+}
+
 function stableTourSlug(value: string): string {
-  return slugPart(value) || `tour-${hashToken(value)}`;
+  const base = slugPart(value);
+  if (!base) return `tour-${hashToken(value)}`;
+  // Append a deterministic title hash when slugification was lossy, so two
+  // different CJK event names sharing an ASCII fragment stay distinct tours.
+  if (slugLosesInformation(value)) return `${base}-${hashToken(value)}`;
+  return base;
 }
 
 function extractArticleTitle(html: string): string | undefined {

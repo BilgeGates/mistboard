@@ -27,13 +27,14 @@ function liveBoardPage(input: {
   black: string;
   plies: number;
   result?: string;
+  event?: string;
 }): string {
   const movelist = FULL_MOVELIST.slice(0, input.plies * 4);
   return [
     '<html><head><title>象棋直播室</title></head><body>',
     '[DhtmlXQ_ver]www_dpxq_com[/DhtmlXQ_ver]<br>',
     '[DhtmlXQ_binit][/DhtmlXQ_binit]<br>',
-    `[DhtmlXQ_event]测试联赛[/DhtmlXQ_event]<br>`,
+    `[DhtmlXQ_event]${input.event ?? '测试联赛'}[/DhtmlXQ_event]<br>`,
     '[DhtmlXQ_round]第01轮[/DhtmlXQ_round]<br>',
     `[DhtmlXQ_result]${input.result ?? ''}[/DhtmlXQ_result]<br>`,
     `[DhtmlXQ_red]${input.red}[/DhtmlXQ_red]<br>`,
@@ -41,6 +42,13 @@ function liveBoardPage(input: {
     `[DhtmlXQ_movelist]${movelist}[/DhtmlXQ_movelist]<br>`,
     '</body></html>',
   ].join('');
+}
+
+function tourSlugFor(event: string): string {
+  const page = liveBoardPage({ red: '王天一', black: '郑惟桐', plies: 8, event });
+  const normalized = normalizeDpxqPageToFrameHtml(page);
+  const converted = convertWxfDhtmlXqPageToSnapshot(normalized.ok ? normalized.html : '');
+  return converted.ok ? converted.snapshot.tour.slug : '';
 }
 
 test('looksLikeDpxqPage flags raw dpxq pages, not framed WXF or JSON', () => {
@@ -119,4 +127,22 @@ test('dpxq live board across a growing poll sequence: plies grow, result flips t
   const finalBoard = boards.at(-1)!;
   assert.equal(finalBoard.status, 'complete');
   assert.equal(finalBoard.result, '1/2-1/2');
+});
+
+test('same-year Chinese event names do not collide on one tour slug', () => {
+  // Both slugify to the bare ASCII fragment "2004"; without a title hash they
+  // would merge two unrelated events (the board-update key is (tour_slug,
+  // source_board_id)).
+  const a = tourSlugFor('2004年将军杯全国象棋甲级联赛');
+  const b = tourSlugFor('2004年全国象棋个人赛');
+  assert.ok(a.startsWith('2004-'), `keeps the readable fragment: ${a}`);
+  assert.ok(b.startsWith('2004-'), `keeps the readable fragment: ${b}`);
+  assert.notEqual(a, b, 'distinct events get distinct slugs');
+  // Deterministic: the same title always resolves to the same slug across polls.
+  assert.equal(tourSlugFor('2004年将军杯全国象棋甲级联赛'), a);
+});
+
+test('readable Latin event names keep a clean slug with no hash suffix', () => {
+  // Nothing meaningful is dropped, so no disambiguating hash is appended.
+  assert.equal(tourSlugFor('2019 World Xiangqi Championship'), '2019-world-xiangqi-championship');
 });
