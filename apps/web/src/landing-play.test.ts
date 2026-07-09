@@ -147,7 +147,7 @@ describe('landing play panel', () => {
     expect(shell.querySelector('button')?.textContent).toBe('加入');
   });
 
-  it('shows mini-board markers for the baseline picker variants', () => {
+  it('shows finalized one-color markers for the baseline picker variants', () => {
     vi.stubEnv('DEV', false);
     vi.stubEnv('VITE_DARK_MINI_XIANGQI_ENABLED', 'false');
     vi.stubEnv('VITE_DARK_XIANGQI_ENABLED', 'false');
@@ -171,19 +171,19 @@ describe('landing play panel', () => {
     expect(variantPickerSpecs()).toEqual(BASELINE_PICKER_SPECS);
     expect(
       document.querySelector(
-        '.landing-variant-card[data-game-spec="dark-chess"] svg[data-mini-id="dark-chess"]',
+        '.landing-variant-card[data-game-spec="dark-chess"] span[data-variant-marker-id="dark-chess"]',
       ),
     ).not.toBeNull();
     // Mini Xiangqi is hidden from the baseline picker post-pivot; assert a
     // still-listed xiangqi variant renders its marker instead.
     expect(
       document.querySelector(
-        '.landing-variant-card[data-game-spec="dark-xiangqi"] svg[data-mini-id="dark-xiangqi"]',
+        '.landing-variant-card[data-game-spec="dark-xiangqi"] span[data-variant-marker-id="dark-xiangqi"]',
       ),
     ).not.toBeNull();
     expect(
       document.querySelector(
-        '.landing-variant-card[data-game-spec="dark-shogi"] svg[data-mini-id="dark-shogi"]',
+        '.landing-variant-card[data-game-spec="dark-shogi"] span[data-variant-marker-id="dark-shogi"]',
       ),
     ).not.toBeNull();
   });

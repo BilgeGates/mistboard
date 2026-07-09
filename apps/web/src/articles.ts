@@ -75,7 +75,8 @@ import {
   shogiAppearanceChangedEvent,
   xiangqiAppearanceChangedEvent,
 } from './theme.js';
-import { renderVariantMiniBoard, type VariantMiniId } from './variant-mini-boards.js';
+import { renderVariantMarker } from './variant-markers.js';
+import type { VariantMiniId } from './variant-mini-boards.js';
 import {
   isGameSpecId,
   rulesHrefPublicSurfaceEnabled,
@@ -530,7 +531,7 @@ function landingArticleCard(article: Article, locale: Locale): HTMLElement {
 
   const thumb = document.createElement('div');
   thumb.className = 'landing-article-card-thumb';
-  // Variant articles use their mini-board marker (the shared icon language);
+  // Variant articles use their shared marker;
   // non-variant articles (e.g. concept pieces) keep their own diagram.
   const mini = renderVariantMiniThumb(article.slug);
   if (mini) {
@@ -2099,9 +2100,8 @@ export function renderArticleThumbnail(thumb: ArticleThumbnail): HTMLElement {
   return wrap;
 }
 
-// Variant rules articles whose rail/landing thumbnail is the shared mini-board
-// (the renderVariantMiniBoard family). Base-game articles map to their no-fog
-// markers (same board crop as the dark variant, fog removed) so the whole rail
+// Variant rules articles whose rail/landing thumbnail is the shared variant
+// marker. Base-game articles map to their no-fog markers so the whole rail
 // reads in one visual language.
 const VARIANT_MINI_BY_SLUG: Record<string, VariantMiniId> = {
   chess: 'chess',
@@ -2126,7 +2126,7 @@ const VARIANT_MINI_BY_SLUG: Record<string, VariantMiniId> = {
   'jungle-flip': 'jungle-flip',
 };
 
-// A rail/landing thumbnail rendered as the variant's mini-board, or null if the
+// A rail/landing thumbnail rendered as the variant's marker, or null if the
 // slug has no mini (caller falls back to the article's own thumbnail).
 function renderVariantMiniThumb(slug: string): HTMLElement | null {
   const miniId = VARIANT_MINI_BY_SLUG[slug];
@@ -2135,13 +2135,12 @@ function renderVariantMiniThumb(slug: string): HTMLElement | null {
   wrap.className = 'articles-index-card-thumb variant-mini-thumb';
   wrap.setAttribute('aria-hidden', 'true');
   markNoTranslate(wrap);
-  wrap.innerHTML = renderVariantMiniBoard(miniId, { size: 100 });
-  const svg = wrap.firstElementChild;
-  if (svg instanceof SVGSVGElement) {
-    svg.setAttribute('width', '100%');
-    svg.setAttribute('height', '100%');
-    svg.setAttribute('preserveAspectRatio', 'xMidYMid meet');
-    svg.style.display = 'block';
+  wrap.innerHTML = renderVariantMarker(miniId, { size: 100 });
+  const marker = wrap.firstElementChild;
+  if (marker instanceof HTMLElement) {
+    marker.style.width = '100%';
+    marker.style.height = '100%';
+    marker.style.display = 'block';
   }
   return wrap;
 }

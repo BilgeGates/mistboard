@@ -5,6 +5,7 @@ import {
   type VariantMiniDef,
   type VariantMiniId,
 } from './variant-mini-boards.js';
+import { FINAL_VARIANT_MARKERS, renderVariantMarker } from './variant-markers.js';
 
 const MINI_SIZES = [160, 128, 112, 96, 80] as const;
 const GENERATED_MARKER_SIZES = [128, 96, 80, 64, 48, 32] as const;
@@ -23,44 +24,35 @@ const FOCUSED_MARKER_IDS: readonly VariantMiniId[] = [
 const FOCUSED_VARIANT_MINIS: readonly VariantMiniDef[] = FOCUSED_MARKER_IDS.map((id) =>
   variantMiniForLab(id),
 );
-const FINALIZED_GENERATED_MARKERS = {
+const FINALIZED_GENERATED_MARKER_SOURCES = {
   xiangqi: {
-    path: '/variant-markers/final/elephant-chess.png',
     source: 'single regen from ig_052feae, row 1 col 1, enlarged',
   },
   'fortress-xiangqi': {
-    path: '/variant-markers/final/fortress.png',
     source: 'single regen from ig_0009, row 2 col 2, enlarged',
   },
   jieqi: {
-    path: '/variant-markers/final/flip-elephant-chess.png',
     source: 'v2 single regen, tighter overlapping discs',
   },
   'jungle-flip': {
-    path: '/variant-markers/final/flip-jungle.png',
     source: 'single regen from ig_024f, row 4 col 3, enlarged',
   },
   banqi: {
-    path: '/variant-markers/final/half-flip-chess.png',
     source: 'single regen from ig_00a381, row 1 col 3, enlarged',
   },
   jungle: {
-    path: '/variant-markers/final/jungle-chess.png',
     source: 'single regen from ig_024f, row 4 col 2, enlarged',
   },
   'dark-xiangqi': {
-    path: '/variant-markers/final/fog-elephant-chess.png',
     source: 'single regen from ig_052feae, row 2 col 2, enlarged',
   },
   'dark-chess': {
-    path: '/variant-markers/final/fog-chess.png',
     source: 'v2 single regen, compact king with higher fog',
   },
   'dark-shogi': {
-    path: '/variant-markers/final/fog-shogi.png',
     source: 'single regen from ig_0d9007, row 4 col 3, enlarged',
   },
-} as const satisfies Partial<Record<VariantMiniId, { path: string; source: string }>>;
+} as const satisfies Partial<Record<VariantMiniId, { source: string }>>;
 const COLOR_STATE_ROWS = [
   { className: 'is-default', label: 'Default' },
   { className: 'is-hover', label: 'Hover' },
@@ -370,22 +362,17 @@ function variantMiniForLab(id: VariantMiniId): VariantMiniDef {
 }
 
 function generatedMarkerForLab(id: VariantMiniId): { path: string; source: string } {
-  const marker = (FINALIZED_GENERATED_MARKERS as Partial<
-    Record<VariantMiniId, { path: string; source: string }>
-  >)[
+  const marker = (FINAL_VARIANT_MARKERS as Partial<Record<VariantMiniId, { path: string }>>)[id];
+  const source = (FINALIZED_GENERATED_MARKER_SOURCES as Partial<Record<VariantMiniId, { source: string }>>)[
     id
   ];
   if (!marker) throw new Error(`No finalized generated marker for lab id: ${id}`);
-  return marker;
+  if (!source) throw new Error(`No finalized generated marker source for lab id: ${id}`);
+  return { ...marker, source: source.source };
 }
 
 function renderGeneratedMarker(id: VariantMiniId, label: string): string {
-  const marker = generatedMarkerForLab(id);
-  return `<span class="variant-generated-mark" role="img" aria-label="${escapeAttr(label)}" data-generated-marker-id="${id}" style="--variant-generated-marker: url('${escapeAttr(marker.path)}')"></span>`;
-}
-
-function escapeAttr(value: string): string {
-  return value.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;');
+  return renderVariantMarker(id, { className: 'variant-generated-mark', label });
 }
 
 function installVariantMarksLabStyles(): void {
@@ -493,9 +480,6 @@ function installVariantMarksLabStyles(): void {
       width: 64px;
       height: 64px;
       color: var(--variant-marker-color);
-      background: currentColor;
-      -webkit-mask: var(--variant-generated-marker) center / contain no-repeat;
-      mask: var(--variant-generated-marker) center / contain no-repeat;
     }
 
     .variant-generated-scale {

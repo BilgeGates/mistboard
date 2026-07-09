@@ -201,7 +201,8 @@
 
 .articles-index-card-media .articles-index-card-thumb img,
 .articles-index-card-media .articles-index-card-thumb svg,
-.articles-index-card-media .variant-mini-thumb svg {
+.articles-index-card-media .variant-mini-thumb svg,
+.articles-index-card-media .variant-mini-thumb .variant-marker {
   width: 100%;
   height: 100%;
 }

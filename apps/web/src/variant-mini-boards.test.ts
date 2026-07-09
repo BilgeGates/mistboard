@@ -107,8 +107,8 @@ describe('variant mini-board markers', () => {
     expect(root.querySelectorAll('.variant-generated-card')).toHaveLength(9);
     expect(root.querySelectorAll('.variant-generated-scale-row')).toHaveLength(9);
     expect(root.querySelectorAll('.variant-generated-scale-cell')).toHaveLength(54);
-    expect(root.querySelector('span[data-generated-marker-id="xiangqi"]')).not.toBeNull();
-    expect(root.querySelector('span[data-generated-marker-id="jungle-flip"]')).not.toBeNull();
+    expect(root.querySelector('span[data-variant-marker-id="xiangqi"]')).not.toBeNull();
+    expect(root.querySelector('span[data-variant-marker-id="jungle-flip"]')).not.toBeNull();
     expect(root.querySelectorAll('.variant-color-palette')).toHaveLength(2);
     expect(root.querySelectorAll('.variant-color-state-row')).toHaveLength(6);
     expect(root.querySelectorAll('.variant-color-state-card')).toHaveLength(54);
@@ -119,7 +119,7 @@ describe('variant mini-board markers', () => {
     expect(root.querySelector('svg[data-mini-id="mini-xiangqi"]')).toBeNull();
     expect(root.querySelector('svg[data-mini-id="dark-mini-xiangqi"]')).toBeNull();
     expect(root.querySelector('svg[data-mini-id="drop-mini-xiangqi"]')).toBeNull();
-    expect(root.querySelector('span[data-generated-marker-id="mini-xiangqi"]')).toBeNull();
+    expect(root.querySelector('span[data-variant-marker-id="mini-xiangqi"]')).toBeNull();
     expect(root.querySelector('svg[data-mini-id="reveal-chess"]')).toBeNull();
   });
 });

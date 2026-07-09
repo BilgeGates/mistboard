@@ -156,7 +156,7 @@ describe('renderWatchChannelList', () => {
 
   // Regression: every launchable channel needs a CHANNEL_MINI_BY_ID entry, or
   // its rail marker renders as an empty slot. dark-xiangqi shipped without one.
-  it('renders a board marker for every launched watch channel', () => {
+  it('renders a variant marker for every launched watch channel', () => {
     const feed = {
       activeChannel: 'dark-chess',
       channels: [
@@ -185,7 +185,7 @@ describe('renderWatchChannelList', () => {
     expect(links).toHaveLength(12);
     for (const link of links) {
       const thumb = link.querySelector('.watch-channel-thumb');
-      expect(thumb?.querySelector('svg'), `${link.textContent} marker`).not.toBeNull();
+      expect(thumb?.querySelector('svg, .variant-marker'), `${link.textContent} marker`).not.toBeNull();
     }
   });
 });

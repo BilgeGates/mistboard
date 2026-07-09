@@ -215,7 +215,9 @@ describe('article public listing gates', () => {
   it('keeps Banqi rules surfaces on the variant marker while the MistyBanqi thumbnail renders a full-board card', () => {
     const rules = buildRulesIndex();
     expect(
-      rules.querySelector('.rules-landing-tile[href="/rules/banqi"] svg[data-mini-id="banqi"]'),
+      rules.querySelector(
+        '.rules-landing-tile[href="/rules/banqi"] span[data-variant-marker-id="banqi"]',
+      ),
     ).not.toBeNull();
     expect(BANQI_RULES_THUMBNAIL()).not.toContain('data-banqi-thumbnail-crop');
 
@@ -235,7 +237,7 @@ describe('article public listing gates', () => {
     // index (it no longer rides the homepage editorial row)...
     const rulesIndex = buildRulesIndex();
     expect(
-      rulesIndex.querySelector('a[href="/rules/banqi"] svg[data-mini-id="banqi"]'),
+      rulesIndex.querySelector('a[href="/rules/banqi"] span[data-variant-marker-id="banqi"]'),
     ).not.toBeNull();
 
     // ...while the MistyBanqi editorial card keeps the full-board thumbnail in
@@ -610,14 +612,14 @@ describe('rules variant sidebar', () => {
     expect(tile?.querySelector('.rules-landing-tile-label')?.textContent).toBe('Fog Chess');
   });
 
-  it('uses shared Shogi mini markers on listed rule article surfaces', () => {
+  it('uses shared Shogi markers on listed rule article surfaces', () => {
     const landing = buildRulesIndex();
     expect(
       landing.querySelector('.rules-landing-tile[href="/rules/shogi"] svg[data-mini-id="shogi"]'),
     ).not.toBeNull();
     expect(
       landing.querySelector(
-        '.rules-landing-tile[href="/rules/dark-shogi"] svg[data-mini-id="dark-shogi"]',
+        '.rules-landing-tile[href="/rules/dark-shogi"] span[data-variant-marker-id="dark-shogi"]',
       ),
     ).not.toBeNull();
 
@@ -631,7 +633,7 @@ describe('rules variant sidebar', () => {
     const darkShogi = buildArticlePage('dark-shogi');
     expect(
       darkShogi.querySelector(
-        '.article-variant-sidebar a[aria-current="page"] svg[data-mini-id="dark-shogi"]',
+        '.article-variant-sidebar a[aria-current="page"] span[data-variant-marker-id="dark-shogi"]',
       ),
     ).not.toBeNull();
   });

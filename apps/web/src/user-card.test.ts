@@ -43,7 +43,7 @@ describe('buildUserCard', () => {
     const card = buildUserCard(profile());
     const value = card.querySelector('.user-card-rating-value');
     expect(value?.textContent).toBe('2903');
-    expect(card.querySelector('.user-card-rating-icon svg')).not.toBeNull();
+    expect(card.querySelector('.user-card-rating-icon .variant-marker')).not.toBeNull();
   });
 
   it('marks a provisional rating with a "?"', () => {

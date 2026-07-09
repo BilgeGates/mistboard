@@ -36,7 +36,7 @@ import { type I18nKey, t } from './i18n/catalog.js';
 import { currentLocale, type Locale } from './i18n/locale.js';
 import { isRatedModeEnabled } from './rated-flag.js';
 import { isLikelySignedIn } from './signed-in-state.js';
-import { renderVariantMiniBoard } from './variant-mini-boards.js';
+import { renderVariantMarker } from './variant-markers.js';
 import { webVariantTenantForSpecId, webVariantTenants } from './variant-tenant/registry.js';
 import { isVariantEnabled, variantMiniIdForGameSpec } from './variants.js';
 import { ENGINE_OFFER_AFTER_MS, shouldOfferEngine } from './web-utils.js';
@@ -1169,7 +1169,7 @@ function openLandingSetupDialog(choice: LandingPlayChoice): void {
   // disabled cards instead of hiding them entirely.
   const variantSelectable = variantOptions.length > 1;
   if (variantSelectable) {
-    // A visual radiogroup of variant cards (mini-board + name) replaces the old
+    // A visual radiogroup of variant cards (marker + name) replaces the old
     // native <select>, so the picker doubles as a showcase of what's playable.
     const grid = document.createElement('div');
     grid.className = 'landing-variant-grid';
@@ -1196,7 +1196,7 @@ function openLandingSetupDialog(choice: LandingPlayChoice): void {
       if (miniId) {
         const thumb = document.createElement('span');
         thumb.className = 'landing-variant-card-thumb';
-        thumb.innerHTML = renderVariantMiniBoard(miniId, { size: 100, label: `${label} board` });
+        thumb.innerHTML = renderVariantMarker(miniId, { size: 100, label: `${label} marker` });
         card.append(thumb);
       }
       const name = document.createElement('span');
@@ -1239,7 +1239,7 @@ function openLandingSetupDialog(choice: LandingPlayChoice): void {
     if (miniId) {
       const thumb = document.createElement('span');
       thumb.className = 'landing-variant-control-thumb';
-      thumb.innerHTML = renderVariantMiniBoard(miniId, { size: 100, label: `${label} board` });
+      thumb.innerHTML = renderVariantMarker(miniId, { size: 100, label: `${label} marker` });
       variantControl.append(thumb);
     }
     const name = document.createElement('span');

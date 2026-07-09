@@ -64,7 +64,8 @@ import {
 import { initLiveSound, playSound } from './live-sound.js';
 import { buildNav } from './site-shell.js';
 import { setBoardFamily, xiangqiAppearanceChangedEvent } from './theme.js';
-import { renderVariantMiniBoard, type VariantMiniId } from './variant-mini-boards.js';
+import type { VariantMiniId } from './variant-mini-boards.js';
+import { renderVariantMarker } from './variant-markers.js';
 import { installBoardDrag } from './variant-tenant/board-drag.js';
 import { installHandDrag } from './variant-tenant/hand-drag.js';
 
@@ -623,10 +624,10 @@ function puzzleInfoRow(
     icon === 'target'
       ? targetAvatarSvg()
       : variant
-        ? renderVariantMiniBoard(variantMiniIdForPuzzle(variant), {
+        ? renderVariantMarker(variantMiniIdForPuzzle(variant), {
             size: 54,
             label: `${variantLabel(variant)} marker`,
-            className: 'puzzle-variant-mini',
+            className: 'puzzle-variant-marker',
           })
         : '';
   const copy = document.createElement('div');

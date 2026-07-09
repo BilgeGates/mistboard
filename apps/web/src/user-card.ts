@@ -17,7 +17,7 @@ import { openChallengeDialog } from './challenge-dialog.js';
 import { correspondenceEnabled } from './feature-flags.js';
 import { t } from './i18n/catalog.js';
 import { currentLocale, LOCALE_META, type Locale } from './i18n/locale.js';
-import { renderVariantMiniBoard } from './variant-mini-boards.js';
+import { renderVariantMarker } from './variant-markers.js';
 import { ratingVariantLabel, variantMiniIdForRating } from './variants.js';
 
 type ProfileBucketRating = {
@@ -118,7 +118,7 @@ function buildHeader(
 }
 
 // Compact rating grid: rated variants only (a "?"-provisional or settled Elo),
-// highest first, each a mini-board icon beside its value. Returns null when the
+// highest first, each a variant marker beside its value. Returns null when the
 // player has no rated variant so the card collapses cleanly instead of showing
 // a dead grid.
 function buildRatingGrid(ratings: ProfileBucketRating[]): HTMLElement | null {
@@ -141,7 +141,7 @@ function buildRatingGrid(ratings: ProfileBucketRating[]): HTMLElement | null {
       const icon = document.createElement('span');
       icon.className = 'user-card-rating-icon';
       icon.setAttribute('aria-hidden', 'true');
-      icon.innerHTML = renderVariantMiniBoard(miniId, { size: 20, label });
+      icon.innerHTML = renderVariantMarker(miniId, { size: 20, label });
       tile.append(icon);
     }
 

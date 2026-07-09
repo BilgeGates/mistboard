@@ -1,6 +1,7 @@
 import type { GameEvent } from '@mistboard/game';
 import { banqiResultLabel } from './banqi-result-label.js';
-import { renderVariantMiniBoard, type VariantMiniId } from './variant-mini-boards.js';
+import type { VariantMiniId } from './variant-mini-boards.js';
+import { renderVariantMarker } from './variant-markers.js';
 import { webVariantTenantForSpecId } from './variant-tenant/registry.js';
 import { variantMiniIdForRawVariant } from './variants.js';
 import './watch-route.css';
@@ -455,7 +456,7 @@ function renderWatchStatus(root: HTMLElement, feed: WatchFeed | null): void {
   root.append(sealed, sealedLabel, hint);
 }
 
-// The shared mini-board marker for each watch channel, so the TV rail reads in
+// The shared variant marker for each watch channel, so the TV rail reads in
 // the same icon language as the picker, rules rail, leaderboard, and profile.
 // Channel ids match VariantMiniId ids except crossroads-chess -> crossroads;
 // the dark-chess channel (which also carries dark-draft960 games) shows the
@@ -505,9 +506,9 @@ export function renderWatchChannelList(root: HTMLElement, feed: WatchFeed | null
     if (miniId) {
       thumb.classList.add('notranslate');
       thumb.setAttribute('translate', 'no');
-      thumb.innerHTML = renderVariantMiniBoard(miniId, {
+      thumb.innerHTML = renderVariantMarker(miniId, {
         size: 112,
-        label: `${channel.label} board`,
+        label: `${channel.label} marker`,
       });
     }
     const label = document.createElement('span');
@@ -641,7 +642,7 @@ function renderWatchQueue(
       thumb = document.createElement('span');
       thumb.className = 'watch-queue-thumb';
       thumb.setAttribute('aria-hidden', 'true');
-      thumb.innerHTML = renderVariantMiniBoard(miniId, { size: 30 });
+      thumb.innerHTML = renderVariantMarker(miniId, { size: 30 });
     }
 
     const matchup = document.createElement('span');

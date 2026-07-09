@@ -471,6 +471,12 @@
   height: 100%;
 }
 
+.landing-variant-control-thumb .variant-marker {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
 .landing-variant-control-name {
   min-width: 0;
   overflow-wrap: anywhere;
@@ -743,7 +749,7 @@
   font-weight: 800;
 }
 
-/* Variant picker: compact mini-board cards sized so the six Xiangqi variants
+/* Variant picker: compact marker cards sized so the six Xiangqi variants
    fit cleanly in the modal, with explicit row height for narrower wraps. */
 .landing-variant-grid {
   display: grid;
@@ -786,6 +792,17 @@
   height: 100%;
 }
 
+.landing-variant-card-thumb .variant-marker {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.landing-variant-card:hover .variant-marker,
+.landing-variant-card:focus-visible .variant-marker {
+  --variant-marker-color: #646b73;
+}
+
 .landing-variant-card-name {
   min-height: 26px;
   font-size: 11px;
@@ -799,6 +816,7 @@
   border-color: var(--site-accent);
   background: var(--site-accent-soft);
   box-shadow: inset 0 0 0 1px var(--site-accent);
+  --variant-marker-color: #3f4a54;
 }
 
 .landing-variant-card:hover,

@@ -1,0 +1,17 @@
+/* Final one-color variant markers.
+ *
+ * These mirror the lichess/playstrategy pattern: a monochrome mask that inherits
+ * the surrounding text/control colour, so hover and selected states stay in CSS.
+ */
+
+.variant-marker {
+  display: inline-block;
+  width: var(--variant-marker-size, 64px);
+  height: var(--variant-marker-size, 64px);
+  flex: 0 0 auto;
+  color: var(--variant-marker-color, #8a8f94);
+  background: currentColor;
+  vertical-align: middle;
+  -webkit-mask: var(--variant-marker-mask) center / contain no-repeat;
+  mask: var(--variant-marker-mask) center / contain no-repeat;
+}

@@ -229,7 +229,8 @@
   height: 54px;
 }
 
-.puzzle-info-icon .variant-mini {
+.puzzle-info-icon .variant-mini,
+.puzzle-info-icon .variant-marker {
   display: block;
   width: 54px;
   height: 54px;

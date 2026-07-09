@@ -16,7 +16,8 @@ import {
 } from './profile-ui.js';
 import { buildLoadingState, buildNav, buildNotice } from './site-shell.js';
 import { attachUserCard } from './user-card.js';
-import { renderVariantMiniBoard, type VariantMiniId } from './variant-mini-boards.js';
+import { renderVariantMarker } from './variant-markers.js';
+import type { VariantMiniId } from './variant-mini-boards.js';
 import {
   leaderboardVariants,
   profileRatingVariants,
@@ -576,7 +577,7 @@ function maybeVariantLabel(variant: string, locale: Locale): string | null {
   return profileVariantLabel(variant as ProfileRatingVariant, locale);
 }
 
-// Decorative variant mini-board (the same board-crop art as the picker/articles).
+// Decorative variant marker (the same one-colour art as the picker/articles).
 // aria-hidden because every call site already renders the variant name in text.
 function buildVariantThumb(
   miniId: VariantMiniId,
@@ -587,7 +588,7 @@ function buildVariantThumb(
   const thumb = document.createElement('span');
   thumb.className = className;
   thumb.setAttribute('aria-hidden', 'true');
-  thumb.innerHTML = renderVariantMiniBoard(miniId, { size: px, label });
+  thumb.innerHTML = renderVariantMarker(miniId, { size: px, label });
   return thumb;
 }
 
@@ -868,7 +869,7 @@ function buildProfileStats(profile: UserProfile, locale: Locale = currentLocale(
     item.className = 'profile-stat';
     const valueEl = document.createElement('span');
     valueEl.className = 'profile-stat-value';
-    // The top-variant stat leads its value with the shared board marker.
+    // The top-variant stat leads its value with the shared variant marker.
     if (miniId) valueEl.append(buildVariantThumb(miniId, 20, 'profile-stat-thumb', value));
     valueEl.append(document.createTextNode(value));
     const labelEl = document.createElement('span');
@@ -1222,7 +1223,7 @@ function buildProfileRecordPill(
 }
 
 // Most-played variant (rated or casual) by total completed games, with its
-// board marker for the stat tile.
+// variant marker for the stat tile.
 function topVariantStat(
   ratings: ProfileBucketRating[],
   locale: Locale = currentLocale(),

@@ -189,7 +189,7 @@ describe('web variant launch registry', () => {
     expect(variantMiniIdForGameSpec(DARK_SHOGI_SPEC_ID)).toBe('dark-shogi');
   });
 
-  it('uses mini-board markers for soft-launch play-menu variants', () => {
+  it('keeps mini-board fallback ids for soft-launch play-menu variants', () => {
     expect(variantMiniIdForGameSpec(DARK_CROSSROADS_CHESS_SPEC_ID)).toBe('dark-crossroads');
     expect(variantMiniIdForGameSpec(DARK_CRAZYHOUSE_SPEC_ID)).toBe('dark-crazyhouse');
     expect(variantMiniIdForGameSpec(MINI_XIANGQI_SPEC_ID)).toBe('mini-xiangqi');

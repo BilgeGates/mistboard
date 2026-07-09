@@ -94,6 +94,12 @@
   display: block;
 }
 
+.user-card-rating-icon .variant-marker {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
 .user-card-rating-value {
   font-variant-numeric: tabular-nums;
   font-weight: 600;

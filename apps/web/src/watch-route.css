@@ -118,9 +118,8 @@
   text-decoration: none;
 }
 
-/* The shared variant mini-board marker, sized off --watch-marker so it reads
-   like the leaderboard/profile/rules markers. The SVG carries its own rounded
-   frame, so the slot needs no border of its own. */
+/* The shared variant marker, sized off --watch-marker so it reads like the
+   leaderboard/profile/rules markers. */
 .watch-channel-thumb {
   width: var(--watch-marker);
   height: var(--watch-marker);
@@ -129,6 +128,12 @@
 }
 
 .watch-channel-thumb svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.watch-channel-thumb .variant-marker {
   display: block;
   width: 100%;
   height: 100%;
@@ -149,6 +154,7 @@
   border-color: color-mix(in srgb, var(--site-accent) 45%, transparent);
   background: var(--site-accent-soft);
   color: var(--site-accent-strong);
+  --variant-marker-color: #3f4a54;
 }
 
 .watch-channel-name {
