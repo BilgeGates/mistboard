@@ -35,6 +35,15 @@ type CtxOverrides = Partial<{
   seat: unknown;
   connectionState: string;
   connectedSeats: Partial<Record<Color, boolean>>;
+  seatDisplayNames: Partial<Record<Color, string>>;
+  clock: {
+    activeColor: Color | null;
+    incrementMs: number;
+    initialMs: number;
+    remainingMs: Record<Color, number>;
+    runningSince: number | null;
+  } | null;
+  timeControl: { initialMs: number; incrementMs: number } | null;
   isReplayLive: boolean;
   variantDetail: string | null;
 }>;
@@ -47,9 +56,10 @@ function chromeHarness(
     view: () => overrides.view ?? playingView(),
     seat: () => overrides.seat ?? 'white',
     connectionState: () => overrides.connectionState ?? 'connected',
-    clock: () => null,
-    timeControl: () => null,
+    clock: () => overrides.clock ?? null,
+    timeControl: () => overrides.timeControl ?? null,
     connectedSeats: () => overrides.connectedSeats ?? { white: true, red: true },
+    seatDisplayNames: () => overrides.seatDisplayNames ?? {},
     abortDeadline: () => null,
     forfeitDeadline: () => null,
     roomMode: () => 'pvp',
@@ -154,6 +164,59 @@ describe('tenant room chrome action status', () => {
     chrome.renderActionStatus();
     expect(refs.actionStatus.textContent).toContain('Second to move');
     expect(refs.actionStatus.textContent).not.toContain('Red to move');
+  });
+});
+
+describe('tenant room chrome player names', () => {
+  const armedClock = {
+    activeColor: 'white' as Color,
+    incrementMs: 2000,
+    initialMs: 180_000,
+    remainingMs: { white: 170_000, red: 175_000 },
+    runningSince: null,
+  };
+  const timeControl = { initialMs: 180_000, incrementMs: 2000 };
+
+  it('renders server-resolved names on the armed clock rows', () => {
+    const { chrome, refs } = chromeHarness({
+      clock: armedClock,
+      timeControl,
+      seatDisplayNames: { white: 'brian', red: 'Misty DMX' },
+    });
+    chrome.renderClocks();
+    const names = [refs.clockTop.textContent, refs.clockBottom.textContent];
+    // Viewer is white (bottom); opponent red on top.
+    expect(names[0]).toContain('Misty DMX');
+    expect(names[1]).toContain('brian');
+    expect(`${names[0]}${names[1]}`).not.toContain('You');
+  });
+
+  it('falls back to You / seat label for anonymous seats', () => {
+    const { chrome, refs } = chromeHarness({ clock: armedClock, timeControl });
+    chrome.renderClocks();
+    expect(refs.clockBottom.textContent).toContain('You');
+    expect(refs.clockTop.textContent).toContain('Red');
+  });
+
+  it('renders names on the pregame (unarmed) rows with seat-label fallback', () => {
+    const { chrome, refs } = chromeHarness({
+      clock: null,
+      timeControl,
+      seatDisplayNames: { red: 'gm_visitor' },
+    });
+    chrome.renderClocks();
+    expect(refs.clockTop.textContent).toContain('gm_visitor');
+    expect(refs.clockBottom.textContent).toContain('White');
+  });
+
+  it('uses server names in the meta card player rows', () => {
+    const { chrome, refs } = chromeHarness({
+      seatDisplayNames: { white: 'brian', red: 'Misty DMX' },
+    });
+    chrome.renderMeta();
+    expect(refs.gameInfo.textContent).toContain('brian');
+    expect(refs.gameInfo.textContent).toContain('Misty DMX');
+    expect(refs.gameInfo.textContent).not.toContain('You (');
   });
 });
 

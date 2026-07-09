@@ -672,6 +672,46 @@ test('Dark Mini Xiangqi snapshots never send a seat the opponent last move', () 
   }
 });
 
+test('snapshot seatDisplayNames resolves account, bot, and guest seats', () => {
+  const result = createEnabledDarkMiniXiangqiRuntimeRoom('dmxq_names');
+  assert.equal(result.ok, true);
+  if (!result.ok) return;
+  const room = result.room;
+  room.projection.seats = { red: 'human-client', black: 'python-dmx-v1.0' };
+  room.pveBotId = 'misty-dmx';
+  room.seatTokens.red = {
+    clientId: 'human-client',
+    seat: 'red',
+    tokenHash: 'hash-red',
+    userId: 'user-1',
+    userHandle: 'brian',
+    userDisplayName: 'Brian',
+    issuedAt: new Date(0),
+    lastSeenAt: new Date(0),
+    revokedAt: null,
+  };
+  const payload = darkMiniXiangqiSnapshotPayload(room, { id: 'R', seat: 'red', solo: false });
+  assert.deepEqual(payload.seatDisplayNames, { red: 'Brian', black: 'Misty DMX' });
+
+  // Handle fallback when the account has no display name.
+  room.seatTokens.red.userDisplayName = null;
+  assert.equal(
+    darkMiniXiangqiSnapshotPayload(room, { id: 'R', seat: 'red', solo: false }).seatDisplayNames
+      .red,
+    'brian',
+  );
+
+  // Guests are omitted entirely (clients fall back to the seat label), and the
+  // map is identical for every viewer, spectators included.
+  delete room.seatTokens.red;
+  const spectator = darkMiniXiangqiSnapshotPayload(room, {
+    id: 'S',
+    seat: 'spectator',
+    solo: false,
+  });
+  assert.deepEqual(spectator.seatDisplayNames, { black: 'Misty DMX' });
+});
+
 function createEnabledDarkMiniXiangqiRuntimeRoom(
   ...args: Parameters<typeof createDarkMiniXiangqiRuntimeRoom>
 ): ReturnType<typeof createDarkMiniXiangqiRuntimeRoom> {

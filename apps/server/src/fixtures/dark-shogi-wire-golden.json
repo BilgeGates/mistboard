@@ -58,6 +58,7 @@
                 }
               ],
               "seats": {},
+              "seatDisplayNames": {},
               "state": {
                 "id": "dsg_golden-a",
                 "perspective": "black",
@@ -387,6 +388,7 @@
                 }
               ],
               "seats": {},
+              "seatDisplayNames": {},
               "state": {
                 "id": "dsg_golden-a",
                 "perspective": "white",
@@ -716,6 +718,7 @@
                 }
               ],
               "seats": {},
+              "seatDisplayNames": {},
               "state": {
                 "id": "dsg_golden-a",
                 "perspective": "black",
@@ -800,6 +803,7 @@
               "seats": {
                 "black": "client-black"
               },
+              "seatDisplayNames": {},
               "state": {
                 "id": "dsg_golden-a",
                 "perspective": "black",
@@ -1138,6 +1142,7 @@
               "seats": {
                 "black": "client-black"
               },
+              "seatDisplayNames": {},
               "state": {
                 "id": "dsg_golden-a",
                 "perspective": "white",
@@ -1476,6 +1481,7 @@
               "seats": {
                 "black": "client-black"
               },
+              "seatDisplayNames": {},
               "state": {
                 "id": "dsg_golden-a",
                 "perspective": "black",
@@ -1591,6 +1597,7 @@
                 "black": "client-black",
                 "white": "client-white"
               },
+              "seatDisplayNames": {},
               "state": {
                 "id": "dsg_golden-a",
                 "perspective": "black",
@@ -1937,6 +1944,7 @@
                 "black": "client-black",
                 "white": "client-white"
               },
+              "seatDisplayNames": {},
               "state": {
                 "id": "dsg_golden-a",
                 "perspective": "white",
@@ -2283,6 +2291,7 @@
                 "black": "client-black",
                 "white": "client-white"
               },
+              "seatDisplayNames": {},
               "state": {
                 "id": "dsg_golden-a",
                 "perspective": "black",
@@ -2409,6 +2418,7 @@
                 "black": "client-black",
                 "white": "client-white"
               },
+              "seatDisplayNames": {},
               "state": {
                 "id": "dsg_golden-a",
                 "perspective": "black",
@@ -2768,6 +2778,7 @@
                 "black": "client-black",
                 "white": "client-white"
               },
+              "seatDisplayNames": {},
               "state": {
                 "id": "dsg_golden-a",
                 "perspective": "white",
@@ -3114,6 +3125,7 @@
                 "black": "client-black",
                 "white": "client-white"
               },
+              "seatDisplayNames": {},
               "state": {
                 "id": "dsg_golden-a",
                 "perspective": "black",
@@ -3232,6 +3244,7 @@
                 "black": "client-black",
                 "white": "client-white"
               },
+              "seatDisplayNames": {},
               "state": {
                 "id": "dsg_golden-a",
                 "perspective": "black",
@@ -3598,6 +3611,7 @@
                 "black": "client-black",
                 "white": "client-white"
               },
+              "seatDisplayNames": {},
               "state": {
                 "id": "dsg_golden-a",
                 "perspective": "white",
@@ -3948,6 +3962,7 @@
                 "black": "client-black",
                 "white": "client-white"
               },
+              "seatDisplayNames": {},
               "state": {
                 "id": "dsg_golden-a",
                 "perspective": "black",
@@ -4077,6 +4092,7 @@
                 "black": "client-black",
                 "white": "client-white"
               },
+              "seatDisplayNames": {},
               "state": {
                 "id": "dsg_golden-a",
                 "perspective": "black",
@@ -4452,6 +4468,7 @@
                 "black": "client-black",
                 "white": "client-white"
               },
+              "seatDisplayNames": {},
               "state": {
                 "id": "dsg_golden-a",
                 "perspective": "white",
@@ -4798,6 +4815,7 @@
                 "black": "client-black",
                 "white": "client-white"
               },
+              "seatDisplayNames": {},
               "state": {
                 "id": "dsg_golden-a",
                 "perspective": "black",
@@ -4927,6 +4945,7 @@
                 "black": "client-black",
                 "white": "client-white"
               },
+              "seatDisplayNames": {},
               "state": {
                 "id": "dsg_golden-a",
                 "perspective": "black",
@@ -5314,6 +5333,7 @@
                 "black": "client-black",
                 "white": "client-white"
               },
+              "seatDisplayNames": {},
               "state": {
                 "id": "dsg_golden-a",
                 "perspective": "white",
@@ -5682,6 +5702,7 @@
                 "black": "client-black",
                 "white": "client-white"
               },
+              "seatDisplayNames": {},
               "state": {
                 "id": "dsg_golden-a",
                 "perspective": "black",
@@ -5822,6 +5843,7 @@
                 "black": "client-black",
                 "white": "client-white"
               },
+              "seatDisplayNames": {},
               "state": {
                 "id": "dsg_golden-a",
                 "perspective": "black",
@@ -6220,6 +6242,7 @@
                 "black": "client-black",
                 "white": "client-white"
               },
+              "seatDisplayNames": {},
               "state": {
                 "id": "dsg_golden-a",
                 "perspective": "white",
@@ -6578,6 +6601,7 @@
                 "black": "client-black",
                 "white": "client-white"
               },
+              "seatDisplayNames": {},
               "state": {
                 "id": "dsg_golden-a",
                 "perspective": "black",
@@ -6718,6 +6742,7 @@
                 "black": "client-black",
                 "white": "client-white"
               },
+              "seatDisplayNames": {},
               "state": {
                 "id": "dsg_golden-a",
                 "perspective": "black",
@@ -7128,6 +7153,7 @@
                 "black": "client-black",
                 "white": "client-white"
               },
+              "seatDisplayNames": {},
               "state": {
                 "id": "dsg_golden-a",
                 "perspective": "white",
@@ -7477,6 +7503,7 @@
                 "black": "client-black",
                 "white": "client-white"
               },
+              "seatDisplayNames": {},
               "state": {
                 "id": "dsg_golden-a",
                 "perspective": "black",
@@ -7623,6 +7650,7 @@
                 "black": "client-black",
                 "white": "client-white"
               },
+              "seatDisplayNames": {},
               "state": {
                 "id": "dsg_golden-a",
                 "perspective": "black",
@@ -7898,6 +7926,7 @@
                 "black": "client-black",
                 "white": "client-white"
               },
+              "seatDisplayNames": {},
               "state": {
                 "id": "dsg_golden-a",
                 "perspective": "white",
@@ -8133,6 +8162,7 @@
                 "black": "client-black",
                 "white": "client-white"
               },
+              "seatDisplayNames": {},
               "state": {
                 "id": "dsg_golden-a",
                 "perspective": "black",
@@ -8221,6 +8251,7 @@
                 "black": "client-black",
                 "white": "client-white"
               },
+              "seatDisplayNames": {},
               "state": {
                 "id": "dsg_golden-b",
                 "perspective": "black",
@@ -8533,6 +8564,7 @@
                 "black": "client-black",
                 "white": "client-white"
               },
+              "seatDisplayNames": {},
               "state": {
                 "id": "dsg_golden-b",
                 "perspective": "white",
@@ -8845,6 +8877,7 @@
                 "black": "client-black",
                 "white": "client-white"
               },
+              "seatDisplayNames": {},
               "state": {
                 "id": "dsg_golden-b",
                 "perspective": "black",
@@ -8909,6 +8942,7 @@
                 "black": "client-black",
                 "white": "client-white"
               },
+              "seatDisplayNames": {},
               "state": {
                 "id": "dsg_golden-b",
                 "perspective": "black",
@@ -9106,6 +9140,7 @@
                 "black": "client-black",
                 "white": "client-white"
               },
+              "seatDisplayNames": {},
               "state": {
                 "id": "dsg_golden-b",
                 "perspective": "white",
@@ -9303,6 +9338,7 @@
                 "black": "client-black",
                 "white": "client-white"
               },
+              "seatDisplayNames": {},
               "state": {
                 "id": "dsg_golden-b",
                 "perspective": "black",
@@ -9415,6 +9451,7 @@
                 "black": "client-black",
                 "white": "client-white"
               },
+              "seatDisplayNames": {},
               "state": {
                 "id": "dsg_golden-c",
                 "perspective": "black",
@@ -9760,6 +9797,7 @@
                 "black": "client-black",
                 "white": "client-white"
               },
+              "seatDisplayNames": {},
               "state": {
                 "id": "dsg_golden-c",
                 "perspective": "white",
@@ -10105,6 +10143,7 @@
                 "black": "client-black",
                 "white": "client-white"
               },
+              "seatDisplayNames": {},
               "state": {
                 "id": "dsg_golden-c",
                 "perspective": "black",
@@ -10207,6 +10246,7 @@
                 "black": "client-black",
                 "white": "client-white"
               },
+              "seatDisplayNames": {},
               "state": {
                 "id": "dsg_golden-c",
                 "perspective": "black",
@@ -10565,6 +10605,7 @@
                 "black": "client-black",
                 "white": "client-white"
               },
+              "seatDisplayNames": {},
               "state": {
                 "id": "dsg_golden-c",
                 "perspective": "white",
@@ -10910,6 +10951,7 @@
                 "black": "client-black",
                 "white": "client-white"
               },
+              "seatDisplayNames": {},
               "state": {
                 "id": "dsg_golden-c",
                 "perspective": "black",
@@ -11027,6 +11069,7 @@
                 "black": "client-black",
                 "white": "client-white"
               },
+              "seatDisplayNames": {},
               "state": {
                 "id": "dsg_golden-c",
                 "perspective": "black",
@@ -11392,6 +11435,7 @@
                 "black": "client-black",
                 "white": "client-white"
               },
+              "seatDisplayNames": {},
               "state": {
                 "id": "dsg_golden-c",
                 "perspective": "white",
@@ -11741,6 +11785,7 @@
                 "black": "client-black",
                 "white": "client-white"
               },
+              "seatDisplayNames": {},
               "state": {
                 "id": "dsg_golden-c",
                 "perspective": "black",
@@ -11874,6 +11919,7 @@
                 "black": "client-black",
                 "white": "client-white"
               },
+              "seatDisplayNames": {},
               "state": {
                 "id": "dsg_golden-c",
                 "perspective": "black",
@@ -12127,6 +12173,7 @@
                 "black": "client-black",
                 "white": "client-white"
               },
+              "seatDisplayNames": {},
               "state": {
                 "id": "dsg_golden-c",
                 "perspective": "white",
@@ -12372,6 +12419,7 @@
                 "black": "client-black",
                 "white": "client-white"
               },
+              "seatDisplayNames": {},
               "state": {
                 "id": "dsg_golden-c",
                 "perspective": "black",

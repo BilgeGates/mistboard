@@ -58,6 +58,7 @@
                 }
               ],
               "seats": {},
+              "seatDisplayNames": {},
               "state": {
                 "id": "ddchess_golden-a",
                 "perspective": "white",
@@ -291,6 +292,7 @@
                 }
               ],
               "seats": {},
+              "seatDisplayNames": {},
               "state": {
                 "id": "ddchess_golden-a",
                 "perspective": "red",
@@ -524,6 +526,7 @@
                 }
               ],
               "seats": {},
+              "seatDisplayNames": {},
               "state": {
                 "id": "ddchess_golden-a",
                 "perspective": "white",
@@ -607,6 +610,7 @@
               "seats": {
                 "white": "client-white-1"
               },
+              "seatDisplayNames": {},
               "state": {
                 "id": "ddchess_golden-a",
                 "perspective": "white",
@@ -849,6 +853,7 @@
               "seats": {
                 "white": "client-white-1"
               },
+              "seatDisplayNames": {},
               "state": {
                 "id": "ddchess_golden-a",
                 "perspective": "red",
@@ -1091,6 +1096,7 @@
               "seats": {
                 "white": "client-white-1"
               },
+              "seatDisplayNames": {},
               "state": {
                 "id": "ddchess_golden-a",
                 "perspective": "white",
@@ -1202,6 +1208,7 @@
                 }
               ],
               "seats": {},
+              "seatDisplayNames": {},
               "state": {
                 "id": "ddchess_golden-a",
                 "perspective": "white",
@@ -1449,6 +1456,7 @@
                 }
               ],
               "seats": {},
+              "seatDisplayNames": {},
               "state": {
                 "id": "ddchess_golden-a",
                 "perspective": "red",
@@ -1696,6 +1704,7 @@
                 }
               ],
               "seats": {},
+              "seatDisplayNames": {},
               "state": {
                 "id": "ddchess_golden-a",
                 "perspective": "white",
@@ -1816,6 +1825,7 @@
               "seats": {
                 "white": "client-white"
               },
+              "seatDisplayNames": {},
               "state": {
                 "id": "ddchess_golden-a",
                 "perspective": "white",
@@ -2072,6 +2082,7 @@
               "seats": {
                 "white": "client-white"
               },
+              "seatDisplayNames": {},
               "state": {
                 "id": "ddchess_golden-a",
                 "perspective": "red",
@@ -2328,6 +2339,7 @@
               "seats": {
                 "white": "client-white"
               },
+              "seatDisplayNames": {},
               "state": {
                 "id": "ddchess_golden-a",
                 "perspective": "white",
@@ -2456,6 +2468,7 @@
                 "white": "client-white",
                 "red": "client-red"
               },
+              "seatDisplayNames": {},
               "state": {
                 "id": "ddchess_golden-a",
                 "perspective": "white",
@@ -2720,6 +2733,7 @@
                 "white": "client-white",
                 "red": "client-red"
               },
+              "seatDisplayNames": {},
               "state": {
                 "id": "ddchess_golden-a",
                 "perspective": "red",
@@ -2984,6 +2998,7 @@
                 "white": "client-white",
                 "red": "client-red"
               },
+              "seatDisplayNames": {},
               "state": {
                 "id": "ddchess_golden-a",
                 "perspective": "white",
@@ -3123,6 +3138,7 @@
                 "white": "client-white",
                 "red": "client-red"
               },
+              "seatDisplayNames": {},
               "state": {
                 "id": "ddchess_golden-a",
                 "perspective": "white",
@@ -3396,6 +3412,7 @@
                 "white": "client-white",
                 "red": "client-red"
               },
+              "seatDisplayNames": {},
               "state": {
                 "id": "ddchess_golden-a",
                 "perspective": "red",
@@ -3660,6 +3677,7 @@
                 "white": "client-white",
                 "red": "client-red"
               },
+              "seatDisplayNames": {},
               "state": {
                 "id": "ddchess_golden-a",
                 "perspective": "white",
@@ -3791,6 +3809,7 @@
                 "white": "client-white",
                 "red": "client-red"
               },
+              "seatDisplayNames": {},
               "state": {
                 "id": "ddchess_golden-a",
                 "perspective": "white",
@@ -4071,6 +4090,7 @@
                 "white": "client-white",
                 "red": "client-red"
               },
+              "seatDisplayNames": {},
               "state": {
                 "id": "ddchess_golden-a",
                 "perspective": "red",
@@ -4343,6 +4363,7 @@
                 "white": "client-white",
                 "red": "client-red"
               },
+              "seatDisplayNames": {},
               "state": {
                 "id": "ddchess_golden-a",
                 "perspective": "white",
@@ -4485,6 +4506,7 @@
                 "white": "client-white",
                 "red": "client-red"
               },
+              "seatDisplayNames": {},
               "state": {
                 "id": "ddchess_golden-a",
                 "perspective": "white",
@@ -4773,6 +4795,7 @@
                 "white": "client-white",
                 "red": "client-red"
               },
+              "seatDisplayNames": {},
               "state": {
                 "id": "ddchess_golden-a",
                 "perspective": "red",
@@ -5041,6 +5064,7 @@
                 "white": "client-white",
                 "red": "client-red"
               },
+              "seatDisplayNames": {},
               "state": {
                 "id": "ddchess_golden-a",
                 "perspective": "white",
@@ -5183,6 +5207,7 @@
                 "white": "client-white",
                 "red": "client-red"
               },
+              "seatDisplayNames": {},
               "state": {
                 "id": "ddchess_golden-a",
                 "perspective": "white",
@@ -5485,6 +5510,7 @@
                 "white": "client-white",
                 "red": "client-red"
               },
+              "seatDisplayNames": {},
               "state": {
                 "id": "ddchess_golden-a",
                 "perspective": "red",
@@ -5752,6 +5778,7 @@
                 "white": "client-white",
                 "red": "client-red"
               },
+              "seatDisplayNames": {},
               "state": {
                 "id": "ddchess_golden-a",
                 "perspective": "white",
@@ -5905,6 +5932,7 @@
                 "white": "client-white",
                 "red": "client-red"
               },
+              "seatDisplayNames": {},
               "state": {
                 "id": "ddchess_golden-a",
                 "perspective": "white",
@@ -6207,6 +6235,7 @@
                 "white": "client-white",
                 "red": "client-red"
               },
+              "seatDisplayNames": {},
               "state": {
                 "id": "ddchess_golden-a",
                 "perspective": "red",
@@ -6470,6 +6499,7 @@
                 "white": "client-white",
                 "red": "client-red"
               },
+              "seatDisplayNames": {},
               "state": {
                 "id": "ddchess_golden-a",
                 "perspective": "white",
@@ -6623,6 +6653,7 @@
                 "white": "client-white",
                 "red": "client-red"
               },
+              "seatDisplayNames": {},
               "state": {
                 "id": "ddchess_golden-a",
                 "perspective": "white",
@@ -6932,6 +6963,7 @@
                 "white": "client-white",
                 "red": "client-red"
               },
+              "seatDisplayNames": {},
               "state": {
                 "id": "ddchess_golden-a",
                 "perspective": "red",
@@ -7223,6 +7255,7 @@
                 "white": "client-white",
                 "red": "client-red"
               },
+              "seatDisplayNames": {},
               "state": {
                 "id": "ddchess_golden-a",
                 "perspective": "white",
@@ -7382,6 +7415,7 @@
                 "white": "client-white",
                 "red": "client-red"
               },
+              "seatDisplayNames": {},
               "state": {
                 "id": "ddchess_golden-a",
                 "perspective": "white",
@@ -7645,6 +7679,7 @@
                 "white": "client-white",
                 "red": "client-red"
               },
+              "seatDisplayNames": {},
               "state": {
                 "id": "ddchess_golden-a",
                 "perspective": "red",
@@ -7874,6 +7909,7 @@
                 "white": "client-white",
                 "red": "client-red"
               },
+              "seatDisplayNames": {},
               "state": {
                 "id": "ddchess_golden-a",
                 "perspective": "white",
@@ -7961,6 +7997,7 @@
                 "white": "client-white",
                 "red": "client-red"
               },
+              "seatDisplayNames": {},
               "state": {
                 "id": "ddchess_golden-b",
                 "perspective": "white",
@@ -8177,6 +8214,7 @@
                 "white": "client-white",
                 "red": "client-red"
               },
+              "seatDisplayNames": {},
               "state": {
                 "id": "ddchess_golden-b",
                 "perspective": "red",
@@ -8393,6 +8431,7 @@
                 "white": "client-white",
                 "red": "client-red"
               },
+              "seatDisplayNames": {},
               "state": {
                 "id": "ddchess_golden-b",
                 "perspective": "white",
@@ -8456,6 +8495,7 @@
                 "white": "client-white",
                 "red": "client-red"
               },
+              "seatDisplayNames": {},
               "state": {
                 "id": "ddchess_golden-b",
                 "perspective": "white",
@@ -8629,6 +8669,7 @@
                 "white": "client-white",
                 "red": "client-red"
               },
+              "seatDisplayNames": {},
               "state": {
                 "id": "ddchess_golden-b",
                 "perspective": "red",
@@ -8802,6 +8843,7 @@
                 "white": "client-white",
                 "red": "client-red"
               },
+              "seatDisplayNames": {},
               "state": {
                 "id": "ddchess_golden-b",
                 "perspective": "white",
@@ -8913,6 +8955,7 @@
                 "white": "client-white",
                 "red": "client-red"
               },
+              "seatDisplayNames": {},
               "state": {
                 "id": "ddchess_golden-c",
                 "perspective": "white",
@@ -9162,6 +9205,7 @@
                 "white": "client-white",
                 "red": "client-red"
               },
+              "seatDisplayNames": {},
               "state": {
                 "id": "ddchess_golden-c",
                 "perspective": "red",
@@ -9411,6 +9455,7 @@
                 "white": "client-white",
                 "red": "client-red"
               },
+              "seatDisplayNames": {},
               "state": {
                 "id": "ddchess_golden-c",
                 "perspective": "white",
@@ -9512,6 +9557,7 @@
                 "white": "client-white",
                 "red": "client-red"
               },
+              "seatDisplayNames": {},
               "state": {
                 "id": "ddchess_golden-c",
                 "perspective": "white",
@@ -9770,6 +9816,7 @@
                 "white": "client-white",
                 "red": "client-red"
               },
+              "seatDisplayNames": {},
               "state": {
                 "id": "ddchess_golden-c",
                 "perspective": "red",
@@ -10019,6 +10066,7 @@
                 "white": "client-white",
                 "red": "client-red"
               },
+              "seatDisplayNames": {},
               "state": {
                 "id": "ddchess_golden-c",
                 "perspective": "white",
@@ -10135,6 +10183,7 @@
                 "white": "client-white",
                 "red": "client-red"
               },
+              "seatDisplayNames": {},
               "state": {
                 "id": "ddchess_golden-c",
                 "perspective": "white",
@@ -10400,6 +10449,7 @@
                 "white": "client-white",
                 "red": "client-red"
               },
+              "seatDisplayNames": {},
               "state": {
                 "id": "ddchess_golden-c",
                 "perspective": "red",
@@ -10657,6 +10707,7 @@
                 "white": "client-white",
                 "red": "client-red"
               },
+              "seatDisplayNames": {},
               "state": {
                 "id": "ddchess_golden-c",
                 "perspective": "white",
@@ -10789,6 +10840,7 @@
                 "white": "client-white",
                 "red": "client-red"
               },
+              "seatDisplayNames": {},
               "state": {
                 "id": "ddchess_golden-c",
                 "perspective": "white",
@@ -11018,6 +11070,7 @@
                 "white": "client-white",
                 "red": "client-red"
               },
+              "seatDisplayNames": {},
               "state": {
                 "id": "ddchess_golden-c",
                 "perspective": "red",
@@ -11239,6 +11292,7 @@
                 "white": "client-white",
                 "red": "client-red"
               },
+              "seatDisplayNames": {},
               "state": {
                 "id": "ddchess_golden-c",
                 "perspective": "white",

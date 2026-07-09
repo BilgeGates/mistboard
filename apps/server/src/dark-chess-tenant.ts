@@ -210,22 +210,14 @@ export const darkChessTenant: DarkChessTenant = {
     // fields keep its frame projection truthful where the shell's defaults
     // would lie (rated defaults TRUE there) or where correspondence chrome
     // keys off them (mode hides rematch, enables day-scale clocks).
-    snapshotExtras: (room) => {
-      const seatDisplayNames: Partial<Record<Color, string>> = {};
-      for (const color of ['white', 'black'] as const) {
-        const token = room.seatTokens[color];
-        const name = token?.userDisplayName ?? token?.userHandle;
-        if (name) seatDisplayNames[color] = name;
-      }
-      return {
-        mode:
-          clockPolicyKindFor(room.projection.timeControl) === 'days-per-move'
-            ? 'correspondence'
-            : 'pvp',
-        rated: room.rated,
-        ...(Object.keys(seatDisplayNames).length > 0 ? { seatDisplayNames } : {}),
-      };
-    },
+    // seatDisplayNames moved into the core snapshot (tenantSnapshotPayload).
+    snapshotExtras: (room) => ({
+      mode:
+        clockPolicyKindFor(room.projection.timeControl) === 'days-per-move'
+          ? 'correspondence'
+          : 'pvp',
+      rated: room.rated,
+    }),
   },
   persistence: {
     resultForWinner: (winner: Color | null): persistence.GameResult => {

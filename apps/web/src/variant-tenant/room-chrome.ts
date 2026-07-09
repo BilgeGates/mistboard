@@ -81,6 +81,9 @@ export type TenantChromeContext<C extends string> = {
   clock(): TenantWebClock<C> | null | undefined;
   timeControl(): { initialMs: number; incrementMs: number } | null | undefined;
   connectedSeats(): Partial<Record<C, boolean>>;
+  // Server-resolved player names (account/bot/engine); guests absent, so
+  // renderers fall back to the seat label.
+  seatDisplayNames(): Partial<Record<C, string>>;
   abortDeadline(): number | null;
   forfeitDeadline(): number | null;
   roomMode(): string;
@@ -136,6 +139,15 @@ export function createTenantRoomChrome<C extends string>(
   // A seat's display label: the tenant's ink-aware override (banqi) or the seat name.
   function seatName(color: C): string {
     return tenant.seatLabel?.(color) ?? capitalize(color);
+  }
+
+  // A seat's player name for chrome rows: the server-resolved name (account,
+  // bot, engine) when known, else the seat label ("You" for the viewer's own
+  // anonymous seat, matching the legacy chess clock).
+  function playerName(color: C): string {
+    const serverName = ctx.seatDisplayNames()[color];
+    if (serverName) return serverName;
+    return color === ctx.seat() ? 'You' : seatName(color);
   }
 
   function setRenderTarget(
@@ -205,7 +217,7 @@ export function createTenantRoomChrome<C extends string>(
         row.className = isTurn ? 'pregame active' : 'pregame';
         row.dataset.color = color;
         const label = document.createElement('span');
-        label.textContent = seatName(color);
+        label.textContent = ctx.seatDisplayNames()[color] ?? seatName(color);
         if (isTurn) {
           const toMove = document.createElement('span');
           toMove.className = 'clock-to-move';
@@ -254,7 +266,7 @@ export function createTenantRoomChrome<C extends string>(
       playerLine.append(presenceDot(ctx.connectedSeats()[color] ?? false));
       const nameEl = document.createElement('span');
       nameEl.className = 'clock-name';
-      const name = color === ctx.seat() ? 'You' : seatName(color);
+      const name = playerName(color);
       nameEl.textContent = name;
       nameEl.title = name;
       playerLine.append(nameEl);
@@ -334,10 +346,13 @@ export function createTenantRoomChrome<C extends string>(
       headline: [tcLabel, 'Casual'],
       variantName: detail ? `${tenant.displayName} · ${detail}` : tenant.displayName,
       subline,
-      players: tenant.colors.map((color) => ({
-        color,
-        name: color === seat ? `You (${seatName(color)})` : seatName(color),
-      })),
+      players: tenant.colors.map((color) => {
+        const serverName = ctx.seatDisplayNames()[color];
+        return {
+          color,
+          name: serverName ?? (color === seat ? `You (${seatName(color)})` : seatName(color)),
+        };
+      }),
       status: statusLine,
     });
     refs.gameInfo.replaceChildren(card.el);

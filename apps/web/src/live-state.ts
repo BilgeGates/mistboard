@@ -183,7 +183,9 @@ export const liveState = {
   forfeitDeadline: null as number | null,
   pveEngineId: null as string | null,
   pveEngineName: null as string | null,
-  seatDisplayNames: {} as Partial<Record<Color, string>>,
+  // Keyed by PlayableSeat (not just chess Color): the mini-xiangqi rooms ride
+  // this same shell and their seats are red/black.
+  seatDisplayNames: {} as Partial<Record<PlayableSeat, string>>,
   seat: 'spectator' as Seat,
   solo: false,
   offer: [] as Chess960Start[],

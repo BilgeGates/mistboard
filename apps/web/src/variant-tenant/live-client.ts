@@ -58,6 +58,8 @@ export type TenantLiveFrame<C extends string, V> = {
   seatToken?: string;
   seat: C | 'spectator';
   seats: Partial<Record<C, string>>;
+  // Public player names per seat (account/bot/engine); guests omitted.
+  seatDisplayNames?: Partial<Record<C, string>>;
   state: V;
   clock?: TenantLiveClock<C> | null;
   connectedSeats?: Record<C, boolean>;
@@ -78,6 +80,7 @@ export type TenantLiveState<C extends string, V> = {
   clock: TenantLiveClock<C> | null;
   timeControl: { initialMs: number; incrementMs: number } | null;
   seats: Partial<Record<C, string>>;
+  seatDisplayNames: Partial<Record<C, string>>;
   connectedSeats: Partial<Record<C, boolean>>;
   events: TenantLiveEvent[];
   abortDeadline: number | null;
@@ -203,6 +206,7 @@ export function createTenantLiveClient<C extends string, V extends TenantWebView
     clock: null,
     timeControl: null,
     seats: {},
+    seatDisplayNames: {},
     connectedSeats: {},
     events: [],
     abortDeadline: null,
@@ -247,6 +251,7 @@ export function createTenantLiveClient<C extends string, V extends TenantWebView
     clock: () => state.clock,
     timeControl: () => state.timeControl,
     connectedSeats: () => state.connectedSeats,
+    seatDisplayNames: () => state.seatDisplayNames,
     abortDeadline: () => state.abortDeadline,
     forfeitDeadline: config.chrome?.forfeitDeadline ?? (() => null),
     roomMode: config.chrome?.roomMode ?? (() => 'pvp'),
@@ -267,6 +272,7 @@ export function createTenantLiveClient<C extends string, V extends TenantWebView
     state.clock = frame.clock ?? null;
     state.timeControl = frame.timeControl ?? state.timeControl;
     state.seats = frame.seats ?? state.seats;
+    state.seatDisplayNames = frame.seatDisplayNames ?? state.seatDisplayNames;
     if (frame.connectedSeats) state.connectedSeats = frame.connectedSeats;
     state.abortDeadline = frame.abortDeadline ?? null;
     if (frame.events) state.events = frame.events;

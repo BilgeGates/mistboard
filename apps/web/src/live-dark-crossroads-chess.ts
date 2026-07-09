@@ -83,6 +83,7 @@ type DarkCrossroadsLiveFrame = {
   seatToken?: string;
   seat: CrossroadsChessColor | 'spectator';
   seats: Partial<Record<CrossroadsChessColor, string>>;
+  seatDisplayNames?: Partial<Record<CrossroadsChessColor, string>>;
   state: CrossroadsChessPlayerView;
   clock?: DarkCrossroadsLiveClock | null;
   connectedSeats?: Record<CrossroadsChessColor, boolean>;
@@ -103,6 +104,7 @@ const state = {
   clock: null as DarkCrossroadsLiveClock | null,
   timeControl: null as { initialMs: number; incrementMs: number } | null,
   seats: {} as Partial<Record<CrossroadsChessColor, string>>,
+  seatDisplayNames: {} as Partial<Record<CrossroadsChessColor, string>>,
   connectedSeats: { white: false, red: false } as Record<CrossroadsChessColor, boolean>,
   events: [] as DarkCrossroadsLiveEvent[],
   abortDeadline: null as number | null,
@@ -154,6 +156,7 @@ const chrome = createTenantRoomChrome(darkCrossroadsChessWebTenant, {
   clock: () => state.clock,
   timeControl: () => state.timeControl,
   connectedSeats: () => state.connectedSeats,
+  seatDisplayNames: () => state.seatDisplayNames,
   abortDeadline: () => state.abortDeadline,
   // Not on the Dark Crossroads wire (golden-pinned, no snapshot extras): the
   // forfeit banner and rematch block never arm.
@@ -277,6 +280,7 @@ function applyFrame(frame: DarkCrossroadsLiveFrame): void {
   state.clock = frame.clock ?? null;
   state.timeControl = frame.timeControl ?? state.timeControl;
   state.seats = frame.seats ?? state.seats;
+  state.seatDisplayNames = frame.seatDisplayNames ?? state.seatDisplayNames;
   if (frame.connectedSeats) state.connectedSeats = frame.connectedSeats;
   state.abortDeadline = frame.abortDeadline ?? null;
   if (frame.events) state.events = frame.events;

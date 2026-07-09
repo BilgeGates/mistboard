@@ -15,6 +15,7 @@
 
 import type { ClockPolicyKind, RoomTimeControl } from '@mistboard/game';
 import { clockPolicyKindFor, isAbortReason } from '@mistboard/game';
+import { firstPartyBotForEngine, firstPartyBotForId } from '../first-party-bots.js';
 import type {
   TenantClientEvent,
   TenantClockState,
@@ -423,9 +424,44 @@ export type TenantSnapshotPayload<C extends string, M, View, Spec extends string
   connectedSeats: Record<C, boolean>;
   events: TenantClientEvent<C, M, Spec>[];
   seats: Partial<Record<C, string>>;
+  // Public per-seat player names for room chrome: bot/engine display name for
+  // engine seats, account displayName/handle for signed-in humans. Guests are
+  // OMITTED (clients fall back to the seat label), never a placeholder.
+  seatDisplayNames: Partial<Record<C, string>>;
   state: View;
   timeControl: RoomTimeControl | undefined;
 };
+
+// Resolves the same names tenantParticipant persists, but for the LIVE wire
+// (from the in-memory room, before any game record exists). Names are public
+// info: every client, spectators included, receives the same map.
+export function tenantSeatDisplayNames<
+  Kind extends string,
+  C extends string,
+  M,
+  State extends TenantGameStateLike<C>,
+  View,
+  Spec extends string,
+>(
+  tenant: VariantTenant<Kind, C, M, State, View, Spec>,
+  room: TenantRuntimeRoom<Kind, C, M, State, Spec>,
+): Partial<Record<C, string>> {
+  const names: Partial<Record<C, string>> = {};
+  for (const color of tenant.colors) {
+    const clientId = room.projection.seats[color];
+    if (clientId && tenant.engine?.isEngineClientId(clientId)) {
+      const bot = room.pveBotId
+        ? firstPartyBotForId(room.pveBotId)
+        : firstPartyBotForEngine(clientId);
+      names[color] = bot?.displayName ?? tenant.engine.displayName(clientId);
+      continue;
+    }
+    const token = room.seatTokens[color];
+    const name = token?.userDisplayName ?? token?.userHandle;
+    if (name) names[color] = name;
+  }
+  return names;
+}
 
 export function tenantSnapshotPayload<
   Kind extends string,
@@ -453,6 +489,7 @@ export function tenantSnapshotPayload<
     connectedSeats: computeTenantConnectedSeats(tenant, room.clients, room.projection.seats),
     events: tenantEventsForClient(tenant, room, client),
     seats: room.projection.seats,
+    seatDisplayNames: tenantSeatDisplayNames(tenant, room),
     state,
     timeControl: room.projection.timeControl,
     ...(tenant.wire?.snapshotExtras?.(room, client) ?? {}),

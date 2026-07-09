@@ -15,7 +15,6 @@
               "seat": "white",
               "solo": false,
               "abortDeadline": null,
-              "forfeitDeadline": null,
               "clock": {
                 "activeColor": null,
                 "incrementMs": 2000,
@@ -59,6 +58,7 @@
                 }
               ],
               "seats": {},
+              "seatDisplayNames": {},
               "state": {
                 "id": "dchess_golden-a",
                 "perspective": "white",
@@ -318,6 +318,7 @@
                 "initialMs": 180000,
                 "incrementMs": 2000
               },
+              "forfeitDeadline": null,
               "rematch": {
                 "offers": {
                   "white": false,
@@ -336,7 +337,6 @@
               "seat": "red",
               "solo": false,
               "abortDeadline": null,
-              "forfeitDeadline": null,
               "clock": {
                 "activeColor": null,
                 "incrementMs": 2000,
@@ -380,6 +380,7 @@
                 }
               ],
               "seats": {},
+              "seatDisplayNames": {},
               "state": {
                 "id": "dchess_golden-a",
                 "perspective": "red",
@@ -590,6 +591,7 @@
                 "initialMs": 180000,
                 "incrementMs": 2000
               },
+              "forfeitDeadline": null,
               "rematch": {
                 "offers": {
                   "white": false,
@@ -608,7 +610,6 @@
               "seat": "spectator",
               "solo": false,
               "abortDeadline": null,
-              "forfeitDeadline": null,
               "clock": {
                 "activeColor": null,
                 "incrementMs": 2000,
@@ -652,6 +653,7 @@
                 }
               ],
               "seats": {},
+              "seatDisplayNames": {},
               "state": {
                 "id": "dchess_golden-a",
                 "perspective": "white",
@@ -911,6 +913,7 @@
                 "initialMs": 180000,
                 "incrementMs": 2000
               },
+              "forfeitDeadline": null,
               "rematch": {
                 "offers": {
                   "white": false,
@@ -934,7 +937,6 @@
               "seat": "white",
               "solo": false,
               "abortDeadline": null,
-              "forfeitDeadline": null,
               "clock": {
                 "activeColor": null,
                 "incrementMs": 2000,
@@ -987,6 +989,7 @@
               "seats": {
                 "white": "client-white"
               },
+              "seatDisplayNames": {},
               "state": {
                 "id": "dchess_golden-a",
                 "perspective": "white",
@@ -1246,6 +1249,7 @@
                 "initialMs": 180000,
                 "incrementMs": 2000
               },
+              "forfeitDeadline": null,
               "rematch": {
                 "offers": {
                   "white": false,
@@ -1264,7 +1268,6 @@
               "seat": "red",
               "solo": false,
               "abortDeadline": null,
-              "forfeitDeadline": null,
               "clock": {
                 "activeColor": null,
                 "incrementMs": 2000,
@@ -1317,6 +1320,7 @@
               "seats": {
                 "white": "client-white"
               },
+              "seatDisplayNames": {},
               "state": {
                 "id": "dchess_golden-a",
                 "perspective": "red",
@@ -1527,6 +1531,7 @@
                 "initialMs": 180000,
                 "incrementMs": 2000
               },
+              "forfeitDeadline": null,
               "rematch": {
                 "offers": {
                   "white": false,
@@ -1545,7 +1550,6 @@
               "seat": "spectator",
               "solo": false,
               "abortDeadline": null,
-              "forfeitDeadline": null,
               "clock": {
                 "activeColor": null,
                 "incrementMs": 2000,
@@ -1598,6 +1602,7 @@
               "seats": {
                 "white": "client-white"
               },
+              "seatDisplayNames": {},
               "state": {
                 "id": "dchess_golden-a",
                 "perspective": "white",
@@ -1857,6 +1862,7 @@
                 "initialMs": 180000,
                 "incrementMs": 2000
               },
+              "forfeitDeadline": null,
               "rematch": {
                 "offers": {
                   "white": false,
@@ -1903,7 +1909,6 @@
               "seat": "white",
               "solo": false,
               "abortDeadline": null,
-              "forfeitDeadline": null,
               "clock": {
                 "activeColor": null,
                 "incrementMs": 2000,
@@ -1964,6 +1969,7 @@
                 "white": "client-white",
                 "red": "client-red"
               },
+              "seatDisplayNames": {},
               "state": {
                 "id": "dchess_golden-a",
                 "perspective": "white",
@@ -2223,6 +2229,7 @@
                 "initialMs": 180000,
                 "incrementMs": 2000
               },
+              "forfeitDeadline": null,
               "rematch": {
                 "offers": {
                   "white": false,
@@ -2241,7 +2248,6 @@
               "seat": "red",
               "solo": false,
               "abortDeadline": null,
-              "forfeitDeadline": null,
               "clock": {
                 "activeColor": null,
                 "incrementMs": 2000,
@@ -2302,6 +2308,7 @@
                 "white": "client-white",
                 "red": "client-red"
               },
+              "seatDisplayNames": {},
               "state": {
                 "id": "dchess_golden-a",
                 "perspective": "red",
@@ -2512,6 +2519,7 @@
                 "initialMs": 180000,
                 "incrementMs": 2000
               },
+              "forfeitDeadline": null,
               "rematch": {
                 "offers": {
                   "white": false,
@@ -2530,7 +2538,6 @@
               "seat": "spectator",
               "solo": false,
               "abortDeadline": null,
-              "forfeitDeadline": null,
               "clock": {
                 "activeColor": null,
                 "incrementMs": 2000,
@@ -2591,6 +2598,7 @@
                 "white": "client-white",
                 "red": "client-red"
               },
+              "seatDisplayNames": {},
               "state": {
                 "id": "dchess_golden-a",
                 "perspective": "white",
@@ -2850,6 +2858,7 @@
                 "initialMs": 180000,
                 "incrementMs": 2000
               },
+              "forfeitDeadline": null,
               "rematch": {
                 "offers": {
                   "white": false,
@@ -2896,7 +2905,6 @@
               "seat": "white",
               "solo": false,
               "abortDeadline": null,
-              "forfeitDeadline": null,
               "clock": {
                 "activeColor": null,
                 "incrementMs": 2000,
@@ -2968,6 +2976,7 @@
                 "white": "client-white",
                 "red": "client-red"
               },
+              "seatDisplayNames": {},
               "state": {
                 "id": "dchess_golden-a",
                 "perspective": "white",
@@ -3182,6 +3191,7 @@
                 "initialMs": 180000,
                 "incrementMs": 2000
               },
+              "forfeitDeadline": null,
               "rematch": {
                 "offers": {
                   "white": false,
@@ -3200,7 +3210,6 @@
               "seat": "red",
               "solo": false,
               "abortDeadline": null,
-              "forfeitDeadline": null,
               "clock": {
                 "activeColor": null,
                 "incrementMs": 2000,
@@ -3272,6 +3281,7 @@
                 "white": "client-white",
                 "red": "client-red"
               },
+              "seatDisplayNames": {},
               "state": {
                 "id": "dchess_golden-a",
                 "perspective": "red",
@@ -3535,6 +3545,7 @@
                 "initialMs": 180000,
                 "incrementMs": 2000
               },
+              "forfeitDeadline": null,
               "rematch": {
                 "offers": {
                   "white": false,
@@ -3553,7 +3564,6 @@
               "seat": "spectator",
               "solo": false,
               "abortDeadline": null,
-              "forfeitDeadline": null,
               "clock": {
                 "activeColor": null,
                 "incrementMs": 2000,
@@ -3625,6 +3635,7 @@
                 "white": "client-white",
                 "red": "client-red"
               },
+              "seatDisplayNames": {},
               "state": {
                 "id": "dchess_golden-a",
                 "perspective": "white",
@@ -3839,6 +3850,7 @@
                 "initialMs": 180000,
                 "incrementMs": 2000
               },
+              "forfeitDeadline": null,
               "rematch": {
                 "offers": {
                   "white": false,
@@ -3897,7 +3909,6 @@
               "seat": "white",
               "solo": false,
               "abortDeadline": null,
-              "forfeitDeadline": null,
               "clock": {
                 "activeColor": "white",
                 "incrementMs": 2000,
@@ -3980,6 +3991,7 @@
                 "white": "client-white",
                 "red": "client-red"
               },
+              "seatDisplayNames": {},
               "state": {
                 "id": "dchess_golden-a",
                 "perspective": "white",
@@ -4247,6 +4259,7 @@
                 "initialMs": 180000,
                 "incrementMs": 2000
               },
+              "forfeitDeadline": null,
               "rematch": {
                 "offers": {
                   "white": false,
@@ -4265,7 +4278,6 @@
               "seat": "red",
               "solo": false,
               "abortDeadline": null,
-              "forfeitDeadline": null,
               "clock": {
                 "activeColor": "white",
                 "incrementMs": 2000,
@@ -4348,6 +4360,7 @@
                 "white": "client-white",
                 "red": "client-red"
               },
+              "seatDisplayNames": {},
               "state": {
                 "id": "dchess_golden-a",
                 "perspective": "red",
@@ -4562,6 +4575,7 @@
                 "initialMs": 180000,
                 "incrementMs": 2000
               },
+              "forfeitDeadline": null,
               "rematch": {
                 "offers": {
                   "white": false,
@@ -4580,7 +4594,6 @@
               "seat": "spectator",
               "solo": false,
               "abortDeadline": null,
-              "forfeitDeadline": null,
               "clock": {
                 "activeColor": "white",
                 "incrementMs": 2000,
@@ -4663,6 +4676,7 @@
                 "white": "client-white",
                 "red": "client-red"
               },
+              "seatDisplayNames": {},
               "state": {
                 "id": "dchess_golden-a",
                 "perspective": "white",
@@ -4930,6 +4944,7 @@
                 "initialMs": 180000,
                 "incrementMs": 2000
               },
+              "forfeitDeadline": null,
               "rematch": {
                 "offers": {
                   "white": false,
@@ -4988,7 +5003,6 @@
               "seat": "white",
               "solo": false,
               "abortDeadline": null,
-              "forfeitDeadline": null,
               "clock": {
                 "activeColor": "red",
                 "incrementMs": 2000,
@@ -5082,6 +5096,7 @@
                 "white": "client-white",
                 "red": "client-red"
               },
+              "seatDisplayNames": {},
               "state": {
                 "id": "dchess_golden-a",
                 "perspective": "white",
@@ -5296,6 +5311,7 @@
                 "initialMs": 180000,
                 "incrementMs": 2000
               },
+              "forfeitDeadline": null,
               "rematch": {
                 "offers": {
                   "white": false,
@@ -5314,7 +5330,6 @@
               "seat": "red",
               "solo": false,
               "abortDeadline": null,
-              "forfeitDeadline": null,
               "clock": {
                 "activeColor": "red",
                 "incrementMs": 2000,
@@ -5408,6 +5423,7 @@
                 "white": "client-white",
                 "red": "client-red"
               },
+              "seatDisplayNames": {},
               "state": {
                 "id": "dchess_golden-a",
                 "perspective": "red",
@@ -5675,6 +5691,7 @@
                 "initialMs": 180000,
                 "incrementMs": 2000
               },
+              "forfeitDeadline": null,
               "rematch": {
                 "offers": {
                   "white": false,
@@ -5693,7 +5710,6 @@
               "seat": "spectator",
               "solo": false,
               "abortDeadline": null,
-              "forfeitDeadline": null,
               "clock": {
                 "activeColor": "red",
                 "incrementMs": 2000,
@@ -5787,6 +5803,7 @@
                 "white": "client-white",
                 "red": "client-red"
               },
+              "seatDisplayNames": {},
               "state": {
                 "id": "dchess_golden-a",
                 "perspective": "white",
@@ -6001,6 +6018,7 @@
                 "initialMs": 180000,
                 "incrementMs": 2000
               },
+              "forfeitDeadline": null,
               "rematch": {
                 "offers": {
                   "white": false,
@@ -6059,7 +6077,6 @@
               "seat": "white",
               "solo": false,
               "abortDeadline": null,
-              "forfeitDeadline": null,
               "clock": {
                 "activeColor": "white",
                 "incrementMs": 2000,
@@ -6164,6 +6181,7 @@
                 "white": "client-white",
                 "red": "client-red"
               },
+              "seatDisplayNames": {},
               "state": {
                 "id": "dchess_golden-a",
                 "perspective": "white",
@@ -6435,6 +6453,7 @@
                 "initialMs": 180000,
                 "incrementMs": 2000
               },
+              "forfeitDeadline": null,
               "rematch": {
                 "offers": {
                   "white": false,
@@ -6453,7 +6472,6 @@
               "seat": "red",
               "solo": false,
               "abortDeadline": null,
-              "forfeitDeadline": null,
               "clock": {
                 "activeColor": "white",
                 "incrementMs": 2000,
@@ -6558,6 +6576,7 @@
                 "white": "client-white",
                 "red": "client-red"
               },
+              "seatDisplayNames": {},
               "state": {
                 "id": "dchess_golden-a",
                 "perspective": "red",
@@ -6772,6 +6791,7 @@
                 "initialMs": 180000,
                 "incrementMs": 2000
               },
+              "forfeitDeadline": null,
               "rematch": {
                 "offers": {
                   "white": false,
@@ -6790,7 +6810,6 @@
               "seat": "spectator",
               "solo": false,
               "abortDeadline": null,
-              "forfeitDeadline": null,
               "clock": {
                 "activeColor": "white",
                 "incrementMs": 2000,
@@ -6895,6 +6914,7 @@
                 "white": "client-white",
                 "red": "client-red"
               },
+              "seatDisplayNames": {},
               "state": {
                 "id": "dchess_golden-a",
                 "perspective": "white",
@@ -7166,6 +7186,7 @@
                 "initialMs": 180000,
                 "incrementMs": 2000
               },
+              "forfeitDeadline": null,
               "rematch": {
                 "offers": {
                   "white": false,
@@ -7224,7 +7245,6 @@
               "seat": "white",
               "solo": false,
               "abortDeadline": null,
-              "forfeitDeadline": null,
               "clock": {
                 "activeColor": "red",
                 "incrementMs": 2000,
@@ -7340,6 +7360,7 @@
                 "white": "client-white",
                 "red": "client-red"
               },
+              "seatDisplayNames": {},
               "state": {
                 "id": "dchess_golden-a",
                 "perspective": "white",
@@ -7554,6 +7575,7 @@
                 "initialMs": 180000,
                 "incrementMs": 2000
               },
+              "forfeitDeadline": null,
               "rematch": {
                 "offers": {
                   "white": false,
@@ -7572,7 +7594,6 @@
               "seat": "red",
               "solo": false,
               "abortDeadline": null,
-              "forfeitDeadline": null,
               "clock": {
                 "activeColor": "red",
                 "incrementMs": 2000,
@@ -7688,6 +7709,7 @@
                 "white": "client-white",
                 "red": "client-red"
               },
+              "seatDisplayNames": {},
               "state": {
                 "id": "dchess_golden-a",
                 "perspective": "red",
@@ -7951,6 +7973,7 @@
                 "initialMs": 180000,
                 "incrementMs": 2000
               },
+              "forfeitDeadline": null,
               "rematch": {
                 "offers": {
                   "white": false,
@@ -7969,7 +7992,6 @@
               "seat": "spectator",
               "solo": false,
               "abortDeadline": null,
-              "forfeitDeadline": null,
               "clock": {
                 "activeColor": "red",
                 "incrementMs": 2000,
@@ -8085,6 +8107,7 @@
                 "white": "client-white",
                 "red": "client-red"
               },
+              "seatDisplayNames": {},
               "state": {
                 "id": "dchess_golden-a",
                 "perspective": "white",
@@ -8299,6 +8322,7 @@
                 "initialMs": 180000,
                 "incrementMs": 2000
               },
+              "forfeitDeadline": null,
               "rematch": {
                 "offers": {
                   "white": false,
@@ -8357,7 +8381,6 @@
               "seat": "white",
               "solo": false,
               "abortDeadline": null,
-              "forfeitDeadline": null,
               "clock": {
                 "activeColor": "white",
                 "incrementMs": 2000,
@@ -8484,6 +8507,7 @@
                 "white": "client-white",
                 "red": "client-red"
               },
+              "seatDisplayNames": {},
               "state": {
                 "id": "dchess_golden-a",
                 "perspective": "white",
@@ -8751,6 +8775,7 @@
                 "initialMs": 180000,
                 "incrementMs": 2000
               },
+              "forfeitDeadline": null,
               "rematch": {
                 "offers": {
                   "white": false,
@@ -8769,7 +8794,6 @@
               "seat": "red",
               "solo": false,
               "abortDeadline": null,
-              "forfeitDeadline": null,
               "clock": {
                 "activeColor": "white",
                 "incrementMs": 2000,
@@ -8896,6 +8920,7 @@
                 "white": "client-white",
                 "red": "client-red"
               },
+              "seatDisplayNames": {},
               "state": {
                 "id": "dchess_golden-a",
                 "perspective": "red",
@@ -9110,6 +9135,7 @@
                 "initialMs": 180000,
                 "incrementMs": 2000
               },
+              "forfeitDeadline": null,
               "rematch": {
                 "offers": {
                   "white": false,
@@ -9128,7 +9154,6 @@
               "seat": "spectator",
               "solo": false,
               "abortDeadline": null,
-              "forfeitDeadline": null,
               "clock": {
                 "activeColor": "white",
                 "incrementMs": 2000,
@@ -9255,6 +9280,7 @@
                 "white": "client-white",
                 "red": "client-red"
               },
+              "seatDisplayNames": {},
               "state": {
                 "id": "dchess_golden-a",
                 "perspective": "white",
@@ -9522,6 +9548,7 @@
                 "initialMs": 180000,
                 "incrementMs": 2000
               },
+              "forfeitDeadline": null,
               "rematch": {
                 "offers": {
                   "white": false,
@@ -9580,7 +9607,6 @@
               "seat": "white",
               "solo": false,
               "abortDeadline": null,
-              "forfeitDeadline": 99000,
               "clock": {
                 "activeColor": "white",
                 "incrementMs": 2000,
@@ -9707,6 +9733,7 @@
                 "white": "client-white",
                 "red": "client-red"
               },
+              "seatDisplayNames": {},
               "state": {
                 "id": "dchess_golden-a",
                 "perspective": "white",
@@ -9974,6 +10001,7 @@
                 "initialMs": 180000,
                 "incrementMs": 2000
               },
+              "forfeitDeadline": 99000,
               "rematch": {
                 "offers": {
                   "white": false,
@@ -9992,7 +10020,6 @@
               "seat": "red",
               "solo": false,
               "abortDeadline": null,
-              "forfeitDeadline": null,
               "clock": {
                 "activeColor": "white",
                 "incrementMs": 2000,
@@ -10119,6 +10146,7 @@
                 "white": "client-white",
                 "red": "client-red"
               },
+              "seatDisplayNames": {},
               "state": {
                 "id": "dchess_golden-a",
                 "perspective": "red",
@@ -10333,6 +10361,7 @@
                 "initialMs": 180000,
                 "incrementMs": 2000
               },
+              "forfeitDeadline": null,
               "rematch": {
                 "offers": {
                   "white": false,
@@ -10351,7 +10380,6 @@
               "seat": "spectator",
               "solo": false,
               "abortDeadline": null,
-              "forfeitDeadline": null,
               "clock": {
                 "activeColor": "white",
                 "incrementMs": 2000,
@@ -10478,6 +10506,7 @@
                 "white": "client-white",
                 "red": "client-red"
               },
+              "seatDisplayNames": {},
               "state": {
                 "id": "dchess_golden-a",
                 "perspective": "white",
@@ -10745,6 +10774,7 @@
                 "initialMs": 180000,
                 "incrementMs": 2000
               },
+              "forfeitDeadline": null,
               "rematch": {
                 "offers": {
                   "white": false,
@@ -10768,7 +10798,6 @@
               "seat": "white",
               "solo": false,
               "abortDeadline": null,
-              "forfeitDeadline": null,
               "clock": {
                 "activeColor": "white",
                 "incrementMs": 2000,
@@ -10895,6 +10924,7 @@
                 "white": "client-white",
                 "red": "client-red"
               },
+              "seatDisplayNames": {},
               "state": {
                 "id": "dchess_golden-a",
                 "perspective": "white",
@@ -11162,6 +11192,7 @@
                 "initialMs": 180000,
                 "incrementMs": 2000
               },
+              "forfeitDeadline": null,
               "rematch": {
                 "offers": {
                   "white": false,
@@ -11180,7 +11211,6 @@
               "seat": "red",
               "solo": false,
               "abortDeadline": null,
-              "forfeitDeadline": null,
               "clock": {
                 "activeColor": "white",
                 "incrementMs": 2000,
@@ -11307,6 +11337,7 @@
                 "white": "client-white",
                 "red": "client-red"
               },
+              "seatDisplayNames": {},
               "state": {
                 "id": "dchess_golden-a",
                 "perspective": "red",
@@ -11521,6 +11552,7 @@
                 "initialMs": 180000,
                 "incrementMs": 2000
               },
+              "forfeitDeadline": null,
               "rematch": {
                 "offers": {
                   "white": false,
@@ -11539,7 +11571,6 @@
               "seat": "spectator",
               "solo": false,
               "abortDeadline": null,
-              "forfeitDeadline": null,
               "clock": {
                 "activeColor": "white",
                 "incrementMs": 2000,
@@ -11666,6 +11697,7 @@
                 "white": "client-white",
                 "red": "client-red"
               },
+              "seatDisplayNames": {},
               "state": {
                 "id": "dchess_golden-a",
                 "perspective": "white",
@@ -11933,6 +11965,7 @@
                 "initialMs": 180000,
                 "incrementMs": 2000
               },
+              "forfeitDeadline": null,
               "rematch": {
                 "offers": {
                   "white": false,
@@ -11956,7 +11989,6 @@
               "seat": "white",
               "solo": false,
               "abortDeadline": null,
-              "forfeitDeadline": null,
               "clock": {
                 "activeColor": null,
                 "incrementMs": 2000,
@@ -12089,6 +12121,7 @@
                 "white": "client-white",
                 "red": "client-red"
               },
+              "seatDisplayNames": {},
               "state": {
                 "id": "dchess_golden-a",
                 "perspective": "white",
@@ -12304,6 +12337,7 @@
                 "initialMs": 180000,
                 "incrementMs": 2000
               },
+              "forfeitDeadline": null,
               "rematch": {
                 "offers": {
                   "white": false,
@@ -12322,7 +12356,6 @@
               "seat": "red",
               "solo": false,
               "abortDeadline": null,
-              "forfeitDeadline": null,
               "clock": {
                 "activeColor": null,
                 "incrementMs": 2000,
@@ -12455,6 +12488,7 @@
                 "white": "client-white",
                 "red": "client-red"
               },
+              "seatDisplayNames": {},
               "state": {
                 "id": "dchess_golden-a",
                 "perspective": "red",
@@ -12670,6 +12704,7 @@
                 "initialMs": 180000,
                 "incrementMs": 2000
               },
+              "forfeitDeadline": null,
               "rematch": {
                 "offers": {
                   "white": false,
@@ -12688,7 +12723,6 @@
               "seat": "spectator",
               "solo": false,
               "abortDeadline": null,
-              "forfeitDeadline": null,
               "clock": {
                 "activeColor": null,
                 "incrementMs": 2000,
@@ -12821,6 +12855,7 @@
                 "white": "client-white",
                 "red": "client-red"
               },
+              "seatDisplayNames": {},
               "state": {
                 "id": "dchess_golden-a",
                 "perspective": "white",
@@ -13036,6 +13071,7 @@
                 "initialMs": 180000,
                 "incrementMs": 2000
               },
+              "forfeitDeadline": null,
               "rematch": {
                 "offers": {
                   "white": false,
@@ -13079,7 +13115,6 @@
               "seat": "white",
               "solo": false,
               "abortDeadline": null,
-              "forfeitDeadline": null,
               "clock": {
                 "activeColor": null,
                 "incrementMs": 2000,
@@ -13212,6 +13247,7 @@
                 "white": "client-white",
                 "red": "client-red"
               },
+              "seatDisplayNames": {},
               "state": {
                 "id": "dchess_golden-a",
                 "perspective": "white",
@@ -13427,6 +13463,7 @@
                 "initialMs": 180000,
                 "incrementMs": 2000
               },
+              "forfeitDeadline": null,
               "rematch": {
                 "offers": {
                   "white": true,
@@ -13445,7 +13482,6 @@
               "seat": "red",
               "solo": false,
               "abortDeadline": null,
-              "forfeitDeadline": null,
               "clock": {
                 "activeColor": null,
                 "incrementMs": 2000,
@@ -13578,6 +13614,7 @@
                 "white": "client-white",
                 "red": "client-red"
               },
+              "seatDisplayNames": {},
               "state": {
                 "id": "dchess_golden-a",
                 "perspective": "red",
@@ -13793,6 +13830,7 @@
                 "initialMs": 180000,
                 "incrementMs": 2000
               },
+              "forfeitDeadline": null,
               "rematch": {
                 "offers": {
                   "white": true,
@@ -13811,7 +13849,6 @@
               "seat": "spectator",
               "solo": false,
               "abortDeadline": null,
-              "forfeitDeadline": null,
               "clock": {
                 "activeColor": null,
                 "incrementMs": 2000,
@@ -13944,6 +13981,7 @@
                 "white": "client-white",
                 "red": "client-red"
               },
+              "seatDisplayNames": {},
               "state": {
                 "id": "dchess_golden-a",
                 "perspective": "white",
@@ -14159,6 +14197,7 @@
                 "initialMs": 180000,
                 "incrementMs": 2000
               },
+              "forfeitDeadline": null,
               "rematch": {
                 "offers": {
                   "white": true,
@@ -14182,7 +14221,6 @@
               "seat": "white",
               "solo": false,
               "abortDeadline": null,
-              "forfeitDeadline": null,
               "clock": {
                 "activeColor": null,
                 "incrementMs": 2000,
@@ -14315,6 +14353,7 @@
                 "white": "client-white",
                 "red": "client-red"
               },
+              "seatDisplayNames": {},
               "state": {
                 "id": "dchess_golden-a",
                 "perspective": "white",
@@ -14530,6 +14569,7 @@
                 "initialMs": 180000,
                 "incrementMs": 2000
               },
+              "forfeitDeadline": null,
               "rematch": {
                 "offers": {
                   "white": true,
@@ -14548,7 +14588,6 @@
               "seat": "red",
               "solo": false,
               "abortDeadline": null,
-              "forfeitDeadline": null,
               "clock": {
                 "activeColor": null,
                 "incrementMs": 2000,
@@ -14681,6 +14720,7 @@
                 "white": "client-white",
                 "red": "client-red"
               },
+              "seatDisplayNames": {},
               "state": {
                 "id": "dchess_golden-a",
                 "perspective": "red",
@@ -14896,6 +14936,7 @@
                 "initialMs": 180000,
                 "incrementMs": 2000
               },
+              "forfeitDeadline": null,
               "rematch": {
                 "offers": {
                   "white": true,
@@ -14914,7 +14955,6 @@
               "seat": "spectator",
               "solo": false,
               "abortDeadline": null,
-              "forfeitDeadline": null,
               "clock": {
                 "activeColor": null,
                 "incrementMs": 2000,
@@ -15047,6 +15087,7 @@
                 "white": "client-white",
                 "red": "client-red"
               },
+              "seatDisplayNames": {},
               "state": {
                 "id": "dchess_golden-a",
                 "perspective": "white",
@@ -15262,6 +15303,7 @@
                 "initialMs": 180000,
                 "incrementMs": 2000
               },
+              "forfeitDeadline": null,
               "rematch": {
                 "offers": {
                   "white": true,
@@ -15290,7 +15332,6 @@
               "seat": "white",
               "solo": false,
               "abortDeadline": null,
-              "forfeitDeadline": null,
               "connectedSeats": {
                 "white": false,
                 "red": false
@@ -15321,6 +15362,7 @@
                 "white": "client-white",
                 "red": "client-red"
               },
+              "seatDisplayNames": {},
               "state": {
                 "id": "dchess_golden-b",
                 "perspective": "white",
@@ -15576,6 +15618,7 @@
                 },
                 "moveNumber": 1
               },
+              "forfeitDeadline": null,
               "rematch": {
                 "offers": {
                   "white": false,
@@ -15594,7 +15637,6 @@
               "seat": "red",
               "solo": false,
               "abortDeadline": null,
-              "forfeitDeadline": null,
               "connectedSeats": {
                 "white": false,
                 "red": false
@@ -15625,6 +15667,7 @@
                 "white": "client-white",
                 "red": "client-red"
               },
+              "seatDisplayNames": {},
               "state": {
                 "id": "dchess_golden-b",
                 "perspective": "red",
@@ -15831,6 +15874,7 @@
                 },
                 "moveNumber": 1
               },
+              "forfeitDeadline": null,
               "rematch": {
                 "offers": {
                   "white": false,
@@ -15849,7 +15893,6 @@
               "seat": "spectator",
               "solo": false,
               "abortDeadline": null,
-              "forfeitDeadline": null,
               "connectedSeats": {
                 "white": false,
                 "red": false
@@ -15880,6 +15923,7 @@
                 "white": "client-white",
                 "red": "client-red"
               },
+              "seatDisplayNames": {},
               "state": {
                 "id": "dchess_golden-b",
                 "perspective": "white",
@@ -16135,6 +16179,7 @@
                 },
                 "moveNumber": 1
               },
+              "forfeitDeadline": null,
               "rematch": {
                 "offers": {
                   "white": false,
@@ -16158,7 +16203,6 @@
               "seat": "white",
               "solo": false,
               "abortDeadline": null,
-              "forfeitDeadline": null,
               "connectedSeats": {
                 "white": false,
                 "red": false
@@ -16195,6 +16239,7 @@
                 "white": "client-white",
                 "red": "client-red"
               },
+              "seatDisplayNames": {},
               "state": {
                 "id": "dchess_golden-b",
                 "perspective": "white",
@@ -16401,6 +16446,7 @@
                 },
                 "moveNumber": 1
               },
+              "forfeitDeadline": null,
               "rematch": {
                 "offers": {
                   "white": false,
@@ -16419,7 +16465,6 @@
               "seat": "red",
               "solo": false,
               "abortDeadline": null,
-              "forfeitDeadline": null,
               "connectedSeats": {
                 "white": false,
                 "red": false
@@ -16456,6 +16501,7 @@
                 "white": "client-white",
                 "red": "client-red"
               },
+              "seatDisplayNames": {},
               "state": {
                 "id": "dchess_golden-b",
                 "perspective": "red",
@@ -16662,6 +16708,7 @@
                 },
                 "moveNumber": 1
               },
+              "forfeitDeadline": null,
               "rematch": {
                 "offers": {
                   "white": false,
@@ -16680,7 +16727,6 @@
               "seat": "spectator",
               "solo": false,
               "abortDeadline": null,
-              "forfeitDeadline": null,
               "connectedSeats": {
                 "white": false,
                 "red": false
@@ -16717,6 +16763,7 @@
                 "white": "client-white",
                 "red": "client-red"
               },
+              "seatDisplayNames": {},
               "state": {
                 "id": "dchess_golden-b",
                 "perspective": "white",
@@ -16923,6 +16970,7 @@
                 },
                 "moveNumber": 1
               },
+              "forfeitDeadline": null,
               "rematch": {
                 "offers": {
                   "white": false,
@@ -16971,7 +17019,6 @@
               "seat": "white",
               "solo": false,
               "abortDeadline": null,
-              "forfeitDeadline": null,
               "clock": {
                 "activeColor": null,
                 "incrementMs": 1000,
@@ -17031,6 +17078,7 @@
                 "white": "client-white",
                 "red": "client-red"
               },
+              "seatDisplayNames": {},
               "state": {
                 "id": "dchess_golden-c",
                 "perspective": "white",
@@ -17290,6 +17338,7 @@
                 "initialMs": 60000,
                 "incrementMs": 1000
               },
+              "forfeitDeadline": null,
               "rematch": {
                 "offers": {
                   "white": false,
@@ -17308,7 +17357,6 @@
               "seat": "red",
               "solo": false,
               "abortDeadline": null,
-              "forfeitDeadline": null,
               "clock": {
                 "activeColor": null,
                 "incrementMs": 1000,
@@ -17368,6 +17416,7 @@
                 "white": "client-white",
                 "red": "client-red"
               },
+              "seatDisplayNames": {},
               "state": {
                 "id": "dchess_golden-c",
                 "perspective": "red",
@@ -17578,6 +17627,7 @@
                 "initialMs": 60000,
                 "incrementMs": 1000
               },
+              "forfeitDeadline": null,
               "rematch": {
                 "offers": {
                   "white": false,
@@ -17596,7 +17646,6 @@
               "seat": "spectator",
               "solo": false,
               "abortDeadline": null,
-              "forfeitDeadline": null,
               "clock": {
                 "activeColor": null,
                 "incrementMs": 1000,
@@ -17656,6 +17705,7 @@
                 "white": "client-white",
                 "red": "client-red"
               },
+              "seatDisplayNames": {},
               "state": {
                 "id": "dchess_golden-c",
                 "perspective": "white",
@@ -17915,6 +17965,7 @@
                 "initialMs": 60000,
                 "incrementMs": 1000
               },
+              "forfeitDeadline": null,
               "rematch": {
                 "offers": {
                   "white": false,
@@ -17938,7 +17989,6 @@
               "seat": "white",
               "solo": false,
               "abortDeadline": null,
-              "forfeitDeadline": null,
               "clock": {
                 "activeColor": null,
                 "incrementMs": 1000,
@@ -18009,6 +18059,7 @@
                 "white": "client-white",
                 "red": "client-red"
               },
+              "seatDisplayNames": {},
               "state": {
                 "id": "dchess_golden-c",
                 "perspective": "white",
@@ -18223,6 +18274,7 @@
                 "initialMs": 60000,
                 "incrementMs": 1000
               },
+              "forfeitDeadline": null,
               "rematch": {
                 "offers": {
                   "white": false,
@@ -18241,7 +18293,6 @@
               "seat": "red",
               "solo": false,
               "abortDeadline": null,
-              "forfeitDeadline": null,
               "clock": {
                 "activeColor": null,
                 "incrementMs": 1000,
@@ -18312,6 +18363,7 @@
                 "white": "client-white",
                 "red": "client-red"
               },
+              "seatDisplayNames": {},
               "state": {
                 "id": "dchess_golden-c",
                 "perspective": "red",
@@ -18575,6 +18627,7 @@
                 "initialMs": 60000,
                 "incrementMs": 1000
               },
+              "forfeitDeadline": null,
               "rematch": {
                 "offers": {
                   "white": false,
@@ -18593,7 +18646,6 @@
               "seat": "spectator",
               "solo": false,
               "abortDeadline": null,
-              "forfeitDeadline": null,
               "clock": {
                 "activeColor": null,
                 "incrementMs": 1000,
@@ -18664,6 +18716,7 @@
                 "white": "client-white",
                 "red": "client-red"
               },
+              "seatDisplayNames": {},
               "state": {
                 "id": "dchess_golden-c",
                 "perspective": "white",
@@ -18878,6 +18931,7 @@
                 "initialMs": 60000,
                 "incrementMs": 1000
               },
+              "forfeitDeadline": null,
               "rematch": {
                 "offers": {
                   "white": false,
@@ -18936,7 +18990,6 @@
               "seat": "white",
               "solo": false,
               "abortDeadline": null,
-              "forfeitDeadline": null,
               "clock": {
                 "activeColor": "white",
                 "incrementMs": 1000,
@@ -19018,6 +19071,7 @@
                 "white": "client-white",
                 "red": "client-red"
               },
+              "seatDisplayNames": {},
               "state": {
                 "id": "dchess_golden-c",
                 "perspective": "white",
@@ -19285,6 +19339,7 @@
                 "initialMs": 60000,
                 "incrementMs": 1000
               },
+              "forfeitDeadline": null,
               "rematch": {
                 "offers": {
                   "white": false,
@@ -19303,7 +19358,6 @@
               "seat": "red",
               "solo": false,
               "abortDeadline": null,
-              "forfeitDeadline": null,
               "clock": {
                 "activeColor": "white",
                 "incrementMs": 1000,
@@ -19385,6 +19439,7 @@
                 "white": "client-white",
                 "red": "client-red"
               },
+              "seatDisplayNames": {},
               "state": {
                 "id": "dchess_golden-c",
                 "perspective": "red",
@@ -19599,6 +19654,7 @@
                 "initialMs": 60000,
                 "incrementMs": 1000
               },
+              "forfeitDeadline": null,
               "rematch": {
                 "offers": {
                   "white": false,
@@ -19617,7 +19673,6 @@
               "seat": "spectator",
               "solo": false,
               "abortDeadline": null,
-              "forfeitDeadline": null,
               "clock": {
                 "activeColor": "white",
                 "incrementMs": 1000,
@@ -19699,6 +19754,7 @@
                 "white": "client-white",
                 "red": "client-red"
               },
+              "seatDisplayNames": {},
               "state": {
                 "id": "dchess_golden-c",
                 "perspective": "white",
@@ -19966,6 +20022,7 @@
                 "initialMs": 60000,
                 "incrementMs": 1000
               },
+              "forfeitDeadline": null,
               "rematch": {
                 "offers": {
                   "white": false,
@@ -20024,7 +20081,6 @@
               "seat": "white",
               "solo": false,
               "abortDeadline": null,
-              "forfeitDeadline": null,
               "clock": {
                 "activeColor": null,
                 "incrementMs": 1000,
@@ -20122,6 +20178,7 @@
                 "white": "client-white",
                 "red": "client-red"
               },
+              "seatDisplayNames": {},
               "state": {
                 "id": "dchess_golden-c",
                 "perspective": "white",
@@ -20337,6 +20394,7 @@
                 "initialMs": 60000,
                 "incrementMs": 1000
               },
+              "forfeitDeadline": null,
               "rematch": {
                 "offers": {
                   "white": false,
@@ -20355,7 +20413,6 @@
               "seat": "red",
               "solo": false,
               "abortDeadline": null,
-              "forfeitDeadline": null,
               "clock": {
                 "activeColor": null,
                 "incrementMs": 1000,
@@ -20453,6 +20510,7 @@
                 "white": "client-white",
                 "red": "client-red"
               },
+              "seatDisplayNames": {},
               "state": {
                 "id": "dchess_golden-c",
                 "perspective": "red",
@@ -20668,6 +20726,7 @@
                 "initialMs": 60000,
                 "incrementMs": 1000
               },
+              "forfeitDeadline": null,
               "rematch": {
                 "offers": {
                   "white": false,
@@ -20686,7 +20745,6 @@
               "seat": "spectator",
               "solo": false,
               "abortDeadline": null,
-              "forfeitDeadline": null,
               "clock": {
                 "activeColor": null,
                 "incrementMs": 1000,
@@ -20784,6 +20842,7 @@
                 "white": "client-white",
                 "red": "client-red"
               },
+              "seatDisplayNames": {},
               "state": {
                 "id": "dchess_golden-c",
                 "perspective": "white",
@@ -20999,6 +21058,7 @@
                 "initialMs": 60000,
                 "incrementMs": 1000
               },
+              "forfeitDeadline": null,
               "rematch": {
                 "offers": {
                   "white": false,
@@ -21077,7 +21137,6 @@
               "seat": "white",
               "solo": false,
               "abortDeadline": null,
-              "forfeitDeadline": null,
               "clock": {
                 "activeColor": null,
                 "incrementMs": 2000,
@@ -21128,6 +21187,9 @@
               ],
               "seats": {
                 "white": "fairy-stockfish-crossroads-strong"
+              },
+              "seatDisplayNames": {
+                "white": "Fairy Stockfish - Strong"
               },
               "state": {
                 "id": "dchess_golden-d",
@@ -21388,6 +21450,7 @@
                 "initialMs": 180000,
                 "incrementMs": 2000
               },
+              "forfeitDeadline": null,
               "rematch": {
                 "offers": {
                   "white": false,
@@ -21395,8 +21458,8 @@
                 },
                 "finalizedRoomId": null
               },
-              "pveEngineId": "fairy-stockfish-crossroads-strong",
-              "roomMode": "pve"
+              "roomMode": "pve",
+              "pveEngineId": "fairy-stockfish-crossroads-strong"
             },
             "red": {
               "type": "snapshot",
@@ -21407,7 +21470,6 @@
               "seat": "red",
               "solo": false,
               "abortDeadline": null,
-              "forfeitDeadline": null,
               "clock": {
                 "activeColor": null,
                 "incrementMs": 2000,
@@ -21458,6 +21520,9 @@
               ],
               "seats": {
                 "white": "fairy-stockfish-crossroads-strong"
+              },
+              "seatDisplayNames": {
+                "white": "Fairy Stockfish - Strong"
               },
               "state": {
                 "id": "dchess_golden-d",
@@ -21669,6 +21734,7 @@
                 "initialMs": 180000,
                 "incrementMs": 2000
               },
+              "forfeitDeadline": null,
               "rematch": {
                 "offers": {
                   "white": false,
@@ -21676,8 +21742,8 @@
                 },
                 "finalizedRoomId": null
               },
-              "pveEngineId": "fairy-stockfish-crossroads-strong",
-              "roomMode": "pve"
+              "roomMode": "pve",
+              "pveEngineId": "fairy-stockfish-crossroads-strong"
             },
             "spectator": {
               "type": "snapshot",
@@ -21688,7 +21754,6 @@
               "seat": "spectator",
               "solo": false,
               "abortDeadline": null,
-              "forfeitDeadline": null,
               "clock": {
                 "activeColor": null,
                 "incrementMs": 2000,
@@ -21739,6 +21804,9 @@
               ],
               "seats": {
                 "white": "fairy-stockfish-crossroads-strong"
+              },
+              "seatDisplayNames": {
+                "white": "Fairy Stockfish - Strong"
               },
               "state": {
                 "id": "dchess_golden-d",
@@ -21999,6 +22067,7 @@
                 "initialMs": 180000,
                 "incrementMs": 2000
               },
+              "forfeitDeadline": null,
               "rematch": {
                 "offers": {
                   "white": false,
@@ -22006,8 +22075,8 @@
                 },
                 "finalizedRoomId": null
               },
-              "pveEngineId": "fairy-stockfish-crossroads-strong",
-              "roomMode": "pve"
+              "roomMode": "pve",
+              "pveEngineId": "fairy-stockfish-crossroads-strong"
             }
           }
         },
@@ -22023,7 +22092,6 @@
               "seat": "white",
               "solo": false,
               "abortDeadline": null,
-              "forfeitDeadline": null,
               "clock": {
                 "activeColor": null,
                 "incrementMs": 2000,
@@ -22082,6 +22150,9 @@
               "seats": {
                 "white": "fairy-stockfish-crossroads-strong",
                 "red": "client-red"
+              },
+              "seatDisplayNames": {
+                "white": "Fairy Stockfish - Strong"
               },
               "state": {
                 "id": "dchess_golden-d",
@@ -22342,6 +22413,7 @@
                 "initialMs": 180000,
                 "incrementMs": 2000
               },
+              "forfeitDeadline": null,
               "rematch": {
                 "offers": {
                   "white": false,
@@ -22349,8 +22421,8 @@
                 },
                 "finalizedRoomId": null
               },
-              "pveEngineId": "fairy-stockfish-crossroads-strong",
-              "roomMode": "pve"
+              "roomMode": "pve",
+              "pveEngineId": "fairy-stockfish-crossroads-strong"
             },
             "red": {
               "type": "snapshot",
@@ -22361,7 +22433,6 @@
               "seat": "red",
               "solo": false,
               "abortDeadline": null,
-              "forfeitDeadline": null,
               "clock": {
                 "activeColor": null,
                 "incrementMs": 2000,
@@ -22420,6 +22491,9 @@
               "seats": {
                 "white": "fairy-stockfish-crossroads-strong",
                 "red": "client-red"
+              },
+              "seatDisplayNames": {
+                "white": "Fairy Stockfish - Strong"
               },
               "state": {
                 "id": "dchess_golden-d",
@@ -22631,6 +22705,7 @@
                 "initialMs": 180000,
                 "incrementMs": 2000
               },
+              "forfeitDeadline": null,
               "rematch": {
                 "offers": {
                   "white": false,
@@ -22638,8 +22713,8 @@
                 },
                 "finalizedRoomId": null
               },
-              "pveEngineId": "fairy-stockfish-crossroads-strong",
-              "roomMode": "pve"
+              "roomMode": "pve",
+              "pveEngineId": "fairy-stockfish-crossroads-strong"
             },
             "spectator": {
               "type": "snapshot",
@@ -22650,7 +22725,6 @@
               "seat": "spectator",
               "solo": false,
               "abortDeadline": null,
-              "forfeitDeadline": null,
               "clock": {
                 "activeColor": null,
                 "incrementMs": 2000,
@@ -22709,6 +22783,9 @@
               "seats": {
                 "white": "fairy-stockfish-crossroads-strong",
                 "red": "client-red"
+              },
+              "seatDisplayNames": {
+                "white": "Fairy Stockfish - Strong"
               },
               "state": {
                 "id": "dchess_golden-d",
@@ -22969,6 +23046,7 @@
                 "initialMs": 180000,
                 "incrementMs": 2000
               },
+              "forfeitDeadline": null,
               "rematch": {
                 "offers": {
                   "white": false,
@@ -22976,8 +23054,8 @@
                 },
                 "finalizedRoomId": null
               },
-              "pveEngineId": "fairy-stockfish-crossroads-strong",
-              "roomMode": "pve"
+              "roomMode": "pve",
+              "pveEngineId": "fairy-stockfish-crossroads-strong"
             }
           },
           "eventForSeat": {
@@ -23016,7 +23094,6 @@
               "seat": "white",
               "solo": false,
               "abortDeadline": null,
-              "forfeitDeadline": null,
               "clock": {
                 "activeColor": null,
                 "incrementMs": 2000,
@@ -23086,6 +23163,9 @@
               "seats": {
                 "white": "fairy-stockfish-crossroads-strong",
                 "red": "client-red"
+              },
+              "seatDisplayNames": {
+                "white": "Fairy Stockfish - Strong"
               },
               "state": {
                 "id": "dchess_golden-d",
@@ -23301,6 +23381,7 @@
                 "initialMs": 180000,
                 "incrementMs": 2000
               },
+              "forfeitDeadline": null,
               "rematch": {
                 "offers": {
                   "white": false,
@@ -23308,8 +23389,8 @@
                 },
                 "finalizedRoomId": null
               },
-              "pveEngineId": "fairy-stockfish-crossroads-strong",
-              "roomMode": "pve"
+              "roomMode": "pve",
+              "pveEngineId": "fairy-stockfish-crossroads-strong"
             },
             "red": {
               "type": "snapshot",
@@ -23320,7 +23401,6 @@
               "seat": "red",
               "solo": false,
               "abortDeadline": null,
-              "forfeitDeadline": null,
               "clock": {
                 "activeColor": null,
                 "incrementMs": 2000,
@@ -23390,6 +23470,9 @@
               "seats": {
                 "white": "fairy-stockfish-crossroads-strong",
                 "red": "client-red"
+              },
+              "seatDisplayNames": {
+                "white": "Fairy Stockfish - Strong"
               },
               "state": {
                 "id": "dchess_golden-d",
@@ -23654,6 +23737,7 @@
                 "initialMs": 180000,
                 "incrementMs": 2000
               },
+              "forfeitDeadline": null,
               "rematch": {
                 "offers": {
                   "white": false,
@@ -23661,8 +23745,8 @@
                 },
                 "finalizedRoomId": null
               },
-              "pveEngineId": "fairy-stockfish-crossroads-strong",
-              "roomMode": "pve"
+              "roomMode": "pve",
+              "pveEngineId": "fairy-stockfish-crossroads-strong"
             },
             "spectator": {
               "type": "snapshot",
@@ -23673,7 +23757,6 @@
               "seat": "spectator",
               "solo": false,
               "abortDeadline": null,
-              "forfeitDeadline": null,
               "clock": {
                 "activeColor": null,
                 "incrementMs": 2000,
@@ -23743,6 +23826,9 @@
               "seats": {
                 "white": "fairy-stockfish-crossroads-strong",
                 "red": "client-red"
+              },
+              "seatDisplayNames": {
+                "white": "Fairy Stockfish - Strong"
               },
               "state": {
                 "id": "dchess_golden-d",
@@ -23958,6 +24044,7 @@
                 "initialMs": 180000,
                 "incrementMs": 2000
               },
+              "forfeitDeadline": null,
               "rematch": {
                 "offers": {
                   "white": false,
@@ -23965,8 +24052,8 @@
                 },
                 "finalizedRoomId": null
               },
-              "pveEngineId": "fairy-stockfish-crossroads-strong",
-              "roomMode": "pve"
+              "roomMode": "pve",
+              "pveEngineId": "fairy-stockfish-crossroads-strong"
             }
           },
           "eventForSeat": {
@@ -24017,7 +24104,6 @@
               "seat": "white",
               "solo": false,
               "abortDeadline": null,
-              "forfeitDeadline": null,
               "clock": {
                 "activeColor": "white",
                 "incrementMs": 2000,
@@ -24098,6 +24184,9 @@
               "seats": {
                 "white": "fairy-stockfish-crossroads-strong",
                 "red": "client-red"
+              },
+              "seatDisplayNames": {
+                "white": "Fairy Stockfish - Strong"
               },
               "state": {
                 "id": "dchess_golden-d",
@@ -24366,6 +24455,7 @@
                 "initialMs": 180000,
                 "incrementMs": 2000
               },
+              "forfeitDeadline": null,
               "rematch": {
                 "offers": {
                   "white": false,
@@ -24373,8 +24463,8 @@
                 },
                 "finalizedRoomId": null
               },
-              "pveEngineId": "fairy-stockfish-crossroads-strong",
-              "roomMode": "pve"
+              "roomMode": "pve",
+              "pveEngineId": "fairy-stockfish-crossroads-strong"
             },
             "red": {
               "type": "snapshot",
@@ -24385,7 +24475,6 @@
               "seat": "red",
               "solo": false,
               "abortDeadline": null,
-              "forfeitDeadline": null,
               "clock": {
                 "activeColor": "white",
                 "incrementMs": 2000,
@@ -24466,6 +24555,9 @@
               "seats": {
                 "white": "fairy-stockfish-crossroads-strong",
                 "red": "client-red"
+              },
+              "seatDisplayNames": {
+                "white": "Fairy Stockfish - Strong"
               },
               "state": {
                 "id": "dchess_golden-d",
@@ -24681,6 +24773,7 @@
                 "initialMs": 180000,
                 "incrementMs": 2000
               },
+              "forfeitDeadline": null,
               "rematch": {
                 "offers": {
                   "white": false,
@@ -24688,8 +24781,8 @@
                 },
                 "finalizedRoomId": null
               },
-              "pveEngineId": "fairy-stockfish-crossroads-strong",
-              "roomMode": "pve"
+              "roomMode": "pve",
+              "pveEngineId": "fairy-stockfish-crossroads-strong"
             },
             "spectator": {
               "type": "snapshot",
@@ -24700,7 +24793,6 @@
               "seat": "spectator",
               "solo": false,
               "abortDeadline": null,
-              "forfeitDeadline": null,
               "clock": {
                 "activeColor": "white",
                 "incrementMs": 2000,
@@ -24781,6 +24873,9 @@
               "seats": {
                 "white": "fairy-stockfish-crossroads-strong",
                 "red": "client-red"
+              },
+              "seatDisplayNames": {
+                "white": "Fairy Stockfish - Strong"
               },
               "state": {
                 "id": "dchess_golden-d",
@@ -25049,6 +25144,7 @@
                 "initialMs": 180000,
                 "incrementMs": 2000
               },
+              "forfeitDeadline": null,
               "rematch": {
                 "offers": {
                   "white": false,
@@ -25056,8 +25152,8 @@
                 },
                 "finalizedRoomId": null
               },
-              "pveEngineId": "fairy-stockfish-crossroads-strong",
-              "roomMode": "pve"
+              "roomMode": "pve",
+              "pveEngineId": "fairy-stockfish-crossroads-strong"
             }
           },
           "eventForSeat": {
@@ -25113,7 +25209,6 @@
               "seat": "white",
               "solo": false,
               "abortDeadline": null,
-              "forfeitDeadline": null,
               "connectedSeats": {
                 "white": false,
                 "red": false
@@ -25144,6 +25239,7 @@
                 "white": "client-white",
                 "red": "client-red"
               },
+              "seatDisplayNames": {},
               "state": {
                 "id": "dchess_golden-e",
                 "perspective": "white",
@@ -25399,6 +25495,7 @@
                 },
                 "moveNumber": 1
               },
+              "forfeitDeadline": null,
               "rematch": {
                 "offers": {
                   "white": false,
@@ -25417,7 +25514,6 @@
               "seat": "red",
               "solo": false,
               "abortDeadline": null,
-              "forfeitDeadline": null,
               "connectedSeats": {
                 "white": false,
                 "red": false
@@ -25448,6 +25544,7 @@
                 "white": "client-white",
                 "red": "client-red"
               },
+              "seatDisplayNames": {},
               "state": {
                 "id": "dchess_golden-e",
                 "perspective": "red",
@@ -25654,6 +25751,7 @@
                 },
                 "moveNumber": 1
               },
+              "forfeitDeadline": null,
               "rematch": {
                 "offers": {
                   "white": false,
@@ -25672,7 +25770,6 @@
               "seat": "spectator",
               "solo": false,
               "abortDeadline": null,
-              "forfeitDeadline": null,
               "connectedSeats": {
                 "white": false,
                 "red": false
@@ -25703,6 +25800,7 @@
                 "white": "client-white",
                 "red": "client-red"
               },
+              "seatDisplayNames": {},
               "state": {
                 "id": "dchess_golden-e",
                 "perspective": "white",
@@ -25958,6 +26056,7 @@
                 },
                 "moveNumber": 1
               },
+              "forfeitDeadline": null,
               "rematch": {
                 "offers": {
                   "white": false,
@@ -25981,7 +26080,6 @@
               "seat": "white",
               "solo": false,
               "abortDeadline": null,
-              "forfeitDeadline": null,
               "connectedSeats": {
                 "white": false,
                 "red": false
@@ -26023,6 +26121,7 @@
                 "white": "client-white",
                 "red": "client-red"
               },
+              "seatDisplayNames": {},
               "state": {
                 "id": "dchess_golden-e",
                 "perspective": "white",
@@ -26233,6 +26332,7 @@
                   "to": "a3"
                 }
               },
+              "forfeitDeadline": null,
               "rematch": {
                 "offers": {
                   "white": false,
@@ -26251,7 +26351,6 @@
               "seat": "red",
               "solo": false,
               "abortDeadline": null,
-              "forfeitDeadline": null,
               "connectedSeats": {
                 "white": false,
                 "red": false
@@ -26293,6 +26392,7 @@
                 "white": "client-white",
                 "red": "client-red"
               },
+              "seatDisplayNames": {},
               "state": {
                 "id": "dchess_golden-e",
                 "perspective": "red",
@@ -26552,6 +26652,7 @@
                   "to": "a3"
                 }
               },
+              "forfeitDeadline": null,
               "rematch": {
                 "offers": {
                   "white": false,
@@ -26570,7 +26671,6 @@
               "seat": "spectator",
               "solo": false,
               "abortDeadline": null,
-              "forfeitDeadline": null,
               "connectedSeats": {
                 "white": false,
                 "red": false
@@ -26612,6 +26712,7 @@
                 "white": "client-white",
                 "red": "client-red"
               },
+              "seatDisplayNames": {},
               "state": {
                 "id": "dchess_golden-e",
                 "perspective": "white",
@@ -26822,6 +26923,7 @@
                   "to": "a3"
                 }
               },
+              "forfeitDeadline": null,
               "rematch": {
                 "offers": {
                   "white": false,

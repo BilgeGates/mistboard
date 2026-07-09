@@ -90,6 +90,7 @@ type CrossroadsLiveFrame = {
   seatToken?: string;
   seat: CrossroadsChessColor | 'spectator';
   seats: Partial<Record<CrossroadsChessColor, string>>;
+  seatDisplayNames?: Partial<Record<CrossroadsChessColor, string>>;
   state: CrossroadsChessPlayerView;
   clock?: CrossroadsLiveClock | null;
   connectedSeats?: Record<CrossroadsChessColor, boolean>;
@@ -116,6 +117,7 @@ const state = {
   clock: null as CrossroadsLiveClock | null,
   timeControl: null as CrossroadsChessLiveTimeControl | null,
   seats: {} as Partial<Record<CrossroadsChessColor, string>>,
+  seatDisplayNames: {} as Partial<Record<CrossroadsChessColor, string>>,
   connectedSeats: { white: false, red: false } as Record<CrossroadsChessColor, boolean>,
   moves: [] as CrossroadsMovePlayed[],
   replayHistory: [] as ReplaySnapshot[],
@@ -174,6 +176,7 @@ const chrome = createTenantRoomChrome(crossroadsChessWebTenant, {
   clock: () => state.clock,
   timeControl: () => state.timeControl,
   connectedSeats: () => state.connectedSeats,
+  seatDisplayNames: () => state.seatDisplayNames,
   abortDeadline: () => state.abortDeadline,
   forfeitDeadline: () => state.forfeitDeadline,
   roomMode: () => state.roomMode,
@@ -288,6 +291,7 @@ function applyFrame(frame: CrossroadsLiveFrame): void {
     state.rematch = { ...frame.rematch, declined: state.rematch.declined };
   }
   state.seats = frame.seats ?? state.seats;
+  state.seatDisplayNames = frame.seatDisplayNames ?? state.seatDisplayNames;
   if (frame.connectedSeats) state.connectedSeats = frame.connectedSeats;
   // A fresh frame supersedes the local selection only when the game state moved
   // on (someone played); keep the selection otherwise so a re-render mid-pick

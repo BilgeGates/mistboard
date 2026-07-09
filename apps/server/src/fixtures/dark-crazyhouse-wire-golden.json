@@ -58,6 +58,7 @@
                 }
               ],
               "seats": {},
+              "seatDisplayNames": {},
               "state": {
                 "id": "dczh_golden-a",
                 "variant": "dark-chess",
@@ -308,6 +309,7 @@
                 }
               ],
               "seats": {},
+              "seatDisplayNames": {},
               "state": {
                 "id": "dczh_golden-a",
                 "variant": "dark-chess",
@@ -558,6 +560,7 @@
                 }
               ],
               "seats": {},
+              "seatDisplayNames": {},
               "state": {
                 "id": "dczh_golden-a",
                 "variant": "dark-chess",
@@ -643,6 +646,7 @@
               "seats": {
                 "white": "client-white"
               },
+              "seatDisplayNames": {},
               "state": {
                 "id": "dczh_golden-a",
                 "variant": "dark-chess",
@@ -902,6 +906,7 @@
               "seats": {
                 "white": "client-white"
               },
+              "seatDisplayNames": {},
               "state": {
                 "id": "dczh_golden-a",
                 "variant": "dark-chess",
@@ -1161,6 +1166,7 @@
               "seats": {
                 "white": "client-white"
               },
+              "seatDisplayNames": {},
               "state": {
                 "id": "dczh_golden-a",
                 "variant": "dark-chess",
@@ -1277,6 +1283,7 @@
                 "white": "client-white",
                 "black": "client-black"
               },
+              "seatDisplayNames": {},
               "state": {
                 "id": "dczh_golden-a",
                 "variant": "dark-chess",
@@ -1544,6 +1551,7 @@
                 "white": "client-white",
                 "black": "client-black"
               },
+              "seatDisplayNames": {},
               "state": {
                 "id": "dczh_golden-a",
                 "variant": "dark-chess",
@@ -1811,6 +1819,7 @@
                 "white": "client-white",
                 "black": "client-black"
               },
+              "seatDisplayNames": {},
               "state": {
                 "id": "dczh_golden-a",
                 "variant": "dark-chess",
@@ -1938,6 +1947,7 @@
                 "white": "client-white",
                 "black": "client-black"
               },
+              "seatDisplayNames": {},
               "state": {
                 "id": "dczh_golden-a",
                 "variant": "dark-chess",
@@ -2205,6 +2215,7 @@
                 "white": "client-white",
                 "black": "client-black"
               },
+              "seatDisplayNames": {},
               "state": {
                 "id": "dczh_golden-a",
                 "variant": "dark-chess",
@@ -2472,6 +2483,7 @@
                 "white": "client-white",
                 "black": "client-black"
               },
+              "seatDisplayNames": {},
               "state": {
                 "id": "dczh_golden-a",
                 "variant": "dark-chess",
@@ -2591,6 +2603,7 @@
                 "white": "client-white",
                 "black": "client-black"
               },
+              "seatDisplayNames": {},
               "state": {
                 "id": "dczh_golden-a",
                 "variant": "dark-chess",
@@ -2865,6 +2878,7 @@
                 "white": "client-white",
                 "black": "client-black"
               },
+              "seatDisplayNames": {},
               "state": {
                 "id": "dczh_golden-a",
                 "variant": "dark-chess",
@@ -3141,6 +3155,7 @@
                 "white": "client-white",
                 "black": "client-black"
               },
+              "seatDisplayNames": {},
               "state": {
                 "id": "dczh_golden-a",
                 "variant": "dark-chess",
@@ -3271,6 +3286,7 @@
                 "white": "client-white",
                 "black": "client-black"
               },
+              "seatDisplayNames": {},
               "state": {
                 "id": "dczh_golden-a",
                 "variant": "dark-chess",
@@ -3549,6 +3565,7 @@
                 "white": "client-white",
                 "black": "client-black"
               },
+              "seatDisplayNames": {},
               "state": {
                 "id": "dczh_golden-a",
                 "variant": "dark-chess",
@@ -3821,6 +3838,7 @@
                 "white": "client-white",
                 "black": "client-black"
               },
+              "seatDisplayNames": {},
               "state": {
                 "id": "dczh_golden-a",
                 "variant": "dark-chess",
@@ -3951,6 +3969,7 @@
                 "white": "client-white",
                 "black": "client-black"
               },
+              "seatDisplayNames": {},
               "state": {
                 "id": "dczh_golden-a",
                 "variant": "dark-chess",
@@ -4231,6 +4250,7 @@
                 "white": "client-white",
                 "black": "client-black"
               },
+              "seatDisplayNames": {},
               "state": {
                 "id": "dczh_golden-a",
                 "variant": "dark-chess",
@@ -4507,6 +4527,7 @@
                 "white": "client-white",
                 "black": "client-black"
               },
+              "seatDisplayNames": {},
               "state": {
                 "id": "dczh_golden-a",
                 "variant": "dark-chess",
@@ -4648,6 +4669,7 @@
                 "white": "client-white",
                 "black": "client-black"
               },
+              "seatDisplayNames": {},
               "state": {
                 "id": "dczh_golden-a",
                 "variant": "dark-chess",
@@ -4932,6 +4954,7 @@
                 "white": "client-white",
                 "black": "client-black"
               },
+              "seatDisplayNames": {},
               "state": {
                 "id": "dczh_golden-a",
                 "variant": "dark-chess",
@@ -5204,6 +5227,7 @@
                 "white": "client-white",
                 "black": "client-black"
               },
+              "seatDisplayNames": {},
               "state": {
                 "id": "dczh_golden-a",
                 "variant": "dark-chess",
@@ -5345,6 +5369,7 @@
                 "white": "client-white",
                 "black": "client-black"
               },
+              "seatDisplayNames": {},
               "state": {
                 "id": "dczh_golden-a",
                 "variant": "dark-chess",
@@ -5636,6 +5661,7 @@
                 "white": "client-white",
                 "black": "client-black"
               },
+              "seatDisplayNames": {},
               "state": {
                 "id": "dczh_golden-a",
                 "variant": "dark-chess",
@@ -5940,6 +5966,7 @@
                 "white": "client-white",
                 "black": "client-black"
               },
+              "seatDisplayNames": {},
               "state": {
                 "id": "dczh_golden-a",
                 "variant": "dark-chess",
@@ -6087,6 +6114,7 @@
                 "white": "client-white",
                 "black": "client-black"
               },
+              "seatDisplayNames": {},
               "state": {
                 "id": "dczh_golden-a",
                 "variant": "dark-chess",
@@ -6312,6 +6340,7 @@
                 "white": "client-white",
                 "black": "client-black"
               },
+              "seatDisplayNames": {},
               "state": {
                 "id": "dczh_golden-a",
                 "variant": "dark-chess",
@@ -6510,6 +6539,7 @@
                 "white": "client-white",
                 "black": "client-black"
               },
+              "seatDisplayNames": {},
               "state": {
                 "id": "dczh_golden-a",
                 "variant": "dark-chess",
@@ -6599,6 +6629,7 @@
                 "white": "client-white",
                 "black": "client-black"
               },
+              "seatDisplayNames": {},
               "state": {
                 "id": "dczh_golden-b",
                 "variant": "dark-chess",
@@ -6832,6 +6863,7 @@
                 "white": "client-white",
                 "black": "client-black"
               },
+              "seatDisplayNames": {},
               "state": {
                 "id": "dczh_golden-b",
                 "variant": "dark-chess",
@@ -7065,6 +7097,7 @@
                 "white": "client-white",
                 "black": "client-black"
               },
+              "seatDisplayNames": {},
               "state": {
                 "id": "dczh_golden-b",
                 "variant": "dark-chess",
@@ -7130,6 +7163,7 @@
                 "white": "client-white",
                 "black": "client-black"
               },
+              "seatDisplayNames": {},
               "state": {
                 "id": "dczh_golden-b",
                 "variant": "dark-chess",
@@ -7288,6 +7322,7 @@
                 "white": "client-white",
                 "black": "client-black"
               },
+              "seatDisplayNames": {},
               "state": {
                 "id": "dczh_golden-b",
                 "variant": "dark-chess",
@@ -7446,6 +7481,7 @@
                 "white": "client-white",
                 "black": "client-black"
               },
+              "seatDisplayNames": {},
               "state": {
                 "id": "dczh_golden-b",
                 "variant": "dark-chess",
@@ -7559,6 +7595,7 @@
                 "white": "client-white",
                 "black": "client-black"
               },
+              "seatDisplayNames": {},
               "state": {
                 "id": "dczh_golden-c",
                 "variant": "dark-chess",
@@ -7825,6 +7862,7 @@
                 "white": "client-white",
                 "black": "client-black"
               },
+              "seatDisplayNames": {},
               "state": {
                 "id": "dczh_golden-c",
                 "variant": "dark-chess",
@@ -8091,6 +8129,7 @@
                 "white": "client-white",
                 "black": "client-black"
               },
+              "seatDisplayNames": {},
               "state": {
                 "id": "dczh_golden-c",
                 "variant": "dark-chess",
@@ -8194,6 +8233,7 @@
                 "white": "client-white",
                 "black": "client-black"
               },
+              "seatDisplayNames": {},
               "state": {
                 "id": "dczh_golden-c",
                 "variant": "dark-chess",
@@ -8460,6 +8500,7 @@
                 "white": "client-white",
                 "black": "client-black"
               },
+              "seatDisplayNames": {},
               "state": {
                 "id": "dczh_golden-c",
                 "variant": "dark-chess",
@@ -8726,6 +8767,7 @@
                 "white": "client-white",
                 "black": "client-black"
               },
+              "seatDisplayNames": {},
               "state": {
                 "id": "dczh_golden-c",
                 "variant": "dark-chess",
@@ -8844,6 +8886,7 @@
                 "white": "client-white",
                 "black": "client-black"
               },
+              "seatDisplayNames": {},
               "state": {
                 "id": "dczh_golden-c",
                 "variant": "dark-chess",
@@ -9117,6 +9160,7 @@
                 "white": "client-white",
                 "black": "client-black"
               },
+              "seatDisplayNames": {},
               "state": {
                 "id": "dczh_golden-c",
                 "variant": "dark-chess",
@@ -9392,6 +9436,7 @@
                 "white": "client-white",
                 "black": "client-black"
               },
+              "seatDisplayNames": {},
               "state": {
                 "id": "dczh_golden-c",
                 "variant": "dark-chess",
@@ -9526,6 +9571,7 @@
                 "white": "client-white",
                 "black": "client-black"
               },
+              "seatDisplayNames": {},
               "state": {
                 "id": "dczh_golden-c",
                 "variant": "dark-chess",
@@ -9739,6 +9785,7 @@
                 "white": "client-white",
                 "black": "client-black"
               },
+              "seatDisplayNames": {},
               "state": {
                 "id": "dczh_golden-c",
                 "variant": "dark-chess",
@@ -9946,6 +9993,7 @@
                 "white": "client-white",
                 "black": "client-black"
               },
+              "seatDisplayNames": {},
               "state": {
                 "id": "dczh_golden-c",
                 "variant": "dark-chess",
