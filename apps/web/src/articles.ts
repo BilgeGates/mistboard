@@ -75,7 +75,7 @@ import {
   shogiAppearanceChangedEvent,
   xiangqiAppearanceChangedEvent,
 } from './theme.js';
-import { renderVariantMarker } from './variant-markers.js';
+import { hasFinalVariantMarker, renderVariantMarker } from './variant-markers.js';
 import type { VariantMiniId } from './variant-mini-boards.js';
 import {
   isGameSpecId,
@@ -2132,14 +2132,14 @@ function renderVariantMiniThumb(slug: string): HTMLElement | null {
   const miniId = VARIANT_MINI_BY_SLUG[slug];
   if (!miniId) return null;
   const wrap = document.createElement('div');
-  wrap.className = 'articles-index-card-thumb variant-mini-thumb';
+  wrap.className = hasFinalVariantMarker(miniId)
+    ? 'articles-index-card-thumb variant-mini-thumb variant-marker-thumb'
+    : 'articles-index-card-thumb variant-mini-thumb';
   wrap.setAttribute('aria-hidden', 'true');
   markNoTranslate(wrap);
   wrap.innerHTML = renderVariantMarker(miniId, { size: 100 });
   const marker = wrap.firstElementChild;
   if (marker instanceof HTMLElement) {
-    marker.style.width = '100%';
-    marker.style.height = '100%';
     marker.style.display = 'block';
   }
   return wrap;

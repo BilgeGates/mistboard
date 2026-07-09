@@ -510,11 +510,12 @@
   .article-shell {
     max-width: none;
     display: grid;
-    /* The variant rail is thicker than the TOC: its entries carry thumbs. */
-    grid-template-columns: 224px minmax(0, 800px) 180px;
+    /* The variant rail has compact markers and enough text room for one-line
+       variant names; the TOC can stay narrower. */
+    grid-template-columns: 272px minmax(0, 800px) 180px;
     grid-template-areas: "variants sheet toc";
     justify-content: center;
-    column-gap: 32px;
+    column-gap: 28px;
     align-items: start;
   }
 
@@ -680,14 +681,13 @@
   padding: 4px 0;
 }
 
-/* Variant rail entries: a board thumb makes each variant recognizable
-   at a glance. 112px matches the leaderboard + profile rails (and the
-   marker reads bolder, closer to the homepage card); a multiple of 8. */
+/* Variant rail entries: finalized markers read like lichess/playstrategy
+   monochrome glyphs, with mini-board fallback art only for unfinished variants. */
 .article-toc-nav a.article-variant-link {
   display: flex;
   align-items: center;
-  gap: 12px;
-  padding: 5px 0;
+  gap: 8px;
+  padding: 4px 0;
 }
 
 .article-variant-sidebar .articles-index-card-thumb {
@@ -700,6 +700,28 @@
      full strength, keeping the rail quiet next to the sheet. */
   opacity: 0.78;
   transition: opacity 150ms;
+}
+
+.article-variant-sidebar .variant-marker-thumb {
+  display: grid;
+  place-items: center;
+  flex: 0 0 34px;
+  width: 34px;
+  height: 34px;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  overflow: visible;
+}
+
+.article-variant-sidebar .variant-marker-thumb .variant-marker {
+  width: 30px;
+  height: 30px;
+}
+
+.article-variant-label {
+  min-width: 0;
+  white-space: nowrap;
 }
 
 .article-toc-nav a.article-variant-link:hover .articles-index-card-thumb,
@@ -752,6 +774,24 @@
   width: 100%;
   height: auto;
   aspect-ratio: 1 / 1;
+}
+
+.rules-landing-tile .variant-marker-thumb {
+  display: grid;
+  place-items: center;
+  width: 64px;
+  height: 64px;
+  margin: 0 auto;
+  aspect-ratio: 1 / 1;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  overflow: visible;
+}
+
+.rules-landing-tile .variant-marker-thumb .variant-marker {
+  width: 56px;
+  height: 56px;
 }
 
 .rules-landing-tile-label {
