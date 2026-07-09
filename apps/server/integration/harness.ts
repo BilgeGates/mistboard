@@ -267,3 +267,39 @@ export async function waitUntil(
 export function uniqueRoomId(prefix = 'test'): string {
   return `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 }
+
+/**
+ * Run `fn` with a production-like runtime, restoring the prior env afterward.
+ * The tenant WS runtime admits a tokenless visitor to a full/private room as a
+ * READ-ONLY spectator in non-production (dev /game-sheet spectates seeded
+ * rooms); production stays fail-closed and closes 1008. Any integration
+ * assertion that a private/full room REJECTS an uncredentialed or extra
+ * connection must run inside this window, or the connection is admitted and
+ * `await client.closed` hangs forever. Mirrors withProductionRuntime in the
+ * server-ws-*.test unit suites.
+ *
+ * Production also enforces the WS Origin allowlist (server-policy.ts). Since
+ * connectClient derives its Origin from the server url as `<scheme>//<host>`
+ * (http for ws), the allowlist is pinned to that exact origin here — otherwise
+ * the default `https://<host>` fallback rejects the http origin as
+ * 'origin not allowed' before the room-membership decision is reached.
+ */
+export async function withProductionRuntime(
+  serverUrl: string,
+  fn: () => Promise<void>,
+): Promise<void> {
+  const beforeEnv = process.env.NODE_ENV;
+  const beforeOrigins = process.env.MISTBOARD_ALLOWED_ORIGINS;
+  const url = new URL(serverUrl);
+  const scheme = url.protocol === 'wss:' ? 'https:' : 'http:';
+  process.env.NODE_ENV = 'production';
+  process.env.MISTBOARD_ALLOWED_ORIGINS = `${scheme}//${url.host}`;
+  try {
+    await fn();
+  } finally {
+    if (beforeEnv === undefined) delete process.env.NODE_ENV;
+    else process.env.NODE_ENV = beforeEnv;
+    if (beforeOrigins === undefined) delete process.env.MISTBOARD_ALLOWED_ORIGINS;
+    else process.env.MISTBOARD_ALLOWED_ORIGINS = beforeOrigins;
+  }
+}

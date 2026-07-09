@@ -1,7 +1,13 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { scheduleDarkXiangqiLifecycleTimers } from '../src/server-ws-dark-xiangqi.js';
-import { connectClient, startTestServer, type TestServer, waitUntil } from './harness.js';
+import {
+  connectClient,
+  startTestServer,
+  type TestServer,
+  waitUntil,
+  withProductionRuntime,
+} from './harness.js';
 
 const darkXiangqiKey = 'MISTBOARD_DARK_XIANGQI_ENABLED';
 
@@ -71,26 +77,32 @@ test('Dark Xiangqi room create + websocket loop is flag-gated and redacted', asy
     });
     assert.equal(black.seat, 'black');
 
-    const third = await connectClient({
-      url: server.url,
-      room: created.roomId,
-      gameSpecId: 'dark-xiangqi',
-      awaitHello: false,
-    });
-    await third.closed;
-    assert.equal(third.isClosed(), true);
+    // The tenant WS runtime admits a tokenless visitor as a read-only spectator
+    // in non-production; pin the production fail-closed path so a full private
+    // room rejects the extra connections with 1008 (otherwise they are admitted
+    // and the awaits hang).
+    await withProductionRuntime(server.url, async () => {
+      const third = await connectClient({
+        url: server.url,
+        room: created.roomId,
+        gameSpecId: 'dark-xiangqi',
+        awaitHello: false,
+      });
+      await third.closed;
+      assert.equal(third.isClosed(), true);
 
-    const copiedClientId = await connectClient({
-      url: server.url,
-      room: created.roomId,
-      gameSpecId: 'dark-xiangqi',
-      clientId: redReclaim.clientId ?? undefined,
-      awaitHello: false,
+      const copiedClientId = await connectClient({
+        url: server.url,
+        room: created.roomId,
+        gameSpecId: 'dark-xiangqi',
+        clientId: redReclaim.clientId ?? undefined,
+        awaitHello: false,
+      });
+      await copiedClientId.closed;
+      assert.equal(copiedClientId.isClosed(), true);
+      assert.equal(copiedClientId.closeCode(), 1008);
+      assert.equal(copiedClientId.closeReason(), 'private room');
     });
-    await copiedClientId.closed;
-    assert.equal(copiedClientId.isClosed(), true);
-    assert.equal(copiedClientId.closeCode(), 1008);
-    assert.equal(copiedClientId.closeReason(), 'private room');
 
     redReclaim.send({ type: 'move', from: 'b3', to: 'b4' });
     const redMoveFrame = await redReclaim.waitFor<{

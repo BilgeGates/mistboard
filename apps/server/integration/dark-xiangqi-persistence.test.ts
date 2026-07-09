@@ -2,7 +2,12 @@ import assert from 'node:assert/strict';
 import test, { after, before } from 'node:test';
 import pg from 'pg';
 import { runMigrations } from '../src/migrate.js';
-import { connectClient, startTestServer, type TestServer } from './harness.js';
+import {
+  connectClient,
+  startTestServer,
+  type TestServer,
+  withProductionRuntime,
+} from './harness.js';
 
 const testDbUrl = process.env.TEST_DATABASE_URL;
 const darkXiangqiKey = 'MISTBOARD_DARK_XIANGQI_ENABLED';
@@ -69,16 +74,21 @@ if (!testDbUrl) {
     assert.equal(serverInstance.darkXiangqiRooms.has(created.roomId), false);
     assert.equal(serverInstance.rooms.has(created.roomId), false);
 
-    const uncredentialed = await connectClient({
-      url: serverInstance.url,
-      room: created.roomId,
-      gameSpecId: 'dark-xiangqi',
-      awaitHello: false,
+    // The tenant WS runtime admits a tokenless visitor as a read-only spectator
+    // in non-production; pin the production fail-closed path so the private room
+    // rejects with 1008 (otherwise the connection is admitted and the await hangs).
+    await withProductionRuntime(serverInstance.url, async () => {
+      const uncredentialed = await connectClient({
+        url: serverInstance.url,
+        room: created.roomId,
+        gameSpecId: 'dark-xiangqi',
+        awaitHello: false,
+      });
+      await uncredentialed.closed;
+      assert.equal(uncredentialed.isClosed(), true);
+      assert.equal(uncredentialed.closeCode(), 1008);
+      assert.equal(uncredentialed.closeReason(), 'private room');
     });
-    await uncredentialed.closed;
-    assert.equal(uncredentialed.isClosed(), true);
-    assert.equal(uncredentialed.closeCode(), 1008);
-    assert.equal(uncredentialed.closeReason(), 'private room');
 
     const hydratedRed = await connectClient({
       url: serverInstance.url,
