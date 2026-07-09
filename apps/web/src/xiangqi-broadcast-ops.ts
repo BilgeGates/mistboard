@@ -78,6 +78,30 @@ type PollResponse = {
 
 class AdminRequiredError extends Error {}
 
+// Split a pasted blob into distinct source URLs: one per line (also tolerates
+// spaces/commas), trimmed, de-duplicated in first-seen order. A URL never
+// contains whitespace, so whitespace is always a separator.
+export function parseSourceUrls(raw: string): string[] {
+  const seen = new Set<string>();
+  const urls: string[] = [];
+  for (const token of raw.split(/[\s,]+/)) {
+    const url = token.trim();
+    if (!url || seen.has(url)) continue;
+    seen.add(url);
+    urls.push(url);
+  }
+  return urls;
+}
+
+// Compact label for per-URL failure lines (e.g. "view_m_140660.html").
+function shortSourceLabel(url: string): string {
+  try {
+    return new URL(url).pathname.split('/').filter(Boolean).pop() ?? url;
+  } catch {
+    return url;
+  }
+}
+
 export async function mountXiangqiBroadcastOps(root: HTMLElement): Promise<void> {
   root.replaceChildren();
   root.classList.add('xqb-ops-route');
@@ -110,13 +134,13 @@ function importPanel(body: HTMLElement): HTMLElement {
   const hint = document.createElement('p');
   hint.className = 'xqb-ops-sub';
   hint.textContent =
-    'Paste a canonical JSON, WXF/DhtmlXQ page, or manifest URL. Preview shows what would import without writing; Import creates or updates the broadcast.';
+    'Paste one or more source URLs (one per line): canonical JSON, WXF/DhtmlXQ, dpxq, or manifest pages. Preview dry-runs them all without writing; Import creates or updates each broadcast.';
 
   const row = document.createElement('div');
   row.className = 'xqb-ops-import-row';
-  const input = document.createElement('input');
-  input.type = 'url';
-  input.placeholder = 'https://example.org/event-page.html';
+  const input = document.createElement('textarea');
+  input.rows = 3;
+  input.placeholder = 'https://example.org/event-page.html\n(one URL per line)';
   input.className = 'xqb-ops-import-url';
   const preview = document.createElement('button');
   preview.type = 'button';
@@ -126,42 +150,77 @@ function importPanel(body: HTMLElement): HTMLElement {
   importButton.type = 'button';
   importButton.textContent = 'Import';
   importButton.className = 'xqb-ops-button';
-  const result = document.createElement('span');
-  result.className = 'xqb-ops-poll-result';
+  const result = document.createElement('div');
+  result.className = 'xqb-ops-poll-result xqb-ops-import-result';
   row.append(input, preview, importButton, result);
 
-  const run = async (dryRun: boolean, button: HTMLButtonElement) => {
-    const sourceUrl = input.value.trim();
-    if (!sourceUrl) {
-      result.textContent = 'Enter a source URL first.';
+  const resultLine = (text: string, extraClass?: string): HTMLElement => {
+    const line = document.createElement('div');
+    line.className = extraClass ? `xqb-ops-result-line ${extraClass}` : 'xqb-ops-result-line';
+    line.textContent = text;
+    return line;
+  };
+
+  const run = async (dryRun: boolean) => {
+    const urls = parseSourceUrls(input.value);
+    if (urls.length === 0) {
+      result.replaceChildren(resultLine('Enter at least one source URL.'));
       return;
     }
-    button.disabled = true;
-    result.textContent = dryRun ? 'Previewing...' : 'Importing...';
+    preview.disabled = true;
+    importButton.disabled = true;
+    const verb = dryRun ? 'Previewing' : 'Importing';
+    let ok = 0;
+    const failures: string[] = [];
     try {
-      const response = await fetch('/api/admin/xiangqi/broadcasts/import', {
-        method: 'POST',
-        headers: { accept: 'application/json', 'content-type': 'application/json' },
-        body: JSON.stringify({ sourceUrl, dryRun, allowCorrection: false }),
-      });
-      const payload = (await response.json()) as PollResponse;
-      if (!response.ok || !payload.result?.ok) {
-        result.textContent = payload.result?.message ?? payload.error ?? 'Import failed';
-        return;
+      for (let index = 0; index < urls.length; index += 1) {
+        const sourceUrl = urls[index]!;
+        result.replaceChildren(resultLine(`${verb} ${index + 1}/${urls.length}...`));
+        try {
+          const response = await fetch('/api/admin/xiangqi/broadcasts/import', {
+            method: 'POST',
+            headers: { accept: 'application/json', 'content-type': 'application/json' },
+            body: JSON.stringify({ sourceUrl, dryRun, allowCorrection: false }),
+          });
+          const payload = (await response.json()) as PollResponse;
+          if (!response.ok || !payload.result?.ok) {
+            failures.push(
+              `${shortSourceLabel(sourceUrl)}: ${payload.result?.message ?? payload.error ?? 'failed'}`,
+            );
+          } else {
+            ok += 1;
+            if (urls.length === 1) {
+              result.replaceChildren(
+                resultLine(
+                  `${pollSummary(payload.result)} (tour: ${payload.result.tourSlug ?? '?'})`,
+                ),
+              );
+            }
+          }
+        } catch {
+          failures.push(`${shortSourceLabel(sourceUrl)}: request failed`);
+        }
       }
-      result.textContent = `${pollSummary(payload.result)} (tour: ${payload.result.tourSlug ?? '?'})`;
-      if (!dryRun) await refresh(body);
-    } catch {
-      result.textContent = dryRun ? 'Preview failed' : 'Import failed';
+      if (urls.length > 1 || failures.length > 0) {
+        const summary = `${dryRun ? 'Previewed' : 'Imported'} ${ok}/${urls.length}${
+          failures.length ? `, ${failures.length} failed` : ''
+        }`;
+        result.replaceChildren(
+          resultLine(summary),
+          ...failures.slice(0, 10).map((message) => resultLine(message, 'xqb-ops-result-fail')),
+        );
+      }
+      if (!dryRun && ok > 0) await refresh(body);
     } finally {
-      button.disabled = false;
+      preview.disabled = false;
+      importButton.disabled = false;
     }
   };
   preview.onclick = () => {
-    void run(true, preview);
+    void run(true);
   };
   importButton.onclick = () => {
-    void run(false, importButton);
+    void run(false);
   };
 
   panel.append(title, hint, row);

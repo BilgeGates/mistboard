@@ -124,7 +124,7 @@
 
 .xqb-ops-import-row {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   gap: 8px;
   flex-wrap: wrap;
   margin-top: 10px;
@@ -132,7 +132,7 @@
 
 .xqb-ops-import-url {
   flex: 1 1 320px;
-  min-height: 34px;
+  min-height: 60px;
   border: 1px solid var(--site-border-soft);
   border-radius: var(--site-radius-sm);
   background: var(--site-panel-soft);
@@ -140,6 +140,24 @@
   padding: 8px 10px;
   font: inherit;
   font-size: 13px;
+  line-height: 1.45;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  resize: vertical;
+}
+
+.xqb-ops-import-result {
+  flex: 1 1 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.xqb-ops-result-line {
+  font-size: 12px;
+}
+
+.xqb-ops-result-fail {
+  color: #c0392b;
 }
 
 .xqb-ops-schedule {
