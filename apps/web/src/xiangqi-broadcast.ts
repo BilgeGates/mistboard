@@ -13,6 +13,7 @@ import { xiangqiMoveToFsfUci } from '@mistboard/game';
 import './live-xiangqi.css';
 import './xiangqi-broadcast.css';
 import { renderXiangqiBoardSvg } from './live-xiangqi.js';
+import { buildXiangqiReplayFromMoves } from './review/xiangqi-review-model.js';
 import { buildLoadingState, buildNav, buildNotice } from './site-shell.js';
 
 type BroadcastMoveTimelineEntry = {
@@ -315,12 +316,12 @@ function renderRound(data: BroadcastRoundResponse): HTMLElement {
   section.className = 'xqb-section';
   const heading = document.createElement('h2');
   heading.textContent = 'Boards';
-  const list = document.createElement('div');
-  list.className = 'xqb-board-list';
+  const grid = document.createElement('div');
+  grid.className = 'xqb-board-grid';
   for (const board of [...data.boards].sort((a, b) => a.boardNumber - b.boardNumber)) {
-    list.append(boardRow(board));
+    grid.append(boardCard(board));
   }
-  section.append(heading, list);
+  section.append(heading, grid);
   main.append(section);
   return main;
 }
@@ -506,30 +507,57 @@ function tourRow(entry: BroadcastIndexEntry): HTMLElement {
   return row;
 }
 
-function boardRow(board: BroadcastBoardSummary): HTMLElement {
-  const row = document.createElement('a');
-  row.className = 'xqb-row xqb-board-row';
-  row.href = `/broadcast/xiangqi/board/${encodeURIComponent(board.id)}`;
+// A scannable mini-board card: the current position rebuilt from the board's
+// move list (broadcasts are open truth, so the red-perspective truth view is
+// safe to render), plus pairing + result/status. Links to the full board page.
+function boardCard(board: BroadcastBoardSummary): HTMLElement {
+  const card = document.createElement('a');
+  card.className = `xqb-board-card xqb-board-card-${board.status}`;
+  card.href = `/broadcast/xiangqi/board/${encodeURIComponent(board.id)}`;
 
+  const top = document.createElement('div');
+  top.className = 'xqb-card-top';
   const number = document.createElement('span');
-  number.className = 'xqb-board-number';
-  number.textContent = String(board.boardNumber);
-
-  const pairing = document.createElement('span');
-  pairing.className = 'xqb-pairing';
-  const red = document.createElement('strong');
-  red.textContent = playerName(board.red);
-  const black = document.createElement('strong');
-  black.textContent = playerName(board.black);
-  const versus = document.createElement('span');
-  versus.textContent = 'vs';
-  pairing.append(red, versus, black);
-
+  number.className = 'xqb-card-number';
+  number.textContent = `Board ${board.boardNumber}`;
   const status = document.createElement('span');
   status.className = `xqb-status xqb-status-${board.status}`;
-  status.textContent = `${resultLabel(board)} / ${plyCount(board)} plies`;
+  status.textContent = resultLabel(board);
+  top.append(number, status);
 
-  row.append(number, pairing, status, chevron());
+  const boardEl = document.createElement('div');
+  boardEl.className = 'xqb-card-board xiangqi-live-board';
+  boardEl.setAttribute('aria-hidden', 'true');
+  const replay = buildXiangqiReplayFromMoves(board.moves ?? []);
+  const view = replay.views[replay.maxPly] ?? replay.views[0]!;
+  boardEl.innerHTML = renderXiangqiBoardSvg(view, 'red');
+
+  const players = document.createElement('div');
+  players.className = 'xqb-card-players';
+  players.append(
+    cardPlayer('red', board.red, board.result === '1-0'),
+    cardPlayer('black', board.black, board.result === '0-1'),
+  );
+
+  const foot = document.createElement('div');
+  foot.className = 'xqb-card-foot';
+  foot.textContent = `${plyCount(board)} plies`;
+
+  card.append(top, boardEl, players, foot);
+  return card;
+}
+
+function cardPlayer(
+  color: XiangqiColor,
+  player: XiangqiBroadcastPlayerTag,
+  won: boolean,
+): HTMLElement {
+  const row = document.createElement('span');
+  row.className = `xqb-card-player xqb-card-player-${color}${won ? ' xqb-card-player-winner' : ''}`;
+  const name = document.createElement('span');
+  name.className = 'xqb-card-player-name';
+  name.textContent = playerName(player);
+  row.append(name);
   return row;
 }
 

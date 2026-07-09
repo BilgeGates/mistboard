@@ -1,7 +1,10 @@
-import type { XiangqiColor, XiangqiMove } from '@mistboard/game';
-import { describe, expect, it } from 'vitest';
+import { type XiangqiColor, XIANGQI_BROADCAST_SCHEMA, type XiangqiMove } from '@mistboard/game';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { importXiangqiGame } from './review/xiangqi-import.js';
-import { serializeBroadcastMovesForAnalysis } from './xiangqi-broadcast.js';
+import {
+  mountXiangqiBroadcastRound,
+  serializeBroadcastMovesForAnalysis,
+} from './xiangqi-broadcast.js';
 
 type TimelineEntry = {
   type: 'move-played';
@@ -50,5 +53,81 @@ describe('serializeBroadcastMovesForAnalysis', () => {
 
   it('yields an empty query for a board with no moves', () => {
     expect(serializeBroadcastMovesForAnalysis([])).toBe('');
+  });
+});
+
+describe('mountXiangqiBroadcastRound (mini-board grid)', () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  function board(input: {
+    n: number;
+    red: string;
+    black: string;
+    moves: XiangqiMove[];
+    status: 'scheduled' | 'live' | 'complete';
+    result: '*' | '1-0' | '0-1' | '1/2-1/2';
+  }) {
+    return {
+      id: `t-r-b${input.n}`,
+      tourSlug: 't',
+      roundId: 'r',
+      sourceBoardId: `b${input.n}`,
+      boardNumber: input.n,
+      red: { name: input.red },
+      black: { name: input.black },
+      status: input.status,
+      result: input.result,
+      plyCount: input.moves.length,
+      moves: input.moves,
+    };
+  }
+
+  const ROUND = {
+    tour: { schema: XIANGQI_BROADCAST_SCHEMA, slug: 't', name: 'Test Cup' },
+    round: { schema: XIANGQI_BROADCAST_SCHEMA, id: 'r', tourSlug: 't', name: 'Round 1' },
+    boards: [
+      board({
+        n: 1,
+        red: '王天一',
+        black: '郑惟桐',
+        moves: [{ from: 'b3', to: 'e3' }],
+        status: 'live',
+        result: '*',
+      }),
+      board({ n: 2, red: 'A Player', black: 'B Player', moves: [], status: 'scheduled', result: '*' }),
+    ],
+  };
+
+  it('renders one mini-board card per board with a board, names, and live marker', async () => {
+    // Stub the round fetch; EventSource is stubbed to a no-op so the live-stream
+    // wiring does not reach for a real connection under happy-dom.
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => ({ ok: true, status: 200, json: async () => ROUND })),
+    );
+    vi.stubGlobal(
+      'EventSource',
+      class {
+        addEventListener(): void {}
+        close(): void {}
+      },
+    );
+
+    const root = document.createElement('div');
+    await mountXiangqiBroadcastRound(root, 't', 'r');
+
+    const cards = root.querySelectorAll('.xqb-board-card');
+    expect(cards.length).toBe(2);
+    // Each card rebuilds a position and renders the shared board SVG (the board
+    // root carries .xq-live-svg; pieces are nested svgs, so match the root only).
+    expect(root.querySelectorAll('.xqb-card-board > svg.xq-live-svg').length).toBe(2);
+    // Pairing names are present.
+    expect(root.textContent).toContain('王天一');
+    expect(root.textContent).toContain('郑惟桐');
+    // The live board carries the live status class; both players are shown.
+    expect(root.querySelector('.xqb-board-card-live .xqb-status-live')).not.toBeNull();
+    expect(root.querySelectorAll('.xqb-board-card-live .xqb-card-player').length).toBe(2);
   });
 });

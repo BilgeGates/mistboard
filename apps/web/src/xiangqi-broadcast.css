@@ -198,6 +198,97 @@
   color: var(--site-accent-strong);
 }
 
+.xqb-board-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
+  gap: 12px;
+}
+
+.xqb-board-card {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  border: 1px solid var(--site-border-soft);
+  border-radius: var(--site-radius-sm);
+  background: var(--site-panel);
+  color: var(--site-text);
+  padding: 10px;
+  text-decoration: none;
+}
+
+.xqb-board-card:hover,
+.xqb-board-card:focus-visible {
+  border-color: color-mix(in srgb, var(--site-accent) 42%, var(--site-border-soft));
+  background: var(--site-accent-soft);
+}
+
+.xqb-card-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.xqb-card-number {
+  font-size: 12px;
+  font-weight: 800;
+  color: var(--site-heading);
+}
+
+.xqb-card-board {
+  box-shadow: 0 6px 18px rgba(37, 31, 24, 0.12);
+  border-radius: 10px;
+}
+
+.xqb-card-players {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.xqb-card-player {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.xqb-card-player::before {
+  content: "";
+  flex: none;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  border: 1px solid var(--site-border-soft);
+}
+
+.xqb-card-player-red::before {
+  background: #c0392b;
+}
+
+.xqb-card-player-black::before {
+  background: #2b2b2b;
+}
+
+.xqb-card-player-name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.xqb-card-player-winner {
+  color: var(--site-accent-strong);
+}
+
+.xqb-card-foot {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--site-muted);
+}
+
 .xqb-tour-status {
   max-width: 420px;
 }
