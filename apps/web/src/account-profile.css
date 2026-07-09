@@ -1674,6 +1674,8 @@
 }
 
 .leaderboard-panel-thumb .variant-marker {
+  --variant-marker-color: var(--site-on-accent);
+
   display: block;
   width: 100%;
   height: 100%;
