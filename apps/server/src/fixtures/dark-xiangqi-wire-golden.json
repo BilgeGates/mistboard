@@ -426,7 +426,11 @@
                   "type": "playing",
                   "turn": "red"
                 },
-                "moveNumber": 1
+                "moveNumber": 1,
+                "captures": {
+                  "red": [],
+                  "black": []
+                }
               },
               "timeControl": {
                 "initialMs": 180000,
@@ -853,7 +857,11 @@
                   "type": "playing",
                   "turn": "red"
                 },
-                "moveNumber": 1
+                "moveNumber": 1,
+                "captures": {
+                  "red": [],
+                  "black": []
+                }
               },
               "timeControl": {
                 "initialMs": 180000,
@@ -922,7 +930,11 @@
                   "type": "playing",
                   "turn": "red"
                 },
-                "moveNumber": 1
+                "moveNumber": 1,
+                "captures": {
+                  "red": [],
+                  "black": []
+                }
               },
               "timeControl": {
                 "initialMs": 180000,
@@ -1363,7 +1375,11 @@
                   "type": "playing",
                   "turn": "red"
                 },
-                "moveNumber": 1
+                "moveNumber": 1,
+                "captures": {
+                  "red": [],
+                  "black": []
+                }
               },
               "timeControl": {
                 "initialMs": 180000,
@@ -1799,7 +1815,11 @@
                   "type": "playing",
                   "turn": "red"
                 },
-                "moveNumber": 1
+                "moveNumber": 1,
+                "captures": {
+                  "red": [],
+                  "black": []
+                }
               },
               "timeControl": {
                 "initialMs": 180000,
@@ -1877,7 +1897,11 @@
                   "type": "playing",
                   "turn": "red"
                 },
-                "moveNumber": 1
+                "moveNumber": 1,
+                "captures": {
+                  "red": [],
+                  "black": []
+                }
               },
               "timeControl": {
                 "initialMs": 180000,
@@ -2346,7 +2370,11 @@
                   "type": "playing",
                   "turn": "red"
                 },
-                "moveNumber": 1
+                "moveNumber": 1,
+                "captures": {
+                  "red": [],
+                  "black": []
+                }
               },
               "timeControl": {
                 "initialMs": 180000,
@@ -2787,7 +2815,11 @@
                   "type": "playing",
                   "turn": "red"
                 },
-                "moveNumber": 1
+                "moveNumber": 1,
+                "captures": {
+                  "red": [],
+                  "black": []
+                }
               },
               "timeControl": {
                 "initialMs": 180000,
@@ -2870,7 +2902,11 @@
                   "type": "playing",
                   "turn": "red"
                 },
-                "moveNumber": 1
+                "moveNumber": 1,
+                "captures": {
+                  "red": [],
+                  "black": []
+                }
               },
               "timeControl": {
                 "initialMs": 180000,
@@ -3348,7 +3384,11 @@
                   "type": "playing",
                   "turn": "red"
                 },
-                "moveNumber": 1
+                "moveNumber": 1,
+                "captures": {
+                  "red": [],
+                  "black": []
+                }
               },
               "timeControl": {
                 "initialMs": 180000,
@@ -3798,7 +3838,11 @@
                   "type": "playing",
                   "turn": "red"
                 },
-                "moveNumber": 1
+                "moveNumber": 1,
+                "captures": {
+                  "red": [],
+                  "black": []
+                }
               },
               "timeControl": {
                 "initialMs": 180000,
@@ -3890,7 +3934,11 @@
                   "type": "playing",
                   "turn": "red"
                 },
-                "moveNumber": 1
+                "moveNumber": 1,
+                "captures": {
+                  "red": [],
+                  "black": []
+                }
               },
               "timeControl": {
                 "initialMs": 180000,
@@ -4376,7 +4424,11 @@
                   "type": "playing",
                   "turn": "red"
                 },
-                "moveNumber": 1
+                "moveNumber": 1,
+                "captures": {
+                  "red": [],
+                  "black": []
+                }
               },
               "timeControl": {
                 "initialMs": 180000,
@@ -4834,7 +4886,11 @@
                   "type": "playing",
                   "turn": "red"
                 },
-                "moveNumber": 1
+                "moveNumber": 1,
+                "captures": {
+                  "red": [],
+                  "black": []
+                }
               },
               "timeControl": {
                 "initialMs": 180000,
@@ -4934,7 +4990,11 @@
                   "type": "playing",
                   "turn": "red"
                 },
-                "moveNumber": 1
+                "moveNumber": 1,
+                "captures": {
+                  "red": [],
+                  "black": []
+                }
               },
               "timeControl": {
                 "initialMs": 180000,
@@ -5471,6 +5531,10 @@
                 "lastMove": {
                   "from": "a1",
                   "to": "a2"
+                },
+                "captures": {
+                  "red": [],
+                  "black": []
                 }
               },
               "timeControl": {
@@ -5929,7 +5993,11 @@
                   "type": "playing",
                   "turn": "black"
                 },
-                "moveNumber": 1
+                "moveNumber": 1,
+                "captures": {
+                  "red": [],
+                  "black": []
+                }
               },
               "timeControl": {
                 "initialMs": 180000,
@@ -6029,7 +6097,11 @@
                   "type": "playing",
                   "turn": "black"
                 },
-                "moveNumber": 1
+                "moveNumber": 1,
+                "captures": {
+                  "red": [],
+                  "black": []
+                }
               },
               "timeControl": {
                 "initialMs": 180000,
@@ -6554,7 +6626,11 @@
                   "type": "playing",
                   "turn": "red"
                 },
-                "moveNumber": 2
+                "moveNumber": 2,
+                "captures": {
+                  "red": [],
+                  "black": []
+                }
               },
               "timeControl": {
                 "initialMs": 180000,
@@ -7015,6 +7091,10 @@
                 "lastMove": {
                   "from": "a10",
                   "to": "a8"
+                },
+                "captures": {
+                  "red": [],
+                  "black": []
                 }
               },
               "timeControl": {
@@ -7115,7 +7195,11 @@
                   "type": "playing",
                   "turn": "red"
                 },
-                "moveNumber": 2
+                "moveNumber": 2,
+                "captures": {
+                  "red": [],
+                  "black": []
+                }
               },
               "timeControl": {
                 "initialMs": 180000,
@@ -7619,6 +7703,10 @@
                 "lastMove": {
                   "from": "a2",
                   "to": "a1"
+                },
+                "captures": {
+                  "red": [],
+                  "black": []
                 }
               },
               "timeControl": {
@@ -8076,7 +8164,11 @@
                   "type": "playing",
                   "turn": "black"
                 },
-                "moveNumber": 2
+                "moveNumber": 2,
+                "captures": {
+                  "red": [],
+                  "black": []
+                }
               },
               "timeControl": {
                 "initialMs": 180000,
@@ -8176,7 +8268,11 @@
                   "type": "playing",
                   "turn": "black"
                 },
-                "moveNumber": 2
+                "moveNumber": 2,
+                "captures": {
+                  "red": [],
+                  "black": []
+                }
               },
               "timeControl": {
                 "initialMs": 180000,
@@ -8676,7 +8772,11 @@
                   "type": "playing",
                   "turn": "red"
                 },
-                "moveNumber": 3
+                "moveNumber": 3,
+                "captures": {
+                  "red": [],
+                  "black": []
+                }
               },
               "timeControl": {
                 "initialMs": 180000,
@@ -9153,6 +9253,10 @@
                 "lastMove": {
                   "from": "a7",
                   "to": "a6"
+                },
+                "captures": {
+                  "red": [],
+                  "black": []
                 }
               },
               "timeControl": {
@@ -9253,7 +9357,11 @@
                   "type": "playing",
                   "turn": "red"
                 },
-                "moveNumber": 3
+                "moveNumber": 3,
+                "captures": {
+                  "red": [],
+                  "black": []
+                }
               },
               "timeControl": {
                 "initialMs": 180000,
@@ -9804,6 +9912,10 @@
                 "lastMove": {
                   "from": "a1",
                   "to": "a2"
+                },
+                "captures": {
+                  "red": [],
+                  "black": []
                 }
               },
               "timeControl": {
@@ -10277,7 +10389,11 @@
                   "type": "playing",
                   "turn": "black"
                 },
-                "moveNumber": 3
+                "moveNumber": 3,
+                "captures": {
+                  "red": [],
+                  "black": []
+                }
               },
               "timeControl": {
                 "initialMs": 180000,
@@ -10377,7 +10493,11 @@
                   "type": "playing",
                   "turn": "black"
                 },
-                "moveNumber": 3
+                "moveNumber": 3,
+                "captures": {
+                  "red": [],
+                  "black": []
+                }
               },
               "timeControl": {
                 "initialMs": 180000,
@@ -10931,7 +11051,11 @@
                   "type": "playing",
                   "turn": "red"
                 },
-                "moveNumber": 4
+                "moveNumber": 4,
+                "captures": {
+                  "red": [],
+                  "black": []
+                }
               },
               "timeControl": {
                 "initialMs": 180000,
@@ -11435,6 +11559,10 @@
                 "lastMove": {
                   "from": "a6",
                   "to": "a5"
+                },
+                "captures": {
+                  "red": [],
+                  "black": []
                 }
               },
               "timeControl": {
@@ -11535,7 +11663,11 @@
                   "type": "playing",
                   "turn": "red"
                 },
-                "moveNumber": 4
+                "moveNumber": 4,
+                "captures": {
+                  "red": [],
+                  "black": []
+                }
               },
               "timeControl": {
                 "initialMs": 180000,
@@ -11887,7 +12019,11 @@
                   "winner": "black",
                   "reason": "resignation"
                 },
-                "moveNumber": 4
+                "moveNumber": 4,
+                "captures": {
+                  "red": [],
+                  "black": []
+                }
               },
               "timeControl": {
                 "initialMs": 180000,
@@ -12221,6 +12357,10 @@
                 "lastMove": {
                   "from": "a6",
                   "to": "a5"
+                },
+                "captures": {
+                  "red": [],
+                  "black": []
                 }
               },
               "timeControl": {
@@ -12328,7 +12468,11 @@
                   "winner": "black",
                   "reason": "resignation"
                 },
-                "moveNumber": 4
+                "moveNumber": 4,
+                "captures": {
+                  "red": [],
+                  "black": []
+                }
               },
               "timeControl": {
                 "initialMs": 180000,
@@ -12772,7 +12916,11 @@
                   "type": "playing",
                   "turn": "red"
                 },
-                "moveNumber": 1
+                "moveNumber": 1,
+                "captures": {
+                  "red": [],
+                  "black": []
+                }
               }
             },
             "black": {
@@ -13182,7 +13330,11 @@
                   "type": "playing",
                   "turn": "red"
                 },
-                "moveNumber": 1
+                "moveNumber": 1,
+                "captures": {
+                  "red": [],
+                  "black": []
+                }
               }
             },
             "spectator": {
@@ -13234,7 +13386,11 @@
                   "type": "playing",
                   "turn": "red"
                 },
-                "moveNumber": 1
+                "moveNumber": 1,
+                "captures": {
+                  "red": [],
+                  "black": []
+                }
               }
             }
           }
@@ -13478,7 +13634,11 @@
                   "type": "aborted",
                   "reason": "user-abort"
                 },
-                "moveNumber": 1
+                "moveNumber": 1,
+                "captures": {
+                  "red": [],
+                  "black": []
+                }
               }
             },
             "black": {
@@ -13717,7 +13877,11 @@
                   "type": "aborted",
                   "reason": "user-abort"
                 },
-                "moveNumber": 1
+                "moveNumber": 1,
+                "captures": {
+                  "red": [],
+                  "black": []
+                }
               }
             },
             "spectator": {
@@ -13775,7 +13939,11 @@
                   "type": "aborted",
                   "reason": "user-abort"
                 },
-                "moveNumber": 1
+                "moveNumber": 1,
+                "captures": {
+                  "red": [],
+                  "black": []
+                }
               }
             }
           },
@@ -14244,7 +14412,11 @@
                   "type": "playing",
                   "turn": "red"
                 },
-                "moveNumber": 1
+                "moveNumber": 1,
+                "captures": {
+                  "red": [],
+                  "black": []
+                }
               },
               "timeControl": {
                 "initialMs": 60000,
@@ -14687,7 +14859,11 @@
                   "type": "playing",
                   "turn": "red"
                 },
-                "moveNumber": 1
+                "moveNumber": 1,
+                "captures": {
+                  "red": [],
+                  "black": []
+                }
               },
               "timeControl": {
                 "initialMs": 60000,
@@ -14772,7 +14948,11 @@
                   "type": "playing",
                   "turn": "red"
                 },
-                "moveNumber": 1
+                "moveNumber": 1,
+                "captures": {
+                  "red": [],
+                  "black": []
+                }
               },
               "timeControl": {
                 "initialMs": 60000,
@@ -15271,6 +15451,10 @@
                 "lastMove": {
                   "from": "a1",
                   "to": "a2"
+                },
+                "captures": {
+                  "red": [],
+                  "black": []
                 }
               },
               "timeControl": {
@@ -15714,7 +15898,11 @@
                   "type": "playing",
                   "turn": "black"
                 },
-                "moveNumber": 1
+                "moveNumber": 1,
+                "captures": {
+                  "red": [],
+                  "black": []
+                }
               },
               "timeControl": {
                 "initialMs": 60000,
@@ -15799,7 +15987,11 @@
                   "type": "playing",
                   "turn": "black"
                 },
-                "moveNumber": 1
+                "moveNumber": 1,
+                "captures": {
+                  "red": [],
+                  "black": []
+                }
               },
               "timeControl": {
                 "initialMs": 60000,
@@ -16309,7 +16501,11 @@
                   "type": "playing",
                   "turn": "red"
                 },
-                "moveNumber": 2
+                "moveNumber": 2,
+                "captures": {
+                  "red": [],
+                  "black": []
+                }
               },
               "timeControl": {
                 "initialMs": 60000,
@@ -16755,6 +16951,10 @@
                 "lastMove": {
                   "from": "a10",
                   "to": "a8"
+                },
+                "captures": {
+                  "red": [],
+                  "black": []
                 }
               },
               "timeControl": {
@@ -16840,7 +17040,11 @@
                   "type": "playing",
                   "turn": "red"
                 },
-                "moveNumber": 2
+                "moveNumber": 2,
+                "captures": {
+                  "red": [],
+                  "black": []
+                }
               },
               "timeControl": {
                 "initialMs": 60000,
@@ -17158,7 +17362,11 @@
                   "winner": "black",
                   "reason": "timeout"
                 },
-                "moveNumber": 2
+                "moveNumber": 2,
+                "captures": {
+                  "red": [],
+                  "black": []
+                }
               },
               "timeControl": {
                 "initialMs": 60000,
@@ -17456,6 +17664,10 @@
                 "lastMove": {
                   "from": "a10",
                   "to": "a8"
+                },
+                "captures": {
+                  "red": [],
+                  "black": []
                 }
               },
               "timeControl": {
@@ -17558,7 +17770,11 @@
                   "winner": "black",
                   "reason": "timeout"
                 },
-                "moveNumber": 2
+                "moveNumber": 2,
+                "captures": {
+                  "red": [],
+                  "black": []
+                }
               },
               "timeControl": {
                 "initialMs": 60000,

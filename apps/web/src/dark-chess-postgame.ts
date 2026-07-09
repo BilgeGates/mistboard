@@ -82,22 +82,20 @@ export function mountDarkChessPostgame(
     const board = document.createElement('div');
     board.className = 'dxq-postgame__board dark-chess-live-board';
     board.setAttribute('aria-label', `${entry.label} final Dark Chess board`);
-    // Captured material is shown on the dominant truth board only (flank columns
-    // beside it, so the board keeps its full height); the small POV secondaries
-    // stay uncluttered.
-    if (entry.key === 'truth') {
-      const flank = createFlankCaptures(board);
-      el.append(heading, flank.host);
-      return {
-        ...entry,
-        el,
-        board,
-        leftCaptures: flank.leftColumn,
-        rightCaptures: flank.rightColumn,
-      };
-    }
-    el.append(heading, board);
-    return { ...entry, el, board, leftCaptures: null, rightCaptures: null };
+    // Every board gets flank capture columns, but only the current PRIMARY
+    // board's are filled (renderBoards) — a promoted POV board shows captures,
+    // the small secondaries stay uncluttered. In a two-player fog game the
+    // capture ledger is common knowledge (you made the capture or you lost the
+    // piece), so the POV boards show the same list as the truth board.
+    const flank = createFlankCaptures(board);
+    el.append(heading, flank.host);
+    return {
+      ...entry,
+      el,
+      board,
+      leftCaptures: flank.leftColumn,
+      rightCaptures: flank.rightColumn,
+    };
   });
 
   const moveList = createMoveList(buildMoveEntries(events), { title: 'Moves' });
@@ -124,11 +122,12 @@ export function mountDarkChessPostgame(
     boardCols: 13,
     secondaryWidthPx: 116,
     maxPly,
-    renderBoards({ ply, flipped }) {
+    renderBoards({ ply, flipped, primaryKey }) {
       const orientation: Color = flipped ? 'black' : 'white';
       const opponent: Color = orientation === 'white' ? 'black' : 'white';
       const state = replayGameEvents(sliceToPly(events, ply)).state;
       const seatViews = seatViewsAtPly(state);
+      const captured = capturedAtPly(events, ply);
       for (const target of targets) {
         if (target.key === 'truth') {
           target.board.innerHTML = sizedBoardSvg(
@@ -137,21 +136,22 @@ export function mountDarkChessPostgame(
               { perspective: orientation, showFog: false },
             ),
           );
-          if (target.leftCaptures && target.rightCaptures) {
-            const captured = capturedAtPly(events, ply);
-            target.leftCaptures.replaceChildren();
-            target.rightCaptures.replaceChildren();
+        } else {
+          target.board.innerHTML = sizedBoardSvg(
+            renderDarkChessBoardSvg(seatViews[target.key], {
+              perspective: orientation,
+              showFog: true,
+            }),
+          );
+        }
+        if (target.leftCaptures && target.rightCaptures) {
+          target.leftCaptures.replaceChildren();
+          target.rightCaptures.replaceChildren();
+          if (target.key === primaryKey) {
             fillCapturedPoolWith(target.leftCaptures, captured, orientation, chessGlyph);
             fillCapturedPoolWith(target.rightCaptures, captured, opponent, chessGlyph);
           }
-          continue;
         }
-        target.board.innerHTML = sizedBoardSvg(
-          renderDarkChessBoardSvg(seatViews[target.key], {
-            perspective: orientation,
-            showFog: true,
-          }),
-        );
       }
     },
     renderMoves({ ply }, jump) {

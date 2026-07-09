@@ -118,5 +118,6 @@ function viewFixture(): DarkXiangqiWireView {
     legalMoves: [{ from: 'b3', to: 'b4' }],
     status: { type: 'playing', turn: 'red' },
     moveNumber: 1,
+    captures: { red: [], black: [] },
   };
 }

@@ -18,14 +18,22 @@ import { mountReviewLayout } from './review/review-layout.js';
 import { buildNav } from './site-shell.js';
 import { renderXiangqiPiece } from './xiangqi-pieces.js';
 
-// Dark Xiangqi's wire view carries no captured list, so derive it by diffing the
-// standard opening against the (fully revealed) truth board. This is public info —
-// the same final position anyone reviewing sees — so it leaks no hidden state.
+// Captures come from the server-computed ledger on the wire view (per-ply in
+// history entries), which is correct on POV boards too — a board diff is NOT:
+// on a fog view a hidden survivor and a captured piece are indistinguishable.
+// The diff stays only as a fallback for payloads predating the ledger field,
+// and only on the fully revealed truth board where it is sound.
 const XIANGQI_INITIAL_PIECES = Object.values(createInitialXiangqiBoard()).filter(
   (piece): piece is NonNullable<typeof piece> => Boolean(piece),
 );
 
 function darkXiangqiCaptured(view: DarkXiangqiWireView) {
+  if (view.captures) {
+    return [
+      ...view.captures.red.map((role) => ({ owner: 'red' as XiangqiColor, role })),
+      ...view.captures.black.map((role) => ({ owner: 'black' as XiangqiColor, role })),
+    ];
+  }
   const current = Object.values(view.board)
     .filter((entry): entry is NonNullable<typeof entry> => Boolean(entry))
     .filter((entry) => !entry.shrouded)
@@ -141,17 +149,13 @@ function renderPostgame(root: HTMLElement, postgame: DarkXiangqiPostgameResponse
     const board = document.createElement('div');
     board.className = 'dxq-postgame__board xiangqi-live-board';
     board.setAttribute('aria-label', `${entry.label} final Fog Elephant Chess board`);
-    // Captured material is shown on the dominant truth board only (the small POV
-    // secondaries stay uncluttered; the review stage hides their pools anyway).
-    // Flank layout: columns beside the board (opponent top-left, near bottom-right)
-    // so the board keeps its full height.
-    if (entry.key === 'truth') {
-      const flank = createFlankCaptures(board);
-      el.append(heading, flank.host);
-      return { entry, el, board, leftCaptures: flank.leftColumn, rightCaptures: flank.rightColumn };
-    }
-    el.append(heading, board);
-    return { entry, el, board, leftCaptures: null, rightCaptures: null };
+    // Every board gets flank capture columns (opponent top-left, near
+    // bottom-right, level with the board so it keeps its full height), but only
+    // the current PRIMARY board's are filled — a promoted POV board shows its
+    // seat's captures, the small secondaries stay uncluttered.
+    const flank = createFlankCaptures(board);
+    el.append(heading, flank.host);
+    return { entry, el, board, leftCaptures: flank.leftColumn, rightCaptures: flank.rightColumn };
   });
 
   // Clickable move list (jump-to-ply + current-ply highlight), matching the
@@ -177,7 +181,7 @@ function renderPostgame(root: HTMLElement, postgame: DarkXiangqiPostgameResponse
     boardAspect: 552 / 612,
     boardCols: 9,
     maxPly: postgameReplayMaxPly(postgame),
-    renderBoards({ ply, flipped }) {
+    renderBoards({ ply, flipped, primaryKey }) {
       const orientation: XiangqiColor = flipped ? 'black' : 'red';
       const opponent: XiangqiColor = orientation === 'red' ? 'black' : 'red';
       for (const { entry, board, leftCaptures, rightCaptures } of targets) {
@@ -186,14 +190,16 @@ function renderPostgame(root: HTMLElement, postgame: DarkXiangqiPostgameResponse
           showFog: entry.key !== 'truth',
         });
         if (leftCaptures && rightCaptures) {
-          const captured = darkXiangqiCaptured(view);
           leftCaptures.replaceChildren();
           rightCaptures.replaceChildren();
-          // Render captured glyphs with the SAME renderer the board uses
-          // (character pieces). Left column (top) = opponent's captures; right
-          // column (bottom) = the near side's captures.
-          fillCapturedPoolWith(leftCaptures, captured, orientation, renderCapturedXiangqiGlyph);
-          fillCapturedPoolWith(rightCaptures, captured, opponent, renderCapturedXiangqiGlyph);
+          if (entry.key === primaryKey) {
+            const captured = darkXiangqiCaptured(view);
+            // Render captured glyphs with the SAME renderer the board uses
+            // (character pieces). Left column (top) = opponent's captures; right
+            // column (bottom) = the near side's captures.
+            fillCapturedPoolWith(leftCaptures, captured, orientation, renderCapturedXiangqiGlyph);
+            fillCapturedPoolWith(rightCaptures, captured, opponent, renderCapturedXiangqiGlyph);
+          }
         }
       }
     },

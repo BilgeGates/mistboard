@@ -503,6 +503,52 @@ export function applyMove(
   };
 }
 
+// ── Capture ledger ─────────────────────────────────────────────────────────
+// A pure replay that records who captured what, in ply order. Used by the
+// dark-xiangqi tenant to derive per-seat "observed captures" without leaking
+// hidden info: under fog you can only move where you can see, so a capture's
+// victim is always visible to the capturer at the moment of capture, and a
+// piece's owner always knows its own losses.
+//
+// The victim of ply N is read off the PRE-move board at `state.board[move.to]`
+// — exactly the read applyMove itself performs (see the capture-detection
+// block above). We drive the kernel's own applyMove per move rather than
+// reimplementing move semantics, so the ledger's board sequence is identical
+// to a normal replay.
+
+export type XiangqiCapture = {
+  victim: XiangqiPiece;
+  capturedBy: XiangqiColor;
+  plyIndex: number;
+};
+
+export function xiangqiCaptureLedger(
+  initialState: XiangqiGameState,
+  moves: readonly XiangqiMove[],
+  opts: XiangqiApplyMoveOptions = {},
+): XiangqiCapture[] {
+  const ledger: XiangqiCapture[] = [];
+  let state = initialState;
+  for (let plyIndex = 0; plyIndex < moves.length; plyIndex += 1) {
+    const move = moves[plyIndex]!;
+    if (state.status.type !== 'playing') break;
+    const capturedBy = state.status.turn;
+    const victim = state.board[move.to];
+    const next = applyMove(state, move, opts);
+    // applyMove returns the same reference on a rejected (illegal) move; only
+    // count captures for moves that actually applied.
+    if (next !== state && victim) {
+      ledger.push({
+        victim: { color: victim.color, role: victim.role },
+        capturedBy,
+        plyIndex,
+      });
+    }
+    state = next;
+  }
+  return ledger;
+}
+
 // ── Fog-of-war visibility kernel ───────────────────────────────────────────
 // Vision is computed geometrically per the design doc, NOT via elephantops's
 // attack functions. For pieces with blockers (horse legs, elephant eyes,

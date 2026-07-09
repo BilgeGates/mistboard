@@ -21,6 +21,7 @@ import type {
   XiangqiGameStatus,
   XiangqiMove,
   XiangqiPiece,
+  XiangqiPieceRole,
   XiangqiSquare,
 } from '@mistboard/game';
 import './live-xiangqi.css';
@@ -33,6 +34,7 @@ import {
 } from './live-dark-xiangqi-sound.js';
 import { playSound } from './live-sound.js';
 import type { LiveRefs } from './live-state.js';
+import { fillCapturedPoolWith } from './review/captured-pool.js';
 import { installBoardDrag } from './variant-tenant/board-drag.js';
 import {
   createTenantLiveClient,
@@ -58,6 +60,9 @@ export type DarkXiangqiWireView = {
   status: XiangqiGameStatus;
   moveNumber: number;
   lastMove?: XiangqiMove;
+  // Dead pieces per color, in capture order (server-computed ledger). Common
+  // knowledge between the seats; empty for spectators.
+  captures: { red: XiangqiPieceRole[]; black: XiangqiPieceRole[] };
 };
 
 type DarkXiangqiMoveEvent = TenantMovePlayed<XiangqiColor, XiangqiMove>;
@@ -145,6 +150,7 @@ const client = createTenantLiveClient<XiangqiColor, DarkXiangqiWireView, Xiangqi
     draggingFrom = null;
   },
   renderBoard,
+  renderExtras: renderLiveCaptureStrips,
   onDisabled: () => {
     selectedSquare = null;
   },
@@ -221,6 +227,30 @@ function renderBoard(liveRefs: LiveRefs, view: DarkXiangqiWireView | null): void
   liveRefs.board.innerHTML = boardSvg(view, perspective, { interactive: true });
   // Click + drag are delegated to the persistent board container once at mount
   // (installDarkXiangqiBoardInteraction), so they survive these innerHTML re-renders.
+}
+
+// Rail capture rows from the server-computed ledger on the wire view. Chess-room
+// convention: each strip shows the pieces captured BY the player on that side of
+// the board — top strip = the bottom side's dead pieces, bottom strip = the top
+// side's. Spectators get empty arrays from the server, so the rows collapse.
+function renderLiveCaptureStrips(liveRefs: LiveRefs, view: DarkXiangqiWireView | null): void {
+  liveRefs.capturesTop.replaceChildren();
+  liveRefs.capturesBottom.replaceChildren();
+  liveRefs.capturesTop.classList.remove('has-captures');
+  liveRefs.capturesBottom.classList.remove('has-captures');
+  if (!view) return;
+  const bottomColor = core?.orientation() ?? view.perspective;
+  const topColor: XiangqiColor = bottomColor === 'red' ? 'black' : 'red';
+  const dead = [
+    ...view.captures.red.map((role) => ({ owner: 'red' as XiangqiColor, role })),
+    ...view.captures.black.map((role) => ({ owner: 'black' as XiangqiColor, role })),
+  ];
+  fillCapturedPoolWith(liveRefs.capturesTop, dead, bottomColor, renderLiveCapturedGlyph);
+  fillCapturedPoolWith(liveRefs.capturesBottom, dead, topColor, renderLiveCapturedGlyph);
+}
+
+function renderLiveCapturedGlyph(piece: { color: XiangqiColor; role: XiangqiPieceRole }): string {
+  return renderXiangqiPiece(piece, { ariaLabel: `${piece.color} ${piece.role}` });
 }
 
 function boardSvg(

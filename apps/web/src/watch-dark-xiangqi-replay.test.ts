@@ -120,6 +120,7 @@ function xqView(
     legalMoves: [],
     status,
     moveNumber: 1,
+    captures: { red: [], black: [] },
   };
 }
 

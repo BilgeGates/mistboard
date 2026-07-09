@@ -18,12 +18,15 @@ import {
   DARK_XIANGQI_SPEC_ID,
   getPlayerView as getXiangqiPlayerView,
   isLegalMove as isXiangqiLegalMove,
+  type XiangqiCapture,
   type XiangqiColor,
   type XiangqiGameState,
   type XiangqiMove,
   type XiangqiPiece,
+  type XiangqiPieceRole,
   type XiangqiPlayerView,
   type XiangqiSquare,
+  xiangqiCaptureLedger,
 } from '@mistboard/game';
 import { engineVersionDisplayName, isDarkXiangqiEngineClientId } from './engines/registry.js';
 import { darkXiangqiEnabled } from './feature-flags.js';
@@ -45,8 +48,20 @@ type DarkXiangqiWireBoardEntry =
   | { piece: XiangqiPiece; shrouded: false }
   | { color: XiangqiColor; shrouded: true };
 
+// Observed captures: the DEAD pieces of each color, in capture order. In a
+// two-player fog game these are common knowledge between the seats (every
+// capture is either made by the seat, victim visible per field-of-fire vision,
+// or suffered by it, own pieces always visible), so both seats AND the truth
+// view carry the full dead lists. Only spectators are redacted to empty arrays,
+// matching the tenant's empty-board policy (material count is information).
+export type DarkXiangqiObservedCaptures = {
+  red: XiangqiPieceRole[];
+  black: XiangqiPieceRole[];
+};
+
 export type DarkXiangqiWirePlayerView = Omit<XiangqiPlayerView, 'board'> & {
   board: Partial<Record<XiangqiSquare, DarkXiangqiWireBoardEntry>>;
+  captures: DarkXiangqiObservedCaptures;
 };
 
 export type DarkXiangqiTenant = VariantTenant<
@@ -89,14 +104,69 @@ export function darkXiangqiClientEventFor(
   return { ...event, ply };
 }
 
+// Replay the event log's move list into a capture ledger. Pure: derived only
+// from move-played events + the tenant's own initial state, so it exactly
+// mirrors a normal projection replay's board sequence.
+//
+// Memoized per events-array identity: broadcastEventAppended builds a
+// snapshot-shaped payload for EVERY client on EVERY move, so without the memo
+// the O(plies) replay would run per client per event. The room appends to one
+// long-lived array, so (reference, length) keys a game-long cache and the
+// replay runs once per appended event.
+const ledgerMemo = new WeakMap<object, { length: number; ledger: XiangqiCapture[] }>();
+
+export function darkXiangqiCaptureLedger(
+  events: readonly TenantRoomEvent<XiangqiColor, XiangqiMove, DarkXiangqiSpecId>[],
+): XiangqiCapture[] {
+  const cached = ledgerMemo.get(events);
+  if (cached && cached.length === events.length) return cached.ledger;
+  const roomId = events[0]?.roomId ?? 'unknown-room';
+  const moves: XiangqiMove[] = [];
+  for (const event of events) {
+    if (event.type === 'move-played') moves.push(event.move);
+  }
+  const ledger = xiangqiCaptureLedger(createInitialXiangqiState(roomId), moves);
+  ledgerMemo.set(events, { length: events.length, ledger });
+  return ledger;
+}
+
+// Project the ledger to one viewer's honest capture knowledge.
+//
+// In a two-player fog game the dead-piece lists are COMMON KNOWLEDGE between the
+// seats: every capture was either made by the seat (victim visible at capture,
+// per field-of-fire vision) or suffered by it (own pieces are always visible).
+// So both seats and the truth view carry the full dead lists — no per-seat
+// filtering. Only spectators differ: they follow the tenant's empty-board
+// policy, so their capture arrays are empty (material count is information).
+export function darkXiangqiObservedCaptures(
+  ledger: readonly XiangqiCapture[],
+  seat: TenantSeat<XiangqiColor> | 'truth',
+): DarkXiangqiObservedCaptures {
+  if (seat === 'spectator') return { red: [], black: [] };
+  return {
+    red: capturedRoles(ledger, 'red'),
+    black: capturedRoles(ledger, 'black'),
+  };
+}
+
+function capturedRoles(ledger: readonly XiangqiCapture[], color: XiangqiColor): XiangqiPieceRole[] {
+  const roles: XiangqiPieceRole[] = [];
+  for (const capture of ledger) {
+    if (capture.victim.color === color) roles.push(capture.victim.role);
+  }
+  return roles;
+}
+
 export function getDarkXiangqiClientView(
   state: XiangqiGameState,
   client: TenantSnapshotClient<XiangqiColor>,
   latestVisibleMoveColor?: XiangqiColor,
+  ledger: readonly XiangqiCapture[] = [],
 ): DarkXiangqiWirePlayerView {
   const perspective = client.seat === 'black' ? 'black' : 'red';
-  if (client.seat === 'spectator') return emptyDarkXiangqiView(state, perspective);
-  const view = redactShroudedXiangqiView(getXiangqiPlayerView(state, perspective));
+  const captures = darkXiangqiObservedCaptures(ledger, client.seat);
+  if (client.seat === 'spectator') return emptyDarkXiangqiView(state, perspective, captures);
+  const view = redactShroudedXiangqiView(getXiangqiPlayerView(state, perspective), captures);
   if (latestVisibleMoveColor !== client.seat) return { ...view, lastMove: undefined };
   return view;
 }
@@ -115,7 +185,10 @@ function latestVisibleXiangqiMoveColor(
 
 // Re-encode the rules-level view for the wire: shrouded entries carry only the
 // occupying color, never piece identity.
-function redactShroudedXiangqiView(view: XiangqiPlayerView): DarkXiangqiWirePlayerView {
+function redactShroudedXiangqiView(
+  view: XiangqiPlayerView,
+  captures: DarkXiangqiObservedCaptures,
+): DarkXiangqiWirePlayerView {
   const board: DarkXiangqiWirePlayerView['board'] = {};
   for (const [square, entry] of Object.entries(view.board)) {
     if (!entry) continue;
@@ -123,12 +196,13 @@ function redactShroudedXiangqiView(view: XiangqiPlayerView): DarkXiangqiWirePlay
       ? { color: entry.piece.color, shrouded: true }
       : { piece: entry.piece, shrouded: false };
   }
-  return { ...view, board };
+  return { ...view, board, captures };
 }
 
 function emptyDarkXiangqiView(
   state: XiangqiGameState,
   perspective: XiangqiColor,
+  captures: DarkXiangqiObservedCaptures,
 ): DarkXiangqiWirePlayerView {
   return {
     id: state.id,
@@ -139,6 +213,7 @@ function emptyDarkXiangqiView(
     status: state.status,
     moveNumber: state.moveNumber,
     lastMove: undefined,
+    captures,
   };
 }
 
@@ -252,8 +327,17 @@ export const darkXiangqiTenant: DarkXiangqiTenant = {
   },
   visibility: {
     clientEventFor: darkXiangqiClientEventFor,
+    // Runs per client on EVERY broadcast: ws.ts broadcastEventAppended builds a
+    // snapshot-shaped payload (view included) for each client on each move. The
+    // ledger replay inside is O(plies), amortized by the memo in
+    // darkXiangqiCaptureLedger to once per appended event.
     viewForClient: (state, client, events) =>
-      getDarkXiangqiClientView(state, client, latestVisibleXiangqiMoveColor(events, client)),
+      getDarkXiangqiClientView(
+        state,
+        client,
+        latestVisibleXiangqiMoveColor(events, client),
+        darkXiangqiCaptureLedger(events),
+      ),
   },
   engine: {
     isEngineClientId: isDarkXiangqiEngineClientId,

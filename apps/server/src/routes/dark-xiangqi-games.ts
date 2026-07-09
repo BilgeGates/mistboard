@@ -1,6 +1,7 @@
 import type { IncomingMessage, ServerResponse } from 'node:http';
 import {
   DARK_XIANGQI_SPEC_ID,
+  type XiangqiCapture,
   type XiangqiColor,
   type XiangqiGameState,
   type XiangqiSquare,
@@ -14,6 +15,8 @@ import type {
 import {
   buildDarkXiangqiGameSummary,
   type DarkXiangqiWirePlayerView,
+  darkXiangqiCaptureLedger,
+  darkXiangqiObservedCaptures,
   darkXiangqiTenant,
   getDarkXiangqiClientView,
 } from './../dark-xiangqi-tenant.js';
@@ -120,6 +123,7 @@ export async function darkXiangqiPostgameForApi(
   if (projection.state.status.type !== 'finished') return null;
 
   const latestMoveColor = latestDarkXiangqiMoveColor(source.events);
+  const ledger = darkXiangqiCaptureLedger(source.events);
   return {
     game: postgameGameSummary(source.game),
     state: {
@@ -129,8 +133,8 @@ export async function darkXiangqiPostgameForApi(
       timeControl: projection.timeControl,
     },
     timeline: darkXiangqiPostgameTimeline(source.events),
-    view: darkXiangqiTruthView(projection.state),
-    views: darkXiangqiPostgameViews(projection.state, latestMoveColor),
+    view: darkXiangqiTruthView(projection.state, darkXiangqiObservedCaptures(ledger, 'truth')),
+    views: darkXiangqiPostgameViews(projection.state, ledger, latestMoveColor),
     history: darkXiangqiPostgameHistory(source.events),
   };
 }
@@ -180,6 +184,7 @@ function recentGameRecordFromSummary(
 
 function darkXiangqiPostgameViews(
   state: XiangqiGameState,
+  ledger: readonly XiangqiCapture[],
   latestMoveColor?: XiangqiColor,
 ): DarkXiangqiPostgameViews {
   return {
@@ -187,12 +192,14 @@ function darkXiangqiPostgameViews(
       state,
       { id: 'postgame-red', seat: 'red', solo: false },
       latestMoveColor,
+      ledger,
     ),
-    truth: darkXiangqiTruthView(state),
+    truth: darkXiangqiTruthView(state, darkXiangqiObservedCaptures(ledger, 'truth')),
     black: getDarkXiangqiClientView(
       state,
       { id: 'postgame-black', seat: 'black', solo: false },
       latestMoveColor,
+      ledger,
     ),
   };
 }
@@ -202,43 +209,74 @@ function darkXiangqiPostgameHistory(
 ): DarkXiangqiPostgameHistory {
   const created = events[0];
   if (!created || created.type !== 'room-created') return {};
+  // Full ledger once; each ply's history entry gets the ledger truncated to
+  // captures that had happened by that ply, so a scrubbing client sees captures
+  // accumulate rather than the final tallies from the first frame.
+  const ledger = darkXiangqiCaptureLedger(events);
   let projection = replayTenantEvents(darkXiangqiTenant, [created]);
   let ply = 0;
   let latestMoveColor: XiangqiColor | undefined;
-  const history = postgameHistoryViews(projection, ply, latestMoveColor);
+  const history = postgameHistoryViews(
+    projection,
+    ledgerThroughPly(ledger, ply),
+    ply,
+    latestMoveColor,
+  );
 
   for (const event of events.slice(1)) {
     projection = applyTenantEvent(darkXiangqiTenant, projection, event);
     if (event.type !== 'move-played') continue;
     ply += 1;
     latestMoveColor = event.color;
-    appendPostgameHistoryViews(history, projection, ply, latestMoveColor);
+    appendPostgameHistoryViews(
+      history,
+      projection,
+      ledgerThroughPly(ledger, ply),
+      ply,
+      latestMoveColor,
+    );
   }
   return history;
 }
 
+// Captures that had occurred by the end of `ply` moves. A capture recorded at
+// plyIndex p happened on move p + 1, i.e. at ply p + 1, so it is visible once
+// ply > p.
+function ledgerThroughPly(ledger: readonly XiangqiCapture[], ply: number): XiangqiCapture[] {
+  return ledger.filter((capture) => capture.plyIndex < ply);
+}
+
 function postgameHistoryViews(
   projection: DarkXiangqiProjection,
+  ledger: readonly XiangqiCapture[],
   ply: number,
   latestMoveColor?: XiangqiColor,
 ): DarkXiangqiPostgameHistory {
   const history: DarkXiangqiPostgameHistory = {};
-  appendPostgameHistoryViews(history, projection, ply, latestMoveColor);
+  appendPostgameHistoryViews(history, projection, ledger, ply, latestMoveColor);
   return history;
 }
 
 function appendPostgameHistoryViews(
   history: DarkXiangqiPostgameHistory,
   projection: DarkXiangqiProjection,
+  ledger: readonly XiangqiCapture[],
   ply: number,
   latestMoveColor?: XiangqiColor,
 ): void {
-  history.truth = [...(history.truth ?? []), { ply, view: darkXiangqiTruthView(projection.state) }];
+  history.truth = [
+    ...(history.truth ?? []),
+    {
+      ply,
+      view: darkXiangqiTruthView(projection.state, darkXiangqiObservedCaptures(ledger, 'truth')),
+    },
+  ];
   for (const color of ['red', 'black'] as const) {
     const view = getDarkXiangqiClientView(
       projection.state,
       { id: `postgame-history-${color}-${ply}`, seat: color, solo: false },
       latestMoveColor,
+      ledger,
     );
     history[color] = [...(history[color] ?? []), { ply, view }];
   }
@@ -294,7 +332,10 @@ function latestDarkXiangqiMoveColor(events: readonly DarkXiangqiEvent[]): Xiangq
   return undefined;
 }
 
-function darkXiangqiTruthView(state: XiangqiGameState): DarkXiangqiWirePlayerView {
+function darkXiangqiTruthView(
+  state: XiangqiGameState,
+  captures: DarkXiangqiWirePlayerView['captures'],
+): DarkXiangqiWirePlayerView {
   return {
     id: state.id,
     perspective: 'red',
@@ -306,6 +347,7 @@ function darkXiangqiTruthView(state: XiangqiGameState): DarkXiangqiWirePlayerVie
     status: state.status,
     moveNumber: state.moveNumber,
     lastMove: state.lastMove,
+    captures,
   };
 }
 
