@@ -68,6 +68,7 @@ export function createLiveLayout(
               <h2>Selections</h2>
               <div data-selections class="selection-list"></div>
             </section>
+            <div class="live-rail-filler" aria-hidden="true"></div>
           </aside>
           <div class="review-shell__center">
           <div class="board-shell">

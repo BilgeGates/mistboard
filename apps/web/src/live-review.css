@@ -72,6 +72,34 @@
   padding-left: 0;
 }
 
+/* Left rail: a chat-shaped filler panel below the meta card balances the
+   column against the full-height right table (lichess keeps a tall second box
+   there). Empty on purpose: chat is deferred, and this is the slot it (or
+   another rail panel) lands in later. Col3 only; in stacked layouts an empty
+   box would just push content down. */
+.live-rail-filler {
+  display: none;
+}
+@media (min-width: 1260px) {
+  .live-review__cluster .meta-panel {
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+  }
+  .live-review__cluster .live-rail-filler {
+    display: block;
+    /* Lichess chat proportions: a bit taller than the rail is wide, NOT flush
+       to the cluster bottom (lichess leaves the column ragged below the chat).
+       Shrinkable so short boards never overflow the rail. */
+    flex: 0 1 auto;
+    aspect-ratio: 5 / 6;
+    min-height: 96px;
+    border: 1px solid var(--site-border);
+    border-radius: var(--site-radius, 10px);
+    background: var(--site-panel, var(--site-surface));
+  }
+}
+
 /* Right rail: lichess round anatomy — clock top, the boxed table (move list
    filling the middle with its own scroll, then status / actions / controls
    rows), clock bottom. The console flex-fills the rail height (the rail is
