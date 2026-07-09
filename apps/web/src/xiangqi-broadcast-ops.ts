@@ -299,9 +299,14 @@ function tourPanel(entry: OpsTour, body: HTMLElement): HTMLElement {
   poll.textContent = 'Poll';
   poll.className = 'xqb-ops-button';
   poll.disabled = !entry.sourceUrl;
+  const remove = document.createElement('button');
+  remove.type = 'button';
+  remove.textContent = 'Delete';
+  remove.className = 'xqb-ops-button xqb-ops-button-danger';
+  remove.title = 'Permanently delete this broadcast (boards, rounds, and sync logs)';
   const result = document.createElement('span');
   result.className = 'xqb-ops-poll-result';
-  actions.append(view, correctionLabel, preview, poll, result);
+  actions.append(view, correctionLabel, preview, poll, remove, result);
   top.append(copy, actions);
 
   const stats = document.createElement('dl');
@@ -347,6 +352,32 @@ function tourPanel(entry: OpsTour, body: HTMLElement): HTMLElement {
       result,
       body,
     );
+  };
+  remove.onclick = () => {
+    if (
+      !confirm(`Delete broadcast "${entry.tour.name}" (${entry.tour.slug})? This cannot be undone.`)
+    )
+      return;
+    void (async () => {
+      remove.disabled = true;
+      result.textContent = 'Deleting...';
+      try {
+        const response = await fetch(
+          `/api/admin/xiangqi/broadcasts/${encodeURIComponent(entry.tour.slug)}`,
+          { method: 'DELETE', headers: { accept: 'application/json' } },
+        );
+        if (!response.ok) {
+          const payload = (await response.json().catch(() => ({}))) as { error?: string };
+          result.textContent = payload.error ?? 'Delete failed';
+          remove.disabled = false;
+          return;
+        }
+        await refresh(body);
+      } catch {
+        result.textContent = 'Delete failed';
+        remove.disabled = false;
+      }
+    })();
   };
 
   section.append(top, stats, source, schedule, health, logs);

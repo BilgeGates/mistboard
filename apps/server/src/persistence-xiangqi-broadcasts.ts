@@ -641,6 +641,21 @@ export async function getXiangqiBroadcastTour(
   return rows[0] ? tourFromRow(rows[0]) : null;
 }
 
+// Remove a broadcast tour and everything under it (boards, rounds, sync logs).
+// Schedule state lives in columns on the tour row, so deleting the tour clears
+// it too. Returns false when no tour matched the slug.
+export async function deleteXiangqiBroadcastTour(slug: string): Promise<boolean> {
+  return await withTransaction(async (client) => {
+    await client.query(`DELETE FROM xiangqi_broadcast_sync_logs WHERE tour_slug = $1`, [slug]);
+    await client.query(`DELETE FROM xiangqi_broadcast_boards WHERE tour_slug = $1`, [slug]);
+    await client.query(`DELETE FROM xiangqi_broadcast_rounds WHERE tour_slug = $1`, [slug]);
+    const { rowCount } = await client.query(`DELETE FROM xiangqi_broadcast_tours WHERE slug = $1`, [
+      slug,
+    ]);
+    return (rowCount ?? 0) > 0;
+  });
+}
+
 export async function listXiangqiBroadcastTours(): Promise<StoredXiangqiBroadcastTour[]> {
   const { rows } = await getPool().query<TourRow>(
     `SELECT * FROM xiangqi_broadcast_tours ORDER BY starts_at DESC NULLS LAST, slug`,

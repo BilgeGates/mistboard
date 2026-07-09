@@ -98,6 +98,14 @@ function slugLosesInformation(value: string): boolean {
   return /[\p{L}\p{N}]/u.test(residue);
 }
 
+// A round label like "第03轮" -> "r03" (stable across imports so same-round
+// games group). Non-numeric labels fall back to a slug or a deterministic hash.
+function roundToken(round: string): string {
+  const num = round.match(/\d+/)?.[0];
+  if (num) return `r${num.padStart(2, '0')}`;
+  return slugPart(round) || `r-${hashToken(round)}`;
+}
+
 function stableTourSlug(value: string): string {
   const base = slugPart(value);
   if (!base) return `tour-${hashToken(value)}`;
@@ -228,7 +236,24 @@ export function convertWxfDhtmlXqPageToSnapshot(
 ): WxfDhtmlXqConversionResult {
   const articleTitle = extractArticleTitle(html);
   const tourSlug = options.tourSlug ?? stableTourSlug(articleTitle ?? 'wxf-xiangqi-broadcast');
-  const roundId = options.roundId ?? `${tourSlug}-round`;
+
+  const frames = extractFrameBodies(html);
+  if (frames.length === 0) {
+    return {
+      ok: false,
+      issues: [{ kind: 'no_dhtmlxq_frames', message: 'no DhtmlXQ iframe payloads found' }],
+    };
+  }
+
+  // A dpxq archive page is one game carrying its own round (第NN轮); derive a
+  // distinct round id/name from it so games from different rounds don't merge
+  // into one default round. WXF pages pass an explicit roundId option and are
+  // unaffected.
+  const pageRoundTag = cleanTagValue(parseFrameTags(frames[0]!).get('round'));
+  const roundId =
+    options.roundId ??
+    (pageRoundTag ? `${tourSlug}-${roundToken(pageRoundTag)}` : `${tourSlug}-round`);
+  const roundName = options.roundName ?? pageRoundTag ?? articleTitle ?? 'WXF Round';
   const tour: XiangqiBroadcastTour = {
     schema: XIANGQI_BROADCAST_SCHEMA,
     slug: tourSlug,
@@ -239,17 +264,9 @@ export function convertWxfDhtmlXqPageToSnapshot(
     schema: XIANGQI_BROADCAST_SCHEMA,
     id: roundId,
     tourSlug,
-    name: options.roundName ?? articleTitle ?? 'WXF Round',
+    name: roundName,
     ...(options.sourceUrl ? { sourceUrl: options.sourceUrl } : {}),
   };
-
-  const frames = extractFrameBodies(html);
-  if (frames.length === 0) {
-    return {
-      ok: false,
-      issues: [{ kind: 'no_dhtmlxq_frames', message: 'no DhtmlXQ iframe payloads found' }],
-    };
-  }
 
   const issues: WxfDhtmlXqIssue[] = [];
   const boards: XiangqiBroadcastBoard[] = [];
@@ -257,7 +274,7 @@ export function convertWxfDhtmlXqPageToSnapshot(
   frames.forEach((frame, index) => {
     const tags = parseFrameTags(frame);
     const title = cleanTagValue(tags.get('title'));
-    const sourceBoardId = sourceBoardIdFromTitle(title, index);
+    let sourceBoardId = sourceBoardIdFromTitle(title, index);
     const binit = requireTag(tags, 'binit', sourceBoardId);
     if (!binit.ok) {
       issues.push(binit.issue);
@@ -282,6 +299,14 @@ export function convertWxfDhtmlXqPageToSnapshot(
       return;
     }
 
+    // A CJK-only frame title yields no board token (falls back to "board-<n>"),
+    // so independent single-game pages would all collide on board-1. Derive a
+    // stable per-game id from the pairing + round instead. Stable across live
+    // re-polls of the same game (red/black/round don't change as moves grow).
+    if (/^board-\d+$/.test(sourceBoardId)) {
+      sourceBoardId = `b${hashToken(`${red.value}|${black.value}|${pageRoundTag ?? ''}`)}`;
+    }
+
     const moves = movesFromDhtmlMovelist(sourceBoardId, movelist.value);
     if (!moves.ok) {
       issues.push(moves.issue);
@@ -291,7 +316,7 @@ export function convertWxfDhtmlXqPageToSnapshot(
     const { result, status } = resultFromWxf(tags.get('result'));
     const board: XiangqiBroadcastBoard = {
       schema: XIANGQI_BROADCAST_SCHEMA,
-      id: `${tourSlug}-${roundId}-b${String(boardNumberFromSourceId(sourceBoardId, index)).padStart(2, '0')}`,
+      id: `${tourSlug}-${roundId}-${sourceBoardId}`,
       tourSlug,
       roundId,
       sourceBoardId,

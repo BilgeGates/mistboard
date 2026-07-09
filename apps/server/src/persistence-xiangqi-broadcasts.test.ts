@@ -5,6 +5,7 @@ import { readXiangqiBroadcastFixturePack } from './import-xiangqi-broadcast.js';
 import { assert, definePersistenceTests, test } from './persistence-test-support.js';
 import {
   applyXiangqiBroadcastBoardUpdate,
+  deleteXiangqiBroadcastTour,
   getXiangqiBroadcastBoard,
   getXiangqiBroadcastTour,
   importXiangqiBroadcastPack,
@@ -142,6 +143,22 @@ definePersistenceTests('xiangqi broadcasts', () => {
     assert.equal(boards.length, 2);
     assert.equal(boards[0]?.plyCount, 8);
     assert.equal(boards[1]?.status, 'live');
+  });
+
+  test('deleteXiangqiBroadcastTour removes the tour and everything under it', async () => {
+    await importXiangqiBroadcastPack(await fixturePack());
+    assert.ok(await getXiangqiBroadcastTour('2025-wxc-sample'));
+
+    const deleted = await deleteXiangqiBroadcastTour('2025-wxc-sample');
+    assert.equal(deleted, true);
+
+    assert.equal(await getXiangqiBroadcastTour('2025-wxc-sample'), null);
+    assert.equal((await listXiangqiBroadcastRounds('2025-wxc-sample')).length, 0);
+    assert.equal((await listXiangqiBroadcastBoards('men-r1')).length, 0);
+    assert.equal((await listXiangqiBroadcastSyncLogs({ tourSlug: '2025-wxc-sample' })).length, 0);
+
+    // Deleting a slug that no longer exists is a no-op, not an error.
+    assert.equal(await deleteXiangqiBroadcastTour('2025-wxc-sample'), false);
   });
 
   test('re-importing the same fixture pack is idempotent for public rows', async () => {

@@ -314,6 +314,7 @@ export type {
 export {
   applyXiangqiBroadcastBoardUpdate,
   applyXiangqiBroadcastBoardUpdateOn,
+  deleteXiangqiBroadcastTour,
   getXiangqiBroadcastBoard,
   getXiangqiBroadcastTour,
   importXiangqiBroadcastPack,

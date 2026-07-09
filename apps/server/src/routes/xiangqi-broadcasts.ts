@@ -703,6 +703,20 @@ export async function tryHandle(
     return true;
   }
 
+  const adminDeleteMatch = pathname.match(/^\/api\/admin\/xiangqi\/broadcasts\/([^/]+)$/);
+  if (adminDeleteMatch && request.method === 'DELETE') {
+    if (!(await requireAdminSession(request, response))) return true;
+    if (!requirePersistence(response)) return true;
+    const slug = decodeURIComponent(adminDeleteMatch[1]!);
+    const deleted = await persistence.deleteXiangqiBroadcastTour(slug);
+    if (!deleted) {
+      writeJson(response, 404, { error: 'tour_not_found' });
+      return true;
+    }
+    writeJson(response, 200, { deleted: true, slug });
+    return true;
+  }
+
   const adminScheduleMatch = pathname.match(
     /^\/api\/admin\/xiangqi\/broadcasts\/([^/]+)\/schedule$/,
   );

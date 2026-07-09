@@ -109,6 +109,9 @@ export function normalizeDpxqPageToFrameHtml(text: string): DpxqNormalizeResult 
   // binit is dpxq's shorthand for the standard opening position.
   const binit = tags.get('binit') || STANDARD_DHTMLXQ_BINIT;
   const result = tags.get('result') || titleParts.result || '';
+  // The round (第NN轮) lives in a live-room tag or the archive <title>; carry it
+  // through so distinct rounds become distinct rounds/boards downstream.
+  const round = tags.get('round') || titleParts.round || '';
   const frameTitle = tags.get('title') || `${red} - ${black}`;
   // The event name is the tour identity; every board in one event must resolve
   // to the same tour, so prefer the authoritative [DhtmlXQ_event] tag over the
@@ -120,6 +123,7 @@ export function normalizeDpxqPageToFrameHtml(text: string): DpxqNormalizeResult 
     '[DhtmlXQiFrame]',
     `[DhtmlXQ_title]${escapeFrameValue(frameTitle)}[/DhtmlXQ_title]`,
     `[DhtmlXQ_binit]${binit}[/DhtmlXQ_binit]`,
+    `[DhtmlXQ_round]${escapeFrameValue(round)}[/DhtmlXQ_round]`,
     `[DhtmlXQ_red]${escapeFrameValue(red)}[/DhtmlXQ_red]`,
     `[DhtmlXQ_black]${escapeFrameValue(black)}[/DhtmlXQ_black]`,
     `[DhtmlXQ_result]${escapeFrameValue(result)}[/DhtmlXQ_result]`,

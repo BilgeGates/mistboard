@@ -28,6 +28,7 @@ function liveBoardPage(input: {
   plies: number;
   result?: string;
   event?: string;
+  round?: string;
 }): string {
   const movelist = FULL_MOVELIST.slice(0, input.plies * 4);
   return [
@@ -35,7 +36,7 @@ function liveBoardPage(input: {
     '[DhtmlXQ_ver]www_dpxq_com[/DhtmlXQ_ver]<br>',
     '[DhtmlXQ_binit][/DhtmlXQ_binit]<br>',
     `[DhtmlXQ_event]${input.event ?? '测试联赛'}[/DhtmlXQ_event]<br>`,
-    '[DhtmlXQ_round]第01轮[/DhtmlXQ_round]<br>',
+    `[DhtmlXQ_round]${input.round ?? '第01轮'}[/DhtmlXQ_round]<br>`,
     `[DhtmlXQ_result]${input.result ?? ''}[/DhtmlXQ_result]<br>`,
     `[DhtmlXQ_red]${input.red}[/DhtmlXQ_red]<br>`,
     `[DhtmlXQ_black]${input.black}[/DhtmlXQ_black]<br>`,
@@ -50,6 +51,42 @@ function tourSlugFor(event: string): string {
   const converted = convertWxfDhtmlXqPageToSnapshot(normalized.ok ? normalized.html : '');
   return converted.ok ? converted.snapshot.tour.slug : '';
 }
+
+function boardFor(input: { red: string; black: string; event: string; round: string }) {
+  const page = liveBoardPage({ ...input, plies: 8 });
+  const normalized = normalizeDpxqPageToFrameHtml(page);
+  const converted = convertWxfDhtmlXqPageToSnapshot(normalized.ok ? normalized.html : '');
+  if (!converted.ok) throw new Error('dpxq conversion failed');
+  return converted.snapshot.boards[0]!;
+}
+
+test('independent same-event games compose into distinct boards grouped by round', () => {
+  // Regression: single-game dpxq pages once all collapsed to (tour, default
+  // round, board-1) and clobbered each other with incompatible_update.
+  const EVENT = '2026年全国象棋团体赛';
+  const r3a = boardFor({ red: '曹岩磊', black: '李小龙', event: EVENT, round: '第03轮' });
+  const r3b = boardFor({ red: '唐丹', black: '董毓男', event: EVENT, round: '第03轮' });
+  const r4 = boardFor({ red: '孟辰', black: '李彦阳', event: EVENT, round: '第04轮' });
+
+  // One tour for the whole event.
+  assert.equal(r3a.tourSlug, r3b.tourSlug);
+  assert.equal(r3a.tourSlug, r4.tourSlug);
+
+  // Three distinct boards (the bug made all three identical).
+  assert.equal(new Set([r3a.id, r3b.id, r4.id]).size, 3);
+
+  // Same 轮 groups; different 轮 separates.
+  assert.equal(r3a.roundId, r3b.roundId);
+  assert.notEqual(r3a.roundId, r4.roundId);
+  assert.match(r3a.roundId, /r03$/);
+  assert.match(r4.roundId, /r04$/);
+
+  // Stable across re-polls: same game -> same board id (updates, not dupes).
+  assert.equal(
+    boardFor({ red: '曹岩磊', black: '李小龙', event: EVENT, round: '第03轮' }).id,
+    r3a.id,
+  );
+});
 
 test('looksLikeDpxqPage flags raw dpxq pages, not framed WXF or JSON', () => {
   assert.equal(looksLikeDpxqPage(ARCHIVE_HTML), true);

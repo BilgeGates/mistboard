@@ -122,6 +122,12 @@
   background: transparent;
 }
 
+.xqb-ops-button-danger {
+  background: transparent;
+  border-color: #c0392b;
+  color: #c0392b;
+}
+
 .xqb-ops-import-row {
   display: flex;
   align-items: flex-start;
