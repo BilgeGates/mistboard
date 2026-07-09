@@ -1,10 +1,26 @@
-.xiangqi-analysis-form__card {
-  max-width: 640px;
-  margin: 0 auto;
-  text-align: left;
+/* ── Import dialog (the "load a game" affordance on the board) ─────────────── */
+.xqa-import-dialog {
+  width: min(560px, 92vw);
+  border: 1px solid var(--site-border);
+  border-radius: var(--site-radius, 10px);
+  background: var(--site-panel);
+  color: var(--site-text);
+  padding: 16px;
 }
-
-.xiangqi-analysis-form__input {
+.xqa-import-dialog::backdrop {
+  background: rgba(0, 0, 0, 0.5);
+}
+.xqa-import-dialog h2 {
+  margin: 0 0 6px;
+  font-size: 16px;
+  color: var(--site-heading, var(--site-text));
+}
+.xqa-import-dialog__blurb {
+  margin: 0 0 10px;
+  font-size: 13px;
+  color: var(--site-muted);
+}
+.xqa-import-dialog__input {
   width: 100%;
   box-sizing: border-box;
   font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
@@ -12,16 +28,55 @@
   line-height: 1.5;
   padding: 0.6rem 0.7rem;
   border-radius: 8px;
-  border: 1px solid rgba(128, 128, 128, 0.45);
-  background: transparent;
+  border: 1px solid var(--site-border);
+  background: var(--site-bg);
   color: inherit;
   resize: vertical;
-  margin: 0.75rem 0 0.5rem;
 }
-
-.xiangqi-analysis-form__error {
+.xqa-import-dialog__error {
   min-height: 1.2em;
-  margin: 0 0 0.75rem;
+  margin: 6px 0 0;
   color: #c0392b;
   font-size: 0.9rem;
+}
+.xqa-import-dialog__actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+/* ── Interactive analysis board (tree-driven) ─────────────────────────────── */
+/* Layout, board sizing, and the nav bar come from the shared review scaffold
+   (createReviewScaffold) — identical to the /game postgame. Only the whole-game
+   sweep button + the underboard reservation are analysis-specific. */
+
+/* The on-board eval bar is absolutely positioned just past the flank host's right
+   edge (BAR_GAP 8 + BAR_WIDTH 20 = 28px), which overflows the board host and, in
+   the hugging cluster, bleeds into the right rail. Reserve that footprint here so
+   the bar stays inside the center column. (The shared review-board-host has the
+   same latent issue for any variant that adds an eval bar; fix there when the
+   postgame ships it.) */
+.xqa-board-wrap {
+  box-sizing: border-box;
+  padding-right: 32px;
+}
+
+/* Reserve underboard height so the board fills to ~postgame size (the advantage
+   chart occupies this space after the sweep) rather than ballooning full-height. */
+.xqa-underboard {
+  min-height: 132px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.xqa-analyse {
+  padding: 6px 12px;
+  border: 1px solid rgba(128, 128, 128, 0.35);
+  border-radius: 6px;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  font: inherit;
 }

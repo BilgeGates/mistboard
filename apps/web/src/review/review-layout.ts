@@ -1,14 +1,18 @@
-// Unified postgame review layout. Every variant's /game review page composes
-// through this: it owns the shared shell (hugging left/center/right cluster),
-// the review-stage (dominant primary board + click-to-promote secondaries), the
-// playback scrubber, keyboard nav, flip state, and the viewport-fill board
-// sizing. A variant supplies only a ReviewLayoutAdapter — its title/summary/
-// actions, its details + moves panels, its board hosts + a renderBoards callback,
-// and its board aspect ratio. No per-variant postgame CSS is needed: the primary
-// board size is derived from the aspect so the board fills the viewport height
-// (scaling up on tall windows, down on short) without a vertical scroll.
+// Unified review layout. Two things live here:
+//
+//  1. `createReviewScaffold` — the pure LAYOUT: the hugging left/center/right
+//     shell, the review-stage (dominant primary board + click-to-promote
+//     secondaries), the underboard region, the rail composition, and the
+//     viewport-fill board sizing. It is navigation-agnostic: the caller supplies
+//     the right-rail `navigation` element (a linear scrubber, or a tree nav bar).
+//
+//  2. `mountReviewLayout` — the LINEAR controller every variant's /game review
+//     rides: an integer-ply scrubber + keyboard over the scaffold. Its adapter is
+//     unchanged, so every postgame page keeps working untouched. The interactive
+//     analysis board rides the SAME scaffold with a path-based (tree) controller,
+//     so both surfaces share one layout and size identically.
 
-import { type BoardStageSlot, createBoardStage } from './review-stage.js';
+import { type BoardStageHandle, type BoardStageSlot, createBoardStage } from './review-stage.js';
 import './review-shell.css';
 import { createReviewShell } from './review-shell.js';
 
@@ -88,36 +92,135 @@ const SECONDARY_WIDTH_PX = 92;
 // Gap between a flank capture column and the board (mirrors `.review-flank { gap }`).
 const FLANK_GAP_PX = 8;
 
-export function mountReviewLayout(root: HTMLElement, adapter: ReviewLayoutAdapter): void {
-  let ply = adapter.maxPly;
-  let flipped = false;
+// ─────────────────────────────────────────────────────────────────────────────
+// Scaffold — the shared, navigation-agnostic layout.
+// ─────────────────────────────────────────────────────────────────────────────
 
-  const slots: BoardStageSlot[] = adapter.boards.map((board) => ({
+export type ReviewScaffoldConfig = {
+  ariaLabel: string;
+  pageClassName?: string;
+  /** Info-card eyebrow ('Game review' for postgame, 'Analysis' for the tool). */
+  eyebrow?: string;
+  title: string;
+  summary: string;
+  actions: HTMLElement;
+  details?: HTMLElement;
+  boards: ReviewBoardEntry[];
+  boardAspect: number;
+  boardCols?: number;
+  boardChromePx?: number;
+  secondaryWidthPx?: number;
+  underboard?: HTMLElement;
+  enginePanel?: HTMLElement;
+  moves: HTMLElement;
+  moveComment?: HTMLElement;
+  /** The right-rail navigation element: a linear scrubber or a tree nav bar. */
+  navigation: HTMLElement;
+  analysisSummary?: HTMLElement;
+  /** Fires after a secondary board is promoted; the caller re-renders. */
+  onPromote?(): void;
+};
+
+export type ReviewScaffold = {
+  /** The composed <main> shell. The caller appends it (typically after site nav). */
+  root: HTMLElement;
+  stage: BoardStageHandle;
+  /** Re-measure and size the primary board to fill the viewport. Call once after
+   *  the first render, and whenever the underboard region changes height. */
+  refit(): void;
+};
+
+export function createReviewScaffold(config: ReviewScaffoldConfig): ReviewScaffold {
+  const slots: BoardStageSlot[] = config.boards.map((board) => ({
     key: board.key,
     el: board.el,
     tier: board.tier,
   }));
+  const stage = createBoardStage(slots, { onPromote: () => config.onPromote?.() });
+  applyBoardSizing(stage.el, config);
 
-  const stage = createBoardStage(slots, { onPromote: () => render() });
-  applyBoardSizing(stage.el, adapter);
-
-  const scrubber = createReviewScrubber();
-  const left = infoRail(adapter);
-  // Right rail, lichess order: engine panel · move list · advice · scrubber · summary.
+  const left = infoRail(config);
+  // Right rail, lichess order: engine panel · move list · advice · navigation · summary.
   const right = railGroup(
     [
-      adapter.enginePanel,
-      adapter.moves,
-      adapter.moveComment,
-      scrubber.el,
-      adapter.analysisSummary,
+      config.enginePanel,
+      config.moves,
+      config.moveComment,
+      config.navigation,
+      config.analysisSummary,
     ].filter((el): el is HTMLElement => el != null),
   );
-  // Center: board-stage, plus an optional underboard region stacked beneath it.
-  const center = adapter.underboard ? centerColumn(stage.el, adapter.underboard) : stage.el;
+  const center = config.underboard ? centerColumn(stage.el, config.underboard) : stage.el;
+
+  const root = createReviewShell({
+    ariaLabel: config.ariaLabel,
+    pageClassName: config.pageClassName,
+    left,
+    center,
+    right,
+  });
+
+  const refit = (): void => {
+    applyBoardSizing(stage.el, config);
+    fitPrimaryToViewport(stage.el, config.boardAspect);
+  };
+  // Re-run after layout settles and whenever the stage's available height changes —
+  // a window resize, or the page being shown / resized inside the dev postgame-sheet
+  // iframe (where a single load-time pass measures a not-yet-sized frame).
+  setTimeout(refit, 60);
+  setTimeout(refit, 260);
+  window.addEventListener('resize', refit);
+  // A ResizeObserver on the stage catches the frame being shown/resized (e.g. the
+  // dev sheet iframe), but the stage also grows as captures/hands change per ply —
+  // and re-fitting on THAT would resize the board mid-scrub, jarring the UI. So
+  // only re-fit when the viewport height actually changed; per-ply content growth
+  // leaves the board size fixed (it was fit for the fullest ply).
+  if (typeof ResizeObserver !== 'undefined') {
+    let lastViewportHeight = typeof window !== 'undefined' ? window.innerHeight : 0;
+    const observer = new ResizeObserver(() => {
+      if (window.innerHeight === lastViewportHeight) return;
+      lastViewportHeight = window.innerHeight;
+      refit();
+    });
+    observer.observe(stage.el);
+  }
+
+  return { root, stage, refit };
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Linear controller — every /game review page. Unchanged behavior.
+// ─────────────────────────────────────────────────────────────────────────────
+
+export function mountReviewLayout(root: HTMLElement, adapter: ReviewLayoutAdapter): void {
+  let ply = adapter.maxPly;
+  let flipped = false;
+
+  const scrubber = createReviewScrubber();
+  const scaffold = createReviewScaffold({
+    ariaLabel: adapter.ariaLabel,
+    pageClassName: adapter.pageClassName,
+    eyebrow: 'Game review',
+    title: adapter.title,
+    summary: adapter.summary,
+    actions: adapter.actions,
+    details: adapter.details,
+    boards: adapter.boards,
+    boardAspect: adapter.boardAspect,
+    boardCols: adapter.boardCols,
+    boardChromePx: adapter.boardChromePx,
+    secondaryWidthPx: adapter.secondaryWidthPx,
+    underboard: adapter.underboard,
+    enginePanel: adapter.enginePanel,
+    moves: adapter.moves,
+    moveComment: adapter.moveComment,
+    navigation: scrubber.el,
+    analysisSummary: adapter.analysisSummary,
+    onPromote: () => render(),
+  });
 
   function render(): void {
-    const ctx = { ply, flipped, primaryKey: stage.primaryKey() };
+    const ctx = { ply, flipped, primaryKey: scaffold.stage.primaryKey() };
     adapter.renderBoards(ctx);
     adapter.renderMoves?.(ctx, go);
     scrubber.status.textContent = `Ply ${ply} of ${adapter.maxPly}`;
@@ -139,79 +242,79 @@ export function mountReviewLayout(root: HTMLElement, adapter: ReviewLayoutAdapte
   scrubber.last.addEventListener('click', () => go(adapter.maxPly));
   scrubber.flip.addEventListener('click', flip);
 
-  // Global playback keys (arrows anywhere on the page, lichess-style), ignoring
-  // typing targets. Left/Right step a ply; Up/Home jump to start, Down/End to end;
-  // `f` flips.
-  document.addEventListener('keydown', (event) => {
-    if (event.metaKey || event.ctrlKey || event.altKey) return;
-    const target = event.target as HTMLElement | null;
-    if (
-      target &&
-      (target.isContentEditable ||
-        target.tagName === 'INPUT' ||
-        target.tagName === 'TEXTAREA' ||
-        target.tagName === 'SELECT')
-    ) {
-      return;
-    }
-    if (event.key === 'ArrowLeft') {
-      event.preventDefault();
-      go(ply - 1);
-    } else if (event.key === 'ArrowRight') {
-      event.preventDefault();
-      go(ply + 1);
-    } else if (event.key === 'ArrowUp' || event.key === 'Home') {
-      event.preventDefault();
-      go(0);
-    } else if (event.key === 'ArrowDown' || event.key === 'End') {
-      event.preventDefault();
-      go(adapter.maxPly);
-    } else if (event.key === 'f' || event.key === 'F') {
-      event.preventDefault();
-      flip();
-    }
+  installReviewKeyboard({
+    stepBack: () => go(ply - 1),
+    stepForward: () => go(ply + 1),
+    toStart: () => go(0),
+    toEnd: () => go(adapter.maxPly),
+    flip,
   });
 
-  root.append(
-    createReviewShell({
-      ariaLabel: adapter.ariaLabel,
-      pageClassName: adapter.pageClassName,
-      left,
-      center,
-      right,
-    }),
-  );
+  root.append(scaffold.root);
   render();
-
-  // Size the primary board to the measured available space. The aspect estimate
-  // (applyBoardSizing) is only a starting point; fitPrimaryToViewport measures the
-  // real laid-out chrome and fills the height. Re-run after layout settles and
-  // whenever the stage's available height changes — a window resize, or the page
-  // being shown / resized inside the dev postgame-sheet iframe (where a single
-  // load-time pass measures a not-yet-sized frame).
-  const refit = (): void => {
-    applyBoardSizing(stage.el, adapter);
-    fitPrimaryToViewport(stage.el, adapter.boardAspect);
-  };
-  refit();
-  setTimeout(refit, 60);
-  setTimeout(refit, 260);
-  window.addEventListener('resize', refit);
-  // A ResizeObserver on the stage catches the frame being shown/resized (e.g. the
-  // dev sheet iframe), but the stage also grows as captures/hands change per ply —
-  // and re-fitting on THAT would resize the board mid-scrub, jarring the UI. So
-  // only re-fit when the viewport height actually changed; per-ply content growth
-  // leaves the board size fixed (it was fit for the fullest ply).
-  if (typeof ResizeObserver !== 'undefined') {
-    let lastViewportHeight = window.innerHeight;
-    const observer = new ResizeObserver(() => {
-      if (window.innerHeight === lastViewportHeight) return;
-      lastViewportHeight = window.innerHeight;
-      refit();
-    });
-    observer.observe(stage.el);
-  }
+  scaffold.refit();
 }
+
+// Global playback keys (arrows anywhere on the page, lichess-style), ignoring
+// typing targets. Left/Right step; Up/Home jump to start, Down/End to end; `f`
+// flips. Shared by the linear scrubber and the tree nav.
+export function installReviewKeyboard(
+  handlers: {
+    stepBack(): void;
+    stepForward(): void;
+    toStart(): void;
+    toEnd(): void;
+    flip(): void;
+  },
+  /** Optional abort signal to remove the listener (e.g. when a surface re-mounts). */
+  signal?: AbortSignal,
+): void {
+  document.addEventListener(
+    'keydown',
+    (event) => {
+      if (event.metaKey || event.ctrlKey || event.altKey) return;
+      const target = event.target as HTMLElement | null;
+      if (
+        target &&
+        (target.isContentEditable ||
+          target.tagName === 'INPUT' ||
+          target.tagName === 'TEXTAREA' ||
+          target.tagName === 'SELECT')
+      ) {
+        return;
+      }
+      if (event.key === 'ArrowLeft') {
+        event.preventDefault();
+        handlers.stepBack();
+      } else if (event.key === 'ArrowRight') {
+        event.preventDefault();
+        handlers.stepForward();
+      } else if (event.key === 'ArrowUp' || event.key === 'Home') {
+        event.preventDefault();
+        handlers.toStart();
+      } else if (event.key === 'ArrowDown' || event.key === 'End') {
+        event.preventDefault();
+        handlers.toEnd();
+      } else if (event.key === 'f' || event.key === 'F') {
+        event.preventDefault();
+        handlers.flip();
+      }
+    },
+    { signal },
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Board sizing (viewport-fill). Shared by every scaffold consumer.
+// ─────────────────────────────────────────────────────────────────────────────
+
+type SizingConfig = {
+  boardAspect: number;
+  boardChromePx?: number;
+  secondaryWidthPx?: number;
+  boardCols?: number;
+  boards: ReviewBoardEntry[];
+};
 
 // Measure the stage's actual laid-out chrome (labels + capture/hand strips +
 // secondary row) and size the primary board so the whole stack exactly fills the
@@ -276,11 +379,11 @@ function scheduleAnimationFrame(callback: () => void): void {
 // The primary board fills the height left after the nav, the secondary row, and
 // the labels — projected through the board aspect — so it scales with the
 // viewport instead of a fixed vh fraction.
-function applyBoardSizing(stageEl: HTMLElement, adapter: ReviewLayoutAdapter): void {
-  const aspect = adapter.boardAspect;
-  const extraPerBoard = adapter.boardChromePx ?? 0;
-  const secondaryWidth = adapter.secondaryWidthPx ?? SECONDARY_WIDTH_PX;
-  const hasSecondaries = adapter.boards.some((board) => board.tier === 'secondary');
+function applyBoardSizing(stageEl: HTMLElement, config: SizingConfig): void {
+  const aspect = config.boardAspect;
+  const extraPerBoard = config.boardChromePx ?? 0;
+  const secondaryWidth = config.secondaryWidthPx ?? SECONDARY_WIDTH_PX;
+  const hasSecondaries = config.boards.some((board) => board.tier === 'secondary');
   const secondaryStackPx = hasSecondaries
     ? STACK_GAP_PX + SECONDARY_LABEL_PX + Math.round(secondaryWidth / aspect) + extraPerBoard
     : 0;
@@ -295,23 +398,33 @@ function applyBoardSizing(stageEl: HTMLElement, adapter: ReviewLayoutAdapter): v
   stageEl.style.setProperty('--review-stage-secondary-max', `${secondaryWidth}px`);
   // Capture tiles size to ≈ one board cell (board width / columns) so they read
   // at the same scale as the on-board pieces.
-  stageEl.style.setProperty('--capture-cols', String(adapter.boardCols ?? 12));
+  stageEl.style.setProperty('--capture-cols', String(config.boardCols ?? 12));
 }
 
-function infoRail(adapter: ReviewLayoutAdapter): HTMLElement {
+// ─────────────────────────────────────────────────────────────────────────────
+// Rail composition.
+// ─────────────────────────────────────────────────────────────────────────────
+
+function infoRail(config: {
+  eyebrow?: string;
+  title: string;
+  summary: string;
+  actions: HTMLElement;
+  details?: HTMLElement;
+}): HTMLElement {
   const card = document.createElement('section');
   card.className = 'review-info-card';
   const eyebrow = document.createElement('p');
   eyebrow.className = 'review-info-card__eyebrow';
-  eyebrow.textContent = 'Game review';
+  eyebrow.textContent = config.eyebrow ?? 'Game review';
   const title = document.createElement('h1');
   title.className = 'review-info-card__title';
-  title.textContent = adapter.title;
+  title.textContent = config.title;
   const summary = document.createElement('p');
   summary.className = 'review-info-card__summary';
-  summary.textContent = adapter.summary;
-  card.append(eyebrow, title, summary, adapter.actions);
-  return railGroup(adapter.details ? [card, adapter.details] : [card]);
+  summary.textContent = config.summary;
+  card.append(eyebrow, title, summary, config.actions);
+  return railGroup(config.details ? [card, config.details] : [card]);
 }
 
 function railGroup(children: HTMLElement[]): HTMLElement {
@@ -332,6 +445,10 @@ function centerColumn(stageEl: HTMLElement, underboard: HTMLElement): HTMLElemen
   col.append(stageEl, underboard);
   return col;
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Linear scrubber (the postgame nav).
+// ─────────────────────────────────────────────────────────────────────────────
 
 type ReviewScrubber = {
   el: HTMLElement;
@@ -381,4 +498,46 @@ function scrubButton(text: string, label: string): HTMLButtonElement {
   button.setAttribute('aria-label', label);
   button.textContent = text;
   return button;
+}
+
+/** Build a scrubber-styled nav bar for a non-linear (tree) controller: the same
+ *  |< < > >| Flip chrome as the postgame, with a free-form status label. */
+export function createReviewNavBar(handlers: {
+  first(): void;
+  previous(): void;
+  next(): void;
+  last(): void;
+  flip(): void;
+}): {
+  el: HTMLElement;
+  status: HTMLElement;
+  setBounds(state: { atStart: boolean; atEnd: boolean }): void;
+} {
+  const el = document.createElement('div');
+  el.className = 'review-scrubber';
+  const status = document.createElement('span');
+  status.className = 'review-scrubber__status';
+  status.setAttribute('aria-live', 'polite');
+  const first = scrubButton('|<', 'First move');
+  const previous = scrubButton('<', 'Previous move');
+  const next = scrubButton('>', 'Next move');
+  const last = scrubButton('>|', 'End of line');
+  const flip = scrubButton('Flip', 'Flip board');
+  flip.title = 'Flip board (f)';
+  first.addEventListener('click', handlers.first);
+  previous.addEventListener('click', handlers.previous);
+  next.addEventListener('click', handlers.next);
+  last.addEventListener('click', handlers.last);
+  flip.addEventListener('click', handlers.flip);
+  el.append(status, first, previous, next, last, flip);
+  return {
+    el,
+    status,
+    setBounds({ atStart, atEnd }) {
+      first.disabled = atStart;
+      previous.disabled = atStart;
+      next.disabled = atEnd;
+      last.disabled = atEnd;
+    },
+  };
 }

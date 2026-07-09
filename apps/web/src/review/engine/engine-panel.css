@@ -13,6 +13,54 @@
   align-items: center;
   gap: 10px;
 }
+/* Settings gear, pushed to the far right of the head. */
+.engine-panel__gear {
+  appearance: none;
+  margin-left: auto;
+  flex: 0 0 auto;
+  padding: 3px 7px;
+  border: 1px solid var(--site-border);
+  border-radius: 8px;
+  background: var(--site-bg);
+  color: var(--site-muted);
+  font: inherit;
+  font-size: 13px;
+  line-height: 1;
+  cursor: pointer;
+}
+.engine-panel__gear:hover {
+  color: var(--site-text);
+}
+/* `display: flex` would override the [hidden] attribute's display:none. */
+.engine-panel__settings[hidden] {
+  display: none;
+}
+.engine-panel__settings {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px 16px;
+  margin-top: 8px;
+  padding: 8px 10px;
+  border: 1px solid var(--site-border);
+  border-radius: 8px;
+  background: var(--site-bg);
+}
+.engine-panel__setting {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--site-muted);
+}
+.engine-panel__setting select {
+  font: inherit;
+  font-size: 12px;
+  padding: 2px 4px;
+  border: 1px solid var(--site-border);
+  border-radius: 6px;
+  background: var(--site-panel, var(--site-surface));
+  color: var(--site-text);
+}
 .engine-panel__toggle {
   appearance: none;
   flex: 0 0 auto;

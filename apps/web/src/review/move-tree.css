@@ -1,0 +1,79 @@
+/* Tree move list: the mainline reuses the review-move-list numbered two-column
+   rows (see move-list.css); variations break out here as indented, dimmed rows
+   flowing their moves inline. */
+
+/* Empty placeholder cell (a red column awaiting its reply, or a black column when
+   the reply is only a variation) — keeps the 3-column grid aligned. */
+.review-move-list__move--empty {
+  cursor: default;
+  pointer-events: none;
+}
+
+/* A variation is a full-width row (flex child of the rows column), inline-flowing
+   its own moves, indented and dimmed beneath the move it diverges from. */
+.move-tree__variation {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 1px 3px;
+  margin: 1px 0 1px 12px;
+  padding: 2px 4px 2px 8px;
+  border-left: 2px solid color-mix(in srgb, var(--site-muted) 30%, transparent);
+  font-size: 0.92em;
+  color: var(--site-muted);
+}
+
+/* Nested variation, parenthesised inline. */
+.move-tree__subvar {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 1px 3px;
+  opacity: 0.9;
+}
+
+/* Inline move number inside a variation (the mainline uses the grid number cell). */
+.move-tree__num {
+  font-size: 0.9em;
+  color: var(--site-muted);
+}
+
+/* Right-click context menu (promote / delete a branch). */
+.move-tree__menu {
+  position: fixed;
+  z-index: 50;
+  min-width: 160px;
+  padding: 4px;
+  border: 1px solid var(--site-border);
+  border-radius: var(--site-radius-sm, 8px);
+  background: var(--site-panel, var(--site-surface));
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.35);
+}
+.move-tree__menu-item {
+  display: block;
+  width: 100%;
+  text-align: left;
+  padding: 6px 10px;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--site-text);
+  font: inherit;
+  font-size: 13px;
+  cursor: pointer;
+}
+.move-tree__menu-item:hover {
+  background: var(--site-surface);
+}
+
+/* Variation move cells sit inline (not the grid space-between of mainline cells). */
+.move-tree__variation .review-move-list__move,
+.move-tree__subvar .review-move-list__move {
+  display: inline-flex;
+  gap: 4px;
+  padding: 1px 4px;
+}
+.move-tree__variation .review-move-list__eval,
+.move-tree__subvar .review-move-list__eval {
+  display: none;
+}
