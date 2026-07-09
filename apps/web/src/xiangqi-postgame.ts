@@ -109,7 +109,6 @@ export function xiangqiPostgameApiUrl(roomId: string): string {
 }
 
 function renderPostgame(root: HTMLElement, postgame: XiangqiPostgameResponse): void {
-  const entry = postgameViewEntries(postgame)[0]!;
   const moves = postgame.timeline
     .filter((item) => item.type === 'move-played' && item.move)
     .map((item) => item.move as XiangqiMove);
@@ -136,9 +135,9 @@ function renderPostgame(root: HTMLElement, postgame: XiangqiPostgameResponse): v
     summary: `${resultLabel(postgame.game.result)} by ${labelize(postgame.game.termination)} · ${postgame.game.plyCount} plies`,
     actions: postgameActions(postgame),
     metaCard: metaCard.el,
+    // The tree reconstructs positions from the move list client-side (open info,
+    // so it matches the server truth); the server per-ply snapshots are unused.
     moves,
-    maxPly: postgameReplayMaxPly(postgame),
-    viewAtPly: (ply) => postgameViewAtPly(postgame, 'truth', ply) ?? entry.view,
     // Server Pikafish whole-game analysis, DB-cached: an already-analysed game
     // loads straight from cache on open (a GET that never computes).
     analysis: {

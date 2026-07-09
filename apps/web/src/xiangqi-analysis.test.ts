@@ -19,7 +19,7 @@ function freshRoot(): HTMLElement {
 }
 
 describe('mountXiangqiAnalysis', () => {
-  it('renders the board, engine panel, move list, and scrubber from a move list', () => {
+  it('renders the board, engine panel, move tree, and navigation from a move list', () => {
     const root = freshRoot();
     mountXiangqiAnalysis(root, [...OPENING]);
     expect(root.querySelector('.xiangqi-live-board')).not.toBeNull();
@@ -27,7 +27,11 @@ describe('mountXiangqiAnalysis', () => {
     const text = root.textContent ?? '';
     expect(text).toContain('h3-e3');
     expect(text).toContain('h1-g3');
-    expect(root.querySelector('.review-scrubber__status')?.textContent).toContain('3 of 3');
+    // Interactive tree UI: a move tree + the shared scaffold nav bar.
+    expect(root.querySelector('.move-tree')).not.toBeNull();
+    expect(root.querySelector('.review-scrubber')).not.toBeNull();
+    // The last seeded move is the current node on mount.
+    expect(root.querySelector('.review-move-list__move--current')?.textContent).toContain('h1-g3');
     // whole-game analysis entry point (the client ceval sweep is click-gated, so
     // no engine loads here — only the request button renders)
     expect(root.textContent).toContain('Analyse the whole game');
@@ -43,47 +47,63 @@ describe('mountXiangqiAnalysis', () => {
 });
 
 describe('mountXiangqiAnalysisPage', () => {
-  // The page reads window.location.search; a prior test's Analyse click pushes
-  // ?moves=..., which would otherwise leak into the next test's URL.
+  // The page reads window.location.search; a prior test's import pushes ?moves=...,
+  // which would otherwise leak into the next test's URL.
   beforeEach(() => {
     window.history.pushState({}, '', '/analysis/xiangqi');
   });
 
-  function analyseButton(root: HTMLElement): HTMLButtonElement {
-    const button = [...root.querySelectorAll('button')].find(
-      (candidate) => candidate.textContent?.trim() === 'Analyse',
+  function buttonByText(host: ParentNode, text: string): HTMLButtonElement {
+    const button = [...host.querySelectorAll('button')].find(
+      (candidate) => candidate.textContent?.trim() === text,
     );
-    if (!button) throw new Error('Analyse button not found');
+    if (!button) throw new Error(`button "${text}" not found`);
     return button as HTMLButtonElement;
   }
 
-  it('shows the paste form when the URL carries no moves', () => {
+  it('opens the empty board at the start position when the URL carries no moves', () => {
     const root = freshRoot();
     mountXiangqiAnalysisPage(root);
-    expect(root.querySelector('.xiangqi-analysis-form__input')).not.toBeNull();
-    expect(analyseButton(root)).toBeTruthy();
+    // Lichess-style: the interactive board opens directly (no paste-form gate).
+    expect(root.querySelector('.xiangqi-live-board')).not.toBeNull();
+    expect(root.querySelector('.move-tree')).not.toBeNull();
+    expect(buttonByText(root, 'Import game')).toBeTruthy();
     root.remove();
   });
 
-  it('imports a pasted Chinese game and mounts the board', () => {
+  it('seeds the board from a ?moves= link', () => {
+    window.history.pushState({}, '', '/analysis/xiangqi?moves=h3e3,h8e8');
     const root = freshRoot();
     mountXiangqiAnalysisPage(root);
-    const input = root.querySelector('.xiangqi-analysis-form__input') as HTMLTextAreaElement;
-    input.value = '炮二平五 炮8平5 马二进三';
-    analyseButton(root).click();
     expect(root.querySelector('.xiangqi-live-board')).not.toBeNull();
     expect(root.textContent).toContain('h3-e3');
     root.remove();
   });
 
-  it('shows an error and does not mount for an unparseable paste', () => {
+  it('imports a pasted Chinese game through the dialog', () => {
     const root = freshRoot();
     mountXiangqiAnalysisPage(root);
-    const input = root.querySelector('.xiangqi-analysis-form__input') as HTMLTextAreaElement;
+    buttonByText(root, 'Import game').click();
+    const dialog = document.querySelector('.xqa-import-dialog') as HTMLElement;
+    expect(dialog).not.toBeNull();
+    const input = dialog.querySelector('.xqa-import-dialog__input') as HTMLTextAreaElement;
+    input.value = '炮二平五 炮8平5 马二进三';
+    buttonByText(dialog, 'Import').click();
+    expect(root.textContent).toContain('h3-e3');
+    document.querySelector('.xqa-import-dialog')?.remove();
+    root.remove();
+  });
+
+  it('shows an error in the dialog for an unparseable paste', () => {
+    const root = freshRoot();
+    mountXiangqiAnalysisPage(root);
+    buttonByText(root, 'Import game').click();
+    const dialog = document.querySelector('.xqa-import-dialog') as HTMLElement;
+    const input = dialog.querySelector('.xqa-import-dialog__input') as HTMLTextAreaElement;
     input.value = 'not a game';
-    analyseButton(root).click();
-    expect(root.querySelector('.xiangqi-analysis-form__error')?.textContent).toBeTruthy();
-    expect(root.querySelector('.xiangqi-live-board')).toBeNull();
+    buttonByText(dialog, 'Import').click();
+    expect(dialog.querySelector('.xqa-import-dialog__error')?.textContent).toBeTruthy();
+    dialog.remove();
     root.remove();
   });
 });

@@ -1,37 +1,35 @@
-// Analysis board for standard Xiangqi fed by a bare MOVE LIST rather than a
-// persisted room. This is the imported-game / study path: the same shared review
-// shell (mountReviewLayout) the /game postgame rides, but the per-ply positions
-// are reconstructed on the client from the moves (buildXiangqiReplayFromMoves)
-// and the whole-game engine runs locally (ceval) — no server round-trip, so it
-// works for a game that was never played on the platform.
+// The standalone /analysis/xiangqi surface (lichess.org/analysis): a fresh
+// interactive board at the START POSITION, or seeded from an imported move list.
+// Play moves that branch into a tree, run a local ceval sweep — no server room.
 //
-// The board + captures + eval gauge + engine panel + move list + analysis UI
-// all live in the shared review/xiangqi-review.ts (the DRY-extract with
-// xiangqi-postgame.ts); this file only supplies the replay model and the
-// client-side ceval sweep (no server room to analyse — computeGameAnalysis on
-// per-ply evals computed in the browser).
+// The board + tree + engine + analysis machinery all live in the shared
+// review/xiangqi-review.ts (also used by xiangqi-postgame.ts for the /game
+// surface). This file only supplies the ingress: the client ceval sweep, the
+// minimal meta card (no players), and the "Import game" affordance.
 
 import { type XiangqiGameStatus, type XiangqiMove, xiangqiMoveToFsfUci } from '@mistboard/game';
 import './game-shell.css';
 import './live-xiangqi.css';
 import './dark-xiangqi-postgame.css';
 import './xiangqi-postgame.css';
+import './xiangqi-analysis.css';
 import { createCeval } from './review/engine/ceval.js';
 import { computeGameAnalysis, type GameAnalysis, type PlyEval } from './review/game-analysis.js';
 import { createGameMetaCard } from './review/game-meta-card.js';
+import { importXiangqiGame } from './review/xiangqi-import.js';
 import { mountXiangqiReview } from './review/xiangqi-review.js';
 import {
   buildXiangqiReplayFromMoves,
-  type XiangqiReplay,
   xiangqiReplayViewAtPly,
 } from './review/xiangqi-review-model.js';
+import { buildNav } from './site-shell.js';
 
 // Depth for the whole-game sweep. Shallower than the live panel's interactive
-// search so N+1 sequential evaluations stay tolerable on a client (the server
-// Pikafish path goes deeper; this is the roomless fallback).
+// search so N+1 sequential evaluations stay tolerable on a client.
 const ANALYSIS_SWEEP_DEPTH = 12;
 
 function statusSummary(status: XiangqiGameStatus, plyCount: number): string {
+  if (plyCount === 0) return 'Play a move, or import a game';
   const plies = `${plyCount} ${plyCount === 1 ? 'ply' : 'plies'}`;
   if (status.type === 'finished') {
     const outcome =
@@ -46,9 +44,9 @@ export interface XiangqiAnalysisOptions {
   title?: string;
 }
 
-/** Mount the review board for an arbitrary standard-xiangqi move list. Illegal
- *  moves truncate the replay to the legal prefix and surface a notice rather
- *  than throwing. */
+/** Mount the interactive analysis board for a standard-xiangqi move list. An empty
+ *  list opens a fresh board at the start position; illegal moves truncate to the
+ *  legal prefix. */
 export function mountXiangqiAnalysis(
   root: HTMLElement,
   moves: XiangqiMove[],
@@ -57,9 +55,7 @@ export function mountXiangqiAnalysis(
   const replay = buildXiangqiReplayFromMoves(moves);
   const engineMovesUci = replay.moves.map((move) => xiangqiMoveToFsfUci(move));
 
-  // Evaluate every ply cursor (0..N) in the browser and build the Red-POV eval
-  // series computeGameAnalysis expects. ceval scores are side-to-move POV, so
-  // they flip on black-to-move plies (ply 0 = start = red to move).
+  // Roomless: the whole-game analysis is a client ceval sweep over the mainline.
   async function runClientAnalysis(
     onProgress: (done: number, total: number) => void,
   ): Promise<GameAnalysis> {
@@ -87,11 +83,7 @@ export function mountXiangqiAnalysis(
     } finally {
       handle.dispose();
     }
-    return computeGameAnalysis({
-      engineId: 'fairy-stockfish',
-      depth: ANALYSIS_SWEEP_DEPTH,
-      plies,
-    });
+    return computeGameAnalysis({ engineId: 'fairy-stockfish', depth: ANALYSIS_SWEEP_DEPTH, plies });
   }
 
   const finalStatus = xiangqiReplayViewAtPly(replay, replay.maxPly).status;
@@ -99,62 +91,112 @@ export function mountXiangqiAnalysis(
     glyph: '象',
     headline: ['Analysis board'],
     variantName: 'Elephant Chess',
-    subline: `${replay.maxPly} ${replay.maxPly === 1 ? 'ply' : 'plies'}`,
+    subline: replay.maxPly
+      ? `${replay.maxPly} ${replay.maxPly === 1 ? 'ply' : 'plies'}`
+      : 'Start position',
     status:
       finalStatus.type === 'finished'
-        ? `${
-            finalStatus.winner === 'red'
-              ? 'Red wins'
-              : finalStatus.winner === 'black'
-                ? 'Black wins'
-                : 'Draw'
-          } by ${finalStatus.reason}`
+        ? `${finalStatus.winner === 'red' ? 'Red wins' : finalStatus.winner === 'black' ? 'Black wins' : 'Draw'} by ${finalStatus.reason}`
         : null,
   });
 
-  root.replaceChildren();
+  const reMount = (imported: XiangqiMove[]) => {
+    const encoded = imported.map((move) => `${move.from}${move.to}`).join(',');
+    window.history.pushState({}, '', `${window.location.pathname}?moves=${encoded}`);
+    mountXiangqiAnalysis(root, imported, opts);
+  };
+
+  root.replaceChildren(buildNav());
   mountXiangqiReview(root, {
     pageClassName: 'xiangqi-review',
     ariaLabel: 'Xiangqi analysis',
+    eyebrow: 'Analysis',
     title: opts.title ?? 'Xiangqi analysis',
     summary: statusSummary(finalStatus, replay.maxPly),
     boardAriaLabel: 'Xiangqi board',
-    actions: analysisActions(),
+    actions: analysisActions(() => openImportDialog(reMount)),
     metaCard: metaCard.el,
-    details: replay.illegalAt ? illegalNotice(replay) : undefined,
-    moves: replay.moves,
-    maxPly: replay.maxPly,
-    viewAtPly: (ply) => xiangqiReplayViewAtPly(replay, ply),
-    // Roomless import: the whole-game analysis is a client ceval sweep.
-    analysis: {
-      requestLabel: 'Analyse the whole game',
-      run: runClientAnalysis,
-    },
+    // Pass the raw moves so the review's tree truncates an illegal seed itself and
+    // surfaces the notice (the legal prefix drives the client sweep above).
+    moves,
+    // Roomless import: whole-game analysis is a client ceval sweep. Only offered
+    // once there is a game to analyse.
+    analysis:
+      replay.maxPly >= 1
+        ? { requestLabel: 'Analyse the whole game', run: runClientAnalysis }
+        : null,
   });
 }
 
-function analysisActions(): HTMLElement {
+function analysisActions(onImport: () => void): HTMLElement {
   const actions = document.createElement('nav');
   actions.className = 'dxq-postgame__actions';
   actions.setAttribute('aria-label', 'Analysis links');
+  const importBtn = document.createElement('button');
+  importBtn.type = 'button';
+  importBtn.className = 'dxq-postgame__link';
+  importBtn.textContent = 'Import game';
+  importBtn.addEventListener('click', onImport);
   const home = document.createElement('a');
   home.className = 'dxq-postgame__link';
   home.href = '/';
   home.textContent = 'Back home';
-  actions.append(home);
+  actions.append(importBtn, home);
   return actions;
 }
 
-function illegalNotice(replay: XiangqiReplay): HTMLElement {
-  const panel = document.createElement('section');
-  panel.className = 'dxq-postgame__panel';
+// A modal paste box: Chinese / WXF / coordinate notation → a parsed move list.
+function openImportDialog(onMoves: (moves: XiangqiMove[]) => void): void {
+  const dialog = document.createElement('dialog');
+  dialog.className = 'xqa-import-dialog';
   const heading = document.createElement('h2');
-  heading.textContent = 'Truncated import';
-  const body = document.createElement('p');
-  const move = replay.illegalAt;
-  body.textContent = move
-    ? `Move ${move.ply} (${move.move.from}-${move.move.to}) is illegal from that position; showing the first ${replay.maxPly} legal ${replay.maxPly === 1 ? 'move' : 'moves'}.`
-    : '';
-  panel.append(heading, body);
-  return panel;
+  heading.textContent = 'Import a game';
+  const blurb = document.createElement('p');
+  blurb.className = 'xqa-import-dialog__blurb';
+  blurb.textContent =
+    'Paste a game in Chinese (炮二平五), WXF (C2.5 H2+3), or coordinate/UCI (b3e3) notation.';
+  const textarea = document.createElement('textarea');
+  textarea.className = 'xqa-import-dialog__input';
+  textarea.rows = 6;
+  textarea.spellcheck = false;
+  textarea.placeholder = '炮二平五 炮8平5 马二进三';
+  const error = document.createElement('p');
+  error.className = 'xqa-import-dialog__error';
+  error.setAttribute('role', 'alert');
+  const row = document.createElement('div');
+  row.className = 'xqa-import-dialog__actions';
+  const cancel = document.createElement('button');
+  cancel.type = 'button';
+  cancel.className = 'dxq-postgame__link';
+  cancel.textContent = 'Cancel';
+  const submit = document.createElement('button');
+  submit.type = 'button';
+  submit.className = 'dxq-postgame__link dxq-postgame__link--primary';
+  submit.textContent = 'Import';
+
+  const doImport = () => {
+    const { moves, error: parseError } = importXiangqiGame(textarea.value);
+    if (parseError || moves.length === 0) {
+      error.textContent = parseError ?? 'Enter at least one move.';
+      return;
+    }
+    dialog.close();
+    onMoves(moves);
+  };
+  submit.addEventListener('click', doImport);
+  cancel.addEventListener('click', () => dialog.close());
+  textarea.addEventListener('keydown', (event) => {
+    if ((event.metaKey || event.ctrlKey) && event.key === 'Enter') {
+      event.preventDefault();
+      doImport();
+    }
+  });
+
+  row.append(cancel, submit);
+  dialog.append(heading, blurb, textarea, error, row);
+  document.body.append(dialog);
+  dialog.addEventListener('close', () => dialog.remove());
+  if (typeof dialog.showModal === 'function') dialog.showModal();
+  else dialog.setAttribute('open', '');
+  textarea.focus();
 }

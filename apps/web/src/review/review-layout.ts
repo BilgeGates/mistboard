@@ -1,15 +1,21 @@
-// Unified postgame review layout. Every variant's /game review page composes
-// through this: it owns the shared shell (hugging left/center/right cluster),
-// the review-stage (dominant primary board + click-to-promote secondaries), the
-// playback scrubber, keyboard nav, flip state, and the viewport-fill board
-// sizing. A variant supplies only a ReviewLayoutAdapter — its title/summary/
-// actions, its details + moves panels, its board hosts + a renderBoards callback,
-// and its board aspect ratio. No per-variant postgame CSS is needed: the primary
-// board size is derived from the aspect so the board fills the viewport height
-// (scaling up on tall windows, down on short) without a vertical scroll.
+// Unified review layout. Two things live here:
+//
+//  1. `createReviewScaffold` — the pure LAYOUT: the hugging left/center/right
+//     shell, the review-stage (dominant primary board + click-to-promote
+//     secondaries), the underboard region, the eval-gauge column, the rail
+//     material rows + strip adoption, the board-zoom grip, the uniboard token
+//     grid (shared with the live room), and the viewport-fill sizing. It is
+//     navigation-agnostic: the caller supplies the right-rail `navigation`
+//     element (a linear scrubber, or a tree nav bar) and drives rendering.
+//
+//  2. `mountReviewLayout` — the LINEAR controller every variant's /game review
+//     rides: an integer-ply scrubber + keyboard over the scaffold. Its adapter is
+//     unchanged, so every postgame page keeps working untouched. The interactive
+//     analysis board rides the SAME scaffold with a path-based (tree) controller,
+//     so both surfaces share one layout and size identically.
 
 import { attachBoardResizeGrip, currentBoardScale, restoreBoardScale } from '../board-resize.js';
-import { type BoardStageSlot, createBoardStage } from './review-stage.js';
+import { type BoardStageHandle, type BoardStageSlot, createBoardStage } from './review-stage.js';
 import './review-shell.css';
 import { createReviewShell } from './review-shell.js';
 
@@ -43,16 +49,6 @@ export type ReviewLayoutAdapter = {
   metaCard?: HTMLElement;
   /** Right-rail move list container (the layout owns the scrubber below it). */
   moves: HTMLElement;
-  /** Optional analysis slots (lichess-shaped), placed by the shell around the move
-   *  list / under the board. Absent on existing variants — they render unchanged;
-   *  the engine phases fill them:
-   *  - `enginePanel` sits at the top of the right rail (engine widget + PV lines in
-   *    perfect-info mode, or a full ranked-move list in fog mode).
-   *  - `analysisSummary` sits at the bottom of the right rail (per-player accuracy /
-   *    metrics). Named to avoid colliding with the `summary` string field above.
-   *  - `underboard` sits under the board in the center (advantage chart in perfect-info
-   *    mode, or the cycleable POV boards in fog mode). The fill sizing subtracts its
-   *    height so the board still fits without a vertical scroll. */
   enginePanel?: HTMLElement;
   analysisSummary?: HTMLElement;
   underboard?: HTMLElement;
@@ -75,11 +71,9 @@ export type ReviewLayoutAdapter = {
    *  hand / capture strips). Budgeted into the fill sizing so the page still
    *  fits without a vertical scroll. Default 0. */
   boardChromePx?: number;
-  /** Width (px) of each click-to-promote secondary board. Default 92. Raise for
-   *  variants whose secondaries read too small at the shared default. */
+  /** Width (px) of each click-to-promote secondary board. Default 92. */
   secondaryWidthPx?: number;
-  /** Absolute primary-board width cap (px). For small-dimension boards (4x4
-   *  flip jungle) whose cells would grow absurd at the full viewport fit. */
+  /** Absolute primary-board width cap (px). */
   boardMaxPx?: number;
   maxPly: number;
   /** Re-render every board host for the given ply / flip / primary. */
@@ -90,51 +84,88 @@ export type ReviewLayoutAdapter = {
 };
 
 const NAV_AND_PADDING_PX = 122; // site nav + shell top/bottom padding
-// Chrome outside the review-stage region (nav + shell padding). Matches the
-// cluster's `min-height: calc(100svh - 108px)` so the fit targets the same region.
 const VIEWPORT_CHROME_PX = 108;
-// Horizontal space the two rails + gaps + shell side padding take, so the board
-// can be capped to the width actually left for the center column.
 const RAILS_AND_GUTTERS_PX = 640;
 const PRIMARY_LABEL_PX = 30;
 const STACK_GAP_PX = 16;
 const SECONDARY_LABEL_PX = 24;
 const SECONDARY_WIDTH_PX = 92;
-// Gap between a flank capture column and the board (mirrors `.review-flank { gap }`).
 const FLANK_GAP_PX = 8;
 // Eval gauge footprint beside the board: bar width 20 + gap 8 (eval-bar.ts).
 const EVAL_GAUGE_PX = 28;
 
-export function mountReviewLayout(root: HTMLElement, adapter: ReviewLayoutAdapter): void {
-  let ply = adapter.maxPly;
-  let flipped = false;
+// ─────────────────────────────────────────────────────────────────────────────
+// Scaffold — the shared, navigation-agnostic layout.
+// ─────────────────────────────────────────────────────────────────────────────
 
-  const slots: BoardStageSlot[] = adapter.boards.map((board) => ({
+/** Sizing inputs shared by applyBoardSizing / fitPrimaryToViewport. */
+type SizingInput = {
+  boards: ReviewBoardEntry[];
+  boardAspect: number;
+  boardCols?: number;
+  boardChromePx?: number;
+  secondaryWidthPx?: number;
+  boardMaxPx?: number;
+};
+
+export type ReviewScaffoldConfig = SizingInput & {
+  ariaLabel: string;
+  pageClassName?: string;
+  /** Info-card eyebrow when no metaCard ('Game review' / 'Analysis'). */
+  eyebrow?: string;
+  title: string;
+  summary: string;
+  actions: HTMLElement;
+  details?: HTMLElement;
+  metaCard?: HTMLElement;
+  underboard?: HTMLElement;
+  enginePanel?: HTMLElement;
+  moves: HTMLElement;
+  moveComment?: HTMLElement;
+  /** The right-rail navigation element: a linear scrubber or a tree nav bar. */
+  navigation: HTMLElement;
+  analysisSummary?: HTMLElement;
+  gauge?: HTMLElement;
+  materialTop?: HTMLElement;
+  materialBottom?: HTMLElement;
+  /** Fires after a secondary board is promoted; the caller re-renders (the
+   *  scaffold re-fits afterward). */
+  onPromote?(): void;
+};
+
+export type ReviewScaffold = {
+  stage: BoardStageHandle;
+  /** Re-measure and size the primary board to fill the viewport. Call once after
+   *  the first render, and whenever the underboard region changes height. */
+  refit(): void;
+};
+
+/** Build the shared review layout into `root`. The caller renders board/move
+ *  content and drives navigation; the scaffold owns the shell, stage, sizing,
+ *  gauge, material rows, and zoom grip. */
+export function createReviewScaffold(
+  root: HTMLElement,
+  config: ReviewScaffoldConfig,
+): ReviewScaffold {
+  const slots: BoardStageSlot[] = config.boards.map((board) => ({
     key: board.key,
     el: board.el,
     tier: board.tier,
   }));
 
-  // Promoting a secondary swaps which element occupies the primary slot; re-fit
-  // afterwards so the sizing and the resize grip track the new board (refit is
-  // defined after mount — late-bound on purpose).
-  let onStageChanged: (() => void) | null = null;
   const stage = createBoardStage(slots, {
     onPromote: () => {
-      render();
-      onStageChanged?.();
+      config.onPromote?.();
+      refit();
     },
   });
 
-  // Single-board pages: ADOPT the pane's own capture strips (replay-board.ts
-  // createPane puts them above/below the board) into the rail material rows,
-  // so the board column stays board-only and the board wins back their height.
-  // The elements MOVE with their identity intact — the variants' per-ply fill
-  // code keeps its references and needs no change. Fog triptychs (multi-slot)
-  // keep their own arrangement.
+  // Single-board pages: ADOPT the pane's own capture strips into the rail material
+  // rows so the board column stays board-only. The elements MOVE with their
+  // identity intact — variants keep their per-ply fill references.
   let adoptedMaterialTop: HTMLElement | undefined;
   let adoptedMaterialBottom: HTMLElement | undefined;
-  const stripsAdopted = !adapter.materialTop && !adapter.materialBottom && slots.length === 1;
+  const stripsAdopted = !config.materialTop && !config.materialBottom && slots.length === 1;
   if (stripsAdopted && slots[0]) {
     const strips = [...slots[0].el.querySelectorAll<HTMLElement>(':scope > .captures-strip')];
     const top = strips.find(
@@ -146,33 +177,125 @@ export function mountReviewLayout(root: HTMLElement, adapter: ReviewLayoutAdapte
     adoptedMaterialTop = top;
     adoptedMaterialBottom = bottom;
   }
-  const materialTop = adapter.materialTop ?? adoptedMaterialTop;
-  const materialBottom = adapter.materialBottom ?? adoptedMaterialBottom;
+  const materialTop = config.materialTop ?? adoptedMaterialTop;
+  const materialBottom = config.materialBottom ?? adoptedMaterialBottom;
 
-  applyBoardSizing(stage.el, adapter, stripsAdopted);
+  applyBoardSizing(stage.el, config, stripsAdopted);
 
-  const scrubber = createReviewScrubber();
-  const left = infoRail(adapter);
+  const left = infoRail(config);
   // Right rail, lichess order: material-top · engine panel · move list ·
-  // advice · scrubber · summary · material-bottom.
+  // advice · navigation · summary · material-bottom.
   materialTop?.classList.add('review-material-row');
   materialBottom?.classList.add('review-material-row');
   const right = railGroup(
     [
       materialTop,
-      adapter.enginePanel,
-      adapter.moves,
-      adapter.moveComment,
-      scrubber.el,
-      adapter.analysisSummary,
+      config.enginePanel,
+      config.moves,
+      config.moveComment,
+      config.navigation,
+      config.analysisSummary,
       materialBottom,
     ].filter((el): el is HTMLElement => el != null),
   );
-  // Center: board-stage, plus an optional underboard region stacked beneath it.
-  const center = adapter.underboard ? centerColumn(stage.el, adapter.underboard) : stage.el;
+  const center = config.underboard ? centerColumn(stage.el, config.underboard) : stage.el;
+
+  const shell = createReviewShell({
+    ariaLabel: config.ariaLabel,
+    pageClassName: config.pageClassName,
+    left,
+    center,
+    right,
+  });
+  if (config.gauge) {
+    const cluster = shell.querySelector<HTMLElement>('.review-shell__cluster');
+    if (cluster) {
+      cluster.classList.add('review-shell__cluster--gauge');
+      const gaugeCol = document.createElement('div');
+      gaugeCol.className = 'review-shell__gauge';
+      gaugeCol.append(config.gauge);
+      cluster.append(gaugeCol);
+    }
+  }
+  root.append(shell);
+
+  // Board zoom: restore the persisted scale and glue the drag grip to the primary
+  // slot's bottom-right corner (re-anchored after every refit).
+  restoreBoardScale();
+  const grip = attachBoardResizeGrip(stage.el, () =>
+    stage.el.querySelector<HTMLElement>('.review-stage__slot--primary'),
+  );
+  const positionGrip = (): void => {
+    const slot = stage.el.querySelector<HTMLElement>('.review-stage__slot--primary');
+    if (!slot) return;
+    const slotRect = slot.getBoundingClientRect();
+    const stageRect = stage.el.getBoundingClientRect();
+    if (slotRect.width === 0 || stageRect.width === 0) return;
+    grip.style.right = `${Math.max(0, stageRect.right - slotRect.right) - 8}px`;
+    grip.style.bottom = 'auto';
+    grip.style.top = `${slotRect.bottom - stageRect.top - 10}px`;
+  };
+
+  function refit(): void {
+    applyBoardSizing(stage.el, config, stripsAdopted);
+    fitPrimaryToViewport(stage.el, config.boardAspect, config.boardMaxPx);
+    setTimeout(positionGrip, 60);
+  }
+
+  setTimeout(refit, 60);
+  setTimeout(refit, 260);
+  window.addEventListener('resize', refit);
+  if (typeof ResizeObserver !== 'undefined') {
+    let lastViewportHeight = typeof window !== 'undefined' ? window.innerHeight : 0;
+    const observer = new ResizeObserver(() => {
+      if (window.innerHeight === lastViewportHeight) return;
+      lastViewportHeight = window.innerHeight;
+      refit();
+    });
+    observer.observe(stage.el);
+  }
+
+  return { stage, refit };
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Linear controller — every /game review page. Unchanged behavior.
+// ─────────────────────────────────────────────────────────────────────────────
+
+export function mountReviewLayout(root: HTMLElement, adapter: ReviewLayoutAdapter): void {
+  let ply = adapter.maxPly;
+  let flipped = false;
+
+  const scrubber = createReviewScrubber();
+  const scaffold = createReviewScaffold(root, {
+    ariaLabel: adapter.ariaLabel,
+    pageClassName: adapter.pageClassName,
+    eyebrow: 'Game review',
+    title: adapter.title,
+    summary: adapter.summary,
+    actions: adapter.actions,
+    details: adapter.details,
+    metaCard: adapter.metaCard,
+    boards: adapter.boards,
+    boardAspect: adapter.boardAspect,
+    boardCols: adapter.boardCols,
+    boardChromePx: adapter.boardChromePx,
+    secondaryWidthPx: adapter.secondaryWidthPx,
+    boardMaxPx: adapter.boardMaxPx,
+    underboard: adapter.underboard,
+    enginePanel: adapter.enginePanel,
+    moves: adapter.moves,
+    moveComment: adapter.moveComment,
+    navigation: scrubber.el,
+    analysisSummary: adapter.analysisSummary,
+    gauge: adapter.gauge,
+    materialTop: adapter.materialTop,
+    materialBottom: adapter.materialBottom,
+    onPromote: () => render(),
+  });
 
   function render(): void {
-    const ctx = { ply, flipped, primaryKey: stage.primaryKey() };
+    const ctx = { ply, flipped, primaryKey: scaffold.stage.primaryKey() };
     adapter.renderBoards(ctx);
     adapter.renderMoves?.(ctx, go);
     scrubber.status.textContent = `Ply ${ply} of ${adapter.maxPly}`;
@@ -194,135 +317,78 @@ export function mountReviewLayout(root: HTMLElement, adapter: ReviewLayoutAdapte
   scrubber.last.addEventListener('click', () => go(adapter.maxPly));
   scrubber.flip.addEventListener('click', flip);
 
-  // Global playback keys (arrows anywhere on the page, lichess-style), ignoring
-  // typing targets. Left/Right step a ply; Up/Home jump to start, Down/End to end;
-  // `f` flips.
-  document.addEventListener('keydown', (event) => {
-    if (event.metaKey || event.ctrlKey || event.altKey) return;
-    const target = event.target as HTMLElement | null;
-    if (
-      target &&
-      (target.isContentEditable ||
-        target.tagName === 'INPUT' ||
-        target.tagName === 'TEXTAREA' ||
-        target.tagName === 'SELECT')
-    ) {
-      return;
-    }
-    if (event.key === 'ArrowLeft') {
-      event.preventDefault();
-      go(ply - 1);
-    } else if (event.key === 'ArrowRight') {
-      event.preventDefault();
-      go(ply + 1);
-    } else if (event.key === 'ArrowUp' || event.key === 'Home') {
-      event.preventDefault();
-      go(0);
-    } else if (event.key === 'ArrowDown' || event.key === 'End') {
-      event.preventDefault();
-      go(adapter.maxPly);
-    } else if (event.key === 'f' || event.key === 'F') {
-      event.preventDefault();
-      flip();
-    }
+  installReviewKeyboard({
+    stepBack: () => go(ply - 1),
+    stepForward: () => go(ply + 1),
+    toStart: () => go(0),
+    toEnd: () => go(adapter.maxPly),
+    flip,
   });
 
-  const shell = createReviewShell({
-    ariaLabel: adapter.ariaLabel,
-    pageClassName: adapter.pageClassName,
-    left,
-    center,
-    right,
-  });
-  if (adapter.gauge) {
-    const cluster = shell.querySelector<HTMLElement>('.review-shell__cluster');
-    if (cluster) {
-      cluster.classList.add('review-shell__cluster--gauge');
-      const gaugeCol = document.createElement('div');
-      gaugeCol.className = 'review-shell__gauge';
-      gaugeCol.append(adapter.gauge);
-      cluster.append(gaugeCol);
-    }
-  }
-  root.append(shell);
   render();
-
-  // Board zoom: restore the persisted scale and glue the drag grip to the
-  // primary slot's bottom-right corner (re-anchored after every refit — the
-  // slot is centered inside the full-width stage, so the offset varies).
-  restoreBoardScale();
-  const grip = attachBoardResizeGrip(stage.el, () =>
-    stage.el.querySelector<HTMLElement>('.review-stage__slot--primary'),
-  );
-  const positionGrip = (): void => {
-    const slot = stage.el.querySelector<HTMLElement>('.review-stage__slot--primary');
-    if (!slot) return;
-    const slotRect = slot.getBoundingClientRect();
-    const stageRect = stage.el.getBoundingClientRect();
-    if (slotRect.width === 0 || stageRect.width === 0) return;
-    grip.style.right = `${Math.max(0, stageRect.right - slotRect.right) - 8}px`;
-    grip.style.bottom = 'auto';
-    grip.style.top = `${slotRect.bottom - stageRect.top - 10}px`;
-  };
-
-  // Size the primary board to the measured available space. The aspect estimate
-  // (applyBoardSizing) is only a starting point; fitPrimaryToViewport measures the
-  // real laid-out chrome and fills the height. Re-run after layout settles and
-  // whenever the stage's available height changes — a window resize, or the page
-  // being shown / resized inside the dev postgame-sheet iframe (where a single
-  // load-time pass measures a not-yet-sized frame).
-  const refit = (): void => {
-    applyBoardSizing(stage.el, adapter, stripsAdopted);
-    fitPrimaryToViewport(stage.el, adapter.boardAspect, adapter.boardMaxPx);
-    // Re-anchor the grip after the fit's rAF pass has applied the new size.
-    setTimeout(positionGrip, 60);
-  };
-  onStageChanged = refit;
-  refit();
-  setTimeout(refit, 60);
-  setTimeout(refit, 260);
-  window.addEventListener('resize', refit);
-  // A ResizeObserver on the stage catches the frame being shown/resized (e.g. the
-  // dev sheet iframe), but the stage also grows as captures/hands change per ply —
-  // and re-fitting on THAT would resize the board mid-scrub, jarring the UI. So
-  // only re-fit when the viewport height actually changed; per-ply content growth
-  // leaves the board size fixed (it was fit for the fullest ply).
-  if (typeof ResizeObserver !== 'undefined') {
-    let lastViewportHeight = window.innerHeight;
-    const observer = new ResizeObserver(() => {
-      if (window.innerHeight === lastViewportHeight) return;
-      lastViewportHeight = window.innerHeight;
-      refit();
-    });
-    observer.observe(stage.el);
-  }
+  scaffold.refit();
 }
 
-// Measure the stage's actual laid-out chrome (labels + capture/hand strips +
-// secondary row) and size the primary board so the whole stack exactly fills the
-// available height — growing into slack (e.g. empty hands) and shrinking out of
-// overflow (full hands / capture pools). Bidirectional and self-measuring, so no
-// per-variant chrome estimate is needed. Capped by the center column width so
-// wide boards don't overflow horizontally.
+// Global playback keys (arrows anywhere on the page, lichess-style), ignoring
+// typing targets. Shared by the linear scrubber and the tree nav.
+export function installReviewKeyboard(
+  handlers: {
+    stepBack(): void;
+    stepForward(): void;
+    toStart(): void;
+    toEnd(): void;
+    flip(): void;
+  },
+  /** Optional abort signal to remove the listener (e.g. when a surface re-mounts). */
+  signal?: AbortSignal,
+): void {
+  document.addEventListener(
+    'keydown',
+    (event) => {
+      if (event.metaKey || event.ctrlKey || event.altKey) return;
+      const target = event.target as HTMLElement | null;
+      if (
+        target &&
+        (target.isContentEditable ||
+          target.tagName === 'INPUT' ||
+          target.tagName === 'TEXTAREA' ||
+          target.tagName === 'SELECT')
+      ) {
+        return;
+      }
+      if (event.key === 'ArrowLeft') {
+        event.preventDefault();
+        handlers.stepBack();
+      } else if (event.key === 'ArrowRight') {
+        event.preventDefault();
+        handlers.stepForward();
+      } else if (event.key === 'ArrowUp' || event.key === 'Home') {
+        event.preventDefault();
+        handlers.toStart();
+      } else if (event.key === 'ArrowDown' || event.key === 'End') {
+        event.preventDefault();
+        handlers.toEnd();
+      } else if (event.key === 'f' || event.key === 'F') {
+        event.preventDefault();
+        handlers.flip();
+      }
+    },
+    { signal },
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Board sizing (viewport-fill). Shared by every scaffold consumer.
+// ─────────────────────────────────────────────────────────────────────────────
+
 function fitPrimaryToViewport(stageEl: HTMLElement, aspect: number, maxPx?: number): void {
   scheduleAnimationFrame(() => {
     if (typeof window === 'undefined') return;
-    // Measure against the VIEWPORT, not the stage's own height: the stage stretches
-    // to the board, so reading its height and then resizing the board would feed
-    // back into a runaway ResizeObserver loop. This region height is stable.
-    // An underboard region (advantage chart / POV boards) sits below the stage in
-    // the center column and eats into the height the board can fill — subtract it so
-    // the whole center column, not just the board, fits the viewport (no scroll).
     const centerCol = stageEl.parentElement;
     const underboard = centerCol?.classList.contains('review-center-column')
       ? centerCol.querySelector<HTMLElement>('.review-underboard')
       : null;
     const underboardPx = underboard ? underboard.getBoundingClientRect().height + STACK_GAP_PX : 0;
-    // Fold the measured underboard into the cluster's chrome token so the grid
-    // column narrows to the same height budget the fit uses — the gauge and
-    // rails then hug the fitted board instead of the chrome-free estimate.
-    // (The underboard's height does not depend on the column width, so this
-    // does not feed back.)
     const cluster = stageEl.closest<HTMLElement>('.review-shell__cluster');
     if (cluster) {
       const baseChrome = Number(cluster.dataset.uniBaseChrome ?? '0') || 0;
@@ -330,10 +396,6 @@ function fitPrimaryToViewport(stageEl: HTMLElement, aspect: number, maxPx?: numb
         '--uni-board-chrome-h',
         `${baseChrome + Math.round(underboardPx)}px`,
       );
-      // The gauge centers in the full-height grid area while the center column
-      // centers board+underboard as one block, so the board sits half the
-      // underboard height above center. Publish that height for the gauge's
-      // counter-shift (see .review-shell__gauge).
       cluster.style.setProperty('--uni-underboard-h', `${Math.round(underboardPx)}px`);
     }
     const available = window.innerHeight - VIEWPORT_CHROME_PX - underboardPx;
@@ -344,11 +406,6 @@ function fitPrimaryToViewport(stageEl: HTMLElement, aspect: number, maxPx?: numb
       [...stageEl.children].reduce((h, child) => h + child.getBoundingClientRect().height, 0) +
       gaps;
     const currentWidth = slot.getBoundingClientRect().width;
-    // Flank layout puts capture columns beside the board, so the board is narrower
-    // than the slot. The fixed side budget is the columns' OWN width (+ their gaps),
-    // NOT slot-minus-board: a portrait board that doesn't fill its slot leaves slack
-    // that slot-minus-board would count as flank width and run the slot away each
-    // pass (board 462 in a 1268 slot → flankPx 806 → wider slot → …).
     const flankBoard = slot.querySelector<HTMLElement>('.review-flank__board');
     const boardWidth = flankBoard ? flankBoard.getBoundingClientRect().width : currentWidth;
     const flankCols = flankBoard
@@ -358,21 +415,12 @@ function fitPrimaryToViewport(stageEl: HTMLElement, aspect: number, maxPx?: numb
       (width, col) => width + col.getBoundingClientRect().width + FLANK_GAP_PX,
       0,
     );
-    // Everything in the stage except the primary board itself (its own label /
-    // strips, plus the secondary row and gaps) stays fixed as the primary scales.
     const nonBoardChrome = Math.max(0, contentHeight - boardWidth / aspect);
-    // Cap to the grid's board column when mounted in the shared cluster (its
-    // width is formula-driven, not content-driven, so measuring is loop-safe);
-    // fall back to the legacy viewport estimate outside it. An eval gauge hangs
-    // off the slot's right edge (absolutely positioned), so reserve its footprint
-    // inside the column or it overlaps the right rail.
     const centerEl = stageEl.closest<HTMLElement>('.review-shell__center');
     const gaugePx = stageEl.querySelector('.review-eval-bar') ? EVAL_GAUGE_PX : 0;
     const measuredCap = centerEl ? centerEl.getBoundingClientRect().width - gaugePx : 0;
     const widthCap =
       measuredCap > 0 ? measuredCap : Math.max(240, window.innerWidth - RAILS_AND_GUTTERS_PX);
-    // The user zoom scales the height-fit target the same way the grid column
-    // scales its width budget (widthCap is already scaled via the column).
     const targetBoardWidth = Math.floor(
       (available - nonBoardChrome - 6) * aspect * currentBoardScale(),
     );
@@ -381,11 +429,6 @@ function fitPrimaryToViewport(stageEl: HTMLElement, aspect: number, maxPx?: numb
       Math.min(widthCap, maxPx ?? Number.POSITIVE_INFINITY, targetBoardWidth + flankPx),
     );
     stageEl.style.setProperty('--review-stage-primary-max', `${targetWidth}px`);
-    // Publish the fitted width so the grid's board column HUGS the fitted board
-    // instead of holding the chrome-free formula width — variants whose hosts
-    // carry their own capture/reserve rows (or self-capped boards) otherwise
-    // leave a wide blank band around the board (review-shell.css min()s this
-    // into --uni-board-width).
     stageEl
       .closest<HTMLElement>('.review-shell__cluster')
       ?.style.setProperty('--uni-board-fit-w', `${targetWidth}px`);
@@ -400,80 +443,67 @@ function scheduleAnimationFrame(callback: () => void): void {
   setTimeout(callback, 0);
 }
 
-// The primary board fills the height left after the nav, the secondary row, and
-// the labels — projected through the board aspect — so it scales with the
-// viewport instead of a fixed vh fraction.
-function applyBoardSizing(
-  stageEl: HTMLElement,
-  adapter: ReviewLayoutAdapter,
-  stripsAdopted = false,
-): void {
-  const aspect = adapter.boardAspect;
-  // Adopted capture strips live in the rail, so the variant's declared strip
-  // chrome no longer applies to the board column.
-  const extraPerBoard = stripsAdopted ? 0 : (adapter.boardChromePx ?? 0);
-  const secondaryWidth = adapter.secondaryWidthPx ?? SECONDARY_WIDTH_PX;
-  const hasSecondaries = adapter.boards.some((board) => board.tier === 'secondary');
+function applyBoardSizing(stageEl: HTMLElement, config: SizingInput, stripsAdopted = false): void {
+  const aspect = config.boardAspect;
+  const extraPerBoard = stripsAdopted ? 0 : (config.boardChromePx ?? 0);
+  const secondaryWidth = config.secondaryWidthPx ?? SECONDARY_WIDTH_PX;
+  const hasSecondaries = config.boards.some((board) => board.tier === 'secondary');
   const secondaryStackPx = hasSecondaries
     ? STACK_GAP_PX + SECONDARY_LABEL_PX + Math.round(secondaryWidth / aspect) + extraPerBoard
     : 0;
   const chromePx = NAV_AND_PADDING_PX + PRIMARY_LABEL_PX + extraPerBoard + secondaryStackPx;
-  // Publish the uniboard tokens on the shared cluster so the grid's board
-  // column (review-shell.css) is sized with the same aspect + chrome budget the
-  // stage uses — the room and review pages then resolve identical columns.
-  // VIEWPORT_CHROME_PX (nav + page paddings) is already in the cluster's
-  // formula, so only the chrome beyond it goes into --uni-board-chrome-h.
   const cluster = stageEl.closest<HTMLElement>('.review-shell__cluster');
   if (cluster) {
     cluster.style.setProperty('--uni-board-aspect', aspect.toFixed(4));
     const baseChrome = Math.max(0, chromePx - VIEWPORT_CHROME_PX);
-    // The viewport fit adds the measured underboard height on top of this base
-    // (fitPrimaryToViewport) so the grid column tracks the fitted board.
     cluster.dataset.uniBaseChrome = String(baseChrome);
     cluster.style.setProperty('--uni-board-chrome-h', `${baseChrome}px`);
-    // Clear the previous fit's published width before re-measuring, or the
-    // measured column cap would ratchet: each fit reads the column the last
-    // fit narrowed and could never grow back on a larger viewport.
     cluster.style.removeProperty('--uni-board-fit-w');
     cluster.style.removeProperty('--uni-underboard-h');
   }
-  // The board is the largest that fits BOTH the center column width (≈ viewport
-  // minus the two rails + gaps) and the height left after chrome (projected
-  // through the aspect). Wide boards are width-bound; tall boards height-bound.
   stageEl.style.setProperty(
     '--review-stage-primary-max',
     `calc(min(max(240px, calc(100vw - ${RAILS_AND_GUTTERS_PX}px)), calc((100svh - ${chromePx}px) * ${aspect.toFixed(4)})) * var(--uni-board-scale, 1))`,
   );
   stageEl.style.setProperty('--review-stage-secondary-max', `${secondaryWidth}px`);
-  // Capture tiles size to ≈ one board cell (board width / columns) so they read
-  // at the same scale as the on-board pieces.
-  stageEl.style.setProperty('--capture-cols', String(adapter.boardCols ?? 12));
+  stageEl.style.setProperty('--capture-cols', String(config.boardCols ?? 12));
 }
 
-function infoRail(adapter: ReviewLayoutAdapter): HTMLElement {
-  if (adapter.metaCard) {
+// ─────────────────────────────────────────────────────────────────────────────
+// Rail composition.
+// ─────────────────────────────────────────────────────────────────────────────
+
+function infoRail(config: {
+  metaCard?: HTMLElement;
+  eyebrow?: string;
+  title: string;
+  summary: string;
+  actions: HTMLElement;
+  details?: HTMLElement;
+}): HTMLElement {
+  if (config.metaCard) {
     const actionsCard = document.createElement('div');
     actionsCard.className = 'review-actions review-actions--rail';
-    actionsCard.append(adapter.actions);
+    actionsCard.append(config.actions);
     return railGroup(
-      adapter.details
-        ? [adapter.metaCard, actionsCard, adapter.details]
-        : [adapter.metaCard, actionsCard],
+      config.details
+        ? [config.metaCard, actionsCard, config.details]
+        : [config.metaCard, actionsCard],
     );
   }
   const card = document.createElement('section');
   card.className = 'review-info-card';
   const eyebrow = document.createElement('p');
   eyebrow.className = 'review-info-card__eyebrow';
-  eyebrow.textContent = 'Game review';
+  eyebrow.textContent = config.eyebrow ?? 'Game review';
   const title = document.createElement('h1');
   title.className = 'review-info-card__title';
-  title.textContent = adapter.title;
+  title.textContent = config.title;
   const summary = document.createElement('p');
   summary.className = 'review-info-card__summary';
-  summary.textContent = adapter.summary;
-  card.append(eyebrow, title, summary, adapter.actions);
-  return railGroup(adapter.details ? [card, adapter.details] : [card]);
+  summary.textContent = config.summary;
+  card.append(eyebrow, title, summary, config.actions);
+  return railGroup(config.details ? [card, config.details] : [card]);
 }
 
 function railGroup(children: HTMLElement[]): HTMLElement {
@@ -483,10 +513,6 @@ function railGroup(children: HTMLElement[]): HTMLElement {
   return group;
 }
 
-// The center column: the board-stage with an underboard region stacked beneath it
-// (advantage chart / cycleable POV boards). The shell still vertically centers the
-// whole column; fitPrimaryToViewport subtracts the underboard height so the board
-// fills only the space above it.
 function centerColumn(stageEl: HTMLElement, underboard: HTMLElement): HTMLElement {
   const col = document.createElement('div');
   col.className = 'review-center-column';
@@ -494,6 +520,10 @@ function centerColumn(stageEl: HTMLElement, underboard: HTMLElement): HTMLElemen
   col.append(stageEl, underboard);
   return col;
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Navigation bars.
+// ─────────────────────────────────────────────────────────────────────────────
 
 type ReviewScrubber = {
   el: HTMLElement;
@@ -543,4 +573,46 @@ function scrubButton(text: string, label: string): HTMLButtonElement {
   button.setAttribute('aria-label', label);
   button.textContent = text;
   return button;
+}
+
+/** A scrubber-styled nav bar for a non-linear (tree) controller: the same
+ *  |< < > >| Flip chrome as the postgame, with a free-form status label. */
+export function createReviewNavBar(handlers: {
+  first(): void;
+  previous(): void;
+  next(): void;
+  last(): void;
+  flip(): void;
+}): {
+  el: HTMLElement;
+  status: HTMLElement;
+  setBounds(state: { atStart: boolean; atEnd: boolean }): void;
+} {
+  const el = document.createElement('div');
+  el.className = 'review-scrubber';
+  const status = document.createElement('span');
+  status.className = 'review-scrubber__status';
+  status.setAttribute('aria-live', 'polite');
+  const first = scrubButton('|<', 'First move');
+  const previous = scrubButton('<', 'Previous move');
+  const next = scrubButton('>', 'Next move');
+  const last = scrubButton('>|', 'End of line');
+  const flip = scrubButton('Flip', 'Flip board');
+  flip.title = 'Flip board (f)';
+  first.addEventListener('click', handlers.first);
+  previous.addEventListener('click', handlers.previous);
+  next.addEventListener('click', handlers.next);
+  last.addEventListener('click', handlers.last);
+  flip.addEventListener('click', handlers.flip);
+  el.append(status, first, previous, next, last, flip);
+  return {
+    el,
+    status,
+    setBounds({ atStart, atEnd }) {
+      first.disabled = atStart;
+      previous.disabled = atStart;
+      next.disabled = atEnd;
+      last.disabled = atEnd;
+    },
+  };
 }

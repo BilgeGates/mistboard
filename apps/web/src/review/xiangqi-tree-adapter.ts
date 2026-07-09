@@ -1,0 +1,47 @@
+// Standard-xiangqi (open / perfect-info) adapter for the shared GameTree spine.
+// Every hook is a one-liner over the existing `@mistboard/game` kernel — the same
+// functions xiangqi-review-model.ts already uses to replay a move list. This is
+// the first concrete VariantTreeAdapter and the proof that open variants need no
+// new rules code to ride the tree: Truth = XiangqiGameState, View =
+// StandardXiangqiPlayerView, and `project` returns a single truth view (length 1).
+// The fog counterpart (dark xiangqi) will share every hook except `project`,
+// which returns the truth + per-POV triptych (length 3).
+
+import {
+  applyStandardXiangqiMove,
+  createInitialXiangqiState,
+  getStandardXiangqiPlayerView,
+  isStandardXiangqiLegalMove,
+  type StandardXiangqiPlayerView,
+  type XiangqiGameState,
+  type XiangqiMove,
+  xiangqiMoveToFsfUci,
+} from '@mistboard/game';
+import type { ProjectedView, VariantTreeAdapter } from './game-tree.js';
+
+export const xiangqiTreeAdapter: VariantTreeAdapter<
+  XiangqiMove,
+  XiangqiGameState,
+  StandardXiangqiPlayerView
+> = {
+  mode: 'perfect-info',
+  initialTruth: () => createInitialXiangqiState('analysis'),
+  isLegal: (truth, move) =>
+    truth.status.type === 'playing' && isStandardXiangqiLegalMove(truth, move),
+  applyMove: (truth, move) => applyStandardXiangqiMove(truth, move),
+  project: (truth): ProjectedView<StandardXiangqiPlayerView>[] => [
+    {
+      key: 'truth',
+      label: 'Board',
+      tier: 'primary',
+      // Open information → the "player view" is the full truth; perspective is
+      // applied by the board renderer (orientation), not here.
+      view: getStandardXiangqiPlayerView(truth, 'red'),
+    },
+  ],
+  moveLabel: (move) => `${move.from}-${move.to}`,
+  // FSF xiangqi UCI is 1-indexed = our square notation, so the engine key and the
+  // sibling-dedup NodeId are the same canonical string.
+  moveKey: (move) => xiangqiMoveToFsfUci(move),
+  toEngineUci: (move) => xiangqiMoveToFsfUci(move),
+};

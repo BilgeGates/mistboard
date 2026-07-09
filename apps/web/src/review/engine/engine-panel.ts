@@ -40,8 +40,9 @@ const DEBOUNCE_MS = 150;
 
 export function createEnginePanel(opts: EnginePanelOptions): EnginePanel {
   const supported = cevalSupported();
-  const multiPv = opts.multiPv ?? 3;
-  const maxDepth = opts.maxDepth ?? 18;
+  // Mutable so the settings popover can retune them live.
+  let multiPv = opts.multiPv ?? 3;
+  let maxDepth = opts.maxDepth ?? 18;
   const formatMove = opts.formatPvMove ?? ((uci: string) => uci);
 
   const el = document.createElement('section');
@@ -61,7 +62,33 @@ export function createEnginePanel(opts: EnginePanelOptions): EnginePanel {
   const evalLabel = document.createElement('strong');
   evalLabel.className = 'engine-panel__eval';
   evalLabel.textContent = '–';
-  head.append(toggle, gauge, evalLabel);
+  const gear = document.createElement('button');
+  gear.type = 'button';
+  gear.className = 'engine-panel__gear';
+  gear.setAttribute('aria-label', 'Engine settings');
+  gear.setAttribute('aria-expanded', 'false');
+  gear.textContent = '⚙';
+  head.append(toggle, gauge, evalLabel, gear);
+
+  // Settings popover: number of lines (MultiPV) + search depth. Retuning re-runs
+  // the current search if the engine is on.
+  const settings = document.createElement('div');
+  settings.className = 'engine-panel__settings';
+  settings.hidden = true;
+  settings.append(
+    labeledSelect('Lines', ['1', '2', '3', '4', '5'], String(multiPv), (value) => {
+      multiPv = Number(value);
+      if (on) evaluateNow();
+    }),
+    labeledSelect('Depth', ['14', '18', '22', '26'], String(maxDepth), (value) => {
+      maxDepth = Number(value);
+      if (on) evaluateNow();
+    }),
+  );
+  gear.addEventListener('click', () => {
+    settings.hidden = !settings.hidden;
+    gear.setAttribute('aria-expanded', settings.hidden ? 'false' : 'true');
+  });
 
   const meta = document.createElement('div');
   meta.className = 'engine-panel__meta';
@@ -69,7 +96,7 @@ export function createEnginePanel(opts: EnginePanelOptions): EnginePanel {
   const lines = document.createElement('ol');
   lines.className = 'engine-panel__lines';
 
-  el.append(head, meta, lines);
+  el.append(head, settings, meta, lines);
 
   let handle: CevalHandle | null = null;
   let on = false;
@@ -182,6 +209,29 @@ export function createEnginePanel(opts: EnginePanelOptions): EnginePanel {
       handle?.dispose();
     },
   };
+}
+
+function labeledSelect(
+  label: string,
+  options: string[],
+  value: string,
+  onChange: (value: string) => void,
+): HTMLElement {
+  const wrap = document.createElement('label');
+  wrap.className = 'engine-panel__setting';
+  const span = document.createElement('span');
+  span.textContent = label;
+  const select = document.createElement('select');
+  for (const option of options) {
+    const el = document.createElement('option');
+    el.value = option;
+    el.textContent = option;
+    if (option === value) el.selected = true;
+    select.append(el);
+  }
+  select.addEventListener('change', () => onChange(select.value));
+  wrap.append(span, select);
+  return wrap;
 }
 
 function renderLine(line: CevalLine, side: Side, formatMove: (uci: string) => string): HTMLElement {
