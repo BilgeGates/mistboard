@@ -1,4 +1,4 @@
-import { type XiangqiColor, XIANGQI_BROADCAST_SCHEMA, type XiangqiMove } from '@mistboard/game';
+import { XIANGQI_BROADCAST_SCHEMA, type XiangqiColor, type XiangqiMove } from '@mistboard/game';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { importXiangqiGame } from './review/xiangqi-import.js';
 import {
@@ -96,7 +96,14 @@ describe('mountXiangqiBroadcastRound (mini-board grid)', () => {
         status: 'live',
         result: '*',
       }),
-      board({ n: 2, red: 'A Player', black: 'B Player', moves: [], status: 'scheduled', result: '*' }),
+      board({
+        n: 2,
+        red: 'A Player',
+        black: 'B Player',
+        moves: [],
+        status: 'scheduled',
+        result: '*',
+      }),
     ],
   };
 
