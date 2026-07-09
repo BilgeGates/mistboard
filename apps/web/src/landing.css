@@ -1516,6 +1516,44 @@
 }
 
 @media (min-width: 1241px) {
+  /* ── Row-1 rail alignment against the tall lobby panel ───────────────────────
+     Desktop only (the band is a 3-column grid here; below 1241px it stacks and
+     these would fight the stacked layout). The center lobby panel drives row 1's
+     height; the left news rail and right play rail stretch to it and position
+     their contents relative to it: chat + CTAs centered on the panel's vertical
+     midline, the about tagline flush with the panel bottom, and the activity box
+     pinned to the play rail's bottom out of the centering flow. */
+  .landing-news-column {
+    position: relative;
+    align-self: stretch;
+    justify-content: center;
+  }
+
+  .landing-news-column .landing-about {
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
+  }
+
+  .landing-play-stack {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+  }
+
+  .landing-play-stack .landing-play-panel {
+    align-self: stretch;
+  }
+
+  .landing-play-stack .landing-activity {
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
+  }
+
   /* ── Homepage viewer: flush box model (Stage 2) ──────────────────────────────
    Gated to the desktop band (min-width 1241px, where .landing-demo is a 3-column
    grid). Below that the band stacks and the viewer reverts to its in-flow,
