@@ -106,6 +106,9 @@
 
 .site-nav-links {
   justify-content: flex-start;
+  /* Links pack tight like lichess: no inter-link gap, spacing comes from each
+     link's own padding (see .site-nav-links > .site-nav-link below). */
+  gap: 0;
 }
 
 .site-nav-utilities {
@@ -142,7 +145,7 @@
 .site-nav-links > .site-nav-link,
 .site-nav-menu-toggle {
   min-height: 60px;
-  padding: 0 11px;
+  padding: 0 9px;
   border-radius: 0;
   color: var(--site-muted);
   font-size: 14px;
