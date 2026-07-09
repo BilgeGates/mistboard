@@ -347,7 +347,10 @@
   color: var(--site-accent-strong);
 }
 
-.xqb-export-link {
+.xqb-board-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
   align-self: flex-start;
 }
 

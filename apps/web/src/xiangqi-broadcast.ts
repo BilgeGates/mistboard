@@ -9,6 +9,7 @@ import type {
   XiangqiGameStatus,
   XiangqiMove,
 } from '@mistboard/game';
+import { xiangqiMoveToFsfUci } from '@mistboard/game';
 import './live-xiangqi.css';
 import './xiangqi-broadcast.css';
 import { renderXiangqiBoardSvg } from './live-xiangqi.js';
@@ -376,7 +377,12 @@ function renderBoardReplay(data: BroadcastBoardResponse): HTMLElement {
   moveHeading.textContent = 'Moves';
   const moveList = document.createElement('div');
   moveList.className = 'xqb-move-grid';
-  movesPanel.append(moveHeading, moveList, exportLink(data.board.id));
+  const actions = document.createElement('div');
+  actions.className = 'xqb-board-actions';
+  const analysisHref = analysisDeeplink(data.timeline);
+  if (analysisHref) actions.append(analyseLink(analysisHref));
+  actions.append(exportLink(data.board.id));
+  movesPanel.append(moveHeading, moveList, actions);
 
   layout.append(boardPanel, movesPanel);
   main.append(hero, layout);
@@ -583,6 +589,34 @@ function controlButton(label: string, onClick: () => void): HTMLButtonElement {
   button.textContent = label;
   button.addEventListener('click', onClick);
   return button;
+}
+
+// Serialize a broadcast timeline to the canonical coordinate move list the
+// analysis board expects at `/analysis/xiangqi?moves=`. Each move is our square
+// notation concatenated (= Fairy-Stockfish xiangqi UCI, e.g. `h3e3`), which the
+// analysis importer round-trips back to the same moves. Exported for the
+// round-trip test that guards this seam against a format drift on either side.
+export function serializeBroadcastMovesForAnalysis(timeline: BroadcastMoveTimelineEntry[]): string {
+  return [...timeline]
+    .sort((a, b) => a.ply - b.ply)
+    .map((entry) => xiangqiMoveToFsfUci(entry.move))
+    .join(',');
+}
+
+function analysisDeeplink(timeline: BroadcastMoveTimelineEntry[]): string | null {
+  if (timeline.length === 0) return null;
+  return `/analysis/xiangqi?moves=${encodeURIComponent(serializeBroadcastMovesForAnalysis(timeline))}`;
+}
+
+// Opens in a new tab so a live broadcast keeps streaming behind the analysis board.
+function analyseLink(href: string): HTMLElement {
+  const link = document.createElement('a');
+  link.className = 'xqb-export-link xqb-link-primary';
+  link.href = href;
+  link.target = '_blank';
+  link.rel = 'noopener';
+  link.textContent = 'Analyse with engine';
+  return link;
 }
 
 function exportLink(boardId: string): HTMLElement {
