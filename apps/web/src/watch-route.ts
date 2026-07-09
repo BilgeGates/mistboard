@@ -1,7 +1,7 @@
 import type { GameEvent } from '@mistboard/game';
 import { banqiResultLabel } from './banqi-result-label.js';
-import type { VariantMiniId } from './variant-mini-boards.js';
 import { renderVariantMarker } from './variant-markers.js';
+import type { VariantMiniId } from './variant-mini-boards.js';
 import { webVariantTenantForSpecId } from './variant-tenant/registry.js';
 import { variantMiniIdForRawVariant } from './variants.js';
 import './watch-route.css';

@@ -1,8 +1,8 @@
 import './variant-markers.css';
 import {
   renderVariantMiniBoard,
-  variantMiniForId,
   type VariantMiniId,
+  variantMiniForId,
 } from './variant-mini-boards.js';
 
 export const FINAL_VARIANT_MARKERS = {
@@ -55,7 +55,9 @@ export function renderVariantMarker(
   if (!marker) {
     return renderVariantMiniBoard(id, { className: opts.className, label, size });
   }
-  const dataClass = opts.className ? ` data-variant-marker-class="${escapeAttr(opts.className)}"` : '';
+  const dataClass = opts.className
+    ? ` data-variant-marker-class="${escapeAttr(opts.className)}"`
+    : '';
   return `<span class="${escapeAttr(className)}" role="img" aria-label="${escapeAttr(label)}" data-variant-marker-id="${id}" data-variant-marker-size="${size}"${dataClass} style="--variant-marker-mask: url('${escapeAttr(marker.path)}'); --variant-marker-size: ${size}px"></span>`;
 }
 

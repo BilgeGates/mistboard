@@ -185,7 +185,10 @@ describe('renderWatchChannelList', () => {
     expect(links).toHaveLength(12);
     for (const link of links) {
       const thumb = link.querySelector('.watch-channel-thumb');
-      expect(thumb?.querySelector('svg, .variant-marker'), `${link.textContent} marker`).not.toBeNull();
+      expect(
+        thumb?.querySelector('svg, .variant-marker'),
+        `${link.textContent} marker`,
+      ).not.toBeNull();
     }
   });
 });

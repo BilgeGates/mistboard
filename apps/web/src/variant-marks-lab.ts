@@ -1,11 +1,11 @@
 import { buildNav } from './site-shell.js';
+import { FINAL_VARIANT_MARKERS, renderVariantMarker } from './variant-markers.js';
 import {
   renderVariantMiniBoard,
   VARIANT_MINIS,
   type VariantMiniDef,
   type VariantMiniId,
 } from './variant-mini-boards.js';
-import { FINAL_VARIANT_MARKERS, renderVariantMarker } from './variant-markers.js';
 
 const MINI_SIZES = [160, 128, 112, 96, 80] as const;
 const GENERATED_MARKER_SIZES = [128, 96, 80, 64, 48, 32] as const;
@@ -363,9 +363,9 @@ function variantMiniForLab(id: VariantMiniId): VariantMiniDef {
 
 function generatedMarkerForLab(id: VariantMiniId): { path: string; source: string } {
   const marker = (FINAL_VARIANT_MARKERS as Partial<Record<VariantMiniId, { path: string }>>)[id];
-  const source = (FINALIZED_GENERATED_MARKER_SOURCES as Partial<Record<VariantMiniId, { source: string }>>)[
-    id
-  ];
+  const source = (
+    FINALIZED_GENERATED_MARKER_SOURCES as Partial<Record<VariantMiniId, { source: string }>>
+  )[id];
   if (!marker) throw new Error(`No finalized generated marker for lab id: ${id}`);
   if (!source) throw new Error(`No finalized generated marker source for lab id: ${id}`);
   return { ...marker, source: source.source };

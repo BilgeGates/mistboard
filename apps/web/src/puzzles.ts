@@ -64,8 +64,8 @@ import {
 import { initLiveSound, playSound } from './live-sound.js';
 import { buildNav } from './site-shell.js';
 import { setBoardFamily, xiangqiAppearanceChangedEvent } from './theme.js';
-import type { VariantMiniId } from './variant-mini-boards.js';
 import { renderVariantMarker } from './variant-markers.js';
+import type { VariantMiniId } from './variant-mini-boards.js';
 import { installBoardDrag } from './variant-tenant/board-drag.js';
 import { installHandDrag } from './variant-tenant/hand-drag.js';
 
