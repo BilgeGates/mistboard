@@ -49,6 +49,20 @@ describe('site shell nav', () => {
     expect((communityToggle as HTMLAnchorElement).getAttribute('href')).toBe('/player');
     // /bots moved out of the top-nav dropdown into the community rail.
     expect(nav.querySelector<HTMLAnchorElement>('a[href="/bots"]')).toBeNull();
+
+    // Watch is a split menu: the title links to Mistboard TV (/watch) and the
+    // panel surfaces Broadcasts.
+    const watchMenu = [...nav.querySelectorAll<HTMLElement>('.site-nav-menu')].find(
+      (menu) => menu.querySelector('.site-nav-menu-toggle')?.textContent === 'Watch',
+    );
+    const watchToggle = watchMenu?.querySelector<HTMLAnchorElement>('.site-nav-menu-toggle');
+    expect(watchToggle?.tagName).toBe('A');
+    expect(watchToggle?.getAttribute('href')).toBe('/watch');
+    expect(
+      watchMenu
+        ?.querySelector<HTMLElement>('.site-nav-menu-panel')
+        ?.querySelector<HTMLAnchorElement>('a[href="/broadcast/xiangqi"]')?.textContent,
+    ).toBe('Broadcasts');
   });
 
   it('localizes launch nav labels and translated content links', () => {

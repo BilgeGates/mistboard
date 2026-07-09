@@ -7,6 +7,7 @@ import {
   type NavItem,
   primaryNavItems,
   toolsNavItems,
+  watchNavItems,
 } from './nav-items.js';
 
 export const GITHUB_URL = 'https://github.com/brianhliou/mistboard';
@@ -66,7 +67,8 @@ export function buildNav(locale: Locale = currentLocale()): HTMLElement {
   if (play) links.append(navLink(play, locale));
   if (puzzles) links.append(navLink(puzzles, locale));
   links.append(navMenu('nav.learn', learnNavItems(), locale));
-  if (watch) links.append(navLink(watch, locale));
+  // Watch title links to Mistboard TV (/watch); the dropdown adds Broadcasts.
+  links.append(navMenu('nav.watch', watchNavItems(), locale, watch?.href ?? '/watch'));
   // Community title itself links to the player page (lichess parity): hovering
   // opens the dropdown, clicking the word navigates to /player.
   links.append(navMenu('nav.community', communityNavItems(), locale, '/player'));

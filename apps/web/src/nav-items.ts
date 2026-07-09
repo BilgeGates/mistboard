@@ -43,6 +43,13 @@ export function learnNavItems(): NavItem[] {
   return [{ label: 'Rules', labelKey: 'nav.rules', href: '/rules' }];
 }
 
+// Watch dropdown (lichess parity): the title links to Mistboard TV (/watch);
+// the panel surfaces tournament Broadcasts. Kept minimal until there are more
+// watch surfaces (streamers, video) to list.
+export function watchNavItems(): NavItem[] {
+  return [{ label: 'Broadcasts', labelKey: 'nav.broadcasts', href: '/broadcast/xiangqi' }];
+}
+
 export function utilityNavItems(): NavItem[] {
   const items: NavItem[] = [];
   if (SHOW_ENGINE_LAB_LINKS) items.push({ label: 'Lab', labelKey: 'nav.lab', href: '/lab' });
