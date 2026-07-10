@@ -1,21 +1,23 @@
-// Lobby chat routes (gate-cleared 2026-07-02, behind MISTBOARD_LOBBY_CHAT_ENABLED).
+// Chat routes.
 //
 //   GET  /api/chat/lobby          last lines + viewer posting state (anon read)
 //   POST /api/chat/lobby          post a line { text } (signed-in)
+//   GET  /api/chat/game/:roomId   per-game spectator chat
+//   POST /api/chat/game/:roomId   post a line to that game's spectator chat
 //   GET  /api/chat/lobby/reports  admin: open chat report queue
 //   POST /api/chat/lobby/reports/:id admin: resolve/dismiss a report
-//   POST /api/chat/lobby/report   signed-in: report a line { lineId, reason? }
-//   POST /api/chat/lobby/timeout  admin: { handle, reason? } 15-min timeout,
+//   POST /api/chat/{room}/report  signed-in: report a line { lineId, reason? }
+//   POST /api/chat/{room}/timeout admin: { handle, reason? } 15-min timeout,
 //                                 hides the user's visible lines
-//   POST /api/chat/lobby/hide     admin: { lineId, reason? } hide one line
+//   POST /api/chat/{room}/hide    admin: { lineId, reason? } hide one line
 //
-// When the flag is off every route answers 404 chat_disabled — the homepage
-// widget treats that as "render nothing", which makes the env flag a kill
-// switch that needs no client rebuild.
+// Lobby chat remains behind MISTBOARD_LOBBY_CHAT_ENABLED. Per-game spectator
+// rooms are game-scoped in the same bounded chat_lines table and use the same
+// posting, moderation, report, timeout, and retention rules.
 //
-// Post guards, in order: flag → signed in → active timeout → flood budget
-// (10 lines/min, DB-counted) → link denial for accounts under 7 days →
-// length (≤140, trimmed). Plaintext rendering keeps links non-clickable for
+// Post guards, in order: room gate (lobby only), signed in, active timeout,
+// flood budget (10 lines/min, DB-counted), link denial for accounts under
+// 7 days, length (<=140, trimmed). Plaintext rendering keeps links non-clickable for
 // everyone; young accounts cannot post them at all.
 
 import { randomUUID } from 'node:crypto';
@@ -34,6 +36,14 @@ import {
 
 const LINK_PATTERN = /https?:\/\/|www\./i;
 
+type ChatRoomAction = 'room' | 'report' | 'timeout' | 'hide';
+
+type ChatRoomTarget = {
+  kind: 'lobby' | 'game';
+  room: string;
+  action: ChatRoomAction;
+};
+
 export async function tryHandle(
   _ctx: unknown,
   request: IncomingMessage,
@@ -41,8 +51,13 @@ export async function tryHandle(
   pathname: string,
   parsedUrl: URL,
 ): Promise<boolean> {
-  if (!pathname.startsWith('/api/chat/lobby')) return false;
-  if (!lobbyChatEnabled()) {
+  if (!pathname.startsWith('/api/chat/')) return false;
+  const target = chatRoomTarget(pathname);
+  const reportResolveMatch = pathname.match(/^\/api\/chat\/lobby\/reports\/([^/]+)$/);
+  const handlesLobbyAdminQueue = pathname === '/api/chat/lobby/reports' || !!reportResolveMatch;
+  if (!target && !handlesLobbyAdminQueue) return false;
+
+  if ((target?.kind === 'lobby' || handlesLobbyAdminQueue) && !lobbyChatEnabled()) {
     writeJson(response, 404, { error: 'chat_disabled' });
     return true;
   }
@@ -58,7 +73,6 @@ export async function tryHandle(
     return true;
   }
 
-  const reportResolveMatch = pathname.match(/^\/api\/chat\/lobby\/reports\/([^/]+)$/);
   if (reportResolveMatch) {
     if (!requireMethod(request, response, 'POST')) return true;
     if (!(await requireAdminSession(request, response))) return true;
@@ -85,7 +99,7 @@ export async function tryHandle(
     return true;
   }
 
-  if (pathname === '/api/chat/lobby/report') {
+  if (target?.action === 'report') {
     if (!requireMethod(request, response, 'POST')) return true;
     const user = await currentAccountUser(request);
     if (!user) {
@@ -121,7 +135,7 @@ export async function tryHandle(
     return true;
   }
 
-  if (pathname === '/api/chat/lobby/timeout') {
+  if (target?.action === 'timeout') {
     if (!requireMethod(request, response, 'POST')) return true;
     if (!(await requireAdminSession(request, response))) return true;
     const admin = await currentAccountUser(request);
@@ -138,7 +152,7 @@ export async function tryHandle(
     const reason = typeof body.reason === 'string' ? body.reason.slice(0, 240) : undefined;
     const result = await persistence.createChatTimeout({
       id: `chto_${randomUUID()}`,
-      room: persistence.CHAT_ROOM_LOBBY,
+      room: target.room,
       targetHandle: handle,
       durationMs: CHAT_POLICY.timeoutMs,
       reason,
@@ -152,7 +166,7 @@ export async function tryHandle(
     return true;
   }
 
-  if (pathname === '/api/chat/lobby/hide') {
+  if (target?.action === 'hide') {
     if (!requireMethod(request, response, 'POST')) return true;
     if (!(await requireAdminSession(request, response))) return true;
     const admin = await currentAccountUser(request);
@@ -176,16 +190,13 @@ export async function tryHandle(
     return true;
   }
 
-  if (pathname !== '/api/chat/lobby') return false;
+  if (!target || target.action !== 'room') return false;
 
   if (request.method === 'GET') {
-    const lines = await persistence.listChatLines(
-      persistence.CHAT_ROOM_LOBBY,
-      CHAT_POLICY.servedLines,
-    );
+    const lines = await persistence.listChatLines(target.room, CHAT_POLICY.servedLines);
     const viewer = await currentAccountUser(request);
     const timeoutUntil = viewer
-      ? await persistence.activeChatTimeout(persistence.CHAT_ROOM_LOBBY, viewer.id)
+      ? await persistence.activeChatTimeout(target.room, viewer.id)
       : null;
     writeJson(response, 200, {
       lines: lines.map((line) => ({
@@ -210,11 +221,7 @@ export async function tryHandle(
       return true;
     }
     const now = new Date();
-    const timeoutUntil = await persistence.activeChatTimeout(
-      persistence.CHAT_ROOM_LOBBY,
-      user.id,
-      now,
-    );
+    const timeoutUntil = await persistence.activeChatTimeout(target.room, user.id, now);
     if (timeoutUntil) {
       writeJson(response, 403, { error: 'timed_out', until: timeoutUntil.toISOString() });
       return true;
@@ -259,14 +266,14 @@ export async function tryHandle(
     const id = `chln_${randomUUID()}`;
     await persistence.addChatLine({
       id,
-      room: persistence.CHAT_ROOM_LOBBY,
+      room: target.room,
       authorId: user.id,
       bodyText: text,
       moderationStatus: policy.status,
       moderationReason: policy.reason,
       now,
     });
-    await persistence.pruneChatLines(persistence.CHAT_ROOM_LOBBY, CHAT_POLICY.retainedLines);
+    await persistence.pruneChatLines(target.room, CHAT_POLICY.retainedLines);
     writeJson(response, 201, {
       line: { id, handle: user.handle, text, createdAt: now.toISOString() },
     });
@@ -275,6 +282,50 @@ export async function tryHandle(
 
   writeJson(response, 405, { error: 'method_not_allowed' });
   return true;
+}
+
+function chatRoomTarget(pathname: string): ChatRoomTarget | null {
+  if (pathname === '/api/chat/lobby') {
+    return { kind: 'lobby', room: persistence.CHAT_ROOM_LOBBY, action: 'room' };
+  }
+  const lobbyAction = pathname.match(/^\/api\/chat\/lobby\/(report|timeout|hide)$/);
+  if (lobbyAction) {
+    return {
+      kind: 'lobby',
+      room: persistence.CHAT_ROOM_LOBBY,
+      action: lobbyAction[1] as ChatRoomAction,
+    };
+  }
+
+  const gameMatch = pathname.match(/^\/api\/chat\/game\/([^/]+)(?:\/(report|timeout|hide))?$/);
+  if (!gameMatch) return null;
+  const roomId = decodeChatRoomSegment(gameMatch[1] ?? '');
+  if (!roomId) return null;
+  return {
+    kind: 'game',
+    room: `game:${roomId}`,
+    action: (gameMatch[2] as ChatRoomAction | undefined) ?? 'room',
+  };
+}
+
+function decodeChatRoomSegment(segment: string): string | null {
+  let decoded: string;
+  try {
+    decoded = decodeURIComponent(segment);
+  } catch {
+    return null;
+  }
+  if (decoded.length === 0 || decoded.length > 160) return null;
+  if (hasControlCharacter(decoded)) return null;
+  return decoded;
+}
+
+function hasControlCharacter(value: string): boolean {
+  for (const char of value) {
+    const code = char.charCodeAt(0);
+    if (code < 32 || code === 127) return true;
+  }
+  return false;
 }
 
 function serializeChatReport(report: persistence.ChatReportRecord): Record<string, unknown> {

@@ -1,0 +1,188 @@
+.review-spectator-chat {
+  --review-chat-bg: var(--site-panel, var(--site-surface));
+  --review-chat-border: var(--site-border);
+  --review-chat-muted: var(--site-muted);
+  --review-chat-text: var(--site-text);
+
+  display: flex;
+  flex-direction: column;
+  min-height: 340px;
+  border: 1px solid var(--review-chat-border);
+  border-radius: var(--site-radius, 10px);
+  background: var(--review-chat-bg);
+  box-shadow:
+    0 1px 2px rgba(0, 0, 0, 0.09),
+    0 8px 18px rgba(0, 0, 0, 0.05);
+  overflow: hidden;
+}
+
+.review-spectator-chat__tabs {
+  flex: 0 0 auto;
+  display: flex;
+  border-bottom: 1px solid var(--review-chat-border);
+  background: var(--site-bg);
+}
+
+.review-spectator-chat__tab {
+  flex: 1 1 auto;
+  min-width: 0;
+  padding: 10px 12px;
+  text-align: center;
+  color: var(--review-chat-muted);
+  font-size: 16px;
+  font-weight: 400;
+  line-height: 1.15;
+}
+
+.review-spectator-chat__tab--active {
+  color: var(--review-chat-text);
+  background: var(--review-chat-bg);
+}
+
+.review-spectator-chat__feed {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  padding: 10px 12px;
+  scrollbar-color: #cfcfcf transparent;
+  scrollbar-width: thin;
+}
+
+.review-spectator-chat__line {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  color: var(--review-chat-text);
+  font-size: 12px;
+  line-height: 1.25;
+}
+
+.review-spectator-chat__handle {
+  flex: 0 0 auto;
+  max-width: 42%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--review-chat-muted);
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.review-spectator-chat__handle:hover,
+.review-spectator-chat__handle:focus-visible {
+  color: var(--site-accent-strong, var(--site-text));
+  text-decoration: underline;
+  outline: none;
+}
+
+.review-spectator-chat__text {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.review-spectator-chat__token {
+  color: var(--site-link, #1d86f2);
+}
+
+.review-spectator-chat__report {
+  flex: 0 0 auto;
+  margin-left: auto;
+  border: none;
+  background: transparent;
+  color: var(--review-chat-muted);
+  font-size: 11px;
+  cursor: pointer;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.review-spectator-chat__line:hover .review-spectator-chat__report,
+.review-spectator-chat__line:focus-within .review-spectator-chat__report {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.review-spectator-chat__report:hover,
+.review-spectator-chat__report:focus-visible {
+  color: var(--review-chat-text);
+  outline: none;
+}
+
+.review-spectator-chat__report.is-reported {
+  opacity: 1;
+  pointer-events: none;
+  color: var(--site-success, #4f8a10);
+}
+
+.review-spectator-chat__footer {
+  flex: 0 0 auto;
+  border-top: 1px solid var(--review-chat-border);
+  background: var(--site-bg);
+}
+
+.review-spectator-chat__composer {
+  display: flex;
+  flex-wrap: wrap;
+}
+
+.review-spectator-chat__input {
+  flex: 1 1 auto;
+  min-width: 0;
+  border: 0;
+  border-radius: 0;
+  background: var(--site-bg);
+  color: var(--review-chat-text);
+  font: inherit;
+  font-size: 14px;
+  line-height: 1.2;
+  padding: 8px 10px;
+}
+
+.review-spectator-chat__input::placeholder {
+  color: var(--review-chat-muted);
+  opacity: 1;
+}
+
+.review-spectator-chat__input:focus {
+  outline: none;
+  box-shadow: inset 0 0 0 2px color-mix(in srgb, var(--site-link, #1d86f2) 35%, transparent);
+}
+
+.review-spectator-chat__status {
+  flex: 1 0 100%;
+  padding: 0 10px 8px;
+  color: var(--site-danger, #c0392b);
+  font-size: 11px;
+}
+
+.review-spectator-chat__empty {
+  margin: 0;
+  padding: 8px 10px;
+  color: var(--review-chat-muted);
+  font-size: 12px;
+}
+
+.review-spectator-chat__signin {
+  display: inline-block;
+  padding: 8px 10px;
+  color: var(--review-chat-muted);
+  font-size: 12px;
+  text-decoration: none;
+}
+
+.review-spectator-chat__signin:hover,
+.review-spectator-chat__signin:focus-visible {
+  color: var(--site-accent-strong, var(--review-chat-text));
+  text-decoration: underline;
+  outline: none;
+}
+
+@media (min-width: 1260px) {
+  .review-spectator-chat {
+    flex: 1 1 0;
+    min-height: 0;
+  }
+}

@@ -274,6 +274,44 @@ definePersistenceTests('chat', () => {
       delete process.env.MISTBOARD_LOBBY_CHAT_ENABLED;
     }
   });
+
+  test('game chat route reads from a per-game persistent room without the lobby flag', async () => {
+    delete process.env.MISTBOARD_LOBBY_CHAT_ENABLED;
+    const now = new Date('2026-07-02T11:00:00Z');
+    await makeUser('chat_user_review', 'chatreview', now);
+    await addChatLine({
+      id: 'chln_game_room_1',
+      room: 'game:xq_review_room',
+      authorId: 'chat_user_review',
+      bodyText: 'review room line',
+      now,
+    });
+    await addChatLine({
+      id: 'chln_other_game_room_1',
+      room: 'game:xq_other_room',
+      authorId: 'chat_user_review',
+      bodyText: 'other room line',
+      now,
+    });
+
+    const read = captureResponse();
+    const handled = await tryHandleChatRoute(
+      {},
+      { method: 'GET', headers: {} } as unknown as IncomingMessage,
+      read,
+      '/api/chat/game/xq_review_room',
+      new URL('http://test.local/api/chat/game/xq_review_room'),
+    );
+
+    assert.equal(handled, true);
+    assert.equal(read.status, 200);
+    const payload = JSON.parse(read.body);
+    assert.deepEqual(
+      payload.lines.map((line: { text: string }) => line.text),
+      ['review room line'],
+    );
+    assert.equal(payload.canPost, false);
+  });
 });
 
 async function makeUser(id: string, handle: string, now: Date): Promise<void> {

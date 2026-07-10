@@ -12,6 +12,7 @@ import './xiangqi-postgame.css';
 import { xiangqiEnabled } from './feature-flags.js';
 import { fetchCachedGameAnalysis, requestGameAnalysis } from './review/game-analysis.js';
 import { createGameMetaCard, timeAgoLabel } from './review/game-meta-card.js';
+import { buildSpectatorChat } from './review/spectator-chat.js';
 import { mountXiangqiReview } from './review/xiangqi-review.js';
 import { buildNav } from './site-shell.js';
 
@@ -133,6 +134,7 @@ function renderPostgame(root: HTMLElement, postgame: XiangqiPostgameResponse): v
     title: 'Elephant Chess',
     summary: `${resultLabel(postgame.game.result)} by ${labelize(postgame.game.termination)} · ${postgame.game.plyCount} plies`,
     metaCard: metaCard.el,
+    details: buildSpectatorChat(postgame.game.roomId),
     // The tree reconstructs positions from the move list client-side (open info,
     // so it matches the server truth); the server per-ply snapshots are unused.
     moves,

@@ -1,5 +1,6 @@
 import { createInitialXiangqiState, getStandardXiangqiPlayerView } from '@mistboard/game';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { gameChatApiUrl } from './review/spectator-chat.js';
 import { mountXiangqiPostgame, xiangqiPostgameApiUrl } from './xiangqi-postgame.js';
 
 describe('Xiangqi postgame page', () => {
@@ -28,7 +29,9 @@ describe('Xiangqi postgame page', () => {
     const fetchSpy = vi.fn(async (input: RequestInfo | URL) => {
       const url = String(input);
       if (url === '/api/xiangqi/games/xq_postgame') return jsonResponse(postgameFixture());
-      if (url === '/api/xiangqi/games/xq_postgame/analysis') return new Response(null, { status: 204 });
+      if (url === '/api/xiangqi/games/xq_postgame/analysis')
+        return new Response(null, { status: 204 });
+      if (url === '/api/chat/game/xq_postgame') return jsonResponse(chatFixture());
       return jsonResponse({}, { status: 404 });
     });
     vi.stubGlobal('fetch', fetchSpy);
@@ -38,13 +41,23 @@ describe('Xiangqi postgame page', () => {
     await flushPromises();
 
     expect(fetchSpy).toHaveBeenCalledWith('/api/xiangqi/games/xq_postgame');
+    expect(fetchSpy).toHaveBeenCalledWith('/api/chat/game/xq_postgame');
     expect(root.querySelector('.site-nav')).not.toBeNull();
     expect(root.textContent).toContain('Elephant Chess');
+    expect(root.textContent).toContain('Spectator room');
+    expect(root.textContent).toContain('hello from review');
+    expect(root.querySelector<HTMLInputElement>('.review-spectator-chat__input')?.placeholder).toBe(
+      'Please be nice in the chat!',
+    );
     expect(root.querySelector('.review-actions--rail')).toBeNull();
     expect(root.querySelector('.dxq-postgame__actions')).toBeNull();
     expect(root.textContent).not.toContain('Play again');
     expect(root.textContent).not.toContain('Back home');
     expect(root.querySelector<HTMLAnchorElement>('a[href="/room/xq_postgame"]')).toBeNull();
+  });
+
+  it('builds the game-scoped spectator chat API URL', () => {
+    expect(gameChatApiUrl('xq room')).toBe('/api/chat/game/xq%20room');
   });
 });
 
@@ -79,6 +92,22 @@ function postgameFixture() {
     view,
     views: { truth: view },
     history: { truth: [{ ply: 0, view }] },
+  };
+}
+
+function chatFixture() {
+  return {
+    lines: [
+      {
+        id: 'chln_review_1',
+        handle: 'viewer',
+        text: 'hello from review',
+        createdAt: '2026-07-01T12:06:00.000Z',
+      },
+    ],
+    canPost: true,
+    canReport: false,
+    viewerHandle: 'viewer',
   };
 }
 

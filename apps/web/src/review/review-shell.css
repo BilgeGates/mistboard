@@ -319,6 +319,11 @@
   min-width: 0;
 }
 
+.review-shell__left > .review-rail-group {
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
 /* Left-rail info card: eyebrow / title / summary / actions. */
 .review-info-card {
   display: flex;
