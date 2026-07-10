@@ -106,22 +106,61 @@ export const FIRST_PARTY_BOT_PROFILES: readonly FirstPartyBotProfile[] = [
     activeEngineId: 'fairy-stockfish-fortress-xiangqi-very-strong',
     defaultGameSpecId: 'fortress-xiangqi',
   },
+  // Standard-xiangqi 8-level Pikafish ladder (mirrors XIANGQI_PLAYABLE_ENGINES
+  // in xiangqi-pikafish-engine.ts). The retired amateur/strong/strongest tiers
+  // were absorbed into the matching levels: their bot ids continue as the
+  // Level 2/5/8 profiles (migration-056 convention, so existing URLs and
+  // historical game attribution stay stable) and their engine ids resolve via
+  // attributionEngineIds (the Misty convention for retired engine versions).
+  {
+    id: 'pikafish-xiangqi-level-1',
+    displayName: 'Pikafish - Level 1',
+    activeEngineId: 'pikafish-xiangqi-level-1',
+    defaultGameSpecId: 'xiangqi',
+  },
   {
     id: 'pikafish-xiangqi-amateur',
-    displayName: 'Pikafish - Amateur',
-    activeEngineId: 'pikafish-xiangqi-amateur',
+    displayName: 'Pikafish - Level 2',
+    activeEngineId: 'pikafish-xiangqi-level-2',
+    attributionEngineIds: ['pikafish-xiangqi-amateur'],
+    defaultGameSpecId: 'xiangqi',
+  },
+  {
+    id: 'pikafish-xiangqi-level-3',
+    displayName: 'Pikafish - Level 3',
+    activeEngineId: 'pikafish-xiangqi-level-3',
+    defaultGameSpecId: 'xiangqi',
+  },
+  {
+    id: 'pikafish-xiangqi-level-4',
+    displayName: 'Pikafish - Level 4',
+    activeEngineId: 'pikafish-xiangqi-level-4',
     defaultGameSpecId: 'xiangqi',
   },
   {
     id: 'pikafish-xiangqi',
-    displayName: 'Pikafish - Strong',
-    activeEngineId: 'pikafish-xiangqi-strong',
+    displayName: 'Pikafish - Level 5',
+    activeEngineId: 'pikafish-xiangqi-level-5',
+    attributionEngineIds: ['pikafish-xiangqi-strong'],
+    defaultGameSpecId: 'xiangqi',
+  },
+  {
+    id: 'pikafish-xiangqi-level-6',
+    displayName: 'Pikafish - Level 6',
+    activeEngineId: 'pikafish-xiangqi-level-6',
+    defaultGameSpecId: 'xiangqi',
+  },
+  {
+    id: 'pikafish-xiangqi-level-7',
+    displayName: 'Pikafish - Level 7',
+    activeEngineId: 'pikafish-xiangqi-level-7',
     defaultGameSpecId: 'xiangqi',
   },
   {
     id: 'pikafish-xiangqi-strongest',
-    displayName: 'Pikafish - Strongest',
-    activeEngineId: 'pikafish-xiangqi-strongest',
+    displayName: 'Pikafish - Level 8',
+    activeEngineId: 'pikafish-xiangqi-level-8',
+    attributionEngineIds: ['pikafish-xiangqi-strongest'],
     defaultGameSpecId: 'xiangqi',
   },
   {

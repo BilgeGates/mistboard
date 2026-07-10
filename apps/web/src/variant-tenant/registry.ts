@@ -206,29 +206,63 @@ const WEB_VARIANT_TENANTS: readonly WebVariantTenant[] = [
       timePresetIds: ['1m1', '3m2', '5m5'],
       offerInMenu: xiangqiEnabled,
       acceptsDeepLink: xiangqiEnabled,
-      // Mainline Pikafish PvE. Ordered strongest-first so the toughest opponent
-      // sits at the top of the picker.
+      // Mainline Pikafish PvE, calibrated 8-level ladder. Ordered strongest-first
+      // so the toughest opponent sits at the top of the picker. Hand-maintained
+      // mirror of XIANGQI_PLAYABLE_ENGINES (apps/server/src/
+      // xiangqi-pikafish-engine.ts); parity is asserted by
+      // variant-registry-sync.test.ts. The retired amateur/strong/strongest ids
+      // stay server-resolvable for old games but are never offered here.
       engineOptions: [
         {
-          id: 'pikafish-xiangqi-strongest',
-          name: 'Pikafish - Strongest',
+          id: 'pikafish-xiangqi-level-8',
+          name: 'Pikafish - Level 8',
           familyName: 'Pikafish',
           kind: 'container',
         },
         {
-          id: 'pikafish-xiangqi-strong',
-          name: 'Pikafish - Strong',
+          id: 'pikafish-xiangqi-level-7',
+          name: 'Pikafish - Level 7',
           familyName: 'Pikafish',
           kind: 'container',
         },
         {
-          id: 'pikafish-xiangqi-amateur',
-          name: 'Pikafish - Amateur',
+          id: 'pikafish-xiangqi-level-6',
+          name: 'Pikafish - Level 6',
+          familyName: 'Pikafish',
+          kind: 'container',
+        },
+        {
+          id: 'pikafish-xiangqi-level-5',
+          name: 'Pikafish - Level 5',
+          familyName: 'Pikafish',
+          kind: 'container',
+        },
+        {
+          id: 'pikafish-xiangqi-level-4',
+          name: 'Pikafish - Level 4',
+          familyName: 'Pikafish',
+          kind: 'container',
+        },
+        {
+          id: 'pikafish-xiangqi-level-3',
+          name: 'Pikafish - Level 3',
+          familyName: 'Pikafish',
+          kind: 'container',
+        },
+        {
+          id: 'pikafish-xiangqi-level-2',
+          name: 'Pikafish - Level 2',
+          familyName: 'Pikafish',
+          kind: 'container',
+        },
+        {
+          id: 'pikafish-xiangqi-level-1',
+          name: 'Pikafish - Level 1',
           familyName: 'Pikafish',
           kind: 'container',
         },
       ],
-      defaultEngineId: 'pikafish-xiangqi-strong',
+      defaultEngineId: 'pikafish-xiangqi-level-5',
     },
   },
   {

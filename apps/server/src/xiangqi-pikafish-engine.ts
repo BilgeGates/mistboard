@@ -30,10 +30,12 @@ export {
   xiangqiSquareToPikafishUci as xiangqiSquareToPikafish,
 } from '@mistboard/game';
 
-export const XIANGQI_DEFAULT_ENGINE_ID = 'pikafish-xiangqi-strong';
+// Level 5 (skill 12) is the successor of the retired 'pikafish-xiangqi-strong'
+// default, so default difficulty does not jump across the ladder expansion.
+export const XIANGQI_DEFAULT_ENGINE_ID = 'pikafish-xiangqi-level-5';
 // Engine BUILD version recorded per PvE game (subject_id encodes only the tier).
 // Bump on any engine/net/config change.
-export const XIANGQI_ENGINE_VERSION = '0.1.0';
+export const XIANGQI_ENGINE_VERSION = '0.2.0';
 
 export type XiangqiEngineTier = {
   id: string;
@@ -47,7 +49,83 @@ export type XiangqiEngineTier = {
   movetimeMs: number;
 };
 
+// Calibrated 8-level ladder (lichess/PlayStrategy convention), ordered weakest
+// first. Skill Level shapes move selection, the node budget pins strength
+// reproducibly, movetime is only the latency ceiling. Adjacent-pair EvE autoplay
+// (src/scripts/xiangqi-pikafish-ladder.ts, 2026-07-10): L1 through L6 each beat
+// the level below with >= 60% (75-100%), and no higher level lost a single game
+// anywhere. Above L6, adjacent EvE saturates at draws (skill >= 14 with >= 300k
+// nodes defends at xiangqi's draw margin under the kernel's progress-clock), so
+// L7/L8 separation rests on their node budgets (1M/3M vs 300k) plus the decisive
+// 3-gap result (L8 checkmated L5 in both colors).
 const XIANGQI_ENGINE_TIERS = [
+  {
+    id: 'pikafish-xiangqi-level-1',
+    name: 'Pikafish - Level 1',
+    skill: 0,
+    nodes: 1_000,
+    movetimeMs: 300,
+  },
+  {
+    id: 'pikafish-xiangqi-level-2',
+    name: 'Pikafish - Level 2',
+    skill: 3,
+    nodes: 3_000,
+    movetimeMs: 400,
+  },
+  {
+    id: 'pikafish-xiangqi-level-3',
+    name: 'Pikafish - Level 3',
+    skill: 6,
+    nodes: 10_000,
+    movetimeMs: 500,
+  },
+  {
+    id: 'pikafish-xiangqi-level-4',
+    name: 'Pikafish - Level 4',
+    skill: 9,
+    nodes: 30_000,
+    movetimeMs: 800,
+  },
+  {
+    id: XIANGQI_DEFAULT_ENGINE_ID,
+    name: 'Pikafish - Level 5',
+    skill: 12,
+    nodes: 100_000,
+    movetimeMs: 1_200,
+  },
+  {
+    id: 'pikafish-xiangqi-level-6',
+    name: 'Pikafish - Level 6',
+    // Skill 14, not 15: at skill 15 with this node budget the level defended at
+    // xiangqi's draw margin and L7/L8 could not beat it in EvE calibration.
+    skill: 14,
+    nodes: 300_000,
+    movetimeMs: 1_500,
+  },
+  {
+    id: 'pikafish-xiangqi-level-7',
+    name: 'Pikafish - Level 7',
+    skill: 18,
+    nodes: 1_000_000,
+    movetimeMs: 2_500,
+  },
+  {
+    id: 'pikafish-xiangqi-level-8',
+    name: 'Pikafish - Level 8',
+    skill: 20,
+    nodes: 3_000_000,
+    movetimeMs: 4_000,
+  },
+] as const satisfies readonly XiangqiEngineTier[];
+
+// Retired pre-ladder tiers (shipped 2026-07-04, replaced by the 8-level ladder).
+// Live prod data still references these ids: finished PvE game records and
+// replays, bot-profile engine attribution, and possibly in-flight rooms at
+// deploy time. They stay resolvable by id (BY_ID below) with their original
+// parameters so old rooms/replays/postgame pages behave identically, but they
+// are NOT in XIANGQI_PLAYABLE_ENGINES, so the picker never offers them.
+export const XIANGQI_LEGACY_ENGINE_TIERS = [
   {
     id: 'pikafish-xiangqi-amateur',
     name: 'Pikafish - Amateur',
@@ -56,7 +134,7 @@ const XIANGQI_ENGINE_TIERS = [
     movetimeMs: 400,
   },
   {
-    id: XIANGQI_DEFAULT_ENGINE_ID,
+    id: 'pikafish-xiangqi-strong',
     name: 'Pikafish - Strong',
     skill: 12,
     nodes: 300_000,
@@ -74,7 +152,7 @@ const XIANGQI_ENGINE_TIERS = [
 export const XIANGQI_PLAYABLE_ENGINES: readonly XiangqiEngineTier[] = XIANGQI_ENGINE_TIERS;
 
 const XIANGQI_ENGINE_BY_ID: ReadonlyMap<string, XiangqiEngineTier> = new Map(
-  XIANGQI_ENGINE_TIERS.map((engine) => [engine.id, engine]),
+  [...XIANGQI_ENGINE_TIERS, ...XIANGQI_LEGACY_ENGINE_TIERS].map((engine) => [engine.id, engine]),
 );
 
 // Small per-process slot pool (Tier-B UCI subprocess; shared harness). Reuses the

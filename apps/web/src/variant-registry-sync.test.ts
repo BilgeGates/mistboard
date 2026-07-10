@@ -14,6 +14,10 @@ import { isClientRoute } from '../../server/src/server-policy.js';
 // apps/server/src/index.ts (and registry.test.ts) do.
 import '../../server/src/variant-tenant/register-tenants.js';
 import { registeredVariantTenants } from '../../server/src/variant-tenant/registry.js';
+import {
+  XIANGQI_DEFAULT_ENGINE_ID,
+  XIANGQI_PLAYABLE_ENGINES,
+} from '../../server/src/xiangqi-pikafish-engine.js';
 import { webVariantTenants } from './variant-tenant/registry.js';
 
 const SAMPLE_ROOM_SUFFIX = 'abc123';
@@ -75,6 +79,21 @@ describe('web tenant registry <-> server tenant registry parity', () => {
         `${tenant.gameSpecId}: web roomIdPrefix '${tenant.roomIdPrefix}' has no matching server registration prefix`,
       ).toContain(tenant.roomIdPrefix);
     }
+  });
+
+  it('xiangqi picker engine options mirror the server Pikafish ladder', () => {
+    // The web engineOptions list is a hand-maintained mirror of the server's
+    // XIANGQI_PLAYABLE_ENGINES (apps/server/src/xiangqi-pikafish-engine.ts): the
+    // ids ride the create payload straight into the server's engine-id gate, so
+    // drift means a picker entry that cannot seat an engine. The picker orders
+    // strongest-first; the server table orders weakest-first.
+    const tenant = webTenants.find((candidate) => candidate.gameSpecId === 'xiangqi');
+    expect(tenant?.landing?.engineOptions, 'xiangqi tenant must expose engineOptions').toBeTruthy();
+    const options = tenant?.landing?.engineOptions ?? [];
+    expect(options.map((option) => ({ id: option.id, name: option.name }))).toEqual(
+      [...XIANGQI_PLAYABLE_ENGINES].reverse().map((tier) => ({ id: tier.id, name: tier.name })),
+    );
+    expect(tenant?.landing?.defaultEngineId).toBe(XIANGQI_DEFAULT_ENGINE_ID);
   });
 
   it('web tenant roomIdPrefixes are unique', () => {
