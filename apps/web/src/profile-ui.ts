@@ -35,9 +35,12 @@ const GAME_VARIANT_LABEL_KEY: Record<string, I18nKey> = {
 // Header shell: eyebrow + heading + a dot-separated meta line. Callers build the
 // subject-specific meta spans (handle/joined/role for a user, id/games for an
 // engine); the shell joins them with ' · ' so the markup matches across pages.
+// `titleLead` slots an element inside the h1 before the title text (the player
+// profile uses it for the lichess-style presence dot).
 export function buildProfileHeaderShell(opts: {
   eyebrow: string;
   title: string;
+  titleLead?: HTMLElement;
   metaParts: HTMLElement[];
   stats?: HTMLElement;
   actions?: HTMLElement;
@@ -51,7 +54,8 @@ export function buildProfileHeaderShell(opts: {
 
   const title = document.createElement('h1');
   title.className = 'site-section-heading';
-  title.textContent = opts.title;
+  if (opts.titleLead) title.append(opts.titleLead);
+  title.append(document.createTextNode(opts.title));
 
   header.append(eyebrow, title);
 
@@ -103,13 +107,15 @@ export function buildProfileGameRow(
     locale,
   );
 
+  // Date rides its own right-aligned column (lichess game-row style) instead of
+  // sharing the top line with the opponent name.
   const date = document.createElement('span');
   date.className = 'profile-game-date';
   date.textContent = opts.timeOnly
     ? formatGameTime(game.endedAt, locale)
     : formatGameDate(game.endedAt, locale);
 
-  topLine.append(opponent, date);
+  topLine.append(opponent);
 
   // Only a head-to-head human (pvp) game can ever be rated; anything vs an
   // engine, EvE, or imported is casual by definition. Gate on mode first so a
@@ -143,7 +149,7 @@ export function buildProfileGameRow(
   );
 
   body.append(topLine, details);
-  link.append(outcome, body);
+  link.append(outcome, body, date);
   item.append(link);
   return item;
 }

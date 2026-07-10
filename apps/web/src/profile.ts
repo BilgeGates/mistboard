@@ -197,9 +197,12 @@ export async function mountProfile(root: HTMLElement, handle: string): Promise<v
   let spotlight = buildProfileRatingSpotlight(profile.ratings, selectedVariant, locale);
   void hydrateProfileRatingSpotlight(spotlight, profile.user.handle, selectedVariant, locale);
 
+  const header = buildProfileHeader(profile, locale);
+  void hydrateProfilePresence(header, profile.user.handle, locale);
+
   const center = document.createElement('div');
   center.className = 'profile-center';
-  center.append(buildProfileHeader(profile, locale), spotlight, buildProfileTabs(profile, locale));
+  center.append(header, spotlight, buildProfileTabs(profile, locale));
 
   const ratings = buildProfileRatings(profile.ratings, locale, {
     selectedVariant,
@@ -722,25 +725,77 @@ async function fetchUserRatingHistory(
 }
 
 function buildProfileHeader(profile: UserProfile, locale: Locale = currentLocale()): HTMLElement {
-  // Joined + game count moved into the stat strip below; only the role badge
-  // (admin) remains on the inline meta line, and only when present.
+  // Identity meta line (lichess user-infos order): join date first, then the
+  // role/patron badges when present. Game counts live in the stat strip below.
   const metaParts: HTMLElement[] = [];
+  const joined = formatJoinedDate(profile.user.createdAt, locale);
+  if (joined) {
+    const joinedEl = document.createElement('span');
+    joinedEl.className = 'profile-joined';
+    joinedEl.textContent = `${t('profile.memberSince', {}, locale)} ${joined}`;
+    metaParts.push(joinedEl);
+  }
   const roleBadge = buildRoleBadge(profile.user.accountRole, locale);
   if (roleBadge) metaParts.push(roleBadge);
   const patronBadge = buildPatronBadge(profile.user.patronSince, locale);
   if (patronBadge) metaParts.push(patronBadge);
+
+  // Presence dot ahead of the handle (lichess online line-icon). Rendered
+  // offline-first with a fixed footprint; hydrateProfilePresence fills it once
+  // the online-players fetch lands, so nothing shifts.
+  const presence = document.createElement('span');
+  presence.className = 'profile-presence';
+  presence.setAttribute('aria-hidden', 'true');
 
   return buildProfileHeaderShell({
     eyebrow: profile.isViewer
       ? t('profile.yourProfile', {}, locale)
       : t('profile.playerProfile', {}, locale),
     title: `@${profile.user.handle}`,
+    titleLead: presence,
     metaParts,
     actions: profile.relation
       ? buildRelationActions(profile.user.handle, profile.relation, locale)
-      : undefined,
+      : profile.isViewer
+        ? buildOwnerActions(locale)
+        : undefined,
     stats: buildProfileStats(profile, locale),
   });
+}
+
+// Own-profile action row (lichess parity: your profile offers Edit profile
+// where someone else's offers Follow/Challenge/Message).
+function buildOwnerActions(locale: Locale = currentLocale()): HTMLElement {
+  const row = document.createElement('div');
+  row.className = 'profile-relation-actions profile-owner-actions';
+  const edit = document.createElement('a');
+  edit.className = 'landing-setup-back';
+  edit.href = '/account';
+  edit.textContent = t('profile.editProfile', {}, locale);
+  row.append(edit);
+  return row;
+}
+
+// Fills the header presence dot from the same /api/players/online set the
+// leaderboard uses. Fail-soft: on any fetch/shape problem the dot stays in its
+// neutral offline state (we never claim "offline" from a soft signal).
+async function hydrateProfilePresence(
+  header: HTMLElement,
+  handle: string,
+  locale: Locale,
+): Promise<void> {
+  const dot = header.querySelector<HTMLElement>('.profile-presence');
+  if (!dot) return;
+  const result = await fetchOnlinePlayers();
+  const players = Array.isArray(result?.players) ? result.players : [];
+  const me = players.find((player) => player.handle.toLowerCase() === handle.toLowerCase());
+  if (!me) return;
+  dot.classList.add('profile-presence-online');
+  const label = me.playing ? t('profile.playingNow', {}, locale) : t('profile.online', {}, locale);
+  dot.removeAttribute('aria-hidden');
+  dot.setAttribute('role', 'img');
+  dot.setAttribute('aria-label', label);
+  dot.title = label;
 }
 
 // Follow/block controls for a signed-in viewer on someone else's profile.
@@ -829,9 +884,10 @@ async function mutateRelation(
   }
 }
 
-// Header stat strip: neutral/positive figures only — no win/loss record (which
-// just accumulates losses). Top variant + best rating come from the ratings we
-// already load, so nothing here needs a server aggregate.
+// Header counts strip (the lichess social-bar analog): neutral/positive figures
+// only — no win/loss record (which just accumulates losses). Everything derives
+// from data the profile already loads, so nothing here needs a server aggregate.
+// The join date lives on the identity meta line, not here.
 function buildProfileStats(profile: UserProfile, locale: Locale = currentLocale()): HTMLElement {
   const strip = document.createElement('div');
   strip.className = 'profile-stats';
@@ -846,6 +902,11 @@ function buildProfileStats(profile: UserProfile, locale: Locale = currentLocale(
     },
   ];
 
+  const rated = profile.ratings.reduce((sum, bucket) => sum + bucket.ratedGamesPlayed, 0);
+  if (rated > 0) {
+    items.push({ value: String(rated), label: t('profile.ratedGames', {}, locale) });
+  }
+
   const top = topVariantStat(profile.ratings, locale);
   if (top) {
     items.push({
@@ -857,9 +918,6 @@ function buildProfileStats(profile: UserProfile, locale: Locale = currentLocale(
 
   const best = bestRating(profile.ratings);
   if (best != null) items.push({ value: String(best), label: t('profile.bestRating', {}, locale) });
-
-  const joined = formatJoinedDate(profile.user.createdAt, locale);
-  if (joined) items.push({ value: joined, label: t('profile.memberSince', {}, locale) });
 
   for (const { value, label, miniId } of items) {
     const item = document.createElement('div');
@@ -1077,7 +1135,13 @@ function buildProfileTabs(profile: UserProfile, locale: Locale = currentLocale()
     activityPanel.id,
     true,
   );
-  const gamesTab = buildProfileTabButton(t('profile.games', {}, locale), gamesPanel.id, false);
+  // The Games tab carries the total game count (lichess angle-tab parity).
+  const gamesTab = buildProfileTabButton(
+    t('profile.games', {}, locale),
+    gamesPanel.id,
+    false,
+    profile.gamesTotal > 0 ? profile.gamesTotal : undefined,
+  );
   tabList.append(activityTab, gamesTab);
 
   const activate = (button: HTMLButtonElement, panel: HTMLElement) => {
@@ -1097,6 +1161,7 @@ function buildProfileTabButton(
   label: string,
   controls: string,
   selected: boolean,
+  count?: number,
 ): HTMLButtonElement {
   const button = document.createElement('button');
   button.type = 'button';
@@ -1105,6 +1170,12 @@ function buildProfileTabButton(
   button.setAttribute('aria-controls', controls);
   button.setAttribute('aria-selected', String(selected));
   button.textContent = label;
+  if (count != null) {
+    const badge = document.createElement('span');
+    badge.className = 'profile-tab-count';
+    badge.textContent = String(count);
+    button.append(document.createTextNode(' '), badge);
+  }
   return button;
 }
 
@@ -1335,7 +1406,7 @@ export function buildProfileRatings(
   heading.textContent = t('profile.ratings', {}, locale);
   section.append(heading);
 
-  const variantsShown = PROFILE_VARIANT_ORDER;
+  const variantsShown = orderedProfileVariants(ratings);
 
   if (variantsShown.length === 0) {
     const empty = document.createElement('p');
@@ -1354,6 +1425,26 @@ export function buildProfileRatings(
 
   section.append(rail);
   return section;
+}
+
+// Rail order (lichess side-column semantics): variants the player has actually
+// played lead, most active first, so the grid anchors on their real record;
+// never-played variants trail in canonical registry order, dimmed. This is a
+// per-subject presentation order — the leaderboard and picker keep the shared
+// canonical order (#137).
+function orderedProfileVariants(ratings: ProfileBucketRating[]): ProfileRatingVariant[] {
+  const activity = new Map<ProfileRatingVariant, number>();
+  for (const bucket of ratings) {
+    if (bucket.totalGamesPlayed > 0) activity.set(bucket.variant, bucket.totalGamesPlayed);
+  }
+  const canonicalIndex = new Map(PROFILE_VARIANT_ORDER.map((variant, index) => [variant, index]));
+  const played = PROFILE_VARIANT_ORDER.filter((variant) => activity.has(variant)).sort(
+    (a, b) =>
+      (activity.get(b) ?? 0) - (activity.get(a) ?? 0) ||
+      (canonicalIndex.get(a) ?? 0) - (canonicalIndex.get(b) ?? 0),
+  );
+  const rest = PROFILE_VARIANT_ORDER.filter((variant) => !activity.has(variant));
+  return [...played, ...rest];
 }
 
 // One variant row in the ratings rail: compact mini-board beside its name,
@@ -1380,7 +1471,10 @@ function buildRatingRailRow(
   // "Rated" hinges on the rating itself, not the total games count: a rated
   // player always has rated games, so this is the correct (and demo-safe) gate.
   const isRated = bucket != null && bucket.eloRating != null && bucket.ratedGamesPlayed > 0;
-  if (!isRated) row.classList.add('profile-rating-row-empty');
+  // Only never-played variants dim back: casual activity is still a record, and
+  // activity ordering floats played rows to the top of the rail.
+  const isPlayed = bucket != null && bucket.totalGamesPlayed > 0;
+  if (!isRated && !isPlayed) row.classList.add('profile-rating-row-empty');
 
   const miniId = variantMiniIdForRating(variant);
   if (miniId) {
@@ -1428,6 +1522,17 @@ function buildRatingRailRow(
     value.textContent = t('profile.unrated', {}, locale);
     value.classList.add('profile-rating-value-unrated');
     meta.append(value);
+
+    // Casual activity still counts as a record: show the total games figure the
+    // same way rated rows show their rated-games figure.
+    const count = document.createElement('span');
+    count.className = 'profile-rating-games';
+    count.textContent = `${bucket.totalGamesPlayed} ${t(
+      bucket.totalGamesPlayed === 1 ? 'profile.gameSingular' : 'profile.gamePlural',
+      {},
+      locale,
+    ).toLowerCase()}`;
+    meta.append(count);
   } else {
     value.textContent = '—';
     value.classList.add('profile-rating-value-empty');

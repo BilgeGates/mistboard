@@ -216,6 +216,24 @@
   line-height: 1.2;
 }
 
+/* Presence dot ahead of the handle (lichess online line-icon). Rendered
+   offline-neutral with a fixed footprint; fills once the online-players
+   fetch confirms presence, so the heading never shifts. */
+.profile-presence {
+  display: inline-block;
+  width: 12px;
+  height: 12px;
+  margin-right: 10px;
+  border: 2px solid color-mix(in srgb, var(--site-muted) 55%, transparent);
+  border-radius: 50%;
+  vertical-align: 2px;
+}
+
+.profile-presence-online {
+  background: var(--site-accent);
+  border-color: var(--site-accent);
+}
+
 .account-copy {
   margin: 8px 0 0;
   max-width: 640px;
@@ -888,7 +906,8 @@
   box-shadow: inset 4px 0 0 var(--site-accent);
 }
 
-/* Never-played / unrated variants sit back so the rail reads intentional. */
+/* Never-played variants sit back so the rail reads intentional; played rows
+   (rated or casual) stay at full strength and lead via activity ordering. */
 .profile-rating-row-empty {
   opacity: 0.5;
 }
@@ -1003,6 +1022,14 @@
   background: var(--site-panel);
   color: var(--site-heading);
   box-shadow: inset 0 -3px 0 var(--site-accent);
+}
+
+/* Total game count riding the Games tab (lichess angle-tab parity). */
+.profile-tab-count {
+  color: var(--site-muted);
+  font-size: 12px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
 }
 
 .profile-tabs > section {
@@ -1149,9 +1176,11 @@
   padding-top: 14px;
 }
 
+/* Compact finished-game row (lichess game-row idiom): outcome column, then the
+   opponent + metadata body, then a right-aligned date column. */
 .profile-game-row {
   display: grid;
-  grid-template-columns: 76px minmax(0, 1fr);
+  grid-template-columns: 76px minmax(0, 1fr) auto;
   gap: 12px;
   align-items: start;
   padding: 13px 16px;
@@ -1229,7 +1258,6 @@
   display: flex;
   gap: 8px;
   align-items: baseline;
-  justify-content: space-between;
 }
 
 .profile-game-opponent {
@@ -1241,11 +1269,14 @@
   white-space: nowrap;
 }
 
+/* The date column top-aligns with the opponent line; the padding nudges it onto
+   that line's baseline. */
 .profile-game-date {
-  flex: 0 0 auto;
-  max-width: 42%;
+  justify-self: end;
+  padding-top: 3px;
   overflow: hidden;
   color: var(--site-muted);
+  text-align: right;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -1368,17 +1399,16 @@
 
   .profile-game-row {
     grid-template-columns: 64px minmax(0, 1fr);
-    gap: 10px;
+    gap: 4px 10px;
     padding: 12px 14px;
   }
 
-  .profile-game-topline {
-    display: grid;
-    gap: 4px;
-  }
-
+  /* Narrow screens fold the date column under the body, left-aligned. */
   .profile-game-date {
-    max-width: none;
+    grid-column: 2;
+    justify-self: start;
+    padding-top: 0;
+    text-align: left;
   }
 
   .profile-activity-summary-row {

@@ -108,6 +108,16 @@ describe('profile ratings rail', () => {
     vi.stubEnv('VITE_DARK_MINI_XIANGQI_ENABLED', 'true');
     const fetchSpy = vi.spyOn(globalThis, 'fetch').mockImplementation(async (input) => {
       const url = String(input);
+      if (url.includes('/api/players/online')) {
+        return new Response(
+          JSON.stringify({
+            players: [{ handle: 'dev-testing', displayName: 'dev-testing', rating: null }],
+            count: 1,
+            anonymousOnline: 0,
+          }),
+          { headers: { 'content-type': 'application/json' }, status: 200 },
+        );
+      }
       if (url.includes('/rating-history')) {
         return new Response(
           JSON.stringify({
@@ -249,13 +259,86 @@ describe('profile ratings rail', () => {
     expect(root.querySelector('.profile-activity-summary-row')?.textContent).toContain('1 draw');
     expect(root.querySelector('.profile-activity-summary-row')?.textContent).toContain('1 loss');
 
+    // Lichess-style identity block: join date on the meta line, presence dot
+    // ahead of the handle (filled once /api/players/online confirms), and an
+    // Edit profile action on your own profile.
+    expect(root.querySelector('.profile-header-meta')?.textContent).toContain('Member since');
+    expect(root.querySelector('h1 .profile-presence')).not.toBeNull();
+    await vi.waitFor(() => {
+      expect(root.querySelector('.profile-presence-online')).not.toBeNull();
+    });
+    expect(root.querySelector('.profile-presence-online')?.getAttribute('aria-label')).toBe(
+      'Online',
+    );
+    const edit = root.querySelector<HTMLAnchorElement>('.profile-owner-actions a');
+    expect(edit?.getAttribute('href')).toBe('/account');
+    expect(edit?.textContent).toBe('Edit profile');
+
+    // Counts strip: total games + rated games (sum across buckets); the join
+    // date moved up to the meta line.
+    const stats = root.querySelector('.profile-stats');
+    expect(stats?.textContent).toContain('Rated games');
+    expect(stats?.textContent).toContain('4');
+
+    // Activity ordering: the played variant leads the rail; unplayed rows trail
+    // dimmed.
+    const railRows = [...root.querySelectorAll<HTMLElement>('.profile-rating-row')];
+    expect(railRows[0]?.dataset.variant).toBe('jungle_flip');
+    expect(railRows[0]?.classList.contains('profile-rating-row-empty')).toBe(false);
+    expect(railRows[railRows.length - 1]?.classList.contains('profile-rating-row-empty')).toBe(
+      true,
+    );
+
     const tabs = [...root.querySelectorAll<HTMLButtonElement>('.profile-tab')];
-    expect(tabs.map((tab) => tab.textContent)).toEqual(['Activity', 'Games']);
+    expect(tabs.map((tab) => tab.textContent)).toEqual(['Activity', 'Games 2']);
+    expect(tabs[1]?.querySelector('.profile-tab-count')?.textContent).toBe('2');
     expect(tabs[0]?.getAttribute('aria-selected')).toBe('true');
     tabs[1]?.click();
     expect(tabs[1]?.getAttribute('aria-selected')).toBe('true');
     expect(root.querySelector<HTMLElement>('.profile-activity-panel')?.hidden).toBe(true);
     expect(root.querySelector<HTMLElement>('.profile-games')?.hidden).toBe(false);
+
+    // Compact game rows: the date is its own trailing column on the row link.
+    const gameRow = root.querySelector('.profile-game-row');
+    expect(gameRow?.lastElementChild?.classList.contains('profile-game-date')).toBe(true);
+  });
+
+  it('orders the ratings rail by activity with never-played variants trailing', async () => {
+    vi.stubEnv('DEV', false);
+    vi.stubEnv('VITE_DARK_MINI_XIANGQI_ENABLED', 'true');
+    const { buildProfileRatings } = await import('./profile.js');
+
+    const section = buildProfileRatings([
+      {
+        variant: 'fog',
+        timeClass: 'blitz',
+        eloRating: null,
+        ratedGamesPlayed: 0,
+        totalGamesPlayed: 5,
+        provisional: false,
+      },
+      {
+        variant: 'fortress_xiangqi',
+        timeClass: 'blitz',
+        eloRating: 1520,
+        ratedGamesPlayed: 2,
+        totalGamesPlayed: 2,
+        provisional: false,
+      },
+    ]);
+
+    const rows = [...section.querySelectorAll<HTMLElement>('.profile-rating-row')];
+    // Most active first (5 casual fog games beat 2 fortress games), then the
+    // never-played rows in canonical registry order, dimmed.
+    expect(rows.map((row) => row.dataset.variant).slice(0, 2)).toEqual(['fog', 'fortress_xiangqi']);
+    expect(rows[0]?.classList.contains('profile-rating-row-empty')).toBe(false);
+    expect(rows[1]?.classList.contains('profile-rating-row-empty')).toBe(false);
+    expect(rows.slice(2).every((row) => row.classList.contains('profile-rating-row-empty'))).toBe(
+      true,
+    );
+    // A played-but-unrated row shows its casual games count.
+    expect(rows[0]?.textContent).toContain('Unrated');
+    expect(rows[0]?.textContent).toContain('5 games');
   });
 
   it('distinguishes unavailable profile data from a missing profile', async () => {
