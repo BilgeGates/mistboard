@@ -35,8 +35,14 @@ export const xiangqiTreeAdapter: VariantTreeAdapter<
       label: 'Board',
       tier: 'primary',
       // Open information → the "player view" is the full truth; perspective is
-      // applied by the board renderer (orientation), not here.
-      view: getStandardXiangqiPlayerView(truth, 'red'),
+      // applied by the board renderer (orientation), not here. Project for the
+      // SIDE TO MOVE: the view's legalMoves are only populated for the projected
+      // color, and the review board plays both sides (a fixed 'red' projection
+      // left black with no legal moves, rejecting every move at odd plies).
+      view: getStandardXiangqiPlayerView(
+        truth,
+        truth.status.type === 'playing' ? truth.status.turn : 'red',
+      ),
     },
   ],
   moveLabel: (move) => `${move.from}-${move.to}`,

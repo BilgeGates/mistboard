@@ -52,6 +52,29 @@ describe('mountXiangqiAnalysis', () => {
     expect(root.textContent).toMatch(/Truncated import/i);
     root.remove();
   });
+
+  it('accepts click-to-move for both sides from the start position (red then black)', () => {
+    // Regression: the tree adapter projected the view for a fixed 'red'
+    // perspective, whose legalMoves are EMPTY on black's turn, so the board
+    // rejected every black move after red's first (ply 1 was a dead end).
+    const root = freshRoot();
+    mountXiangqiAnalysis(root, []);
+    const clickSquare = (square: string): void => {
+      const hit = root.querySelector(`[data-square="${square}"]`);
+      if (!hit) throw new Error(`square ${square} not found`);
+      hit.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    };
+    // Red's first move: cannon h3-e3.
+    clickSquare('h3');
+    clickSquare('e3');
+    expect(root.querySelector('.move-tree')?.textContent).toContain('h3-e3');
+    // Black's reply: cannon h8-e8. Must be selectable and land in the tree.
+    clickSquare('h8');
+    clickSquare('e8');
+    expect(root.querySelector('.move-tree')?.textContent).toContain('h8-e8');
+    expect(root.querySelector('.review-move-list__move--current')?.textContent).toContain('h8-e8');
+    root.remove();
+  });
 });
 
 describe('mountXiangqiAnalysisPage', () => {
