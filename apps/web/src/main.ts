@@ -174,6 +174,8 @@ const wantsMiniXiangqiSpike = import.meta.env.DEV && path === '/mini-xiangqi-spi
 const wantsXiangqiDemo = import.meta.env.DEV && path === '/xiangqi-demo';
 // Hidden DEV-only spike: pixel-art piece + fog style probes. No nav entry.
 const wantsPixelLab = import.meta.env.DEV && path === '/pixel-lab';
+// Hidden DEV-only Xiangqi piece readability lab. No nav entry.
+const wantsXiangqiPieceLab = import.meta.env.DEV && path === '/xiangqi-piece-lab';
 // Hidden DEV-only identity lab for candidate variant marks. No nav entry.
 const wantsVariantMarksLab = import.meta.env.DEV && path === '/variant-marks';
 // Hidden DEV-only board lab for mapping Dobutsu animal art onto chess pieces.
@@ -404,6 +406,13 @@ if (replaySample) {
   setTitle('Pixel lab');
   void mountOrReport(() =>
     import('./pixel-lab.js').then(({ mountPixelLab }) => mountPixelLab(appRoot)),
+  );
+} else if (wantsXiangqiPieceLab) {
+  setTitle('Xiangqi piece lab');
+  void mountOrReport(() =>
+    import('./xiangqi-piece-lab.js').then(({ mountXiangqiPieceLab }) =>
+      mountXiangqiPieceLab(appRoot),
+    ),
   );
 } else if (wantsVariantMarksLab) {
   setTitle('Variant marks');

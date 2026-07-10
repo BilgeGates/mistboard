@@ -303,6 +303,7 @@ test('websocket message rate window rejects over-limit bursts and recovers after
 const PARKED_CLIENT_ROUTES = new Set<string>([
   '/xiangqi-spike', // DEV-only; gated by import.meta.env.DEV in main.ts
   '/pixel-lab', // DEV-only; gated by import.meta.env.DEV in main.ts
+  '/xiangqi-piece-lab', // DEV-only; gated by import.meta.env.DEV in main.ts
   '/variant-marks', // DEV-only; gated by import.meta.env.DEV in main.ts
   '/sound-lab', // DEV-only; gated by import.meta.env.DEV in main.ts
   '/deepdive', // DEV-only; gated by import.meta.env.DEV in main.ts
