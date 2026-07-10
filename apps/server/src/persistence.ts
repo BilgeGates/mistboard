@@ -28,6 +28,8 @@ export {
   deleteEmailLoginChallenge,
   findUserByEmail,
   getBestRatings,
+  getBestRatingsAnyTimeClass,
+  getGamesTotals,
   getLeaderboard,
   getLeaderboardSummary,
   getMostActivePlayers,

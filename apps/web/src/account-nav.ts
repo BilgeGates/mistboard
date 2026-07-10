@@ -113,8 +113,19 @@ function watchForNavChanges(): void {
 
 function mountAccountNavs(): void {
   if (cachedUser === undefined || cachedUser === null) return;
+  applySignedInOnlyNav(true);
   for (const nav of document.querySelectorAll<HTMLElement>('.site-nav')) {
     mountAccountNav(nav, cachedUser as AuthUser);
+  }
+}
+
+// Signed-in-only nav links (e.g. Community > Friends) paint with a hint-based
+// initial visibility in site-shell's navLink; this is the authoritative
+// reconcile once auth resolves (and on every observer pass, so navs rebuilt by
+// SPA mounts stay in sync). Idempotent by construction.
+function applySignedInOnlyNav(signedIn: boolean): void {
+  for (const el of document.querySelectorAll<HTMLElement>('[data-signed-in-only]')) {
+    el.hidden = !signedIn;
   }
 }
 
@@ -158,6 +169,7 @@ function applyPendingSlots(): void {
 function revealSignedOutSlots(): void {
   // The bell is signed-in-only; drop it when we resolve to signed-out.
   clearNotificationBells();
+  applySignedInOnlyNav(false);
   document
     .querySelectorAll<HTMLElement>('[data-account-slot][data-account-pending="1"]')
     .forEach((slot) => {

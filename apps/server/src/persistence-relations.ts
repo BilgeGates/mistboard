@@ -14,9 +14,15 @@ import { getPool } from './persistence-db.js';
 export type UserRelationKind = 'follow' | 'block';
 
 export type RelationListEntry = {
+  // Server-internal: lets the route batch-decorate rows (ratings, game totals)
+  // without N handle lookups. Routes must not serialize user ids to clients.
+  targetId: string;
   handle: string;
   displayName: string;
   createdAt: Date;
+  // Durable users.last_seen_at (087). NULL for accounts with no recorded
+  // activity since the column landed; clients render a quiet fallback.
+  lastSeenAt: Date | null;
 };
 
 export type RelationListPage = {
@@ -165,12 +171,15 @@ export async function listRelations(
   limit: number,
 ): Promise<RelationListPage> {
   const { rows } = await getPool().query<{
+    target_id: string;
     handle: string;
     display_name: string;
     created_at: Date;
+    last_seen_at: Date | null;
     total_count: string;
   }>(
-    `SELECT users.handle, users.display_name, user_relations.created_at,
+    `SELECT users.id AS target_id, users.handle, users.display_name,
+            user_relations.created_at, users.last_seen_at,
             COUNT(*) OVER() AS total_count
      FROM user_relations
      JOIN users ON users.id = user_relations.target_id
@@ -181,9 +190,11 @@ export async function listRelations(
   );
   return {
     entries: rows.map((row) => ({
+      targetId: row.target_id,
       handle: row.handle,
       displayName: row.display_name,
       createdAt: row.created_at,
+      lastSeenAt: row.last_seen_at,
     })),
     total: parseInt(rows[0]?.total_count ?? '0', 10),
   };

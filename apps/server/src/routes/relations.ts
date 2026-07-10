@@ -140,6 +140,32 @@ export async function tryHandle(
     const limit = clampInt(parsedUrl.searchParams.get('limit'), 30, 1, LIST_PAGE_MAX);
     const relation = listMatch[1] === 'following' ? 'follow' : 'block';
     const page = await persistence.listRelations(user.id, relation, offset, limit);
+
+    // The following list is the Friends page (/following): decorate each row
+    // with the player's best current rating across every pool/time class, their
+    // visible completed-game total, and durable last-activity. Additive fields
+    // only, so the pre-enrichment shape (handle/displayName/createdAt/total)
+    // stays intact for any older consumer. The blocks list stays lean.
+    if (relation === 'follow') {
+      const targetIds = page.entries.map((entry) => entry.targetId);
+      const [ratings, totals] = await Promise.all([
+        persistence.getBestRatingsAnyTimeClass(targetIds),
+        persistence.getGamesTotals(targetIds),
+      ]);
+      writeJson(response, 200, {
+        entries: page.entries.map((entry) => ({
+          handle: entry.handle,
+          displayName: entry.displayName,
+          createdAt: entry.createdAt.toISOString(),
+          bestRating: ratings.get(entry.targetId) ?? null,
+          gamesTotal: totals.get(entry.targetId) ?? 0,
+          lastSeenAt: entry.lastSeenAt ? entry.lastSeenAt.toISOString() : null,
+        })),
+        total: page.total,
+      });
+      return true;
+    }
+
     writeJson(response, 200, {
       entries: page.entries.map((entry) => ({
         handle: entry.handle,

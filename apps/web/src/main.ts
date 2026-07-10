@@ -102,6 +102,10 @@ const wantsInboxReports = path === '/inbox/reports';
 const inboxMatch = wantsInboxReports ? null : path.match(/^\/inbox(?:\/([^/]+))?$/);
 const wantsInbox = inboxMatch !== null;
 const inboxHandle = inboxMatch?.[1] ? decodeURIComponent(inboxMatch[1]) : null;
+// The Friends page (/following): the signed-in viewer's followed players.
+// Signed-in-only; the page itself renders a sign-in prompt for anonymous
+// visitors. Deliberately not in the sitemap (a private, self-only surface).
+const wantsFollowing = path === '/following' || page === 'following';
 const wantsLearn = path === '/learn' || page === 'learn';
 const wantsRulesIndex =
   path === '/rules' || path === '/zh-hans/rules' || path === '/zh-hant/rules' || page === 'rules';
@@ -308,6 +312,11 @@ if (replaySample) {
   setTitleKey('account.account');
   void mountOrReport(() =>
     import('./account.js').then(({ mountAccount }) => mountAccount(appRoot)),
+  );
+} else if (wantsFollowing) {
+  setTitleKey('nav.friends');
+  void mountOrReport(() =>
+    import('./following.js').then(({ mountFollowing }) => mountFollowing(appRoot)),
   );
 } else if (wantsInboxReports) {
   setTitle('Message reports');

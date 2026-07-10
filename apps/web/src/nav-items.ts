@@ -6,6 +6,10 @@ export interface NavItem {
   label: string;
   labelKey: I18nKey;
   href: string;
+  // Rendered hidden for signed-out visitors. The nav builds before auth
+  // resolves, so site-shell picks the initial visibility from the persisted
+  // signed-in hint and account-nav reconciles it once /api/auth/me settles.
+  signedInOnly?: boolean;
 }
 
 export function primaryNavItems(): NavItem[] {
@@ -23,7 +27,7 @@ export function primaryNavItems(): NavItem[] {
 export function communityNavItems(): NavItem[] {
   return [
     { label: 'Players', labelKey: 'nav.players', href: '/player' },
-    { label: 'Friends', labelKey: 'nav.friends', href: '/account' },
+    { label: 'Friends', labelKey: 'nav.friends', href: '/following', signedInOnly: true },
     { label: 'Forum', labelKey: 'nav.forum', href: '/forum' },
     { label: 'Blog', labelKey: 'nav.blog', href: '/blog' },
   ];

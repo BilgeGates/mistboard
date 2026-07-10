@@ -9,6 +9,7 @@ import {
   toolsNavItems,
   watchNavItems,
 } from './nav-items.js';
+import { isLikelySignedIn } from './signed-in-state.js';
 
 export const GITHUB_URL = 'https://github.com/brianhliou/mistboard';
 
@@ -219,6 +220,13 @@ function navLink(item: NavItem, locale: Locale): HTMLAnchorElement {
   link.href = localizedHref(item.href, locale);
   link.textContent = t(item.labelKey, {}, locale);
   link.className = 'site-nav-link';
+  if (item.signedInOnly) {
+    // Initial visibility comes from the persisted signed-in hint so the common
+    // case paints right immediately (no reveal jank); account-nav reconciles
+    // every [data-signed-in-only] element once auth actually resolves.
+    link.dataset.signedInOnly = '';
+    link.hidden = !isLikelySignedIn();
+  }
   const path = currentPath();
   if (pathMatchesNavItem(path, item.href)) {
     link.classList.add('active');

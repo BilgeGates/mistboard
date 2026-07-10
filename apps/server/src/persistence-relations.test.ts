@@ -6,14 +6,23 @@ import {
   createAccountSession,
   createUser,
   followUser,
+  getUserByAccountSession,
   hasBlock,
   listFollowingIds,
   listRelations,
+  recordGameEnd,
   unblockUser,
   unfollowUser,
   viewerRelationForHandle,
 } from './persistence.js';
-import { assert, definePersistenceTests, sha256, test } from './persistence-test-support.js';
+import {
+  assert,
+  definePersistenceTests,
+  pg,
+  sha256,
+  TEST_DATABASE_URL,
+  test,
+} from './persistence-test-support.js';
 import { clearPresence, type PresenceVisibility, touchPresence } from './presence.js';
 import type { HttpApiContext } from './routes/lib.js';
 import { tryHandle as tryHandleRelationsRoute } from './routes/relations.js';
@@ -258,6 +267,116 @@ definePersistenceTests('relations', () => {
     assert.ok('rating' in alice);
     assert.equal(alice.rating, null);
   });
+
+  test('following list is enriched with best rating, games total, and last seen', async () => {
+    const now = new Date('2026-07-01T00:00:00Z');
+    await makeUser('rel_user_fviewer', 'fviewer', now);
+    await makeUser('rel_user_falice', 'falice', now);
+    await makeUser('rel_user_fbob', 'fbob', now);
+
+    assert.equal(
+      (await followUser({ actorId: 'rel_user_fviewer', targetHandle: 'falice', now })).ok,
+      true,
+    );
+    assert.equal(
+      (await followUser({ actorId: 'rel_user_fviewer', targetHandle: 'fbob', now })).ok,
+      true,
+    );
+
+    // falice's best rating lives in the BULLET pool (1650 > her blitz 1500),
+    // proving the enrichment spans time classes, unlike getBestRatings (blitz
+    // only). fbob's single settled-count-2 row has RD 300 → provisional.
+    await runSql(
+      `INSERT INTO user_ratings (user_id, variant, time_class, elo_rating, rating_deviation, volatility, games_played)
+       VALUES
+        ('rel_user_falice','fog','blitz',1500,60,0.06,12),
+        ('rel_user_falice','fog','bullet',1650,60,0.06,4),
+        ('rel_user_fbob','fog','blitz',1900,300,0.06,2)`,
+    );
+
+    // One public completed game for falice plus one PRIVATE one, which must not
+    // count: the Friends page shows what the viewer would see on her profile.
+    await recordGameEnd('rel-follow-game-public', gameSummary('rel_user_falice', now, 'public'));
+    await recordGameEnd('rel-follow-game-private', gameSummary('rel_user_falice', now, 'private'));
+
+    const aliceSeen = new Date('2026-07-09T12:00:00Z');
+    await runSql(`UPDATE users SET last_seen_at = $1 WHERE id = 'rel_user_falice'`, [aliceSeen]);
+
+    const cookie = await makeSessionCookie('rel_user_fviewer');
+    const response = captureResponse();
+    const handled = await tryHandleRelationsRoute(
+      {} as unknown as HttpApiContext,
+      { method: 'GET', headers: { cookie } } as unknown as IncomingMessage,
+      response,
+      '/api/relations/following',
+      new URL('http://localhost/api/relations/following'),
+    );
+    assert.equal(handled, true);
+    assert.equal(response.status, 200);
+    const body = JSON.parse(response.body) as {
+      entries: Array<{
+        handle: string;
+        displayName: string;
+        createdAt: string;
+        bestRating: { variant: string; eloRating: number; provisional: boolean } | null;
+        gamesTotal: number;
+        lastSeenAt: string | null;
+      }>;
+      total: number;
+    };
+    assert.equal(body.total, 2);
+    // Same created_at → handle ASC tie-break.
+    assert.deepEqual(
+      body.entries.map((entry) => entry.handle),
+      ['falice', 'fbob'],
+    );
+    const [alice2, bob] = body.entries;
+    assert.equal(alice2!.createdAt, now.toISOString(), 'pre-enrichment field survives');
+    assert.deepEqual(alice2!.bestRating, { variant: 'fog', eloRating: 1650, provisional: false });
+    assert.equal(alice2!.gamesTotal, 1, 'private game excluded');
+    assert.equal(alice2!.lastSeenAt, aliceSeen.toISOString());
+    assert.deepEqual(bob!.bestRating, { variant: 'fog', eloRating: 1900, provisional: true });
+    assert.equal(bob!.gamesTotal, 0);
+    assert.equal(bob!.lastSeenAt, null, 'no recorded activity renders as null, not an error');
+  });
+
+  test('session validation bumps users.last_seen_at with a five-minute throttle', async () => {
+    const t0 = new Date('2026-07-01T00:00:00Z');
+    await makeUser('rel_user_seen', 'seen', t0);
+    const session: AccountSession = {
+      id: 'sess_rel_user_seen',
+      userId: 'rel_user_seen',
+      tokenHash: sha256('tok_rel_user_seen'),
+      expiresAt: new Date(Date.now() + 60 * 60 * 1000),
+    };
+    await createAccountSession(session);
+
+    const lastSeen = async (): Promise<Date | null> => {
+      const rows = await runSql<{ last_seen_at: Date | null }>(
+        `SELECT last_seen_at FROM users WHERE id = 'rel_user_seen'`,
+      );
+      return rows[0]?.last_seen_at ?? null;
+    };
+
+    assert.ok(await getUserByAccountSession(session.id, session.tokenHash, t0));
+    assert.equal((await lastSeen())?.toISOString(), t0.toISOString());
+
+    // Two minutes later: the session row is touched but the durable user-row
+    // bump is throttled, so last_seen_at stays put (no per-request writes).
+    const t1 = new Date(t0.getTime() + 2 * 60 * 1000);
+    assert.ok(await getUserByAccountSession(session.id, session.tokenHash, t1));
+    assert.equal((await lastSeen())?.toISOString(), t0.toISOString());
+    const sessionRows = await runSql<{ last_seen_at: Date }>(
+      `SELECT last_seen_at FROM account_sessions WHERE id = $1`,
+      [session.id],
+    );
+    assert.equal(sessionRows[0]?.last_seen_at.toISOString(), t1.toISOString());
+
+    // Past the throttle window, the bump lands.
+    const t2 = new Date(t0.getTime() + 6 * 60 * 1000);
+    assert.ok(await getUserByAccountSession(session.id, session.tokenHash, t2));
+    assert.equal((await lastSeen())?.toISOString(), t2.toISOString());
+  });
 });
 
 async function makeSessionCookie(userId: string): Promise<string> {
@@ -300,6 +419,62 @@ async function makeUser(id: string, handle: string, now: Date): Promise<void> {
     displayName: handle,
     now,
   });
+}
+
+// Direct SQL escape hatch for fixture rows (ratings) and column reads that have
+// no persistence-layer writer, mirroring persistence-ratings.test.ts.
+async function runSql<T extends Record<string, unknown> = Record<string, unknown>>(
+  sql: string,
+  params: unknown[] = [],
+): Promise<T[]> {
+  const client = new pg.Client({ connectionString: TEST_DATABASE_URL });
+  await client.connect();
+  try {
+    const { rows } = await client.query(sql, params);
+    return rows as T[];
+  } finally {
+    await client.end();
+  }
+}
+
+// Minimal completed pvp game seating `userId` as white vs a guest, with the
+// game + participant rows at `visibility`.
+function gameSummary(
+  userId: string,
+  now: Date,
+  visibility: 'public' | 'private',
+): Parameters<typeof recordGameEnd>[1] {
+  return {
+    variant: 'dark-chess',
+    mode: 'pvp',
+    result: 'white-wins',
+    termination: 'king-captured',
+    plyCount: 9,
+    startedAt: now,
+    endedAt: new Date(now.getTime() + 60_000),
+    whiteClient: 'browser-a',
+    blackClient: 'browser-b',
+    whiteName: null,
+    blackName: null,
+    corpusId: null,
+    visibility,
+    participants: [
+      {
+        color: 'white',
+        displayName: 'Player',
+        subjectType: 'user',
+        subjectId: userId,
+        visibility,
+      },
+      {
+        color: 'black',
+        displayName: 'Guest',
+        subjectType: 'guest',
+        subjectId: null,
+        visibility,
+      },
+    ],
+  };
 }
 
 function captureResponse(): ServerResponse & ResponseCapture {

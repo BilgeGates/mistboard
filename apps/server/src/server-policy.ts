@@ -82,6 +82,7 @@ export function isClientRoute(pathname: string): boolean {
     normalized === '/zh-hant/rules' ||
     normalized === '/play' ||
     normalized === '/watch' ||
+    normalized === '/videos' ||
     normalized === '/puzzles' ||
     normalized === '/source' ||
     normalized === '/contact' ||
@@ -94,6 +95,7 @@ export function isClientRoute(pathname: string): boolean {
     normalized.startsWith('/account/settings/') ||
     normalized === '/inbox' ||
     normalized.startsWith('/inbox/') ||
+    normalized === '/following' ||
     normalized === '/correspondence' ||
     normalized.startsWith('/challenge/') ||
     normalized === '/player' ||

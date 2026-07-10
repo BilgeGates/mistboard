@@ -1,0 +1,125 @@
+/* /following — the Friends page (see following.ts). A single column of
+   followed players rendered as a quiet table, themed with the site tokens. */
+
+.following-shell {
+  max-width: 720px;
+  margin: 0 auto;
+  padding: 1.5rem 1rem 3rem;
+}
+
+.following-header {
+  margin-bottom: 1rem;
+}
+
+.following-sub {
+  margin: 0.25rem 0 0;
+  color: var(--site-muted);
+  font-size: 0.9rem;
+}
+
+.following-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.9rem;
+}
+
+.following-table th {
+  text-align: left;
+  font-weight: 500;
+  color: var(--site-muted);
+  font-size: 0.78rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding: 0.4rem 0.6rem;
+  border-bottom: 1px solid var(--site-border);
+}
+
+.following-table td {
+  padding: 0.55rem 0.6rem;
+  border-bottom: 1px solid var(--site-border-soft, var(--site-border));
+  vertical-align: middle;
+}
+
+.following-player-link {
+  color: var(--site-text);
+  font-weight: 500;
+  text-decoration: none;
+}
+
+.following-player-link:hover {
+  text-decoration: underline;
+}
+
+.following-rating,
+.following-games {
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.following-last-seen {
+  color: var(--site-muted);
+  white-space: nowrap;
+}
+
+.following-actions {
+  text-align: right;
+}
+
+.following-unfollow {
+  font: inherit;
+  font-size: 0.78rem;
+  color: var(--site-muted);
+  background: none;
+  border: 1px solid var(--site-border);
+  border-radius: var(--site-radius, 6px);
+  padding: 0.2rem 0.6rem;
+  cursor: pointer;
+}
+
+.following-unfollow:hover:not(:disabled) {
+  color: var(--site-text);
+  border-color: var(--site-text);
+}
+
+.following-unfollow:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.following-empty {
+  color: var(--site-muted);
+  padding: 1rem 0;
+}
+
+.following-load-more {
+  margin-top: 1rem;
+  font: inherit;
+  font-size: 0.85rem;
+  color: var(--site-text);
+  background: var(--site-panel);
+  border: 1px solid var(--site-border);
+  border-radius: var(--site-radius, 6px);
+  padding: 0.35rem 0.9rem;
+  cursor: pointer;
+}
+
+.following-load-more:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.following-signed-out .following-sign-in {
+  display: inline-block;
+  margin-top: 1rem;
+}
+
+@media (max-width: 560px) {
+  /* Keep the essentials on narrow screens: player, rating, and the action.
+     Games and last-active fold away rather than forcing a horizontal scroll. */
+  .following-table .following-games,
+  .following-table .following-last-seen,
+  .following-table th:nth-child(3),
+  .following-table th:nth-child(4) {
+    display: none;
+  }
+}

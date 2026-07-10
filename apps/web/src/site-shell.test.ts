@@ -36,7 +36,7 @@ describe('site shell nav', () => {
       'Players',
     );
     expect(
-      communityPanel?.querySelector<HTMLAnchorElement>('a[href="/account"]')?.textContent,
+      communityPanel?.querySelector<HTMLAnchorElement>('a[href="/following"]')?.textContent,
     ).toBe('Friends');
     expect(communityPanel?.querySelector<HTMLAnchorElement>('a[href="/blog"]')?.textContent).toBe(
       'Blog',

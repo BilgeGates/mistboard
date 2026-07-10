@@ -420,22 +420,43 @@ export async function createAccountSession(session: AccountSession): Promise<voi
   );
 }
 
+// How stale users.last_seen_at may get before a session validation refreshes
+// it. Throttling the durable bump keeps the per-request cost at zero extra
+// writes in the common case (the session-row update below still happens every
+// request, as before 087).
+const LAST_SEEN_BUMP_INTERVAL_MS = 5 * 60 * 1000;
+
 export async function getUserByAccountSession(
   sessionId: string,
   tokenHash: string,
   at: Date,
 ): Promise<UserAccount | null> {
+  // One statement, two writes: the session-row touch (pre-087 behavior) and a
+  // throttled bump of the durable users.last_seen_at (087). The bump CTE only
+  // matches when the current value is NULL or older than the throttle window,
+  // so steady traffic writes the users row at most once per interval.
   const { rows } = await getPool().query<UserRow>(
-    `UPDATE account_sessions
-     SET last_seen_at = $3
-     FROM users
-     WHERE account_sessions.id = $1
-       AND account_sessions.token_hash = $2
-       AND account_sessions.user_id = users.id
-       AND account_sessions.revoked_at IS NULL
-       AND account_sessions.expires_at > $3
-     RETURNING ${USER_COLUMNS_QUALIFIED}`,
-    [sessionId, tokenHash, at],
+    `WITH matched AS (
+       UPDATE account_sessions
+       SET last_seen_at = $3
+       FROM users
+       WHERE account_sessions.id = $1
+         AND account_sessions.token_hash = $2
+         AND account_sessions.user_id = users.id
+         AND account_sessions.revoked_at IS NULL
+         AND account_sessions.expires_at > $3
+       RETURNING ${USER_COLUMNS_QUALIFIED}
+     ),
+     last_seen_bump AS (
+       UPDATE users
+       SET last_seen_at = $3
+       FROM matched
+       WHERE users.id = matched.id
+         AND (users.last_seen_at IS NULL
+              OR users.last_seen_at < $3::timestamptz - ($4 * interval '1 millisecond'))
+     )
+     SELECT * FROM matched`,
+    [sessionId, tokenHash, at, LAST_SEEN_BUMP_INTERVAL_MS],
   );
   return rows[0] ? userFromRow(rows[0]) : null;
 }
@@ -932,6 +953,61 @@ export async function getBestRatings(
     });
   }
   return best;
+}
+
+// Highest current rating per user across ALL pools and time classes, for the
+// Friends page (one representative "best rating" per followed player). A
+// deliberate sibling of getBestRatings above, which stays scoped to one time
+// class for the online-players surfaces; existing callers keep their behavior.
+export async function getBestRatingsAnyTimeClass(
+  userIds: string[],
+): Promise<Map<string, BestRatingEntry>> {
+  if (userIds.length === 0) return new Map();
+  const { rows } = await getPool().query<{
+    user_id: string;
+    variant: string;
+    elo_rating: number;
+    rating_deviation: number;
+  }>(
+    `SELECT DISTINCT ON (user_id) user_id, variant, elo_rating, rating_deviation
+     FROM user_ratings
+     WHERE user_id = ANY($1) AND games_played > 0
+     ORDER BY user_id, elo_rating DESC`,
+    [userIds],
+  );
+  const best = new Map<string, BestRatingEntry>();
+  for (const row of rows) {
+    best.set(row.user_id, {
+      variant: row.variant,
+      eloRating: row.elo_rating,
+      provisional: row.rating_deviation > PROVISIONAL_RD,
+    });
+  }
+  return best;
+}
+
+// Completed-game totals for a set of users in one query (the Friends page rows).
+// Matches the public-profile gamesTotal semantics for a non-viewer: completed
+// games only, private games excluded, so the number here equals what the viewer
+// would see on that player's profile. Users with zero games simply have no map
+// entry; callers default to 0.
+export async function getGamesTotals(userIds: string[]): Promise<Map<string, number>> {
+  if (userIds.length === 0) return new Map();
+  const { rows } = await getPool().query<{ user_id: string; games_total: string }>(
+    `SELECT game_participants.subject_id AS user_id, COUNT(*) AS games_total
+     FROM game_participants
+     JOIN games ON games.room_id = game_participants.game_id
+     WHERE game_participants.subject_type = 'user'
+       AND game_participants.subject_id = ANY($1)
+       AND games.status = 'completed'
+       AND games.visibility <> 'private'
+       AND game_participants.visibility <> 'private'
+     GROUP BY game_participants.subject_id`,
+    [userIds],
+  );
+  const totals = new Map<string, number>();
+  for (const row of rows) totals.set(row.user_id, Number(row.games_total));
+  return totals;
 }
 
 type UserRow = {
