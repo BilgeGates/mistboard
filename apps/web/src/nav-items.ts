@@ -57,6 +57,7 @@ export function watchNavItems(): NavItem[] {
   return [
     { label: 'Mistboard TV', labelKey: 'nav.tv', href: '/watch' },
     { label: 'Broadcasts', labelKey: 'nav.broadcasts', href: '/broadcast/xiangqi' },
+    { label: 'Video library', labelKey: 'nav.videoLibrary', href: '/videos' },
   ];
 }
 

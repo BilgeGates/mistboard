@@ -127,6 +127,7 @@ const wantsForum =
   page === 'forum';
 const wantsLegacyPlay = path === '/play' || page === 'play';
 const wantsWatch = path === '/watch' || page === 'watch';
+const wantsVideos = path === '/videos' || page === 'videos';
 const wantsXiangqiBroadcastIndex = path === '/broadcast/xiangqi';
 const wantsXiangqiBroadcastOps = path === '/broadcast/xiangqi/ops';
 const xiangqiBroadcastBoardId = xiangqiBroadcastBoardIdFromPath(path);
@@ -344,6 +345,11 @@ if (replaySample) {
   setTitleKey('nav.watch');
   void mountOrReport(() =>
     import('./watch-route.js').then(({ mountWatch }) => mountWatch(appRoot)),
+  );
+} else if (wantsVideos) {
+  setTitleKey('nav.videoLibrary');
+  void mountOrReport(() =>
+    import('./videos.js').then(({ mountVideos }) => mountVideos(appRoot)),
   );
 } else if (wantsXiangqiBroadcastIndex) {
   setTitle('Xiangqi broadcasts');
