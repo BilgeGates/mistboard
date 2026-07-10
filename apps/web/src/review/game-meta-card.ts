@@ -13,6 +13,8 @@
 // seats fill. Every field is plain data — no variant coupling.
 
 import './game-meta-card.css';
+import { renderVariantMarker } from '../variant-markers.js';
+import type { VariantMiniId } from '../variant-mini-boards.js';
 
 export type GameMetaPlayer = {
   /** Seat color id (e.g. 'red' | 'black' | 'white'). Drives the disc tint. */
@@ -24,7 +26,11 @@ export type GameMetaPlayer = {
 };
 
 export type GameMetaCardConfig = {
-  /** Variant glyph for the icon box (e.g. '象', '♔', '☗', '虎'). */
+  /** Finalized variant marker for the icon box (the site-wide icon language:
+   *  picker, watch rail, puzzles, profile). Wins over `glyph` when set. */
+  markerId?: VariantMiniId;
+  /** Variant glyph for the icon box (e.g. '象', '♔', '☗', '虎'). Fallback for
+   *  variants without a finalized marker. */
   glyph?: string;
   /** "5+0 • Casual" style segments; falsy segments are skipped. */
   headline: Array<string | null | undefined>;
@@ -54,7 +60,13 @@ export function createGameMetaCard(config: GameMetaCardConfig): GameMetaCard {
 
   const head = document.createElement('div');
   head.className = 'game-meta-card__head';
-  if (config.glyph) {
+  if (config.markerId) {
+    const icon = document.createElement('span');
+    icon.className = 'game-meta-card__icon';
+    icon.setAttribute('aria-hidden', 'true');
+    icon.innerHTML = renderVariantMarker(config.markerId, { size: 40 });
+    head.append(icon);
+  } else if (config.glyph) {
     const icon = document.createElement('span');
     icon.className = 'game-meta-card__icon';
     icon.textContent = config.glyph;

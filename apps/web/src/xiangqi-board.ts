@@ -57,6 +57,24 @@ export interface XiangqiBoardSvgState {
   interactive: boolean;
   selectedSquare: XiangqiSquare | null;
   draggingFrom: XiangqiSquare | null;
+  /** Engine/annotation arrows, drawn in array order (last = on top). */
+  arrows?: readonly XiangqiBoardArrow[];
+}
+
+/** One board arrow (engine PV hint / best-move advice). Geometry is derived from
+ *  the same intersection transform the pieces use, so arrows flip with the board
+ *  perspective automatically. */
+export interface XiangqiBoardArrow {
+  from: XiangqiSquare;
+  to: XiangqiSquare;
+  /** Extra class on the arrow group (e.g. 'xq-arrow--pv1'). */
+  className?: string;
+  /** Group opacity, default 0.9. */
+  opacity?: number;
+  /** Shaft stroke width in viewBox units, default 9. */
+  width?: number;
+  /** Dashed shaft (used for the subtle PV reply segment). */
+  dashed?: boolean;
 }
 
 /** Full board SVG with interaction state. The live room (live-xiangqi.ts) calls
@@ -78,6 +96,7 @@ export function xiangqiBoardSvg(
       <g class="xq-live-selection">${selectionLayer(state.selectedSquare, perspective)}</g>
       <g class="xq-live-hints">${state.interactive ? '' : hintLayer(view, perspective, state.selectedSquare)}</g>
       <g class="xq-live-pieces">${pieceLayer(view, perspective, state.draggingFrom)}</g>
+      <g class="xq-live-arrows" aria-hidden="true" pointer-events="none">${arrowLayer(state.arrows ?? [], perspective)}</g>
       <g class="xq-live-clicks">${state.interactive ? clickLayer(view, perspective, state.selectedSquare) : ''}</g>
     </svg>
   `;
@@ -163,6 +182,60 @@ function lastMoveLayer(view: StandardXiangqiPlayerView, perspective: XiangqiColo
     `<circle class="xq-live-lastmove-cell xq-live-lastmove-from" cx="${fromCenter.x}" cy="${fromCenter.y}" r="27"/>` +
     `<circle class="xq-live-lastmove-ring" cx="${toCenter.x}" cy="${toCenter.y}" r="29"/>`
   );
+}
+
+// ── Arrows (engine PV hints) ─────────────────────────────────────────────────
+// Calm blue, deliberately distinct from the gold last-move ring. Presentation
+// attributes (lowest CSS precedence) so a stylesheet can still retheme them.
+const ARROW_COLOR = '#2b6cb8';
+const ARROW_START_INSET = 12; // start just off the origin piece center
+const ARROW_TIP_INSET = 24; // tip stops inside the destination piece edge (r=27)
+const ARROW_HEAD_LENGTH = 20;
+const ARROW_HEAD_HALF_WIDTH = 11;
+
+const fmt = (value: number): number => Math.round(value * 10) / 10;
+
+/** One arrow between two intersection centers: a round-capped shaft plus a
+ *  triangular head, shortened at the destination so the head never covers the
+ *  piece center. Pure string renderer — exported for tests. */
+export function xiangqiArrowSvg(arrow: XiangqiBoardArrow, perspective: XiangqiColor): string {
+  const from = coordOf(arrow.from);
+  const to = coordOf(arrow.to);
+  const a = intersection(from.file, from.rank, perspective);
+  const b = intersection(to.file, to.rank, perspective);
+  const dx = b.x - a.x;
+  const dy = b.y - a.y;
+  const dist = Math.hypot(dx, dy);
+  if (dist < 1) return '';
+  const ux = dx / dist;
+  const uy = dy / dist;
+  const startX = a.x + ux * ARROW_START_INSET;
+  const startY = a.y + uy * ARROW_START_INSET;
+  const tipX = b.x - ux * ARROW_TIP_INSET;
+  const tipY = b.y - uy * ARROW_TIP_INSET;
+  // Shaft ends at the head base so a round cap never pokes past the head sides.
+  const baseX = tipX - ux * ARROW_HEAD_LENGTH;
+  const baseY = tipY - uy * ARROW_HEAD_LENGTH;
+  const px = -uy;
+  const py = ux;
+  const width = arrow.width ?? 9;
+  const opacity = arrow.opacity ?? 0.9;
+  const className = arrow.className ? `xq-arrow ${arrow.className}` : 'xq-arrow';
+  const dash = arrow.dashed ? ' stroke-dasharray="10 8"' : '';
+  const head =
+    `${fmt(tipX)},${fmt(tipY)} ` +
+    `${fmt(baseX + px * ARROW_HEAD_HALF_WIDTH)},${fmt(baseY + py * ARROW_HEAD_HALF_WIDTH)} ` +
+    `${fmt(baseX - px * ARROW_HEAD_HALF_WIDTH)},${fmt(baseY - py * ARROW_HEAD_HALF_WIDTH)}`;
+  return (
+    `<g class="${className}" opacity="${opacity}" fill="${ARROW_COLOR}" stroke="${ARROW_COLOR}" pointer-events="none">` +
+    `<line x1="${fmt(startX)}" y1="${fmt(startY)}" x2="${fmt(baseX)}" y2="${fmt(baseY)}" stroke-width="${width}" stroke-linecap="round"${dash}/>` +
+    `<polygon points="${head}" stroke="none"/>` +
+    `</g>`
+  );
+}
+
+function arrowLayer(arrows: readonly XiangqiBoardArrow[], perspective: XiangqiColor): string {
+  return arrows.map((arrow) => xiangqiArrowSvg(arrow, perspective)).join('');
 }
 
 function selectionLayer(square: XiangqiSquare | null, perspective: XiangqiColor): string {
@@ -328,6 +401,10 @@ export interface XiangqiInteractiveBoard {
   render(view: StandardXiangqiPlayerView | null, perspective: XiangqiColor): void;
   /** Clear the current selection (no render). */
   clearSelection(): void;
+  /** Replace the arrow overlay (engine PV hints). Updates the mounted SVG in
+   *  place when present; the arrows persist across full re-renders until the
+   *  next setArrows call. Pass [] to clear. */
+  setArrows(arrows: readonly XiangqiBoardArrow[]): void;
 }
 
 export function createXiangqiInteractiveBoard(
@@ -335,6 +412,7 @@ export function createXiangqiInteractiveBoard(
 ): XiangqiInteractiveBoard {
   let selectedSquare: XiangqiSquare | null = null;
   let draggingFrom: XiangqiSquare | null = null;
+  let arrows: readonly XiangqiBoardArrow[] = [];
 
   function render(view: StandardXiangqiPlayerView | null, perspective: XiangqiColor): void {
     if (!view) {
@@ -345,7 +423,17 @@ export function createXiangqiInteractiveBoard(
       interactive: true,
       selectedSquare,
       draggingFrom,
+      arrows,
     });
+  }
+
+  function setArrows(next: readonly XiangqiBoardArrow[]): void {
+    arrows = next;
+    // Engine updates stream ~12/s: patch just the arrows group instead of
+    // rebuilding the whole board SVG (which would also be wasted work mid-drag).
+    const layer = opts.board.querySelector('.xq-live-arrows');
+    if (layer)
+      layer.innerHTML = arrows.map((a) => xiangqiArrowSvg(a, opts.getPerspective())).join('');
   }
 
   // Re-render from the live interaction view after a click/drag mutation.
@@ -424,7 +512,7 @@ export function createXiangqiInteractiveBoard(
     },
   });
 
-  return { render, clearSelection };
+  return { render, clearSelection, setArrows };
 }
 
 // ── Geometry ─────────────────────────────────────────────────────────────────

@@ -5,7 +5,12 @@ import {
 } from '@mistboard/game';
 import { describe, expect, it } from 'vitest';
 import { renderXiangqiBoardSvg as renderLiveXiangqiBoardSvg } from './live-xiangqi.js';
-import { renderXiangqiBoardSvg as renderSharedXiangqiBoardSvg } from './xiangqi-board.js';
+import {
+  createXiangqiInteractiveBoard,
+  renderXiangqiBoardSvg as renderSharedXiangqiBoardSvg,
+  type XiangqiBoardArrow,
+  xiangqiArrowSvg,
+} from './xiangqi-board.js';
 
 const NON_SELECTABLE_RIVER_GROUP =
   '<g class="xq-live-river" aria-hidden="true" pointer-events="none" style="-webkit-user-select: none; user-select: none;">';
@@ -57,5 +62,116 @@ describe('standard Xiangqi board SVG', () => {
     expect(view.lastMove).toBeUndefined();
     expect(renderSharedXiangqiBoardSvg(view)).not.toContain('xq-live-lastmove-cell');
     expect(renderSharedXiangqiBoardSvg(view)).not.toContain('xq-live-lastmove-ring');
+  });
+});
+
+describe('xiangqiArrowSvg', () => {
+  it('draws shaft + head between intersection centers, inset at both ends', () => {
+    // Red perspective: b3 -> (96, 456), e3 -> (276, 456); horizontal arrow.
+    // Start inset 12 -> x=108. Tip inset 24 -> tip x=252; head length 20 -> the
+    // shaft ends at the head base (x=232); head half-width 11.
+    const svg = xiangqiArrowSvg({ from: 'b3', to: 'e3' }, 'red');
+    expect(svg).toContain('class="xq-arrow"');
+    expect(svg).toContain('opacity="0.9"');
+    expect(svg).toContain(
+      '<line x1="108" y1="456" x2="232" y2="456" stroke-width="9" stroke-linecap="round"/>',
+    );
+    expect(svg).toContain('<polygon points="252,456 232,467 232,445" stroke="none"/>');
+    expect(svg).toContain('pointer-events="none"');
+  });
+
+  it('flips with the board perspective (same transform as the pieces)', () => {
+    // Black perspective flips ranks only: rank 3 lands at y = 36 + 2*60 = 156.
+    const svg = xiangqiArrowSvg({ from: 'b3', to: 'e3' }, 'black');
+    expect(svg).toContain('<line x1="108" y1="156" x2="232" y2="156"');
+    expect(svg).toContain('<polygon points="252,156 232,167 232,145"');
+  });
+
+  it('honours per-arrow class, opacity, width, and dash', () => {
+    const svg = xiangqiArrowSvg(
+      { from: 'h3', to: 'e3', className: 'xq-arrow--pv2', opacity: 0.55, width: 8, dashed: true },
+      'red',
+    );
+    expect(svg).toContain('class="xq-arrow xq-arrow--pv2"');
+    expect(svg).toContain('opacity="0.55"');
+    expect(svg).toContain('stroke-width="8"');
+    expect(svg).toContain('stroke-dasharray="10 8"');
+  });
+
+  it('renders nothing for a degenerate zero-length arrow', () => {
+    expect(xiangqiArrowSvg({ from: 'e3', to: 'e3' }, 'red')).toBe('');
+  });
+});
+
+describe('interactive board arrow overlay', () => {
+  function mountBoard() {
+    const host = document.createElement('div');
+    document.body.append(host);
+    const view = getStandardXiangqiPlayerView(createInitialXiangqiState('xq-board-arrows'), 'red');
+    const board = createXiangqiInteractiveBoard({
+      board: host,
+      getInteractionView: () => view,
+      getPerspective: () => 'red',
+      seatFor: () => 'red',
+      enabled: () => true,
+      onMove: () => {},
+    });
+    board.render(view, 'red');
+    return { host, board, view };
+  }
+
+  const PV_ARROWS: XiangqiBoardArrow[] = [
+    { from: 'b1', to: 'c3', className: 'xq-arrow--pv3', opacity: 0.35, width: 7 },
+    { from: 'b3', to: 'b7', className: 'xq-arrow--pv2', opacity: 0.55, width: 8 },
+    { from: 'h3', to: 'e3', className: 'xq-arrow--pv1', opacity: 0.9, width: 9 },
+  ];
+
+  it('setArrows patches the arrows layer in place with ranked opacity, strongest last', () => {
+    const { host, board } = mountBoard();
+    board.setArrows(PV_ARROWS);
+    const groups = [...host.querySelectorAll('.xq-live-arrows .xq-arrow')];
+    expect(groups).toHaveLength(3);
+    // Array order = draw order: weakest first, PV1 painted last (on top).
+    expect(groups.map((g) => g.getAttribute('opacity'))).toEqual(['0.35', '0.55', '0.9']);
+    expect(groups[2]?.getAttribute('class')).toContain('xq-arrow--pv1');
+    host.remove();
+  });
+
+  it('clears with an empty list and survives a full re-render until cleared', () => {
+    const { host, board, view } = mountBoard();
+    board.setArrows(PV_ARROWS);
+    // A full innerHTML re-render (ply/flip/selection) must keep the overlay.
+    board.render(view, 'red');
+    expect(host.querySelectorAll('.xq-live-arrows .xq-arrow')).toHaveLength(3);
+    board.setArrows([]);
+    expect(host.querySelectorAll('.xq-live-arrows .xq-arrow')).toHaveLength(0);
+    host.remove();
+  });
+
+  it('renders posted ceval MultiPV lines as ranked arrows and clears them again', async () => {
+    // The real pipeline the review glue drives: CevalLine[] -> spec builder ->
+    // setArrows. Three lines -> three PV arrows with descending opacity
+    // (plus the faint dashed PV1 reply at the bottom of the stack).
+    const { engineArrowsFromLines, SHOW_PV1_REPLY_SEGMENT } = await import(
+      './review/engine/engine-arrows.js'
+    );
+    const { host, board } = mountBoard();
+    board.setArrows(
+      engineArrowsFromLines([
+        { multipv: 1, depth: 18, scoreCp: 35, mate: null, pvUci: ['h3e3', 'h8e8'] },
+        { multipv: 2, depth: 18, scoreCp: 12, mate: null, pvUci: ['b3e3'] },
+        { multipv: 3, depth: 18, scoreCp: 4, mate: null, pvUci: ['b1c3'] },
+      ]),
+    );
+    const groups = [...host.querySelectorAll('.xq-live-arrows .xq-arrow')];
+    expect(groups).toHaveLength(SHOW_PV1_REPLY_SEGMENT ? 4 : 3);
+    const pvOpacities = groups
+      .filter((g) => !(g.getAttribute('class') ?? '').includes('reply'))
+      .map((g) => Number(g.getAttribute('opacity')));
+    expect(pvOpacities).toEqual([0.35, 0.55, 0.9]);
+    // Engine toggled off / ply changed: the glue posts a clear.
+    board.setArrows([]);
+    expect(host.querySelectorAll('.xq-live-arrows .xq-arrow')).toHaveLength(0);
+    host.remove();
   });
 });

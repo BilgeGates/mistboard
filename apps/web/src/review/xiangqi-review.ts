@@ -25,6 +25,8 @@ import { type AdvantageChart, createAdvantageChart } from './advantage-chart.js'
 import { createAnalysisSummary } from './analysis-summary.js';
 import { capturedByDiff } from './captured-diff.js';
 import { fillCapturedPoolWith } from './captured-pool.js';
+import type { CevalLine } from './engine/ceval.js';
+import { bestMoveArrow, engineArrowsFromLines } from './engine/engine-arrows.js';
 import { createEnginePanel } from './engine/engine-panel.js';
 import { createEvalBar } from './engine/eval-bar.js';
 import { formatEval } from './engine/eval-format.js';
@@ -51,6 +53,11 @@ type XiangqiTree = GameTree<XiangqiMove, XiangqiGameState, StandardXiangqiPlayer
 const XIANGQI_INITIAL_PIECES = Object.values(createInitialXiangqiBoard()).filter(
   (piece): piece is NonNullable<typeof piece> => Boolean(piece),
 );
+
+/** With the live engine off, a completed whole-game analysis still knows the
+ *  best move at every mainline ply — draw it as a single arrow. Flip to false
+ *  to keep arrows strictly live-engine. */
+const SHOW_ANALYSIS_BEST_ARROW = true;
 
 export type XiangqiAnalysisSource = {
   /** Request-button label ('Request computer analysis' / 'Analyse the whole game'). */
@@ -135,10 +142,37 @@ export function mountXiangqiReview(root: HTMLElement, config: XiangqiReviewConfi
   });
 
   // ── Engine (live, current node) ──
+  // On-board PV arrows: live MultiPV lines win; with the engine off (or between
+  // a ply change and the first fresh update) fall back to the whole-game
+  // analysis' best move for the current mainline node; otherwise no arrows.
+  // NOTE: declared before createEnginePanel — its constructor clears output,
+  // which fires onLines(null) → syncArrows() synchronously.
+  let gameAnalysis: GameAnalysis | null = null;
+  let engineLines: CevalLine[] | null = null;
+  function syncArrows(): void {
+    if (engineLines?.length) {
+      interactive.setArrows(engineArrowsFromLines(engineLines));
+      return;
+    }
+    if (SHOW_ANALYSIS_BEST_ARROW && gameAnalysis) {
+      const node = currentNode();
+      if (mainlineNodes()[node.ply] === node) {
+        const best = gameAnalysis.evals.find((entry) => entry.ply === node.ply)?.best;
+        interactive.setArrows(bestMoveArrow(best));
+        return;
+      }
+    }
+    interactive.setArrows([]);
+  }
+
   const enginePanel = createEnginePanel({
     variant: 'xiangqi',
     formatPvMove: formatXiangqiEngineMove,
     evalBar,
+    onLines: (lines) => {
+      engineLines = lines?.length ? lines : null;
+      syncArrows();
+    },
   });
 
   // ── Move tree (right-click a move to promote/delete its branch) ──
@@ -176,7 +210,6 @@ export function mountXiangqiReview(root: HTMLElement, config: XiangqiReviewConfi
   const analysisSummaryEl = document.createElement('div');
   const moveAdvice = createMoveAdvice();
   let chart: AdvantageChart | null = null;
-  let gameAnalysis: GameAnalysis | null = null;
 
   // The tree truncates an illegal seed to the legal prefix; surface a notice.
   const truncated = mainlineLen < config.moves.length;
@@ -246,7 +279,11 @@ export function mountXiangqiReview(root: HTMLElement, config: XiangqiReviewConfi
     fillCapturedPoolWith(materialTop, captured, own, renderCapturedXiangqiGlyph);
     fillCapturedPoolWith(materialBottom, captured, opp, renderCapturedXiangqiGlyph);
 
+    // Order matters: setPosition fires onLines(null) synchronously when the
+    // engine is on (stale-arrow clear), then syncArrows repaints for the new
+    // node (analysis best-move arrow, or nothing) until fresh lines stream in.
     enginePanel.setPosition(uciTo(node));
+    syncArrows();
     moveTree.setCurrent(currentPath);
     nav.setBounds({ atStart: currentPath.length === 0, atEnd: node.children.length === 0 });
     nav.status.textContent = `Ply ${node.ply}`;

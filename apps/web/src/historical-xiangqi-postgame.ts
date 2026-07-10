@@ -82,6 +82,7 @@ export function historicalXiangqiGameApiUrl(gameId: string): string {
 function renderHistoricalXiangqiGame(root: HTMLElement, game: HistoricalXiangqiGameDetail): void {
   const replay = buildXiangqiReplayFromMoves(game.moves);
   const metaCard = createGameMetaCard({
+    markerId: 'xiangqi',
     glyph: '象',
     headline: ['Historical game'],
     variantName: 'Elephant Chess',

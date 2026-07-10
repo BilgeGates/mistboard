@@ -35,6 +35,14 @@ describe('mountXiangqiAnalysis', () => {
     // whole-game analysis entry point (the client ceval sweep is click-gated, so
     // no engine loads here — only the request button renders)
     expect(root.textContent).toContain('Analyse the whole game');
+    // Meta card carries the finalized xiangqi variant marker (site-wide icon
+    // language), not just the text glyph.
+    expect(
+      root.querySelector('.game-meta-card__icon [data-variant-marker-id="xiangqi"]'),
+    ).not.toBeNull();
+    // The engine-arrow overlay layer mounts empty (engine off).
+    expect(root.querySelector('.xq-live-arrows')).not.toBeNull();
+    expect(root.querySelectorAll('.xq-live-arrows .xq-arrow')).toHaveLength(0);
     root.remove();
   });
 

@@ -32,6 +32,10 @@ export interface EnginePanelOptions {
   formatPvMove?: (uci: string) => string;
   /** Optional on-board eval bar to drive in lockstep with the panel. */
   evalBar?: EvalBar;
+  /** Fires with the latest MultiPV lines on every engine update, and with null
+   *  whenever the output clears — toggle off, or a position change before new
+   *  results arrive. Drives the on-board PV arrows. */
+  onLines?: (lines: CevalLine[] | null) => void;
 }
 
 type Side = 'red' | 'black';
@@ -125,6 +129,7 @@ export function createEnginePanel(opts: EnginePanelOptions): EnginePanel {
     lines.replaceChildren();
     setGauge(null, null);
     opts.evalBar?.reset();
+    opts.onLines?.(null);
   }
 
   function render(update: CevalUpdate, side: Side): void {
@@ -139,6 +144,7 @@ export function createEnginePanel(opts: EnginePanelOptions): EnginePanel {
       ? `${CEVAL_ENGINE_NAME} · depth ${update.depth}${update.nps ? ` · ${formatKnps(update.nps)}` : ''}`
       : `${CEVAL_ENGINE_NAME} · thinking…`;
     lines.replaceChildren(...update.lines.map((line) => renderLine(line, side, formatMove)));
+    opts.onLines?.(update.lines);
   }
 
   function evaluateNow(): void {
@@ -162,6 +168,10 @@ export function createEnginePanel(opts: EnginePanelOptions): EnginePanel {
   function setPosition(movesUci: string[]): void {
     currentMoves = movesUci;
     if (!on || !supported) return;
+    // The panel keeps its last PV text until fresh results stream in, but
+    // on-board arrows for a position we already left would be misleading —
+    // clear them immediately and let the next update redraw.
+    opts.onLines?.(null);
     clearTimeout(debounceId);
     debounceId = setTimeout(evaluateNow, DEBOUNCE_MS);
   }

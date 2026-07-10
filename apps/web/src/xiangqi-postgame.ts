@@ -114,6 +114,7 @@ function renderPostgame(root: HTMLElement, postgame: XiangqiPostgameResponse): v
     .map((item) => item.move as XiangqiMove);
 
   const metaCard = createGameMetaCard({
+    markerId: 'xiangqi',
     glyph: '象',
     headline: [timeControlLabel(postgame), postgame.game.rated ? 'Rated' : 'Casual'],
     variantName: 'Elephant Chess',

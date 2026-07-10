@@ -88,6 +88,7 @@ export function mountXiangqiAnalysis(
 
   const finalStatus = xiangqiReplayViewAtPly(replay, replay.maxPly).status;
   const metaCard = createGameMetaCard({
+    markerId: 'xiangqi',
     glyph: '象',
     headline: ['Analysis board'],
     variantName: 'Elephant Chess',

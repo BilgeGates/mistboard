@@ -30,6 +30,12 @@
   color: var(--site-muted);
 }
 
+/* Finalized variant marker in the icon box: ride the icon's muted color so
+   theme tokens keep working (the marker defaults to its own gray otherwise). */
+.game-meta-card__icon .variant-marker {
+  --variant-marker-color: currentColor;
+}
+
 .game-meta-card__head-text {
   min-width: 0;
 }
