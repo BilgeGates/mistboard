@@ -149,10 +149,6 @@
   font-weight: 700;
 }
 
-.xqb-tour-row {
-  grid-template-columns: minmax(0, 1fr) minmax(180px, auto) auto;
-}
-
 .xqb-board-row {
   grid-template-columns: 44px minmax(0, 1fr) minmax(136px, auto) auto;
 }
@@ -287,10 +283,6 @@
   font-size: 12px;
   font-weight: 700;
   color: var(--site-muted);
-}
-
-.xqb-tour-status {
-  max-width: 420px;
 }
 
 .xqb-chevron {
@@ -467,11 +459,6 @@
     grid-template-columns: 40px minmax(0, 1fr) auto;
   }
 
-  .xqb-tour-row {
-    grid-template-columns: minmax(0, 1fr) auto;
-  }
-
-  .xqb-tour-row .xqb-status,
   .xqb-board-row .xqb-status {
     grid-column: 2 / 3;
     text-align: left;
@@ -541,4 +528,231 @@
   font-size: 14px;
   font-weight: 600;
   line-height: 1.25;
+}
+
+/* ── Index card grid ('Live now' / 'Past' zones) ─────────────────────────── */
+
+.xqb-tour-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
+  gap: 12px;
+}
+
+.xqb-tour-card {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  border: 1px solid var(--site-border-soft);
+  border-radius: var(--site-radius-sm);
+  background: var(--site-panel);
+  color: var(--site-text);
+  padding: 10px;
+  text-decoration: none;
+}
+
+.xqb-tour-card:hover,
+.xqb-tour-card:focus-visible {
+  border-color: color-mix(in srgb, var(--site-accent) 42%, var(--site-border-soft));
+  background: var(--site-accent-soft);
+}
+
+.xqb-tour-card-live {
+  border-color: color-mix(in srgb, var(--site-accent) 36%, var(--site-border-soft));
+}
+
+.xqb-tour-card-copy {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.xqb-tour-card-copy strong {
+  color: var(--site-heading);
+  overflow-wrap: anywhere;
+}
+
+.xqb-tour-card-meta {
+  color: var(--site-muted);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+/* ── Live / result badges ────────────────────────────────────────────────── */
+
+.xqb-badge-live {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  border-radius: 999px;
+  background: var(--site-accent-soft);
+  color: var(--site-accent-strong);
+  padding: 2px 9px;
+  font-size: 11px;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.xqb-badge-live::before {
+  content: "";
+  flex: none;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--site-accent-strong);
+}
+
+.xqb-badge-result {
+  display: inline-flex;
+  align-items: center;
+  border: 1px solid var(--site-border-soft);
+  border-radius: 999px;
+  background: var(--site-panel-soft);
+  padding: 2px 9px;
+  font-size: 11px;
+  font-weight: 900;
+}
+
+/* ── Tour-page round rows (status icon + counts) ─────────────────────────── */
+
+.xqb-round-row {
+  grid-template-columns: 26px minmax(0, 1fr) auto;
+}
+
+.xqb-round-icon {
+  color: var(--site-muted);
+  font-size: 13px;
+  font-weight: 900;
+  text-align: center;
+}
+
+.xqb-round-icon-live {
+  color: var(--site-accent-strong);
+}
+
+.xqb-round-icon-finished {
+  color: var(--site-heading);
+}
+
+/* ── Round switcher (hero dropdown) ──────────────────────────────────────── */
+
+.xqb-round-select {
+  min-height: 34px;
+  max-width: 260px;
+  border: 1px solid var(--site-border-soft);
+  border-radius: var(--site-radius-sm);
+  background: var(--site-panel);
+  color: var(--site-text);
+  padding: 0 8px;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.xqb-round-select:hover,
+.xqb-round-select:focus-visible {
+  border-color: color-mix(in srgb, var(--site-accent) 42%, var(--site-border-soft));
+  background: var(--site-accent-soft);
+  color: var(--site-accent-strong);
+}
+
+/* ── Board-page sibling-games side rail ──────────────────────────────────── */
+
+.xqb-board-layout-with-rail {
+  grid-template-columns: minmax(190px, 250px) minmax(320px, 720px) minmax(260px, 1fr);
+  grid-template-areas: "rail board moves";
+}
+
+.xqb-board-layout-with-rail .xqb-side-rail {
+  grid-area: rail;
+}
+
+.xqb-board-layout-with-rail .xqb-board-panel {
+  grid-area: board;
+}
+
+.xqb-board-layout-with-rail .xqb-moves-panel {
+  grid-area: moves;
+}
+
+.xqb-side-rail {
+  min-width: 0;
+  border: 1px solid var(--site-border-soft);
+  border-radius: var(--site-radius);
+  background: var(--site-panel);
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.xqb-side-rail h2 {
+  margin: 0;
+  color: var(--site-heading);
+  font-size: 15px;
+  line-height: 1.2;
+}
+
+.xqb-rail-list {
+  position: relative;
+  max-height: min(66vh, 660px);
+  overflow: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.xqb-rail-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
+  align-items: center;
+  border: 1px solid transparent;
+  border-radius: var(--site-radius-sm);
+  color: var(--site-text);
+  padding: 6px 8px;
+  font-size: 13px;
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.xqb-rail-row:hover,
+.xqb-rail-row:focus-visible {
+  border-color: color-mix(in srgb, var(--site-accent) 42%, var(--site-border-soft));
+  background: var(--site-accent-soft);
+}
+
+.xqb-rail-row-current {
+  border-color: color-mix(in srgb, var(--site-accent) 42%, var(--site-border-soft));
+  background: var(--site-accent-soft);
+  color: var(--site-accent-strong);
+}
+
+.xqb-rail-players {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.xqb-rail-marker {
+  color: var(--site-muted);
+  font-size: 11px;
+  font-weight: 900;
+}
+
+.xqb-rail-marker.xqb-status-live {
+  color: var(--site-accent-strong);
+}
+
+@media (max-width: 900px) {
+  .xqb-board-layout-with-rail {
+    grid-template-columns: 1fr;
+    grid-template-areas: "board" "moves" "rail";
+  }
+
+  .xqb-rail-list {
+    max-height: 40vh;
+  }
 }

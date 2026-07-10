@@ -59,21 +59,49 @@ type BroadcastBoardResponse = {
   history: { truth: BroadcastHistorySnapshot[] };
 };
 
+// Per-round board counts computed by the server; they drive the status icons
+// on tour rows and the markers in the round switcher. Optional so older or
+// partial payloads degrade to the "upcoming" phase instead of breaking.
+type BroadcastRoundStats = {
+  boardCount: number;
+  liveBoardCount: number;
+  completeBoardCount: number;
+  scheduledBoardCount: number;
+};
+
+type BroadcastRoundWithStats = XiangqiBroadcastRound & Partial<BroadcastRoundStats>;
+
 type BroadcastTourResponse = {
   tour: XiangqiBroadcastTour;
-  rounds: XiangqiBroadcastRound[];
+  rounds: BroadcastRoundWithStats[];
 };
 
 type BroadcastRoundResponse = {
   tour: XiangqiBroadcastTour;
   round: XiangqiBroadcastRound;
   boards: BroadcastBoardSummary[];
+  rounds?: BroadcastRoundWithStats[];
 };
 
 type BroadcastSyncLogSummary = {
   severity: 'info' | 'warning' | 'error';
   kind: string;
   createdAt: string;
+};
+
+// The server's index thumbnail pick: the most recently updated live board,
+// else the latest complete one, shipped as a final position (no move list).
+type BroadcastFeaturedBoard = {
+  id: string;
+  roundId: string;
+  boardNumber: number;
+  red: XiangqiBroadcastPlayerTag;
+  black: XiangqiBroadcastPlayerTag;
+  status: XiangqiBroadcastBoardStatus;
+  result: XiangqiBroadcastResult;
+  plyCount: number;
+  updatedAt: string;
+  view: StandardXiangqiPlayerView;
 };
 
 type BroadcastIndexEntry = {
@@ -85,6 +113,7 @@ type BroadcastIndexEntry = {
   scheduledBoardCount: number;
   totalPlies: number;
   updatedAt: string | null;
+  featuredBoard?: BroadcastFeaturedBoard | null;
   lastSyncLog: BroadcastSyncLogSummary | null;
 };
 
@@ -150,10 +179,28 @@ export async function mountXiangqiBroadcastBoard(
     const data = await fetchJson<BroadcastBoardResponse>(
       `/api/xiangqi/broadcasts/boards/${encodeURIComponent(boardId)}`,
     );
-    root.replaceChildren(buildNav(), renderBoardReplay(data));
-    connectBoardStream(root, boardId, boardVersion(data));
+    const context = await fetchBoardRoundContext(data.board.tourSlug, data.board.roundId);
+    root.replaceChildren(buildNav(), renderBoardReplay(data, context));
+    connectBoardStream(root, boardId, boardVersion(data), context);
   } catch (err) {
     renderError(root, err);
+  }
+}
+
+// Sibling boards + rounds feed the side rail and the round switcher on the
+// board page. A context fetch failure never blocks the board itself.
+async function fetchBoardRoundContext(
+  tourSlug: string,
+  roundId: string,
+): Promise<BroadcastRoundResponse | null> {
+  try {
+    return await fetchJson<BroadcastRoundResponse>(
+      `/api/xiangqi/broadcasts/${encodeURIComponent(tourSlug)}/rounds/${encodeURIComponent(
+        roundId,
+      )}`,
+    );
+  } catch {
+    return null;
   }
 }
 
@@ -198,7 +245,12 @@ function connectRoundStream(
   closeStreamOnPageExit(source);
 }
 
-function connectBoardStream(root: HTMLElement, boardId: string, initialVersion: string): void {
+function connectBoardStream(
+  root: HTMLElement,
+  boardId: string,
+  initialVersion: string,
+  context: BroadcastRoundResponse | null,
+): void {
   if (!('EventSource' in window)) return;
   const source = new EventSource(
     `/api/xiangqi/broadcasts/boards/${encodeURIComponent(boardId)}/events`,
@@ -208,7 +260,9 @@ function connectBoardStream(root: HTMLElement, boardId: string, initialVersion: 
     const envelope = parseStreamEnvelope<BroadcastBoardResponse>(event);
     if (!envelope || envelope.version === lastVersion) return;
     lastVersion = envelope.version;
-    root.replaceChildren(buildNav(), renderBoardReplay(envelope.payload));
+    // The round context from mount time is reused so the side rail and round
+    // switcher survive stream re-renders without extra fetches.
+    root.replaceChildren(buildNav(), renderBoardReplay(envelope.payload, context));
   });
   closeStreamOnPageExit(source);
 }
@@ -226,32 +280,52 @@ function parseStreamEnvelope<T>(event: Event): BroadcastStreamEnvelope<T> | null
   }
 }
 
+// Two zones: tours with a live board first, everything else below. Each zone
+// is a card grid with a featured-board thumbnail per tour.
 function renderIndex(data: BroadcastIndexResponse): HTMLElement {
   const main = broadcastShell();
+  const live = data.tours.filter((entry) => entry.liveBoardCount > 0);
+  const past = data.tours.filter((entry) => entry.liveBoardCount === 0);
   main.append(
     heroSection({
       eyebrow: 'Xiangqi broadcast',
       title: 'Tournament broadcasts',
-      meta: [`${data.tours.length} tournaments`],
+      meta: [
+        `${data.tours.length} tournaments`,
+        live.length > 0 ? `${live.length} live now` : null,
+      ].filter(Boolean) as string[],
     }),
   );
 
+  if (live.length > 0) main.append(tourZone('Live now', sortByFreshness(live), true));
+  if (past.length > 0 || live.length === 0) {
+    main.append(tourZone(live.length > 0 ? 'Past' : 'Broadcasts', sortByFreshness(past), false));
+  }
+  return main;
+}
+
+function sortByFreshness(entries: BroadcastIndexEntry[]): BroadcastIndexEntry[] {
+  return [...entries].sort(
+    (a, b) => (Date.parse(b.updatedAt ?? '') || 0) - (Date.parse(a.updatedAt ?? '') || 0),
+  );
+}
+
+function tourZone(title: string, entries: BroadcastIndexEntry[], liveZone: boolean): HTMLElement {
   const section = document.createElement('section');
-  section.className = 'xqb-section';
+  section.className = liveZone ? 'xqb-section xqb-zone-live' : 'xqb-section';
   const heading = document.createElement('h2');
-  heading.textContent = 'Broadcasts';
-  const list = document.createElement('div');
-  list.className = 'xqb-list';
-  for (const entry of data.tours) list.append(tourRow(entry));
-  if (data.tours.length === 0) {
+  heading.textContent = title;
+  const grid = document.createElement('div');
+  grid.className = 'xqb-tour-grid';
+  for (const entry of entries) grid.append(tourCard(entry));
+  if (entries.length === 0) {
     const empty = document.createElement('p');
     empty.className = 'xqb-empty';
     empty.textContent = 'No broadcasts are available yet.';
-    list.append(empty);
+    grid.append(empty);
   }
-  section.append(heading, list);
-  main.append(section);
-  return main;
+  section.append(heading, grid);
+  return section;
 }
 
 function renderTour(data: BroadcastTourResponse): HTMLElement {
@@ -263,9 +337,11 @@ function renderTour(data: BroadcastTourResponse): HTMLElement {
       title: primaryName(data.tour),
       subtitle: secondaryName(data.tour),
       href: data.tour.sourceUrl,
-      meta: [data.tour.location, dateRange(data.tour.startsAt, data.tour.endsAt)].filter(
-        Boolean,
-      ) as string[],
+      meta: [
+        data.tour.location,
+        dateRange(data.tour.startsAt, data.tour.endsAt),
+        `${data.rounds.length} rounds`,
+      ].filter(Boolean) as string[],
     }),
   );
 
@@ -282,19 +358,24 @@ function renderTour(data: BroadcastTourResponse): HTMLElement {
       round.id,
     )}`;
 
+    const phase = roundPhase(round);
     const copy = document.createElement('span');
     copy.className = 'xqb-row-copy';
     const name = document.createElement('strong');
     name.textContent = primaryName(round);
     const meta = document.createElement('span');
-    meta.textContent = [formatDate(round.startsAt), round.sourceUrl ? 'Source linked' : null]
+    meta.textContent = [
+      formatDate(round.startsAt),
+      round.boardCount !== undefined ? `${round.boardCount} boards` : null,
+      roundPhaseLabel(phase),
+    ]
       .filter(Boolean)
       .join(' / ');
     copy.append(name);
     const roundZh = zhSubline(secondaryName(round));
     if (roundZh) copy.append(roundZh);
     copy.append(meta);
-    row.append(copy, chevron());
+    row.append(roundIcon(phase), copy, chevron());
     list.append(row);
   }
   section.append(heading, list);
@@ -302,20 +383,86 @@ function renderTour(data: BroadcastTourResponse): HTMLElement {
   return main;
 }
 
+type RoundPhase = 'live' | 'finished' | 'upcoming';
+
+// Live beats finished beats upcoming; a round with no boards yet, or one
+// whose stats are unavailable, reads as upcoming.
+function roundPhase(stats: Partial<BroadcastRoundStats>): RoundPhase {
+  const boards = stats.boardCount ?? 0;
+  if ((stats.liveBoardCount ?? 0) > 0) return 'live';
+  if (boards > 0 && (stats.completeBoardCount ?? 0) === boards) return 'finished';
+  return 'upcoming';
+}
+
+function roundPhaseLabel(phase: RoundPhase): string {
+  if (phase === 'live') return 'Live';
+  if (phase === 'finished') return 'Finished';
+  return 'Upcoming';
+}
+
+// Text markers stand in for lila's icon font: live disc, finished check,
+// upcoming hollow disc. Used by both the tour rows and the round switcher.
+const ROUND_PHASE_MARKS: Record<RoundPhase, string> = {
+  live: '●',
+  finished: '✓',
+  upcoming: '○',
+};
+
+function roundIcon(phase: RoundPhase): HTMLElement {
+  const icon = document.createElement('span');
+  icon.className = `xqb-round-icon xqb-round-icon-${phase}`;
+  icon.setAttribute('aria-hidden', 'true');
+  icon.textContent = ROUND_PHASE_MARKS[phase];
+  return icon;
+}
+
+// Native select styled to match the hero links; hops between sibling rounds
+// without a trip back to the tour page. Idempotent per render: the selected
+// option is derived from the payload, so SSE re-renders keep the current
+// round selected.
+function roundSwitcher(
+  tourSlug: string,
+  rounds: BroadcastRoundWithStats[],
+  currentRoundId: string,
+): HTMLSelectElement | null {
+  if (rounds.length === 0) return null;
+  const select = document.createElement('select');
+  select.className = 'xqb-round-select';
+  select.setAttribute('aria-label', 'Switch round');
+  for (const round of rounds) {
+    const option = document.createElement('option');
+    option.value = round.id;
+    option.textContent = `${ROUND_PHASE_MARKS[roundPhase(round)]} ${primaryName(round)}`;
+    if (round.id === currentRoundId) option.selected = true;
+    select.append(option);
+  }
+  select.addEventListener('change', () => {
+    if (select.value === currentRoundId) return;
+    window.location.assign(
+      `/broadcast/xiangqi/${encodeURIComponent(tourSlug)}/round/${encodeURIComponent(select.value)}`,
+    );
+  });
+  return select;
+}
+
 function renderRound(data: BroadcastRoundResponse): HTMLElement {
   document.title = `${primaryName(data.round)} · ${primaryName(data.tour)} · Mistboard`;
   const main = broadcastShell();
+  const liveCount = data.boards.filter((board) => board.status === 'live').length;
   main.append(
     heroSection({
       eyebrow: primaryName(data.tour),
       title: primaryName(data.round),
       subtitle: secondaryName(data.round),
       href: data.round.sourceUrl ?? data.tour.sourceUrl,
-      meta: [formatDate(data.round.startsAt), `${data.boards.length} boards`].filter(
-        Boolean,
-      ) as string[],
+      meta: [
+        formatDate(data.round.startsAt),
+        `${data.boards.length} boards`,
+        liveCount > 0 ? `${liveCount} live` : null,
+      ].filter(Boolean) as string[],
       backHref: `/broadcast/xiangqi/${encodeURIComponent(data.tour.slug)}`,
       backLabel: 'Tournament',
+      switcher: roundSwitcher(data.tour.slug, data.rounds ?? [], data.round.id),
     }),
   );
 
@@ -325,7 +472,12 @@ function renderRound(data: BroadcastRoundResponse): HTMLElement {
   heading.textContent = 'Boards';
   const grid = document.createElement('div');
   grid.className = 'xqb-board-grid';
-  for (const board of [...data.boards].sort((a, b) => a.boardNumber - b.boardNumber)) {
+  // Live boards lead the grid; within a status band the pairing order holds.
+  const boards = [...data.boards].sort(
+    (a, b) =>
+      Number(a.status !== 'live') - Number(b.status !== 'live') || a.boardNumber - b.boardNumber,
+  );
+  for (const board of boards) {
     grid.append(boardCard(board));
   }
   section.append(heading, grid);
@@ -333,7 +485,10 @@ function renderRound(data: BroadcastRoundResponse): HTMLElement {
   return main;
 }
 
-function renderBoardReplay(data: BroadcastBoardResponse): HTMLElement {
+function renderBoardReplay(
+  data: BroadcastBoardResponse,
+  context: BroadcastRoundResponse | null = null,
+): HTMLElement {
   const main = broadcastShell();
   const frames = data.history.truth.length > 0 ? data.history.truth : [{ ply: 0, view: data.view }];
   const maxPly = frames.length - 1;
@@ -359,6 +514,9 @@ function renderBoardReplay(data: BroadcastBoardResponse): HTMLElement {
       data.board.tourSlug,
     )}/round/${encodeURIComponent(data.board.roundId)}`,
     backLabel: 'Round',
+    switcher: context
+      ? roundSwitcher(data.board.tourSlug, context.rounds ?? [], data.board.roundId)
+      : null,
   });
 
   const layout = document.createElement('section');
@@ -400,6 +558,13 @@ function renderBoardReplay(data: BroadcastBoardResponse): HTMLElement {
   movesPanel.append(moveHeading, moveList, actions);
 
   layout.append(boardPanel, movesPanel);
+  const rail = context ? sideRail(context, data.board.id) : null;
+  if (rail) {
+    // Grid areas place the rail in the left column on wide viewports while it
+    // stays last in DOM order, so narrow layouts stack it below the moves.
+    layout.classList.add('xqb-board-layout-with-rail');
+    layout.append(rail);
+  }
   main.append(hero, layout);
 
   const moveButtons = renderMoveButtons(moveList, data.timeline, setCursor);
@@ -446,6 +611,7 @@ function heroSection(input: {
   href?: string;
   backHref?: string;
   backLabel?: string;
+  switcher?: HTMLElement | null;
 }): HTMLElement {
   const section = document.createElement('section');
   section.className = 'xqb-hero';
@@ -475,6 +641,7 @@ function heroSection(input: {
 
   const actions = document.createElement('div');
   actions.className = 'xqb-hero-actions';
+  if (input.switcher) actions.append(input.switcher);
   if (input.backHref && input.backLabel) {
     const back = document.createElement('a');
     back.className = 'xqb-link';
@@ -494,42 +661,66 @@ function heroSection(input: {
   return section;
 }
 
-function tourRow(entry: BroadcastIndexEntry): HTMLElement {
-  const row = document.createElement('a');
-  row.className = 'xqb-row xqb-tour-row';
-  row.href = `/broadcast/xiangqi/${encodeURIComponent(entry.tour.slug)}`;
+// Index card: featured-board thumbnail + tour identity + counts + freshness.
+// Tours without a featured board (nothing live or complete yet) fall back to
+// the initial position so every card keeps the same silhouette.
+function tourCard(entry: BroadcastIndexEntry): HTMLElement {
+  const live = entry.liveBoardCount > 0;
+  const card = document.createElement('a');
+  card.className = live ? 'xqb-tour-card xqb-tour-card-live' : 'xqb-tour-card';
+  card.href = `/broadcast/xiangqi/${encodeURIComponent(entry.tour.slug)}`;
 
-  const copy = document.createElement('span');
-  copy.className = 'xqb-row-copy';
+  const boardEl = document.createElement('div');
+  boardEl.className = 'xqb-card-board xiangqi-live-board';
+  boardEl.setAttribute('aria-hidden', 'true');
+  const view = entry.featuredBoard?.view ?? buildXiangqiReplayFromMoves([]).views[0]!;
+  boardEl.innerHTML = renderXiangqiBoardSvg(view, 'red');
+
+  const copy = document.createElement('div');
+  copy.className = 'xqb-tour-card-copy';
   const name = document.createElement('strong');
   name.textContent = primaryName(entry.tour);
-  const meta = document.createElement('span');
-  meta.textContent = [
-    entry.tour.location,
-    dateRange(entry.tour.startsAt, entry.tour.endsAt),
-    `${entry.roundCount} rounds`,
-  ]
-    .filter(Boolean)
-    .join(' / ');
   copy.append(name);
   const tourZh = zhSubline(secondaryName(entry.tour));
   if (tourZh) copy.append(tourZh);
-  copy.append(meta);
-
-  const status = document.createElement('span');
-  status.className = 'xqb-status xqb-tour-status';
-  status.textContent = [
+  const place = [entry.tour.location, dateRange(entry.tour.startsAt, entry.tour.endsAt)]
+    .filter(Boolean)
+    .join(' / ');
+  if (place) {
+    const placeLine = document.createElement('span');
+    placeLine.className = 'xqb-tour-card-meta';
+    placeLine.textContent = place;
+    copy.append(placeLine);
+  }
+  const counts = document.createElement('span');
+  counts.className = 'xqb-tour-card-meta';
+  counts.textContent = [
+    `${entry.roundCount} rounds`,
     `${entry.boardCount} boards`,
-    entry.liveBoardCount > 0 ? `${entry.liveBoardCount} live` : null,
-    entry.completeBoardCount > 0 ? `${entry.completeBoardCount} complete` : null,
-    `${entry.totalPlies} plies`,
-    freshnessLabel(entry),
+    live ? `${entry.liveBoardCount} live` : null,
   ]
     .filter(Boolean)
     .join(' / ');
+  copy.append(counts);
 
-  row.append(copy, status, chevron());
-  return row;
+  const foot = document.createElement('div');
+  foot.className = 'xqb-card-foot';
+  if (live) {
+    foot.append(liveBadge());
+  } else {
+    const fresh = formatBroadcastFreshness(entry.updatedAt);
+    if (fresh) foot.textContent = `Updated ${fresh}`;
+  }
+
+  card.append(boardEl, copy, foot);
+  return card;
+}
+
+function liveBadge(): HTMLElement {
+  const badge = document.createElement('span');
+  badge.className = 'xqb-badge-live';
+  badge.textContent = 'Live';
+  return badge;
 }
 
 // A scannable mini-board card: the current position rebuilt from the board's
@@ -545,8 +736,15 @@ function boardCard(board: BroadcastBoardSummary): HTMLElement {
   const number = document.createElement('span');
   number.className = 'xqb-card-number';
   number.textContent = `Board ${board.boardNumber}`;
+  // Live boards get the accent badge; finished boards get a neutral result pill.
+  const badge =
+    board.status === 'live'
+      ? ' xqb-badge-live'
+      : board.status === 'complete'
+        ? ' xqb-badge-result'
+        : '';
   const status = document.createElement('span');
-  status.className = `xqb-status xqb-status-${board.status}`;
+  status.className = `xqb-status xqb-status-${board.status}${badge}`;
   status.textContent = resultLabel(board);
   top.append(number, status);
 
@@ -566,7 +764,8 @@ function boardCard(board: BroadcastBoardSummary): HTMLElement {
 
   const foot = document.createElement('div');
   foot.className = 'xqb-card-foot';
-  foot.textContent = `${plyCount(board)} plies`;
+  const fresh = board.status === 'live' ? 'live' : formatBroadcastFreshness(board.updatedAt);
+  foot.textContent = [`${plyCount(board)} plies`, fresh].filter(Boolean).join(' / ');
 
   card.append(top, boardEl, players, foot);
   return card;
@@ -586,6 +785,63 @@ function cardPlayer(
   const zh = zhSubline(playerNameZh(player), 'xqb-name-zh xqb-name-zh-inline');
   if (zh) row.append(zh);
   return row;
+}
+
+// The relay-games analog: every board in the same round, current pairing
+// highlighted, so users hop between games without going back to the round
+// page. Rebuilt from the mount-time round context on each render, so it is
+// idempotent across SSE re-renders.
+function sideRail(context: BroadcastRoundResponse, currentBoardId: string): HTMLElement | null {
+  const boards = [...context.boards].sort((a, b) => a.boardNumber - b.boardNumber);
+  if (boards.length === 0) return null;
+  const rail = document.createElement('aside');
+  rail.className = 'xqb-side-rail';
+  const heading = document.createElement('h2');
+  heading.textContent = primaryName(context.round);
+  const list = document.createElement('div');
+  list.className = 'xqb-rail-list';
+  let currentRow: HTMLElement | null = null;
+  for (const board of boards) {
+    const current = board.id === currentBoardId;
+    const row = document.createElement('a');
+    row.className = current ? 'xqb-rail-row xqb-rail-row-current' : 'xqb-rail-row';
+    row.href = `/broadcast/xiangqi/board/${encodeURIComponent(board.id)}`;
+    if (current) row.setAttribute('aria-current', 'page');
+
+    const players = document.createElement('span');
+    players.className = 'xqb-rail-players';
+    players.textContent = `${primaryName(board.red)} vs ${primaryName(board.black)}`;
+
+    const marker = document.createElement('span');
+    marker.className = `xqb-rail-marker xqb-status-${board.status}`;
+    marker.textContent = railMarker(board);
+
+    row.append(players, marker);
+    list.append(row);
+    if (current) currentRow = row;
+  }
+  rail.append(heading, list);
+  scheduleRailScroll(list, currentRow);
+  return rail;
+}
+
+function railMarker(board: Pick<BroadcastBoardSummary, 'status' | 'result'>): string {
+  if (board.status === 'live') return 'Live';
+  if (board.result === '1/2-1/2') return '½-½';
+  if (board.result !== '*') return board.result;
+  return '';
+}
+
+// Scroll the rail (not the page) so the current pairing is centered once the
+// rail is attached; render runs before replaceChildren, so defer a frame.
+// Guarded so happy-dom's partial layout support stays harmless.
+function scheduleRailScroll(list: HTMLElement, row: HTMLElement | null): void {
+  if (!row) return;
+  const scroll = () => {
+    list.scrollTop = Math.max(0, row.offsetTop - (list.clientHeight - row.offsetHeight) / 2);
+  };
+  if (typeof window.requestAnimationFrame === 'function') window.requestAnimationFrame(scroll);
+  else scroll();
 }
 
 function playerPanel(
@@ -741,17 +997,28 @@ function statusLabel(status: XiangqiGameStatus): string {
   return `Aborted: ${status.reason}`;
 }
 
-function freshnessLabel(entry: BroadcastIndexEntry): string | null {
-  if (entry.lastSyncLog) {
-    const severity =
-      entry.lastSyncLog.severity === 'error'
-        ? 'Sync error'
-        : entry.lastSyncLog.severity === 'warning'
-          ? 'Sync warning'
-          : 'Synced';
-    return `${severity} ${formatDate(entry.lastSyncLog.createdAt) ?? entry.lastSyncLog.kind}`;
-  }
-  return entry.updatedAt ? `Updated ${formatDate(entry.updatedAt)}` : null;
+// Lightweight relative-time labels for card freshness: 'just now', '3m ago',
+// '2h ago', then a short date ('Jul 8', with the year once it differs).
+// Locale is pinned so the label is deterministic under test. Exported for
+// unit tests.
+export function formatBroadcastFreshness(
+  value: string | null | undefined,
+  now: Date = new Date(),
+): string | null {
+  if (!value) return null;
+  const then = new Date(value);
+  if (Number.isNaN(then.getTime())) return null;
+  const diffMs = Math.max(0, now.getTime() - then.getTime());
+  const minutes = Math.floor(diffMs / 60_000);
+  if (minutes < 1) return 'just now';
+  if (minutes < 60) return `${minutes}m ago`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `${hours}h ago`;
+  return new Intl.DateTimeFormat('en', {
+    month: 'short',
+    day: 'numeric',
+    ...(then.getFullYear() === now.getFullYear() ? {} : { year: 'numeric' }),
+  }).format(then);
 }
 
 function boardVersion(data: BroadcastBoardResponse): string {

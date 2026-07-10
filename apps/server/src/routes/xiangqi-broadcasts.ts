@@ -83,6 +83,13 @@ type ManualPollOptions = {
   timeoutMs: number;
 };
 
+type XiangqiBroadcastRoundStats = {
+  boardCount: number;
+  liveBoardCount: number;
+  completeBoardCount: number;
+  scheduledBoardCount: number;
+};
+
 type SourceHealthState = 'ok' | 'warning' | 'error' | 'unknown' | 'missing_source';
 
 type SourceHealth = {
@@ -129,6 +136,7 @@ export async function xiangqiBroadcastIndexForApi(
           ...rounds.map((round) => round.updatedAt),
           ...boards.map((board) => board.updatedAt),
         ]),
+        featuredBoard: featuredXiangqiBroadcastBoard(boards),
         lastSyncLog: syncLogs[0]
           ? {
               severity: syncLogs[0].severity,
@@ -140,6 +148,57 @@ export async function xiangqiBroadcastIndexForApi(
     }),
   );
   return { tours: entries };
+}
+
+// The index page shows one mini-board thumbnail per tour: the most recently
+// updated live board, else the latest complete one. The final position is
+// replayed server-side so the payload carries a single compact view instead of
+// the board's whole move list.
+function featuredXiangqiBroadcastBoard(boards: persistence.StoredXiangqiBroadcastBoard[]) {
+  const live = boards.filter((board) => board.status === 'live');
+  const pool = live.length > 0 ? live : boards.filter((board) => board.status === 'complete');
+  if (pool.length === 0) return null;
+  const pick = pool.reduce((best, board) =>
+    board.updatedAt.getTime() > best.updatedAt.getTime() ? board : best,
+  );
+  return {
+    id: pick.id,
+    roundId: pick.roundId,
+    boardNumber: pick.boardNumber,
+    red: pick.red,
+    black: pick.black,
+    status: pick.status,
+    result: pick.result,
+    plyCount: pick.plyCount,
+    updatedAt: pick.updatedAt,
+    view: finalXiangqiBoardView(pick),
+  };
+}
+
+// Replay a stored board to its final position. Defensive about moves past a
+// terminal state so one bad row degrades to a stale thumbnail instead of a 500.
+// Legal moves are dead weight on a non-interactive thumbnail, so they are
+// stripped from the shipped view.
+function finalXiangqiBoardView(
+  board: persistence.StoredXiangqiBroadcastBoard,
+): StandardXiangqiPlayerView {
+  let state = createInitialXiangqiState(board.id);
+  for (const move of board.moves) {
+    if (state.status.type !== 'playing') break;
+    state = applyStandardXiangqiMove(state, move);
+  }
+  return { ...getStandardXiangqiPlayerView(state, 'red'), legalMoves: [] };
+}
+
+function roundBoardStats(
+  boards: persistence.StoredXiangqiBroadcastBoard[],
+): XiangqiBroadcastRoundStats {
+  return {
+    boardCount: boards.length,
+    liveBoardCount: boards.filter((board) => board.status === 'live').length,
+    completeBoardCount: boards.filter((board) => board.status === 'complete').length,
+    scheduledBoardCount: boards.filter((board) => board.status === 'scheduled').length,
+  };
 }
 
 export async function xiangqiBroadcastOpsIndexForApi(
@@ -357,7 +416,17 @@ export async function xiangqiBroadcastTourForApi(
     deps.listXiangqiBroadcastRounds(tourSlug),
   ]);
   if (!tour) return null;
-  return { tour, rounds };
+  // Per-round board counts drive the status icons on the tour page rows.
+  const boardsByRound = await Promise.all(
+    rounds.map((round) => deps.listXiangqiBroadcastBoards(round.id)),
+  );
+  return {
+    tour,
+    rounds: rounds.map((round, index) => ({
+      ...round,
+      ...roundBoardStats(boardsByRound[index] ?? []),
+    })),
+  };
 }
 
 export async function xiangqiBroadcastRoundForApi(
@@ -373,7 +442,23 @@ export async function xiangqiBroadcastRoundForApi(
   if (!tour) return null;
   const round = rounds.find((entry) => entry.id === roundId);
   if (!round) return null;
-  return { tour, round, boards };
+  // Sibling rounds with stats power the round switcher on the round and board
+  // pages. The current round reuses the boards already fetched above; the SSE
+  // poller shares this path, so the extra queries scale with round count.
+  const boardsByRound = await Promise.all(
+    rounds.map((entry) =>
+      entry.id === roundId ? Promise.resolve(boards) : deps.listXiangqiBroadcastBoards(entry.id),
+    ),
+  );
+  return {
+    tour,
+    round,
+    boards,
+    rounds: rounds.map((entry, index) => ({
+      ...entry,
+      ...roundBoardStats(boardsByRound[index] ?? []),
+    })),
+  };
 }
 
 export async function xiangqiBroadcastRoundStreamForApi(

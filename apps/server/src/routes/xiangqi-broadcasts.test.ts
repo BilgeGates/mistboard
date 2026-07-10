@@ -571,6 +571,58 @@ test('schedule update validates input and persists the clamped schedule', async 
   assert.deepEqual(noSource, { ok: false, status: 400, error: 'missing_source_url' });
 });
 
+test('broadcast index API features the latest live board, else the latest complete one', async () => {
+  // Fixture has a single complete board: it is the featured pick, shipped as a
+  // final position with no move list and no legal moves.
+  const completeOnly = await xiangqiBroadcastIndexForApi(deps());
+  const featured = completeOnly.tours[0]?.featuredBoard;
+  assert.ok(featured);
+  assert.equal(featured.id, board.id);
+  assert.equal(featured.status, 'complete');
+  assert.equal(Object.hasOwn(featured, 'moves'), false);
+  assert.ok(Object.keys(featured.view.board).length > 0);
+  assert.deepEqual(featured.view.legalMoves, []);
+
+  // A live board beats the complete one regardless of update recency ordering
+  // among complete boards.
+  const liveBoard: StoredXiangqiBroadcastBoard = {
+    ...storedBoard,
+    id: `${board.id}-live`,
+    boardNumber: board.boardNumber + 1,
+    status: 'live',
+    result: '*',
+    moves: storedBoard.moves.slice(0, 4),
+    plyCount: 4,
+    updatedAt: new Date(5_000),
+  };
+  const withLive = await xiangqiBroadcastIndexForApi(
+    deps({
+      listXiangqiBroadcastBoards: async (roundId) =>
+        roundId === board.roundId ? [storedBoard, liveBoard] : [],
+    }),
+  );
+  assert.equal(withLive.tours[0]?.featuredBoard?.id, liveBoard.id);
+  assert.equal(withLive.tours[0]?.featuredBoard?.status, 'live');
+  assert.equal(withLive.tours[0]?.featuredBoard?.plyCount, 4);
+});
+
+test('broadcast index API omits the featured board when nothing is live or complete', async () => {
+  const scheduledBoard: StoredXiangqiBroadcastBoard = {
+    ...storedBoard,
+    status: 'scheduled',
+    result: '*',
+    moves: [],
+    plyCount: 0,
+  };
+  const payload = await xiangqiBroadcastIndexForApi(
+    deps({
+      listXiangqiBroadcastBoards: async (roundId) =>
+        roundId === board.roundId ? [scheduledBoard] : [],
+    }),
+  );
+  assert.equal(payload.tours[0]?.featuredBoard, null);
+});
+
 test('broadcast tour API returns tour detail with rounds', async () => {
   const payload = await xiangqiBroadcastTourForApi(tour.slug, deps());
 
@@ -580,6 +632,16 @@ test('broadcast tour API returns tour detail with rounds', async () => {
   assert.equal(payload.rounds[0]?.id, 'men-r1');
 });
 
+test('broadcast tour API rounds carry board status counts for status icons', async () => {
+  const payload = await xiangqiBroadcastTourForApi(tour.slug, deps());
+
+  assert.ok(payload);
+  assert.equal(payload.rounds[0]?.boardCount, 1);
+  assert.equal(payload.rounds[0]?.completeBoardCount, 1);
+  assert.equal(payload.rounds[0]?.liveBoardCount, 0);
+  assert.equal(payload.rounds[0]?.scheduledBoardCount, 0);
+});
+
 test('broadcast round API returns only boards under the requested round', async () => {
   const payload = await xiangqiBroadcastRoundForApi(tour.slug, 'men-r1', deps());
 
@@ -587,6 +649,16 @@ test('broadcast round API returns only boards under the requested round', async 
   assert.equal(payload.round.id, 'men-r1');
   assert.equal(payload.boards.length, 1);
   assert.equal(payload.boards[0]?.id, board.id);
+});
+
+test('broadcast round API lists sibling rounds with stats for the round switcher', async () => {
+  const payload = await xiangqiBroadcastRoundForApi(tour.slug, 'men-r1', deps());
+
+  assert.ok(payload);
+  assert.equal(payload.rounds.length, 1);
+  assert.equal(payload.rounds[0]?.id, 'men-r1');
+  assert.equal(payload.rounds[0]?.boardCount, 1);
+  assert.equal(payload.rounds[0]?.completeBoardCount, 1);
 });
 
 test('broadcast round stream includes a stable version for reconnect comparisons', async () => {
