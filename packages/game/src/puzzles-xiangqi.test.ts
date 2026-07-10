@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import {
   attemptStandardXiangqiPuzzleLine,
+  getStandardXiangqiLegalMoves,
   standardXiangqiPuzzleById,
   standardXiangqiPuzzleMoveEquals,
   standardXiangqiPuzzleMoveLabel,
@@ -11,6 +12,7 @@ import {
   XIANGQI_SPEC_ID,
   type XiangqiBoard,
   type XiangqiGameState,
+  type XiangqiMove,
   type XiangqiPuzzle,
 } from './index.js';
 
@@ -254,4 +256,137 @@ test('helpers: side to move, move equality, move labels', () => {
     false,
   );
   assert.equal(standardXiangqiPuzzleMoveLabel({ from: 'b1', to: 'b9' }), 'b1-b9');
+});
+
+// ── Mined corpus (real-game puzzles) ─────────────────────────────────────────
+// The miner regenerates puzzles-xiangqi-mined.ts wholesale, so these tests pin
+// the corpus contract the web player and daily rotation rely on: unique
+// prefix-disjoint ids, known theme vocabulary, 3-7 ply lines ending on the
+// solver's move, and a full kernel replay of every solution line.
+
+const MINED_PUZZLES = XIANGQI_PUZZLES.filter((puzzle) => puzzle.id.startsWith('xq-mined-'));
+
+const MINED_THEMES: ReadonlySet<string> = new Set([
+  'checkmate',
+  'matein1',
+  'matein2',
+  'matein3',
+  'winning',
+  'winning-material',
+  'crushing',
+  'endgame',
+  'middlegame',
+]);
+
+function minedSolverMoves(puzzle: XiangqiPuzzle): XiangqiMove[] {
+  return puzzle.solution.filter((_, ply) => ply % 2 === 0);
+}
+
+test('mined corpus: ids unique, themes known, lines 3-7 plies ending on the solver move', () => {
+  // Guard against an accidental truncation of the generated module (the exact
+  // count moves with every re-mine; the floor should not).
+  assert.ok(MINED_PUZZLES.length >= 100, `corpus shrank to ${MINED_PUZZLES.length} puzzles`);
+  const ids = new Set<string>();
+  for (const puzzle of MINED_PUZZLES) {
+    assert.equal(puzzle.variant, XIANGQI_SPEC_ID, puzzle.id);
+    assert.equal(ids.has(puzzle.id), false, `duplicate puzzle id ${puzzle.id}`);
+    ids.add(puzzle.id);
+    assert.ok(
+      puzzle.solution.length >= 3 && puzzle.solution.length <= 7,
+      `${puzzle.id}: solution is ${puzzle.solution.length} plies, expected 3-7`,
+    );
+    assert.equal(
+      puzzle.solution.length % 2,
+      1,
+      `${puzzle.id}: solution must end on the solver's move`,
+    );
+    assert.ok(puzzle.themes.length > 0, `${puzzle.id}: no themes`);
+    assert.equal(
+      new Set(puzzle.themes).size,
+      puzzle.themes.length,
+      `${puzzle.id}: duplicate themes`,
+    );
+    for (const theme of puzzle.themes) {
+      assert.ok(MINED_THEMES.has(theme), `${puzzle.id}: unknown theme ${theme}`);
+    }
+    const solver = standardXiangqiPuzzleSideToMove(puzzle);
+    assert.ok(solver, `${puzzle.id}: initial state is not playable`);
+    if (puzzle.goal.winner) {
+      assert.equal(puzzle.goal.winner, solver, `${puzzle.id}: goal winner is not the solver`);
+    }
+  }
+});
+
+test('mined corpus: every solution line kernel-replays to a completed win', () => {
+  for (const puzzle of MINED_PUZZLES) {
+    const solver = standardXiangqiPuzzleSideToMove(puzzle);
+    const attempt = attemptStandardXiangqiPuzzleLine(puzzle, minedSolverMoves(puzzle));
+    assert.equal(attempt.ok, true, `${puzzle.id}: ${JSON.stringify(attempt)}`);
+    if (!attempt.ok) continue;
+    assert.equal(attempt.complete, true, `${puzzle.id}: full solver line did not complete`);
+    // Auto-played defender replies must be exactly the scripted ones, so the
+    // whole played line reproduces the solution (opponent-reply determinism).
+    assert.deepEqual(attempt.playedMoves, puzzle.solution, `${puzzle.id}: line diverged`);
+    if (puzzle.goal.type === 'checkmate') {
+      assert.equal(attempt.state.status.type, 'finished', `${puzzle.id}: no mate delivered`);
+      if (attempt.state.status.type === 'finished') {
+        assert.equal(attempt.state.status.winner, solver, `${puzzle.id}: wrong winner`);
+        assert.ok(
+          attempt.state.status.reason === 'checkmate' ||
+            attempt.state.status.reason === 'stalemate',
+          `${puzzle.id}: unexpected finish reason ${attempt.state.status.reason}`,
+        );
+      }
+    } else {
+      // A winning-advantage payoff leaves the game in progress by construction.
+      assert.equal(
+        attempt.state.status.type,
+        'playing',
+        `${puzzle.id}: winning-advantage line should not finish the game`,
+      );
+    }
+  }
+});
+
+test('mined corpus: a partial line auto-plays exactly the scripted defender reply', () => {
+  for (const puzzle of MINED_PUZZLES) {
+    const first = puzzle.solution[0] as XiangqiMove;
+    const attempt = attemptStandardXiangqiPuzzleLine(puzzle, [first]);
+    assert.equal(attempt.ok, true, `${puzzle.id}: correct first move rejected`);
+    if (!attempt.ok) continue;
+    // Lines are 3+ plies, so one solver move never completes the puzzle and the
+    // scripted defender reply must have been applied deterministically.
+    assert.equal(attempt.complete, false, `${puzzle.id}: completed after one move`);
+    assert.deepEqual(
+      attempt.playedMoves,
+      puzzle.solution.slice(0, 2),
+      `${puzzle.id}: defender reply diverged from the script`,
+    );
+    assert.equal(attempt.state.status.type, 'playing', puzzle.id);
+    if (attempt.state.status.type === 'playing') {
+      assert.equal(
+        attempt.state.status.turn,
+        standardXiangqiPuzzleSideToMove(puzzle),
+        `${puzzle.id}: turn should be back with the solver`,
+      );
+    }
+  }
+});
+
+test('mined corpus: a legal non-solution first move is rejected without advancing (sample)', () => {
+  let exercised = 0;
+  for (const puzzle of MINED_PUZZLES.slice(0, 24)) {
+    const legal = getStandardXiangqiLegalMoves(puzzle.initial);
+    const solutionFirst = puzzle.solution[0] as XiangqiMove;
+    const wrong = legal.find((move) => !standardXiangqiPuzzleMoveEquals(move, solutionFirst));
+    if (!wrong) continue; // only-move positions have no legal alternative
+    exercised += 1;
+    const attempt = attemptStandardXiangqiPuzzleLine(puzzle, [wrong]);
+    assert.equal(attempt.ok, false, `${puzzle.id}: wrong move accepted`);
+    if (attempt.ok) continue;
+    assert.equal(attempt.code, 'incorrect-move', puzzle.id);
+    assert.equal(attempt.ply, 0, puzzle.id);
+    assert.deepEqual(attempt.state.status, puzzle.initial.status, puzzle.id);
+  }
+  assert.ok(exercised >= 10, `only ${exercised} sample puzzles had a legal alternative`);
 });

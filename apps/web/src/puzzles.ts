@@ -3,6 +3,7 @@ import {
   applyFortressXiangqiMove,
   applyJungleMove,
   applyMiniXiangqiOpenMove,
+  applyStandardXiangqiMove,
   DROP_MINI_XIANGQI_DROP_ROLES,
   DROP_MINI_XIANGQI_SPEC_ID,
   type DropMiniXiangqiDropRole,
@@ -20,6 +21,7 @@ import {
   getFortressXiangqiPlayerView,
   getJunglePlayerView,
   getMiniXiangqiOpenPlayerView,
+  getStandardXiangqiPlayerView,
   JUNGLE_SPEC_ID,
   type JungleColor,
   type JungleGameState,
@@ -32,8 +34,15 @@ import {
   type MiniXiangqiMove,
   type MiniXiangqiSquare,
   oppositeMiniXiangqiColor,
+  type StandardXiangqiPlayerView,
+  XIANGQI_SPEC_ID,
+  type XiangqiColor,
+  type XiangqiGameState,
+  type XiangqiMove,
+  type XiangqiSquare,
 } from '@mistboard/game';
 import './drop-mini-xiangqi.css';
+import './live-xiangqi.css';
 import './puzzles.css';
 import {
   dropMiniXiangqiBoardMoves,
@@ -68,15 +77,27 @@ import { renderVariantMarker } from './variant-markers.js';
 import type { VariantMiniId } from './variant-mini-boards.js';
 import { installBoardDrag } from './variant-tenant/board-drag.js';
 import { installHandDrag } from './variant-tenant/hand-drag.js';
+import {
+  XIANGQI_PIECE_SIZE,
+  xiangqiBoardSvg,
+  xiangqiClickResult,
+  xiangqiPieceGhostSvg,
+} from './xiangqi-board.js';
 
 type PuzzleVariant =
   | typeof MINI_XIANGQI_SPEC_ID
   | typeof DROP_MINI_XIANGQI_SPEC_ID
   | typeof FORTRESS_XIANGQI_SPEC_ID
-  | typeof JUNGLE_SPEC_ID;
+  | typeof JUNGLE_SPEC_ID
+  | typeof XIANGQI_SPEC_ID;
 type PuzzleVariantFilter = PuzzleVariant;
-type PuzzleMove = MiniXiangqiMove | DropMiniXiangqiMove | FortressXiangqiMove | JungleMove;
-type PuzzleColor = MiniXiangqiColor | FortressXiangqiColor | JungleColor;
+type PuzzleMove =
+  | MiniXiangqiMove
+  | DropMiniXiangqiMove
+  | FortressXiangqiMove
+  | JungleMove
+  | XiangqiMove;
+type PuzzleColor = MiniXiangqiColor | FortressXiangqiColor | JungleColor | XiangqiColor;
 
 type PuzzleSummary = {
   id: string;
@@ -111,12 +132,23 @@ type JunglePuzzleDetail = PuzzleSummary & {
   initial: JungleGameState;
 };
 
-type PuzzleDetail = MiniPuzzleDetail | DropPuzzleDetail | FortressPuzzleDetail | JunglePuzzleDetail;
+type XiangqiPuzzleDetail = PuzzleSummary & {
+  variant: typeof XIANGQI_SPEC_ID;
+  initial: XiangqiGameState;
+};
+
+type PuzzleDetail =
+  | MiniPuzzleDetail
+  | DropPuzzleDetail
+  | FortressPuzzleDetail
+  | JunglePuzzleDetail
+  | XiangqiPuzzleDetail;
 type PuzzleState =
   | MiniXiangqiGameState
   | DropMiniXiangqiGameState
   | FortressXiangqiGameState
-  | JungleGameState;
+  | JungleGameState
+  | XiangqiGameState;
 
 type PuzzleAttempt =
   | {
@@ -144,9 +176,9 @@ type PuzzleSession = {
   playedMoves: PuzzleMove[];
   solverMoves: PuzzleMove[];
   viewPly: number;
-  selectedSquare: MiniXiangqiSquare | FortressXiangqiSquare | JungleSquare | null;
+  selectedSquare: MiniXiangqiSquare | FortressXiangqiSquare | JungleSquare | XiangqiSquare | null;
   selectedDrop: DropMiniXiangqiDropRole | FortressXiangqiDropRole | null;
-  draggingFrom: MiniXiangqiSquare | FortressXiangqiSquare | JungleSquare | null;
+  draggingFrom: MiniXiangqiSquare | FortressXiangqiSquare | JungleSquare | XiangqiSquare | null;
   feedback: { kind: FeedbackKind; text: string };
   submitting: boolean;
   // True once the server confirmed the full solution line (attempt.complete).
@@ -200,11 +232,13 @@ type PuzzleAttemptRating = {
 let puzzleRatedPref = true;
 let onAttemptRating: ((rating: PuzzleAttemptRating) => void) | null = null;
 // Variants surfaced in the Settings variant picker (order = display order; the
-// first is the default view). Fortress Xiangqi is the flagship; Jungle is offered
-// alongside it. Mini / Drop Mini stay in the corpus + API (deep links still resolve
-// server-side) but are hidden from the selector. Add a spec id here to unhide it.
+// first is the default view). Fortress Xiangqi leads; standard Xiangqi (the
+// mined real-game corpus) and Jungle are offered alongside it. Mini / Drop Mini
+// stay in the corpus + API (deep links still resolve server-side) but are
+// hidden from the selector. Add a spec id here to unhide it.
 const PUZZLE_VARIANT_FILTERS: readonly PuzzleVariantFilter[] = [
   FORTRESS_XIANGQI_SPEC_ID,
+  XIANGQI_SPEC_ID,
   JUNGLE_SPEC_ID,
 ];
 
@@ -716,7 +750,8 @@ function renderPuzzleDetail(
 }
 
 // Paint the interactive board (+ reserves for drop variants) and wire drag.
-// Fortress Xiangqi renders on its own 7x8 corner-palace board; Mini/Drop Mini
+// Fortress Xiangqi renders on its own 7x8 corner-palace board; standard Xiangqi
+// on the shared 9x10 intersection board (xiangqi-board.ts); Mini/Drop Mini
 // share the 7x7 mini renderer (Drop Mini via a mini-shaped board view).
 function paintPuzzleBoard(
   board: HTMLElement,
@@ -740,6 +775,16 @@ function paintPuzzleBoard(
       board,
       session,
       displayState as JungleGameState,
+      renderSession,
+      onSolved,
+    );
+    return;
+  }
+  if (session.puzzle.variant === XIANGQI_SPEC_ID) {
+    paintXiangqiPuzzleBoard(
+      board,
+      session,
+      displayState as XiangqiGameState,
       renderSession,
       onSolved,
     );
@@ -982,6 +1027,151 @@ async function handleJungleBoardDrop(
   }
   const move = jungleMovesFrom(jungleLiveView(session), from).find(
     (candidate) => candidate.to === to,
+  );
+  if (move) {
+    await submitMove(session, move, renderSession, onSolved);
+    return;
+  }
+  session.selectedSquare = null;
+  session.selectedDrop = null;
+  session.feedback = { kind: 'neutral', text: 'Find the best move.' };
+  renderSession();
+}
+
+// ── Standard Xiangqi ─────────────────────────────────────────────────────────
+// Renders on the canonical 9x10 intersection board (xiangqi-board.ts, shared
+// with the live room / replay / analysis). No reserves, so it paints straight
+// onto the board host like Jungle; selection state lives on the shared session
+// and the pure xiangqiClickResult decides click-to-move.
+
+function paintXiangqiPuzzleBoard(
+  board: HTMLElement,
+  session: PuzzleSession,
+  state: XiangqiGameState,
+  renderSession: () => void,
+  onSolved: (id: string) => void,
+): void {
+  const perspective = xiangqiPerspective(session);
+  const view = getStandardXiangqiPlayerView(state, perspective);
+  const host = document.createElement('div');
+  // xiangqi-live-board carries the canonical 552:612 aspect + corner clipping;
+  // puzzle-xiangqi-board binds its footprint to the puzzle height budget.
+  host.className = 'xiangqi-live-board puzzle-xiangqi-board';
+  host.innerHTML = xiangqiBoardSvg(view, perspective, {
+    interactive: true,
+    // The click layer derives target hints from the view + selection, so drop
+    // the selection while scrubbing history instead of painting stale targets.
+    selectedSquare: isReplayLive(session) ? (session.selectedSquare as XiangqiSquare | null) : null,
+    draggingFrom: session.draggingFrom as XiangqiSquare | null,
+  });
+  board.append(host);
+  installBoardDrag({
+    board: host,
+    ghostSizePx: XIANGQI_PIECE_SIZE,
+    onSquareClick: (square) => {
+      if (!isReplayLive(session)) return;
+      void handleXiangqiBoardClick(session, square as XiangqiSquare, renderSession, onSolved);
+    },
+    canDragFrom: (square) => canDragXiangqiPiece(session, square as XiangqiSquare),
+    ghostHtml: (square) => {
+      const piece = view.board[square as XiangqiSquare];
+      return piece ? xiangqiPieceGhostSvg(piece) : null;
+    },
+    onDragStart: (from) => {
+      session.selectedSquare = from as XiangqiSquare;
+      session.selectedDrop = null;
+      session.draggingFrom = from as XiangqiSquare;
+      renderSession();
+    },
+    onDrop: (from, to) => {
+      void handleXiangqiBoardDrop(
+        session,
+        from as XiangqiSquare,
+        (to as XiangqiSquare | null) ?? null,
+        renderSession,
+        onSolved,
+      );
+    },
+  });
+}
+
+function xiangqiPerspective(session: PuzzleSession): XiangqiColor {
+  return (session.puzzle.sideToMove as XiangqiColor | null) ?? 'red';
+}
+
+function xiangqiLiveView(session: PuzzleSession): StandardXiangqiPlayerView {
+  return getStandardXiangqiPlayerView(
+    session.state as XiangqiGameState,
+    xiangqiPerspective(session),
+  );
+}
+
+function canDragXiangqiPiece(session: PuzzleSession, square: XiangqiSquare): boolean {
+  if (session.submitting || session.state.status.type !== 'playing' || !isReplayLive(session)) {
+    return false;
+  }
+  const view = xiangqiLiveView(session);
+  const piece = view.board[square];
+  return (
+    !!piece &&
+    piece.color === (activeTurn(session) as XiangqiColor) &&
+    view.legalMoves.some((move) => move.from === square)
+  );
+}
+
+async function handleXiangqiBoardClick(
+  session: PuzzleSession,
+  square: XiangqiSquare,
+  renderSession: () => void,
+  onSolved: (id: string) => void,
+): Promise<void> {
+  if (session.submitting || session.state.status.type !== 'playing' || !isReplayLive(session)) {
+    return;
+  }
+  const view = xiangqiLiveView(session);
+  const result = xiangqiClickResult(
+    view,
+    activeTurn(session),
+    session.selectedSquare as XiangqiSquare | null,
+    square,
+  );
+  if (result.kind === 'move') {
+    await submitMove(session, result.move, renderSession, onSolved);
+    return;
+  }
+  if (result.kind === 'select') {
+    session.selectedSquare = result.square;
+    session.selectedDrop = null;
+    session.feedback = { kind: 'neutral', text: `${result.square} selected.` };
+  } else if (result.kind === 'clear') {
+    session.selectedSquare = null;
+    session.selectedDrop = null;
+    session.feedback = { kind: 'neutral', text: 'Find the best move.' };
+  }
+  renderSession();
+}
+
+async function handleXiangqiBoardDrop(
+  session: PuzzleSession,
+  from: XiangqiSquare,
+  to: XiangqiSquare | null,
+  renderSession: () => void,
+  onSolved: (id: string) => void,
+): Promise<void> {
+  session.draggingFrom = null;
+  if (
+    session.submitting ||
+    session.state.status.type !== 'playing' ||
+    !to ||
+    !isReplayLive(session)
+  ) {
+    session.selectedSquare = null;
+    session.selectedDrop = null;
+    renderSession();
+    return;
+  }
+  const move = xiangqiLiveView(session).legalMoves.find(
+    (candidate) => candidate.from === from && candidate.to === to,
   );
   if (move) {
     await submitMove(session, move, renderSession, onSolved);
@@ -1783,7 +1973,8 @@ function parseVariantFilter(value: string): PuzzleVariantFilter {
     value === MINI_XIANGQI_SPEC_ID ||
     value === DROP_MINI_XIANGQI_SPEC_ID ||
     value === FORTRESS_XIANGQI_SPEC_ID ||
-    value === JUNGLE_SPEC_ID
+    value === JUNGLE_SPEC_ID ||
+    value === XIANGQI_SPEC_ID
   ) {
     return value;
   }
@@ -1862,6 +2053,9 @@ function applyPuzzleMove(
   }
   if (variant === JUNGLE_SPEC_ID) {
     return applyJungleMove(state as JungleGameState, move as JungleMove);
+  }
+  if (variant === XIANGQI_SPEC_ID) {
+    return applyStandardXiangqiMove(state as XiangqiGameState, move as XiangqiMove);
   }
   if (variant === DROP_MINI_XIANGQI_SPEC_ID) {
     return applyDropMiniXiangqiMove(state as DropMiniXiangqiGameState, move as DropMiniXiangqiMove);
@@ -1993,6 +2187,7 @@ function saveAutoNextEnabled(enabled: boolean): void {
 function variantLabel(variant: PuzzleVariant): string {
   if (variant === FORTRESS_XIANGQI_SPEC_ID) return 'Fortress';
   if (variant === JUNGLE_SPEC_ID) return 'Jungle';
+  if (variant === XIANGQI_SPEC_ID) return 'Xiangqi';
   return variant === DROP_MINI_XIANGQI_SPEC_ID ? 'Drop Mini Xiangqi' : 'Mini Xiangqi';
 }
 
@@ -2108,6 +2303,7 @@ function targetAvatarSvg(): string {
 function variantMiniIdForPuzzle(variant: PuzzleVariant): VariantMiniId {
   if (variant === FORTRESS_XIANGQI_SPEC_ID) return 'fortress-xiangqi';
   if (variant === JUNGLE_SPEC_ID) return 'jungle';
+  if (variant === XIANGQI_SPEC_ID) return 'xiangqi';
   return variant === DROP_MINI_XIANGQI_SPEC_ID ? 'drop-mini-xiangqi' : 'mini-xiangqi';
 }
 
@@ -2135,6 +2331,9 @@ function puzzleGeneralIconSvg(puzzle: PuzzleDetail): string {
   if (puzzle.variant === JUNGLE_SPEC_ID) {
     // Jungle has no general; the elephant (top rank) stands in as the side icon.
     return junglePieceGhostSvg({ color: color as JungleColor, role: 'elephant' });
+  }
+  if (puzzle.variant === XIANGQI_SPEC_ID) {
+    return xiangqiPieceGhostSvg({ color, role: 'general' });
   }
   return miniXiangqiPieceGhostSvg({ color, role: 'general' });
 }

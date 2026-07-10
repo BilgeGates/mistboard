@@ -1,14 +1,20 @@
 import {
   attemptMiniXiangqiPuzzleLine,
+  attemptStandardXiangqiPuzzleLine,
   DROP_MINI_XIANGQI_SPEC_ID,
+  getStandardXiangqiLegalMoves,
   MINI_XIANGQI_PUZZLES,
   type MiniXiangqiPuzzle,
+  standardXiangqiPuzzleMoveEquals,
+  XIANGQI_PUZZLES,
+  type XiangqiMove,
+  type XiangqiPuzzle,
 } from '@mistboard/game';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { mountPuzzles } from './puzzles.js';
 import { xiangqiAppearanceChangedEvent } from './theme.js';
 
-function publicSummary(puzzle: MiniXiangqiPuzzle) {
+function publicSummary(puzzle: MiniXiangqiPuzzle | XiangqiPuzzle) {
   return {
     id: puzzle.id,
     variant: puzzle.variant,
@@ -20,7 +26,7 @@ function publicSummary(puzzle: MiniXiangqiPuzzle) {
   };
 }
 
-function publicDetail(puzzle: MiniXiangqiPuzzle) {
+function publicDetail(puzzle: MiniXiangqiPuzzle | XiangqiPuzzle) {
   return {
     ...publicSummary(puzzle),
     initial: puzzle.initial,
@@ -63,7 +69,7 @@ describe('puzzles route', () => {
 
     expect(root.querySelector('.site-section-heading')?.textContent).toBe('Puzzles');
     expect(root.querySelectorAll('.puzzle-list-item')).toHaveLength(0);
-    // The variant picker now surfaces Fortress + Jungle, so it is shown. A direct
+    // The variant picker surfaces Fortress + Xiangqi + Jungle, so it is shown. A direct
     // deep link into a Drop Mini puzzle (not in the picker) still resolves + renders.
     expect(root.querySelector('[data-puzzle-variant]')).not.toBeNull();
     expect(root.querySelector('.puzzles-sidebar')?.textContent).toContain('0 solved of 1');
@@ -632,6 +638,176 @@ describe('puzzles route', () => {
       `/api/puzzles/${drop.id}/attempt`,
       expect.objectContaining({ method: 'POST' }),
     );
+  });
+});
+
+// ── Standard xiangqi (mined real-game corpus) ────────────────────────────────
+// Drives the player state machine with real puzzles from the 142-strong mined
+// registry: the mocked server answers attempts through the real kernel
+// (attemptStandardXiangqiPuzzleLine), exactly like apps/server does.
+
+describe('standard xiangqi puzzles', () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+    vi.unstubAllGlobals();
+    vi.useRealTimers();
+    document.body.innerHTML = '';
+    stubWindowLocalStorage(memoryStorage());
+    window.history.replaceState(null, '', '/');
+  });
+
+  const minedByPlyCount = (plies: number): XiangqiPuzzle =>
+    XIANGQI_PUZZLES.find((puzzle) => puzzle.solution.length === plies)!;
+
+  const solverMovesOf = (puzzle: XiangqiPuzzle): XiangqiMove[] =>
+    puzzle.solution.filter((_, ply) => ply % 2 === 0);
+
+  const moveLabel = (move: XiangqiMove): string => `${move.from}-${move.to}`;
+
+  function xiangqiFetchMock(puzzles: readonly XiangqiPuzzle[]) {
+    return vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input);
+      if (url === '/api/puzzles') return json({ puzzles: puzzles.map(publicSummary) });
+      for (const puzzle of puzzles) {
+        if (url === `/api/puzzles/${puzzle.id}`) return json({ puzzle: publicDetail(puzzle) });
+        if (url === `/api/puzzles/${puzzle.id}/attempt`) {
+          expect(init?.method).toBe('POST');
+          const body = JSON.parse(String(init?.body)) as { moves: XiangqiMove[] };
+          return json({ attempt: attemptStandardXiangqiPuzzleLine(puzzle, body.moves) });
+        }
+      }
+      return json({ error: 'not_found' }, 404);
+    });
+  }
+
+  function clickMove(root: HTMLElement, move: XiangqiMove): void {
+    root
+      .querySelector<SVGGElement>(`[data-square="${move.from}"]`)
+      ?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    root
+      .querySelector<SVGGElement>(`[data-square="${move.to}"]`)
+      ?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+  }
+
+  it('renders a mined puzzle on the canonical 9x10 board and offers the variant', async () => {
+    const puzzle = minedByPlyCount(3);
+    vi.stubGlobal('fetch', xiangqiFetchMock([puzzle]));
+    const root = document.createElement('div');
+
+    await mountPuzzles(root, puzzle.id);
+
+    expect(root.querySelector('.puzzle-xiangqi-board')).not.toBeNull();
+    expect(root.querySelector('.xq-live-svg')).not.toBeNull();
+    // No reserves on the open-information board.
+    expect(root.querySelector('.puzzle-board-shell')).toBeNull();
+    // The variant is surfaced in the settings picker and selected by the deep link.
+    const select = root.querySelector<HTMLSelectElement>('[data-puzzle-variant]');
+    expect(select?.querySelector('option[value="xiangqi"]')).not.toBeNull();
+    expect(select?.value).toBe('xiangqi');
+    expect(root.querySelector('.puzzles-sidebar')?.textContent).toContain('From set Xiangqi');
+    // Every intersection carries a click target for the shared drag helper.
+    expect(root.querySelectorAll('[data-square]').length).toBe(90);
+  });
+
+  it('solves a mined puzzle, auto-playing the scripted opponent reply', async () => {
+    const puzzle = minedByPlyCount(3);
+    const solver = solverMovesOf(puzzle);
+    const fetchSpy = xiangqiFetchMock([puzzle]);
+    vi.stubGlobal('fetch', fetchSpy);
+    const root = document.createElement('div');
+    document.body.append(root);
+
+    await mountPuzzles(root, puzzle.id);
+    clickMove(root, solver[0]!);
+
+    await vi.waitFor(() => expect(root.textContent).toContain('Correct.'));
+    // The defender's scripted reply auto-played and both moves hit the move list.
+    expect(root.textContent).toContain(moveLabel(puzzle.solution[0]!));
+    expect(root.textContent).toContain(moveLabel(puzzle.solution[1]!));
+    // Last-move highlight (gold ring) from the canonical board module.
+    expect(root.querySelector('.xq-live-lastmove-ring')).not.toBeNull();
+
+    clickMove(root, solver[1]!);
+
+    await vi.waitFor(() => expect(root.textContent).toContain('Success!'));
+    expect(root.textContent).toContain(moveLabel(puzzle.solution[2]!));
+    expect(fetchSpy).toHaveBeenCalledWith(
+      `/api/puzzles/${puzzle.id}/attempt`,
+      expect.objectContaining({ method: 'POST' }),
+    );
+  });
+
+  it('rejects a legal non-solution move and lets the solver retry in place', async () => {
+    const puzzle = minedByPlyCount(5);
+    const solver = solverMovesOf(puzzle);
+    const wrong = getStandardXiangqiLegalMoves(puzzle.initial).find(
+      (move) => !standardXiangqiPuzzleMoveEquals(move, puzzle.solution[0]!),
+    )!;
+    vi.stubGlobal('fetch', xiangqiFetchMock([puzzle]));
+    const root = document.createElement('div');
+
+    await mountPuzzles(root, puzzle.id);
+    clickMove(root, wrong);
+
+    await vi.waitFor(() => expect(root.textContent).toContain('Try again'));
+    // The board did not advance: the correct first move still works immediately.
+    clickMove(root, solver[0]!);
+
+    await vi.waitFor(() => expect(root.textContent).toContain('Correct.'));
+    expect(root.textContent).toContain(moveLabel(puzzle.solution[1]!));
+  });
+
+  it('advances to the next mined puzzle after a solve', async () => {
+    const threes = XIANGQI_PUZZLES.filter((puzzle) => puzzle.solution.length === 3);
+    const [first, second] = [threes[0]!, threes[1]!];
+    // Pin the rotated queue order: the seen puzzle sorts after the unseen one.
+    stubWindowLocalStorage(
+      memoryStorage({ 'mistboard:puzzles:seen': JSON.stringify({ [second.id]: 1 }) }),
+    );
+    const fetchSpy = xiangqiFetchMock([first, second]);
+    vi.stubGlobal('fetch', fetchSpy);
+    const root = document.createElement('div');
+    document.body.append(root);
+
+    await mountPuzzles(root, first.id);
+    for (const move of solverMovesOf(first)) {
+      clickMove(root, move);
+      // The move label only appears once the attempt response is applied, so
+      // this waits out the async submit before the next click.
+      await vi.waitFor(() => expect(root.textContent).toContain(moveLabel(move)));
+    }
+    await vi.waitFor(() => expect(root.textContent).toContain('Success!'));
+
+    const nextButton = root.querySelector<HTMLButtonElement>('[data-puzzle-next]');
+    expect(nextButton?.disabled).toBe(false);
+    nextButton?.click();
+
+    await vi.waitFor(() => expect(window.location.pathname).toBe(`/puzzles/${second.id}`));
+    expect(fetchSpy).toHaveBeenCalledWith(`/api/puzzles/${second.id}`);
+  });
+
+  it('plays complete lines across a handful of the mined corpus', async () => {
+    // One puzzle per mined line length (3/5/7 plies), each driven through the
+    // full click flow against the real kernel.
+    for (const plies of [3, 5, 7]) {
+      const puzzle = minedByPlyCount(plies);
+      vi.stubGlobal('fetch', xiangqiFetchMock([puzzle]));
+      const root = document.createElement('div');
+      document.body.append(root);
+
+      await mountPuzzles(root, puzzle.id);
+      for (const move of solverMovesOf(puzzle)) {
+        clickMove(root, move);
+        // Wait for the attempt response (the move label lands with it) before
+        // the next click; a pending submit would swallow it.
+        await vi.waitFor(() => expect(root.textContent).toContain(moveLabel(move)));
+      }
+      await vi.waitFor(() => expect(root.textContent).toContain('Success!'));
+
+      root.remove();
+      vi.unstubAllGlobals();
+      window.history.replaceState(null, '', '/');
+    }
   });
 });
 

@@ -9,11 +9,15 @@ import {
   getDropMiniXiangqiPlayerView,
   getFortressXiangqiPlayerView,
   getMiniXiangqiOpenPlayerView,
+  getStandardXiangqiPlayerView,
   MINI_XIANGQI_SPEC_ID,
   type MiniXiangqiColor,
   type MiniXiangqiGameState,
+  XIANGQI_SPEC_ID,
+  type XiangqiGameState,
 } from '@mistboard/game';
 import './drop-mini-xiangqi.css';
+import './live-xiangqi.css';
 import { dropMiniXiangqiBoardView, fillDropMiniXiangqiReserve } from './drop-mini-xiangqi-view.js';
 import {
   installFortressXiangqiBoardStyles,
@@ -25,8 +29,19 @@ import {
   renderMiniXiangqiBoardSvg,
 } from './live-mini-xiangqi-render.js';
 import { xiangqiAppearanceChangedEvent } from './theme.js';
+import { renderXiangqiBoardSvg } from './xiangqi-board.js';
 
 const HOME_PUZZLE_PIECE_SIZE = 64;
+
+// Daily variants this widget knows how to paint. The payload gate (fail-closed)
+// treats any other variant as a miss: no widget beats the wrong board. Extend
+// this list together with renderHomePuzzleBox when the daily rotation grows.
+const HOME_PUZZLE_VARIANTS: readonly string[] = [
+  MINI_XIANGQI_SPEC_ID,
+  DROP_MINI_XIANGQI_SPEC_ID,
+  FORTRESS_XIANGQI_SPEC_ID,
+  XIANGQI_SPEC_ID,
+];
 
 type HomeDailyPuzzle = {
   daily: {
@@ -41,7 +56,11 @@ type HomeDailyPuzzle = {
       | { type: 'checkmate'; winner?: MiniXiangqiColor }
       | { type: 'winning-advantage'; winner?: MiniXiangqiColor; centipawns?: number };
     id: string;
-    initial: MiniXiangqiGameState | DropMiniXiangqiGameState | FortressXiangqiGameState;
+    initial:
+      | MiniXiangqiGameState
+      | DropMiniXiangqiGameState
+      | FortressXiangqiGameState
+      | XiangqiGameState;
     sideToMove: MiniXiangqiColor | null;
     solutionPlyCount: number;
     themes: string[];
@@ -150,16 +169,34 @@ function renderHomePuzzleBox(puzzle: HomeDailyPuzzle['puzzle']): HTMLElement {
     return box;
   }
 
-  box.append(
-    homePuzzleBoardSurface(
-      renderMiniXiangqiBoardSvg(
-        getMiniXiangqiOpenPlayerView(puzzle.initial as MiniXiangqiGameState, turn),
-        turn,
-        { interactive: false, pieceSize: HOME_PUZZLE_PIECE_SIZE, showFog: false },
+  if (puzzle.variant === XIANGQI_SPEC_ID) {
+    // The standard 9x10 board renders from the solver's perspective; no reserve.
+    box.append(
+      homePuzzleBoardSurface(
+        renderXiangqiBoardSvg(
+          getStandardXiangqiPlayerView(puzzle.initial as XiangqiGameState, turn),
+        ),
       ),
-    ),
-  );
-  return box;
+    );
+    return box;
+  }
+
+  if (puzzle.variant === MINI_XIANGQI_SPEC_ID) {
+    box.append(
+      homePuzzleBoardSurface(
+        renderMiniXiangqiBoardSvg(
+          getMiniXiangqiOpenPlayerView(puzzle.initial as MiniXiangqiGameState, turn),
+          turn,
+          { interactive: false, pieceSize: HOME_PUZZLE_PIECE_SIZE, showFog: false },
+        ),
+      ),
+    );
+    return box;
+  }
+
+  // Fail-closed: isHomeDailyPuzzle already filters unknown variants, so this is
+  // unreachable from the fetch/cache paths. Never fall back to another board.
+  throw new Error(`Unsupported daily puzzle variant: ${puzzle.variant}`);
 }
 
 // Both hands stacked in one column on the outer edge (opponent above, side-to-play
@@ -215,6 +252,10 @@ function isHomeDailyPuzzle(value: Partial<HomeDailyPuzzle>): value is HomeDailyP
     typeof value.puzzle?.id === 'string' &&
     typeof value.puzzle.title === 'string' &&
     typeof value.puzzle.variant === 'string' &&
+    // Fail-closed variant gate: a daily for a variant this widget cannot paint
+    // (a future rotation addition) reads as a miss, so the homepage simply
+    // omits the widget instead of rendering the position on the wrong board.
+    HOME_PUZZLE_VARIANTS.includes(value.puzzle.variant) &&
     typeof value.puzzle.solutionPlyCount === 'number' &&
     typeof value.puzzle.initial === 'object' &&
     value.puzzle.initial !== null
@@ -225,6 +266,7 @@ function variantLabel(variant: string): string {
   if (variant === FORTRESS_XIANGQI_SPEC_ID) return 'Fortress';
   if (variant === DROP_MINI_XIANGQI_SPEC_ID) return 'Drop Mini Xiangqi';
   if (variant === MINI_XIANGQI_SPEC_ID) return 'Mini Xiangqi';
+  if (variant === XIANGQI_SPEC_ID) return 'Xiangqi';
   return variant
     .split('-')
     .filter(Boolean)
