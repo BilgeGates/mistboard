@@ -84,7 +84,8 @@ function parseResult(rawResult: string): HistoricalXiangqiResult {
 function parsePlayedOn(rawDate: string): string | null {
   if (!rawDate) return null;
   const normalized = rawDate.replace(/[./]/g, '-');
-  const match = /^(\d{4})-(\d{1,2})-(\d{1,2})$/.exec(normalized);
+  // dpxq date tags often carry a time ("2026-04-01 09:00"); keep the date part.
+  const match = /^(\d{4})-(\d{1,2})-(\d{1,2})(?:[ T].*)?$/.exec(normalized);
   if (!match) return null;
   const y = match[1]!;
   const m = match[2]!.padStart(2, '0');
