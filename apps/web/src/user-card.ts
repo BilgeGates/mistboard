@@ -17,6 +17,7 @@ import { openChallengeDialog } from './challenge-dialog.js';
 import { correspondenceEnabled } from './feature-flags.js';
 import { t } from './i18n/catalog.js';
 import { currentLocale, LOCALE_META, type Locale } from './i18n/locale.js';
+import { buildTitleBadge } from './player-titles.js';
 import { renderVariantMarker } from './variant-markers.js';
 import { ratingVariantLabel, variantMiniIdForRating } from './variants.js';
 
@@ -39,6 +40,9 @@ export type UserCardProfile = {
     handle: string;
     displayName: string;
     accountRole: 'player' | 'admin';
+    // Verified title key ('xgm', 'gm', ...); absent/null = untitled. Unknown
+    // values render no badge (fail-closed in player-titles.ts).
+    title?: string | null;
     createdAt: string;
   };
   ratings: ProfileBucketRating[];
@@ -90,6 +94,11 @@ function buildHeader(
     dot.setAttribute('aria-hidden', 'true');
     header.append(dot);
   }
+
+  // Verified title flair: gold abbreviation ahead of the name, full name in
+  // the tooltip (same treatment as the profile header h1).
+  const titleBadge = buildTitleBadge(profile.user.title, locale);
+  if (titleBadge) header.append(titleBadge);
 
   const name = document.createElement('a');
   name.className = 'user-card-name';

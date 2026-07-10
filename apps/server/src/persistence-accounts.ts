@@ -3,6 +3,7 @@ import { getPool, withTransaction } from './persistence-db.js';
 import type { GameMode, GameTermination, GameVisibility } from './persistence-game-lifecycle.js';
 import type { GameParticipantColor, GameResult, ProfileGameRecord } from './persistence-games.js';
 import { attachGameParticipants } from './persistence-games.js';
+import type { PlayerTitle } from './persistence-titles.js';
 import {
   bucketForGame,
   PUBLIC_RATING_TIME_CLASS,
@@ -46,6 +47,10 @@ export type UserAccount = {
   displayNameChangedAt: Date | null;
   profileVisibility: ProfileVisibility;
   accountRole: AccountRole;
+  // Verified player title (088), granted only through the title-verification
+  // pipeline (routes/titles.ts). NULL = untitled. Closed vocabulary; see
+  // persistence-titles.ts.
+  title: PlayerTitle | null;
   locale: AccountLocale | null;
   dmPolicy: DmPolicy;
   eloRating: number;
@@ -100,6 +105,9 @@ export type PublicProfileUser = {
   displayName: string;
   profileVisibility: UserAccount['profileVisibility'];
   accountRole: AccountRole;
+  // Verified player title; drives the title badge (flair) on the public
+  // profile and user card. NULL = untitled.
+  title: PlayerTitle | null;
   // Set while a donation is active; drives the cosmetic Patron badge on the
   // public profile. NULL = not a patron.
   patronSince: Date | null;
@@ -198,6 +206,7 @@ const USER_COLUMNS = [
   'display_name_changed_at',
   'profile_visibility',
   'account_role',
+  'title',
   'locale',
   'dm_policy',
   'elo_rating',
@@ -693,6 +702,7 @@ export async function getUserProfileByHandle(
       displayName: user.displayName,
       profileVisibility: user.profileVisibility,
       accountRole: user.accountRole,
+      title: user.title,
       patronSince: user.patronSince,
       createdAt: user.createdAt,
     },
@@ -1020,6 +1030,7 @@ type UserRow = {
   display_name_changed_at: Date | null;
   profile_visibility: UserAccount['profileVisibility'];
   account_role: AccountRole;
+  title: PlayerTitle | null;
   locale: AccountLocale | null;
   dm_policy: DmPolicy;
   elo_rating: number;
@@ -1040,6 +1051,7 @@ function userFromRow(row: UserRow): UserAccount {
     displayNameChangedAt: row.display_name_changed_at,
     profileVisibility: row.profile_visibility,
     accountRole: row.account_role,
+    title: row.title,
     locale: row.locale,
     dmPolicy: row.dm_policy,
     eloRating: row.elo_rating,

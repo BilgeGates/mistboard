@@ -8,6 +8,7 @@ import { correspondenceEnabled } from './feature-flags.js';
 import type { FeaturedGame } from './game-display.js';
 import { type I18nKey, t } from './i18n/catalog.js';
 import { currentLocale, LOCALE_META, type Locale } from './i18n/locale.js';
+import { buildTitleBadge, isPlayerTitle, titleFullName } from './player-titles.js';
 import {
   buildProfileGameRow,
   buildProfileHeaderShell,
@@ -61,6 +62,10 @@ type UserProfile = {
     displayName: string;
     profileVisibility: 'private' | 'unlisted' | 'public';
     accountRole: 'player' | 'admin';
+    // Verified title key ('xgm', 'gm', ...). Absent/null = untitled. Granted
+    // only through the /verify-title pipeline (see routes/titles.ts); unknown
+    // values render no badge (fail-closed in player-titles.ts).
+    title?: string | null;
     // Set while a donation is active; drives the cosmetic Patron badge. Absent
     // /null = not a patron. Server-derived (see routes/patron.ts).
     patronSince?: string | null;
@@ -724,9 +729,13 @@ async function fetchUserRatingHistory(
   return data.history;
 }
 
-function buildProfileHeader(profile: UserProfile, locale: Locale = currentLocale()): HTMLElement {
+export function buildProfileHeader(
+  profile: UserProfile,
+  locale: Locale = currentLocale(),
+): HTMLElement {
   // Identity meta line (lichess user-infos order): join date first, then the
-  // role/patron badges when present. Game counts live in the stat strip below.
+  // title/role/patron badges when present. Game counts live in the stat strip
+  // below.
   const metaParts: HTMLElement[] = [];
   const joined = formatJoinedDate(profile.user.createdAt, locale);
   if (joined) {
@@ -734,6 +743,14 @@ function buildProfileHeader(profile: UserProfile, locale: Locale = currentLocale
     joinedEl.className = 'profile-joined';
     joinedEl.textContent = `${t('profile.memberSince', {}, locale)} ${joined}`;
     metaParts.push(joinedEl);
+  }
+  // Verified title: the full localized name on the meta line; the h1 carries
+  // the compact gold abbreviation (titleLead below).
+  if (isPlayerTitle(profile.user.title)) {
+    const titleFull = document.createElement('span');
+    titleFull.className = 'profile-role-badge profile-title-full';
+    titleFull.textContent = titleFullName(profile.user.title, locale);
+    metaParts.push(titleFull);
   }
   const roleBadge = buildRoleBadge(profile.user.accountRole, locale);
   if (roleBadge) metaParts.push(roleBadge);
@@ -747,12 +764,22 @@ function buildProfileHeader(profile: UserProfile, locale: Locale = currentLocale
   presence.className = 'profile-presence';
   presence.setAttribute('aria-hidden', 'true');
 
+  // The h1 lead: presence dot, then the gold title abbreviation for titled
+  // players (lichess-style "XGM @handle"). Wrapped so the shell's single
+  // titleLead slot stays unchanged; hydrateProfilePresence still finds the dot
+  // by class.
+  const titleLead = document.createElement('span');
+  titleLead.className = 'profile-title-lead';
+  titleLead.append(presence);
+  const titleBadge = buildTitleBadge(profile.user.title, locale);
+  if (titleBadge) titleLead.append(titleBadge);
+
   return buildProfileHeaderShell({
     eyebrow: profile.isViewer
       ? t('profile.yourProfile', {}, locale)
       : t('profile.playerProfile', {}, locale),
     title: `@${profile.user.handle}`,
-    titleLead: presence,
+    titleLead,
     metaParts,
     actions: profile.relation
       ? buildRelationActions(profile.user.handle, profile.relation, locale)
@@ -772,7 +799,12 @@ function buildOwnerActions(locale: Locale = currentLocale()): HTMLElement {
   edit.className = 'landing-setup-back';
   edit.href = '/account';
   edit.textContent = t('profile.editProfile', {}, locale);
-  row.append(edit);
+  // Titled player? Verify it: entry point into the /verify-title pipeline.
+  const verify = document.createElement('a');
+  verify.className = 'landing-setup-back';
+  verify.href = '/verify-title';
+  verify.textContent = t('profile.verifyTitle', {}, locale);
+  row.append(edit, verify);
   return row;
 }
 

@@ -107,6 +107,8 @@ export function isClientRoute(pathname: string): boolean {
     normalized === '/forum/reports' ||
     normalized === '/forum/etiquette' ||
     normalized === '/database' ||
+    normalized === '/verify-title' ||
+    normalized === '/titles' ||
     normalized === '/historical-xiangqi' ||
     normalized === '/historical-xiangqi/games' ||
     normalized === '/engines' ||

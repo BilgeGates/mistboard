@@ -149,6 +149,12 @@ const wantsRatingStats = path === '/player/rating-stats';
 // Unlisted admin game browser. No nav entry; the page itself is admin-gated by
 // the /api/admin/games/query endpoint (open in local dev). Direct-URL only.
 const wantsDatabase = path === '/database';
+// Title verification: player-facing request form. Linked from profile copy,
+// no nav entry.
+const wantsVerifyTitle = path === '/verify-title';
+// Unlisted admin review queue for title requests. No nav entry; admin-gated by
+// /api/admin/titles (open in local dev). Direct-URL only.
+const wantsTitlesAdmin = path === '/titles';
 // Unlisted admin engine tracker. No nav entry; admin-gated by /api/admin/engines
 // (open in local dev). Direct-URL only.
 const wantsEngines = path === '/engines';
@@ -279,6 +285,16 @@ if (replaySample) {
   void mountOrReport(() =>
     import('./database.js').then(({ mountDatabase }) => mountDatabase(appRoot)),
   );
+} else if (wantsVerifyTitle) {
+  setTitleKey('verifyTitle.heading');
+  void mountOrReport(() =>
+    import('./verify-title.js').then(({ mountVerifyTitle }) => mountVerifyTitle(appRoot)),
+  );
+} else if (wantsTitlesAdmin) {
+  setTitle('Title verification');
+  void mountOrReport(() =>
+    import('./titles-admin.js').then(({ mountTitlesAdmin }) => mountTitlesAdmin(appRoot)),
+  );
 } else if (wantsEngines) {
   setTitle('Engines');
   void mountOrReport(() =>
@@ -348,9 +364,7 @@ if (replaySample) {
   );
 } else if (wantsVideos) {
   setTitleKey('nav.videoLibrary');
-  void mountOrReport(() =>
-    import('./videos.js').then(({ mountVideos }) => mountVideos(appRoot)),
-  );
+  void mountOrReport(() => import('./videos.js').then(({ mountVideos }) => mountVideos(appRoot)));
 } else if (wantsXiangqiBroadcastIndex) {
   setTitle('Xiangqi broadcasts');
   void mountOrReport(() =>

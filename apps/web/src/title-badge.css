@@ -1,0 +1,32 @@
+/* Verified title badge (flair): compact gold abbreviation (XGM, GM, ...) shown
+   before a titled player's name, lichess-style. Shared by the profile header,
+   the profile meta line, and the hover user-card via player-titles.ts. The
+   full localized title name rides the tooltip. */
+
+.title-badge {
+  color: #b9832f;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  cursor: help;
+}
+
+/* Inside the profile h1: slightly smaller than the handle so it reads as a
+   prefix mark, with breathing room before the name. */
+.site-section-heading .title-badge {
+  font-size: 0.72em;
+  margin-right: 8px;
+  vertical-align: 2px;
+}
+
+/* On the user hover card: sits between the presence dot and the name. */
+.user-card-header .title-badge {
+  font-size: 12px;
+  flex: none;
+}
+
+/* Meta-line variant on the profile page: the pill idiom of the neighboring
+   role/patron badges, tinted gold. */
+.profile-role-badge.profile-title-full {
+  background: color-mix(in srgb, #e0a94b 20%, var(--site-panel));
+  color: #b9832f;
+}

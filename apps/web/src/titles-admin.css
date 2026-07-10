@@ -1,0 +1,112 @@
+/* /titles: unlisted admin review queue for title-verification requests. */
+
+.titles-admin-shell {
+  max-width: 760px;
+}
+
+.titles-admin-sub,
+.titles-admin-status {
+  color: var(--site-muted);
+}
+
+.titles-admin-section-head {
+  margin: 22px 0 8px;
+  font-size: 16px;
+  color: var(--site-heading);
+}
+
+.titles-admin-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.titles-admin-row {
+  border: 1px solid var(--site-border);
+  border-radius: var(--site-radius-sm);
+  background: var(--site-panel);
+  padding: 12px 14px;
+}
+
+.titles-admin-row-head {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.titles-admin-claim {
+  font-weight: 700;
+  color: #b9832f;
+}
+
+.titles-admin-meta {
+  color: var(--site-muted);
+  font-size: 13px;
+}
+
+.titles-admin-evidence {
+  margin: 10px 0;
+  padding: 8px 10px;
+  background: var(--site-panel-soft);
+  border-radius: var(--site-radius-sm);
+  font-size: 13px;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.titles-admin-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.titles-admin-approve,
+.titles-admin-reject {
+  font: inherit;
+  padding: 5px 14px;
+  border-radius: var(--site-radius-sm);
+  border: 1px solid var(--site-border);
+  background: var(--site-panel);
+  cursor: pointer;
+}
+
+.titles-admin-approve {
+  border-color: var(--site-accent);
+  color: var(--site-accent-strong);
+}
+
+.titles-admin-reject {
+  border-color: #d4645d;
+  color: #d4645d;
+}
+
+.titles-admin-approve:disabled,
+.titles-admin-reject:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.titles-admin-action-status {
+  color: var(--site-muted);
+  font-size: 13px;
+}
+
+.titles-admin-history-row {
+  font-size: 14px;
+}
+
+.titles-admin-outcome {
+  font-weight: 600;
+}
+
+.titles-admin-history-approved .titles-admin-outcome {
+  color: var(--site-accent-strong);
+}
+
+.titles-admin-history-rejected .titles-admin-outcome {
+  color: #d4645d;
+}

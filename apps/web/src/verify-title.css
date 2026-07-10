@@ -1,0 +1,90 @@
+/* /verify-title: title-verification request form + status view. */
+
+.verify-title-shell {
+  max-width: 640px;
+}
+
+.verify-title-intro {
+  color: var(--site-text);
+  margin: 10px 0 18px;
+}
+
+.verify-title-current {
+  color: var(--site-heading);
+  font-weight: 600;
+  margin: 10px 0 0;
+}
+
+.verify-title-status {
+  border: 1px solid var(--site-border);
+  border-left: 3px solid var(--site-muted);
+  border-radius: var(--site-radius-sm);
+  background: var(--site-panel);
+  padding: 12px 14px;
+  margin: 14px 0;
+}
+
+.verify-title-status-approved {
+  border-left-color: var(--site-accent);
+}
+
+.verify-title-status-rejected {
+  border-left-color: #d4645d;
+}
+
+.verify-title-status-head {
+  margin: 0 0 4px;
+  font-weight: 600;
+  color: var(--site-heading);
+}
+
+.verify-title-status-body {
+  margin: 0;
+  color: var(--site-muted);
+}
+
+.verify-title-form {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  align-items: flex-start;
+}
+
+.verify-title-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  width: 100%;
+}
+
+.verify-title-field > span {
+  font-weight: 600;
+  color: var(--site-heading);
+  font-size: 14px;
+}
+
+.verify-title-field select,
+.verify-title-field textarea {
+  font: inherit;
+  padding: 8px 10px;
+  border: 1px solid var(--site-border);
+  border-radius: var(--site-radius-sm);
+  background: var(--site-panel);
+  color: var(--site-text);
+}
+
+.verify-title-field textarea {
+  resize: vertical;
+}
+
+.verify-title-help {
+  margin: 0;
+  color: var(--site-muted);
+  font-size: 13px;
+}
+
+.verify-title-form-status {
+  margin: 0;
+  color: var(--site-muted);
+  min-height: 1.2em;
+}
