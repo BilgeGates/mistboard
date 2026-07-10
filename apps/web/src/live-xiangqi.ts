@@ -54,6 +54,8 @@ const RIVER_TOP = MARGIN + 4 * CELL;
 const RIVER_BOTTOM = MARGIN + 5 * CELL;
 const PIECE_SIZE = tokenPieceSize(CELL);
 const HIT_HALF = 26;
+const NON_SELECTABLE_RIVER_ATTRS =
+  'aria-hidden="true" pointer-events="none" style="-webkit-user-select: none; user-select: none;"';
 
 // ── Xiangqi-owned interaction/render state ───────────────────────────────────
 
@@ -201,7 +203,7 @@ function boardSvg(
       <g class="xq-live-palace-bands">${palaceBands(perspective)}</g>
       <g class="xq-live-grid">${gridLayer()}</g>
       <g class="xq-live-palace">${palaceLayer(perspective)}</g>
-      <g class="xq-live-river">${riverLayer(perspective)}</g>
+      <g class="xq-live-river" ${NON_SELECTABLE_RIVER_ATTRS}>${riverLayer(perspective)}</g>
       <g class="xq-live-lastmove">${lastMoveLayer(view, perspective)}</g>
       <g class="xq-live-selection">${selectionLayer(selectedSquare, perspective)}</g>
       <g class="xq-live-hints">${options.interactive ? '' : hintLayer(view, perspective)}</g>

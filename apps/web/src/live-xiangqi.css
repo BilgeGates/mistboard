@@ -128,6 +128,13 @@
   stroke-width: 1.2;
 }
 
+.xq-live-river,
+.xq-live-river text {
+  pointer-events: none;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
 .xq-live-river text {
   dominant-baseline: central;
   fill: var(--xq-live-ink, #5a3a14);
