@@ -1,16 +1,20 @@
 // Homepage lobby-chat widget (gate-cleared 2026-07-02). Server-driven: the
 // widget renders NOTHING until the first fetch confirms the chat flag is on,
 // so a flag-off deploy never shows a dead box and the env flag doubles as a
-// kill switch. Quiet-collapse: when the room has no line in the last 24h the
-// box renders as a one-line invitation instead of an empty scrollback, so a
-// low-traffic homepage never wears a dead chat room.
+// kill switch. Windowing: the feed only ever shows the last CHAT_VISIBLE_LINES
+// messages posted within CHAT_WINDOW_MS (mirrors server CHAT_POLICY
+// visibleLines/quietAfterMs). Messages age out continuously via a low-frequency
+// tick, and every render path goes through the same windowed store, so a new
+// post can never resurrect lines older than the window. Quiet-collapse: when
+// the window is empty the box renders as a one-line invitation instead of an
+// empty scrollback, so a low-traffic homepage never wears a dead chat room.
 
 import './landing-chat.css';
 import { type I18nKey, t } from './i18n/catalog.js';
 import { currentLocale, type Locale } from './i18n/locale.js';
 import { buildSiteBox } from './site-box.js';
 
-type ChatLine = { id: string; handle: string | null; text: string; createdAt: string };
+export type ChatLine = { id: string; handle: string | null; text: string; createdAt: string };
 type ChatState = {
   lines: ChatLine[];
   canPost: boolean;
@@ -21,10 +25,26 @@ type ChatState = {
 };
 
 const POLL_MS = 7000;
-const QUIET_AFTER_MS = 24 * 60 * 60 * 1000;
-const VISIBLE_LINES = 30;
+// Visibility window and cap match server chat policy (chat-policy.ts:
+// quietAfterMs / visibleLines). The server retains 200 lines and serves 100;
+// the client shows at most the newest 30 from the last 24 hours.
+export const CHAT_WINDOW_MS = 24 * 60 * 60 * 1000;
+export const CHAT_VISIBLE_LINES = 30;
+const AGE_OUT_TICK_MS = 60 * 1000;
 
 type LandingChatMode = 'live' | 'mock';
+
+// The windowed view: lines newer than `now - CHAT_WINDOW_MS`, capped to the
+// newest CHAT_VISIBLE_LINES. Lines with unparseable timestamps are dropped
+// (fail closed: never show a line we cannot age out).
+export function visibleChatWindow(lines: ChatLine[], now: number): ChatLine[] {
+  const cutoff = now - CHAT_WINDOW_MS;
+  const fresh = lines.filter((line) => {
+    const at = Date.parse(line.createdAt);
+    return Number.isFinite(at) && at > cutoff;
+  });
+  return fresh.slice(-CHAT_VISIBLE_LINES);
+}
 
 export function buildLandingChat(
   options: { hydrate?: boolean; mode?: LandingChatMode } = {},
@@ -38,7 +58,25 @@ export function buildLandingChat(
   return mount;
 }
 
+// Poll/age-out intervals are page-scoped but re-hydration is not: the quiet
+// composer, the mute toggle, and the age-out empty swap all re-render into the
+// same mount. Track interval ids per mount so a re-render never stacks a
+// second poller on top of a live one.
+const mountTimers = new WeakMap<HTMLElement, number[]>();
+
+function registerMountTimer(mount: HTMLElement, id: number): void {
+  const ids = mountTimers.get(mount) ?? [];
+  ids.push(id);
+  mountTimers.set(mount, ids);
+}
+
+function clearMountTimers(mount: HTMLElement): void {
+  for (const id of mountTimers.get(mount) ?? []) window.clearInterval(id);
+  mountTimers.delete(mount);
+}
+
 async function hydrateChat(mount: HTMLElement, mode: LandingChatMode): Promise<void> {
+  clearMountTimers(mount);
   const locale = currentLocale();
   const state = mode === 'mock' ? mockChatState() : await fetchChat();
   if (!state) return; // disabled or unreachable: render nothing
@@ -50,13 +88,12 @@ async function hydrateChat(mount: HTMLElement, mode: LandingChatMode): Promise<v
   const top = box.querySelector('.site-box-top');
   top?.append(buildChatToggle(box, body, mount, mode, locale));
 
-  const latest = state.lines[state.lines.length - 1];
-  const quiet = !latest || Date.now() - new Date(latest.createdAt).getTime() > QUIET_AFTER_MS;
-
-  if (quiet) {
+  // Quiet when the visibility window is empty, not merely when the latest
+  // line is old: the same predicate that decides what the room renders.
+  if (visibleChatWindow(state.lines, Date.now()).length === 0) {
     renderQuiet(body, state, locale, mount, mode);
   } else {
-    renderRoom(body, state, locale, mode);
+    renderRoom(body, state, locale, mode, mount);
   }
   mount.replaceChildren(box);
 }
@@ -78,13 +115,14 @@ function buildChatToggle(
       return;
     }
     box.classList.add('is-chat-muted');
+    clearMountTimers(mount);
     body.replaceChildren();
   });
   return toggle;
 }
 
 // Quiet mode: one inviting line and, for signed-in users, the composer right
-// there — the first message is the expansion. No empty scrollback ever shows.
+// there: the first message is the expansion. No empty scrollback ever shows.
 function renderQuiet(
   body: HTMLElement,
   state: ChatState,
@@ -99,14 +137,95 @@ function renderQuiet(
   body.append(row);
   if (state.canPost) {
     body.append(
-      buildComposer(locale, () => {
-        // First message: swap to the live room so the sender sees it land.
-        void hydrateChat(mount, mode);
-      }),
+      buildComposer(
+        locale,
+        () => {
+          // First message: swap to the live room so the sender sees it land.
+          // The room re-renders through the windowed store, so this swap can
+          // only surface lines still inside the visibility window.
+          void hydrateChat(mount, mode);
+        },
+        mode === 'mock' ? postMockLine : undefined,
+      ),
     );
   } else {
     body.append(buildSignInRow(locale));
   }
+}
+
+type LandingChatFeed = {
+  element: HTMLElement;
+  ingest(lines: ChatLine[]): void;
+  expireTick(): void;
+  remove(lineId: string): void;
+  visibleIds(): string[];
+};
+
+// The single owner of what the feed shows. All mutations (initial load, poll
+// merges, local echo of a just-posted line, age-out ticks, admin hides) funnel
+// into the same windowed store and re-render from it; there is no code path
+// that renders an unfiltered line list. The store IS the visible window:
+// anything that falls out (too old, or beyond the cap) is discarded, so it can
+// never be resurrected by a later render.
+export function createLandingChatFeed(options: {
+  state: Pick<ChatState, 'canReport' | 'isAdmin' | 'viewerHandle'>;
+  locale: Locale;
+  mode: LandingChatMode;
+  now?: () => number;
+  onEmpty?: () => void;
+}): LandingChatFeed {
+  const clock = options.now ?? Date.now;
+  const feed = document.createElement('div');
+  feed.className = 'landing-chat-feed';
+  // Lines the viewer reported this page-life: re-renders keep the mark.
+  const reported = new Set<string>();
+  let store: ChatLine[] = [];
+  let renderedKey: string | null = null;
+
+  const handle: LandingChatFeed = {
+    element: feed,
+    ingest(lines: ChatLine[]): void {
+      const byId = new Map(store.map((line) => [line.id, line]));
+      for (const line of lines) {
+        if (!byId.has(line.id)) byId.set(line.id, line);
+      }
+      store = [...byId.values()].sort(byCreatedAtThenId);
+      render();
+    },
+    expireTick(): void {
+      render();
+    },
+    remove(lineId: string): void {
+      store = store.filter((line) => line.id !== lineId);
+      render();
+    },
+    visibleIds(): string[] {
+      return visibleChatWindow(store, clock()).map((line) => line.id);
+    },
+  };
+
+  function render(): void {
+    store = visibleChatWindow(store, clock());
+    const key = store.map((line) => line.id).join('\n');
+    if (key === renderedKey) return;
+    renderedKey = key;
+    feed.replaceChildren();
+    for (const line of store) {
+      feed.append(
+        buildLineRow(line, options.state, options.locale, options.mode, reported, handle),
+      );
+    }
+    feed.scrollTop = feed.scrollHeight;
+    if (store.length === 0) options.onEmpty?.();
+  }
+
+  return handle;
+}
+
+function byCreatedAtThenId(a: ChatLine, b: ChatLine): number {
+  if (a.createdAt !== b.createdAt) return a.createdAt < b.createdAt ? -1 : 1;
+  if (a.id !== b.id) return a.id < b.id ? -1 : 1;
+  return 0;
 }
 
 function renderRoom(
@@ -114,21 +233,31 @@ function renderRoom(
   state: ChatState,
   locale: Locale,
   mode: LandingChatMode,
+  mount: HTMLElement,
 ): void {
   body.replaceChildren();
+  let latestState = state;
 
-  const feed = document.createElement('div');
-  feed.className = 'landing-chat-feed';
-  const known = new Set<string>();
-  appendLines(feed, state.lines.slice(-VISIBLE_LINES), known, state, locale, mode);
-  body.append(feed);
+  const feed = createLandingChatFeed({
+    state,
+    locale,
+    mode,
+    onEmpty: () => {
+      // Everything aged out: collapse back to the quiet invitation instead of
+      // wearing an empty scrollback.
+      clearMountTimers(mount);
+      renderQuiet(body, latestState, locale, mount, mode);
+    },
+  });
+  feed.ingest(state.lines);
+  body.append(feed.element);
 
   if (state.canPost) {
     body.append(
       buildComposer(
         locale,
         (line) => {
-          if (line) appendLines(feed, [line], known, state, locale, mode);
+          if (line) feed.ingest([line]);
         },
         mode === 'mock' ? postMockLine : undefined,
       ),
@@ -142,45 +271,50 @@ function renderRoom(
     body.append(buildSignInRow(locale));
   }
 
-  // Poll while the tab is visible; page-scoped interval (full-page navs).
-  if (mode === 'mock') return;
-  window.setInterval(async () => {
-    if (document.visibilityState !== 'visible') return;
-    const fresh = await fetchChat();
-    if (!fresh) return;
-    const incoming = fresh.lines.filter((line) => !known.has(line.id));
-    if (incoming.length > 0) appendLines(feed, incoming, known, fresh, locale, mode);
-  }, POLL_MS);
+  // Poll while the tab is visible; a slower tick ages lines out even when no
+  // poll succeeds. Both intervals are mount-scoped (see mountTimers) and are
+  // never started under vitest, matching review/spectator-chat.ts.
+  if (mode === 'mock' || import.meta.env.MODE === 'test') return;
+  registerMountTimer(
+    mount,
+    window.setInterval(async () => {
+      if (document.visibilityState !== 'visible') return;
+      const fresh = await fetchChat();
+      if (!fresh) return;
+      latestState = fresh;
+      feed.ingest(fresh.lines);
+    }, POLL_MS),
+  );
+  registerMountTimer(
+    mount,
+    window.setInterval(() => feed.expireTick(), AGE_OUT_TICK_MS),
+  );
 }
 
-function appendLines(
-  feed: HTMLElement,
-  lines: ChatLine[],
-  known: Set<string>,
+function buildLineRow(
+  line: ChatLine,
   state: Pick<ChatState, 'canReport' | 'isAdmin' | 'viewerHandle'>,
   locale: Locale,
   mode: LandingChatMode,
-): void {
-  for (const line of lines) {
-    known.add(line.id);
-    const row = document.createElement('div');
-    row.className = 'landing-chat-line';
-    const who = document.createElement('a');
-    who.className = 'landing-chat-handle';
-    who.href = line.handle ? `/@/${encodeURIComponent(line.handle)}` : '#';
-    who.textContent = line.handle ?? t('chat.deletedAccount', {}, locale);
-    const text = document.createElement('span');
-    text.className = 'landing-chat-text';
-    appendChatText(text, line.text);
-    row.append(who, text);
-    if (state.isAdmin && line.handle) {
-      row.append(buildAdminControls(line, row));
-    } else if (canReportLine(state, line)) {
-      row.append(buildReportControl(line, locale, mode));
-    }
-    feed.append(row);
+  reported: Set<string>,
+  feed: Pick<LandingChatFeed, 'remove'>,
+): HTMLElement {
+  const row = document.createElement('div');
+  row.className = 'landing-chat-line';
+  const who = document.createElement('a');
+  who.className = 'landing-chat-handle';
+  who.href = line.handle ? `/@/${encodeURIComponent(line.handle)}` : '#';
+  who.textContent = line.handle ?? t('chat.deletedAccount', {}, locale);
+  const text = document.createElement('span');
+  text.className = 'landing-chat-text';
+  appendChatText(text, line.text);
+  row.append(who, text);
+  if (state.isAdmin && line.handle) {
+    row.append(buildAdminControls(line, feed));
+  } else if (canReportLine(state, line)) {
+    row.append(buildReportControl(line, locale, mode, reported));
   }
-  feed.scrollTop = feed.scrollHeight;
+  return row;
 }
 
 function canReportLine(
@@ -193,7 +327,7 @@ function canReportLine(
 // Admin-only inline moderation: hide the line, or 15-min timeout its author
 // (which also strikes their other lines server-side). English-only, admin
 // surface convention.
-function buildAdminControls(line: ChatLine, row: HTMLElement): HTMLElement {
+function buildAdminControls(line: ChatLine, feed: Pick<LandingChatFeed, 'remove'>): HTMLElement {
   const wrap = document.createElement('span');
   wrap.className = 'landing-chat-admin';
 
@@ -208,7 +342,9 @@ function buildAdminControls(line: ChatLine, row: HTMLElement): HTMLElement {
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify({ lineId: line.id }),
     }).catch(() => null);
-    if (resp?.ok) row.remove();
+    // Remove from the store, not just the DOM: a later re-render would put a
+    // DOM-only removal straight back.
+    if (resp?.ok) feed.remove(line.id);
   });
 
   const timeout = document.createElement('button');
@@ -229,16 +365,27 @@ function buildAdminControls(line: ChatLine, row: HTMLElement): HTMLElement {
   return wrap;
 }
 
-function buildReportControl(line: ChatLine, locale: Locale, mode: LandingChatMode): HTMLElement {
+function buildReportControl(
+  line: ChatLine,
+  locale: Locale,
+  mode: LandingChatMode,
+  reported: Set<string>,
+): HTMLElement {
   const button = document.createElement('button');
   button.type = 'button';
   button.className = 'landing-chat-admin-action landing-chat-report-action';
   button.title = t('chat.report', {}, locale);
   button.textContent = '!';
+  if (reported.has(line.id)) {
+    markReportDone(button, locale);
+    button.disabled = true;
+    return button;
+  }
   button.addEventListener('click', async () => {
     button.disabled = true;
     button.setAttribute('aria-busy', 'true');
     if (mode === 'mock') {
+      reported.add(line.id);
       markReportDone(button, locale);
       return;
     }
@@ -248,6 +395,7 @@ function buildReportControl(line: ChatLine, locale: Locale, mode: LandingChatMod
       body: JSON.stringify({ lineId: line.id, reason: 'Chat message report' }),
     }).catch(() => null);
     if (resp?.ok || resp?.status === 409) {
+      reported.add(line.id);
       markReportDone(button, locale);
       return;
     }
