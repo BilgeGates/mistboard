@@ -84,3 +84,8 @@ scripts/distribution/
 # Playwright MCP scratch output (page snapshots written by the browser tool
 # during agent sessions). Never part of the repo.
 .playwright-mcp/
+
+# Xiangqi puzzle-miner sidecars (JSONL + metrics from scripts/variant-lab/
+# xiangqi-puzzle-miner.ts). Local mining artifacts; the reviewed output is the
+# emitted packages/game/src/puzzles-xiangqi-mined.ts module.
+scripts/variant-lab/out/

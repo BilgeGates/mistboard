@@ -6,6 +6,10 @@ import {
   fortressXiangqiPuzzleById,
   type MiniXiangqiPuzzle,
   miniXiangqiPuzzleById,
+  standardXiangqiPuzzleById,
+  XIANGQI_PUZZLES,
+  XIANGQI_SPEC_ID,
+  type XiangqiPuzzle,
 } from '@mistboard/game';
 import type pg from 'pg';
 import { getPool, isInitialized } from './persistence-db.js';
@@ -15,7 +19,7 @@ export const DAILY_PUZZLE_HOMEPAGE_SLOT = 'homepage';
 // A daily puzzle can be drawn from any surfaced variant; only Fortress Xiangqi is
 // surfaced right now (see DAILY_PUZZLE_PROVIDERS). Ids are prefix-disjoint across
 // the registries, so resolution dispatches on the stored variant.
-type DailyPuzzle = MiniXiangqiPuzzle | FortressXiangqiPuzzle;
+type DailyPuzzle = MiniXiangqiPuzzle | FortressXiangqiPuzzle | XiangqiPuzzle;
 
 export type DailyPuzzleSlot = typeof DAILY_PUZZLE_HOMEPAGE_SLOT;
 
@@ -55,11 +59,18 @@ type Queryable = {
 };
 
 // Only Fortress Xiangqi is featured as the daily puzzle for now, matching the
-// puzzle page. Add more providers here to broaden the rotation.
+// puzzle page. Add more providers here to broaden the rotation. The standard-
+// xiangqi provider is wired but contributes nothing until the mined registry
+// (packages/game/src/puzzles-xiangqi-mined.ts) is populated by the miner; once
+// puzzles land, dailies start drawing from it automatically.
 const DAILY_PUZZLE_PROVIDERS: readonly DailyPuzzleProvider[] = [
   {
     variant: FORTRESS_XIANGQI_SPEC_ID,
     candidates: () => FORTRESS_XIANGQI_PUZZLES,
+  },
+  {
+    variant: XIANGQI_SPEC_ID,
+    candidates: () => XIANGQI_PUZZLES,
   },
 ];
 
@@ -67,11 +78,13 @@ function isCurrentDailyVariant(variant: string): boolean {
   return DAILY_PUZZLE_PROVIDERS.some((provider) => provider.variant === variant);
 }
 
-// Ids are prefix-disjoint across the Mini/Drop-Mini and Fortress registries, so
-// try Fortress first, then Mini/Drop (the latter keeps older persisted daily
+// Ids are prefix-disjoint across the registries, so try Fortress first, then
+// standard xiangqi, then Mini/Drop (the latter keeps older persisted daily
 // rows resolvable even though they are no longer offered).
 function dailyPuzzleById(id: string): DailyPuzzle | null {
-  return fortressXiangqiPuzzleById(id) ?? miniXiangqiPuzzleById(id);
+  return (
+    fortressXiangqiPuzzleById(id) ?? standardXiangqiPuzzleById(id) ?? miniXiangqiPuzzleById(id)
+  );
 }
 
 export function currentDailyPuzzleDay(now = new Date()): string {

@@ -3,6 +3,7 @@ import {
   attemptFortressXiangqiPuzzleLine,
   attemptJunglePuzzleLine,
   attemptMiniXiangqiPuzzleLine,
+  attemptStandardXiangqiPuzzleLine,
   DROP_MINI_XIANGQI_SPEC_ID,
   FORTRESS_XIANGQI_PUZZLES,
   FORTRESS_XIANGQI_SPEC_ID,
@@ -23,6 +24,12 @@ import {
   type MiniXiangqiPuzzleVariant,
   miniXiangqiPuzzleById,
   miniXiangqiPuzzleSideToMove,
+  standardXiangqiPuzzleById,
+  standardXiangqiPuzzleSideToMove,
+  XIANGQI_PUZZLES,
+  XIANGQI_SPEC_ID,
+  type XiangqiMove,
+  type XiangqiPuzzle,
 } from '@mistboard/game';
 import { currentAccountUser } from '../account-session.js';
 import { getUserPuzzleRating, recordPuzzleAttempt } from '../persistence-puzzle-ratings.js';
@@ -35,20 +42,23 @@ import { seedPuzzleRating } from '../puzzle-rating.js';
 import { type HttpApiContext, readJsonBody, requireMethod, writeJson } from './lib.js';
 
 // The public puzzle surface spans the Mini/Drop-Mini registry, the Fortress
-// Xiangqi registry, and the Jungle registry. Ids are prefix-disjoint across them,
-// so resolution can try each, but every behavioural branch dispatches on `variant`
-// (fail-closed: a new registry needs an explicit branch, not a fallthrough).
-type PublicPuzzle = MiniXiangqiPuzzle | FortressXiangqiPuzzle | JunglePuzzle;
+// Xiangqi registry, the Jungle registry, and the standard-xiangqi registry.
+// Ids are prefix-disjoint across them, so resolution can try each, but every
+// behavioural branch dispatches on `variant` (fail-closed: a new registry
+// needs an explicit branch, not a fallthrough).
+type PublicPuzzle = MiniXiangqiPuzzle | FortressXiangqiPuzzle | JunglePuzzle | XiangqiPuzzle;
 type PublicPuzzleVariant =
   | MiniXiangqiPuzzleVariant
   | typeof FORTRESS_XIANGQI_SPEC_ID
-  | typeof JUNGLE_SPEC_ID;
-type PublicPuzzleMove = MiniXiangqiPuzzleMove | FortressXiangqiMove | JungleMove;
+  | typeof JUNGLE_SPEC_ID
+  | typeof XIANGQI_SPEC_ID;
+type PublicPuzzleMove = MiniXiangqiPuzzleMove | FortressXiangqiMove | JungleMove | XiangqiMove;
 
 const ALL_PUZZLES: readonly PublicPuzzle[] = [
   ...MINI_XIANGQI_PUZZLES,
   ...FORTRESS_XIANGQI_PUZZLES,
   ...JUNGLE_PUZZLES,
+  ...XIANGQI_PUZZLES,
 ];
 
 type PuzzleSummary = {
@@ -165,12 +175,18 @@ export async function tryHandle(
 }
 
 function puzzleById(id: string): PublicPuzzle | null {
-  return miniXiangqiPuzzleById(id) ?? fortressXiangqiPuzzleById(id) ?? junglePuzzleById(id);
+  return (
+    miniXiangqiPuzzleById(id) ??
+    fortressXiangqiPuzzleById(id) ??
+    junglePuzzleById(id) ??
+    standardXiangqiPuzzleById(id)
+  );
 }
 
 function puzzleSideToMove(puzzle: PublicPuzzle): ReturnType<typeof miniXiangqiPuzzleSideToMove> {
   if (puzzle.variant === FORTRESS_XIANGQI_SPEC_ID) return fortressXiangqiPuzzleSideToMove(puzzle);
   if (puzzle.variant === JUNGLE_SPEC_ID) return junglePuzzleSideToMove(puzzle);
+  if (puzzle.variant === XIANGQI_SPEC_ID) return standardXiangqiPuzzleSideToMove(puzzle);
   return miniXiangqiPuzzleSideToMove(puzzle);
 }
 
@@ -180,6 +196,9 @@ function attemptPuzzle(puzzle: PublicPuzzle, moves: PublicPuzzleMove[]) {
   }
   if (puzzle.variant === JUNGLE_SPEC_ID) {
     return attemptJunglePuzzleLine(puzzle, moves as JungleMove[]);
+  }
+  if (puzzle.variant === XIANGQI_SPEC_ID) {
+    return attemptStandardXiangqiPuzzleLine(puzzle, moves as XiangqiMove[]);
   }
   return attemptMiniXiangqiPuzzleLine(puzzle, moves as MiniXiangqiPuzzleMove[]);
 }
@@ -237,7 +256,8 @@ function parsePuzzleVariant(value: string | null): PublicPuzzleVariant | null | 
     value === MINI_XIANGQI_SPEC_ID ||
     value === DROP_MINI_XIANGQI_SPEC_ID ||
     value === FORTRESS_XIANGQI_SPEC_ID ||
-    value === JUNGLE_SPEC_ID
+    value === JUNGLE_SPEC_ID ||
+    value === XIANGQI_SPEC_ID
   ) {
     return value;
   }

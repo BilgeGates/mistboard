@@ -136,7 +136,7 @@ Edit task → find file → open only that file.
 | `routes/fortress-xiangqi-rooms.ts` | Fortress Xiangqi room-creation branch for `POST /api/rooms` (PvP + Fairy-Stockfish PvE; casual, rated-ready). Factory-bound (`variant-tenant/rooms-route.ts`; account-gated rated) |
 | `routes/fortress-xiangqi-games.ts` | Fortress Xiangqi postgame/review API branch; finished open-information 7x8 board, reserve history, and move timeline |
 | `routes/xiangqi-broadcasts.ts` | Xiangqi broadcast APIs: public index/tour/round/board reads, canonical board export, SSE snapshot streams, and admin source-ops/manual-poll endpoints |
-| `routes/puzzles.ts` | Mini Xiangqi puzzle API: list/detail endpoints plus attempt validation for Mini and Drop Mini Xiangqi puzzle lines |
+| `routes/puzzles.ts` | Puzzle API: list/detail/daily/rating endpoints plus attempt validation, fail-closed variant dispatch over the Mini/Drop Mini, Fortress, Jungle, and standard-xiangqi registries |
 | `routes/bots.ts` | Public bot directory/profile API (`/api/bots`, `/api/bots/:id`) filtered to playable enabled variants |
 | `bot-profile-policy.ts` | Shared bot profile policy: public bot id parsing and playable-variant filtering for bot directory/profile surfaces |
 | `account-session.ts` | Account auth: `currentAccountUser`, `ensureUserForEmail`, `hashSecret`, session cookies, email login |
@@ -163,7 +163,7 @@ Edit task → find file → open only that file.
 | `persistence-feedback.ts` | Feedback persistence |
 | `persistence-site-stats.ts` | Site statistics query |
 | `persistence-xiangqi-broadcasts.ts` | Xiangqi broadcast persistence: tour/round/board upserts, legal replay validation import, sync logs, and read queries |
-| `persistence-puzzles.ts` | Daily puzzle selection persistence (`daily_puzzle_selections`): deterministic day-based pick for the homepage slot plus a persisted override, over Mini/Drop Mini Xiangqi puzzle lines |
+| `persistence-puzzles.ts` | Daily puzzle selection persistence (`daily_puzzle_selections`): deterministic day-based pick for the homepage slot plus a persisted override; providers = Fortress + standard xiangqi (older Mini/Drop rows stay resolvable) |
 | `persistence-test-support.ts` | Shared Postgres test harness: migration, truncation reset, DB URL gating, and persistence test helpers |
 | `test-database-url.ts` | Persistent-test database URL guard: prefers `TEST_DATABASE_URL`, refuses the local dev DB by default, and allows an explicit destructive-test override |
 | `persistence-*.test.ts` | Postgres-backed persistence regressions split by domain: events, accounts, seat tokens, lifecycle, game end/lists, ratings, and debug artifacts |
@@ -657,7 +657,7 @@ Run with `MISTBOARD_ALLOW_IN_MEMORY_PERSISTENCE=true npm run test:integration --
 | Build/start | `build.mjs`, `start.mjs`, `safe-deploy.mjs`, `release-prod.mjs` |
 | Agent/dev loop | `agent-scan.mjs`, `ci-browser-smoke-plan.mjs`, `ci-checks.mjs`, `drift-check.mjs`, `gate-evidence.mjs`, `verify.mjs`, `worktree-new.mjs`, `worktree-prepare.mjs`, `mobile-loop.mjs`, `visual-check.mjs` |
 | Engine artifacts | `archive-engine-artifact.mjs`, `engine-artifact-{audit,closeout}.mjs`, `capture-belief-artifacts.mjs`, `generate-fow-corpus.mjs` |
-| Variant labs | `variant-lab/drop-mini-xiangqi-{fsf-play,hotseat,scenarios}.ts` plus `drop-mini-xiangqi-fsf.ini`; Drop Mini Xiangqi policy pressure tests, terminal hotseat, scenario audit, and optional `--html` FSF self-play replay export. `variant-lab/fortress-xiangqi-fsf-play.ts` FSF⟷kernel parity harness; `variant-lab/fortress-xiangqi-sample-game.ts` kernel-validated FSF self-play generator for the rules-article replay |
+| Variant labs | `variant-lab/drop-mini-xiangqi-{fsf-play,hotseat,scenarios}.ts` plus `drop-mini-xiangqi-fsf.ini`; Drop Mini Xiangqi policy pressure tests, terminal hotseat, scenario audit, and optional `--html` FSF self-play replay export. `variant-lab/fortress-xiangqi-fsf-play.ts` FSF⟷kernel parity harness; `variant-lab/fortress-xiangqi-sample-game.ts` kernel-validated FSF self-play generator for the rules-article replay. `variant-lab/xiangqi-puzzle-miner.ts` lichess-style standard-xiangqi puzzle miner over real games (historical DB or a directory): Pikafish MultiPV scan/verify, kernel re-validation, emits `packages/game/src/puzzles-xiangqi-mined.ts` + JSONL sidecar + metrics JSON |
 | Prod/local smoke | `prod-smoke-plan.mjs`, `wait-prod-revision.mjs`, `prod-lite-smoke.mjs`, `prod-smoke.mjs`, `prod-engine-smoke.mjs`, `prod-engine-playout.mjs`, `xiangqi-broadcast-local-smoke.mjs`, `time-command.mjs` |
 | AI asset gen | `pixel-gen.mjs`, `video-gen.mjs`, `loop-video.mjs`, `slice-fog.py` |
 | Other | `key-transparency.py` |

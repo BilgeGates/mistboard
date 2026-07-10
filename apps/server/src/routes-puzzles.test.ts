@@ -1,7 +1,12 @@
 import assert from 'node:assert/strict';
 import type { IncomingMessage, ServerResponse } from 'node:http';
 import test from 'node:test';
-import { FORTRESS_XIANGQI_PUZZLES, JUNGLE_PUZZLES, MINI_XIANGQI_PUZZLES } from '@mistboard/game';
+import {
+  FORTRESS_XIANGQI_PUZZLES,
+  JUNGLE_PUZZLES,
+  MINI_XIANGQI_PUZZLES,
+  XIANGQI_PUZZLES,
+} from '@mistboard/game';
 import type { HttpApiContext } from './routes/lib.js';
 import { tryHandle } from './routes/puzzles.js';
 
@@ -65,7 +70,10 @@ test('puzzle list returns public Mini and Drop Mini summaries without solutions'
   assert.equal(response.status, 200);
   assert.equal(
     body.puzzles.length,
-    MINI_XIANGQI_PUZZLES.length + FORTRESS_XIANGQI_PUZZLES.length + JUNGLE_PUZZLES.length,
+    MINI_XIANGQI_PUZZLES.length +
+      FORTRESS_XIANGQI_PUZZLES.length +
+      JUNGLE_PUZZLES.length +
+      XIANGQI_PUZZLES.length,
   );
   assert.deepEqual(
     body.puzzles.slice(0, 6).map((puzzle) => puzzle.variant),
@@ -167,6 +175,33 @@ test('puzzle list rejects unsupported variants', async () => {
 
   assert.equal(response.status, 400);
   assert.deepEqual(JSON.parse(response.body), { error: 'invalid_variant' });
+});
+
+// Standard xiangqi serving wiring: the variant filter round-trips even while
+// the mined registry is still empty (assert the wiring, not the content).
+test('puzzle list filters to standard Xiangqi puzzles', async () => {
+  const response = await route('/api/puzzles?variant=xiangqi');
+  const body = JSON.parse(response.body) as {
+    puzzles: Array<{ variant: string; solution?: unknown }>;
+  };
+
+  assert.equal(response.status, 200);
+  assert.equal(body.puzzles.length, XIANGQI_PUZZLES.length);
+  assert.equal(
+    body.puzzles.every((puzzle) => puzzle.variant === 'xiangqi'),
+    true,
+  );
+  assert.equal(
+    body.puzzles.every((puzzle) => puzzle.solution === undefined),
+    true,
+  );
+});
+
+test('puzzle rating route accepts the standard xiangqi variant', async () => {
+  const response = await route('/api/puzzles/rating?variant=xiangqi');
+
+  assert.equal(response.status, 200);
+  assert.deepEqual(JSON.parse(response.body), { rating: null });
 });
 
 test('Fortress puzzle attempts solve the mined mate and stay solution-hidden', async () => {
