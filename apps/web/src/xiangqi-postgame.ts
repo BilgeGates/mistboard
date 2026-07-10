@@ -14,7 +14,6 @@ import { fetchCachedGameAnalysis, requestGameAnalysis } from './review/game-anal
 import { createGameMetaCard, timeAgoLabel } from './review/game-meta-card.js';
 import { mountXiangqiReview } from './review/xiangqi-review.js';
 import { buildNav } from './site-shell.js';
-import { createXiangqiPlayAgainRoom } from './xiangqi-room-actions.js';
 
 // Open information: the only meaningful board is the shared truth board.
 export type XiangqiPostgameViewKey = 'truth';
@@ -133,7 +132,6 @@ function renderPostgame(root: HTMLElement, postgame: XiangqiPostgameResponse): v
     ariaLabel: 'Xiangqi postgame',
     title: 'Elephant Chess',
     summary: `${resultLabel(postgame.game.result)} by ${labelize(postgame.game.termination)} · ${postgame.game.plyCount} plies`,
-    actions: postgameActions(postgame),
     metaCard: metaCard.el,
     // The tree reconstructs positions from the move list client-side (open info,
     // so it matches the server truth); the server per-ply snapshots are unused.
@@ -173,49 +171,6 @@ export function postgameViewAtPly(
     selected = snapshot;
   }
   return selected?.view ?? null;
-}
-
-function postgameActions(postgame: XiangqiPostgameResponse): HTMLElement {
-  const actions = document.createElement('nav');
-  actions.className = 'dxq-postgame__actions';
-  actions.setAttribute('aria-label', 'Game links');
-  let playAgainStatus: 'creating' | 'failed' | 'idle' = 'idle';
-  const playAgain = document.createElement('button');
-  playAgain.type = 'button';
-  playAgain.className = 'dxq-postgame__link dxq-postgame__link--primary';
-  const syncPlayAgain = () => {
-    playAgain.disabled = playAgainStatus === 'creating';
-    playAgain.textContent =
-      playAgainStatus === 'creating'
-        ? 'Creating'
-        : playAgainStatus === 'failed'
-          ? 'Try play again'
-          : 'Play again';
-  };
-  playAgain.addEventListener('click', () => {
-    playAgainStatus = 'creating';
-    syncPlayAgain();
-    void createXiangqiPlayAgainRoom({ timeControl: postgameTimeControl(postgame) })
-      .then((url) => {
-        window.location.assign(url);
-      })
-      .catch((err) => {
-        console.warn(err);
-        playAgainStatus = 'failed';
-        syncPlayAgain();
-      });
-  });
-  syncPlayAgain();
-  const home = document.createElement('a');
-  home.className = 'dxq-postgame__link';
-  home.href = '/';
-  home.textContent = 'Back home';
-  const room = document.createElement('a');
-  room.className = 'dxq-postgame__link';
-  room.href = `/room/${encodeURIComponent(postgame.game.roomId)}`;
-  room.textContent = 'Room';
-  actions.append(playAgain, home, room);
-  return actions;
 }
 
 function loadingView(): HTMLElement {

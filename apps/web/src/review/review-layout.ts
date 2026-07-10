@@ -39,8 +39,8 @@ export type ReviewLayoutAdapter = {
   ariaLabel: string;
   title: string;
   summary: string;
-  /** Play again / home / room actions row. */
-  actions: HTMLElement;
+  /** Play again / home / room actions row. Optional on review pages with no local actions. */
+  actions?: HTMLElement;
   /** Left-rail details panel (result / clock / date …). Optional. */
   details?: HTMLElement;
   /** Lichess-style game meta card (glyph / time control / players / result).
@@ -115,7 +115,7 @@ export type ReviewScaffoldConfig = SizingInput & {
   eyebrow?: string;
   title: string;
   summary: string;
-  actions: HTMLElement;
+  actions?: HTMLElement;
   details?: HTMLElement;
   metaCard?: HTMLElement;
   underboard?: HTMLElement;
@@ -478,17 +478,20 @@ function infoRail(config: {
   eyebrow?: string;
   title: string;
   summary: string;
-  actions: HTMLElement;
+  actions?: HTMLElement;
   details?: HTMLElement;
 }): HTMLElement {
   if (config.metaCard) {
-    const actionsCard = document.createElement('div');
-    actionsCard.className = 'review-actions review-actions--rail';
-    actionsCard.append(config.actions);
+    const actions = config.actions;
+    const actionsCard = actions ? document.createElement('div') : null;
+    if (actionsCard && actions) {
+      actionsCard.className = 'review-actions review-actions--rail';
+      actionsCard.append(actions);
+    }
     return railGroup(
       config.details
-        ? [config.metaCard, actionsCard, config.details]
-        : [config.metaCard, actionsCard],
+        ? [config.metaCard, ...(actionsCard ? [actionsCard] : []), config.details]
+        : [config.metaCard, ...(actionsCard ? [actionsCard] : [])],
     );
   }
   const card = document.createElement('section');
@@ -502,7 +505,8 @@ function infoRail(config: {
   const summary = document.createElement('p');
   summary.className = 'review-info-card__summary';
   summary.textContent = config.summary;
-  card.append(eyebrow, title, summary, config.actions);
+  card.append(eyebrow, title, summary);
+  if (config.actions) card.append(config.actions);
   return railGroup(config.details ? [card, config.details] : [card]);
 }
 

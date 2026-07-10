@@ -69,8 +69,8 @@ export type XiangqiReviewConfig = {
   title: string;
   summary: string;
   boardAriaLabel?: string;
-  /** Play again / home / room / import actions row (left rail). */
-  actions: HTMLElement;
+  /** Optional left-rail actions row (analysis import/home, etc.). */
+  actions?: HTMLElement;
   /** Left-rail details panel. Optional. */
   details?: HTMLElement;
   /** Lichess-style game meta card; replaces the plain title/summary card. */
