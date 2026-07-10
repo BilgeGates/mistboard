@@ -574,10 +574,11 @@ describe('rules variant sidebar', () => {
     expect(nav?.querySelector('a[href="/rules/shogi"]')).toBeNull();
     expect(nav?.querySelector('a[href="/rules/dark-shogi"]')).not.toBeNull();
     expect(hrefs.indexOf('/rules/xiangqi')).toBeLessThan(hrefs.indexOf('/rules/fortress-xiangqi'));
-    expect(hrefs.indexOf('/rules/jieqi')).toBeLessThan(hrefs.indexOf('/rules/jungle-flip'));
-    expect(hrefs.indexOf('/rules/jungle-flip')).toBeLessThan(hrefs.indexOf('/rules/banqi'));
+    expect(hrefs.indexOf('/rules/fortress-xiangqi')).toBeLessThan(hrefs.indexOf('/rules/banqi'));
     expect(hrefs.indexOf('/rules/banqi')).toBeLessThan(hrefs.indexOf('/rules/jungle'));
-    expect(hrefs.indexOf('/rules/jungle')).toBeLessThan(hrefs.indexOf('/rules/dark-xiangqi'));
+    expect(hrefs.indexOf('/rules/jungle')).toBeLessThan(hrefs.indexOf('/rules/jungle-flip'));
+    expect(hrefs.indexOf('/rules/jungle-flip')).toBeLessThan(hrefs.indexOf('/rules/jieqi'));
+    expect(hrefs.indexOf('/rules/jieqi')).toBeLessThan(hrefs.indexOf('/rules/dark-xiangqi'));
     expect(hrefs.indexOf('/rules/dark-xiangqi')).toBeLessThan(hrefs.indexOf('/rules/dark-chess'));
     expect(hrefs.indexOf('/rules/dark-chess')).toBeLessThan(hrefs.indexOf('/rules/dark-shogi'));
   });

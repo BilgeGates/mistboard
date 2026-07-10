@@ -164,33 +164,6 @@ export const VARIANTS: VariantDef[] = [
     onLeaderboard: fortressXiangqiOn,
     onProfile: fortressXiangqiOn,
   },
-  // Jieqi launched casual and is rating-ready (gated globally by
-  // MISTBOARD_RATED_ENABLED). Not lobby-selectable (no open-seek matchmaking).
-  {
-    id: currentRatingVariantForSpec(JIEQI_SPEC_ID),
-    gameSpecId: jieqiSpec.id,
-    apiParam: JIEQI_SPEC_ID,
-    label: jieqiSpec.publicName,
-    miniId: 'jieqi',
-    enabled: false,
-    onLeaderboard: jieqiOn,
-    onProfile: jieqiOn,
-  },
-  // Jungle + Flip Jungle: rated human PvP (own pools), PvE bot games written
-  // unrated. The rating pools + profile/persistence wiring are live, but the
-  // public leaderboard/profile DISPLAY follows the play flag (`jungleOn` /
-  // `jungleFlipOn`), launched 2026-06-30 (now always-on). Not lobby open-seek (no
-  // public matchmaking in v1), so `enabled: false`.
-  {
-    id: currentRatingVariantForSpec(JUNGLE_FLIP_SPEC_ID),
-    gameSpecId: jungleFlipSpec.id,
-    apiParam: JUNGLE_FLIP_SPEC_ID,
-    label: jungleFlipSpec.publicName,
-    miniId: 'jungle-flip',
-    enabled: false,
-    onLeaderboard: jungleFlipOn,
-    onProfile: jungleFlipOn,
-  },
   // Banqi stays a xiangqi-family rules kernel, but sits with the animal-rank
   // games for the planned animal-themed presentation.
   {
@@ -203,6 +176,11 @@ export const VARIANTS: VariantDef[] = [
     onLeaderboard: banqiOn,
     onProfile: banqiOn,
   },
+  // Jungle + Flip Jungle: rated human PvP (own pools), PvE bot games written
+  // unrated. The rating pools + profile/persistence wiring are live, but the
+  // public leaderboard/profile DISPLAY follows the play flag (`jungleOn` /
+  // `jungleFlipOn`), launched 2026-06-30 (now always-on). Not lobby open-seek (no
+  // public matchmaking in v1), so `enabled: false`.
   {
     id: currentRatingVariantForSpec(JUNGLE_SPEC_ID),
     gameSpecId: jungleSpec.id,
@@ -212,6 +190,29 @@ export const VARIANTS: VariantDef[] = [
     enabled: false,
     onLeaderboard: jungleOn,
     onProfile: jungleOn,
+  },
+  {
+    id: currentRatingVariantForSpec(JUNGLE_FLIP_SPEC_ID),
+    gameSpecId: jungleFlipSpec.id,
+    apiParam: JUNGLE_FLIP_SPEC_ID,
+    label: jungleFlipSpec.publicName,
+    miniId: 'jungle-flip',
+    enabled: false,
+    onLeaderboard: jungleFlipOn,
+    onProfile: jungleFlipOn,
+  },
+  // Jieqi closes the flip cluster: launched casual and rating-ready (gated
+  // globally by MISTBOARD_RATED_ENABLED). Not lobby-selectable (no open-seek
+  // matchmaking).
+  {
+    id: currentRatingVariantForSpec(JIEQI_SPEC_ID),
+    gameSpecId: jieqiSpec.id,
+    apiParam: JIEQI_SPEC_ID,
+    label: jieqiSpec.publicName,
+    miniId: 'jieqi',
+    enabled: false,
+    onLeaderboard: jieqiOn,
+    onProfile: jieqiOn,
   },
   // Full Dark Xiangqi (9x10 fog): launched PvP-first (no bot, no open-seek
   // lobby), rating-ready like jieqi/banqi. It starts the fog trio in the shared

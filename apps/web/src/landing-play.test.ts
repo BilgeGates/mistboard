@@ -11,16 +11,17 @@ import {
 import { setRatedModeEnabled } from './rated-flag.js';
 import { setResolvedSignedIn } from './signed-in-state.js';
 
-// Xiangqi pivot (2026-07): open / flip xiangqi variants lead, the animal-rank
-// cluster follows, then the fog trio. The mini xiangqi trio
-// (mini/dark-mini/drop-mini) plus dark-crazyhouse are hidden from menus
-// (offerInMenu=false) — they remain reachable only by deep link.
+// Xiangqi pivot (2026-07): the open xiangqi anchors lead, the approachable
+// flip/animal cluster follows (Banqi, Jungle, Flip Jungle, Jieqi), then the
+// fog trio. The mini xiangqi trio (mini/dark-mini/drop-mini) plus
+// dark-crazyhouse are hidden from menus (offerInMenu=false) — they remain
+// reachable only by deep link.
 const BASELINE_PICKER_SPECS = [
   'fortress-xiangqi',
-  'jieqi',
-  'jungle-flip',
   'banqi',
   'jungle',
+  'jungle-flip',
+  'jieqi',
   'dark-xiangqi',
   'dark-chess',
   'dark-shogi',

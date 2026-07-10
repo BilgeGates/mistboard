@@ -5,9 +5,12 @@ serious play: server-enforced board games across chess, xiangqi, shogi, Jungle,
 and related families, including hidden-information games such as dark chess (also
 called Fog of War chess).
 
-Mistboard is the umbrella brand; each game is named on its own. Dark chess is the
-flagship hidden-information variant and the platform's first strong test, not the
-whole of it.
+Mistboard is the umbrella brand; each game is named on its own. The current
+anchor is standard xiangqi (Chinese chess): a lichess-quality, English-first
+home for the game, with live play, analysis, broadcasts, puzzles, and teaching
+that make it approachable to players who do not read Chinese. Hidden-information
+variants such as dark chess remain a core strength and the platform's hardest
+correctness test. Neither is the whole of the platform.
 
 > Goal: the trustworthy open-source place to play, study, rank, and build engines
 > for original strategy games.
@@ -21,6 +24,9 @@ Not a general chess clone. The focus is server-authoritative correctness for
 games where it matters most, especially games with hidden information where the
 server must enforce what each player is allowed to know. The primary work:
 
+- the current anchor: an internationally approachable xiangqi presentation
+  (piece sets readable without Chinese characters, English teaching content,
+  translated broadcasts)
 - server-authoritative state and seat-scoped player views
 - correct hidden-information boundaries
 - postgame reveal and replay

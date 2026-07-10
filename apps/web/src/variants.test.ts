@@ -67,8 +67,8 @@ describe('web variant launch registry', () => {
     // it sorts after the xiangqi + animal-rank buckets.
     expect(prod.leaderboardVariants.map((v) => v.gameSpecId)).toEqual([
       FORTRESS_XIANGQI_SPEC_ID,
-      JUNGLE_FLIP_SPEC_ID,
       JUNGLE_SPEC_ID,
+      JUNGLE_FLIP_SPEC_ID,
       DARK_CHESS_SPEC_ID,
     ]);
     vi.unstubAllEnvs();
@@ -86,8 +86,8 @@ describe('web variant launch registry', () => {
     const flagged = await import('./variants.js');
     const expected = [
       FORTRESS_XIANGQI_SPEC_ID,
-      JUNGLE_FLIP_SPEC_ID,
       JUNGLE_SPEC_ID,
+      JUNGLE_FLIP_SPEC_ID,
       DARK_CHESS_SPEC_ID,
       DARK_MINI_XIANGQI_SPEC_ID,
     ];
@@ -157,15 +157,15 @@ describe('web variant launch registry', () => {
   });
 
   it('shows local rating surfaces without disabled Crossroads, Reveal, and Kriegspiel variants', () => {
-    // Xiangqi pivot: canonical order (xiangqi lead, then the animal-rank cluster,
-    // then the fog trio), and drop-mini is off the rating grids.
+    // Xiangqi pivot: canonical order (xiangqi anchors, then the flip/animal
+    // cluster, then the fog trio), and drop-mini is off the rating grids.
     expect(leaderboardVariants.map((v) => v.gameSpecId)).toEqual([
       XIANGQI_SPEC_ID,
       FORTRESS_XIANGQI_SPEC_ID,
-      JIEQI_SPEC_ID,
-      JUNGLE_FLIP_SPEC_ID,
       BANQI_SPEC_ID,
       JUNGLE_SPEC_ID,
+      JUNGLE_FLIP_SPEC_ID,
+      JIEQI_SPEC_ID,
       DARK_XIANGQI_SPEC_ID,
       DARK_CHESS_SPEC_ID,
       DARK_SHOGI_SPEC_ID,
@@ -175,10 +175,10 @@ describe('web variant launch registry', () => {
     expect(profileRatingVariants.map((v) => v.gameSpecId)).toEqual([
       XIANGQI_SPEC_ID,
       FORTRESS_XIANGQI_SPEC_ID,
-      JIEQI_SPEC_ID,
-      JUNGLE_FLIP_SPEC_ID,
       BANQI_SPEC_ID,
       JUNGLE_SPEC_ID,
+      JUNGLE_FLIP_SPEC_ID,
+      JIEQI_SPEC_ID,
       DARK_XIANGQI_SPEC_ID,
       DARK_CHESS_SPEC_ID,
       DARK_SHOGI_SPEC_ID,
@@ -214,10 +214,10 @@ describe('web variant launch registry', () => {
     expect(VARIANTS.map((v) => [v.gameSpecId, v.apiParam])).toEqual([
       [XIANGQI_SPEC_ID, 'xiangqi'],
       [FORTRESS_XIANGQI_SPEC_ID, 'fortress-xiangqi'],
-      [JIEQI_SPEC_ID, 'jieqi'],
-      [JUNGLE_FLIP_SPEC_ID, 'jungle-flip'],
       [BANQI_SPEC_ID, 'banqi'],
       [JUNGLE_SPEC_ID, 'jungle'],
+      [JUNGLE_FLIP_SPEC_ID, 'jungle-flip'],
+      [JIEQI_SPEC_ID, 'jieqi'],
       [DARK_XIANGQI_SPEC_ID, 'dark-xiangqi'],
       [DARK_CHESS_SPEC_ID, 'fog'],
       [DARK_SHOGI_SPEC_ID, 'dark-shogi'],
