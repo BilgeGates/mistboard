@@ -46,23 +46,26 @@ export function renderXiangqiBoardSvg(
   view: StandardXiangqiPlayerView,
   perspective: XiangqiColor = view.perspective,
 ): string {
-  return boardSvg(view, perspective, {
+  return xiangqiBoardSvg(view, perspective, {
     interactive: false,
     selectedSquare: null,
     draggingFrom: null,
   });
 }
 
-interface BoardSvgState {
+export interface XiangqiBoardSvgState {
   interactive: boolean;
   selectedSquare: XiangqiSquare | null;
   draggingFrom: XiangqiSquare | null;
 }
 
-function boardSvg(
+/** Full board SVG with interaction state. The live room (live-xiangqi.ts) calls
+ *  this directly with its own selection/drag state; render-only surfaces go
+ *  through renderXiangqiBoardSvg above. */
+export function xiangqiBoardSvg(
   view: StandardXiangqiPlayerView,
   perspective: XiangqiColor,
-  state: BoardSvgState,
+  state: XiangqiBoardSvgState,
 ): string {
   return `
     <svg class="xq-live-svg" viewBox="0 0 ${WIDTH} ${HEIGHT}" xmlns="http://www.w3.org/2000/svg">
@@ -239,9 +242,12 @@ function clickLayer(
   return parts.join('');
 }
 
+/** Piece sprite size in viewBox units; drag ghosts are mounted at this size. */
+export const XIANGQI_PIECE_SIZE = PIECE_SIZE;
+
 // The standalone piece SVG for the floating drag ghost (board-drag.ts mounts it
 // in a sized <div>).
-function xiangqiPieceGhostSvg(piece: XiangqiPiece): string {
+export function xiangqiPieceGhostSvg(piece: XiangqiPiece): string {
   return renderXiangqiPiece(piece, {
     ariaLabel: `${piece.color} ${piece.role}`,
     className: 'xq-piece',
@@ -328,7 +334,7 @@ export function createXiangqiInteractiveBoard(
       opts.board.replaceChildren();
       return;
     }
-    opts.board.innerHTML = boardSvg(view, perspective, {
+    opts.board.innerHTML = xiangqiBoardSvg(view, perspective, {
       interactive: true,
       selectedSquare,
       draggingFrom,

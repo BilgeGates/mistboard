@@ -33,6 +33,27 @@ describe('Jungle watch replay', () => {
     handle.destroy();
     expect(root.childElementCount).toBe(0);
   });
+
+  it('draws the last-move ring at a nonzero ply and none at the start', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => jsonResponse(postgameFixture('jgl_lastmove'))),
+    );
+    const root = document.createElement('div');
+
+    const handle = await mountJungleWatchReplay(root, 'jgl_lastmove', { autoplay: false });
+
+    // Ply 0: no move played yet, so no amber last-move ring on the board.
+    const boardSvg = () => root.querySelector('svg.jungle-live-svg');
+    expect(boardSvg()).not.toBeNull();
+    expect(boardSvg()!.outerHTML).not.toContain('stroke="#ffb000"');
+
+    // Ply 1: the a3-a4 move renders one ring per endpoint (from + to).
+    root.querySelector<HTMLButtonElement>('[aria-label="Next move"]')?.click();
+    expect(boardSvg()!.outerHTML.match(/stroke="#ffb000"/g)).toHaveLength(2);
+
+    handle.destroy();
+  });
 });
 
 function postgameFixture(roomId: string): JunglePostgameResponse {
