@@ -317,11 +317,164 @@ describe('puzzles route', () => {
     );
     expect(root.querySelector<HTMLButtonElement>('[data-puzzle-replay-next]')?.disabled).toBe(true);
     const nextButton = root.querySelector<HTMLButtonElement>('[data-puzzle-next]');
-    expect(nextButton?.getAttribute('aria-label')).toBe('Continue training');
-    expect(nextButton?.textContent).toBe('Continue training');
+    expect(nextButton?.getAttribute('aria-label')).toBe('Next puzzle');
+    expect(nextButton?.textContent).toBe('Next puzzle');
     expect(nextButton?.disabled).toBe(false);
 
     nextButton?.click();
+
+    await vi.waitFor(() =>
+      expect(root.querySelector('.puzzle-detail h2')?.textContent).toBe('Black to move'),
+    );
+    expect(fetchSpy).toHaveBeenCalledWith(`/api/puzzles/${blackDrop.id}`);
+  });
+
+  it('shows a focused next-puzzle button when a winning-advantage line completes mid-game', async () => {
+    const redDrop = MINI_XIANGQI_PUZZLES.find(
+      (puzzle) => puzzle.id === 'drop-mini-xiangqi-red-chariot-drop-mate-1',
+    )!;
+    const blackDrop = MINI_XIANGQI_PUZZLES.find(
+      (puzzle) => puzzle.id === 'drop-mini-xiangqi-black-chariot-drop-mate-1',
+    )!;
+    stubWindowLocalStorage(
+      memoryStorage({ 'mistboard:puzzles:seen': JSON.stringify({ [blackDrop.id]: 1 }) }),
+    );
+    // Winning-advantage puzzles (most of the Fortress corpus, Jungle material
+    // tactics) complete while the game is still in progress: the server reports
+    // complete: true with a state whose status is still 'playing'. Reshape the
+    // real attempt to that contract so the solved CTA is exercised against it.
+    const solvedAttempt = attemptMiniXiangqiPuzzleLine(redDrop, [{ drop: 'chariot', to: 'd4' }]);
+    if (!solvedAttempt.ok) throw new Error('expected a solved attempt fixture');
+    const midGameAttempt = {
+      ...solvedAttempt,
+      state: { ...solvedAttempt.state, status: { type: 'playing', turn: 'black' } },
+    };
+    const winningAdvantageSummary = {
+      ...publicSummary(redDrop),
+      goal: { type: 'winning-advantage', winner: 'red' },
+    };
+    const fetchSpy = vi.fn(async (input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url === '/api/puzzles')
+        return json({ puzzles: [winningAdvantageSummary, publicSummary(blackDrop)] });
+      if (url === `/api/puzzles/${redDrop.id}`)
+        return json({ puzzle: { ...winningAdvantageSummary, initial: redDrop.initial } });
+      if (url === `/api/puzzles/${blackDrop.id}`) return json({ puzzle: publicDetail(blackDrop) });
+      if (url === `/api/puzzles/${redDrop.id}/attempt`) return json({ attempt: midGameAttempt });
+      return json({ error: 'not_found' }, 404);
+    });
+    vi.stubGlobal('fetch', fetchSpy);
+    const root = document.createElement('div');
+    document.body.append(root);
+
+    await mountPuzzles(root, redDrop.id);
+    root.querySelector<HTMLButtonElement>('[data-drop="chariot"]')?.click();
+    root
+      .querySelector<SVGGElement>('[data-square="d4"]')
+      ?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+
+    await vi.waitFor(() => expect(root.textContent).toContain('Success!'));
+    const nextButton = root.querySelector<HTMLButtonElement>('[data-puzzle-next]');
+    expect(nextButton).not.toBeNull();
+    expect(nextButton?.textContent).toBe('Next puzzle');
+    expect(nextButton?.disabled).toBe(false);
+    // Focus lands on the CTA so Enter advances straight away.
+    expect(document.activeElement).toBe(nextButton);
+
+    nextButton?.click();
+
+    await vi.waitFor(() =>
+      expect(root.querySelector('.puzzle-detail h2')?.textContent).toBe('Black to move'),
+    );
+    expect(window.location.pathname).toBe(`/puzzles/${blackDrop.id}`);
+  });
+
+  it('wraps to the start of the queue when solving the last puzzle', async () => {
+    const redDrop = MINI_XIANGQI_PUZZLES.find(
+      (puzzle) => puzzle.id === 'drop-mini-xiangqi-red-chariot-drop-mate-1',
+    )!;
+    const blackDrop = MINI_XIANGQI_PUZZLES.find(
+      (puzzle) => puzzle.id === 'drop-mini-xiangqi-black-chariot-drop-mate-1',
+    )!;
+    // Mark the deep-linked puzzle seen so it sorts LAST in the rotated queue:
+    // solving it exercises the end-of-queue wrap instead of a disabled button.
+    stubWindowLocalStorage(
+      memoryStorage({ 'mistboard:puzzles:seen': JSON.stringify({ [redDrop.id]: 1 }) }),
+    );
+    const fetchSpy = vi.fn(async (input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url === '/api/puzzles')
+        return json({ puzzles: [publicSummary(redDrop), publicSummary(blackDrop)] });
+      if (url === `/api/puzzles/${redDrop.id}`) return json({ puzzle: publicDetail(redDrop) });
+      if (url === `/api/puzzles/${blackDrop.id}`) return json({ puzzle: publicDetail(blackDrop) });
+      if (url === `/api/puzzles/${redDrop.id}/attempt`)
+        return json({
+          attempt: attemptMiniXiangqiPuzzleLine(redDrop, [{ drop: 'chariot', to: 'd4' }]),
+        });
+      return json({ error: 'not_found' }, 404);
+    });
+    vi.stubGlobal('fetch', fetchSpy);
+    const root = document.createElement('div');
+
+    await mountPuzzles(root, redDrop.id);
+    root.querySelector<HTMLButtonElement>('[data-drop="chariot"]')?.click();
+    root
+      .querySelector<SVGGElement>('[data-square="d4"]')
+      ?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+
+    await vi.waitFor(() => expect(root.textContent).toContain('Success!'));
+    const nextButton = root.querySelector<HTMLButtonElement>('[data-puzzle-next]');
+    expect(nextButton?.disabled).toBe(false);
+
+    nextButton?.click();
+
+    await vi.waitFor(() =>
+      expect(root.querySelector('.puzzle-detail h2')?.textContent).toBe('Black to move'),
+    );
+    expect(fetchSpy).toHaveBeenCalledWith(`/api/puzzles/${blackDrop.id}`);
+    expect(window.location.pathname).toBe(`/puzzles/${blackDrop.id}`);
+  });
+
+  it('offers a skip to the next puzzle after a failed attempt', async () => {
+    const redDrop = MINI_XIANGQI_PUZZLES.find(
+      (puzzle) => puzzle.id === 'drop-mini-xiangqi-red-chariot-drop-mate-1',
+    )!;
+    const blackDrop = MINI_XIANGQI_PUZZLES.find(
+      (puzzle) => puzzle.id === 'drop-mini-xiangqi-black-chariot-drop-mate-1',
+    )!;
+    stubWindowLocalStorage(
+      memoryStorage({ 'mistboard:puzzles:seen': JSON.stringify({ [blackDrop.id]: 1 }) }),
+    );
+    const fetchSpy = vi.fn(async (input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url === '/api/puzzles')
+        return json({ puzzles: [publicSummary(redDrop), publicSummary(blackDrop)] });
+      if (url === `/api/puzzles/${redDrop.id}`) return json({ puzzle: publicDetail(redDrop) });
+      if (url === `/api/puzzles/${blackDrop.id}`) return json({ puzzle: publicDetail(blackDrop) });
+      if (url === `/api/puzzles/${redDrop.id}/attempt`)
+        return json({
+          // e4 is a legal drop square but not the solution: incorrect-move.
+          attempt: attemptMiniXiangqiPuzzleLine(redDrop, [{ drop: 'chariot', to: 'e4' }]),
+        });
+      return json({ error: 'not_found' }, 404);
+    });
+    vi.stubGlobal('fetch', fetchSpy);
+    const root = document.createElement('div');
+
+    await mountPuzzles(root, redDrop.id);
+    expect(root.querySelector('[data-puzzle-skip]')).toBeNull();
+    root.querySelector<HTMLButtonElement>('[data-drop="chariot"]')?.click();
+    root
+      .querySelector<SVGGElement>('[data-square="e4"]')
+      ?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+
+    await vi.waitFor(() => expect(root.textContent).toContain('Try again'));
+    const skipButton = root.querySelector<HTMLButtonElement>('[data-puzzle-skip]');
+    expect(skipButton?.textContent).toBe('Skip to the next puzzle');
+    // The solved CTA stays reserved for solves.
+    expect(root.querySelector('[data-puzzle-next]')).toBeNull();
+
+    skipButton?.click();
 
     await vi.waitFor(() =>
       expect(root.querySelector('.puzzle-detail h2')?.textContent).toBe('Black to move'),

@@ -149,6 +149,14 @@ type PuzzleSession = {
   draggingFrom: MiniXiangqiSquare | FortressXiangqiSquare | JungleSquare | null;
   feedback: { kind: FeedbackKind; text: string };
   submitting: boolean;
+  // True once the server confirmed the full solution line (attempt.complete).
+  // Tracked on the session because winning-advantage puzzles complete mid-game:
+  // their final state is still 'playing', so board status alone cannot signal
+  // "solved" (and the next-puzzle CTA would never appear).
+  solved: boolean;
+  // One-shot flag: focus the next-puzzle button on the render right after a
+  // solve, so Enter or Space advances without reaching for the mouse.
+  focusNext: boolean;
 };
 
 type PuzzleNavigation = {
@@ -432,6 +440,8 @@ function createPuzzleSession(puzzle: PuzzleDetail): PuzzleSession {
     draggingFrom: null,
     feedback: { kind: 'neutral', text: 'Find the best move.' },
     submitting: false,
+    solved: false,
+    focusNext: false,
   };
 }
 
@@ -695,6 +705,14 @@ function renderPuzzleDetail(
   side.append(trainer, actionPanel(session, renderSession, cancelAutoNext));
   boardPanel.append(board, side);
   host.append(boardPanel);
+
+  // Right after a solve, hand focus to the next-puzzle button (one-shot) so
+  // Enter or Space advances; on small screens this also scrolls the CTA into
+  // view, where the side panel sits below the board.
+  if (session.focusNext) {
+    session.focusNext = false;
+    host.querySelector<HTMLButtonElement>('[data-puzzle-next="true"]')?.focus();
+  }
 }
 
 // Paint the interactive board (+ reserves for drop variants) and wire drag.
@@ -1107,6 +1125,17 @@ function feedbackPanel(session: PuzzleSession, navigation: PuzzleNavigation): HT
   body.className = 'puzzle-feedback-body';
   body.textContent = session.feedback.text;
   copy.append(title, body);
+  // After a failed attempt, offer a way out: without it the page has no
+  // between-puzzle navigation until the puzzle is solved.
+  if (session.feedback.kind === 'bad' && navigation.hasNext) {
+    const skip = document.createElement('button');
+    skip.type = 'button';
+    skip.className = 'puzzle-feedback-skip';
+    skip.dataset.puzzleSkip = 'true';
+    skip.textContent = 'Skip to the next puzzle';
+    skip.addEventListener('click', navigation.goNext);
+    copy.append(skip);
+  }
   panel.append(icon, copy);
   return panel;
 }
@@ -1118,13 +1147,15 @@ function solvedPanel(navigation: PuzzleNavigation): HTMLElement {
   const title = document.createElement('h2');
   title.textContent = 'Success!';
 
-  // Prominent primary CTA (lichess parity), in Mistboard's own accent.
+  // Prominent primary CTA (lichess-style bar), in Mistboard's own accent. It
+  // advances along the visit's rotated queue and is focused on solve (see
+  // renderPuzzleDetail) so Enter or Space moves on immediately.
   const cont = document.createElement('button');
   cont.type = 'button';
   cont.className = 'puzzle-continue-button';
   cont.dataset.puzzleNext = 'true';
-  cont.innerHTML = `${ICON_PLAY}<span>Continue training</span>`;
-  cont.setAttribute('aria-label', 'Continue training');
+  cont.innerHTML = `${ICON_PLAY}<span>Next puzzle</span>`;
+  cont.setAttribute('aria-label', 'Next puzzle');
   cont.disabled = !navigation.hasNext;
   cont.addEventListener('click', navigation.goNext);
 
@@ -1235,7 +1266,10 @@ function actionButton(
 }
 
 function isSessionSolved(session: PuzzleSession): boolean {
-  return session.state.status.type === 'finished';
+  // `solved` mirrors the server's attempt.complete. Checking board status alone
+  // missed winning-advantage puzzles, whose solution line ends while the game
+  // is still in progress; a finished board still counts for mate/win lines.
+  return session.solved || session.state.status.type === 'finished';
 }
 
 function fillPuzzleReserveStrip(
@@ -1607,7 +1641,11 @@ async function submitMove(
     session.playedMoves = attempt.playedMoves;
     session.state = attempt.state;
     session.viewPly = session.playedMoves.length;
-    if (attempt.complete) onSolved?.(session.puzzle.id);
+    if (attempt.complete) {
+      session.solved = true;
+      session.focusNext = true;
+      onSolved?.(session.puzzle.id);
+    }
     session.feedback = attempt.complete
       ? { kind: 'good', text: 'Solved.' }
       : { kind: 'good', text: 'Correct.' };
@@ -1720,7 +1758,10 @@ function navigationFor(
   );
   const total = puzzles.length;
   const hasPrevious = total > 0 && index > 0;
-  const hasNext = total > 0 && index < total - 1;
+  // The queue is frozen for the visit (rotation happens once on mount), so
+  // "next" wraps at the end instead of dead-ending the trainer on the last
+  // puzzle with a disabled button.
+  const hasNext = total > 1;
   return {
     index,
     total,
@@ -1732,7 +1773,7 @@ function navigationFor(
     },
     goNext: () => {
       if (!hasNext) return;
-      void selectPuzzle(puzzles[index + 1]!.id, true);
+      void selectPuzzle(puzzles[(index + 1) % total]!.id, true);
     },
   };
 }
