@@ -373,58 +373,57 @@
   --xq-fog-fill: rgba(46, 43, 37, 0);
 }
 
-/* Xiangqi diagram/marker board tokens. The board surface (bg + grid ink) tracks
-   data-xiangqi-board-theme; the fog tint tracks data-fog-theme. Shared by the
-   article diagrams (.xq-article-svg, consumer rules in articles.css) and the
-   variant mini-board markers (.variant-mini, consumer rules in
-   variant-mini-boards.css). Defined here (not articles.css) so markers theme
-   correctly on non-article surfaces (home, profile, watch). Defaults match the
-   live board's Tournament + Solid look. (Piece sets are inline glyphs, so they
-   re-render in JS instead.) */
+/* Xiangqi board tokens. The board surface (bg + grid ink) tracks
+   data-xiangqi-board-theme; the fog tint tracks data-fog-theme. Shared by full
+   live boards, article diagrams, compact/fortress boards, and variant markers.
+   International is the default: no standard-river Chinese text, neutral river
+   and palace bands. Traditional restores the river text and warmer board tone.
+   Piece sets are inline glyphs, so they re-render in JS instead. */
 :root {
-  --xq-diagram-bg: #d9bd82;
-  --xq-diagram-ink: #4b3c2a;
+  --xq-board-bg: #f5dca8;
+  --xq-board-ink: #5a3a14;
+  --xq-board-band: rgba(90, 58, 20, 0.06);
+  --xq-river-label-display: none;
+  --xq-diagram-bg: var(--xq-board-bg);
+  --xq-diagram-ink: var(--xq-board-ink);
   --xq-diagram-palace-band: rgba(255, 255, 255, 0);
   --xq-diagram-fog: rgba(36, 25, 15, 0.55);
-  --mini-xq-board-bg: #d9bd82;
-  --mini-xq-palace-band: rgba(255, 255, 255, 0.17);
-  --mini-xq-grid: #4b3c2a;
-  --xq-live-board-bg: #f5dca8;
-  --xq-live-ink: #5a3a14;
+  --mini-xq-board-bg: var(--xq-board-bg);
+  --mini-xq-palace-band: var(--xq-board-band);
+  --mini-xq-grid: var(--xq-board-ink);
+  --xq-live-board-bg: var(--xq-board-bg);
+  --xq-live-ink: var(--xq-board-ink);
   --xq-live-palace-band: rgba(255, 255, 255, 0);
 }
-:root[data-xiangqi-board-theme="tournament"] {
-  --xq-diagram-bg: #d9bd82;
-  --xq-diagram-ink: #4b3c2a;
+:root[data-xiangqi-board-theme="international"] {
+  --xq-board-bg: #f5dca8;
+  --xq-board-ink: #5a3a14;
+  --xq-board-band: rgba(90, 58, 20, 0.06);
+  --xq-river-label-display: none;
+  --xq-diagram-bg: var(--xq-board-bg);
+  --xq-diagram-ink: var(--xq-board-ink);
   --xq-diagram-palace-band: rgba(255, 255, 255, 0);
-  --mini-xq-board-bg: #d9bd82;
-  --mini-xq-palace-band: rgba(255, 255, 255, 0.17);
-  --mini-xq-grid: #4b3c2a;
-  --xq-live-board-bg: #f5dca8;
-  --xq-live-ink: #5a3a14;
+  --mini-xq-board-bg: var(--xq-board-bg);
+  --mini-xq-palace-band: var(--xq-board-band);
+  --mini-xq-grid: var(--xq-board-ink);
+  --xq-live-board-bg: var(--xq-board-bg);
+  --xq-live-ink: var(--xq-board-ink);
   --xq-live-palace-band: rgba(255, 255, 255, 0);
 }
-:root[data-xiangqi-board-theme="blue"] {
-  --xq-diagram-bg: #cdddea;
-  --xq-diagram-ink: #2c4a63;
+:root[data-xiangqi-board-theme="traditional"] {
+  --xq-board-bg: #d9bd82;
+  --xq-board-ink: #4b3c2a;
+  --xq-board-band: rgba(75, 60, 42, 0.07);
+  --xq-river-label-display: inline;
+  --xq-diagram-bg: var(--xq-board-bg);
+  --xq-diagram-ink: var(--xq-board-ink);
   --xq-diagram-palace-band: rgba(255, 255, 255, 0);
-  --mini-xq-board-bg: #cdddea;
-  --mini-xq-palace-band: rgba(255, 255, 255, 0.3);
-  --mini-xq-grid: #2c4a63;
-  --xq-live-board-bg: #d8e7f1;
-  --xq-live-ink: #2c4a63;
+  --mini-xq-board-bg: var(--xq-board-bg);
+  --mini-xq-palace-band: var(--xq-board-band);
+  --mini-xq-grid: var(--xq-board-ink);
+  --xq-live-board-bg: var(--xq-board-bg);
+  --xq-live-ink: var(--xq-board-ink);
   --xq-live-palace-band: rgba(255, 255, 255, 0);
-}
-:root[data-xiangqi-board-theme="mono"] {
-  --xq-diagram-bg: #e6e2d9;
-  --xq-diagram-ink: #555150;
-  --xq-diagram-palace-band: rgba(0, 0, 0, 0);
-  --mini-xq-board-bg: #e6e2d9;
-  --mini-xq-palace-band: rgba(0, 0, 0, 0.06);
-  --mini-xq-grid: #555150;
-  --xq-live-board-bg: #e6e2d9;
-  --xq-live-ink: #555150;
-  --xq-live-palace-band: rgba(0, 0, 0, 0);
 }
 :root[data-fog-theme="solid"] {
   --xq-diagram-fog: rgba(36, 25, 15, 0.62);

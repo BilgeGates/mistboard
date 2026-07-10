@@ -326,23 +326,22 @@ export function installMiniXiangqiBoardStyles(): void {
   stylesInstalled = true;
   const style = document.createElement('style');
   style.textContent = `
-    /* Board color schemes (data-xiangqi-board-theme) and fog shading
-       (data-fog-theme, shared with chess) drive the board via CSS vars; the
-       defaults below match the original Tournament + Solid look. */
-    :root[data-xiangqi-board-theme="tournament"] {
-      --mini-xq-board-bg: #d9bd82;
-      --mini-xq-palace-band: rgba(255, 255, 255, 0.17);
-      --mini-xq-grid: #4b3c2a;
+    /* Board presentation (data-xiangqi-board-theme) and fog shading
+       (data-fog-theme, shared with chess) drive the board via CSS vars. */
+    :root {
+      --mini-xq-board-bg: var(--xq-board-bg, #f5dca8);
+      --mini-xq-palace-band: var(--xq-board-band, rgba(90, 58, 20, 0.06));
+      --mini-xq-grid: var(--xq-board-ink, #5a3a14);
     }
-    :root[data-xiangqi-board-theme="blue"] {
-      --mini-xq-board-bg: #cdddea;
-      --mini-xq-palace-band: rgba(255, 255, 255, 0.3);
-      --mini-xq-grid: #2c4a63;
+    :root[data-xiangqi-board-theme="international"] {
+      --mini-xq-board-bg: var(--xq-board-bg, #f5dca8);
+      --mini-xq-palace-band: var(--xq-board-band, rgba(90, 58, 20, 0.06));
+      --mini-xq-grid: var(--xq-board-ink, #5a3a14);
     }
-    :root[data-xiangqi-board-theme="mono"] {
-      --mini-xq-board-bg: #e6e2d9;
-      --mini-xq-palace-band: rgba(0, 0, 0, 0.06);
-      --mini-xq-grid: #555150;
+    :root[data-xiangqi-board-theme="traditional"] {
+      --mini-xq-board-bg: var(--xq-board-bg, #d9bd82);
+      --mini-xq-palace-band: var(--xq-board-band, rgba(75, 60, 42, 0.07));
+      --mini-xq-grid: var(--xq-board-ink, #4b3c2a);
     }
     /* Per-skin fog tints + texture toggles are shared with the full board and
        live in app-base.css (--xq-fog-fill, .xq-fog-tex). The drag ghost is the

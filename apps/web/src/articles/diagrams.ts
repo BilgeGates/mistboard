@@ -1376,7 +1376,7 @@ export function xqBoardGrid(x0: number, y0: number, perspective: XiangqiColor): 
     parts.push(`<line x1="${c.x}" y1="${c.y}" x2="${d.x}" y2="${d.y}" class="xq-diagram-line" stroke-width="1"/>`);
   }
   parts.push(
-    `<text x="${left + 4 * XQ_CELL}" y="${(riverTop + riverBottom) / 2 + 1}" font-family="serif" font-size="16" class="xq-diagram-ink" text-anchor="middle" dominant-baseline="central">楚 河   漢 界</text>`,
+    `<text x="${left + 4 * XQ_CELL}" y="${(riverTop + riverBottom) / 2 + 1}" font-family="serif" font-size="16" class="xq-diagram-ink xq-diagram-river-label" text-anchor="middle" dominant-baseline="central">楚 河   漢 界</text>`,
   );
   return parts.join('');
 }

@@ -4,35 +4,31 @@ import {
   type XiangqiPieceSet,
 } from './xiangqi-piece-sets.js';
 
-export type XiangqiBoardTheme = 'tournament' | 'blue' | 'mono';
+export type XiangqiBoardTheme = 'international' | 'traditional';
 
 const xiangqiBoardStorageKey = 'mistboard.xiangqiBoardTheme';
 const xiangqiBoardStorageVersionKey = 'mistboard.xiangqiBoardThemeVersion';
 const xiangqiPieceSetStorageKey = 'mistboard.xiangqiPieceSet';
 const xiangqiPieceSetStorageVersionKey = 'mistboard.xiangqiPieceSetVersion';
-const defaultXiangqiBoardTheme: XiangqiBoardTheme = 'tournament';
-const xiangqiBoardStorageVersion = '3';
+const defaultXiangqiBoardTheme: XiangqiBoardTheme = 'international';
+const xiangqiBoardStorageVersion = '4';
 const xiangqiPieceSetStorageVersion = '3';
 const defaultXiangqiPieceSet: XiangqiPieceSet = DEFAULT_XIANGQI_PIECE_SET;
 const xiangqiBoardThemes: ReadonlyArray<{ id: XiangqiBoardTheme; label: string }> = [
-  { id: 'tournament', label: 'Tournament' },
-  { id: 'blue', label: 'Blue' },
-  { id: 'mono', label: 'Monochrome' },
+  { id: 'international', label: 'International' },
+  { id: 'traditional', label: 'Traditional' },
 ];
 
 export function readStoredXiangqiBoardTheme(): XiangqiBoardTheme {
   try {
     const stored = window.localStorage.getItem(xiangqiBoardStorageKey);
     const version = window.localStorage.getItem(xiangqiBoardStorageVersionKey);
-    if (stored === 'paper-garden') {
+    const normalized = normalizeXiangqiBoardTheme(stored);
+    if (version !== xiangqiBoardStorageVersion || normalized !== stored) {
       window.localStorage.setItem(xiangqiBoardStorageVersionKey, xiangqiBoardStorageVersion);
-      window.localStorage.setItem(xiangqiBoardStorageKey, defaultXiangqiBoardTheme);
-      return defaultXiangqiBoardTheme;
+      window.localStorage.setItem(xiangqiBoardStorageKey, normalized);
     }
-    if (version !== xiangqiBoardStorageVersion) {
-      window.localStorage.setItem(xiangqiBoardStorageVersionKey, xiangqiBoardStorageVersion);
-    }
-    return normalizeXiangqiBoardTheme(stored);
+    return normalized;
   } catch {
     return defaultXiangqiBoardTheme;
   }

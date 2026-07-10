@@ -1027,6 +1027,9 @@
 .xq-article-svg .xq-diagram-ink {
   fill: var(--xq-diagram-ink, #4b3c2a);
 }
+.xq-article-svg .xq-diagram-river-label {
+  display: var(--xq-river-label-display, none);
+}
 .xq-article-svg .xq-diagram-title {
   fill: var(--site-heading, var(--xq-diagram-ink, #4b3c2a));
 }

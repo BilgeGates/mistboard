@@ -273,7 +273,7 @@ function riverLayer(perspective: XiangqiColor): string {
   const y = (RIVER_TOP + RIVER_BOTTOM) / 2;
   void perspective;
   return `
-    <text x="${MARGIN + 4 * CELL}" y="${y + 1}">楚 河   漢 界</text>
+    <text class="xq-live-river-label" x="${MARGIN + 4 * CELL}" y="${y + 1}">楚 河   漢 界</text>
   `;
 }
 

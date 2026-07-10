@@ -4,6 +4,7 @@ import {
   normalizeXiangqiPieceSet,
   readStoredXiangqiBoardTheme,
   readStoredXiangqiPieceSet,
+  writeStoredXiangqiBoardTheme,
   writeStoredXiangqiPieceSet,
 } from './xiangqi-appearance-storage.js';
 
@@ -37,19 +38,29 @@ function installLocalStorage(): Storage {
 }
 
 describe('xiangqi appearance storage normalization', () => {
-  it('uses tournament as the default board theme and paper garden migration target', () => {
-    expect(normalizeXiangqiBoardTheme(null)).toBe('tournament');
-    expect(normalizeXiangqiBoardTheme('unknown')).toBe('tournament');
-    expect(normalizeXiangqiBoardTheme('paper-garden')).toBe('tournament');
+  it('uses International as the default board style and legacy migration target', () => {
+    expect(normalizeXiangqiBoardTheme(null)).toBe('international');
+    expect(normalizeXiangqiBoardTheme('unknown')).toBe('international');
+    expect(normalizeXiangqiBoardTheme('paper-garden')).toBe('international');
+    expect(normalizeXiangqiBoardTheme('tournament')).toBe('international');
+    expect(normalizeXiangqiBoardTheme('blue')).toBe('international');
+    expect(normalizeXiangqiBoardTheme('mono')).toBe('international');
+    expect(normalizeXiangqiBoardTheme('traditional')).toBe('traditional');
   });
 
-  it('migrates stored paper garden board theme to tournament', () => {
+  it('migrates stored legacy board themes to International', () => {
     const storage = installLocalStorage();
-    storage.setItem('mistboard.xiangqiBoardTheme', 'paper-garden');
-    storage.setItem('mistboard.xiangqiBoardThemeVersion', '2');
-    expect(readStoredXiangqiBoardTheme()).toBe('tournament');
-    expect(storage.getItem('mistboard.xiangqiBoardTheme')).toBe('tournament');
-    expect(storage.getItem('mistboard.xiangqiBoardThemeVersion')).toBe('3');
+    storage.setItem('mistboard.xiangqiBoardTheme', 'tournament');
+    storage.setItem('mistboard.xiangqiBoardThemeVersion', '3');
+    expect(readStoredXiangqiBoardTheme()).toBe('international');
+    expect(storage.getItem('mistboard.xiangqiBoardTheme')).toBe('international');
+    expect(storage.getItem('mistboard.xiangqiBoardThemeVersion')).toBe('4');
+  });
+
+  it('keeps explicit Traditional board style after the migration version is written', () => {
+    installLocalStorage();
+    writeStoredXiangqiBoardTheme('traditional');
+    expect(readStoredXiangqiBoardTheme()).toBe('traditional');
   });
 
   it('migrates old animal piece-set values to Dobutsu', () => {

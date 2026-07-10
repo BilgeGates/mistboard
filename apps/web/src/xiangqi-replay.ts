@@ -106,7 +106,7 @@ function gridSvg(perspective: XiangqiColor): string {
     );
   }
   parts.push(
-    `<text x="${left + 4 * CELL}" y="${(riverTop + riverBottom) / 2 + 1}" font-family="serif" font-size="16" class="xq-diagram-ink" text-anchor="middle" dominant-baseline="central">楚 河   漢 界</text>`,
+    `<text x="${left + 4 * CELL}" y="${(riverTop + riverBottom) / 2 + 1}" font-family="serif" font-size="16" class="xq-diagram-ink xq-diagram-river-label" text-anchor="middle" dominant-baseline="central">楚 河   漢 界</text>`,
   );
   return parts.join('');
 }

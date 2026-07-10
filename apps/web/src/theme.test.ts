@@ -181,6 +181,11 @@ describe('appearance family gating', () => {
     expect(document.querySelector('[data-theme-tile="fog"]')).not.toBeNull();
     expect(document.querySelector('[data-theme-tile="xqboard"]')).not.toBeNull();
     expect(document.querySelector('[data-theme-tile="xqpiece"]')).not.toBeNull();
+    expect(
+      [...document.querySelectorAll<HTMLButtonElement>('[data-theme-tile="xqboard"]')].map((tile) =>
+        tile.getAttribute('aria-label'),
+      ),
+    ).toEqual(['International', 'Traditional']);
   });
 
   it('keeps Crossroads inside the xiangqi appearance family', () => {

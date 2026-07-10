@@ -668,8 +668,9 @@
 }
 
 /* Crossroads is a hybrid surface: chess board themes color the cells; xiangqi
-   board themes color the river, frame, edge, and coordinates. */
-:root[data-xiangqi-board-theme="tournament"] {
+   board styles color the frame, edge, coordinates, and river accent. */
+:root,
+:root[data-xiangqi-board-theme="international"] {
   --crossroads-frame: #5b4636;
   --crossroads-frame-inner: #6e5743;
   --crossroads-board-edge: #3a2c20;
@@ -678,33 +679,21 @@
   --crossroads-river-highlight: rgba(255, 255, 255, 0.4);
 }
 
-:root[data-xiangqi-board-theme="blue"] {
-  --crossroads-frame: #405f78;
-  --crossroads-frame-inner: #55748b;
-  --crossroads-board-edge: #243d52;
-  --crossroads-coord: rgba(35, 58, 79, 0.62);
-  --crossroads-river: #4f91c7;
-  --crossroads-river-highlight: rgba(255, 255, 255, 0.46);
+:root[data-xiangqi-board-theme="traditional"] {
+  --crossroads-frame: #5b4636;
+  --crossroads-frame-inner: #6e5743;
+  --crossroads-board-edge: #3a2c20;
+  --crossroads-coord: rgba(60, 45, 30, 0.55);
+  --crossroads-river: #5aa0d6;
+  --crossroads-river-highlight: rgba(255, 255, 255, 0.4);
 }
 
-:root[data-xiangqi-board-theme="mono"] {
-  --crossroads-frame: #56524a;
-  --crossroads-frame-inner: #6b675f;
-  --crossroads-board-edge: #38352f;
-  --crossroads-coord: rgba(58, 54, 48, 0.6);
-  --crossroads-river: #8b9498;
-  --crossroads-river-highlight: rgba(255, 255, 255, 0.34);
+/* Xiangqi board swatches (presentation style, not an open-ended colour picker). */
+.theme-tile-preview-xqboard[data-id="international"] {
+  background: #f5dca8;
 }
-
-/* Xiangqi board swatches (solid wood/paper tone per scheme). */
-.theme-tile-preview-xqboard[data-id="tournament"] {
+.theme-tile-preview-xqboard[data-id="traditional"] {
   background: #d9bd82;
-}
-.theme-tile-preview-xqboard[data-id="blue"] {
-  background: #cdddea;
-}
-.theme-tile-preview-xqboard[data-id="mono"] {
-  background: #e6e2d9;
 }
 
 /* Xiangqi piece tiles show a representative glyph centered on a neutral disc. */

@@ -22,6 +22,7 @@ describe('Dark Xiangqi board svg', () => {
     expect(svg.match(/xq-live-line/g)).toHaveLength(26);
     expect(svg).not.toContain('xq-live-cell');
     expect(svg).toContain('楚 河   漢 界');
+    expect(svg).toContain('class="xq-live-river-label"');
     expect(svg).toContain(NON_SELECTABLE_RIVER_GROUP);
     expect(svg).not.toContain('xq-live-border');
   });

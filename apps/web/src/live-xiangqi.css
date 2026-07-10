@@ -145,6 +145,10 @@
   text-anchor: middle;
 }
 
+.xq-live-river-label {
+  display: var(--xq-river-label-display, none);
+}
+
 .xq-live-fog-mask {
   /* Shared global fog tint (app-base.css). Was hardcoded #24190f @ 0.55, which
      made the fog skin picker dead on this board; the rgba alpha now carries the

@@ -375,25 +375,23 @@ export function installFortressXiangqiBoardStyles(): void {
   stylesInstalled = true;
   const style = document.createElement('style');
   style.textContent = `
-    :root[data-xiangqi-board-theme="tournament"] {
-      --fxq-board-bg: #d9bd82;
-      --fxq-palace-band: rgba(255, 255, 255, 0.17);
-      --fxq-grid: #4b3c2a;
+    :root {
+      --fxq-board-bg: var(--xq-board-bg, #f5dca8);
+      --fxq-palace-band: var(--fxq-board-bg, #f5dca8);
+      --fxq-river: var(--fxq-board-bg, #f5dca8);
+      --fxq-grid: var(--xq-board-ink, #5a3a14);
     }
-    :root[data-xiangqi-board-theme="paper-garden"] {
-      --fxq-board-bg: #f5ecd8;
-      --fxq-palace-band: rgba(93, 132, 82, 0.28);
-      --fxq-grid: #5f4931;
+    :root[data-xiangqi-board-theme="international"] {
+      --fxq-board-bg: var(--xq-board-bg, #f5dca8);
+      --fxq-palace-band: var(--fxq-board-bg, #f5dca8);
+      --fxq-river: var(--fxq-board-bg, #f5dca8);
+      --fxq-grid: var(--xq-board-ink, #5a3a14);
     }
-    :root[data-xiangqi-board-theme="blue"] {
-      --fxq-board-bg: #cdddea;
-      --fxq-palace-band: rgba(255, 255, 255, 0.3);
-      --fxq-grid: #2c4a63;
-    }
-    :root[data-xiangqi-board-theme="mono"] {
-      --fxq-board-bg: #e6e2d9;
-      --fxq-palace-band: rgba(0, 0, 0, 0.06);
-      --fxq-grid: #555150;
+    :root[data-xiangqi-board-theme="traditional"] {
+      --fxq-board-bg: var(--xq-board-bg, #d9bd82);
+      --fxq-palace-band: var(--fxq-board-bg, #d9bd82);
+      --fxq-river: var(--fxq-board-bg, #d9bd82);
+      --fxq-grid: var(--xq-board-ink, #4b3c2a);
     }
     .fxq-board {
       -webkit-user-select: none;
@@ -412,10 +410,10 @@ export function installFortressXiangqiBoardStyles(): void {
       fill: var(--fxq-board-bg, #d9bd82);
     }
     .fxq-river {
-      fill: #cbd9e1;
+      fill: var(--fxq-river, var(--fxq-board-bg, #f5dca8));
     }
     .fxq-palace-band {
-      fill: var(--fxq-palace-band, rgba(255, 255, 255, 0.17));
+      fill: var(--fxq-palace-band, var(--fxq-board-bg, #f5dca8));
     }
     .fxq-grid line {
       stroke: var(--fxq-grid, #4b3c2a);

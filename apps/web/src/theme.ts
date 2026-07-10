@@ -98,9 +98,8 @@ const pieceSets: Array<{ id: PieceSet; label: string }> = [
   { id: 'letter', label: 'Letter' },
 ];
 const xiangqiBoardThemes: Array<{ id: XiangqiBoardTheme; label: string }> = [
-  { id: 'tournament', label: 'Tournament' },
-  { id: 'blue', label: 'Blue' },
-  { id: 'mono', label: 'Monochrome' },
+  { id: 'international', label: 'International' },
+  { id: 'traditional', label: 'Traditional' },
 ];
 const xiangqiPieceSets = XIANGQI_PIECE_SETS;
 const shogiBoardThemes = SHOGI_BOARD_THEMES;
@@ -345,8 +344,8 @@ export function buildAppearanceMenu(options: AppearanceMenuOptions = {}): HTMLEl
     boardBody.push(
       createTileField(
         'xqboard',
-        'Board colors',
-        'Xiangqi board color scheme',
+        'Board style',
+        'Xiangqi board presentation',
         xiangqiBoardThemes,
         readStoredXiangqiBoardTheme(),
         (value) => {
