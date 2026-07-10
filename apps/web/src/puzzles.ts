@@ -240,13 +240,13 @@ type PuzzleAttemptRating = {
 let puzzleRatedPref = true;
 let onAttemptRating: ((rating: PuzzleAttemptRating) => void) | null = null;
 // Variants surfaced in the Settings variant picker (order = display order; the
-// first is the default view). Fortress Xiangqi leads; standard Xiangqi (the
-// mined real-game corpus) and Jungle are offered alongside it. Mini / Drop Mini
-// stay in the corpus + API (deep links still resolve server-side) but are
-// hidden from the selector. Add a spec id here to unhide it.
+// first is the default view). Standard Xiangqi (the mined real-game corpus,
+// the bet variant) leads; Fortress and Jungle are offered alongside it. Mini /
+// Drop Mini stay in the corpus + API (deep links still resolve server-side)
+// but are hidden from the selector. Add a spec id here to unhide it.
 const PUZZLE_VARIANT_FILTERS: readonly PuzzleVariantFilter[] = [
-  FORTRESS_XIANGQI_SPEC_ID,
   XIANGQI_SPEC_ID,
+  FORTRESS_XIANGQI_SPEC_ID,
   JUNGLE_SPEC_ID,
 ];
 
