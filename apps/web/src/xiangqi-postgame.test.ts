@@ -81,19 +81,21 @@ describe('Xiangqi postgame page', () => {
     await flushPromises();
 
     // The review opens at the last mainline node (ply 1 here), so the b3-e3
-    // marker circles render at the red-perspective intersections.
+    // markers render at the red-perspective intersections: the darker -from
+    // shadow disc on b3, the gold destination ring on e3.
     const board = root.querySelector('.dxq-postgame__board');
     expect(board).not.toBeNull();
     expect(board!.innerHTML).toContain(
-      '<circle class="xq-live-lastmove-cell" cx="96" cy="456" r="27"',
+      '<circle class="xq-live-lastmove-cell xq-live-lastmove-from" cx="96" cy="456" r="27"',
     );
     expect(board!.innerHTML).toContain(
-      '<circle class="xq-live-lastmove-cell" cx="276" cy="456" r="27"',
+      '<circle class="xq-live-lastmove-ring" cx="276" cy="456" r="29"',
     );
 
     // Jump back to the start: no move has been played, so no marker.
     root.querySelector<HTMLButtonElement>('[aria-label="First move"]')?.click();
     expect(board!.innerHTML).not.toContain('xq-live-lastmove-cell');
+    expect(board!.innerHTML).not.toContain('xq-live-lastmove-ring');
   });
 });
 

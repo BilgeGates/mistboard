@@ -149,13 +149,20 @@ function riverLayer(perspective: XiangqiColor): string {
 
 function lastMoveLayer(view: StandardXiangqiPlayerView, perspective: XiangqiColor): string {
   if (!view.lastMove) return '';
-  return [view.lastMove.from, view.lastMove.to]
-    .map((square) => {
-      const coord = coordOf(square);
-      const center = intersection(coord.file, coord.rank, perspective);
-      return `<circle class="xq-live-lastmove-cell" cx="${center.x}" cy="${center.y}" r="27"/>`;
-    })
-    .join('');
+  const from = coordOf(view.lastMove.from);
+  const to = coordOf(view.lastMove.to);
+  const fromCenter = intersection(from.file, from.rank, perspective);
+  const toCenter = intersection(to.file, to.rank, perspective);
+  // Origin: a darkened "the piece came from here" shadow disc. Destination: a
+  // gold ring around the moved piece (this layer sits under the pieces, so only
+  // the halo outside the r=27 piece radius shows). Styling lives in
+  // live-xiangqi.css. The -from modifier carries the darker origin fill; the
+  // fog board (live-dark-xiangqi.ts) still renders plain -cell circles on both
+  // endpoints and keeps its lighter wash.
+  return (
+    `<circle class="xq-live-lastmove-cell xq-live-lastmove-from" cx="${fromCenter.x}" cy="${fromCenter.y}" r="27"/>` +
+    `<circle class="xq-live-lastmove-ring" cx="${toCenter.x}" cy="${toCenter.y}" r="29"/>`
+  );
 }
 
 function selectionLayer(square: XiangqiSquare | null, perspective: XiangqiColor): string {

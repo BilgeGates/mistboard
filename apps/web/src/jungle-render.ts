@@ -36,7 +36,8 @@ import {
   framedTokenSvg,
   jungleBoardAssetHref,
   jungleCoverImage,
-  jungleLastMoveRingSvg,
+  jungleLastMoveFromSvg,
+  jungleLastMoveToSvg,
   jungleShadowFilterDef,
 } from './jungle-art.js';
 
@@ -179,14 +180,16 @@ function furniture(
     );
   }
 
-  // Last-move ring over the terrain (dark edge under a bright core, so it reads on any
-  // tile — grass, water, den, or trap — where a flat translucent fill washes out).
+  // Last-move marks over the terrain (shared JUNGLE_LAST_MOVE spec, same grammar as
+  // the xiangqi boards): a darker shadow fill on the origin cell, a thin gold ring
+  // (with a slim dark under-edge for busy tiles) on the destination cell.
   if (lastMove) {
-    for (const sq of [lastMove.from, lastMove.to]) {
-      const { file, rank } = jungleCoordOf(sq);
-      const { x, y } = geom.topLeft(file, rank);
-      parts.push(jungleLastMoveRingSvg(x, y, c));
-    }
+    const from = jungleCoordOf(lastMove.from);
+    const fromTopLeft = geom.topLeft(from.file, from.rank);
+    parts.push(jungleLastMoveFromSvg(fromTopLeft.x, fromTopLeft.y, c));
+    const to = jungleCoordOf(lastMove.to);
+    const toTopLeft = geom.topLeft(to.file, to.rank);
+    parts.push(jungleLastMoveToSvg(toTopLeft.x, toTopLeft.y, c));
   }
   return parts.join('');
 }

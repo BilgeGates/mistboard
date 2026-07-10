@@ -114,25 +114,47 @@ export function jungleFaceDownDiscSvg(
   return `${open}<circle cx="${cx}" cy="${cy}" r="${cell * radiusRatio}" fill="${fill}" stroke="${stroke}" stroke-width="${cell * strokeRatio}"/></g>`;
 }
 
-/** Last-move marker: a bold bright-amber ring on a dark backing so it stays obvious on
- *  the grass/water terrain (a faint yellow washed out). */
-export function jungleLastMoveRingSvg(
-  x: number,
-  y: number,
-  cell: number,
-  // Stroke widths ÷ cell. Default is the bold jungle ring; callers (Flip Jungle) can pass
-  // thinner ratios for a lighter indicator.
-  opts: { edgeRatio?: number; ringRatio?: number } = {},
-): string {
-  const inset = cell * 0.05;
-  const hx = x + inset;
-  const hy = y + inset;
-  const hs = cell - inset * 2;
-  const edge = cell * (opts.edgeRatio ?? 0.13);
-  const ring = cell * (opts.ringRatio ?? 0.09);
+/** Last-move mark spec shared by Jungle AND Flip Jungle (one ratio set so the two
+ *  boards never drift apart again). Same grammar as the xiangqi boards: a darker
+ *  shadow fill on the origin cell, a thin calm gold ring on the destination cell.
+ *  Concrete colours (no CSS vars) so the marks also render standalone (OG cards). */
+export const JUNGLE_LAST_MOVE = {
+  /** Mark inset from the cell edge ÷ cell. */
+  insetRatio: 0.05,
+  /** Corner rounding ÷ cell. */
+  cornerRatio: 0.08,
+  /** Destination gold ring stroke ÷ cell. */
+  ringRatio: 0.045,
+  /** Dark under-edge stroke ÷ cell (peeks ~half a px around the gold so the ring
+   *  stays legible on busy terrain: grass, water, den, trap). */
+  edgeRatio: 0.07,
+  /** Calm gold, the platform highlight family (app-base --board-highlight). */
+  ring: '#e3b34d',
+  edge: 'rgba(32,21,3,0.5)',
+  /** Origin shadow fill: the token drop-shadow ink (#3a2c20) as a translucent
+   *  cell fill, reading as "the piece came from here". */
+  fromFill: 'rgba(58,44,32,0.32)',
+} as const;
+
+function lastMoveRectAttrs(x: number, y: number, cell: number): string {
+  const inset = cell * JUNGLE_LAST_MOVE.insetRatio;
+  const size = cell - inset * 2;
+  const rx = cell * JUNGLE_LAST_MOVE.cornerRatio;
+  return `x="${x + inset}" y="${y + inset}" width="${size}" height="${size}" rx="${rx}"`;
+}
+
+/** Origin (from) last-move mark: a subtle darker shadow fill on the vacated cell. */
+export function jungleLastMoveFromSvg(x: number, y: number, cell: number): string {
+  return `<rect ${lastMoveRectAttrs(x, y, cell)} fill="${JUNGLE_LAST_MOVE.fromFill}"/>`;
+}
+
+/** Destination (to) last-move mark: a thin gold ring over a slim dark under-edge. */
+export function jungleLastMoveToSvg(x: number, y: number, cell: number): string {
+  const attrs = lastMoveRectAttrs(x, y, cell);
+  const edge = cell * JUNGLE_LAST_MOVE.edgeRatio;
+  const ring = cell * JUNGLE_LAST_MOVE.ringRatio;
   return (
-    // Dark backing for contrast on any tile, then an amber ring + a stronger fill.
-    `<rect x="${hx}" y="${hy}" width="${hs}" height="${hs}" rx="4" fill="rgba(255,170,0,0.34)" stroke="#201503" stroke-width="${edge}"/>` +
-    `<rect x="${hx}" y="${hy}" width="${hs}" height="${hs}" rx="4" fill="none" stroke="#ffb000" stroke-width="${ring}"/>`
+    `<rect ${attrs} fill="none" stroke="${JUNGLE_LAST_MOVE.edge}" stroke-width="${edge}"/>` +
+    `<rect ${attrs} fill="none" stroke="${JUNGLE_LAST_MOVE.ring}" stroke-width="${ring}"/>`
   );
 }

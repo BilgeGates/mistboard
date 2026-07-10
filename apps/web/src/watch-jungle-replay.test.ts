@@ -34,7 +34,7 @@ describe('Jungle watch replay', () => {
     expect(root.childElementCount).toBe(0);
   });
 
-  it('draws the last-move ring at a nonzero ply and none at the start', async () => {
+  it('draws the last-move marks at a nonzero ply and none at the start', async () => {
     vi.stubGlobal(
       'fetch',
       vi.fn(async () => jsonResponse(postgameFixture('jgl_lastmove'))),
@@ -43,14 +43,17 @@ describe('Jungle watch replay', () => {
 
     const handle = await mountJungleWatchReplay(root, 'jgl_lastmove', { autoplay: false });
 
-    // Ply 0: no move played yet, so no amber last-move ring on the board.
+    // Ply 0: no move played yet, so no last-move marks on the board.
     const boardSvg = () => root.querySelector('svg.jungle-live-svg');
     expect(boardSvg()).not.toBeNull();
-    expect(boardSvg()!.outerHTML).not.toContain('stroke="#ffb000"');
+    expect(boardSvg()!.outerHTML).not.toContain('stroke="#e3b34d"');
+    expect(boardSvg()!.outerHTML).not.toContain('fill="rgba(58,44,32,0.32)"');
 
-    // Ply 1: the a3-a4 move renders one ring per endpoint (from + to).
+    // Ply 1: the a3-a4 move renders the origin shadow fill on a3 and ONE thin
+    // gold destination ring on a4 (shared JUNGLE_LAST_MOVE grammar).
     root.querySelector<HTMLButtonElement>('[aria-label="Next move"]')?.click();
-    expect(boardSvg()!.outerHTML.match(/stroke="#ffb000"/g)).toHaveLength(2);
+    expect(boardSvg()!.outerHTML.match(/fill="rgba\(58,44,32,0\.32\)"/g)).toHaveLength(1);
+    expect(boardSvg()!.outerHTML.match(/stroke="#e3b34d"/g)).toHaveLength(1);
 
     handle.destroy();
   });

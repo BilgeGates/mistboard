@@ -168,6 +168,27 @@
   opacity: 0.26;
 }
 
+/* Standard-board origin marker: noticeably darker than the shared -cell wash so
+   it reads as "the piece came from here" at a glance. The fog board
+   (live-dark-xiangqi.ts) renders plain -cell circles on both endpoints and
+   keeps the lighter wash above. */
+.xq-live-lastmove-from {
+  fill: #a16207;
+  opacity: 0.34;
+}
+
+/* Destination: a gold halo around the last-moved piece. Drawn under the piece
+   layer at r=29 (piece radius 27), so a ~4-unit ring shows around the disc.
+   Gold rides the shared board-highlight token (contrast/colorblind board themes
+   override it); the tight drop-shadow keeps the ring legible on the pale tan
+   board skins where flat gold would wash out. */
+.xq-live-lastmove-ring {
+  fill: none;
+  stroke: var(--board-highlight, #d6af4e);
+  stroke-width: 4;
+  filter: drop-shadow(0 0 1px rgba(70, 45, 8, 0.5));
+}
+
 .xq-live-selection-cell {
   fill: rgba(31, 111, 91, 0.32);
   stroke: none;

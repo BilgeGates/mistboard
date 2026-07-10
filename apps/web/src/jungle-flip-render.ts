@@ -28,7 +28,8 @@ import {
   jungleBoardAssetHref,
   jungleCoverImage,
   jungleFaceDownDiscSvg,
-  jungleLastMoveRingSvg,
+  jungleLastMoveFromSvg,
+  jungleLastMoveToSvg,
   jungleShadowFilterDef,
 } from './jungle-art.js';
 
@@ -131,12 +132,14 @@ function terrain(
     );
   }
   if (lastMove) {
-    for (const sq of [lastMove.from, lastMove.to]) {
-      const { file, rank } = jungleFlipCoordOf(sq);
-      const { x, y } = geom.topLeft(file, rank);
-      // Thinner ring than the vanilla Jungle board (smaller board, busier art).
-      parts.push(jungleLastMoveRingSvg(x, y, c, { edgeRatio: 0.07, ringRatio: 0.045 }));
-    }
+    // Shared JUNGLE_LAST_MOVE spec (same ratios as the vanilla Jungle board):
+    // origin shadow fill + thin gold destination ring.
+    const from = jungleFlipCoordOf(lastMove.from);
+    const fromTopLeft = geom.topLeft(from.file, from.rank);
+    parts.push(jungleLastMoveFromSvg(fromTopLeft.x, fromTopLeft.y, c));
+    const to = jungleFlipCoordOf(lastMove.to);
+    const toTopLeft = geom.topLeft(to.file, to.rank);
+    parts.push(jungleLastMoveToSvg(toTopLeft.x, toTopLeft.y, c));
   }
   return parts.join('');
 }
