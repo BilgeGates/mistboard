@@ -6,6 +6,7 @@ import type {
   XiangqiPiece,
 } from '@mistboard/game';
 import { fortressXiangqiCoordOf, fortressXiangqiSquareOf } from '@mistboard/game';
+import { glideSvgPiece, pieceAnimationDurationMs } from './board-anim.js';
 import { tokenPieceSize } from './board-metrics.js';
 import { readStoredXiangqiPieceSet } from './xiangqi-appearance-storage.js';
 import {
@@ -187,9 +188,37 @@ function pieceLayer(
       if (!piece) return '';
       const { file, rank } = fortressXiangqiCoordOf(square as FortressXiangqiSquare);
       const { x, y } = intersection(file, rank, perspective);
-      return renderFortressXiangqiPiece(piece, pieceSet, x, y, square === draggingFrom);
+      const pieceSvg = renderFortressXiangqiPiece(piece, pieceSet, x, y, square === draggingFrom);
+      // Keyed slot: a <g> wrapper per occupied square so a post-render glide
+      // (animateFortressXiangqiBoardMove) can find and transform the piece.
+      return `<g class="fxq-piece-slot" data-piece-square="${square}">${pieceSvg}</g>`;
     })
     .join('');
+}
+
+/**
+ * Glide the piece that settled on `move.to` from its origin (or with `reverse`
+ * the piece back on `move.from`). Call AFTER the innerHTML swap; board moves
+ * only (drops have no origin square and stay discrete). No-op at duration 0 or
+ * when the slot is missing. The move must come from a received payload.
+ */
+export function animateFortressXiangqiBoardMove(
+  host: HTMLElement,
+  move: { from: FortressXiangqiSquare; to: FortressXiangqiSquare },
+  perspective: FortressXiangqiColor,
+  opts: { reverse?: boolean } = {},
+): void {
+  const duration = pieceAnimationDurationMs();
+  if (duration <= 0) return;
+  const settleSquare = opts.reverse ? move.from : move.to;
+  const originSquare = opts.reverse ? move.to : move.from;
+  const slot = host.querySelector(`[data-piece-square="${settleSquare}"]`);
+  if (!slot) return;
+  const origin = fortressXiangqiCoordOf(originSquare);
+  const settle = fortressXiangqiCoordOf(settleSquare);
+  const from = intersection(origin.file, origin.rank, perspective);
+  const to = intersection(settle.file, settle.rank, perspective);
+  glideSvgPiece(slot, from.x - to.x, from.y - to.y, duration);
 }
 
 // Render a single piece centered on (x, y). The six shared xiangqi roles go

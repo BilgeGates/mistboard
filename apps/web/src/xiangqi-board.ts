@@ -16,6 +16,7 @@ import type {
   XiangqiPiece,
   XiangqiSquare,
 } from '@mistboard/game';
+import { glideSvgPiece, pieceAnimationDurationMs } from './board-anim.js';
 import { tokenPieceSize } from './board-metrics.js';
 import { installBoardDrag } from './variant-tenant/board-drag.js';
 import { installSelectionClickAway } from './variant-tenant/selection-click-away.js';
@@ -275,16 +276,46 @@ function pieceLayer(
     const dragSource = square === draggingFromSquare;
     const coord = coordOf(square as XiangqiSquare);
     const center = intersection(coord.file, coord.rank, perspective);
-    parts.push(
-      renderXiangqiPiece(piece, {
-        x: center.x - PIECE_SIZE / 2,
-        y: center.y - PIECE_SIZE / 2,
-        size: PIECE_SIZE,
-        className: dragSource ? 'xq-piece xq-piece--drag-source' : 'xq-piece',
-      }),
-    );
+    const pieceSvg = renderXiangqiPiece(piece, {
+      x: center.x - PIECE_SIZE / 2,
+      y: center.y - PIECE_SIZE / 2,
+      size: PIECE_SIZE,
+      className: dragSource ? 'xq-piece xq-piece--drag-source' : 'xq-piece',
+    });
+    // Keyed slot: a <g> wrapper per occupied square so a post-render glide can
+    // find and transform the piece (transforms on the inner <svg x= y=> element
+    // are inconsistent cross-browser; the wrapper animates cleanly).
+    parts.push(`<g class="xq-piece-slot" data-piece-square="${square}">${pieceSvg}</g>`);
   }
   return parts.join('');
+}
+
+/**
+ * Glide the piece that just settled on `move.to` from its origin (lichess-style),
+ * or with `reverse` the piece back on `move.from` from the destination (a replay
+ * back-step). Call AFTER the innerHTML swap that rendered the final position.
+ * No-ops when animations are off (pref/reduced-motion), when the slot is missing
+ * (capture-undo edge, disabled board), or when the geometry is degenerate. The
+ * move must come from a payload the client already received (an event, a view's
+ * lastMove, a timeline row) — never from diffing two boards on a fog surface.
+ */
+export function animateXiangqiBoardMove(
+  host: HTMLElement,
+  move: { from: XiangqiSquare; to: XiangqiSquare },
+  perspective: XiangqiColor,
+  opts: { reverse?: boolean } = {},
+): void {
+  const duration = pieceAnimationDurationMs();
+  if (duration <= 0) return;
+  const settleSquare = opts.reverse ? move.from : move.to;
+  const originSquare = opts.reverse ? move.to : move.from;
+  const slot = host.querySelector(`[data-piece-square="${settleSquare}"]`);
+  if (!slot) return;
+  const origin = coordOf(originSquare);
+  const settle = coordOf(settleSquare);
+  const from = intersection(origin.file, origin.rank, perspective);
+  const to = intersection(settle.file, settle.rank, perspective);
+  glideSvgPiece(slot, from.x - to.x, from.y - to.y, duration);
 }
 
 function clickLayer(

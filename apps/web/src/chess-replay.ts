@@ -14,6 +14,7 @@ import {
 } from '@mistboard/game';
 import type { Api } from 'chessground/api';
 import type * as cg from 'chessground/types';
+import { chessgroundAnimation } from './board-anim.js';
 
 export type ChessReplaySpec = {
   // Space-separated UCI coordinate tokens (e.g. "e2e4 e7e5 ..."). Castling is
@@ -113,7 +114,8 @@ export function mountChessReplay(host: HTMLElement, spec: ChessReplaySpec): Ches
   host.append(header, frame, controls, slider, narrative);
 
   const api: Api = mountBoard(frame, {
-    animation: { enabled: true, duration: 180 },
+    // pieceAnimation pref (was a hardcoded 180ms); read once at mount.
+    animation: chessgroundAnimation(),
     coordinates: false,
     coordinatesOnSquares: false,
     fen: boardFen(states[0]!.board),

@@ -3,14 +3,33 @@ import {
   createInitialXiangqiState,
   getStandardXiangqiPlayerView,
 } from '@mistboard/game';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
+import { type DisplayPreferenceValue, writeDisplayPreference } from './display-preferences.js';
 import { renderXiangqiBoardSvg as renderLiveXiangqiBoardSvg } from './live-xiangqi.js';
 import {
+  animateXiangqiBoardMove,
   createXiangqiInteractiveBoard,
   renderXiangqiBoardSvg as renderSharedXiangqiBoardSvg,
   type XiangqiBoardArrow,
   xiangqiArrowSvg,
 } from './xiangqi-board.js';
+
+// This happy-dom build ships no window.localStorage; back it with memory (same
+// idiom as puzzles.test.ts) so the pieceAnimation preference writes work.
+const storageValues = new Map<string, string>();
+Object.defineProperty(window, 'localStorage', {
+  configurable: true,
+  value: {
+    get length() {
+      return storageValues.size;
+    },
+    clear: () => storageValues.clear(),
+    getItem: (key: string) => storageValues.get(key) ?? null,
+    key: (index: number) => [...storageValues.keys()][index] ?? null,
+    removeItem: (key: string) => void storageValues.delete(key),
+    setItem: (key: string, value: string) => void storageValues.set(key, value),
+  } satisfies Storage,
+});
 
 const NON_SELECTABLE_RIVER_GROUP =
   '<g class="xq-live-river" aria-hidden="true" pointer-events="none" style="-webkit-user-select: none; user-select: none;">';
@@ -62,6 +81,81 @@ describe('standard Xiangqi board SVG', () => {
     expect(view.lastMove).toBeUndefined();
     expect(renderSharedXiangqiBoardSvg(view)).not.toContain('xq-live-lastmove-cell');
     expect(renderSharedXiangqiBoardSvg(view)).not.toContain('xq-live-lastmove-ring');
+  });
+});
+
+describe('keyed piece slots + animateXiangqiBoardMove', () => {
+  function mountMovedBoard(): HTMLDivElement {
+    const state = applyXiangqiMove(createInitialXiangqiState('xq-board-anim'), {
+      from: 'b3',
+      to: 'e3',
+    });
+    const view = getStandardXiangqiPlayerView(state, 'red');
+    const host = document.createElement('div');
+    host.innerHTML = renderSharedXiangqiBoardSvg(view);
+    return host;
+  }
+
+  it('wraps every piece in a keyed slot the glide can target', () => {
+    const view = getStandardXiangqiPlayerView(createInitialXiangqiState('xq-board-slots'), 'red');
+    const svg = renderSharedXiangqiBoardSvg(view);
+    expect(svg).toContain('<g class="xq-piece-slot" data-piece-square="a1">');
+    expect(svg.match(/xq-piece-slot/g)).toHaveLength(32);
+  });
+
+  it('glides the destination slot from the move origin in viewBox user units', () => {
+    const host = mountMovedBoard();
+    const slot = host.querySelector('[data-piece-square="e3"]');
+    expect(slot).not.toBeNull();
+    const animate = vi.fn();
+    Object.assign(slot as object, { animate });
+    animateXiangqiBoardMove(host, { from: 'b3', to: 'e3' }, 'red');
+    // b3 -> (96, 456), e3 -> (276, 456): the piece starts 180 units left of rest.
+    expect(animate).toHaveBeenCalledTimes(1);
+    expect(animate.mock.calls[0]![0]).toEqual([
+      { transform: 'translate(-180px, 0px)' },
+      { transform: 'none' },
+    ]);
+    expect(animate.mock.calls[0]![1]).toMatchObject({ duration: 250 });
+  });
+
+  it('reverse-animates the origin slot on a back-step and skips missing slots', () => {
+    const view = getStandardXiangqiPlayerView(createInitialXiangqiState('xq-board-rev'), 'red');
+    const host = document.createElement('div');
+    host.innerHTML = renderSharedXiangqiBoardSvg(view);
+    const slot = host.querySelector('[data-piece-square="b3"]');
+    const animate = vi.fn();
+    Object.assign(slot as object, { animate });
+    animateXiangqiBoardMove(host, { from: 'b3', to: 'e3' }, 'red', { reverse: true });
+    expect(animate.mock.calls[0]![0]).toEqual([
+      { transform: 'translate(180px, 0px)' },
+      { transform: 'none' },
+    ]);
+    // Empty destination square (no slot): safe no-op, nothing throws.
+    expect(() => animateXiangqiBoardMove(host, { from: 'e6', to: 'e7' }, 'red')).not.toThrow();
+    expect(animate).toHaveBeenCalledTimes(1);
+  });
+
+  it('is a no-op when the pieceAnimation preference is none', () => {
+    // Same cast the settings UI uses for select values (see account.ts).
+    writeDisplayPreference('pieceAnimation', 'none' as DisplayPreferenceValue<'pieceAnimation'>);
+    try {
+      const host = mountMovedBoard();
+      const slot = host.querySelector('[data-piece-square="e3"]');
+      const animate = vi.fn();
+      Object.assign(slot as object, { animate });
+      animateXiangqiBoardMove(host, { from: 'b3', to: 'e3' }, 'red');
+      expect(animate).not.toHaveBeenCalled();
+    } finally {
+      writeDisplayPreference('pieceAnimation', 'normal');
+    }
+  });
+
+  it('no-ops safely in a DOM without WAAPI (el.animate missing)', () => {
+    const host = mountMovedBoard();
+    const slot = host.querySelector('[data-piece-square="e3"]');
+    Object.assign(slot as object, { animate: undefined });
+    expect(() => animateXiangqiBoardMove(host, { from: 'b3', to: 'e3' }, 'red')).not.toThrow();
   });
 });
 

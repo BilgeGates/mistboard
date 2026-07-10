@@ -83,6 +83,20 @@ export type TenantWatchAdapter<Postgame extends WatchPostgameMeta, View, ViewKey
   // and the ink binds on the opening flip, so "red-wins" may be a Black-ink win.
   // Tenants where seat == ink (jieqi, mini-xiangqi) omit it and keep the default.
   resultLabel?(result: string, postgame: Postgame): string;
+  // OPTIONAL piece-glide hook, called after each pane's innerHTML swap when the
+  // ply moved by exactly ONE (autoplay tick or manual step). `view` is the pane's
+  // freshly rendered view, `prevView` the same pane's view at the previous ply
+  // (null when unavailable); the adapter derives the move from those payloads
+  // (typically lastMove) — never from diffing boards. Tenants that omit this
+  // keep the discrete per-ply repaint.
+  animateMove?(
+    boardEl: HTMLElement,
+    view: View,
+    prevView: View | null,
+    direction: 'forward' | 'back',
+    orientation: 'red' | 'black',
+    key: ViewKey,
+  ): void;
 };
 
 export type TenantWatchReplayOptions = {
@@ -242,6 +256,10 @@ export async function mountTenantWatchReplay<
   let initialClock: { red: number; black: number } | null = null;
   let maxPly = 0;
   let currentPly = 0;
+  // The ply the previous sync rendered; a one-ply delta animates the step
+  // (adapter.animateMove). Null right after a (re)load so the first paint of a
+  // game never glides.
+  let lastSyncedPly: number | null = null;
   let boardOrientation: 'red' | 'black' = 'red';
   let activePostgame: Postgame | null = null;
   // Default to the as-played (hidden) board when the tenant supports reveal.
@@ -317,6 +335,10 @@ export async function mountTenantWatchReplay<
 
   const sync = (): void => {
     if (!activePostgame) return;
+    // Exactly one ply moved since the last sync: glide the step. Flips, reveal
+    // toggles, jumps, and the first paint (lastSyncedPly null) stay discrete.
+    const stepDelta = lastSyncedPly === null ? 0 : currentPly - lastSyncedPly;
+    const animatedPrevPly = Math.abs(stepDelta) === 1 ? lastSyncedPly : null;
     for (const target of boardTargets) {
       const key = adapter.reveal
         ? ((revealed ? adapter.reveal.truthKey : adapter.reveal.hiddenKey) as ViewKey)
@@ -328,6 +350,19 @@ export async function mountTenantWatchReplay<
         adapter.viewAtPly(activePostgame, target.key, currentPly);
       if (view) {
         target.pane.boardEl.innerHTML = adapter.renderBoard(view, boardOrientation, key);
+        if (adapter.animateMove && animatedPrevPly !== null) {
+          const prevView =
+            adapter.viewAtPly(activePostgame, key, animatedPrevPly) ??
+            adapter.viewAtPly(activePostgame, target.key, animatedPrevPly);
+          adapter.animateMove(
+            target.pane.boardEl,
+            view,
+            prevView,
+            stepDelta > 0 ? 'forward' : 'back',
+            boardOrientation,
+            key,
+          );
+        }
         if (compactSideStrips) {
           // Reserve strips: opponent's hand on the left, the oriented side's on
           // the right (each below its own player).
@@ -416,6 +451,7 @@ export async function mountTenantWatchReplay<
       seatCells.red.row.classList.toggle('active', toMove === 'red');
       seatCells.black.row.classList.toggle('active', toMove === 'black');
     }
+    lastSyncedPly = currentPly;
   };
 
   const scheduleAuto = (): void => {
@@ -499,6 +535,7 @@ export async function mountTenantWatchReplay<
     activePostgame = postgame;
     maxPly = adapter.maxPly(postgame);
     currentPly = 0;
+    lastSyncedPly = null;
     paused = !autoplay;
     boardOrientation = 'red';
     const initialMs = postgame.game.initialMs ?? postgame.state.timeControl?.initialMs ?? null;

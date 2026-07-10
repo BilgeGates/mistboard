@@ -9,6 +9,7 @@ import type { StandardXiangqiPlayerView } from '@mistboard/game';
 import { renderXiangqiBoardSvg } from './live-xiangqi.js';
 import type { ReplayHandle } from './replay.js';
 import { mountTenantWatchReplay, type TenantWatchReplayOptions } from './watch-tenant-replay.js';
+import { animateXiangqiBoardMove } from './xiangqi-board.js';
 import {
   loadXiangqiPostgame,
   postgameReplayMaxPly,
@@ -46,5 +47,13 @@ export function mountXiangqiWatchReplay(
     // Standard Xiangqi's wire view carries no captured-pool, so there is nothing
     // to render in the per-pane capture strips.
     fillCaptures: () => {},
+    // One-ply steps glide (pieceAnimation pref): forward animates the newly
+    // rendered view's lastMove; a back step reverse-animates the move the
+    // previous ply carried. Moves come from the postgame payload's views only.
+    animateMove: (boardEl, view, prevView, direction, orientation) => {
+      const move = direction === 'forward' ? view.lastMove : prevView?.lastMove;
+      if (!move) return;
+      animateXiangqiBoardMove(boardEl, move, orientation, { reverse: direction === 'back' });
+    },
   });
 }

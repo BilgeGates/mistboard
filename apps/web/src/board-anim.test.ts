@@ -1,0 +1,108 @@
+import { afterEach, describe, expect, it, vi } from 'vitest';
+import {
+  chessgroundAnimation,
+  glideSvgPiece,
+  PIECE_GLIDE_EASING,
+  pieceAnimationDurationMs,
+} from './board-anim.js';
+import { type DisplayPreferenceValue, writeDisplayPreference } from './display-preferences.js';
+
+// The write API types select values as the pref's DEFAULT literal; the settings
+// UI casts the option through DisplayPreferenceValue (see account.ts), so the
+// tests do the same.
+function setPieceAnimation(value: 'none' | 'fast' | 'normal' | 'slow'): void {
+  writeDisplayPreference('pieceAnimation', value as DisplayPreferenceValue<'pieceAnimation'>);
+}
+
+// This happy-dom build ships no window.localStorage; back it with memory (same
+// idiom as puzzles.test.ts) so writeDisplayPreference can persist + notify.
+const storageValues = new Map<string, string>();
+Object.defineProperty(window, 'localStorage', {
+  configurable: true,
+  value: {
+    get length() {
+      return storageValues.size;
+    },
+    clear: () => storageValues.clear(),
+    getItem: (key: string) => storageValues.get(key) ?? null,
+    key: (index: number) => [...storageValues.keys()][index] ?? null,
+    removeItem: (key: string) => void storageValues.delete(key),
+    setItem: (key: string, value: string) => void storageValues.set(key, value),
+  } satisfies Storage,
+});
+
+afterEach(() => {
+  vi.restoreAllMocks();
+  window.localStorage.clear();
+  // Restore the default and let the change event flush board-anim's cache.
+  setPieceAnimation('normal');
+});
+
+describe('pieceAnimationDurationMs', () => {
+  it('maps the pieceAnimation preference to durations and re-reads on change', () => {
+    setPieceAnimation('normal');
+    expect(pieceAnimationDurationMs()).toBe(250);
+    setPieceAnimation('fast');
+    expect(pieceAnimationDurationMs()).toBe(120);
+    setPieceAnimation('slow');
+    expect(pieceAnimationDurationMs()).toBe(500);
+    setPieceAnimation('none');
+    expect(pieceAnimationDurationMs()).toBe(0);
+  });
+
+  it('returns 0 when the OS asks for reduced motion, regardless of the preference', () => {
+    const original = window.matchMedia;
+    const matchMedia = vi.fn().mockReturnValue({ matches: true });
+    window.matchMedia = matchMedia as unknown as typeof window.matchMedia;
+    try {
+      setPieceAnimation('slow');
+      expect(pieceAnimationDurationMs()).toBe(0);
+      expect(matchMedia).toHaveBeenCalledWith('(prefers-reduced-motion: reduce)');
+    } finally {
+      window.matchMedia = original;
+    }
+  });
+});
+
+describe('chessgroundAnimation', () => {
+  it('disables chessground animation at duration 0 and enables it otherwise', () => {
+    setPieceAnimation('none');
+    expect(chessgroundAnimation()).toEqual({ enabled: false, duration: 0 });
+    setPieceAnimation('normal');
+    expect(chessgroundAnimation()).toEqual({ enabled: true, duration: 250 });
+  });
+});
+
+describe('glideSvgPiece', () => {
+  it('no-ops without throwing when the element has no WAAPI (test DOM)', () => {
+    const el = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+    // happy-dom may or may not ship el.animate; force the feature-missing path.
+    (el as unknown as { animate?: unknown }).animate = undefined;
+    expect(() => glideSvgPiece(el, -60, 0, 250)).not.toThrow();
+  });
+
+  it('cancels in-flight animations and glides from the offset back to rest', () => {
+    const el = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+    const cancel = vi.fn();
+    const animate = vi.fn();
+    Object.assign(el, {
+      animate,
+      getAnimations: () => [{ cancel }] as unknown as Animation[],
+    });
+    glideSvgPiece(el, -180, 60, 250);
+    expect(cancel).toHaveBeenCalledTimes(1);
+    expect(animate).toHaveBeenCalledWith(
+      [{ transform: 'translate(-180px, 60px)' }, { transform: 'none' }],
+      { duration: 250, easing: PIECE_GLIDE_EASING },
+    );
+  });
+
+  it('does not animate zero-length glides or zero durations', () => {
+    const el = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+    const animate = vi.fn();
+    Object.assign(el, { animate });
+    glideSvgPiece(el, 0, 0, 250);
+    glideSvgPiece(el, -60, 0, 0);
+    expect(animate).not.toHaveBeenCalled();
+  });
+});

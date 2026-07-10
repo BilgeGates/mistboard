@@ -737,6 +737,40 @@ describe('standard xiangqi puzzles', () => {
     );
   });
 
+  it('glides ONLY the scripted opponent reply after a correct move, and reverses on a back-step', async () => {
+    const puzzle = minedByPlyCount(3);
+    vi.stubGlobal('fetch', xiangqiFetchMock([puzzle]));
+    // Record which keyed piece slots receive a WAAPI glide (happy-dom has no
+    // Element.animate; installing one captures every glide the page issues).
+    const glides: Array<string | null> = [];
+    const proto = Element.prototype as unknown as { animate?: unknown };
+    const originalAnimate = proto.animate;
+    proto.animate = function (this: Element) {
+      glides.push(this.getAttribute('data-piece-square'));
+      return { cancel: () => {} };
+    };
+    const root = document.createElement('div');
+    document.body.append(root);
+    try {
+      await mountPuzzles(root, puzzle.id);
+      expect(glides).toHaveLength(0); // the initial paint is discrete
+
+      clickMove(root, solverMovesOf(puzzle)[0]!);
+      await vi.waitFor(() => expect(root.textContent).toContain('Correct.'));
+      // Both moves landed in one render; only the reply glides (the solver
+      // chose their own move an instant ago).
+      const reply = puzzle.solution[1]!;
+      expect(glides).toEqual([reply.to]);
+
+      // Replay back-step reverse-glides the undone reply at its origin square.
+      root.querySelector<HTMLButtonElement>('[data-puzzle-replay-previous]')?.click();
+      expect(glides).toEqual([reply.to, reply.from]);
+    } finally {
+      if (originalAnimate === undefined) delete proto.animate;
+      else proto.animate = originalAnimate;
+    }
+  });
+
   it('rejects a legal non-solution move and lets the solver retry in place', async () => {
     const puzzle = minedByPlyCount(5);
     const solver = solverMovesOf(puzzle);

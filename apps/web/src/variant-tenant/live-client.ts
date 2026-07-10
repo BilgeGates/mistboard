@@ -128,6 +128,19 @@ export type TenantMoveListConfig<C extends string, M> = {
   banner?(): { className: string; text: string } | null;
 };
 
+/**
+ * One-shot board-animation intent, drained by the render that follows it:
+ *   - 'live': a move event just applied (color = the mover). The move comes
+ *     straight from the wire payload, so animating it can never reveal more
+ *     than the server already sent this client — the fog-safety invariant is
+ *     that tenants ONLY animate from this payload, never from board diffs.
+ *   - 'scrub': the replay controller stepped by exactly one ply; prevView is
+ *     the previously displayed view (for back-steps, the undone move's view).
+ */
+export type TenantPendingAnimation<C extends string, V, M> =
+  | { kind: 'live'; move: M; color: C }
+  | { kind: 'scrub'; direction: 'forward' | 'back'; prevView: V | null };
+
 export type TenantReplayCaptureConfig<C extends string, V> = {
   /** Stable serialization of everything the viewer can see in this view. */
   positionKey(view: V): string;
@@ -153,6 +166,17 @@ export type TenantLiveClientConfig<C extends string, V extends TenantWebView<C>,
   playAgainRequestBody(state: TenantLiveState<C, V>): Record<string, unknown>;
   /** Render the board for the displayed (replay-aware) view. */
   renderBoard(refs: LiveRefs, view: V | null): void;
+  /**
+   * OPTIONAL animation hook, called after renderBoard/renderExtras/move list on
+   * every renderAll. `takePendingAnimation()` is one-shot: it returns the move
+   * event or single-ply scrub that triggered this render (or null) and drains
+   * the channel. Tenants that do not opt in behave byte-identically.
+   */
+  animateBoard?(
+    refs: LiveRefs,
+    view: V | null,
+    takePendingAnimation: () => TenantPendingAnimation<C, V, M> | null,
+  ): void;
   /** Between board and move list: hands, promotion pickers, etc. */
   renderExtras?(refs: LiveRefs, view: V | null): void;
   /** Extra teardown when the tenant flag is off (captures strips, selection). */
@@ -216,6 +240,12 @@ export function createTenantLiveClient<C extends string, V extends TenantWebView
   let refs: LiveRefs | null = null;
   let lastCapturedView: V | null = null;
   let lastCapturedKey: string | null = null;
+  // One-shot animation channel (see TenantPendingAnimation). A live move event
+  // stashes here; the next renderAll drains it into the animateBoard hook.
+  let pendingLiveAnimation: { move: M; color: C } | null = null;
+  // The view the previous renderAll displayed — a scrub back-step animates the
+  // move that view carried (its lastMove), which the new view no longer has.
+  let lastDisplayedView: V | null = null;
 
   const replay = createTenantReplayController<V>();
 
@@ -283,8 +313,34 @@ export function createTenantLiveClient<C extends string, V extends TenantWebView
     const events = state.events;
     applyFrame(frame);
     state.events = events;
-    if (frame.event) state.events = [...events, frame.event];
+    if (frame.event) {
+      state.events = [...events, frame.event];
+      // Fog safety: the ONLY live-animation source is a move event the server
+      // chose to send this client (isMoveEvent gates the shape). Redacted or
+      // non-move events never arm the channel, and nothing here diffs boards.
+      if (moveList.isMoveEvent(frame.event)) {
+        pendingLiveAnimation = { move: frame.event.move, color: frame.event.color };
+      }
+    }
     config.onEventApplied?.();
+  }
+
+  // Drain both animation sources into the one-shot union the hook consumes.
+  // Called once per renderAll so a stale live move can never outlive the render
+  // that followed its event (scrubs/reconnects drop it).
+  function consumePendingAnimation(prevView: V | null): TenantPendingAnimation<C, V, M> | null {
+    const live = pendingLiveAnimation;
+    pendingLiveAnimation = null;
+    const step = replay.takeLastStep();
+    if (step && Math.abs(step.toPly - step.fromPly) === 1) {
+      return {
+        kind: 'scrub',
+        direction: step.toPly > step.fromPly ? 'forward' : 'back',
+        prevView,
+      };
+    }
+    if (step) return null; // multi-ply jump: render discretely
+    return live ? { kind: 'live', ...live } : null;
   }
 
   // ── Bootstrap ──────────────────────────────────────────────────────────────
@@ -299,6 +355,8 @@ export function createTenantLiveClient<C extends string, V extends TenantWebView
     state.room = room;
     lastCapturedView = null;
     lastCapturedKey = null;
+    pendingLiveAnimation = null;
+    lastDisplayedView = null;
     replay.reset();
     chrome.resetState();
     initLiveSound();
@@ -371,6 +429,10 @@ export function createTenantLiveClient<C extends string, V extends TenantWebView
     const view = state.view;
     captureReplayView(view);
     const displayed = replay.currentView(view);
+    // Drain the animation channel on EVERY render (even disabled/hook-less
+    // paths) so nothing stale carries into a later, unrelated render.
+    const pendingAnimation = consumePendingAnimation(lastDisplayedView);
+    lastDisplayedView = displayed;
     if (moveList.listClass) refs.moveList.classList.add(moveList.listClass);
     replay.renderShell(refs, renderAll);
     refs.boardStatus.hidden = view !== null;
@@ -388,6 +450,14 @@ export function createTenantLiveClient<C extends string, V extends TenantWebView
     config.renderBoard(refs, displayed);
     config.renderExtras?.(refs, displayed);
     renderMoveList(refs);
+    if (config.animateBoard) {
+      let taken: TenantPendingAnimation<C, V, M> | null = pendingAnimation;
+      config.animateBoard(refs, displayed, () => {
+        const value = taken;
+        taken = null;
+        return value;
+      });
+    }
   }
 
   // ── Move list (two-column, first mover left) ───────────────────────────────

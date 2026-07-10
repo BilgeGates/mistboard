@@ -8,6 +8,7 @@ import {
   miniXiangqiCoordOf,
   miniXiangqiSquareOf,
 } from '@mistboard/game';
+import { glideSvgPiece, pieceAnimationDurationMs } from './board-anim.js';
 import { tokenPieceSize } from './board-metrics.js';
 import { readStoredXiangqiPieceSet } from './xiangqi-appearance-storage.js';
 import { xiangqiFogRegion } from './xiangqi-fog.js';
@@ -188,7 +189,7 @@ function pieceLayer(
         entry.shrouded === true
           ? ({ color: entry.color, role: 'soldier' } satisfies MiniXiangqiPiece)
           : entry.piece;
-      return renderXiangqiPieceGlyphed(piece, pieceSet, {
+      const pieceSvg = renderXiangqiPieceGlyphed(piece, pieceSet, {
         ariaLabel: entry.shrouded ? `${entry.color} hidden piece` : `${piece.color} ${piece.role}`,
         className: dragSource ? 'mini-xq-piece mini-xq-piece--drag-source' : 'mini-xq-piece',
         shrouded: entry.shrouded,
@@ -196,8 +197,37 @@ function pieceLayer(
         y: y - pieceSize / 2,
         size: pieceSize,
       });
+      // Keyed slot: a <g> wrapper per occupied square so a post-render glide
+      // (animateMiniXiangqiBoardMove) can find and transform the piece.
+      return `<g class="mini-xq-piece-slot" data-piece-square="${square}">${pieceSvg}</g>`;
     })
     .join('');
+}
+
+/**
+ * Glide the piece that settled on `move.to` from its origin (or with `reverse`
+ * the piece back on `move.from` from the destination). Call AFTER the innerHTML
+ * swap. Deltas are viewBox user units from this module's own intersection
+ * geometry. No-op at duration 0 or when the slot is missing. The move must come
+ * from a received payload (attempt reply / played-move list), never a board diff.
+ */
+export function animateMiniXiangqiBoardMove(
+  host: HTMLElement,
+  move: { from: MiniXiangqiSquare; to: MiniXiangqiSquare },
+  perspective: MiniXiangqiColor,
+  opts: { reverse?: boolean } = {},
+): void {
+  const duration = pieceAnimationDurationMs();
+  if (duration <= 0) return;
+  const settleSquare = opts.reverse ? move.from : move.to;
+  const originSquare = opts.reverse ? move.to : move.from;
+  const slot = host.querySelector(`[data-piece-square="${settleSquare}"]`);
+  if (!slot) return;
+  const origin = miniXiangqiCoordOf(originSquare);
+  const settle = miniXiangqiCoordOf(settleSquare);
+  const from = intersection(origin.file, origin.rank, perspective);
+  const to = intersection(settle.file, settle.rank, perspective);
+  glideSvgPiece(slot, from.x - to.x, from.y - to.y, duration);
 }
 
 function fogLayer(

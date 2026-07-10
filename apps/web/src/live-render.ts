@@ -17,6 +17,7 @@ import {
   createGameLifecycleTracker,
   gameSpecAnalyticsProps,
 } from './analytics.js';
+import { chessgroundAnimation } from './board-anim.js';
 import {
   boardHighlightClasses,
   boardResultClass,
@@ -717,7 +718,8 @@ function renderBoard(view: PlayerView | null): void {
   refs.board.classList.toggle('paused-board', paused);
   renderPausedOverlay(paused);
   const config = {
-    animation: { enabled: false, duration: 0 },
+    // Rebuilt on every render, so a pieceAnimation pref change applies live.
+    animation: chessgroundAnimation(),
     autoCastle: true,
     coordinates: false,
     coordinatesOnSquares: false,

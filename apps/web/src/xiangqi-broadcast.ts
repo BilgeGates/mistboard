@@ -15,6 +15,7 @@ import './xiangqi-broadcast.css';
 import { renderXiangqiBoardSvg } from './live-xiangqi.js';
 import { buildXiangqiReplayFromMoves } from './review/xiangqi-review-model.js';
 import { buildLoadingState, buildNav, buildNotice } from './site-shell.js';
+import { animateXiangqiBoardMove } from './xiangqi-board.js';
 
 type BroadcastMoveTimelineEntry = {
   type: 'move-played';
@@ -181,7 +182,7 @@ export async function mountXiangqiBroadcastBoard(
     );
     const context = await fetchBoardRoundContext(data.board.tourSlug, data.board.roundId);
     root.replaceChildren(buildNav(), renderBoardReplay(data, context));
-    connectBoardStream(root, boardId, boardVersion(data), context);
+    connectBoardStream(root, boardId, boardVersion(data), context, data.timeline.length);
   } catch (err) {
     renderError(root, err);
   }
@@ -250,19 +251,31 @@ function connectBoardStream(
   boardId: string,
   initialVersion: string,
   context: BroadcastRoundResponse | null,
+  initialPlyCount: number,
 ): void {
   if (!('EventSource' in window)) return;
   const source = new EventSource(
     `/api/xiangqi/broadcasts/boards/${encodeURIComponent(boardId)}/events`,
   );
   let lastVersion = initialVersion;
+  let lastPlyCount = initialPlyCount;
   source.addEventListener('board', (event) => {
     const envelope = parseStreamEnvelope<BroadcastBoardResponse>(event);
     if (!envelope || envelope.version === lastVersion) return;
     lastVersion = envelope.version;
+    // Head-advance glide: only when the viewer was AT the head (a head cursor
+    // keeps the URL free of ?ply, see renderCursor) and this update appended a
+    // new ply. A scrubbed-back viewer re-renders discretely at their ply.
+    const nextPlyCount = envelope.payload.timeline.length;
+    const headAdvance =
+      nextPlyCount > lastPlyCount && !new URLSearchParams(window.location.search).get('ply');
+    lastPlyCount = nextPlyCount;
     // The round context from mount time is reused so the side rail and round
     // switcher survive stream re-renders without extra fetches.
-    root.replaceChildren(buildNav(), renderBoardReplay(envelope.payload, context));
+    root.replaceChildren(
+      buildNav(),
+      renderBoardReplay(envelope.payload, context, { animateHeadAdvance: headAdvance }),
+    );
   });
   closeStreamOnPageExit(source);
 }
@@ -488,10 +501,12 @@ function renderRound(data: BroadcastRoundResponse): HTMLElement {
 function renderBoardReplay(
   data: BroadcastBoardResponse,
   context: BroadcastRoundResponse | null = null,
+  opts: { animateHeadAdvance?: boolean } = {},
 ): HTMLElement {
   const main = broadcastShell();
   const frames = data.history.truth.length > 0 ? data.history.truth : [{ ply: 0, view: data.view }];
   const maxPly = frames.length - 1;
+  const moveByPly = new Map(data.timeline.map((entry) => [entry.ply, entry.move]));
   let cursor = clamp(initialPlyFromUrl(), 0, maxPly);
 
   document.title = `${playerName(data.board.red)} vs ${playerName(data.board.black)} · Mistboard`;
@@ -570,8 +585,23 @@ function renderBoardReplay(
   const moveButtons = renderMoveButtons(moveList, data.timeline, setCursor);
 
   function setCursor(nextPly: number): void {
+    const fromPly = cursor;
     cursor = clamp(nextPly, 0, maxPly);
     renderCursor();
+    animateCursorStep(fromPly, cursor);
+  }
+
+  // Adjacent scrub steps glide (pieceAnimation pref): forward animates the
+  // stepped-into ply's move, back reverse-animates the undone ply's move. The
+  // moves come from the broadcast timeline payload; jumps render discretely.
+  function animateCursorStep(fromPly: number, toPly: number): void {
+    if (toPly === fromPly + 1) {
+      const move = moveByPly.get(toPly);
+      if (move) animateXiangqiBoardMove(boardFrame, move, 'red');
+    } else if (toPly === fromPly - 1) {
+      const move = moveByPly.get(fromPly);
+      if (move) animateXiangqiBoardMove(boardFrame, move, 'red', { reverse: true });
+    }
   }
 
   function renderCursor(): void {
@@ -594,6 +624,18 @@ function renderBoardReplay(
   }
 
   renderCursor();
+  // SSE head-advance: a new ply just arrived while the viewer sat at the head;
+  // glide the newest move so live boards read as motion, not teleports. Runs a
+  // frame later because the caller attaches `main` right after this returns
+  // (same deferral idiom as scheduleRailScroll).
+  if (opts.animateHeadAdvance && maxPly > 0 && cursor === maxPly) {
+    const move = moveByPly.get(maxPly);
+    if (move) {
+      const glide = () => animateXiangqiBoardMove(boardFrame, move, 'red');
+      if (typeof window.requestAnimationFrame === 'function') window.requestAnimationFrame(glide);
+      else glide();
+    }
+  }
   return main;
 }
 

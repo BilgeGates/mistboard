@@ -52,6 +52,7 @@ import {
   fillDropMiniXiangqiReserve,
 } from './drop-mini-xiangqi-view.js';
 import {
+  animateFortressXiangqiBoardMove,
   FORTRESS_XIANGQI_PIECE_PX,
   fortressXiangqiPieceGhostSvg,
   installFortressXiangqiBoardStyles,
@@ -63,8 +64,14 @@ import {
   fortressXiangqiDropTargets,
   fortressXiangqiMoveLabel,
 } from './fortress-xiangqi-view.js';
-import { JUNGLE_BOARD_VIEW, junglePieceGhostSvg, renderJungleBoardSvg } from './jungle-render.js';
 import {
+  animateJungleBoardMove,
+  JUNGLE_BOARD_VIEW,
+  junglePieceGhostSvg,
+  renderJungleBoardSvg,
+} from './jungle-render.js';
+import {
+  animateMiniXiangqiBoardMove,
   installMiniXiangqiBoardStyles,
   MINI_XIANGQI_PIECE_PX,
   miniXiangqiPieceGhostSvg,
@@ -78,6 +85,7 @@ import type { VariantMiniId } from './variant-mini-boards.js';
 import { installBoardDrag } from './variant-tenant/board-drag.js';
 import { installHandDrag } from './variant-tenant/hand-drag.js';
 import {
+  animateXiangqiBoardMove,
   XIANGQI_PIECE_SIZE,
   xiangqiBoardSvg,
   xiangqiClickResult,
@@ -1415,8 +1423,11 @@ function actionPanel(
     renderSession();
   });
   const previous = actionButton('puzzleReplayPrevious', ICON_PREV, 'Previous move', atStart, () => {
+    // Reverse-glide the move being undone (replay back-step).
+    const undone = session.playedMoves[session.viewPly - 1];
     session.viewPly = Math.max(0, session.viewPly - 1);
     renderSession();
+    if (undone) animatePuzzleMove(session, undone, { reverse: true });
   });
   const reset = actionButton('puzzleReplayReset', '↺', 'Restart puzzle', session.submitting, () => {
     cancelAutoNext();
@@ -1424,8 +1435,11 @@ function actionPanel(
     renderSession();
   });
   const next = actionButton('puzzleReplayNext', ICON_NEXT, 'Next move', atEnd, () => {
+    // Glide the move being stepped into (replay forward step).
+    const stepped = session.playedMoves[session.viewPly];
     session.viewPly = Math.min(lastPly, session.viewPly + 1);
     renderSession();
+    if (stepped) animatePuzzleMove(session, stepped);
   });
   const last = actionButton('puzzleReplayLast', ICON_LAST, 'Last move', atEnd, () => {
     session.viewPly = lastPly;
@@ -1821,6 +1835,7 @@ async function submitMove(
   session.feedback = { kind: 'pending', text: 'Checking move.' };
   renderSession();
   const beforeCount = puzzlePieceCount(session.state);
+  const playedCountBefore = session.playedMoves.length;
   const nextSolverMoves = [...session.solverMoves, move];
   const { attempt, rating } = await submitPuzzleAttempt(session.puzzle.id, nextSolverMoves);
   session.submitting = false;
@@ -1852,6 +1867,63 @@ async function submitMove(
   }
   if (rating) onAttemptRating?.(rating);
   renderSession();
+  // A correct move lands the solver's move AND the engine reply in the same
+  // render; glide ONLY the reply (the user just chose their own move, so it
+  // reads fine landing instantly — the reply is what teleported before).
+  if (attempt.ok && attempt.playedMoves.length - playedCountBefore >= 2) {
+    const reply = attempt.playedMoves.at(-1);
+    if (reply) animatePuzzleMove(session, reply);
+  }
+}
+
+// Glide a board move on the mounted puzzle board. One puzzle page mounts at a
+// time (module invariant, see the rating singletons above), so the
+// .puzzle-board query is unambiguous. Called AFTER renderSession painted the
+// final position. Drop moves have no origin square and stay discrete. Moves
+// come from the server attempt payload or the local playedMoves history,
+// never from diffing board states.
+function animatePuzzleMove(
+  session: PuzzleSession,
+  move: PuzzleMove,
+  opts: { reverse?: boolean } = {},
+): void {
+  if (!('from' in move) || typeof move.from !== 'string') return;
+  const board = document.querySelector<HTMLElement>('.puzzle-board');
+  if (!board) return;
+  const variant = session.puzzle.variant;
+  if (variant === XIANGQI_SPEC_ID) {
+    const host = board.querySelector<HTMLElement>('.puzzle-xiangqi-board') ?? board;
+    animateXiangqiBoardMove(host, move as XiangqiMove, xiangqiPerspective(session), opts);
+    return;
+  }
+  if (variant === FORTRESS_XIANGQI_SPEC_ID) {
+    const host = board.querySelector<HTMLElement>('.puzzle-board-surface') ?? board;
+    animateFortressXiangqiBoardMove(
+      host,
+      move as { from: FortressXiangqiSquare; to: FortressXiangqiSquare },
+      fortressPerspective(session),
+      opts,
+    );
+    return;
+  }
+  if (variant === JUNGLE_SPEC_ID) {
+    animateJungleBoardMove(
+      board,
+      move as { from: JungleSquare; to: JungleSquare },
+      junglePerspective(session),
+      opts,
+    );
+    return;
+  }
+  // Mini + Drop Mini share the mini renderer; the drop shell paints onto
+  // .puzzle-board-surface, plain mini straight onto the board host.
+  const host = board.querySelector<HTMLElement>('.puzzle-board-surface') ?? board;
+  animateMiniXiangqiBoardMove(
+    host,
+    move as { from: MiniXiangqiSquare; to: MiniXiangqiSquare },
+    (session.puzzle.sideToMove as MiniXiangqiColor | null) ?? activeTurn(session),
+    opts,
+  );
 }
 
 // Occupied-square count across any puzzle variant's board (all PuzzleState shapes

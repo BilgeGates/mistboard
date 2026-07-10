@@ -19,7 +19,7 @@ import {
   type XiangqiGameState,
   type XiangqiMove,
 } from '@mistboard/game';
-import { createXiangqiInteractiveBoard } from '../xiangqi-board.js';
+import { animateXiangqiBoardMove, createXiangqiInteractiveBoard } from '../xiangqi-board.js';
 import { renderXiangqiPiece } from '../xiangqi-pieces.js';
 import { type AdvantageChart, createAdvantageChart } from './advantage-chart.js';
 import { createAnalysisSummary } from './analysis-summary.js';
@@ -240,8 +240,26 @@ export function mountXiangqiReview(root: HTMLElement, config: XiangqiReviewConfi
   });
 
   function go(path: TreePath): void {
+    const fromPath = currentPath;
     currentPath = path;
     render();
+    animateStep(fromPath, path);
+  }
+  // Adjacent tree steps glide (pieceAnimation pref, no-op at duration 0):
+  // stepping INTO a child animates that node's move; stepping back to the
+  // parent reverse-animates it. Multi-ply jumps (first/last/tree clicks to a
+  // distant node) render discretely. Moves the user plays on the board go
+  // through onMove, not go(), so own input never double-animates.
+  function animateStep(fromPath: TreePath, toPath: TreePath): void {
+    if (toPath.length === fromPath.length + 1 && isPrefix(fromPath, toPath)) {
+      const move = tree.nodeAt(toPath)?.move;
+      if (move) animateXiangqiBoardMove(boardEl, move, orientation());
+      return;
+    }
+    if (fromPath.length === toPath.length + 1 && isPrefix(toPath, fromPath)) {
+      const move = tree.nodeAt(fromPath)?.move;
+      if (move) animateXiangqiBoardMove(boardEl, move, orientation(), { reverse: true });
+    }
   }
   function flipBoard(): void {
     flipped = !flipped;

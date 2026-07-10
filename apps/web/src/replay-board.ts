@@ -3,6 +3,7 @@ import { boardFen, hiddenSquareClasses, mountBoard } from '@mistboard/board-rend
 import type { Color, GameState, Move, Piece, PieceRole, PlayerView, Square } from '@mistboard/game';
 import type { Api } from 'chessground/api';
 import type * as cg from 'chessground/types';
+import { chessgroundAnimation } from './board-anim.js';
 import { captureRow } from './capture-render.js';
 
 export type ReplayPaneHandle = {
@@ -106,7 +107,8 @@ export function renderSplitPaneCaptures(
 
 export function createBoard(el: HTMLElement, orientation: Color): Api {
   return mountBoard(el, {
-    animation: { enabled: false, duration: 0 },
+    // Read once at mount; chessground then glides fen diffs between plies.
+    animation: chessgroundAnimation(),
     coordinates: false,
     coordinatesOnSquares: false,
     fen: '8/8/8/8/8/8/8/8',

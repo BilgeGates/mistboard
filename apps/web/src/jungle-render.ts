@@ -16,6 +16,7 @@
 // via rsvg/resvg).
 
 import {
+  createGridGeometry,
   type GridBoardDescriptor,
   type GridCellRef,
   type GridGeometry,
@@ -31,6 +32,7 @@ import {
   jungleCoordOf,
   jungleTrapOwner,
 } from '@mistboard/game';
+import { glideSvgPiece, pieceAnimationDurationMs } from './board-anim.js';
 import { TOKEN_PIECE_RATIO } from './board-metrics.js';
 import {
   framedTokenSvg,
@@ -218,10 +220,39 @@ function pieces(
       role: piece.role,
       filterId: shadow ? `${gid}-shadow` : undefined,
     });
-    // While this piece is being dragged, dim its on-board token so only the ghost reads.
-    parts.push(square === draggingFrom ? `<g class="jungle-drag-source">${token}</g>` : token);
+    // While this piece is being dragged, dim its on-board token so only the ghost
+    // reads. The keyed outer slot lets a post-render glide find the token
+    // (animateJungleBoardMove); the drag-source dimmer stays an inner wrapper.
+    const slotBody = square === draggingFrom ? `<g class="jungle-drag-source">${token}</g>` : token;
+    parts.push(`<g class="jgl-piece-slot" data-piece-square="${square}">${slotBody}</g>`);
   }
   return parts.join('');
+}
+
+/**
+ * Glide the piece that settled on `move.to` from its origin (or with `reverse`
+ * the piece back on `move.from`). Call AFTER the innerHTML swap. Deltas come
+ * from the same grid geometry the renderer uses (flip-aware). No-op at duration
+ * 0 or when the slot is missing. Move payloads only, never board diffs.
+ */
+export function animateJungleBoardMove(
+  host: HTMLElement,
+  move: { from: JungleSquare; to: JungleSquare },
+  perspective: JungleColor,
+  opts: { reverse?: boolean } = {},
+): void {
+  const duration = pieceAnimationDurationMs();
+  if (duration <= 0) return;
+  const settleSquare = opts.reverse ? move.from : move.to;
+  const originSquare = opts.reverse ? move.to : move.from;
+  const slot = host.querySelector(`[data-piece-square="${settleSquare}"]`);
+  if (!slot) return;
+  const geom = createGridGeometry(DESCRIPTOR, perspective === 'black');
+  const origin = jungleCoordOf(originSquare);
+  const settle = jungleCoordOf(settleSquare);
+  const from = geom.center(origin.file, origin.rank);
+  const to = geom.center(settle.file, settle.rank);
+  glideSvgPiece(slot, from.x - to.x, from.y - to.y, duration);
 }
 
 // The floating ghost piece shown while dragging (a framed token in a one-cell SVG box),

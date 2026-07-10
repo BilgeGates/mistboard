@@ -29,6 +29,13 @@ export type TenantReplayController<View> = {
   metaLabel(): string;
   controlDisabled(action: string): boolean;
   handleControl(action: string): void;
+  /**
+   * One-shot: the ply transition of the most recent scrub control (buttons or
+   * keyboard), consumed by the render that follows it. Null when nothing was
+   * scrubbed since the last take. Adjacent single-ply transitions are what the
+   * animation channel turns into a forward/back glide.
+   */
+  takeLastStep(): { fromPly: number; toPly: number } | null;
   /** Wire the shared replay buttons + meta line; onChange re-renders the room. */
   renderShell(refs: LiveRefs, onChange: () => void): void;
   handleKeyboard(event: KeyboardEvent, onChange: () => void): void;
@@ -37,10 +44,17 @@ export type TenantReplayController<View> = {
 export function createTenantReplayController<View>(): TenantReplayController<View> {
   let replayIndex: number | null = null;
   let history: TenantReplaySnapshot<View>[] = [];
+  let lastStep: { fromPly: number; toPly: number } | null = null;
 
   function reset(): void {
     replayIndex = null;
     history = [];
+    lastStep = null;
+  }
+
+  function currentPly(): number {
+    if (replayIndex === null) return latestPly();
+    return history[replayIndex]?.ply ?? latestPly();
   }
 
   function push(snapshot: TenantReplaySnapshot<View>): void {
@@ -92,6 +106,15 @@ export function createTenantReplayController<View>(): TenantReplayController<Vie
   }
 
   function handleControl(action: string): void {
+    const fromPly = currentPly();
+    applyControl(action);
+    const toPly = currentPly();
+    // Record every scrub transition (including no-ops, which the consumer
+    // filters out as non-adjacent); one-shot, drained by takeLastStep().
+    lastStep = fromPly === toPly ? lastStep : { fromPly, toPly };
+  }
+
+  function applyControl(action: string): void {
     if (action === 'latest') {
       replayIndex = null;
       return;
@@ -107,6 +130,12 @@ export function createTenantReplayController<View>(): TenantReplayController<Vie
       const next = current + 1;
       replayIndex = next >= history.length - 1 ? null : next;
     }
+  }
+
+  function takeLastStep(): { fromPly: number; toPly: number } | null {
+    const step = lastStep;
+    lastStep = null;
+    return step;
   }
 
   function renderShell(refs: LiveRefs, onChange: () => void): void {
@@ -146,6 +175,7 @@ export function createTenantReplayController<View>(): TenantReplayController<Vie
     metaLabel,
     controlDisabled,
     handleControl,
+    takeLastStep,
     renderShell,
     handleKeyboard,
   };

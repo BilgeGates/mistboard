@@ -12,6 +12,7 @@ import {
   type TenantLiveEvent,
   type TenantLiveFrame,
   type TenantMovePlayed,
+  type TenantPendingAnimation,
 } from './live-client.js';
 import type { TenantWebView, WebVariantTenant } from './room-chrome.js';
 import type { TenantSocketClientOptions } from './socket-client.js';
@@ -265,5 +266,92 @@ describe('tenant live-client core', () => {
     h.feedHello({});
     expect(h.client.send({ type: 'move', from: 'a1', to: 'a2' })).toBe(true);
     expect(h.sent).toContainEqual({ type: 'move', from: 'a1', to: 'a2' });
+  });
+});
+
+describe('animateBoard hook (one-shot pending-animation channel)', () => {
+  type Pending = TenantPendingAnimation<TColor, TView, TMove> | null;
+
+  function animatedHarness(opts: { masked?: boolean } = {}): Harness & { pendings: Pending[] } {
+    const pendings: Pending[] = [];
+    const h = createHarness(
+      {
+        animateBoard: (_refs, _view, takePendingAnimation) => {
+          pendings.push(takePendingAnimation());
+        },
+      },
+      opts,
+    );
+    return Object.assign(h, { pendings });
+  }
+
+  it('delivers a live pending exactly once for a move event that passes the move gate', () => {
+    const h = animatedHarness();
+    h.feedHello({});
+    expect(h.pendings.at(-1)).toBeNull();
+    h.feedEvent({
+      event: moveEvent('blue', 'b1', 'b2', 1),
+      state: view({ squares: { b2: 'blue' } }),
+    });
+    expect(h.pendings.at(-1)).toEqual({
+      kind: 'live',
+      move: { from: 'b1', to: 'b2' },
+      color: 'blue',
+    });
+    // One-shot: the channel is drained by the render that followed the event.
+    h.client.renderAll();
+    expect(h.pendings.at(-1)).toBeNull();
+  });
+
+  it('fog safety: a redacted opponent event changes the board but NEVER arms an animation', () => {
+    // On fog tenants the server strips opponent move payloads; what arrives is
+    // a non-move event plus a new view. The hook must see NO pending for it —
+    // the client never derives a glide by diffing the two boards, so a fogged
+    // origin square can never be implied client-side. Only events that pass
+    // the tenant's isMoveEvent gate (here: the viewer's own move) animate.
+    const h = animatedHarness({ masked: true });
+    h.feedHello({ seat: 'red' });
+    // Own move arrives as a real move event: pending delivered.
+    h.feedEvent({
+      seat: 'red',
+      event: moveEvent('red', 'a1', 'a2', 1),
+      state: view({ squares: { a2: 'red' } }),
+    });
+    expect(h.pendings.at(-1)).toEqual({
+      kind: 'live',
+      move: { from: 'a1', to: 'a2' },
+      color: 'red',
+    });
+    // Redacted opponent ply: the view changes (a blue piece appears) but the
+    // event carries no move shape, so the channel stays empty.
+    h.feedEvent({
+      seat: 'red',
+      event: { type: 'ply-advanced', color: 'blue', at: 0 },
+      state: view({ moveNumber: 2, squares: { a2: 'red', z9: 'blue' } }),
+    });
+    expect(h.pendings.at(-1)).toBeNull();
+  });
+
+  it('maps adjacent replay steps to scrub pendings carrying the previously displayed view', () => {
+    const h = animatedHarness();
+    h.feedHello({ state: view({ squares: {} }) });
+    const moved = view({ squares: { a2: 'red' } });
+    h.feedSnapshot({ events: [moveEvent('red', 'a1', 'a2', 1)], state: moved });
+    expect(h.client.replay.historyLength()).toBe(2);
+
+    h.client.replay.handleControl('prev');
+    h.client.renderAll();
+    const back = h.pendings.at(-1);
+    expect(back).toMatchObject({ kind: 'scrub', direction: 'back' });
+    // prevView is the view we stepped away from — its lastMove is what a
+    // tenant reverse-animates.
+    expect((back as Extract<Pending, { kind: 'scrub' }>).prevView?.squares).toEqual({ a2: 'red' });
+
+    h.client.replay.handleControl('next');
+    h.client.renderAll();
+    expect(h.pendings.at(-1)).toMatchObject({ kind: 'scrub', direction: 'forward' });
+    // Drained again on the following render.
+    h.client.renderAll();
+    expect(h.pendings.at(-1)).toBeNull();
   });
 });

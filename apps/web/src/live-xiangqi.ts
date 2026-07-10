@@ -38,6 +38,7 @@ import {
 import type { WebVariantTenant } from './variant-tenant/room-chrome.js';
 import { installSelectionClickAway } from './variant-tenant/selection-click-away.js';
 import {
+  animateXiangqiBoardMove,
   isXiangqiColor,
   XIANGQI_PIECE_SIZE,
   xiangqiBoardSvg,
@@ -125,6 +126,29 @@ const client = createTenantLiveClient<XiangqiColor, StandardXiangqiPlayerView, X
     draggingFrom = null;
   },
   renderBoard,
+  // Piece glides (pieceAnimation pref). Live: only REMOTE moves animate — own
+  // moves already re-rendered synchronously at input time, so animating the
+  // server echo would double-play them. Spectators see both sides glide.
+  // Scrubs: adjacent forward steps glide the stepped-into move; back steps
+  // reverse-glide the undone move (the previous view's lastMove). Skipped
+  // mid-drag so a glide never fights the drag ghost.
+  animateBoard: (liveRefs, view, takePendingAnimation) => {
+    if (!view || draggingFrom) return;
+    const pending = takePendingAnimation();
+    if (!pending) return;
+    const perspective = core?.orientation() ?? view.perspective;
+    if (pending.kind === 'live') {
+      if (pending.color === core?.state.seat) return;
+      animateXiangqiBoardMove(liveRefs.board, pending.move, perspective);
+      return;
+    }
+    if (pending.direction === 'forward') {
+      if (view.lastMove) animateXiangqiBoardMove(liveRefs.board, view.lastMove, perspective);
+      return;
+    }
+    const undone = pending.prevView?.lastMove;
+    if (undone) animateXiangqiBoardMove(liveRefs.board, undone, perspective, { reverse: true });
+  },
   onDisabled: () => {
     selectedSquare = null;
   },
