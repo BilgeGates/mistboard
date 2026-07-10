@@ -122,30 +122,40 @@ Env:
 - `MISTBOARD_WS_MAX_PAYLOAD_BYTES`, `MISTBOARD_WS_MESSAGE_LIMIT`, `MISTBOARD_WS_MESSAGE_WINDOW_MS` — optional WebSocket abuse-control knobs.
 - `MISTBOARD_SHUTDOWN_GRACE_MS` — optional graceful shutdown budget for closing sockets, pending writes, and the Postgres pool.
 
-Local dev DB:
+Local dev DB (Docker Postgres on `localhost:5435`):
 
 ```bash
-npm run db:up
-npm run db:migrate
-npm run db:seed:profiles   # public profiles + game-list rows
-npm run db:seed:watch      # scrubable /watch feed from committed replay samples
-npm run dev:persistent
+npm run dev                # persistent by default: db:up + db:migrate + server/web pair
+npm run db:seed:qa         # every local fixture: profiles + variant games + watch feed + QA gap-fillers
 npm run test:persistent
 ```
+
+`npm run dev` runs `db:up`, then `db:migrate`, then the persistent pair. `db:up`
+starts the shared `mistboard-postgres` container (creating it via `docker
+compose` only when it does not already exist), so it works from a git worktree
+without the "container name already in use" conflict, and fails loudly if Docker
+is not running. `npm run dev:memory` is the no-Postgres path. The individual
+seeders still run standalone: `db:seed:profiles`, `db:seed:watch`,
+`db:seed:variant-fixtures`, `db:seed:qa-fixtures`.
+
+Multiple sessions share one Postgres: set `MISTBOARD_DEV_PORT_BASE` (default
+3000) to move a second worktree's pair to other ports (web = base, server =
+base + 1; the web proxy and dev WebSocket URL follow via `MISTBOARD_DEV_API_URL`).
+`strictPort` keeps an occupied port a loud failure, never an auto-increment.
 
 The local Postgres URL is `postgres://mistboard:mistboard@localhost:5435/mistboard`.
 Migrations run via a tiny in-repo script — no ORM, no migration framework. Raw
 SQL files in `apps/server/migrations/` are applied in order.
 
-Without a DB (`npm run dev`), DB-backed pages are dark: `/watch`, `/game/:id`
-review, profiles, and the public-games surfaces all show empty/"unavailable"
-states. Two ways to exercise them:
+Without a DB (`npm run dev:memory`), DB-backed pages are dark: `/watch`,
+`/game/:id` review, profiles, and the public-games surfaces all show
+empty/"unavailable" states. Two ways to exercise them:
 
 - **Replay component only** (no DB): open `/?replay=<sample-name>`, where
   `<sample-name>` is any file under `apps/web/public/replay-samples/` (without
   the `.jsonl`). Mounts the exact replay widget — boards, controls, ply line —
   the watch and review pages embed. Fastest loop for replay-UI work.
-- **Full page** (DB): `db:seed:watch` + `dev:persistent`, then load `/watch`.
+- **Full page** (DB): `db:seed:watch` + `npm run dev`, then load `/watch`.
 
 `npm run db:seed:profiles` adds deterministic local public profile fixtures.
 The seed is idempotent and only replaces `seed-*` users and games:
@@ -163,6 +173,26 @@ scrubable replays locally. It is a thin wrapper over `import-corpus` with
 `--mode eve` (the default `imported` mode is excluded from the watch feed, which
 filters `mode IN (pvp, pve, eve)`). Idempotent on `(room_id)`; safe to re-run.
 Both seed commands hardcode the local Postgres URL.
+
+`npm run db:seed:qa-fixtures` (folded into `db:seed:qa`) fills the local-only
+gaps the other seeders miss, idempotently and without touching existing rows:
+
+- **Admin account** — promotes `MISTBOARD_QA_ADMIN_EMAIL` (default
+  `brianhliou@gmail.com`) to `account_role='admin'`, creating the user if
+  absent. It matches on `lower(email)`, so a later dev login-code sign-in with
+  that email lands on the same account (dev sign-in returns the code as
+  `devCode` in the API response — no email is sent locally).
+- **Inbox / DM** — a few `dm_threads` + `dm_messages` between the admin and seed
+  users, including one 30+ message thread (internal scroll) and unread threads
+  (inbox badge).
+- **Xiangqi ladder** — `user_ratings` rows for the `xiangqi`/`blitz` bucket so
+  `/api/leaderboard?variant=xiangqi` is non-empty locally.
+
+Correspondence "your-turn" games are deliberately not seeded: a dashboard entry
+needs both a `room_deadlines` row and a hydratable dark-chess event log +
+running-game row, and there is no committed non-terminal fixture to replay, so a
+static seed would be a hollow `/room` link. Create one against the running dev
+server instead.
 
 Minimal account auth is passwordless email:
 

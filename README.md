@@ -43,6 +43,11 @@ npm run dev
 
 Open `http://localhost:3000`.
 
+`npm run dev` is persistent by default: it starts a local Postgres in Docker,
+applies migrations, and runs the server + web pair against it. No Docker? Run
+`npm run dev:memory` for the in-memory path (DB-backed pages like `/watch` and
+profiles are dark).
+
 Useful checks:
 
 ```bash
@@ -51,12 +56,11 @@ npm run typecheck
 npm run verify -- --changed
 ```
 
-For Postgres-backed replay, reconnect, and persistence flows:
+Load the local QA fixtures (public profiles, watch feed, variant sample games,
+plus an admin account, inbox threads, and a seeded xiangqi ladder):
 
 ```bash
-npm run db:up
-npm run db:migrate
-npm run dev:persistent
+npm run db:seed:qa
 ```
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) for the contributor workflow, local test
