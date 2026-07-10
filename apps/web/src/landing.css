@@ -319,7 +319,7 @@
 /* Lower strip: lila-style News + Forum pair, full width beneath the
    three-column band. */
 .landing-lower-strip {
-  --landing-lower-widget-height: 25em;
+  --landing-lower-widget-height: 20em;
 
   grid-area: lower;
   display: grid;

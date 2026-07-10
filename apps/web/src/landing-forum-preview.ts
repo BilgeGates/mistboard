@@ -28,7 +28,8 @@ type ForumTopicSummary = {
 };
 
 const postPageSize = 25;
-const maxLandingForumTopics = 7;
+// Sized to fill --landing-lower-widget-height without clipping a row mid-item.
+const maxLandingForumTopics = 5;
 
 export function buildLandingForumPreview(options: { hydrate?: boolean } = {}): HTMLElement {
   const { box, body } = buildSiteBox({

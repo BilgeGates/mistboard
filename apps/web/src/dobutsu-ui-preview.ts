@@ -850,7 +850,7 @@ export function mountDobutsuUiPreview(root: HTMLElement): void {
   const supportRow = document.createElement('div');
   supportRow.className = 'dobutsu-two-up';
   supportRow.append(
-    supportCard('support', 'support-a', 'Support', 'Keep Mistboard free'),
+    supportCard('support', 'support-a', 'Love Mistboard?', 'Become a patron'),
     supportCard('store', 'store-a', 'Store', 'Coming soon'),
     supportCard('store', 'store-c', 'Store', 'Bag direction'),
   );

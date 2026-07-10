@@ -52,7 +52,7 @@ describe('landing forum preview', () => {
     const box = buildLandingForumPreview();
     await new Promise((resolve) => setTimeout(resolve, 0));
 
-    expect(fetchSpy).toHaveBeenCalledWith('/api/forum/topics?limit=7', {
+    expect(fetchSpy).toHaveBeenCalledWith('/api/forum/topics?limit=5', {
       headers: { accept: 'application/json' },
     });
     expect(box.querySelector('.site-box-title')?.textContent).toBe('Active forum topics');

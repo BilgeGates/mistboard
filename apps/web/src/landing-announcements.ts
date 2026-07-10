@@ -6,8 +6,9 @@ import { currentLocale, LOCALE_META, type Locale, localizedHref } from './i18n/l
 import { rulesHrefPublicSurfaceEnabled } from './variant-public-surfaces.js';
 
 // All announcements render as one dated News feed box (lichess lobby__feed
-// grammar); the full history lives at /feed.
-const MAX_FEED_ROWS = 4;
+// grammar); the full history lives at /feed. Row count is sized to fill
+// --landing-lower-widget-height without forcing a scroll.
+const MAX_FEED_ROWS = 3;
 const ANNOUNCEMENT_KIND_META: Record<
   Announcement['kind'],
   { label: string; futureDobutsuSlot: 'announcement-a' | 'announcement-b' | null }

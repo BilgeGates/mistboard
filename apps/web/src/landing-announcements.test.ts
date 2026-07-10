@@ -25,8 +25,8 @@ describe('landing announcements', () => {
     // Xiangqi pivot: the News rail is gated by variantPublicSurfaceEnabled. The
     // mini xiangqi trio (incl. drop-mini) and dark-crazyhouse are retired from
     // public surfaces; the elevated Chinese-chess-family launches (dark-xiangqi,
-    // banqi) now surface.
-    expect(hrefs).toEqual(['/rules/xiangqi', '/forum', '/rules/fortress-xiangqi', '/rules/jungle']);
+    // banqi) now surface. The rail shows the newest MAX_FEED_ROWS entries.
+    expect(hrefs).toEqual(['/rules/xiangqi', '/forum', '/rules/fortress-xiangqi']);
   });
 
   it('keeps parked and gated variant launches out of the homepage News rail', () => {
