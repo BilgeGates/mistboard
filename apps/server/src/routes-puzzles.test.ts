@@ -113,10 +113,13 @@ test('puzzle list returns public Mini and Drop Mini summaries without solutions'
   for (const id of mateInThreeIds) {
     assert.equal(body.puzzles.find((puzzle) => puzzle.id === id)?.solutionPlyCount, 5, id);
   }
+  // Mate-depth convention applies to the hand-curated Mini and Drop Mini
+  // registries only; mined standard-xiangqi mates run 3 to 7 plies.
   assert.equal(
     body.puzzles
       .filter(
         (puzzle) =>
+          (puzzle.variant === 'mini-xiangqi' || puzzle.variant === 'drop-mini-xiangqi') &&
           puzzle.goal.type === 'checkmate' &&
           !mateInTwoIds.includes(puzzle.id) &&
           !mateInThreeIds.includes(puzzle.id),
@@ -279,8 +282,8 @@ test('daily puzzle route returns a public persisted-assignment shape without sol
   assert.equal(body.daily.source, 'ephemeral');
   assert.equal(body.daily.selectedAt, null);
   assert.equal(typeof body.puzzle.id, 'string');
-  // Only Fortress Xiangqi is featured as the daily puzzle for now.
-  assert.equal(body.puzzle.variant, 'fortress-xiangqi');
+  // The daily rotation draws from the Fortress and standard xiangqi providers.
+  assert.equal(['fortress-xiangqi', 'xiangqi'].includes(body.puzzle.variant), true);
   assert.notEqual(body.puzzle.initial, undefined);
   assert.equal(body.puzzle.solution, undefined);
 });

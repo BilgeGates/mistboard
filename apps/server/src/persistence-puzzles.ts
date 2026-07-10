@@ -16,9 +16,9 @@ import { getPool, isInitialized } from './persistence-db.js';
 
 export const DAILY_PUZZLE_HOMEPAGE_SLOT = 'homepage';
 
-// A daily puzzle can be drawn from any surfaced variant; only Fortress Xiangqi is
-// surfaced right now (see DAILY_PUZZLE_PROVIDERS). Ids are prefix-disjoint across
-// the registries, so resolution dispatches on the stored variant.
+// A daily puzzle can be drawn from any surfaced variant; Fortress and standard
+// xiangqi are surfaced (see DAILY_PUZZLE_PROVIDERS). Ids are prefix-disjoint
+// across the registries, so resolution dispatches on the stored variant.
 type DailyPuzzle = MiniXiangqiPuzzle | FortressXiangqiPuzzle | XiangqiPuzzle;
 
 export type DailyPuzzleSlot = typeof DAILY_PUZZLE_HOMEPAGE_SLOT;
@@ -58,11 +58,9 @@ type Queryable = {
   ): Promise<pg.QueryResult<T>>;
 };
 
-// Only Fortress Xiangqi is featured as the daily puzzle for now, matching the
-// puzzle page. Add more providers here to broaden the rotation. The standard-
-// xiangqi provider is wired but contributes nothing until the mined registry
-// (packages/game/src/puzzles-xiangqi-mined.ts) is populated by the miner; once
-// puzzles land, dailies start drawing from it automatically.
+// The daily rotation draws from Fortress and standard xiangqi. Add more
+// providers here to broaden it; a provider whose registry is empty simply
+// contributes nothing.
 const DAILY_PUZZLE_PROVIDERS: readonly DailyPuzzleProvider[] = [
   {
     variant: FORTRESS_XIANGQI_SPEC_ID,
