@@ -58,15 +58,15 @@ describe('xiangqi appearance storage normalization', () => {
     expect(normalizeXiangqiPieceSet('animal-origami')).toBe('animal-dobutsu');
   });
 
-  it('resets existing browser piece-set storage to Dobutsu on this rollout', () => {
+  it('resets existing browser piece-set storage to International on this rollout', () => {
     const storage = installLocalStorage();
     storage.setItem('mistboard.xiangqiPieceSet', 'traditional');
-    expect(readStoredXiangqiPieceSet()).toBe('animal-dobutsu');
-    expect(storage.getItem('mistboard.xiangqiPieceSet')).toBe('animal-dobutsu');
-    expect(storage.getItem('mistboard.xiangqiPieceSetVersion')).toBe('2');
+    expect(readStoredXiangqiPieceSet()).toBe('international');
+    expect(storage.getItem('mistboard.xiangqiPieceSet')).toBe('international');
+    expect(storage.getItem('mistboard.xiangqiPieceSetVersion')).toBe('3');
   });
 
-  it('keeps user changes after the Dobutsu rollout version is written', () => {
+  it('keeps user changes after the International rollout version is written', () => {
     installLocalStorage();
     writeStoredXiangqiPieceSet('traditional');
     expect(readStoredXiangqiPieceSet()).toBe('traditional');

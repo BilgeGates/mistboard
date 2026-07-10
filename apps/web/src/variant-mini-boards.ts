@@ -30,6 +30,7 @@ import { readStoredXiangqiPieceSet } from './xiangqi-appearance-storage.js';
 import {
   animalTreasureMarks,
   cjkGlyphMark,
+  internationalTreasureMarks,
   renderXiangqiPieceGlyphed,
   treasureSymbolMark,
   type XiangqiPieceSet,
@@ -486,6 +487,9 @@ function fortressTreasureDisc(
   // animal pieces (no hanzi disc base — it brings its own cream fill + ring).
   if (set === 'animal-dobutsu') {
     return place(animalTreasureMarks(color));
+  }
+  if (set === 'international') {
+    return place(internationalTreasureMarks(color));
   }
   const ring = color === 'red' ? '#c2261e' : '#283a47';
   const ink = color === 'red' ? '#8a1a14' : '#283a47';

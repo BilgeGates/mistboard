@@ -144,7 +144,7 @@ function jsonResponse(body: unknown, init: ResponseInit = {}): Response {
 }
 
 function setStoredXiangqiPieceSet(pieceSet: string): void {
-  window.localStorage.setItem('mistboard.xiangqiPieceSetVersion', '2');
+  window.localStorage.setItem('mistboard.xiangqiPieceSetVersion', '3');
   window.localStorage.setItem('mistboard.xiangqiPieceSet', pieceSet);
 }
 

@@ -3,6 +3,7 @@ import type { XiangqiPiece } from '@mistboard/game';
 import { describe, expect, it } from 'vitest';
 import {
   DEFAULT_XIANGQI_PIECE_SET,
+  internationalTreasureMarks,
   renderXiangqiPieceGlyphed,
   xiangqiGlyph,
   xiangqiPieceTilePreview,
@@ -10,8 +11,8 @@ import {
 } from './xiangqi-piece-sets.js';
 
 describe('default piece set', () => {
-  it('defaults the xiangqi family to the animal Dobutsu art', () => {
-    expect(DEFAULT_XIANGQI_PIECE_SET).toBe('animal-dobutsu');
+  it('defaults the xiangqi family to the international image art', () => {
+    expect(DEFAULT_XIANGQI_PIECE_SET).toBe('international');
   });
 });
 
@@ -45,7 +46,9 @@ describe('xiangqiGlyph', () => {
     expect(xiangqiGlyph('western', 'red', 'soldier')).toBe('S');
   });
 
-  it('keeps an initial fallback for the animal image sets', () => {
+  it('keeps an initial fallback for the image sets', () => {
+    expect(xiangqiGlyph('international', 'red', 'general')).toBe('G');
+    expect(xiangqiGlyph('international', 'black', 'elephant')).toBe('E');
     expect(xiangqiGlyph('animal-dobutsu', 'red', 'general')).toBe('G');
     expect(xiangqiGlyph('animal-dobutsu', 'black', 'elephant')).toBe('E');
   });
@@ -71,6 +74,49 @@ describe('renderXiangqiPieceGlyphed', () => {
     const svg = renderXiangqiPieceGlyphed(redGeneral, 'symbols', {});
     expect(svg).toContain('<path');
     expect(svg).not.toContain(XIANGQI_GLYPH_PATHS.帥);
+  });
+
+  it('renders the international set from figure cutouts on a deterministic token', () => {
+    const general = renderXiangqiPieceGlyphed(redGeneral, 'international', {});
+    const cannon = renderXiangqiPieceGlyphed({ color: 'black', role: 'cannon' }, 'international', {
+      className: 'xq-piece',
+    });
+    expect(general).toContain('/piece-sets/xiangqi/international/red-general.png?v=10');
+    expect(cannon).toContain('/piece-sets/xiangqi/international/black-cannon.png?v=10');
+    expect(general).toContain('x="-7" y="-7" width="114" height="114"');
+    expect(cannon).toContain('x="-11" y="-11" width="122" height="122"');
+    expect(cannon).toContain('class="xq-piece"');
+    expect(general).toContain('fill="#fef0d7"');
+    expect(general).toContain('stroke="#c30d0d"');
+    expect(cannon).toContain('stroke="#202427"');
+    expect(general).not.toContain('<text');
+  });
+
+  it('keeps the international soldier at native size while larger art fills more of the disc', () => {
+    const soldier = renderXiangqiPieceGlyphed(
+      { color: 'red', role: 'soldier' },
+      'international',
+      {},
+    );
+    const advisor = renderXiangqiPieceGlyphed(
+      { color: 'red', role: 'advisor' },
+      'international',
+      {},
+    );
+    expect(soldier).toContain('x="0" y="0" width="100" height="100"');
+    expect(advisor).toContain('x="-7" y="-7" width="114" height="114"');
+  });
+
+  it('renders the international Fortress treasure from the generated cutout art', () => {
+    const red = internationalTreasureMarks('red');
+    const black = internationalTreasureMarks('black');
+    expect(red).toContain('/piece-sets/xiangqi/international/red-treasure.png?v=10');
+    expect(black).toContain('/piece-sets/xiangqi/international/black-treasure.png?v=10');
+    expect(red).toContain('x="-7" y="-7" width="114" height="114"');
+    expect(red).toContain('fill="#fef0d7"');
+    expect(red).toContain('stroke="#c30d0d"');
+    expect(black).toContain('stroke="#202427"');
+    expect(red).not.toContain('M38 38 L62 38');
   });
 
   it('renders a distinct symbol for advisor and elephant', () => {
@@ -142,6 +188,16 @@ describe('renderXiangqiPieceGlyphed', () => {
     expect(svg).not.toContain('/piece-sets/xiangqi/animal-dobutsu/red-general.png');
     expect(svg).toContain('aria-label="red hidden piece"');
   });
+
+  it('does not reveal international image identity for a shrouded piece', () => {
+    const svg = renderXiangqiPieceGlyphed(redGeneral, 'international', {
+      shrouded: true,
+      ariaLabel: 'red hidden piece',
+    });
+    expect(svg).toContain('?');
+    expect(svg).not.toContain('/piece-sets/xiangqi/international/red-general.png');
+    expect(svg).toContain('aria-label="red hidden piece"');
+  });
 });
 
 describe('xiangqiPreviewGlyph', () => {
@@ -150,13 +206,20 @@ describe('xiangqiPreviewGlyph', () => {
     expect(xiangqiPreviewGlyph('simplified')).toBe('帅');
     expect(xiangqiPreviewGlyph('western')).toBe('G');
     expect(xiangqiPreviewGlyph('symbols')).toBe('★');
+    expect(xiangqiPreviewGlyph('international')).toBe('G');
     expect(xiangqiPreviewGlyph('animal-dobutsu')).toBe('G');
   });
 });
 
 describe('xiangqiPieceTilePreview', () => {
-  it('uses text previews for glyph sets and SVG previews for the Dobutsu animal set', () => {
+  it('uses text previews for glyph sets and SVG previews for image sets', () => {
     expect(xiangqiPieceTilePreview('traditional')).toEqual({ kind: 'text', text: '帥' });
+    const international = xiangqiPieceTilePreview('international');
+    expect(international.kind).toBe('svg');
+    if (international.kind === 'svg') {
+      expect(international.markup).toContain('/piece-sets/xiangqi/international/red-general.png');
+      expect(international.markup).not.toContain('stroke="#c2261e"');
+    }
     const dobutsu = xiangqiPieceTilePreview('animal-dobutsu');
     expect(dobutsu.kind).toBe('svg');
     if (dobutsu.kind === 'svg') {

@@ -11,6 +11,7 @@ import { readStoredXiangqiPieceSet } from './xiangqi-appearance-storage.js';
 import {
   animalTreasureMarks,
   cjkGlyphMark,
+  internationalTreasureMarks,
   renderXiangqiPieceGlyphed,
   treasureSymbolMark,
   type XiangqiPieceSet,
@@ -222,6 +223,9 @@ function renderFortressXiangqiPiece(
 function treasureInnerMarks(color: FortressXiangqiColor, set: XiangqiPieceSet): string {
   if (set === 'animal-dobutsu') {
     return animalTreasureMarks(color);
+  }
+  if (set === 'international') {
+    return internationalTreasureMarks(color);
   }
   const colorHex = color === 'red' ? '#b91c1c' : '#1f2937';
   // Hanzi draws from the same baked Noto Sans CJK SC Bold outline every other

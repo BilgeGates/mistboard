@@ -5,13 +5,17 @@
 //   Red:   帥 仕 相 傌 俥 炮 兵
 //   Black: 將 士 象 馬 車 砲 卒
 //
-// Each sprite is a simple SVG: a circular wood-tone piece base with a colored
-// border + the Chinese character centered in the piece's color. Designed to be
-// styled with CSS in Step 6 (board renderer); the rendered string is a complete
-// inline `<svg>` element so it can be dropped into innerHTML.
+// Older xiangqi boards still import renderXiangqiPiece from this module. Keep
+// that public entry point, but delegate it to the selectable family renderer so
+// the default international set reaches every xiangqi surface.
 
-import { XIANGQI_GLYPH_PATHS } from '@mistboard/board-render';
 import type { XiangqiColor, XiangqiPiece, XiangqiPieceRole } from '@mistboard/game';
+import { readStoredXiangqiPieceSet } from './xiangqi-appearance-storage.js';
+import {
+  renderXiangqiPieceGlyphed,
+  type XiangqiPieceSet,
+  type XiangqiPieceRenderOptions as XiangqiPieceSetRenderOptions,
+} from './xiangqi-piece-sets.js';
 
 const CHARACTERS: Record<XiangqiColor, Record<XiangqiPieceRole, string>> = {
   red: {
@@ -34,22 +38,8 @@ const CHARACTERS: Record<XiangqiColor, Record<XiangqiPieceRole, string>> = {
   },
 };
 
-export type XiangqiPieceRenderOptions = {
-  ariaLabel?: string;
-  // Set to true to render the piece as "shrouded" — the FoW mode-B/C render
-  // for cannon-target squares. Currently shows a ?-glyph in the piece color
-  // instead of the character. The renderer can override this with CSS classes.
-  shrouded?: boolean;
-  // Optional CSS class to add to the root <svg>. The board renderer uses this
-  // to size pieces inside their grid cells.
-  className?: string;
-  // Optional positioning + size — for embedding the sprite as a nested <svg>
-  // inside a parent SVG. When provided, the rendered root <svg> includes
-  // x/y/width/height so the piece appears at (x,y) sized `size×size` in the
-  // parent's coordinate system.
-  x?: number;
-  y?: number;
-  size?: number;
+export type XiangqiPieceRenderOptions = XiangqiPieceSetRenderOptions & {
+  pieceSet?: XiangqiPieceSet;
 };
 
 export function xiangqiCharacter(color: XiangqiColor, role: XiangqiPieceRole): string {
@@ -60,35 +50,6 @@ export function renderXiangqiPiece(
   piece: XiangqiPiece,
   opts: XiangqiPieceRenderOptions = {},
 ): string {
-  const colorHex = piece.color === 'red' ? '#b91c1c' : '#1f2937';
-  const baseFill = '#f3e6c4';
-  const ringWidth = 2.5;
-  const glyph = opts.shrouded ? '?' : xiangqiCharacter(piece.color, piece.role);
-  const ariaLabel = opts.ariaLabel ?? `${piece.color} ${piece.role}`;
-  const classAttr = opts.className ? ` class="${escapeAttr(opts.className)}"` : '';
-  const posAttrs =
-    opts.size !== undefined || opts.x !== undefined || opts.y !== undefined
-      ? ` x="${opts.x ?? 0}" y="${opts.y ?? 0}" width="${opts.size ?? 100}" height="${opts.size ?? 100}"`
-      : '';
-  // Chinese characters draw from baked Noto Sans CJK SC Bold outlines (shared
-  // with renderXiangqiPieceGlyphed, the OG cards and the variant mini-boards) so
-  // every surface renders one identical glyph. The '?' shroud mark — and any
-  // character with no baked path — falls back to font-agnostic <text>.
-  const bakedPath = opts.shrouded ? undefined : XIANGQI_GLYPH_PATHS[glyph];
-  const glyphMark = bakedPath
-    ? `<path d="${bakedPath}" fill="${colorHex}"/>`
-    : `<text x="50" y="50" font-family="serif" font-size="46" font-weight="700" fill="${colorHex}" text-anchor="middle" dominant-baseline="central">${glyph}</text>`;
-  return [
-    `<svg${classAttr}${posAttrs} viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg" aria-label="${escapeAttr(ariaLabel)}">`,
-    // Outer ring shadow (subtle depth)
-    `<circle cx="50" cy="50" r="46" fill="${baseFill}" stroke="${colorHex}" stroke-width="${ringWidth}"/>`,
-    // Inner ring — traditional double-ring look
-    `<circle cx="50" cy="50" r="38" fill="none" stroke="${colorHex}" stroke-width="1.5"/>`,
-    glyphMark,
-    `</svg>`,
-  ].join('');
-}
-
-function escapeAttr(value: string): string {
-  return value.replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  const { pieceSet, ...renderOpts } = opts;
+  return renderXiangqiPieceGlyphed(piece, pieceSet ?? readStoredXiangqiPieceSet(), renderOpts);
 }

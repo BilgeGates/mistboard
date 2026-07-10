@@ -110,7 +110,7 @@ describe('puzzles route', () => {
   });
 
   it('re-renders the board when the xiangqi piece set changes live', async () => {
-    stubWindowLocalStorage(memoryStorage({ 'mistboard.xiangqiPieceSet': 'animal-dobutsu' }));
+    stubWindowLocalStorage(memoryStorage({ 'mistboard.xiangqiPieceSet': 'international' }));
     const mini = MINI_XIANGQI_PUZZLES[0]!;
     const fetchSpy = vi.fn(async (input: RequestInfo | URL) => {
       const url = String(input);
@@ -122,7 +122,7 @@ describe('puzzles route', () => {
     const root = document.createElement('div');
 
     await mountPuzzles(root, mini.id);
-    // Default (animal-dobutsu) renders image-based pieces.
+    // Default (international) renders image-based pieces.
     expect(root.querySelector('.mini-xq-piece image')).not.toBeNull();
 
     // Switch to a glyph-based set the way the appearance menu does, then notify.

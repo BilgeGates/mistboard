@@ -61,7 +61,7 @@ describe('Crossroads Chess hot-seat controller', () => {
     // known CJK disk; the test then proves a switch to western re-renders it.
     // Stamp the piece-set rollout version so the one-time Dobutsu reset doesn't
     // override this explicit choice (simulates a post-rollout user).
-    window.localStorage.setItem('mistboard.xiangqiPieceSetVersion', '2');
+    window.localStorage.setItem('mistboard.xiangqiPieceSetVersion', '3');
     window.localStorage.setItem('mistboard.xiangqiPieceSet', 'traditional');
     mountCrossroadsChessPlay(root);
 

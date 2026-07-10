@@ -2,9 +2,9 @@
 //
 // Covers all seven xiangqi roles (general/advisor/elephant/horse/chariot/cannon/
 // soldier) so the same sets serve both Dark Mini Xiangqi (which uses five of them)
-// and full Dark Xiangqi. Five sets: two Chinese-character scripts (traditional
-// default + simplified), two "piece diagram" sets (Western Latin initials +
-// stroked line-art symbols), and one Dobutsu animal image set.
+// and full Dark Xiangqi. Image sets are the international default and the
+// Dobutsu animal set; glyph sets cover traditional/simplified Hanzi, Western
+// Latin initials, and stroked line-art symbols.
 // Chinese characters render from baked Noto Sans CJK SC Bold outlines (see
 // cjkGlyphMark) so the live board matches the OG cards and variant mini-boards.
 
@@ -12,22 +12,24 @@ import { XIANGQI_GLYPH_PATHS } from '@mistboard/board-render';
 import type { XiangqiColor, XiangqiPiece, XiangqiPieceRole } from '@mistboard/game';
 
 export type XiangqiPieceSet =
+  | 'international'
+  | 'animal-dobutsu'
   | 'traditional'
   | 'simplified'
   | 'western'
-  | 'symbols'
-  | 'animal-dobutsu';
+  | 'symbols';
 export type XiangqiShroudedStyle = 'question' | 'back';
 
 export const XIANGQI_PIECE_SETS: ReadonlyArray<{ id: XiangqiPieceSet; label: string }> = [
+  { id: 'international', label: 'International' },
+  { id: 'animal-dobutsu', label: 'Animal Dobutsu' },
   { id: 'traditional', label: 'Traditional' },
   { id: 'simplified', label: 'Simplified' },
   { id: 'western', label: 'Western' },
   { id: 'symbols', label: 'Symbols' },
-  { id: 'animal-dobutsu', label: 'Animal Dobutsu' },
 ];
 
-export const DEFAULT_XIANGQI_PIECE_SET: XiangqiPieceSet = 'animal-dobutsu';
+export const DEFAULT_XIANGQI_PIECE_SET: XiangqiPieceSet = 'international';
 
 // Traditional sets distinguish red and black with different characters (the
 // two-set convention used on physical Chinese chess sets).
@@ -85,6 +87,7 @@ const WESTERN: Record<XiangqiPieceRole, string> = {
   soldier: 'S',
 };
 
+type ImageXiangqiPieceSet = Extract<XiangqiPieceSet, 'animal-dobutsu' | 'international'>;
 type AnimalXiangqiPieceSet = Extract<XiangqiPieceSet, 'animal-dobutsu'>;
 
 export type XiangqiPieceTilePreview =
@@ -108,19 +111,19 @@ export function xiangqiGlyph(
 ): string {
   if (set === 'simplified') return SIMPLIFIED[color][role];
   if (set === 'western') return WESTERN[role];
-  if (isAnimalPieceSet(set)) return WESTERN[role];
+  if (isImagePieceSet(set)) return WESTERN[role];
   return TRADITIONAL[color][role];
 }
 
 // A compact representative mark for the settings-panel tile (the red general).
 export function xiangqiPreviewGlyph(set: XiangqiPieceSet): string {
   if (set === 'symbols') return '★';
-  if (isAnimalPieceSet(set)) return 'G';
+  if (isImagePieceSet(set)) return 'G';
   return xiangqiGlyph(set, 'red', 'general');
 }
 
 export function xiangqiPieceTilePreview(set: XiangqiPieceSet): XiangqiPieceTilePreview {
-  if (isAnimalPieceSet(set)) {
+  if (isImagePieceSet(set)) {
     return {
       kind: 'svg',
       markup: renderXiangqiPieceGlyphed({ color: 'red', role: 'general' }, set),
@@ -149,6 +152,14 @@ export function renderXiangqiPieceGlyphed(
     return [
       `<svg${classAttr}${posAttrs} viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg" aria-label="${escapeAttr(ariaLabel)}">`,
       pieceBackMark(piece.color),
+      `</svg>`,
+    ].join('');
+  }
+  if (!opts.shrouded && set === 'international') {
+    return [
+      `<svg${classAttr}${posAttrs} viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg" aria-label="${escapeAttr(ariaLabel)}">`,
+      internationalDiscMark(piece.color),
+      internationalImageMark(internationalPieceHref(piece), piece.role),
       `</svg>`,
     ].join('');
   }
@@ -209,14 +220,57 @@ function animalRingMark(color: XiangqiColor): string {
   return `<circle cx="50" cy="50" r="45" fill="none" stroke="${stroke}" stroke-width="3.2"/>`;
 }
 
+function internationalDiscMark(color: XiangqiColor): string {
+  const stroke = color === 'red' ? '#c30d0d' : '#202427';
+  return `<circle cx="50" cy="50" r="46" fill="#fef0d7" stroke="${stroke}" stroke-width="2.8"/>`;
+}
+
+type InternationalArtRole = XiangqiPieceRole | 'treasure';
+type InternationalImageFrame = {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+};
+
+const INTERNATIONAL_IMAGE_FRAMES: Record<InternationalArtRole, InternationalImageFrame> = {
+  general: { x: -7, y: -7, width: 114, height: 114 },
+  advisor: { x: -7, y: -7, width: 114, height: 114 },
+  elephant: { x: -5, y: -5, width: 110, height: 110 },
+  horse: { x: -7, y: -7, width: 114, height: 114 },
+  chariot: { x: -5.5, y: -7, width: 111, height: 114 },
+  cannon: { x: -11, y: -11, width: 122, height: 122 },
+  soldier: { x: 0, y: 0, width: 100, height: 100 },
+  treasure: { x: -7, y: -7, width: 114, height: 114 },
+};
+
+function internationalImageMark(href: string, role: InternationalArtRole): string {
+  const frame = INTERNATIONAL_IMAGE_FRAMES[role];
+  return `<image href="${escapeAttr(href)}" x="${frame.x}" y="${frame.y}" width="${frame.width}" height="${frame.height}" preserveAspectRatio="xMidYMid meet"/>`;
+}
+
 function isAnimalPieceSet(set: XiangqiPieceSet): set is AnimalXiangqiPieceSet {
   return set === 'animal-dobutsu';
+}
+
+function isImagePieceSet(set: XiangqiPieceSet): set is ImageXiangqiPieceSet {
+  return set === 'international' || set === 'animal-dobutsu';
 }
 
 // ?v bump: the animal art files are swapped in place (stable URLs), so a version
 // query is needed to bust CDN/browser caches when the art changes (e.g. the v2
 // dobutsu-minimal swap). Bump on every animal-art change.
 const ANIMAL_ART_VERSION = 4;
+const INTERNATIONAL_ART_VERSION = 10;
+
+function internationalPieceHref(piece: XiangqiPiece): string {
+  return `/piece-sets/xiangqi/international/${piece.color}-${piece.role}.png?v=${INTERNATIONAL_ART_VERSION}`;
+}
+
+export function internationalTreasureHref(color: XiangqiColor): string {
+  return `/piece-sets/xiangqi/international/${color}-treasure.png?v=${INTERNATIONAL_ART_VERSION}`;
+}
+
 function animalPieceHref(piece: XiangqiPiece, set: AnimalXiangqiPieceSet): string {
   return `/piece-sets/xiangqi/${set}/${piece.color}-${piece.role}.png?v=${ANIMAL_ART_VERSION}`;
 }
@@ -237,6 +291,13 @@ export function animalTreasureMarks(color: XiangqiColor): string {
     animalDiscMark(),
     `<image href="${animalTreasureHref(color)}" x="0" y="0" width="100" height="100" preserveAspectRatio="xMidYMid meet"/>`,
     animalRingMark(color),
+  ].join('');
+}
+
+export function internationalTreasureMarks(color: XiangqiColor): string {
+  return [
+    internationalDiscMark(color),
+    internationalImageMark(internationalTreasureHref(color), 'treasure'),
   ].join('');
 }
 

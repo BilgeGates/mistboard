@@ -454,9 +454,9 @@ describe('article public listing gates', () => {
     Object.defineProperty(window, 'localStorage', { configurable: true, value: memoryStorage() });
     // Pin the glyph set so the baseline CJK-disk assertion is stable; the test
     // then proves a switch to western re-renders the diagrams. Stamp the
-    // piece-set rollout version so the one-time Dobutsu reset doesn't override
+    // piece-set rollout version so the one-time default reset doesn't override
     // this explicit choice (simulates a post-rollout user).
-    window.localStorage.setItem('mistboard.xiangqiPieceSetVersion', '2');
+    window.localStorage.setItem('mistboard.xiangqiPieceSetVersion', '3');
     window.localStorage.setItem('mistboard.xiangqiPieceSet', 'traditional');
     const page = buildArticlePage('dark-crossroads-chess');
     document.body.append(page);

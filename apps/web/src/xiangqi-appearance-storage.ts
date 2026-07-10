@@ -12,7 +12,7 @@ const xiangqiPieceSetStorageKey = 'mistboard.xiangqiPieceSet';
 const xiangqiPieceSetStorageVersionKey = 'mistboard.xiangqiPieceSetVersion';
 const defaultXiangqiBoardTheme: XiangqiBoardTheme = 'tournament';
 const xiangqiBoardStorageVersion = '3';
-const xiangqiPieceSetStorageVersion = '2';
+const xiangqiPieceSetStorageVersion = '3';
 const defaultXiangqiPieceSet: XiangqiPieceSet = DEFAULT_XIANGQI_PIECE_SET;
 const xiangqiBoardThemes: ReadonlyArray<{ id: XiangqiBoardTheme; label: string }> = [
   { id: 'tournament', label: 'Tournament' },

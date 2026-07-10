@@ -725,6 +725,13 @@
   object-fit: contain;
 }
 
+.theme-tile-preview-xqpiece[data-id="traditional"],
+.theme-tile-preview-xqpiece[data-id="simplified"],
+.theme-tile-preview-xqpiece[data-id="western"],
+.theme-tile-preview-xqpiece[data-id="symbols"] {
+  font-size: 34px;
+}
+
 /* Shogi board swatches (solid wood tone per scheme; values track the light cell
    of each palette in shogi-render.ts). */
 .theme-tile-preview-shogiboard[data-id="wood"] {
@@ -753,6 +760,12 @@
   width: 100%;
   height: 100%;
   object-fit: contain;
+}
+
+.theme-tile-preview-shogipiece[data-id="kanji"],
+.theme-tile-preview-shogipiece[data-id="kanji-light"],
+.theme-tile-preview-shogipiece[data-id="western"] {
+  font-size: 34px;
 }
 
 /* Board palette previews: diagonal split of light + dark squares. Values

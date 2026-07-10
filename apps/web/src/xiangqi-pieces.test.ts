@@ -45,7 +45,7 @@ describe('xiangqi piece sprites', () => {
   it('renders a complete inline <svg> for every piece', () => {
     for (const color of ['red', 'black'] as const) {
       for (const role of ROLES) {
-        const svg = renderXiangqiPiece({ color, role });
+        const svg = renderXiangqiPiece({ color, role }, { pieceSet: 'traditional' });
         expect(svg.startsWith('<svg')).toBe(true);
         expect(svg.endsWith('</svg>')).toBe(true);
         // Pieces draw the shared baked glyph path, not literal <text>.
@@ -57,10 +57,23 @@ describe('xiangqi piece sprites', () => {
   });
 
   it('uses red ink for red pieces and dark ink for black pieces', () => {
-    const red = renderXiangqiPiece({ color: 'red', role: 'general' });
-    const black = renderXiangqiPiece({ color: 'black', role: 'general' });
+    const red = renderXiangqiPiece({ color: 'red', role: 'general' }, { pieceSet: 'traditional' });
+    const black = renderXiangqiPiece(
+      { color: 'black', role: 'general' },
+      { pieceSet: 'traditional' },
+    );
     expect(red).toContain('#b91c1c');
     expect(black).toContain('#1f2937');
+  });
+
+  it('can render the international image set through the legacy entry point', () => {
+    const svg = renderXiangqiPiece(
+      { color: 'red', role: 'general' },
+      { pieceSet: 'international' },
+    );
+    expect(svg).toContain('/piece-sets/xiangqi/international/red-general.png?v=10');
+    expect(svg).toContain('stroke="#c30d0d"');
+    expect(svg).not.toContain(XIANGQI_GLYPH_PATHS.帥);
   });
 
   it('replaces the character with "?" when rendered as shrouded', () => {
