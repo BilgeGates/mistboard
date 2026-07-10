@@ -150,6 +150,23 @@ test('serveArticlePage 301s a rules slug requested under /articles to /rules, pr
   assert.equal(response.headers.location, '/zh-hans/rules/dark-chess');
 });
 
+test('serveArticlePage 301s legacy /articles/<article-slug> to /blog/<slug>', async () => {
+  const staticDir = await mkdtemp(join(tmpdir(), 'mistboard-static-'));
+  await writeFile(join(staticDir, 'index.html'), indexHtml(), 'utf-8');
+  const response = captureResponse();
+
+  await serveArticlePage({
+    slug: 'misty',
+    base: 'articles',
+    response,
+    publicHost: 'https://mistboard.test',
+    staticDir,
+  });
+
+  assert.equal(response.status, 301);
+  assert.equal(response.headers.location, '/blog/misty');
+});
+
 test('serveArticlesIndexPage injects localized metadata', async () => {
   const staticDir = await mkdtemp(join(tmpdir(), 'mistboard-static-'));
   await writeFile(
@@ -171,7 +188,7 @@ test('serveArticlesIndexPage injects localized metadata', async () => {
   assert.match(response.body, /<title>文章 \| Mistboard<\/title>/);
   assert.match(
     response.body,
-    /<meta property="og:url" content="https:\/\/mistboard.test\/zh-hans\/articles">/,
+    /<meta property="og:url" content="https:\/\/mistboard.test\/zh-hans\/blog">/,
   );
 });
 

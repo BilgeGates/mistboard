@@ -53,10 +53,22 @@ export function renderBoardSvg(
   y: number,
   size: number,
   orientation: Color = 'white',
-  opts: { palette?: BoardPalette; fogStyle?: FogStyle } = {},
+  opts: {
+    palette?: BoardPalette;
+    fogStyle?: FogStyle;
+    // When set, the board content is clipped to a rounded rect and the frame is
+    // rounded too, matching the shared base corner radius (--board-corner-radius,
+    // 1.9%). The id must be unique within the containing <svg> document. Omit for
+    // square corners (the default, used by the live draft-picker thumbnails).
+    clipId?: string;
+    // Corner radius in user units; defaults to the 1.9% base radius.
+    cornerRadius?: number;
+  } = {},
 ): string {
   const palette = opts.palette ?? BROWN_PALETTE;
   const fogStyle = opts.fogStyle ?? 'solid';
+  const round = opts.clipId !== undefined;
+  const radius = opts.cornerRadius ?? size * 0.019;
   const sq = size / 8;
   const out: string[] = [];
   const fogCoords = fogSquares.map(squareToFileRank);
@@ -65,6 +77,12 @@ export function renderBoardSvg(
   const fileToCol = (file: number): number => (orientation === 'white' ? file : 7 - file);
   const rankToRow = (rank: number): number => (orientation === 'white' ? 7 - rank : rank);
   out.push(`<g>`);
+  if (round) {
+    out.push(
+      `<clipPath id="${opts.clipId}"><rect x="${x}" y="${y}" width="${size}" height="${size}" rx="${radius}"/></clipPath>`,
+    );
+    out.push(`<g clip-path="url(#${opts.clipId})">`);
+  }
   for (let f = 0; f < 8; f += 1) {
     for (let r = 0; r < 8; r += 1) {
       const isLight = (f + r) % 2 === 1;
@@ -112,8 +130,11 @@ export function renderBoardSvg(
       );
     }
   }
+  if (round) out.push(`</g>`);
   out.push(
-    `<rect x="${x}" y="${y}" width="${size}" height="${size}" fill="none" stroke="${palette.frame}" stroke-width="2"/>`,
+    `<rect x="${x}" y="${y}" width="${size}" height="${size}" ${
+      round ? `rx="${radius}" ` : ''
+    }fill="none" stroke="${palette.frame}" stroke-width="2"/>`,
   );
   out.push(`</g>`);
   return out.join('');

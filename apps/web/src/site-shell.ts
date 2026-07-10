@@ -306,7 +306,7 @@ function pathMatchesNavItem(path: string, href: string): boolean {
     (href === '/bots' && normalizedPath.startsWith('/bot/')) ||
     (href === '/forum' && normalizedPath.startsWith('/forum/')) ||
     (href === '/rules' && normalizedPath.startsWith('/rules/')) ||
-    (href === '/articles' && normalizedPath.startsWith('/articles/'))
+    (href === '/blog' && normalizedPath.startsWith('/blog/'))
   );
 }
 

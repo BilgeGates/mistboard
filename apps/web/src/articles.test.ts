@@ -51,10 +51,10 @@ describe('article public listing gates', () => {
     ].map((link) => link.getAttribute('href'));
 
     expect(hrefs).toEqual([
-      '/articles/misty',
-      '/articles/mistybanqi',
-      '/articles/server-enforced-fog',
-      '/articles/dark-chess-concepts',
+      '/blog/misty',
+      '/blog/mistybanqi',
+      '/blog/server-enforced-fog',
+      '/blog/dark-chess-concepts',
     ]);
   });
 
@@ -64,7 +64,7 @@ describe('article public listing gates', () => {
     const index = buildArticlesIndex('zh-Hans');
     const text = index.textContent ?? '';
 
-    expect(index.querySelector('a[href="/zh-hans/articles/misty"]')).not.toBeNull();
+    expect(index.querySelector('a[href="/zh-hans/blog/misty"]')).not.toBeNull();
     expect(text).toContain('Misty 是怎么下棋的');
     expect(text).toContain('用服务器端真实局面实现迷雾国际象棋');
     expect(text).not.toContain('How Misty Plays');
@@ -86,7 +86,7 @@ describe('article public listing gates', () => {
     expect(home?.querySelector('.landing-carousel-nav-next')?.getAttribute('aria-label')).toBe(
       '更多文章',
     );
-    expect(firstArticleCard?.getAttribute('href')).toMatch(/^\/zh-hant\/(articles|rules)\//);
+    expect(firstArticleCard?.getAttribute('href')).toMatch(/^\/zh-hant\/(blog|rules)\//);
 
     const page = buildArticlePage('banqi', 'zh-Hant');
     expect(page.querySelector('.article-breadcrumb a')?.textContent).toBe('← 全部規則');
@@ -119,7 +119,7 @@ describe('article public listing gates', () => {
       home
         ?.querySelector<HTMLAnchorElement>('.landing-article-card[data-card-kind="article"]')
         ?.getAttribute('href'),
-    ).toMatch(/^\/(articles|rules)\//);
+    ).toMatch(/^\/(blog|rules)\//);
   });
 
   it('limits the homepage article widget to editorial article cards ordered by publish date', () => {
@@ -133,11 +133,7 @@ describe('article public listing gates', () => {
 
     // Rules reference pages are excluded from this row; only editorial
     // (blog/concept) articles appear, newest first.
-    expect(hrefs).toEqual([
-      '/articles/misty',
-      '/articles/mistybanqi',
-      '/articles/server-enforced-fog',
-    ]);
+    expect(hrefs).toEqual(['/blog/misty', '/blog/mistybanqi', '/blog/server-enforced-fog']);
   });
 
   it('keeps parked chess variant rules out of the homepage widget and rules rail', () => {
@@ -227,7 +223,7 @@ describe('article public listing gates', () => {
 
     const articles = buildArticlesIndex();
     const card = articles.querySelector<HTMLAnchorElement>(
-      '.articles-index-card[href="/articles/mistybanqi"]',
+      '.articles-index-card[href="/blog/mistybanqi"]',
     );
     expect(
       card?.querySelector('svg g[data-banqi-thumbnail-layout="engine-full-board"]'),
@@ -245,7 +241,7 @@ describe('article public listing gates', () => {
     const home = buildHomeArticleCards(50);
     expect(
       home?.querySelector(
-        '.landing-article-card[href="/articles/mistybanqi"] svg g[data-banqi-thumbnail-layout="engine-full-board"]',
+        '.landing-article-card[href="/blog/mistybanqi"] svg g[data-banqi-thumbnail-layout="engine-full-board"]',
       ),
     ).not.toBeNull();
   });
@@ -253,7 +249,7 @@ describe('article public listing gates', () => {
   it('renders Misty with the generated thumbnail and uses star blog badges', () => {
     const articles = buildArticlesIndex();
     const card = articles.querySelector<HTMLAnchorElement>(
-      '.articles-index-card[href="/articles/misty"]',
+      '.articles-index-card[href="/blog/misty"]',
     );
     expect(card?.querySelector('img')?.getAttribute('src')).toBe(
       '/article-thumbs/misty-engine-belief-20260708.jpg',
@@ -262,12 +258,11 @@ describe('article public listing gates', () => {
 
     const home = buildHomeArticleCards(50);
     expect(
-      home?.querySelector('.landing-article-card[href="/articles/misty"] img')?.getAttribute('src'),
+      home?.querySelector('.landing-article-card[href="/blog/misty"] img')?.getAttribute('src'),
     ).toBe('/article-thumbs/misty-engine-belief-20260708.jpg');
     expect(
-      home?.querySelector(
-        '.landing-article-card[href="/articles/misty"] .landing-article-card-star',
-      )?.textContent,
+      home?.querySelector('.landing-article-card[href="/blog/misty"] .landing-article-card-star')
+        ?.textContent,
     ).toBe('★');
   });
 
@@ -276,7 +271,7 @@ describe('article public listing gates', () => {
     expect(
       articles
         .querySelector(
-          '.articles-index-card[href="/articles/server-enforced-fog"] img[src="/article-thumbs/server-fog-cutaway-truth-20260708.jpg"]',
+          '.articles-index-card[href="/blog/server-enforced-fog"] img[src="/article-thumbs/server-fog-cutaway-truth-20260708.jpg"]',
         )
         ?.getAttribute('alt'),
     ).toBe('A foggy visible board layer floating above a hidden golden truth layer.');
@@ -284,7 +279,7 @@ describe('article public listing gates', () => {
     const home = buildHomeArticleCards(50);
     expect(
       home?.querySelector(
-        '.landing-article-card[href="/articles/server-enforced-fog"] img[src="/article-thumbs/server-fog-cutaway-truth-20260708.jpg"]',
+        '.landing-article-card[href="/blog/server-enforced-fog"] img[src="/article-thumbs/server-fog-cutaway-truth-20260708.jpg"]',
       ),
     ).not.toBeNull();
   });

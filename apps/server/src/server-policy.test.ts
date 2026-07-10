@@ -321,7 +321,7 @@ test('isClientRoute covers every literal route declared in main.ts', () => {
   const source = readFileSync(mainPath, 'utf-8');
   // Matches `path === '/foo'` or `path === '/foo/bar'` — the canonical pattern
   // for top-level routes in main.ts (e.g. wantsAbout, wantsContact). Parametric
-  // routes (/game/:id, /@/:handle, /articles/:slug, /room/:id) live in helper
+  // routes (/game/:id, /@/:handle, /blog/:slug, /room/:id) live in helper
   // functions and are exercised by the literal startsWith branches below.
   const literalRoutes = Array.from(source.matchAll(/path === '(\/[^']*)'/g))
     .map((match) => match[1]!)
@@ -351,9 +351,9 @@ test('isClientRoute matches parametric SPA routes', () => {
   assert.equal(isClientRoute('/puzzles/mini-xiangqi-red-back-rank-net-1'), true);
   assert.equal(isClientRoute('/account/settings/privacy'), true);
   assert.equal(isClientRoute('/@/brianhliou'), true);
-  assert.equal(isClientRoute('/articles/dark-chess-concepts'), true);
-  assert.equal(isClientRoute('/zh-hans/articles'), true);
-  assert.equal(isClientRoute('/zh-hant/articles'), true);
+  assert.equal(isClientRoute('/blog/dark-chess-concepts'), true);
+  assert.equal(isClientRoute('/zh-hans/blog'), true);
+  assert.equal(isClientRoute('/zh-hant/blog'), true);
   assert.equal(isClientRoute('/rules/dark-chess'), true);
   assert.equal(isClientRoute('/rules/dark-draft960'), true);
   assert.equal(isClientRoute('/forum/general-discussion'), true);
@@ -408,7 +408,7 @@ test('isReviewShellRoute excludes non-review surfaces (keeps them non-isolated)'
   assert.equal(isReviewShellRoute('/broadcast/xiangqi/board/2025-wxc-sample-men-r1-b01'), false);
   assert.equal(isReviewShellRoute('/xiangqi/game/'), false); // no game id
   assert.equal(isReviewShellRoute('/historical-xiangqi/games'), false);
-  assert.equal(isReviewShellRoute('/articles/dark-chess-concepts'), false);
+  assert.equal(isReviewShellRoute('/blog/dark-chess-concepts'), false);
   assert.equal(isReviewShellRoute('/a/b/game/c'), false); // too many segments
 });
 

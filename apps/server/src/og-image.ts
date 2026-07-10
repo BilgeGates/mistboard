@@ -206,7 +206,7 @@ function redirectToDefault(response: ServerResponse): void {
 }
 
 // Per-article share card: the article's thumbnail position (the same one the
-// /articles list shows, via ARTICLE_OG_POSITIONS) rendered green/solid, with
+// /blog list shows, via ARTICLE_OG_POSITIONS) rendered green/solid, with
 // the article title below. Title is passed in by the route handler, which owns
 // the slug→title map. Falls back to the default card if the slug has no
 // thumbnail position.

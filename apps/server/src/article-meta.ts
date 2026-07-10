@@ -2,7 +2,7 @@
 // apps/web/src/articles-data.ts; this map duplicates only the share-card
 // surface (title + description) plus `kind`, which decides the canonical URL
 // space: kind 'rules' lives under /rules/<slug>, everything else under
-// /articles/<slug>. The server can't import the web bundle, so the
+// /blog/<slug>. The server can't import the web bundle, so the
 // duplication is enforced by apps/web/src/articles-meta-sync.test.ts: a new
 // or renamed article without a matching entry here fails web tests instead
 // of shipping a wrong-direction 301 or a generic share card.
@@ -164,6 +164,6 @@ export const ARTICLE_META: Record<
   },
 };
 
-export function canonicalArticleBase(slug: string): 'articles' | 'rules' {
-  return ARTICLE_META[slug]?.kind === 'rules' ? 'rules' : 'articles';
+export function canonicalArticleBase(slug: string): 'blog' | 'rules' {
+  return ARTICLE_META[slug]?.kind === 'rules' ? 'rules' : 'blog';
 }

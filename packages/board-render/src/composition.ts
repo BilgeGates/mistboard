@@ -76,7 +76,14 @@ export function renderBoardComposition(opts: CompositionOptions): string {
         boardY,
         boardSize,
         b.orientation ?? 'white',
-        { palette, fogStyle },
+        // Round the static diagram / OG board to the shared base corner radius.
+        // Each board gets a clip id unique within the document (keyed on its
+        // placement) so multiple boards in one composition never collide.
+        {
+          palette,
+          fogStyle,
+          clipId: `mb-og-board-clip-${Math.round(xs[i]!)}-${Math.round(boardY)}`,
+        },
       ),
     );
   }

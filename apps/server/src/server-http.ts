@@ -209,10 +209,31 @@ export function createHttpRequestHandler(options: ServerHttpHandlerOptions) {
       return;
     }
 
-    const articleRouteMatch = pathname.match(/^(?:\/(zh-hans|zh-hant))?\/articles\/([^/]+)$/);
-    if (articleRouteMatch) {
-      const langPrefix = articleRouteMatch[1];
-      const slug = decodeURIComponent(articleRouteMatch[2]!);
+    const blogRouteMatch = pathname.match(/^(?:\/(zh-hans|zh-hant))?\/blog\/([^/]+)$/);
+    if (blogRouteMatch) {
+      const langPrefix = blogRouteMatch[1];
+      const slug = decodeURIComponent(blogRouteMatch[2]!);
+      void serveArticlePage({
+        slug,
+        base: 'blog',
+        response,
+        publicHost: options.publicHost,
+        staticDir: options.staticDir,
+        langPrefix,
+      }).catch(() => {
+        request.url = '/';
+        void serveHandler(request, response, { public: options.staticDir });
+      });
+      return;
+    }
+
+    // Legacy /articles/<slug> (the blog surface was renamed to /blog): the
+    // 'articles' base is never canonical, so serveArticlePage 301s every hit to
+    // the slug's /blog (or /rules) home, preserving any language prefix.
+    const legacyArticleRouteMatch = pathname.match(/^(?:\/(zh-hans|zh-hant))?\/articles\/([^/]+)$/);
+    if (legacyArticleRouteMatch) {
+      const langPrefix = legacyArticleRouteMatch[1];
+      const slug = decodeURIComponent(legacyArticleRouteMatch[2]!);
       void serveArticlePage({
         slug,
         base: 'articles',
@@ -247,17 +268,27 @@ export function createHttpRequestHandler(options: ServerHttpHandlerOptions) {
       return;
     }
 
-    const articlesIndexMatch = pathname.match(/^(?:\/(zh-hans|zh-hant))?\/articles\/?$/);
-    if (articlesIndexMatch) {
+    const blogIndexMatch = pathname.match(/^(?:\/(zh-hans|zh-hant))?\/blog\/?$/);
+    if (blogIndexMatch) {
       void serveArticlesIndexPage({
         response,
         publicHost: options.publicHost,
         staticDir: options.staticDir,
-        langPrefix: articlesIndexMatch[1],
+        langPrefix: blogIndexMatch[1],
       }).catch(() => {
         request.url = '/';
         void serveHandler(request, response, { public: options.staticDir });
       });
+      return;
+    }
+
+    // Legacy /articles index (renamed to /blog): permanent redirect, preserving
+    // any language prefix.
+    const legacyArticlesIndexMatch = pathname.match(/^(?:\/(zh-hans|zh-hant))?\/articles\/?$/);
+    if (legacyArticlesIndexMatch) {
+      const langPrefix = legacyArticlesIndexMatch[1];
+      response.writeHead(301, { location: `${langPrefix ? `/${langPrefix}` : ''}/blog` });
+      response.end();
       return;
     }
 

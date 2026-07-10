@@ -161,9 +161,13 @@ type PuzzleNavigation = {
 };
 
 const SOLVED_PUZZLES_STORAGE_KEY = 'mistboard:puzzles:solved';
+const SEEN_PUZZLES_STORAGE_KEY = 'mistboard:puzzles:seen';
 const AUTO_NEXT_STORAGE_KEY = 'mistboard:puzzles:auto-next';
 const RATED_STORAGE_KEY = 'mistboard:puzzles:rated';
 const AUTO_NEXT_DELAY_MS = 150;
+// Rotation only needs "have I seen this lately," so cap the persisted seen-set
+// to the most-recently-seen ids rather than growing an unbounded history.
+const SEEN_PUZZLES_CAP = 200;
 
 // The signed-in user's puzzle rating for the current variant (from
 // /api/puzzles/rating), and the rating change returned by a rated attempt.
@@ -230,6 +234,13 @@ export async function mountPuzzles(
   let variantFilter: PuzzleVariantFilter = PUZZLE_VARIANT_FILTERS[0] ?? FORTRESS_XIANGQI_SPEC_ID;
   let session: PuzzleSession | null = null;
   const solvedIds = loadSolvedPuzzleIds();
+  const seenPuzzles = loadSeenPuzzles();
+  // Record a puzzle as seen (for the next visit's rotation) without disturbing
+  // this visit's already-frozen queue order.
+  const markPuzzleSeen = (id: string): void => {
+    seenPuzzles.set(id, Date.now());
+    saveSeenPuzzles(seenPuzzles);
+  };
   let autoNext = loadAutoNextEnabled();
   let ratedEnabled = loadRatedEnabled();
   let userRating: UserPuzzleRating | null = null;
@@ -330,6 +341,7 @@ export async function mountPuzzles(
       (id) => {
         solvedIds.add(id);
         saveSolvedPuzzleIds(solvedIds);
+        markPuzzleSeen(id);
         renderControls();
         scheduleAutoNext(navigation);
       },
@@ -361,6 +373,7 @@ export async function mountPuzzles(
       window.history.pushState(null, '', nextPath);
     }
     session = createPuzzleSession(puzzle);
+    markPuzzleSeen(id);
     renderSession();
     renderControls();
   };
@@ -368,6 +381,10 @@ export async function mountPuzzles(
   renderStatus(controls, 'Loading');
   renderStatus(detail, 'Loading');
   summaries = await fetchPuzzleList();
+  // Rotate the queue so both the leading puzzle and the sequence vary between
+  // visits instead of being identical every time. Computed once per visit so
+  // navigation stays stable while solving; filtering by variant preserves it.
+  summaries = rotatePuzzleOrder(summaries, seenPuzzles);
   const directSummary = selectedId ? summaries.find((puzzle) => puzzle.id === selectedId) : null;
   // A normal visit defaults to the surfaced variant (Fortress); a direct deep
   // link into any puzzle still resolves so shared/bookmarked URLs keep working.
@@ -970,14 +987,17 @@ function renderFortressPuzzleShell(
   // pockets stay in view (the drop shell is tuned for the square 7x7 board).
   shell.className =
     'puzzle-board-shell puzzle-fortress-shell board-shell drop-mini-reserve-container';
+  // Crazyhouse-style pockets flanking the board: opponent's above, the solver's
+  // own directly below. Dedicated puzzle-pocket styling (not the capture strip,
+  // whose fixed height + overflow:hidden clipped the taller drop chips).
   const topReserve = document.createElement('div');
-  topReserve.className = 'captures-strip captures-strip-top puzzle-board-reserve';
-  topReserve.setAttribute('aria-label', 'Top reserve');
+  topReserve.className = 'puzzle-pocket puzzle-pocket--opponent puzzle-board-reserve';
+  topReserve.setAttribute('aria-label', 'Opponent reserve');
   const boardSurface = document.createElement('div');
   boardSurface.className = 'puzzle-board-surface';
   const bottomReserve = document.createElement('div');
-  bottomReserve.className = 'captures-strip captures-strip-bottom puzzle-board-reserve';
-  bottomReserve.setAttribute('aria-label', 'Bottom reserve');
+  bottomReserve.className = 'puzzle-pocket puzzle-pocket--own puzzle-board-reserve';
+  bottomReserve.setAttribute('aria-label', 'Your reserve');
 
   const bottom = view.perspective;
   const top = bottom === 'red' ? 'black' : 'red';
@@ -1834,6 +1854,65 @@ function saveSolvedPuzzleIds(ids: ReadonlySet<string>): void {
     window.localStorage?.setItem(SOLVED_PUZZLES_STORAGE_KEY, JSON.stringify([...ids].sort()));
   } catch {
     // Solved markers are a convenience only; puzzle play should work without storage.
+  }
+}
+
+// Order puzzles for rotation: unseen first (shuffled for real variety), then
+// seen puzzles from least- to most-recently-seen so revisits resurface the
+// oldest ones first. Real randomness is intentional here — this is client-side
+// UX ordering, not a replay path — and rating-adaptive selection is a separate,
+// later work item (issue #142).
+function rotatePuzzleOrder(
+  puzzles: readonly PuzzleSummary[],
+  seen: ReadonlyMap<string, number>,
+): PuzzleSummary[] {
+  const unseen: PuzzleSummary[] = [];
+  const seenList: PuzzleSummary[] = [];
+  for (const puzzle of puzzles) {
+    if (seen.has(puzzle.id)) seenList.push(puzzle);
+    else unseen.push(puzzle);
+  }
+  shufflePuzzles(unseen);
+  seenList.sort((a, b) => (seen.get(a.id) ?? 0) - (seen.get(b.id) ?? 0));
+  return [...unseen, ...seenList];
+}
+
+function shufflePuzzles(puzzles: PuzzleSummary[]): void {
+  // Fisher-Yates in place.
+  for (let i = puzzles.length - 1; i > 0; i -= 1) {
+    const j = Math.floor(Math.random() * (i + 1));
+    const swap = puzzles[i]!;
+    puzzles[i] = puzzles[j]!;
+    puzzles[j] = swap;
+  }
+}
+
+function loadSeenPuzzles(): Map<string, number> {
+  try {
+    const raw = window.localStorage?.getItem(SEEN_PUZZLES_STORAGE_KEY);
+    if (!raw) return new Map();
+    const parsed = JSON.parse(raw) as unknown;
+    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return new Map();
+    const seen = new Map<string, number>();
+    for (const [id, at] of Object.entries(parsed as Record<string, unknown>)) {
+      if (typeof at === 'number' && Number.isFinite(at)) seen.set(id, at);
+    }
+    return seen;
+  } catch {
+    return new Map();
+  }
+}
+
+function saveSeenPuzzles(seen: ReadonlyMap<string, number>): void {
+  try {
+    // Keep only the most-recently-seen ids so the store stays bounded.
+    const capped = [...seen.entries()].sort((a, b) => b[1] - a[1]).slice(0, SEEN_PUZZLES_CAP);
+    window.localStorage?.setItem(
+      SEEN_PUZZLES_STORAGE_KEY,
+      JSON.stringify(Object.fromEntries(capped)),
+    );
+  } catch {
+    // Seen markers are a convenience only; puzzle play works without storage.
   }
 }
 

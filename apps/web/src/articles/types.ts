@@ -307,7 +307,7 @@ export type SvgArticleThumbnail = {
 export type ImageArticleThumbnail = {
   kind: 'image';
   // Path under apps/web/public (served at site root). Avoid folders that shadow
-  // a client route (e.g. '/articles'): use '/article-thumbs/misty.jpg'.
+  // a client route (e.g. '/blog'): use '/article-thumbs/misty.jpg'.
   src: string;
   alt?: string;
 };

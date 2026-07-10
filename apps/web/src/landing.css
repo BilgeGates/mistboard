@@ -1530,19 +1530,24 @@
      these would fight the stacked layout). The center lobby panel drives row 1's
      height; the left news rail and right play rail stretch to it and position
      their contents relative to it: chat + CTAs centered on the panel's vertical
-     midline, the about tagline flush with the panel bottom, and the activity box
-     pinned to the play rail's bottom out of the centering flow. */
+     midline, the about tagline flush with the play rail's top, and the activity
+     box pinned to the play rail's bottom out of the centering flow. */
   .landing-news-column {
-    position: relative;
     align-self: stretch;
     justify-content: center;
   }
 
-  .landing-news-column .landing-about {
+  /* Pin the h1 tagline to the top-left of the right rail, out of the CTA centering
+     flow (mirror of the activity box pinned to the bottom). */
+  .landing-play-column {
+    position: relative;
+  }
+
+  .landing-play-column .landing-about {
     position: absolute;
     left: 0;
     right: 0;
-    bottom: 0;
+    top: 0;
   }
 
   .landing-play-stack {

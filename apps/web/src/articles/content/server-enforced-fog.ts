@@ -113,7 +113,7 @@ export const serverEnforcedFogArticle: Article = {
         links: [
           { label: 'Play Misty', href: '/?play=computer', emphasis: 'primary' },
           { label: 'Read Fog Chess Rules', href: '/rules/dark-chess', emphasis: 'secondary' },
-          { label: 'All articles', href: '/articles', emphasis: 'secondary' },
+          { label: 'All articles', href: '/blog', emphasis: 'secondary' },
         ],
       }),
     ],

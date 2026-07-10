@@ -13,12 +13,16 @@ import {
 import { clearSeatTokenForRoom, liveState } from './live-state.js';
 import { clearNotificationBells, mountNotificationBell } from './notification-nav.js';
 import { readSignedInHint, setResolvedSignedIn, writeSignedInHint } from './signed-in-state.js';
-import { buildAppearanceMenu, initializeThemeSettings, resetAppearanceMenus } from './theme.js';
+import {
+  buildAppearanceMenu,
+  gearIconSvg,
+  initializeThemeSettings,
+  resetAppearanceMenus,
+} from './theme.js';
 
-// Lucide-style outline icons, matching the nav's existing icon weight. The gear
-// mirrors the standalone settings gear (theme.ts); power marks Sign out.
-const GEAR_ICON =
-  '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></svg>';
+// Lucide-style outline icons, matching the nav's existing icon weight. The
+// Preferences row uses the canonical filled gear (gearIconSvg) so it matches the
+// signed-out settings gear; power marks Sign out.
 const POWER_ICON =
   '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M12 2v10"/><path d="M18.36 6.64a9 9 0 1 1-12.73 0"/></svg>';
 // Lucide "mail" envelope, marking the Inbox link (lichess parity).
@@ -26,6 +30,11 @@ const ENVELOPE_ICON =
   '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/></svg>';
 const PROFILE_CIRCLE_ICON =
   '<svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true" focusable="false"><circle cx="12" cy="12" r="10.2" fill="none" stroke="currentColor" stroke-width="2.4"/><circle cx="12" cy="8.7" r="3.15" fill="currentColor"/><path d="M6.6 17.9c.82-3.28 2.66-4.92 5.4-4.92s4.58 1.64 5.4 4.92c-1.33 1.2-3.12 1.92-5.4 1.92s-4.07-.72-5.4-1.92z" fill="currentColor"/></svg>';
+// Admin-group icons (Lucide "database" + "cpu"), same outline weight as above.
+const DATABASE_ICON =
+  '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M3 5v14a9 3 0 0 0 18 0V5"/><path d="M3 12a9 3 0 0 0 18 0"/></svg>';
+const CPU_ICON =
+  '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><rect x="4" y="4" width="16" height="16" rx="2"/><rect x="9" y="9" width="6" height="6"/><path d="M9 2v2"/><path d="M15 2v2"/><path d="M9 20v2"/><path d="M15 20v2"/><path d="M2 9h2"/><path d="M2 15h2"/><path d="M20 9h2"/><path d="M20 15h2"/></svg>';
 
 // Each mounted dropdown owns a connection-status footer; we poll only while its
 // menu is open. Keyed by the control element so multiple navs stay independent.
@@ -251,7 +260,10 @@ function mountAccountNav(nav: HTMLElement, user: AuthUser): void {
   settings.className = 'account-nav-item';
   settings.href = localizedHref('/account/settings', locale);
   settings.setAttribute('role', 'menuitem');
-  settings.append(createItemIcon(GEAR_ICON), createItemLabel(t('account.preferences', {}, locale)));
+  settings.append(
+    createItemIcon(gearIconSvg(18)),
+    createItemLabel(t('account.preferences', {}, locale)),
+  );
 
   const logout = document.createElement('button');
   logout.type = 'button';
@@ -285,13 +297,15 @@ function mountAccountNav(nav: HTMLElement, user: AuthUser): void {
   accountLinks.className = 'account-nav-links';
   accountLinks.append(profile, inbox, settings, logout);
 
-  panel.append(
-    accountLinks,
-    createAccountDivider(),
-    appearance,
-    createAccountDivider(),
-    status.element,
-  );
+  panel.append(accountLinks, createAccountDivider(), appearance);
+  // Admin tools live in their own labeled group at the foot of the dropdown so
+  // internal surfaces read as clearly distinct from everyday account actions
+  // (issue #134). Only rendered for admins; /database and /engines are
+  // themselves admin-gated server-side.
+  if (user.accountRole === 'admin') {
+    panel.append(createAccountDivider(), buildAdminSection(locale));
+  }
+  panel.append(createAccountDivider(), status.element);
   control.append(trigger, panel);
   slot.replaceWith(control);
 
@@ -382,6 +396,34 @@ function createAccountDivider(): HTMLDivElement {
   divider.className = 'account-nav-divider';
   divider.setAttribute('role', 'separator');
   return divider;
+}
+
+// The admin-only tool group: an "Admin" heading over the internal /database and
+// /engines surfaces, tinted apart from the everyday rows (issue #134). Labels
+// stay English (these are internal admin tools whose own pages are English-only);
+// the heading reuses the existing profile.admin string.
+function buildAdminSection(locale: Locale): HTMLElement {
+  const section = document.createElement('div');
+  section.className = 'account-nav-links account-nav-admin';
+
+  const heading = document.createElement('p');
+  heading.className = 'account-nav-heading';
+  heading.textContent = t('profile.admin', {}, locale);
+  section.append(
+    heading,
+    createAdminLink('/database', DATABASE_ICON, 'Database'),
+    createAdminLink('/engines', CPU_ICON, 'Engines'),
+  );
+  return section;
+}
+
+function createAdminLink(href: string, icon: string, label: string): HTMLAnchorElement {
+  const link = document.createElement('a');
+  link.className = 'account-nav-item';
+  link.href = href;
+  link.setAttribute('role', 'menuitem');
+  link.append(createItemIcon(icon), createItemLabel(label));
+  return link;
 }
 
 function openAccountMenu(control: HTMLElement): void {

@@ -112,13 +112,13 @@ export function isClientRoute(pathname: string): boolean {
     normalized === '/mini-xiangqi-spike' ||
     normalized === '/xiangqi-demo' ||
     normalized.startsWith('/crossroads-chess/game/') ||
-    normalized === '/articles' ||
-    normalized === '/zh-hans/articles' ||
-    normalized === '/zh-hant/articles' ||
-    normalized.startsWith('/articles/') ||
+    normalized === '/blog' ||
+    normalized === '/zh-hans/blog' ||
+    normalized === '/zh-hant/blog' ||
+    normalized.startsWith('/blog/') ||
     normalized.startsWith('/puzzles/') ||
-    normalized.startsWith('/zh-hans/articles/') ||
-    normalized.startsWith('/zh-hant/articles/') ||
+    normalized.startsWith('/zh-hans/blog/') ||
+    normalized.startsWith('/zh-hant/blog/') ||
     normalized.startsWith('/rules/') ||
     /^\/forum\/[^/]+$/.test(normalized) ||
     normalized.startsWith('/forum/t/') ||

@@ -148,6 +148,29 @@ describe('account nav', () => {
     ).toBe('zh-Hant');
   });
 
+  it('shows the admin tool group only for admins', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => jsonResponse({ user: null })),
+    );
+
+    const { buildNav } = await import('./site-shell.js');
+    const { setAccountNavUser } = await import('./account-nav.js');
+    document.body.append(buildNav());
+
+    setAccountNavUser(testUser('misty'));
+    expect(document.querySelector('.account-nav-admin')).toBeNull();
+
+    setAccountNavUser({ ...testUser('boss'), accountRole: 'admin' });
+    const admin = document.querySelector('.account-nav-admin');
+    expect(admin).not.toBeNull();
+    expect(admin?.querySelector('.account-nav-heading')?.textContent).toBe('Admin');
+    const hrefs = Array.from(admin?.querySelectorAll<HTMLAnchorElement>('a') ?? []).map((link) =>
+      link.getAttribute('href'),
+    );
+    expect(hrefs).toEqual(['/database', '/engines']);
+  });
+
   it('switches the signed-in dropdown into a full-panel appearance submenu', async () => {
     vi.stubGlobal(
       'fetch',

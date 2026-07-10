@@ -25,7 +25,7 @@ export function communityNavItems(): NavItem[] {
     { label: 'Players', labelKey: 'nav.players', href: '/player' },
     { label: 'Friends', labelKey: 'nav.friends', href: '/account' },
     { label: 'Forum', labelKey: 'nav.forum', href: '/forum' },
-    { label: 'Blog', labelKey: 'nav.blog', href: '/articles' },
+    { label: 'Blog', labelKey: 'nav.blog', href: '/blog' },
   ];
 }
 
@@ -43,11 +43,17 @@ export function learnNavItems(): NavItem[] {
   return [{ label: 'Rules', labelKey: 'nav.rules', href: '/rules' }];
 }
 
-// Watch dropdown (lichess parity): the title links to Mistboard TV (/watch);
-// the panel surfaces tournament Broadcasts. Kept minimal until there are more
-// watch surfaces (streamers, video) to list.
+// Watch dropdown (lichess parity): the title links to Mistboard TV (/watch), and
+// the panel lists Mistboard TV explicitly alongside tournament Broadcasts. The
+// explicit TV item matters on touch / no-hover devices, where tapping the title
+// opens the panel instead of navigating — without it there'd be no way to reach
+// /watch from this menu. Kept minimal until there are more watch surfaces
+// (streamers, video) to list.
 export function watchNavItems(): NavItem[] {
-  return [{ label: 'Broadcasts', labelKey: 'nav.broadcasts', href: '/broadcast/xiangqi' }];
+  return [
+    { label: 'Mistboard TV', labelKey: 'nav.tv', href: '/watch' },
+    { label: 'Broadcasts', labelKey: 'nav.broadcasts', href: '/broadcast/xiangqi' },
+  ];
 }
 
 export function utilityNavItems(): NavItem[] {
@@ -56,6 +62,12 @@ export function utilityNavItems(): NavItem[] {
   return items;
 }
 
+// Tools dropdown (lichess parity): the analysis board is the anchor tool; the
+// engine Lab link folds in after it when enabled. Board editor / import / search
+// are deferred until those surfaces exist.
 export function toolsNavItems(): NavItem[] {
-  return utilityNavItems();
+  return [
+    { label: 'Analysis board', labelKey: 'nav.analysis', href: '/analysis/xiangqi' },
+    ...utilityNavItems(),
+  ];
 }

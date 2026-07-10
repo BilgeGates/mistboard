@@ -287,7 +287,7 @@ export async function mountLeaderboard(root: HTMLElement): Promise<void> {
   // Playstrategy-style players page: the frame renders immediately from the
   // build-time variant registry; the two fetches below only fill in rows, so
   // no layout waits on the network.
-  const { shell, onlineBody, grid, ladderPanels } = buildLeaderboardFrame(locale);
+  const { shell, onlineBody, ladderPanels } = buildLeaderboardFrame(locale);
   root.append(buildNav(locale), shell);
 
   const [summary, onlinePlayers] = await Promise.all([
@@ -303,7 +303,11 @@ export async function mountLeaderboard(root: HTMLElement): Promise<void> {
   const ladders = new Map(
     (summary?.ladders ?? []).map((ladder) => [ladder.variant, ladder.leaderboard]),
   );
-  const panels: { panel: HTMLElement; populated: boolean }[] = [];
+  // Render every ladder in the shared canonical variant order (issue #137). The
+  // panels are already appended to the grid in registry order by
+  // buildLeaderboardFrame, and CANONICAL_VARIANT_ORDER is what the picker,
+  // profile grid, and watch rail all key off — so the leaderboard must not
+  // reorder by which ladders happen to have rated games yet.
   for (const { bucket, shell: panelShell } of ladderPanels) {
     // A ladder missing from the summary just has no rated games yet; a null
     // summary means the fetch itself failed.
@@ -324,14 +328,7 @@ export async function mountLeaderboard(root: HTMLElement): Promise<void> {
       'profile.noRatedGames',
       locale,
     );
-    panels.push({ panel: panelShell.panel, populated: (rows?.length ?? 0) > 0 });
   }
-
-  // Populated-first so empty ladders sink to the last rows instead of punching
-  // holes in the wall. Stable sort preserves registry order within each group.
-  grid.append(
-    ...panels.sort((a, b) => Number(!a.populated) - Number(!b.populated)).map((p) => p.panel),
-  );
 
   renderOnlinePlayers(onlineBody, onlinePlayers, locale);
 }

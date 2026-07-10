@@ -214,6 +214,15 @@ function watchForNavChanges(): void {
   document.addEventListener('keydown', closeThemeMenusOnEscape);
 }
 
+// The single canonical settings gear: 8-spoke, filled (the lichess dasher
+// affordance). Every gear in the app renders through this — the signed-out nav
+// trigger here and the signed-in profile menu's Preferences row (account-nav.ts)
+// — so the two never drift again (issue #139). `size` sets both width/height in
+// px; the 24x24 viewBox is fixed.
+export function gearIconSvg(size = 22): string {
+  return `<svg viewBox="0 0 24 24" width="${size}" height="${size}" fill="currentColor" fill-rule="evenodd" aria-hidden="true" focusable="false"><path d="M13.6 2h-3.2l-.7 2.4c-.4.1-.8.3-1.1.5L6.4 3.7 3.9 6.2l1.2 2.2c-.2.4-.4.7-.5 1.1L2 10.3v3.4l2.6.8c.1.4.3.8.5 1.1l-1.2 2.2 2.5 2.5 2.2-1.2c.4.2.7.4 1.1.5l.7 2.4h3.2l.7-2.4c.4-.1.8-.3 1.1-.5l2.2 1.2 2.5-2.5-1.2-2.2c.2-.4.4-.7.5-1.1l2.6-.8v-3.4l-2.6-.8c-.1-.4-.3-.8-.5-1.1l1.2-2.2-2.5-2.5-2.2 1.2c-.4-.2-.7-.4-1.1-.5L13.6 2zM12 8.6a3.4 3.4 0 1 0 0 6.8 3.4 3.4 0 0 0 0-6.8z"/></svg>`;
+}
+
 function mountThemeControl(nav: HTMLElement): void {
   // Signed in, the appearance panel folds into the profile dropdown
   // (account-nav.ts), so the standalone gear is not shown — matches lichess.
@@ -237,9 +246,9 @@ function mountThemeControl(nav: HTMLElement): void {
   trigger.setAttribute('aria-expanded', 'false');
   trigger.setAttribute('aria-label', 'Settings');
   trigger.title = 'Settings';
-  // Filled gear, matching lichess's signed-out settings affordance.
-  trigger.innerHTML =
-    '<svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor" fill-rule="evenodd" aria-hidden="true" focusable="false"><path d="M13.6 2h-3.2l-.7 2.4c-.4.1-.8.3-1.1.5L6.4 3.7 3.9 6.2l1.2 2.2c-.2.4-.4.7-.5 1.1L2 10.3v3.4l2.6.8c.1.4.3.8.5 1.1l-1.2 2.2 2.5 2.5 2.2-1.2c.4.2.7.4 1.1.5l.7 2.4h3.2l.7-2.4c.4-.1.8-.3 1.1-.5l2.2 1.2 2.5-2.5-1.2-2.2c.2-.4.4-.7.5-1.1l2.6-.8v-3.4l-2.6-.8c-.1-.4-.3-.8-.5-1.1l1.2-2.2-2.5-2.5-2.2 1.2c-.4-.2-.7-.4-1.1-.5L13.6 2zM12 8.6a3.4 3.4 0 1 0 0 6.8 3.4 3.4 0 0 0 0-6.8z"/></svg>';
+  // Canonical filled gear (see gearIconSvg), matching lichess's signed-out
+  // settings affordance.
+  trigger.innerHTML = gearIconSvg(22);
 
   const panel = document.createElement('div');
   panel.className = 'theme-control-panel';

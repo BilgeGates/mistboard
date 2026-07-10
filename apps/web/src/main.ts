@@ -108,10 +108,7 @@ const wantsRulesIndex =
 const articleSlug = articleSlugFromPath(path);
 const articleLang = articleLangFromPath(path);
 const wantsArticlesIndex =
-  path === '/articles' ||
-  path === '/zh-hans/articles' ||
-  path === '/zh-hant/articles' ||
-  page === 'articles';
+  path === '/blog' || path === '/zh-hans/blog' || path === '/zh-hant/blog' || page === 'blog';
 const wantsNews = path === '/feed' || path === '/news' || page === 'feed' || page === 'news';
 const forumRedirectPostId = forumRedirectPostIdFromPath(path);
 const forumTopicId = forumTopicIdFromPath(path);
@@ -727,19 +724,19 @@ function forumRedirectPostIdFromPath(value: string): string | null {
 }
 
 // Article + rules-doc routes accept an optional language prefix:
-// /zh-han[st]/{articles,rules}/<slug>. Rules docs and articles share the same
+// /zh-han[st]/{blog,rules}/<slug>. Rules docs and blog posts share the same
 // renderer; only the URL base differs. The slug parser strips the lang prefix
-// and matches either base (but NOT the bare /rules or /articles index, which
+// and matches either base (but NOT the bare /rules or /blog index, which
 // have no slug segment); the lang parser reports the prefix.
 function articleSlugFromPath(value: string): string | null {
-  const match = value.replace(/^\/zh-han[st]/, '').match(/^\/(?:articles|rules)\/([^/]+)$/);
+  const match = value.replace(/^\/zh-han[st]/, '').match(/^\/(?:blog|rules)\/([^/]+)$/);
   return match ? decodeURIComponent(match[1]!) : null;
 }
 
 function articleLangFromPath(value: string): ArticleLang | null {
   if (value === '/zh-hans/rules' || value.startsWith('/zh-hans/rules/')) return 'zh-Hans';
   if (value === '/zh-hant/rules' || value.startsWith('/zh-hant/rules/')) return 'zh-Hant';
-  if (value === '/zh-hans/articles' || value.startsWith('/zh-hans/articles/')) return 'zh-Hans';
-  if (value === '/zh-hant/articles' || value.startsWith('/zh-hant/articles/')) return 'zh-Hant';
+  if (value === '/zh-hans/blog' || value.startsWith('/zh-hans/blog/')) return 'zh-Hans';
+  if (value === '/zh-hant/blog' || value.startsWith('/zh-hant/blog/')) return 'zh-Hant';
   return null;
 }

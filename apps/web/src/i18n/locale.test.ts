@@ -27,7 +27,7 @@ describe('locale helpers', () => {
 
   it('detects locales from current path prefixes', () => {
     expect(localeFromPath('/zh-hans/rules/banqi')).toBe('zh-Hans');
-    expect(localeFromPath('/zh-hant/articles')).toBe('zh-Hant');
+    expect(localeFromPath('/zh-hant/blog')).toBe('zh-Hant');
     expect(localeFromPath('/ja')).toBe('ja');
     expect(localeFromPath('/rules/banqi')).toBeNull();
   });
@@ -70,7 +70,7 @@ describe('locale helpers', () => {
 
   it('keeps localized article and rules hrefs in supported content locales', () => {
     expect(localizedHref('/rules/banqi?play=1', 'zh-Hant')).toBe('/zh-hant/rules/banqi?play=1');
-    expect(localizedHref('/articles/misty', 'zh-Hans')).toBe('/zh-hans/articles/misty');
+    expect(localizedHref('/blog/misty', 'zh-Hans')).toBe('/zh-hans/blog/misty');
     expect(localizedHref('/account?tab=login', 'zh-Hant')).toBe('/account?tab=login');
     expect(localizedHref('/rules/banqi', 'ja')).toBe('/rules/banqi');
   });

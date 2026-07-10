@@ -30,10 +30,13 @@
   width: 100%;
 }
 
-/* Jungle is PORTRAIT (7 files wide x 9 ranks tall, viewBox 366x462). Cap the
-   width so its cells keep a sensible size when height would allow more. */
+/* Jungle is PORTRAIT (7 files wide x 9 ranks tall, viewBox 336x432 = 7*48 x
+   9*48; framePad/pad 0). The host slot aspect must match the SVG viewBox exactly
+   or the board letterboxes inside it and the rounded corners land in the empty
+   band instead of on the board. Cap the width so its cells keep a sensible size
+   when height would allow more. */
 .live-route--jungle {
-  --uni-board-aspect: calc(366 / 462);
+  --uni-board-aspect: calc(336 / 432);
   --uni-board-max: 600px;
 }
 
@@ -42,13 +45,17 @@
 }
 
 .jungle-live-board {
-  aspect-ratio: 366 / 462;
+  aspect-ratio: 336 / 432;
   /* Fills its host (board-stage in the room, review-stage slot in postgame);
      the host owns sizing via the uniboard tokens. */
   width: 100%;
   min-height: 0;
-  border-radius: 0;
-  overflow: visible;
+  /* Round on the wrapper (matching flip jungle / xiangqi), so the board fill AND
+     the drop shadow follow the shared base corner radius. overflow:hidden clips
+     the full-bleed grid cells to the rounded box; the drag ghost lives on
+     document.body, so nothing on the board needs to overflow. */
+  border-radius: var(--board-corner-radius);
+  overflow: hidden;
   box-shadow: 0 18px 50px rgba(37, 31, 24, 0.16);
 }
 

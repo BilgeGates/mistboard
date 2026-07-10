@@ -153,7 +153,7 @@ export async function servePrerenderedPage(params: {
 }
 
 // Sitemap of public, indexable surfaces: static content routes plus every
-// pre-rendered article (discovered from dist/articles/*.html, so the published
+// pre-rendered article (discovered from dist/blog/*.html, so the published
 // set stays the single source of truth in articles-data -> prerender output).
 export async function serveSitemap(params: {
   response: ServerResponse;
@@ -162,7 +162,7 @@ export async function serveSitemap(params: {
 }): Promise<void> {
   const staticRoutes = [
     '/',
-    '/articles',
+    '/blog',
     '/rules',
     '/zh-hans/rules',
     '/zh-hant/rules',
@@ -176,8 +176,8 @@ export async function serveSitemap(params: {
     '/faq',
     '/patron',
   ];
-  // Each article is listed once per pre-rendered language variant (dist/articles,
-  // dist/zh-hans/articles, dist/zh-hant/articles), so the published+translated set
+  // Each article is listed once per pre-rendered language variant (dist/blog,
+  // dist/zh-hans/blog, dist/zh-hant/blog), so the published+translated set
   // stays single-sourced in the prerender output.
   const readSlugs = (dir: string): Promise<string[]> =>
     fs
@@ -187,9 +187,9 @@ export async function serveSitemap(params: {
       )
       .catch(() => [] as string[]);
   const langDirs: Array<[string, string]> = [
-    ['articles', '/articles'],
-    ['zh-hans/articles', '/zh-hans/articles'],
-    ['zh-hant/articles', '/zh-hant/articles'],
+    ['blog', '/blog'],
+    ['zh-hans/blog', '/zh-hans/blog'],
+    ['zh-hant/blog', '/zh-hant/blog'],
     ['rules', '/rules'],
     ['zh-hans/rules', '/zh-hans/rules'],
     ['zh-hant/rules', '/zh-hant/rules'],
@@ -210,18 +210,20 @@ export async function serveSitemap(params: {
 export async function serveArticlePage(params: {
   slug: string;
   // Which URL space the request arrived on. Rules docs are canonical under
-  // /rules/<slug>, everything else under /articles/<slug>; a mismatch 301s.
-  base: 'articles' | 'rules';
+  // /rules/<slug>, everything else under /blog/<slug>; a mismatch 301s. The
+  // legacy 'articles' base is never canonical, so a request on /articles/<slug>
+  // always 301s to its /blog (or /rules) home.
+  base: 'blog' | 'rules' | 'articles';
   response: ServerResponse;
   publicHost: string;
   staticDir: string;
   langPrefix?: string;
 }): Promise<void> {
   // Resolve any renamed legacy slug, then 301 if the slug was renamed or the URL
-  // space doesn't match the article's canonical base (rules vs articles),
-  // preserving the language prefix. This single redirect covers /articles/<rules>
-  // -> /rules/<rules>, the old *-rules / *-rules-primer slugs, and the reverse
-  // /rules/<article> -> /articles/<article>.
+  // space doesn't match the article's canonical base (rules vs blog), preserving
+  // the language prefix. This single redirect covers legacy /articles/<slug> ->
+  // /blog (or /rules), the old *-rules / *-rules-primer slugs, and the reverse
+  // /rules/<article> -> /blog/<article>.
   const resolved = RENAMED_ARTICLE_SLUGS[params.slug] ?? params.slug;
   const canonicalBase = canonicalArticleBase(resolved);
   const prefix = params.langPrefix ? `/${params.langPrefix}` : '';
@@ -288,7 +290,7 @@ export async function serveArticlesIndexPage(params: {
   html = injectPageMeta(html, {
     title: meta.title,
     description: meta.description,
-    url: `${params.publicHost}${langKey === 'en' ? '' : `/${langKey}`}/articles`,
+    url: `${params.publicHost}${langKey === 'en' ? '' : `/${langKey}`}/blog`,
   });
   params.response.writeHead(200, { 'content-type': 'text/html; charset=utf-8' });
   params.response.end(html);

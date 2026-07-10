@@ -241,7 +241,7 @@ function buildArticleCommunityRail(locale: Locale): HTMLElement {
     | { label: string; enabled: false };
 
   const links: RailItem[] = [
-    { label: 'Community', href: localizedHref('/articles', locale), active: true, enabled: true },
+    { label: 'Community', href: localizedHref('/blog', locale), active: true, enabled: true },
     { label: 'By month', enabled: false },
     { label: 'By topic', enabled: false },
     { label: 'By Mistboard', enabled: false },
@@ -470,7 +470,7 @@ export function buildHomeArticleCards(
 
   // No header row: the label ("Read") and the "All articles →" link are dropped
   // to match lichess's blog strip (cards only) and to reclaim vertical space for
-  // the taller 8:5 thumbnails. The whole /articles index stays reachable from
+  // the taller 8:5 thumbnails. The whole /blog index stays reachable from
   // the primary nav.
   const carousel = document.createElement('div');
   carousel.className = 'landing-carousel';
@@ -526,7 +526,7 @@ function landingArticleCard(article: Article, locale: Locale): HTMLElement {
   const link = document.createElement('a');
   link.className = 'landing-article-card';
   link.dataset.cardKind = 'article';
-  const base = article.kind === 'rules' ? 'rules' : 'articles';
+  const base = article.kind === 'rules' ? 'rules' : 'blog';
   link.href = localizedHref(`/${base}/${article.slug}`, locale);
 
   const thumb = document.createElement('div');
@@ -732,7 +732,7 @@ export function buildArticlePage(slug: string, lang?: ArticleLang): HTMLElement 
   const breadcrumb = document.createElement('p');
   breadcrumb.className = 'article-breadcrumb';
   const back = document.createElement('a');
-  back.href = localizedHref(article.kind === 'rules' ? '/rules' : '/articles', locale);
+  back.href = localizedHref(article.kind === 'rules' ? '/rules' : '/blog', locale);
   back.textContent =
     article.kind === 'rules'
       ? `← ${t('rules.allRules', {}, locale)}`
@@ -1991,7 +1991,7 @@ function articleCard(article: Article, lang?: ArticleLang): HTMLLIElement {
 
   const link = document.createElement('a');
   link.className = 'articles-index-card';
-  const base = article.kind === 'rules' ? 'rules' : 'articles';
+  const base = article.kind === 'rules' ? 'rules' : 'blog';
   link.href = localizedHref(`/${base}/${article.slug}`, locale);
 
   const thumb = document.createElement('div');
@@ -2220,7 +2220,7 @@ function buildArticleNotFound(locale: Locale = currentLocale()): HTMLElement {
   body.textContent = t('articles.notFoundBody', {}, locale);
   const back = document.createElement('p');
   const backLink = document.createElement('a');
-  backLink.href = localizedHref('/articles', locale);
+  backLink.href = localizedHref('/blog', locale);
   backLink.textContent = `← ${t('articles.allArticles', {}, locale)}`;
   back.append(backLink);
   main.append(heading, body, back);

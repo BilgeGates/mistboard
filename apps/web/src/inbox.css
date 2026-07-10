@@ -2,10 +2,14 @@
 
 .inbox-shell {
   width: min(1400px, calc(100% - 64px));
-  min-height: min(820px, calc(100svh - 92px));
+  /* Bound the shell to the viewport (definite height, not min-height) so the
+     rail + conversation own their scroll internally instead of growing the
+     page. minmax(0, 1fr) keeps the single grid row from expanding to content. */
+  height: min(820px, calc(100svh - 92px));
   margin: 8px auto 24px;
   display: grid;
   grid-template-columns: clamp(320px, 30vw, 440px) minmax(0, 1fr);
+  grid-template-rows: minmax(0, 1fr);
   align-items: stretch;
   overflow: hidden;
   border: 1px solid var(--site-border);
@@ -575,11 +579,19 @@
 @media (max-width: 720px) {
   .inbox-shell {
     width: min(100% - 20px, 560px);
-    min-height: calc(100svh - 82px);
+    height: calc(100svh - 82px);
     grid-template-columns: 1fr;
   }
 
   .inbox-has-convo .inbox-side {
+    display: none;
+  }
+
+  /* Mobile is single-column and shows one pane at a time (has-convo hides the
+     rail; no-convo the right pane is empty). Drop the inactive pane so the
+     visible one fills the single 1fr row and owns the scroll, instead of a
+     second grid row pushing content past the viewport. */
+  .inbox-shell:not(.inbox-has-convo) .inbox-convo {
     display: none;
   }
 

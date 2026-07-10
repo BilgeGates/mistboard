@@ -276,6 +276,11 @@ describe('puzzles route', () => {
     const blackDrop = MINI_XIANGQI_PUZZLES.find(
       (puzzle) => puzzle.id === 'drop-mini-xiangqi-black-chariot-drop-mate-1',
     )!;
+    // Pin the queue order despite the rotation shuffle: mark the second puzzle
+    // seen so the unseen (deep-linked) puzzle leads and "next" is deterministic.
+    stubWindowLocalStorage(
+      memoryStorage({ 'mistboard:puzzles:seen': JSON.stringify({ [blackDrop.id]: 1 }) }),
+    );
     const fetchSpy = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
       const url = String(input);
       if (url === '/api/puzzles')
@@ -331,7 +336,11 @@ describe('puzzles route', () => {
     const blackDrop = MINI_XIANGQI_PUZZLES.find(
       (puzzle) => puzzle.id === 'drop-mini-xiangqi-black-chariot-drop-mate-1',
     )!;
-    const storage = memoryStorage();
+    // Pin the queue order (see the navigation test): the seen puzzle sorts after
+    // the unseen deep-linked one, so auto-advance lands on it deterministically.
+    const storage = memoryStorage({
+      'mistboard:puzzles:seen': JSON.stringify({ [blackDrop.id]: 1 }),
+    });
     stubWindowLocalStorage(storage);
     const fetchSpy = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
       const url = String(input);
@@ -369,6 +378,40 @@ describe('puzzles route', () => {
       expect(root.querySelector('.puzzle-detail h2')?.textContent).toBe('Black to move'),
     );
     expect(window.location.pathname).toBe(`/puzzles/${blackDrop.id}`);
+  });
+
+  it('leads with an unseen puzzle over a recently seen one and records visits', async () => {
+    const redDrop = MINI_XIANGQI_PUZZLES.find(
+      (puzzle) => puzzle.id === 'drop-mini-xiangqi-red-chariot-drop-mate-1',
+    )!;
+    const blackDrop = MINI_XIANGQI_PUZZLES.find(
+      (puzzle) => puzzle.id === 'drop-mini-xiangqi-black-chariot-drop-mate-1',
+    )!;
+    // The black puzzle was seen recently; the red one is unseen. Rotation must
+    // lead with the unseen puzzle even though the server lists the seen one first.
+    const storage = memoryStorage({
+      'mistboard:puzzles:seen': JSON.stringify({ [blackDrop.id]: 1 }),
+    });
+    stubWindowLocalStorage(storage);
+    const fetchSpy = vi.fn(async (input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url === '/api/puzzles')
+        return json({ puzzles: [publicSummary(blackDrop), publicSummary(redDrop)] });
+      if (url === `/api/puzzles/${redDrop.id}`) return json({ puzzle: publicDetail(redDrop) });
+      if (url === `/api/puzzles/${blackDrop.id}`) return json({ puzzle: publicDetail(blackDrop) });
+      return json({ error: 'not_found' }, 404);
+    });
+    vi.stubGlobal('fetch', fetchSpy);
+    const root = document.createElement('div');
+
+    await mountPuzzles(root, null);
+
+    await vi.waitFor(() =>
+      expect(root.querySelector('.puzzle-detail h2')?.textContent).toBe('Red to move'),
+    );
+    expect(fetchSpy).toHaveBeenCalledWith(`/api/puzzles/${redDrop.id}`);
+    // Visiting a puzzle records it in the seen-set for the next visit's rotation.
+    expect(storage.getItem('mistboard:puzzles:seen')).toContain(redDrop.id);
   });
 
   it('restores solved markers from local storage', async () => {

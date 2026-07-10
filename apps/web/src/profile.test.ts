@@ -388,14 +388,16 @@ describe('profile ratings rail', () => {
     expect(root.querySelector('.leaderboard-online-empty')?.textContent).toBe('No players online.');
   });
 
-  it('fills ladder tables, marks online players, and sinks empty panels last', async () => {
+  it('renders ladders in canonical variant order regardless of which are populated', async () => {
     vi.stubEnv('DEV', false);
-    // Xiangqi pivot: Drop Mini is off the grids, so populate an on-grid ladder
-    // (Fortress Xiangqi) to exercise populated-first ordering.
+    // Populate Dark Chess ('fog'), the LAST enabled ladder in the canonical
+    // order, to prove a populated ladder no longer floats to the front (#137):
+    // the leaderboard keys off CANONICAL_VARIANT_ORDER like the picker/profile/
+    // rail, so Fortress still leads with no data and Dark Chess keeps its slot.
     stubLeaderboardFetch({
       ladders: [
         {
-          variant: 'fortress_xiangqi',
+          variant: 'fog',
           leaderboard: [
             {
               rank: 1,
@@ -408,7 +410,6 @@ describe('profile ratings rail', () => {
           ],
         },
       ],
-      activePlayers: [{ rank: 1, handle: 'misty', displayName: 'Misty', gamesPlayed: 12 }],
       players: [{ handle: 'misty', displayName: 'Misty' }],
     });
     const root = document.createElement('div');
@@ -424,15 +425,16 @@ describe('profile ratings rail', () => {
     // Ladders absent from the summary render the no-rated-games state.
     expect(root.textContent).toContain('No rated games yet.');
 
-    // Populated-first ordering: the populated Fortress Xiangqi ladder leads,
-    // empty ladders sink to the tail.
+    // Canonical order: Fortress (first enabled ladder) leads even with no data,
+    // and the populated Dark Chess ladder stays LAST at its canonical index —
+    // no populated-first reordering.
     const titles = [...root.querySelectorAll('.leaderboard-panel-title')].map(
       (el) => el.textContent,
     );
     expect(titles[0]).toBe('Fortress');
     const panels = [...root.querySelectorAll('.leaderboard-panel')];
-    expect(panels[0]?.textContent).toContain('1520');
-    expect(panels[1]?.textContent).toContain('No rated games yet.');
+    expect(panels[0]?.textContent).toContain('No rated games yet.');
+    expect(panels[panels.length - 1]?.textContent).toContain('1520');
   });
 
   it('localizes Traditional Chinese leaderboard chrome', async () => {

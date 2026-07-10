@@ -122,7 +122,7 @@ export const mistyArticle: Article = {
             kind: 'cta',
             buttons: [
               { label: 'Play Misty', href: '/?play=computer', emphasis: 'primary' },
-              { label: 'All articles', href: '/articles', emphasis: 'secondary' },
+              { label: 'All articles', href: '/blog', emphasis: 'secondary' },
             ],
           },
         ],

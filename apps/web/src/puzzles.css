@@ -140,6 +140,68 @@
   background: transparent;
 }
 
+/* ── Fortress puzzle pockets ─────────────────────────────────────────────────
+   The droppable-piece pockets flank the Fortress board (opponent above, the
+   solver's own directly below, lichess crazyhouse convention). Framed as a
+   clean tray of board-square-sized chips with counts, replacing the reused
+   capture strip whose fixed height + overflow:hidden clipped the taller
+   drop chips. Container-relative sizing (100cqw over the 516-unit board width)
+   keeps the chips in step with the on-board squares. */
+.puzzle-fortress-shell .puzzle-pocket {
+  --drop-mini-hand-piece-size: clamp(36px, calc(100cqw * 58 / 516), 64px);
+  --drop-mini-hand-tile-size: calc(var(--drop-mini-hand-piece-size) + 8px);
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: auto;
+  min-height: 0;
+  margin: 0;
+  padding: 5px 6px;
+  box-sizing: border-box;
+}
+
+.puzzle-fortress-shell > .puzzle-pocket--opponent {
+  margin-bottom: 6px;
+  /* Passive: informational only, so let the solver's own pocket read louder. */
+  opacity: 0.9;
+}
+
+.puzzle-fortress-shell > .puzzle-pocket--own {
+  margin-top: 6px;
+}
+
+.puzzle-fortress-shell .puzzle-pocket.has-captures {
+  border: 1px solid var(--site-border-soft);
+  border-radius: 4px;
+  background: var(--site-panel-soft);
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.05);
+}
+
+/* An empty pocket collapses to a thin rule instead of a floating blank band. */
+.puzzle-fortress-shell .puzzle-pocket:not(.has-captures) {
+  min-height: 8px;
+  padding: 0;
+}
+
+.puzzle-fortress-shell .puzzle-pocket .drop-mini-reserve-row {
+  gap: 6px;
+}
+
+.puzzle-fortress-shell .puzzle-pocket .drop-mini-reserve-piece {
+  border-color: color-mix(in srgb, var(--site-border) 60%, transparent);
+  background: var(--site-panel);
+}
+
+/* The solver's own pocket is the interactive one: grab affordance plus a clear
+   selected ring marking the piece staged to drop. */
+.puzzle-fortress-shell .puzzle-pocket--own button.drop-mini-reserve-piece:hover:not(:disabled),
+.puzzle-fortress-shell .puzzle-pocket--own .drop-mini-reserve-piece.selected {
+  border-color: var(--site-accent);
+  background: var(--site-accent-soft);
+  box-shadow: 0 0 0 2px var(--site-accent-soft);
+}
+
 .puzzles-sidebar,
 .puzzle-side-panel {
   min-width: 0;

@@ -98,8 +98,10 @@
 }
 
 .landing-news-marker-dobutsu {
+  /* No white drop-shadow under the marker: it rendered as an offset white
+     under-circle that cut the gold timeline line just before it reached the
+     ring. The panel-colored fill still backs the icon for legibility. */
   overflow: hidden;
-  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.82);
   color: inherit;
 }
 

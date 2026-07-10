@@ -617,9 +617,8 @@ function buildLandingStage(
   section.className = 'landing-demo';
 
   // ── News column (grid-area: news, top-left): chat sits at the top of the left
-  // rail when enabled. The page's single (small) h1 tagline stays below it.
-  // During local dev, mock chat data paints here so the widget can be reviewed
-  // without flipping the server flag or seeding a database. ──
+  // rail when enabled. During local dev, mock chat data paints here so the widget
+  // can be reviewed without flipping the server flag or seeding a database. ──
   const newsColumn = document.createElement('div');
   newsColumn.className = 'landing-news-column';
   newsColumn.append(
@@ -628,10 +627,6 @@ function buildLandingStage(
       mode: import.meta.env.DEV ? 'mock' : 'live',
     }),
   );
-  const about = document.createElement('h1');
-  about.className = 'landing-about';
-  appendLinkedTagline(about, t('home.tagline', {}, locale), localizedHref('/about', locale));
-  newsColumn.append(about);
 
   // ── Left viewer column (grid-area: viewer, row 2): the cycling showcase board,
   // top-aligned with the article row across the gutter (beneath the news column). The
@@ -684,8 +679,9 @@ function buildLandingStage(
   lowerStrip.append(buildLandingAnnouncements(locale));
   lowerStrip.append(buildLandingForumPreview({ hydrate: !opts.skipLiveWidgets }));
 
-  // ── Play column (grid-area: play, row 1 right): the pairing CTAs + activity box,
-  // vertically centered against the tall open-challenges panel. ──
+  // ── Play column (grid-area: play, row 1 right): the small h1 tagline flush to the
+  // top-left, then the pairing CTAs + activity box vertically centered against the
+  // tall open-challenges panel. ──
   let playPanel = buildLandingPlayPanel(engines, { locale, showLobbyRequests: false });
   const playStack = document.createElement('div');
   playStack.className = 'landing-play-stack';
@@ -693,9 +689,14 @@ function buildLandingStage(
   // skeleton rows) so the column reserves its footprint from first paint; the
   // prerendered shell carries the same frames, hydration skipped.
   playStack.append(playPanel, buildLandingActivity({ hydrate: !opts.skipLiveWidgets }));
+  // The page's single (small) h1: the about tagline, pinned to the top of the right
+  // rail (absolute on desktop so it clears the CTA centering; in flow when stacked).
+  const about = document.createElement('h1');
+  about.className = 'landing-about';
+  appendLinkedTagline(about, t('home.tagline', {}, locale), localizedHref('/about', locale));
   const playColumn = document.createElement('div');
   playColumn.className = 'landing-play-column';
-  playColumn.append(playStack);
+  playColumn.append(about, playStack);
 
   // ── Puzzle column (grid-area: puzzle, row 2 right): the daily puzzle, top-aligned
   // with the article row across the gutter. ──

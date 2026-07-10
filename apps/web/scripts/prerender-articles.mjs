@@ -3,9 +3,9 @@
 // Runs AFTER `vite build`, against the hashed `dist/index.html` shell. For each
 // published article it renders the real client renderer (buildArticlePage) under
 // happy-dom, bakes the resulting <main> into #app, injects per-route meta from
-// articles-data (single source of truth), and writes dist/articles/<slug>.html.
+// articles-data (single source of truth), and writes dist/blog/<slug>.html.
 //
-// The server serves these files for /articles/<slug>; the client SPA still boots
+// The server serves these files for /blog/<slug>; the client SPA still boots
 // and replaceChildren()s #app on takeover, mounting the deferred board widgets.
 // So crawlers/LLMs and first paint get real prose; humans get the full app.
 import { promises as fs } from 'node:fs';
@@ -190,8 +190,8 @@ try {
 
   for (const article of published) {
     const slug = encodeURIComponent(article.slug);
-    // Rules docs are canonical under /rules/<slug>, everything else /articles/<slug>.
-    const base = article.kind === 'rules' ? 'rules' : 'articles';
+    // Rules docs are canonical under /rules/<slug>, everything else /blog/<slug>.
+    const base = article.kind === 'rules' ? 'rules' : 'blog';
     // OG card stays English for all variants for now (the card renderer has no
     // CJK font; baking zh titles would render tofu). hreflang is identical on
     // every variant: all three point at each other + x-default → English.

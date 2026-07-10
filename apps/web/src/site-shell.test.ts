@@ -18,7 +18,7 @@ describe('site shell nav', () => {
         '.site-nav-links > .site-nav-link, .site-nav-links > .site-nav-menu > .site-nav-menu-toggle',
       ),
     ].map((link) => link.textContent);
-    expect(primaryLabels).toEqual(['Play', 'Puzzles', 'Learn', 'Watch', 'Community']);
+    expect(primaryLabels).toEqual(['Play', 'Puzzles', 'Learn', 'Watch', 'Community', 'Tools']);
 
     const puzzleLink = nav.querySelector<HTMLAnchorElement>('a[href="/puzzles"]');
     expect(puzzleLink?.textContent).toBe('Puzzles');
@@ -38,9 +38,9 @@ describe('site shell nav', () => {
     expect(
       communityPanel?.querySelector<HTMLAnchorElement>('a[href="/account"]')?.textContent,
     ).toBe('Friends');
-    expect(
-      communityPanel?.querySelector<HTMLAnchorElement>('a[href="/articles"]')?.textContent,
-    ).toBe('Blog');
+    expect(communityPanel?.querySelector<HTMLAnchorElement>('a[href="/blog"]')?.textContent).toBe(
+      'Blog',
+    );
     // The Community title is a link to the player page, not just a toggle.
     const communityToggle = [
       ...nav.querySelectorAll<HTMLElement>('.site-nav-menu > .site-nav-menu-toggle'),
@@ -51,18 +51,30 @@ describe('site shell nav', () => {
     expect(nav.querySelector<HTMLAnchorElement>('a[href="/bots"]')).toBeNull();
 
     // Watch is a split menu: the title links to Mistboard TV (/watch) and the
-    // panel surfaces Broadcasts.
+    // panel lists Mistboard TV explicitly alongside Broadcasts.
     const watchMenu = [...nav.querySelectorAll<HTMLElement>('.site-nav-menu')].find(
       (menu) => menu.querySelector('.site-nav-menu-toggle')?.textContent === 'Watch',
     );
     const watchToggle = watchMenu?.querySelector<HTMLAnchorElement>('.site-nav-menu-toggle');
     expect(watchToggle?.tagName).toBe('A');
     expect(watchToggle?.getAttribute('href')).toBe('/watch');
+    const watchPanel = watchMenu?.querySelector<HTMLElement>('.site-nav-menu-panel');
+    expect(watchPanel?.querySelector<HTMLAnchorElement>('a[href="/watch"]')?.textContent).toBe(
+      'Mistboard TV',
+    );
     expect(
-      watchMenu
-        ?.querySelector<HTMLElement>('.site-nav-menu-panel')
-        ?.querySelector<HTMLAnchorElement>('a[href="/broadcast/xiangqi"]')?.textContent,
+      watchPanel?.querySelector<HTMLAnchorElement>('a[href="/broadcast/xiangqi"]')?.textContent,
     ).toBe('Broadcasts');
+
+    // Tools dropdown surfaces the analysis board.
+    const toolsMenu = [...nav.querySelectorAll<HTMLElement>('.site-nav-menu')].find(
+      (menu) => menu.querySelector('.site-nav-menu-toggle')?.textContent === 'Tools',
+    );
+    expect(
+      toolsMenu
+        ?.querySelector<HTMLElement>('.site-nav-menu-panel')
+        ?.querySelector<HTMLAnchorElement>('a[href="/analysis/xiangqi"]')?.textContent,
+    ).toBe('Analysis board');
   });
 
   it('localizes launch nav labels and translated content links', () => {
@@ -77,7 +89,7 @@ describe('site shell nav', () => {
       ),
     ].map((link) => link.textContent);
 
-    expect(primaryLabels).toEqual(['對弈', '題目', '學習', '觀看', '社群']);
+    expect(primaryLabels).toEqual(['對弈', '題目', '學習', '觀看', '社群', '工具']);
     expect(nav.getAttribute('aria-label')).toBe('主導覽');
     expect(nav.querySelector('.site-nav-language')).toBeNull();
     expect(nav.querySelector<HTMLAnchorElement>('a[href="/zh-hant/rules"]')?.textContent).toBe(
@@ -90,7 +102,7 @@ describe('site shell nav', () => {
     ).toBe(true);
     expect(nav.querySelector('.site-nav-menu-toggle')?.classList.contains('active')).toBe(true);
     // Articles now surface as "Blog" (網誌) in the Community dropdown.
-    expect(nav.querySelector<HTMLAnchorElement>('a[href="/zh-hant/articles"]')?.textContent).toBe(
+    expect(nav.querySelector<HTMLAnchorElement>('a[href="/zh-hant/blog"]')?.textContent).toBe(
       '網誌',
     );
     expect(nav.querySelector<HTMLAnchorElement>('a[href="/account?tab=login"]')?.textContent).toBe(
@@ -105,7 +117,7 @@ describe('site shell nav', () => {
     const footer = buildHomeFooter('zh-Hant');
 
     expect(footer.querySelector<HTMLAnchorElement>('a[href="/zh-hant/rules"]')).toBeNull();
-    expect(footer.querySelector<HTMLAnchorElement>('a[href="/zh-hant/articles"]')).toBeNull();
+    expect(footer.querySelector<HTMLAnchorElement>('a[href="/zh-hant/blog"]')).toBeNull();
     expect(footer.querySelector<HTMLAnchorElement>('a[href="/feed"]')).toBeNull();
     expect(footer.querySelector<HTMLAnchorElement>('a[href="/about"]')?.textContent).toBe('關於');
     expect(footer.querySelector<HTMLAnchorElement>('a[href="/contact"]')?.textContent).toBe('聯絡');

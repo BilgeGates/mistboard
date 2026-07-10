@@ -158,8 +158,8 @@ function isContentPath(pathname: string): boolean {
   return (
     pathname === '/rules' ||
     pathname.startsWith('/rules/') ||
-    pathname === '/articles' ||
-    pathname.startsWith('/articles/')
+    pathname === '/blog' ||
+    pathname.startsWith('/blog/')
   );
 }
 
