@@ -105,16 +105,16 @@ describe('landing play panel', () => {
     openPlaySetup(panel, '挑戰好友');
 
     expect(document.querySelector('.landing-setup-title')?.textContent).toBe('挑戰好友');
-    expect(document.querySelector('[aria-label="遊戲類別"]')).not.toBeNull();
+    expect(document.querySelector('[aria-label="遊戲類別"]')).toBeNull();
     expect(document.querySelector('[aria-label="變體"]')).not.toBeNull();
     expect(document.querySelector('[aria-label="用時"]')).not.toBeNull();
-    expect(document.body.textContent).toContain('西洋棋');
-    expect(document.body.textContent).toContain('象棋');
     // Xiangqi pivot: DMX is hidden from the picker; assert a still-visible
     // xiangqi variant card (Dark Xiangqi) localizes instead.
     expect(document.body.textContent).toContain('迷霧象棋');
     expect(document.querySelector('.landing-setup-start')?.textContent).toBe('建立房間');
-    expect(document.querySelector('.landing-setup-back')?.textContent).toBe('取消');
+    expect(document.querySelector('.landing-setup-close')?.getAttribute('aria-label')).toBe(
+      '關閉設定',
+    );
   });
 
   it('localizes the open lobby requests window', async () => {
@@ -188,7 +188,7 @@ describe('landing play panel', () => {
     ).not.toBeNull();
   });
 
-  it('starts setup on Game group and filters variants by family', () => {
+  it('starts setup on Variant and shows all offered variants together', () => {
     vi.stubEnv('DEV', false);
     vi.stubEnv('VITE_DARK_XIANGQI_ENABLED', 'false');
     vi.stubGlobal(
@@ -200,29 +200,18 @@ describe('landing play panel', () => {
 
     openPlaySetup(panel, 'Challenge a friend');
 
-    expect(activeSetupSection()).toBe('gameGroup');
-    expect(setupSummaryValue('gameGroup')).toBe('Chess');
-    expect(visibleVariantPickerSpecs()).toEqual(['dark-chess']);
-
-    clickModalGameGroup('Elephant Chess');
-
     expect(activeSetupSection()).toBe('variant');
-    expect(setupSummaryValue('gameGroup')).toBe('Elephant Chess');
-    // Post-pivot: the mini xiangqi trio is hidden from the picker and Fortress
-    // Xiangqi is the flagship heading the cluster, so it is the default selection.
-    expect(selectedVariantSpec()).toBe('fortress-xiangqi');
-    expect(visibleVariantPickerSpecs()).toEqual([
-      'fortress-xiangqi',
-      'jieqi',
-      'banqi',
-      'dark-xiangqi',
-    ]);
+    expect(document.querySelector('[aria-label="Game group"]')).toBeNull();
+    expect(visibleVariantPickerSpecs()).toEqual(BASELINE_PICKER_SPECS);
+    expect(selectedVariantSpec()).toBe('dark-chess');
 
-    selectModalVariant('dark-xiangqi');
+    selectModalVariant('fortress-xiangqi');
+
     expect(activeSetupSection()).toBe('time');
+    expect(selectedVariantSpec()).toBe('fortress-xiangqi');
   });
 
-  it('omits engine-mode game groups with no playable engine variants', () => {
+  it('does not render game groups in the engine flow', () => {
     vi.stubGlobal(
       'fetch',
       vi.fn(async () => jsonResponse({ playing: 0, online: 0 })),
@@ -232,10 +221,13 @@ describe('landing play panel', () => {
 
     openPlaySetup(panel, 'Play the engine');
 
-    expect(modalGameGroups()).toContain('Chess');
-    expect(modalGameGroups()).toContain('Elephant Chess');
-    expect(modalGameGroups()).not.toContain('Crossroads');
-    expect(modalGameGroups()).not.toContain('Shogi');
+    expect(document.querySelector('[aria-label="Game group"]')).toBeNull();
+    expect(variantPickerSpecs()).toContain('dark-chess');
+    expect(variantPickerSpecs()).toContain('dark-xiangqi');
+    const darkXiangqi = document.querySelector<HTMLButtonElement>(
+      '.landing-variant-card[data-game-spec="dark-xiangqi"]',
+    );
+    expect(darkXiangqi?.disabled).toBe(false);
   });
 
   it('creates dark chess rooms with a canonical game spec id behind the Variant UI', async () => {
@@ -1272,18 +1264,6 @@ function clickModalButton(label: string): void {
     ?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
 }
 
-function clickModalGameGroup(label: string): void {
-  [...document.querySelectorAll<HTMLButtonElement>('.landing-game-group-card')]
-    .find((button) => button.querySelector('.landing-game-group-name')?.textContent === label)
-    ?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
-}
-
-function modalGameGroups(): string[] {
-  return [...document.querySelectorAll<HTMLElement>('.landing-game-group-name')].map(
-    (el) => el.textContent?.trim() ?? '',
-  );
-}
-
 function clickModalColor(label: string): void {
   [...document.querySelectorAll<HTMLButtonElement>('.landing-color-option')]
     .find((button) => button.querySelector('.landing-color-label')?.textContent === label)
@@ -1325,14 +1305,6 @@ function selectedVariantSpec(): string | undefined {
 function activeSetupSection(): string | undefined {
   return document.querySelector<HTMLElement>('.landing-setup-accordion-section.active')?.dataset
     .setupSection;
-}
-
-function setupSummaryValue(sectionId: string): string | undefined {
-  return document
-    .querySelector<HTMLElement>(
-      `.landing-setup-accordion-section[data-setup-section="${sectionId}"] .landing-setup-summary-value`,
-    )
-    ?.textContent?.trim();
 }
 
 function variantPickerPresent(): boolean {
