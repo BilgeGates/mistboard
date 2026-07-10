@@ -784,7 +784,7 @@ export function buildProfileHeader(
     actions: profile.relation
       ? buildRelationActions(profile.user.handle, profile.relation, locale)
       : profile.isViewer
-        ? buildOwnerActions(locale)
+        ? buildOwnerActions(locale, profile.user.title)
         : undefined,
     stats: buildProfileStats(profile, locale),
   });
@@ -792,7 +792,7 @@ export function buildProfileHeader(
 
 // Own-profile action row (lichess parity: your profile offers Edit profile
 // where someone else's offers Follow/Challenge/Message).
-function buildOwnerActions(locale: Locale = currentLocale()): HTMLElement {
+function buildOwnerActions(locale: Locale = currentLocale(), title?: unknown): HTMLElement {
   const row = document.createElement('div');
   row.className = 'profile-relation-actions profile-owner-actions';
   const edit = document.createElement('a');
@@ -805,6 +805,14 @@ function buildOwnerActions(locale: Locale = currentLocale()): HTMLElement {
   verify.href = '/verify-title';
   verify.textContent = t('profile.verifyTitle', {}, locale);
   row.append(edit, verify);
+  // A held title unlocks the coach directory: offer the editor entry point.
+  if (isPlayerTitle(title)) {
+    const coach = document.createElement('a');
+    coach.className = 'landing-setup-back';
+    coach.href = '/coach/edit';
+    coach.textContent = t('profile.coachProfile', {}, locale);
+    row.append(coach);
+  }
   return row;
 }
 

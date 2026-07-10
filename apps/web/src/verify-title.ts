@@ -82,6 +82,16 @@ function renderPage(shell: HTMLElement, payload: MyRequestPayload, locale: Local
       locale,
     );
     shell.append(held);
+    // A held title unlocks the coach directory: offer the next step right
+    // where the approval lands (covers the just-approved view and revisits).
+    const coachCta = document.createElement('p');
+    coachCta.className = 'verify-title-coach-cta';
+    const coachLink = document.createElement('a');
+    coachLink.className = 'landing-setup-back';
+    coachLink.href = '/coach/edit';
+    coachLink.textContent = t('verifyTitle.coachCta', {}, locale);
+    coachCta.append(coachLink);
+    shell.append(coachCta);
   }
 
   const request = payload.request;

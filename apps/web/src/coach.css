@@ -1,0 +1,194 @@
+/* /coach: public coach directory, /coach/:handle detail, /coach/edit form. */
+
+.coach-shell {
+  max-width: 860px;
+}
+
+.coach-intro {
+  color: var(--site-text);
+  margin: 10px 0 18px;
+}
+
+.coach-become {
+  margin: 0 0 18px;
+}
+
+/* ── directory cards ── */
+
+.coach-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+  gap: 14px;
+  padding: 0;
+  margin: 0;
+  list-style: none;
+}
+
+.coach-card {
+  display: block;
+  border: 1px solid var(--site-border);
+  border-radius: var(--site-radius-sm);
+  background: var(--site-panel);
+  padding: 14px;
+  text-decoration: none;
+  color: inherit;
+}
+
+.coach-card:hover,
+.coach-card:focus-visible {
+  border-color: var(--site-accent);
+}
+
+.coach-card-name {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  font-weight: 600;
+  color: var(--site-heading);
+  margin: 0 0 6px;
+}
+
+.coach-card-headline {
+  margin: 0 0 10px;
+  color: var(--site-text);
+}
+
+.coach-card-meta {
+  margin: 0;
+  color: var(--site-muted);
+  font-size: 13px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.coach-accepting {
+  display: inline-block;
+  font-size: 12px;
+  font-weight: 600;
+  border-radius: 999px;
+  padding: 2px 8px;
+  margin-top: 8px;
+  color: var(--site-accent);
+  border: 1px solid var(--site-accent);
+}
+
+.coach-accepting-closed {
+  color: var(--site-muted);
+  border-color: var(--site-border);
+}
+
+.coach-empty,
+.coach-status {
+  color: var(--site-muted);
+  margin: 12px 0;
+}
+
+/* ── detail ── */
+
+.coach-detail-header {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.coach-detail-headline {
+  color: var(--site-heading);
+  font-weight: 600;
+  margin: 8px 0 0;
+}
+
+.coach-detail-about {
+  margin: 14px 0;
+}
+
+.coach-detail-about p {
+  margin: 0 0 10px;
+  white-space: pre-wrap;
+}
+
+.coach-detail-facts {
+  margin: 14px 0;
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: 6px 14px;
+}
+
+.coach-detail-facts dt {
+  font-weight: 600;
+  color: var(--site-heading);
+}
+
+.coach-detail-facts dd {
+  margin: 0;
+  color: var(--site-text);
+  overflow-wrap: anywhere;
+}
+
+.coach-detail-links {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-top: 16px;
+}
+
+/* ── editor form ── */
+
+.coach-form {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  align-items: flex-start;
+  max-width: 640px;
+}
+
+.coach-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  width: 100%;
+}
+
+.coach-field > span {
+  font-weight: 600;
+  color: var(--site-heading);
+  font-size: 14px;
+}
+
+.coach-field input[type="text"],
+.coach-field textarea {
+  font: inherit;
+  padding: 8px 10px;
+  border: 1px solid var(--site-border);
+  border-radius: var(--site-radius-sm);
+  background: var(--site-panel);
+  color: var(--site-text);
+}
+
+.coach-field textarea {
+  resize: vertical;
+}
+
+.coach-check {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--site-text);
+}
+
+.coach-help {
+  margin: 0;
+  color: var(--site-muted);
+  font-size: 13px;
+}
+
+.coach-form-status {
+  margin: 0;
+  color: var(--site-muted);
+  min-height: 1.2em;
+}
+
+.coach-untitled-cta {
+  margin: 12px 0 0;
+}

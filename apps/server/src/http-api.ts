@@ -15,6 +15,7 @@ import * as authRoute from './routes/auth.js';
 import * as banqiGamesRoute from './routes/banqi-games.js';
 import * as botsRoute from './routes/bots.js';
 import * as chatRoute from './routes/chat.js';
+import * as coachesRoute from './routes/coaches.js';
 import * as correspondenceGamesRoute from './routes/correspondence-games.js';
 import * as correspondenceSeeksRoute from './routes/correspondence-seeks.js';
 import * as crossroadsChessRoute from './routes/crossroads-chess.js';
@@ -117,6 +118,7 @@ export const routes: RouteModule[] = [
   gamesRoute,
   relationsRoute,
   titlesRoute,
+  coachesRoute,
   usersRoute,
   leaderboardRoute,
 ];

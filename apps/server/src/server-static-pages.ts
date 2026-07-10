@@ -172,6 +172,7 @@ export async function serveSitemap(params: {
     '/videos',
     '/player',
     '/player/rating-stats',
+    '/coach',
     '/forum',
     '/source',
     '/faq',

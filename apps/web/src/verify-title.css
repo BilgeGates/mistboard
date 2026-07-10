@@ -15,6 +15,10 @@
   margin: 10px 0 0;
 }
 
+.verify-title-coach-cta {
+  margin: 10px 0 0;
+}
+
 .verify-title-status {
   border: 1px solid var(--site-border);
   border-left: 3px solid var(--site-muted);

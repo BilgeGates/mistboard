@@ -152,6 +152,14 @@ const wantsDatabase = path === '/database';
 // Title verification: player-facing request form. Linked from profile copy,
 // no nav entry.
 const wantsVerifyTitle = path === '/verify-title';
+// Coach directory: /coach (public list) and /coach/:handle (public detail)
+// share one module. /coach/edit is the signed-in editor, a reserved literal
+// below the :handle pattern that must win over it (same tradeoff as
+// /inbox/reports).
+const wantsCoachEdit = path === '/coach/edit';
+const coachMatch = wantsCoachEdit ? null : path.match(/^\/coach(?:\/([^/]+))?$/);
+const wantsCoach = coachMatch !== null;
+const coachHandle = coachMatch?.[1] ? decodeURIComponent(coachMatch[1]) : null;
 // Unlisted admin review queue for title requests. No nav entry; admin-gated by
 // /api/admin/titles (open in local dev). Direct-URL only.
 const wantsTitlesAdmin = path === '/titles';
@@ -289,6 +297,20 @@ if (replaySample) {
   setTitleKey('verifyTitle.heading');
   void mountOrReport(() =>
     import('./verify-title.js').then(({ mountVerifyTitle }) => mountVerifyTitle(appRoot)),
+  );
+} else if (wantsCoachEdit) {
+  setTitleKey('coach.editHeading');
+  void mountOrReport(() =>
+    import('./coach-edit.js').then(({ mountCoachEdit }) => mountCoachEdit(appRoot)),
+  );
+} else if (wantsCoach) {
+  if (coachHandle) {
+    setTitle(`@${coachHandle}`);
+  } else {
+    setTitleKey('coach.heading');
+  }
+  void mountOrReport(() =>
+    import('./coach.js').then(({ mountCoach }) => mountCoach(appRoot, coachHandle)),
   );
 } else if (wantsTitlesAdmin) {
   setTitle('Title verification');

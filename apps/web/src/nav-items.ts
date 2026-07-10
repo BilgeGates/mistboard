@@ -21,12 +21,14 @@ export function primaryNavItems(): NavItem[] {
 }
 
 // Top-nav Community dropdown (lichess-aligned order): Players (the leaderboard),
-// Friends (your following list), Forum, Blog (the articles surface). Teams is
-// deliberately deferred. Kept distinct from communityRailItems(): the dropdown
-// is the wide social entry, the rail is the leaderboard/bots sub-nav.
+// Coaches (the verified-coach directory), Friends (your following list), Forum,
+// Blog (the articles surface). Teams is deliberately deferred. Kept distinct
+// from communityRailItems(): the dropdown is the wide social entry, the rail is
+// the leaderboard/bots sub-nav.
 export function communityNavItems(): NavItem[] {
   return [
     { label: 'Players', labelKey: 'nav.players', href: '/player' },
+    { label: 'Coaches', labelKey: 'nav.coaches', href: '/coach' },
     { label: 'Friends', labelKey: 'nav.friends', href: '/following', signedInOnly: true },
     { label: 'Forum', labelKey: 'nav.forum', href: '/forum' },
     { label: 'Blog', labelKey: 'nav.blog', href: '/blog' },

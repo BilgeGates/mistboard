@@ -109,6 +109,10 @@ export function isClientRoute(pathname: string): boolean {
     normalized === '/database' ||
     normalized === '/verify-title' ||
     normalized === '/titles' ||
+    // Coach directory: /coach (list), /coach/edit (own editor), /coach/:handle
+    // (public detail). All three are SPA client routes (apps/web/src/coach.ts).
+    normalized === '/coach' ||
+    normalized.startsWith('/coach/') ||
     normalized === '/historical-xiangqi' ||
     normalized === '/historical-xiangqi/games' ||
     normalized === '/engines' ||
