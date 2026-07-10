@@ -1,0 +1,213 @@
+.historical-xiangqi-page {
+  background: var(--site-page-gradient);
+}
+
+.historical-xiangqi-shell {
+  max-width: 1120px;
+}
+
+.historical-xiangqi-filters {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 0.75rem 1rem;
+  align-items: end;
+  padding: 1rem;
+  border: 1px solid var(--site-border);
+  border-radius: var(--site-radius);
+  background: var(--site-panel);
+}
+
+.historical-xiangqi-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+
+.historical-xiangqi-field-label {
+  color: var(--site-muted);
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.historical-xiangqi-input,
+.historical-xiangqi-select {
+  box-sizing: border-box;
+  width: 100%;
+  padding: 0.4rem 0.5rem;
+  border: 1px solid var(--site-border);
+  border-radius: var(--site-radius);
+  background: var(--site-bg);
+  color: var(--site-text);
+  font-size: 0.88rem;
+}
+
+.historical-xiangqi-input:focus,
+.historical-xiangqi-select:focus {
+  outline: 2px solid var(--site-focus);
+  outline-offset: 1px;
+}
+
+.historical-xiangqi-actions {
+  display: flex;
+  gap: 0.5rem;
+  grid-column: 1 / -1;
+  justify-content: flex-end;
+}
+
+.historical-xiangqi-btn {
+  padding: 0.45rem 1rem;
+  border: 1px solid var(--site-border);
+  border-radius: var(--site-radius);
+  background: var(--site-panel-soft);
+  color: var(--site-text);
+  font-size: 0.85rem;
+  cursor: pointer;
+}
+
+.historical-xiangqi-btn:hover:not(:disabled) {
+  background: var(--site-hover);
+}
+
+.historical-xiangqi-btn:disabled {
+  cursor: default;
+  opacity: 0.48;
+}
+
+.historical-xiangqi-btn-primary {
+  border-color: var(--site-accent);
+  background: var(--site-accent);
+  color: var(--site-on-accent);
+}
+
+.historical-xiangqi-btn-primary:hover:not(:disabled) {
+  background: var(--site-accent-strong);
+}
+
+.historical-xiangqi-status {
+  margin: 1.25rem 0 0.75rem;
+  color: var(--site-muted);
+  font-size: 0.9rem;
+}
+
+.historical-xiangqi-total {
+  margin: 1.25rem 0 0.75rem;
+  color: var(--site-heading);
+  font-size: 1.05rem;
+  font-weight: 600;
+}
+
+.historical-xiangqi-results {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.historical-xiangqi-row {
+  display: grid;
+  grid-template-columns: 62px minmax(0, 1fr) minmax(128px, 0.65fr) 84px;
+  gap: 0.75rem;
+  align-items: center;
+  padding: 0.6rem 0.75rem;
+  border: 1px solid var(--site-border);
+  border-radius: var(--site-radius);
+  background: var(--site-panel);
+  color: var(--site-text);
+  text-decoration: none;
+}
+
+.historical-xiangqi-row-main {
+  min-width: 0;
+}
+
+.historical-xiangqi-row:hover {
+  border-color: var(--site-accent-soft);
+  background: var(--site-hover);
+}
+
+.historical-xiangqi-result {
+  width: 52px;
+  padding: 0.2rem 0;
+  border-radius: var(--site-radius-sm);
+  background: var(--site-panel-soft);
+  color: var(--site-muted);
+  text-align: center;
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.historical-xiangqi-result-red {
+  background: #b03636;
+  color: #fff;
+}
+
+.historical-xiangqi-result-black {
+  background: #2b2b2b;
+  color: #f0f0f0;
+}
+
+.historical-xiangqi-matchup {
+  min-width: 0;
+  font-weight: 600;
+  font-size: 0.92rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.historical-xiangqi-event {
+  min-width: 0;
+  color: var(--site-muted);
+  font-size: 0.82rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.historical-xiangqi-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  margin-top: 0.3rem;
+}
+
+.historical-xiangqi-pill {
+  padding: 0.12rem 0.5rem;
+  border-radius: 999px;
+  background: var(--site-panel-soft);
+  color: var(--site-muted);
+  font-size: 0.72rem;
+}
+
+.historical-xiangqi-review-link {
+  justify-self: end;
+  color: var(--site-accent);
+  font-size: 0.82rem;
+  font-weight: 700;
+}
+
+.historical-xiangqi-pager {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 1rem;
+  margin-top: 1.25rem;
+}
+
+.historical-xiangqi-pager-status {
+  color: var(--site-muted);
+  font-size: 0.85rem;
+}
+
+@media (max-width: 740px) {
+  .historical-xiangqi-row {
+    grid-template-columns: 52px minmax(0, 1fr);
+  }
+
+  .historical-xiangqi-event,
+  .historical-xiangqi-review-link {
+    display: none;
+  }
+}

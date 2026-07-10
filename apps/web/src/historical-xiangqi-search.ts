@@ -1,0 +1,483 @@
+import './historical-xiangqi-search.css';
+import { buildNav } from './site-shell.js';
+
+export type HistoricalXiangqiResult = '1-0' | '0-1' | '1/2-1/2' | '*';
+
+export type HistoricalXiangqiGameListItem = {
+  id: string;
+  kind: 'mistboard' | 'historical' | 'broadcast';
+  reviewUrl: string;
+  sourceSlug: string;
+  sourceName: string;
+  sourceGameId: string | null;
+  sourceUrl: string | null;
+  eventName: string | null;
+  site: string | null;
+  round: string | null;
+  board: string | null;
+  playedOn: string | null;
+  redNameRaw: string | null;
+  blackNameRaw: string | null;
+  result: HistoricalXiangqiResult;
+  plyCount: number;
+  sortAt: string | null;
+  moveFormat: string;
+};
+
+export type HistoricalXiangqiSearchResponse = {
+  games: HistoricalXiangqiGameListItem[];
+  total: number;
+  offset: number;
+  limit: number;
+};
+
+type Filters = {
+  player: string;
+  event: string;
+  source: string;
+  result: string;
+  from: string;
+  to: string;
+  plyMin: string;
+  plyMax: string;
+  offset: number;
+  limit: number;
+};
+
+const DEFAULT_LIMIT = 50;
+const STRING_FILTER_KEYS = [
+  'player',
+  'event',
+  'source',
+  'result',
+  'from',
+  'to',
+  'plyMin',
+  'plyMax',
+] as const;
+
+export async function mountHistoricalXiangqiSearch(root: HTMLElement): Promise<void> {
+  root.classList.add('landing-page', 'historical-xiangqi-page');
+  root.replaceChildren(buildNav());
+
+  const shell = document.createElement('main');
+  shell.className = 'site-section historical-xiangqi-shell';
+
+  const heading = document.createElement('h1');
+  heading.className = 'site-section-heading';
+  heading.textContent = 'Xiangqi game search';
+
+  const filtersHost = document.createElement('section');
+  const summaryHost = document.createElement('section');
+  const resultsHost = document.createElement('section');
+  shell.append(heading, filtersHost, summaryHost, resultsHost);
+  root.append(shell);
+
+  let filters = readFilters();
+
+  const run = async (): Promise<void> => {
+    writeFilters(filters);
+    filtersHost.replaceChildren(buildFilterForm(filters, applyFilters));
+    summaryHost.replaceChildren(statusLine('Loading'));
+    resultsHost.replaceChildren();
+    let data: HistoricalXiangqiSearchResponse;
+    try {
+      data = await fetchHistoricalXiangqiGames(filters);
+    } catch {
+      summaryHost.replaceChildren(statusLine('Search failed.'));
+      return;
+    }
+    summaryHost.replaceChildren(totalLine(data.total));
+    resultsHost.replaceChildren(buildResults(data, applyFilters));
+  };
+
+  function applyFilters(next: Filters): void {
+    filters = next;
+    void run();
+  }
+
+  filtersHost.replaceChildren(buildFilterForm(filters, applyFilters));
+  await run();
+}
+
+export function historicalXiangqiReviewUrl(id: string): string {
+  return `/historical-xiangqi/game/${encodeURIComponent(id)}`;
+}
+
+export function historicalXiangqiSearchApiUrl(filters: Filters): string {
+  const params = new URLSearchParams();
+  for (const key of STRING_FILTER_KEYS) {
+    const value = filters[key].trim();
+    if (value) params.set(key, value);
+  }
+  if (filters.offset > 0) params.set('offset', String(filters.offset));
+  params.set('limit', String(filters.limit));
+  return `/api/historical-xiangqi/games?${params.toString()}`;
+}
+
+async function fetchHistoricalXiangqiGames(
+  filters: Filters,
+): Promise<HistoricalXiangqiSearchResponse> {
+  const response = await fetch(historicalXiangqiSearchApiUrl(filters), {
+    headers: { accept: 'application/json' },
+  });
+  if (!response.ok) throw new Error(`historical_xiangqi_search_failed_${response.status}`);
+  return (await response.json()) as HistoricalXiangqiSearchResponse;
+}
+
+function readFilters(): Filters {
+  const params = new URLSearchParams(window.location.search);
+  const str = (key: string): string => params.get(key) ?? '';
+  const offset = Number.parseInt(params.get('offset') ?? '', 10);
+  const limit = Number.parseInt(params.get('limit') ?? '', 10);
+  return {
+    player: str('player'),
+    event: str('event'),
+    source: str('source'),
+    result: str('result'),
+    from: str('from'),
+    to: str('to'),
+    plyMin: str('plyMin'),
+    plyMax: str('plyMax'),
+    offset: Number.isFinite(offset) && offset > 0 ? offset : 0,
+    limit: Number.isFinite(limit) && limit > 0 ? Math.min(limit, 200) : DEFAULT_LIMIT,
+  };
+}
+
+function writeFilters(filters: Filters): void {
+  const params = new URLSearchParams();
+  for (const key of STRING_FILTER_KEYS) {
+    const value = filters[key].trim();
+    if (value) params.set(key, value);
+  }
+  if (filters.offset > 0) params.set('offset', String(filters.offset));
+  if (filters.limit !== DEFAULT_LIMIT) params.set('limit', String(filters.limit));
+  const query = params.toString();
+  window.history.replaceState(
+    null,
+    '',
+    query ? `/historical-xiangqi/games?${query}` : '/historical-xiangqi/games',
+  );
+}
+
+function buildFilterForm(filters: Filters, onApply: (next: Filters) => void): HTMLElement {
+  const form = document.createElement('form');
+  form.className = 'historical-xiangqi-filters';
+
+  const inputs = new Map<keyof Filters, HTMLInputElement>();
+  const selects = new Map<keyof Filters, HTMLSelectElement>();
+
+  const addText = (key: keyof Filters, label: string, placeholder: string): void => {
+    const field = textInput(label, placeholder, String(filters[key]));
+    inputs.set(key, field.input);
+    form.append(field.field);
+  };
+  addText('player', 'Player', 'Name');
+  addText('event', 'Event', 'Tournament');
+  addText('source', 'Source', 'Archive slug, mistboard, broadcast');
+
+  const result = selectInput(
+    'Result',
+    [
+      { value: '', label: 'Any result' },
+      { value: '1-0', label: 'Red wins' },
+      { value: '0-1', label: 'Black wins' },
+      { value: '1/2-1/2', label: 'Draw' },
+      { value: '*', label: 'Unfinished' },
+    ],
+    filters.result,
+  );
+  selects.set('result', result.select);
+  form.append(result.field);
+
+  const from = dateInput('From', filters.from);
+  inputs.set('from', from.input);
+  form.append(from.field);
+  const to = dateInput('To', filters.to);
+  inputs.set('to', to.input);
+  form.append(to.field);
+  const plyMin = numberInput('Min plies', filters.plyMin);
+  inputs.set('plyMin', plyMin.input);
+  form.append(plyMin.field);
+  const plyMax = numberInput('Max plies', filters.plyMax);
+  inputs.set('plyMax', plyMax.input);
+  form.append(plyMax.field);
+
+  const limit = selectInput(
+    'Rows',
+    [
+      { value: '25', label: '25' },
+      { value: '50', label: '50' },
+      { value: '100', label: '100' },
+      { value: '200', label: '200' },
+    ],
+    String(filters.limit),
+  );
+  selects.set('limit', limit.select);
+  form.append(limit.field);
+
+  const actions = document.createElement('div');
+  actions.className = 'historical-xiangqi-actions';
+  const apply = document.createElement('button');
+  apply.type = 'submit';
+  apply.className = 'historical-xiangqi-btn historical-xiangqi-btn-primary';
+  apply.textContent = 'Search';
+  const reset = document.createElement('button');
+  reset.type = 'button';
+  reset.className = 'historical-xiangqi-btn';
+  reset.textContent = 'Reset';
+  actions.append(apply, reset);
+  form.append(actions);
+
+  const collect = (offset: number): Filters => {
+    const next: Filters = { ...filters, offset };
+    for (const [key, input] of inputs) (next[key] as string) = input.value.trim();
+    for (const [key, select] of selects) {
+      if (key === 'limit') next.limit = Number.parseInt(select.value, 10);
+      else (next[key] as string) = select.value;
+    }
+    return next;
+  };
+
+  form.addEventListener('submit', (event) => {
+    event.preventDefault();
+    onApply(collect(0));
+  });
+  reset.addEventListener('click', () => {
+    onApply({
+      player: '',
+      event: '',
+      source: '',
+      result: '',
+      from: '',
+      to: '',
+      plyMin: '',
+      plyMax: '',
+      offset: 0,
+      limit: DEFAULT_LIMIT,
+    });
+  });
+  return form;
+}
+
+function buildResults(
+  data: HistoricalXiangqiSearchResponse,
+  onApply: (next: Filters) => void,
+): HTMLElement {
+  const wrap = document.createElement('div');
+  if (data.games.length === 0) {
+    wrap.append(statusLine('No games match these filters.'));
+    return wrap;
+  }
+  const list = document.createElement('div');
+  list.className = 'historical-xiangqi-results';
+  for (const game of data.games) list.append(gameRow(game));
+  wrap.append(list);
+  const pager = buildPager(data, onApply);
+  if (pager) wrap.append(pager);
+  return wrap;
+}
+
+function gameRow(game: HistoricalXiangqiGameListItem): HTMLElement {
+  const link = document.createElement('a');
+  link.className = 'historical-xiangqi-row';
+  link.href = game.reviewUrl;
+
+  const result = document.createElement('span');
+  result.className = `historical-xiangqi-result historical-xiangqi-result-${resultTone(game.result)}`;
+  result.textContent = historicalXiangqiResultLabel(game.result);
+  link.append(result);
+
+  const body = document.createElement('div');
+  body.className = 'historical-xiangqi-row-main';
+  const matchup = document.createElement('div');
+  matchup.className = 'historical-xiangqi-matchup';
+  matchup.textContent = `${game.redNameRaw ?? 'Red'} vs ${game.blackNameRaw ?? 'Black'}`;
+  body.append(matchup);
+  const meta = document.createElement('div');
+  meta.className = 'historical-xiangqi-meta';
+  meta.append(
+    pill(formatDate(game.playedOn)),
+    pill(`${game.plyCount} plies`),
+    pill(gameKindLabel(game.kind)),
+    pill(game.sourceName || game.sourceSlug),
+    pill(game.moveFormat),
+  );
+  body.append(meta);
+  link.append(body);
+
+  const event = document.createElement('div');
+  event.className = 'historical-xiangqi-event';
+  event.textContent = eventLine(game);
+  link.append(event);
+
+  const review = document.createElement('span');
+  review.className = 'historical-xiangqi-review-link';
+  review.textContent = 'Review';
+  link.append(review);
+  return link;
+}
+
+function buildPager(
+  data: HistoricalXiangqiSearchResponse,
+  onApply: (next: Filters) => void,
+): HTMLElement | null {
+  const { offset, limit, total } = data;
+  if (total <= limit && offset === 0) return null;
+  const pager = document.createElement('div');
+  pager.className = 'historical-xiangqi-pager';
+
+  const prev = document.createElement('button');
+  prev.type = 'button';
+  prev.className = 'historical-xiangqi-btn';
+  prev.textContent = 'Prev';
+  prev.disabled = offset <= 0;
+  prev.addEventListener('click', () => {
+    onApply({ ...readFilters(), offset: Math.max(0, offset - limit), limit });
+  });
+
+  const status = document.createElement('span');
+  status.className = 'historical-xiangqi-pager-status';
+  const start = total === 0 ? 0 : offset + 1;
+  const end = Math.min(offset + limit, total);
+  status.textContent = `${start}-${end} of ${total.toLocaleString()}`;
+
+  const next = document.createElement('button');
+  next.type = 'button';
+  next.className = 'historical-xiangqi-btn';
+  next.textContent = 'Next';
+  next.disabled = offset + limit >= total;
+  next.addEventListener('click', () => {
+    onApply({ ...readFilters(), offset: offset + limit, limit });
+  });
+
+  pager.append(prev, status, next);
+  return pager;
+}
+
+function textInput(
+  label: string,
+  placeholder: string,
+  value: string,
+): { field: HTMLElement; input: HTMLInputElement } {
+  const input = document.createElement('input');
+  input.type = 'search';
+  input.className = 'historical-xiangqi-input';
+  input.placeholder = placeholder;
+  input.value = value;
+  return fieldFor(label, input);
+}
+
+function numberInput(
+  label: string,
+  value: string,
+): { field: HTMLElement; input: HTMLInputElement } {
+  const input = document.createElement('input');
+  input.type = 'number';
+  input.min = '0';
+  input.className = 'historical-xiangqi-input';
+  input.value = value;
+  return fieldFor(label, input);
+}
+
+function dateInput(label: string, value: string): { field: HTMLElement; input: HTMLInputElement } {
+  const input = document.createElement('input');
+  input.type = 'date';
+  input.className = 'historical-xiangqi-input';
+  input.value = value;
+  return fieldFor(label, input);
+}
+
+function selectInput(
+  label: string,
+  options: { value: string; label: string }[],
+  selected: string,
+): { field: HTMLElement; select: HTMLSelectElement } {
+  const select = document.createElement('select');
+  select.className = 'historical-xiangqi-select';
+  for (const option of options) {
+    const item = document.createElement('option');
+    item.value = option.value;
+    item.textContent = option.label;
+    if (option.value === selected) item.selected = true;
+    select.append(item);
+  }
+  const { field } = fieldFor(label, select);
+  return { field, select };
+}
+
+function fieldFor<T extends HTMLInputElement | HTMLSelectElement>(
+  label: string,
+  control: T,
+): { field: HTMLElement; input: T } {
+  const field = document.createElement('label');
+  field.className = 'historical-xiangqi-field';
+  const text = document.createElement('span');
+  text.className = 'historical-xiangqi-field-label';
+  text.textContent = label;
+  field.append(text, control);
+  return { field, input: control };
+}
+
+function pill(text: string): HTMLElement {
+  const el = document.createElement('span');
+  el.className = 'historical-xiangqi-pill';
+  el.textContent = text;
+  return el;
+}
+
+function statusLine(text: string): HTMLElement {
+  const p = document.createElement('p');
+  p.className = 'historical-xiangqi-status';
+  p.textContent = text;
+  return p;
+}
+
+function totalLine(total: number): HTMLElement {
+  const p = document.createElement('p');
+  p.className = 'historical-xiangqi-total';
+  p.textContent = total === 1 ? '1 game found' : `${total.toLocaleString()} games found`;
+  return p;
+}
+
+export function historicalXiangqiResultLabel(result: HistoricalXiangqiResult): string {
+  if (result === '1-0') return 'Red';
+  if (result === '0-1') return 'Black';
+  if (result === '1/2-1/2') return 'Draw';
+  return '*';
+}
+
+export function historicalXiangqiOutcomeLabel(result: HistoricalXiangqiResult): string {
+  if (result === '1-0') return 'Red wins';
+  if (result === '0-1') return 'Black wins';
+  if (result === '1/2-1/2') return 'Draw';
+  return 'Unfinished';
+}
+
+function resultTone(result: HistoricalXiangqiResult): 'red' | 'black' | 'draw' {
+  if (result === '1-0') return 'red';
+  if (result === '0-1') return 'black';
+  return 'draw';
+}
+
+function gameKindLabel(kind: HistoricalXiangqiGameListItem['kind']): string {
+  if (kind === 'mistboard') return 'Mistboard';
+  if (kind === 'broadcast') return 'Broadcast';
+  return 'Archive';
+}
+
+function eventLine(game: HistoricalXiangqiGameListItem): string {
+  const parts = [game.eventName, game.round ? `Round ${game.round}` : null, game.site].filter(
+    Boolean,
+  );
+  if (parts.length > 0) return parts.join(' · ');
+  if (game.sourceGameId) return `Source game ${game.sourceGameId}`;
+  return 'No event metadata';
+}
+
+function formatDate(value: string | null): string {
+  if (!value) return 'Unknown date';
+  const date = new Date(`${value}T00:00:00.000Z`);
+  if (Number.isNaN(date.getTime())) return value;
+  return date.toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' });
+}

@@ -240,6 +240,33 @@ export {
   queryGames,
   recordGameEnd,
 } from './persistence-games.js';
+export type {
+  HistoricalXiangqiGame,
+  HistoricalXiangqiGameInput,
+  HistoricalXiangqiGameListItem,
+  HistoricalXiangqiGameQueryFilters,
+  HistoricalXiangqiGameQueryPage,
+  HistoricalXiangqiImportBatch,
+  HistoricalXiangqiImportBatchStatus,
+  HistoricalXiangqiPlayer,
+  HistoricalXiangqiResult,
+  HistoricalXiangqiSource,
+  HistoricalXiangqiSourceInput,
+  HistoricalXiangqiSourceLicenseStatus,
+  HistoricalXiangqiVisibility,
+} from './persistence-historical-xiangqi.js';
+export {
+  buildHistoricalXiangqiGameQueryWhere,
+  contentHashForHistoricalXiangqiGame,
+  createHistoricalXiangqiImportBatch,
+  finishHistoricalXiangqiImportBatch,
+  getHistoricalXiangqiGame,
+  insertHistoricalXiangqiGame,
+  normalizeHistoricalXiangqiPlayerName,
+  queryHistoricalXiangqiGames,
+  upsertHistoricalXiangqiPlayer,
+  upsertHistoricalXiangqiSource,
+} from './persistence-historical-xiangqi.js';
 export type { PatronSubscriptionInput } from './persistence-patron.js';
 export {
   applyPatronSubscription,
@@ -303,6 +330,8 @@ export type {
   StoredXiangqiBroadcastBoard,
   StoredXiangqiBroadcastRound,
   StoredXiangqiBroadcastTour,
+  XiangqiBroadcastBoardSearchFilters,
+  XiangqiBroadcastBoardSearchItem,
   XiangqiBroadcastBoardUpdateResult,
   XiangqiBroadcastBoardUpdateStatus,
   XiangqiBroadcastImportError,
@@ -324,6 +353,7 @@ export {
   listXiangqiBroadcastScheduledTours,
   listXiangqiBroadcastSyncLogs,
   listXiangqiBroadcastTours,
+  queryCompletedXiangqiBroadcastBoards,
   recordXiangqiBroadcastSyncLog,
   setXiangqiBroadcastTourSchedule,
 } from './persistence-xiangqi-broadcasts.js';

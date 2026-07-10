@@ -30,6 +30,34 @@ export type XiangqiBroadcastTourSchedule = {
   pollIntervalMs: number;
 };
 
+export type XiangqiBroadcastBoardSearchFilters = {
+  player?: string;
+  event?: string;
+  result?: XiangqiBroadcastResult;
+  playedFrom?: string;
+  playedTo?: string;
+  plyMin?: number;
+  plyMax?: number;
+  limit?: number;
+};
+
+export type XiangqiBroadcastBoardSearchItem = {
+  id: string;
+  tourSlug: string;
+  tourName: string;
+  roundId: string;
+  roundName: string;
+  sourceBoardId: string;
+  boardNumber: number;
+  redName: string;
+  blackName: string;
+  result: XiangqiBroadcastResult;
+  plyCount: number;
+  playedOn: string | null;
+  sourceUrl: string | null;
+  updatedAt: Date;
+};
+
 export type StoredXiangqiBroadcastRound = XiangqiBroadcastRound & {
   createdAt: Date;
   updatedAt: Date;
@@ -137,6 +165,23 @@ type BoardRow = {
   final_status: XiangqiGameStatus;
   payload: XiangqiBroadcastBoard;
   created_at: Date;
+  updated_at: Date;
+};
+
+type BoardSearchRow = {
+  id: string;
+  tour_slug: string;
+  tour_name: string;
+  round_id: string;
+  round_name: string;
+  source_board_id: string;
+  board_number: number;
+  red_name: string | null;
+  black_name: string | null;
+  result: XiangqiBroadcastResult;
+  ply_count: number;
+  starts_at: Date | null;
+  source_url: string | null;
   updated_at: Date;
 };
 
@@ -685,6 +730,79 @@ export async function listXiangqiBroadcastBoards(
     [roundId],
   );
   return rows.map(boardFromRow);
+}
+
+export async function queryCompletedXiangqiBroadcastBoards(
+  filters: XiangqiBroadcastBoardSearchFilters,
+): Promise<XiangqiBroadcastBoardSearchItem[]> {
+  const limit = Math.max(1, Math.min(filters.limit ?? 200, 200));
+  const conditions: string[] = [`boards.result <> '*'`];
+  const values: unknown[] = [];
+  const bind = (value: unknown): string => {
+    values.push(value);
+    return `$${values.length}`;
+  };
+
+  if (filters.player) {
+    const like = `%${filters.player}%`;
+    conditions.push(
+      `(boards.red->>'name' ILIKE ${bind(like)} OR boards.black->>'name' ILIKE ${bind(like)})`,
+    );
+  }
+  if (filters.event) {
+    const like = `%${filters.event}%`;
+    conditions.push(`(tours.name ILIKE ${bind(like)} OR rounds.name ILIKE ${bind(like)})`);
+  }
+  if (filters.result) conditions.push(`boards.result = ${bind(filters.result)}`);
+  if (filters.playedFrom) conditions.push(`rounds.starts_at >= ${bind(filters.playedFrom)}::date`);
+  if (filters.playedTo) conditions.push(`rounds.starts_at < ${bind(filters.playedTo)}::date`);
+  if (typeof filters.plyMin === 'number') {
+    conditions.push(`boards.ply_count >= ${bind(filters.plyMin)}`);
+  }
+  if (typeof filters.plyMax === 'number') {
+    conditions.push(`boards.ply_count <= ${bind(filters.plyMax)}`);
+  }
+
+  values.push(limit);
+  const { rows } = await getPool().query<BoardSearchRow>(
+    `SELECT boards.id,
+            boards.tour_slug,
+            tours.name AS tour_name,
+            boards.round_id,
+            rounds.name AS round_name,
+            boards.source_board_id,
+            boards.board_number,
+            boards.red->>'name' AS red_name,
+            boards.black->>'name' AS black_name,
+            boards.result,
+            boards.ply_count,
+            rounds.starts_at,
+            COALESCE(boards.source_url, rounds.source_url, tours.source_url) AS source_url,
+            boards.updated_at
+     FROM xiangqi_broadcast_boards boards
+     JOIN xiangqi_broadcast_tours tours ON tours.slug = boards.tour_slug
+     JOIN xiangqi_broadcast_rounds rounds ON rounds.id = boards.round_id
+     WHERE ${conditions.join('\n       AND ')}
+     ORDER BY rounds.starts_at DESC NULLS LAST, boards.updated_at DESC, boards.id DESC
+     LIMIT $${values.length}`,
+    values,
+  );
+  return rows.map((row) => ({
+    id: row.id,
+    tourSlug: row.tour_slug,
+    tourName: row.tour_name,
+    roundId: row.round_id,
+    roundName: row.round_name,
+    sourceBoardId: row.source_board_id,
+    boardNumber: row.board_number,
+    redName: row.red_name ?? 'Red',
+    blackName: row.black_name ?? 'Black',
+    result: row.result,
+    plyCount: row.ply_count,
+    playedOn: row.starts_at ? row.starts_at.toISOString().slice(0, 10) : null,
+    sourceUrl: row.source_url,
+    updatedAt: row.updated_at,
+  }));
 }
 
 export async function getXiangqiBroadcastBoard(

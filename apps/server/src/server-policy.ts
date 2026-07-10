@@ -105,6 +105,8 @@ export function isClientRoute(pathname: string): boolean {
     normalized === '/forum/reports' ||
     normalized === '/forum/etiquette' ||
     normalized === '/database' ||
+    normalized === '/historical-xiangqi' ||
+    normalized === '/historical-xiangqi/games' ||
     normalized === '/engines' ||
     normalized === '/bots' ||
     normalized === '/mini-xiangqi-spike' ||
@@ -129,6 +131,7 @@ export function isClientRoute(pathname: string): boolean {
     normalized.startsWith('/zh-hans/rules/') ||
     normalized.startsWith('/zh-hant/rules/') ||
     normalized.startsWith('/xiangqi/game/') ||
+    normalized.startsWith('/historical-xiangqi/game/') ||
     normalized.startsWith('/dark-xiangqi/game/') ||
     normalized.startsWith('/mini-xiangqi/game/') ||
     normalized.startsWith('/dark-mini-xiangqi/game/') ||
@@ -171,6 +174,7 @@ export function isReviewShellRoute(pathname: string): boolean {
   const normalized = pathname.replace(/\/+$/, '') || '/';
   return (
     /^(?:\/[a-z0-9-]+)?\/game\/[^/]+$/.test(normalized) ||
+    /^\/historical-xiangqi\/game\/[^/]+$/.test(normalized) ||
     /^\/analysis\/[a-z0-9-]+$/.test(normalized)
   );
 }

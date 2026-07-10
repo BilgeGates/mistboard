@@ -1,0 +1,143 @@
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import {
+  historicalXiangqiOutcomeLabel,
+  historicalXiangqiResultLabel,
+  historicalXiangqiReviewUrl,
+  historicalXiangqiSearchApiUrl,
+  mountHistoricalXiangqiSearch,
+} from './historical-xiangqi-search.js';
+
+describe('historical xiangqi search page', () => {
+  beforeEach(() => {
+    window.history.replaceState(null, '', '/historical-xiangqi/games');
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it('builds archive URLs and result labels', () => {
+    expect(historicalXiangqiReviewUrl('hxq game')).toBe('/historical-xiangqi/game/hxq%20game');
+    expect(
+      historicalXiangqiSearchApiUrl({
+        player: 'Hu Ronghua',
+        event: '',
+        source: 'xqbase',
+        result: '1-0',
+        from: '1970-01-01',
+        to: '',
+        plyMin: '20',
+        plyMax: '',
+        offset: 50,
+        limit: 100,
+      }),
+    ).toBe(
+      '/api/historical-xiangqi/games?player=Hu+Ronghua&source=xqbase&result=1-0&from=1970-01-01&plyMin=20&offset=50&limit=100',
+    );
+    expect(historicalXiangqiResultLabel('1-0')).toBe('Red');
+    expect(historicalXiangqiResultLabel('0-1')).toBe('Black');
+    expect(historicalXiangqiResultLabel('1/2-1/2')).toBe('Draw');
+    expect(historicalXiangqiOutcomeLabel('1-0')).toBe('Red wins');
+    expect(historicalXiangqiOutcomeLabel('0-1')).toBe('Black wins');
+    expect(historicalXiangqiOutcomeLabel('1/2-1/2')).toBe('Draw');
+    expect(historicalXiangqiOutcomeLabel('*')).toBe('Unfinished');
+  });
+
+  it('renders filters and links result rows to the historical review route', async () => {
+    const fetchSpy = vi.fn(async () =>
+      jsonResponse({
+        total: 1,
+        offset: 0,
+        limit: 50,
+        games: [
+          {
+            id: 'hxq_1',
+            kind: 'historical',
+            reviewUrl: '/historical-xiangqi/game/hxq_1',
+            sourceSlug: 'xqbase',
+            sourceName: 'XQBase',
+            sourceGameId: '123',
+            sourceUrl: null,
+            eventName: 'Wuyang Cup',
+            site: 'Guangzhou',
+            round: '1',
+            board: null,
+            playedOn: '1982-01-04',
+            redNameRaw: 'Hu Ronghua',
+            blackNameRaw: 'Liu Dahua',
+            result: '1-0',
+            plyCount: 83,
+            sortAt: '1982-01-04',
+            moveFormat: 'wxf',
+          },
+        ],
+      }),
+    );
+    vi.stubGlobal('fetch', fetchSpy);
+    const root = document.createElement('div');
+
+    await mountHistoricalXiangqiSearch(root);
+
+    expect(fetchSpy).toHaveBeenCalledWith('/api/historical-xiangqi/games?limit=50', {
+      headers: { accept: 'application/json' },
+    });
+    expect(root.querySelector<HTMLInputElement>('input[type="search"]')).not.toBeNull();
+    expect(root.textContent).toContain('1 game found');
+    expect(root.textContent).toContain('Hu Ronghua vs Liu Dahua');
+    expect(root.textContent).toContain('Wuyang Cup');
+    expect(root.textContent).toContain('Archive');
+    expect(root.querySelector<HTMLAnchorElement>('.historical-xiangqi-row')?.pathname).toBe(
+      '/historical-xiangqi/game/hxq_1',
+    );
+  });
+
+  it('uses server-provided review URLs for non-archive rows', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () =>
+        jsonResponse({
+          total: 1,
+          offset: 0,
+          limit: 50,
+          games: [
+            {
+              id: 'mist_1',
+              kind: 'mistboard',
+              reviewUrl: '/xiangqi/game/mist_1',
+              sourceSlug: 'mistboard',
+              sourceName: 'Mistboard',
+              sourceGameId: 'mist_1',
+              sourceUrl: null,
+              eventName: null,
+              site: null,
+              round: null,
+              board: null,
+              playedOn: '2026-07-09',
+              redNameRaw: 'Red',
+              blackNameRaw: 'Black',
+              result: '1/2-1/2',
+              plyCount: 42,
+              sortAt: '2026-07-09T12:00:00.000Z',
+              moveFormat: 'mistboard',
+            },
+          ],
+        }),
+      ),
+    );
+    const root = document.createElement('div');
+
+    await mountHistoricalXiangqiSearch(root);
+
+    expect(root.querySelector<HTMLAnchorElement>('.historical-xiangqi-row')?.pathname).toBe(
+      '/xiangqi/game/mist_1',
+    );
+    expect(root.textContent).toContain('Mistboard');
+  });
+});
+
+function jsonResponse(body: unknown): Response {
+  return new Response(JSON.stringify(body), {
+    headers: { 'content-type': 'application/json' },
+    status: 200,
+  });
+}

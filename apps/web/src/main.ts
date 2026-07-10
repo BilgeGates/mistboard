@@ -163,6 +163,9 @@ const profileHandle = profileHandleFromPath(path);
 // No nav entry yet; direct-URL only, a shareable soft-launch primitive that lets
 // a game be reviewed off its moves alone. Ships live. See xiangqi-analysis-page.ts.
 const wantsXiangqiAnalysis = path === '/analysis/xiangqi';
+const wantsHistoricalXiangqiSearch =
+  path === '/historical-xiangqi' || path === '/historical-xiangqi/games';
+const historicalXiangqiGameId = historicalXiangqiGameIdFromPath(path);
 // Hidden DEV-only spike: FoW Xiangqi Phase A. No nav entry, no landing link.
 const wantsXiangqiSpike = import.meta.env.DEV && path === '/xiangqi-spike';
 // Hidden DEV-only spike for the candidate 7x7 Dark Mini Xiangqi ruleset.
@@ -253,6 +256,20 @@ if (replaySample) {
   void mountOrReport(() =>
     import('./xiangqi-analysis-page.js').then(({ mountXiangqiAnalysisPage }) => {
       mountXiangqiAnalysisPage(appRoot);
+    }),
+  );
+} else if (wantsHistoricalXiangqiSearch) {
+  setTitle('Xiangqi game search');
+  void mountOrReport(() =>
+    import('./historical-xiangqi-search.js').then(({ mountHistoricalXiangqiSearch }) =>
+      mountHistoricalXiangqiSearch(appRoot),
+    ),
+  );
+} else if (historicalXiangqiGameId) {
+  setTitle('Xiangqi game');
+  void mountOrReport(() =>
+    import('./historical-xiangqi-postgame.js').then(({ mountHistoricalXiangqiPostgame }) => {
+      mountHistoricalXiangqiPostgame(appRoot, historicalXiangqiGameId);
     }),
   );
 } else if (wantsDatabase) {
@@ -681,6 +698,11 @@ function xiangqiBroadcastRoundFromPath(value: string): {
 
 function xiangqiBroadcastBoardIdFromPath(value: string): string | null {
   const match = value.match(/^\/broadcast\/xiangqi\/board\/([^/]+)$/);
+  return match ? decodeURIComponent(match[1]!) : null;
+}
+
+function historicalXiangqiGameIdFromPath(value: string): string | null {
+  const match = value.match(/^\/historical-xiangqi\/game\/([^/]+)$/);
   return match ? decodeURIComponent(match[1]!) : null;
 }
 

@@ -47,6 +47,10 @@ export function definePersistenceTests(area: string, registerTests: () => void):
         `TRUNCATE
            engine_move_jobs,
            live_engine_games,
+           historical_xiangqi_games,
+           historical_xiangqi_import_batches,
+           historical_xiangqi_players,
+           historical_xiangqi_sources,
            puzzle_attempts,
            user_puzzle_ratings,
            puzzle_ratings,

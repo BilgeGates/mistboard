@@ -29,6 +29,7 @@ import * as feedbackRoute from './routes/feedback.js';
 import * as fortressXiangqiGamesRoute from './routes/fortress-xiangqi-games.js';
 import * as forumRoute from './routes/forum.js';
 import * as gamesRoute from './routes/games.js';
+import * as historicalXiangqiGamesRoute from './routes/historical-xiangqi-games.js';
 import * as inboxRoute from './routes/inbox.js';
 import * as jieqiGamesRoute from './routes/jieqi-games.js';
 import * as jungleFlipGamesRoute from './routes/jungle-flip-games.js';
@@ -95,6 +96,7 @@ export const routes: RouteModule[] = [
   correspondenceSeeksRoute,
   lobbyRoute,
   xiangqiBroadcastsRoute,
+  historicalXiangqiGamesRoute,
   xiangqiGamesRoute,
   miniXiangqiGamesRoute,
   darkMiniXiangqiGamesRoute,
