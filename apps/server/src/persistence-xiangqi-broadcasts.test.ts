@@ -2,9 +2,16 @@ import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import type { XiangqiBroadcastBoard } from '@mistboard/game';
 import { readXiangqiBroadcastFixturePack } from './import-xiangqi-broadcast.js';
-import { assert, definePersistenceTests, test } from './persistence-test-support.js';
+import {
+  assert,
+  definePersistenceTests,
+  pg,
+  TEST_DATABASE_URL,
+  test,
+} from './persistence-test-support.js';
 import {
   applyXiangqiBroadcastBoardUpdate,
+  backfillXiangqiBroadcastTranslations,
   deleteXiangqiBroadcastTour,
   getXiangqiBroadcastBoard,
   getXiangqiBroadcastTour,
@@ -13,6 +20,7 @@ import {
   listXiangqiBroadcastRounds,
   listXiangqiBroadcastScheduledTours,
   listXiangqiBroadcastSyncLogs,
+  queryCompletedXiangqiBroadcastBoards,
   setXiangqiBroadcastTourSchedule,
 } from './persistence-xiangqi-broadcasts.js';
 import {
@@ -573,6 +581,81 @@ definePersistenceTests('xiangqi broadcasts', () => {
     assert.equal(boards[0]?.moves.length, 30);
     assert.equal(boards[0]?.status, 'complete');
     assert.equal(boards[0]?.result, '1/2-1/2');
+
+    // Ingestion caches English names next to the Chinese originals on every
+    // persisted level (tour, round, both players).
+    const tour = await getXiangqiBroadcastTour(tourSlug);
+    assert.equal(tour?.name, '赛事测试杯');
+    assert.match(tour?.nameEn ?? '', /Cup$/);
+    assert.equal(rounds[0]?.name, '第01轮');
+    assert.equal(rounds[0]?.nameEn, 'Round 1');
+    assert.equal(boards[0]?.red.name, '王天一');
+    assert.equal(boards[0]?.red.nameEn, 'Wang Tianyi');
+    assert.equal(boards[0]?.black.name, '郑惟桐');
+    assert.equal(boards[0]?.black.nameEn, 'Zheng Weitong');
+
+    // The completed-game search projection surfaces the cached English names
+    // and matches English queries against them.
+    const found = await queryCompletedXiangqiBroadcastBoards({ player: 'Wang Tianyi' });
+    assert.equal(found.length, 1);
+    assert.equal(found[0]?.redName, '王天一');
+    assert.equal(found[0]?.redNameEn, 'Wang Tianyi');
+    assert.equal(found[0]?.blackNameEn, 'Zheng Weitong');
+    assert.equal(found[0]?.roundNameEn, 'Round 1');
+    assert.match(found[0]?.tourNameEn ?? '', /Cup$/);
+  });
+
+  test('translate-backfill recomputes cached English names without re-importing', async () => {
+    // Ingest a Chinese dpxq game, then strip the cached translations with raw
+    // SQL to simulate rows persisted before translation existed.
+    const polled = await pollXiangqiBroadcastSourceOnce({
+      sourceUrl: 'https://fixture.invalid/view.asp?owner=u&id=1',
+      sourcePolicy: FIXTURE_SOURCE_POLICY,
+      fetchImpl: sourceFetch(dpxqLiveBoardPage({ plies: 30, result: '和' })),
+    });
+    assert.equal(polled.ok, true);
+    const tourSlug = polled.ok ? polled.tourSlug : '';
+
+    const client = new pg.Client({ connectionString: TEST_DATABASE_URL ?? '' });
+    await client.connect();
+    try {
+      await client.query(`UPDATE xiangqi_broadcast_tours SET payload = payload - 'nameEn'`);
+      await client.query(`UPDATE xiangqi_broadcast_rounds SET payload = payload - 'nameEn'`);
+      await client.query(
+        `UPDATE xiangqi_broadcast_boards
+            SET red = red - 'nameEn',
+                black = black - 'nameEn',
+                payload = jsonb_set(
+                  jsonb_set(payload, '{red}', (payload->'red') - 'nameEn'),
+                  '{black}',
+                  (payload->'black') - 'nameEn'
+                )`,
+      );
+    } finally {
+      await client.end();
+    }
+    assert.equal((await getXiangqiBroadcastTour(tourSlug))?.nameEn, undefined);
+
+    // Dry run reports the pending changes but writes nothing.
+    const preview = await backfillXiangqiBroadcastTranslations({ dryRun: true });
+    assert.equal(preview.dryRun, true);
+    assert.equal(preview.changes.length, 3);
+    assert.equal((await getXiangqiBroadcastTour(tourSlug))?.nameEn, undefined);
+
+    // The real run restores every cached translation.
+    const applied = await backfillXiangqiBroadcastTranslations();
+    assert.equal(applied.changes.length, 3);
+    const tour = await getXiangqiBroadcastTour(tourSlug);
+    assert.match(tour?.nameEn ?? '', /Cup$/);
+    const rounds = await listXiangqiBroadcastRounds(tourSlug);
+    assert.equal(rounds[0]?.nameEn, 'Round 1');
+    const boards = await listXiangqiBroadcastBoards(rounds[0]!.id);
+    assert.equal(boards[0]?.red.nameEn, 'Wang Tianyi');
+    assert.equal(boards[0]?.black.nameEn, 'Zheng Weitong');
+
+    // Re-running is a no-op once the caches match.
+    const repeat = await backfillXiangqiBroadcastTranslations();
+    assert.equal(repeat.changes.length, 0);
   });
 
   test('source poller walks a manifest of multiple pages through one policy gate', async () => {

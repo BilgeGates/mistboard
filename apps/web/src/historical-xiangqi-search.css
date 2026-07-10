@@ -211,3 +211,9 @@
     display: none;
   }
 }
+
+/* Original Chinese shown inline after an English-primary name or event. */
+.historical-xiangqi-zh {
+  color: var(--site-muted);
+  font-weight: 500;
+}

@@ -12,12 +12,16 @@ export type HistoricalXiangqiGameListItem = {
   sourceGameId: string | null;
   sourceUrl: string | null;
   eventName: string | null;
+  eventNameEn?: string | null;
   site: string | null;
   round: string | null;
+  roundNameEn?: string | null;
   board: string | null;
   playedOn: string | null;
   redNameRaw: string | null;
+  redNameEn?: string | null;
   blackNameRaw: string | null;
+  blackNameEn?: string | null;
   result: HistoricalXiangqiResult;
   plyCount: number;
   sortAt: string | null;
@@ -292,7 +296,19 @@ function gameRow(game: HistoricalXiangqiGameListItem): HTMLElement {
   body.className = 'historical-xiangqi-row-main';
   const matchup = document.createElement('div');
   matchup.className = 'historical-xiangqi-matchup';
-  matchup.textContent = `${game.redNameRaw ?? 'Red'} vs ${game.blackNameRaw ?? 'Black'}`;
+  // English primary; the original Chinese follows as a muted inline secondary
+  // when a cached translation exists.
+  const matchupEn = `${game.redNameEn ?? game.redNameRaw ?? 'Red'} vs ${
+    game.blackNameEn ?? game.blackNameRaw ?? 'Black'
+  }`;
+  const matchupRaw = `${game.redNameRaw ?? 'Red'} vs ${game.blackNameRaw ?? 'Black'}`;
+  matchup.textContent = matchupEn;
+  if ((game.redNameEn || game.blackNameEn) && matchupRaw !== matchupEn) {
+    const zh = document.createElement('span');
+    zh.className = 'historical-xiangqi-zh';
+    zh.textContent = matchupRaw;
+    matchup.append(' ', zh);
+  }
   body.append(matchup);
   const meta = document.createElement('div');
   meta.className = 'historical-xiangqi-meta';
@@ -309,6 +325,13 @@ function gameRow(game: HistoricalXiangqiGameListItem): HTMLElement {
   const event = document.createElement('div');
   event.className = 'historical-xiangqi-event';
   event.textContent = eventLine(game);
+  const eventZh = eventLineZh(game);
+  if (eventZh) {
+    const zh = document.createElement('span');
+    zh.className = 'historical-xiangqi-zh';
+    zh.textContent = eventZh;
+    event.append(' ', zh);
+  }
   link.append(event);
 
   const review = document.createElement('span');
@@ -467,12 +490,22 @@ function gameKindLabel(kind: HistoricalXiangqiGameListItem['kind']): string {
 }
 
 function eventLine(game: HistoricalXiangqiGameListItem): string {
-  const parts = [game.eventName, game.round ? `Round ${game.round}` : null, game.site].filter(
-    Boolean,
-  );
+  const roundPart = game.roundNameEn ?? (game.round ? `Round ${game.round}` : null);
+  const parts = [game.eventNameEn ?? game.eventName, roundPart, game.site].filter(Boolean);
   if (parts.length > 0) return parts.join(' · ');
   if (game.sourceGameId) return `Source game ${game.sourceGameId}`;
   return 'No event metadata';
+}
+
+// The original Chinese event/round line, shown as a secondary span whenever a
+// cached translation replaced it in the primary line.
+function eventLineZh(game: HistoricalXiangqiGameListItem): string | null {
+  if (!game.eventNameEn && !game.roundNameEn) return null;
+  const parts = [
+    game.eventNameEn && game.eventNameEn !== game.eventName ? game.eventName : null,
+    game.roundNameEn && game.roundNameEn !== game.round ? game.round : null,
+  ].filter(Boolean);
+  return parts.length > 0 ? parts.join(' · ') : null;
 }
 
 function formatDate(value: string | null): string {

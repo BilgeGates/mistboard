@@ -91,6 +91,61 @@ describe('historical xiangqi search page', () => {
     );
   });
 
+  it('renders broadcast rows English primary with the Chinese as a secondary span', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () =>
+        jsonResponse({
+          total: 1,
+          offset: 0,
+          limit: 50,
+          games: [
+            {
+              id: 'bcast_1',
+              kind: 'broadcast',
+              reviewUrl: '/broadcast/xiangqi/board/bcast_1',
+              sourceSlug: 'broadcast',
+              sourceName: 'Broadcast',
+              sourceGameId: 'b1',
+              sourceUrl: null,
+              eventName: '2026全国象棋团体赛',
+              eventNameEn: '2026 National Xiangqi Team Championship',
+              site: null,
+              round: '第3轮',
+              roundNameEn: 'Round 3',
+              board: '1',
+              playedOn: '2026-07-01',
+              redNameRaw: '徐腾飞',
+              redNameEn: 'Xu Tengfei',
+              blackNameRaw: '唐丹',
+              blackNameEn: 'Tang Dan',
+              result: '1-0',
+              plyCount: 88,
+              sortAt: '2026-07-01',
+              moveFormat: 'broadcast',
+            },
+          ],
+        }),
+      ),
+    );
+    const root = document.createElement('div');
+
+    await mountHistoricalXiangqiSearch(root);
+
+    // English primary line, Chinese preserved in the secondary span.
+    const matchup = root.querySelector('.historical-xiangqi-matchup');
+    expect(matchup?.textContent).toContain('Xu Tengfei vs Tang Dan');
+    expect(matchup?.querySelector('.historical-xiangqi-zh')?.textContent).toBe('徐腾飞 vs 唐丹');
+
+    const event = root.querySelector('.historical-xiangqi-event');
+    expect(event?.textContent).toContain('2026 National Xiangqi Team Championship');
+    expect(event?.textContent).toContain('Round 3');
+    expect(event?.querySelector('.historical-xiangqi-zh')?.textContent).toContain(
+      '2026全国象棋团体赛',
+    );
+    expect(event?.querySelector('.historical-xiangqi-zh')?.textContent).toContain('第3轮');
+  });
+
   it('uses server-provided review URLs for non-archive rows', async () => {
     vi.stubGlobal(
       'fetch',

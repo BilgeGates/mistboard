@@ -15,6 +15,11 @@ import {
 } from '@mistboard/game';
 import type pg from 'pg';
 import { getPool, withTransaction } from './persistence-db.js';
+import {
+  translatedXiangqiBroadcastBoard,
+  translatedXiangqiBroadcastRound,
+  translatedXiangqiBroadcastTour,
+} from './xiangqi-broadcast-translate.js';
 
 export type StoredXiangqiBroadcastTour = XiangqiBroadcastTour & {
   pollEnabled: boolean;
@@ -45,12 +50,16 @@ export type XiangqiBroadcastBoardSearchItem = {
   id: string;
   tourSlug: string;
   tourName: string;
+  tourNameEn: string | null;
   roundId: string;
   roundName: string;
+  roundNameEn: string | null;
   sourceBoardId: string;
   boardNumber: number;
   redName: string;
+  redNameEn: string | null;
   blackName: string;
+  blackNameEn: string | null;
   result: XiangqiBroadcastResult;
   plyCount: number;
   playedOn: string | null;
@@ -172,12 +181,16 @@ type BoardSearchRow = {
   id: string;
   tour_slug: string;
   tour_name: string;
+  tour_name_en: string | null;
   round_id: string;
   round_name: string;
+  round_name_en: string | null;
   source_board_id: string;
   board_number: number;
   red_name: string | null;
+  red_name_en: string | null;
   black_name: string | null;
+  black_name_en: string | null;
   result: XiangqiBroadcastResult;
   ply_count: number;
   starts_at: Date | null;
@@ -500,7 +513,10 @@ export async function applyXiangqiBroadcastBoardUpdateOn(
       );
     }
 
-    const board = boardResult.value;
+    // Recompute cached English names from the current Chinese values before
+    // any comparison or write: deterministic, so idempotent re-polls still
+    // compare equal, and stale caches self-heal on the next update.
+    const board = translatedXiangqiBroadcastBoard(boardResult.value);
     if (!(await roundBelongsToTour(client, board.roundId, board.tourSlug))) {
       return rejectedBoardUpdate(
         await skipBoard(
@@ -600,6 +616,9 @@ export async function importXiangqiBroadcastPackOn(
 ): Promise<XiangqiBroadcastImportResult> {
   const tourResult = validateXiangqiBroadcastTour(input.tour);
   if (!tourResult.ok) throw new Error(`invalid broadcast tour: ${tourResult.errors.join('; ')}`);
+  // English names are recomputed from the current Chinese values at write
+  // time; the cached nameEn fields ride the payload JSONB.
+  const tour = translatedXiangqiBroadcastTour(tourResult.value);
 
   const rounds: XiangqiBroadcastRound[] = [];
   for (const [index, rawRound] of input.rounds.entries()) {
@@ -607,15 +626,15 @@ export async function importXiangqiBroadcastPackOn(
     if (!result.ok) {
       throw new Error(`invalid broadcast round ${index + 1}: ${result.errors.join('; ')}`);
     }
-    if (result.value.tourSlug !== tourResult.value.slug) {
+    if (result.value.tourSlug !== tour.slug) {
       throw new Error(`round ${result.value.id} belongs to ${result.value.tourSlug}`);
     }
-    rounds.push(result.value);
+    rounds.push(translatedXiangqiBroadcastRound(result.value));
   }
   const roundIds = new Set(rounds.map((round) => round.id));
 
   {
-    await upsertTour(client, tourResult.value);
+    await upsertTour(client, tour);
     for (const round of rounds) await upsertRound(client, round);
 
     let boardsImported = 0;
@@ -634,16 +653,16 @@ export async function importXiangqiBroadcastPackOn(
         continue;
       }
 
-      const board = boardResult.value;
-      if (board.tourSlug !== tourResult.value.slug || !roundIds.has(board.roundId)) {
+      const board = translatedXiangqiBroadcastBoard(boardResult.value);
+      if (board.tourSlug !== tour.slug || !roundIds.has(board.roundId)) {
         boardsSkipped += 1;
         const message =
-          board.tourSlug !== tourResult.value.slug
-            ? `board belongs to ${board.tourSlug}, expected ${tourResult.value.slug}`
+          board.tourSlug !== tour.slug
+            ? `board belongs to ${board.tourSlug}, expected ${tour.slug}`
             : `unknown round ${board.roundId}`;
         errors.push(
           await skipBoard(client, board, 'reference_validation_failed', message, {
-            tourSlug: tourResult.value.slug,
+            tourSlug: tour.slug,
             roundIds: [...roundIds],
           }),
         );
@@ -667,7 +686,7 @@ export async function importXiangqiBroadcastPackOn(
     }
 
     return {
-      tourSlug: tourResult.value.slug,
+      tourSlug: tour.slug,
       roundsImported: rounds.length,
       boardsImported,
       boardsSkipped,
@@ -746,12 +765,16 @@ export async function queryCompletedXiangqiBroadcastBoards(
   if (filters.player) {
     const like = `%${filters.player}%`;
     conditions.push(
-      `(boards.red->>'name' ILIKE ${bind(like)} OR boards.black->>'name' ILIKE ${bind(like)})`,
+      `(boards.red->>'name' ILIKE ${bind(like)} OR boards.black->>'name' ILIKE ${bind(like)}
+        OR boards.red->>'nameEn' ILIKE ${bind(like)} OR boards.black->>'nameEn' ILIKE ${bind(like)})`,
     );
   }
   if (filters.event) {
     const like = `%${filters.event}%`;
-    conditions.push(`(tours.name ILIKE ${bind(like)} OR rounds.name ILIKE ${bind(like)})`);
+    conditions.push(
+      `(tours.name ILIKE ${bind(like)} OR rounds.name ILIKE ${bind(like)}
+        OR tours.payload->>'nameEn' ILIKE ${bind(like)} OR rounds.payload->>'nameEn' ILIKE ${bind(like)})`,
+    );
   }
   if (filters.result) conditions.push(`boards.result = ${bind(filters.result)}`);
   if (filters.playedFrom) conditions.push(`rounds.starts_at >= ${bind(filters.playedFrom)}::date`);
@@ -768,12 +791,16 @@ export async function queryCompletedXiangqiBroadcastBoards(
     `SELECT boards.id,
             boards.tour_slug,
             tours.name AS tour_name,
+            tours.payload->>'nameEn' AS tour_name_en,
             boards.round_id,
             rounds.name AS round_name,
+            rounds.payload->>'nameEn' AS round_name_en,
             boards.source_board_id,
             boards.board_number,
             boards.red->>'name' AS red_name,
+            boards.red->>'nameEn' AS red_name_en,
             boards.black->>'name' AS black_name,
+            boards.black->>'nameEn' AS black_name_en,
             boards.result,
             boards.ply_count,
             rounds.starts_at,
@@ -791,12 +818,16 @@ export async function queryCompletedXiangqiBroadcastBoards(
     id: row.id,
     tourSlug: row.tour_slug,
     tourName: row.tour_name,
+    tourNameEn: row.tour_name_en,
     roundId: row.round_id,
     roundName: row.round_name,
+    roundNameEn: row.round_name_en,
     sourceBoardId: row.source_board_id,
     boardNumber: row.board_number,
     redName: row.red_name ?? 'Red',
+    redNameEn: row.red_name_en,
     blackName: row.black_name ?? 'Black',
+    blackNameEn: row.black_name_en,
     result: row.result,
     plyCount: row.ply_count,
     playedOn: row.starts_at ? row.starts_at.toISOString().slice(0, 10) : null,
@@ -848,6 +879,100 @@ export async function listXiangqiBroadcastScheduledTours(): Promise<
     pollEnabled: row.poll_enabled,
     pollIntervalMs: row.poll_interval_ms,
   }));
+}
+
+export type XiangqiBroadcastTranslationBackfillChange = {
+  kind: 'tour' | 'round' | 'board';
+  id: string;
+  fields: Record<string, { before: string | null; after: string | null }>;
+};
+
+export type XiangqiBroadcastTranslationBackfillResult = {
+  dryRun: boolean;
+  toursSeen: number;
+  roundsSeen: number;
+  boardsSeen: number;
+  changes: XiangqiBroadcastTranslationBackfillChange[];
+};
+
+function nameEnChange(
+  before: { name: string; nameEn?: string },
+  after: { name: string; nameEn?: string },
+  key: string,
+): Record<string, { before: string | null; after: string | null }> {
+  if ((before.nameEn ?? null) === (after.nameEn ?? null)) return {};
+  return { [key]: { before: before.nameEn ?? null, after: after.nameEn ?? null } };
+}
+
+// Recompute the cached English names for every stored tour, round, and board
+// without re-importing from the source. Existing rows predating translation
+// (or predating a glossary improvement) get their nameEn fields refreshed;
+// rows whose recomputed translation matches are left untouched.
+export async function backfillXiangqiBroadcastTranslations(
+  options: { dryRun?: boolean } = {},
+): Promise<XiangqiBroadcastTranslationBackfillResult> {
+  const dryRun = options.dryRun ?? false;
+  return await withTransaction(async (client) => {
+    const changes: XiangqiBroadcastTranslationBackfillChange[] = [];
+
+    const tours = await client.query<{ slug: string; payload: XiangqiBroadcastTour }>(
+      `SELECT slug, payload FROM xiangqi_broadcast_tours ORDER BY slug`,
+    );
+    for (const row of tours.rows) {
+      const translated = translatedXiangqiBroadcastTour(row.payload);
+      const fields = nameEnChange(row.payload, translated, 'nameEn');
+      if (Object.keys(fields).length === 0) continue;
+      changes.push({ kind: 'tour', id: row.slug, fields });
+      if (!dryRun) await upsertTour(client, translated);
+    }
+
+    const rounds = await client.query<{ id: string; payload: XiangqiBroadcastRound }>(
+      `SELECT id, payload FROM xiangqi_broadcast_rounds ORDER BY id`,
+    );
+    for (const row of rounds.rows) {
+      const translated = translatedXiangqiBroadcastRound(row.payload);
+      const fields = nameEnChange(row.payload, translated, 'nameEn');
+      if (Object.keys(fields).length === 0) continue;
+      changes.push({ kind: 'round', id: row.id, fields });
+      if (!dryRun) await upsertRound(client, translated);
+    }
+
+    const boards = await client.query<{ id: string; payload: XiangqiBroadcastBoard }>(
+      `SELECT id, payload FROM xiangqi_broadcast_boards ORDER BY id`,
+    );
+    for (const row of boards.rows) {
+      const translated = translatedXiangqiBroadcastBoard(row.payload);
+      const fields = {
+        ...nameEnChange(row.payload.red, translated.red, 'red.nameEn'),
+        ...nameEnChange(row.payload.black, translated.black, 'black.nameEn'),
+      };
+      if (Object.keys(fields).length === 0) continue;
+      changes.push({ kind: 'board', id: row.id, fields });
+      if (!dryRun) {
+        // Narrow update: names only. Moves/status/ply state are untouched, so
+        // there is no need to re-run replay validation here.
+        await client.query(
+          `UPDATE xiangqi_broadcast_boards
+              SET red = $2::jsonb, black = $3::jsonb, payload = $4::jsonb, updated_at = now()
+            WHERE id = $1`,
+          [
+            row.id,
+            JSON.stringify(translated.red),
+            JSON.stringify(translated.black),
+            JSON.stringify(translated),
+          ],
+        );
+      }
+    }
+
+    return {
+      dryRun,
+      toursSeen: tours.rows.length,
+      roundsSeen: rounds.rows.length,
+      boardsSeen: boards.rows.length,
+      changes,
+    };
+  });
 }
 
 export async function listXiangqiBroadcastSyncLogs(input: {

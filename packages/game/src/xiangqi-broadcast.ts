@@ -18,6 +18,8 @@ export type XiangqiBroadcastBoardStatus = 'scheduled' | 'live' | 'complete';
 
 export type XiangqiBroadcastPlayerTag = {
   name: string;
+  /** Cached English/romanized form of `name`; recomputed at ingestion time. */
+  nameEn?: string;
   federation?: string;
   title?: string;
   sourceId?: string;
@@ -27,6 +29,8 @@ export type XiangqiBroadcastTour = {
   schema: typeof XIANGQI_BROADCAST_SCHEMA;
   slug: string;
   name: string;
+  /** Cached English translation of `name`; recomputed at ingestion time. */
+  nameEn?: string;
   location?: string;
   sourceUrl?: string;
   startsAt?: string;
@@ -38,6 +42,8 @@ export type XiangqiBroadcastRound = {
   id: string;
   tourSlug: string;
   name: string;
+  /** Cached English translation of `name`; recomputed at ingestion time. */
+  nameEn?: string;
   startsAt?: string;
   sourceUrl?: string;
 };
@@ -129,6 +135,7 @@ function validatePlayer(value: unknown, path: string, errors: string[]): Xiangqi
     return { name: '' };
   }
   if (!nonEmptyString(value.name)) errors.push(`${path}.name must be a non-empty string`);
+  validateOptionalString(value, 'nameEn', path, errors);
   validateOptionalString(value, 'federation', path, errors);
   validateOptionalString(value, 'title', path, errors);
   validateOptionalString(value, 'sourceId', path, errors);
@@ -161,6 +168,7 @@ export function validateXiangqiBroadcastTour(
   validateSchema(value, 'tour', errors);
   if (!nonEmptyString(value.slug)) errors.push('tour.slug must be a non-empty string');
   if (!nonEmptyString(value.name)) errors.push('tour.name must be a non-empty string');
+  validateOptionalString(value, 'nameEn', 'tour', errors);
   validateOptionalString(value, 'location', 'tour', errors);
   validateOptionalString(value, 'sourceUrl', 'tour', errors);
   validateOptionalString(value, 'startsAt', 'tour', errors);
@@ -177,6 +185,7 @@ export function validateXiangqiBroadcastRound(
   if (!nonEmptyString(value.id)) errors.push('round.id must be a non-empty string');
   if (!nonEmptyString(value.tourSlug)) errors.push('round.tourSlug must be a non-empty string');
   if (!nonEmptyString(value.name)) errors.push('round.name must be a non-empty string');
+  validateOptionalString(value, 'nameEn', 'round', errors);
   validateOptionalString(value, 'startsAt', 'round', errors);
   validateOptionalString(value, 'sourceUrl', 'round', errors);
   return errors.length

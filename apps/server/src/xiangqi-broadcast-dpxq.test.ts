@@ -4,6 +4,7 @@ import test from 'node:test';
 import { fileURLToPath } from 'node:url';
 import { looksLikeDpxqPage, normalizeDpxqPageToFrameHtml } from './xiangqi-broadcast-dpxq.js';
 import { interpretXiangqiBroadcastSourceBody } from './xiangqi-broadcast-poller.js';
+import { translateXiangqiBroadcastSnapshot } from './xiangqi-broadcast-translate.js';
 import { convertWxfDhtmlXqPageToSnapshot } from './xiangqi-broadcast-wxf-dhtmlxq.js';
 
 // Real dpxq.com archive page (view_m_11637, 2004 将军杯 甲级联赛, 王斌 和 陶汉明),
@@ -182,4 +183,32 @@ test('same-year Chinese event names do not collide on one tour slug', () => {
 test('readable Latin event names keep a clean slug with no hash suffix', () => {
   // Nothing meaningful is dropped, so no disambiguating hash is appended.
   assert.equal(tourSlugFor('2019 World Xiangqi Championship'), '2019-world-xiangqi-championship');
+});
+
+test('translated dpxq snapshot caches English names on tour, round, and players', () => {
+  // The same normalize -> convert path the poller takes; the persistence layer
+  // applies exactly this translation before every write.
+  const page = liveBoardPage({
+    red: '徐腾飞',
+    black: '唐丹',
+    plies: 8,
+    event: '2026全国象棋团体赛',
+    round: '第3轮',
+  });
+  const normalized = normalizeDpxqPageToFrameHtml(page);
+  assert.equal(normalized.ok, true);
+  const converted = convertWxfDhtmlXqPageToSnapshot(normalized.ok ? normalized.html : '');
+  assert.equal(converted.ok, true);
+  if (!converted.ok) return;
+
+  const translated = translateXiangqiBroadcastSnapshot(converted.snapshot);
+  assert.equal(translated.tour.name, '2026全国象棋团体赛');
+  assert.equal(translated.tour.nameEn, '2026 National Xiangqi Team Championship');
+  assert.equal(translated.rounds[0]!.name, '第3轮');
+  assert.equal(translated.rounds[0]!.nameEn, 'Round 3');
+  const board = translated.boards[0]!;
+  assert.equal(board.red.name, '徐腾飞');
+  assert.equal(board.red.nameEn, 'Xu Tengfei');
+  assert.equal(board.black.name, '唐丹');
+  assert.equal(board.black.nameEn, 'Tang Dan');
 });

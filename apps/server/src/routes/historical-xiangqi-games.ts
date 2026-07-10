@@ -19,13 +19,17 @@ type UnifiedXiangqiSearchItem = {
   sourceGameId: string | null;
   sourceUrl: string | null;
   eventName: string | null;
+  eventNameEn: string | null;
   site: string | null;
   round: string | null;
+  roundNameEn: string | null;
   board: string | null;
   playedOn: string | null;
   sortAt: string | null;
   redNameRaw: string | null;
+  redNameEn: string | null;
   blackNameRaw: string | null;
+  blackNameEn: string | null;
   result: persistence.HistoricalXiangqiResult;
   plyCount: number;
   moveFormat: string;
@@ -120,13 +124,17 @@ async function queryHistoricalXiangqiGames(
       sourceGameId: game.sourceGameId ?? null,
       sourceUrl: game.sourceUrl ?? null,
       eventName: game.eventName ?? null,
+      eventNameEn: null,
       site: game.site ?? null,
       round: game.round ?? null,
+      roundNameEn: null,
       board: game.board ?? null,
       playedOn: game.playedOn ?? null,
       sortAt: game.playedOn ?? null,
       redNameRaw: game.redNameRaw ?? null,
+      redNameEn: null,
       blackNameRaw: game.blackNameRaw ?? null,
+      blackNameEn: null,
       result: game.result,
       plyCount: game.plyCount,
       moveFormat: game.moveFormat,
@@ -172,13 +180,17 @@ async function queryMistboardXiangqiGames(
       sourceGameId: game.roomId,
       sourceUrl: null,
       eventName: game.corpusId,
+      eventNameEn: null,
       site: null,
       round: null,
+      roundNameEn: null,
       board: null,
       playedOn: game.endedAt.toISOString().slice(0, 10),
       sortAt: game.endedAt.toISOString(),
       redNameRaw: game.whiteName,
+      redNameEn: null,
       blackNameRaw: game.blackName,
+      blackNameEn: null,
       result: historicalResult(game.result),
       plyCount: game.plyCount,
       moveFormat: 'mistboard',
@@ -210,13 +222,17 @@ async function queryBroadcastXiangqiGames(
     sourceGameId: board.sourceBoardId,
     sourceUrl: board.sourceUrl,
     eventName: board.tourName,
+    eventNameEn: board.tourNameEn,
     site: null,
     round: board.roundName,
+    roundNameEn: board.roundNameEn,
     board: String(board.boardNumber),
     playedOn: board.playedOn,
     sortAt: board.playedOn ?? board.updatedAt.toISOString(),
     redNameRaw: board.redName,
+    redNameEn: board.redNameEn,
     blackNameRaw: board.blackName,
+    blackNameEn: board.blackNameEn,
     result: board.result,
     plyCount: board.plyCount,
     moveFormat: 'broadcast',

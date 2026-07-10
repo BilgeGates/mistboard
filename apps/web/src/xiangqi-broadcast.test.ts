@@ -64,7 +64,9 @@ describe('mountXiangqiBroadcastRound (mini-board grid)', () => {
   function board(input: {
     n: number;
     red: string;
+    redEn?: string;
     black: string;
+    blackEn?: string;
     moves: XiangqiMove[];
     status: 'scheduled' | 'live' | 'complete';
     result: '*' | '1-0' | '0-1' | '1/2-1/2';
@@ -75,8 +77,8 @@ describe('mountXiangqiBroadcastRound (mini-board grid)', () => {
       roundId: 'r',
       sourceBoardId: `b${input.n}`,
       boardNumber: input.n,
-      red: { name: input.red },
-      black: { name: input.black },
+      red: { name: input.red, ...(input.redEn ? { nameEn: input.redEn } : {}) },
+      black: { name: input.black, ...(input.blackEn ? { nameEn: input.blackEn } : {}) },
       status: input.status,
       result: input.result,
       plyCount: input.moves.length,
@@ -84,14 +86,24 @@ describe('mountXiangqiBroadcastRound (mini-board grid)', () => {
     };
   }
 
+  // The ingested shape: Chinese originals with cached English translations on
+  // the round and player tags (tour name here is already English).
   const ROUND = {
     tour: { schema: XIANGQI_BROADCAST_SCHEMA, slug: 't', name: 'Test Cup' },
-    round: { schema: XIANGQI_BROADCAST_SCHEMA, id: 'r', tourSlug: 't', name: 'Round 1' },
+    round: {
+      schema: XIANGQI_BROADCAST_SCHEMA,
+      id: 'r',
+      tourSlug: 't',
+      name: '第1轮',
+      nameEn: 'Round 1',
+    },
     boards: [
       board({
         n: 1,
         red: '王天一',
+        redEn: 'Wang Tianyi',
         black: '郑惟桐',
+        blackEn: 'Zheng Weitong',
         moves: [{ from: 'b3', to: 'e3' }],
         status: 'live',
         result: '*',
@@ -136,5 +148,40 @@ describe('mountXiangqiBroadcastRound (mini-board grid)', () => {
     // The live board carries the live status class; both players are shown.
     expect(root.querySelector('.xqb-board-card-live .xqb-status-live')).not.toBeNull();
     expect(root.querySelectorAll('.xqb-board-card-live .xqb-card-player').length).toBe(2);
+  });
+
+  it('renders English primary with the Chinese preserved as a secondary line', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => ({ ok: true, status: 200, json: async () => ROUND })),
+    );
+    vi.stubGlobal(
+      'EventSource',
+      class {
+        addEventListener(): void {}
+        close(): void {}
+      },
+    );
+
+    const root = document.createElement('div');
+    await mountXiangqiBroadcastRound(root, 't', 'r');
+
+    // Round hero: English title primary, Chinese as the subtitle line.
+    expect(root.querySelector('.xqb-hero h1')?.textContent).toBe('Round 1');
+    expect(root.querySelector('.xqb-hero-zh')?.textContent).toBe('第1轮');
+
+    // Player names: English primary, Chinese secondary span alongside.
+    const names = [...root.querySelectorAll('.xqb-card-player-name')].map(
+      (node) => node.textContent,
+    );
+    expect(names).toContain('Wang Tianyi');
+    expect(names).toContain('Zheng Weitong');
+    const zh = [...root.querySelectorAll('.xqb-name-zh')].map((node) => node.textContent);
+    expect(zh).toContain('王天一');
+    expect(zh).toContain('郑惟桐');
+
+    // Already-English names get no duplicate secondary line.
+    expect(zh).not.toContain('A Player');
+    expect(root.querySelectorAll('.xqb-board-card')[1]?.querySelector('.xqb-name-zh')).toBeNull();
   });
 });

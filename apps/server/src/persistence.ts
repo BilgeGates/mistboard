@@ -339,10 +339,13 @@ export type {
   XiangqiBroadcastSyncLog,
   XiangqiBroadcastSyncLogSeverity,
   XiangqiBroadcastTourSchedule,
+  XiangqiBroadcastTranslationBackfillChange,
+  XiangqiBroadcastTranslationBackfillResult,
 } from './persistence-xiangqi-broadcasts.js';
 export {
   applyXiangqiBroadcastBoardUpdate,
   applyXiangqiBroadcastBoardUpdateOn,
+  backfillXiangqiBroadcastTranslations,
   deleteXiangqiBroadcastTour,
   getXiangqiBroadcastBoard,
   getXiangqiBroadcastTour,

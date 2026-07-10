@@ -509,3 +509,36 @@
     grid-template-columns: 34px minmax(72px, 1fr) minmax(72px, 1fr);
   }
 }
+
+/* Secondary Chinese line under an English-primary name (tour/round/player).
+   Rendered only when the cached English translation differs from the
+   original, so untranslated content never doubles up. */
+.xqb-name-zh {
+  display: block;
+  color: var(--site-muted);
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.25;
+}
+
+/* Compact board-card rows keep the Chinese inline after the name. */
+.xqb-name-zh-inline {
+  display: inline;
+  flex: none;
+  white-space: nowrap;
+}
+
+/* The player panel uppercases its label spans; the Chinese line opts out. */
+.xqb-player .xqb-name-zh {
+  text-transform: none;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.xqb-hero-zh {
+  margin: 0;
+  color: var(--site-muted);
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.25;
+}

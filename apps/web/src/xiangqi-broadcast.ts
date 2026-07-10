@@ -255,11 +255,13 @@ function renderIndex(data: BroadcastIndexResponse): HTMLElement {
 }
 
 function renderTour(data: BroadcastTourResponse): HTMLElement {
+  document.title = `${primaryName(data.tour)} · Mistboard`;
   const main = broadcastShell();
   main.append(
     heroSection({
       eyebrow: 'Xiangqi broadcast',
-      title: data.tour.name,
+      title: primaryName(data.tour),
+      subtitle: secondaryName(data.tour),
       href: data.tour.sourceUrl,
       meta: [data.tour.location, dateRange(data.tour.startsAt, data.tour.endsAt)].filter(
         Boolean,
@@ -283,12 +285,15 @@ function renderTour(data: BroadcastTourResponse): HTMLElement {
     const copy = document.createElement('span');
     copy.className = 'xqb-row-copy';
     const name = document.createElement('strong');
-    name.textContent = round.name;
+    name.textContent = primaryName(round);
     const meta = document.createElement('span');
     meta.textContent = [formatDate(round.startsAt), round.sourceUrl ? 'Source linked' : null]
       .filter(Boolean)
       .join(' / ');
-    copy.append(name, meta);
+    copy.append(name);
+    const roundZh = zhSubline(secondaryName(round));
+    if (roundZh) copy.append(roundZh);
+    copy.append(meta);
     row.append(copy, chevron());
     list.append(row);
   }
@@ -298,11 +303,13 @@ function renderTour(data: BroadcastTourResponse): HTMLElement {
 }
 
 function renderRound(data: BroadcastRoundResponse): HTMLElement {
+  document.title = `${primaryName(data.round)} · ${primaryName(data.tour)} · Mistboard`;
   const main = broadcastShell();
   main.append(
     heroSection({
-      eyebrow: data.tour.name,
-      title: data.round.name,
+      eyebrow: primaryName(data.tour),
+      title: primaryName(data.round),
+      subtitle: secondaryName(data.round),
       href: data.round.sourceUrl ?? data.tour.sourceUrl,
       meta: [formatDate(data.round.startsAt), `${data.boards.length} boards`].filter(
         Boolean,
@@ -332,9 +339,16 @@ function renderBoardReplay(data: BroadcastBoardResponse): HTMLElement {
   const maxPly = frames.length - 1;
   let cursor = clamp(initialPlyFromUrl(), 0, maxPly);
 
+  document.title = `${playerName(data.board.red)} vs ${playerName(data.board.black)} · Mistboard`;
+  const redZh = playerNameZh(data.board.red);
+  const blackZh = playerNameZh(data.board.black);
   const hero = heroSection({
     eyebrow: `Board ${data.board.boardNumber}`,
     title: `${playerName(data.board.red)} vs ${playerName(data.board.black)}`,
+    subtitle:
+      redZh || blackZh
+        ? `${redZh ?? data.board.red.name} vs ${blackZh ?? data.board.black.name}`
+        : null,
     href: data.board.sourceUrl,
     meta: [
       resultLabel(data.board),
@@ -427,6 +441,7 @@ function broadcastShell(): HTMLElement {
 function heroSection(input: {
   eyebrow: string;
   title: string;
+  subtitle?: string | null;
   meta: string[];
   href?: string;
   backHref?: string;
@@ -443,6 +458,13 @@ function heroSection(input: {
   const title = document.createElement('h1');
   title.textContent = input.title;
   copy.append(eyebrow, title);
+
+  if (input.subtitle) {
+    const subtitle = document.createElement('p');
+    subtitle.className = 'xqb-hero-zh';
+    subtitle.textContent = input.subtitle;
+    copy.append(subtitle);
+  }
 
   if (input.meta.length > 0) {
     const meta = document.createElement('p');
@@ -480,7 +502,7 @@ function tourRow(entry: BroadcastIndexEntry): HTMLElement {
   const copy = document.createElement('span');
   copy.className = 'xqb-row-copy';
   const name = document.createElement('strong');
-  name.textContent = entry.tour.name;
+  name.textContent = primaryName(entry.tour);
   const meta = document.createElement('span');
   meta.textContent = [
     entry.tour.location,
@@ -489,7 +511,10 @@ function tourRow(entry: BroadcastIndexEntry): HTMLElement {
   ]
     .filter(Boolean)
     .join(' / ');
-  copy.append(name, meta);
+  copy.append(name);
+  const tourZh = zhSubline(secondaryName(entry.tour));
+  if (tourZh) copy.append(tourZh);
+  copy.append(meta);
 
   const status = document.createElement('span');
   status.className = 'xqb-status xqb-tour-status';
@@ -558,6 +583,8 @@ function cardPlayer(
   name.className = 'xqb-card-player-name';
   name.textContent = playerName(player);
   row.append(name);
+  const zh = zhSubline(playerNameZh(player), 'xqb-name-zh xqb-name-zh-inline');
+  if (zh) row.append(zh);
   return row;
 }
 
@@ -573,6 +600,8 @@ function playerPanel(
   const name = document.createElement('strong');
   name.textContent = playerName(player);
   panel.append(label, name);
+  const zh = zhSubline(playerNameZh(player));
+  if (zh) panel.append(zh);
   return panel;
 }
 
@@ -663,10 +692,35 @@ function chevron(): HTMLElement {
   return mark;
 }
 
+// Ingestion caches an English form (nameEn) next to the original Chinese
+// name on tours, rounds, and player tags. Viewers render English primary and
+// keep the Chinese as a subtle secondary line when the two differ.
+function primaryName(entity: { name: string; nameEn?: string }): string {
+  const en = entity.nameEn?.trim();
+  return en && en.length > 0 ? en : entity.name;
+}
+
+function secondaryName(entity: { name: string; nameEn?: string }): string | null {
+  const en = entity.nameEn?.trim();
+  return en && en.length > 0 && en !== entity.name ? entity.name : null;
+}
+
+function zhSubline(text: string | null, className = 'xqb-name-zh'): HTMLElement | null {
+  if (!text) return null;
+  const span = document.createElement('span');
+  span.className = className;
+  span.textContent = text;
+  return span;
+}
+
 function playerName(player: XiangqiBroadcastPlayerTag): string {
   const prefix = player.title ? `${player.title} ` : '';
   const suffix = player.federation ? ` (${player.federation})` : '';
-  return `${prefix}${player.name}${suffix}`;
+  return `${prefix}${primaryName(player)}${suffix}`;
+}
+
+function playerNameZh(player: XiangqiBroadcastPlayerTag): string | null {
+  return secondaryName(player);
 }
 
 function resultLabel(board: Pick<BroadcastBoardSummary, 'result' | 'status'>): string {
