@@ -261,7 +261,7 @@ function isImagePieceSet(set: XiangqiPieceSet): set is ImageXiangqiPieceSet {
 // query is needed to bust CDN/browser caches when the art changes (e.g. the v2
 // dobutsu-minimal swap). Bump on every animal-art change.
 const ANIMAL_ART_VERSION = 4;
-const INTERNATIONAL_ART_VERSION = 10;
+const INTERNATIONAL_ART_VERSION = 11;
 
 function internationalPieceHref(piece: XiangqiPiece): string {
   return `/piece-sets/xiangqi/international/${piece.color}-${piece.role}.png?v=${INTERNATIONAL_ART_VERSION}`;
