@@ -26,6 +26,38 @@ const concurrentlyBin = resolve(repoRoot, 'node_modules', '.bin', 'concurrently'
 const memory = process.argv.includes('--memory');
 const serverScript = memory ? 'dev' : 'dev:persistent';
 
+// Local dev defaults: variant flags ON so room creation and PvE work out of
+// the box. Prod reads these from Railway env; a fresh `npm run dev` in a
+// clean shell otherwise boots flag-off and room creation rejects with e.g.
+// `xiangqi_disabled` (surfaced in the UI as "Could not start an engine
+// game"). Explicit env always wins: export MISTBOARD_XIANGQI_ENABLED=false
+// to exercise the gated-off path. Rated + lobby chat are deliberately NOT
+// defaulted — those are launch decisions, and dev should match prod's
+// posture on them unless opted in.
+const DEV_DEFAULT_TRUE_FLAGS = [
+  'MISTBOARD_XIANGQI_ENABLED',
+  'MISTBOARD_DARK_XIANGQI_ENABLED',
+  'MISTBOARD_DARK_MINI_XIANGQI_ENABLED',
+  'MISTBOARD_FORTRESS_XIANGQI_ENABLED',
+  'MISTBOARD_JIEQI_ENABLED',
+  'MISTBOARD_BANQI_ENABLED',
+  'MISTBOARD_LUZHANQI_ENABLED',
+  'MISTBOARD_REVEAL_CHESS_ENABLED',
+  'MISTBOARD_CROSSROADS_CHESS_ENABLED',
+  'MISTBOARD_DARK_CROSSROADS_CHESS_ENABLED',
+  'MISTBOARD_DARK_SHOGI_ENABLED',
+  'MISTBOARD_DARK_CRAZYHOUSE_ENABLED',
+  'MISTBOARD_KRIEGSPIEL_ENABLED',
+  'MISTBOARD_JUNGLE_ENABLED',
+  'MISTBOARD_JUNGLE_FLIP_ENABLED',
+  'MISTBOARD_CORRESPONDENCE_ENABLED',
+];
+
+const childEnv = { ...process.env };
+for (const flag of DEV_DEFAULT_TRUE_FLAGS) {
+  if (childEnv[flag] === undefined) childEnv[flag] = 'true';
+}
+
 const base = parsePortBase(process.env.MISTBOARD_DEV_PORT_BASE);
 const webPort = base;
 const serverPort = base + 1;
@@ -50,7 +82,7 @@ const child = spawn(
     serverCommand,
     webCommand,
   ],
-  { stdio: 'inherit', env: process.env },
+  { stdio: 'inherit', env: childEnv },
 );
 
 child.on('exit', (code, signal) => {
