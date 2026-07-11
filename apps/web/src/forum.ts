@@ -1715,9 +1715,15 @@ function forumCheckIcon(): SVGSVGElement {
 
 function topicModerationBox(topic: ForumTopicDetail, categories: ForumCategory[]): HTMLElement {
   const box = document.createElement('section');
-  box.className = 'forum-auth-box forum-moderation-box';
+  box.className = 'forum-moderation-box';
+  const head = document.createElement('div');
+  head.className = 'forum-moderation-head';
   const heading = document.createElement('strong');
   heading.textContent = 'Moderation';
+  const badge = document.createElement('span');
+  badge.className = 'forum-moderation-badge';
+  badge.textContent = 'Admin only';
+  head.append(heading, badge);
   const actions = document.createElement('div');
   actions.className = 'forum-moderation-actions';
   actions.append(
@@ -1731,7 +1737,7 @@ function topicModerationBox(topic: ForumTopicDetail, categories: ForumCategory[]
       reasonPrompt: 'Reason for hiding this topic (optional)',
     }),
   );
-  box.append(heading, actions);
+  box.append(head, actions);
   const move = topicMoveForm(topic, categories);
   if (move) box.append(move);
   return box;
