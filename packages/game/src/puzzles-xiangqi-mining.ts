@@ -301,6 +301,15 @@ export type XiangqiMineCandidateInput = {
   verifyScore: XiangqiVerifyLine;
   /** Scan-pass swing of the blunder, mover POV. */
   swingCp: number;
+  /** Denormalized attribution from the source game row (db mode only). Copied
+   *  onto sourceGame so the "From game" card renders without hosting the game. */
+  sourceMeta?: {
+    event?: string | null;
+    playedOn?: string | null;
+    result?: string | null;
+    redName?: string | null;
+    blackName?: string | null;
+  };
 };
 
 export type XiangqiMineReject = XiangqiSolutionBuildReject | 'not-playing' | 'validation-failed';
@@ -347,10 +356,33 @@ export function assembleMinedXiangqiPuzzle(
       goal,
       swingCp: input.swingCp,
     }),
-    sourceGame: { gameId: input.gameId, ply: input.blunderPly + 1 },
+    sourceGame: {
+      gameId: input.gameId,
+      ply: input.blunderPly + 1,
+      ...cleanSourceMeta(input.sourceMeta),
+    },
   };
   if (!validateStandardXiangqiPuzzle(puzzle).ok) {
     return { ok: false, reason: 'validation-failed' };
   }
   return { ok: true, puzzle };
+}
+
+/** Drop null/undefined/blank attribution fields so sourceGame stays minimal
+ *  ({ gameId, ply }) when the source row has no metadata. */
+function cleanSourceMeta(
+  meta: XiangqiMineCandidateInput['sourceMeta'],
+): Partial<
+  Pick<
+    NonNullable<XiangqiPuzzle['sourceGame']>,
+    'event' | 'playedOn' | 'result' | 'redName' | 'blackName'
+  >
+> {
+  if (!meta) return {};
+  const out: Record<string, string> = {};
+  for (const key of ['event', 'playedOn', 'result', 'redName', 'blackName'] as const) {
+    const value = meta[key];
+    if (typeof value === 'string' && value.trim().length > 0) out[key] = value;
+  }
+  return out;
 }

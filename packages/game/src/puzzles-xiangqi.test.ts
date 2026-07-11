@@ -457,3 +457,16 @@ test('winning-advantage tail: trimming never touches checkmate puzzles', () => {
     );
   }
 });
+
+test('mined puzzles carry source-game attribution for the "From game" card', () => {
+  for (const puzzle of MINED_XIANGQI_PUZZLES) {
+    const source = puzzle.sourceGame;
+    assert.ok(source?.gameId, `${puzzle.id}: missing sourceGame.gameId`);
+    assert.equal(typeof source.ply, 'number', `${puzzle.id}: missing sourceGame.ply`);
+    // The whole corpus was db-mined, so every puzzle should carry the event and
+    // both player names it was backfilled with — that is what the card renders.
+    assert.ok(source.event, `${puzzle.id}: missing sourceGame.event`);
+    assert.ok(source.redName, `${puzzle.id}: missing sourceGame.redName`);
+    assert.ok(source.blackName, `${puzzle.id}: missing sourceGame.blackName`);
+  }
+});

@@ -118,6 +118,17 @@ type PuzzleSummary = {
     | { type: 'winning-advantage'; winner?: PuzzleColor; centipawns?: number };
   themes: string[];
   solutionPlyCount: number;
+  // Attribution for the "From game" card (standard-xiangqi mined puzzles). The
+  // source game is not hosted yet, so this is display-only, not a link.
+  sourceGame?: {
+    gameId: string;
+    ply: number;
+    event?: string;
+    playedOn?: string;
+    result?: string;
+    redName?: string;
+    blackName?: string;
+  };
 };
 
 type MiniPuzzleDetail = PuzzleSummary & {
@@ -537,7 +548,11 @@ function renderQueuePanel(host: HTMLElement, props: QueuePanelProps): void {
       puzzleInfoRow(
         'variant',
         [
-          puzzleInfoLine(`From set ${variantLabel(current.variant)}`),
+          // Mined xiangqi puzzles carry attribution for the real game they came
+          // from: show a lichess-style "From game" header instead of "From set".
+          // The source game is not hosted yet (license-gated), so this is
+          // display-only — no link.
+          ...sourceGameLines(current),
           // The goal (e.g. "Mate in 1") is a spoiler while solving; reveal it only
           // once the puzzle is solved, like the puzzle rating.
           puzzleInfoLine(
@@ -710,6 +725,72 @@ function puzzleInfoLine(text: string): HTMLSpanElement {
   const line = document.createElement('span');
   line.textContent = text;
   return line;
+}
+
+// The "From X" header lines for the info card. Mined xiangqi puzzles that carry
+// source-game attribution get a lichess-style "From game" header with the event
+// and both players; everything else falls back to "From set <variant>".
+export function sourceGameLines(
+  puzzle: Pick<PuzzleSummary, 'variant' | 'sourceGame'>,
+): HTMLElement[] {
+  const source = puzzle.sourceGame;
+  const hasAttribution =
+    puzzle.variant === XIANGQI_SPEC_ID &&
+    source !== undefined &&
+    (source.event !== undefined || source.redName !== undefined || source.blackName !== undefined);
+  if (!source || !hasAttribution) {
+    return [puzzleInfoLine(`From set ${variantLabel(puzzle.variant)}`)];
+  }
+  const lines: HTMLElement[] = [puzzleInfoLine(sourceGameHeader(source))];
+  if (source.redName !== undefined || source.blackName !== undefined) {
+    lines.push(
+      sourceGamePlayerLine('red', source.redName, source.result),
+      sourceGamePlayerLine('black', source.blackName, source.result),
+    );
+  }
+  return lines;
+}
+
+// "From game · <event> (<year>)" — event and year are both optional.
+function sourceGameHeader(source: NonNullable<PuzzleSummary['sourceGame']>): string {
+  const year = source.playedOn?.slice(0, 4);
+  const parts = [source.event, year ? `(${year})` : undefined].filter(
+    (part): part is string => part !== undefined && part.length > 0,
+  );
+  return parts.length > 0 ? `From game · ${parts.join(' ')}` : 'From game';
+}
+
+// One player row: a color disc, the player name, and a result glyph on the
+// side that won (½ on a draw). Names are the raw source-archive strings.
+function sourceGamePlayerLine(
+  color: 'red' | 'black',
+  name: string | undefined,
+  result: string | undefined,
+): HTMLSpanElement {
+  const line = document.createElement('span');
+  line.className = 'puzzle-source-player';
+  const disc = document.createElement('span');
+  disc.className = `puzzle-source-disc puzzle-source-disc--${color}`;
+  disc.setAttribute('aria-hidden', 'true');
+  const label = document.createElement('span');
+  label.className = 'puzzle-source-player-name';
+  label.textContent = name && name.length > 0 ? name : color === 'red' ? 'Red' : 'Black';
+  line.append(disc, label);
+  const glyph = sourceGameResultGlyph(color, result);
+  if (glyph) {
+    const outcome = document.createElement('span');
+    outcome.className = 'puzzle-source-result';
+    outcome.textContent = glyph;
+    line.append(outcome);
+  }
+  return line;
+}
+
+function sourceGameResultGlyph(color: 'red' | 'black', result: string | undefined): string | null {
+  if (result === '1/2-1/2') return '½';
+  if (result === '1-0') return color === 'red' ? '1' : null;
+  if (result === '0-1') return color === 'black' ? '1' : null;
+  return null;
 }
 
 function puzzleInfoDivider(): HTMLHRElement {

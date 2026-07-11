@@ -38,7 +38,15 @@ type MinedXiangqiPuzzle = {
     | { type: 'checkmate'; winner?: XiangqiColor }
     | { type: 'winning-advantage'; winner?: XiangqiColor; centipawns?: number };
   themes: MinedXiangqiPuzzleTheme[];
-  sourceGame?: { gameId: string; ply: number };
+  sourceGame?: {
+    gameId: string;
+    ply: number;
+    event?: string;
+    playedOn?: string;
+    result?: string;
+    redName?: string;
+    blackName?: string;
+  };
 };
 
 export const MINED_XIANGQI_PUZZLES: readonly MinedXiangqiPuzzle[] = [
@@ -199,6 +207,11 @@ export const MINED_XIANGQI_PUZZLES: readonly MinedXiangqiPuzzle[] = [
     sourceGame: {
       gameId: 'hxq_008c6b6eaef4238e418abc19',
       ply: 60,
+      event: '2026年全国象棋团体赛',
+      playedOn: '2026-04-02',
+      result: '1/2-1/2',
+      redName: '山东省棋牌运动管理中心 黄蕾蕾',
+      blackName: '广东省二沙体育训练中心 时凤兰',
     },
   },
   {
@@ -317,6 +330,11 @@ export const MINED_XIANGQI_PUZZLES: readonly MinedXiangqiPuzzle[] = [
     sourceGame: {
       gameId: 'hxq_00eed6ff437dad0cfb4c74fb',
       ply: 94,
+      event: '2026年全国象棋团体赛',
+      playedOn: '2026-03-31',
+      result: '1-0',
+      redName: '陕西省社会体育运动发展中心 李小龙',
+      blackName: '新疆维吾尔自治区体育局 杨浩',
     },
   },
   {
@@ -460,6 +478,11 @@ export const MINED_XIANGQI_PUZZLES: readonly MinedXiangqiPuzzle[] = [
     sourceGame: {
       gameId: 'hxq_054906ccf8a076f1a86158c9',
       ply: 59,
+      event: '2026年全国象棋团体赛',
+      playedOn: '2026-03-30',
+      result: '0-1',
+      redName: '杭州市智力运动队 胡雯銥',
+      blackName: '广东省二沙体育训练中心 时凤兰',
     },
   },
   {
@@ -603,6 +626,11 @@ export const MINED_XIANGQI_PUZZLES: readonly MinedXiangqiPuzzle[] = [
     sourceGame: {
       gameId: 'hxq_0638200b88f1ed849ab5a958',
       ply: 69,
+      event: '2026年全国象棋团体赛',
+      playedOn: '2026-03-29',
+      result: '0-1',
+      redName: '杭州市智力运动队 蒋明成',
+      blackName: '广东省二沙体育训练中心 莫梓健',
     },
   },
   {
@@ -770,6 +798,11 @@ export const MINED_XIANGQI_PUZZLES: readonly MinedXiangqiPuzzle[] = [
     sourceGame: {
       gameId: 'hxq_06a1d50388c3ae892103e9ee',
       ply: 39,
+      event: '2026年广东十虎VS山东十好汉对抗赛',
+      playedOn: '2026-04-23',
+      result: '0-1',
+      redName: '广东十虎 梁雅让',
+      blackName: '山东十好汉 李翰林',
     },
   },
   {
@@ -937,6 +970,11 @@ export const MINED_XIANGQI_PUZZLES: readonly MinedXiangqiPuzzle[] = [
     sourceGame: {
       gameId: 'hxq_099dd5dda07082e7942b89ed',
       ply: 50,
+      event: '2026年全国象棋团体赛',
+      playedOn: '2026-04-01',
+      result: '1-0',
+      redName: '浙江省智力运动管理中心 吴可欣',
+      blackName: '山东省棋牌运动管理中心 李越川',
     },
   },
   {
@@ -1075,6 +1113,11 @@ export const MINED_XIANGQI_PUZZLES: readonly MinedXiangqiPuzzle[] = [
     sourceGame: {
       gameId: 'hxq_0b4fbbd113e9a61dc051ddec',
       ply: 68,
+      event: '2026年广东十虎VS山东十好汉对抗赛',
+      playedOn: '2026-04-23',
+      result: '1-0',
+      redName: '广东十虎 黎铎',
+      blackName: '山东十好汉 黄蕾蕾',
     },
   },
   {
@@ -1234,6 +1277,11 @@ export const MINED_XIANGQI_PUZZLES: readonly MinedXiangqiPuzzle[] = [
     sourceGame: {
       gameId: 'hxq_10b13397c693c44b0197f95a',
       ply: 57,
+      event: '2026年全国象棋团体赛',
+      playedOn: '2026-04-01',
+      result: '0-1',
+      redName: '成都棋院（成都市智力运动中心） 杨辉',
+      blackName: '黑龙江省社会体育指导与棋牌运动管理中心 陶汉明',
     },
   },
   {
@@ -1376,6 +1424,11 @@ export const MINED_XIANGQI_PUZZLES: readonly MinedXiangqiPuzzle[] = [
     sourceGame: {
       gameId: 'hxq_14d5d0d7fe8d4c382417c4aa',
       ply: 51,
+      event: '2026年广东十虎VS山东十好汉对抗赛',
+      playedOn: '2026-04-23',
+      result: '0-1',
+      redName: '山东十好汉 李越川',
+      blackName: '广东十虎 梁雅让',
     },
   },
   {
@@ -1486,6 +1539,11 @@ export const MINED_XIANGQI_PUZZLES: readonly MinedXiangqiPuzzle[] = [
     sourceGame: {
       gameId: 'hxq_14d5d0d7fe8d4c382417c4aa',
       ply: 59,
+      event: '2026年广东十虎VS山东十好汉对抗赛',
+      playedOn: '2026-04-23',
+      result: '0-1',
+      redName: '山东十好汉 李越川',
+      blackName: '广东十虎 梁雅让',
     },
   },
   {
@@ -1665,6 +1723,11 @@ export const MINED_XIANGQI_PUZZLES: readonly MinedXiangqiPuzzle[] = [
     sourceGame: {
       gameId: 'hxq_180748d69c96be7c786bbd43',
       ply: 28,
+      event: '2026年全国象棋团体赛',
+      playedOn: '2026-04-02',
+      result: '1-0',
+      redName: '成都棋院（成都市智力运动中心） 赵攀伟',
+      blackName: '甘肃体彩队 曹云鹏',
     },
   },
   {
@@ -1796,6 +1859,11 @@ export const MINED_XIANGQI_PUZZLES: readonly MinedXiangqiPuzzle[] = [
     sourceGame: {
       gameId: 'hxq_18200b981ee6ee13f3c1057b',
       ply: 95,
+      event: '2026年全国象棋团体赛',
+      playedOn: '2026-03-29',
+      result: '0-1',
+      redName: '湖北省体育局棋牌运动管理中心 刘云峰',
+      blackName: '山东省棋牌运动管理中心 刘新奥',
     },
   },
   {
@@ -1919,6 +1987,11 @@ export const MINED_XIANGQI_PUZZLES: readonly MinedXiangqiPuzzle[] = [
     sourceGame: {
       gameId: 'hxq_18d9ba41d925af93ca832b92',
       ply: 92,
+      event: '2026年全国象棋团体赛',
+      playedOn: '2026-03-31',
+      result: '1-0',
+      redName: '湖北省体育局棋牌运动管理中心 刘云峰',
+      blackName: '江西省体育总会 李悦华',
     },
   },
   {
@@ -2074,6 +2147,11 @@ export const MINED_XIANGQI_PUZZLES: readonly MinedXiangqiPuzzle[] = [
     sourceGame: {
       gameId: 'hxq_1b3b9306fc2e6c7de3f404b9',
       ply: 50,
+      event: '2025年“酒祖杜康杯”象棋大师擂台赛年终总决赛',
+      playedOn: '2026-01-09',
+      result: '1-0',
+      redName: '浙江 何文哲',
+      blackName: '越南 赖理兄',
     },
   },
   {
@@ -2249,6 +2327,11 @@ export const MINED_XIANGQI_PUZZLES: readonly MinedXiangqiPuzzle[] = [
     sourceGame: {
       gameId: 'hxq_1c758282fcc991575f5ad5d6',
       ply: 32,
+      event: '2026年全国象棋团体赛',
+      playedOn: '2026-04-01',
+      result: '1-0',
+      redName: '陕西省社会体育运动发展中心 高飞',
+      blackName: '上海金外滩象棋队 赵玮',
     },
   },
   {
@@ -2368,6 +2451,11 @@ export const MINED_XIANGQI_PUZZLES: readonly MinedXiangqiPuzzle[] = [
     sourceGame: {
       gameId: 'hxq_1def32c5240e95833d9b0561',
       ply: 109,
+      event: '2026年全国象棋团体赛',
+      playedOn: '2026-04-02',
+      result: '0-1',
+      redName: '河南省全民健身中心 郑柯睿',
+      blackName: '云南省棋牌运动管理中心 党国蕾',
     },
   },
   {
@@ -2498,6 +2586,11 @@ export const MINED_XIANGQI_PUZZLES: readonly MinedXiangqiPuzzle[] = [
     sourceGame: {
       gameId: 'hxq_1e4f4fb0cdfde167fa1b30e7',
       ply: 77,
+      event: '2026年广东十虎VS山东十好汉对抗赛',
+      playedOn: '2026-04-23',
+      result: '0-1',
+      redName: '山东十好汉 李加昆',
+      blackName: '广东十虎 黄文俊',
     },
   },
   {
@@ -2625,6 +2718,11 @@ export const MINED_XIANGQI_PUZZLES: readonly MinedXiangqiPuzzle[] = [
     sourceGame: {
       gameId: 'hxq_1e83318ad021d20178785fe5',
       ply: 75,
+      event: '2022年中国-东盟象棋国际邀请赛',
+      playedOn: '2022-08-21',
+      result: '0-1',
+      redName: '中国 茹一淳',
+      blackName: '越南 阮成保',
     },
   },
   {
@@ -2792,6 +2890,11 @@ export const MINED_XIANGQI_PUZZLES: readonly MinedXiangqiPuzzle[] = [
     sourceGame: {
       gameId: 'hxq_2253229719a466bb699d2a4f',
       ply: 40,
+      event: '2026年全国象棋团体赛',
+      playedOn: '2026-03-28',
+      result: '1-0',
+      redName: '广东省二沙体育训练中心 张婷',
+      blackName: '河南省全民健身中心 郑柯睿',
     },
   },
   {
@@ -2934,6 +3037,11 @@ export const MINED_XIANGQI_PUZZLES: readonly MinedXiangqiPuzzle[] = [
     sourceGame: {
       gameId: 'hxq_2253229719a466bb699d2a4f',
       ply: 50,
+      event: '2026年全国象棋团体赛',
+      playedOn: '2026-03-28',
+      result: '1-0',
+      redName: '广东省二沙体育训练中心 张婷',
+      blackName: '河南省全民健身中心 郑柯睿',
     },
   },
   {
@@ -3105,6 +3213,11 @@ export const MINED_XIANGQI_PUZZLES: readonly MinedXiangqiPuzzle[] = [
     sourceGame: {
       gameId: 'hxq_2284debfdbe87a7af2229253',
       ply: 47,
+      event: '2026年全国象棋团体赛',
+      playedOn: '2026-04-01',
+      result: '0-1',
+      redName: '江苏棋院 李沁',
+      blackName: '河南省全民健身中心 潘登',
     },
   },
   {
@@ -3244,6 +3357,11 @@ export const MINED_XIANGQI_PUZZLES: readonly MinedXiangqiPuzzle[] = [
     sourceGame: {
       gameId: 'hxq_23aadbe8d9165902bbfe18a5',
       ply: 62,
+      event: '2026年全国象棋团体赛',
+      playedOn: '2026-03-31',
+      result: '1-0',
+      redName: '杭州市智力运动队 王文君',
+      blackName: '河南省全民健身中心 郑柯睿',
     },
   },
   {
@@ -3403,6 +3521,11 @@ export const MINED_XIANGQI_PUZZLES: readonly MinedXiangqiPuzzle[] = [
     sourceGame: {
       gameId: 'hxq_26355c6e0b704a89cdc64edd',
       ply: 46,
+      event: '1996年华能杯全国象棋个人赛',
+      playedOn: '1996-10-20',
+      result: '1-0',
+      redName: '火车头 刚秋英',
+      blackName: '成都 唐冬梅',
     },
   },
   {
@@ -3570,6 +3693,11 @@ export const MINED_XIANGQI_PUZZLES: readonly MinedXiangqiPuzzle[] = [
     sourceGame: {
       gameId: 'hxq_273ad23a0e07c64b5efbd568',
       ply: 41,
+      event: '2026年全国象棋团体赛',
+      playedOn: '2026-03-30',
+      result: '0-1',
+      redName: '浙江省智力运动管理中心 吕叶昊',
+      blackName: '广东省二沙体育训练中心 黄光颖',
     },
   },
   {
@@ -3737,6 +3865,11 @@ export const MINED_XIANGQI_PUZZLES: readonly MinedXiangqiPuzzle[] = [
     sourceGame: {
       gameId: 'hxq_2f715e911c685566c763e03a',
       ply: 40,
+      event: '2026年全国象棋团体赛',
+      playedOn: '2026-03-31',
+      result: '1-0',
+      redName: '湖北省体育局棋牌运动管理中心 汪元知',
+      blackName: '江苏棋院 周雨霏',
     },
   },
   {
@@ -3908,6 +4041,11 @@ export const MINED_XIANGQI_PUZZLES: readonly MinedXiangqiPuzzle[] = [
     sourceGame: {
       gameId: 'hxq_2fdd0dd15d96e8ce3d921896',
       ply: 26,
+      event: '2026年全国象棋团体赛',
+      playedOn: '2026-03-28',
+      result: '0-1',
+      redName: '安徽省棋院 陈欣圆',
+      blackName: '北京棋院（北京市棋牌运动管理中心） 孙嘉潞',
     },
   },
   {
@@ -4059,6 +4197,11 @@ export const MINED_XIANGQI_PUZZLES: readonly MinedXiangqiPuzzle[] = [
     sourceGame: {
       gameId: 'hxq_30089ba1f5bd3a12878285bc',
       ply: 64,
+      event: '2026年全国象棋团体赛',
+      playedOn: '2026-04-02',
+      result: '1-0',
+      redName: '广东省二沙体育训练中心 张婷',
+      blackName: '山东省棋牌运动管理中心 李越川',
     },
   },
   {
@@ -4242,6 +4385,11 @@ export const MINED_XIANGQI_PUZZLES: readonly MinedXiangqiPuzzle[] = [
     sourceGame: {
       gameId: 'hxq_3069f4a31d6074a4613efa77',
       ply: 27,
+      event: '2026年全国象棋团体赛',
+      playedOn: '2026-03-28',
+      result: '0-1',
+      redName: '上海金外滩象棋队 宇诗琪',
+      blackName: '河北省体育局棋牌运动中心 刘钰',
     },
   },
   {
@@ -4397,6 +4545,11 @@ export const MINED_XIANGQI_PUZZLES: readonly MinedXiangqiPuzzle[] = [
     sourceGame: {
       gameId: 'hxq_3087b9e177dc6e0a08d2872a',
       ply: 65,
+      event: '2026年“春丘大叶杯”象棋大师擂台赛',
+      playedOn: '2026-03-21',
+      result: '0-1',
+      redName: '江苏棋院 刘柏宏',
+      blackName: '成都棋院 孟辰',
     },
   },
   {
@@ -4544,6 +4697,11 @@ export const MINED_XIANGQI_PUZZLES: readonly MinedXiangqiPuzzle[] = [
     sourceGame: {
       gameId: 'hxq_31f18ac4e4c74c2e8dca35d6',
       ply: 43,
+      event: '2022年中国-东盟象棋国际邀请赛',
+      playedOn: '2022-08-20',
+      result: '0-1',
+      redName: '马来西亚 方仕杰',
+      blackName: '越南 阮成保',
     },
   },
   {
@@ -4715,6 +4873,11 @@ export const MINED_XIANGQI_PUZZLES: readonly MinedXiangqiPuzzle[] = [
     sourceGame: {
       gameId: 'hxq_3299d03b4a5e8b8c4b4f0328',
       ply: 26,
+      event: '2026年第十届北美杯象棋锦标赛',
+      playedOn: '2026-04-05',
+      result: '1-0',
+      redName: '洛杉矶 黎英豪',
+      blackName: '休斯顿 胡玉山',
     },
   },
   {
@@ -4834,6 +4997,11 @@ export const MINED_XIANGQI_PUZZLES: readonly MinedXiangqiPuzzle[] = [
     sourceGame: {
       gameId: 'hxq_32ee0bb9cee3a2c3bcca6d8e',
       ply: 105,
+      event: '2026年全国象棋团体赛',
+      playedOn: '2026-03-31',
+      result: '0-1',
+      redName: '浙江省智力运动管理中心 申恩炫',
+      blackName: '河北省体育局棋牌运动中心 陆伟韬',
     },
   },
   {
@@ -4989,6 +5157,11 @@ export const MINED_XIANGQI_PUZZLES: readonly MinedXiangqiPuzzle[] = [
     sourceGame: {
       gameId: 'hxq_38640da85d56950f39e2b53e',
       ply: 50,
+      event: '2026年广东十虎VS山东十好汉对抗赛',
+      playedOn: '2026-04-22',
+      result: '1/2-1/2',
+      redName: '山东十好汉 李翰林',
+      blackName: '广东十虎 廖锦添',
     },
   },
   {
@@ -5140,6 +5313,11 @@ export const MINED_XIANGQI_PUZZLES: readonly MinedXiangqiPuzzle[] = [
     sourceGame: {
       gameId: 'hxq_38640da85d56950f39e2b53e',
       ply: 51,
+      event: '2026年广东十虎VS山东十好汉对抗赛',
+      playedOn: '2026-04-22',
+      result: '1/2-1/2',
+      redName: '山东十好汉 李翰林',
+      blackName: '广东十虎 廖锦添',
     },
   },
   {
@@ -5290,6 +5468,11 @@ export const MINED_XIANGQI_PUZZLES: readonly MinedXiangqiPuzzle[] = [
     sourceGame: {
       gameId: 'hxq_393d82081c0d9b24fce91979',
       ply: 43,
+      event: '2026年全国象棋团体赛',
+      playedOn: '2026-03-28',
+      result: '0-1',
+      redName: '甘肃体彩队 王慧康',
+      blackName: '湖北省体育局棋牌运动管理中心 黄紫宸',
     },
   },
   {
@@ -5460,6 +5643,11 @@ export const MINED_XIANGQI_PUZZLES: readonly MinedXiangqiPuzzle[] = [
     sourceGame: {
       gameId: 'hxq_395a0c2b3d05bc932c9a68ff',
       ply: 38,
+      event: '2026年“春丘大叶杯”象棋大师擂台赛',
+      playedOn: '2026-04-04',
+      result: '1-0',
+      redName: '湖北 曹岩磊',
+      blackName: '湖北 何文哲',
     },
   },
   {
@@ -5615,6 +5803,11 @@ export const MINED_XIANGQI_PUZZLES: readonly MinedXiangqiPuzzle[] = [
     sourceGame: {
       gameId: 'hxq_39986d8a32d8aec4d1d6560c',
       ply: 51,
+      event: '2026年全国象棋团体赛',
+      playedOn: '2026-04-01',
+      result: '0-1',
+      redName: '成都棋院（成都市智力运动中心） 许文章',
+      blackName: '广东省二沙体育训练中心 张学潮',
     },
   },
   {
@@ -5754,6 +5947,11 @@ export const MINED_XIANGQI_PUZZLES: readonly MinedXiangqiPuzzle[] = [
     sourceGame: {
       gameId: 'hxq_39c4cc6751e8d2b8f8b00c8b',
       ply: 99,
+      event: '2026年广东十虎VS北京十杰象棋擂台赛',
+      playedOn: '2026-01-17',
+      result: '0-1',
+      redName: '北京十杰 孙博',
+      blackName: '广东十虎 郭中基',
     },
   },
   {
@@ -5885,6 +6083,11 @@ export const MINED_XIANGQI_PUZZLES: readonly MinedXiangqiPuzzle[] = [
     sourceGame: {
       gameId: 'hxq_3a9ca5a036cec0d982da1a46',
       ply: 87,
+      event: '2026年全国象棋团体赛',
+      playedOn: '2026-04-01',
+      result: '0-1',
+      redName: '吉林省棋牌运动管理中心 黄大为',
+      blackName: '新疆生产建设兵团文化体育广电和旅游局 林川博',
     },
   },
   {
@@ -6028,6 +6231,11 @@ export const MINED_XIANGQI_PUZZLES: readonly MinedXiangqiPuzzle[] = [
     sourceGame: {
       gameId: 'hxq_3bfb4996fc55802ed0ae7149',
       ply: 62,
+      event: '2026年首届“天长杯”全国象棋公开赛',
+      playedOn: '2026-04-12',
+      result: '1-0',
+      redName: '江苏棋院 刘子健',
+      blackName: '杭州市智力运动队 程宇东',
     },
   },
   {
@@ -6171,6 +6379,11 @@ export const MINED_XIANGQI_PUZZLES: readonly MinedXiangqiPuzzle[] = [
     sourceGame: {
       gameId: 'hxq_3cca3ba32ec59c967213702c',
       ply: 73,
+      event: '2026年全国象棋团体赛',
+      playedOn: '2026-04-01',
+      result: '0-1',
+      redName: '新疆生产建设兵团文化体育广电和旅游局 林川博',
+      blackName: '重庆市棋牌运动管理中心（重庆星源玻璃队） 赵键钧',
     },
   },
   {
@@ -6326,6 +6539,11 @@ export const MINED_XIANGQI_PUZZLES: readonly MinedXiangqiPuzzle[] = [
     sourceGame: {
       gameId: 'hxq_3e91f7538680c6ce2a514253',
       ply: 36,
+      event: '2025年全国象棋团体赛',
+      playedOn: '2025-04-19',
+      result: '1-0',
+      redName: '厦门市体育事业发展中心 何昊松',
+      blackName: '宁波市全民健身指导中心 许鑫鑫',
     },
   },
   {
@@ -6477,6 +6695,11 @@ export const MINED_XIANGQI_PUZZLES: readonly MinedXiangqiPuzzle[] = [
     sourceGame: {
       gameId: 'hxq_48acbf0ba88cf1c73e23db21',
       ply: 46,
+      event: '2026年广东十虎VS北京十杰象棋擂台赛',
+      playedOn: '2026-01-17',
+      result: '1-0',
+      redName: '广东十虎 梁雅让',
+      blackName: '北京十杰 左治',
     },
   },
   {
@@ -6595,6 +6818,11 @@ export const MINED_XIANGQI_PUZZLES: readonly MinedXiangqiPuzzle[] = [
     sourceGame: {
       gameId: 'hxq_48bf9184c02359dc7a389524',
       ply: 91,
+      event: '2025年全国象棋团体赛',
+      playedOn: '2025-04-18',
+      result: '1-0',
+      redName: '江苏棋院 刘子炀',
+      blackName: '成都棋院 陈田翼',
     },
   },
   {
@@ -6702,6 +6930,11 @@ export const MINED_XIANGQI_PUZZLES: readonly MinedXiangqiPuzzle[] = [
     sourceGame: {
       gameId: 'hxq_4a2ee39b7102b47b958ad719',
       ply: 170,
+      event: '2026年全国象棋团体赛',
+      playedOn: '2026-04-01',
+      result: '1-0',
+      redName: '湖北省体育局棋牌运动管理中心 曹岩磊',
+      blackName: '重庆市棋牌运动管理中心（重庆星源玻璃队） 杨应东',
     },
   },
   {
@@ -6865,6 +7098,11 @@ export const MINED_XIANGQI_PUZZLES: readonly MinedXiangqiPuzzle[] = [
     sourceGame: {
       gameId: 'hxq_4a41e15e9d8a17414cf249ee',
       ply: 41,
+      event: '2026年第十届北美杯象棋锦标赛',
+      playedOn: '2026-04-05',
+      result: '1/2-1/2',
+      redName: '金州 Son X Nguyen',
+      blackName: '温哥华 刘凯',
     },
   },
   {
@@ -7028,6 +7266,11 @@ export const MINED_XIANGQI_PUZZLES: readonly MinedXiangqiPuzzle[] = [
     sourceGame: {
       gameId: 'hxq_4a41e15e9d8a17414cf249ee',
       ply: 42,
+      event: '2026年第十届北美杯象棋锦标赛',
+      playedOn: '2026-04-05',
+      result: '1/2-1/2',
+      redName: '金州 Son X Nguyen',
+      blackName: '温哥华 刘凯',
     },
   },
   {
@@ -7151,6 +7394,11 @@ export const MINED_XIANGQI_PUZZLES: readonly MinedXiangqiPuzzle[] = [
     sourceGame: {
       gameId: 'hxq_4a41e15e9d8a17414cf249ee',
       ply: 74,
+      event: '2026年第十届北美杯象棋锦标赛',
+      playedOn: '2026-04-05',
+      result: '1/2-1/2',
+      redName: '金州 Son X Nguyen',
+      blackName: '温哥华 刘凯',
     },
   },
   {
@@ -7318,6 +7566,11 @@ export const MINED_XIANGQI_PUZZLES: readonly MinedXiangqiPuzzle[] = [
     sourceGame: {
       gameId: 'hxq_4cc70c6170ba3c776ebe5ea4',
       ply: 28,
+      event: '2025年全国象棋团体赛',
+      playedOn: '2025-04-19',
+      result: '1-0',
+      redName: '甘肃省体育总会 刘福奎',
+      blackName: '新疆生产建设兵团文化体育广电和旅游局 张金强',
     },
   },
   {
@@ -7465,6 +7718,11 @@ export const MINED_XIANGQI_PUZZLES: readonly MinedXiangqiPuzzle[] = [
     sourceGame: {
       gameId: 'hxq_500fd830aa37682e0200c936',
       ply: 54,
+      event: '2026年第十届北美杯象棋锦标赛',
+      playedOn: '2026-04-04',
+      result: '1-0',
+      redName: '北加州 孙一鸣',
+      blackName: '新奥尔良 张文鑫',
     },
   },
   {
@@ -7620,6 +7878,11 @@ export const MINED_XIANGQI_PUZZLES: readonly MinedXiangqiPuzzle[] = [
     sourceGame: {
       gameId: 'hxq_5048149290e71c6bc1422d33',
       ply: 49,
+      event: '2025年全国象棋团体赛',
+      playedOn: '2025-04-19',
+      result: '1/2-1/2',
+      redName: '青岛市体育总会 迟信德',
+      blackName: '中国煤矿体育协会 蒋凤山',
     },
   },
   {
@@ -7763,6 +8026,11 @@ export const MINED_XIANGQI_PUZZLES: readonly MinedXiangqiPuzzle[] = [
     sourceGame: {
       gameId: 'hxq_50cc3a491de7019b98fd0f3a',
       ply: 55,
+      event: '2025年全国象棋团体赛',
+      playedOn: '2025-04-17',
+      result: '0-1',
+      redName: '宁波市全民健身指导中心 杨皓轩',
+      blackName: '福建省社会体育指导中心 王石',
     },
   },
   {
@@ -7950,6 +8218,11 @@ export const MINED_XIANGQI_PUZZLES: readonly MinedXiangqiPuzzle[] = [
     sourceGame: {
       gameId: 'hxq_512a2a176efb85d4fe31408d',
       ply: 30,
+      event: '2026年全国象棋团体赛',
+      playedOn: '2026-03-28',
+      result: '1/2-1/2',
+      redName: '湖北省体育局棋牌运动管理中心 汪元知',
+      blackName: '山东省棋牌运动管理中心 李越川',
     },
   },
   {
@@ -8133,6 +8406,11 @@ export const MINED_XIANGQI_PUZZLES: readonly MinedXiangqiPuzzle[] = [
     sourceGame: {
       gameId: 'hxq_5299fe14e58a6acd13d8dd33',
       ply: 29,
+      event: '2026年全国象棋团体赛',
+      playedOn: '2026-04-01',
+      result: '0-1',
+      redName: '吉林省棋牌运动管理中心 刘龙',
+      blackName: '北京棋院（北京市棋牌运动管理中心） 姚勤贺',
     },
   },
   {
@@ -8268,6 +8546,11 @@ export const MINED_XIANGQI_PUZZLES: readonly MinedXiangqiPuzzle[] = [
     sourceGame: {
       gameId: 'hxq_5d986a2b712c3117607ae899',
       ply: 66,
+      event: '2026年全国象棋团体赛',
+      playedOn: '2026-04-02',
+      result: '1-0',
+      redName: '广东省二沙体育训练中心 黄光颖',
+      blackName: '湖北省体育局棋牌运动管理中心 刘云峰',
     },
   },
   {
@@ -8407,6 +8690,11 @@ export const MINED_XIANGQI_PUZZLES: readonly MinedXiangqiPuzzle[] = [
     sourceGame: {
       gameId: 'hxq_5de45f7a31381053e30a369b',
       ply: 62,
+      event: '2026年全国象棋团体赛',
+      playedOn: '2026-03-30',
+      result: '1-0',
+      redName: '广东省二沙体育训练中心 张婷',
+      blackName: '杭州市智力运动队 沈思凡',
     },
   },
   {
@@ -8586,6 +8874,11 @@ export const MINED_XIANGQI_PUZZLES: readonly MinedXiangqiPuzzle[] = [
     sourceGame: {
       gameId: 'hxq_5e17d09c750ee5b40b1520c4',
       ply: 48,
+      event: '2026年抖音直播',
+      playedOn: '2026-01-24',
+      result: '1-0',
+      redName: '群讴大军 象假队长',
+      blackName: '广东 刘盛强',
     },
   },
   {
@@ -8773,6 +9066,11 @@ export const MINED_XIANGQI_PUZZLES: readonly MinedXiangqiPuzzle[] = [
     sourceGame: {
       gameId: 'hxq_5ee6f03007c1812718638628',
       ply: 31,
+      event: '2026年全国象棋团体赛',
+      playedOn: '2026-04-01',
+      result: '0-1',
+      redName: '新疆生产建设兵团文化体育广电和旅游局 徐伟',
+      blackName: '吉林省棋牌运动管理中心 徐腾飞',
     },
   },
   {
@@ -8887,6 +9185,11 @@ export const MINED_XIANGQI_PUZZLES: readonly MinedXiangqiPuzzle[] = [
     sourceGame: {
       gameId: 'hxq_60e406e265642e412fbd2ba6',
       ply: 122,
+      event: '2026年广东十虎VS北京十杰象棋擂台赛',
+      playedOn: '2026-01-18',
+      result: '1-0',
+      redName: '广东十虎 黎铎',
+      blackName: '北京十杰 刘龙',
     },
   },
   {
@@ -9054,6 +9357,11 @@ export const MINED_XIANGQI_PUZZLES: readonly MinedXiangqiPuzzle[] = [
     sourceGame: {
       gameId: 'hxq_62fa46323deb732d9c43137a',
       ply: 32,
+      event: '2026年全国象棋团体赛',
+      playedOn: '2026-04-01',
+      result: '1-0',
+      redName: '吉林省棋牌运动管理中心 康乃馨',
+      blackName: '云南省棋牌运动管理中心 罗钰婷',
     },
   },
   {
@@ -9205,6 +9513,11 @@ export const MINED_XIANGQI_PUZZLES: readonly MinedXiangqiPuzzle[] = [
     sourceGame: {
       gameId: 'hxq_6659298c285885bcb6790b26',
       ply: 66,
+      event: '2025年全国象棋团体赛',
+      playedOn: '2025-04-16',
+      result: '1-0',
+      redName: '湖南省体育局 刘家铭',
+      blackName: '新疆生产建设兵团文化体育广电和旅游局 李旭翔',
     },
   },
   {
@@ -9340,6 +9653,11 @@ export const MINED_XIANGQI_PUZZLES: readonly MinedXiangqiPuzzle[] = [
     sourceGame: {
       gameId: 'hxq_67d7f6fa59ce9ae59b3c85ba',
       ply: 64,
+      event: '2026年全国象棋团体赛',
+      playedOn: '2026-03-31',
+      result: '1-0',
+      redName: '浙江省智力运动管理中心 王宇航',
+      blackName: '河北省体育局棋牌运动中心 杨世哲',
     },
   },
   {
@@ -9474,6 +9792,11 @@ export const MINED_XIANGQI_PUZZLES: readonly MinedXiangqiPuzzle[] = [
     sourceGame: {
       gameId: 'hxq_67d7f6fa59ce9ae59b3c85ba',
       ply: 66,
+      event: '2026年全国象棋团体赛',
+      playedOn: '2026-03-31',
+      result: '1-0',
+      redName: '浙江省智力运动管理中心 王宇航',
+      blackName: '河北省体育局棋牌运动中心 杨世哲',
     },
   },
   {
@@ -9572,6 +9895,11 @@ export const MINED_XIANGQI_PUZZLES: readonly MinedXiangqiPuzzle[] = [
     sourceGame: {
       gameId: 'hxq_6e26ca7168fc40dbb91de547',
       ply: 134,
+      event: '2026年全国象棋团体赛',
+      playedOn: '2026-04-02',
+      result: '1-0',
+      redName: '河南省全民健身中心 宋家豪',
+      blackName: '吉林省棋牌运动管理中心 刘龙',
     },
   },
   {
@@ -9743,6 +10071,11 @@ export const MINED_XIANGQI_PUZZLES: readonly MinedXiangqiPuzzle[] = [
     sourceGame: {
       gameId: 'hxq_72bb841aa04794a9e86a3ccd',
       ply: 33,
+      event: '2026年第十届北美杯象棋锦标赛',
+      playedOn: '2026-04-05',
+      result: '0-1',
+      redName: 'HTown David Nguyen',
+      blackName: '新奥尔良 张文鑫',
     },
   },
   {
@@ -9894,6 +10227,11 @@ export const MINED_XIANGQI_PUZZLES: readonly MinedXiangqiPuzzle[] = [
     sourceGame: {
       gameId: 'hxq_75c1e77dc113464ae3860a54',
       ply: 64,
+      event: '2025年全国象棋团体赛',
+      playedOn: '2025-04-17',
+      result: '1-0',
+      redName: '安徽省棋院 李冰',
+      blackName: '陕西省社会体育运动发展中心 孙继尧',
     },
   },
   {
@@ -10061,6 +10399,11 @@ export const MINED_XIANGQI_PUZZLES: readonly MinedXiangqiPuzzle[] = [
     sourceGame: {
       gameId: 'hxq_75f809638532b26e1e6300fb',
       ply: 34,
+      event: '2026年第十届北美杯象棋锦标赛',
+      playedOn: '2026-04-03',
+      result: '1-0',
+      redName: '休斯顿 杜国胜',
+      blackName: 'HTown 林年浩',
     },
   },
   {
@@ -10236,6 +10579,11 @@ export const MINED_XIANGQI_PUZZLES: readonly MinedXiangqiPuzzle[] = [
     sourceGame: {
       gameId: 'hxq_761689feb2235627b18ef1b9',
       ply: 32,
+      event: '2026年全国象棋团体赛',
+      playedOn: '2026-04-01',
+      result: '1-0',
+      redName: '河北省体育局棋牌运动中心 杨世哲',
+      blackName: '深圳市群众体育促进中心 杨思远',
     },
   },
   {
@@ -10411,6 +10759,11 @@ export const MINED_XIANGQI_PUZZLES: readonly MinedXiangqiPuzzle[] = [
     sourceGame: {
       gameId: 'hxq_7b642cdd00cf885f385004e7',
       ply: 29,
+      event: '2026年第十届北美杯象棋锦标赛',
+      playedOn: '2026-04-05',
+      result: '0-1',
+      redName: '北加州 孙一鸣',
+      blackName: '休斯顿 胡玉山',
     },
   },
   {
@@ -10545,6 +10898,11 @@ export const MINED_XIANGQI_PUZZLES: readonly MinedXiangqiPuzzle[] = [
     sourceGame: {
       gameId: 'hxq_7db834820ae4bd7adf98262f',
       ply: 71,
+      event: '2026年全国象棋团体赛',
+      playedOn: '2026-03-28',
+      result: '0-1',
+      redName: '重庆市棋牌运动管理中心（重庆星源玻璃队） 杨应东',
+      blackName: '上海金外滩象棋队 华辰昊',
     },
   },
   {
@@ -10660,6 +11018,11 @@ export const MINED_XIANGQI_PUZZLES: readonly MinedXiangqiPuzzle[] = [
     sourceGame: {
       gameId: 'hxq_8506f1f154db6058fbc4f40a',
       ply: 66,
+      event: '2025年全国象棋团体赛',
+      playedOn: '2025-04-16',
+      result: '1/2-1/2',
+      redName: '陕西省社会体育运动发展中心 孙继尧',
+      blackName: '山东省棋牌运动管理中心 刘新奥',
     },
   },
   {
@@ -10807,6 +11170,11 @@ export const MINED_XIANGQI_PUZZLES: readonly MinedXiangqiPuzzle[] = [
     sourceGame: {
       gameId: 'hxq_85fdd095ba6bedfc33040d6f',
       ply: 66,
+      event: '2026年广东十虎VS山东十好汉对抗赛',
+      playedOn: '2026-04-23',
+      result: '1-0',
+      redName: '山东十好汉 李成蹊',
+      blackName: '广东十虎 廖锦添',
     },
   },
   {
@@ -10918,6 +11286,11 @@ export const MINED_XIANGQI_PUZZLES: readonly MinedXiangqiPuzzle[] = [
     sourceGame: {
       gameId: 'hxq_876ff1d89537599228efb9c4',
       ply: 130,
+      event: '2026年全国象棋团体赛',
+      playedOn: '2026-03-30',
+      result: '1/2-1/2',
+      redName: '江西省体育总会 彭国庆',
+      blackName: '新疆生产建设兵团文化体育广电和旅游局 王磊',
     },
   },
   {
@@ -11080,6 +11453,11 @@ export const MINED_XIANGQI_PUZZLES: readonly MinedXiangqiPuzzle[] = [
     sourceGame: {
       gameId: 'hxq_87f1be18352551424d4aa57b',
       ply: 30,
+      event: '2026年全国象棋团体赛',
+      playedOn: '2026-04-02',
+      result: '1-0',
+      redName: '江苏棋院 董毓男',
+      blackName: '甘肃体彩队 王慧康',
     },
   },
   {
@@ -11255,6 +11633,11 @@ export const MINED_XIANGQI_PUZZLES: readonly MinedXiangqiPuzzle[] = [
     sourceGame: {
       gameId: 'hxq_87f1be18352551424d4aa57b',
       ply: 34,
+      event: '2026年全国象棋团体赛',
+      playedOn: '2026-04-02',
+      result: '1-0',
+      redName: '江苏棋院 董毓男',
+      blackName: '甘肃体彩队 王慧康',
     },
   },
   {
@@ -11433,6 +11816,11 @@ export const MINED_XIANGQI_PUZZLES: readonly MinedXiangqiPuzzle[] = [
     sourceGame: {
       gameId: 'hxq_883bb1816da3db309f1fb245',
       ply: 34,
+      event: '2026年第十届北美杯象棋锦标赛',
+      playedOn: '2026-04-03',
+      result: '1-0',
+      redName: '纽约2 彭铂',
+      blackName: '洛杉矶 廖建国',
     },
   },
   {
@@ -11600,6 +11988,11 @@ export const MINED_XIANGQI_PUZZLES: readonly MinedXiangqiPuzzle[] = [
     sourceGame: {
       gameId: 'hxq_8afb994f7ac3df708a839cae',
       ply: 39,
+      event: '2026年抖音直播',
+      playedOn: '2026-01-24',
+      result: '0-1',
+      redName: '群讴大军 象假队长',
+      blackName: '广东 刘盛强',
     },
   },
   {
@@ -11735,6 +12128,11 @@ export const MINED_XIANGQI_PUZZLES: readonly MinedXiangqiPuzzle[] = [
     sourceGame: {
       gameId: 'hxq_901b7606df72ecde7e73314a',
       ply: 80,
+      event: '2026年全国象棋团体赛',
+      playedOn: '2026-03-31',
+      result: '1-0',
+      redName: '河南省全民健身中心 何媛',
+      blackName: '杭州市智力运动队 胡雯銥',
     },
   },
   {
@@ -11882,6 +12280,11 @@ export const MINED_XIANGQI_PUZZLES: readonly MinedXiangqiPuzzle[] = [
     sourceGame: {
       gameId: 'hxq_943d507a8a1c92615c9b582b',
       ply: 73,
+      event: '1999年全国象棋团体赛',
+      playedOn: '1999-04-23',
+      result: '0-1',
+      redName: '云南 徐建秒',
+      blackName: '甘肃 郑欣',
     },
   },
   {
@@ -11980,6 +12383,11 @@ export const MINED_XIANGQI_PUZZLES: readonly MinedXiangqiPuzzle[] = [
     sourceGame: {
       gameId: 'hxq_9635fa5dda8163df31edf713',
       ply: 100,
+      event: '2025年全国象棋团体赛',
+      playedOn: '2025-04-16',
+      result: '1-0',
+      redName: '甘肃省体育总会 曹瑞杰',
+      blackName: '宁波市全民健身指导中心 杨皓轩',
     },
   },
   {
@@ -12155,6 +12563,11 @@ export const MINED_XIANGQI_PUZZLES: readonly MinedXiangqiPuzzle[] = [
     sourceGame: {
       gameId: 'hxq_9ab1df8359860327e0361c03',
       ply: 29,
+      event: '2026年第十届北美杯象棋锦标赛',
+      playedOn: '2026-04-04',
+      result: '0-1',
+      redName: 'Katy 黎日光',
+      blackName: '洛杉矶 廖建国',
     },
   },
   {
@@ -12294,6 +12707,11 @@ export const MINED_XIANGQI_PUZZLES: readonly MinedXiangqiPuzzle[] = [
     sourceGame: {
       gameId: 'hxq_9c00e0b3696d4047f7264a3a',
       ply: 54,
+      event: '2026年首届“天长杯”全国象棋公开赛',
+      playedOn: '2026-04-11',
+      result: '1-0',
+      redName: '浙江省智力运动管理中心 唐思楠',
+      blackName: '山东省棋牌运动管理中心 黄蕾蕾',
     },
   },
   {
@@ -12449,6 +12867,11 @@ export const MINED_XIANGQI_PUZZLES: readonly MinedXiangqiPuzzle[] = [
     sourceGame: {
       gameId: 'hxq_9c0e7fb55282f2a919196bb7',
       ply: 62,
+      event: '2026年全国象棋团体赛',
+      playedOn: '2026-04-02',
+      result: '1-0',
+      redName: '新疆生产建设兵团文化体育广电和旅游局 吴逢山',
+      blackName: '新疆维吾尔自治区体育局 张瀚镭',
     },
   },
   {
@@ -12604,6 +13027,11 @@ export const MINED_XIANGQI_PUZZLES: readonly MinedXiangqiPuzzle[] = [
     sourceGame: {
       gameId: 'hxq_9c25fb08342f0cce5988c61a',
       ply: 48,
+      event: '2026年广东十虎VS北京十杰象棋擂台赛',
+      playedOn: '2026-01-17',
+      result: '1-0',
+      redName: '广东十虎 邹海涛',
+      blackName: '北京十杰 程长亮',
     },
   },
   {
@@ -12743,6 +13171,11 @@ export const MINED_XIANGQI_PUZZLES: readonly MinedXiangqiPuzzle[] = [
     sourceGame: {
       gameId: 'hxq_9ecf82237969a77ee46ac505',
       ply: 83,
+      event: '2025年全国象棋团体赛',
+      playedOn: '2025-04-16',
+      result: '0-1',
+      redName: '宁波市全民健身指导中心 江杰',
+      blackName: '甘肃省体育总会 张尕军',
     },
   },
   {
@@ -12833,6 +13266,11 @@ export const MINED_XIANGQI_PUZZLES: readonly MinedXiangqiPuzzle[] = [
     sourceGame: {
       gameId: 'hxq_9fba1c77687f316e9e5cca7f',
       ply: 159,
+      event: '2026年全国象棋团体赛',
+      playedOn: '2026-03-30',
+      result: '0-1',
+      redName: '黑龙江省社会体育指导与棋牌运动管理中心 陶汉明',
+      blackName: '浙江省智力运动管理中心 吕叶昊',
     },
   },
   {
@@ -12980,6 +13418,11 @@ export const MINED_XIANGQI_PUZZLES: readonly MinedXiangqiPuzzle[] = [
     sourceGame: {
       gameId: 'hxq_9fba1c77687f316e9e5cca7f',
       ply: 54,
+      event: '2026年全国象棋团体赛',
+      playedOn: '2026-03-30',
+      result: '0-1',
+      redName: '黑龙江省社会体育指导与棋牌运动管理中心 陶汉明',
+      blackName: '浙江省智力运动管理中心 吕叶昊',
     },
   },
   {
@@ -13139,6 +13582,11 @@ export const MINED_XIANGQI_PUZZLES: readonly MinedXiangqiPuzzle[] = [
     sourceGame: {
       gameId: 'hxq_a0282601861fd221fe9a4955',
       ply: 56,
+      event: '2026年全国象棋团体赛',
+      playedOn: '2026-03-30',
+      result: '1/2-1/2',
+      redName: '云南省棋牌运动管理中心 李嘉骐',
+      blackName: '重庆市棋牌运动管理中心（重庆星源玻璃队） 杨应东',
     },
   },
   {
@@ -13282,6 +13730,11 @@ export const MINED_XIANGQI_PUZZLES: readonly MinedXiangqiPuzzle[] = [
     sourceGame: {
       gameId: 'hxq_a0679ecd83c6301b97a636e6',
       ply: 56,
+      event: '2026年广东十虎VS山东十好汉对抗赛',
+      playedOn: '2026-04-22',
+      result: '1-0',
+      redName: '山东十好汉 李翰林',
+      blackName: '广东十虎 邹海涛',
     },
   },
   {
@@ -13389,6 +13842,11 @@ export const MINED_XIANGQI_PUZZLES: readonly MinedXiangqiPuzzle[] = [
     sourceGame: {
       gameId: 'hxq_a121d9c1ed50855dcb0fc4f7',
       ply: 124,
+      event: '2026年全国象棋团体赛',
+      playedOn: '2026-04-01',
+      result: '1-0',
+      redName: '江西省体育总会 蔡佑广',
+      blackName: '甘肃体彩队 郑欣',
     },
   },
   {
@@ -13527,6 +13985,11 @@ export const MINED_XIANGQI_PUZZLES: readonly MinedXiangqiPuzzle[] = [
     sourceGame: {
       gameId: 'hxq_a20d49ae7aedf66d3dca7161',
       ply: 63,
+      event: '2026年全国象棋团体赛',
+      playedOn: '2026-03-29',
+      result: '0-1',
+      redName: '甘肃体彩队 傅安欣',
+      blackName: '黑龙江省社会体育指导与棋牌运动管理中心 林瑞洋',
     },
   },
   {
@@ -13650,6 +14113,11 @@ export const MINED_XIANGQI_PUZZLES: readonly MinedXiangqiPuzzle[] = [
     sourceGame: {
       gameId: 'hxq_a3df3ec28f5644678078a7ba',
       ply: 162,
+      event: '2026年广东十虎VS山东十好汉对抗赛',
+      playedOn: '2026-04-23',
+      result: '1-0',
+      redName: '广东十虎 朱少钧',
+      blackName: '山东十好汉 王新光',
     },
   },
   {
@@ -13797,6 +14265,11 @@ export const MINED_XIANGQI_PUZZLES: readonly MinedXiangqiPuzzle[] = [
     sourceGame: {
       gameId: 'hxq_a8f2d92a7f87eaf2e2e813e7',
       ply: 66,
+      event: '2026年全国象棋团体赛',
+      playedOn: '2026-03-30',
+      result: '1-0',
+      redName: '湖北省体育局棋牌运动管理中心 李智屏',
+      blackName: '陕西省社会体育运动发展中心 张会民',
     },
   },
   {
@@ -13952,6 +14425,11 @@ export const MINED_XIANGQI_PUZZLES: readonly MinedXiangqiPuzzle[] = [
     sourceGame: {
       gameId: 'hxq_a92d8ab5a67ccd789774a8bc',
       ply: 55,
+      event: '2026年全国象棋团体赛',
+      playedOn: '2026-03-28',
+      result: '0-1',
+      redName: '云南省棋牌运动管理中心 李明朗',
+      blackName: '深圳市群众体育促进中心 杨思远',
     },
   },
   {
@@ -14099,6 +14577,11 @@ export const MINED_XIANGQI_PUZZLES: readonly MinedXiangqiPuzzle[] = [
     sourceGame: {
       gameId: 'hxq_a96cf85fa2333890d9cbaf16',
       ply: 60,
+      event: '2026年全国象棋团体赛',
+      playedOn: '2026-03-30',
+      result: '1-0',
+      redName: '黑龙江省社会体育指导与棋牌运动管理中心 崔革',
+      blackName: '浙江省智力运动管理中心 申恩炫',
     },
   },
   {
@@ -14250,6 +14733,11 @@ export const MINED_XIANGQI_PUZZLES: readonly MinedXiangqiPuzzle[] = [
     sourceGame: {
       gameId: 'hxq_aa5c173414e95608d17e2ba9',
       ply: 49,
+      event: '2026年全国象棋团体赛',
+      playedOn: '2026-04-02',
+      result: '0-1',
+      redName: '北京棋院（北京市棋牌运动管理中心） 孙嘉潞',
+      blackName: '成都棋院（成都市智力运动中心） 郎祺琪',
     },
   },
   {
@@ -14372,6 +14860,11 @@ export const MINED_XIANGQI_PUZZLES: readonly MinedXiangqiPuzzle[] = [
     sourceGame: {
       gameId: 'hxq_aca4f12c814cc80bb3babc25',
       ply: 73,
+      event: '2026年全国象棋团体赛',
+      playedOn: '2026-03-29',
+      result: '0-1',
+      redName: '北京棋院（北京市棋牌运动管理中心） 孙嘉潞',
+      blackName: '江苏棋院 李沁',
     },
   },
   {
@@ -14499,6 +14992,11 @@ export const MINED_XIANGQI_PUZZLES: readonly MinedXiangqiPuzzle[] = [
     sourceGame: {
       gameId: 'hxq_acc4547ca0295598d7631533',
       ply: 101,
+      event: '2025年全国象棋团体赛',
+      playedOn: '2025-04-18',
+      result: '1/2-1/2',
+      redName: '甘肃省体育总会 付施蕾',
+      blackName: '山东省棋牌运动管理中心 张容豪',
     },
   },
   {
@@ -14630,6 +15128,11 @@ export const MINED_XIANGQI_PUZZLES: readonly MinedXiangqiPuzzle[] = [
     sourceGame: {
       gameId: 'hxq_ae2a5e50a97bd2da4683685b',
       ply: 94,
+      event: '2026年第十届北美杯象棋锦标赛',
+      playedOn: '2026-04-03',
+      result: '1-0',
+      redName: '北加州 孙一鸣',
+      blackName: '纽约2 彭铂',
     },
   },
   {
@@ -14773,6 +15276,11 @@ export const MINED_XIANGQI_PUZZLES: readonly MinedXiangqiPuzzle[] = [
     sourceGame: {
       gameId: 'hxq_b01c3ad0a368b420eea93689',
       ply: 80,
+      event: '2026年第十届北美杯象棋锦标赛',
+      playedOn: '2026-04-03',
+      result: '1-0',
+      redName: '北加州 曹智聪',
+      blackName: 'HTown David Nguyen',
     },
   },
   {
@@ -14924,6 +15432,11 @@ export const MINED_XIANGQI_PUZZLES: readonly MinedXiangqiPuzzle[] = [
     sourceGame: {
       gameId: 'hxq_b0aead982dc341409e02ea5b',
       ply: 58,
+      event: '2026年全国象棋团体赛',
+      playedOn: '2026-03-30',
+      result: '1-0',
+      redName: '北京棋院（北京市棋牌运动管理中心） 靳玉砚',
+      blackName: '新疆维吾尔自治区体育局 张阳',
     },
   },
   {
@@ -15071,6 +15584,11 @@ export const MINED_XIANGQI_PUZZLES: readonly MinedXiangqiPuzzle[] = [
     sourceGame: {
       gameId: 'hxq_b16afb5c21dded10eec2e5b8',
       ply: 68,
+      event: '2026年“春丘大叶杯”象棋大师擂台赛',
+      playedOn: '2026-04-05',
+      result: '1-0',
+      redName: '四川 赵攀伟',
+      blackName: '湖北 曹岩磊',
     },
   },
   {
@@ -15226,6 +15744,11 @@ export const MINED_XIANGQI_PUZZLES: readonly MinedXiangqiPuzzle[] = [
     sourceGame: {
       gameId: 'hxq_b344887a88cc3a0a14370809',
       ply: 43,
+      event: '2026年第十届北美杯象棋锦标赛',
+      playedOn: '2026-04-04',
+      result: '0-1',
+      redName: '北加州 曹智聪',
+      blackName: '洛杉矶 范志',
     },
   },
   {
@@ -15360,6 +15883,11 @@ export const MINED_XIANGQI_PUZZLES: readonly MinedXiangqiPuzzle[] = [
     sourceGame: {
       gameId: 'hxq_b6e7edc3540d44405f9fc3f3',
       ply: 73,
+      event: '2026年全国象棋团体赛',
+      playedOn: '2026-03-29',
+      result: '0-1',
+      redName: '成都棋院（成都市智力运动中心） 杨辉',
+      blackName: '浙江省智力运动管理中心 尹昇',
     },
   },
   {
@@ -15527,6 +16055,11 @@ export const MINED_XIANGQI_PUZZLES: readonly MinedXiangqiPuzzle[] = [
     sourceGame: {
       gameId: 'hxq_b7c908ec00982c098827d1ff',
       ply: 32,
+      event: '2026年全国象棋团体赛',
+      playedOn: '2026-03-28',
+      result: '1-0',
+      redName: '河北省体育局棋牌运动中心 张婷婷',
+      blackName: '安徽省棋院 陈欣圆',
     },
   },
   {
@@ -15690,6 +16223,11 @@ export const MINED_XIANGQI_PUZZLES: readonly MinedXiangqiPuzzle[] = [
     sourceGame: {
       gameId: 'hxq_b7c908ec00982c098827d1ff',
       ply: 34,
+      event: '2026年全国象棋团体赛',
+      playedOn: '2026-03-28',
+      result: '1-0',
+      redName: '河北省体育局棋牌运动中心 张婷婷',
+      blackName: '安徽省棋院 陈欣圆',
     },
   },
   {
@@ -15828,6 +16366,11 @@ export const MINED_XIANGQI_PUZZLES: readonly MinedXiangqiPuzzle[] = [
     sourceGame: {
       gameId: 'hxq_b7d924d6dd0dff3108229b6e',
       ply: 46,
+      event: '2026年全国象棋团体赛',
+      playedOn: '2026-03-29',
+      result: '1-0',
+      redName: '安徽省棋院 陈欣圆',
+      blackName: '云南省棋牌运动管理中心 濮铄懿',
     },
   },
   {
@@ -15943,6 +16486,11 @@ export const MINED_XIANGQI_PUZZLES: readonly MinedXiangqiPuzzle[] = [
     sourceGame: {
       gameId: 'hxq_bb946e9c57b400df1e88c6d7',
       ply: 149,
+      event: '2025年全国象棋团体赛',
+      playedOn: '2025-04-17',
+      result: '0-1',
+      redName: '新疆生产建设兵团文化体育广电和旅游局 李忠',
+      blackName: '厦门市体育事业发展中心 杨陈宇',
     },
   },
   {
@@ -16074,6 +16622,11 @@ export const MINED_XIANGQI_PUZZLES: readonly MinedXiangqiPuzzle[] = [
     sourceGame: {
       gameId: 'hxq_c08f67b5882b070bc49b409b',
       ply: 74,
+      event: '2026年第32届“五羊杯”全国象棋冠军赛',
+      playedOn: '2026-03-01',
+      result: '1-0',
+      redName: '杭州市智力运动队 程宇东',
+      blackName: '越南 赖理兄',
     },
   },
   {
@@ -16240,6 +16793,11 @@ export const MINED_XIANGQI_PUZZLES: readonly MinedXiangqiPuzzle[] = [
     sourceGame: {
       gameId: 'hxq_c0b47c662d9812c570cb9422',
       ply: 64,
+      event: '2026年全国象棋团体赛',
+      playedOn: '2026-03-31',
+      result: '1-0',
+      redName: '重庆市棋牌运动管理中心（重庆星源玻璃队） 杨应东',
+      blackName: '安徽省棋院 钟智渊',
     },
   },
   {
@@ -16391,6 +16949,11 @@ export const MINED_XIANGQI_PUZZLES: readonly MinedXiangqiPuzzle[] = [
     sourceGame: {
       gameId: 'hxq_c4ecf402a41dacdf919b40a0',
       ply: 76,
+      event: '2026年全国象棋团体赛',
+      playedOn: '2026-03-29',
+      result: '1-0',
+      redName: '陕西省社会体育运动发展中心 李小龙',
+      blackName: '甘肃体彩队 曹云鹏',
     },
   },
   {
@@ -16502,6 +17065,11 @@ export const MINED_XIANGQI_PUZZLES: readonly MinedXiangqiPuzzle[] = [
     sourceGame: {
       gameId: 'hxq_c54e0914bb048c4f5df809e4',
       ply: 80,
+      event: '2026年全国象棋团体赛',
+      playedOn: '2026-04-02',
+      result: '1-0',
+      redName: '新疆维吾尔自治区体育局 张阳',
+      blackName: '新疆生产建设兵团文化体育广电和旅游局 徐伟',
     },
   },
   {
@@ -16661,6 +17229,11 @@ export const MINED_XIANGQI_PUZZLES: readonly MinedXiangqiPuzzle[] = [
     sourceGame: {
       gameId: 'hxq_c7a03cbc45a1f06b3496e593',
       ply: 37,
+      event: '2025年全国象棋团体赛',
+      playedOn: '2025-04-18',
+      result: '0-1',
+      redName: '安徽省棋院 衣璐璐',
+      blackName: '上海金外滩象棋队 张佳雯',
     },
   },
   {
@@ -16824,6 +17397,11 @@ export const MINED_XIANGQI_PUZZLES: readonly MinedXiangqiPuzzle[] = [
     sourceGame: {
       gameId: 'hxq_c7acc3b1e872c04051008ad8',
       ply: 46,
+      event: '2026年广东十虎VS山东十好汉对抗赛',
+      playedOn: '2026-04-22',
+      result: '1/2-1/2',
+      redName: '山东十好汉 王新光',
+      blackName: '广东十虎 黎铎',
     },
   },
   {
@@ -16995,6 +17573,11 @@ export const MINED_XIANGQI_PUZZLES: readonly MinedXiangqiPuzzle[] = [
     sourceGame: {
       gameId: 'hxq_ca0df8089738b3ea5991b042',
       ply: 31,
+      event: '2026年全国象棋团体赛',
+      playedOn: '2026-03-29',
+      result: '0-1',
+      redName: '吉林省棋牌运动管理中心 康乃馨',
+      blackName: '成都棋院（成都市智力运动中心） 梁妍婷',
     },
   },
   {
@@ -17145,6 +17728,11 @@ export const MINED_XIANGQI_PUZZLES: readonly MinedXiangqiPuzzle[] = [
     sourceGame: {
       gameId: 'hxq_ca22593c89bfa64ebeaa9170',
       ply: 78,
+      event: '2026年全国象棋团体赛',
+      playedOn: '2026-03-28',
+      result: '1-0',
+      redName: '黑龙江省社会体育指导与棋牌运动管理中心 何伟宁',
+      blackName: '河南省全民健身中心 白涛',
     },
   },
   {
@@ -17283,6 +17871,11 @@ export const MINED_XIANGQI_PUZZLES: readonly MinedXiangqiPuzzle[] = [
     sourceGame: {
       gameId: 'hxq_cb037c53d2630b0f4bf220a1',
       ply: 101,
+      event: '2026年广东十虎VS北京十杰象棋擂台赛',
+      playedOn: '2026-01-17',
+      result: '0-1',
+      redName: '北京十杰 姚勤贺',
+      blackName: '广东十虎 廖锦添',
     },
   },
   {
@@ -17434,6 +18027,11 @@ export const MINED_XIANGQI_PUZZLES: readonly MinedXiangqiPuzzle[] = [
     sourceGame: {
       gameId: 'hxq_ccebdc6efc19ed27e551a7a9',
       ply: 43,
+      event: '2026年全国象棋团体赛',
+      playedOn: '2026-03-28',
+      result: '1/2-1/2',
+      redName: '黑龙江省社会体育指导与棋牌运动管理中心 李丹阳',
+      blackName: '吉林省棋牌运动管理中心 李超',
     },
   },
   {
@@ -17573,6 +18171,11 @@ export const MINED_XIANGQI_PUZZLES: readonly MinedXiangqiPuzzle[] = [
     sourceGame: {
       gameId: 'hxq_ccebdc6efc19ed27e551a7a9',
       ply: 67,
+      event: '2026年全国象棋团体赛',
+      playedOn: '2026-03-28',
+      result: '1/2-1/2',
+      redName: '黑龙江省社会体育指导与棋牌运动管理中心 李丹阳',
+      blackName: '吉林省棋牌运动管理中心 李超',
     },
   },
   {
@@ -17752,6 +18355,11 @@ export const MINED_XIANGQI_PUZZLES: readonly MinedXiangqiPuzzle[] = [
     sourceGame: {
       gameId: 'hxq_d1771948fbede71d230cd39c',
       ply: 33,
+      event: '2026年全国象棋团体赛',
+      playedOn: '2026-04-02',
+      result: '0-1',
+      redName: '云南省棋牌运动管理中心 罗钰婷',
+      blackName: '河南省全民健身中心 何媛',
     },
   },
   {
@@ -17883,6 +18491,11 @@ export const MINED_XIANGQI_PUZZLES: readonly MinedXiangqiPuzzle[] = [
     sourceGame: {
       gameId: 'hxq_d6fd02f35e086c2c09fd7fdb',
       ply: 111,
+      event: '2026年第32届“五羊杯”全国象棋冠军赛',
+      playedOn: '2026-02-25',
+      result: '0-1',
+      redName: '北京棋院 王禹博',
+      blackName: '浙江省智力运动管理中心 尹昇',
     },
   },
   {
@@ -18042,6 +18655,11 @@ export const MINED_XIANGQI_PUZZLES: readonly MinedXiangqiPuzzle[] = [
     sourceGame: {
       gameId: 'hxq_d86e060d473abdd8f834ed98',
       ply: 42,
+      event: '2026年全国象棋团体赛',
+      playedOn: '2026-04-01',
+      result: '1-0',
+      redName: '广东省二沙体育训练中心 时凤兰',
+      blackName: '成都棋院（成都市智力运动中心） 郎祺琪',
     },
   },
   {
@@ -18221,6 +18839,11 @@ export const MINED_XIANGQI_PUZZLES: readonly MinedXiangqiPuzzle[] = [
     sourceGame: {
       gameId: 'hxq_d8fd1a1f9494472b246efff9',
       ply: 35,
+      event: '2026年全国象棋团体赛',
+      playedOn: '2026-03-28',
+      result: '0-1',
+      redName: '吉林省棋牌运动管理中心 苏枫峻',
+      blackName: '浙江省智力运动管理中心 吕叶昊',
     },
   },
   {
@@ -18388,6 +19011,11 @@ export const MINED_XIANGQI_PUZZLES: readonly MinedXiangqiPuzzle[] = [
     sourceGame: {
       gameId: 'hxq_d943285f006d614498ef31ae',
       ply: 30,
+      event: '2026年全国象棋团体赛',
+      playedOn: '2026-03-31',
+      result: '0-1',
+      redName: '甘肃体彩队 付施蕾',
+      blackName: '北京棋院（北京市棋牌运动管理中心） 张瀛心',
     },
   },
   {
@@ -18543,6 +19171,11 @@ export const MINED_XIANGQI_PUZZLES: readonly MinedXiangqiPuzzle[] = [
     sourceGame: {
       gameId: 'hxq_d943285f006d614498ef31ae',
       ply: 45,
+      event: '2026年全国象棋团体赛',
+      playedOn: '2026-03-31',
+      result: '0-1',
+      redName: '甘肃体彩队 付施蕾',
+      blackName: '北京棋院（北京市棋牌运动管理中心） 张瀛心',
     },
   },
   {
@@ -18701,6 +19334,11 @@ export const MINED_XIANGQI_PUZZLES: readonly MinedXiangqiPuzzle[] = [
     sourceGame: {
       gameId: 'hxq_db70eec993fcfcfc247986aa',
       ply: 47,
+      event: '2026年第十届北美杯象棋锦标赛',
+      playedOn: '2026-04-04',
+      result: '0-1',
+      redName: 'UsCentralVietnamese 谢文川',
+      blackName: '新泽西 罗健文',
     },
   },
   {
@@ -18840,6 +19478,11 @@ export const MINED_XIANGQI_PUZZLES: readonly MinedXiangqiPuzzle[] = [
     sourceGame: {
       gameId: 'hxq_dcda5d6a737124574aa989c4',
       ply: 47,
+      event: '2026年全国象棋团体赛',
+      playedOn: '2026-04-01',
+      result: '0-1',
+      redName: '陕西省社会体育运动发展中心 王明虎',
+      blackName: '上海金外滩象棋队 华辰昊',
     },
   },
   {
@@ -18979,6 +19622,11 @@ export const MINED_XIANGQI_PUZZLES: readonly MinedXiangqiPuzzle[] = [
     sourceGame: {
       gameId: 'hxq_eb03b4cb0cfc57a33a246f0c',
       ply: 78,
+      event: '2026年全国象棋团体赛',
+      playedOn: '2026-04-01',
+      result: '1-0',
+      redName: '杭州市智力运动队 王文君',
+      blackName: '上海金外滩象棋队 宇诗琪',
     },
   },
   {
@@ -19150,6 +19798,11 @@ export const MINED_XIANGQI_PUZZLES: readonly MinedXiangqiPuzzle[] = [
     sourceGame: {
       gameId: 'hxq_ef34f4db5bd3d1bbfc58feb0',
       ply: 35,
+      event: '2026年广东十虎VS山东十好汉对抗赛',
+      playedOn: '2026-04-22',
+      result: '1-0',
+      redName: '广东十虎 廖锦添',
+      blackName: '山东十好汉 李越川',
     },
   },
   {
@@ -19293,6 +19946,11 @@ export const MINED_XIANGQI_PUZZLES: readonly MinedXiangqiPuzzle[] = [
     sourceGame: {
       gameId: 'hxq_ef6b1293584e887bead9e894',
       ply: 76,
+      event: '2026年全国象棋团体赛',
+      playedOn: '2026-03-28',
+      result: '1-0',
+      redName: '北京棋院（北京市棋牌运动管理中心） 巨龙飞',
+      blackName: '甘肃体彩队 郑欣',
     },
   },
   {
@@ -19423,6 +20081,11 @@ export const MINED_XIANGQI_PUZZLES: readonly MinedXiangqiPuzzle[] = [
     sourceGame: {
       gameId: 'hxq_efdbae2d76f1938bd42a70cb',
       ply: 80,
+      event: '2026年全国象棋团体赛',
+      playedOn: '2026-04-02',
+      result: '1-0',
+      redName: '陕西省社会体育运动发展中心 王明虎',
+      blackName: '云南省棋牌运动管理中心 郭炜皓',
     },
   },
   {
@@ -19546,6 +20209,11 @@ export const MINED_XIANGQI_PUZZLES: readonly MinedXiangqiPuzzle[] = [
     sourceGame: {
       gameId: 'hxq_f26237ed72d0714227ba3a35',
       ply: 104,
+      event: '2026年首届“天长杯”全国象棋公开赛',
+      playedOn: '2026-04-12',
+      result: '1-0',
+      redName: '杭州市智力运动队 郭凤达',
+      blackName: '江苏棋院 刘子健',
     },
   },
   {
@@ -19693,6 +20361,11 @@ export const MINED_XIANGQI_PUZZLES: readonly MinedXiangqiPuzzle[] = [
     sourceGame: {
       gameId: 'hxq_f49780b9f20303e59a03685c',
       ply: 47,
+      event: '2026年全国象棋团体赛',
+      playedOn: '2026-03-30',
+      result: '0-1',
+      redName: '黑龙江省社会体育指导与棋牌运动管理中心 姜瑀',
+      blackName: '湖北省体育局棋牌运动管理中心 左文静',
     },
   },
   {
@@ -19880,6 +20553,11 @@ export const MINED_XIANGQI_PUZZLES: readonly MinedXiangqiPuzzle[] = [
     sourceGame: {
       gameId: 'hxq_f5cdea252a4a2be8664c126e',
       ply: 17,
+      event: '2025年全国象棋团体赛',
+      playedOn: '2025-04-19',
+      result: '1/2-1/2',
+      redName: '上海金外滩象棋队 袁玮浩',
+      blackName: '山东省棋牌运动管理中心 刘新奥',
     },
   },
   {
@@ -20059,6 +20737,11 @@ export const MINED_XIANGQI_PUZZLES: readonly MinedXiangqiPuzzle[] = [
     sourceGame: {
       gameId: 'hxq_f5cdea252a4a2be8664c126e',
       ply: 23,
+      event: '2025年全国象棋团体赛',
+      playedOn: '2025-04-19',
+      result: '1/2-1/2',
+      redName: '上海金外滩象棋队 袁玮浩',
+      blackName: '山东省棋牌运动管理中心 刘新奥',
     },
   },
   {
@@ -20238,6 +20921,11 @@ export const MINED_XIANGQI_PUZZLES: readonly MinedXiangqiPuzzle[] = [
     sourceGame: {
       gameId: 'hxq_f5cdea252a4a2be8664c126e',
       ply: 25,
+      event: '2025年全国象棋团体赛',
+      playedOn: '2025-04-19',
+      result: '1/2-1/2',
+      redName: '上海金外滩象棋队 袁玮浩',
+      blackName: '山东省棋牌运动管理中心 刘新奥',
     },
   },
   {
@@ -20413,6 +21101,11 @@ export const MINED_XIANGQI_PUZZLES: readonly MinedXiangqiPuzzle[] = [
     sourceGame: {
       gameId: 'hxq_f775736824b4b6025dd77278',
       ply: 31,
+      event: '2026年第十届北美杯象棋锦标赛',
+      playedOn: '2026-04-05',
+      result: '0-1',
+      redName: 'HTown 林年浩',
+      blackName: 'Katy 黎日光',
     },
   },
   {
@@ -20532,6 +21225,11 @@ export const MINED_XIANGQI_PUZZLES: readonly MinedXiangqiPuzzle[] = [
     sourceGame: {
       gameId: 'hxq_fac4921f14b5e149683e08ec',
       ply: 104,
+      event: '2026年全国象棋团体赛',
+      playedOn: '2026-04-02',
+      result: '1-0',
+      redName: '山东省棋牌运动管理中心 李翰林',
+      blackName: '黑龙江省社会体育指导与棋牌运动管理中心 申嘉伟',
     },
   },
   {
@@ -20699,6 +21397,11 @@ export const MINED_XIANGQI_PUZZLES: readonly MinedXiangqiPuzzle[] = [
     sourceGame: {
       gameId: 'hxq_fb77a706f0cf9be1201e9063',
       ply: 38,
+      event: '2026年全国象棋团体赛',
+      playedOn: '2026-03-28',
+      result: '1-0',
+      redName: '浙江省智力运动管理中心 申恩炫',
+      blackName: '深圳市群众体育促进中心 刘明',
     },
   },
   {
@@ -20866,6 +21569,11 @@ export const MINED_XIANGQI_PUZZLES: readonly MinedXiangqiPuzzle[] = [
     sourceGame: {
       gameId: 'hxq_fc1f311a27c345db9b8c3751',
       ply: 29,
+      event: '2026年全国象棋团体赛',
+      playedOn: '2026-03-31',
+      result: '0-1',
+      redName: '云南省棋牌运动管理中心 濮铄懿',
+      blackName: '黑龙江省社会体育指导与棋牌运动管理中心 李丹阳',
     },
   },
   {
@@ -21013,6 +21721,11 @@ export const MINED_XIANGQI_PUZZLES: readonly MinedXiangqiPuzzle[] = [
     sourceGame: {
       gameId: 'hxq_fecbb255865799343fb30424',
       ply: 41,
+      event: '1999年全国象棋团体赛',
+      playedOn: '1999-04-23',
+      result: '0-1',
+      redName: '农民体协 张华明',
+      blackName: '广州 韩松龄',
     },
   },
   {
@@ -21139,6 +21852,11 @@ export const MINED_XIANGQI_PUZZLES: readonly MinedXiangqiPuzzle[] = [
     sourceGame: {
       gameId: 'hxq_ff066f501cd363320837f802',
       ply: 60,
+      event: '2026年全国象棋团体赛',
+      playedOn: '2026-03-28',
+      result: '1-0',
+      redName: '河北省体育局棋牌运动中心 杨世哲',
+      blackName: '上海金外滩象棋队 蒋融冰',
     },
   },
 ];

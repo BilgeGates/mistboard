@@ -73,6 +73,10 @@ type PuzzleSummary = {
 
 type PuzzleDetail = PuzzleSummary & {
   initial: PublicPuzzle['initial'];
+  // Denormalized attribution for the "From game" card (standard-xiangqi mined
+  // puzzles only). The source game itself is not hosted until license-cleared,
+  // so this is display metadata, not a link target.
+  sourceGame?: XiangqiPuzzle['sourceGame'];
 };
 
 export async function tryHandle(
@@ -280,6 +284,9 @@ function puzzleDetail(puzzle: PublicPuzzle): PuzzleDetail {
   return {
     ...puzzleSummary(puzzle),
     initial: puzzle.initial,
+    ...(puzzle.variant === XIANGQI_SPEC_ID && puzzle.sourceGame
+      ? { sourceGame: puzzle.sourceGame }
+      : {}),
   };
 }
 

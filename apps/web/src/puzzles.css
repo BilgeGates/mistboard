@@ -324,6 +324,44 @@
   font-weight: 500;
 }
 
+/* "From game" attribution: one row per player, a color disc + name, with a
+   result glyph pushed to the trailing edge on the side that won. */
+.puzzle-source-player {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  min-width: 0;
+}
+
+.puzzle-source-disc {
+  flex: none;
+  width: 10px;
+  height: 10px;
+  border: 1px solid var(--site-border);
+  border-radius: 50%;
+}
+
+.puzzle-source-disc--red {
+  background: #c0392b;
+}
+
+.puzzle-source-disc--black {
+  background: #454545;
+}
+
+.puzzle-source-player-name {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.puzzle-source-result {
+  margin-left: auto;
+  padding-left: 8px;
+  color: var(--site-muted);
+  font-variant-numeric: tabular-nums;
+}
+
 .puzzle-info-divider {
   width: 100%;
   height: 1px;

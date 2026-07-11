@@ -4,14 +4,16 @@ import {
   DROP_MINI_XIANGQI_SPEC_ID,
   getStandardXiangqiLegalMoves,
   MINI_XIANGQI_PUZZLES,
+  MINI_XIANGQI_SPEC_ID,
   type MiniXiangqiPuzzle,
   standardXiangqiPuzzleMoveEquals,
   XIANGQI_PUZZLES,
+  XIANGQI_SPEC_ID,
   type XiangqiMove,
   type XiangqiPuzzle,
 } from '@mistboard/game';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { mountPuzzles, puzzleMoveRowNumber } from './puzzles.js';
+import { mountPuzzles, puzzleMoveRowNumber, sourceGameLines } from './puzzles.js';
 import { xiangqiAppearanceChangedEvent } from './theme.js';
 
 function publicSummary(puzzle: MiniXiangqiPuzzle | XiangqiPuzzle) {
@@ -884,5 +886,50 @@ describe('puzzleMoveRowNumber', () => {
     expect([0, 1, 2, 3, 4, 5, 6].map((i) => puzzleMoveRowNumber('black', i))).toEqual([
       1, 2, 2, 3, 3, 4, 4,
     ]);
+  });
+});
+
+describe('sourceGameLines', () => {
+  it('renders a "From game" header with both players when a xiangqi puzzle carries attribution', () => {
+    const lines = sourceGameLines({
+      variant: XIANGQI_SPEC_ID,
+      sourceGame: {
+        gameId: 'hxq_test',
+        ply: 12,
+        event: '2026 Team Championship',
+        playedOn: '2026-04-02',
+        result: '1/2-1/2',
+        redName: 'Red Player',
+        blackName: 'Black Player',
+      },
+    });
+    expect(lines).toHaveLength(3);
+    expect(lines[0]?.textContent).toBe('From game · 2026 Team Championship (2026)');
+    expect(lines[1]?.textContent).toContain('Red Player');
+    expect(lines[2]?.textContent).toContain('Black Player');
+    // Draw shows ½ on both players.
+    expect(lines[1]?.textContent).toContain('½');
+    expect(lines[2]?.textContent).toContain('½');
+  });
+
+  it('marks only the winner on a decisive result', () => {
+    const lines = sourceGameLines({
+      variant: XIANGQI_SPEC_ID,
+      sourceGame: { gameId: 'g', ply: 1, redName: 'R', blackName: 'B', result: '1-0' },
+    });
+    expect(lines[1]?.querySelector('.puzzle-source-result')?.textContent).toBe('1');
+    expect(lines[2]?.querySelector('.puzzle-source-result')).toBeNull();
+  });
+
+  it('falls back to "From set <variant>" without attribution', () => {
+    expect(sourceGameLines({ variant: MINI_XIANGQI_SPEC_ID }).map((l) => l.textContent)).toEqual([
+      'From set Mini Xiangqi',
+    ]);
+    // A xiangqi puzzle with only {gameId, ply} and no names/event is not enough.
+    expect(
+      sourceGameLines({ variant: XIANGQI_SPEC_ID, sourceGame: { gameId: 'g', ply: 1 } }).map(
+        (l) => l.textContent,
+      ),
+    ).toEqual(['From set Xiangqi']);
   });
 });

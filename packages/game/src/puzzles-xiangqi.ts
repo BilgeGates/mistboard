@@ -77,7 +77,22 @@ export type XiangqiPuzzle = {
   // Pointer to the real game this position came from: replaying the source
   // game's first `ply` moves from the standard opening reproduces `initial`
   // (modulo the puzzle-state reset of progressClock/positionCounts).
-  sourceGame?: { gameId: string; ply: number };
+  //
+  // The event/date/result/player fields are denormalized ATTRIBUTION copied
+  // from the historical_xiangqi_games row at mine time. They travel with the
+  // puzzle so the "From game" card renders without the source game being
+  // hosted (the games themselves stay gated on license clearance — see
+  // docs-private/historical-xiangqi-library-track.md). All optional: older
+  // puzzles and non-db-mined puzzles carry only { gameId, ply }.
+  sourceGame?: {
+    gameId: string;
+    ply: number;
+    event?: string;
+    playedOn?: string; // ISO date, YYYY-MM-DD
+    result?: string; // "1-0" | "0-1" | "1/2-1/2"
+    redName?: string;
+    blackName?: string;
+  };
 };
 
 export type XiangqiPuzzleValidationIssueCode =
