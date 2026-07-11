@@ -34,6 +34,7 @@ const accountSettingsSectionGroups: readonly (readonly AccountSettingsSection[])
 const accountSettingsSections = accountSettingsSectionGroups.flat();
 
 const implementedDisplayPreferenceIds = new Set<DisplayPreferenceId>(['pieceAnimation']);
+const pieceAnimationSaveQueues = new WeakMap<AuthUser, Promise<void>>();
 
 // ── Page mounts ──────────────────────────────────────────────────────────────
 
@@ -339,11 +340,11 @@ function buildAccountSettingsSection(
   locale: Locale = currentLocale(),
 ): HTMLElement {
   if (section === 'profile') return buildPublicProfileSettings(user, locale);
-  if (section === 'display') return buildDisplaySettings(locale);
+  if (section === 'display') return buildDisplaySettings(user, locale);
   if (section === 'privacy') return buildPrivacySettings(user, locale);
   if (section === 'username') return buildUsernameSettings(user, locale);
   if (section === 'account') return buildAccountAccessSettings(user, locale);
-  return buildDisplaySettings(locale);
+  return buildDisplaySettings(user, locale);
 }
 
 function buildPublicProfileSettings(user: AuthUser, locale: Locale = currentLocale()): HTMLElement {
@@ -534,9 +535,15 @@ function buildUsernameSettings(user: AuthUser, locale: Locale = currentLocale())
   return panel;
 }
 
-function buildDisplaySettings(locale: Locale = currentLocale()): HTMLElement {
+function buildDisplaySettings(user: AuthUser, locale: Locale = currentLocale()): HTMLElement {
   const panel = buildSettingsPanel('display', t('account.settingsDisplay', {}, locale), '');
-  const preferences = readDisplayPreferences();
+  let preferences = readDisplayPreferences();
+  const accountPieceAnimation = user.displayPreferences.pieceAnimation;
+  if (accountPieceAnimation && accountPieceAnimation !== preferences.pieceAnimation) {
+    preferences = writeDisplayPreference('pieceAnimation', accountPieceAnimation);
+  } else if (!accountPieceAnimation) {
+    queuePieceAnimationPreferenceSave(user, preferences.pieceAnimation);
+  }
   const list = document.createElement('div');
   list.className = 'account-display-settings';
   for (const definition of DISPLAY_PREFERENCE_DEFINITIONS) {
@@ -554,6 +561,13 @@ function buildDisplaySettings(locale: Locale = currentLocale()): HTMLElement {
         definition.options,
         preferences[definition.id],
         locale,
+        definition.id === 'pieceAnimation'
+          ? (next, group, row) => {
+              const pieceAnimation = next as DisplayPreferenceValue<'pieceAnimation'>;
+              writeDisplayPreference('pieceAnimation', pieceAnimation);
+              queuePieceAnimationPreferenceSave(user, pieceAnimation, group, row, locale);
+            }
+          : undefined,
       ),
     );
   }
@@ -590,20 +604,76 @@ function buildSelectDisplayPreference(
   options: readonly string[],
   value: string,
   locale: Locale,
+  onChange?: (value: string, group: HTMLElement, row: HTMLElement) => void,
 ): HTMLElement {
   const row = displayPreferenceRow(id, locale);
-  row.append(
-    buildSegmentedPreference(
-      id,
-      options.map((optionValue) => ({
-        value: optionValue,
-        label: displayPreferenceOptionLabel(id, optionValue, locale),
-      })),
-      value,
-      (next) => writeDisplayPreference(id, next as DisplayPreferenceValue<typeof id>),
-    ),
+  const group = buildSegmentedPreference(
+    id,
+    options.map((optionValue) => ({
+      value: optionValue,
+      label: displayPreferenceOptionLabel(id, optionValue, locale),
+    })),
+    value,
+    (next) => {
+      if (onChange) onChange(next, group, row);
+      else writeDisplayPreference(id, next as DisplayPreferenceValue<typeof id>);
+    },
   );
+  row.append(group);
   return row;
+}
+
+function queuePieceAnimationPreferenceSave(
+  user: AuthUser,
+  pieceAnimation: NonNullable<AuthUser['displayPreferences']['pieceAnimation']>,
+  group?: HTMLElement,
+  row?: HTMLElement,
+  locale: Locale = currentLocale(),
+): void {
+  if (group) setPreferenceGroupDisabled(group, true);
+  const queued = (pieceAnimationSaveQueues.get(user) ?? Promise.resolve()).then(() =>
+    savePieceAnimationPreference(user, pieceAnimation, row, locale),
+  );
+  pieceAnimationSaveQueues.set(
+    user,
+    queued.finally(() => {
+      if (group) setPreferenceGroupDisabled(group, false);
+    }),
+  );
+}
+
+async function savePieceAnimationPreference(
+  user: AuthUser,
+  pieceAnimation: NonNullable<AuthUser['displayPreferences']['pieceAnimation']>,
+  row: HTMLElement | undefined,
+  locale: Locale,
+): Promise<void> {
+  try {
+    const resp = await fetch('/api/account/display-preferences', {
+      method: 'PATCH',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ pieceAnimation }),
+    });
+    if (!resp.ok) throw new Error(`display preference save failed: ${resp.status}`);
+    const data = (await resp.json()) as { user: AuthUser };
+    user.displayPreferences = data.user.displayPreferences;
+    setDisplayPreferenceStatus(row, t('account.displayPreferenceSaved', {}, locale));
+  } catch (err) {
+    console.warn(err);
+    setDisplayPreferenceStatus(row, t('account.displayPreferenceSaveFailed', {}, locale));
+  }
+}
+
+function setDisplayPreferenceStatus(row: HTMLElement | undefined, text: string): void {
+  if (!row) return;
+  let status = row.querySelector<HTMLElement>('.account-preference-help');
+  if (!status) {
+    status = document.createElement('span');
+    status.className = 'account-preference-help';
+    status.setAttribute('aria-live', 'polite');
+    row.append(status);
+  }
+  status.textContent = text;
 }
 
 function buildSegmentedPreference(

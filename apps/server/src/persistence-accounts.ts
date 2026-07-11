@@ -26,6 +26,23 @@ export function isProfileVisibility(value: unknown): value is ProfileVisibility 
   return typeof value === 'string' && PROFILE_VISIBILITIES.includes(value as ProfileVisibility);
 }
 
+export type PieceAnimationPreference = 'none' | 'fast' | 'normal' | 'slow';
+export type AccountDisplayPreferences = { pieceAnimation?: PieceAnimationPreference };
+
+export const PIECE_ANIMATION_PREFERENCES: readonly PieceAnimationPreference[] = [
+  'none',
+  'fast',
+  'normal',
+  'slow',
+];
+
+export function isPieceAnimationPreference(value: unknown): value is PieceAnimationPreference {
+  return (
+    typeof value === 'string' &&
+    PIECE_ANIMATION_PREFERENCES.includes(value as PieceAnimationPreference)
+  );
+}
+
 // Who may START a conversation with this user (#93). Replies to an existing
 // thread are always allowed; the send guard in routes/inbox.ts only consults
 // this for thread-creating sends. 'friends' = players this user follows.
@@ -48,6 +65,7 @@ export type UserAccount = {
   bio: string;
   location: string;
   profileLinks: string[];
+  displayPreferences: AccountDisplayPreferences;
   profileVisibility: ProfileVisibility;
   accountRole: AccountRole;
   // Verified player title (088), granted only through the title-verification
@@ -226,6 +244,7 @@ const USER_COLUMNS = [
   'bio',
   'location',
   'profile_links',
+  'display_preferences',
   'profile_visibility',
   'account_role',
   'title',
@@ -389,6 +408,27 @@ export async function updateUserPublicProfileDetails(
      WHERE id = $1
      RETURNING ${USER_COLUMNS}`,
     [userId, details.bio, details.location, details.profileLinks, at],
+  );
+  return rows[0] ? userFromRow(rows[0]) : null;
+}
+
+export async function updateUserPieceAnimationPreference(
+  userId: string,
+  pieceAnimation: PieceAnimationPreference,
+  at: Date,
+): Promise<UserAccount | null> {
+  const { rows } = await getPool().query<UserRow>(
+    `UPDATE users
+     SET display_preferences = jsonb_set(
+           display_preferences,
+           '{pieceAnimation}',
+           to_jsonb($2::text),
+           true
+         ),
+         updated_at = $3
+     WHERE id = $1
+     RETURNING ${USER_COLUMNS}`,
+    [userId, pieceAnimation, at],
   );
   return rows[0] ? userFromRow(rows[0]) : null;
 }
@@ -1099,6 +1139,7 @@ type UserRow = {
   bio: string;
   location: string;
   profile_links: string[];
+  display_preferences: unknown;
   profile_visibility: UserAccount['profileVisibility'];
   account_role: AccountRole;
   title: PlayerTitle | null;
@@ -1123,6 +1164,7 @@ function userFromRow(row: UserRow): UserAccount {
     bio: row.bio,
     location: row.location,
     profileLinks: row.profile_links,
+    displayPreferences: displayPreferencesFromJson(row.display_preferences),
     profileVisibility: row.profile_visibility,
     accountRole: row.account_role,
     title: row.title,
@@ -1134,6 +1176,12 @@ function userFromRow(row: UserRow): UserAccount {
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };
+}
+
+function displayPreferencesFromJson(value: unknown): AccountDisplayPreferences {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return {};
+  const pieceAnimation = (value as Record<string, unknown>).pieceAnimation;
+  return isPieceAnimationPreference(pieceAnimation) ? { pieceAnimation } : {};
 }
 
 function isUniqueViolation(err: unknown): boolean {

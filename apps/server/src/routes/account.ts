@@ -10,6 +10,37 @@ export async function tryHandle(
   response: ServerResponse,
   pathname: string,
 ): Promise<boolean> {
+  if (pathname === '/api/account/display-preferences') {
+    if (!requireMethod(request, response, 'PATCH')) return true;
+    if (!requirePersistence(response)) return true;
+    const user = await currentAccountUser(request);
+    if (!user) {
+      writeJson(response, 401, { error: 'not_signed_in' });
+      return true;
+    }
+    const body = await readJsonBody(request);
+    const keys = Object.keys(body);
+    if (
+      keys.length !== 1 ||
+      keys[0] !== 'pieceAnimation' ||
+      !persistence.isPieceAnimationPreference(body.pieceAnimation)
+    ) {
+      writeJson(response, 400, { error: 'invalid_display_preferences' });
+      return true;
+    }
+    const updated = await persistence.updateUserPieceAnimationPreference(
+      user.id,
+      body.pieceAnimation,
+      new Date(),
+    );
+    if (!updated) {
+      writeJson(response, 404, { error: 'user_not_found' });
+      return true;
+    }
+    writeJson(response, 200, { user: publicUser(updated) });
+    return true;
+  }
+
   if (pathname === '/api/account/preferences') {
     if (!requireMethod(request, response, 'PATCH')) return true;
     if (!requirePersistence(response)) return true;

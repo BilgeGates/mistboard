@@ -25,6 +25,9 @@ export type AuthUser = {
   bio: string;
   location: string;
   profileLinks: string[];
+  displayPreferences: {
+    pieceAnimation?: 'none' | 'fast' | 'normal' | 'slow';
+  };
   profileVisibility: 'private' | 'unlisted' | 'public';
   accountRole: 'player' | 'admin';
   locale: Locale | null;

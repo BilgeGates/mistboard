@@ -548,6 +548,7 @@ function testUser(): UserAccount {
     bio: '',
     location: '',
     profileLinks: [],
+    displayPreferences: {},
     profileVisibility: 'public',
     accountRole: 'player',
     title: null,

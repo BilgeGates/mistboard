@@ -122,6 +122,96 @@ definePersistenceTests('account routes', () => {
     );
   });
 
+  test('account display-preferences route stores piece animation', async () => {
+    const now = new Date('2026-07-11T12:00:00.000Z');
+    const sessionToken = 'display-preference-route-token';
+    await createUser({
+      id: 'user_display_preference_route',
+      email: 'display-preference-route@example.com',
+      emailVerifiedAt: now,
+      handle: 'display-preference-route',
+      displayName: 'Display Preference Route',
+      now,
+    });
+    const expiresAt = new Date(Date.now() + 86_400_000);
+    await createAccountSession({
+      id: 'display-preference-route-session',
+      userId: 'user_display_preference_route',
+      tokenHash: hashSecret(sessionToken),
+      expiresAt,
+    });
+
+    const response = captureResponse();
+    const handled = await tryHandle(
+      {},
+      jsonRequest(
+        { pieceAnimation: 'fast' },
+        accountSessionCookie('display-preference-route-session', sessionToken, expiresAt).split(
+          ';',
+        )[0],
+      ),
+      response,
+      '/api/account/display-preferences',
+    );
+
+    assert.equal(handled, true);
+    assert.equal(response.status, 200);
+    assert.deepEqual(
+      (JSON.parse(response.body) as { user: { displayPreferences: unknown } }).user
+        .displayPreferences,
+      { pieceAnimation: 'fast' },
+    );
+    assert.deepEqual(
+      (await findUserByEmail('display-preference-route@example.com'))?.displayPreferences,
+      { pieceAnimation: 'fast' },
+    );
+  });
+
+  test('account display-preferences route rejects unknown values and keys', async () => {
+    const now = new Date('2026-07-11T12:00:00.000Z');
+    const sessionToken = 'invalid-display-preference-route-token';
+    await createUser({
+      id: 'user_invalid_display_preference_route',
+      email: 'invalid-display-preference-route@example.com',
+      emailVerifiedAt: now,
+      handle: 'invalid-display-preference-route',
+      displayName: 'Invalid Display Preference Route',
+      now,
+    });
+    const expiresAt = new Date(Date.now() + 86_400_000);
+    await createAccountSession({
+      id: 'invalid-display-preference-route-session',
+      userId: 'user_invalid_display_preference_route',
+      tokenHash: hashSecret(sessionToken),
+      expiresAt,
+    });
+    const cookie = accountSessionCookie(
+      'invalid-display-preference-route-session',
+      sessionToken,
+      expiresAt,
+    ).split(';')[0];
+
+    for (const body of [
+      { pieceAnimation: 'instant' },
+      { pieceAnimation: 'fast', boardCoordinates: 'inside' },
+    ]) {
+      const response = captureResponse();
+      const handled = await tryHandle(
+        {},
+        jsonRequest(body, cookie),
+        response,
+        '/api/account/display-preferences',
+      );
+      assert.equal(handled, true);
+      assert.equal(response.status, 400);
+      assert.deepEqual(JSON.parse(response.body), { error: 'invalid_display_preferences' });
+    }
+    assert.deepEqual(
+      (await findUserByEmail('invalid-display-preference-route@example.com'))?.displayPreferences,
+      {},
+    );
+  });
+
   test('account public-profile route stores validated public details', async () => {
     const now = new Date('2026-07-11T12:00:00.000Z');
     const sessionToken = 'public-profile-route-token';

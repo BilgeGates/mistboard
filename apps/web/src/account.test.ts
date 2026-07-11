@@ -11,6 +11,9 @@ type TestUser = {
   bio: string;
   location: string;
   profileLinks: string[];
+  displayPreferences: {
+    pieceAnimation?: 'none' | 'fast' | 'normal' | 'slow';
+  };
   profileVisibility: 'private' | 'unlisted' | 'public';
   accountRole: 'player' | 'admin';
   locale: 'en' | 'zh-Hans' | 'zh-Hant' | 'ja' | null;
@@ -180,11 +183,18 @@ describe('account page auth flow', () => {
   it('renders display preferences separately from the appearance menu', async () => {
     window.history.replaceState(null, '', '/account/settings/display');
     const user = testUser('misty');
+    const requests: unknown[] = [];
     vi.stubGlobal(
       'fetch',
-      vi.fn(async (input: RequestInfo | URL) => {
+      vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
         const url = String(input);
         if (url === '/api/auth/me') return jsonResponse({ user });
+        if (url === '/api/account/display-preferences') {
+          requests.push(JSON.parse(String(init?.body)) as unknown);
+          return jsonResponse({
+            user: { ...user, displayPreferences: { pieceAnimation: 'fast' } },
+          });
+        }
         throw new Error(`unexpected fetch: ${url}`);
       }),
     );
@@ -213,11 +223,74 @@ describe('account page auth flow', () => {
     if (!animation) throw new Error('missing fast piece animation option');
     animation.checked = true;
     animation.dispatchEvent(new Event('change', { bubbles: true }));
+    await flushDom();
 
     const stored = JSON.parse(window.localStorage.getItem(displayPreferenceStorageKey) ?? '{}') as {
       pieceAnimation?: string;
     };
     expect(stored.pieceAnimation).toBe('fast');
+    expect(requests).toEqual([{ pieceAnimation: 'fast' }]);
+    expect(document.querySelector('.account-preference-help')?.textContent).toBe(
+      'Display preference saved.',
+    );
+  });
+
+  it('hydrates piece animation from the signed-in account', async () => {
+    window.history.replaceState(null, '', '/account/settings/display');
+    const user = testUser('misty');
+    user.displayPreferences.pieceAnimation = 'slow';
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (input: RequestInfo | URL) => {
+        const url = String(input);
+        if (url === '/api/auth/me') return jsonResponse({ user });
+        throw new Error(`unexpected fetch: ${url}`);
+      }),
+    );
+
+    const { displayPreferenceStorageKey } = await import('./display-preferences.js');
+    const { mountAccountSettings } = await import('./account.js');
+    await mountAccountSettings(document.querySelector<HTMLElement>('#app') as HTMLElement);
+    await flushDom();
+
+    expect(document.querySelector<HTMLInputElement>('input[value="slow"]')?.checked).toBe(true);
+    const stored = JSON.parse(window.localStorage.getItem(displayPreferenceStorageKey) ?? '{}') as {
+      pieceAnimation?: string;
+    };
+    expect(stored.pieceAnimation).toBe('slow');
+  });
+
+  it('imports an existing local piece animation choice into a new account preference', async () => {
+    window.history.replaceState(null, '', '/account/settings/display');
+    const user = testUser('misty');
+    user.displayPreferences = {};
+    const requests: unknown[] = [];
+    const { displayPreferenceStorageKey } = await import('./display-preferences.js');
+    window.localStorage.setItem(
+      displayPreferenceStorageKey,
+      JSON.stringify({ pieceAnimation: 'fast' }),
+    );
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+        const url = String(input);
+        if (url === '/api/auth/me') return jsonResponse({ user });
+        if (url === '/api/account/display-preferences') {
+          requests.push(JSON.parse(String(init?.body)) as unknown);
+          return jsonResponse({
+            user: { ...user, displayPreferences: { pieceAnimation: 'fast' } },
+          });
+        }
+        throw new Error(`unexpected fetch: ${url}`);
+      }),
+    );
+
+    const { mountAccountSettings } = await import('./account.js');
+    await mountAccountSettings(document.querySelector<HTMLElement>('#app') as HTMLElement);
+    await flushDom();
+
+    expect(requests).toEqual([{ pieceAnimation: 'fast' }]);
+    expect(document.querySelector<HTMLInputElement>('input[value="fast"]')?.checked).toBe(true);
   });
 
   it('renders privacy as the supported messaging policy without profile hiding', async () => {
@@ -364,6 +437,7 @@ function testUser(handle: string): TestUser {
     bio: '',
     location: '',
     profileLinks: [],
+    displayPreferences: { pieceAnimation: 'normal' },
     profileVisibility: 'public',
     accountRole: 'player',
     locale: null,

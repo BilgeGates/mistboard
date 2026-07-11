@@ -498,6 +498,7 @@ function makeAccount(overrides: Partial<UserAccount> = {}): UserAccount {
     bio: '',
     location: '',
     profileLinks: [],
+    displayPreferences: {},
     profileVisibility: 'public',
     accountRole: 'player',
     title: null,
