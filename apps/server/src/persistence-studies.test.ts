@@ -1,10 +1,13 @@
 import type { UserAccount } from './persistence.js';
 import { createUser } from './persistence.js';
 import {
+  addChapter,
   createStudy,
+  deleteChapter,
   deleteStudy,
   getStudyById,
   listStudiesForOwner,
+  renameChapter,
   updateChapterTree,
   updateStudyMeta,
 } from './persistence-studies.js';
@@ -99,6 +102,46 @@ definePersistenceTests('studies', () => {
     const studies = await listStudiesForOwner(owner.id);
     assert.equal(studies.length, 2);
     assert.ok(studies.every((s) => s.chapterCount === 1));
+  });
+
+  test('adds, renames, and deletes chapters (owner only, keeps at least one)', async () => {
+    const owner = await makeUser('chapters');
+    const stranger = await makeUser('chapters-stranger');
+    const study = await makeStudy(owner.id);
+    assert.ok(study);
+    const studyId = study.id;
+
+    const added = await addChapter(studyId, owner.id, {
+      name: 'Chapter 2',
+      variant: 'xiangqi',
+      orientation: 'red',
+      root: tree,
+    });
+    assert.ok(added.ok);
+    assert.equal(added.chapter.name, 'Chapter 2');
+    assert.equal(added.chapter.ordinal, 1);
+
+    const bad = await addChapter(studyId, stranger.id, {
+      name: 'x',
+      variant: 'xiangqi',
+      orientation: 'red',
+      root: tree,
+    });
+    assert.ok(!bad.ok && bad.error === 'forbidden');
+
+    let full = await getStudyById(studyId);
+    assert.equal(full?.chapters.length, 2);
+
+    const renamed = await renameChapter(added.chapter.id, owner.id, 'Renamed');
+    assert.ok(renamed.ok && renamed.chapter.name === 'Renamed');
+
+    assert.ok((await deleteChapter(added.chapter.id, owner.id)).ok);
+    full = await getStudyById(studyId);
+    assert.equal(full?.chapters.length, 1);
+
+    // The last chapter cannot be deleted — a study always has at least one.
+    const lastDel = await deleteChapter(full!.chapters[0]!.id, owner.id);
+    assert.ok(!lastDel.ok && lastDel.error === 'last_chapter');
   });
 
   test('updates study meta (owner only) and cascades on delete', async () => {

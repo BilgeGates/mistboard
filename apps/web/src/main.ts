@@ -188,6 +188,7 @@ const wantsHistoricalXiangqiSearch =
   path === '/historical-xiangqi' || path === '/historical-xiangqi/games';
 const historicalXiangqiGameId = historicalXiangqiGameIdFromPath(path);
 const studyId = /^\/study\/([A-Za-z0-9]+)$/.exec(path)?.[1] ?? null;
+const wantsStudyIndex = path === '/study';
 // Hidden DEV-only spike: FoW Xiangqi Phase A. No nav entry, no landing link.
 const wantsXiangqiSpike = import.meta.env.DEV && path === '/xiangqi-spike';
 // Hidden DEV-only spike for the candidate 7x7 Dark Mini Xiangqi ruleset.
@@ -278,6 +279,13 @@ if (replaySample) {
   void mountOrReport(() =>
     import('./xiangqi-analysis-page.js').then(({ mountXiangqiAnalysisPage }) => {
       mountXiangqiAnalysisPage(appRoot);
+    }),
+  );
+} else if (wantsStudyIndex) {
+  setTitle('Studies');
+  void mountOrReport(() =>
+    import('./study-index.js').then(({ mountStudyIndex }) => {
+      mountStudyIndex(appRoot);
     }),
   );
 } else if (studyId) {

@@ -159,8 +159,10 @@ export function isClientRoute(pathname: string): boolean {
     normalized.startsWith('/kriegspiel/game/') ||
     normalized.startsWith('/fortress-xiangqi/game/') ||
     normalized.startsWith('/game/') ||
-    // Persisted studies (/study/:id): serve the review SPA shell + mount the ceval
-    // engine, so also a review-shell route (COOP/COEP) below.
+    // Study browse index (/study) + a persisted study (/study/:id). The :id page
+    // serves the review SPA shell + mounts the ceval engine, so it is also a
+    // review-shell route (COOP/COEP) below; the bare index is a plain client page.
+    normalized === '/study' ||
     /^\/study\/[A-Za-z0-9]+$/.test(normalized) ||
     // Standalone analysis board (/analysis/:variant), fed by a move list rather
     // than a room. Serves the review SPA shell and mounts the ceval engine, so it

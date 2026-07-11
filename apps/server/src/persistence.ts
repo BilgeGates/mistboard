@@ -329,7 +329,9 @@ export type {
 } from './persistence-site-stats.js';
 export { getPublicSiteStats, getSiteStats } from './persistence-site-stats.js';
 export type {
+  AddChapterResult,
   CreateStudyInput,
+  DeleteChapterResult,
   NewChapterInput,
   StudyChapterRecord,
   StudyRecord,
@@ -340,11 +342,14 @@ export type {
   UpdateStudyMetaResult,
 } from './persistence-studies.js';
 export {
+  addChapter,
   createStudy,
+  deleteChapter,
   deleteStudy,
   getStudyById,
   isStudyVisibility,
   listStudiesForOwner,
+  renameChapter,
   updateChapterTree,
   updateStudyMeta,
 } from './persistence-studies.js';

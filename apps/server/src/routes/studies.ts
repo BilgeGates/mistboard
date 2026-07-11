@@ -1,14 +1,16 @@
 // Study CRUD API (schema in migration 092; persistence in persistence-studies.ts).
-// S2 of the study track: single-author studies, owner-only writes, visibility-gated
-// reads. No real-time collaboration — a chapter save carries the chapter `version`
-// and loses to a concurrent writer with a 409 rather than clobbering.
+// S2/S3 of the study track: single-author studies, owner-only writes, visibility-
+// gated reads. No real-time collaboration — a chapter save carries the chapter
+// `version` and loses to a concurrent writer with a 409 rather than clobbering.
 //
 //   POST   /api/studies                       create (auth) — study + first chapter
 //   GET    /api/studies/mine                  list the signed-in owner's studies
 //   GET    /api/studies/:id                   read (public/unlisted: anyone; private: owner)
 //   PATCH  /api/studies/:id                   update name/description/visibility (owner)
 //   DELETE /api/studies/:id                   delete (owner)
-//   PATCH  /api/studies/:id/chapters/:cid     save a chapter's tree (owner, version-guarded)
+//   POST   /api/studies/:id/chapters          add a chapter (owner)
+//   PATCH  /api/studies/:id/chapters/:cid     save tree (version-guarded) OR rename (owner)
+//   DELETE /api/studies/:id/chapters/:cid     delete a chapter (owner; refuses the last)
 
 import type { IncomingMessage, ServerResponse } from 'node:http';
 import { currentAccountUser } from './../account-session.js';
@@ -22,6 +24,7 @@ const STUDY_VARIANTS = new Set(['xiangqi']);
 
 const ID = '[A-Za-z0-9]+';
 const STUDY_PATH = new RegExp(`^/api/studies/(${ID})$`);
+const CHAPTERS_PATH = new RegExp(`^/api/studies/(${ID})/chapters$`);
 const CHAPTER_PATH = new RegExp(`^/api/studies/(${ID})/chapters/(${ID})$`);
 
 function isSerializedTree(value: unknown): boolean {
@@ -84,17 +87,33 @@ export async function tryHandle(
     return createStudy(request, response, user.id);
   }
 
-  // ── Chapter tree save ──
-  const chapterMatch = CHAPTER_PATH.exec(pathname);
-  if (chapterMatch) {
-    if (!requireMethod(request, response, 'PATCH')) return true;
+  // ── Add a chapter ──
+  const chaptersMatch = CHAPTERS_PATH.exec(pathname);
+  if (chaptersMatch) {
+    if (!requireMethod(request, response, 'POST')) return true;
     if (!requirePersistence(response)) return true;
     const user = await currentAccountUser(request);
     if (!user) {
       writeJson(response, 401, { error: 'not_signed_in' });
       return true;
     }
-    return saveChapter(request, response, chapterMatch[2]!, user.id);
+    return addChapter(request, response, chaptersMatch[1]!, user.id);
+  }
+
+  // ── Chapter: tree save / rename / delete ──
+  const chapterMatch = CHAPTER_PATH.exec(pathname);
+  if (chapterMatch) {
+    if (!requirePersistence(response)) return true;
+    const user = await currentAccountUser(request);
+    if (!user) {
+      writeJson(response, 401, { error: 'not_signed_in' });
+      return true;
+    }
+    const chapterId = chapterMatch[2]!;
+    if (request.method === 'PATCH') return patchChapter(request, response, chapterId, user.id);
+    if (request.method === 'DELETE') return removeChapter(response, chapterId, user.id);
+    writeJson(response, 405, { error: 'method_not_allowed' });
+    return true;
   }
 
   // ── Single study: read / meta update / delete ──
@@ -191,29 +210,97 @@ async function readStudy(
   return true;
 }
 
-async function saveChapter(
+async function addChapter(
+  request: IncomingMessage,
+  response: ServerResponse,
+  studyId: string,
+  ownerId: string,
+): Promise<boolean> {
+  const body = await readJsonBody(request);
+  const variant = typeof body.variant === 'string' ? body.variant : '';
+  if (!STUDY_VARIANTS.has(variant)) {
+    writeJson(response, 400, { error: 'unsupported_variant' });
+    return true;
+  }
+  if (!isSerializedTree(body.root)) {
+    writeJson(response, 400, { error: 'invalid_tree' });
+    return true;
+  }
+  const name = typeof body.name === 'string' && body.name.trim() ? body.name.trim() : 'New chapter';
+  const orientation = body.orientation === 'black' ? 'black' : 'red';
+  const result = await persistence.addChapter(studyId, ownerId, {
+    name,
+    variant,
+    orientation,
+    root: body.root,
+    denorm: body.denorm ?? {},
+  });
+  if (!result.ok) {
+    writeJson(response, result.error === 'forbidden' ? 403 : 404, { error: result.error });
+    return true;
+  }
+  writeJson(response, 201, { chapter: chapterView(result.chapter) });
+  return true;
+}
+
+// PATCH a chapter: a `root` body saves the tree (version-guarded); a `name`-only
+// body renames it.
+async function patchChapter(
   request: IncomingMessage,
   response: ServerResponse,
   chapterId: string,
   ownerId: string,
 ): Promise<boolean> {
   const body = await readJsonBody(request);
-  if (!isSerializedTree(body.root)) {
-    writeJson(response, 400, { error: 'invalid_tree' });
+  if ('root' in body) {
+    if (!isSerializedTree(body.root)) {
+      writeJson(response, 400, { error: 'invalid_tree' });
+      return true;
+    }
+    const baseVersion = typeof body.baseVersion === 'number' ? body.baseVersion : undefined;
+    const result = await persistence.updateChapterTree(chapterId, ownerId, {
+      root: body.root,
+      denorm: body.denorm,
+      baseVersion,
+    });
+    if (!result.ok) {
+      const status = result.error === 'forbidden' ? 403 : result.error === 'conflict' ? 409 : 404;
+      writeJson(response, status, { error: result.error });
+      return true;
+    }
+    writeJson(response, 200, { chapter: chapterView(result.chapter) });
     return true;
   }
-  const baseVersion = typeof body.baseVersion === 'number' ? body.baseVersion : undefined;
-  const result = await persistence.updateChapterTree(chapterId, ownerId, {
-    root: body.root,
-    denorm: body.denorm,
-    baseVersion,
-  });
+  if (typeof body.name === 'string') {
+    const name = body.name.trim();
+    if (!name) {
+      writeJson(response, 400, { error: 'invalid_name' });
+      return true;
+    }
+    const result = await persistence.renameChapter(chapterId, ownerId, name);
+    if (!result.ok) {
+      writeJson(response, result.error === 'forbidden' ? 403 : 404, { error: result.error });
+      return true;
+    }
+    writeJson(response, 200, { chapter: chapterView(result.chapter) });
+    return true;
+  }
+  writeJson(response, 400, { error: 'nothing_to_update' });
+  return true;
+}
+
+async function removeChapter(
+  response: ServerResponse,
+  chapterId: string,
+  ownerId: string,
+): Promise<boolean> {
+  const result = await persistence.deleteChapter(chapterId, ownerId);
   if (!result.ok) {
-    const status = result.error === 'forbidden' ? 403 : result.error === 'conflict' ? 409 : 404;
+    const status = result.error === 'forbidden' ? 403 : result.error === 'last_chapter' ? 409 : 404;
     writeJson(response, status, { error: result.error });
     return true;
   }
-  writeJson(response, 200, { chapter: chapterView(result.chapter) });
+  writeJson(response, 200, { ok: true });
   return true;
 }
 

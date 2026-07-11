@@ -271,3 +271,95 @@ export async function deleteStudy(id: string, ownerId: string): Promise<boolean>
   );
   return (rowCount ?? 0) > 0;
 }
+
+export type AddChapterResult =
+  | { ok: true; chapter: StudyChapterRecord }
+  | { ok: false; error: 'not_found' | 'forbidden' };
+
+/** Append a chapter to a study (owner only). Ordinal = current max + 1. */
+export async function addChapter(
+  studyId: string,
+  ownerId: string,
+  input: NewChapterInput,
+): Promise<AddChapterResult> {
+  if (!isInitialized()) return { ok: false, error: 'not_found' };
+  const owner = await getPool().query<{ owner_id: string }>(
+    `SELECT owner_id FROM studies WHERE id = $1`,
+    [studyId],
+  );
+  const row = owner.rows[0];
+  if (!row) return { ok: false, error: 'not_found' };
+  if (row.owner_id !== ownerId) return { ok: false, error: 'forbidden' };
+  const now = new Date();
+  const inserted = await getPool().query<ChapterRow>(
+    `INSERT INTO study_chapters (id, study_id, ordinal, name, variant, orientation, root, denorm)
+       VALUES ($1, $2,
+               (SELECT COALESCE(MAX(ordinal), -1) + 1 FROM study_chapters WHERE study_id = $2),
+               $3, $4, $5, $6::jsonb, $7::jsonb)
+     RETURNING ${CHAPTER_COLS}`,
+    [
+      shortId(),
+      studyId,
+      input.name,
+      input.variant,
+      input.orientation,
+      JSON.stringify(input.root),
+      JSON.stringify(input.denorm ?? {}),
+    ],
+  );
+  await getPool().query(`UPDATE studies SET updated_at = $1 WHERE id = $2`, [now, studyId]);
+  return { ok: true, chapter: mapChapter(inserted.rows[0]!) };
+}
+
+export type DeleteChapterResult =
+  | { ok: true }
+  | { ok: false; error: 'not_found' | 'forbidden' | 'last_chapter' };
+
+/** Delete a chapter (owner only). Refuses to remove the last chapter — a study
+ *  always has at least one. */
+export async function deleteChapter(
+  chapterId: string,
+  ownerId: string,
+): Promise<DeleteChapterResult> {
+  if (!isInitialized()) return { ok: false, error: 'not_found' };
+  const { rows } = await getPool().query<{ owner_id: string; study_id: string }>(
+    `SELECT s.owner_id, c.study_id
+       FROM study_chapters c JOIN studies s ON s.id = c.study_id
+       WHERE c.id = $1`,
+    [chapterId],
+  );
+  const found = rows[0];
+  if (!found) return { ok: false, error: 'not_found' };
+  if (found.owner_id !== ownerId) return { ok: false, error: 'forbidden' };
+  const count = await getPool().query<{ n: string }>(
+    `SELECT count(*) AS n FROM study_chapters WHERE study_id = $1`,
+    [found.study_id],
+  );
+  if (Number(count.rows[0]?.n ?? 0) <= 1) return { ok: false, error: 'last_chapter' };
+  await getPool().query(`DELETE FROM study_chapters WHERE id = $1`, [chapterId]);
+  await getPool().query(`UPDATE studies SET updated_at = now() WHERE id = $1`, [found.study_id]);
+  return { ok: true };
+}
+
+/** Rename a chapter (owner only). Does not touch the tree `version`. */
+export async function renameChapter(
+  chapterId: string,
+  ownerId: string,
+  name: string,
+): Promise<UpdateChapterResult> {
+  if (!isInitialized()) return { ok: false, error: 'not_found' };
+  const { rows } = await getPool().query<{ owner_id: string }>(
+    `SELECT s.owner_id
+       FROM study_chapters c JOIN studies s ON s.id = c.study_id
+       WHERE c.id = $1`,
+    [chapterId],
+  );
+  const found = rows[0];
+  if (!found) return { ok: false, error: 'not_found' };
+  if (found.owner_id !== ownerId) return { ok: false, error: 'forbidden' };
+  const updated = await getPool().query<ChapterRow>(
+    `UPDATE study_chapters SET name = $1, updated_at = now() WHERE id = $2 RETURNING ${CHAPTER_COLS}`,
+    [name, chapterId],
+  );
+  return { ok: true, chapter: mapChapter(updated.rows[0]!) };
+}
