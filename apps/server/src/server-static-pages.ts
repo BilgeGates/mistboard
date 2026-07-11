@@ -129,6 +129,26 @@ export async function serveGamePage(params: {
   params.response.end(html);
 }
 
+// Serves the SPA shell with a 404 status for an unknown page navigation, so the
+// client boots and renders its branded not-found page (nav + panel) instead of
+// serve-handler's bare default 404. The status is a real 404 (crawlers must not
+// index junk paths as 200); noindex is belt-and-suspenders for the no-JS crawl.
+// Missing *assets* never reach here — server-http routes only extensionless page
+// navigations to this handler; extensioned paths fall through to serve-handler's
+// real asset 404.
+export async function serveNotFoundShell(params: {
+  response: ServerResponse;
+  staticDir: string;
+}): Promise<void> {
+  const indexPath = resolve(params.staticDir, 'index.html');
+  let html = await fs.readFile(indexPath, 'utf-8');
+  html = html
+    .replace(/<title>[^<]*<\/title>/, '<title>Page not found · Mistboard</title>')
+    .replace('</head>', '<meta name="robots" content="noindex, follow"></head>');
+  params.response.writeHead(404, { 'content-type': 'text/html; charset=utf-8' });
+  params.response.end(html);
+}
+
 function gamePageParticipantName(game: persistence.GameRecord, color: Color): string {
   return (
     game.participants.find((participant) => participant.color === color)?.displayName ??

@@ -8,6 +8,7 @@ import {
   injectPageMeta,
   serveArticlePage,
   serveArticlesIndexPage,
+  serveNotFoundShell,
   serveRulesIndexPage,
   serveSitemap,
 } from './server-static-pages.js';
@@ -69,6 +70,21 @@ test('injectPageMeta replaces share tags and escapes injected values', () => {
     html,
     /<meta property="og:image" content="https:\/\/example.test\/og.png\?x=1&amp;y=2">/,
   );
+});
+
+test('serveNotFoundShell serves the SPA shell with a 404 status and noindex', async () => {
+  const staticDir = await mkdtemp(join(tmpdir(), 'mistboard-static-'));
+  await writeFile(join(staticDir, 'index.html'), indexHtml(), 'utf-8');
+  const response = captureResponse();
+
+  await serveNotFoundShell({ response, staticDir });
+
+  assert.equal(response.status, 404);
+  assert.equal(response.headers['content-type'], 'text/html; charset=utf-8');
+  assert.match(response.body, /<title>Page not found · Mistboard<\/title>/);
+  assert.match(response.body, /<meta name="robots" content="noindex, follow">/);
+  // The SPA mount point survives so the client can render the branded 404.
+  assert.match(response.body, /<div id="app"><\/div>/);
 });
 
 test('serveArticlePage returns prerendered rules files from the rules base', async () => {

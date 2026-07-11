@@ -884,19 +884,42 @@ function buildNotFound(locale: Locale = currentLocale()): HTMLElement {
   const section = document.createElement('section');
   section.className = 'site-section not-found-section';
 
+  const code = document.createElement('div');
+  code.className = 'not-found-code';
+  code.setAttribute('aria-hidden', 'true');
+  code.textContent = '404';
+
   const heading = document.createElement('h1');
-  heading.className = 'site-section-heading';
+  heading.className = 'site-section-heading not-found-heading';
   heading.textContent = t('notFound.heading', {}, locale);
 
-  const p = document.createElement('p');
-  p.append(
-    document.createTextNode(t('notFound.prefix', {}, locale)),
-    aboutLink(t('notFound.homePage', {}, locale), '/'),
-    document.createTextNode(t('notFound.middle', {}, locale)),
+  const lede = document.createElement('p');
+  lede.className = 'not-found-lede';
+  lede.textContent = t('notFound.lede', {}, locale);
+
+  const home = aboutLink(t('notFound.homeCta', {}, locale), '/');
+  home.className = 'not-found-cta';
+
+  const quick = document.createElement('nav');
+  quick.className = 'not-found-links';
+  quick.setAttribute('aria-label', t('notFound.quickLinks', {}, locale));
+  for (const [labelKey, href] of [
+    ['nav.play', '/play'],
+    ['nav.rules', '/rules'],
+    ['nav.watch', '/watch'],
+    ['nav.puzzles', '/puzzles'],
+  ] as const) {
+    quick.append(aboutLink(t(labelKey, {}, locale), href));
+  }
+
+  const contact = document.createElement('p');
+  contact.className = 'not-found-contact';
+  contact.append(
+    document.createTextNode(t('notFound.stillLost', {}, locale)),
     aboutLink(t('notFound.contact', {}, locale), '/contact'),
     document.createTextNode(t('notFound.suffix', {}, locale)),
   );
 
-  section.append(heading, p);
+  section.append(code, heading, lede, home, quick, contact);
   return section;
 }

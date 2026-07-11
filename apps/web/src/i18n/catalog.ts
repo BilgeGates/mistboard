@@ -550,6 +550,10 @@ const EN = {
   'source.identityForksBrand':
     'Forks and derivatives should present their own public brand, domain, and hosted service identity.',
   'notFound.heading': 'Page not found',
+  'notFound.lede': 'That page does not exist, or it has moved.',
+  'notFound.homeCta': 'Go to homepage',
+  'notFound.quickLinks': 'Or jump to',
+  'notFound.stillLost': 'Still lost? ',
   'notFound.prefix': 'Nothing here. Try the ',
   'notFound.homePage': 'home page',
   'notFound.middle': ', or let me know what you were looking for via ',

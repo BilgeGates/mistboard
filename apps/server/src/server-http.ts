@@ -11,6 +11,7 @@ import {
   serveArticlePage,
   serveArticlesIndexPage,
   serveGamePage,
+  serveNotFoundShell,
   servePrerenderedPage,
   serveRulesIndexPage,
   serveSitemap,
@@ -340,10 +341,45 @@ export function createHttpRequestHandler(options: ServerHttpHandlerOptions) {
 
     if (isClientRoute(pathname)) {
       request.url = '/';
+      void serveHandler(request, response, { public: options.staticDir });
+      return;
+    }
+
+    // Unknown, non-asset page navigation (e.g. a mistyped or stale URL): serve
+    // the SPA shell with a 404 so the client renders the branded not-found page
+    // (nav + panel) instead of serve-handler's bare default 404. Requests for
+    // missing *assets* (extensioned paths) fall through to serve-handler's real
+    // asset 404 — handing back the HTML shell for a missing .js would break
+    // caching and mask load failures.
+    if (isPageNavigationRequest(request, pathname)) {
+      void serveNotFoundShell({ response, staticDir: options.staticDir }).catch((err) => {
+        console.warn('not-found shell render failed', (err as Error).message);
+        if (!response.headersSent) {
+          response.writeHead(404, { 'content-type': 'text/plain; charset=utf-8' });
+          response.end('Not found');
+        }
+      });
+      return;
     }
 
     void serveHandler(request, response, { public: options.staticDir });
   };
+}
+
+// A page navigation is an extensionless GET/HEAD whose Accept header asks for
+// HTML (or is absent — direct address-bar hits and crawlers). Asset requests
+// carry a file extension in the final path segment; those are excluded so they
+// keep flowing to serve-handler and get a real 404 when absent.
+export function isPageNavigationRequest(
+  request: Pick<IncomingMessage, 'method' | 'headers'>,
+  pathname: string,
+): boolean {
+  const method = request.method ?? 'GET';
+  if (method !== 'GET' && method !== 'HEAD') return false;
+  const lastSegment = pathname.split('/').pop() ?? '';
+  if (lastSegment.includes('.')) return false;
+  const accept = request.headers.accept ?? '';
+  return accept === '' || accept.includes('text/html');
 }
 
 async function handleHealthRequest(
