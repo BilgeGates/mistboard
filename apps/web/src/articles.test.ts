@@ -640,7 +640,7 @@ describe('rules variant sidebar', () => {
       (el) => el.textContent,
     );
     expect(titles).toEqual([
-      'Elephant Chess variants',
+      'Xiangqi variants',
       'Animal chess',
       'Chess variants',
       'Shogi variants',

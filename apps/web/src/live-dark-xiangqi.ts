@@ -95,7 +95,7 @@ let draggingFrom: XiangqiSquare | null = null;
 // ── Shared tenant room chrome config ─────────────────────────────────────────
 
 const darkXiangqiWebTenant: WebVariantTenant<XiangqiColor> = {
-  displayName: 'Fog Elephant Chess',
+  displayName: 'Fog Xiangqi',
   metaGlyph: '象',
   colors: ['red', 'black'],
   isColor: isXiangqiColor,
@@ -103,9 +103,9 @@ const darkXiangqiWebTenant: WebVariantTenant<XiangqiColor> = {
   enabled: darkXiangqiEnabled,
   reviewUrl: (roomId) => `/dark-xiangqi/game/${encodeURIComponent(roomId)}`,
   reasonPhrase: darkXiangqiReasonPhrase,
-  disabledTitle: 'Fog Elephant Chess disabled',
+  disabledTitle: 'Fog Xiangqi disabled',
   disabledBody: 'This client build has the room renderer off.',
-  rejectedBody: 'This Fog Elephant Chess room is not active. Create a new invite to start a game.',
+  rejectedBody: 'This Fog Xiangqi room is not active. Create a new invite to start a game.',
   spectatorBody: 'Watching without private information.',
   selectInstruction: 'Select one of your visible pieces, then choose a destination.',
 };
@@ -209,7 +209,7 @@ export function renderDarkXiangqiBoardSvg(
 
 function renderBoard(liveRefs: LiveRefs, view: DarkXiangqiWireView | null): void {
   liveRefs.board.className = 'board xiangqi-live-board';
-  liveRefs.board.setAttribute('aria-label', 'Fog Elephant Chess board');
+  liveRefs.board.setAttribute('aria-label', 'Fog Xiangqi board');
   if (!view) {
     liveRefs.board.replaceChildren();
     return;

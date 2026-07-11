@@ -118,7 +118,7 @@ function renderPostgame(root: HTMLElement, postgame: XiangqiPostgameResponse): v
     markerId: 'xiangqi',
     glyph: '象',
     headline: [timeControlLabel(postgame), postgame.game.rated ? 'Rated' : 'Casual'],
-    variantName: 'Elephant Chess',
+    variantName: 'Xiangqi',
     subline: timeAgoLabel(postgame.game.endedAt),
     players: (postgame.game.players ?? []).map((player) => ({
       color: player.color,
@@ -133,7 +133,7 @@ function renderPostgame(root: HTMLElement, postgame: XiangqiPostgameResponse): v
   mountXiangqiReview(root, {
     pageClassName: 'xiangqi-review',
     ariaLabel: 'Xiangqi postgame',
-    title: 'Elephant Chess',
+    title: 'Xiangqi',
     summary: `${resultLabel(postgame.game.result)} by ${labelize(postgame.game.termination)} · ${postgame.game.plyCount} plies`,
     metaCard: metaCard.el,
     details: buildSpectatorChat(postgame.game.roomId),

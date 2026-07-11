@@ -84,7 +84,7 @@ let roomMode: 'pve' | 'pvp' = 'pvp';
 let pveEngineId: string | null = null;
 
 const jieqiWebTenant: WebVariantTenant<JieqiColor> = {
-  displayName: 'Flip Elephant Chess',
+  displayName: 'Flip Xiangqi',
   metaGlyph: '象',
   colors: ['red', 'black'],
   isColor: isJieqiColor,
@@ -92,9 +92,9 @@ const jieqiWebTenant: WebVariantTenant<JieqiColor> = {
   enabled: jieqiEnabled,
   reviewUrl: (roomId) => `/jieqi/game/${encodeURIComponent(roomId)}`,
   reasonPhrase: jieqiReasonPhrase,
-  disabledTitle: 'Flip Elephant Chess disabled',
+  disabledTitle: 'Flip Xiangqi disabled',
   disabledBody: 'This client build has the room renderer off.',
-  rejectedBody: 'This Flip Elephant Chess room is not active. Create a new invite to start a game.',
+  rejectedBody: 'This Flip Xiangqi room is not active. Create a new invite to start a game.',
   spectatorBody: 'Watching without private information.',
   selectInstruction: 'Select one of your pieces, then choose a destination.',
 };
@@ -194,7 +194,7 @@ function jieqiReasonPhrase(reason: string): string {
 
 function renderBoard(liveRefs: LiveRefs, view: JieqiWireView | null): void {
   liveRefs.board.className = 'board jieqi-live-board';
-  liveRefs.board.setAttribute('aria-label', 'Flip Elephant Chess board');
+  liveRefs.board.setAttribute('aria-label', 'Flip Xiangqi board');
   if (!view) {
     liveRefs.board.replaceChildren();
     return;

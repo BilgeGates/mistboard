@@ -14,25 +14,25 @@ export const jieqiArticle: Article = {
     boardFamily: 'xiangqi',
     kind: 'rules',
     playableOnMistboard: true,
-    title: 'Flip Elephant Chess Rules',
+    title: 'Flip Xiangqi Rules',
     summary:
-      'Flip Elephant Chess rules: jieqi (揭棋), xiangqi with hidden non-general pieces that first move by starting point, then reveal and play by identity.',
+      'Flip Xiangqi rules: jieqi (揭棋), xiangqi with hidden non-general pieces that first move by starting point, then reveal and play by identity.',
     showSummaryOnPage: false,
     status: 'published',
     publishedAt: '2026-06-15',
     audience:
-      'Elephant Chess players and hidden-information fans who want a clean English rules reference for jieqi.',
+      'Xiangqi players and hidden-information fans who want a clean English rules reference for jieqi.',
     thumbnail: { kind: 'svg', svg: JIEQI_RULES_THUMBNAIL },
     intro: [
       {
         kind: 'paragraph',
         text:
-          "Flip Elephant Chess is jieqi (揭棋, 'reveal chess'). It keeps xiangqi's board and checkmate goal, but hides every non-general piece. A dark piece first moves, attacks, and captures by the starting point it occupies. After that move, it reveals and plays by identity.",
+          "Flip Xiangqi is jieqi (揭棋, 'reveal chess'). It keeps xiangqi's board and checkmate goal, but hides every non-general piece. A dark piece first moves, attacks, and captures by the starting point it occupies. After that move, it reveals and plays by identity.",
       },
       {
         kind: 'paragraph',
         text:
-          'Use [Elephant Chess Rules](/rules/xiangqi) for the base game. This page covers what changes.',
+          'Use [Xiangqi Rules](/rules/xiangqi) for the base game. This page covers what changes.',
       },
     ],
     sections: [
@@ -155,19 +155,19 @@ export const jieqiArticle: Article = {
           {
             kind: 'paragraph',
             text:
-              '揭棋 is Mandarin jiēqí, meaning reveal chess. Luo Jinsheng of Guangzhou invented it in the 1980s, and Vietnamese play commonly calls this family cờ úp. On Mistboard, Flip Elephant Chess means jieqi; [Fog Elephant Chess](/rules/dark-xiangqi) is the Fog of War variant, and [Half-Flip Chess](/rules/banqi) is the half-board flip game.',
+              '揭棋 is Mandarin jiēqí, meaning reveal chess. Luo Jinsheng of Guangzhou invented it in the 1980s, and Vietnamese play commonly calls this family cờ úp. On Mistboard, Flip Xiangqi means jieqi; [Fog Xiangqi](/rules/dark-xiangqi) is the Fog of War variant, and [Half Xiangqi](/rules/banqi) is the half-board flip game.',
           },
         ],
       },
       playClosing({
         heading: 'Where to next',
-        lead: 'Flip Elephant Chess is playable on Mistboard. Take on PikaJieQi, our jieqi engine, at the strength you pick. For the base game, read Elephant Chess; for the other face-down xiangqi cousin, compare Half-Flip Chess.',
+        lead: 'Flip Xiangqi is playable on Mistboard. Take on PikaJieQi, our jieqi engine, at the strength you pick. For the base game, read Xiangqi; for the other face-down xiangqi cousin, compare Half Xiangqi.',
         playLabel: 'Play vs PikaJieQi',
         playHref: '/?play=engine&gameSpecId=jieqi',
         secondary: [
-          { label: 'Elephant Chess Rules', href: '/rules/xiangqi', emphasis: 'secondary' },
-          { label: 'Half-Flip Chess', href: '/rules/banqi', emphasis: 'secondary' },
-          { label: 'Fog Elephant Chess', href: '/rules/dark-xiangqi', emphasis: 'secondary' },
+          { label: 'Xiangqi Rules', href: '/rules/xiangqi', emphasis: 'secondary' },
+          { label: 'Half Xiangqi', href: '/rules/banqi', emphasis: 'secondary' },
+          { label: 'Fog Xiangqi', href: '/rules/dark-xiangqi', emphasis: 'secondary' },
           { label: 'All rules', href: '/rules', emphasis: 'secondary' },
         ],
       }),

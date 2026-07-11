@@ -68,7 +68,7 @@ registerVariantTenant({
   watch: {
     channelId: 'jieqi',
     family: 'xiangqi',
-    label: 'Flip Elephant Chess',
+    label: 'Flip Xiangqi',
     legacyVariants: ['jieqi'],
   },
   ownsSpecRouting: true,

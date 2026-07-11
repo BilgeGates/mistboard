@@ -196,16 +196,26 @@ export function mountLearnXiangqi(root: HTMLElement): void {
     const subtitle = document.createElement('p');
     subtitle.textContent = learnCopy(stage.subtitle);
     text.append(title, subtitle);
-    const ribbon = document.createElement('div');
-    ribbon.className = 'learn-xq-tile-ribbon';
-    if (state === 'done') {
-      ribbon.innerHTML = starIcons(starsOfRank(stageRank(stage, stageScores(progress, stage.key))));
-    } else if (state === 'ongoing') {
-      const done = stageScores(progress, stage.key).filter((score) => score > 0).length;
-      ribbon.textContent =
-        done > 0 ? `${done} / ${stage.levels.length}` : learnCopy('learn.xiangqi.play');
+    tile.append(illus, text);
+    // Folded corner ribbon (lichess anatomy): stars once done, progress text
+    // while ongoing, nothing on locked (future) stages.
+    if (state !== 'future') {
+      const wrap = document.createElement('div');
+      wrap.className = 'learn-xq-ribbon-wrap';
+      const ribbon = document.createElement('div');
+      ribbon.className = `learn-xq-ribbon learn-xq-ribbon--${state}`;
+      if (state === 'done') {
+        ribbon.innerHTML = starIcons(
+          starsOfRank(stageRank(stage, stageScores(progress, stage.key))),
+        );
+      } else {
+        const done = stageScores(progress, stage.key).filter((score) => score > 0).length;
+        ribbon.textContent =
+          done > 0 ? `${done} / ${stage.levels.length}` : learnCopy('learn.xiangqi.play');
+      }
+      wrap.append(ribbon);
+      tile.append(wrap);
     }
-    tile.append(illus, text, ribbon);
     return tile;
   }
 

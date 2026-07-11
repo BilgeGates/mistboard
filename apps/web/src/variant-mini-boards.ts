@@ -919,7 +919,7 @@ export const VARIANT_MINIS: readonly VariantMiniDef[] = [
   },
   {
     id: 'xiangqi',
-    label: 'Elephant Chess',
+    label: 'Xiangqi',
     shortLabel: 'XQ',
     accent: '#8b5a24',
     blurb: "Red's court and cannon across the river board, nothing hidden.",
@@ -927,7 +927,7 @@ export const VARIANT_MINIS: readonly VariantMiniDef[] = [
   },
   {
     id: 'dark-xiangqi',
-    label: 'Fog Elephant Chess',
+    label: 'Fog Xiangqi',
     shortLabel: 'DX',
     accent: '#9f342d',
     blurb: "Red's court and cannon; fog marks the squares no red piece can reach.",
@@ -967,7 +967,7 @@ export const VARIANT_MINIS: readonly VariantMiniDef[] = [
   },
   {
     id: 'jieqi',
-    label: 'Flip Elephant Chess',
+    label: 'Flip Xiangqi',
     shortLabel: 'JQ',
     accent: '#6d4aa0',
     blurb: 'The xiangqi opening with every piece flipped face-down but the general.',
@@ -975,7 +975,7 @@ export const VARIANT_MINIS: readonly VariantMiniDef[] = [
   },
   {
     id: 'banqi',
-    label: 'Half-Flip Chess',
+    label: 'Half Xiangqi',
     shortLabel: 'BQ',
     accent: '#2563a6',
     blurb: 'Face-down pieces in cells; both generals flipped up.',

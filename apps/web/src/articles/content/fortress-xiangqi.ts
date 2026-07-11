@@ -21,7 +21,7 @@ export const fortressXiangqiArticle: Article = {
   playableOnMistboard: true,
   title: 'Fortress Rules',
   summary:
-    'Elephant Chess with a pocket: every familiar piece moves as in xiangqi, plus crazyhouse-style drops and one new piece, the Treasure.',
+    'Xiangqi with a pocket: every familiar piece moves as in xiangqi, plus crazyhouse-style drops and one new piece, the Treasure.',
   showSummaryOnPage: false,
   status: 'published',
   publishedAt: '2026-07-01',
@@ -31,7 +31,7 @@ export const fortressXiangqiArticle: Article = {
   intro: [
     {
       kind: 'paragraph',
-      text: 'Fortress is Fortress Xiangqi, an [Elephant Chess](/rules/xiangqi) variant with a reserve, designed by Brian H. Liou in 2026 as a Mistboard original. Every familiar piece moves exactly as it does in xiangqi, and one new piece, the Treasure, joins the back rank. The new rule is the [crazyhouse](https://en.wikipedia.org/wiki/Crazyhouse) loop: capture a piece, hold it in hand, and drop it back into the fight.',
+      text: 'Fortress is Fortress Xiangqi, an [Xiangqi](/rules/xiangqi) variant with a reserve, designed by Brian H. Liou in 2026 as a Mistboard original. Every familiar piece moves exactly as it does in xiangqi, and one new piece, the Treasure, joins the back rank. The new rule is the [crazyhouse](https://en.wikipedia.org/wiki/Crazyhouse) loop: capture a piece, hold it in hand, and drop it back into the fight.',
     },
     {
       kind: 'paragraph',

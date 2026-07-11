@@ -112,7 +112,7 @@ export function mountXiangqiReview(root: HTMLElement, config: XiangqiReviewConfi
   boardWrap.className = 'dxq-postgame__board-wrap review-board-host';
   const boardEl = document.createElement('div');
   boardEl.className = 'dxq-postgame__board xiangqi-live-board';
-  boardEl.setAttribute('aria-label', config.boardAriaLabel ?? 'Elephant Chess board');
+  boardEl.setAttribute('aria-label', config.boardAriaLabel ?? 'Xiangqi board');
   boardWrap.append(boardEl);
 
   const evalBar = createEvalBar();

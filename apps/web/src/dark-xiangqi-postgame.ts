@@ -95,7 +95,7 @@ export function mountDarkXiangqiPostgame(root: HTMLElement, roomId: string): voi
   root.classList.add('landing-page', 'dark-xiangqi-postgame-route');
   root.replaceChildren(buildNav(), loadingView());
   if (!darkXiangqiEnabled()) {
-    renderError(root, 'Fog Elephant Chess unavailable', 'This route is not enabled in this build.');
+    renderError(root, 'Fog Xiangqi unavailable', 'This route is not enabled in this build.');
     return;
   }
   void loadDarkXiangqiPostgame(roomId)
@@ -148,7 +148,7 @@ function renderPostgame(root: HTMLElement, postgame: DarkXiangqiPostgameResponse
     heading.textContent = entry.label;
     const board = document.createElement('div');
     board.className = 'dxq-postgame__board xiangqi-live-board';
-    board.setAttribute('aria-label', `${entry.label} final Fog Elephant Chess board`);
+    board.setAttribute('aria-label', `${entry.label} final Fog Xiangqi board`);
     // Every board gets flank capture columns (opponent top-left, near
     // bottom-right, level with the board so it keeps its full height), but only
     // the current PRIMARY board's are filled — a promoted POV board shows its
@@ -167,8 +167,8 @@ function renderPostgame(root: HTMLElement, postgame: DarkXiangqiPostgameResponse
   root.replaceChildren(buildNav());
   mountReviewLayout(root, {
     pageClassName: 'dark-xiangqi-review',
-    ariaLabel: 'Fog Elephant Chess postgame',
-    title: 'Fog Elephant Chess',
+    ariaLabel: 'Fog Xiangqi postgame',
+    title: 'Fog Xiangqi',
     summary: `${resultLabel(postgame.game.result)} by ${labelize(postgame.game.termination)} · ${postgame.game.plyCount} plies`,
     actions: postgameActions(postgame),
     details: detailsPanel(postgame),
@@ -355,7 +355,7 @@ function errorTitle(status: number): string {
 }
 
 function errorBody(result: Extract<LoadResult, { ok: false }>): string {
-  if (result.status === 404) return 'This Fog Elephant Chess game is not available.';
+  if (result.status === 404) return 'This Fog Xiangqi game is not available.';
   if (result.status === 503) return 'The postgame service is not available.';
   return result.error;
 }

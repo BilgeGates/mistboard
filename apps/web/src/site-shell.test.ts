@@ -108,13 +108,14 @@ describe('site shell nav', () => {
         .querySelector<HTMLAnchorElement>('.site-nav-menu-panel a[href="/zh-hant/rules"]')
         ?.classList.contains('active'),
     ).toBe(true);
-    // The Learn title itself now links to the rules index (split-menu behavior):
-    // the toggle is a localized anchor to /rules alongside the dropdown item.
-    expect(
-      nav.querySelector<HTMLAnchorElement>('.site-nav-menu-toggle[href="/zh-hant/rules"]')
-        ?.textContent,
-    ).toBe('學習');
-    expect(nav.querySelector('.site-nav-menu-toggle')?.classList.contains('active')).toBe(true);
+    // The Learn title now links to the xiangqi course (/learn/xiangqi), the
+    // bet's flagship learn surface; the dropdown lists it plus the localized
+    // Rules link. The toggle stays active on a /rules route via that child.
+    const learnToggle = nav.querySelector<HTMLAnchorElement>(
+      '.site-nav-menu-toggle[href="/learn/xiangqi"]',
+    );
+    expect(learnToggle?.textContent).toBe('學習');
+    expect(learnToggle?.classList.contains('active')).toBe(true);
     // Articles now surface as "Blog" (網誌) in the Community dropdown.
     expect(nav.querySelector<HTMLAnchorElement>('a[href="/zh-hant/blog"]')?.textContent).toBe(
       '網誌',

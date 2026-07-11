@@ -446,7 +446,7 @@ if (replaySample) {
     ),
   );
 } else if (wantsXiangqiDemo) {
-  setTitle('Fog Elephant Chess demo');
+  setTitle('Fog Xiangqi demo');
   void mountOrReport(() =>
     import('./xiangqi-demo.js').then(({ mountXiangqiDemo }) => mountXiangqiDemo(appRoot)),
   );

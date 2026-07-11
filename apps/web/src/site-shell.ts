@@ -67,9 +67,10 @@ export function buildNav(locale: Locale = currentLocale()): HTMLElement {
   const [play, puzzles, watch] = primaryNavItems();
   if (play) links.append(navLink(play, locale));
   if (puzzles) links.append(navLink(puzzles, locale));
-  // Learn title links to the rules index (/rules); the dropdown lists the same.
-  // On touch/no-hover the first tap opens the panel, where Rules is reachable.
-  links.append(navMenu('nav.learn', learnNavItems(), locale, '/rules'));
+  // Learn title links to the xiangqi course (/learn/xiangqi), the bet's flagship
+  // learn surface; the dropdown lists it plus Rules. On touch/no-hover the first
+  // tap opens the panel, where both destinations are reachable.
+  links.append(navMenu('nav.learn', learnNavItems(), locale, '/learn/xiangqi'));
   // Watch title links to Mistboard TV (/watch); the dropdown adds Broadcasts.
   links.append(navMenu('nav.watch', watchNavItems(), locale, watch?.href ?? '/watch'));
   // Community title itself links to the player page (lichess parity): hovering

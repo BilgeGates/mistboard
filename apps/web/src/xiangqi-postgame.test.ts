@@ -47,7 +47,7 @@ describe('Xiangqi postgame page', () => {
     expect(fetchSpy).toHaveBeenCalledWith('/api/xiangqi/games/xq_postgame');
     expect(fetchSpy).toHaveBeenCalledWith('/api/chat/game/xq_postgame');
     expect(root.querySelector('.site-nav')).not.toBeNull();
-    expect(root.textContent).toContain('Elephant Chess');
+    expect(root.textContent).toContain('Xiangqi');
     expect(root.textContent).toContain('Spectator room');
     expect(root.textContent).toContain('hello from review');
     expect(root.querySelector<HTMLInputElement>('.review-spectator-chat__input')?.placeholder).toBe(

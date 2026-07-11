@@ -91,7 +91,7 @@ export function mountXiangqiAnalysis(
     markerId: 'xiangqi',
     glyph: '象',
     headline: ['Analysis board'],
-    variantName: 'Elephant Chess',
+    variantName: 'Xiangqi',
     subline: replay.maxPly
       ? `${replay.maxPly} ${replay.maxPly === 1 ? 'ply' : 'plies'}`
       : 'Start position',

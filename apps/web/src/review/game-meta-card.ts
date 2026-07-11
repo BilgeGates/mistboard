@@ -1,7 +1,7 @@
 // Shared game meta card (lichess/playstrategy-style), used by the live room's
 // left rail AND the review pages' left rail so both surfaces read identically:
 //
-//   [glyph]  5+0 • Casual • Elephant Chess
+//   [glyph]  5+0 • Casual • Xiangqi
 //            3 days ago
 //   ● red player (2203)
 //   ○ black player (2166)

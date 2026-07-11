@@ -85,7 +85,7 @@ function renderHistoricalXiangqiGame(root: HTMLElement, game: HistoricalXiangqiG
     markerId: 'xiangqi',
     glyph: '象',
     headline: ['Historical game'],
-    variantName: 'Elephant Chess',
+    variantName: 'Xiangqi',
     subline: [formatDate(game.playedOn), game.eventName].filter(Boolean).join(' · '),
     players: [
       { color: 'red', name: game.redNameRaw ?? 'Red' },

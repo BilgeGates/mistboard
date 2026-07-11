@@ -37,16 +37,16 @@ export const ARTICLE_META: Record<
       "Fog Chess with a sealed opening draft: each player picks one of three Chess960 back ranks and never sees the other's.",
   },
   xiangqi: {
-    title: 'Elephant Chess Rules',
+    title: 'Xiangqi Rules',
     kind: 'rules',
     description:
-      'Standard xiangqi rules, the primer behind Fog Elephant Chess: palaces, the river, cannon screens, facing generals, and a famous game to play through.',
+      'The rules of xiangqi, also called Chinese chess, the primer behind Fog Xiangqi: palaces, the river, cannon screens, facing generals, and a famous game to play through.',
   },
   'dark-xiangqi': {
-    title: 'Fog Elephant Chess Rules',
+    title: 'Fog Xiangqi Rules',
     kind: 'rules',
     description:
-      'Elephant Chess under Fog of War: each side sees only the points its pieces reach, hidden blockers matter, and the general falls by capture.',
+      'Xiangqi under Fog of War: each side sees only the points its pieces reach, hidden blockers matter, and the general falls by capture.',
   },
   'mini-xiangqi': {
     title: 'Mini Xiangqi',
@@ -133,16 +133,16 @@ export const ARTICLE_META: Record<
       'Crossroads Chess under Fog of War: each side sees only the squares its pieces reach, there are no check warnings, the king falls by capture, and the race to the far rank becomes a one-move gamble in the dark.',
   },
   jieqi: {
-    title: 'Flip Elephant Chess Rules',
+    title: 'Flip Xiangqi Rules',
     kind: 'rules',
     description:
-      'The complete rules of Flip Elephant Chess, traditionally jieqi (揭棋): every piece except the generals starts face-down, makes its first move as the point it stands on, and reveals itself after moving. Checkmate the general to win.',
+      'The complete rules of Flip Xiangqi, traditionally jieqi (揭棋): every piece except the generals starts face-down, makes its first move as the point it stands on, and reveals itself after moving. Checkmate the general to win.',
   },
   banqi: {
-    title: 'Half-Flip Chess Rules',
+    title: 'Half Xiangqi Rules',
     kind: 'rules',
     description:
-      'The complete rules of Half-Flip Chess, traditionally banqi (暗棋): flip or move one square each turn, capture by rank, cannons jump, and win by wiping the enemy out.',
+      'The complete rules of Half Xiangqi, traditionally banqi (暗棋): flip or move one square each turn, capture by rank, cannons jump, and win by wiping the enemy out.',
   },
   jungle: {
     title: 'Jungle Chess Rules',

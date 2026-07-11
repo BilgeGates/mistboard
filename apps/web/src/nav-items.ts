@@ -45,8 +45,13 @@ export function communityRailItems(): NavItem[] {
   ];
 }
 
+// Learn dropdown: the interactive xiangqi course (the bet's flagship learn
+// surface) leads, Rules follows. The title itself links to /learn/xiangqi.
 export function learnNavItems(): NavItem[] {
-  return [{ label: 'Rules', labelKey: 'nav.rules', href: '/rules' }];
+  return [
+    { label: 'Xiangqi Basics', labelKey: 'nav.learnXiangqi', href: '/learn/xiangqi' },
+    { label: 'Rules', labelKey: 'nav.rules', href: '/rules' },
+  ];
 }
 
 // Watch dropdown (lichess parity): the title links to Mistboard TV (/watch), and
