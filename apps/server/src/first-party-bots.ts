@@ -113,6 +113,12 @@ export const FIRST_PARTY_BOT_PROFILES: readonly FirstPartyBotProfile[] = [
   // historical game attribution stay stable) and their engine ids resolve via
   // attributionEngineIds (the Misty convention for retired engine versions).
   {
+    id: 'fairy-stockfish-xiangqi-level-1',
+    displayName: 'Fairy-Stockfish - Level 1',
+    activeEngineId: 'fairy-stockfish-xiangqi-level-1',
+    defaultGameSpecId: 'xiangqi',
+  },
+  {
     id: 'pikafish-xiangqi-level-1',
     displayName: 'Pikafish - Level 1',
     activeEngineId: 'pikafish-xiangqi-level-1',

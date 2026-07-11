@@ -3,6 +3,11 @@ import { test } from 'node:test';
 import type { XiangqiMove } from '@mistboard/game';
 import { legalMoveForUci } from './server-xiangqi-engine.js';
 import {
+  xiangqiEngineVersion as catalogXiangqiEngineVersion,
+  isXiangqiEngineClientId as isCatalogXiangqiEngineClientId,
+  XIANGQI_PLAYABLE_ENGINES as XIANGQI_ENGINE_CATALOG,
+} from './xiangqi-engine-catalog.js';
+import {
   isXiangqiEngineClientId,
   XIANGQI_DEFAULT_ENGINE_ID,
   XIANGQI_LEGACY_ENGINE_TIERS,
@@ -82,6 +87,21 @@ test('xiangqi default engine is the playable 100k-node level', () => {
   const tier = XIANGQI_PLAYABLE_ENGINES.find((entry) => entry.id === XIANGQI_DEFAULT_ENGINE_ID);
   assert.ok(tier, 'default engine id must be in XIANGQI_PLAYABLE_ENGINES');
   assert.equal(tier.nodes, 100_000);
+});
+
+test('xiangqi engine catalog exposes the honest FSF Level 1 experiment', () => {
+  const fsf = XIANGQI_ENGINE_CATALOG.find(
+    (entry) => entry.id === 'fairy-stockfish-xiangqi-level-1',
+  );
+  assert.deepEqual(fsf, {
+    id: 'fairy-stockfish-xiangqi-level-1',
+    name: 'Fairy-Stockfish - Level 1',
+    skill: -9,
+    depth: 5,
+    movetimeMs: 50,
+  });
+  assert.equal(isCatalogXiangqiEngineClientId(fsf?.id), true);
+  assert.equal(catalogXiangqiEngineVersion(fsf?.id), '0.1.0');
 });
 
 // ── Retired-tier back-compat ────────────────────────────────────────────────

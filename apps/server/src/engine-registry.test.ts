@@ -71,3 +71,15 @@ test('standard Xiangqi Pikafish tiers are first-class reproducible engine versio
   assert.match(engine.playSignature, /0\.3\.0-nodes-10000$/);
   assert.equal(isPlayableLiveEngineClientId(engine.id), false);
 });
+
+test('standard Xiangqi FSF Level 1 preserves the PlayStrategy weakening parameters', () => {
+  const engine = loadEngine('fairy-stockfish-xiangqi-level-1');
+  assert.equal(engine.engineId, 'fairy-stockfish-xiangqi');
+  assert.equal(engine.gameSpecId, 'xiangqi');
+  assert.deepEqual(engine.config, {
+    kind: 'fairy-stockfish',
+    skill: -9,
+    depth: 5,
+    movetime_ms: 50,
+  });
+});

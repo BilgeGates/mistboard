@@ -40,6 +40,8 @@ export type EngineId =
   | 'fairy-stockfish-crossroads-amateur'
   | 'fairy-stockfish-crossroads-strong'
   | 'fairy-stockfish-crossroads-very-strong'
+  // Fairy-Stockfish (standard Xiangqi human-strength profiles)
+  | 'fairy-stockfish-xiangqi-level-1'
   // Pikafish (Jieqi)
   | 'pikafish-jieqi-amateur'
   | 'pikafish-jieqi-strong'
@@ -147,6 +149,7 @@ export type FairyStockfishEngineConfig = {
   kind: 'fairy-stockfish';
   skill: number;
   movetime_ms: number;
+  depth?: number;
   nodes?: number;
 };
 

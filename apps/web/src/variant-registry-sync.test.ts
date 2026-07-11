@@ -17,7 +17,7 @@ import { registeredVariantTenants } from '../../server/src/variant-tenant/regist
 import {
   XIANGQI_DEFAULT_ENGINE_ID,
   XIANGQI_PLAYABLE_ENGINES,
-} from '../../server/src/xiangqi-pikafish-engine.js';
+} from '../../server/src/xiangqi-engine-catalog.js';
 import { webVariantTenants } from './variant-tenant/registry.js';
 
 const SAMPLE_ROOM_SUFFIX = 'abc123';
@@ -81,9 +81,9 @@ describe('web tenant registry <-> server tenant registry parity', () => {
     }
   });
 
-  it('xiangqi picker engine options mirror the server Pikafish ladder', () => {
+  it('xiangqi picker engine options mirror the server engine catalog', () => {
     // The web engineOptions list is a hand-maintained mirror of the server's
-    // XIANGQI_PLAYABLE_ENGINES (apps/server/src/xiangqi-pikafish-engine.ts): the
+    // XIANGQI_PLAYABLE_ENGINES (apps/server/src/xiangqi-engine-catalog.ts): the
     // ids ride the create payload straight into the server's engine-id gate, so
     // drift means a picker entry that cannot seat an engine. The picker orders
     // strongest-first; the server table orders weakest-first.

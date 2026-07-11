@@ -133,7 +133,7 @@ test('buildFairyStockfishCommands: drop-mini shape (ini + node budget)', () => {
   ]);
 });
 
-test('buildFairyStockfishCommands: omits Skill Level when undefined and clamps to 0..20', () => {
+test('buildFairyStockfishCommands: supports Lichess negative skill and a depth cap', () => {
   const noSkill = buildFairyStockfishCommands({ moves: [], variant: 'x', movetimeMs: 100 });
   assert.ok(!noSkill.some((c) => c.includes('Skill Level')));
   const overMax = buildFairyStockfishCommands({
@@ -146,10 +146,12 @@ test('buildFairyStockfishCommands: omits Skill Level when undefined and clamps t
   const underMin = buildFairyStockfishCommands({
     moves: [],
     variant: 'x',
-    skill: -5,
+    skill: -99,
+    depth: 5,
     movetimeMs: 100,
   });
-  assert.ok(underMin.includes('setoption name Skill Level value 0'));
+  assert.ok(underMin.includes('setoption name Skill Level value -20'));
+  assert.ok(underMin.includes('go depth 5 movetime 100'));
 });
 
 // ── UciEnginePool ─────────────────────────────────────────────────────────────

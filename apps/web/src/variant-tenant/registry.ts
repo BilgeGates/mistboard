@@ -206,8 +206,10 @@ const WEB_VARIANT_TENANTS: readonly WebVariantTenant[] = [
       timePresetIds: ['1m1', '3m2', '5m5'],
       offerInMenu: xiangqiEnabled,
       acceptsDeepLink: xiangqiEnabled,
-      // Mainline Pikafish PvE, calibrated 8-level ladder. Ordered strongest-first
-      // so the toughest opponent sits at the top of the picker. Hand-maintained
+      // Standard-Xiangqi engine profiles, ordered strongest-first. Pikafish is
+      // the native strength ladder; the honestly named Fairy-Stockfish profile
+      // is the Lichess/PlayStrategy Level 1 weakening experiment.
+      // Hand-maintained
       // mirror of XIANGQI_PLAYABLE_ENGINES (apps/server/src/
       // xiangqi-pikafish-engine.ts); parity is asserted by
       // variant-registry-sync.test.ts. The retired amateur/strong/strongest ids
@@ -259,6 +261,12 @@ const WEB_VARIANT_TENANTS: readonly WebVariantTenant[] = [
           id: 'pikafish-xiangqi-level-1',
           name: 'Pikafish - Level 1',
           familyName: 'Pikafish',
+          kind: 'container',
+        },
+        {
+          id: 'fairy-stockfish-xiangqi-level-1',
+          name: 'Fairy-Stockfish - Level 1',
+          familyName: 'Fairy-Stockfish',
           kind: 'container',
         },
       ],

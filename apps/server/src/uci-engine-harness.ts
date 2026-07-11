@@ -381,8 +381,10 @@ export type FairyStockfishMoveRequest = {
   variant: string;
   /** Custom variants.ini path (VariantPath); omit for built-in variants. */
   iniPath?: string;
-  /** Skill Level 0..20 (clamped); omit for full strength. */
+  /** Skill Level -20..20 (clamped); omit for full strength. */
   skill?: number;
+  /** Search depth cap for `go`; used with Skill Level by Lichess/PlayStrategy. */
+  depth?: number;
   /** Node budget for `go`; omit to bound by movetime only. */
   nodes?: number;
   /** Movetime cap in ms for `go`; also sets the hard timeout (movetime + 4000). */
@@ -395,14 +397,16 @@ export type FairyStockfishMoveRequest = {
  * exactly as the per-variant providers did before extraction.
  */
 export function buildFairyStockfishCommands(req: FairyStockfishMoveRequest): string[] {
-  const skill = req.skill === undefined ? null : Math.max(0, Math.min(20, Math.floor(req.skill)));
+  const skill = req.skill === undefined ? null : Math.max(-20, Math.min(20, Math.floor(req.skill)));
   const nodes = req.nodes === undefined ? null : Math.max(1, Math.floor(req.nodes));
+  const depth = req.depth === undefined ? null : Math.max(1, Math.floor(req.depth));
   const position =
     req.moves.length > 0 ? `position startpos moves ${req.moves.join(' ')}` : 'position startpos';
   // `go [nodes N] movetime M` stops at whichever limit is reached first: nodes pin
   // strength CPU-independently, movetime guards wall-clock on a slow vCPU.
   const goLimits = [
     ...(nodes === null ? [] : [`nodes ${nodes}`]),
+    ...(depth === null ? [] : [`depth ${depth}`]),
     `movetime ${req.movetimeMs}`,
   ].join(' ');
   return [

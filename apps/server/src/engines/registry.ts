@@ -1,4 +1,5 @@
 import type pg from 'pg';
+import { XIANGQI_FSF_ENGINE_VERSION, XIANGQI_FSF_PLAYABLE_ENGINES } from '../xiangqi-fsf-engine.js';
 import { XIANGQI_ALL_ENGINE_TIERS, XIANGQI_ENGINE_VERSION } from '../xiangqi-pikafish-engine.js';
 import { BUILTIN_ENGINES } from './builtin/index.js';
 import type { EngineClientId, EngineDefinition, EngineId } from './types.js';
@@ -619,6 +620,30 @@ const CROSSROADS_CHESS_ENGINES: Record<string, EngineDefinition> = {
   },
 };
 
+const XIANGQI_FSF_ENGINES: Record<string, EngineDefinition> = Object.fromEntries(
+  XIANGQI_FSF_PLAYABLE_ENGINES.map((tier) => [
+    tier.id,
+    {
+      id: tier.id,
+      engineId: 'fairy-stockfish-xiangqi',
+      engineName: 'Fairy-Stockfish',
+      name: tier.name,
+      kind: 'container',
+      gameSpecId: 'xiangqi',
+      configHash: `fsf-xiangqi-${XIANGQI_FSF_ENGINE_VERSION}-skill-${tier.skill}-depth-${tier.depth}`,
+      playSignature: `fsf-xiangqi-${XIANGQI_FSF_ENGINE_VERSION}-skill-${tier.skill}-depth-${tier.depth}`,
+      config: {
+        kind: 'fairy-stockfish',
+        skill: tier.skill,
+        depth: tier.depth,
+        movetime_ms: tier.movetimeMs,
+      },
+      notes:
+        'Fairy-Stockfish standard-Xiangqi human-strength profile using the Lichess/PlayStrategy stochastic weakening policy.',
+    } satisfies EngineDefinition,
+  ]),
+);
+
 // Jieqi (揭棋) PvE engines — the Pikafish jieqi branch driven as a UCI subprocess
 // (Tier-B, server-jieqi-engine.ts). LAUNCH uses the no-net `jieqi_old` classical
 // build (clean GPL-3, no net-licensing problem). Unlike crossroads/FSF, jieqi_old
@@ -825,6 +850,7 @@ const KNOWN_ENGINES: Record<string, EngineDefinition> = {
   ...BUILTIN_ENGINES,
   ...PYTHON_ENGINES,
   ...CROSSROADS_CHESS_ENGINES,
+  ...XIANGQI_FSF_ENGINES,
   ...JIEQI_ENGINES,
   ...XIANGQI_ENGINES,
   ...BANQI_ENGINES,

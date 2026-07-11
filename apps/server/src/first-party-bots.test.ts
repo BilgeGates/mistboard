@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { firstPartyBotForEngine, firstPartyBotForId } from './first-party-bots.js';
-import { XIANGQI_PLAYABLE_ENGINES } from './xiangqi-pikafish-engine.js';
+import { XIANGQI_PLAYABLE_ENGINES } from './xiangqi-engine-catalog.js';
 
 test('first-party Jieqi and Crossroads bot profiles expose three levels', () => {
   assert.equal(firstPartyBotForEngine('pikafish-jieqi-amateur')?.id, 'pika-jieqi-amateur');
