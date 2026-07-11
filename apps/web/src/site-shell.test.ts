@@ -15,10 +15,16 @@ describe('site shell nav', () => {
 
     const primaryLabels = [
       ...nav.querySelectorAll<HTMLElement>(
-        '.site-nav-links > .site-nav-link, .site-nav-links > .site-nav-menu > .site-nav-menu-toggle',
+        '.site-nav-links > .site-nav-link:not([data-admin-only]), .site-nav-links > .site-nav-menu > .site-nav-menu-toggle',
       ),
     ].map((link) => link.textContent);
     expect(primaryLabels).toEqual(['Play', 'Puzzles', 'Learn', 'Watch', 'Community', 'Tools']);
+
+    // Admin-only links render in the bar but stay hidden until account-nav
+    // resolves an admin (no admin hint in a fresh test DOM).
+    const adminLinks = [...nav.querySelectorAll<HTMLAnchorElement>('[data-admin-only]')];
+    expect(adminLinks.map((link) => link.textContent)).toEqual(['Database', 'Engines']);
+    expect(adminLinks.every((link) => link.hidden)).toBe(true);
 
     const puzzleLink = nav.querySelector<HTMLAnchorElement>('a[href="/puzzles"]');
     expect(puzzleLink?.textContent).toBe('Puzzles');
@@ -85,7 +91,7 @@ describe('site shell nav', () => {
 
     const primaryLabels = [
       ...nav.querySelectorAll<HTMLElement>(
-        '.site-nav-links > .site-nav-link, .site-nav-links > .site-nav-menu > .site-nav-menu-toggle',
+        '.site-nav-links > .site-nav-link:not([data-admin-only]), .site-nav-links > .site-nav-menu > .site-nav-menu-toggle',
       ),
     ].map((link) => link.textContent);
 

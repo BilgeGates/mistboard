@@ -5,7 +5,7 @@
 // class, so they share landing.css's widget styling with the homepage — tweak
 // there and every cell (and the homepage) updates. Never shipped (DEV-gated).
 
-import { displayParticipantName, type FeaturedGame } from './game-display.js';
+import { displayParticipantName, type FeaturedGame, matchupSeats } from './game-display.js';
 import { gameMetaForGame } from './game-meta.js';
 import { mountShowcaseBoard } from './showcase-board.js';
 import { specIdForShowcaseVariant } from './showcase-dispatch.js';
@@ -86,11 +86,8 @@ export async function mountShowcaseSheet(root: HTMLElement): Promise<void> {
           metadataByRoomId: { [game.roomId]: gameMetaForGame(game) },
           namesByRoomId: {
             [game.roomId]: {
-              first: displayParticipantName(
-                game,
-                game.participants?.some((p) => p.color === 'red') ? 'red' : 'white',
-              ),
-              second: displayParticipantName(game, 'black'),
+              first: displayParticipantName(game, matchupSeats(game)[0]),
+              second: displayParticipantName(game, matchupSeats(game)[1]),
             },
           },
           autoplay: false, // paused at the opening position

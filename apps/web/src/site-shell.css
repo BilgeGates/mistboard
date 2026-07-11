@@ -137,6 +137,14 @@
     color 140ms ease;
 }
 
+/* The display rules on nav links (including the panel-item override below)
+   outrank the UA [hidden] rule, so restore it explicitly: auth-gated links
+   ([data-signed-in-only], [data-admin-only]) rely on the hidden attribute.
+   The `a` tag lifts specificity over `.site-nav-menu-panel .site-nav-link`. */
+a.site-nav-link[hidden] {
+  display: none;
+}
+
 :root:not([data-effective-theme="dark"]) .site-nav-links > .site-nav-link,
 :root:not([data-effective-theme="dark"]) .site-nav-menu-toggle {
   text-shadow: 0 1px 0 rgba(255, 255, 255, 0.8);
@@ -163,6 +171,27 @@
 .site-nav-link:focus-visible {
   color: var(--site-text);
   background: transparent;
+}
+
+/* Admin-only links (Database / Engines): amber marks them as internal tools,
+   visually apart from the everyday nav. Only visible to admins. Doubled class
+   beats the `.site-nav-links > .site-nav-link` color above. */
+.site-nav-link.site-nav-link-admin {
+  color: #b06000;
+}
+
+.site-nav-link.site-nav-link-admin:hover,
+.site-nav-link.site-nav-link-admin:focus-visible {
+  color: #8a4b00;
+}
+
+:root[data-effective-theme="dark"] .site-nav-link.site-nav-link-admin {
+  color: #e0a458;
+}
+
+:root[data-effective-theme="dark"] .site-nav-link.site-nav-link-admin:hover,
+:root[data-effective-theme="dark"] .site-nav-link.site-nav-link-admin:focus-visible {
+  color: #f0be7e;
 }
 
 /* Register = filled accent (green) button, like lichess's filled blue Register. */

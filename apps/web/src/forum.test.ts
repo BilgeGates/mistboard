@@ -4,8 +4,8 @@ const categories = [
   {
     id: 'strategy',
     slug: 'general-discussion',
-    name: 'General Chess Discussion',
-    description: 'The place to discuss general chess topics.',
+    name: 'General Games Discussion',
+    description: 'The place to discuss general games topics.',
     sortOrder: 10,
     topicWritePolicy: 'account',
     topicCount: 1,
@@ -50,7 +50,7 @@ const categories = [
     id: 'off-topic-discussion',
     slug: 'off-topic-discussion',
     name: 'Off-Topic Discussion',
-    description: 'Everything that is not related to chess.',
+    description: 'Everything that is not related to games.',
     sortOrder: 40,
     topicWritePolicy: 'account',
     topicCount: 0,
@@ -63,7 +63,7 @@ const topic = {
   id: 'topic_strategy',
   slug: 'scouting-the-center',
   title: 'Scouting the center',
-  category: { slug: 'general-discussion', name: 'General Chess Discussion' },
+  category: { slug: 'general-discussion', name: 'General Games Discussion' },
   author: { handle: 'alice', displayName: 'Alice' },
   latestPost: {
     post: {
@@ -91,7 +91,7 @@ const searchPost = {
     slug: 'scouting-the-center',
     title: 'Scouting the center',
     postCount: 2,
-    category: { slug: 'general-discussion', name: 'General Chess Discussion' },
+    category: { slug: 'general-discussion', name: 'General Games Discussion' },
   },
   author: { handle: 'bob', displayName: 'Bob' },
   createdAt: '2026-06-01T00:05:00.000Z',
@@ -206,7 +206,7 @@ describe('forum pages', () => {
       '/api/forum/topics?category=general-discussion&limit=26&offset=0',
     );
     expect(root.querySelector('.forum-panel-header-category')?.textContent).toContain(
-      'General Chess Discussion',
+      'General Games Discussion',
     );
     expect(root.querySelector<HTMLAnchorElement>('.forum-panel-back')?.getAttribute('href')).toBe(
       '/forum',
@@ -715,7 +715,7 @@ describe('forum pages', () => {
                 id: 'topic_strategy',
                 slug: 'scouting-the-center',
                 title: 'Scouting the center',
-                category: { slug: 'general-discussion', name: 'General Chess Discussion' },
+                category: { slug: 'general-discussion', name: 'General Games Discussion' },
                 hidden: false,
               },
               post: {
@@ -790,7 +790,7 @@ describe('forum pages', () => {
                 id: 'topic_strategy',
                 slug: 'scouting-the-center',
                 title: 'Scouting the center',
-                category: { slug: 'general-discussion', name: 'General Chess Discussion' },
+                category: { slug: 'general-discussion', name: 'General Games Discussion' },
                 hidden: false,
               },
               post: {
@@ -938,7 +938,7 @@ describe('forum pages', () => {
 
     const back = root.querySelector<HTMLAnchorElement>('.forum-panel-back');
     expect(back?.getAttribute('href')).toBe('/forum/general-discussion');
-    expect(back?.getAttribute('aria-label')).toBe('Back to General Chess Discussion');
+    expect(back?.getAttribute('aria-label')).toBe('Back to General Games Discussion');
     expect(root.querySelector<HTMLInputElement>('input[name="q"]')).toBeNull();
     expect(root.querySelector<HTMLAnchorElement>('.forum-post-author-name')?.textContent).toBe(
       'Alice',

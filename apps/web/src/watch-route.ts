@@ -5,7 +5,7 @@ import type { VariantMiniId } from './variant-mini-boards.js';
 import { webVariantTenantForSpecId } from './variant-tenant/registry.js';
 import { variantMiniIdForRawVariant } from './variants.js';
 import './watch-route.css';
-import { displayParticipantName, type FeaturedGame, sourceLabel } from './game-display.js';
+import { type FeaturedGame, matchupLabel, sourceLabel } from './game-display.js';
 import { gameMetaForGame, reviewUrlForGame } from './game-meta.js';
 import type { GameMeta, ReplayHandle } from './replay.js';
 import { renderWatchReplaySkeleton } from './replay-skeleton.js';
@@ -716,17 +716,7 @@ export function watchFeedIsDark(feed: Pick<WatchFeed, 'activeChannel' | 'channel
 }
 
 export function watchQueueMatchupLabel(game: FeaturedGame): string {
-  if (isCrossroadsChessVariant(game.variant)) {
-    return `${displayParticipantName(game, 'white')} vs ${displayParticipantName(game, 'red')}`;
-  }
-  if (game.participants?.some((participant) => participant.color === 'red')) {
-    return `${displayParticipantName(game, 'red')} vs ${displayParticipantName(game, 'black')}`;
-  }
-  return `${displayParticipantName(game, 'white')} vs ${displayParticipantName(game, 'black')}`;
-}
-
-function isCrossroadsChessVariant(variant: string): boolean {
-  return variant === 'crossroads-chess' || variant === 'dual-chess';
+  return matchupLabel(game);
 }
 
 export function formatWatchScope(

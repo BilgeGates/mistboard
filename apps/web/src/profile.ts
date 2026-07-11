@@ -799,12 +799,7 @@ function buildOwnerActions(locale: Locale = currentLocale(), title?: unknown): H
   edit.className = 'landing-setup-back';
   edit.href = '/account';
   edit.textContent = t('profile.editProfile', {}, locale);
-  // Titled player? Verify it: entry point into the /verify-title pipeline.
-  const verify = document.createElement('a');
-  verify.className = 'landing-setup-back';
-  verify.href = '/verify-title';
-  verify.textContent = t('profile.verifyTitle', {}, locale);
-  row.append(edit, verify);
+  row.append(edit);
   // A held title unlocks the coach directory: offer the editor entry point.
   if (isPlayerTitle(title)) {
     const coach = document.createElement('a');
@@ -1467,24 +1462,12 @@ export function buildProfileRatings(
   return section;
 }
 
-// Rail order (lichess side-column semantics): variants the player has actually
-// played lead, most active first, so the grid anchors on their real record;
-// never-played variants trail in canonical registry order, dimmed. This is a
-// per-subject presentation order — the leaderboard and picker keep the shared
-// canonical order (#137).
-function orderedProfileVariants(ratings: ProfileBucketRating[]): ProfileRatingVariant[] {
-  const activity = new Map<ProfileRatingVariant, number>();
-  for (const bucket of ratings) {
-    if (bucket.totalGamesPlayed > 0) activity.set(bucket.variant, bucket.totalGamesPlayed);
-  }
-  const canonicalIndex = new Map(PROFILE_VARIANT_ORDER.map((variant, index) => [variant, index]));
-  const played = PROFILE_VARIANT_ORDER.filter((variant) => activity.has(variant)).sort(
-    (a, b) =>
-      (activity.get(b) ?? 0) - (activity.get(a) ?? 0) ||
-      (canonicalIndex.get(a) ?? 0) - (canonicalIndex.get(b) ?? 0),
-  );
-  const rest = PROFILE_VARIANT_ORDER.filter((variant) => !activity.has(variant));
-  return [...played, ...rest];
+// Rail order: the shared canonical registry order (xiangqi first), same as the
+// leaderboard and picker. The earlier per-subject activity ordering (#137,
+// played-most-first) was reverted 2026-07-10: every rating surface reads in
+// one order, and played rows already stand out because never-played rows dim.
+function orderedProfileVariants(_ratings: ProfileBucketRating[]): ProfileRatingVariant[] {
+  return [...PROFILE_VARIANT_ORDER];
 }
 
 // One variant row in the ratings rail: compact mini-board beside its name,

@@ -378,7 +378,6 @@ const EN = {
   'profile.admin': 'Admin',
   'profile.patron': 'Patron',
   'profile.patronTitle': 'A Mistboard Patron. Thank you for supporting the site.',
-  'profile.verifyTitle': 'Verify your title',
   // Verified player titles (flair): full names for tooltips; the badge shows
   // the uppercase abbreviation. Vocabulary mirror: player-titles.ts.
   'title.xgm': 'Xiangqi Grandmaster',
@@ -1100,7 +1099,6 @@ const ZH_HANS: Partial<Record<I18nKey, string>> = {
   'profile.visibilityUnlisted': '未列出',
   'profile.visibilityPrivate': '私密',
   'profile.admin': '管理员',
-  'profile.verifyTitle': '认证头衔',
   'title.xgm': '象棋特级大师',
   'title.xim': '象棋国际大师',
   'title.xnm': '象棋国家大师',
@@ -1795,7 +1793,6 @@ const ZH_HANT: Partial<Record<I18nKey, string>> = {
   'profile.visibilityUnlisted': '未列出',
   'profile.visibilityPrivate': '私密',
   'profile.admin': '管理員',
-  'profile.verifyTitle': '認證頭銜',
   'title.xgm': '象棋特級大師',
   'title.xim': '象棋國際大師',
   'title.xnm': '象棋國家大師',
@@ -2498,7 +2495,6 @@ const JA: Partial<Record<I18nKey, string>> = {
   'profile.visibilityUnlisted': '限定公開',
   'profile.visibilityPrivate': '非公開',
   'profile.admin': '管理者',
-  'profile.verifyTitle': 'タイトルを認証',
   'title.xgm': 'シャンチー・グランドマスター',
   'title.xim': 'シャンチー・インターナショナルマスター',
   'title.xnm': 'シャンチー・ナショナルマスター',

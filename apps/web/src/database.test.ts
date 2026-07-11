@@ -1,4 +1,4 @@
-import { CROSSROADS_CHESS_SPEC_ID } from '@mistboard/game';
+import { CROSSROADS_CHESS_SPEC_ID, XIANGQI_SPEC_ID } from '@mistboard/game';
 import { describe, expect, it } from 'vitest';
 import { databaseMatchupLabel } from './database.js';
 import type { FeaturedGame } from './game-display.js';
@@ -22,6 +22,27 @@ describe('database game rows', () => {
         participants: [participant('white', 'White Player'), participant('black', 'Black Player')],
       }),
     ).toBe('White Player vs Black Player');
+  });
+
+  // Regression: xiangqi seats are red/black. The old label hardcoded the
+  // 'white' seat, which has no participant, so rows read "White vs <black>".
+  it('labels xiangqi rows as red vs black', () => {
+    expect(
+      databaseMatchupLabel({
+        ...baseGame(),
+        variant: XIANGQI_SPEC_ID,
+        participants: [participant('red', 'Red Player'), participant('black', 'Black Player')],
+      }),
+    ).toBe('Red Player vs Black Player');
+  });
+
+  it('falls back to red/black seat words for xiangqi rows with no participants', () => {
+    expect(
+      databaseMatchupLabel({
+        ...baseGame(),
+        variant: XIANGQI_SPEC_ID,
+      }),
+    ).toBe('Red vs Black');
   });
 });
 

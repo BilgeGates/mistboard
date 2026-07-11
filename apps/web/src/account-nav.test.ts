@@ -148,7 +148,7 @@ describe('account nav', () => {
     ).toBe('zh-Hant');
   });
 
-  it('shows the admin tool group only for admins', async () => {
+  it('shows the admin nav links only for admins', async () => {
     vi.stubGlobal(
       'fetch',
       vi.fn(async () => jsonResponse({ user: null })),
@@ -158,17 +158,28 @@ describe('account nav', () => {
     const { setAccountNavUser } = await import('./account-nav.js');
     document.body.append(buildNav());
 
+    const adminLinks = () =>
+      Array.from(document.querySelectorAll<HTMLAnchorElement>('[data-admin-only]'));
+
+    // The bar always carries the links; visibility reconciles off the account
+    // role. The old dropdown admin group is gone for everyone.
+    expect(adminLinks()).toHaveLength(2);
+
     setAccountNavUser(testUser('misty'));
+    expect(adminLinks().every((link) => link.hidden)).toBe(true);
     expect(document.querySelector('.account-nav-admin')).toBeNull();
 
     setAccountNavUser({ ...testUser('boss'), accountRole: 'admin' });
-    const admin = document.querySelector('.account-nav-admin');
-    expect(admin).not.toBeNull();
-    expect(admin?.querySelector('.account-nav-heading')?.textContent).toBe('Admin');
-    const hrefs = Array.from(admin?.querySelectorAll<HTMLAnchorElement>('a') ?? []).map((link) =>
-      link.getAttribute('href'),
-    );
-    expect(hrefs).toEqual(['/database', '/engines']);
+    expect(adminLinks().every((link) => !link.hidden)).toBe(true);
+    expect(adminLinks().map((link) => link.getAttribute('href'))).toEqual([
+      '/database',
+      '/engines',
+    ]);
+    expect(document.querySelector('.account-nav-admin')).toBeNull();
+
+    // Signing out hides them again.
+    setAccountNavUser(null);
+    expect(adminLinks().every((link) => link.hidden)).toBe(true);
   });
 
   it('switches the signed-in dropdown into a full-panel appearance submenu', async () => {

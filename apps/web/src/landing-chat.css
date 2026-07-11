@@ -34,8 +34,10 @@
 /* Empty/quiet state: with no message lines the box is just the one-line "Quiet
    right now" invitation plus the composer, so the fixed 292px height strands the
    input under a tall blank gap. Collapse to content height; the box reclaims its
-   full height the moment the first line lands (quiet mode swaps to the room). */
-.landing-chat:not(:has(.landing-chat-line)) {
+   full height the moment the first line lands (quiet mode swaps to the room).
+   Muting also empties the body, but a muted box keeps its footprint: toggling
+   chat off must not reflow the column below it. */
+.landing-chat:not(:has(.landing-chat-line)):not(.is-chat-muted) {
   height: auto;
 }
 

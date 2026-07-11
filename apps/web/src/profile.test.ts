@@ -280,11 +280,15 @@ describe('profile ratings rail', () => {
     expect(stats?.textContent).toContain('Rated games');
     expect(stats?.textContent).toContain('4');
 
-    // Activity ordering: the played variant leads the rail; unplayed rows trail
-    // dimmed.
+    // Canonical ordering: the rail reads in the shared registry order (xiangqi
+    // first) regardless of activity; played rows stand out by not dimming.
     const railRows = [...root.querySelectorAll<HTMLElement>('.profile-rating-row')];
-    expect(railRows[0]?.dataset.variant).toBe('jungle_flip');
-    expect(railRows[0]?.classList.contains('profile-rating-row-empty')).toBe(false);
+    const { profileRatingVariants } = await import('./variants.js');
+    expect(railRows.map((row) => row.dataset.variant)).toEqual(
+      profileRatingVariants.map((variant) => variant.id),
+    );
+    const flipRow = railRows.find((row) => row.dataset.variant === 'jungle_flip');
+    expect(flipRow?.classList.contains('profile-rating-row-empty')).toBe(false);
     expect(railRows[railRows.length - 1]?.classList.contains('profile-rating-row-empty')).toBe(
       true,
     );
@@ -303,7 +307,7 @@ describe('profile ratings rail', () => {
     expect(gameRow?.lastElementChild?.classList.contains('profile-game-date')).toBe(true);
   });
 
-  it('orders the ratings rail by activity with never-played variants trailing', async () => {
+  it('keeps the ratings rail in canonical order with never-played variants dimmed', async () => {
     vi.stubEnv('DEV', false);
     vi.stubEnv('VITE_DARK_MINI_XIANGQI_ENABLED', 'true');
     const { buildProfileRatings } = await import('./profile.js');
@@ -328,17 +332,22 @@ describe('profile ratings rail', () => {
     ]);
 
     const rows = [...section.querySelectorAll<HTMLElement>('.profile-rating-row')];
-    // Most active first (5 casual fog games beat 2 fortress games), then the
-    // never-played rows in canonical registry order, dimmed.
-    expect(rows.map((row) => row.dataset.variant).slice(0, 2)).toEqual(['fog', 'fortress_xiangqi']);
-    expect(rows[0]?.classList.contains('profile-rating-row-empty')).toBe(false);
-    expect(rows[1]?.classList.contains('profile-rating-row-empty')).toBe(false);
-    expect(rows.slice(2).every((row) => row.classList.contains('profile-rating-row-empty'))).toBe(
-      true,
+    // Canonical registry order throughout (fortress before fog), with played
+    // rows undimmed and every never-played row dimmed.
+    const { profileRatingVariants } = await import('./variants.js');
+    expect(rows.map((row) => row.dataset.variant)).toEqual(
+      profileRatingVariants.map((variant) => variant.id),
     );
+    const played = new Set(['fog', 'fortress_xiangqi']);
+    for (const row of rows) {
+      expect(row.classList.contains('profile-rating-row-empty')).toBe(
+        !played.has(row.dataset.variant ?? ''),
+      );
+    }
     // A played-but-unrated row shows its casual games count.
-    expect(rows[0]?.textContent).toContain('Unrated');
-    expect(rows[0]?.textContent).toContain('5 games');
+    const fogRow = rows.find((row) => row.dataset.variant === 'fog');
+    expect(fogRow?.textContent).toContain('Unrated');
+    expect(fogRow?.textContent).toContain('5 games');
   });
 
   it('distinguishes unavailable profile data from a missing profile', async () => {

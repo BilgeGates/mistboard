@@ -211,22 +211,6 @@
   margin: 0;
 }
 
-/* Admin-only tool group (issue #134): a labeled, faintly tinted block that sets
-   the internal /database + /engines surfaces apart from everyday account rows. */
-.account-nav-admin {
-  background: color-mix(in srgb, var(--site-accent) 7%, transparent);
-}
-
-.account-nav-heading {
-  margin: 0;
-  padding: 8px 16px 4px;
-  color: var(--site-muted);
-  font-size: 11px;
-  font-weight: 700;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-}
-
 /* Connection footer (PING / SERVER + signal bars), lichess profile-menu style. */
 .account-nav-status {
   display: flex;

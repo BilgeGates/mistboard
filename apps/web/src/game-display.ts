@@ -81,6 +81,43 @@ export function participantForColor(
   return game.participants?.find((participant) => participant.color === color) ?? null;
 }
 
+// The two seats a game is played across, in first-mover/second-mover order.
+// Persisted participants are decisive when both seats are present (they
+// reflect what's actually stored and are immune to legacy variant aliases);
+// otherwise the pair derives from the canonical spec family, so a new variant
+// resolves without editing here: the xiangqi and jungle families play red vs
+// black, the crossroads-chess family (open + dark) plays white vs red, and
+// everything else is orthodox white vs black.
+export type MatchupSeatPair = readonly [GameParticipant['color'], GameParticipant['color']];
+
+export function matchupSeats(game: FeaturedGame): MatchupSeatPair {
+  const colors = new Set((game.participants ?? []).map((participant) => participant.color));
+  if (colors.size >= 2) {
+    if (!colors.has('red')) return ['white', 'black'];
+    return colors.has('white') ? ['white', 'red'] : ['red', 'black'];
+  }
+  if (isCrossroadsChessVariant(game.variant)) return ['white', 'red'];
+  const family = maybeGameSpecForId(game.variant)?.family;
+  if (family === 'xiangqi' || family === 'jungle') return ['red', 'black'];
+  if (family === 'crossroads-chess') return ['white', 'red'];
+  return ['white', 'black'];
+}
+
+// The shared "X vs Y" line for list surfaces. Resolving the seats first is the
+// whole trick: a xiangqi game has no 'white' participant, so a hardcoded
+// 'white' lookup falls through to the literal seat word and drops the red
+// player's name.
+export function matchupLabel(game: FeaturedGame): string {
+  const [first, second] = matchupSeats(game);
+  return `${displayParticipantName(game, first)} vs ${displayParticipantName(game, second)}`;
+}
+
+// Crossroads kept its legacy 'dual-chess' id in old rows; the spec registry
+// only knows the canonical id, so alias-aware callers check here.
+export function isCrossroadsChessVariant(variant: string): boolean {
+  return variant === 'crossroads-chess' || variant === 'dual-chess';
+}
+
 function fallbackSeatName(color: GameParticipant['color']): string {
   if (color === 'red') return 'Red';
   if (color === 'white') return 'White';

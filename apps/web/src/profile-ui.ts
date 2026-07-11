@@ -3,7 +3,7 @@
 // shell and the game-row are identical across both subjects; only the middle
 // block (rating buckets vs engine records) differs and stays per-page.
 import { maybeGameSpecForId } from '@mistboard/game';
-import { displayParticipantName, type FeaturedGame } from './game-display.js';
+import { displayParticipantName, type FeaturedGame, matchupSeats } from './game-display.js';
 import { timeControlLabelForGame } from './game-meta.js';
 import { type I18nKey, t } from './i18n/catalog.js';
 import { currentLocale, LOCALE_META, type Locale } from './i18n/locale.js';
@@ -237,14 +237,8 @@ function opponentColor(
   game: FeaturedGame,
   color: FeaturedGame['playerColor'],
 ): 'white' | 'black' | 'red' {
-  switch (seatModelForGame(game)) {
-    case 'red-black':
-      return color === 'red' ? 'black' : 'red';
-    case 'white-red':
-      return color === 'white' ? 'red' : 'white';
-    default:
-      return color === 'black' ? 'white' : 'black';
-  }
+  const [first, second] = matchupSeats(game);
+  return color === first ? second : first;
 }
 
 // Every variant tenant owns its own postgame surface (<gameRouteBase>/:roomId)
@@ -261,17 +255,4 @@ function profileGameHref(game: FeaturedGame): string {
     return `${tenant.gameRouteBase}/${encodeURIComponent(game.roomId)}`;
   }
   return `/game/${encodeURIComponent(game.roomId)}`;
-}
-
-// How a variant names its two seats, derived from the canonical spec family so a
-// new variant resolves without editing here: the xiangqi and jungle families
-// play red vs black, the crossroads-chess family (open + dark) plays white vs
-// red, and everything else is orthodox white vs black.
-type SeatModel = 'white-black' | 'red-black' | 'white-red';
-
-function seatModelForGame(game: FeaturedGame): SeatModel {
-  const family = maybeGameSpecForId(game.variant)?.family;
-  if (family === 'xiangqi' || family === 'jungle') return 'red-black';
-  if (family === 'crossroads-chess') return 'white-red';
-  return 'white-black';
 }

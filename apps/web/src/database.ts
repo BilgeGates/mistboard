@@ -6,8 +6,9 @@
 import './database.css';
 import { findTimeControl } from '@mistboard/game';
 import {
-  displayParticipantName,
   type FeaturedGame,
+  isCrossroadsChessVariant,
+  matchupLabel,
   sourceLabel,
   variantDisplayLabel,
 } from './game-display.js';
@@ -427,8 +428,7 @@ function buildGameRow(game: GameRow): HTMLElement {
 }
 
 export function databaseMatchupLabel(game: FeaturedGame): string {
-  const secondSeat = isCrossroadsChessVariant(game.variant) ? 'red' : 'black';
-  return `${displayParticipantName(game, 'white')} vs ${displayParticipantName(game, secondSeat)}`;
+  return matchupLabel(game);
 }
 
 function buildPager(data: QueryResponse, onApply: (next: Filters) => void): HTMLElement | null {
@@ -563,10 +563,6 @@ function resultLabel(result: string): string {
 
 // Variant labelling lives in game-display.ts (variantDisplayLabel), shared with
 // the homepage showcase caption.
-
-function isCrossroadsChessVariant(variant: string): boolean {
-  return variant === 'crossroads-chess' || variant === 'dual-chess';
-}
 
 function terminationLabel(termination: string): string {
   return termination
