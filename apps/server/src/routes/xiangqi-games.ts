@@ -8,6 +8,7 @@ import {
   type XiangqiMove,
   xiangqiMoveToPikafishUci,
 } from '@mistboard/game';
+import { currentAccountUser } from './../account-session.js';
 import { xiangqiEnabled } from './../feature-flags.js';
 import * as persistence from './../persistence.js';
 import { buildTenantGameSummary } from './../variant-tenant/events.js';
@@ -77,6 +78,16 @@ export async function tryHandle(
     if (!xiangqiEnabled()) {
       writeJson(response, 404, { error: 'not_found' });
       return true;
+    }
+    // Requesting a fresh server-side engine pass (POST) is account-gated — it is
+    // the expensive path (a whole-game Pikafish sweep). GET stays open so the
+    // cached result auto-loads for anyone opening the page.
+    if (method === 'POST') {
+      const user = await currentAccountUser(request);
+      if (!user) {
+        writeJson(response, 401, { error: 'not_signed_in' });
+        return true;
+      }
     }
     const roomId = decodeURIComponent(analysisMatch[1]!);
     const payload = await xiangqiPostgameForApi(roomId, livePersistence);

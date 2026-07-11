@@ -121,8 +121,8 @@ export function shogiAppearanceEnabled(): boolean {
 
 function enabledAppearanceFamilies(): Array<{ id: BoardFamily; label: string }> {
   return [
-    { id: 'chess', label: 'Chess' },
     ...(xiangqiAppearanceEnabled() ? [{ id: 'xiangqi' as BoardFamily, label: 'Xiangqi' }] : []),
+    { id: 'chess', label: 'Chess' },
     ...(shogiAppearanceEnabled() ? [{ id: 'shogi' as BoardFamily, label: 'Shogi' }] : []),
   ];
 }
@@ -819,7 +819,7 @@ function createSoundOption(id: SoundSetId | 'silent', label: string): HTMLButton
 }
 
 function sortedSoundSetsForMenu(): ReadonlyArray<{ id: SoundSetId; label: string }> {
-  const order: SoundSetId[] = ['mist', 'piano', 'nes', 'sfx', 'futuristic'];
+  const order: SoundSetId[] = ['mist', 'wood', 'piano', 'nes', 'sfx', 'futuristic'];
   return order
     .map((id) => SOUND_SETS.find((set) => set.id === id))
     .filter((set): set is { id: SoundSetId; label: string } => set !== undefined);

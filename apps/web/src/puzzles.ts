@@ -1201,11 +1201,10 @@ function canDragXiangqiPiece(session: PuzzleSession, square: XiangqiSquare): boo
   }
   const view = xiangqiLiveView(session);
   const piece = view.board[square];
-  return (
-    !!piece &&
-    piece.color === (activeTurn(session) as XiangqiColor) &&
-    view.legalMoves.some((move) => move.from === square)
-  );
+  // Any of your pieces can be lifted on your turn, even one with no legal move:
+  // it shows the origin highlight + faded source, no destination dots, and snaps
+  // back on drop. The tap sibling lives in handleXiangqiBoardClick.
+  return !!piece && piece.color === (activeTurn(session) as XiangqiColor);
 }
 
 async function handleXiangqiBoardClick(
@@ -1233,9 +1232,24 @@ async function handleXiangqiBoardClick(
     session.selectedDrop = null;
     session.feedback = { kind: 'neutral', text: `${result.square} selected.` };
   } else if (result.kind === 'clear') {
-    session.selectedSquare = null;
-    session.selectedDrop = null;
-    session.feedback = { kind: 'neutral', text: 'Find the best move.' };
+    // xiangqiClickResult only 'select's a piece that has a legal move. Let the
+    // solver also tap-pick one of their pieces that has no legal move (origin
+    // highlight, no dest dots) instead of clearing — the tap sibling of
+    // canDragXiangqiPiece.
+    const piece = view.board[square];
+    const ownDeadPiece =
+      !!piece &&
+      piece.color === (activeTurn(session) as XiangqiColor) &&
+      square !== session.selectedSquare;
+    if (ownDeadPiece) {
+      session.selectedSquare = square;
+      session.selectedDrop = null;
+      session.feedback = { kind: 'neutral', text: `${square} selected.` };
+    } else {
+      session.selectedSquare = null;
+      session.selectedDrop = null;
+      session.feedback = { kind: 'neutral', text: 'Find the best move.' };
+    }
   }
   renderSession();
 }

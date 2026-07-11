@@ -89,7 +89,7 @@ describe('Xiangqi postgame page', () => {
       '<circle class="xq-live-lastmove-cell xq-live-lastmove-from" cx="96" cy="456" r="27"',
     );
     expect(board!.innerHTML).toContain(
-      '<circle class="xq-live-lastmove-ring" cx="276" cy="456" r="29"',
+      '<circle class="xq-live-lastmove-ring" cx="276" cy="456" r="26"',
     );
 
     // Jump back to the start: no move has been played, so no marker.

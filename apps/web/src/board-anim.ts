@@ -56,7 +56,12 @@ function computeDurationMs(): number {
  * the next render without a reload. Returns 0 (disable) for the 'none' pref
  * and whenever the OS asks for reduced motion (re-checked on each cache miss).
  */
-export function pieceAnimationDurationMs(): number {
+export function pieceAnimationDurationMs(opts?: { fog?: boolean }): number {
+  // Fog/dark surfaces never animate (interim blanket-off pending the fog-aware
+  // animation work in #158): a glide implies an origin->destination path, and
+  // under fog that path can imply a square the server deliberately redacted, so
+  // the current origin/destination inference is unsafe there.
+  if (opts?.fog) return 0;
   if (!subscribed && typeof window !== 'undefined') {
     subscribed = true;
     window.addEventListener(DISPLAY_PREFERENCES_CHANGE_EVENT, invalidateCache);
@@ -66,8 +71,11 @@ export function pieceAnimationDurationMs(): number {
 }
 
 /** Chessground animation config derived from the same preference. */
-export function chessgroundAnimation(): { enabled: boolean; duration: number } {
-  const duration = pieceAnimationDurationMs();
+export function chessgroundAnimation(opts?: { fog?: boolean }): {
+  enabled: boolean;
+  duration: number;
+} {
+  const duration = pieceAnimationDurationMs(opts);
   return { enabled: duration > 0, duration };
 }
 

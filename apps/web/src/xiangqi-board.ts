@@ -193,7 +193,7 @@ function lastMoveLayer(view: StandardXiangqiPlayerView, perspective: XiangqiColo
   // endpoints and keeps its lighter wash.
   return (
     `<circle class="xq-live-lastmove-cell xq-live-lastmove-from" cx="${fromCenter.x}" cy="${fromCenter.y}" r="27"/>` +
-    `<circle class="xq-live-lastmove-ring" cx="${toCenter.x}" cy="${toCenter.y}" r="29"/>`
+    `<circle class="xq-live-lastmove-ring" cx="${toCenter.x}" cy="${toCenter.y}" r="26"/>`
   );
 }
 
@@ -319,11 +319,17 @@ function pieceLayer(
     const dragSource = square === draggingFromSquare;
     const coord = coordOf(square as XiangqiSquare);
     const center = intersection(coord.file, coord.rank, perspective);
+    // A soldier past the river renders with the promoted-soldier art. Mirrors
+    // hasCrossedRiver()/inOwnHalf() in packages/game (red owns ranks 1-5, black
+    // 6-10); coordOf().rank is the same 1-10 rank those use.
+    const crossed =
+      piece.role === 'soldier' && (piece.color === 'red' ? coord.rank >= 6 : coord.rank <= 5);
     const pieceSvg = renderXiangqiPiece(piece, {
       x: center.x - PIECE_SIZE / 2,
       y: center.y - PIECE_SIZE / 2,
       size: PIECE_SIZE,
       className: dragSource ? 'xq-piece xq-piece--drag-source' : 'xq-piece',
+      crossed,
     });
     // Keyed slot: a <g> wrapper per occupied square so a post-render glide can
     // find and transform the piece (transforms on the inner <svg x= y=> element

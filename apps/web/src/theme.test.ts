@@ -136,7 +136,7 @@ describe('appearance family gating', () => {
       [...document.querySelectorAll<HTMLButtonElement>('button[data-sound-option]')].map(
         (option) => option.textContent,
       ),
-    ).toEqual(['Silent', 'Standard', 'Piano', 'NES', 'SFX', 'Futuristic']);
+    ).toEqual(['Silent', 'Standard', 'Wood', 'Piano', 'NES', 'SFX', 'Futuristic']);
 
     document.querySelector<HTMLButtonElement>('button[data-sound-option="silent"]')?.click();
     expect(window.localStorage.getItem('mistboard.soundMuted')).toBe('true');
@@ -176,7 +176,7 @@ describe('appearance family gating', () => {
       [...familyGroup!.querySelectorAll<HTMLButtonElement>('[data-board-family-option]')].map(
         (option) => option.dataset.boardFamilyOption,
       ),
-    ).toEqual(['chess', 'xiangqi', 'shogi']);
+    ).toEqual(['xiangqi', 'chess', 'shogi']);
     expect(document.querySelector('[data-theme-tile="piece"]')).not.toBeNull();
     expect(document.querySelector('[data-theme-tile="fog"]')).not.toBeNull();
     expect(document.querySelector('[data-theme-tile="xqboard"]')).not.toBeNull();
@@ -201,7 +201,7 @@ describe('appearance family gating', () => {
       [...familyGroup!.querySelectorAll<HTMLButtonElement>('[data-board-family-option]')].map(
         (option) => option.dataset.boardFamilyOption,
       ),
-    ).toEqual(['chess', 'xiangqi', 'shogi']);
+    ).toEqual(['xiangqi', 'chess', 'shogi']);
 
     expect(document.querySelector('[data-theme-tile="piece"]')).not.toBeNull();
     expect(document.querySelector('[data-theme-tile="xqboard"]')).not.toBeNull();

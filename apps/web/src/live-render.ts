@@ -719,7 +719,9 @@ function renderBoard(view: PlayerView | null): void {
   renderPausedOverlay(paused);
   const config = {
     // Rebuilt on every render, so a pieceAnimation pref change applies live.
-    animation: chessgroundAnimation(),
+    // Fog chess (dark-chess) forces animation off: a glide would imply a
+    // hidden origin/destination the server redacted.
+    animation: chessgroundAnimation({ fog: view?.variant === 'dark-chess' }),
     autoCastle: true,
     coordinates: false,
     coordinatesOnSquares: false,

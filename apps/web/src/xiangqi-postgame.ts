@@ -14,6 +14,7 @@ import { fetchCachedGameAnalysis, requestGameAnalysis } from './review/game-anal
 import { createGameMetaCard, timeAgoLabel } from './review/game-meta-card.js';
 import { buildSpectatorChat } from './review/spectator-chat.js';
 import { mountXiangqiReview } from './review/xiangqi-review.js';
+import { isLikelySignedIn } from './signed-in-state.js';
 import { buildNav } from './site-shell.js';
 
 // Open information: the only meaningful board is the shared truth board.
@@ -140,11 +141,20 @@ function renderPostgame(root: HTMLElement, postgame: XiangqiPostgameResponse): v
     // so it matches the server truth); the server per-ply snapshots are unused.
     moves,
     // Server Pikafish whole-game analysis, DB-cached: an already-analysed game
-    // loads straight from cache on open (a GET that never computes).
+    // loads straight from cache on open (a GET that never computes). Requesting a
+    // fresh compute is account-gated (the server rejects anon POSTs), so a
+    // signed-out visitor gets a sign-in CTA instead of a request that would 401.
     analysis: {
-      requestLabel: 'Request computer analysis',
+      requestLabel: isLikelySignedIn()
+        ? 'Request computer analysis'
+        : 'Sign in to request analysis',
       fetchCached: () => fetchCachedGameAnalysis(postgame.game.roomId),
-      run: () => requestGameAnalysis(postgame.game.roomId),
+      run: isLikelySignedIn()
+        ? () => requestGameAnalysis(postgame.game.roomId)
+        : () => {
+            window.location.assign('/account');
+            return new Promise<never>(() => {});
+          },
     },
   });
 }

@@ -102,6 +102,10 @@ export type XiangqiPieceRenderOptions = {
   x?: number;
   y?: number;
   size?: number;
+  // A soldier that has crossed the river draws with the promoted-soldier art.
+  // International set only (that is where the asset ships); other sets fall back
+  // to the plain soldier glyph/art.
+  crossed?: boolean;
 };
 
 export function xiangqiGlyph(
@@ -159,7 +163,7 @@ export function renderXiangqiPieceGlyphed(
     return [
       `<svg${classAttr}${posAttrs} viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg" aria-label="${escapeAttr(ariaLabel)}">`,
       internationalDiscMark(piece.color),
-      internationalImageMark(internationalPieceHref(piece), piece.role),
+      internationalImageMark(internationalPieceHref(piece, opts.crossed), piece.role),
       `</svg>`,
     ].join('');
   }
@@ -263,8 +267,9 @@ function isImagePieceSet(set: XiangqiPieceSet): set is ImageXiangqiPieceSet {
 const ANIMAL_ART_VERSION = 4;
 const INTERNATIONAL_ART_VERSION = 11;
 
-function internationalPieceHref(piece: XiangqiPiece): string {
-  return `/piece-sets/xiangqi/international/${piece.color}-${piece.role}.png?v=${INTERNATIONAL_ART_VERSION}`;
+function internationalPieceHref(piece: XiangqiPiece, crossed = false): string {
+  const role = crossed && piece.role === 'soldier' ? 'crossed-soldier' : piece.role;
+  return `/piece-sets/xiangqi/international/${piece.color}-${role}.png?v=${INTERNATIONAL_ART_VERSION}`;
 }
 
 export function internationalTreasureHref(color: XiangqiColor): string {
