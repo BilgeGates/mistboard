@@ -96,15 +96,16 @@ export function createLiveLayout(
               <div data-captures-top class="captures-strip captures-strip-top rail-material" aria-label="Pieces captured by the top side"></div>
               <div data-clock-top class="clocks clock-slot"></div>
               <div class="round-table__box">
+                <div data-player-top class="round-table__player round-table__player--top"></div>
                 <div class="replay-console">
-                  <ol data-move-list class="move-list"></ol>
-                  <p data-replay-meta class="replay-meta">Live</p>
                   <div class="replay-controls">
                     <button type="button" data-replay="first" title="First position">|&lt;</button>
                     <button type="button" data-replay="prev" title="Previous event">&lt;</button>
                     <button type="button" data-replay="next" title="Next event">&gt;</button>
                     <button type="button" data-replay="latest" title="Latest position">&gt;|</button>
                   </div>
+                  <ol data-move-list class="move-list"></ol>
+                  <p data-replay-meta class="replay-meta" hidden>Live</p>
                 </div>
                 <div data-action-section class="round-table__row" hidden>
                   <div data-action-status class="action-status"></div>
@@ -115,6 +116,7 @@ export function createLiveLayout(
                 <div data-game-controls-section class="round-table__row" hidden>
                   <div data-game-controls class="game-controls"></div>
                 </div>
+                <div data-player-bottom class="round-table__player round-table__player--bottom"></div>
               </div>
               <div data-clock-bottom class="clocks clock-slot"></div>
               <div data-captures class="captures-strip captures-strip-bottom rail-material" aria-label="Pieces captured by the bottom side"></div>
@@ -154,6 +156,8 @@ export function createLiveLayout(
   const actionStatus = target.querySelector<HTMLDivElement>('[data-action-status]');
   const clockTop = target.querySelector<HTMLDivElement>('[data-clock-top]');
   const clockBottom = target.querySelector<HTMLDivElement>('[data-clock-bottom]');
+  const playerTop = target.querySelector<HTMLDivElement>('[data-player-top]');
+  const playerBottom = target.querySelector<HTMLDivElement>('[data-player-bottom]');
   const clockNote = target.querySelector<HTMLParagraphElement>('[data-clocks-note]');
   const capturesTop = target.querySelector<HTMLDivElement>('[data-captures-top]');
   const capturesBottom = target.querySelector<HTMLDivElement>('[data-captures]');
@@ -184,6 +188,8 @@ export function createLiveLayout(
     !capturesBottom ||
     !clockTop ||
     !clockBottom ||
+    !playerTop ||
+    !playerBottom ||
     !clockNote ||
     !roomActions ||
     !devViewsSection ||
@@ -219,6 +225,8 @@ export function createLiveLayout(
     gameInfo,
     moveList,
     offerSection,
+    playerBottom,
+    playerTop,
     promotion,
     replayControls,
     replayMeta,

@@ -8,9 +8,8 @@
 //
 // Move-list note: Dark Xiangqi is masked (opponent plies render as a dimmed
 // placeholder) but keeps EVERY row during a scrub (plyWindow: 'all') — stepping
-// back only moves the active highlight, it never drops rows — and its zero-moves
-// row is a bare `<li class="move-row masked">` (emptyRow override), unlike the
-// single-span placeholder the other fog tenants use.
+// back only moves the active highlight, it never drops rows. Zero moves render
+// an empty list (shared core behavior, lichess parity).
 //
 // Wire shape pinned by dark-xiangqi-golden-wire.test.ts: the tenant core snapshot
 // with NO extras (no mode/pveEngineId/rated/forfeitDeadline/rematch), so the
@@ -178,15 +177,6 @@ const client = createTenantLiveClient<XiangqiColor, DarkXiangqiWireView, Xiangqi
     // the active highlight; it must never drop rows. The ceiling is the full
     // game length, not the scrubbed ply.
     plyWindow: 'all',
-    emptyText: 'No visible moves yet',
-    // Dark Xiangqi's zero-moves row is a bare full-width li (not the grid row the
-    // other fog tenants use), so it overrides the default placeholder.
-    emptyRow: () => {
-      const item = document.createElement('li');
-      item.className = 'move-row masked';
-      item.textContent = 'No visible moves yet';
-      return item;
-    },
     notate: (move) => `${move.from}-${move.to}`,
     isMoveEvent: isDarkXiangqiMoveEvent,
   },

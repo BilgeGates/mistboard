@@ -179,63 +179,78 @@ export function createTenantRoomChrome<C extends string>(
     refs.capturesTop.replaceChildren();
     refs.clockTop.replaceChildren();
     refs.clockBottom.replaceChildren();
+    refs.playerTop.replaceChildren();
+    refs.playerBottom.replaceChildren();
     refs.clockNote.hidden = true;
   }
 
-  // Renders the two-seat clock into the shared clock slots. Top slot is the
+  // Renders the seat player rows (top/bottom of the boxed table, lichess round
+  // anatomy) plus the two-seat clock in the shared clock slots. Top is the
   // opponent (relative to the viewer's orientation), bottom is the viewer.
-  // Untimed games render nothing.
+  // Untimed games still get player rows, just no clocks.
   function renderClocks(): void {
     if (!refs) return;
     refs.clockTop.replaceChildren();
     refs.clockBottom.replaceChildren();
+    refs.playerTop.replaceChildren();
+    refs.playerBottom.replaceChildren();
     refs.clockNote.hidden = true;
     refs.clockNote.textContent = '';
 
     const timeControl = ctx.timeControl();
-    if (!timeControl) return;
-
     const clock = ctx.clock();
     const view = ctx.view();
     const orientation = ctx.orientation();
     const colors: C[] = [tenant.oppositeColor(orientation), orientation];
     const armed = !!clock && (clock.activeColor !== null || clock.runningSince !== null);
 
-    if (!clock || !armed) {
-      const incrementSec = Math.round(timeControl.incrementMs / 1000);
-      const tcLabel =
-        incrementSec > 0
-          ? `${formatClock(timeControl.initialMs)}+${incrementSec}`
-          : formatClock(timeControl.initialMs);
+    if (!timeControl || !clock || !armed) {
       // Side to move before the clock arms (opt-in; clarifies the opener when seat names
       // aren't colors, e.g. banqi pre-flip).
       const pregameTurn =
         tenant.showPregameTurn && view?.status.type === 'playing' ? view.status.turn : null;
       colors.forEach((color, index) => {
         const isTurn = color === pregameTurn;
-        const row = document.createElement('div');
-        row.className = isTurn ? 'pregame active' : 'pregame';
-        row.dataset.color = color;
-        const label = document.createElement('span');
-        label.textContent = ctx.seatDisplayNames()[color] ?? seatName(color);
+        const playerLine = document.createElement('span');
+        playerLine.className = isTurn ? 'clock-player-line active' : 'clock-player-line';
+        const nameEl = document.createElement('span');
+        nameEl.className = 'clock-name';
+        const name = ctx.seatDisplayNames()[color] ?? seatName(color);
+        nameEl.textContent = name;
+        nameEl.title = name;
+        playerLine.append(nameEl);
         if (isTurn) {
           const toMove = document.createElement('span');
           toMove.className = 'clock-to-move';
           toMove.textContent = 'to move';
           toMove.setAttribute('aria-hidden', 'false');
-          label.append(' ', toMove);
+          playerLine.append(toMove);
         }
+        (index === 0 ? refs!.playerTop : refs!.playerBottom).append(playerLine);
+        if (!timeControl) return;
+        const row = document.createElement('div');
+        row.className = isTurn ? 'pregame active' : 'pregame';
+        row.dataset.color = color;
         const time = document.createElement('strong');
         time.textContent = formatClock(clock ? clock.remainingMs[color] : timeControl.initialMs);
-        row.append(label, time);
+        row.append(time);
         (index === 0 ? refs!.clockTop : refs!.clockBottom).append(row);
       });
-      // Only show the "clock starts after the opening moves" hint while the game
-      // is actually pregame — not once it's finished/aborted (the clock just sits
-      // unarmed at the final times, and the hint would be stale).
-      const ended = view?.status.type === 'finished' || view?.status.type === 'aborted';
-      refs.clockNote.textContent = ended ? '' : `${tcLabel} · clock starts after the opening moves`;
-      refs.clockNote.hidden = ended;
+      if (timeControl) {
+        const incrementSec = Math.round(timeControl.incrementMs / 1000);
+        const tcLabel =
+          incrementSec > 0
+            ? `${formatClock(timeControl.initialMs)}+${incrementSec}`
+            : formatClock(timeControl.initialMs);
+        // Only show the "clock starts after the opening moves" hint while the game
+        // is actually pregame — not once it's finished/aborted (the clock just sits
+        // unarmed at the final times, and the hint would be stale).
+        const ended = view?.status.type === 'finished' || view?.status.type === 'aborted';
+        refs.clockNote.textContent = ended
+          ? ''
+          : `${tcLabel} · clock starts after the opening moves`;
+        refs.clockNote.hidden = ended;
+      }
       lastActiveClockColor = null;
       return;
     }
@@ -279,9 +294,8 @@ export function createTenantRoomChrome<C extends string>(
       const remainingMs = clockRemainingMs(clock, color, displayAt);
       time.textContent = formatClock(remainingMs, isActive && remainingMs < 10_000);
       row.append(time);
-      const slot = index === 0 ? refs!.clockTop : refs!.clockBottom;
-      if (index === 0) slot.append(playerLine, row);
-      else slot.append(row, playerLine);
+      (index === 0 ? refs!.playerTop : refs!.playerBottom).append(playerLine);
+      (index === 0 ? refs!.clockTop : refs!.clockBottom).append(row);
     });
     lastActiveClockColor = activeColor;
   }
@@ -399,8 +413,11 @@ export function createTenantRoomChrome<C extends string>(
       } else if (view.status.type === 'finished') {
         row.append(playAgainButton());
       }
-      row.append(roomLink('Home', '/'));
-      refs.roomActions.append(row);
+      // No Home button (lichess parity): the site nav is the way out of the
+      // room. An aborted room can end up with no actions at all — leave the
+      // host empty so the wrapper row collapses instead of appending an empty
+      // button row.
+      if (row.childElementCount > 0) refs.roomActions.append(row);
       return;
     }
 

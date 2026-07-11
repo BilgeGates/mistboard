@@ -1251,7 +1251,7 @@
   color: var(--site-heading);
 }
 
-:root[data-effective-theme="dark"] .clocks .clock-to-move {
+:root[data-effective-theme="dark"] .clock-to-move {
   background: var(--site-accent-soft);
   color: var(--site-accent-strong);
 }

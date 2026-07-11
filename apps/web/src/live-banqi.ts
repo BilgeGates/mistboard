@@ -184,7 +184,6 @@ const client = createTenantLiveClient<BanqiSeat, BanqiWireView, BanqiMove>({
     cellPrefix: 'xiangqi-move-row',
     listClass: 'xiangqi-move-list',
     masked: false,
-    emptyText: 'No moves yet',
     // A flip (self-move) shows as the flipped square; a board move as from-to.
     // The notation is per-move (never per-seat), so it rides the standard
     // two-column move list keyed by seat.

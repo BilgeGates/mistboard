@@ -27,6 +27,20 @@
   overflow: visible;
 }
 
+/* With the console gap collapsed (clock joins the table), keep a little air
+   between the material strips and the clock tabs; empty strips vanish. */
+.live-review__cluster .captures-strip-top {
+  margin-bottom: 6px;
+}
+
+.live-review__cluster .captures-strip-bottom {
+  margin-top: 6px;
+}
+
+.live-review__cluster .rail-material:empty {
+  display: none;
+}
+
 .live-review__cluster .rail-material .captures-row {
   flex-wrap: wrap;
   row-gap: 2px;
@@ -110,27 +124,35 @@
     flex-direction: column;
     min-height: 0;
   }
+  /* The boxed table hugs its content and the whole cluster (material · clock ·
+     table · clock · material) centers vertically against the board (lichess
+     proportions) instead of stretching the box to board height. */
   .live-review__cluster .game-console {
     flex: 1 1 auto;
     min-height: 0;
     display: flex;
     flex-direction: column;
-    gap: 8px;
+    justify-content: center;
+    gap: 0;
   }
   .live-review__cluster .round-table__box {
-    flex: 1 1 0;
+    flex: 0 1 auto;
     min-height: 0;
+    overflow: auto;
   }
+  /* The console hugs its content (toolbar + a ~4-row move window, lichess
+     parity) instead of flex-filling the box; the bottom player row's
+     margin-top:auto absorbs the leftover height. */
   .live-review__cluster .replay-console {
-    flex: 1 1 0;
+    flex: 0 0 auto;
     min-height: 0;
     display: flex;
     flex-direction: column;
-    gap: 8px;
+    gap: 0;
   }
   .live-review__cluster .replay-console .move-list {
-    flex: 1 1 0;
-    min-height: 96px;
+    flex: 0 0 auto;
+    min-height: 0;
     height: auto;
   }
 }

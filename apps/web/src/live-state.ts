@@ -111,6 +111,8 @@ export type LiveRefs = {
   gameInfo: HTMLDivElement;
   moveList: HTMLOListElement;
   offerSection: HTMLElement;
+  playerBottom: HTMLDivElement;
+  playerTop: HTMLDivElement;
   promotion: HTMLDivElement;
   replayControls: NodeListOf<HTMLButtonElement>;
   replayMeta: HTMLParagraphElement;

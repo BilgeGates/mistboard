@@ -158,7 +158,6 @@ const client = createTenantLiveClient<
     cellPrefix: 'xiangqi-move-row',
     listClass: 'xiangqi-move-list',
     masked: false,
-    emptyText: 'No moves yet',
     notate: fortressXiangqiMoveLabel,
     isMoveEvent: isFortressMoveEvent,
   },

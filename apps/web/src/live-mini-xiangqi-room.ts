@@ -450,15 +450,8 @@ function renderVisibleMoveList(refs: LiveRefs): void {
   // is the full game length, not the scrubbed ply.
   const totalPly = replay.latestPly();
   refs.moveList.replaceChildren();
-  if (totalPly === 0) {
-    const item = document.createElement('li');
-    item.className = ['move-row', isOpenMiniXiangqiLiveRoom() ? '' : 'masked']
-      .filter(Boolean)
-      .join(' ');
-    item.textContent = isOpenMiniXiangqiLiveRoom() ? 'No moves yet' : 'No visible moves yet';
-    refs.moveList.append(item);
-    return;
-  }
+  // Zero moves renders an empty list (lichess parity): no placeholder row.
+  if (totalPly === 0) return;
   const activePly = replay.activePly();
   for (const row of visibleMoveRows(moves, totalPly)) {
     const item = document.createElement('li');

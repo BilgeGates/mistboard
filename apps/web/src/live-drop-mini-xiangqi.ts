@@ -157,7 +157,6 @@ const client = createTenantLiveClient<
     cellPrefix: 'xiangqi-move-row',
     listClass: 'xiangqi-move-list',
     masked: false,
-    emptyText: 'No moves yet',
     notate: dropMiniXiangqiMoveLabel,
     isMoveEvent: isDropMiniMoveEvent,
   },
