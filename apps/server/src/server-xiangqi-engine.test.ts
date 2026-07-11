@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import type { XiangqiMove } from '@mistboard/game';
-import { legalMoveForUci } from './server-xiangqi-engine.js';
+import { legalMoveForUci, xiangqiEngineResponseDelayMs } from './server-xiangqi-engine.js';
 import {
   xiangqiEngineVersion as catalogXiangqiEngineVersion,
   isXiangqiEngineClientId as isCatalogXiangqiEngineClientId,
@@ -53,6 +53,25 @@ test('legalMoveForUci rejects moves outside the legal set and malformed uci', ()
   assert.equal(legalMoveForUci(legal, 'h3e3'), null); // our coords, not Pikafish coords
   assert.equal(legalMoveForUci(legal, 'garbage'), null);
   assert.equal(legalMoveForUci(legal, ''), null);
+});
+
+test('xiangqi PvE response pacing jitters independently of strength and yields in time pressure', () => {
+  assert.equal(
+    xiangqiEngineResponseDelayMs({ movesPlayedByEngine: 0, random: 0, remainingMs: null }),
+    1_200,
+  );
+  assert.equal(
+    xiangqiEngineResponseDelayMs({ movesPlayedByEngine: 0, random: 1, remainingMs: null }),
+    2_000,
+  );
+  assert.equal(
+    xiangqiEngineResponseDelayMs({ movesPlayedByEngine: 2, random: 0.5, remainingMs: null }),
+    1_000,
+  );
+  assert.equal(
+    xiangqiEngineResponseDelayMs({ movesPlayedByEngine: 2, random: 1, remainingMs: 1_100 }),
+    100,
+  );
 });
 
 // ── Ladder tier-table invariants ────────────────────────────────────────────

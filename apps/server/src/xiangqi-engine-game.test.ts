@@ -45,6 +45,23 @@ test('fails closed when an engine returns a non-kernel-legal move', async () => 
   assert.equal(result.plyCount, 0);
 });
 
+test('accepts Fairy-Stockfish and mixed-family standard-Xiangqi profiles', async () => {
+  const seen: string[] = [];
+  const result = await playXiangqiEngineGame({
+    roomId: 'eve_xiangqi_mixed_engines',
+    redEngineId: 'fairy-stockfish-xiangqi-level-4',
+    blackEngineId: 'pikafish-xiangqi-level-1',
+    maxPlies: 2,
+    moveProvider: async ({ engineId, legalMoves }) => {
+      seen.push(engineId);
+      return xiangqiMoveToPikafishUci(legalMoves[0]!);
+    },
+  });
+
+  assert.equal(result.status, 'completed');
+  assert.deepEqual(seen, ['fairy-stockfish-xiangqi-level-4', 'pikafish-xiangqi-level-1']);
+});
+
 test('paired opening seeds produce the same prefix across swapped engines', async () => {
   const play = (redEngineId: string, blackEngineId: string) =>
     playXiangqiEngineGame({

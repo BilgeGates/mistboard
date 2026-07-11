@@ -9,6 +9,7 @@ import {
   tournamentJobConfig,
 } from './engine-tournament.js';
 import { runMigrations } from './migrate.js';
+import { xiangqiEngineTierFor } from './xiangqi-engine-catalog.js';
 
 const databaseUrl = process.env.DATABASE_URL;
 if (!databaseUrl) {
@@ -19,9 +20,9 @@ if (!databaseUrl) {
 const config = parseTournamentArgs(process.argv.slice(2));
 if (
   config.variant === 'xiangqi' &&
-  config.engines.some((engineId) => loadEngine(engineId).config.kind !== 'pikafish-xiangqi')
+  config.engines.some((engineId) => xiangqiEngineTierFor(loadEngine(engineId).id) === null)
 ) {
-  throw new Error('xiangqi tournaments currently require Pikafish standard-Xiangqi profiles');
+  throw new Error('xiangqi tournaments require registered standard-Xiangqi engine profiles');
 }
 const pairings = createRoundRobinPairings({
   engines: config.engines,

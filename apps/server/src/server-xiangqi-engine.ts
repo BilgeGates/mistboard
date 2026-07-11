@@ -86,6 +86,21 @@ export function scheduleXiangqiEngineMove(
   if (room.engineTimer) return;
   const seat = xiangqiEngineSeatFor(room);
   if (seat === null || !engineToMove(room, seat)) return;
+  const engineId = room.projection.seats[seat]!;
+  const tier = xiangqiEngineTierFor(engineId);
+  if (!tier) return;
+  const now = ctx.now?.() ?? Date.now();
+  const remainingMs = room.projection.clock
+    ? tenantClockRemainingMs(room.projection.clock, seat, now)
+    : null;
+  const movesPlayedByEngine = room.events.filter(
+    (event) => event.type === 'move-played' && event.color === seat,
+  ).length;
+  const delayMs = xiangqiEngineResponseDelayMs({
+    movesPlayedByEngine,
+    remainingMs,
+    random: Math.random(),
+  });
   room.engineTimer = setTimeout(() => {
     room.engineTimer = null;
     void playXiangqiEngineMoveIfReady(ctx, room).catch((err) => {
@@ -98,8 +113,26 @@ export function scheduleXiangqiEngineMove(
         'Xiangqi engine move failure',
       );
     });
-  }, 0);
+  }, delayMs);
   room.engineTimer.unref();
+}
+
+/**
+ * Human-facing pacing, deliberately independent of engine search strength.
+ * Inspired by Lichess's randomized pre-search bot delay, but kept shorter for
+ * Mistboard: 1.2-2.0s before the bot's first search and 0.75-1.25s later.
+ * In time pressure it shrinks to preserve a one-second clock safety reserve.
+ */
+export function xiangqiEngineResponseDelayMs(input: {
+  movesPlayedByEngine: number;
+  random: number;
+  remainingMs: number | null;
+}): number {
+  const baseMs = input.movesPlayedByEngine === 0 ? 1_600 : 1_000;
+  const random = Math.min(1, Math.max(0, input.random));
+  const jitteredMs = Math.round(baseMs * (0.75 + random * 0.5));
+  if (input.remainingMs === null) return jitteredMs;
+  return Math.max(0, Math.min(jitteredMs, Math.floor(input.remainingMs - CLOCK_SAFETY_MS)));
 }
 
 export type XiangqiEngineMoveProvider = (

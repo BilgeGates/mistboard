@@ -31,6 +31,7 @@ import {
   roomTimeControlFromEngine,
   timeoutResult,
 } from './engine-time-policy.js';
+import { xiangqiEngineTierFor } from './xiangqi-engine-catalog.js';
 import { playXiangqiEngineGame } from './xiangqi-engine-game.js';
 import type { XiangqiEvent } from './xiangqi-runtime.js';
 
@@ -277,10 +278,10 @@ async function runXiangqiEngineGame(
   runnerStartedAt: number,
 ): Promise<{ gameId: string; plyCount: number; status: 'completed' | 'aborted' }> {
   if (
-    redEngine.config.kind !== 'pikafish-xiangqi' ||
-    blackEngine.config.kind !== 'pikafish-xiangqi'
+    xiangqiEngineTierFor(redEngine.id) === null ||
+    xiangqiEngineTierFor(blackEngine.id) === null
   ) {
-    throw new Error('xiangqi Eve tasks require two pikafish-xiangqi engine profiles');
+    throw new Error('xiangqi Eve tasks require two registered standard-Xiangqi profiles');
   }
   await createRunningXiangqiGame(pool, task, gameId, startedAt, redEngine, blackEngine);
   const result = await playXiangqiEngineGame({
@@ -312,7 +313,7 @@ async function runXiangqiEngineGame(
     await reconcileExperimentJob(pool, task.jobId);
   }
   await recordRuntimeSummary(pool, task, gameId, {
-    runner: 'xiangqi-pikafish-uci',
+    runner: 'xiangqi-uci',
     status: result.status,
     termination: result.termination,
     plyCount: result.plyCount,
@@ -846,7 +847,7 @@ async function recordPythonGameSummary(
 type RuntimeSummaryInput = {
   blackEngineId: string;
   plyCount: number;
-  runner: 'typescript-in-process' | 'python-subprocess' | 'xiangqi-pikafish-uci';
+  runner: 'typescript-in-process' | 'python-subprocess' | 'xiangqi-uci';
   status: 'completed' | 'aborted';
   termination: string;
   totalThinkTimeMs: number;

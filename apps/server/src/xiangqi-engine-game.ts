@@ -9,7 +9,7 @@ import {
   type XiangqiEngineTier,
   xiangqiEngineTierFor,
   xiangqiLiveEngineMove,
-} from './xiangqi-pikafish-engine.js';
+} from './xiangqi-engine-catalog.js';
 import type { XiangqiEvent } from './xiangqi-runtime.js';
 import { xiangqiTenant } from './xiangqi-tenant.js';
 
@@ -148,7 +148,7 @@ export async function playXiangqiEngineGame(input: {
 
 function requiredTier(engineId: string): XiangqiEngineTier {
   const tier = xiangqiEngineTierFor(engineId);
-  if (!tier) throw new Error(`engine ${engineId} is not a standard-Xiangqi Pikafish profile`);
+  if (!tier) throw new Error(`engine ${engineId} is not a standard-Xiangqi engine profile`);
   return tier;
 }
 
