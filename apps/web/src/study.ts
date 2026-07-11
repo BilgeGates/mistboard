@@ -10,6 +10,7 @@ import './live-xiangqi.css';
 import './xiangqi-postgame.css';
 import './study.css';
 import type { SerializedTree } from './review/tree-serialize.js';
+import { mountXiangqiGamebook } from './review/xiangqi-gamebook.js';
 import { mountXiangqiReview, type XiangqiReviewHandle } from './review/xiangqi-review.js';
 import { buildNav } from './site-shell.js';
 
@@ -30,6 +31,7 @@ type ChapterDto = {
   orientation: string;
   root: SerializedTree;
   version: number;
+  gamebook: boolean;
 };
 
 type LoadResult =
@@ -95,6 +97,29 @@ function renderStudy(root: HTMLElement, study: StudyDto, chapters: ChapterDto[])
     renderActive();
   };
 
+  // Owner-only: whether the owner is previewing (test-playing) the active gamebook
+  // chapter instead of authoring it.
+  let previewMode = false;
+
+  const setGamebook = async (chapterId: string, on: boolean): Promise<void> => {
+    const chapter = chapters.find((entry) => entry.id === chapterId);
+    if (!chapter) return;
+    const response = await fetch(`/api/studies/${study.id}/chapters/${chapterId}`, {
+      method: 'PATCH',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ gamebook: on }),
+    });
+    if (!response.ok) return;
+    chapter.gamebook = on;
+    if (!on) previewMode = false;
+    renderActive();
+  };
+
+  const setPreview = (on: boolean): void => {
+    previewMode = on;
+    renderActive();
+  };
+
   function renderActive(): void {
     const chapter = chapters.find((entry) => entry.id === activeId) ?? chapters[0];
     if (!chapter || chapter.variant !== 'xiangqi') {
@@ -103,10 +128,38 @@ function renderStudy(root: HTMLElement, study: StudyDto, chapters: ChapterDto[])
     }
     activeId = chapter.id;
 
+    const chapterActions: ChapterActions = {
+      onSwitch: switchTo,
+      onAdd: addChapter,
+      onRemove: removeChapter,
+    };
+    const owner: OwnerControls | undefined = study.isOwner
+      ? {
+          gamebook: chapter.gamebook,
+          preview: previewMode,
+          onToggleGamebook: (on) => void setGamebook(chapter.id, on),
+          onTogglePreview: setPreview,
+        }
+      : undefined;
+
+    root.replaceChildren(buildNav());
+
+    // A gamebook chapter is played (guess-the-move) by viewers and by the owner in
+    // preview; the owner authors it in the review board otherwise.
+    if (chapter.gamebook && (!study.isOwner || previewMode)) {
+      mountXiangqiGamebook(root, {
+        tree: chapter.root,
+        orientation: chapter.orientation === 'black' ? 'black' : 'red',
+        title: study.name,
+        summary: chapter.name,
+        aside: buildActions(study, chapters, activeId, statusSpan(), chapterActions, owner),
+      });
+      return;
+    }
+
     let version = chapter.version;
     let handle: XiangqiReviewHandle | null = null;
-    const status = document.createElement('span');
-    status.className = 'study-actions__status';
+    const status = statusSpan();
 
     const save = debounce(() => {
       if (!handle) return;
@@ -135,7 +188,6 @@ function renderStudy(root: HTMLElement, study: StudyDto, chapters: ChapterDto[])
         .catch(() => setStatus(status, 'error', 'Save failed'));
     }, 700);
 
-    root.replaceChildren(buildNav());
     handle = mountXiangqiReview(root, {
       pageClassName: 'xiangqi-review',
       ariaLabel: 'Study',
@@ -144,11 +196,8 @@ function renderStudy(root: HTMLElement, study: StudyDto, chapters: ChapterDto[])
       summary:
         study.description || (study.isOwner ? 'Draw, comment, and branch — edits autosave.' : ''),
       boardAriaLabel: 'Xiangqi board',
-      actions: buildActions(study, chapters, activeId, status, {
-        onSwitch: switchTo,
-        onAdd: addChapter,
-        onRemove: removeChapter,
-      }),
+      actions: buildActions(study, chapters, activeId, status, chapterActions, owner),
+      gamebookEditing: chapter.gamebook && study.isOwner,
       initialTree: chapter.root,
       onChange: study.isOwner
         ? () => {
@@ -174,24 +223,64 @@ type ChapterActions = {
   onRemove: (id: string) => void;
 };
 
+type OwnerControls = {
+  gamebook: boolean;
+  preview: boolean;
+  onToggleGamebook: (on: boolean) => void;
+  onTogglePreview: (on: boolean) => void;
+};
+
+function statusSpan(): HTMLElement {
+  const status = document.createElement('span');
+  status.className = 'study-actions__status';
+  return status;
+}
+
 function buildActions(
   study: StudyDto,
   chapters: ChapterDto[],
   activeId: string,
   status: HTMLElement,
   chapterActions: ChapterActions,
+  owner?: OwnerControls,
 ): HTMLElement {
   const wrap = document.createElement('div');
   wrap.className = 'study-actions';
 
   wrap.append(chapterTabs(study, chapters, activeId, chapterActions));
 
-  if (study.isOwner) {
+  if (owner) {
+    wrap.append(lessonControls(owner));
     wrap.append(visibilityControl(study));
     wrap.append(status);
   }
   wrap.append(copyLinkButton());
   return wrap;
+}
+
+function lessonControls(owner: OwnerControls): HTMLElement {
+  const row = document.createElement('div');
+  row.className = 'study-actions__row';
+  const label = document.createElement('span');
+  label.className = 'study-actions__label';
+  label.textContent = 'Lesson';
+  const toggle = document.createElement('button');
+  toggle.type = 'button';
+  toggle.className = owner.gamebook
+    ? 'study-actions__vis study-actions__vis--active'
+    : 'study-actions__vis';
+  toggle.textContent = owner.gamebook ? 'On' : 'Off';
+  toggle.addEventListener('click', () => owner.onToggleGamebook(!owner.gamebook));
+  row.append(label, toggle);
+  if (owner.gamebook) {
+    const preview = document.createElement('button');
+    preview.type = 'button';
+    preview.className = 'study-actions__copy';
+    preview.textContent = owner.preview ? 'Back to editing' : 'Preview';
+    preview.addEventListener('click', () => owner.onTogglePreview(!owner.preview));
+    row.append(preview);
+  }
+  return row;
 }
 
 function chapterTabs(

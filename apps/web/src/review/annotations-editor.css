@@ -67,6 +67,31 @@
   border-color: var(--c-accent, #3893e8);
 }
 
+.annotation-editor__gamebook {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  padding-top: 0.4rem;
+  border-top: 1px dashed var(--c-border, rgba(128, 128, 128, 0.3));
+}
+
+.annotation-editor__gamebook-field {
+  width: 100%;
+  resize: vertical;
+  padding: 0.4rem 0.5rem;
+  font: inherit;
+  font-size: 0.85rem;
+  line-height: 1.35;
+  border: 1px solid var(--c-border, rgba(128, 128, 128, 0.35));
+  border-radius: 4px;
+  background: var(--c-bg-elevated, rgba(128, 128, 128, 0.08));
+  color: inherit;
+}
+.annotation-editor__gamebook-field:focus {
+  outline: none;
+  border-color: var(--c-accent, #3893e8);
+}
+
 /* User-drawn board shapes: brush colours override the default engine-arrow ink.
  * (CSS beats the SVG presentation attributes the arrow/marker renderers inline.) */
 .xq-arrow--draw.xq-shape--green,

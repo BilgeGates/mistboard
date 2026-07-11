@@ -96,6 +96,9 @@ export type XiangqiReviewConfig = {
   /** Fired after any tree mutation (move, annotation, promote, delete). The study
    *  page uses it to autosave; the analysis/postgame pages ignore it. */
   onChange?: () => void;
+  /** Show gamebook (lesson) authoring fields — per-node hint + deviation — in the
+   *  annotation editor. The study page sets this for a gamebook chapter's owner. */
+  gamebookEditing?: boolean;
   /** Whole-game analysis source; null disables the analysis affordance. */
   analysis: XiangqiAnalysisSource | null;
 };
@@ -291,6 +294,16 @@ export function mountXiangqiReview(
       tree.annotateAt(currentPath, { shapes: [] });
       paintOverlays();
       annotationEditor.setAnnotations(currentNode().annotations);
+      notifyChange();
+    },
+    gamebook: config.gamebookEditing,
+    onGamebook: (patch) => {
+      tree.annotateAt(currentPath, {
+        gamebook: {
+          hint: patch.hint?.trim() || undefined,
+          deviation: patch.deviation?.trim() || undefined,
+        },
+      });
       notifyChange();
     },
   });

@@ -350,6 +350,7 @@ export {
   isStudyVisibility,
   listStudiesForOwner,
   renameChapter,
+  setChapterGamebook,
   updateChapterTree,
   updateStudyMeta,
 } from './persistence-studies.js';

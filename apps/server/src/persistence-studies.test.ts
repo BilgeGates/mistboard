@@ -8,6 +8,7 @@ import {
   getStudyById,
   listStudiesForOwner,
   renameChapter,
+  setChapterGamebook,
   updateChapterTree,
   updateStudyMeta,
 } from './persistence-studies.js';
@@ -49,6 +50,7 @@ definePersistenceTests('studies', () => {
     const chapter = created.chapters[0]!;
     assert.equal(chapter.variant, 'xiangqi');
     assert.equal(chapter.version, 0);
+    assert.equal(chapter.gamebook, false);
     assert.deepEqual(chapter.root, tree);
 
     const fetched = await getStudyById(created.id);
@@ -134,6 +136,11 @@ definePersistenceTests('studies', () => {
 
     const renamed = await renameChapter(added.chapter.id, owner.id, 'Renamed');
     assert.ok(renamed.ok && renamed.chapter.name === 'Renamed');
+
+    const gb = await setChapterGamebook(added.chapter.id, owner.id, true);
+    assert.ok(gb.ok && gb.chapter.gamebook === true);
+    const gbBad = await setChapterGamebook(added.chapter.id, stranger.id, false);
+    assert.ok(!gbBad.ok && gbBad.error === 'forbidden');
 
     assert.ok((await deleteChapter(added.chapter.id, owner.id)).ok);
     full = await getStudyById(studyId);

@@ -27,6 +27,10 @@ export interface AnnotationEditorOptions {
   onComment(text: string): void;
   /** Remove all drawn shapes from the current node. */
   onClearShapes(): void;
+  /** Gamebook (lesson) authoring: show hint + deviation fields for the current node. */
+  gamebook?: boolean;
+  /** Set the current node's gamebook hint/deviation. Per keystroke; no re-render. */
+  onGamebook?(patch: { hint?: string; deviation?: string }): void;
 }
 
 export interface AnnotationEditor {
@@ -72,6 +76,29 @@ export function createAnnotationEditor(opts: AnnotationEditorOptions): Annotatio
 
   panel.append(glyphRow, comment);
 
+  // Gamebook (lesson) fields: hint (revealed on demand) + deviation (shown when the
+  // learner leaves this line). Only rendered in lesson-authoring mode.
+  let hint: HTMLTextAreaElement | null = null;
+  let deviation: HTMLTextAreaElement | null = null;
+  if (opts.gamebook) {
+    hint = document.createElement('textarea');
+    hint.className = 'annotation-editor__gamebook-field';
+    hint.rows = 2;
+    hint.placeholder = 'Hint (revealed on demand)…';
+    deviation = document.createElement('textarea');
+    deviation.className = 'annotation-editor__gamebook-field';
+    deviation.rows = 2;
+    deviation.placeholder = 'If they play a wrong move…';
+    const emit = (): void =>
+      opts.onGamebook?.({ hint: hint?.value ?? '', deviation: deviation?.value ?? '' });
+    hint.addEventListener('input', emit);
+    deviation.addEventListener('input', emit);
+    const section = document.createElement('div');
+    section.className = 'annotation-editor__gamebook';
+    section.append(hint, deviation);
+    panel.append(section);
+  }
+
   function setAnnotations(annotations: NodeAnnotations | undefined): void {
     const active = annotations?.glyphs?.[0];
     for (const [code, button] of glyphButtons) {
@@ -80,6 +107,14 @@ export function createAnnotationEditor(opts: AnnotationEditorOptions): Annotatio
     const text = annotations?.comments?.[0]?.text ?? '';
     if (comment.value !== text) comment.value = text;
     clearShapes.disabled = !annotations?.shapes?.length;
+    if (hint) {
+      const value = annotations?.gamebook?.hint ?? '';
+      if (hint.value !== value) hint.value = value;
+    }
+    if (deviation) {
+      const value = annotations?.gamebook?.deviation ?? '';
+      if (deviation.value !== value) deviation.value = value;
+    }
   }
 
   setAnnotations(undefined);

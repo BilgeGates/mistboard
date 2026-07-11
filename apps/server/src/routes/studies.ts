@@ -56,6 +56,7 @@ function chapterView(chapter: persistence.StudyChapterRecord) {
     root: chapter.root,
     denorm: chapter.denorm,
     version: chapter.version,
+    gamebook: chapter.gamebook,
   };
 }
 
@@ -266,6 +267,15 @@ async function patchChapter(
     if (!result.ok) {
       const status = result.error === 'forbidden' ? 403 : result.error === 'conflict' ? 409 : 404;
       writeJson(response, status, { error: result.error });
+      return true;
+    }
+    writeJson(response, 200, { chapter: chapterView(result.chapter) });
+    return true;
+  }
+  if (typeof body.gamebook === 'boolean') {
+    const result = await persistence.setChapterGamebook(chapterId, ownerId, body.gamebook);
+    if (!result.ok) {
+      writeJson(response, result.error === 'forbidden' ? 403 : 404, { error: result.error });
       return true;
     }
     writeJson(response, 200, { chapter: chapterView(result.chapter) });

@@ -25,6 +25,9 @@ export type StudyChapterRecord = {
   root: unknown;
   denorm: unknown;
   version: number;
+  /** Gamebook (interactive-lesson) chapter: the guess-the-move player is the
+   *  default presentation. Same tree data; per-node hint/deviation live in it. */
+  gamebook: boolean;
   createdAt: Date;
   updatedAt: Date;
 };
@@ -94,6 +97,7 @@ type ChapterRow = {
   root: unknown;
   denorm: unknown;
   version: number;
+  gamebook: boolean;
   created_at: Date;
   updated_at: Date;
 };
@@ -121,6 +125,7 @@ function mapChapter(row: ChapterRow): StudyChapterRecord {
     root: row.root,
     denorm: row.denorm,
     version: row.version,
+    gamebook: row.gamebook,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };
@@ -128,7 +133,7 @@ function mapChapter(row: ChapterRow): StudyChapterRecord {
 
 const STUDY_COLS = 'id, owner_id, name, description, visibility, created_at, updated_at';
 const CHAPTER_COLS =
-  'id, study_id, ordinal, name, variant, orientation, root, denorm, version, created_at, updated_at';
+  'id, study_id, ordinal, name, variant, orientation, root, denorm, version, gamebook, created_at, updated_at';
 
 /** Create a study and its first chapter atomically. Returns the full record. */
 export async function createStudy(input: CreateStudyInput): Promise<StudyWithChapters | null> {
@@ -360,6 +365,29 @@ export async function renameChapter(
   const updated = await getPool().query<ChapterRow>(
     `UPDATE study_chapters SET name = $1, updated_at = now() WHERE id = $2 RETURNING ${CHAPTER_COLS}`,
     [name, chapterId],
+  );
+  return { ok: true, chapter: mapChapter(updated.rows[0]!) };
+}
+
+/** Flip a chapter between vanilla and gamebook (interactive-lesson) mode (owner). */
+export async function setChapterGamebook(
+  chapterId: string,
+  ownerId: string,
+  gamebook: boolean,
+): Promise<UpdateChapterResult> {
+  if (!isInitialized()) return { ok: false, error: 'not_found' };
+  const { rows } = await getPool().query<{ owner_id: string }>(
+    `SELECT s.owner_id
+       FROM study_chapters c JOIN studies s ON s.id = c.study_id
+       WHERE c.id = $1`,
+    [chapterId],
+  );
+  const found = rows[0];
+  if (!found) return { ok: false, error: 'not_found' };
+  if (found.owner_id !== ownerId) return { ok: false, error: 'forbidden' };
+  const updated = await getPool().query<ChapterRow>(
+    `UPDATE study_chapters SET gamebook = $1, updated_at = now() WHERE id = $2 RETURNING ${CHAPTER_COLS}`,
+    [gamebook, chapterId],
   );
   return { ok: true, chapter: mapChapter(updated.rows[0]!) };
 }
