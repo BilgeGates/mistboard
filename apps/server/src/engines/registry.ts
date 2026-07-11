@@ -1,4 +1,5 @@
 import type pg from 'pg';
+import { XIANGQI_ALL_ENGINE_TIERS, XIANGQI_ENGINE_VERSION } from '../xiangqi-pikafish-engine.js';
 import { BUILTIN_ENGINES } from './builtin/index.js';
 import type { EngineClientId, EngineDefinition, EngineId } from './types.js';
 
@@ -666,6 +667,33 @@ const JIEQI_ENGINES: Record<string, EngineDefinition> = {
   },
 };
 
+// Standard Xiangqi profiles share the exact tier source used by live PvE. This
+// prevents the EvE catalog from drifting from the executable node budgets.
+const XIANGQI_ENGINES: Record<string, EngineDefinition> = Object.fromEntries(
+  XIANGQI_ALL_ENGINE_TIERS.map((tier) => [
+    tier.id,
+    {
+      id: tier.id,
+      engineId: 'pikafish-xiangqi',
+      engineName: 'Pikafish',
+      name: tier.name,
+      kind: 'container',
+      gameSpecId: 'xiangqi',
+      configHash: `pikafish-xiangqi-${XIANGQI_ENGINE_VERSION}-nodes-${tier.nodes}`,
+      playSignature: `pikafish-xiangqi-${XIANGQI_ENGINE_VERSION}-nodes-${tier.nodes}`,
+      config: {
+        kind: 'pikafish-xiangqi',
+        nodes: tier.nodes,
+        movetime_ms: tier.movetimeMs,
+        version: XIANGQI_ENGINE_VERSION,
+      },
+      notes:
+        `Mainline Pikafish ${XIANGQI_ENGINE_VERSION} standard-Xiangqi profile; ` +
+        `${tier.nodes.toLocaleString('en-US')} node budget.`,
+    } satisfies EngineDefinition,
+  ]),
+);
+
 // MistyBanqi (our own Rust αβ+TT engine, Tier-B UCI subprocess — banqi-engine.ts).
 // ONE versioned bot since 2026-06-18 (was 3 difficulty tiers). configHash carries the
 // engine version, so each game record tells which build played. The route/scheduler key off
@@ -798,6 +826,7 @@ const KNOWN_ENGINES: Record<string, EngineDefinition> = {
   ...PYTHON_ENGINES,
   ...CROSSROADS_CHESS_ENGINES,
   ...JIEQI_ENGINES,
+  ...XIANGQI_ENGINES,
   ...BANQI_ENGINES,
   ...MINI_XIANGQI_ENGINES,
   ...JUNGLE_FLIP_ENGINES,
@@ -873,7 +902,9 @@ export async function upsertBuiltinEngineVersions(
           runtime:
             engine.config.kind === 'python-subprocess'
               ? 'python-subprocess'
-              : 'in-process-typescript',
+              : engine.config.kind === 'builtin'
+                ? 'in-process-typescript'
+                : 'uci-subprocess',
         },
         engine.notes ?? 'Built-in TypeScript worker engine for EvE data collection MVP.',
       ],

@@ -9,7 +9,7 @@ export type EngineEloGameRow = {
   blackEngineId: string | null;
   gameId: string;
   jobId: string;
-  result: 'white-wins' | 'black-wins' | 'draw' | null;
+  result: 'white-wins' | 'black-wins' | 'red-wins' | 'draw' | null;
   status: string;
   termination: string | null;
   timeControl: Record<string, unknown>;
@@ -97,7 +97,11 @@ export function buildEngineEloReport(
     if (!white || !black || !row.result) continue;
 
     if (white === anchorEngineId || black === anchorEngineId) {
-      const anchorScore = scoreForColor(row.result, white === anchorEngineId ? 'white' : 'black');
+      const anchorScore = scoreForSlot(
+        row.result,
+        white === anchorEngineId ? 'white' : 'black',
+        row.variant,
+      );
       record(anchor, anchorScore);
       const otherEngine = white === anchorEngineId ? black : white;
       const otherScore = 1 - anchorScore;
@@ -204,7 +208,7 @@ export async function loadRatedEngineEloRows(
     black_engine_id: string | null;
     game_id: string;
     job_id: string;
-    result: 'white-wins' | 'black-wins' | 'draw' | null;
+    result: 'white-wins' | 'black-wins' | 'red-wins' | 'draw' | null;
     status: string;
     termination: string | null;
     time_control: Record<string, unknown>;
@@ -300,12 +304,17 @@ function isEligibleResult(row: EngineEloGameRow, excludedTerminations: Set<strin
   );
 }
 
-function scoreForColor(
+function scoreForSlot(
   result: NonNullable<EngineEloGameRow['result']>,
-  color: 'white' | 'black',
+  slot: 'white' | 'black',
+  variant: string,
 ): number {
   if (result === 'draw') return 0.5;
-  return result === `${color}-wins` ? 1 : 0;
+  // eve_games predates red/black families and names its first-mover slot
+  // white_engine_id. For Xiangqi-family results, that slot is Red.
+  const winningSlot =
+    result === 'red-wins' && variant === 'xiangqi' ? 'white' : result.split('-')[0];
+  return winningSlot === slot ? 1 : 0;
 }
 
 function emptyRecord(): MutableRecord {

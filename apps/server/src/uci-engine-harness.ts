@@ -122,6 +122,38 @@ export function parseBestmoveLine(line: string): string | null | undefined {
   return move && move !== '(none)' ? move : null;
 }
 
+/** Parse an advertised UCI option name from `option name ... type ...`. */
+export function parseUciOptionLine(line: string): string | undefined {
+  const match = line.match(/^option name (.+?) type /);
+  return match?.[1]?.trim() || undefined;
+}
+
+/** Return the option names configured by a UCI command block. */
+export function configuredUciOptionNames(commands: readonly string[]): string[] {
+  return commands.flatMap((command) => {
+    const match = command.match(/^setoption name (.+?)(?: value .*)?$/);
+    return match?.[1]?.trim() ? [match[1].trim()] : [];
+  });
+}
+
+function validateConfiguredUciOptions(
+  commands: readonly string[],
+  advertisedOptions: ReadonlySet<string>,
+): void {
+  const unsupported = configuredUciOptionNames(commands).filter(
+    (option) => !advertisedOptions.has(option),
+  );
+  if (unsupported.length > 0) {
+    throw new Error(
+      `UCI engine does not advertise configured option(s): ${unsupported.join(', ')}`,
+    );
+  }
+}
+
+function uciProtocolError(line: string): string | null {
+  return /^(?:No such option|Unknown option|Unknown command)\b/i.test(line) ? line : null;
+}
+
 export type RunUciBestmoveArgs = {
   /** Absolute path to the engine binary. */
   bin: string;
@@ -146,6 +178,7 @@ export function runUciBestmove(args: RunUciBestmoveArgs): Promise<string | null>
     const child = spawn(bin, [], { stdio: ['pipe', 'pipe', 'pipe'] });
     let buf = '';
     let settled = false;
+    const advertisedOptions = new Set<string>();
 
     const finish = (run: () => void): void => {
       if (settled) return;
@@ -168,9 +201,23 @@ export function runUciBestmove(args: RunUciBestmoveArgs): Promise<string | null>
       while (newline >= 0) {
         const line = buf.slice(0, newline).trim();
         buf = buf.slice(newline + 1);
+        const option = parseUciOptionLine(line);
+        if (option) advertisedOptions.add(option);
+        const protocolError = uciProtocolError(line);
+        if (protocolError) {
+          finish(() => reject(new Error(`UCI engine rejected command: ${protocolError}`)));
+          return;
+        }
         const parsed = parseBestmoveLine(line);
         if (parsed !== undefined) {
-          finish(() => resolveMove(parsed));
+          finish(() => {
+            try {
+              validateConfiguredUciOptions(commands, advertisedOptions);
+              resolveMove(parsed);
+            } catch (err) {
+              reject(err);
+            }
+          });
           return;
         }
         newline = buf.indexOf('\n');
@@ -227,6 +274,7 @@ export function runUciEval(args: RunUciBestmoveArgs): Promise<UciEval> {
     let buf = '';
     let settled = false;
     let latest: { depth: number; cp: number | null; mate: number | null } | null = null;
+    const advertisedOptions = new Set<string>();
 
     const finish = (run: () => void): void => {
       if (settled) return;
@@ -249,18 +297,30 @@ export function runUciEval(args: RunUciBestmoveArgs): Promise<UciEval> {
       while (newline >= 0) {
         const line = buf.slice(0, newline).trim();
         buf = buf.slice(newline + 1);
+        const option = parseUciOptionLine(line);
+        if (option) advertisedOptions.add(option);
+        const protocolError = uciProtocolError(line);
+        if (protocolError) {
+          finish(() => reject(new Error(`UCI engine rejected command: ${protocolError}`)));
+          return;
+        }
         const score = parseInfoScore(line);
         if (score) latest = score;
         const move = parseBestmoveLine(line);
         if (move !== undefined) {
-          finish(() =>
-            resolveEval({
-              best: move,
-              cp: latest?.cp ?? null,
-              mate: latest?.mate ?? null,
-              depth: latest?.depth ?? 0,
-            }),
-          );
+          finish(() => {
+            try {
+              validateConfiguredUciOptions(commands, advertisedOptions);
+              resolveEval({
+                best: move,
+                cp: latest?.cp ?? null,
+                mate: latest?.mate ?? null,
+                depth: latest?.depth ?? 0,
+              });
+            } catch (err) {
+              reject(err);
+            }
+          });
           return;
         }
         newline = buf.indexOf('\n');

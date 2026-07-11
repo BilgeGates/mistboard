@@ -56,3 +56,18 @@ test('Dark Xiangqi has a dedicated local engine that stays out of the chess PvE 
   assert.equal(isDarkMiniXiangqiEngineClientId(engine.id), false);
   assert.equal(isPlayableLiveEngineClientId(engine.id), false);
 });
+
+test('standard Xiangqi Pikafish tiers are first-class reproducible engine versions', () => {
+  const engine = loadEngine('pikafish-xiangqi-level-3');
+  assert.equal(engine.engineId, 'pikafish-xiangqi');
+  assert.equal(engine.gameSpecId, 'xiangqi');
+  assert.equal(engine.config.kind, 'pikafish-xiangqi');
+  assert.deepEqual(engine.config, {
+    kind: 'pikafish-xiangqi',
+    nodes: 10_000,
+    movetime_ms: 500,
+    version: '0.3.0',
+  });
+  assert.match(engine.playSignature, /0\.3\.0-nodes-10000$/);
+  assert.equal(isPlayableLiveEngineClientId(engine.id), false);
+});

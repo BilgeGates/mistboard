@@ -6,7 +6,9 @@ import test, { after } from 'node:test';
 import {
   boundedEnvInt,
   buildFairyStockfishCommands,
+  configuredUciOptionNames,
   parseBestmoveLine,
+  parseUciOptionLine,
   runUciBestmove,
   UciEnginePool,
 } from './uci-engine-harness.js';
@@ -50,6 +52,23 @@ test('parseBestmoveLine extracts the move token', () => {
 test('parseBestmoveLine maps no-move outputs to null', () => {
   assert.equal(parseBestmoveLine('bestmove (none)'), null);
   assert.equal(parseBestmoveLine('bestmove'), null);
+});
+
+test('UCI option parsing handles multi-word names and configured values', () => {
+  assert.equal(
+    parseUciOptionLine('option name Skill Level type spin default 20 min 0 max 20'),
+    'Skill Level',
+  );
+  assert.equal(parseUciOptionLine('option name EvalFile type string default net.nnue'), 'EvalFile');
+  assert.equal(parseUciOptionLine('uciok'), undefined);
+  assert.deepEqual(
+    configuredUciOptionNames([
+      'uci',
+      'setoption name EvalFile value /tmp/net.nnue',
+      'setoption name Clear Hash',
+    ]),
+    ['EvalFile', 'Clear Hash'],
+  );
 });
 
 // ── buildFairyStockfishCommands ───────────────────────────────────────────────
@@ -215,6 +234,23 @@ process.stdin.on('data', (chunk) => {
 });`,
 );
 
+const optionResponderBin = writeFakeEngine(
+  'option-responder.mjs',
+  `let buf = '';
+process.stdin.on('data', (chunk) => {
+  buf += chunk;
+  let nl;
+  while ((nl = buf.indexOf('\\n')) >= 0) {
+    const line = buf.slice(0, nl).trim();
+    buf = buf.slice(nl + 1);
+    if (line === 'uci') {
+      process.stdout.write('option name EvalFile type string default net.nnue\\nuciok\\n');
+    }
+    if (line.startsWith('go')) process.stdout.write('bestmove d2d3\\n');
+  }
+});`,
+);
+
 test('runUciBestmove spawns, sends commands, and resolves the bestmove', async () => {
   const move = await runUciBestmove({
     bin: responderBin,
@@ -223,6 +259,26 @@ test('runUciBestmove spawns, sends commands, and resolves the bestmove', async (
     timeoutMessage: 'should not time out',
   });
   assert.equal(move, 'd2d3');
+});
+
+test('runUciBestmove accepts advertised setoptions and rejects unsupported ones', async () => {
+  const move = await runUciBestmove({
+    bin: optionResponderBin,
+    commands: ['uci', 'setoption name EvalFile value /tmp/net.nnue', 'go movetime 50'],
+    timeoutMs: 4_000,
+    timeoutMessage: 'should not time out',
+  });
+  assert.equal(move, 'd2d3');
+
+  await assert.rejects(
+    runUciBestmove({
+      bin: optionResponderBin,
+      commands: ['uci', 'setoption name Skill Level value 6', 'go movetime 50'],
+      timeoutMs: 4_000,
+      timeoutMessage: 'should not time out',
+    }),
+    /does not advertise configured option.*Skill Level/,
+  );
 });
 
 test('runUciBestmove rejects with the timeout message when no bestmove arrives', async () => {

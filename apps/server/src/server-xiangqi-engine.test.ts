@@ -63,20 +63,14 @@ test('xiangqi ladder exposes exactly eight levels with unique level-N ids', () =
 
 test('xiangqi ladder parameters are within range and monotonic', () => {
   for (const tier of XIANGQI_PLAYABLE_ENGINES) {
-    assert.ok(
-      tier.skill >= 0 && tier.skill <= 20,
-      `${tier.id}: skill ${tier.skill} outside Pikafish's 0-20 range`,
-    );
     assert.ok(tier.nodes >= 1, `${tier.id}: node budget must be positive`);
     assert.ok(tier.movetimeMs >= 1, `${tier.id}: movetime must be positive`);
   }
   for (let i = 1; i < XIANGQI_PLAYABLE_ENGINES.length; i++) {
     const prev = XIANGQI_PLAYABLE_ENGINES[i - 1]!;
     const next = XIANGQI_PLAYABLE_ENGINES[i]!;
-    // Nodes pin strength: strictly increasing keeps the ladder monotonic even
-    // where adjacent skill values tie. Skill and movetime never regress.
+    // Nodes are Pikafish's only configured strength control; movetime never regresses.
     assert.ok(next.nodes > prev.nodes, `${next.id}: nodes must exceed ${prev.id}`);
-    assert.ok(next.skill >= prev.skill, `${next.id}: skill must not regress from ${prev.id}`);
     assert.ok(
       next.movetimeMs >= prev.movetimeMs,
       `${next.id}: movetime must not regress from ${prev.id}`,
@@ -84,12 +78,10 @@ test('xiangqi ladder parameters are within range and monotonic', () => {
   }
 });
 
-test('xiangqi default engine is a playable level with the old default strength', () => {
+test('xiangqi default engine is the playable 100k-node level', () => {
   const tier = XIANGQI_PLAYABLE_ENGINES.find((entry) => entry.id === XIANGQI_DEFAULT_ENGINE_ID);
   assert.ok(tier, 'default engine id must be in XIANGQI_PLAYABLE_ENGINES');
-  // The retired 'pikafish-xiangqi-strong' default was skill 12; the successor
-  // default keeps that skill so default difficulty does not jump.
-  assert.equal(tier.skill, 12);
+  assert.equal(tier.nodes, 100_000);
 });
 
 // ── Retired-tier back-compat ────────────────────────────────────────────────
@@ -99,14 +91,13 @@ test('xiangqi default engine is a playable level with the old default strength',
 
 test('retired xiangqi engine ids stay resolvable with their original parameters', () => {
   const expected = [
-    { id: 'pikafish-xiangqi-amateur', skill: 3, nodes: 20_000, movetimeMs: 400 },
-    { id: 'pikafish-xiangqi-strong', skill: 12, nodes: 300_000, movetimeMs: 1_500 },
-    { id: 'pikafish-xiangqi-strongest', skill: 20, nodes: 3_000_000, movetimeMs: 4_000 },
+    { id: 'pikafish-xiangqi-amateur', nodes: 20_000, movetimeMs: 400 },
+    { id: 'pikafish-xiangqi-strong', nodes: 300_000, movetimeMs: 1_500 },
+    { id: 'pikafish-xiangqi-strongest', nodes: 3_000_000, movetimeMs: 4_000 },
   ];
   assert.deepEqual(
-    XIANGQI_LEGACY_ENGINE_TIERS.map(({ id, skill, nodes, movetimeMs }) => ({
+    XIANGQI_LEGACY_ENGINE_TIERS.map(({ id, nodes, movetimeMs }) => ({
       id,
-      skill,
       nodes,
       movetimeMs,
     })),
@@ -115,7 +106,6 @@ test('retired xiangqi engine ids stay resolvable with their original parameters'
   for (const legacy of expected) {
     const tier = xiangqiEngineTierFor(legacy.id);
     assert.ok(tier, `${legacy.id} must resolve via xiangqiEngineTierFor`);
-    assert.equal(tier.skill, legacy.skill);
     assert.equal(tier.nodes, legacy.nodes);
     assert.equal(tier.movetimeMs, legacy.movetimeMs);
     assert.equal(isXiangqiEngineClientId(legacy.id), true);
