@@ -26,6 +26,7 @@
 
 import { type GameSpecId, XIANGQI_SPEC_ID } from './game-specs.js';
 import { MINED_XIANGQI_PUZZLES } from './puzzles-xiangqi-mined.js';
+import { trimXiangqiWinningAdvantageMoves } from './puzzles-xiangqi-trim.js';
 import type {
   XiangqiColor,
   XiangqiGameState,
@@ -87,6 +88,7 @@ export type XiangqiPuzzleValidationIssueCode =
   | 'solution-ended-before-goal'
   | 'solution-must-end-on-solver-move'
   | 'unsupported-variant'
+  | 'winning-advantage-filler-tail'
   | 'wrong-finish-reason'
   | 'wrong-winner';
 
@@ -141,9 +143,25 @@ export type XiangqiPuzzleAttemptResult =
 // Hand-curated standard-xiangqi puzzles (none yet; the corpus is mined).
 export const CURATED_XIANGQI_PUZZLES: readonly XiangqiPuzzle[] = [];
 
+// Normalize a winning-advantage puzzle so its line ends on the payoff (the
+// solver's last capture), dropping the quiet PV tail the miner truncated to.
+// Checkmate puzzles and captureless (positional) wins are returned unchanged.
+export function trimXiangqiWinningAdvantageTail(puzzle: XiangqiPuzzle): XiangqiPuzzle {
+  if (puzzle.goal.type !== 'winning-advantage') return puzzle;
+  const trimmed = trimXiangqiWinningAdvantageMoves(puzzle.initial, puzzle.solution);
+  if (trimmed.length === puzzle.solution.length) return puzzle;
+  return { ...puzzle, solution: trimmed };
+}
+
 export const XIANGQI_PUZZLES: readonly XiangqiPuzzle[] = [
   ...CURATED_XIANGQI_PUZZLES,
-  ...MINED_XIANGQI_PUZZLES,
+  // Heal the shipped mined corpus at load: trim quiet PV tails back to the
+  // payoff, then drop any winning-advantage tactic whose real content is a bare
+  // 1-ply capture (below the corpus's 3-ply floor — it only got mined because
+  // of the filler tail). The fixed miner won't emit either shape going forward.
+  ...MINED_XIANGQI_PUZZLES.map(trimXiangqiWinningAdvantageTail).filter(
+    (puzzle) => puzzle.goal.type !== 'winning-advantage' || puzzle.solution.length >= 3,
+  ),
 ];
 
 export function standardXiangqiPuzzleById(id: string): XiangqiPuzzle | null {
@@ -195,6 +213,19 @@ export function validateStandardXiangqiPuzzle(
         'solution-must-end-on-solver-move',
         puzzle.solution.length,
         'Winning-advantage solution must end on the solver move, so its length must be odd.',
+      );
+    }
+    // The line must end on the payoff (the solver's last capture): a trailing
+    // quiet solver move is non-forced (one of many winning replies) yet the
+    // solver validates by exact match, so it would reject every alternative.
+    const trimmed = trimXiangqiWinningAdvantageMoves(puzzle.initial, puzzle.solution);
+    if (trimmed.length < puzzle.solution.length) {
+      return validationError(
+        puzzle,
+        'winning-advantage-filler-tail',
+        trimmed.length,
+        'Winning-advantage solution has quiet moves after the last capture; it must end on the payoff.',
+        puzzle.solution[trimmed.length],
       );
     }
     return {

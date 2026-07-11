@@ -25,6 +25,7 @@ import {
   type XiangqiPuzzleGoal,
   type XiangqiPuzzleTheme,
 } from './puzzles-xiangqi.js';
+import { trimXiangqiWinningAdvantageMoves } from './puzzles-xiangqi-trim.js';
 import {
   positionRepetitionKey,
   type XiangqiColor,
@@ -326,16 +327,24 @@ export function assembleMinedXiangqiPuzzle(
   const goal: XiangqiPuzzleGoal = built.endedByMate
     ? { type: 'checkmate', winner: solver }
     : { type: 'winning-advantage', winner: solver, centipawns: input.verifyScore.scoreCp };
+  // A winning-advantage line ends on its payoff: trim the quiet PV tail back to
+  // the solver's last capture, then re-apply the min-length floor (a tactic whose
+  // real content is below it only survived on the filler tail — reject it).
+  const solution =
+    goal.type === 'winning-advantage'
+      ? trimXiangqiWinningAdvantageMoves(initial, built.moves)
+      : built.moves;
+  if (solution.length < opts.minSolutionPlies) return { ok: false, reason: 'too-short' };
   const puzzle: XiangqiPuzzle = {
     id,
     variant: XIANGQI_SPEC_ID,
-    title: xiangqiPuzzleTitle(solver, goal, built.moves.length),
+    title: xiangqiPuzzleTitle(solver, goal, solution.length),
     initial,
-    solution: built.moves,
+    solution,
     goal,
     themes: tagXiangqiPuzzleThemes({
       initial,
-      solution: built.moves,
+      solution,
       goal,
       swingCp: input.swingCp,
     }),
