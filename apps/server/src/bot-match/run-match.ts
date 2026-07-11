@@ -6,12 +6,21 @@
  * tally. This is the harness for the local self-test (live Misty v1.5 vs
  * stand-in Misty v1.1) and, by swapping one endpoint, the real external match.
  *
+ * Bot-match games are EXPENSIVE to produce (minutes of real engine search) and
+ * trivial to store, so every series persists each finished game's event log to
+ * disk by default, INCREMENTALLY — the moment that game completes, not at the
+ * end. An external kill or crash then loses at most the single in-flight game;
+ * everything already finished is already on disk and replayable. Pass
+ * `persistDir: null` to opt a caller out (e.g. a hermetic unit test).
+ *
  * CLI:
  *   tsx src/bot-match/run-match.ts \
  *     --live-url  http://127.0.0.1:7801 --live-token  A --live-engine  python-v2-v1.5 \
  *     --threep-url http://127.0.0.1:7802 --threep-token B --threep-engine python-v2-v1.1 \
  *     --games 20 --time-control 180+2 --max-plies 200
  */
+import { mkdirSync, writeFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { parseEngineTimeControl } from '../engine-time-policy.js';
 import type { EngineTimePolicy } from '../fow-engine-budget.js';
@@ -45,6 +54,17 @@ export type SeriesConfig = {
   gameIdPrefix?: string;
   startedAtMs?: number;
   /**
+   * Where to write per-game replay JSONL + an index.json.
+   *   - undefined (default): a fresh dir under `botmatch-runs/` (or
+   *     $BOTMATCH_RUNS_DIR) — persistence is ON by default so an expensive run
+   *     can never silently produce nothing.
+   *   - a string: write there.
+   *   - null: disable persistence (hermetic tests).
+   */
+  persistDir?: string | null;
+  /** Sub-directory label under the default runs root (defaults to `<prefix>-<stamp>`). */
+  runLabel?: string;
+  /**
    * Acquire an engine-worker reservation per seat per game (required by the
    * real engine-worker; not needed for the reference bot). Released after each
    * game so only two seats are ever live at once.
@@ -73,9 +93,88 @@ export type SeriesReport = {
   forfeits: number;
   clockLosses: number;
   results: ArbiterResult[];
+  /** Directory the game artifacts were written to (null if persistence disabled). */
+  persistDir: string | null;
+  /** One entry per successfully persisted game, in play order. */
+  artifacts: { gameId: string; file: string }[];
+  /** Non-fatal persistence failures (a write error never aborts the series). */
+  persistErrors: string[];
 };
 
 const FORFEIT_OUTCOMES = new Set(['illegal-move-forfeit', 'provider-error-forfeit']);
+
+// ---- durable artifacts (persist-by-default) ----
+
+export type SeriesIndexEntry = {
+  gameId: string;
+  file: string;
+  variant: string;
+  winner: 'white' | 'black' | null;
+  outcome: string;
+  plyCount: number;
+  whiteEngineId: string;
+  blackEngineId: string;
+  forfeitedBy?: 'white' | 'black';
+};
+
+/** Strip an id down to what the `?replay=<id>` viewer accepts as a filename. */
+export function replaySafeId(id: string): string {
+  return id.replace(/[^a-zA-Z0-9_-]/g, '');
+}
+
+function defaultRunsRoot(): string {
+  const fromEnv = process.env.BOTMATCH_RUNS_DIR?.trim();
+  return fromEnv && fromEnv.length > 0 ? fromEnv : resolve(process.cwd(), 'botmatch-runs');
+}
+
+/** Resolve the directory a series writes its game artifacts to (null = disabled). */
+export function resolveSeriesRunDir(
+  cfg: Pick<SeriesConfig, 'persistDir' | 'gameIdPrefix' | 'runLabel'>,
+  stamp: number,
+): string | null {
+  if (cfg.persistDir === null) return null;
+  if (typeof cfg.persistDir === 'string') return cfg.persistDir;
+  const label = cfg.runLabel ?? `${cfg.gameIdPrefix ?? 'botmatch'}-${stamp}`;
+  return resolve(defaultRunsRoot(), label);
+}
+
+/**
+ * Write one finished game's events as replay-viewer JSONL (one event per line).
+ * The filename is `<replaySafeId(gameId)>.jsonl`, so the file can be dropped
+ * straight into `apps/web/public/replay-samples/` and opened with `?replay=`.
+ */
+export function writeSeriesGameArtifact(dir: string, result: ArbiterResult): string {
+  mkdirSync(dir, { recursive: true });
+  const file = resolve(dir, `${replaySafeId(result.gameId)}.jsonl`);
+  writeFileSync(file, `${result.events.map((e) => JSON.stringify(e)).join('\n')}\n`);
+  return file;
+}
+
+export function writeSeriesIndex(
+  dir: string,
+  meta: Record<string, unknown>,
+  entries: SeriesIndexEntry[],
+): void {
+  mkdirSync(dir, { recursive: true });
+  writeFileSync(
+    resolve(dir, 'index.json'),
+    `${JSON.stringify({ ...meta, games: entries }, null, 2)}\n`,
+  );
+}
+
+function indexEntryFor(result: ArbiterResult, file: string): SeriesIndexEntry {
+  return {
+    gameId: result.gameId,
+    file,
+    variant: result.variant,
+    winner: result.winner,
+    outcome: result.outcome,
+    plyCount: result.plyCount,
+    whiteEngineId: result.whiteEngineId,
+    blackEngineId: result.blackEngineId,
+    ...(result.forfeitedBy ? { forfeitedBy: result.forfeitedBy } : {}),
+  };
+}
 
 export async function runBotMatchSeries(cfg: SeriesConfig): Promise<SeriesReport> {
   const report: SeriesReport = {
@@ -85,8 +184,24 @@ export async function runBotMatchSeries(cfg: SeriesConfig): Promise<SeriesReport
     forfeits: 0,
     clockLosses: 0,
     results: [],
+    persistDir: null,
+    artifacts: [],
+    persistErrors: [],
   };
   const prefix = cfg.gameIdPrefix ?? 'botmatch';
+
+  const runStamp = cfg.startedAtMs ?? Date.now();
+  const runDir = resolveSeriesRunDir(cfg, runStamp);
+  report.persistDir = runDir;
+  const indexMeta: Record<string, unknown> = {
+    engineA: { label: cfg.a.label, engineId: cfg.a.engineId },
+    engineB: { label: cfg.b.label, engineId: cfg.b.engineId },
+    plannedGames: cfg.games,
+    timeControl: cfg.timeControl ?? null,
+    timePolicy: cfg.timePolicy ?? 'self-managed',
+    runStamp,
+  };
+  const indexEntries: SeriesIndexEntry[] = [];
 
   for (let i = 0; i < cfg.games; i++) {
     // Alternate colors so each engine plays white and black equally.
@@ -162,6 +277,22 @@ export async function runBotMatchSeries(cfg: SeriesConfig): Promise<SeriesReport
     if (FORFEIT_OUTCOMES.has(result.outcome)) report.forfeits += 1;
     if (result.outcome === 'clock-expired') report.clockLosses += 1;
 
+    // Persist THIS game before touching the next one. A write failure is
+    // non-fatal — the expensive compute is already done; we don't abort the
+    // rest of the series over a disk hiccup.
+    if (runDir) {
+      try {
+        const file = writeSeriesGameArtifact(runDir, result);
+        report.artifacts.push({ gameId: result.gameId, file });
+        indexEntries.push(indexEntryFor(result, file));
+        writeSeriesIndex(runDir, indexMeta, indexEntries);
+      } catch (err) {
+        report.persistErrors.push(
+          `${result.gameId}: ${err instanceof Error ? err.message : String(err)}`,
+        );
+      }
+    }
+
     cfg.onGameEnd?.(i, result, white.label, black.label);
   }
   return report;
@@ -212,6 +343,8 @@ async function main(): Promise<void> {
   const maxPlies = Number(argOf(args, '--max-plies') ?? 200);
   const timePolicy: EngineTimePolicy =
     argOf(args, '--time-policy') === 'live-cap' ? 'live-cap' : 'self-managed';
+  // Persistence is on by default; --no-persist opts out, --persist-dir overrides.
+  const persistDir = args.includes('--no-persist') ? null : argOf(args, '--persist-dir');
 
   // eslint-disable-next-line no-console
   const log = (msg: string) => console.log(msg);
@@ -227,6 +360,7 @@ async function main(): Promise<void> {
     timeControl,
     timePolicy,
     maxPlies,
+    persistDir,
     manageReservations: true,
     onGameEnd: (i, r, whiteLabel, blackLabel) => {
       const winnerLabel =
@@ -249,6 +383,17 @@ async function main(): Promise<void> {
     log(
       `${a.label} score: ${((aWins / report.games) * 100).toFixed(1)}%  (expected: stronger engine >> 50%)`,
     );
+  }
+
+  if (report.persistDir) {
+    log('');
+    log(`saved ${report.artifacts.length} game(s) to ${report.persistDir}`);
+    log(
+      'view any game: copy its .jsonl into apps/web/public/replay-samples/ then open /?replay=<id>',
+    );
+  }
+  if (report.persistErrors.length > 0) {
+    log(`persist errors (${report.persistErrors.length}): ${report.persistErrors.join('; ')}`);
   }
 }
 
