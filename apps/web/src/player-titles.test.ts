@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { buildTitleBadge, PLAYER_TITLES, titleAbbr, titleFullName } from './player-titles.js';
-import { buildProfileHeader } from './profile.js';
+import { buildProfileIdentity } from './profile.js';
 import { buildUserCard, type UserCardProfile } from './user-card.js';
 
 describe('player titles', () => {
@@ -46,7 +46,7 @@ describe('title badge on the user card', () => {
 
 describe('title badge on the profile header', () => {
   it('renders the h1 abbreviation and the meta full name for titled profiles only', () => {
-    const titled = buildProfileHeader(headerProfile({ title: 'xim' }), 'en');
+    const titled = buildProfileIdentity(headerProfile({ title: 'xim' }), 'en');
     expect(titled.querySelector('h1 .title-badge')?.textContent).toBe('XIM');
     expect(titled.querySelector('.profile-title-full')?.textContent).toBe(
       'Xiangqi International Master',
@@ -54,7 +54,7 @@ describe('title badge on the profile header', () => {
     // The presence dot still lives where hydrateProfilePresence looks for it.
     expect(titled.querySelector('h1 .profile-presence')).not.toBeNull();
 
-    const untitled = buildProfileHeader(headerProfile({ title: null }), 'en');
+    const untitled = buildProfileIdentity(headerProfile({ title: null }), 'en');
     expect(untitled.querySelector('.title-badge')).toBeNull();
     expect(untitled.querySelector('.profile-title-full')).toBeNull();
   });
@@ -74,7 +74,9 @@ function cardProfile(user: { title?: string | null }): UserCardProfile {
   };
 }
 
-function headerProfile(user: { title?: string | null }): Parameters<typeof buildProfileHeader>[0] {
+function headerProfile(user: {
+  title?: string | null;
+}): Parameters<typeof buildProfileIdentity>[0] {
   return {
     user: {
       handle: 'weichen',

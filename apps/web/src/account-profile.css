@@ -87,20 +87,15 @@
 }
 
 .account-panel,
-.profile-header,
-.profile-ratings,
-.profile-games,
-.profile-rating-spotlight,
-.profile-tabs,
-.profile-activity-panel {
+.profile-overview,
+.profile-tabs {
   border: 1px solid var(--site-border);
-  border-radius: 3px;
+  border-radius: var(--site-radius);
   background: var(--site-panel);
   box-shadow: 0 2px 2px color-mix(in srgb, var(--site-shadow) 24%, transparent);
 }
 
-.account-panel,
-.profile-header {
+.account-panel {
   padding: 22px;
 }
 
@@ -112,32 +107,132 @@
     0 18px 46px color-mix(in srgb, var(--site-shadow) 16%, transparent);
 }
 
-.profile-header {
-  position: relative;
+/* ── Merged overview card: identity + actions across the top, then the rating
+   graph (2/3) beside the stat readouts (1/3). ─────────────────────────────── */
+.profile-overview {
   overflow: hidden;
-  background:
-    linear-gradient(
-      135deg,
-      color-mix(in srgb, var(--site-accent-soft) 58%, transparent),
-      transparent 46%
-    ),
-    linear-gradient(
-      180deg,
-      var(--site-panel) 0%,
-      color-mix(in srgb, var(--site-panel-soft) 72%, var(--site-panel)) 100%
-    );
 }
 
-.profile-header::before {
-  content: "";
-  position: absolute;
-  inset: 0 auto 0 0;
-  width: 5px;
-  background: linear-gradient(180deg, var(--site-accent), #4f8edb 54%, #d6af4e);
+.profile-overview-top {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px 20px;
+  padding: 18px 20px;
+  border-bottom: 1px solid var(--site-border-soft);
 }
 
-.profile-header > * {
-  position: relative;
+.profile-identity {
+  min-width: 0;
+}
+
+.profile-identity-handle {
+  display: flex;
+  align-items: center;
+  margin: 0;
+  color: var(--site-heading);
+  font-size: 25px;
+  font-weight: 600;
+  line-height: 1.2;
+  letter-spacing: 0;
+}
+
+.profile-overview-body {
+  display: grid;
+  grid-template-columns: minmax(0, 2fr) minmax(0, 1fr);
+}
+
+/* The graph column. */
+.profile-rating-spotlight {
+  min-width: 0;
+  padding: 16px 18px 14px;
+}
+
+/* The descriptive "user profile text" column (lichess right third). */
+.profile-overview-side {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  border-left: 1px solid var(--site-border-soft);
+  padding: 18px 20px;
+}
+
+.profile-side-name {
+  margin: 0;
+  color: var(--site-heading);
+  font-size: 16px;
+  font-weight: 700;
+}
+
+.profile-side-line {
+  margin: 0;
+  color: var(--site-muted);
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.profile-side-stat {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.profile-side-stat-label {
+  color: var(--site-muted);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.profile-side-stat-value {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  color: var(--site-heading);
+  font-size: 16px;
+  font-weight: 650;
+}
+
+.profile-side-thumb {
+  flex: 0 0 auto;
+  display: block;
+  line-height: 0;
+}
+
+/* Counts strip under the username (lichess user-infos row). */
+.profile-counts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 22px;
+  margin-top: 12px;
+}
+
+.profile-count {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+}
+
+.profile-count-value {
+  color: var(--site-heading);
+  font-size: 16px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.profile-count-label {
+  color: var(--site-muted);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+/* Action buttons ride the top strip; drop the standalone-row top margin. */
+.profile-overview-top .profile-relation-actions,
+.profile-overview-top .profile-owner-actions {
+  flex: 0 0 auto;
+  margin-top: 2px;
 }
 
 .account-eyebrow {
@@ -660,7 +755,10 @@
 }
 
 .profile-header-meta {
-  line-height: 1.6;
+  margin: 6px 0 0;
+  color: var(--site-muted);
+  font-size: 13px;
+  line-height: 1.5;
 }
 
 .profile-handle,
@@ -755,54 +853,123 @@
   text-transform: uppercase;
 }
 
-.profile-rating-spotlight {
-  overflow: hidden;
-}
-
-.profile-rating-spotlight-header {
-  padding: 18px 20px 8px;
-}
-
-.profile-rating-spotlight h2 {
-  margin: 0;
-  color: var(--site-heading);
-  font-size: 21px;
-  font-weight: 650;
-}
-
-.profile-rating-current {
+/* Graph column head: the variant + current rating on the left, the range
+   toggle on the right. */
+.profile-chart-head {
   display: flex;
-  align-items: end;
-  gap: 12px;
-  padding: 0 20px 12px;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 14px;
+  margin-bottom: 8px;
 }
 
-.profile-rating-current-value {
+.profile-chart-headline {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 4px 10px;
+  min-width: 0;
+}
+
+.profile-chart-variant {
   color: var(--site-heading);
-  font-size: 34px;
-  font-weight: 750;
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.profile-chart-value {
+  color: var(--site-heading);
+  font-size: 26px;
+  font-weight: 700;
   font-variant-numeric: tabular-nums;
   line-height: 1;
 }
 
-.profile-rating-current-detail {
-  padding-bottom: 4px;
+.profile-chart-value-unrated {
   color: var(--site-muted);
-  font-size: 13px;
+  font-size: 18px;
+  font-weight: 500;
+  font-style: italic;
+}
+
+.profile-chart-value-empty {
+  color: var(--site-muted);
+  font-size: 22px;
+  font-weight: 500;
+}
+
+.profile-chart-detail {
+  color: var(--site-muted);
+  font-size: 12px;
   font-weight: 600;
+}
+
+/* Segmented range control (1M · 3M · … · ALL). */
+/* Flat text range toggle (lichess navigator idiom): no pill container. */
+.profile-chart-ranges {
+  display: inline-flex;
+  gap: 4px;
+}
+
+.profile-chart-range {
+  min-width: 28px;
+  padding: 3px 6px;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--site-muted);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  cursor: pointer;
+  transition: color 120ms ease;
+}
+
+.profile-chart-range:hover {
+  color: var(--site-heading);
+}
+
+.profile-chart-range:focus-visible {
+  outline: 2px solid var(--site-focus);
+  outline-offset: 1px;
+}
+
+.profile-chart-range-active {
+  color: var(--site-accent-strong);
+  background: var(--site-accent-soft);
 }
 
 .profile-rating-chart {
   position: relative;
-  min-height: 152px;
-  border-top: 1px solid var(--site-border-soft);
-  background:
-    linear-gradient(
-      180deg,
-      color-mix(in srgb, var(--site-panel-soft) 58%, transparent),
-      transparent
-    ),
-    var(--site-panel);
+  min-height: 150px;
+}
+
+/* Range slider under the chart, with year labels bracketing the span. */
+.profile-chart-slider {
+  margin-top: 6px;
+}
+
+.profile-chart-no-slider .profile-chart-slider {
+  display: none;
+}
+
+.profile-chart-slider-input {
+  width: 100%;
+  height: 14px;
+  margin: 0;
+  cursor: pointer;
+  accent-color: var(--site-accent);
+}
+
+.profile-chart-slider-axis {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 2px;
+  color: var(--site-muted);
+  font-size: 11px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
 }
 
 .profile-rating-chart svg {
@@ -816,12 +983,26 @@
   stroke-width: 1;
 }
 
+.profile-rating-chart-area {
+  stroke: none;
+}
+
+.profile-rating-chart-fill-top {
+  stop-color: var(--site-accent);
+  stop-opacity: 0.22;
+}
+
+.profile-rating-chart-fill-bottom {
+  stop-color: var(--site-accent);
+  stop-opacity: 0;
+}
+
 .profile-rating-chart-line {
   fill: none;
   stroke: var(--site-accent);
   stroke-linecap: round;
   stroke-linejoin: round;
-  stroke-width: 3;
+  stroke-width: 2.5;
 }
 
 .profile-rating-chart-dot {
@@ -832,32 +1013,46 @@
 
 .profile-rating-chart-label {
   fill: var(--site-muted);
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.profile-rating-chart-axis {
+  fill: var(--site-muted);
+  font-size: 11px;
+  font-weight: 600;
 }
 
 .profile-rating-chart-empty {
   position: absolute;
-  right: 18px;
-  bottom: 14px;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   color: var(--site-muted);
   font-size: 12px;
   font-weight: 600;
 }
 
+/* The rail rides transparently on the page field (no card, no visible heading),
+   lichess-style. */
 .profile-ratings {
   margin-top: 0;
   padding: 0;
-  overflow: hidden;
 }
 
-.profile-ratings h2 {
-  margin: 0;
-  padding: 13px 16px;
-  border-bottom: 1px solid var(--site-border-soft);
-  color: var(--site-heading);
-  font-size: 17px;
-  font-weight: 500;
+.profile-ratings-heading {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
 }
 
 .profile-ratings-empty {
@@ -870,30 +1065,28 @@
 .profile-ratings-rail {
   display: flex;
   flex-direction: column;
+  gap: 2px;
 }
 
-/* One variant row: compact marker beside the variant name, rating, and
-   games count. */
+/* One variant row (lichess rail idiom): a small marker, the variant name over
+   its rating + games on one line, and a trailing chevron. Compact rows keep the
+   whole rail scannable. */
 .profile-rating-row {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 12px;
   width: 100%;
-  padding: 10px 16px;
+  padding: 8px 10px 8px 12px;
   border: 0;
-  border-bottom: 1px solid var(--site-border-soft);
+  border-radius: var(--site-radius-sm);
   background: transparent;
   color: inherit;
   text-align: left;
   cursor: pointer;
 }
 
-.profile-rating-row:last-child {
-  border-bottom: none;
-}
-
 .profile-rating-row:hover {
-  background: var(--site-zebra);
+  background: var(--site-hover);
 }
 
 .profile-rating-row:focus-visible {
@@ -901,9 +1094,10 @@
   outline-offset: -2px;
 }
 
-.profile-rating-row-selected {
-  background: color-mix(in srgb, var(--site-accent-soft) 58%, var(--site-panel));
-  box-shadow: inset 4px 0 0 var(--site-accent);
+.profile-rating-row-selected,
+.profile-rating-row-selected:hover {
+  background: color-mix(in srgb, var(--site-accent-soft) 62%, var(--site-panel));
+  box-shadow: inset 3px 0 0 var(--site-accent);
 }
 
 /* Never-played variants sit back so the rail reads intentional; played rows
@@ -913,10 +1107,10 @@
 }
 
 .profile-rating-thumb {
-  flex: 0 0 80px;
+  flex: 0 0 32px;
   display: flex;
-  width: 80px;
-  height: 80px;
+  width: 32px;
+  height: 32px;
 }
 
 .profile-rating-thumb svg {
@@ -930,6 +1124,7 @@
   flex-direction: column;
   gap: 1px;
   min-width: 0;
+  flex: 1 1 auto;
 }
 
 .profile-rating-name {
@@ -940,30 +1135,38 @@
   text-transform: uppercase;
 }
 
+/* Rating and games count on one line. */
+.profile-rating-figures {
+  display: flex;
+  align-items: baseline;
+  gap: 7px;
+  min-width: 0;
+}
+
 .profile-rating-value {
   color: var(--site-heading);
-  font-size: 20px;
+  font-size: 16px;
   font-weight: 700;
   font-variant-numeric: tabular-nums;
-  line-height: 1.25;
+  line-height: 1.2;
 }
 
 .profile-rating-q {
   margin-left: 1px;
   color: var(--site-muted);
-  font-size: 14px;
+  font-size: 12px;
   font-weight: 500;
 }
 
 .profile-rating-value-empty {
   color: color-mix(in srgb, var(--site-muted) 55%, transparent);
-  font-size: 18px;
+  font-size: 15px;
   font-weight: 500;
 }
 
 .profile-rating-value-unrated {
   color: var(--site-muted);
-  font-size: 15px;
+  font-size: 14px;
   font-weight: 500;
   font-style: italic;
 }
@@ -972,6 +1175,22 @@
   color: var(--site-muted);
   font-size: 12px;
   line-height: 1.2;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Trailing chevron: a quiet affordance that brightens on hover/selection. */
+.profile-rating-chevron {
+  flex: 0 0 auto;
+  color: color-mix(in srgb, var(--site-muted) 60%, transparent);
+  font-size: 18px;
+  line-height: 1;
+}
+
+.profile-rating-row:hover .profile-rating-chevron,
+.profile-rating-row-selected .profile-rating-chevron {
+  color: var(--site-accent);
 }
 
 /* Puzzle ratings: a second block inside the ratings card, one row per attempted
@@ -1037,6 +1256,20 @@
   font-variant-numeric: tabular-nums;
 }
 
+@media (max-width: 860px) {
+  /* Below the two-column comfort width, the overview stacks its graph over the
+     stat readouts; the left divider becomes a top one and the stats go back to
+     a row. */
+  .profile-overview-body {
+    grid-template-columns: 1fr;
+  }
+
+  .profile-overview-side {
+    border-left: 0;
+    border-top: 1px solid var(--site-border-soft);
+  }
+}
+
 @media (max-width: 720px) {
   .profile-body {
     grid-template-columns: 1fr;
@@ -1047,6 +1280,8 @@
   }
 }
 
+/* Activity / Games tabs over one full-width column: the tab is the panel's
+   only label, so the panels themselves carry no heading. */
 .profile-tabs {
   overflow: hidden;
 }
@@ -1058,16 +1293,21 @@
 }
 
 .profile-tab {
-  flex: 0 0 auto;
-  min-height: 42px;
-  padding: 0 18px;
+  flex: 1 1 0;
+  min-height: 46px;
+  padding: 0 20px;
   border: 0;
   border-right: 1px solid var(--site-border-soft);
   background: var(--site-panel-soft);
   color: var(--site-muted);
-  font-size: 14px;
-  font-weight: 650;
+  font-size: 15px;
+  font-weight: 600;
+  text-align: center;
   cursor: pointer;
+}
+
+.profile-tab:last-child {
+  border-right: 0;
 }
 
 .profile-tab:hover,
@@ -1087,37 +1327,23 @@
   box-shadow: inset 0 -3px 0 var(--site-accent);
 }
 
-/* Total game count riding the Games tab (lichess angle-tab parity). */
+/* The total game count riding the Games tab (lichess angle-tab parity). */
 .profile-tab-count {
   color: var(--site-muted);
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 700;
   font-variant-numeric: tabular-nums;
 }
 
-.profile-tabs > section {
-  border: 0;
-  border-radius: 0;
-  box-shadow: none;
-}
-
-.profile-tabs > section[hidden] {
-  display: none;
-}
-
-.profile-games {
-  margin-top: 0;
-  padding: 0;
-  overflow: hidden;
-}
-
-.profile-activity-panel h2 {
+.profile-tabs > .profile-activity-panel,
+.profile-tabs > .profile-games {
+  min-width: 0;
   margin: 0;
-  padding: 13px 16px;
-  border-bottom: 1px solid var(--site-border-soft);
-  color: var(--site-heading);
-  font-size: 17px;
-  font-weight: 500;
+  padding: 0;
+}
+
+.profile-tabs > [hidden] {
+  display: none;
 }
 
 .profile-activity-summary-list {
@@ -1200,15 +1426,6 @@
 .profile-record-pill-loss {
   background: color-mix(in srgb, #c45b52 15%, var(--site-panel));
   color: #b24d46;
-}
-
-.profile-games h2 {
-  margin: 0;
-  padding: 13px 16px;
-  border-bottom: 1px solid var(--site-border-soft);
-  color: var(--site-heading);
-  font-size: 17px;
-  font-weight: 500;
 }
 
 .profile-games .landing-games-empty {
