@@ -240,6 +240,17 @@ export function createLevelRunner(level: LearnLevel, events: LevelRunnerEvents):
       return;
     }
 
+    // Strict-mode apply flips the turn to the opponent. If a scenario scripts
+    // the reply, play it. Otherwise the player made a non-solving move on a
+    // one-move puzzle (mate / stalemate / flying-general) that has no scripted
+    // continuation: that is a failure, not a dead end where the board locks on
+    // the opponent's turn with no legal player move.
+    if (!playerToMove()) {
+      if (scenario.peek()) playScheduledOpponentStep();
+      else fail();
+      return;
+    }
+
     playScheduledOpponentStep();
   }
 

@@ -1,11 +1,11 @@
 // Xiangqi Learn — Stage: the cannon (炮). The signature xiangqi piece: it
 // MOVES like a chariot but CAPTURES by jumping exactly one piece (the screen).
 // Movement levels use emptyApples (bare markers, no capture needed); capture
-// levels materialize apples as enemy soldiers so the screen requirement does
-// the teaching. Level 6 is a scripted scenario: the opponent walks into the
-// cannon's fire.
+// levels place REAL enemy pieces as the target so the screen requirement does
+// the teaching — a cannon jumps a screen to take a piece, never an empty point.
+// Level 6 is a scripted scenario: the opponent walks into the cannon's fire.
 
-import { scenarioComplete } from '../learn-assert.js';
+import { and, extinct, pieceNotOn, scenarioComplete } from '../learn-assert.js';
 import { arrow, circle, type LearnLevelPartial } from '../learn-types.js';
 
 const levels: LearnLevelPartial[] = [
@@ -27,26 +27,40 @@ const levels: LearnLevelPartial[] = [
     nbMoves: 2,
   },
   {
-    // First screen capture: jump the friendly soldier.
+    // First screen capture: jump the friendly soldier to take a real piece.
     goal: 'learn.xiangqi.cannon.goal.3',
-    fen: '9/9/9/9/9/4P4/9/9/4C4/9 w',
-    apples: 'e8',
+    fen: '9/9/4p4/9/9/4P4/9/9/4C4/9 w',
     nbMoves: 1,
+    captures: 1,
+    pointsForCapture: true,
+    detectCapture: false,
+    success: extinct('black'),
+    sampleSolution: 'e2e8',
     shapes: [circle('e5', 'blue'), arrow('e2', 'e8')],
   },
   {
-    // Reposition first, then use the screen.
+    // Reposition first, then use the screen. The cannon cannot reach the target
+    // in one move; slide behind the soldier, then jump it.
     goal: 'learn.xiangqi.cannon.goal.4',
-    fen: '9/9/9/9/9/5P3/9/9/2C6/9 w',
-    apples: 'f9',
+    fen: '9/5p3/9/9/5P3/9/9/9/2C6/9 w',
     nbMoves: 2,
+    captures: 1,
+    pointsForCapture: true,
+    detectCapture: false,
+    success: extinct('black'),
+    sampleSolution: 'c2f2 f2f9',
   },
   {
-    // The enemy's own soldier works as your screen.
+    // The enemy's own pieces work as your screens. Jump one black soldier to
+    // take the piece behind it, twice; the screens themselves stay put.
     goal: 'learn.xiangqi.cannon.goal.5',
-    fen: '9/9/5p3/9/9/4P4/9/9/C1P6/9 w',
-    apples: 'e2 e8 g8',
-    nbMoves: 3,
+    fen: '9/9/9/p2p2r2/9/9/p8/9/9/C8 w',
+    nbMoves: 2,
+    captures: 2,
+    pointsForCapture: true,
+    detectCapture: false,
+    success: and(pieceNotOn('black', 'soldier', 'a7'), pieceNotOn('black', 'chariot', 'g7')),
+    sampleSolution: 'a1a7 a7g7',
   },
   {
     // Scenario: the enemy chariot stops behind your horse. Blast it.
@@ -62,11 +76,15 @@ const levels: LearnLevelPartial[] = [
     detectCapture: false,
   },
   {
-    // Capstone: a four-capture tour on changing screens.
+    // Capstone: a four-capture tour, each capture over its own screen.
     goal: 'learn.xiangqi.cannon.goal.7',
-    fen: '9/3p5/9/9/2P1P4/9/5p3/4C4/9/9 w',
-    apples: 'e9 c9 c4 h4',
+    fen: '9/9/2r2P2p/9/9/2P5P/9/9/p1C1P3p/9 w',
     nbMoves: 4,
+    captures: 4,
+    pointsForCapture: true,
+    detectCapture: false,
+    success: extinct('black'),
+    sampleSolution: 'c2c8 c8i8 i8i2 i2a2',
   },
 ];
 
@@ -87,11 +105,13 @@ export const cannonStage = {
     'learn.xiangqi.cannon.goal.1': 'The cannon slides like the chariot. Grab the star!',
     'learn.xiangqi.cannon.goal.2': 'Two stars, two moves. No jumping needed to move.',
     'learn.xiangqi.cannon.goal.3':
-      'To capture, the cannon jumps over one screen. Jump your soldier and grab the star!',
-    'learn.xiangqi.cannon.goal.4': 'No screen, no capture. Line up behind your soldier first.',
-    'learn.xiangqi.cannon.goal.5': 'Enemy pieces make fine screens too. Use them!',
+      'To capture, the cannon jumps over one screen. Jump your soldier and take the black soldier!',
+    'learn.xiangqi.cannon.goal.4':
+      'No screen, no capture. Line up behind your soldier, then take the black soldier.',
+    'learn.xiangqi.cannon.goal.5':
+      'Enemy pieces make fine screens too. Jump them to capture the pieces behind!',
     'learn.xiangqi.cannon.goal.6': 'The enemy chariot stopped behind your horse. Blast it!',
-    'learn.xiangqi.cannon.goal.7': 'Four stars. Every capture needs its own screen.',
+    'learn.xiangqi.cannon.goal.7': 'Four captures, one tour. Every capture needs its own screen.',
   },
   levels,
 };

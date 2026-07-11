@@ -21,13 +21,14 @@ const levels: LearnLevelPartial[] = [
   {
     // Forward only: the red arrow marks the move that does not exist.
     // Pre-river, the soldier cannot reach anything behind or beside it;
-    // the star sits straight ahead.
+    // the star sits straight ahead. Soldier on file c (a faithful red
+    // soldier file) so a pre-river square never looks off to a xiangqi eye.
     goal: 'learn.xiangqi.soldier.goal.2',
-    fen: '9/9/9/9/9/9/9/5P3/9/9 w',
-    apples: 'f5',
+    fen: '9/9/9/9/9/9/9/2P6/9/9 w',
+    apples: 'c5',
     emptyApples: true,
     nbMoves: 2,
-    shapes: [arrow('f3', 'f4', 'green'), arrow('f3', 'f2', 'red')],
+    shapes: [arrow('c3', 'c4', 'green'), arrow('c3', 'c2', 'red')],
   },
   {
     // THE milestone: cross the river, then the brand-new sideways step.
