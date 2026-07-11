@@ -18,7 +18,7 @@ import type {
 } from '@mistboard/game';
 import { drawMarkerOnArrival, glideSvgPiece, pieceAnimationDurationMs } from './board-anim.js';
 import { tokenPieceSize } from './board-metrics.js';
-import { installBoardDrag } from './variant-tenant/board-drag.js';
+import { installBoardDrag, installBoardDraw } from './variant-tenant/board-drag.js';
 import { installSelectionClickAway } from './variant-tenant/selection-click-away.js';
 import { renderXiangqiPiece } from './xiangqi-pieces.js';
 
@@ -480,6 +480,12 @@ export interface XiangqiInteractiveBoardOptions {
   /** A legal move was chosen (click or drop). Caller applies it — live sends to
    *  the server (and may play a sound); analysis appends to the move tree. */
   onMove: (move: XiangqiMove, view: StandardXiangqiPlayerView) => void;
+  /** Optional: a right-button draw gesture completed (study annotation). `orig` is
+   *  the pressed square; `dest` is where it released (null off-board, or === orig
+   *  for a tap → circle; else an arrow). `alt` = modifier held (secondary brush).
+   *  Absent = no draw affordance (live boards). The caller owns shape state and
+   *  repaints via setArrows / setMarkers. */
+  onDrawShape?: (orig: XiangqiSquare, dest: XiangqiSquare | null, opts: { alt: boolean }) => void;
 }
 
 export interface XiangqiInteractiveBoard {
@@ -600,6 +606,15 @@ export function createXiangqiInteractiveBoard(
     },
     onDrop: (from, to) => handleDrop(from as XiangqiSquare, to as XiangqiSquare | null),
   });
+
+  if (opts.onDrawShape) {
+    const onDrawShape = opts.onDrawShape;
+    installBoardDraw({
+      board: opts.board,
+      onDraw: (orig, dest, drawOpts) =>
+        onDrawShape(orig as XiangqiSquare, dest as XiangqiSquare | null, drawOpts),
+    });
+  }
 
   installSelectionClickAway({
     roots: () => [opts.board],

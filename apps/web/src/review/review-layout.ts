@@ -122,6 +122,9 @@ export type ReviewScaffoldConfig = SizingInput & {
   enginePanel?: HTMLElement;
   moves: HTMLElement;
   moveComment?: HTMLElement;
+  /** Study annotation controls (glyph picker + comment editor), below the move
+   *  list and above navigation in the rail box. Absent = a read-only review. */
+  annotations?: HTMLElement;
   /** The right-rail navigation element: a linear scrubber or a tree nav bar. */
   navigation: HTMLElement;
   analysisSummary?: HTMLElement;
@@ -196,9 +199,13 @@ export function createReviewScaffold(
   const railMain = document.createElement('div');
   railMain.className = 'review-rail-main';
   railMain.append(
-    ...[config.enginePanel, config.moves, config.moveComment, config.navigation].filter(
-      (el): el is HTMLElement => el != null,
-    ),
+    ...[
+      config.enginePanel,
+      config.moves,
+      config.moveComment,
+      config.annotations,
+      config.navigation,
+    ].filter((el): el is HTMLElement => el != null),
   );
   const right = railGroup(
     [materialTop, railMain, config.analysisSummary, materialBottom].filter(

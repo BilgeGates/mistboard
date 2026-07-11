@@ -17,10 +17,17 @@ import {
   type XiangqiColor,
   type XiangqiGameState,
   type XiangqiMove,
+  type XiangqiSquare,
 } from '@mistboard/game';
-import { animateXiangqiBoardMove, createXiangqiInteractiveBoard } from '../xiangqi-board.js';
+import {
+  animateXiangqiBoardMove,
+  createXiangqiInteractiveBoard,
+  type XiangqiBoardArrow,
+  type XiangqiBoardMarker,
+} from '../xiangqi-board.js';
 import { type AdvantageChart, createAdvantageChart } from './advantage-chart.js';
 import { createAnalysisSummary } from './analysis-summary.js';
+import { createAnnotationEditor } from './annotations-editor.js';
 import type { CevalLine } from './engine/ceval.js';
 import { bestMoveArrow, engineArrowsFromLines } from './engine/engine-arrows.js';
 import { createEnginePanel } from './engine/engine-panel.js';
@@ -31,6 +38,7 @@ import {
   createGameTree,
   type GameTree,
   type GameTreeNode,
+  type NodeShape,
   ROOT_PATH,
   type TreePath,
 } from './game-tree.js';
@@ -50,6 +58,9 @@ type XiangqiTree = GameTree<XiangqiMove, XiangqiGameState, StandardXiangqiPlayer
  *  best move at every mainline ply — draw it as a single arrow. Flip to false
  *  to keep arrows strictly live-engine. */
 const SHOW_ANALYSIS_BEST_ARROW = true;
+
+/** NAG code → move-list suffix for user-authored glyphs (annotations-editor set). */
+const GLYPH_LABEL: Record<number, string> = { 1: '!', 2: '?', 3: '!!', 4: '??', 5: '!?', 6: '?!' };
 
 export type XiangqiAnalysisSource = {
   /** Request-button label ('Request computer analysis' / 'Analyse the whole game'). */
@@ -131,6 +142,27 @@ export function mountXiangqiReview(root: HTMLElement, config: XiangqiReviewConfi
       moveTree.rebuild();
       render();
     },
+    // Right-drag draws an annotation shape on the CURRENT node (toggle: re-drawing
+    // the same shape removes it). Green by default, red with a modifier held.
+    onDrawShape: (orig, dest, { alt }) => {
+      const brush = alt ? 'red' : 'green';
+      const shape: NodeShape =
+        !dest || dest === orig
+          ? { kind: 'circle', brush, orig }
+          : { kind: 'arrow', brush, orig, dest };
+      const same = (s: NodeShape): boolean =>
+        s.kind === shape.kind &&
+        s.orig === shape.orig &&
+        s.dest === shape.dest &&
+        s.brush === shape.brush;
+      const existing = currentNode().annotations?.shapes ?? [];
+      const nextShapes = existing.some(same)
+        ? existing.filter((s) => !same(s))
+        : [...existing, shape];
+      tree.annotateAt(currentPath, { shapes: nextShapes });
+      paintOverlays();
+      annotationEditor.setAnnotations(currentNode().annotations);
+    },
   });
 
   // ── Engine (live, current node) ──
@@ -138,23 +170,38 @@ export function mountXiangqiReview(root: HTMLElement, config: XiangqiReviewConfi
   // a ply change and the first fresh update) fall back to the whole-game
   // analysis' best move for the current mainline node; otherwise no arrows.
   // NOTE: declared before createEnginePanel — its constructor clears output,
-  // which fires onLines(null) → syncArrows() synchronously.
+  // which fires onLines(null) → paintOverlays() synchronously.
   let gameAnalysis: GameAnalysis | null = null;
   let engineLines: CevalLine[] | null = null;
-  function syncArrows(): void {
-    if (engineLines?.length) {
-      interactive.setArrows(engineArrowsFromLines(engineLines));
-      return;
-    }
+  // Engine PV / analysis-best arrows for the current node (transient, derived).
+  function engineArrows(): XiangqiBoardArrow[] {
+    if (engineLines?.length) return engineArrowsFromLines(engineLines);
     if (SHOW_ANALYSIS_BEST_ARROW && gameAnalysis) {
       const node = currentNode();
       if (mainlineNodes()[node.ply] === node) {
         const best = gameAnalysis.evals.find((entry) => entry.ply === node.ply)?.best;
-        interactive.setArrows(bestMoveArrow(best));
-        return;
+        return bestMoveArrow(best);
       }
     }
-    interactive.setArrows([]);
+    return [];
+  }
+  const shapeToArrow = (s: NodeShape): XiangqiBoardArrow => ({
+    from: s.orig as XiangqiSquare,
+    to: (s.dest ?? s.orig) as XiangqiSquare,
+    className: `xq-arrow--draw xq-shape--${s.brush}`,
+  });
+  const shapeToMarker = (s: NodeShape): XiangqiBoardMarker => ({
+    square: s.orig as XiangqiSquare,
+    kind: 'circle',
+    className: `xq-shape--${s.brush}`,
+  });
+  // Paint BOTH the derived engine arrows and the node's user-drawn shapes. User
+  // arrows layer over engine arrows; user circles ride the marker overlay.
+  function paintOverlays(): void {
+    const shapes = currentNode().annotations?.shapes ?? [];
+    const userArrows = shapes.filter((s) => s.kind === 'arrow').map(shapeToArrow);
+    interactive.setArrows([...engineArrows(), ...userArrows]);
+    interactive.setMarkers(shapes.filter((s) => s.kind === 'circle').map(shapeToMarker));
   }
 
   const enginePanel = createEnginePanel({
@@ -163,7 +210,7 @@ export function mountXiangqiReview(root: HTMLElement, config: XiangqiReviewConfi
     evalBar,
     onLines: (lines) => {
       engineLines = lines?.length ? lines : null;
-      syncArrows();
+      paintOverlays();
     },
   });
 
@@ -202,6 +249,25 @@ export function mountXiangqiReview(root: HTMLElement, config: XiangqiReviewConfi
   const moveAdvice = createMoveAdvice();
   let chart: AdvantageChart | null = null;
 
+  // ── Study annotation controls (glyph picker + comment editor) ──
+  const annotationEditor = createAnnotationEditor({
+    onGlyph: (code) => {
+      tree.annotateAt(currentPath, { glyphs: code === null ? [] : [code] });
+      refreshMoveTreeAnnotations();
+      render();
+    },
+    onComment: (text) => {
+      // Per-keystroke write; deliberately no render() — the move list carries no
+      // comment marker in S1 and a re-render would drop the textarea caret.
+      tree.annotateAt(currentPath, { comments: text.trim() ? [{ text }] : [] });
+    },
+    onClearShapes: () => {
+      tree.annotateAt(currentPath, { shapes: [] });
+      paintOverlays();
+      annotationEditor.setAnnotations(currentNode().annotations);
+    },
+  });
+
   // The tree truncates an illegal seed to the legal prefix; surface a notice.
   const truncated = mainlineLen < config.moves.length;
   const details = config.details ?? (truncated ? truncationNotice(mainlineLen) : undefined);
@@ -223,6 +289,7 @@ export function mountXiangqiReview(root: HTMLElement, config: XiangqiReviewConfi
     enginePanel: enginePanel.el,
     moves: moveTree.el,
     moveComment: moveAdvice.el,
+    annotations: annotationEditor.el,
     navigation: nav.el,
     analysisSummary: analysisSummaryEl,
     gauge: evalBar.el,
@@ -280,10 +347,12 @@ export function mountXiangqiReview(root: HTMLElement, config: XiangqiReviewConfi
     evalBar.setFlipped(flipped);
 
     // Order matters: setPosition fires onLines(null) synchronously when the
-    // engine is on (stale-arrow clear), then syncArrows repaints for the new
-    // node (analysis best-move arrow, or nothing) until fresh lines stream in.
+    // engine is on (stale-arrow clear); the explicit paintOverlays below then
+    // repaints for the new node (engine/analysis arrows + the node's user shapes),
+    // covering the engine-off case where setPosition fires no onLines.
     enginePanel.setPosition(uciTo(node));
-    syncArrows();
+    paintOverlays();
+    annotationEditor.setAnnotations(node.annotations);
     moveTree.setCurrent(currentPath);
     nav.setBounds({ atStart: currentPath.length === 0, atEnd: node.children.length === 0 });
     chart?.setPly(node.ply);
@@ -302,23 +371,43 @@ export function mountXiangqiReview(root: HTMLElement, config: XiangqiReviewConfi
     chart.setPly(currentNode().ply);
     underboardBody.replaceChildren(chart.el);
     analysisSummaryEl.replaceChildren(createAnalysisSummary(analysis));
-
-    const evalByPly = new Map(analysis.evals.map((entry) => [entry.ply, entry]));
-    const byPathKey = new Map<string, MoveTreeAnnotation>();
-    for (const move of analysis.moves) {
-      const node = nodes[move.ply];
-      if (!node) continue;
-      const glyph = judgmentGlyph(move.judgment);
-      const entry = evalByPly.get(move.ply);
-      byPathKey.set(pathKey(tree.pathTo(node)), {
-        suffix: glyph?.suffix,
-        suffixClass: glyph?.suffixClass,
-        eval: entry ? formatEval(entry.cp, entry.mate) : undefined,
-      });
-    }
-    moveTree.annotate(byPathKey); // rebuilds the tree DOM
+    refreshMoveTreeAnnotations(); // rebuilds the tree DOM (engine glyphs + user glyphs)
     render(); // re-highlight + re-apply move advice
     scaffold.refit(); // the underboard grew; re-fit the board
+  }
+
+  // Build the move-list annotation map from BOTH the engine judgment (mainline, if
+  // analysed) and the user's authored glyphs (whole tree). User glyphs win on any
+  // node where both exist (R6 — the two glyph sources are kept distinct).
+  function refreshMoveTreeAnnotations(): void {
+    const byPathKey = new Map<string, MoveTreeAnnotation>();
+    if (gameAnalysis) {
+      const nodes = mainlineNodes();
+      const evalByPly = new Map(gameAnalysis.evals.map((entry) => [entry.ply, entry]));
+      for (const move of gameAnalysis.moves) {
+        const node = nodes[move.ply];
+        if (!node) continue;
+        const glyph = judgmentGlyph(move.judgment);
+        const entry = evalByPly.get(move.ply);
+        byPathKey.set(pathKey(tree.pathTo(node)), {
+          suffix: glyph?.suffix,
+          suffixClass: glyph?.suffixClass,
+          eval: entry ? formatEval(entry.cp, entry.mate) : undefined,
+        });
+      }
+    }
+    applyUserGlyphs(tree.root, byPathKey);
+    moveTree.annotate(byPathKey);
+  }
+
+  function applyUserGlyphs(node: XiangqiNode, map: Map<string, MoveTreeAnnotation>): void {
+    const code = node.annotations?.glyphs?.[0];
+    if (code !== undefined && node.parent) {
+      const key = pathKey(tree.pathTo(node));
+      const prev = map.get(key);
+      map.set(key, { ...prev, suffix: GLYPH_LABEL[code] ?? prev?.suffix, suffixClass: undefined });
+    }
+    for (const child of node.children) applyUserGlyphs(child, map);
   }
 
   function renderAnalysisRequest(source: XiangqiAnalysisSource): void {
