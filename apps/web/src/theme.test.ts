@@ -162,7 +162,7 @@ describe('appearance family gating', () => {
     ).toEqual(['Device theme', 'Light', 'Dark']);
   });
 
-  it('surfaces xiangqi and shogi settings by default', () => {
+  it('surfaces current xiangqi and chess settings without retired shogi controls', () => {
     vi.stubEnv('DEV', false);
     vi.stubEnv('VITE_CROSSROADS_CHESS_ENABLED', 'false');
     vi.stubEnv('VITE_DARK_XIANGQI_ENABLED', 'false');
@@ -176,11 +176,13 @@ describe('appearance family gating', () => {
       [...familyGroup!.querySelectorAll<HTMLButtonElement>('[data-board-family-option]')].map(
         (option) => option.dataset.boardFamilyOption,
       ),
-    ).toEqual(['xiangqi', 'chess', 'shogi']);
+    ).toEqual(['xiangqi', 'chess']);
     expect(document.querySelector('[data-theme-tile="piece"]')).not.toBeNull();
     expect(document.querySelector('[data-theme-tile="fog"]')).not.toBeNull();
     expect(document.querySelector('[data-theme-tile="xqboard"]')).not.toBeNull();
     expect(document.querySelector('[data-theme-tile="xqpiece"]')).not.toBeNull();
+    expect(document.querySelector('[data-theme-tile="shogiboard"]')).toBeNull();
+    expect(document.querySelector('[data-theme-tile="shogipiece"]')).toBeNull();
     expect(
       [...document.querySelectorAll<HTMLButtonElement>('[data-theme-tile="xqboard"]')].map((tile) =>
         tile.getAttribute('aria-label'),
@@ -201,7 +203,7 @@ describe('appearance family gating', () => {
       [...familyGroup!.querySelectorAll<HTMLButtonElement>('[data-board-family-option]')].map(
         (option) => option.dataset.boardFamilyOption,
       ),
-    ).toEqual(['xiangqi', 'chess', 'shogi']);
+    ).toEqual(['xiangqi', 'chess']);
 
     expect(document.querySelector('[data-theme-tile="piece"]')).not.toBeNull();
     expect(document.querySelector('[data-theme-tile="xqboard"]')).not.toBeNull();

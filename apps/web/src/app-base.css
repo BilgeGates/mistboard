@@ -1,31 +1,11 @@
-/* Self-hosted Noto Sans (lichess's font), latin subset. No third-party request. */
+/* Self-hosted Noto Sans variable font, reused from lila so the account rail and
+   body copy share its exact metrics. Latin subset, no third-party request. */
 @font-face {
   font-family: "Noto Sans";
   font-style: normal;
-  font-weight: 400;
+  font-weight: 100 900;
   font-display: swap;
-  src: url("/fonts/noto-sans-latin-400.woff2") format("woff2");
-}
-@font-face {
-  font-family: "Noto Sans";
-  font-style: normal;
-  font-weight: 600;
-  font-display: swap;
-  src: url("/fonts/noto-sans-latin-600.woff2") format("woff2");
-}
-@font-face {
-  font-family: "Noto Sans";
-  font-style: normal;
-  font-weight: 700;
-  font-display: swap;
-  src: url("/fonts/noto-sans-latin-700.woff2") format("woff2");
-}
-@font-face {
-  font-family: "Noto Sans";
-  font-style: normal;
-  font-weight: 800;
-  font-display: swap;
-  src: url("/fonts/noto-sans-latin-800.woff2") format("woff2");
+  src: url("/fonts/noto-sans-latin.woff2") format("woff2");
 }
 @font-face {
   font-family: "Roboto";

@@ -48,11 +48,12 @@
 }
 
 .account-settings-shell {
+  --account-settings-accent: hsl(20, 96%, 44%);
   display: grid;
-  grid-template-columns: 240px minmax(0, 1fr);
-  gap: 12px;
+  grid-template-columns: 280px minmax(0, 1fr);
+  gap: 10px;
   align-items: start;
-  width: min(1120px, calc(100% - 24px));
+  width: min(1800px, calc(100% - 32px));
 }
 
 .account-settings-rail {
@@ -64,13 +65,17 @@
   display: block;
   border-radius: 4px;
   color: var(--site-muted);
-  font-size: 15px;
+  font-size: 14px;
   line-height: 1.2;
-  padding: 11px 14px;
+  padding: 10px 34px 10px 12px;
   text-decoration: none;
   transition:
     background 140ms ease,
     color 140ms ease;
+}
+
+.account-settings-rail-separator {
+  height: 24px;
 }
 
 .account-settings-rail-link:hover,
@@ -97,6 +102,28 @@
 
 .account-panel {
   padding: 22px;
+}
+
+.account-panel.account-settings-panel {
+  min-height: 100%;
+  padding: clamp(42px, 3vw, 52px) clamp(34px, 4vw, 72px) clamp(48px, 4vw, 72px);
+  border: 0;
+  box-shadow: 0 2px 5px color-mix(in srgb, var(--site-shadow) 35%, transparent);
+}
+
+.account-panel.account-settings-panel > .site-section-heading {
+  margin: 0 0 clamp(38px, 3vw, 52px);
+  color: var(--account-settings-accent);
+  font-size: clamp(44px, 3.5vw, 58px);
+  line-height: 1.1;
+}
+
+.account-panel.account-settings-panel > .site-section-heading:has(+ .account-copy) {
+  margin-bottom: 10px;
+}
+
+.account-panel.account-settings-panel > .site-section-heading + .account-copy {
+  margin: 0 0 34px;
 }
 
 .account-auth-panel {
@@ -558,29 +585,40 @@
 
 .account-display-settings {
   display: grid;
-  margin-top: 22px;
-  border-top: 1px solid var(--site-border-soft);
+  margin-top: 0;
 }
 
 .account-preference-row {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(88px, max-content);
-  align-items: center;
-  gap: 24px;
-  border-bottom: 1px solid var(--site-border-soft);
-  padding: 16px 0;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 18px;
+  padding: 0 0 clamp(34px, 4vw, 56px);
 }
 
 .account-preference-copy {
-  display: grid;
-  gap: 6px;
+  display: flex;
+  align-items: center;
+  gap: 20px;
   min-width: 0;
+}
+
+.account-preference-copy::after {
+  flex: 1 1 auto;
+  height: 1px;
+  background: linear-gradient(
+    to right,
+    color-mix(in srgb, var(--account-settings-accent) 72%, transparent),
+    color-mix(in srgb, var(--account-settings-accent) 8%, transparent)
+  );
+  content: "";
 }
 
 .account-preference-title {
   color: var(--site-text);
-  font-size: 15px;
-  font-weight: 650;
+  font-family: Roboto, ui-sans-serif, system-ui, sans-serif;
+  font-size: clamp(18px, 1.7vw, 24px);
+  font-weight: 300;
+  line-height: 1.25;
 }
 
 .account-preference-help {
@@ -588,6 +626,79 @@
   color: var(--site-muted);
   font-size: 13px;
   line-height: 1.45;
+}
+
+.account-preference-options {
+  display: grid;
+  grid-auto-columns: minmax(0, 1fr);
+  grid-auto-flow: column;
+  overflow: hidden;
+  min-height: 56px;
+  border-radius: var(--site-radius);
+  box-shadow: 0 2px 6px color-mix(in srgb, var(--site-shadow) 42%, transparent);
+}
+
+.account-preference-option {
+  display: grid;
+  min-width: 0;
+  cursor: pointer;
+}
+
+.account-preference-option input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.account-preference-option span {
+  display: grid;
+  place-items: center;
+  min-width: 0;
+  padding: 12px 18px;
+  border-left: 1px solid var(--site-border);
+  background: linear-gradient(
+    to bottom,
+    color-mix(in srgb, var(--site-panel-soft) 55%, var(--site-panel)),
+    var(--site-panel-soft)
+  );
+  color: var(--site-muted);
+  font-family: Roboto, ui-sans-serif, system-ui, sans-serif;
+  font-size: 16px;
+  font-weight: 300;
+  line-height: 1.2;
+  text-align: center;
+  transition:
+    background 120ms ease,
+    color 120ms ease;
+}
+
+.account-preference-option:first-child span {
+  border-left: 0;
+}
+
+.account-preference-option input:checked + span {
+  background: color-mix(in srgb, var(--site-muted) 24%, var(--site-panel));
+  color: var(--site-heading);
+  box-shadow: inset 0 2px 5px color-mix(in srgb, var(--site-shadow) 46%, transparent);
+  font-weight: 700;
+}
+
+.account-preference-option:hover span {
+  color: var(--site-heading);
+}
+
+.account-preference-option input:focus-visible + span {
+  outline: 3px solid var(--site-focus);
+  outline-offset: -3px;
+}
+
+.account-preference-option input:disabled + span {
+  cursor: wait;
+  opacity: 0.72;
 }
 
 .account-preference-select {
@@ -2120,8 +2231,33 @@
   }
 
   .account-settings-rail-link {
+    position: relative;
     flex: 0 0 auto;
+    padding: 10px;
+    font-family: Roboto, ui-sans-serif, system-ui, sans-serif;
     white-space: nowrap;
+  }
+
+  .account-settings-rail-link.active {
+    background: transparent;
+    box-shadow: none;
+  }
+
+  .account-settings-rail-link.active::after {
+    position: absolute;
+    right: 8px;
+    bottom: 0;
+    left: 8px;
+    height: 3px;
+    border-radius: 999px;
+    background: var(--site-accent);
+    content: "";
+  }
+
+  .account-settings-rail-separator {
+    flex: 0 0 12px;
+    width: 12px;
+    height: auto;
   }
 
   .account-settings-summary-row {
@@ -2132,6 +2268,31 @@
   .account-preference-row {
     grid-template-columns: minmax(0, 1fr);
     gap: 10px;
+  }
+
+  .account-panel.account-settings-panel {
+    padding: 28px 20px;
+  }
+
+  .account-panel.account-settings-panel > .site-section-heading {
+    margin-bottom: 34px;
+  }
+
+  .account-panel.account-settings-panel > .site-section-heading:has(+ .account-copy) {
+    margin-bottom: 8px;
+  }
+
+  .account-preference-copy {
+    gap: 12px;
+  }
+
+  .account-preference-options {
+    min-height: 48px;
+  }
+
+  .account-preference-option span {
+    padding: 10px 8px;
+    font-size: 14px;
   }
 
   .account-preference-select {

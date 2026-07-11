@@ -198,30 +198,26 @@ describe('account page auth flow', () => {
     expect(document.querySelector('h1')?.textContent).toBe('Display');
     expect(document.querySelector('.account-settings-panel .appearance-menu')).toBeNull();
     expect(document.querySelector('[name="pieceAnimation"]')).not.toBeNull();
-    expect(document.querySelector('[name="playerRatings"]')).not.toBeNull();
+    expect(document.querySelector('[name="playerRatings"]')).toBeNull();
+    expect(
+      [...document.querySelectorAll('.account-settings-rail-link')].map((link) => link.textContent),
+    ).toEqual(['Display', 'Privacy', 'Change username', 'Email and sign-in']);
+    expect(document.querySelectorAll('.account-settings-rail-separator')).toHaveLength(1);
 
-    const animation = document.querySelector<HTMLSelectElement>('select[name="pieceAnimation"]');
-    if (!animation) throw new Error('missing piece animation select');
-    animation.value = 'fast';
+    const animation = document.querySelector<HTMLInputElement>(
+      'input[name="pieceAnimation"][value="fast"]',
+    );
+    if (!animation) throw new Error('missing fast piece animation option');
+    animation.checked = true;
     animation.dispatchEvent(new Event('change', { bubbles: true }));
-
-    const ratings = document.querySelector<HTMLInputElement>('input[name="playerRatings"]');
-    if (!ratings) throw new Error('missing player ratings switch');
-    ratings.checked = false;
-    ratings.dispatchEvent(new Event('change', { bubbles: true }));
 
     const stored = JSON.parse(window.localStorage.getItem(displayPreferenceStorageKey) ?? '{}') as {
       pieceAnimation?: string;
-      playerRatings?: boolean;
     };
     expect(stored.pieceAnimation).toBe('fast');
-    expect(stored.playerRatings).toBe(false);
-    expect(document.querySelector('.account-preference-help')?.textContent).toContain(
-      'Hides all ratings from Mistboard',
-    );
   });
 
-  it('renders the settings rail and saves profile visibility from privacy settings', async () => {
+  it('renders privacy as the supported messaging policy without profile hiding', async () => {
     window.history.replaceState(null, '', '/account/settings/privacy');
     const user = testUser('misty');
     const requests: Array<{ body: unknown; url: string }> = [];
@@ -232,7 +228,7 @@ describe('account page auth flow', () => {
         if (url === '/api/auth/me') return jsonResponse({ user });
         if (url === '/api/account/preferences') {
           requests.push({ url, body: JSON.parse(String(init?.body)) as unknown });
-          return jsonResponse({ user: { ...user, profileVisibility: 'unlisted' } });
+          return jsonResponse({ user: { ...user, dmPolicy: 'friends' } });
         }
         throw new Error(`unexpected fetch: ${url}`);
       }),
@@ -247,20 +243,52 @@ describe('account page auth flow', () => {
       'Privacy',
     );
     expect(document.querySelector('h1')?.textContent).toBe('Privacy');
+    expect(document.querySelector('[name="profileVisibility"]')).toBeNull();
 
-    const select = document.querySelector<HTMLSelectElement>('select[name="profileVisibility"]');
-    expect(select?.value).toBe('public');
-    if (!select) throw new Error('missing profile visibility select');
-    select.value = 'unlisted';
-    select.dispatchEvent(new Event('change', { bubbles: true }));
+    expect(document.querySelector<HTMLInputElement>('input[value="always"]')?.checked).toBe(true);
+    const friends = document.querySelector<HTMLInputElement>('input[value="friends"]');
+    if (!friends) throw new Error('missing friends messaging policy option');
+    friends.checked = true;
+    friends.dispatchEvent(new Event('change', { bubbles: true }));
     await flushDom();
 
-    expect(requests).toEqual([
-      { url: '/api/account/preferences', body: { profileVisibility: 'unlisted' } },
-    ]);
-    expect(document.querySelector('.account-field-help')?.textContent).toBe(
-      'Privacy preference saved.',
+    expect(requests).toEqual([{ url: '/api/account/preferences', body: { dmPolicy: 'friends' } }]);
+    expect(document.querySelector('.account-preference-help')?.textContent).toBe(
+      'Messaging preference saved.',
     );
+  });
+
+  it('separates username from the email sign-in summary', async () => {
+    window.history.replaceState(null, '', '/account/settings/username');
+    const user = testUser('misty');
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (input: RequestInfo | URL) => {
+        const url = String(input);
+        if (url === '/api/auth/me') return jsonResponse({ user });
+        throw new Error(`unexpected fetch: ${url}`);
+      }),
+    );
+
+    const { mountAccountSettings } = await import('./account.js');
+    const root = document.querySelector<HTMLElement>('#app') as HTMLElement;
+    await mountAccountSettings(root);
+    await flushDom();
+
+    expect(document.querySelector('h1')?.textContent).toBe('Change username');
+    expect(document.querySelector('input[name="handle"]')).not.toBeNull();
+    expect(document.querySelector('input[name="email"]')).toBeNull();
+
+    window.history.replaceState(null, '', '/account/settings/account');
+    await mountAccountSettings(root);
+    await flushDom();
+
+    expect(document.querySelector('h1')?.textContent).toBe('Email and sign-in');
+    expect([...document.querySelectorAll('dd')].map((value) => value.textContent)).toEqual([
+      'misty@example.com',
+      'Verified',
+    ]);
+    expect(document.querySelector('.account-settings-panel input')).toBeNull();
   });
 });
 

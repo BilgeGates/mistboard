@@ -23,30 +23,16 @@ import { t } from './i18n/catalog.js';
 import { currentLocale, LOCALE_META, type Locale, localizedHref } from './i18n/locale.js';
 import { type AuthUser, buildLoadingState, buildNav, fetchCurrentUser } from './site-shell.js';
 
-type AccountSettingsSection =
-  | 'profile'
-  | 'display'
-  | 'game-behavior'
-  | 'privacy'
-  | 'messaging'
-  | 'notifications'
-  | 'account'
-  | 'security'
-  | 'close-account';
+type AccountSettingsSection = 'display' | 'privacy' | 'username' | 'account';
 
-const accountSettingsSections: readonly AccountSettingsSection[] = [
-  'profile',
-  'display',
-  'game-behavior',
-  'privacy',
-  'messaging',
-  'notifications',
-  'account',
-  'security',
-  'close-account',
+const accountSettingsSectionGroups: readonly (readonly AccountSettingsSection[])[] = [
+  ['display', 'privacy'],
+  ['username', 'account'],
 ];
 
-const profileVisibilityOptions = ['public', 'unlisted', 'private'] as const;
+const accountSettingsSections = accountSettingsSectionGroups.flat();
+
+const implementedDisplayPreferenceIds = new Set<DisplayPreferenceId>(['pieceAnimation']);
 
 // ── Page mounts ──────────────────────────────────────────────────────────────
 
@@ -324,17 +310,25 @@ function buildAccountSettingsRail(
   rail.className = 'account-settings-rail';
   rail.setAttribute('aria-label', t('account.settingsNav', {}, locale));
 
-  for (const section of accountSettingsSections) {
-    const link = document.createElement('a');
-    link.href = accountSettingsSectionHref(section, locale);
-    link.className = 'account-settings-rail-link';
-    link.textContent = accountSettingsSectionLabel(section, locale);
-    if (section === active) {
-      link.classList.add('active');
-      link.setAttribute('aria-current', 'page');
+  accountSettingsSectionGroups.forEach((group, groupIndex) => {
+    if (groupIndex > 0) {
+      const separator = document.createElement('div');
+      separator.className = 'account-settings-rail-separator';
+      separator.setAttribute('role', 'separator');
+      rail.append(separator);
     }
-    rail.append(link);
-  }
+    for (const section of group) {
+      const link = document.createElement('a');
+      link.href = accountSettingsSectionHref(section, locale);
+      link.className = 'account-settings-rail-link';
+      link.textContent = accountSettingsSectionLabel(section, locale);
+      if (section === active) {
+        link.classList.add('active');
+        link.setAttribute('aria-current', 'page');
+      }
+      rail.append(link);
+    }
+  });
   return rail;
 }
 
@@ -343,26 +337,20 @@ function buildAccountSettingsSection(
   section: AccountSettingsSection,
   locale: Locale = currentLocale(),
 ): HTMLElement {
-  if (section === 'profile') return buildProfileSettings(user, locale);
   if (section === 'display') return buildDisplaySettings(locale);
   if (section === 'privacy') return buildPrivacySettings(user, locale);
-  if (section === 'messaging') return buildMessagingSettings(user, locale);
+  if (section === 'username') return buildUsernameSettings(user, locale);
   if (section === 'account') return buildAccountAccessSettings(user, locale);
-  return buildDeferredSettings(section, locale);
+  return buildDisplaySettings(locale);
 }
 
 function buildSettingsPanel(
   section: AccountSettingsSection,
   titleText: string,
   copyText: string,
-  locale: Locale = currentLocale(),
 ): HTMLElement {
   const panel = document.createElement('section');
   panel.className = 'account-panel account-settings-panel';
-
-  const eyebrow = document.createElement('span');
-  eyebrow.className = 'account-eyebrow';
-  eyebrow.textContent = t('account.settings', {}, locale);
 
   const title = document.createElement('h1');
   title.className = 'site-section-heading';
@@ -373,15 +361,16 @@ function buildSettingsPanel(
   copy.textContent = copyText;
 
   panel.dataset.settingsSection = section;
-  panel.append(eyebrow, title, copy);
+  panel.append(title);
+  if (copyText) panel.append(copy);
   return panel;
 }
 
-function buildProfileSettings(user: AuthUser, locale: Locale = currentLocale()): HTMLElement {
+function buildUsernameSettings(user: AuthUser, locale: Locale = currentLocale()): HTMLElement {
   const panel = buildSettingsPanel(
-    'profile',
-    t('account.publicProfile', {}, locale),
-    t('account.settingsCopy', {}, locale),
+    'username',
+    t('account.settingsUsername', {}, locale),
+    t('account.settingsUsernameCopy', {}, locale),
   );
 
   const form = document.createElement('form');
@@ -398,10 +387,6 @@ function buildProfileSettings(user: AuthUser, locale: Locale = currentLocale()):
   handle.input.required = true;
   handle.help.textContent = handleHelpText(user, locale);
 
-  const email = labeledInput(t('account.email', {}, locale), 'email', user.email, '');
-  email.input.disabled = true;
-  email.help.textContent = t('account.emailPrivate', {}, locale);
-
   const status = document.createElement('p');
   status.className = 'account-status';
   status.setAttribute('aria-live', 'polite');
@@ -414,18 +399,13 @@ function buildProfileSettings(user: AuthUser, locale: Locale = currentLocale()):
   save.className = 'landing-setup-start';
   save.textContent = t('account.save', {}, locale);
 
-  const account = document.createElement('a');
-  account.className = 'landing-setup-back';
-  account.href = localizedHref('/account', locale);
-  account.textContent = t('account.account', {}, locale);
-
   const profile = document.createElement('a');
   profile.className = 'landing-setup-back';
   profile.href = `/@/${encodeURIComponent(user.handle)}`;
   profile.textContent = t('account.viewProfile', {}, locale);
 
-  actions.append(save, profile, account);
-  form.append(handle.wrap, email.wrap, actions, status);
+  actions.append(save, profile);
+  form.append(handle.wrap, actions, status);
 
   form.addEventListener('submit', async (event) => {
     event.preventDefault();
@@ -444,9 +424,8 @@ function buildProfileSettings(user: AuthUser, locale: Locale = currentLocale()):
       }
       handle.input.value = data.user.handle;
       handle.help.textContent = handleHelpText(data.user, locale);
-      email.input.value = data.user.email;
       profile.href = `/@/${encodeURIComponent(data.user.handle)}`;
-      status.textContent = t('account.profileSaved', {}, locale);
+      status.textContent = t('account.usernameSaved', {}, locale);
     } catch (err) {
       status.textContent = err instanceof Error ? err.message : t('account.saveFailed', {}, locale);
     } finally {
@@ -459,15 +438,15 @@ function buildProfileSettings(user: AuthUser, locale: Locale = currentLocale()):
 }
 
 function buildDisplaySettings(locale: Locale = currentLocale()): HTMLElement {
-  const panel = buildSettingsPanel(
-    'display',
-    t('account.settingsDisplay', {}, locale),
-    t('account.settingsDisplayCopy', {}, locale),
-  );
+  const panel = buildSettingsPanel('display', t('account.settingsDisplay', {}, locale), '');
   const preferences = readDisplayPreferences();
   const list = document.createElement('div');
   list.className = 'account-display-settings';
   for (const definition of DISPLAY_PREFERENCE_DEFINITIONS) {
+    // Only expose preferences that already affect a game surface. The remaining
+    // definitions stay available for incremental wiring without presenting
+    // controls that merely write inert localStorage values.
+    if (!implementedDisplayPreferenceIds.has(definition.id)) continue;
     if (isBooleanDisplayPreference(definition)) {
       list.append(buildBooleanDisplayPreference(definition.id, preferences[definition.id], locale));
       continue;
@@ -516,24 +495,57 @@ function buildSelectDisplayPreference(
   locale: Locale,
 ): HTMLElement {
   const row = displayPreferenceRow(id, locale);
-  const select = document.createElement('select');
-  select.name = id;
-  select.className = 'account-preference-select';
-  for (const optionValue of options) {
-    const option = document.createElement('option');
-    option.value = optionValue;
-    option.textContent = displayPreferenceOptionLabel(id, optionValue, locale);
-    option.selected = optionValue === value;
-    select.append(option);
-  }
-  select.addEventListener('change', () => {
-    writeDisplayPreference(id, select.value as DisplayPreferenceValue<typeof id>);
-  });
-  row.append(select);
+  row.append(
+    buildSegmentedPreference(
+      id,
+      options.map((optionValue) => ({
+        value: optionValue,
+        label: displayPreferenceOptionLabel(id, optionValue, locale),
+      })),
+      value,
+      (next) => writeDisplayPreference(id, next as DisplayPreferenceValue<typeof id>),
+    ),
+  );
   return row;
 }
 
+function buildSegmentedPreference(
+  name: string,
+  options: ReadonlyArray<{ value: string; label: string }>,
+  value: string,
+  onChange: (value: string) => void,
+): HTMLElement {
+  const group = document.createElement('div');
+  group.className = 'account-preference-options';
+  group.setAttribute('role', 'radiogroup');
+
+  for (const option of options) {
+    const label = document.createElement('label');
+    label.className = 'account-preference-option';
+
+    const input = document.createElement('input');
+    input.type = 'radio';
+    input.name = name;
+    input.value = option.value;
+    input.checked = option.value === value;
+    input.addEventListener('change', () => {
+      if (input.checked) onChange(option.value);
+    });
+
+    const text = document.createElement('span');
+    text.textContent = option.label;
+    label.append(input, text);
+    group.append(label);
+  }
+
+  return group;
+}
+
 function displayPreferenceRow(id: DisplayPreferenceId, locale: Locale): HTMLElement {
+  return preferenceRow(displayPreferenceLabel(id, locale), displayPreferenceHelp(id, locale));
+}
+
+function preferenceRow(titleText: string, helpText = ''): HTMLElement {
   const row = document.createElement('div');
   row.className = 'account-preference-row';
   const copy = document.createElement('div');
@@ -541,40 +553,22 @@ function displayPreferenceRow(id: DisplayPreferenceId, locale: Locale): HTMLElem
 
   const title = document.createElement('span');
   title.className = 'account-preference-title';
-  title.textContent = displayPreferenceLabel(id, locale);
+  title.textContent = titleText;
   copy.append(title);
+  row.append(copy);
 
-  const helpText = displayPreferenceHelp(id, locale);
   if (helpText) {
     const help = document.createElement('span');
     help.className = 'account-preference-help';
     help.textContent = helpText;
-    copy.append(help);
+    row.append(help);
   }
 
-  row.append(copy);
   return row;
 }
 
 function buildPrivacySettings(user: AuthUser, locale: Locale = currentLocale()): HTMLElement {
-  const panel = buildSettingsPanel(
-    'privacy',
-    t('account.settingsPrivacy', {}, locale),
-    t('account.settingsPrivacyCopy', {}, locale),
-  );
-  const form = document.createElement('form');
-  form.className = 'account-settings-form';
-  form.append(buildProfileVisibilityControl(user, locale));
-  panel.append(form);
-  return panel;
-}
-
-function buildMessagingSettings(user: AuthUser, locale: Locale = currentLocale()): HTMLElement {
-  const panel = buildSettingsPanel(
-    'messaging',
-    t('account.settingsMessaging', {}, locale),
-    t('account.settingsMessagingCopy', {}, locale),
-  );
+  const panel = buildSettingsPanel('privacy', t('account.settingsPrivacy', {}, locale), '');
   const form = document.createElement('form');
   form.className = 'account-settings-form';
   form.append(buildDmPolicyControl(user, locale));
@@ -591,26 +585,15 @@ function buildAccountAccessSettings(user: AuthUser, locale: Locale = currentLoca
   const list = document.createElement('dl');
   list.className = 'account-settings-summary';
   list.append(
-    summaryRow(t('account.username', {}, locale), `@${user.handle}`),
     summaryRow(t('account.email', {}, locale), user.email),
+    summaryRow(
+      t('account.emailStatus', {}, locale),
+      user.emailVerified
+        ? t('account.emailVerified', {}, locale)
+        : t('account.emailUnverified', {}, locale),
+    ),
   );
   panel.append(list);
-  return panel;
-}
-
-function buildDeferredSettings(
-  section: AccountSettingsSection,
-  locale: Locale = currentLocale(),
-): HTMLElement {
-  const panel = buildSettingsPanel(
-    section,
-    accountSettingsSectionLabel(section, locale),
-    t('account.settingsDeferredCopy', {}, locale),
-  );
-  const note = document.createElement('p');
-  note.className = 'account-settings-deferred';
-  note.textContent = t('account.settingsDeferredNote', {}, locale);
-  panel.append(note);
   return panel;
 }
 
@@ -618,100 +601,52 @@ function buildDeferredSettings(
 // (independent of the profile form's save button, like the locale picker).
 // Replies in existing threads always deliver; the policy gates new threads.
 function buildDmPolicyControl(user: AuthUser, locale: Locale): HTMLElement {
-  const wrap = document.createElement('label');
-  wrap.className = 'account-field';
+  const row = preferenceRow(
+    t('account.dmPolicyLabel', {}, locale),
+    t('account.dmPolicyHelp', {}, locale),
+  );
 
-  const label = document.createElement('span');
-  label.textContent = t('account.dmPolicyLabel', {}, locale);
+  const options = [
+    { value: 'never', label: t('account.dmPolicyNever', {}, locale) },
+    { value: 'friends', label: t('account.dmPolicyFriends', {}, locale) },
+    { value: 'always', label: t('account.dmPolicyAlways', {}, locale) },
+  ];
+  const group = buildSegmentedPreference('dmPolicy', options, user.dmPolicy, (next) => {
+    void saveDmPolicy(next as AuthUser['dmPolicy']);
+  });
+  const help = row.querySelector<HTMLElement>('.account-preference-help');
 
-  const select = document.createElement('select');
-  for (const [value, key] of [
-    ['always', 'account.dmPolicyAlways'],
-    ['friends', 'account.dmPolicyFriends'],
-    ['never', 'account.dmPolicyNever'],
-  ] as const) {
-    const option = document.createElement('option');
-    option.value = value;
-    option.textContent = t(key, {}, locale);
-    option.selected = user.dmPolicy === value;
-    select.append(option);
-  }
-
-  const help = document.createElement('span');
-  help.className = 'account-field-help';
-  help.textContent = t('account.dmPolicyHelp', {}, locale);
-
-  select.addEventListener('change', async () => {
+  async function saveDmPolicy(next: AuthUser['dmPolicy']): Promise<void> {
     const previous = user.dmPolicy;
-    select.disabled = true;
+    setPreferenceGroupDisabled(group, true);
     try {
       const resp = await fetch('/api/account/preferences', {
         method: 'PATCH',
         headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ dmPolicy: select.value }),
+        body: JSON.stringify({ dmPolicy: next }),
       });
       if (!resp.ok) throw new Error(`dm policy save failed: ${resp.status}`);
       const data = (await resp.json()) as { user: AuthUser };
       user.dmPolicy = data.user.dmPolicy;
-      help.textContent = t('account.dmPolicySaved', {}, locale);
+      if (help) help.textContent = t('account.dmPolicySaved', {}, locale);
     } catch (err) {
       console.warn(err);
-      select.value = previous;
-      help.textContent = t('account.saveFailed', {}, locale);
+      for (const input of group.querySelectorAll<HTMLInputElement>('input')) {
+        input.checked = input.value === previous;
+      }
+      if (help) help.textContent = t('account.saveFailed', {}, locale);
     } finally {
-      select.disabled = false;
+      setPreferenceGroupDisabled(group, false);
     }
-  });
-
-  wrap.append(label, select, help);
-  return wrap;
-}
-
-function buildProfileVisibilityControl(user: AuthUser, locale: Locale): HTMLElement {
-  const wrap = document.createElement('label');
-  wrap.className = 'account-field';
-
-  const label = document.createElement('span');
-  label.textContent = t('account.profileVisibilityLabel', {}, locale);
-
-  const select = document.createElement('select');
-  select.name = 'profileVisibility';
-  for (const value of profileVisibilityOptions) {
-    const option = document.createElement('option');
-    option.value = value;
-    option.textContent = profileVisibilityOptionLabel(value, locale);
-    option.selected = user.profileVisibility === value;
-    select.append(option);
   }
 
-  const help = document.createElement('span');
-  help.className = 'account-field-help';
-  help.textContent = profileVisibilityHelp(user.profileVisibility, locale);
+  const helpNode = row.querySelector('.account-preference-help');
+  row.insertBefore(group, helpNode);
+  return row;
+}
 
-  select.addEventListener('change', async () => {
-    const previous = user.profileVisibility;
-    select.disabled = true;
-    try {
-      const resp = await fetch('/api/account/preferences', {
-        method: 'PATCH',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ profileVisibility: select.value }),
-      });
-      if (!resp.ok) throw new Error(`profile visibility save failed: ${resp.status}`);
-      const data = (await resp.json()) as { user: AuthUser };
-      user.profileVisibility = data.user.profileVisibility;
-      help.textContent = t('account.profileVisibilitySaved', {}, locale);
-    } catch (err) {
-      console.warn(err);
-      select.value = previous;
-      help.textContent = t('account.saveFailed', {}, locale);
-    } finally {
-      select.disabled = false;
-    }
-  });
-
-  wrap.append(label, select, help);
-  return wrap;
+function setPreferenceGroupDisabled(group: HTMLElement, disabled: boolean): void {
+  for (const input of group.querySelectorAll<HTMLInputElement>('input')) input.disabled = disabled;
 }
 
 function summaryRow(labelText: string, valueText: string): HTMLElement {
@@ -731,9 +666,10 @@ function accountSettingsSectionFromPath(
   const normalized = pathname.replace(/\/+$/, '') || '/';
   const raw =
     normalized === '/account/settings'
-      ? 'profile'
+      ? 'display'
       : normalized.match(/^\/account\/settings\/([^/]+)$/)?.[1];
-  return isAccountSettingsSection(raw) ? raw : 'profile';
+  if (raw === 'messaging') return 'privacy';
+  return isAccountSettingsSection(raw) ? raw : 'display';
 }
 
 function isAccountSettingsSection(value: string | undefined): value is AccountSettingsSection {
@@ -744,7 +680,7 @@ function accountSettingsSectionHref(
   section: AccountSettingsSection,
   locale: Locale = currentLocale(),
 ): string {
-  const path = section === 'profile' ? '/account/settings' : `/account/settings/${section}`;
+  const path = section === 'display' ? '/account/settings' : `/account/settings/${section}`;
   return localizedHref(path, locale);
 }
 
@@ -753,15 +689,10 @@ function accountSettingsSectionLabel(
   locale: Locale = currentLocale(),
 ): string {
   const keyBySection = {
-    profile: 'account.settingsEditProfile',
     display: 'account.settingsDisplay',
-    'game-behavior': 'account.settingsGameBehavior',
     privacy: 'account.settingsPrivacy',
-    messaging: 'account.settingsMessaging',
-    notifications: 'account.settingsNotifications',
+    username: 'account.settingsUsername',
     account: 'account.settingsAccount',
-    security: 'account.settingsSecurity',
-    'close-account': 'account.settingsCloseAccount',
   } as const;
   return t(keyBySection[section], {}, locale);
 }
@@ -816,21 +747,6 @@ function displayPreferenceOptionLabel(
   }
   const key = keys[id][value as keyof (typeof keys)[typeof id]];
   return key ? t(key, {}, locale) : value;
-}
-
-function profileVisibilityOptionLabel(
-  visibility: AuthUser['profileVisibility'],
-  locale: Locale,
-): string {
-  if (visibility === 'public') return t('account.profileVisibilityPublic', {}, locale);
-  if (visibility === 'unlisted') return t('account.profileVisibilityUnlisted', {}, locale);
-  return t('account.profileVisibilityPrivate', {}, locale);
-}
-
-function profileVisibilityHelp(visibility: AuthUser['profileVisibility'], locale: Locale): string {
-  if (visibility === 'public') return t('account.profileVisibilityPublicHelp', {}, locale);
-  if (visibility === 'unlisted') return t('account.profileVisibilityUnlistedHelp', {}, locale);
-  return t('account.profileVisibilityPrivateHelp', {}, locale);
 }
 
 function labeledInput(

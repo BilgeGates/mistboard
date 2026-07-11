@@ -20,6 +20,14 @@ export async function tryHandle(
     }
     const body = await readJsonBody(request);
 
+    // Profiles are public identities on Mistboard. Preserve historical values
+    // in storage, but do not let the general account-preferences endpoint hide
+    // or unlist a profile.
+    if ('profileVisibility' in body) {
+      writeJson(response, 400, { error: 'profile_visibility_not_configurable' });
+      return true;
+    }
+
     // DM policy rides the same preferences PATCH as locale; branch on which
     // key the client sent so the two settings stay independently updatable.
     if ('dmPolicy' in body) {
@@ -28,24 +36,6 @@ export async function tryHandle(
         return true;
       }
       const updated = await persistence.updateUserDmPolicy(user.id, body.dmPolicy, new Date());
-      if (!updated) {
-        writeJson(response, 404, { error: 'user_not_found' });
-        return true;
-      }
-      writeJson(response, 200, { user: publicUser(updated) });
-      return true;
-    }
-
-    if ('profileVisibility' in body) {
-      if (!persistence.isProfileVisibility(body.profileVisibility)) {
-        writeJson(response, 400, { error: 'invalid_profile_visibility' });
-        return true;
-      }
-      const updated = await persistence.updateUserProfileVisibility(
-        user.id,
-        body.profileVisibility,
-        new Date(),
-      );
       if (!updated) {
         writeJson(response, 404, { error: 'user_not_found' });
         return true;

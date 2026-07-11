@@ -7,7 +7,7 @@ import { buildCommunityLayout } from './community-rail.js';
 import { correspondenceEnabled } from './feature-flags.js';
 import type { FeaturedGame } from './game-display.js';
 import { type I18nKey, t } from './i18n/catalog.js';
-import { currentLocale, LOCALE_META, type Locale } from './i18n/locale.js';
+import { currentLocale, LOCALE_META, type Locale, localizedHref } from './i18n/locale.js';
 import { buildTitleBadge, isPlayerTitle, titleFullName } from './player-titles.js';
 import { buildProfileGameRow, profileGameSpecLabel, profileResultTone } from './profile-ui.js';
 import { buildLoadingState, buildNav, buildNotice } from './site-shell.js';
@@ -833,15 +833,16 @@ function buildProfileActions(
   return null;
 }
 
-// Own-profile action row (lichess parity: your profile offers Edit profile
-// where someone else's offers Follow/Challenge/Message).
+// Until public profile fields are editable, the truthful owner action is the
+// existing username editor. Someone else's profile still offers the social
+// actions assembled above.
 function buildOwnerActions(locale: Locale = currentLocale(), title?: unknown): HTMLElement {
   const row = document.createElement('div');
   row.className = 'profile-relation-actions profile-owner-actions';
   const edit = document.createElement('a');
   edit.className = 'landing-setup-back';
-  edit.href = '/account';
-  edit.textContent = t('profile.editProfile', {}, locale);
+  edit.href = localizedHref('/account/settings/username', locale);
+  edit.textContent = t('account.settingsUsername', {}, locale);
   row.append(edit);
   // A held title unlocks the coach directory: offer the editor entry point.
   if (isPlayerTitle(title)) {

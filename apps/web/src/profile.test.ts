@@ -261,7 +261,7 @@ describe('profile ratings rail', () => {
 
     // Lichess-style identity block: presence dot ahead of the handle (filled
     // once /api/players/online confirms), the join date in the side column, and
-    // an Edit profile action on your own profile.
+    // a truthful username-management action on your own profile.
     expect(root.querySelector('.profile-overview-side')?.textContent).toContain('Member since');
     expect(root.querySelector('h1 .profile-presence')).not.toBeNull();
     await vi.waitFor(() => {
@@ -271,8 +271,8 @@ describe('profile ratings rail', () => {
       'Online',
     );
     const edit = root.querySelector<HTMLAnchorElement>('.profile-owner-actions a');
-    expect(edit?.getAttribute('href')).toBe('/account');
-    expect(edit?.textContent).toBe('Edit profile');
+    expect(edit?.getAttribute('href')).toBe('/account/settings/username');
+    expect(edit?.textContent).toBe('Change username');
 
     // Counts strip under the name: total games + rated games (sum across buckets).
     const counts = root.querySelector('.profile-counts');

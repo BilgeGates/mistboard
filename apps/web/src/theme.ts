@@ -114,9 +114,11 @@ export function xiangqiAppearanceEnabled(): boolean {
   return true;
 }
 
-// Shogi appearance (board theme + piece set) drives the Dark Shogi board.
+// Shogi is no longer a player-facing game family. Keep its render/storage
+// support available to historical surfaces, but do not advertise controls for
+// a game that cannot be selected from the product.
 export function shogiAppearanceEnabled(): boolean {
-  return true;
+  return false;
 }
 
 function enabledAppearanceFamilies(): Array<{ id: BoardFamily; label: string }> {
