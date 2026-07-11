@@ -141,7 +141,8 @@
    outrank the UA [hidden] rule, so restore it explicitly: auth-gated links
    ([data-signed-in-only], [data-admin-only]) rely on the hidden attribute.
    The `a` tag lifts specificity over `.site-nav-menu-panel .site-nav-link`. */
-a.site-nav-link[hidden] {
+a.site-nav-link[hidden],
+.site-nav-menu[hidden] {
   display: none;
 }
 
@@ -173,24 +174,23 @@ a.site-nav-link[hidden] {
   background: transparent;
 }
 
-/* Admin-only links (Database / Engines): amber marks them as internal tools,
-   visually apart from the everyday nav. Only visible to admins. Doubled class
-   beats the `.site-nav-links > .site-nav-link` color above. */
-.site-nav-link.site-nav-link-admin {
+/* The admin-only menu title is amber to distinguish internal tools from the
+   everyday nav. Only visible to admins. */
+.site-nav-menu-admin > .site-nav-menu-toggle {
   color: #b06000;
 }
 
-.site-nav-link.site-nav-link-admin:hover,
-.site-nav-link.site-nav-link-admin:focus-visible {
+.site-nav-menu-admin > .site-nav-menu-toggle:hover,
+.site-nav-menu-admin > .site-nav-menu-toggle:focus-visible {
   color: #8a4b00;
 }
 
-:root[data-effective-theme="dark"] .site-nav-link.site-nav-link-admin {
+:root[data-effective-theme="dark"] .site-nav-menu-admin > .site-nav-menu-toggle {
   color: #e0a458;
 }
 
-:root[data-effective-theme="dark"] .site-nav-link.site-nav-link-admin:hover,
-:root[data-effective-theme="dark"] .site-nav-link.site-nav-link-admin:focus-visible {
+:root[data-effective-theme="dark"] .site-nav-menu-admin > .site-nav-menu-toggle:hover,
+:root[data-effective-theme="dark"] .site-nav-menu-admin > .site-nav-menu-toggle:focus-visible {
   color: #f0be7e;
 }
 

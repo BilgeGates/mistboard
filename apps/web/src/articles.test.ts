@@ -20,6 +20,20 @@ describe('article public listing gates', () => {
     vi.unstubAllEnvs();
   });
 
+  it('uses a timeless introduction on the rules landing', () => {
+    const rules = buildRulesIndex();
+    const intro = rules.querySelector('.articles-index-intro')?.textContent;
+    const paragraphs = [...rules.querySelectorAll('.rules-landing-paragraph')].map(
+      (paragraph) => paragraph.textContent,
+    );
+
+    expect(intro).toBe('Learn the rules for every game you can play on Mistboard.');
+    expect(paragraphs).toEqual([
+      'Each guide explains the board, how the pieces move, and how the game ends, with interactive examples you can step through.',
+      'When a game builds on another ruleset, start with the base game, then read the variant guide for the differences.',
+    ]);
+  });
+
   it('de-lists the mini xiangqi trio from public rules surfaces but keeps the pages reachable', () => {
     // Xiangqi pivot: the mini xiangqi trio is hidden from public rules surfaces
     // (variantPublicSurfaceEnabled=false) but the rules pages stay reachable by

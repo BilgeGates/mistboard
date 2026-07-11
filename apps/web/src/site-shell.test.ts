@@ -15,16 +15,21 @@ describe('site shell nav', () => {
 
     const primaryLabels = [
       ...nav.querySelectorAll<HTMLElement>(
-        '.site-nav-links > .site-nav-link:not([data-admin-only]), .site-nav-links > .site-nav-menu > .site-nav-menu-toggle',
+        '.site-nav-links > .site-nav-link:not([data-admin-only]), .site-nav-links > .site-nav-menu:not([data-admin-only]) > .site-nav-menu-toggle',
       ),
     ].map((link) => link.textContent);
     expect(primaryLabels).toEqual(['Play', 'Puzzles', 'Learn', 'Watch', 'Community', 'Tools']);
 
-    // Admin-only links render in the bar but stay hidden until account-nav
-    // resolves an admin (no admin hint in a fresh test DOM).
-    const adminLinks = [...nav.querySelectorAll<HTMLAnchorElement>('[data-admin-only]')];
-    expect(adminLinks.map((link) => link.textContent)).toEqual(['Database', 'Engines']);
-    expect(adminLinks.every((link) => link.hidden)).toBe(true);
+    // The consolidated Admin menu stays hidden until account-nav resolves an
+    // admin (no admin hint in a fresh test DOM).
+    const adminMenu = nav.querySelector<HTMLElement>('.site-nav-menu[data-admin-only]');
+    expect(adminMenu?.querySelector('.site-nav-menu-toggle')?.textContent).toBe('Admin');
+    expect(
+      [...(adminMenu?.querySelectorAll<HTMLAnchorElement>('.site-nav-menu-panel a') ?? [])].map(
+        (link) => link.textContent,
+      ),
+    ).toEqual(['Database', 'Engines']);
+    expect(adminMenu?.hidden).toBe(true);
 
     const puzzleLink = nav.querySelector<HTMLAnchorElement>('a[href="/puzzles"]');
     expect(puzzleLink?.textContent).toBe('Puzzles');
@@ -81,6 +86,18 @@ describe('site shell nav', () => {
         ?.querySelector<HTMLElement>('.site-nav-menu-panel')
         ?.querySelector<HTMLAnchorElement>('a[href="/analysis/xiangqi"]')?.textContent,
     ).toBe('Analysis board');
+
+    const learnMenu = [...nav.querySelectorAll<HTMLElement>('.site-nav-menu')].find(
+      (menu) => menu.querySelector('.site-nav-menu-toggle')?.textContent === 'Learn',
+    );
+    expect(
+      [...(learnMenu?.querySelectorAll<HTMLAnchorElement>('.site-nav-menu-panel a') ?? [])].map(
+        (link) => link.textContent,
+      ),
+    ).toEqual(['Rules', 'Xiangqi Basics']);
+    expect(
+      learnMenu?.querySelector<HTMLAnchorElement>('.site-nav-menu-toggle')?.getAttribute('href'),
+    ).toBe('/rules');
   });
 
   it('localizes launch nav labels and translated content links', () => {
@@ -91,7 +108,7 @@ describe('site shell nav', () => {
 
     const primaryLabels = [
       ...nav.querySelectorAll<HTMLElement>(
-        '.site-nav-links > .site-nav-link:not([data-admin-only]), .site-nav-links > .site-nav-menu > .site-nav-menu-toggle',
+        '.site-nav-links > .site-nav-link:not([data-admin-only]), .site-nav-links > .site-nav-menu:not([data-admin-only]) > .site-nav-menu-toggle',
       ),
     ].map((link) => link.textContent);
 
@@ -108,11 +125,10 @@ describe('site shell nav', () => {
         .querySelector<HTMLAnchorElement>('.site-nav-menu-panel a[href="/zh-hant/rules"]')
         ?.classList.contains('active'),
     ).toBe(true);
-    // The Learn title now links to the xiangqi course (/learn/xiangqi), the
-    // bet's flagship learn surface; the dropdown lists it plus the localized
-    // Rules link. The toggle stays active on a /rules route via that child.
+    // The Learn title links to Rules, which also leads the dropdown. The toggle
+    // stays active on a /rules route via that child.
     const learnToggle = nav.querySelector<HTMLAnchorElement>(
-      '.site-nav-menu-toggle[href="/learn/xiangqi"]',
+      '.site-nav-menu-toggle[href="/zh-hant/rules"]',
     );
     expect(learnToggle?.textContent).toBe('學習');
     expect(learnToggle?.classList.contains('active')).toBe(true);

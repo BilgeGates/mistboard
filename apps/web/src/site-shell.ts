@@ -2,6 +2,7 @@ import './site-shell.css';
 import { type I18nKey, t } from './i18n/catalog.js';
 import { currentLocale, type Locale, localizedHref, stripLocalePrefix } from './i18n/locale.js';
 import {
+  adminNavItems,
   communityNavItems,
   learnNavItems,
   type NavItem,
@@ -67,10 +68,9 @@ export function buildNav(locale: Locale = currentLocale()): HTMLElement {
   const [play, puzzles, watch] = primaryNavItems();
   if (play) links.append(navLink(play, locale));
   if (puzzles) links.append(navLink(puzzles, locale));
-  // Learn title links to the xiangqi course (/learn/xiangqi), the bet's flagship
-  // learn surface; the dropdown lists it plus Rules. On touch/no-hover the first
-  // tap opens the panel, where both destinations are reachable.
-  links.append(navMenu('nav.learn', learnNavItems(), locale, '/learn/xiangqi'));
+  // Rules are the Learn landing and lead its dropdown; the interactive xiangqi
+  // course remains directly reachable as the second item.
+  links.append(navMenu('nav.learn', learnNavItems(), locale, '/rules'));
   // Watch title links to Mistboard TV (/watch); the dropdown adds Broadcasts.
   links.append(navMenu('nav.watch', watchNavItems(), locale, watch?.href ?? '/watch'));
   // Community title itself links to the player page (lichess parity): hovering
@@ -81,12 +81,14 @@ export function buildNav(locale: Locale = currentLocale()): HTMLElement {
   const tools = toolsNavItems();
   if (tools.length > 0)
     links.append(navMenu('nav.tools', tools, locale, tools[0]?.href ?? '/analysis/xiangqi'));
-  // Admin-only top-level links to the internal /database + /engines surfaces
-  // (moved out of the account dropdown 2026-07-10). English labels by admin
-  // convention. Initial visibility comes from the persisted admin hint;
-  // account-nav reconciles every [data-admin-only] element once auth resolves.
-  // Cosmetic gate only — both pages are admin-gated server-side.
-  links.append(adminNavLink('/database', 'Database'), adminNavLink('/engines', 'Engines'));
+  // Consolidate internal tools under one admin-only menu. Initial visibility
+  // comes from the persisted admin hint; account-nav reconciles it once auth
+  // resolves. This is cosmetic only: both pages are admin-gated server-side.
+  const adminMenu = navMenu('nav.admin', adminNavItems(), locale);
+  adminMenu.classList.add('site-nav-menu-admin');
+  adminMenu.dataset.adminOnly = '';
+  adminMenu.hidden = !isLikelyAdmin();
+  links.append(adminMenu);
 
   const utilities = document.createElement('div');
   utilities.className = 'site-nav-utilities';
@@ -241,20 +243,6 @@ function navLink(item: NavItem, locale: Locale): HTMLAnchorElement {
   }
   const path = currentPath();
   if (pathMatchesNavItem(path, item.href)) {
-    link.classList.add('active');
-    link.setAttribute('aria-current', 'page');
-  }
-  return link;
-}
-
-function adminNavLink(href: string, label: string): HTMLAnchorElement {
-  const link = document.createElement('a');
-  link.href = href;
-  link.textContent = label;
-  link.className = 'site-nav-link site-nav-link-admin';
-  link.dataset.adminOnly = '';
-  link.hidden = !isLikelyAdmin();
-  if (pathMatchesNavItem(currentPath(), href)) {
     link.classList.add('active');
     link.setAttribute('aria-current', 'page');
   }

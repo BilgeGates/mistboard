@@ -45,12 +45,19 @@ export function communityRailItems(): NavItem[] {
   ];
 }
 
-// Learn dropdown: the interactive xiangqi course (the bet's flagship learn
-// surface) leads, Rules follows. The title itself links to /learn/xiangqi.
+// Learn dropdown: rules are the durable starting point, followed by the
+// interactive xiangqi course. The title itself links to /rules.
 export function learnNavItems(): NavItem[] {
   return [
-    { label: 'Xiangqi Basics', labelKey: 'nav.learnXiangqi', href: '/learn/xiangqi' },
     { label: 'Rules', labelKey: 'nav.rules', href: '/rules' },
+    { label: 'Xiangqi Basics', labelKey: 'nav.learnXiangqi', href: '/learn/xiangqi' },
+  ];
+}
+
+export function adminNavItems(): NavItem[] {
+  return [
+    { label: 'Database', labelKey: 'nav.database', href: '/database' },
+    { label: 'Engines', labelKey: 'nav.engines', href: '/engines' },
   ];
 }
 

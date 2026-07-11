@@ -126,8 +126,8 @@ function mountAccountNavs(): void {
 // Signed-in-only nav links (e.g. Community > Friends) paint with a hint-based
 // initial visibility in site-shell's navLink; this is the authoritative
 // reconcile once auth resolves (and on every observer pass, so navs rebuilt by
-// SPA mounts stay in sync). Idempotent by construction. Admin-only nav links
-// (/database, /engines) reconcile the same way off the resolved account role.
+// SPA mounts stay in sync). Idempotent by construction. The admin-only tools
+// menu reconciles the same way off the resolved account role.
 function applySignedInOnlyNav(signedIn: boolean): void {
   for (const el of document.querySelectorAll<HTMLElement>('[data-signed-in-only]')) {
     el.hidden = !signedIn;
@@ -319,8 +319,7 @@ function mountAccountNav(nav: HTMLElement, user: AuthUser): void {
   accountLinks.append(profile, inbox, settings, logout);
 
   panel.append(accountLinks, createAccountDivider(), appearance);
-  // Admin tools (/database, /engines) moved from this dropdown to the main nav
-  // bar 2026-07-10 — see site-shell's adminNavLink.
+  // Admin tools live in the main nav's consolidated Admin menu.
   panel.append(createAccountDivider(), status.element);
   control.append(trigger, panel);
   slot.replaceWith(control);
