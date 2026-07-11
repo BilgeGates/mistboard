@@ -264,6 +264,48 @@ const WEB_VARIANT_TENANTS: readonly WebVariantTenant[] = [
           kind: 'container',
         },
         {
+          id: 'fairy-stockfish-xiangqi-level-8',
+          name: 'Fairy-Stockfish - Level 8',
+          familyName: 'Fairy-Stockfish',
+          kind: 'container',
+        },
+        {
+          id: 'fairy-stockfish-xiangqi-level-7',
+          name: 'Fairy-Stockfish - Level 7',
+          familyName: 'Fairy-Stockfish',
+          kind: 'container',
+        },
+        {
+          id: 'fairy-stockfish-xiangqi-level-6',
+          name: 'Fairy-Stockfish - Level 6',
+          familyName: 'Fairy-Stockfish',
+          kind: 'container',
+        },
+        {
+          id: 'fairy-stockfish-xiangqi-level-5',
+          name: 'Fairy-Stockfish - Level 5',
+          familyName: 'Fairy-Stockfish',
+          kind: 'container',
+        },
+        {
+          id: 'fairy-stockfish-xiangqi-level-4',
+          name: 'Fairy-Stockfish - Level 4',
+          familyName: 'Fairy-Stockfish',
+          kind: 'container',
+        },
+        {
+          id: 'fairy-stockfish-xiangqi-level-3',
+          name: 'Fairy-Stockfish - Level 3',
+          familyName: 'Fairy-Stockfish',
+          kind: 'container',
+        },
+        {
+          id: 'fairy-stockfish-xiangqi-level-2',
+          name: 'Fairy-Stockfish - Level 2',
+          familyName: 'Fairy-Stockfish',
+          kind: 'container',
+        },
+        {
           id: 'fairy-stockfish-xiangqi-level-1',
           name: 'Fairy-Stockfish - Level 1',
           familyName: 'Fairy-Stockfish',

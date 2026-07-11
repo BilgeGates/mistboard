@@ -119,6 +119,48 @@ export const FIRST_PARTY_BOT_PROFILES: readonly FirstPartyBotProfile[] = [
     defaultGameSpecId: 'xiangqi',
   },
   {
+    id: 'fairy-stockfish-xiangqi-level-2',
+    displayName: 'Fairy-Stockfish - Level 2',
+    activeEngineId: 'fairy-stockfish-xiangqi-level-2',
+    defaultGameSpecId: 'xiangqi',
+  },
+  {
+    id: 'fairy-stockfish-xiangqi-level-3',
+    displayName: 'Fairy-Stockfish - Level 3',
+    activeEngineId: 'fairy-stockfish-xiangqi-level-3',
+    defaultGameSpecId: 'xiangqi',
+  },
+  {
+    id: 'fairy-stockfish-xiangqi-level-4',
+    displayName: 'Fairy-Stockfish - Level 4',
+    activeEngineId: 'fairy-stockfish-xiangqi-level-4',
+    defaultGameSpecId: 'xiangqi',
+  },
+  {
+    id: 'fairy-stockfish-xiangqi-level-5',
+    displayName: 'Fairy-Stockfish - Level 5',
+    activeEngineId: 'fairy-stockfish-xiangqi-level-5',
+    defaultGameSpecId: 'xiangqi',
+  },
+  {
+    id: 'fairy-stockfish-xiangqi-level-6',
+    displayName: 'Fairy-Stockfish - Level 6',
+    activeEngineId: 'fairy-stockfish-xiangqi-level-6',
+    defaultGameSpecId: 'xiangqi',
+  },
+  {
+    id: 'fairy-stockfish-xiangqi-level-7',
+    displayName: 'Fairy-Stockfish - Level 7',
+    activeEngineId: 'fairy-stockfish-xiangqi-level-7',
+    defaultGameSpecId: 'xiangqi',
+  },
+  {
+    id: 'fairy-stockfish-xiangqi-level-8',
+    displayName: 'Fairy-Stockfish - Level 8',
+    activeEngineId: 'fairy-stockfish-xiangqi-level-8',
+    defaultGameSpecId: 'xiangqi',
+  },
+  {
     id: 'pikafish-xiangqi-level-1',
     displayName: 'Pikafish - Level 1',
     activeEngineId: 'pikafish-xiangqi-level-1',

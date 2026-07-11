@@ -89,7 +89,7 @@ test('xiangqi default engine is the playable 100k-node level', () => {
   assert.equal(tier.nodes, 100_000);
 });
 
-test('xiangqi engine catalog exposes the honest FSF Level 1 experiment', () => {
+test('xiangqi engine catalog exposes the honest FSF human ladder', () => {
   const fsf = XIANGQI_ENGINE_CATALOG.find(
     (entry) => entry.id === 'fairy-stockfish-xiangqi-level-1',
   );
@@ -102,6 +102,11 @@ test('xiangqi engine catalog exposes the honest FSF Level 1 experiment', () => {
   });
   assert.equal(isCatalogXiangqiEngineClientId(fsf?.id), true);
   assert.equal(catalogXiangqiEngineVersion(fsf?.id), '0.1.0');
+  assert.equal(
+    XIANGQI_ENGINE_CATALOG.filter((entry) => entry.id.startsWith('fairy-stockfish-xiangqi-level-'))
+      .length,
+    8,
+  );
 });
 
 // ── Retired-tier back-compat ────────────────────────────────────────────────

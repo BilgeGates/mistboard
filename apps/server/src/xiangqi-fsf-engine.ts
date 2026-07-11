@@ -8,7 +8,7 @@ import { fairyStockfishBestmove, UciEnginePool } from './uci-engine-harness.js';
 
 export const XIANGQI_FSF_ENGINE_VERSION = '0.1.0';
 
-export type XiangqiFsfEngineId = 'fairy-stockfish-xiangqi-level-1';
+export type XiangqiFsfEngineId = `fairy-stockfish-xiangqi-level-${1 | 2 | 3 | 4 | 5 | 6 | 7 | 8}`;
 
 export type XiangqiFsfEngineTier = {
   id: XiangqiFsfEngineId;
@@ -25,6 +25,55 @@ const XIANGQI_FSF_ENGINE_TIERS = [
     skill: -9,
     depth: 5,
     movetimeMs: 50,
+  },
+  {
+    id: 'fairy-stockfish-xiangqi-level-2',
+    name: 'Fairy-Stockfish - Level 2',
+    skill: -5,
+    depth: 5,
+    movetimeMs: 100,
+  },
+  {
+    id: 'fairy-stockfish-xiangqi-level-3',
+    name: 'Fairy-Stockfish - Level 3',
+    skill: -1,
+    depth: 5,
+    movetimeMs: 150,
+  },
+  {
+    id: 'fairy-stockfish-xiangqi-level-4',
+    name: 'Fairy-Stockfish - Level 4',
+    skill: 3,
+    depth: 5,
+    movetimeMs: 200,
+  },
+  {
+    id: 'fairy-stockfish-xiangqi-level-5',
+    name: 'Fairy-Stockfish - Level 5',
+    skill: 7,
+    depth: 5,
+    movetimeMs: 300,
+  },
+  {
+    id: 'fairy-stockfish-xiangqi-level-6',
+    name: 'Fairy-Stockfish - Level 6',
+    skill: 11,
+    depth: 8,
+    movetimeMs: 400,
+  },
+  {
+    id: 'fairy-stockfish-xiangqi-level-7',
+    name: 'Fairy-Stockfish - Level 7',
+    skill: 16,
+    depth: 13,
+    movetimeMs: 500,
+  },
+  {
+    id: 'fairy-stockfish-xiangqi-level-8',
+    name: 'Fairy-Stockfish - Level 8',
+    skill: 20,
+    depth: 22,
+    movetimeMs: 1_000,
   },
 ] as const satisfies readonly XiangqiFsfEngineTier[];
 
