@@ -49,6 +49,7 @@ import {
   createReviewScaffold,
   installReviewKeyboard,
 } from './review-layout.js';
+import { deserializeTree, type SerializedTree, serializeTree } from './tree-serialize.js';
 import { xiangqiTreeAdapter } from './xiangqi-tree-adapter.js';
 
 type XiangqiNode = GameTreeNode<XiangqiMove, XiangqiGameState>;
@@ -86,19 +87,38 @@ export type XiangqiReviewConfig = {
   /** Lichess-style game meta card; replaces the plain title/summary card. */
   metaCard?: HTMLElement;
   /** Canonical moves in order. Any illegal-from-here move truncates the mainline to
-   *  the legal prefix (a notice is surfaced). Empty = a fresh board at the start. */
+   *  the legal prefix (a notice is surfaced). Empty = a fresh board at the start.
+   *  Ignored when `initialTree` is set. */
   moves: XiangqiMove[];
+  /** Load a persisted study tree (with its annotations + variations) instead of
+   *  seeding from `moves`. When set, the tree is rebuilt from this blob by replay. */
+  initialTree?: SerializedTree;
+  /** Fired after any tree mutation (move, annotation, promote, delete). The study
+   *  page uses it to autosave; the analysis/postgame pages ignore it. */
+  onChange?: () => void;
   /** Whole-game analysis source; null disables the analysis affordance. */
   analysis: XiangqiAnalysisSource | null;
 };
+
+/** Handle returned by mountXiangqiReview: lets a caller snapshot the current tree
+ *  (to persist it — "save as study", autosave). */
+export interface XiangqiReviewHandle {
+  serialize(): SerializedTree;
+}
 
 /** Keyboard listener is document-wide; on re-mount (import re-seeds) abort the
  *  previous one so handlers don't stack. */
 let keyboardAbort: AbortController | null = null;
 
-export function mountXiangqiReview(root: HTMLElement, config: XiangqiReviewConfig): void {
-  const tree: XiangqiTree = createGameTree(xiangqiTreeAdapter, config.moves);
+export function mountXiangqiReview(
+  root: HTMLElement,
+  config: XiangqiReviewConfig,
+): XiangqiReviewHandle {
+  const tree: XiangqiTree = config.initialTree
+    ? (deserializeTree(xiangqiTreeAdapter, config.initialTree) as XiangqiTree)
+    : createGameTree(xiangqiTreeAdapter, config.moves);
   const mainlineLen = tree.mainlinePath().length;
+  const notifyChange = (): void => config.onChange?.();
 
   let currentPath: TreePath = tree.last();
   let flipped = false;
@@ -141,6 +161,7 @@ export function mountXiangqiReview(root: HTMLElement, config: XiangqiReviewConfi
       currentPath = next;
       moveTree.rebuild();
       render();
+      notifyChange();
     },
     // Right-drag draws an annotation shape on the CURRENT node (toggle: re-drawing
     // the same shape removes it). Green by default, red with a modifier held.
@@ -162,6 +183,7 @@ export function mountXiangqiReview(root: HTMLElement, config: XiangqiReviewConfi
       tree.annotateAt(currentPath, { shapes: nextShapes });
       paintOverlays();
       annotationEditor.setAnnotations(currentNode().annotations);
+      notifyChange();
     },
   });
 
@@ -223,12 +245,14 @@ export function mountXiangqiReview(root: HTMLElement, config: XiangqiReviewConfi
       tree.promoteToMainline(path);
       moveTree.rebuild();
       render();
+      notifyChange();
     },
     onDelete: (path) => {
       if (isPrefix(path, currentPath)) currentPath = path.slice(0, -1);
       tree.deleteAt(path);
       moveTree.rebuild();
       render();
+      notifyChange();
     },
   });
 
@@ -255,21 +279,24 @@ export function mountXiangqiReview(root: HTMLElement, config: XiangqiReviewConfi
       tree.annotateAt(currentPath, { glyphs: code === null ? [] : [code] });
       refreshMoveTreeAnnotations();
       render();
+      notifyChange();
     },
     onComment: (text) => {
       // Per-keystroke write; deliberately no render() — the move list carries no
       // comment marker in S1 and a re-render would drop the textarea caret.
       tree.annotateAt(currentPath, { comments: text.trim() ? [{ text }] : [] });
+      notifyChange();
     },
     onClearShapes: () => {
       tree.annotateAt(currentPath, { shapes: [] });
       paintOverlays();
       annotationEditor.setAnnotations(currentNode().annotations);
+      notifyChange();
     },
   });
 
   // The tree truncates an illegal seed to the legal prefix; surface a notice.
-  const truncated = mainlineLen < config.moves.length;
+  const truncated = !config.initialTree && mainlineLen < config.moves.length;
   const details = config.details ?? (truncated ? truncationNotice(mainlineLen) : undefined);
 
   const scaffold = createReviewScaffold(root, {
@@ -447,6 +474,9 @@ export function mountXiangqiReview(root: HTMLElement, config: XiangqiReviewConfi
     }
   }
 
+  // Paint any user glyphs carried by a loaded study tree into the move list (the
+  // analysis/postgame paths seed no glyphs, so this is a harmless no-op there).
+  refreshMoveTreeAnnotations();
   render();
   scaffold.refit();
   keyboardAbort?.abort();
@@ -461,6 +491,8 @@ export function mountXiangqiReview(root: HTMLElement, config: XiangqiReviewConfi
     },
     keyboardAbort.signal,
   );
+
+  return { serialize: () => serializeTree(tree, xiangqiTreeAdapter) };
 }
 
 function underboardPanel(body: HTMLElement): HTMLElement {

@@ -17,7 +17,7 @@ import { createCeval } from './review/engine/ceval.js';
 import { computeGameAnalysis, type GameAnalysis, type PlyEval } from './review/game-analysis.js';
 import { createGameMetaCard } from './review/game-meta-card.js';
 import { importXiangqiGame } from './review/xiangqi-import.js';
-import { mountXiangqiReview } from './review/xiangqi-review.js';
+import { mountXiangqiReview, type XiangqiReviewHandle } from './review/xiangqi-review.js';
 import {
   buildXiangqiReplayFromMoves,
   xiangqiReplayViewAtPly,
@@ -107,15 +107,19 @@ export function mountXiangqiAnalysis(
     mountXiangqiAnalysis(root, imported, opts);
   };
 
+  let handle: XiangqiReviewHandle | null = null;
   root.replaceChildren(buildNav());
-  mountXiangqiReview(root, {
+  handle = mountXiangqiReview(root, {
     pageClassName: 'xiangqi-review',
     ariaLabel: 'Xiangqi analysis',
     eyebrow: 'Analysis',
     title: opts.title ?? 'Xiangqi analysis',
     summary: statusSummary(finalStatus, replay.maxPly),
     boardAriaLabel: 'Xiangqi board',
-    actions: analysisActions(() => openImportDialog(reMount)),
+    actions: analysisActions(
+      () => openImportDialog(reMount),
+      (status) => saveAsStudy(handle, status),
+    ),
     metaCard: metaCard.el,
     // Pass the raw moves so the review's tree truncates an illegal seed itself and
     // surfaces the notice (the legal prefix drives the client sweep above).
@@ -129,7 +133,7 @@ export function mountXiangqiAnalysis(
   });
 }
 
-function analysisActions(onImport: () => void): HTMLElement {
+function analysisActions(onImport: () => void, onSave: (status: HTMLElement) => void): HTMLElement {
   const actions = document.createElement('nav');
   actions.className = 'dxq-postgame__actions';
   actions.setAttribute('aria-label', 'Analysis links');
@@ -138,12 +142,48 @@ function analysisActions(onImport: () => void): HTMLElement {
   importBtn.className = 'dxq-postgame__link';
   importBtn.textContent = 'Import game';
   importBtn.addEventListener('click', onImport);
+  const saveBtn = document.createElement('button');
+  saveBtn.type = 'button';
+  saveBtn.className = 'dxq-postgame__link';
+  saveBtn.textContent = 'Save as study';
+  const saveStatus = document.createElement('span');
+  saveStatus.className = 'xqa-save-status';
+  saveBtn.addEventListener('click', () => onSave(saveStatus));
   const home = document.createElement('a');
   home.className = 'dxq-postgame__link';
   home.href = '/';
   home.textContent = 'Back home';
-  actions.append(importBtn, home);
+  actions.append(importBtn, saveBtn, home, saveStatus);
   return actions;
+}
+
+// Snapshot the current tree into a new persisted study and open it. Requires the
+// user to be signed in (401 → a hint, no redirect so the position is not lost).
+async function saveAsStudy(handle: XiangqiReviewHandle | null, status: HTMLElement): Promise<void> {
+  if (!handle) return;
+  status.textContent = 'Saving…';
+  try {
+    const response = await fetch('/api/studies', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        name: 'Xiangqi study',
+        chapter: { name: 'Chapter 1', variant: 'xiangqi', root: handle.serialize() },
+      }),
+    });
+    if (response.status === 401) {
+      status.textContent = 'Sign in to save studies';
+      return;
+    }
+    if (!response.ok) {
+      status.textContent = 'Save failed';
+      return;
+    }
+    const body = (await response.json()) as { study: { id: string } };
+    window.location.href = `/study/${body.study.id}`;
+  } catch {
+    status.textContent = 'Save failed';
+  }
 }
 
 // A modal paste box: Chinese / WXF / coordinate notation → a parsed move list.
