@@ -329,6 +329,26 @@ export type {
 } from './persistence-site-stats.js';
 export { getPublicSiteStats, getSiteStats } from './persistence-site-stats.js';
 export type {
+  CreateStudyInput,
+  NewChapterInput,
+  StudyChapterRecord,
+  StudyRecord,
+  StudySummary,
+  StudyVisibility,
+  StudyWithChapters,
+  UpdateChapterResult,
+  UpdateStudyMetaResult,
+} from './persistence-studies.js';
+export {
+  createStudy,
+  deleteStudy,
+  getStudyById,
+  isStudyVisibility,
+  listStudiesForOwner,
+  updateChapterTree,
+  updateStudyMeta,
+} from './persistence-studies.js';
+export type {
   StoredXiangqiBroadcastBoard,
   StoredXiangqiBroadcastRound,
   StoredXiangqiBroadcastTour,
