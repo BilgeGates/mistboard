@@ -451,3 +451,91 @@ test('puzzle routes reject non-GET methods', async () => {
   assert.equal(response.status, 405);
   assert.deepEqual(JSON.parse(response.body), { error: 'method_not_allowed' });
 });
+
+// ── Solution reveal / hint ───────────────────────────────────────────────────
+// The reveal endpoint is the ONLY route that returns solution move data; the
+// detail (and list/attempt) routes must stay count-only. These tests pin that
+// invariant plus the new hint/solution payload shapes. Standard xiangqi is the
+// priority variant, so it leads.
+
+test('reveal endpoint returns the full solution line, and it is the only leak path', async () => {
+  const puzzle = XIANGQI_PUZZLES[0];
+  assert.ok(puzzle, 'expected a mined standard-xiangqi puzzle');
+
+  // Detail route stays solution-hidden: count only, no move data.
+  const detail = await route(`/api/puzzles/${puzzle.id}`);
+  const detailBody = JSON.parse(detail.body) as {
+    puzzle: { solution?: unknown; solutionPlyCount: number };
+  };
+  assert.equal(detail.status, 200);
+  assert.equal(detailBody.puzzle.solution, undefined);
+  assert.equal(detailBody.puzzle.solutionPlyCount, puzzle.solution.length);
+
+  // Reveal route is the one place the line is exposed.
+  const reveal = await route(`/api/puzzles/${puzzle.id}/reveal`, 'POST', { mode: 'solution' });
+  const revealBody = JSON.parse(reveal.body) as { solution: unknown[]; rating?: unknown };
+  assert.equal(reveal.status, 200);
+  assert.deepEqual(revealBody.solution, puzzle.solution);
+  // Anonymous caller: no rating booked.
+  assert.equal(revealBody.rating, undefined);
+});
+
+test('reveal endpoint in hint mode returns only the next move, never the full line', async () => {
+  const puzzle = XIANGQI_PUZZLES[0];
+  assert.ok(puzzle, 'expected a mined standard-xiangqi puzzle');
+
+  // Fresh puzzle (0 plies played): the hint is the solver's first move.
+  const first = await route(`/api/puzzles/${puzzle.id}/reveal`, 'POST', {
+    mode: 'hint',
+    playedPlyCount: 0,
+  });
+  const firstBody = JSON.parse(first.body) as { move: unknown; solution?: unknown };
+  assert.equal(first.status, 200);
+  assert.deepEqual(firstBody.move, puzzle.solution[0]);
+  // Hint mode must not leak the rest of the line.
+  assert.equal(firstBody.solution, undefined);
+
+  // After the solver move + scripted reply (2 plies), the hint is solution[2].
+  if (puzzle.solution.length > 2) {
+    const next = await route(`/api/puzzles/${puzzle.id}/reveal`, 'POST', {
+      mode: 'hint',
+      playedPlyCount: 2,
+    });
+    const nextBody = JSON.parse(next.body) as { move: unknown };
+    assert.deepEqual(nextBody.move, puzzle.solution[2]);
+  }
+
+  // A missing/out-of-range ply count falls back to the first move, not a crash.
+  const fallback = await route(`/api/puzzles/${puzzle.id}/reveal`, 'POST', { mode: 'hint' });
+  const fallbackBody = JSON.parse(fallback.body) as { move: unknown };
+  assert.equal(fallback.status, 200);
+  assert.deepEqual(fallbackBody.move, puzzle.solution[0]);
+});
+
+test('reveal endpoint reads the solution generically across variants', async () => {
+  for (const puzzle of [FORTRESS_XIANGQI_PUZZLES[0], JUNGLE_PUZZLES[0], MINI_XIANGQI_PUZZLES[0]]) {
+    assert.ok(puzzle, 'expected a puzzle in each variant registry');
+    const reveal = await route(`/api/puzzles/${puzzle.id}/reveal`, 'POST', { mode: 'solution' });
+    const body = JSON.parse(reveal.body) as { solution: unknown[] };
+    assert.equal(reveal.status, 200, puzzle.id);
+    assert.deepEqual(body.solution, puzzle.solution, puzzle.id);
+  }
+});
+
+test('reveal endpoint 404s unknown puzzle ids', async () => {
+  const response = await route('/api/puzzles/not-a-real-puzzle/reveal', 'POST', {
+    mode: 'solution',
+  });
+
+  assert.equal(response.status, 404);
+  assert.deepEqual(JSON.parse(response.body), { error: 'not_found' });
+});
+
+test('reveal endpoint rejects non-POST methods', async () => {
+  const puzzle = XIANGQI_PUZZLES[0];
+  assert.ok(puzzle, 'expected a mined standard-xiangqi puzzle');
+  const response = await route(`/api/puzzles/${puzzle.id}/reveal`, 'GET');
+
+  assert.equal(response.status, 405);
+  assert.deepEqual(JSON.parse(response.body), { error: 'method_not_allowed' });
+});

@@ -205,6 +205,16 @@ type PuzzleSession = {
   // their final state is still 'playing', so board status alone cannot signal
   // "solved" (and the next-puzzle CTA would never appear).
   solved: boolean;
+  // Persistent (unlike feedback, which piece-selects reset to 'neutral'): set on
+  // the first wrong move OR the first reveal/hint. Drives the always-visible
+  // advance-to-next CTA + fail action row so a retry/select can't hide the way
+  // out. The user may keep trying moves, take a hint, view the solution, or move
+  // on — lichess "you failed this puzzle" semantics.
+  failed: boolean;
+  // The full solution has been fetched and played out; solving is locked (the
+  // board becomes a replay of the answer). Distinct from `solved` (which shows
+  // the Success panel) — a reveal is a give-up, not a win.
+  revealed: boolean;
   // One-shot flag: focus the next-puzzle button on the render right after a
   // solve, so Enter or Space advances without reaching for the mouse.
   focusNext: boolean;
@@ -224,6 +234,9 @@ const SEEN_PUZZLES_STORAGE_KEY = 'mistboard:puzzles:seen';
 const AUTO_NEXT_STORAGE_KEY = 'mistboard:puzzles:auto-next';
 const RATED_STORAGE_KEY = 'mistboard:puzzles:rated';
 const AUTO_NEXT_DELAY_MS = 150;
+// Cadence for auto-playing the revealed solution, one ply at a time (each step
+// reuses the scrub-forward animation).
+const REVEAL_STEP_MS = 650;
 // Rotation only needs "have I seen this lately," so cap the persisted seen-set
 // to the most-recently-seen ids rather than growing an unbounded history.
 const SEEN_PUZZLES_CAP = 200;
@@ -520,6 +533,8 @@ function createPuzzleSession(puzzle: PuzzleDetail): PuzzleSession {
     feedback: { kind: 'neutral', text: 'Find the best move.' },
     submitting: false,
     solved: false,
+    failed: false,
+    revealed: false,
     focusNext: false,
   };
 }
@@ -842,6 +857,9 @@ function renderPuzzleDetail(
   boardPanel.className = 'puzzle-board-panel';
   const board = document.createElement('div');
   board.className = 'puzzle-board';
+  // Tag the board with the current puzzle so async reveal playback can detect a
+  // navigation away (new puzzle = new id) and stop stepping a stale session.
+  board.dataset.puzzleId = session.puzzle.id;
   const side = document.createElement('aside');
   side.className = 'puzzle-side-panel';
 
@@ -849,7 +867,7 @@ function renderPuzzleDetail(
 
   const trainer = document.createElement('div');
   trainer.className = 'puzzle-trainer-panel';
-  trainer.append(moveListPanel(session), feedbackPanel(session, navigation));
+  trainer.append(moveListPanel(session), feedbackPanel(session, navigation, renderSession));
   side.append(trainer, actionPanel(session, renderSession));
   boardPanel.append(board, side);
   host.append(boardPanel);
@@ -1083,7 +1101,12 @@ function jungleIsSelectable(
 }
 
 function canDragJunglePiece(session: PuzzleSession, square: JungleSquare): boolean {
-  if (session.submitting || session.state.status.type !== 'playing' || !isReplayLive(session)) {
+  if (
+    session.submitting ||
+    session.revealed ||
+    session.state.status.type !== 'playing' ||
+    !isReplayLive(session)
+  ) {
     return false;
   }
   return jungleIsSelectable(session, jungleLiveView(session), square);
@@ -1095,7 +1118,12 @@ async function handleJungleBoardClick(
   renderSession: () => void,
   onSolved: (id: string) => void,
 ): Promise<void> {
-  if (session.submitting || session.state.status.type !== 'playing' || !isReplayLive(session)) {
+  if (
+    session.submitting ||
+    session.revealed ||
+    session.state.status.type !== 'playing' ||
+    !isReplayLive(session)
+  ) {
     return;
   }
   const view = jungleLiveView(session);
@@ -1221,7 +1249,12 @@ function xiangqiLiveView(session: PuzzleSession): StandardXiangqiPlayerView {
 }
 
 function canDragXiangqiPiece(session: PuzzleSession, square: XiangqiSquare): boolean {
-  if (session.submitting || session.state.status.type !== 'playing' || !isReplayLive(session)) {
+  if (
+    session.submitting ||
+    session.revealed ||
+    session.state.status.type !== 'playing' ||
+    !isReplayLive(session)
+  ) {
     return false;
   }
   const view = xiangqiLiveView(session);
@@ -1238,7 +1271,12 @@ async function handleXiangqiBoardClick(
   renderSession: () => void,
   onSolved: (id: string) => void,
 ): Promise<void> {
-  if (session.submitting || session.state.status.type !== 'playing' || !isReplayLive(session)) {
+  if (
+    session.submitting ||
+    session.revealed ||
+    session.state.status.type !== 'playing' ||
+    !isReplayLive(session)
+  ) {
     return;
   }
   const view = xiangqiLiveView(session);
@@ -1425,8 +1463,13 @@ function renderPuzzleBoardShell(
   return boardSurface;
 }
 
-function feedbackPanel(session: PuzzleSession, navigation: PuzzleNavigation): HTMLElement {
+function feedbackPanel(
+  session: PuzzleSession,
+  navigation: PuzzleNavigation,
+  renderSession: () => void,
+): HTMLElement {
   if (isSessionSolved(session)) return solvedPanel(navigation);
+  if (session.revealed) return revealedPanel(navigation);
 
   const panel = document.createElement('div');
   panel.className = `puzzle-feedback puzzle-feedback--${session.feedback.kind}`;
@@ -1442,19 +1485,78 @@ function feedbackPanel(session: PuzzleSession, navigation: PuzzleNavigation): HT
   const body = document.createElement('span');
   body.className = 'puzzle-feedback-body';
   body.textContent = session.feedback.text;
-  copy.append(title, body);
-  // After a failed attempt, offer a way out: without it the page has no
-  // between-puzzle navigation until the puzzle is solved.
-  if (session.feedback.kind === 'bad' && navigation.hasNext) {
+  copy.append(title, body, assistRow(session, navigation, renderSession));
+  panel.append(icon, copy);
+  return panel;
+}
+
+// Persistent escape hatches while a puzzle is unsolved. Hint + view-solution are
+// always available (they double as give-up; using either books a failed attempt
+// server-side). The advance-to-next CTA appears only once the puzzle is failed,
+// and — because it keys on session.failed, not the transient feedback kind — it
+// survives the piece-select feedback reset (so a retry can't hide the way out).
+function assistRow(
+  session: PuzzleSession,
+  navigation: PuzzleNavigation,
+  renderSession: () => void,
+): HTMLElement {
+  const row = document.createElement('div');
+  row.className = 'puzzle-assist-row';
+
+  const hint = document.createElement('button');
+  hint.type = 'button';
+  hint.className = 'puzzle-feedback-skip puzzle-assist-hint';
+  hint.dataset.puzzleHint = 'true';
+  hint.textContent = 'Get a hint';
+  hint.disabled = session.submitting;
+  hint.addEventListener('click', () => {
+    void requestHint(session, renderSession);
+  });
+
+  const solution = document.createElement('button');
+  solution.type = 'button';
+  solution.className = 'puzzle-feedback-skip puzzle-assist-solution';
+  solution.dataset.puzzleReveal = 'true';
+  solution.textContent = 'View solution';
+  solution.disabled = session.submitting;
+  solution.addEventListener('click', () => {
+    void revealSolution(session, renderSession);
+  });
+
+  row.append(hint, solution);
+
+  if (session.failed && navigation.hasNext) {
     const skip = document.createElement('button');
     skip.type = 'button';
-    skip.className = 'puzzle-feedback-skip';
+    skip.className = 'puzzle-feedback-skip puzzle-assist-next';
     skip.dataset.puzzleSkip = 'true';
     skip.textContent = 'Skip to the next puzzle';
     skip.addEventListener('click', navigation.goNext);
-    copy.append(skip);
+    row.append(skip);
   }
-  panel.append(icon, copy);
+  return row;
+}
+
+// Shown after "View solution": the answer has been played out and the board is a
+// locked replay to scrub. Distinct from the solved panel (no "Success!") — a
+// reveal counts as a give-up, not a win.
+function revealedPanel(navigation: PuzzleNavigation): HTMLElement {
+  const panel = document.createElement('div');
+  panel.className = 'puzzle-solved-panel puzzle-revealed-panel';
+
+  const title = document.createElement('h2');
+  title.textContent = 'Solution';
+
+  const cont = document.createElement('button');
+  cont.type = 'button';
+  cont.className = 'puzzle-continue-button';
+  cont.dataset.puzzleNext = 'true';
+  cont.innerHTML = `${ICON_PLAY}<span>Next puzzle</span>`;
+  cont.setAttribute('aria-label', 'Next puzzle');
+  cont.disabled = !navigation.hasNext;
+  cont.addEventListener('click', navigation.goNext);
+
+  panel.append(title, cont);
   return panel;
 }
 
@@ -1717,7 +1819,12 @@ async function handleBoardClick(
   renderSession: () => void,
   onSolved: (id: string) => void,
 ): Promise<void> {
-  if (session.submitting || session.state.status.type !== 'playing' || !isReplayLive(session)) {
+  if (
+    session.submitting ||
+    session.revealed ||
+    session.state.status.type !== 'playing' ||
+    !isReplayLive(session)
+  ) {
     return;
   }
   if (session.selectedDrop) {
@@ -1860,7 +1967,12 @@ function fortressIsSelectable(
 }
 
 function canDragFortressPiece(session: PuzzleSession, square: FortressXiangqiSquare): boolean {
-  if (session.submitting || session.state.status.type !== 'playing' || !isReplayLive(session)) {
+  if (
+    session.submitting ||
+    session.revealed ||
+    session.state.status.type !== 'playing' ||
+    !isReplayLive(session)
+  ) {
     return false;
   }
   return fortressIsSelectable(session, fortressLiveView(session), square);
@@ -1872,7 +1984,12 @@ async function handleFortressBoardClick(
   renderSession: () => void,
   onSolved: (id: string) => void,
 ): Promise<void> {
-  if (session.submitting || session.state.status.type !== 'playing' || !isReplayLive(session)) {
+  if (
+    session.submitting ||
+    session.revealed ||
+    session.state.status.type !== 'playing' ||
+    !isReplayLive(session)
+  ) {
     return;
   }
   const view = fortressLiveView(session);
@@ -1976,6 +2093,9 @@ async function submitMove(
   renderSession: () => void,
   onSolved?: (id: string) => void,
 ): Promise<void> {
+  // Once the answer has been shown (or the puzzle is solved), the board is a
+  // locked replay: no further moves are submitted.
+  if (session.revealed || session.solved) return;
   session.submitting = true;
   session.feedback = { kind: 'pending', text: 'Checking move.' };
   renderSession();
@@ -2007,6 +2127,9 @@ async function submitMove(
   } else {
     session.state = attempt.state;
     session.viewPly = session.playedMoves.length;
+    // Persist the failed state so the escape hatches (hint / view solution /
+    // next) survive the piece-select feedback reset on the next render.
+    session.failed = true;
     session.feedback = { kind: 'bad', text: 'Try another move.' };
     playSound('lose');
   }
@@ -2019,6 +2142,89 @@ async function submitMove(
     const reply = attempt.playedMoves.at(-1);
     if (reply) animatePuzzleMove(session, reply);
   }
+}
+
+// Highlight the correct piece to move for the current ply (lichess "get a hint").
+// The move is computed server-side (the client never holds the solution); the
+// hint books a failed rated attempt on the first terminal action (idempotent
+// server-side, so it never double-counts a prior wrong-move fail). The user may
+// then play the highlighted piece, take the full solution, or move on.
+async function requestHint(session: PuzzleSession, renderSession: () => void): Promise<void> {
+  if (session.submitting || session.revealed || session.solved) return;
+  session.submitting = true;
+  session.feedback = { kind: 'pending', text: 'Fetching a hint.' };
+  renderSession();
+  const { move, rating } = await fetchPuzzleHint(session.puzzle.id, session.playedMoves.length);
+  session.submitting = false;
+  if (!move) {
+    session.feedback = { kind: 'neutral', text: 'No hint available.' };
+    renderSession();
+    return;
+  }
+  session.failed = true;
+  // Drop the replay cursor back to the live position so the highlight paints.
+  session.viewPly = session.playedMoves.length;
+  if ('drop' in move) {
+    session.selectedDrop = move.drop;
+    session.selectedSquare = null;
+  } else {
+    session.selectedSquare = move.from;
+    session.selectedDrop = null;
+  }
+  session.feedback = { kind: 'neutral', text: 'Hint: move the highlighted piece.' };
+  if (rating) onAttemptRating?.(rating);
+  renderSession();
+}
+
+// Fetch the full solution line, play it out, and lock solving (lichess "view
+// solution"). Spoiler-gated: nothing is fetched until this runs. Books a failed
+// rated attempt on the first terminal action (idempotent server-side).
+async function revealSolution(session: PuzzleSession, renderSession: () => void): Promise<void> {
+  if (session.submitting || session.revealed) return;
+  session.submitting = true;
+  session.feedback = { kind: 'pending', text: 'Loading the solution.' };
+  renderSession();
+  const { solution, rating } = await fetchPuzzleSolution(session.puzzle.id);
+  session.submitting = false;
+  if (!solution || solution.length === 0) {
+    session.feedback = { kind: 'neutral', text: 'No solution available.' };
+    renderSession();
+    return;
+  }
+  session.failed = true;
+  session.revealed = true;
+  session.selectedSquare = null;
+  session.selectedDrop = null;
+  // Play the answer out from wherever the user got to. Their correct moves are a
+  // prefix of the solution, so replaying from that ply matches the board.
+  const startPly = Math.min(session.playedMoves.length, solution.length);
+  session.playedMoves = solution;
+  session.solverMoves = solution.filter((_, index) => index % 2 === 0);
+  let state = clonePuzzleState(session.puzzle.initial);
+  for (const move of solution) {
+    state = applyPuzzleMove(session.puzzle.variant, state, move);
+  }
+  session.state = state;
+  session.viewPly = startPly;
+  session.feedback = { kind: 'neutral', text: 'Solution' };
+  if (rating) onAttemptRating?.(rating);
+  renderSession();
+  playbackSolution(session, renderSession);
+}
+
+// Step the replay cursor forward one ply at a time, reusing the scrub-forward
+// animation, until the whole solution has been shown. Stops early if the user
+// navigated to another puzzle (the board's puzzle id no longer matches).
+function playbackSolution(session: PuzzleSession, renderSession: () => void): void {
+  const puzzleId = session.puzzle.id;
+  const step = (): void => {
+    const board = document.querySelector<HTMLElement>('.puzzle-board');
+    if (!board || board.dataset.puzzleId !== puzzleId) return;
+    if (session.viewPly >= session.playedMoves.length) return;
+    scrubPuzzle(session, renderSession, 'next');
+    window.setTimeout(step, REVEAL_STEP_MS);
+  };
+  window.setTimeout(step, REVEAL_STEP_MS);
 }
 
 // Glide a board move on the mounted puzzle board. One puzzle page mounts at a
@@ -2233,6 +2439,44 @@ async function submitPuzzleAttempt(
   };
   if (!body.attempt) throw new Error('Puzzle attempt response missing attempt.');
   return { attempt: body.attempt, rating: body.rating ?? null };
+}
+
+// Fetch the full solution line (the reveal endpoint is the only route that
+// exposes solution moves). POST because it books a failed rated attempt.
+async function fetchPuzzleSolution(
+  id: string,
+): Promise<{ solution: PuzzleMove[] | null; rating: PuzzleAttemptRating | null }> {
+  const response = await fetch(`/api/puzzles/${encodeURIComponent(id)}/reveal`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ mode: 'solution', rated: puzzleRatedPref }),
+  });
+  if (!response.ok) throw new Error(`Puzzle reveal failed: ${response.status}`);
+  const body = (await response.json()) as {
+    solution?: PuzzleMove[];
+    rating?: PuzzleAttemptRating;
+  };
+  return { solution: body.solution ?? null, rating: body.rating ?? null };
+}
+
+// Fetch just the next correct move for the current ply (server computes it via
+// the per-variant *PuzzleNextMove helpers; the client never holds the full line
+// for a hint). POST because it books a failed rated attempt.
+async function fetchPuzzleHint(
+  id: string,
+  playedPlyCount: number,
+): Promise<{ move: PuzzleMove | null; rating: PuzzleAttemptRating | null }> {
+  const response = await fetch(`/api/puzzles/${encodeURIComponent(id)}/reveal`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ mode: 'hint', playedPlyCount, rated: puzzleRatedPref }),
+  });
+  if (!response.ok) throw new Error(`Puzzle hint failed: ${response.status}`);
+  const body = (await response.json()) as {
+    move?: PuzzleMove | null;
+    rating?: PuzzleAttemptRating;
+  };
+  return { move: body.move ?? null, rating: body.rating ?? null };
 }
 
 async function fetchUserPuzzleRating(variant: PuzzleVariant): Promise<UserPuzzleRating | null> {

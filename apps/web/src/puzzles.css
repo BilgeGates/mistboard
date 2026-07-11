@@ -674,6 +674,25 @@
   outline-offset: 2px;
 }
 
+.puzzle-feedback-skip:disabled {
+  cursor: default;
+  opacity: 0.55;
+}
+
+/* Persistent escape hatches (hint / view solution / next) under the feedback
+   copy. Wraps so the three buttons stack on a narrow trainer column. */
+.puzzle-assist-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.puzzle-assist-next {
+  border-color: var(--site-accent);
+  color: var(--site-accent);
+}
+
 .puzzle-feedback--good {
   background: color-mix(in srgb, #2b8a57 9%, var(--site-panel));
 }
