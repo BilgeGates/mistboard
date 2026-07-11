@@ -323,8 +323,8 @@ export function buildAppearanceMenu(options: AppearanceMenuOptions = {}): HTMLEl
       createLanguageField(locale, options.onLocaleSelect),
     ]);
   }
-  addCategory('sound', 'Sound', [createSoundPanel()]);
-  addCategory('theme', 'Appearance', [createSiteThemeList()]);
+  addCategory('sound', t('prefs.sound', {}, locale), [createSoundPanel()]);
+  addCategory('theme', t('prefs.appearance', {}, locale), [createSiteThemeList()]);
 
   // The Game selector only appears when a xiangqi variant is enabled; otherwise
   // Board/Pieces drill straight into the chess tiles. It sits at the top of both
@@ -335,8 +335,8 @@ export function buildAppearanceMenu(options: AppearanceMenuOptions = {}): HTMLEl
   boardBody.push(
     createTileField(
       'board',
-      'Board colors',
-      'Board color scheme',
+      t('prefs.boardColors', {}, locale),
+      t('prefs.boardColorScheme', {}, locale),
       themes,
       readStoredTheme(),
       (value) => {
@@ -353,8 +353,8 @@ export function buildAppearanceMenu(options: AppearanceMenuOptions = {}): HTMLEl
     boardBody.push(
       createTileField(
         'xqboard',
-        'Board style',
-        'Xiangqi board presentation',
+        t('prefs.boardStyle', {}, locale),
+        t('prefs.xiangqiBoardPresentation', {}, locale),
         xiangqiBoardThemes,
         readStoredXiangqiBoardTheme(),
         (value) => {
@@ -372,8 +372,8 @@ export function buildAppearanceMenu(options: AppearanceMenuOptions = {}): HTMLEl
     boardBody.push(
       createTileField(
         'shogiboard',
-        'Board colors',
-        'Shogi board color scheme',
+        t('prefs.boardColors', {}, locale),
+        t('prefs.shogiBoardColorScheme', {}, locale),
         shogiBoardThemes,
         readStoredShogiBoardTheme(),
         (value) => {
@@ -387,15 +387,15 @@ export function buildAppearanceMenu(options: AppearanceMenuOptions = {}): HTMLEl
       ),
     );
   }
-  addCategory('board', 'Board', boardBody);
+  addCategory('board', t('prefs.board', {}, locale), boardBody);
 
   const pieceBody: HTMLElement[] = [];
   if (xiangqiAppearanceEnabled()) pieceBody.push(createBoardFamilyField('stacked'));
   pieceBody.push(
     createTileField(
       'piece',
-      'Pieces',
-      'Piece set',
+      t('prefs.pieces', {}, locale),
+      t('prefs.pieceSet', {}, locale),
       pieceSets,
       readStoredPieceSet(),
       (value) => {
@@ -412,8 +412,8 @@ export function buildAppearanceMenu(options: AppearanceMenuOptions = {}): HTMLEl
     pieceBody.push(
       createTileField(
         'xqpiece',
-        'Pieces',
-        'Xiangqi piece set',
+        t('prefs.pieces', {}, locale),
+        t('prefs.xiangqiPieceSet', {}, locale),
         xiangqiPieceSets,
         readStoredXiangqiPieceSet(),
         (value) => {
@@ -431,8 +431,8 @@ export function buildAppearanceMenu(options: AppearanceMenuOptions = {}): HTMLEl
     pieceBody.push(
       createTileField(
         'shogipiece',
-        'Pieces',
-        'Shogi piece set',
+        t('prefs.pieces', {}, locale),
+        t('prefs.shogiPieceSet', {}, locale),
         shogiPieceSets,
         readStoredShogiPieceSet(),
         (value) => {
@@ -446,15 +446,15 @@ export function buildAppearanceMenu(options: AppearanceMenuOptions = {}): HTMLEl
       ),
     );
   }
-  addCategory('pieces', 'Pieces', pieceBody);
+  addCategory('pieces', t('prefs.pieces', {}, locale), pieceBody);
 
   // Fog is our one row beyond the lichess set; keep it last so the shared five
   // stay in lichess order above it.
-  addCategory('fog', 'Fog', [
+  addCategory('fog', t('prefs.fog', {}, locale), [
     createTileField(
       'fog',
-      'Fog',
-      'Fog shading style',
+      t('prefs.fog', {}, locale),
+      t('prefs.fogShadingStyle', {}, locale),
       fogThemes,
       readStoredFogTheme(),
       (value) => {
@@ -745,9 +745,9 @@ function createSoundPanel(): HTMLDivElement {
   const list = document.createElement('div');
   list.className = 'appearance-choice-list appearance-sound-list';
   list.setAttribute('role', 'radiogroup');
-  list.setAttribute('aria-label', 'Sound set');
+  list.setAttribute('aria-label', t('prefs.soundSet'));
 
-  list.append(createSoundOption('silent', 'Silent'));
+  list.append(createSoundOption('silent', t('prefs.silent')));
   for (const set of sortedSoundSetsForMenu()) {
     list.append(createSoundOption(set.id, soundSetMenuLabel(set.id)));
   }
@@ -762,7 +762,7 @@ function createVolumeField(): HTMLLabelElement {
   const row = document.createElement('span');
   row.className = 'theme-control-field-row';
   const label = document.createElement('span');
-  label.textContent = 'Volume';
+  label.textContent = t('prefs.volume');
   const value = document.createElement('output');
   value.dataset.soundVolumeValue = '';
   value.textContent = readStoredSoundMuted() ? 'Muted' : formatVolume(readEffectiveSoundVolume());
