@@ -266,6 +266,8 @@ describe('about page platform activity', () => {
     mountNotFound(root);
 
     expect(root.querySelector('h1')?.textContent).toBe('找不到頁面');
-    expect(root.textContent).toContain('這裡沒有內容。試試首頁，或透過聯絡告訴我你在找什麼。');
+    expect(root.textContent).toContain('這個頁面不存在，或已經移動。');
+    expect(root.textContent).toContain('返回首頁');
+    expect(root.textContent).toContain('還是找不到？聯絡。');
   });
 });
