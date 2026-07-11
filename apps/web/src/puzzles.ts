@@ -2300,7 +2300,7 @@ function puzzleMoveRows(session: PuzzleSession): HTMLElement[] {
   >();
   for (const [index, move] of session.playedMoves.entries()) {
     const color = moveColorAt(firstColor, index);
-    const number = Math.floor(index / 2) + 1;
+    const number = puzzleMoveRowNumber(firstColor, index);
     const row = rows.get(number) ?? {};
     row[color] = { index, move };
     rows.set(number, row);
@@ -2337,9 +2337,16 @@ function puzzleMoveRow(
     row.classList.add('puzzle-move-item--active');
   }
   const numberCell = puzzleMoveCell('puzzle-move-number', String(number));
+  // When black moves first, row 1 has no red move; show the "…" lead marker
+  // (matching puzzleMoveContextRow) so black's opening move reads as the reply.
+  const blackMovedFirst = (session.puzzle.sideToMove ?? 'red') === 'black';
   const redCell = puzzleMoveCell(
     'puzzle-move-red',
-    rowMoves.red ? puzzleMoveLabel(rowMoves.red.move, session.puzzle.variant) : '',
+    rowMoves.red
+      ? puzzleMoveLabel(rowMoves.red.move, session.puzzle.variant)
+      : number === 1 && blackMovedFirst
+        ? '...'
+        : '',
   );
   const blackCell = puzzleMoveCell(
     'puzzle-move-black',
@@ -2358,6 +2365,16 @@ function puzzleMoveCell(className: string, text: string): HTMLSpanElement {
 
 function moveColorAt(firstColor: MiniXiangqiColor, plyIndex: number): MiniXiangqiColor {
   return plyIndex % 2 === 0 ? firstColor : oppositeMiniXiangqiColor(firstColor);
+}
+
+// Full-move number for a solution ply. Red always occupies the left column, so
+// when BLACK moves first its opening move sits alone in row 1 (red cell blank),
+// pushing red down one — otherwise black's move and red's reply would share a
+// row and, printed red-cell-first, read in reversed order (e.g. "1. d2-d6 h7-h3"
+// when black actually played h7-h3 first). Red-first is the ordinary chess case.
+export function puzzleMoveRowNumber(firstColor: MiniXiangqiColor, plyIndex: number): number {
+  const leadOffset = firstColor === 'black' ? 1 : 0;
+  return Math.floor((plyIndex + leadOffset) / 2) + 1;
 }
 
 function targetAvatarSvg(): string {

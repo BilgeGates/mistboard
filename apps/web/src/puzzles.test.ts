@@ -11,7 +11,7 @@ import {
   type XiangqiPuzzle,
 } from '@mistboard/game';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { mountPuzzles } from './puzzles.js';
+import { mountPuzzles, puzzleMoveRowNumber } from './puzzles.js';
 import { xiangqiAppearanceChangedEvent } from './theme.js';
 
 function publicSummary(puzzle: MiniXiangqiPuzzle | XiangqiPuzzle) {
@@ -869,3 +869,20 @@ function stubWindowLocalStorage(storage: Storage): void {
     value: storage,
   });
 }
+
+describe('puzzleMoveRowNumber', () => {
+  it('numbers a red-to-move line by full move, red then black per row', () => {
+    // plies 0..3 -> rows 1,1,2,2 (red idx0 leads row 1).
+    expect([0, 1, 2, 3].map((i) => puzzleMoveRowNumber('red', i))).toEqual([1, 1, 2, 2]);
+  });
+
+  it('offsets a black-to-move line so black leads row 1 alone', () => {
+    // Regression for the reported xiangqi puzzle: black moves first, so its
+    // opening move must sit in row 1 (red cell blank) and red's reply drops to
+    // row 2 — otherwise the row reads "1. <red> <black>" in reversed order.
+    // plies 0..6 -> rows 1,2,2,3,3,4,4.
+    expect([0, 1, 2, 3, 4, 5, 6].map((i) => puzzleMoveRowNumber('black', i))).toEqual([
+      1, 2, 2, 3, 3, 4, 4,
+    ]);
+  });
+});
