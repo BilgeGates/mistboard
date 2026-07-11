@@ -753,6 +753,10 @@ describe('standard xiangqi puzzles', () => {
     };
     const root = document.createElement('div');
     document.body.append(root);
+    // The gold last-move ring also fades in on arrival (a non-piece <circle> with
+    // no data-piece-square, so it records as null); this test only cares about
+    // which PIECE slots glide, so filter the marker fades out.
+    const pieceGlides = (): Array<string | null> => glides.filter((square) => square !== null);
     try {
       await mountPuzzles(root, puzzle.id);
       expect(glides).toHaveLength(0); // the initial paint is discrete
@@ -762,11 +766,11 @@ describe('standard xiangqi puzzles', () => {
       // Both moves landed in one render; only the reply glides (the solver
       // chose their own move an instant ago).
       const reply = puzzle.solution[1]!;
-      expect(glides).toEqual([reply.to]);
+      expect(pieceGlides()).toEqual([reply.to]);
 
       // Replay back-step reverse-glides the undone reply at its origin square.
       root.querySelector<HTMLButtonElement>('[data-puzzle-replay-previous]')?.click();
-      expect(glides).toEqual([reply.to, reply.from]);
+      expect(pieceGlides()).toEqual([reply.to, reply.from]);
     } finally {
       if (originalAnimate === undefined) delete proto.animate;
       else proto.animate = originalAnimate;

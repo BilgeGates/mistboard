@@ -16,7 +16,7 @@ import type {
   XiangqiPiece,
   XiangqiSquare,
 } from '@mistboard/game';
-import { glideSvgPiece, pieceAnimationDurationMs } from './board-anim.js';
+import { drawMarkerOnArrival, glideSvgPiece, pieceAnimationDurationMs } from './board-anim.js';
 import { tokenPieceSize } from './board-metrics.js';
 import { installBoardDrag } from './variant-tenant/board-drag.js';
 import { installSelectionClickAway } from './variant-tenant/selection-click-away.js';
@@ -365,6 +365,12 @@ export function animateXiangqiBoardMove(
   const from = intersection(origin.file, origin.rank, perspective);
   const to = intersection(settle.file, settle.rank, perspective);
   glideSvgPiece(slot, from.x - to.x, from.y - to.y, duration);
+  // Draw the gold destination ring on as the piece lands (forward moves only —
+  // on a reverse step the rendered ring belongs to the earlier move, at a
+  // different square, so fading it wouldn't track this glide).
+  if (!opts.reverse) {
+    drawMarkerOnArrival(host.querySelector('.xq-live-lastmove-ring'), duration);
+  }
 }
 
 function clickLayer(

@@ -109,3 +109,32 @@ export function glideSvgPiece(
     easing: PIECE_GLIDE_EASING,
   });
 }
+
+/**
+ * "Draw on arrival": fade a last-move destination marker in so it lands with the
+ * gliding piece instead of sitting there for the whole travel. The marker stays
+ * invisible for the first half of the glide, then fades to full as the piece
+ * nears its square. Applied synchronously after the innerHTML swap (same task as
+ * the glide), so the first paint already carries opacity 0 — no flash. Reverts to
+ * the element's own opacity (1) when the animation ends or is cancelled. No-ops
+ * without WAAPI (jsdom/happy-dom) or when animation is disabled.
+ */
+export function drawMarkerOnArrival(el: Element | null, durationMs: number): void {
+  if (!el || durationMs <= 0) return;
+  const target = el as Element & {
+    animate?: (keyframes: Keyframe[], options: KeyframeAnimationOptions) => Animation;
+    getAnimations?: () => Animation[];
+  };
+  if (typeof target.animate !== 'function') return;
+  if (typeof target.getAnimations === 'function') {
+    for (const animation of target.getAnimations()) animation.cancel();
+  }
+  target.animate(
+    [
+      { opacity: 0, offset: 0 },
+      { opacity: 0, offset: 0.5 },
+      { opacity: 1, offset: 1 },
+    ],
+    { duration: durationMs, easing: PIECE_GLIDE_EASING },
+  );
+}

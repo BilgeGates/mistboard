@@ -50,6 +50,14 @@ type ProfileRatingHistory = {
   points: ProfileRatingHistoryPoint[];
 };
 
+type ProfilePuzzleRating = {
+  variant: string;
+  rating: number;
+  provisional: boolean;
+  solved: number;
+  attempts: number;
+};
+
 type ProfileRelation = { following: boolean; blocked: boolean };
 
 type UserProfile = {
@@ -72,6 +80,8 @@ type UserProfile = {
     createdAt: string;
   };
   ratings: ProfileBucketRating[];
+  // Per-variant puzzle ratings; absent/empty when the user has solved no puzzles.
+  puzzleRatings?: ProfilePuzzleRating[];
   games: FeaturedGame[];
   gamesTotal: number;
 };
@@ -219,6 +229,7 @@ export async function mountProfile(root: HTMLElement, handle: string): Promise<v
       syncSelectedRating(ratings, variant);
     },
   });
+  appendProfilePuzzleRatings(ratings, profile.puzzleRatings ?? [], locale);
 
   const body = document.createElement('div');
   body.className = 'profile-body';
@@ -1468,6 +1479,77 @@ export function buildProfileRatings(
 // one order, and played rows already stand out because never-played rows dim.
 function orderedProfileVariants(_ratings: ProfileBucketRating[]): ProfileRatingVariant[] {
   return [...PROFILE_VARIANT_ORDER];
+}
+
+// Puzzle-variant display names (the values are GameSpecIds from the puzzle pool,
+// which are not the game RatingVariant keys, so they get their own small map).
+const PUZZLE_VARIANT_LABELS: Record<string, string> = {
+  xiangqi: 'Xiangqi',
+  'fortress-xiangqi': 'Fortress',
+  jungle: 'Jungle',
+  'mini-xiangqi': 'Mini Xiangqi',
+  'drop-mini-xiangqi': 'Drop Mini Xiangqi',
+};
+
+function puzzleVariantLabel(variant: string): string {
+  return (
+    PUZZLE_VARIANT_LABELS[variant] ??
+    variant
+      .split('-')
+      .map((part) => `${part.charAt(0).toUpperCase()}${part.slice(1)}`)
+      .join(' ')
+  );
+}
+
+// Append a "Puzzles" block to the ratings column: one row per variant the user
+// has attempted, showing the Glicko rating (with a "?" while provisional) and
+// the solved count. No-op when the user has no puzzle history, so the block only
+// appears once there is something to show.
+function appendProfilePuzzleRatings(
+  section: HTMLElement,
+  puzzleRatings: ProfilePuzzleRating[],
+  locale: Locale,
+): void {
+  if (puzzleRatings.length === 0) return;
+
+  const block = document.createElement('div');
+  block.className = 'profile-puzzle-ratings';
+
+  const heading = document.createElement('h2');
+  heading.textContent = t('nav.puzzles', {}, locale);
+  block.append(heading);
+
+  const rail = document.createElement('div');
+  rail.className = 'profile-puzzle-rail';
+
+  for (const entry of puzzleRatings) {
+    const row = document.createElement('div');
+    row.className = 'profile-puzzle-row';
+
+    const name = document.createElement('span');
+    name.className = 'profile-puzzle-name';
+    name.textContent = puzzleVariantLabel(entry.variant);
+
+    const value = document.createElement('span');
+    value.className = 'profile-puzzle-value';
+    value.textContent = String(entry.rating);
+    if (entry.provisional) {
+      const q = document.createElement('span');
+      q.className = 'profile-rating-q';
+      q.textContent = '?';
+      value.append(q);
+    }
+
+    const solved = document.createElement('span');
+    solved.className = 'profile-puzzle-games';
+    solved.textContent = t('profile.puzzleSolved', { count: entry.solved }, locale);
+
+    row.append(name, value, solved);
+    rail.append(row);
+  }
+
+  block.append(rail);
+  section.append(block);
 }
 
 // One variant row in the ratings rail: compact mini-board beside its name,

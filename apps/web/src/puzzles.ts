@@ -394,20 +394,13 @@ export async function mountPuzzles(
   const renderSession = (): void => {
     if (!session) return;
     const navigation = navigationFor(queueSummaries(), selectedId, selectPuzzle);
-    renderPuzzleDetail(
-      detail,
-      session,
-      renderSession,
-      navigation,
-      (id) => {
-        solvedIds.add(id);
-        saveSolvedPuzzleIds(solvedIds);
-        markPuzzleSeen(id);
-        renderControls();
-        scheduleAutoNext(navigation);
-      },
-      clearAutoNextTimer,
-    );
+    renderPuzzleDetail(detail, session, renderSession, navigation, (id) => {
+      solvedIds.add(id);
+      saveSolvedPuzzleIds(solvedIds);
+      markPuzzleSeen(id);
+      renderControls();
+      scheduleAutoNext(navigation);
+    });
     renderControls();
   };
 
@@ -438,6 +431,39 @@ export async function mountPuzzles(
     renderSession();
     renderControls();
   };
+
+  // Arrow-key replay scrubbing (lichess-style): up/down jump to the first/last
+  // move, left/right step one ply. Attached to window so it works without
+  // focusing the board; self-removes once this page is navigated away (the shell
+  // detaches from the document).
+  const onPuzzleKeyDown = (event: KeyboardEvent): void => {
+    if (!shell.isConnected) {
+      window.removeEventListener('keydown', onPuzzleKeyDown);
+      return;
+    }
+    if (event.altKey || event.ctrlKey || event.metaKey || event.shiftKey) return;
+    const target = event.target as HTMLElement | null;
+    if (
+      target &&
+      (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable)
+    ) {
+      return;
+    }
+    const action: PuzzleScrub | null =
+      event.key === 'ArrowUp'
+        ? 'first'
+        : event.key === 'ArrowDown'
+          ? 'last'
+          : event.key === 'ArrowLeft'
+            ? 'previous'
+            : event.key === 'ArrowRight'
+              ? 'next'
+              : null;
+    if (!action || !session) return;
+    event.preventDefault();
+    scrubPuzzle(session, renderSession, action);
+  };
+  window.addEventListener('keydown', onPuzzleKeyDown);
 
   renderStatus(controls, 'Loading');
   renderStatus(detail, 'Loading');
@@ -809,7 +835,6 @@ function renderPuzzleDetail(
   renderSession: () => void,
   navigation: PuzzleNavigation,
   onSolved: (id: string) => void,
-  cancelAutoNext: () => void,
 ): void {
   host.replaceChildren();
 
@@ -825,7 +850,7 @@ function renderPuzzleDetail(
   const trainer = document.createElement('div');
   trainer.className = 'puzzle-trainer-panel';
   trainer.append(moveListPanel(session), feedbackPanel(session, navigation));
-  side.append(trainer, actionPanel(session, renderSession, cancelAutoNext));
+  side.append(trainer, actionPanel(session, renderSession));
   boardPanel.append(board, side);
   host.append(boardPanel);
 
@@ -1502,45 +1527,70 @@ function moveListPanel(session: PuzzleSession): HTMLElement {
   return panel;
 }
 
-function actionPanel(
-  session: PuzzleSession,
-  renderSession: () => void,
-  cancelAutoNext: () => void,
-): HTMLElement {
+type PuzzleScrub = 'first' | 'previous' | 'next' | 'last';
+
+// Move the replay cursor. Shared by the arrow buttons and the keyboard handler
+// so both animate identically. No-op while a submission is in flight or when the
+// cursor is already at the requested end.
+function scrubPuzzle(session: PuzzleSession, renderSession: () => void, action: PuzzleScrub): void {
+  if (session.submitting) return;
+  const lastPly = session.playedMoves.length;
+  switch (action) {
+    case 'first':
+      if (session.viewPly <= 0) return;
+      session.viewPly = 0;
+      renderSession();
+      return;
+    case 'previous': {
+      if (session.viewPly <= 0) return;
+      // Reverse-glide the move being undone (replay back-step).
+      const undone = session.playedMoves[session.viewPly - 1];
+      session.viewPly -= 1;
+      renderSession();
+      if (undone) animatePuzzleMove(session, undone, { reverse: true });
+      return;
+    }
+    case 'next': {
+      if (session.viewPly >= lastPly) return;
+      // Glide the move being stepped into (replay forward step).
+      const stepped = session.playedMoves[session.viewPly];
+      session.viewPly += 1;
+      renderSession();
+      if (stepped) animatePuzzleMove(session, stepped);
+      return;
+    }
+    case 'last':
+      if (session.viewPly >= lastPly) return;
+      session.viewPly = lastPly;
+      renderSession();
+      return;
+  }
+}
+
+function actionPanel(session: PuzzleSession, renderSession: () => void): HTMLElement {
   const panel = document.createElement('div');
   panel.className = 'puzzle-actions';
   const atStart = session.viewPly <= 0 || session.submitting;
   const atEnd = session.viewPly >= session.playedMoves.length || session.submitting;
-  const lastPly = session.playedMoves.length;
 
-  const first = actionButton('puzzleReplayFirst', ICON_FIRST, 'First move', atStart, () => {
-    session.viewPly = 0;
-    renderSession();
-  });
-  const previous = actionButton('puzzleReplayPrevious', ICON_PREV, 'Previous move', atStart, () => {
-    // Reverse-glide the move being undone (replay back-step).
-    const undone = session.playedMoves[session.viewPly - 1];
-    session.viewPly = Math.max(0, session.viewPly - 1);
-    renderSession();
-    if (undone) animatePuzzleMove(session, undone, { reverse: true });
-  });
-  const reset = actionButton('puzzleReplayReset', '↺', 'Restart puzzle', session.submitting, () => {
-    cancelAutoNext();
-    Object.assign(session, createPuzzleSession(session.puzzle));
-    renderSession();
-  });
-  const next = actionButton('puzzleReplayNext', ICON_NEXT, 'Next move', atEnd, () => {
-    // Glide the move being stepped into (replay forward step).
-    const stepped = session.playedMoves[session.viewPly];
-    session.viewPly = Math.min(lastPly, session.viewPly + 1);
-    renderSession();
-    if (stepped) animatePuzzleMove(session, stepped);
-  });
-  const last = actionButton('puzzleReplayLast', ICON_LAST, 'Last move', atEnd, () => {
-    session.viewPly = lastPly;
-    renderSession();
-  });
-  panel.append(first, previous, reset, next, last);
+  const scrub = (action: PuzzleScrub) => () => scrubPuzzle(session, renderSession, action);
+  const first = actionButton(
+    'puzzleReplayFirst',
+    ICON_FIRST,
+    'First move',
+    atStart,
+    scrub('first'),
+  );
+  const previous = actionButton(
+    'puzzleReplayPrevious',
+    ICON_PREV,
+    'Previous move',
+    atStart,
+    scrub('previous'),
+  );
+  const next = actionButton('puzzleReplayNext', ICON_NEXT, 'Next move', atEnd, scrub('next'));
+  const last = actionButton('puzzleReplayLast', ICON_LAST, 'Last move', atEnd, scrub('last'));
+  panel.append(first, previous, next, last);
   return panel;
 }
 
@@ -2385,23 +2435,53 @@ function puzzleMoveLabel(move: PuzzleMove, variant: PuzzleVariant): string {
   return `${move.from}-${move.to}`;
 }
 
-function puzzleMoveRows(session: PuzzleSession): HTMLElement[] {
-  if (session.playedMoves.length === 0) return [puzzleMoveContextRow(session)];
+// The opponent's move that set up the puzzle (the mined blunder), if the initial
+// state carries one. Prepended to the move list so it reads like a game and the
+// opening position (viewPly 0) highlights the move that created the puzzle.
+function puzzleSetupMove(session: PuzzleSession): PuzzleMove | null {
+  const initial = session.puzzle.initial as { lastMove?: PuzzleMove };
+  return initial.lastMove ?? null;
+}
 
-  const firstColor = session.puzzle.sideToMove ?? 'red';
-  const rows = new Map<
-    number,
-    { black?: { index: number; move: PuzzleMove }; red?: { index: number; move: PuzzleMove } }
-  >();
+type PuzzleMoveCell = { move: PuzzleMove; active: boolean };
+
+function puzzleMoveRows(session: PuzzleSession): HTMLElement[] {
+  const solverColor = (session.puzzle.sideToMove ?? 'red') as MiniXiangqiColor;
+  const setup = puzzleSetupMove(session);
+
+  // Combined list: [setup?, ...solution]. The setup was played by the opponent,
+  // so the whole sequence alternates starting from the opponent's color when a
+  // setup exists, and from the solver's color otherwise.
+  const combined: { move: PuzzleMove; solutionIndex: number | null }[] = [];
+  if (setup) combined.push({ move: setup, solutionIndex: null });
   for (const [index, move] of session.playedMoves.entries()) {
-    const color = moveColorAt(firstColor, index);
-    const number = puzzleMoveRowNumber(firstColor, index);
+    combined.push({ move, solutionIndex: index });
+  }
+  if (combined.length === 0) return [puzzleMoveContextRow(session)];
+
+  const firstColor: MiniXiangqiColor = setup ? oppositeMiniXiangqiColor(solverColor) : solverColor;
+  // viewPly 0 = the setup/opening position (setup cell active); otherwise the
+  // just-played solution ply is viewPly-1.
+  const activeSolutionIndex = session.viewPly - 1;
+
+  const rows = new Map<number, { black?: PuzzleMoveCell; red?: PuzzleMoveCell }>();
+  for (const [combinedIndex, entry] of combined.entries()) {
+    const color = moveColorAt(firstColor, combinedIndex);
+    const number = puzzleMoveRowNumber(firstColor, combinedIndex);
     const row = rows.get(number) ?? {};
-    row[color] = { index, move };
+    row[color] = {
+      move: entry.move,
+      active:
+        entry.solutionIndex === null
+          ? session.viewPly === 0
+          : entry.solutionIndex === activeSolutionIndex,
+    };
     rows.set(number, row);
   }
 
-  return Array.from(rows.entries()).map(([number, row]) => puzzleMoveRow(number, row, session));
+  return Array.from(rows.entries()).map(([number, row]) =>
+    puzzleMoveRow(number, row, firstColor, session),
+  );
 }
 
 function puzzleMoveContextRow(session: PuzzleSession): HTMLElement {
@@ -2417,36 +2497,31 @@ function puzzleMoveContextRow(session: PuzzleSession): HTMLElement {
 
 function puzzleMoveRow(
   number: number,
-  rowMoves: {
-    black?: { index: number; move: PuzzleMove };
-    red?: { index: number; move: PuzzleMove };
-  },
+  rowMoves: { black?: PuzzleMoveCell; red?: PuzzleMoveCell },
+  firstColor: MiniXiangqiColor,
   session: PuzzleSession,
 ): HTMLElement {
   const row = document.createElement('li');
   row.className = 'puzzle-move-item';
-  if (
-    rowMoves.red?.index === session.viewPly - 1 ||
-    rowMoves.black?.index === session.viewPly - 1
-  ) {
-    row.classList.add('puzzle-move-item--active');
-  }
   const numberCell = puzzleMoveCell('puzzle-move-number', String(number));
-  // When black moves first, row 1 has no red move; show the "…" lead marker
-  // (matching puzzleMoveContextRow) so black's opening move reads as the reply.
-  const blackMovedFirst = (session.puzzle.sideToMove ?? 'red') === 'black';
+  // When the list leads with black (black-first solve, or a red-solve whose
+  // setup move was black's), row 1 has no red move; show the "…" lead marker
+  // (matching puzzleMoveContextRow) so the opening move reads as the reply.
+  const blackLeads = firstColor === 'black';
   const redCell = puzzleMoveCell(
     'puzzle-move-red',
     rowMoves.red
       ? puzzleMoveLabel(rowMoves.red.move, session.puzzle.variant)
-      : number === 1 && blackMovedFirst
+      : number === 1 && blackLeads
         ? '...'
         : '',
   );
+  if (rowMoves.red?.active) redCell.classList.add('puzzle-move-cell--active');
   const blackCell = puzzleMoveCell(
     'puzzle-move-black',
     rowMoves.black ? puzzleMoveLabel(rowMoves.black.move, session.puzzle.variant) : '',
   );
+  if (rowMoves.black?.active) blackCell.classList.add('puzzle-move-cell--active');
   row.append(numberCell, redCell, blackCell);
   return row;
 }

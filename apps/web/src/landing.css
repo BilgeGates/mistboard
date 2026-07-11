@@ -870,7 +870,9 @@
   color: var(--site-text, #1d2522);
 }
 
-/* Prev/next nav, overlaid at the edges; hidden when nothing overflows. */
+/* Prev/next nav: bare chevrons (lichess-style, no enclosure), overlaid at the
+   edges. Revealed only while the strip is hovered/focused; hidden when nothing
+   overflows. Black in light mode / white in dark mode, green on hover. */
 .landing-carousel-nav {
   position: absolute;
   top: 50%;
@@ -879,32 +881,38 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 30px;
-  height: 30px;
+  width: 40px;
+  height: 60px;
   padding: 0;
-  border: 1px solid rgba(29, 37, 34, 0.12);
-  border-radius: 999px;
-  background: color-mix(in srgb, var(--site-panel) 94%, transparent);
-  box-shadow: 0 4px 12px rgba(29, 37, 34, 0.14);
-  color: var(--site-text, #1d2522);
-  font-size: 18px;
+  border: 0;
+  background: none;
+  color: var(--site-heading, #1d2522);
+  font-size: 44px;
+  font-weight: 600;
   line-height: 1;
   cursor: pointer;
+  opacity: 0;
+  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.3);
   transition:
     opacity 120ms ease,
-    background 120ms ease;
+    color 120ms ease;
 }
 
 .landing-carousel-nav-prev {
-  left: 6px;
+  left: 2px;
 }
 
 .landing-carousel-nav-next {
-  right: 6px;
+  right: 2px;
+}
+
+.landing-carousel:hover .landing-carousel-nav:not(:disabled),
+.landing-carousel-nav:focus-visible:not(:disabled) {
+  opacity: 1;
 }
 
 .landing-carousel-nav:hover:not(:disabled) {
-  background: var(--site-panel);
+  color: var(--site-accent);
 }
 
 .landing-carousel-nav:disabled {

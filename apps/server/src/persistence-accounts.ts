@@ -130,9 +130,22 @@ export type ProfileBucketRating = {
   provisional: boolean;
 };
 
+// One variant's puzzle rating (Glicko-2 pool, schema in migration 073). Shown on
+// the profile alongside game ratings. Only variants the user has attempted appear.
+export type ProfilePuzzleRating = {
+  // The puzzle variant's GameSpecId (e.g. 'xiangqi', 'fortress-xiangqi', 'jungle').
+  variant: string;
+  rating: number;
+  provisional: boolean;
+  solved: number;
+  attempts: number;
+};
+
 export type UserProfile = {
   user: PublicProfileUser;
   ratings: ProfileBucketRating[];
+  // Per-variant puzzle ratings (empty when the user has attempted no puzzles).
+  puzzleRatings: ProfilePuzzleRating[];
   // First page of games (newest first). Older pages load via getUserGamesPage.
   games: ProfileGameRecord[];
   // Total completed games visible to the viewer, so the client can show an
@@ -696,6 +709,29 @@ export async function getUserProfileByHandle(
     });
   }
 
+  // Puzzle ratings (separate Glicko-2 pool). Show only variants the user has
+  // actually attempted, so an untouched pool never renders a default 1500.
+  const { rows: puzzleRatingRows } = await getPool().query<{
+    variant: string;
+    rating: number;
+    rating_deviation: number;
+    solved: number;
+    attempts: number;
+  }>(
+    `SELECT variant, rating, rating_deviation, solved, attempts
+       FROM user_puzzle_ratings
+       WHERE user_id = $1 AND attempts > 0
+       ORDER BY attempts DESC`,
+    [user.id],
+  );
+  const puzzleRatings: ProfilePuzzleRating[] = puzzleRatingRows.map((row) => ({
+    variant: row.variant,
+    rating: Math.round(row.rating),
+    provisional: row.rating_deviation > PROVISIONAL_RD,
+    solved: row.solved,
+    attempts: row.attempts,
+  }));
+
   return {
     user: {
       handle: user.handle,
@@ -707,6 +743,7 @@ export async function getUserProfileByHandle(
       createdAt: user.createdAt,
     },
     ratings,
+    puzzleRatings,
     games,
     gamesTotal,
   };
