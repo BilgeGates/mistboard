@@ -3,11 +3,11 @@ import type { GameFamilyId } from '@mistboard/game';
 import { type ConnectionStatus, createConnectionStatus } from './connection-status.js';
 import { t } from './i18n/catalog.js';
 import {
-  APP_LOCALES,
   currentLocale,
   LOCALE_META,
   type Locale,
   localizedHref,
+  PUBLIC_LOCALES,
   setStoredLocale,
 } from './i18n/locale.js';
 import {
@@ -528,7 +528,7 @@ function createLanguageField(
   list.setAttribute('role', 'radiogroup');
   list.setAttribute('aria-label', t('nav.language', {}, locale));
 
-  for (const optionLocale of APP_LOCALES) {
+  for (const optionLocale of PUBLIC_LOCALES) {
     const option = document.createElement('button');
     option.type = 'button';
     option.className = 'appearance-language-option';

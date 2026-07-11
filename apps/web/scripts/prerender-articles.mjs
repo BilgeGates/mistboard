@@ -162,6 +162,9 @@ try {
   const { buildArticlePage } = await server.ssrLoadModule('/src/articles.ts');
   const { articles } = await server.ssrLoadModule('/src/articles-data.ts');
   const { translateArticle } = await server.ssrLoadModule('/src/article-i18n.ts');
+  const { rulesSlugPublicSurfaceEnabled } = await server.ssrLoadModule(
+    '/src/variant-public-surfaces.ts',
+  );
 
   // en + the two zh scripts. urlPrefix feeds canonical/hreflang URLs; htmlLang
   // sets <html lang> and JSON-LD inLanguage; langDir is the output-path segment.
@@ -235,9 +238,13 @@ try {
       // language relationship; the canonical consolidates query-param, SPA-shell,
       // and trailing-slash variants of THIS url into a single indexed page.
       const canonical = `<link rel="canonical" href="${url}" />`;
+      const robots =
+        article.kind === 'rules' && !rulesSlugPublicSurfaceEnabled(article.slug)
+          ? '<meta name="robots" content="noindex, follow" />'
+          : '';
       html = html.replace(
         '</head>',
-        `${canonical}${hreflang}${ldScript}${articleAssetLinks}</head>`,
+        `${robots}${canonical}${hreflang}${ldScript}${articleAssetLinks}</head>`,
       );
 
       const dir = resolve(distDir, ...(v.langDir ? [v.langDir, base] : [base]));

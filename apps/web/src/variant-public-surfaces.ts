@@ -20,7 +20,7 @@ const VARIANT_PUBLIC_SURFACE_ENABLED = {
   'fortress-xiangqi': true,
   xiangqi: true,
   'dark-xiangqi': true,
-  'dark-shogi': true,
+  'dark-shogi': false,
   'dark-omega': false,
   jieqi: true,
   banqi: true,
@@ -33,6 +33,7 @@ const VARIANT_PUBLIC_SURFACE_ENABLED = {
 } satisfies Record<GameSpecId, boolean>;
 
 const gameSpecIds = new Set<string>(GAME_SPECS.map((spec) => spec.id));
+const HIDDEN_RULES_SLUGS = new Set(['shogi', 'shogi4']);
 
 export function isGameSpecId(value: string): value is GameSpecId {
   return gameSpecIds.has(value);
@@ -43,15 +44,21 @@ export function variantPublicSurfaceEnabled(id: GameSpecId): boolean {
 }
 
 export function rulesSlugPublicSurfaceEnabled(slug: string): boolean {
+  if (HIDDEN_RULES_SLUGS.has(slug)) return false;
   return !isGameSpecId(slug) || variantPublicSurfaceEnabled(slug);
 }
 
 export function rulesHrefPublicSurfaceEnabled(href: string | undefined): boolean {
-  const specId = gameSpecIdFromRulesHref(href);
-  return specId === null || variantPublicSurfaceEnabled(specId);
+  const slug = rulesSlugFromHref(href);
+  return slug === null || rulesSlugPublicSurfaceEnabled(slug);
 }
 
 export function gameSpecIdFromRulesHref(href: string | undefined): GameSpecId | null {
+  const slug = rulesSlugFromHref(href);
+  return slug !== null && isGameSpecId(slug) ? slug : null;
+}
+
+function rulesSlugFromHref(href: string | undefined): string | null {
   if (!href) return null;
   let pathname: string;
   try {
@@ -61,6 +68,5 @@ export function gameSpecIdFromRulesHref(href: string | undefined): GameSpecId | 
   }
   const match = pathname.match(/^\/rules\/([^/]+)$/);
   if (!match) return null;
-  const slug = decodeURIComponent(match[1]);
-  return isGameSpecId(slug) ? slug : null;
+  return decodeURIComponent(match[1]);
 }

@@ -9,6 +9,7 @@ import {
   serveArticlePage,
   serveArticlesIndexPage,
   serveRulesIndexPage,
+  serveSitemap,
 } from './server-static-pages.js';
 
 type ResponseCapture = {
@@ -113,6 +114,45 @@ test('serveArticlePage falls back to index shell with rules metadata', async () 
     response.body,
     /<meta property="og:image" content="https:\/\/mistboard.test\/og\/article\/dark-chess.png">/,
   );
+});
+
+test('serveArticlePage marks parked Shogi rules as non-indexable', async () => {
+  const staticDir = await mkdtemp(join(tmpdir(), 'mistboard-static-'));
+  await writeFile(join(staticDir, 'index.html'), indexHtml(), 'utf-8');
+  const response = captureResponse();
+
+  await serveArticlePage({
+    slug: 'dark-shogi',
+    base: 'rules',
+    response,
+    publicHost: 'https://mistboard.test',
+    staticDir,
+  });
+
+  assert.equal(response.status, 200);
+  assert.match(response.body, /<meta name="robots" content="noindex, follow">/);
+});
+
+test('serveSitemap omits parked Shogi rules while retaining public articles', async () => {
+  const staticDir = await mkdtemp(join(tmpdir(), 'mistboard-static-'));
+  await mkdir(join(staticDir, 'rules'), { recursive: true });
+  await mkdir(join(staticDir, 'blog'), { recursive: true });
+  for (const slug of ['xiangqi', 'shogi', 'shogi4', 'dark-shogi']) {
+    await writeFile(join(staticDir, 'rules', `${slug}.html`), '<h1>rules</h1>');
+  }
+  await writeFile(join(staticDir, 'blog', 'misty.html'), '<h1>article</h1>');
+  const response = captureResponse();
+
+  await serveSitemap({
+    response,
+    publicHost: 'https://mistboard.test',
+    staticDir,
+  });
+
+  assert.equal(response.status, 200);
+  assert.match(response.body, /https:\/\/mistboard\.test\/rules\/xiangqi/);
+  assert.match(response.body, /https:\/\/mistboard\.test\/blog\/misty/);
+  assert.doesNotMatch(response.body, /shogi/);
 });
 
 test('serveArticlePage 301s legacy /articles/<rules-slug> to /rules/<clean>', async () => {

@@ -1,6 +1,9 @@
 export type Locale = 'en' | 'zh-Hans' | 'zh-Hant' | 'ja';
 
+// Japanese remains in the catalog and account contract so restoring it is a
+// reversible product decision. It is not part of the launch language surface.
 export const APP_LOCALES: readonly Locale[] = ['en', 'zh-Hans', 'zh-Hant', 'ja'];
+export const PUBLIC_LOCALES: readonly Locale[] = ['en', 'zh-Hans', 'zh-Hant'];
 
 export const DEFAULT_LOCALE: Locale = 'en';
 export const LOCALE_STORAGE_KEY = 'mistboard.locale';
@@ -43,6 +46,10 @@ export function isLocale(value: string | null | undefined): value is Locale {
   return APP_LOCALES.includes(value as Locale);
 }
 
+export function isPublicLocale(value: string | null | undefined): value is Locale {
+  return PUBLIC_LOCALES.includes(value as Locale);
+}
+
 export function isArticleLocale(
   locale: Locale | null | undefined,
 ): locale is 'zh-Hans' | 'zh-Hant' {
@@ -53,14 +60,13 @@ export function localeFromPath(pathname = currentPathname()): Locale | null {
   const lower = pathname.toLowerCase();
   if (lower === '/zh-hans' || lower.startsWith('/zh-hans/')) return 'zh-Hans';
   if (lower === '/zh-hant' || lower.startsWith('/zh-hant/')) return 'zh-Hant';
-  if (lower === '/ja' || lower.startsWith('/ja/')) return 'ja';
   return null;
 }
 
 export function storedLocale(): Locale | null {
   try {
     const raw = window.localStorage.getItem(LOCALE_STORAGE_KEY);
-    return isLocale(raw) ? raw : null;
+    return isPublicLocale(raw) ? raw : null;
   } catch {
     return null;
   }
@@ -87,7 +93,6 @@ export function browserLocale(): Locale | null {
 export function localeFromLanguageTag(language: string | null | undefined): Locale | null {
   if (!language) return null;
   const tag = language.toLowerCase();
-  if (tag === 'ja' || tag.startsWith('ja-')) return 'ja';
   if (tag === 'zh-hans' || tag === 'zh-cn' || tag === 'zh-sg') return 'zh-Hans';
   if (
     tag === 'zh-hant' ||
@@ -109,9 +114,10 @@ export function currentLocale(): Locale {
 export function applyAccountLocalePreference(locale: Locale | null | undefined): boolean {
   if (!locale || localeFromPath()) return false;
   const previous = currentLocale();
-  setStoredLocale(locale);
-  applyDocumentLocale(locale);
-  return previous !== locale;
+  const publicLocale = isPublicLocale(locale) ? locale : DEFAULT_LOCALE;
+  setStoredLocale(publicLocale);
+  applyDocumentLocale(publicLocale);
+  return previous !== publicLocale;
 }
 
 export function initializeLocaleFromCurrentUrl(): Locale {

@@ -168,7 +168,6 @@ describe('web variant launch registry', () => {
       JIEQI_SPEC_ID,
       DARK_XIANGQI_SPEC_ID,
       DARK_CHESS_SPEC_ID,
-      DARK_SHOGI_SPEC_ID,
       DARK_CRAZYHOUSE_SPEC_ID,
       DARK_MINI_XIANGQI_SPEC_ID,
     ]);
@@ -181,7 +180,6 @@ describe('web variant launch registry', () => {
       JIEQI_SPEC_ID,
       DARK_XIANGQI_SPEC_ID,
       DARK_CHESS_SPEC_ID,
-      DARK_SHOGI_SPEC_ID,
       DARK_CRAZYHOUSE_SPEC_ID,
       DARK_MINI_XIANGQI_SPEC_ID,
     ]);
@@ -264,7 +262,7 @@ describe('web variant launch registry', () => {
     vi.resetModules();
   });
 
-  it('shows Dark Crossroads + Dark Shogi + Dark Crazyhouse + Kriegspiel on rating surfaces behind their flags, never in the lobby', async () => {
+  it('keeps parked Fog Shogi off rating surfaces while other variants follow their flags', async () => {
     vi.resetModules();
     vi.stubEnv('DEV', false);
     vi.stubEnv('VITE_DARK_CROSSROADS_CHESS_ENABLED', 'true');
@@ -275,7 +273,6 @@ describe('web variant launch registry', () => {
 
     for (const specId of [
       DARK_CROSSROADS_CHESS_SPEC_ID,
-      DARK_SHOGI_SPEC_ID,
       DARK_CRAZYHOUSE_SPEC_ID,
       KRIEGSPIEL_SPEC_ID,
     ]) {
@@ -283,6 +280,10 @@ describe('web variant launch registry', () => {
       expect(flagged.profileRatingVariants.map((v) => v.gameSpecId)).toContain(specId);
       expect(flagged.enabledVariants.map((v) => v.gameSpecId)).not.toContain(specId);
     }
+    expect(flagged.leaderboardVariants.map((v) => v.gameSpecId)).not.toContain(DARK_SHOGI_SPEC_ID);
+    expect(flagged.profileRatingVariants.map((v) => v.gameSpecId)).not.toContain(
+      DARK_SHOGI_SPEC_ID,
+    );
 
     vi.unstubAllEnvs();
     vi.resetModules();

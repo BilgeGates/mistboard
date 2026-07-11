@@ -2,7 +2,7 @@ import { promises as fs } from 'node:fs';
 import type { ServerResponse } from 'node:http';
 import { resolve } from 'node:path';
 import type { Color } from '@mistboard/game';
-import { ARTICLE_META, canonicalArticleBase } from './article-meta.js';
+import { ARTICLE_META, articleIsIndexable, canonicalArticleBase } from './article-meta.js';
 import { GAME_OG_IMAGE_VERSION } from './og-image.js';
 import * as persistence from './persistence.js';
 
@@ -185,7 +185,10 @@ export async function serveSitemap(params: {
     fs
       .readdir(resolve(params.staticDir, dir))
       .then((files) =>
-        files.filter((f) => f.endsWith('.html')).map((f) => f.slice(0, -'.html'.length)),
+        files
+          .filter((f) => f.endsWith('.html'))
+          .map((f) => f.slice(0, -'.html'.length))
+          .filter(articleIsIndexable),
       )
       .catch(() => [] as string[]);
   const langDirs: Array<[string, string]> = [
@@ -270,6 +273,9 @@ export async function serveArticlePage(params: {
       url,
       imageUrl: `${params.publicHost}/og/article/${encodeURIComponent(params.slug)}.png`,
     });
+    if (!articleIsIndexable(params.slug)) {
+      html = html.replace('</head>', '<meta name="robots" content="noindex, follow"></head>');
+    }
   }
   params.response.writeHead(200, { 'content-type': 'text/html; charset=utf-8' });
   params.response.end(html);

@@ -39,7 +39,6 @@ import {
   darkCrazyhouseEnabled,
   darkCrossroadsChessEnabled,
   darkMiniXiangqiEnabled,
-  darkShogiEnabled,
   darkXiangqiEnabled,
   fortressXiangqiEnabled,
   jieqiEnabled,
@@ -89,7 +88,10 @@ const jungleFlipOn = jungleFlipEnabled();
 const revealChessOn = revealChessEnabled();
 const darkXiangqiOn = darkXiangqiEnabled();
 const darkCrossroadsChessOn = darkCrossroadsChessEnabled();
-const darkShogiOn = darkShogiEnabled();
+// Fog Shogi is parked for the xiangqi-focused launch. Keep its marker and
+// history mappings, but do not expose a rating/profile surface when its
+// development flag is enabled.
+const darkShogiOn = false;
 const darkCrazyhouseOn = darkCrazyhouseEnabled();
 const kriegspielOn = kriegspielEnabled();
 const darkChessSpec = gameSpecForId(DARK_CHESS_SPEC_ID);

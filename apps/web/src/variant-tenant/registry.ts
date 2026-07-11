@@ -40,6 +40,7 @@ import {
   correspondenceEnabled,
   crossroadsChessEnabled,
   darkCrossroadsChessEnabled,
+  darkShogiEnabled,
   fortressXiangqiEnabled,
   jungleEnabled,
   jungleFlipEnabled,
@@ -991,7 +992,7 @@ const WEB_VARIANT_TENANTS: readonly WebVariantTenant[] = [
     // reuse the same picker model.
     gameSpecId: DARK_SHOGI_SPEC_ID,
     roomIdPrefix: 'dsg_',
-    enabled: alwaysEnabled,
+    enabled: darkShogiEnabled,
     pageTitle: 'Fog Shogi',
     gameRouteBase: '/dark-shogi/game',
     mountPostgame: (root, roomId) =>
@@ -1026,8 +1027,8 @@ const WEB_VARIANT_TENANTS: readonly WebVariantTenant[] = [
         supportsTimeControl: true,
       },
       timePresetIds: ['1m1', '3m2', '5m5'],
-      offerInMenu: alwaysEnabled,
-      acceptsDeepLink: alwaysEnabled,
+      offerInMenu: hiddenFromMenu,
+      acceptsDeepLink: darkShogiEnabled,
     },
   },
   {
