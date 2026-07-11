@@ -6,6 +6,8 @@ import {
   xiangqiEngineVersion as catalogXiangqiEngineVersion,
   isXiangqiEngineClientId as isCatalogXiangqiEngineClientId,
   XIANGQI_PLAYABLE_ENGINES as XIANGQI_ENGINE_CATALOG,
+  XIANGQI_DEFAULT_ENGINE_ID as XIANGQI_PUBLIC_DEFAULT_ENGINE_ID,
+  XIANGQI_PUBLIC_ENGINES,
 } from './xiangqi-engine-catalog.js';
 import {
   isXiangqiEngineClientId,
@@ -107,6 +109,31 @@ test('xiangqi engine catalog exposes the honest FSF human ladder', () => {
       .length,
     8,
   );
+});
+
+test('xiangqi public catalog exposes the FSF ladder plus one elite Pikafish challenge', () => {
+  assert.deepEqual(
+    XIANGQI_PUBLIC_ENGINES.map(({ id, name }) => ({ id, name })),
+    [
+      ...Array.from({ length: 8 }, (_, index) => ({
+        id: `fairy-stockfish-xiangqi-level-${index + 1}`,
+        name: `Fairy-Stockfish - Level ${index + 1}`,
+      })),
+      { id: 'pikafish-xiangqi-level-8', name: 'Pikafish' },
+    ],
+  );
+  assert.equal(XIANGQI_PUBLIC_DEFAULT_ENGINE_ID, 'fairy-stockfish-xiangqi-level-4');
+  assert.ok(
+    XIANGQI_PUBLIC_ENGINES.some((engine) => engine.id === XIANGQI_PUBLIC_DEFAULT_ENGINE_ID),
+  );
+  for (let level = 1; level < 8; level += 1) {
+    const hiddenId = `pikafish-xiangqi-level-${level}`;
+    assert.equal(
+      XIANGQI_PUBLIC_ENGINES.some((engine) => engine.id === hiddenId),
+      false,
+    );
+    assert.equal(isCatalogXiangqiEngineClientId(hiddenId), true);
+  }
 });
 
 // ── Retired-tier back-compat ────────────────────────────────────────────────

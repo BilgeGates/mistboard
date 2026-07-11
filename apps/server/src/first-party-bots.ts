@@ -106,8 +106,10 @@ export const FIRST_PARTY_BOT_PROFILES: readonly FirstPartyBotProfile[] = [
     activeEngineId: 'fairy-stockfish-fortress-xiangqi-very-strong',
     defaultGameSpecId: 'fortress-xiangqi',
   },
-  // Standard-xiangqi 8-level Pikafish ladder (mirrors XIANGQI_PLAYABLE_ENGINES
-  // in xiangqi-pikafish-engine.ts). The retired amateur/strong/strongest tiers
+  // Standard-Xiangqi engine identities. FSF's eight levels form the public
+  // human ladder; lower Pikafish levels remain registered for history and EvE,
+  // while only the strongest Pikafish profile is public. The retired
+  // amateur/strong/strongest tiers
   // were absorbed into the matching levels: their bot ids continue as the
   // Level 2/5/8 profiles (migration-056 convention, so existing URLs and
   // historical game attribution stay stable) and their engine ids resolve via
@@ -206,7 +208,7 @@ export const FIRST_PARTY_BOT_PROFILES: readonly FirstPartyBotProfile[] = [
   },
   {
     id: 'pikafish-xiangqi-strongest',
-    displayName: 'Pikafish - Level 8',
+    displayName: 'Pikafish',
     activeEngineId: 'pikafish-xiangqi-level-8',
     attributionEngineIds: ['pikafish-xiangqi-strongest'],
     defaultGameSpecId: 'xiangqi',

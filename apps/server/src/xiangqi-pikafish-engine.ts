@@ -102,7 +102,7 @@ const XIANGQI_ENGINE_TIERS = [
   },
   {
     id: 'pikafish-xiangqi-level-8',
-    name: 'Pikafish - Level 8',
+    name: 'Pikafish',
     nodes: 3_000_000,
     movetimeMs: 4_000,
   },

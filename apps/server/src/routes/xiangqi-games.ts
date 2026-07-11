@@ -18,7 +18,7 @@ import {
   replayTenantEvents,
 } from './../variant-tenant/runtime.js';
 import { analyzeXiangqiGame, type PlyEval } from './../xiangqi-analysis.js';
-import { XIANGQI_DEFAULT_ENGINE_ID } from './../xiangqi-pikafish-engine.js';
+import { XIANGQI_DEFAULT_ENGINE_ID as XIANGQI_ANALYSIS_ENGINE_ID } from './../xiangqi-pikafish-engine.js';
 import { xiangqiRooms } from './../xiangqi-registration.js';
 import type { XiangqiEvent, XiangqiRuntimeRoom } from './../xiangqi-runtime.js';
 import { xiangqiTenant } from './../xiangqi-tenant.js';
@@ -157,7 +157,7 @@ export async function analyzeXiangqiPostgame(
     .map((entry) => xiangqiMoveToPikafishUci(entry.move));
   const plies = await analyze(movesUci);
   return {
-    engineId: XIANGQI_DEFAULT_ENGINE_ID,
+    engineId: XIANGQI_ANALYSIS_ENGINE_ID,
     depth: XIANGQI_ANALYSIS_REQUEST_DEPTH,
     // `best` comes back as Pikafish UCI (0-indexed); hand the client our own square
     // notation so it never has to know the engine's rank convention.
@@ -206,7 +206,7 @@ export async function resolveXiangqiAnalysis(
   analyze?: (movesUci: string[]) => Promise<PlyEval[]>,
   computeIfMissing = true,
 ): Promise<XiangqiGameAnalysis | null> {
-  const engineId = XIANGQI_DEFAULT_ENGINE_ID;
+  const engineId = XIANGQI_ANALYSIS_ENGINE_ID;
   const depth = XIANGQI_ANALYSIS_REQUEST_DEPTH;
 
   const cached = await cache.get(roomId, engineId, depth);

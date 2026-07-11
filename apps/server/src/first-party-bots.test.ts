@@ -53,5 +53,5 @@ test('retired xiangqi engine ids attribute to the absorbing level profiles', () 
 
   assert.equal(firstPartyBotForId('pikafish-xiangqi-amateur')?.displayName, 'Pikafish - Level 2');
   assert.equal(firstPartyBotForId('pikafish-xiangqi')?.displayName, 'Pikafish - Level 5');
-  assert.equal(firstPartyBotForId('pikafish-xiangqi-strongest')?.displayName, 'Pikafish - Level 8');
+  assert.equal(firstPartyBotForId('pikafish-xiangqi-strongest')?.displayName, 'Pikafish');
 });

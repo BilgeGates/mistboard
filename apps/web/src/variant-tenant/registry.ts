@@ -206,60 +206,16 @@ const WEB_VARIANT_TENANTS: readonly WebVariantTenant[] = [
       timePresetIds: ['1m1', '3m2', '5m5'],
       offerInMenu: xiangqiEnabled,
       acceptsDeepLink: xiangqiEnabled,
-      // Standard-Xiangqi engine profiles, ordered strongest-first. Pikafish is
-      // the native strength ladder; the honestly named Fairy-Stockfish profile
-      // is the Lichess/PlayStrategy Level 1 weakening experiment.
-      // Hand-maintained
-      // mirror of XIANGQI_PLAYABLE_ENGINES (apps/server/src/
-      // xiangqi-pikafish-engine.ts); parity is asserted by
+      // Standard-Xiangqi public profiles, ordered strongest-first. FSF supplies
+      // the human difficulty ladder; Pikafish is a separate elite challenge.
+      // Hand-maintained mirror of XIANGQI_PUBLIC_ENGINES (apps/server/src/
+      // xiangqi-engine-catalog.ts); parity is asserted by
       // variant-registry-sync.test.ts. The retired amateur/strong/strongest ids
-      // stay server-resolvable for old games but are never offered here.
+      // and hidden Pikafish rungs stay server-resolvable for history and EvE.
       engineOptions: [
         {
           id: 'pikafish-xiangqi-level-8',
-          name: 'Pikafish - Level 8',
-          familyName: 'Pikafish',
-          kind: 'container',
-        },
-        {
-          id: 'pikafish-xiangqi-level-7',
-          name: 'Pikafish - Level 7',
-          familyName: 'Pikafish',
-          kind: 'container',
-        },
-        {
-          id: 'pikafish-xiangqi-level-6',
-          name: 'Pikafish - Level 6',
-          familyName: 'Pikafish',
-          kind: 'container',
-        },
-        {
-          id: 'pikafish-xiangqi-level-5',
-          name: 'Pikafish - Level 5',
-          familyName: 'Pikafish',
-          kind: 'container',
-        },
-        {
-          id: 'pikafish-xiangqi-level-4',
-          name: 'Pikafish - Level 4',
-          familyName: 'Pikafish',
-          kind: 'container',
-        },
-        {
-          id: 'pikafish-xiangqi-level-3',
-          name: 'Pikafish - Level 3',
-          familyName: 'Pikafish',
-          kind: 'container',
-        },
-        {
-          id: 'pikafish-xiangqi-level-2',
-          name: 'Pikafish - Level 2',
-          familyName: 'Pikafish',
-          kind: 'container',
-        },
-        {
-          id: 'pikafish-xiangqi-level-1',
-          name: 'Pikafish - Level 1',
+          name: 'Pikafish',
           familyName: 'Pikafish',
           kind: 'container',
         },
@@ -312,7 +268,7 @@ const WEB_VARIANT_TENANTS: readonly WebVariantTenant[] = [
           kind: 'container',
         },
       ],
-      defaultEngineId: 'pikafish-xiangqi-level-5',
+      defaultEngineId: 'fairy-stockfish-xiangqi-level-4',
     },
   },
   {

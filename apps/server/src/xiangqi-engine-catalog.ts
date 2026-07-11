@@ -15,7 +15,6 @@ import {
 } from './xiangqi-pikafish-engine.js';
 
 export {
-  XIANGQI_DEFAULT_ENGINE_ID,
   XIANGQI_ENGINE_VERSION,
   XIANGQI_LEGACY_ENGINE_TIERS,
   xiangqiMoveToPikafishUci,
@@ -30,6 +29,22 @@ export const XIANGQI_PLAYABLE_ENGINES: readonly XiangqiEngineTier[] = [
   ...XIANGQI_FSF_PLAYABLE_ENGINES,
   ...XIANGQI_PIKAFISH_PLAYABLE_ENGINES,
 ];
+
+// Human-facing selection is intentionally narrower than the runnable catalog:
+// FSF supplies the eight useful stochastic difficulty levels, while only the
+// strongest practical Pikafish profile is presented as an elite challenge.
+// Every other Pikafish id remains resolvable above for history, EvE calibration,
+// and future rated personalities.
+const XIANGQI_ELITE_PIKAFISH_ID = 'pikafish-xiangqi-level-8';
+export const XIANGQI_PUBLIC_ENGINES: readonly XiangqiEngineTier[] = [
+  ...XIANGQI_FSF_PLAYABLE_ENGINES,
+  ...XIANGQI_PIKAFISH_PLAYABLE_ENGINES.filter((engine) => engine.id === XIANGQI_ELITE_PIKAFISH_ID),
+];
+
+// Use a human-validated middle rung when a create request omits the choice.
+// Analysis has its own Pikafish cache identity in xiangqi-games.ts and must not
+// inherit this UI default.
+export const XIANGQI_DEFAULT_ENGINE_ID = 'fairy-stockfish-xiangqi-level-4';
 
 export function xiangqiEngineTierFor(engineId: string | undefined): XiangqiEngineTier | null {
   return xiangqiFsfEngineTierFor(engineId) ?? pikafishXiangqiEngineTierFor(engineId);
