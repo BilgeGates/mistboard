@@ -8,6 +8,9 @@ type TestUser = {
   handleChangedAt: string | null;
   displayName: string;
   displayNameChangedAt: string | null;
+  bio: string;
+  location: string;
+  profileLinks: string[];
   profileVisibility: 'private' | 'unlisted' | 'public';
   accountRole: 'player' | 'admin';
   locale: 'en' | 'zh-Hans' | 'zh-Hant' | 'ja' | null;
@@ -201,8 +204,8 @@ describe('account page auth flow', () => {
     expect(document.querySelector('[name="playerRatings"]')).toBeNull();
     expect(
       [...document.querySelectorAll('.account-settings-rail-link')].map((link) => link.textContent),
-    ).toEqual(['Display', 'Privacy', 'Change username', 'Email and sign-in']);
-    expect(document.querySelectorAll('.account-settings-rail-separator')).toHaveLength(1);
+    ).toEqual(['Edit profile', 'Display', 'Privacy', 'Change username', 'Email and sign-in']);
+    expect(document.querySelectorAll('.account-settings-rail-separator')).toHaveLength(2);
 
     const animation = document.querySelector<HTMLInputElement>(
       'input[name="pieceAnimation"][value="fast"]',
@@ -290,6 +293,57 @@ describe('account page auth flow', () => {
     ]);
     expect(document.querySelector('.account-settings-panel input')).toBeNull();
   });
+
+  it('edits public profile details from the settings landing', async () => {
+    window.history.replaceState(null, '', '/account/settings');
+    const user = testUser('misty');
+    const requests: unknown[] = [];
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+        const url = String(input);
+        if (url === '/api/auth/me') return jsonResponse({ user });
+        if (url === '/api/account/public-profile') {
+          requests.push(JSON.parse(String(init?.body)) as unknown);
+          return jsonResponse({
+            user: {
+              ...user,
+              bio: 'Xiangqi learner',
+              location: 'Taipei',
+              profileLinks: ['https://example.com/xiangqi'],
+            },
+          });
+        }
+        throw new Error(`unexpected fetch: ${url}`);
+      }),
+    );
+
+    const { mountAccountSettings } = await import('./account.js');
+    await mountAccountSettings(document.querySelector<HTMLElement>('#app') as HTMLElement);
+    await flushDom();
+
+    expect(document.querySelector('h1')?.textContent).toBe('Edit profile');
+    const bio = document.querySelector<HTMLTextAreaElement>('textarea[name="bio"]');
+    const location = document.querySelector<HTMLInputElement>('input[name="location"]');
+    const links = document.querySelector<HTMLTextAreaElement>('textarea[name="profileLinks"]');
+    if (!bio || !location || !links) throw new Error('missing public profile fields');
+    bio.value = 'Xiangqi learner';
+    location.value = 'Taipei';
+    links.value = 'https://example.com/xiangqi';
+    document
+      .querySelector<HTMLFormElement>('.account-public-profile-form')
+      ?.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
+    await flushDom();
+
+    expect(requests).toEqual([
+      {
+        bio: 'Xiangqi learner',
+        location: 'Taipei',
+        profileLinks: ['https://example.com/xiangqi'],
+      },
+    ]);
+    expect(document.querySelector('.account-status')?.textContent).toBe('Public profile saved.');
+  });
 });
 
 function submitAccountForm(): void {
@@ -307,6 +361,9 @@ function testUser(handle: string): TestUser {
     handleChangedAt: null,
     displayName: handle,
     displayNameChangedAt: null,
+    bio: '',
+    location: '',
+    profileLinks: [],
     profileVisibility: 'public',
     accountRole: 'player',
     locale: null,

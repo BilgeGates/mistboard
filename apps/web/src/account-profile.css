@@ -199,6 +199,34 @@
   line-height: 1.45;
 }
 
+.profile-side-bio {
+  color: var(--site-text);
+  white-space: pre-wrap;
+}
+
+.profile-side-links {
+  display: grid;
+  gap: 4px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.profile-side-links a {
+  display: block;
+  overflow: hidden;
+  color: var(--site-link);
+  font-size: 13px;
+  text-decoration: none;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.profile-side-links a:hover,
+.profile-side-links a:focus-visible {
+  text-decoration: underline;
+}
+
 .profile-side-stat {
   display: flex;
   flex-direction: column;
@@ -528,7 +556,8 @@
 
 .account-form input,
 .account-field input,
-.account-field select {
+.account-field select,
+.account-field textarea {
   min-width: 100%;
   min-height: 40px;
   border: 1px solid var(--site-border);
@@ -537,6 +566,11 @@
   color: var(--site-text);
   font: inherit;
   padding: 8px 10px;
+}
+
+.account-field textarea {
+  resize: vertical;
+  line-height: 1.5;
 }
 
 .account-form input:focus,
@@ -548,6 +582,11 @@
 
 .account-settings-form {
   display: grid;
+}
+
+.account-public-profile-form {
+  gap: 24px;
+  max-width: 900px;
 }
 
 .account-settings-summary {

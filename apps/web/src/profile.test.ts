@@ -151,6 +151,9 @@ describe('profile ratings rail', () => {
             user: {
               handle: 'dev-testing',
               displayName: 'dev-testing',
+              bio: 'Learning hidden-information xiangqi.',
+              location: 'Taipei',
+              profileLinks: ['https://example.com/xiangqi'],
               profileVisibility: 'public',
               accountRole: 'player',
               patronSince: null,
@@ -261,8 +264,15 @@ describe('profile ratings rail', () => {
 
     // Lichess-style identity block: presence dot ahead of the handle (filled
     // once /api/players/online confirms), the join date in the side column, and
-    // a truthful username-management action on your own profile.
+    // an Edit profile action on your own profile.
     expect(root.querySelector('.profile-overview-side')?.textContent).toContain('Member since');
+    expect(root.querySelector('.profile-side-bio')?.textContent).toBe(
+      'Learning hidden-information xiangqi.',
+    );
+    expect(root.querySelector('.profile-overview-side')?.textContent).toContain('Taipei');
+    expect(root.querySelector<HTMLAnchorElement>('.profile-side-links a')?.href).toBe(
+      'https://example.com/xiangqi',
+    );
     expect(root.querySelector('h1 .profile-presence')).not.toBeNull();
     await vi.waitFor(() => {
       expect(root.querySelector('.profile-presence-online')).not.toBeNull();
@@ -271,8 +281,8 @@ describe('profile ratings rail', () => {
       'Online',
     );
     const edit = root.querySelector<HTMLAnchorElement>('.profile-owner-actions a');
-    expect(edit?.getAttribute('href')).toBe('/account/settings/username');
-    expect(edit?.textContent).toBe('Change username');
+    expect(edit?.getAttribute('href')).toBe('/account/settings');
+    expect(edit?.textContent).toBe('Edit profile');
 
     // Counts strip under the name: total games + rated games (sum across buckets).
     const counts = root.querySelector('.profile-counts');

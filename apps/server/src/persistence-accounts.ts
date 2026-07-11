@@ -45,6 +45,9 @@ export type UserAccount = {
   handleChangedAt: Date | null;
   displayName: string;
   displayNameChangedAt: Date | null;
+  bio: string;
+  location: string;
+  profileLinks: string[];
   profileVisibility: ProfileVisibility;
   accountRole: AccountRole;
   // Verified player title (088), granted only through the title-verification
@@ -103,6 +106,9 @@ export type AccountSession = {
 export type PublicProfileUser = {
   handle: string;
   displayName: string;
+  bio: string;
+  location: string;
+  profileLinks: string[];
   profileVisibility: UserAccount['profileVisibility'];
   accountRole: AccountRole;
   // Verified player title; drives the title badge (flair) on the public
@@ -217,6 +223,9 @@ const USER_COLUMNS = [
   'handle_changed_at',
   'display_name',
   'display_name_changed_at',
+  'bio',
+  'location',
+  'profile_links',
   'profile_visibility',
   'account_role',
   'title',
@@ -364,6 +373,24 @@ export async function updateUserProfile(
     if (isUniqueViolation(err)) return { ok: false, error: 'handle_taken' };
     throw err;
   }
+}
+
+export async function updateUserPublicProfileDetails(
+  userId: string,
+  details: { bio: string; location: string; profileLinks: string[] },
+  at: Date,
+): Promise<UserAccount | null> {
+  const { rows } = await getPool().query<UserRow>(
+    `UPDATE users
+     SET bio = $2,
+         location = $3,
+         profile_links = $4,
+         updated_at = $5
+     WHERE id = $1
+     RETURNING ${USER_COLUMNS}`,
+    [userId, details.bio, details.location, details.profileLinks, at],
+  );
+  return rows[0] ? userFromRow(rows[0]) : null;
 }
 
 export async function updateUserLocale(
@@ -737,6 +764,9 @@ export async function getUserProfileByHandle(
     user: {
       handle: user.handle,
       displayName: user.displayName,
+      bio: user.bio,
+      location: user.location,
+      profileLinks: user.profileLinks,
       profileVisibility: user.profileVisibility,
       accountRole: user.accountRole,
       title: user.title,
@@ -1066,6 +1096,9 @@ type UserRow = {
   handle_changed_at: Date | null;
   display_name: string;
   display_name_changed_at: Date | null;
+  bio: string;
+  location: string;
+  profile_links: string[];
   profile_visibility: UserAccount['profileVisibility'];
   account_role: AccountRole;
   title: PlayerTitle | null;
@@ -1087,6 +1120,9 @@ function userFromRow(row: UserRow): UserAccount {
     handleChangedAt: row.handle_changed_at,
     displayName: row.display_name,
     displayNameChangedAt: row.display_name_changed_at,
+    bio: row.bio,
+    location: row.location,
+    profileLinks: row.profile_links,
     profileVisibility: row.profile_visibility,
     accountRole: row.account_role,
     title: row.title,

@@ -63,6 +63,9 @@ type UserProfile = {
   user: {
     handle: string;
     displayName: string;
+    bio?: string;
+    location?: string;
+    profileLinks?: string[];
     profileVisibility: 'private' | 'unlisted' | 'public';
     accountRole: 'player' | 'admin';
     // Verified title key ('xgm', 'gm', ...). Absent/null = untitled. Granted
@@ -833,16 +836,15 @@ function buildProfileActions(
   return null;
 }
 
-// Until public profile fields are editable, the truthful owner action is the
-// existing username editor. Someone else's profile still offers the social
+// Your own profile offers its editor; someone else's profile offers the social
 // actions assembled above.
 function buildOwnerActions(locale: Locale = currentLocale(), title?: unknown): HTMLElement {
   const row = document.createElement('div');
   row.className = 'profile-relation-actions profile-owner-actions';
   const edit = document.createElement('a');
   edit.className = 'landing-setup-back';
-  edit.href = localizedHref('/account/settings/username', locale);
-  edit.textContent = t('account.settingsUsername', {}, locale);
+  edit.href = localizedHref('/account/settings', locale);
+  edit.textContent = t('profile.editProfile', {}, locale);
   row.append(edit);
   // A held title unlocks the coach directory: offer the editor entry point.
   if (isPlayerTitle(title)) {
@@ -1019,6 +1021,39 @@ function buildProfileSideInfo(profile: UserProfile, locale: Locale = currentLoca
     side.append(name);
   }
 
+  const bio = profile.user.bio?.trim();
+  if (bio) {
+    const el = document.createElement('p');
+    el.className = 'profile-side-line profile-side-bio';
+    el.textContent = bio;
+    side.append(el);
+  }
+
+  const location = profile.user.location?.trim();
+  if (location) {
+    const el = document.createElement('p');
+    el.className = 'profile-side-line';
+    el.textContent = location;
+    side.append(el);
+  }
+
+  const links = profile.user.profileLinks ?? [];
+  if (links.length > 0) {
+    const list = document.createElement('ul');
+    list.className = 'profile-side-links';
+    for (const href of links) {
+      const item = document.createElement('li');
+      const link = document.createElement('a');
+      link.href = href;
+      link.rel = 'nofollow noopener noreferrer';
+      link.target = '_blank';
+      link.textContent = profileLinkLabel(href);
+      item.append(link);
+      list.append(item);
+    }
+    side.append(list);
+  }
+
   const joined = formatJoinedFull(profile.user.createdAt, locale);
   if (joined) {
     const el = document.createElement('p');
@@ -1044,6 +1079,15 @@ function buildProfileSideInfo(profile: UserProfile, locale: Locale = currentLoca
   }
 
   return side;
+}
+
+function profileLinkLabel(href: string): string {
+  try {
+    const url = new URL(href);
+    return `${url.hostname}${url.pathname === '/' ? '' : url.pathname}`;
+  } catch {
+    return href;
+  }
 }
 
 function defaultSelectedProfileVariant(ratings: ProfileBucketRating[]): ProfileRatingVariant {

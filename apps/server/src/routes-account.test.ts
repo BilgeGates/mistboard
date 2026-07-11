@@ -121,6 +121,83 @@ definePersistenceTests('account routes', () => {
       'public',
     );
   });
+
+  test('account public-profile route stores validated public details', async () => {
+    const now = new Date('2026-07-11T12:00:00.000Z');
+    const sessionToken = 'public-profile-route-token';
+    await createUser({
+      id: 'user_public_profile_route',
+      email: 'public-profile-route@example.com',
+      emailVerifiedAt: now,
+      handle: 'public-profile-route',
+      displayName: 'Public Profile Route',
+      now,
+    });
+    const expiresAt = new Date(Date.now() + 86_400_000);
+    await createAccountSession({
+      id: 'public-profile-route-session',
+      userId: 'user_public_profile_route',
+      tokenHash: hashSecret(sessionToken),
+      expiresAt,
+    });
+
+    const response = captureResponse();
+    const handled = await tryHandle(
+      {},
+      jsonRequest(
+        {
+          bio: '  Xiangqi learner  ',
+          location: '  Taipei  ',
+          profileLinks: ['https://example.com/xiangqi', 'https://example.com/xiangqi'],
+        },
+        accountSessionCookie('public-profile-route-session', sessionToken, expiresAt).split(';')[0],
+      ),
+      response,
+      '/api/account/public-profile',
+    );
+
+    assert.equal(handled, true);
+    assert.equal(response.status, 200);
+    const saved = await findUserByEmail('public-profile-route@example.com');
+    assert.equal(saved?.bio, 'Xiangqi learner');
+    assert.equal(saved?.location, 'Taipei');
+    assert.deepEqual(saved?.profileLinks, ['https://example.com/xiangqi']);
+  });
+
+  test('account public-profile route rejects unsafe links', async () => {
+    const now = new Date('2026-07-11T12:00:00.000Z');
+    const sessionToken = 'unsafe-profile-route-token';
+    await createUser({
+      id: 'user_unsafe_profile_route',
+      email: 'unsafe-profile-route@example.com',
+      emailVerifiedAt: now,
+      handle: 'unsafe-profile-route',
+      displayName: 'Unsafe Profile Route',
+      now,
+    });
+    const expiresAt = new Date(Date.now() + 86_400_000);
+    await createAccountSession({
+      id: 'unsafe-profile-route-session',
+      userId: 'user_unsafe_profile_route',
+      tokenHash: hashSecret(sessionToken),
+      expiresAt,
+    });
+
+    const response = captureResponse();
+    await tryHandle(
+      {},
+      jsonRequest(
+        { bio: '', location: '', profileLinks: ['javascript:alert(1)'] },
+        accountSessionCookie('unsafe-profile-route-session', sessionToken, expiresAt).split(';')[0],
+      ),
+      response,
+      '/api/account/public-profile',
+    );
+
+    assert.equal(response.status, 400);
+    assert.deepEqual(JSON.parse(response.body), { error: 'invalid_public_profile' });
+    assert.deepEqual((await findUserByEmail('unsafe-profile-route@example.com'))?.profileLinks, []);
+  });
 });
 
 function jsonRequest(body: unknown, cookie?: string): IncomingMessage {

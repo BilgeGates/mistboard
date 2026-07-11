@@ -47,6 +47,7 @@ export {
   updateUserLocale,
   updateUserProfile,
   updateUserProfileVisibility,
+  updateUserPublicProfileDetails,
   userExists,
   userIdForHandle,
 } from './persistence-accounts.js';

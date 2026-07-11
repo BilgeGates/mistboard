@@ -22,6 +22,9 @@ export type AuthUser = {
   handleChangedAt: string | null;
   displayName: string;
   displayNameChangedAt: string | null;
+  bio: string;
+  location: string;
+  profileLinks: string[];
   profileVisibility: 'private' | 'unlisted' | 'public';
   accountRole: 'player' | 'admin';
   locale: Locale | null;

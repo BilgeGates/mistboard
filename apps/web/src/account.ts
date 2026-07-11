@@ -23,9 +23,10 @@ import { t } from './i18n/catalog.js';
 import { currentLocale, LOCALE_META, type Locale, localizedHref } from './i18n/locale.js';
 import { type AuthUser, buildLoadingState, buildNav, fetchCurrentUser } from './site-shell.js';
 
-type AccountSettingsSection = 'display' | 'privacy' | 'username' | 'account';
+type AccountSettingsSection = 'profile' | 'display' | 'privacy' | 'username' | 'account';
 
 const accountSettingsSectionGroups: readonly (readonly AccountSettingsSection[])[] = [
+  ['profile'],
   ['display', 'privacy'],
   ['username', 'account'],
 ];
@@ -337,11 +338,107 @@ function buildAccountSettingsSection(
   section: AccountSettingsSection,
   locale: Locale = currentLocale(),
 ): HTMLElement {
+  if (section === 'profile') return buildPublicProfileSettings(user, locale);
   if (section === 'display') return buildDisplaySettings(locale);
   if (section === 'privacy') return buildPrivacySettings(user, locale);
   if (section === 'username') return buildUsernameSettings(user, locale);
   if (section === 'account') return buildAccountAccessSettings(user, locale);
   return buildDisplaySettings(locale);
+}
+
+function buildPublicProfileSettings(user: AuthUser, locale: Locale = currentLocale()): HTMLElement {
+  const panel = buildSettingsPanel(
+    'profile',
+    t('account.settingsEditProfile', {}, locale),
+    t('account.publicProfileOptional', {}, locale),
+  );
+  const form = document.createElement('form');
+  form.className = 'account-settings-form account-public-profile-form';
+
+  const bio = labeledTextarea(
+    t('account.biography', {}, locale),
+    'bio',
+    user.bio,
+    t('account.biographyPlaceholder', {}, locale),
+    5,
+  );
+  bio.input.maxLength = 500;
+  bio.help.textContent = t('account.biographyHelp', {}, locale);
+
+  const location = labeledInput(
+    t('account.location', {}, locale),
+    'location',
+    user.location,
+    t('account.locationPlaceholder', {}, locale),
+  );
+  location.input.maxLength = 80;
+
+  const links = labeledTextarea(
+    t('account.publicLinks', {}, locale),
+    'profileLinks',
+    user.profileLinks.join('\n'),
+    'https://example.com',
+    4,
+  );
+  links.input.maxLength = 1504;
+  links.help.textContent = t('account.publicLinksHelp', {}, locale);
+
+  const status = document.createElement('p');
+  status.className = 'account-status';
+  status.setAttribute('aria-live', 'polite');
+
+  const actions = document.createElement('div');
+  actions.className = 'account-actions';
+  const save = document.createElement('button');
+  save.type = 'submit';
+  save.className = 'landing-setup-start';
+  save.textContent = t('account.save', {}, locale);
+  const profile = document.createElement('a');
+  profile.className = 'landing-setup-back';
+  profile.href = `/@/${encodeURIComponent(user.handle)}`;
+  profile.textContent = t('account.viewProfile', {}, locale);
+  actions.append(save, profile);
+
+  form.append(bio.wrap, location.wrap, links.wrap, actions, status);
+  form.addEventListener('submit', async (event) => {
+    event.preventDefault();
+    const profileLinks = links.input.value
+      .split(/\r?\n/)
+      .map((value) => value.trim())
+      .filter(Boolean);
+    if (profileLinks.length > 5) {
+      status.textContent = t('account.invalidPublicProfile', {}, locale);
+      return;
+    }
+    save.disabled = true;
+    try {
+      const resp = await fetch('/api/account/public-profile', {
+        method: 'PATCH',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          bio: bio.input.value,
+          location: location.input.value,
+          profileLinks,
+        }),
+      });
+      const data = (await resp.json()) as { user?: AuthUser; error?: string };
+      if (!resp.ok || !data.user) throw new Error(t('account.invalidPublicProfile', {}, locale));
+      user.bio = data.user.bio;
+      user.location = data.user.location;
+      user.profileLinks = data.user.profileLinks;
+      bio.input.value = user.bio;
+      location.input.value = user.location;
+      links.input.value = user.profileLinks.join('\n');
+      status.textContent = t('account.publicProfileSaved', {}, locale);
+    } catch (err) {
+      status.textContent = err instanceof Error ? err.message : t('account.saveFailed', {}, locale);
+    } finally {
+      save.disabled = false;
+    }
+  });
+
+  panel.append(form);
+  return panel;
 }
 
 function buildSettingsPanel(
@@ -666,10 +763,10 @@ function accountSettingsSectionFromPath(
   const normalized = pathname.replace(/\/+$/, '') || '/';
   const raw =
     normalized === '/account/settings'
-      ? 'display'
+      ? 'profile'
       : normalized.match(/^\/account\/settings\/([^/]+)$/)?.[1];
   if (raw === 'messaging') return 'privacy';
-  return isAccountSettingsSection(raw) ? raw : 'display';
+  return isAccountSettingsSection(raw) ? raw : 'profile';
 }
 
 function isAccountSettingsSection(value: string | undefined): value is AccountSettingsSection {
@@ -680,7 +777,7 @@ function accountSettingsSectionHref(
   section: AccountSettingsSection,
   locale: Locale = currentLocale(),
 ): string {
-  const path = section === 'display' ? '/account/settings' : `/account/settings/${section}`;
+  const path = section === 'profile' ? '/account/settings' : `/account/settings/${section}`;
   return localizedHref(path, locale);
 }
 
@@ -689,6 +786,7 @@ function accountSettingsSectionLabel(
   locale: Locale = currentLocale(),
 ): string {
   const keyBySection = {
+    profile: 'account.settingsEditProfile',
     display: 'account.settingsDisplay',
     privacy: 'account.settingsPrivacy',
     username: 'account.settingsUsername',
@@ -767,6 +865,28 @@ function labeledInput(
   help.className = 'account-field-help';
   wrap.append(label, input, help);
   return { help, input, wrap };
+}
+
+function labeledTextarea(
+  labelText: string,
+  name: string,
+  value: string,
+  placeholder: string,
+  rows: number,
+): { help: HTMLSpanElement; input: HTMLTextAreaElement; wrap: HTMLLabelElement } {
+  const wrap = document.createElement('label');
+  wrap.className = 'account-field';
+  const label = document.createElement('span');
+  label.textContent = labelText;
+  const input = document.createElement('textarea');
+  input.name = name;
+  input.value = value;
+  input.placeholder = placeholder;
+  input.rows = rows;
+  const help = document.createElement('span');
+  help.className = 'account-field-help';
+  wrap.append(label, input, help);
+  return { wrap, input, help };
 }
 
 function accountSettingsErrorMessage(
