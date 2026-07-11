@@ -156,12 +156,9 @@ export function trimXiangqiWinningAdvantageTail(puzzle: XiangqiPuzzle): XiangqiP
 export const XIANGQI_PUZZLES: readonly XiangqiPuzzle[] = [
   ...CURATED_XIANGQI_PUZZLES,
   // Heal the shipped mined corpus at load: trim quiet PV tails back to the
-  // payoff, then drop any winning-advantage tactic whose real content is a bare
-  // 1-ply capture (below the corpus's 3-ply floor — it only got mined because
-  // of the filler tail). The fixed miner won't emit either shape going forward.
-  ...MINED_XIANGQI_PUZZLES.map(trimXiangqiWinningAdvantageTail).filter(
-    (puzzle) => puzzle.goal.type !== 'winning-advantage' || puzzle.solution.length >= 3,
-  ),
+  // payoff. A tactic that trims to a bare 1-ply capture ("win the hanging
+  // piece") is kept — a legitimate easy puzzle, not filler.
+  ...MINED_XIANGQI_PUZZLES.map(trimXiangqiWinningAdvantageTail),
 ];
 
 export function standardXiangqiPuzzleById(id: string): XiangqiPuzzle | null {

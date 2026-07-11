@@ -284,7 +284,7 @@ function minedSolverMoves(puzzle: XiangqiPuzzle): XiangqiMove[] {
   return puzzle.solution.filter((_, ply) => ply % 2 === 0);
 }
 
-test('mined corpus: ids unique, themes known, lines 3-7 plies ending on the solver move', () => {
+test('mined corpus: ids unique, themes known, lines 1-7 plies ending on the solver move', () => {
   // Guard against an accidental truncation of the generated module (the exact
   // count moves with every re-mine; the floor should not).
   assert.ok(MINED_PUZZLES.length >= 100, `corpus shrank to ${MINED_PUZZLES.length} puzzles`);
@@ -293,9 +293,11 @@ test('mined corpus: ids unique, themes known, lines 3-7 plies ending on the solv
     assert.equal(puzzle.variant, XIANGQI_SPEC_ID, puzzle.id);
     assert.equal(ids.has(puzzle.id), false, `duplicate puzzle id ${puzzle.id}`);
     ids.add(puzzle.id);
+    // Winning-advantage lines trim to the payoff, which can be a bare 1-ply
+    // capture ("win the hanging piece") — a legitimate easy puzzle.
     assert.ok(
-      puzzle.solution.length >= 3 && puzzle.solution.length <= 7,
-      `${puzzle.id}: solution is ${puzzle.solution.length} plies, expected 3-7`,
+      puzzle.solution.length >= 1 && puzzle.solution.length <= 7,
+      `${puzzle.id}: solution is ${puzzle.solution.length} plies, expected 1-7`,
     );
     assert.equal(
       puzzle.solution.length % 2,
@@ -352,6 +354,9 @@ test('mined corpus: every solution line kernel-replays to a completed win', () =
 
 test('mined corpus: a partial line auto-plays exactly the scripted defender reply', () => {
   for (const puzzle of MINED_PUZZLES) {
+    // A 1-ply "win the hanging piece" puzzle completes on the first move and has
+    // no defender reply to auto-play; this test is about the 3+ ply lines.
+    if (puzzle.solution.length < 3) continue;
     const first = puzzle.solution[0] as XiangqiMove;
     const attempt = attemptStandardXiangqiPuzzleLine(puzzle, [first]);
     assert.equal(attempt.ok, true, `${puzzle.id}: correct first move rejected`);
