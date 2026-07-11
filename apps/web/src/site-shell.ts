@@ -78,7 +78,8 @@ export function buildNav(locale: Locale = currentLocale()): HTMLElement {
   // Tools title links to the analysis board (the anchor tool); the dropdown
   // lists it too, so touch/no-hover users can still reach it after the first tap.
   const tools = toolsNavItems();
-  if (tools.length > 0) links.append(navMenu('nav.tools', tools, locale, tools[0]?.href ?? '/analysis/xiangqi'));
+  if (tools.length > 0)
+    links.append(navMenu('nav.tools', tools, locale, tools[0]?.href ?? '/analysis/xiangqi'));
   // Admin-only top-level links to the internal /database + /engines surfaces
   // (moved out of the account dropdown 2026-07-10). English labels by admin
   // convention. Initial visibility comes from the persisted admin hint;

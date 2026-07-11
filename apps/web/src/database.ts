@@ -4,7 +4,6 @@
 // through to the variant's review route. Admin-gated by the
 // /api/admin/games/query endpoint (open in local dev). No nav entry.
 import './database.css';
-import { buildNav } from './site-shell.js';
 import { findTimeControl } from '@mistboard/game';
 import {
   type FeaturedGame,
@@ -13,6 +12,7 @@ import {
   sourceLabel,
   variantDisplayLabel,
 } from './game-display.js';
+import { buildNav } from './site-shell.js';
 
 type GameRow = FeaturedGame & {
   initialMs?: number | null;
