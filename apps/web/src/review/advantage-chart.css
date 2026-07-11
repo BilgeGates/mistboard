@@ -1,24 +1,13 @@
-/* Advantage chart in the underboard slot. See review/advantage-chart.ts. */
+/* Advantage chart in the underboard slot. See review/advantage-chart.ts. The
+   "Computer analysis" tab above it names the panel, so the chart itself is just
+   the graph. */
 .advantage-chart {
   display: flex;
   flex-direction: column;
-  gap: 6px;
-  padding: 10px 12px;
-  border: 1px solid var(--site-border);
-  border-radius: var(--site-radius, 10px);
-  background: var(--site-panel, var(--site-surface));
-}
-.advantage-chart__title {
-  margin: 0;
-  font-size: 12px;
-  font-weight: 800;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-  color: var(--site-muted);
 }
 .advantage-chart__svg {
   width: 100%;
-  height: 76px;
+  height: 150px;
   cursor: pointer;
   border-radius: 6px;
   overflow: hidden;
@@ -26,22 +15,34 @@
 }
 /* Red is favoured in the top half, Black in the bottom. */
 .advantage-chart__zone--red {
-  fill: color-mix(in srgb, #c7a06a 16%, transparent);
+  fill: color-mix(in srgb, #c7a06a 14%, transparent);
 }
 .advantage-chart__zone--black {
-  fill: color-mix(in srgb, #34302e 14%, transparent);
+  fill: color-mix(in srgb, #34302e 10%, transparent);
 }
 .advantage-chart__mid {
   stroke: color-mix(in srgb, var(--site-muted) 45%, transparent);
   stroke-width: 0.5;
 }
-.advantage-chart__area {
-  fill: color-mix(in srgb, var(--site-accent, #5b9a4a) 24%, transparent);
+/* The advantage area wears the leading side's colour (clipped per half). */
+.advantage-chart__area--red {
+  fill: color-mix(in srgb, #c0563f 72%, transparent);
+}
+.advantage-chart__area--black {
+  fill: color-mix(in srgb, #34302e 85%, transparent);
+}
+/* Dark theme: near-black fill vanishes against the dark panel; Black's area
+   reads as a light neutral instead (lichess dark does the same). */
+:root[data-effective-theme="dark"] .advantage-chart__area--black {
+  fill: color-mix(in srgb, #d8d2c6 62%, transparent);
+}
+:root[data-effective-theme="dark"] .advantage-chart__zone--black {
+  fill: color-mix(in srgb, #d8d2c6 8%, transparent);
 }
 .advantage-chart__line {
   fill: none;
-  stroke: var(--site-accent, #5b9a4a);
-  stroke-width: 1.3;
+  stroke: color-mix(in srgb, var(--site-text) 45%, transparent);
+  stroke-width: 1;
   vector-effect: non-scaling-stroke;
 }
 .advantage-chart__cursor {

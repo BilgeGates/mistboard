@@ -48,6 +48,19 @@
   margin-inline: auto;
   padding: clamp(10px, 1.4vw, 18px) clamp(10px, 2vw, 24px) 24px;
   box-sizing: border-box;
+  /* Review pages (NOT the live room, which shares the cluster classes but sits
+     outside .review-shell): equal fixed-width rails, lichess analyse style. The
+     board takes whatever the fixed rails leave. */
+  --uni-side-min: 320px;
+  --uni-side-max: 320px;
+  --uni-table-min: 320px;
+  --uni-table-max: 320px;
+}
+
+/* Review pages top-align all three columns (lichess analyse): the board tops
+   out level with the rails instead of centering in a viewport-tall row. */
+.review-shell .review-shell__center {
+  align-items: flex-start;
 }
 
 /* col1: one stacked column, board first. */
@@ -149,13 +162,10 @@
   }
   .review-shell__cluster--gauge .review-shell__gauge {
     display: block;
-    align-self: center;
-    /* Match the board's height: column width projected through the aspect. */
+    /* Flush with the top-aligned board; match its height (column width projected
+       through the aspect). */
+    align-self: start;
     height: calc(var(--uni-board-width) / var(--uni-board-aspect, 1));
-    /* The center column centers board+underboard as one block, so the board
-       tops out half the underboard height above center; counter-shift to keep
-       the gauge flush with the board (token published by fitPrimaryToViewport). */
-    transform: translateY(calc(var(--uni-underboard-h, 0px) / -2));
   }
 }
 
@@ -324,6 +334,61 @@
   min-height: 0;
 }
 
+/* The analyse table (lichess round/analyse tools box): engine head · move list ·
+   advice · nav controls fused into ONE box. The children drop their own card
+   chrome; hairline separators divide the sections. */
+.review-rail-main {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+  border: 1px solid var(--site-border);
+  border-radius: var(--site-radius, 10px);
+  background: var(--site-panel, var(--site-surface));
+  overflow: hidden;
+}
+.review-rail-main > * {
+  border: none;
+  border-radius: 0;
+  background: transparent;
+}
+.review-rail-main > .engine-panel {
+  border-bottom: 1px solid var(--site-border);
+}
+.review-rail-main > .review-scrubber {
+  border-top: 1px solid var(--site-border);
+}
+
+/* On board-beside-table layouts the analyse table's bottom tracks the board's
+   bottom (lichess): fixed to the board height, the move list flex-fills and
+   scrolls inside, and anything after the table (analysis summary) starts below
+   the board line. */
+@media (min-width: 800px) {
+  .review-shell__right .review-rail-main {
+    flex: 0 0 auto;
+    height: calc(var(--uni-board-width) / var(--uni-board-aspect, 1));
+  }
+  .review-rail-main > .review-move-list,
+  .review-rail-main > .review-moves-card {
+    flex: 1 1 0;
+    min-height: 0;
+  }
+  .review-rail-main .review-move-list__rows {
+    flex: 1 1 auto;
+    min-height: 0;
+    max-height: none;
+  }
+}
+
+/* col3: the left rail's group also ends at the board bottom, so its last panel
+   (spectator room / details) fills down to exactly the board line. */
+@media (min-width: 1260px) {
+  .review-shell .review-shell__left > .review-rail-group {
+    flex: 0 0 auto;
+    height: calc(var(--uni-board-width) / var(--uni-board-aspect, 1));
+  }
+}
+
 /* Left-rail info card: eyebrow / title / summary / actions. */
 .review-info-card {
   display: flex;
@@ -401,18 +466,18 @@
   overflow-y: auto;
 }
 
-/* Playback scrubber: lichess-style, under the move list in the right rail — a
-   small position label on its own line above a single row of evenly sized nav
-   buttons, all contained within the rail width. */
+/* Playback controls: lichess-style compact bar under the move list — a single
+   row of unboxed, evenly sized nav buttons (an optional status line above them
+   collapses when unused). */
 .review-scrubber {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   justify-content: center;
-  gap: 4px;
+  gap: 2px;
   width: 100%;
   box-sizing: border-box;
-  padding: 8px;
+  padding: 4px 6px;
   border: 1px solid var(--site-border);
   border-radius: var(--site-radius, 10px);
   background: var(--site-panel, var(--site-surface));
@@ -425,22 +490,27 @@
   font-weight: 700;
   color: var(--site-text);
 }
+.review-scrubber__status:empty {
+  display: none;
+}
 .review-scrubber__button {
   flex: 1 1 0;
   min-width: 0;
-  padding: 8px 0;
-  border: 1px solid var(--site-border);
+  padding: 6px 0;
+  border: none;
   border-radius: var(--site-radius-sm, 8px);
-  background: var(--site-bg);
-  color: var(--site-text);
+  background: transparent;
+  color: var(--site-muted);
   font-weight: 700;
+  font-size: 14px;
   cursor: pointer;
 }
 .review-scrubber__button:hover:not(:disabled) {
   background: var(--site-surface);
+  color: var(--site-text);
 }
 .review-scrubber__button:disabled {
-  color: var(--site-muted);
+  color: color-mix(in srgb, var(--site-muted) 45%, transparent);
   cursor: default;
 }
 

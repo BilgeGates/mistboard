@@ -2,7 +2,13 @@
 // the server's per-ply eval series into everything the UI shows — the advantage
 // chart data, per-move judgments (glyphs), and per-player accuracy / ACPL. The
 // win%/accuracy/judgment math is the shared, unit-tested code in @mistboard/game.
-import { accuracyPercent, type MoveJudgment, moveJudgment, winPercent } from '@mistboard/game';
+import {
+  accuracyPercent,
+  gameAccuracy,
+  type MoveJudgment,
+  moveJudgment,
+  winPercent,
+} from '@mistboard/game';
 
 /** One eval point from the server: position AFTER `ply` plies, from Red's POV. */
 export type PlyEval = {
@@ -77,12 +83,10 @@ function moverCp(cpRed: number | null, mate: number | null, mover: 'red' | 'blac
 export function computeGameAnalysis(response: XiangqiGameAnalysisResponse): GameAnalysis {
   const evals = [...response.plies].sort((a, b) => a.ply - b.ply);
   const moves: MoveAnalysis[] = [];
-  const acc: Record<
-    'red' | 'black',
-    { accs: number[]; losses: number[]; i: number; m: number; b: number }
-  > = {
-    red: { accs: [], losses: [], i: 0, m: 0, b: 0 },
-    black: { accs: [], losses: [], i: 0, m: 0, b: 0 },
+  const redWinPercents = evals.map((entry) => winPercent(entry.cp, entry.mate));
+  const acc: Record<'red' | 'black', { losses: number[]; i: number; m: number; b: number }> = {
+    red: { losses: [], i: 0, m: 0, b: 0 },
+    black: { losses: [], i: 0, m: 0, b: 0 },
   };
 
   for (let ply = 1; ply < evals.length; ply += 1) {
@@ -90,8 +94,8 @@ export function computeGameAnalysis(response: XiangqiGameAnalysisResponse): Game
     const after = evals[ply]!;
     const mover: 'red' | 'black' = ply % 2 === 1 ? 'red' : 'black';
     // Win% from the mover's POV: Red POV as-is, Black POV is its complement.
-    const redBefore = winPercent(before.cp, before.mate);
-    const redAfter = winPercent(after.cp, after.mate);
+    const redBefore = redWinPercents[ply - 1]!;
+    const redAfter = redWinPercents[ply]!;
     const winBefore = mover === 'red' ? redBefore : 100 - redBefore;
     const winAfter = mover === 'red' ? redAfter : 100 - redAfter;
     const judgment = moveJudgment(winBefore, winAfter);
@@ -99,7 +103,6 @@ export function computeGameAnalysis(response: XiangqiGameAnalysisResponse): Game
     moves.push({ ply, mover, judgment, accuracy });
 
     const bucket = acc[mover];
-    bucket.accs.push(accuracy);
     bucket.losses.push(
       Math.max(0, moverCp(before.cp, before.mate, mover) - moverCp(after.cp, after.mate, mover)),
     );
@@ -108,10 +111,14 @@ export function computeGameAnalysis(response: XiangqiGameAnalysisResponse): Game
     else if (judgment === 'blunder') bucket.b += 1;
   }
 
+  // Whole-game accuracy is lila's volatility-weighted + harmonic blend — NOT a
+  // plain mean of per-move accuracies (which reads flatteringly high).
+  const accuracies = gameAccuracy(redWinPercents);
+
   const summarize = (side: 'red' | 'black'): PlayerAnalysis => {
     const b = acc[side];
     return {
-      accuracy: mean(b.accs),
+      accuracy: side === 'red' ? accuracies.first : accuracies.second,
       inaccuracies: b.i,
       mistakes: b.m,
       blunders: b.b,

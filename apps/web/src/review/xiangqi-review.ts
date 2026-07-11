@@ -12,7 +12,6 @@
 // branches the tree, promote/delete variations).
 
 import {
-  createInitialXiangqiBoard,
   fsfUciToXiangqiSquares,
   type StandardXiangqiPlayerView,
   type XiangqiColor,
@@ -20,11 +19,8 @@ import {
   type XiangqiMove,
 } from '@mistboard/game';
 import { animateXiangqiBoardMove, createXiangqiInteractiveBoard } from '../xiangqi-board.js';
-import { renderXiangqiPiece } from '../xiangqi-pieces.js';
 import { type AdvantageChart, createAdvantageChart } from './advantage-chart.js';
 import { createAnalysisSummary } from './analysis-summary.js';
-import { capturedByDiff } from './captured-diff.js';
-import { fillCapturedPoolWith } from './captured-pool.js';
 import type { CevalLine } from './engine/ceval.js';
 import { bestMoveArrow, engineArrowsFromLines } from './engine/engine-arrows.js';
 import { createEnginePanel } from './engine/engine-panel.js';
@@ -49,10 +45,6 @@ import { xiangqiTreeAdapter } from './xiangqi-tree-adapter.js';
 
 type XiangqiNode = GameTreeNode<XiangqiMove, XiangqiGameState>;
 type XiangqiTree = GameTree<XiangqiMove, XiangqiGameState, StandardXiangqiPlayerView>;
-
-const XIANGQI_INITIAL_PIECES = Object.values(createInitialXiangqiBoard()).filter(
-  (piece): piece is NonNullable<typeof piece> => Boolean(piece),
-);
 
 /** With the live engine off, a completed whole-game analysis still knows the
  *  best move at every mainline ply — draw it as a single arrow. Flip to false
@@ -113,7 +105,9 @@ export function mountXiangqiReview(root: HTMLElement, config: XiangqiReviewConfi
     return line;
   };
 
-  // ── Board (interactive), gauge column, rail material rows ──
+  // ── Board (interactive) + gauge column. Captured-material rows are OFF on
+  // the review surface for now: empty rows collapse and re-inflate on the first
+  // capture, jarring the rail; they return with a lichess-style rework (#166).
   const boardWrap = document.createElement('section');
   boardWrap.className = 'dxq-postgame__board-wrap review-board-host';
   const boardEl = document.createElement('div');
@@ -121,8 +115,6 @@ export function mountXiangqiReview(root: HTMLElement, config: XiangqiReviewConfi
   boardEl.setAttribute('aria-label', config.boardAriaLabel ?? 'Elephant Chess board');
   boardWrap.append(boardEl);
 
-  const materialTop = document.createElement('div');
-  const materialBottom = document.createElement('div');
   const evalBar = createEvalBar();
 
   const interactive = createXiangqiInteractiveBoard({
@@ -179,7 +171,6 @@ export function mountXiangqiReview(root: HTMLElement, config: XiangqiReviewConfi
   const isPrefix = (prefix: TreePath, of: TreePath): boolean =>
     of.length >= prefix.length && prefix.every((id, i) => of[i] === id);
   const moveTree: MoveTree = createMoveTree(tree, {
-    title: 'Moves',
     onJump: (path) => go(path),
     onPromote: (path) => {
       tree.promoteToMainline(path);
@@ -228,14 +219,13 @@ export function mountXiangqiReview(root: HTMLElement, config: XiangqiReviewConfi
     boardAspect: 552 / 612,
     boardCols: 9,
     underboard: config.analysis ? underboardEl : undefined,
+    underboardOverflows: true,
     enginePanel: enginePanel.el,
     moves: moveTree.el,
     moveComment: moveAdvice.el,
     navigation: nav.el,
     analysisSummary: analysisSummaryEl,
     gauge: evalBar.el,
-    materialTop,
-    materialBottom,
     onPromote: () => render(),
   });
 
@@ -289,14 +279,6 @@ export function mountXiangqiReview(root: HTMLElement, config: XiangqiReviewConfi
     interactive.render(view, orientation());
     evalBar.setFlipped(flipped);
 
-    const own = orientation();
-    const opp: XiangqiColor = own === 'red' ? 'black' : 'red';
-    const captured = xiangqiCaptured(view);
-    materialTop.replaceChildren();
-    materialBottom.replaceChildren();
-    fillCapturedPoolWith(materialTop, captured, own, renderCapturedXiangqiGlyph);
-    fillCapturedPoolWith(materialBottom, captured, opp, renderCapturedXiangqiGlyph);
-
     // Order matters: setPosition fires onLines(null) synchronously when the
     // engine is on (stale-arrow clear), then syncArrows repaints for the new
     // node (analysis best-move arrow, or nothing) until fresh lines stream in.
@@ -304,7 +286,6 @@ export function mountXiangqiReview(root: HTMLElement, config: XiangqiReviewConfi
     syncArrows();
     moveTree.setCurrent(currentPath);
     nav.setBounds({ atStart: currentPath.length === 0, atEnd: node.children.length === 0 });
-    nav.status.textContent = `Ply ${node.ply}`;
     chart?.setPly(node.ply);
     moveAdvice.update(node.ply, gameAnalysis);
   }
@@ -416,20 +397,6 @@ function truncationNotice(legal: number): HTMLElement {
   body.textContent = `Move ${legal + 1} is illegal from that position; showing the first ${legal} legal ${legal === 1 ? 'move' : 'moves'}.`;
   panel.append(heading, body);
   return panel;
-}
-
-function xiangqiCaptured(view: StandardXiangqiPlayerView) {
-  const current = Object.values(view.board).filter((piece): piece is NonNullable<typeof piece> =>
-    Boolean(piece),
-  );
-  return capturedByDiff(XIANGQI_INITIAL_PIECES, current);
-}
-
-function renderCapturedXiangqiGlyph(piece: {
-  color: XiangqiColor;
-  role: (typeof XIANGQI_INITIAL_PIECES)[number]['role'];
-}): string {
-  return renderXiangqiPiece(piece, { ariaLabel: `${piece.color} ${piece.role}` });
 }
 
 // Fairy-Stockfish xiangqi UCI back to our `from-to` notation for readable PV

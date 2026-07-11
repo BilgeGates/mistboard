@@ -128,6 +128,10 @@ export type ReviewScaffoldConfig = SizingInput & {
   gauge?: HTMLElement;
   materialTop?: HTMLElement;
   materialBottom?: HTMLElement;
+  /** Lichess analyse behavior: the underboard (advantage chart) lives below the
+   *  fold instead of shrinking the board to keep everything above it. The board
+   *  fills the viewport; the page scrolls to the chart. */
+  underboardOverflows?: boolean;
   /** Fires after a secondary board is promoted; the caller re-renders (the
    *  scaffold re-fits afterward). */
   onPromote?(): void;
@@ -183,20 +187,23 @@ export function createReviewScaffold(
   applyBoardSizing(stage.el, config, stripsAdopted);
 
   const left = infoRail(config);
-  // Right rail, lichess order: material-top · engine panel · move list ·
-  // advice · navigation · summary · material-bottom.
+  // Right rail, lichess order: material-top · [analyse table: engine panel ·
+  // move list · advice · navigation] · summary · material-bottom. The analyse
+  // table is ONE visually connected box (lichess's analyse tools) whose bottom
+  // tracks the board bottom; the summary sits below it.
   materialTop?.classList.add('review-material-row');
   materialBottom?.classList.add('review-material-row');
+  const railMain = document.createElement('div');
+  railMain.className = 'review-rail-main';
+  railMain.append(
+    ...[config.enginePanel, config.moves, config.moveComment, config.navigation].filter(
+      (el): el is HTMLElement => el != null,
+    ),
+  );
   const right = railGroup(
-    [
-      materialTop,
-      config.enginePanel,
-      config.moves,
-      config.moveComment,
-      config.navigation,
-      config.analysisSummary,
-      materialBottom,
-    ].filter((el): el is HTMLElement => el != null),
+    [materialTop, railMain, config.analysisSummary, materialBottom].filter(
+      (el): el is HTMLElement => el != null,
+    ),
   );
   const center = config.underboard ? centerColumn(stage.el, config.underboard) : stage.el;
 
@@ -238,7 +245,9 @@ export function createReviewScaffold(
 
   function refit(): void {
     applyBoardSizing(stage.el, config, stripsAdopted);
-    fitPrimaryToViewport(stage.el, config.boardAspect, config.boardMaxPx);
+    fitPrimaryToViewport(stage.el, config.boardAspect, config.boardMaxPx, {
+      underboardOverflows: config.underboardOverflows,
+    });
     setTimeout(positionGrip, 60);
   }
 
@@ -381,14 +390,24 @@ export function installReviewKeyboard(
 // Board sizing (viewport-fill). Shared by every scaffold consumer.
 // ─────────────────────────────────────────────────────────────────────────────
 
-function fitPrimaryToViewport(stageEl: HTMLElement, aspect: number, maxPx?: number): void {
+function fitPrimaryToViewport(
+  stageEl: HTMLElement,
+  aspect: number,
+  maxPx?: number,
+  opts?: { underboardOverflows?: boolean },
+): void {
   scheduleAnimationFrame(() => {
     if (typeof window === 'undefined') return;
     const centerCol = stageEl.parentElement;
     const underboard = centerCol?.classList.contains('review-center-column')
       ? centerCol.querySelector<HTMLElement>('.review-underboard')
       : null;
-    const underboardPx = underboard ? underboard.getBoundingClientRect().height + STACK_GAP_PX : 0;
+    // Below-the-fold underboards (lichess analyse chart) don't shrink the board:
+    // they contribute 0 to the height budget and the page scrolls to them.
+    const underboardPx =
+      underboard && !opts?.underboardOverflows
+        ? underboard.getBoundingClientRect().height + STACK_GAP_PX
+        : 0;
     const cluster = stageEl.closest<HTMLElement>('.review-shell__cluster');
     if (cluster) {
       const baseChrome = Number(cluster.dataset.uniBaseChrome ?? '0') || 0;
@@ -396,7 +415,6 @@ function fitPrimaryToViewport(stageEl: HTMLElement, aspect: number, maxPx?: numb
         '--uni-board-chrome-h',
         `${baseChrome + Math.round(underboardPx)}px`,
       );
-      cluster.style.setProperty('--uni-underboard-h', `${Math.round(underboardPx)}px`);
     }
     const available = window.innerHeight - VIEWPORT_CHROME_PX - underboardPx;
     const slot = stageEl.querySelector<HTMLElement>('.review-stage__slot--primary');
@@ -459,7 +477,6 @@ function applyBoardSizing(stageEl: HTMLElement, config: SizingInput, stripsAdopt
     cluster.dataset.uniBaseChrome = String(baseChrome);
     cluster.style.setProperty('--uni-board-chrome-h', `${baseChrome}px`);
     cluster.style.removeProperty('--uni-board-fit-w');
-    cluster.style.removeProperty('--uni-underboard-h');
   }
   stageEl.style.setProperty(
     '--review-stage-primary-max',
