@@ -107,6 +107,8 @@ const inboxHandle = inboxMatch?.[1] ? decodeURIComponent(inboxMatch[1]) : null;
 // visitors. Deliberately not in the sitemap (a private, self-only surface).
 const wantsFollowing = path === '/following' || page === 'following';
 const wantsLearn = path === '/learn' || page === 'learn';
+// Interactive beginner course (lichess /learn parity), xiangqi first.
+const wantsLearnXiangqi = path === '/learn/xiangqi';
 const wantsRulesIndex =
   path === '/rules' || path === '/zh-hans/rules' || path === '/zh-hant/rules' || page === 'rules';
 const articleSlug = articleSlugFromPath(path);
@@ -558,6 +560,13 @@ if (replaySample) {
   void mountOrReport(() =>
     import('./pages-static.js').then(({ mountRulesIndex }) =>
       mountRulesIndex(appRoot, articleLang),
+    ),
+  );
+} else if (wantsLearnXiangqi) {
+  setTitleKey('nav.learn');
+  void mountOrReport(() =>
+    import('./learn-xiangqi/learn-xiangqi-page.js').then(({ mountLearnXiangqi }) =>
+      mountLearnXiangqi(appRoot),
     ),
   );
 } else if (wantsLearn) {

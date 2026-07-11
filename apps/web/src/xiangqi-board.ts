@@ -60,6 +60,17 @@ export interface XiangqiBoardSvgState {
   draggingFrom: XiangqiSquare | null;
   /** Engine/annotation arrows, drawn in array order (last = on top). */
   arrows?: readonly XiangqiBoardArrow[];
+  /** Point markers (learn-mode collectible stars / annotation rings). */
+  markers?: readonly XiangqiBoardMarker[];
+}
+
+/** A decoration pinned to one intersection: 'star' = a collectible item
+ *  (xiangqi learn apples), 'circle' = an annotation ring. Styling hooks via
+ *  className; geometry flips with the board perspective like everything else. */
+export interface XiangqiBoardMarker {
+  square: XiangqiSquare;
+  kind: 'star' | 'circle';
+  className?: string;
 }
 
 /** One board arrow (engine PV hint / best-move advice). Geometry is derived from
@@ -97,6 +108,7 @@ export function xiangqiBoardSvg(
       <g class="xq-live-selection">${selectionLayer(state.selectedSquare, perspective)}</g>
       <g class="xq-live-hints">${state.interactive ? '' : hintLayer(view, perspective, state.selectedSquare)}</g>
       <g class="xq-live-pieces">${pieceLayer(view, perspective, state.draggingFrom)}</g>
+      <g class="xq-live-markers" aria-hidden="true" pointer-events="none">${markerLayer(state.markers ?? [], perspective)}</g>
       <g class="xq-live-arrows" aria-hidden="true" pointer-events="none">${arrowLayer(state.arrows ?? [], perspective)}</g>
       <g class="xq-live-clicks">${state.interactive ? clickLayer(view, perspective, state.selectedSquare) : ''}</g>
     </svg>
@@ -237,6 +249,37 @@ export function xiangqiArrowSvg(arrow: XiangqiBoardArrow, perspective: XiangqiCo
 
 function arrowLayer(arrows: readonly XiangqiBoardArrow[], perspective: XiangqiColor): string {
   return arrows.map((arrow) => xiangqiArrowSvg(arrow, perspective)).join('');
+}
+
+// ── Point markers (learn stars / annotation rings) ───────────────────────────
+
+const STAR_OUTER_RADIUS = 22;
+const STAR_INNER_RADIUS = 9;
+const MARKER_RING_RADIUS = 29;
+
+function starPoints(cx: number, cy: number): string {
+  const points: string[] = [];
+  for (let k = 0; k < 10; k += 1) {
+    const radius = k % 2 === 0 ? STAR_OUTER_RADIUS : STAR_INNER_RADIUS;
+    const angle = -Math.PI / 2 + (k * Math.PI) / 5;
+    points.push(`${fmt(cx + radius * Math.cos(angle))},${fmt(cy + radius * Math.sin(angle))}`);
+  }
+  return points.join(' ');
+}
+
+/** One marker at an intersection. Pure string renderer — exported for tests. */
+export function xiangqiMarkerSvg(marker: XiangqiBoardMarker, perspective: XiangqiColor): string {
+  const coord = coordOf(marker.square);
+  const center = intersection(coord.file, coord.rank, perspective);
+  const className = marker.className ? `xq-marker ${marker.className}` : 'xq-marker';
+  if (marker.kind === 'circle') {
+    return `<circle class="${className} xq-marker--circle" cx="${center.x}" cy="${center.y}" r="${MARKER_RING_RADIUS}" fill="none" stroke-width="5"/>`;
+  }
+  return `<polygon class="${className} xq-marker--star" points="${starPoints(center.x, center.y)}"/>`;
+}
+
+function markerLayer(markers: readonly XiangqiBoardMarker[], perspective: XiangqiColor): string {
+  return markers.map((marker) => xiangqiMarkerSvg(marker, perspective)).join('');
 }
 
 function selectionLayer(square: XiangqiSquare | null, perspective: XiangqiColor): string {
@@ -436,6 +479,9 @@ export interface XiangqiInteractiveBoard {
    *  place when present; the arrows persist across full re-renders until the
    *  next setArrows call. Pass [] to clear. */
   setArrows(arrows: readonly XiangqiBoardArrow[]): void;
+  /** Replace the point-marker overlay (learn stars / annotation rings). Same
+   *  persistence contract as setArrows. Pass [] to clear. */
+  setMarkers(markers: readonly XiangqiBoardMarker[]): void;
 }
 
 export function createXiangqiInteractiveBoard(
@@ -444,6 +490,7 @@ export function createXiangqiInteractiveBoard(
   let selectedSquare: XiangqiSquare | null = null;
   let draggingFrom: XiangqiSquare | null = null;
   let arrows: readonly XiangqiBoardArrow[] = [];
+  let markers: readonly XiangqiBoardMarker[] = [];
 
   function render(view: StandardXiangqiPlayerView | null, perspective: XiangqiColor): void {
     if (!view) {
@@ -455,6 +502,7 @@ export function createXiangqiInteractiveBoard(
       selectedSquare,
       draggingFrom,
       arrows,
+      markers,
     });
   }
 
@@ -465,6 +513,13 @@ export function createXiangqiInteractiveBoard(
     const layer = opts.board.querySelector('.xq-live-arrows');
     if (layer)
       layer.innerHTML = arrows.map((a) => xiangqiArrowSvg(a, opts.getPerspective())).join('');
+  }
+
+  function setMarkers(next: readonly XiangqiBoardMarker[]): void {
+    markers = next;
+    const layer = opts.board.querySelector('.xq-live-markers');
+    if (layer)
+      layer.innerHTML = markers.map((m) => xiangqiMarkerSvg(m, opts.getPerspective())).join('');
   }
 
   // Re-render from the live interaction view after a click/drag mutation.
@@ -543,7 +598,7 @@ export function createXiangqiInteractiveBoard(
     },
   });
 
-  return { render, clearSelection, setArrows };
+  return { render, clearSelection, setArrows, setMarkers };
 }
 
 // ── Geometry ─────────────────────────────────────────────────────────────────

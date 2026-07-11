@@ -1,0 +1,513 @@
+// Xiangqi Learn — the /learn/xiangqi page (lila learn view.ts + runView.ts
+// port). Hash-routed inside the page: '' = map screen, '#/<stageKey>' =
+// stage (resumes at the first unscored level), '#/<stageKey>/<levelId>' =
+// a specific level. All DOM lives here; game logic lives in the runner.
+
+import '../live-xiangqi.css';
+import './learn-xiangqi.css';
+
+import type { XiangqiPieceRole } from '@mistboard/game';
+import { initLiveSound, playSound } from '../live-sound.js';
+import { buildNav } from '../site-shell.js';
+import {
+  createXiangqiInteractiveBoard,
+  type XiangqiBoardArrow,
+  type XiangqiBoardMarker,
+} from '../xiangqi-board.js';
+import { renderXiangqiPiece } from '../xiangqi-pieces.js';
+import { learnCongrats, learnCopy } from './learn-copy.js';
+import { createLevelRunner, type LearnSound, type LevelRunner } from './learn-level-runner.js';
+import { levelRank, stageRank, starsOfRank } from './learn-score.js';
+import {
+  completedLevelCount,
+  firstUnscoredLevelId,
+  isStageComplete,
+  type LearnProgress,
+  loadLearnProgress,
+  resetLearnProgress,
+  saveLevelScore,
+  stageHasProgress,
+  stageScores,
+} from './learn-storage.js';
+import type { LearnLevel, LearnShape, LearnStage } from './learn-types.js';
+import {
+  learnXiangqiCategories,
+  learnXiangqiStages,
+  stageAfter,
+  stageByKey,
+  totalLevelCount,
+} from './stages/index.js';
+
+const AUTO_ADVANCE_DELAY_MS = 1200;
+
+// "What next?" funnel tiles (map bottom). Watch takes lichess's Practice slot.
+const WHAT_NEXT_TILES: { title: string; subtitle: string; href: string; glyph: string }[] = [
+  {
+    title: 'Register',
+    subtitle: 'Keep your progress on any device',
+    href: '/account',
+    glyph: '👤',
+  },
+  { title: 'Puzzles', subtitle: 'Sharpen your tactics', href: '/puzzles', glyph: '🎯' },
+  { title: 'Play people', subtitle: 'Opponents from around the world', href: '/', glyph: '⚔️' },
+  { title: 'Play machine', subtitle: 'Climb the bot ladder', href: '/', glyph: '🤖' },
+  { title: 'Videos', subtitle: 'Watch instructive xiangqi videos', href: '/videos', glyph: '🎬' },
+  {
+    title: 'Watch',
+    subtitle: 'Follow top tournament games',
+    href: '/broadcast/xiangqi',
+    glyph: '📺',
+  },
+];
+
+type Route = { kind: 'map' } | { kind: 'run'; stage: LearnStage; levelId: number };
+
+export function mountLearnXiangqi(root: HTMLElement): void {
+  initLiveSound();
+
+  const page = document.createElement('div');
+  page.className = 'learn-xq';
+  root.replaceChildren(buildNav(), page);
+
+  let progress: LearnProgress = loadLearnProgress();
+  let runner: LevelRunner | null = null;
+  const pageTimers = new Set<ReturnType<typeof setTimeout>>();
+
+  const later = (fn: () => void, ms: number): void => {
+    const timer = setTimeout(() => {
+      pageTimers.delete(timer);
+      fn();
+    }, ms);
+    pageTimers.add(timer);
+  };
+
+  function teardownLevel(): void {
+    runner?.dispose();
+    runner = null;
+    for (const timer of pageTimers) clearTimeout(timer);
+    pageTimers.clear();
+  }
+
+  function parseRoute(): Route {
+    const match = /^#\/([a-z0-9-]+)(?:\/(\d+))?$/.exec(window.location.hash);
+    if (!match) return { kind: 'map' };
+    const stage = stageByKey(match[1] ?? '');
+    if (!stage) return { kind: 'map' };
+    const levelId = match[2]
+      ? Math.min(Math.max(Number(match[2]), 1), stage.levels.length)
+      : firstUnscoredLevelId(progress, stage);
+    return { kind: 'run', stage, levelId };
+  }
+
+  function navigate(hash: string): void {
+    if (window.location.hash === hash) render();
+    else window.location.hash = hash;
+  }
+
+  function render(): void {
+    teardownLevel();
+    const route = parseRoute();
+    if (route.kind === 'map') renderMap();
+    else renderRun(route.stage, route.levelId);
+  }
+
+  window.addEventListener('hashchange', render);
+
+  // ── Map screen ─────────────────────────────────────────────────────────────
+
+  function stageState(stage: LearnStage): 'done' | 'ongoing' | 'future' {
+    if (isStageComplete(progress, stage)) return 'done';
+    const prev = learnXiangqiStages.find((candidate) => candidate.id === stage.id - 1);
+    if (!prev || isStageComplete(progress, prev) || stageHasProgress(progress, stage)) {
+      return 'ongoing';
+    }
+    return 'future';
+  }
+
+  function renderMap(): void {
+    page.className = 'learn-xq learn-xq--map';
+    page.replaceChildren(mapSidebar(), mapMain());
+  }
+
+  function mapSidebar(): HTMLElement {
+    const side = document.createElement('aside');
+    side.className = 'learn-xq-side-card';
+    const illus = document.createElement('div');
+    illus.className = 'learn-xq-mascot';
+    illus.innerHTML = pieceSvg('general', 96);
+    const title = document.createElement('h1');
+    title.textContent = learnCopy('learn.xiangqi.title');
+    const sub = document.createElement('p');
+    sub.textContent = learnCopy('learn.xiangqi.byPlaying');
+    const done = completedLevelCount(progress, learnXiangqiStages);
+    const total = totalLevelCount();
+    const pct = total === 0 ? 0 : Math.round((done / total) * 100);
+    const bar = document.createElement('div');
+    bar.className = 'learn-xq-progress-bar';
+    bar.innerHTML = `<div class="learn-xq-progress-fill" style="width:${pct}%"></div><span>${learnCopy('learn.xiangqi.progress')}: ${pct}%</span>`;
+    side.append(illus, title, sub, bar);
+    if (done > 0) {
+      const reset = document.createElement('button');
+      reset.type = 'button';
+      reset.className = 'learn-xq-reset';
+      reset.textContent = learnCopy('learn.xiangqi.resetProgress');
+      reset.addEventListener('click', () => {
+        if (window.confirm(learnCopy('learn.xiangqi.resetConfirm'))) {
+          resetLearnProgress();
+          progress = loadLearnProgress();
+          render();
+        }
+      });
+      side.append(reset);
+    }
+    return side;
+  }
+
+  function mapMain(): HTMLElement {
+    const main = document.createElement('main');
+    main.className = 'learn-xq-map-main';
+    for (const categ of learnXiangqiCategories) {
+      const section = document.createElement('section');
+      section.className = 'learn-xq-categ';
+      const heading = document.createElement('h2');
+      heading.textContent = learnCopy(categ.name);
+      const grid = document.createElement('div');
+      grid.className = 'learn-xq-tile-grid';
+      for (const stage of categ.stages) grid.append(stageTile(stage));
+      section.append(heading, grid);
+      main.append(section);
+    }
+    main.append(whatNextSection());
+    return main;
+  }
+
+  function stageTile(stage: LearnStage): HTMLElement {
+    const state = stageState(stage);
+    const tile = document.createElement('a');
+    tile.className = `learn-xq-tile learn-xq-tile--${state}`;
+    tile.href = `#/${stage.key}`;
+    const illus = document.createElement('div');
+    illus.className = 'learn-xq-tile-illus';
+    illus.innerHTML = stageIllustration(stage, 56);
+    const text = document.createElement('div');
+    text.className = 'learn-xq-tile-text';
+    const title = document.createElement('h3');
+    title.textContent = learnCopy(stage.title);
+    const subtitle = document.createElement('p');
+    subtitle.textContent = learnCopy(stage.subtitle);
+    text.append(title, subtitle);
+    const ribbon = document.createElement('div');
+    ribbon.className = 'learn-xq-tile-ribbon';
+    if (state === 'done') {
+      ribbon.innerHTML = starIcons(starsOfRank(stageRank(stage, stageScores(progress, stage.key))));
+    } else if (state === 'ongoing') {
+      const done = stageScores(progress, stage.key).filter((score) => score > 0).length;
+      ribbon.textContent =
+        done > 0 ? `${done} / ${stage.levels.length}` : learnCopy('learn.xiangqi.play');
+    }
+    tile.append(illus, text, ribbon);
+    return tile;
+  }
+
+  function whatNextSection(): HTMLElement {
+    const section = document.createElement('section');
+    section.className = 'learn-xq-categ learn-xq-what-next';
+    const heading = document.createElement('h2');
+    heading.textContent = learnCopy('learn.xiangqi.whatNext');
+    const copy = document.createElement('p');
+    copy.className = 'learn-xq-what-next-copy';
+    copy.textContent = learnCopy('learn.xiangqi.whatNextCopy');
+    const grid = document.createElement('div');
+    grid.className = 'learn-xq-tile-grid';
+    for (const item of WHAT_NEXT_TILES) {
+      const tile = document.createElement('a');
+      tile.className = 'learn-xq-tile learn-xq-tile--link';
+      tile.href = item.href;
+      tile.innerHTML = `
+        <div class="learn-xq-tile-illus learn-xq-tile-glyph">${item.glyph}</div>
+        <div class="learn-xq-tile-text"><h3>${item.title}</h3><p>${item.subtitle}</p></div>`;
+      grid.append(tile);
+    }
+    section.append(heading, copy, grid);
+    return section;
+  }
+
+  // ── Run screen ─────────────────────────────────────────────────────────────
+
+  function renderRun(stage: LearnStage, levelId: number): void {
+    const level = stage.levels[levelId - 1];
+    if (!level) {
+      navigate('');
+      return;
+    }
+    page.className = 'learn-xq learn-xq--run';
+
+    const side = runSidebar(stage);
+    const main = document.createElement('main');
+    main.className = 'learn-xq-run-main';
+    const boardWrap = document.createElement('div');
+    boardWrap.className = 'learn-xq-board xiangqi-live-board';
+    if (level.cssClass) boardWrap.classList.add(level.cssClass);
+    const boardHost = document.createElement('div');
+    boardHost.className = 'learn-xq-board-host';
+    boardWrap.append(boardHost);
+    main.append(boardWrap);
+
+    const table = document.createElement('aside');
+    table.className = 'learn-xq-table';
+
+    page.replaceChildren(side, main, table);
+
+    mountLevel(stage, level, boardHost, table);
+
+    // First visit to a stage: intro overlay.
+    if (!stageHasProgress(progress, stage) && levelId === 1) {
+      page.append(stageStartOverlay(stage));
+    }
+  }
+
+  function runSidebar(activeStage: LearnStage): HTMLElement {
+    const side = document.createElement('aside');
+    side.className = 'learn-xq-run-side';
+    const back = document.createElement('a');
+    back.className = 'learn-xq-back';
+    back.href = '#';
+    back.textContent = `← ${learnCopy('learn.xiangqi.backToMenu')}`;
+    side.append(back);
+    for (const categ of learnXiangqiCategories) {
+      const heading = document.createElement('h3');
+      heading.textContent = learnCopy(categ.name);
+      side.append(heading);
+      for (const stage of categ.stages) {
+        const link = document.createElement('a');
+        link.href = `#/${stage.key}`;
+        link.className = 'learn-xq-side-stage';
+        if (stage.key === activeStage.key) link.classList.add('active');
+        if (isStageComplete(progress, stage)) link.classList.add('done');
+        link.innerHTML = `<span class="learn-xq-side-illus">${stageIllustration(stage, 24)}</span>${learnCopy(stage.title)}`;
+        side.append(link);
+      }
+    }
+    return side;
+  }
+
+  function mountLevel(
+    stage: LearnStage,
+    level: LearnLevel,
+    boardHost: HTMLElement,
+    table: HTMLElement,
+  ): void {
+    let shapes: readonly LearnShape[] = [];
+
+    const board = createXiangqiInteractiveBoard({
+      board: boardHost,
+      getInteractionView: () => runner?.view() ?? null,
+      getPerspective: () => level.color,
+      seatFor: () => level.color,
+      enabled: () => runner !== null && !runner.vm().completed && !runner.vm().failed,
+      onMove: (move) => runner?.userMove(move),
+    });
+
+    const syncOverlays = (): void => {
+      const arrows: XiangqiBoardArrow[] = [];
+      const markers: XiangqiBoardMarker[] = [];
+      for (const shape of shapes) {
+        if (shape.kind === 'arrow') {
+          arrows.push({
+            from: shape.from,
+            to: shape.to,
+            className: `xq-arrow--learn-${shape.brush ?? 'green'}`,
+          });
+        } else {
+          markers.push({
+            square: shape.square,
+            kind: 'circle',
+            className: `xq-marker--${shape.brush ?? 'green'}`,
+          });
+        }
+      }
+      for (const square of runner?.apples() ?? []) {
+        markers.push({ square, kind: 'star', className: 'xq-marker--apple' });
+      }
+      board.setArrows(arrows);
+      board.setMarkers(markers);
+    };
+
+    const rerender = (): void => {
+      if (!runner) return;
+      board.render(runner.view(), level.color);
+      syncOverlays();
+      renderTable(stage, level, table);
+    };
+
+    runner = createLevelRunner(level, {
+      onChange: rerender,
+      onShapes: (next) => {
+        shapes = next;
+        syncOverlays();
+      },
+      onSound: playLearnSound,
+      onComplete: (score) => {
+        progress = saveLevelScore(stage.key, level.id, score);
+        renderTable(stage, level, table);
+        if (!level.nextButton) later(() => advance(stage, level), AUTO_ADVANCE_DELAY_MS);
+      },
+      onFail: () => renderTable(stage, level, table),
+    });
+
+    runner.start();
+    rerender();
+  }
+
+  function advance(stage: LearnStage, level: LearnLevel): void {
+    const nextLevel = stage.levels[level.id];
+    if (nextLevel) {
+      navigate(`#/${stage.key}/${nextLevel.id}`);
+      return;
+    }
+    // Last level: stage-complete overlay over the run screen.
+    page.append(stageCompleteOverlay(stage));
+  }
+
+  function renderTable(stage: LearnStage, level: LearnLevel, table: HTMLElement): void {
+    const vm = runner?.vm() ?? { moves: 0, score: 0, completed: false, failed: false };
+    table.replaceChildren();
+
+    const header = document.createElement('div');
+    header.className = 'learn-xq-table-header';
+    header.innerHTML = `
+      <div class="learn-xq-table-illus">${stageIllustration(stage, 48)}</div>
+      <div><h2>${learnCopy(stage.title)}</h2><p>${learnCopy(stage.subtitle)}</p></div>`;
+    table.append(header);
+
+    const body = document.createElement('div');
+    body.className = 'learn-xq-table-body';
+    if (vm.failed) {
+      body.classList.add('learn-xq-result--failed');
+      body.innerHTML = `<p>${learnCopy('learn.xiangqi.levelFailed')}</p><button type="button" class="learn-xq-retry">${learnCopy('learn.xiangqi.retry')}</button>`;
+      body.addEventListener('click', () => render());
+    } else if (vm.completed) {
+      body.classList.add('learn-xq-result--completed');
+      const stars = starsOfRank(levelRank(level, vm.score));
+      body.innerHTML = `<p class="learn-xq-congrats">${learnCongrats()}</p><div class="learn-xq-stars">${starIcons(stars)}</div>`;
+      if (level.nextButton) {
+        const next = document.createElement('button');
+        next.type = 'button';
+        next.className = 'learn-xq-next';
+        next.textContent = learnCopy('learn.xiangqi.next');
+        next.addEventListener('click', () => advance(stage, level));
+        body.append(next);
+      }
+    } else {
+      body.innerHTML = `<p class="learn-xq-goal">${learnCopy(level.goal)}</p>`;
+    }
+    table.append(body);
+
+    const pills = document.createElement('div');
+    pills.className = 'learn-xq-pills';
+    const scores = stageScores(progress, stage.key);
+    for (const candidate of stage.levels) {
+      const pill = document.createElement('a');
+      pill.href = `#/${stage.key}/${candidate.id}`;
+      pill.className = 'learn-xq-pill';
+      if (candidate.id === level.id) pill.classList.add('active');
+      const score = scores[candidate.id - 1] ?? 0;
+      if (score > 0) {
+        pill.classList.add('done');
+        pill.innerHTML = starIcons(starsOfRank(levelRank(candidate, score)));
+      } else {
+        pill.textContent = String(candidate.id);
+      }
+      pills.append(pill);
+    }
+    table.append(pills);
+  }
+
+  // ── Overlays ───────────────────────────────────────────────────────────────
+
+  function stageStartOverlay(stage: LearnStage): HTMLElement {
+    const overlay = document.createElement('div');
+    overlay.className = 'learn-xq-overlay';
+    const card = document.createElement('div');
+    card.className = 'learn-xq-overlay-card';
+    card.innerHTML = `
+      <p class="learn-xq-overlay-eyebrow">${learnCopy('learn.xiangqi.stage')} ${stage.id}</p>
+      <div class="learn-xq-overlay-illus">${stageIllustration(stage, 96)}</div>
+      <h2>${learnCopy(stage.title)}</h2>
+      <p>${learnCopy(stage.intro)}</p>
+      <button type="button" class="learn-xq-overlay-go">${learnCopy('learn.xiangqi.letsGo')}</button>`;
+    overlay.append(card);
+    overlay.addEventListener('click', () => overlay.remove());
+    playSound('game-start');
+    return overlay;
+  }
+
+  function stageCompleteOverlay(stage: LearnStage): HTMLElement {
+    const overlay = document.createElement('div');
+    overlay.className = 'learn-xq-overlay';
+    const card = document.createElement('div');
+    card.className = 'learn-xq-overlay-card learn-xq-overlay-card--complete';
+    const scores = stageScores(progress, stage.key);
+    const stars = starsOfRank(stageRank(stage, scores));
+    const total = scores.reduce((sum, score) => sum + score, 0);
+    const next = stageAfter(stage);
+    card.innerHTML = `
+      <div class="learn-xq-stars learn-xq-stars--animated">${starIcons(stars)}</div>
+      <h2>${learnCopy(stage.title)}: ${learnCopy('learn.xiangqi.stageComplete')}</h2>
+      <p class="learn-xq-score">${total}</p>
+      <p>${learnCopy(stage.complete)}</p>`;
+    const buttons = document.createElement('div');
+    buttons.className = 'learn-xq-overlay-buttons';
+    if (next) {
+      const nextButton = document.createElement('button');
+      nextButton.type = 'button';
+      nextButton.className = 'learn-xq-overlay-go';
+      nextButton.textContent = `${learnCopy('learn.xiangqi.nextStage')} ${learnCopy(next.title)}`;
+      nextButton.addEventListener('click', () => navigate(`#/${next.key}`));
+      buttons.append(nextButton);
+    }
+    const menuButton = document.createElement('button');
+    menuButton.type = 'button';
+    menuButton.className = 'learn-xq-overlay-menu';
+    menuButton.textContent = learnCopy('learn.xiangqi.backToMenu');
+    menuButton.addEventListener('click', () => navigate(''));
+    buttons.append(menuButton);
+    card.append(buttons);
+    overlay.append(card);
+    playSound('win');
+    return overlay;
+  }
+
+  // ── Shared bits ────────────────────────────────────────────────────────────
+
+  function playLearnSound(sound: LearnSound): void {
+    const mapping = {
+      move: 'move',
+      take: 'capture',
+      capture: 'capture',
+      failure: 'lose',
+      levelEnd: 'win',
+    } as const;
+    playSound(mapping[sound]);
+  }
+
+  function stageIllustration(stage: LearnStage, size: number): string {
+    if (stage.illustration.piece) {
+      return pieceSvg(stage.illustration.piece as XiangqiPieceRole, size);
+    }
+    return `<span class="learn-xq-glyph" style="font-size:${size * 0.8}px">${stage.illustration.glyph ?? '★'}</span>`;
+  }
+
+  function pieceSvg(role: XiangqiPieceRole, size: number): string {
+    return renderXiangqiPiece({ color: 'red', role }, { size });
+  }
+
+  function starIcons(count: number): string {
+    return Array.from(
+      { length: 3 },
+      (_, index) => `<span class="learn-xq-star${index < count ? ' filled' : ''}">★</span>`,
+    ).join('');
+  }
+
+  render();
+}
