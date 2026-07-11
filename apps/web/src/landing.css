@@ -1556,6 +1556,9 @@
     left: 0;
     right: 0;
     top: 0;
+    /* Paint above the relative-positioned play-stack (later in DOM) so the
+       tagline stays selectable and the About link stays clickable. */
+    z-index: 1;
   }
 
   .landing-play-stack {
