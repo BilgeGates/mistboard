@@ -248,7 +248,7 @@ describe('profile ratings rail', () => {
     });
     expect(root.querySelector('.profile-rating-chart-empty')).toBeNull();
     expect(root.querySelector('.profile-rating-spotlight')?.textContent).toContain('1662');
-    expect(root.querySelector('.profile-header')?.textContent).toContain('@dev-testing');
+    expect(root.querySelector('.profile-overview')?.textContent).toContain('@dev-testing');
     expect(root.querySelector('.profile-info-card')).toBeNull();
     expect(root.querySelector('.profile-rating-row-selected')?.textContent).toContain(
       'Flip Jungle',
@@ -259,10 +259,10 @@ describe('profile ratings rail', () => {
     expect(root.querySelector('.profile-activity-summary-row')?.textContent).toContain('1 draw');
     expect(root.querySelector('.profile-activity-summary-row')?.textContent).toContain('1 loss');
 
-    // Lichess-style identity block: join date on the meta line, presence dot
-    // ahead of the handle (filled once /api/players/online confirms), and an
-    // Edit profile action on your own profile.
-    expect(root.querySelector('.profile-header-meta')?.textContent).toContain('Member since');
+    // Lichess-style identity block: presence dot ahead of the handle (filled
+    // once /api/players/online confirms), the join date in the side column, and
+    // an Edit profile action on your own profile.
+    expect(root.querySelector('.profile-overview-side')?.textContent).toContain('Member since');
     expect(root.querySelector('h1 .profile-presence')).not.toBeNull();
     await vi.waitFor(() => {
       expect(root.querySelector('.profile-presence-online')).not.toBeNull();
@@ -274,11 +274,10 @@ describe('profile ratings rail', () => {
     expect(edit?.getAttribute('href')).toBe('/account');
     expect(edit?.textContent).toBe('Edit profile');
 
-    // Counts strip: total games + rated games (sum across buckets); the join
-    // date moved up to the meta line.
-    const stats = root.querySelector('.profile-stats');
-    expect(stats?.textContent).toContain('Rated games');
-    expect(stats?.textContent).toContain('4');
+    // Counts strip under the name: total games + rated games (sum across buckets).
+    const counts = root.querySelector('.profile-counts');
+    expect(counts?.textContent).toContain('Rated games');
+    expect(counts?.textContent).toContain('4');
 
     // Canonical ordering: the rail reads in the shared registry order (xiangqi
     // first) regardless of activity; played rows stand out by not dimming.
@@ -293,10 +292,17 @@ describe('profile ratings rail', () => {
       true,
     );
 
+    // Activity / Games are tabs over one column: the tab is the panel's only
+    // label (panels carry no heading), the Games tab carries the total count,
+    // and clicking swaps which panel is shown.
     const tabs = [...root.querySelectorAll<HTMLButtonElement>('.profile-tab')];
     expect(tabs.map((tab) => tab.textContent)).toEqual(['Activity', 'Games 2']);
     expect(tabs[1]?.querySelector('.profile-tab-count')?.textContent).toBe('2');
     expect(tabs[0]?.getAttribute('aria-selected')).toBe('true');
+    expect(root.querySelector('.profile-activity-panel h2')).toBeNull();
+    expect(root.querySelector('.profile-games h2')).toBeNull();
+    expect(root.querySelector<HTMLElement>('.profile-activity-panel')?.hidden).toBe(false);
+    expect(root.querySelector<HTMLElement>('.profile-games')?.hidden).toBe(true);
     tabs[1]?.click();
     expect(tabs[1]?.getAttribute('aria-selected')).toBe('true');
     expect(root.querySelector<HTMLElement>('.profile-activity-panel')?.hidden).toBe(true);
