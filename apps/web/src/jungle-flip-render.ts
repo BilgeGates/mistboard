@@ -76,7 +76,10 @@ const DESCRIPTOR: GridBoardDescriptor = {
   palette: PALETTE,
   framePad: 0,
   pad: 0,
-  boardRadius: 0,
+  // Full-bleed <image> terrain (like jungle) isn't clipped by the outer CSS
+  // border-radius, so round the internal clip-path (~1.9% of the 256u board
+  // width = the shared --board-corner-radius token) to clip the corner images.
+  boardRadius: 5,
   boardEdgeWidth: 0,
   svgClass: 'jungle-flip-live-svg',
 };

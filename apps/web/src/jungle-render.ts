@@ -86,7 +86,11 @@ const DESCRIPTOR: GridBoardDescriptor = {
   palette: PALETTE,
   framePad: 0,
   pad: 0,
-  boardRadius: 0,
+  // Jungle paints terrain as full-bleed SVG <image> layers, which the outer
+  // [data-board="grid"] CSS border-radius/overflow:hidden does NOT clip. Round
+  // the internal clip-path instead (~1.9% of the 336u board width = the shared
+  // --board-corner-radius token) so the corner images are clipped too.
+  boardRadius: 6,
   boardEdgeWidth: 0,
   svgClass: 'jungle-live-svg',
 };
