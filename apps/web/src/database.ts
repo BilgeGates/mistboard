@@ -4,6 +4,7 @@
 // through to the variant's review route. Admin-gated by the
 // /api/admin/games/query endpoint (open in local dev). No nav entry.
 import './database.css';
+import { buildNav } from './site-shell.js';
 import { findTimeControl } from '@mistboard/game';
 import {
   type FeaturedGame,
@@ -97,7 +98,7 @@ export async function mountDatabase(root: HTMLElement): Promise<void> {
   resultsHost.className = 'database-results-host';
 
   shell.append(heading, sub, filtersHost, summaryHost, resultsHost);
-  root.append(shell);
+  root.append(buildNav(), shell);
 
   let filters = readFilters();
 

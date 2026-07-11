@@ -67,14 +67,18 @@ export function buildNav(locale: Locale = currentLocale()): HTMLElement {
   const [play, puzzles, watch] = primaryNavItems();
   if (play) links.append(navLink(play, locale));
   if (puzzles) links.append(navLink(puzzles, locale));
-  links.append(navMenu('nav.learn', learnNavItems(), locale));
+  // Learn title links to the rules index (/rules); the dropdown lists the same.
+  // On touch/no-hover the first tap opens the panel, where Rules is reachable.
+  links.append(navMenu('nav.learn', learnNavItems(), locale, '/rules'));
   // Watch title links to Mistboard TV (/watch); the dropdown adds Broadcasts.
   links.append(navMenu('nav.watch', watchNavItems(), locale, watch?.href ?? '/watch'));
   // Community title itself links to the player page (lichess parity): hovering
   // opens the dropdown, clicking the word navigates to /player.
   links.append(navMenu('nav.community', communityNavItems(), locale, '/player'));
+  // Tools title links to the analysis board (the anchor tool); the dropdown
+  // lists it too, so touch/no-hover users can still reach it after the first tap.
   const tools = toolsNavItems();
-  if (tools.length > 0) links.append(navMenu('nav.tools', tools, locale));
+  if (tools.length > 0) links.append(navMenu('nav.tools', tools, locale, tools[0]?.href ?? '/analysis/xiangqi'));
   // Admin-only top-level links to the internal /database + /engines surfaces
   // (moved out of the account dropdown 2026-07-10). English labels by admin
   // convention. Initial visibility comes from the persisted admin hint;

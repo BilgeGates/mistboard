@@ -98,14 +98,22 @@ describe('site shell nav', () => {
     expect(primaryLabels).toEqual(['對弈', '題目', '學習', '觀看', '社群', '工具']);
     expect(nav.getAttribute('aria-label')).toBe('主導覽');
     expect(nav.querySelector('.site-nav-language')).toBeNull();
-    expect(nav.querySelector<HTMLAnchorElement>('a[href="/zh-hant/rules"]')?.textContent).toBe(
-      '規則',
-    );
+    // The Learn dropdown's Rules item is the localized content link (規則).
+    expect(
+      nav.querySelector<HTMLAnchorElement>('.site-nav-menu-panel a[href="/zh-hant/rules"]')
+        ?.textContent,
+    ).toBe('規則');
     expect(
       nav
-        .querySelector<HTMLAnchorElement>('a[href="/zh-hant/rules"]')
+        .querySelector<HTMLAnchorElement>('.site-nav-menu-panel a[href="/zh-hant/rules"]')
         ?.classList.contains('active'),
     ).toBe(true);
+    // The Learn title itself now links to the rules index (split-menu behavior):
+    // the toggle is a localized anchor to /rules alongside the dropdown item.
+    expect(
+      nav.querySelector<HTMLAnchorElement>('.site-nav-menu-toggle[href="/zh-hant/rules"]')
+        ?.textContent,
+    ).toBe('學習');
     expect(nav.querySelector('.site-nav-menu-toggle')?.classList.contains('active')).toBe(true);
     // Articles now surface as "Blog" (網誌) in the Community dropdown.
     expect(nav.querySelector<HTMLAnchorElement>('a[href="/zh-hant/blog"]')?.textContent).toBe(
