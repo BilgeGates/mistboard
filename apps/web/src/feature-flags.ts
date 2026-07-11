@@ -121,3 +121,13 @@ export function darkCrazyhouseEnabled(): boolean {
 export function kriegspielEnabled(): boolean {
   return import.meta.env.VITE_KRIEGSPIEL_ENABLED === 'true';
 }
+
+// The legacy /learn INDEX (learn.ts) — a pre-pivot dark-chess/fog interactive
+// tutorial, orphaned from the nav and off-brand for the xiangqi-first surface.
+// Hidden in prod until the build opts in; on in dev so the code stays reachable.
+// This gates only the /learn hub, NOT /learn/xiangqi (the greenlit xiangqi
+// course), which is a separate, ungated route. Server drops /learn from
+// isClientRoute so a prod direct hit lands on the branded 404 shell.
+export function learnEnabled(): boolean {
+  return import.meta.env.DEV || import.meta.env.VITE_LEARN_ENABLED === 'true';
+}

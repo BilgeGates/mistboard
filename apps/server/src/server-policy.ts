@@ -76,7 +76,10 @@ export function isClientRoute(pathname: string): boolean {
   const normalized = pathname.replace(/\/+$/, '') || '/';
   return (
     normalized === '/about' ||
-    normalized === '/learn' ||
+    // The legacy /learn hub is intentionally NOT here: it is gated off in the
+    // web build (learnEnabled), so a prod direct hit falls through to the
+    // branded 404 shell instead of booting a dead route. /learn/xiangqi (the
+    // ungated xiangqi course) stays a client route.
     normalized === '/learn/xiangqi' ||
     normalized === '/rules' ||
     normalized === '/zh-hans/rules' ||

@@ -6,6 +6,7 @@ import {
   darkShogiEnabled,
   darkXiangqiEnabled,
   kriegspielEnabled,
+  learnEnabled,
   revealChessEnabled,
 } from './feature-flags.js';
 
@@ -30,6 +31,7 @@ describe('client feature flags', () => {
     ['Dark Xiangqi', 'VITE_DARK_XIANGQI_ENABLED', darkXiangqiEnabled],
     ['Dark Shogi', 'VITE_DARK_SHOGI_ENABLED', darkShogiEnabled],
     ['Dark Crazyhouse', 'VITE_DARK_CRAZYHOUSE_ENABLED', darkCrazyhouseEnabled],
+    ['Learn hub', 'VITE_LEARN_ENABLED', learnEnabled],
   ])('enables %s in dev while keeping production opt-in', (_name, envName, enabled) => {
     expect(enabled()).toBe(true);
 
