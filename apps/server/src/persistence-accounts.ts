@@ -114,6 +114,14 @@ export type EmailLoginChallenge = {
   expiresAt: Date;
 };
 
+export type EmailChangeChallenge = EmailLoginChallenge & {
+  userId: string;
+};
+
+export type UpdateUserEmailResult =
+  | { ok: true; user: UserAccount }
+  | { ok: false; error: 'email_taken' | 'user_not_found' };
+
 export type AccountSession = {
   id: string;
   userId: string;
@@ -229,6 +237,39 @@ export async function consumeEmailLoginChallenge(
   return rows[0]?.email ? { email: rows[0].email } : null;
 }
 
+export async function createEmailChangeChallenge(challenge: EmailChangeChallenge): Promise<void> {
+  await getPool().query(
+    `INSERT INTO account_email_change_challenges (id, user_id, email, code_hash, expires_at)
+     VALUES ($1, $2, $3, $4, $5)`,
+    [challenge.id, challenge.userId, challenge.email, challenge.codeHash, challenge.expiresAt],
+  );
+}
+
+export async function deleteEmailChangeChallenge(id: string): Promise<void> {
+  await getPool().query('DELETE FROM account_email_change_challenges WHERE id = $1', [id]);
+}
+
+export async function consumeEmailChangeChallenge(
+  id: string,
+  userId: string,
+  codeHash: string,
+  at: Date,
+): Promise<{ email: string } | null> {
+  const { rows } = await getPool().query<{ email: string | null }>(
+    `UPDATE account_email_change_challenges
+     SET attempt_count = attempt_count + 1,
+         consumed_at = CASE WHEN code_hash = $3 THEN $4 ELSE consumed_at END
+     WHERE id = $1
+       AND user_id = $2
+       AND consumed_at IS NULL
+       AND expires_at > $4
+       AND attempt_count < max_attempts
+     RETURNING CASE WHEN consumed_at = $4 THEN email ELSE NULL END AS email`,
+    [id, userId, codeHash, at],
+  );
+  return rows[0]?.email ? { email: rows[0].email } : null;
+}
+
 // Canonical users-table column list for reads. Keep in lockstep with UserRow
 // and userFromRow below: every SELECT/RETURNING of a full user row derives from
 // this, so a column can't be silently dropped from one query (which once
@@ -313,6 +354,30 @@ export async function markUserEmailVerified(userId: string, at: Date): Promise<U
     [userId, at],
   );
   return userFromRow(rows[0]!);
+}
+
+export async function updateUserEmail(
+  userId: string,
+  email: string,
+  at: Date,
+): Promise<UpdateUserEmailResult> {
+  try {
+    const { rows } = await getPool().query<UserRow>(
+      `UPDATE users
+       SET email = $2,
+           email_verified_at = $3,
+           updated_at = $3
+       WHERE id = $1
+       RETURNING ${USER_COLUMNS}`,
+      [userId, email, at],
+    );
+    return rows[0]
+      ? { ok: true, user: userFromRow(rows[0]) }
+      : { ok: false, error: 'user_not_found' };
+  } catch (err) {
+    if (isUniqueViolation(err)) return { ok: false, error: 'email_taken' };
+    throw err;
+  }
 }
 
 export async function updateUserProfile(

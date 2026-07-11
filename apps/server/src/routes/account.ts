@@ -1,8 +1,23 @@
+import { randomUUID } from 'node:crypto';
 import type { IncomingMessage, ServerResponse } from 'node:http';
-import { normalizeProfileHandle } from './../account-identity.js';
-import { currentAccountUser, publicUser } from './../account-session.js';
+import { normalizeEmail, normalizeProfileHandle } from './../account-identity.js';
+import {
+  authEmailDeliveryEnabled,
+  currentAccountUser,
+  devAuthCodesEnabled,
+  emailLoginCodeTtlMs,
+  hashSecret,
+  publicUser,
+  randomEmailLoginCode,
+  sendEmailChangeCode,
+} from './../account-session.js';
+import { clientIpForRateLimit, createAuthRateLimiter } from './../auth-rate-limit.js';
 import * as persistence from './../persistence.js';
 import { readJsonBody, requireMethod, requirePersistence, writeJson } from './lib.js';
+
+const emailChangeRateWindowMs = 10 * 60 * 1000;
+const emailChangeStartRateLimiter = createAuthRateLimiter(5, emailChangeRateWindowMs);
+const emailChangeConfirmRateLimiter = createAuthRateLimiter(10, emailChangeRateWindowMs);
 
 export async function tryHandle(
   _ctx: unknown,
@@ -10,6 +25,106 @@ export async function tryHandle(
   response: ServerResponse,
   pathname: string,
 ): Promise<boolean> {
+  if (pathname === '/api/account/email/start') {
+    if (!requireMethod(request, response, 'POST')) return true;
+    if (!requirePersistence(response)) return true;
+    const user = await currentAccountUser(request);
+    if (!user) {
+      writeJson(response, 401, { error: 'not_signed_in' });
+      return true;
+    }
+    if (!emailChangeStartRateLimiter.check(clientIpForRateLimit(request))) {
+      writeJson(response, 429, { error: 'rate_limited' });
+      return true;
+    }
+    if (!authEmailDeliveryEnabled && !devAuthCodesEnabled) {
+      writeJson(response, 503, { error: 'email_delivery_not_configured' });
+      return true;
+    }
+    const body = await readJsonBody(request);
+    const email = normalizeEmail(typeof body.email === 'string' ? body.email : null);
+    if (!email) {
+      writeJson(response, 400, { error: 'invalid_email' });
+      return true;
+    }
+    if (email === user.email.toLowerCase()) {
+      writeJson(response, 400, { error: 'email_unchanged' });
+      return true;
+    }
+    if (await persistence.findUserByEmail(email)) {
+      writeJson(response, 409, { error: 'email_taken' });
+      return true;
+    }
+
+    const changeId = randomUUID();
+    const code = randomEmailLoginCode();
+    const expiresAt = new Date(Date.now() + emailLoginCodeTtlMs);
+    await persistence.createEmailChangeChallenge({
+      id: changeId,
+      userId: user.id,
+      email,
+      codeHash: hashSecret(code),
+      expiresAt,
+    });
+    if (authEmailDeliveryEnabled) {
+      const delivery = await sendEmailChangeCode(email, code);
+      if (!delivery.ok) {
+        await persistence.deleteEmailChangeChallenge(changeId);
+        writeJson(response, 502, { error: 'email_delivery_failed' });
+        return true;
+      }
+    }
+    writeJson(response, 202, {
+      changeId,
+      email,
+      expiresAt: expiresAt.toISOString(),
+      delivery: authEmailDeliveryEnabled ? 'email' : 'dev-response',
+      ...(devAuthCodesEnabled ? { devCode: code } : {}),
+    });
+    return true;
+  }
+
+  if (pathname === '/api/account/email/confirm') {
+    if (!requireMethod(request, response, 'POST')) return true;
+    if (!requirePersistence(response)) return true;
+    const user = await currentAccountUser(request);
+    if (!user) {
+      writeJson(response, 401, { error: 'not_signed_in' });
+      return true;
+    }
+    if (!emailChangeConfirmRateLimiter.check(clientIpForRateLimit(request))) {
+      writeJson(response, 429, { error: 'rate_limited' });
+      return true;
+    }
+    const body = await readJsonBody(request);
+    const changeId = typeof body.changeId === 'string' ? body.changeId.trim() : '';
+    const code = typeof body.code === 'string' ? body.code.trim() : '';
+    if (!changeId || !code) {
+      writeJson(response, 400, { error: 'invalid_email_change_code' });
+      return true;
+    }
+    const now = new Date();
+    const challenge = await persistence.consumeEmailChangeChallenge(
+      changeId,
+      user.id,
+      hashSecret(code),
+      now,
+    );
+    if (!challenge) {
+      writeJson(response, 400, { error: 'invalid_email_change_code' });
+      return true;
+    }
+    const updated = await persistence.updateUserEmail(user.id, challenge.email, now);
+    if (!updated.ok) {
+      writeJson(response, updated.error === 'email_taken' ? 409 : 404, {
+        error: updated.error,
+      });
+      return true;
+    }
+    writeJson(response, 200, { user: publicUser(updated.user) });
+    return true;
+  }
+
   if (pathname === '/api/account/display-preferences') {
     if (!requireMethod(request, response, 'PATCH')) return true;
     if (!requirePersistence(response)) return true;

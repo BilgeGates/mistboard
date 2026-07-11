@@ -751,8 +751,9 @@ function buildAccountAccessSettings(user: AuthUser, locale: Locale = currentLoca
   );
   const list = document.createElement('dl');
   list.className = 'account-settings-summary';
+  const emailSummary = summaryRow(t('account.email', {}, locale), user.email);
   list.append(
-    summaryRow(t('account.email', {}, locale), user.email),
+    emailSummary,
     summaryRow(
       t('account.emailStatus', {}, locale),
       user.emailVerified
@@ -760,8 +761,110 @@ function buildAccountAccessSettings(user: AuthUser, locale: Locale = currentLoca
         : t('account.emailUnverified', {}, locale),
     ),
   );
-  panel.append(list);
+
+  const form = document.createElement('form');
+  form.className = 'account-settings-form account-email-change-form';
+  const newEmail = labeledInput(
+    t('account.newEmail', {}, locale),
+    'email',
+    '',
+    t('account.emailAddress', {}, locale),
+  );
+  newEmail.input.type = 'email';
+  newEmail.input.autocomplete = 'email';
+  newEmail.input.required = true;
+  newEmail.help.textContent = t('account.emailChangeHelp', {}, locale);
+
+  const code = labeledInput(
+    t('account.emailChangeCode', {}, locale),
+    'code',
+    '',
+    t('account.emailChangeCode', {}, locale),
+  );
+  code.input.inputMode = 'numeric';
+  code.input.autocomplete = 'one-time-code';
+  code.wrap.hidden = true;
+
+  const status = document.createElement('p');
+  status.className = 'account-status';
+  status.setAttribute('aria-live', 'polite');
+
+  const submit = document.createElement('button');
+  submit.type = 'submit';
+  submit.className = 'landing-setup-start';
+  submit.textContent = t('account.sendVerificationCode', {}, locale);
+
+  let changeId: string | null = null;
+  form.addEventListener('submit', async (event) => {
+    event.preventDefault();
+    submit.disabled = true;
+    try {
+      if (!changeId) {
+        const resp = await fetch('/api/account/email/start', {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({ email: newEmail.input.value }),
+        });
+        const data = (await resp.json()) as {
+          changeId?: string;
+          devCode?: string;
+          error?: string;
+        };
+        if (!resp.ok || !data.changeId)
+          throw new Error(emailChangeErrorMessage(data.error, locale));
+        changeId = data.changeId;
+        newEmail.input.disabled = true;
+        code.wrap.hidden = false;
+        code.input.required = true;
+        if (data.devCode) code.input.value = data.devCode;
+        submit.textContent = t('account.confirmEmailChange', {}, locale);
+        status.textContent = data.devCode
+          ? t('account.devCodeFilled', {}, locale)
+          : t('account.emailChangeCheck', {}, locale);
+        code.input.focus();
+      } else {
+        const resp = await fetch('/api/account/email/confirm', {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({ changeId, code: code.input.value }),
+        });
+        const data = (await resp.json()) as { user?: AuthUser; error?: string };
+        if (!resp.ok || !data.user) throw new Error(emailChangeErrorMessage(data.error, locale));
+        user.email = data.user.email;
+        user.emailVerified = data.user.emailVerified;
+        const emailValue = emailSummary.querySelector('dd');
+        if (emailValue) emailValue.textContent = user.email;
+        changeId = null;
+        newEmail.input.disabled = false;
+        newEmail.input.value = '';
+        code.input.value = '';
+        code.input.required = false;
+        code.wrap.hidden = true;
+        submit.textContent = t('account.sendVerificationCode', {}, locale);
+        status.textContent = t('account.emailChanged', {}, locale);
+      }
+    } catch (err) {
+      status.textContent =
+        err instanceof Error ? err.message : t('account.emailChangeFailed', {}, locale);
+    } finally {
+      submit.disabled = false;
+    }
+  });
+
+  form.append(newEmail.wrap, code.wrap, submit, status);
+  panel.append(list, form);
   return panel;
+}
+
+function emailChangeErrorMessage(error: string | undefined, locale: Locale): string {
+  if (error === 'invalid_email') return t('account.invalidEmail', {}, locale);
+  if (error === 'email_unchanged') return t('account.emailUnchanged', {}, locale);
+  if (error === 'email_taken') return t('account.emailTaken', {}, locale);
+  if (error === 'invalid_email_change_code') {
+    return t('account.invalidEmailChangeCode', {}, locale);
+  }
+  if (error === 'rate_limited') return t('account.tooManyAttempts', {}, locale);
+  return t('account.emailChangeFailed', {}, locale);
 }
 
 // DM policy select: saves immediately on change via the preferences PATCH

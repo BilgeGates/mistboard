@@ -212,6 +212,126 @@ definePersistenceTests('account routes', () => {
     );
   });
 
+  test('account email change verifies the new address before updating sign-in', async () => {
+    const now = new Date('2026-07-11T12:00:00.000Z');
+    const sessionToken = 'email-change-route-token';
+    await createUser({
+      id: 'user_email_change_route',
+      email: 'email-change-old@example.com',
+      emailVerifiedAt: now,
+      handle: 'email-change-route',
+      displayName: 'Email Change Route',
+      now,
+    });
+    const expiresAt = new Date(Date.now() + 86_400_000);
+    await createAccountSession({
+      id: 'email-change-route-session',
+      userId: 'user_email_change_route',
+      tokenHash: hashSecret(sessionToken),
+      expiresAt,
+    });
+    const cookie = accountSessionCookie(
+      'email-change-route-session',
+      sessionToken,
+      expiresAt,
+    ).split(';')[0];
+
+    const startResponse = captureResponse();
+    await tryHandle(
+      {},
+      jsonRequest({ email: 'EMAIL-CHANGE-NEW@example.com' }, cookie, 'POST'),
+      startResponse,
+      '/api/account/email/start',
+    );
+    assert.equal(startResponse.status, 202);
+    const started = JSON.parse(startResponse.body) as { changeId: string; devCode: string };
+    assert.ok(started.changeId);
+    assert.match(started.devCode, /^\d{8}$/);
+    assert.equal(
+      (await findUserByEmail('email-change-old@example.com'))?.id,
+      'user_email_change_route',
+    );
+
+    const confirmResponse = captureResponse();
+    await tryHandle(
+      {},
+      jsonRequest({ changeId: started.changeId, code: started.devCode }, cookie, 'POST'),
+      confirmResponse,
+      '/api/account/email/confirm',
+    );
+    assert.equal(confirmResponse.status, 200);
+    const confirmed = JSON.parse(confirmResponse.body) as {
+      user: { email: string; emailVerified: boolean };
+    };
+    assert.equal(confirmed.user.email, 'email-change-new@example.com');
+    assert.equal(confirmed.user.emailVerified, true);
+    assert.equal(await findUserByEmail('email-change-old@example.com'), null);
+    assert.equal(
+      (await findUserByEmail('email-change-new@example.com'))?.id,
+      'user_email_change_route',
+    );
+  });
+
+  test('account email change challenge is bound to the requesting account', async () => {
+    const now = new Date('2026-07-11T12:00:00.000Z');
+    const expiresAt = new Date(Date.now() + 86_400_000);
+    for (const suffix of ['owner', 'other']) {
+      await createUser({
+        id: `user_email_change_${suffix}`,
+        email: `email-change-${suffix}@example.com`,
+        emailVerifiedAt: now,
+        handle: `email-change-${suffix}`,
+        displayName: `Email Change ${suffix}`,
+        now,
+      });
+      await createAccountSession({
+        id: `email-change-${suffix}-session`,
+        userId: `user_email_change_${suffix}`,
+        tokenHash: hashSecret(`${suffix}-token`),
+        expiresAt,
+      });
+    }
+    const ownerCookie = accountSessionCookie(
+      'email-change-owner-session',
+      'owner-token',
+      expiresAt,
+    ).split(';')[0];
+    const otherCookie = accountSessionCookie(
+      'email-change-other-session',
+      'other-token',
+      expiresAt,
+    ).split(';')[0];
+
+    const startResponse = captureResponse();
+    await tryHandle(
+      {},
+      jsonRequest({ email: 'email-change-target@example.com' }, ownerCookie, 'POST'),
+      startResponse,
+      '/api/account/email/start',
+    );
+    const started = JSON.parse(startResponse.body) as { changeId: string; devCode: string };
+
+    const crossAccountResponse = captureResponse();
+    await tryHandle(
+      {},
+      jsonRequest({ changeId: started.changeId, code: started.devCode }, otherCookie, 'POST'),
+      crossAccountResponse,
+      '/api/account/email/confirm',
+    );
+    assert.equal(crossAccountResponse.status, 400);
+    assert.deepEqual(JSON.parse(crossAccountResponse.body), {
+      error: 'invalid_email_change_code',
+    });
+    assert.equal(
+      (await findUserByEmail('email-change-owner@example.com'))?.id,
+      'user_email_change_owner',
+    );
+    assert.equal(
+      (await findUserByEmail('email-change-other@example.com'))?.id,
+      'user_email_change_other',
+    );
+  });
+
   test('account public-profile route stores validated public details', async () => {
     const now = new Date('2026-07-11T12:00:00.000Z');
     const sessionToken = 'public-profile-route-token';
@@ -290,10 +410,13 @@ definePersistenceTests('account routes', () => {
   });
 });
 
-function jsonRequest(body: unknown, cookie?: string): IncomingMessage {
+function jsonRequest(body: unknown, cookie?: string, method = 'PATCH'): IncomingMessage {
   const request = Readable.from([JSON.stringify(body)]) as unknown as IncomingMessage;
-  request.method = 'PATCH';
+  request.method = method;
   request.headers = cookie ? { cookie } : {};
+  Object.defineProperty(request, 'socket', {
+    value: { remoteAddress: '127.0.0.1' },
+  });
   return request;
 }
 

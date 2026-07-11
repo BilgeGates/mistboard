@@ -334,7 +334,7 @@ describe('account page auth flow', () => {
     );
   });
 
-  it('separates username from the email sign-in summary', async () => {
+  it('separates username from email and sign-in settings', async () => {
     window.history.replaceState(null, '', '/account/settings/username');
     const user = testUser('misty');
     vi.stubGlobal(
@@ -364,7 +364,63 @@ describe('account page auth flow', () => {
       'misty@example.com',
       'Verified',
     ]);
-    expect(document.querySelector('.account-settings-panel input')).toBeNull();
+    expect(document.querySelector('input[name="email"]')).not.toBeNull();
+    expect(
+      document.querySelector<HTMLElement>('input[name="code"]')?.closest('label')?.hidden,
+    ).toBe(true);
+  });
+
+  it('changes the sign-in email only after confirming its code', async () => {
+    window.history.replaceState(null, '', '/account/settings/account');
+    const user = testUser('misty');
+    const requests: Array<{ body: unknown; url: string }> = [];
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+        const url = String(input);
+        if (url === '/api/auth/me') return jsonResponse({ user });
+        if (url === '/api/account/email/start') {
+          requests.push({ url, body: JSON.parse(String(init?.body)) as unknown });
+          return jsonResponse({ changeId: 'change-1', devCode: '12345678' }, 202);
+        }
+        if (url === '/api/account/email/confirm') {
+          requests.push({ url, body: JSON.parse(String(init?.body)) as unknown });
+          return jsonResponse({
+            user: { ...user, email: 'new-misty@example.com', emailVerified: true },
+          });
+        }
+        throw new Error(`unexpected fetch: ${url}`);
+      }),
+    );
+
+    const { mountAccountSettings } = await import('./account.js');
+    await mountAccountSettings(document.querySelector<HTMLElement>('#app') as HTMLElement);
+    await flushDom();
+
+    const email = document.querySelector<HTMLInputElement>('input[name="email"]');
+    const form = document.querySelector<HTMLFormElement>('.account-email-change-form');
+    if (!email || !form) throw new Error('missing email change form');
+    email.value = 'new-misty@example.com';
+    form.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
+    await flushDom();
+
+    const code = document.querySelector<HTMLInputElement>('input[name="code"]');
+    expect(code?.value).toBe('12345678');
+    expect(code?.closest('label')?.hidden).toBe(false);
+    expect([...document.querySelectorAll('dd')][0]?.textContent).toBe('misty@example.com');
+
+    form.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
+    await flushDom();
+
+    expect(requests).toEqual([
+      { url: '/api/account/email/start', body: { email: 'new-misty@example.com' } },
+      {
+        url: '/api/account/email/confirm',
+        body: { changeId: 'change-1', code: '12345678' },
+      },
+    ]);
+    expect([...document.querySelectorAll('dd')][0]?.textContent).toBe('new-misty@example.com');
+    expect(document.querySelector('.account-status')?.textContent).toContain('Email changed.');
   });
 
   it('edits public profile details from the settings landing', async () => {
