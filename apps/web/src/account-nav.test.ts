@@ -140,7 +140,7 @@ describe('account nav', () => {
       Array.from(
         document.querySelectorAll<HTMLElement>('.account-nav-panel .appearance-language-option'),
       ).map((item) => item.textContent),
-    ).toEqual(['English', '简体中文', '繁體中文', '日本語']);
+    ).toEqual(['English', '简体中文', '繁體中文']);
     expect(
       document
         .querySelector<HTMLElement>('.account-nav-panel .appearance-language-option.selected')

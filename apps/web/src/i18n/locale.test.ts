@@ -28,14 +28,14 @@ describe('locale helpers', () => {
   it('detects locales from current path prefixes', () => {
     expect(localeFromPath('/zh-hans/rules/banqi')).toBe('zh-Hans');
     expect(localeFromPath('/zh-hant/blog')).toBe('zh-Hant');
-    expect(localeFromPath('/ja')).toBe('ja');
+    expect(localeFromPath('/ja')).toBeNull();
     expect(localeFromPath('/rules/banqi')).toBeNull();
   });
 
   it('maps browser language tags to supported locales', () => {
     expect(localeFromLanguageTag('zh-TW')).toBe('zh-Hant');
     expect(localeFromLanguageTag('zh-CN')).toBe('zh-Hans');
-    expect(localeFromLanguageTag('ja-JP')).toBe('ja');
+    expect(localeFromLanguageTag('ja-JP')).toBeNull();
     expect(localeFromLanguageTag('fr-FR')).toBeNull();
   });
 
@@ -47,10 +47,16 @@ describe('locale helpers', () => {
     expect(document.documentElement.lang).toBe('zh-Hant');
   });
 
-  it('uses stored locale outside localized content URLs', () => {
+  it('falls back from a dormant stored locale outside localized content URLs', () => {
     setStoredLocale('ja');
 
-    expect(currentLocale()).toBe('ja');
+    expect(currentLocale()).toBe('en');
+  });
+
+  it('falls back from a dormant account locale preference', () => {
+    expect(applyAccountLocalePreference('ja')).toBe(false);
+    expect(window.localStorage.getItem(LOCALE_STORAGE_KEY)).toBe('en');
+    expect(document.documentElement.lang).toBe('en');
   });
 
   it('applies account locale preferences on unprefixed URLs', () => {

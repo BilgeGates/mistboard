@@ -13,9 +13,9 @@ import { setResolvedSignedIn } from './signed-in-state.js';
 
 // Xiangqi pivot (2026-07): the open xiangqi anchors lead, the approachable
 // flip/animal cluster follows (Banqi, Jungle, Flip Jungle, Jieqi), then the
-// fog trio. The mini xiangqi trio (mini/dark-mini/drop-mini) plus
+// fog pair. The mini xiangqi trio (mini/dark-mini/drop-mini), Fog Shogi, plus
 // dark-crazyhouse are hidden from menus (offerInMenu=false) — they remain
-// reachable only by deep link.
+// reachable only by deep link when their development flag is enabled.
 const BASELINE_PICKER_SPECS = [
   'fortress-xiangqi',
   'banqi',
@@ -24,7 +24,6 @@ const BASELINE_PICKER_SPECS = [
   'jieqi',
   'dark-xiangqi',
   'dark-chess',
-  'dark-shogi',
 ];
 
 describe('landing play panel', () => {
@@ -182,11 +181,7 @@ describe('landing play panel', () => {
         '.landing-variant-card[data-game-spec="dark-xiangqi"] span[data-variant-marker-id="dark-xiangqi"]',
       ),
     ).not.toBeNull();
-    expect(
-      document.querySelector(
-        '.landing-variant-card[data-game-spec="dark-shogi"] span[data-variant-marker-id="dark-shogi"]',
-      ),
-    ).not.toBeNull();
+    expect(document.querySelector('.landing-variant-card[data-game-spec="dark-shogi"]')).toBeNull();
   });
 
   it('starts setup on Variant and shows all offered variants together', () => {
@@ -1122,11 +1117,8 @@ describe('landing play panel', () => {
     });
     vi.stubGlobal('fetch', fetchSpy);
     setRoomNavigator(() => {});
-    const panel = buildLandingPlayPanel([]);
-    document.body.append(panel);
-
-    openPlaySetup(panel, 'Challenge a friend');
-    selectModalVariant('dark-shogi');
+    window.history.replaceState(null, '', '/?play=friend&gameSpecId=dark-shogi');
+    maybeOpenPlayDeepLink([]);
 
     expect(modalColorOptions()).toEqual([
       { label: 'Sente', glyph: '☗', classes: 'landing-color-glyph black shogi' },

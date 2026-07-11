@@ -51,6 +51,7 @@ describe('landing announcements', () => {
     expect(variantPublicSurfaceEnabled('reveal-chess')).toBe(false);
     expect(variantPublicSurfaceEnabled('crossroads-chess')).toBe(false);
     expect(variantPublicSurfaceEnabled('dark-crossroads-chess')).toBe(false);
+    expect(variantPublicSurfaceEnabled('dark-shogi')).toBe(false);
     expect(variantPublicSurfaceEnabled('kriegspiel')).toBe(false);
 
     const landing = buildLandingAnnouncements();
@@ -60,6 +61,7 @@ describe('landing announcements', () => {
       'Reveal Chess',
       'Crossroads Chess',
       'Dark Crossroads Chess',
+      'Fog Shogi',
       'Kriegspiel',
     ]) {
       expect(landing.textContent).not.toContain(hidden);

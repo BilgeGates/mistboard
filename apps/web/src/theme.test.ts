@@ -115,7 +115,7 @@ describe('appearance family gating', () => {
       [...document.querySelectorAll<HTMLElement>('.appearance-language-option')].map(
         (option) => option.textContent,
       ),
-    ).toEqual(['English', '简体中文', '繁體中文', '日本語']);
+    ).toEqual(['English', '简体中文', '繁體中文']);
     expect(
       document
         .querySelector<HTMLElement>('.appearance-language-option.selected')

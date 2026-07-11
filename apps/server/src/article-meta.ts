@@ -8,6 +8,12 @@
 // of shipping a wrong-direction 301 or a generic share card.
 export type ArticleKind = 'rules' | 'article';
 
+const NON_INDEXED_ARTICLE_SLUGS = new Set(['shogi', 'shogi4', 'dark-shogi']);
+
+export function articleIsIndexable(slug: string): boolean {
+  return !NON_INDEXED_ARTICLE_SLUGS.has(slug);
+}
+
 export const ARTICLE_META: Record<
   string,
   { title: string; description: string; kind: ArticleKind }

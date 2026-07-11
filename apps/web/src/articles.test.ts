@@ -160,18 +160,19 @@ describe('article public listing gates', () => {
     ).toBeNull();
   });
 
-  it('keeps the base Shogi rules article out of the rules rail while leaving it reachable', () => {
+  it('keeps Shogi rules out of discovery while leaving direct pages reachable', () => {
     vi.stubEnv('DEV', true);
 
     const landing = buildRulesIndex();
     const darkShogi = buildArticlePage('dark-shogi');
     const shogi = buildArticlePage('shogi');
 
-    expect(landing.querySelector('a[href="/rules/shogi"]')).not.toBeNull();
+    expect(landing.querySelector('a[href="/rules/shogi"]')).toBeNull();
+    expect(landing.querySelector('a[href="/rules/shogi4"]')).toBeNull();
     expect(darkShogi.querySelector('.article-variant-sidebar a[href="/rules/shogi"]')).toBeNull();
     expect(
       darkShogi.querySelector('.article-variant-sidebar a[href="/rules/dark-shogi"]'),
-    ).not.toBeNull();
+    ).toBeNull();
     expect(shogi.textContent).toContain('Shogi Rules');
     expect(shogi.querySelector('.article-variant-sidebar a[href="/rules/shogi"]')).toBeNull();
   });
@@ -572,7 +573,7 @@ describe('rules variant sidebar', () => {
     // Draft960 is a pregame option that has not shipped as a playable mode.
     expect(nav?.querySelector('a[href="/rules/dark-draft960"]')).toBeNull();
     expect(nav?.querySelector('a[href="/rules/shogi"]')).toBeNull();
-    expect(nav?.querySelector('a[href="/rules/dark-shogi"]')).not.toBeNull();
+    expect(nav?.querySelector('a[href="/rules/dark-shogi"]')).toBeNull();
     expect(hrefs.indexOf('/rules/xiangqi')).toBeLessThan(hrefs.indexOf('/rules/fortress-xiangqi'));
     expect(hrefs.indexOf('/rules/fortress-xiangqi')).toBeLessThan(hrefs.indexOf('/rules/banqi'));
     expect(hrefs.indexOf('/rules/banqi')).toBeLessThan(hrefs.indexOf('/rules/jungle'));
@@ -580,7 +581,6 @@ describe('rules variant sidebar', () => {
     expect(hrefs.indexOf('/rules/jungle-flip')).toBeLessThan(hrefs.indexOf('/rules/jieqi'));
     expect(hrefs.indexOf('/rules/jieqi')).toBeLessThan(hrefs.indexOf('/rules/dark-xiangqi'));
     expect(hrefs.indexOf('/rules/dark-xiangqi')).toBeLessThan(hrefs.indexOf('/rules/dark-chess'));
-    expect(hrefs.indexOf('/rules/dark-chess')).toBeLessThan(hrefs.indexOf('/rules/dark-shogi'));
   });
 
   it('lists the elevated xiangqi variants (not the hidden mini trio) by default', () => {
@@ -608,16 +608,16 @@ describe('rules variant sidebar', () => {
     expect(tile?.querySelector('.rules-landing-tile-label')?.textContent).toBe('Fog Chess');
   });
 
-  it('uses shared Shogi markers on listed rule article surfaces', () => {
+  it('does not expose Shogi markers on listed rule article surfaces', () => {
     const landing = buildRulesIndex();
     expect(
       landing.querySelector('.rules-landing-tile[href="/rules/shogi"] svg[data-mini-id="shogi"]'),
-    ).not.toBeNull();
+    ).toBeNull();
     expect(
       landing.querySelector(
         '.rules-landing-tile[href="/rules/dark-shogi"] span[data-variant-marker-id="dark-shogi"]',
       ),
-    ).not.toBeNull();
+    ).toBeNull();
 
     const shogi = buildArticlePage('shogi');
     expect(
@@ -631,20 +631,15 @@ describe('rules variant sidebar', () => {
       darkShogi.querySelector(
         '.article-variant-sidebar a[aria-current="page"] span[data-variant-marker-id="dark-shogi"]',
       ),
-    ).not.toBeNull();
+    ).toBeNull();
   });
 
-  it('groups the tile grid: xiangqi, jungle, chess, then shogi', () => {
+  it('groups the tile grid without the parked Shogi family', () => {
     const landing = buildRulesIndex();
     const titles = [...landing.querySelectorAll('.rules-landing-group-title')].map(
       (el) => el.textContent,
     );
-    expect(titles).toEqual([
-      'Xiangqi variants',
-      'Animal chess',
-      'Chess variants',
-      'Shogi variants',
-    ]);
+    expect(titles).toEqual(['Xiangqi variants', 'Animal chess', 'Chess variants']);
     const grids = landing.querySelectorAll('.rules-landing-grid');
     expect(grids[0]?.querySelector('a[href="/rules/xiangqi"]')).not.toBeNull();
     // Xiangqi pivot: the mini xiangqi trio is de-listed from the tile grid
@@ -656,8 +651,7 @@ describe('rules variant sidebar', () => {
     expect(grids[2]?.querySelector('a[href="/rules/dark-chess"]')).not.toBeNull();
     // The chess reference article is de-listed from the tile grid.
     expect(grids[2]?.querySelector('a[href="/rules/chess"]')).toBeNull();
-    expect(grids[3]?.querySelector('a[href="/rules/shogi"]')).not.toBeNull();
-    expect(grids[3]?.querySelector('a[href="/rules/dark-shogi"]')).not.toBeNull();
+    expect(grids).toHaveLength(3);
   });
 
   it('renders Jieqi visual diagrams instead of placeholder notes', () => {
