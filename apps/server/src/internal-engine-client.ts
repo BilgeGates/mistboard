@@ -34,20 +34,27 @@ export class InternalEngineClientError extends Error {
   }
 }
 
-export async function requestInternalEngineTurn(
+/**
+ * A single engine HTTP endpoint (base URL + bearer token). The live path
+ * resolves this from the server's environment; the bot-match arbiter holds a
+ * distinct endpoint per seat so it can drive two independent engines (e.g. our
+ * live Misty and an external third-party bot) in one process.
+ */
+export type EngineEndpoint = { baseUrl: string; token: string };
+
+/**
+ * POST an `EngineTurnRequest` to an explicit engine endpoint. This is the
+ * endpoint-parameterized core; `requestInternalEngineTurn` wraps it with the
+ * server-environment endpoint for the live path.
+ */
+export async function requestEngineTurnAt(
+  endpoint: EngineEndpoint,
   request: EngineTurnRequest,
   watchdogTimeoutMs: number,
-  reservationId?: string,
-  options: { computeBudgetMs?: number } = {},
+  options: { computeBudgetMs?: number; reservationId?: string } = {},
 ): Promise<EngineTurnResponse> {
-  const baseUrl = process.env.MISTBOARD_INTERNAL_ENGINE_URL?.trim();
-  const token = process.env.MISTBOARD_INTERNAL_ENGINE_TOKEN?.trim();
-  if (!baseUrl || !token) {
-    throw new InternalEngineClientError(
-      'missing_config',
-      'internal engine service URL/token is not configured',
-    );
-  }
+  const { baseUrl, token } = endpoint;
+  const reservationId = options.reservationId;
 
   const timeoutMs = Math.max(1, watchdogTimeoutMs + DEFAULT_TRANSPORT_GRACE_MS);
   const computeBudgetMs = Math.max(
@@ -112,6 +119,31 @@ export async function requestInternalEngineTurn(
   }
 }
 
+/**
+ * Live path: POST an engine turn to the server-environment engine service
+ * (`MISTBOARD_INTERNAL_ENGINE_URL` / `MISTBOARD_INTERNAL_ENGINE_TOKEN`).
+ * Thin wrapper over {@link requestEngineTurnAt}.
+ */
+export async function requestInternalEngineTurn(
+  request: EngineTurnRequest,
+  watchdogTimeoutMs: number,
+  reservationId?: string,
+  options: { computeBudgetMs?: number } = {},
+): Promise<EngineTurnResponse> {
+  const baseUrl = process.env.MISTBOARD_INTERNAL_ENGINE_URL?.trim();
+  const token = process.env.MISTBOARD_INTERNAL_ENGINE_TOKEN?.trim();
+  if (!baseUrl || !token) {
+    throw new InternalEngineClientError(
+      'missing_config',
+      'internal engine service URL/token is not configured',
+    );
+  }
+  return requestEngineTurnAt({ baseUrl, token }, request, watchdogTimeoutMs, {
+    computeBudgetMs: options.computeBudgetMs,
+    reservationId,
+  });
+}
+
 export type InternalEngineReservationResponse = {
   reservationId: string;
   engineId: string;
@@ -122,37 +154,46 @@ export type InternalEngineReservationResponse = {
   };
 };
 
-export async function requestInternalEngineReservation(input: {
-  color: 'white' | 'black';
-  engineId: string;
-}): Promise<InternalEngineReservationResponse> {
-  const response = await requestInternalEngineJson(ENGINE_RESERVATIONS_PATH, {
+/** Reserve an engine seat at an explicit endpoint (endpoint-parameterized core). */
+export async function requestEngineReservationAt(
+  endpoint: EngineEndpoint,
+  input: { color: 'white' | 'black'; engineId: string },
+): Promise<InternalEngineReservationResponse> {
+  const response = await engineControlJsonAt(endpoint, ENGINE_RESERVATIONS_PATH, {
     method: 'POST',
     body: JSON.stringify(input),
   });
   return parseReservationResponse(response);
 }
 
+/** Release an engine seat at an explicit endpoint. */
+export async function releaseEngineReservationAt(
+  endpoint: EngineEndpoint,
+  reservationId: string,
+  reason: string,
+): Promise<void> {
+  await engineControlJsonAt(
+    endpoint,
+    `${ENGINE_RESERVATIONS_PATH}/${encodeURIComponent(reservationId)}/release`,
+    { method: 'POST', body: JSON.stringify({ reason }) },
+  );
+}
+
+export async function requestInternalEngineReservation(input: {
+  color: 'white' | 'black';
+  engineId: string;
+}): Promise<InternalEngineReservationResponse> {
+  return requestEngineReservationAt(engineEndpointFromEnv(), input);
+}
+
 export async function releaseInternalEngineReservation(
   reservationId: string,
   reason: string,
 ): Promise<void> {
-  await requestInternalEngineJson(
-    `${ENGINE_RESERVATIONS_PATH}/${encodeURIComponent(reservationId)}/release`,
-    {
-      method: 'POST',
-      body: JSON.stringify({ reason }),
-    },
-  );
+  await releaseEngineReservationAt(engineEndpointFromEnv(), reservationId, reason);
 }
 
-async function requestInternalEngineJson(
-  path: string,
-  init: {
-    body?: string;
-    method: 'GET' | 'POST';
-  },
-): Promise<unknown> {
+function engineEndpointFromEnv(): EngineEndpoint {
   const baseUrl = process.env.MISTBOARD_INTERNAL_ENGINE_URL?.trim();
   const token = process.env.MISTBOARD_INTERNAL_ENGINE_TOKEN?.trim();
   if (!baseUrl || !token) {
@@ -161,6 +202,18 @@ async function requestInternalEngineJson(
       'internal engine service URL/token is not configured',
     );
   }
+  return { baseUrl, token };
+}
+
+async function engineControlJsonAt(
+  endpoint: EngineEndpoint,
+  path: string,
+  init: {
+    body?: string;
+    method: 'GET' | 'POST';
+  },
+): Promise<unknown> {
+  const { baseUrl, token } = endpoint;
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), DEFAULT_CONTROL_TIMEOUT_MS);
   try {
