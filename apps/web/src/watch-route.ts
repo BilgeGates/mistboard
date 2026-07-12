@@ -42,6 +42,9 @@ type WatchChannelSummary = {
   label: string;
   sealedCount: number;
   unlockedCount: number;
+  // The headline seat for the rail row (name + rating), shown under the channel
+  // name lichess-style. null/absent for an empty channel (name-only row).
+  topPlayer?: { name: string; rating: number | null } | null;
 };
 type WatchInitialReplay = {
   events: GameEvent[];
@@ -265,7 +268,6 @@ export async function mountWatch(root: HTMLElement): Promise<void> {
         : null;
     mergeWatchMetadata(metadataByRoomId, namesByRoomId, nextFeed);
     renderWatchChannelList(watch.channelRoot, nextFeed);
-    renderWatchStatus(watch.statusRoot, nextFeed);
 
     if (!nextFeed || nextFeed.unlocked.length === 0) {
       replayHandle?.destroy();
@@ -687,7 +689,6 @@ type WatchSection = {
   el: HTMLElement;
   metaRoot: HTMLElement;
   channelRoot: HTMLElement;
-  statusRoot: HTMLElement;
   replayRoot: HTMLElement;
   povRoot: HTMLElement;
   queueRoot: HTMLElement;
@@ -718,10 +719,7 @@ function buildWatchSection(feed: WatchFeed | null): WatchSection {
   channelRoot.setAttribute('aria-label', 'Watch channels');
   channelRail.append(channelHeading, channelRoot);
 
-  const statusRoot = document.createElement('div');
-  statusRoot.className = 'watch-status';
-
-  left.append(metaRoot, channelRail, statusRoot);
+  left.append(metaRoot, channelRail);
 
   // ── Center: fixed square board-box + "Previously" strip beneath it ──
   const center = document.createElement('div');
@@ -765,13 +763,11 @@ function buildWatchSection(feed: WatchFeed | null): WatchSection {
     ariaLabel: 'Mistboard TV',
   });
 
-  renderWatchStatus(statusRoot, feed);
   renderWatchChannelList(channelRoot, feed);
   return {
     el,
     metaRoot,
     channelRoot,
-    statusRoot,
     replayRoot,
     povRoot,
     queueRoot,
@@ -912,25 +908,6 @@ function renderWatchReviewLink(root: HTMLElement, game: FeaturedGame | null): vo
   root.append(review);
 }
 
-function renderWatchStatus(root: HTMLElement, feed: WatchFeed | null): void {
-  root.replaceChildren();
-
-  const sealed = document.createElement('strong');
-  sealed.textContent = feed ? String(feed.sealedCount) : 'n/a';
-  const sealedLabel = document.createElement('span');
-  sealedLabel.className = 'watch-status-label';
-  // Every variant seals until the game finishes — the watch feed only ever
-  // serves completed games (listWatchUnlockedGames) and each tenant's postgame
-  // route 404s a running game. So the status is uniform across channels; the
-  // old "games in progress / available while live" branch claimed a live feed
-  // that never existed and read as a hidden-info leak for jieqi/banqi.
-  sealedLabel.textContent = 'games sealed';
-  const hint = document.createElement('span');
-  hint.className = 'watch-status-hint';
-  hint.textContent = feed ? 'unlock after completion' : 'feed unavailable';
-  root.append(sealed, sealedLabel, hint);
-}
-
 // The shared variant marker for each watch channel, so the TV rail reads in
 // the same icon language as the picker, rules rail, leaderboard, and profile.
 // Channel ids match VariantMiniId ids except crossroads-chess -> crossroads;
@@ -968,10 +945,17 @@ export function renderWatchChannelList(root: HTMLElement, feed: WatchFeed | null
     const link = document.createElement('a');
     link.className = 'watch-channel-link';
     link.href = `/watch?channel=${encodeURIComponent(channel.id)}`;
-    link.setAttribute('aria-label', `${channel.label} (${channel.unlockedCount})`);
-    // Decorative variant marker; aria-hidden because the link's aria-label
-    // already names the channel. notranslate keeps Google Translate off the
-    // SVG's aria-label text.
+    const player = channel.topPlayer ?? null;
+    const playerLine = player
+      ? player.rating != null
+        ? `${player.name} ${player.rating}`
+        : player.name
+      : '';
+    link.setAttribute('aria-label', playerLine ? `${channel.label}, ${playerLine}` : channel.label);
+    // Lichess-style row: text block (channel name over the top-rated player)
+    // right-aligned, with the variant marker on the RIGHT edge. Decorative
+    // marker; aria-hidden because the link's aria-label already names the
+    // channel. notranslate keeps Google Translate off the SVG's aria text.
     const thumb = document.createElement('span');
     thumb.className = 'watch-channel-thumb';
     thumb.setAttribute('aria-hidden', 'true');
@@ -987,15 +971,17 @@ export function renderWatchChannelList(root: HTMLElement, feed: WatchFeed | null
     const label = document.createElement('span');
     label.className = 'watch-channel-name';
     label.textContent = channel.label;
-    const count = document.createElement('span');
-    count.className = 'watch-channel-count';
-    count.textContent = String(channel.unlockedCount);
-    // Name + count stacked beside the big marker (mirrors the rules-page
-    // variant rail's marker-left / text-right row).
     const text = document.createElement('span');
     text.className = 'watch-channel-text';
-    text.append(label, count);
-    link.append(thumb, text);
+    text.append(label);
+    if (playerLine) {
+      const player_ = document.createElement('span');
+      player_.className = 'watch-channel-player';
+      player_.textContent = playerLine;
+      player_.title = playerLine;
+      text.append(player_);
+    }
+    link.append(text, thumb);
     if (channel.id === feed.activeChannel) {
       link.classList.add('active');
       link.setAttribute('aria-current', 'page');

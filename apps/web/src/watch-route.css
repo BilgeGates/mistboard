@@ -643,38 +643,6 @@
   overflow-y: auto;
 }
 
-/* ── Left rail: sealed-status badge ──────────────────────────────────────── */
-.watch-status {
-  border: 1px solid var(--site-border-soft);
-  border-radius: var(--site-radius);
-  background: var(--site-panel);
-  padding: 10px 12px;
-  display: grid;
-  grid-template-columns: auto minmax(0, 1fr);
-  gap: 2px 8px;
-  align-items: baseline;
-  color: var(--site-muted);
-  font-size: 11px;
-  font-weight: 700;
-  text-transform: uppercase;
-}
-
-.watch-status strong {
-  grid-row: span 2;
-  color: var(--site-heading);
-  font-size: 24px;
-  line-height: 1;
-}
-
-.watch-status-label {
-  color: var(--site-muted);
-}
-
-.watch-status-hint {
-  color: #7b6650;
-  font-weight: 800;
-}
-
 /* ── Left rail: channel list ─────────────────────────────────────────────── */
 .watch-channel-rail {
   /* Single knob for the marker size. Compact enough that the channel list, the
@@ -730,7 +698,8 @@
   color: var(--site-muted);
   padding: 5px 7px;
   display: grid;
-  grid-template-columns: var(--watch-marker) minmax(0, 1fr);
+  /* Lichess TV row: right-aligned text block, marker pinned to the right edge. */
+  grid-template-columns: minmax(0, 1fr) var(--watch-marker);
   gap: 9px;
   align-items: center;
   font-size: 13px;
@@ -756,18 +725,10 @@
 .watch-channel-text {
   min-width: 0;
   display: flex;
-  flex-direction: row;
-  align-items: center;
-  justify-content: space-between;
-  gap: 6px;
-}
-
-.watch-channel-name {
-  flex: 1 1 auto;
-}
-
-.watch-channel-count {
-  flex: 0 0 auto;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 1px;
+  text-align: right;
 }
 
 .watch-channel-list a:hover,
@@ -780,45 +741,31 @@
 }
 
 .watch-channel-name {
-  min-width: 0;
+  max-width: 100%;
   font-size: 13px;
   line-height: 1.2;
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
+  white-space: nowrap;
   overflow: hidden;
+  text-overflow: ellipsis;
 }
 
-.watch-channel-count {
-  min-width: 22px;
-  border: 1px solid var(--site-border-soft);
-  border-radius: 999px;
-  background: var(--site-panel-soft);
+/* The top-rated seat under the channel name (name + rating), muted and lighter
+   like lichess's TV rail. */
+.watch-channel-player {
+  max-width: 100%;
   color: var(--site-muted);
-  padding: 1px 6px;
-  font-size: 11px;
-  line-height: 1.15;
-  text-align: center;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.2;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
-.watch-channel-list a.active .watch-channel-count {
-  border-color: color-mix(in srgb, var(--site-accent) 32%, transparent);
-  background: var(--site-panel);
-  color: var(--site-accent-strong);
+.watch-channel-list a.active .watch-channel-player {
+  color: color-mix(in srgb, var(--site-accent-strong) 78%, var(--site-muted));
 }
 
 :root[data-effective-theme="dark"] .watch-channel-list a {
   color: var(--site-text);
-}
-
-:root[data-effective-theme="dark"] .watch-channel-count {
-  border-color: var(--site-border);
-  background: var(--site-panel-soft);
-  color: var(--site-muted);
-}
-
-:root[data-effective-theme="dark"] .watch-channel-list a.active .watch-channel-count {
-  border-color: color-mix(in srgb, var(--site-accent) 44%, var(--site-border));
-  background: color-mix(in srgb, var(--site-accent) 12%, var(--site-panel));
-  color: var(--site-accent-strong);
 }
