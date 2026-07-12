@@ -286,12 +286,11 @@ function minedSolverMoves(puzzle: XiangqiPuzzle): XiangqiMove[] {
 
 test('mined corpus: ids unique, themes known, lines 1-7 plies ending on the solver move', () => {
   // Guard against an accidental truncation of the generated module (the exact
-  // count moves with every re-mine; the floor should not). Checked against the
-  // RAW module — the served set (MINED_PUZZLES) is intentionally culled to the
-  // per-ply uniqueness allowlist pending the gated re-mine (#180), so its floor
-  // is lower.
+  // count moves with every re-mine; the floor should not). The corpus is the
+  // gated re-mine (#180) POC — a 500-game pass — so the floor is modest; raise
+  // it when a full-corpus re-mine lands.
   assert.ok(
-    MINED_XIANGQI_PUZZLES.length >= 100,
+    MINED_XIANGQI_PUZZLES.length >= 40,
     `raw mined module shrank to ${MINED_XIANGQI_PUZZLES.length} puzzles`,
   );
   assert.ok(MINED_PUZZLES.length >= 40, `served corpus shrank to ${MINED_PUZZLES.length} puzzles`);
@@ -407,34 +406,41 @@ test('mined corpus: a legal non-solution first move is rejected without advancin
 
 // ── Winning-advantage filler-tail trimming ──────────────────────────────────
 
-const FILLER_TAIL_ID = 'xq-mined-hxq_d8fd1a1f9494472b246efff9-35';
-
-test('winning-advantage tail: the raw mined 038 line has a quiet non-forced tail (regression)', () => {
-  // The raw miner output ends on a8-c9 (ply 6), a quiet horse move played after
-  // the material is already won on f7-d6 (ply 4). This is the exact shape the
-  // player reported: a forced-looking puzzle whose last move is arbitrary.
-  const raw = MINED_XIANGQI_PUZZLES.find((puzzle) => puzzle.id === FILLER_TAIL_ID);
-  assert.ok(raw, `${FILLER_TAIL_ID} missing from the raw mined corpus`);
-  if (!raw) return;
-  assert.equal(raw.solution.length, 7, 'expected the raw line to carry the filler tail');
-  const rawLast = raw.solution[raw.solution.length - 1] as XiangqiMove;
-  assert.deepEqual({ from: rawLast.from, to: rawLast.to }, { from: 'a8', to: 'c9' });
-  // A quiet tail is exactly what the validator now rejects.
-  const result = validateStandardXiangqiPuzzle(raw as XiangqiPuzzle);
-  assert.equal(result.ok, false, 'raw filler-tail line should fail validation');
+// Synthetic filler-tail fixture, independent of the mined corpus (which changes
+// every re-mine): red wins the soldier on h5, then plays a quiet chariot move
+// after the material is already won. The validator rejects the non-forced tail;
+// the trim cuts back to the payoff capture. (The gated miner no longer produces
+// such tails, but the validator + trim stay a defensive normalization.)
+test('winning-advantage tail: the validator rejects a quiet filler tail and the trim removes it', () => {
+  const board: XiangqiBoard = {
+    d1: { color: 'red', role: 'general' },
+    a9: { color: 'red', role: 'chariot' },
+    h8: { color: 'red', role: 'chariot' },
+    e10: { color: 'black', role: 'general' },
+    h5: { color: 'black', role: 'soldier' },
+  };
+  const raw: XiangqiPuzzle = {
+    id: 'xq-test-filler-tail',
+    variant: XIANGQI_SPEC_ID,
+    title: 'Red winning advantage',
+    initial: playingState('xq-test-filler-tail', board),
+    solution: [
+      { from: 'h8', to: 'h5' }, // the payoff: win the soldier
+      { from: 'e10', to: 'f10' }, // quiet defender reply
+      { from: 'h5', to: 'h6' }, // quiet, non-forced filler tail
+    ],
+    goal: { type: 'winning-advantage', winner: 'red', centipawns: 200 },
+    themes: ['winning'],
+  };
+  const result = validateStandardXiangqiPuzzle(raw);
+  assert.equal(result.ok, false, 'a quiet filler tail should fail validation');
   if (!result.ok) assert.equal(result.issue.code, 'winning-advantage-filler-tail');
-});
 
-test('winning-advantage tail: the SERVED 038 puzzle ends on the payoff capture', () => {
-  const served = standardXiangqiPuzzleById(FILLER_TAIL_ID);
-  assert.ok(served, `${FILLER_TAIL_ID} should still ship after trimming`);
-  if (!served) return;
-  assert.equal(served.solution.length, 5, 'served line should be trimmed to the payoff');
-  const last = served.solution[served.solution.length - 1] as XiangqiMove;
-  assert.deepEqual({ from: last.from, to: last.to }, { from: 'f7', to: 'd6' });
-  // The trimmed line captures on its final move and is a valid, playable puzzle.
-  assert.ok(served.initial.board.d6, 'payoff move should land on an occupied square');
-  assert.equal(validateStandardXiangqiPuzzle(served).ok, true);
+  const trimmed = trimXiangqiWinningAdvantageTail(raw);
+  assert.equal(trimmed.solution.length, 1, 'trim cuts back to the payoff capture');
+  const last = trimmed.solution[trimmed.solution.length - 1] as XiangqiMove;
+  assert.deepEqual({ from: last.from, to: last.to }, { from: 'h8', to: 'h5' });
+  assert.equal(validateStandardXiangqiPuzzle(trimmed).ok, true);
 });
 
 test('winning-advantage tail: every served winning-advantage line ends on a capture', () => {
