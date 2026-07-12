@@ -1,252 +1,231 @@
-/* Watch route */
+/* Mistboard TV (/watch) — rides the shared review-shell (left info rail | center
+   board | right rail), so it reads like the room/review pages. The board sits in
+   a FIXED SQUARE board-box: every variant's board is pillarboxed into the same
+   square (SVG boards via preserveAspectRatio, chess fills it natively), so a
+   channel switch never jumps the layout and there is no per-variant board sizing.
+   Left rail: game meta card + channel list. Center: square board-box + a
+   "Previously on Mistboard TV" strip beneath it. Right rail: player rows +
+   review-game link. */
 
-.watch-shell {
+.watch-review-shell {
+  /* Cap the center board column at the board-box max so the two 320px rails hug
+     the board instead of a viewport-tall square pushing them to the page edges.
+     Aspect defaults to 1 (square) in the review-shell, which is exactly right. */
+  --watch-board-max: 560px;
+  --uni-board-max: var(--watch-board-max);
+}
+
+.watch-left,
+.watch-center,
+.watch-right {
+  min-width: 0;
   width: 100%;
-  max-width: 1480px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.watch-center {
+  align-items: center;
+}
+
+/* ── Center: fixed square board-box ─────────────────────────────────────────
+   The box is a hard square (aspect-ratio 1/1) with a recessed panel background,
+   so a non-square board's pillarbox gutters read as intentional. Every framing
+   chrome (seat rows, clocks, labels, controls, the compact meta card) is hidden
+   because player identity lives in the rails; only the board graphic shows. */
+.watch-board-box {
+  width: min(var(--watch-board-max, 560px), 100%);
+  aspect-ratio: 1 / 1;
   margin: 0 auto;
-  padding: 12px 18px 30px;
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-
-.watch-header {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(182px, 224px);
-  gap: 14px;
-  align-items: center;
-}
-
-.watch-header-copy {
-  display: flex;
-  flex-direction: column;
-  min-width: 0;
-}
-
-.watch-header h1 {
-  margin: 0;
-  font-size: clamp(24px, 2.6vw, 32px);
-  line-height: 0.98;
-}
-
-.watch-stage {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(216px, 256px);
-  gap: 12px;
-  align-items: stretch;
-}
-
-.watch-stage.has-channel-rail {
-  grid-template-columns: minmax(200px, 224px) minmax(0, 1fr) minmax(216px, 256px);
-}
-
-.watch-channel-rail {
-  /* Single knob for the marker (and its grid column) size. Big enough to read
-     like the leaderboard/profile/rules markers, small enough that 5 channels
-     fit most viewport heights before the rail has to scroll (~1-2 channels of
-     headroom at 80px). When the variant count outgrows that, drop this value or
-     make it height-responsive (clamp() tied to viewport height) rather than
-     letting the rail scroll by default. */
-  --watch-marker: 80px;
-  min-width: 0;
-  border: 1px solid var(--site-border-soft);
-  border-radius: var(--site-radius);
-  background: var(--site-panel);
-  color: var(--site-text);
-  padding: 10px;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  /* On short viewports the markers can still run past the board height; scroll
-     the rail instead of clipping (was overflow: hidden). */
-  overflow-y: auto;
-  overflow-x: hidden;
-}
-
-.watch-channel-rail[hidden] {
-  display: none;
-}
-
-.watch-channel-rail h2 {
-  margin: 0;
-  padding: 2px 2px 8px;
-  border-bottom: 1px solid var(--site-border-soft);
-  color: var(--site-muted);
-  font-size: 11px;
-  font-weight: 800;
-  line-height: 1.2;
-  text-transform: uppercase;
-}
-
-:root[data-effective-theme="dark"] .watch-channel-rail {
-  border-color: var(--site-border);
-  background: var(--site-panel);
-  color: var(--site-text);
-}
-
-:root[data-effective-theme="dark"] .watch-channel-rail h2 {
-  border-bottom-color: var(--site-border-soft);
-  color: var(--site-muted);
-}
-
-.watch-channel-list {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-
-/* The `hidden` attribute (set when there is only one channel) is otherwise
-   overridden by the `display: flex` rule above, so the empty nav still
-   reserves its margin/gap. Collapse it for real. */
-.watch-channel-list[hidden] {
-  display: none;
-}
-
-.watch-channel-list a {
-  border: 1px solid transparent;
-  border-radius: var(--site-radius-sm);
-  background: transparent;
-  color: var(--site-muted);
-  padding: 6px 8px;
-  display: grid;
-  grid-template-columns: var(--watch-marker) minmax(0, 1fr);
-  gap: 10px;
-  align-items: center;
-  font-size: 13px;
-  font-weight: 800;
-  line-height: 1.15;
-  text-decoration: none;
-}
-
-/* The shared variant marker, sized off --watch-marker so it reads like the
-   leaderboard/profile/rules markers. */
-.watch-channel-thumb {
-  width: var(--watch-marker);
-  height: var(--watch-marker);
-  display: flex;
-  flex: 0 0 var(--watch-marker);
-}
-
-.watch-channel-thumb svg {
-  display: block;
-  width: 100%;
-  height: 100%;
-}
-
-.watch-channel-thumb .variant-marker {
-  display: block;
-  width: 100%;
-  height: 100%;
-}
-
-/* Name + count stacked to the right of the marker. */
-.watch-channel-text {
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 6px;
-}
-
-.watch-channel-list a:hover,
-.watch-channel-list a:focus-visible,
-.watch-channel-list a.active {
-  border-color: color-mix(in srgb, var(--site-accent) 45%, transparent);
-  background: var(--site-accent-soft);
-  color: var(--site-accent-strong);
-  --variant-marker-color: #3f4a54;
-}
-
-.watch-channel-name {
-  min-width: 0;
-  font-size: 14px;
-  line-height: 1.2;
-  /* Long names (Crossroads Chess, Dark Mini Xiangqi) wrap to a second line in
-     the taller marker rows instead of ellipsizing mid-word. */
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
   overflow: hidden;
-}
-
-.watch-channel-count {
-  min-width: 24px;
-  border: 1px solid var(--site-border-soft);
-  border-radius: 999px;
-  background: var(--site-panel-soft);
-  color: var(--site-muted);
-  padding: 2px 6px;
-  font-size: 11px;
-  line-height: 1.15;
-  text-align: center;
-}
-
-.watch-channel-list a.active .watch-channel-count {
-  border-color: color-mix(in srgb, var(--site-accent) 32%, transparent);
-  background: var(--site-panel);
-  color: var(--site-accent-strong);
-}
-
-:root[data-effective-theme="dark"] .watch-channel-list a {
-  color: var(--site-text);
-}
-
-:root[data-effective-theme="dark"] .watch-channel-count {
-  border-color: var(--site-border);
-  background: var(--site-panel-soft);
-  color: var(--site-muted);
-}
-
-:root[data-effective-theme="dark"] .watch-channel-list a.active .watch-channel-count {
-  border-color: color-mix(in srgb, var(--site-accent) 44%, var(--site-border));
-  background: color-mix(in srgb, var(--site-accent) 12%, var(--site-panel));
-  color: var(--site-accent-strong);
-}
-
-.watch-status {
-  justify-self: end;
-  width: 100%;
   border: 1px solid var(--site-border-soft);
   border-radius: var(--site-radius);
+  background: var(--site-panel-soft);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+:root[data-effective-theme="dark"] .watch-board-box {
+  border-color: var(--site-border);
+}
+
+/* The empty / skeleton states render into the mount root (inside the box); let
+   the box grow to fit the empty message instead of clipping it to a square. */
+.watch-board-box:has(.watch-empty) {
+  aspect-ratio: auto;
+  overflow: visible;
   background: var(--site-panel);
-  padding: 10px 12px;
-  display: grid;
-  grid-template-columns: auto minmax(0, 1fr);
-  gap: 2px 8px;
-  align-items: baseline;
-  color: var(--site-muted);
-  font-size: 11px;
-  font-weight: 700;
-  text-transform: uppercase;
 }
 
-.watch-status strong {
-  grid-row: span 2;
-  color: var(--site-heading);
-  font-size: 26px;
-  line-height: 1;
-}
-
-.watch-status-label {
-  color: var(--site-muted);
-}
-
-.watch-status-hint {
-  color: #7b6650;
-  font-weight: 800;
-}
-
-.watch-replay {
+.watch-tv-board {
+  width: 100%;
+  height: 100%;
   min-width: 0;
   min-height: 0;
-  border: 1px solid var(--site-border-soft);
-  border-radius: var(--site-radius);
-  background: var(--site-panel);
-  overflow: hidden;
 }
 
+/* The replay mount + its layers fill the square box and center the board. */
+.watch-board-box .replay-page {
+  width: 100%;
+  height: 100%;
+}
+
+/* Chrome that never belongs in the TV board-box (identity is in the rails). */
+.watch-tv-board .replay-game-meta-card,
+.watch-board-box .replay-pane-label,
+.watch-board-box .replay-pane-name,
+.watch-board-box .replay-pane-status,
+.watch-board-box .replay-pane-clock-slot,
+.watch-board-box .replay-clock-row,
+.watch-board-box .replay-clock-cell,
+.watch-board-box .replay-clock-stack-name,
+.watch-board-box .replay-clock-spacer,
+.watch-board-box .replay-clock-panel,
+.watch-board-box .replay-captures,
+.watch-board-box .captures-strip,
+.watch-board-box .showcase-seat,
+.watch-board-box .showcase-reserve,
+.watch-board-box .replay-control-bar,
+.watch-board-box .replay-ply-line {
+  display: none;
+}
+
+/* Tenant (SVG) boards: the homepage-showcase single-board layout
+   (.replay-layout.replay-layout-solo). Fill the square; the MutationObserver in
+   watch-route.ts stamps preserveAspectRatio="xMidYMid meet" on the board SVG so a
+   non-square board pillarboxes centered rather than stretching. */
+.watch-board-box .replay-layout-solo {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0;
+  padding: 0;
+  margin: 0;
+}
+
+.watch-board-box .replay-layout-solo .showcase-board-row,
+.watch-board-box .replay-layout-solo .replay-pane {
+  width: 100%;
+  height: 100%;
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.watch-board-box .replay-layout-solo .replay-board {
+  width: 100%;
+  height: 100%;
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.watch-board-box .replay-layout-solo .replay-board svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+/* Chess (chessground): the fog channels (dark-chess, reveal-chess, kriegspiel,
+   dark-crazyhouse) render the review triptych compact; watch only serves
+   COMPLETED games, so the middle "Truth" pane is the fully public board (no
+   hidden-info leak). Isolate truth into the box; the panes resolver can only pick
+   a fogged white/black POV, so truth-only is a CSS concern. */
+.watch-board-box .replay-layout:not(.replay-layout-solo) {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0;
+  padding: 0;
+  margin: 0;
+}
+
+.watch-board-box .replay-layout:not(.replay-layout-solo) .replay-pane-white,
+.watch-board-box .replay-layout:not(.replay-layout-solo) .replay-pane-black {
+  display: none;
+}
+
+.watch-board-box .replay-pane-truth {
+  width: 100%;
+  height: 100%;
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0;
+}
+
+/* chessground is square (aspect-ratio 1 from .board.cg-wrap) and fills --cg-w;
+   100% of the square pane == the square box. */
+.watch-board-box .replay-pane-truth .replay-board.cg-wrap {
+  --cg-w: 100%;
+  width: 100%;
+  box-shadow: none;
+}
+
+/* ── Renderer-swap skeleton (replay-skeleton.ts) ──────────────────────────── */
+.watch-replay-skeleton {
+  width: 100%;
+  height: 100%;
+  padding: 16px;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+}
+
+.watch-replay-skeleton-board {
+  width: min(100%, 100cqh - 40px);
+  max-width: 100%;
+  aspect-ratio: 1 / 1;
+  border: 1px solid var(--site-border-soft);
+  border-radius: var(--site-radius);
+  background: var(--site-panel-soft);
+  animation: watch-replay-skeleton-pulse 1.25s ease-in-out infinite;
+}
+
+.watch-replay-skeleton-caption {
+  color: var(--site-muted);
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+@keyframes watch-replay-skeleton-pulse {
+  0%,
+  100% {
+    opacity: 0.4;
+  }
+
+  50% {
+    opacity: 0.75;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .watch-replay-skeleton-board {
+    animation: none;
+  }
+}
+
+/* ── Empty state ─────────────────────────────────────────────────────────── */
 .watch-empty {
-  min-height: min(64vh, 620px);
   padding: 28px;
   display: flex;
   flex-direction: column;
@@ -257,7 +236,7 @@
 
 .watch-empty h2 {
   margin: 0;
-  font-size: 28px;
+  font-size: 24px;
   line-height: 1.05;
 }
 
@@ -297,105 +276,46 @@
   background: var(--site-panel);
 }
 
-/* Transient placeholder shown in the replay slot while a renderer swap is in
-   flight (channel switch across families, or first mount). Mirrors the
-   empty-state footprint so the board does not shift when real content lands. */
-.watch-replay-skeleton {
-  min-height: min(64vh, 620px);
-  padding: 24px;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 14px;
-}
-
-.watch-replay-skeleton-board {
-  width: min(100%, 460px);
-  max-width: 460px;
-  aspect-ratio: 1 / 1;
-  border: 1px solid var(--site-border-soft);
-  border-radius: var(--site-radius);
-  background: var(--site-panel-soft);
-  animation: watch-replay-skeleton-pulse 1.25s ease-in-out infinite;
-}
-
-.watch-replay-skeleton-caption {
-  color: var(--site-muted);
-  font-size: 12px;
-  font-weight: 800;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-}
-
-@keyframes watch-replay-skeleton-pulse {
-  0%,
-  100% {
-    opacity: 0.4;
-  }
-
-  50% {
-    opacity: 0.75;
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .watch-replay-skeleton-board {
-    animation: none;
-  }
-}
-
-.watch-queue {
-  min-width: 0;
+/* ── "Previously on Mistboard TV" strip (under the board) ─────────────────── */
+.watch-previously {
+  width: min(var(--watch-board-max, 560px), 100%);
+  margin: 0 auto;
   border: 1px solid var(--site-border-soft);
   border-radius: var(--site-radius);
   background: var(--site-panel);
+  padding: 10px 12px;
   display: flex;
   flex-direction: column;
-  overflow: hidden;
+  gap: 8px;
+  box-sizing: border-box;
 }
 
-.watch-queue-heading {
-  padding: 12px;
-  border-bottom: 1px solid var(--site-border-soft);
+.watch-previously-heading {
   display: flex;
-  align-items: center;
+  align-items: baseline;
   justify-content: space-between;
   gap: 12px;
-  background: var(--site-panel);
 }
 
-.watch-queue-heading-copy {
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
-
-.watch-queue-heading h2 {
+.watch-previously-heading h2 {
   margin: 0;
   color: var(--site-heading);
-  font-size: 14px;
+  font-size: 13px;
+  font-weight: 800;
   line-height: 1.2;
 }
 
-.watch-queue-count,
-.watch-queue-scope {
+.watch-previously-scope {
+  flex: 0 0 auto;
   color: var(--site-muted);
   font-size: 11px;
   font-weight: 800;
   line-height: 1.2;
-}
-
-.watch-queue-scope {
-  flex: 0 0 auto;
-  color: #7b6650;
   text-align: right;
 }
 
-.watch-queue-empty {
+.watch-previously-empty {
   margin: 0;
-  padding: 14px 12px;
   color: var(--site-muted);
   font-size: 13px;
   line-height: 1.35;
@@ -403,44 +323,48 @@
 
 .watch-queue-list {
   margin: 0;
-  padding: 0;
+  padding: 2px;
   list-style: none;
-  overflow: auto;
-}
-
-/* Lichess-style zebra rows carry the rhythm; no per-row borders. Tokens flip
-   for dark mode, so this needs no theme.css override. */
-.watch-queue-item {
-  background: var(--site-panel);
   display: flex;
-  flex-direction: column;
+  flex-direction: row;
+  gap: 8px;
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  scrollbar-width: thin;
 }
 
-.watch-queue-item:nth-child(even) {
-  background: var(--site-zebra);
-}
-
-.watch-queue-item:hover,
-.watch-queue-item:focus-within,
-.watch-queue-item.active {
-  background: var(--site-accent-soft);
+.watch-queue-item {
+  flex: 0 0 auto;
+  display: flex;
 }
 
 .watch-queue-item.is-new {
   animation: watch-queue-enter 420ms ease-out both;
 }
 
+/* Each past game is a compact card and stays an `a.watch-queue-row` so the
+   existing click handler / active-row logic keeps working. */
 .watch-queue-row {
-  min-width: 0;
-  padding: 11px 12px 8px;
+  min-width: 150px;
+  max-width: 220px;
+  border: 1px solid var(--site-border-soft);
+  border-radius: var(--site-radius-sm);
+  background: var(--site-panel-soft);
+  padding: 8px 10px;
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
   color: inherit;
   text-decoration: none;
 }
 
-/* Variant marker leads the card; the matchup + meta stack in a column beside it. */
+.watch-queue-row:hover,
+.watch-queue-row:focus-visible,
+.watch-queue-row.active {
+  border-color: color-mix(in srgb, var(--site-accent) 45%, transparent);
+  background: var(--site-accent-soft);
+}
+
 .watch-queue-thumb {
   flex: 0 0 auto;
   display: block;
@@ -452,13 +376,13 @@
   flex: 1 1 auto;
   display: flex;
   flex-direction: column;
-  gap: 5px;
+  gap: 3px;
 }
 
 .watch-queue-matchup {
   min-width: 0;
   color: var(--site-heading);
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 800;
   line-height: 1.2;
   overflow: hidden;
@@ -467,28 +391,12 @@
 }
 
 .watch-queue-meta {
-  min-width: 0;
   display: flex;
   align-items: center;
-  flex-wrap: wrap;
   gap: 6px;
   color: var(--site-muted);
-  font-size: 11px;
+  font-size: 10px;
   line-height: 1.2;
-}
-
-.watch-queue-detail {
-  min-width: 0;
-  display: flex;
-  flex-wrap: wrap;
-  gap: 2px 6px;
-  overflow-wrap: anywhere;
-}
-
-.watch-queue-detail span:not(:first-child)::before {
-  content: "·";
-  margin-right: 6px;
-  color: color-mix(in srgb, var(--site-muted) 65%, transparent);
 }
 
 .watch-queue-result {
@@ -504,39 +412,22 @@
   text-transform: uppercase;
 }
 
-.watch-queue-review {
-  align-self: flex-start;
-  margin: 0 12px 11px;
-  border: 1px solid color-mix(in srgb, #7b6650 28%, transparent);
-  border-radius: var(--site-radius-sm);
-  background: #fffdf8;
-  padding: 5px 7px;
-  color: #6f5132;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 11px;
-  line-height: 1;
-  font-weight: 800;
-  text-decoration: none;
-  text-transform: uppercase;
-}
-
-.watch-queue-review:hover,
-.watch-queue-review:focus-visible {
-  background: #fff6e5;
-  color: #4a321d;
+.watch-queue-age {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 @keyframes watch-queue-enter {
   from {
     opacity: 0;
-    transform: translateY(-6px);
+    transform: translateX(-8px);
   }
 
   to {
     opacity: 1;
-    transform: translateY(0);
+    transform: translateX(0);
   }
 }
 
@@ -546,452 +437,281 @@
   }
 }
 
-.watch-replay.replay-page {
-  padding: 0;
-  min-height: 0;
+/* ── Right rail: player rows + review-game link ──────────────────────────── */
+.watch-players-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 14px;
+  border: 1px solid var(--site-border);
+  border-radius: var(--site-radius);
+  background: var(--site-panel, var(--site-surface));
+}
+
+.watch-players-heading {
+  margin: 0;
+  color: var(--site-muted);
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.watch-players-rows {
+  display: flex;
+  flex-direction: column;
   gap: 8px;
 }
 
-/* Names live in the header strip in watch mode, so the per-pane name row
-   never fills. Collapse it instead of reserving (visibility: hidden) space
-   above the top captures strip. */
-.watch-replay .replay-pane-name:empty {
+.watch-player-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  font-size: 14px;
+  color: var(--site-text);
+}
+
+.watch-player-disc {
+  flex: 0 0 auto;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  border: 1px solid var(--site-border);
+  background: #f4f1e9;
+}
+
+.watch-player-disc--black,
+.watch-player-disc--blue {
+  background: #2b2b2b;
+}
+
+.watch-player-disc--red {
+  background: #b23b3b;
+}
+
+.watch-player-name {
+  min-width: 0;
+  flex: 1 1 auto;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 700;
+}
+
+.watch-player-bot {
+  flex: 0 0 auto;
+  border: 1px solid var(--site-border);
+  border-radius: 4px;
+  background: var(--site-bg);
+  color: var(--site-muted);
+  padding: 0 4px;
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+}
+
+.watch-player-rating {
+  flex: 0 0 auto;
+  color: var(--site-muted);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+
+.watch-players-review {
+  align-self: flex-start;
+  padding: 7px 12px;
+  border: 1px solid var(--site-border);
+  border-radius: var(--site-radius-sm, 8px);
+  background: var(--site-bg);
+  color: var(--site-text);
+  font-weight: 700;
+  font-size: 13px;
+  text-decoration: none;
+}
+
+.watch-players-review:hover,
+.watch-players-review:focus-visible {
+  background: var(--site-surface);
+  border-color: var(--site-accent);
+}
+
+/* ── Left rail: sealed-status badge ──────────────────────────────────────── */
+.watch-status {
+  border: 1px solid var(--site-border-soft);
+  border-radius: var(--site-radius);
+  background: var(--site-panel);
+  padding: 10px 12px;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 2px 8px;
+  align-items: baseline;
+  color: var(--site-muted);
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.watch-status strong {
+  grid-row: span 2;
+  color: var(--site-heading);
+  font-size: 24px;
+  line-height: 1;
+}
+
+.watch-status-label {
+  color: var(--site-muted);
+}
+
+.watch-status-hint {
+  color: #7b6650;
+  font-weight: 800;
+}
+
+/* ── Left rail: channel list ─────────────────────────────────────────────── */
+.watch-channel-rail {
+  /* Single knob for the marker size. Compact enough that the channel list, the
+     meta card, and the status badge all fit the 320px rail. */
+  --watch-marker: 40px;
+  min-width: 0;
+  border: 1px solid var(--site-border-soft);
+  border-radius: var(--site-radius);
+  background: var(--site-panel);
+  color: var(--site-text);
+  padding: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: 60vh;
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+
+.watch-channel-rail[hidden] {
   display: none;
 }
 
-/* Tighten the label / captures / board / status stack so the controls and
-   "Ply n / n" caption clear the fixed-height container with room to spare. */
-.watch-replay .replay-pane {
+.watch-channel-rail h2 {
+  margin: 0;
+  padding: 2px 2px 8px;
+  border-bottom: 1px solid var(--site-border-soft);
+  color: var(--site-muted);
+  font-size: 11px;
+  font-weight: 800;
+  line-height: 1.2;
+  text-transform: uppercase;
+}
+
+:root[data-effective-theme="dark"] .watch-channel-rail {
+  border-color: var(--site-border);
+}
+
+.watch-channel-list {
+  display: flex;
+  flex-direction: column;
   gap: 2px;
 }
 
-.watch-replay .replay-layout {
-  gap: 8px;
-  padding: 8px 8px 0;
-  box-sizing: border-box;
-}
-
-/* The triptych boards snap to a multiple of 32px (round(down, --cg-w, 32px)),
-   so the column has to clear 288px for the board to step up from 256 -> 288.
-   The per-pane status row is empty during normal playback (it only fills with
-   WINNER/LOST at game end, which the header result chip + winner ring already
-   show), so dropping it both removes the dead space below the boards and frees
-   the vertical budget the taller board needs. */
-.watch-replay .replay-pane-status {
+.watch-channel-list[hidden] {
   display: none;
 }
 
-.watch-replay .replay-board.cg-wrap {
-  /* Raise the cap so the freed horizontal/vertical room becomes board size
-     on wide screens; the triptych column still bounds it on narrower ones. */
-  --cg-w: min(100%, 460px);
-}
-
-/* Bottom controls: trim the button height and caption margin so the boards
-   can grow down into the reclaimed space. */
-.watch-replay .replay-control-bar .replay-button {
-  padding: 4px 11px;
-}
-
-.watch-replay .replay-ply-line {
-  margin-top: 2px;
-}
-
-.watch-replay .replay-game-header {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(210px, auto) minmax(0, 1fr);
-  align-items: stretch;
-  margin: 8px 12px 0;
-  padding: 8px 12px;
-  gap: 12px;
-  border-radius: var(--site-radius);
-}
-
-.watch-replay .replay-game-header-cell {
-  min-width: 0;
-  width: 100%;
-}
-
-.watch-replay .replay-game-header-cell .replay-clock-row {
-  min-height: 36px;
-  padding: 6px 10px;
-}
-
-/* Dark Mini Xiangqi watch board (the xiangqi half of the variant dispatch). The
-   triptych reuses the shared .replay-layout / .replay-pane chrome; the 7x7 SVG
-   (~square viewBox) just fills each pane's board slot. Scoped by .mini-xq-board,
-   which only exists in DMX panes. */
-.watch-replay .replay-board .mini-xq-board {
-  width: 100%;
-  height: auto;
-  display: block;
-}
-
-.watch-replay .crossroads-watch-board {
-  aspect-ratio: 332 / 443;
-  width: min(100%, 52vh, 520px);
-  max-width: min(100%, 520px);
-  margin: 0 auto;
+.watch-channel-list a {
+  border: 1px solid transparent;
+  border-radius: var(--site-radius-sm);
   background: transparent;
-  box-shadow: none;
-  overflow: visible;
+  color: var(--site-muted);
+  padding: 5px 7px;
+  display: grid;
+  grid-template-columns: var(--watch-marker) minmax(0, 1fr);
+  gap: 9px;
+  align-items: center;
+  font-size: 13px;
+  font-weight: 800;
+  line-height: 1.15;
+  text-decoration: none;
 }
 
-.watch-replay .watch-crossroads-layout {
-  grid-template-columns: minmax(0, min(100%, 520px));
-  justify-content: center;
+.watch-channel-thumb {
+  width: var(--watch-marker);
+  height: var(--watch-marker);
+  display: flex;
+  flex: 0 0 var(--watch-marker);
 }
 
-.watch-replay .crossroads-watch-board .crossroads-live-svg {
+.watch-channel-thumb svg,
+.watch-channel-thumb .variant-marker {
   display: block;
   width: 100%;
-  height: auto;
+  height: 100%;
 }
 
-/* Captured-piece strips for the DMX triptych: small xiangqi glyphs in a row. */
-.watch-replay .replay-captures .mini-xq-captures-row {
+.watch-channel-text {
+  min-width: 0;
   display: flex;
-  flex-wrap: wrap;
+  flex-direction: row;
   align-items: center;
-  gap: 1px;
-}
-
-.watch-replay .replay-captures .mini-xq-capture-piece svg {
-  width: 26px;
-  height: 26px;
-  display: block;
-}
-
-.watch-replay .replay-game-header-title {
-  font-size: 16px;
-  line-height: 1.15;
-}
-
-.watch-replay .replay-game-header-result {
+  justify-content: space-between;
   gap: 6px;
 }
 
-.watch-replay .replay-game-header-result-chip {
-  padding: 3px 8px;
-  font-size: 10px;
+.watch-channel-name {
+  flex: 1 1 auto;
 }
 
-.watch-replay .replay-game-header-result-detail,
-.watch-replay .replay-game-header-meta {
+.watch-channel-count {
+  flex: 0 0 auto;
+}
+
+.watch-channel-list a:hover,
+.watch-channel-list a:focus-visible,
+.watch-channel-list a.active {
+  border-color: color-mix(in srgb, var(--site-accent) 45%, transparent);
+  background: var(--site-accent-soft);
+  color: var(--site-accent-strong);
+  --variant-marker-color: #3f4a54;
+}
+
+.watch-channel-name {
+  min-width: 0;
+  font-size: 13px;
+  line-height: 1.2;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.watch-channel-count {
+  min-width: 22px;
+  border: 1px solid var(--site-border-soft);
+  border-radius: 999px;
+  background: var(--site-panel-soft);
+  color: var(--site-muted);
+  padding: 1px 6px;
   font-size: 11px;
+  line-height: 1.15;
+  text-align: center;
 }
 
-@media (max-width: 720px) {
-  .watch-replay .replay-game-header {
-    grid-template-columns: minmax(0, 1fr);
-  }
-
-  .watch-replay .replay-game-header-cell {
-    min-width: 0;
-  }
+.watch-channel-list a.active .watch-channel-count {
+  border-color: color-mix(in srgb, var(--site-accent) 32%, transparent);
+  background: var(--site-panel);
+  color: var(--site-accent-strong);
 }
 
-@media (min-width: 1181px) {
-  body:has(.landing-page.watch-route) {
-    overflow: hidden;
-  }
-
-  .landing-page.watch-route {
-    height: 100dvh;
-    min-height: 0;
-    overflow: hidden;
-  }
-
-  .watch-shell {
-    flex: 1 1 auto;
-    min-height: 0;
-    padding-block: 8px;
-  }
-
-  .watch-stage {
-    flex: 1 1 auto;
-    min-height: 0;
-  }
-
-  .watch-channel-rail {
-    min-height: 0;
-  }
-
-  .watch-replay {
-    overflow: hidden;
-  }
-
-  /* In the fixed-height (no-scroll) layout the board is square and its width
-     is chosen purely from the column, ignoring height. On a wide-but-short
-     monitor the column could push the board taller than the vertical budget
-     and re-clip the controls. Bound --cg-w by viewport height too; the 32px
-     snap still applies on top. Offset ~= all non-board chrome above + below. */
-  .watch-replay .replay-board.cg-wrap {
-    --cg-w: min(100%, 460px, calc(100dvh - 490px));
-  }
-
-  /* Crossroads is a portrait SVG board, so height becomes ~1.33x its width,
-     which amplifies any width budget into height. In the fixed-height TV
-     layout we reserve room for the nav, watch header, replay header, and move
-     controls before sizing the board. The pane label is removed for this watch
-     board, leaving ~297px of non-board chrome above + below; the 300px reserve
-     (×1.33 ≈ 400px of height) keeps the board comfortably smaller than the
-     viewport so the controls + "Ply n / n" strip never clip (~95px clearance),
-     and the 460px cap matches the standard watch board. */
-  .watch-replay .crossroads-watch-board {
-    width: min(100%, 460px, calc(75dvh - 300px));
-    max-width: min(100%, 460px, calc(75dvh - 300px));
-  }
-
-  .watch-queue {
-    min-height: 0;
-  }
+:root[data-effective-theme="dark"] .watch-channel-list a {
+  color: var(--site-text);
 }
 
-@media (max-width: 720px) {
-  .watch-header,
-  .watch-stage,
-  .watch-stage.has-channel-rail {
-    grid-template-columns: minmax(0, 1fr);
-  }
-
-  .watch-status {
-    justify-self: stretch;
-  }
-
-  .watch-channel-rail {
-    order: 0;
-  }
-
-  /* Full-width above the board on mobile: lay the channels out as a horizontal
-     scrolling strip so 5 big markers stay one strip tall instead of a 600px
-     stack that shoves the board off-screen. */
-  .watch-channel-list {
-    flex-direction: row;
-    overflow-x: auto;
-    overscroll-behavior-x: contain;
-  }
-
-  .watch-channel-list a {
-    flex: 0 0 auto;
-  }
-
-  .watch-replay {
-    order: 1;
-  }
-
-  .watch-queue {
-    order: 2;
-  }
+:root[data-effective-theme="dark"] .watch-channel-count {
+  border-color: var(--site-border);
+  background: var(--site-panel-soft);
+  color: var(--site-muted);
 }
 
-/* ------------------------------------------------------------------ *
- * Jieqi watch: a single board (jieqi hides identities symmetrically, so
- * the per-seat boards are identical). The triptych layout left a lone
- * board small and left-aligned, so center it and size it up; let the
- * captured-piece strips wrap into clean rows instead of clipping; and
- * drop the per-board caption. Scoped by :has(.jieqi-board) so the banqi /
- * dark-mini-xiangqi watch surfaces are untouched.
- * ------------------------------------------------------------------ */
-.watch-replay .replay-layout-all:has(.jieqi-board) {
-  grid-template-columns: minmax(0, min(100%, 46dvh, 440px));
-  justify-content: center;
-}
-
-/* Let the board fill the (wider) single column instead of its triptych-era cap. */
-.watch-replay .replay-layout-all:has(.jieqi-board) .replay-board {
-  width: 100%;
-  max-width: none;
-}
-
-.watch-replay .replay-layout-all:has(.jieqi-board) .replay-pane-label {
-  display: none;
-}
-
-/* The capture row already wraps (.mini-xq-captures-row); the clip came from the
-   fixed single-row height on the .captures-strip parent. Let it grow — and pin
-   both strip and row to the full board width so a wrapping flex row doesn't
-   collapse to min-content (one piece wide) and stack the pieces vertically. */
-.watch-replay .replay-layout-all:has(.jieqi-board) .captures-strip {
-  height: auto;
-  min-height: 0;
-  width: 100%;
-  overflow: visible;
-}
-
-.watch-replay .replay-layout-all:has(.jieqi-board) .captures-row {
-  width: 100%;
-  justify-content: center;
-  overflow: visible;
-}
-
-/* ------------------------------------------------------------------ *
- * Banqi watch: a single public truth board (banqi hides only the deal,
- * not identities, so there is one board, no triptych). Like the jieqi
- * block above, the triptych grid left the lone board small and
- * left-aligned; this centers it and sizes it up. The difference is the
- * aspect ratio: the banqi board is WIDE (8x4, viewBox ~568x312 ≈ 1.82:1),
- * so it can take far more width than the near-square jieqi board before
- * its height threatens the fixed-height (no-scroll) layout. Size the
- * single column off viewport height — board height = width * 312/568, so
- * 84dvh of width lands the board at ~46dvh tall, the same vertical
- * footprint the jieqi block already proves fits inside 100dvh. The 760px
- * cap bounds it on wide screens; 100% bounds it to the column.
- * Scoped by :has(.banqi-board) so the jieqi / dark-mini-xiangqi surfaces
- * are untouched.
- * ------------------------------------------------------------------ */
-.watch-replay .replay-layout-all:has(.banqi-board) {
-  grid-template-columns: minmax(0, min(100%, 84dvh, 760px));
-  justify-content: center;
-}
-
-/* Let the board fill the (wider) single column instead of its triptych-era cap. */
-.watch-replay .replay-layout-all:has(.banqi-board) .replay-board {
-  width: 100%;
-  max-width: none;
-}
-
-.watch-replay .replay-layout-all:has(.banqi-board) .replay-pane-label {
-  display: none;
-}
-
-/* Capture strips: let them grow and pin to the full board width so a wrapping
-   flex row doesn't collapse to min-content and stack the pieces vertically.
-   Reserve one row's height even when empty so the board doesn't jump when the
-   first capture lands (the grouped ≤7-tile row never wraps, so this floor also
-   fits a full pool). */
-.watch-replay .replay-layout-all:has(.banqi-board) .captures-strip {
-  height: auto;
-  min-height: calc(var(--capture-piece-size) + 8px);
-  width: 100%;
-  overflow: visible;
-}
-
-.watch-replay .replay-layout-all:has(.banqi-board) .captures-row {
-  width: 100%;
-  justify-content: center;
-  overflow: visible;
-}
-
-/* ------------------------------------------------------------------ *
- * Mini Open Xiangqi + Drop Mini Xiangqi watch: both are perfect-info, so
- * they ship a single board (no red/truth/black triptych). Like the jieqi /
- * banqi blocks above, the base 3-column triptych grid left the lone board
- * small and left-aligned in column 1; this centers it and sizes it up off
- * the viewport height (the 7x7 viewBox is square, so width drives an equal
- * height — keep it under the no-scroll budget). The "Truth" pane label is
- * meaningless without a contrasting fog view, so drop it (matching jieqi /
- * banqi). Scoped to a single-pane layout via :not(:has(.replay-pane ~
- * .replay-pane)) so the Dark Mini Xiangqi triptych — which shares the
- * .mini-xq-board class — keeps its three columns.
- * ------------------------------------------------------------------ */
-.watch-replay .replay-layout-all:has(.mini-xq-board):not(:has(.replay-pane ~ .replay-pane)) {
-  grid-template-columns: minmax(0, min(100%, 50dvh, 460px));
-  justify-content: center;
-}
-
-/* Let the board fill the (wider) single column instead of its triptych-era cap. */
-.watch-replay .replay-layout-all:has(.mini-xq-board):not(:has(.replay-pane ~ .replay-pane))
-  .replay-board {
-  width: 100%;
-  max-width: none;
-}
-
-.watch-replay
-  .replay-layout-all:has(.mini-xq-board):not(:has(.replay-pane ~ .replay-pane))
-  .replay-pane-label {
-  display: none;
-}
-
-/* Capture / reserve strips: let them grow and pin to the full board width so a
-   wrapping flex row doesn't collapse to min-content and stack pieces vertically.
-   Reserve one row's height even when empty (Drop's reserve fills here) so the
-   board doesn't jump when the first piece lands. */
-.watch-replay .replay-layout-all:has(.mini-xq-board):not(:has(.replay-pane ~ .replay-pane))
-  .captures-strip {
-  height: auto;
-  min-height: 34px;
-  width: 100%;
-  overflow: visible;
-}
-
-.watch-replay
-  .replay-layout-all:has(.mini-xq-board):not(:has(.replay-pane ~ .replay-pane))
-  .captures-row,
-.watch-replay
-  .replay-layout-all:has(.mini-xq-board):not(:has(.replay-pane ~ .replay-pane))
-  .mini-xq-captures-row {
-  width: 100%;
-  justify-content: center;
-  overflow: visible;
-}
-
-/* ------------------------------------------------------------------ *
- * Jungle watch: perfect-info, so a single board (no triptych) carrying its
- * own material — same triptych-grid problem as jieqi/banqi (lone board left
- * in column 1, small). Center + size it. The 7x9 board is PORTRAIT (~366x462
- * viewBox), so size width off the viewport height with headroom for the taller
- * aspect (height ≈ 1.26x width). The board carries the material, so the empty
- * capture strips collapse, and the "Truth" pane label is dropped (matching the
- * other single-board surfaces). Scoped by .jungle-live-svg, unique to Jungle.
- * ------------------------------------------------------------------ */
-.watch-replay .replay-layout-all:has(.jungle-live-svg) {
-  grid-template-columns: minmax(0, min(100%, 39dvh, 380px));
-  justify-content: center;
-}
-
-.watch-replay .replay-layout-all:has(.jungle-live-svg) .replay-board {
-  width: 100%;
-  max-width: none;
-}
-
-/* The live board sets the svg to height:100% (parent enforces aspect there);
-   in the watch pane there is no fixed-height parent, so let the viewBox aspect
-   drive height instead. */
-.watch-replay .replay-layout-all:has(.jungle-live-svg) .jungle-live-svg {
-  width: 100%;
-  height: auto;
-}
-
-.watch-replay .replay-layout-all:has(.jungle-live-svg) .replay-pane-label {
-  display: none;
-}
-
-/* No captured-pool strips (material lives on the board): collapse them so they
-   don't reserve dead space above/below the board. */
-.watch-replay .replay-layout-all:has(.jungle-live-svg) .captures-strip {
-  height: auto;
-  min-height: 0;
-}
-
-/* ------------------------------------------------------------------ *
- * Flip Jungle watch: symmetric hidden-identity (banqi pattern), one board
- * with a Reveal toggle. Same lone-board-in-column-1 problem. The 4x4 board is
- * SQUARE (~286x286 viewBox), so size it like the (also square) mini xiangqi
- * board. Material lives on the board, so collapse the empty capture strips; the
- * "Truth" pane label is dropped (the Reveal control conveys state, matching
- * banqi). Scoped by .jungle-flip-live-svg, unique to Flip Jungle.
- * ------------------------------------------------------------------ */
-.watch-replay .replay-layout-all:has(.jungle-flip-live-svg) {
-  grid-template-columns: minmax(0, min(100%, 50dvh, 460px));
-  justify-content: center;
-}
-
-.watch-replay .replay-layout-all:has(.jungle-flip-live-svg) .replay-board {
-  width: 100%;
-  max-width: none;
-}
-
-.watch-replay .replay-layout-all:has(.jungle-flip-live-svg) .jungle-flip-live-svg {
-  width: 100%;
-  height: auto;
-}
-
-.watch-replay .replay-layout-all:has(.jungle-flip-live-svg) .replay-pane-label {
-  display: none;
-}
-
-.watch-replay .replay-layout-all:has(.jungle-flip-live-svg) .captures-strip {
-  height: auto;
-  min-height: 0;
+:root[data-effective-theme="dark"] .watch-channel-list a.active .watch-channel-count {
+  border-color: color-mix(in srgb, var(--site-accent) 44%, var(--site-border));
+  background: color-mix(in srgb, var(--site-accent) 12%, var(--site-panel));
+  color: var(--site-accent-strong);
 }

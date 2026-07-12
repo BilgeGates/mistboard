@@ -5,10 +5,21 @@ import type { VariantMiniId } from './variant-mini-boards.js';
 import { webVariantTenantForSpecId } from './variant-tenant/registry.js';
 import { variantMiniIdForRawVariant } from './variants.js';
 import './watch-route.css';
-import { type FeaturedGame, matchupLabel, sourceLabel } from './game-display.js';
-import { gameMetaForGame, reviewUrlForGame } from './game-meta.js';
+import {
+  displayParticipantName,
+  type FeaturedGame,
+  type GameParticipant,
+  matchupLabel,
+  matchupSeats,
+  participantForColor,
+  sourceLabel,
+  variantDisplayLabel,
+} from './game-display.js';
+import { gameMetaForGame, reviewUrlForGame, timeControlLabelForGame } from './game-meta.js';
 import type { GameMeta, ReplayHandle } from './replay.js';
 import { renderWatchReplaySkeleton } from './replay-skeleton.js';
+import { createGameMetaCard, type GameMetaPlayer, timeAgoLabel } from './review/game-meta-card.js';
+import { createReviewShell } from './review/review-shell.js';
 import { showcaseRendererKindForSpec } from './showcase-dispatch.js';
 import { buildLoadingState, buildNav } from './site-shell.js';
 
@@ -83,7 +94,34 @@ export async function mountWatch(root: HTMLElement): Promise<void> {
   let refreshInFlight = false;
   const selectedRoomByChannel = new Map<string, string>();
   const metadataByRoomId: Record<string, GameMeta> = {};
+  // First/second-mover names for the tenant compact seats (the tenant postgames
+  // carry no player names), keyed by room id — same shape the homepage showcase
+  // feeds its compact boards.
+  const namesByRoomId: Record<string, { first: string; second: string }> = {};
   const abortController = new AbortController();
+
+  // Center tenant (SVG) watch boards within the fixed square board-box so a
+  // non-square board (the 9x10 xiangqi grid, 8x4 banqi, 7x9 jungle, …) pillarboxes
+  // symmetrically instead of stretching. The tenant frameworks re-render the board
+  // SVG every ply, so a one-shot attribute set wouldn't stick; re-apply on each
+  // mutation. Chess is on chessground (no viewBox <svg>), so it never matches — a
+  // no-op there, and its 8x8 board fills the square natively.
+  if (typeof MutationObserver !== 'undefined') {
+    const centerTenantBoards = (): void => {
+      for (const svg of watch.replayRoot.querySelectorAll<SVGElement>(
+        '.replay-layout-solo .replay-board svg',
+      )) {
+        if (svg.getAttribute('preserveAspectRatio') !== 'xMidYMid meet') {
+          svg.setAttribute('preserveAspectRatio', 'xMidYMid meet');
+        }
+      }
+    };
+    new MutationObserver(centerTenantBoards).observe(watch.replayRoot, {
+      childList: true,
+      subtree: true,
+    });
+    centerTenantBoards();
+  }
 
   const watchRendererKind = (feed: WatchFeed): WatchRendererKind => {
     const channel = feed.channels.find((entry) => entry.id === feed.activeChannel);
@@ -115,7 +153,14 @@ export async function mountWatch(root: HTMLElement): Promise<void> {
       replayHandle = null;
       replayHandleKind = null;
       renderWatchReplaySkeleton(watch.replayRoot);
-      replayHandle = await mountWatchReplay(watch.replayRoot, roomId, metadataByRoomId, seed, kind);
+      replayHandle = await mountWatchReplay(
+        watch.replayRoot,
+        roomId,
+        metadataByRoomId,
+        namesByRoomId,
+        seed,
+        kind,
+      );
       replayHandleKind = kind;
       return;
     }
@@ -134,7 +179,7 @@ export async function mountWatch(root: HTMLElement): Promise<void> {
       animateNewRows && previousFeed
         ? new Set(previousFeed.unlocked.map((game) => game.roomId))
         : null;
-    mergeWatchMetadata(metadataByRoomId, nextFeed);
+    mergeWatchMetadata(metadataByRoomId, namesByRoomId, nextFeed);
     renderWatchChannelList(watch.channelRoot, nextFeed);
     renderWatchStatus(watch.statusRoot, nextFeed);
 
@@ -144,6 +189,7 @@ export async function mountWatch(root: HTMLElement): Promise<void> {
       replayHandleKind = null;
       activeRoomId = null;
       renderWatchEmptyState(watch.replayRoot, nextFeed);
+      renderWatchActiveGame(watch, nextFeed, activeRoomId);
       renderWatchQueue(watch.queueRoot, nextFeed, activeRoomId, { previousRoomIds });
       currentFeed = nextFeed;
       if (options.urlMode && nextFeed) {
@@ -156,6 +202,7 @@ export async function mountWatch(root: HTMLElement): Promise<void> {
     const priorRoomId = activeRoomId;
     activeRoomId = nextRoomId;
     selectedRoomByChannel.set(nextFeed.activeChannel, nextRoomId);
+    renderWatchActiveGame(watch, nextFeed, activeRoomId);
     renderWatchQueue(watch.queueRoot, nextFeed, activeRoomId, { previousRoomIds });
 
     try {
@@ -164,6 +211,7 @@ export async function mountWatch(root: HTMLElement): Promise<void> {
       console.warn(err);
       activeRoomId = priorRoomId;
       if (!replayHandle) renderWatchEmptyState(watch.replayRoot, null);
+      renderWatchActiveGame(watch, nextFeed, activeRoomId);
       renderWatchQueue(watch.queueRoot, nextFeed, activeRoomId, { previousRoomIds: null });
       return;
     }
@@ -247,6 +295,7 @@ export async function mountWatch(root: HTMLElement): Promise<void> {
     const previousRoomId = activeRoomId;
     activeRoomId = roomId;
     selectedRoomByChannel.set(currentFeed.activeChannel, roomId);
+    renderWatchActiveGame(watch, currentFeed, activeRoomId);
     updateWatchQueueActive(watch.queueRoot, activeRoomId);
     try {
       await ensureReplay(currentFeed, roomId, currentFeed.initialReplay);
@@ -254,6 +303,7 @@ export async function mountWatch(root: HTMLElement): Promise<void> {
     } catch (err) {
       console.warn(err);
       activeRoomId = previousRoomId;
+      renderWatchActiveGame(watch, currentFeed, activeRoomId);
       updateWatchQueueActive(watch.queueRoot, activeRoomId);
     }
   };
@@ -284,27 +334,41 @@ async function mountWatchReplay(
   root: HTMLElement,
   roomId: string,
   metadataByRoomId: Record<string, GameMeta>,
+  namesByRoomId: Record<string, { first: string; second: string }>,
   seed?: WatchInitialReplay,
   kind: WatchRendererKind = 'chess',
 ): Promise<ReplayHandle> {
   // Tenant renderers load through the registry's dynamic-import closures, so
   // they stay out of the chess path's bundle. `kind` is the channel's spec id
   // (chess uses the chessground fallback below), so the tenant resolves
-  // unambiguously even when two channels share a render family.
+  // unambiguously even when two channels share a render family. Compact mode is
+  // the homepage-showcase single-board layout (.replay-layout-solo): the fixed
+  // square board-box + the preserveAspectRatio observer pillarbox it.
   const tenant = kind === 'chess' ? null : webVariantTenantForSpecId(kind);
   if (tenant?.watch) {
     return await tenant.watch.mountReplay(root, roomId, {
       autoplay: true,
+      compact: true,
       metadataByRoomId,
+      namesByRoomId,
     });
   }
+  // Chess (chessground): fog channels (dark-chess, reveal-chess, kriegspiel,
+  // dark-crazyhouse). Watch only ever serves COMPLETED games, so the middle
+  // "Truth" pane is the fully public final-and-throughout board — no hidden-info
+  // leak. Render the triptych compact but let watch-route.css isolate the truth
+  // pane into the square box (the panes resolver can only pick a fogged white/
+  // black POV, so truth-only is a CSS concern). No controls: the TV autoplays.
   const { mountReplay } = await loadReplayModule();
   return await mountReplay(root, roomId, {
     autoplay: true,
-    captureLayout: 'split',
-    showControls: true,
-    metadataMode: 'header',
+    showControls: false,
+    keyboardNav: false,
     revealOnFinish: false,
+    clampPace: true,
+    metadataMode: 'compact',
+    showCaptures: false,
+    hideGameIdPill: true,
     loaderForId: makeWatchEventLoader(seed),
     metadataByRoomId,
   });
@@ -343,11 +407,20 @@ async function apiEventLoader(roomId: string): Promise<GameEvent[]> {
 
 function mergeWatchMetadata(
   target: Record<string, GameMeta>,
+  namesTarget: Record<string, { first: string; second: string }>,
   feed: WatchFeed | null | undefined,
 ): void {
   if (!feed) return;
   for (const game of feed.unlocked) {
     target[game.roomId] = gameMetaForGame(game);
+    // First/second-mover names for the tenant compact seats, resolved through the
+    // shared seat model (red/black for xiangqi + jungle, white/red for crossroads,
+    // white/black otherwise). The chess path reads names from metadataByRoomId.
+    const [firstSeat, secondSeat] = matchupSeats(game);
+    namesTarget[game.roomId] = {
+      first: displayParticipantName(game, firstSeat),
+      second: displayParticipantName(game, secondSeat),
+    };
   }
 }
 
@@ -388,53 +461,203 @@ function syncWatchUrl(mode: 'push' | 'replace', channelId: string, roomId: strin
   window.history[method](null, '', nextUrl);
 }
 
-function buildWatchSection(feed: WatchFeed | null): {
+type WatchSection = {
   el: HTMLElement;
+  metaRoot: HTMLElement;
   channelRoot: HTMLElement;
+  statusRoot: HTMLElement;
   replayRoot: HTMLElement;
   queueRoot: HTMLElement;
-  statusRoot: HTMLElement;
-} {
-  const section = document.createElement('main');
-  section.className = 'watch-shell';
+  playersRoot: HTMLElement;
+};
 
-  const header = document.createElement('header');
-  header.className = 'watch-header';
+// The /watch page rides the SHARED review-shell (left info rail | center board |
+// right rail), the same layout the room + review pages use, so Mistboard TV reads
+// like the rest of the site. LEFT: game meta card + channel list. CENTER: a fixed
+// square board-box with a "Previously on Mistboard TV" strip under it. RIGHT:
+// player rows + a review-game link.
+function buildWatchSection(feed: WatchFeed | null): WatchSection {
+  // ── Left rail: meta card (top) + channel list (below) + sealed-status badge ──
+  const left = document.createElement('div');
+  left.className = 'watch-left';
 
-  const copy = document.createElement('div');
-  copy.className = 'watch-header-copy';
-  const title = document.createElement('h1');
-  title.textContent = 'Mistboard TV';
-  copy.append(title);
-
-  const status = document.createElement('div');
-  status.className = 'watch-status';
-  renderWatchStatus(status, feed);
-
-  header.append(copy, status);
+  const metaRoot = document.createElement('div');
+  metaRoot.className = 'watch-meta';
 
   const channelRail = document.createElement('aside');
   channelRail.className = 'watch-channel-rail';
   const channelHeading = document.createElement('h2');
-  channelHeading.textContent = 'Variants';
+  channelHeading.textContent = 'Channels';
   const channelRoot = document.createElement('nav');
   channelRoot.className = 'watch-channel-list';
   channelRoot.setAttribute('aria-label', 'Watch channels');
   channelRail.append(channelHeading, channelRoot);
 
+  const statusRoot = document.createElement('div');
+  statusRoot.className = 'watch-status';
+
+  left.append(metaRoot, channelRail, statusRoot);
+
+  // ── Center: fixed square board-box + "Previously" strip beneath it ──
+  const center = document.createElement('div');
+  center.className = 'watch-center';
+
+  const boardBox = document.createElement('div');
+  boardBox.className = 'watch-board-box';
   const replayRoot = document.createElement('div');
-  replayRoot.className = 'watch-replay';
+  replayRoot.className = 'watch-tv-board';
+  boardBox.append(replayRoot);
 
-  const queueRoot = document.createElement('aside');
-  queueRoot.className = 'watch-queue';
+  const queueRoot = document.createElement('section');
+  queueRoot.className = 'watch-previously';
+  queueRoot.setAttribute('aria-label', 'Previously on Mistboard TV');
 
-  const stage = document.createElement('div');
-  stage.className = 'watch-stage';
-  stage.append(channelRail, replayRoot, queueRoot);
+  center.append(boardBox, queueRoot);
+
+  // ── Right rail: player rows + review-game link ──
+  const right = document.createElement('div');
+  right.className = 'watch-right';
+  const playersRoot = document.createElement('div');
+  playersRoot.className = 'watch-players';
+  right.append(playersRoot);
+
+  const el = createReviewShell({
+    left,
+    center,
+    right,
+    pageClassName: 'watch-review-shell',
+    ariaLabel: 'Mistboard TV',
+  });
+
+  renderWatchStatus(statusRoot, feed);
   renderWatchChannelList(channelRoot, feed);
+  return { el, metaRoot, channelRoot, statusRoot, replayRoot, queueRoot, playersRoot };
+}
 
-  section.append(header, stage);
-  return { el: section, channelRoot, replayRoot, queueRoot, statusRoot: status };
+// Human label for a kebab-cased termination code ("king-captured" -> "King
+// captured"), for the meta-card result line.
+function watchTerminationLabel(termination: string): string {
+  if (!termination) return '';
+  const spaced = termination.replace(/[-_]+/g, ' ').trim();
+  return spaced.charAt(0).toUpperCase() + spaced.slice(1);
+}
+
+// The FeaturedGame currently showing on the board (the active room), or null.
+function activeWatchGame(feed: WatchFeed | null, activeRoomId: string | null): FeaturedGame | null {
+  if (!feed || !activeRoomId) return null;
+  return feed.unlocked.find((game) => game.roomId === activeRoomId) ?? null;
+}
+
+// The seat rows for a game, in first-mover/second-mover order, resolved through
+// the shared seat model. Shared by the left meta card and the right-rail rows.
+function watchGamePlayers(game: FeaturedGame): GameMetaPlayer[] {
+  const seats = matchupSeats(game);
+  return seats.map((color) => {
+    const participant = participantForColor(game, color);
+    return {
+      color,
+      name: displayParticipantName(game, color),
+      rating: watchParticipantRating(participant),
+      isEngine: participant?.subjectType === 'engine-version' || participant?.subjectType === 'bot',
+    };
+  });
+}
+
+function watchParticipantRating(participant: GameParticipant | null): number | null {
+  if (!participant) return null;
+  return participant.ratingAfter ?? participant.ratingBefore ?? null;
+}
+
+// Re-render the left meta card + right-rail player rows from the active game.
+// Called on every feed refresh and channel/game switch (the active game changes).
+function renderWatchActiveGame(
+  watch: WatchSection,
+  feed: WatchFeed | null,
+  activeRoomId: string | null,
+): void {
+  const game = activeWatchGame(feed, activeRoomId);
+  renderWatchMetaCard(watch.metaRoot, game);
+  renderWatchPlayers(watch.playersRoot, game);
+}
+
+function renderWatchMetaCard(root: HTMLElement, game: FeaturedGame | null): void {
+  root.replaceChildren();
+  if (!game) return;
+  const players = watchGamePlayers(game);
+  const ratedSegment = game.rated === true ? 'Rated' : game.rated === false ? 'Casual' : null;
+  const card = createGameMetaCard({
+    markerId: variantMiniIdForRawVariant(game.variant) ?? undefined,
+    headline: [timeControlLabelForGame(game), ratedSegment, sourceLabel(game.mode)],
+    variantName: variantDisplayLabel(game.variant),
+    subline: timeAgoLabel(game.endedAt),
+    players,
+    status: watchGameStatusLine(game),
+  });
+  root.append(card.el);
+}
+
+function watchGameStatusLine(game: FeaturedGame): string {
+  const result = watchQueueResultLabel(game);
+  const termination = watchTerminationLabel(game.termination);
+  return termination ? `${result} by ${termination}` : result;
+}
+
+// Right rail: the two player rows (names + ratings) and a "Review game" link.
+// Player rows reuse the meta card's row shape via createGameMetaCard's setPlayers,
+// but rendered as a standalone panel so the rail reads like the review page's
+// right column.
+function renderWatchPlayers(root: HTMLElement, game: FeaturedGame | null): void {
+  root.replaceChildren();
+  if (!game) return;
+
+  const panel = document.createElement('section');
+  panel.className = 'watch-players-panel';
+
+  const heading = document.createElement('h2');
+  heading.className = 'watch-players-heading';
+  heading.textContent = 'Players';
+  panel.append(heading);
+
+  const rows = document.createElement('div');
+  rows.className = 'watch-players-rows';
+  for (const player of watchGamePlayers(game)) {
+    const row = document.createElement('div');
+    row.className = 'watch-player-row';
+    const disc = document.createElement('span');
+    disc.className = `watch-player-disc watch-player-disc--${player.color}`;
+    disc.setAttribute('aria-hidden', 'true');
+    row.append(disc);
+    const name = document.createElement('span');
+    name.className = 'watch-player-name';
+    name.textContent = player.name;
+    name.title = player.name;
+    row.append(name);
+    if (player.isEngine) {
+      const bot = document.createElement('span');
+      bot.className = 'watch-player-bot';
+      bot.textContent = 'BOT';
+      row.append(bot);
+    }
+    if (player.rating != null) {
+      const rating = document.createElement('span');
+      rating.className = 'watch-player-rating';
+      rating.textContent = String(player.rating);
+      row.append(rating);
+    }
+    rows.append(row);
+  }
+  panel.append(rows);
+
+  const reviewUrl = reviewUrlForGame(game);
+  if (reviewUrl) {
+    const review = document.createElement('a');
+    review.className = 'watch-players-review';
+    review.href = reviewUrl;
+    review.textContent = 'Review game';
+    panel.append(review);
+  }
+
+  root.append(panel);
 }
 
 function renderWatchStatus(root: HTMLElement, feed: WatchFeed | null): void {
@@ -487,8 +710,6 @@ export function renderWatchChannelList(root: HTMLElement, feed: WatchFeed | null
   root.hidden = !feed || feed.channels.length <= 1;
   const rail = root.closest<HTMLElement>('.watch-channel-rail');
   if (rail) rail.hidden = root.hidden;
-  const stage = root.closest<HTMLElement>('.watch-stage');
-  stage?.classList.toggle('has-channel-rail', !root.hidden);
   if (!feed || feed.channels.length <= 1) return;
 
   for (const channel of feed.channels) {
@@ -576,6 +797,11 @@ function renderWatchEmptyState(root: HTMLElement, feed: WatchFeed | null): void 
   root.append(empty);
 }
 
+// "Previously on Mistboard TV": the unlocked feed (already per active channel)
+// as a HORIZONTAL strip of mini cards under the board. Each card stays an
+// `a.watch-queue-row` inside a `.watch-queue-item` so the existing
+// handleNavigationClick / updateWatchQueueActive logic keeps working; only the
+// layout (a scrolling row instead of a vertical list) changed.
 function renderWatchQueue(
   root: HTMLElement,
   feed: WatchFeed | null,
@@ -586,24 +812,18 @@ function renderWatchQueue(
   const previousRoomIds = options.previousRoomIds ?? null;
 
   const heading = document.createElement('div');
-  heading.className = 'watch-queue-heading';
-  const headingCopy = document.createElement('div');
-  headingCopy.className = 'watch-queue-heading-copy';
+  heading.className = 'watch-previously-heading';
   const title = document.createElement('h2');
-  title.textContent = feed && watchFeedIsDark(feed) ? 'Unlocked dark replays' : 'Recent replays';
-  const unlockedCount = document.createElement('span');
-  unlockedCount.className = 'watch-queue-count';
-  unlockedCount.textContent = feed ? `${feed.unlocked.length} shown` : 'offline';
-  headingCopy.append(title, unlockedCount);
-  const windowLabel = document.createElement('span');
-  windowLabel.className = 'watch-queue-scope';
-  windowLabel.textContent = feed ? formatWatchScope(feed) : 'feed unavailable';
-  heading.append(headingCopy, windowLabel);
+  title.textContent = 'Previously on Mistboard TV';
+  const scope = document.createElement('span');
+  scope.className = 'watch-previously-scope';
+  scope.textContent = feed ? formatWatchScope(feed) : 'feed unavailable';
+  heading.append(title, scope);
   root.append(heading);
 
   if (!feed) {
     const empty = document.createElement('p');
-    empty.className = 'watch-queue-empty';
+    empty.className = 'watch-previously-empty';
     empty.textContent = 'Feed unavailable.';
     root.append(empty);
     return;
@@ -611,7 +831,7 @@ function renderWatchQueue(
 
   if (feed.unlocked.length === 0) {
     const empty = document.createElement('p');
-    empty.className = 'watch-queue-empty';
+    empty.className = 'watch-previously-empty';
     empty.textContent = 'No completed games in the current replay window.';
     root.append(empty);
     return;
@@ -634,59 +854,42 @@ function renderWatchQueue(
       row.classList.add('active');
     }
 
-    // Variant marker leads each card (the channel names the variant too, but the
-    // marker lets you scan the queue by variant at a glance).
+    // Variant marker leads each card so the strip is scannable by variant.
     const miniId = variantMiniIdForRawVariant(game.variant);
-    let thumb: HTMLElement | null = null;
     if (miniId) {
-      thumb = document.createElement('span');
+      const thumb = document.createElement('span');
       thumb.className = 'watch-queue-thumb';
       thumb.setAttribute('aria-hidden', 'true');
-      thumb.innerHTML = renderVariantMarker(miniId, { size: 30 });
+      thumb.innerHTML = renderVariantMarker(miniId, { size: 28 });
+      row.append(thumb);
     }
+
+    const text = document.createElement('span');
+    text.className = 'watch-queue-text';
 
     const matchup = document.createElement('span');
     matchup.className = 'watch-queue-matchup';
-    const matchupLabel = watchQueueMatchupLabel(game);
-    matchup.textContent = matchupLabel;
-    matchup.title = matchupLabel;
+    const label = watchQueueMatchupLabel(game);
+    matchup.textContent = label;
+    matchup.title = label;
 
     const meta = document.createElement('span');
     meta.className = 'watch-queue-meta';
     const result = document.createElement('span');
     result.className = 'watch-queue-result';
     result.textContent = watchQueueResultLabel(game);
-    const detail = document.createElement('span');
-    detail.className = 'watch-queue-detail';
-    const detailParts = [
-      sourceLabel(game.mode),
-      `${game.plyCount} plies`,
-      formatEndedAge(game.endedAt, feed.now),
-    ]
-      .filter(Boolean)
-      .map(String);
-    for (const part of detailParts) {
-      const detailPart = document.createElement('span');
-      detailPart.textContent = part;
-      detail.append(detailPart);
+    meta.append(result);
+    const age = formatEndedAge(game.endedAt, feed.now);
+    if (age) {
+      const ageEl = document.createElement('span');
+      ageEl.className = 'watch-queue-age';
+      ageEl.textContent = age;
+      meta.append(ageEl);
     }
-    meta.append(result, detail);
 
-    const text = document.createElement('span');
-    text.className = 'watch-queue-text';
     text.append(matchup, meta);
-    if (thumb) row.append(thumb, text);
-    else row.append(text);
-    const reviewUrl = reviewUrlForGame(game);
-    if (reviewUrl) {
-      const review = document.createElement('a');
-      review.className = 'watch-queue-review';
-      review.href = reviewUrl;
-      review.textContent = 'Review';
-      item.append(row, review);
-    } else {
-      item.append(row);
-    }
+    row.append(text);
+    item.append(row);
     list.append(item);
   }
 
