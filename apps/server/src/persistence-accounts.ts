@@ -127,6 +127,15 @@ export type AccountSession = {
   userId: string;
   tokenHash: string;
   expiresAt: Date;
+  userAgent?: string | null;
+};
+
+export type AccountSessionSummary = {
+  id: string;
+  createdAt: Date;
+  lastSeenAt: Date;
+  expiresAt: Date;
+  userAgent: string | null;
 };
 
 export type PublicProfileUser = {
@@ -568,10 +577,85 @@ export async function userExists(userId: string): Promise<boolean> {
 
 export async function createAccountSession(session: AccountSession): Promise<void> {
   await getPool().query(
-    `INSERT INTO account_sessions (id, user_id, token_hash, expires_at)
-     VALUES ($1, $2, $3, $4)`,
-    [session.id, session.userId, session.tokenHash, session.expiresAt],
+    `INSERT INTO account_sessions (id, user_id, token_hash, expires_at, user_agent)
+     VALUES ($1, $2, $3, $4, $5)`,
+    [session.id, session.userId, session.tokenHash, session.expiresAt, session.userAgent ?? null],
   );
+}
+
+export async function listActiveAccountSessions(
+  userId: string,
+  at: Date,
+): Promise<AccountSessionSummary[]> {
+  const { rows } = await getPool().query<{
+    id: string;
+    created_at: Date;
+    last_seen_at: Date;
+    expires_at: Date;
+    user_agent: string | null;
+  }>(
+    `SELECT id, created_at, last_seen_at, expires_at, user_agent
+     FROM account_sessions
+     WHERE user_id = $1
+       AND revoked_at IS NULL
+       AND expires_at > $2
+     ORDER BY last_seen_at DESC, created_at DESC`,
+    [userId, at],
+  );
+  return rows.map((row) => ({
+    id: row.id,
+    createdAt: row.created_at,
+    lastSeenAt: row.last_seen_at,
+    expiresAt: row.expires_at,
+    userAgent: row.user_agent,
+  }));
+}
+
+export async function backfillUserAccountSessionAgent(
+  userId: string,
+  sessionIds: string[],
+  userAgent: string,
+): Promise<void> {
+  await getPool().query(
+    `UPDATE account_sessions
+     SET user_agent = $3
+     WHERE user_id = $1
+       AND id = ANY($2::text[])
+       AND user_agent IS NULL`,
+    [userId, sessionIds, userAgent],
+  );
+}
+
+export async function revokeUserAccountSession(
+  userId: string,
+  sessionId: string,
+  at: Date,
+): Promise<boolean> {
+  const result = await getPool().query(
+    `UPDATE account_sessions
+     SET revoked_at = $3
+     WHERE id = $1
+       AND user_id = $2
+       AND revoked_at IS NULL`,
+    [sessionId, userId, at],
+  );
+  return (result.rowCount ?? 0) > 0;
+}
+
+export async function revokeOtherUserAccountSessions(
+  userId: string,
+  currentSessionIds: string[],
+  at: Date,
+): Promise<number> {
+  const result = await getPool().query(
+    `UPDATE account_sessions
+     SET revoked_at = $3
+     WHERE user_id = $1
+       AND NOT (id = ANY($2::text[]))
+       AND revoked_at IS NULL`,
+    [userId, currentSessionIds, at],
+  );
+  return result.rowCount ?? 0;
 }
 
 // How stale users.last_seen_at may get before a session validation refreshes

@@ -332,6 +332,93 @@ definePersistenceTests('account routes', () => {
     );
   });
 
+  test('account sessions identify the current session and revoke only other sessions', async () => {
+    const now = new Date('2026-07-11T12:00:00.000Z');
+    const expiresAt = new Date(Date.now() + 86_400_000);
+    await createUser({
+      id: 'user_session_management_route',
+      email: 'session-management-route@example.com',
+      emailVerifiedAt: now,
+      handle: 'session-management-route',
+      displayName: 'Session Management Route',
+      now,
+    });
+    for (const session of [
+      { id: 'session-current', token: 'current-token', userAgent: null },
+      { id: 'session-other', token: 'other-token', userAgent: 'Other Browser' },
+      { id: 'session-third', token: 'third-token', userAgent: null },
+    ]) {
+      await createAccountSession({
+        id: session.id,
+        userId: 'user_session_management_route',
+        tokenHash: hashSecret(session.token),
+        expiresAt,
+        userAgent: session.userAgent,
+      });
+    }
+    const cookie = accountSessionCookie('session-current', 'current-token', expiresAt).split(
+      ';',
+    )[0];
+
+    const listResponse = captureResponse();
+    const listRequest = jsonRequest({}, cookie, 'GET');
+    listRequest.headers['user-agent'] = 'Current Browser';
+    await tryHandle({}, listRequest, listResponse, '/api/account/sessions');
+    assert.equal(listResponse.status, 200);
+    const listed = (
+      JSON.parse(listResponse.body) as {
+        sessions: Array<{ current: boolean; id: string; userAgent: string | null }>;
+      }
+    ).sessions;
+    assert.deepEqual(
+      listed
+        .map((session) => ({
+          id: session.id,
+          current: session.current,
+          userAgent: session.userAgent,
+        }))
+        .sort((a, b) => a.id.localeCompare(b.id)),
+      [
+        { id: 'session-current', current: true, userAgent: 'Current Browser' },
+        { id: 'session-other', current: false, userAgent: 'Other Browser' },
+        { id: 'session-third', current: false, userAgent: null },
+      ],
+    );
+
+    const currentResponse = captureResponse();
+    await tryHandle(
+      {},
+      jsonRequest({}, cookie, 'DELETE'),
+      currentResponse,
+      '/api/account/sessions/session-current',
+    );
+    assert.equal(currentResponse.status, 400);
+    assert.deepEqual(JSON.parse(currentResponse.body), { error: 'current_session' });
+
+    const otherResponse = captureResponse();
+    await tryHandle(
+      {},
+      jsonRequest({}, cookie, 'DELETE'),
+      otherResponse,
+      '/api/account/sessions/session-other',
+    );
+    assert.equal(otherResponse.status, 200);
+
+    const bulkResponse = captureResponse();
+    await tryHandle({}, jsonRequest({}, cookie, 'DELETE'), bulkResponse, '/api/account/sessions');
+    assert.equal(bulkResponse.status, 200);
+    assert.deepEqual(JSON.parse(bulkResponse.body), { revoked: 1 });
+
+    const finalListResponse = captureResponse();
+    await tryHandle({}, jsonRequest({}, cookie, 'GET'), finalListResponse, '/api/account/sessions');
+    assert.deepEqual(
+      (JSON.parse(finalListResponse.body) as { sessions: Array<{ id: string }> }).sessions.map(
+        (session) => session.id,
+      ),
+      ['session-current'],
+    );
+  });
+
   test('account public-profile route stores validated public details', async () => {
     const now = new Date('2026-07-11T12:00:00.000Z');
     const sessionToken = 'public-profile-route-token';

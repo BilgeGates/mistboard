@@ -214,7 +214,14 @@ describe('account page auth flow', () => {
     expect(document.querySelector('[name="playerRatings"]')).toBeNull();
     expect(
       [...document.querySelectorAll('.account-settings-rail-link')].map((link) => link.textContent),
-    ).toEqual(['Edit profile', 'Display', 'Privacy', 'Change username', 'Email and sign-in']);
+    ).toEqual([
+      'Edit profile',
+      'Display',
+      'Privacy',
+      'Change username',
+      'Email and sign-in',
+      'Security',
+    ]);
     expect(document.querySelectorAll('.account-settings-rail-separator')).toHaveLength(2);
 
     const animation = document.querySelector<HTMLInputElement>(
@@ -421,6 +428,69 @@ describe('account page auth flow', () => {
     ]);
     expect([...document.querySelectorAll('dd')][0]?.textContent).toBe('new-misty@example.com');
     expect(document.querySelector('.account-status')?.textContent).toContain('Email changed.');
+  });
+
+  it('lists active sessions and signs out another device', async () => {
+    window.history.replaceState(null, '', '/account/settings/security');
+    const user = testUser('misty');
+    const requests: Array<{ method: string; url: string }> = [];
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+        const url = String(input);
+        if (url === '/api/auth/me') return jsonResponse({ user });
+        if (url === '/api/account/sessions' && !init?.method) {
+          return jsonResponse({
+            sessions: [
+              {
+                id: 'session-current',
+                createdAt: '2026-07-11T12:00:00.000Z',
+                lastSeenAt: '2026-07-11T12:05:00.000Z',
+                expiresAt: '2026-08-10T12:00:00.000Z',
+                userAgent:
+                  'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 Chrome/138.0 Safari/537.36',
+                current: true,
+              },
+              {
+                id: 'session-other',
+                createdAt: '2026-07-10T12:00:00.000Z',
+                lastSeenAt: '2026-07-10T13:00:00.000Z',
+                expiresAt: '2026-08-09T12:00:00.000Z',
+                userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) Firefox/140.0',
+                current: false,
+              },
+            ],
+          });
+        }
+        if (url === '/api/account/sessions/session-other' && init?.method === 'DELETE') {
+          requests.push({ method: init.method, url });
+          return jsonResponse({ revoked: true });
+        }
+        throw new Error(`unexpected fetch: ${url}`);
+      }),
+    );
+
+    const { mountAccountSettings } = await import('./account.js');
+    await mountAccountSettings(document.querySelector<HTMLElement>('#app') as HTMLElement);
+    await flushDom();
+
+    expect(document.querySelector('h1')?.textContent).toBe('Security');
+    expect(
+      [...document.querySelectorAll('.account-session-details strong')].map(
+        (device) => device.textContent,
+      ),
+    ).toEqual(['Chrome · Mac', 'Firefox · Windows']);
+    expect(document.querySelector('.account-session-current')?.textContent).toBe('Current session');
+    expect(document.querySelector('.account-session-revoke-others')).not.toBeNull();
+
+    document.querySelector<HTMLButtonElement>('.account-session-revoke')?.click();
+    await flushDom();
+
+    expect(requests).toEqual([{ method: 'DELETE', url: '/api/account/sessions/session-other' }]);
+    expect(document.querySelector('[data-session-id="session-other"]')).toBeNull();
+    expect(
+      document.querySelector<HTMLButtonElement>('.account-session-revoke-others')?.hidden,
+    ).toBe(true);
   });
 
   it('edits public profile details from the settings landing', async () => {

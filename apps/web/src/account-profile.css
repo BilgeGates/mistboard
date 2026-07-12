@@ -622,6 +622,70 @@
   font-size: 13px;
 }
 
+.account-session-settings {
+  display: grid;
+  gap: 16px;
+  margin-top: 22px;
+  color: var(--site-muted);
+}
+
+.account-session-list {
+  display: grid;
+  gap: 0;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.account-session-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 18px;
+  align-items: center;
+  border-top: 1px solid var(--site-border-soft);
+  padding: 16px 0;
+}
+
+.account-session-row:last-child {
+  border-bottom: 1px solid var(--site-border-soft);
+}
+
+.account-session-details {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+
+.account-session-details strong {
+  color: var(--site-text);
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.account-session-details span {
+  font-size: 12px;
+}
+
+.account-session-current {
+  border-radius: 999px;
+  background: var(--site-accent-soft);
+  color: var(--site-accent-strong);
+  font-size: 12px;
+  font-weight: 600;
+  padding: 5px 9px;
+  white-space: nowrap;
+}
+
+.account-session-revoke,
+.account-session-revoke-others {
+  min-height: 32px;
+  font-size: 12px;
+}
+
+.account-session-revoke-others {
+  justify-self: start;
+}
+
 .account-display-settings {
   display: grid;
   margin-top: 0;
@@ -2302,6 +2366,16 @@
   .account-settings-summary-row {
     grid-template-columns: 1fr;
     gap: 3px;
+  }
+
+  .account-session-row {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 10px;
+  }
+
+  .account-session-current,
+  .account-session-revoke {
+    justify-self: start;
   }
 
   .account-preference-row {

@@ -119,6 +119,7 @@ export async function tryHandle(
       userId: user.id,
       tokenHash: hashSecret(sessionToken),
       expiresAt,
+      userAgent: sessionUserAgent(request),
     });
     writeJson(
       response,
@@ -159,6 +160,11 @@ export async function tryHandle(
   }
 
   return false;
+}
+
+function sessionUserAgent(request: IncomingMessage): string | null {
+  const userAgent = request.headers['user-agent'];
+  return typeof userAgent === 'string' ? userAgent.trim().slice(0, 500) || null : null;
 }
 
 // Pairs a canonical session cookie with the legacy host-only eviction when one

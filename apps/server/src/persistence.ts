@@ -3,6 +3,7 @@ export type {
   AccountLocale,
   AccountRole,
   AccountSession,
+  AccountSessionSummary,
   ActivePlayerEntry,
   BestRatingEntry,
   DmPolicy,
@@ -24,6 +25,7 @@ export type {
 } from './persistence-accounts.js';
 export {
   ACCOUNT_LOCALES,
+  backfillUserAccountSessionAgent,
   consumeEmailChangeChallenge,
   consumeEmailLoginChallenge,
   createAccountSession,
@@ -49,8 +51,11 @@ export {
   isDmPolicy,
   isPieceAnimationPreference,
   isProfileVisibility,
+  listActiveAccountSessions,
   markUserEmailVerified,
   revokeAccountSession,
+  revokeOtherUserAccountSessions,
+  revokeUserAccountSession,
   updateUserDmPolicy,
   updateUserEmail,
   updateUserLocale,

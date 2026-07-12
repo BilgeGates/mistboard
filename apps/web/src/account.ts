@@ -23,12 +23,18 @@ import { t } from './i18n/catalog.js';
 import { currentLocale, LOCALE_META, type Locale, localizedHref } from './i18n/locale.js';
 import { type AuthUser, buildLoadingState, buildNav, fetchCurrentUser } from './site-shell.js';
 
-type AccountSettingsSection = 'profile' | 'display' | 'privacy' | 'username' | 'account';
+type AccountSettingsSection =
+  | 'profile'
+  | 'display'
+  | 'privacy'
+  | 'username'
+  | 'account'
+  | 'security';
 
 const accountSettingsSectionGroups: readonly (readonly AccountSettingsSection[])[] = [
   ['profile'],
   ['display', 'privacy'],
-  ['username', 'account'],
+  ['username', 'account', 'security'],
 ];
 
 const accountSettingsSections = accountSettingsSectionGroups.flat();
@@ -344,6 +350,7 @@ function buildAccountSettingsSection(
   if (section === 'privacy') return buildPrivacySettings(user, locale);
   if (section === 'username') return buildUsernameSettings(user, locale);
   if (section === 'account') return buildAccountAccessSettings(user, locale);
+  if (section === 'security') return buildSecuritySettings(locale);
   return buildDisplaySettings(user, locale);
 }
 
@@ -867,6 +874,172 @@ function emailChangeErrorMessage(error: string | undefined, locale: Locale): str
   return t('account.emailChangeFailed', {}, locale);
 }
 
+type AccountSessionView = {
+  id: string;
+  createdAt: string;
+  lastSeenAt: string;
+  expiresAt: string;
+  userAgent: string | null;
+  current: boolean;
+};
+
+function buildSecuritySettings(locale: Locale = currentLocale()): HTMLElement {
+  const panel = buildSettingsPanel(
+    'security',
+    t('account.settingsSecurity', {}, locale),
+    t('account.securityCopy', {}, locale),
+  );
+  const content = document.createElement('div');
+  content.className = 'account-session-settings';
+  content.textContent = t('account.sessionsLoading', {}, locale);
+  panel.append(content);
+  void loadAccountSessions(content, locale);
+  return panel;
+}
+
+async function loadAccountSessions(content: HTMLElement, locale: Locale): Promise<void> {
+  try {
+    const resp = await fetch('/api/account/sessions');
+    const data = (await resp.json()) as { sessions?: AccountSessionView[] };
+    if (!resp.ok || !data.sessions) throw new Error(`session load failed: ${resp.status}`);
+    renderAccountSessions(content, data.sessions, locale);
+  } catch (err) {
+    console.warn(err);
+    content.textContent = t('account.sessionsLoadFailed', {}, locale);
+  }
+}
+
+function renderAccountSessions(
+  content: HTMLElement,
+  sessions: AccountSessionView[],
+  locale: Locale,
+): void {
+  const list = document.createElement('ul');
+  list.className = 'account-session-list';
+  const status = document.createElement('p');
+  status.className = 'account-status';
+  status.setAttribute('aria-live', 'polite');
+
+  for (const session of sessions) {
+    const item = document.createElement('li');
+    item.className = 'account-session-row';
+    item.dataset.sessionId = session.id;
+
+    const details = document.createElement('div');
+    details.className = 'account-session-details';
+    const device = document.createElement('strong');
+    device.textContent = accountSessionDeviceLabel(session.userAgent, locale);
+    const activity = document.createElement('span');
+    activity.textContent = t(
+      'account.sessionLastActive',
+      { date: formatAccountSessionDate(session.lastSeenAt, locale) },
+      locale,
+    );
+    const created = document.createElement('span');
+    created.textContent = t(
+      'account.sessionCreated',
+      { date: formatAccountSessionDate(session.createdAt, locale) },
+      locale,
+    );
+    details.append(device, activity, created);
+
+    if (session.current) {
+      const current = document.createElement('span');
+      current.className = 'account-session-current';
+      current.textContent = t('account.currentSession', {}, locale);
+      item.append(details, current);
+    } else {
+      const revoke = document.createElement('button');
+      revoke.type = 'button';
+      revoke.className = 'landing-setup-back account-session-revoke';
+      revoke.textContent = t('account.revokeSession', {}, locale);
+      revoke.addEventListener('click', async () => {
+        revoke.disabled = true;
+        try {
+          const resp = await fetch(`/api/account/sessions/${encodeURIComponent(session.id)}`, {
+            method: 'DELETE',
+          });
+          if (!resp.ok) throw new Error(`session revoke failed: ${resp.status}`);
+          item.remove();
+          status.textContent = t('account.sessionRevoked', {}, locale);
+          updateRevokeOtherSessionsButton(content);
+        } catch (err) {
+          console.warn(err);
+          revoke.disabled = false;
+          status.textContent = t('account.sessionRevokeFailed', {}, locale);
+        }
+      });
+      item.append(details, revoke);
+    }
+    list.append(item);
+  }
+
+  const revokeOthers = document.createElement('button');
+  revokeOthers.type = 'button';
+  revokeOthers.className = 'landing-setup-back account-session-revoke-others';
+  revokeOthers.textContent = t('account.revokeOtherSessions', {}, locale);
+  revokeOthers.addEventListener('click', async () => {
+    revokeOthers.disabled = true;
+    try {
+      const resp = await fetch('/api/account/sessions', { method: 'DELETE' });
+      if (!resp.ok) throw new Error(`other sessions revoke failed: ${resp.status}`);
+      for (const row of list.querySelectorAll<HTMLElement>('.account-session-row')) {
+        if (!row.querySelector('.account-session-current')) row.remove();
+      }
+      status.textContent = t('account.otherSessionsRevoked', {}, locale);
+      updateRevokeOtherSessionsButton(content);
+    } catch (err) {
+      console.warn(err);
+      revokeOthers.disabled = false;
+      status.textContent = t('account.sessionRevokeFailed', {}, locale);
+    }
+  });
+
+  content.replaceChildren(list, revokeOthers, status);
+  updateRevokeOtherSessionsButton(content);
+}
+
+function updateRevokeOtherSessionsButton(content: HTMLElement): void {
+  const hasOtherSessions = [...content.querySelectorAll('.account-session-row')].some(
+    (row) => !row.querySelector('.account-session-current'),
+  );
+  const button = content.querySelector<HTMLButtonElement>('.account-session-revoke-others');
+  if (button) button.hidden = !hasOtherSessions;
+}
+
+function accountSessionDeviceLabel(userAgent: string | null, locale: Locale): string {
+  if (!userAgent) return t('account.unknownDevice', {}, locale);
+  const browser = userAgent.includes('Firefox/')
+    ? 'Firefox'
+    : userAgent.includes('Edg/')
+      ? 'Edge'
+      : userAgent.includes('Chrome/')
+        ? 'Chrome'
+        : userAgent.includes('Safari/')
+          ? 'Safari'
+          : null;
+  const device = /iPhone|iPad/.test(userAgent)
+    ? 'iPhone or iPad'
+    : userAgent.includes('Android')
+      ? 'Android'
+      : userAgent.includes('Windows')
+        ? 'Windows'
+        : userAgent.includes('Mac OS X')
+          ? 'Mac'
+          : userAgent.includes('Linux')
+            ? 'Linux'
+            : null;
+  if (browser && device) return `${browser} · ${device}`;
+  return browser ?? device ?? t('account.unknownDevice', {}, locale);
+}
+
+function formatAccountSessionDate(value: string, locale: Locale): string {
+  return new Intl.DateTimeFormat(locale, {
+    dateStyle: 'medium',
+    timeStyle: 'short',
+  }).format(new Date(value));
+}
+
 // DM policy select: saves immediately on change via the preferences PATCH
 // (independent of the profile form's save button, like the locale picker).
 // Replies in existing threads always deliver; the policy gates new threads.
@@ -964,6 +1137,7 @@ function accountSettingsSectionLabel(
     privacy: 'account.settingsPrivacy',
     username: 'account.settingsUsername',
     account: 'account.settingsAccount',
+    security: 'account.settingsSecurity',
   } as const;
   return t(keyBySection[section], {}, locale);
 }

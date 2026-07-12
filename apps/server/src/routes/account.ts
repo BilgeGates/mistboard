@@ -2,6 +2,7 @@ import { randomUUID } from 'node:crypto';
 import type { IncomingMessage, ServerResponse } from 'node:http';
 import { normalizeEmail, normalizeProfileHandle } from './../account-identity.js';
 import {
+  accountSessionsFromRequest,
   authEmailDeliveryEnabled,
   currentAccountUser,
   devAuthCodesEnabled,
@@ -25,6 +26,81 @@ export async function tryHandle(
   response: ServerResponse,
   pathname: string,
 ): Promise<boolean> {
+  if (pathname === '/api/account/sessions') {
+    if (request.method !== 'GET' && request.method !== 'DELETE') {
+      writeJson(response, 405, { error: 'method_not_allowed' });
+      return true;
+    }
+    if (!requirePersistence(response)) return true;
+    const user = await currentAccountUser(request);
+    if (!user) {
+      writeJson(response, 401, { error: 'not_signed_in' });
+      return true;
+    }
+    const currentSessionIds = accountSessionsFromRequest(request).map(
+      (session) => session.sessionId,
+    );
+    if (request.method === 'DELETE') {
+      const revoked = await persistence.revokeOtherUserAccountSessions(
+        user.id,
+        currentSessionIds,
+        new Date(),
+      );
+      writeJson(response, 200, { revoked });
+      return true;
+    }
+    const userAgent = request.headers['user-agent'];
+    if (typeof userAgent === 'string' && userAgent.trim()) {
+      await persistence.backfillUserAccountSessionAgent(
+        user.id,
+        currentSessionIds,
+        userAgent.trim().slice(0, 500),
+      );
+    }
+    const sessions = await persistence.listActiveAccountSessions(user.id, new Date());
+    const currentIds = new Set(currentSessionIds);
+    writeJson(response, 200, {
+      sessions: sessions.map((session) => ({
+        id: session.id,
+        createdAt: session.createdAt.toISOString(),
+        lastSeenAt: session.lastSeenAt.toISOString(),
+        expiresAt: session.expiresAt.toISOString(),
+        userAgent: session.userAgent,
+        current: currentIds.has(session.id),
+      })),
+    });
+    return true;
+  }
+
+  if (pathname.startsWith('/api/account/sessions/')) {
+    if (!requireMethod(request, response, 'DELETE')) return true;
+    if (!requirePersistence(response)) return true;
+    const user = await currentAccountUser(request);
+    if (!user) {
+      writeJson(response, 401, { error: 'not_signed_in' });
+      return true;
+    }
+    const sessionId = pathname.slice('/api/account/sessions/'.length).trim();
+    if (!sessionId || sessionId.includes('/')) {
+      writeJson(response, 400, { error: 'invalid_session' });
+      return true;
+    }
+    const currentSessionIds = new Set(
+      accountSessionsFromRequest(request).map((session) => session.sessionId),
+    );
+    if (currentSessionIds.has(sessionId)) {
+      writeJson(response, 400, { error: 'current_session' });
+      return true;
+    }
+    const revoked = await persistence.revokeUserAccountSession(user.id, sessionId, new Date());
+    if (!revoked) {
+      writeJson(response, 404, { error: 'session_not_found' });
+      return true;
+    }
+    writeJson(response, 200, { revoked: true });
+    return true;
+  }
+
   if (pathname === '/api/account/email/start') {
     if (!requireMethod(request, response, 'POST')) return true;
     if (!requirePersistence(response)) return true;
