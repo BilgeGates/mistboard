@@ -286,8 +286,15 @@ function minedSolverMoves(puzzle: XiangqiPuzzle): XiangqiMove[] {
 
 test('mined corpus: ids unique, themes known, lines 1-7 plies ending on the solver move', () => {
   // Guard against an accidental truncation of the generated module (the exact
-  // count moves with every re-mine; the floor should not).
-  assert.ok(MINED_PUZZLES.length >= 100, `corpus shrank to ${MINED_PUZZLES.length} puzzles`);
+  // count moves with every re-mine; the floor should not). Checked against the
+  // RAW module — the served set (MINED_PUZZLES) is intentionally culled to the
+  // per-ply uniqueness allowlist pending the gated re-mine (#180), so its floor
+  // is lower.
+  assert.ok(
+    MINED_XIANGQI_PUZZLES.length >= 100,
+    `raw mined module shrank to ${MINED_XIANGQI_PUZZLES.length} puzzles`,
+  );
+  assert.ok(MINED_PUZZLES.length >= 40, `served corpus shrank to ${MINED_PUZZLES.length} puzzles`);
   const ids = new Set<string>();
   for (const puzzle of MINED_PUZZLES) {
     assert.equal(puzzle.variant, XIANGQI_SPEC_ID, puzzle.id);

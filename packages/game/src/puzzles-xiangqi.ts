@@ -25,6 +25,7 @@
 //     both 'checkmate' and 'stalemate' finish reasons (困毙 counts as mate).
 
 import { type GameSpecId, XIANGQI_SPEC_ID } from './game-specs.js';
+import { AUDIT_CLEAN_XIANGQI_PUZZLE_IDS } from './puzzles-xiangqi-audit-allowlist.js';
 import { MINED_XIANGQI_PUZZLES } from './puzzles-xiangqi-mined.js';
 import { trimXiangqiWinningAdvantageMoves } from './puzzles-xiangqi-trim.js';
 import type {
@@ -170,10 +171,14 @@ export function trimXiangqiWinningAdvantageTail(puzzle: XiangqiPuzzle): XiangqiP
 
 export const XIANGQI_PUZZLES: readonly XiangqiPuzzle[] = [
   ...CURATED_XIANGQI_PUZZLES,
-  // Heal the shipped mined corpus at load: trim quiet PV tails back to the
-  // payoff. A tactic that trims to a bare 1-ply capture ("win the hanging
-  // piece") is kept — a legitimate easy puzzle, not filler.
-  ...MINED_XIANGQI_PUZZLES.map(trimXiangqiWinningAdvantageTail),
+  // Interim uniqueness cull: keep only the mined puzzles that passed the per-ply
+  // uniqueness audit (AUDIT_CLEAN_XIANGQI_PUZZLE_IDS). The rest demand an
+  // unforced follow-up and are held back until the gated re-mine (#180) replaces
+  // the whole corpus — at which point the allowlist import + this filter go away.
+  // The quiet-tail trim stays a defensive no-op on the clean set (idempotent).
+  ...MINED_XIANGQI_PUZZLES.filter((puzzle) => AUDIT_CLEAN_XIANGQI_PUZZLE_IDS.has(puzzle.id)).map(
+    trimXiangqiWinningAdvantageTail,
+  ),
 ];
 
 export function standardXiangqiPuzzleById(id: string): XiangqiPuzzle | null {
