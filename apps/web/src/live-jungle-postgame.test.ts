@@ -41,9 +41,9 @@ describe('Jungle postgame page', () => {
     await flushPromises();
 
     expect(fetchSpy).toHaveBeenCalledWith('/api/jungle/games/jgl_postgame');
-    expect(root.textContent).toContain('Game review');
+    expect(root.textContent).toContain('Spectator room');
     expect(root.textContent).toContain('Jungle');
-    expect(root.textContent).toContain('Red won');
+    expect(root.textContent).toContain('Red wins');
     expect(root.textContent).toContain('Home');
     expect(root.textContent).toContain('Room');
     // Perfect-info: one board, and no reveal toggle (nothing was ever hidden).

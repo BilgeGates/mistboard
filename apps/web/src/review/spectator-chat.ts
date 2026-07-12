@@ -52,7 +52,7 @@ async function hydrateSpectatorChat(
   known: Set<string>,
 ): Promise<void> {
   const state = await fetchGameChat(roomId);
-  if (!state) {
+  if (!state || !Array.isArray(state.lines)) {
     renderStatus(footer, 'Spectator chat is unavailable.');
     return;
   }

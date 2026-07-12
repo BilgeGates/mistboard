@@ -11,8 +11,7 @@ import './dark-xiangqi-postgame.css';
 import './xiangqi-postgame.css';
 import { xiangqiEnabled } from './feature-flags.js';
 import { fetchCachedGameAnalysis, requestGameAnalysis } from './review/game-analysis.js';
-import { createGameMetaCard, timeAgoLabel } from './review/game-meta-card.js';
-import { buildSpectatorChat } from './review/spectator-chat.js';
+import { buildReviewMeta, labelize, reviewResultLabel } from './review/game-review-meta.js';
 import { mountXiangqiReview } from './review/xiangqi-review.js';
 import { isLikelySignedIn } from './signed-in-state.js';
 import { buildNav } from './site-shell.js';
@@ -114,19 +113,12 @@ function renderPostgame(root: HTMLElement, postgame: XiangqiPostgameResponse): v
     .filter((item) => item.type === 'move-played' && item.move)
     .map((item) => item.move as XiangqiMove);
 
-  const metaCard = createGameMetaCard({
+  const status = `${reviewResultLabel(postgame.game.result)} by ${labelize(postgame.game.termination)}`;
+  const { metaCard, details } = buildReviewMeta({
     markerId: 'xiangqi',
-    glyph: '象',
-    headline: [timeControlLabel(postgame), postgame.game.rated ? 'Rated' : 'Casual'],
     variantName: 'Xiangqi',
-    subline: timeAgoLabel(postgame.game.endedAt),
-    players: (postgame.game.players ?? []).map((player) => ({
-      color: player.color,
-      name: player.name,
-      rating: player.rating,
-      isEngine: player.kind === 'engine',
-    })),
-    status: `${resultLabel(postgame.game.result)} by ${labelize(postgame.game.termination)}`,
+    game: postgame.game,
+    status,
   });
 
   root.replaceChildren(buildNav());
@@ -134,9 +126,9 @@ function renderPostgame(root: HTMLElement, postgame: XiangqiPostgameResponse): v
     pageClassName: 'xiangqi-review',
     ariaLabel: 'Xiangqi postgame',
     title: 'Xiangqi',
-    summary: `${resultLabel(postgame.game.result)} by ${labelize(postgame.game.termination)} · ${postgame.game.plyCount} plies`,
-    metaCard: metaCard.el,
-    details: buildSpectatorChat(postgame.game.roomId),
+    summary: `${status} · ${postgame.game.plyCount} plies`,
+    metaCard,
+    details,
     // The tree reconstructs positions from the move list client-side (open info,
     // so it matches the server truth); the server per-ply snapshots are unused.
     moves,
@@ -224,44 +216,4 @@ async function safeJson(response: Response): Promise<{ error?: unknown } | null>
   } catch {
     return null;
   }
-}
-
-function resultLabel(result: string): string {
-  if (result === 'red-wins') return 'Red wins';
-  if (result === 'black-wins') return 'Black wins';
-  if (result === 'draw') return 'Draw';
-  return labelize(result);
-}
-
-function timeControlLabel(postgame: XiangqiPostgameResponse): string {
-  const timeControl = postgameTimeControl(postgame);
-  const initialMs = timeControl?.initialMs ?? null;
-  const incrementMs = timeControl?.incrementMs ?? null;
-  if (initialMs === null && incrementMs === null) return 'Untimed';
-  return `${clockLabel(initialMs ?? 0)}+${Math.round((incrementMs ?? 0) / 1000)}`;
-}
-
-function postgameTimeControl(
-  postgame: XiangqiPostgameResponse,
-): { initialMs: number; incrementMs: number } | null {
-  const initialMs = postgame.game.initialMs ?? postgame.state.timeControl?.initialMs ?? null;
-  const incrementMs = postgame.game.incrementMs ?? postgame.state.timeControl?.incrementMs ?? null;
-  if (initialMs === null || incrementMs === null) return null;
-  return { initialMs, incrementMs };
-}
-
-function clockLabel(ms: number): string {
-  const totalSeconds = Math.max(0, Math.round(ms / 1000));
-  const minutes = Math.floor(totalSeconds / 60);
-  const seconds = totalSeconds % 60;
-  return `${minutes}:${String(seconds).padStart(2, '0')}`;
-}
-
-function labelize(value: string): string {
-  return value.split('-').filter(Boolean).map(capitalize).join(' ');
-}
-
-function capitalize(value: string): string {
-  if (!value) return value;
-  return `${value.slice(0, 1).toUpperCase()}${value.slice(1)}`;
 }

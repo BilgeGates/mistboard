@@ -14,6 +14,7 @@ import { fillCapturedPool } from './live-banqi.js';
 import { installBanqiBoardStyles, renderBanqiBoardSvg } from './live-banqi-render.js';
 import { createPane } from './replay-board.js';
 import { createShareButton } from './replay-meta.js';
+import { buildReviewMeta, labelize } from './review/game-review-meta.js';
 import { createMoveList } from './review/move-list.js';
 import { mountReviewLayout } from './review/review-layout.js';
 import { buildNav } from './site-shell.js';
@@ -42,6 +43,12 @@ export type BanqiPostgameResponse = {
     visibility: string;
     initialMs: number | null;
     incrementMs: number | null;
+    players?: Array<{
+      color: string;
+      name: string;
+      rating: number | null;
+      kind: 'account' | 'guest' | 'engine';
+    }>;
   };
   state: {
     status: BanqiGameStatus;
@@ -189,11 +196,20 @@ function renderPostgame(root: HTMLElement, postgame: BanqiPostgameResponse): voi
     }
   });
 
+  const status = `${banqiResultLabel(postgame.game.result, postgame.view.firstColor)} by ${labelize(postgame.game.termination)}`;
+  const { metaCard, details } = buildReviewMeta({
+    markerId: 'banqi',
+    variantName: 'Half Xiangqi',
+    game: postgame.game,
+    status,
+  });
   mountReviewLayout(root, {
     pageClassName: 'banqi-review',
     ariaLabel: 'Half Xiangqi postgame',
     title: 'Half Xiangqi',
-    summary: `${banqiResultLabel(postgame.game.result, postgame.view.firstColor)} by ${labelize(postgame.game.termination)} · ${postgame.game.plyCount} plies`,
+    summary: `${status} · ${postgame.game.plyCount} plies`,
+    metaCard,
+    details,
     actions: banqiActions(postgame, revealBtn),
     moves: moveList.el,
     boards: [{ key: 'truth', el: pane.el, tier: 'primary' }],
@@ -329,13 +345,4 @@ async function safeJson(response: Response): Promise<{ error?: unknown } | null>
   } catch {
     return null;
   }
-}
-
-function labelize(value: string): string {
-  return value.split('-').filter(Boolean).map(capitalize).join(' ');
-}
-
-function capitalize(value: string): string {
-  if (!value) return value;
-  return `${value.slice(0, 1).toUpperCase()}${value.slice(1)}`;
 }

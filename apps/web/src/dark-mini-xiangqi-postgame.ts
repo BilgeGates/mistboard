@@ -18,6 +18,7 @@ import { createPane } from './replay-board.js';
 import { createShareButton } from './replay-meta.js';
 import { fillCapturedPoolWith } from './review/captured-pool.js';
 import { createFlankCaptures } from './review/flank-captures.js';
+import { buildReviewMeta } from './review/game-review-meta.js';
 import { mountReviewLayout } from './review/review-layout.js';
 import { buildNav } from './site-shell.js';
 import { setBoardFamily } from './theme.js';
@@ -46,6 +47,12 @@ export type DarkMiniXiangqiPostgameResponse = {
     endedAt: string;
     rated: boolean;
     visibility: string;
+    players?: Array<{
+      color: string;
+      name: string;
+      rating: number | null;
+      kind: 'account' | 'guest' | 'engine';
+    }>;
     timeControl?: DarkMiniXiangqiTimeControl;
   };
   state: {
@@ -161,12 +168,22 @@ function renderPostgame(root: HTMLElement, postgame: DarkMiniXiangqiPostgameResp
   moveList.className = 'move-list';
   movesCard.append(movesHeading, moveList);
 
+  const status = `${resultLabel(postgame.game.result)} by ${labelize(postgame.game.termination)}`;
+  const { metaCard, details } = buildReviewMeta({
+    markerId: 'dark-mini-xiangqi',
+    variantName: 'Dark Mini Xiangqi',
+    game: postgame.game,
+    status,
+  });
+
   root.replaceChildren(buildNav());
   mountReviewLayout(root, {
     pageClassName: 'dark-mini-xiangqi-review',
     ariaLabel: 'Dark Mini Xiangqi postgame',
     title: 'Dark Mini Xiangqi',
-    summary: `${resultLabel(postgame.game.result)} by ${labelize(postgame.game.termination)} · ${postgame.game.plyCount} plies`,
+    summary: `${status} · ${postgame.game.plyCount} plies`,
+    metaCard,
+    details,
     actions: postgameActions(postgame),
     moves: movesCard,
     boards: targets.map((target) => ({

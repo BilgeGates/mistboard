@@ -7,6 +7,7 @@ import { fillCapturedPool } from './live-jieqi.js';
 import { installJieqiBoardStyles, renderJieqiBoardSvg } from './live-jieqi-render.js';
 import { createPane } from './replay-board.js';
 import { createShareButton } from './replay-meta.js';
+import { buildReviewMeta, labelize, reviewResultLabel } from './review/game-review-meta.js';
 import { createMoveList } from './review/move-list.js';
 import { mountReviewLayout } from './review/review-layout.js';
 import { buildNav } from './site-shell.js';
@@ -33,6 +34,12 @@ export type JieqiPostgameResponse = {
     visibility: string;
     initialMs: number | null;
     incrementMs: number | null;
+    players?: Array<{
+      color: string;
+      name: string;
+      rating: number | null;
+      kind: 'account' | 'guest' | 'engine';
+    }>;
   };
   state: {
     status: JieqiGameStatus;
@@ -176,11 +183,20 @@ function renderPostgame(root: HTMLElement, postgame: JieqiPostgameResponse): voi
     }
   });
 
+  const status = `${reviewResultLabel(postgame.game.result)} by ${labelize(postgame.game.termination)}`;
+  const { metaCard, details } = buildReviewMeta({
+    markerId: 'jieqi',
+    variantName: 'Flip Xiangqi',
+    game: postgame.game,
+    status,
+  });
   mountReviewLayout(root, {
     pageClassName: 'jieqi-review',
     ariaLabel: 'Jieqi postgame',
     title: 'Flip Xiangqi',
-    summary: `${resultLabel(postgame.game.result)} by ${labelize(postgame.game.termination)} · ${postgame.game.plyCount} plies`,
+    summary: `${status} · ${postgame.game.plyCount} plies`,
+    metaCard,
+    details,
     actions: jieqiActions(postgame, revealBtn),
     moves: moveList.el,
     boards: [{ key: 'truth', el: pane.el, tier: 'primary' }],
@@ -322,20 +338,4 @@ async function safeJson(response: Response): Promise<{ error?: unknown } | null>
   } catch {
     return null;
   }
-}
-
-function resultLabel(result: string): string {
-  if (result === 'red-wins') return 'Red wins';
-  if (result === 'black-wins') return 'Black wins';
-  if (result === 'draw') return 'Draw';
-  return labelize(result);
-}
-
-function labelize(value: string): string {
-  return value.split('-').filter(Boolean).map(capitalize).join(' ');
-}
-
-function capitalize(value: string): string {
-  if (!value) return value;
-  return `${value.slice(0, 1).toUpperCase()}${value.slice(1)}`;
 }

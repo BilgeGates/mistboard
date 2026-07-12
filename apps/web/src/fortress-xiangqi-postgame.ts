@@ -14,6 +14,7 @@ import {
 import { fillFortressXiangqiReserve, fortressXiangqiMoveLabel } from './fortress-xiangqi-view.js';
 import { createPane } from './replay-board.js';
 import { createShareButton } from './replay-meta.js';
+import { buildReviewMeta, labelize, reviewResultLabel } from './review/game-review-meta.js';
 import { createMoveList } from './review/move-list.js';
 import { mountReviewLayout } from './review/review-layout.js';
 import { buildNav } from './site-shell.js';
@@ -43,6 +44,12 @@ export type FortressXiangqiPostgameResponse = {
     initialMs: number | null;
     incrementMs: number | null;
     pveEngineId?: string | null;
+    players?: Array<{
+      color: string;
+      name: string;
+      rating: number | null;
+      kind: 'account' | 'guest' | 'engine';
+    }>;
   };
   state: {
     status: { type: string; winner?: FortressXiangqiColor | null; reason?: string };
@@ -140,12 +147,22 @@ function renderPostgame(root: HTMLElement, postgame: FortressXiangqiPostgameResp
     { title: 'Moves' },
   );
 
+  const status = `${reviewResultLabel(postgame.game.result)} by ${labelize(postgame.game.termination)}`;
+  const { metaCard, details } = buildReviewMeta({
+    markerId: 'fortress-xiangqi',
+    variantName: 'Fortress',
+    game: postgame.game,
+    status,
+  });
+
   root.replaceChildren(buildNav());
   mountReviewLayout(root, {
     pageClassName: 'fortress-xiangqi-review',
     ariaLabel: 'Fortress postgame',
     title: 'Fortress',
-    summary: `${resultLabel(postgame.game.result)} by ${labelize(postgame.game.termination)} · ${postgame.game.plyCount} plies`,
+    summary: `${status} · ${postgame.game.plyCount} plies`,
+    metaCard,
+    details,
     actions: fortressXiangqiActions(postgame),
     moves: moveList.el,
     boards: [{ key: 'truth', el: pane.el, tier: 'primary' }],
@@ -245,12 +262,6 @@ export function postgameViewAtPly(
   return selected?.view ?? null;
 }
 
-function resultLabel(result: string): string {
-  if (result === 'red-wins') return 'Red wins';
-  if (result === 'black-wins') return 'Black wins';
-  return 'Draw';
-}
-
 function loadingView(): HTMLElement {
   const shell = document.createElement('main');
   shell.className = 'game-shell';
@@ -297,13 +308,4 @@ function postgameTimeControl(
   const incrementMs = postgame.game.incrementMs ?? postgame.state.timeControl?.incrementMs ?? null;
   if (initialMs === null || incrementMs === null) return null;
   return { initialMs, incrementMs };
-}
-
-function labelize(value: string): string {
-  return value.split('-').filter(Boolean).map(capitalize).join(' ');
-}
-
-function capitalize(value: string): string {
-  if (!value) return value;
-  return `${value.slice(0, 1).toUpperCase()}${value.slice(1)}`;
 }

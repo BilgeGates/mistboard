@@ -14,6 +14,7 @@ import {
 } from './crossroads-chess-render.js';
 import { crossroadsChessEnabled } from './feature-flags.js';
 import { createPane } from './replay-board.js';
+import { buildReviewMeta } from './review/game-review-meta.js';
 import { mountReviewLayout } from './review/review-layout.js';
 import { buildNav } from './site-shell.js';
 import { setBoardFamily } from './theme.js';
@@ -40,6 +41,12 @@ export type CrossroadsChessPostgameResponse = {
     endedAt: string;
     rated: boolean;
     visibility: string;
+    players?: Array<{
+      color: string;
+      name: string;
+      rating: number | null;
+      kind: 'account' | 'guest' | 'engine';
+    }>;
     timeControl?: CrossroadsChessTimeControl;
   };
   state: {
@@ -141,12 +148,22 @@ function renderPostgame(root: HTMLElement, postgame: CrossroadsChessPostgameResp
   moveList.className = 'move-list';
   movesCard.append(movesHeading, moveList);
 
+  const status = `${resultLabel(postgame.game.result)} by ${labelize(postgame.game.termination)}`;
+  const { metaCard, details } = buildReviewMeta({
+    markerId: 'crossroads',
+    variantName: 'Crossroads Chess',
+    game: postgame.game,
+    status,
+  });
+
   root.replaceChildren(buildNav());
   mountReviewLayout(root, {
     pageClassName: 'crossroads-chess-review',
     ariaLabel: 'Crossroads Chess postgame',
     title: 'Crossroads Chess',
-    summary: `${resultLabel(postgame.game.result)} by ${labelize(postgame.game.termination)} · ${postgame.game.plyCount} plies`,
+    summary: `${status} · ${postgame.game.plyCount} plies`,
+    metaCard,
+    details,
     actions: crossroadsActions(postgame),
     moves: movesCard,
     boards: [{ key: 'truth', el: pane.el, tier: 'primary' }],

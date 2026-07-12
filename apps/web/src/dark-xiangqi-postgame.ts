@@ -13,6 +13,7 @@ import { type DarkXiangqiWireView, renderDarkXiangqiBoardSvg } from './live-dark
 import { capturedByDiff } from './review/captured-diff.js';
 import { fillCapturedPoolWith } from './review/captured-pool.js';
 import { createFlankCaptures } from './review/flank-captures.js';
+import { buildReviewMeta, labelize, reviewResultLabel } from './review/game-review-meta.js';
 import { createMoveList, type MoveListEntry } from './review/move-list.js';
 import { mountReviewLayout } from './review/review-layout.js';
 import { buildNav } from './site-shell.js';
@@ -64,6 +65,12 @@ export type DarkXiangqiPostgameResponse = {
     visibility: string;
     initialMs: number | null;
     incrementMs: number | null;
+    players?: Array<{
+      color: string;
+      name: string;
+      rating: number | null;
+      kind: 'account' | 'guest' | 'engine';
+    }>;
   };
   state: {
     status: XiangqiGameStatus;
@@ -164,14 +171,23 @@ function renderPostgame(root: HTMLElement, postgame: DarkXiangqiPostgameResponse
   // postgame pages reveal by design.
   const moveList = createMoveList(moveEntries(postgame), { title: 'Moves' });
 
+  const status = `${reviewResultLabel(postgame.game.result)} by ${labelize(postgame.game.termination)}`;
+  const { metaCard, details } = buildReviewMeta({
+    markerId: 'dark-xiangqi',
+    variantName: 'Fog Xiangqi',
+    game: postgame.game,
+    status,
+  });
+
   root.replaceChildren(buildNav());
   mountReviewLayout(root, {
     pageClassName: 'dark-xiangqi-review',
     ariaLabel: 'Fog Xiangqi postgame',
     title: 'Fog Xiangqi',
-    summary: `${resultLabel(postgame.game.result)} by ${labelize(postgame.game.termination)} · ${postgame.game.plyCount} plies`,
+    summary: `${status} · ${postgame.game.plyCount} plies`,
     actions: postgameActions(postgame),
-    details: detailsPanel(postgame),
+    metaCard,
+    details,
     moves: moveList.el,
     boards: targets.map((target) => ({
       key: target.entry.key,
@@ -288,23 +304,6 @@ function postgameActions(postgame: DarkXiangqiPostgameResponse): HTMLElement {
   return actions;
 }
 
-function detailsPanel(postgame: DarkXiangqiPostgameResponse): HTMLElement {
-  const panel = document.createElement('section');
-  panel.className = 'dxq-postgame__panel';
-  const heading = document.createElement('h2');
-  heading.textContent = 'Game';
-  const details = document.createElement('dl');
-  details.className = 'dxq-postgame__details';
-  details.append(
-    detailRow('Result', resultLabel(postgame.game.result)),
-    detailRow('Ending', labelize(postgame.game.termination)),
-    detailRow('Clock', timeControlLabel(postgame)),
-    detailRow('Ended', dateLabel(postgame.game.endedAt)),
-  );
-  panel.append(heading, details);
-  return panel;
-}
-
 // Flat move entries for the shared clickable list: one per played ply, keeping
 // the coordinate `from-to` notation the static timeline showed. `ply` is the
 // cursor a click lands on (the scrubber's 1..maxPly), so the pairing/highlight
@@ -316,16 +315,6 @@ function moveEntries(postgame: DarkXiangqiPostgameResponse): MoveListEntry[] {
     ply: entry.ply ?? index + 1,
     label: `${entry.move!.from}-${entry.move!.to}`,
   }));
-}
-
-function detailRow(label: string, value: string): HTMLElement {
-  const row = document.createElement('div');
-  const dt = document.createElement('dt');
-  dt.textContent = label;
-  const dd = document.createElement('dd');
-  dd.textContent = value;
-  row.append(dt, dd);
-  return row;
 }
 
 function loadingView(): HTMLElement {
@@ -368,21 +357,6 @@ async function safeJson(response: Response): Promise<{ error?: unknown } | null>
   }
 }
 
-function resultLabel(result: string): string {
-  if (result === 'red-wins') return 'Red wins';
-  if (result === 'black-wins') return 'Black wins';
-  if (result === 'draw') return 'Draw';
-  return labelize(result);
-}
-
-function timeControlLabel(postgame: DarkXiangqiPostgameResponse): string {
-  const timeControl = postgameTimeControl(postgame);
-  const initialMs = timeControl?.initialMs ?? null;
-  const incrementMs = timeControl?.incrementMs ?? null;
-  if (initialMs === null && incrementMs === null) return 'Untimed';
-  return `${clockLabel(initialMs ?? 0)}+${Math.round((incrementMs ?? 0) / 1000)}`;
-}
-
 function postgameTimeControl(
   postgame: DarkXiangqiPostgameResponse,
 ): { initialMs: number; incrementMs: number } | null {
@@ -390,32 +364,4 @@ function postgameTimeControl(
   const incrementMs = postgame.game.incrementMs ?? postgame.state.timeControl?.incrementMs ?? null;
   if (initialMs === null || incrementMs === null) return null;
   return { initialMs, incrementMs };
-}
-
-function clockLabel(ms: number): string {
-  const totalSeconds = Math.max(0, Math.round(ms / 1000));
-  const minutes = Math.floor(totalSeconds / 60);
-  const seconds = totalSeconds % 60;
-  return `${minutes}:${String(seconds).padStart(2, '0')}`;
-}
-
-function dateLabel(value: string): string {
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return value;
-  return date.toLocaleString(undefined, {
-    day: 'numeric',
-    hour: 'numeric',
-    minute: '2-digit',
-    month: 'short',
-    year: 'numeric',
-  });
-}
-
-function labelize(value: string): string {
-  return value.split('-').filter(Boolean).map(capitalize).join(' ');
-}
-
-function capitalize(value: string): string {
-  if (!value) return value;
-  return `${value.slice(0, 1).toUpperCase()}${value.slice(1)}`;
 }

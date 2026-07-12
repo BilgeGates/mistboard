@@ -19,6 +19,7 @@ import {
 } from './live-mini-xiangqi-render.js';
 import { createPane } from './replay-board.js';
 import { createShareButton } from './replay-meta.js';
+import { buildReviewMeta } from './review/game-review-meta.js';
 import { mountReviewLayout } from './review/review-layout.js';
 import { buildNav } from './site-shell.js';
 import { setBoardFamily } from './theme.js';
@@ -44,6 +45,12 @@ export type DropMiniXiangqiPostgameResponse = {
     visibility: string;
     initialMs: number | null;
     incrementMs: number | null;
+    players?: Array<{
+      color: string;
+      name: string;
+      rating: number | null;
+      kind: 'account' | 'guest' | 'engine';
+    }>;
     pveEngineId?: string | null;
   };
   state: {
@@ -149,12 +156,22 @@ function renderPostgame(root: HTMLElement, postgame: DropMiniXiangqiPostgameResp
   moveList.className = 'move-list';
   movesCard.append(movesHeading, moveList);
 
+  const status = `${resultLabel(postgame.game.result)} by ${labelize(postgame.game.termination)}`;
+  const { metaCard, details } = buildReviewMeta({
+    markerId: 'drop-mini-xiangqi',
+    variantName: 'Drop Mini Xiangqi',
+    game: postgame.game,
+    status,
+  });
+
   root.replaceChildren(buildNav());
   mountReviewLayout(root, {
     pageClassName: 'drop-mini-xiangqi-review',
     ariaLabel: 'Drop Mini Xiangqi postgame',
     title: 'Drop Mini Xiangqi',
-    summary: `${resultLabel(postgame.game.result)} by ${labelize(postgame.game.termination)} · ${postgame.game.plyCount} plies`,
+    summary: `${status} · ${postgame.game.plyCount} plies`,
+    metaCard,
+    details,
     actions: dropMiniXiangqiActions(postgame),
     moves: movesCard,
     boards: [{ key: 'truth', el: pane.el, tier: 'primary' }],

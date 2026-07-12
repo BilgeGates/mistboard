@@ -17,6 +17,7 @@ import { createShareButton } from './replay-meta.js';
 import { capturedByDiff } from './review/captured-diff.js';
 import { fillCapturedPoolWith } from './review/captured-pool.js';
 import { createFlankCaptures } from './review/flank-captures.js';
+import { buildReviewMeta } from './review/game-review-meta.js';
 import { mountReviewLayout } from './review/review-layout.js';
 import { buildNav } from './site-shell.js';
 import { setBoardFamily } from './theme.js';
@@ -59,6 +60,12 @@ export type MiniXiangqiPostgameResponse = {
     visibility: string;
     initialMs: number | null;
     incrementMs: number | null;
+    players?: Array<{
+      color: string;
+      name: string;
+      rating: number | null;
+      kind: 'account' | 'guest' | 'engine';
+    }>;
   };
   state: {
     status: { type: string; winner?: MiniXiangqiColor | null; reason?: string };
@@ -165,12 +172,22 @@ function renderPostgame(root: HTMLElement, postgame: MiniXiangqiPostgameResponse
   moveList.className = 'move-list';
   movesCard.append(movesHeading, moveList);
 
+  const status = `${resultLabel(postgame.game.result)} by ${labelize(postgame.game.termination)}`;
+  const { metaCard, details } = buildReviewMeta({
+    markerId: 'mini-xiangqi',
+    variantName: 'Mini Xiangqi',
+    game: postgame.game,
+    status,
+  });
+
   root.replaceChildren(buildNav());
   mountReviewLayout(root, {
     pageClassName: 'mini-xiangqi-review',
     ariaLabel: 'Mini Xiangqi postgame',
     title: 'Mini Xiangqi',
-    summary: `${resultLabel(postgame.game.result)} by ${labelize(postgame.game.termination)} · ${postgame.game.plyCount} plies`,
+    summary: `${status} · ${postgame.game.plyCount} plies`,
+    metaCard,
+    details,
     actions: miniXiangqiActions(postgame),
     moves: movesCard,
     boards: [{ key: 'truth', el: pane.el, tier: 'primary' }],

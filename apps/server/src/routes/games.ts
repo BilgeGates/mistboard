@@ -16,6 +16,7 @@ import {
   type HttpApiContext,
   isHttpAdminAuthorized,
   isHttpAdminSession,
+  postgamePlayers,
   requireAdminSession,
   requireMethod,
   requirePersistence,
@@ -291,8 +292,17 @@ export async function tryHandle(
       response.end(JSON.stringify({ error: 'not_found' }));
       return true;
     }
+    // Additively expose the shaped seat roster (name/rating/kind, with private-seat
+    // redaction + corpus-name override) that every per-variant postgame endpoint
+    // already returns, so the flagship /game/:id review left rail reads identical
+    // player rows. Existing consumers ignore the extra key; the raw record fields
+    // (whiteName/blackName/timeControl) stay in place.
+    const players = postgamePlayers(game.participants ?? [], {
+      whiteName: game.whiteName,
+      blackName: game.blackName,
+    });
     response.writeHead(200, { 'content-type': 'application/json' });
-    response.end(JSON.stringify({ game }));
+    response.end(JSON.stringify({ game: { ...game, players } }));
     return true;
   }
 

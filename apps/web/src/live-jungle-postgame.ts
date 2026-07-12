@@ -17,6 +17,7 @@ import { createShareButton } from './replay-meta.js';
 import { capturedByDiff } from './review/captured-diff.js';
 import { fillCapturedPoolWith } from './review/captured-pool.js';
 import { createFlankCaptures } from './review/flank-captures.js';
+import { buildReviewMeta, labelize, reviewResultLabel } from './review/game-review-meta.js';
 import { createMoveList } from './review/move-list.js';
 import { mountReviewLayout } from './review/review-layout.js';
 import { buildNav } from './site-shell.js';
@@ -48,6 +49,12 @@ export type JunglePostgameResponse = {
     visibility: string;
     initialMs: number | null;
     incrementMs: number | null;
+    players?: Array<{
+      color: string;
+      name: string;
+      rating: number | null;
+      kind: 'account' | 'guest' | 'engine';
+    }>;
   };
   state: {
     status: JungleGameStatus;
@@ -135,12 +142,22 @@ function renderPostgame(root: HTMLElement, postgame: JunglePostgameResponse): vo
     { title: 'Moves' },
   );
 
+  const status = `${reviewResultLabel(postgame.game.result)} by ${labelize(postgame.game.termination)}`;
+  const { metaCard, details } = buildReviewMeta({
+    markerId: 'jungle',
+    variantName: 'Jungle Chess',
+    game: postgame.game,
+    status,
+  });
+
   root.replaceChildren(buildNav());
   mountReviewLayout(root, {
     pageClassName: 'jungle-review',
     ariaLabel: 'Jungle postgame',
     title: 'Jungle Chess',
-    summary: `${resultLabel(postgame.game.result)} by ${labelize(postgame.game.termination)} · ${postgame.game.plyCount} plies`,
+    summary: `${status} · ${postgame.game.plyCount} plies`,
+    metaCard,
+    details,
     actions: jungleActions(postgame),
     moves: moveList.el,
     boards: [{ key: 'truth', el: pane.el, tier: 'primary' }],
@@ -208,12 +225,6 @@ export function junglePostgameMaxPly(postgame: JunglePostgameResponse): number {
   return Math.max(postgame.game.plyCount, ...postgame.history.map((s) => s.ply), 0);
 }
 
-function resultLabel(result: string): string {
-  if (result === 'red-wins') return 'Red won';
-  if (result === 'black-wins') return 'Black won';
-  return 'Draw';
-}
-
 export function initialPlyFromSearch(search: string): number | null {
   const raw = new URLSearchParams(search).get('ply');
   if (raw === null || !/^\d+$/.test(raw)) return null;
@@ -257,28 +268,6 @@ async function safeJson(response: Response): Promise<{ error?: unknown } | null>
   } catch {
     return null;
   }
-}
-
-function timeControlLabel(postgame: JunglePostgameResponse): string {
-  const initialMs = postgame.game.initialMs ?? postgame.state.timeControl?.initialMs ?? null;
-  const incrementMs = postgame.game.incrementMs ?? postgame.state.timeControl?.incrementMs ?? null;
-  if (initialMs === null && incrementMs === null) return 'Untimed';
-  return `${clockLabel(initialMs ?? 0)}+${Math.round((incrementMs ?? 0) / 1000)}`;
-}
-
-function clockLabel(ms: number): string {
-  const totalSeconds = Math.max(0, Math.round(ms / 1000));
-  const minutes = Math.floor(totalSeconds / 60);
-  const seconds = totalSeconds % 60;
-  return `${minutes}:${String(seconds).padStart(2, '0')}`;
-}
-
-function labelize(value: string): string {
-  return value
-    .split('-')
-    .filter(Boolean)
-    .map((part) => `${part.slice(0, 1).toUpperCase()}${part.slice(1)}`)
-    .join(' ');
 }
 
 // Referenced to keep the JungleSquare import meaningful for downstream typing of

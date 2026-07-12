@@ -17,6 +17,7 @@ import { jungleFlipResultLabel } from './jungle-flip-result-label.js';
 import { createPane } from './replay-board.js';
 import { createShareButton } from './replay-meta.js';
 import { fillCapturedPoolWith } from './review/captured-pool.js';
+import { buildReviewMeta, labelize } from './review/game-review-meta.js';
 import { createMoveList } from './review/move-list.js';
 import { mountReviewLayout } from './review/review-layout.js';
 import { buildNav } from './site-shell.js';
@@ -44,6 +45,12 @@ export type JungleFlipPostgameResponse = {
     visibility: string;
     initialMs: number | null;
     incrementMs: number | null;
+    players?: Array<{
+      color: string;
+      name: string;
+      rating: number | null;
+      kind: 'account' | 'guest' | 'engine';
+    }>;
   };
   state: {
     status: JungleFlipGameStatus;
@@ -192,11 +199,20 @@ function renderPostgame(root: HTMLElement, postgame: JungleFlipPostgameResponse)
     }
   });
 
+  const status = `${jungleFlipResultLabel(postgame.game.result, firstColor)} by ${labelize(postgame.game.termination)}`;
+  const { metaCard, details } = buildReviewMeta({
+    markerId: 'jungle-flip',
+    variantName: 'Flip Jungle',
+    game: postgame.game,
+    status,
+  });
   mountReviewLayout(root, {
     pageClassName: 'jungle-flip-review',
     ariaLabel: 'Flip Jungle postgame',
     title: 'Flip Jungle',
-    summary: `${jungleFlipResultLabel(postgame.game.result, firstColor)} by ${labelize(postgame.game.termination)} · ${postgame.game.plyCount} plies`,
+    summary: `${status} · ${postgame.game.plyCount} plies`,
+    metaCard,
+    details,
     actions: jungleFlipActions(postgame, revealBtn),
     moves: moveList.el,
     boards: [{ key: 'truth', el: pane.el, tier: 'primary' }],
@@ -306,12 +322,4 @@ async function safeJson(response: Response): Promise<{ error?: unknown } | null>
   } catch {
     return null;
   }
-}
-
-function labelize(value: string): string {
-  return value
-    .split('-')
-    .filter(Boolean)
-    .map((part) => `${part.slice(0, 1).toUpperCase()}${part.slice(1)}`)
-    .join(' ');
 }

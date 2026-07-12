@@ -32,7 +32,7 @@ describe('Dark Xiangqi postgame page', () => {
 
     expect(fetchSpy).toHaveBeenCalledWith('/api/dark-xiangqi/games/dxq_postgame');
     expect(root.querySelector('.site-nav')).not.toBeNull();
-    expect(root.textContent).toContain('Game review');
+    expect(root.textContent).toContain('Spectator room');
     expect(root.textContent).toContain('Red wins');
     expect(root.textContent).toContain('Red view');
     expect(root.textContent).toContain('Server truth');

@@ -20,6 +20,7 @@ import { chessPieceGlyphSvg, renderDarkChessBoardSvg } from './dark-chess-render
 import { revealKingCaptureForLoser } from './replay-board.js';
 import { fillCapturedPoolWith } from './review/captured-pool.js';
 import { createFlankCaptures } from './review/flank-captures.js';
+import { buildReviewMeta, labelize, reviewResultLabel } from './review/game-review-meta.js';
 import { createMoveList, type MoveListEntry } from './review/move-list.js';
 import { mountReviewLayout } from './review/review-layout.js';
 import { buildNav } from './site-shell.js';
@@ -42,7 +43,16 @@ type FeaturedGame = {
   whiteName: string | null;
   blackName: string | null;
   endedAt?: string;
+  rated?: boolean;
+  initialMs?: number | null;
+  incrementMs?: number | null;
   timeControl?: Record<string, unknown> | null;
+  players?: Array<{
+    color: string;
+    name: string;
+    rating: number | null;
+    kind: 'account' | 'guest' | 'engine';
+  }>;
 };
 
 type DarkChessBoardKey = Color | 'truth';
@@ -100,14 +110,23 @@ export function mountDarkChessPostgame(
 
   const moveList = createMoveList(buildMoveEntries(events), { title: 'Moves' });
 
+  const status = `${reviewResultLabel(game.result)} by ${labelize(game.termination)}`;
+  const { metaCard, details } = buildReviewMeta({
+    markerId: 'dark-chess',
+    variantName: 'Fog Chess',
+    game,
+    status,
+  });
+
   root.replaceChildren(buildNav());
   mountReviewLayout(root, {
     pageClassName: 'dark-chess-review',
     ariaLabel: 'Dark Chess postgame',
     title: 'Dark Chess',
-    summary: `${resultLabel(game.result)} by ${labelize(game.termination)} · ${game.plyCount} plies`,
+    summary: `${status} · ${game.plyCount} plies`,
     actions: postgameActions(game),
-    details: detailsPanel(game),
+    metaCard,
+    details,
     moves: moveList.el,
     boards: targets.map((target) => ({
       key: target.key,
@@ -252,64 +271,8 @@ function postgameActions(game: FeaturedGame): HTMLElement {
   return actions;
 }
 
-function detailsPanel(game: FeaturedGame): HTMLElement {
-  const panel = document.createElement('section');
-  panel.className = 'dxq-postgame__panel';
-  const heading = document.createElement('h2');
-  heading.textContent = 'Game';
-  const details = document.createElement('dl');
-  details.className = 'dxq-postgame__details';
-  details.append(
-    detailRow('Result', resultLabel(game.result)),
-    detailRow('Ending', labelize(game.termination)),
-    detailRow('White', game.whiteName ?? 'White'),
-    detailRow('Black', game.blackName ?? 'Black'),
-  );
-  if (game.endedAt) details.append(detailRow('Ended', dateLabel(game.endedAt)));
-  panel.append(heading, details);
-  return panel;
-}
-
-function detailRow(label: string, value: string): HTMLElement {
-  const row = document.createElement('div');
-  const dt = document.createElement('dt');
-  dt.textContent = label;
-  const dd = document.createElement('dd');
-  dd.textContent = value;
-  row.append(dt, dd);
-  return row;
-}
-
 // The board SVG renders at an intrinsic pixel size; make it fill its host so the
 // review layout's viewport-fill sizing drives the on-screen dimensions.
 function sizedBoardSvg(svg: string): string {
   return svg.replace(/^<svg\b/, '<svg style="display:block;width:100%;height:auto"');
-}
-
-function resultLabel(result: string): string {
-  if (result === 'white-wins') return 'White wins';
-  if (result === 'black-wins') return 'Black wins';
-  if (result === 'draw') return 'Draw';
-  return labelize(result);
-}
-
-function dateLabel(value: string): string {
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return value;
-  return date.toLocaleString(undefined, {
-    day: 'numeric',
-    hour: 'numeric',
-    minute: '2-digit',
-    month: 'short',
-    year: 'numeric',
-  });
-}
-
-function labelize(value: string): string {
-  return value.split('-').filter(Boolean).map(capitalize).join(' ');
-}
-
-function capitalize(value: string): string {
-  if (!value) return value;
-  return `${value.slice(0, 1).toUpperCase()}${value.slice(1)}`;
 }
