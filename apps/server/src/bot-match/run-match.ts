@@ -31,7 +31,7 @@ import {
 } from '../internal-engine-client.js';
 import { type ArbiterResult, runArbiterGame } from './arbiter.js';
 import { assertSafeExternalEndpoint } from './endpoint-guard.js';
-import { httpMoveProvider } from './http-move-provider.js';
+import { httpMoveProvider, httpObserveSink } from './http-move-provider.js';
 
 export type SeriesEngine = {
   label: string;
@@ -264,6 +264,7 @@ export async function runBotMatchSeries(cfg: SeriesConfig): Promise<SeriesReport
             reservationId: whiteReservation,
             trustDiagnostics: !white.external,
           }),
+          observe: httpObserveSink(white.endpoint),
         },
         black: {
           engineId: black.engineId,
@@ -271,6 +272,7 @@ export async function runBotMatchSeries(cfg: SeriesConfig): Promise<SeriesReport
             reservationId: blackReservation,
             trustDiagnostics: !black.external,
           }),
+          observe: httpObserveSink(black.endpoint),
         },
         onMove: cfg.onMove
           ? (info) =>

@@ -18,7 +18,13 @@
  */
 import { createServer, type Server } from 'node:http';
 import { fileURLToPath } from 'node:url';
-import type { EngineTurnRequest, EngineTurnResponse, Move } from '@mistboard/game';
+import type {
+  EngineObservationAck,
+  EngineObservationPush,
+  EngineTurnRequest,
+  EngineTurnResponse,
+  Move,
+} from '@mistboard/game';
 
 export type ReferenceBotOptions = {
   port: number;
@@ -26,6 +32,13 @@ export type ReferenceBotOptions = {
   host?: string;
   /** Override the move policy. Default: deterministic pick by engineSeed. */
   pickMove?: (request: EngineTurnRequest) => Move;
+  /**
+   * Optional handler for the post-move observation push (`POST
+   * /internal/engine/observe`). A real bot updates its belief here and may start
+   * pondering. The stub just acks. Safe to omit — the same observation also
+   * arrives in the next turn request.
+   */
+  onObserve?: (push: EngineObservationPush) => void;
 };
 
 export type ReferenceBotHandle = {
@@ -48,7 +61,9 @@ export function startReferenceBotServer(opts: ReferenceBotOptions): Promise<Refe
   const pickMove = opts.pickMove ?? defaultPickMove;
 
   const server = createServer((req, res) => {
-    if (req.method !== 'POST' || !req.url || !req.url.endsWith('/internal/engine/turn')) {
+    const isTurn = req.method === 'POST' && !!req.url?.endsWith('/internal/engine/turn');
+    const isObserve = req.method === 'POST' && !!req.url?.endsWith('/internal/engine/observe');
+    if (!isTurn && !isObserve) {
       res.writeHead(404).end('not found');
       return;
     }
@@ -60,13 +75,33 @@ export function startReferenceBotServer(opts: ReferenceBotOptions): Promise<Refe
     const chunks: Buffer[] = [];
     req.on('data', (c) => chunks.push(c as Buffer));
     req.on('end', () => {
-      let request: EngineTurnRequest;
+      let body: unknown;
       try {
-        request = JSON.parse(Buffer.concat(chunks).toString('utf8')) as EngineTurnRequest;
+        body = JSON.parse(Buffer.concat(chunks).toString('utf8'));
       } catch (err) {
         res.writeHead(400).end(`bad request: ${(err as Error).message}`);
         return;
       }
+      // Post-move observation push: update belief / start pondering here. The
+      // stub just acks.
+      if (isObserve) {
+        const push = body as EngineObservationPush;
+        try {
+          opts.onObserve?.(push);
+        } catch {
+          // A bot's own observe-side error must not fail the ack.
+        }
+        const ack: EngineObservationAck = {
+          protocolVersion: '1',
+          gameId: push.gameId,
+          sessionId: push.sessionId,
+          received: true,
+        };
+        res.writeHead(200, { 'content-type': 'application/json' }).end(JSON.stringify(ack));
+        return;
+      }
+      // Turn request: return a legal move.
+      const request = body as EngineTurnRequest;
       try {
         const move = pickMove(request);
         const response: EngineTurnResponse = {

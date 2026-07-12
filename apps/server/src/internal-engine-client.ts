@@ -1,6 +1,13 @@
-import type { EngineTurnRequest, EngineTurnResponse, Move, Square } from '@mistboard/game';
+import type {
+  EngineObservationPush,
+  EngineTurnRequest,
+  EngineTurnResponse,
+  Move,
+  Square,
+} from '@mistboard/game';
 
 const ENGINE_TURN_PATH = '/internal/engine/turn';
+const ENGINE_OBSERVE_PATH = '/internal/engine/observe';
 const ENGINE_RESERVATIONS_PATH = '/internal/engine/reservations';
 const DEFAULT_TRANSPORT_GRACE_MS = 1_000;
 const DEFAULT_CONTROL_TIMEOUT_MS = 5_000;
@@ -169,6 +176,23 @@ export async function requestInternalEngineTurn(
   return requestEngineTurnAt({ baseUrl, token }, request, watchdogTimeoutMs, {
     computeBudgetMs: options.computeBudgetMs,
     reservationId,
+  });
+}
+
+/**
+ * Push a post-move observation to an engine endpoint (the "observe right after
+ * you move" step). Fire-and-forget from the caller's view: it POSTs the push
+ * and returns once acked. Best-effort — callers (the arbiter) treat a failure as
+ * non-fatal, since the same observation also reaches the engine in its next turn
+ * request. No reservation required (this requests no compute).
+ */
+export async function pushEngineObservationAt(
+  endpoint: EngineEndpoint,
+  push: EngineObservationPush,
+): Promise<void> {
+  await engineControlJsonAt(endpoint, ENGINE_OBSERVE_PATH, {
+    method: 'POST',
+    body: JSON.stringify(push),
   });
 }
 

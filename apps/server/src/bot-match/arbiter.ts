@@ -25,6 +25,7 @@ import {
   capturedRoleFor,
   clockRemainingMs,
   type EngineDiagnostics,
+  type EngineObservationPush,
   type EngineTurnRequest,
   expireClock,
   type GameEvent,
@@ -33,7 +34,7 @@ import {
   type VariantId,
   variantForId,
 } from '@mistboard/game';
-import { buildEngineTurnRequest } from '../engine-protocol/build.js';
+import { buildEngineObservationPush, buildEngineTurnRequest } from '../engine-protocol/build.js';
 import {
   clockStartedEvent,
   type EngineTaskTimeControl,
@@ -80,6 +81,14 @@ export type ArbiterMoveProvider = (
 export type ArbiterSeat = {
   engineId: string;
   provider: ArbiterMoveProvider;
+  /**
+   * Optional post-move observation sink: called immediately after this seat's
+   * move is applied and BEFORE the opponent replies, so the engine can observe
+   * its own move (new vantage) and think on the opponent's clock. Best-effort —
+   * a rejection is swallowed (the same observation still reaches the engine in
+   * its next turn request). Omit for engines that don't ponder / tests.
+   */
+  observe?: (push: EngineObservationPush) => Promise<void>;
 };
 
 export type ArbiterConfig = {
@@ -306,6 +315,7 @@ export async function runArbiterGame(cfg: ArbiterConfig): Promise<ArbiterResult>
     }
 
     const at = latestEventAt(events) + Math.max(1, thinkTimeMs);
+    const prevState = projection.state;
     const captured = capturedRoleFor(projection.state, provided.move);
     events.push({
       type: 'move-played',
@@ -317,6 +327,27 @@ export async function runArbiterGame(cfg: ArbiterConfig): Promise<ArbiterResult>
       thinkTimeMs,
     });
     projection = replayGameEvents(events);
+
+    // Push this seat its own-move observation NOW, before the opponent replies,
+    // so it can observe its new vantage and think on the opponent's clock. The
+    // same observation also rides in its next turn request, so this is a
+    // best-effort optimization: a failure never affects the game.
+    if (seat.observe) {
+      await seat
+        .observe(
+          buildEngineObservationPush({
+            gameId,
+            engineId: seat.engineId,
+            engineColor: color,
+            prevState,
+            nextState: projection.state,
+            move: provided.move,
+            ply: moveCount(events),
+            ...(variant === 'dark-chess' ? {} : { gameSpecId: variant }),
+          }),
+        )
+        .catch(() => {});
+    }
     cfg.onMove?.({
       ply,
       color,
