@@ -1,14 +1,14 @@
 // Per-ply uniqueness audit for the live standard-xiangqi puzzle corpus.
 //
-// The miner enforces uniqueness (best-vs-second gap) only at the FIRST solver
-// move; every later solver move is taken from Pikafish's top PV verbatim. So a
-// multi-move puzzle can demand an unforced follow-up that other equally-winning
-// moves would satisfy — the "you played a winning move but it's marked wrong"
-// defect (GitHub #180). This tool MEASURES the defect: for each solver ply it
+// Independent re-verification of the gated miner (#180): for each solver ply it
 // re-searches the position with Pikafish MultiPV 2 at a depth floor and reports
-// whether the shipped move is the engine's best AND uniquely best (by cp gap and
-// by a win%-relative gap). It does not mutate the corpus — the filter/truncate
-// pass is a follow-up once we see the distribution.
+// whether the shipped move is the engine's best AND uniquely best by the SAME
+// winning-floor gate the miner uses (isXiangqiSolverMoveUnique — shared, so this
+// is apples-to-apples, not a second, drifting definition). It does not mutate
+// the corpus. NOTE: this tool loads each position via `position fen` (history-
+// free), while the miner searches via `position startpos moves` (full game
+// history); at near-equal plies those evals can differ, so an aligned position
+// path is the remaining half of the cross-check (#185).
 //
 // Scores are read from the side-to-move (solver) POV, so a positive gap means
 // the shipped move beats the runner-up. Mate scores map to a large synthetic cp.
@@ -18,7 +18,7 @@
 // Run (needs the local Pikafish binary + NNUE net; auto-resolved via
 // xiangqi-pikafish-engine.ts, or set MISTBOARD_PIKAFISH_XIANGQI_PATH/_NET):
 //   node_modules/.bin/tsx scripts/variant-lab/xiangqi-puzzle-uniqueness-audit.ts \
-//     --depth 22 --gap-winrate 0.10 --out scripts/variant-lab/out/xiangqi-uniqueness-audit.jsonl
+//     --depth 22 --out scripts/variant-lab/out/xiangqi-uniqueness-audit.jsonl
 //   # quick smoke on a handful first:
 //   node_modules/.bin/tsx scripts/variant-lab/xiangqi-puzzle-uniqueness-audit.ts --limit 3 --depth 16
 
@@ -32,19 +32,23 @@ import {
 } from '../../apps/server/src/xiangqi-pikafish-engine.ts';
 import {
   applyStandardXiangqiMove,
+  isXiangqiSolverMoveUnique,
   pikafishUciToXiangqiSquares,
   standardXiangqiEngineFen,
   XIANGQI_PUZZLES,
   type XiangqiGameState,
   type XiangqiMove,
   type XiangqiPuzzle,
+  type XiangqiVerifyLine,
+  xiangqiWinRate,
 } from '../../packages/game/src/index.ts';
 
 type CliOptions = {
   depth: number;
   nodes: number | null;
-  gapCp: number;
-  gapWinrate: number;
+  winHi: number;
+  winLo: number;
+  materialGapCp: number;
   limit: number;
   ids: Set<string> | null;
   out: string | null;
@@ -55,8 +59,11 @@ function parseOptions(): CliOptions {
     options: {
       depth: { type: 'string', default: '22' },
       nodes: { type: 'string' },
-      'gap-cp': { type: 'string', default: '80' },
-      'gap-winrate': { type: 'string', default: '0.10' },
+      // Same winning-floor gate the miner uses (isXiangqiSolverMoveUnique), so
+      // this audit is an apples-to-apples re-verification of the mined corpus.
+      'win-hi': { type: 'string', default: '0.80' },
+      'win-lo': { type: 'string', default: '0.60' },
+      'material-gap-cp': { type: 'string', default: '250' },
       limit: { type: 'string', default: '0' },
       ids: { type: 'string' },
       out: { type: 'string' },
@@ -65,8 +72,9 @@ function parseOptions(): CliOptions {
   return {
     depth: parsePositiveInt(values.depth, 22),
     nodes: values.nodes ? parsePositiveInt(values.nodes, 0) || null : null,
-    gapCp: parsePositiveInt(values['gap-cp'], 80),
-    gapWinrate: Number.parseFloat(values['gap-winrate'] ?? '0.10'),
+    winHi: Number.parseFloat(values['win-hi'] ?? '0.80'),
+    winLo: Number.parseFloat(values['win-lo'] ?? '0.60'),
+    materialGapCp: parsePositiveInt(values['material-gap-cp'], 250),
     limit: parsePositiveInt(values.limit, 0),
     ids: values.ids
       ? new Set(
@@ -91,15 +99,6 @@ const MATE_CP = 30_000;
 function scoreToCp(kind: 'cp' | 'mate', raw: number): number {
   if (kind === 'cp') return raw;
   return raw >= 0 ? MATE_CP - raw : -MATE_CP - raw;
-}
-
-// Logistic cp -> win probability for the mover. K is the eval scale; the exact
-// value only shifts the win% gap threshold, so it is a knob, not a constant of
-// nature. 400 mirrors the classic eval/Elo mapping and keeps decisive positions
-// near 1.0 so "both moves already win" collapses to a ~0 gap (correctly flagged).
-const WINRATE_K = 400;
-function winRate(cp: number): number {
-  return 1 / (1 + 10 ** (-cp / WINRATE_K));
 }
 
 type ScoredLine = { rank: number; cp: number; mate: number | null; moveUci: string };
@@ -236,28 +235,8 @@ type SolverPlyReport = {
   unique: boolean;
 };
 
-// A solver move is unique iff no runner-up is as good. Mates and cp positions
-// use different metrics: a mate is "the strictly fastest forced mate" (win% and
-// cp both saturate for mates, so a distance test is the only honest one); a cp
-// position requires a real win%-relative gap over the runner-up (which also
-// collapses to ~0 when the position is already decided and many moves keep the
-// win — correctly flagging those as non-unique).
-function isSolverMoveUnique(
-  best: ScoredLine,
-  second: ScoredLine | null,
-  opts: CliOptions,
-): boolean {
-  if (!second) return true; // only one legal/searched move
-  if (best.mate !== null && best.mate > 0) {
-    // Best is a forced mate for the mover; unique only if the runner-up does not
-    // also mate at least as fast.
-    if (second.mate === null || second.mate <= 0) return true;
-    return best.mate < second.mate;
-  }
-  if (second.mate !== null && second.mate > 0) return false; // runner-up mates, best does not
-  const gapCp = best.cp - second.cp;
-  const gapWinrate = winRate(best.cp) - winRate(second.cp);
-  return gapCp >= opts.gapCp && gapWinrate >= opts.gapWinrate;
+function toVerifyLine(line: ScoredLine | null | undefined): XiangqiVerifyLine | undefined {
+  return line ? { scoreCp: line.cp, mate: line.mate } : undefined;
 }
 
 type PuzzleReport = {
@@ -297,7 +276,8 @@ async function auditPuzzle(
       const bestCp = best?.cp ?? 0;
       const secondCp = second?.cp ?? null;
       const gapCp = secondCp === null ? null : bestCp - secondCp;
-      const gapWinrate = secondCp === null ? null : winRate(bestCp) - winRate(secondCp);
+      const gapWinrate =
+        secondCp === null ? null : xiangqiWinRate(bestCp) - xiangqiWinRate(secondCp);
       plies.push({
         solutionPly: ply,
         shippedMove: moveLabel(move),
@@ -309,11 +289,11 @@ async function auditPuzzle(
         secondMate: second?.mate ?? null,
         gapCp,
         gapWinrate,
-        unique: isSolverMoveUnique(
-          best ?? { rank: 1, cp: 0, mate: null, moveUci: '' },
-          second,
-          opts,
-        ),
+        unique: isXiangqiSolverMoveUnique(toVerifyLine(best), toVerifyLine(second), {
+          winHi: opts.winHi,
+          winLo: opts.winLo,
+          materialGapCp: opts.materialGapCp,
+        }),
       });
     }
     if (state.status.type !== 'playing') break;
@@ -376,7 +356,7 @@ async function main(): Promise<void> {
   }
 
   process.stdout.write(
-    `\n=== audit summary (depth=${opts.depth} gap-cp=${opts.gapCp} gap-winrate=${opts.gapWinrate}) ===\n` +
+    `\n=== audit summary (depth=${opts.depth} win-hi=${opts.winHi} win-lo=${opts.winLo} material-gap-cp=${opts.materialGapCp}) ===\n` +
       `puzzles:            ${reports.length}\n` +
       `  single solver move: ${summary.singleMove}\n` +
       `  multi solver move:  ${summary.multiMove}\n` +
