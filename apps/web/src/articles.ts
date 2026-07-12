@@ -361,12 +361,10 @@ function buildRulesLanding(lang?: ArticleLang): HTMLElement {
 
   sheet.append(heading, intro);
 
-  for (const key of ['rules.body1', 'rules.body2'] as const) {
-    const p = document.createElement('p');
-    p.className = 'rules-landing-paragraph';
-    p.textContent = t(key, {}, locale);
-    sheet.append(p);
-  }
+  const body = document.createElement('p');
+  body.className = 'rules-landing-paragraph';
+  body.textContent = t('rules.body1', {}, locale);
+  sheet.append(body);
 
   const entries = articles.filter(
     (article) => article.kind === 'rules' && isArticleListedInThisEnv(article),

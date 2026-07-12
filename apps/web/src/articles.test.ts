@@ -30,7 +30,6 @@ describe('article public listing gates', () => {
     expect(intro).toBe('Learn the rules for every game you can play on Mistboard.');
     expect(paragraphs).toEqual([
       'Each guide explains the board, how the pieces move, and how the game ends, with interactive examples you can step through.',
-      'When a game builds on another ruleset, start with the base game, then read the variant guide for the differences.',
     ]);
   });
 

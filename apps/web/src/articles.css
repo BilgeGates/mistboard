@@ -510,9 +510,10 @@
   .article-shell {
     max-width: none;
     display: grid;
-    /* The variant rail has compact markers and enough text room for one-line
-       variant names; the TOC can stay narrower. */
-    grid-template-columns: 272px minmax(0, 800px) 180px;
+    /* The variant rail hugs its content (compact markers + one-line names) so it
+       sits close to the sheet; the old fixed 272px was sized for the retired wide
+       markers and left a dead gap. The TOC can stay narrower. */
+    grid-template-columns: max-content minmax(0, 800px) 180px;
     grid-template-areas: "variants sheet toc";
     justify-content: center;
     column-gap: 28px;

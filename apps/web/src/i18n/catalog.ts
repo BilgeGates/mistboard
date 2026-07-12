@@ -81,8 +81,6 @@ const EN = {
   'rules.intro': 'Learn the rules for every game you can play on Mistboard.',
   'rules.body1':
     'Each guide explains the board, how the pieces move, and how the game ends, with interactive examples you can step through.',
-  'rules.body2':
-    'When a game builds on another ruleset, start with the base game, then read the variant guide for the differences.',
   'rules.group.chess': 'Chess variants',
   'rules.group.xiangqi': 'Xiangqi variants',
   'rules.group.shogi': 'Shogi variants',
@@ -1029,8 +1027,6 @@ const ZH_HANS: Partial<Record<I18nKey, string>> = {
   'rules.heading': '规则',
   'rules.intro': '学习 Mistboard 上每款可玩游戏的规则。',
   'rules.body1': '每篇指南都介绍棋盘、棋子走法和胜负条件，并配有可逐步演示的互动示例。',
-  'rules.body2':
-    '如果一款游戏建立在另一套规则之上，请先阅读基础游戏规则，再查看变体指南了解不同之处。',
   'rules.group.chess': '国际象棋变体',
   'rules.group.xiangqi': '象棋变体',
   'rules.group.shogi': '将棋变体',
@@ -1825,8 +1821,6 @@ const ZH_HANT: Partial<Record<I18nKey, string>> = {
   'rules.heading': '規則',
   'rules.intro': '學習 Mistboard 上每款可玩遊戲的規則。',
   'rules.body1': '每篇指南都介紹棋盤、棋子走法和勝負條件，並配有可逐步演示的互動範例。',
-  'rules.body2':
-    '如果一款遊戲建立在另一套規則之上，請先閱讀基礎遊戲規則，再查看變體指南了解不同之處。',
   'rules.group.chess': '西洋棋變體',
   'rules.group.xiangqi': '象棋變體',
   'rules.group.shogi': '將棋變體',
@@ -2621,8 +2615,6 @@ const JA: Partial<Record<I18nKey, string>> = {
   'rules.intro': 'Mistboard で遊べるすべてのゲームのルールを学べます。',
   'rules.body1':
     '各ガイドでは、盤、駒の動き、終局条件を、手順を進められるインタラクティブな例とともに説明します。',
-  'rules.body2':
-    '別のルールセットを土台にしたゲームは、まず基本ゲームのルールを読み、次にバリアントガイドで違いを確認してください。',
   'rules.group.chess': 'チェスバリアント',
   'rules.group.xiangqi': 'シャンチーバリアント',
   'rules.group.shogi': '将棋バリアント',
@@ -3416,7 +3408,6 @@ export const CRITICAL_I18N_KEYS = [
   'rules.heading',
   'rules.intro',
   'rules.body1',
-  'rules.body2',
   'rules.group.chess',
   'rules.group.xiangqi',
   'rules.group.shogi',
