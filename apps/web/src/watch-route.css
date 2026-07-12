@@ -536,6 +536,20 @@
   border-color: var(--site-accent);
 }
 
+/* ── Right rail: interactive move list + scrubber ────────────────────────────
+   Rides the shared review-shell chrome (.review-rail-main fuses the move list +
+   scrubber into one bordered box; the scrubber gets its top hairline from the
+   review-shell rules). Watch only bounds the move rows so a long game scrolls
+   inside the rail instead of stretching it. */
+.watch-moves:empty,
+.watch-review:empty {
+  display: none;
+}
+.watch-moves-rail .review-move-list__rows {
+  max-height: min(38vh, 340px);
+  overflow-y: auto;
+}
+
 /* ── Left rail: sealed-status badge ──────────────────────────────────────── */
 .watch-status {
   border: 1px solid var(--site-border-soft);

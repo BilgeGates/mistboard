@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { FeaturedGame } from './game-display.js';
 import {
+  buildWatchScrubber,
   formatWatchScope,
   renderWatchChannelList,
   renderWatchReplaySkeleton,
@@ -146,6 +147,45 @@ describe('renderWatchReplaySkeleton', () => {
     // It replaces prior content rather than appending to it.
     expect(root.querySelector('span')).toBeNull();
     expect(root.firstElementChild?.getAttribute('aria-hidden')).toBe('true');
+  });
+});
+
+describe('buildWatchScrubber', () => {
+  const button = (el: HTMLElement, label: string) =>
+    el.querySelector<HTMLButtonElement>(`.review-scrubber__button[aria-label="${label}"]`);
+
+  it('jumps to the right ply, reading the live ply at click time', () => {
+    const ply = 3;
+    const jumps: number[] = [];
+    const scrubber = buildWatchScrubber(
+      (p) => jumps.push(p),
+      () => ply,
+      () => 10,
+    );
+    button(scrubber.el, 'First move')?.click();
+    button(scrubber.el, 'Previous move')?.click();
+    button(scrubber.el, 'Next move')?.click();
+    button(scrubber.el, 'Last move')?.click();
+    // prev/next resolve against getPly() (3), not a stale captured value.
+    expect(jumps).toEqual([0, 2, 4, 10]);
+  });
+
+  it('disables the end buttons at the bounds', () => {
+    const scrubber = buildWatchScrubber(
+      () => {},
+      () => 0,
+      () => 8,
+    );
+    scrubber.setBounds(0, 8);
+    expect(button(scrubber.el, 'First move')?.disabled).toBe(true);
+    expect(button(scrubber.el, 'Previous move')?.disabled).toBe(true);
+    expect(button(scrubber.el, 'Next move')?.disabled).toBe(false);
+    expect(button(scrubber.el, 'Last move')?.disabled).toBe(false);
+
+    scrubber.setBounds(8, 8);
+    expect(button(scrubber.el, 'First move')?.disabled).toBe(false);
+    expect(button(scrubber.el, 'Next move')?.disabled).toBe(true);
+    expect(button(scrubber.el, 'Last move')?.disabled).toBe(true);
   });
 });
 

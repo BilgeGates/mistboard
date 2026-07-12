@@ -128,6 +128,9 @@ export type WebVariantTenant = {
         // Player names for the compact seats (first = red/first-mover, second =
         // black), keyed by room id — the tenant postgames carry no names.
         namesByRoomId?: Record<string, { first: string; second: string }>;
+        // Fires on every ply change (autoplay tick / manual jump / loop reset).
+        // The /watch right rail uses it to sync its move list + scrubber.
+        onPlyChange?: (ply: number, maxPly: number) => void;
       },
     ): Promise<ReplayHandle>;
   };

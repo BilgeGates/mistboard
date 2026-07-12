@@ -15,6 +15,7 @@ import { currentLocale, type Locale } from './i18n/locale.js';
 import type { GameMeta, ReplayHandle } from './replay.js';
 import { createPane, type ReplayPaneHandle } from './replay-board.js';
 import { createGameHeaderStrip } from './replay-meta.js';
+import type { MoveListEntry } from './review/move-list.js';
 import {
   reconstructMoveDelays,
   reconstructShowcaseClocks,
@@ -52,8 +53,15 @@ export type WatchPostgameMeta = {
   // Per-event wall-clock timestamps; present on every tenant postgame (move events
   // carry color + ply, terminal events may not). The compact showcase reconstructs
   // the players' real clocks from the move timestamps (the generic tenant postgames
-  // carry no dense clock series).
-  timeline?: ReadonlyArray<{ at: number; color?: string; ply?: number }>;
+  // carry no dense clock series). Move events also carry the played `move` (from-to
+  // coordinates), which the /watch move list reads variant-agnostically; drops
+  // (drop-mini-xiangqi) omit `from`.
+  timeline?: ReadonlyArray<{
+    at: number;
+    color?: string;
+    ply?: number;
+    move?: { from?: string; to?: string };
+  }>;
 };
 
 // The variant-specific surface. The generic owns everything else.
@@ -125,6 +133,13 @@ export type TenantWatchReplayOptions = {
    * absent names fall back to the color labels.
    */
   namesByRoomId?: Record<string, { first: string; second: string }>;
+  /**
+   * Called on every ply change (autoplay tick, manual jump, or loop reset) with
+   * the current ply and the game's max ply. The /watch right rail uses it to keep
+   * the move list highlight + scrubber bounds in sync. OPTIONAL: the homepage
+   * showcase omits it.
+   */
+  onPlyChange?: (ply: number, maxPly: number) => void;
 };
 
 type ControlRefs = {
@@ -214,6 +229,27 @@ function seatCell(name: string): SeatCell {
   return { row, clock };
 }
 
+// A variant-agnostic move list from a tenant postgame's timeline: one entry per
+// move event (`ply` 1-based, matching currentPly), labeled by from-to coordinates
+// (the `${from}-${to}` convention the tenant postgame reviews use). Drop moves
+// (no `from`) fall back to the destination square. Entries without a `move`
+// (terminal events) are skipped.
+function buildTenantMoveEntries(postgame: WatchPostgameMeta): MoveListEntry[] {
+  const entries: MoveListEntry[] = [];
+  for (const event of postgame.timeline ?? []) {
+    const move = event.move;
+    if (!move) continue;
+    const from = typeof move.from === 'string' ? move.from : '';
+    const to = typeof move.to === 'string' ? move.to : '';
+    if (!from && !to) continue;
+    entries.push({
+      ply: typeof event.ply === 'number' ? event.ply : entries.length + 1,
+      label: from && to ? `${from}-${to}` : to || from,
+    });
+  }
+  return entries;
+}
+
 function controlButton(symbol: string, aria: string): HTMLButtonElement {
   const button = document.createElement('button');
   button.type = 'button';
@@ -239,6 +275,10 @@ export async function mountTenantWatchReplay<
   const compact = options.compact === true;
   const onGameEnd = options.onGameEnd;
   const namesByRoomId = options.namesByRoomId;
+  const onPlyChange = options.onPlyChange;
+  // Guards a single onPlyChange fire per distinct ply (sync also runs on flips /
+  // reveal toggles, which don't move the ply).
+  let lastNotifiedPly: number | null = null;
 
   let activeId = roomId;
   let destroyed = false;
@@ -452,6 +492,10 @@ export async function mountTenantWatchReplay<
       seatCells.black.row.classList.toggle('active', toMove === 'black');
     }
     lastSyncedPly = currentPly;
+    if (onPlyChange && lastNotifiedPly !== currentPly) {
+      lastNotifiedPly = currentPly;
+      onPlyChange(currentPly, maxPly);
+    }
   };
 
   const scheduleAuto = (): void => {
@@ -536,6 +580,7 @@ export async function mountTenantWatchReplay<
     maxPly = adapter.maxPly(postgame);
     currentPly = 0;
     lastSyncedPly = null;
+    lastNotifiedPly = null;
     paused = !autoplay;
     boardOrientation = 'red';
     const initialMs = postgame.game.initialMs ?? postgame.state.timeControl?.initialMs ?? null;
@@ -809,6 +854,11 @@ export async function mountTenantWatchReplay<
     loadGame: async (sampleId: string) => {
       await load(sampleId);
     },
+    plyCount: () => maxPly,
+    // manualJump already pauses autoplay, clamps, and re-syncs (which fires
+    // onPlyChange). The /watch move list + scrubber drive the board through it.
+    jumpToPly: (ply: number) => manualJump(ply),
+    moveEntries: () => (activePostgame ? buildTenantMoveEntries(activePostgame) : []),
     prefetchGame: (nextId: string) => {
       if (destroyed || activeId === nextId || prefetched?.roomId === nextId) return;
       const promise = adapter.loadPostgame(nextId);

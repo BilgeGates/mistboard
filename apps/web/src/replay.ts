@@ -1,6 +1,8 @@
 import { boardFen, pieceFen } from '@mistboard/board-render/interactive';
 import {
+  algebraicMoveLabels,
   type Color,
+  coordinateMoveLabel,
   darkChessVariant,
   type GameEvent,
   type GameState,
@@ -81,6 +83,7 @@ import {
   type WallClockReplayLoop,
   type WallClockReplayPosition,
 } from './replay-wall-clock.js';
+import type { MoveListEntry } from './review/move-list.js';
 
 const replayAbortControllers = new WeakMap<HTMLElement, AbortController>();
 
@@ -226,6 +229,16 @@ export type ReplayHandle = {
    *  real games have just arrived. New ids must already have their metadata/POV
    *  registered by the caller. */
   updateLoopPool: (sampleIds: string[], options?: { jumpNow?: boolean }) => void;
+  /** Pause autoplay and jump to `ply`, re-rendering (which fires onPlyChange).
+   *  OPTIONAL so existing callers (showcase, review) are unaffected; the /watch
+   *  right-rail move list + scrubber drive the board through it. */
+  jumpToPly?: (ply: number) => void;
+  /** Total plies (played moves) in the loaded game. OPTIONAL; paired with
+   *  jumpToPly for the scrubber bounds. */
+  plyCount?: () => number;
+  /** A variant-agnostic move list for the loaded game (one entry per played move,
+   *  `ply` 1-based). OPTIONAL; empty when a path can't derive labels cleanly. */
+  moveEntries?: () => MoveListEntry[];
 };
 
 export async function mountReplay(
@@ -1379,6 +1392,18 @@ export async function mountReplay(
     activeSampleId: () => activeSample,
     destroy: () => abortController.abort(),
     loadGame,
+    // A manual jump pauses autoplay (and the loop timer), mirroring the moves
+    // panel's onJump; render() fires notifyPlyChange so the /watch move list
+    // re-highlights.
+    jumpToPly: (ply: number) => {
+      stopPlay();
+      clearLoopTimer();
+      finishedAck = false;
+      setCurrentPly(ply);
+      render();
+    },
+    plyCount: () => moveCount,
+    moveEntries: () => buildChessMoveEntries(events),
     prefetchGame: (sampleId: string) => {
       if (
         abortController.signal.aborted ||
@@ -1445,6 +1470,23 @@ function sliceToPly(events: GameEvent[], ply: number): GameEvent[] {
     }
   }
   return result;
+}
+
+// A variant-agnostic move list for the /watch right-rail: one entry per
+// move-played event, `ply` 1-based to match currentPly. Prefer SAN (from the
+// shared algebraic labeler) and fall back to from-to coordinates. Mirrors
+// dark-chess-postgame's buildMoveEntries so both surfaces read the same.
+function buildChessMoveEntries(events: GameEvent[]): MoveListEntry[] {
+  const labels = algebraicMoveLabels(events, events[0]?.roomId ?? 'replay');
+  const entries: MoveListEntry[] = [];
+  for (const [index, event] of events.entries()) {
+    if (event.type !== 'move-played') continue;
+    entries.push({
+      ply: entries.length + 1,
+      label: labels.get(index + 1) ?? coordinateMoveLabel(event.move),
+    });
+  }
+  return entries;
 }
 
 /** Color of the most recent move in a ply slice (null before any move). */
