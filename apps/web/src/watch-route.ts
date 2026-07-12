@@ -637,10 +637,13 @@ function renderWatchPovToggle(
   if (povs.length <= 1) return;
 
   const labels = watchPovSideLabels(game.variant);
+  // Compact single-word perspective labels (the side's color); "Truth" in the
+  // middle frames all three as perspectives. Full "X's view" phrasing overflowed
+  // the height-capped board width into an ellipsis.
   const options: Array<{ kind: 'white' | 'truth' | 'black'; label: string }> = [
-    { kind: 'white', label: `${labels.first}'s view` },
+    { kind: 'white', label: labels.first },
     { kind: 'truth', label: 'Truth' },
-    { kind: 'black', label: `${labels.second}'s view` },
+    { kind: 'black', label: labels.second },
   ];
 
   const group = document.createElement('div');

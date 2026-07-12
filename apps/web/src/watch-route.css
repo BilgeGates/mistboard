@@ -215,12 +215,18 @@
    A compact segmented control matching the review scrubber/rail look. Shown only
    for asymmetric fog (dark) games with more than one view; the slot collapses
    when empty. */
+/* Direct child of the centered column, so its 100% resolves to the board column
+   width (matching .watch-board-box) instead of shrink-wrapping to the buttons. */
+.watch-pov-slot {
+  width: min(var(--watch-board-max, 560px), 100%);
+}
+
 .watch-pov-slot:empty {
   display: none;
 }
 
 .watch-pov {
-  width: min(var(--watch-board-max, 560px), 100%);
+  width: 100%;
   margin: 0 auto;
   box-sizing: border-box;
   display: flex;
