@@ -65,6 +65,7 @@ import {
   isXiangqiSolverMoveUnique,
   pikafishUciToXiangqiSquares,
   positionRepetitionKey,
+  standardXiangqiEngineFen,
   standardXiangqiPuzzleMoveLabel,
   type XiangqiGameState,
   type XiangqiMove,
@@ -307,6 +308,27 @@ class PikafishEngine {
     return parseScoredLines(lines);
   }
 
+  // Analyze a standalone position (FEN), not a game-history move list. The
+  // uniqueness verify uses this so the miner judges each puzzle from exactly the
+  // position a solver sees — history-free, matching the audit tool (#185) — and
+  // so its verdict does not drift from the served puzzle's real eval.
+  async analyzeFen(
+    fen: string,
+    nodes: number,
+    multipv: number,
+    depth?: number,
+  ): Promise<ScoredLine[]> {
+    const cmds: string[] = [];
+    if (multipv !== this.#multipv) {
+      cmds.push(`setoption name MultiPV value ${multipv}`);
+      this.#multipv = multipv;
+    }
+    const go = depth ? `go depth ${depth} nodes ${nodes}` : `go nodes ${nodes}`;
+    cmds.push(`position fen ${fen}`, go);
+    const lines = await this.#request(cmds, (l) => l.startsWith('bestmove'));
+    return parseScoredLines(lines);
+  }
+
   kill(): void {
     if (this.#waiter) {
       clearTimeout(this.#waiter.timer);
@@ -510,12 +532,7 @@ async function mineGame(
   for (const candidate of candidates) {
     if (records.length >= opts.perGame) break;
     const postBlunderState = states[candidate.ply + 1] as XiangqiGameState;
-    const built = await buildGatedLine(
-      engine,
-      uciMoves.slice(0, candidate.ply + 1),
-      postBlunderState,
-      opts,
-    );
+    const built = await buildGatedLine(engine, postBlunderState, opts);
     metrics.verifyEvals += built.evals;
     if (!built.ok) {
       bumpReject(metrics, built.reason);
@@ -577,20 +594,23 @@ type GatedLineResult =
 // on the solver's move.
 async function buildGatedLine(
   engine: PikafishEngine,
-  prefixUci: string[],
   postBlunderState: XiangqiGameState,
   opts: CliOptions,
 ): Promise<GatedLineResult> {
   const gate = { winHi: opts.winHi, winLo: opts.winLo, materialGapCp: opts.materialGapCp };
   const pv: XiangqiMove[] = [];
-  const running = [...prefixUci];
   let cur: XiangqiGameState = postBlunderState;
   let firstScore: XiangqiVerifyLine | null = null;
   let firstSecondCp: number | null = null;
   let evals = 0;
   while (pv.length < opts.maxSolutionPlies) {
     if (cur.status.type !== 'playing') break;
-    const lines = await engine.analyze(running, opts.verifyNodes, 2, opts.verifyDepth);
+    const lines = await engine.analyzeFen(
+      standardXiangqiEngineFen(cur),
+      opts.verifyNodes,
+      2,
+      opts.verifyDepth,
+    );
     evals += 1;
     const vlines: XiangqiVerifyLine[] = [];
     for (const line of lines) {
@@ -616,11 +636,15 @@ async function buildGatedLine(
       return { ok: false, reason: 'pv-illegal', evals };
     pv.push(solverMove);
     cur = applyStandardXiangqiMove(cur, solverMove);
-    running.push(solverTok);
     if (cur.status.type !== 'playing') break; // mate: line ends on the solver move
     if (pv.length >= opts.maxSolutionPlies) break;
     // Defender reply: the engine's best defense (uniqueness not required of it).
-    const replyLines = await engine.analyze(running, opts.verifyNodes, 1, opts.verifyDepth);
+    const replyLines = await engine.analyzeFen(
+      standardXiangqiEngineFen(cur),
+      opts.verifyNodes,
+      1,
+      opts.verifyDepth,
+    );
     evals += 1;
     const replyTok = replyLines[0]?.pvUci[0];
     const rsq = replyTok ? pikafishUciToXiangqiSquares(replyTok) : null;
@@ -629,7 +653,6 @@ async function buildGatedLine(
     if (!isStandardXiangqiLegalMove(cur, replyMove)) break;
     pv.push(replyMove);
     cur = applyStandardXiangqiMove(cur, replyMove);
-    running.push(replyTok);
     if (cur.status.type !== 'playing') {
       pv.pop(); // a defender move that ends the game is not a puzzle ply
       break;
