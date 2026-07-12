@@ -49,11 +49,13 @@ export async function tryHandle(
         const [sealedCount, unlocked] = await Promise.all([
           persistence.countWatchSealedGames({
             activeWindowMs: WATCH_SEALED_ACTIVITY_WINDOW_MS,
+            modes: candidate.modes,
             now,
             variants: candidate.legacyVariants,
           }),
           persistence.listWatchUnlockedGames({
             limit: WATCH_REPLAY_LIMIT,
+            modes: candidate.modes,
             now,
             variants: candidate.legacyVariants,
           }),

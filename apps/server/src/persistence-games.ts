@@ -123,15 +123,28 @@ export type RecentEveGameRecord = GameRecord & {
 
 export type WatchUnlockedGameOptions = {
   limit?: number;
+  modes?: readonly GameMode[];
   now?: Date;
   variants?: readonly string[];
 };
 
 export type WatchSealedGameOptions = {
   activeWindowMs?: number;
+  modes?: readonly GameMode[];
   now?: Date;
   variants?: readonly string[];
 };
+
+// The game modes a watch channel surfaces. Default = the three "played" modes
+// (imported/manual are never watch content). A variant/family channel passes
+// ['pvp','pve'] so engine-vs-engine games don't pollute it (decision: EvE lives
+// only in the Engines channel); the Engines channel passes ['eve'].
+const WATCH_DEFAULT_MODES: readonly GameMode[] = ['pvp', 'pve', 'eve'];
+
+function watchModeFilter(modes: readonly GameMode[] | undefined): GameMode[] {
+  const source = modes && modes.length > 0 ? modes : WATCH_DEFAULT_MODES;
+  return [...new Set(source)];
+}
 
 export type CompletedGameFilters = {
   endedFrom: Date;
@@ -679,7 +692,6 @@ export async function listWatchUnlockedGames(
   const boundedLimit = Math.max(1, Math.min(options.limit ?? 64, 64));
   const now = options.now ?? new Date();
   const variants = watchVariantFilter(options.variants);
-  const variantClause = variants ? 'AND games.variant = ANY($3::text[])' : '';
   // Unified "seal until finished": sealed (uncountable, unviewable) while the
   // game is running, unlocked when it completes — no per-mode ply floor. A
   // completed non-aborted game already has both first moves (an earlier decisive
@@ -687,7 +699,13 @@ export async function listWatchUnlockedGames(
   // games while postgame review showed them. The termination/last-event
   // consistency check below still excludes reconnect noise.
   const values: unknown[] = [boundedLimit, now];
-  if (variants) values.push(variants);
+  let variantClause = '';
+  if (variants) {
+    values.push(variants);
+    variantClause = `AND games.variant = ANY($${values.length}::text[])`;
+  }
+  values.push(watchModeFilter(options.modes));
+  const modeClause = `AND games.mode = ANY($${values.length}::text[])`;
   const { rows } = await getPool().query<RecentEveGameRow>(
     `WITH last_events AS (
        SELECT DISTINCT ON (events.room_id)
@@ -709,7 +727,7 @@ export async function listWatchUnlockedGames(
      JOIN last_events ON last_events.room_id = games.room_id
      WHERE games.status = 'completed'
        ${variantClause}
-       AND games.mode IN ('pvp', 'pve', 'eve')
+       ${modeClause}
        AND games.ended_at <= $2
        AND (
          -- A move-decided ending always closes on a move-played event, whatever the
@@ -740,9 +758,14 @@ export async function countWatchSealedGames(options: WatchSealedGameOptions = {}
   const nowMs = (options.now ?? new Date()).getTime();
   const activeSinceMs = nowMs - activeWindowMs;
   const variants = watchVariantFilter(options.variants);
-  const variantClause = variants ? 'AND games.variant = ANY($3::text[])' : '';
   const values: unknown[] = [activeSinceMs, nowMs];
-  if (variants) values.push(variants);
+  let variantClause = '';
+  if (variants) {
+    values.push(variants);
+    variantClause = `AND games.variant = ANY($${values.length}::text[])`;
+  }
+  values.push(watchModeFilter(options.modes));
+  const modeClause = `AND games.mode = ANY($${values.length}::text[])`;
   const { rows } = await getPool().query<{ count: number }>(
     `WITH last_events AS (
        SELECT DISTINCT ON (events.room_id)
@@ -759,7 +782,7 @@ export async function countWatchSealedGames(options: WatchSealedGameOptions = {}
      JOIN last_events ON last_events.room_id = games.room_id
      WHERE games.status = 'running'
        ${variantClause}
-       AND games.mode IN ('pvp', 'pve', 'eve')
+       ${modeClause}
        AND games.visibility <> 'private'
        AND last_events.type IN ('clock-started', 'draft-start-resolved', 'move-played', 'resume')
        AND (last_events.payload->>'at')::bigint >= $1

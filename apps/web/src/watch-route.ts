@@ -21,7 +21,7 @@ import { renderWatchReplaySkeleton } from './replay-skeleton.js';
 import { createGameMetaCard, type GameMetaPlayer, timeAgoLabel } from './review/game-meta-card.js';
 import { createMoveList, type MoveList } from './review/move-list.js';
 import { createReviewShell } from './review/review-shell.js';
-import { showcaseRendererKindForSpec } from './showcase-dispatch.js';
+import { showcaseRendererKindForSpec, specIdForShowcaseVariant } from './showcase-dispatch.js';
 import { buildLoadingState, buildNav } from './site-shell.js';
 
 // replay.js statically pulls in chessground (~64KB). Importing it dynamically
@@ -58,13 +58,27 @@ type WatchFeed = {
   initialReplay?: WatchInitialReplay;
 };
 
-// Which replay renderer a channel needs, keyed by the channel's primary
-// gameSpecId (the registry's unambiguous tenant key), or 'chess' (the
-// chessground fallback for the unregistered dark-chess stack). It must NOT key
-// on the coarse watch.family: jieqi and Dark Mini Xiangqi both render in the
-// 'xiangqi' family, so a family key would resolve both channels to the same
-// tenant. A channel switch across renderers must re-mount, not loadGame.
+// Which replay renderer a game needs: a game spec id (the registry's unambiguous
+// tenant key) or 'chess' (the chessground fallback for the unregistered dark-chess
+// stack). It must NOT key on the coarse watch.family: jieqi and Dark Mini Xiangqi
+// both render in the 'xiangqi' family, so a family key would resolve both to the
+// same tenant. A switch across renderers must re-mount, not loadGame.
 type WatchRendererKind = string;
+
+// Resolve the renderer for the SELECTED GAME by its own variant, not the
+// channel's — the Engines channel (and, later, a "Top" auto-channel) is
+// cross-variant, so one channel can hold an xiangqi game and a chess game that
+// need different renderers. Each game carries its variant; map it to a spec id
+// the same way the homepage showcase cycler does, so the two dispatchers can't
+// drift. A renderer switch across games re-mounts (chessground vs tenant SVG
+// can't loadGame across). Falls back to the channel's primary spec only when the
+// roomId is absent from the unlocked list (shouldn't happen post-hydrate).
+export function watchRendererKindForGame(feed: WatchFeed, roomId: string): WatchRendererKind {
+  const game = feed.unlocked.find((entry) => entry.roomId === roomId);
+  if (game) return showcaseRendererKindForSpec(specIdForShowcaseVariant(game.variant));
+  const channel = feed.channels.find((entry) => entry.id === feed.activeChannel);
+  return showcaseRendererKindForSpec(channel?.gameSpecIds[0] ?? null);
+}
 
 const WATCH_ACTIVE_POLL_MS = 15_000;
 const WATCH_IDLE_POLL_MS = 60_000;
@@ -198,16 +212,6 @@ export async function mountWatch(root: HTMLElement): Promise<void> {
     syncMoveList(watchPly, watchMaxPly);
   };
 
-  const watchRendererKind = (feed: WatchFeed): WatchRendererKind => {
-    const channel = feed.channels.find((entry) => entry.id === feed.activeChannel);
-    const specId = channel?.gameSpecIds[0] ?? null;
-    // Key on the channel's primary spec id (unambiguous per tenant) so two
-    // channels in the same render family resolve to distinct renderers; only a
-    // tenant that owns a watch renderer counts, else fall back to chessground.
-    // Shared with the homepage showcase cycler so the two dispatchers can't drift.
-    return showcaseRendererKindForSpec(specId);
-  };
-
   // Mount the right-kind replay handle, re-mounting when the family changes
   // (chess chessground vs xiangqi SVG can't loadGame across each other); else
   // reuse the handle and just load the next game.
@@ -216,7 +220,7 @@ export async function mountWatch(root: HTMLElement): Promise<void> {
     roomId: string,
     seed?: WatchInitialReplay,
   ): Promise<void> => {
-    const kind = watchRendererKind(feed);
+    const kind = watchRendererKindForGame(feed, roomId);
     if (!replayHandle || replayHandleKind !== kind) {
       // Family change (e.g. switching the channel to Crossroads): the live
       // renderer can't load the new game, so it's torn down and a different
