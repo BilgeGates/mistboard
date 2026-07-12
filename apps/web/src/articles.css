@@ -689,6 +689,9 @@
   align-items: center;
   gap: 8px;
   padding: 4px 0;
+  /* Brighter than the muted TOC default; the marker glyph tracks this via
+     currentColor, and the active entry still stands out (bold + accent). */
+  color: var(--site-text);
 }
 
 .article-variant-sidebar .articles-index-card-thumb {
@@ -713,11 +716,33 @@
   background: transparent;
   box-shadow: none;
   overflow: visible;
+  /* No dimming: the rail markers read at full strength like the labels. */
+  opacity: 1;
+}
+
+/* The dark-theme card-thumb rule (theme.css) paints a panel-soft square behind
+   every .articles-index-card-thumb; the rail markers want no tile, so restore
+   the transparent background at higher specificity in that theme too. */
+:root[data-effective-theme="dark"] .article-variant-sidebar .variant-marker-thumb {
+  background: transparent;
+  border-color: transparent;
+}
+
+/* Dark theme routes .article-toc-nav a through a broad :is() muted rule that
+   outranks the base .article-variant-link brightening above. Lift the resting
+   rail label to full text colour without touching the hover/active accent. */
+:root[data-effective-theme="dark"]
+  .article-toc-nav
+  a.article-variant-link:not(.active):not(:hover) {
+  color: var(--site-text);
 }
 
 .article-variant-sidebar .variant-marker-thumb .variant-marker {
   width: 30px;
   height: 30px;
+  /* Track the link colour so the glyph brightens with the label and tints on
+     the active/hover states instead of sitting at a fixed muted grey. */
+  --variant-marker-color: currentColor;
 }
 
 .article-variant-label {
