@@ -236,6 +236,22 @@
   overflow: hidden;
 }
 
+/* Post-completion analysis adds a third child (the engine panel). Drop the fixed
+   two-row shape so trainer + actions + engine stack naturally, capped at the
+   board height with a scroll rather than clipping the engine off-screen. */
+.puzzle-side-panel--analysis {
+  grid-template-rows: none;
+  grid-auto-rows: min-content;
+  align-content: start;
+  height: auto;
+  max-height: var(--puzzle-surface-size);
+  overflow: auto;
+}
+
+.puzzle-analysis-panel {
+  min-height: 0;
+}
+
 .puzzle-trainer-panel,
 .puzzle-left-card {
   border: 1px solid var(--site-border-soft);
@@ -322,6 +338,18 @@
   color: var(--site-heading);
   font-size: 16px;
   font-weight: 500;
+}
+
+/* Stable puzzle code (e.g. "#bMpKA"), lichess-style: an accent link to the
+   puzzle's canonical URL, sitting inside the heading-styled first line. */
+.puzzle-code-link {
+  color: var(--site-link);
+  text-decoration: none;
+  font-variant-numeric: tabular-nums;
+}
+
+.puzzle-code-link:hover {
+  text-decoration: underline;
 }
 
 /* "From game" attribution: one row per player, a color disc + name, with a

@@ -17,6 +17,7 @@ import {
   type FortressXiangqiMove,
   type FortressXiangqiPlayerView,
   type FortressXiangqiSquare,
+  fsfUciToXiangqiSquares,
   getDropMiniXiangqiPlayerView,
   getFortressXiangqiPlayerView,
   getJunglePlayerView,
@@ -34,7 +35,10 @@ import {
   type MiniXiangqiMove,
   type MiniXiangqiSquare,
   oppositeMiniXiangqiColor,
+  puzzleShortCode,
+  resolvePuzzleShortCode,
   type StandardXiangqiPlayerView,
+  standardXiangqiEngineFen,
   XIANGQI_SPEC_ID,
   type XiangqiColor,
   type XiangqiGameState,
@@ -78,6 +82,8 @@ import {
   renderMiniXiangqiBoardSvg,
 } from './live-mini-xiangqi-render.js';
 import { initLiveSound, playSound } from './live-sound.js';
+import { engineArrowsFromLines } from './review/engine/engine-arrows.js';
+import { createEnginePanel } from './review/engine/engine-panel.js';
 import { buildNav } from './site-shell.js';
 import { setBoardFamily, xiangqiAppearanceChangedEvent } from './theme.js';
 import { renderVariantMarker } from './variant-markers.js';
@@ -87,6 +93,8 @@ import { installHandDrag } from './variant-tenant/hand-drag.js';
 import {
   animateXiangqiBoardMove,
   XIANGQI_PIECE_SIZE,
+  type XiangqiBoardArrow,
+  xiangqiArrowSvg,
   xiangqiBoardSvg,
   xiangqiClickResult,
   xiangqiPieceGhostSvg,
@@ -218,6 +226,11 @@ type PuzzleSession = {
   // One-shot flag: focus the next-puzzle button on the render right after a
   // solve, so Enter or Space advances without reaching for the mouse.
   focusNext: boolean;
+  // Post-completion engine analysis (standard xiangqi only). Created lazily the
+  // first time a completed puzzle renders, then persists across renderSession()
+  // rebuilds so the engine toggle + eval + arrows survive a full re-render.
+  // Disposed when the session is replaced (see selectPuzzle).
+  analysis?: PuzzleAnalysisController | null;
 };
 
 type PuzzleNavigation = {
@@ -420,6 +433,10 @@ export async function mountPuzzles(
   const selectPuzzle = async (id: string, pushUrl: boolean): Promise<void> => {
     clearAutoNextTimer();
     ratingDelta = null;
+    // A deep link (or popstate) may carry a short code (Puzzle #bMpKA) instead
+    // of the full id. Normalize to the full id up front so selection, queue
+    // matching, the pushed URL, and solved-state keys all use the canonical id.
+    id = resolveToFullPuzzleId(id, summaries);
     const summary = summaries.find((puzzle) => puzzle.id === id);
     if (summary && !queueSummaries().some((puzzle) => puzzle.id === id)) {
       variantFilter = summary.variant;
@@ -439,6 +456,9 @@ export async function mountPuzzles(
     if (pushUrl && window.location.pathname !== nextPath) {
       window.history.pushState(null, '', nextPath);
     }
+    // Tear down the outgoing puzzle's engine (worker + arrows) before swapping
+    // in the next session, so a stale ceval handle does not outlive its board.
+    session?.analysis?.dispose();
     session = createPuzzleSession(puzzle);
     markPuzzleSeen(id);
     renderSession();
@@ -485,6 +505,9 @@ export async function mountPuzzles(
   // visits instead of being identical every time. Computed once per visit so
   // navigation stays stable while solving; filtering by variant preserves it.
   summaries = rotatePuzzleOrder(summaries, seenPuzzles);
+  // The deep-link path may be a short code; resolve it to the full id before it
+  // drives variant selection and queue matching below.
+  if (selectedId) selectedId = resolveToFullPuzzleId(selectedId, summaries);
   const directSummary = selectedId ? summaries.find((puzzle) => puzzle.id === selectedId) : null;
   // A normal visit defaults to the surfaced variant (Fortress); a direct deep
   // link into any puzzle still resolves so shared/bookmarked URLs keep working.
@@ -581,7 +604,7 @@ function renderQueuePanel(host: HTMLElement, props: QueuePanelProps): void {
   if (current) {
     infoCard.append(
       puzzleInfoRow('target', [
-        puzzleInfoLine(`Puzzle ${puzzleNumberLabel(currentIndex)}`),
+        puzzleCodeLine(current),
         puzzleInfoLine('Rating: hidden'),
         puzzleInfoLine(solvedIds.has(current.id) ? 'Solved' : 'Played locally'),
       ]),
@@ -840,8 +863,20 @@ function puzzleInfoDivider(): HTMLHRElement {
   return divider;
 }
 
-function puzzleNumberLabel(index: number): string {
-  return `#${String(index + 1).padStart(3, '0')}`;
+// Stable, lichess-style puzzle identifier: "Puzzle #bMpKA", where the code is a
+// deterministic hash of the puzzle id (unlike the old queue position, which
+// shuffled every visit). The code links to the puzzle's canonical full-id URL;
+// hand-typing /puzzles/<code> also resolves (see resolveToFullPuzzleId).
+function puzzleCodeLine(puzzle: PuzzleSummary): HTMLSpanElement {
+  const line = document.createElement('span');
+  line.append('Puzzle ');
+  const link = document.createElement('a');
+  link.className = 'puzzle-code-link';
+  link.href = `/puzzles/${encodeURIComponent(puzzle.id)}`;
+  link.dataset.puzzleCode = puzzleShortCode(puzzle.id);
+  link.textContent = `#${puzzleShortCode(puzzle.id)}`;
+  line.append(link);
+  return line;
 }
 
 function renderPuzzleDetail(
@@ -869,6 +904,21 @@ function renderPuzzleDetail(
   trainer.className = 'puzzle-trainer-panel';
   trainer.append(moveListPanel(session), feedbackPanel(session, navigation, renderSession));
   side.append(trainer, actionPanel(session, renderSession));
+
+  // Post-completion engine analysis (standard xiangqi): once the puzzle is over
+  // (solved or its solution revealed), surface the local-engine panel + board
+  // arrows. Gated to non-spoiler states only — a bare wrong move keeps solving
+  // open, so the engine stays hidden until the outcome is locked. The controller
+  // persists on the session across renders (see PuzzleAnalysisController).
+  if (puzzleAnalysisSupported(session) && isPuzzleComplete(session)) {
+    if (!session.analysis) session.analysis = createPuzzleAnalysis();
+    // The engine panel is a third child in a column sized to the board; let the
+    // column scroll instead of clipping (grid is otherwise a fixed 2-row shape).
+    side.classList.add('puzzle-side-panel--analysis');
+    side.append(session.analysis.el);
+    session.analysis.refresh(session, board);
+  }
+
   boardPanel.append(board, side);
   host.append(boardPanel);
 
@@ -1241,6 +1291,84 @@ function xiangqiPerspective(session: PuzzleSession): XiangqiColor {
   return (session.puzzle.sideToMove as XiangqiColor | null) ?? 'red';
 }
 
+// ── Post-completion engine analysis (standard xiangqi only) ──────────────────
+// A lichess-style local-engine surface shown once a xiangqi puzzle is finished
+// (solved, failed, or revealed): an on/off toggle, eval + principal-variation
+// lines, and the engine's candidate moves drawn as arrows on the puzzle board.
+// Reuses the review board's ceval stack unchanged; the only puzzle-specific bit
+// is feeding the engine a FEN of the displayed position — mined puzzles begin
+// mid-game, so there is no start-position move list to replay.
+type PuzzleAnalysisController = {
+  el: HTMLElement;
+  // Re-point the engine at the currently displayed position and (re-)apply the
+  // engine arrows to the freshly rebuilt board host. Called after each render.
+  refresh(session: PuzzleSession, boardHost: HTMLElement): void;
+  dispose(): void;
+};
+
+// Which puzzle families expose the post-completion analysis engine. Standard
+// xiangqi only for now: it maps to the ceval 'xiangqi' variant and we can
+// serialize its state to an engine FEN (standardXiangqiEngineFen). This is the
+// deliberate extension point for per-variant engines — as each family gets its
+// own engine (Fortress already has a ceval variant; Mini/Jungle will follow),
+// add it here and generalise createPuzzleAnalysis's hardcoded 'xiangqi' variant
+// + FEN builder to dispatch on session.puzzle.variant.
+function puzzleAnalysisSupported(session: PuzzleSession): boolean {
+  return session.puzzle.variant === XIANGQI_SPEC_ID;
+}
+
+function formatXiangqiEngineMove(uci: string): string {
+  const squares = fsfUciToXiangqiSquares(uci);
+  return squares ? `${squares.from}-${squares.to}` : uci;
+}
+
+function createPuzzleAnalysis(): PuzzleAnalysisController {
+  let arrows: XiangqiBoardArrow[] = [];
+  let boardHost: HTMLElement | null = null;
+  let perspective: XiangqiColor = 'red';
+  let lastFen: string | null = null;
+
+  const paintArrows = (): void => {
+    const layer = boardHost?.querySelector('.xq-live-arrows');
+    if (layer)
+      layer.innerHTML = arrows.map((arrow) => xiangqiArrowSvg(arrow, perspective)).join('');
+  };
+
+  const panel = createEnginePanel({
+    variant: 'xiangqi',
+    formatPvMove: formatXiangqiEngineMove,
+    onLines: (lines) => {
+      arrows = lines?.length ? engineArrowsFromLines(lines) : [];
+      paintArrows();
+    },
+  });
+
+  const container = document.createElement('section');
+  container.className = 'puzzle-analysis-panel';
+  container.append(panel.el);
+
+  return {
+    el: container,
+    refresh(session, host) {
+      boardHost = host;
+      perspective = xiangqiPerspective(session);
+      // Re-apply the last-known arrows onto the rebuilt board immediately (the
+      // board's arrow layer is regenerated empty on every render).
+      paintArrows();
+      const fen = standardXiangqiEngineFen(puzzleReplayState(session) as XiangqiGameState);
+      if (fen !== lastFen) {
+        lastFen = fen;
+        // setPosition clears arrows (onLines(null)) then re-evaluates if the
+        // engine is on; a no-op while the engine is off beyond storing the FEN.
+        panel.setPosition([], fen);
+      }
+    },
+    dispose() {
+      panel.dispose();
+    },
+  };
+}
+
 function xiangqiLiveView(session: PuzzleSession): StandardXiangqiPlayerView {
   return getStandardXiangqiPlayerView(
     session.state as XiangqiGameState,
@@ -1581,22 +1709,15 @@ function solvedPanel(navigation: PuzzleNavigation): HTMLElement {
 
   const feedbackRow = document.createElement('div');
   feedbackRow.className = 'puzzle-solved-feedback';
-  // The target opens the analysis board on lichess. We don't have one yet, so
-  // this is a disabled stub for now.
-  const analysis = document.createElement('button');
-  analysis.type = 'button';
-  analysis.className = 'puzzle-analysis-button';
-  analysis.innerHTML = targetAvatarSvg();
-  analysis.title = 'Analysis board (coming soon)';
-  analysis.setAttribute('aria-label', 'Open analysis board (coming soon)');
-  analysis.disabled = true;
+  // Standard xiangqi now gets an inline local-engine analysis panel below (see
+  // renderPuzzleDetail), so the old disabled "analysis board" stub is gone.
   const prompt = document.createElement('span');
   prompt.className = 'puzzle-vote-prompt';
   prompt.textContent = 'Did you like this puzzle?';
   const votes = document.createElement('div');
   votes.className = 'puzzle-vote-actions';
   votes.append(puzzleVoteButton('up', navigation), puzzleVoteButton('down', navigation));
-  feedbackRow.append(analysis, prompt, votes);
+  feedbackRow.append(prompt, votes);
 
   panel.append(title, cont, feedbackRow);
   return panel;
@@ -1721,6 +1842,14 @@ function isSessionSolved(session: PuzzleSession): boolean {
   // missed winning-advantage puzzles, whose solution line ends while the game
   // is still in progress; a finished board still counts for mate/win lines.
   return session.solved || session.state.status.type === 'finished';
+}
+
+// The puzzle outcome is locked: solved, or the solution was revealed (a give-up
+// that plays the answer out). A bare wrong move does NOT count — the trainer
+// keeps solving open (retry / hint / view-solution), so the analysis engine
+// stays hidden to avoid spoiling a still-open attempt.
+function isPuzzleComplete(session: PuzzleSession): boolean {
+  return isSessionSolved(session) || session.revealed;
 }
 
 function fillPuzzleReserveStrip(
@@ -2531,6 +2660,20 @@ function isReplayLive(session: PuzzleSession): boolean {
 function puzzleIdFromPath(pathname: string): string | null {
   const match = pathname.match(/^\/puzzles\/([^/]+)$/);
   return match ? decodeURIComponent(match[1]!) : null;
+}
+
+// The URL slug is normally the full puzzle id, but the info-card code link and
+// hand-typed short URLs may carry a lichess-style short code. Resolve a code
+// against the loaded summaries; pass through anything that already is a full id
+// (or does not resolve, so selectPuzzle can surface "Puzzle not found").
+function resolveToFullPuzzleId(idOrCode: string, summaries: readonly PuzzleSummary[]): string {
+  if (summaries.some((puzzle) => puzzle.id === idOrCode)) return idOrCode;
+  return (
+    resolvePuzzleShortCode(
+      idOrCode,
+      summaries.map((puzzle) => puzzle.id),
+    ) ?? idOrCode
+  );
 }
 
 function loadSolvedPuzzleIds(): Set<string> {

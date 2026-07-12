@@ -55,8 +55,13 @@ export interface CevalUpdate {
 }
 
 export interface CevalRequest {
-  /** Move history from the start position, in engine UCI. */
+  /** Move history from the base position, in engine UCI. */
   movesUci: string[];
+  /** Base position as an engine FEN. Omit to analyse from the standard start
+   *  position (the review board's whole-game replay); set it to analyse a
+   *  mid-game position that has no start-position move list, e.g. a mined puzzle
+   *  that begins partway through a game. `movesUci` are then applied on top. */
+  initialFen?: string;
   /** Number of ranked lines to return (default 1). */
   multiPv?: number;
   /** Cap search depth; the engine streams shallower updates first (default 18). */
@@ -282,10 +287,9 @@ class Ceval implements CevalHandle {
     core.send('stop');
     core.send(`setoption name UCI_Variant value ${this.variant}`);
     core.send(`setoption name MultiPV value ${multiPv}`);
+    const base = req.initialFen ? `fen ${req.initialFen}` : 'startpos';
     core.send(
-      req.movesUci.length
-        ? `position startpos moves ${req.movesUci.join(' ')}`
-        : 'position startpos',
+      req.movesUci.length ? `position ${base} moves ${req.movesUci.join(' ')}` : `position ${base}`,
     );
 
     const byPv = new Map<number, CevalLine>();

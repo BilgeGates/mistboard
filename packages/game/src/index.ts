@@ -7,6 +7,7 @@ export * from './engine-protocol.js';
 export * from './events.js';
 export * from './game-specs.js';
 export * from './notation.js';
+export * from './puzzle-short-code.js';
 export * from './puzzles-fortress-xiangqi.js';
 export * from './puzzles-jungle.js';
 export * from './puzzles-mini-xiangqi.js';

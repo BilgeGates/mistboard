@@ -397,6 +397,12 @@ test('isReviewShellRoute matches postgame review documents (COOP/COEP scope)', (
   // The standalone analysis board mounts the same ceval engine, so it needs the
   // COOP/COEP isolation headers too (else SharedArrayBuffer is unavailable).
   assert.equal(isReviewShellRoute('/analysis/xiangqi'), true);
+  // The puzzle trainer mounts the same ceval engine after a puzzle is completed.
+  // Both the list and a specific puzzle must be isolated, because the isolation
+  // is fixed at document load and pushState nav between puzzles never reloads.
+  assert.equal(isReviewShellRoute('/puzzles'), true);
+  assert.equal(isReviewShellRoute('/puzzles/xq-mined-hxq_abc123-60'), true);
+  assert.equal(isReviewShellRoute('/puzzles/bMpKA'), true);
 });
 
 test('isReviewShellRoute excludes non-review surfaces (keeps them non-isolated)', () => {

@@ -5,6 +5,7 @@ import {
   FORTRESS_XIANGQI_PUZZLES,
   JUNGLE_PUZZLES,
   MINI_XIANGQI_PUZZLES,
+  puzzleShortCode,
   XIANGQI_PUZZLES,
 } from '@mistboard/game';
 import type { HttpApiContext } from './routes/lib.js';
@@ -198,6 +199,24 @@ test('puzzle list filters to standard Xiangqi puzzles', async () => {
     body.puzzles.every((puzzle) => puzzle.solution === undefined),
     true,
   );
+});
+
+test('puzzle detail resolves a lichess-style short code to the full puzzle', async () => {
+  const target = XIANGQI_PUZZLES[0]!;
+  const code = puzzleShortCode(target.id);
+  const response = await route(`/api/puzzles/${code}`);
+  const body = JSON.parse(response.body) as { puzzle: { id: string } };
+
+  assert.equal(response.status, 200);
+  // The short-code request resolves to the canonical full-id puzzle.
+  assert.equal(body.puzzle.id, target.id);
+});
+
+test('puzzle detail still 404s for an unknown short code', async () => {
+  // Well-formed code shape, but no puzzle hashes to it.
+  const response = await route('/api/puzzles/zzzzz');
+  assert.equal(response.status, 404);
+  assert.deepEqual(JSON.parse(response.body), { error: 'not_found' });
 });
 
 test('puzzle rating route accepts the standard xiangqi variant', async () => {

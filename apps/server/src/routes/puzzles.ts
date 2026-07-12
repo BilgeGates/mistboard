@@ -27,6 +27,7 @@ import {
   miniXiangqiPuzzleById,
   miniXiangqiPuzzleNextMove,
   miniXiangqiPuzzleSideToMove,
+  resolvePuzzleShortCode,
   standardXiangqiPuzzleById,
   standardXiangqiPuzzleNextMove,
   standardXiangqiPuzzleSideToMove,
@@ -209,13 +210,40 @@ export async function tryHandle(
   return true;
 }
 
-function puzzleById(id: string): PublicPuzzle | null {
+// Ids of every puzzle resolvable below, built once for short-code inversion.
+// Keep the four registries in sync with puzzleByExactId().
+let allPuzzleIdsCache: string[] | null = null;
+function allPuzzleIds(): string[] {
+  if (!allPuzzleIdsCache) {
+    allPuzzleIdsCache = [
+      ...MINI_XIANGQI_PUZZLES,
+      ...FORTRESS_XIANGQI_PUZZLES,
+      ...JUNGLE_PUZZLES,
+      ...XIANGQI_PUZZLES,
+    ].map((puzzle) => puzzle.id);
+  }
+  return allPuzzleIdsCache;
+}
+
+function puzzleByExactId(id: string): PublicPuzzle | null {
   return (
     miniXiangqiPuzzleById(id) ??
     fortressXiangqiPuzzleById(id) ??
     junglePuzzleById(id) ??
     standardXiangqiPuzzleById(id)
   );
+}
+
+// Accepts either a full puzzle id (the URL slug today) or a lichess-style short
+// code (e.g. "bMpKA", shown in the puzzle info card). Full ids resolve directly;
+// only when that misses do we invert a short code — resolvePuzzleShortCode
+// short-circuits on anything that is not code-shaped, so this stays cheap for
+// the common full-id path.
+function puzzleById(id: string): PublicPuzzle | null {
+  const direct = puzzleByExactId(id);
+  if (direct) return direct;
+  const fullId = resolvePuzzleShortCode(id, allPuzzleIds());
+  return fullId ? puzzleByExactId(fullId) : null;
 }
 
 function puzzleSideToMove(puzzle: PublicPuzzle): ReturnType<typeof miniXiangqiPuzzleSideToMove> {

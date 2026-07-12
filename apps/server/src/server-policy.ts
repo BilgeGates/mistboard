@@ -179,21 +179,32 @@ export function isClientRoute(pathname: string): boolean {
 }
 
 // Review-shell document routes: the postgame board at /game/:id and each
-// /<variant>/game/:id, plus the standalone analysis board /analysis/:variant.
-// These serve the review SPA shell, which can mount the in-browser analysis
-// engine (WASM threads → SharedArrayBuffer → requires cross-origin isolation).
-// server-http sends COOP/COEP on exactly these responses so the isolation stays
-// scoped to the review surface. Live /room/ routes are deliberately excluded:
-// the engine is postgame-only, and isolation there would buy nothing. Keep the
-// single optional variant segment in sync with the /<variant>/game/ tenants in
-// isClientRoute above.
+// /<variant>/game/:id, the standalone analysis board /analysis/:variant, study
+// pages, and the puzzle trainer /puzzles(/:id). These serve a SPA shell that can
+// mount the in-browser analysis engine (WASM threads, SharedArrayBuffer, which
+// requires cross-origin isolation). server-http sends COOP/COEP on exactly these
+// responses so the isolation stays scoped to these surfaces. Live /room/ routes
+// are deliberately excluded: the engine is postgame-only, and isolation there
+// would buy nothing.
+//
+// Both /puzzles (the list) and /puzzles/:id are included: cross-origin isolation
+// is fixed at document-load time and client-side pushState navigation between
+// puzzles does not re-request the document, so whichever puzzle URL the user
+// first loads must already carry the headers for the post-completion engine to
+// run. COEP is `credentialless` (see server-http), so isolating the puzzle page
+// does not force CORP on its cross-origin subresources.
+//
+// Keep the single optional variant segment in sync with the /<variant>/game/
+// tenants in isClientRoute above.
 export function isReviewShellRoute(pathname: string): boolean {
   const normalized = pathname.replace(/\/+$/, '') || '/';
   return (
     /^(?:\/[a-z0-9-]+)?\/game\/[^/]+$/.test(normalized) ||
     /^\/historical-xiangqi\/game\/[^/]+$/.test(normalized) ||
     /^\/analysis\/[a-z0-9-]+$/.test(normalized) ||
-    /^\/study\/[A-Za-z0-9]+$/.test(normalized)
+    /^\/study\/[A-Za-z0-9]+$/.test(normalized) ||
+    normalized === '/puzzles' ||
+    /^\/puzzles\/[^/]+$/.test(normalized)
   );
 }
 
