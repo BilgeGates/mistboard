@@ -99,29 +99,34 @@
 
 .learn-xq-tile-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-  gap: 14px;
+  grid-template-columns: repeat(auto-fill, minmax(400px, 1fr));
+  gap: 16px;
 }
 
 /* Neutral base; the state modifiers below paint the lichess-style tint gradient
-   (green = done, blue = ongoing, grey = locked). */
+   (green = done, blue = ongoing, violet = locked). */
 .learn-xq-tile {
   position: relative;
   display: flex;
   align-items: center;
-  gap: 14px;
-  padding: 14px 44px 14px 18px;
-  min-height: 84px;
-  border-radius: 8px;
+  gap: 0;
+  padding: 10px 48px 10px 0;
+  min-height: 90px;
+  border-radius: var(--site-radius);
   border: 1px solid var(--site-border-soft);
   background: var(--site-panel);
   color: inherit;
   text-decoration: none;
-  overflow: hidden;
   box-shadow: 0 3px 5px 0 rgba(0, 0, 0, 0.07);
   transition:
     transform 120ms ease,
     box-shadow 120ms ease;
+  isolation: isolate;
+}
+
+.learn-xq-tile > :not(.learn-xq-ribbon-wrap) {
+  position: relative;
+  z-index: 1;
 }
 
 .learn-xq-tile:hover {
@@ -130,19 +135,30 @@
 
 .learn-xq-tile-text h3 {
   margin: 0;
-  font-size: 1.15rem;
+  font-family: "Roboto", "Noto Sans", sans-serif;
+  font-size: 1.6rem;
+  font-weight: 400;
+  line-height: 1;
   color: var(--site-heading);
 }
 
 .learn-xq-tile-text p {
-  margin: 2px 0 0;
+  margin: 4px 0 0;
   color: var(--site-muted);
-  font-size: 0.9rem;
+  font-size: 1rem;
+  line-height: 1.2;
+}
+
+.learn-xq-tile-illus {
+  display: grid;
+  flex: 0 0 102px;
+  place-items: center;
+  opacity: 0.68;
 }
 
 .learn-xq-tile-illus :is(svg) {
-  width: 56px;
-  height: 56px;
+  width: 70px;
+  height: 70px;
 }
 
 .learn-xq-tile-glyph {
@@ -154,42 +170,72 @@
    funnel tiles share this treatment (lichess renders them as completed). */
 .learn-xq-tile--done,
 .learn-xq-tile--link {
-  border-color: color-mix(in srgb, var(--site-accent) 45%, var(--site-border-soft));
+  border-color: color-mix(in srgb, var(--site-accent) 65%, var(--site-border-soft));
   background: linear-gradient(
-    0deg,
-    color-mix(in srgb, var(--site-accent) 30%, var(--site-panel)),
-    color-mix(in srgb, var(--site-accent) 12%, var(--site-panel)) 100px
+    180deg,
+    color-mix(in srgb, var(--site-accent) 40%, var(--site-panel)),
+    color-mix(in srgb, var(--site-accent) 20%, var(--site-panel)) 100px
   );
 }
 
-/* Ongoing: blue tint + an attention pulse, so the next stage to play stands out. */
+.learn-xq-tile--done .learn-xq-tile-illus {
+  color: var(--site-accent);
+  opacity: 0.82;
+}
+
+/* Ongoing: blue tint + Lichess's traveling perimeter highlight. */
 .learn-xq-tile--ongoing {
-  border-color: color-mix(in srgb, var(--site-link) 48%, var(--site-border-soft));
+  border-color: color-mix(in srgb, var(--site-link) 65%, var(--site-border-soft));
   background: linear-gradient(
-    0deg,
-    color-mix(in srgb, var(--site-link) 26%, var(--site-panel)),
-    color-mix(in srgb, var(--site-link) 10%, var(--site-panel)) 100px
+    180deg,
+    color-mix(in srgb, var(--site-link) 40%, var(--site-panel)),
+    color-mix(in srgb, var(--site-link) 20%, var(--site-panel)) 100px
   );
-  animation: learn-xq-attention 1.6s ease-in-out infinite;
 }
 
-/* Future: locked, greyed and dimmed. */
+.learn-xq-tile--ongoing::after {
+  --learn-xq-border-angle: 0turn;
+  position: absolute;
+  inset: -1px;
+  z-index: 2;
+  border: 3px solid transparent;
+  border-radius: var(--site-radius);
+  background: conic-gradient(
+      from var(--learn-xq-border-angle),
+      transparent 25%,
+      color-mix(in srgb, var(--site-link) 72%, #12283c),
+      color-mix(in srgb, var(--site-link) 20%, transparent)
+    )
+    border-box;
+  content: "";
+  pointer-events: none;
+  animation: learn-xq-border-spin 3.5s linear infinite;
+  mask:
+    linear-gradient(#fff 0 0) content-box,
+    linear-gradient(#fff 0 0);
+  mask-composite: exclude;
+}
+
+/* Future: locked, violet and visually quieter than the actionable stage. */
 .learn-xq-tile--future {
-  opacity: 0.7;
+  --learn-xq-future: hsl(274, 65%, 70%);
+  border-color: color-mix(in srgb, var(--learn-xq-future) 65%, var(--site-border-soft));
   background: linear-gradient(
-    0deg,
-    color-mix(in srgb, var(--site-muted) 16%, var(--site-panel)),
-    color-mix(in srgb, var(--site-muted) 6%, var(--site-panel)) 100px
+    180deg,
+    color-mix(in srgb, var(--learn-xq-future) 40%, var(--site-panel)),
+    color-mix(in srgb, var(--learn-xq-future) 20%, var(--site-panel)) 100px
   );
 }
 
-@keyframes learn-xq-attention {
-  0%,
-  100% {
-    box-shadow: 0 0 0 0 color-mix(in srgb, var(--site-link) 55%, transparent);
-  }
-  50% {
-    box-shadow: 0 0 0 5px color-mix(in srgb, var(--site-link) 18%, transparent);
+@property --learn-xq-border-angle {
+  syntax: "<angle>";
+  inherits: true;
+  initial-value: 0turn;
+}
+
+@keyframes learn-xq-border-spin {
+  to {
+    --learn-xq-border-angle: 1turn;
   }
 }
 
@@ -197,28 +243,51 @@
    the top-right corner, carrying stars (done) or progress text (ongoing). */
 .learn-xq-ribbon-wrap {
   position: absolute;
-  top: -1px;
-  right: -1px;
-  width: 84px;
-  height: 84px;
+  top: -4px;
+  right: -3px;
+  width: 88px;
+  height: 88px;
   overflow: hidden;
   pointer-events: none;
+  z-index: 3;
 }
 
 .learn-xq-ribbon {
-  position: absolute;
-  top: 14px;
-  left: -32px;
-  width: 118px;
-  padding: 5px 0;
+  --learn-xq-ribbon-fade: rgba(17, 17, 17, 0.24);
+  position: relative;
+  z-index: 1;
+  top: 15px;
+  left: -4px;
+  width: 120px;
+  padding: 7px 0;
   transform: rotate(45deg);
   text-align: center;
-  font-size: 0.78rem;
+  font-size: 0.94rem;
   font-weight: 700;
-  line-height: 1.1;
   color: #4a4636;
   text-shadow: 0 1px 0 rgba(255, 255, 255, 0.45);
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.28);
+  box-shadow: 1px 0 3px rgba(0, 0, 0, 0.3);
+}
+
+.learn-xq-ribbon::before,
+.learn-xq-ribbon::after {
+  position: absolute;
+  top: 0;
+  width: 32px;
+  height: 100%;
+  content: "";
+  mix-blend-mode: overlay;
+  pointer-events: none;
+}
+
+.learn-xq-ribbon::before {
+  left: 0;
+  background: linear-gradient(90deg, var(--learn-xq-ribbon-fade), transparent);
+}
+
+.learn-xq-ribbon::after {
+  right: 0;
+  background: linear-gradient(270deg, var(--learn-xq-ribbon-fade), transparent);
 }
 
 .learn-xq-ribbon--done {
@@ -230,7 +299,7 @@
 }
 
 .learn-xq-ribbon .learn-xq-star {
-  font-size: 0.9rem;
+  font-size: 0.92rem;
 }
 
 .learn-xq-what-next-copy {
@@ -262,32 +331,102 @@
   margin-bottom: 10px;
 }
 
-.learn-xq-run-side h3 {
-  margin: 10px 0 4px;
-  font-size: 0.8rem;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
+.learn-xq-side-category {
+  border-top: 1px solid var(--site-border-soft);
+}
+
+.learn-xq-side-category:last-child {
+  border-bottom: 1px solid var(--site-border-soft);
+}
+
+.learn-xq-side-category h3 {
+  margin: 0;
+}
+
+.learn-xq-side-category-toggle {
+  display: flex;
+  width: 100%;
+  min-height: 48px;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 12px;
+  border: 0;
+  background: transparent;
   color: var(--site-muted);
+  cursor: pointer;
+  font: inherit;
+  font-size: 1rem;
+  text-align: left;
+}
+
+.learn-xq-side-category-toggle:hover {
+  background: color-mix(in srgb, var(--site-link) 12%, transparent);
+  color: var(--site-heading);
+}
+
+.learn-xq-side-category.expanded .learn-xq-side-category-toggle {
+  background: var(--site-link);
+  color: #fff;
+}
+
+.learn-xq-side-category-chevron {
+  font-size: 1.7rem;
+  line-height: 1;
+  transition: transform 160ms ease;
+}
+
+.learn-xq-side-category.expanded .learn-xq-side-category-chevron {
+  transform: rotate(90deg);
+}
+
+.learn-xq-side-category-stages[hidden] {
+  display: none;
 }
 
 .learn-xq-side-stage {
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 5px 8px;
-  border-radius: 6px;
+  min-height: 48px;
+  padding: 0 8px 0 0;
   color: var(--site-text);
   text-decoration: none;
 }
 
 .learn-xq-side-stage.active {
-  background: var(--site-accent-soft);
+  background: color-mix(in srgb, var(--site-link) 20%, transparent);
   color: var(--site-heading);
   font-weight: 600;
 }
 
 .learn-xq-side-stage.done {
   color: var(--site-muted);
+}
+
+.learn-xq-side-stage:hover {
+  background: color-mix(in srgb, var(--site-link) 12%, transparent);
+}
+
+.learn-xq-side-stage.done:hover {
+  background: color-mix(in srgb, var(--site-accent) 13%, transparent);
+}
+
+.learn-xq-side-stage.done .learn-xq-side-illus {
+  background: var(--site-accent);
+}
+
+.learn-xq-side-illus {
+  display: grid;
+  width: 48px;
+  height: 48px;
+  flex: 0 0 48px;
+  place-items: center;
+  background: color-mix(in srgb, var(--site-link) 70%, white);
+  color: #fff;
+}
+
+.learn-xq-side-stage.active .learn-xq-side-illus {
+  background: var(--site-link);
 }
 
 .learn-xq-side-illus :is(svg) {
@@ -449,14 +588,22 @@
 }
 
 .learn-xq-overlay-card--complete .learn-xq-star {
-  font-size: 2.4rem;
+  font-size: 3.45rem;
 }
 
 .learn-xq-score {
-  font-size: 1.6rem;
-  font-weight: 800;
-  color: var(--site-heading);
-  margin: 6px 0;
+  color: #d88916;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 1rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  margin: 0 0 17px;
+  text-transform: uppercase;
+}
+
+.learn-xq-score span {
+  font-family: "Noto Sans", sans-serif;
+  font-weight: 400;
 }
 
 /* ── Overlays ───────────────────────────────────────────────────────────── */
@@ -471,11 +618,11 @@
 }
 
 .learn-xq-overlay-card {
-  width: min(420px, calc(100vw - 48px));
+  width: min(350px, calc(100vw - 32px));
   background: var(--site-panel);
-  border-radius: 12px;
+  border-radius: var(--site-radius);
   box-shadow: var(--site-shadow);
-  padding: 26px 24px;
+  padding: 36px 0 24px;
   text-align: center;
   animation: learn-xq-card-in 350ms ease both;
 }
@@ -491,14 +638,6 @@
   }
 }
 
-.learn-xq-overlay-eyebrow {
-  text-transform: uppercase;
-  letter-spacing: 0.2em;
-  color: var(--site-muted);
-  font-size: 0.78rem;
-  margin: 0;
-}
-
 .learn-xq-overlay-illus :is(svg) {
   width: 96px;
   height: 96px;
@@ -506,23 +645,45 @@
 
 .learn-xq-overlay-card h2 {
   color: var(--site-heading);
-  margin: 8px 0;
+  font-size: 1.5rem;
+  margin: 0 0 22px;
+}
+
+.learn-xq-overlay-card > p:not(.learn-xq-score) {
+  margin: 0 15% 17px;
+  line-height: 1.5;
+}
+
+.learn-xq-overlay-card--complete h2 {
+  margin-top: 20px;
 }
 
 .learn-xq-overlay-buttons {
   display: flex;
+  flex-direction: column;
   gap: 10px;
   justify-content: center;
-  margin-top: 14px;
+  margin: 8px 10% 0;
+}
+
+.learn-xq-overlay-buttons .learn-xq-overlay-go {
+  width: 100%;
+  min-height: 48px;
+  margin: 0;
+  font-size: 1rem;
+  text-transform: uppercase;
 }
 
 .learn-xq-overlay-menu {
   background: none;
-  border: 1px solid var(--site-border);
-  border-radius: 8px;
+  border: 0;
+  min-height: 48px;
   padding: 8px 14px;
-  color: var(--site-text);
+  color: var(--site-link);
   cursor: pointer;
+  font-size: 1rem;
+  font-weight: 700;
+  text-transform: uppercase;
 }
 
 /* ── Board markers + learn arrows ───────────────────────────────────────── */
@@ -599,5 +760,44 @@
 
   .learn-xq-side-card {
     position: static;
+  }
+}
+
+@media (max-width: 560px) {
+  .learn-xq-tile-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .learn-xq-tile {
+    min-height: 72px;
+  }
+
+  .learn-xq-tile-illus {
+    flex-basis: 74px;
+  }
+
+  .learn-xq-tile-illus :is(svg) {
+    width: 50px;
+    height: 64px;
+  }
+
+  .learn-xq-tile-text h3 {
+    font-size: 1.3rem;
+  }
+
+  .learn-xq-tile-text p {
+    font-size: 0.88rem;
+  }
+
+  .learn-xq-ribbon-wrap {
+    top: -14px;
+    right: -13px;
+    scale: 0.75;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .learn-xq-tile--ongoing::after {
+    animation: none;
   }
 }

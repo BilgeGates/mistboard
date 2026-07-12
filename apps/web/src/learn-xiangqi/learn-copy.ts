@@ -22,7 +22,8 @@ const CHROME_COPY: Record<string, string> = {
   'learn.xiangqi.nextStage': 'Next:',
   'learn.xiangqi.levelFailed': 'Level failed',
   'learn.xiangqi.stage': 'Stage',
-  'learn.xiangqi.stageComplete': 'Stage complete',
+  'learn.xiangqi.stageComplete': 'complete',
+  'learn.xiangqi.yourScore': 'Your score:',
   'learn.xiangqi.letsGo': "Let's go!",
   'learn.xiangqi.whatNext': 'What next?',
   'learn.xiangqi.whatNextCopy':

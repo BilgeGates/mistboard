@@ -284,19 +284,55 @@ export function mountLearnXiangqi(root: HTMLElement): void {
     back.href = '#';
     back.textContent = `← ${learnCopy('learn.xiangqi.backToMenu')}`;
     side.append(back);
-    for (const categ of learnXiangqiCategories) {
+    for (const [categoryIndex, categ] of learnXiangqiCategories.entries()) {
+      const section = document.createElement('section');
+      section.className = 'learn-xq-side-category';
+      const categoryHasActiveStage = categ.stages.some((stage) => stage.key === activeStage.key);
+      if (categoryHasActiveStage) section.classList.add('expanded');
+
       const heading = document.createElement('h3');
-      heading.textContent = learnCopy(categ.name);
-      side.append(heading);
+      const toggle = document.createElement('button');
+      const panelId = `learn-xq-side-category-${categoryIndex}`;
+      toggle.type = 'button';
+      toggle.className = 'learn-xq-side-category-toggle';
+      toggle.setAttribute('aria-controls', panelId);
+      toggle.setAttribute('aria-expanded', String(categoryHasActiveStage));
+      toggle.innerHTML = `<span>${learnCopy(categ.name)}</span><span class="learn-xq-side-category-chevron" aria-hidden="true">›</span>`;
+      heading.append(toggle);
+
+      const stages = document.createElement('div');
+      stages.id = panelId;
+      stages.className = 'learn-xq-side-category-stages';
+      stages.hidden = !categoryHasActiveStage;
       for (const stage of categ.stages) {
         const link = document.createElement('a');
         link.href = `#/${stage.key}`;
         link.className = 'learn-xq-side-stage';
-        if (stage.key === activeStage.key) link.classList.add('active');
+        if (stage.key === activeStage.key) {
+          link.classList.add('active');
+          link.setAttribute('aria-current', 'step');
+        }
         if (isStageComplete(progress, stage)) link.classList.add('done');
         link.innerHTML = `<span class="learn-xq-side-illus">${stageIllustration(stage, 24)}</span>${learnCopy(stage.title)}`;
-        side.append(link);
+        stages.append(link);
       }
+      toggle.addEventListener('click', () => {
+        const willExpand = !section.classList.contains('expanded');
+        for (const candidate of side.querySelectorAll<HTMLElement>('.learn-xq-side-category')) {
+          const candidateToggle = candidate.querySelector<HTMLButtonElement>(
+            '.learn-xq-side-category-toggle',
+          );
+          const candidateStages = candidate.querySelector<HTMLElement>(
+            '.learn-xq-side-category-stages',
+          );
+          const expanded = candidate === section && willExpand;
+          candidate.classList.toggle('expanded', expanded);
+          candidateToggle?.setAttribute('aria-expanded', String(expanded));
+          if (candidateStages) candidateStages.hidden = !expanded;
+        }
+      });
+      section.append(heading, stages);
+      side.append(section);
     }
     return side;
   }
@@ -441,9 +477,8 @@ export function mountLearnXiangqi(root: HTMLElement): void {
     const card = document.createElement('div');
     card.className = 'learn-xq-overlay-card';
     card.innerHTML = `
-      <p class="learn-xq-overlay-eyebrow">${learnCopy('learn.xiangqi.stage')} ${stage.id}</p>
+      <h2>${learnCopy('learn.xiangqi.stage')} ${stage.id}: ${learnCopy(stage.title)}</h2>
       <div class="learn-xq-overlay-illus">${stageIllustration(stage, 96)}</div>
-      <h2>${learnCopy(stage.title)}</h2>
       <p>${learnCopy(stage.intro)}</p>
       <button type="button" class="learn-xq-overlay-go">${learnCopy('learn.xiangqi.letsGo')}</button>`;
     overlay.append(card);
@@ -463,8 +498,8 @@ export function mountLearnXiangqi(root: HTMLElement): void {
     const next = stageAfter(stage);
     card.innerHTML = `
       <div class="learn-xq-stars learn-xq-stars--animated">${starIcons(stars)}</div>
-      <h2>${learnCopy(stage.title)}: ${learnCopy('learn.xiangqi.stageComplete')}</h2>
-      <p class="learn-xq-score">${total}</p>
+      <h2>${learnCopy('learn.xiangqi.stage')} ${stage.id} ${learnCopy('learn.xiangqi.stageComplete')}</h2>
+      <p class="learn-xq-score"><span>${learnCopy('learn.xiangqi.yourScore')}</span> ${total.toLocaleString()}</p>
       <p>${learnCopy(stage.complete)}</p>`;
     const buttons = document.createElement('div');
     buttons.className = 'learn-xq-overlay-buttons';
@@ -472,14 +507,14 @@ export function mountLearnXiangqi(root: HTMLElement): void {
       const nextButton = document.createElement('button');
       nextButton.type = 'button';
       nextButton.className = 'learn-xq-overlay-go';
-      nextButton.textContent = `${learnCopy('learn.xiangqi.nextStage')} ${learnCopy(next.title)}`;
+      nextButton.textContent = `${learnCopy('learn.xiangqi.nextStage')} ${learnCopy(next.title)} ›`;
       nextButton.addEventListener('click', () => navigate(`#/${next.key}`));
       buttons.append(nextButton);
     }
     const menuButton = document.createElement('button');
     menuButton.type = 'button';
     menuButton.className = 'learn-xq-overlay-menu';
-    menuButton.textContent = learnCopy('learn.xiangqi.backToMenu');
+    menuButton.textContent = `‹ ${learnCopy('learn.xiangqi.backToMenu')}`;
     menuButton.addEventListener('click', () => navigate(''));
     buttons.append(menuButton);
     card.append(buttons);
