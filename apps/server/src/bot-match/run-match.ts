@@ -30,12 +30,20 @@ import {
   requestEngineReservationAt,
 } from '../internal-engine-client.js';
 import { type ArbiterResult, runArbiterGame } from './arbiter.js';
+import { assertSafeExternalEndpoint } from './endpoint-guard.js';
 import { httpMoveProvider } from './http-move-provider.js';
 
 export type SeriesEngine = {
   label: string;
   engineId: string;
   endpoint: EngineEndpoint;
+  /**
+   * True for an UNTRUSTED third-party endpoint (not our own worker). External
+   * endpoints are SSRF-checked before the series (https + public IP only) and
+   * their response `diagnostics` are dropped. Our own worker / self-test seats
+   * leave this false.
+   */
+  external?: boolean;
 };
 
 export type SeriesConfig = {
@@ -64,6 +72,12 @@ export type SeriesConfig = {
   persistDir?: string | null;
   /** Sub-directory label under the default runs root (defaults to `<prefix>-<stamp>`). */
   runLabel?: string;
+  /**
+   * Skip the SSRF guard on `external` endpoints. ONLY for local testing against
+   * a private/loopback endpoint (e.g. a reference bot on 127.0.0.1). Never set
+   * this when pointing at a real third party.
+   */
+  allowInsecureEndpoints?: boolean;
   /**
    * Acquire an engine-worker reservation per seat per game (required by the
    * real engine-worker; not needed for the reference bot). Released after each
@@ -190,6 +204,14 @@ export async function runBotMatchSeries(cfg: SeriesConfig): Promise<SeriesReport
   };
   const prefix = cfg.gameIdPrefix ?? 'botmatch';
 
+  // SSRF guard: before pointing the arbiter at any UNTRUSTED endpoint, require
+  // https + a public address. Overridable only for local testing.
+  if (!cfg.allowInsecureEndpoints) {
+    for (const engine of [cfg.a, cfg.b]) {
+      if (engine.external) await assertSafeExternalEndpoint(engine.endpoint.baseUrl);
+    }
+  }
+
   const runStamp = cfg.startedAtMs ?? Date.now();
   const runDir = resolveSeriesRunDir(cfg, runStamp);
   report.persistDir = runDir;
@@ -238,11 +260,17 @@ export async function runBotMatchSeries(cfg: SeriesConfig): Promise<SeriesReport
         startedAtMs: cfg.startedAtMs,
         white: {
           engineId: white.engineId,
-          provider: httpMoveProvider(white.endpoint, { reservationId: whiteReservation }),
+          provider: httpMoveProvider(white.endpoint, {
+            reservationId: whiteReservation,
+            trustDiagnostics: !white.external,
+          }),
         },
         black: {
           engineId: black.engineId,
-          provider: httpMoveProvider(black.endpoint, { reservationId: blackReservation }),
+          provider: httpMoveProvider(black.endpoint, {
+            reservationId: blackReservation,
+            trustDiagnostics: !black.external,
+          }),
         },
         onMove: cfg.onMove
           ? (info) =>
@@ -338,6 +366,8 @@ async function main(): Promise<void> {
     label: req('--threep-engine'),
     engineId: req('--threep-engine'),
     endpoint: { baseUrl: req('--threep-url'), token: req('--threep-token') },
+    // The third-party seat is untrusted: SSRF-checked + diagnostics dropped.
+    external: true,
   };
   const games = Number(argOf(args, '--games') ?? 10);
   const maxPlies = Number(argOf(args, '--max-plies') ?? 200);
@@ -345,6 +375,9 @@ async function main(): Promise<void> {
     argOf(args, '--time-policy') === 'live-cap' ? 'live-cap' : 'self-managed';
   // Persistence is on by default; --no-persist opts out, --persist-dir overrides.
   const persistDir = args.includes('--no-persist') ? null : argOf(args, '--persist-dir');
+  // Local-testing escape hatch for the SSRF guard (e.g. a reference bot on
+  // 127.0.0.1). Never pass this against a real third party.
+  const allowInsecureEndpoints = args.includes('--allow-insecure-endpoint');
 
   // eslint-disable-next-line no-console
   const log = (msg: string) => console.log(msg);
@@ -361,6 +394,7 @@ async function main(): Promise<void> {
     timePolicy,
     maxPlies,
     persistDir,
+    allowInsecureEndpoints,
     manageReservations: true,
     onGameEnd: (i, r, whiteLabel, blackLabel) => {
       const winnerLabel =

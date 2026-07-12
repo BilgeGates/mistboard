@@ -11,12 +11,13 @@ import type { ArbiterMove, ArbiterMoveProvider } from './arbiter.js';
 
 export function httpMoveProvider(
   endpoint: EngineEndpoint,
-  opts: { reservationId?: string } = {},
+  opts: { reservationId?: string; trustDiagnostics?: boolean } = {},
 ): ArbiterMoveProvider {
   return async (request: EngineTurnRequest, ctx): Promise<ArbiterMove> => {
     const response = await requestEngineTurnAt(endpoint, request, ctx.watchdogMs, {
       computeBudgetMs: ctx.budgetMs,
       reservationId: opts.reservationId,
+      trustDiagnostics: opts.trustDiagnostics,
     });
     // thinkTimeMs omitted → arbiter substitutes its measured wall-clock round-trip.
     return { move: response.move, diagnostics: response.diagnostics };

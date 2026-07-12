@@ -5,6 +5,11 @@ const ENGINE_RESERVATIONS_PATH = '/internal/engine/reservations';
 const DEFAULT_TRANSPORT_GRACE_MS = 1_000;
 const DEFAULT_CONTROL_TIMEOUT_MS = 5_000;
 const ERROR_BODY_TAIL_CHARS = 1_000;
+// A well-formed EngineTurnResponse is a few hundred bytes; 1 MiB is a generous
+// ceiling that still stops a hostile (or broken) endpoint from streaming an
+// unbounded body to exhaust our memory. Applies to every engine response,
+// including our own worker's — its responses are far below this.
+const MAX_RESPONSE_BYTES = 1_048_576;
 
 export type InternalEngineClientErrorReason =
   | 'missing_config'
@@ -51,7 +56,17 @@ export async function requestEngineTurnAt(
   endpoint: EngineEndpoint,
   request: EngineTurnRequest,
   watchdogTimeoutMs: number,
-  options: { computeBudgetMs?: number; reservationId?: string } = {},
+  options: {
+    computeBudgetMs?: number;
+    reservationId?: string;
+    /**
+     * Whether to trust and pass through the response's free-form `diagnostics`
+     * blob. Defaults to true for our own worker. Set false for UNTRUSTED
+     * external endpoints so their arbitrary object never flows into our
+     * telemetry / storage / UI.
+     */
+    trustDiagnostics?: boolean;
+  } = {},
 ): Promise<EngineTurnResponse> {
   const { baseUrl, token } = endpoint;
   const reservationId = options.reservationId;
@@ -78,29 +93,42 @@ export async function requestEngineTurnAt(
     });
 
     if (!response.ok) {
+      const bodyTail = (
+        await readCappedText(response, ERROR_BODY_TAIL_CHARS * 4).catch(() => '')
+      ).slice(-ERROR_BODY_TAIL_CHARS);
       throw new InternalEngineClientError(
         'http_error',
         `internal engine service returned HTTP ${response.status}`,
         {
           status: response.status,
-          diagnostics: {
-            status: response.status,
-            bodyTail: (await response.text()).slice(-ERROR_BODY_TAIL_CHARS),
-          },
+          diagnostics: { status: response.status, bodyTail },
         },
+      );
+    }
+
+    let text: string;
+    try {
+      text = await readCappedText(response, MAX_RESPONSE_BYTES);
+    } catch (err) {
+      if (err instanceof InternalEngineClientError) throw err;
+      throw new InternalEngineClientError(
+        'network_error',
+        `failed reading engine response: ${(err as Error).message}`,
       );
     }
 
     let payload: unknown;
     try {
-      payload = await response.json();
+      payload = JSON.parse(text);
     } catch (err) {
       throw new InternalEngineClientError(
         'invalid_response',
         `internal engine service returned invalid JSON: ${(err as Error).message}`,
       );
     }
-    return parseEngineTurnResponse(payload, request);
+    return parseEngineTurnResponse(payload, request, {
+      includeDiagnostics: options.trustDiagnostics !== false,
+    });
   } catch (err) {
     if (err instanceof InternalEngineClientError) throw err;
     if (isAbortError(err)) {
@@ -275,14 +303,23 @@ function internalEngineUrl(baseUrl: string, path: string): string {
   return new URL(path.slice(1), base).toString();
 }
 
-function parseEngineTurnResponse(value: unknown, request: EngineTurnRequest): EngineTurnResponse {
+function parseEngineTurnResponse(
+  value: unknown,
+  request: EngineTurnRequest,
+  options: { includeDiagnostics?: boolean } = {},
+): EngineTurnResponse {
   if (!isObject(value)) throw invalidResponse('top-level response is not an object');
   if (value.protocolVersion !== '1') throw invalidResponse('unsupported protocol version');
   if (value.gameId !== request.gameId) throw invalidResponse('response gameId mismatch');
   if (value.sessionId !== request.sessionId) throw invalidResponse('response sessionId mismatch');
 
   const move = parseMove(value.move);
-  const diagnostics = isObject(value.diagnostics) ? value.diagnostics : undefined;
+  // Untrusted endpoints (external bots) never get their arbitrary diagnostics
+  // blob into our system — only the validated move survives.
+  const diagnostics =
+    options.includeDiagnostics !== false && isObject(value.diagnostics)
+      ? value.diagnostics
+      : undefined;
   return {
     protocolVersion: '1',
     gameId: request.gameId,
@@ -357,4 +394,44 @@ function isAbortError(err: unknown): boolean {
 
 function isObject(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null;
+}
+
+/**
+ * Read a response body as text, aborting if it exceeds `maxBytes`. Defends
+ * against a hostile/broken endpoint streaming an unbounded body: we check the
+ * declared Content-Length first, then enforce the cap while streaming (a lying
+ * or absent header can't get past the streamed count).
+ */
+async function readCappedText(response: Response, maxBytes: number): Promise<string> {
+  const declared = Number(response.headers.get('content-length'));
+  if (Number.isFinite(declared) && declared > maxBytes) {
+    throw new InternalEngineClientError(
+      'invalid_response',
+      `engine response too large: content-length ${declared} exceeds ${maxBytes} bytes`,
+    );
+  }
+  const body = response.body;
+  if (!body) return response.text();
+
+  const reader = body.getReader();
+  const chunks: Uint8Array[] = [];
+  let total = 0;
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      if (!value) continue;
+      total += value.byteLength;
+      if (total > maxBytes) {
+        throw new InternalEngineClientError(
+          'invalid_response',
+          `engine response exceeded ${maxBytes} bytes`,
+        );
+      }
+      chunks.push(value);
+    }
+  } finally {
+    await reader.cancel().catch(() => {});
+  }
+  return Buffer.concat(chunks).toString('utf8');
 }
