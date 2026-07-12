@@ -83,6 +83,7 @@ export type UserAccount = {
   stripeCustomerId: string | null;
   createdAt: Date;
   updatedAt: Date;
+  closedAt: Date | null;
 };
 
 export type LeaderboardEntry = {
@@ -118,9 +119,20 @@ export type EmailChangeChallenge = EmailLoginChallenge & {
   userId: string;
 };
 
+export type AccountClosureChallenge = {
+  id: string;
+  userId: string;
+  codeHash: string;
+  expiresAt: Date;
+};
+
 export type UpdateUserEmailResult =
   | { ok: true; user: UserAccount }
   | { ok: false; error: 'email_taken' | 'user_not_found' };
+
+export type CloseUserAccountResult =
+  | { ok: true }
+  | { ok: false; error: 'active_subscription' | 'already_closed' | 'user_not_found' };
 
 export type AccountSession = {
   id: string;
@@ -279,6 +291,41 @@ export async function consumeEmailChangeChallenge(
   return rows[0]?.email ? { email: rows[0].email } : null;
 }
 
+export async function createAccountClosureChallenge(
+  challenge: AccountClosureChallenge,
+): Promise<void> {
+  await getPool().query(
+    `INSERT INTO account_closure_challenges (id, user_id, code_hash, expires_at)
+     VALUES ($1, $2, $3, $4)`,
+    [challenge.id, challenge.userId, challenge.codeHash, challenge.expiresAt],
+  );
+}
+
+export async function deleteAccountClosureChallenge(id: string): Promise<void> {
+  await getPool().query('DELETE FROM account_closure_challenges WHERE id = $1', [id]);
+}
+
+export async function consumeAccountClosureChallenge(
+  id: string,
+  userId: string,
+  codeHash: string,
+  at: Date,
+): Promise<boolean> {
+  const { rows } = await getPool().query<{ verified: boolean }>(
+    `UPDATE account_closure_challenges
+     SET attempt_count = attempt_count + 1,
+         consumed_at = CASE WHEN code_hash = $3 THEN $4 ELSE consumed_at END
+     WHERE id = $1
+       AND user_id = $2
+       AND consumed_at IS NULL
+       AND expires_at > $4
+       AND attempt_count < max_attempts
+     RETURNING consumed_at = $4 AS verified`,
+    [id, userId, codeHash, at],
+  );
+  return rows[0]?.verified === true;
+}
+
 // Canonical users-table column list for reads. Keep in lockstep with UserRow
 // and userFromRow below: every SELECT/RETURNING of a full user row derives from
 // this, so a column can't be silently dropped from one query (which once
@@ -305,6 +352,7 @@ const USER_COLUMNS = [
   'stripe_customer_id',
   'created_at',
   'updated_at',
+  'closed_at',
 ].join(', ');
 
 // Same columns qualified with the `users.` alias, for queries that join users to
@@ -318,10 +366,19 @@ export async function findUserByEmail(email: string): Promise<UserAccount | null
     `SELECT ${USER_COLUMNS}
      FROM users
      WHERE lower(email) = lower($1)
+       AND closed_at IS NULL
      LIMIT 1`,
     [email],
   );
   return rows[0] ? userFromRow(rows[0]) : null;
+}
+
+export async function closedAccountExistsForEmailHash(emailHash: string): Promise<boolean> {
+  const { rows } = await getPool().query<{ exists: boolean }>(
+    'SELECT EXISTS (SELECT 1 FROM users WHERE closed_email_hash = $1) AS exists',
+    [emailHash],
+  );
+  return rows[0]?.exists ?? false;
 }
 
 export async function createUser(user: {
@@ -337,7 +394,11 @@ export async function createUser(user: {
   const { rows } = await getPool().query<UserRow>(
     `INSERT INTO users
        (id, email, email_verified_at, handle, display_name, profile_visibility, account_role, created_at, updated_at)
-     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $8)
+     SELECT $1, $2, $3, $4, $5, $6, $7, $8, $8
+     WHERE NOT EXISTS (
+       SELECT 1 FROM user_handle_reservations
+       WHERE lower(handle) = lower($4) AND expires_at > $8
+     )
      RETURNING ${USER_COLUMNS}`,
     [
       user.id,
@@ -350,6 +411,11 @@ export async function createUser(user: {
       user.now,
     ],
   );
+  if (!rows[0]) {
+    const error = new Error('handle is reserved') as Error & { code: string };
+    error.code = '23505';
+    throw error;
+  }
   return userFromRow(rows[0]!);
 }
 
@@ -387,6 +453,73 @@ export async function updateUserEmail(
     if (isUniqueViolation(err)) return { ok: false, error: 'email_taken' };
     throw err;
   }
+}
+
+export async function closeUserAccount(
+  userId: string,
+  identity: { closedEmailHash: string; closedHandle: string; placeholderEmail: string },
+  at: Date,
+): Promise<CloseUserAccountResult> {
+  return withTransaction(async (client) => {
+    const { rows } = await client.query<UserRow>(
+      `SELECT ${USER_COLUMNS}
+       FROM users
+       WHERE id = $1
+       FOR UPDATE`,
+      [userId],
+    );
+    const user = rows[0] ? userFromRow(rows[0]) : null;
+    if (!user) return { ok: false, error: 'user_not_found' };
+    if (user.closedAt) return { ok: false, error: 'already_closed' };
+    if (user.patronSince) return { ok: false, error: 'active_subscription' };
+
+    await client.query(
+      `INSERT INTO user_handle_reservations (handle, user_id, reserved_at, expires_at)
+       VALUES ($1, $2, $3, 'infinity'::timestamptz)
+       ON CONFLICT (handle) DO NOTHING`,
+      [user.handle, userId, at],
+    );
+    await client.query(
+      `UPDATE users
+       SET email = $2,
+           email_verified_at = NULL,
+           closed_email_hash = $3,
+           handle = $4,
+           handle_changed_at = $5,
+           display_name = 'Closed account',
+           display_name_changed_at = $5,
+           bio = '',
+           location = '',
+           profile_links = '{}'::text[],
+           display_preferences = '{}'::jsonb,
+           profile_visibility = 'private',
+           account_role = 'player',
+           title = NULL,
+           locale = NULL,
+           dm_policy = 'never',
+           patron_since = NULL,
+           closed_at = $5,
+           updated_at = $5
+       WHERE id = $1`,
+      [userId, identity.placeholderEmail, identity.closedEmailHash, identity.closedHandle, at],
+    );
+    await client.query(
+      `UPDATE account_sessions
+       SET revoked_at = $2
+       WHERE user_id = $1 AND revoked_at IS NULL`,
+      [userId, at],
+    );
+    await client.query('DELETE FROM user_relations WHERE actor_id = $1 OR target_id = $1', [
+      userId,
+    ]);
+    await client.query(
+      'DELETE FROM correspondence_seeks WHERE creator_user_id = $1 OR target_user_id = $1',
+      [userId],
+    );
+    await client.query('DELETE FROM coach_profiles WHERE user_id = $1', [userId]);
+    await client.query('DELETE FROM account_email_change_challenges WHERE user_id = $1', [userId]);
+    return { ok: true };
+  });
 }
 
 export async function updateUserProfile(
@@ -569,7 +702,7 @@ export async function getUserDmPolicy(userId: string): Promise<DmPolicy> {
 // before writing a directed seek (a clean 404 instead of an FK violation).
 export async function userExists(userId: string): Promise<boolean> {
   const { rows } = await getPool().query<{ one: number }>(
-    `SELECT 1 AS one FROM users WHERE id = $1 LIMIT 1`,
+    `SELECT 1 AS one FROM users WHERE id = $1 AND closed_at IS NULL LIMIT 1`,
     [userId],
   );
   return rows.length > 0;
@@ -681,6 +814,7 @@ export async function getUserByAccountSession(
        WHERE account_sessions.id = $1
          AND account_sessions.token_hash = $2
          AND account_sessions.user_id = users.id
+         AND users.closed_at IS NULL
          AND account_sessions.revoked_at IS NULL
          AND account_sessions.expires_at > $3
        RETURNING ${USER_COLUMNS_QUALIFIED}
@@ -736,7 +870,7 @@ async function loadProfileUser(handle: string): Promise<UserAccount | null> {
 // the id the directed-seek path expects without exposing ids to the client.
 export async function userIdForHandle(handle: string): Promise<string | null> {
   const { rows } = await getPool().query<{ id: string }>(
-    `SELECT id FROM users WHERE lower(handle) = lower($1) LIMIT 1`,
+    `SELECT id FROM users WHERE lower(handle) = lower($1) AND closed_at IS NULL LIMIT 1`,
     [handle],
   );
   return rows[0]?.id ?? null;
@@ -1299,6 +1433,7 @@ type UserRow = {
   stripe_customer_id: string | null;
   created_at: Date;
   updated_at: Date;
+  closed_at: Date | null;
 };
 
 function userFromRow(row: UserRow): UserAccount {
@@ -1324,6 +1459,7 @@ function userFromRow(row: UserRow): UserAccount {
     stripeCustomerId: row.stripe_customer_id,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
+    closedAt: row.closed_at,
   };
 }
 

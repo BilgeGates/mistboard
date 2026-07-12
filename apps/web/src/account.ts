@@ -29,12 +29,14 @@ type AccountSettingsSection =
   | 'privacy'
   | 'username'
   | 'account'
-  | 'security';
+  | 'security'
+  | 'close';
 
 const accountSettingsSectionGroups: readonly (readonly AccountSettingsSection[])[] = [
   ['profile'],
   ['display', 'privacy'],
   ['username', 'account', 'security'],
+  ['close'],
 ];
 
 const accountSettingsSections = accountSettingsSectionGroups.flat();
@@ -351,6 +353,7 @@ function buildAccountSettingsSection(
   if (section === 'username') return buildUsernameSettings(user, locale);
   if (section === 'account') return buildAccountAccessSettings(user, locale);
   if (section === 'security') return buildSecuritySettings(locale);
+  if (section === 'close') return buildCloseAccountSettings(user, locale);
   return buildDisplaySettings(user, locale);
 }
 
@@ -1040,6 +1043,126 @@ function formatAccountSessionDate(value: string, locale: Locale): string {
   }).format(new Date(value));
 }
 
+function buildCloseAccountSettings(user: AuthUser, locale: Locale = currentLocale()): HTMLElement {
+  const panel = buildSettingsPanel(
+    'close',
+    t('account.settingsCloseAccount', {}, locale),
+    t('account.closeAccountCopy', {}, locale),
+  );
+  const consequences = document.createElement('ul');
+  consequences.className = 'account-close-consequences';
+  for (const key of [
+    'account.closeRemovesIdentity',
+    'account.closePreservesHistory',
+    'account.closeRevokesSessions',
+  ] as const) {
+    const item = document.createElement('li');
+    item.textContent = t(key, {}, locale);
+    consequences.append(item);
+  }
+
+  const form = document.createElement('form');
+  form.className = 'account-settings-form account-close-form';
+  const acknowledgement = document.createElement('label');
+  acknowledgement.className = 'account-close-acknowledgement';
+  const acknowledgeInput = document.createElement('input');
+  acknowledgeInput.type = 'checkbox';
+  acknowledgeInput.required = true;
+  const acknowledgeText = document.createElement('span');
+  acknowledgeText.textContent = t('account.closeAcknowledge', {}, locale);
+  acknowledgement.append(acknowledgeInput, acknowledgeText);
+
+  const code = labeledInput(
+    t('account.closeAccountCode', {}, locale),
+    'code',
+    '',
+    t('account.closeAccountCode', {}, locale),
+  );
+  code.input.inputMode = 'numeric';
+  code.input.autocomplete = 'one-time-code';
+  code.wrap.hidden = true;
+
+  const submit = document.createElement('button');
+  submit.type = 'submit';
+  submit.className = 'account-danger-button';
+  submit.textContent = t('account.sendClosureCode', {}, locale);
+
+  const status = document.createElement('p');
+  status.className = 'account-status';
+  status.setAttribute('aria-live', 'polite');
+
+  let closureId: string | null = null;
+  form.addEventListener('submit', async (event) => {
+    event.preventDefault();
+    submit.disabled = true;
+    try {
+      if (!closureId) {
+        const resp = await fetch('/api/account/closure/start', {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: '{}',
+        });
+        const data = (await resp.json()) as {
+          closureId?: string;
+          devCode?: string;
+          error?: string;
+        };
+        if (!resp.ok || !data.closureId) {
+          throw new Error(accountClosureErrorMessage(data.error, locale));
+        }
+        closureId = data.closureId;
+        acknowledgeInput.disabled = true;
+        code.wrap.hidden = false;
+        code.input.required = true;
+        if (data.devCode) code.input.value = data.devCode;
+        submit.textContent = t('account.confirmAccountClosure', {}, locale);
+        status.textContent = data.devCode
+          ? t('account.devCodeFilled', {}, locale)
+          : t('account.closeAccountCheckEmail', { email: user.email }, locale);
+        code.input.focus();
+      } else {
+        const resp = await fetch('/api/account/closure/confirm', {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({ closureId, code: code.input.value }),
+        });
+        const data = (await resp.json()) as { closed?: boolean; error?: string };
+        if (!resp.ok || !data.closed) {
+          throw new Error(accountClosureErrorMessage(data.error, locale));
+        }
+        resetIdentity();
+        setAccountNavUser(null);
+        const complete = document.createElement('p');
+        complete.className = 'account-close-complete';
+        complete.textContent = t('account.accountClosed', {}, locale);
+        const home = document.createElement('a');
+        home.className = 'landing-setup-back';
+        home.href = localizedHref('/', locale);
+        home.textContent = t('account.returnHome', {}, locale);
+        form.replaceChildren(complete, home);
+      }
+    } catch (err) {
+      status.textContent =
+        err instanceof Error ? err.message : t('account.closeAccountFailed', {}, locale);
+    } finally {
+      submit.disabled = false;
+    }
+  });
+
+  form.append(acknowledgement, code.wrap, submit, status);
+  panel.append(consequences, form);
+  return panel;
+}
+
+function accountClosureErrorMessage(error: string | undefined, locale: Locale): string {
+  if (error === 'active_subscription') return t('account.closeActiveSubscription', {}, locale);
+  if (error === 'invalid_account_closure_code') {
+    return t('account.invalidClosureCode', {}, locale);
+  }
+  if (error === 'rate_limited') return t('account.tooManyAttempts', {}, locale);
+  return t('account.closeAccountFailed', {}, locale);
+}
+
 // DM policy select: saves immediately on change via the preferences PATCH
 // (independent of the profile form's save button, like the locale picker).
 // Replies in existing threads always deliver; the policy gates new threads.
@@ -1138,6 +1261,7 @@ function accountSettingsSectionLabel(
     username: 'account.settingsUsername',
     account: 'account.settingsAccount',
     security: 'account.settingsSecurity',
+    close: 'account.settingsCloseAccount',
   } as const;
   return t(keyBySection[section], {}, locale);
 }
@@ -1473,6 +1597,7 @@ function authErrorMessage(value: string, locale: Locale = currentLocale()): stri
   if (value === 'persistence_disabled') return t('account.persistenceDisabled', {}, locale);
   if (value === 'invalid_login_code') return t('account.invalidLoginCode', {}, locale);
   if (value === 'invalid_email') return t('account.invalidEmail', {}, locale);
+  if (value === 'account_closed') return t('account.accountAlreadyClosed', {}, locale);
   return t('account.signInFailed', {}, locale);
 }
 

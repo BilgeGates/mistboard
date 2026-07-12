@@ -43,10 +43,11 @@ export async function currentAccountUser(
 export async function ensureUserForEmail(
   email: string,
   now: Date,
-): Promise<{ user: persistence.UserAccount; isNew: boolean }> {
+): Promise<{ user: persistence.UserAccount; isNew: boolean } | { closed: true }> {
   const existing = await persistence.findUserByEmail(email);
   if (existing)
     return { user: await persistence.markUserEmailVerified(existing.id, now), isNew: false };
+  if (await persistence.closedAccountExistsForEmailHash(hashSecret(email))) return { closed: true };
 
   const baseHandle = handleBaseForEmail(email);
   // Candidate handle per attempt: the email-derived base first, then numeric
@@ -76,6 +77,9 @@ export async function ensureUserForEmail(
       const raced = await persistence.findUserByEmail(email);
       if (raced)
         return { user: await persistence.markUserEmailVerified(raced.id, now), isNew: false };
+      if (await persistence.closedAccountExistsForEmailHash(hashSecret(email))) {
+        return { closed: true };
+      }
     }
   }
   throw new Error('failed to allocate user handle');
@@ -132,17 +136,31 @@ export async function sendEmailChangeCode(
   return sendAccountEmailCode(email, code, 'email-change');
 }
 
+export async function sendAccountClosureCode(
+  email: string,
+  code: string,
+): Promise<{ ok: true } | { ok: false }> {
+  return sendAccountEmailCode(email, code, 'account-closure');
+}
+
 async function sendAccountEmailCode(
   email: string,
   code: string,
-  purpose: 'email-change' | 'login',
+  purpose: 'account-closure' | 'email-change' | 'login',
 ): Promise<{ ok: true } | { ok: false }> {
   if (!authEmailDeliveryEnabled || !authEmailFrom) return { ok: false };
   const isEmailChange = purpose === 'email-change';
-  const subject = isEmailChange ? 'Confirm your new Mistboard email' : 'Your Mistboard login code';
-  const intro = isEmailChange
-    ? 'Your Mistboard email-change code is'
-    : 'Your Mistboard login code is';
+  const isAccountClosure = purpose === 'account-closure';
+  const subject = isAccountClosure
+    ? 'Confirm closing your Mistboard account'
+    : isEmailChange
+      ? 'Confirm your new Mistboard email'
+      : 'Your Mistboard login code';
+  const intro = isAccountClosure
+    ? 'Your Mistboard account-closure code is'
+    : isEmailChange
+      ? 'Your Mistboard email-change code is'
+      : 'Your Mistboard login code is';
   const text = [
     `${intro} ${code}.`,
     '',

@@ -2,8 +2,18 @@ import assert from 'node:assert/strict';
 import type { IncomingMessage, ServerResponse } from 'node:http';
 import { Readable } from 'node:stream';
 import test from 'node:test';
-import { accountSessionCookie, hashSecret } from './account-session.js';
-import { createAccountSession, createUser, findUserByEmail } from './persistence.js';
+import {
+  accountSessionCookie,
+  currentAccountUser,
+  ensureUserForEmail,
+  hashSecret,
+} from './account-session.js';
+import {
+  createAccountSession,
+  createUser,
+  findUserByEmail,
+  getUserProfileByHandle,
+} from './persistence.js';
 import { definePersistenceTests } from './persistence-test-support.js';
 import { tryHandle } from './routes/account.js';
 
@@ -417,6 +427,66 @@ definePersistenceTests('account routes', () => {
       ),
       ['session-current'],
     );
+  });
+
+  test('account closure anonymizes identity, revokes sessions, and blocks re-registration', async () => {
+    const now = new Date('2026-07-11T12:00:00.000Z');
+    const sessionToken = 'account-closure-route-token';
+    const expiresAt = new Date(Date.now() + 86_400_000);
+    await createUser({
+      id: 'user_account_closure_route',
+      email: 'account-closure-route@example.com',
+      emailVerifiedAt: now,
+      handle: 'account-closure-route',
+      displayName: 'Account Closure Route',
+      now,
+    });
+    await createAccountSession({
+      id: 'account-closure-route-session',
+      userId: 'user_account_closure_route',
+      tokenHash: hashSecret(sessionToken),
+      expiresAt,
+      userAgent: 'Closure Browser',
+    });
+    const cookie = accountSessionCookie(
+      'account-closure-route-session',
+      sessionToken,
+      expiresAt,
+    ).split(';')[0];
+
+    const startResponse = captureResponse();
+    await tryHandle(
+      {},
+      jsonRequest({}, cookie, 'POST'),
+      startResponse,
+      '/api/account/closure/start',
+    );
+    assert.equal(startResponse.status, 202);
+    const started = JSON.parse(startResponse.body) as { closureId: string; devCode: string };
+    assert.match(started.devCode, /^\d{8}$/);
+
+    const confirmResponse = captureResponse();
+    await tryHandle(
+      {},
+      jsonRequest({ closureId: started.closureId, code: started.devCode }, cookie, 'POST'),
+      confirmResponse,
+      '/api/account/closure/confirm',
+    );
+    assert.equal(confirmResponse.status, 200);
+    assert.deepEqual(JSON.parse(confirmResponse.body), { closed: true });
+    assert.equal(await findUserByEmail('account-closure-route@example.com'), null);
+    assert.equal(await getUserProfileByHandle('account-closure-route', null), null);
+    assert.equal(await currentAccountUser(jsonRequest({}, cookie, 'GET')), null);
+    assert.deepEqual(
+      await ensureUserForEmail('account-closure-route@example.com', new Date(now.getTime() + 1)),
+      { closed: true },
+    );
+    const similarlyNamed = await ensureUserForEmail(
+      'account-closure-route@other.example.com',
+      new Date(now.getTime() + 2),
+    );
+    assert.ok('user' in similarlyNamed);
+    assert.notEqual(similarlyNamed.user.handle, 'account-closure-route');
   });
 
   test('account public-profile route stores validated public details', async () => {

@@ -509,6 +509,7 @@ function makeAccount(overrides: Partial<UserAccount> = {}): UserAccount {
     stripeCustomerId: null,
     createdAt: now,
     updatedAt: now,
+    closedAt: null,
     ...overrides,
   };
 }

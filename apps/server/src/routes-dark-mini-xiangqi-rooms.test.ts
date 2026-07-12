@@ -559,6 +559,7 @@ function testUser(): UserAccount {
     stripeCustomerId: null,
     createdAt: now,
     updatedAt: now,
+    closedAt: null,
   };
 }
 

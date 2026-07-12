@@ -686,6 +686,57 @@
   justify-self: start;
 }
 
+.account-close-consequences {
+  display: grid;
+  gap: 8px;
+  margin: 22px 0 0;
+  padding-left: 20px;
+  color: var(--site-muted);
+  font-size: 13px;
+}
+
+.account-close-form {
+  gap: 18px;
+  max-width: 720px;
+}
+
+.account-close-acknowledgement {
+  display: flex;
+  gap: 9px;
+  align-items: flex-start;
+  color: var(--site-text);
+  font-size: 13px;
+}
+
+.account-close-acknowledgement input {
+  margin-top: 2px;
+}
+
+.account-danger-button {
+  justify-self: start;
+  min-height: 34px;
+  border: 1px solid color-mix(in srgb, #c63d3d 70%, transparent);
+  border-radius: 3px;
+  background: color-mix(in srgb, #c63d3d 14%, var(--site-panel));
+  color: color-mix(in srgb, #e35d5d 88%, var(--site-text));
+  font-size: 13px;
+  font-weight: 700;
+  padding: 7px 12px;
+}
+
+.account-danger-button:hover:not(:disabled),
+.account-danger-button:focus-visible {
+  border-color: #c63d3d;
+  background: color-mix(in srgb, #c63d3d 22%, var(--site-panel));
+  outline: 2px solid color-mix(in srgb, #c63d3d 28%, transparent);
+}
+
+.account-close-complete {
+  margin: 0;
+  color: var(--site-text);
+  font-size: 15px;
+}
+
 .account-display-settings {
   display: grid;
   margin-top: 0;

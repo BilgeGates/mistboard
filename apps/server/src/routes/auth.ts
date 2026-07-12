@@ -110,7 +110,12 @@ export async function tryHandle(
       return true;
     }
 
-    const { user, isNew } = await ensureUserForEmail(challenge.email, now);
+    const account = await ensureUserForEmail(challenge.email, now);
+    if ('closed' in account) {
+      writeJson(response, 403, { error: 'account_closed' });
+      return true;
+    }
+    const { user, isNew } = account;
     const sessionId = randomUUID();
     const sessionToken = randomBytes(32).toString('base64url');
     const expiresAt = new Date(now.getTime() + accountSessionTtlMs);

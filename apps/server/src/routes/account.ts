@@ -7,9 +7,12 @@ import {
   currentAccountUser,
   devAuthCodesEnabled,
   emailLoginCodeTtlMs,
+  expiredAccountSessionCookie,
   hashSecret,
+  legacyHostOnlyAccountSessionEviction,
   publicUser,
   randomEmailLoginCode,
+  sendAccountClosureCode,
   sendEmailChangeCode,
 } from './../account-session.js';
 import { clientIpForRateLimit, createAuthRateLimiter } from './../auth-rate-limit.js';
@@ -19,6 +22,8 @@ import { readJsonBody, requireMethod, requirePersistence, writeJson } from './li
 const emailChangeRateWindowMs = 10 * 60 * 1000;
 const emailChangeStartRateLimiter = createAuthRateLimiter(5, emailChangeRateWindowMs);
 const emailChangeConfirmRateLimiter = createAuthRateLimiter(10, emailChangeRateWindowMs);
+const accountClosureStartRateLimiter = createAuthRateLimiter(3, emailChangeRateWindowMs);
+const accountClosureConfirmRateLimiter = createAuthRateLimiter(10, emailChangeRateWindowMs);
 
 export async function tryHandle(
   _ctx: unknown,
@@ -26,6 +31,101 @@ export async function tryHandle(
   response: ServerResponse,
   pathname: string,
 ): Promise<boolean> {
+  if (pathname === '/api/account/closure/start') {
+    if (!requireMethod(request, response, 'POST')) return true;
+    if (!requirePersistence(response)) return true;
+    const user = await currentAccountUser(request);
+    if (!user) {
+      writeJson(response, 401, { error: 'not_signed_in' });
+      return true;
+    }
+    if (!accountClosureStartRateLimiter.check(clientIpForRateLimit(request))) {
+      writeJson(response, 429, { error: 'rate_limited' });
+      return true;
+    }
+    if (user.patronSince) {
+      writeJson(response, 409, { error: 'active_subscription' });
+      return true;
+    }
+    if (!authEmailDeliveryEnabled && !devAuthCodesEnabled) {
+      writeJson(response, 503, { error: 'email_delivery_not_configured' });
+      return true;
+    }
+    const closureId = randomUUID();
+    const code = randomEmailLoginCode();
+    const expiresAt = new Date(Date.now() + emailLoginCodeTtlMs);
+    await persistence.createAccountClosureChallenge({
+      id: closureId,
+      userId: user.id,
+      codeHash: hashSecret(code),
+      expiresAt,
+    });
+    if (authEmailDeliveryEnabled) {
+      const delivery = await sendAccountClosureCode(user.email, code);
+      if (!delivery.ok) {
+        await persistence.deleteAccountClosureChallenge(closureId);
+        writeJson(response, 502, { error: 'email_delivery_failed' });
+        return true;
+      }
+    }
+    writeJson(response, 202, {
+      closureId,
+      expiresAt: expiresAt.toISOString(),
+      delivery: authEmailDeliveryEnabled ? 'email' : 'dev-response',
+      ...(devAuthCodesEnabled ? { devCode: code } : {}),
+    });
+    return true;
+  }
+
+  if (pathname === '/api/account/closure/confirm') {
+    if (!requireMethod(request, response, 'POST')) return true;
+    if (!requirePersistence(response)) return true;
+    const user = await currentAccountUser(request);
+    if (!user) {
+      writeJson(response, 401, { error: 'not_signed_in' });
+      return true;
+    }
+    if (!accountClosureConfirmRateLimiter.check(clientIpForRateLimit(request))) {
+      writeJson(response, 429, { error: 'rate_limited' });
+      return true;
+    }
+    const body = await readJsonBody(request);
+    const closureId = typeof body.closureId === 'string' ? body.closureId.trim() : '';
+    const code = typeof body.code === 'string' ? body.code.trim() : '';
+    if (!closureId || !code) {
+      writeJson(response, 400, { error: 'invalid_account_closure_code' });
+      return true;
+    }
+    const now = new Date();
+    const verified = await persistence.consumeAccountClosureChallenge(
+      closureId,
+      user.id,
+      hashSecret(code),
+      now,
+    );
+    if (!verified) {
+      writeJson(response, 400, { error: 'invalid_account_closure_code' });
+      return true;
+    }
+    const closedHandle = `closed-${hashSecret(user.id).slice(0, 16)}`;
+    const closed = await persistence.closeUserAccount(
+      user.id,
+      {
+        closedEmailHash: hashSecret(user.email),
+        closedHandle,
+        placeholderEmail: `${closedHandle}@closed.mistboard.invalid`,
+      },
+      now,
+    );
+    if (!closed.ok) {
+      const status = closed.error === 'active_subscription' ? 409 : 404;
+      writeJson(response, status, { error: closed.error });
+      return true;
+    }
+    writeJson(response, 200, { closed: true }, { 'set-cookie': expiredSessionCookies() });
+    return true;
+  }
+
   if (pathname === '/api/account/sessions') {
     if (request.method !== 'GET' && request.method !== 'DELETE') {
       writeJson(response, 405, { error: 'method_not_allowed' });
@@ -332,6 +432,12 @@ export async function tryHandle(
   }
   writeJson(response, 200, { user: publicUser(result.user) });
   return true;
+}
+
+function expiredSessionCookies(): string | string[] {
+  const canonical = expiredAccountSessionCookie();
+  const legacy = legacyHostOnlyAccountSessionEviction();
+  return legacy ? [canonical, legacy] : canonical;
 }
 
 function parsePublicProfileDetails(

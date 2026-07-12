@@ -221,8 +221,9 @@ describe('account page auth flow', () => {
       'Change username',
       'Email and sign-in',
       'Security',
+      'Close account',
     ]);
-    expect(document.querySelectorAll('.account-settings-rail-separator')).toHaveLength(2);
+    expect(document.querySelectorAll('.account-settings-rail-separator')).toHaveLength(3);
 
     const animation = document.querySelector<HTMLInputElement>(
       'input[name="pieceAnimation"][value="fast"]',
@@ -491,6 +492,60 @@ describe('account page auth flow', () => {
     expect(
       document.querySelector<HTMLButtonElement>('.account-session-revoke-others')?.hidden,
     ).toBe(true);
+  });
+
+  it('closes the account only after acknowledgement and email confirmation', async () => {
+    window.history.replaceState(null, '', '/account/settings/close');
+    const user = testUser('misty');
+    const requests: Array<{ body: unknown; url: string }> = [];
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+        const url = String(input);
+        if (url === '/api/auth/me') return jsonResponse({ user });
+        if (url === '/api/account/closure/start') {
+          requests.push({ url, body: JSON.parse(String(init?.body)) as unknown });
+          return jsonResponse({ closureId: 'closure-1', devCode: '87654321' }, 202);
+        }
+        if (url === '/api/account/closure/confirm') {
+          requests.push({ url, body: JSON.parse(String(init?.body)) as unknown });
+          return jsonResponse({ closed: true });
+        }
+        throw new Error(`unexpected fetch: ${url}`);
+      }),
+    );
+
+    const { mountAccountSettings } = await import('./account.js');
+    await mountAccountSettings(document.querySelector<HTMLElement>('#app') as HTMLElement);
+    await flushDom();
+
+    expect(document.querySelector('h1')?.textContent).toBe('Close account');
+    const acknowledgement = document.querySelector<HTMLInputElement>(
+      '.account-close-acknowledgement input',
+    );
+    const form = document.querySelector<HTMLFormElement>('.account-close-form');
+    if (!acknowledgement || !form) throw new Error('missing close account form');
+    acknowledgement.checked = true;
+    form.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
+    await flushDom();
+
+    const code = document.querySelector<HTMLInputElement>('input[name="code"]');
+    expect(code?.value).toBe('87654321');
+    expect(code?.closest('label')?.hidden).toBe(false);
+
+    form.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
+    await flushDom();
+
+    expect(requests).toEqual([
+      { url: '/api/account/closure/start', body: {} },
+      {
+        url: '/api/account/closure/confirm',
+        body: { closureId: 'closure-1', code: '87654321' },
+      },
+    ]);
+    expect(document.querySelector('.account-close-complete')?.textContent).toContain(
+      'account has been closed',
+    );
   });
 
   it('edits public profile details from the settings landing', async () => {
