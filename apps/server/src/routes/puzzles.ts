@@ -59,9 +59,13 @@ type PublicPuzzleVariant =
   | typeof XIANGQI_SPEC_ID;
 type PublicPuzzleMove = MiniXiangqiPuzzleMove | FortressXiangqiMove | JungleMove | XiangqiMove;
 
+// Fortress is omitted from the discoverable pool (list + random) while the
+// variant is demoted and its puzzles await a re-mine with the per-ply
+// uniqueness gate. Its puzzles stay resolvable by id/short-code below
+// (puzzleByExactId/allPuzzleIds), so existing links do not hard-404. Re-add the
+// Fortress spread here when the re-mined corpus lands.
 const ALL_PUZZLES: readonly PublicPuzzle[] = [
   ...MINI_XIANGQI_PUZZLES,
-  ...FORTRESS_XIANGQI_PUZZLES,
   ...JUNGLE_PUZZLES,
   ...XIANGQI_PUZZLES,
 ];

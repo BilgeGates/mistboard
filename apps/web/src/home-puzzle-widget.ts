@@ -40,7 +40,8 @@ const HOME_PUZZLE_PIECE_SIZE = 64;
 const HOME_PUZZLE_VARIANTS: readonly string[] = [
   MINI_XIANGQI_SPEC_ID,
   DROP_MINI_XIANGQI_SPEC_ID,
-  FORTRESS_XIANGQI_SPEC_ID,
+  // Fortress omitted: the daily rotation no longer selects it (demoted, awaiting
+  // a re-mine). Re-add when the Fortress daily provider is restored.
   XIANGQI_SPEC_ID,
 ];
 

@@ -69,12 +69,12 @@ test('puzzle list returns public Mini and Drop Mini summaries without solutions'
   };
 
   assert.equal(response.status, 200);
+  // Fortress is hidden from the discoverable pool while the variant is demoted
+  // (awaiting a re-mine with the per-ply uniqueness gate), so the unfiltered
+  // list excludes it.
   assert.equal(
     body.puzzles.length,
-    MINI_XIANGQI_PUZZLES.length +
-      FORTRESS_XIANGQI_PUZZLES.length +
-      JUNGLE_PUZZLES.length +
-      XIANGQI_PUZZLES.length,
+    MINI_XIANGQI_PUZZLES.length + JUNGLE_PUZZLES.length + XIANGQI_PUZZLES.length,
   );
   assert.deepEqual(
     body.puzzles.slice(0, 6).map((puzzle) => puzzle.variant),
@@ -88,10 +88,7 @@ test('puzzle list returns public Mini and Drop Mini summaries without solutions'
     ],
   );
   assert.equal(body.puzzles.filter((puzzle) => puzzle.variant === 'drop-mini-xiangqi').length, 30);
-  assert.equal(
-    body.puzzles.filter((puzzle) => puzzle.variant === 'fortress-xiangqi').length,
-    FORTRESS_XIANGQI_PUZZLES.length,
-  );
+  assert.equal(body.puzzles.filter((puzzle) => puzzle.variant === 'fortress-xiangqi').length, 0);
   assert.equal(
     body.puzzles.every((puzzle) => puzzle.solution === undefined),
     true,
@@ -142,18 +139,15 @@ test('puzzle list filters by supported puzzle variant', async () => {
   );
 });
 
-test('puzzle list filters to Fortress Xiangqi puzzles', async () => {
+test('puzzle list hides Fortress Xiangqi puzzles while the variant is demoted', async () => {
+  // Fortress is omitted from the discoverable pool pending a re-mine with the
+  // per-ply uniqueness gate; the list returns nothing even for an explicit
+  // variant filter. Individual fortress puzzles stay resolvable by id (below).
   const response = await route('/api/puzzles?variant=fortress-xiangqi');
-  const body = JSON.parse(response.body) as {
-    puzzles: Array<{ variant: string; solutionPlyCount: number }>;
-  };
+  const body = JSON.parse(response.body) as { puzzles: unknown[] };
 
   assert.equal(response.status, 200);
-  assert.equal(body.puzzles.length, FORTRESS_XIANGQI_PUZZLES.length);
-  assert.equal(
-    body.puzzles.every((puzzle) => puzzle.variant === 'fortress-xiangqi'),
-    true,
-  );
+  assert.equal(body.puzzles.length, 0);
 });
 
 test('puzzle list filters to Jungle puzzles', async () => {

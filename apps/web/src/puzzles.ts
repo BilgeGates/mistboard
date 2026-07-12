@@ -281,11 +281,10 @@ let onAttemptRating: ((rating: PuzzleAttemptRating) => void) | null = null;
 // the bet variant) leads; Fortress and Jungle are offered alongside it. Mini /
 // Drop Mini stay in the corpus + API (deep links still resolve server-side)
 // but are hidden from the selector. Add a spec id here to unhide it.
-const PUZZLE_VARIANT_FILTERS: readonly PuzzleVariantFilter[] = [
-  XIANGQI_SPEC_ID,
-  FORTRESS_XIANGQI_SPEC_ID,
-  JUNGLE_SPEC_ID,
-];
+// Fortress is hidden from the picker while the variant is demoted and its
+// puzzles await a re-mine with the per-ply uniqueness gate. Re-add
+// FORTRESS_XIANGQI_SPEC_ID here when the re-mined corpus lands.
+const PUZZLE_VARIANT_FILTERS: readonly PuzzleVariantFilter[] = [XIANGQI_SPEC_ID, JUNGLE_SPEC_ID];
 
 export async function mountPuzzles(
   root: HTMLElement,
