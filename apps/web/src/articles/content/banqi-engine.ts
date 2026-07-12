@@ -11,6 +11,7 @@ import type { Article } from '../types.js';
 export const banqiEngineArticle: Article = {
   slug: 'mistybanqi',
   kind: 'article',
+  publisher: 'mistboard',
   boardFamily: 'xiangqi',
   title: 'How MistyBanqi Plays',
   summary:

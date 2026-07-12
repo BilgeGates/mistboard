@@ -353,7 +353,9 @@ test('isClientRoute matches parametric SPA routes', () => {
   assert.equal(isClientRoute('/account/settings/privacy'), true);
   assert.equal(isClientRoute('/@/brianhliou'), true);
   assert.equal(isClientRoute('/blog/dark-chess-concepts'), true);
+  assert.equal(isClientRoute('/blog/community'), true);
   assert.equal(isClientRoute('/zh-hans/blog'), true);
+  assert.equal(isClientRoute('/zh-hans/blog/community'), true);
   assert.equal(isClientRoute('/zh-hant/blog'), true);
   assert.equal(isClientRoute('/rules/dark-chess'), true);
   assert.equal(isClientRoute('/rules/dark-draft960'), true);

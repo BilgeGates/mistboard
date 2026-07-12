@@ -16,6 +16,7 @@ import type { Article, ArticleBlock } from '../types.js';
 export const serverEnforcedFogArticle: Article = {
     slug: 'server-enforced-fog',
     kind: 'article',
+    publisher: 'mistboard',
     title: 'Programming Fog Chess with Server-Side Truth',
     summary:
       'How Mistboard keeps hidden information on the server: canonical state, seat-scoped views, private live rooms, and public postgame review.',

@@ -308,6 +308,7 @@ export async function serveArticlesIndexPage(params: {
   publicHost: string;
   staticDir: string;
   langPrefix?: string;
+  view?: 'community' | 'mistboard';
 }): Promise<void> {
   const indexPath = resolve(params.staticDir, 'index.html');
   let html = await fs.readFile(indexPath, 'utf-8');
@@ -320,7 +321,9 @@ export async function serveArticlesIndexPage(params: {
   html = injectPageMeta(html, {
     title: meta.title,
     description: meta.description,
-    url: `${params.publicHost}${langKey === 'en' ? '' : `/${langKey}`}/blog`,
+    url: `${params.publicHost}${langKey === 'en' ? '' : `/${langKey}`}/blog${
+      params.view === 'community' ? '/community' : ''
+    }`,
   });
   params.response.writeHead(200, { 'content-type': 'text/html; charset=utf-8' });
   params.response.end(html);

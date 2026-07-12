@@ -112,11 +112,12 @@ export function mountContact(root: HTMLElement): void {
 export async function mountArticlesIndex(
   root: HTMLElement,
   lang?: import('./article-i18n.js').ArticleLang | null,
+  view: import('./articles.js').ArticleIndexView = 'mistboard',
 ): Promise<void> {
   root.replaceChildren();
   root.classList.add('landing-page', 'articles-route');
   const { buildArticlesIndex, mountArticleThumbnails } = await import('./articles.js');
-  const index = buildArticlesIndex(lang ?? undefined);
+  const index = buildArticlesIndex(lang ?? undefined, view);
   root.append(buildNav(), index);
   mountArticleThumbnails(index);
 }

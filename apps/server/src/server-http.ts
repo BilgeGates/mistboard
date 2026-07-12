@@ -210,6 +210,23 @@ export function createHttpRequestHandler(options: ServerHttpHandlerOptions) {
       return;
     }
 
+    // The community-posts view is a reserved blog index path, so it must win
+    // over the generic /blog/:slug article route below.
+    const blogIndexMatch = pathname.match(/^(?:\/(zh-hans|zh-hant))?\/blog(?:\/(community))?\/?$/);
+    if (blogIndexMatch) {
+      void serveArticlesIndexPage({
+        response,
+        publicHost: options.publicHost,
+        staticDir: options.staticDir,
+        langPrefix: blogIndexMatch[1],
+        view: blogIndexMatch[2] === 'community' ? 'community' : 'mistboard',
+      }).catch(() => {
+        request.url = '/';
+        void serveHandler(request, response, { public: options.staticDir });
+      });
+      return;
+    }
+
     const blogRouteMatch = pathname.match(/^(?:\/(zh-hans|zh-hant))?\/blog\/([^/]+)$/);
     if (blogRouteMatch) {
       const langPrefix = blogRouteMatch[1];
@@ -262,20 +279,6 @@ export function createHttpRequestHandler(options: ServerHttpHandlerOptions) {
         publicHost: options.publicHost,
         staticDir: options.staticDir,
         langPrefix,
-      }).catch(() => {
-        request.url = '/';
-        void serveHandler(request, response, { public: options.staticDir });
-      });
-      return;
-    }
-
-    const blogIndexMatch = pathname.match(/^(?:\/(zh-hans|zh-hant))?\/blog\/?$/);
-    if (blogIndexMatch) {
-      void serveArticlesIndexPage({
-        response,
-        publicHost: options.publicHost,
-        staticDir: options.staticDir,
-        langPrefix: blogIndexMatch[1],
       }).catch(() => {
         request.url = '/';
         void serveHandler(request, response, { public: options.staticDir });

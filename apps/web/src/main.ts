@@ -119,8 +119,8 @@ const wantsRulesIndex =
   path === '/rules' || path === '/zh-hans/rules' || path === '/zh-hant/rules' || page === 'rules';
 const articleSlug = articleSlugFromPath(path);
 const articleLang = articleLangFromPath(path);
-const wantsArticlesIndex =
-  path === '/blog' || path === '/zh-hans/blog' || path === '/zh-hant/blog' || page === 'blog';
+const articleIndexView = articleIndexViewFromPath(path);
+const wantsArticlesIndex = articleIndexView !== null || page === 'blog';
 const wantsNews = path === '/feed' || path === '/news' || page === 'feed' || page === 'news';
 const forumRedirectPostId = forumRedirectPostIdFromPath(path);
 const forumTopicId = forumTopicIdFromPath(path);
@@ -588,7 +588,7 @@ if (replaySample) {
   setTitleKey('articles.heading');
   void mountOrReport(() =>
     import('./pages-static.js').then(({ mountArticlesIndex }) =>
-      mountArticlesIndex(appRoot, articleLang),
+      mountArticlesIndex(appRoot, articleLang, articleIndexView ?? 'mistboard'),
     ),
   );
 } else if (wantsRulesIndex) {
@@ -839,7 +839,15 @@ function forumRedirectPostIdFromPath(value: string): string | null {
 // have no slug segment); the lang parser reports the prefix.
 function articleSlugFromPath(value: string): string | null {
   const match = value.replace(/^\/zh-han[st]/, '').match(/^\/(?:blog|rules)\/([^/]+)$/);
-  return match ? decodeURIComponent(match[1]!) : null;
+  const slug = match ? decodeURIComponent(match[1]!) : null;
+  return slug === 'community' && value.includes('/blog/') ? null : slug;
+}
+
+function articleIndexViewFromPath(value: string): import('./articles.js').ArticleIndexView | null {
+  const normalized = value.replace(/^\/zh-han[st]/, '');
+  if (normalized === '/blog') return 'mistboard';
+  if (normalized === '/blog/community') return 'community';
+  return null;
 }
 
 function articleLangFromPath(value: string): ArticleLang | null {

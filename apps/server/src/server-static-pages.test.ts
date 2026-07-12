@@ -248,6 +248,25 @@ test('serveArticlesIndexPage injects localized metadata', async () => {
   );
 });
 
+test('serveArticlesIndexPage keeps the community-posts view canonical', async () => {
+  const staticDir = await mkdtemp(join(tmpdir(), 'mistboard-static-'));
+  await writeFile(join(staticDir, 'index.html'), indexHtml(), 'utf-8');
+  const response = captureResponse();
+
+  await serveArticlesIndexPage({
+    response,
+    publicHost: 'https://mistboard.test',
+    staticDir,
+    view: 'community',
+  });
+
+  assert.equal(response.status, 200);
+  assert.match(
+    response.body,
+    /<meta property="og:url" content="https:\/\/mistboard\.test\/blog\/community">/,
+  );
+});
+
 test('serveRulesIndexPage injects rules metadata', async () => {
   const staticDir = await mkdtemp(join(tmpdir(), 'mistboard-static-'));
   await writeFile(

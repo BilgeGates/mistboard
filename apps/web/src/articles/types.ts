@@ -317,9 +317,8 @@ export type ArticleThumbnail =
   | SvgArticleThumbnail
   | ImageArticleThumbnail;
 
-export type Article = {
+type ArticleBase = {
   slug: string;
-  kind: 'rules' | 'article';
   // Rules articles: the game is live on Mistboard today (drives the
   // playable / not-yet grouping in the variant rail). Omit when the page
   // is a reference for a game we do not host yet.
@@ -344,3 +343,14 @@ export type Article = {
   boardFamily?: 'chess' | 'xiangqi' | 'shogi';
   sections: ArticleSection[];
 };
+
+export type Article = ArticleBase &
+  (
+    | { kind: 'rules' }
+    | {
+        kind: 'article';
+        // Explicit so the official-only view stays fail-closed when community
+        // authors are introduced later.
+        publisher: 'mistboard' | 'community';
+      }
+  );

@@ -167,15 +167,24 @@ function isArticleStatusBadge(status: Article['status']): status is 'draft' | 'o
   return status === 'draft' || status === 'outline';
 }
 
-export function buildArticlesIndex(lang?: ArticleLang): HTMLElement {
-  return buildContentIndex('article', lang);
+export type ArticleIndexView = 'community' | 'mistboard';
+
+export function buildArticlesIndex(
+  lang?: ArticleLang,
+  view: ArticleIndexView = 'mistboard',
+): HTMLElement {
+  return buildContentIndex('article', lang, view);
 }
 
 export function buildRulesIndex(lang?: ArticleLang): HTMLElement {
   return buildRulesLanding(lang);
 }
 
-function buildContentIndex(kind: Article['kind'], lang?: ArticleLang): HTMLElement {
+function buildContentIndex(
+  kind: Article['kind'],
+  lang?: ArticleLang,
+  articleView: ArticleIndexView = 'community',
+): HTMLElement {
   const locale = articleLocale(lang);
   const main = document.createElement('main');
   main.className =
@@ -186,7 +195,7 @@ function buildContentIndex(kind: Article['kind'], lang?: ArticleLang): HTMLEleme
   const layout = document.createElement('div');
   if (kind === 'article') {
     layout.className = 'community-layout articles-community-layout';
-    layout.append(buildArticleCommunityRail(locale));
+    layout.append(buildArticleCommunityRail(locale, articleView));
   }
 
   const sheet = document.createElement('div');
@@ -200,15 +209,15 @@ function buildContentIndex(kind: Article['kind'], lang?: ArticleLang): HTMLEleme
   heading.textContent = kind === 'article' ? 'Recent posts' : t('rules.heading', {}, locale);
   headingBlock.append(heading);
 
-  if (kind === 'article') {
-    headingBlock.append(buildArticleIndexControls());
-  }
-
   const list = document.createElement('ul');
   list.className = 'articles-index-list';
 
   const entries = articles
-    .filter((article) => article.kind === kind && isArticleListedInThisEnv(article))
+    .filter((article) => {
+      if (article.kind !== kind || !isArticleListedInThisEnv(article)) return false;
+      if (article.kind !== 'article') return true;
+      return article.publisher === articleView;
+    })
     .sort(compareArticlesNewestFirst);
   for (const article of entries) {
     list.append(articleCard(lang ? translateArticle(article, lang) : article, lang));
@@ -221,7 +230,14 @@ function buildContentIndex(kind: Article['kind'], lang?: ArticleLang): HTMLEleme
     intro.textContent = t('rules.intro', {}, locale);
     sheet.append(intro);
   }
-  sheet.append(list);
+  if (entries.length > 0) {
+    sheet.append(list);
+  } else if (kind === 'article') {
+    const empty = document.createElement('p');
+    empty.className = 'articles-index-empty';
+    empty.textContent = 'No community posts yet.';
+    sheet.append(empty);
+  }
   if (kind === 'article') {
     layout.append(sheet);
     main.append(layout);
@@ -231,113 +247,28 @@ function buildContentIndex(kind: Article['kind'], lang?: ArticleLang): HTMLEleme
   return main;
 }
 
-function buildArticleCommunityRail(locale: Locale): HTMLElement {
+function buildArticleCommunityRail(locale: Locale, activeView: ArticleIndexView): HTMLElement {
   const rail = document.createElement('aside');
   rail.className = 'community-rail articles-community-rail';
   rail.setAttribute('aria-label', 'Blog navigation');
 
-  type RailItem =
-    | { label: string; href: string; active: boolean; enabled: true }
-    | { label: string; enabled: false };
-
-  const links: RailItem[] = [
-    { label: 'Community', href: localizedHref('/blog', locale), active: true, enabled: true },
-    { label: 'By month', enabled: false },
-    { label: 'By topic', enabled: false },
-    { label: 'By Mistboard', enabled: false },
-    { label: 'My likes', enabled: false },
-    { label: 'My friends', enabled: false },
-    { label: 'My blog', enabled: false },
+  const links: Array<{ label: string; href: string; view: ArticleIndexView }> = [
+    { label: 'By Mistboard', href: localizedHref('/blog', locale), view: 'mistboard' },
+    { label: 'Community', href: localizedHref('/blog/community', locale), view: 'community' },
   ];
 
   for (const item of links) {
-    if (item.enabled) {
-      const link = document.createElement('a');
-      link.href = item.href;
-      link.textContent = item.label;
-      if (item.active) {
-        link.className = 'community-rail-active';
-        link.setAttribute('aria-current', 'page');
-      }
-      rail.append(link);
-    } else {
-      const disabled = document.createElement('span');
-      disabled.className = 'community-rail-disabled';
-      disabled.setAttribute('aria-disabled', 'true');
-      disabled.title = 'Community blogs are not available yet.';
-      disabled.textContent = item.label;
-      rail.append(disabled);
+    const link = document.createElement('a');
+    link.href = item.href;
+    link.textContent = item.label;
+    if (item.view === activeView) {
+      link.className = 'community-rail-active';
+      link.setAttribute('aria-current', 'page');
     }
+    rail.append(link);
   }
 
   return rail;
-}
-
-function buildArticleIndexControls(): HTMLElement {
-  const controls = document.createElement('div');
-  controls.className = 'articles-index-controls';
-
-  const show = document.createElement('span');
-  show.className = 'articles-index-control-label';
-  show.textContent = 'Show';
-
-  const toggle = document.createElement('span');
-  toggle.className = 'articles-index-toggle';
-  toggle.setAttribute('aria-label', 'Post filter');
-  for (const [label, active] of [
-    ['best', true],
-    ['all', false],
-  ] as const) {
-    const item = document.createElement('button');
-    item.type = 'button';
-    item.disabled = true;
-    item.className = active ? 'articles-index-toggle-item active' : 'articles-index-toggle-item';
-    item.textContent = label;
-    item.title = 'Post sorting will unlock when community blogs launch.';
-    toggle.append(item);
-  }
-
-  const language = document.createElement('button');
-  language.type = 'button';
-  language.disabled = true;
-  language.className = 'articles-index-language';
-  language.textContent = 'All languages';
-  language.title = 'Language filtering will unlock when community blogs launch.';
-
-  const feed = document.createElement('span');
-  feed.className = 'articles-index-feed';
-  feed.setAttribute('aria-hidden', 'true');
-  feed.append(renderRssIcon());
-
-  controls.append(show, toggle, language, feed);
-  return controls;
-}
-
-function renderRssIcon(): SVGSVGElement {
-  const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
-  svg.setAttribute('viewBox', '0 0 24 24');
-  svg.setAttribute('fill', 'none');
-  svg.setAttribute('stroke', 'currentColor');
-  svg.setAttribute('stroke-width', '2.5');
-  svg.setAttribute('stroke-linecap', 'round');
-  svg.setAttribute('stroke-linejoin', 'round');
-  svg.setAttribute('focusable', 'false');
-
-  for (const d of ['M4 11a9 9 0 0 1 9 9', 'M4 4a16 16 0 0 1 16 16']) {
-    const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
-    path.setAttribute('d', d);
-    svg.append(path);
-  }
-
-  const circle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
-  circle.setAttribute('cx', '5');
-  circle.setAttribute('cy', '19');
-  circle.setAttribute('r', '1');
-  circle.setAttribute('fill', 'currentColor');
-  circle.setAttribute('stroke', 'currentColor');
-  svg.append(circle);
-
-  return svg;
 }
 
 // /rules is a landing page in the pychess shape: a short intro in the sheet

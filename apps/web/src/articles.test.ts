@@ -12,6 +12,7 @@ import {
   buildRulesIndex,
   mountPendingWidgets,
 } from './articles.js';
+import { articles } from './articles-data.js';
 import { boardAppearanceChangedEvent } from './theme.js';
 
 describe('article public listing gates', () => {
@@ -69,6 +70,60 @@ describe('article public listing gates', () => {
       '/blog/server-enforced-fog',
       '/blog/dark-chess-concepts',
     ]);
+  });
+
+  it('keeps only working Community and By Mistboard blog navigation', () => {
+    const official = buildArticlesIndex();
+    const community = buildArticlesIndex(undefined, 'community');
+    const officialLinks = [
+      ...official.querySelectorAll<HTMLAnchorElement>('.articles-community-rail a'),
+    ].map((link) => ({
+      label: link.textContent,
+      href: link.getAttribute('href'),
+      current: link.getAttribute('aria-current'),
+    }));
+
+    expect(officialLinks).toEqual([
+      { label: 'By Mistboard', href: '/blog', current: 'page' },
+      { label: 'Community', href: '/blog/community', current: null },
+    ]);
+    expect(
+      community.querySelector('.articles-community-rail a[aria-current="page"]')?.textContent,
+    ).toBe('Community');
+    expect(official.querySelector('.articles-index-controls')).toBeNull();
+    expect(official.querySelectorAll('button')).toHaveLength(0);
+    expect(official.textContent).not.toContain('All languages');
+    expect(community.querySelector('.articles-index-card')).toBeNull();
+    expect(community.querySelector('.articles-index-empty')?.textContent).toBe(
+      'No community posts yet.',
+    );
+  });
+
+  it('filters community-authored posts out of the By Mistboard view', () => {
+    const post = articles.find((article) => article.slug === 'server-enforced-fog');
+    if (!post || post.kind !== 'article') throw new Error('missing server-enforced-fog article');
+    const originalPublisher = post.publisher;
+
+    try {
+      post.publisher = 'community';
+      expect(
+        buildArticlesIndex(undefined, 'community').querySelector(
+          'a[href="/blog/server-enforced-fog"]',
+        ),
+      ).not.toBeNull();
+      expect(buildArticlesIndex().querySelector('a[href="/blog/server-enforced-fog"]')).toBeNull();
+    } finally {
+      post.publisher = originalPublisher;
+    }
+  });
+
+  it('localizes both blog rail destinations', () => {
+    const index = buildArticlesIndex('zh-Hans', 'community');
+    const hrefs = [...index.querySelectorAll<HTMLAnchorElement>('.articles-community-rail a')].map(
+      (link) => link.getAttribute('href'),
+    );
+
+    expect(hrefs).toEqual(['/zh-hans/blog', '/zh-hans/blog/community']);
   });
 
   it('localizes the zh-Hans articles index cards', () => {
