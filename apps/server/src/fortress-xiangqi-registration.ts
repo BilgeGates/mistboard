@@ -18,7 +18,7 @@ import {
   handleFortressXiangqiCreate,
   requestsFortressXiangqi,
 } from './routes/fortress-xiangqi-rooms.js';
-import { isAllowedTimeControl } from './routes/lib.js';
+import { isAllowedFullTimeControl } from './routes/lib.js';
 import { scheduleFortressXiangqiEngineMove } from './server-fortress-xiangqi-engine.js';
 import { recordTenantPersistenceError } from './variant-tenant/events.js';
 import { getOrLoadTenantRoom } from './variant-tenant/hydration.js';
@@ -145,7 +145,7 @@ registerVariantTenant({
   },
   lobby: {
     supportsRated: true,
-    allowsTimeControl: isAllowedTimeControl,
+    allowsTimeControl: isAllowedFullTimeControl,
     createRoom: async (timeControl, rated) => {
       const created = await createFortressXiangqiRoom(timeControl, 'random', rated);
       if (!created.ok) throw new Error(`fortress_xiangqi_room_create_failed:${created.error}`);
