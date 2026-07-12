@@ -168,13 +168,29 @@ export function trimXiangqiWinningAdvantageTail(puzzle: XiangqiPuzzle): XiangqiP
   return { ...puzzle, solution: trimmed };
 }
 
+// A handful of mined puzzles whose flagged solver ply has a near-tied second
+// move (two winning moves within a small eval gap), so the "one right answer"
+// is not robust — the independent audit rejects them even though the gated
+// miner accepted them (search nondeterminism between the two engine processes
+// flips a small gap). Held back until the #185 follow-up lands (verify-hash
+// determinism + a slightly higher material-gap so a future re-mine never
+// produces them); then this set and the filter below are removed.
+const AUDIT_FLAGGED_XIANGQI_PUZZLE_IDS: ReadonlySet<string> = new Set([
+  'xq-mined-hxq_2b2b6b6d803b6f4bbd3a12d5-58',
+  'xq-mined-hxq_3087b9e177dc6e0a08d2872a-65',
+  'xq-mined-hxq_4a41e15e9d8a17414cf249ee-42',
+  'xq-mined-hxq_5299fe14e58a6acd13d8dd33-101',
+]);
+
 export const XIANGQI_PUZZLES: readonly XiangqiPuzzle[] = [
   ...CURATED_XIANGQI_PUZZLES,
-  // The mined corpus is now gated at mine time — every solver ply is verified
-  // uniquely correct by the extend-while-unique miner (#180) — so it ships
-  // as-is; the interim audit allowlist is retired. The quiet-tail trim stays a
-  // defensive, idempotent normalization.
-  ...MINED_XIANGQI_PUZZLES.map(trimXiangqiWinningAdvantageTail),
+  // The mined corpus is gated at mine time — every solver ply is verified
+  // uniquely correct by the extend-while-unique miner from the standalone FEN
+  // (#180/#185) — minus the few audit-flagged near-tied cases above. The
+  // quiet-tail trim stays a defensive, idempotent normalization.
+  ...MINED_XIANGQI_PUZZLES.filter((puzzle) => !AUDIT_FLAGGED_XIANGQI_PUZZLE_IDS.has(puzzle.id)).map(
+    trimXiangqiWinningAdvantageTail,
+  ),
 ];
 
 export function standardXiangqiPuzzleById(id: string): XiangqiPuzzle | null {

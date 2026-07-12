@@ -293,7 +293,9 @@ test('mined corpus: ids unique, themes known, lines 1-7 plies ending on the solv
     MINED_XIANGQI_PUZZLES.length >= 40,
     `raw mined module shrank to ${MINED_XIANGQI_PUZZLES.length} puzzles`,
   );
-  assert.ok(MINED_PUZZLES.length >= 40, `served corpus shrank to ${MINED_PUZZLES.length} puzzles`);
+  // Served = raw minus the few audit-flagged near-tied puzzles (see
+  // AUDIT_FLAGGED_XIANGQI_PUZZLE_IDS); floor is modest for the POC corpus.
+  assert.ok(MINED_PUZZLES.length >= 35, `served corpus shrank to ${MINED_PUZZLES.length} puzzles`);
   const ids = new Set<string>();
   for (const puzzle of MINED_PUZZLES) {
     assert.equal(puzzle.variant, XIANGQI_SPEC_ID, puzzle.id);

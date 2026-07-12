@@ -185,7 +185,7 @@ export const MINED_XIANGQI_PUZZLES: readonly MinedXiangqiPuzzle[] = [
     goal: {
       type: 'winning-advantage',
       winner: 'red',
-      centipawns: 452,
+      centipawns: 459,
     },
     themes: ['winning', 'winning-material', 'middlegame'],
     sourceGame: {
@@ -579,7 +579,7 @@ export const MINED_XIANGQI_PUZZLES: readonly MinedXiangqiPuzzle[] = [
     goal: {
       type: 'winning-advantage',
       winner: 'black',
-      centipawns: 318,
+      centipawns: 313,
     },
     themes: ['winning', 'middlegame'],
     sourceGame: {
@@ -725,14 +725,6 @@ export const MINED_XIANGQI_PUZZLES: readonly MinedXiangqiPuzzle[] = [
       },
       {
         from: 'e3',
-        to: 'g5',
-      },
-      {
-        from: 'b3',
-        to: 'b1',
-      },
-      {
-        from: 'c6',
         to: 'c1',
       },
       {
@@ -740,18 +732,18 @@ export const MINED_XIANGQI_PUZZLES: readonly MinedXiangqiPuzzle[] = [
         to: 'f2',
       },
       {
-        from: 'd3',
-        to: 'f3',
+        from: 'h10',
+        to: 'g10',
       },
       {
         from: 'g8',
-        to: 'g5',
+        to: 'g10',
       },
     ],
     goal: {
       type: 'winning-advantage',
       winner: 'black',
-      centipawns: 942,
+      centipawns: 917,
     },
     themes: ['winning', 'middlegame'],
     sourceGame: {
@@ -1436,302 +1428,6 @@ export const MINED_XIANGQI_PUZZLES: readonly MinedXiangqiPuzzle[] = [
     },
   },
   {
-    id: 'xq-mined-hxq_180748d69c96be7c786bbd43-28',
-    variant: 'xiangqi',
-    title: 'Red winning advantage',
-    initial: {
-      id: 'xq-mined-hxq_180748d69c96be7c786bbd43-28',
-      board: {
-        a1: {
-          color: 'red',
-          role: 'chariot',
-        },
-        c1: {
-          color: 'red',
-          role: 'elephant',
-        },
-        d1: {
-          color: 'red',
-          role: 'advisor',
-        },
-        e1: {
-          color: 'red',
-          role: 'general',
-        },
-        f1: {
-          color: 'red',
-          role: 'advisor',
-        },
-        g2: {
-          color: 'red',
-          role: 'chariot',
-        },
-        b3: {
-          color: 'red',
-          role: 'cannon',
-        },
-        d3: {
-          color: 'red',
-          role: 'horse',
-        },
-        e3: {
-          color: 'red',
-          role: 'elephant',
-        },
-        g3: {
-          color: 'red',
-          role: 'cannon',
-        },
-        g4: {
-          color: 'black',
-          role: 'chariot',
-        },
-        i4: {
-          color: 'red',
-          role: 'soldier',
-        },
-        a5: {
-          color: 'red',
-          role: 'soldier',
-        },
-        b5: {
-          color: 'red',
-          role: 'horse',
-        },
-        c5: {
-          color: 'red',
-          role: 'soldier',
-        },
-        e5: {
-          color: 'red',
-          role: 'soldier',
-        },
-        a7: {
-          color: 'black',
-          role: 'soldier',
-        },
-        g7: {
-          color: 'black',
-          role: 'soldier',
-        },
-        i7: {
-          color: 'black',
-          role: 'soldier',
-        },
-        a8: {
-          color: 'black',
-          role: 'horse',
-        },
-        e8: {
-          color: 'black',
-          role: 'cannon',
-        },
-        g8: {
-          color: 'black',
-          role: 'horse',
-        },
-        e9: {
-          color: 'black',
-          role: 'cannon',
-        },
-        a10: {
-          color: 'black',
-          role: 'chariot',
-        },
-        c10: {
-          color: 'black',
-          role: 'elephant',
-        },
-        d10: {
-          color: 'black',
-          role: 'advisor',
-        },
-        e10: {
-          color: 'black',
-          role: 'general',
-        },
-        f10: {
-          color: 'black',
-          role: 'advisor',
-        },
-        g10: {
-          color: 'black',
-          role: 'elephant',
-        },
-      },
-      status: {
-        type: 'playing',
-        turn: 'red',
-      },
-      moveNumber: 15,
-      progressClock: 0,
-      positionCounts: {
-        'red|a1rc,a10bc,a5rs,a7bs,a8bh,b3rc,b5rh,c1re,c10be,c5rs,d1ra,d10ba,d3rh,e1rg,e10bg,e3re,e5rs,e8bc,e9bc,f1ra,f10ba,g10be,g2rc,g3rc,g4bc,g7bs,g8bh,i4rs,i7bs': 1,
-      },
-      lastMove: {
-        to: 'g4',
-        from: 'g5',
-      },
-    },
-    solution: [
-      {
-        from: 'g3',
-        to: 'g7',
-      },
-      {
-        from: 'e9',
-        to: 'e5',
-      },
-      {
-        from: 'd3',
-        to: 'e5',
-      },
-    ],
-    goal: {
-      type: 'winning-advantage',
-      winner: 'red',
-      centipawns: 553,
-    },
-    themes: ['winning', 'winning-material', 'middlegame'],
-    sourceGame: {
-      gameId: 'hxq_180748d69c96be7c786bbd43',
-      ply: 28,
-      event: '2026年全国象棋团体赛',
-      playedOn: '2026-04-02',
-      result: '1-0',
-      redName: '成都棋院（成都市智力运动中心） 赵攀伟',
-      blackName: '甘肃体彩队 曹云鹏',
-    },
-  },
-  {
-    id: 'xq-mined-hxq_18d9ba41d925af93ca832b92-92',
-    variant: 'xiangqi',
-    title: 'Red winning advantage',
-    initial: {
-      id: 'xq-mined-hxq_18d9ba41d925af93ca832b92-92',
-      board: {
-        c1: {
-          color: 'red',
-          role: 'elephant',
-        },
-        d1: {
-          color: 'red',
-          role: 'advisor',
-        },
-        i1: {
-          color: 'black',
-          role: 'cannon',
-        },
-        e2: {
-          color: 'red',
-          role: 'general',
-        },
-        f2: {
-          color: 'black',
-          role: 'chariot',
-        },
-        i3: {
-          color: 'red',
-          role: 'elephant',
-        },
-        c4: {
-          color: 'red',
-          role: 'soldier',
-        },
-        e4: {
-          color: 'black',
-          role: 'horse',
-        },
-        b6: {
-          color: 'red',
-          role: 'horse',
-        },
-        c6: {
-          color: 'black',
-          role: 'soldier',
-        },
-        i6: {
-          color: 'black',
-          role: 'soldier',
-        },
-        f8: {
-          color: 'black',
-          role: 'general',
-        },
-        b9: {
-          color: 'red',
-          role: 'cannon',
-        },
-        c9: {
-          color: 'red',
-          role: 'cannon',
-        },
-        d10: {
-          color: 'red',
-          role: 'chariot',
-        },
-      },
-      status: {
-        type: 'playing',
-        turn: 'red',
-      },
-      moveNumber: 47,
-      progressClock: 0,
-      positionCounts: {
-        'red|b6rh,b9rc,c1re,c4rs,c6bs,c9rc,d1ra,d10rc,e2rg,e4bh,f2bc,f8bg,i1bc,i3re,i6bs': 1,
-      },
-      lastMove: {
-        to: 'f2',
-        from: 'f1',
-      },
-    },
-    solution: [
-      {
-        from: 'e2',
-        to: 'e3',
-      },
-      {
-        from: 'f2',
-        to: 'f3',
-      },
-      {
-        from: 'e3',
-        to: 'e2',
-      },
-      {
-        from: 'f3',
-        to: 'f2',
-      },
-      {
-        from: 'e2',
-        to: 'e3',
-      },
-      {
-        from: 'f2',
-        to: 'f3',
-      },
-      {
-        from: 'e3',
-        to: 'e2',
-      },
-    ],
-    goal: {
-      type: 'winning-advantage',
-      winner: 'red',
-      centipawns: 1192,
-    },
-    themes: ['winning', 'middlegame'],
-    sourceGame: {
-      gameId: 'hxq_18d9ba41d925af93ca832b92',
-      ply: 92,
-      event: '2026年全国象棋团体赛',
-      playedOn: '2026-03-31',
-      result: '1-0',
-      redName: '湖北省体育局棋牌运动管理中心 刘云峰',
-      blackName: '江西省体育总会 李悦华',
-    },
-  },
-  {
     id: 'xq-mined-hxq_1bbfca3e3bfade023879027b-99',
     variant: 'xiangqi',
     title: 'Black winning advantage',
@@ -1838,7 +1534,7 @@ export const MINED_XIANGQI_PUZZLES: readonly MinedXiangqiPuzzle[] = [
     goal: {
       type: 'winning-advantage',
       winner: 'black',
-      centipawns: 301,
+      centipawns: 291,
     },
     themes: ['winning', 'middlegame'],
     sourceGame: {
@@ -2250,154 +1946,6 @@ export const MINED_XIANGQI_PUZZLES: readonly MinedXiangqiPuzzle[] = [
     },
   },
   {
-    id: 'xq-mined-hxq_26355c6e0b704a89cdc64edd-46',
-    variant: 'xiangqi',
-    title: 'Red winning advantage',
-    initial: {
-      id: 'xq-mined-hxq_26355c6e0b704a89cdc64edd-46',
-      board: {
-        c1: {
-          color: 'red',
-          role: 'elephant',
-        },
-        e1: {
-          color: 'red',
-          role: 'general',
-        },
-        f1: {
-          color: 'red',
-          role: 'advisor',
-        },
-        e2: {
-          color: 'red',
-          role: 'advisor',
-        },
-        a3: {
-          color: 'red',
-          role: 'cannon',
-        },
-        i3: {
-          color: 'red',
-          role: 'elephant',
-        },
-        a4: {
-          color: 'red',
-          role: 'soldier',
-        },
-        d4: {
-          color: 'black',
-          role: 'cannon',
-        },
-        i4: {
-          color: 'red',
-          role: 'soldier',
-        },
-        b5: {
-          color: 'red',
-          role: 'chariot',
-        },
-        e5: {
-          color: 'red',
-          role: 'cannon',
-        },
-        c6: {
-          color: 'red',
-          role: 'soldier',
-        },
-        f6: {
-          color: 'black',
-          role: 'horse',
-        },
-        g6: {
-          color: 'black',
-          role: 'soldier',
-        },
-        a7: {
-          color: 'black',
-          role: 'soldier',
-        },
-        d7: {
-          color: 'black',
-          role: 'chariot',
-        },
-        i7: {
-          color: 'black',
-          role: 'soldier',
-        },
-        c8: {
-          color: 'red',
-          role: 'horse',
-        },
-        e8: {
-          color: 'black',
-          role: 'elephant',
-        },
-        d9: {
-          color: 'black',
-          role: 'horse',
-        },
-        e9: {
-          color: 'black',
-          role: 'advisor',
-        },
-        e10: {
-          color: 'black',
-          role: 'general',
-        },
-        f10: {
-          color: 'black',
-          role: 'advisor',
-        },
-        g10: {
-          color: 'black',
-          role: 'elephant',
-        },
-      },
-      status: {
-        type: 'playing',
-        turn: 'red',
-      },
-      moveNumber: 24,
-      progressClock: 0,
-      positionCounts: {
-        'red|a3rc,a4rs,a7bs,b5rc,c1re,c6rs,c8rh,d4bc,d7bc,d9bh,e1rg,e10bg,e2ra,e5rc,e8be,e9ba,f1ra,f10ba,f6bh,g10be,g6bs,i3re,i4rs,i7bs': 1,
-      },
-      lastMove: {
-        to: 'd7',
-        from: 'e7',
-      },
-    },
-    solution: [
-      {
-        from: 'a3',
-        to: 'a7',
-      },
-      {
-        from: 'd7',
-        to: 'a7',
-      },
-      {
-        from: 'c8',
-        to: 'a7',
-      },
-    ],
-    goal: {
-      type: 'winning-advantage',
-      winner: 'red',
-      centipawns: 470,
-    },
-    themes: ['winning', 'winning-material', 'middlegame'],
-    sourceGame: {
-      gameId: 'hxq_26355c6e0b704a89cdc64edd',
-      ply: 46,
-      event: '1996年华能杯全国象棋个人赛',
-      playedOn: '1996-10-20',
-      result: '1-0',
-      redName: '火车头 刚秋英',
-      blackName: '成都 唐冬梅',
-    },
-  },
-  {
     id: 'xq-mined-hxq_2b2b6b6d803b6f4bbd3a12d5-58',
     variant: 'xiangqi',
     title: 'Red winning advantage',
@@ -2517,26 +2065,18 @@ export const MINED_XIANGQI_PUZZLES: readonly MinedXiangqiPuzzle[] = [
         to: 'h6',
       },
       {
-        from: 'g10',
-        to: 'e8',
-      },
-      {
-        from: 'b4',
-        to: 'b10',
-      },
-      {
         from: 'c1',
-        to: 'b1',
+        to: 'd1',
       },
       {
-        from: 'b10',
-        to: 'b1',
+        from: 'e2',
+        to: 'd1',
       },
     ],
     goal: {
       type: 'winning-advantage',
       winner: 'red',
-      centipawns: 1182,
+      centipawns: 1394,
     },
     themes: ['winning', 'middlegame'],
     sourceGame: {
@@ -2692,7 +2232,7 @@ export const MINED_XIANGQI_PUZZLES: readonly MinedXiangqiPuzzle[] = [
     goal: {
       type: 'winning-advantage',
       winner: 'red',
-      centipawns: 432,
+      centipawns: 468,
     },
     themes: ['winning', 'middlegame'],
     sourceGame: {
@@ -2703,166 +2243,6 @@ export const MINED_XIANGQI_PUZZLES: readonly MinedXiangqiPuzzle[] = [
       result: '1-0',
       redName: '湖北省体育局棋牌运动管理中心 汪元知',
       blackName: '江苏棋院 周雨霏',
-    },
-  },
-  {
-    id: 'xq-mined-hxq_2fdd0dd15d96e8ce3d921896-26',
-    variant: 'xiangqi',
-    title: 'Red winning advantage',
-    initial: {
-      id: 'xq-mined-hxq_2fdd0dd15d96e8ce3d921896-26',
-      board: {
-        a1: {
-          color: 'red',
-          role: 'chariot',
-        },
-        c1: {
-          color: 'red',
-          role: 'elephant',
-        },
-        d1: {
-          color: 'red',
-          role: 'advisor',
-        },
-        e1: {
-          color: 'red',
-          role: 'general',
-        },
-        f1: {
-          color: 'red',
-          role: 'advisor',
-        },
-        g1: {
-          color: 'red',
-          role: 'elephant',
-        },
-        c3: {
-          color: 'red',
-          role: 'horse',
-        },
-        e3: {
-          color: 'red',
-          role: 'cannon',
-        },
-        a4: {
-          color: 'red',
-          role: 'soldier',
-        },
-        e4: {
-          color: 'red',
-          role: 'soldier',
-        },
-        i4: {
-          color: 'red',
-          role: 'soldier',
-        },
-        b5: {
-          color: 'red',
-          role: 'cannon',
-        },
-        c5: {
-          color: 'red',
-          role: 'soldier',
-        },
-        f5: {
-          color: 'red',
-          role: 'horse',
-        },
-        g5: {
-          color: 'black',
-          role: 'chariot',
-        },
-        a7: {
-          color: 'black',
-          role: 'soldier',
-        },
-        e7: {
-          color: 'black',
-          role: 'soldier',
-        },
-        i7: {
-          color: 'black',
-          role: 'soldier',
-        },
-        a8: {
-          color: 'black',
-          role: 'elephant',
-        },
-        c8: {
-          color: 'black',
-          role: 'cannon',
-        },
-        e8: {
-          color: 'black',
-          role: 'cannon',
-        },
-        g8: {
-          color: 'black',
-          role: 'horse',
-        },
-        c10: {
-          color: 'black',
-          role: 'horse',
-        },
-        d10: {
-          color: 'black',
-          role: 'advisor',
-        },
-        e10: {
-          color: 'black',
-          role: 'general',
-        },
-        f10: {
-          color: 'black',
-          role: 'advisor',
-        },
-        g10: {
-          color: 'black',
-          role: 'elephant',
-        },
-      },
-      status: {
-        type: 'playing',
-        turn: 'red',
-      },
-      moveNumber: 14,
-      progressClock: 0,
-      positionCounts: {
-        'red|a1rc,a4rs,a7bs,a8be,b5rc,c1re,c10bh,c3rh,c5rs,c8bc,d1ra,d10ba,e1rg,e10bg,e3rc,e4rs,e7bs,e8bc,f1ra,f10ba,f5rh,g1re,g10be,g5bc,g8bh,i4rs,i7bs': 1,
-      },
-      lastMove: {
-        to: 'c8',
-        from: 'b8',
-      },
-    },
-    solution: [
-      {
-        from: 'f5',
-        to: 'd6',
-      },
-      {
-        from: 'g5',
-        to: 'g1',
-      },
-      {
-        from: 'd6',
-        to: 'c8',
-      },
-    ],
-    goal: {
-      type: 'winning-advantage',
-      winner: 'red',
-      centipawns: 384,
-    },
-    themes: ['winning', 'middlegame'],
-    sourceGame: {
-      gameId: 'hxq_2fdd0dd15d96e8ce3d921896',
-      ply: 26,
-      event: '2026年全国象棋团体赛',
-      playedOn: '2026-03-28',
-      result: '0-1',
-      redName: '安徽省棋院 陈欣圆',
-      blackName: '北京棋院（北京市棋牌运动管理中心） 孙嘉潞',
     },
   },
   {
@@ -2992,7 +2372,7 @@ export const MINED_XIANGQI_PUZZLES: readonly MinedXiangqiPuzzle[] = [
     goal: {
       type: 'winning-advantage',
       winner: 'red',
-      centipawns: 439,
+      centipawns: 438,
     },
     themes: ['winning', 'middlegame'],
     sourceGame: {
@@ -3144,7 +2524,7 @@ export const MINED_XIANGQI_PUZZLES: readonly MinedXiangqiPuzzle[] = [
     goal: {
       type: 'winning-advantage',
       winner: 'black',
-      centipawns: 571,
+      centipawns: 583,
     },
     themes: ['winning', 'middlegame'],
     sourceGame: {
@@ -3331,106 +2711,6 @@ export const MINED_XIANGQI_PUZZLES: readonly MinedXiangqiPuzzle[] = [
       result: '1-0',
       redName: '洛杉矶 黎英豪',
       blackName: '休斯顿 胡玉山',
-    },
-  },
-  {
-    id: 'xq-mined-hxq_32ee0bb9cee3a2c3bcca6d8e-105',
-    variant: 'xiangqi',
-    title: 'Black winning advantage',
-    initial: {
-      id: 'xq-mined-hxq_32ee0bb9cee3a2c3bcca6d8e-105',
-      board: {
-        d1: {
-          color: 'red',
-          role: 'advisor',
-        },
-        f1: {
-          color: 'red',
-          role: 'general',
-        },
-        c2: {
-          color: 'black',
-          role: 'cannon',
-        },
-        d3: {
-          color: 'black',
-          role: 'chariot',
-        },
-        i4: {
-          color: 'red',
-          role: 'soldier',
-        },
-        e5: {
-          color: 'black',
-          role: 'horse',
-        },
-        f5: {
-          color: 'red',
-          role: 'chariot',
-        },
-        e6: {
-          color: 'black',
-          role: 'soldier',
-        },
-        i7: {
-          color: 'red',
-          role: 'cannon',
-        },
-        a8: {
-          color: 'black',
-          role: 'elephant',
-        },
-        c8: {
-          color: 'red',
-          role: 'horse',
-        },
-        d9: {
-          color: 'black',
-          role: 'general',
-        },
-        e9: {
-          color: 'black',
-          role: 'advisor',
-        },
-        f10: {
-          color: 'black',
-          role: 'advisor',
-        },
-      },
-      status: {
-        type: 'playing',
-        turn: 'black',
-      },
-      moveNumber: 53,
-      progressClock: 0,
-      positionCounts: {
-        'black|a8be,c2bc,c8rh,d1ra,d3bc,d9bg,e5bh,e6bs,e9ba,f1rg,f10ba,f5rc,i4rs,i7rc': 1,
-      },
-      lastMove: {
-        to: 'i7',
-        from: 'b7',
-      },
-    },
-    solution: [
-      {
-        from: 'd3',
-        to: 'd1',
-      },
-    ],
-    goal: {
-      type: 'winning-advantage',
-      winner: 'black',
-      centipawns: 978,
-    },
-    themes: ['winning', 'winning-material', 'endgame'],
-    sourceGame: {
-      gameId: 'hxq_32ee0bb9cee3a2c3bcca6d8e',
-      ply: 105,
-      event: '2026年全国象棋团体赛',
-      playedOn: '2026-03-31',
-      result: '0-1',
-      redName: '浙江省智力运动管理中心 申恩炫',
-      blackName: '河北省体育局棋牌运动中心 陆伟韬',
     },
   },
   {
@@ -3727,7 +3007,7 @@ export const MINED_XIANGQI_PUZZLES: readonly MinedXiangqiPuzzle[] = [
     goal: {
       type: 'winning-advantage',
       winner: 'black',
-      centipawns: 379,
+      centipawns: 385,
     },
     themes: ['winning', 'winning-material', 'middlegame'],
     sourceGame: {
@@ -3879,7 +3159,7 @@ export const MINED_XIANGQI_PUZZLES: readonly MinedXiangqiPuzzle[] = [
     goal: {
       type: 'winning-advantage',
       winner: 'red',
-      centipawns: 513,
+      centipawns: 507,
     },
     themes: ['winning', 'middlegame'],
     sourceGame: {
@@ -3890,154 +3170,6 @@ export const MINED_XIANGQI_PUZZLES: readonly MinedXiangqiPuzzle[] = [
       result: '1-0',
       redName: '厦门市体育事业发展中心 何昊松',
       blackName: '宁波市全民健身指导中心 许鑫鑫',
-    },
-  },
-  {
-    id: 'xq-mined-hxq_48acbf0ba88cf1c73e23db21-46',
-    variant: 'xiangqi',
-    title: 'Red winning advantage',
-    initial: {
-      id: 'xq-mined-hxq_48acbf0ba88cf1c73e23db21-46',
-      board: {
-        c1: {
-          color: 'red',
-          role: 'elephant',
-        },
-        d1: {
-          color: 'red',
-          role: 'advisor',
-        },
-        e1: {
-          color: 'red',
-          role: 'general',
-        },
-        e2: {
-          color: 'red',
-          role: 'advisor',
-        },
-        c3: {
-          color: 'red',
-          role: 'horse',
-        },
-        e3: {
-          color: 'red',
-          role: 'elephant',
-        },
-        f3: {
-          color: 'black',
-          role: 'chariot',
-        },
-        g3: {
-          color: 'red',
-          role: 'cannon',
-        },
-        a4: {
-          color: 'red',
-          role: 'soldier',
-        },
-        g4: {
-          color: 'red',
-          role: 'soldier',
-        },
-        i4: {
-          color: 'red',
-          role: 'soldier',
-        },
-        c5: {
-          color: 'red',
-          role: 'soldier',
-        },
-        e5: {
-          color: 'black',
-          role: 'cannon',
-        },
-        g5: {
-          color: 'red',
-          role: 'chariot',
-        },
-        a7: {
-          color: 'black',
-          role: 'soldier',
-        },
-        i7: {
-          color: 'black',
-          role: 'soldier',
-        },
-        e8: {
-          color: 'black',
-          role: 'cannon',
-        },
-        e9: {
-          color: 'black',
-          role: 'advisor',
-        },
-        c10: {
-          color: 'black',
-          role: 'elephant',
-        },
-        e10: {
-          color: 'black',
-          role: 'general',
-        },
-        f10: {
-          color: 'black',
-          role: 'advisor',
-        },
-        g10: {
-          color: 'black',
-          role: 'elephant',
-        },
-      },
-      status: {
-        type: 'playing',
-        turn: 'red',
-      },
-      moveNumber: 24,
-      progressClock: 0,
-      positionCounts: {
-        'red|a4rs,a7bs,c1re,c10be,c3rh,c5rs,d1ra,e1rg,e10bg,e2ra,e3re,e5bc,e8bc,e9ba,f10ba,f3bc,g10be,g3rc,g4rs,g5rc,i4rs,i7bs': 1,
-      },
-      lastMove: {
-        to: 'f3',
-        from: 'f4',
-      },
-    },
-    solution: [
-      {
-        from: 'g3',
-        to: 'g1',
-      },
-      {
-        from: 'e8',
-        to: 'e3',
-      },
-      {
-        from: 'c1',
-        to: 'e3',
-      },
-      {
-        from: 'f3',
-        to: 'e3',
-      },
-      {
-        from: 'g5',
-        to: 'e5',
-      },
-    ],
-    goal: {
-      type: 'winning-advantage',
-      winner: 'red',
-      centipawns: 339,
-    },
-    themes: ['winning', 'middlegame'],
-    sourceGame: {
-      gameId: 'hxq_48acbf0ba88cf1c73e23db21',
-      ply: 46,
-      event: '2026年广东十虎VS北京十杰象棋擂台赛',
-      playedOn: '2026-01-17',
-      result: '1-0',
-      redName: '广东十虎 梁雅让',
-      blackName: '北京十杰 左治',
     },
   },
   {
@@ -4246,7 +3378,7 @@ export const MINED_XIANGQI_PUZZLES: readonly MinedXiangqiPuzzle[] = [
     goal: {
       type: 'winning-advantage',
       winner: 'red',
-      centipawns: 508,
+      centipawns: 534,
     },
     themes: ['winning', 'endgame'],
     sourceGame: {
@@ -4390,7 +3522,7 @@ export const MINED_XIANGQI_PUZZLES: readonly MinedXiangqiPuzzle[] = [
     goal: {
       type: 'winning-advantage',
       winner: 'black',
-      centipawns: 442,
+      centipawns: 445,
     },
     themes: ['winning', 'winning-material', 'crushing', 'middlegame'],
     sourceGame: {
@@ -4534,7 +3666,7 @@ export const MINED_XIANGQI_PUZZLES: readonly MinedXiangqiPuzzle[] = [
     goal: {
       type: 'winning-advantage',
       winner: 'red',
-      centipawns: 279,
+      centipawns: 303,
     },
     themes: ['winning', 'winning-material', 'crushing', 'middlegame'],
     sourceGame: {
@@ -4678,7 +3810,7 @@ export const MINED_XIANGQI_PUZZLES: readonly MinedXiangqiPuzzle[] = [
     goal: {
       type: 'winning-advantage',
       winner: 'black',
-      centipawns: 379,
+      centipawns: 376,
     },
     themes: ['winning', 'winning-material', 'middlegame'],
     sourceGame: {
@@ -4848,6 +3980,130 @@ export const MINED_XIANGQI_PUZZLES: readonly MinedXiangqiPuzzle[] = [
       result: '1-0',
       redName: '黑龙江省社会体育指导与棋牌运动管理中心 李丹阳',
       blackName: '安徽省棋院 陈欣圆',
+    },
+  },
+  {
+    id: 'xq-mined-hxq_5299fe14e58a6acd13d8dd33-101',
+    variant: 'xiangqi',
+    title: 'Black winning advantage',
+    initial: {
+      id: 'xq-mined-hxq_5299fe14e58a6acd13d8dd33-101',
+      board: {
+        d1: {
+          color: 'red',
+          role: 'advisor',
+        },
+        h1: {
+          color: 'black',
+          role: 'chariot',
+        },
+        f2: {
+          color: 'red',
+          role: 'general',
+        },
+        d3: {
+          color: 'red',
+          role: 'cannon',
+        },
+        f3: {
+          color: 'red',
+          role: 'advisor',
+        },
+        b4: {
+          color: 'red',
+          role: 'chariot',
+        },
+        c4: {
+          color: 'black',
+          role: 'cannon',
+        },
+        f4: {
+          color: 'black',
+          role: 'soldier',
+        },
+        i4: {
+          color: 'red',
+          role: 'soldier',
+        },
+        e6: {
+          color: 'black',
+          role: 'soldier',
+        },
+        f7: {
+          color: 'red',
+          role: 'chariot',
+        },
+        e8: {
+          color: 'black',
+          role: 'elephant',
+        },
+        c10: {
+          color: 'black',
+          role: 'chariot',
+        },
+        e10: {
+          color: 'black',
+          role: 'general',
+        },
+        f10: {
+          color: 'black',
+          role: 'advisor',
+        },
+        g10: {
+          color: 'black',
+          role: 'elephant',
+        },
+      },
+      status: {
+        type: 'playing',
+        turn: 'black',
+      },
+      moveNumber: 51,
+      progressClock: 0,
+      positionCounts: {
+        'black|b4rc,c10bc,c4bc,d1ra,d3rc,e10bg,e6bs,e8be,f10ba,f2rg,f3ra,f4bs,f7rc,g10be,h1bc,i4rs': 1,
+      },
+      lastMove: {
+        to: 'f7',
+        from: 'b7',
+      },
+    },
+    solution: [
+      {
+        from: 'h1',
+        to: 'h2',
+      },
+      {
+        from: 'f2',
+        to: 'f1',
+      },
+      {
+        from: 'c4',
+        to: 'c1',
+      },
+      {
+        from: 'd1',
+        to: 'e2',
+      },
+      {
+        from: 'c1',
+        to: 'a1',
+      },
+    ],
+    goal: {
+      type: 'winning-advantage',
+      winner: 'black',
+      centipawns: 1130,
+    },
+    themes: ['winning', 'middlegame'],
+    sourceGame: {
+      gameId: 'hxq_5299fe14e58a6acd13d8dd33',
+      ply: 101,
+      event: '2026年全国象棋团体赛',
+      playedOn: '2026-04-01',
+      result: '0-1',
+      redName: '吉林省棋牌运动管理中心 刘龙',
+      blackName: '北京棋院（北京市棋牌运动管理中心） 姚勤贺',
     },
   },
   {
@@ -5092,7 +4348,7 @@ export const MINED_XIANGQI_PUZZLES: readonly MinedXiangqiPuzzle[] = [
     goal: {
       type: 'winning-advantage',
       winner: 'red',
-      centipawns: 984,
+      centipawns: 747,
     },
     themes: ['winning', 'middlegame'],
     sourceGame: {
@@ -5103,6 +4359,134 @@ export const MINED_XIANGQI_PUZZLES: readonly MinedXiangqiPuzzle[] = [
       result: '1-0',
       redName: '广东省二沙体育训练中心 黄光颖',
       blackName: '湖北省体育局棋牌运动管理中心 刘云峰',
+    },
+  },
+  {
+    id: 'xq-mined-hxq_5de45f7a31381053e30a369b-62',
+    variant: 'xiangqi',
+    title: 'Red winning advantage',
+    initial: {
+      id: 'xq-mined-hxq_5de45f7a31381053e30a369b-62',
+      board: {
+        c1: {
+          color: 'red',
+          role: 'elephant',
+        },
+        d1: {
+          color: 'red',
+          role: 'advisor',
+        },
+        f1: {
+          color: 'red',
+          role: 'advisor',
+        },
+        g1: {
+          color: 'red',
+          role: 'elephant',
+        },
+        d2: {
+          color: 'red',
+          role: 'general',
+        },
+        a4: {
+          color: 'red',
+          role: 'soldier',
+        },
+        c4: {
+          color: 'black',
+          role: 'horse',
+        },
+        i4: {
+          color: 'red',
+          role: 'soldier',
+        },
+        e6: {
+          color: 'black',
+          role: 'cannon',
+        },
+        g6: {
+          color: 'black',
+          role: 'soldier',
+        },
+        a7: {
+          color: 'black',
+          role: 'soldier',
+        },
+        b7: {
+          color: 'red',
+          role: 'horse',
+        },
+        e7: {
+          color: 'red',
+          role: 'cannon',
+        },
+        i7: {
+          color: 'black',
+          role: 'soldier',
+        },
+        e8: {
+          color: 'black',
+          role: 'elephant',
+        },
+        f8: {
+          color: 'black',
+          role: 'advisor',
+        },
+        e9: {
+          color: 'black',
+          role: 'advisor',
+        },
+        e10: {
+          color: 'black',
+          role: 'general',
+        },
+        g10: {
+          color: 'black',
+          role: 'elephant',
+        },
+      },
+      status: {
+        type: 'playing',
+        turn: 'red',
+      },
+      moveNumber: 32,
+      progressClock: 0,
+      positionCounts: {
+        'red|a4rs,a7bs,b7rh,c1re,c4bh,d1ra,d2rg,e10bg,e6bc,e7rc,e8be,e9ba,f1ra,f8ba,g1re,g10be,g6bs,i4rs,i7bs': 1,
+      },
+      lastMove: {
+        to: 'c4',
+        from: 'e5',
+      },
+    },
+    solution: [
+      {
+        from: 'd2',
+        to: 'd3',
+      },
+      {
+        from: 'c4',
+        to: 'e5',
+      },
+      {
+        from: 'e7',
+        to: 'e5',
+      },
+    ],
+    goal: {
+      type: 'winning-advantage',
+      winner: 'red',
+      centipawns: 314,
+    },
+    themes: ['winning', 'middlegame'],
+    sourceGame: {
+      gameId: 'hxq_5de45f7a31381053e30a369b',
+      ply: 62,
+      event: '2026年全国象棋团体赛',
+      playedOn: '2026-03-30',
+      result: '1-0',
+      redName: '广东省二沙体育训练中心 张婷',
+      blackName: '杭州市智力运动队 沈思凡',
     },
   },
   {
@@ -5268,7 +4652,7 @@ export const MINED_XIANGQI_PUZZLES: readonly MinedXiangqiPuzzle[] = [
     goal: {
       type: 'winning-advantage',
       winner: 'black',
-      centipawns: 336,
+      centipawns: 330,
     },
     themes: ['winning', 'winning-material', 'middlegame'],
     sourceGame: {
@@ -5539,19 +4923,11 @@ export const MINED_XIANGQI_PUZZLES: readonly MinedXiangqiPuzzle[] = [
         from: 'f7',
         to: 'f9',
       },
-      {
-        from: 'c10',
-        to: 'c9',
-      },
-      {
-        from: 'b9',
-        to: 'c9',
-      },
     ],
     goal: {
       type: 'winning-advantage',
       winner: 'red',
-      centipawns: 756,
+      centipawns: 773,
     },
     themes: ['winning', 'middlegame'],
     sourceGame: {
@@ -5934,258 +5310,6 @@ export const MINED_XIANGQI_PUZZLES: readonly MinedXiangqiPuzzle[] = [
     },
   },
   {
-    id: 'xq-mined-hxq_70a20e997a4023e508ab0347-87',
-    variant: 'xiangqi',
-    title: 'Black winning advantage',
-    initial: {
-      id: 'xq-mined-hxq_70a20e997a4023e508ab0347-87',
-      board: {
-        d1: {
-          color: 'red',
-          role: 'advisor',
-        },
-        g1: {
-          color: 'red',
-          role: 'elephant',
-        },
-        d2: {
-          color: 'red',
-          role: 'general',
-        },
-        i4: {
-          color: 'red',
-          role: 'soldier',
-        },
-        e5: {
-          color: 'black',
-          role: 'chariot',
-        },
-        g5: {
-          color: 'red',
-          role: 'soldier',
-        },
-        c6: {
-          color: 'black',
-          role: 'soldier',
-        },
-        c7: {
-          color: 'red',
-          role: 'chariot',
-        },
-        i7: {
-          color: 'black',
-          role: 'soldier',
-        },
-        d8: {
-          color: 'black',
-          role: 'cannon',
-        },
-        f8: {
-          color: 'black',
-          role: 'advisor',
-        },
-        a10: {
-          color: 'red',
-          role: 'cannon',
-        },
-        c10: {
-          color: 'black',
-          role: 'elephant',
-        },
-        d10: {
-          color: 'black',
-          role: 'advisor',
-        },
-        e10: {
-          color: 'black',
-          role: 'general',
-        },
-        f10: {
-          color: 'black',
-          role: 'cannon',
-        },
-        i10: {
-          color: 'red',
-          role: 'cannon',
-        },
-      },
-      status: {
-        type: 'playing',
-        turn: 'black',
-      },
-      moveNumber: 44,
-      progressClock: 0,
-      positionCounts: {
-        'black|a10rc,c10be,c6bs,c7rc,d1ra,d10ba,d2rg,d8bc,e10bg,e5bc,f10bc,f8ba,g1re,g5rs,i10rc,i4rs,i7bs': 1,
-      },
-      lastMove: {
-        to: 'i10',
-        from: 'i8',
-      },
-    },
-    solution: [
-      {
-        from: 'f10',
-        to: 'f9',
-      },
-      {
-        from: 'g1',
-        to: 'e3',
-      },
-      {
-        from: 'f9',
-        to: 'd9',
-      },
-      {
-        from: 'd2',
-        to: 'e2',
-      },
-      {
-        from: 'e5',
-        to: 'e3',
-      },
-    ],
-    goal: {
-      type: 'winning-advantage',
-      winner: 'black',
-      centipawns: 802,
-    },
-    themes: ['winning', 'middlegame'],
-    sourceGame: {
-      gameId: 'hxq_70a20e997a4023e508ab0347',
-      ply: 87,
-      event: '2026年全国象棋团体赛',
-      playedOn: '2026-03-29',
-      result: '0-1',
-      redName: '湖北省体育局棋牌运动管理中心 黄紫宸',
-      blackName: '上海金外滩象棋队 宇诗琪',
-    },
-  },
-  {
-    id: 'xq-mined-hxq_70b828da863c04bdbf51b529-88',
-    variant: 'xiangqi',
-    title: 'Red winning advantage',
-    initial: {
-      id: 'xq-mined-hxq_70b828da863c04bdbf51b529-88',
-      board: {
-        c1: {
-          color: 'red',
-          role: 'elephant',
-        },
-        d1: {
-          color: 'red',
-          role: 'advisor',
-        },
-        e1: {
-          color: 'red',
-          role: 'general',
-        },
-        f1: {
-          color: 'red',
-          role: 'advisor',
-        },
-        a3: {
-          color: 'red',
-          role: 'horse',
-        },
-        f4: {
-          color: 'black',
-          role: 'horse',
-        },
-        b5: {
-          color: 'red',
-          role: 'cannon',
-        },
-        g5: {
-          color: 'black',
-          role: 'chariot',
-        },
-        c6: {
-          color: 'black',
-          role: 'soldier',
-        },
-        a7: {
-          color: 'black',
-          role: 'soldier',
-        },
-        c7: {
-          color: 'red',
-          role: 'chariot',
-        },
-        i7: {
-          color: 'black',
-          role: 'soldier',
-        },
-        e8: {
-          color: 'black',
-          role: 'elephant',
-        },
-        c9: {
-          color: 'red',
-          role: 'soldier',
-        },
-        e9: {
-          color: 'black',
-          role: 'advisor',
-        },
-        e10: {
-          color: 'black',
-          role: 'general',
-        },
-        f10: {
-          color: 'black',
-          role: 'advisor',
-        },
-        g10: {
-          color: 'black',
-          role: 'elephant',
-        },
-      },
-      status: {
-        type: 'playing',
-        turn: 'red',
-      },
-      moveNumber: 45,
-      progressClock: 0,
-      positionCounts: {
-        'red|a3rh,a7bs,b5rc,c1re,c6bs,c7rc,c9rs,d1ra,e1rg,e10bg,e8be,e9ba,f1ra,f10ba,f4bh,g10be,g5bc,i7bs': 1,
-      },
-      lastMove: {
-        to: 'g5',
-        from: 'g3',
-      },
-    },
-    solution: [
-      {
-        from: 'c9',
-        to: 'd9',
-      },
-      {
-        from: 'f4',
-        to: 'g2',
-      },
-      {
-        from: 'e1',
-        to: 'e2',
-      },
-    ],
-    goal: {
-      type: 'winning-advantage',
-      winner: 'red',
-      centipawns: 600,
-    },
-    themes: ['winning', 'middlegame'],
-    sourceGame: {
-      gameId: 'hxq_70b828da863c04bdbf51b529',
-      ply: 88,
-      event: '1999年全国象棋团体赛',
-      playedOn: '1999-04-19',
-      result: '1-0',
-      redName: '轻工 董旭彬',
-      blackName: '福建 王晓华',
-    },
-  },
-  {
     id: 'xq-mined-hxq_72bb841aa04794a9e86a3ccd-33',
     variant: 'xiangqi',
     title: 'Black winning advantage',
@@ -6332,7 +5456,7 @@ export const MINED_XIANGQI_PUZZLES: readonly MinedXiangqiPuzzle[] = [
     goal: {
       type: 'winning-advantage',
       winner: 'black',
-      centipawns: 356,
+      centipawns: 368,
     },
     themes: ['winning', 'winning-material', 'middlegame'],
     sourceGame: {
@@ -6472,7 +5596,7 @@ export const MINED_XIANGQI_PUZZLES: readonly MinedXiangqiPuzzle[] = [
     goal: {
       type: 'winning-advantage',
       winner: 'red',
-      centipawns: 584,
+      centipawns: 583,
     },
     themes: ['winning', 'winning-material', 'crushing', 'middlegame'],
     sourceGame: {
@@ -6636,7 +5760,7 @@ export const MINED_XIANGQI_PUZZLES: readonly MinedXiangqiPuzzle[] = [
     goal: {
       type: 'winning-advantage',
       winner: 'black',
-      centipawns: 500,
+      centipawns: 503,
     },
     themes: ['winning', 'winning-material', 'middlegame'],
     sourceGame: {
