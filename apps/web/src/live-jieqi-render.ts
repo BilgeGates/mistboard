@@ -65,7 +65,6 @@ export function renderJieqiBoardSvg(
   return `
     <svg class="jieqi-board" viewBox="0 0 ${WIDTH} ${HEIGHT}" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Flip Xiangqi board">
       <rect class="jieqi-board-bg" x="0" y="0" width="${WIDTH}" height="${HEIGHT}" rx="10"/>
-      <rect class="jieqi-river" x="${MARGIN}" y="${RIVER_TOP}" width="${(FILES - 1) * CELL}" height="${RIVER_BOTTOM - RIVER_TOP}"/>
       <g class="jieqi-grid">${gridLines()}${palaceCrosses(perspective)}</g>
       ${lastMoveMarkers(view, perspective)}
       ${selectionRing(options.selectedSquare ?? null, perspective)}
@@ -262,12 +261,10 @@ export function installJieqiBoardStyles(): void {
       -webkit-user-select: none;
       user-select: none;
     }
-    .jieqi-board-bg { fill: var(--mini-xq-board-bg, #d9bd82); }
-    .jieqi-river { fill: rgba(120, 160, 190, 0.14); }
+    .jieqi-board-bg { fill: var(--mini-xq-board-bg, #f5dca8); }
     .jieqi-grid line {
-      stroke: var(--mini-xq-grid, #4b3c2a);
-      stroke-width: 2;
-      stroke-linecap: round;
+      stroke: var(--mini-xq-grid, #5a3a14);
+      stroke-width: 1.2;
     }
     .jieqi-selection { fill: rgba(31, 111, 91, 0.32); stroke: none; pointer-events: none; }
     .jieqi-hint { fill: rgba(31, 111, 91, 0.72); opacity: 0.78; pointer-events: none; }

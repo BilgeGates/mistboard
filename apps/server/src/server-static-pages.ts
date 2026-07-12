@@ -190,6 +190,7 @@ export async function serveSitemap(params: {
     '/learn',
     '/puzzles',
     '/videos',
+    '/streamer',
     '/player',
     '/player/rating-stats',
     '/coach',

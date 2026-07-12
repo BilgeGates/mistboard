@@ -386,7 +386,6 @@ const HOME_FOOTER_LINKS: ReadonlyArray<{
   { href: '/patron', labelKey: 'footer.patron' },
   { href: '/contact', labelKey: 'footer.contact' },
   { href: '/source', labelKey: 'footer.source' },
-  { href: GITHUB_URL, labelKey: 'footer.github', external: true },
   { href: '/terms', labelKey: 'footer.terms' },
   { href: '/privacy', labelKey: 'footer.privacy' },
 ];

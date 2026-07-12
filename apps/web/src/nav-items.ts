@@ -28,7 +28,6 @@ export function primaryNavItems(): NavItem[] {
 export function communityNavItems(): NavItem[] {
   return [
     { label: 'Players', labelKey: 'nav.players', href: '/player' },
-    { label: 'Coaches', labelKey: 'nav.coaches', href: '/coach' },
     { label: 'Friends', labelKey: 'nav.friends', href: '/following', signedInOnly: true },
     { label: 'Forum', labelKey: 'nav.forum', href: '/forum' },
     { label: 'Blog', labelKey: 'nav.blog', href: '/blog' },
@@ -45,12 +44,15 @@ export function communityRailItems(): NavItem[] {
   ];
 }
 
-// Learn dropdown: rules are the durable starting point, followed by the
-// interactive xiangqi course. The title itself links to /rules.
+// Learn dropdown (lichess parity): rules are the durable starting point,
+// followed by the interactive xiangqi course, then Studies and the verified-coach
+// directory. The title itself links to /rules.
 export function learnNavItems(): NavItem[] {
   return [
     { label: 'Rules', labelKey: 'nav.rules', href: '/rules' },
     { label: 'Xiangqi Basics', labelKey: 'nav.learnXiangqi', href: '/learn/xiangqi' },
+    { label: 'Studies', labelKey: 'nav.studies', href: '/study' },
+    { label: 'Coaches', labelKey: 'nav.coaches', href: '/coach' },
   ];
 }
 
@@ -71,6 +73,7 @@ export function watchNavItems(): NavItem[] {
   return [
     { label: 'Mistboard TV', labelKey: 'nav.tv', href: '/watch' },
     { label: 'Broadcasts', labelKey: 'nav.broadcasts', href: '/broadcast/xiangqi' },
+    { label: 'Streamers', labelKey: 'nav.streamers', href: '/streamer' },
     { label: 'Video library', labelKey: 'nav.videoLibrary', href: '/videos' },
   ];
 }
@@ -87,7 +90,6 @@ export function utilityNavItems(): NavItem[] {
 export function toolsNavItems(): NavItem[] {
   return [
     { label: 'Analysis board', labelKey: 'nav.analysis', href: '/analysis/xiangqi' },
-    { label: 'Studies', labelKey: 'nav.studies', href: '/study' },
     ...utilityNavItems(),
   ];
 }

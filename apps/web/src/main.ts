@@ -160,6 +160,9 @@ const wantsDatabase = path === '/database';
 // Title verification: player-facing request form. Linked from profile copy,
 // no nav entry.
 const wantsVerifyTitle = path === '/verify-title';
+// Streamers directory: /streamer (public list). Basic empty-state scaffold for
+// now (apps/web/src/streamer.ts), linked from the Watch nav.
+const wantsStreamer = path === '/streamer';
 // Coach directory: /coach (public list) and /coach/:handle (public detail)
 // share one module. /coach/edit is the signed-in editor, a reserved literal
 // below the :handle pattern that must win over it (same tradeoff as
@@ -327,6 +330,11 @@ if (replaySample) {
   setTitleKey('verifyTitle.heading');
   void mountOrReport(() =>
     import('./verify-title.js').then(({ mountVerifyTitle }) => mountVerifyTitle(appRoot)),
+  );
+} else if (wantsStreamer) {
+  setTitleKey('streamer.heading');
+  void mountOrReport(() =>
+    import('./streamer.js').then(({ mountStreamer }) => mountStreamer(appRoot)),
   );
 } else if (wantsCoachEdit) {
   setTitleKey('coach.editHeading');
