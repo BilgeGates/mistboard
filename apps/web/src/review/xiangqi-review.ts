@@ -19,6 +19,7 @@ import {
   type XiangqiMove,
   type XiangqiSquare,
 } from '@mistboard/game';
+import { xiangqiAppearanceChangedEvent } from '../theme.js';
 import {
   animateXiangqiBoardMove,
   createXiangqiInteractiveBoard,
@@ -494,6 +495,12 @@ export function mountXiangqiReview(
   scaffold.refit();
   keyboardAbort?.abort();
   keyboardAbort = new AbortController();
+  // The xiangqi board renders pieces as inline SVG, so a piece-set change needs a
+  // re-render (the chess board picks up its set via CSS and does not). Reuse the
+  // per-mount abort signal so a re-mount drops the stale listener rather than stacking.
+  window.addEventListener(xiangqiAppearanceChangedEvent, () => render(), {
+    signal: keyboardAbort.signal,
+  });
   installReviewKeyboard(
     {
       stepBack: () => go(tree.stepBack(currentPath)),
