@@ -94,7 +94,7 @@ describe('site shell nav', () => {
       [...(learnMenu?.querySelectorAll<HTMLAnchorElement>('.site-nav-menu-panel a') ?? [])].map(
         (link) => link.textContent,
       ),
-    ).toEqual(['Rules', 'Xiangqi Basics', 'Studies', 'Coaches']);
+    ).toEqual(['Rules', 'Xiangqi Basics', 'Study', 'Coaches']);
     expect(
       learnMenu?.querySelector<HTMLAnchorElement>('.site-nav-menu-toggle')?.getAttribute('href'),
     ).toBe('/rules');

@@ -30,7 +30,7 @@ const EN = {
   'nav.lab': 'Lab',
   'nav.tv': 'Mistboard TV',
   'nav.analysis': 'Analysis board',
-  'nav.studies': 'Studies',
+  'nav.studies': 'Study',
   'nav.streamers': 'Streamers',
   'nav.videoLibrary': 'Video library',
   'videos.heading': 'Video library',

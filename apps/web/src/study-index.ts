@@ -43,31 +43,82 @@ export function mountStudyIndex(root: HTMLElement): void {
     .catch(() => renderMessage(root, 'Studies unavailable', 'Your studies could not be loaded.'));
 }
 
+// The left rail mirrors lichess /study. Only "My studies" is backed by a query
+// today (/api/studies/mine); the rest need a public-studies index and are shown
+// as disabled "soon" tabs so the shape is right before the backend lands.
+const RAIL_TABS: { label: string; active?: boolean }[] = [
+  { label: 'My studies', active: true },
+  { label: 'Public studies' },
+  { label: 'Favorites' },
+  { label: 'Topics' },
+  { label: 'Staff picks' },
+];
+
 function renderList(root: HTMLElement, studies: StudySummary[]): void {
   const main = document.createElement('main');
   main.className = 'study-index';
 
-  const header = document.createElement('header');
-  header.className = 'study-index__header';
+  main.append(buildRail(), buildContent(studies));
+  root.replaceChildren(buildNav(), main);
+}
+
+function buildRail(): HTMLElement {
+  const rail = document.createElement('aside');
+  rail.className = 'study-index__rail';
+
+  const list = document.createElement('ul');
+  list.className = 'study-index__rail-list';
+  for (const tab of RAIL_TABS) {
+    const item = document.createElement('li');
+    const button = document.createElement('span');
+    button.className = 'study-index__rail-tab';
+    button.textContent = tab.label;
+    if (tab.active) {
+      button.classList.add('is-active');
+      button.setAttribute('aria-current', 'page');
+    } else {
+      button.classList.add('is-disabled');
+      button.title = 'Coming soon';
+    }
+    item.append(button);
+    list.append(item);
+  }
+  rail.append(list);
+
+  const info = document.createElement('p');
+  info.className = 'study-index__rail-info';
+  info.textContent = 'Studies are shareable boards with chapters, saved from analysis.';
+  rail.append(info);
+
+  return rail;
+}
+
+function buildContent(studies: StudySummary[]): HTMLElement {
+  const content = document.createElement('section');
+  content.className = 'study-index__content';
+
+  const toolbar = document.createElement('header');
+  toolbar.className = 'study-index__toolbar';
   const title = document.createElement('h1');
+  title.className = 'study-index__title';
   title.textContent = 'My studies';
-  header.append(title, newStudyForm());
-  main.append(header);
+  toolbar.append(title, newStudyForm());
+  content.append(toolbar);
 
   if (studies.length === 0) {
     const empty = document.createElement('p');
     empty.className = 'study-index__empty';
     empty.textContent =
       'No studies yet. Open the analysis board, then use “Save as study” to create one.';
-    main.append(empty);
+    content.append(empty);
   } else {
-    const list = document.createElement('ul');
-    list.className = 'study-index__list';
-    for (const study of studies) list.append(studyCard(study));
-    main.append(list);
+    const grid = document.createElement('ul');
+    grid.className = 'study-index__grid';
+    for (const study of studies) grid.append(studyCard(study));
+    content.append(grid);
   }
 
-  root.replaceChildren(buildNav(), main);
+  return content;
 }
 
 // Name a study and create it blank, then open it. New studies are also creatable
@@ -113,11 +164,29 @@ async function createStudy(name: string): Promise<void> {
   window.location.href = `/study/${body.study.id}`;
 }
 
+// Cards carry a flair emoji like lichess. Users can't pick one yet, so we derive
+// a stable flair from the study id — varied across cards, unchanging per study.
+const FLAIRS = ['📖', '♟️', '🎯', '🏯', '🐉', '🔥', '⭐', '🧩', '📚', '🗺️', '🎴', '🏆'];
+
+function flairFor(id: string): string {
+  let hash = 0;
+  for (let i = 0; i < id.length; i += 1) hash = (hash * 31 + id.charCodeAt(i)) >>> 0;
+  return FLAIRS[hash % FLAIRS.length];
+}
+
 function studyCard(study: StudySummary): HTMLElement {
   const item = document.createElement('li');
   const link = document.createElement('a');
   link.className = 'study-index__card';
   link.href = `/study/${study.id}`;
+
+  const flair = document.createElement('span');
+  flair.className = 'study-index__flair';
+  flair.textContent = flairFor(study.id);
+  flair.setAttribute('aria-hidden', 'true');
+
+  const body = document.createElement('div');
+  body.className = 'study-index__card-body';
 
   const name = document.createElement('span');
   name.className = 'study-index__name';
@@ -128,7 +197,8 @@ function studyCard(study: StudySummary): HTMLElement {
   const chapters = `${study.chapterCount} ${study.chapterCount === 1 ? 'chapter' : 'chapters'}`;
   meta.textContent = `${chapters} · ${study.visibility} · ${timeAgo(study.updatedAt)}`;
 
-  link.append(name, meta);
+  body.append(name, meta);
+  link.append(flair, body);
   item.append(link);
   return item;
 }

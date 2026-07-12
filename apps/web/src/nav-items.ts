@@ -51,7 +51,7 @@ export function learnNavItems(): NavItem[] {
   return [
     { label: 'Rules', labelKey: 'nav.rules', href: '/rules' },
     { label: 'Xiangqi Basics', labelKey: 'nav.learnXiangqi', href: '/learn/xiangqi' },
-    { label: 'Studies', labelKey: 'nav.studies', href: '/study' },
+    { label: 'Study', labelKey: 'nav.studies', href: '/study' },
     { label: 'Coaches', labelKey: 'nav.coaches', href: '/coach' },
   ];
 }
