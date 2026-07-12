@@ -111,6 +111,22 @@
   cursor: pointer;
 }
 
+.study-actions__name {
+  flex: 1 1 auto;
+  min-width: 0;
+  padding: 0.2rem 0.45rem;
+  font: inherit;
+  font-size: 0.85rem;
+  border: 1px solid var(--c-border, rgba(128, 128, 128, 0.35));
+  border-radius: 4px;
+  background: var(--c-bg-elevated, rgba(128, 128, 128, 0.08));
+  color: inherit;
+}
+.study-actions__name:focus {
+  outline: none;
+  border-color: var(--c-accent, #3893e8);
+}
+
 .study-actions__status {
   font-size: 0.8rem;
   min-height: 1.1em;

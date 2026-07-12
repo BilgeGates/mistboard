@@ -80,6 +80,7 @@ export function utilityNavItems(): NavItem[] {
 export function toolsNavItems(): NavItem[] {
   return [
     { label: 'Analysis board', labelKey: 'nav.analysis', href: '/analysis/xiangqi' },
+    { label: 'Studies', labelKey: 'nav.studies', href: '/study' },
     ...utilityNavItems(),
   ];
 }

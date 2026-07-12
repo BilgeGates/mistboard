@@ -14,13 +14,39 @@
   margin-bottom: 1rem;
 }
 
+.study-index__new {
+  display: flex;
+  gap: 0.4rem;
+  align-items: center;
+}
+
+.study-index__new-name {
+  padding: 0.35rem 0.6rem;
+  font: inherit;
+  font-size: 0.85rem;
+  border: 1px solid var(--c-border, rgba(128, 128, 128, 0.4));
+  border-radius: 5px;
+  background: var(--c-bg-elevated, rgba(128, 128, 128, 0.08));
+  color: inherit;
+}
+.study-index__new-name:focus {
+  outline: none;
+  border-color: var(--c-accent, #3893e8);
+}
+
 .study-index__create {
   padding: 0.35rem 0.8rem;
   font-size: 0.85rem;
   border: 1px solid var(--c-border, rgba(128, 128, 128, 0.4));
   border-radius: 5px;
+  background: transparent;
   text-decoration: none;
   color: inherit;
+  cursor: pointer;
+}
+.study-index__create:disabled {
+  opacity: 0.6;
+  cursor: default;
 }
 
 .study-index__empty {

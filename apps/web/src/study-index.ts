@@ -8,6 +8,9 @@ import './study.css';
 import './study-index.css';
 import { buildNav } from './site-shell.js';
 
+// A fresh study starts with one blank chapter at the standard start position.
+const EMPTY_TREE = { version: 1, root: { children: [] } };
+
 type StudySummary = {
   id: string;
   name: string;
@@ -48,11 +51,7 @@ function renderList(root: HTMLElement, studies: StudySummary[]): void {
   header.className = 'study-index__header';
   const title = document.createElement('h1');
   title.textContent = 'My studies';
-  const create = document.createElement('a');
-  create.className = 'study-index__create';
-  create.href = '/analysis/xiangqi';
-  create.textContent = 'New study';
-  header.append(title, create);
+  header.append(title, newStudyForm());
   main.append(header);
 
   if (studies.length === 0) {
@@ -69,6 +68,49 @@ function renderList(root: HTMLElement, studies: StudySummary[]): void {
   }
 
   root.replaceChildren(buildNav(), main);
+}
+
+// Name a study and create it blank, then open it. New studies are also creatable
+// from the analysis board ("Save as study" on a position); this is the from-scratch
+// path.
+function newStudyForm(): HTMLElement {
+  const form = document.createElement('form');
+  form.className = 'study-index__new';
+  const input = document.createElement('input');
+  input.type = 'text';
+  input.className = 'study-index__new-name';
+  input.placeholder = 'New study name';
+  input.maxLength = 100;
+  input.setAttribute('aria-label', 'New study name');
+  const submit = document.createElement('button');
+  submit.type = 'submit';
+  submit.className = 'study-index__create';
+  submit.textContent = 'Create';
+  form.addEventListener('submit', (event) => {
+    event.preventDefault();
+    submit.disabled = true;
+    submit.textContent = 'Creating…';
+    void createStudy(input.value.trim() || 'Untitled study').catch(() => {
+      submit.disabled = false;
+      submit.textContent = 'Sign in to create';
+    });
+  });
+  form.append(input, submit);
+  return form;
+}
+
+async function createStudy(name: string): Promise<void> {
+  const response = await fetch('/api/studies', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({
+      name,
+      chapter: { name: 'Chapter 1', variant: 'xiangqi', root: EMPTY_TREE },
+    }),
+  });
+  if (!response.ok) throw new Error(`create failed: ${response.status}`);
+  const body = (await response.json()) as { study: { id: string } };
+  window.location.href = `/study/${body.study.id}`;
 }
 
 function studyCard(study: StudySummary): HTMLElement {

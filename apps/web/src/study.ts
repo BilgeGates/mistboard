@@ -68,6 +68,9 @@ function renderStudy(root: HTMLElement, study: StudyDto, chapters: ChapterDto[])
   let activeId = chapters[0]!.id;
 
   const switchTo = (id: string): void => {
+    // No-op when already active — otherwise a double-click (two clicks) would
+    // re-render and detach the tab label before its dblclick-to-rename fires.
+    if (id === activeId) return;
     activeId = id;
     renderActive();
   };
@@ -120,6 +123,35 @@ function renderStudy(root: HTMLElement, study: StudyDto, chapters: ChapterDto[])
     renderActive();
   };
 
+  const renameStudy = async (name: string): Promise<void> => {
+    const trimmed = name.trim();
+    if (!trimmed || trimmed === study.name) return;
+    const response = await fetch(`/api/studies/${study.id}`, {
+      method: 'PATCH',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ name: trimmed }),
+    });
+    if (response.ok) {
+      study.name = trimmed;
+      renderActive();
+    }
+  };
+
+  const renameChapter = async (id: string, name: string): Promise<void> => {
+    const trimmed = name.trim();
+    const chapter = chapters.find((entry) => entry.id === id);
+    if (chapter && trimmed && trimmed !== chapter.name) {
+      const response = await fetch(`/api/studies/${study.id}/chapters/${id}`, {
+        method: 'PATCH',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ name: trimmed }),
+      });
+      if (response.ok) chapter.name = trimmed;
+    }
+    // Always re-render so an in-tab edit input is restored (commit or cancel).
+    renderActive();
+  };
+
   function renderActive(): void {
     const chapter = chapters.find((entry) => entry.id === activeId) ?? chapters[0];
     if (!chapter || chapter.variant !== 'xiangqi') {
@@ -132,6 +164,7 @@ function renderStudy(root: HTMLElement, study: StudyDto, chapters: ChapterDto[])
       onSwitch: switchTo,
       onAdd: addChapter,
       onRemove: removeChapter,
+      onRename: study.isOwner ? (id, name) => void renameChapter(id, name) : undefined,
     };
     const owner: OwnerControls | undefined = study.isOwner
       ? {
@@ -139,6 +172,7 @@ function renderStudy(root: HTMLElement, study: StudyDto, chapters: ChapterDto[])
           preview: previewMode,
           onToggleGamebook: (on) => void setGamebook(chapter.id, on),
           onTogglePreview: setPreview,
+          onRenameStudy: (name) => void renameStudy(name),
         }
       : undefined;
 
@@ -221,6 +255,8 @@ type ChapterActions = {
   onSwitch: (id: string) => void;
   onAdd: () => void;
   onRemove: (id: string) => void;
+  /** Owner-only: double-click a tab to rename it. Absent for viewers. */
+  onRename?: (id: string, name: string) => void;
 };
 
 type OwnerControls = {
@@ -228,6 +264,7 @@ type OwnerControls = {
   preview: boolean;
   onToggleGamebook: (on: boolean) => void;
   onTogglePreview: (on: boolean) => void;
+  onRenameStudy: (name: string) => void;
 };
 
 function statusSpan(): HTMLElement {
@@ -250,12 +287,34 @@ function buildActions(
   wrap.append(chapterTabs(study, chapters, activeId, chapterActions));
 
   if (owner) {
+    wrap.append(studyNameControl(study, owner.onRenameStudy));
+    const active = chapters.find((entry) => entry.id === activeId);
+    if (active && chapterActions.onRename) {
+      wrap.append(chapterNameControl(active, chapterActions.onRename));
+    }
     wrap.append(lessonControls(owner));
     wrap.append(visibilityControl(study));
     wrap.append(status);
   }
   wrap.append(copyLinkButton());
   return wrap;
+}
+
+function studyNameControl(study: StudyDto, onRename: (name: string) => void): HTMLElement {
+  const row = document.createElement('div');
+  row.className = 'study-actions__row';
+  const label = document.createElement('span');
+  label.className = 'study-actions__label';
+  label.textContent = 'Name';
+  const input = document.createElement('input');
+  input.type = 'text';
+  input.className = 'study-actions__name';
+  input.value = study.name;
+  input.maxLength = 100;
+  input.setAttribute('aria-label', 'Study name');
+  input.addEventListener('change', () => onRename(input.value));
+  row.append(label, input);
+  return row;
 }
 
 function lessonControls(owner: OwnerControls): HTMLElement {
@@ -321,6 +380,26 @@ function chapterTabs(
     add.addEventListener('click', () => actions.onAdd());
     row.append(add);
   }
+  return row;
+}
+
+function chapterNameControl(
+  chapter: ChapterDto,
+  onRename: (id: string, name: string) => void,
+): HTMLElement {
+  const row = document.createElement('div');
+  row.className = 'study-actions__row';
+  const label = document.createElement('span');
+  label.className = 'study-actions__label';
+  label.textContent = 'Chapter';
+  const input = document.createElement('input');
+  input.type = 'text';
+  input.className = 'study-actions__name';
+  input.value = chapter.name;
+  input.maxLength = 80;
+  input.setAttribute('aria-label', 'Chapter name');
+  input.addEventListener('change', () => onRename(chapter.id, input.value));
+  row.append(label, input);
   return row;
 }
 
