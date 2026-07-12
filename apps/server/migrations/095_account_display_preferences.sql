@@ -1,4 +1,4 @@
--- 093_account_display_preferences.sql
+-- 095_account_display_preferences.sql
 -- Account-backed display preferences. The JSON object is intentionally sparse:
 -- only preferences with real runtime consumers are accepted by the API.
 

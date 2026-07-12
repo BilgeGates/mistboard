@@ -1,4 +1,4 @@
--- 096_account_closure.sql
+-- 098_account_closure.sql
 -- Soft-close accounts while preserving immutable game, rating, message, and
 -- moderation references. Plaintext login identity is removed on closure.
 

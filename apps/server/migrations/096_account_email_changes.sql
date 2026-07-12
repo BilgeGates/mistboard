@@ -1,4 +1,4 @@
--- 094_account_email_changes.sql
+-- 096_account_email_changes.sql
 -- Purpose-bound challenges for changing a signed-in account's login email.
 
 CREATE TABLE IF NOT EXISTS account_email_change_challenges (

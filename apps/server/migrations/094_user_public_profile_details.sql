@@ -1,4 +1,4 @@
--- 092_user_public_profile_details.sql
+-- 094_user_public_profile_details.sql
 -- Small, public profile details managed from account settings. These stay on
 -- the user row because they are loaded with both the signed-in identity and the
 -- public profile; all fields are optional and plain text.
