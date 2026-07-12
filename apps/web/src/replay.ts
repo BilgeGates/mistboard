@@ -24,6 +24,7 @@ import {
 // game view loads; the implementation is dynamically imported below, only when
 // belief data is present (dev / admin-gated engine review — never normal play).
 import type { BeliefConfig, BeliefPanelHandle } from './belief-panel.js';
+import { chessgroundAnimation } from './board-anim.js';
 import { computeCaptures } from './captures.js';
 import {
   type AnnotationConfig,
@@ -561,13 +562,20 @@ export async function mountReplay(
     renderClockState(state, sliced);
     clearClockEndGameState();
 
-    setBoardFromState(truthCg, state);
+    // Fog-safe animation (#158): the truth pane sees everything, so it animates
+    // every move. A POV pane animates ONLY its own side's move — gliding the
+    // fogged opponent's piece would imply an origin square the server redacted.
+    // `animBase` folds in the user's animation preference (0 => disabled).
+    const animBase = chessgroundAnimation().enabled;
+    const moverColor = lastMovePlayedColor(sliced);
+
+    setBoardFromState(truthCg, state, animBase);
 
     if (finished && reveal) {
       // Postgame reveal: collapse the POV panes to truth so the viewer sees
       // the full board they couldn't see during play.
-      setBoardFromState(whiteCg, state);
-      setBoardFromState(blackCg, state);
+      setBoardFromState(whiteCg, state, animBase);
+      setBoardFromState(blackCg, state, animBase);
     } else {
       let whiteView = darkChessVariant.getPlayerView(state, 'white');
       let blackView = darkChessVariant.getPlayerView(state, 'black');
@@ -589,8 +597,8 @@ export async function mountReplay(
           }
         }
       }
-      setBoardFromView(whiteCg, whiteView, boardOrientation);
-      setBoardFromView(blackCg, blackView, boardOrientation);
+      setBoardFromView(whiteCg, whiteView, boardOrientation, animBase && moverColor === 'white');
+      setBoardFromView(blackCg, blackView, boardOrientation, animBase && moverColor === 'black');
     }
 
     const showRevealLabels = finished && reveal;
@@ -1437,6 +1445,15 @@ function sliceToPly(events: GameEvent[], ply: number): GameEvent[] {
     }
   }
   return result;
+}
+
+/** Color of the most recent move in a ply slice (null before any move). */
+function lastMovePlayedColor(events: GameEvent[]): Color | null {
+  for (let i = events.length - 1; i >= 0; i--) {
+    const event = events[i];
+    if (event?.type === 'move-played') return event.color;
+  }
+  return null;
 }
 
 function defaultUrlForId(sampleId: string): string {

@@ -236,7 +236,13 @@ if (replaySample) {
   // deep-link drop straight onto a position of interest in a long replay.
   const replayPlyRaw = params.get('ply');
   const replayPly = replayPlyRaw ? Number.parseInt(replayPlyRaw, 10) : NaN;
-  const replayOpts = Number.isFinite(replayPly) ? { initialPly: replayPly } : undefined;
+  // Keep the White/Black POV panes fogged even after the game ends — only the
+  // Truth pane reveals. A finished game shouldn't retroactively lift the fog a
+  // player actually saw the game under.
+  const replayOpts = {
+    revealOnFinish: false,
+    ...(Number.isFinite(replayPly) ? { initialPly: replayPly } : {}),
+  };
   void mountOrReport(() =>
     import('./replay.js').then(({ mountReplay }) =>
       mountReplay(appRoot, replaySample, replayOpts).then(() => undefined),
