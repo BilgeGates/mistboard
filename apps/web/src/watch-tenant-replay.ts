@@ -837,6 +837,21 @@ export async function mountTenantWatchReplay<
   };
   if (adapter.reveal && !compact) window.addEventListener('keydown', onKeydown);
 
+  // The view entry (and board orientation) for a requested perspective, resolved
+  // through the adapter's paneKind. Orient a side view to that side; truth keeps
+  // the red/first orientation. Null when the loaded game has no such view.
+  const povTarget = (
+    kind: 'white' | 'truth' | 'black',
+  ): { key: ViewKey; orientation: 'red' | 'black' } | null => {
+    if (!activePostgame) return null;
+    for (const entry of adapter.viewEntries(activePostgame)) {
+      if (adapter.paneKind(entry.key) === kind) {
+        return { key: entry.key, orientation: kind === 'black' ? 'black' : 'red' };
+      }
+    }
+    return null;
+  };
+
   await load(roomId);
 
   return {
@@ -859,6 +874,26 @@ export async function mountTenantWatchReplay<
     // onPlyChange). The /watch move list + scrubber drive the board through it.
     jumpToPly: (ply: number) => manualJump(ply),
     moveEntries: () => (activePostgame ? buildTenantMoveEntries(activePostgame) : []),
+    // Re-point the single compact board at the view whose paneKind matches, then
+    // re-render at the current ply (no glide: pov swap doesn't move the ply). A
+    // kind the loaded game doesn't carry is a no-op. HIDDEN-INFO NOTE: watch only
+    // serves COMPLETED games, so every per-side view is that player's own
+    // now-public past view — showing it post-reveal leaks nothing new.
+    setPov: (kind: 'white' | 'truth' | 'black') => {
+      const target = povTarget(kind);
+      if (!target || boardTargets.length === 0) return;
+      boardTargets[0]!.key = target.key;
+      boardOrientation = target.orientation;
+      sync();
+    },
+    availablePovs: () => {
+      if (!activePostgame) return [];
+      const kinds = new Set<'white' | 'truth' | 'black'>();
+      for (const entry of adapter.viewEntries(activePostgame)) {
+        kinds.add(adapter.paneKind(entry.key));
+      }
+      return [...kinds];
+    },
     prefetchGame: (nextId: string) => {
       if (destroyed || activeId === nextId || prefetched?.roomId === nextId) return;
       const promise = adapter.loadPostgame(nextId);

@@ -1,4 +1,4 @@
-import type { GameEvent } from '@mistboard/game';
+import { type GameEvent, maybeGameSpecForId } from '@mistboard/game';
 import { banqiResultLabel } from './banqi-result-label.js';
 import { renderVariantMarker } from './variant-markers.js';
 import type { VariantMiniId } from './variant-mini-boards.js';
@@ -157,6 +157,19 @@ export async function mountWatch(root: HTMLElement): Promise<void> {
     watchMaxPly = 0;
   };
 
+  const clearPovToggle = (): void => {
+    watch.povRoot.replaceChildren();
+  };
+
+  // (Re)build the fog-perspective toggle under the board for the freshly loaded
+  // game. Shown only for asymmetric fog (dark) variants whose handle offers more
+  // than one view; defaults to Truth (which it also pushes to the board), so a
+  // channel/game switch always lands on Truth.
+  const rebuildPovToggle = (feed: WatchFeed, roomId: string): void => {
+    const game = feed.unlocked.find((entry) => entry.roomId === roomId) ?? null;
+    renderWatchPovToggle(watch.povRoot, game, replayHandle);
+  };
+
   // Rebuild the move list + scrubber from the freshly loaded game's handle. A
   // handle that exposes neither jumpToPly nor plyCount (should not happen for the
   // watch renderers, but the methods are optional) hides the whole panel; a handle
@@ -226,11 +239,13 @@ export async function mountWatch(root: HTMLElement): Promise<void> {
       );
       replayHandleKind = kind;
       rebuildMoveList(replayHandle);
+      rebuildPovToggle(feed, roomId);
       return;
     }
     if (replayHandle.activeSampleId() !== roomId) {
       await replayHandle.loadGame(roomId);
       rebuildMoveList(replayHandle);
+      rebuildPovToggle(feed, roomId);
     }
   };
 
@@ -254,6 +269,7 @@ export async function mountWatch(root: HTMLElement): Promise<void> {
       replayHandleKind = null;
       activeRoomId = null;
       clearMoveList();
+      clearPovToggle();
       renderWatchEmptyState(watch.replayRoot, nextFeed);
       renderWatchActiveGame(watch, nextFeed, activeRoomId);
       renderWatchQueue(watch.queueRoot, nextFeed, activeRoomId, { previousRoomIds });
@@ -585,12 +601,88 @@ function watchScrubButton(text: string, label: string): HTMLButtonElement {
   return button;
 }
 
+// Whether the fog-perspective toggle applies to a variant: only asymmetric fog
+// (`visibility: 'dark'`) games have distinct per-side views worth switching
+// between. Symmetric-mask hidden-identity (jieqi/banqi/jungle-flip/reveal-chess)
+// and open variants render a single board and get no toggle.
+export function watchPovToggleApplies(variant: string): boolean {
+  return maybeGameSpecForId(variant)?.visibility === 'dark';
+}
+
+// The color words for the two side-perspective buttons, from the variant's
+// family: the chess family reads White/Black; every other family (xiangqi,
+// jungle, shogi, crossroads, …) reads Red/Black. paneKind 'white' is the
+// first/red/white seat, 'black' the second.
+function watchPovSideLabels(variant: string): { first: string; second: string } {
+  const family = maybeGameSpecForId(variant)?.family;
+  return family === 'chess'
+    ? { first: 'White', second: 'Black' }
+    : { first: 'Red', second: 'Black' };
+}
+
+// Render the fog-perspective segmented control under the board for a dark game,
+// or clear the slot. Buttons: [<first>'s view] [Truth] [<second>'s view], mapped
+// to handle.setPov('white'|'truth'|'black'). Defaults to Truth and pushes that
+// perspective to the board, so every (re)build lands on Truth. Non-dark games,
+// a handle without setPov/availablePovs, or a single-view game render nothing.
+function renderWatchPovToggle(
+  root: HTMLElement,
+  game: FeaturedGame | null,
+  handle: ReplayHandle | null,
+): void {
+  root.replaceChildren();
+  if (!game || !handle?.setPov) return;
+  if (!watchPovToggleApplies(game.variant)) return;
+  const povs = handle.availablePovs?.() ?? [];
+  if (povs.length <= 1) return;
+
+  const labels = watchPovSideLabels(game.variant);
+  const options: Array<{ kind: 'white' | 'truth' | 'black'; label: string }> = [
+    { kind: 'white', label: `${labels.first}'s view` },
+    { kind: 'truth', label: 'Truth' },
+    { kind: 'black', label: `${labels.second}'s view` },
+  ];
+
+  const group = document.createElement('div');
+  group.className = 'watch-pov';
+  group.setAttribute('role', 'group');
+  group.setAttribute('aria-label', 'Board perspective');
+
+  const buttons: HTMLButtonElement[] = [];
+  const select = (kind: 'white' | 'truth' | 'black'): void => {
+    handle.setPov?.(kind);
+    for (const button of buttons) {
+      const active = button.dataset.pov === kind;
+      button.classList.toggle('active', active);
+      button.setAttribute('aria-pressed', active ? 'true' : 'false');
+    }
+  };
+
+  for (const option of options) {
+    if (!povs.includes(option.kind)) continue;
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.className = 'watch-pov__button';
+    button.dataset.pov = option.kind;
+    button.textContent = option.label;
+    button.setAttribute('aria-pressed', 'false');
+    button.addEventListener('click', () => select(option.kind));
+    buttons.push(button);
+    group.append(button);
+  }
+
+  root.append(group);
+  // Default the board (and the control) to Truth on every (re)build.
+  select('truth');
+}
+
 type WatchSection = {
   el: HTMLElement;
   metaRoot: HTMLElement;
   channelRoot: HTMLElement;
   statusRoot: HTMLElement;
   replayRoot: HTMLElement;
+  povRoot: HTMLElement;
   queueRoot: HTMLElement;
   playersRoot: HTMLElement;
   movesRoot: HTMLElement;
@@ -634,11 +726,17 @@ function buildWatchSection(feed: WatchFeed | null): WatchSection {
   replayRoot.className = 'watch-tv-board';
   boardBox.append(replayRoot);
 
+  // Fog-perspective toggle slot, directly under the board-box. Populated only for
+  // asymmetric fog (dark) games with more than one available view; empty and
+  // display:none-collapsed otherwise (see renderWatchPovToggle).
+  const povRoot = document.createElement('div');
+  povRoot.className = 'watch-pov-slot';
+
   const queueRoot = document.createElement('section');
   queueRoot.className = 'watch-previously';
   queueRoot.setAttribute('aria-label', 'Previously on Mistboard TV');
 
-  center.append(boardBox, queueRoot);
+  center.append(boardBox, povRoot, queueRoot);
 
   // ── Right rail: player rows (top) + interactive move list & scrubber (middle)
   //    + review-game link (bottom) ──
@@ -668,6 +766,7 @@ function buildWatchSection(feed: WatchFeed | null): WatchSection {
     channelRoot,
     statusRoot,
     replayRoot,
+    povRoot,
     queueRoot,
     playersRoot,
     movesRoot,

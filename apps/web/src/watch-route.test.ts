@@ -7,6 +7,7 @@ import {
   renderWatchReplaySkeleton,
   resultLabel,
   watchFeedIsDark,
+  watchPovToggleApplies,
   watchQueueMatchupLabel,
   watchQueueResultLabel,
 } from './watch-route.js';
@@ -135,6 +136,23 @@ describe('watch route copy helpers', () => {
     expect(watchQueueResultLabel(base)).toBe('First wins');
     // Non-banqi variants are untouched by the ink translation.
     expect(watchQueueResultLabel({ ...base, variant: 'crossroads-chess' })).toBe('Red wins');
+  });
+});
+
+describe('watchPovToggleApplies', () => {
+  it('shows the fog-perspective toggle only for asymmetric fog (dark) variants', () => {
+    // Asymmetric fog: distinct per-side views, so the toggle is meaningful.
+    expect(watchPovToggleApplies('dark-chess')).toBe(true);
+    expect(watchPovToggleApplies('dark-xiangqi')).toBe(true);
+    expect(watchPovToggleApplies('dark-crossroads-chess')).toBe(true);
+    // Symmetric-mask hidden identity (one view) — no toggle.
+    expect(watchPovToggleApplies('jieqi')).toBe(false);
+    expect(watchPovToggleApplies('banqi')).toBe(false);
+    // Open information (one shared board) — no toggle.
+    expect(watchPovToggleApplies('xiangqi')).toBe(false);
+    expect(watchPovToggleApplies('crossroads-chess')).toBe(false);
+    // Unknown variant resolves to no spec — no toggle, never throws.
+    expect(watchPovToggleApplies('not-a-variant')).toBe(false);
   });
 });
 

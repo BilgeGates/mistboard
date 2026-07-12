@@ -239,6 +239,17 @@ export type ReplayHandle = {
   /** A variant-agnostic move list for the loaded game (one entry per played move,
    *  `ply` 1-based). OPTIONAL; empty when a path can't derive labels cleanly. */
   moveEntries?: () => MoveListEntry[];
+  /** Switch which perspective the board shows at the CURRENT ply, without
+   *  restarting playback: a side's own (now-public) fogged view or the truth
+   *  board. OPTIONAL — the /watch fog-perspective toggle drives it; showcase +
+   *  review never call it. Only meaningful for asymmetric fog games (the chess
+   *  triptych, or a per-color tenant); a no-op path can omit it. */
+  setPov?: (kind: 'white' | 'truth' | 'black') => void;
+  /** The perspectives {@link setPov} can switch to for the loaded game, in
+   *  white → truth → black order. OPTIONAL; watch-route uses `length > 1` to
+   *  decide whether the perspective toggle is meaningful. A single-view path
+   *  returns `['truth']` or omits it. */
+  availablePovs?: () => Array<'white' | 'truth' | 'black'>;
 };
 
 export async function mountReplay(
@@ -1404,6 +1415,17 @@ export async function mountReplay(
     },
     plyCount: () => moveCount,
     moveEntries: () => buildChessMoveEntries(events),
+    // Switch the visible pane via a data-attr on the replay root; watch-route.css
+    // maps data-watch-pov -> which of the already-rendered white/truth/black panes
+    // shows. No re-render needed: all three panes render every ply (watch sets
+    // revealOnFinish:false, so white/black hold each side's own fogged view while
+    // truth reveals). HIDDEN-INFO NOTE: watch only ever serves COMPLETED games, so
+    // a side's now-public past fogged view leaks nothing the reveal gate hasn't
+    // already opened — this only chooses which public board to look at.
+    setPov: (kind: 'white' | 'truth' | 'black') => {
+      root.dataset.watchPov = kind;
+    },
+    availablePovs: () => ['white', 'truth', 'black'],
     prefetchGame: (sampleId: string) => {
       if (
         abortController.signal.aborted ||
