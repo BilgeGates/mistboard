@@ -459,7 +459,7 @@ const EN = {
   'title.wcm': 'Woman Candidate Master',
   'verifyTitle.heading': 'Title verification',
   'verifyTitle.intro':
-    'Hold a xiangqi or chess title? Verify it to show a title badge next to your name on your profile and games.',
+    'Hold a xiangqi title? Verify it to show a title badge next to your name on your profile and games.',
   'verifyTitle.signInTitle': 'Sign in to verify your title',
   'verifyTitle.signInBody':
     'Title verification needs an account. Sign in, then come back to this page.',
@@ -467,7 +467,7 @@ const EN = {
   'verifyTitle.titleChoose': 'Choose a title',
   'verifyTitle.evidenceLabel': 'Evidence',
   'verifyTitle.evidenceHelp':
-    'Link your federation profile (WXF, CXA, FIDE, or a national federation), include your real name, and mention the rating or results that support the claim. An admin reviews every request by hand.',
+    'Link your federation profile (WXF, CXA, or a national xiangqi federation), include your real name, and mention the rating or results that support the claim. An admin reviews every request by hand.',
   'verifyTitle.evidencePlaceholder': 'Federation profile link, real name, rating or results…',
   'verifyTitle.submit': 'Submit for review',
   'verifyTitle.submitting': 'Submitting…',
@@ -593,7 +593,7 @@ const EN = {
   'about.modeSplit': 'Mode split',
   'about.modePvp': 'Player vs player',
   'about.modePve': 'Player vs engine',
-  'source.heading': 'Source and Licenses',
+  'source.heading': 'Source code',
   'source.intro':
     'Mistboard is an independent open-source strategy-game project. The source code is published under AGPL-3.0-or-later. The hosted service is not affiliated with lichess, chess.com, or any other chess platform.',
   'source.projectSource': 'Project source',
@@ -612,6 +612,56 @@ const EN = {
     'Forks are allowed under the AGPL, but should use a distinct name and avoid implying they are the official Mistboard service.',
   'source.identityForksBrand':
     'Forks and derivatives should present their own public brand, domain, and hosted service identity.',
+  'contribute.heading': 'Contribute',
+  'contribute.intro':
+    'Mistboard is free and open source, built in the open by a small team. There is a lot to do and many ways to help, whether or not you write code.',
+  'contribute.playHeading': 'Play and give feedback',
+  'contribute.playBody':
+    'The most useful thing you can do right now is play, then tell us what broke or felt wrong. Real games surface rule bugs, unclear moments, and missing features faster than anything else.',
+  'contribute.reportHeading': 'Report bugs and suggest ideas',
+  'contribute.reportPrefix': 'Found a bug or have an idea? Open an issue on ',
+  'contribute.reportMiddle': ', or reach us through the ',
+  'contribute.reportSuffix': ' page. Clear steps to reproduce a problem are worth a lot.',
+  'contribute.codeHeading': 'Improve the code',
+  'contribute.codePrefix': 'Mistboard is published under AGPL-3.0-or-later on ',
+  'contribute.codeSuffix':
+    '. Pick up an open issue, or open a pull request. See the source code page for the repository and the libraries Mistboard builds on.',
+  'contribute.translateHeading': 'Help with translations',
+  'contribute.translateBody':
+    'Mistboard is English-first, with partial Simplified Chinese and Traditional Chinese. If you can improve a translation or start a new language, open an issue or a pull request.',
+  'contribute.supportHeading': 'Support the project',
+  'contribute.supportPrefix':
+    'Servers and development cost money. If you want to help keep Mistboard free and ad-free, you can ',
+  'contribute.supportLink': 'support Mistboard',
+  'contribute.supportSuffix': '. Every bit helps, and it is never required to play.',
+  'thanks.heading': 'Thank you',
+  'thanks.intro':
+    'Mistboard stands on open-source work by many people and projects, and on everyone who plays, reports bugs, and helps it get better.',
+  'thanks.playersHeading': 'Players and contributors',
+  'thanks.playersBody':
+    'Thank you to everyone who plays a game, files a bug, suggests an idea, or supports the project. Mistboard gets sharper every time you do.',
+  'thanks.openSourceHeading': 'Open-source projects',
+  'thanks.openSourcePrefix': 'Mistboard is built on open-source libraries and tools. The ',
+  'thanks.openSourceLink': 'source code',
+  'thanks.openSourceSuffix': ' page lists the projects and licenses Mistboard depends on.',
+  'thanks.stubNote': 'This page will grow into a fuller list of credits over time.',
+  'lag.heading': 'Is Mistboard lagging?',
+  'lag.answerMeasuring': 'Measuring…',
+  'lag.answerGood': 'No, and your network is good.',
+  'lag.answerNetworkBad': 'No, but your network is slow.',
+  'lag.answerServerBad': 'Mistboard is a little slow right now.',
+  'lag.longAnswer': 'Lag is made of two values, both measured live from your browser:',
+  'lag.serverHeading': 'Mistboard server latency',
+  'lag.serverExplain':
+    'How long the Mistboard server takes to handle a request once it arrives. When this climbs, the server is under load, and everyone feels it at once.',
+  'lag.networkHeading': 'Network between Mistboard and you',
+  'lag.networkExplain':
+    'The round trip from your device to the server and back, minus the server processing time. When this is high, the distance or your connection is the cause, and it affects only you.',
+  'lag.unit': 'ms',
+  'lag.compensationHeading': 'Lag compensation',
+  'lag.compensationBody':
+    'During live games, Mistboard does not count network delay against your clock. The time that runs down is the time you spend thinking, not the time your moves spend traveling.',
+  'lag.unavailable': 'Could not measure right now. Check your connection and reload the page.',
   'notFound.heading': 'Page not found',
   'notFound.lede': 'That page does not exist, or it has moved.',
   'notFound.homeCta': 'Go to homepage',
@@ -1407,7 +1457,7 @@ const ZH_HANS: Partial<Record<I18nKey, string>> = {
   'about.modeSplit': '模式分布',
   'about.modePvp': '玩家对玩家',
   'about.modePve': '玩家对引擎',
-  'source.heading': '源码和许可',
+  'source.heading': '源代码',
   'source.intro':
     'Mistboard 是一个独立的开源策略游戏项目。源代码以 AGPL-3.0-or-later 发布。托管服务与 lichess、chess.com 或任何其他棋类平台无关联。',
   'source.projectSource': '项目源码',
@@ -2202,7 +2252,7 @@ const ZH_HANT: Partial<Record<I18nKey, string>> = {
   'about.modeSplit': '模式分布',
   'about.modePvp': '玩家對玩家',
   'about.modePve': '玩家對引擎',
-  'source.heading': '原始碼和授權',
+  'source.heading': '原始碼',
   'source.intro':
     'Mistboard 是一個獨立的開源策略遊戲專案。原始碼以 AGPL-3.0-or-later 發布。託管服務與 lichess、chess.com 或任何其他棋類平台無關。',
   'source.projectSource': '專案原始碼',
@@ -3015,7 +3065,7 @@ const JA: Partial<Record<I18nKey, string>> = {
   'about.modeSplit': 'モード内訳',
   'about.modePvp': 'プレイヤー対プレイヤー',
   'about.modePve': 'プレイヤー対エンジン',
-  'source.heading': 'ソースとライセンス',
+  'source.heading': 'ソースコード',
   'source.intro':
     'Mistboard は独立したオープンソースの戦略ゲームプロジェクトです。ソースコードは AGPL-3.0-or-later で公開されています。ホストされたサービスは lichess、chess.com、その他のボードゲームプラットフォームとは関係ありません。',
   'source.projectSource': 'プロジェクトソース',

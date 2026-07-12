@@ -89,6 +89,9 @@ const wantsPatron = path === '/patron' || page === 'patron';
 const wantsFaq = path === '/faq' || page === 'faq';
 const wantsTerms = path === '/terms' || page === 'terms';
 const wantsPrivacy = path === '/privacy' || page === 'privacy';
+const wantsContribute = path === '/contribute' || page === 'contribute';
+const wantsThanks = path === '/thanks' || page === 'thanks';
+const wantsLag = path === '/lag' || page === 'lag';
 const wantsAccount = path === '/account' || page === 'account';
 const wantsAccountSettings =
   path === '/account/settings' ||
@@ -603,7 +606,7 @@ if (replaySample) {
     import('./pages-static.js').then(({ mountAbout }) => mountAbout(appRoot)),
   );
 } else if (wantsSource) {
-  setTitleKey('footer.source');
+  setTitleKey('source.heading');
   void mountOrReport(() =>
     import('./pages-static.js').then(({ mountSource }) => mountSource(appRoot)),
   );
@@ -630,6 +633,19 @@ if (replaySample) {
   void mountOrReport(() =>
     import('./pages-static.js').then(({ mountPrivacy }) => mountPrivacy(appRoot)),
   );
+} else if (wantsContribute) {
+  setTitleKey('contribute.heading');
+  void mountOrReport(() =>
+    import('./contribute-page.js').then(({ mountContribute }) => mountContribute(appRoot)),
+  );
+} else if (wantsThanks) {
+  setTitleKey('thanks.heading');
+  void mountOrReport(() =>
+    import('./thanks-page.js').then(({ mountThanks }) => mountThanks(appRoot)),
+  );
+} else if (wantsLag) {
+  setTitleKey('lag.heading');
+  void mountOrReport(() => import('./lag-page.js').then(({ mountLag }) => mountLag(appRoot)));
 } else if (path === '/') {
   void mountOrReport(() =>
     import('./landing.js').then(({ mountLanding }) => mountLanding(appRoot)),

@@ -4,11 +4,12 @@ import './pages-static.css';
 
 import { loadCachedCurrentUser, readCachedUser } from './account-nav.js';
 import { buildContact } from './contact.js';
-import { type I18nKey, t } from './i18n/catalog.js';
-import { currentLocale, LOCALE_META, type Locale, localizedHref } from './i18n/locale.js';
+import { t } from './i18n/catalog.js';
+import { currentLocale, LOCALE_META, type Locale } from './i18n/locale.js';
 import { SHOGI_IMAGE_SET_CREDITS } from './shogi-piece-sets.js';
 import { isLikelySignedIn } from './signed-in-state.js';
 import { buildNav, GITHUB_URL } from './site-shell.js';
+import { buildStaticPageLayout } from './static-page-shell.js';
 
 type PublicStatsMode = 'pvp' | 'pve' | 'eve';
 
@@ -26,39 +27,6 @@ type PublicSiteStats = {
   modeTotals: Record<PublicStatsMode, number>;
   dailyCompletedGames: PublicStatsDay[];
 };
-
-type StaticPageKey =
-  | 'about'
-  | 'news'
-  | 'faq'
-  | 'contact'
-  | 'patron'
-  | 'terms'
-  | 'privacy'
-  | 'source';
-
-type StaticRailLink = {
-  key?: StaticPageKey;
-  href: string;
-  labelKey: I18nKey;
-  external?: boolean;
-};
-
-const STATIC_RAIL_GROUPS: ReadonlyArray<ReadonlyArray<StaticRailLink>> = [
-  [
-    { key: 'about', href: '/about', labelKey: 'about.heading' },
-    { key: 'news', href: '/feed', labelKey: 'news.feedHeading' },
-    { key: 'faq', href: '/faq', labelKey: 'faq.heading' },
-    { key: 'contact', href: '/contact', labelKey: 'contact.heading' },
-    { key: 'patron', href: '/patron', labelKey: 'patron.heading' },
-    { key: 'terms', href: '/terms', labelKey: 'terms.heading' },
-    { key: 'privacy', href: '/privacy', labelKey: 'privacy.heading' },
-  ],
-  [
-    { key: 'source', href: '/source', labelKey: 'footer.source' },
-    { href: GITHUB_URL, labelKey: 'footer.github', external: true },
-  ],
-];
 
 const publicStatsModes: Array<{
   key: PublicStatsMode;
@@ -202,55 +170,6 @@ export async function mountArticle(
   mountArticleEnhancements(articlePage);
   // The variant rail carries board-kind thumbnails that mount like index cards.
   mountArticleThumbnails(articlePage);
-}
-
-function buildStaticPageLayout(
-  activeKey: StaticPageKey,
-  content: HTMLElement,
-  locale: Locale = currentLocale(),
-): HTMLElement {
-  const layout = document.createElement('div');
-  layout.className = 'static-page-layout';
-  layout.append(buildStaticPageRail(activeKey, locale), content);
-  return layout;
-}
-
-function buildStaticPageRail(
-  activeKey: StaticPageKey,
-  locale: Locale = currentLocale(),
-): HTMLElement {
-  const aside = document.createElement('aside');
-  aside.className = 'static-page-rail';
-
-  const nav = document.createElement('nav');
-  nav.className = 'static-page-rail-nav';
-  nav.setAttribute('aria-label', t('footer.about', {}, locale));
-
-  for (const group of STATIC_RAIL_GROUPS) {
-    const list = document.createElement('ul');
-    list.className = 'static-page-rail-group';
-    for (const item of group) {
-      const row = document.createElement('li');
-      const link = document.createElement('a');
-      link.className = 'static-page-rail-link';
-      link.href = item.external ? item.href : localizedHref(item.href, locale);
-      link.textContent = t(item.labelKey, {}, locale);
-      if (item.external) {
-        link.target = '_blank';
-        link.rel = 'noreferrer noopener';
-      }
-      if (item.key === activeKey) {
-        link.classList.add('active');
-        link.setAttribute('aria-current', 'page');
-      }
-      row.append(link);
-      list.append(row);
-    }
-    nav.append(list);
-  }
-
-  aside.append(nav);
-  return aside;
 }
 
 function buildAbout(locale: Locale = currentLocale()): HTMLElement {
