@@ -22,7 +22,7 @@ import { setBoardFamily } from './theme.js';
 // Postgame review for Crossroads Chess. Perfect-information 6x8 fusion board: one
 // review surface with per-orientation view projection. The shared review layout
 // owns the shell, scrubber, keyboard, flip, and viewport-fill sizing; this module
-// supplies the board host + move list + play-again/download actions.
+// supplies the board host + move list.
 
 type CrossroadsChessTimeControl = { initialMs: number; incrementMs: number };
 export type CrossroadsChessPostgameViewKey = CrossroadsChessColor | 'truth';
@@ -164,7 +164,6 @@ function renderPostgame(root: HTMLElement, postgame: CrossroadsChessPostgameResp
     summary: `${status} · ${postgame.game.plyCount} plies`,
     metaCard,
     details,
-    actions: crossroadsActions(postgame),
     moves: movesCard,
     boards: [{ key: 'truth', el: pane.el, tier: 'primary' }],
     boardAspect: 300 / 411,
@@ -186,50 +185,8 @@ function renderPostgame(root: HTMLElement, postgame: CrossroadsChessPostgameResp
   });
 }
 
-function crossroadsActions(postgame: CrossroadsChessPostgameResponse): HTMLElement {
-  const actions = document.createElement('div');
-  actions.className = 'review-actions';
-  const playAgain = document.createElement('button');
-  playAgain.type = 'button';
-  playAgain.className = 'review-action-link';
-  playAgain.textContent = 'Play again';
-  let busy = false;
-  playAgain.onclick = () => {
-    if (busy) return;
-    busy = true;
-    playAgain.disabled = true;
-    playAgain.textContent = 'Creating';
-    void createCrossroadsPlayAgainRoom(postgame)
-      .then((url) => window.location.assign(url))
-      .catch((err) => {
-        console.warn(err);
-        busy = false;
-        playAgain.disabled = false;
-        playAgain.textContent = 'Try play again';
-      });
-  };
-  const download = reviewActionLink('Download JSON', exportJsonUrl(postgame.game.roomId));
-  download.setAttribute('download', `mistboard-${postgame.game.roomId}.json`);
-  const home = reviewActionLink('Home', '/');
-  const room = reviewActionLink('Room', `/room/${encodeURIComponent(postgame.game.roomId)}`);
-  actions.append(playAgain, download, home, room);
-  return actions;
-}
-
-function reviewActionLink(label: string, href: string): HTMLAnchorElement {
-  const link = document.createElement('a');
-  link.className = 'review-action-link';
-  link.href = href;
-  link.textContent = label;
-  return link;
-}
-
 function sizedCrossroadsBoardSvg(svg: string): string {
   return svg.replace(/^<svg\b/, '<svg style="display:block;width:100%;height:auto"');
-}
-
-function exportJsonUrl(roomId: string): string {
-  return `/api/crossroads-chess/games/${encodeURIComponent(roomId)}/export.json`;
 }
 
 export async function createCrossroadsPlayAgainRoom(

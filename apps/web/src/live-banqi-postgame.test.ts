@@ -52,13 +52,11 @@ describe('Banqi postgame page', () => {
     await flushPromises();
 
     expect(fetchSpy).toHaveBeenCalledWith('/api/banqi/games/bq_postgame');
-    // Single clean left rail (title, result, meta, actions) — not the old triptych.
+    // Single clean left rail (meta card + spectator room) — no action buttons.
     expect(root.textContent).toContain('Spectator room');
     expect(root.textContent).toContain('Half Xiangqi');
     expect(root.textContent).toContain('Red wins');
     expect(root.querySelector('.game-meta-card')).not.toBeNull();
-    expect(root.textContent).toContain('Home');
-    expect(root.textContent).toContain('Room');
     expect(root.textContent).not.toContain('Play again');
     // Exactly one board (banqi is symmetric — no per-seat split).
     expect(root.querySelectorAll('.banqi-board')).toHaveLength(1);

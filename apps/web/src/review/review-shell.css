@@ -334,6 +334,15 @@
   min-height: 0;
 }
 
+/* Controls pinned to the bottom of the right rail (e.g. a Reveal toggle). Kept
+   simple for now; the left column stays button-free. */
+.review-rail-footer {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+
 /* The analyse table (lichess round/analyse tools box): engine head · move list ·
    advice · nav controls fused into ONE box. The children drop their own card
    chrome; hairline separators divide the sections. */

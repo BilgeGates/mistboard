@@ -33,9 +33,7 @@ describe('Jieqi postgame page', () => {
     expect(fetchSpy).toHaveBeenCalledWith('/api/jieqi/games/jq_postgame');
     expect(root.textContent).toContain('Flip Xiangqi');
     expect(root.textContent).toContain('Red wins');
-    // No jieqi play-again action in v1; the review keeps Home + Room links.
-    expect(root.textContent).toContain('Home');
-    expect(root.textContent).toContain('Room');
+    // The review left column is button-free; the Reveal toggle lives in the right rail.
     expect(root.textContent).not.toContain('Play again');
     // Two-column move list (dark-chess style): the cell shows the bare coordinate
     // move, not a "Red"-prefixed line.

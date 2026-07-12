@@ -13,7 +13,6 @@ import {
 } from './fortress-xiangqi-render.js';
 import { fillFortressXiangqiReserve, fortressXiangqiMoveLabel } from './fortress-xiangqi-view.js';
 import { createPane } from './replay-board.js';
-import { createShareButton } from './replay-meta.js';
 import { buildReviewMeta, labelize, reviewResultLabel } from './review/game-review-meta.js';
 import { createMoveList } from './review/move-list.js';
 import { mountReviewLayout } from './review/review-layout.js';
@@ -163,7 +162,6 @@ function renderPostgame(root: HTMLElement, postgame: FortressXiangqiPostgameResp
     summary: `${status} · ${postgame.game.plyCount} plies`,
     metaCard,
     details,
-    actions: fortressXiangqiActions(postgame),
     moves: moveList.el,
     boards: [{ key: 'truth', el: pane.el, tier: 'primary' }],
     boardAspect: 516 / 588,
@@ -181,65 +179,6 @@ function renderPostgame(root: HTMLElement, postgame: FortressXiangqiPostgameResp
       moveList.update(ply, jump);
     },
   });
-}
-
-function fortressXiangqiActions(postgame: FortressXiangqiPostgameResponse): HTMLElement {
-  const actions = document.createElement('div');
-  actions.className = 'review-actions';
-  const playAgain = document.createElement('button');
-  playAgain.type = 'button';
-  playAgain.className = 'review-action-link';
-  playAgain.textContent = 'Play again';
-  let busy = false;
-  playAgain.onclick = () => {
-    if (busy) return;
-    busy = true;
-    playAgain.disabled = true;
-    playAgain.textContent = 'Creating';
-    void createFortressXiangqiPlayAgainRoom(postgame)
-      .then((url) => window.location.assign(url))
-      .catch((err) => {
-        console.warn(err);
-        busy = false;
-        playAgain.disabled = false;
-        playAgain.textContent = 'Try play again';
-      });
-  };
-  const share = createShareButton();
-  const home = reviewActionLink('Home', '/');
-  const room = reviewActionLink('Room', `/room/${encodeURIComponent(postgame.game.roomId)}`);
-  actions.append(playAgain, share, home, room);
-  return actions;
-}
-
-function reviewActionLink(label: string, href: string): HTMLAnchorElement {
-  const link = document.createElement('a');
-  link.className = 'review-action-link';
-  link.href = href;
-  link.textContent = label;
-  return link;
-}
-
-export async function createFortressXiangqiPlayAgainRoom(
-  postgame: FortressXiangqiPostgameResponse,
-): Promise<string> {
-  const mode =
-    postgame.game.mode === 'pve' && typeof postgame.game.pveEngineId === 'string' ? 'pve' : 'pvp';
-  const response = await fetch('/api/rooms', {
-    method: 'POST',
-    headers: { 'content-type': 'application/json' },
-    body: JSON.stringify({
-      mode,
-      gameSpecId: 'fortress-xiangqi',
-      preferredColor: 'random',
-      ...(mode === 'pve' ? { engineId: postgame.game.pveEngineId } : { rated: false }),
-      ...(postgameTimeControl(postgame) ? { timeControl: postgameTimeControl(postgame) } : {}),
-    }),
-  });
-  if (!response.ok) throw new Error('fortress_xiangqi_play_again_failed');
-  const body = (await response.json()) as { url?: unknown };
-  if (typeof body.url !== 'string') throw new Error('fortress_xiangqi_play_again_missing_url');
-  return body.url;
 }
 
 export function postgameReplayMaxPly(postgame: FortressXiangqiPostgameResponse): number {
@@ -299,13 +238,4 @@ async function safeJson(response: Response): Promise<{ error?: unknown } | null>
   } catch {
     return null;
   }
-}
-
-function postgameTimeControl(
-  postgame: FortressXiangqiPostgameResponse,
-): { initialMs: number; incrementMs: number } | null {
-  const initialMs = postgame.game.initialMs ?? postgame.state.timeControl?.initialMs ?? null;
-  const incrementMs = postgame.game.incrementMs ?? postgame.state.timeControl?.incrementMs ?? null;
-  if (initialMs === null || incrementMs === null) return null;
-  return { initialMs, incrementMs };
 }

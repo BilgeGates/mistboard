@@ -40,12 +40,7 @@ describe('Dark Mini Xiangqi postgame page', () => {
     expect(root.textContent).toContain('Red view');
     expect(root.textContent).toContain('Server truth');
     expect(root.textContent).toContain('Black view');
-    expect(root.textContent).toContain('Play again');
-    const download = root.querySelector<HTMLAnchorElement>(
-      'a[href="/api/dark-mini-xiangqi/games/dmxq_postgame/export.json"]',
-    );
-    expect(download?.textContent).toBe('Download JSON');
-    expect(download?.getAttribute('download')).toBe('mistboard-dmxq_postgame.json');
+    expect(root.textContent).not.toContain('Play again');
     expect(root.querySelectorAll('[aria-label="black general"]').length).toBeGreaterThan(0);
     // Moves are grouped two plies per row, dark-chess style: number + red + black.
     expect(root.querySelector('.move-row')?.textContent?.replace(/\s+/g, '')).toBe('1b1-b2b7-b6');

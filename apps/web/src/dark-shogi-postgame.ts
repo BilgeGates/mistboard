@@ -153,7 +153,6 @@ function renderPostgame(root: HTMLElement, postgame: DarkShogiPostgameResponse):
     ariaLabel: 'Fog Shogi postgame',
     title: 'Fog Shogi',
     summary: `${status} · ${postgame.game.plyCount} plies`,
-    actions: postgameActions(postgame),
     metaCard,
     details,
     moves: moveList.el,
@@ -274,22 +273,6 @@ export function postgameViewAtPly(
     selected = snapshot;
   }
   return selected?.view ?? null;
-}
-
-function postgameActions(postgame: DarkShogiPostgameResponse): HTMLElement {
-  const actions = document.createElement('nav');
-  actions.className = 'dxq-postgame__actions';
-  actions.setAttribute('aria-label', 'Game links');
-  const home = document.createElement('a');
-  home.className = 'dxq-postgame__link';
-  home.href = '/';
-  home.textContent = 'Home';
-  const room = document.createElement('a');
-  room.className = 'dxq-postgame__link';
-  room.href = `/room/${encodeURIComponent(postgame.game.roomId)}`;
-  room.textContent = 'Room';
-  actions.append(home, room);
-  return actions;
 }
 
 // Flat move entries for the shared clickable list: one per played ply, keeping

@@ -124,7 +124,6 @@ export function mountDarkChessPostgame(
     ariaLabel: 'Dark Chess postgame',
     title: 'Dark Chess',
     summary: `${status} · ${game.plyCount} plies`,
-    actions: postgameActions(game),
     metaCard,
     details,
     moves: moveList.el,
@@ -249,26 +248,6 @@ function buildMoveEntries(events: GameEvent[]): MoveListEntry[] {
     });
   }
   return entries;
-}
-
-function postgameActions(game: FeaturedGame): HTMLElement {
-  const actions = document.createElement('nav');
-  actions.className = 'dxq-postgame__actions';
-  actions.setAttribute('aria-label', 'Game links');
-  const play = document.createElement('a');
-  play.className = 'dxq-postgame__link dxq-postgame__link--primary';
-  play.href = '/';
-  play.textContent = 'Play again';
-  const home = document.createElement('a');
-  home.className = 'dxq-postgame__link';
-  home.href = '/';
-  home.textContent = 'Back home';
-  const room = document.createElement('a');
-  room.className = 'dxq-postgame__link';
-  room.href = `/room/${encodeURIComponent(game.roomId)}`;
-  room.textContent = 'Room';
-  actions.append(play, home, room);
-  return actions;
 }
 
 // The board SVG renders at an intrinsic pixel size; make it fill its host so the

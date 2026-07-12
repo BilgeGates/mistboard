@@ -44,8 +44,7 @@ describe('Jungle postgame page', () => {
     expect(root.textContent).toContain('Spectator room');
     expect(root.textContent).toContain('Jungle');
     expect(root.textContent).toContain('Red wins');
-    expect(root.textContent).toContain('Home');
-    expect(root.textContent).toContain('Room');
+    expect(root.textContent).not.toContain('Play again');
     // Perfect-info: one board, and no reveal toggle (nothing was ever hidden).
     expect(root.querySelectorAll('.jungle-postgame-board')).toHaveLength(1);
     expect(root.querySelector('.jungle-postgame-board')?.innerHTML).toContain('<svg');

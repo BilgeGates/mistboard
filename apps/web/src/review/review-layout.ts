@@ -49,6 +49,9 @@ export type ReviewLayoutAdapter = {
   metaCard?: HTMLElement;
   /** Right-rail move list container (the layout owns the scrubber below it). */
   moves: HTMLElement;
+  /** Controls pinned to the bottom of the right rail (e.g. a Reveal toggle).
+   *  Kept out of the left rail so it stays button-free and uniform. */
+  railFooter?: HTMLElement;
   enginePanel?: HTMLElement;
   analysisSummary?: HTMLElement;
   underboard?: HTMLElement;
@@ -128,6 +131,8 @@ export type ReviewScaffoldConfig = SizingInput & {
   /** The right-rail navigation element: a linear scrubber or a tree nav bar. */
   navigation: HTMLElement;
   analysisSummary?: HTMLElement;
+  /** Controls pinned to the bottom of the right rail (e.g. a Reveal toggle). */
+  railFooter?: HTMLElement;
   gauge?: HTMLElement;
   materialTop?: HTMLElement;
   materialBottom?: HTMLElement;
@@ -208,7 +213,7 @@ export function createReviewScaffold(
     ].filter((el): el is HTMLElement => el != null),
   );
   const right = railGroup(
-    [materialTop, railMain, config.analysisSummary, materialBottom].filter(
+    [materialTop, railMain, config.analysisSummary, materialBottom, config.railFooter].filter(
       (el): el is HTMLElement => el != null,
     ),
   );
@@ -304,6 +309,7 @@ export function mountReviewLayout(root: HTMLElement, adapter: ReviewLayoutAdapte
     moveComment: adapter.moveComment,
     navigation: scrubber.el,
     analysisSummary: adapter.analysisSummary,
+    railFooter: adapter.railFooter,
     gauge: adapter.gauge,
     materialTop: adapter.materialTop,
     materialBottom: adapter.materialBottom,

@@ -15,7 +15,6 @@ import {
 } from './jungle-flip-render.js';
 import { jungleFlipResultLabel } from './jungle-flip-result-label.js';
 import { createPane } from './replay-board.js';
-import { createShareButton } from './replay-meta.js';
 import { fillCapturedPoolWith } from './review/captured-pool.js';
 import { buildReviewMeta, labelize } from './review/game-review-meta.js';
 import { createMoveList } from './review/move-list.js';
@@ -213,7 +212,7 @@ function renderPostgame(root: HTMLElement, postgame: JungleFlipPostgameResponse)
     summary: `${status} · ${postgame.game.plyCount} plies`,
     metaCard,
     details,
-    actions: jungleFlipActions(postgame, revealBtn),
+    railFooter: revealFooter(revealBtn),
     moves: moveList.el,
     boards: [{ key: 'truth', el: pane.el, tier: 'primary' }],
     boardAspect: 64 / 64,
@@ -233,25 +232,13 @@ function renderPostgame(root: HTMLElement, postgame: JungleFlipPostgameResponse)
   });
 }
 
-function jungleFlipActions(
-  postgame: JungleFlipPostgameResponse,
-  revealBtn: HTMLButtonElement,
-): HTMLElement {
-  const actions = document.createElement('div');
-  actions.className = 'review-actions';
-  const share = createShareButton();
-  const home = reviewActionLink('Home', '/');
-  const room = reviewActionLink('Room', `/room/${encodeURIComponent(postgame.game.roomId)}`);
-  actions.append(revealBtn, share, home, room);
-  return actions;
-}
-
-function reviewActionLink(label: string, href: string): HTMLAnchorElement {
-  const link = document.createElement('a');
-  link.className = 'review-action-link';
-  link.href = href;
-  link.textContent = label;
-  return link;
+// The Reveal toggle is the only control that survives on the review page; pin it
+// to the bottom of the right rail so the left column stays button-free.
+function revealFooter(revealBtn: HTMLButtonElement): HTMLElement {
+  const footer = document.createElement('div');
+  footer.className = 'review-rail-footer';
+  footer.append(revealBtn);
+  return footer;
 }
 
 export function replayMaxPly(postgame: JungleFlipPostgameResponse): number {

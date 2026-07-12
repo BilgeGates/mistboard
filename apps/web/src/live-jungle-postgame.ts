@@ -13,7 +13,6 @@ import './game-route.css';
 import { jungleEnabled } from './feature-flags.js';
 import { junglePieceGhostSvg, renderJungleBoardSvg } from './jungle-render.js';
 import { createPane } from './replay-board.js';
-import { createShareButton } from './replay-meta.js';
 import { capturedByDiff } from './review/captured-diff.js';
 import { fillCapturedPoolWith } from './review/captured-pool.js';
 import { createFlankCaptures } from './review/flank-captures.js';
@@ -158,7 +157,6 @@ function renderPostgame(root: HTMLElement, postgame: JunglePostgameResponse): vo
     summary: `${status} · ${postgame.game.plyCount} plies`,
     metaCard,
     details,
-    actions: jungleActions(postgame),
     moves: moveList.el,
     boards: [{ key: 'truth', el: pane.el, tier: 'primary' }],
     boardAspect: 366 / 462,
@@ -185,24 +183,6 @@ function renderPostgame(root: HTMLElement, postgame: JunglePostgameResponse): vo
       moveList.update(ply, jump);
     },
   });
-}
-
-function jungleActions(postgame: JunglePostgameResponse): HTMLElement {
-  const actions = document.createElement('div');
-  actions.className = 'review-actions';
-  const share = createShareButton();
-  const home = reviewActionLink('Home', '/');
-  const room = reviewActionLink('Room', `/room/${encodeURIComponent(postgame.game.roomId)}`);
-  actions.append(share, home, room);
-  return actions;
-}
-
-function reviewActionLink(label: string, href: string): HTMLAnchorElement {
-  const link = document.createElement('a');
-  link.className = 'review-action-link';
-  link.href = href;
-  link.textContent = label;
-  return link;
 }
 
 // Exported for the Mistboard TV watch adapter (watch-jungle-replay.ts), which

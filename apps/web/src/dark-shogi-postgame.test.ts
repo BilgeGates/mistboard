@@ -44,8 +44,6 @@ describe('Dark Shogi postgame page', () => {
     expect(root.textContent).toContain('Black view');
     expect(root.textContent).toContain('Server truth');
     expect(root.textContent).toContain('White view');
-    expect(root.textContent).toContain('Home');
-    expect(root.textContent).toContain('Room');
     expect(root.textContent).not.toContain('Play again');
     expect(root.textContent).not.toContain('Opponent reserve: hidden');
     expect(root.querySelectorAll('.dxq-postgame__board-wrap')).toHaveLength(3);

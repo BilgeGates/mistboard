@@ -1,9 +1,8 @@
-import {
-  DARK_MINI_XIANGQI_SPEC_ID,
-  type MiniXiangqiColor,
-  type MiniXiangqiGameStatus,
-  type MiniXiangqiMove,
-  type MiniXiangqiPlayerView,
+import type {
+  MiniXiangqiColor,
+  MiniXiangqiGameStatus,
+  MiniXiangqiMove,
+  MiniXiangqiPlayerView,
 } from '@mistboard/game';
 import './landing.css';
 import './game-route.css';
@@ -15,7 +14,6 @@ import {
 } from './live-mini-xiangqi-render.js';
 import { miniXiangqiCapturesFromTruthView } from './mini-xiangqi-captures.js';
 import { createPane } from './replay-board.js';
-import { createShareButton } from './replay-meta.js';
 import { fillCapturedPoolWith } from './review/captured-pool.js';
 import { createFlankCaptures } from './review/flank-captures.js';
 import { buildReviewMeta } from './review/game-review-meta.js';
@@ -184,7 +182,6 @@ function renderPostgame(root: HTMLElement, postgame: DarkMiniXiangqiPostgameResp
     summary: `${status} · ${postgame.game.plyCount} plies`,
     metaCard,
     details,
-    actions: postgameActions(postgame),
     moves: movesCard,
     boards: targets.map((target) => ({
       key: target.entry.key,
@@ -226,53 +223,10 @@ function renderPostgame(root: HTMLElement, postgame: DarkMiniXiangqiPostgameResp
   });
 }
 
-function postgameActions(postgame: DarkMiniXiangqiPostgameResponse): HTMLElement {
-  const actions = document.createElement('div');
-  actions.className = 'review-actions';
-  const playAgain = document.createElement('button');
-  playAgain.type = 'button';
-  playAgain.className = 'review-action-link';
-  playAgain.textContent = 'Play again';
-  let busy = false;
-  playAgain.onclick = () => {
-    if (busy) return;
-    busy = true;
-    playAgain.disabled = true;
-    playAgain.textContent = 'Creating';
-    void createDarkMiniXiangqiPlayAgainRoom()
-      .then((url) => window.location.assign(url))
-      .catch((err) => {
-        console.warn(err);
-        busy = false;
-        playAgain.disabled = false;
-        playAgain.textContent = 'Try play again';
-      });
-  };
-  const share = createShareButton();
-  const download = reviewActionLink('Download JSON', exportJsonUrl(postgame.game.roomId));
-  download.setAttribute('download', `mistboard-${postgame.game.roomId}.json`);
-  const home = reviewActionLink('Home', '/');
-  const room = reviewActionLink('Room', `/room/${encodeURIComponent(postgame.game.roomId)}`);
-  actions.append(playAgain, share, download, home, room);
-  return actions;
-}
-
-function reviewActionLink(label: string, href: string): HTMLAnchorElement {
-  const link = document.createElement('a');
-  link.className = 'review-action-link';
-  link.href = href;
-  link.textContent = label;
-  return link;
-}
-
 function paneKindFor(key: DarkMiniXiangqiPostgameViewKey): 'white' | 'truth' | 'black' {
   if (key === 'red') return 'white';
   if (key === 'black') return 'black';
   return 'truth';
-}
-
-function exportJsonUrl(roomId: string): string {
-  return `/api/dark-mini-xiangqi/games/${encodeURIComponent(roomId)}/export.json`;
 }
 
 // Builds the dark-chess-style move list: full-move rows with clickable red/black
@@ -356,22 +310,6 @@ export function postgameViewAtPly(
     selected = snapshot;
   }
   return selected?.view ?? null;
-}
-
-async function createDarkMiniXiangqiPlayAgainRoom(): Promise<string> {
-  const response = await fetch('/api/rooms', {
-    method: 'POST',
-    headers: { 'content-type': 'application/json' },
-    body: JSON.stringify({
-      mode: 'pvp',
-      gameSpecId: DARK_MINI_XIANGQI_SPEC_ID,
-      preferredColor: 'random',
-    }),
-  });
-  if (!response.ok) throw new Error(`play-again failed: ${response.status}`);
-  const data = (await response.json()) as { url?: string };
-  if (!data.url) throw new Error('play-again did not return a URL');
-  return data.url;
 }
 
 function loadingView(): HTMLElement {

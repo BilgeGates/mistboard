@@ -13,7 +13,6 @@ import {
 } from './live-mini-xiangqi-render.js';
 import { type MiniXiangqiViewKey, miniXiangqiMoveLabel } from './mini-xiangqi-view.js';
 import { createPane } from './replay-board.js';
-import { createShareButton } from './replay-meta.js';
 import { capturedByDiff } from './review/captured-diff.js';
 import { fillCapturedPoolWith } from './review/captured-pool.js';
 import { createFlankCaptures } from './review/flank-captures.js';
@@ -42,7 +41,7 @@ function miniXiangqiCaptured(view: MiniXiangqiPlayerView): Array<{
 // Postgame review for Mini Xiangqi. Perfect-information 7x7 board: one review
 // surface, one per-ply history. The shared review layout owns the shell,
 // scrubber, keyboard, flip, and viewport-fill sizing; this module supplies the
-// board host + move list + play-again/share/home/room actions.
+// board host + move list.
 
 export type MiniXiangqiPostgameResponse = {
   game: {
@@ -188,7 +187,6 @@ function renderPostgame(root: HTMLElement, postgame: MiniXiangqiPostgameResponse
     summary: `${status} · ${postgame.game.plyCount} plies`,
     metaCard,
     details,
-    actions: miniXiangqiActions(postgame),
     moves: movesCard,
     boards: [{ key: 'truth', el: pane.el, tier: 'primary' }],
     boardAspect: 516 / 516,
@@ -210,63 +208,6 @@ function renderPostgame(root: HTMLElement, postgame: MiniXiangqiPostgameResponse
       renderMoveRows(moveList, moves, ply, jump);
     },
   });
-}
-
-function miniXiangqiActions(postgame: MiniXiangqiPostgameResponse): HTMLElement {
-  const actions = document.createElement('div');
-  actions.className = 'review-actions';
-  const playAgain = document.createElement('button');
-  playAgain.type = 'button';
-  playAgain.className = 'review-action-link';
-  playAgain.textContent = 'Play again';
-  let busy = false;
-  playAgain.onclick = () => {
-    if (busy) return;
-    busy = true;
-    playAgain.disabled = true;
-    playAgain.textContent = 'Creating';
-    void createMiniXiangqiPlayAgainRoom(postgame)
-      .then((url) => window.location.assign(url))
-      .catch((err) => {
-        console.warn(err);
-        busy = false;
-        playAgain.disabled = false;
-        playAgain.textContent = 'Try play again';
-      });
-  };
-  const share = createShareButton();
-  const home = reviewActionLink('Home', '/');
-  const room = reviewActionLink('Room', `/room/${encodeURIComponent(postgame.game.roomId)}`);
-  actions.append(playAgain, share, home, room);
-  return actions;
-}
-
-function reviewActionLink(label: string, href: string): HTMLAnchorElement {
-  const link = document.createElement('a');
-  link.className = 'review-action-link';
-  link.href = href;
-  link.textContent = label;
-  return link;
-}
-
-async function createMiniXiangqiPlayAgainRoom(
-  postgame: MiniXiangqiPostgameResponse,
-): Promise<string> {
-  const response = await fetch('/api/rooms', {
-    method: 'POST',
-    headers: { 'content-type': 'application/json' },
-    body: JSON.stringify({
-      mode: 'pvp',
-      gameSpecId: 'mini-xiangqi',
-      preferredColor: 'random',
-      rated: false,
-      ...(postgameTimeControl(postgame) ? { timeControl: postgameTimeControl(postgame) } : {}),
-    }),
-  });
-  if (!response.ok) throw new Error('mini_xiangqi_play_again_failed');
-  const body = (await response.json()) as { url?: unknown };
-  if (typeof body.url !== 'string') throw new Error('mini_xiangqi_play_again_missing_url');
-  return body.url;
 }
 
 export function postgameViewEntries(
@@ -412,16 +353,4 @@ async function safeJson(response: Response): Promise<{ error?: unknown } | null>
 function labelize(value: string): string {
   const spaced = value.replace(/-/g, ' ');
   return spaced.charAt(0).toUpperCase() + spaced.slice(1);
-}
-
-function postgameTimeControl(
-  postgame: MiniXiangqiPostgameResponse,
-): { initialMs: number; incrementMs: number } | null {
-  const fromState = postgame.state.timeControl;
-  if (fromState) return fromState;
-  if (postgame.game.initialMs === null) return null;
-  return {
-    initialMs: postgame.game.initialMs,
-    incrementMs: postgame.game.incrementMs ?? 0,
-  };
 }

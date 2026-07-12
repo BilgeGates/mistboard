@@ -7,7 +7,6 @@ import {
 import './game-shell.css';
 import './live-xiangqi.css';
 import './dark-xiangqi-postgame.css';
-import { createDarkXiangqiPlayAgainRoom } from './dark-xiangqi-room-actions.js';
 import { darkXiangqiEnabled } from './feature-flags.js';
 import { type DarkXiangqiWireView, renderDarkXiangqiBoardSvg } from './live-dark-xiangqi.js';
 import { capturedByDiff } from './review/captured-diff.js';
@@ -185,7 +184,6 @@ function renderPostgame(root: HTMLElement, postgame: DarkXiangqiPostgameResponse
     ariaLabel: 'Fog Xiangqi postgame',
     title: 'Fog Xiangqi',
     summary: `${status} · ${postgame.game.plyCount} plies`,
-    actions: postgameActions(postgame),
     metaCard,
     details,
     moves: moveList.el,
@@ -261,49 +259,6 @@ export function postgameViewAtPly(
   return selected?.view ?? null;
 }
 
-function postgameActions(postgame: DarkXiangqiPostgameResponse): HTMLElement {
-  const actions = document.createElement('nav');
-  actions.className = 'dxq-postgame__actions';
-  actions.setAttribute('aria-label', 'Game links');
-  let playAgainStatus: 'creating' | 'failed' | 'idle' = 'idle';
-  const playAgain = document.createElement('button');
-  playAgain.type = 'button';
-  playAgain.className = 'dxq-postgame__link dxq-postgame__link--primary';
-  const syncPlayAgain = () => {
-    playAgain.disabled = playAgainStatus === 'creating';
-    playAgain.textContent =
-      playAgainStatus === 'creating'
-        ? 'Creating'
-        : playAgainStatus === 'failed'
-          ? 'Try play again'
-          : 'Play again';
-  };
-  playAgain.addEventListener('click', () => {
-    playAgainStatus = 'creating';
-    syncPlayAgain();
-    void createDarkXiangqiPlayAgainRoom({ timeControl: postgameTimeControl(postgame) })
-      .then((url) => {
-        window.location.assign(url);
-      })
-      .catch((err) => {
-        console.warn(err);
-        playAgainStatus = 'failed';
-        syncPlayAgain();
-      });
-  });
-  syncPlayAgain();
-  const home = document.createElement('a');
-  home.className = 'dxq-postgame__link';
-  home.href = '/';
-  home.textContent = 'Back home';
-  const room = document.createElement('a');
-  room.className = 'dxq-postgame__link';
-  room.href = `/room/${encodeURIComponent(postgame.game.roomId)}`;
-  room.textContent = 'Room';
-  actions.append(playAgain, home, room);
-  return actions;
-}
-
 // Flat move entries for the shared clickable list: one per played ply, keeping
 // the coordinate `from-to` notation the static timeline showed. `ply` is the
 // cursor a click lands on (the scrubber's 1..maxPly), so the pairing/highlight
@@ -355,13 +310,4 @@ async function safeJson(response: Response): Promise<{ error?: unknown } | null>
   } catch {
     return null;
   }
-}
-
-function postgameTimeControl(
-  postgame: DarkXiangqiPostgameResponse,
-): { initialMs: number; incrementMs: number } | null {
-  const initialMs = postgame.game.initialMs ?? postgame.state.timeControl?.initialMs ?? null;
-  const incrementMs = postgame.game.incrementMs ?? postgame.state.timeControl?.incrementMs ?? null;
-  if (initialMs === null || incrementMs === null) return null;
-  return { initialMs, incrementMs };
 }

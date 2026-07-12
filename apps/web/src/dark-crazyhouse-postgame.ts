@@ -17,7 +17,6 @@ import {
   crazyhouseHandPieceSvg,
   renderCrazyhouseBoardSvg,
 } from './crazyhouse-render.js';
-import { createDarkCrazyhousePlayAgainRoom } from './dark-crazyhouse-room-actions.js';
 import { darkCrazyhouseEnabled } from './feature-flags.js';
 import { buildReviewMeta } from './review/game-review-meta.js';
 import { mountReviewLayout } from './review/review-layout.js';
@@ -165,7 +164,6 @@ function renderPostgame(root: HTMLElement, postgame: DarkCrazyhousePostgameRespo
     ariaLabel: 'Dark Crazyhouse postgame',
     title: 'Dark Crazyhouse',
     summary: `${status} · ${postgame.game.plyCount} plies`,
-    actions: postgameActions(postgame),
     metaCard,
     details,
     moves: timelinePanel(postgame),
@@ -279,49 +277,6 @@ export function postgameViewAtPly(
   return selected?.view ?? null;
 }
 
-function postgameActions(postgame: DarkCrazyhousePostgameResponse): HTMLElement {
-  const actions = document.createElement('nav');
-  actions.className = 'dxq-postgame__actions';
-  actions.setAttribute('aria-label', 'Game links');
-  let playAgainStatus: 'creating' | 'failed' | 'idle' = 'idle';
-  const playAgain = document.createElement('button');
-  playAgain.type = 'button';
-  playAgain.className = 'dxq-postgame__link dxq-postgame__link--primary';
-  const syncPlayAgain = () => {
-    playAgain.disabled = playAgainStatus === 'creating';
-    playAgain.textContent =
-      playAgainStatus === 'creating'
-        ? 'Creating'
-        : playAgainStatus === 'failed'
-          ? 'Try play again'
-          : 'Play again';
-  };
-  playAgain.addEventListener('click', () => {
-    playAgainStatus = 'creating';
-    syncPlayAgain();
-    void createDarkCrazyhousePlayAgainRoom({ timeControl: postgameTimeControl(postgame) })
-      .then((url) => {
-        window.location.assign(url);
-      })
-      .catch((err) => {
-        console.warn(err);
-        playAgainStatus = 'failed';
-        syncPlayAgain();
-      });
-  });
-  syncPlayAgain();
-  const home = document.createElement('a');
-  home.className = 'dxq-postgame__link';
-  home.href = '/';
-  home.textContent = 'Back home';
-  const room = document.createElement('a');
-  room.className = 'dxq-postgame__link';
-  room.href = `/room/${encodeURIComponent(postgame.game.roomId)}`;
-  room.textContent = 'Room';
-  actions.append(playAgain, home, room);
-  return actions;
-}
-
 function timelinePanel(postgame: DarkCrazyhousePostgameResponse): HTMLElement {
   const panel = document.createElement('section');
   panel.className = 'dxq-postgame__panel';
@@ -416,15 +371,6 @@ function resultLabel(result: string): string {
   if (result === 'black-wins') return 'Black wins';
   if (result === 'draw') return 'Draw';
   return labelize(result);
-}
-
-function postgameTimeControl(
-  postgame: DarkCrazyhousePostgameResponse,
-): { initialMs: number; incrementMs: number } | null {
-  const initialMs = postgame.game.initialMs ?? postgame.state.timeControl?.initialMs ?? null;
-  const incrementMs = postgame.game.incrementMs ?? postgame.state.timeControl?.incrementMs ?? null;
-  if (initialMs === null || incrementMs === null) return null;
-  return { initialMs, incrementMs };
 }
 
 function labelize(value: string): string {

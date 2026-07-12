@@ -6,7 +6,6 @@ import { jieqiEnabled } from './feature-flags.js';
 import { fillCapturedPool } from './live-jieqi.js';
 import { installJieqiBoardStyles, renderJieqiBoardSvg } from './live-jieqi-render.js';
 import { createPane } from './replay-board.js';
-import { createShareButton } from './replay-meta.js';
 import { buildReviewMeta, labelize, reviewResultLabel } from './review/game-review-meta.js';
 import { createMoveList } from './review/move-list.js';
 import { mountReviewLayout } from './review/review-layout.js';
@@ -197,7 +196,7 @@ function renderPostgame(root: HTMLElement, postgame: JieqiPostgameResponse): voi
     summary: `${status} · ${postgame.game.plyCount} plies`,
     metaCard,
     details,
-    actions: jieqiActions(postgame, revealBtn),
+    railFooter: revealFooter(revealBtn),
     moves: moveList.el,
     boards: [{ key: 'truth', el: pane.el, tier: 'primary' }],
     boardAspect: 660 / 732,
@@ -215,22 +214,13 @@ function renderPostgame(root: HTMLElement, postgame: JieqiPostgameResponse): voi
   });
 }
 
-function jieqiActions(postgame: JieqiPostgameResponse, revealBtn: HTMLButtonElement): HTMLElement {
-  const actions = document.createElement('div');
-  actions.className = 'review-actions';
-  const share = createShareButton();
-  const home = reviewActionLink('Home', '/');
-  const room = reviewActionLink('Room', `/room/${encodeURIComponent(postgame.game.roomId)}`);
-  actions.append(revealBtn, share, home, room);
-  return actions;
-}
-
-function reviewActionLink(label: string, href: string): HTMLAnchorElement {
-  const link = document.createElement('a');
-  link.className = 'review-action-link';
-  link.href = href;
-  link.textContent = label;
-  return link;
+// The Reveal toggle is the only control that survives on the review page; pin it
+// to the bottom of the right rail so the left column stays button-free.
+function revealFooter(revealBtn: HTMLButtonElement): HTMLElement {
+  const footer = document.createElement('div');
+  footer.className = 'review-rail-footer';
+  footer.append(revealBtn);
+  return footer;
 }
 
 // Lichess convention: a player's captured material sits next to that player. The

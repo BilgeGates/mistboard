@@ -37,8 +37,7 @@ describe('Dark Xiangqi postgame page', () => {
     expect(root.textContent).toContain('Red view');
     expect(root.textContent).toContain('Server truth');
     expect(root.textContent).toContain('Black view');
-    expect(root.textContent).toContain('Play again');
-    expect(root.textContent).toContain('Back home');
+    expect(root.textContent).not.toContain('Play again');
     // Moves render in the shared clickable list, paired two per numbered row
     // (Red move, then Black move), each a jump-to-ply button.
     const firstMoveRow = root.querySelector('.review-move-list__row');

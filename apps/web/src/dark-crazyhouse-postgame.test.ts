@@ -40,8 +40,7 @@ describe('Dark Crazyhouse postgame page', () => {
 
     expect(root.querySelector('.site-nav')).not.toBeNull();
     expect(root.textContent).toContain('Dark Crazyhouse');
-    expect(root.textContent).toContain('Play again');
-    expect(root.textContent).toContain('Back home');
+    expect(root.textContent).not.toContain('Play again');
     expect(root.textContent).not.toContain('Opponent reserve: hidden');
     expect(root.textContent).toContain('Ply 2 of 2');
 

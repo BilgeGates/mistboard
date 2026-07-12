@@ -154,7 +154,6 @@ function renderPostgame(root: HTMLElement, postgame: DarkCrossroadsChessPostgame
     ariaLabel: 'Dark Crossroads Chess postgame',
     title: 'Dark Crossroads Chess',
     summary: `${status} · ${postgame.game.plyCount} plies`,
-    actions: postgameActions(postgame),
     metaCard,
     details,
     moves: timelinePanel(postgame),
@@ -214,22 +213,6 @@ export function postgameViewAtPly(
     selected = snapshot;
   }
   return selected?.view ?? null;
-}
-
-function postgameActions(postgame: DarkCrossroadsChessPostgameResponse): HTMLElement {
-  const actions = document.createElement('nav');
-  actions.className = 'dxq-postgame__actions';
-  actions.setAttribute('aria-label', 'Game links');
-  const home = document.createElement('a');
-  home.className = 'dxq-postgame__link';
-  home.href = '/';
-  home.textContent = 'Back home';
-  const room = document.createElement('a');
-  room.className = 'dxq-postgame__link';
-  room.href = `/room/${encodeURIComponent(postgame.game.roomId)}`;
-  room.textContent = 'Room';
-  actions.append(home, room);
-  return actions;
 }
 
 function timelinePanel(postgame: DarkCrossroadsChessPostgameResponse): HTMLElement {
