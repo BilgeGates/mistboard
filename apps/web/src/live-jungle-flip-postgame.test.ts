@@ -1,3 +1,11 @@
+import {
+  applyJungleFlipMove,
+  createInitialJungleFlipState,
+  getJungleFlipPlayerView,
+  type JungleFlipMove,
+  jungleFlipTruthView,
+  STANDARD_JUNGLE_FLIP_DEAL,
+} from '@mistboard/game';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { jungleFlipResultLabel } from './jungle-flip-result-label.js';
 import {
@@ -70,40 +78,21 @@ describe('Flip Jungle postgame page', () => {
       '.review-move-list__row .review-move-list__move',
     );
     expect(firstMove?.querySelector('.review-move-list__san')?.textContent).toBe('a1 flip');
-    // Opens at the final ply (1 of 1); the current move is highlighted with its
-    // data-ply. (The scrubber's "Ply X of Y" status was removed with the lichess
-    // control bar.)
-    const currentPly = () =>
-      root.querySelector('.review-move-list__move--current')?.getAttribute('data-ply') ?? '0';
-    expect(currentPly()).toBe('1');
-  });
-
-  it('hides unflipped tiles by default and reveals them on toggle', async () => {
-    const fetchSpy = vi.fn(async () => jsonResponse(postgameFixture()));
-    vi.stubGlobal('fetch', fetchSpy);
-    const root = document.createElement('div');
-
-    mountJungleFlipPostgame(root, 'jgf_postgame');
-    await flushPromises();
-
-    const board = () => root.querySelector('.jungle-flip-postgame-board') as HTMLElement;
-    // Step back to ply 0 (before the flip): the as-played mask paints face-down backs
-    // (the banqi-style jade back disc).
-    document.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowUp' }));
-    expect(board().innerHTML).toContain('fill="#2f8f6b"');
-
-    const reveal = [...root.querySelectorAll<HTMLButtonElement>('button')].find(
-      (el) => el.textContent === 'Reveal tiles',
-    );
-    expect(reveal).not.toBeUndefined();
-    reveal!.click();
-    // Revealed overlay: no tile shows the back disc, even at ply 0.
-    expect(reveal!.textContent).toBe('Hide tiles');
-    expect(board().innerHTML).not.toContain('fill="#2f8f6b"');
+    // Opens at the final ply (the flip is the mainline tip): the highlighted current
+    // cell is that flip move. (The tree move list highlights via --current.)
+    const current = root.querySelector('.review-move-list__move--current');
+    expect(current?.querySelector('.review-move-list__san')?.textContent).toBe('a1 flip');
   });
 });
 
 function postgameFixture() {
+  // Build a REAL 1-ply flip-jungle game with the kernel so the tree can reconstruct
+  // the deal (from history.revealed's ply-0 truth board) and replay it: the standard
+  // fixed deal, opening a1 flip (a real game always opens with a flip), then black
+  // resigns. Generating from the kernel keeps the fixture legal.
+  const initial = createInitialJungleFlipState('jgf_postgame', STANDARD_JUNGLE_FLIP_DEAL);
+  const flip: JungleFlipMove = { from: 'a1', to: 'a1' };
+  const afterFlip = applyJungleFlipMove(initial, flip);
   return {
     game: {
       roomId: 'jgf_postgame',
@@ -121,61 +110,21 @@ function postgameFixture() {
     },
     state: {
       status: { type: 'finished', winner: 'red', reason: 'resignation' },
-      moveNumber: 1,
+      moveNumber: afterFlip.moveNumber,
       timeControl: { initialMs: 180000, incrementMs: 2000 },
     },
     timeline: [
-      { type: 'move-played', at: 4, color: 'red', move: { from: 'a1', to: 'a1' }, ply: 1 },
+      { type: 'move-played', at: 4, color: 'red', move: flip, ply: 1 },
       { type: 'seat-resigned', at: 5, color: 'black', winner: 'red' },
     ],
-    // Truth view: ink bound red to the first seat (so 'red-wins' → "Red wins").
-    view: revealedView(1),
+    view: getJungleFlipPlayerView(afterFlip, 'red'),
     history: {
-      truth: [
-        { ply: 0, view: maskedView(0) },
-        { ply: 1, view: revealedView(1) },
-      ],
+      // Spoiler overlay: the ply-0 board is the full deal the adapter reconstructs from.
       revealed: [
-        { ply: 0, view: revealedView(0) },
-        { ply: 1, view: revealedView(1) },
+        { ply: 0, view: jungleFlipTruthView(initial) },
+        { ply: 1, view: jungleFlipTruthView(afterFlip) },
       ],
     },
-  };
-}
-
-const finished = { type: 'finished', winner: 'red', reason: 'resignation' } as const;
-const playing = { type: 'playing', turn: 'black' } as const;
-
-function maskedView(ply: number) {
-  return {
-    id: `jgf_t${ply}`,
-    perspective: 'red',
-    board: { a1: { faceDown: true }, b2: { faceDown: true } },
-    legalMoves: [],
-    captured: [],
-    status: ply === 0 ? playing : finished,
-    ply,
-    firstColor: 'red',
-    moveNumber: 1,
-    lastMove: ply === 0 ? undefined : { from: 'a1', to: 'a1' },
-  };
-}
-
-function revealedView(ply: number) {
-  return {
-    id: `jgf_r${ply}`,
-    perspective: 'red',
-    board: {
-      a1: { color: 'red', role: 'rat', faceDown: false },
-      b2: { color: 'black', role: 'elephant', faceDown: false },
-    },
-    legalMoves: [],
-    captured: [],
-    status: ply === 0 ? playing : finished,
-    ply,
-    firstColor: 'red',
-    moveNumber: 1,
-    lastMove: ply === 0 ? undefined : { from: 'a1', to: 'a1' },
   };
 }
 

@@ -154,12 +154,21 @@ export function createMoveTree<M, T, V>(tree: GameTree<M, T, V>, opts: MoveTreeO
     return button;
   }
 
-  // Render the mainline as number · red · black rows, emitting each node's
-  // variations as indented breakout rows right after the move they diverge from.
-  function renderMainline(firstNode: GameTreeNode<M, T>): void {
-    let node: GameTreeNode<M, T> | null = firstNode;
+  // Render the mainline as number · red · black rows. A ply's VARIATIONS are its
+  // siblings (alternatives to that same move): parent.children[1..] are the
+  // alternatives to parent.children[0]. They render as indented breakout lines
+  // right after the move they replace, and that move CLOSES its row so the reply
+  // resumes on a fresh line — so a two-ply row splits whenever a variation attaches
+  // to either ply (lila style), keeping it unambiguous which ply a variation is on.
+  // Passing the ROOT (not the first move) folds the alternative first moves in at
+  // move 1 instead of dumping them after the whole mainline.
+  function renderMainline(root: GameTreeNode<M, T>): void {
+    let node: GameTreeNode<M, T> | null = root.children[0] ?? null;
     let row: HTMLElement | null = null;
     while (node) {
+      const parent = node.parent;
+      // Alternatives to `node` itself (its later siblings under the same parent).
+      const variations = parent ? parent.children.slice(1) : [];
       if (isRed(node.ply)) {
         row = document.createElement('li');
         row.className = 'review-move-list__row';
@@ -168,19 +177,22 @@ export function createMoveTree<M, T, V>(tree: GameTree<M, T, V>, opts: MoveTreeO
         rows.append(row);
       } else if (row) {
         row.replaceChild(moveCell(node), row.lastChild as Node);
-        row = null;
       } else {
-        // A black move with no open row (the red reply was a variation): start a
-        // row with an empty red column and a "N…" number.
+        // A black move with no open row (its red partner ended a variation-split
+        // line): start a row with an empty red column and a "N…" number.
         row = document.createElement('li');
         row.className = 'review-move-list__row';
         row.append(numberSpan(`${node.ply / 2}…`), emptyCell(), moveCell(node));
         rows.append(row);
-        row = null;
       }
-      // Variations diverge from `node` (alternatives to its mainline child).
-      for (let i = 1; i < node.children.length; i++) {
-        rows.append(variationRow(node.children[i]!));
+      if (variations.length > 0) {
+        // This ply has alternatives: emit them right here, then break the line so
+        // the reply starts on a fresh row (and a black move resumes as "N…").
+        for (const variation of variations) rows.append(variationRow(variation));
+        row = null;
+      } else if (!isRed(node.ply)) {
+        // A completed black move with no variation ends the two-ply row.
+        row = null;
       }
       node = node.children[0] ?? null;
     }
@@ -240,11 +252,9 @@ export function createMoveTree<M, T, V>(tree: GameTree<M, T, V>, opts: MoveTreeO
       rows.append(empty);
       return;
     }
-    renderMainline(main);
-    // Alternative first moves (root variations) render as top-level breakout rows.
-    for (let i = 1; i < tree.root.children.length; i++) {
-      rows.append(variationRow(tree.root.children[i]!));
-    }
+    // Pass the root so alternative first moves interleave at move 1 (renderMainline
+    // treats them as variations of move 1) rather than dumping at the very bottom.
+    renderMainline(tree.root);
   }
 
   function setCurrent(path: TreePath): void {

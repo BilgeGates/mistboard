@@ -7,28 +7,22 @@ import type {
 import './live-xiangqi.css';
 import './landing.css';
 import './game-route.css';
-import { rectangularGridAspect } from './board-metrics.js';
 import { jungleFlipEnabled } from './feature-flags.js';
-import {
-  JUNGLE_FLIP_BOARD_VIEW,
-  type JungleFlipRenderBoard,
-  jungleFlipPieceGhostSvg,
-  renderJungleFlipBoardSvg,
-} from './jungle-flip-render.js';
 import { jungleFlipResultLabel } from './jungle-flip-result-label.js';
-import { createPane } from './replay-board.js';
-import { fillCapturedPoolWith } from './review/captured-pool.js';
 import { buildReviewMeta, labelize } from './review/game-review-meta.js';
-import { createMoveList } from './review/move-list.js';
-import { mountReviewLayout } from './review/review-layout.js';
+import { mountJungleFlipReview } from './review/jungle-flip-review.js';
+import { recoverJungleFlipDeal } from './review/jungle-flip-tree-adapter.js';
 import { buildNav } from './site-shell.js';
 
 // Postgame review for Flip Jungle. Flip Jungle is SYMMETRIC hidden-identity (the
 // banqi pattern on 16 animals): a face-down tile is hidden from both seats equally,
-// so there is a single review board and no sides to flip. The shared review layout
-// owns the shell, scrubber, keyboard, and viewport-fill sizing; this module supplies
-// the board host + move list and a Reveal toggle (button / `h`) that swaps the
-// as-played masked replay ('truth') for the spoiler overlay ('revealed').
+// so there is a single review board and no sides to flip. As of the review
+// standardization it rides the shared interactive tree (mountJungleFlipReview →
+// mountTreeReview): the deal is reconstructed from the fully-revealed history
+// (history.revealed), baked into the truth, and the client replays the move list +
+// lets you branch. The board renders MASKED as-played; flipping a tile in a line
+// reveals what the fixed deal placed there. The server per-ply snapshots are used
+// only by the watch adapter (viewAtPly below).
 
 type ViewKey = 'truth' | 'revealed';
 
@@ -72,8 +66,6 @@ export type JungleFlipPostgameResponse = {
   history?: Partial<Record<ViewKey, Array<{ ply: number; view: JungleFlipPlayerView }>>>;
 };
 
-type JungleFlipMoveEntry = { move: JungleFlipMove; ply: number; color: JungleFlipSeat };
-
 type LoadResult =
   | { ok: true; postgame: JungleFlipPostgameResponse }
   | { ok: false; status: number; error: string };
@@ -115,90 +107,28 @@ export function jungleFlipPostgameApiUrl(roomId: string): string {
 }
 
 function renderPostgame(root: HTMLElement, postgame: JungleFlipPostgameResponse): void {
-  const pane = createPane('', 'truth', true, 'split');
-  pane.boardEl.classList.add('jungle-flip-postgame-board', 'jungle-flip-live-board');
-
   const firstColor = postgame.view.firstColor;
 
-  const moves: JungleFlipMoveEntry[] = postgame.timeline
+  // Reconstruct the fixed deal from the earliest fully-revealed snapshot, then let
+  // the tree replay the move list + branch client-side. If the revealed stream is
+  // missing/incomplete, recoverJungleFlipDeal throws and the outer .catch renders an
+  // error rather than a wrong board.
+  const revealedHistory = postgame.history?.revealed ?? [];
+  const earliestRevealed = revealedHistory.reduce<{
+    ply: number;
+    view: JungleFlipPlayerView;
+  } | null>((best, snapshot) => (!best || snapshot.ply < best.ply ? snapshot : best), null);
+  if (!earliestRevealed) {
+    throw new Error('jungle-flip postgame: no revealed history to reconstruct the deal');
+  }
+  const deal = recoverJungleFlipDeal(earliestRevealed.view);
+
+  const moves: JungleFlipMove[] = postgame.timeline
     .filter(
-      (
-        entry,
-      ): entry is typeof entry & { move: JungleFlipMove; ply: number; color: JungleFlipSeat } =>
-        entry.type === 'move-played' &&
-        !!entry.move &&
-        typeof entry.ply === 'number' &&
-        !!entry.color,
+      (entry): entry is typeof entry & { move: JungleFlipMove } =>
+        entry.type === 'move-played' && !!entry.move,
     )
-    .map((entry) => ({ move: entry.move, ply: entry.ply, color: entry.color }));
-
-  // Two ply per row (one full move): ply 1 (the first mover) takes the left cell,
-  // ply 2 the right, keyed by ply parity. That is `createMoveList`'s default
-  // (`firstMover: 'a'`), so the first mover's move lands in the left column exactly
-  // as the old hand-rolled list placed it.
-  const moveList = createMoveList(
-    moves.map((entry) => ({ ply: entry.ply, label: moveLabel(entry.move) })),
-    { title: 'Moves' },
-  );
-
-  // Default to the as-played board: unflipped tiles show as face-down backs. The
-  // toggle (button / `h`) reveals the deal. The deal has no sides, so the board
-  // renderer ignores orientation (the layout's flip control is a no-op here).
-  let revealed = false;
-  let lastPly = replayMaxPly(postgame);
-
-  const revealBtn = document.createElement('button');
-  revealBtn.type = 'button';
-  revealBtn.className = 'review-action-link';
-  revealBtn.textContent = 'Reveal tiles';
-  revealBtn.setAttribute('aria-pressed', 'false');
-  revealBtn.title = 'Toggle face-down tile identities (h)';
-
-  const paintBoard = (ply: number): void => {
-    const viewKey: ViewKey = revealed ? 'revealed' : 'truth';
-    const view =
-      viewAtPly(postgame, viewKey, ply) ?? viewAtPly(postgame, 'truth', ply) ?? postgame.view;
-    pane.boardEl.innerHTML = renderJungleFlipBoardSvg(view.board as JungleFlipRenderBoard, {
-      lastMove: view.lastMove ?? null,
-    });
-    // Flip Jungle's view carries the captured list directly (no board diff). The
-    // board renders red at the bottom, so red's losses sit on the top strip and
-    // black's on the bottom (each side's captured material near the other player).
-    const captured = view.captured;
-    pane.topCapturesEl.replaceChildren();
-    pane.capturesEl.replaceChildren();
-    fillCapturedPoolWith(pane.topCapturesEl, captured, 'red', jungleFlipPieceGhostSvg);
-    fillCapturedPoolWith(pane.capturesEl, captured, 'black', jungleFlipPieceGhostSvg);
-  };
-
-  const toggleReveal = (): void => {
-    revealed = !revealed;
-    revealBtn.textContent = revealed ? 'Hide tiles' : 'Reveal tiles';
-    revealBtn.setAttribute('aria-pressed', String(revealed));
-    paintBoard(lastPly);
-  };
-  revealBtn.onclick = toggleReveal;
-
-  root.replaceChildren(buildNav());
-  // The shared review layout binds its playback keys on `document`; the reveal
-  // toggle joins them there (typing targets are ignored, like the layout does).
-  document.addEventListener('keydown', (event) => {
-    if (event.metaKey || event.ctrlKey || event.altKey) return;
-    const target = event.target as HTMLElement | null;
-    if (
-      target &&
-      (target.isContentEditable ||
-        target.tagName === 'INPUT' ||
-        target.tagName === 'TEXTAREA' ||
-        target.tagName === 'SELECT')
-    ) {
-      return;
-    }
-    if (event.key === 'h' || event.key === 'H') {
-      event.preventDefault();
-      toggleReveal();
-    }
-  });
+    .map((entry) => entry.move);
 
   const status = `${jungleFlipResultLabel(postgame.game.result, firstColor)} by ${labelize(postgame.game.termination)}`;
   const { metaCard, details } = buildReviewMeta({
@@ -207,40 +137,20 @@ function renderPostgame(root: HTMLElement, postgame: JungleFlipPostgameResponse)
     game: postgame.game,
     status,
   });
-  mountReviewLayout(root, {
+
+  root.replaceChildren(buildNav());
+  mountJungleFlipReview(root, postgame.game.roomId, deal, {
     pageClassName: 'jungle-flip-review',
     ariaLabel: 'Flip Jungle postgame',
     title: 'Flip Jungle',
     summary: `${status} · ${postgame.game.plyCount} plies`,
     metaCard,
     details,
-    railFooter: revealFooter(revealBtn),
-    moves: moveList.el,
-    boards: [{ key: 'truth', el: pane.el, tier: 'primary' }],
-    boardAspect: rectangularGridAspect(JUNGLE_FLIP_BOARD_VIEW),
-    // 4x4 board: cap the review fit so four cells keep a sensible size.
-    boardMaxPx: 560,
-    // Compact capture tiles (board width / 8) so the top/bottom strips stay short
-    // and the board grows to fill the height.
-    boardCols: 8,
-    maxPly: replayMaxPly(postgame),
-    renderBoards({ ply }) {
-      lastPly = ply;
-      paintBoard(ply);
-    },
-    renderMoves({ ply }, jump) {
-      moveList.update(ply, jump);
-    },
+    moves,
+    // No jungle-flip whole-game analysis engine is wired; the interactive board +
+    // move tree stand on their own (no eval gauge, no computer-analysis underboard).
+    analysis: null,
   });
-}
-
-// The Reveal toggle is the only control that survives on the review page; pin it
-// to the bottom of the right rail so the left column stays button-free.
-function revealFooter(revealBtn: HTMLButtonElement): HTMLElement {
-  const footer = document.createElement('div');
-  footer.className = 'review-rail-footer';
-  footer.append(revealBtn);
-  return footer;
 }
 
 export function replayMaxPly(postgame: JungleFlipPostgameResponse): number {
@@ -261,11 +171,6 @@ export function viewAtPly(
     selected = snapshot;
   }
   return selected?.view ?? null;
-}
-
-// A flip (self-move) reads as the flipped square; a board move as from-to.
-function moveLabel(move: JungleFlipMove): string {
-  return move.from === move.to ? `${move.from} flip` : `${move.from}-${move.to}`;
 }
 
 export function initialPlyFromSearch(search: string): number | null {

@@ -3,19 +3,20 @@ import './live-xiangqi.css';
 import './landing.css';
 import './game-route.css';
 import { jieqiEnabled } from './feature-flags.js';
-import { fillCapturedPool } from './live-jieqi.js';
-import { installJieqiBoardStyles, renderJieqiBoardSvg } from './live-jieqi-render.js';
-import { createPane } from './replay-board.js';
+import { installJieqiBoardStyles } from './live-jieqi-render.js';
 import { buildReviewMeta, labelize, reviewResultLabel } from './review/game-review-meta.js';
-import { createMoveList } from './review/move-list.js';
-import { mountReviewLayout } from './review/review-layout.js';
+import { mountJieqiReview } from './review/jieqi-review.js';
+import { recoverJieqiDeal } from './review/jieqi-tree-adapter.js';
 import { buildNav } from './site-shell.js';
 
-// Postgame review for Jieqi ("hidden Xiangqi"). Jieqi hides piece identities
-// symmetrically, so there is a single review board. The shared review layout owns
-// the shell, scrubber, keyboard, flip, and viewport-fill sizing; this module
-// supplies the board host + captured pools + move list, and a Reveal toggle
-// (button / `h`) that swaps the as-played masked view for server truth.
+// Postgame review for Jieqi (Reveal Xiangqi). Jieqi hides piece IDENTITIES
+// symmetrically (positions are public), so there is a single review board. As of the
+// review standardization it rides the shared interactive tree (mountJieqiReview →
+// mountTreeReview): the deal is reconstructed from the fully-revealed `history.truth`
+// stream (jieqi's spoiler key is 'truth'), baked into the truth, and the client
+// replays the move list + lets you branch. The board renders MASKED as-played; a
+// dark piece reveals when a move in a line moves it. The server per-ply snapshots are
+// used only by the watch adapter (postgameViewAtPly below).
 
 export type JieqiPostgameViewKey = JieqiColor | 'truth';
 
@@ -59,8 +60,6 @@ export type JieqiPostgameResponse = {
   views?: Partial<Record<JieqiPostgameViewKey, JieqiPlayerView>>;
   history?: Partial<Record<JieqiPostgameViewKey, Array<{ ply: number; view: JieqiPlayerView }>>>;
 };
-
-type JieqiMoveEntry = { move: JieqiMove; ply: number; color: JieqiColor };
 
 type LoadResult =
   | { ok: true; postgame: JieqiPostgameResponse }
@@ -109,78 +108,27 @@ export function jieqiPostgameApiUrl(roomId: string): string {
 }
 
 function renderPostgame(root: HTMLElement, postgame: JieqiPostgameResponse): void {
-  const pane = createPane('', 'truth', true, 'split');
-  pane.boardEl.classList.add('jieqi-postgame-board');
-
-  const moves: JieqiMoveEntry[] = postgame.timeline
-    .filter(
-      (entry): entry is typeof entry & { move: JieqiMove; ply: number; color: JieqiColor } =>
-        entry.type === 'move-played' &&
-        !!entry.move &&
-        typeof entry.ply === 'number' &&
-        !!entry.color,
-    )
-    .map((entry) => ({ move: entry.move, ply: entry.ply, color: entry.color }));
-
-  const moveList = createMoveList(
-    moves.map((entry) => ({ ply: entry.ply, label: moveLabel(entry.move) })),
-    { title: 'Moves' },
+  // Reconstruct the fixed deal from the earliest fully-revealed truth snapshot, then
+  // let the tree replay the move list + branch client-side. If the truth stream is
+  // missing/incomplete, recoverJieqiDeal throws and the outer .catch renders an
+  // error rather than a wrong board.
+  const truthHistory = postgame.history?.truth ?? [];
+  const earliestTruth = truthHistory.reduce<{ ply: number; view: JieqiPlayerView } | null>(
+    (best, snapshot) => (!best || snapshot.ply < best.ply ? snapshot : best),
+    null,
   );
+  const truthSeed = earliestTruth?.view ?? postgame.views?.truth ?? null;
+  if (!truthSeed) {
+    throw new Error('jieqi postgame: no truth history to reconstruct the deal');
+  }
+  const deal = recoverJieqiDeal(truthSeed);
 
-  // Default to the as-played board: unmoved pieces show as face-down backs, the
-  // way the position actually looked. The toggle (button / `h`) reveals truth.
-  let revealed = false;
-  let lastCtx: { ply: number; flipped: boolean } | null = null;
-
-  const revealBtn = document.createElement('button');
-  revealBtn.type = 'button';
-  revealBtn.className = 'review-action-link';
-  revealBtn.textContent = 'Reveal identities';
-  revealBtn.setAttribute('aria-pressed', 'false');
-  revealBtn.title = 'Toggle hidden-piece identities (h)';
-
-  const paintBoard = (ctx: { ply: number; flipped: boolean }): void => {
-    const orientation: JieqiColor = ctx.flipped ? 'black' : 'red';
-    // Reveal on → truth (every identity). Reveal off → the orientation seat's
-    // as-played view: identical board to the other seat (jieqi hides identities
-    // symmetrically), differing only in captured-tray knowledge.
-    const viewKey: JieqiPostgameViewKey = revealed ? 'truth' : orientation;
-    const fallback = revealed
-      ? (postgame.views?.truth ?? postgame.view)
-      : (postgame.views?.[orientation] ?? postgame.view);
-    const view = postgameViewAtPly(postgame, viewKey, ctx.ply) ?? fallback;
-    pane.boardEl.innerHTML = renderJieqiBoardSvg(view, orientation, {});
-    renderCapturedPools(pane.topCapturesEl, pane.capturesEl, view, orientation);
-  };
-
-  const toggleReveal = (): void => {
-    revealed = !revealed;
-    revealBtn.textContent = revealed ? 'Hide identities' : 'Reveal identities';
-    revealBtn.setAttribute('aria-pressed', String(revealed));
-    if (lastCtx) paintBoard(lastCtx);
-  };
-  revealBtn.onclick = toggleReveal;
-
-  root.replaceChildren(buildNav());
-  // The shared review layout binds its playback keys on `document`; the reveal
-  // toggle joins them there (typing targets are ignored, like the layout does).
-  document.addEventListener('keydown', (event) => {
-    if (event.metaKey || event.ctrlKey || event.altKey) return;
-    const target = event.target as HTMLElement | null;
-    if (
-      target &&
-      (target.isContentEditable ||
-        target.tagName === 'INPUT' ||
-        target.tagName === 'TEXTAREA' ||
-        target.tagName === 'SELECT')
-    ) {
-      return;
-    }
-    if (event.key === 'h' || event.key === 'H') {
-      event.preventDefault();
-      toggleReveal();
-    }
-  });
+  const moves: JieqiMove[] = postgame.timeline
+    .filter(
+      (entry): entry is typeof entry & { move: JieqiMove } =>
+        entry.type === 'move-played' && !!entry.move,
+    )
+    .map((entry) => entry.move);
 
   const status = `${reviewResultLabel(postgame.game.result)} by ${labelize(postgame.game.termination)}`;
   const { metaCard, details } = buildReviewMeta({
@@ -189,59 +137,20 @@ function renderPostgame(root: HTMLElement, postgame: JieqiPostgameResponse): voi
     game: postgame.game,
     status,
   });
-  mountReviewLayout(root, {
+
+  root.replaceChildren(buildNav());
+  mountJieqiReview(root, postgame.game.roomId, deal, {
     pageClassName: 'jieqi-review',
     ariaLabel: 'Jieqi postgame',
     title: 'Reveal Xiangqi',
     summary: `${status} · ${postgame.game.plyCount} plies`,
     metaCard,
     details,
-    railFooter: revealFooter(revealBtn),
-    moves: moveList.el,
-    boards: [{ key: 'truth', el: pane.el, tier: 'primary' }],
-    boardAspect: 660 / 732,
-    // Compact capture tiles (kept above/below): a full xiangqi pool collapses to a
-    // single row instead of two, freeing vertical space for a larger board.
-    boardCols: 16,
-    maxPly: postgameReplayMaxPly(postgame),
-    renderBoards(ctx) {
-      lastCtx = { ply: ctx.ply, flipped: ctx.flipped };
-      paintBoard(lastCtx);
-    },
-    renderMoves({ ply }, jump) {
-      moveList.update(ply, jump);
-    },
+    moves,
+    // No jieqi whole-game analysis engine is wired; the interactive board + move
+    // tree stand on their own (no eval gauge, no computer-analysis underboard).
+    analysis: null,
   });
-}
-
-// The Reveal toggle is the only control that survives on the review page; pin it
-// to the bottom of the right rail so the left column stays button-free.
-function revealFooter(revealBtn: HTMLButtonElement): HTMLElement {
-  const footer = document.createElement('div');
-  footer.className = 'review-rail-footer';
-  footer.append(revealBtn);
-  return footer;
-}
-
-// Lichess convention: a player's captured material sits next to that player. The
-// bottom strip is the viewer's side (orientation), so it shows what the viewer
-// captured (the opponent's lost pieces); the top strip shows what the opponent
-// captured (the viewer's lost pieces). fillCapturedPool filters by former owner.
-function renderCapturedPools(
-  top: HTMLElement,
-  bottom: HTMLElement,
-  view: JieqiPlayerView,
-  orientation: JieqiColor,
-): void {
-  top.replaceChildren();
-  bottom.replaceChildren();
-  const opponent = oppositeJieqiColor(orientation);
-  fillCapturedPool(top, view.captured, orientation);
-  fillCapturedPool(bottom, view.captured, opponent);
-}
-
-function oppositeJieqiColor(color: JieqiColor): JieqiColor {
-  return color === 'red' ? 'black' : 'red';
 }
 
 // Exported for the watch-replay surface to reuse the per-ply view selection,
@@ -278,10 +187,6 @@ export function postgameViewAtPly(
     selected = snapshot;
   }
   return selected?.view ?? null;
-}
-
-function moveLabel(move: JieqiMove): string {
-  return `${move.from}-${move.to}`;
 }
 
 export function jieqiInitialPlyFromSearch(search: string): number | null {
