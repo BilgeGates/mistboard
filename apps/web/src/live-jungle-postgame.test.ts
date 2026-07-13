@@ -48,6 +48,7 @@ describe('Jungle postgame page', () => {
     // Perfect-info: one board, and no reveal toggle (nothing was ever hidden).
     expect(root.querySelectorAll('.jungle-postgame-board')).toHaveLength(1);
     expect(root.querySelector('.jungle-postgame-board')?.innerHTML).toContain('<svg');
+    expect(root.querySelector('.review-stage')?.classList).toContain('review-stage--board-only');
     expect(
       [...root.querySelectorAll('button')].some((el) => el.textContent === 'Reveal tiles'),
     ).toBe(false);
