@@ -60,6 +60,18 @@ if (phKey && phHost && import.meta.env.PROD) {
       // Unhandled errors + promise rejections surface as $exception events
       // (Error Tracking), so a broken page reports itself instead of going dark.
       capture_exceptions: true,
+      // Drop benign browser noise before ingestion. "ResizeObserver loop
+      // completed with undelivered notifications" is a synthetic warning
+      // Chromium fires at window.onerror when an observer callback defers a
+      // layout to the next frame; nothing breaks and it never reproduces on
+      // Firefox/Safari. Filtering here keeps it out of Error Tracking entirely.
+      before_send: (event) => {
+        const message = event?.properties?.$exception_values?.[0];
+        if (typeof message === 'string' && message.includes('ResizeObserver loop')) {
+          return null;
+        }
+        return event;
+      },
     });
     posthog.capture('$pageview', { path: window.location.pathname });
     setPostHogInstance(posthog);
