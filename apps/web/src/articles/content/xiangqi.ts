@@ -184,14 +184,12 @@ export const xiangqiArticle: Article = {
         ],
       },
       playClosing({
-        heading: 'Play it',
-        lead: 'Xiangqi is live on Mistboard. Play the Pikafish engine at three strengths, or challenge a friend. For a twist, add Fog of War in Fog Xiangqi, where enemy pieces outside your vision disappear and the general falls by capture.',
-        playLabel: 'Play Xiangqi',
+        heading: 'Play on Mistboard',
+        lead: 'Xiangqi is playable on Mistboard. Play against an engine or challenge a friend. No account required.',
+        playLabel: 'Play vs computer',
         playHref: '/?play=computer&gameSpecId=xiangqi',
         secondary: [
           { label: 'Challenge a friend', href: '/?play=friend&gameSpecId=xiangqi', emphasis: 'secondary' },
-          { label: 'Fog Xiangqi', href: '/rules/dark-xiangqi', emphasis: 'secondary' },
-          { label: 'All rules', href: '/rules', emphasis: 'secondary' },
         ],
       }),
     ],

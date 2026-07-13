@@ -1828,7 +1828,7 @@ function orderedProfileVariants(_ratings: ProfileBucketRating[]): ProfileRatingV
 // which are not the game RatingVariant keys, so they get their own small map).
 const PUZZLE_VARIANT_LABELS: Record<string, string> = {
   xiangqi: 'Xiangqi',
-  'fortress-xiangqi': 'Fortress',
+  'fortress-xiangqi': 'Fortress Xiangqi',
   jungle: 'Jungle',
   'mini-xiangqi': 'Mini Xiangqi',
   'drop-mini-xiangqi': 'Drop Mini Xiangqi',

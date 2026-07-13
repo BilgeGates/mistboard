@@ -105,7 +105,12 @@ function isArticleVisibleInThisEnv(article: Article): boolean {
 function isArticleListedInThisEnv(article: Article): boolean {
   if (!isArticleVisibleInThisEnv(article)) return false;
   if (article.showInIndex === false) return false;
-  if (article.kind === 'rules' && !rulesSlugPublicSurfaceEnabled(article.slug)) return false;
+  if (
+    article.kind === 'rules' &&
+    !rulesSlugPublicSurfaceEnabled(article.gameSpecId ?? article.slug)
+  ) {
+    return false;
+  }
   return true;
 }
 
@@ -320,6 +325,12 @@ function buildRulesLanding(lang?: ArticleLang): HTMLElement {
       label.className = 'rules-landing-tile-label';
       label.textContent = variantNavLabel(localized.title);
       tile.append(label);
+      if (article.playableOnMistboard) {
+        const playable = document.createElement('span');
+        playable.className = 'rules-playable-badge';
+        playable.textContent = t('rules.playableHere', {}, locale);
+        tile.append(playable);
+      }
       li.append(tile);
       grid.append(li);
     }
@@ -658,16 +669,6 @@ export function buildArticlePage(slug: string, lang?: ArticleLang): HTMLElement 
   const sheet = document.createElement('div');
   sheet.className = 'article-sheet';
 
-  const breadcrumb = document.createElement('p');
-  breadcrumb.className = 'article-breadcrumb';
-  const back = document.createElement('a');
-  back.href = localizedHref(article.kind === 'rules' ? '/rules' : '/blog', locale);
-  back.textContent =
-    article.kind === 'rules'
-      ? `← ${t('rules.allRules', {}, locale)}`
-      : `← ${t('articles.allArticles', {}, locale)}`;
-  breadcrumb.append(back);
-
   // Centered header block (lichess ublog grammar): fluid regular-weight
   // title, one quiet meta row (kind chip, dates, status), summary as lede.
   const header = document.createElement('header');
@@ -680,14 +681,6 @@ export function buildArticlePage(slug: string, lang?: ArticleLang): HTMLElement 
 
   const metaRow = document.createElement('p');
   metaRow.className = 'article-meta-row';
-  const kindChip = document.createElement('span');
-  kindChip.className = 'article-chip';
-  kindChip.textContent = t(
-    article.kind === 'rules' ? 'rules.kind' : 'articles.articleKind',
-    {},
-    locale,
-  );
-  metaRow.append(kindChip);
   if (isArticleStatusBadge(article.status)) {
     const badge = document.createElement('span');
     badge.className = `article-status-badge article-status-${article.status}`;
@@ -709,7 +702,7 @@ export function buildArticlePage(slug: string, lang?: ArticleLang): HTMLElement 
     }
     metaRow.append(dates);
   }
-  header.append(metaRow);
+  if (metaRow.childElementCount > 0) header.append(metaRow);
 
   const showSummaryOnPage = article.showSummaryOnPage ?? true;
   if (showSummaryOnPage) {
@@ -719,7 +712,16 @@ export function buildArticlePage(slug: string, lang?: ArticleLang): HTMLElement 
     header.append(lede);
   }
 
-  sheet.append(breadcrumb, header);
+  if (article.kind === 'article') {
+    const breadcrumb = document.createElement('p');
+    breadcrumb.className = 'article-breadcrumb';
+    const back = document.createElement('a');
+    back.href = localizedHref('/blog', locale);
+    back.textContent = `← ${t('articles.allArticles', {}, locale)}`;
+    breadcrumb.append(back);
+    sheet.append(breadcrumb);
+  }
+  sheet.append(header);
 
   if (article.intro && article.intro.length > 0) {
     const intro = document.createElement('div');
@@ -820,6 +822,13 @@ function buildVariantSidebar(currentSlug: string | null, lang?: ArticleLang): HT
     label.className = 'article-variant-label';
     label.textContent = variantNavLabel(localized.title);
     link.append(label);
+    if (entry.playableOnMistboard) {
+      const playable = document.createElement('span');
+      playable.className = 'rules-playable-dot';
+      playable.title = t('rules.playableHere', {}, locale);
+      playable.setAttribute('aria-label', t('rules.playableHere', {}, locale));
+      link.append(playable);
+    }
     if (entry.slug === currentSlug) {
       link.classList.add('active');
       link.setAttribute('aria-current', 'page');
@@ -867,8 +876,9 @@ function compareRulesArticleRailEntries(a: Article, b: Article): number {
 function rulesArticleGroup(article: Article): RulesArticleGroupId {
   const baseGroup = BASE_RULE_GROUP_BY_SLUG[article.slug];
   if (baseGroup) return baseGroup;
-  if (!isGameSpecId(article.slug)) return 'other';
-  return rulesGroupForFamily(gameSpecForId(article.slug).family);
+  const gameSpecId = article.gameSpecId ?? article.slug;
+  if (!isGameSpecId(gameSpecId)) return 'other';
+  return rulesGroupForFamily(gameSpecForId(gameSpecId).family);
 }
 
 function rulesGroupForFamily(family: GameFamilyId): RulesArticleGroupId {
@@ -882,14 +892,16 @@ function rulesGroupForFamily(family: GameFamilyId): RulesArticleGroupId {
 function rulesArticleSortIndex(article: Article): number {
   const baseOrder = BASE_RULE_ORDER[article.slug];
   if (baseOrder !== undefined) return baseOrder;
-  if (isGameSpecId(article.slug)) return canonicalVariantOrderIndex(article.slug);
+  const gameSpecId = article.gameSpecId ?? article.slug;
+  if (isGameSpecId(gameSpecId)) return canonicalVariantOrderIndex(gameSpecId);
   return Number.MAX_SAFE_INTEGER;
 }
 
 function rulesArticleRailSortIndex(article: Article): number {
   if (article.slug === 'shogi') return canonicalVariantOrderIndex(DARK_SHOGI_SPEC_ID) - 0.5;
   if (article.slug === 'shogi4') return canonicalVariantOrderIndex(DARK_SHOGI_SPEC_ID) + 0.5;
-  if (isGameSpecId(article.slug)) return canonicalVariantOrderIndex(article.slug);
+  const gameSpecId = article.gameSpecId ?? article.slug;
+  if (isGameSpecId(gameSpecId)) return canonicalVariantOrderIndex(gameSpecId);
   return Number.MAX_SAFE_INTEGER;
 }
 
@@ -2034,16 +2046,16 @@ export function renderArticleThumbnail(thumb: ArticleThumbnail): HTMLElement {
 // reads in one visual language.
 const VARIANT_MINI_BY_SLUG: Record<string, VariantMiniId> = {
   chess: 'chess',
-  'dark-chess': 'dark-chess',
+  'fog-chess': 'dark-chess',
   'dark-draft960': 'draft960',
   xiangqi: 'xiangqi',
-  'dark-xiangqi': 'dark-xiangqi',
+  'fog-xiangqi': 'dark-xiangqi',
   'mini-xiangqi': 'mini-xiangqi',
   'dark-mini-xiangqi': 'dark-mini-xiangqi',
   'drop-mini-xiangqi': 'drop-mini-xiangqi',
   'fortress-xiangqi': 'fortress-xiangqi',
-  jieqi: 'jieqi',
-  banqi: 'banqi',
+  'reveal-xiangqi': 'jieqi',
+  'flip-xiangqi': 'banqi',
   'crossroads-chess': 'crossroads',
   'dark-crossroads-chess': 'dark-crossroads',
   kriegspiel: 'kriegspiel',

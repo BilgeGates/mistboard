@@ -2788,7 +2788,7 @@ function saveAutoNextEnabled(enabled: boolean): void {
 }
 
 function variantLabel(variant: PuzzleVariant): string {
-  if (variant === FORTRESS_XIANGQI_SPEC_ID) return 'Fortress';
+  if (variant === FORTRESS_XIANGQI_SPEC_ID) return 'Fortress Xiangqi';
   if (variant === JUNGLE_SPEC_ID) return 'Jungle';
   if (variant === XIANGQI_SPEC_ID) return 'Xiangqi';
   return variant === DROP_MINI_XIANGQI_SPEC_ID ? 'Drop Mini Xiangqi' : 'Mini Xiangqi';

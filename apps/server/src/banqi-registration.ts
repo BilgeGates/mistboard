@@ -68,7 +68,7 @@ registerVariantTenant({
   watch: {
     channelId: 'banqi',
     family: 'xiangqi',
-    label: 'Half Xiangqi',
+    label: 'Flip Xiangqi',
     legacyVariants: ['banqi'],
   },
   ownsSpecRouting: true,

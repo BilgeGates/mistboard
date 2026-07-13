@@ -60,7 +60,7 @@ let forfeitDeadline: number | null = null;
 let lastStatusType: string | null = null;
 
 const fortressWebTenant: WebVariantTenant<FortressXiangqiColor> = {
-  displayName: 'Fortress',
+  displayName: 'Fortress Xiangqi',
   metaGlyph: '象',
   colors: ['red', 'black'],
   isColor: isFortressColor,

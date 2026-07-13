@@ -959,7 +959,7 @@ export const VARIANT_MINIS: readonly VariantMiniDef[] = [
   },
   {
     id: 'fortress-xiangqi',
-    label: 'Fortress',
+    label: 'Fortress Xiangqi',
     shortLabel: 'STF',
     accent: '#b45309',
     blurb: 'Xiangqi with a pocket: opposite-corner palaces, crazyhouse drops, and the Treasure.',
@@ -975,7 +975,7 @@ export const VARIANT_MINIS: readonly VariantMiniDef[] = [
   },
   {
     id: 'banqi',
-    label: 'Half Xiangqi',
+    label: 'Reveal Xiangqi',
     shortLabel: 'BQ',
     accent: '#2563a6',
     blurb: 'Face-down pieces in cells; both generals flipped up.',

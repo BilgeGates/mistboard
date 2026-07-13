@@ -90,14 +90,17 @@ export {
 export { SHOGI4_GAME_STEPS, SHOGI4_GAME_TITLE } from '../shogi4-sample-game.js';
 export {
   JUNGLE_FLIP_MUTUAL,
+  JUNGLE_FLIP_CAPTURE,
+  JUNGLE_FLIP_MOVE,
+  JUNGLE_FLIP_REVEAL,
   JUNGLE_FLIP_SETUP,
-  JUNGLE_FLIP_TURN,
   JUNGLE_LION_JUMP,
   JUNGLE_RAT_BLOCKS,
   JUNGLE_RANK_LADDER,
   JUNGLE_RAT_ELEPHANT,
   JUNGLE_RAT_SWIMS,
   JUNGLE_START_BOARD,
+  JUNGLE_TIGER_JUMP,
   JUNGLE_TRAP,
 } from '../jungle-rules-diagrams.js';
 
@@ -2797,7 +2800,7 @@ export const BANQI_RANK_LADDER = () => {
     BANQI_PAIR_W,
     BANQI_BOARD_H + 80,
     [
-      `<text x="${BANQI_PAIR_W / 2}" y="14" font-family="system-ui, sans-serif" font-size="13" font-weight="700" class="xq-diagram-title" text-anchor="middle">TAIWAN RANK LADDER</text>`,
+      `<text x="${BANQI_PAIR_W / 2}" y="14" font-family="system-ui, sans-serif" font-size="13" font-weight="700" class="xq-diagram-title" text-anchor="middle">CAPTURE RANK LADDER</text>`,
       `<rect x="${L}" y="${T}" width="${BANQI_BOARD_W}" height="${BANQI_BOARD_H}" rx="${XQ_BOARD_RADIUS}" class="xq-diagram-bg"/>`,
       `<rect x="${L}" y="${T}" width="${BANQI_BOARD_W}" height="${BANQI_BOARD_H}" rx="${XQ_BOARD_RADIUS}" fill="none" stroke="${XQ_BOARD_STROKE}" stroke-width="${XQ_BOARD_STROKE_WIDTH}"/>`,
       ...ladder.map(({ role, label, targetOnly }, index) => {

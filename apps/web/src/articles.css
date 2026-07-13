@@ -657,6 +657,14 @@
   white-space: nowrap;
 }
 
+.rules-playable-dot {
+  width: 7px;
+  height: 7px;
+  flex: 0 0 7px;
+  border-radius: 50%;
+  background: var(--site-success, #639b24);
+}
+
 .article-toc-nav a.article-variant-link:hover .articles-index-card-thumb,
 .article-toc-nav a.article-variant-link.active .articles-index-card-thumb {
   opacity: 1;
@@ -733,6 +741,17 @@
   font-size: 14px;
   line-height: 1.35;
   color: var(--site-heading);
+}
+
+.rules-playable-badge {
+  display: inline-block;
+  margin-top: 5px;
+  padding: 2px 7px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--site-success, #639b24) 14%, transparent);
+  color: color-mix(in srgb, var(--site-success, #639b24) 78%, var(--site-text));
+  font-size: 11px;
+  font-weight: 700;
 }
 
 .rules-landing-tile:hover .rules-landing-tile-label {

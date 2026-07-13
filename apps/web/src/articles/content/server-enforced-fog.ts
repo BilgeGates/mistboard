@@ -113,7 +113,7 @@ export const serverEnforcedFogArticle: Article = {
         lead: 'Play Misty in Fog Chess, or read the rules article for the player-facing version of the same visibility model.',
         links: [
           { label: 'Play Misty', href: '/?play=computer', emphasis: 'primary' },
-          { label: 'Read Fog Chess Rules', href: '/rules/dark-chess', emphasis: 'secondary' },
+          { label: 'Read Fog Chess Rules', href: '/rules/fog-chess', emphasis: 'secondary' },
           { label: 'All articles', href: '/blog', emphasis: 'secondary' },
         ],
       }),

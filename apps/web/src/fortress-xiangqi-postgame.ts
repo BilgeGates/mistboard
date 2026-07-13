@@ -149,7 +149,7 @@ function renderPostgame(root: HTMLElement, postgame: FortressXiangqiPostgameResp
   const status = `${reviewResultLabel(postgame.game.result)} by ${labelize(postgame.game.termination)}`;
   const { metaCard, details } = buildReviewMeta({
     markerId: 'fortress-xiangqi',
-    variantName: 'Fortress',
+    variantName: 'Fortress Xiangqi',
     game: postgame.game,
     status,
   });
@@ -158,7 +158,7 @@ function renderPostgame(root: HTMLElement, postgame: FortressXiangqiPostgameResp
   mountReviewLayout(root, {
     pageClassName: 'fortress-xiangqi-review',
     ariaLabel: 'Fortress postgame',
-    title: 'Fortress',
+    title: 'Fortress Xiangqi',
     summary: `${status} · ${postgame.game.plyCount} plies`,
     metaCard,
     details,

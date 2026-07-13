@@ -12,15 +12,15 @@ import { setRatedModeEnabled } from './rated-flag.js';
 import { setResolvedSignedIn } from './signed-in-state.js';
 
 // Xiangqi pivot (2026-07): the open xiangqi anchors lead, the approachable
-// flip/animal cluster follows (Banqi, Jungle, Flip Jungle, Jieqi), then the
-// fog pair. The mini xiangqi trio (mini/dark-mini/drop-mini), Fog Shogi, plus
+// flip/animal cluster follows (Banqi, Jungle, Flip Jungle), then Fortress and
+// Jieqi, then the fog pair. The mini xiangqi trio, Fog Shogi, plus
 // dark-crazyhouse are hidden from menus (offerInMenu=false) — they remain
 // reachable only by deep link when their development flag is enabled.
 const BASELINE_PICKER_SPECS = [
-  'fortress-xiangqi',
   'banqi',
   'jungle',
   'jungle-flip',
+  'fortress-xiangqi',
   'jieqi',
   'dark-xiangqi',
   'dark-chess',

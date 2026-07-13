@@ -26,7 +26,7 @@ export const banqiEngineArticle: Article = {
     {
       kind: 'paragraph',
       text:
-        "MistyBanqi is the bot you play in [Banqi](/rules/banqi) on Mistboard. It's a classical engine: it searches ahead and scores positions with a hand-written evaluation, no neural network, and it's open source. It will outplay most people. It also has a few honest blind spots, and the one worth knowing is that it can draw a game it has completely won.",
+        "MistyBanqi is the bot you play in [Flip Xiangqi](/rules/flip-xiangqi) on Mistboard. It's a classical engine: it searches ahead and scores positions with a hand-written evaluation, no neural network, and it's open source. It will outplay most people. It also has a few honest blind spots, and the one worth knowing is that it can draw a game it has completely won.",
     },
   ],
   sections: [
@@ -141,7 +141,7 @@ export const banqiEngineArticle: Article = {
           emphasis: 'secondary',
           external: true,
         },
-        { label: 'Half Xiangqi Rules', href: '/rules/banqi', emphasis: 'secondary' },
+        { label: 'Flip Xiangqi Rules', href: '/rules/flip-xiangqi', emphasis: 'secondary' },
       ],
     }),
   ],

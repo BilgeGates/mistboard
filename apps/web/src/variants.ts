@@ -155,17 +155,6 @@ export const VARIANTS: VariantDef[] = [
     onLeaderboard: xiangqiOn,
     onProfile: xiangqiOn,
   },
-  // Fortress Xiangqi ("Storm the Fortress"): authored xiangqi product variant.
-  {
-    id: currentRatingVariantForSpec(FORTRESS_XIANGQI_SPEC_ID),
-    gameSpecId: fortressXiangqiSpec.id,
-    apiParam: FORTRESS_XIANGQI_SPEC_ID,
-    label: fortressXiangqiSpec.publicName,
-    miniId: 'fortress-xiangqi',
-    enabled: false,
-    onLeaderboard: fortressXiangqiOn,
-    onProfile: fortressXiangqiOn,
-  },
   // Banqi stays a xiangqi-family rules kernel, but sits with the animal-rank
   // games for the planned animal-themed presentation.
   {
@@ -202,6 +191,18 @@ export const VARIANTS: VariantDef[] = [
     enabled: false,
     onLeaderboard: jungleFlipOn,
     onProfile: jungleFlipOn,
+  },
+  // Fortress Xiangqi ("Storm the Fortress"): authored xiangqi product variant.
+  // It follows the established flip/animal games in public display order.
+  {
+    id: currentRatingVariantForSpec(FORTRESS_XIANGQI_SPEC_ID),
+    gameSpecId: fortressXiangqiSpec.id,
+    apiParam: FORTRESS_XIANGQI_SPEC_ID,
+    label: fortressXiangqiSpec.publicName,
+    miniId: 'fortress-xiangqi',
+    enabled: false,
+    onLeaderboard: fortressXiangqiOn,
+    onProfile: fortressXiangqiOn,
   },
   // Jieqi closes the flip cluster: launched casual and rating-ready (gated
   // globally by MISTBOARD_RATED_ENABLED). Not lobby-selectable (no open-seek

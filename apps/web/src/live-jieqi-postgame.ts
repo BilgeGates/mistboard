@@ -185,14 +185,14 @@ function renderPostgame(root: HTMLElement, postgame: JieqiPostgameResponse): voi
   const status = `${reviewResultLabel(postgame.game.result)} by ${labelize(postgame.game.termination)}`;
   const { metaCard, details } = buildReviewMeta({
     markerId: 'jieqi',
-    variantName: 'Flip Xiangqi',
+    variantName: 'Reveal Xiangqi',
     game: postgame.game,
     status,
   });
   mountReviewLayout(root, {
     pageClassName: 'jieqi-review',
     ariaLabel: 'Jieqi postgame',
-    title: 'Flip Xiangqi',
+    title: 'Reveal Xiangqi',
     summary: `${status} · ${postgame.game.plyCount} plies`,
     metaCard,
     details,

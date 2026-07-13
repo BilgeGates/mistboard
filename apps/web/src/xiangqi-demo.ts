@@ -152,7 +152,7 @@ function rerender(): void {
           <p class="xqd-kicker">Private demo</p>
           <h1>Fog Xiangqi</h1>
         </div>
-        <a class="xqd-rules-link" href="/rules/dark-xiangqi">Rules</a>
+        <a class="xqd-rules-link" href="/rules/fog-xiangqi">Rules</a>
       </header>
       <section class="xqd-game" aria-label="Fog Xiangqi game">
         <aside class="xqd-sidebar">

@@ -357,7 +357,7 @@ test('isClientRoute matches parametric SPA routes', () => {
   assert.equal(isClientRoute('/zh-hans/blog'), true);
   assert.equal(isClientRoute('/zh-hans/blog/community'), true);
   assert.equal(isClientRoute('/zh-hant/blog'), true);
-  assert.equal(isClientRoute('/rules/dark-chess'), true);
+  assert.equal(isClientRoute('/rules/fog-chess'), true);
   assert.equal(isClientRoute('/rules/dark-draft960'), true);
   assert.equal(isClientRoute('/forum/general-discussion'), true);
   assert.equal(isClientRoute('/forum/t/topic_123/example-topic'), true);
@@ -366,8 +366,8 @@ test('isClientRoute matches parametric SPA routes', () => {
   assert.equal(isClientRoute('/broadcast/xiangqi/2025-wxc-sample'), true);
   assert.equal(isClientRoute('/broadcast/xiangqi/2025-wxc-sample/round/men-r1'), true);
   assert.equal(isClientRoute('/broadcast/xiangqi/board/2025-wxc-sample-men-r1-b01'), true);
-  assert.equal(isClientRoute('/zh-hans/rules/dark-chess'), true);
-  assert.equal(isClientRoute('/zh-hant/rules/dark-chess'), true);
+  assert.equal(isClientRoute('/zh-hans/rules/fog-chess'), true);
+  assert.equal(isClientRoute('/zh-hant/rules/fog-chess'), true);
   assert.equal(isClientRoute('/engine/random-engine'), true); // admin engine-profile page
   assert.equal(isClientRoute('/analysis/xiangqi'), true); // standalone analysis board
   assert.equal(isClientRoute('/historical-xiangqi'), true);

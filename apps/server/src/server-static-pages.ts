@@ -65,12 +65,16 @@ const RENAMED_ARTICLE_SLUGS: Record<string, string> = {
   'chess-rules-primer': 'chess',
   'xiangqi-rules-primer': 'xiangqi',
   'chess-rules': 'chess',
-  'dark-chess-rules': 'dark-chess',
+  'dark-chess-rules': 'fog-chess',
   'xiangqi-rules': 'xiangqi',
-  'dark-xiangqi-rules': 'dark-xiangqi',
+  'dark-xiangqi-rules': 'fog-xiangqi',
   'mini-xiangqi-rules': 'mini-xiangqi',
   'dark-mini-xiangqi-rules': 'dark-mini-xiangqi',
   draft960: 'dark-draft960',
+  banqi: 'flip-xiangqi',
+  'dark-chess': 'fog-chess',
+  'dark-xiangqi': 'fog-xiangqi',
+  jieqi: 'reveal-xiangqi',
 };
 
 export function injectPageMeta(html: string, meta: PageMeta): string {

@@ -12,8 +12,8 @@ import { type Article, articles } from './articles-data.js';
 // failure is the point: it forces the dictionary update to ride along with the
 // copy change. This is the durability guarantee for the translations.
 const TRANSLATION_LOCKED_SLUGS: string[] = [
-  'dark-chess',
-  'dark-xiangqi',
+  'fog-chess',
+  'fog-xiangqi',
   'chess',
   'xiangqi',
   'dark-draft960',
@@ -21,8 +21,8 @@ const TRANSLATION_LOCKED_SLUGS: string[] = [
   'mini-xiangqi',
   'dark-mini-xiangqi',
   'drop-mini-xiangqi',
-  'jieqi',
-  'banqi',
+  'reveal-xiangqi',
+  'flip-xiangqi',
   'mistybanqi',
   'jungle',
   'jungle-flip',

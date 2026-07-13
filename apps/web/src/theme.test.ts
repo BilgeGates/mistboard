@@ -101,7 +101,7 @@ describe('appearance family gating', () => {
   });
 
   it('puts signed-out language choices inside the gear menu', () => {
-    window.history.replaceState(null, '', '/zh-hant/rules/banqi');
+    window.history.replaceState(null, '', '/zh-hant/rules/flip-xiangqi');
 
     rebuildThemePanel();
 

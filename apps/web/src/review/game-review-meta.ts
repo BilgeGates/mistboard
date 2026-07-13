@@ -113,7 +113,7 @@ export function reviewTimeControlLabel(game: {
 }
 
 /** Generic outcome word for the fixed-color variants (red/black/white + draw).
- *  Variants with seat-relative results (Flip Jungle, Half Xiangqi) compute their
+ *  Variants with seat-relative results (Flip Jungle, Flip Xiangqi) compute their
  *  own label from `firstColor` instead. */
 export function reviewResultLabel(result: string): string {
   if (result === 'red-wins') return 'Red wins';

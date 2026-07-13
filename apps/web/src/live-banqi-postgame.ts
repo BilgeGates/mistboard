@@ -80,7 +80,7 @@ export function mountBanqiPostgame(root: HTMLElement, roomId: string): void {
   installBanqiBoardStyles();
   root.replaceChildren(buildNav(), loadingView());
   if (!banqiEnabled()) {
-    renderError(root, 'Half Xiangqi unavailable', 'This route is not enabled in this build.');
+    renderError(root, 'Flip Xiangqi unavailable', 'This route is not enabled in this build.');
     return;
   }
   void loadBanqiPostgame(roomId)
@@ -198,14 +198,14 @@ function renderPostgame(root: HTMLElement, postgame: BanqiPostgameResponse): voi
   const status = `${banqiResultLabel(postgame.game.result, postgame.view.firstColor)} by ${labelize(postgame.game.termination)}`;
   const { metaCard, details } = buildReviewMeta({
     markerId: 'banqi',
-    variantName: 'Half Xiangqi',
+    variantName: 'Flip Xiangqi',
     game: postgame.game,
     status,
   });
   mountReviewLayout(root, {
     pageClassName: 'banqi-review',
-    ariaLabel: 'Half Xiangqi postgame',
-    title: 'Half Xiangqi',
+    ariaLabel: 'Flip Xiangqi postgame',
+    title: 'Flip Xiangqi',
     summary: `${status} · ${postgame.game.plyCount} plies`,
     metaCard,
     details,
@@ -324,7 +324,7 @@ function errorTitle(status: number): string {
 }
 
 function errorBody(result: Extract<LoadResult, { ok: false }>): string {
-  if (result.status === 404) return 'This Half Xiangqi game is not available.';
+  if (result.status === 404) return 'This Flip Xiangqi game is not available.';
   if (result.status === 503) return 'The postgame service is not available.';
   return result.error;
 }

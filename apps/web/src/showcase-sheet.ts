@@ -15,12 +15,12 @@ const SHEET_VARIANTS: ReadonlyArray<{ label: string; channel: string }> = [
   { label: 'Fog Chess', channel: 'dark-chess' },
   { label: 'Jungle Chess', channel: 'jungle' },
   { label: 'Flip Jungle', channel: 'jungle-flip' },
-  { label: 'Half Xiangqi', channel: 'banqi' },
-  { label: 'Flip Xiangqi', channel: 'jieqi' },
+  { label: 'Flip Xiangqi', channel: 'banqi' },
+  { label: 'Reveal Xiangqi', channel: 'jieqi' },
   { label: 'Mini Xiangqi', channel: 'mini-xiangqi' },
   { label: 'Dark Mini Xiangqi', channel: 'dark-mini-xiangqi' },
   { label: 'Drop Mini Xiangqi', channel: 'drop-mini-xiangqi' },
-  { label: 'Fortress', channel: 'fortress-xiangqi' },
+  { label: 'Fortress Xiangqi', channel: 'fortress-xiangqi' },
 ];
 
 async function firstGameForChannel(channel: string): Promise<FeaturedGame | null> {

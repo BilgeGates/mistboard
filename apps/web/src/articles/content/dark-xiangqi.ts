@@ -8,11 +8,13 @@ import {
   XQ_START_TRIPTYCH,
   XQ_VISIBILITY_GRID,
   XQ_VISION_MOVE_PAIR,
+  playClosing,
 } from '../diagrams.js';
 import type { Article, ArticleBlock } from '../types.js';
 
 export const darkXiangqiArticle: Article = {
-    slug: 'dark-xiangqi',
+    slug: 'fog-xiangqi',
+    gameSpecId: 'dark-xiangqi',
     boardFamily: 'xiangqi',
     kind: 'rules',
     title: 'Fog Xiangqi Rules',
@@ -135,20 +137,18 @@ export const darkXiangqiArticle: Article = {
           } as ArticleBlock,
         ],
       },
-      {
-        heading: 'Play status',
-        blocks: [
+      playClosing({
+        heading: 'Play on Mistboard',
+        lead: 'Fog Xiangqi is playable on Mistboard. Play against an engine or challenge a friend. No account required.',
+        playLabel: 'Play vs computer',
+        playHref: '/?play=computer&gameSpecId=dark-xiangqi',
+        secondary: [
           {
-            kind: 'paragraph',
-            text: 'Fog Xiangqi is playable on Mistboard. Create an invite for a friend or play the engine from the homepage play panel.',
+            label: 'Challenge a friend',
+            href: '/?play=friend&gameSpecId=dark-xiangqi',
+            emphasis: 'secondary',
           },
-          {
-            kind: 'cta',
-            buttons: [
-              { label: 'Back to all rules', href: '/rules', emphasis: 'secondary' },
-            ],
-          } as ArticleBlock,
         ],
-      },
+      }),
     ],
 };

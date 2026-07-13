@@ -63,8 +63,16 @@ export const articles: Article[] = [
   crossroadsChessArticle,
 ];
 
+const ARTICLE_SLUG_ALIASES: Record<string, string> = {
+  banqi: 'flip-xiangqi',
+  'dark-chess': 'fog-chess',
+  'dark-xiangqi': 'fog-xiangqi',
+  jieqi: 'reveal-xiangqi',
+};
+
 export function findArticle(slug: string): Article | undefined {
-  return articles.find((a) => a.slug === slug);
+  const canonicalSlug = ARTICLE_SLUG_ALIASES[slug] ?? slug;
+  return articles.find((a) => a.slug === canonicalSlug);
 }
 
 // Real WebSocket snapshot frame captured from a live PvP dark-chess room

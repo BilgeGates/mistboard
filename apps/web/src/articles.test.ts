@@ -157,11 +157,8 @@ describe('article public listing gates', () => {
     expect(firstArticleCard?.getAttribute('href')).toMatch(/^\/zh-hant\/(blog|rules)\//);
 
     const page = buildArticlePage('banqi', 'zh-Hant');
-    expect(page.querySelector('.article-breadcrumb a')?.textContent).toBe('← 全部規則');
-    expect(page.querySelector('.article-breadcrumb a')?.getAttribute('href')).toBe(
-      '/zh-hant/rules',
-    );
-    expect(page.querySelector('.article-chip')?.textContent).toBe('規則');
+    expect(page.querySelector('.article-breadcrumb')).toBeNull();
+    expect(page.querySelector('.article-chip')).toBeNull();
     expect(page.querySelector('.article-meta-dates')?.textContent).toContain('發布於');
     expect(page.querySelector('.article-variant-sidebar')?.getAttribute('aria-label')).toBe(
       '規則導覽',
@@ -173,7 +170,7 @@ describe('article public listing gates', () => {
       page.querySelector('.article-toc-sidebar .article-toc-nav')?.getAttribute('aria-label'),
     ).toBe('目錄');
     expect(
-      page.querySelector('.article-variant-sidebar a[href="/zh-hant/rules/banqi"]'),
+      page.querySelector('.article-variant-sidebar a[href="/zh-hant/rules/flip-xiangqi"]'),
     ).not.toBeNull();
   });
 
@@ -273,7 +270,9 @@ describe('article public listing gates', () => {
 
     const cards = buildHomeArticleCards(50);
 
-    expect(cards?.querySelector('.landing-announcement-card[href="/rules/banqi"]')).toBeNull();
+    expect(
+      cards?.querySelector('.landing-announcement-card[href="/rules/flip-xiangqi"]'),
+    ).toBeNull();
     expect(cards?.textContent).not.toContain('Banqi (半棋) is open for alpha play.');
   });
 
@@ -281,7 +280,7 @@ describe('article public listing gates', () => {
     const rules = buildRulesIndex();
     expect(
       rules.querySelector(
-        '.rules-landing-tile[href="/rules/banqi"] span[data-variant-marker-id="banqi"]',
+        '.rules-landing-tile[href="/rules/flip-xiangqi"] span[data-variant-marker-id="banqi"]',
       ),
     ).not.toBeNull();
     expect(BANQI_RULES_THUMBNAIL()).not.toContain('data-banqi-thumbnail-crop');
@@ -302,7 +301,9 @@ describe('article public listing gates', () => {
     // index (it no longer rides the homepage editorial row)...
     const rulesIndex = buildRulesIndex();
     expect(
-      rulesIndex.querySelector('a[href="/rules/banqi"] span[data-variant-marker-id="banqi"]'),
+      rulesIndex.querySelector(
+        'a[href="/rules/flip-xiangqi"] span[data-variant-marker-id="banqi"]',
+      ),
     ).not.toBeNull();
 
     // ...while the MistyBanqi editorial card keeps the full-board thumbnail in
@@ -545,13 +546,45 @@ describe('article public listing gates', () => {
     }));
 
     expect(links).toContainEqual({
-      href: '/?play=computer',
-      text: 'Play Misty',
+      href: '/?play=computer&gameSpecId=dark-chess',
+      text: 'Play vs computer',
     });
     expect(links).not.toContainEqual({
       href: '/?play=lobby',
       text: 'Play dark chess',
     });
+  });
+
+  it('uses quiet headers and one standardized closing on public playable rules pages', () => {
+    const publicPlayableSlugs = [
+      'xiangqi',
+      'flip-xiangqi',
+      'jungle',
+      'jungle-flip',
+      'fortress-xiangqi',
+      'reveal-xiangqi',
+      'fog-xiangqi',
+      'fog-chess',
+    ];
+
+    for (const slug of publicPlayableSlugs) {
+      const page = buildArticlePage(slug);
+      expect(page.querySelector('.article-breadcrumb'), slug).toBeNull();
+      expect(page.querySelector('.article-chip'), slug).toBeNull();
+      const closing = [...page.querySelectorAll('h2')].find(
+        (heading) => heading.textContent === 'Play on Mistboard',
+      );
+      expect(closing, slug).toBeTruthy();
+      expect(page.querySelectorAll('.article-cta'), slug).toHaveLength(2);
+      expect(page.textContent, slug).toContain('No account required.');
+    }
+  });
+
+  it('marks playable games on the rules index and desktop rail', () => {
+    const index = buildRulesIndex();
+    expect(index.querySelectorAll('.rules-playable-badge').length).toBeGreaterThan(0);
+    expect(index.querySelectorAll('.rules-playable-dot').length).toBeGreaterThan(0);
+    expect(index.textContent).toContain('Playable here');
   });
 });
 
@@ -581,7 +614,7 @@ describe('rules variant sidebar', () => {
     expect(sidebar).not.toBeNull();
 
     const current = sidebar?.querySelector('a[aria-current="page"]');
-    expect(current?.getAttribute('href')).toBe('/rules/dark-chess');
+    expect(current?.getAttribute('href')).toBe('/rules/fog-chess');
     expect(current?.querySelector('.article-variant-label')?.textContent).toBe('Fog Chess');
     // Xiangqi pivot: the chess reference article is de-listed (showInIndex=false),
     // so the rail no longer links it (still reachable at /rules/chess directly).
@@ -630,25 +663,34 @@ describe('rules variant sidebar', () => {
     // order, including the animal-rank cluster followed by the fog trio.
     expect(nav?.querySelector('a[href="/rules/mini-xiangqi"]')).toBeNull();
     expect(nav?.querySelector('a[href="/rules/dark-mini-xiangqi"]')).toBeNull();
-    expect(nav?.querySelector('a[href="/rules/dark-xiangqi"]')).not.toBeNull();
-    expect(nav?.querySelector('a[href="/rules/jieqi"]')).not.toBeNull();
+    expect(nav?.querySelector('a[href="/rules/fog-xiangqi"]')).not.toBeNull();
+    expect(nav?.querySelector('a[href="/rules/reveal-xiangqi"]')).not.toBeNull();
     expect(nav?.querySelector('a[href="/rules/jungle"]')).not.toBeNull();
     expect(nav?.querySelector('a[href="/rules/jungle-flip"]')).not.toBeNull();
-    expect(nav?.querySelector('a[href="/rules/banqi"]')).not.toBeNull();
-    expect(nav?.querySelector('a[href="/rules/dark-chess"]')).not.toBeNull();
+    expect(nav?.querySelector('a[href="/rules/flip-xiangqi"]')).not.toBeNull();
+    expect(nav?.querySelector('a[href="/rules/fog-chess"]')).not.toBeNull();
     // Xiangqi pivot: the chess reference article is de-listed from the rail.
     expect(nav?.querySelector('a[href="/rules/chess"]')).toBeNull();
     // Draft960 is a pregame option that has not shipped as a playable mode.
     expect(nav?.querySelector('a[href="/rules/dark-draft960"]')).toBeNull();
     expect(nav?.querySelector('a[href="/rules/shogi"]')).toBeNull();
     expect(nav?.querySelector('a[href="/rules/dark-shogi"]')).toBeNull();
-    expect(hrefs.indexOf('/rules/xiangqi')).toBeLessThan(hrefs.indexOf('/rules/fortress-xiangqi'));
-    expect(hrefs.indexOf('/rules/fortress-xiangqi')).toBeLessThan(hrefs.indexOf('/rules/banqi'));
-    expect(hrefs.indexOf('/rules/banqi')).toBeLessThan(hrefs.indexOf('/rules/jungle'));
+    expect(hrefs.indexOf('/rules/xiangqi')).toBeLessThan(hrefs.indexOf('/rules/flip-xiangqi'));
+    expect(hrefs.indexOf('/rules/flip-xiangqi')).toBeLessThan(hrefs.indexOf('/rules/jungle'));
     expect(hrefs.indexOf('/rules/jungle')).toBeLessThan(hrefs.indexOf('/rules/jungle-flip'));
-    expect(hrefs.indexOf('/rules/jungle-flip')).toBeLessThan(hrefs.indexOf('/rules/jieqi'));
-    expect(hrefs.indexOf('/rules/jieqi')).toBeLessThan(hrefs.indexOf('/rules/dark-xiangqi'));
-    expect(hrefs.indexOf('/rules/dark-xiangqi')).toBeLessThan(hrefs.indexOf('/rules/dark-chess'));
+    expect(hrefs.indexOf('/rules/jungle-flip')).toBeLessThan(
+      hrefs.indexOf('/rules/fortress-xiangqi'),
+    );
+    expect(hrefs.indexOf('/rules/fortress-xiangqi')).toBeLessThan(
+      hrefs.indexOf('/rules/reveal-xiangqi'),
+    );
+    expect(hrefs.indexOf('/rules/jungle-flip')).toBeLessThan(
+      hrefs.indexOf('/rules/reveal-xiangqi'),
+    );
+    expect(hrefs.indexOf('/rules/reveal-xiangqi')).toBeLessThan(
+      hrefs.indexOf('/rules/fog-xiangqi'),
+    );
+    expect(hrefs.indexOf('/rules/fog-xiangqi')).toBeLessThan(hrefs.indexOf('/rules/fog-chess'));
   });
 
   it('lists the elevated xiangqi variants (not the hidden mini trio) by default', () => {
@@ -662,7 +704,7 @@ describe('rules variant sidebar', () => {
     ).toBeNull();
     expect(page.querySelector('.article-variant-sidebar a[href="/rules/mini-xiangqi"]')).toBeNull();
     expect(
-      page.querySelector('.article-variant-sidebar a[href="/rules/dark-xiangqi"]'),
+      page.querySelector('.article-variant-sidebar a[href="/rules/fog-xiangqi"]'),
     ).not.toBeNull();
   });
 
@@ -671,7 +713,7 @@ describe('rules variant sidebar', () => {
     expect(landing.querySelector('.article-variant-sidebar')).not.toBeNull();
     expect(landing.querySelector('.rules-landing-paragraph')).not.toBeNull();
     const tile = landing.querySelector<HTMLAnchorElement>(
-      '.rules-landing-tile[href="/rules/dark-chess"]',
+      '.rules-landing-tile[href="/rules/fog-chess"]',
     );
     expect(tile?.querySelector('.rules-landing-tile-label')?.textContent).toBe('Fog Chess');
   });
@@ -713,10 +755,10 @@ describe('rules variant sidebar', () => {
     // Xiangqi pivot: the mini xiangqi trio is de-listed from the tile grid
     // (still reachable by direct URL).
     expect(grids[0]?.querySelector('a[href="/rules/drop-mini-xiangqi"]')).toBeNull();
-    expect(grids[0]?.querySelector('a[href="/rules/dark-xiangqi"]')).not.toBeNull();
+    expect(grids[0]?.querySelector('a[href="/rules/fog-xiangqi"]')).not.toBeNull();
     expect(grids[1]?.querySelector('a[href="/rules/jungle"]')).not.toBeNull();
     expect(grids[1]?.querySelector('a[href="/rules/jungle-flip"]')).not.toBeNull();
-    expect(grids[2]?.querySelector('a[href="/rules/dark-chess"]')).not.toBeNull();
+    expect(grids[2]?.querySelector('a[href="/rules/fog-chess"]')).not.toBeNull();
     // The chess reference article is de-listed from the tile grid.
     expect(grids[2]?.querySelector('a[href="/rules/chess"]')).toBeNull();
     expect(grids).toHaveLength(3);
@@ -763,7 +805,7 @@ describe('rules variant sidebar', () => {
     expect(pageText).toContain('BLACK KNOWS');
   });
 
-  it('renders Banqi diagrams and keeps the Taiwanese cannon rule clear', () => {
+  it('renders Flip Xiangqi diagrams and states the Mistboard cannon rule clearly', () => {
     const page = buildArticlePage('banqi');
     const pageText = page.textContent ?? '';
 
@@ -772,10 +814,8 @@ describe('rules variant sidebar', () => {
     expect(pageText).toContain('The cannon sits outside this rank ladder');
     expect(pageText).toContain('40 plies (single moves) with no flip or capture');
     expect(pageText).toContain('threefold repetition');
-    expect(pageText).toContain('Taiwanese rules (this page)');
-    expect(pageText).toContain('Hong Kong rules');
-    expect(pageText).toContain('Mainland rules');
-    expect(pageText).toContain('House variants');
+    expect(pageText).toContain('There is no single worldwide banqi rules authority');
+    expect(pageText).toContain('Mistboard uses the ladder and screen-jumping cannon');
     expect(pageText).toContain('For a capture only');
     expect(pageText).toContain('A non-capturing cannon move is still just one square');
     expect(pageText).toContain('an adjacent cannon can be taken by a general');
@@ -800,8 +840,44 @@ describe('rules variant sidebar', () => {
       .join('');
     expect(figureText).not.toContain('?');
     expect(figureText).toContain('FIRST FLIP ASSIGNS COLOR');
-    expect(figureText).toContain('TAIWAN RANK LADDER');
+    expect(figureText).toContain('CAPTURE RANK LADDER');
     expect(figureText).toContain('CANNON SCREEN CAPTURE');
+    expect(page.querySelectorAll('.article-cta')).toHaveLength(2);
+  });
+
+  it('teaches Jungle movement before terrain details and shows both colors in the shared ladder', () => {
+    const page = buildArticlePage('jungle');
+    const headings = [...page.querySelectorAll('h2')].map((heading) => heading.textContent);
+
+    expect(headings).toContain('How the animals move');
+    expect(headings.indexOf('How the animals move')).toBeLessThan(headings.indexOf('Traps'));
+    expect(page.textContent).toContain('Rat');
+    expect(page.textContent).toContain('Lion');
+    expect(page.textContent).toContain('Tiger');
+    expect(page.innerHTML).toContain('red-elephant.png');
+    expect(page.innerHTML).toContain('black-elephant.png');
+    expect(page.innerHTML).toContain('tiger-jump');
+  });
+
+  it('shows Flip Jungle turn and capture choices as paired examples', () => {
+    const page = buildArticlePage('jungle-flip');
+
+    expect(page.textContent).toContain('Flip Animal Chess');
+    expect(page.querySelector('a[href="/rules/flip-xiangqi"]')).not.toBeNull();
+    expect(page.innerHTML).toContain('flip-reveal');
+    expect(page.innerHTML).toContain('flip-move');
+    expect(page.innerHTML).toContain('flip-capture');
+    expect(page.innerHTML).toContain('flip-mutual');
+    expect(page.innerHTML).toContain('red-elephant.png');
+    expect(page.innerHTML).toContain('black-elephant.png');
+  });
+
+  it('keeps the Fog Chess ending focused on play', () => {
+    const page = buildArticlePage('dark-chess');
+    const text = page.textContent ?? '';
+
+    expect(text).not.toContain('The full source is AGPL-3.0');
+    expect([...page.querySelectorAll('h2')].map((h) => h.textContent)).not.toContain('Names');
   });
 
   it('localizes zh-Hans Banqi SVG labels and replay chrome', () => {
@@ -810,7 +886,7 @@ describe('rules variant sidebar', () => {
 
     const textBeforeMount = page.textContent ?? '';
     expect(textBeforeMount).toContain('首次翻子决定颜色');
-    expect(textBeforeMount).toContain('台湾等级序列');
+    expect(textBeforeMount).toContain('吃子等级序列');
     expect(textBeforeMount).toContain('炮隔子吃');
     expect(textBeforeMount).toContain('炮进攻时隔一子跳吃，不看等级。');
     expect(textBeforeMount).not.toContain('FIRST FLIP ASSIGNS COLOR');

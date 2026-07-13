@@ -34,6 +34,12 @@ const VARIANT_PUBLIC_SURFACE_ENABLED = {
 
 const gameSpecIds = new Set<string>(GAME_SPECS.map((spec) => spec.id));
 const HIDDEN_RULES_SLUGS = new Set(['shogi', 'shogi4']);
+const RULES_GAME_SPEC_BY_SLUG: Record<string, GameSpecId> = {
+  'flip-xiangqi': 'banqi',
+  'fog-chess': 'dark-chess',
+  'fog-xiangqi': 'dark-xiangqi',
+  'reveal-xiangqi': 'jieqi',
+};
 
 export function isGameSpecId(value: string): value is GameSpecId {
   return gameSpecIds.has(value);
@@ -45,7 +51,8 @@ export function variantPublicSurfaceEnabled(id: GameSpecId): boolean {
 
 export function rulesSlugPublicSurfaceEnabled(slug: string): boolean {
   if (HIDDEN_RULES_SLUGS.has(slug)) return false;
-  return !isGameSpecId(slug) || variantPublicSurfaceEnabled(slug);
+  const gameSpecId = RULES_GAME_SPEC_BY_SLUG[slug] ?? slug;
+  return !isGameSpecId(gameSpecId) || variantPublicSurfaceEnabled(gameSpecId);
 }
 
 export function rulesHrefPublicSurfaceEnabled(href: string | undefined): boolean {
@@ -55,7 +62,9 @@ export function rulesHrefPublicSurfaceEnabled(href: string | undefined): boolean
 
 export function gameSpecIdFromRulesHref(href: string | undefined): GameSpecId | null {
   const slug = rulesSlugFromHref(href);
-  return slug !== null && isGameSpecId(slug) ? slug : null;
+  if (slug === null) return null;
+  const gameSpecId = RULES_GAME_SPEC_BY_SLUG[slug] ?? slug;
+  return isGameSpecId(gameSpecId) ? gameSpecId : null;
 }
 
 function rulesSlugFromHref(href: string | undefined): string | null {

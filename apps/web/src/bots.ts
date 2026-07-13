@@ -69,8 +69,8 @@ class BotNotFound extends Error {}
 const GAME_SPEC_LABELS: Record<string, string> = {
   'dark-chess': 'Fog Chess',
   'dark-mini-xiangqi': 'Dark Mini Xiangqi',
-  jieqi: 'Flip Xiangqi',
-  banqi: 'Half Xiangqi',
+  jieqi: 'Reveal Xiangqi',
+  banqi: 'Flip Xiangqi',
   'crossroads-chess': 'Crossroads Chess',
 };
 

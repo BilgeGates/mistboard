@@ -10,16 +10,18 @@ import { JIEQI_SAMPLE_GAME } from '../../jieqi-sample-game.js';
 import type { Article } from '../types.js';
 
 export const jieqiArticle: Article = {
-    slug: 'jieqi',
+    slug: 'reveal-xiangqi',
+    gameSpecId: 'jieqi',
     boardFamily: 'xiangqi',
     kind: 'rules',
     playableOnMistboard: true,
-    title: 'Flip Xiangqi Rules',
+    title: 'Reveal Xiangqi Rules',
     summary:
-      'Flip Xiangqi rules: jieqi (揭棋), xiangqi with hidden non-general pieces that first move by starting point, then reveal and play by identity.',
+      'Reveal Xiangqi rules: jieqi (揭棋), xiangqi with hidden non-general pieces that first move by starting point, then reveal and play by identity.',
     showSummaryOnPage: false,
     status: 'published',
     publishedAt: '2026-06-15',
+    updatedAt: '2026-07-12',
     audience:
       'Xiangqi players and hidden-information fans who want a clean English rules reference for jieqi.',
     thumbnail: { kind: 'svg', svg: JIEQI_RULES_THUMBNAIL },
@@ -27,7 +29,7 @@ export const jieqiArticle: Article = {
       {
         kind: 'paragraph',
         text:
-          "Flip Xiangqi is jieqi (揭棋, 'reveal chess'). It keeps xiangqi's board and checkmate goal, but hides every non-general piece. A dark piece first moves, attacks, and captures by the starting point it occupies. After that move, it reveals and plays by identity.",
+          "Reveal Xiangqi is jieqi (揭棋, 'reveal chess'). It keeps xiangqi's board and checkmate goal, but hides every non-general piece. A dark piece first moves, attacks, and captures by the starting point it occupies. After that move, it reveals and plays by identity.",
       },
       {
         kind: 'paragraph',
@@ -155,20 +157,17 @@ export const jieqiArticle: Article = {
           {
             kind: 'paragraph',
             text:
-              '揭棋 is Mandarin jiēqí, meaning reveal chess. Luo Jinsheng of Guangzhou invented it in the 1980s, and Vietnamese play commonly calls this family cờ úp. On Mistboard, Flip Xiangqi means jieqi; [Fog Xiangqi](/rules/dark-xiangqi) is the Fog of War variant, and [Half Xiangqi](/rules/banqi) is the half-board flip game.',
+              '揭棋 is Mandarin jiēqí, meaning reveal chess. Luo Jinsheng of Guangzhou invented it in the 1980s, and Vietnamese play commonly calls this family cờ úp. On Mistboard, Reveal Xiangqi means jieqi; [Fog Xiangqi](/rules/fog-xiangqi) is the Fog of War variant, and [Flip Xiangqi](/rules/flip-xiangqi) is the half-board flip game.',
           },
         ],
       },
       playClosing({
-        heading: 'Where to next',
-        lead: 'Flip Xiangqi is playable on Mistboard. Take on PikaJieQi, our jieqi engine, at the strength you pick. For the base game, read Xiangqi; for the other face-down xiangqi cousin, compare Half Xiangqi.',
-        playLabel: 'Play vs PikaJieQi',
-        playHref: '/?play=engine&gameSpecId=jieqi',
+        heading: 'Play on Mistboard',
+        lead: 'Reveal Xiangqi is playable on Mistboard. Play against an engine or challenge a friend. No account required.',
+        playLabel: 'Play vs computer',
+        playHref: '/?play=computer&gameSpecId=jieqi',
         secondary: [
-          { label: 'Xiangqi Rules', href: '/rules/xiangqi', emphasis: 'secondary' },
-          { label: 'Half Xiangqi', href: '/rules/banqi', emphasis: 'secondary' },
-          { label: 'Fog Xiangqi', href: '/rules/dark-xiangqi', emphasis: 'secondary' },
-          { label: 'All rules', href: '/rules', emphasis: 'secondary' },
+          { label: 'Challenge a friend', href: '/?play=friend&gameSpecId=jieqi', emphasis: 'secondary' },
         ],
       }),
     ],

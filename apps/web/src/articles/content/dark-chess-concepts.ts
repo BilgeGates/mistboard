@@ -282,7 +282,7 @@ export const darkChessConceptsArticle: Article = {
           {
             kind: 'cta',
             buttons: [
-              { label: 'Read the rules', href: '/rules/dark-chess', emphasis: 'secondary' },
+              { label: 'Read the rules', href: '/rules/fog-chess', emphasis: 'secondary' },
               { label: 'Play Misty', href: '/?play=computer', emphasis: 'primary' },
             ],
           } as ArticleBlock,
