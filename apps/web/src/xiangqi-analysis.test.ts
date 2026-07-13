@@ -27,9 +27,9 @@ describe('mountXiangqiAnalysis', () => {
     const text = root.textContent ?? '';
     expect(text).toContain('h3-e3');
     expect(text).toContain('h1-g3');
-    // Interactive tree UI: a move tree + the shared scaffold nav bar.
+    // Interactive tree UI: a move tree + the playback control bar (below the box).
     expect(root.querySelector('.move-tree')).not.toBeNull();
-    expect(root.querySelector('.review-scrubber')).not.toBeNull();
+    expect(root.querySelector('.review-controls')).not.toBeNull();
     // The last seeded move is the current node on mount.
     expect(root.querySelector('.review-move-list__move--current')?.textContent).toContain('h1-g3');
     // whole-game analysis entry point (the client ceval sweep is click-gated, so

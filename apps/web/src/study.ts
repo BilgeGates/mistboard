@@ -232,6 +232,7 @@ function renderStudy(root: HTMLElement, study: StudyDto, chapters: ChapterDto[])
       boardAriaLabel: 'Xiangqi board',
       actions: buildActions(study, chapters, activeId, status, chapterActions, owner),
       gamebookEditing: chapter.gamebook && study.isOwner,
+      annotationEditing: study.isOwner,
       initialTree: chapter.root,
       onChange: study.isOwner
         ? () => {
