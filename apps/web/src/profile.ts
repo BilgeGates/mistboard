@@ -1726,24 +1726,12 @@ function buildPatronBadge(
   badge.className = 'profile-role-badge profile-role-patron';
   badge.href = '/patron';
   badge.title = t('profile.patronTitle', {}, locale);
-  // A small paw glyph (animal theme) + the label. innerHTML is the established
-  // inline-icon idiom in this codebase; the string is a static constant.
-  const paw = document.createElement('span');
-  paw.className = 'profile-patron-paw';
-  paw.setAttribute('aria-hidden', 'true');
-  paw.innerHTML = PATRON_PAW_SVG;
-  badge.append(paw, document.createTextNode(t('profile.patron', {}, locale)));
+  const icon = document.createElement('span');
+  icon.className = 'profile-patron-icon';
+  icon.setAttribute('aria-hidden', 'true');
+  badge.append(icon, document.createTextNode(t('profile.patron', {}, locale)));
   return badge;
 }
-
-// A minimal paw print (main pad + four toes), currentColor so the badge tints it.
-const PATRON_PAW_SVG = `<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-  <ellipse cx="12" cy="16" rx="5" ry="4"/>
-  <circle cx="6" cy="10" r="2"/>
-  <circle cx="10" cy="7" r="2"/>
-  <circle cx="14" cy="7" r="2"/>
-  <circle cx="18" cy="10" r="2"/>
-</svg>`;
 
 // Full join date for the side column (lichess "Member since May 28, 2023").
 function formatJoinedFull(

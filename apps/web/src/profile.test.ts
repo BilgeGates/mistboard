@@ -156,7 +156,7 @@ describe('profile ratings rail', () => {
               profileLinks: ['https://example.com/xiangqi'],
               profileVisibility: 'public',
               accountRole: 'player',
-              patronSince: null,
+              patronSince: '2026-06-15T00:00:00.000Z',
               createdAt: '2026-05-01T00:00:00.000Z',
             },
             ratings: [
@@ -252,6 +252,11 @@ describe('profile ratings rail', () => {
     expect(root.querySelector('.profile-rating-chart-empty')).toBeNull();
     expect(root.querySelector('.profile-rating-spotlight')?.textContent).toContain('1662');
     expect(root.querySelector('.profile-overview')?.textContent).toContain('@dev-testing');
+    const patronBadge = root.querySelector<HTMLAnchorElement>('.profile-role-patron');
+    expect(patronBadge?.getAttribute('href')).toBe('/patron');
+    expect(patronBadge?.querySelector('.profile-patron-icon')?.getAttribute('aria-hidden')).toBe(
+      'true',
+    );
     expect(root.querySelector('.profile-info-card')).toBeNull();
     expect(root.querySelector('.profile-rating-row-selected')?.textContent).toContain(
       'Flip Jungle',

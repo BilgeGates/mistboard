@@ -1054,7 +1054,7 @@
   color: #d4645d;
 }
 
-/* Patron badge: a warm cosmetic thank-you with a paw glyph, links to /patron. */
+/* Patron badge: a warm cosmetic thank-you with the shared mist-heart mark. */
 .profile-role-patron {
   gap: 4px;
   background: color-mix(in srgb, #e0a94b 20%, var(--site-panel));
@@ -1062,15 +1062,12 @@
   text-decoration: none;
 }
 
-.profile-patron-paw {
+.profile-patron-icon {
   display: inline-flex;
-  width: 12px;
-  height: 12px;
-}
-
-.profile-patron-paw svg {
-  width: 100%;
-  height: 100%;
+  width: 15px;
+  height: 15px;
+  flex: 0 0 auto;
+  background: url("/icons/mist-heart.png") center / contain no-repeat;
 }
 
 .profile-role-patron:hover {

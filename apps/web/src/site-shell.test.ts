@@ -27,6 +27,11 @@ describe('site shell nav', () => {
       'Tools',
       'Donate',
     ]);
+    const donate = nav.querySelector<HTMLAnchorElement>('.site-nav-link-donate');
+    expect(donate?.getAttribute('href')).toBe('/patron');
+    expect(donate?.querySelector('.site-nav-donate-icon')?.getAttribute('aria-hidden')).toBe(
+      'true',
+    );
 
     // The consolidated Admin menu stays hidden until account-nav resolves an
     // admin (no admin hint in a fresh test DOM).
