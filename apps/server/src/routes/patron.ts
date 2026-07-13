@@ -208,16 +208,32 @@ async function handleWebhook(request: IncomingMessage, response: ServerResponse)
 
   // Idempotency and state application are one transaction. A processing error
   // rolls back the event claim so Stripe can retry it safely.
-  const fresh = await persistence.processStripeEvent(event.id, event.type, (transaction) =>
-    applyEvent(event, transaction),
-  );
+  const fresh = await processWebhookEvent(event);
   if (!fresh) {
     writeJson(response, 200, { received: true, duplicate: true });
     return;
   }
 
-  await applyEvent(event);
   writeJson(response, 200, { received: true });
+}
+
+type ProcessStripeEvent = (
+  eventId: string,
+  eventType: string,
+  apply: (transaction: persistence.PatronTransaction) => Promise<void>,
+) => Promise<boolean>;
+
+// Claim and apply exactly once, in the same transaction. The injected seams
+// keep the route contract unit-testable without Stripe or Postgres.
+export async function processWebhookEvent(
+  event: Stripe.Event,
+  processEvent: ProcessStripeEvent = persistence.processStripeEvent,
+  apply: (
+    event: Stripe.Event,
+    transaction?: persistence.PatronTransaction,
+  ) => Promise<void> = applyEvent,
+): Promise<boolean> {
+  return processEvent(event.id, event.type, (transaction) => apply(event, transaction));
 }
 
 // Route a Stripe event to persistence. Account resolution + the customer-map
