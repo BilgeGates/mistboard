@@ -47,6 +47,8 @@ describe('Dark Shogi postgame page', () => {
     expect(root.textContent).not.toContain('Play again');
     expect(root.textContent).not.toContain('Opponent reserve: hidden');
     expect(root.querySelectorAll('.dxq-postgame__board-wrap')).toHaveLength(3);
+    expect(root.querySelector('.review-stage')?.classList).toContain('review-stage--board-only');
+    expect(root.querySelector('.review-stage .dsg-postgame__reserve')).not.toBeNull();
     expect(root.textContent).toContain('Ply 2 of 2');
 
     // Moves render in the shared clickable list with the shogi notation, each a

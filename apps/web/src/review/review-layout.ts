@@ -64,6 +64,9 @@ export type ReviewLayoutAdapter = {
    *  the table, mat-bot below). The variant re-fills them per ply/flip. */
   materialTop?: HTMLElement;
   materialBottom?: HTMLElement;
+  /** Show captured material / reserves around the board or in the right rail.
+   *  Off by default so every review's center column is board-only. */
+  showBoardMaterial?: boolean;
   boards: ReviewBoardEntry[];
   /** Board width / height, e.g. 552 / 612 for xiangqi. Drives the fill sizing. */
   boardAspect: number;
@@ -136,6 +139,9 @@ export type ReviewScaffoldConfig = SizingInput & {
   gauge?: HTMLElement;
   materialTop?: HTMLElement;
   materialBottom?: HTMLElement;
+  /** Show captured material / reserves around the board or in the right rail.
+   *  Off by default so the primary board determines all three column heights. */
+  showBoardMaterial?: boolean;
   /** Lichess analyse behavior: the underboard (advantage chart) lives below the
    *  fold instead of shrinking the board to keep everything above it. The board
    *  fills the viewport; the page scrolls to the chart. */
@@ -172,12 +178,16 @@ export function createReviewScaffold(
     },
   });
 
-  // Single-board pages: ADOPT the pane's own capture strips into the rail material
-  // rows so the board column stays board-only. The elements MOVE with their
-  // identity intact — variants keep their per-ply fill references.
+  const showBoardMaterial = config.showBoardMaterial ?? false;
+  stage.el.classList.toggle('review-stage--board-only', !showBoardMaterial);
+
+  // Material is intentionally absent from the standardized review for now. Keep
+  // the old adoption path behind an explicit switch so a future material rework
+  // can restore it without changing variant replay adapters.
   let adoptedMaterialTop: HTMLElement | undefined;
   let adoptedMaterialBottom: HTMLElement | undefined;
-  const stripsAdopted = !config.materialTop && !config.materialBottom && slots.length === 1;
+  const stripsAdopted =
+    showBoardMaterial && !config.materialTop && !config.materialBottom && slots.length === 1;
   if (stripsAdopted && slots[0]) {
     const strips = [...slots[0].el.querySelectorAll<HTMLElement>(':scope > .captures-strip')];
     const top = strips.find(
@@ -189,10 +199,12 @@ export function createReviewScaffold(
     adoptedMaterialTop = top;
     adoptedMaterialBottom = bottom;
   }
-  const materialTop = config.materialTop ?? adoptedMaterialTop;
-  const materialBottom = config.materialBottom ?? adoptedMaterialBottom;
+  const materialTop = showBoardMaterial ? (config.materialTop ?? adoptedMaterialTop) : undefined;
+  const materialBottom = showBoardMaterial
+    ? (config.materialBottom ?? adoptedMaterialBottom)
+    : undefined;
 
-  applyBoardSizing(stage.el, config, stripsAdopted);
+  applyBoardSizing(stage.el, config, !showBoardMaterial || stripsAdopted, !showBoardMaterial);
 
   const left = infoRail(config);
   // Right rail, lichess order: material-top · [analyse table: engine panel ·
@@ -256,7 +268,7 @@ export function createReviewScaffold(
   };
 
   function refit(): void {
-    applyBoardSizing(stage.el, config, stripsAdopted);
+    applyBoardSizing(stage.el, config, !showBoardMaterial || stripsAdopted, !showBoardMaterial);
     fitPrimaryToViewport(stage.el, config.boardAspect, config.boardMaxPx, {
       underboardOverflows: config.underboardOverflows,
     });
@@ -313,6 +325,7 @@ export function mountReviewLayout(root: HTMLElement, adapter: ReviewLayoutAdapte
     gauge: adapter.gauge,
     materialTop: adapter.materialTop,
     materialBottom: adapter.materialBottom,
+    showBoardMaterial: adapter.showBoardMaterial,
     onPromote: () => render(),
   });
 
@@ -432,10 +445,12 @@ function fitPrimaryToViewport(
     const available = window.innerHeight - VIEWPORT_CHROME_PX - underboardPx;
     const slot = stageEl.querySelector<HTMLElement>('.review-stage__slot--primary');
     if (available <= 0 || !slot) return;
-    const gaps = Math.max(0, stageEl.children.length - 1) * STACK_GAP_PX;
+    const visibleStageRows = [...stageEl.children].filter(
+      (child) => child.getBoundingClientRect().height > 0,
+    );
+    const gaps = Math.max(0, visibleStageRows.length - 1) * STACK_GAP_PX;
     const contentHeight =
-      [...stageEl.children].reduce((h, child) => h + child.getBoundingClientRect().height, 0) +
-      gaps;
+      visibleStageRows.reduce((h, child) => h + child.getBoundingClientRect().height, 0) + gaps;
     const currentWidth = slot.getBoundingClientRect().width;
     const flankBoard = slot.querySelector<HTMLElement>('.review-flank__board');
     const boardWidth = flankBoard ? flankBoard.getBoundingClientRect().width : currentWidth;
@@ -474,15 +489,21 @@ function scheduleAnimationFrame(callback: () => void): void {
   setTimeout(callback, 0);
 }
 
-function applyBoardSizing(stageEl: HTMLElement, config: SizingInput, stripsAdopted = false): void {
+function applyBoardSizing(
+  stageEl: HTMLElement,
+  config: SizingInput,
+  materialOutsideBoard = false,
+  primaryChromeHidden = false,
+): void {
   const aspect = config.boardAspect;
-  const extraPerBoard = stripsAdopted ? 0 : (config.boardChromePx ?? 0);
+  const extraPerBoard = materialOutsideBoard ? 0 : (config.boardChromePx ?? 0);
   const secondaryWidth = config.secondaryWidthPx ?? SECONDARY_WIDTH_PX;
   const hasSecondaries = config.boards.some((board) => board.tier === 'secondary');
   const secondaryStackPx = hasSecondaries
     ? STACK_GAP_PX + SECONDARY_LABEL_PX + Math.round(secondaryWidth / aspect) + extraPerBoard
     : 0;
-  const chromePx = NAV_AND_PADDING_PX + PRIMARY_LABEL_PX + extraPerBoard + secondaryStackPx;
+  const primaryChromePx = primaryChromeHidden ? 0 : PRIMARY_LABEL_PX;
+  const chromePx = NAV_AND_PADDING_PX + primaryChromePx + extraPerBoard + secondaryStackPx;
   const cluster = stageEl.closest<HTMLElement>('.review-shell__cluster');
   if (cluster) {
     cluster.style.setProperty('--uni-board-aspect', aspect.toFixed(4));

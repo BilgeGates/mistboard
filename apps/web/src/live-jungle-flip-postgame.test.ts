@@ -61,6 +61,8 @@ describe('Flip Jungle postgame page', () => {
     expect(root.textContent).toContain('Flip Jungle');
     expect(root.textContent).toContain('Red wins');
     expect(root.querySelectorAll('.jungle-flip-postgame-board')).toHaveLength(1);
+    expect(root.querySelector('.review-stage')?.classList).toContain('review-stage--board-only');
+    expect(root.querySelector('.review-shell__right .captures-strip')).toBeNull();
 
     // The opening action was a flip (self-move): the move list reads it as "a1 flip"
     // in the left cell (the first ply, `firstMover: 'a'`).
