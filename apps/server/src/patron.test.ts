@@ -1,7 +1,7 @@
 // Patron program unit tests (078). Covers the pure webhook state-mapping (no
 // DB), the tier/config contract, and the Stripe signature-verification the
-// webhook route relies on. Full webhook wiring + idempotency (claimStripeEvent)
-// is DB-bound and covered by the persistent test suite.
+// webhook route relies on. Atomic event application is DB-bound and covered by
+// persistence-patron.test.ts.
 
 import assert from 'node:assert/strict';
 import { test } from 'node:test';

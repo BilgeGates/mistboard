@@ -292,13 +292,13 @@ export {
   upsertHistoricalXiangqiPlayer,
   upsertHistoricalXiangqiSource,
 } from './persistence-historical-xiangqi.js';
-export type { PatronSubscriptionInput } from './persistence-patron.js';
+export type { PatronSubscriptionInput, PatronTransaction } from './persistence-patron.js';
 export {
   applyPatronSubscription,
-  claimStripeEvent,
   findAccountIdByStripeCustomerId,
   getStripeCustomerId,
   PATRON_ACTIVE_STATUSES,
+  processStripeEvent,
   setStripeCustomerId,
 } from './persistence-patron.js';
 export type {

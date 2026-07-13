@@ -45,6 +45,7 @@ export function definePersistenceTests(area: string, registerTests: () => void):
     try {
       await client.query(
         `TRUNCATE
+           stripe_events,
            engine_move_jobs,
            live_engine_games,
            historical_xiangqi_games,
