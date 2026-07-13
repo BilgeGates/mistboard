@@ -17,8 +17,9 @@ import {
   createEngineGameTask,
   createExperimentJob,
 } from './engine-experiments.js';
+import { upsertBuiltinEngineVersions } from './engine-registry.js';
 import { botVsBotEnabled } from './feature-flags.js';
-import { getPool } from './persistence-db.js';
+import { getPool, withTransaction } from './persistence-db.js';
 import {
   type BotVsBotLane,
   type BotVsBotPairing,
@@ -28,6 +29,11 @@ import {
 
 const TICK_MS = 30_000;
 const DAY_MS = 86_400_000;
+// After an ATTEMPT (whether it produced a finished game or failed), wait at least
+// this long before enqueueing again. The daily cadence paces off SUCCESSFUL games,
+// so a failed game doesn't blackhole the day; this cooldown is the floor that
+// keeps a persistently-failing pairing from re-enqueueing every tick.
+const RETRY_COOLDOWN_MS = 900_000; // 15 min
 
 export const BOT_VS_BOT_MIN_TARGET = 1;
 export const BOT_VS_BOT_MAX_TARGET = 20;
@@ -98,9 +104,12 @@ export type BotVsBotSchedulerDeps = {
   enabled(): boolean;
   config(): BotVsBotSchedulerConfig;
   countActiveTasks(): Promise<number>;
-  // Epoch-ms of the most recent scheduler enqueue, or null if none yet. Drives
-  // the rolling-24h rate limit; read from the DB so it survives restarts/deploys.
+  // Epoch-ms of the most recent scheduler ATTEMPT (any job), or null. Drives the
+  // short retry cooldown. DB-backed so a restart doesn't re-burst.
   lastEnqueueAt(): Promise<number | null>;
+  // Epoch-ms of the most recent SUCCESSFULLY-COMPLETED scheduler game, or null.
+  // Drives the daily cadence, so a failed game never counts against the quota.
+  lastSuccessAt(): Promise<number | null>;
   enqueueGame(input: EnqueueBotVsBotGameInput): Promise<void>;
   random(): number;
   now(): number;
@@ -118,46 +127,69 @@ async function lastBotVsBotEnqueueAtMs(): Promise<number | null> {
   return at === null || at === undefined ? null : Number(at);
 }
 
+// Epoch-ms of the newest COMPLETED scheduler game, or null. The daily cadence
+// paces off this (not the attempt) so a failed game can't blackhole the quota.
+async function lastBotVsBotSuccessAtMs(): Promise<number | null> {
+  const { rows } = await getPool().query<{ at: number | null }>(
+    `SELECT EXTRACT(EPOCH FROM MAX(COALESCE(game.ended_at, game.started_at))) * 1000 AS at
+       FROM games game
+       JOIN eve_games eve ON eve.game_id = game.room_id
+       JOIN eve_jobs job ON job.id = eve.job_id
+      WHERE job.config->>'source' = 'bot-vs-bot-scheduler'
+        AND game.status = 'completed'`,
+  );
+  const at = rows[0]?.at;
+  return at === null || at === undefined ? null : Number(at);
+}
+
 // Live enqueue: one job + one task per game, shaped exactly like the enqueue CLI
 // so the worker's xiangqi runner picks it up unchanged. The lane is recorded on
 // the job so Phase 3 calibration can query only calibration-lane games.
+//
+// All three writes run in ONE transaction: engine_game_tasks.white/black_engine_id
+// are FKs to engine_versions, so the engines MUST be registered before the task
+// insert (like the enqueue CLI does) or it throws. Transactional so a failed task
+// insert rolls the job back too — otherwise an orphan job would poison the
+// rolling-24h rate limiter (which keys off eve_jobs) and block generation for a day.
 async function enqueueLiveGame(input: EnqueueBotVsBotGameInput): Promise<void> {
-  const pool = getPool();
-  const job = await createExperimentJob(pool, {
-    purpose: 'calibration',
-    targetGames: 1,
-    config: {
-      variant: 'xiangqi',
-      source: 'bot-vs-bot-scheduler',
-      lane: input.lane,
-      pairing: {
-        kind:
-          input.pairing.redEngineId === input.pairing.blackEngineId
-            ? 'self-play'
-            : 'engine-vs-engine',
+  await withTransaction(async (tx) => {
+    await upsertBuiltinEngineVersions(tx, [input.pairing.redEngineId, input.pairing.blackEngineId]);
+    const job = await createExperimentJob(tx, {
+      purpose: 'calibration',
+      targetGames: 1,
+      config: {
+        variant: 'xiangqi',
+        source: 'bot-vs-bot-scheduler',
+        lane: input.lane,
+        pairing: {
+          kind:
+            input.pairing.redEngineId === input.pairing.blackEngineId
+              ? 'self-play'
+              : 'engine-vs-engine',
+          white_engine_id: input.pairing.redEngineId,
+          black_engine_id: input.pairing.blackEngineId,
+        },
+      },
+      createdBy: 'bot-vs-bot-scheduler',
+    });
+    await createEngineGameTask(tx, {
+      jobId: job.id,
+      gameIndex: 0,
+      priority: 0,
+      whiteEngineId: input.pairing.redEngineId,
+      blackEngineId: input.pairing.blackEngineId,
+      seed: input.seed,
+      timeControl: { kind: 'none' },
+      openingPolicy: { kind: 'standard' },
+      artifactPolicy: {},
+      resourcePolicy: { providers: ['local', 'railway'], concurrency: 1 },
+      config: {
+        variant: 'xiangqi',
+        max_plies: input.maxPlies,
         white_engine_id: input.pairing.redEngineId,
         black_engine_id: input.pairing.blackEngineId,
       },
-    },
-    createdBy: 'bot-vs-bot-scheduler',
-  });
-  await createEngineGameTask(pool, {
-    jobId: job.id,
-    gameIndex: 0,
-    priority: 0,
-    whiteEngineId: input.pairing.redEngineId,
-    blackEngineId: input.pairing.blackEngineId,
-    seed: input.seed,
-    timeControl: { kind: 'none' },
-    openingPolicy: { kind: 'standard' },
-    artifactPolicy: {},
-    resourcePolicy: { providers: ['local', 'railway'], concurrency: 1 },
-    config: {
-      variant: 'xiangqi',
-      max_plies: input.maxPlies,
-      white_engine_id: input.pairing.redEngineId,
-      black_engine_id: input.pairing.blackEngineId,
-    },
+    });
   });
 }
 
@@ -166,6 +198,7 @@ const liveDeps: BotVsBotSchedulerDeps = {
   config: () => botVsBotConfigFromEnv(),
   countActiveTasks: () => countActiveEngineGameTasks(getPool(), { variant: 'xiangqi' }),
   lastEnqueueAt: () => lastBotVsBotEnqueueAtMs(),
+  lastSuccessAt: () => lastBotVsBotSuccessAtMs(),
   enqueueGame: (input) => enqueueLiveGame(input),
   random: () => Math.random(),
   now: () => Date.now(),
@@ -201,14 +234,20 @@ export function createBotVsBotScheduler(deps: BotVsBotSchedulerDeps = liveDeps):
       const active = await deps.countActiveTasks();
       if (active >= config.targetActive) return;
 
-      // Rolling-24h rate limit: space games ~24h/dailyMax apart. One game per
-      // eligible tick — at low dailyMax this trickles a handful a day; at high
-      // dailyMax the interval shrinks below the tick and it simply keeps the
-      // queue topped to targetActive.
-      const minIntervalMs = DAY_MS / config.dailyMax;
-      const lastAt = await deps.lastEnqueueAt();
       const now = deps.now();
-      if (lastAt !== null && now - lastAt < minIntervalMs) return;
+      // Daily cadence: space games ~24h/dailyMax apart, measured from the last
+      // SUCCESSFUL game so a failed game never counts against the quota (a failure
+      // used to blackhole the day). At high dailyMax the interval falls below the
+      // tick and it simply keeps the queue topped to targetActive.
+      const minIntervalMs = DAY_MS / config.dailyMax;
+      const lastSuccess = await deps.lastSuccessAt();
+      if (lastSuccess !== null && now - lastSuccess < minIntervalMs) return;
+
+      // Retry floor: don't re-enqueue within RETRY_COOLDOWN_MS of the last attempt
+      // (success OR failure), so a persistently-failing pairing can't hammer the
+      // queue every tick while still recovering far sooner than the daily interval.
+      const lastAttempt = await deps.lastEnqueueAt();
+      if (lastAttempt !== null && now - lastAttempt < RETRY_COOLDOWN_MS) return;
 
       const { lane, pairing } = chooseGame(config, deps.random);
       await deps.enqueueGame({ lane, pairing, maxPlies: config.maxPlies, seed: `${now}` });

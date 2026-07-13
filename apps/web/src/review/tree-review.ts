@@ -182,6 +182,10 @@ export type TreeReviewConfig<Move> = {
   players?: { red?: string; black?: string };
   /** Show the "Crosstable" underboard tab (a head-to-head record — a stub for now). */
   showCrosstable?: boolean;
+  /** Prebuilt provenance panel (source / event / date / flags …). When present, a
+   *  "Game info" underboard tab renders it. The historical-library caller supplies
+   *  it; played/analysis surfaces leave it undefined. */
+  provenance?: HTMLElement;
 };
 
 /** Handle returned by mountTreeReview: lets a caller snapshot the current tree
@@ -366,6 +370,8 @@ export function mountTreeReview<Move, Truth, View, Color, Arrow, Marker>(
   const shareFenInput = document.createElement('input');
   const shareMovesInput = document.createElement('textarea');
   const underboardEl = underboardPanel(underboardBody, {
+    hasAnalysis: Boolean(config.analysis),
+    provenance: config.provenance,
     moveTimes: config.moveTimes,
     players: config.showCrosstable ? (config.players ?? {}) : undefined,
     shareFenInput,
@@ -428,7 +434,8 @@ export function mountTreeReview<Move, Truth, View, Color, Arrow, Marker>(
     boards: [{ key: 'truth', el: boardWrap, tier: 'primary' }],
     boardAspect: presentation.boardAspect,
     boardCols: presentation.boardCols,
-    underboard: config.analysis ? underboardEl : undefined,
+    underboard:
+      config.analysis || config.provenance || config.showCrosstable ? underboardEl : undefined,
     underboardOverflows: true,
     enginePanel: enginePanel?.el,
     moves: moveTree.el,

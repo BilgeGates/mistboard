@@ -9,6 +9,11 @@
 // xiangqi tree surface and the generalized tree controller share it unchanged.
 
 export type UnderboardOptions = {
+  /** Include the "Computer analysis" tab. False for surfaces with no whole-game
+   *  analysis (e.g. the historical library), so they don't lead with an empty chart. */
+  hasAnalysis?: boolean;
+  /** Prebuilt provenance panel → a "Game info" tab. */
+  provenance?: HTMLElement;
   /** Per-ply elapsed milliseconds (index 0 = ply 1). Present + non-empty → a
    *  "Move times" tab renders a per-move bar chart. */
   moveTimes?: number[];
@@ -24,9 +29,13 @@ export type UnderboardOptions = {
 type UnderboardTab = { id: string; label: string; body: HTMLElement };
 
 export function underboardPanel(analysisBody: HTMLElement, opts: UnderboardOptions): HTMLElement {
-  const tabDefs: UnderboardTab[] = [
-    { id: 'analysis', label: 'Computer analysis', body: analysisBody },
-  ];
+  const tabDefs: UnderboardTab[] = [];
+  if (opts.hasAnalysis) {
+    tabDefs.push({ id: 'analysis', label: 'Computer analysis', body: analysisBody });
+  }
+  if (opts.provenance) {
+    tabDefs.push({ id: 'info', label: 'Game info', body: opts.provenance });
+  }
   if (opts.moveTimes && opts.moveTimes.length > 0) {
     tabDefs.push({ id: 'times', label: 'Move times', body: moveTimesBody(opts.moveTimes) });
   }
