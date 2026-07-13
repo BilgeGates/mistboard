@@ -15,9 +15,10 @@ import { renderXiangqiPieceGlyphed, type XiangqiPieceSet } from './xiangqi-piece
 // Bespoke SVG renderer for the banqi board, drawn as the bottom HALF of a xiangqi
 // board in its natural HORIZONTAL orientation: 8 files run left-to-right, 4 ranks
 // bottom-to-top. The 8x4 banqi cells are the 32 cells bounded by a 9x5 line grid
-// (half a xiangqi board), so the xiangqi furniture (the palace + the soldier/
-// cannon starting-point marks) is drawn on the line intersections while the 32
-// pieces sit in the CELL centres.
+// (half a xiangqi board); the 32 pieces sit in the CELL centres. The board is a
+// plain grid — the parent board's palace and soldier/cannon starting-point marks
+// are deliberately NOT drawn: banqi keeps none of those rules (no palace
+// confinement, no fixed start array), so they would be purely decorative noise.
 //
 // Banqi is symmetric-information: BOTH seats see the IDENTICAL board (no per-seat
 // flip), and a face-down tile carries NO colour or identity to anyone (the deal
@@ -93,47 +94,6 @@ function gridLines(): string {
     parts.push(`<line x1="${x}" y1="${a.y}" x2="${x}" y2="${z.y}"/>`);
   }
   return parts.join('');
-}
-
-// The bottom palace (xiangqi files d..f, ranks 1..3): two diagonals across the
-// 2x2 cell box at the back rank. Decorative — banqi has no palace confinement.
-function palaceDiagonals(): string {
-  const a = point(3, 2);
-  const b = point(5, 4);
-  const c = point(5, 2);
-  const d = point(3, 4);
-  return [
-    `<line x1="${a.x}" y1="${a.y}" x2="${b.x}" y2="${b.y}"/>`,
-    `<line x1="${c.x}" y1="${c.y}" x2="${d.x}" y2="${d.y}"/>`,
-  ].join('');
-}
-
-// The xiangqi position bracket at a starting point: short L-marks in each
-// on-board quadrant. Soldiers start on rank 4 (files a,c,e,g,i); cannons on
-// rank 3 (files b,h) — the standard markings of a board's near half.
-function positionMark(fileLine: number, rankLine: number): string {
-  const { x, y } = point(fileLine, rankLine);
-  const gap = 4;
-  const len = 7;
-  const parts: string[] = [];
-  for (const sx of [-1, 1]) {
-    if (fileLine + sx < 0 || fileLine + sx > FILES) continue;
-    for (const sy of [-1, 1]) {
-      if (rankLine + sy < 0 || rankLine + sy > RANKS) continue;
-      const px = x + sx * gap;
-      const py = y + sy * gap;
-      parts.push(`<line x1="${px}" y1="${py}" x2="${px + sx * len}" y2="${py}"/>`);
-      parts.push(`<line x1="${px}" y1="${py}" x2="${px}" y2="${py + sy * len}"/>`);
-    }
-  }
-  return parts.join('');
-}
-
-function startMarks(): string {
-  const parts: string[] = [];
-  for (const fileLine of [0, 2, 4, 6, 8]) parts.push(positionMark(fileLine, 1)); // soldiers, rank 4
-  for (const fileLine of [1, 7]) parts.push(positionMark(fileLine, 2)); // cannons, rank 3
-  return `<g class="banqi-mark">${parts.join('')}</g>`;
 }
 
 // A uniform face-down disc: one colour, a single ring, no glyph (the deal is
@@ -238,8 +198,7 @@ export function renderBanqiBoardSvg(
   return `
     <svg class="banqi-board" viewBox="0 0 ${WIDTH} ${HEIGHT}" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Flip Xiangqi board">
       <rect class="banqi-board-bg" x="0" y="0" width="${WIDTH}" height="${HEIGHT}" rx="6"/>
-      <g class="banqi-grid">${gridLines()}${palaceDiagonals()}</g>
-      ${startMarks()}
+      <g class="banqi-grid">${gridLines()}</g>
       ${lastMoveMarkers(view)}
       ${selectionRing(options.selectedSquare ?? null)}
       ${options.interactive ? '' : moveHints(view, moves)}
@@ -272,7 +231,6 @@ export function installBanqiBoardStyles(): void {
       stroke-width: 1.5;
       stroke-linecap: round;
     }
-    .banqi-mark line { stroke: var(--mini-xq-grid, #5b4a32); stroke-width: 1.5; stroke-linecap: round; opacity: 0.7; }
     .banqi-selection { fill: rgba(31, 111, 91, 0.32); stroke: none; pointer-events: none; }
     .banqi-hint { fill: rgba(31, 111, 91, 0.72); opacity: 0.7; pointer-events: none; }
     .banqi-hint-capture {

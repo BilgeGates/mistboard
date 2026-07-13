@@ -2590,37 +2590,10 @@ export function banqiBoardGrid(x0: number, y0: number): string {
     const y = top + r * BANQI_CELL;
     parts.push(`<line x1="${left}" y1="${y}" x2="${right}" y2="${y}" class="xq-diagram-line" stroke-width="1"/>`);
   }
-  // Half-xiangqi furniture (matches the live board): the bottom palace's
-  // diagonals (files d-f, ranks 1-3) and the soldier/cannon starting-point
-  // brackets. Drawn on the line intersections; pieces still sit in the cells.
-  const pt = (col: number, row: number) => ({ x: left + col * BANQI_CELL, y: top + row * BANQI_CELL });
-  for (const [a, b] of [
-    [pt(3, 2), pt(5, 4)],
-    [pt(5, 2), pt(3, 4)],
-  ]) {
-    parts.push(`<line x1="${a.x}" y1="${a.y}" x2="${b.x}" y2="${b.y}" class="xq-diagram-line" stroke-width="1"/>`);
-  }
-  const mark = (col: number, row: number): void => {
-    const { x, y } = pt(col, row);
-    const gap = 3;
-    const len = 5;
-    for (const sx of [-1, 1]) {
-      if (col + sx < 0 || col + sx > BANQI_COLS) continue;
-      for (const sy of [-1, 1]) {
-        if (row + sy < 0 || row + sy > BANQI_ROWS) continue;
-        const px = x + sx * gap;
-        const py = y + sy * gap;
-        parts.push(
-          `<line x1="${px}" y1="${py}" x2="${px + sx * len}" y2="${py}" class="xq-diagram-line" stroke-width="1"/>`,
-        );
-        parts.push(
-          `<line x1="${px}" y1="${py}" x2="${px}" y2="${py + sy * len}" class="xq-diagram-line" stroke-width="1"/>`,
-        );
-      }
-    }
-  };
-  for (const col of [0, 2, 4, 6, 8]) mark(col, 1); // soldiers, rank 4
-  for (const col of [1, 7]) mark(col, 2); // cannons, rank 3
+  // A plain 4x8 grid — deliberately no palace diagonals or soldier/cannon start
+  // brackets. Banqi keeps none of those rules, the article prose says pieces sit
+  // in the squares (not on xiangqi intersections), and the live board
+  // (renderBanqiBoardSvg) draws no furniture either. Keep these consistent.
   parts.push(
     `<rect x="${x0}" y="${y0}" width="${BANQI_BOARD_W}" height="${BANQI_BOARD_H}" rx="${XQ_BOARD_RADIUS}" fill="none" stroke="${XQ_BOARD_STROKE}" stroke-width="${XQ_BOARD_STROKE_WIDTH}"/>`,
   );
