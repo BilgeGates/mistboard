@@ -6,9 +6,12 @@ import {
   deleteChapter,
   deleteStudy,
   getStudyById,
+  getStudyLikeState,
   listStudiesForOwner,
+  listTopPublicStudies,
   renameChapter,
   setChapterGamebook,
+  setStudyLike,
   updateChapterTree,
   updateStudyMeta,
 } from './persistence-studies.js';
@@ -104,6 +107,55 @@ definePersistenceTests('studies', () => {
     const studies = await listStudiesForOwner(owner.id);
     assert.equal(studies.length, 2);
     assert.ok(studies.every((s) => s.chapterCount === 1));
+  });
+
+  test('ranks public studies by likes and keeps like writes idempotent', async () => {
+    const firstOwner = await makeUser('popular-first');
+    const secondOwner = await makeUser('popular-second');
+    const fanOne = await makeUser('fan-one');
+    const fanTwo = await makeUser('fan-two');
+    const first = await makeStudy(firstOwner.id, 'First public study');
+    const second = await makeStudy(secondOwner.id, 'Second public study');
+    assert.ok(first && second);
+    await updateStudyMeta(first.id, firstOwner.id, { visibility: 'public' });
+    await updateStudyMeta(second.id, secondOwner.id, { visibility: 'public' });
+
+    assert.deepEqual(await setStudyLike(first.id, fanOne.id, true), {
+      likeCount: 1,
+      likedByViewer: true,
+    });
+    await setStudyLike(first.id, fanOne.id, true);
+    await setStudyLike(first.id, fanTwo.id, true);
+    await setStudyLike(second.id, fanOne.id, true);
+
+    const ranked = await listTopPublicStudies(5);
+    assert.deepEqual(
+      ranked.map((study) => [study.name, study.likeCount]),
+      [
+        ['First public study', 2],
+        ['Second public study', 1],
+      ],
+    );
+    assert.deepEqual(await getStudyLikeState(first.id, fanTwo.id), {
+      likeCount: 2,
+      likedByViewer: true,
+    });
+    assert.deepEqual(await setStudyLike(first.id, fanTwo.id, false), {
+      likeCount: 1,
+      likedByViewer: false,
+    });
+  });
+
+  test('does not list or accept likes on non-public studies', async () => {
+    const owner = await makeUser('private-like-owner');
+    const fan = await makeUser('private-like-fan');
+    const study = await makeStudy(owner.id, 'Private study');
+    assert.ok(study);
+    assert.equal(await setStudyLike(study.id, fan.id, true), null);
+    assert.equal(
+      (await listTopPublicStudies()).some((entry) => entry.id === study.id),
+      false,
+    );
   });
 
   test('adds, renames, and deletes chapters (owner only, keeps at least one)', async () => {

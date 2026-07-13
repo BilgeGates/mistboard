@@ -22,6 +22,8 @@ type StudyDto = {
   description: string;
   visibility: StudyVisibility;
   isOwner: boolean;
+  likeCount: number;
+  likedByViewer: boolean;
 };
 
 type ChapterDto = {
@@ -297,7 +299,44 @@ function buildActions(
     wrap.append(status);
   }
   wrap.append(copyLinkButton());
+  if (study.visibility === 'public') wrap.append(likeButton(study));
   return wrap;
+}
+
+function likeButton(study: StudyDto): HTMLButtonElement {
+  const button = document.createElement('button');
+  button.type = 'button';
+  button.className = 'study-actions__like';
+  const render = (): void => {
+    button.classList.toggle('is-liked', study.likedByViewer);
+    button.textContent = `${study.likedByViewer ? '♥' : '♡'} ${study.likeCount}`;
+    button.setAttribute('aria-pressed', String(study.likedByViewer));
+    button.setAttribute('aria-label', `${study.likedByViewer ? 'Unlike' : 'Like'} this study`);
+  };
+  render();
+  button.addEventListener('click', () => {
+    button.disabled = true;
+    void fetch(`/api/studies/${encodeURIComponent(study.id)}/like`, {
+      method: 'PUT',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ liked: !study.likedByViewer }),
+    })
+      .then(async (response) => {
+        if (response.status === 401) {
+          button.title = 'Sign in to like studies';
+          return;
+        }
+        if (!response.ok) return;
+        const state = (await response.json()) as { likeCount: number; likedByViewer: boolean };
+        study.likeCount = state.likeCount;
+        study.likedByViewer = state.likedByViewer;
+        render();
+      })
+      .finally(() => {
+        button.disabled = false;
+      });
+  });
+  return button;
 }
 
 function studyNameControl(study: StudyDto, onRename: (name: string) => void): HTMLElement {

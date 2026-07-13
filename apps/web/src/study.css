@@ -111,6 +111,21 @@
   cursor: pointer;
 }
 
+.study-actions__like {
+  padding: 7px 10px;
+  border: 1px solid var(--site-border-soft);
+  border-radius: var(--site-radius-sm, 6px);
+  background: var(--site-panel);
+  color: var(--site-muted);
+  font: inherit;
+  cursor: pointer;
+}
+
+.study-actions__like.is-liked {
+  border-color: color-mix(in srgb, var(--site-accent) 60%, var(--site-border-soft));
+  color: var(--site-accent-strong);
+}
+
 .study-actions__name {
   flex: 1 1 auto;
   min-width: 0;

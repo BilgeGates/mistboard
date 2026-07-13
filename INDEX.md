@@ -399,6 +399,7 @@ Run with `MISTBOARD_ALLOW_IN_MEMORY_PERSISTENCE=true npm run test:integration --
 | `landing-announcements.ts` | Landing announcement panel/card renderer: announcement ordering, article thumbnail lookup, kind/date labels, and CTA labels. Loads `landing-announcements.css` |
 | `landing-announcements.css` | Landing announcement panel/card styles loaded by `landing-announcements.ts` |
 | `landing-forum-preview.ts` | Homepage forum preview widget: hydrates recent active forum topics into a shared `site-box` panel and links to `/forum`, topic routes, and latest posts. Loads `landing-forum-preview.css` |
+| `landing-community-widgets.ts` | Homepage Popular studies + Top players pair: hydrates most-liked public studies and each public rating category's leader into compact shared `site-box` panels. Loads `landing-community-widgets.css` |
 | `landing-play.ts` | Homepage play panel, setup dialog, open-lobby request card, room creation, lobby queue polling, empty-lobby engine offer, and play deep-link handling |
 | `landing-play.css` | Homepage play/setup/lobby base styles loaded before `landing.css`, so homepage responsive layout overrides stay in the route stylesheet |
 | `puzzles.ts` | `/puzzles` route: Mini and Drop Mini Xiangqi puzzle list/detail UI, drag/click solving, attempt submission, solved-state storage, and auto-next controls |

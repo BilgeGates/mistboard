@@ -22,6 +22,7 @@ import { currentLocale, type Locale, localizedHref } from './i18n/locale.js';
 import { buildLandingActivity } from './landing-activity.js';
 import { buildLandingAnnouncements } from './landing-announcements.js';
 import { buildLandingChat } from './landing-chat.js';
+import { buildLandingCommunityWidgets } from './landing-community-widgets.js';
 import { buildLandingForumPreview } from './landing-forum-preview.js';
 import {
   buildLandingPlayPanel,
@@ -683,6 +684,8 @@ function buildLandingStage(
   lowerStrip.append(buildLandingAnnouncements(locale));
   lowerStrip.append(buildLandingForumPreview({ hydrate: !opts.skipLiveWidgets }));
 
+  const communityStrip = buildLandingCommunityWidgets({ hydrate: !opts.skipLiveWidgets });
+
   // ── Play column (grid-area: play, row 1 right): the small h1 tagline flush to the
   // top-left, then the pairing CTAs + activity box vertically centered against the
   // tall open-challenges panel. ──
@@ -746,6 +749,7 @@ function buildLandingStage(
     playColumn,
     puzzleColumn,
     lowerStrip,
+    communityStrip,
   );
 
   // Both side board boxes (viewer left, daily puzzle right) track the center block

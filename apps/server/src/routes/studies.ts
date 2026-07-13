@@ -26,6 +26,7 @@ const ID = '[A-Za-z0-9]+';
 const STUDY_PATH = new RegExp(`^/api/studies/(${ID})$`);
 const CHAPTERS_PATH = new RegExp(`^/api/studies/(${ID})/chapters$`);
 const CHAPTER_PATH = new RegExp(`^/api/studies/(${ID})/chapters/(${ID})$`);
+const LIKE_PATH = new RegExp(`^/api/studies/(${ID})/like$`);
 
 function isSerializedTree(value: unknown): boolean {
   if (!value || typeof value !== 'object') return false;
@@ -68,6 +69,22 @@ export async function tryHandle(
 ): Promise<boolean> {
   if (pathname !== '/api/studies' && !pathname.startsWith('/api/studies/')) return false;
 
+  // ── Public collection ──
+  if (pathname === '/api/studies/public') {
+    if (!requireMethod(request, response, 'GET')) return true;
+    if (!requirePersistence(response)) return true;
+    const studies = await persistence.listTopPublicStudies(5);
+    writeJson(response, 200, {
+      studies: studies.map((study) => ({
+        ...studyView(study, false),
+        chapterCount: study.chapterCount,
+        owner: { handle: study.ownerHandle, displayName: study.ownerDisplayName },
+        likeCount: study.likeCount,
+      })),
+    });
+    return true;
+  }
+
   // ── Collection: create + list-mine ──
   if (pathname === '/api/studies' || pathname === '/api/studies/mine') {
     if (!requirePersistence(response)) return true;
@@ -86,6 +103,26 @@ export async function tryHandle(
     }
     if (!requireMethod(request, response, 'POST')) return true;
     return createStudy(request, response, user.id);
+  }
+
+  // ── Like a public study ──
+  const likeMatch = LIKE_PATH.exec(pathname);
+  if (likeMatch) {
+    if (!requireMethod(request, response, 'PUT')) return true;
+    if (!requirePersistence(response)) return true;
+    const user = await currentAccountUser(request);
+    if (!user) {
+      writeJson(response, 401, { error: 'not_signed_in' });
+      return true;
+    }
+    const body = await readJsonBody(request);
+    if (typeof body.liked !== 'boolean') {
+      writeJson(response, 400, { error: 'invalid_liked' });
+      return true;
+    }
+    const state = await persistence.setStudyLike(likeMatch[1]!, user.id, body.liked);
+    writeJson(response, state ? 200 : 404, state ?? { error: 'not_found' });
+    return true;
   }
 
   // ── Add a chapter ──
@@ -204,8 +241,9 @@ async function readStudy(
     writeJson(response, 404, { error: 'not_found' });
     return true;
   }
+  const likeState = await persistence.getStudyLikeState(id, user?.id);
   writeJson(response, 200, {
-    study: studyView(study, isOwner),
+    study: { ...studyView(study, isOwner), ...likeState },
     chapters: study.chapters.map(chapterView),
   });
   return true;

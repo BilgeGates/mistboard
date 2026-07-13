@@ -46,6 +46,12 @@ export type StudyWithChapters = StudyRecord & { chapters: StudyChapterRecord[] }
 
 export type StudySummary = StudyRecord & { chapterCount: number };
 
+export type PublicStudySummary = StudySummary & {
+  ownerHandle: string;
+  ownerDisplayName: string;
+  likeCount: number;
+};
+
 export type NewChapterInput = {
   name: string;
   variant: string;
@@ -195,6 +201,90 @@ export async function listStudiesForOwner(ownerId: string): Promise<StudySummary
     [ownerId],
   );
   return rows.map((row) => ({ ...mapStudy(row), chapterCount: Number(row.chapter_count) }));
+}
+
+/** Most-liked public studies, with recency as the deterministic tie-breaker. */
+export async function listTopPublicStudies(limit = 5): Promise<PublicStudySummary[]> {
+  if (!isInitialized()) return [];
+  const bounded = Math.max(1, Math.min(limit, 50));
+  const { rows } = await getPool().query<
+    StudyRow & {
+      chapter_count: string;
+      owner_handle: string;
+      owner_display_name: string;
+      like_count: string;
+    }
+  >(
+    `SELECT ${STUDY_COLS.split(', ')
+      .map((column) => `s.${column}`)
+      .join(', ')},
+            u.handle AS owner_handle,
+            u.display_name AS owner_display_name,
+            count(DISTINCT c.id) AS chapter_count,
+            count(DISTINCT l.user_id) AS like_count
+       FROM studies s
+       JOIN users u ON u.id = s.owner_id
+       LEFT JOIN study_chapters c ON c.study_id = s.id
+       LEFT JOIN study_likes l ON l.study_id = s.id
+      WHERE s.visibility = 'public'
+        AND u.profile_visibility IN ('public', 'unlisted')
+      GROUP BY s.id, u.handle, u.display_name
+      ORDER BY count(DISTINCT l.user_id) DESC, s.updated_at DESC, s.id
+      LIMIT $1`,
+    [bounded],
+  );
+  return rows.map((row) => ({
+    ...mapStudy(row),
+    chapterCount: Number(row.chapter_count),
+    ownerHandle: row.owner_handle,
+    ownerDisplayName: row.owner_display_name,
+    likeCount: Number(row.like_count),
+  }));
+}
+
+export async function getStudyLikeState(
+  studyId: string,
+  userId?: string,
+): Promise<{ likeCount: number; likedByViewer: boolean }> {
+  if (!isInitialized()) return { likeCount: 0, likedByViewer: false };
+  const { rows } = await getPool().query<{ like_count: string; liked_by_viewer: boolean }>(
+    `SELECT count(*) AS like_count,
+            COALESCE(bool_or(user_id = $2), false) AS liked_by_viewer
+       FROM study_likes
+      WHERE study_id = $1`,
+    [studyId, userId ?? ''],
+  );
+  return {
+    likeCount: Number(rows[0]?.like_count ?? 0),
+    likedByViewer: rows[0]?.liked_by_viewer ?? false,
+  };
+}
+
+/** Set, rather than toggle, so retries are idempotent. Only public studies can
+ * receive likes. Returns null when the study is absent or not public. */
+export async function setStudyLike(
+  studyId: string,
+  userId: string,
+  liked: boolean,
+): Promise<{ likeCount: number; likedByViewer: boolean } | null> {
+  if (!isInitialized()) return null;
+  const visible = await getPool().query(
+    `SELECT 1 FROM studies WHERE id = $1 AND visibility = 'public'`,
+    [studyId],
+  );
+  if ((visible.rowCount ?? 0) === 0) return null;
+  if (liked) {
+    await getPool().query(
+      `INSERT INTO study_likes (study_id, user_id) VALUES ($1, $2) ON CONFLICT DO NOTHING`,
+      [studyId, userId],
+    );
+  } else {
+    await getPool().query(`DELETE FROM study_likes WHERE study_id = $1 AND user_id = $2`, [
+      studyId,
+      userId,
+    ]);
+  }
+  return getStudyLikeState(studyId, userId);
 }
 
 /** Owner-checked, version-guarded save of a chapter's tree. A stale `baseVersion`

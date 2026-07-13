@@ -27,7 +27,8 @@
   grid-template-areas:
     "news   panel play"
     "viewer feed  puzzle"
-    "lower  lower  lower";
+    "lower  lower  lower"
+    "community community community";
   column-gap: clamp(10px, 0.9vw, 15px);
   row-gap: clamp(14px, 1.8vw, 24px);
   align-items: start;
@@ -1785,6 +1786,7 @@
       "feed"
       "puzzle"
       "lower"
+      "community"
       "news";
     max-width: 640px;
   }
