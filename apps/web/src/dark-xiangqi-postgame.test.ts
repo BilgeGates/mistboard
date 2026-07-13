@@ -45,13 +45,18 @@ describe('Dark Xiangqi postgame page', () => {
     expect(firstMoveRow?.textContent).toContain('b8-b7');
     const moveButtons = root.querySelectorAll<HTMLButtonElement>('.review-move-list__move');
     expect(moveButtons).toHaveLength(2);
+    // Current ply is read off the highlighted move (data-ply); ply 0 = the start
+    // position, which has no move to highlight. (The scrubber's "Ply X of Y"
+    // status was removed with the lichess control bar.)
+    const currentPly = () =>
+      root.querySelector('.review-move-list__move--current')?.getAttribute('data-ply') ?? '0';
     // Clicking a move jumps the whole triptych to that ply, through the same
     // ply state the scrubber drives. Jump back to the final ply so the rest of
     // the replay walk starts where it did before.
     moveButtons[0]?.click();
-    expect(root.textContent).toContain('Ply 1 of 2');
+    expect(currentPly()).toBe('1');
     moveButtons[1]?.click();
-    expect(root.textContent).toContain('Ply 2 of 2');
+    expect(currentPly()).toBe('2');
     expect(root.querySelectorAll('.xq-live-svg')).toHaveLength(3);
     expect(root.innerHTML).toContain('aria-label="black hidden piece"');
     expect(root.innerHTML).toContain('aria-label="black cannon"');
@@ -60,28 +65,33 @@ describe('Dark Xiangqi postgame page', () => {
     expect(boardWrap(root, 'Server truth').innerHTML).not.toContain('hidden piece');
     expect(blackCannonY(root)).toBe('189');
 
-    root.querySelector<HTMLButtonElement>('[aria-label="Flip all boards"]')?.click();
+    // Flip now lives in the control bar's menu overlay (present in the DOM even
+    // while the menu is closed), not a top-level scrubber button.
+    const menuFlip = [...root.querySelectorAll<HTMLButtonElement>('.review-menu__item')].find((b) =>
+      b.textContent?.includes('Flip board'),
+    );
+    menuFlip?.click();
     expect(blackCannonY(root)).toBe('369');
 
     document.dispatchEvent(new KeyboardEvent('keydown', { key: 'f' }));
     expect(blackCannonY(root)).toBe('189');
 
     document.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowLeft' }));
-    expect(root.textContent).toContain('Ply 1 of 2');
+    expect(currentPly()).toBe('1');
 
     document.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowUp' }));
-    expect(root.textContent).toContain('Ply 0 of 2');
+    expect(currentPly()).toBe('0');
 
     document.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight' }));
-    expect(root.textContent).toContain('Ply 1 of 2');
+    expect(currentPly()).toBe('1');
 
     document.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown' }));
-    expect(root.textContent).toContain('Ply 2 of 2');
+    expect(currentPly()).toBe('2');
 
     root
-      .querySelector<HTMLButtonElement>('.review-scrubber__button[aria-label="Previous ply"]')
+      .querySelector<HTMLButtonElement>('.review-controls__nav[aria-label="Previous move"]')
       ?.click();
-    expect(root.textContent).toContain('Ply 1 of 2');
+    expect(currentPly()).toBe('1');
   });
 });
 

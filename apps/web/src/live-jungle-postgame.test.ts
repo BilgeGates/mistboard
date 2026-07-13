@@ -63,7 +63,8 @@ describe('Jungle postgame page', () => {
     expect(row?.querySelector<HTMLButtonElement>('.review-move-list__move')?.textContent).toBe(
       'a3-a4',
     );
-    expect(root.textContent).toContain('Ply 1 of 1');
+    // Shared lichess control bar (not the old ply-count scrubber).
+    expect(root.querySelector('.review-controls')).not.toBeNull();
   });
 
   it('steps through plies with the arrow keys', async () => {
@@ -74,14 +75,23 @@ describe('Jungle postgame page', () => {
     mountJunglePostgame(root, 'jgl_postgame');
     await flushPromises();
 
-    const meta = () => root.querySelector('.review-scrubber__status')?.textContent ?? '';
-    expect(meta()).toContain('Ply 1 of 1');
+    // The control bar disables first/prev at the start and next/last at the end;
+    // arrow keys move the ply, so the bounds flip. (The old scrubber's "Ply X of
+    // Y" status was removed with the lichess control bar.)
+    const nav = (label: string) =>
+      root.querySelector<HTMLButtonElement>(`.review-controls__nav[aria-label="${label}"]`);
+    // Opens at the final ply (1 of 1): next/last disabled.
+    expect(nav('Next move')?.disabled).toBe(true);
+    expect(nav('Previous move')?.disabled).toBe(false);
 
     document.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowLeft' }));
-    expect(meta()).toContain('Ply 0 of 1');
+    // Ply 0: at the start, first/prev disabled.
+    expect(nav('Previous move')?.disabled).toBe(true);
+    expect(nav('Next move')?.disabled).toBe(false);
 
     document.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight' }));
-    expect(meta()).toContain('Ply 1 of 1');
+    // Back at the final ply.
+    expect(nav('Next move')?.disabled).toBe(true);
   });
 });
 

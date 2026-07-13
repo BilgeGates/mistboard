@@ -70,7 +70,12 @@ describe('Flip Jungle postgame page', () => {
       '.review-move-list__row .review-move-list__move',
     );
     expect(firstMove?.querySelector('.review-move-list__san')?.textContent).toBe('a1 flip');
-    expect(root.textContent).toContain('Ply 1 of 1');
+    // Opens at the final ply (1 of 1); the current move is highlighted with its
+    // data-ply. (The scrubber's "Ply X of Y" status was removed with the lichess
+    // control bar.)
+    const currentPly = () =>
+      root.querySelector('.review-move-list__move--current')?.getAttribute('data-ply') ?? '0';
+    expect(currentPly()).toBe('1');
   });
 
   it('hides unflipped tiles by default and reveals them on toggle', async () => {

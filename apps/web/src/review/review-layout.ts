@@ -15,6 +15,7 @@
 //     so both surfaces share one layout and size identically.
 
 import { attachBoardResizeGrip, currentBoardScale, restoreBoardScale } from '../board-resize.js';
+import { createReviewControls, REVIEW_MENU_ICONS } from './review-controls.js';
 import { type BoardStageHandle, type BoardStageSlot, createBoardStage } from './review-stage.js';
 import './review-shell.css';
 import { createReviewShell } from './review-shell.js';
@@ -308,7 +309,25 @@ export function mountReviewLayout(root: HTMLElement, adapter: ReviewLayoutAdapte
   let ply = adapter.maxPly;
   let flipped = false;
 
-  const scrubber = createReviewScrubber();
+  // Shared lichess control bar (nav + menu overlay), the SAME component the
+  // xiangqi tree surface uses — so every /game review page carries identical
+  // chrome. Playback stays integer-ply over server snapshots; only the chrome
+  // is standardized. Flip lives in the menu; the deferred analyse tools stay
+  // muted placeholders (parity with the tree surface).
+  const controls = createReviewControls({
+    onFirst: () => go(0),
+    onPrevious: () => go(ply - 1),
+    onNext: () => go(ply + 1),
+    onLast: () => go(adapter.maxPly),
+    menuItems: [
+      { label: 'Flip board', icon: REVIEW_MENU_ICONS.flip, onClick: () => flip() },
+      { label: 'Board editor', icon: REVIEW_MENU_ICONS.editor, disabled: true },
+      { label: 'Learn from your mistakes', icon: REVIEW_MENU_ICONS.learn, disabled: true },
+      { label: 'Continue from here', icon: REVIEW_MENU_ICONS.continue, disabled: true },
+      { label: 'Study', icon: REVIEW_MENU_ICONS.study, disabled: true },
+      { label: 'Settings', icon: REVIEW_MENU_ICONS.settings, disabled: true },
+    ],
+  });
   const scaffold = createReviewScaffold(root, {
     ariaLabel: adapter.ariaLabel,
     pageClassName: adapter.pageClassName,
@@ -328,7 +347,7 @@ export function mountReviewLayout(root: HTMLElement, adapter: ReviewLayoutAdapte
     enginePanel: adapter.enginePanel,
     moves: adapter.moves,
     moveComment: adapter.moveComment,
-    navigation: scrubber.el,
+    navigation: controls.el,
     analysisSummary: adapter.analysisSummary,
     railFooter: adapter.railFooter,
     gauge: adapter.gauge,
@@ -342,8 +361,7 @@ export function mountReviewLayout(root: HTMLElement, adapter: ReviewLayoutAdapte
     const ctx = { ply, flipped, primaryKey: scaffold.stage.primaryKey() };
     adapter.renderBoards(ctx);
     adapter.renderMoves?.(ctx, go);
-    scrubber.status.textContent = `Ply ${ply} of ${adapter.maxPly}`;
-    scrubber.setBounds(ply, adapter.maxPly);
+    controls.setBounds({ atStart: ply <= 0, atEnd: ply >= adapter.maxPly });
   }
 
   const go = (target: number): void => {
@@ -354,12 +372,6 @@ export function mountReviewLayout(root: HTMLElement, adapter: ReviewLayoutAdapte
     flipped = !flipped;
     render();
   };
-
-  scrubber.first.addEventListener('click', () => go(0));
-  scrubber.previous.addEventListener('click', () => go(ply - 1));
-  scrubber.next.addEventListener('click', () => go(ply + 1));
-  scrubber.last.addEventListener('click', () => go(adapter.maxPly));
-  scrubber.flip.addEventListener('click', flip);
 
   installReviewKeyboard({
     stepBack: () => go(ply - 1),
@@ -588,47 +600,6 @@ function centerColumn(stageEl: HTMLElement, underboard: HTMLElement): HTMLElemen
 // ─────────────────────────────────────────────────────────────────────────────
 // Navigation bars.
 // ─────────────────────────────────────────────────────────────────────────────
-
-type ReviewScrubber = {
-  el: HTMLElement;
-  status: HTMLElement;
-  first: HTMLButtonElement;
-  previous: HTMLButtonElement;
-  next: HTMLButtonElement;
-  last: HTMLButtonElement;
-  flip: HTMLButtonElement;
-  setBounds(ply: number, maxPly: number): void;
-};
-
-function createReviewScrubber(): ReviewScrubber {
-  const el = document.createElement('div');
-  el.className = 'review-scrubber';
-  const status = document.createElement('span');
-  status.className = 'review-scrubber__status';
-  status.setAttribute('aria-live', 'polite');
-  const first = scrubButton('|<', 'First ply');
-  const previous = scrubButton('<', 'Previous ply');
-  const next = scrubButton('>', 'Next ply');
-  const last = scrubButton('>|', 'Final ply');
-  const flip = scrubButton('Flip', 'Flip all boards');
-  flip.title = 'Flip all boards (f)';
-  el.append(status, first, previous, next, last, flip);
-  return {
-    el,
-    status,
-    first,
-    previous,
-    next,
-    last,
-    flip,
-    setBounds(ply, maxPly) {
-      first.disabled = ply <= 0;
-      previous.disabled = ply <= 0;
-      next.disabled = ply >= maxPly;
-      last.disabled = ply >= maxPly;
-    },
-  };
-}
 
 function scrubButton(text: string, label: string): HTMLButtonElement {
   const button = document.createElement('button');

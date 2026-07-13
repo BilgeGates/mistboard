@@ -38,7 +38,12 @@ describe('Jieqi postgame page', () => {
     // Two-column move list (dark-chess style): the cell shows the bare coordinate
     // move, not a "Red"-prefixed line.
     expect(root.textContent).toContain('b3-b10');
-    expect(root.textContent).toContain('Ply 1 of 1');
+    // Current ply is read off the highlighted move (data-ply); ply 0 = the start
+    // position, which has no move to highlight. (The scrubber's "Ply X of Y" status
+    // was removed with the lichess control bar.) Opens at the final ply (1 of 1).
+    const currentPly = () =>
+      root.querySelector('.review-move-list__move--current')?.getAttribute('data-ply') ?? '0';
+    expect(currentPly()).toBe('1');
 
     // A SINGLE board (no triptych, no perspective picker).
     expect(root.querySelectorAll('.jieqi-board')).toHaveLength(1);
@@ -62,7 +67,7 @@ describe('Jieqi postgame page', () => {
     // Arrow keys scrub the replay: ArrowLeft from the final ply steps back to ply 0.
     // The shared review layout binds the keyboard on the mount root.
     document.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowLeft' }));
-    expect(root.textContent).toContain('Ply 0 of 1');
+    expect(currentPly()).toBe('0');
   });
 });
 

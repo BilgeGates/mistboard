@@ -68,7 +68,12 @@ describe('Banqi postgame page', () => {
     expect(row?.querySelector('.review-move-list__number')?.textContent).toBe('1');
     const firstMove = row?.querySelector<HTMLButtonElement>('.review-move-list__move');
     expect(firstMove?.querySelector('.review-move-list__san')?.textContent).toBe('c2-c3');
-    expect(root.textContent).toContain('Ply 1 of 1');
+    // Opens at the final ply (1 of 1); the current move is highlighted with its
+    // data-ply. (The scrubber's "Ply X of Y" status was removed with the lichess
+    // control bar.)
+    const currentPly = () =>
+      root.querySelector('.review-move-list__move--current')?.getAttribute('data-ply') ?? '0';
+    expect(currentPly()).toBe('1');
   });
 
   it('hides unflipped tiles by default and reveals them on toggle', async () => {
@@ -104,15 +109,22 @@ describe('Banqi postgame page', () => {
     mountBanqiPostgame(root, 'bq_postgame');
     await flushPromises();
 
-    const meta = () => root.querySelector('.review-scrubber__status')?.textContent ?? '';
-    expect(meta()).toContain('Ply 1 of 1');
+    // The control bar disables next/last at the final ply and first/prev at the
+    // start; the shared review layout binds the keyboard on the mount root. (The
+    // scrubber's "Ply X of Y" status was removed with the lichess control bar.)
+    const nav = (label: string) =>
+      root.querySelector<HTMLButtonElement>(`.review-controls__nav[aria-label="${label}"]`);
+    // Opens at the final ply (1 of 1): next/last disabled.
+    expect(nav('Next move')?.disabled).toBe(true);
+    expect(nav('Previous move')?.disabled).toBe(false);
 
-    // The shared review layout binds the keyboard on the mount root.
     document.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowLeft' }));
-    expect(meta()).toContain('Ply 0 of 1');
+    // Ply 0: at the start, first/prev disabled.
+    expect(nav('Previous move')?.disabled).toBe(true);
+    expect(nav('Next move')?.disabled).toBe(false);
 
     document.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight' }));
-    expect(meta()).toContain('Ply 1 of 1');
+    expect(nav('Next move')?.disabled).toBe(true);
   });
 });
 
