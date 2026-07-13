@@ -49,6 +49,14 @@ describe('standard Xiangqi board SVG', () => {
     expect(renderLiveXiangqiBoardSvg).toBe(renderSharedXiangqiBoardSvg);
   });
 
+  it('keeps the background full-bleed so the CSS wrapper owns responsive corner clipping', () => {
+    const view = getStandardXiangqiPlayerView(createInitialXiangqiState('xq-board-corners'), 'red');
+    const svg = renderSharedXiangqiBoardSvg(view);
+
+    expect(svg).toContain('<rect class="xq-live-bg" x="0" y="0" width="552" height="612"/>');
+    expect(svg).not.toMatch(/class="xq-live-bg"[^>]*\srx=/);
+  });
+
   it('marks the last move with an origin shadow and a destination ring', () => {
     const state = applyXiangqiMove(createInitialXiangqiState('xq-board-lastmove'), {
       from: 'b3',
