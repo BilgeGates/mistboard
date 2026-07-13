@@ -23,4 +23,17 @@ describe('app i18n catalog', () => {
     expect(t('play.playingNow', { count: 3 }, 'zh-Hant')).toBe('3 局正在進行');
     expect(t('play.unavailable', {}, 'en')).toBe('Unavailable');
   });
+
+  it('keeps Patron support separate from future paid products', () => {
+    const patronCopy = [
+      t('patron.heroTitle', {}, 'en'),
+      t('patron.intro', {}, 'en'),
+      t('patron.perk', {}, 'en'),
+      t('patron.faqPerkAnswer', {}, 'en'),
+    ].join(' ');
+
+    expect(patronCopy).toContain('Core play and learning stay free');
+    expect(patronCopy).toContain('Separate paid tools or products may exist later');
+    expect(patronCopy).not.toMatch(/games are free\. forever|nothing .*locked behind/i);
+  });
 });
