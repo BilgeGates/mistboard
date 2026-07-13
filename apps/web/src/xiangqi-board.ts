@@ -29,9 +29,6 @@ const CELL = 60;
 const MARGIN = 36;
 const WIDTH = MARGIN * 2 + (FILE_COUNT - 1) * CELL;
 const HEIGHT = MARGIN * 2 + (RANK_COUNT - 1) * CELL;
-// Corner rounding (viewBox units). Kept in sync with the `.xiangqi-live-board`
-// container border-radius so the SVG background and the clipped container agree.
-const BOARD_RADIUS = 16;
 const RIVER_TOP = MARGIN + 4 * CELL;
 const RIVER_BOTTOM = MARGIN + 5 * CELL;
 const PIECE_SIZE = tokenPieceSize(CELL);
@@ -99,7 +96,7 @@ export function xiangqiBoardSvg(
 ): string {
   return `
     <svg class="xq-live-svg" viewBox="0 0 ${WIDTH} ${HEIGHT}" xmlns="http://www.w3.org/2000/svg">
-      <rect class="xq-live-bg" x="0" y="0" width="${WIDTH}" height="${HEIGHT}" rx="${BOARD_RADIUS}"/>
+      <rect class="xq-live-bg" x="0" y="0" width="${WIDTH}" height="${HEIGHT}"/>
       <g class="xq-live-palace-bands">${palaceBands(perspective)}</g>
       <g class="xq-live-grid">${gridLayer()}</g>
       <g class="xq-live-palace">${palaceLayer(perspective)}</g>

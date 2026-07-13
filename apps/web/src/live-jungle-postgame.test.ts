@@ -50,6 +50,11 @@ describe('Jungle postgame page', () => {
     expect(root.querySelector('.jungle-postgame-board')?.innerHTML).toContain('<svg');
     expect(root.querySelector('.review-stage')?.classList).toContain('review-stage--board-only');
     expect(
+      root
+        .querySelector<HTMLElement>('.review-shell__cluster')
+        ?.style.getPropertyValue('--uni-board-aspect'),
+    ).toBe((336 / 432).toFixed(4));
+    expect(
       [...root.querySelectorAll('button')].some((el) => el.textContent === 'Reveal tiles'),
     ).toBe(false);
 

@@ -10,8 +10,9 @@ import {
 import './live-xiangqi.css';
 import './landing.css';
 import './game-route.css';
+import { rectangularGridAspect } from './board-metrics.js';
 import { jungleEnabled } from './feature-flags.js';
-import { junglePieceGhostSvg, renderJungleBoardSvg } from './jungle-render.js';
+import { JUNGLE_BOARD_VIEW, junglePieceGhostSvg, renderJungleBoardSvg } from './jungle-render.js';
 import { createPane } from './replay-board.js';
 import { capturedByDiff } from './review/captured-diff.js';
 import { fillCapturedPoolWith } from './review/captured-pool.js';
@@ -159,7 +160,7 @@ function renderPostgame(root: HTMLElement, postgame: JunglePostgameResponse): vo
     details,
     moves: moveList.el,
     boards: [{ key: 'truth', el: pane.el, tier: 'primary' }],
-    boardAspect: 366 / 462,
+    boardAspect: rectangularGridAspect(JUNGLE_BOARD_VIEW),
     boardCols: 7,
     maxPly: junglePostgameMaxPly(postgame),
     renderBoards({ ply, flipped }) {
