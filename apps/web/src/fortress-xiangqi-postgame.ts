@@ -7,15 +7,9 @@ import './drop-mini-xiangqi.css';
 import './landing.css';
 import './game-route.css';
 import { fortressXiangqiEnabled } from './feature-flags.js';
-import {
-  installFortressXiangqiBoardStyles,
-  renderFortressXiangqiBoardSvg,
-} from './fortress-xiangqi-render.js';
-import { fillFortressXiangqiReserve, fortressXiangqiMoveLabel } from './fortress-xiangqi-view.js';
-import { createPane } from './replay-board.js';
+import { installFortressXiangqiBoardStyles } from './fortress-xiangqi-render.js';
+import { mountFortressXiangqiReview } from './review/fortress-xiangqi-review.js';
 import { buildReviewMeta, labelize, reviewResultLabel } from './review/game-review-meta.js';
-import { createMoveList } from './review/move-list.js';
-import { mountReviewLayout } from './review/review-layout.js';
 import { buildNav } from './site-shell.js';
 import { setBoardFamily } from './theme.js';
 
@@ -72,8 +66,6 @@ export type FortressXiangqiPostgameResponse = {
   >;
 };
 
-type FortressMoveEntry = { move: FortressXiangqiMove; ply: number; color: FortressXiangqiColor };
-
 type LoadResult =
   | { ok: true; postgame: FortressXiangqiPostgameResponse }
   | { ok: false; status: number; error: string };
@@ -122,29 +114,15 @@ export function fortressXiangqiPostgameApiUrl(roomId: string): string {
 }
 
 function renderPostgame(root: HTMLElement, postgame: FortressXiangqiPostgameResponse): void {
-  const pane = createPane('', 'truth', true, 'split');
-  pane.boardEl.classList.add('fortress-xiangqi-live-board');
-
-  const moves: FortressMoveEntry[] = postgame.timeline
+  // Perfect-information: the tree reconstructs every position (including drops) from
+  // the move list client-side. The server per-ply snapshots are used only by the
+  // watch adapter (postgameViewAtPly below).
+  const moves = postgame.timeline
     .filter(
-      (
-        entry,
-      ): entry is typeof entry & {
-        move: FortressXiangqiMove;
-        ply: number;
-        color: FortressXiangqiColor;
-      } =>
-        entry.type === 'move-played' &&
-        !!entry.move &&
-        typeof entry.ply === 'number' &&
-        !!entry.color,
+      (entry): entry is typeof entry & { move: FortressXiangqiMove } =>
+        entry.type === 'move-played' && !!entry.move,
     )
-    .map((entry) => ({ move: entry.move, ply: entry.ply, color: entry.color }));
-
-  const moveList = createMoveList(
-    moves.map((entry) => ({ ply: entry.ply, label: fortressXiangqiMoveLabel(entry.move) })),
-    { title: 'Moves' },
-  );
+    .map((entry) => entry.move);
 
   const status = `${reviewResultLabel(postgame.game.result)} by ${labelize(postgame.game.termination)}`;
   const { metaCard, details } = buildReviewMeta({
@@ -155,29 +133,17 @@ function renderPostgame(root: HTMLElement, postgame: FortressXiangqiPostgameResp
   });
 
   root.replaceChildren(buildNav());
-  mountReviewLayout(root, {
+  mountFortressXiangqiReview(root, {
     pageClassName: 'fortress-xiangqi-review',
     ariaLabel: 'Fortress postgame',
     title: 'Fortress Xiangqi',
     summary: `${status} · ${postgame.game.plyCount} plies`,
     metaCard,
     details,
-    moves: moveList.el,
-    boards: [{ key: 'truth', el: pane.el, tier: 'primary' }],
-    boardAspect: 516 / 588,
-    maxPly: postgameReplayMaxPly(postgame),
-    renderBoards({ ply, flipped }) {
-      const orientation: FortressXiangqiColor = flipped ? 'black' : 'red';
-      const view =
-        postgameViewAtPly(postgame, 'truth', ply) ?? postgame.views?.truth ?? postgame.view;
-      pane.boardEl.innerHTML = renderFortressXiangqiBoardSvg(view, orientation);
-      const top = orientation === 'red' ? 'black' : 'red';
-      fillFortressXiangqiReserve(pane.topCapturesEl, view, top);
-      fillFortressXiangqiReserve(pane.capturesEl, view, orientation);
-    },
-    renderMoves({ ply }, jump) {
-      moveList.update(ply, jump);
-    },
+    moves,
+    // Board-moves-first interactive review: no engine analysis wired yet, and the
+    // drop reserves are not shown (drops still replay correctly in the mainline).
+    analysis: null,
   });
 }
 

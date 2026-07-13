@@ -235,6 +235,51 @@ export function isFortressXiangqiDropMove(
   return 'drop' in move;
 }
 
+// ── Engine (Fairy-Stockfish) UCI ─────────────────────────────────────────────
+// Fortress serves PvE + review ceval via Fairy-Stockfish (UCI_Variant
+// 'fortressxiangqi'). Board moves are plain from+to; drops use the crazyhouse
+// '<letter>@<square>' form. The Treasure drops as 'Q' (FSF's queen slot); every
+// other role keeps its xiangqi letter. These mirror the server engine's private
+// converters so the client tree adapter speaks the same dialect.
+const FORTRESS_DROP_ROLE_TO_FSF_LETTER: Record<FortressXiangqiDropRole, string> = {
+  chariot: 'R',
+  horse: 'N',
+  cannon: 'C',
+  soldier: 'P',
+  treasure: 'Q',
+  advisor: 'A',
+  elephant: 'E',
+};
+
+const FORTRESS_FSF_LETTER_TO_DROP_ROLE: Record<string, FortressXiangqiDropRole> =
+  Object.fromEntries(
+    Object.entries(FORTRESS_DROP_ROLE_TO_FSF_LETTER).map(([role, letter]) => [
+      letter,
+      role as FortressXiangqiDropRole,
+    ]),
+  );
+
+export function fortressXiangqiMoveToFsfUci(move: FortressXiangqiMove): string {
+  return isFortressXiangqiDropMove(move)
+    ? `${FORTRESS_DROP_ROLE_TO_FSF_LETTER[move.drop]}@${move.to}`
+    : `${move.from}${move.to}`;
+}
+
+/** Inverse of fortressXiangqiMoveToFsfUci. Parse only (no legality check — the
+ *  tree's addMove validates on rebuild); returns null for a non-move token. */
+export function fsfUciToFortressXiangqiMove(uci: string): FortressXiangqiMove | null {
+  const drop = /^([RNCPQAE])@([a-g][1-8])$/.exec(uci);
+  if (drop) {
+    const role = FORTRESS_FSF_LETTER_TO_DROP_ROLE[drop[1]!];
+    return role ? { drop: role, to: drop[2] as FortressXiangqiSquare } : null;
+  }
+  const board = /^([a-g][1-8])([a-g][1-8])$/.exec(uci);
+  if (board) {
+    return { from: board[1] as FortressXiangqiSquare, to: board[2] as FortressXiangqiSquare };
+  }
+  return null;
+}
+
 // ── Initial position ────────────────────────────────────────────────────────
 
 export function createInitialFortressXiangqiBoard(): FortressXiangqiBoard {
