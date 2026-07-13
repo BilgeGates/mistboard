@@ -4,6 +4,7 @@ import { currentLocale, type Locale, localizedHref, stripLocalePrefix } from './
 import {
   adminNavItems,
   communityNavItems,
+  donateNavItem,
   learnNavItems,
   type NavItem,
   primaryNavItems,
@@ -87,6 +88,12 @@ export function buildNav(locale: Locale = currentLocale()): HTMLElement {
   const tools = toolsNavItems();
   if (tools.length > 0)
     links.append(navMenu('nav.tools', tools, locale, tools[0]?.href ?? '/analysis/xiangqi'));
+  // Donate is the rightmost public item, immediately left of the admin-only menu.
+  // Text-only for now (the heart-in-mist mark is a large-format asset that mushes
+  // at nav size); the rose accent still flags it as the support CTA.
+  const donate = navLink(donateNavItem(), locale);
+  donate.classList.add('site-nav-link-donate');
+  links.append(donate);
   // Consolidate internal tools under one admin-only menu. Initial visibility
   // comes from the persisted admin hint; account-nav reconciles it once auth
   // resolves. This is cosmetic only: both pages are admin-gated server-side.

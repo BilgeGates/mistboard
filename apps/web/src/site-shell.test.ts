@@ -18,7 +18,15 @@ describe('site shell nav', () => {
         '.site-nav-links > .site-nav-link:not([data-admin-only]), .site-nav-links > .site-nav-menu:not([data-admin-only]) > .site-nav-menu-toggle',
       ),
     ].map((link) => link.textContent);
-    expect(primaryLabels).toEqual(['Play', 'Puzzles', 'Learn', 'Watch', 'Community', 'Tools']);
+    expect(primaryLabels).toEqual([
+      'Play',
+      'Puzzles',
+      'Learn',
+      'Watch',
+      'Community',
+      'Tools',
+      'Donate',
+    ]);
 
     // The consolidated Admin menu stays hidden until account-nav resolves an
     // admin (no admin hint in a fresh test DOM).
@@ -112,7 +120,7 @@ describe('site shell nav', () => {
       ),
     ].map((link) => link.textContent);
 
-    expect(primaryLabels).toEqual(['對弈', '題目', '學習', '觀看', '社群', '工具']);
+    expect(primaryLabels).toEqual(['對弈', '題目', '學習', '觀看', '社群', '工具', '捐款']);
     expect(nav.getAttribute('aria-label')).toBe('主導覽');
     expect(nav.querySelector('.site-nav-language')).toBeNull();
     // The Learn dropdown's Rules item is the localized content link (規則).

@@ -194,6 +194,26 @@ a.site-nav-link[hidden],
   color: #f0be7e;
 }
 
+/* Donate = warm rose text link with the heart-in-mist glyph, distinct from the
+   green accent and the amber admin menu so support reads as its own gesture. */
+.site-nav-links > .site-nav-link-donate {
+  color: #c04f6a;
+}
+
+.site-nav-links > .site-nav-link-donate:hover,
+.site-nav-links > .site-nav-link-donate:focus-visible {
+  color: #a23c55;
+}
+
+:root[data-effective-theme="dark"] .site-nav-link-donate {
+  color: #e88aa0;
+}
+
+:root[data-effective-theme="dark"] .site-nav-links > .site-nav-link-donate:hover,
+:root[data-effective-theme="dark"] .site-nav-links > .site-nav-link-donate:focus-visible {
+  color: #f3a6b8;
+}
+
 /* Register = filled accent (green) button, like lichess's filled blue Register. */
 .site-nav-link-register {
   min-height: 40px;

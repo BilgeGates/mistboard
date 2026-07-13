@@ -56,6 +56,12 @@ export function learnNavItems(): NavItem[] {
   ];
 }
 
+// Public support link, rendered as the rightmost public nav item (left of the
+// admin-only menu). Points at the existing /patron donate page.
+export function donateNavItem(): NavItem {
+  return { label: 'Donate', labelKey: 'nav.donate', href: '/patron' };
+}
+
 export function adminNavItems(): NavItem[] {
   return [
     { label: 'Database', labelKey: 'nav.database', href: '/database' },
