@@ -109,9 +109,24 @@ export function xiangqiPostgameApiUrl(roomId: string): string {
 }
 
 function renderPostgame(root: HTMLElement, postgame: XiangqiPostgameResponse): void {
-  const moves = postgame.timeline
-    .filter((item) => item.type === 'move-played' && item.move)
-    .map((item) => item.move as XiangqiMove);
+  const moveEvents = postgame.timeline.filter((item) => item.type === 'move-played' && item.move);
+  const moves = moveEvents.map((item) => item.move as XiangqiMove);
+
+  // Per-ply elapsed time from consecutive event timestamps (the server persists no
+  // per-move clock, so the first ply's delta is measured from the earliest event).
+  let prevAt = postgame.timeline[0]?.at ?? moveEvents[0]?.at ?? 0;
+  const moveTimes = moveEvents.map((item) => {
+    const delta = Math.max(0, item.at - prevAt);
+    prevAt = item.at;
+    return delta;
+  });
+  const hasMoveTimes = moveTimes.some((ms) => ms > 0);
+
+  const gamePlayers = postgame.game.players ?? [];
+  const playerNames = {
+    red: gamePlayers.find((p) => p.color === 'red')?.name,
+    black: gamePlayers.find((p) => p.color === 'black')?.name,
+  };
 
   const status = `${reviewResultLabel(postgame.game.result)} by ${labelize(postgame.game.termination)}`;
   const { metaCard, details } = buildReviewMeta({
@@ -132,6 +147,9 @@ function renderPostgame(root: HTMLElement, postgame: XiangqiPostgameResponse): v
     // The tree reconstructs positions from the move list client-side (open info,
     // so it matches the server truth); the server per-ply snapshots are unused.
     moves,
+    moveTimes: hasMoveTimes ? moveTimes : undefined,
+    players: playerNames,
+    showCrosstable: true,
     // Server Pikafish whole-game analysis, DB-cached: an already-analysed game
     // loads straight from cache on open (a GET that never computes). Requesting a
     // fresh compute is account-gated (the server rejects anon POSTs), so a

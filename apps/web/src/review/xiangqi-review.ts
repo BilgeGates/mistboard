@@ -14,6 +14,7 @@
 import {
   fsfUciToXiangqiSquares,
   type StandardXiangqiPlayerView,
+  standardXiangqiEngineFen,
   type XiangqiColor,
   type XiangqiGameState,
   type XiangqiMove,
@@ -45,11 +46,8 @@ import {
 } from './game-tree.js';
 import { createMoveAdvice } from './move-advice.js';
 import { createMoveTree, type MoveTree, type MoveTreeAnnotation, pathKey } from './move-tree.js';
-import {
-  createReviewNavBar,
-  createReviewScaffold,
-  installReviewKeyboard,
-} from './review-layout.js';
+import { createReviewControls, REVIEW_MENU_ICONS } from './review-controls.js';
+import { createReviewScaffold, installReviewKeyboard } from './review-layout.js';
 import { deserializeTree, type SerializedTree, serializeTree } from './tree-serialize.js';
 import { xiangqiTreeAdapter } from './xiangqi-tree-adapter.js';
 
@@ -100,8 +98,20 @@ export type XiangqiReviewConfig = {
   /** Show gamebook (lesson) authoring fields — per-node hint + deviation — in the
    *  annotation editor. The study page sets this for a gamebook chapter's owner. */
   gamebookEditing?: boolean;
+  /** Show the study annotation controls (glyph picker + comment box + clear-shapes)
+   *  in the right rail. Only editable studies set this; the postgame/analysis
+   *  review surfaces are read-only and omit it. Board shape-drawing still works. */
+  annotationEditing?: boolean;
   /** Whole-game analysis source; null disables the analysis affordance. */
   analysis: XiangqiAnalysisSource | null;
+  /** Per-ply elapsed milliseconds (index 0 = ply 1). When present, a "Move times"
+   *  underboard tab renders a per-move bar chart. Only real games supply it. */
+  moveTimes?: number[];
+  /** Real player names — label the accuracy summary and crosstable stub. Absent =
+   *  the side colors (Red / Black) are used. */
+  players?: { red?: string; black?: string };
+  /** Show the "Crosstable" underboard tab (a head-to-head record — a stub for now). */
+  showCrosstable?: boolean;
 };
 
 /** Handle returned by mountXiangqiReview: lets a caller snapshot the current tree
@@ -186,7 +196,7 @@ export function mountXiangqiReview(
         : [...existing, shape];
       tree.annotateAt(currentPath, { shapes: nextShapes });
       paintOverlays();
-      annotationEditor.setAnnotations(currentNode().annotations);
+      annotationEditor?.setAnnotations(currentNode().annotations);
       notifyChange();
     },
   });
@@ -260,54 +270,76 @@ export function mountXiangqiReview(
     },
   });
 
-  // ── Navigation bar (tree-driven, scrubber-styled) ──
-  const nav = createReviewNavBar({
-    first: () => go(ROOT_PATH),
-    previous: () => go(tree.stepBack(currentPath)),
-    next: () => go(tree.stepForward(currentPath)),
-    last: () => go(lineEnd(currentPath)),
-    flip: () => flipBoard(),
+  // ── Control bar (below the move box): nav + a menu overlay. Flip lives in the
+  // menu; the deferred analyse tools are muted placeholders. ──
+  const controls = createReviewControls({
+    onFirst: () => go(ROOT_PATH),
+    onPrevious: () => go(tree.stepBack(currentPath)),
+    onNext: () => go(tree.stepForward(currentPath)),
+    onLast: () => go(lineEnd(currentPath)),
+    menuItems: [
+      { label: 'Flip board', icon: REVIEW_MENU_ICONS.flip, onClick: () => flipBoard() },
+      { label: 'Board editor', icon: REVIEW_MENU_ICONS.editor, disabled: true },
+      { label: 'Learn from your mistakes', icon: REVIEW_MENU_ICONS.learn, disabled: true },
+      { label: 'Continue from here', icon: REVIEW_MENU_ICONS.continue, disabled: true },
+      { label: 'Study', icon: REVIEW_MENU_ICONS.study, disabled: true },
+      { label: 'Clear moves', icon: REVIEW_MENU_ICONS.clear, disabled: true },
+      { label: 'Settings', icon: REVIEW_MENU_ICONS.settings, disabled: true },
+    ],
   });
 
   // ── Whole-game analysis (mainline) → underboard chart + summary + glyphs ──
   const underboardBody = document.createElement('div');
   underboardBody.className = 'review-underboard-panel__body';
-  const underboardEl = underboardPanel(underboardBody);
+  // Live-FEN share input, refreshed on every navigation (see render()).
+  const shareFenInput = document.createElement('input');
+  const shareMovesInput = document.createElement('textarea');
+  const underboardEl = underboardPanel(underboardBody, {
+    moveTimes: config.moveTimes,
+    players: config.showCrosstable ? (config.players ?? {}) : undefined,
+    shareFenInput,
+    shareMovesInput,
+    gameUrl: typeof window !== 'undefined' ? window.location.href : '',
+  });
   const analysisSummaryEl = document.createElement('div');
   const moveAdvice = createMoveAdvice();
   let chart: AdvantageChart | null = null;
 
   // ── Study annotation controls (glyph picker + comment editor) ──
-  const annotationEditor = createAnnotationEditor({
-    onGlyph: (code) => {
-      tree.annotateAt(currentPath, { glyphs: code === null ? [] : [code] });
-      refreshMoveTreeAnnotations();
-      render();
-      notifyChange();
-    },
-    onComment: (text) => {
-      // Per-keystroke write; deliberately no render() — the move list carries no
-      // comment marker in S1 and a re-render would drop the textarea caret.
-      tree.annotateAt(currentPath, { comments: text.trim() ? [{ text }] : [] });
-      notifyChange();
-    },
-    onClearShapes: () => {
-      tree.annotateAt(currentPath, { shapes: [] });
-      paintOverlays();
-      annotationEditor.setAnnotations(currentNode().annotations);
-      notifyChange();
-    },
-    gamebook: config.gamebookEditing,
-    onGamebook: (patch) => {
-      tree.annotateAt(currentPath, {
-        gamebook: {
-          hint: patch.hint?.trim() || undefined,
-          deviation: patch.deviation?.trim() || undefined,
+  // Only editable studies show them; the read-only postgame/analysis surfaces omit
+  // the panel entirely (board shape-drawing still works either way).
+  const annotationEditor = config.annotationEditing
+    ? createAnnotationEditor({
+        onGlyph: (code) => {
+          tree.annotateAt(currentPath, { glyphs: code === null ? [] : [code] });
+          refreshMoveTreeAnnotations();
+          render();
+          notifyChange();
         },
-      });
-      notifyChange();
-    },
-  });
+        onComment: (text) => {
+          // Per-keystroke write; deliberately no render() — the move list carries no
+          // comment marker in S1 and a re-render would drop the textarea caret.
+          tree.annotateAt(currentPath, { comments: text.trim() ? [{ text }] : [] });
+          notifyChange();
+        },
+        onClearShapes: () => {
+          tree.annotateAt(currentPath, { shapes: [] });
+          paintOverlays();
+          annotationEditor?.setAnnotations(currentNode().annotations);
+          notifyChange();
+        },
+        gamebook: config.gamebookEditing,
+        onGamebook: (patch) => {
+          tree.annotateAt(currentPath, {
+            gamebook: {
+              hint: patch.hint?.trim() || undefined,
+              deviation: patch.deviation?.trim() || undefined,
+            },
+          });
+          notifyChange();
+        },
+      })
+    : null;
 
   // The tree truncates an illegal seed to the legal prefix; surface a notice.
   const truncated = !config.initialTree && mainlineLen < config.moves.length;
@@ -330,8 +362,8 @@ export function mountXiangqiReview(
     enginePanel: enginePanel.el,
     moves: moveTree.el,
     moveComment: moveAdvice.el,
-    annotations: annotationEditor.el,
-    navigation: nav.el,
+    annotations: annotationEditor?.el,
+    navigation: controls.el,
     analysisSummary: analysisSummaryEl,
     gauge: evalBar.el,
     onPromote: () => render(),
@@ -393,9 +425,12 @@ export function mountXiangqiReview(
     // covering the engine-off case where setPosition fires no onLines.
     enginePanel.setPosition(uciTo(node));
     paintOverlays();
-    annotationEditor.setAnnotations(node.annotations);
+    annotationEditor?.setAnnotations(node.annotations);
     moveTree.setCurrent(currentPath);
-    nav.setBounds({ atStart: currentPath.length === 0, atEnd: node.children.length === 0 });
+    controls.setBounds({ atStart: currentPath.length === 0, atEnd: node.children.length === 0 });
+    // Live-refresh the Share tab's FEN + move export for the current node/line.
+    shareFenInput.value = standardXiangqiEngineFen(node.truth);
+    shareMovesInput.value = uciTo(node).join(' ');
     chart?.setPly(node.ply);
     moveAdvice.update(node.ply, gameAnalysis);
   }
@@ -411,7 +446,7 @@ export function mountXiangqiReview(
     });
     chart.setPly(currentNode().ply);
     underboardBody.replaceChildren(chart.el);
-    analysisSummaryEl.replaceChildren(createAnalysisSummary(analysis));
+    analysisSummaryEl.replaceChildren(createAnalysisSummary(analysis, config.players));
     refreshMoveTreeAnnotations(); // rebuilds the tree DOM (engine glyphs + user glyphs)
     render(); // re-highlight + re-apply move advice
     scaffold.refit(); // the underboard grew; re-fit the board
@@ -515,18 +550,159 @@ export function mountXiangqiReview(
   return { serialize: () => serializeTree(tree, xiangqiTreeAdapter) };
 }
 
-function underboardPanel(body: HTMLElement): HTMLElement {
+type UnderboardOptions = {
+  moveTimes?: number[];
+  /** Present = show the Crosstable tab; the names label its stub. */
+  players?: { red?: string; black?: string };
+  shareFenInput: HTMLInputElement;
+  shareMovesInput: HTMLTextAreaElement;
+  gameUrl: string;
+};
+
+type UnderboardTab = { id: string; label: string; body: HTMLElement };
+
+// Lichess analyse underboard: a tab strip (Computer analysis / Move times /
+// Crosstable / Share & export) over a shared body. Computer analysis is the live
+// chart body; the others are built here. Tabs that have no data are omitted.
+function underboardPanel(analysisBody: HTMLElement, opts: UnderboardOptions): HTMLElement {
+  const tabDefs: UnderboardTab[] = [
+    { id: 'analysis', label: 'Computer analysis', body: analysisBody },
+  ];
+  if (opts.moveTimes && opts.moveTimes.length > 0) {
+    tabDefs.push({ id: 'times', label: 'Move times', body: moveTimesBody(opts.moveTimes) });
+  }
+  if (opts.players) {
+    tabDefs.push({ id: 'crosstable', label: 'Crosstable', body: crosstableBody(opts.players) });
+  }
+  tabDefs.push({
+    id: 'share',
+    label: 'Share & export',
+    body: shareExportBody(opts.shareFenInput, opts.shareMovesInput, opts.gameUrl),
+  });
+
   const panel = document.createElement('section');
   panel.className = 'review-underboard-panel';
   const tabs = document.createElement('div');
   tabs.className = 'review-underboard-tabs';
-  const tab = document.createElement('button');
-  tab.type = 'button';
-  tab.className = 'review-underboard-tab review-underboard-tab--active';
-  tab.textContent = 'Computer analysis';
-  tabs.append(tab);
-  panel.append(tabs, body);
+  const bodies = document.createElement('div');
+  bodies.className = 'review-underboard-bodies';
+
+  const buttons = new Map<string, HTMLButtonElement>();
+  const show = (id: string): void => {
+    for (const def of tabDefs) {
+      const active = def.id === id;
+      def.body.hidden = !active;
+      buttons.get(def.id)?.classList.toggle('review-underboard-tab--active', active);
+    }
+  };
+  for (const def of tabDefs) {
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.className = 'review-underboard-tab';
+    button.textContent = def.label;
+    button.addEventListener('click', () => show(def.id));
+    buttons.set(def.id, button);
+    tabs.append(button);
+    def.body.classList.add('review-underboard-panel__body');
+    bodies.append(def.body);
+  }
+  panel.append(tabs, bodies);
+  show(tabDefs[0]!.id);
   return panel;
+}
+
+// Per-move time bars (lichess "Move times"): red plies (1,3,5…) above the axis,
+// black plies below. Heights scale to the slowest move.
+function moveTimesBody(times: number[]): HTMLElement {
+  const body = document.createElement('div');
+  const chart = document.createElement('div');
+  chart.className = 'review-move-times';
+  const max = Math.max(1, ...times);
+  for (let i = 0; i < times.length; i += 1) {
+    const isRed = i % 2 === 0; // ply 1 (index 0) is Red's move
+    const col = document.createElement('div');
+    col.className = `review-move-times__bar review-move-times__bar--${isRed ? 'red' : 'black'}`;
+    col.style.height = `${Math.max(2, Math.round((times[i]! / max) * 100))}%`;
+    col.title = `Move ${i + 1}: ${formatDuration(times[i]!)}`;
+    chart.append(col);
+  }
+  const total = times.reduce((sum, t) => sum + t, 0);
+  const caption = document.createElement('p');
+  caption.className = 'review-move-times__caption';
+  caption.textContent = `Total move time ${formatDuration(total)}`;
+  body.append(chart, caption);
+  return body;
+}
+
+function crosstableBody(players: { red?: string; black?: string }): HTMLElement {
+  const body = document.createElement('div');
+  const note = document.createElement('p');
+  note.className = 'review-underboard-empty';
+  const names = players.red && players.black ? `${players.red} vs ${players.black}` : '';
+  note.textContent = names
+    ? `Head-to-head record for ${names} is coming soon.`
+    : 'Head-to-head record is coming soon.';
+  body.append(note);
+  return body;
+}
+
+function shareExportBody(
+  fenInput: HTMLInputElement,
+  movesInput: HTMLTextAreaElement,
+  gameUrl: string,
+): HTMLElement {
+  const body = document.createElement('div');
+  const grid = document.createElement('div');
+  grid.className = 'review-share';
+
+  fenInput.className = 'review-share__field';
+  fenInput.readOnly = true;
+  grid.append(shareRow('FEN', fenInput));
+
+  const urlInput = document.createElement('input');
+  urlInput.className = 'review-share__field';
+  urlInput.readOnly = true;
+  urlInput.value = gameUrl;
+  grid.append(shareRow('Share', urlInput));
+
+  movesInput.className = 'review-share__field review-share__field--moves';
+  movesInput.readOnly = true;
+  movesInput.rows = 2;
+  grid.append(shareRow('Moves', movesInput));
+
+  body.append(grid);
+  return body;
+}
+
+function shareRow(label: string, field: HTMLInputElement | HTMLTextAreaElement): HTMLElement {
+  const row = document.createElement('div');
+  row.className = 'review-share__row';
+  const name = document.createElement('span');
+  name.className = 'review-share__label';
+  name.textContent = label;
+  const copy = document.createElement('button');
+  copy.type = 'button';
+  copy.className = 'review-share__copy';
+  copy.textContent = 'Copy';
+  copy.addEventListener('click', () => {
+    void navigator.clipboard?.writeText(field.value).then(
+      () => {
+        copy.textContent = 'Copied';
+        setTimeout(() => (copy.textContent = 'Copy'), 1200);
+      },
+      () => {},
+    );
+  });
+  row.append(name, field, copy);
+  return row;
+}
+
+function formatDuration(ms: number): string {
+  const totalSeconds = Math.round(ms / 1000);
+  if (totalSeconds < 60) return `${totalSeconds}s`;
+  const minutes = Math.floor(totalSeconds / 60);
+  const seconds = totalSeconds % 60;
+  return `${minutes}:${String(seconds).padStart(2, '0')}`;
 }
 
 function truncationNotice(legal: number): HTMLElement {

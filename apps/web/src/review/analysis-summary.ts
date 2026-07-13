@@ -6,11 +6,17 @@
 import './analysis-summary.css';
 import type { GameAnalysis, PlayerAnalysis } from './game-analysis.js';
 
-export function createAnalysisSummary(analysis: GameAnalysis): HTMLElement {
+/** Optional real player names; fall back to the side colors for anonymous games. */
+export type AnalysisSummaryLabels = { red?: string; black?: string };
+
+export function createAnalysisSummary(
+  analysis: GameAnalysis,
+  labels?: AnalysisSummaryLabels,
+): HTMLElement {
   const el = document.createElement('section');
   el.className = 'analysis-summary';
-  el.append(playerBlock('Red', 'analysis-summary__dot--red', analysis.red));
-  el.append(playerBlock('Black', 'analysis-summary__dot--black', analysis.black));
+  el.append(playerBlock(labels?.red || 'Red', 'analysis-summary__dot--red', analysis.red));
+  el.append(playerBlock(labels?.black || 'Black', 'analysis-summary__dot--black', analysis.black));
   return el;
 }
 

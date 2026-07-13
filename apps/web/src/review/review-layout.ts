@@ -215,19 +215,24 @@ export function createReviewScaffold(
   materialBottom?.classList.add('review-material-row');
   const railMain = document.createElement('div');
   railMain.className = 'review-rail-main';
+  // The box that tracks the board's bottom is MOVES ONLY (engine head + move list +
+  // advice + any study annotations). Playback controls live BELOW it (lichess
+  // analyse), so the box bottom lines up with the board and the controls sit under
+  // both — see config.navigation's position in the rail group below.
   railMain.append(
-    ...[
-      config.enginePanel,
-      config.moves,
-      config.moveComment,
-      config.annotations,
-      config.navigation,
-    ].filter((el): el is HTMLElement => el != null),
-  );
-  const right = railGroup(
-    [materialTop, railMain, config.analysisSummary, materialBottom, config.railFooter].filter(
+    ...[config.enginePanel, config.moves, config.moveComment, config.annotations].filter(
       (el): el is HTMLElement => el != null,
     ),
+  );
+  const right = railGroup(
+    [
+      materialTop,
+      railMain,
+      config.navigation,
+      config.analysisSummary,
+      materialBottom,
+      config.railFooter,
+    ].filter((el): el is HTMLElement => el != null),
   );
   const center = config.underboard ? centerColumn(stage.el, config.underboard) : stage.el;
 
@@ -256,15 +261,19 @@ export function createReviewScaffold(
   const grip = attachBoardResizeGrip(stage.el, () =>
     stage.el.querySelector<HTMLElement>('.review-stage__slot--primary'),
   );
+  const GRIP_SIZE_PX = 15;
+  const GRIP_INSET_PX = 3;
   const positionGrip = (): void => {
     const slot = stage.el.querySelector<HTMLElement>('.review-stage__slot--primary');
     if (!slot) return;
     const slotRect = slot.getBoundingClientRect();
     const stageRect = stage.el.getBoundingClientRect();
     if (slotRect.width === 0 || stageRect.width === 0) return;
-    grip.style.right = `${Math.max(0, stageRect.right - slotRect.right) - 8}px`;
+    // Tuck the handle just INSIDE the board's bottom-right corner (lichess), not
+    // hanging off the outside edge.
+    grip.style.right = `${Math.max(0, stageRect.right - slotRect.right) + GRIP_INSET_PX}px`;
     grip.style.bottom = 'auto';
-    grip.style.top = `${slotRect.bottom - stageRect.top - 10}px`;
+    grip.style.top = `${slotRect.bottom - stageRect.top - GRIP_SIZE_PX - GRIP_INSET_PX}px`;
   };
 
   function refit(): void {

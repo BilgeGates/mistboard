@@ -1,12 +1,13 @@
 /* Per-player accuracy summary. See review/analysis-summary.ts. */
+/* Sits transparently on the page background (lichess analyse ACC block), not in a
+   card — the counts read as plain text below the controls. */
 .analysis-summary {
   display: flex;
   flex-direction: column;
   gap: 12px;
-  padding: 12px;
-  border: 1px solid var(--site-border);
-  border-radius: var(--site-radius, 10px);
-  background: var(--site-panel, var(--site-surface));
+  padding: 4px 2px;
+  border: none;
+  background: transparent;
 }
 .analysis-summary__player {
   display: flex;
