@@ -7,8 +7,10 @@ import type {
 import './live-xiangqi.css';
 import './landing.css';
 import './game-route.css';
+import { rectangularGridAspect } from './board-metrics.js';
 import { jungleFlipEnabled } from './feature-flags.js';
 import {
+  JUNGLE_FLIP_BOARD_VIEW,
   type JungleFlipRenderBoard,
   jungleFlipPieceGhostSvg,
   renderJungleFlipBoardSvg,
@@ -215,7 +217,7 @@ function renderPostgame(root: HTMLElement, postgame: JungleFlipPostgameResponse)
     railFooter: revealFooter(revealBtn),
     moves: moveList.el,
     boards: [{ key: 'truth', el: pane.el, tier: 'primary' }],
-    boardAspect: 64 / 64,
+    boardAspect: rectangularGridAspect(JUNGLE_FLIP_BOARD_VIEW),
     // 4x4 board: cap the review fit so four cells keep a sensible size.
     boardMaxPx: 560,
     // Compact capture tiles (board width / 8) so the top/bottom strips stay short
