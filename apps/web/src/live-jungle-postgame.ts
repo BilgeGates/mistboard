@@ -1,32 +1,17 @@
-import {
-  createInitialJungleBoard,
-  type JungleBoard,
-  type JungleColor,
-  type JungleGameStatus,
-  type JungleMove,
-  type JunglePlayerView,
-  type JungleSquare,
+import type {
+  JungleColor,
+  JungleGameStatus,
+  JungleMove,
+  JunglePlayerView,
+  JungleSquare,
 } from '@mistboard/game';
 import './live-xiangqi.css';
 import './landing.css';
 import './game-route.css';
-import { rectangularGridAspect } from './board-metrics.js';
 import { jungleEnabled } from './feature-flags.js';
-import { JUNGLE_BOARD_VIEW, junglePieceGhostSvg, renderJungleBoardSvg } from './jungle-render.js';
-import { createPane } from './replay-board.js';
-import { capturedByDiff } from './review/captured-diff.js';
-import { fillCapturedPoolWith } from './review/captured-pool.js';
-import { createFlankCaptures } from './review/flank-captures.js';
 import { buildReviewMeta, labelize, reviewResultLabel } from './review/game-review-meta.js';
-import { createMoveList } from './review/move-list.js';
-import { mountReviewLayout } from './review/review-layout.js';
+import { mountJungleReview } from './review/jungle-review.js';
 import { buildNav } from './site-shell.js';
-
-// Jungle's perfect-information view carries no captured list, so derive it by
-// diffing the standard opening against the current board.
-const JUNGLE_INITIAL_PIECES = Object.values(createInitialJungleBoard()).filter(
-  (piece): piece is NonNullable<typeof piece> => Boolean(piece),
-);
 
 // Postgame review for Jungle. Jungle is PERFECT-INFORMATION: the board was always
 // fully visible, so there is one review surface and one per-ply history (no
@@ -75,8 +60,6 @@ export type JunglePostgameResponse = {
   history: JungleSnapshot[];
 };
 
-type JungleMoveEntry = { move: JungleMove; ply: number; color: JungleColor };
-
 type LoadResult =
   | { ok: true; postgame: JunglePostgameResponse }
   | { ok: false; status: number; error: string };
@@ -117,30 +100,15 @@ export function junglePostgameApiUrl(roomId: string): string {
 }
 
 function renderPostgame(root: HTMLElement, postgame: JunglePostgameResponse): void {
-  const pane = createPane('', 'truth', false, 'single');
-  pane.boardEl.classList.add('jungle-postgame-board', 'jungle-live-board');
-  // Flank layout: capture columns beside the board (opponent top-left, near side
-  // bottom-right) so the board keeps its full height. Reparent the board into the
-  // flank host at its original position.
-  const flankAnchor = pane.boardEl.nextSibling;
-  const flankParent = pane.boardEl.parentElement;
-  const flank = createFlankCaptures(pane.boardEl);
-  flankParent?.insertBefore(flank.host, flankAnchor);
-
-  const moves: JungleMoveEntry[] = postgame.timeline
+  // Jungle is perfect-information, so the tree reconstructs every position from the
+  // move list client-side (it matches the server truth). The server per-ply
+  // snapshots are used only by the watch adapter (junglePostgameViewAtPly below).
+  const moves = postgame.timeline
     .filter(
-      (entry): entry is typeof entry & { move: JungleMove; ply: number; color: JungleColor } =>
-        entry.type === 'move-played' &&
-        !!entry.move &&
-        typeof entry.ply === 'number' &&
-        !!entry.color,
+      (entry): entry is typeof entry & { move: JungleMove } =>
+        entry.type === 'move-played' && !!entry.move,
     )
-    .map((entry) => ({ move: entry.move, ply: entry.ply, color: entry.color }));
-
-  const moveList = createMoveList(
-    moves.map((entry) => ({ ply: entry.ply, label: `${entry.move.from}-${entry.move.to}` })),
-    { title: 'Moves' },
-  );
+    .map((entry) => entry.move);
 
   const status = `${reviewResultLabel(postgame.game.result)} by ${labelize(postgame.game.termination)}`;
   const { metaCard, details } = buildReviewMeta({
@@ -151,38 +119,17 @@ function renderPostgame(root: HTMLElement, postgame: JunglePostgameResponse): vo
   });
 
   root.replaceChildren(buildNav());
-  mountReviewLayout(root, {
+  mountJungleReview(root, {
     pageClassName: 'jungle-review',
     ariaLabel: 'Jungle postgame',
     title: 'Jungle Chess',
     summary: `${status} · ${postgame.game.plyCount} plies`,
     metaCard,
     details,
-    moves: moveList.el,
-    boards: [{ key: 'truth', el: pane.el, tier: 'primary' }],
-    boardAspect: rectangularGridAspect(JUNGLE_BOARD_VIEW),
-    boardCols: 7,
-    maxPly: junglePostgameMaxPly(postgame),
-    renderBoards({ ply, flipped }) {
-      const orientation: JungleColor = flipped ? 'black' : 'red';
-      const view = junglePostgameViewAtPly(postgame, ply) ?? postgame.view;
-      pane.boardEl.innerHTML = renderJungleBoardSvg(view.board as JungleBoard, {
-        perspective: orientation,
-        lastMove: view.lastMove ?? null,
-      });
-      const current = Object.values(view.board).filter(
-        (piece): piece is NonNullable<typeof piece> => Boolean(piece),
-      );
-      const captured = capturedByDiff(JUNGLE_INITIAL_PIECES, current);
-      const opponent: JungleColor = orientation === 'red' ? 'black' : 'red';
-      flank.leftColumn.replaceChildren();
-      flank.rightColumn.replaceChildren();
-      fillCapturedPoolWith(flank.leftColumn, captured, orientation, junglePieceGhostSvg);
-      fillCapturedPoolWith(flank.rightColumn, captured, opponent, junglePieceGhostSvg);
-    },
-    renderMoves({ ply }, jump) {
-      moveList.update(ply, jump);
-    },
+    moves,
+    // No jungle whole-game analysis engine is wired yet; the interactive board +
+    // move tree stand on their own (no eval gauge, no computer-analysis underboard).
+    analysis: null,
   });
 }
 

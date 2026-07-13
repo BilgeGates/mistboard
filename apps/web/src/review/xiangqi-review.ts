@@ -53,7 +53,13 @@ const xiangqiPresentation: TreePresentation<
   XiangqiBoardMarker
 > = {
   adapter: xiangqiTreeAdapter,
-  enginePanelVariant: 'xiangqi',
+  engine: {
+    panelVariant: 'xiangqi',
+    fen: standardXiangqiEngineFen,
+    formatPvMove: formatXiangqiEngineMove,
+    engineArrowsFromLines,
+    bestMoveArrow,
+  },
   boardHostClassName: 'dxq-postgame__board xiangqi-live-board',
   boardWrapClassName: 'dxq-postgame__board-wrap review-board-host',
   defaultBoardAriaLabel: 'Xiangqi board',
@@ -67,10 +73,6 @@ const xiangqiPresentation: TreePresentation<
   seatFor: (view) => (view.status.type === 'playing' ? view.status.turn : null),
   createBoard: (opts) => createXiangqiInteractiveBoard(opts),
   animateMove: animateXiangqiBoardMove,
-  engineFen: standardXiangqiEngineFen,
-  formatPvMove: formatXiangqiEngineMove,
-  engineArrowsFromLines,
-  bestMoveArrow,
   shapeToArrow: (s: NodeShape): XiangqiBoardArrow => ({
     from: s.orig as XiangqiSquare,
     to: (s.dest ?? s.orig) as XiangqiSquare,

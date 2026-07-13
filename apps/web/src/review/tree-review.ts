@@ -76,11 +76,26 @@ export interface TreeBoardFactoryOptions<Move, View, Color> {
 /** The injected, variant-specific presentation bundle. Arrow/Marker are OPAQUE to
  *  the controller (it only passes them from the engine/shape builders into the
  *  board handle), so they stay free type params. */
+export interface EnginePresentation<Truth, Arrow> {
+  /** Which ceval engine the local engine panel loads. */
+  panelVariant: CevalVariant;
+  /** Engine FEN for a truth state (the Share tab). */
+  fen(truth: Truth): string;
+  /** Prettify a PV move (engine UCI) for the engine panel. */
+  formatPvMove(uci: string): string;
+  /** On-board arrows for live MultiPV lines. */
+  engineArrowsFromLines(lines: CevalLine[]): Arrow[];
+  /** Single best-move arrow from a whole-game analysis ply; empty when absent. */
+  bestMoveArrow(best: string | null | undefined): Arrow[];
+}
+
 export interface TreePresentation<Move, Truth, View, Color, Arrow, Marker> {
   /** Rules seam: the concrete VariantTreeAdapter (already generic). */
   adapter: VariantTreeAdapter<Move, Truth, View>;
-  /** Which ceval engine the local engine panel loads. */
-  enginePanelVariant: CevalVariant;
+  /** Client-engine hooks (local ceval panel + eval gauge + engine arrows + Share
+   *  FEN). Null for variants with no client engine: the panel and gauge are then
+   *  omitted and the board carries no eval affordance. */
+  engine: EnginePresentation<Truth, Arrow> | null;
   /** Class on the board host element (e.g. 'dxq-postgame__board xiangqi-live-board'). */
   boardHostClassName: string;
   /** Class on the board wrapper section (e.g. 'dxq-postgame__board-wrap review-board-host'). */
@@ -111,14 +126,6 @@ export interface TreePresentation<Move, Truth, View, Color, Arrow, Marker> {
     perspective: Color,
     opts?: { reverse?: boolean },
   ): void;
-  /** Engine FEN for a truth state (the Share tab). */
-  engineFen(truth: Truth): string;
-  /** Prettify a PV move (engine UCI) for the engine panel. */
-  formatPvMove(uci: string): string;
-  /** On-board arrows for live MultiPV lines. */
-  engineArrowsFromLines(lines: CevalLine[]): Arrow[];
-  /** Single best-move arrow from a whole-game analysis ply; empty when absent. */
-  bestMoveArrow(best: string | null | undefined): Arrow[];
   /** A user-drawn annotation arrow shape → board arrow. */
   shapeToArrow(shape: NodeShape): Arrow;
   /** A user-drawn annotation circle shape → board marker. */
@@ -227,7 +234,8 @@ export function mountTreeReview<Move, Truth, View, Color, Arrow, Marker>(
   boardEl.setAttribute('aria-label', config.boardAriaLabel ?? presentation.defaultBoardAriaLabel);
   boardWrap.append(boardEl);
 
-  const evalBar = createEvalBar();
+  // No client engine → no eval gauge (and no engine panel below).
+  const evalBar = presentation.engine ? createEvalBar() : null;
 
   const interactive = presentation.createBoard({
     board: boardEl,
@@ -277,12 +285,14 @@ export function mountTreeReview<Move, Truth, View, Color, Arrow, Marker>(
   let engineLines: CevalLine[] | null = null;
   // Engine PV / analysis-best arrows for the current node (transient, derived).
   function engineArrows(): Arrow[] {
-    if (engineLines?.length) return presentation.engineArrowsFromLines(engineLines);
+    const engine = presentation.engine;
+    if (!engine) return [];
+    if (engineLines?.length) return engine.engineArrowsFromLines(engineLines);
     if (SHOW_ANALYSIS_BEST_ARROW && gameAnalysis) {
       const node = currentNode();
       if (mainlineNodes()[node.ply] === node) {
         const best = gameAnalysis.evals.find((entry) => entry.ply === node.ply)?.best;
-        return presentation.bestMoveArrow(best);
+        return engine.bestMoveArrow(best);
       }
     }
     return [];
@@ -298,15 +308,18 @@ export function mountTreeReview<Move, Truth, View, Color, Arrow, Marker>(
     );
   }
 
-  const enginePanel = createEnginePanel({
-    variant: presentation.enginePanelVariant,
-    formatPvMove: presentation.formatPvMove,
-    evalBar,
-    onLines: (lines) => {
-      engineLines = lines?.length ? lines : null;
-      paintOverlays();
-    },
-  });
+  const enginePanel =
+    presentation.engine && evalBar
+      ? createEnginePanel({
+          variant: presentation.engine.panelVariant,
+          formatPvMove: presentation.engine.formatPvMove,
+          evalBar,
+          onLines: (lines) => {
+            engineLines = lines?.length ? lines : null;
+            paintOverlays();
+          },
+        })
+      : null;
 
   // ── Move tree (right-click a move to promote/delete its branch) ──
   const isPrefix = (prefix: TreePath, of: TreePath): boolean =>
@@ -417,13 +430,13 @@ export function mountTreeReview<Move, Truth, View, Color, Arrow, Marker>(
     boardCols: presentation.boardCols,
     underboard: config.analysis ? underboardEl : undefined,
     underboardOverflows: true,
-    enginePanel: enginePanel.el,
+    enginePanel: enginePanel?.el,
     moves: moveTree.el,
     moveComment: moveAdvice.el,
     annotations: annotationEditor?.el,
     navigation: controls.el,
     analysisSummary: analysisSummaryEl,
-    gauge: evalBar.el,
+    gauge: evalBar?.el,
     onPromote: () => render(),
   });
 
@@ -475,19 +488,19 @@ export function mountTreeReview<Move, Truth, View, Color, Arrow, Marker>(
     const node = currentNode();
     const view = currentView();
     interactive.render(view, orientation());
-    evalBar.setFlipped(flipped);
+    evalBar?.setFlipped(flipped);
 
     // Order matters: setPosition fires onLines(null) synchronously when the
     // engine is on (stale-arrow clear); the explicit paintOverlays below then
     // repaints for the new node (engine/analysis arrows + the node's user shapes),
     // covering the engine-off case where setPosition fires no onLines.
-    enginePanel.setPosition(uciTo(node));
+    enginePanel?.setPosition(uciTo(node));
     paintOverlays();
     annotationEditor?.setAnnotations(node.annotations);
     moveTree.setCurrent(currentPath);
     controls.setBounds({ atStart: currentPath.length === 0, atEnd: node.children.length === 0 });
     // Live-refresh the Share tab's FEN + move export for the current node/line.
-    shareFenInput.value = presentation.engineFen(node.truth);
+    if (presentation.engine) shareFenInput.value = presentation.engine.fen(node.truth);
     shareMovesInput.value = uciTo(node).join(' ');
     chart?.setPly(node.ply);
     moveAdvice.update(node.ply, gameAnalysis);
